@@ -28,7 +28,7 @@
       };
 
       # Resolve subprojects
-      chainlink-ton = pkgs.callPackage ./default.nix commonArgs;
+      chainlink-ton = pkgs.callPackage ./cmd/chainlink-ton commonArgs;
       #   contracts = pkgs.callPackage ./contracts commonArgs;
     in rec {
       # Output a set of dev environments (shells)

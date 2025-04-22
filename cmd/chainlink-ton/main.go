@@ -48,10 +48,8 @@ type pluginRelayer struct {
 	loop.Plugin
 }
 
-// NewRelayer implements the Loopp factory method used by the Loopp server to instantiate a aptos relayer
+// NewRelayer implements the Loopp factory method used by the Loopp server to instantiate a relayer
 // [github.com/smartcontractkit/chainlink-common/pkg/loop.PluginRelayer]
-// loopKs must be an implementation that can construct a aptos keystore adapter
-// [github.com/smartcontractkit/chainlink-aptos/relayer/txm.NewKeystoreAdapter]
 func (p *pluginRelayer) NewRelayer(ctx context.Context, rawConfig string, loopKs loop.Keystore, capRegistry core.CapabilitiesRegistry) (loop.Relayer, error) {
 	// TODO: Initialize the chain and relayer service
 	return nil, fmt.Errorf("not implemented")

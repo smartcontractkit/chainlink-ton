@@ -1,4 +1,4 @@
-module github.com/smartcontractkit/chainlink-aptos
+module github.com/smartcontractkit/chainlink-ton
 
 go 1.24.2
 

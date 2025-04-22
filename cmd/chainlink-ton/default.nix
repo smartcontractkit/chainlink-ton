@@ -14,7 +14,7 @@ in
     pname = "chainlink-ton";
 
     # source at the root of the module
-    src = ./.;
+    src = ./../..;
     subPackages = ["cmd/chainlink-ton"];
 
     ldflags = [

@@ -8,7 +8,7 @@ on:
 
 jobs:
   build-and-test:
-    name: Integration Tests
+    name: Build & Unit Test
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
