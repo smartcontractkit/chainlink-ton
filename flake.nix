@@ -27,20 +27,25 @@
         inherit rev;
       };
 
-      # Resolve subprojects
+      # Resolve root module
       chainlink-ton = pkgs.callPackage ./cmd/chainlink-ton commonArgs;
-      #   contracts = pkgs.callPackage ./contracts commonArgs;
+      # Resolve sub-modules
+      contracts = pkgs.callPackage ./contracts commonArgs;
     in rec {
       # Output a set of dev environments (shells)
-      devShells = {
-        default = pkgs.callPackage ./shell.nix {inherit pkgs;};
-      };
+      devShells =
+        {
+          default = pkgs.callPackage ./shell.nix {inherit pkgs;};
+        }
+        // contracts.devShells;
 
       # Output a set of packages (e.g., CL core node plugins, sc artifacts, etc.)
-      packages = {
-        # Chainlink core node plugin (default + alias)
-        inherit chainlink-ton;
-        default = chainlink-ton;
-      };
+      packages =
+        {
+          # Chainlink core node plugin (default + alias)
+          inherit chainlink-ton;
+          default = chainlink-ton;
+        }
+        // contracts.packages;
     });
 }
