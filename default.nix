@@ -1,0 +1,40 @@
+{
+  pkgs,
+  rev,
+}: let
+  # TODO: read from standard package.json when adopting changesets
+  # package-info = builtins.fromJSON (builtins.readFile ./package.json);
+  package-info = {
+    version = "0.0.1";
+    description = "Chainlink plugin - TON relayer";
+  };
+in
+  pkgs.buildGo124Module rec {
+    inherit (package-info) version;
+    pname = "chainlink-ton";
+
+    # source at the root of the module
+    src = ./.;
+    subPackages = ["cmd/chainlink-ton"];
+
+    ldflags = [
+      "-X main.Version=${package-info.version}"
+      "-X main.GitCommit=${rev}"
+    ];
+
+    # pin the vendor hash (update using 'pkgs.lib.fakeHash')
+    vendorHash = "sha256-effSX57JQUNnnAw3d4mKEfShuWkwuj+KfKjk5bB6UeM=";
+
+    # postInstall script to write version and rev to share folder
+    postInstall = ''
+      mkdir $out/share
+      echo ${package-info.version} > $out/share/.version
+      echo ${rev} > $out/share/.rev
+    '';
+
+    meta = with pkgs.lib; {
+      inherit (package-info) description;
+      license = licenses.mit;
+      changelog = "https://github.com/smartcontractkit/chainlink-ton/releases/tag/v${version}";
+    };
+  }
