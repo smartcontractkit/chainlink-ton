@@ -2,7 +2,7 @@
   description = "Chainlink TON - a repository of Chainlink integration components to support TON";
 
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/release-24.11";
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
   };
 
