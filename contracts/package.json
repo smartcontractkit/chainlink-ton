@@ -5,6 +5,11 @@
   "author": "Chainlink Labs",
   "license": "BUSL-1.1",
   "private": false,
+  "files": [
+    "build",
+    "contracts",
+    "wrappers"
+  ],
   "scripts": {
     "bp": "blueprint",
     "start": "blueprint run",
