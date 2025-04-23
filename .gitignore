@@ -1,7 +1,21 @@
 # Code editor local settings
-.vscode/
+
+# VS Code
+.vscode/*
+.history/
+*.vsix
+
+# IDEA files
+.idea
+
+# VIM
+Session.vim
+.vim/
+
+# Other editors
+.nvim/
+.emacs/
 .helix/
-.idea/
 
 # Keep some docs local
 docs/local/**
