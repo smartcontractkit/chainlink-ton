@@ -6,7 +6,6 @@
 // Messages correspond to FunC/Tolk opcodes for setter operations.
 // Opcodes are explicitly set to match the original constants.
 
-// Corresponds to FunC op::set_min_bettor_count = 4;
 message(4) SetCount {
     queryId: Int as uint64; // Standard query_id field
     newCount: Int as uint32; // Argument for the operation
