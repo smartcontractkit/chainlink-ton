@@ -15,10 +15,13 @@ pkgs.mkShell {
       delve
       golangci-lint
       gotools
+      go-mockery
 
       # Extra tools
       git
       jq
+      kubectl
+      kubernetes-helm
     ]
     ++ lib.optionals stdenv.hostPlatform.isDarwin [
       libiconv
