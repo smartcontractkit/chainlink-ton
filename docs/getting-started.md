@@ -1,4 +1,4 @@
-# Chainlin Integration - TON - Getting started
+# Chainlink TON - Getting started
 
 1. Install Nix following instructions [here](./../.misc/dev-guides/nix/getting-started.md).
 2. Explore developer environment
@@ -19,3 +19,8 @@ List all available developer shells and packages with:
 ```bash
 nix flake show
 ```
+
+Build packages:
+
+- [nix build .#chainlink-ton](./plugin/build.md)
+- [nix build .#chainlink-contracts-ton](./contracts/build.md)

@@ -1,5 +1,5 @@
 
-### Build - Chainlink TON LOOP plugin
+# Chainlink TON - LOOP plugin - Build
 
 Build `chainlink-ton` Nix package:
 
@@ -21,5 +21,5 @@ Build `chainlink-ton` bin manually:
 # Enter the default dev shell
 nix develop
 # Build the LOOP plugin
-go build ./cmd/chainlink-ton
+go build -v ./cmd/chainlink-ton
 ```

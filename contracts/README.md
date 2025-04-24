@@ -1,4 +1,4 @@
-# Chainlink TON smart contracts
+# Chainlink TON - Smart Contracts
 
 ## Project structure
 
@@ -7,13 +7,7 @@
 -   `tests` - tests for the contracts.
 -   `scripts` - scripts used by the project, mainly the deployment scripts.
 
-## Getting started
+## Documentation
 
-Set up the developer environment and dependencies:
-
-```bash
-nix develop .#contracts
-
-pushd contracts
-yarn
-```
+- [Getting Started](../docs/getting-started.md)
+- [Build](../docs/contracts/build.md)

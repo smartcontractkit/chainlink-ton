@@ -1,5 +1,4 @@
-
-### Build - Chainlink TON contracts
+# Chainlink TON - Smart Contracts - Build
 
 Build `chainlink-contracts-ton` Nix package:
 
