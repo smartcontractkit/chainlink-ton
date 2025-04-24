@@ -2,12 +2,7 @@
   pkgs,
   rev,
 }: let
-  # TODO: read from standard package.json when adopting changesets
-  # package-info = builtins.fromJSON (builtins.readFile ./package.json);
-  package-info = {
-    version = "0.0.1";
-    description = "Chainlink plugin - TON relayer";
-  };
+  package-info = builtins.fromJSON (builtins.readFile ../../package.json);
 in
   pkgs.buildGo124Module rec {
     inherit (package-info) version;
