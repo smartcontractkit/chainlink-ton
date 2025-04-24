@@ -3,6 +3,9 @@
   rev,
 }: let
   package-info = builtins.fromJSON (builtins.readFile ./package.json);
+
+  # source yarn.lock at the root of the repo
+  yarnLock = ../yarn.lock;
 in {
   # Output a set of specifc shells
   devShells = {
@@ -18,10 +21,16 @@ in {
       src = ./.;
 
       yarnOfflineCache = pkgs.fetchYarnDeps {
-        yarnLock = finalAttrs.src + "/yarn.lock";
+        inherit yarnLock;
         # pin the vendor hash (update using 'pkgs.lib.fakeHash')
-        hash = "sha256-jpmr/Dke32UJmdCLYlpJAc4rxkARd2n5vDG52D3pVVw=";
+        hash = "sha256-KA9qsM2TsKwHjJVvDamGvvB6P5dMKLL5onftnKPkRvU=";
       };
+
+      # postPatch script to copy root yarn.lock to the current build directory (and make it writeable)
+      postPatch = ''
+        cp ${yarnLock} ./yarn.lock
+        chmod u+w ./yarn.lock
+      '';
 
       nativeBuildInputs = with pkgs; [
         yarnConfigHook
