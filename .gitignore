@@ -25,3 +25,6 @@ docs/local/**
 
 # Nix packaged script (impure builds) default output - any '.build' folder in the tree
 **/.build
+
+# Root node tools
+node_modules/
