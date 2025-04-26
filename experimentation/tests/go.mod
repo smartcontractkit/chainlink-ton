@@ -4,7 +4,7 @@ go 1.23.6
 
 toolchain go1.23.8
 
-replace github.com/smartcontractkit/chainlink-ton/utils => ../utils
+replace github.com/smartcontractkit/chainlink-ton/utils => ../../utils
 
 require (
 	github.com/joho/godotenv v1.5.1
