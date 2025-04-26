@@ -1,15 +1,5 @@
 # Contract examples
 
-## TODO
-
-- [x] Deposit
-- [x] Test possible replay attack
-- [ ] Two msg chain
-- [ ] Request-reply
-- [ ] Request-reply with two dependencies
-- [ ] Two phase commit
-- [ ] Saga pattern <https://medium.com/cloud-native-daily/microservices-patterns-part-04-saga-pattern-a7f85d8d4aa3>
-
 ## Convention
 
 In the following diagrams, I am using dashed-line arrows --> to denote external messages, solid-line arrows for internal messages, actor for rpc clients and blocks for smart contracts.
@@ -22,7 +12,7 @@ sequenceDiagram
     ContractA->>ContractB:internalMsg
 ```
 
-## Deposit
+## [x] Deposit
 
 Simple deposit from one wallet to another
 
@@ -36,11 +26,11 @@ sequenceDiagram
     BobWallet-->>-Bob: balance
 ```
 
-## Test possible replay attack
+## [x] Test possible replay attack
 
 An article described a possible attack vector consisting on replaying failed transactions. It suggested that the seqno of a wallet was not incremented when processing a transfer with an amount higher than the balance. This was proven to be false.
 
-## Two msg chain
+## [ ] Two msg chain
 
 ```mermaid
 sequenceDiagram
@@ -55,7 +45,7 @@ sequenceDiagram
     Memory-->>-Alice: stored value
 ```
 
-## Request-reply
+## [ ] Request-reply
 
 ```mermaid
 sequenceDiagram
@@ -78,7 +68,7 @@ sequenceDiagram
     Storage-->>-Alice: stored price
 ```
 
-## Request-reply with two dependencies
+## [ ] Request-reply with two dependencies
 
 ```mermaid
 sequenceDiagram
@@ -105,3 +95,44 @@ sequenceDiagram
     Alice-->>+Storage: getStoredValue(queryID)
     Storage-->>-Alice: stored price
 ```
+
+## [ ] Two-phase Commit
+
+```mermaid
+sequenceDiagram
+    actor Alice
+    Alice-->>+AliceWallet: send(DBAddr, beginTransaction(queryID))
+    AliceWallet->>+DB: beginTransaction(queryID)
+    deactivate AliceWallet
+    Alice-->>+AliceWallet: send(DBAddr, setValue(queryID, CounterAAddr, 1))
+    AliceWallet->>+DB: setValue(queryID, CounterAAddr, 1)
+    deactivate AliceWallet
+    DB->>DB: addPendingAck(queriID, counterA)
+    DB->>+CounterA: prepareSetValue(1)
+    deactivate DB
+    Alice-->>+AliceWallet: send(DBAddr, setValue(queryID, CounterBAddr, 1))
+    AliceWallet->>+DB: setValue(queryID, CounterBAddr, 2)
+    deactivate AliceWallet
+    DB->>DB: addPendingAck(queriID, counterB)
+    DB->>+CounterB: prepareSetValue(2)
+    deactivate DB
+    Alice-->>+AliceWallet: send(DBAddr, commit(queryID))
+    AliceWallet->>+DB: commit(queryID)
+    deactivate AliceWallet
+    DB->>DB: await for acks
+    deactivate DB
+    CounterA->>+DB: ack(queryID)
+    deactivate CounterA
+    DB->>DB: rmPendingAck(queriID, counterA)
+    deactivate DB
+    CounterB->>+DB: ack(queryID)
+    deactivate CounterB
+    DB->>DB: rmPendingAck(queriID, counterB)
+    DB->>+CounterA: saveValue()
+    DB->>+CounterB: saveValue()
+    deactivate DB
+    CounterA->>-CounterA:SaveValue()
+    CounterB->>-CounterB:SaveValue()
+```
+
+## [ ] Saga pattern <https://medium.com/cloud-native-daily/microservices-patterns-part-04-saga-pattern-a7f85d8d4aa3>
