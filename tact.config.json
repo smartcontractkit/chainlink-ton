@@ -1,0 +1,15 @@
+{
+    "$schema": "http://raw.githubusercontent.com/tact-lang/tact/main/src/config/configSchema.json",
+    "projects": [
+        {
+            "name": "memory",
+            "path": "contracts/contracts/examples/two-msg-chain/memory.tact",
+            "output": "contracts/build/examples/two-msg-chain/memory"
+        },
+        {
+            "name": "storage",
+            "path": "contracts/contracts/examples/two-msg-chain/storage.tact",
+            "output": "contracts/build/examples/two-msg-chain/storage"
+        }
+    ]
+}

@@ -44,7 +44,7 @@ sequenceDiagram
 
 An article described a possible attack vector consisting on replaying failed transactions. It suggested that the seqno of a wallet was not incremented when processing a transfer with an amount higher than the balance. This was proven to be false.
 
-### [ ] Two msg chain
+### [x] Two msg chain
 
 ```mermaid
 sequenceDiagram

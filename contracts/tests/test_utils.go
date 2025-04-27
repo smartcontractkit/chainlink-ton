@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/joho/godotenv"
-	"github.com/smartcontractkit/chainlink-ton/utils"
+	"github.com/smartcontractkit/chainlink-ton/pkg/utils"
 	"github.com/stretchr/testify/assert"
 	liteclient "github.com/xssnick/tonutils-go/liteclient"
 	"github.com/xssnick/tonutils-go/tlb"

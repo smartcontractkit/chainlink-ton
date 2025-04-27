@@ -8,7 +8,8 @@
   ],
   "scripts": {
     "ci:changeset:publish": "yarn changeset publish",
-    "ci:changeset:version": "yarn changeset version && yarn version patch --no-git-tag"
+    "ci:changeset:version": "yarn changeset version && yarn version patch --no-git-tag",
+    "dev:build": "yarn tact --config tact.config.json"
   },
   "repository": {
     "type": "git",
@@ -23,6 +24,7 @@
   "devDependencies": {
     "@changesets/changelog-github": "^0.5.1",
     "@changesets/cli": "~2.29.2",
-    "semver": "^7.7.1"
+    "semver": "^7.7.1",
+    "@tact-lang/compiler": "1.6.7"
   }
 }
