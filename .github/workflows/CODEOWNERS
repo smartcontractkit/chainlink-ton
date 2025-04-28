@@ -1,0 +1,31 @@
+# CODEOWNERS Best Practices
+#
+# 1. Per Github docs: "Order is important; the last matching pattern takes the most precedence."
+# Please define less specific codeowner paths before more specific codeowner paths in order for the more specific rule to have priority
+#
+# The following doc explains the CODEOWNERS file syntax:
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners#codeowners-syntax
+
+# global ownership
+* @smartcontractkit/bix-build
+# TODO: migrate to @smartcontractkit/blockchain-connectivity (ex. /bix-framework)
+
+# off-chain code ownership
+/pkg @smartcontractkit/bix-build
+# TODO: migrate to @smartcontractkit/blockchain-connectivity (ex. /bix-framework)
+
+# LOOP Plugin commands ownership
+/pkg/cmd/chainlink-ton @smartcontractkit/bix-build
+# TODO: migrate to @smartcontractkit/foundations @smartcontractkit/blockchain-connectivity (ex. /bix-framework)
+
+# e2e test ownership
+/integration-tests @smartcontractkit/bix-build
+# TODO: migrate to @smartcontractkit/qa @smartcontractkit/blockchain-connectivity (ex. /bix-framework)
+
+# on-chain code ownership
+/contracts @smartcontractkit/bix-build
+# TODO: migrate to @smartcontractkit/blockchain-connectivity (ex. /bix-framework)
+
+# CI/CD
+/.github/** @smartcontractkit/bix-build
+# TODO: migrate to @smartcontractkit/releng @smartcontractkit/blockchain-connectivity (ex. /bix-framework)

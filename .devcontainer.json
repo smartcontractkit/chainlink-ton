@@ -1,0 +1,24 @@
+{
+  "name": "nix-devcontainer",
+  "image": "ghcr.io/xtruder/nix-devcontainer:v1",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        // Inject direnv variables into VS Code terminals and tasks:
+        "mkhl.direnv",
+        // Add support for `.nix` files:
+        "jnoortheen.nix-ide",
+        // Nix language support for VS Code
+        "bbenoist.Nix",
+        // Add Nix linter support
+        "kamadorueda.alejandra",
+        // Tact language support for VS Code
+        "tonstudio.vscode-tact",
+        // Go language support for VS Code
+        "golang.go"
+      ]
+    }
+  },
+  "overrideCommand": false,
+  "runArgs": ["--network=host", "--security-opt", "label=disable"]
+}
