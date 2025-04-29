@@ -7,8 +7,6 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
-// const MEMORY_CONTRACT_PATH = "contracts/build/examples/two-msg-chain/memory/memory_Memory.pkg"
-
 const MEMORY_CONTRACT_PATH = "../build/examples/two-msg-chain/memory/memory_Memory.pkg"
 
 type MemoryProvider struct {
@@ -22,15 +20,15 @@ func NewMemoryProvider(apiClient utils.ApiClient) *MemoryProvider {
 }
 
 type MemoryIninData struct {
-	ID    uint32
-	Value uint32
+	ID uint32
 }
 
 func (p *MemoryProvider) Deploy(initData MemoryIninData) (Memory, error) {
 	// Deploy the contract
 	b := cell.BeginCell()
+	b.StoreUInt(0, 1) // For some reason, if the contract is defined with an init function, you must write a 0 bit before the arguments
 	b.StoreUInt(uint64(initData.ID), 32)
-	b.StoreUInt(uint64(initData.Value), 32)
+	b.StoreUInt(uint64(0), 32)
 	contract, err := p.ac.Deploy(MEMORY_CONTRACT_PATH, b.EndCell())
 	if err != nil {
 		return Memory{}, err

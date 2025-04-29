@@ -59,7 +59,7 @@ sequenceDiagram
     Memory-->>-Alice: stored value
 ```
 
-### [ ] Request-reply
+### [x] Request-reply
 
 ```mermaid
 sequenceDiagram
@@ -150,3 +150,25 @@ sequenceDiagram
 ```
 
 ### [ ] Saga pattern <https://medium.com/cloud-native-daily/microservices-patterns-part-04-saga-pattern-a7f85d8d4aa3>
+
+## Discoveries
+
+### Leading 0 bit on init data
+
+Tact allows you two ways to declare the init process of a contract: [contract parameters](https://docs.tact-lang.org/book/contracts/#parameters) and [Constructor function init()](https://docs.tact-lang.org/book/contracts/#init-function). When encoding the init data for the latter, you must add a bit of value 0 before storing the rest of the arguments. I am not sure why, but I found out about this via the TS bindings generated.
+
+When
+
+### How to emmit event in Tact
+
+```tact
+let fizz: StringBuilder = beginComment();
+fizz.append("GetPrice: ");
+fizz.append("query_id: ");
+fizz.append(msg.query_id.toString());
+fizz.append(", key: ");
+fizz.append(msg.key.toString());
+emit(fizz.toCell());
+```
+
+This are stored in the `Events` field of `MessageReceived`.

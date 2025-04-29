@@ -12,7 +12,9 @@ import (
 
 func TestDepositFees(t *testing.T) {
 	const initialAmmount = 1_000_000_000_000
-	alice, bob := setUpTest(t, initialAmmount)
+	accs := setUpTest(t, initialAmmount, 2)
+	alice := accs[0]
+	bob := accs[1]
 
 	const transferAmount = 100
 	fmt.Printf("\n\n\n\n\n\nTestStarted\n==========================\n")

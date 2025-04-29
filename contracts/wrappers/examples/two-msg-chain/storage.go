@@ -8,8 +8,6 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
-// const STORAGE_CONTRACT_PATH = "contracts/build/examples/two-msg-chain/storage/storage_Storage.pkg"
-
 const STORAGE_CONTRACT_PATH = "../build/examples/two-msg-chain/storage/storage_Storage.pkg"
 
 type StorageProvider struct {

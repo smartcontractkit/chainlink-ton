@@ -1,7 +1,6 @@
 package experimentation
 
 import (
-	"fmt"
 	"math/rand/v2"
 	"testing"
 
@@ -9,20 +8,16 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func Logf(fmts string, args ...any) {
-	// print in green color
-	fmt.Printf("\n\033[32m"+fmts+"\033[0m\n", args...)
-}
-
 func TestTwoMsgChain(t *testing.T) {
 	t.Run("TestMemoryContract", func(t *testing.T) {
 		t.Skip()
 		const initialAmmount = 1_000_000_000_000
-		alice, _ := setUpTest(t, initialAmmount)
-		const initValue = uint32(1)
+		accs := setUpTest(t, initialAmmount, 1)
+		alice := accs[0]
+		const initValue = uint32(0)
 		Logf("\n\n\n\n\n\nTestStarted\n==========================\n")
 		Logf("Deploying memory contract with initial value %d\n", initValue)
-		memoryContract, err := two_msg_chain.NewMemoryProvider(alice).Deploy(two_msg_chain.MemoryIninData{ID: rand.Uint32(), Value: initValue})
+		memoryContract, err := two_msg_chain.NewMemoryProvider(alice).Deploy(two_msg_chain.MemoryIninData{ID: rand.Uint32()})
 		assert.NoError(t, err, "Failed to deploy memory contract: %v", err)
 		Logf("Memory contract deployed at %s\n", memoryContract.Contract.Address.String())
 		Logf("Checking if memory contract is deployed\n")
@@ -43,13 +38,14 @@ func TestTwoMsgChain(t *testing.T) {
 
 	t.Run("TestTwoMsgChain", func(t *testing.T) {
 		const initialAmmount = 1_000_000_000_000
-		alice, _ := setUpTest(t, initialAmmount)
+		accs := setUpTest(t, initialAmmount, 1)
+		alice := accs[0]
 
 		const transferAmount = 100
 		Logf("\n\n\n\n\n\nTestStarted\n==========================\n")
-		const initValue = uint32(1)
+		const initValue = uint32(0)
 		Logf("Deploying memory contract with initial value %d\n", initValue)
-		memoryContract, err := two_msg_chain.NewMemoryProvider(alice).Deploy(two_msg_chain.MemoryIninData{ID: (rand.Uint32()), Value: initValue})
+		memoryContract, err := two_msg_chain.NewMemoryProvider(alice).Deploy(two_msg_chain.MemoryIninData{ID: (rand.Uint32())})
 		assert.NoError(t, err, "Failed to deploy memory contract: %v", err)
 		Logf("Memory contract deployed at %s\n", memoryContract.Contract.Address.String())
 

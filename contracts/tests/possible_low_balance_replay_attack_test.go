@@ -17,7 +17,9 @@ func TestLowBalanceReplayAttack(t *testing.T) {
 	const initialAmmount = 1_000_000_000_000
 
 	// Connect to TON testnet
-	alice, bob := setUpTest(t, initialAmmount)
+	accs := setUpTest(t, initialAmmount, 2)
+	alice := accs[0]
+	bob := accs[1]
 
 	fmt.Printf("\n\n\n\n\n\nTestStarted\n==========================\n")
 	// Try deposit with low lastBalance

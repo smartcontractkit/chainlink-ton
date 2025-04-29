@@ -88,10 +88,69 @@ func (ac *ApiClient) SubscribeToTransactions(address address.Address, lt uint64)
 	return transactionsReceived
 }
 
+func (ac *ApiClient) SubscribeToMessages(address address.Address, lt uint64) chan *MessageReceived {
+	messagesReceived := make(chan *MessageReceived)
+	go func() {
+		transactionsReceived := ac.SubscribeToTransactions(address, lt)
+
+		for rTX := range transactionsReceived {
+			if rTX.IO.In != nil {
+				fmt.Printf("Transaction is internal\n")
+				var err error
+				receivedMessage, err := MapToReceivedMessage(rTX)
+				if err != nil {
+					fmt.Printf("failed to process incoming message: %s\n", err)
+				}
+				messagesReceived <- &receivedMessage
+			}
+		}
+	}()
+	return messagesReceived
+}
+
 type CompiledContract struct {
 	Name string `json:"name"`
 	Code string `json:"code"`
 	Abi  string `json:"abi"`
+}
+
+var exitCodeDescriptions map[int32]string = map[int32]string{
+	2:   "Stack underflow",
+	3:   "Stack overflow",
+	4:   "Integer overflow",
+	5:   "Integer out of expected range",
+	6:   "Invalid opcode",
+	7:   "Type check error",
+	8:   "Cell overflow",
+	9:   "Cell underflow",
+	10:  "Dictionary error",
+	11:  "'Unknown' error",
+	12:  "Fatal error",
+	13:  "Out of gas error",
+	14:  "Virtualization error",
+	32:  "Action list is invalid",
+	33:  "Action list is too long",
+	34:  "Action is invalid or not supported",
+	35:  "Invalid source address in outbound message",
+	36:  "Invalid destination address in outbound message",
+	37:  "Not enough Toncoin",
+	38:  "Not enough extra currencies",
+	39:  "Outbound message does not fit into a cell after rewriting",
+	40:  "Cannot process a message",
+	41:  "Library reference is null",
+	42:  "Library change action error",
+	43:  "Exceeded maximum number of cells in the library or the maximum depth of the Merkle tree",
+	50:  "Account state size exceeded limits",
+	128: "Null reference exception",
+	129: "Invalid serialization prefix",
+	130: "Invalid incoming message",
+	131: "Constraints error",
+	132: "Access denied",
+	133: "Contract stopped",
+	134: "Invalid argument",
+	135: "Code of a contract was not found",
+	136: "Invalid standard address",
+	138: "Not a basechain address",
 }
 
 func (ac *ApiClient) Deploy(contractPath string, initData *cell.Cell) (*Contract, error) {
@@ -141,6 +200,15 @@ func (ac *ApiClient) Deploy(contractPath string, initData *cell.Cell) (*Contract
 	if err != nil {
 		return nil, fmt.Errorf("failed to wait for trace: %w", err)
 	}
+	if receivedMessage.ExitCode != 0 || len(receivedMessage.OutgoingMessagesReceived) != 1 {
+		return nil, fmt.Errorf("contract deployment failed: error sending external message: exit code %d: %s", receivedMessage.ExitCode, exitCodeDescriptions[receivedMessage.ExitCode])
+
+	}
+	deployExitCode := receivedMessage.OutgoingMessagesReceived[0].ExitCode
+	if deployExitCode != 130 {
+		return nil, fmt.Errorf("contract deployment failed: exit code %d: %s", deployExitCode, exitCodeDescriptions[deployExitCode])
+	}
+
 	fmt.Printf("Contract deployed successfully!\n")
 	fmt.Printf("Contract address: %s\n", addr.String())
 	fmt.Printf("Transaction ID: %s\n", tx)

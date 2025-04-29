@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
 // MsgStatus represents the status of a message in the TON blockchain.
@@ -67,6 +68,22 @@ type MessageReceived struct {
 	ExitCode                 int32              //
 	OutgoingMessagesSent     []*MessageSent     //
 	OutgoingMessagesReceived []*MessageReceived //
+	Events                   []Event
+}
+
+type Event struct {
+	CreatedAt uint32
+	LT        uint64
+	Body      *cell.Cell
+}
+
+func (e *Event) AsString() (string, error) {
+	str, err := e.Body.BeginParse().LoadStringSnake()
+	if err != nil {
+		return "", fmt.Errorf("failed to parse event body: %s\n", err)
+	} else {
+		return str, nil
+	}
 }
 
 func (m *MessageReceived) TotalActionPhaseFees() uint {
@@ -247,12 +264,20 @@ func (m *MessageReceived) mapOutgoingMessages(outgoingMessages []tlb.Message) {
 	m.OutgoingMessagesSent = make([]*MessageSent, 0, len(outgoingMessages))
 	for _, outgoingMessage := range outgoingMessages {
 		fmt.Printf("- MsgType %+v\n", outgoingMessage.MsgType)
-		if outgoingMessage.MsgType == tlb.MsgTypeInternal {
+		switch outgoingMessage.MsgType {
+		case tlb.MsgTypeInternal:
 			outgoingInternalMessage := outgoingMessage.AsInternal()
 			fmt.Printf("Outgoing message: %+v\n", outgoingInternalMessage)
 			m.AppendSentMessage(outgoingInternalMessage)
+		case tlb.MsgTypeExternalOut:
+			outgoingExternalMessage := outgoingMessage.AsExternalOut()
+			m.AppendEvent(outgoingExternalMessage)
 		}
 	}
+}
+
+func (m *MessageReceived) AppendEvent(outMsg *tlb.ExternalMessageOut) {
+	m.Events = append(m.Events, Event{outMsg.CreatedAt, outMsg.CreatedLT, outMsg.Body})
 }
 
 // AppendSentMessage appends the outgoing message to the list of sent messages

@@ -17,7 +17,7 @@ import (
 	wallet "github.com/xssnick/tonutils-go/ton/wallet"
 )
 
-func setUpTest(t *testing.T, initialAmmount uint) (utils.ApiClient, utils.ApiClient) {
+func setUpTest(t *testing.T, initialAmmount uint, count uint) []utils.ApiClient {
 	// Connect to TON testnet
 	client := liteclient.NewConnectionPool()
 	cfg, err := liteclient.GetConfigFromUrl(context.Background(), "http://127.0.0.1:8000/localhost.global.config.json")
@@ -44,9 +44,12 @@ func setUpTest(t *testing.T, initialAmmount uint) (utils.ApiClient, utils.ApiCli
 
 	initialCoinAmount := tlb.FromNanoTON(new(big.Int).SetUint64(uint64(initialAmmount)))
 
-	alice := createAndFundWallet(t, api, funder, initialCoinAmount)
-	bob := createAndFundWallet(t, api, funder, initialCoinAmount)
-	return alice, bob
+	accounts := make([]utils.ApiClient, count)
+	for i := range count {
+		accounts[i] = createAndFundWallet(t, api, funder, initialCoinAmount)
+	}
+
+	return accounts
 }
 
 func createAndFundWallet(t *testing.T, api *ton.APIClient, funder utils.ApiClient, initialCoinAmount tlb.Coins) utils.ApiClient {
@@ -199,4 +202,9 @@ func MustGetBalance(t *testing.T, apiClient utils.ApiClient) uint {
 	finalBalance, err := GetBalance(apiClient)
 	assert.NoError(t, err, "Failed to get balance: %v", err)
 	return finalBalance
+}
+
+func Logf(fmts string, args ...any) {
+	// print in green color
+	fmt.Printf("\n\033[32m"+fmts+"\033[0m\n", args...)
 }
