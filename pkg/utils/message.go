@@ -277,7 +277,10 @@ func (m *MessageReceived) mapOutgoingMessages(outgoingMessages []tlb.Message) {
 }
 
 func (m *MessageReceived) AppendEvent(outMsg *tlb.ExternalMessageOut) {
-	m.Events = append(m.Events, Event{outMsg.CreatedAt, outMsg.CreatedLT, outMsg.Body})
+	e := Event{outMsg.CreatedAt, outMsg.CreatedLT, outMsg.Body}
+	str, _ := e.AsString()
+	fmt.Printf("Event: %s", str)
+	m.Events = append(m.Events, e)
 }
 
 // AppendSentMessage appends the outgoing message to the list of sent messages

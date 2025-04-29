@@ -183,7 +183,7 @@ func (ac *ApiClient) Deploy(contractPath string, initData *cell.Cell) (*Contract
 	// Deploy the contract
 	addr, tx, block, err := ac.Wallet.DeployContractWaitTransaction(
 		context.Background(),
-		tlb.MustFromTON("0.05"), // Amount to attach to deployment
+		tlb.MustFromTON("1"), // Amount to attach to deployment
 		msgBody,
 		codeCell,
 		initData,

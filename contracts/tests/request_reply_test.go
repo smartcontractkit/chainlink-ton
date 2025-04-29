@@ -132,7 +132,7 @@ func (ar *ActorRegistry) AddActor(address *address.Address, lt uint64, name stri
 }
 
 func TestRequestReply(t *testing.T) {
-	t.Run("TestTwoMsgChain", func(t *testing.T) {
+	t.Run("TestRequestReply", func(t *testing.T) {
 		const initialAmmount = 1_000_000_000_000
 		seeders := setUpTest(t, initialAmmount, 1)
 		alice := seeders[0]

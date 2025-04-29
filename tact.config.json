@@ -4,42 +4,47 @@
         {
             "name": "memory",
             "path": "contracts/contracts/examples/two-msg-chain/memory.tact",
-            "output": "contracts/build/examples/two-msg-chain/memory",
-            "options": {
-                "debug": true
-            }
+            "output": "contracts/build/examples/two-msg-chain/memory"
         },
         {
             "name": "storage",
             "path": "contracts/contracts/examples/two-msg-chain/storage.tact",
-            "output": "contracts/build/examples/two-msg-chain/storage",
-            "options": {
-                "debug": true
-            }
+            "output": "contracts/build/examples/two-msg-chain/storage"
         },
         {
             "name": "storage",
             "path": "contracts/contracts/examples/request-reply/storage.tact",
-            "output": "contracts/build/examples/request-reply/storage",
-            "options": {
-                "debug": true
-            }
+            "output": "contracts/build/examples/request-reply/storage"
         },
         {
             "name": "price_registry",
             "path": "contracts/contracts/examples/request-reply/price_registry.tact",
-            "output": "contracts/build/examples/request-reply/price_registry",
-            "options": {
-                "debug": true
-            }
+            "output": "contracts/build/examples/request-reply/price_registry"
         },
         {
             "name": "item_price",
             "path": "contracts/contracts/examples/request-reply/item_price.tact",
-            "output": "contracts/build/examples/request-reply/item_price",
-            "options": {
-                "debug": true
-            }
+            "output": "contracts/build/examples/request-reply/item_price"
+        },
+        {
+            "name": "inventory",
+            "path": "contracts/contracts/examples/request-reply-with-two-dependencies/inventory.tact",
+            "output": "contracts/build/examples/request-reply-with-two-dependencies/inventory"
+        },
+        {
+            "name": "item_price",
+            "path": "contracts/contracts/examples/request-reply-with-two-dependencies/item_price.tact",
+            "output": "contracts/build/examples/request-reply-with-two-dependencies/item_price"
+        },
+        {
+            "name": "item_count",
+            "path": "contracts/contracts/examples/request-reply-with-two-dependencies/item_count.tact",
+            "output": "contracts/build/examples/request-reply-with-two-dependencies/item_count"
+        },
+        {
+            "name": "storage",
+            "path": "contracts/contracts/examples/request-reply-with-two-dependencies/storage.tact",
+            "output": "contracts/build/examples/request-reply-with-two-dependencies/storage"
         }
     ]
 }

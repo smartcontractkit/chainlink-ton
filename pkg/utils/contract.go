@@ -54,7 +54,7 @@ func (c *Contract) SendMessageWait(body *cell.Cell) (*MessageReceived, error) {
 				IHRDisabled: true,
 				Bounce:      true,
 				DstAddr:     c.Address,
-				Amount:      tlb.MustFromTON("0.05"),
+				Amount:      tlb.MustFromTON("0.1"),
 				Body:        body,
 			},
 		},
