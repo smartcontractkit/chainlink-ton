@@ -26,13 +26,13 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Cache TON volumes for faster startup
+      # cache TON volumes for faster startup
       - name: Check for cached volumes
         id: cache-volumes
         uses: actions/cache@v4
         with:
           path: ~/.ton-volumes
-          key: ${{ runner.os }}-ton-volumes-${{ hashFiles('docker-compose.yaml') }}
+          key: ${{ runner.os }}-ton-volumes-${{ hashFiles('scripts/localnet/docker-compose.yaml') }}
 
       - name: Prepare bind mounts
         run: |
