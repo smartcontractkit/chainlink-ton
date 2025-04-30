@@ -1,9 +1,9 @@
-// Ownable2Step trait which implements basic 2-step ownership transfer and nothing more. Does not utilize @stdlib/ownable.
+// Ownable2Step trait which implements basic 2-step ownership transfer and nothing more. 
+// Does not utilize @stdlib/ownable.
 
 const ERROR_ONLY_CALLABLE_BY_OWNER: Int = 1000;
 const ERROR_CANNOT_TRANSFER_TO_SELF: Int = 1001;
-const ERROR_OWNER_CANNOT_BE_ZERO: Int = 1002;
-const ERROR_MUST_BE_PROPOSED_OWNER: Int = 1003;
+const ERROR_MUST_BE_PROPOSED_OWNER: Int = 1002;
 
 /// Message sent by the owner to transfer ownership of a contract.
 ///
@@ -42,32 +42,29 @@ message AcceptOwnershipOk {
 }
 
 trait Ownable2Step with BaseTrait {
-    // Storage
+    // Required storage variables.
     owner: Address;
     pendingOwner: Address;
     
+    /// --- Message Receivers ---
+
     /// Receiver for the `TransferOwnership` message body.
     /// Updates the `pendingOwner` value.
     /// Can only be called by the owner.
     ///
     /// #### Exit codes
-    ///
     /// * 1000: ERROR_ONLY_CALLABLE_BY_OWNER
     /// * 1001: ERROR_ONLY_CALLABLE_BY_OWNER
     receive(msg: TransferOwnership) {
 	// Check if the sender is the owner
 	self.requireOwner();
 
-	if (msg.newOwner == self.owner) {
-		throw(ERROR_CANNOT_TRANSFER_TO_SELF)
-	}
-
-	// Update pending owner
-	self.pendingOwner = msg.newOwner;
+	// Update the pending owner
+	self.transferOwnership(msg.newOwner);
 
 	// Reply to confimm
-	self.reply(ChangeOwnerOk { queryId: msg.queryId, newOwner: msg.newOwner }.toCell());
-	
+	self.reply(TransferOwnershipOk { queryId: msg.queryId, newOwner: msg.newOwner }.toCell());
+
 	//TODO: send outgoing message (log/event) confirming.
 	//	The reply to the sender might be enough, should check.
 	//    emit OwnershipTransferRequested(s_owner, to);
@@ -79,25 +76,65 @@ trait Ownable2Step with BaseTrait {
     /// Can only be called by the pending owner of the contract.
     ///
     /// #### Exit codes
-    ///
-    /// * 1003: ERROR_MUST_BE_PROPOSED_OWNER
+    /// * 1002: ERROR_MUST_BE_PROPOSED_OWNER
     receive(msg: AcceptOwnership) {
 	throwUnless(ERROR_MUST_BE_PROPOSED_OWNER, sender() == self.pendingOwner);
 	let changedOwner: Address = self.owner;
-	self.owner = self.pendingOwner
+	self.owner = self.pendingOwner;
 	self.reply(AcceptOwnershipOk {
-		queryId: msg.queryId,
-		oldOwner: changedOwner,
-		newOwner: self.owner 
-	} 
+	    queryId: msg.queryId,
+	    oldOwner: changedOwner,
+	    newOwner: self.owner, 
+	    }.toCell()
+	)
+
+	//TODO: emit OwnershipTransferred(oldOwner, msg.sender);
+    }
+
+    /// --- Getter Functions ---
+
+    /// Returns the owner of the contract.
+    get fun owner(): Address {
+        return self.owner;
+    }
+
+    // --- Internal Functions ---
+
+    /// Initializes the contract with the given owner and pending owner.
+    /// Should be called on a contract's init function.
+    ///
+    /// #### Exit codes
+    /// * 1002: ERROR_OWNER_CANNOT_BE_ZERO
+    fun initializeOwnership(owner: Address, pendingOwner: Address?) {
+	// Assign initial owner value.
+        self.owner = owner;
+
+        // Set initial pending owner value if present.
+        if (pendingOwner != null) {
+            self.transferOwnership(pendingOwner!!);
+        }
     }
 
     /// Requires that the sender is the owner of the contract.
     ///
     /// #### Exit codes
-    ///
     /// * 1000: ERROR_ONLY_CALLABLE_BY_OWNER
     fun requireOwner() {
         throwUnless(ERROR_ONLY_CALLABLE_BY_OWNER, sender() == self.owner);
     }
+
+    /// Initiates ownership transfer to a new address.
+    /// 
+    /// #### Exit codes
+    /// * 1001: ERROR_CANNOT_TRANSFER_TO_SELF
+    fun transferOwnership(to: Address) {
+	if (to == self.owner) {
+		throw(ERROR_CANNOT_TRANSFER_TO_SELF);
+	}
+
+	// Update pending owner
+	self.pendingOwner = to;
+    }
+
+
 }
