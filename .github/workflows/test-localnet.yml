@@ -97,7 +97,7 @@ jobs:
           )
 
           # always push to cache for testing
-          SHOULD_PUSH=false
+          SHOULD_PUSH=true
           
           for IMG in "${IMAGES[@]}"; do
             # Extract image name and tag
@@ -116,6 +116,13 @@ jobs:
               
               if [[ "$SHOULD_PUSH" == "true" ]]; then
                 echo "Pushing ${TARGET_IMG} to registry for future runs"
+                echo '{"visibility":"private"}' > image_config.json
+                curl -X PUT -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+                  -H "Content-Type: application/json" \
+                  --data @image_config.json \
+                  "https://api.github.com/user/packages/container/${TARGET_IMG/ghcr.io\/}"
+                
+                # Push the image
                 docker push ${TARGET_IMG}
               fi
             fi
