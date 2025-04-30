@@ -2,8 +2,6 @@
 # https://raw.githubusercontent.com/neodix42/mylocalton-docker/refs/heads/main/docker-compose.yaml
 
 # todo: version control for ghcr.io/neodix42/mylocalton-docker(currently pulling latest)
-# todo: cache in ci
-
 # todo: remove/clean up after testing
 # pure cold start time(time docker-compose up -d)
 # 3m44.820s
