@@ -26,13 +26,39 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # simple genesis state cache
-      - name: Cache genesis state
-        id: cache-genesis
+      # Cache TON volumes for faster startup
+      - name: Cache TON volumes
+        id: cache-volumes
         uses: actions/cache@v4
         with:
-          path: ~/.ton-genesis
-          key: ${{ runner.os }}-ton-genesis-${{ hashFiles('docker-compose.yaml') }}
+          path: ~/.ton-volumes
+          key: ${{ runner.os }}-ton-volumes-${{ hashFiles('docker-compose.yaml', 'scripts/localnet/*.sh') }}-v1
+
+      - name: Prepare bind mounts
+        run: |
+          mkdir -p ~/.ton-volumes/{shared-data,ton-db,postgres-data,index-workdir}
+          
+          if [ "${{ steps.cache-volumes.outputs.cache-hit }}" == "true" ]; then
+            echo "Using cached volumes from previous run"
+          else
+            echo "No cached volumes found - will generate fresh state"
+          fi
+          
+          # Set up bind mounts via environment variables
+          echo "VOLUME_DRIVER=local" >> $GITHUB_ENV
+          echo "SHARED_DATA_O_OPT=bind" >> $GITHUB_ENV
+          echo "SHARED_DATA_TYPE_OPT=none" >> $GITHUB_ENV
+          echo "SHARED_DATA_DEVICE_OPT=$HOME/.ton-volumes/shared-data" >> $GITHUB_ENV
+          echo "TON_DB_O_OPT=bind" >> $GITHUB_ENV
+          echo "TON_DB_TYPE_OPT=none" >> $GITHUB_ENV
+          echo "TON_DB_DEVICE_OPT=$HOME/.ton-volumes/ton-db" >> $GITHUB_ENV
+          echo "POSTGRES_DATA_O_OPT=bind" >> $GITHUB_ENV
+          echo "POSTGRES_DATA_TYPE_OPT=none" >> $GITHUB_ENV
+          echo "POSTGRES_DATA_DEVICE_OPT=$HOME/.ton-volumes/postgres-data" >> $GITHUB_ENV
+          echo "INDEX_WORKDIR_O_OPT=bind" >> $GITHUB_ENV
+          echo "INDEX_WORKDIR_TYPE_OPT=none" >> $GITHUB_ENV
+          echo "INDEX_WORKDIR_DEVICE_OPT=$HOME/.ton-volumes/index-workdir" >> $GITHUB_ENV
+          echo "COMPOSE_PROJECT_NAME=ton-localnet" >> $GITHUB_ENV
 
       - name: Install skopeo
         run: |
@@ -63,7 +89,7 @@ jobs:
               SRC="docker://${IMG}"
               DST="docker://${TARGET_REGISTRY}/mylocalton-${NAME}:${TAG}"
 
-              # check if image is already in our registry
+              # Check if image is already in our registry
               if skopeo inspect "$DST" &>/dev/null; then
                 echo "✓ Image already cached: ${DST}"
               else
@@ -74,9 +100,11 @@ jobs:
 
               echo "→ Pulling locally: ${DST}"
               docker pull "${TARGET_REGISTRY}/mylocalton-${NAME}:${TAG}"
-
+              
               echo "→ Tagging: ${IMG}"
               docker tag "${TARGET_REGISTRY}/mylocalton-${NAME}:${TAG}" "${IMG}"
+              
+              echo "✔ Processed: ${NAME}:${TAG}"
             ) &
             pids+=($!)
           done
@@ -84,46 +112,27 @@ jobs:
           wait "${pids[@]}"
           echo "All images processed and ready to use"
 
-      - name: Setup genesis state
-        run: |
-          # create docker volumes
-          docker volume create ton-db
-          docker volume create shared-data
-          docker volume create postgres-data
-          docker volume create index-workdir
-
-          # if we have cached genesis state, restore it
-          if [ "${{ steps.cache-genesis.outputs.cache-hit }}" == "true" ]; then
-            echo "Restoring genesis state from cache"
-            # use busybox for fast copying
-            docker run --rm -v ton-db:/data -v $HOME/.ton-genesis/ton-db:/cache busybox cp -r /cache/. /data/
-            docker run --rm -v shared-data:/data -v $HOME/.ton-genesis/shared-data:/cache busybox cp -r /cache/. /data/
-            docker run --rm -v postgres-data:/data -v $HOME/.ton-genesis/postgres-data:/cache busybox cp -r /cache/. /data/
-            docker run --rm -v index-workdir:/data -v $HOME/.ton-genesis/index-workdir:/cache busybox cp -r /cache/. /data/
-            echo "Genesis state restored"
-          else
-            echo "No cached genesis state found, will generate fresh"
-          fi
-
+      # Start TON Network and cache volumes if needed
       - name: Start TON Local Network
         run: |
-          # use our docker volumes
-          export COMPOSE_PROJECT_NAME=ton-localnet
-
           chmod +x scripts/localnet/localnet-up.sh
           scripts/localnet/localnet-up.sh
-
-          # if we didn't have cache, create it for next time
-          if [ "${{ steps.cache-genesis.outputs.cache-hit }}" != "true" ]; then
-            echo "Saving genesis state for next run"
-            mkdir -p $HOME/.ton-genesis/{ton-db,shared-data,postgres-data,index-workdir}
-
-            # use busybox for fast copying
-            docker run --rm -v ton-db:/data -v $HOME/.ton-genesis/ton-db:/cache busybox cp -r /data/. /cache/
-            docker run --rm -v shared-data:/data -v $HOME/.ton-genesis/shared-data:/cache busybox cp -r /data/. /cache/
-            docker run --rm -v postgres-data:/data -v $HOME/.ton-genesis/postgres-data:/cache busybox cp -r /data/. /cache/
-            docker run --rm -v index-workdir:/data -v $HOME/.ton-genesis/index-workdir:/cache busybox cp -r /data/. /cache/
-            echo "Genesis state saved"
+          
+          if [ "${{ steps.cache-volumes.outputs.cache-hit }}" != "true" ]; then
+            echo "Caching volumes for future runs"
+            
+            # Clear and recreate directories to avoid permission issues
+            rm -rf ~/.ton-volumes/{shared-data,ton-db,postgres-data,index-workdir}
+            mkdir -p ~/.ton-volumes/{shared-data,ton-db,postgres-data,index-workdir}
+            
+            # Copy data from containers to cache
+            docker cp genesis:/usr/share/data/. ~/.ton-volumes/shared-data/
+            docker cp genesis:/var/ton-work/db/. ~/.ton-volumes/ton-db/
+            docker cp index-postgres:/var/lib/postgresql/data/. ~/.ton-volumes/postgres-data/
+            docker cp index-worker:/workdir/. ~/.ton-volumes/index-workdir/
+            
+            # Ensure permissions are correct
+            chmod -R 777 ~/.ton-volumes
           fi
 
       - name: Run build

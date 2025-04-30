@@ -296,9 +296,29 @@ services:
 # Use bind mounts when CACHE_ENABLED=true
 volumes:
   shared-data:
+    driver: ${VOLUME_DRIVER:-local}
+    driver_opts:
+      o: ${SHARED_DATA_O_OPT}
+      type: ${SHARED_DATA_TYPE_OPT}
+      device: ${SHARED_DATA_DEVICE_OPT}
   ton-db:
+    driver: ${VOLUME_DRIVER:-local}
+    driver_opts:
+      o: ${TON_DB_O_OPT}
+      type: ${TON_DB_TYPE_OPT}
+      device: ${TON_DB_DEVICE_OPT}
   postgres-data:
+    driver: ${VOLUME_DRIVER:-local}
+    driver_opts:
+      o: ${POSTGRES_DATA_O_OPT}
+      type: ${POSTGRES_DATA_TYPE_OPT}
+      device: ${POSTGRES_DATA_DEVICE_OPT}
   index-workdir:
+    driver: ${VOLUME_DRIVER:-local}
+    driver_opts:
+      o: ${INDEX_WORKDIR_O_OPT}
+      type: ${INDEX_WORKDIR_TYPE_OPT}
+      device: ${INDEX_WORKDIR_DEVICE_OPT}
 # # uncomment if you want to mount this image in folder
 # driver: local
 # driver_opts:
