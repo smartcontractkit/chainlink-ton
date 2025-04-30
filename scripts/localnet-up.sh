@@ -22,20 +22,20 @@ fi
 
 echo "Starting essential TON services..."
 # Add project name to avoid prefix issues with volume names
-docker compose -f "${COMPOSE_FILE}" -p ton up -d
+docker compose -f "${COMPOSE_FILE}" -p mylocalton up -d
 
 # Wait for genesis node to be healthy
 # Add a timeout for health check
 MAX_WAIT_TIME=300 # 5 minutes
 start_time=$(date +%s)
 
-while ! docker compose -f "${COMPOSE_FILE}" -p ton exec -T genesis /usr/local/bin/lite-client -a 127.0.0.1:40004 -b E7XwFSQzNkcRepUC23J2nRpASXpnsEKmyyHYV4u/FZY= -t 3 -c "last" &>/dev/null; do
+while ! docker compose -f "${COMPOSE_FILE}" -p mylocalton exec -T genesis /usr/local/bin/lite-client -a 127.0.0.1:40004 -b E7XwFSQzNkcRepUC23J2nRpASXpnsEKmyyHYV4u/FZY= -t 3 -c "last" &>/dev/null; do
   current_time=$(date +%s)
   elapsed=$((current_time - start_time))
 
   if [ $elapsed -gt $MAX_WAIT_TIME ]; then
     echo -e "\nTimed out waiting for genesis node to initialize!"
-    docker compose -f "${COMPOSE_FILE}" -p ton logs genesis
+    docker compose -f "${COMPOSE_FILE}" -p mylocalton logs genesis
     exit 1
   fi
 
