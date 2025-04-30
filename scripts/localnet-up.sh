@@ -12,21 +12,34 @@ if [ -n "$VOLUME_DRIVER" ] || [ -n "$SHARED_DATA_O_OPT" ]; then
   env | grep -E 'VOLUME_DRIVER|_O_OPT|_TYPE_OPT|_DEVICE_OPT' || echo "None found"
 fi
 
-# Skip docker-compose pull if we're in GitHub Actions (images already loaded)
 if [ -z "$GITHUB_ACTIONS" ]; then
   echo "Running locally, pulling Docker images..."
   docker compose -f "${COMPOSE_FILE}" pull
+
+  echo "Starting essential TON services..."
+  docker compose -f "${COMPOSE_FILE}" -p ton up -d
 else
-  echo "Running in GitHub Actions with pre-loaded images, skipping pull..."
+  echo "Running in GitHub Actions with pre-loaded images, using --pull never..."
+
+  echo "Starting essential TON services..."
+  docker compose -f "${COMPOSE_FILE}" -p ton up -d --pull never
 fi
 
-echo "Starting essential TON services..."
-# Add project name to avoid prefix issues with volume names
-docker compose -f "${COMPOSE_FILE}" -p ton up -d
-
 # Wait for genesis node to be healthy
-echo "Waiting for genesis node to initialize (this may take a few minutes)..."
+# Add a timeout for health check
+MAX_WAIT_TIME=300 # 5 minutes
+start_time=$(date +%s)
+
 while ! docker compose -f "${COMPOSE_FILE}" -p ton exec -T genesis /usr/local/bin/lite-client -a 127.0.0.1:40004 -b E7XwFSQzNkcRepUC23J2nRpASXpnsEKmyyHYV4u/FZY= -t 3 -c "last" &>/dev/null; do
+  current_time=$(date +%s)
+  elapsed=$((current_time - start_time))
+
+  if [ $elapsed -gt $MAX_WAIT_TIME ]; then
+    echo -e "\nTimed out waiting for genesis node to initialize!"
+    docker compose -f "${COMPOSE_FILE}" -p ton logs genesis
+    exit 1
+  fi
+
   echo -n "."
   sleep 5
 done
