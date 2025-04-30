@@ -6,8 +6,13 @@ COMPOSE_FILE="${SCRIPT_DIR}/docker-compose.yaml"
 
 echo "Starting TON local network using ${COMPOSE_FILE}"
 
-echo "Pulling required Docker images..."
-docker compose -f "${COMPOSE_FILE}" pull
+# skip docker-compose pull if we're in GitHub Actions (images already loaded)
+if [ -z "$GITHUB_ACTIONS" ]; then
+  echo "Running locally, pulling Docker images..."
+  docker compose -f "${COMPOSE_FILE}" pull
+else
+  echo "Running in GitHub Actions with pre-loaded images, skipping pull..."
+fi
 
 echo "Starting essential TON services..."
 docker compose -f "${COMPOSE_FILE}" up -d

@@ -1,5 +1,6 @@
 name: Temp Test MyLocalTON
 
+# todo: version management for prepublished images
 on:
   push:
     branches:
@@ -13,6 +14,50 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
+
+      - name: Cache Docker images
+        id: cache-docker-images
+        uses: actions/cache@v4
+        with:
+          path: /tmp/docker-images
+          key: ${{ runner.os }}-docker-images-mylocalton-${{ hashFiles('scripts/docker-compose.yaml') }}
+      
+      - name: Load cached Docker images
+        if: steps.cache-docker-images.outputs.cache-hit == 'true'
+        run: |
+          echo "Loading cached Docker images..."
+          find /tmp/docker-images -name "*.tar" -exec docker load -i {} \;
+          docker images
+      
+      - name: Pull Docker images
+        if: steps.cache-docker-images.outputs.cache-hit != 'true'
+        run: |
+          echo "Pulling Docker images and saving to cache..."
+          mkdir -p /tmp/docker-images
+          
+          # images needed(docker-compose.yaml)
+          IMAGES=(
+            "ghcr.io/neodix42/mylocalton-docker:latest" 
+            "ghcr.io/neodix42/ton-http-api:latest"
+            "ghcr.io/neodix42/mylocalton-docker-faucet:latest"
+            "redis:latest"
+            "postgres:17"
+            "toncenter/ton-indexer-classifier:v1.2.0-test"
+            "toncenter/ton-indexer-api:v1.2.0-test"
+            "toncenter/ton-indexer-worker:v1.2.0-test"
+          )
+          
+          # pull each image and save to cache
+          for IMG in "${IMAGES[@]}"; do
+            echo "Pulling and saving $IMG"
+            docker pull $IMG
+            IMG_FILENAME=$(echo $IMG | tr ':/' '__')
+            docker save $IMG -o /tmp/docker-images/$IMG_FILENAME.tar
+          done
+          
+          # show cached images
+          ls -la /tmp/docker-images/
+          docker images
 
       - name: Install Nix
         uses: cachix/install-nix-action@02a151ada4993995686f9ed4f1be7cfbb229e56f # v31
