@@ -35,78 +35,73 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-ton-volumes-
 
-      # Prepare cache directory
       - name: Prepare cache directory and set env vars
         run: |
           mkdir -p ~/.ton-volumes
 
-          # Set up bind mounts if we have cached volumes
           if [ "${{ steps.cache-volumes.outputs.cache-hit }}" == "true" ]; then
             echo "Using cached volumes from previous run"
-            
-            # Create volume subdirectories if they don't exist
-
             mkdir -p ~/.ton-volumes/{shared-data,ton-db,postgres-data,index-workdir}
-            
-            # Set env vars for volume bind mounts (to both current shell and GITHUB_ENV)
             echo "VOLUME_DRIVER=local" >> $GITHUB_ENV
             echo "SHARED_DATA_O_OPT=bind" >> $GITHUB_ENV
             echo "SHARED_DATA_TYPE_OPT=none" >> $GITHUB_ENV
             echo "SHARED_DATA_DEVICE_OPT=$HOME/.ton-volumes/shared-data" >> $GITHUB_ENV
-
             echo "TON_DB_O_OPT=bind" >> $GITHUB_ENV
             echo "TON_DB_TYPE_OPT=none" >> $GITHUB_ENV
             echo "TON_DB_DEVICE_OPT=$HOME/.ton-volumes/ton-db" >> $GITHUB_ENV
-
             echo "POSTGRES_DATA_O_OPT=bind" >> $GITHUB_ENV
             echo "POSTGRES_DATA_TYPE_OPT=none" >> $GITHUB_ENV
             echo "POSTGRES_DATA_DEVICE_OPT=$HOME/.ton-volumes/postgres-data" >> $GITHUB_ENV
-
             echo "INDEX_WORKDIR_O_OPT=bind" >> $GITHUB_ENV
             echo "INDEX_WORKDIR_TYPE_OPT=none" >> $GITHUB_ENV
             echo "INDEX_WORKDIR_DEVICE_OPT=$HOME/.ton-volumes/index-workdir" >> $GITHUB_ENV
-            
-            # Also set COMPOSE_PROJECT_NAME to ensure consistent volume naming
             echo "COMPOSE_PROJECT_NAME=mylocalton" >> $GITHUB_ENV
             export COMPOSE_PROJECT_NAME=mylocalton
           else
             echo "First run - will use default volumes and cache afterward"
           fi
 
-      # Pull and tag images
-      - name: Mirror prebuilt images to GHCR
-        uses: docker/build-push-action@v3
-        with:
-          pull: true
-          push: true
-          tags: |
-            ghcr.io/${{ github.repository }}/mylocalton-docker:latest
-            ghcr.io/${{ github.repository }}/mylocalton-ton-http-api:latest
-            ghcr.io/${{ github.repository }}/mylocalton-docker-faucet:latest
-            ghcr.io/${{ github.repository }}/mylocalton-redis:latest
-            ghcr.io/${{ github.repository }}/mylocalton-postgres:17
-            ghcr.io/${{ github.repository }}/mylocalton-ton-indexer-classifier:v1.2.0-test
-            ghcr.io/${{ github.repository }}/mylocalton-ton-indexer-api:v1.2.0-test
-            ghcr.io/${{ github.repository }}/mylocalton-ton-indexer-worker:v1.2.0-test
-      
-      # Start TON network and measure startup time
+      - name: Install skopeo
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y skopeo
+
+      - name: Mirror prebuilt images with skopeo
+        run: |
+          TARGET_REGISTRY="ghcr.io/${{ github.repository }}"
+          IMAGES=(
+            "ghcr.io/neodix42/mylocalton-docker:latest"
+            "ghcr.io/neodix42/ton-http-api:latest"
+            "ghcr.io/neodix42/mylocalton-docker-faucet:latest"
+            "redis:latest"
+            "postgres:17"
+            "toncenter/ton-indexer-classifier:v1.2.0-test"
+            "toncenter/ton-indexer-api:v1.2.0-test"
+            "toncenter/ton-indexer-worker:v1.2.0-test"
+          )
+
+          for IMG in "${IMAGES[@]}"; do
+            NAME=$(basename "${IMG%%:*}")
+            TAG="${IMG##*:}"
+            SRC="docker://${IMG}"
+            DST="docker://${TARGET_REGISTRY}/mylocalton-${NAME}:${TAG}"
+
+            echo "→ Mirroring $IMG → ${DST}"
+            skopeo copy --all --retry-times=3 "$SRC" "$DST"
+          done
+
       - name: Start TON Local Network
         id: ton-startup
         run: |
           chmod +x scripts/localnet-up.sh
           scripts/localnet-up.sh
-          
-          # If this is the first run, copy volume data for future cache
+
           if [ "${{ steps.cache-volumes.outputs.cache-hit }}" != "true" ]; then
             echo "Caching volumes for future runs"
             mkdir -p ~/.ton-volumes/{shared-data,ton-db,postgres-data,index-workdir}
-            
-            # Copy container data directly
             docker cp genesis:/usr/share/data/. ~/.ton-volumes/shared-data/
             docker cp genesis:/var/ton-work/db/. ~/.ton-volumes/ton-db/
             docker cp index-postgres:/var/lib/postgresql/data/. ~/.ton-volumes/postgres-data/
             docker cp index-worker:/workdir/. ~/.ton-volumes/index-workdir/
-            
-            # Set permissions
             chmod -R 777 ~/.ton-volumes
           fi
