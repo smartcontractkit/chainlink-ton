@@ -26,6 +26,56 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+# Check if we have cached volumes
+      - name: Check for cached volumes
+        id: cache-volumes
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.ton-volumes/shared-data
+            ~/.ton-volumes/ton-db
+            ~/.ton-volumes/postgres-data
+            ~/.ton-volumes/index-workdir
+          key: ${{ runner.os }}-ton-volumes-${{ hashFiles('docker-compose.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-ton-volumes-
+
+      # Setup volume directories (will be empty on first run)
+      - name: Prepare volume directories
+        run: |
+          mkdir -p ~/.ton-volumes/shared-data
+          mkdir -p ~/.ton-volumes/ton-db
+          mkdir -p ~/.ton-volumes/postgres-data
+          mkdir -p ~/.ton-volumes/index-workdir
+          chmod -R 777 ~/.ton-volumes
+          
+          if [ "${{ steps.cache-volumes.outputs.cache-hit }}" == "true" ]; then
+            echo "::notice::Using cached volumes from previous run"
+            # Configure docker-compose to use bind mounts
+            echo "VOLUME_DRIVER=local" >> $GITHUB_ENV
+            
+            # shared-data volume
+            echo "SHARED_DATA_O_OPT=bind" >> $GITHUB_ENV
+            echo "SHARED_DATA_TYPE_OPT=none" >> $GITHUB_ENV
+            echo "SHARED_DATA_DEVICE_OPT=$HOME/.ton-volumes/shared-data" >> $GITHUB_ENV
+            
+            # ton-db volume
+            echo "TON_DB_O_OPT=bind" >> $GITHUB_ENV
+            echo "TON_DB_TYPE_OPT=none" >> $GITHUB_ENV
+            echo "TON_DB_DEVICE_OPT=$HOME/.ton-volumes/ton-db" >> $GITHUB_ENV
+            
+            # postgres-data volume
+            echo "POSTGRES_DATA_O_OPT=bind" >> $GITHUB_ENV
+            echo "POSTGRES_DATA_TYPE_OPT=none" >> $GITHUB_ENV
+            echo "POSTGRES_DATA_DEVICE_OPT=$HOME/.ton-volumes/postgres-data" >> $GITHUB_ENV
+            
+            # index-workdir volume
+            echo "INDEX_WORKDIR_O_OPT=bind" >> $GITHUB_ENV
+            echo "INDEX_WORKDIR_TYPE_OPT=none" >> $GITHUB_ENV
+            echo "INDEX_WORKDIR_DEVICE_OPT=$HOME/.ton-volumes/index-workdir" >> $GITHUB_ENV
+          else
+            echo "::notice::First run - initializing new volumes"
+          fi
       - name: Pull and tag images from GitHub Container Registry
         run: |
           TARGET_REGISTRY="ghcr.io/${{ github.repository }}"
@@ -76,11 +126,42 @@ jobs:
           nix_path: nixpkgs=channel:nixos-unstable
 
       - name: Start TON Local Network
+        id: ton-startup
         run: |
+          # Record start time
+          start_time=$(date +%s)
+          
+          # Start the network (using environment variables for volume configuration)
           chmod +x scripts/localnet-up.sh
           scripts/localnet-up.sh
+          
+          # Record end time and calculate duration
+          end_time=$(date +%s)
+          duration=$((end_time - start_time))
+          echo "startup_duration=${duration}" >> $GITHUB_OUTPUT
+          
+          echo "TON network startup completed in ${duration} seconds"
+          
+          # If this is the first run, copy the volumes to cache location
+          if [ "${{ steps.cache-volumes.outputs.cache-hit }}" != "true" ]; then
+            echo "First run - copying volumes to cache location"
+            
+            # Get volume locations
+            SHARED_DATA_VOL=$(docker volume inspect --format '{{ .Mountpoint }}' shared-data)
+            TON_DB_VOL=$(docker volume inspect --format '{{ .Mountpoint }}' ton-db)
+            POSTGRES_DATA_VOL=$(docker volume inspect --format '{{ .Mountpoint }}' postgres-data)
+            INDEX_WORKDIR_VOL=$(docker volume inspect --format '{{ .Mountpoint }}' index-workdir)
+            
+            # Copy contents to cache directories
+            sudo cp -a ${SHARED_DATA_VOL}/. ~/.ton-volumes/shared-data/
+            sudo cp -a ${TON_DB_VOL}/. ~/.ton-volumes/ton-db/
+            sudo cp -a ${POSTGRES_DATA_VOL}/. ~/.ton-volumes/postgres-data/
+            sudo cp -a ${INDEX_WORKDIR_VOL}/. ~/.ton-volumes/index-workdir/
+            
+            # Fix permissions
+            sudo chmod -R 777 ~/.ton-volumes
+          fi
       
-      # todo: cache genesis state
           
       - name: Run build
         run: |
@@ -91,3 +172,7 @@ jobs:
         run: |
           pushd contracts
           nix develop .#contracts -c yarn test
+
+      - name: Report startup performance
+        run: |
+          echo "::notice::TON network startup time: ${{ steps.ton-startup.outputs.startup_duration }} seconds (Cache hit: ${{ steps.cache-volumes.outputs.cache-hit }})"
