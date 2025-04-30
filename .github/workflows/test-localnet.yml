@@ -1,4 +1,4 @@
-name: TON Local Network with Volume Caching
+name: Temp MyLocalTON Test - Prebuilt Images
 
 on:
   push:
@@ -29,8 +29,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Check if we have cached volumes
-      - name: Check for cached volumes
+      - name: Cache Docker volumes
         id: cache-volumes
         uses: actions/cache@v4
         with:
@@ -65,7 +64,7 @@ jobs:
             echo "POSTGRES_DATA_O_OPT=bind" >> $GITHUB_ENV
             echo "POSTGRES_DATA_TYPE_OPT=none" >> $GITHUB_ENV
             echo "POSTGRES_DATA_DEVICE_OPT=$HOME/.ton-volumes/postgres-data" >> $GITHUB_ENV
-            
+
             echo "INDEX_WORKDIR_O_OPT=bind" >> $GITHUB_ENV
             echo "INDEX_WORKDIR_TYPE_OPT=none" >> $GITHUB_ENV
             echo "INDEX_WORKDIR_DEVICE_OPT=$HOME/.ton-volumes/index-workdir" >> $GITHUB_ENV

@@ -1,0 +1,153 @@
+name: Temp MyLocalTON Test - Source
+
+on:
+  push:
+    branches:
+      - feature/mylocalton
+  pull_request:
+
+jobs:
+  build-from-source:
+    name: Build MyLocalTON From Source
+    runs-on: ubuntu-latest
+    
+    env:
+      COMPOSE_PROJECT_NAME: mylocalton
+    
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+        with:
+          repository: neodix42/mylocalton-docker
+          ref: main
+          
+      # Set up Docker layer caching
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Login to GitHub Container Registry for image pushing/pulling
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      # Cache Docker volumes
+      - name: Cache Docker volumes
+        uses: actions/cache@v4
+        id: cache-volumes
+        with:
+          path: ~/.ton-volumes
+          key: ${{ runner.os }}-ton-volumes-${{ hashFiles('docker-compose-build.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-ton-volumes-
+      
+      # Prepare volume directories
+      - name: Setup volume directories
+        run: |
+          mkdir -p ~/.ton-volumes/{shared-data,ton-db,postgres-data,index-workdir}
+          
+          if [ "${{ steps.cache-volumes.outputs.cache-hit }}" == "true" ]; then
+            echo "Using cached volumes from previous run"
+            
+            # Set env vars for volume bind mounts
+            echo "VOLUME_DRIVER=local" >> $GITHUB_ENV
+            echo "SHARED_DATA_O_OPT=bind" >> $GITHUB_ENV
+            echo "SHARED_DATA_TYPE_OPT=none" >> $GITHUB_ENV
+            echo "SHARED_DATA_DEVICE_OPT=$HOME/.ton-volumes/shared-data" >> $GITHUB_ENV
+            echo "TON_DB_O_OPT=bind" >> $GITHUB_ENV
+            echo "TON_DB_TYPE_OPT=none" >> $GITHUB_ENV
+            echo "TON_DB_DEVICE_OPT=$HOME/.ton-volumes/ton-db" >> $GITHUB_ENV
+            echo "POSTGRES_DATA_O_OPT=bind" >> $GITHUB_ENV
+            echo "POSTGRES_DATA_TYPE_OPT=none" >> $GITHUB_ENV
+            echo "POSTGRES_DATA_DEVICE_OPT=$HOME/.ton-volumes/postgres-data" >> $GITHUB_ENV
+            echo "INDEX_WORKDIR_O_OPT=bind" >> $GITHUB_ENV
+            echo "INDEX_WORKDIR_TYPE_OPT=none" >> $GITHUB_ENV
+            echo "INDEX_WORKDIR_DEVICE_OPT=$HOME/.ton-volumes/index-workdir" >> $GITHUB_ENV
+          else
+            echo "First run - will use default volumes and cache afterward"
+          fi
+      
+      # Start TON network from source using the build compose file
+      - name: Start TON Local Network from source
+        run: |
+          # Add --build-cache flag to use Docker's layer caching
+          COMPOSE_DOCKER_CLI_BUILD=1 DOCKER_BUILDKIT=1 docker-compose -f docker-compose-build.yaml build
+          docker-compose -f docker-compose-build.yaml up -d
+          
+          # Wait for genesis node to be healthy
+          echo "Waiting for genesis node to initialize (this may take a few minutes)..."
+          while ! docker-compose -f docker-compose-build.yaml exec -T genesis /usr/local/bin/lite-client -a 127.0.0.1:40004 -b E7XwFSQzNkcRepUC23J2nRpASXpnsEKmyyHYV4u/FZY= -t 3 -c "last" &>/dev/null; do
+            echo -n "."
+            sleep 5
+          done
+          
+          echo -e "\nTON network is up and running!"
+          
+          # Print container status
+          docker ps
+          
+          # Push built images to GitHub Container Registry for future runs
+          docker-compose -f docker-compose-build.yaml images | tail -n +3 | awk '{print $1}' | while read -r img; do
+            if [[ "$img" != "" ]]; then
+              # Extract image name without potential tag
+              img_name=$(echo $img | cut -d: -f1)
+              img_with_tag="${img}:latest"
+              
+              # Tag and push to GitHub Container Registry
+              target_img="ghcr.io/${{ github.repository }}/${img_name##*/}:latest"
+              echo "Pushing $img_with_tag to $target_img"
+              docker tag $img_with_tag $target_img
+              docker push $target_img || echo "Failed to push $target_img, continuing..."
+            fi
+          done
+      
+      # Run basic connectivity tests to validate the build
+      - name: Test Network Connectivity
+        run: |
+          # Test HTTP API endpoint
+          echo "Testing TON HTTP API v2..."
+          curl -s http://127.0.0.1:8081/getAddressInformation?address=-1:22f53b7d9aba2cef44755f7078b01614cd4dde2388a1729c2c386cf8f9898afe | grep -q "result"
+          if [ $? -eq 0 ]; then
+            echo "✓ TON HTTP API v2 is working"
+          else
+            echo "✗ TON HTTP API v2 is not responding correctly"
+            docker logs $(docker ps -q -f name=ton-http-api) 2>&1 | tail -20
+          fi
+          
+          # Test if explorer is up
+          echo "Testing Blockchain Explorer..."
+          curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8080/last | grep -q "200"
+          if [ $? -eq 0 ]; then
+            echo "✓ Blockchain Explorer is working"
+          else
+            echo "✗ Blockchain Explorer is not responding correctly"
+            docker logs $(docker ps -q -f name=blockchain-explorer) 2>&1 | tail -20
+          fi
+      
+      # Cache volumes for future runs if this is the first run
+      - name: Cache Docker volumes for future runs
+        if: steps.cache-volumes.outputs.cache-hit != 'true'
+        run: |
+          echo "Caching volumes for future runs"
+          
+          # Get actual container IDs instead of relying on container names
+          GENESIS_ID=$(docker ps --filter name=genesis -q)
+          POSTGRES_ID=$(docker ps --filter name=index-postgres -q)
+          WORKER_ID=$(docker ps --filter name=index-worker -q)
+          
+          # Copy container data using container IDs (more reliable)
+          docker cp $GENESIS_ID:/usr/share/data/. ~/.ton-volumes/shared-data/
+          docker cp $GENESIS_ID:/var/ton-work/db/. ~/.ton-volumes/ton-db/
+          
+          if [ -n "$POSTGRES_ID" ]; then
+            docker cp $POSTGRES_ID:/var/lib/postgresql/data/. ~/.ton-volumes/postgres-data/
+          fi
+          
+          if [ -n "$WORKER_ID" ]; then
+            docker cp $WORKER_ID:/workdir/. ~/.ton-volumes/index-workdir/
+          fi
+          
+          # Set permissions
+          chmod -R 777 ~/.ton-volumes
