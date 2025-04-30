@@ -5,16 +5,6 @@ on:
     branches:
       - feature/mylocalton
   pull_request:
-  workflow_dispatch:
-    inputs:
-      disable_volume_cache:
-        description: 'Disable volume caching'
-        type: boolean
-        default: false
-      disable_image_cache:
-        description: 'Disable Docker image caching'
-        type: boolean
-        default: false
 
 jobs:
   test-localnet:
@@ -36,48 +26,20 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Cache Docker volumes
-        id: cache-volumes
-        if: ${{ !github.event.inputs.disable_volume_cache || github.event.inputs.disable_volume_cache != 'true' }}
+      # simple genesis state cache
+      - name: Cache genesis state
+        id: cache-genesis
         uses: actions/cache@v4
         with:
-          path: ~/.ton-volumes
-          key: ${{ runner.os }}-ton-volumes-${{ hashFiles('docker-compose.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-ton-volumes-
-
-      - name: Prepare cache directory and set env vars
-        run: |
-          mkdir -p ~/.ton-volumes
-
-          if [ "${{ steps.cache-volumes.outputs.cache-hit }}" == "true" ] && [ "${{ github.event.inputs.disable_volume_cache }}" != "true" ]; then
-            echo "Using cached volumes from previous run"
-            mkdir -p ~/.ton-volumes/{shared-data,ton-db,postgres-data,index-workdir}
-            echo "VOLUME_DRIVER=local" >> $GITHUB_ENV
-            echo "SHARED_DATA_O_OPT=bind" >> $GITHUB_ENV
-            echo "SHARED_DATA_TYPE_OPT=none" >> $GITHUB_ENV
-            echo "SHARED_DATA_DEVICE_OPT=$HOME/.ton-volumes/shared-data" >> $GITHUB_ENV
-            echo "TON_DB_O_OPT=bind" >> $GITHUB_ENV
-            echo "TON_DB_TYPE_OPT=none" >> $GITHUB_ENV
-            echo "TON_DB_DEVICE_OPT=$HOME/.ton-volumes/ton-db" >> $GITHUB_ENV
-            echo "POSTGRES_DATA_O_OPT=bind" >> $GITHUB_ENV
-            echo "POSTGRES_DATA_TYPE_OPT=none" >> $GITHUB_ENV
-            echo "POSTGRES_DATA_DEVICE_OPT=$HOME/.ton-volumes/postgres-data" >> $GITHUB_ENV
-            echo "INDEX_WORKDIR_O_OPT=bind" >> $GITHUB_ENV
-            echo "INDEX_WORKDIR_TYPE_OPT=none" >> $GITHUB_ENV
-            echo "INDEX_WORKDIR_DEVICE_OPT=$HOME/.ton-volumes/index-workdir" >> $GITHUB_ENV
-            echo "COMPOSE_PROJECT_NAME=ton-localnet" >> $GITHUB_ENV
-            export COMPOSE_PROJECT_NAME=ton-localnet
-          else
-            echo "Volume cache disabled or first run - will use default volumes"
-          fi
+          path: ~/.ton-genesis
+          key: ${{ runner.os }}-ton-genesis-${{ hashFiles('docker-compose.yaml') }}
 
       - name: Install skopeo
         run: |
           sudo apt-get update
           sudo apt-get install -y skopeo
 
-      - name: Mirror prebuilt images with skopeo
+      - name: Mirror prebuilt images
         run: |
           TARGET_REGISTRY="ghcr.io/${{ github.repository }}"
           IMAGES=(
@@ -91,7 +53,7 @@ jobs:
             "toncenter/ton-indexer-worker:v1.2.0-test"
           )
 
-          echo "Starting parallel skopeo mirror…"
+          echo "Starting parallel image mirroring..."
           pids=()
 
           for IMG in "${IMAGES[@]}"; do
@@ -101,50 +63,69 @@ jobs:
               SRC="docker://${IMG}"
               DST="docker://${TARGET_REGISTRY}/mylocalton-${NAME}:${TAG}"
 
-              # check if the image is already in our registry (if caching is enabled)
-              if [ "${{ github.event.inputs.disable_image_cache }}" != "true" ] && skopeo inspect "$DST" &>/dev/null; then
-                echo "✓ [$] Image already cached in registry: ${DST}"
+              # check if image is already in our registry
+              if skopeo inspect "$DST" &>/dev/null; then
+                echo "✓ Image already cached: ${DST}"
               else
-                echo "→ [$] Mirroring $IMG → ${DST}"
+                echo "→ Mirroring: $IMG → ${DST}"
                 skopeo copy --all --retry-times=3 "$SRC" "$DST"
-                echo "✓ [$] Mirrored to registry: ${DST}"
+                echo "✓ Mirroring complete"
               fi
 
-              echo "→ [$$] Pulling ${DST} locally"
+              echo "→ Pulling locally: ${DST}"
               docker pull "${TARGET_REGISTRY}/mylocalton-${NAME}:${TAG}"
-              
-              # Tag with the original name so docker-compose can find it
-              echo "→ [$$] Tagging as original: ${IMG}"
+
+              echo "→ Tagging: ${IMG}"
               docker tag "${TARGET_REGISTRY}/mylocalton-${NAME}:${TAG}" "${IMG}"
-              
-              echo "✔ [$$] Processed ${NAME}:${TAG}"
             ) &
             pids+=($!)
           done
 
-          echo "Waiting for all mirrors to complete…"
-          for pid in "${pids[@]}"; do
-            wait "$pid"
-          done
+          wait "${pids[@]}"
+          echo "All images processed and ready to use"
 
-          echo "All images mirrored and tagged with original names."
-          echo "Listing available images:"
-          docker images
-
-      - name: Start TON Local Network
-        id: ton-startup
+      # handle genesis state restoration
+      - name: Setup genesis state
         run: |
+          # create docker volumes
+          docker volume create ton-db
+          docker volume create shared-data
+          docker volume create postgres-data
+          docker volume create index-workdir
+
+          # if we have cached genesis state, restore it
+          if [ "${{ steps.cache-genesis.outputs.cache-hit }}" == "true" ]; then
+            echo "Restoring genesis state from cache"
+            # use busybox for fast copying
+            docker run --rm -v ton-db:/data -v $HOME/.ton-genesis/ton-db:/cache busybox cp -r /cache/. /data/
+            docker run --rm -v shared-data:/data -v $HOME/.ton-genesis/shared-data:/cache busybox cp -r /cache/. /data/
+            docker run --rm -v postgres-data:/data -v $HOME/.ton-genesis/postgres-data:/cache busybox cp -r /cache/. /data/
+            docker run --rm -v index-workdir:/data -v $HOME/.ton-genesis/index-workdir:/cache busybox cp -r /cache/. /data/
+            echo "Genesis state restored"
+          else
+            echo "No cached genesis state found, will generate fresh"
+          fi
+
+      # start the TON network
+      - name: Start TON Local Network
+        run: |
+          # use our docker volumes
+          export COMPOSE_PROJECT_NAME=ton-localnet
+
           chmod +x scripts/localnet/localnet-up.sh
           scripts/localnet/localnet-up.sh
 
-          if [ "${{ steps.cache-volumes.outputs.cache-hit }}" != "true" ] && [ "${{ github.event.inputs.disable_volume_cache }}" != "true" ]; then
-            echo "Caching volumes for future runs"
-            mkdir -p ~/.ton-volumes/{shared-data,ton-db,postgres-data,index-workdir}
-            docker cp genesis:/usr/share/data/. ~/.ton-volumes/shared-data/
-            docker cp genesis:/var/ton-work/db/. ~/.ton-volumes/ton-db/
-            docker cp index-postgres:/var/lib/postgresql/data/. ~/.ton-volumes/postgres-data/
-            docker cp index-worker:/workdir/. ~/.ton-volumes/index-workdir/
-            chmod -R 777 ~/.ton-volumes
+          # if we didn't have cache, create it for next time
+          if [ "${{ steps.cache-genesis.outputs.cache-hit }}" != "true" ]; then
+            echo "Saving genesis state for next run"
+            mkdir -p $HOME/.ton-genesis/{ton-db,shared-data,postgres-data,index-workdir}
+
+            # use busybox for fast copying
+            docker run --rm -v ton-db:/data -v $HOME/.ton-genesis/ton-db:/cache busybox cp -r /data/. /cache/
+            docker run --rm -v shared-data:/data -v $HOME/.ton-genesis/shared-data:/cache busybox cp -r /data/. /cache/
+            docker run --rm -v postgres-data:/data -v $HOME/.ton-genesis/postgres-data:/cache busybox cp -r /data/. /cache/
+            docker run --rm -v index-workdir:/data -v $HOME/.ton-genesis/index-workdir:/cache busybox cp -r /data/. /cache/
+            echo "Genesis state saved"
           fi
 
       - name: Run build
@@ -156,10 +137,3 @@ jobs:
         run: |
           pushd contracts
           nix develop .#contracts -c yarn test
-
-      - name: Timestamp and Summary
-        run: |
-          echo "Job completed at $(date)"
-          echo "Summary of cache settings:"
-          echo "- Volume caching: ${{ github.event.inputs.disable_volume_cache == 'true' && 'DISABLED' || 'ENABLED' }}"
-          echo "- Image caching: ${{ github.event.inputs.disable_image_cache == 'true' && 'DISABLED' || 'ENABLED' }}"
