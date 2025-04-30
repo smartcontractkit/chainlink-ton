@@ -14,6 +14,12 @@
 
 ## Experiments
 
+Directory structure:
+
+Contracts: ´/contracts/contracts/examples/<experiment_name>´
+Wrappers: ´/contracts/wrappers/examples/<experiment_name>´
+Tests: ´/contracts/tests/<experiment_name>_test.go´
+
 ### Diagram Convention
 
 In the following diagrams, I am using dashed-line arrows --> to denote external messages, solid-line arrows for internal messages, actor for rpc clients and blocks for smart contracts.
