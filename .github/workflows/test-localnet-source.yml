@@ -73,12 +73,12 @@ jobs:
       - name: Start TON Local Network from source
         run: |
           # Add --build-cache flag to use Docker's layer caching
-          COMPOSE_DOCKER_CLI_BUILD=1 DOCKER_BUILDKIT=1 docker-compose -f docker-compose-build.yaml build
-          docker-compose -f docker-compose-build.yaml up -d
+          COMPOSE_DOCKER_CLI_BUILD=1 DOCKER_BUILDKIT=1 docker compose -f docker-compose-build.yaml build
+          docker compose -f docker-compose-build.yaml up -d
           
           # Wait for genesis node to be healthy
           echo "Waiting for genesis node to initialize (this may take a few minutes)..."
-          while ! docker-compose -f docker-compose-build.yaml exec -T genesis /usr/local/bin/lite-client -a 127.0.0.1:40004 -b E7XwFSQzNkcRepUC23J2nRpASXpnsEKmyyHYV4u/FZY= -t 3 -c "last" &>/dev/null; do
+          while ! docker compose -f docker-compose-build.yaml exec -T genesis /usr/local/bin/lite-client -a 127.0.0.1:40004 -b E7XwFSQzNkcRepUC23J2nRpASXpnsEKmyyHYV4u/FZY= -t 3 -c "last" &>/dev/null; do
             echo -n "."
             sleep 5
           done
@@ -89,7 +89,7 @@ jobs:
           docker ps
           
           # Push built images to GitHub Container Registry for future runs
-          docker-compose -f docker-compose-build.yaml images | tail -n +3 | awk '{print $1}' | while read -r img; do
+          docker compose -f docker-compose-build.yaml images | tail -n +3 | awk '{print $1}' | while read -r img; do
             if [[ "$img" != "" ]]; then
               # Extract image name without potential tag
               img_name=$(echo $img | cut -d: -f1)
