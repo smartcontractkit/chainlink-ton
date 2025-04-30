@@ -20,6 +20,18 @@
 - Wrappers: `/contracts/wrappers/examples/<experiment_name>`
 - Tests: `/contracts/tests/<experiment_name>_test.go`
 
+### Running tests
+
+To compile contracts, on repo root dir run:
+
+```bash
+yarn dev:build
+```
+
+Then you can run tests from ccontracts/tests.
+
+To run a specific test, you might run `go test -v -run ^TestExampleName$ github.com/smartcontractkit/chainlink-ton/contracts/tests/`.
+
 ### Diagram Convention
 
 Diagrams where made following [Mermaid](https://mermaid-js.github.io/mermaid/#/) syntax. If you are using VSCode, I suggest installing [Markdown Preview Mermaid Support](https://marketplace.visualstudio.com/items/?itemName=bierner.markdown-mermaid) extension.
