@@ -116,9 +116,10 @@ jobs:
           for pid in "${pids[@]}"; do
             wait "$pid"
           done
-          
+
           echo "All images mirrored and tagged with original names."
-          docker images | grep -E "$(echo "${IMAGES[@]}" | tr ' ' '|')"
+          echo "Listing available images:"
+          docker images
 
       - name: Start TON Local Network
         id: ton-startup
