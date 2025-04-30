@@ -121,8 +121,6 @@ jobs:
           if [ "${{ steps.cache-volumes.outputs.cache-hit }}" != "true" ]; then
             echo "Caching volumes for future runs"
             
-            # Clear and recreate directories to avoid permission issues
-            rm -rf ~/.ton-volumes/{shared-data,ton-db,postgres-data,index-workdir}
             mkdir -p ~/.ton-volumes/{shared-data,ton-db,postgres-data,index-workdir}
             
             # Copy data from containers to cache
