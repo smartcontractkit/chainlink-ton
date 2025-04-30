@@ -112,7 +112,7 @@ jobs:
           wait "${pids[@]}"
           echo "All images processed and ready to use"
 
-      # Start TON Network and cache volumes if needed
+      # start MyLocalTON and cache volumes if needed
       - name: Start TON Local Network
         run: |
           chmod +x scripts/localnet/localnet-up.sh
