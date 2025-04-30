@@ -122,15 +122,12 @@ jobs:
             echo "Caching volumes for future runs"
             
             mkdir -p ~/.ton-volumes/{shared-data,ton-db,postgres-data,index-workdir}
-            
-            # Copy data from containers to cache
+            chmod -R 777 ~/.ton-volumes
+
             docker cp genesis:/usr/share/data/. ~/.ton-volumes/shared-data/
             docker cp genesis:/var/ton-work/db/. ~/.ton-volumes/ton-db/
             docker cp index-postgres:/var/lib/postgresql/data/. ~/.ton-volumes/postgres-data/
             docker cp index-worker:/workdir/. ~/.ton-volumes/index-workdir/
-            
-            # Ensure permissions are correct
-            chmod -R 777 ~/.ton-volumes
           fi
 
       - name: Run build
