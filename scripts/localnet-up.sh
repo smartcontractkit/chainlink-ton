@@ -12,18 +12,17 @@ if [ -n "$VOLUME_DRIVER" ] || [ -n "$SHARED_DATA_O_OPT" ]; then
   env | grep -E 'VOLUME_DRIVER|_O_OPT|_TYPE_OPT|_DEVICE_OPT' || echo "None found"
 fi
 
+# Skip docker-compose pull if we're in GitHub Actions (images already loaded)
 if [ -z "$GITHUB_ACTIONS" ]; then
   echo "Running locally, pulling Docker images..."
   docker compose -f "${COMPOSE_FILE}" pull
-
-  echo "Starting essential TON services..."
-  docker compose -f "${COMPOSE_FILE}" -p ton up -d
 else
-  echo "Running in GitHub Actions with pre-loaded images, using --pull never..."
-
-  echo "Starting essential TON services..."
-  docker compose -f "${COMPOSE_FILE}" -p ton up -d --pull never
+  echo "Running in GitHub Actions with pre-loaded images, skipping pull..."
 fi
+
+echo "Starting essential TON services..."
+# Add project name to avoid prefix issues with volume names
+docker compose -f "${COMPOSE_FILE}" -p ton up -d
 
 # Wait for genesis node to be healthy
 # Add a timeout for health check

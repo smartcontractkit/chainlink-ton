@@ -89,9 +89,25 @@ jobs:
               TAG="${IMG##*:}"
               SRC="docker://${IMG}"
               DST="docker://${TARGET_REGISTRY}/mylocalton-${NAME}:${TAG}"
-              echo "→ [$$] Mirroring $IMG → ${DST}"
-              skopeo copy --all --retry-times=3 "$SRC" "$DST"
-              echo "✔ [$$] Done ${NAME}:${TAG}"
+
+              # check if the image is already in our registry
+              DST="docker://${TARGET_REGISTRY}/mylocalton-${NAME}:${TAG}"
+              if skopeo inspect "$DST" &>/dev/null; then
+                echo "✓ [$] Image already cached in registry: ${DST}"
+              else
+                echo "→ [$] Mirroring $IMG → ${DST}"
+                skopeo copy --all --retry-times=3 "$SRC" "$DST"
+                echo "✓ [$] Mirrored to registry: ${DST}"
+              fi
+
+              echo "→ [$$] Pulling ${DST} locally"
+              docker pull "${TARGET_REGISTRY}/mylocalton-${NAME}:${TAG}"
+              
+              # Tag with the original name so docker-compose can find it
+              echo "→ [$$] Tagging as original: ${IMG}"
+              docker tag "${TARGET_REGISTRY}/mylocalton-${NAME}:${TAG}" "${IMG}"
+              
+              echo "✔ [$$] Processed ${NAME}:${TAG}"
             ) &
             pids+=($!)
           done
@@ -100,7 +116,9 @@ jobs:
           for pid in "${pids[@]}"; do
             wait "$pid"
           done
-          echo "All images mirrored."
+          
+          echo "All images mirrored and tagged with original names."
+          docker images | grep -E "$(echo "${IMAGES[@]}" | tr ' ' '|')"
 
       - name: Start TON Local Network
         id: ton-startup
