@@ -1,8 +1,5 @@
-name: Temp Test MyLocalTON
+name: TON Local Network with Volume Caching
 
-# todo: build from source & cache layer vs cache prepublished images
-# todo: version management for prepublished images
-# todo: delete published organization images
 on:
   push:
     branches:
@@ -32,6 +29,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # Check if we have cached volumes
       - name: Check for cached volumes
         id: cache-volumes
         uses: actions/cache@v4
@@ -41,7 +39,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-ton-volumes-
 
-      # Setup volume directories (will be empty on first run)
+      # Prepare cache directory
       - name: Prepare cache directory and set env vars
         run: |
           mkdir -p ~/.ton-volumes
@@ -56,32 +54,43 @@ jobs:
             mkdir -p ~/.ton-volumes/postgres-data
             mkdir -p ~/.ton-volumes/index-workdir
             
-            # Set env vars for volume bind mounts
-            echo "VOLUME_DRIVER=local" >> $GITHUB_ENV
+            # Set env vars for volume bind mounts (to both current shell and GITHUB_ENV)
+            export VOLUME_DRIVER=local
+            export SHARED_DATA_O_OPT=bind
+            export SHARED_DATA_TYPE_OPT=none
+            export SHARED_DATA_DEVICE_OPT=$HOME/.ton-volumes/shared-data
+            export TON_DB_O_OPT=bind
+            export TON_DB_TYPE_OPT=none
+            export TON_DB_DEVICE_OPT=$HOME/.ton-volumes/ton-db
+            export POSTGRES_DATA_O_OPT=bind
+            export POSTGRES_DATA_TYPE_OPT=none
+            export POSTGRES_DATA_DEVICE_OPT=$HOME/.ton-volumes/postgres-data
+            export INDEX_WORKDIR_O_OPT=bind
+            export INDEX_WORKDIR_TYPE_OPT=none
+            export INDEX_WORKDIR_DEVICE_OPT=$HOME/.ton-volumes/index-workdir
             
-            # shared-data
+            echo "VOLUME_DRIVER=local" >> $GITHUB_ENV
             echo "SHARED_DATA_O_OPT=bind" >> $GITHUB_ENV
             echo "SHARED_DATA_TYPE_OPT=none" >> $GITHUB_ENV
             echo "SHARED_DATA_DEVICE_OPT=$HOME/.ton-volumes/shared-data" >> $GITHUB_ENV
-            
-            # ton-db
             echo "TON_DB_O_OPT=bind" >> $GITHUB_ENV
             echo "TON_DB_TYPE_OPT=none" >> $GITHUB_ENV
             echo "TON_DB_DEVICE_OPT=$HOME/.ton-volumes/ton-db" >> $GITHUB_ENV
-            
-            # postgres-data
             echo "POSTGRES_DATA_O_OPT=bind" >> $GITHUB_ENV
             echo "POSTGRES_DATA_TYPE_OPT=none" >> $GITHUB_ENV
             echo "POSTGRES_DATA_DEVICE_OPT=$HOME/.ton-volumes/postgres-data" >> $GITHUB_ENV
-            
-            # index-workdir
             echo "INDEX_WORKDIR_O_OPT=bind" >> $GITHUB_ENV
             echo "INDEX_WORKDIR_TYPE_OPT=none" >> $GITHUB_ENV
             echo "INDEX_WORKDIR_DEVICE_OPT=$HOME/.ton-volumes/index-workdir" >> $GITHUB_ENV
+            
+            # Also set COMPOSE_PROJECT_NAME to ensure consistent volume naming
+            echo "COMPOSE_PROJECT_NAME=ton" >> $GITHUB_ENV
+            export COMPOSE_PROJECT_NAME=ton
           else
             echo "First run - will use default volumes and cache afterward"
           fi
 
+      # Pull and tag images
       - name: Pull and tag images from GitHub Container Registry
         run: |
           TARGET_REGISTRY="ghcr.io/${{ github.repository }}"
@@ -97,7 +106,6 @@ jobs:
             "toncenter/ton-indexer-worker:v1.2.0-test"
           )
 
-          # always push to cache for testing
           SHOULD_PUSH=false
           
           # Create a temporary directory for configs
@@ -158,12 +166,17 @@ jobs:
           
           # Show the result
           docker images
-
+      
+      # Start TON network and measure startup time
       - name: Start TON Local Network
         id: ton-startup
         run: |
           # Record start time
           start_time=$(date +%s)
+          
+          # Print environment variables for debugging
+          echo "Environment variables for Docker Compose:"
+          env | grep -E 'VOLUME_DRIVER|_O_OPT|_TYPE_OPT|_DEVICE_OPT|COMPOSE_PROJECT_NAME' || echo "None found"
           
           # Start the network
           chmod +x scripts/localnet-up.sh
@@ -216,17 +229,19 @@ jobs:
           echo "Checking if container can access the timestamp file:"
           docker exec genesis ls -la /usr/share/data/cache-timestamp.txt || echo "File not found in container - bind mount may not be working"
 
-          
+      # Run build
       - name: Run build
         run: |
           pushd contracts
           nix develop .#contracts -c yarn && yarn build
           
+      # Run tests
       - name: Run tests
         run: |
           pushd contracts
           nix develop .#contracts -c yarn test
 
+      # Report performance metrics
       - name: Report startup performance
         run: |
           echo "::notice::TON network startup time: ${{ steps.ton-startup.outputs.startup_duration }} seconds (Cache hit: ${{ steps.cache-volumes.outputs.cache-hit }})"
