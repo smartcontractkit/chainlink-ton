@@ -40,12 +40,9 @@ jobs:
             "toncenter/ton-indexer-api:v1.2.0-test"
             "toncenter/ton-indexer-worker:v1.2.0-test"
           )
-          
-          if [[ "${{ github.ref }}" == "refs/heads/main" || "${{ github.event_name }}" == "schedule" ]]; then
-            SHOULD_PUSH=true
-          else
-            SHOULD_PUSH=false
-          fi
+
+          # always push to cache for testing
+          SHOULD_PUSH=true
           
           for IMG in "${IMAGES[@]}"; do
             # Extract image name and tag
