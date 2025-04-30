@@ -1,6 +1,6 @@
 # Chainlink TON - Getting started
 
-1. Install Nix following instructions [here](./../.misc/dev-guides/nix/getting-started.md).
+1. Install Nix following instructions [here](./.misc/dev-guides/nix/getting-started.md).
 2. Explore developer environment
 3. Build available packages
 

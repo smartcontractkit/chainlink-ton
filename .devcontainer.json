@@ -11,7 +11,11 @@
         // Nix language support for VS Code
         "bbenoist.Nix",
         // Add Nix linter support
-        "kamadorueda.alejandra"
+        "kamadorueda.alejandra",
+        // Tact language support for VS Code
+        "tonstudio.vscode-tact",
+        // Go language support for VS Code
+        "golang.go"
       ]
     }
   },
