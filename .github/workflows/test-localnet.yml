@@ -80,15 +80,27 @@ jobs:
             "toncenter/ton-indexer-worker:v1.2.0-test"
           )
 
-          for IMG in "${IMAGES[@]}"; do
-            NAME=$(basename "${IMG%%:*}")
-            TAG="${IMG##*:}"
-            SRC="docker://${IMG}"
-            DST="docker://${TARGET_REGISTRY}/mylocalton-${NAME}:${TAG}"
+          echo "Starting parallel skopeo mirror…"
+          pids=()
 
-            echo "→ Mirroring $IMG → ${DST}"
-            skopeo copy --all --retry-times=3 "$SRC" "$DST"
+          for IMG in "${IMAGES[@]}"; do
+            (
+              NAME=$(basename "${IMG%%:*}")
+              TAG="${IMG##*:}"
+              SRC="docker://${IMG}"
+              DST="docker://${TARGET_REGISTRY}/mylocalton-${NAME}:${TAG}"
+              echo "→ [$$] Mirroring $IMG → ${DST}"
+              skopeo copy --all --retry-times=3 "$SRC" "$DST"
+              echo "✔ [$$] Done ${NAME}:${TAG}"
+            ) &
+            pids+=($!)
           done
+
+          echo "Waiting for all mirrors to complete…"
+          for pid in "${pids[@]}"; do
+            wait "$pid"
+          done
+          echo "All images mirrored."
 
       - name: Start TON Local Network
         id: ton-startup
