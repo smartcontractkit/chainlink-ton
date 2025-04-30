@@ -36,27 +36,29 @@ jobs:
 
       - name: Prepare bind mounts
         run: |
+          mkdir -p ~/.ton-volumes/{shared-data,ton-db,postgres-data,index-workdir}
+
           if [ "${{ steps.cache-volumes.outputs.cache-hit }}" == "true" ]; then
             echo "Using cached volumes from previous run"
+
+            # set up bind mounts via environment variables
+            echo "VOLUME_DRIVER=local" >> $GITHUB_ENV
+            echo "SHARED_DATA_O_OPT=bind" >> $GITHUB_ENV
+            echo "SHARED_DATA_TYPE_OPT=none" >> $GITHUB_ENV
+            echo "SHARED_DATA_DEVICE_OPT=$HOME/.ton-volumes/shared-data" >> $GITHUB_ENV
+            echo "TON_DB_O_OPT=bind" >> $GITHUB_ENV
+            echo "TON_DB_TYPE_OPT=none" >> $GITHUB_ENV
+            echo "TON_DB_DEVICE_OPT=$HOME/.ton-volumes/ton-db" >> $GITHUB_ENV
+            echo "POSTGRES_DATA_O_OPT=bind" >> $GITHUB_ENV
+            echo "POSTGRES_DATA_TYPE_OPT=none" >> $GITHUB_ENV
+            echo "POSTGRES_DATA_DEVICE_OPT=$HOME/.ton-volumes/postgres-data" >> $GITHUB_ENV
+            echo "INDEX_WORKDIR_O_OPT=bind" >> $GITHUB_ENV
+            echo "INDEX_WORKDIR_TYPE_OPT=none" >> $GITHUB_ENV
+            echo "INDEX_WORKDIR_DEVICE_OPT=$HOME/.ton-volumes/index-workdir" >> $GITHUB_ENV
+            echo "COMPOSE_PROJECT_NAME=ton-localnet" >> $GITHUB_ENV
           else
             echo "No cached volumes found - will generate fresh state"
           fi
-          
-          # set up bind mounts via environment variables
-          echo "VOLUME_DRIVER=local" >> $GITHUB_ENV
-          echo "SHARED_DATA_O_OPT=bind" >> $GITHUB_ENV
-          echo "SHARED_DATA_TYPE_OPT=none" >> $GITHUB_ENV
-          echo "SHARED_DATA_DEVICE_OPT=$HOME/.ton-volumes/shared-data" >> $GITHUB_ENV
-          echo "TON_DB_O_OPT=bind" >> $GITHUB_ENV
-          echo "TON_DB_TYPE_OPT=none" >> $GITHUB_ENV
-          echo "TON_DB_DEVICE_OPT=$HOME/.ton-volumes/ton-db" >> $GITHUB_ENV
-          echo "POSTGRES_DATA_O_OPT=bind" >> $GITHUB_ENV
-          echo "POSTGRES_DATA_TYPE_OPT=none" >> $GITHUB_ENV
-          echo "POSTGRES_DATA_DEVICE_OPT=$HOME/.ton-volumes/postgres-data" >> $GITHUB_ENV
-          echo "INDEX_WORKDIR_O_OPT=bind" >> $GITHUB_ENV
-          echo "INDEX_WORKDIR_TYPE_OPT=none" >> $GITHUB_ENV
-          echo "INDEX_WORKDIR_DEVICE_OPT=$HOME/.ton-volumes/index-workdir" >> $GITHUB_ENV
-          echo "COMPOSE_PROJECT_NAME=ton-localnet" >> $GITHUB_ENV
 
       - name: Install skopeo
         run: |
@@ -119,8 +121,6 @@ jobs:
           if [ "${{ steps.cache-volumes.outputs.cache-hit }}" != "true" ]; then
             echo "Caching volumes for future runs"
             
-            mkdir -p ~/.ton-volumes/{shared-data,ton-db,postgres-data,index-workdir}
-
             docker cp genesis:/usr/share/data/. ~/.ton-volumes/shared-data/
             docker cp genesis:/var/ton-work/db/. ~/.ton-volumes/ton-db/
             docker cp index-postgres:/var/lib/postgresql/data/. ~/.ton-volumes/postgres-data/
