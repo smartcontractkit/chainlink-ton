@@ -43,9 +43,9 @@ type Inventory struct {
 }
 
 type AddItemMethod struct {
-	Key           uint8
-	PriceAddr     *address.Address
-	InventoryAddr *address.Address
+	Key       uint8
+	PriceAddr *address.Address
+	CountAddr *address.Address
 }
 
 func (m AddItemMethod) OpCode() uint64 {
@@ -54,16 +54,21 @@ func (m AddItemMethod) OpCode() uint64 {
 func (m AddItemMethod) StoreArgs(b *cell.Builder) error {
 	b.StoreUInt(uint64(m.Key), 8)
 	b.StoreAddr(m.PriceAddr)
-	b.StoreAddr(m.InventoryAddr)
+	b.StoreAddr(m.CountAddr)
 	return nil
 }
 
-func (p Inventory) SendAddItem(key uint8, addr *address.Address) (queryID uint64, msgReceived *utils.MessageReceived, err error) {
+func (p Inventory) SendAddItem(key uint8, priceAddr *address.Address, countAddr *address.Address) (queryID uint64, msgReceived *utils.MessageReceived, err error) {
 	queryID = rand.Uint64()
 	msgReceived, err = p.Contract.CallWaitRecursively(AddItemMethod{
-		PriceAddr:     addr,
-		InventoryAddr: addr,
-		Key:           key,
+		PriceAddr: priceAddr,
+		CountAddr: countAddr,
+		Key:       key,
 	}, queryID)
 	return queryID, msgReceived, err
+}
+
+type Item struct {
+	PriceAddr *address.Address
+	CountAddr *address.Address
 }

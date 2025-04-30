@@ -36,32 +36,37 @@ struct Request {
     price: Int as uint64;
 }
 
-struct Item {
-    priceAddr: Address;
-    inventoryAddr: Address;
-}
+// struct Item {
+//     priceAddr: Address;
+//     inventoryAddr: Address;
+// }
 
 contract Inventory {
     id: Int as uint32;
     pending_requests: map<Int as uint64, Request>;
-    items : map<Int as uint8, Item>;
+    // items : map<Int as uint8, Item>;
+    prices : map<Int as uint8, Address>;
+    counts : map<Int as uint8, Address>;
 
     init(id: Int as uint32) {
         self.id = id;
-        self.items = emptyMap();
+        self.prices = emptyMap();
+        self.counts = emptyMap();
         self.pending_requests = emptyMap();
     }
 
     receive(msg: GetCapital) {
-        // emit(beginComment()
-        //     .concat("GetCapital: ")
-        //     .concat("query_id: ")
-        //     .concat(msg.query_id.toString())
-        //     .concat(", key: ")
-        //     .concat(msg.key.toString())
-        //     .toCell());
-        throwUnless(999, self.items.exists(msg.key));
-        let item = self.items.get(msg.key)!!;
+        emit(beginComment()
+            .concat("GetCapital: ")
+            .concat("qid: ")
+            .concat(msg.query_id.toString())
+            .concat(", key: ")
+            .concat(msg.key.toString())
+            .toCell());
+        throwUnless(999, self.prices.exists(msg.key));
+        throwUnless(999, self.counts.exists(msg.key));
+        let price = self.prices.get(msg.key)!!;
+        let count = self.counts.get(msg.key)!!;
         self.pending_requests.set(msg.query_id, Request{
             requester: sender(),
             completedCountRequest: false,
@@ -70,48 +75,42 @@ contract Inventory {
             price: 0,
         });
         message(MessageParameters{
-            to: item.priceAddr,
-            value: 25000,
-            mode: SendPayFwdFeesSeparately | SendIgnoreErrors,
+            to: price,
+            value: 250000000,
+            mode: SendPayFwdFeesSeparately /* SendIgnoreErrors*/,
             body: GetItemPrice {
                 query_id: msg.query_id,
             }.toCell(),
         });
-        // emit(beginComment()
-        //     .concat("RequestedPrice sent: ")
-        //     .concat(item.priceAddr.toString())
-        //     .concat(", query_id: ")
-        //     .concat(msg.query_id.toString())
-        //     .toCell());
+        emit(beginComment()
+            .concat("RequestedPrice sent: ")
+            .toCell());
         message(MessageParameters{
-            to: item.inventoryAddr,
-            value: 25000,
-            mode: SendPayFwdFeesSeparately | SendIgnoreErrors,
+            to: count,
+            value: 250000000,
+            mode: SendPayFwdFeesSeparately /* SendIgnoreErrors*/,
             body: GetItemCount {
                 query_id: msg.query_id,
             }.toCell(),
         });
-        // emit(beginComment()
-        //     .concat("RequestedCount sent: ")
-        //     .concat(item.inventoryAddr.toString())
-        //     .concat(", query_id: ")
-        //     .concat(msg.query_id.toString())
-        //     .toCell());
+        emit(beginComment()
+            .concat("RequestedCount sent: ")
+            .toCell());
     }
 
     receive(msg: RequestedPrice) {
-        // let fizz: StringBuilder = beginComment();
-        // fizz.append("RequestedPrice: ");
-        // fizz.append("query_id: ");
-        // fizz.append(msg.query_id.toString());
-        // fizz.append(", price: ");
-        // fizz.append(msg.price.toString());
-        // emit(fizz.toCell());
+        let fizz: StringBuilder = beginComment();
+        fizz.append("RequestedPrice: ");
+        fizz.append("query_id: ");
+        fizz.append(msg.query_id.toString());
+        fizz.append(", price: ");
+        fizz.append(msg.price.toString());
+        emit(fizz.toCell());
         throwUnless(888,self.pending_requests.exists(msg.query_id));
         let request = self.pending_requests.get(msg.query_id)!!;
         
         if !request.completedCountRequest {
-            emit("Request not completed".asComment());
+            emit("Req not completed".asComment());
             request.completedPriceRequest = true;
             request.price = msg.price;
             self.pending_requests.set(msg.query_id, request);
@@ -128,22 +127,22 @@ contract Inventory {
                 new_value: msg.price + request.count,
             }.toCell(),
         });
-        emit("Request completed".asComment());
+        emit("Req completed".asComment());
     }
 
     receive(msg: RequestedCount) {
-        // let fizz: StringBuilder = beginComment();
-        // fizz.append("RequestedCount: ");
-        // fizz.append("query_id: ");
-        // fizz.append(msg.query_id.toString());
-        // fizz.append(", count: ");
-        // fizz.append(msg.count.toString());
-        // emit(fizz.toCell());
+        let fizz: StringBuilder = beginComment();
+        fizz.append("RequestedCount: ");
+        fizz.append("qid: ");
+        fizz.append(msg.query_id.toString());
+        fizz.append(", c: ");
+        fizz.append(msg.count.toString());
+        emit(fizz.toCell());
         throwUnless(777,self.pending_requests.exists(msg.query_id));
         let request = self.pending_requests.get(msg.query_id)!!;
         
         if !request.completedPriceRequest {
-            emit("Request not completed".asComment());
+            emit("Req not completed".asComment());
             request.completedCountRequest = true;
             request.count = msg.count;
             self.pending_requests.set(msg.query_id, request);
@@ -160,25 +159,17 @@ contract Inventory {
                 new_value: msg.count + request.price,
             }.toCell(),
         });
-        emit("Request completed".asComment());
+        emit("Req completed".asComment());
     }
 
     receive(msg: AddItem) {
-        // emit(beginComment()
-        //     .concat("AddItem: ")
-        //     .concat("query_id: ")
-        //     .concat(msg.query_id.toString())
-        //     .concat(", key: ")
-        //     .concat(msg.key.toString())
-        //     .concat(", priceAddr: ")
-        //     .concat(msg.priceAddr.toString())
-        //     .concat(", inventoryAddr: ")
-        //     .concat(msg.inventoryAddr.toString())
-        //     .toCell());
-        self.items.set(msg.key, Item{
-            priceAddr: msg.priceAddr,
-            inventoryAddr: msg.inventoryAddr,
-        });
+        emit(beginComment()
+            .concat("AddItem: ")
+            .concat("key: ")
+            .concat(msg.key.toString())
+            .toCell());
+        self.prices.set(msg.key, msg.priceAddr);
+        self.counts.set(msg.key,msg.inventoryAddr);
     }
 
     get fun id(): Int {

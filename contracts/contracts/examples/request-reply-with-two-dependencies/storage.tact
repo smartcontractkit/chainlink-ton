@@ -25,6 +25,13 @@ contract Storage {
     }
 
     receive(msg: GetCapitalFrom) {
+        emit(beginComment()
+            .concat("GetCapitalFrom: ")
+            .concat("qid: ")
+            .concat(msg.query_id.toString())
+            .concat(", key: ")
+            .concat(msg.key.toString())
+            .toCell());
         self.pending_request_id = msg.query_id;
         self.value = 0;
         message(MessageParameters{

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand/v2"
 	"testing"
+	"time"
 
 	wrappers "github.com/smartcontractkit/chainlink-ton/contracts/wrappers/examples/request_reply_with_two_dependencies"
 	"github.com/stretchr/testify/assert"
@@ -40,7 +41,7 @@ func TestRequestReplyWithTwoDependencies(t *testing.T) {
 			"banana": 3,
 		}
 		newVar := len(priceIndex)
-		itemAddresses := make([]*address.Address, newVar)
+		itemAddresses := make([]Item, newVar)
 		Logf("len(itemAddresses): %d\n", len(itemAddresses))
 
 		Logf("Deploying ItemPrice contracts\n")
@@ -57,7 +58,7 @@ func TestRequestReplyWithTwoDependencies(t *testing.T) {
 			Logf("ItemCount contract deployed at %s\n", itemCount.Contract.Address.String())
 			actorRegistry.AddActor(itemCount.Contract.Address, uint64(0), fmt.Sprintf("ItemCount%s", name))
 
-			itemAddresses[index] = itemCount.Contract.Address
+			itemAddresses[index] = Item{itemPrice.Contract.Address, itemCount.Contract.Address}
 
 		}
 
@@ -68,8 +69,8 @@ func TestRequestReplyWithTwoDependencies(t *testing.T) {
 		actorRegistry.AddActor(inventory.Contract.Address, uint64(0), "Inventory")
 
 		for index, name := range priceIndex {
-			Logf("Sending AddItem request for %s, key: %d, addr: %s\n", name, uint8(index), itemAddresses[index].String())
-			_, _, err := inventory.SendAddItem(uint8(index), itemAddresses[index])
+			Logf("Sending AddItem request for %s, key: %d, priceAddr: %s, countAddr: %s\n", name, uint8(index), itemAddresses[index].PriceAddr.String(), itemAddresses[index].CountAddr.String())
+			_, _, err := inventory.SendAddItem(uint8(index), itemAddresses[index].PriceAddr, itemAddresses[index].CountAddr)
 			assert.NoError(t, err, "Failed to send AddItem request: %v", err)
 			Logf("AddItem request sent\n")
 		}
@@ -88,6 +89,7 @@ func TestRequestReplyWithTwoDependencies(t *testing.T) {
 			assert.NoError(t, err, "Failed to send GetPriceFrom request: %v", err)
 			Logf("GetPriceFrom request sent\n")
 
+			time.Sleep(time.Second * 10) // Wait for the contract to be deployed
 			Logf("Checking result\n")
 			result, err := storage.GetValue()
 			assert.NoError(t, err, "Failed to get value: %v", err)

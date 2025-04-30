@@ -61,13 +61,13 @@ func (c *Contract) SendMessageWait(body *cell.Cell) (*MessageReceived, error) {
 	)
 }
 
-func (c *Contract) Get(key string) (*ton.ExecutionResult, error) {
+func (c *Contract) Get(key string, params ...interface{}) (*ton.ExecutionResult, error) {
 	block, err := c.ApiClient.Api.CurrentMasterchainInfo(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get current block: %w", err)
 	}
 
-	return c.ApiClient.Api.WaitForBlock(block.SeqNo).RunGetMethod(context.Background(), block, c.Address, key)
+	return c.ApiClient.Api.WaitForBlock(block.SeqNo).RunGetMethod(context.Background(), block, c.Address, key, params...)
 }
 
 func Uint64From(res *ton.ExecutionResult, err error) (uint64, error) {
