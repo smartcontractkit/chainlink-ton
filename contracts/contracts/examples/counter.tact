@@ -13,7 +13,7 @@ message(4) SetCount {
 
 // --- Contract Definition ---
 contract Counter {
-    
+
     // --- State Variables ---
     // Declared as contract fields. Persistence is handled automatically by Tact.
     // Types and sizes (`as uint32`) match the FunC storage layout.
