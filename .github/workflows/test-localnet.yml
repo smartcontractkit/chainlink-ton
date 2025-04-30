@@ -33,8 +33,6 @@ jobs:
         with:
           path: ~/.ton-volumes
           key: ${{ runner.os }}-ton-volumes-${{ hashFiles('docker-compose.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-ton-volumes-
 
       - name: Prepare bind mounts
         run: |
