@@ -136,3 +136,13 @@ jobs:
             docker cp index-worker:/workdir/. ~/.ton-volumes/index-workdir/
             chmod -R 777 ~/.ton-volumes
           fi
+
+      - name: Run build
+        run: |
+          pushd contracts
+          nix develop .#contracts -c yarn && yarn build
+
+      - name: Run tests
+        run: |
+          pushd contracts
+          nix develop .#contracts -c yarn test
