@@ -27,24 +27,24 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       # Cache TON volumes for faster startup
-      - name: Cache TON volumes
+      - name: Check for cached volumes
         id: cache-volumes
         uses: actions/cache@v4
         with:
           path: ~/.ton-volumes
-          key: ${{ runner.os }}-ton-volumes-${{ hashFiles('docker-compose.yaml', 'scripts/localnet/*.sh') }}-v1
+          key: ${{ runner.os }}-ton-volumes-${{ hashFiles('docker-compose.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-ton-volumes-
 
       - name: Prepare bind mounts
         run: |
-          mkdir -p ~/.ton-volumes/{shared-data,ton-db,postgres-data,index-workdir}
-          
           if [ "${{ steps.cache-volumes.outputs.cache-hit }}" == "true" ]; then
             echo "Using cached volumes from previous run"
           else
             echo "No cached volumes found - will generate fresh state"
           fi
           
-          # Set up bind mounts via environment variables
+          # set up bind mounts via environment variables
           echo "VOLUME_DRIVER=local" >> $GITHUB_ENV
           echo "SHARED_DATA_O_OPT=bind" >> $GITHUB_ENV
           echo "SHARED_DATA_TYPE_OPT=none" >> $GITHUB_ENV
@@ -122,12 +122,13 @@ jobs:
             echo "Caching volumes for future runs"
             
             mkdir -p ~/.ton-volumes/{shared-data,ton-db,postgres-data,index-workdir}
-            chmod -R 777 ~/.ton-volumes
 
             docker cp genesis:/usr/share/data/. ~/.ton-volumes/shared-data/
             docker cp genesis:/var/ton-work/db/. ~/.ton-volumes/ton-db/
             docker cp index-postgres:/var/lib/postgresql/data/. ~/.ton-volumes/postgres-data/
             docker cp index-worker:/workdir/. ~/.ton-volumes/index-workdir/
+
+            chmod -R 777 ~/.ton-volumes
           fi
 
       - name: Run build
