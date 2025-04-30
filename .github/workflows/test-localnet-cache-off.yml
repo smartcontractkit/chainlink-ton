@@ -83,7 +83,6 @@ jobs:
           IMAGES=(
             "ghcr.io/neodix42/mylocalton-docker:latest"
             "ghcr.io/neodix42/ton-http-api:latest"
-            "ghcr.io/neodix42/mylocalton-docker-faucet:latest"
             "redis:latest"
             "postgres:17"
             "toncenter/ton-indexer-classifier:v1.2.0-test"

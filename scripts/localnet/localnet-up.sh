@@ -44,6 +44,6 @@ while ! docker compose -f "${COMPOSE_FILE}" -p ton-localnet exec -T genesis /usr
 done
 
 echo -e "\nTON network is up and running!"
-echo "Explorer: http://localhost:8080/last"
+# echo "Explorer: http://localhost:8080/last"
 echo "TON HTTP API: http://localhost:8081"
-echo "Faucet: http://localhost:88"
+# echo "Faucet: http://localhost:88"
