@@ -192,6 +192,30 @@ jobs:
             # Set permissions
             chmod -R 777 ~/.ton-volumes
           fi
+
+          # Diagnostic: Check volume mounts to confirm bind mounts are working
+          echo "===== VOLUME MOUNT DIAGNOSTICS ====="
+          
+          # List all docker volumes
+          echo "Docker volumes:"
+          docker volume ls
+          
+          # Check container mount points
+          echo "Genesis container mounts:"
+          docker inspect --format='{{range .Mounts}}{{.Type}} {{.Source}} -> {{.Destination}}{{println}}{{end}}' genesis
+          
+          # Check if our cached directories are being used
+          echo "Checking for bind mounts to cached directories:"
+          docker inspect --format='{{range .Mounts}}{{if eq .Type "bind"}}BIND MOUNT FOUND: {{.Source}} -> {{.Destination}}{{println}}{{end}}{{end}}' genesis
+          
+          # Check file in volume to confirm it's from cache
+          echo "Creating timestamp file in cached directory for next run verification..."
+          date > ~/.ton-volumes/shared-data/cache-timestamp.txt
+          
+          # Try to access the file from container to verify mount
+          echo "Checking if container can access the timestamp file:"
+          docker exec genesis ls -la /usr/share/data/cache-timestamp.txt || echo "File not found in container - bind mount may not be working"
+
           
       - name: Run build
         run: |
