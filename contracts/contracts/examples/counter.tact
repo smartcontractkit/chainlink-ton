@@ -3,9 +3,7 @@
  */
 
 // --- Message Definitions ---
-
 // Messages correspond to FunC/Tolk opcodes for setter operations.
-
 // Opcodes are explicitly set to match the original constants.
 
 message(4) SetCount {
