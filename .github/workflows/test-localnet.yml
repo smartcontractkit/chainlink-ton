@@ -49,43 +49,30 @@ jobs:
             echo "Using cached volumes from previous run"
             
             # Create volume subdirectories if they don't exist
-            mkdir -p ~/.ton-volumes/shared-data
-            mkdir -p ~/.ton-volumes/ton-db
-            mkdir -p ~/.ton-volumes/postgres-data
-            mkdir -p ~/.ton-volumes/index-workdir
+
+            mkdir -p ~/.ton-volumes/{shared-data,ton-db,postgres-data,index-workdir}
             
             # Set env vars for volume bind mounts (to both current shell and GITHUB_ENV)
-            export VOLUME_DRIVER=local
-            export SHARED_DATA_O_OPT=bind
-            export SHARED_DATA_TYPE_OPT=none
-            export SHARED_DATA_DEVICE_OPT=$HOME/.ton-volumes/shared-data
-            export TON_DB_O_OPT=bind
-            export TON_DB_TYPE_OPT=none
-            export TON_DB_DEVICE_OPT=$HOME/.ton-volumes/ton-db
-            export POSTGRES_DATA_O_OPT=bind
-            export POSTGRES_DATA_TYPE_OPT=none
-            export POSTGRES_DATA_DEVICE_OPT=$HOME/.ton-volumes/postgres-data
-            export INDEX_WORKDIR_O_OPT=bind
-            export INDEX_WORKDIR_TYPE_OPT=none
-            export INDEX_WORKDIR_DEVICE_OPT=$HOME/.ton-volumes/index-workdir
-            
             echo "VOLUME_DRIVER=local" >> $GITHUB_ENV
             echo "SHARED_DATA_O_OPT=bind" >> $GITHUB_ENV
             echo "SHARED_DATA_TYPE_OPT=none" >> $GITHUB_ENV
             echo "SHARED_DATA_DEVICE_OPT=$HOME/.ton-volumes/shared-data" >> $GITHUB_ENV
+
             echo "TON_DB_O_OPT=bind" >> $GITHUB_ENV
             echo "TON_DB_TYPE_OPT=none" >> $GITHUB_ENV
             echo "TON_DB_DEVICE_OPT=$HOME/.ton-volumes/ton-db" >> $GITHUB_ENV
+
             echo "POSTGRES_DATA_O_OPT=bind" >> $GITHUB_ENV
             echo "POSTGRES_DATA_TYPE_OPT=none" >> $GITHUB_ENV
             echo "POSTGRES_DATA_DEVICE_OPT=$HOME/.ton-volumes/postgres-data" >> $GITHUB_ENV
+            
             echo "INDEX_WORKDIR_O_OPT=bind" >> $GITHUB_ENV
             echo "INDEX_WORKDIR_TYPE_OPT=none" >> $GITHUB_ENV
             echo "INDEX_WORKDIR_DEVICE_OPT=$HOME/.ton-volumes/index-workdir" >> $GITHUB_ENV
             
             # Also set COMPOSE_PROJECT_NAME to ensure consistent volume naming
-            echo "COMPOSE_PROJECT_NAME=ton" >> $GITHUB_ENV
-            export COMPOSE_PROJECT_NAME=ton
+            echo "COMPOSE_PROJECT_NAME=mylocalton" >> $GITHUB_ENV
+            export COMPOSE_PROJECT_NAME=mylocalton
           else
             echo "First run - will use default volumes and cache afterward"
           fi
@@ -106,7 +93,7 @@ jobs:
             "toncenter/ton-indexer-worker:v1.2.0-test"
           )
 
-          SHOULD_PUSH=false
+          SHOULD_PUSH=true
           
           # Create a temporary directory for configs
           mkdir -p /tmp/image_configs
@@ -171,30 +158,13 @@ jobs:
       - name: Start TON Local Network
         id: ton-startup
         run: |
-          # Record start time
-          start_time=$(date +%s)
-          
-          # Print environment variables for debugging
-          echo "Environment variables for Docker Compose:"
-          env | grep -E 'VOLUME_DRIVER|_O_OPT|_TYPE_OPT|_DEVICE_OPT|COMPOSE_PROJECT_NAME' || echo "None found"
-          
-          # Start the network
           chmod +x scripts/localnet-up.sh
           scripts/localnet-up.sh
-          
-          # Record time and calculate duration
-          end_time=$(date +%s)
-          duration=$((end_time - start_time))
-          echo "startup_duration=${duration}" >> $GITHUB_OUTPUT
-          echo "TON network startup completed in ${duration} seconds"
           
           # If this is the first run, copy volume data for future cache
           if [ "${{ steps.cache-volumes.outputs.cache-hit }}" != "true" ]; then
             echo "Caching volumes for future runs"
-            mkdir -p ~/.ton-volumes/shared-data
-            mkdir -p ~/.ton-volumes/ton-db
-            mkdir -p ~/.ton-volumes/postgres-data
-            mkdir -p ~/.ton-volumes/index-workdir
+            mkdir -p ~/.ton-volumes/{shared-data,ton-db,postgres-data,index-workdir}
             
             # Copy container data directly
             docker cp genesis:/usr/share/data/. ~/.ton-volumes/shared-data/
@@ -205,43 +175,3 @@ jobs:
             # Set permissions
             chmod -R 777 ~/.ton-volumes
           fi
-
-          # Diagnostic: Check volume mounts to confirm bind mounts are working
-          echo "===== VOLUME MOUNT DIAGNOSTICS ====="
-          
-          # List all docker volumes
-          echo "Docker volumes:"
-          docker volume ls
-          
-          # Check container mount points
-          echo "Genesis container mounts:"
-          docker inspect --format='{{range .Mounts}}{{.Type}} {{.Source}} -> {{.Destination}}{{println}}{{end}}' genesis
-          
-          # Check if our cached directories are being used
-          echo "Checking for bind mounts to cached directories:"
-          docker inspect --format='{{range .Mounts}}{{if eq .Type "bind"}}BIND MOUNT FOUND: {{.Source}} -> {{.Destination}}{{println}}{{end}}{{end}}' genesis
-          
-          # Check file in volume to confirm it's from cache
-          echo "Creating timestamp file in cached directory for next run verification..."
-          date > ~/.ton-volumes/shared-data/cache-timestamp.txt
-          
-          # Try to access the file from container to verify mount
-          echo "Checking if container can access the timestamp file:"
-          docker exec genesis ls -la /usr/share/data/cache-timestamp.txt || echo "File not found in container - bind mount may not be working"
-
-      # Run build
-      - name: Run build
-        run: |
-          pushd contracts
-          nix develop .#contracts -c yarn && yarn build
-          
-      # Run tests
-      - name: Run tests
-        run: |
-          pushd contracts
-          nix develop .#contracts -c yarn test
-
-      # Report performance metrics
-      - name: Report startup performance
-        run: |
-          echo "::notice::TON network startup time: ${{ steps.ton-startup.outputs.startup_duration }} seconds (Cache hit: ${{ steps.cache-volumes.outputs.cache-hit }})"
