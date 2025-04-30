@@ -5,6 +5,16 @@ on:
     branches:
       - feature/mylocalton
   pull_request:
+  workflow_dispatch:
+    inputs:
+      disable_volume_cache:
+        description: 'Disable volume caching'
+        type: boolean
+        default: false
+      disable_image_cache:
+        description: 'Disable Docker image caching'
+        type: boolean
+        default: false
 
 jobs:
   test-localnet:
@@ -28,6 +38,7 @@ jobs:
 
       - name: Cache Docker volumes
         id: cache-volumes
+        if: ${{ !github.event.inputs.disable_volume_cache || github.event.inputs.disable_volume_cache != 'true' }}
         uses: actions/cache@v4
         with:
           path: ~/.ton-volumes
@@ -39,7 +50,7 @@ jobs:
         run: |
           mkdir -p ~/.ton-volumes
 
-          if [ "${{ steps.cache-volumes.outputs.cache-hit }}" == "true" ]; then
+          if [ "${{ steps.cache-volumes.outputs.cache-hit }}" == "true" ] && [ "${{ github.event.inputs.disable_volume_cache }}" != "true" ]; then
             echo "Using cached volumes from previous run"
             mkdir -p ~/.ton-volumes/{shared-data,ton-db,postgres-data,index-workdir}
             echo "VOLUME_DRIVER=local" >> $GITHUB_ENV
@@ -58,7 +69,7 @@ jobs:
             echo "COMPOSE_PROJECT_NAME=mylocalton" >> $GITHUB_ENV
             export COMPOSE_PROJECT_NAME=mylocalton
           else
-            echo "First run - will use default volumes and cache afterward"
+            echo "Volume cache disabled or first run - will use default volumes"
           fi
 
       - name: Install skopeo
@@ -90,9 +101,8 @@ jobs:
               SRC="docker://${IMG}"
               DST="docker://${TARGET_REGISTRY}/mylocalton-${NAME}:${TAG}"
 
-              # check if the image is already in our registry
-              DST="docker://${TARGET_REGISTRY}/mylocalton-${NAME}:${TAG}"
-              if skopeo inspect "$DST" &>/dev/null; then
+              # check if the image is already in our registry (if caching is enabled)
+              if [ "${{ github.event.inputs.disable_image_cache }}" != "true" ] && skopeo inspect "$DST" &>/dev/null; then
                 echo "✓ [$] Image already cached in registry: ${DST}"
               else
                 echo "→ [$] Mirroring $IMG → ${DST}"
@@ -124,10 +134,10 @@ jobs:
       - name: Start TON Local Network
         id: ton-startup
         run: |
-          chmod +x scripts/localnet-up.sh
-          scripts/localnet-up.sh
+          chmod +x scripts/localnet/localnet-up.sh
+          scripts/localnet/localnet-up.sh
 
-          if [ "${{ steps.cache-volumes.outputs.cache-hit }}" != "true" ]; then
+          if [ "${{ steps.cache-volumes.outputs.cache-hit }}" != "true" ] && [ "${{ github.event.inputs.disable_volume_cache }}" != "true" ]; then
             echo "Caching volumes for future runs"
             mkdir -p ~/.ton-volumes/{shared-data,ton-db,postgres-data,index-workdir}
             docker cp genesis:/usr/share/data/. ~/.ton-volumes/shared-data/
@@ -146,3 +156,10 @@ jobs:
         run: |
           pushd contracts
           nix develop .#contracts -c yarn test
+
+      - name: Timestamp and Summary
+        run: |
+          echo "Job completed at $(date)"
+          echo "Summary of cache settings:"
+          echo "- Volume caching: ${{ github.event.inputs.disable_volume_cache == 'true' && 'DISABLED' || 'ENABLED' }}"
+          echo "- Image caching: ${{ github.event.inputs.disable_image_cache == 'true' && 'DISABLED' || 'ENABLED' }}"

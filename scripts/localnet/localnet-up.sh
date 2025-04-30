@@ -7,10 +7,10 @@ COMPOSE_FILE="${SCRIPT_DIR}/docker-compose.yaml"
 echo "Starting TON local network using ${COMPOSE_FILE}"
 
 # Debug: Show if we have any bind mount environment variables set
-if [ -n "$VOLUME_DRIVER" ] || [ -n "$SHARED_DATA_O_OPT" ]; then
-  echo "Volume bind mount environment variables detected:"
-  env | grep -E 'VOLUME_DRIVER|_O_OPT|_TYPE_OPT|_DEVICE_OPT' || echo "None found"
-fi
+# if [ -n "$VOLUME_DRIVER" ] || [ -n "$SHARED_DATA_O_OPT" ]; then
+#   echo "Volume bind mount environment variables detected:"
+#   env | grep -E 'VOLUME_DRIVER|_O_OPT|_TYPE_OPT|_DEVICE_OPT' || echo "None found"
+# fi
 
 # Skip docker-compose pull if we're in GitHub Actions (images already loaded)
 if [ -z "$GITHUB_ACTIONS" ]; then
