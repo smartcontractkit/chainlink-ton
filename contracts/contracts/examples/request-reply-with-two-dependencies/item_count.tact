@@ -13,7 +13,7 @@ contract ItemCount (
     count: Int as uint64,
 ) {
     receive(msg: GetItemCount) {
-        emit(beginComment().concat("GetItemCount: query_id: ").concat(msg.query_id.toString()).toCell());
+        emit(beginComment().concat("GetItemCount: qid: ").concat(msg.query_id.toString()).toCell());
         self.reply(RequestedCount {
                 query_id: msg.query_id,
                 count: self.count,

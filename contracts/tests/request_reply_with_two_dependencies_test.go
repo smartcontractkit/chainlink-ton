@@ -44,7 +44,7 @@ func TestRequestReplyWithTwoDependencies(t *testing.T) {
 		itemAddresses := make([]Item, newVar)
 		Logf("len(itemAddresses): %d\n", len(itemAddresses))
 
-		Logf("Deploying ItemPrice contracts\n")
+		Logf("Deploying ItemPrice and ItemCount contracts\n")
 		for index, name := range priceIndex {
 			Logf("Deploying ItemPrice %s", name)
 			itemPrice, err := wrappers.NewItemPriceProvider(alice).Deploy(wrappers.ItemPriceIninData{ID: (rand.Uint32()), Price: prices[name]})
@@ -84,17 +84,17 @@ func TestRequestReplyWithTwoDependencies(t *testing.T) {
 		Logf("\n\n\n\n\n\nTest Started\n==========================\n")
 
 		for index, name := range priceIndex {
-			Logf("Sending GetPrice request for %s\n", name)
+			Logf("Sending GetCapitalFrom request for %s\n", name)
 			_, _, err = storage.SendGetCapitalFrom(inventory.Contract.Address, uint8(index))
-			assert.NoError(t, err, "Failed to send GetPriceFrom request: %v", err)
-			Logf("GetPriceFrom request sent\n")
+			assert.NoError(t, err, "Failed to send GetCapitalFrom request: %v", err)
+			Logf("GetCapitalFrom request sent\n")
 
 			time.Sleep(time.Second * 10) // Wait for the contract to be deployed
 			Logf("Checking result\n")
 			result, err := storage.GetValue()
 			assert.NoError(t, err, "Failed to get value: %v", err)
 			expectedCapital := prices[name] * quantity[name]
-			assert.Equal(t, expectedCapital, result, "Expected price %d, got %d", expectedCapital, result)
+			assert.Equal(t, expectedCapital, result, "Expected capital %d, got %d", expectedCapital, result)
 			Logf("Result: %d\n", result)
 		}
 

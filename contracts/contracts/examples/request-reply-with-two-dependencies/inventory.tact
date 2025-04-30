@@ -83,7 +83,7 @@ contract Inventory {
             }.toCell(),
         });
         emit(beginComment()
-            .concat("RequestedPrice sent: ")
+            .concat("GetItemPrice sent: ")
             .toCell());
         message(MessageParameters{
             to: count,
@@ -94,16 +94,16 @@ contract Inventory {
             }.toCell(),
         });
         emit(beginComment()
-            .concat("RequestedCount sent: ")
+            .concat("GetItemCount sent: ")
             .toCell());
     }
 
     receive(msg: RequestedPrice) {
         let fizz: StringBuilder = beginComment();
         fizz.append("RequestedPrice: ");
-        fizz.append("query_id: ");
+        fizz.append("qid: ");
         fizz.append(msg.query_id.toString());
-        fizz.append(", price: ");
+        fizz.append(", p: ");
         fizz.append(msg.price.toString());
         emit(fizz.toCell());
         throwUnless(888,self.pending_requests.exists(msg.query_id));
@@ -114,6 +114,15 @@ contract Inventory {
             request.completedPriceRequest = true;
             request.price = msg.price;
             self.pending_requests.set(msg.query_id, request);
+            emit(beginComment()
+                .concat("Request: ")
+                .concat("price: ")
+                .concat(request.price.toString())
+                .concat(", count: ")
+                .concat(request.count.toString())
+                .concat(", qid: ")
+                .concat(msg.query_id.toString())
+                .toCell());
             return 
         }
 
@@ -124,7 +133,7 @@ contract Inventory {
             mode: SendRemainingValue | SendIgnoreErrors,
             body: Store {
                 query_id: msg.query_id,
-                new_value: msg.price + request.count,
+                new_value: msg.price * request.count,
             }.toCell(),
         });
         emit("Req completed".asComment());
@@ -146,6 +155,15 @@ contract Inventory {
             request.completedCountRequest = true;
             request.count = msg.count;
             self.pending_requests.set(msg.query_id, request);
+            emit(beginComment()
+                .concat("Request: ")
+                .concat("price: ")
+                .concat(request.price.toString())
+                .concat(", count: ")
+                .concat(request.count.toString())
+                .concat(", qid: ")
+                .concat(msg.query_id.toString())
+                .toCell());
             return 
         }
 
@@ -156,7 +174,7 @@ contract Inventory {
             mode: SendRemainingValue | SendIgnoreErrors,
             body: Store {
                 query_id: msg.query_id,
-                new_value: msg.count + request.price,
+                new_value: msg.count * request.price,
             }.toCell(),
         });
         emit("Req completed".asComment());

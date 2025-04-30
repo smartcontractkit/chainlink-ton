@@ -13,7 +13,7 @@ contract ItemPrice (
     price: Int as uint64,
 ) {
     receive(msg: GetItemPrice) {
-        emit(beginComment().concat("GetItemPrice: query_id: ").concat(msg.query_id.toString()).toCell());
+        emit(beginComment().concat("GetItemPrice: qid: ").concat(msg.query_id.toString()).toCell());
         self.reply(RequestedPrice {
                 query_id: msg.query_id,
                 price: self.price,

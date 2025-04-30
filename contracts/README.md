@@ -82,7 +82,7 @@ sequenceDiagram
     Storage-->>-Alice: stored price
 ```
 
-### [ ] Request-reply with two dependencies
+### [x] Request-reply with two dependencies
 
 ```mermaid
 sequenceDiagram
@@ -109,6 +109,8 @@ sequenceDiagram
     Alice-->>+Storage: getStoredValue(queryID)
     Storage-->>-Alice: stored price
 ```
+
+This experiment has events all over the play to make it easier to track the flow.
 
 ### [ ] Two-phase Commit
 

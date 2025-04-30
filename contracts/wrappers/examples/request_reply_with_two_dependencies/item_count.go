@@ -5,7 +5,7 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
-const ITEM_COUNT_CONTRACT_PATH = "../build/examples/request-reply-with-two-dependencies/item_count/item_count_ItemPrice.pkg"
+const ITEM_COUNT_CONTRACT_PATH = "../build/examples/request-reply-with-two-dependencies/item_count/item_count_ItemCount.pkg"
 
 type ItemCountProvider struct {
 	ac utils.ApiClient
