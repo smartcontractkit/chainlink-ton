@@ -66,8 +66,8 @@ jobs:
             echo "INDEX_WORKDIR_O_OPT=bind" >> $GITHUB_ENV
             echo "INDEX_WORKDIR_TYPE_OPT=none" >> $GITHUB_ENV
             echo "INDEX_WORKDIR_DEVICE_OPT=$HOME/.ton-volumes/index-workdir" >> $GITHUB_ENV
-            echo "COMPOSE_PROJECT_NAME=mylocalton" >> $GITHUB_ENV
-            export COMPOSE_PROJECT_NAME=mylocalton
+            echo "COMPOSE_PROJECT_NAME=ton-localnet" >> $GITHUB_ENV
+            export COMPOSE_PROJECT_NAME=ton-localnet
           else
             echo "Volume cache disabled or first run - will use default volumes"
           fi
