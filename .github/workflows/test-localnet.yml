@@ -28,7 +28,7 @@ jobs:
 
       - name: Pull and tag images from GitHub Container Registry
         run: |
-          TARGET_REGISTRY="ghcr.io/${{ github.repository_owner }}"
+          TARGET_REGISTRY="ghcr.io/${{ github.repository }}"
           
           IMAGES=(
             "ghcr.io/neodix42/mylocalton-docker:latest" 
@@ -48,19 +48,19 @@ jobs:
             # Extract image name and tag
             IMG_NAME=$(echo $IMG | cut -d: -f1 | sed 's|.*/||')
             IMG_TAG=$(echo $IMG | cut -d: -f2)
-            TARGET_IMG="${TARGET_REGISTRY}/cache-${IMG_NAME}:${IMG_TAG}"
+
+            TARGET_IMG="${TARGET_REGISTRY}/mylocalton-${IMG_NAME}:${IMG_TAG}"
             
-            # Check if the target image already exists in our registry
             if docker manifest inspect ${TARGET_IMG} &>/dev/null; then
-              echo "✅ ${TARGET_IMG} already exists in registry, using it"
+              echo "${TARGET_IMG} already exists in registry, using it"
               docker pull ${TARGET_IMG}
             else
-              echo "⚠️ ${TARGET_IMG} not found, pulling from source"
+              echo "${TARGET_IMG} not found, pulling from source"
               docker pull ${IMG}
               docker tag ${IMG} ${TARGET_IMG}
               
               if [[ "$SHOULD_PUSH" == "true" ]]; then
-                echo "🚀 Pushing ${TARGET_IMG} to registry for future runs"
+                echo "Pushing ${TARGET_IMG} to registry for future runs"
                 docker push ${TARGET_IMG}
               fi
             fi
