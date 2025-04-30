@@ -1,6 +1,7 @@
 name: Temp Test MyLocalTON
 
 # todo: version management for prepublished images
+# todo: build from source & cache layer vs cache prepublished images
 on:
   push:
     branches:
