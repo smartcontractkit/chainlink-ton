@@ -81,6 +81,7 @@ jobs:
           else
             echo "First run - will use default volumes and cache afterward"
           fi
+
       - name: Pull and tag images from GitHub Container Registry
         run: |
           TARGET_REGISTRY="ghcr.io/${{ github.repository }}"
@@ -97,39 +98,65 @@ jobs:
           )
 
           # always push to cache for testing
-          SHOULD_PUSH=true
+          SHOULD_PUSH=false
+          
+          # Create a temporary directory for configs
+          mkdir -p /tmp/image_configs
+          
+          # Start parallel processing
+          echo "Starting parallel image processing"
+          pids=()
           
           for IMG in "${IMAGES[@]}"; do
-            # Extract image name and tag
-            IMG_NAME=$(echo $IMG | cut -d: -f1 | sed 's|.*/||')
-            IMG_TAG=$(echo $IMG | cut -d: -f2)
+            # Start a subshell for parallel processing
+            (
+              # Extract image name and tag
+              IMG_NAME=$(echo $IMG | cut -d: -f1 | sed 's|.*/||')
+              IMG_TAG=$(echo $IMG | cut -d: -f2)
 
-            TARGET_IMG="${TARGET_REGISTRY}/mylocalton-${IMG_NAME}:${IMG_TAG}"
-            
-            if docker manifest inspect ${TARGET_IMG} &>/dev/null; then
-              echo "${TARGET_IMG} already exists in registry, using it"
-              docker pull ${TARGET_IMG}
-            else
-              echo "${TARGET_IMG} not found, pulling from source"
-              docker pull ${IMG}
-              docker tag ${IMG} ${TARGET_IMG}
+              TARGET_IMG="${TARGET_REGISTRY}/mylocalton-${IMG_NAME}:${IMG_TAG}"
               
-              if [[ "$SHOULD_PUSH" == "true" ]]; then
-                echo "Pushing ${TARGET_IMG} to registry for future runs"
-                echo '{"visibility":"private"}' > image_config.json
-                curl -X PUT -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-                  -H "Content-Type: application/json" \
-                  --data @image_config.json \
-                  "https://api.github.com/user/packages/container/${TARGET_IMG/ghcr.io\/}"
+              if docker manifest inspect ${TARGET_IMG} &>/dev/null; then
+                echo "${TARGET_IMG} already exists in registry, using it"
+                docker pull ${TARGET_IMG}
+              else
+                echo "${TARGET_IMG} not found, pulling from source"
+                docker pull ${IMG}
+                docker tag ${IMG} ${TARGET_IMG}
                 
-                # Push the image
-                docker push ${TARGET_IMG}
+                if [[ "$SHOULD_PUSH" == "true" ]]; then
+                  echo "Pushing ${TARGET_IMG} to registry for future runs"
+                  echo '{"visibility":"private"}' > /tmp/image_configs/config_${IMG_NAME}.json
+                  curl -X PUT -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+                    -H "Content-Type: application/json" \
+                    --data @/tmp/image_configs/config_${IMG_NAME}.json \
+                    "https://api.github.com/user/packages/container/${TARGET_IMG/ghcr.io\/}"
+                  
+                  # Push the image
+                  docker push ${TARGET_IMG}
+                fi
               fi
-            fi
+              
+              docker tag ${TARGET_IMG} ${IMG}
+              echo "✓ Completed processing ${IMG_NAME}:${IMG_TAG}"
+            ) &
             
-            docker tag ${TARGET_IMG} ${IMG}
+            # Store the process ID
+            pids+=($!)
           done
           
+          # Wait for all parallel processes to complete
+          echo "Waiting for all image processes to complete..."
+          for pid in "${pids[@]}"; do
+            wait $pid
+          done
+          
+          echo "All images processed in parallel"
+          
+          # Clean up
+          rm -rf /tmp/image_configs
+          
+          # Show the result
           docker images
 
       - name: Start TON Local Network
