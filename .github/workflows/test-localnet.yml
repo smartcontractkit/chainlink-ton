@@ -82,6 +82,8 @@ jobs:
         run: |
           chmod +x scripts/localnet-up.sh
           scripts/localnet-up.sh
+      
+      # todo: cache genesis state
           
       - name: Run build
         run: |
