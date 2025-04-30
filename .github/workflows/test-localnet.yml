@@ -42,7 +42,7 @@ jobs:
           )
 
           # always push to cache for testing
-          SHOULD_PUSH=true
+          SHOULD_PUSH=false
           
           for IMG in "${IMAGES[@]}"; do
             # Extract image name and tag
