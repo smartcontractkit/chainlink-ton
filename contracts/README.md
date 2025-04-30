@@ -14,13 +14,15 @@
 
 ## Experiments
 
-Directory structure:
+### Directory structure
 
-Contracts: ´/contracts/contracts/examples/<experiment_name>´
-Wrappers: ´/contracts/wrappers/examples/<experiment_name>´
-Tests: ´/contracts/tests/<experiment_name>_test.go´
+- Contracts: `/contracts/contracts/examples/<experiment_name>`
+- Wrappers: `/contracts/wrappers/examples/<experiment_name>`
+- Tests: `/contracts/tests/<experiment_name>_test.go`
 
 ### Diagram Convention
+
+Diagrams where made following [Mermaid](https://mermaid-js.github.io/mermaid/#/) syntax. If you are using VSCode, I suggest installing [Markdown Preview Mermaid Support](https://marketplace.visualstudio.com/items/?itemName=bierner.markdown-mermaid) extension.
 
 In the following diagrams, I am using dashed-line arrows --> to denote external messages, solid-line arrows for internal messages, actor for rpc clients and blocks for smart contracts.
 
