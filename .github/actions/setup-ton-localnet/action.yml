@@ -1,4 +1,4 @@
-name: 'Setup TON Network'
+name: 'Setup TON Localnet'
 description: 'Complete preparation of TON network including volumes, images, and startup'
 
 inputs:
@@ -17,15 +17,15 @@ outputs:
 runs:
   using: "composite"
   steps:
-    # 1. Genesis volume preparation for faster startup
-    - name: Check for cached volumes
+    - name: Restore Volume Cache
       id: cache-volumes
       uses: actions/cache@v4
       with:
         path: ~/.ton-volumes
         key: ${{ runner.os }}-ton-volumes-${{ hashFiles('scripts/localnet/docker-compose.yaml') }}
 
-    - name: Prepare bind mounts
+    # Cache genesis volumes to speed up network startup
+    - name: Prepare Bind Mounts
       shell: bash
       run: |
         mkdir -p ~/.ton-volumes/{shared-data,ton-db,postgres-data,index-workdir}
@@ -54,21 +54,21 @@ runs:
           echo "No cached volumes found - will generate fresh state"
         fi
 
-    # 2. Docker registry setup and image preparation
-    - name: Login to GitHub Container Registry
+    # Pull prebuilt images from upstream registries
+    - name: Authenticate to GHCR
       uses: docker/login-action@v2
       with:
         registry: ghcr.io
         username: ${{ github.actor }}
         password: ${{ inputs.ghcr_token }}
         
-    - name: Install skopeo
+    - name: Install Skopeo
       shell: bash
       run: |
         sudo apt-get update
         sudo apt-get install -y skopeo
     
-    - name: Mirror TON images
+    - name: Mirror & Pull Images
       shell: bash
       run: |
         REPO_NAME="${{ inputs.repository }}"
@@ -118,15 +118,13 @@ runs:
         wait "${pids[@]}"
         echo "All images processed and ready to use"
       
-    # 3. Network Startup
-    - name: Start TON Local Network
+    - name: Start TON Localnet
       shell: bash
       run: |
         chmod +x ${{ github.workspace }}/scripts/localnet/localnet-up.sh
         ${{ github.workspace }}/scripts/localnet/localnet-up.sh
     
-    # 4. Cache volumes if needed
-    - name: Cache volumes after network start
+    - name: Persist Genesis Volumes
       if: steps.cache-volumes.outputs.cache-hit != 'true'
       shell: bash
       run: |

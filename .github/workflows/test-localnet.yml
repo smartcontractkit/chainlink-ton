@@ -19,8 +19,8 @@ jobs:
         with:
           nix_path: nixpkgs=channel:nixos-unstable
 
-      - name: Setup TON Network
-        id: setup-network
+      - name: Setup TON Localnet
+        id: setup-ton-localnet
         uses: ./.github/actions/setup-ton-localnet
         with:
           repository: ${{ github.repository }}
