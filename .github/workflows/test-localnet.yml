@@ -24,6 +24,7 @@ jobs:
         uses: ./.github/actions/setup-ton-localnet
         with:
           repository: ${{ github.repository }}
+          ghcr_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run build
         run: |

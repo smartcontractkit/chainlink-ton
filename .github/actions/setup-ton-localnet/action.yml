@@ -5,6 +5,9 @@ inputs:
   repository:
     description: 'GitHub repository name (org/repo)'
     required: true
+  ghcr_token:
+    description: 'GitHub token for container registry access'
+    required: true
 
 outputs:
   cache-hit:
@@ -57,7 +60,7 @@ runs:
       with:
         registry: ghcr.io
         username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
+        password: ${{ inputs.ghcr_token }}
         
     - name: Install skopeo
       shell: bash
