@@ -63,86 +63,24 @@ services:
       default:
         ipv4_address: 172.28.1.1
 
-  # todo: enable when we need explorer for debugging - or make it optional
-  # blockchain-explorer:
-  #   container_name: blockchain-explorer
-  #   image: ghcr.io/neodix42/mylocalton-docker-explorer:latest
-  #   restart: unless-stopped
-  #   environment:
-  #     - SERVER_PORT=8080
-  #   ports:
-  #     - 8080:8080
-  #   healthcheck:
-  #     test: curl -sS http://127.0.0.1:8080/last || echo 1
-  #     interval: 15s
-  #     timeout: 10s
-  #     retries: 3
-  #   volumes:
-  #     - shared-data:/usr/share/data
-  #   depends_on:
-  #     genesis:
-  #       condition: service_healthy
-
-  # todo: enable when we need more validators
-  #  validator-1:
-  #    container_name: validator-1
-  #    image: ghcr.io/neodix42/mylocalton-docker:latest
-  #    restart: unless-stopped
-  #    volumes:
-  #      - shared-data:/usr/share/data
-  #    environment:
-  #      - NAME=validator-1
-  #      - GENESIS_IP=172.28.1.1
-  #    depends_on:
-  #      - "genesis"
-  #
-  #  validator-2:
-  #    container_name: validator-2
-  #    image: ghcr.io/neodix42/mylocalton-docker:latest
-  #    restart: unless-stopped
-  #    volumes:
-  #      - shared-data:/usr/share/data
-  #    environment:
-  #      - NAME=validator-2
-  #      - GENESIS_IP=172.28.1.1
-  #    depends_on:
-  #      - "genesis"
-  #
-  #  validator-3:
-  #    container_name: validator-3
-  #    image: ghcr.io/neodix42/mylocalton-docker:latest
-  #    restart: unless-stopped
-  #    volumes:
-  #      - shared-data:/usr/share/data
-  #    environment:
-  #      - NAME=validator-3
-  #      - GENESIS_IP=172.28.1.1
-  #    depends_on:
-  #      - "genesis"
-  #
-  #  validator-4:
-  #    container_name: validator-4
-  #    image: ghcr.io/neodix42/mylocalton-docker:latest
-  #    restart: unless-stopped
-  #    volumes:
-  #      - shared-data:/usr/share/data
-  #    environment:
-  #      - NAME=validator-4
-  #      - GENESIS_IP=172.28.1.1
-  #    depends_on:
-  #      - "genesis"
-  #
-  #  validator-5:
-  #    container_name: validator-5
-  #    image: ghcr.io/neodix42/mylocalton-docker:latest
-  #    restart: unless-stopped
-  #    volumes:
-  #      - shared-data:/usr/share/data
-  #    environment:
-  #      - NAME=validator-5
-  #      - GENESIS_IP=172.28.1.1
-  #    depends_on:
-  #      - "genesis"
+  blockchain-explorer:
+    container_name: blockchain-explorer
+    image: ghcr.io/neodix42/mylocalton-docker-explorer:latest
+    restart: unless-stopped
+    environment:
+      - SERVER_PORT=8080
+    ports:
+      - 8080:8080
+    healthcheck:
+      test: curl -sS http://127.0.0.1:8080/last || echo 1
+      interval: 15s
+      timeout: 10s
+      retries: 3
+    volumes:
+      - shared-data:/usr/share/data
+    depends_on:
+      genesis:
+        condition: service_healthy
 
   tonhttpapi:
     container_name: ton-http-api
@@ -176,61 +114,59 @@ services:
       timeout: 5s
       retries: 10
 
-  # faucet:
-  #   container_name: faucet
-  #   image: ghcr.io/neodix42/mylocalton-docker-faucet:latest
-  #   ports:
-  #     - 88:88
-  #   volumes:
-  #     - shared-data:/usr/share/data
-  #   restart: unless-stopped
-  #   depends_on:
-  #     genesis:
-  #       condition: service_healthy
-  #   environment:
-  #     - FAUCET_USE_RECAPTCHA=false # default true
-  #     - RECAPTCHA_SITE_KEY= # google reCaptcha v2
-  #     - RECAPTCHA_SECRET= # google reCaptcha v2
-  #     #      - MASTERCHAIN_ONLY=true   # default false, if true generates new addresses only in masterchain (-1)
-  #     #      - FAUCET_REQUEST_EXPIRATION_PERIOD=3600 #  default 86400 seconds (24h)
-  #     #      - FAUCET_SINGLE_GIVEAWAY=100    # default 10 toncoins
-  #     - SERVER_PORT=88
-  #   healthcheck:
-  #     test: curl -sS http://127.0.0.1:88|| echo 1
+  faucet:
+    container_name: faucet
+    image: ghcr.io/neodix42/mylocalton-docker-faucet:latest
+    ports:
+      - 88:88
+    volumes:
+      - shared-data:/usr/share/data
+    restart: unless-stopped
+    depends_on:
+      genesis:
+        condition: service_healthy
+    environment:
+      - FAUCET_USE_RECAPTCHA=false # default true
+      - RECAPTCHA_SITE_KEY= # google reCaptcha v2
+      - RECAPTCHA_SECRET= # google reCaptcha v2
+      #      - MASTERCHAIN_ONLY=true   # default false, if true generates new addresses only in masterchain (-1)
+      #      - FAUCET_REQUEST_EXPIRATION_PERIOD=3600 #  default 86400 seconds (24h)
+      #      - FAUCET_SINGLE_GIVEAWAY=100    # default 10 toncoins
+      - SERVER_PORT=88
+    healthcheck:
+      test: curl -sS http://127.0.0.1:88|| echo 1
 
-  # todo: enable when we need explorer for debugging - or make it optional
-  #  data:
-  #    container_name: data
-  #    image: ghcr.io/neodix42/mylocalton-docker-data:latest
-  #    ports:
-  #      - 99:99
-  #    volumes:
-  #      - shared-data:/usr/share/data
-  #    restart: unless-stopped
-  #    depends_on:
-  #      genesis:
-  #        condition: service_healthy
-  #    environment:
-  #      - SERVER_PORT=99
-  #      - PERIOD=5
-  #    healthcheck:
-  #      test: curl -sS http://127.0.0.1:99|| echo 1
+  data:
+    container_name: data
+    image: ghcr.io/neodix42/mylocalton-docker-data:latest
+    ports:
+      - 99:99
+    volumes:
+      - shared-data:/usr/share/data
+    restart: unless-stopped
+    depends_on:
+      genesis:
+        condition: service_healthy
+    environment:
+      - SERVER_PORT=99
+      - PERIOD=5
+    healthcheck:
+      test: curl -sS http://127.0.0.1:99|| echo 1
 
-  # todo: enable when we need explorer for debugging - or make it optional
-  # restarter:
-  #   container_name: explorer-restarter
-  #   image: docker:cli
-  #   restart: unless-stopped
-  #   volumes: ['/var/run/docker.sock:/var/run/docker.sock']
-  #   command:
-  #     [
-  #       '/bin/sh',
-  #       '-c',
-  #       'while true; do sleep 3600; echo restarted; docker restart blockchain-explorer; done',
-  #     ]
-  #   depends_on:
-  #     blockchain-explorer:
-  #       condition: service_healthy
+  restarter:
+    container_name: explorer-restarter
+    image: docker:cli
+    restart: unless-stopped
+    volumes: ['/var/run/docker.sock:/var/run/docker.sock']
+    command:
+      [
+        '/bin/sh',
+        '-c',
+        'while true; do sleep 3600; echo restarted; docker restart blockchain-explorer; done',
+      ]
+    depends_on:
+      blockchain-explorer:
+        condition: service_healthy
 
   # toncenter api v3
   event-cache:
@@ -291,7 +227,6 @@ services:
       index-postgres:
         condition: service_healthy
 
-# Use bind mounts when CACHE_ENABLED=true
 volumes:
   shared-data:
     driver: ${VOLUME_DRIVER:-local}
@@ -317,12 +252,6 @@ volumes:
       o: ${INDEX_WORKDIR_O_OPT}
       type: ${INDEX_WORKDIR_TYPE_OPT}
       device: ${INDEX_WORKDIR_DEVICE_OPT}
-# # uncomment if you want to mount this image in folder
-# driver: local
-# driver_opts:
-#   o: bind
-#   type: none
-#   device: /home/user/ton-db
 
 networks:
   default:
