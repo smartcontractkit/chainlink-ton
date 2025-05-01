@@ -2,17 +2,6 @@
 # https://raw.githubusercontent.com/neodix42/mylocalton-docker/refs/heads/main/docker-compose.yaml
 
 # todo: version control for ghcr.io/neodix42/mylocalton-docker(currently pulling latest)
-# todo: remove/clean up after testing
-# pure cold start time(time docker-compose up -d)
-# 3m44.820s
-# user    0m0.863s
-# sys     0m0.896s
-
-# w/o explorer, restarter
-# real    2m10.538s 2m7.274s
-# user    0m0.540s
-# sys     0m0.591s
-
 x-indexer-environment: &indexer-env
   POSTGRES_DIALECT: postgresql+asyncpg
   POSTGRES_HOST: index-postgres
