@@ -21,7 +21,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/contracts/tests/config"
 )
 
-func ConnetLocalnet(t *testing.T) *ton.APIClient {
+func ConnectLocalnet(t *testing.T) *ton.APIClient {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 

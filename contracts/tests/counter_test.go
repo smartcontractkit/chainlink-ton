@@ -18,7 +18,7 @@ func TestCounter(t *testing.T) {
 	var client *ton.APIClient
 
 	t.Run("setup:localnet", func(t *testing.T) {
-		client = testutils.ConnetLocalnet(t)
+		client = testutils.ConnectLocalnet(t)
 	})
 
 	admin, aerr := tonutils.GetRandomWallet(client, wallet.V3R2, wallet.WithWorkchain(0))

@@ -19,7 +19,7 @@ func TestLocalnet(t *testing.T) {
 	var client *ton.APIClient
 
 	t.Run("setup", func(t *testing.T) {
-		client = testutils.ConnetLocalnet(t)
+		client = testutils.ConnectLocalnet(t)
 
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
