@@ -185,6 +185,8 @@ When
 
 ### How to emmit event in Tact
 
+Events are outgoing external messages.
+
 ```tact
 let fizz: StringBuilder = beginComment();
 fizz.append("GetPrice: ");
