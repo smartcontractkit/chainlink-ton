@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math/big"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -33,13 +32,12 @@ func TestLowBalanceReplayAttack(t *testing.T) {
 		// Build transfer
 		outgoingTransfer, err := alice.Wallet.BuildTransfer(bob.Wallet.WalletAddress(), balanceCoin, false, "deposit")
 		assert.NoError(t, err, "Failed to build transfer: %v", err)
-		resultMessage, err := alice.SendWaitTransactionRercursively(context.TODO(), *bob.Wallet.WalletAddress(), outgoingTransfer)
+		resultMessage, seqno, err := alice.SendWaitTransactionRercursively(context.TODO(), *bob.Wallet.WalletAddress(), outgoingTransfer)
 		if err != nil {
 			fmt.Println("Error:", err)
 		}
 
-		time.Sleep(time.Second * 5)
-		newBalance, err := GetBalance(alice)
+		newBalance, err := GetBalanceSeqno(alice, seqno)
 		assert.NoError(t, err, "Failed to get balance: %v", err)
 		verifyTransaction(t, resultMessage, lastBalance, 0, newBalance)
 		lastBalance = newBalance

@@ -46,7 +46,7 @@ func (c *Contract) CallWaitRecursively(method Method, queryId uint64) (*MessageR
 }
 
 func (c *Contract) SendMessageWait(body *cell.Cell) (*MessageReceived, error) {
-	return c.ApiClient.SendWaitTransaction(context.TODO(),
+	m, _, err := c.ApiClient.SendWaitTransaction(context.TODO(),
 		*c.Address,
 		&wallet.Message{
 			Mode: wallet.PayGasSeparately,
@@ -59,6 +59,7 @@ func (c *Contract) SendMessageWait(body *cell.Cell) (*MessageReceived, error) {
 			},
 		},
 	)
+	return m, err
 }
 
 func (c *Contract) Get(key string, params ...interface{}) (*ton.ExecutionResult, error) {
