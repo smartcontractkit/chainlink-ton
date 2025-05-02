@@ -28,6 +28,17 @@ jobs:
         run: |
           pushd contracts
           nix develop .#contracts -c yarn test
+  
+      - name: Setup TON Localnet
+        id: setup-ton-localnet
+        uses: ./.github/actions/setup-ton-localnet
+        with:
+          repository: ${{ github.repository }}
+          ghcr_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run tests
+        run: nix develop . -c go test ./contracts/tests/... 
+
   build-nixpkg:
     name: Build nix package
     runs-on: ubuntu-latest

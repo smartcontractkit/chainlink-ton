@@ -1,4 +1,4 @@
-package utils
+package testutils
 
 import (
 	"context"
@@ -22,7 +22,6 @@ import (
 )
 
 func ConnetLocalnet(t *testing.T) *ton.APIClient {
-	// todo: do we want to spin up a localnet node from go tests or manage as a separated service?
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 

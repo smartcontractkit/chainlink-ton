@@ -1,4 +1,4 @@
-package utils_test
+package testutils_test
 
 import (
 	"context"
@@ -11,30 +11,30 @@ import (
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
 
-	"github.com/smartcontractkit/chainlink-ton/contracts/tests/utils"
+	"github.com/smartcontractkit/chainlink-ton/contracts/tests/testutils"
+	"github.com/smartcontractkit/chainlink-ton/pkg/tonutils"
 )
 
 func TestLocalnet(t *testing.T) {
 	var client *ton.APIClient
 
-	t.Run("setup:localnet", func(t *testing.T) {
-		client = utils.ConnetLocalnet(t)
-	})
+	t.Run("setup", func(t *testing.T) {
+		client = testutils.ConnetLocalnet(t)
 
-	t.Run("setup:funding", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
-		recipient := utils.GetRandomWallet(t, client, wallet.V3R2, wallet.WithWorkchain(0))
+		recipient, err := tonutils.GetRandomWallet(client, wallet.V3R2, wallet.WithWorkchain(0))
+		require.NoError(t, err, "Failed to get random wallet")
 
 		fundAmount := tlb.MustFromTON("0.5")
-		recipients := []utils.FundRecipient{
+		recipients := []testutils.FundRecipient{
 			{
 				Address: recipient.Address(),
 				Amount:  &fundAmount,
 			},
 		}
-		ferr := utils.FundAccounts(ctx, recipients, client, t)
+		ferr := testutils.FundAccounts(ctx, recipients, client, t)
 		require.NoError(t, ferr, "Failed to fund accounts")
 	})
 
@@ -43,18 +43,20 @@ func TestLocalnet(t *testing.T) {
 		nums := []int{10, 100}
 		for _, num := range nums {
 			t.Run(fmt.Sprintf("N=%d", num), func(t *testing.T) {
-				recipients := make([]utils.FundRecipient, num)
+				recipients := make([]testutils.FundRecipient, num)
 
 				for i := 0; i < num; i++ {
-					recipient := utils.GetRandomWallet(t, client, wallet.V3R2, wallet.WithWorkchain(0))
+					recipient, rerr := tonutils.GetRandomWallet(client, wallet.V3R2, wallet.WithWorkchain(0))
+					require.NoError(t, rerr, "Failed to get random wallet")
 					fundAmount := tlb.MustFromTON("0.5")
-					recipients[i] = utils.FundRecipient{
+					recipients[i] = testutils.FundRecipient{
 						Address: recipient.Address(),
 						Amount:  &fundAmount,
 					}
 				}
-				ctx := context.Background()
-				ferr := utils.FundAccounts(ctx, recipients, client, t)
+				ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+				defer cancel()
+				ferr := testutils.FundAccounts(ctx, recipients, client, t)
 				require.NoError(t, ferr, "Failed to fund accounts")
 			})
 		}
