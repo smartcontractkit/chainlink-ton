@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"log"
 	"math/big"
 	"net"
 	"net/http"
@@ -28,7 +27,7 @@ func ConnetLocalnet(t *testing.T) *ton.APIClient {
 	defer cancel()
 
 	wnerr := waitForNode(ctx, config.NetworkConfigFile, config.LiteClient)
-	require.NoError(t, wnerr, "Failed to wait for localnet node")
+	require.NoError(t, wnerr, "Failed to connect to mylocalton instance")
 
 	connectionPool := liteclient.NewConnectionPool()
 
@@ -78,6 +77,8 @@ type FundRecipient struct {
 }
 
 type waitAndRetryOpts struct {
+	Start             time.Time
+	InitialDelay      time.Duration
 	RemainingAttempts uint
 	Timeout           time.Duration
 	Timestep          time.Duration
@@ -85,140 +86,148 @@ type waitAndRetryOpts struct {
 
 func (o waitAndRetryOpts) WithDecreasedAttempts() waitAndRetryOpts {
 	return waitAndRetryOpts{
+		Start:             o.Start,
+		InitialDelay:      o.InitialDelay,
 		RemainingAttempts: o.RemainingAttempts - 1,
 		Timeout:           o.Timeout,
 		Timestep:          o.Timestep,
 	}
 }
 
-func FundAccounts(ctx context.Context, accounts []FundRecipient, tonGoClient *ton.APIClient, t *testing.T) error {
-	return fundAccounts(ctx, accounts, tonGoClient, t, waitAndRetryOpts{
+func FundAccounts(ctx context.Context, accounts []FundRecipient, client *ton.APIClient, t *testing.T) error {
+	return fundAccounts(ctx, accounts, client, t, waitAndRetryOpts{
+		Start:             time.Now(),
+		InitialDelay:      10 * time.Second, // silence account not ready
 		RemainingAttempts: 50,
 		Timeout:           60 * time.Second,
 		Timestep:          2 * time.Second,
 	})
 }
 
-func fundAccounts(ctx context.Context, accounts []FundRecipient, tonGoClient *ton.APIClient, t *testing.T, opts waitAndRetryOpts) error {
-	log.Printf("Funding %d accounts", len(accounts))
-	require.LessOrEqual(t, len(accounts), 4, "Airdrop with normal wallet supports up to 4 accounts")
+func fundAccounts(ctx context.Context, accounts []FundRecipient, client *ton.APIClient, t *testing.T, opts waitAndRetryOpts) error {
+	start := time.Now()
+	total := len(accounts)
+	batchSize := config.FaucetBatchSize
+	batches := (total + batchSize - 1) / batchSize
 
-	funder := getPrefundedWallet(tonGoClient, t)
+	t.Logf("funding %d accounts in %d batches (batch size %d)…", total, batches, batchSize)
+
+	funder := getPrefundedHlWallet(client, t)
+	master, merr := client.GetMasterchainInfo(ctx)
+	require.NoError(t, merr, "failed to get masterchain info for funder balance check")
+	funderBalance, fberr := funder.GetBalance(ctx, master)
+	require.NoError(t, fberr, "failed to get funder balance")
 
 	totalAmount := new(big.Int)
 	for _, recipient := range accounts {
 		totalAmount.Add(totalAmount, recipient.Amount.Nano())
 	}
-
-	master, merr := tonGoClient.GetMasterchainInfo(ctx)
-	require.NoError(t, merr, "failed to get masterchain info for funder balance check")
-	funderBalance, fberr := funder.GetBalance(ctx, master)
-	require.NoError(t, fberr, "failed to get funder balance")
-
 	// totalAmount + 0.01 TON gas buffer
 	requiredBalance := new(big.Int).Add(totalAmount, tlb.MustFromTON("0.01").Nano())
 
 	if funderBalance.Nano().Cmp(requiredBalance) < 0 {
-		return fmt.Errorf("prefunded wallet has insufficient balance (%s TON) to send %s TON", funderBalance.String(), requiredBalance.String())
+		return fmt.Errorf("insufficient balance (%s TON) to send %s TON", funderBalance.String(), requiredBalance.String())
 	}
 
-	// Send multiple messages in one transaction
-	amountToncoin, aterr := tlb.FromNano(requiredBalance, 9) // Convert tlb.Coins value to tlb.Toncoin
-	require.NoError(t, aterr, "failed to convert amount to Toncoin")
-
-	batchSize := 4
-	for i := 0; i < len(accounts); i += batchSize {
+	for b, i := 0, 0; i < total; b, i = b+1, i+batchSize {
 		end := i + batchSize
-		if end > len(accounts) {
-			end = len(accounts)
+		if end > total {
+			end = total
 		}
+		batch := accounts[i:end]
 
-		batchMessages := make([]*wallet.Message, end-i)
-		for j := i; j < end; j++ {
-			// Build transfer for each recipient in this batch
-			transfer, terr := funder.BuildTransfer(accounts[j].Address, amountToncoin, false, "")
-			require.NoError(t, terr, fmt.Sprintf("failed to build transfer for %s", accounts[j].Address.String()))
-			batchMessages[j-i] = transfer
+		// build and send
+		t.Logf("batch %d/%d: sending %d transfers", b+1, batches, len(batch))
+		msgs := make([]*wallet.Message, len(batch))
+		for j, r := range batch {
+			m, err := funder.BuildTransfer(r.Address, *r.Amount, false, "")
+			if err != nil {
+				return fmt.Errorf("batch %d build transfer: %w", b+1, err)
+			}
+			msgs[j] = m
 		}
+		tx, block, err := funder.SendManyWaitTransaction(ctx, msgs)
+		if err != nil {
+			return fmt.Errorf("batch %d send: %w", b+1, err)
+		}
+		t.Logf("batch %d/%d: sent tx %s at block %d", b+1, batches, base64.StdEncoding.EncodeToString(tx.Hash), block.SeqNo)
 
-		tx, block, txerr := funder.SendManyWaitTransaction(ctx, batchMessages)
-		require.NoError(t, txerr, "airdrop transaction failed")
-
-		log.Printf("Airdrop transaction sent: %s in block %d", base64.StdEncoding.EncodeToString(tx.Hash), block.SeqNo)
+		// wait for the whole batch
+		t.Logf("batch %d/%d: waiting confirmation for %d accounts", b+1, batches, len(batch))
+		for _, r := range batch {
+			if err := waitForBalance(ctx, r, opts, client, t); err != nil {
+				return fmt.Errorf("batch %d confirm %s: %w",
+					b+1, r.Address.String(), err)
+			}
+		}
+		t.Logf("batch %d/%d: all %d confirmed", b+1, batches, len(batch))
 	}
 
-	// Wait for all recipients to receive the funds
-	for _, recipient := range accounts {
-
-		// Wait for balance using our helper function
-		if err := waitForBalance(ctx, tonGoClient, recipient, opts); err != nil {
-			return err
-		}
-
-		log.Printf("Airdrop confirmed for %s", recipient.Address.String())
-	}
+	elapsed := time.Since(start).Truncate(time.Millisecond)
+	avgMs := float64(elapsed.Milliseconds()) / float64(total)
+	t.Logf("funded %d accounts in %s (avg %.1fms/account)", total, elapsed, avgMs)
 
 	return nil
 }
 
-func getPrefundedWallet(tonGoClient *ton.APIClient, t *testing.T) *wallet.Wallet {
-	// NOTE: This funder wallet is from MyLocalTon pre-funded wallet
+func getPrefundedHlWallet(client *ton.APIClient, t *testing.T) *wallet.Wallet {
+	// NOTE: This funder high-load wallet is from MyLocalTon pre-funded wallet
 	// ref: https://github.com/neodix42/mylocalton-docker#features
-	rawFunderWallet, rferr := wallet.FromSeed(tonGoClient, strings.Fields(config.FunderWalletSeed), config.FunderWalletVer)
-	require.NoError(t, rferr)
-	mcFunderWallet, mferr := wallet.FromPrivateKeyWithOptions(tonGoClient, rawFunderWallet.PrivateKey(), wallet.V3R2, wallet.WithWorkchain(-1))
-	require.NoError(t, mferr)
-	funder, fserr := mcFunderWallet.GetSubwallet(uint32(config.FunderSubWalletID))
-	require.NoError(t, fserr)
-	return funder
+	rawHlWallet, hlerr := wallet.FromSeed(client, strings.Fields(config.FaucetHlWalletSeed), config.FaucetHlWalletVer)
+	require.NoError(t, hlerr, "failed to create highload wallet")
+	mcFunderWallet, mferr := wallet.FromPrivateKeyWithOptions(client, rawHlWallet.PrivateKey(), config.FaucetHlWalletVer, wallet.WithWorkchain(-1))
+	require.NoError(t, mferr, "failed to create highload wallet")
+	hlfunder, fserr := mcFunderWallet.GetSubwallet(config.FaucetHlWalletSubwalletID)
+	require.NoError(t, fserr, "failed to get highload subwallet")
+	require.Equal(t, hlfunder.Address().StringRaw(), config.FaucetHlWalletAddress, "funder address mismatch")
+	return hlfunder
 }
 
-func waitForBalance(ctx context.Context, tonGoClient *ton.APIClient,
-	recipient FundRecipient, opts waitAndRetryOpts) error {
-	logPrefix := fmt.Sprintf("[Balance Wait %s] ", recipient.Address.String()[:10])
-
+func waitForBalance(ctx context.Context, recipient FundRecipient, opts waitAndRetryOpts, client *ton.APIClient, t *testing.T) error {
 	if opts.RemainingAttempts == 0 {
-		return fmt.Errorf("%stimeout waiting for address %s to receive %s TON",
-			logPrefix, recipient.Address.String(), recipient.Amount.String())
+		return fmt.Errorf("timeout waiting for address %s to receive %s TON",
+			recipient.Address.String(), recipient.Amount.String())
 	}
 
-	// Get current balance
-	masterInfo, err := tonGoClient.GetMasterchainInfo(ctx)
+	masterInfo, err := client.GetMasterchainInfo(ctx)
 	if err != nil {
-		log.Printf("%sWarning: failed to get masterchain info: %v\n", logPrefix, err)
+		t.Log("Warning: failed to get masterchain info: ", err)
 		select {
 		case <-ctx.Done():
-			return fmt.Errorf("%scontext cancelled while waiting for balance", logPrefix)
+			return fmt.Errorf("context cancelled while waiting for balance")
 		case <-time.After(opts.Timestep):
-			return waitForBalance(ctx, tonGoClient, recipient, opts.WithDecreasedAttempts())
+			return waitForBalance(ctx, recipient, opts.WithDecreasedAttempts(), client, t)
 		}
 	}
 
-	acc, err := tonGoClient.GetAccount(ctx, masterInfo, recipient.Address)
+	acc, err := client.GetAccount(ctx, masterInfo, recipient.Address)
 	if err != nil || acc == nil || acc.State == nil || !acc.IsActive {
-		log.Printf("%sAccount not ready yet: %v\n", logPrefix, err)
+		// only start logging this after InitialDelay
+		if time.Since(opts.Start) >= opts.InitialDelay {
+			t.Logf("account not ready: %v", err)
+		}
 		select {
 		case <-ctx.Done():
-			return fmt.Errorf("%scontext cancelled while waiting for balance", logPrefix)
+			return fmt.Errorf("context cancelled while waiting for balance")
 		case <-time.After(opts.Timestep):
-			return waitForBalance(ctx, tonGoClient, recipient, opts.WithDecreasedAttempts())
+			return waitForBalance(ctx, recipient, opts.WithDecreasedAttempts(), client, t)
 		}
 	}
 
 	balance := acc.State.Balance
 	if balance.Compare(recipient.Amount) >= 0 {
-		log.Printf("%sSuccess: Balance for %s reached: %s TON\n",
-			logPrefix, recipient.Address.String(), balance.String())
+		// t.Logf("%sSuccess: Balance for %s reached: %s TON\n",
+		// 	logPrefix, recipient.Address.String(), balance.String())
 		return nil
 	}
 
-	log.Printf("%sWaiting for %s... Current: %s TON, Target: %s TON\n",
-		logPrefix, recipient.Address.String(), balance.String(), recipient.Amount.String())
+	t.Logf("Waiting for %s... Current: %s TON, Target: %s TON\n",
+		recipient.Address.String(), balance.String(), recipient.Amount.String())
 
 	select {
 	case <-ctx.Done():
-		return fmt.Errorf("%scontext cancelled while waiting for balance", logPrefix)
+		return fmt.Errorf("context cancelled while waiting for balance")
 	case <-time.After(opts.Timestep):
-		return waitForBalance(ctx, tonGoClient, recipient, opts.WithDecreasedAttempts())
+		return waitForBalance(ctx, recipient, opts.WithDecreasedAttempts(), client, t)
 	}
 }
