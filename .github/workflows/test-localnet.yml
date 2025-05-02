@@ -35,3 +35,6 @@ jobs:
         run: |
           pushd contracts
           nix develop .#contracts -c yarn test
+
+      - name: Run Go tests
+        run: nix develop . -c go test ./contracts/tests/... 
