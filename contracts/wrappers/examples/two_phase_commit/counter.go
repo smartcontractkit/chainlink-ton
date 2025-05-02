@@ -3,17 +3,17 @@ package two_phase_commit
 import (
 	"math/rand/v2"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/utils"
+	"github.com/smartcontractkit/chainlink-ton/pkg/tonutils"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
 const COUNTER_CONTRACT_PATH = "../build/examples/two-phase-commit/counter/counter_Counter.pkg"
 
 type CounterProvider struct {
-	ac utils.ApiClient
+	ac tonutils.ApiClient
 }
 
-func NewCounterProvider(apiClient utils.ApiClient) *CounterProvider {
+func NewCounterProvider(apiClient tonutils.ApiClient) *CounterProvider {
 	return &CounterProvider{
 		ac: apiClient,
 	}
@@ -43,7 +43,7 @@ func (p *CounterProvider) Deploy(initData CounterIninData) (Counter, error) {
 }
 
 type Counter struct {
-	Contract utils.Contract
+	Contract tonutils.Contract
 }
 
 type sendAck struct{}
@@ -55,12 +55,12 @@ func (m sendAck) StoreArgs(b *cell.Builder) error {
 	return nil
 }
 
-func (c Counter) SendAck() (queryID uint64, msgReceived *utils.MessageReceived, err error) {
+func (c Counter) SendAck() (queryID uint64, msgReceived *tonutils.MessageReceived, err error) {
 	queryID = rand.Uint64()
 	msgReceived, err = c.Contract.CallWaitRecursively(sendAck{}, queryID)
 	return queryID, msgReceived, err
 }
 
 func (c Counter) GetValue() (uint32, error) {
-	return utils.Uint32From(c.Contract.Get("value"))
+	return tonutils.Uint32From(c.Contract.Get("value"))
 }

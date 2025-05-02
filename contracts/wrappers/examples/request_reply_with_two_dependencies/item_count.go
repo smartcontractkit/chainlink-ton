@@ -1,17 +1,17 @@
 package request_reply_with_two_dependencies
 
 import (
-	"github.com/smartcontractkit/chainlink-ton/pkg/utils"
+	"github.com/smartcontractkit/chainlink-ton/pkg/tonutils"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
 const ITEM_COUNT_CONTRACT_PATH = "../build/examples/request-reply-with-two-dependencies/item_count/item_count_ItemCount.pkg"
 
 type ItemCountProvider struct {
-	ac utils.ApiClient
+	ac tonutils.ApiClient
 }
 
-func NewItemCountProvider(apiClient utils.ApiClient) *ItemCountProvider {
+func NewItemCountProvider(apiClient tonutils.ApiClient) *ItemCountProvider {
 	return &ItemCountProvider{
 		ac: apiClient,
 	}
@@ -38,5 +38,5 @@ func (p *ItemCountProvider) Deploy(initData ItemCountIninData) (ItemCount, error
 }
 
 type ItemCount struct {
-	Contract utils.Contract
+	Contract tonutils.Contract
 }

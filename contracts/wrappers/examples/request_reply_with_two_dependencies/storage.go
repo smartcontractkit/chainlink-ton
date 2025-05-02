@@ -2,9 +2,8 @@ package request_reply_with_two_dependencies
 
 import (
 	"math/rand/v2"
-	"time"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/utils"
+	"github.com/smartcontractkit/chainlink-ton/pkg/tonutils"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
@@ -12,10 +11,10 @@ import (
 const STORAGE_CONTRACT_PATH = "../build/examples/request-reply/storage/storage_Storage.pkg"
 
 type StorageProvider struct {
-	ac utils.ApiClient
+	ac tonutils.ApiClient
 }
 
-func NewStorageProvider(apiClient utils.ApiClient) *StorageProvider {
+func NewStorageProvider(apiClient tonutils.ApiClient) *StorageProvider {
 	return &StorageProvider{
 		ac: apiClient,
 	}
@@ -34,7 +33,6 @@ func (p *StorageProvider) Deploy(initData StorageIninData) (Storage, error) {
 	if err != nil {
 		return Storage{}, err
 	}
-	time.Sleep(time.Second * 5) // Wait for the contract to be deployed
 
 	return Storage{
 		Contract: *contract,
@@ -42,7 +40,7 @@ func (p *StorageProvider) Deploy(initData StorageIninData) (Storage, error) {
 }
 
 type Storage struct {
-	Contract utils.Contract
+	Contract tonutils.Contract
 }
 
 type getCapitalFromMethod struct {
@@ -59,7 +57,7 @@ func (m getCapitalFromMethod) StoreArgs(b *cell.Builder) error {
 	return nil
 }
 
-func (s Storage) SendGetCapitalFrom(priceRegistry *address.Address, key uint8) (queryID uint64, msgReceived *utils.MessageReceived, err error) {
+func (s Storage) SendGetCapitalFrom(priceRegistry *address.Address, key uint8) (queryID uint64, msgReceived *tonutils.MessageReceived, err error) {
 	queryID = rand.Uint64()
 	msgReceived, err = s.Contract.CallWaitRecursively(getCapitalFromMethod{
 		PriceRegistry: priceRegistry,
@@ -69,5 +67,5 @@ func (s Storage) SendGetCapitalFrom(priceRegistry *address.Address, key uint8) (
 }
 
 func (s Storage) GetValue() (uint64, error) {
-	return utils.Uint64From(s.Contract.Get("value"))
+	return tonutils.Uint64From(s.Contract.Get("value"))
 }

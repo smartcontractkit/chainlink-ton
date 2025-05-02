@@ -3,7 +3,7 @@ package two_phase_commit
 import (
 	"math/rand/v2"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/utils"
+	"github.com/smartcontractkit/chainlink-ton/pkg/tonutils"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
@@ -11,10 +11,10 @@ import (
 const DB_CONTRACT_PATH = "../build/examples/two-phase-commit/db/db_DB.pkg"
 
 type DBProvider struct {
-	ac utils.ApiClient
+	ac tonutils.ApiClient
 }
 
-func NewDBProvider(apiClient utils.ApiClient) *DBProvider {
+func NewDBProvider(apiClient tonutils.ApiClient) *DBProvider {
 	return &DBProvider{
 		ac: apiClient,
 	}
@@ -40,7 +40,7 @@ func (p *DBProvider) Deploy(initData DBIninData) (DB, error) {
 }
 
 type DB struct {
-	Contract utils.Contract
+	Contract tonutils.Contract
 }
 
 type beginTransaction struct{}
@@ -52,7 +52,7 @@ func (m beginTransaction) StoreArgs(b *cell.Builder) error {
 	return nil
 }
 
-func (s DB) BeginTransaction() (queryID uint64, msgReceived *utils.MessageReceived, err error) {
+func (s DB) BeginTransaction() (queryID uint64, msgReceived *tonutils.MessageReceived, err error) {
 	queryID = rand.Uint64()
 	msgReceived, err = s.Contract.CallWaitRecursively(beginTransaction{}, queryID)
 	return queryID, msgReceived, err
@@ -72,7 +72,7 @@ func (m setValue) StoreArgs(b *cell.Builder) error {
 	return nil
 }
 
-func (s DB) SetValue(counterAddr *address.Address, value uint32) (msgReceived *utils.MessageReceived, err error) {
+func (s DB) SetValue(counterAddr *address.Address, value uint32) (msgReceived *tonutils.MessageReceived, err error) {
 	queryID := rand.Uint64()
 	msgReceived, err = s.Contract.CallWaitRecursively(setValue{
 		Counter: counterAddr,
@@ -90,7 +90,7 @@ func (m commit) StoreArgs(b *cell.Builder) error {
 	return nil
 }
 
-func (s DB) Commit() (queryID uint64, msgReceived *utils.MessageReceived, err error) {
+func (s DB) Commit() (queryID uint64, msgReceived *tonutils.MessageReceived, err error) {
 	queryID = rand.Uint64()
 	msgReceived, err = s.Contract.CallWaitRecursively(commit{}, queryID)
 	return queryID, msgReceived, err

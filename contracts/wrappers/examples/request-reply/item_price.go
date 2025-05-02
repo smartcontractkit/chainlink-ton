@@ -1,17 +1,17 @@
 package request_reply
 
 import (
-	"github.com/smartcontractkit/chainlink-ton/pkg/utils"
+	"github.com/smartcontractkit/chainlink-ton/pkg/tonutils"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
 const ITEM_PRICE_CONTRACT_PATH = "../build/examples/request-reply/item_price/item_price_ItemPrice.pkg"
 
 type ItemPriceProvider struct {
-	ac utils.ApiClient
+	ac tonutils.ApiClient
 }
 
-func NewItemPriceProvider(apiClient utils.ApiClient) *ItemPriceProvider {
+func NewItemPriceProvider(apiClient tonutils.ApiClient) *ItemPriceProvider {
 	return &ItemPriceProvider{
 		ac: apiClient,
 	}
@@ -38,5 +38,5 @@ func (p *ItemPriceProvider) Deploy(initData ItemPriceIninData) (ItemPrice, error
 }
 
 type ItemPrice struct {
-	Contract utils.Contract
+	Contract tonutils.Contract
 }

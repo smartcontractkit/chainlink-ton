@@ -1,4 +1,4 @@
-package utils
+package tonutils
 
 type Queue[T any] struct {
 	queue *[]T

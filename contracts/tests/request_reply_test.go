@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	request_reply "github.com/smartcontractkit/chainlink-ton/contracts/wrappers/examples/request-reply"
-	"github.com/smartcontractkit/chainlink-ton/pkg/utils"
+	"github.com/smartcontractkit/chainlink-ton/pkg/tonutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/xssnick/tonutils-go/address"
 )
@@ -64,11 +64,11 @@ type ActorRegistry struct {
 	Lock         sync.RWMutex
 	Actors       *map[string]Actor
 	Logger       *Logger
-	ApiClient    utils.ApiClient
+	ApiClient    tonutils.ApiClient
 	UnknownCount uint
 }
 
-func NewActorRegistry(apiClient utils.ApiClient) *ActorRegistry {
+func NewActorRegistry(apiClient tonutils.ApiClient) *ActorRegistry {
 	logger := NewLogger()
 	logger.Start()
 	return &ActorRegistry{

@@ -3,7 +3,7 @@ package request_reply
 import (
 	"math/rand/v2"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/utils"
+	"github.com/smartcontractkit/chainlink-ton/pkg/tonutils"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
@@ -11,10 +11,10 @@ import (
 const PRICE_REGISTRY_CONTRACT_PATH = "../build/examples/request-reply/price_registry/price_registry_PriceRegistry.pkg"
 
 type PriceRegistryProvider struct {
-	ac utils.ApiClient
+	ac tonutils.ApiClient
 }
 
-func NewPriceRegistryProvider(apiClient utils.ApiClient) *PriceRegistryProvider {
+func NewPriceRegistryProvider(apiClient tonutils.ApiClient) *PriceRegistryProvider {
 	return &PriceRegistryProvider{
 		ac: apiClient,
 	}
@@ -39,7 +39,7 @@ func (p *PriceRegistryProvider) Deploy(initData PriceRegistryIninData) (PriceReg
 }
 
 type PriceRegistry struct {
-	Contract utils.Contract
+	Contract tonutils.Contract
 }
 
 type AddPriceItemMethod struct {
@@ -56,7 +56,7 @@ func (m AddPriceItemMethod) StoreArgs(b *cell.Builder) error {
 	return nil
 }
 
-func (p PriceRegistry) SendAddPriceItem(key uint8, addr *address.Address) (queryID uint64, msgReceived *utils.MessageReceived, err error) {
+func (p PriceRegistry) SendAddPriceItem(key uint8, addr *address.Address) (queryID uint64, msgReceived *tonutils.MessageReceived, err error) {
 	queryID = rand.Uint64()
 	msgReceived, err = p.Contract.CallWaitRecursively(AddPriceItemMethod{
 		Addr: addr,

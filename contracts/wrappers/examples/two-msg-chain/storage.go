@@ -3,7 +3,7 @@ package two_msg_chain
 import (
 	"math/rand/v2"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/utils"
+	"github.com/smartcontractkit/chainlink-ton/pkg/tonutils"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
@@ -11,10 +11,10 @@ import (
 const STORAGE_CONTRACT_PATH = "../build/examples/two-msg-chain/storage/storage_Storage.pkg"
 
 type StorageProvider struct {
-	ac utils.ApiClient
+	ac tonutils.ApiClient
 }
 
-func NewStorageProvider(apiClient utils.ApiClient) *StorageProvider {
+func NewStorageProvider(apiClient tonutils.ApiClient) *StorageProvider {
 	return &StorageProvider{
 		ac: apiClient,
 	}
@@ -41,7 +41,7 @@ func (p *StorageProvider) Deploy(initData StorageIninData) (Storage, error) {
 }
 
 type Storage struct {
-	Contract utils.Contract
+	Contract tonutils.Contract
 }
 
 type storeMethod struct {
@@ -56,7 +56,7 @@ func (m storeMethod) StoreArgs(b *cell.Builder) error {
 	return nil
 }
 
-func (s Storage) Store(i uint32) (queryID uint64, msgReceived *utils.MessageReceived, err error) {
+func (s Storage) Store(i uint32) (queryID uint64, msgReceived *tonutils.MessageReceived, err error) {
 	queryID = rand.Uint64()
 	msgReceived, err = s.Contract.CallWaitRecursively(storeMethod{
 		Value: i,

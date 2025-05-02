@@ -3,17 +3,17 @@ package two_msg_chain
 import (
 	"math/rand/v2"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/utils"
+	"github.com/smartcontractkit/chainlink-ton/pkg/tonutils"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
 const MEMORY_CONTRACT_PATH = "../build/examples/two-msg-chain/memory/memory_Memory.pkg"
 
 type MemoryProvider struct {
-	ac utils.ApiClient
+	ac tonutils.ApiClient
 }
 
-func NewMemoryProvider(apiClient utils.ApiClient) *MemoryProvider {
+func NewMemoryProvider(apiClient tonutils.ApiClient) *MemoryProvider {
 	return &MemoryProvider{
 		ac: apiClient,
 	}
@@ -40,7 +40,7 @@ func (p *MemoryProvider) Deploy(initData MemoryIninData) (Memory, error) {
 }
 
 type Memory struct {
-	Contract utils.Contract
+	Contract tonutils.Contract
 }
 
 type setValueMethod struct {
@@ -55,7 +55,7 @@ func (m setValueMethod) StoreArgs(b *cell.Builder) error {
 	return nil
 }
 
-func (m Memory) SetValue(i uint32) (queryID uint64, msgReceived *utils.MessageReceived, err error) {
+func (m Memory) SetValue(i uint32) (queryID uint64, msgReceived *tonutils.MessageReceived, err error) {
 	queryID = rand.Uint64()
 	msgReceived, err = m.Contract.CallWaitRecursively(setValueMethod{
 		Value: i,
@@ -64,5 +64,5 @@ func (m Memory) SetValue(i uint32) (queryID uint64, msgReceived *utils.MessageRe
 }
 
 func (m Memory) GetValue() (uint32, error) {
-	return utils.Uint32From(m.Contract.Get("value"))
+	return tonutils.Uint32From(m.Contract.Get("value"))
 }

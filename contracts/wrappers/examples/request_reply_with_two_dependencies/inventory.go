@@ -3,7 +3,7 @@ package request_reply_with_two_dependencies
 import (
 	"math/rand/v2"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/utils"
+	"github.com/smartcontractkit/chainlink-ton/pkg/tonutils"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
@@ -11,10 +11,10 @@ import (
 const INVENTORY_CONTRACT_PATH = "../build/examples/request-reply-with-two-dependencies/inventory/inventory_Inventory.pkg"
 
 type InventoryProvider struct {
-	ac utils.ApiClient
+	ac tonutils.ApiClient
 }
 
-func NewInventoryProvider(apiClient utils.ApiClient) *InventoryProvider {
+func NewInventoryProvider(apiClient tonutils.ApiClient) *InventoryProvider {
 	return &InventoryProvider{
 		ac: apiClient,
 	}
@@ -39,7 +39,7 @@ func (p *InventoryProvider) Deploy(initData InventoryIninData) (Inventory, error
 }
 
 type Inventory struct {
-	Contract utils.Contract
+	Contract tonutils.Contract
 }
 
 type AddItemMethod struct {
@@ -58,7 +58,7 @@ func (m AddItemMethod) StoreArgs(b *cell.Builder) error {
 	return nil
 }
 
-func (p Inventory) SendAddItem(key uint8, priceAddr *address.Address, countAddr *address.Address) (queryID uint64, msgReceived *utils.MessageReceived, err error) {
+func (p Inventory) SendAddItem(key uint8, priceAddr *address.Address, countAddr *address.Address) (queryID uint64, msgReceived *tonutils.MessageReceived, err error) {
 	queryID = rand.Uint64()
 	msgReceived, err = p.Contract.CallWaitRecursively(AddItemMethod{
 		PriceAddr: priceAddr,
