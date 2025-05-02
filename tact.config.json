@@ -45,6 +45,16 @@
             "name": "storage",
             "path": "contracts/contracts/examples/request-reply-with-two-dependencies/storage.tact",
             "output": "contracts/build/examples/request-reply-with-two-dependencies/storage"
+        },
+        {
+            "name": "db",
+            "path": "contracts/contracts/examples/two-phase-commit/db.tact",
+            "output": "contracts/build/examples/two-phase-commit/db"
+        },
+        {
+            "name": "counter",
+            "path": "contracts/contracts/examples/two-phase-commit/counter.tact",
+            "output": "contracts/build/examples/two-phase-commit/counter"
         }
     ]
 }

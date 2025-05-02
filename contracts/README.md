@@ -143,13 +143,13 @@ sequenceDiagram
     Alice-->>+AliceWallet: send(DBAddr, setValue(queryID, CounterAAddr, 1))
     AliceWallet->>+DB: setValue(queryID, CounterAAddr, 1)
     deactivate AliceWallet
-    DB->>DB: addPendingAck(queriID, counterA)
+    DB->>DB: addPendingAck(queryID, counterA)
     DB->>+CounterA: prepareSetValue(1)
     deactivate DB
     Alice-->>+AliceWallet: send(DBAddr, setValue(queryID, CounterBAddr, 1))
     AliceWallet->>+DB: setValue(queryID, CounterBAddr, 2)
     deactivate AliceWallet
-    DB->>DB: addPendingAck(queriID, counterB)
+    DB->>DB: addPendingAck(queryID, counterB)
     DB->>+CounterB: prepareSetValue(2)
     deactivate DB
     Alice-->>+AliceWallet: send(DBAddr, commit(queryID))
@@ -159,11 +159,11 @@ sequenceDiagram
     deactivate DB
     CounterA->>+DB: ack(queryID)
     deactivate CounterA
-    DB->>DB: rmPendingAck(queriID, counterA)
+    DB->>DB: rmPendingAck(queryID, counterA)
     deactivate DB
     CounterB->>+DB: ack(queryID)
     deactivate CounterB
-    DB->>DB: rmPendingAck(queriID, counterB)
+    DB->>DB: rmPendingAck(queryID, counterB)
     DB->>+CounterA: saveValue()
     DB->>+CounterB: saveValue()
     deactivate DB
