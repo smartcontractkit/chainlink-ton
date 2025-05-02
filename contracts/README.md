@@ -132,7 +132,7 @@ sequenceDiagram
 
 This experiment has events all over the play to make it easier to track the flow.
 
-### [ ] Two-phase Commit
+### [~] Two-phase Commit
 
 ```mermaid
 sequenceDiagram
@@ -170,6 +170,8 @@ sequenceDiagram
     CounterA->>-CounterA:SaveValue()
     CounterB->>-CounterB:SaveValue()
 ```
+
+It is missing a rollback, but that is pretty trivial.
 
 ### [ ] Saga pattern <https://medium.com/cloud-native-daily/microservices-patterns-part-04-saga-pattern-a7f85d8d4aa3>
 
