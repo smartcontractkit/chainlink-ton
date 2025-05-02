@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
@@ -64,16 +65,37 @@ func (m *MessageReceived) WaitForTrace(ac *ApiClient) error {
 // SendWaitTransactionRercursively waits for the transaction to be sent and
 // waits for all outgoing messages to be confirmed recursively. It will return
 // the resulting message in a Finalized state.
-func (ac *ApiClient) SendWaitTransactionRercursively(ctx context.Context, dstAddr address.Address, messageToSend *wallet.Message) (*MessageReceived, uint32, error) {
+func (ac *ApiClient) SendWaitTransactionRercursively(ctx context.Context, dstAddr address.Address, messageToSend *wallet.Message) (*MessageReceived, error) {
 	sentMessage, seqno, err := ac.SendWaitTransaction(ctx, dstAddr, messageToSend)
 	if err != nil {
-		return nil, 0, fmt.Errorf("failed to SendWaitTransaction: %w", err)
+		return nil, fmt.Errorf("failed to SendWaitTransaction: %w", err)
 	}
 	err = sentMessage.WaitForTrace(ac)
 	if err != nil {
-		return nil, 0, fmt.Errorf("failed to wait for trace: %w", err)
+		return nil, fmt.Errorf("failed to wait for trace: %w", err)
 	}
-	return sentMessage, seqno, nil
+	ctx2 := ac.Api.Client().StickyContext(ctx)
+	master, err := ac.Api.WaitForBlock(seqno).CurrentMasterchainInfo(ctx2)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get masterchain info for funder balance check: %w", err)
+	}
+	fmt.Printf("Masterchain SeqNo: %d\n", master.SeqNo)
+
+	for {
+		// Check if the block is ready
+		if master.SeqNo > seqno {
+			break
+		}
+		time.Sleep(time.Millisecond * 500)
+		fmt.Printf("Waiting for block %d to be ready...\n", seqno)
+		master, err = ac.Api.WaitForBlock(seqno).CurrentMasterchainInfo(ctx2)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get masterchain info for funder balance check: %w", err)
+		}
+		fmt.Printf("Masterchain SeqNo: %d\n", master.SeqNo)
+	}
+
+	return sentMessage, nil
 }
 
 // SubscribeToTransactions returns a channel with all incoming transactions for

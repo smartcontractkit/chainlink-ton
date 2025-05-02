@@ -7,7 +7,6 @@ import (
 	"os"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/joho/godotenv"
 	"github.com/smartcontractkit/chainlink-ton/pkg/tonutils"
@@ -58,7 +57,7 @@ func createAndFundWallet(t *testing.T, api *ton.APIClient, funder tonutils.ApiCl
 	assert.NoError(t, err, "Failed to create new wallet: %v", err)
 	transferToAlice, err := funder.Wallet.BuildTransfer(aliceWallet.WalletAddress(), initialCoinAmount, false, "deposit")
 	assert.NoError(t, err, "Failed to build transfer: %v", err)
-	result, _, err := funder.SendWaitTransactionRercursively(context.TODO(), *aliceWallet.WalletAddress(), transferToAlice)
+	result, err := funder.SendWaitTransactionRercursively(context.TODO(), *aliceWallet.WalletAddress(), transferToAlice)
 	assert.NoError(t, err, "Failed to send transaction: %v", err)
 	assert.True(t, result.Success && !result.Bounced, "Transaction failed")
 	alice := tonutils.ApiClient{
@@ -136,31 +135,7 @@ func GetBalance(apiClient tonutils.ApiClient) (uint, error) {
 	if err != nil {
 		return 0, fmt.Errorf("failed to get masterchain info for funder balance check: %w", err)
 	}
-	return GetBalanceSeqno(apiClient, master.SeqNo)
-}
-
-func GetBalanceSeqno(apiClient tonutils.ApiClient, seqno uint32) (uint, error) {
-	fmt.Printf("Getting balance for seqno: %d\n", seqno)
-	ctx := apiClient.Api.Client().StickyContext(context.Background())
-	master, err := apiClient.Api.WaitForBlock(seqno).CurrentMasterchainInfo(ctx)
-	if err != nil {
-		return 0, fmt.Errorf("failed to get masterchain info for funder balance check: %w", err)
-	}
 	fmt.Printf("Masterchain SeqNo: %d\n", master.SeqNo)
-
-	for {
-		// Check if the block is ready
-		if master.SeqNo > seqno {
-			break
-		}
-		time.Sleep(time.Millisecond * 500)
-		fmt.Printf("Waiting for block %d to be ready...\n", seqno)
-		master, err = apiClient.Api.WaitForBlock(seqno).CurrentMasterchainInfo(ctx)
-		if err != nil {
-			return 0, fmt.Errorf("failed to get masterchain info for funder balance check: %w", err)
-		}
-		fmt.Printf("Masterchain SeqNo: %d\n", master.SeqNo)
-	}
 
 	// time.Sleep(time.Second * 5)
 
@@ -173,7 +148,7 @@ func GetBalanceSeqno(apiClient tonutils.ApiClient, seqno uint32) (uint, error) {
 
 	// we use WaitForBlock to make sure block is ready,
 	// it is optional but escapes us from liteserver block not ready errors
-	res, err := apiClient.Api.WaitForBlock(seqno).GetAccount(ctx, master, apiClient.Wallet.WalletAddress())
+	res, err := apiClient.Api.WaitForBlock(master.SeqNo).GetAccount(ctx, master, apiClient.Wallet.WalletAddress())
 	if err != nil {
 		return 0, fmt.Errorf("get account err: %s", err.Error())
 	}
