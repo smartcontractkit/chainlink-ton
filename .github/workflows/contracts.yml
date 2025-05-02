@@ -36,7 +36,7 @@ jobs:
           repository: ${{ github.repository }}
           ghcr_token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Run tests
+      - name: Run Go tests
         run: nix develop . -c go test ./contracts/tests/... 
 
   build-nixpkg:
