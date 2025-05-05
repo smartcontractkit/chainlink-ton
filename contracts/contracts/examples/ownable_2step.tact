@@ -13,19 +13,22 @@ message SetCount {
 contract OwnableCounter with Ownable2Step {
     // Ownership variables, required by the Ownable2Step trait
     owner: Address;
-    pendingOwner: Address;
+    pendingOwner: Address?;
 
 
     id: Int as uint32;
     count: Int as uint32;
 
     // --- Initialization ---
-    // The Ownable2Step won't force you to initialize the ownerhsip variables. It should be done anyways by calling the `initializeOwnership` function.
-    init(id_init: Int, count_init: Int, owner_init: Address, pendingOwner_init: Address?) {
-        self.initializeOwnership(owner_init, pendingOwner_init);
+    // The Ownable2Step won't force you to initialize the ownerhsip variables. It should be done manually.
+    // In this example the message sender is set as the owner and the pendingOwner is set to null. But different custom logic could be implemented.
+    init(id: Int, count: Int) {
+       	// Assign initial ownership values.
+        self.owner = sender();
+        self.pendingOwner = null;
 
-        self.id = id_init;
-        self.count = count_init;
+        self.id = id;
+        self.count = count;
     }
 
     // --- Message Receivers ---

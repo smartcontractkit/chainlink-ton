@@ -44,7 +44,7 @@ message AcceptOwnershipOk {
 trait Ownable2Step with BaseTrait {
     // Required storage variables.
     owner: Address;
-    pendingOwner: Address;
+    pendingOwner: Address?;
     
     /// --- Message Receivers ---
 
@@ -78,12 +78,15 @@ trait Ownable2Step with BaseTrait {
     /// #### Exit codes
     /// * 1002: ERROR_MUST_BE_PROPOSED_OWNER
     receive(msg: AcceptOwnership) {
-	throwUnless(ERROR_MUST_BE_PROPOSED_OWNER, sender() == self.pendingOwner);
-	let changedOwner: Address = self.owner;
-	self.owner = self.pendingOwner;
+	if (self.pendingOwner == null) {
+	    throw(ERROR_MUST_BE_PROPOSED_OWNER);
+	}
+	throwUnless(ERROR_MUST_BE_PROPOSED_OWNER, sender() == self.pendingOwner!!);
+	let previousOwner: Address = self.owner;
+	self.owner = sender();
 	self.reply(AcceptOwnershipOk {
 	    queryId: msg.queryId,
-	    oldOwner: changedOwner,
+	    oldOwner: previousOwner,
 	    newOwner: self.owner, 
 	    }.toCell()
 	)
@@ -100,22 +103,7 @@ trait Ownable2Step with BaseTrait {
 
     // --- Internal Functions ---
 
-    /// Initializes the contract with the given owner and pending owner.
-    /// Should be called on a contract's init function.
-    ///
-    /// #### Exit codes
-    /// * 1002: ERROR_OWNER_CANNOT_BE_ZERO
-    fun initializeOwnership(owner: Address, pendingOwner: Address?) {
-	// Assign initial owner value.
-        self.owner = owner;
-
-        // Set initial pending owner value if present.
-        if (pendingOwner != null) {
-            self.transferOwnership(pendingOwner!!);
-        }
-    }
-
-    /// Requires that the sender is the owner of the contract.
+    /// Requires that the sender of the message is the owner of the contract.
     ///
     /// #### Exit codes
     /// * 1000: ERROR_ONLY_CALLABLE_BY_OWNER
