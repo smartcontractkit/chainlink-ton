@@ -275,7 +275,7 @@ describe('Ownable2Step Counter', () => {
     });
 
     it('Test09: Should prevent random users from calling AcceptOwnership with pending owner', async () => {
-        const pending_owner = await blockchain.treasury('pending_owner');
+        const pendingOwner = await blockchain.treasury('pendingOwner');
         const other = await blockchain.treasury('other');
 
         await counter.send(
@@ -286,7 +286,7 @@ describe('Ownable2Step Counter', () => {
             {
             $$type: 'TransferOwnership',
             queryId: 0n,
-            newOwner: pending_owner.address
+            newOwner: pendingOwner.address
             }
         );
 

@@ -1,5 +1,5 @@
-// Ownable2Step trait which implements basic 2-step ownership transfer and nothing more. 
-// Does not utilize @stdlib/ownable.
+/// `Ownable2Step` trait which implements basic 2-step ownership transfer and nothing more. 
+/// Does not utilize @stdlib/ownable.
 
 const ERROR_ONLY_CALLABLE_BY_OWNER: Int = 1000;
 const ERROR_CANNOT_TRANSFER_TO_SELF: Int = 1001;
