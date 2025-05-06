@@ -7,7 +7,7 @@ on:
   pull_request:
 
 jobs:
-  build-and-test:
+  build-check:
     name: Build & Unit Test
     runs-on: ubuntu-latest
     steps:

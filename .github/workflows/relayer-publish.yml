@@ -1,0 +1,43 @@
+name: TON - Relayer - Publish Docker Image
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+  pull_request:
+
+jobs:
+  build-publish-docker:
+    name: Build & Publish Docker Image
+    # TODO: add basic checks as a job dependency
+    # needs: [checks]
+    permissions:
+      contents: read
+      id-token: write
+    uses: smartcontractkit/.github/.github/workflows/reusable-docker-build-publish.yml@b37583d758e3992e0d5bfdb5a36ca243ce53ff59 # 2025-04-22
+    with:
+      # TODO: if a tag, use a more stable 'public.ecr.aws/chainlink/chainlink-plugins-dev' ECR channel
+      aws-ecr-name: chainlink-plugins-canary
+      aws-region-ecr: us-east-1
+      aws-region-gati: us-west-2
+      dockerfile: scripts/build/Dockerfile.build.nix
+      docker-build-context: .
+      docker-build-args: |
+        CHAINLINK_USER=chainlink
+        COMMIT_SHA=${{ github.sha }}
+      docker-build-cache-disabled: "true"
+      docker-image-type: tag
+      docker-manifest-sign: true
+      docker-registry-url-override: public.ecr.aws/chainlink
+      docker-tag-custom-suffix: "-chainlink-ton"
+      git-sha: ${{ github.sha }}
+      github-event-name: ${{ github.event_name }}
+      github-ref-name: ${{ github.ref_name }}
+      github-workflow-repository: ${{ github.repository }}
+    secrets:
+      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID_SDLC }}
+      AWS_ROLE_PUBLISH_ARN: ${{ secrets.AWS_OIDC_IAM_ROLE_SDLC_BUILD_PUBLISH_ARN }}
+      AWS_ROLE_GATI_ARN: ${{ secrets.AWS_OIDC_GLOBAL_READ_ONLY_TOKEN_ISSUER_ROLE_ARN }}
+      AWS_LAMBDA_GATI_URL: ${{ secrets.AWS_INFRA_RELENG_TOKEN_ISSUER_LAMBDA_URL }}
