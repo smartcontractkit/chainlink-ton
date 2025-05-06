@@ -24,8 +24,8 @@ jobs:
 
       - name: Run tests
         run: nix develop -c go test -v -count=1 -p=1 ./...
-  build-nixpkg:
-    name: Build nix package
+  build-pkgs:
+    name: Build and package (Nix and Docker)
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
@@ -36,5 +36,8 @@ jobs:
         with:
           nix_path: nixpkgs=channel:nixos-unstable
 
-      - name: Run build
+      - name: Run build - Nix
         run: nix build -v .#chainlink-ton
+
+      - name: Run build - Docker
+        run: nix develop -c ./scripts/build/make-docker.sh
