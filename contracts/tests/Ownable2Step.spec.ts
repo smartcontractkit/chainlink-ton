@@ -3,7 +3,7 @@ import { toNano } from '@ton/core';
 import { OwnableCounter } from '../wrappers/access/OwnableCounter';
 import '@ton/test-utils';
 
-describe('Counter', () => {
+describe('Ownable2Step Counter', () => {
     let blockchain: Blockchain;
     let deployer: SandboxContract<TreasuryContract>;
     let counter: SandboxContract<OwnableCounter>;
