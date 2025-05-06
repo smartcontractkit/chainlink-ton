@@ -18,8 +18,8 @@ jobs:
       id-token: write
     uses: smartcontractkit/.github/.github/workflows/reusable-docker-build-publish.yml@b37583d758e3992e0d5bfdb5a36ca243ce53ff59 # 2025-04-22
     with:
-      # TODO: if a tag, use a more stable 'public.ecr.aws/chainlink/chainlink-plugins-dev' ECR channel
-      aws-ecr-name: chainlink-plugins-canary
+      # Internal dev ECR, retention policy based on tag
+      aws-ecr-name: chainlink-plugins-dev
       aws-region-ecr: us-east-1
       aws-region-gati: us-west-2
       dockerfile: scripts/build/Dockerfile.build.nix
