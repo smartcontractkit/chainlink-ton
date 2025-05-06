@@ -62,13 +62,16 @@ trait Ownable2Step with BaseTrait {
 	// Update the pending owner
 	self.transferOwnership(msg.newOwner);
 
-	// Reply to confimm
-	self.reply(TransferOwnershipOk { queryId: msg.queryId, newOwner: msg.newOwner }.toCell());
-
-	//TODO: send outgoing message (log/event) confirming.
-	//	The reply to the sender might be enough, should check.
-	//    emit OwnershipTransferRequested(s_owner, to);
-
+	// Reply to confirm and emit event. 	
+	// TODO: Doing both of these is a bit redundant. Analyze if we can leave the reply only.
+	//	 The reply would allow another contract calling TransferOwnership to confirm that the transaction is done.
+	//	 The emitted outgoing message on the other hand is only readable off-chain.
+	let transferOwnershipOk = TransferOwnershipOk {
+	    queryId: msg.queryId,
+	    newOwner: msg.newOwner,
+	};
+	self.reply(transferOwnershipOk.toCell());
+	emit(transferOwnershipOk.toCell());
     }
 
     /// Receiver for the `AcceptOwnership` message body.
@@ -78,20 +81,22 @@ trait Ownable2Step with BaseTrait {
     /// #### Exit codes
     /// * 1002: ERROR_MUST_BE_PROPOSED_OWNER
     receive(msg: AcceptOwnership) {
-	if (self.pendingOwner == null) {
-	    throw(ERROR_MUST_BE_PROPOSED_OWNER);
-	}
+	throwUnless(ERROR_MUST_BE_PROPOSED_OWNER, self.pendingOwner != null);
 	throwUnless(ERROR_MUST_BE_PROPOSED_OWNER, sender() == self.pendingOwner!!);
+
 	let previousOwner: Address = self.owner;
 	self.owner = sender();
-	self.reply(AcceptOwnershipOk {
+
+	let acceptOwnershipOk = AcceptOwnershipOk {
 	    queryId: msg.queryId,
 	    oldOwner: previousOwner,
 	    newOwner: self.owner, 
-	    }.toCell()
-	)
+	};
 
-	//TODO: emit OwnershipTransferred(oldOwner, msg.sender);
+	// TODO: Analyze if doing both the reply and emit makes sense. Read TransferOwnership's TODO.
+	self.reply(acceptOwnershipOk.toCell())
+	emit(acceptOwnershipOk.toCell())
+
     }
 
     /// --- Getter Functions ---
