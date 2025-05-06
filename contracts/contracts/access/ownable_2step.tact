@@ -94,8 +94,8 @@ trait Ownable2Step with BaseTrait {
 	};
 
 	// TODO: Analyze if doing both the reply and emit makes sense. Read TransferOwnership's TODO.
-	self.reply(acceptOwnershipOk.toCell())
-	emit(acceptOwnershipOk.toCell())
+	self.reply(acceptOwnershipOk.toCell());
+	emit(acceptOwnershipOk.toCell());
 
     }
 
