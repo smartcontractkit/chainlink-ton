@@ -37,6 +37,7 @@ nix build 'git+ssh://git@github.com/smartcontractkit/chainlink-ton'#chainlink-to
 export LOCAL_PLUGIN_PKG_DIR=./.build
 mkdir -p $LOCAL_PLUGIN_PKG_DIR/bin
 nix develop -c go build -v -o $LOCAL_PLUGIN_PKG_DIR/bin ./cmd/chainlink-ton
+
 # Or build the plugin Nix package
 export LOCAL_PLUGIN_PKG_DIR=$(nix build .#chainlink-ton --print-out-paths)
 

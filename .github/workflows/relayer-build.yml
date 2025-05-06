@@ -39,5 +39,8 @@ jobs:
       - name: Run build - Nix
         run: nix build -v .#chainlink-ton
 
-      - name: Run build - Docker
+      - name: Run build - Docker (via host)
         run: nix develop -c ./scripts/build/make-docker.sh
+
+      - name: Run build - Docker (via Docker builder)
+        run: nix develop -c ./scripts/build/make-docker.sh --docker-builder
