@@ -1,4 +1,4 @@
-import "../lib/ownable_2step.tact";
+import "../access/ownable_2step.tact";
 
 /**
  * @title Ownable Counter contract example

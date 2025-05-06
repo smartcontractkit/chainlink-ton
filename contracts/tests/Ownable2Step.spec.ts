@@ -1,6 +1,6 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox';
 import { toNano } from '@ton/core';
-import { OwnableCounter } from '../wrappers/Ownable2Step';
+import { OwnableCounter } from '../wrappers/access/OwnableCounter';
 import '@ton/test-utils';
 
 describe('Counter', () => {
@@ -146,4 +146,178 @@ describe('Counter', () => {
 
         expect(countAfterTx).toBe(initialCount);
     });
+
+    it('Test06: AcceptOwnership should transfer the ownership', async () => {
+        const owner = await blockchain.treasury('deployer');
+        const other = await blockchain.treasury('other');
+
+        await counter.send(
+            owner.getSender(),
+            {
+                value: toNano('0.05'),
+            },
+            {
+                $$type: 'TransferOwnership',
+                queryId: 0n,
+                newOwner: other.address
+            }
+        );
+
+        const resultAcceptOwnership = await counter.send(
+            other.getSender(),
+            {
+            value: toNano('0.05'),
+            },
+            {
+            $$type: 'AcceptOwnership',
+            queryId: 0n,
+            }
+        );
+        expect(resultAcceptOwnership.transactions).toHaveTransaction({
+            from: other.address,
+            to: counter.address,
+            success: true,
+        });
+
+        // Check that the owner is now the new one
+        const newOwner = await counter.getOwner();
+        expect(newOwner.toString()).toBe(other.address.toString());
+
+        // Check that the new owner can operate as owner
+        const resultSetCount = await counter.send(
+            other.getSender(),
+            {
+                value: toNano('0.05'),
+            },
+            {
+                $$type: 'SetCount',
+                queryId: 0n,
+                newCount: 100n,
+        });
+
+        expect(resultSetCount.transactions).toHaveTransaction({
+            from: other.address,
+            to: counter.address,
+            success: true,
+        });
+
+        const countAfterTx = await counter.getCount();
+        expect(countAfterTx).toBe(100n);
+
+    });
+
+    it('Test07 : AcceptOwnership should not allow the original owner to operate as owner', async () => {
+        const owner = await blockchain.treasury('deployer');
+        const other = await blockchain.treasury('other');
+        await counter.send(
+            owner.getSender(),
+            {
+            value: toNano('0.05'),
+            },
+            {
+            $$type: 'TransferOwnership',
+            queryId: 0n,
+            newOwner: other.address
+            }
+        );
+        await counter.send(
+            other.getSender(),
+            {
+            value: toNano('0.05'),
+            },
+            {
+            $$type: 'AcceptOwnership',
+            queryId: 0n,
+            }
+        );
+
+        // Check that the original owner cannot operate as owner
+        const resultSetCount = await counter.send(
+            owner.getSender(),
+            {
+            value: toNano('0.05'),
+            },
+            {
+            $$type: 'SetCount',
+            queryId: 0n,
+            newCount: 100n,
+        });
+        expect(resultSetCount.transactions).toHaveTransaction({
+            from: owner.address,
+            to: counter.address,
+            success: false,
+        });
+    });
+
+    it('Test08: Should prevent users from calling AcceptOwnership with no pending owner ', async () => {
+        const other = await blockchain.treasury('other');
+        const result = await counter.send(
+            other.getSender(),
+            {
+            value: toNano('0.05'),
+            },
+            {
+            $$type: 'AcceptOwnership',
+            queryId: 0n,
+            });
+        expect(result.transactions).toHaveTransaction({
+            from: other.address,
+            to: counter.address,
+            success: false,
+        });
+    });
+
+    it('Test09: Should prevent random users from calling AcceptOwnership with pending owner', async () => {
+        const pending_owner = await blockchain.treasury('pending_owner');
+        const other = await blockchain.treasury('other');
+
+        await counter.send(
+            deployer.getSender(),
+            {
+            value: toNano('0.05'),
+            },
+            {
+            $$type: 'TransferOwnership',
+            queryId: 0n,
+            newOwner: pending_owner.address
+            }
+        );
+
+        const result = await counter.send(
+            other.getSender(),
+            {
+            value: toNano('0.05'),
+            },
+            {
+            $$type: 'AcceptOwnership',
+            queryId: 0n,
+            });
+        expect(result.transactions).toHaveTransaction({
+            from: other.address,
+            to: counter.address,
+            success: false,
+        });
+    });
+
+    it('Test10: Should prevent non owner from calling TransferOwnership', async () => {
+        const other = await blockchain.treasury('other');
+        const result = await counter.send(
+            other.getSender(),
+            {
+            value: toNano('0.05'),
+            },
+            {
+            $$type: 'TransferOwnership',
+            queryId: 0n,
+            newOwner: other.address
+            }
+        );
+        expect(result.transactions).toHaveTransaction({
+            from: other.address,
+            to: counter.address,
+            success: false,
+        });
+    });
+
+
 });
