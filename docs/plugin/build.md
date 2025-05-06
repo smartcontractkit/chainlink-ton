@@ -82,4 +82,14 @@ drwxr-xr-x 1 root root      4096 Apr  4 02:05 ..
 
 ### Using Dockerfile.build.nix builder
 
-TODO!
+Build the Chainlink core node image using a Nix builder.
+
+Builds a specific Nix package (single bin or a bundle) and layers in the output as Chinlink plugin bins:
+
+```bash
+docker build . \
+    -t smartcontract/chainlink-plugins-dev:0.0.1-beta.1-chainlink-ton \
+    -f ./scripts/build/Dockerfile.build.nix \
+    --build-arg NIX_BUILD_PKG=chainlink-ton \
+    --build-arg BASE_IMAGE=public.ecr.aws/chainlink/chainlink:v2.23.0-plugins
+```
