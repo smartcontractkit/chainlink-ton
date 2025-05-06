@@ -34,15 +34,16 @@ nix build 'git+ssh://git@github.com/smartcontractkit/chainlink-ton'#chainlink-to
 
 ```bash
 # Build the LOOP plugin manually
-export LOCAL_PLUGIN_PKG_DIR=./.build
-mkdir -p $LOCAL_PLUGIN_PKG_DIR/bin
-nix develop -c go build -v -o $LOCAL_PLUGIN_PKG_DIR/bin ./cmd/chainlink-ton
+# Prepare the build output path and run go build
+export PKG_OUT_PATH=./.build
+mkdir -p $PKG_OUT_PATH/bin $PKG_OUT_PATH/lib
+nix develop -c go build -v -o $PKG_OUT_PATH/bin ./cmd/chainlink-ton
 
 # Or build the plugin Nix package
-export LOCAL_PLUGIN_PKG_DIR=$(nix build .#chainlink-ton --print-out-paths)
+export PKG_OUT_PATH=$(nix build .#chainlink-ton --print-out-paths)
 
 # Build the final Docker image by layering in the plugin bin on top of base chainlink:*-plugins image
-docker build $LOCAL_PLUGIN_PKG_DIR \
+docker build $PKG_OUT_PATH \
     -t smartcontract/chainlink-plugins-dev:0.0.1-beta.1-chainlink-ton \
     -f https://raw.githubusercontent.com/smartcontractkit/chainlink/dd69fc589255c00e9cb23c5631a1e7e56c408e78/plugins/chainlink.prebuilt.Dockerfile \
     --build-arg BASE_IMAGE=public.ecr.aws/chainlink/chainlink:v2.23.0-plugins \
@@ -54,7 +55,7 @@ Alternatively just use a prepared script:
 
 ```bash
 # Build the final Docker image
-./scripts/build/make-docker.sh
+nix develop -c ./scripts/build/make-docker.sh
 ```
 
 Inspect the newly created image:
@@ -101,4 +102,11 @@ docker build . \
     -f ./scripts/build/Dockerfile.build.nix \
     --build-arg NIX_BUILD_PKG=chainlink-ton \
     --build-arg BASE_IMAGE=public.ecr.aws/chainlink/chainlink:v2.23.0-plugins
+```
+
+Alternatively just use a prepared script:
+
+```bash
+# Build the final Docker image
+nix develop -c ./scripts/build/make-docker.sh --docker-builder
 ```
