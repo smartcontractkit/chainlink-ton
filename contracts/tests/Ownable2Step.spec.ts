@@ -3,6 +3,10 @@ import { toNano } from '@ton/core';
 import { OwnableCounter } from '../wrappers/access/OwnableCounter';
 import '@ton/test-utils';
 
+const ERROR_ONLY_CALLABLE_BY_OWNER = 1000;
+const ERROR_CANNOT_TRANSFER_TO_SELF = 1001;
+const ERROR_MUST_BE_PROPOSED_OWNER = 1002;
+
 describe('Ownable2Step Counter', () => {
     let blockchain: Blockchain;
     let deployer: SandboxContract<TreasuryContract>;
@@ -41,7 +45,6 @@ describe('Ownable2Step Counter', () => {
     });
 
     it('Test02: Should set deployer as owner', async () => {
-        const deployer = await blockchain.treasury('deployer');
         const owner = await counter.getOwner();
 
         expect(owner.toString()).toEqual(deployer.address.toString());
@@ -90,6 +93,7 @@ describe('Ownable2Step Counter', () => {
         expect(result.transactions).toHaveTransaction({
             from: other.address,
             to: counter.address,
+            exitCode: ERROR_ONLY_CALLABLE_BY_OWNER,
             success: false,
         });
 
@@ -139,6 +143,7 @@ describe('Ownable2Step Counter', () => {
         expect(resultSetCount.transactions).toHaveTransaction({
             from: other.address,
             to: counter.address,
+            exitCode: ERROR_ONLY_CALLABLE_BY_OWNER,
             success: false,
         });
 
@@ -245,6 +250,7 @@ describe('Ownable2Step Counter', () => {
         expect(resultSetCount.transactions).toHaveTransaction({
             from: owner.address,
             to: counter.address,
+            exitCode: ERROR_ONLY_CALLABLE_BY_OWNER,
             success: false,
         });
     });
@@ -263,6 +269,7 @@ describe('Ownable2Step Counter', () => {
         expect(result.transactions).toHaveTransaction({
             from: other.address,
             to: counter.address,
+            exitCode: ERROR_MUST_BE_PROPOSED_OWNER,
             success: false,
         });
     });
@@ -295,6 +302,7 @@ describe('Ownable2Step Counter', () => {
         expect(result.transactions).toHaveTransaction({
             from: other.address,
             to: counter.address,
+            exitCode: ERROR_MUST_BE_PROPOSED_OWNER,
             success: false,
         });
     });
@@ -315,9 +323,30 @@ describe('Ownable2Step Counter', () => {
         expect(result.transactions).toHaveTransaction({
             from: other.address,
             to: counter.address,
+            exitCode: ERROR_ONLY_CALLABLE_BY_OWNER,
             success: false,
         });
     });
 
+    it('Test11: Should prevent transfer to self', async () => {
+        const owner = await blockchain.treasury('deployer');
+        const result = await counter.send(
+            owner.getSender(),
+            {
+            value: toNano('0.05'),
+            },
+            {
+            $$type: 'TransferOwnership',
+            queryId: 0n,
+            newOwner: owner.address
+            }
+        );
+        expect(result.transactions).toHaveTransaction({
+            from: owner.address,
+            to: counter.address,
+            exitCode: ERROR_CANNOT_TRANSFER_TO_SELF,
+            success: false,
+        });
+    });
 
 });
