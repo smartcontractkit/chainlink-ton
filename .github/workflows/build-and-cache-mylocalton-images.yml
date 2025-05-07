@@ -2,7 +2,7 @@ name: Build And Cache MyLocalTon Images
 
 on:
   push:
-    branches: [ feature/CTF-GHA-cache ]
+    branches: [feature/CTF-GHA-cache]
   workflow_dispatch:
 
 jobs:
@@ -12,7 +12,8 @@ jobs:
       contents: read
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out this repo
+        uses: actions/checkout@v4
 
       - name: Check out MyLocalTon Docker
         uses: actions/checkout@v4
@@ -32,20 +33,21 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Copy cache config into context
-        run: cp .github/docker-cache.json mylocalton-docker/docker-cache.json
-
       - name: Bake & load with local cache
         uses: docker/bake-action@v6
         with:
+          source: '.'
           workdir: mylocalton-docker
           files: |
-            docker-compose-build.yaml
-            docker-cache.json
+            docker-compose-build.yaml   
+            ../.github/docker-cache.json
           load: true
 
       - name: Bring up MyLocalTon services
-        run: docker compose -f mylocalton-docker/docker-compose-build.yaml up -d
+        run: |
+          docker compose \
+            -f mylocalton-docker/docker-compose-build.yaml \
+            up -d
 
       - name: Run CTF integration tests
         run: |
@@ -54,7 +56,10 @@ jobs:
 
       - name: Tear down
         if: always()
-        run: docker compose -f mylocalton-docker/docker-compose-build.yaml down -v
+        run: |
+          docker compose \
+            -f mylocalton-docker/docker-compose-build.yaml \
+            down -v
 
       - name: Save Docker build cache
         if: always()
