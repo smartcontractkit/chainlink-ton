@@ -25,10 +25,11 @@ jobs:
       - name: Prepare MyLocalTon images
         run: bash scripts/mylocalton-images.sh integration-tests/.cache/images
 
-      - name: Install Nix
-        uses: cachix/install-nix-action@02a151ada4993995686f9ed4f1be7cfbb229e56f # v31
+      - name: Setup Go
+        uses: smartcontractkit/.github/actions/setup-golang@setup-golang/v1
         with:
-          nix_path: nixpkgs=channel:nixos-unstable
+          go-version-file: integration-tests/go.mod
+          use-go-cache: true
 
       - name: Run tests
         run: |
