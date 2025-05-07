@@ -1,2 +1,4 @@
 # TODO: merge this with the main .gitignore, if necessary(this is CTF config cache)
 **/*cache.toml
+.cache/*
+!.cache/.gitkeep

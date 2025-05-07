@@ -1,0 +1,21 @@
+name: Cache MyLocalTon Images
+
+on:
+  # schedule:
+  #   - cron: '0 4 * * 0'   # every Sunday at 04:00 UTC
+  workflow_dispatch:
+
+jobs:
+  build-and-cache:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare images
+        run: bash scripts/mylocalton-images.sh integration-tests/.cache/images
+
+      - name: Persist cache
+        uses: actions/cache@v4
+        with:
+          path: integration-tests/.cache/images
+          key: mylocalton-images-${{ hashFiles('integration-tests/.cache/images/docker-compose.yml') }}
