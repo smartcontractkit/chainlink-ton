@@ -3,7 +3,7 @@ import { toNano } from '@ton/core';
 import { OwnableCounter } from '../wrappers/access/OwnableCounter';
 import '@ton/test-utils';
 
-const ERROR_ONLY_CALLABLE_BY_OWNER = 1000;
+const ERROR_ONLY_CALLABLE_BY_OWNER = 132;
 const ERROR_CANNOT_TRANSFER_TO_SELF = 1001;
 const ERROR_MUST_BE_PROPOSED_OWNER = 1002;
 
@@ -39,18 +39,13 @@ describe('Ownable2Step Counter', () => {
         });
     });
 
-    it('Test01: Should deploy', async () => {
-        // the check is done inside beforeEach
-        // blockchain and counter are ready to use
-    });
-
-    it('Test02: Should set deployer as owner', async () => {
+    it('Test01: Should set deployer as owner', async () => {
         const owner = await counter.getOwner();
 
         expect(owner.toString()).toEqual(deployer.address.toString());
     });
 
-    it('Test03: Should allow owner to call SetCount', async () => {
+    it('Test02: Should allow owner to call SetCount', async () => {
         const owner = await blockchain.treasury('deployer');
         
         const newCount = 100n;
@@ -76,7 +71,7 @@ describe('Ownable2Step Counter', () => {
         expect(countAfterTx).toBe(newCount);
     });
 
-    it('Test04: Should prevent non owner from calling SetCount', async () => {
+    it('Test03: Should prevent non owner from calling SetCount', async () => {
         const other = await blockchain.treasury('other');
         const initialCount = await counter.getCount();
 
@@ -102,7 +97,7 @@ describe('Ownable2Step Counter', () => {
         expect(countAfterTx).toBe(initialCount);
     });
 
-    it('Test05: TransferOwnership should not directly transfer the ownership', async () => {
+    it('Test04: TransferOwnership should not directly transfer the ownership', async () => {
         const owner = await blockchain.treasury('deployer');
         const other = await blockchain.treasury('other');
         const initialCount = await counter.getCount();
@@ -152,7 +147,7 @@ describe('Ownable2Step Counter', () => {
         expect(countAfterTx).toBe(initialCount);
     });
 
-    it('Test06: AcceptOwnership should transfer the ownership', async () => {
+    it('Test05: AcceptOwnership should transfer the ownership', async () => {
         const owner = await blockchain.treasury('deployer');
         const other = await blockchain.treasury('other');
 
@@ -211,7 +206,7 @@ describe('Ownable2Step Counter', () => {
 
     });
 
-    it('Test07 : AcceptOwnership should not allow the original owner to operate as owner', async () => {
+    it('Test06 : AcceptOwnership should not allow the original owner to operate as owner', async () => {
         const owner = await blockchain.treasury('deployer');
         const other = await blockchain.treasury('other');
         await counter.send(
@@ -255,7 +250,7 @@ describe('Ownable2Step Counter', () => {
         });
     });
 
-    it('Test08: Should prevent users from calling AcceptOwnership with no pending owner ', async () => {
+    it('Test07: Should prevent users from calling AcceptOwnership with no pending owner ', async () => {
         const other = await blockchain.treasury('other');
         const result = await counter.send(
             other.getSender(),
@@ -274,7 +269,7 @@ describe('Ownable2Step Counter', () => {
         });
     });
 
-    it('Test09: Should prevent random users from calling AcceptOwnership with pending owner', async () => {
+    it('Test08: Should prevent random users from calling AcceptOwnership with pending owner', async () => {
         const pendingOwner = await blockchain.treasury('pendingOwner');
         const other = await blockchain.treasury('other');
 
@@ -307,7 +302,7 @@ describe('Ownable2Step Counter', () => {
         });
     });
 
-    it('Test10: Should prevent non owner from calling TransferOwnership', async () => {
+    it('Test09: Should prevent non owner from calling TransferOwnership', async () => {
         const other = await blockchain.treasury('other');
         const result = await counter.send(
             other.getSender(),
@@ -328,7 +323,7 @@ describe('Ownable2Step Counter', () => {
         });
     });
 
-    it('Test11: Should prevent transfer to self', async () => {
+    it('Test10: Should prevent transfer to self', async () => {
         const owner = await blockchain.treasury('deployer');
         const result = await counter.send(
             owner.getSender(),
