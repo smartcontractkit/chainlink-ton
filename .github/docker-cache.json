@@ -1,6 +1,16 @@
 {
   "target": {
-    "*": {
+    "genesis": {
+      "cache-from": ["type=local,src=tmp/docker-cache"],
+      "cache-to": ["type=local,dest=tmp/docker-cache,mode=max"],
+      "output": ["type=docker"]
+    },
+    "blockchain-explorer": {
+      "cache-from": ["type=local,src=tmp/docker-cache"],
+      "cache-to": ["type=local,dest=tmp/docker-cache,mode=max"],
+      "output": ["type=docker"]
+    },
+    "faucet": {
       "cache-from": ["type=local,src=tmp/docker-cache"],
       "cache-to": ["type=local,dest=tmp/docker-cache,mode=max"],
       "output": ["type=docker"]
