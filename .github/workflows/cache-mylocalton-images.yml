@@ -6,7 +6,6 @@ on:
   push:
     branches:
       - feature/CTF-GHA-cache
-  workflow_dispatch:
 
 jobs:
   build-and-cache:
