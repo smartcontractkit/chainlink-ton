@@ -3,6 +3,9 @@ name: Cache MyLocalTon Images
 on:
   # schedule:
   #   - cron: '0 4 * * 0'   # every Sunday at 04:00 UTC
+  push:
+    branches:
+      - feature/CTF-GHA-cache
   workflow_dispatch:
 
 jobs:
