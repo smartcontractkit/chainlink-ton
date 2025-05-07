@@ -1,0 +1,27 @@
+name: TON - CTF Testing
+
+on:
+  push:
+    branches:
+      - feature/CTF-GHA-cache
+  pull_request:
+
+jobs:
+  ctf-test:
+    name: Build & Integration Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@02a151ada4993995686f9ed4f1be7cfbb229e56f # v31
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+
+      # TODO: somehow cache the mylocalton-docker service images
+
+      - name: Run tests
+        run: |
+          pushd integration-tests/examples
+          CTF_CONFIGS=smoke_ton.toml go test -v -run TestTonSmoke
