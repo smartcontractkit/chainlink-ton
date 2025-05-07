@@ -30,7 +30,7 @@ message OwnershipTransferRequested {
     newOwner: Address;
 }
 
-/// Message sent by the contract to the pending owner to confirm his acceptanse of the contracts ownership.
+/// Message sent by the contract to the pending owner to confirm his acceptance of the contracts ownership.
 ///
 message OwnershipTransferred {
     /// Query ID of the change owner request.
