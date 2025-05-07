@@ -23,7 +23,7 @@ message AcceptOwnership {
 
 /// Message sent by the contract to the owner to confirm the ownership transfer.
 ///
-message TransferOwnershipOk {
+message OwnershipTransferRequested {
     /// Query ID of the change owner request.
     queryId: Int as uint64;
     /// New owner that was set.
@@ -32,7 +32,7 @@ message TransferOwnershipOk {
 
 /// Message sent by the contract to the pending owner to confirm his acceptanse of the contracts ownership.
 ///
-message AcceptOwnershipOk {
+message OwnershipTransferred {
     /// Query ID of the change owner request.
     queryId: Int as uint64;
     /// Old owner that has been replaced
@@ -62,16 +62,11 @@ trait Ownable2Step with BaseTrait {
 	// Update the pending owner
 	self.transferOwnership(msg.newOwner);
 
-	// Reply to confirm and emit event. 	
-	// TODO: Doing both of these is a bit redundant. Analyze if we can leave the reply only.
-	//	 The reply would allow another contract calling TransferOwnership to confirm that the transaction is done.
-	//	 The emitted outgoing message on the other hand is only readable off-chain.
-	let transferOwnershipOk = TransferOwnershipOk {
+	// Reply to confirm. 	
+	self.reply(OwnershipTransferRequested {
 	    queryId: msg.queryId,
 	    newOwner: msg.newOwner,
-	};
-	self.reply(transferOwnershipOk.toCell());
-	emit(transferOwnershipOk.toCell());
+	}.toCell());
     }
 
     /// Receiver for the `AcceptOwnership` message body.
@@ -87,15 +82,12 @@ trait Ownable2Step with BaseTrait {
 	let previousOwner: Address = self.owner;
 	self.owner = sender();
 
-	let acceptOwnershipOk = AcceptOwnershipOk {
+	// Reply to cofirm
+	self.reply(OwnershipTransferred {
 	    queryId: msg.queryId,
 	    oldOwner: previousOwner,
 	    newOwner: self.owner, 
-	};
-
-	// TODO: Analyze if doing both the reply and emit makes sense. Read TransferOwnership's TODO.
-	self.reply(acceptOwnershipOk.toCell());
-	emit(acceptOwnershipOk.toCell());
+	}.toCell());
 
     }
 
@@ -121,13 +113,9 @@ trait Ownable2Step with BaseTrait {
     /// #### Exit codes
     /// * 1001: ERROR_CANNOT_TRANSFER_TO_SELF
     fun transferOwnership(to: Address) {
-	if (to == self.owner) {
-		throw(ERROR_CANNOT_TRANSFER_TO_SELF);
-	}
+	throwUnless(ERROR_CANNOT_TRANSFER_TO_SELF, to != self.owner);
 
 	// Update pending owner
 	self.pendingOwner = to;
     }
-
-
 }
