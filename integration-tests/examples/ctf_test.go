@@ -19,6 +19,7 @@ type CfgTon struct {
 }
 
 func TestTonSmoke(t *testing.T) {
+	// todo: genesis volume cache would help(~30s) but docker-compose file modification is needed
 	in, err := framework.Load[CfgTon](t)
 	require.NoError(t, err)
 
