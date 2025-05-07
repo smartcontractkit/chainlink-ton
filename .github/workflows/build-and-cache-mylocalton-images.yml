@@ -27,9 +27,13 @@ jobs:
           key: docker-cache-${{ runner.os }}-${{ hashFiles('mylocalton-docker/docker-compose-build.yaml') }}
           restore-keys: docker-cache-
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Bake & load with local cache
         uses: docker/bake-action@v6
         with:
+          source: .
           files: |
             mylocalton-docker/docker-compose-build.yaml
             .github/docker-cache.json
