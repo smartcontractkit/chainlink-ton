@@ -37,7 +37,7 @@ jobs:
       - name: Bake & load with local cache
         uses: docker/bake-action@v6
         with:
-          source: mylocalton-docker
+          source: .
           files: |
             mylocalton-docker/docker-compose-build.yaml
             .github/docker-cache.json
