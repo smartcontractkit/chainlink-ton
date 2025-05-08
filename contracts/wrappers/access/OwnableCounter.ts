@@ -1,1 +1,1 @@
-export * from '../../build/OwnableCounter/tact_OwnableCounter';
+export * from '../../build/OwnableCounter/tact_OwnableCounter'
