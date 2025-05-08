@@ -3,7 +3,9 @@
  */
 
 // --- Message Definitions ---
+
 // Messages correspond to FunC/Tolk opcodes for setter operations.
+
 // Opcodes are explicitly set to match the original constants.
 
 message(4) SetCount {
@@ -13,7 +15,6 @@ message(4) SetCount {
 
 // --- Contract Definition ---
 contract Counter {
-
     // --- State Variables ---
     // Declared as contract fields. Persistence is handled automatically by Tact.
     // Types and sizes (`as uint32`) match the FunC storage layout.

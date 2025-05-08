@@ -1,4 +1,4 @@
-name: TON - Contracts
+name: Chainlink-TON - Formatting and Linting
 
 on:
   push:
@@ -7,8 +7,8 @@ on:
   pull_request:
 
 jobs:
-  build-and-test:
-    name: Build & Unit Test
+  fmt-contracts:
+    name: Check Tact contracts formatting
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
@@ -19,18 +19,13 @@ jobs:
         with:
           nix_path: nixpkgs=channel:nixos-unstable
 
-      - name: Run build
+      - name: Check formatting
         run: |
           pushd contracts
-          nix develop .#contracts -c yarn && yarn build
+          nix develop .#contracts -c yarn check-fmt-contracts
 
-      - name: Run tests
-        run: |
-          pushd contracts
-          nix develop .#contracts -c yarn test
-
-  build-nixpkg:
-    name: Build nix package
+  fmt-typescript:
+    name: Check Blueprint Typescript code formatting
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
@@ -41,5 +36,7 @@ jobs:
         with:
           nix_path: nixpkgs=channel:nixos-unstable
 
-      - name: Run build
-        run: nix build -v .#contracts
+      - name: Check formatting
+        run: |
+          pushd contracts
+          nix develop .#contracts -c yarn check-fmt-typescript
