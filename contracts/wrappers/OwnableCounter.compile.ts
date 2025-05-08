@@ -5,5 +5,6 @@ export const compile: CompilerConfig = {
     target: 'contracts/examples/ownable_2step_counter.tact',
     options: {
         debug: true,
+        interfacesGetter: true,
     },
 };

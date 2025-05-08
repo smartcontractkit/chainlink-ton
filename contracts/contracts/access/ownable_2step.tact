@@ -38,7 +38,8 @@ message OwnershipTransferred {
     /// New owner that was set.
     newOwner: Address;
 }
-
+@interface("org.ton.ownable")
+@interface("chainlink.ownable_2step")
 trait Ownable2Step with BaseTrait {
     // Required storage variables.
     owner: Address;
@@ -54,9 +55,6 @@ trait Ownable2Step with BaseTrait {
     /// * 1000: ERROR_ONLY_CALLABLE_BY_OWNER
     /// * 1001: ERROR_ONLY_CALLABLE_BY_OWNER
     receive(msg: TransferOwnership) {
-	// Check if the sender is the owner
-	self.requireOwner();
-
 	// Update the pending owner
 	self.transferOwnership(msg.newOwner);
 
@@ -111,6 +109,9 @@ trait Ownable2Step with BaseTrait {
     /// #### Exit codes
     /// * 1001: ERROR_CANNOT_TRANSFER_TO_SELF
     fun transferOwnership(to: Address) {
+	// Check if the sender is the owner
+	self.requireOwner();
+
 	throwUnless(ERROR_CANNOT_TRANSFER_TO_SELF, to != self.owner);
 
 	// Update pending owner
