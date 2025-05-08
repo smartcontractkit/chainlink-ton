@@ -1,4 +1,4 @@
-name: Chainlink-TON - Formatting and Linting
+name: TON - Formatting
 
 on:
   push:
@@ -22,7 +22,7 @@ jobs:
       - name: Check formatting
         run: |
           pushd contracts
-          nix develop .#contracts -c yarn check-fmt-contracts
+          nix develop .#contracts -c yarn && yarn check-fmt-contracts
 
   fmt-typescript:
     name: Check Blueprint Typescript code formatting
@@ -39,4 +39,6 @@ jobs:
       - name: Check formatting
         run: |
           pushd contracts
-          nix develop .#contracts -c yarn check-fmt-typescript
+          nix develop .#contracts -c yarn && yarn check-fmt-typescript
+
+  #TODO: Add checks for go code formatting
