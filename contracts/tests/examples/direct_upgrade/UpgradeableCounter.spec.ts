@@ -1,47 +1,64 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox';
-import { Cell, toNano } from '@ton/core';
+import { toNano } from '@ton/core';
 import { UpgradeableCounterAdd } from '../../../wrappers/examples/direct_upgrade/UpgradeableCounterAdd';
 import { UpgradeableCounterSub } from '../../../wrappers/examples/direct_upgrade/UpgradeableCounterSub';
 import '@ton/test-utils';
-import { kMaxLength } from 'buffer';
-import { assert } from 'console';
+
+async function setUpTest(i: bigint): Promise<{
+    blockchain: Blockchain,
+    deployer: SandboxContract<TreasuryContract>,
+    owner: SandboxContract<TreasuryContract>,
+    upgradeableCounter: SandboxContract<UpgradeableCounterAdd>,
+}> {
+    let blockchain = await Blockchain.create();
+
+    let deployer = await blockchain.treasury('deployer');
+    let owner = await blockchain.treasury('owner');
+
+    let upgradeableCounter = blockchain.openContract(await UpgradeableCounterAdd.fromInit(0n, owner.address, 1n, i));
+
+    const deployResult = await upgradeableCounter.send(
+        deployer.getSender(),
+        {
+            value: toNano('0.05'),
+        },
+        null,
+    );
+
+    expect(deployResult.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: upgradeableCounter.address,
+        deploy: true,
+        success: true,
+    });
+
+    return {
+        blockchain,
+        deployer,
+        owner,
+        upgradeableCounter,
+    }
+};
 
 describe('UpgradeableCounter', () => {
-    let blockchain: Blockchain;
-    let deployer: SandboxContract<TreasuryContract>;
-    let owner: SandboxContract<TreasuryContract>;
-    let upgradeableCounter: SandboxContract<UpgradeableCounterAdd>;
-
-    beforeEach(async () => {
-        blockchain = await Blockchain.create();
-
-        deployer = await blockchain.treasury('deployer');
-        owner = await blockchain.treasury('owner');
-
-        upgradeableCounter = blockchain.openContract(await UpgradeableCounterAdd.fromInit(0n, owner.address, 0n, 0n));
-
-        const deployResult = await upgradeableCounter.send(
-            deployer.getSender(),
-            {
-                value: toNano('0.05'),
-            },
-            null,
-        );
-
-        expect(deployResult.transactions).toHaveTransaction({
-            from: deployer.address,
-            to: upgradeableCounter.address,
-            deploy: true,
-            success: true,
-        });
-    });
 
     it('should deploy', async () => {
-        // the check is done inside beforeEach
-        // blockchain and upgradeableCounter are ready to use
+        await setUpTest(0n);
     });
 
-    it('should increase counter', async () => {
+    it('should deploy on version 1', async () => {
+        let {
+            upgradeableCounter,
+        } = await setUpTest(0n);
+        const version = await upgradeableCounter.getVersion();
+        expect(version).toBe(1n);
+    });
+
+    it('version 1 should increase counter', async () => {
+        let {
+            blockchain,
+            upgradeableCounter,
+        } = await setUpTest(0n);
         const increaseTimes = 3;
         for (let i = 0; i < increaseTimes; i++) {
             console.log(`increase ${i + 1}/${increaseTimes}`);
@@ -77,7 +94,13 @@ describe('UpgradeableCounter', () => {
 
             expect(counterAfter).toBe(counterBefore + increaseBy);
         }
+    });
 
+    it('should be upgraded to version 2', async () => {
+        let {
+            owner,
+            upgradeableCounter,
+        } = await setUpTest(0n);
         let substractorCounter = await UpgradeableCounterSub.fromInit(0n, owner.address, 0n, 0n);
         if (substractorCounter.init == null) {
             throw new Error('init is null');
@@ -100,6 +123,77 @@ describe('UpgradeableCounter', () => {
             to: upgradeableCounter.address,
             success: true,
         });
+
+        const version = await upgradeableCounter.getVersion();
+        expect(version).toBe(2n);
+    });
+
+    it('upgrade should conserve the internal state', async () => {
+        const initialValue = 10n;
+        let {
+            owner,
+            upgradeableCounter,
+        } = await setUpTest(initialValue);
+        const initialId = await upgradeableCounter.getId();
+        let substractorCounter = await UpgradeableCounterSub.fromInit(0n, owner.address, 0n, 0n);
+        if (substractorCounter.init == null) {
+            throw new Error('init is null');
+        }
+        let substractorCounterCode = substractorCounter.init.code
+        let upgradeResult = await
+            upgradeableCounter.send(
+                owner.getSender(),
+                {
+                    value: toNano('0.05'),
+                },
+                {
+                    $$type: 'Upgrade',
+                    code: substractorCounterCode,
+                    data: null,
+                }
+            )
+        expect(upgradeResult.transactions).toHaveTransaction({
+            from: owner.address,
+            to: upgradeableCounter.address,
+            success: true,
+        });
+
+        const counter = await upgradeableCounter.getCounter();
+        expect(counter).toBe(initialValue);
+        const newId = await upgradeableCounter.getId();
+        expect(newId).toBe(initialId);
+    });
+
+
+    it('version 2 should decrease de counter', async () => {
+        let {
+            blockchain,
+            owner,
+            upgradeableCounter,
+        } = await setUpTest(3n);
+        let substractorCounter = await UpgradeableCounterSub.fromInit(0n, owner.address, 0n, 0n);
+        if (substractorCounter.init == null) {
+            throw new Error('init is null');
+        }
+        let substractorCounterCode = substractorCounter.init.code
+        let upgradeResult = await
+            upgradeableCounter.send(
+                owner.getSender(),
+                {
+                    value: toNano('0.05'),
+                },
+                {
+                    $$type: 'Upgrade',
+                    code: substractorCounterCode,
+                    data: null,
+                }
+            )
+        expect(upgradeResult.transactions).toHaveTransaction({
+            from: owner.address,
+            to: upgradeableCounter.address,
+            success: true,
+        });
+
 
         const decreaseTimes = 3;
         for (let i = 0; i < decreaseTimes; i++) {
@@ -136,6 +230,7 @@ describe('UpgradeableCounter', () => {
 
             expect(counterAfter).toBe(counterBefore - decreaseBy);
         }
+
 
     });
 });
