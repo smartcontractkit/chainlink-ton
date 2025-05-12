@@ -13,7 +13,11 @@
     "bp": "blueprint",
     "start": "blueprint run",
     "build": "blueprint build --all",
-    "test": "jest --verbose"
+    "test": "jest --verbose",
+    "fmt-contracts:check": "tact-fmt --check contracts",
+    "fmt-contracts": "tact-fmt --write contracts",
+    "fmt-typescript:check": "prettier --check .",
+    "fmt-typescript": "prettier --write ."
   },
   "devDependencies": {
     "@tact-lang/compiler": "^1.6.5",
