@@ -20,7 +20,7 @@ jobs:
       - name: Check formatting
         run: |
           pushd contracts
-          nix develop .#contracts
-          yarn
-          yarn fmt-contracts:check
-          yarn fmt-typescript:check
+          nix develop .#contracts -c \
+            yarn && \
+            yarn fmt-contracts:check && \
+            yarn fmt-typescript:check
