@@ -1,12 +1,11 @@
 name: TON - Contracts Formatting
 
 on:
-  push:
   pull_request:
 
 jobs:
   fmt-contracts:
-    name: Check Tact contracts formatting
+    name: Check Tact contracts and Typescript code formatting
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
