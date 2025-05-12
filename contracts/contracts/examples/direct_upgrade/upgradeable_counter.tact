@@ -1,12 +1,13 @@
 import "../responder";
 import "@stdlib/ownable";
 import "../../lib/upgradeable";
+import "../../lib/type_and_version";
 
 message(1) Step {
     queryId: Int as uint64;
 }
 
-trait UpgradeableCounter with Upgradable, Ownable, Responder {
+trait UpgradeableCounter with Upgradable, Ownable, Responder, TypeAndVersion {
     id: Int as uint32;
     owner: Address;
     _version: Int as uint32;
@@ -29,6 +30,10 @@ trait UpgradeableCounter with Upgradable, Ownable, Responder {
 
     override fun getResponse(): Int {
         return self.counter;
+    }
+
+    override fun type(): String {
+        return "UpgradeableCounter";
     }
 
     get fun counter(): Int {

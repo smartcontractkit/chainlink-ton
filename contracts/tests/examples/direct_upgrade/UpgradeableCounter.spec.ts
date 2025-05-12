@@ -81,6 +81,8 @@ describe('UpgradeableCounter', () => {
         } = await setUpTest(0n);
         const version = await upgradeableCounter.getVersion();
         expect(version).toBe(1n);
+        const typeAndVersion = await upgradeableCounter.getTypeAndVersion();
+        expect(typeAndVersion).toBe('UpgradeableCounter 1');
     }, 100000);
 
     it('should have initial value', async () => {
@@ -158,6 +160,8 @@ describe('UpgradeableCounter', () => {
 
         const version = await upgradeableCounter.getVersion();
         expect(version).toBe(2n);
+        const typeAndVersion = await upgradeableCounter.getTypeAndVersion();
+        expect(typeAndVersion).toBe('UpgradeableCounter 2');
     }, 100000);
 
     it('upgrade should conserve the internal state', async () => {
