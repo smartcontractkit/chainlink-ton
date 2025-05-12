@@ -280,7 +280,6 @@ async function assertCount(upgradeableCounter: SandboxContract<UpgradeableCounte
         success: true,
     });
 
-    await new Promise(resolve => setTimeout(resolve, 5000));
     const getterResult = await getter.getResponse();
     console.log('getterResult', getterResult);
     expect(getterResult).toBe(expectedCount);
