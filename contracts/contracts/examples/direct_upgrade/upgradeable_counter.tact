@@ -19,7 +19,6 @@ trait UpgradeableCounter with Upgradable, Ownable, Responder {
     }
 
     receive(msg: Step) {
-        dump("step");
         self.step();
 
         cashback(sender());
