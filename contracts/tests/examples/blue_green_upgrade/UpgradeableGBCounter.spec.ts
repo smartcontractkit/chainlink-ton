@@ -1,0 +1,410 @@
+import { Blockchain, SandboxContract, Treasury, TreasuryContract } from '@ton/sandbox';
+import { toNano } from '@ton/core';
+import '@ton/test-utils';
+import { Get, Getter } from '../../../build/Getter/tact_Getter';
+import { UpgradeableGBCounterAdd } from '../../../build/UpgradeableGBCounterAdd/tact_UpgradeableGBCounterAdd';
+import { UpgradeableGBCounterSub } from '../../../build/UpgradeableGBCounterSub/tact_UpgradeableGBCounterSub';
+// import { sleep } from '@ton/blueprint';
+
+async function setUpTest(i: bigint): Promise<{
+    blockchain: Blockchain,
+    deployer: SandboxContract<TreasuryContract>,
+    owner: SandboxContract<TreasuryContract>,
+    upgradeableGBCounter: SandboxContract<UpgradeableGBCounterAdd>,
+    getter: SandboxContract<Getter>,
+}> {
+    // Verbosity = 'none' | 'vm_logs' | 'vm_logs_location' | 'vm_logs_gas' | 'vm_logs_full' | 'vm_logs_verbose';
+    let blockchain = await Blockchain.create();
+    blockchain.verbosity = {
+        print: true,
+        blockchainLogs: false,
+        vmLogs: 'vm_logs',
+        debugLogs: true,
+    };
+
+    let deployer = await blockchain.treasury('deployer');
+    let owner = await blockchain.treasury('owner');
+
+    let upgradeableGBCounter = blockchain.openContract(await UpgradeableGBCounterAdd.fromInit(0n, owner.address, 1n, i));
+
+    const counterDeployResult = await upgradeableGBCounter.send(
+        deployer.getSender(),
+        {
+            value: toNano('0.05'),
+        },
+        null,
+    );
+
+    expect(counterDeployResult.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: upgradeableGBCounter.address,
+        deploy: true,
+        success: true,
+    });
+
+    let getter = blockchain.openContract(await Getter.fromInit(0n, owner.address, 0n));
+
+    const getterDeployResult = await getter.send(
+        deployer.getSender(),
+        {
+            value: toNano('0.05'),
+        },
+        null,
+    );
+
+    expect(getterDeployResult.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: getter.address,
+        deploy: true,
+        success: true,
+    });
+
+
+    return {
+        blockchain,
+        deployer,
+        owner,
+        upgradeableGBCounter,
+        getter,
+    }
+};
+
+describe('UpgradeableGBCounter', () => {
+
+    it('should deploy', async () => {
+        await setUpTest(0n);
+    });
+
+    it('should deploy on version 1', async () => {
+        let {
+            upgradeableGBCounter,
+        } = await setUpTest(0n);
+        const version = await upgradeableGBCounter.getVersion();
+        expect(version).toBe(1n);
+    }, 100000);
+
+    it('should have initial value', async () => {
+        let {
+            blockchain,
+            upgradeableGBCounter,
+            getter,
+        } = await setUpTest(0n);
+        const user = await blockchain.treasury('user');
+        await assertCount(upgradeableGBCounter, getter, user.getSender(), 0n);
+    }, 100000);
+
+    it('version 1 should increase counter', async () => {
+        let {
+            blockchain,
+            upgradeableGBCounter,
+            owner,
+            getter,
+        } = await setUpTest(0n);
+        const increaseTimes = 3;
+        for (let i = 0; i < increaseTimes; i++) {
+            const increaser = await blockchain.treasury('increaser' + i);
+            const counterBefore = await upgradeableGBCounter.getCounter();
+            const increaseBy = BigInt(1);
+
+            let increaseResult = await upgradeableGBCounter.send(
+                increaser.getSender(),
+                {
+                    value: toNano('0.05'),
+                },
+                {
+                    $$type: 'Step',
+                    queryId: BigInt(Math.floor(Math.random() * 10000)),
+                }
+            );
+
+            expect(increaseResult.transactions).toHaveTransaction({
+                from: increaser.address,
+                to: upgradeableGBCounter.address,
+                success: true,
+            });
+
+            await assertCount(upgradeableGBCounter, getter, owner.getSender(), counterBefore + increaseBy);
+        }
+    }, 100000);
+
+    it('should be upgraded to version 2 after commit', async () => {
+        let {
+            owner,
+            upgradeableGBCounter,
+            getter,
+        } = await setUpTest(0n);
+        let substractorCounter = await UpgradeableGBCounterSub.fromInit(0n, owner.address, 0n, 0n);
+        if (substractorCounter.init == null) {
+            throw new Error('init is null');
+        }
+        let substractorCounterCode = substractorCounter.init.code
+        let upgradeResult = await
+            upgradeableGBCounter.send(
+                owner.getSender(),
+                {
+                    value: toNano('0.05'),
+                },
+                {
+                    $$type: 'Upgrade',
+                    code: substractorCounterCode,
+                    data: null,
+                }
+            )
+        expect(upgradeResult.transactions).toHaveTransaction({
+            from: owner.address,
+            to: upgradeableGBCounter.address,
+            success: true,
+        });
+
+        const sameVersion = await upgradeableGBCounter.getVersion();
+        expect(sameVersion).toBe(1n);
+
+        let CommitUpgradeResult = await
+            upgradeableGBCounter.send(
+                owner.getSender(),
+                {
+                    value: toNano('0.05'),
+                },
+                {
+                    $$type: 'CommitUpgrade',
+                }
+            )
+        expect(CommitUpgradeResult.transactions).toHaveTransaction({
+            from: owner.address,
+            to: upgradeableGBCounter.address,
+            success: true,
+        });
+
+        const version = await upgradeableGBCounter.getVersion();
+        expect(version).toBe(2n);
+    }, 100000);
+
+    it('upgrade should conserve the internal state', async () => {
+        const initialValue = 10n;
+        let {
+            owner,
+            upgradeableGBCounter,
+            getter,
+        } = await setUpTest(initialValue);
+        const initialId = await upgradeableGBCounter.getId();
+
+        await upgradeCounter(owner, upgradeableGBCounter);
+        await commitCounterUpgrade(owner, upgradeableGBCounter);
+
+        await assertCount(upgradeableGBCounter, getter, owner.getSender(), initialValue);
+        const newId = await upgradeableGBCounter.getId();
+        expect(newId).toBe(initialId);
+    }, 100000);
+
+    it('uncommited version 2 should increase counter', async () => {
+        let {
+            blockchain,
+            upgradeableGBCounter,
+            owner,
+            getter,
+        } = await setUpTest(0n);
+
+        await upgradeCounter(owner, upgradeableGBCounter);
+
+        const increaseTimes = 3;
+        for (let i = 0; i < increaseTimes; i++) {
+            const increaser = await blockchain.treasury('increaser' + i);
+            const counterBefore = await upgradeableGBCounter.getCounter();
+            const increaseBy = BigInt(1);
+
+            let increaseResult = await upgradeableGBCounter.send(
+                increaser.getSender(),
+                {
+                    value: toNano('0.05'),
+                },
+                {
+                    $$type: 'Step',
+                    queryId: BigInt(Math.floor(Math.random() * 10000)),
+                }
+            );
+
+            expect(increaseResult.transactions).toHaveTransaction({
+                from: increaser.address,
+                to: upgradeableGBCounter.address,
+                success: true,
+            });
+
+            await assertCount(upgradeableGBCounter, getter, owner.getSender(), counterBefore + increaseBy);
+        }
+    }, 100000);
+
+    it('version 2 should decrease de counter', async () => {
+        let {
+            blockchain,
+            owner,
+            upgradeableGBCounter,
+            getter,
+        } = await setUpTest(3n);
+
+        await upgradeCounter(owner, upgradeableGBCounter);
+        await commitCounterUpgrade(owner, upgradeableGBCounter);
+
+        const decreaseTimes = 3;
+        for (let i = 0; i < decreaseTimes; i++) {
+            const decreaser = await blockchain.treasury('decreaser' + i);
+
+            const counterBefore = await upgradeableGBCounter.getCounter();
+            const decreaseBy = BigInt(1);
+
+            let decreaseResult = await upgradeableGBCounter.send(
+                decreaser.getSender(),
+                {
+                    value: toNano('0.05'),
+                },
+                {
+                    $$type: 'Step',
+                    queryId: BigInt(Math.floor(Math.random() * 10000)),
+                }
+            );
+
+            expect(decreaseResult.transactions).toHaveTransaction({
+                from: decreaser.address,
+                to: upgradeableGBCounter.address,
+                success: true,
+            });
+
+            await assertCount(upgradeableGBCounter, getter, owner.getSender(), counterBefore - decreaseBy);
+        }
+    }, 100000);
+
+    it('backroll should take us back to version 1 and it should increase de counter', async () => {
+        let {
+            blockchain,
+            owner,
+            upgradeableGBCounter,
+            getter,
+        } = await setUpTest(3n);
+
+        await upgradeCounter(owner, upgradeableGBCounter);
+        await commitCounterUpgrade(owner, upgradeableGBCounter);
+
+        const version2 = await upgradeableGBCounter.getVersion();
+        expect(version2).toBe(2n);
+
+        await rollbackUpgrade(owner, upgradeableGBCounter);
+
+        const version1 = await upgradeableGBCounter.getVersion();
+        // expect(version1).toBe(1n);
+
+        // const increaseTimes = 3;
+        // for (let i = 0; i < increaseTimes; i++) {
+        //     const increaser = await blockchain.treasury('increaser' + i);
+        //     const counterBefore = await upgradeableGBCounter.getCounter();
+        //     const increaseBy = BigInt(1);
+
+        //     let increaseResult = await upgradeableGBCounter.send(
+        //         increaser.getSender(),
+        //         {
+        //             value: toNano('0.05'),
+        //         },
+        //         {
+        //             $$type: 'Step',
+        //             queryId: BigInt(Math.floor(Math.random() * 10000)),
+        //         }
+        //     );
+
+        //     expect(increaseResult.transactions).toHaveTransaction({
+        //         from: increaser.address,
+        //         to: upgradeableGBCounter.address,
+        //         success: true,
+        //     });
+
+        //     await assertCount(upgradeableGBCounter, getter, owner.getSender(), counterBefore + increaseBy);
+        // }
+    }, 100000);
+});
+
+async function rollbackUpgrade(owner: SandboxContract<TreasuryContract>, upgradeableGBCounter: SandboxContract<UpgradeableGBCounterAdd>) {
+    const version = await upgradeableGBCounter.getVersion();
+    expect(version).toBe(2n);
+
+    let rollbackResult = await upgradeableGBCounter.send(
+        owner.getSender(),
+        {
+            value: toNano('0.05'),
+        },
+        {
+            $$type: 'RollbackUpgrade',
+        }
+    );
+    expect(rollbackResult.transactions).toHaveTransaction({
+        from: owner.address,
+        to: upgradeableGBCounter.address,
+        success: true,
+    });
+}
+
+async function commitCounterUpgrade(owner: SandboxContract<TreasuryContract>, upgradeableGBCounter: SandboxContract<UpgradeableGBCounterAdd>) {
+    let CommitUpgradeResult = await upgradeableGBCounter.send(
+        owner.getSender(),
+        {
+            value: toNano('0.05'),
+        },
+        {
+            $$type: 'CommitUpgrade',
+        }
+    );
+    expect(CommitUpgradeResult.transactions).toHaveTransaction({
+        from: owner.address,
+        to: upgradeableGBCounter.address,
+        success: true,
+    });
+}
+
+async function upgradeCounter(owner: SandboxContract<TreasuryContract>, upgradeableGBCounter: SandboxContract<UpgradeableGBCounterAdd>) {
+    let substractorCounter = await UpgradeableGBCounterSub.fromInit(0n, owner.address, 0n, 0n);
+    if (substractorCounter.init == null) {
+        throw new Error('init is null');
+    }
+    let substractorCounterCode = substractorCounter.init.code;
+    let upgradeResult = await upgradeableGBCounter.send(
+        owner.getSender(),
+        {
+            value: toNano('0.05'),
+        },
+        {
+            $$type: 'Upgrade',
+            code: substractorCounterCode,
+            data: null,
+        }
+    );
+    expect(upgradeResult.transactions).toHaveTransaction({
+        from: owner.address,
+        to: upgradeableGBCounter.address,
+        success: true,
+    });
+}
+
+async function assertCount(upgradeableGBCounter: SandboxContract<UpgradeableGBCounterAdd>, getter: SandboxContract<Getter>, sender: Treasury, expectedCount: bigint) {
+    const counter = await upgradeableGBCounter.getCounter();
+    expect(counter).toBe(expectedCount);
+    const getterDeployResult = await getter.send(
+        sender,
+        {
+            value: toNano('0.05'),
+        },
+        {
+            $$type: 'Get',
+            queryId: BigInt(Math.floor(Math.random() * 10000)),
+            opcode: 0n,
+            Address: upgradeableGBCounter.address,
+        }
+    )
+
+    expect(getterDeployResult.transactions).toHaveTransaction({
+        from: sender.address,
+        to: getter.address,
+        deploy: false,
+        success: true,
+    });
+
+    const getterResult = await getter.getResponse();
+    console.log('getterResult', getterResult);
+    expect(getterResult).toBe(expectedCount);
+}
+
