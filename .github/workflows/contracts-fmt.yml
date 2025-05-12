@@ -1,0 +1,26 @@
+name: TON - Contracts Formatting
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  fmt-contracts:
+    name: Check Tact contracts formatting
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@02a151ada4993995686f9ed4f1be7cfbb229e56f # v31
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+
+      - name: Check formatting
+        run: |
+          pushd contracts
+          nix develop .#contracts
+          yarn
+          yarn fmt-contracts:check
+          yarn fmt-typescript:check

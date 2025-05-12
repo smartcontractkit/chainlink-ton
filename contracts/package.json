@@ -15,9 +15,9 @@
     "start": "blueprint run",
     "build": "blueprint build",
     "test": "jest --verbose",
-    "check-fmt-contracts": "tact-fmt --check contracts",
+    "fmt-contracts:check": "tact-fmt --check contracts",
     "fmt-contracts": "tact-fmt --write contracts",
-    "check-fmt-typescript": "prettier --check .",
+    "fmt-typescript:check": "prettier --check .",
     "fmt-typescript": "prettier --write ."
   },
   "devDependencies": {
