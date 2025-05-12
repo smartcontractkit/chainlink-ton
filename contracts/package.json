@@ -14,7 +14,8 @@
     "bp": "blueprint",
     "start": "blueprint run",
     "build": "blueprint build",
-    "test": "jest --verbose"
+    "test": "jest --verbose",
+    "build-test": "blueprint build --all && jest --verbose"
   },
   "devDependencies": {
     "@ton/blueprint": "^0.29.0",

@@ -1,10 +1,12 @@
 import "./upgradeable.tact";
+import "../responder";
+import "@stdlib/ownable";
 
 message(1) Step {
     queryId: Int as uint64;
 }
 
-trait UpgradeableCounter with Upgradable, Ownable {
+trait UpgradeableCounter with Upgradable, Ownable, Responder {
     id: Int as uint32;
     owner: Address;
     _version: Int as uint32;
@@ -17,6 +19,7 @@ trait UpgradeableCounter with Upgradable, Ownable {
     }
 
     receive(msg: Step) {
+        dump("step");
         self.step();
 
         cashback(sender());
@@ -24,6 +27,10 @@ trait UpgradeableCounter with Upgradable, Ownable {
 
     // Update counter
     abstract fun step();
+
+    override fun getResponse(): Int {
+        return self.counter;
+    }
 
     get fun counter(): Int {
         return self.counter;
