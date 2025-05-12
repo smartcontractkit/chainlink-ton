@@ -6,16 +6,24 @@ message(1) Step {
 }
 
 trait UpgradeableGBCounter with UpgradableBG, Responder {
+    // Counter
     id: Int as uint32;
+    counter: Int as uint32;
+
+    /// Ownable
     owner: Address;
-    _prev_version: Int as uint32; // Previous version
-    _blue_version: Int as uint32; // Active version
-    _green_version: Int as uint32; // New version
+
+    /// UpgradableBG
+
+    /// Previous version
+    _prev_version: Int as uint32;
+    /// Active version
+    _blue_version: Int as uint32;
+    /// New version
+    _green_version: Int as uint32;
     code_bkup: Cell?;
     data_bkup: Cell?;
     code: Cell;
-    data: Cell;
-    counter: Int as uint32;
 
     // Empty receiver for the deployment,
     // which expects the `null` message body
@@ -27,6 +35,13 @@ trait UpgradeableGBCounter with UpgradableBG, Responder {
         self.step();
 
         cashback(sender());
+    }
+
+    override fun getData(): Cell {
+        return beginCell()
+            .storeUint(self.id, 32)
+            .storeUint(self.counter, 32)
+            .asCell();
     }
 
     // Update counter
