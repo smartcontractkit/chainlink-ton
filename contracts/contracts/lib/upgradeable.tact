@@ -23,7 +23,7 @@ trait Upgradable with Ownable {
     /// Checks the sender, performs an upgrade, and increments the version.
     receive(msg: Upgrade) {
         let ctx = context();
-        self.validateUpgrade(ctx, msg);
+        self.requireValidateUpgrade(ctx, msg);
         self.upgrade(ctx, msg);
 
         self._version += 1;
@@ -31,7 +31,7 @@ trait Upgradable with Ownable {
 
     /// Checks that the sender is the owner.
     /// Can be overridden.
-    virtual inline fun validateUpgrade(_: Context, __: Upgrade) {
+    virtual inline fun requireValidateUpgrade(_: Context, __: Upgrade) {
         self.requireOwner();
     }
 
