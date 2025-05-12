@@ -12,9 +12,7 @@ trait UpgradeableGBCounter with UpgradableBG, Responder {
     _blue_version: Int as uint32; // Active version
     _green_version: Int as uint32; // New version
     code_bkup: Cell?;
-    data_bkup: Cell?;
     code: Cell;
-    data: Cell;
     counter: Int as uint32;
 
     // Empty receiver for the deployment,

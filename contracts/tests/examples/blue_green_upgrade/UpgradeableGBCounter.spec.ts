@@ -286,36 +286,39 @@ describe('UpgradeableGBCounter', () => {
         const version2 = await upgradeableGBCounter.getVersion();
         expect(version2).toBe(2n);
 
+        console.log('rolling back');
         await rollbackUpgrade(owner, upgradeableGBCounter);
+        console.log('rolled back');
 
+        console.log('getting version');
         const version1 = await upgradeableGBCounter.getVersion();
-        // expect(version1).toBe(1n);
+        expect(version1).toBe(1n);
 
-        // const increaseTimes = 3;
-        // for (let i = 0; i < increaseTimes; i++) {
-        //     const increaser = await blockchain.treasury('increaser' + i);
-        //     const counterBefore = await upgradeableGBCounter.getCounter();
-        //     const increaseBy = BigInt(1);
+        const increaseTimes = 3;
+        for (let i = 0; i < increaseTimes; i++) {
+            const increaser = await blockchain.treasury('increaser' + i);
+            const counterBefore = await upgradeableGBCounter.getCounter();
+            const increaseBy = BigInt(1);
 
-        //     let increaseResult = await upgradeableGBCounter.send(
-        //         increaser.getSender(),
-        //         {
-        //             value: toNano('0.05'),
-        //         },
-        //         {
-        //             $$type: 'Step',
-        //             queryId: BigInt(Math.floor(Math.random() * 10000)),
-        //         }
-        //     );
+            let increaseResult = await upgradeableGBCounter.send(
+                increaser.getSender(),
+                {
+                    value: toNano('0.05'),
+                },
+                {
+                    $$type: 'Step',
+                    queryId: BigInt(Math.floor(Math.random() * 10000)),
+                }
+            );
 
-        //     expect(increaseResult.transactions).toHaveTransaction({
-        //         from: increaser.address,
-        //         to: upgradeableGBCounter.address,
-        //         success: true,
-        //     });
+            expect(increaseResult.transactions).toHaveTransaction({
+                from: increaser.address,
+                to: upgradeableGBCounter.address,
+                success: true,
+            });
 
-        //     await assertCount(upgradeableGBCounter, getter, owner.getSender(), counterBefore + increaseBy);
-        // }
+            await assertCount(upgradeableGBCounter, getter, owner.getSender(), counterBefore + increaseBy);
+        }
     }, 100000);
 });
 

@@ -8,9 +8,7 @@ contract UpgradeableGBCounterAdd with UpgradeableGBCounter {
     _blue_version: Int as uint32; // Active version
     _green_version: Int as uint32; // New version
     code_bkup: Cell?;
-    data_bkup: Cell?;
     code: Cell;
-    data: Cell;
 
     init(
         id: Int,
@@ -25,9 +23,7 @@ contract UpgradeableGBCounterAdd with UpgradeableGBCounter {
         self._green_version = version;
         self.counter = counter;
         self.code_bkup = null;
-        self.data_bkup = null;
         self.code = codeOf UpgradeableGBCounterAdd;
-        self.data = (initOf UpgradeableGBCounterAdd(id, owner, version, counter)).toCell();
     }
 
     override fun step() {

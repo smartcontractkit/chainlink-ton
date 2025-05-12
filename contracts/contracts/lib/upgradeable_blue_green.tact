@@ -28,9 +28,7 @@ trait UpgradableBG with Ownable {
     _blue_version: Int as uint32;
     _green_version: Int as uint32;
     code_bkup: Cell?;
-    data_bkup: Cell?;
     code: Cell;
-    data: Cell;
 
     virtual inline fun requireValidateUpgrade(_: Context, __: Upgrade) {
         self.requireOwner();
@@ -40,7 +38,6 @@ trait UpgradableBG with Ownable {
         let ctx = context();
         self.requireValidateUpgrade(ctx, msg);
         self.code_bkup = msg.code;
-        self.data_bkup = msg.data;
 
         self._green_version = self._blue_version + 1;
     }
@@ -54,13 +51,11 @@ trait UpgradableBG with Ownable {
         let ctx = context();
         self.requireValidateCommitUpgrade(ctx, msg);
         let code = self.code_bkup;
-        let data = self.data_bkup;
         self.code_bkup = self.code;
-        self.data_bkup = self.data;
 
         self._prev_version = self._blue_version;
         self._blue_version = self._green_version;
-        self.upgrade(ctx, code, data);
+        self.upgrade(ctx, code);
     }
 
     virtual inline fun requireValidateRollbackUpgrade(_: Context, __: RollbackUpgrade) {
@@ -72,34 +67,21 @@ trait UpgradableBG with Ownable {
         let ctx = context();
         self.requireValidateRollbackUpgrade(ctx, msg);
         let code = self.code_bkup;
-        let data = self.data_bkup;
         self.code_bkup = self.code;
-        self.data_bkup = self.data;
 
         self._blue_version = self._prev_version;
-        self.upgrade(ctx, code, data);
+        self.upgrade(ctx, code);
     }
 
     /// Sets the code if it's not `null`.
     /// Sets the data if it's not `null`.
     /// Can be overridden.
-    virtual inline fun upgrade(_: Context, code: Cell?, data: Cell?) {
+    virtual inline fun upgrade(_: Context, code: Cell?) {
         if (code != null) {
             // Change of code will be applied at the end of this transaction
 
             self.code = code!!;
             setCode(code!!);
-        }
-        if (data != null) {
-            // Change of data will be immediate
-            self.data = data!!;
-            setData(data!!);
-
-            // By the end of every transaction,
-            // the Tact compiler automatically adds a call to setData() for your convenience.
-            // However, we've already set the data ourselves,
-            // so let's stop the execution now to prevent a secondary call to setData().
-            throw(0);
         }
     }
 
