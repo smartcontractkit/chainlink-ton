@@ -6,7 +6,7 @@ In the [contracts](../../contracts/) directory there is both Tact and Typescript
 
 Check for formatting errors:
 ```bash
-nix develop .#contracts -c yarn check-fmt-contracts
+nix develop .#contracts -c yarn fmt-contracts:check
 ```
 Correct formatting errors:
 ```bash
@@ -16,7 +16,7 @@ nix develop .#contracts -c yarn fmt-contracts
 ## Typescript
 Check for formatting errors:
 ```bash
-nix develop .#contracts -c yarn check-fmt-typescript
+nix develop .#contracts -c yarn fmt-typescript:check
 ```
 Correct formatting errors:
 ```bash
