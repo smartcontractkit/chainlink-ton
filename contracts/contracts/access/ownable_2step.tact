@@ -40,7 +40,7 @@ message OwnershipTransferred {
 /// Does not utilize @stdlib/ownable.
 ///
 @interface("org.ton.ownable")
-@interface("chainlink.ownable_2step")
+@interface("chainlink.ownable.2step")
 trait Ownable2Step with BaseTrait {
     // Required storage variables.
     owner: Address;

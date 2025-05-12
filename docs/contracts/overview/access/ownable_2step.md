@@ -18,7 +18,7 @@ Example:
 
 ### Interface
 
-This trait supports the `"org.ton.ownable"` interface, and expands it with the ownership transfer functions. The complete interface is identified as `"chainlink.ownable_2step"` and supports the following main receivers and functions:
+This trait supports the `"org.ton.ownable"` interface, and expands it with the ownership transfer functions. The complete interface is identified as `"chainlink.ownable.2step"` and supports the following main receivers and functions:
 
 ```tact
 /// Requires that the sender of the message is the owner of the contract.
