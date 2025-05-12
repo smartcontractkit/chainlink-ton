@@ -1,6 +1,6 @@
-import "./upgradeable.tact";
 import "../responder";
 import "@stdlib/ownable";
+import "../../lib/upgradeable";
 
 message(1) Step {
     queryId: Int as uint64;

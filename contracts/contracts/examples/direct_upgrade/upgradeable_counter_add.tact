@@ -1,4 +1,4 @@
-import "./upgradeable.tact";
+import "../../lib/upgradeable";
 import "./upgradeable_counter.tact";
 import "@stdlib/ownable";
 
