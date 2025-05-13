@@ -11,11 +11,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Prepare images
-        run: bash scripts/mylocalton-images.sh integration-tests/.cache/images
-
-      - name: Persist cache
-        uses: actions/cache@v4
+      - name: Force refresh MyLocalTon images cache
+        uses: ./.github/actions/mylocalton-images
         with:
-          path: integration-tests/.cache/images
-          key: mylocalton-images-${{ hashFiles('integration-tests/.cache/images/docker-compose.yml') }}
+          force-refresh: true

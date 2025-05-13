@@ -1,0 +1,69 @@
+name: 'MyLocalTon Images Action'
+description: 'Load or pull MyLocalTon Docker images'
+inputs:
+  cache-dir:
+    description: 'Directory to store cached images'
+    required: false
+    default: 'integration-tests/.cache/images'
+  compose-url:
+    description: 'URL to docker-compose.yml'
+    required: false
+    default: 'https://raw.githubusercontent.com/neodix42/mylocalton-docker/main/docker-compose.yaml'
+  images:
+    description: 'Space-separated list of Docker images'
+    required: false
+    default: >-
+      ghcr.io/neodix42/mylocalton-docker:latest
+      ghcr.io/neodix42/ton-http-api:latest
+      redis:latest
+      postgres:17
+      toncenter/ton-indexer-worker:v1.2.0-test
+      toncenter/ton-indexer-api:v1.2.0-test
+  force-refresh:
+    description: 'Force refresh the cache even if it exists'
+    required: false
+    default: 'false'
+
+runs:
+  using: "composite"
+  steps:
+    - name: Prepare cache directory and compose file
+      shell: bash
+      run: |
+        mkdir -p ${{ inputs.cache-dir }}
+        curl -fsSL "${{ inputs.compose-url }}" -o ${{ inputs.cache-dir }}/docker-compose.yml
+
+    - name: Retrieve cached Docker images
+      id: cache-docker
+      if: inputs.force-refresh != 'true'
+      uses: actions/cache@v4
+      with:
+        path: ${{ inputs.cache-dir }}/docker-images.tar
+        key: mylocalton-images-${{ hashFiles('${{ inputs.cache-dir }}/docker-compose.yml') }}
+        restore-keys: mylocalton-images-
+
+    - name: Load cached Docker images
+      if: inputs.force-refresh != 'true' && steps.cache-docker.outputs.cache-hit == 'true'
+      shell: bash
+      run: docker load -i ${{ inputs.cache-dir }}/docker-images.tar
+
+    - name: Pull Docker images
+      if: inputs.force-refresh == 'true' || steps.cache-docker.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        for img in ${{ inputs.images }}; do
+          docker pull $img
+        done
+
+    - name: Save Docker images to cache
+      if: inputs.force-refresh == 'true' || steps.cache-docker.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        docker save $(echo "${{ inputs.images }}" | tr ' ' ' ') -o ${{ inputs.cache-dir }}/docker-images.tar
+
+    - name: Update cache with refreshed images
+      if: inputs.force-refresh == 'true'
+      uses: actions/cache@v4
+      with:
+        path: ${{ inputs.cache-dir }}/docker-images.tar
+        key: mylocalton-images-${{ hashFiles('${{ inputs.cache-dir }}/docker-compose.yml') }}
