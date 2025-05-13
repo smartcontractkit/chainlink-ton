@@ -226,6 +226,6 @@ require (
 require (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
-	github.com/smartcontractkit/chainlink-testing-framework/framework v0.7.8-0.20250507145505-63882c2a25c3
+	github.com/smartcontractkit/chainlink-testing-framework/framework v0.7.8-0.20250513120518-c354cef6e12e
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

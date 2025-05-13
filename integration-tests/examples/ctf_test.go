@@ -1,6 +1,7 @@
 package test
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -45,7 +46,8 @@ func TestTonSmoke(t *testing.T) {
 
 	t.Run("setup:connect", func(t *testing.T) {
 		connectionPool := liteclient.NewConnectionPool()
-		cfg, cferr := liteclient.GetConfigFromUrl(t.Context(), bc.NetworkSpecificData.TonGlobalConfigURL)
+
+		cfg, cferr := liteclient.GetConfigFromUrl(t.Context(), fmt.Sprintf("http://%s/localhost.global.config.json", bc.Nodes[0].ExternalHTTPUrl))
 
 		require.NoError(t, cferr, "Failed to get config from URL")
 		caerr := connectionPool.AddConnectionsFromConfig(t.Context(), cfg)
