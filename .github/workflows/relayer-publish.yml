@@ -26,7 +26,6 @@ jobs:
       docker-build-args: |
         CHAINLINK_USER=chainlink
         COMMIT_SHA=${{ github.sha }}
-      docker-build-cache-disabled: "true"
       docker-manifest-sign: true
       docker-tag-custom-suffix: "-chainlink-ton"
       git-sha: ${{ github.sha }}
