@@ -1,5 +1,4 @@
 import "@stdlib/ownable";
-import "../responder";
 
 message(1) Step {
     queryId: Int as uint64;

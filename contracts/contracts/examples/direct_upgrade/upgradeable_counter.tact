@@ -1,6 +1,6 @@
-import "../responder";
 import "@stdlib/ownable";
 import "../../lib/upgradeable";
+import "../responder";
 
 message(1) Step {
     queryId: Int as uint64;

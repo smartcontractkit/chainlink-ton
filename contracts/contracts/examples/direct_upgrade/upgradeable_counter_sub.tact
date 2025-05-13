@@ -1,6 +1,6 @@
+import "@stdlib/ownable";
 import "../../lib/upgradeable";
 import "./upgradeable_counter.tact";
-import "@stdlib/ownable";
 
 contract UpgradeableCounterSub(
     id: Int as uint32,

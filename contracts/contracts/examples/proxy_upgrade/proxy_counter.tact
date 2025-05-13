@@ -1,8 +1,8 @@
 import "@stdlib/ownable";
+import "../../lib/upgradeable";
 import "../responder";
 import "./counter_trait";
 import "../getter";
-import "../../lib/upgradeable";
 
 struct ReturnAddress {
     address: Address;
