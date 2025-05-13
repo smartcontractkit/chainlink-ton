@@ -5,7 +5,7 @@ on:
 
 jobs:
   fmt-contracts:
-    name: Check Tact contracts and Typescript code formatting
+    name: Check Tact/TS formatting
     runs-on: ubuntu-latest
     steps:
       - name: Check out code

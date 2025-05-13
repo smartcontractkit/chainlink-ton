@@ -11,12 +11,11 @@ on:
 jobs:
   build-publish-docker:
     name: Build & Publish Docker Image
-    # TODO: add basic checks as a job dependency
-    # needs: [checks]
     permissions:
       contents: read
       id-token: write
-    uses: smartcontractkit/.github/.github/workflows/reusable-docker-build-publish.yml@b37583d758e3992e0d5bfdb5a36ca243ce53ff59 # 2025-04-22
+    # TODO: replace with main branch ref, https://github.com/smartcontractkit/.github/pull/1025
+    uses: smartcontractkit/.github/.github/workflows/reusable-docker-build-publish.yml@ef8ec8fa621d127532fc2b3b9d3d807ff29e13bf # 2025-05-13
     with:
       # Internal dev ECR, retention policy based on tag
       aws-ecr-name: chainlink-plugins-dev
@@ -28,7 +27,6 @@ jobs:
         CHAINLINK_USER=chainlink
         COMMIT_SHA=${{ github.sha }}
       docker-build-cache-disabled: "true"
-      docker-image-type: tag
       docker-manifest-sign: true
       docker-registry-url-override: public.ecr.aws/chainlink
       docker-tag-custom-suffix: "-chainlink-ton"
