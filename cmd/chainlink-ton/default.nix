@@ -25,8 +25,6 @@ in
       mkdir $out/share
       echo ${package-info.version} > $out/share/.version
       echo ${rev} > $out/share/.rev
-
-      mkdir $out/lib
     '';
 
     meta = with pkgs.lib; {
