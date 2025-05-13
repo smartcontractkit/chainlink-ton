@@ -15,7 +15,7 @@ jobs:
       contents: read
       id-token: write
     # TODO: replace with main branch ref, https://github.com/smartcontractkit/.github/pull/1025
-    uses: smartcontractkit/.github/.github/workflows/reusable-docker-build-publish.yml@ef8ec8fa621d127532fc2b3b9d3d807ff29e13bf # 2025-05-13
+    uses: smartcontractkit/.github/.github/workflows/reusable-docker-build-publish.yml@310d49c9ec745392820197b0f89b5023cc4e4156 # 2025-05-13
     with:
       # Internal dev ECR, retention policy based on tag
       aws-ecr-name: chainlink-plugins-dev
@@ -33,6 +33,7 @@ jobs:
       git-sha: ${{ github.sha }}
       github-event-name: ${{ github.event_name }}
       github-ref-name: ${{ github.ref_name }}
+      github-ref-type: ${{ github.ref_type }}
       github-workflow-repository: ${{ github.repository }}
     secrets:
       AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID_SDLC }}
