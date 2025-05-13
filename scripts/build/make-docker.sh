@@ -33,7 +33,6 @@ export PKG_OUT_PATH=$(nix build .#$PKG --print-out-paths)
 # Build the final Docker image by layering in the plugin bin on top of base chainlink:*-plugins image
 docker build $PKG_OUT_PATH \
     -t smartcontract/chainlink-plugins-dev:$PKG_VERSION-$PKG \
-    -f https://raw.githubusercontent.com/smartcontractkit/chainlink/dd69fc589255c00e9cb23c5631a1e7e56c408e78/plugins/chainlink.prebuilt.Dockerfile \
+    -f https://raw.githubusercontent.com/smartcontractkit/chainlink/refs/heads/develop/plugins/chainlink.prebuilt.Dockerfile \
     --build-arg BASE_IMAGE=$BASE_IMAGE \
-    --build-arg LOCAL_PLUGIN_DIR=./bin \
-    --build-arg LOCAL_LIB_DIR=./lib
+    --build-arg PKG_PATH=$PKG_OUT_PATH
