@@ -445,6 +445,8 @@ github.com/smartcontractkit/chainlink-testing-framework/framework v0.7.8-0.20250
 github.com/smartcontractkit/chainlink-testing-framework/framework v0.7.8-0.20250507145505-63882c2a25c3/go.mod h1:omG0nAnSEyxthyuHGE3HKAvAcxPezNtPKORaeZyT+8c=
 github.com/smartcontractkit/chainlink-testing-framework/framework v0.7.8-0.20250513120518-c354cef6e12e h1:5BdPUC1KerwcqtkLGOx8rieZ4La0q+51o+T3MJhIsy8=
 github.com/smartcontractkit/chainlink-testing-framework/framework v0.7.8-0.20250513120518-c354cef6e12e/go.mod h1:omG0nAnSEyxthyuHGE3HKAvAcxPezNtPKORaeZyT+8c=
+github.com/smartcontractkit/chainlink-testing-framework/framework v0.7.9 h1:1Ew60y3ssGG7EZdVSGG+bYqypCg1W3/ailRCUJov9Mg=
+github.com/smartcontractkit/chainlink-testing-framework/framework v0.7.9/go.mod h1:omG0nAnSEyxthyuHGE3HKAvAcxPezNtPKORaeZyT+8c=
 github.com/spf13/cast v0.0.0-20150508191742-4d07383ffe94/go.mod h1:r2rcYCSwa1IExKTDiTfzaxqT2FNHs8hODu4LnUfgKEg=
 github.com/spf13/cobra v0.0.1/go.mod h1:1l0Ry5zgKvJasoi3XT1TypsSe7PqH0Sj9dhYf7v3XqQ=
 github.com/spf13/cobra v1.9.1 h1:CXSaggrXdbHK9CF+8ywj8Amf7PBRmPCOJugH954Nnlo=
