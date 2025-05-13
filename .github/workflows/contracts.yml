@@ -28,6 +28,7 @@ jobs:
         run: |
           pushd contracts
           nix develop .#contracts -c yarn test
+
   build-nixpkg:
     name: Build nix package
     runs-on: ubuntu-latest
