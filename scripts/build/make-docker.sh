@@ -35,4 +35,4 @@ docker build $PKG_OUT_PATH \
     -t smartcontract/chainlink-plugins-dev:$PKG_VERSION-$PKG \
     -f https://raw.githubusercontent.com/smartcontractkit/chainlink/refs/heads/develop/plugins/chainlink.prebuilt.Dockerfile \
     --build-arg BASE_IMAGE=$BASE_IMAGE \
-    --build-arg PKG_PATH=$PKG_OUT_PATH
+    --build-arg PKG_PATH=. # This is the path to the local context from which bin/libs are copied into the image

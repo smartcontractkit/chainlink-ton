@@ -47,7 +47,7 @@ docker build $PKG_OUT_PATH \
     -t smartcontract/chainlink-plugins-dev:0.0.1-beta.1-chainlink-ton \
     -f https://raw.githubusercontent.com/smartcontractkit/chainlink/refs/heads/develop/plugins/chainlink.prebuilt.Dockerfile \
     --build-arg BASE_IMAGE=public.ecr.aws/chainlink/chainlink:v2.23.0-plugins \
-    --build-arg PKG_PATH=$PKG_OUT_PATH
+    --build-arg PKG_PATH=.
 ```
 
 Alternatively just use a prepared script:

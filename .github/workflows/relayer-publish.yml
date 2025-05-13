@@ -20,7 +20,7 @@ jobs:
     with:
       # Internal dev ECR, retention policy based on tag
       aws-ecr-name: chainlink-plugins-dev
-      aws-region-ecr: us-east-1
+      aws-region-ecr: us-west-2
       aws-region-gati: us-west-2
       dockerfile: scripts/build/Dockerfile.build.nix
       docker-build-context: .
