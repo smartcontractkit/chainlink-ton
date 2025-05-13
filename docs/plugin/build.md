@@ -44,7 +44,7 @@ export PKG_OUT_PATH=$(nix build .#chainlink-ton --print-out-paths)
 
 # Build the final Docker image by layering in the plugin bin on top of base chainlink:*-plugins image
 docker build $PKG_OUT_PATH \
-    -t smartcontract/chainlink-plugins-dev:0.0.1-beta.1-chainlink-ton \
+    -t smartcontract/chainlink-plugins-dev:v0.0.1-beta.1-chainlink-ton \
     -f https://raw.githubusercontent.com/smartcontractkit/chainlink/refs/heads/develop/plugins/chainlink.prebuilt.Dockerfile \
     --build-arg BASE_IMAGE=public.ecr.aws/chainlink/chainlink:v2.23.0-plugins \
     --build-arg PKG_PATH=.
@@ -60,7 +60,7 @@ nix develop -c ./scripts/build/make-docker.sh
 Inspect the newly created image:
 
 ```bash
-docker run -it --rm --entrypoint /bin/sh smartcontract/chainlink-plugins-dev:0.0.1-beta.1-chainlink-ton
+docker run -it --rm --entrypoint /bin/sh smartcontract/chainlink-plugins-dev:v0.0.1-beta.1-chainlink-ton
 # ls -la /usr/local/bin
 total 795768
 drwxr-xr-x 1 root root      4096 Jan  1  1970 .
@@ -89,7 +89,7 @@ Builds a specific Nix package (single bin or a bundle) and layers in the output 
 
 ```bash
 docker build . \
-    -t smartcontract/chainlink-plugins-dev:0.0.1-beta.1-chainlink-ton \
+    -t smartcontract/chainlink-plugins-dev:v0.0.1-beta.1-chainlink-ton \
     -f ./scripts/build/Dockerfile.build.nix
 ```
 
@@ -97,7 +97,7 @@ Or with using specific build args:
 
 ```bash
 docker build . \
-    -t smartcontract/chainlink-plugins-dev:0.0.1-beta.1-chainlink-ton \
+    -t smartcontract/chainlink-plugins-dev:v0.0.1-beta.1-chainlink-ton \
     -f ./scripts/build/Dockerfile.build.nix \
     --build-arg NIX_BUILD_PKG=chainlink-ton \
     --build-arg BASE_IMAGE=public.ecr.aws/chainlink/chainlink:v2.23.0-plugins

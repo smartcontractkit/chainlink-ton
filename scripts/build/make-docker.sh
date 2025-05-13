@@ -13,8 +13,8 @@ BASE_IMAGE=public.ecr.aws/chainlink/chainlink:v2.23.0-plugins
 # Get the root directory of the repository
 ROOT_DIR=$(git rev-parse --show-toplevel)
 
-# Source the version of the plugin from the root package.json
-export PKG_VERSION=$(jq -r '.version' ${ROOT_DIR}/package.json)
+# Source the version of the plugin from the root package.json, notice 'v' prefix e.g., v0.1.0
+export PKG_VERSION=v$(jq -r '.version' ${ROOT_DIR}/package.json)
 
 # Check if --docker-builder is passed as an argument (build with Docker builder)
 if [[ "$*" == *"--docker-builder"* ]]; then
