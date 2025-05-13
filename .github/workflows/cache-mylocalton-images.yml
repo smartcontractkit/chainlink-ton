@@ -9,12 +9,12 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-and-cache:
+  pull-and-cache:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Force refresh MyLocalTon images cache
+      - name: Pull prebuilt MyLocalTon images and cache them
         uses: ./.github/actions/mylocalton-images
         with:
           force-refresh: true
