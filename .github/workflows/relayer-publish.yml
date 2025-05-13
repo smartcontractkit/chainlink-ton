@@ -28,7 +28,6 @@ jobs:
         COMMIT_SHA=${{ github.sha }}
       docker-build-cache-disabled: "true"
       docker-manifest-sign: true
-      docker-registry-url-override: public.ecr.aws/chainlink
       docker-tag-custom-suffix: "-chainlink-ton"
       git-sha: ${{ github.sha }}
       github-event-name: ${{ github.event_name }}
