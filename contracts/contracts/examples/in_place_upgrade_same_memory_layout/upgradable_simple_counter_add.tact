@@ -1,6 +1,6 @@
-import "./upgradeable_simple_counter.tact";
+import "./upgradable_simple_counter.tact";
 
-contract UpgradeableSimpleCounterSub with UpgradeableSimpleCounter {
+contract UpgradableSimpleCounterAdd with UpgradableSimpleCounter {
     id: Int as uint32;
     padding: Int as uint32;
     owner: Address;
@@ -21,6 +21,6 @@ contract UpgradeableSimpleCounterSub with UpgradeableSimpleCounter {
     }
 
     override fun step() {
-        self.counter -= 1;
+        self.counter += 1;
     }
 }

@@ -1,17 +1,16 @@
 import { Blockchain, SandboxContract, Treasury, TreasuryContract } from '@ton/sandbox';
-import { beginCell, toNano } from '@ton/core';
+import { toNano } from '@ton/core';
+import { UpgradableSimpleCounterAdd } from '../../../wrappers/examples/in_place_upgrade_same_memory_layout/UpgradableSimpleCounterAdd';
+import { UpgradableSimpleCounterSub } from '../../../wrappers/examples/in_place_upgrade_same_memory_layout/UpgradableSimpleCounterSub';
 import '@ton/test-utils';
 import { Get, Getter } from '../../../build/Getter/tact_Getter';
-import { InitParams, ProxyCounter } from '../../../build/ProxyCounter/tact_ProxyCounter';
-import { ResponderCounterAdd } from '../../../build/ResponderCounterAdd/tact_ResponderCounterAdd';
-import { ResponderCounterSub } from '../../../build/ResponderCounterSub/tact_ResponderCounterSub';
 // import { sleep } from '@ton/blueprint';
 
 async function setUpTest(i: bigint): Promise<{
     blockchain: Blockchain,
     deployer: SandboxContract<TreasuryContract>,
     owner: SandboxContract<TreasuryContract>,
-    proxyCounter: SandboxContract<ProxyCounter>,
+    upgradableCounter: SandboxContract<UpgradableSimpleCounterAdd>,
     getter: SandboxContract<Getter>,
 }> {
     // Verbosity = 'none' | 'vm_logs' | 'vm_logs_location' | 'vm_logs_gas' | 'vm_logs_full' | 'vm_logs_verbose';
@@ -26,9 +25,9 @@ async function setUpTest(i: bigint): Promise<{
     let deployer = await blockchain.treasury('deployer');
     let owner = await blockchain.treasury('owner');
 
-    let responderCounter = blockchain.openContract(await ResponderCounterAdd.fromInit(0n, owner.address, 1n, i));
+    let upgradableCounter = blockchain.openContract(await UpgradableSimpleCounterAdd.fromInit(0n, owner.address, 1n, i));
 
-    const responderCounterDeployResult = await responderCounter.send(
+    const counterDeployResult = await upgradableCounter.send(
         deployer.getSender(),
         {
             value: toNano('0.05'),
@@ -36,26 +35,9 @@ async function setUpTest(i: bigint): Promise<{
         null,
     );
 
-    expect(responderCounterDeployResult.transactions).toHaveTransaction({
+    expect(counterDeployResult.transactions).toHaveTransaction({
         from: deployer.address,
-        to: responderCounter.address,
-        deploy: true,
-        success: true,
-    });
-
-    let proxyCounter = blockchain.openContract(await ProxyCounter.fromInit(0n, owner.address, responderCounter.address));
-
-    const proxyCounterDeployResult = await proxyCounter.send(
-        deployer.getSender(),
-        {
-            value: toNano('0.05'),
-        },
-        null,
-    );
-
-    expect(proxyCounterDeployResult.transactions).toHaveTransaction({
-        from: deployer.address,
-        to: proxyCounter.address,
+        to: upgradableCounter.address,
         deploy: true,
         success: true,
     });
@@ -82,12 +64,12 @@ async function setUpTest(i: bigint): Promise<{
         blockchain,
         deployer,
         owner,
-        proxyCounter,
+        upgradableCounter,
         getter,
     }
 };
 
-describe('ProxyUpgradeableCounter', () => {
+describe('UpgradableSimpleCounter', () => {
 
     it('should deploy', async () => {
         await setUpTest(0n);
@@ -95,38 +77,36 @@ describe('ProxyUpgradeableCounter', () => {
 
     it('should deploy on version 1', async () => {
         let {
-            proxyCounter,
+            upgradableCounter,
         } = await setUpTest(0n);
-        const version = await proxyCounter.getVersion();
+        const version = await upgradableCounter.getVersion();
         expect(version).toBe(1n);
     }, 100000);
 
     it('should have initial value', async () => {
         let {
             blockchain,
-            proxyCounter,
+            upgradableCounter,
             getter,
         } = await setUpTest(0n);
         const user = await blockchain.treasury('user');
-        const getterResult = await getCount(getter, user.getSender(), proxyCounter);
-        expect(getterResult).toBe(0n);
+        await assertCount(upgradableCounter, getter, user.getSender(), 0n);
     }, 100000);
 
     it('version 1 should increase counter', async () => {
         let {
             blockchain,
-            proxyCounter,
+            upgradableCounter,
             owner,
             getter,
         } = await setUpTest(0n);
         const increaseTimes = 3;
         for (let i = 0; i < increaseTimes; i++) {
             const increaser = await blockchain.treasury('increaser' + i);
-            const counterBefore = await getCount(getter, increaser.getSender(), proxyCounter);
-
+            const counterBefore = await upgradableCounter.getCounter();
             const increaseBy = BigInt(1);
 
-            let increaseResult = await proxyCounter.send(
+            let increaseResult = await upgradableCounter.send(
                 increaser.getSender(),
                 {
                     value: toNano('0.05'),
@@ -139,124 +119,107 @@ describe('ProxyUpgradeableCounter', () => {
 
             expect(increaseResult.transactions).toHaveTransaction({
                 from: increaser.address,
-                to: proxyCounter.address,
+                to: upgradableCounter.address,
                 success: true,
             });
 
-            const getterResult = await getCount(getter, owner.getSender(), proxyCounter);
-            expect(getterResult).toBe(counterBefore + increaseBy);
+            await assertCount(upgradableCounter, getter, owner.getSender(), counterBefore + increaseBy);
         }
     }, 100000);
 
     it('should be upgraded to version 2', async () => {
         let {
             owner,
-            proxyCounter,
+            upgradableCounter,
             getter,
         } = await setUpTest(0n);
-        let initParams: InitParams = {
-            $$type: 'InitParams',
-            header: {
-                $$type: 'HeaderUpgradeable',
-                owner: owner.address,
-                _version: 0n,
-            },
-            stateToBeMigrated: beginCell().endCell(),
-        }
-        let substractorCounter = await ResponderCounterSub.fromInit(initParams);
+        let substractorCounter = await UpgradableSimpleCounterSub.fromInit(0n, owner.address, 0n, 0n);
         if (substractorCounter.init == null) {
             throw new Error('init is null');
         }
+        let substractorCounterCode = substractorCounter.init.code
         let upgradeResult = await
-            proxyCounter.send(
+            upgradableCounter.send(
                 owner.getSender(),
                 {
                     value: toNano('0.05'),
                 },
                 {
                     $$type: 'Upgrade',
-                    code: substractorCounter.init.code,
+                    code: substractorCounterCode,
                 }
             )
         expect(upgradeResult.transactions).toHaveTransaction({
             from: owner.address,
-            to: proxyCounter.address,
+            to: upgradableCounter.address,
             success: true,
         });
 
-        const version = await proxyCounter.getVersion();
+        const version = await upgradableCounter.getVersion();
         expect(version).toBe(2n);
     }, 100000);
 
-    // it('upgrade should conserve the internal state', async () => {
-    //     const initialValue = 10n;
-    //     let {
-    //         owner,
-    //         proxyCounter,
-    //         getter,
-    //     } = await setUpTest(initialValue);
-    //     const initialId = await proxyCounter.getId();
-    //     let substractorCounter = await UpgradeableCounterSub.fromInit(0n, owner.address, 0n, 0n);
-    //     if (substractorCounter.init == null) {
-    //         throw new Error('init is null');
-    //     }
-    //     let substractorCounterCode = substractorCounter.init.code
-    //     let upgradeResult = await
-    //         proxyCounter.send(
-    //             owner.getSender(),
-    //             {
-    //                 value: toNano('0.05'),
-    //             },
-    //             {
-    //                 $$type: 'Upgrade',
-    //                 code: substractorCounterCode,
-    //                 data: null,
-    //             }
-    //         )
-    //     expect(upgradeResult.transactions).toHaveTransaction({
-    //         from: owner.address,
-    //         to: proxyCounter.address,
-    //         success: true,
-    //     });
+    it('upgrade should conserve the internal state', async () => {
+        const initialValue = 10n;
+        let {
+            owner,
+            upgradableCounter,
+            getter,
+        } = await setUpTest(initialValue);
+        const initialId = await upgradableCounter.getId();
+        let substractorCounter = await UpgradableSimpleCounterSub.fromInit(0n, owner.address, 0n, 0n);
+        if (substractorCounter.init == null) {
+            throw new Error('init is null');
+        }
+        let substractorCounterCode = substractorCounter.init.code
+        let upgradeResult = await
+            upgradableCounter.send(
+                owner.getSender(),
+                {
+                    value: toNano('0.05'),
+                },
+                {
+                    $$type: 'Upgrade',
+                    code: substractorCounterCode,
+                }
+            )
+        expect(upgradeResult.transactions).toHaveTransaction({
+            from: owner.address,
+            to: upgradableCounter.address,
+            success: true,
+        });
 
-    //     const getterResult = await getCount(getter, owner.getSender(), proxyCounter);
-    //     expect(getterResult).toBe(initialValue);
-    // }, 100000);
-
+        await assertCount(upgradableCounter, getter, owner.getSender(), initialValue);
+        const newId = await upgradableCounter.getId();
+        expect(newId).toBe(initialId);
+    }, 100000);
 
     it('version 2 should decrease de counter', async () => {
         let {
             blockchain,
             owner,
-            proxyCounter,
+            upgradableCounter,
             getter,
-        } = await setUpTest(3n); let initParams: InitParams = {
-            $$type: 'InitParams',
-            header: {
-                $$type: 'HeaderUpgradeable',
-                owner: owner.address,
-                _version: 0n,
-            },
-            stateToBeMigrated: beginCell().endCell(),
-        }
-        let substractorCounter = await ResponderCounterSub.fromInit(initParams);
+        } = await setUpTest(3n);
+        let substractorCounter = await UpgradableSimpleCounterSub.fromInit(0n, owner.address, 0n, 0n);
         if (substractorCounter.init == null) {
             throw new Error('init is null');
         }
+        let substractorCounterCode = substractorCounter.init.code
         let upgradeResult = await
-            proxyCounter.send(
+            upgradableCounter.send(
                 owner.getSender(),
                 {
                     value: toNano('0.05'),
                 },
                 {
                     $$type: 'Upgrade',
-                    code: substractorCounter.init.code,
+                    code: substractorCounterCode,
                 }
             )
         expect(upgradeResult.transactions).toHaveTransaction({
             from: owner.address,
-            to: proxyCounter.address,
+            to: upgradableCounter.address,
             success: true,
         });
 
@@ -265,10 +228,10 @@ describe('ProxyUpgradeableCounter', () => {
         for (let i = 0; i < decreaseTimes; i++) {
             const decreaser = await blockchain.treasury('decreaser' + i);
 
-            const counterBefore = await getCount(getter, decreaser.getSender(), proxyCounter);
+            const counterBefore = await upgradableCounter.getCounter();
             const decreaseBy = BigInt(1);
 
-            let decreaseResult = await proxyCounter.send(
+            let decreaseResult = await upgradableCounter.send(
                 decreaser.getSender(),
                 {
                     value: toNano('0.05'),
@@ -281,18 +244,18 @@ describe('ProxyUpgradeableCounter', () => {
 
             expect(decreaseResult.transactions).toHaveTransaction({
                 from: decreaser.address,
-                to: proxyCounter.address,
+                to: upgradableCounter.address,
                 success: true,
             });
 
-            const getterResult = await getCount(getter, owner.getSender(), proxyCounter);
-            expect(getterResult).toBe(counterBefore - decreaseBy);
+            await assertCount(upgradableCounter, getter, owner.getSender(), counterBefore - decreaseBy);
         }
     }, 100000);
 });
 
-
-async function getCount(getter: SandboxContract<Getter>, sender: Treasury, proxyCounter: SandboxContract<ProxyCounter>) {
+async function assertCount(upgradableCounter: SandboxContract<UpgradableSimpleCounterAdd>, getter: SandboxContract<Getter>, sender: Treasury, expectedCount: bigint) {
+    const counter = await upgradableCounter.getCounter();
+    expect(counter).toBe(expectedCount);
     const getterDeployResult = await getter.send(
         sender,
         {
@@ -302,9 +265,9 @@ async function getCount(getter: SandboxContract<Getter>, sender: Treasury, proxy
             $$type: 'Get',
             queryId: BigInt(Math.floor(Math.random() * 10000)),
             opcode: 0n,
-            Address: proxyCounter.address,
+            Address: upgradableCounter.address,
         }
-    );
+    )
 
     expect(getterDeployResult.transactions).toHaveTransaction({
         from: sender.address,
@@ -314,6 +277,7 @@ async function getCount(getter: SandboxContract<Getter>, sender: Treasury, proxy
     });
 
     const getterResult = await getter.getResponse();
-    return getterResult;
+    console.log('getterResult', getterResult);
+    expect(getterResult).toBe(expectedCount);
 }
 

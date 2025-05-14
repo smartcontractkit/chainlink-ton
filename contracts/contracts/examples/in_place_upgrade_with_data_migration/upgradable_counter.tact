@@ -1,11 +1,11 @@
-import "../../lib/upgradeable";
+import "../../lib/upgradable";
 import "../responder";
 
 message(1) Step {
     queryId: Int as uint64;
 }
 
-trait UpgradeableCounter with Upgradable, Responder {
+trait UpgradableCounter with Upgradable, Responder {
     /// Ownable
     owner: Address;
 

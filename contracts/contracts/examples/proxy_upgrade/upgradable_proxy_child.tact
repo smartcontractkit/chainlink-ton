@@ -2,7 +2,7 @@ import "@stdlib/ownable";
 
 message(40) GetState {}
 
-trait UpgradeableProxyChild with Ownable {
+trait UpgradableProxyChild with Ownable {
     owner: Address;
 
     receive(msg: GetState) {

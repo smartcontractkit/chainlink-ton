@@ -1,5 +1,5 @@
 import "@stdlib/ownable";
-import "../../lib/upgradeable_simple";
+import "../../lib/upgradable_simple";
 import "../responder";
 
 message(1) Step {
@@ -8,7 +8,7 @@ message(1) Step {
 
 /// This is a counter that implements UpgradableSimple trait.
 /// It is able to be upgraded in place as long as the memory layout is the same.
-trait UpgradeableSimpleCounter with UpgradableSimple, Ownable, Responder {
+trait UpgradableSimpleCounter with UpgradableSimple, Ownable, Responder {
     id: Int as uint32;
     owner: Address;
     _version: Int as uint32;

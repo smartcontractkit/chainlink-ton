@@ -1,11 +1,11 @@
-import "./upgradeable_counter";
+import "./upgradable_counter";
 
 struct StateV1 {
     id: Int as uint32;
     counter: Int as uint32;
 }
 
-contract UpgradeableCounterAdd with UpgradeableCounter {
+contract UpgradableCounterAdd with UpgradableCounter {
     /// Ownable
     owner: Address;
 

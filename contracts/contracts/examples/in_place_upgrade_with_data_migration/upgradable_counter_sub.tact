@@ -1,12 +1,12 @@
-import "./upgradeable_counter";
-import "./upgradeable_counter_add";
+import "./upgradable_counter_add";
+import "./upgradable_counter";
 
 struct StateV2 {
     counter: Int as uint64;
     id: Int as uint32;
 }
 
-contract UpgradeableCounterSub with UpgradeableCounter {
+contract UpgradableCounterSub with UpgradableCounter {
     /// Ownable
     owner: Address;
 

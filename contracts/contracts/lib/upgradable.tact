@@ -10,9 +10,9 @@ message(11) CommitUpgrade {}
 /// Not impelemented yet.
 message(12) RollbackUpgrade {}
 
-/// This are the internal variables all upgradeable contracts should have.
+/// This are the internal variables all upgradable contracts should have.
 /// It is used to migrate the state from the old version to the new one.
-struct HeaderUpgradeable {
+struct HeaderUpgradable {
     owner: Address; /// Owner of the contract.
     _version: Int as uint32; /// Previous version.
 }
@@ -25,7 +25,7 @@ struct InitParamsWithBit {
 
 /// Data for the init function of the new version.
 struct InitParams {
-    header: HeaderUpgradeable; /// 
+    header: HeaderUpgradable; /// 
     stateToBeMigrated: Cell;
 }
 
@@ -64,8 +64,8 @@ trait Upgradable with Ownable {
         self.upgrade(ctx, self.upgradeToCommit!!);
     }
 
-    fun getNextHeader(): HeaderUpgradeable {
-        return HeaderUpgradeable {
+    fun getNextHeader(): HeaderUpgradable {
+        return HeaderUpgradable {
             owner: self.owner,
             _version: self._version,
         };

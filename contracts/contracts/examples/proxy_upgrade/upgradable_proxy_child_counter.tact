@@ -1,8 +1,9 @@
 import "@stdlib/ownable";
 import "../responder";
 import "./counter_trait";
+import "./upgradable_proxy_child";
 
-trait ResponderCounter with Ownable, Responder, ICounter {
+trait UpgradableProxyChildCounter with Responder, ICounter, UpgradableProxyChild {
     /// Ownable
     owner: Address;
 
@@ -27,4 +28,10 @@ trait ResponderCounter with Ownable, Responder, ICounter {
     }
 
     abstract fun counter(): Int;
+
+    override fun getState(): Cell {
+        return self.getCounterState();
+    }
+
+    abstract fun getCounterState(): Cell;
 }

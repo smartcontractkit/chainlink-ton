@@ -1,8 +1,8 @@
-import "../../lib/upgradeable";
+import "../../lib/upgradable";
 import "../getter";
 import "../responder";
 import "./counter_trait";
-import "./upgradeable_proxy_child";
+import "./upgradable_proxy_child";
 
 struct ReturnAddress {
     address: Address;

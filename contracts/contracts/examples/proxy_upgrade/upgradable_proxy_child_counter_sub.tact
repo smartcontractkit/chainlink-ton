@@ -1,14 +1,13 @@
-import "../../lib/upgradeable";
-import "./responder_counter";
-import "./upgradeable_proxy_child";
-import "./counter_add";
+import "../../lib/upgradable";
+import "./upgradable_proxy_child_counter";
+import "./upgradable_proxy_child_counter_add";
 
 struct SateV2 {
     counter: Int as uint64;
     id: Int as uint32;
 }
 
-contract ResponderCounterSub with ResponderCounter, UpgradeableProxyChild {
+contract UpgradableProxyChildCounterSub with UpgradableProxyChildCounter {
     /// Ownable
     owner: Address;
 
@@ -39,7 +38,7 @@ contract ResponderCounterSub with ResponderCounter, UpgradeableProxyChild {
         return self.counter;
     }
 
-    override fun getState(): Cell {
+    override fun getCounterState(): Cell {
         return SateV2 {
             counter: self.counter,
             id: self.id,
