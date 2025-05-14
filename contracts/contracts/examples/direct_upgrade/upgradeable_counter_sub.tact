@@ -7,7 +7,7 @@ contract UpgradeableCounterSub(
     owner: Address,
     _version: Int as uint32,
     counter: Int as uint32,
-) with Ownable, Upgradable, UpgradeableCounter {
+) with UpgradeableCounter {
     override fun step() {
         self.counter -= 1;
     }

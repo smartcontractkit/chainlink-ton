@@ -1,4 +1,5 @@
 import "@stdlib/ownable";
+import "./type_and_version";
 
 /// Message for upgrading contract code and data.
 message(10) Upgrade {
@@ -12,7 +13,7 @@ message(10) Upgrade {
 }
 
 /// Implements a basic upgrade mechanism with owner validation.
-trait Upgradable with Ownable {
+trait Upgradable with Ownable, TypeAndVersion {
     /// Contract owner address that can perform upgrades.
     owner: Address;
 
@@ -64,6 +65,12 @@ trait Upgradable with Ownable {
     get fun version(): Int {
         return self._version;
     }
+
+    override fun type(): String {
+        return self.upgradeableType();
+    }
+
+    abstract fun upgradeableType(): String;
 }
 
 /// Change of code will be applied by the end of the current transaction.

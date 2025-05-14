@@ -1,8 +1,5 @@
-import "./upgradeable";
-
 /// Implements a basic upgrade mechanism with owner validation.
-trait TypeAndVersion with Upgradable {
-    owner: Address;
+trait TypeAndVersion {
     _version: Int as uint32;
 
     /// A getter returning the current version of the contract.

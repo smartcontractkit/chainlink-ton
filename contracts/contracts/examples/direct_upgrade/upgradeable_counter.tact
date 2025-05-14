@@ -7,7 +7,7 @@ message(1) Step {
     queryId: Int as uint64;
 }
 
-trait UpgradeableCounter with TypeAndVersion, Ownable, Upgradable, Responder {
+trait UpgradeableCounter with Upgradable, Responder {
     id: Int as uint32;
     owner: Address;
     _version: Int as uint32;
@@ -32,7 +32,7 @@ trait UpgradeableCounter with TypeAndVersion, Ownable, Upgradable, Responder {
         return self.counter;
     }
 
-    override fun type(): String {
+    override fun upgradeableType(): String {
         return "UpgradeableCounter";
     }
 
