@@ -1,4 +1,5 @@
 import "./upgradeable_counter";
+import "./upgradeable_counter_add";
 
 struct StateV2 {
     counter: Int as uint64;

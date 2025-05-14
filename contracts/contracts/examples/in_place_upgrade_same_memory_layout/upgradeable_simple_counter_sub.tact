@@ -1,6 +1,6 @@
-import "./upgradeable_counter.tact";
+import "./upgradeable_simple_counter.tact";
 
-contract UpgradeableCounterSub with UpgradeableSimpleCounter {
+contract UpgradeableSimpleCounterSub with UpgradeableSimpleCounter {
     id: Int as uint32;
     padding: Int as uint32;
     owner: Address;

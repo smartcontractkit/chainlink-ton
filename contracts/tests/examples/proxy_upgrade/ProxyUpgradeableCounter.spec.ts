@@ -1,8 +1,8 @@
 import { Blockchain, SandboxContract, Treasury, TreasuryContract } from '@ton/sandbox';
-import { toNano } from '@ton/core';
+import { beginCell, toNano } from '@ton/core';
 import '@ton/test-utils';
 import { Get, Getter } from '../../../build/Getter/tact_Getter';
-import { ProxyCounter } from '../../../build/ProxyCounter/tact_ProxyCounter';
+import { InitParams, ProxyCounter } from '../../../build/ProxyCounter/tact_ProxyCounter';
 import { ResponderCounterAdd } from '../../../build/ResponderCounterAdd/tact_ResponderCounterAdd';
 import { ResponderCounterSub } from '../../../build/ResponderCounterSub/tact_ResponderCounterSub';
 // import { sleep } from '@ton/blueprint';
@@ -154,7 +154,16 @@ describe('ProxyUpgradeableCounter', () => {
             proxyCounter,
             getter,
         } = await setUpTest(0n);
-        let substractorCounter = await ResponderCounterSub.fromInit(0n, owner.address, 0n, 0n);
+        let initParams: InitParams = {
+            $$type: 'InitParams',
+            header: {
+                $$type: 'HeaderUpgradeable',
+                owner: owner.address,
+                _version: 0n,
+            },
+            stateToBeMigrated: beginCell().endCell(),
+        }
+        let substractorCounter = await ResponderCounterSub.fromInit(initParams);
         if (substractorCounter.init == null) {
             throw new Error('init is null');
         }
@@ -167,7 +176,6 @@ describe('ProxyUpgradeableCounter', () => {
                 {
                     $$type: 'Upgrade',
                     code: substractorCounter.init.code,
-                    data: substractorCounter.init.data,
                 }
             )
         expect(upgradeResult.transactions).toHaveTransaction({
@@ -222,8 +230,16 @@ describe('ProxyUpgradeableCounter', () => {
             owner,
             proxyCounter,
             getter,
-        } = await setUpTest(3n);
-        let substractorCounter = await ResponderCounterSub.fromInit(0n, owner.address, 0n, 3n);
+        } = await setUpTest(3n); let initParams: InitParams = {
+            $$type: 'InitParams',
+            header: {
+                $$type: 'HeaderUpgradeable',
+                owner: owner.address,
+                _version: 0n,
+            },
+            stateToBeMigrated: beginCell().endCell(),
+        }
+        let substractorCounter = await ResponderCounterSub.fromInit(initParams);
         if (substractorCounter.init == null) {
             throw new Error('init is null');
         }
@@ -236,7 +252,6 @@ describe('ProxyUpgradeableCounter', () => {
                 {
                     $$type: 'Upgrade',
                     code: substractorCounter.init.code,
-                    data: substractorCounter.init.data,
                 }
             )
         expect(upgradeResult.transactions).toHaveTransaction({

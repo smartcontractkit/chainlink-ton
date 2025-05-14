@@ -1,7 +1,8 @@
-import "../../lib/upgradeable_simple";
+import "../../lib/upgradeable";
+import "../getter";
 import "../responder";
 import "./counter_trait";
-import "../getter";
+import "./upgradeable_proxy_child";
 
 struct ReturnAddress {
     address: Address;
@@ -12,12 +13,24 @@ message(30) UpdateCounterAddress {
     address: Address;
 }
 
-contract ProxyCounter with Responder, ICounter, UpgradableSimple {
-    id: Int as uint32;
+message(31) RequestedState {
+    stateToBeMigrated: Cell;
+}
+
+contract ProxyCounter with Responder, ICounter, Upgradable {
+    /// Ownable
     owner: Address;
+
+    /// Upgradable
+    /// New version
+    _version: Int as uint32;
+    upgradeToCommit: Upgrade?;
+
+    /// ProxyCounter
+
+    id: Int as uint32;
     counterAddress: Address;
     requests: map<Int as uint32, ReturnAddress>;
-    _version: Int as uint32;
 
     init(
         id: Int,
@@ -75,17 +88,31 @@ contract ProxyCounter with Responder, ICounter, UpgradableSimple {
         });
     }
 
-    override fun upgrade(_: Context, msg: Upgrade) {
+    override fun upgrade(_: Context, _upgrade: Upgrade) {
+        // Change of code will be applied at the end of this transaction
+        message(MessageParameters {
+            mode: SendRemainingValue,
+            body: GetState {}.toCell(),
+            value: 0,
+            to: self.counterAddress,
+            bounce: true,
+        });
+    }
+
+    receive(msg: RequestedState) {
+        let header = self.getNextHeader();
+        let initParams = InitParamsWithBit {
+            lazyInitBit: false,
+            initParams: InitParams {
+                header: header,
+                stateToBeMigrated: msg.stateToBeMigrated,
+            },
+        }.toCell();
+
         let counterStateInit = StateInit {
-            code: msg.code,
-            data: emptyCell(),
+            code: self.upgradeToCommit!!.code,
+            data: initParams,
         };
-        if msg.data != null {
-            counterStateInit.data = msg.data!!;
-        } else {
-            throw(2000);
-            // counterStateInit.data = self.data?;
-        }
 
         deploy(DeployParameters {
             mode: SendRemainingValue,
@@ -96,6 +123,10 @@ contract ProxyCounter with Responder, ICounter, UpgradableSimple {
         });
 
         self.counterAddress = contractAddress(counterStateInit);
+    }
+
+    override fun getState(): Cell {
+        throw(500); // Unreachable
     }
 
     get fun id(): Int {

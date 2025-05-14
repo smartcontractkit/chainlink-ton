@@ -3,10 +3,8 @@ import "../responder";
 import "./counter_trait";
 
 trait ResponderCounter with Ownable, Responder, ICounter {
-    id: Int as uint32;
+    /// Ownable
     owner: Address;
-    _version: Int as uint32;
-    counter: Int as uint32;
 
     override fun handle_step(queryId: Int) {
         self.step(queryId);
@@ -20,7 +18,7 @@ trait ResponderCounter with Ownable, Responder, ICounter {
             body: beginCell()
                 .storeUint(msg.callbackOpcode, 32)
                 .storeUint(msg.queryId, 64)
-                .storeUint(self.counter, 64)
+                .storeUint(self.counter(), 64)
                 .endCell(),
             value: 0,
             to: sender(),
@@ -28,11 +26,5 @@ trait ResponderCounter with Ownable, Responder, ICounter {
         });
     }
 
-    get fun counter(): Int {
-        return self.counter;
-    }
-
-    get fun id(): Int {
-        return self.id;
-    }
+    abstract fun counter(): Int;
 }

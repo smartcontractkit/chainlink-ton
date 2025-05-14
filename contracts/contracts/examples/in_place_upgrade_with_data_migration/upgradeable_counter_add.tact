@@ -1,4 +1,4 @@
-import "./upgradeablebg_counter";
+import "./upgradeable_counter";
 
 struct StateV1 {
     id: Int as uint32;
