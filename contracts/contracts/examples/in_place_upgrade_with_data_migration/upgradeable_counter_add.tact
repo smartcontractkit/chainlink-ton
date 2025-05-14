@@ -5,7 +5,7 @@ struct StateV1 {
     counter: Int as uint32;
 }
 
-contract UpgradeableGBCounterAdd with UpgradeableGBCounter {
+contract UpgradeableCounterAdd with UpgradeableCounter {
     /// Ownable
     owner: Address;
 

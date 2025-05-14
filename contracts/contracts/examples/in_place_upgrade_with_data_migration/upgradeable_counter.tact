@@ -1,4 +1,3 @@
-import "@stdlib/ownable";
 import "../../lib/upgradeable";
 import "../responder";
 
@@ -6,11 +5,14 @@ message(1) Step {
     queryId: Int as uint64;
 }
 
-trait UpgradeableCounter with Upgradable, Ownable, Responder {
-    id: Int as uint32;
+trait UpgradeableCounter with Upgradable, Responder {
+    /// Ownable
     owner: Address;
+
+    /// Upgradable
+    /// New version
     _version: Int as uint32;
-    counter: Int as uint32;
+    upgradeToCommit: Upgrade?;
 
     // Empty receiver for the deployment,
     // which expects the `null` message body
@@ -41,11 +43,11 @@ trait UpgradeableCounter with Upgradable, Ownable, Responder {
         });
     }
 
-    get fun counter(): Int {
-        return self.counter;
+    abstract fun counter(): Int;
+
+    override fun getState(): Cell {
+        return self.getStateInternal();
     }
 
-    get fun id(): Int {
-        return self.id;
-    }
+    abstract fun getStateInternal(): Cell;
 }

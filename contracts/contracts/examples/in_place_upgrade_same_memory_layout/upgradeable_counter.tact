@@ -1,18 +1,18 @@
+import "@stdlib/ownable";
+import "../../lib/upgradeable_simple";
 import "../responder";
-import "../../lib/upgradeable_blue_green";
 
 message(1) Step {
     queryId: Int as uint64;
 }
 
-trait UpgradeableGBCounter with UpgradableBG, Responder {
-    /// Ownable
+/// This is a counter that implements UpgradableSimple trait.
+/// It is able to be upgraded in place as long as the memory layout is the same.
+trait UpgradeableSimpleCounter with UpgradableSimple, Ownable, Responder {
+    id: Int as uint32;
     owner: Address;
-
-    /// UpgradableBG
-    /// New version
     _version: Int as uint32;
-    upgradeToCommit: Upgrade?;
+    counter: Int as uint32;
 
     // Empty receiver for the deployment,
     // which expects the `null` message body
@@ -43,11 +43,11 @@ trait UpgradeableGBCounter with UpgradableBG, Responder {
         });
     }
 
-    abstract fun counter(): Int;
-
-    override fun getState(): Cell {
-        return self.getStateInternal();
+    get fun counter(): Int {
+        return self.counter;
     }
 
-    abstract fun getStateInternal(): Cell;
+    get fun id(): Int {
+        return self.id;
+    }
 }

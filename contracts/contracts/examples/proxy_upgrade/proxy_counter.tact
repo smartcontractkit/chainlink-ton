@@ -1,4 +1,4 @@
-import "../../lib/upgradeable";
+import "../../lib/upgradeable_simple";
 import "../responder";
 import "./counter_trait";
 import "../getter";
@@ -12,7 +12,7 @@ message(30) UpdateCounterAddress {
     address: Address;
 }
 
-contract ProxyCounter with Responder, ICounter, Upgradable {
+contract ProxyCounter with Responder, ICounter, UpgradableSimple {
     id: Int as uint32;
     owner: Address;
     counterAddress: Address;
@@ -77,7 +77,7 @@ contract ProxyCounter with Responder, ICounter, Upgradable {
 
     override fun upgrade(_: Context, msg: Upgrade) {
         let counterStateInit = StateInit {
-            code: msg.code!!,
+            code: msg.code,
             data: emptyCell(),
         };
         if msg.data != null {

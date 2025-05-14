@@ -1,13 +1,11 @@
-import "./upgradeablebg_counter";
-import "./upgradeablebg_counter_add";
-import "../../lib/upgradeable_blue_green";
+import "./upgradeable_counter";
 
 struct StateV2 {
     counter: Int as uint64;
     id: Int as uint32;
 }
 
-contract UpgradeableGBCounterSub with UpgradeableGBCounter {
+contract UpgradeableCounterSub with UpgradeableCounter {
     /// Ownable
     owner: Address;
 

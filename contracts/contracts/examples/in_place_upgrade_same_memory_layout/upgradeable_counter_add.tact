@@ -1,8 +1,6 @@
-import "@stdlib/ownable";
-import "../../lib/upgradeable";
 import "./upgradeable_counter.tact";
 
-contract UpgradeableCounterAdd with Upgradable, Ownable, UpgradeableCounter {
+contract UpgradeableCounterAdd with UpgradeableSimpleCounter {
     id: Int as uint32;
     padding: Int as uint32;
     owner: Address;
