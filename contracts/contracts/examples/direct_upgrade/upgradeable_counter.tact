@@ -1,7 +1,6 @@
-import "../responder";
 import "@stdlib/ownable";
 import "../../lib/upgradeable";
-import "../../lib/type_and_version";
+import "../responder";
 
 message(1) Step {
     queryId: Int as uint64;
@@ -27,8 +26,18 @@ trait UpgradeableCounter with Upgradable, Responder {
     // Update counter
     abstract fun step();
 
-    override fun getResponse(): Int {
-        return self.counter;
+    override fun respond(msg: Request, sender: Address) {
+        message(MessageParameters {
+            mode: SendRemainingValue,
+            body: beginCell()
+                .storeUint(msg.callbackOpcode, 32)
+                .storeUint(msg.queryId, 64)
+                .storeUint(self.counter, 64)
+                .endCell(),
+            value: 0,
+            to: sender(),
+            bounce: true,
+        });
     }
 
     override fun upgradeableType(): String {

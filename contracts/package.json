@@ -13,7 +13,7 @@
   "scripts": {
     "bp": "blueprint",
     "start": "blueprint run",
-    "build": "blueprint build",
+    "build": "blueprint build --all",
     "test": "jest --verbose",
     "build-test": "blueprint build --all && jest --verbose"
   },
