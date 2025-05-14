@@ -7,7 +7,7 @@ message(1) Step {
     queryId: Int as uint64;
 }
 
-trait UpgradeableCounter with Upgradable, Ownable, Responder, TypeAndVersion {
+trait UpgradeableCounter with TypeAndVersion, Ownable, Upgradable, Responder {
     id: Int as uint32;
     owner: Address;
     _version: Int as uint32;
