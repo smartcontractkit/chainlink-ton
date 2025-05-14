@@ -1,4 +1,3 @@
-import "@stdlib/ownable";
 import "../../lib/upgradeable";
 import "../responder";
 import "./counter_trait";
@@ -13,7 +12,7 @@ message(30) UpdateCounterAddress {
     address: Address;
 }
 
-contract ProxyCounter with Ownable, Responder, ICounter, Upgradable {
+contract ProxyCounter with Responder, ICounter, Upgradable {
     id: Int as uint32;
     owner: Address;
     counterAddress: Address;

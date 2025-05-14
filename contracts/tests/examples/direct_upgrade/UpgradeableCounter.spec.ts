@@ -196,6 +196,41 @@ describe('UpgradeableCounter', () => {
         expect(newId).toBe(initialId);
     }, 100000);
 
+    it('upgrade with data should change the internal state', async () => {
+        const initialValue = 10n;
+        let {
+            owner,
+            upgradeableCounter,
+            getter,
+        } = await setUpTest(initialValue);
+        const initialId = await upgradeableCounter.getId();
+        let substractorCounter = await UpgradeableCounterSub.fromInit(10n, owner.address, 10n, 10n);
+        if (substractorCounter.init == null) {
+            throw new Error('init is null');
+        }
+        let upgradeResult = await
+            upgradeableCounter.send(
+                owner.getSender(),
+                {
+                    value: toNano('0.05'),
+                },
+                {
+                    $$type: 'Upgrade',
+                    code: substractorCounter.init.code,
+                    data: substractorCounter.init.data,
+                }
+            )
+        expect(upgradeResult.transactions).toHaveTransaction({
+            from: owner.address,
+            to: upgradeableCounter.address,
+            success: true,
+        });
+
+        await assertCount(upgradeableCounter, getter, owner.getSender(), 10n);
+        const newId = await upgradeableCounter.getId();
+        expect(newId).toBe(10n);
+    }, 100000);
+
 
     it('version 2 should decrease de counter', async () => {
         let {
