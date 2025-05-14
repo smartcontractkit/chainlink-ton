@@ -23,4 +23,4 @@ nix flake show
 Build packages:
 
 - [nix build .#chainlink-ton](./plugin/build.md)
-- [nix build .#chainlink-contracts-ton](./contracts/build.md)
+- [nix build .#contracts](./contracts/build.md)
