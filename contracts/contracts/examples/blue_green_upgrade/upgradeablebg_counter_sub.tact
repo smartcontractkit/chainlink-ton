@@ -7,44 +7,34 @@ struct StateV2 {
     id: Int as uint32;
 }
 
-contract UpgradeableGBCounterSub(
+contract UpgradeableGBCounterSub with UpgradeableGBCounter {
     /// Ownable
-    owner: Address,
+    owner: Address;
 
     /// UpgradableBG
     /// New version
-    _version: Int as uint32,
-    upgradeToCommit: Upgrade?,
-    state_tb_migrated: Cell?,
+    _version: Int as uint32;
+    upgradeToCommit: Upgrade?;
 
     // Counter
-    state: StateV2,
-) with UpgradeableGBCounter {
-    // init(
-    //     id: Int,
-    //     owner: Address,
-    //     counter: Int,
-    // ) {
-    //     self.owner = owner;
-    //     self.state = StateV2 {
-    //         counter: counter,
-    //         id: id,
-    //     };
-    //     self._version = 1;
-    //     self.upgradeToCommit = null;
-    //     self.state_tb_migrated = null;
-    // }
-    override fun getStateInternal(): Cell {
-        return self.state.toCell();
-    }
+    state: StateV2;
 
-    override fun migrateDataIternal() {
-        let stateV1 = StateV1.fromCell(self.state_tb_migrated);
+    init(
+        initParams: InitParams,
+    ) {
+        self.owner = initParams.header.owner;
+        self._version = initParams.header._version + 1;
+        self.upgradeToCommit = null;
+        let stateV1 = StateV1.fromCell(initParams.stateToBeMigrated);
         self.state = StateV2 {
             id: stateV1.id,
             counter: stateV1.counter,
         };
-        self.state_tb_migrated = null;
+        dump("Migration completed");
+    }
+
+    override fun getStateInternal(): Cell {
+        return self.state.toCell();
     }
 
     override fun step() {

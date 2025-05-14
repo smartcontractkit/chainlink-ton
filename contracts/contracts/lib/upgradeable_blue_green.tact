@@ -3,7 +3,7 @@ import "@stdlib/ownable";
 /// Message for upgrading contract code and data.
 message(10) Upgrade {
     code: Cell;
-    init_data: Cell;
+    // init_data: Cell;
 }
 
 message(11) CommitUpgrade {}
@@ -19,8 +19,16 @@ struct Header {
     owner: Address;
     /// Previous version.
     _version: Int as uint32;
-    upgradeToCommit: Upgrade?;
-    state_tb_migrated: Cell?;
+}
+
+struct InitParamsWithBit {
+    lazyInit: Bool;
+    initParams: InitParams;
+}
+
+struct InitParams {
+    header: Header;
+    stateToBeMigrated: Cell;
 }
 
 // struct HoleBody {
@@ -34,11 +42,9 @@ trait UpgradableBG with Ownable {
     owner: Address;
 
     /// UpgradableBG
-
     /// New version
     _version: Int as uint32;
     upgradeToCommit: Upgrade?;
-    state_tb_migrated: Cell?;
 
     virtual inline fun requireValidateUpgrade(_: Context, __: Upgrade) {
         self.requireOwner();
@@ -62,16 +68,13 @@ trait UpgradableBG with Ownable {
         let ctx = context();
         self.requireValidateCommitUpgrade(ctx, msg);
 
-        self.state_tb_migrated = self.getState();
         self.upgrade(ctx, self.upgradeToCommit!!);
     }
 
     fun getNextHeader(): Header {
         return Header {
             owner: self.owner,
-            _version: self._version + 1,
-            upgradeToCommit: null,
-            state_tb_migrated: self.state_tb_migrated,
+            _version: self._version,
         };
     }
 
@@ -79,21 +82,20 @@ trait UpgradableBG with Ownable {
     virtual inline fun upgrade(_: Context, _upgrade: Upgrade) {
         // Change of code will be applied at the end of this transaction
         setCode(_upgrade.code);
-        // TODO figuere out if we can send a message to self for migrating data
         let header = self.getNextHeader();
-        // let completeData = HoleBody {
-        //     Header: header,
-        //     Body: _upgrade.init_data,
-        // };
-        let completeData = beginCell()
-            .storeSlice(header.toSlice())
-            .storeSlice(_upgrade.init_data.asSlice())
-            .endCell();
+        let stateToBeMigrated = self.getState();
+        let initParams = InitParamsWithBit {
+            lazyInit: false,
+            initParams: InitParams {
+                header: header,
+                stateToBeMigrated: stateToBeMigrated,
+            },
+        }.toCell();
         dump(header.toSlice());
-        dump(_upgrade.init_data.asSlice());
-        dump(completeData.asSlice());
+        dump(stateToBeMigrated.asSlice());
+        dump(initParams.asSlice());
         // Change of body will be immediate
-        setData(completeData);
+        setData(initParams);
         dump("setData completed");
 
         // By the end of every transaction,
@@ -106,15 +108,6 @@ trait UpgradableBG with Ownable {
     virtual inline fun requireValidateMigrateData(_: Context, __: MigrateData) {
         // throwUnless(TactExitCodeAccessDenied, sender() == self.address());
     }
-
-    receive(msg: MigrateData) {
-        dump("MigrateData");
-        let ctx = context();
-        self.requireValidateMigrateData(ctx, msg);
-        self.migrateData();
-    }
-
-    abstract fun migrateData();
 
     /// A getter to check if the contract uses this trait.
     get fun isUpgradable(): Bool {

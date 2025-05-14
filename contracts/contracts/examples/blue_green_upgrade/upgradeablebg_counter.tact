@@ -10,11 +10,9 @@ trait UpgradeableGBCounter with UpgradableBG, Responder {
     owner: Address;
 
     /// UpgradableBG
-
     /// New version
     _version: Int as uint32;
     upgradeToCommit: Upgrade?;
-    state_tb_migrated: Cell?;
 
     // Empty receiver for the deployment,
     // which expects the `null` message body
@@ -52,10 +50,4 @@ trait UpgradeableGBCounter with UpgradableBG, Responder {
     }
 
     abstract fun getStateInternal(): Cell;
-
-    override fun migrateData() {
-        self.migrateDataIternal();
-    }
-
-    abstract fun migrateDataIternal();
 }

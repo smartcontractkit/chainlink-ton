@@ -4,7 +4,7 @@ import '@ton/test-utils';
 import { Get, Getter } from '../../../build/Getter/tact_Getter';
 import { UpgradeableGBCounterAdd } from '../../../build/UpgradeableGBCounterAdd/tact_UpgradeableGBCounterAdd';
 import { storeStateV2, UpgradeableGBCounterSub } from '../../../build/UpgradeableGBCounterSub/tact_UpgradeableGBCounterSub';
-// import { sleep } from '@ton/blueprint';
+import { Header, InitParams } from '../../../build/UpgradeableGBCounterSub/tact_UpgradeableGBCounterAdd';
 
 async function setUpTest(i: bigint): Promise<{
     blockchain: Blockchain,
@@ -133,22 +133,21 @@ describe('UpgradeableGBCounter', () => {
             upgradeableGBCounter,
             getter,
         } = await setUpTest(0n);
-        let substractorCounter = await UpgradeableGBCounterSub.fromInit(owner.address, 0n, null, null, {
-            $$type: 'StateV2',
-            counter: 0n,
-            id: 0n,
-        });
-        if (substractorCounter.init == null) {
+        let header: Header = {
+            $$type: "Header",
+            owner: owner.address,
+            _version: 2n,
+        }
+        let initParams: InitParams = {
+            $$type: "InitParams",
+            header: header,
+            stateToBeMigrated: beginCell().endCell(),
+        }
+        let substractorCounter = (await UpgradeableGBCounterSub.fromInit(initParams)).init;
+        if (substractorCounter == null) {
             throw new Error('init is null');
         }
-        let substractorCounterCode = substractorCounter.init.code
-        console.log('substractorCounterData', substractorCounter.init.data.asSlice().toString());
-        let init_data = beginCell()
-        storeStateV2({
-            $$type: 'StateV2',
-            counter: 0n,
-            id: 0n,
-        })(init_data)
+        let substractorCounterCode = substractorCounter.code;
         let upgradeResult = await
             upgradeableGBCounter.send(
                 owner.getSender(),
@@ -158,7 +157,6 @@ describe('UpgradeableGBCounter', () => {
                 {
                     $$type: 'Upgrade',
                     code: substractorCounterCode,
-                    init_data: init_data.asCell(),
                 }
             )
         expect(upgradeResult.transactions).toHaveTransaction({
@@ -357,26 +355,26 @@ describe('UpgradeableGBCounter', () => {
     // }, 100000);
 });
 
-async function createSubCounterInit(owner: SandboxContract<TreasuryContract>, data: { id: bigint, owner: Address, counter: bigint }): Promise<{ code: Cell, data: Cell }> {
-    let init = (await UpgradeableGBCounterSub.fromInit(data.owner, 0n, null, null, {
-        $$type: 'StateV2',
-        counter: data.counter,
-        id: data.id,
-    })).init;
-    if (init == null) {
-        throw new Error('init is null');
-    }
-    let init_data = beginCell()
-    storeStateV2({
-        $$type: 'StateV2',
-        counter: 0n,
-        id: 0n,
-    })(init_data)
-    return {
-        code: init.code,
-        data: init_data.asCell(),
-    }
-}
+// async function createSubCounterInit(owner: SandboxContract<TreasuryContract>, data: { id: bigint, owner: Address, counter: bigint }): Promise<{ code: Cell, data: Cell }> {
+//     let header: Header = {
+//         $$type: "Header",
+//         owner: data.owner,
+//         _version: 2n,
+//     }
+//     let initParams: InitParams = {
+//         $$type: "InitParams",
+//         header: header,
+//         stateToBeMigrated: beginCell().endCell(),
+//     }
+//     let init = (await UpgradeableGBCounterSub.fromInit(initParams)).init;
+//     if (init == null) {
+//         throw new Error('init is null');
+//     }
+//     return {
+//         code: init.code,
+//         data: null,
+//     }
+// }
 
 async function commitCounterUpgrade(owner: SandboxContract<TreasuryContract>, upgradeableGBCounter: SandboxContract<UpgradeableGBCounterAdd>) {
     let CommitUpgradeResult = await upgradeableGBCounter.send(
@@ -395,24 +393,23 @@ async function commitCounterUpgrade(owner: SandboxContract<TreasuryContract>, up
     });
 }
 
-async function upgradeCounter(owner: SandboxContract<TreasuryContract>, upgradeableGBCounter: SandboxContract<UpgradeableGBCounterAdd>, init: { code: Cell, data: Cell }) {
-    let upgradeResult = await upgradeableGBCounter.send(
-        owner.getSender(),
-        {
-            value: toNano('0.05'),
-        },
-        {
-            $$type: 'Upgrade',
-            code: init.code,
-            init_data: init.data,
-        }
-    );
-    expect(upgradeResult.transactions).toHaveTransaction({
-        from: owner.address,
-        to: upgradeableGBCounter.address,
-        success: true,
-    });
-}
+// async function upgradeCounter(owner: SandboxContract<TreasuryContract>, upgradeableGBCounter: SandboxContract<UpgradeableGBCounterAdd>, init: { code: Cell, data: Cell }) {
+//     let upgradeResult = await upgradeableGBCounter.send(
+//         owner.getSender(),
+//         {
+//             value: toNano('0.05'),
+//         },
+//         {
+//             $$type: 'Upgrade',
+//             code: init.code,
+//         }
+//     );
+//     expect(upgradeResult.transactions).toHaveTransaction({
+//         from: owner.address,
+//         to: upgradeableGBCounter.address,
+//         success: true,
+//     });
+// }
 
 async function assertCount(upgradeableGBCounter: SandboxContract<UpgradeableGBCounterAdd>, getter: SandboxContract<Getter>, sender: Treasury, expectedCount: bigint) {
     const getterResult = await getCount(getter, sender, upgradeableGBCounter);

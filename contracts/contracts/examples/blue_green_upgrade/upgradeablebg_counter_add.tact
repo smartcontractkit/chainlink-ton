@@ -10,11 +10,9 @@ contract UpgradeableGBCounterAdd with UpgradeableGBCounter {
     owner: Address;
 
     /// UpgradableBG
-
     /// New version
     _version: Int as uint32;
     upgradeToCommit: Upgrade?;
-    state_tb_migrated: Cell?;
 
     // Counter
     state: StateV1;
@@ -31,15 +29,10 @@ contract UpgradeableGBCounterAdd with UpgradeableGBCounter {
         };
         self._version = 1;
         self.upgradeToCommit = null;
-        self.state_tb_migrated = null;
     }
 
     override fun getStateInternal(): Cell {
         return self.state.toCell();
-    }
-
-    override fun migrateDataIternal() {
-        throw(3000); // This is the first version, so we don't need to migrate data
     }
 
     override fun step() {
