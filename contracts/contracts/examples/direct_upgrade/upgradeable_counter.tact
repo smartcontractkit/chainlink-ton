@@ -10,7 +10,6 @@ message(1) Step {
 trait UpgradeableCounter with Upgradable, Responder {
     id: Int as uint32;
     owner: Address;
-    _version: Int as uint32;
     counter: Int as uint32;
 
     // Empty receiver for the deployment,
@@ -35,6 +34,14 @@ trait UpgradeableCounter with Upgradable, Responder {
     override fun upgradeableType(): String {
         return "UpgradeableCounter";
     }
+
+    // Version must be a semantic version string (e.g. "1.0.0"). Don't use "v" prefix; it will be added automatically.
+    override fun upgradeableVersion(): String {
+        return self.upgradeableCounterVersion();
+    }
+
+    // Version must be a semantic version string (e.g. "1.0.0"). Don't use "v" prefix; it will be added automatically.
+    abstract fun upgradeableCounterVersion(): String;
 
     get fun counter(): Int {
         return self.counter;

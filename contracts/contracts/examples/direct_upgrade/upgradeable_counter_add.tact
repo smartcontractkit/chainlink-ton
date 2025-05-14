@@ -5,10 +5,13 @@ import "@stdlib/ownable";
 contract UpgradeableCounterAdd(
     id: Int as uint32,
     owner: Address,
-    _version: Int as uint32,
     counter: Int as uint32,
 ) with UpgradeableCounter {
     override fun step() {
         self.counter += 1;
+    }
+
+    override fun upgradeableCounterVersion(): String {
+        return "1.0.0";
     }
 }

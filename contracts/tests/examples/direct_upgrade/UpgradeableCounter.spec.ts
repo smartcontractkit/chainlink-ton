@@ -25,7 +25,7 @@ async function setUpTest(i: bigint): Promise<{
     let deployer = await blockchain.treasury('deployer');
     let owner = await blockchain.treasury('owner');
 
-    let upgradeableCounter = blockchain.openContract(await UpgradeableCounterAdd.fromInit(0n, owner.address, 1n, i));
+    let upgradeableCounter = blockchain.openContract(await UpgradeableCounterAdd.fromInit(0n, owner.address, i));
 
     const counterDeployResult = await upgradeableCounter.send(
         deployer.getSender(),
@@ -79,10 +79,8 @@ describe('UpgradeableCounter', () => {
         let {
             upgradeableCounter,
         } = await setUpTest(0n);
-        const version = await upgradeableCounter.getVersion();
-        expect(version).toBe(1n);
         const typeAndVersion = await upgradeableCounter.getTypeAndVersion();
-        expect(typeAndVersion).toBe('UpgradeableCounter 1');
+        expect(typeAndVersion).toBe("UpgradeableCounter v1.0.0");
     }, 100000);
 
     it('should have initial value', async () => {
@@ -135,7 +133,7 @@ describe('UpgradeableCounter', () => {
             upgradeableCounter,
             getter,
         } = await setUpTest(0n);
-        let substractorCounter = await UpgradeableCounterSub.fromInit(0n, owner.address, 0n, 0n);
+        let substractorCounter = await UpgradeableCounterSub.fromInit(0n, owner.address, 0n);
         if (substractorCounter.init == null) {
             throw new Error('init is null');
         }
@@ -158,10 +156,8 @@ describe('UpgradeableCounter', () => {
             success: true,
         });
 
-        const version = await upgradeableCounter.getVersion();
-        expect(version).toBe(2n);
         const typeAndVersion = await upgradeableCounter.getTypeAndVersion();
-        expect(typeAndVersion).toBe('UpgradeableCounter 2');
+        expect(typeAndVersion).toBe("UpgradeableCounter v2.0.0");
     }, 100000);
 
     it('upgrade should conserve the internal state', async () => {
@@ -172,7 +168,7 @@ describe('UpgradeableCounter', () => {
             getter,
         } = await setUpTest(initialValue);
         const initialId = await upgradeableCounter.getId();
-        let substractorCounter = await UpgradeableCounterSub.fromInit(0n, owner.address, 0n, 0n);
+        let substractorCounter = await UpgradeableCounterSub.fromInit(0n, owner.address, 0n);
         if (substractorCounter.init == null) {
             throw new Error('init is null');
         }
@@ -208,7 +204,7 @@ describe('UpgradeableCounter', () => {
             upgradeableCounter,
             getter,
         } = await setUpTest(3n);
-        let substractorCounter = await UpgradeableCounterSub.fromInit(0n, owner.address, 0n, 0n);
+        let substractorCounter = await UpgradeableCounterSub.fromInit(0n, owner.address, 0n);
         if (substractorCounter.init == null) {
             throw new Error('init is null');
         }

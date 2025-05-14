@@ -17,17 +17,11 @@ trait Upgradable with Ownable, TypeAndVersion {
     /// Contract owner address that can perform upgrades.
     owner: Address;
 
-    /// Current contract version, auto-increments after each upgrade.
-    /// Meant to be private and only accessible through the relevant getter.
-    _version: Int as uint32;
-
     /// Checks the sender, performs an upgrade, and increments the version.
     receive(msg: Upgrade) {
         let ctx = context();
         self.requireValidateUpgrade(ctx, msg);
         self.upgrade(ctx, msg);
-
-        self._version += 1;
     }
 
     /// Checks that the sender is the owner.
@@ -61,15 +55,20 @@ trait Upgradable with Ownable, TypeAndVersion {
         return true;
     }
 
-    /// A getter returning the current version of the contract.
-    get fun version(): Int {
-        return self._version;
+    // Version must be a semantic version string (e.g. "1.0.0"). Don't use "v" prefix; it will be added automatically.
+    override fun version(): String {
+        return self.upgradeableVersion();
     }
 
+    // Version must be a semantic version string (e.g. "1.0.0"). Don't use "v" prefix; it will be added automatically.
+    abstract fun upgradeableVersion(): String;
+
+    // Type must be a TitleCase string that is uinique to the contract and should not change betwen versions.
     override fun type(): String {
         return self.upgradeableType();
     }
 
+    // Type must be a TitleCase string that is uinique to the contract and should not change betwen versions.
     abstract fun upgradeableType(): String;
 }
 
