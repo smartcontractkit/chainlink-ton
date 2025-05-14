@@ -1,9 +1,9 @@
 import { Blockchain, SandboxContract, Treasury, TreasuryContract } from '@ton/sandbox';
-import { Address, Cell, toNano } from '@ton/core';
+import { Address, beginCell, Cell, toNano } from '@ton/core';
 import '@ton/test-utils';
 import { Get, Getter } from '../../../build/Getter/tact_Getter';
 import { UpgradeableGBCounterAdd } from '../../../build/UpgradeableGBCounterAdd/tact_UpgradeableGBCounterAdd';
-import { UpgradeableGBCounterSub } from '../../../build/UpgradeableGBCounterSub/tact_UpgradeableGBCounterSub';
+import { storeStateV2, UpgradeableGBCounterSub } from '../../../build/UpgradeableGBCounterSub/tact_UpgradeableGBCounterSub';
 // import { sleep } from '@ton/blueprint';
 
 async function setUpTest(i: bigint): Promise<{
@@ -103,7 +103,7 @@ describe('UpgradeableGBCounter', () => {
         const increaseTimes = 3;
         for (let i = 0; i < increaseTimes; i++) {
             const increaser = await blockchain.treasury('increaser' + i);
-            const counterBefore = await upgradeableGBCounter.getCounter();
+            const counterBefore = await getCount(getter, owner.getSender(), upgradeableGBCounter);
             const increaseBy = BigInt(1);
 
             let increaseResult = await upgradeableGBCounter.send(
@@ -133,11 +133,22 @@ describe('UpgradeableGBCounter', () => {
             upgradeableGBCounter,
             getter,
         } = await setUpTest(0n);
-        let substractorCounter = await UpgradeableGBCounterSub.fromInit(0n, owner.address, 0n);
+        let substractorCounter = await UpgradeableGBCounterSub.fromInit(owner.address, 0n, null, null, {
+            $$type: 'StateV2',
+            counter: 0n,
+            id: 0n,
+        });
         if (substractorCounter.init == null) {
             throw new Error('init is null');
         }
         let substractorCounterCode = substractorCounter.init.code
+        console.log('substractorCounterData', substractorCounter.init.data.asSlice().toString());
+        let init_data = beginCell()
+        storeStateV2({
+            $$type: 'StateV2',
+            counter: 0n,
+            id: 0n,
+        })(init_data)
         let upgradeResult = await
             upgradeableGBCounter.send(
                 owner.getSender(),
@@ -147,7 +158,7 @@ describe('UpgradeableGBCounter', () => {
                 {
                     $$type: 'Upgrade',
                     code: substractorCounterCode,
-                    data: null,
+                    init_data: init_data.asCell(),
                 }
             )
         expect(upgradeResult.transactions).toHaveTransaction({
@@ -179,41 +190,24 @@ describe('UpgradeableGBCounter', () => {
         expect(version).toBe(2n);
     }, 100000);
 
-    it('no data upgrade should conserve the internal state', async () => {
-        const initialValue = 10n;
-        let {
-            owner,
-            upgradeableGBCounter,
-            getter,
-        } = await setUpTest(initialValue);
-        const initialId = await upgradeableGBCounter.getId();
+    // it('upgrade with data should change the internal state', async () => {
+    //     const initialValue = 5n;
+    //     let {
+    //         owner,
+    //         upgradeableGBCounter,
+    //         getter,
+    //     } = await setUpTest(initialValue);
+    //     const initialId = await upgradeableGBCounter.getId();
 
-        await upgradeCounter(owner, upgradeableGBCounter, await createSubCounterInit(owner, null));
-        await commitCounterUpgrade(owner, upgradeableGBCounter);
+    //     const expectedNewId = 1n;
+    //     const expectedNewValue = 10n;
+    //     await upgradeCounter(owner, upgradeableGBCounter, await createSubCounterInit(owner, { id: expectedNewId, owner: owner.address, counter: expectedNewValue }));
+    //     await commitCounterUpgrade(owner, upgradeableGBCounter);
 
-        await assertCount(upgradeableGBCounter, getter, owner.getSender(), initialValue);
-        const newId = await upgradeableGBCounter.getId();
-        expect(newId).toBe(initialId);
-    }, 100000);
-
-    it('upgrade with data should change the internal state', async () => {
-        const initialValue = 5n;
-        let {
-            owner,
-            upgradeableGBCounter,
-            getter,
-        } = await setUpTest(initialValue);
-        const initialId = await upgradeableGBCounter.getId();
-
-        const expectedNewId = 1n;
-        const expectedNewValue = 10n;
-        await upgradeCounter(owner, upgradeableGBCounter, await createSubCounterInit(owner, { id: expectedNewId, owner: owner.address, counter: expectedNewValue }));
-        await commitCounterUpgrade(owner, upgradeableGBCounter);
-
-        await assertCount(upgradeableGBCounter, getter, owner.getSender(), expectedNewValue);
-        // const newId = await upgradeableGBCounter.getId();
-        // expect(newId).toBe(expectedNewId);
-    }, 100000);
+    //     await assertCount(upgradeableGBCounter, getter, owner.getSender(), expectedNewValue);
+    //     // const newId = await upgradeableGBCounter.getId();
+    //     // expect(newId).toBe(expectedNewId);
+    // }, 100000);
 
     // it('rollback after upgrade with data should go back to original internal state', async () => {
     //     const initialValue = 5n;
@@ -363,47 +357,25 @@ describe('UpgradeableGBCounter', () => {
     // }, 100000);
 });
 
-async function createSubCounterInit(owner: SandboxContract<TreasuryContract>, data: null | { id: bigint, owner: Address, counter: bigint }): Promise<{ code: Cell, data: Cell | null }> {
-    let returnData = true;
-    if (data == null) {
-        returnData = false;
-        data = {
-            id: 0n,
-            owner: owner.address,
-            counter: 0n,
-        }
-    }
-    let init = (await UpgradeableGBCounterSub.fromInit(data.id, data.owner, data.counter)).init;
+async function createSubCounterInit(owner: SandboxContract<TreasuryContract>, data: { id: bigint, owner: Address, counter: bigint }): Promise<{ code: Cell, data: Cell }> {
+    let init = (await UpgradeableGBCounterSub.fromInit(data.owner, 0n, null, null, {
+        $$type: 'StateV2',
+        counter: data.counter,
+        id: data.id,
+    })).init;
     if (init == null) {
         throw new Error('init is null');
     }
-    if (returnData) {
-        return {
-            code: init.code,
-            data: init.data,
-        }
-    }
+    let init_data = beginCell()
+    storeStateV2({
+        $$type: 'StateV2',
+        counter: 0n,
+        id: 0n,
+    })(init_data)
     return {
         code: init.code,
-        data: null,
+        data: init_data.asCell(),
     }
-}
-
-async function rollbackUpgrade(owner: SandboxContract<TreasuryContract>, upgradeableGBCounter: SandboxContract<UpgradeableGBCounterAdd>) {
-    let rollbackResult = await upgradeableGBCounter.send(
-        owner.getSender(),
-        {
-            value: toNano('0.05'),
-        },
-        {
-            $$type: 'RollbackUpgrade',
-        }
-    );
-    expect(rollbackResult.transactions).toHaveTransaction({
-        from: owner.address,
-        to: upgradeableGBCounter.address,
-        success: true,
-    });
 }
 
 async function commitCounterUpgrade(owner: SandboxContract<TreasuryContract>, upgradeableGBCounter: SandboxContract<UpgradeableGBCounterAdd>) {
@@ -423,7 +395,7 @@ async function commitCounterUpgrade(owner: SandboxContract<TreasuryContract>, up
     });
 }
 
-async function upgradeCounter(owner: SandboxContract<TreasuryContract>, upgradeableGBCounter: SandboxContract<UpgradeableGBCounterAdd>, init: { code: Cell, data: Cell | null }) {
+async function upgradeCounter(owner: SandboxContract<TreasuryContract>, upgradeableGBCounter: SandboxContract<UpgradeableGBCounterAdd>, init: { code: Cell, data: Cell }) {
     let upgradeResult = await upgradeableGBCounter.send(
         owner.getSender(),
         {
@@ -432,7 +404,7 @@ async function upgradeCounter(owner: SandboxContract<TreasuryContract>, upgradea
         {
             $$type: 'Upgrade',
             code: init.code,
-            data: init.data,
+            init_data: init.data,
         }
     );
     expect(upgradeResult.transactions).toHaveTransaction({
@@ -443,8 +415,13 @@ async function upgradeCounter(owner: SandboxContract<TreasuryContract>, upgradea
 }
 
 async function assertCount(upgradeableGBCounter: SandboxContract<UpgradeableGBCounterAdd>, getter: SandboxContract<Getter>, sender: Treasury, expectedCount: bigint) {
-    const counter = await upgradeableGBCounter.getCounter();
-    expect(counter).toBe(expectedCount);
+    const getterResult = await getCount(getter, sender, upgradeableGBCounter);
+    console.log('getterResult', getterResult);
+    console.log('expectedCount', expectedCount);
+    expect(getterResult).toBe(expectedCount);
+}
+
+async function getCount(getter: SandboxContract<Getter>, sender: Treasury, upgradeableGBCounter: SandboxContract<UpgradeableGBCounterAdd>) {
     const getterDeployResult = await getter.send(
         sender,
         {
@@ -456,7 +433,7 @@ async function assertCount(upgradeableGBCounter: SandboxContract<UpgradeableGBCo
             opcode: 0n,
             Address: upgradeableGBCounter.address,
         }
-    )
+    );
 
     expect(getterDeployResult.transactions).toHaveTransaction({
         from: sender.address,
@@ -466,8 +443,6 @@ async function assertCount(upgradeableGBCounter: SandboxContract<UpgradeableGBCo
     });
 
     const getterResult = await getter.getResponse();
-    console.log('getterResult', getterResult);
-    console.log('expectedCount', expectedCount);
-    expect(getterResult).toBe(expectedCount);
+    return getterResult;
 }
 

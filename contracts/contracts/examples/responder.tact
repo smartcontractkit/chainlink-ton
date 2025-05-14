@@ -5,19 +5,8 @@ message(500) Request {
 
 trait Responder {
     receive(msg: Request) {
-        let response = self.getResponse();
-        message(MessageParameters {
-            mode: SendRemainingValue,
-            body: beginCell()
-                .storeUint(msg.callbackOpcode, 32)
-                .storeUint(msg.queryId, 64)
-                .storeUint(response, 64)
-                .endCell(),
-            value: 0,
-            to: sender(),
-            bounce: true,
-        });
+        self.respond(msg);
     }
 
-    abstract fun getResponse(): Int;
+    abstract fun respond(msg: Request);
 }

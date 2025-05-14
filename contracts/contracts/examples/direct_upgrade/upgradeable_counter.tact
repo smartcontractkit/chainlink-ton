@@ -27,8 +27,18 @@ trait UpgradeableCounter with Upgradable, Ownable, Responder {
     // Update counter
     abstract fun step();
 
-    override fun getResponse(): Int {
-        return self.counter;
+    override fun respond(msg: Request) {
+        message(MessageParameters {
+            mode: SendRemainingValue,
+            body: beginCell()
+                .storeUint(msg.callbackOpcode, 32)
+                .storeUint(msg.queryId, 64)
+                .storeUint(self.counter(), 64)
+                .endCell(),
+            value: 0,
+            to: sender(),
+            bounce: true,
+        });
     }
 
     get fun counter(): Int {

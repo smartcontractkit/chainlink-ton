@@ -6,24 +6,15 @@ message(1) Step {
 }
 
 trait UpgradeableGBCounter with UpgradableBG, Responder {
-    // Counter
-    id: Int as uint32;
-    counter: Int as uint32;
-
     /// Ownable
     owner: Address;
 
     /// UpgradableBG
 
-    /// Previous version
-    _prev_version: Int as uint32;
-    /// Active version
-    _blue_version: Int as uint32;
     /// New version
-    _green_version: Int as uint32;
-    code_bkup: Cell?;
-    data_bkup: Cell?;
-    code: Cell;
+    _version: Int as uint32;
+    upgradeToCommit: Upgrade?;
+    state_tb_migrated: Cell?;
 
     // Empty receiver for the deployment,
     // which expects the `null` message body
@@ -37,25 +28,34 @@ trait UpgradeableGBCounter with UpgradableBG, Responder {
         cashback(sender());
     }
 
-    override fun getData(): Cell {
-        return beginCell()
-            .storeUint(self.id, 32)
-            .storeUint(self.counter, 32)
-            .asCell();
-    }
-
     // Update counter
     abstract fun step();
 
-    override fun getResponse(): Int {
-        return self.counter;
+    override fun respond(msg: Request) {
+        message(MessageParameters {
+            mode: SendRemainingValue,
+            body: beginCell()
+                .storeUint(msg.callbackOpcode, 32)
+                .storeUint(msg.queryId, 64)
+                .storeUint(self.counter(), 64)
+                .endCell(),
+            value: 0,
+            to: sender(),
+            bounce: true,
+        });
     }
 
-    get fun counter(): Int {
-        return self.counter;
+    abstract fun counter(): Int;
+
+    override fun getState(): Cell {
+        return self.getStateInternal();
     }
 
-    get fun id(): Int {
-        return self.id;
+    abstract fun getStateInternal(): Cell;
+
+    override fun migrateData() {
+        self.migrateDataIternal();
     }
+
+    abstract fun migrateDataIternal();
 }
