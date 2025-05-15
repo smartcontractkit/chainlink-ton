@@ -1,3 +1,4 @@
+import "../../lib/upgradable";
 import "./upgradable_counter_add";
 import "./upgradable_counter";
 
