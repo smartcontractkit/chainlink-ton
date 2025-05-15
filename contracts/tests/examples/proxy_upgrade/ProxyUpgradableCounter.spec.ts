@@ -154,74 +154,28 @@ describe('ProxyUpgradableCounter', () => {
             proxyCounter,
             getter,
         } = await setUpTest(0n);
-        let initParams: InitParams = {
-            $$type: 'InitParams',
-            header: {
-                $$type: 'HeaderUpgradable',
-                owner: owner.address,
-                _version: 0n,
-            },
-            stateToBeMigrated: beginCell().endCell(),
-        }
-        let substractorCounter = await UpgradableProxyChildCounterSub.fromInit(initParams);
-        if (substractorCounter.init == null) {
-            throw new Error('init is null');
-        }
-        let upgradeResult = await
-            proxyCounter.send(
-                owner.getSender(),
-                {
-                    value: toNano('0.05'),
-                },
-                {
-                    $$type: 'Upgrade',
-                    code: substractorCounter.init.code,
-                }
-            )
-        expect(upgradeResult.transactions).toHaveTransaction({
-            from: owner.address,
-            to: proxyCounter.address,
-            success: true,
-        });
+        let substractorCounterCode = await getSubstractorCode(owner);
+        await upgradeAndCommit(proxyCounter, owner, substractorCounterCode);
 
         const version = await proxyCounter.getVersion();
+        console.log('version', version);
         expect(version).toBe(2n);
     }, 100000);
 
-    // it('upgrade should conserve the internal state', async () => {
-    //     const initialValue = 10n;
-    //     let {
-    //         owner,
-    //         proxyCounter,
-    //         getter,
-    //     } = await setUpTest(initialValue);
-    //     const initialId = await proxyCounter.getId();
-    //     let substractorCounter = await UpgradableCounterSub.fromInit(0n, owner.address, 0n, 0n);
-    //     if (substractorCounter.init == null) {
-    //         throw new Error('init is null');
-    //     }
-    //     let substractorCounterCode = substractorCounter.init.code
-    //     let upgradeResult = await
-    //         proxyCounter.send(
-    //             owner.getSender(),
-    //             {
-    //                 value: toNano('0.05'),
-    //             },
-    //             {
-    //                 $$type: 'Upgrade',
-    //                 code: substractorCounterCode,
-    //                 data: null,
-    //             }
-    //         )
-    //     expect(upgradeResult.transactions).toHaveTransaction({
-    //         from: owner.address,
-    //         to: proxyCounter.address,
-    //         success: true,
-    //     });
+    it('upgrade should conserve the internal state', async () => {
+        const initialValue = 10n;
+        let {
+            owner,
+            proxyCounter,
+            getter,
+        } = await setUpTest(initialValue);
+        const initialId = await proxyCounter.getId();
+        let substractorCounterCode = await getSubstractorCode(owner);
+        await upgradeAndCommit(proxyCounter, owner, substractorCounterCode);
 
-    //     const getterResult = await getCount(getter, owner.getSender(), proxyCounter);
-    //     expect(getterResult).toBe(initialValue);
-    // }, 100000);
+        const getterResult = await getCount(getter, owner.getSender(), proxyCounter);
+        expect(getterResult).toBe(initialValue);
+    }, 100000);
 
 
     it('version 2 should decrease de counter', async () => {
@@ -239,27 +193,8 @@ describe('ProxyUpgradableCounter', () => {
             },
             stateToBeMigrated: beginCell().endCell(),
         }
-        let substractorCounter = await UpgradableProxyChildCounterSub.fromInit(initParams);
-        if (substractorCounter.init == null) {
-            throw new Error('init is null');
-        }
-        let upgradeResult = await
-            proxyCounter.send(
-                owner.getSender(),
-                {
-                    value: toNano('0.05'),
-                },
-                {
-                    $$type: 'Upgrade',
-                    code: substractorCounter.init.code,
-                }
-            )
-        expect(upgradeResult.transactions).toHaveTransaction({
-            from: owner.address,
-            to: proxyCounter.address,
-            success: true,
-        });
-
+        let substractorCounterCode = await getSubstractorCode(owner);
+        await upgradeAndCommit(proxyCounter, owner, substractorCounterCode);
 
         const decreaseTimes = 3;
         for (let i = 0; i < decreaseTimes; i++) {
@@ -291,6 +226,56 @@ describe('ProxyUpgradableCounter', () => {
     }, 100000);
 });
 
+async function upgradeAndCommit(proxyCounter: SandboxContract<ProxyCounter>, owner: SandboxContract<TreasuryContract>, substractorCounterCode) {
+    let upgradeResult = await proxyCounter.send(
+        owner.getSender(),
+        {
+            value: toNano('1'),
+        },
+        {
+            $$type: 'Upgrade',
+            code: substractorCounterCode,
+        }
+    );
+    expect(upgradeResult.transactions).toHaveTransaction({
+        from: owner.address,
+        to: proxyCounter.address,
+        success: true,
+    });
+
+    let commitUpgradeResult = await proxyCounter.send(
+        owner.getSender(),
+        {
+            value: toNano('1'),
+        },
+        {
+            $$type: 'CommitUpgrade',
+        }
+    );
+    expect(commitUpgradeResult.transactions).toHaveTransaction({
+        from: owner.address,
+        to: proxyCounter.address,
+        success: true,
+    });
+}
+
+async function getSubstractorCode(owner: SandboxContract<TreasuryContract>) {
+    let initParams: InitParams = {
+        $$type: 'InitParams',
+        header: {
+            $$type: 'HeaderUpgradable',
+            owner: owner.address,
+            _version: 0n,
+        },
+        stateToBeMigrated: beginCell().endCell(),
+    };
+    let substractorCounter = await UpgradableProxyChildCounterSub.fromInit(initParams);
+    if (substractorCounter.init == null) {
+        throw new Error('init is null');
+    }
+    let substractorCounterCode = substractorCounter.init.code;
+    return substractorCounterCode;
+}
 
 async function getCount(getter: SandboxContract<Getter>, sender: Treasury, proxyCounter: SandboxContract<ProxyCounter>) {
     const getterDeployResult = await getter.send(

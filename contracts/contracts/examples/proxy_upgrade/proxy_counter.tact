@@ -89,7 +89,6 @@ contract ProxyCounter with Responder, ICounter, Upgradable {
     }
 
     override fun upgrade(_: Context, _upgrade: Upgrade) {
-        // Change of code will be applied at the end of this transaction
         message(MessageParameters {
             mode: SendRemainingValue,
             body: GetState {}.toCell(),
@@ -97,9 +96,11 @@ contract ProxyCounter with Responder, ICounter, Upgradable {
             to: self.counterAddress,
             bounce: true,
         });
+        dump(self.counterAddress);
     }
 
     receive(msg: RequestedState) {
+        dump("RequestedState");
         let header = self.getNextHeader();
         let initParams = InitParamsWithBit {
             lazyInitBit: false,
@@ -123,6 +124,7 @@ contract ProxyCounter with Responder, ICounter, Upgradable {
         });
 
         self.counterAddress = contractAddress(counterStateInit);
+        self._version += 1;
     }
 
     override fun getState(): Cell {
