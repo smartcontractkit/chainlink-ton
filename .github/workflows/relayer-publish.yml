@@ -12,7 +12,7 @@ on:
 jobs:
   build-publish-docker:
     name: Build & Publish Docker Image
-    if: ${{ github.event_name != 'pull_request' || github.event.label.name == 'build-publish-docker' }}
+    if: ${{ github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'build-publish-docker') }}
     permissions:
       contents: read
       id-token: write
