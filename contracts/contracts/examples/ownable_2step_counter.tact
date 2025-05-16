@@ -1,3 +1,4 @@
+import "../lib/type_and_version";
 import "../access/ownable_2step.tact";
 
 message SetCount {
@@ -7,7 +8,7 @@ message SetCount {
 
 /// Ownable Counter contract example
 ///
-contract OwnableCounter with Ownable2Step {
+contract OwnableCounter with Ownable2Step, TypeAndVersion {
     // Ownership variables, required by the Ownable2Step trait
     owner: Address;
     pendingOwner: Address?;
@@ -45,5 +46,17 @@ contract OwnableCounter with Ownable2Step {
 
     get fun id(): Int {
         return self.id;
+    }
+
+    // --- TypeAndVersion Functions ---
+
+    // Type must be a TitleCase string that is uinique to the contract and should not change betwen versions.
+    override fun type(): String {
+        return "OwnableCounter";
+    }
+
+    // Version must be a semantic version string (e.g. "1.0.0"). Don't use "v" prefix; it will be added automatically.
+    override fun version(): String {
+        return "1.0.0";
     }
 }

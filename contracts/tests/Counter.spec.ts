@@ -39,4 +39,9 @@ describe('Counter', () => {
     // the check is done inside beforeEach
     // blockchain and counter are ready to use
   })
+
+  it('should have type and version', async () => {
+    const typeAndVersion = await counter.getTypeAndVersion()
+    expect(typeAndVersion).toBe('Counter v1.0.0')
+  })
 })

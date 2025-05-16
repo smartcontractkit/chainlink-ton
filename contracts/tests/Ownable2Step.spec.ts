@@ -39,6 +39,11 @@ describe('Ownable2Step Counter', () => {
     })
   })
 
+  it('Test00: Should have type and version', async () => {
+    const typeAndVersion = await counter.getTypeAndVersion()
+    expect(typeAndVersion).toBe('OwnableCounter v1.0.0')
+  })
+
   it('Test01: Should set deployer as owner', async () => {
     const owner = await counter.getOwner()
 
