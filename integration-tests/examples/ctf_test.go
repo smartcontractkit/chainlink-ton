@@ -20,16 +20,18 @@ type CfgTon struct {
 }
 
 func TestTonSmoke(t *testing.T) {
-	// todo: genesis volume cache would help(~30s) but docker-compose file modification is needed
 	in, err := framework.Load[CfgTon](t)
 	require.NoError(t, err)
 
 	goal := 120
 
+	// todo: remove after tests
+	// todo: genesis volume cache would help(~30s) but docker-compose file modification is needed
 	startTime := time.Now()
 	t.Logf("==============================================================")
 	t.Logf("Starting blockchain network creation with timeout goal: %ds", goal)
 
+	// todo: replace with blockchain implementation in chainlink-ton/blockchain once get the testcontainer fix from dexex
 	bc, err := blockchain.NewBlockchainNetwork(in.BlockchainA)
 
 	elapsed := time.Since(startTime)
@@ -60,7 +62,8 @@ func TestTonSmoke(t *testing.T) {
 			require.NoError(t, err, "failed to create highload wallet")
 			mcFunderWallet, err := wallet.FromPrivateKeyWithOptions(client, rawHlWallet.PrivateKey(), wallet.HighloadV2Verified, wallet.WithWorkchain(-1))
 			require.NoError(t, err, "failed to create highload wallet")
-			funder, err := mcFunderWallet.GetSubwallet(uint32(42))
+			subWalletID := uint32(42)
+			funder, err := mcFunderWallet.GetSubwallet(subWalletID)
 			require.NoError(t, err, "failed to get highload subwallet")
 
 			// double check funder address
