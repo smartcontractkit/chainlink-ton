@@ -32,14 +32,22 @@ jobs:
           path: ${{ env.CACHE_DIR }}/docker-images.tar
           key: mylocalton-images-v1
 
-      - name: Load cached Docker images
-        if: steps.cache-docker.outputs.cache-hit == 'true'
-        run: docker load -i ${{ env.CACHE_DIR }}/docker-images.tar
-
-      - name: Save Docker images to cache
+      - name: Pull Docker images (if no cache hit)
         if: steps.cache-docker.outputs.cache-hit != 'true'
         run: |
+          echo "Cache miss - pulling Docker images"
+          for image in ${{ env.TON_IMAGES }}; do
+            echo "Pulling $image"
+            docker pull $image
+          done
+          echo "Saving Docker images to cache"
           docker save ${{ env.TON_IMAGES }} -o ${{ env.CACHE_DIR }}/docker-images.tar
+
+      - name: Load cached Docker images
+        if: steps.cache-docker.outputs.cache-hit == 'true'
+        run: |
+          echo "Cache hit - loading Docker images"
+          docker load -i ${{ env.CACHE_DIR }}/docker-images.tar
 
       - name: Install Nix
         uses: cachix/install-nix-action@02a151ada4993995686f9ed4f1be7cfbb229e56f # v31
