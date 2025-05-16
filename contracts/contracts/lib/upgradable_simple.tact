@@ -8,8 +8,13 @@ message(10) Upgrade {
 
 /// Implements a basic upgrade mechanism with owner validation.
 trait UpgradableSimple with Ownable, TypeAndVersion {
+    /// --- Ownable Attributes ---
     /// Contract owner address that can perform upgrades.
     owner: Address;
+
+    inline fun requireValidateUpgrade(_: Context, __: Upgrade) {
+        self.requireOwner();
+    }
 
     /// Checks the sender, performs an upgrade, and increments the version.
     receive(msg: Upgrade) {
@@ -18,11 +23,9 @@ trait UpgradableSimple with Ownable, TypeAndVersion {
         self.upgrade(ctx, msg);
     }
 
-    inline fun requireValidateUpgrade(_: Context, __: Upgrade) {
-        self.requireOwner();
-    }
-
+    /// Applies the upgrade to the contract.
     virtual inline fun upgrade(_: Context, msg: Upgrade) {
+        // Direcly switch to the new code.
         setCode(msg.code);
     }
 
@@ -31,21 +34,25 @@ trait UpgradableSimple with Ownable, TypeAndVersion {
         return true;
     }
 
-    // Version must be a semantic version string (e.g. "1.0.0"). Don't use "v" prefix; it will be added automatically.
+    /// --- TypeAndVersion Functions ---
+
+    /// Version must be a semantic version string (e.g. "1.0.0"). Don't use "v" prefix; it will be added automatically.
     override fun version(): String {
         return self.upgradableVersion();
     }
 
-    // Version must be a semantic version string (e.g. "1.0.0"). Don't use "v" prefix; it will be added automatically.
-    abstract fun upgradableVersion(): String;
-
-    // Type must be a TitleCase string that is uinique to the contract and should not change betwen versions.
+    /// Type must be a TitleCase string that is uinique to the contract and should not change betwen versions.
     override fun type(): String {
         return self.upgradableType();
     }
 
-    // Type must be a TitleCase string that is uinique to the contract and should not change betwen versions.
+    /// --- Delegated TypeAndVersion Functions ---
+
+    /// Type must be a TitleCase string that is uinique to the contract and should not change betwen versions.
     abstract fun upgradableType(): String;
+
+    /// Version must be a semantic version string (e.g. "1.0.0"). Don't use "v" prefix; it will be added automatically.
+    abstract fun upgradableVersion(): String;
 }
 
 /// Change of code will be applied by the end of the current transaction.

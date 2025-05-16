@@ -1,19 +1,25 @@
 import "./upgradable_counter";
 
+/// Counter State
 struct StateV1 {
+    /// Counter id
     id: Int as uint32;
+    /// Counter value
     counter: Int as uint32;
 }
 
+/// This is version 1.0.0 of the UpgradableCounter contract, which adds 1 to the counter on each step.
 contract UpgradableCounterAdd with UpgradableCounter {
-    /// Ownable
+    /// --- UpgradableCounter Attributes ---
+    /// Contract owner
     owner: Address;
 
-    /// UpgradableBG
-    /// New version
+    /// This is the code that will be used to upgrade the contract.
     upgradeToCommit: Upgrade?;
 
-    // Counter
+    /// --- UpgradableCounter Attributes ---
+
+    /// Counter State
     state: StateV1;
 
     init(
@@ -29,18 +35,24 @@ contract UpgradableCounterAdd with UpgradableCounter {
         self.upgradeToCommit = null;
     }
 
+    /// --- UpgradableCounter Functions ---
+
+    /// Returns the current state of the contract.
     override fun getStateInternal(): Cell {
         return self.state.toCell();
     }
 
+    /// Update counter
     override fun step() {
         self.state.counter += 1;
     }
 
+    /// Gets the current counter value.
     override fun counter(): Int {
         return self.state.counter;
     }
 
+    // Version must be a semantic version string (e.g. "1.0.0"). Don't use "v" prefix; it will be added automatically.
     override fun upgradableCounterVersion(): String {
         return "1.0.0";
     }

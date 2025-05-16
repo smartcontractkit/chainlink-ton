@@ -14,6 +14,8 @@ message(setOpcode) Set {
     value: Int as uint64;
 }
 
+/// Getter contract example
+/// This contract is able to request a value and store the response.
 contract Getter(
     id: Int as uint32,
     owner: Address,
@@ -25,6 +27,7 @@ contract Getter(
         cashback(sender());
     }
 
+    /// The request to be sent to the responder
     receive(msg: Get) {
         message(
             MessageParameters {
@@ -42,9 +45,9 @@ contract Getter(
         cashback(sender());
     }
 
+    /// The value received from the responder
     receive(msg: Set) {
         self.value = msg.value;
-        self.forward(self.owner, null, false, null);
     }
 
     get fun response(): Int {

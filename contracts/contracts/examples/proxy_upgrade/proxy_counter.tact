@@ -104,13 +104,10 @@ contract ProxyCounter with Responder, ICounter, Upgradable {
     receive(msg: RequestedState) {
         dump("RequestedState");
         let header = self.getNextHeader();
-        let initParams = InitParamsWithBit {
-            lazyInitBit: false,
-            initParams: InitParams {
-                header: header,
-                stateToBeMigrated: msg.stateToBeMigrated,
-            },
-        }.toCell();
+        let initParams = wrapInitParams(InitParams {
+            header: header,
+            stateToBeMigrated: msg.stateToBeMigrated,
+        });
 
         let counterStateInit = StateInit {
             code: self.upgradeToCommit!!.code,

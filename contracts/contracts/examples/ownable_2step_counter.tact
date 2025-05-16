@@ -7,7 +7,6 @@ message SetCount {
 }
 
 /// Ownable Counter contract example
-///
 contract OwnableCounter with Ownable2Step, TypeAndVersion {
     // Ownership variables, required by the Ownable2Step trait
     owner: Address;
