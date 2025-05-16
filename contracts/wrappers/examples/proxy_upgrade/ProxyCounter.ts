@@ -1,1 +1,1 @@
-export * from '../../../build/ProxyCounter/tact_ProxyCounter';
+export * from '../../../build/ProxyCounter/tact_ProxyCounter'

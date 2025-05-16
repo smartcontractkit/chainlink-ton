@@ -1,1 +1,1 @@
-export * from '../../build/Getter/tact_Getter';
+export * from '../../build/Getter/tact_Getter'

@@ -1,1 +1,1 @@
-export * from '../../../build/UpgradableCounterAdd/tact_UpgradableCounterAdd';
+export * from '../../../build/UpgradableCounterAdd/tact_UpgradableCounterAdd'
