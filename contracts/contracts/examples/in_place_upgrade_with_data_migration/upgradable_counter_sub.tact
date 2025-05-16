@@ -2,7 +2,7 @@ import "../../lib/upgradable";
 import "./upgradable_counter_add";
 import "./upgradable_counter";
 
-/// Counter State
+/// Counter State version 2
 struct StateV2 {
     /// Counter id
     counter: Int as uint64;

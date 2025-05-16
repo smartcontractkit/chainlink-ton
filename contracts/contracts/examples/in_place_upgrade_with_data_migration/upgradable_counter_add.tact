@@ -1,6 +1,6 @@
 import "./upgradable_counter";
 
-/// Counter State
+/// Counter State version 1
 struct StateV1 {
     /// Counter id
     id: Int as uint32;

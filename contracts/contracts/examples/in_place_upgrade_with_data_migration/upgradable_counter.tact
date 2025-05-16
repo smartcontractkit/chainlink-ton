@@ -63,7 +63,6 @@ trait UpgradableCounter with Responder, ICounter, Upgradable {
     override fun upgradableVersion(): String {
         return self.upgradableCounterVersion();
     }
-
     /// --- Deletaed Upgradable Functions ---
 
     /// Returns the current state of the contract.

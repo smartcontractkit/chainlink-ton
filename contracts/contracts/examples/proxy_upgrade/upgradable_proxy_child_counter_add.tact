@@ -1,39 +1,50 @@
 import "./upgradable_proxy_child_counter";
 
-struct SateV1 {
+/// Counter State version 1
+struct StateV1 {
+    /// Counter id
     id: Int as uint32;
+    /// Counter value
     counter: Int as uint32;
 }
 
+/// This is version 1.0.0 of the UpgradableProxyChildCounterAdd contract, which adds 1 to the counter on each step.
 contract UpgradableProxyChildCounterAdd with UpgradableProxyChildCounter {
-    /// Ownable
+    /// --- UpgradableProxyChildCounter Attributes ---
+    /// Contract owner
     owner: Address;
 
-    id: Int as uint32;
-    counter: Int as uint32;
+    /// --- UpgradableProxyChildCounterAdd Attributes ---
+
+    /// Counter State
+    state: StateV1;
 
     init(
         id: Int,
         owner: Address,
         counter: Int,
     ) {
-        self.id = id;
         self.owner = owner;
-        self.counter = counter;
+        self.state = StateV1 {
+            id: id,
+            counter: counter,
+        };
     }
 
-    override fun step(queryId: Int) {
-        self.counter += 1;
-    }
+    /// --- UpgradableProxyChildCounter Functions ---
 
-    override fun counter(): Int {
-        return self.counter;
-    }
-
+    /// Returns the current state of the contract.
     override fun getCounterState(): Cell {
-        return SateV1 {
-            id: self.id,
-            counter: self.counter,
-        }.toCell();
+        return self.state.toCell();
+    }
+
+    /// Update counter
+    override fun step(queryId: Int) {
+        self.state.counter += 1;
+    }
+
+    /// Gets the current counter value.
+    override fun counter(): Int {
+        return self.state.counter;
     }
 }

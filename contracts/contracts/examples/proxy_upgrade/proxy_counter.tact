@@ -3,16 +3,18 @@ import "../getter";
 import "../responder";
 import "../counter_trait";
 
+/// Addres and callbackOpcode of a requester
 struct ReturnAddress {
     address: Address;
     callbackOpcode: Int as uint32;
 }
 
+/// Message returned by the child after initialization with the updated version
 message(30) UpdateCounterVersion {
     version: String;
 }
 
-/// This is sent to the proxy child to request the state to be migrated.
+/// This is sent to the proxy's child to request the currennt state.
 message(40) GetState {}
 
 /// This is the response to the GetState message.
@@ -20,18 +22,24 @@ message(31) RequestedState {
     stateToBeMigrated: Cell;
 }
 
+/// This contract implements ICounter as the proxy entrypoint of a counter.
 contract ProxyCounter with Responder, ICounter, Upgradable {
-    /// Ownable
+    /// --- Upgradable Attributes ---
+    /// Contract owner address that can perform upgrades.
     owner: Address;
 
-    /// Upgradable
+    /// This is the code that will be used to upgrade the contract.
     upgradeToCommit: Upgrade?;
 
-    /// ProxyCounter
+    /// --- ProxyCounter Attributes ---
 
+    /// id of the counter.
     id: Int as uint32;
+    /// Address of the child contract.
     counterAddress: Address;
+    /// Count requests by queryId with the address and callbackOpcode of the requester.
     requests: map<Int as uint32, ReturnAddress>;
+    /// Version of the contract.
     version: String;
 
     init(
@@ -46,6 +54,35 @@ contract ProxyCounter with Responder, ICounter, Upgradable {
         self.version = "1.0.0";
     }
 
+    /// --- ProxyCounter Functions ---
+
+    /// Get the id of the contract.
+    get fun id(): Int {
+        return self.id;
+    }
+
+    /// Catch the response from the child contract and send it back to the requester.
+    receive(msg: Set) {
+        let returnAddress = self.requests.get(msg.queryId)!!;
+        message(MessageParameters {
+            mode: SendRemainingValue,
+            body: beginCell()
+                .storeUint(returnAddress.callbackOpcode, 32)
+                .storeUint(msg.queryId, 64)
+                .storeUint(msg.value, 64)
+                .endCell(),
+            value: 0,
+            to: returnAddress.address,
+            bounce: true,
+        });
+        // TODO remove the request from the map
+    }
+
+    /// --- ICounter Functions ---
+
+    /// Handle step instruction
+
+    /// Update counter
     override fun handle_step(queryId: Int) {
         message(MessageParameters {
             mode: SendRemainingValue,
@@ -58,6 +95,9 @@ contract ProxyCounter with Responder, ICounter, Upgradable {
         });
     }
 
+    /// --- Responder Functions ---
+
+    /// Respond to a request, returning a value to the sender() in the callbackOpcode.
     override fun respond(msg: Request, sender: Address) {
         self.requests.set(msg.queryId, ReturnAddress {
             address: sender(),
@@ -75,21 +115,10 @@ contract ProxyCounter with Responder, ICounter, Upgradable {
         });
     }
 
-    receive(msg: Set) {
-        let returnAddress = self.requests.get(msg.queryId)!!;
-        message(MessageParameters {
-            mode: SendRemainingValue,
-            body: beginCell()
-                .storeUint(returnAddress.callbackOpcode, 32)
-                .storeUint(msg.queryId, 64)
-                .storeUint(msg.value, 64)
-                .endCell(),
-            value: 0,
-            to: returnAddress.address,
-            bounce: true,
-        });
-    }
+    /// --- Upgradable Functions ---
+    /// The upgrade is split into three steps:
 
+    /// 1. Request the state from the child contract.
     override fun upgrade(_: Context, _upgrade: Upgrade) {
         message(MessageParameters {
             mode: SendRemainingValue,
@@ -98,9 +127,9 @@ contract ProxyCounter with Responder, ICounter, Upgradable {
             to: self.counterAddress,
             bounce: true,
         });
-        dump(self.counterAddress);
     }
 
+    /// 2. Deploy the new version of the child contract with the state from the old version.
     receive(msg: RequestedState) {
         dump("RequestedState");
         let header = self.getNextHeader();
@@ -125,25 +154,23 @@ contract ProxyCounter with Responder, ICounter, Upgradable {
         self.counterAddress = contractAddress(counterStateInit);
     }
 
-    override fun getState(): Cell {
-        throw(500); // Unreachable
-    }
-
+    /// 3. The child contract sends the new version.
     receive(msg: UpdateCounterVersion) {
-        dump("UpdateCounterVersion");
         dump(msg.version);
         self.version = msg.version;
     }
 
+    /// DO NOT CALL: This is normally used by the upgrade function to get the state of the contract, but as this is a proxy, it is not used.
+    override fun getState(): Cell {
+        throw(500); // Unreachable
+    }
+
+    /// Type must be a TitleCase string that is uinique to the contract and should not change betwen versions.
     override fun upgradableVersion(): String {
         return self.version;
     }
 
     override fun upgradableType(): String {
         return "ProxyCounter";
-    }
-
-    get fun id(): Int {
-        return self.id;
     }
 }
