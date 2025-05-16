@@ -1,4 +1,3 @@
-import "@stdlib/ownable";
 import "./proxy_counter";
 
 /// UpgradableProxyChild is a trait that defines the interface for a child
