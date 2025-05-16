@@ -176,8 +176,6 @@ describe('ProxyUpgradeableCounter', () => {
             success: true,
         });
 
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-
         const typeAndVersion = await proxyCounter.getTypeAndVersion();
         expect(typeAndVersion).toBe("ProxyCounter v2.0.0");
     }, 100000);
