@@ -1,0 +1,114 @@
+{
+  "target": {
+    "genesis": {
+      "cache-from": [
+        "type=local,src=tmp/docker-cache",
+        "type=gha,ref=ghcr.io/smartcontractkit/chainlink-ton/mylocalton-docker/genesis"
+      ],
+      "cache-to": [
+        "type=local,dest=tmp/docker-cache,mode=max",
+        "type=gha,mode=max,ref=ghcr.io/smartcontractkit/chainlink-ton/mylocalton-docker/genesis"
+      ],
+      "output": ["type=docker"]
+    },
+    "blockchain-explorer": {
+      "cache-from": [
+        "type=local,src=tmp/docker-cache",
+        "type=gha,ref=ghcr.io/smartcontractkit/chainlink-ton/mylocalton-docker/blockchain-explorer"
+      ],
+      "cache-to": [
+        "type=local,dest=tmp/docker-cache,mode=max",
+        "type=gha,mode=max,ref=ghcr.io/smartcontractkit/chainlink-ton/mylocalton-docker/blockchain-explorer"
+      ],
+      "output": ["type=docker"]
+    },
+    "tonhttpapi": {
+      "cache-from": [
+        "type=local,src=tmp/docker-cache",
+        "type=gha,ref=ghcr.io/smartcontractkit/chainlink-ton/mylocalton-docker/tonhttpapi"
+      ],
+      "cache-to": [
+        "type=local,dest=tmp/docker-cache,mode=max",
+        "type=gha,mode=max,ref=ghcr.io/smartcontractkit/chainlink-ton/mylocalton-docker/tonhttpapi"
+      ],
+      "output": ["type=docker"]
+    },
+    "faucet": {
+      "cache-from": [
+        "type=local,src=tmp/docker-cache",
+        "type=gha,ref=ghcr.io/smartcontractkit/chainlink-ton/mylocalton-docker/faucet"
+      ],
+      "cache-to": [
+        "type=local,dest=tmp/docker-cache,mode=max",
+        "type=gha,mode=max,ref=ghcr.io/smartcontractkit/chainlink-ton/mylocalton-docker/faucet"
+      ],
+      "output": ["type=docker"]
+    },
+    "restarter": {
+      "cache-from": [
+        "type=local,src=tmp/docker-cache",
+        "type=gha,ref=ghcr.io/smartcontractkit/chainlink-ton/mylocalton-docker/restarter"
+      ],
+      "cache-to": [
+        "type=local,dest=tmp/docker-cache,mode=max",
+        "type=gha,mode=max,ref=ghcr.io/smartcontractkit/chainlink-ton/mylocalton-docker/restarter"
+      ],
+      "output": ["type=docker"]
+    },
+    "event-cache": {
+      "cache-from": [
+        "type=local,src=tmp/docker-cache",
+        "type=gha,ref=ghcr.io/smartcontractkit/chainlink-ton/mylocalton-docker/event-cache"
+      ],
+      "cache-to": [
+        "type=local,dest=tmp/docker-cache,mode=max",
+        "type=gha,mode=max,ref=ghcr.io/smartcontractkit/chainlink-ton/mylocalton-docker/event-cache"
+      ],
+      "output": ["type=docker"]
+    },
+    "index-postgres": {
+      "cache-from": [
+        "type=local,src=tmp/docker-cache",
+        "type=gha,ref=ghcr.io/smartcontractkit/chainlink-ton/mylocalton-docker/index-postgres"
+      ],
+      "cache-to": [
+        "type=local,dest=tmp/docker-cache,mode=max",
+        "type=gha,mode=max,ref=ghcr.io/smartcontractkit/chainlink-ton/mylocalton-docker/index-postgres"
+      ],
+      "output": ["type=docker"]
+    },
+    "event-classifier": {
+      "cache-from": [
+        "type=local,src=tmp/docker-cache",
+        "type=gha,ref=ghcr.io/smartcontractkit/chainlink-ton/mylocalton-docker/event-classifier"
+      ],
+      "cache-to": [
+        "type=local,dest=tmp/docker-cache,mode=max",
+        "type=gha,mode=max,ref=ghcr.io/smartcontractkit/chainlink-ton/mylocalton-docker/event-classifier"
+      ],
+      "output": ["type=docker"]
+    },
+    "index-api": {
+      "cache-from": [
+        "type=local,src=tmp/docker-cache",
+        "type=gha,ref=ghcr.io/smartcontractkit/chainlink-ton/mylocalton-docker/index-api"
+      ],
+      "cache-to": [
+        "type=local,dest=tmp/docker-cache,mode=max",
+        "type=gha,mode=max,ref=ghcr.io/smartcontractkit/chainlink-ton/mylocalton-docker/index-api"
+      ],
+      "output": ["type=docker"]
+    },
+    "index-worker": {
+      "cache-from": [
+        "type=local,src=tmp/docker-cache",
+        "type=gha,ref=ghcr.io/smartcontractkit/chainlink-ton/mylocalton-docker/index-worker"
+      ],
+      "cache-to": [
+        "type=local,dest=tmp/docker-cache,mode=max",
+        "type=gha,mode=max,ref=ghcr.io/smartcontractkit/chainlink-ton/mylocalton-docker/index-worker"
+      ],
+      "output": ["type=docker"]
+    }
+  }
+}

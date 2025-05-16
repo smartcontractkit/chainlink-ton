@@ -33,37 +33,34 @@ runs:
         mkdir -p ${{ inputs.cache-dir }}
         curl -fsSL "${{ inputs.compose-url }}" -o ${{ inputs.cache-dir }}/docker-compose.yml
 
-    - name: Retrieve cached Docker images
-      id: cache-docker
-      if: inputs.force-refresh != 'true'
-      uses: actions/cache@v4
+    # todo: cache with GHCR
+    - name: Authenticate to GHCR
+      uses: docker/login-action@v2
       with:
-        path: ${{ inputs.cache-dir }}/docker-images.tar
-        key: mylocalton-images-${{ hashFiles('${{ inputs.cache-dir }}/docker-compose.yml') }}
-        restore-keys: mylocalton-images-
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Load cached Docker images
-      if: inputs.force-refresh != 'true' && steps.cache-docker.outputs.cache-hit == 'true'
-      shell: bash
-      run: docker load -i ${{ inputs.cache-dir }}/docker-images.tar
-
-    - name: Pull Docker images
-      if: inputs.force-refresh == 'true' || steps.cache-docker.outputs.cache-hit != 'true'
-      shell: bash
-      run: |
-        for img in ${{ inputs.images }}; do
-          docker pull $img
-        done
-
-    - name: Save Docker images to cache
-      if: inputs.force-refresh == 'true' || steps.cache-docker.outputs.cache-hit != 'true'
-      shell: bash
-      run: |
-        docker save $(echo "${{ inputs.images }}" | tr ' ' ' ') -o ${{ inputs.cache-dir }}/docker-images.tar
-
-    - name: Update cache with refreshed images
-      if: inputs.force-refresh == 'true'
-      uses: actions/cache@v4
+    - name: Restore Docker build cache
+      id: docker-cache-restore
+      uses: actions/cache/restore@v4
       with:
-        path: ${{ inputs.cache-dir }}/docker-images.tar
-        key: mylocalton-images-${{ hashFiles('${{ inputs.cache-dir }}/docker-compose.yml') }}
+        path: ${{ inputs.docker-cache-dir }}
+        key: docker-build-cache-${{ hashFiles('${{ inputs.cache-dir }}/docker-compose.yml') }}
+        restore-keys: docker-build-cache-
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+
+    - name: Build services with caching
+      uses: docker/bake-action@v3
+      with:
+        files: ${{ inputs.cache-dir }}/docker-compose.yml,${{ inputs.cache-config }}
+        # todo: confiurable input fields
+        targets: genesis,tonhttpapi,event-cache,index-postgres,index-api,index-worker
+
+    - name: Save Docker build cache
+      uses: actions/cache/save@v4
+      with:
+        path: ${{ inputs.docker-cache-dir }}
+        key: docker-build-cache-${{ hashFiles('${{ inputs.cache-dir }}/docker-compose.yml') }}
