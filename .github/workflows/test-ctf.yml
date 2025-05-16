@@ -10,12 +10,51 @@ jobs:
   ctf-test:
     name: Build & Integration Tests
     runs-on: ubuntu-latest
+    env:
+      CACHE_DIR: integration-tests/.cache/images
+      DOCKER_CACHE_DIR: tmp/docker-cache
+      COMPOSE_URL: https://raw.githubusercontent.com/neodix42/mylocalton-docker/main/docker-compose.yaml
+      CACHE_CONFIG: .github/cache-config.json
+    
     steps:
       - name: Check out code
         uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
 
-      - name: Setup MyLocalTon images
-        uses: ./.github/actions/mylocalton-images
+      - name: Prepare cache directory and compose file
+        run: |
+          mkdir -p ${{ env.CACHE_DIR }}
+          mkdir -p ${{ env.DOCKER_CACHE_DIR }}
+          curl -fsSL "${{ env.COMPOSE_URL }}" -o ${{ env.CACHE_DIR }}/docker-compose.yml
+  
+      - name: Authenticate to GHCR
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+  
+      - name: Restore Docker build cache
+        id: docker-cache-restore
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ env.DOCKER_CACHE_DIR }}
+          key: docker-build-cache-${{ hashFiles('${{ env.CACHE_DIR }}/docker-compose.yml') }}
+          restore-keys: docker-build-cache-
+  
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+  
+      - name: Build services with caching
+        uses: docker/bake-action@v3
+        with:
+          files: ${{ env.CACHE_DIR }}/docker-compose.yml,${{ env.CACHE_CONFIG }}
+          targets: genesis,tonhttpapi,event-cache,index-postgres,index-api,index-worker
+  
+      - name: Save Docker build cache
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ env.DOCKER_CACHE_DIR }}
+          key: docker-build-cache-${{ hashFiles('${{ env.CACHE_DIR }}/docker-compose.yml') }}
 
       - name: Install Nix
         uses: cachix/install-nix-action@02a151ada4993995686f9ed4f1be7cfbb229e56f # v31
