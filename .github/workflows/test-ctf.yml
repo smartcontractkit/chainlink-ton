@@ -17,13 +17,12 @@ jobs:
       - name: Setup MyLocalTon images
         uses: ./.github/actions/mylocalton-images
 
-      - name: Setup Go
-        uses: smartcontractkit/.github/actions/setup-golang@setup-golang/v1
+      - name: Install Nix
+        uses: cachix/install-nix-action@02a151ada4993995686f9ed4f1be7cfbb229e56f # v31
         with:
-          go-version-file: integration-tests/go.mod
-          use-go-cache: true
+          nix_path: nixpkgs=channel:nixos-unstable
 
       - name: Run tests
         run: |
           pushd integration-tests/examples
-          CTF_CONFIGS=smoke_ton.toml go test -v -run TestTonSmoke
+          nix develop -c env CTF_CONFIGS=smoke_ton.toml go test -v -run TestTonSmoke
