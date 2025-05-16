@@ -1,32 +1,24 @@
 import "@stdlib/ownable";
 import "../../lib/upgradable_simple";
 import "../responder";
-
-message(1) Step {
-    queryId: Int as uint64;
-}
+import "../counter_trait";
 
 /// This is a counter that implements UpgradableSimple trait.
 /// It is able to be upgraded in place as long as the memory layout is the same.
-trait UpgradableSimpleCounter with UpgradableSimple, Ownable, Responder {
-    id: Int as uint32;
+trait UpgradableSimpleCounter with Ownable, Responder, UpgradableSimple, ICounter {
+    /// from Ownable
     owner: Address;
-    _version: Int as uint32;
+
+    /// New attributes
+
+    id: Int as uint32;
     counter: Int as uint32;
 
-    // Empty receiver for the deployment,
-    // which expects the `null` message body
-    receive() {
-        cashback(sender());
-    }
-
-    receive(msg: Step) {
+    override fun handle_step(queryId: Int) {
         self.step();
-
-        cashback(sender());
     }
 
-    // Update counter
+    /// Update counter
     abstract fun step();
 
     override fun respond(msg: Request, sender: Address) {
@@ -42,6 +34,18 @@ trait UpgradableSimpleCounter with UpgradableSimple, Ownable, Responder {
             bounce: true,
         });
     }
+
+    override fun upgradableType(): String {
+        return "UpgradableSimpleCounter";
+    }
+
+    // Version must be a semantic version string (e.g. "1.0.0"). Don't use "v" prefix; it will be added automatically.
+    override fun upgradableVersion(): String {
+        return self.upgradableSimpleCounterVersion();
+    }
+
+    // Version must be a semantic version string (e.g. "1.0.0"). Don't use "v" prefix; it will be added automatically.
+    abstract fun upgradableSimpleCounterVersion(): String;
 
     get fun counter(): Int {
         return self.counter;

@@ -24,7 +24,7 @@ async function setUpTest(i: bigint): Promise<{
   blockchain.verbosity = {
     print: true,
     blockchainLogs: false,
-    vmLogs: 'vm_logs',
+    vmLogs: 'none',
     debugLogs: true,
   }
 
@@ -83,8 +83,8 @@ describe('AdvancedUpgradableCounter', () => {
 
   it('should deploy on version 1', async () => {
     let { upgradableCounter } = await setUpTest(0n)
-    const version = await upgradableCounter.getVersion()
-    expect(version).toBe(1n)
+    const typeAndVersion = await upgradableCounter.getTypeAndVersion()
+    expect(typeAndVersion).toBe('UpgradableCounter v1.0.0')
   }, 100000)
 
   it('should have initial value', async () => {
@@ -127,7 +127,6 @@ describe('AdvancedUpgradableCounter', () => {
     let header: HeaderUpgradable = {
       $$type: 'HeaderUpgradable',
       owner: owner.address,
-      _version: 2n,
     }
     let initParams: InitParams = {
       $$type: 'InitParams',
@@ -155,8 +154,8 @@ describe('AdvancedUpgradableCounter', () => {
       success: true,
     })
 
-    const sameVersion = await upgradableCounter.getVersion()
-    expect(sameVersion).toBe(1n)
+    const typeAndVersion1 = await upgradableCounter.getTypeAndVersion()
+    expect(typeAndVersion1).toBe('UpgradableCounter v1.0.0')
 
     let CommitUpgradeResult = await upgradableCounter.send(
       owner.getSender(),
@@ -173,8 +172,8 @@ describe('AdvancedUpgradableCounter', () => {
       success: true,
     })
 
-    const version = await upgradableCounter.getVersion()
-    expect(version).toBe(2n)
+    const typeAndVersion2 = await upgradableCounter.getTypeAndVersion()
+    expect(typeAndVersion2).toBe('UpgradableCounter v2.0.0')
   }, 100000)
 
   it('uncommited version 2 should increase counter', async () => {
@@ -294,7 +293,6 @@ async function createSubCounterInit(owner: SandboxContract<TreasuryContract>): P
   let header: HeaderUpgradable = {
     $$type: 'HeaderUpgradable',
     owner: owner.address,
-    _version: 0n,
   }
   let initParams: InitParams = {
     $$type: 'InitParams',

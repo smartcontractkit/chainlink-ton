@@ -13,7 +13,6 @@ contract UpgradableProxyChildCounterSub with UpgradableProxyChildCounter {
 
     /// Upgradable
     /// New version
-    _version: Int as uint32;
     upgradeToCommit: Upgrade?;
 
     /// Counter
@@ -24,10 +23,18 @@ contract UpgradableProxyChildCounterSub with UpgradableProxyChildCounter {
         initParams: InitParams,
     ) {
         self.owner = initParams.header.owner;
-        self._version = initParams.header._version;
         let stateV1 = SateV1.fromCell(initParams.stateToBeMigrated);
         self.id = stateV1.id;
         self.counter = stateV1.counter;
+        message(MessageParameters {
+            mode: SendPayGasSeparately,
+            body: UpdateCounterVersion {
+                version: "2.0.0",
+            }.toCell(),
+            value: 1,
+            to: initParams.header.owner,
+            bounce: true,
+        });
     }
 
     override fun step(queryId: Int) {

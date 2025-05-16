@@ -1,32 +1,20 @@
 import "../../lib/upgradable";
 import "../responder";
+import "../counter_trait";
 
-message(1) Step {
-    queryId: Int as uint64;
-}
-
-trait UpgradableCounter with Upgradable, Responder {
+trait UpgradableCounter with Upgradable, Responder, ICounter {
     /// Ownable
     owner: Address;
 
     /// Upgradable
     /// New version
-    _version: Int as uint32;
     upgradeToCommit: Upgrade?;
 
-    // Empty receiver for the deployment,
-    // which expects the `null` message body
-    receive() {
-        cashback(sender());
-    }
-
-    receive(msg: Step) {
+    override fun handle_step(queryId: Int) {
         self.step();
-
-        cashback(sender());
     }
 
-    // Update counter
+    /// Update counter
     abstract fun step();
 
     override fun respond(msg: Request, sender: Address) {
@@ -50,4 +38,16 @@ trait UpgradableCounter with Upgradable, Responder {
     }
 
     abstract fun getStateInternal(): Cell;
+
+    override fun upgradableType(): String {
+        return "UpgradableCounter";
+    }
+
+    // Version must be a semantic version string (e.g. "1.0.0"). Don't use "v" prefix; it will be added automatically.
+    override fun upgradableVersion(): String {
+        return self.upgradableCounterVersion();
+    }
+
+    // Version must be a semantic version string (e.g. "1.0.0"). Don't use "v" prefix; it will be added automatically.
+    abstract fun upgradableCounterVersion(): String;
 }

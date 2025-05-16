@@ -11,7 +11,6 @@ contract UpgradableCounterAdd with UpgradableCounter {
 
     /// UpgradableBG
     /// New version
-    _version: Int as uint32;
     upgradeToCommit: Upgrade?;
 
     // Counter
@@ -27,7 +26,6 @@ contract UpgradableCounterAdd with UpgradableCounter {
             id: id,
             counter: counter,
         };
-        self._version = 1;
         self.upgradeToCommit = null;
     }
 
@@ -41,5 +39,9 @@ contract UpgradableCounterAdd with UpgradableCounter {
 
     override fun counter(): Int {
         return self.state.counter;
+    }
+
+    override fun upgradableCounterVersion(): String {
+        return "1.0.0";
     }
 }

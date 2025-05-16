@@ -1,4 +1,5 @@
 import "@stdlib/ownable";
+import "./type_and_version";
 
 /// Message for upgrading contract code and data.
 message(10) Upgrade {
@@ -6,21 +7,15 @@ message(10) Upgrade {
 }
 
 /// Implements a basic upgrade mechanism with owner validation.
-trait UpgradableSimple with Ownable {
+trait UpgradableSimple with Ownable, TypeAndVersion {
     /// Contract owner address that can perform upgrades.
     owner: Address;
-
-    /// Current contract version, auto-increments after each upgrade.
-    /// Meant to be private and only accessible through the relevant getter.
-    _version: Int as uint32;
 
     /// Checks the sender, performs an upgrade, and increments the version.
     receive(msg: Upgrade) {
         let ctx = context();
         self.requireValidateUpgrade(ctx, msg);
         self.upgrade(ctx, msg);
-
-        self._version += 1;
     }
 
     inline fun requireValidateUpgrade(_: Context, __: Upgrade) {
@@ -36,10 +31,21 @@ trait UpgradableSimple with Ownable {
         return true;
     }
 
-    /// A getter returning the current version of the contract.
-    get fun version(): Int {
-        return self._version;
+    // Version must be a semantic version string (e.g. "1.0.0"). Don't use "v" prefix; it will be added automatically.
+    override fun version(): String {
+        return self.upgradableVersion();
     }
+
+    // Version must be a semantic version string (e.g. "1.0.0"). Don't use "v" prefix; it will be added automatically.
+    abstract fun upgradableVersion(): String;
+
+    // Type must be a TitleCase string that is uinique to the contract and should not change betwen versions.
+    override fun type(): String {
+        return self.upgradableType();
+    }
+
+    // Type must be a TitleCase string that is uinique to the contract and should not change betwen versions.
+    abstract fun upgradableType(): String;
 }
 
 /// Change of code will be applied by the end of the current transaction.

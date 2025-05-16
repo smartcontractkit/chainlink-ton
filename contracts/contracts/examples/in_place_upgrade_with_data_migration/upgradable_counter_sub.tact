@@ -13,7 +13,6 @@ contract UpgradableCounterSub with UpgradableCounter {
 
     /// UpgradableBG
     /// New version
-    _version: Int as uint32;
     upgradeToCommit: Upgrade?;
 
     // Counter
@@ -23,7 +22,6 @@ contract UpgradableCounterSub with UpgradableCounter {
         initParams: InitParams,
     ) {
         self.owner = initParams.header.owner;
-        self._version = initParams.header._version + 1;
         self.upgradeToCommit = null;
         let stateV1 = StateV1.fromCell(initParams.stateToBeMigrated);
         self.state = StateV2 {
@@ -43,5 +41,9 @@ contract UpgradableCounterSub with UpgradableCounter {
 
     override fun counter(): Int {
         return self.state.counter;
+    }
+
+    override fun upgradableCounterVersion(): String {
+        return "2.0.0";
     }
 }

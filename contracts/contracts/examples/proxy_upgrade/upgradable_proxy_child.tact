@@ -1,8 +1,6 @@
 import "@stdlib/ownable";
 import "./proxy_counter";
 
-message(40) GetState {}
-
 trait UpgradableProxyChild with Ownable {
     owner: Address;
 

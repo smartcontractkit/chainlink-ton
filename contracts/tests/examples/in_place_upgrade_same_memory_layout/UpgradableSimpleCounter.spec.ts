@@ -10,7 +10,7 @@ async function setUpTest(i: bigint): Promise<{
   blockchain: Blockchain
   deployer: SandboxContract<TreasuryContract>
   owner: SandboxContract<TreasuryContract>
-  upgradableCounter: SandboxContract<UpgradableSimpleCounterAdd>
+  upgradableSimpleCounter: SandboxContract<UpgradableSimpleCounterAdd>
   getter: SandboxContract<Getter>
 }> {
   // Verbosity = 'none' | 'vm_logs' | 'vm_logs_location' | 'vm_logs_gas' | 'vm_logs_full' | 'vm_logs_verbose';
@@ -25,11 +25,11 @@ async function setUpTest(i: bigint): Promise<{
   let deployer = await blockchain.treasury('deployer')
   let owner = await blockchain.treasury('owner')
 
-  let upgradableCounter = blockchain.openContract(
-    await UpgradableSimpleCounterAdd.fromInit(0n, owner.address, 1n, i),
+  let upgradableSimpleCounter = blockchain.openContract(
+    await UpgradableSimpleCounterAdd.fromInit(0n, owner.address, i),
   )
 
-  const counterDeployResult = await upgradableCounter.send(
+  const counterDeployResult = await upgradableSimpleCounter.send(
     deployer.getSender(),
     {
       value: toNano('0.05'),
@@ -39,7 +39,7 @@ async function setUpTest(i: bigint): Promise<{
 
   expect(counterDeployResult.transactions).toHaveTransaction({
     from: deployer.address,
-    to: upgradableCounter.address,
+    to: upgradableSimpleCounter.address,
     deploy: true,
     success: true,
   })
@@ -65,7 +65,7 @@ async function setUpTest(i: bigint): Promise<{
     blockchain,
     deployer,
     owner,
-    upgradableCounter,
+    upgradableSimpleCounter,
     getter,
   }
 }
@@ -76,26 +76,26 @@ describe('UpgradableSimpleCounter', () => {
   })
 
   it('should deploy on version 1', async () => {
-    let { upgradableCounter } = await setUpTest(0n)
-    const version = await upgradableCounter.getVersion()
-    expect(version).toBe(1n)
+    let { upgradableSimpleCounter } = await setUpTest(0n)
+    const typeAndVersion = await upgradableSimpleCounter.getTypeAndVersion()
+    expect(typeAndVersion).toBe('UpgradableSimpleCounter v1.0.0')
   }, 100000)
 
   it('should have initial value', async () => {
-    let { blockchain, upgradableCounter, getter } = await setUpTest(0n)
+    let { blockchain, upgradableSimpleCounter, getter } = await setUpTest(0n)
     const user = await blockchain.treasury('user')
-    await assertCount(upgradableCounter, getter, user.getSender(), 0n)
+    await assertCount(upgradableSimpleCounter, getter, user.getSender(), 0n)
   }, 100000)
 
   it('version 1 should increase counter', async () => {
-    let { blockchain, upgradableCounter, owner, getter } = await setUpTest(0n)
+    let { blockchain, upgradableSimpleCounter, owner, getter } = await setUpTest(0n)
     const increaseTimes = 3
     for (let i = 0; i < increaseTimes; i++) {
       const increaser = await blockchain.treasury('increaser' + i)
-      const counterBefore = await upgradableCounter.getCounter()
+      const counterBefore = await upgradableSimpleCounter.getCounter()
       const increaseBy = BigInt(1)
 
-      let increaseResult = await upgradableCounter.send(
+      let increaseResult = await upgradableSimpleCounter.send(
         increaser.getSender(),
         {
           value: toNano('0.05'),
@@ -108,22 +108,27 @@ describe('UpgradableSimpleCounter', () => {
 
       expect(increaseResult.transactions).toHaveTransaction({
         from: increaser.address,
-        to: upgradableCounter.address,
+        to: upgradableSimpleCounter.address,
         success: true,
       })
 
-      await assertCount(upgradableCounter, getter, owner.getSender(), counterBefore + increaseBy)
+      await assertCount(
+        upgradableSimpleCounter,
+        getter,
+        owner.getSender(),
+        counterBefore + increaseBy,
+      )
     }
   }, 100000)
 
   it('should be upgraded to version 2', async () => {
-    let { owner, upgradableCounter, getter } = await setUpTest(0n)
-    let substractorCounter = await UpgradableSimpleCounterSub.fromInit(0n, owner.address, 0n, 0n)
+    let { owner, upgradableSimpleCounter, getter } = await setUpTest(0n)
+    let substractorCounter = await UpgradableSimpleCounterSub.fromInit(0n, owner.address, 0n)
     if (substractorCounter.init == null) {
       throw new Error('init is null')
     }
     let substractorCounterCode = substractorCounter.init.code
-    let upgradeResult = await upgradableCounter.send(
+    let upgradeResult = await upgradableSimpleCounter.send(
       owner.getSender(),
       {
         value: toNano('0.05'),
@@ -135,24 +140,24 @@ describe('UpgradableSimpleCounter', () => {
     )
     expect(upgradeResult.transactions).toHaveTransaction({
       from: owner.address,
-      to: upgradableCounter.address,
+      to: upgradableSimpleCounter.address,
       success: true,
     })
 
-    const version = await upgradableCounter.getVersion()
-    expect(version).toBe(2n)
+    const typeAndVersion = await upgradableSimpleCounter.getTypeAndVersion()
+    expect(typeAndVersion).toBe('UpgradableSimpleCounter v2.0.0')
   }, 100000)
 
   it('upgrade should conserve the internal state', async () => {
     const initialValue = 10n
-    let { owner, upgradableCounter, getter } = await setUpTest(initialValue)
-    const initialId = await upgradableCounter.getId()
-    let substractorCounter = await UpgradableSimpleCounterSub.fromInit(0n, owner.address, 0n, 0n)
+    let { owner, upgradableSimpleCounter, getter } = await setUpTest(initialValue)
+    const initialId = await upgradableSimpleCounter.getId()
+    let substractorCounter = await UpgradableSimpleCounterSub.fromInit(0n, owner.address, 0n)
     if (substractorCounter.init == null) {
       throw new Error('init is null')
     }
     let substractorCounterCode = substractorCounter.init.code
-    let upgradeResult = await upgradableCounter.send(
+    let upgradeResult = await upgradableSimpleCounter.send(
       owner.getSender(),
       {
         value: toNano('0.05'),
@@ -164,23 +169,23 @@ describe('UpgradableSimpleCounter', () => {
     )
     expect(upgradeResult.transactions).toHaveTransaction({
       from: owner.address,
-      to: upgradableCounter.address,
+      to: upgradableSimpleCounter.address,
       success: true,
     })
 
-    await assertCount(upgradableCounter, getter, owner.getSender(), initialValue)
-    const newId = await upgradableCounter.getId()
+    await assertCount(upgradableSimpleCounter, getter, owner.getSender(), initialValue)
+    const newId = await upgradableSimpleCounter.getId()
     expect(newId).toBe(initialId)
   }, 100000)
 
   it('version 2 should decrease de counter', async () => {
-    let { blockchain, owner, upgradableCounter, getter } = await setUpTest(3n)
-    let substractorCounter = await UpgradableSimpleCounterSub.fromInit(0n, owner.address, 0n, 0n)
+    let { blockchain, owner, upgradableSimpleCounter, getter } = await setUpTest(3n)
+    let substractorCounter = await UpgradableSimpleCounterSub.fromInit(0n, owner.address, 0n)
     if (substractorCounter.init == null) {
       throw new Error('init is null')
     }
     let substractorCounterCode = substractorCounter.init.code
-    let upgradeResult = await upgradableCounter.send(
+    let upgradeResult = await upgradableSimpleCounter.send(
       owner.getSender(),
       {
         value: toNano('0.05'),
@@ -192,7 +197,7 @@ describe('UpgradableSimpleCounter', () => {
     )
     expect(upgradeResult.transactions).toHaveTransaction({
       from: owner.address,
-      to: upgradableCounter.address,
+      to: upgradableSimpleCounter.address,
       success: true,
     })
 
@@ -200,10 +205,10 @@ describe('UpgradableSimpleCounter', () => {
     for (let i = 0; i < decreaseTimes; i++) {
       const decreaser = await blockchain.treasury('decreaser' + i)
 
-      const counterBefore = await upgradableCounter.getCounter()
+      const counterBefore = await upgradableSimpleCounter.getCounter()
       const decreaseBy = BigInt(1)
 
-      let decreaseResult = await upgradableCounter.send(
+      let decreaseResult = await upgradableSimpleCounter.send(
         decreaser.getSender(),
         {
           value: toNano('0.05'),
@@ -216,22 +221,27 @@ describe('UpgradableSimpleCounter', () => {
 
       expect(decreaseResult.transactions).toHaveTransaction({
         from: decreaser.address,
-        to: upgradableCounter.address,
+        to: upgradableSimpleCounter.address,
         success: true,
       })
 
-      await assertCount(upgradableCounter, getter, owner.getSender(), counterBefore - decreaseBy)
+      await assertCount(
+        upgradableSimpleCounter,
+        getter,
+        owner.getSender(),
+        counterBefore - decreaseBy,
+      )
     }
   }, 100000)
 })
 
 async function assertCount(
-  upgradableCounter: SandboxContract<UpgradableSimpleCounterAdd>,
+  upgradableSimpleCounter: SandboxContract<UpgradableSimpleCounterAdd>,
   getter: SandboxContract<Getter>,
   sender: Treasury,
   expectedCount: bigint,
 ) {
-  const counter = await upgradableCounter.getCounter()
+  const counter = await upgradableSimpleCounter.getCounter()
   expect(counter).toBe(expectedCount)
   const getterDeployResult = await getter.send(
     sender,
@@ -242,7 +252,7 @@ async function assertCount(
       $$type: 'Get',
       queryId: BigInt(Math.floor(Math.random() * 10000)),
       opcode: 0n,
-      Address: upgradableCounter.address,
+      Address: upgradableSimpleCounter.address,
     },
   )
 

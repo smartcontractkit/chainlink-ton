@@ -8,7 +8,6 @@ struct SateV1 {
 contract UpgradableProxyChildCounterAdd with UpgradableProxyChildCounter {
     /// Ownable
     owner: Address;
-    _version: Int as uint32;
 
     id: Int as uint32;
     counter: Int as uint32;
@@ -16,12 +15,10 @@ contract UpgradableProxyChildCounterAdd with UpgradableProxyChildCounter {
     init(
         id: Int,
         owner: Address,
-        _version: Int,
         counter: Int,
     ) {
         self.id = id;
         self.owner = owner;
-        self._version = _version;
         self.counter = counter;
     }
 

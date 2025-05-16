@@ -1,18 +1,21 @@
 import "../../lib/upgradable";
 import "../getter";
 import "../responder";
-import "./counter_trait";
-import "./upgradable_proxy_child";
+import "../counter_trait";
 
 struct ReturnAddress {
     address: Address;
     callbackOpcode: Int as uint32;
 }
 
-message(30) UpdateCounterAddress {
-    address: Address;
+message(30) UpdateCounterVersion {
+    version: String;
 }
 
+/// This is sent to the proxy child to request the state to be migrated.
+message(40) GetState {}
+
+/// This is the response to the GetState message.
 message(31) RequestedState {
     stateToBeMigrated: Cell;
 }
@@ -22,8 +25,6 @@ contract ProxyCounter with Responder, ICounter, Upgradable {
     owner: Address;
 
     /// Upgradable
-    /// New version
-    _version: Int as uint32;
     upgradeToCommit: Upgrade?;
 
     /// ProxyCounter
@@ -31,6 +32,7 @@ contract ProxyCounter with Responder, ICounter, Upgradable {
     id: Int as uint32;
     counterAddress: Address;
     requests: map<Int as uint32, ReturnAddress>;
+    version: String;
 
     init(
         id: Int,
@@ -40,8 +42,8 @@ contract ProxyCounter with Responder, ICounter, Upgradable {
         self.id = id;
         self.owner = owner;
         self.counterAddress = counterAddress;
-        self._version = 1;
         self.requests = emptyMap();
+        self.version = "1.0.0";
     }
 
     override fun handle_step(queryId: Int) {
@@ -124,11 +126,24 @@ contract ProxyCounter with Responder, ICounter, Upgradable {
         });
 
         self.counterAddress = contractAddress(counterStateInit);
-        self._version += 1;
     }
 
     override fun getState(): Cell {
         throw(500); // Unreachable
+    }
+
+    receive(msg: UpdateCounterVersion) {
+        dump("UpdateCounterVersion");
+        dump(msg.version);
+        self.version = msg.version;
+    }
+
+    override fun upgradableVersion(): String {
+        return self.version;
+    }
+
+    override fun upgradableType(): String {
+        return "ProxyCounter";
     }
 
     get fun id(): Int {

@@ -1,6 +1,5 @@
-import "@stdlib/ownable";
 import "../responder";
-import "./counter_trait";
+import "../counter_trait";
 import "./upgradable_proxy_child";
 
 trait UpgradableProxyChildCounter with Responder, ICounter, UpgradableProxyChild {

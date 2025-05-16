@@ -1,4 +1,5 @@
 import "@stdlib/ownable";
+import "./type_and_version";
 
 /// Message for upgrading contract code and data.
 message(10) Upgrade {
@@ -14,7 +15,6 @@ message(12) RollbackUpgrade {}
 /// It is used to migrate the state from the old version to the new one.
 struct HeaderUpgradable {
     owner: Address; /// Owner of the contract.
-    _version: Int as uint32; /// Previous version.
 }
 
 /// Data for the init function of the new version.
@@ -30,13 +30,12 @@ struct InitParams {
 }
 
 /// Implements a two step upgrade mechanism with data migration.
-trait Upgradable with Ownable {
+trait Upgradable with Ownable, TypeAndVersion {
     /// Ownable
     owner: Address;
 
     /// Upgradable
     /// New version
-    _version: Int as uint32;
     upgradeToCommit: Upgrade?;
 
     virtual inline fun requireValidateUpgrade(_: Context, __: Upgrade) {
@@ -67,7 +66,6 @@ trait Upgradable with Ownable {
     fun getNextHeader(): HeaderUpgradable {
         return HeaderUpgradable {
             owner: self.owner,
-            _version: self._version,
         };
     }
 
@@ -99,10 +97,21 @@ trait Upgradable with Ownable {
         return true;
     }
 
-    /// A getter returning the current version of the contract.
-    get fun version(): Int {
-        return self._version;
+    // Version must be a semantic version string (e.g. "1.0.0"). Don't use "v" prefix; it will be added automatically.
+    override fun version(): String {
+        return self.upgradableVersion();
     }
+
+    // Version must be a semantic version string (e.g. "1.0.0"). Don't use "v" prefix; it will be added automatically.
+    abstract fun upgradableVersion(): String;
+
+    // Type must be a TitleCase string that is uinique to the contract and should not change betwen versions.
+    override fun type(): String {
+        return self.upgradableType();
+    }
+
+    // Type must be a TitleCase string that is uinique to the contract and should not change betwen versions.
+    abstract fun upgradableType(): String;
 }
 
 /// Change of code will be applied by the end of the current transaction.
