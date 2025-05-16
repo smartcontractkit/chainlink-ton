@@ -1,3 +1,5 @@
+import "../lib/type_and_version";
+
 /**
  * @title Counter contract (Tact example)
  */
@@ -14,7 +16,7 @@ message(4) SetCount {
 }
 
 // --- Contract Definition ---
-contract Counter {
+contract Counter with TypeAndVersion {
     // --- State Variables ---
     // Declared as contract fields. Persistence is handled automatically by Tact.
     // Types and sizes (`as uint32`) match the FunC storage layout.
@@ -59,5 +61,16 @@ contract Counter {
 
     get fun id(): Int {
         return self.id;
+    }
+    // --- TypeAndVersion Functions ---
+
+    // Type must be a TitleCase string that is uinique to the contract and should not change betwen versions.
+    override fun type(): String {
+        return "Counter";
+    }
+
+    // Version must be a semantic version string (e.g. "1.0.0"). Don't use "v" prefix; it will be added automatically.
+    override fun version(): String {
+        return "1.0.0";
     }
 }
