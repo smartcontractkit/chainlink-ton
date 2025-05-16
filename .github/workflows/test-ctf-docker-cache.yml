@@ -1,0 +1,38 @@
+name: TON - CTF Testing - ScribeMD/docker-cache
+
+on:
+  push:
+    branches:
+      - feature/CTF-GHA-cache
+  pull_request:
+
+jobs:
+  ctf-test:
+    name: Build & Integration Tests
+    runs-on: ubuntu-latest
+    env:
+      TON_IMAGES: >-
+        ghcr.io/neodix42/mylocalton-docker:latest
+        redis:latest
+        postgres:17
+        ghcr.io/neodix42/ton-http-api:latest
+        ghcr.io/neodix42/mylocalton-docker-faucet:latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
+
+      # TODO: temp, Cache Docker images using ScribeMD/docker-cache
+      - name: Cache Docker images
+        uses: ScribeMD/docker-cache@0.5.0
+        with:
+          key: docker-${{ runner.os }}-ton-images-v1
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@02a151ada4993995686f9ed4f1be7cfbb229e56f # v31
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+
+      - name: Run tests
+        run: |
+          pushd integration-tests/examples
+          nix develop -c env CTF_CONFIGS=smoke_ton.toml go test -v -run TestTonSmoke
