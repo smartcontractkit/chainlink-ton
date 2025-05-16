@@ -24,8 +24,6 @@ contract ResponderCounterSub with ResponderCounter {
             to: owner,
             bounce: true,
         });
-        dump("CounterSub init");
-        dump(owner);
     }
 
     override fun step(queryId: Int) {
