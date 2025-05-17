@@ -141,8 +141,8 @@ describe('ProxyUpgradableCounter', () => {
 
   it('should be upgraded to version 2', async () => {
     let { owner, proxyCounter, getter } = await setUpTest(0n)
-    let substractorCounterCode = await getSubstractorCode(owner)
-    await upgradeAndCommit(proxyCounter, owner, substractorCounterCode)
+    let subtractorCounterCode = await getSubtractorCode(owner)
+    await upgradeAndCommit(proxyCounter, owner, subtractorCounterCode)
 
     // TODO the version is not updated
     // const typeAndVersion = await proxyCounter.getTypeAndVersion()
@@ -153,8 +153,8 @@ describe('ProxyUpgradableCounter', () => {
     const initialValue = 10n
     let { owner, proxyCounter, getter } = await setUpTest(initialValue)
     const initialId = await proxyCounter.getId()
-    let substractorCounterCode = await getSubstractorCode(owner)
-    await upgradeAndCommit(proxyCounter, owner, substractorCounterCode)
+    let subtractorCounterCode = await getSubtractorCode(owner)
+    await upgradeAndCommit(proxyCounter, owner, subtractorCounterCode)
 
     const getterResult = await getCount(getter, owner.getSender(), proxyCounter)
     expect(getterResult).toBe(initialValue)
@@ -170,8 +170,8 @@ describe('ProxyUpgradableCounter', () => {
       },
       stateToBeMigrated: beginCell().endCell(),
     }
-    let substractorCounterCode = await getSubstractorCode(owner)
-    await upgradeAndCommit(proxyCounter, owner, substractorCounterCode)
+    let subtractorCounterCode = await getSubtractorCode(owner)
+    await upgradeAndCommit(proxyCounter, owner, subtractorCounterCode)
 
     const decreaseTimes = 3
     for (let i = 0; i < decreaseTimes; i++) {
@@ -206,7 +206,7 @@ describe('ProxyUpgradableCounter', () => {
 async function upgradeAndCommit(
   proxyCounter: SandboxContract<ProxyCounter>,
   owner: SandboxContract<TreasuryContract>,
-  substractorCounterCode,
+  subtractorCounterCode,
 ) {
   let upgradeResult = await proxyCounter.send(
     owner.getSender(),
@@ -215,7 +215,7 @@ async function upgradeAndCommit(
     },
     {
       $$type: 'Upgrade',
-      code: substractorCounterCode,
+      code: subtractorCounterCode,
     },
   )
   expect(upgradeResult.transactions).toHaveTransaction({
@@ -240,7 +240,7 @@ async function upgradeAndCommit(
   })
 }
 
-async function getSubstractorCode(owner: SandboxContract<TreasuryContract>) {
+async function getSubtractorCode(owner: SandboxContract<TreasuryContract>) {
   let initParams: InitParams = {
     $$type: 'InitParams',
     header: {
@@ -249,12 +249,12 @@ async function getSubstractorCode(owner: SandboxContract<TreasuryContract>) {
     },
     stateToBeMigrated: beginCell().endCell(),
   }
-  let substractorCounter = await UpgradableProxyChildCounterSub.fromInit(initParams)
-  if (substractorCounter.init == null) {
+  let subtractorCounter = await UpgradableProxyChildCounterSub.fromInit(initParams)
+  if (subtractorCounter.init == null) {
     throw new Error('init is null')
   }
-  let substractorCounterCode = substractorCounter.init.code
-  return substractorCounterCode
+  let subtractorCounterCode = subtractorCounter.init.code
+  return subtractorCounterCode
 }
 
 async function getCount(

@@ -10,7 +10,7 @@ struct StateV2 {
     id: Int as uint32;
 }
 
-/// This is version 2.0.0 of the UpgradableCounter contract, which substracts 1 to the counter on each step, instead of adding 1.
+/// This is version 2.0.0 of the UpgradableCounter contract, which subtracts 1 to the counter on each step, instead of adding 1.
 contract UpgradableCounterSub with UpgradableCounter {
     /// --- UpgradableCounter Attributes ---
     /// Contract owner

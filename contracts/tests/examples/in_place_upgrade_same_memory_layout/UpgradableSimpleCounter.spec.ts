@@ -123,11 +123,11 @@ describe('UpgradableSimpleCounter', () => {
 
   it('should be upgraded to version 2', async () => {
     let { owner, upgradableSimpleCounter, getter } = await setUpTest(0n)
-    let substractorCounter = await UpgradableSimpleCounterSub.fromInit(0n, owner.address, 0n)
-    if (substractorCounter.init == null) {
+    let subtractorCounter = await UpgradableSimpleCounterSub.fromInit(0n, owner.address, 0n)
+    if (subtractorCounter.init == null) {
       throw new Error('init is null')
     }
-    let substractorCounterCode = substractorCounter.init.code
+    let subtractorCounterCode = subtractorCounter.init.code
     let upgradeResult = await upgradableSimpleCounter.send(
       owner.getSender(),
       {
@@ -135,7 +135,7 @@ describe('UpgradableSimpleCounter', () => {
       },
       {
         $$type: 'Upgrade',
-        code: substractorCounterCode,
+        code: subtractorCounterCode,
       },
     )
     expect(upgradeResult.transactions).toHaveTransaction({
@@ -152,11 +152,11 @@ describe('UpgradableSimpleCounter', () => {
     const initialValue = 10n
     let { owner, upgradableSimpleCounter, getter } = await setUpTest(initialValue)
     const initialId = await upgradableSimpleCounter.getId()
-    let substractorCounter = await UpgradableSimpleCounterSub.fromInit(0n, owner.address, 0n)
-    if (substractorCounter.init == null) {
+    let subtractorCounter = await UpgradableSimpleCounterSub.fromInit(0n, owner.address, 0n)
+    if (subtractorCounter.init == null) {
       throw new Error('init is null')
     }
-    let substractorCounterCode = substractorCounter.init.code
+    let subtractorCounterCode = subtractorCounter.init.code
     let upgradeResult = await upgradableSimpleCounter.send(
       owner.getSender(),
       {
@@ -164,7 +164,7 @@ describe('UpgradableSimpleCounter', () => {
       },
       {
         $$type: 'Upgrade',
-        code: substractorCounterCode,
+        code: subtractorCounterCode,
       },
     )
     expect(upgradeResult.transactions).toHaveTransaction({
@@ -180,11 +180,11 @@ describe('UpgradableSimpleCounter', () => {
 
   it('version 2 should decrease de counter', async () => {
     let { blockchain, owner, upgradableSimpleCounter, getter } = await setUpTest(3n)
-    let substractorCounter = await UpgradableSimpleCounterSub.fromInit(0n, owner.address, 0n)
-    if (substractorCounter.init == null) {
+    let subtractorCounter = await UpgradableSimpleCounterSub.fromInit(0n, owner.address, 0n)
+    if (subtractorCounter.init == null) {
       throw new Error('init is null')
     }
-    let substractorCounterCode = substractorCounter.init.code
+    let subtractorCounterCode = subtractorCounter.init.code
     let upgradeResult = await upgradableSimpleCounter.send(
       owner.getSender(),
       {
@@ -192,7 +192,7 @@ describe('UpgradableSimpleCounter', () => {
       },
       {
         $$type: 'Upgrade',
-        code: substractorCounterCode,
+        code: subtractorCounterCode,
       },
     )
     expect(upgradeResult.transactions).toHaveTransaction({

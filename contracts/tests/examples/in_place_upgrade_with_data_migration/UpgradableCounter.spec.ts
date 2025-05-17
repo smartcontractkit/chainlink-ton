@@ -133,11 +133,11 @@ describe('AdvancedUpgradableCounter', () => {
       header: header,
       stateToBeMigrated: beginCell().endCell(),
     }
-    let substractorCounter = (await UpgradableCounterSub.fromInit(initParams)).init
-    if (substractorCounter == null) {
+    let subtractorCounter = (await UpgradableCounterSub.fromInit(initParams)).init
+    if (subtractorCounter == null) {
       throw new Error('init is null')
     }
-    let substractorCounterCode = substractorCounter.code
+    let subtractorCounterCode = subtractorCounter.code
     let upgradeResult = await upgradableCounter.send(
       owner.getSender(),
       {
@@ -145,7 +145,7 @@ describe('AdvancedUpgradableCounter', () => {
       },
       {
         $$type: 'Upgrade',
-        code: substractorCounterCode,
+        code: subtractorCounterCode,
       },
     )
     expect(upgradeResult.transactions).toHaveTransaction({
