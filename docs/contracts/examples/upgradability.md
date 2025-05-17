@@ -63,19 +63,22 @@ sequenceDiagram
     activate CounterV1
     deactivate Proxy
     activate CounterV1
-    CounterV1-->>Proxy: RequestedState message<br/>(with current state)
+    CounterV1->>Proxy: RequestedState message<br/>(with current state)
     activate Proxy
     deactivate CounterV1
     
     Note over Proxy: Create V2 init params:<br/>- owner<br/>- version<br/>- state to be migrated
     
     Note over Proxy: Update:<br/>- counterAddress → V2<br/>- version: 1 → 2
-    Proxy->>CounterV2: Deploy with migrated state
+    Proxy->>CounterV2: Deploy with state v1
     activate CounterV2
     deactivate Proxy
     Note over CounterV2: Initialize
     Note over CounterV2: Migrate from <br/> StateV1 to StateV2
+    CounterV2->>+Proxy: New version
     deactivate CounterV2
+    Note over Proxy: version 2
+    deactivate Proxy
     
 
     Note over Proxy,CounterV2: New setup:<br/>Proxy now delegates to Counter V2<br/>proxy.version = 2
