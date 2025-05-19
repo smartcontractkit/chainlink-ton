@@ -91,5 +91,19 @@ fun merkleRoot(
 }
 
 fun hashPair(a: Int, b: Int): Int {
-	return 0;
+	if a < b {
+		return hashInternalNode(a, b);
+	} else {
+		return hashInternalNode(b, a);
+	}
 } 
+
+fun hashInternalNode(left: Int, right: Int): Int {
+	let data: Cell = beginCell()
+		.storeUint(INTERNAL_DOMAIN_SEPARATOR, 256)
+		.storeUint(left, 256)
+		.storeUint(right, 256)
+		.endCell();
+	let hashedNode: Int = keccak256(data.asSlice());
+	return hashedNode;
+}

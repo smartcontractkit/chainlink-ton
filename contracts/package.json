@@ -20,7 +20,7 @@
     "fmt-typescript": "prettier --write ."
   },
   "devDependencies": {
-    "@tact-lang/compiler": "^1.6.5",
+    "@tact-lang/compiler": "^1.6.6",
     "@ton-community/func-js": "^0.9.1",
     "@ton/blueprint": "^0.29.0",
     "@ton/core": "~0",
