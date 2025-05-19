@@ -108,8 +108,17 @@ jobs:
           go get github.com/smartcontractkit/chainlink-ton@${{ steps.get_sha.outputs.sha }}
           make gomodtidy
 
+      # TODO: remove this when we are merged into chainlink-ccip
+      - name: Checkout the CCIP repo (for dump & action)
+        uses: actions/checkout@v4
+        with:
+          repository: smartcontractkit/chainlink-ccip
+          path: chainlink-ccip
+
       - name: Setup Postgres
-        uses: smartcontractkit/chainlink-ccip/.github/actions/setup-postgres@main
+        uses: ./.github/actions/setup-postgres
+        with:
+          base-path: ../chainlink-ccip
 
       - name: Download Go vendor packages
         run: |
