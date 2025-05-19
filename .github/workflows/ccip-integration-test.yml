@@ -83,6 +83,7 @@ jobs:
           path: chainlink
 
       - name: Get the correct chainlink-ton commit SHA via GitHub API
+        if: false # TODO: remove this when we are public
         id: get_sha
         run: |
           if [ "${{ github.event_name }}" == "pull_request" ]; then
@@ -93,7 +94,15 @@ jobs:
           fi
           echo "::set-output name=sha::$COMMIT_SHA"
 
+        # TODO: Remove this step when we are public
+      - name: Replace chainlink-ton dependency in chainlink
+        run: |
+          cd $GITHUB_WORKSPACE/chainlink
+          go mod edit -replace=github.com/smartcontractkit/chainlink-ton=$GITHUB_WORKSPACE
+          make gomodtidy
+
       - name: Update chainlink-ton dependency in chainlink
+        if: false # TODO: remove this when we are public
         run: |
           cd $GITHUB_WORKSPACE/chainlink
           go get github.com/smartcontractkit/chainlink-ton@${{ steps.get_sha.outputs.sha }}
