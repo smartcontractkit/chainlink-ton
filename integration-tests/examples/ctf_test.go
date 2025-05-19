@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/liteclient"
@@ -23,25 +22,7 @@ func TestTonSmoke(t *testing.T) {
 	in, err := framework.Load[CfgTon](t)
 	require.NoError(t, err)
 
-	goal := 120
-
-	// todo: remove after tests
-	// todo: genesis volume cache would help(~30s) but docker-compose file modification is needed
-	startTime := time.Now()
-	t.Logf("==============================================================")
-	t.Logf("Starting blockchain network creation with timeout goal: %ds", goal)
-
-	// todo: replace with blockchain implementation in chainlink-ton/blockchain once get the testcontainer fix from dexex
 	bc, err := blockchain.NewBlockchainNetwork(in.BlockchainA)
-
-	elapsed := time.Since(startTime)
-	t.Logf("Blockchain network creation completed in: %v (goal: %ds)", elapsed, goal)
-	t.Logf("==============================================================")
-
-	if elapsed > time.Duration(goal)*time.Second {
-		t.Logf("WARNING: Blockchain network creation exceeded timeout goal by %v", elapsed-(time.Duration(goal)*time.Second))
-	}
-
 	require.NoError(t, err)
 
 	var client ton.APIClientWrapped
