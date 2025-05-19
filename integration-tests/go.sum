@@ -161,6 +161,8 @@ github.com/smartcontractkit/chainlink-testing-framework/framework v0.7.9-0.20250
 github.com/smartcontractkit/chainlink-testing-framework/framework v0.7.9-0.20250516200534-a5b77763a9b4/go.mod h1:68f9YNuy0qMBLZ0hqCeaYvxjheaJJr+NgffmM/TKXzU=
 github.com/smartcontractkit/chainlink-testing-framework/framework v0.8.2-0.20250519101014-59b7475b7c0d h1:sSWJj9CUisCy3E1pmbQFqBdmY02vfFVw2xcEy3Ri1DM=
 github.com/smartcontractkit/chainlink-testing-framework/framework v0.8.2-0.20250519101014-59b7475b7c0d/go.mod h1:V+3LATD9ejqtrtSXw8AfXEGqhVVpe0VnS6WG0Vywk3U=
+github.com/smartcontractkit/chainlink-testing-framework/framework v0.8.2-0.20250519103207-123b72588e77 h1:Jt241VPSYfnN1/Tb8hcl4cAEzQGgaf80lx73AQcoCi4=
+github.com/smartcontractkit/chainlink-testing-framework/framework v0.8.2-0.20250519103207-123b72588e77/go.mod h1:V+3LATD9ejqtrtSXw8AfXEGqhVVpe0VnS6WG0Vywk3U=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
 github.com/stretchr/objx v0.5.2 h1:xuMeJ0Sdp5ZMRXx/aWO6RZxdr3beISkG5/G/aIRr3pY=
 github.com/stretchr/objx v0.5.2/go.mod h1:FRsXN1f5AsAjCGJKqEizvkpNtU+EGNCLh3NxZ/8L+MA=
