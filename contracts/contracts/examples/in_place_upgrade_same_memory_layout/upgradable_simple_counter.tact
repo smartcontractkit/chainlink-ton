@@ -1,11 +1,10 @@
-import "@stdlib/ownable";
 import "../../lib/upgradable_simple";
-import "../responder";
+import "../direct_responder";
 import "../counter_trait";
 
 /// This is a counter that implements UpgradableSimple trait.
 /// It is able to be upgraded in place as long as the memory layout is the same.
-trait UpgradableSimpleCounter with Responder, ICounter, UpgradableSimple {
+trait UpgradableSimpleCounter with DirectResponder, ICounter, UpgradableSimple {
     /// --- UpgradableSimple Attributes ---
     /// Contract owner address that can perform upgrades.
     owner: Address;
@@ -39,21 +38,11 @@ trait UpgradableSimpleCounter with Responder, ICounter, UpgradableSimple {
     /// Update counter
     abstract fun step();
 
-    /// --- Responder Functions ---
+    /// --- DirectResponder Functions ---
 
     /// Respond to a request, returning a value to the sender() in the callbackOpcode.
-    override fun respond(msg: Request, sender: Address) {
-        message(MessageParameters {
-            mode: SendRemainingValue,
-            body: beginCell()
-                .storeUint(msg.callbackOpcode, 32)
-                .storeUint(msg.queryId, 64)
-                .storeUint(self.counter(), 64)
-                .endCell(),
-            value: 0,
-            to: sender,
-            bounce: true,
-        });
+    override fun storeValue(b: Builder): Builder {
+        return b.storeUint(self.counter(), 64);
     }
 
     /// --- UpgradableSimple Functions ---

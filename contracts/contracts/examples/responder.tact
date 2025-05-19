@@ -11,6 +11,5 @@ trait Responder {
     }
 
     /// Respond to a request, returning a value to the sender() in the callbackOpcode.
-    /// TODO: make virtual
     abstract fun respond(msg: Request, sender: Address);
 }

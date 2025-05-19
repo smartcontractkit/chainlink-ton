@@ -1,10 +1,10 @@
 import "../../lib/upgradable";
-import "../responder";
+import "../direct_responder";
 import "../counter_trait";
 
 /// This is a counter that implements Upgradable trait.
 /// It is able to be upgraded in place and migrate the data layout.
-trait UpgradableCounter with Responder, ICounter, Upgradable {
+trait UpgradableCounter with DirectResponder, ICounter, Upgradable {
     /// --- Upgradable Attributes ---
     /// Contract owner address that can perform upgrades.
     owner: Address;
@@ -29,21 +29,11 @@ trait UpgradableCounter with Responder, ICounter, Upgradable {
     /// Update counter
     abstract fun step();
 
-    /// --- Responder Functions ---
+    /// --- DirectResponder Functions ---
 
     /// Respond to a request, returning a value to the sender() in the callbackOpcode.
-    override fun respond(msg: Request, sender: Address) {
-        message(MessageParameters {
-            mode: SendRemainingValue,
-            body: beginCell()
-                .storeUint(msg.callbackOpcode, 32)
-                .storeUint(msg.queryId, 64)
-                .storeUint(self.counter(), 64)
-                .endCell(),
-            value: 0,
-            to: sender,
-            bounce: true,
-        });
+    override fun storeValue(b: Builder): Builder {
+        return b.storeUint(self.counter(), 64);
     }
 
     /// --- Upgradable Functions ---
