@@ -77,7 +77,8 @@ trait Upgradable with Ownable, TypeAndVersion {
         self.upgrade(ctx, self.upgradeToCommit!!);
     }
 
-    fun getNextHeader(): HeaderUpgradable {
+    /// Returns the header for the initialization of the new version.
+    virtual fun getNextHeader(): HeaderUpgradable {
         return HeaderUpgradable {
             owner: self.owner,
         };

@@ -140,13 +140,12 @@ describe('ProxyUpgradableCounter', () => {
   }, 100000)
 
   it('should be upgraded to version 2', async () => {
-    let { owner, proxyCounter, getter } = await setUpTest(0n)
+    let { owner, proxyCounter } = await setUpTest(0n)
     let subtractorCounterCode = await getSubtractorCode(owner)
     await upgradeAndCommit(proxyCounter, owner, subtractorCounterCode)
 
-    // TODO the version is not updated
-    // const typeAndVersion = await proxyCounter.getTypeAndVersion()
-    // expect(typeAndVersion).toBe('ProxyCounter v2.0.0')
+    const typeAndVersion = await proxyCounter.getTypeAndVersion()
+    expect(typeAndVersion).toBe('ProxyCounter v2.0.0')
   }, 100000)
 
   it('upgrade should conserve the internal state', async () => {

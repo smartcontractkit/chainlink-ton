@@ -129,9 +129,15 @@ contract ProxyCounter with Responder, ICounter, Upgradable {
         });
     }
 
+    /// Returns the header for the initialization of the new version.
+    override fun getNextHeader(): HeaderUpgradable {
+        return HeaderUpgradable {
+            owner: myAddress(),
+        };
+    }
+
     /// 2. Deploy the new version of the child contract with the state from the old version.
     receive(msg: RequestedState) {
-        dump("RequestedState");
         let header = self.getNextHeader();
         let initParams = wrapInitParams(InitParams {
             header: header,
@@ -156,7 +162,6 @@ contract ProxyCounter with Responder, ICounter, Upgradable {
 
     /// 3. The child contract sends the new version.
     receive(msg: UpdateCounterVersion) {
-        dump(msg.version);
         self.version = msg.version;
     }
 

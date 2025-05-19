@@ -1,6 +1,7 @@
 import "../../lib/upgradable";
 import "./upgradable_proxy_child_counter";
 import "./upgradable_proxy_child_counter_add";
+import "@stdlib/ownable";
 
 /// Counter State version 2
 struct StateV2 {
@@ -31,12 +32,12 @@ contract UpgradableProxyChildCounterSub with UpgradableProxyChildCounter {
             id: stateV1.id,
         };
         message(MessageParameters {
-            mode: SendPayGasSeparately,
+            mode: SendRemainingValue,
             body: UpdateCounterVersion {
                 version: "2.0.0",
             }.toCell(),
-            value: 1,
-            to: sender(),
+            value: 0,
+            to: self.owner,
             bounce: true,
         });
     }
