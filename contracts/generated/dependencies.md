@@ -46,37 +46,37 @@ flowchart RL
     access__ownable_2step_tact --> access__exit_codes_tact
     examples__counter_tact --> lib__type_and_version_tact
     examples__counter_trait_tact --> ext_stdlib__ownable
-    examples__getter_tact --> ext_stdlib__ownable
     examples__getter_tact --> examples__responder_tact
+    examples__getter_tact --> ext_stdlib__ownable
     examples__ownable_2step_counter_tact --> access__ownable_2step_tact
     examples__ownable_2step_counter_tact --> lib__type_and_version_tact
     examples__in_place_upgrade_with_data_migration__upgradable_counter_add_tact --> examples__in_place_upgrade_with_data_migration__upgradable_counter_tact
-    examples__in_place_upgrade_with_data_migration__upgradable_counter_tact --> lib__upgradable_tact
-    examples__in_place_upgrade_with_data_migration__upgradable_counter_tact --> examples__responder_tact
     examples__in_place_upgrade_with_data_migration__upgradable_counter_tact --> examples__counter_trait_tact
+    examples__in_place_upgrade_with_data_migration__upgradable_counter_tact --> examples__responder_tact
+    examples__in_place_upgrade_with_data_migration__upgradable_counter_tact --> lib__upgradable_tact
     examples__in_place_upgrade_with_data_migration__upgradable_counter_sub_tact --> examples__in_place_upgrade_with_data_migration__upgradable_counter_tact
-    examples__in_place_upgrade_with_data_migration__upgradable_counter_sub_tact --> lib__upgradable_tact
     examples__in_place_upgrade_with_data_migration__upgradable_counter_sub_tact --> examples__in_place_upgrade_with_data_migration__upgradable_counter_add_tact
+    examples__in_place_upgrade_with_data_migration__upgradable_counter_sub_tact --> lib__upgradable_tact
     examples__proxy_upgrade__upgradable_proxy_child_tact --> examples__proxy_upgrade__proxy_counter_tact
-    examples__proxy_upgrade__upgradable_proxy_child_counter_tact --> examples__proxy_upgrade__upgradable_proxy_child_tact
     examples__proxy_upgrade__upgradable_proxy_child_counter_tact --> examples__responder_tact
+    examples__proxy_upgrade__upgradable_proxy_child_counter_tact --> examples__proxy_upgrade__upgradable_proxy_child_tact
     examples__proxy_upgrade__upgradable_proxy_child_counter_tact --> examples__counter_trait_tact
     examples__proxy_upgrade__upgradable_proxy_child_counter_add_tact --> examples__proxy_upgrade__upgradable_proxy_child_counter_tact
+    examples__proxy_upgrade__upgradable_proxy_child_counter_sub_tact --> examples__proxy_upgrade__upgradable_proxy_child_counter_add_tact
     examples__proxy_upgrade__upgradable_proxy_child_counter_sub_tact --> examples__proxy_upgrade__upgradable_proxy_child_counter_tact
     examples__proxy_upgrade__upgradable_proxy_child_counter_sub_tact --> lib__upgradable_tact
-    examples__proxy_upgrade__upgradable_proxy_child_counter_sub_tact --> examples__proxy_upgrade__upgradable_proxy_child_counter_add_tact
-    examples__proxy_upgrade__proxy_counter_tact --> examples__getter_tact
-    examples__proxy_upgrade__proxy_counter_tact --> lib__upgradable_tact
-    examples__proxy_upgrade__proxy_counter_tact --> examples__responder_tact
     examples__proxy_upgrade__proxy_counter_tact --> examples__counter_trait_tact
+    examples__proxy_upgrade__proxy_counter_tact --> examples__getter_tact
+    examples__proxy_upgrade__proxy_counter_tact --> examples__responder_tact
+    examples__proxy_upgrade__proxy_counter_tact --> lib__upgradable_tact
     examples__in_place_upgrade_same_memory_layout__upgradable_simple_counter_add_tact --> examples__in_place_upgrade_same_memory_layout__upgradable_simple_counter_tact
-    examples__in_place_upgrade_same_memory_layout__upgradable_simple_counter_tact --> ext_stdlib__ownable
     examples__in_place_upgrade_same_memory_layout__upgradable_simple_counter_tact --> lib__upgradable_simple_tact
     examples__in_place_upgrade_same_memory_layout__upgradable_simple_counter_tact --> examples__responder_tact
+    examples__in_place_upgrade_same_memory_layout__upgradable_simple_counter_tact --> ext_stdlib__ownable
     examples__in_place_upgrade_same_memory_layout__upgradable_simple_counter_tact --> examples__counter_trait_tact
     examples__in_place_upgrade_same_memory_layout__upgradable_simple_counter_sub_tact --> examples__in_place_upgrade_same_memory_layout__upgradable_simple_counter_tact
-    lib__upgradable_tact --> ext_stdlib__ownable
     lib__upgradable_tact --> lib__type_and_version_tact
-    lib__upgradable_simple_tact --> ext_stdlib__ownable
+    lib__upgradable_tact --> ext_stdlib__ownable
     lib__upgradable_simple_tact --> lib__type_and_version_tact
+    lib__upgradable_simple_tact --> ext_stdlib__ownable
 ```
