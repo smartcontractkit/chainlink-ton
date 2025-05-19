@@ -124,31 +124,23 @@ def generate_mermaid_diagram(import_map: Dict[str, List[str]]) -> str:
     return '\n'.join(mermaid_lines)
 
 def main():
-    # Get the current working directory
-    root_dir = os.getcwd()
+    # Get the git repo root directory from `git rev-parse --show-toplevel`
+    root_dir = os.popen('git rev-parse --show-toplevel').read().strip()
     
     print(f"Analyzing Tact imports in: {root_dir}")
     print("-" * 50)
     
-    import_map = analyze_imports(root_dir)
-    
+    import_map = analyze_imports(os.path.join(root_dir, 'contracts', 'contracts'))
+    output_file = os.path.join(root_dir,'contracts', 'generated', 'dependencies.md')
+
     # Generate and save Mermaid diagram
     mermaid_content = generate_mermaid_diagram(import_map)
-    with open('dependencies.md', 'w', encoding='utf-8') as f:
+    with open(output_file, 'w', encoding='utf-8') as f:
         f.write("# Tact Dependencies Diagram\n\n")
         f.write(mermaid_content)
+        f.write("\n")
     
-    print("\nDependencies diagram has been saved to 'dependencies.md'")
-    
-    # Print results
-    # for file, imports in import_map.items():
-    #     print(f"\nFile: {file}")
-    #     if imports:
-    #         print("Imports:")
-    #         for imp in imports:
-    #             print(f"  - {imp}")
-    #     else:
-    #         print("No imports found")
+    print("\nDependencies diagram has been saved to 'contracts/generated/dependencies.md'")
 
 
 if __name__ == "__main__":
