@@ -118,7 +118,7 @@ jobs:
       - name: Setup Postgres
         uses: ./chainlink-ccip/.github/actions/setup-postgres
         with:
-          base-path: ../chainlink-ccip
+          base-path: chainlink-ccip
 
       - name: Download Go vendor packages
         run: |
