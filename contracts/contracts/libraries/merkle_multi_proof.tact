@@ -79,7 +79,6 @@ fun merkleRoot(
 
 		}
 		throwUnless(ERROR_INVALID_PROOF, hashPos <= i);
-		//TODO: implement hashPair
 		hashes.set(i, hashPair(a, b));
 		i += 1;
 	}
