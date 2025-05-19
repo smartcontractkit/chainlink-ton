@@ -11,7 +11,7 @@ message MerkleMultiProof {
 }
 
 contract MerkleMultiProofCalculator {
-    root: Int as uint25 = 0;
+    root: Int as uint256 = 0;
     receive(proof: MerkleMultiProof) {
         let res = merkleRoot(
              proof.leaves,
