@@ -28,7 +28,6 @@ fun merkleRoot(
 	let hashPos: Int = 0;
 	let proofPos: Int = 0;
 
-	dump(totalHashes);
 	// total loop index
 	let i: Int = 0;
 	repeat (totalHashes) {
@@ -37,7 +36,6 @@ fun merkleRoot(
 		if ((proofFlagBits & (1 << i)) == (1 << i)) {
 	        // Use a leaf or a previously computed hash.
 			if (leafPos < leavesLen) {
-				dump(leafPos);
 			    let optionLeave: Int? = leaves.get(leafPos);
 			    if (optionLeave == null) {
 				throw(ERROR_INVALID_PROOF);
@@ -45,7 +43,6 @@ fun merkleRoot(
 			    a = optionLeave!!;
 			    leafPos += 1;
 			} else {
-				dump(hashPos);
 			    let optionHash: Int? = hashes.get(hashPos);
 				if (optionHash == null) {
 					throw(ERROR_INVALID_PROOF);
@@ -55,7 +52,6 @@ fun merkleRoot(
 			}
 		} else {
 		// Use a supplied proof.
-			dump(proofPos);
 			let optionProof: Int? = proofs.get(proofPos);
 			if (optionProof == null) {
 				throw(ERROR_INVALID_PROOF);
@@ -67,8 +63,6 @@ fun merkleRoot(
 		// hash that can already be computed offchain.
 		let b: Int = 0;
 		if (leafPos < leavesLen) {
-			dump(leafPos);
-			dump(2);
 			let optionLeave: Int? = leaves.get(leafPos);
 			if (optionLeave == null) {
 			    throw(ERROR_INVALID_PROOF);
@@ -76,8 +70,6 @@ fun merkleRoot(
 			b = optionLeave!!;
 			leafPos += 1;
 		} else {
-			dump(hashPos);
-			dump(2);
 			let optionHash: Int? = hashes.get(hashPos);
 			if (optionHash == null) {
 			   throw(ERROR_INVALID_PROOF);
@@ -87,7 +79,6 @@ fun merkleRoot(
 
 		}
 		throwUnless(ERROR_INVALID_PROOF, hashPos <= i);
-		dump(3);
 		hashes.set(i, hashPair(a, b));
 		i += 1;
 	}
@@ -95,10 +86,8 @@ fun merkleRoot(
 	throwUnless(ERROR_INVALID_PROOF, leafPos == leavesLen);
 	throwUnless(ERROR_INVALID_PROOF, proofPos == proofsLen);
 
-	dump(4);
 	let resOption: Int? =  hashes.get(totalHashes - 1);
 	if (resOption == null) {
-		dump(5);
 		throw(ERROR_INVALID_PROOF);
 	}
 	dump(resOption!!);
