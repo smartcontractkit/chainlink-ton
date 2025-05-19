@@ -109,7 +109,7 @@ jobs:
           make gomodtidy
 
       - name: Setup Postgres
-        uses: ./.github/actions/setup-postgres
+        uses: smartcontractkit/chainlink-ccip/.github/actions/setup-postgres@main
 
       - name: Download Go vendor packages
         run: |
