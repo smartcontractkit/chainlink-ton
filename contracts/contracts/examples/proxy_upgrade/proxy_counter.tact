@@ -75,7 +75,7 @@ contract ProxyCounter with Responder, ICounter, Upgradable {
             to: returnAddress.address,
             bounce: true,
         });
-        // TODO remove the request from the map
+        let _ = self.requests.del(msg.queryId);
     }
 
     /// --- ICounter Functions ---
