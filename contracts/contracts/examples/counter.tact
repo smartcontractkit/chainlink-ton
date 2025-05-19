@@ -1,8 +1,6 @@
 import "../lib/type_and_version";
 
-/**
- * @title Counter contract (Tact example)
- */
+// Counter contract (Tact example)
 
 // --- Message Definitions ---
 
