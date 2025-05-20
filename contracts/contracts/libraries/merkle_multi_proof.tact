@@ -23,7 +23,7 @@ fun merkleRoot(
     }
     let hashes: map<Int as uint16, Int as uint256> = emptyMap();
 
-    // indexes over the leaves proofs and hashes
+    // indexes over the leaves, proofs, and hashes
     let leafPos: Int = 0;
     let hashPos: Int = 0;
     let proofPos: Int = 0;
@@ -37,25 +37,19 @@ fun merkleRoot(
             // Use a leaf or a previously computed hash.
             if (leafPos < leavesLen) {
                 let optionLeave: Int? = leaves.get(leafPos);
-                if (optionLeave == null) {
-                    throw(ERROR_INVALID_PROOF);
-                }
+                throwUnless(ERROR_INVALID_PROOF, optionLeave != null);
                 a = optionLeave!!;
                 leafPos += 1;
             } else {
                 let optionHash: Int? = hashes.get(hashPos);
-                if (optionHash == null) {
-                    throw(ERROR_INVALID_PROOF);
-                }
+                throwUnless(ERROR_INVALID_PROOF, optionHash != null);
                 a = optionHash!!;
                 hashPos += 1;
             }
         } else {
             // Use a supplied proof.
             let optionProof: Int? = proofs.get(proofPos);
-            if (optionProof == null) {
-                throw(ERROR_INVALID_PROOF);
-            }
+            throwUnless(ERROR_INVALID_PROOF, optionProof != null);
             a = optionProof!!;
             proofPos += 1;
         }
@@ -64,16 +58,12 @@ fun merkleRoot(
         let b: Int = 0;
         if (leafPos < leavesLen) {
             let optionLeave: Int? = leaves.get(leafPos);
-            if (optionLeave == null) {
-                throw(ERROR_INVALID_PROOF);
-            }
+            throwUnless(ERROR_INVALID_PROOF, optionLeave != null);
             b = optionLeave!!;
             leafPos += 1;
         } else {
             let optionHash: Int? = hashes.get(hashPos);
-            if (optionHash == null) {
-                throw(ERROR_INVALID_PROOF);
-            }
+            throwUnless(ERROR_INVALID_PROOF, optionHash != null);
             b = optionHash!!;
             hashPos += 1;
         }
@@ -86,10 +76,8 @@ fun merkleRoot(
     throwUnless(ERROR_INVALID_PROOF, proofPos == proofsLen);
 
     let resOption: Int? = hashes.get(totalHashes - 1);
-    if (resOption == null) {
-        throw(ERROR_INVALID_PROOF);
-    }
-    dump(resOption!!);
+    throwUnless(ERROR_INVALID_PROOF, resOption != null);
+
     return resOption!!;
 }
 
