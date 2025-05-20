@@ -18,6 +18,7 @@ jobs:
       fail-fast: false
       matrix:
         type:
+          # TODO: add more tests here
           - cmd: cd integration-tests/smoke/ccip && go test ccip_ton_messaging_test.go -timeout 12m -test.parallel=2 -count=1 -json
             name: 'Messaging Test'
 
@@ -114,6 +115,8 @@ jobs:
         with:
           repository: smartcontractkit/chainlink-ccip
           path: chainlink-ccip
+          sparse-checkout: .github/actions/setup-postgres/**
+          sparse-checkout-cone-mode: false
 
       - name: Setup Postgres
         uses: ./chainlink-ccip/.github/actions/setup-postgres
