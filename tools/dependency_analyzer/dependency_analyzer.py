@@ -54,7 +54,7 @@ def resolve_import_path(import_path: str, current_file: str, root_dir: str) -> s
     
     return resolved
 
-def generate_mermaid_diagram(import_map: Dict[str, List[str]]) -> str:
+def generate_mermaid_diagram(import_map: Dict[str, List[str]], root_dir: str) -> str:
     """Generate a Mermaid flowchart from the import map."""
     mermaid_lines = [
         "```mermaid",               
@@ -101,28 +101,34 @@ def generate_mermaid_diagram(import_map: Dict[str, List[str]]) -> str:
     if external_deps:
         mermaid_lines.append("    subgraph external[External Dependencies]")
         for dep in external_deps:
-            node_id = dep.replace('/', '__').replace('.', '_').replace('@', 'ext_')
+            node_id = normalize_path(dep)
             display_name = dep.replace('@', '')
             mermaid_lines.append(f"        {node_id}[{display_name}]")
         mermaid_lines.append("    end")
     
+    # Sort the import map for consistent ordering, collecting it into a list
+    sorted_import_map = sorted(import_map.items(), key=lambda x: normalize_path(x[0]))
+
     # Create connections
-    for file, imports in import_map.items():
-        source = file.replace('/', '__').replace('.', '_')
-        for imp in imports:
+    for file, imports in sorted_import_map:
+        source = normalize_path(file)
+        for imp in sorted(imports, key=lambda x: normalize_path(x)):
             if imp.startswith('@'):
-                target = imp.replace('/', '__').replace('.', '_').replace('@', 'ext_')
+                target = normalize_path(imp)
                 mermaid_lines.append(f"    {source} --> {target}")
             else:
-                resolved = resolve_import_path(imp, file, os.getcwd())
+                resolved = resolve_import_path(imp, file, root_dir)
                 if resolved in import_map:
-                    target = resolved.replace('/', '__').replace('.', '_')
+                    target = normalize_path(resolved)
                     mermaid_lines.append(f"    {source} --> {target}")
                 else:
                     print(f"Warning: Import '{imp}' not found in the import map for '{file}'")
     
     mermaid_lines.append("```")
     return '\n'.join(mermaid_lines)
+
+def normalize_path(imp):
+    return imp.replace('/', '__').replace('.', '_').replace('@', 'ext_')
 
 def main():
     # Get the git repo root directory from `git rev-parse --show-toplevel`
@@ -140,7 +146,7 @@ def main():
     output_file = os.path.join(root_dir,'contracts', 'generated', 'dependencies.md')
 
     # Generate and save Mermaid diagram
-    mermaid_content = generate_mermaid_diagram(import_map)
+    mermaid_content = generate_mermaid_diagram(import_map, root_dir)
     with open(output_file, 'w', encoding='utf-8') as f:
         f.write("# Tact Dependencies Diagram\n\n")
         f.write(mermaid_content)
