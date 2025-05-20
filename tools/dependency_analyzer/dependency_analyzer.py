@@ -1,5 +1,6 @@
 import os
 import re
+import subprocess
 from typing import Dict, List, Set
 from pathlib import Path
 
@@ -125,7 +126,12 @@ def generate_mermaid_diagram(import_map: Dict[str, List[str]]) -> str:
 
 def main():
     # Get the git repo root directory from `git rev-parse --show-toplevel`
-    root_dir = os.popen('git rev-parse --show-toplevel').read().strip()
+    try:
+        result = subprocess.run(['git', 'rev-parse', '--show-toplevel'], check=True, capture_output=True, text=True)
+        root_dir = result.stdout.strip()
+    except subprocess.CalledProcessError as e:
+        print("Error: Failed to retrieve the git repository root. Ensure you are in a valid git repository.")
+        raise e
     
     print(f"Analyzing Tact imports in: {root_dir}")
     print("-" * 50)
