@@ -264,7 +264,7 @@ describe('AdvancedUpgradableCounter', () => {
   //     const increaseTimes = 3;
   //     for (let i = 0; i < increaseTimes; i++) {
   //         const increaser = await blockchain.treasury('increaser' + i);
-  //         const counterBefore = await upgradableCounter.getCounter();
+  //         const counterBefore = await upgradableCounter.getValue();
   //         const increaseBy = BigInt(1);
 
   //         let increaseResult = await upgradableCounter.send(

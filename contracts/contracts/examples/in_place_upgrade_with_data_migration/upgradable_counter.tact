@@ -15,7 +15,7 @@ trait UpgradableCounter with DirectResponder, ICounter, Upgradable {
     /// --- UpgradableCounter Functions ---
 
     /// Gets the current counter value.
-    abstract fun counter(): Int;
+    abstract fun value(): Int;
 
     /// --- ICounter Functions ---
 
@@ -33,7 +33,7 @@ trait UpgradableCounter with DirectResponder, ICounter, Upgradable {
 
     /// Respond to a request, returning a value to the sender() in the callbackOpcode.
     override fun storeValue(b: Builder): Builder {
-        return b.storeUint(self.counter(), 64);
+        return b.storeUint(self.value(), 64);
     }
 
     /// --- Upgradable Functions ---

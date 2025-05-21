@@ -8,16 +8,16 @@ contract UpgradableSimpleCounterAdd with UpgradableSimpleCounter {
     /// Counter id
     id: Int as uint32;
     /// Counter value
-    counter: Int as uint32;
+    value: Int as uint32;
 
     init(
         id: Int,
         owner: Address,
-        counter: Int,
+        value: Int,
     ) {
         self.id = id;
         self.owner = owner;
-        self.counter = counter;
+        self.value = value;
     }
 
     /// --- UpgradableSimpleCounter Functions ---
@@ -29,6 +29,6 @@ contract UpgradableSimpleCounterAdd with UpgradableSimpleCounter {
 
     /// Update counter
     override fun step() {
-        self.counter += 1;
+        self.value += 1;
     }
 }

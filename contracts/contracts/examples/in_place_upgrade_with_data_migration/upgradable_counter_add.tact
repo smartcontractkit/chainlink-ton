@@ -5,7 +5,7 @@ struct StateV1 {
     /// Counter id
     id: Int as uint32;
     /// Counter value
-    counter: Int as uint32;
+    value: Int as uint32;
 }
 
 /// This is version 1.0.0 of the UpgradableCounter contract, which adds 1 to the counter on each step.
@@ -25,12 +25,12 @@ contract UpgradableCounterAdd with UpgradableCounter {
     init(
         id: Int,
         owner: Address,
-        counter: Int,
+        value: Int,
     ) {
         self.owner = owner;
         self.state = StateV1 {
             id: id,
-            counter: counter,
+            value: value,
         };
         self.upgradeToCommit = null;
     }
@@ -44,12 +44,12 @@ contract UpgradableCounterAdd with UpgradableCounter {
 
     /// Update counter
     override fun step() {
-        self.state.counter += 1;
+        self.state.value += 1;
     }
 
     /// Gets the current counter value.
-    override fun counter(): Int {
-        return self.state.counter;
+    override fun value(): Int {
+        return self.state.value;
     }
 
     // Version must be a semantic version string (e.g. "1.0.0"). Don't use "v" prefix; it will be added automatically.

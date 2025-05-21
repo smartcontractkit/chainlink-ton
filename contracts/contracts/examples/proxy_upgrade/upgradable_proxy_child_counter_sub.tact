@@ -1,12 +1,11 @@
 import "../../lib/upgradable";
 import "./upgradable_proxy_child_counter";
 import "./upgradable_proxy_child_counter_add";
-import "@stdlib/ownable";
 
 /// Counter State version 2
 struct StateV2 {
     /// Counter value
-    counter: Int as uint64;
+    value: Int as uint64;
     /// Counter id
     id: Int as uint32;
 }
@@ -28,7 +27,7 @@ contract UpgradableProxyChildCounterSub with UpgradableProxyChildCounter {
         self.owner = initParams.header.owner;
         let stateV1 = StateV1.fromCell(initParams.stateToBeMigrated);
         self.state = StateV2 {
-            counter: stateV1.counter,
+            value: stateV1.value,
             id: stateV1.id,
         };
         message(MessageParameters {
@@ -51,11 +50,11 @@ contract UpgradableProxyChildCounterSub with UpgradableProxyChildCounter {
 
     /// Update counter
     override fun step(queryId: Int) {
-        self.state.counter -= 1;
+        self.state.value -= 1;
     }
 
     /// Gets the current counter value.
-    override fun counter(): Int {
-        return self.state.counter;
+    override fun value(): Int {
+        return self.state.value;
     }
 }

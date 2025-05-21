@@ -5,7 +5,7 @@ import "./upgradable_counter";
 /// Counter State version 2
 struct StateV2 {
     /// Counter id
-    counter: Int as uint64;
+    value: Int as uint64;
     /// Counter value
     id: Int as uint32;
 }
@@ -33,7 +33,7 @@ contract UpgradableCounterSub with UpgradableCounter {
         let stateV1 = StateV1.fromCell(initParams.stateToBeMigrated);
         self.state = StateV2 {
             id: stateV1.id,
-            counter: stateV1.counter,
+            value: stateV1.value,
         };
     }
 
@@ -46,12 +46,12 @@ contract UpgradableCounterSub with UpgradableCounter {
 
     /// Update counter
     override fun step() {
-        self.state.counter -= 1;
+        self.state.value -= 1;
     }
 
     /// Gets the current counter value.
-    override fun counter(): Int {
-        return self.state.counter;
+    override fun value(): Int {
+        return self.state.value;
     }
 
     // Version must be a semantic version string (e.g. "1.0.0"). Don't use "v" prefix; it will be added automatically.

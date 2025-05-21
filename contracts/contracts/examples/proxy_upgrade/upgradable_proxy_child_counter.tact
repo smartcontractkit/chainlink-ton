@@ -29,7 +29,7 @@ trait UpgradableProxyChildCounter with Responder, ICounter, UpgradableProxyChild
             body: beginCell()
                 .storeUint(msg.callbackOpcode, 32)
                 .storeUint(msg.queryId, 64)
-                .storeUint(self.counter(), 64)
+                .storeUint(self.value(), 64)
                 .endCell(),
             value: 0,
             to: sender(),
@@ -37,7 +37,7 @@ trait UpgradableProxyChildCounter with Responder, ICounter, UpgradableProxyChild
         });
     }
 
-    abstract fun counter(): Int;
+    abstract fun value(): Int;
 
     /// --- Upgradable Functions ---
 

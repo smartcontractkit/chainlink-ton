@@ -5,7 +5,7 @@ struct StateV1 {
     /// Counter id
     id: Int as uint32;
     /// Counter value
-    counter: Int as uint32;
+    value: Int as uint32;
 }
 
 /// This is version 1.0.0 of the UpgradableProxyChildCounterAdd contract, which adds 1 to the counter on each step.
@@ -27,7 +27,7 @@ contract UpgradableProxyChildCounterAdd with UpgradableProxyChildCounter {
         self.owner = owner;
         self.state = StateV1 {
             id: id,
-            counter: counter,
+            value: counter,
         };
     }
 
@@ -40,11 +40,11 @@ contract UpgradableProxyChildCounterAdd with UpgradableProxyChildCounter {
 
     /// Update counter
     override fun step(queryId: Int) {
-        self.state.counter += 1;
+        self.state.value += 1;
     }
 
     /// Gets the current counter value.
-    override fun counter(): Int {
-        return self.state.counter;
+    override fun value(): Int {
+        return self.state.value;
     }
 }

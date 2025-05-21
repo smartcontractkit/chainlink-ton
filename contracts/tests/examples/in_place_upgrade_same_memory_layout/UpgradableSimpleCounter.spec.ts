@@ -92,7 +92,7 @@ describe('UpgradableSimpleCounter', () => {
     const increaseTimes = 3
     for (let i = 0; i < increaseTimes; i++) {
       const increaser = await blockchain.treasury('increaser' + i)
-      const counterBefore = await upgradableSimpleCounter.getCounter()
+      const counterBefore = await upgradableSimpleCounter.getValue()
       const increaseBy = BigInt(1)
 
       let increaseResult = await upgradableSimpleCounter.send(
@@ -205,7 +205,7 @@ describe('UpgradableSimpleCounter', () => {
     for (let i = 0; i < decreaseTimes; i++) {
       const decreaser = await blockchain.treasury('decreaser' + i)
 
-      const counterBefore = await upgradableSimpleCounter.getCounter()
+      const counterBefore = await upgradableSimpleCounter.getValue()
       const decreaseBy = BigInt(1)
 
       let decreaseResult = await upgradableSimpleCounter.send(
@@ -241,7 +241,7 @@ async function assertCount(
   sender: Treasury,
   expectedCount: bigint,
 ) {
-  const counter = await upgradableSimpleCounter.getCounter()
+  const counter = await upgradableSimpleCounter.getValue()
   expect(counter).toBe(expectedCount)
   const getterDeployResult = await getter.send(
     sender,

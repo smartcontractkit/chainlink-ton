@@ -14,7 +14,7 @@ trait UpgradableSimpleCounter with DirectResponder, ICounter, UpgradableSimple {
     /// Counter id
     id: Int as uint32;
     /// Counter value
-    counter: Int as uint32;
+    value: Int as uint32;
 
     /// --- UpgradableSimpleCounter Functions ---
 
@@ -22,8 +22,8 @@ trait UpgradableSimpleCounter with DirectResponder, ICounter, UpgradableSimple {
         return self.id;
     }
 
-    get fun counter(): Int {
-        return self.counter;
+    get fun value(): Int {
+        return self.value;
     }
 
     /// --- ICounter Functions ---
@@ -42,7 +42,7 @@ trait UpgradableSimpleCounter with DirectResponder, ICounter, UpgradableSimple {
 
     /// Respond to a request, returning a value to the sender() in the callbackOpcode.
     override fun storeValue(b: Builder): Builder {
-        return b.storeUint(self.counter(), 64);
+        return b.storeUint(self.value(), 64);
     }
 
     /// --- UpgradableSimple Functions ---
