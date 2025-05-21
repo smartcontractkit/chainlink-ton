@@ -29,7 +29,7 @@ contract ProxyCounter with Responder, ICounter, Upgradable {
     owner: Address;
 
     /// This is the code that will be used to upgrade the contract.
-    upgradeToCommit: Upgrade?;
+    pendingUpgrade: Upgrade?;
 
     /// --- ProxyCounter Attributes ---
 
@@ -120,6 +120,7 @@ contract ProxyCounter with Responder, ICounter, Upgradable {
 
     /// 1. Request the state from the child contract.
     override fun upgrade(_: Context, _upgrade: Upgrade) {
+        self.pendingUpgrade = _upgrade;
         message(MessageParameters {
             mode: SendRemainingValue,
             body: GetState {}.toCell(),
@@ -145,7 +146,7 @@ contract ProxyCounter with Responder, ICounter, Upgradable {
         });
 
         let counterStateInit = StateInit {
-            code: self.upgradeToCommit!!.code,
+            code: self.pendingUpgrade!!.code,
             data: initParams,
         };
 

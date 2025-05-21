@@ -14,9 +14,6 @@ contract UpgradableCounterAdd with UpgradableCounter {
     /// Contract owner
     owner: Address;
 
-    /// This is the code that will be used to upgrade the contract.
-    upgradeToCommit: Upgrade?;
-
     /// --- UpgradableCounter Attributes ---
 
     /// Counter State
@@ -32,7 +29,6 @@ contract UpgradableCounterAdd with UpgradableCounter {
             id: id,
             value: value,
         };
-        self.upgradeToCommit = null;
     }
 
     /// --- UpgradableCounter Functions ---

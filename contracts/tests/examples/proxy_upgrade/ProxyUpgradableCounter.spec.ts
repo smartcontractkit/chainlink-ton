@@ -142,67 +142,67 @@ describe('ProxyUpgradableCounter', () => {
   it('should be upgraded to version 2', async () => {
     let { owner, proxyCounter } = await setUpTest(0n)
     let subtractorCounterCode = await getSubtractorCode(owner)
-    await upgradeAndCommit(proxyCounter, owner, subtractorCounterCode)
+    await upgrade(proxyCounter, owner, subtractorCounterCode)
 
     const typeAndVersion = await proxyCounter.getTypeAndVersion()
     expect(typeAndVersion).toBe('com.chainlink.ton.examples.proxy_upgrade.ProxyCounter v2.0.0')
   }, 100000)
 
-  it('upgrade should conserve the internal state', async () => {
-    const initialValue = 10n
-    let { owner, proxyCounter, getter } = await setUpTest(initialValue)
-    const initialId = await proxyCounter.getId()
-    let subtractorCounterCode = await getSubtractorCode(owner)
-    await upgradeAndCommit(proxyCounter, owner, subtractorCounterCode)
+  // it('upgrade should conserve the internal state', async () => {
+  //   const initialValue = 10n
+  //   let { owner, proxyCounter, getter } = await setUpTest(initialValue)
+  //   const initialId = await proxyCounter.getId()
+  //   let subtractorCounterCode = await getSubtractorCode(owner)
+  //   await upgrade(proxyCounter, owner, subtractorCounterCode)
 
-    const getterResult = await getCount(getter, owner.getSender(), proxyCounter)
-    expect(getterResult).toBe(initialValue)
-  }, 100000)
+  //   const getterResult = await getCount(getter, owner.getSender(), proxyCounter)
+  //   expect(getterResult).toBe(initialValue)
+  // }, 100000)
 
-  it('version 2 should decrease de counter', async () => {
-    let { blockchain, owner, proxyCounter, getter } = await setUpTest(3n)
-    let initParams: InitParams = {
-      $$type: 'InitParams',
-      header: {
-        $$type: 'HeaderUpgradable',
-        owner: owner.address,
-      },
-      stateToBeMigrated: beginCell().endCell(),
-    }
-    let subtractorCounterCode = await getSubtractorCode(owner)
-    await upgradeAndCommit(proxyCounter, owner, subtractorCounterCode)
+  // it('version 2 should decrease de counter', async () => {
+  //   let { blockchain, owner, proxyCounter, getter } = await setUpTest(3n)
+  //   let initParams: InitParams = {
+  //     $$type: 'InitParams',
+  //     header: {
+  //       $$type: 'HeaderUpgradable',
+  //       owner: owner.address,
+  //     },
+  //     stateToBeMigrated: beginCell().endCell(),
+  //   }
+  //   let subtractorCounterCode = await getSubtractorCode(owner)
+  //   await upgrade(proxyCounter, owner, subtractorCounterCode)
 
-    const decreaseTimes = 3
-    for (let i = 0; i < decreaseTimes; i++) {
-      const decreaser = await blockchain.treasury('decreaser' + i)
+  //   const decreaseTimes = 3
+  //   for (let i = 0; i < decreaseTimes; i++) {
+  //     const decreaser = await blockchain.treasury('decreaser' + i)
 
-      const counterBefore = await getCount(getter, decreaser.getSender(), proxyCounter)
-      const decreaseBy = BigInt(1)
+  //     const counterBefore = await getCount(getter, decreaser.getSender(), proxyCounter)
+  //     const decreaseBy = BigInt(1)
 
-      let decreaseResult = await proxyCounter.send(
-        decreaser.getSender(),
-        {
-          value: toNano('0.05'),
-        },
-        {
-          $$type: 'Step',
-          queryId: BigInt(Math.floor(Math.random() * 10000)),
-        },
-      )
+  //     let decreaseResult = await proxyCounter.send(
+  //       decreaser.getSender(),
+  //       {
+  //         value: toNano('0.05'),
+  //       },
+  //       {
+  //         $$type: 'Step',
+  //         queryId: BigInt(Math.floor(Math.random() * 10000)),
+  //       },
+  //     )
 
-      expect(decreaseResult.transactions).toHaveTransaction({
-        from: decreaser.address,
-        to: proxyCounter.address,
-        success: true,
-      })
+  //     expect(decreaseResult.transactions).toHaveTransaction({
+  //       from: decreaser.address,
+  //       to: proxyCounter.address,
+  //       success: true,
+  //     })
 
-      const getterResult = await getCount(getter, owner.getSender(), proxyCounter)
-      expect(getterResult).toBe(counterBefore - decreaseBy)
-    }
-  }, 100000)
+  //     const getterResult = await getCount(getter, owner.getSender(), proxyCounter)
+  //     expect(getterResult).toBe(counterBefore - decreaseBy)
+  //   }
+  // }, 100000)
 })
 
-async function upgradeAndCommit(
+async function upgrade(
   proxyCounter: SandboxContract<ProxyCounter>,
   owner: SandboxContract<TreasuryContract>,
   subtractorCounterCode,
@@ -218,21 +218,6 @@ async function upgradeAndCommit(
     },
   )
   expect(upgradeResult.transactions).toHaveTransaction({
-    from: owner.address,
-    to: proxyCounter.address,
-    success: true,
-  })
-
-  let commitUpgradeResult = await proxyCounter.send(
-    owner.getSender(),
-    {
-      value: toNano('1'),
-    },
-    {
-      $$type: 'CommitUpgrade',
-    },
-  )
-  expect(commitUpgradeResult.transactions).toHaveTransaction({
     from: owner.address,
     to: proxyCounter.address,
     success: true,

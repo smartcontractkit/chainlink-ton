@@ -16,9 +16,6 @@ contract UpgradableCounterSub with UpgradableCounter {
     /// Contract owner
     owner: Address;
 
-    /// This is the code that will be used to upgrade the contract.
-    upgradeToCommit: Upgrade?;
-
     /// --- UpgradableCounter Attributes ---
 
     /// Counter State
@@ -29,7 +26,6 @@ contract UpgradableCounterSub with UpgradableCounter {
         initParams: InitParams,
     ) {
         self.owner = initParams.header.owner;
-        self.upgradeToCommit = null;
         let stateV1 = StateV1.fromCell(initParams.stateToBeMigrated);
         self.state = StateV2 {
             id: stateV1.id,

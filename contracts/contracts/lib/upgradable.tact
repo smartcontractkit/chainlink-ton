@@ -1,17 +1,10 @@
 import "@stdlib/ownable";
 import "./type_and_version";
 
-/// Message for preparing the upgrade of a contract.
+/// Message for upgrading a contract.
 message(10) Upgrade {
     code: Cell;
 }
-
-/// Message for committing the upgrade of a contract.
-message(11) CommitUpgrade {}
-
-/// Message for rolling back the upgrade of a contract.
-/// TODO: Not impelemented yet.
-message(12) RollbackUpgrade {}
 
 /// This are the internal variables all upgradable contracts should have.
 /// It is used to migrate the state from the old version to the new one.
@@ -47,11 +40,8 @@ trait Upgradable with Ownable, TypeAndVersion {
     /// Contract owner address that can perform upgrades.
     owner: Address;
 
-    /// --- Upgradable Attributes ---
-
-    /// This is the code that will be used to upgrade the contract.
-    upgradeToCommit: Upgrade?;
-
+    /// --- Upgradable Functions ---
+    ///
     virtual inline fun requireValidateUpgrade(_: Context, __: Upgrade) {
         self.requireOwner();
     }
@@ -59,23 +49,12 @@ trait Upgradable with Ownable, TypeAndVersion {
     receive(msg: Upgrade) {
         let ctx = context();
         self.requireValidateUpgrade(ctx, msg);
-        self.upgradeToCommit = msg;
-    }
-
-    virtual inline fun requireValidateCommitUpgrade(_: Context, __: CommitUpgrade) {
-        self.requireOwner();
+        self.upgrade(ctx, msg);
     }
 
     /// Returns the current state of the contract.
     /// This function is used to migrate the state from the old version to the new one.
     abstract fun getState(): Cell;
-
-    receive(msg: CommitUpgrade) {
-        let ctx = context();
-        self.requireValidateCommitUpgrade(ctx, msg);
-
-        self.upgrade(ctx, self.upgradeToCommit!!);
-    }
 
     /// Returns the header for the initialization of the new version.
     virtual fun getNextHeader(): HeaderUpgradable {
@@ -84,7 +63,7 @@ trait Upgradable with Ownable, TypeAndVersion {
         };
     }
 
-    /// Applies the upgrade to the contract stored in self.upgradeToCommit.
+    /// Applies the upgrade to the contract.
     virtual inline fun upgrade(_: Context, _upgrade: Upgrade) {
         // Change of code will be applied at the end of this transaction
         setCode(_upgrade.code);

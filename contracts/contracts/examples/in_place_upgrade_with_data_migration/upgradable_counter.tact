@@ -9,9 +9,6 @@ trait UpgradableCounter with DirectResponder, ICounter, Upgradable {
     /// Contract owner address that can perform upgrades.
     owner: Address;
 
-    /// This is the code that will be used to upgrade the contract.
-    upgradeToCommit: Upgrade?;
-
     /// --- UpgradableCounter Functions ---
 
     /// Gets the current counter value.
