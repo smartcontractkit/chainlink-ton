@@ -78,7 +78,9 @@ describe('UpgradableSimpleCounter', () => {
   it('should deploy on version 1', async () => {
     let { upgradableSimpleCounter } = await setUpTest(0n)
     const typeAndVersion = await upgradableSimpleCounter.getTypeAndVersion()
-    expect(typeAndVersion).toBe('UpgradableSimpleCounter v1.0.0')
+    expect(typeAndVersion).toBe(
+      'com.chainlink.ton.examples.in_place_upgrade_same_memory_layout.UpgradableSimpleCounter v1.0.0',
+    )
   }, 100000)
 
   it('should have initial value', async () => {
@@ -145,7 +147,9 @@ describe('UpgradableSimpleCounter', () => {
     })
 
     const typeAndVersion = await upgradableSimpleCounter.getTypeAndVersion()
-    expect(typeAndVersion).toBe('UpgradableSimpleCounter v2.0.0')
+    expect(typeAndVersion).toBe(
+      'com.chainlink.ton.examples.in_place_upgrade_same_memory_layout.UpgradableSimpleCounter v2.0.0',
+    )
   }, 100000)
 
   it('upgrade should conserve the internal state', async () => {

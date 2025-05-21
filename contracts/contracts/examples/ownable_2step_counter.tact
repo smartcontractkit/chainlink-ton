@@ -49,9 +49,11 @@ contract OwnableCounter with Ownable2Step, TypeAndVersion {
 
     // --- TypeAndVersion Functions ---
 
-    // Type must be a TitleCase string that is uinique to the contract and should not change betwen versions.
+    // Type must be a Reverse Domain Name Notation string that is uinique to the contract and should not change betwen versions.
+    // Example: "com.chainlink.project.package.ContractName"
+    // Read more about Reverse DNS Notation at https://en.wikipedia.org/wiki/Reverse_domain_name_notation
     override fun type(): String {
-        return "OwnableCounter";
+        return "com.chainlink.ton.examples.OwnableCounter";
     }
 
     // Version must be a semantic version string (e.g. "1.0.0"). Don't use "v" prefix; it will be added automatically.

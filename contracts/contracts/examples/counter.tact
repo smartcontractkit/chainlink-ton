@@ -1,15 +1,13 @@
 import "../lib/type_and_version";
 
-/**
- * @title Counter contract (Tact example)
- */
-
+// Counter contract (Tact example)
+//
 // --- Message Definitions ---
-
+//
 // Messages correspond to FunC/Tolk opcodes for setter operations.
-
+//
 // Opcodes are explicitly set to match the original constants.
-
+//
 message(4) SetCount {
     queryId: Int as uint64; // Standard query_id field
     newCount: Int as uint32; // Argument for the operation
@@ -64,9 +62,11 @@ contract Counter with TypeAndVersion {
     }
     // --- TypeAndVersion Functions ---
 
-    // Type must be a TitleCase string that is uinique to the contract and should not change betwen versions.
+    // Type must be a Reverse Domain Name Notation string that is uinique to the contract and should not change betwen versions.
+    // Example: "com.chainlink.project.package.ContractName"
+    // Read more about Reverse DNS Notation at https://en.wikipedia.org/wiki/Reverse_domain_name_notation
     override fun type(): String {
-        return "Counter";
+        return "com.chainlink.ton.examples.Counter";
     }
 
     // Version must be a semantic version string (e.g. "1.0.0"). Don't use "v" prefix; it will be added automatically.

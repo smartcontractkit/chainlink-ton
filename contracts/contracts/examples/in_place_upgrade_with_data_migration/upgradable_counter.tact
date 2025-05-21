@@ -44,9 +44,11 @@ trait UpgradableCounter with DirectResponder, ICounter, Upgradable {
         return self.getStateInternal();
     }
 
-    /// Type must be a TitleCase string that is uinique to the contract and should not change betwen versions.
+    // Type must be a Reverse Domain Name Notation string that is uinique to the contract and should not change betwen versions.
+    // Example: "com.chainlink.project.package.ContractName"
+    // Read more about Reverse DNS Notation at https://en.wikipedia.org/wiki/Reverse_domain_name_notation
     override fun upgradableType(): String {
-        return "UpgradableCounter";
+        return "com.chainlink.ton.examples.in_place_upgrade_with_data_migration.UpgradableCounter";
     }
 
     // Version must be a semantic version string (e.g. "1.0.0"). Don't use "v" prefix; it will be added automatically.

@@ -98,7 +98,7 @@ describe('ProxyUpgradableCounter', () => {
   it('should deploy on version 1', async () => {
     let { proxyCounter } = await setUpTest(0n)
     const typeAndVersion = await proxyCounter.getTypeAndVersion()
-    expect(typeAndVersion).toBe('ProxyCounter v1.0.0')
+    expect(typeAndVersion).toBe('com.chainlink.ton.examples.proxy_upgrade.ProxyCounter v1.0.0')
   }, 100000)
 
   it('should have initial value', async () => {
@@ -145,7 +145,7 @@ describe('ProxyUpgradableCounter', () => {
     await upgradeAndCommit(proxyCounter, owner, subtractorCounterCode)
 
     const typeAndVersion = await proxyCounter.getTypeAndVersion()
-    expect(typeAndVersion).toBe('ProxyCounter v2.0.0')
+    expect(typeAndVersion).toBe('com.chainlink.ton.examples.proxy_upgrade.ProxyCounter v2.0.0')
   }, 100000)
 
   it('upgrade should conserve the internal state', async () => {
