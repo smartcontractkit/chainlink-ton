@@ -91,7 +91,8 @@ log_info "Preparing Chainlink Core (dependencies, build, DB setup)..."
   cd "$CHAINLINK_CORE_DIR"
   log_info "Active Go version: $(go version)"
   go mod edit -replace="github.com/smartcontractkit/chainlink-ton=$CHAINLINK_TON_DIR"
-  make gomodtidy
+  go install github.com/jmank88/gomods@v0.1.5
+  gomods tidy
   go mod download
   if [ -f "./integration-tests/go.mod" ]; then
     (cd "./integration-tests" && go mod download)
