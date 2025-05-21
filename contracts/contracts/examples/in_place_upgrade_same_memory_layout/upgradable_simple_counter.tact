@@ -4,7 +4,7 @@ import "../counter_trait";
 
 /// This is a counter that implements UpgradableSimple trait.
 /// It is able to be upgraded in place as long as the memory layout is the same.
-trait UpgradableSimpleCounter with DirectResponder, ICounter, UpgradableSimple {
+trait UpgradableSimpleCounter with DirectResponder, StepCounter, UpgradableSimple {
     /// --- UpgradableSimple Attributes ---
     /// Contract owner address that can perform upgrades.
     owner: Address;

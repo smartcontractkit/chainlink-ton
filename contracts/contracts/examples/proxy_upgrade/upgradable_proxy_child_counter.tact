@@ -3,7 +3,7 @@ import "../counter_trait";
 import "./upgradable_proxy_child";
 
 /// This is a counter that implements UpgradableProxyChild trait.
-trait UpgradableProxyChildCounter with Responder, ICounter, UpgradableProxyChild {
+trait UpgradableProxyChildCounter with Responder, StepCounter, UpgradableProxyChild {
     /// --- UpgradableProxyChild Attributes ---
     /// Contract owner address that can perform upgrades.
     owner: Address;

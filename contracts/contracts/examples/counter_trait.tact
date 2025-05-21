@@ -6,7 +6,7 @@ message(1) Step {
 }
 
 /// Counter trait example
-trait ICounter with Ownable {
+trait StepCounter with Ownable {
     /// --- Ownable Attributes ---
     /// Contract owner
     owner: Address;

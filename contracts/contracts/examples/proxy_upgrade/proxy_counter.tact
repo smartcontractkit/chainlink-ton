@@ -23,7 +23,7 @@ message(31) RequestedState {
 }
 
 /// This contract implements ICounter as the proxy entrypoint of a counter.
-contract ProxyCounter with Responder, ICounter, Upgradable {
+contract ProxyCounter with Responder, StepCounter, Upgradable {
     /// --- Upgradable Attributes ---
     /// Contract owner address that can perform upgrades.
     owner: Address;

@@ -4,7 +4,7 @@ import "../counter_trait";
 
 /// This is a counter that implements Upgradable trait.
 /// It is able to be upgraded in place and migrate the data layout.
-trait UpgradableCounter with DirectResponder, ICounter, Upgradable {
+trait UpgradableCounter with DirectResponder, StepCounter, Upgradable {
     /// --- Upgradable Attributes ---
     /// Contract owner address that can perform upgrades.
     owner: Address;
