@@ -1,4 +1,4 @@
-name: 'Run CCIP Integration Test'
+name: 'Run CCIP Integration Tests'
 
 on:
   pull_request:
@@ -7,110 +7,37 @@ on:
       # TODO: change this to main when we are ready to merge
       - 'feature/ci-core-integration-tests'
 
+env:
+  DEFAULT_CORE_REF: 'ccip-ton-e2e' # Default Git ref for Chainlink Core repo
+
 jobs:
   integration-test-matrix:
-    env:
-      # We explicitly have this env var not be "CL_DATABASE_URL" to avoid having it be used by core related tests
-      # when they should not be using it, while still allowing us to DRY up the setup
-      DB_URL: postgresql://postgres:postgres@localhost:5432/chainlink_test?sslmode=disable
-
     strategy:
       fail-fast: false
       matrix:
         type:
           # TODO: add more tests here
-          - cmd: cd integration-tests/smoke/ccip && go test ccip_ton_messaging_test.go -timeout 12m -test.parallel=2 -count=1 -json
-            name: 'Messaging Test'
+          - name: 'Messaging Test'
+            cmd: 'cd integration-tests/smoke/ccip && go test ccip_ton_messaging_test.go -timeout 12m -test.parallel=2 -count=1 -json'
 
     name: Integration Tests (${{ matrix.type.name }})
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout the chainlink-ton repo
-        uses: actions/checkout@9bb56186c3b09b4f86b1c65136769dd318469633 # v4.1.2
+      - uses: actions/checkout@v4
 
-      - name: Determine Go version
-        id: go_version
-        run: echo "GO_VERSION=$(cat go.mod |grep "^go"|cut -d' ' -f 2)" >> $GITHUB_ENV
-
-      - name: Setup Go ${{ env.GO_VERSION }}
-        uses: actions/setup-go@0c52d547c9bc32b1aa3301fd7a9cb496313a4491 # v5.0.0
+      - name: Install Nix
+        uses: cachix/install-nix-action@02a151ada4993995686f9ed4f1be7cfbb229e56f # v31
         with:
-          go-version: ${{ env.GO_VERSION }}
+          nix_path: nixpkgs=channel:nixos-unstable
 
-      - name: Display Go version
-        run: go version
-
-      - name: Fetch latest pull request data
-        id: fetch_pr_data
-        uses: actions/github-script@v6
-        # only run this step if the event is a pull request
-        if: github.event_name == 'pull_request'
-        with:
-          script: |
-            const pr = await github.rest.pulls.get({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: context.issue.number
-            });
-            return pr.data.body;
-
-      - name: Get the chainlink commit sha from PR description, if applicable
-        id: get_chainlink_sha
-        run: |
-          default="3cad831b09389324059347af4d0a4c0453b5fff3" # default commit hash for chainlink repository(ccip-ton-e2e)
-          if [ "${{ github.event_name }}" == "pull_request" ]; then
-          comment=$(cat <<'GREAT_PR_DESCRIPTION_HERE'
-          ${{ steps.fetch_pr_data.outputs.result }}
-          GREAT_PR_DESCRIPTION_HERE
-          )
-            echo "$comment"
-            core_ref=$(echo "$comment" | grep -oE 'core ref:\s*[a-f0-9]{40}' | awk '{print $NF}' || true)
-            if [ -n "$core_ref" ]; then
-              echo "Overriding chainlink repository commit hash with: $core_ref"
-              echo "::set-output name=ref::$core_ref"
-            else
-              echo "Using default chainlink repository branch: $default"
-              echo "::set-output name=ref::$default"
-            fi
-          else
-            echo "::set-output name=ref::$default"
-          fi
-
-      - name: Clone Chainlink repo
-        uses: actions/checkout@9bb56186c3b09b4f86b1c65136769dd318469633 # v4.1.2
+      - name: Clone Chainlink Core repo
+        uses: actions/checkout@v4
         with:
           repository: smartcontractkit/chainlink
-          ref: ${{ steps.get_chainlink_sha.outputs.ref }}
+          ref: ${{ env.DEFAULT_CORE_REF }}
           path: chainlink
 
-      - name: Get the correct chainlink-ton commit SHA via GitHub API
-        if: false # TODO: remove this when we are public
-        id: get_sha
-        run: |
-          if [ "${{ github.event_name }}" == "pull_request" ]; then
-            COMMIT_SHA=${{ github.event.pull_request.head.sha }}
-          else
-            COMMIT_SHA=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-              "https://api.github.com/repos/${{ github.repository }}/commits/${{ github.ref }}" | jq -r .sha)
-          fi
-          echo "::set-output name=sha::$COMMIT_SHA"
-
-        # TODO: Remove this step when we are public
-      - name: Replace chainlink-ton dependency in chainlink
-        run: |
-          cd $GITHUB_WORKSPACE/chainlink
-          go mod edit -replace=github.com/smartcontractkit/chainlink-ton=$GITHUB_WORKSPACE
-          make gomodtidy
-
-      - name: Update chainlink-ton dependency in chainlink
-        if: false # TODO: remove this when we are public
-        run: |
-          cd $GITHUB_WORKSPACE/chainlink
-          go get github.com/smartcontractkit/chainlink-ton@${{ steps.get_sha.outputs.sha }}
-          make gomodtidy
-
-      # TODO: remove this when we are merged into chainlink-ccip
-      - name: Checkout the CCIP repo (for dump & action)
+      - name: Checkout chainlink-ccip repo (for Postgres Action)
         uses: actions/checkout@v4
         with:
           repository: smartcontractkit/chainlink-ccip
@@ -123,29 +50,14 @@ jobs:
         with:
           base-path: chainlink-ccip
 
-      - name: Download Go vendor packages
+      - name: Run Integration Tests
         run: |
-          cd $GITHUB_WORKSPACE/chainlink
-          go mod download
-          cd $GITHUB_WORKSPACE/chainlink/integration-tests
-          go mod download
-
-      - name: Build binary
-        run: |
-          cd $GITHUB_WORKSPACE/chainlink
-          go build -o ccip.test .
-
-      - name: Setup DB
-        run: |
-          cd $GITHUB_WORKSPACE/chainlink
-          ./ccip.test local db preparetest
-        env:
-          CL_DATABASE_URL: ${{ env.DB_URL }}
-
-      - name: Run ${{ matrix.type.name }}
-        run: cd $GITHUB_WORKSPACE/chainlink/ && ${{ matrix.type.cmd }}
-        env:
-          CL_DATABASE_URL: ${{ env.DB_URL }}
+          chmod +x ./scripts/e2e/run_e2e_tests.sh
+          # TODO: do we need e2e shell environment?
+          nix develop .#default -c ./scripts/e2e/run_e2e_tests.sh \
+            --core-dir "${{ github.workspace }}/chainlink" \
+            --core-ref "${{ env.DEFAULT_CORE_REF }}" \
+            --test-command "${{ matrix.type.cmd }}"
 
   integration-test-ccip:
     if: always()
