@@ -91,8 +91,16 @@ log_info "Preparing Chainlink Core (dependencies, build, DB setup)..."
   cd "$CHAINLINK_CORE_DIR"
   log_info "Active Go version: $(go version)"
   go mod edit -replace="github.com/smartcontractkit/chainlink-ton=$CHAINLINK_TON_DIR"
-  go install github.com/jmank88/gomods@v0.1.5
-  gomods tidy
+
+  GO_BIN_DIR=$(go env GOBIN)
+  [ -z "$GO_BIN_DIR" ] && GO_BIN_DIR="$(go env GOPATH)/bin"
+  if [ "$GO_BIN_DIR" = "/bin" ] || [ -z "$GO_BIN_DIR" ]; then
+    GO_BIN_DIR="$HOME/go/bin"
+  fi
+  log_info "Ensuring $GO_BIN_DIR is in PATH"
+  export PATH="$GO_BIN_DIR:$PATH"
+  
+  make gomodtidy
   go mod download
   if [ -f "./integration-tests/go.mod" ]; then
     (cd "./integration-tests" && go mod download)
