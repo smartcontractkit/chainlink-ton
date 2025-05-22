@@ -52,7 +52,6 @@ jobs:
       - name: Run Integration Tests
         run: |
           chmod +x ./scripts/e2e/run-e2e-test.sh
-          # TODO: do we need a dedicated e2e shell environment?
           nix develop . -c ./scripts/e2e/run-e2e-test.sh \
             --core-dir "${{ github.workspace }}/chainlink" \
             --test-command "${{ matrix.type.cmd }}"
