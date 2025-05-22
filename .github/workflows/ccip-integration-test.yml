@@ -10,12 +10,14 @@ on:
 env:
   DEFAULT_CORE_REF: 'bb1d9c14f7cd8a059f8f3d2edcce68576e0905f2'
   CACHE_DIR: .cache/images
-  TON_IMAGES: >-
+  DOCKER_IMAGES: >-
     ghcr.io/neodix42/mylocalton-docker:latest
     redis:latest
     postgres:17
     ghcr.io/neodix42/ton-http-api:latest
     ghcr.io/neodix42/mylocalton-docker-faucet:latest
+
+    postgres:14-alpine
 
 jobs:
   integration-test-matrix:
@@ -46,12 +48,12 @@ jobs:
         if: steps.cache-docker.outputs.cache-hit != 'true'
         run: |
           echo "Cache miss - pulling Docker images"
-          for image in ${{ env.TON_IMAGES }}; do
+          for image in ${{ env.DOCKER_IMAGES }}; do
             echo "Pulling $image"
             docker pull $image
           done
           echo "Saving Docker images to cache"
-          docker save ${{ env.TON_IMAGES }} -o ${{ env.CACHE_DIR }}/docker-images.tar
+          docker save ${{ env.DOCKER_IMAGES }} -o ${{ env.CACHE_DIR }}/docker-images.tar
 
       - name: Load cached Docker images
         if: steps.cache-docker.outputs.cache-hit == 'true'
