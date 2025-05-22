@@ -3,8 +3,21 @@ const INTERNAL_DOMAIN_SEPARATOR: Int = 0x000000000000000000000000000000000000000
 
 const MAX_NUM_HASHES: Int = 256;
 
-const ERROR_INVALID_PROOF: Int = 1000;
+// Specific Error Codes
+const ERROR_INVALID_PROOF: Int = 1000; // General invalid proof error (fallback)
 const ERROR_LEAVES_CANNOT_BE_EMPTY: Int = 1001;
+const ERROR_LEAVES_TOO_LARGE: Int = 1002;
+const ERROR_PROOFS_TOO_LARGE: Int = 1003;
+const ERROR_TOTAL_HASHES_EXCEEDED_MAX: Int = 1004;
+const ERROR_LEAF_NOT_FOUND: Int = 1005;
+const ERROR_HASH_NOT_FOUND: Int = 1006;
+const ERROR_PROOF_NOT_FOUND: Int = 1007;
+const ERROR_INVALID_HASH_POSITION: Int = 1008;
+const ERROR_INCOMPLETE_HASH_CALCULATION: Int = 1009;
+const ERROR_MISMATCHED_LEAF_COUNT: Int = 1010;
+const ERROR_MISMATCHED_PROOF_COUNT: Int = 1011;
+const ERROR_FINAL_HASH_NOT_FOUND: Int = 1012;
+
 
 fun merkleRoot(
     leaves: map<Int as uint16, Int as uint256>,
@@ -14,10 +27,10 @@ fun merkleRoot(
     proofFlagBits: Int,
 ): Int {
     throwUnless(ERROR_LEAVES_CANNOT_BE_EMPTY, leavesLen != 0);
-    throwUnless(ERROR_INVALID_PROOF, leavesLen <= MAX_NUM_HASHES + 1);
-    throwUnless(ERROR_INVALID_PROOF, proofsLen <= MAX_NUM_HASHES + 1);
+    throwUnless(ERROR_LEAVES_TOO_LARGE, leavesLen <= MAX_NUM_HASHES + 1);
+    throwUnless(ERROR_PROOFS_TOO_LARGE, proofsLen <= MAX_NUM_HASHES + 1);
     let totalHashes: Int = leavesLen + proofsLen - 1;
-    throwUnless(ERROR_INVALID_PROOF, totalHashes <= MAX_NUM_HASHES);
+    throwUnless(ERROR_TOTAL_HASHES_EXCEEDED_MAX, totalHashes <= MAX_NUM_HASHES);
     if (totalHashes == 0) {
         return leaves.get(0)!!;
     }
@@ -37,19 +50,19 @@ fun merkleRoot(
             // Use a leaf or a previously computed hash.
             if (leafPos < leavesLen) {
                 let optionLeave: Int? = leaves.get(leafPos);
-                throwUnless(ERROR_INVALID_PROOF, optionLeave != null);
+                throwUnless(ERROR_LEAF_NOT_FOUND, optionLeave != null);
                 a = optionLeave!!;
                 leafPos += 1;
             } else {
                 let optionHash: Int? = hashes.get(hashPos);
-                throwUnless(ERROR_INVALID_PROOF, optionHash != null);
+                throwUnless(ERROR_HASH_NOT_FOUND, optionHash != null);
                 a = optionHash!!;
                 hashPos += 1;
             }
         } else {
             // Use a supplied proof.
             let optionProof: Int? = proofs.get(proofPos);
-            throwUnless(ERROR_INVALID_PROOF, optionProof != null);
+            throwUnless(ERROR_PROOF_NOT_FOUND, optionProof != null);
             a = optionProof!!;
             proofPos += 1;
         }
@@ -58,25 +71,25 @@ fun merkleRoot(
         let b: Int = 0;
         if (leafPos < leavesLen) {
             let optionLeave: Int? = leaves.get(leafPos);
-            throwUnless(ERROR_INVALID_PROOF, optionLeave != null);
+            throwUnless(ERROR_LEAF_NOT_FOUND, optionLeave != null); // Re-using for clarity, but could be a new code
             b = optionLeave!!;
             leafPos += 1;
         } else {
             let optionHash: Int? = hashes.get(hashPos);
-            throwUnless(ERROR_INVALID_PROOF, optionHash != null);
+            throwUnless(ERROR_HASH_NOT_FOUND, optionHash != null); // Re-using for clarity, but could be a new code
             b = optionHash!!;
             hashPos += 1;
         }
-        throwUnless(ERROR_INVALID_PROOF, hashPos <= i);
+        throwUnless(ERROR_INVALID_HASH_POSITION, hashPos <= i);
         hashes.set(i, hashPair(a, b));
         i += 1;
     }
-    throwUnless(ERROR_INVALID_PROOF, hashPos == totalHashes - 1);
-    throwUnless(ERROR_INVALID_PROOF, leafPos == leavesLen);
-    throwUnless(ERROR_INVALID_PROOF, proofPos == proofsLen);
+    throwUnless(ERROR_INCOMPLETE_HASH_CALCULATION, hashPos == totalHashes - 1);
+    throwUnless(ERROR_MISMATCHED_LEAF_COUNT, leafPos == leavesLen);
+    throwUnless(ERROR_MISMATCHED_PROOF_COUNT, proofPos == proofsLen);
 
     let resOption: Int? = hashes.get(totalHashes - 1);
-    throwUnless(ERROR_INVALID_PROOF, resOption != null);
+    throwUnless(ERROR_FINAL_HASH_NOT_FOUND, resOption != null);
 
     return resOption!!;
 }

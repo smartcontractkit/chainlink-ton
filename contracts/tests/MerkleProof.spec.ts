@@ -1,13 +1,18 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { toNano, Dictionary } from '@ton/core'
 import { MerkleMultiProofCalculator } from '../build/MerkleProof/tact_MerkleMultiProofCalculator'
+import { keccak256 } from 'js-sha3';
+
 
 import '@ton/test-utils'
+import { MerkleHelper, HashFunction} from './helpers/MerkleMultiProofHelper'
 
 describe('MerkleMultiProofCalculator', () => {
   let blockchain: Blockchain
   let deployer: SandboxContract<TreasuryContract>
   let calculator: SandboxContract<MerkleMultiProofCalculator>
+  let merkleHelper: MerkleHelper
+  let hashFunction: HashFunction
 
   beforeEach(async () => {
     blockchain = await Blockchain.create()
@@ -15,6 +20,10 @@ describe('MerkleMultiProofCalculator', () => {
     calculator = blockchain.openContract(await MerkleMultiProofCalculator.fromInit())
 
     deployer = await blockchain.treasury('deployer')
+
+    hashFunction = (s: Uint8Array) => { return new Uint8Array(keccak256.array(s))}
+
+    merkleHelper = new MerkleHelper(hashFunction)
 
     let leaves = Dictionary.empty<number, bigint>()
     leaves.set(0, 1337n)
@@ -117,6 +126,93 @@ describe('MerkleMultiProofCalculator', () => {
       success: true,
     })
 
+    console.log(await calculator.getGetRoot())
+    console.log(expectedRoot)
+
+    expect(await calculator.getGetRoot()).toBe(expectedRoot)
+
+  })
+  it('merkleRoot 128', async () => {
+    const leaves: string[] = []
+    for (let i = 0; i < 128; i++) {
+      leaves.push('a')
+    }
+    const hashedLeaves: bigint[] = leaves.map((e) => merkleHelper.hashLeafData(e, hashFunction))
+
+    const hashedLeavesDictionary = Dictionary.empty<number, bigint>()
+    for (let i = 0; i < hashedLeaves.length; i++) {
+      hashedLeavesDictionary.set(i, hashedLeaves[i])
+    }
+
+    const flagsUint256:bigint  = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFn 
+
+    const expectedRoot = merkleHelper.getMerkleRoot(hashedLeaves)
+
+    deployer = await blockchain.treasury('deployer')
+    const result = await calculator.send(
+      deployer.getSender(),
+      {
+        value: toNano('100000'),
+      },
+      {
+        $$type: 'MerkleMultiProof',
+        leaves: hashedLeavesDictionary,
+        leavesLen: 128n,
+        proofs: Dictionary.empty<number, bigint>(),
+        proofsLen: 0n,
+        proofFlagBits: flagsUint256,
+      },
+    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: calculator.address,
+      success: true,
+    })
+
     expect(await calculator.getGetRoot()).toBe(expectedRoot)
   })
+
+
+  it('merkleRoot 256', async () => {
+    const leaves: string[] = []
+    for (let i = 0; i < 256; i++) {
+      leaves.push('a')
+    }
+    const hashedLeaves: bigint[] = leaves.map((e) => merkleHelper.hashLeafData(e, hashFunction))
+
+    const hashedLeavesDictionary = Dictionary.empty<number, bigint>()
+    for (let i = 0; i < hashedLeaves.length; i++) {
+      hashedLeavesDictionary.set(i, hashedLeaves[i])
+    }
+
+    const flagsUint256:bigint  = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFn 
+
+    const expectedRoot = merkleHelper.getMerkleRoot(hashedLeaves)
+
+    deployer = await blockchain.treasury('deployer')
+    const result = await calculator.send(
+      deployer.getSender(),
+      {
+        value: toNano('100000'),
+      },
+      {
+        $$type: 'MerkleMultiProof',
+        leaves: hashedLeavesDictionary,
+        leavesLen: 256n,
+        proofs: Dictionary.empty<number, bigint>(),
+        proofsLen: 0n,
+        proofFlagBits: flagsUint256,
+      },
+    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: calculator.address,
+      success: true,
+    })
+
+    expect(await calculator.getGetRoot()).toBe(expectedRoot)
+  })
+
 })
