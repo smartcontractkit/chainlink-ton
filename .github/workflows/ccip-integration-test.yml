@@ -8,8 +8,7 @@ on:
       - 'feature/ci-core-integration-tests'
 
 env:
-  DEFAULT_CORE_REF: 'bb1d9c14f7cd8a059f8f3d2edcce68576e0905f2'
-  CACHE_DIR: .cache/images
+  DEFAULT_CORE_REF: 'ccip-ton-e2e'
   DOCKER_IMAGES: >-
     ghcr.io/neodix42/mylocalton-docker:latest
     redis:latest
@@ -33,33 +32,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Prepare cache directory
-        run: mkdir -p ${{ env.CACHE_DIR }}
-
-      - name: Retrieve cached Docker images
-        id: cache-docker
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.CACHE_DIR }}/docker-images.tar
-          key: mylocalton-images-v1
-
-      - name: Pull Docker images (if no cache hit)
-        if: steps.cache-docker.outputs.cache-hit != 'true'
-        run: |
-          echo "Cache miss - pulling Docker images"
-          for image in ${{ env.DOCKER_IMAGES }}; do
-            echo "Pulling $image"
-            docker pull $image
-          done
-          echo "Saving Docker images to cache"
-          docker save ${{ env.DOCKER_IMAGES }} -o ${{ env.CACHE_DIR }}/docker-images.tar
-
-      - name: Load cached Docker images
-        if: steps.cache-docker.outputs.cache-hit == 'true'
-        run: |
-          echo "Cache hit - loading Docker images"
-          docker load -i ${{ env.CACHE_DIR }}/docker-images.tar
 
       - name: Install Nix
         uses: cachix/install-nix-action@02a151ada4993995686f9ed4f1be7cfbb229e56f # v31
