@@ -4,15 +4,14 @@ on:
   pull_request:
   push:
     branches:
-      # TODO: change this to main when we are ready to merge
-      - 'feature/ci-core-integration-tests'
+      - 'main'
 jobs:
   integration-test-matrix:
     strategy:
       fail-fast: false
       matrix:
         type:
-          # TODO: add more tests here
+          # Note: list of tests, add more tests here
           - name: 'Messaging Test'
             cmd: 'cd integration-tests/smoke/ccip && go test ccip_ton_messaging_test.go -timeout 12m -test.parallel=2 -count=1 -json'
 

@@ -119,18 +119,9 @@ log_info "Preparing Chainlink Core (dependencies, build, DB setup)..."
   cd "$CHAINLINK_CORE_DIR"
   log_info "Active Go version: $(go version)"
 
-  # TODO: hacky fix for "gomods: command not found"
-  GO_BIN_DIR=$(go env GOBIN)
-  [ -z "$GO_BIN_DIR" ] && GO_BIN_DIR="$(go env GOPATH)/bin"
-  if [ "$GO_BIN_DIR" = "/bin" ] || [ -z "$GO_BIN_DIR" ]; then
-    GO_BIN_DIR="$HOME/go/bin"
-  fi
-  log_info "Ensuring $GO_BIN_DIR is in PATH"
-  export PATH="$GO_BIN_DIR:$PATH"
-
   # modify go.mod to use local chainlink-ton
   go mod edit -replace="github.com/smartcontractkit/chainlink-ton=$ROOT_DIR"
-  make gomodtidy
+  go run github.com/jmank88/gomods@v0.1.5 tidy
 
   # download go vendor packages
   go mod download
