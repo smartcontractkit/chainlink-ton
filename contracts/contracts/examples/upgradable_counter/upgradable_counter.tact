@@ -1,5 +1,4 @@
 import "../../lib/upgradable";
-import "../step_counter";
 
 /// Instructs the contract to step the counter.
 message(1) Step {
