@@ -8,7 +8,7 @@ on:
       - 'feature/ci-core-integration-tests'
 
 env:
-  DEFAULT_CORE_REF: 'bb1d9c14f7cd8a059f8f3d2edcce68576e0905f2' # Default Git ref for Chainlink Core repo
+  DEFAULT_CORE_REF: 'bb1d9c14f7cd8a059f8f3d2edcce68576e0905f2'
   CACHE_DIR: integration-tests/.cache/images
   TON_IMAGES: >-
     ghcr.io/neodix42/mylocalton-docker:latest
