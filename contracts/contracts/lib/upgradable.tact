@@ -6,20 +6,12 @@ message(10) Upgrade {
     code: Cell;
 }
 
-/// Wrapper of the argumennts for the init function of the new version.
-/// Includes a lazyInitBit that is always set to false.
-/// This is needed for contracts that have an init() function.
-struct InitParamsWrapper {
-    lazyInitBit: Bool; /// This bit is always set to false. It is appended at the beginig of the cell for contracts that have an init() function.
-    state: Cell; /// The initParams struct is used to pass the header and state to be migrated.
-}
-
-/// Wraps the InitParams struct into a cell for the init function of the new version.
-fun wrapInitParams(state: Cell): Cell {
-    return InitParamsWrapper {
-        lazyInitBit: false,
-        state: state,
-    }.toCell();
+/// Storage Cell layout for the initialization of the new version.
+struct LazyDeploymentLayout {
+    /// for contracts with init() function
+    lazyDeploymentBit: Bool;
+    /// state to be migrated
+    data: Cell;
 }
 
 /// Implements a two step upgrade mechanism with data migration.
@@ -42,16 +34,17 @@ trait Upgradable with Ownable, TypeAndVersion {
 
     /// Applies the upgrade to the contract.
     virtual inline fun upgrade(_: Context, _upgrade: Upgrade) {
-        // Change of code will be applied at the end of this transaction
         setCode(_upgrade.code);
-        let initParams = wrapInitParams(getData());
-        // Change of body will be immediate
+        let initParams = LazyDeploymentLayout {
+            lazyDeploymentBit: false, // must be false for the init function to be called
+            data: getData(),
+        }.toCell();
         setData(initParams);
 
-        // By the end of every transaction,
-        // the Tact compiler automatically adds a call to setData() for your convenience.
-        // However, we've already set the data ourselves,
-        // so let's stop the execution now to prevent a secondary call to setData().
+        // By the end of every transaction, the Tact compiler automatically
+        // adds a call to setData(). However, we've already set the data
+        // ourselves, so we must stop the execution now to prevent a secondary
+        // call to setData().
         throw(0);
     }
 
@@ -85,11 +78,14 @@ trait Upgradable with Ownable, TypeAndVersion {
     abstract fun upgradableType(): String;
 }
 
-/// Change of code will be applied by the end of the current transaction.
+/// Changes the code of the contract.
+/// It will be applied by the end of the current transaction.
 asm fun setCode(code: Cell) { SETCODE }
 
-/// Change of data is immediate.
+/// Changes the storage cell of the contract.
+/// The change is immediate, but the attributes won't be repopulated.
 asm fun setData(data: Cell) { c4 POP }
 
+/// Returns the current storage cell of the contract.
 @name(get_data)
 native getData(): Cell;
