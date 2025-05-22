@@ -1,9 +1,9 @@
 import "./upgradable_counter";
 
 /// UpgradableCounterV1 Layout
-/// Must match the attributes of the UpgradableCounterV1 contract.
+/// Must match the attributes of the UpgradableCounterV1 contract + the lazyDeploymentBit at the begining.
 struct StateV1 {
-    lazy_deployment_bit: Bool;
+    lazyDeploymentBit: Bool;
     /// Contract owner
     owner: Address;
     /// Counter id
