@@ -1,5 +1,3 @@
-import "../../lib/upgradable";
-import "./upgradable_counter_add";
 import "./upgradable_counter";
 
 /// Counter State version 1
@@ -14,7 +12,7 @@ struct StateV1 {
 }
 
 /// This is version 2.0.0 of the UpgradableCounter contract, which subtracts 1 to the counter on each step, instead of adding 1.
-contract UpgradableCounterSub with UpgradableCounter {
+contract UpgradableCounterV2 with UpgradableCounter {
     /// --- UpgradableCounter Attributes ---
     /// Contract owner
     owner: Address;

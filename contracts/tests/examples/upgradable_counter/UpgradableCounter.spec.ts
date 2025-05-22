@@ -1,14 +1,14 @@
 import { Blockchain, SandboxContract, Treasury, TreasuryContract } from '@ton/sandbox'
 import { beginCell, Cell, toNano } from '@ton/core'
 import '@ton/test-utils'
-import { UpgradableCounterAdd } from '../../../build/UpgradableCounterAdd/tact_UpgradableCounterAdd'
-import { UpgradableCounterSub } from '../../../build/UpgradableCounterSub/tact_UpgradableCounterSub'
+import { UpgradableCounterV1 } from '../../../build/UpgradableCounterV1/tact_UpgradableCounterV1'
+import { UpgradableCounterV2 } from '../../../build/UpgradableCounterV2/tact_UpgradableCounterV2'
 
 async function setUpTest(i: bigint): Promise<{
   blockchain: Blockchain
   deployer: SandboxContract<TreasuryContract>
   owner: SandboxContract<TreasuryContract>
-  upgradableCounter: SandboxContract<UpgradableCounterAdd>
+  upgradableCounter: SandboxContract<UpgradableCounterV1>
 }> {
   // Verbosity = 'none' | 'vm_logs' | 'vm_logs_location' | 'vm_logs_gas' | 'vm_logs_full' | 'vm_logs_verbose';
   let blockchain = await Blockchain.create()
@@ -23,7 +23,7 @@ async function setUpTest(i: bigint): Promise<{
   let owner = await blockchain.treasury('owner')
 
   let upgradableCounter = blockchain.openContract(
-    await UpgradableCounterAdd.fromInit(0n, owner.address, i),
+    await UpgradableCounterV1.fromInit(0n, owner.address, i),
   )
 
   const counterDeployResult = await upgradableCounter.send(
@@ -165,7 +165,7 @@ describe('UpgradableCounter', () => {
 })
 
 async function V2Code(): Promise<Cell> {
-  let init = (await UpgradableCounterSub.fromInit(beginCell().endCell())).init
+  let init = (await UpgradableCounterV2.fromInit(beginCell().endCell())).init
   if (init == null) {
     throw new Error('init is null')
   }
@@ -174,7 +174,7 @@ async function V2Code(): Promise<Cell> {
 
 async function upgradeCounter(
   owner: SandboxContract<TreasuryContract>,
-  upgradableCounter: SandboxContract<UpgradableCounterAdd>,
+  upgradableCounter: SandboxContract<UpgradableCounterV1>,
 ) {
   let code = await V2Code()
   let upgradeResult = await upgradableCounter.send(

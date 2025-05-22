@@ -1,7 +1,7 @@
 import "./upgradable_counter";
 
 /// This is version 1.0.0 of the UpgradableCounter contract, which adds 1 to the counter on each step.
-contract UpgradableCounterAdd with UpgradableCounter {
+contract UpgradableCounterV1 with UpgradableCounter {
     /// --- UpgradableCounter Attributes ---
     /// Contract owner
     owner: Address;
