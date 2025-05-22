@@ -1,18 +1,46 @@
 import "../../lib/upgradable";
 import "../step_counter";
 
-/// This is a StepCounter that implements Upgradable trait.
+/// Instructs the contract to step the counter.
+message(1) Step {
+    queryId: Int as uint64;
+}
+
+/// This is a Step Counter that implements Upgradable trait.
 /// It is able to be upgraded in place and migrate the data layout.
-trait UpgradableCounter with StepCounter, Upgradable {
+///
+/// - V1 adds 1 to the counter on each step.
+/// - V2 subtracts 1 to the counter on each step.
+trait UpgradableCounter with Upgradable {
     /// --- Upgradable Attributes ---
     /// Contract owner address that can perform upgrades.
     owner: Address;
 
     /// --- UpgradableCounter Functions ---
 
-    /// --- StepCounter Functions ---
+    /// Empty receiver for the deployment,
+    /// which expects the `null` message body
+    receive() {
+        cashback(sender());
+    }
+
+    /// Step the counter
+    receive(msg: Step) {
+        self.step();
+        cashback(sender());
+    }
 
     /// Handle step instruction
+    /// This function should be overridden in the derived contract
+    virtual fun step() {
+        throw(1000); // This function should be overridden in the derived contract
+    }
+
+    /// Gets the current counter value.
+    /// This function should be overridden in the derived contract
+    get virtual fun value(): Int {
+        throw(1000);
+    }
 
     /// --- Upgradable Functions ---
 
