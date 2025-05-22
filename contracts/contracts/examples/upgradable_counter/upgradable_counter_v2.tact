@@ -2,7 +2,7 @@ import "./upgradable_counter";
 
 /// UpgradableCounterV1 Layout
 /// Must match the attributes of the UpgradableCounterV1 contract + the lazyDeploymentBit at the begining.
-struct StateV1 {
+struct UpgradableCounterV1Layout {
     lazyDeploymentBit: Bool;
     /// Contract owner
     owner: Address;
@@ -30,7 +30,7 @@ contract UpgradableCounterV2 with UpgradableCounter {
     init(
         stateToBeMigrated: Cell,
     ) {
-        let stateV1 = StateV1.fromCell(stateToBeMigrated);
+        let stateV1 = UpgradableCounterV1Layout.fromCell(stateToBeMigrated);
         self.owner = stateV1.owner;
         self.id = stateV1.id;
         self.value = stateV1.value;
