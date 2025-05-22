@@ -19,12 +19,16 @@ trait StepCounter with Ownable {
 
     /// Step the counter
     receive(msg: Step) {
-        self.handle_step(msg.queryId);
+        self.step();
         cashback(sender());
     }
 
     /// Handle step instruction
-    abstract fun handle_step(queryId: Int);
+    virtual fun step() {
+        throw(1000);
+    }
 
-    get abstract fun value(): Int;
+    get virtual fun value(): Int {
+        throw(1000);
+    }
 }

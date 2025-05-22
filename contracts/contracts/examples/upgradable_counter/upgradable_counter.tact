@@ -10,24 +10,9 @@ trait UpgradableCounter with StepCounter, Upgradable {
 
     /// --- UpgradableCounter Functions ---
 
-    /// Gets the current counter value.
-    abstract fun UpgradableCounter_value(): Int;
-
     /// --- StepCounter Functions ---
 
     /// Handle step instruction
-    override fun handle_step(queryId: Int) {
-        self.step();
-    }
-
-    get override fun value(): Int {
-        return self.UpgradableCounter_value();
-    }
-
-    /// --- Delegated StepCounter Functions ---
-
-    /// Update counter
-    abstract fun step();
 
     /// --- Upgradable Functions ---
 
