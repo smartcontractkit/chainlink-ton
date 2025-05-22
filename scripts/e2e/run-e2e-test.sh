@@ -42,6 +42,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [ -z "$ARG_TEST_COMMAND" ]; then
+  # example: "cd integration-tests/smoke/ccip && go test ccip_ton_messaging_test.go -timeout 12m -test.parallel=2 -count=1 -json"
   log_error "--test-command is a required argument."
   exit 1
 fi
@@ -90,8 +91,8 @@ log_info "Preparing Chainlink Core (dependencies, build, DB setup)..."
 (
   cd "$CHAINLINK_CORE_DIR"
   log_info "Active Go version: $(go version)"
-  go mod edit -replace="github.com/smartcontractkit/chainlink-ton=$CHAINLINK_TON_DIR"
 
+  # TODO: hacky fix for "gomods: command not found"
   GO_BIN_DIR=$(go env GOBIN)
   [ -z "$GO_BIN_DIR" ] && GO_BIN_DIR="$(go env GOPATH)/bin"
   if [ "$GO_BIN_DIR" = "/bin" ] || [ -z "$GO_BIN_DIR" ]; then
@@ -99,14 +100,21 @@ log_info "Preparing Chainlink Core (dependencies, build, DB setup)..."
   fi
   log_info "Ensuring $GO_BIN_DIR is in PATH"
   export PATH="$GO_BIN_DIR:$PATH"
-  
+
+  # modify go.mod to use local chainlink-ton
+  go mod edit -replace="github.com/smartcontractkit/chainlink-ton=$CHAINLINK_TON_DIR"
   make gomodtidy
+
+  # download go vendor packages
   go mod download
   if [ -f "./integration-tests/go.mod" ]; then
     (cd "./integration-tests" && go mod download)
   fi
+  # build the ccip test binary
   go build -o ccip.test .
   export CL_DATABASE_URL="$DB_URL"
+
+  # setup the database
   ./ccip.test local db preparetest
 )
 
