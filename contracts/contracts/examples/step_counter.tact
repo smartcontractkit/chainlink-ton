@@ -25,4 +25,6 @@ trait StepCounter with Ownable {
 
     /// Handle step instruction
     abstract fun handle_step(queryId: Int);
+
+    get abstract fun value(): Int;
 }

@@ -31,7 +31,7 @@ contract UpgradableCounterAdd with UpgradableCounter {
     }
 
     /// Gets the current counter value.
-    override fun value(): Int {
+    override fun UpgradableCounter_value(): Int {
         return self.value;
     }
 

@@ -40,22 +40,11 @@ trait Upgradable with Ownable, TypeAndVersion {
         self.upgrade(ctx, msg);
     }
 
-    /// Returns the current state of the contract.
-    /// This function is used to migrate the state from the old version to the new one.
-    abstract fun getState(): Cell;
-
-    /// Returns the header for the initialization of the new version.
-    virtual fun getNextHeader(): HeaderUpgradable {
-        return HeaderUpgradable {
-            owner: self.owner,
-        };
-    }
-
     /// Applies the upgrade to the contract.
     virtual inline fun upgrade(_: Context, _upgrade: Upgrade) {
         // Change of code will be applied at the end of this transaction
         setCode(_upgrade.code);
-        let initParams = wrapInitParams(getState());
+        let initParams = wrapInitParams(getData());
         // Change of body will be immediate
         setData(initParams);
 
@@ -101,3 +90,6 @@ asm fun setCode(code: Cell) { SETCODE }
 
 /// Change of data is immediate.
 asm fun setData(data: Cell) { c4 POP }
+
+@name(get_data)
+native getData(): Cell;

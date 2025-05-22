@@ -1,5 +1,4 @@
 import "../../lib/upgradable";
-import "../direct_responder";
 import "../step_counter";
 
 /// This is a StepCounter that implements Upgradable trait.
@@ -12,16 +11,20 @@ trait UpgradableCounter with StepCounter, Upgradable {
     /// --- UpgradableCounter Functions ---
 
     /// Gets the current counter value.
-    abstract fun value(): Int;
+    abstract fun UpgradableCounter_value(): Int;
 
-    /// --- ICounter Functions ---
+    /// --- StepCounter Functions ---
 
     /// Handle step instruction
     override fun handle_step(queryId: Int) {
         self.step();
     }
 
-    /// --- Delegated ICounter Functions ---
+    get override fun value(): Int {
+        return self.UpgradableCounter_value();
+    }
+
+    /// --- Delegated StepCounter Functions ---
 
     /// Update counter
     abstract fun step();

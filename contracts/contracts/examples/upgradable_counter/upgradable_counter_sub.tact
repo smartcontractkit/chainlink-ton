@@ -28,10 +28,10 @@ contract UpgradableCounterSub with UpgradableCounter {
 
     /// Migrates the state from the old version to the new one.
     init(
-        initParams: InitParams,
+        stateToBeMigrated: Cell,
     ) {
-        self.owner = initParams.header.owner;
-        let stateV1 = StateV1.fromCell(initParams.stateToBeMigrated);
+        let stateV1 = StateV1.fromCell(stateToBeMigrated);
+        self.owner = stateV1.owner;
         self.id = stateV1.id;
         self.value = stateV1.value;
     }
@@ -40,12 +40,12 @@ contract UpgradableCounterSub with UpgradableCounter {
 
     /// Update counter
     override fun step() {
-        self.state.value -= 1;
+        self.value -= 1;
     }
 
     /// Gets the current counter value.
-    override fun value(): Int {
-        return self.state.value;
+    override fun UpgradableCounter_value(): Int {
+        return self.value;
     }
 
     // Version must be a semantic version string (e.g. "1.0.0"). Don't use "v" prefix; it will be added automatically.
