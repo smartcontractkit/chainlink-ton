@@ -1,6 +1,7 @@
 import "./upgradable_counter";
 
-/// Counter State version 1
+/// UpgradableCounterV1 Layout
+/// Must match the attributes of the UpgradableCounterV1 contract.
 struct StateV1 {
     lazy_deployment_bit: Bool;
     /// Contract owner
@@ -24,7 +25,8 @@ contract UpgradableCounterV2 with UpgradableCounter {
     /// Counter value
     id: Int as uint32;
 
-    /// Migrates the state from the old version to the new one.
+    // The second version must handle the state migration on initialization.
+    // It uses the StateV1 struct to decode the state from the Cell.
     init(
         stateToBeMigrated: Cell,
     ) {

@@ -13,6 +13,8 @@ contract UpgradableCounterV1 with UpgradableCounter {
     /// Counter value
     value: Int as uint32;
 
+    // The first version does not require to handle the state migration.
+    // This is how the state is deployed.
     init(
         id: Int,
         owner: Address,
