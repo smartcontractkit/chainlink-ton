@@ -2,7 +2,7 @@ import { CompilerConfig } from '@ton/blueprint'
 
 export const compile: CompilerConfig = {
   lang: 'tact',
-  target: 'contracts/examples/in_place_upgrade_with_data_migration/upgradable_counter_sub.tact',
+  target: 'contracts/examples/upgradable_counter/upgradable_counter_sub.tact',
   options: {
     debug: true,
   },

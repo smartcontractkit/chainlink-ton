@@ -76,7 +76,7 @@ async function setUpTest(i: bigint): Promise<{
   }
 }
 
-describe('AdvancedUpgradableCounter', () => {
+describe('UpgradableCounter', () => {
   it('should deploy', async () => {
     await setUpTest(0n)
   })
@@ -85,7 +85,7 @@ describe('AdvancedUpgradableCounter', () => {
     let { upgradableCounter } = await setUpTest(0n)
     const typeAndVersion = await upgradableCounter.getTypeAndVersion()
     expect(typeAndVersion).toBe(
-      'com.chainlink.ton.examples.in_place_upgrade_with_data_migration.UpgradableCounter v1.0.0',
+      'com.chainlink.ton.examples.upgradable_counter.UpgradableCounter v1.0.0',
     )
   }, 100000)
 
@@ -129,7 +129,7 @@ describe('AdvancedUpgradableCounter', () => {
 
     const typeAndVersion1 = await upgradableCounter.getTypeAndVersion()
     expect(typeAndVersion1).toBe(
-      'com.chainlink.ton.examples.in_place_upgrade_with_data_migration.UpgradableCounter v1.0.0',
+      'com.chainlink.ton.examples.upgradable_counter.UpgradableCounter v1.0.0',
     )
 
     let header: HeaderUpgradable = {
@@ -164,7 +164,7 @@ describe('AdvancedUpgradableCounter', () => {
 
     const typeAndVersion2 = await upgradableCounter.getTypeAndVersion()
     expect(typeAndVersion2).toBe(
-      'com.chainlink.ton.examples.in_place_upgrade_with_data_migration.UpgradableCounter v2.0.0',
+      'com.chainlink.ton.examples.upgradable_counter.UpgradableCounter v2.0.0',
     )
   }, 100000)
 
