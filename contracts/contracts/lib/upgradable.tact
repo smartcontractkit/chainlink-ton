@@ -6,31 +6,19 @@ message(10) Upgrade {
     code: Cell;
 }
 
-/// This are the internal variables all upgradable contracts should have.
-/// It is used to migrate the state from the old version to the new one.
-struct HeaderUpgradable {
-    owner: Address; /// Owner of the contract.
-}
-
-/// Argument for the init function of the new version.
-struct InitParams {
-    header: HeaderUpgradable;
-    stateToBeMigrated: Cell;
-}
-
 /// Wrapper of the argumennts for the init function of the new version.
 /// Includes a lazyInitBit that is always set to false.
 /// This is needed for contracts that have an init() function.
 struct InitParamsWrapper {
     lazyInitBit: Bool; /// This bit is always set to false. It is appended at the beginig of the cell for contracts that have an init() function.
-    initParams: InitParams; /// The initParams struct is used to pass the header and state to be migrated.
+    state: Cell; /// The initParams struct is used to pass the header and state to be migrated.
 }
 
 /// Wraps the InitParams struct into a cell for the init function of the new version.
-fun wrapInitParams(initParams: InitParams): Cell {
+fun wrapInitParams(state: Cell): Cell {
     return InitParamsWrapper {
         lazyInitBit: false,
-        initParams: initParams,
+        state: state,
     }.toCell();
 }
 
@@ -67,12 +55,7 @@ trait Upgradable with Ownable, TypeAndVersion {
     virtual inline fun upgrade(_: Context, _upgrade: Upgrade) {
         // Change of code will be applied at the end of this transaction
         setCode(_upgrade.code);
-        let header = self.getNextHeader();
-        let stateToBeMigrated = self.getState();
-        let initParams = wrapInitParams(InitParams {
-            header: header,
-            stateToBeMigrated: stateToBeMigrated,
-        });
+        let initParams = wrapInitParams(getState());
         // Change of body will be immediate
         setData(initParams);
 

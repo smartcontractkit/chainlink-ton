@@ -1,10 +1,10 @@
 import "../../lib/upgradable";
 import "../direct_responder";
-import "../counter_trait";
+import "../step_counter";
 
-/// This is a counter that implements Upgradable trait.
+/// This is a StepCounter that implements Upgradable trait.
 /// It is able to be upgraded in place and migrate the data layout.
-trait UpgradableCounter with DirectResponder, StepCounter, Upgradable {
+trait UpgradableCounter with StepCounter, Upgradable {
     /// --- Upgradable Attributes ---
     /// Contract owner address that can perform upgrades.
     owner: Address;
@@ -26,20 +26,7 @@ trait UpgradableCounter with DirectResponder, StepCounter, Upgradable {
     /// Update counter
     abstract fun step();
 
-    /// --- DirectResponder Functions ---
-
-    /// Respond to a request, returning a value to the sender() in the callbackOpcode.
-    override fun storeValue(b: Builder): Builder {
-        return b.storeUint(self.value(), 64);
-    }
-
     /// --- Upgradable Functions ---
-
-    /// Returns the current state of the contract.
-    /// This function is used to migrate the state from the old version to the new one.
-    override fun getState(): Cell {
-        return self.getStateInternal();
-    }
 
     // Type must be a Reverse Domain Name Notation string that is uinique to the contract and should not change betwen versions.
     // Example: "com.chainlink.project.package.ContractName"
@@ -52,10 +39,8 @@ trait UpgradableCounter with DirectResponder, StepCounter, Upgradable {
     override fun upgradableVersion(): String {
         return self.upgradableCounterVersion();
     }
-    /// --- Deletaed Upgradable Functions ---
 
-    /// Returns the current state of the contract.
-    abstract fun getStateInternal(): Cell;
+    /// --- Deletaed Upgradable Functions ---
 
     // Version must be a semantic version string (e.g. "1.0.0"). Don't use "v" prefix; it will be added automatically.
     abstract fun upgradableCounterVersion(): String;
