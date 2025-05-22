@@ -129,7 +129,7 @@ describe('UpgradableCounter', () => {
     )
   }, 100000)
 
-  it('version 2 should decrease de counter', async () => {
+  it('version 2 should decrease the counter', async () => {
     let { blockchain, owner, upgradableCounter } = await setUpTest(3n)
 
     await upgradeCounter(owner, upgradableCounter)
