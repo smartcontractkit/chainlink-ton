@@ -65,7 +65,8 @@ describe('UpgradableCounter', () => {
   it('should have initial value', async () => {
     let { blockchain, upgradableCounter } = await setUpTest(0n)
     const user = await blockchain.treasury('user')
-    await assertCount(upgradableCounter, 0n)
+    const getterResult = await upgradableCounter.getValue()
+    expect(getterResult).toBe(0n)
   }, 100000)
 
   it('version 1 should increase counter', async () => {
@@ -73,7 +74,7 @@ describe('UpgradableCounter', () => {
     const increaseTimes = 3
     for (let i = 0; i < increaseTimes; i++) {
       const increaser = await blockchain.treasury('increaser' + i)
-      const counterBefore = await getCount(upgradableCounter)
+      const counterBefore = await upgradableCounter.getValue()
       const increaseBy = BigInt(1)
 
       let increaseResult = await upgradableCounter.send(
@@ -93,7 +94,8 @@ describe('UpgradableCounter', () => {
         success: true,
       })
 
-      await assertCount(upgradableCounter, counterBefore + increaseBy)
+      const getterResult = await upgradableCounter.getValue()
+      expect(getterResult).toBe(counterBefore + increaseBy)
     }
   }, 100000)
 
@@ -105,11 +107,6 @@ describe('UpgradableCounter', () => {
       'com.chainlink.ton.examples.upgradable_counter.UpgradableCounter v1.0.0',
     )
 
-    let subtractorCounter = (await UpgradableCounterSub.fromInit(beginCell().endCell())).init
-    if (subtractorCounter == null) {
-      throw new Error('init is null')
-    }
-    let subtractorCounterCode = subtractorCounter.code
     let upgradeResult = await upgradableCounter.send(
       owner.getSender(),
       {
@@ -117,7 +114,7 @@ describe('UpgradableCounter', () => {
       },
       {
         $$type: 'Upgrade',
-        code: subtractorCounterCode,
+        code: await V2Code(),
       },
     )
     expect(upgradeResult.transactions).toHaveTransaction({
@@ -135,13 +132,13 @@ describe('UpgradableCounter', () => {
   it('version 2 should decrease de counter', async () => {
     let { blockchain, owner, upgradableCounter } = await setUpTest(3n)
 
-    await upgradeCounter(owner, upgradableCounter, await createSubCounterInit(owner))
+    await upgradeCounter(owner, upgradableCounter)
 
     const decreaseTimes = 3
     for (let i = 0; i < decreaseTimes; i++) {
       const decreaser = await blockchain.treasury('decreaser' + i)
 
-      const counterBefore = await getCount(upgradableCounter)
+      const counterBefore = await upgradableCounter.getValue()
       const decreaseBy = BigInt(1)
 
       let decreaseResult = await upgradableCounter.send(
@@ -161,12 +158,13 @@ describe('UpgradableCounter', () => {
         success: true,
       })
 
-      await assertCount(upgradableCounter, counterBefore - decreaseBy)
+      const getterResult = await upgradableCounter.getValue()
+      expect(getterResult).toBe(counterBefore - decreaseBy)
     }
   }, 100000)
 })
 
-async function createSubCounterInit(owner: SandboxContract<TreasuryContract>): Promise<Cell> {
+async function V2Code(): Promise<Cell> {
   let init = (await UpgradableCounterSub.fromInit(beginCell().endCell())).init
   if (init == null) {
     throw new Error('init is null')
@@ -177,8 +175,8 @@ async function createSubCounterInit(owner: SandboxContract<TreasuryContract>): P
 async function upgradeCounter(
   owner: SandboxContract<TreasuryContract>,
   upgradableCounter: SandboxContract<UpgradableCounterAdd>,
-  code: Cell,
 ) {
+  let code = await V2Code()
   let upgradeResult = await upgradableCounter.send(
     owner.getSender(),
     {
@@ -194,18 +192,4 @@ async function upgradeCounter(
     to: upgradableCounter.address,
     success: true,
   })
-}
-
-async function assertCount(
-  upgradableCounter: SandboxContract<UpgradableCounterAdd>,
-  expectedCount: bigint,
-) {
-  const getterResult = await getCount(upgradableCounter)
-  console.log('getterResult', getterResult)
-  console.log('expectedCount', expectedCount)
-  expect(getterResult).toBe(expectedCount)
-}
-
-async function getCount(upgradableCounter: SandboxContract<UpgradableCounterAdd>) {
-  return await upgradableCounter.getValue()
 }
