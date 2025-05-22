@@ -92,7 +92,6 @@ jobs:
           # TODO: do we need a dedicated e2e shell environment?
           nix develop . -c ./scripts/e2e/run-e2e-test.sh \
             --core-dir "${{ github.workspace }}/chainlink" \
-            --core-ref "${{ env.DEFAULT_CORE_REF }}" \
             --test-command "${{ matrix.type.cmd }}"
 
   integration-test-ccip:
