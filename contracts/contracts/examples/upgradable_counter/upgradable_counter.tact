@@ -1,5 +1,7 @@
 import "../../lib/upgradable";
 
+const EXIT_CODE_UNIMPLEMENTED_FUNCTION = 4000;
+
 /// Instructs the contract to step the counter.
 message(1) Step {
     queryId: Int as uint64;
@@ -32,13 +34,13 @@ trait UpgradableCounter with Upgradable {
     /// Handle step instruction
     /// This function should be overridden in the derived contract
     virtual fun step() {
-        throw(1000); // This function should be overridden in the derived contract
+        throw(EXIT_CODE_UNIMPLEMENTED_FUNCTION); // This function should be overridden in the derived contract
     }
 
     /// Gets the current counter value.
     /// This function should be overridden in the derived contract
     get virtual fun value(): Int {
-        throw(1000);
+        throw(EXIT_CODE_UNIMPLEMENTED_FUNCTION);
     }
 
     /// --- Upgradable Functions ---
