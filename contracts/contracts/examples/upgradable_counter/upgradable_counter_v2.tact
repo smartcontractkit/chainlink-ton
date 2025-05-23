@@ -4,7 +4,7 @@ import "./upgradable_counter";
 /// Must match the attributes of the UpgradableCounterV1 contract + the lazyDeploymentBit at the begining.
 struct UpgradableCounterV1Layout {
     /// Used for contracts with init() function. Ignore.
-    lazyDeploymentBit: Bool;
+    _lazyDeploymentBit: Bool;
     /// Contract owner
     owner: Address;
     /// Counter id
