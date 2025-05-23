@@ -1,6 +1,6 @@
 import "../../lib/upgradable";
 
-const EXIT_CODE_UNIMPLEMENTED_FUNCTION = 4000;
+const EXIT_CODE_UNIMPLEMENTED_FUNCTION: Int = 4000;
 
 /// Instructs the contract to step the counter.
 message(1) Step {
