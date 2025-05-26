@@ -9,7 +9,7 @@ message(10) Upgrade {
 /// Storage Cell layout for the initialization of the new version.
 struct LazyDeploymentLayout {
     /// for contracts with init() function
-    lazyDeploymentBit: Bool;
+    _lazyDeploymentBit: Bool;
     /// state to be migrated
     data: Cell;
 }
@@ -37,7 +37,7 @@ trait Upgradable with Ownable, TypeAndVersion {
     virtual inline fun upgrade(_: Context, _upgrade: Upgrade) {
         setCode(_upgrade.code);
         let initParams = LazyDeploymentLayout {
-            lazyDeploymentBit: false, // must be false for the init function to be called
+            _lazyDeploymentBit: false, // must be false for the init function to be called
             data: getData(),
         }.toCell();
         setData(initParams);

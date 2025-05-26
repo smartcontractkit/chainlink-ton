@@ -68,7 +68,7 @@ Version 2
 
 ```tact
 struct UpgradableCounterV1Layout {
-    lazyDeploymentBit: Bool;
+    _lazyDeploymentBit: Bool;
     owner: Address;
     id: Int as uint32;
     value: Int as uint32;
