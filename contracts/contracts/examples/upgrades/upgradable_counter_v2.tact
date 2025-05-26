@@ -21,10 +21,11 @@ contract UpgradableCounterV2 with UpgradableCounter {
 
     /// --- UpgradableCounter Attributes ---
 
-    /// Counter id
-    value: Int as uint64;
     /// Counter value
+    value: Int as uint64;
+    /// Counter id
     id: Int as uint32;
+    /// Note that these two attributes are switched compared to the V1 contract, and that the value is now a 64-bit integer.
 
     // The second version must handle the state migration on initialization.
     // It uses the StateV1 struct to decode the state from the Cell.
