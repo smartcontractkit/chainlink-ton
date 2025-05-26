@@ -1,9 +1,9 @@
-import "../libraries/merkle_multi_proof.tact";
+import "../libraries/merkle_multi_proof_v2.tact";
 
 message MerkleMultiProof {
-    leaves: map<Int as uint16, Int as uint256>;
+    leaves: Slice;
     leavesLen: Int as uint16;
-    proofs: map<Int as uint16, Int as uint256>;
+    proofs: Slice;
     proofsLen: Int as uint16;
     proofFlagBits: Int as uint256;
 }
@@ -13,6 +13,7 @@ contract MerkleMultiProofCalculator {
     root: Int as uint256 = 0;
 
     receive(proof: MerkleMultiProof) {
+        let hash: Int = sha256(beginCell().storeUint(32, 256).asSlice());
         let res = merkleRoot(
             proof.leaves,
             proof.leavesLen,
