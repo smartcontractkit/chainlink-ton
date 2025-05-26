@@ -16,6 +16,7 @@ trait UpgradeableCounter with Upgradeable {
     /// --- Upgradeable Attributes ---
     /// Contract owner address that can perform upgrades.
     owner: Address;
+    pendingOwner: Address?;
 
     /// --- UpgradeableCounter Functions ---
 

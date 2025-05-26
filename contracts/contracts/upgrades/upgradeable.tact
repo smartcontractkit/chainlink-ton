@@ -1,5 +1,5 @@
-import "@stdlib/ownable";
 import "../lib/type_and_version";
+import "../access/ownable_2step";
 
 /// Message for upgrading a contract.
 message(10) Upgrade {
@@ -25,10 +25,11 @@ struct UpgradedEvent {
 
 @interface("com.chainlink.ton.upgradeable")
 /// Implements a two step upgrade mechanism with data migration.
-trait Upgradeable with Ownable, TypeAndVersion {
-    /// --- Ownable Attributes ---
+trait Upgradeable with Ownable2Step, TypeAndVersion {
+    /// --- Ownable2Step Attributes ---
     /// Contract owner address that can perform upgrades.
     owner: Address;
+    pendingOwner: Address?;
 
     /// --- Upgradeable Functions ---
     ///

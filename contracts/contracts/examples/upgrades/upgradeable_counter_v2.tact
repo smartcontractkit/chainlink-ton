@@ -8,6 +8,7 @@ struct UpgradeableCounterV1Layout {
     _lazyDeploymentBit: Bool;
     /// Contract owner
     owner: Address;
+    pendingOwner: Address?;
     /// Counter id
     id: Int as uint32;
     /// Counter value
@@ -19,6 +20,7 @@ contract UpgradeableCounterV2 with UpgradeableCounter {
     /// --- UpgradeableCounter Attributes ---
     /// Contract owner
     owner: Address;
+    pendingOwner: Address?;
 
     /// --- UpgradeableCounter Attributes ---
 
@@ -35,6 +37,7 @@ contract UpgradeableCounterV2 with UpgradeableCounter {
     ) {
         let stateV1 = UpgradeableCounterV1Layout.fromCell(stateToBeMigrated);
         self.owner = stateV1.owner;
+        self.pendingOwner = stateV1.pendingOwner;
         self.id = stateV1.id;
         self.value = stateV1.value;
         self.emitUpgradeEvent();

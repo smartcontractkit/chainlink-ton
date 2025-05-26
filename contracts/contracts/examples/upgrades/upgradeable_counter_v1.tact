@@ -3,8 +3,8 @@ import "./upgradeable_counter";
 /// This is version 1.0.0 of the UpgradeableCounter contract, which adds 1 to the counter on each step.
 contract UpgradeableCounterV1 with UpgradeableCounter {
     /// --- UpgradeableCounter Attributes ---
-    /// Contract owner
     owner: Address;
+    pendingOwner: Address?;
 
     /// --- UpgradeableCounter Attributes ---
 
