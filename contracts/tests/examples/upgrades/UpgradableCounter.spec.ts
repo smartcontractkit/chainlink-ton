@@ -57,9 +57,7 @@ describe('UpgradableCounter', () => {
   it('should deploy on version 1', async () => {
     let { upgradableCounter } = await setUpTest(0n)
     const typeAndVersion = await upgradableCounter.getTypeAndVersion()
-    expect(typeAndVersion).toBe(
-      'com.chainlink.ton.examples.upgradable_counter.UpgradableCounter v1.0.0',
-    )
+    expect(typeAndVersion).toBe('com.chainlink.ton.examples.upgrades.UpgradableCounter v1.0.0')
     const expectedCode = await V1Code()
     const code = await upgradableCounter.getCode()
     const expectedHash = expectedCode.hash()
@@ -110,9 +108,7 @@ describe('UpgradableCounter', () => {
     let { owner, upgradableCounter } = await setUpTest(0n)
 
     const typeAndVersion1 = await upgradableCounter.getTypeAndVersion()
-    expect(typeAndVersion1).toBe(
-      'com.chainlink.ton.examples.upgradable_counter.UpgradableCounter v1.0.0',
-    )
+    expect(typeAndVersion1).toBe('com.chainlink.ton.examples.upgrades.UpgradableCounter v1.0.0')
 
     let upgradeResult = await upgradableCounter.send(
       owner.getSender(),
@@ -139,9 +135,7 @@ describe('UpgradableCounter', () => {
     expect(hash).toBe(expectedHashInt)
 
     const typeAndVersion2 = await upgradableCounter.getTypeAndVersion()
-    expect(typeAndVersion2).toBe(
-      'com.chainlink.ton.examples.upgradable_counter.UpgradableCounter v2.0.0',
-    )
+    expect(typeAndVersion2).toBe('com.chainlink.ton.examples.upgrades.UpgradableCounter v2.0.0')
   })
 
   it('version 2 should decrease the counter', async () => {

@@ -49,7 +49,7 @@ trait UpgradableCounter with Upgradable {
     // Example: "com.chainlink.project.package.ContractName"
     // Read more about Reverse DNS Notation at https://en.wikipedia.org/wiki/Reverse_domain_name_notation
     override fun upgradableType(): String {
-        return "com.chainlink.ton.examples.upgradable_counter.UpgradableCounter";
+        return "com.chainlink.ton.examples.upgrades.UpgradableCounter";
     }
 
     // Version must be a semantic version string (e.g. "1.0.0").
