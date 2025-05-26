@@ -42,7 +42,7 @@ Required function implementations:
 /// Version must be a semantic version string (e.g. "1.0.0"). Don't use "v" prefix; it will be added automatically.
 abstract fun upgradableVersion(): String;
 
-// Type must be a Reverse Domain Name Notation string that is unique to the contract and should not change betwen versions.
+// Type must be a Reverse Domain Name Notation string that is unique to the contract and should not change between versions.
 // Example: "com.chainlink.project.package.ContractName"
 // Read more about Reverse DNS Notation at https://en.wikipedia.org/wiki/Reverse_domain_name_notation
 abstract fun upgradableType(): String;
