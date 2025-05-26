@@ -14,6 +14,7 @@ struct LazyDeploymentLayout {
     data: Cell;
 }
 
+@interface("com.chainlink.ton.upgradable")
 /// Implements a two step upgrade mechanism with data migration.
 trait Upgradable with Ownable, TypeAndVersion {
     /// --- Ownable Attributes ---
@@ -46,11 +47,6 @@ trait Upgradable with Ownable, TypeAndVersion {
         // ourselves, so we must stop the execution now to prevent a secondary
         // call to setData().
         throw(0);
-    }
-
-    /// A getter to check if the contract uses this trait.
-    get fun isUpgradable(): Bool {
-        return true;
     }
 
     /// --- TypeAndVersion Functions ---

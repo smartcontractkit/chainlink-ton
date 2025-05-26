@@ -5,5 +5,6 @@ export const compile: CompilerConfig = {
   target: 'contracts/examples/upgrades/upgradable_counter_v1.tact',
   options: {
     debug: true,
+    interfacesGetter: true,
   },
 }
