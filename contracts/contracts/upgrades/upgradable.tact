@@ -23,13 +23,13 @@ trait Upgradable with Ownable, TypeAndVersion {
 
     /// --- Upgradable Functions ---
     ///
-    virtual inline fun requireValidateUpgrade(_: Context, __: Upgrade) {
+    virtual inline fun requireValidUpgrade(_: Context, __: Upgrade) {
         self.requireOwner();
     }
 
     receive(msg: Upgrade) {
         let ctx = context();
-        self.requireValidateUpgrade(ctx, msg);
+        self.requireValidUpgrade(ctx, msg);
         self.upgrade(ctx, msg);
     }
 
