@@ -79,7 +79,7 @@ trait Upgradeable with Ownable2Step, TypeAndVersion {
         // of every transaction. Since we've already set our data properly,
         // we must halt execution to prevent a double setData() call which
         // could corrupt our state.
-        throw(0);
+        throw(0); // Success exit code
     }
 
     fun emitUpgradeEvent() {
