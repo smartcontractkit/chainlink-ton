@@ -10,6 +10,6 @@ trait TypeAndVersion {
     /// Read more about Reverse DNS Notation at https://en.wikipedia.org/wiki/Reverse_domain_name_notation
     abstract fun type(): String;
 
-    /// Version must be a semantic version string (e.g. "1.0.0"). Don't use "v" prefix; it will be added automatically.
+    /// Version must be a semantic version string (e.g. "1.0.0").
     abstract fun version(): String;
 }

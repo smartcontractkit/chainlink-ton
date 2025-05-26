@@ -37,7 +37,7 @@ contract UpgradableCounterV1 with UpgradableCounter {
         return self.value;
     }
 
-    // Version must be a semantic version string (e.g. "1.0.0"). Don't use "v" prefix; it will be added automatically.
+    // Version must be a semantic version string (e.g. "1.0.0").
     override fun upgradableCounterVersion(): String {
         return "1.0.0";
     }

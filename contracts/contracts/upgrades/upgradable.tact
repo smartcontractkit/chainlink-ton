@@ -55,7 +55,7 @@ trait Upgradable with Ownable, TypeAndVersion {
 
     /// --- TypeAndVersion Functions ---
 
-    /// Version must be a semantic version string (e.g. "1.0.0"). Don't use "v" prefix; it will be added automatically.
+    /// Version must be a semantic version string (e.g. "1.0.0").
     override fun version(): String {
         return self.upgradableVersion();
     }
@@ -69,7 +69,7 @@ trait Upgradable with Ownable, TypeAndVersion {
 
     /// --- Delegated TypeAndVersion Functions ---
 
-    /// Version must be a semantic version string (e.g. "1.0.0"). Don't use "v" prefix; it will be added automatically.
+    /// Version must be a semantic version string (e.g. "1.0.0").
     abstract fun upgradableVersion(): String;
 
     // Type must be a Reverse Domain Name Notation string that is unique to the contract and should not change between versions.
