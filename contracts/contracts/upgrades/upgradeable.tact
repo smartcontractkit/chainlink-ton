@@ -23,8 +23,8 @@ struct UpgradedEvent {
     sha: Int as uint256;
 }
 
-@interface("com.chainlink.ton.upgradeable")
 /// Implements a two step upgrade mechanism with data migration.
+@interface("com.chainlink.ton.upgradeable")
 trait Upgradeable with Ownable2Step, TypeAndVersion {
     /// --- Ownable2Step Attributes ---
     /// Contract owner address that can perform upgrades.
@@ -61,7 +61,7 @@ trait Upgradeable with Ownable2Step, TypeAndVersion {
         // The init() function must receive one argument: a Cell containing
         // the data to be migrated.
         //
-        // All contracts with an init() function have a _lazyDeploymentBit at 
+        // All contracts with an init() function have a _lazyDeploymentBit at
         // the beginning of their storage layout. Setting it to false ensures
         // the init() function will be called.
         let initParams = LazyDeploymentLayout {
@@ -87,8 +87,8 @@ trait Upgradeable with Ownable2Step, TypeAndVersion {
         let sha = code.hash();
         emit(UpgradedEvent {
             version: self.upgradeableVersion(),
-            code: code,
-            sha: sha,
+            code,
+            sha,
         }.toCell());
     }
 
