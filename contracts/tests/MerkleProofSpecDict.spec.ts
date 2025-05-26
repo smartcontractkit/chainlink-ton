@@ -1,35 +1,36 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { beginCell, toNano, Cell } from '@ton/core'
-import { MerkleMultiProofCalculatorLists} from '../build/MerkleProofList/tact_MerkleMultiProofCalculatorLists'
+import { beginCell, toNano, Dictionary} from '@ton/core'
+import { MerkleMultiProofCalculatorDict} from '../build/MerkleProof/tact_MerkleMultiProofCalculatorDict'
 import { keccak256 } from 'js-sha3'
 import { sha256_sync } from '@ton/crypto'
 
 import '@ton/test-utils'
 import { MerkleHelper, HashFunction} from './helpers/MerkleMultiProof/MerkleMultiProofHelper'
-import { listOfHashesAsCell } from './helpers/MerkleMultiProof/ListOfHashes'
+import { listOfHashesAsDictionary, listOfHashesAsCell } from './helpers/MerkleMultiProof/ListOfHashes'
 
-describe('MerkleProofCalculatorList', () => {
+
+describe('MerkleMultiProofCalculatorDict', () => {
   let blockchain: Blockchain
   let deployer: SandboxContract<TreasuryContract>
-  let calculator: SandboxContract<MerkleMultiProofCalculatorLists>
+  let calculator: SandboxContract<MerkleMultiProofCalculatorDict>
   let merkleHelper: MerkleHelper
-  let hashFunction: HashFunction
+  let hashFunctionSha: HashFunction
   let hashFunctionKeccak: HashFunction
 
   beforeEach(async () => {
     blockchain = await Blockchain.create()
 
-    calculator = blockchain.openContract(await MerkleMultiProofCalculatorLists.fromInit())
+    calculator = blockchain.openContract(await MerkleMultiProofCalculatorDict.fromInit())
 
     deployer = await blockchain.treasury('deployer')
 
-    hashFunction = (s: Uint8Array) => { return new Uint8Array(sha256_sync(Buffer.from(s)))}
+    hashFunctionSha = (s: Uint8Array) => { return new Uint8Array(sha256_sync(Buffer.from(s)))}
     hashFunctionKeccak = (s: Uint8Array) => { return new Uint8Array(keccak256.arrayBuffer(s)) }
 
     // Modify this initializaiton to generate instances with Sha256 or Keccak256
-    merkleHelper = new MerkleHelper(hashFunction)
+    merkleHelper = new MerkleHelper(hashFunctionSha)
 
-    let leaves = listOfHashesAsCell([1337n])
+    let leaves = listOfHashesAsDictionary([1337n])
 
     const deployResult = await calculator.send(
       deployer.getSender(),
@@ -38,9 +39,9 @@ describe('MerkleProofCalculatorList', () => {
       },
       {
         $$type: 'MerkleMultiProof',
-        leaves: leaves.asSlice(),
+        leaves: leaves,
         leavesLen: 1n,
-        proofs: beginCell().asCell().asSlice(),
+        proofs: Dictionary.empty(),
         proofsLen: 0n,
         proofFlagBits: 0n,
       },
@@ -144,9 +145,9 @@ describe('MerkleProofCalculatorList', () => {
       },
       {
         $$type: 'MerkleMultiProof',
-        leaves: listOfHashesAsCell(leaves).asSlice(),
+        leaves: listOfHashesAsDictionary(leaves),
         leavesLen: 10n,
-        proofs: listOfHashesAsCell(proofs).asSlice(),
+        proofs: listOfHashesAsDictionary(proofs),
         proofsLen: 33n,
         proofFlagBits: flagsUint256,
       },
@@ -165,9 +166,9 @@ describe('MerkleProofCalculatorList', () => {
     for (let i = 0; i < 128; i++) {
       leaves.push('a')
     }
-    const hashedLeaves: bigint[] = leaves.map((e) => merkleHelper.hashLeafData(e, hashFunction))
+    const hashedLeaves: bigint[] = leaves.map((e) => merkleHelper.hashLeafData(e, hashFunctionKeccak))
 
-    const hashedLeavesCell = listOfHashesAsCell(hashedLeaves)
+    const hashedLeavesDict = listOfHashesAsDictionary(hashedLeaves)
 
     const flagsUint128: bigint  = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFn 
 
@@ -181,9 +182,9 @@ describe('MerkleProofCalculatorList', () => {
       },
       {
         $$type: 'MerkleMultiProof',
-        leaves: hashedLeavesCell.asSlice(),
+        leaves: hashedLeavesDict,
         leavesLen: 128n,
-        proofs: beginCell().asCell().asSlice(),
+        proofs: Dictionary.empty(),
         proofsLen: 0n,
         proofFlagBits: flagsUint128,
       },

@@ -1,7 +1,7 @@
 const LEAF_DOMAIN_SEPARATOR: Int = 0x0000000000000000000000000000000000000000000000000000000000000000;
 const INTERNAL_DOMAIN_SEPARATOR: Int = 0x0000000000000000000000000000000000000000000000000000000000000001;
 
-const MAX_NUM_HASHES: Int = 256;
+const MAX_NUM_HASHES: Int = 128;
 
 // Specific Error Codes
 const ERROR_INVALID_PROOF: Int = 1000; // General invalid proof error (fallback)
@@ -108,6 +108,6 @@ fun hashInternalNode(left: Int, right: Int): Int {
         .storeUint(left, 256)
         .storeUint(right, 256)
         .endCell();
-    let hashedNode: Int = keccak256(data.asSlice());
+    let hashedNode: Int = sha256(data.asSlice());
     return hashedNode;
 }

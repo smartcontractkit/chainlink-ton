@@ -1,4 +1,4 @@
-import { beginCell, Cell } from "@ton/core"
+import {Dictionary, beginCell, Cell } from "@ton/core"
 
 
 export function listOfHashesAsCell(list: bigint[]): Cell {
@@ -27,3 +27,10 @@ export function listOfHashesAsCell(list: bigint[]): Cell {
 }
 
 
+export function listOfHashesAsDictionary(list: bigint[]): Dictionary<number, bigint> {
+  let dict: Dictionary<number, bigint> = Dictionary.empty();
+  for (let i = 0; i < list.length; i++) {
+    dict.set(i, list[i]);
+  }
+  return dict;
+}

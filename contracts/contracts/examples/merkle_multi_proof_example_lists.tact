@@ -1,15 +1,15 @@
-import "../libraries/merkle_multi_proof.tact";
+import "../libraries/merkle_multi_proof_listOfCells.tact";
 
 message MerkleMultiProof {
-    leaves: map<Int as uint16, Int as uint256>;
+    leaves: Slice;
     leavesLen: Int as uint16;
-    proofs: map<Int as uint16, Int as uint256>;
+    proofs: Slice;
     proofsLen: Int as uint16;
     proofFlagBits: Int as uint256;
 }
 
 /// An example contract is necessary for testing and compiling the MerkleMultiProof library.
-contract MerkleMultiProofCalculatorDict {
+contract MerkleMultiProofCalculatorLists {
     root: Int as uint256 = 0;
 
     receive(proof: MerkleMultiProof) {
