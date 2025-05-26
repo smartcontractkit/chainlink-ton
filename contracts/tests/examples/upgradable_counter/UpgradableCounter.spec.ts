@@ -1,5 +1,5 @@
 import { Blockchain, SandboxContract, Treasury, TreasuryContract } from '@ton/sandbox'
-import { beginCell, Cell, toNano } from '@ton/core'
+import { Address, address, beginCell, Cell, toNano } from '@ton/core'
 import '@ton/test-utils'
 import { UpgradableCounterV1 } from '../../../build/UpgradableCounterV1/tact_UpgradableCounterV1'
 import { UpgradableCounterV2 } from '../../../build/UpgradableCounterV2/tact_UpgradableCounterV2'
@@ -60,6 +60,13 @@ describe('UpgradableCounter', () => {
     expect(typeAndVersion).toBe(
       'com.chainlink.ton.examples.upgradable_counter.UpgradableCounter v1.0.0',
     )
+    const expectedCode = await V1Code()
+    const code = await upgradableCounter.getCode()
+    const expectedHash = expectedCode.hash()
+    expect(code.toString('hex')).toBe(expectedCode.toString('hex'))
+    const expectedHashInt = BigInt('0x' + expectedHash.toString('hex'))
+    const hash = await upgradableCounter.getCodeHash()
+    expect(hash).toBe(expectedHashInt)
   })
 
   it('should have initial value', async () => {
@@ -123,6 +130,14 @@ describe('UpgradableCounter', () => {
       success: true,
     })
 
+    const expectedCode = await V2Code()
+    const code = await upgradableCounter.getCode()
+    const expectedHash = expectedCode.hash()
+    expect(code.toString('hex')).toBe(expectedCode.toString('hex'))
+    const expectedHashInt = BigInt('0x' + expectedHash.toString('hex'))
+    const hash = await upgradableCounter.getCodeHash()
+    expect(hash).toBe(expectedHashInt)
+
     const typeAndVersion2 = await upgradableCounter.getTypeAndVersion()
     expect(typeAndVersion2).toBe(
       'com.chainlink.ton.examples.upgradable_counter.UpgradableCounter v2.0.0',
@@ -163,6 +178,19 @@ describe('UpgradableCounter', () => {
     }
   })
 })
+async function V1Code(): Promise<Cell> {
+  let init = (
+    await UpgradableCounterV1.fromInit(
+      0n,
+      Address.parseRaw('-1:0000000000000000000000000000000000000000000000000000000000000000'),
+      0n,
+    )
+  ).init
+  if (init == null) {
+    throw new Error('init is null')
+  }
+  return init.code
+}
 
 async function V2Code(): Promise<Cell> {
   let init = (await UpgradableCounterV2.fromInit(beginCell().endCell())).init
