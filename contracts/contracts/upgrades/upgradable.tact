@@ -1,5 +1,5 @@
 import "@stdlib/ownable";
-import "./type_and_version";
+import "../lib/type_and_version";
 
 /// Message for upgrading a contract.
 message(10) Upgrade {

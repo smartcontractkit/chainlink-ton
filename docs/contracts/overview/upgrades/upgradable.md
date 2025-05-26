@@ -2,7 +2,7 @@
 
 This trait implements the ability for a contract to upgrade its code and migrate its storage layout from one version to another.
 
-[An upgradable counter example can be found here.](../../../../contracts/contracts/examples/upgradable_counter/)
+[An upgradable counter example can be found here.](../../../../contracts/contracts/examples/upgrades/)
 
 ## Interface
 

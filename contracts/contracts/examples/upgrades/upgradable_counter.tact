@@ -1,4 +1,4 @@
-import "../../lib/upgradable";
+import "../../upgrades/upgradable";
 
 const EXIT_CODE_UNIMPLEMENTED_FUNCTION: Int = 4000;
 
