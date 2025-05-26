@@ -1,8 +1,8 @@
-# Chainlink TON - Contract upgradability - Upgradable
+# Chainlink TON - Contract upgradability - Upgradeable
 
 This trait implements the ability for a contract to upgrade its code and migrate its storage layout from one version to another.
 
-[An upgradable counter example can be found here.](../../../../contracts/contracts/examples/upgrades/)
+[An upgradeable counter example can be found here.](../../../../contracts/contracts/examples/upgrades/)
 
 ## Interface
 
@@ -21,7 +21,7 @@ Provides the following getters:
 
 ```tact
 /// A getter to check if the contract uses this trait.
-get fun isUpgradable(): Bool
+get fun isUpgradeable(): Bool
 
 /// A getter returning the current version of the contract.
 get fun type_and_version(): String
@@ -40,12 +40,12 @@ Required function implementations:
 
 ```tact
 /// Version must be a semantic version string (e.g. "1.0.0").
-abstract fun upgradableVersion(): String;
+abstract fun upgradeableVersion(): String;
 
 // Type must be a Reverse Domain Name Notation string that is unique to the contract and should not change between versions.
 // Example: "com.chainlink.project.package.ContractName"
 // Read more about Reverse DNS Notation at https://en.wikipedia.org/wiki/Reverse_domain_name_notation
-abstract fun upgradableType(): String;
+abstract fun upgradeableType(): String;
 ```
 
 ## Speciali initialization
@@ -57,7 +57,7 @@ Example:
 Version 1
 
 ```tact
-contract UpgradableCounterV1 with UpgradableCounter {
+contract UpgradeableCounterV1 with UpgradeableCounter {
     owner: Address;
     id: Int as uint32;
     value: Int as uint32;
@@ -67,14 +67,14 @@ contract UpgradableCounterV1 with UpgradableCounter {
 Version 2
 
 ```tact
-struct UpgradableCounterV1Layout {
+struct UpgradeableCounterV1Layout {
     _lazyDeploymentBit: Bool;
     owner: Address;
     id: Int as uint32;
     value: Int as uint32;
 }
 
-contract UpgradableCounterV2 with UpgradableCounter {
+contract UpgradeableCounterV2 with UpgradeableCounter {
     owner: Address;
     value: Int as uint64;
     id: Int as uint32;
@@ -82,7 +82,7 @@ contract UpgradableCounterV2 with UpgradableCounter {
     init(
         stateToBeMigrated: Cell,
     ) {
-        let stateV1 = UpgradableCounterV1Layout.fromCell(stateToBeMigrated);
+        let stateV1 = UpgradeableCounterV1Layout.fromCell(stateToBeMigrated);
         self.owner = stateV1.owner;
         self.id = stateV1.id;
         self.value = stateV1.value;
@@ -93,7 +93,7 @@ contract UpgradableCounterV2 with UpgradableCounter {
 They should also emit an Upgraded event at the end of the `init()` function:
 
 ```tact
-contract UpgradableCounterV2 with UpgradableCounter {
+contract UpgradeableCounterV2 with UpgradeableCounter {
     owner: Address;
     value: Int as uint64;
     id: Int as uint32;
@@ -101,7 +101,7 @@ contract UpgradableCounterV2 with UpgradableCounter {
     init(
         stateToBeMigrated: Cell,
     ) {
-        let stateV1 = UpgradableCounterV1Layout.fromCell(stateToBeMigrated);
+        let stateV1 = UpgradeableCounterV1Layout.fromCell(stateToBeMigrated);
         self.owner = stateV1.owner;
         self.id = stateV1.id;
         self.value = stateV1.value;

@@ -1,4 +1,4 @@
-import "../../upgrades/upgradable";
+import "../../upgrades/upgradeable";
 
 const EXIT_CODE_UNIMPLEMENTED_FUNCTION: Int = 4000;
 
@@ -7,17 +7,17 @@ message(1) Step {
     queryId: Int as uint64;
 }
 
-/// This is a Step Counter that implements Upgradable trait.
+/// This is a Step Counter that implements Upgradeable trait.
 /// It is able to be upgraded in place and migrate the data layout.
 ///
 /// - V1 adds 1 to the counter on each step.
 /// - V2 subtracts 1 to the counter on each step.
-trait UpgradableCounter with Upgradable {
-    /// --- Upgradable Attributes ---
+trait UpgradeableCounter with Upgradeable {
+    /// --- Upgradeable Attributes ---
     /// Contract owner address that can perform upgrades.
     owner: Address;
 
-    /// --- UpgradableCounter Functions ---
+    /// --- UpgradeableCounter Functions ---
 
     /// Empty receiver for the deployment,
     /// which expects the `null` message body
@@ -43,22 +43,22 @@ trait UpgradableCounter with Upgradable {
         throw(EXIT_CODE_UNIMPLEMENTED_FUNCTION);
     }
 
-    /// --- Upgradable Functions ---
+    /// --- Upgradeable Functions ---
 
     // Type must be a Reverse Domain Name Notation string that is unique to the contract and should not change between versions.
     // Example: "com.chainlink.project.package.ContractName"
     // Read more about Reverse DNS Notation at https://en.wikipedia.org/wiki/Reverse_domain_name_notation
-    override fun upgradableType(): String {
-        return "com.chainlink.ton.examples.upgrades.UpgradableCounter";
+    override fun upgradeableType(): String {
+        return "com.chainlink.ton.examples.upgrades.UpgradeableCounter";
     }
 
     // Version must be a semantic version string (e.g. "1.0.0").
-    override fun upgradableVersion(): String {
-        return self.upgradableCounterVersion();
+    override fun upgradeableVersion(): String {
+        return self.upgradeableCounterVersion();
     }
 
-    /// --- Deletaed Upgradable Functions ---
+    /// --- Deletaed Upgradeable Functions ---
 
     // Version must be a semantic version string (e.g. "1.0.0").
-    abstract fun upgradableCounterVersion(): String;
+    abstract fun upgradeableCounterVersion(): String;
 }

@@ -23,14 +23,14 @@ struct UpgradedEvent {
     sha: Int as uint256;
 }
 
-@interface("com.chainlink.ton.upgradable")
+@interface("com.chainlink.ton.upgradeable")
 /// Implements a two step upgrade mechanism with data migration.
-trait Upgradable with Ownable, TypeAndVersion {
+trait Upgradeable with Ownable, TypeAndVersion {
     /// --- Ownable Attributes ---
     /// Contract owner address that can perform upgrades.
     owner: Address;
 
-    /// --- Upgradable Functions ---
+    /// --- Upgradeable Functions ---
     ///
     virtual inline fun requireValidUpgrade(_: Context, __: Upgrade) {
         self.requireOwner();
@@ -54,7 +54,7 @@ trait Upgradable with Ownable, TypeAndVersion {
 
         // Step 2: State Migration
         //
-        // All upgradable contracts must have an init() function that handles
+        // All upgradeable contracts must have an init() function that handles
         // the migrating data from the old version to the new version.
         //
         // The init() function must receive one argument: a Cell containing
@@ -85,7 +85,7 @@ trait Upgradable with Ownable, TypeAndVersion {
         let code = getCode();
         let sha = code.hash();
         emit(UpgradedEvent {
-            version: self.upgradableVersion(),
+            version: self.upgradeableVersion(),
             code: code,
             sha: sha,
         }.toCell());
@@ -95,25 +95,25 @@ trait Upgradable with Ownable, TypeAndVersion {
 
     /// Version must be a semantic version string (e.g. "1.0.0").
     override fun version(): String {
-        return self.upgradableVersion();
+        return self.upgradeableVersion();
     }
 
     // Type must be a Reverse Domain Name Notation string that is unique to the contract and should not change between versions.
     // Example: "com.chainlink.project.package.ContractName"
     // Read more about Reverse DNS Notation at https://en.wikipedia.org/wiki/Reverse_domain_name_notation
     override fun type(): String {
-        return self.upgradableType();
+        return self.upgradeableType();
     }
 
     /// --- Delegated TypeAndVersion Functions ---
 
     /// Version must be a semantic version string (e.g. "1.0.0").
-    abstract fun upgradableVersion(): String;
+    abstract fun upgradeableVersion(): String;
 
     // Type must be a Reverse Domain Name Notation string that is unique to the contract and should not change between versions.
     // Example: "com.chainlink.project.package.ContractName"
     // Read more about Reverse DNS Notation at https://en.wikipedia.org/wiki/Reverse_domain_name_notation
-    abstract fun upgradableType(): String;
+    abstract fun upgradeableType(): String;
 }
 
 /// Changes the code of the contract.

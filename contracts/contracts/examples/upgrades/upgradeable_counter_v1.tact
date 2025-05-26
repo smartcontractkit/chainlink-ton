@@ -1,12 +1,12 @@
-import "./upgradable_counter";
+import "./upgradeable_counter";
 
-/// This is version 1.0.0 of the UpgradableCounter contract, which adds 1 to the counter on each step.
-contract UpgradableCounterV1 with UpgradableCounter {
-    /// --- UpgradableCounter Attributes ---
+/// This is version 1.0.0 of the UpgradeableCounter contract, which adds 1 to the counter on each step.
+contract UpgradeableCounterV1 with UpgradeableCounter {
+    /// --- UpgradeableCounter Attributes ---
     /// Contract owner
     owner: Address;
 
-    /// --- UpgradableCounter Attributes ---
+    /// --- UpgradeableCounter Attributes ---
 
     /// Counter id
     id: Int as uint32;
@@ -25,7 +25,7 @@ contract UpgradableCounterV1 with UpgradableCounter {
         self.value = value;
     }
 
-    /// --- UpgradableCounter Functions ---
+    /// --- UpgradeableCounter Functions ---
 
     /// Update counter
     override fun step() {
@@ -38,7 +38,7 @@ contract UpgradableCounterV1 with UpgradableCounter {
     }
 
     // Version must be a semantic version string (e.g. "1.0.0").
-    override fun upgradableCounterVersion(): String {
+    override fun upgradeableCounterVersion(): String {
         return "1.0.0";
     }
 }

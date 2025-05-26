@@ -1,9 +1,9 @@
-import "./upgradable_counter";
-import "../../upgrades/upgradable";
+import "./upgradeable_counter";
+import "../../upgrades/upgradeable";
 
-/// UpgradableCounterV1 Layout
-/// Must match the attributes of the UpgradableCounterV1 contract + the lazyDeploymentBit at the beginning.
-struct UpgradableCounterV1Layout {
+/// UpgradeableCounterV1 Layout
+/// Must match the attributes of the UpgradeableCounterV1 contract + the lazyDeploymentBit at the beginning.
+struct UpgradeableCounterV1Layout {
     /// Used for contracts with init() function. Ignore.
     _lazyDeploymentBit: Bool;
     /// Contract owner
@@ -14,13 +14,13 @@ struct UpgradableCounterV1Layout {
     value: Int as uint32;
 }
 
-/// This is version 2.0.0 of the UpgradableCounter contract, which subtracts 1 to the counter on each step, instead of adding 1.
-contract UpgradableCounterV2 with UpgradableCounter {
-    /// --- UpgradableCounter Attributes ---
+/// This is version 2.0.0 of the UpgradeableCounter contract, which subtracts 1 to the counter on each step, instead of adding 1.
+contract UpgradeableCounterV2 with UpgradeableCounter {
+    /// --- UpgradeableCounter Attributes ---
     /// Contract owner
     owner: Address;
 
-    /// --- UpgradableCounter Attributes ---
+    /// --- UpgradeableCounter Attributes ---
 
     /// Counter value
     value: Int as uint64;
@@ -33,14 +33,14 @@ contract UpgradableCounterV2 with UpgradableCounter {
     init(
         stateToBeMigrated: Cell,
     ) {
-        let stateV1 = UpgradableCounterV1Layout.fromCell(stateToBeMigrated);
+        let stateV1 = UpgradeableCounterV1Layout.fromCell(stateToBeMigrated);
         self.owner = stateV1.owner;
         self.id = stateV1.id;
         self.value = stateV1.value;
         self.emitUpgradeEvent();
     }
 
-    /// --- UpgradableCounter Functions ---
+    /// --- UpgradeableCounter Functions ---
 
     /// Update counter
     override fun step() {
@@ -53,7 +53,7 @@ contract UpgradableCounterV2 with UpgradableCounter {
     }
 
     // Version must be a semantic version string (e.g. "1.0.0").
-    override fun upgradableCounterVersion(): String {
+    override fun upgradeableCounterVersion(): String {
         return "2.0.0";
     }
 }
