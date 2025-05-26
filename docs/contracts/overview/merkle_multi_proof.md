@@ -1,7 +1,14 @@
+# Chainlink TON -  MerkleMultiProof
+
+This library implements a Merkle multi-proof verification algorithm. The algorithm takes a list of pre-hashed leaves of the Merkle tree, and a list of already computed proofs for the other subtrees, which can be used to verify the inclusion of the provided leaves. 
+
+For more information reference the [EVM implementation](https://github.com/smartcontractkit/chainlink-ccip/blob/main/chains/evm/contracts/libraries/MerkleMultiProof.sol)
+
+### Benchmarking of different implementations
+
 Data extracted from different snapshots of the Merkle multi-proof verification algorithm implementation. 
 
 The methods 0x20adafbb and 0x77986868 correspond to the message receiver for verifying the multiproof using a dictionary or a linked list of cells to represent the input of leaves and proofs for the multiproof. 
-
 These are the values of gas measured for two benchmarks, an input with 128 leaves and no proofs, and an input with 10 leaves and 33 proofs (43 input hashes).
 ┌───────────────────────────┬──────────────┬──────────────┬───────────────────────────────────┬─────────────────────────────────────┐
 │                           │              │              │              keccak256            │               sha256                │
