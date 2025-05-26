@@ -14,6 +14,15 @@ struct LazyDeploymentLayout {
     data: Cell;
 }
 
+struct UpgradedEvent {
+    /// The version of the contract after the upgrade.
+    version: String;
+    /// The new code of the contract.
+    code: Cell;
+    /// The SHA256 hash of the new code.
+    sha: Int as uint256;
+}
+
 @interface("com.chainlink.ton.upgradable")
 /// Implements a two step upgrade mechanism with data migration.
 trait Upgradable with Ownable, TypeAndVersion {
@@ -70,6 +79,16 @@ trait Upgradable with Ownable, TypeAndVersion {
         // we must halt execution to prevent a double setData() call which
         // could corrupt our state.
         throw(0);
+    }
+
+    fun emitUpgradeEvent() {
+        let code = getCode();
+        let sha = code.hash();
+        emit(UpgradedEvent {
+            version: self.upgradableVersion(),
+            code: code,
+            sha: sha,
+        }.toCell());
     }
 
     /// --- TypeAndVersion Functions ---

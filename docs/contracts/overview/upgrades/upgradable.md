@@ -90,6 +90,26 @@ contract UpgradableCounterV2 with UpgradableCounter {
 }
 ```
 
+They should also emit an Upgraded event at the end of the `init()` function:
+
+```tact
+contract UpgradableCounterV2 with UpgradableCounter {
+    owner: Address;
+    value: Int as uint64;
+    id: Int as uint32;
+
+    init(
+        stateToBeMigrated: Cell,
+    ) {
+        let stateV1 = UpgradableCounterV1Layout.fromCell(stateToBeMigrated);
+        self.owner = stateV1.owner;
+        self.id = stateV1.id;
+        self.value = stateV1.value;
+/* + */ self.emitUpgradeEvent();
+    }
+}
+```
+
 ## Upgrade flow
 
 ```mermaid

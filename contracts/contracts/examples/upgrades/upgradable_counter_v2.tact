@@ -1,4 +1,5 @@
 import "./upgradable_counter";
+import "../../upgrades/upgradable";
 
 /// UpgradableCounterV1 Layout
 /// Must match the attributes of the UpgradableCounterV1 contract + the lazyDeploymentBit at the beginning.
@@ -36,6 +37,7 @@ contract UpgradableCounterV2 with UpgradableCounter {
         self.owner = stateV1.owner;
         self.id = stateV1.id;
         self.value = stateV1.value;
+        self.emitUpgradeEvent();
     }
 
     /// --- UpgradableCounter Functions ---
