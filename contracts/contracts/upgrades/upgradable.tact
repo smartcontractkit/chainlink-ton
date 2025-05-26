@@ -33,19 +33,42 @@ trait Upgradable with Ownable, TypeAndVersion {
         self.upgrade(ctx, msg);
     }
 
-    /// Applies the upgrade to the contract.
-    virtual inline fun upgrade(_: Context, _upgrade: Upgrade) {
+    /// Applies the upgrade to the contract. This happens in three steps:
+    /// 1. Code Replacement
+    /// 2. State Migration
+    /// 3. Execution Control
+    inline fun upgrade(_: Context, _upgrade: Upgrade) {
+        // Step 1: Code Replacement
+        // Change the contract code to the new version. This change becomes
+        // effective by the end of the compute phase of the transaction.
         setCode(_upgrade.code);
+
+        // Step 2: State Migration
+        //
+        // All upgradable contracts must have an init() function that handles
+        // the migrating data from the old version to the new version.
+        //
+        // The init() function must receive one argument: a Cell containing
+        // the data to be migrated.
+        //
+        // All contracts with an init() function have a _lazyDeploymentBit at 
+        // the beginning of their storage layout. Setting it to false ensures
+        // the init() function will be called.
         let initParams = LazyDeploymentLayout {
-            _lazyDeploymentBit: false, // must be false for the init function to be called
-            data: getData(),
+            _lazyDeploymentBit: false,
+            data: getData(), // Current state to be migrated
         }.toCell();
+
+        // Apply the initial state for the new version. Changes take effect
+        // immediately, but contract attributes won't be repopulated until
+        // the end of the transaction.
         setData(initParams);
 
-        // By the end of every transaction, the Tact compiler automatically
-        // adds a call to setData(). However, we've already set the data
-        // ourselves, so we must stop the execution now to prevent a secondary
-        // call to setData().
+        // Step 3: Execution Control
+        // The Tact compiler automatically adds a setData() call at the end
+        // of every transaction. Since we've already set our data properly,
+        // we must halt execution to prevent a double setData() call which
+        // could corrupt our state.
         throw(0);
     }
 
