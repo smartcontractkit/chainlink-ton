@@ -60,14 +60,14 @@ describe('UpgradableCounter', () => {
     expect(typeAndVersion).toBe(
       'com.chainlink.ton.examples.upgradable_counter.UpgradableCounter v1.0.0',
     )
-  }, 100000)
+  })
 
   it('should have initial value', async () => {
     let { blockchain, upgradableCounter } = await setUpTest(0n)
     const user = await blockchain.treasury('user')
     const getterResult = await upgradableCounter.getValue()
     expect(getterResult).toBe(0n)
-  }, 100000)
+  })
 
   it('version 1 should increase counter', async () => {
     let { blockchain, upgradableCounter, owner } = await setUpTest(0n)
@@ -97,7 +97,7 @@ describe('UpgradableCounter', () => {
       const getterResult = await upgradableCounter.getValue()
       expect(getterResult).toBe(counterBefore + increaseBy)
     }
-  }, 100000)
+  })
 
   it('should be upgraded to version 2', async () => {
     let { owner, upgradableCounter } = await setUpTest(0n)
@@ -127,7 +127,7 @@ describe('UpgradableCounter', () => {
     expect(typeAndVersion2).toBe(
       'com.chainlink.ton.examples.upgradable_counter.UpgradableCounter v2.0.0',
     )
-  }, 100000)
+  })
 
   it('version 2 should decrease the counter', async () => {
     let { blockchain, owner, upgradableCounter } = await setUpTest(3n)
@@ -161,7 +161,7 @@ describe('UpgradableCounter', () => {
       const getterResult = await upgradableCounter.getValue()
       expect(getterResult).toBe(counterBefore - decreaseBy)
     }
-  }, 100000)
+  })
 })
 
 async function V2Code(): Promise<Cell> {
