@@ -12,4 +12,18 @@ trait TypeAndVersion {
 
     // Version must be a semantic version string (e.g. "1.0.0"). Don't use "v" prefix; it will be added automatically.
     abstract fun version(): String;
+
+    // Returns the current code of the contract.
+    get fun code(): Cell {
+        return getCode();
+    }
+
+    // Returns the sha256 hash of the current code of the contract.
+    get fun codeHash(): Int {
+        return getCode().hash();
+    }
 }
+
+// asm fun getCode(data: Cell) { c4 POP }
+@name(my_code)
+native getCode(): Cell;
