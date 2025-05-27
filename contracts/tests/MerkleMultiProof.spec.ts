@@ -1,7 +1,6 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { toNano, Dictionary} from '@ton/core'
 import { MerkleMultiProofCalculator} from '../wrappers/libraries/MerkleMultiProofCalculator'
-import { keccak256 } from 'js-sha3'
 import { sha256_sync } from '@ton/crypto'
 
 import '@ton/test-utils'
@@ -15,7 +14,6 @@ describe('MerkleMultiProofCalculatorDict', () => {
   let calculator: SandboxContract<MerkleMultiProofCalculator>
   let merkleHelper: MerkleHelper
   let hashFunctionSha: HashFunction
-  let hashFunctionKeccak: HashFunction
 
   beforeEach(async () => {
     blockchain = await Blockchain.create()
@@ -25,10 +23,9 @@ describe('MerkleMultiProofCalculatorDict', () => {
     deployer = await blockchain.treasury('deployer')
 
     hashFunctionSha = (s: Uint8Array) => { return new Uint8Array(sha256_sync(Buffer.from(s)))}
-    hashFunctionKeccak = (s: Uint8Array) => { return new Uint8Array(keccak256.arrayBuffer(s)) }
 
     // Modify this initializaiton to generate test instances with Sha256 or Keccak256
-    merkleHelper = new MerkleHelper(hashFunctionKeccak)
+    merkleHelper = new MerkleHelper(hashFunctionSha)
 
     let leaves = listOfHashesAsDictionary([1337n])
 
@@ -144,7 +141,7 @@ describe('MerkleMultiProofCalculatorDict', () => {
     for (let i = 0; i < 128; i++) {
       leaves.push('a')
     }
-    const hashedLeaves: bigint[] = leaves.map((e) => merkleHelper.hashLeafData(e, hashFunctionKeccak))
+    const hashedLeaves: bigint[] = leaves.map((e) => merkleHelper.hashLeafData(e, hashFunctionSha))
 
     const hashedLeavesDict = listOfHashesAsDictionary(hashedLeaves)
 
