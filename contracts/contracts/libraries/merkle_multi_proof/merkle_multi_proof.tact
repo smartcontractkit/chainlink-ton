@@ -4,9 +4,6 @@ import "./exit_codes.tact";
  * @title Chainlink - Libraries - MerkleMultiProof
  */
 
-/// @notice Leaf domain separator, should be used as the first 32 bytes of a leaf's preimage.
-const LEAF_DOMAIN_SEPARATOR: Int = 0x0000000000000000000000000000000000000000000000000000000000000000;
-
 /// @notice Internal domain separator, should be used as the first 32 bytes of an internal node's preimage.
 const INTERNAL_DOMAIN_SEPARATOR: Int = 0x0000000000000000000000000000000000000000000000000000000000000001;
 
@@ -81,6 +78,7 @@ fun merkleRoot(
     // total loop index
     let i: Int = 0;
     repeat (totalHashes) {
+        // Find the first hash needed for the next step.
         // Checks if the bit flag signals the use of a supplied proof or a leaf/previous hash.
         let a: Int = 0;
         if ((proofFlagBits & (1 << i)) == (1 << i)) {
@@ -103,6 +101,8 @@ fun merkleRoot(
             a = optionProof!!;
             proofPos += 1;
         }
+
+        // Find the second hash needed for the next step.
         // The second part of the hashed pair is never a proof as hashing two proofs would result in a
         // hash that can already be computed offchain.
         let b: Int = 0;
