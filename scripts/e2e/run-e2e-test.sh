@@ -5,8 +5,16 @@ set -euo pipefail
 ROOT_DIR=$(git rev-parse --show-toplevel)
 DEFAULT_CHAINLINK_CORE_DIR="${ROOT_DIR}/../chainlink"
 CORE_VERSION_FILE_PATH="${ROOT_DIR}/scripts/e2e/.core_version"
-DB_URL="postgresql://postgres:postgres@localhost:5432/chainlink_test?sslmode=disable"
 
+# test database configuration
+PG_CONTAINER_NAME="cl_pg"
+PG_HOST="localhost"
+PG_PORT=5432
+PG_DB="chainlink_test"
+PG_USER="postgres"
+PG_PASSWORD="postgres"
+
+# configurable arguments
 ARG_CORE_DIR=""
 ARG_TEST_COMMAND=""
 
@@ -66,7 +74,6 @@ CHAINLINK_CORE_DIR=$(realpath "${ARG_CORE_DIR:-$DEFAULT_CHAINLINK_CORE_DIR}")
 log_info "=== CCIP Integration Test Runner ==="
 log_info "Using Chainlink TON: $ROOT_DIR"
 log_info "Using Chainlink Core: $CHAINLINK_CORE_DIR"
-log_info "Test Database URL: $DB_URL"
 log_info "Test Command: $ARG_TEST_COMMAND"
 
 validate_project_dir "$ROOT_DIR" "Chainlink TON"
@@ -114,6 +121,40 @@ else
   log_info "Chainlink Core version matches. Current commit: $CURRENT_CORE_COMMIT"
 fi
 
+log_info "Tearing down any existing '$PG_CONTAINER_NAME'..."
+docker rm -f "$PG_CONTAINER_NAME" &>/dev/null || true
+
+log_info "Starting Postgres container '$PG_CONTAINER_NAME'..."
+docker run -d --name "$PG_CONTAINER_NAME" -p "$PG_PORT:$PG_PORT" \
+  -e POSTGRES_USER="$PG_USER" \
+  -e POSTGRES_PASSWORD="$PG_PASSWORD" \
+  -e POSTGRES_DB="$PG_DB" \
+  -e POSTGRES_HOST_AUTH_METHOD=trust \
+  postgres:14-alpine \
+  postgres \
+  -c max_connections=1000 \
+  -c shared_buffers=2GB \
+  -c log_lock_waits=true
+
+log_info "Waiting for Postgres to accept connections on $PG_HOST:$PG_PORT..."
+
+SECONDS=0
+while ! pg_isready -h "$PG_HOST" -p "$PG_PORT" -U "$PG_USER" -d "$PG_DB" &>/dev/null; do
+  # timeout after 30s
+  if ((SECONDS > 30)); then
+    log_error "Postgres did not become ready within 30s."
+    log_error "Container logs:"
+    docker logs "$PG_CONTAINER_NAME" || true
+    exit 1
+  fi
+  sleep 1
+done
+
+DB_URL="postgresql://${PG_USER}:${PG_PASSWORD}@${PG_HOST}:${PG_PORT}/${PG_DB}?sslmode=disable"
+export CL_DATABASE_URL="$DB_URL"
+log_info "Test Database URL: $DB_URL"
+
+# Core Setup
 log_info "Preparing Chainlink Core (dependencies, build, DB setup)..."
 (
   cd "$CHAINLINK_CORE_DIR"
@@ -130,7 +171,6 @@ log_info "Preparing Chainlink Core (dependencies, build, DB setup)..."
   fi
   # build the ccip test binary
   go build -o ccip.test .
-  export CL_DATABASE_URL="$DB_URL"
 
   # setup the database
   ./ccip.test local db preparetest

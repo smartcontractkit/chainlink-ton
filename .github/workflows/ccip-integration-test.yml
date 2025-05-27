@@ -18,7 +18,8 @@ jobs:
     name: Integration Tests (${{ matrix.type.name }})
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
       - name: Install Nix
         uses: cachix/install-nix-action@02a151ada4993995686f9ed4f1be7cfbb229e56f # v31
@@ -36,22 +37,8 @@ jobs:
           ref: ${{ steps.read_core_ref.outputs.CORE_REF }}
           path: chainlink
 
-      - name: Checkout chainlink-ccip repo (for Postgres Action)
-        uses: actions/checkout@v4
-        with:
-          repository: smartcontractkit/chainlink-ccip
-          path: chainlink-ccip
-          sparse-checkout: .github/actions/setup-postgres/**
-          sparse-checkout-cone-mode: false
-
-      - name: Setup Postgres
-        uses: ./chainlink-ccip/.github/actions/setup-postgres
-        with:
-          base-path: chainlink-ccip
-
       - name: Run Integration Tests
         run: |
-          chmod +x ./scripts/e2e/run-e2e-test.sh
           nix develop . -c ./scripts/e2e/run-e2e-test.sh \
             --core-dir "${{ github.workspace }}/chainlink" \
             --test-command "${{ matrix.type.cmd }}"
