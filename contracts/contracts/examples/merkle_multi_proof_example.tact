@@ -1,4 +1,4 @@
-import "../libraries/merkle_multi_proof.tact";
+import "../libraries/merkle_multi_proof/merkle_multi_proof.tact";
 
 message MerkleMultiProof {
     queryId: Int as uint64;
