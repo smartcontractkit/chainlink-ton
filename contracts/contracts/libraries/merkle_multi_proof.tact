@@ -108,6 +108,6 @@ fun hashInternalNode(left: Int, right: Int): Int {
         .storeUint(left, 256)
         .storeUint(right, 256)
         .endCell();
-    let hashedNode: Int = sha256(data.asSlice());
+    let hashedNode: Int = keccak256(data.asSlice());
     return hashedNode;
 }

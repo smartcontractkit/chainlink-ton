@@ -13,7 +13,6 @@ contract MerkleMultiProofCalculatorDict {
     root: Int as uint256 = 0;
 
     receive(proof: MerkleMultiProof) {
-        let hash: Int = sha256(beginCell().storeUint(32, 256).asSlice());
         let res = merkleRoot(
             proof.leaves,
             proof.leavesLen,
