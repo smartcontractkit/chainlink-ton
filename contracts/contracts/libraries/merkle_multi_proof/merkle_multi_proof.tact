@@ -1,3 +1,5 @@
+import "./exit_codes.tact";
+
 /**
  * @title Chainlink - Libraries - MerkleMultiProof
  */
@@ -6,21 +8,6 @@ const LEAF_DOMAIN_SEPARATOR: Int = 0x0000000000000000000000000000000000000000000
 const INTERNAL_DOMAIN_SEPARATOR: Int = 0x0000000000000000000000000000000000000000000000000000000000000001;
 
 const MAX_NUM_HASHES: Int = 128;
-
-// --- Errror Codes ---
-
-const ERROR_INVALID_PROOF_LEAVES_CANNOT_BE_EMPTY: Int = 1001;
-const ERROR_INVALID_PROOF_LEAVES_TOO_LARGE: Int = 1002;
-const ERROR_INVALID_PROOF_PROOFS_TOO_LARGE: Int = 1003;
-const ERROR_INVALID_PROOF_TOTAL_HASHES_EXCEEDED_MAX: Int = 1004;
-const ERROR_INVALID_PROOF_LEAF_NOT_FOUND: Int = 1005;
-const ERROR_INVALID_PROOF_HASH_NOT_FOUND: Int = 1006;
-const ERROR_INVALID_PROOF_PROOF_NOT_FOUND: Int = 1007;
-const ERROR_INVALID_PROOF_INVALID_HASH_POSITION: Int = 1008;
-const ERROR_INVALID_PROOF_INCOMPLETE_HASH_CALCULATION: Int = 1009;
-const ERROR_INVALID_PROOF_MISMATCHED_LEAF_COUNT: Int = 1010;
-const ERROR_INVALID_PROOF_MISMATCHED_PROOF_COUNT: Int = 1011;
-const ERROR_INVALID_PROOF_FINAL_HASH_NOT_FOUND: Int = 1012;
 
 /// @notice Computes the Merkle root based on provided pre-hashed leaf nodes in `leaves`, internal nodes in `proofs`,
 /// and using `proofFlagBits` to determine whether to use a proof element or a previously computed node during each step.

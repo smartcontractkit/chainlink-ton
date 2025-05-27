@@ -1,4 +1,4 @@
-import "../access/ownable_2step.tact";
+import "../libraries/access/ownable_2step.tact";
 
 message SetCount {
     queryId: Int as uint64;
