@@ -1,6 +1,6 @@
 # Async Communication Examples
 
-This document describes some examples developed to illustratie async communication
+This document describes some examples developed to illustrate async communication
 
 ## Directory structure
 
