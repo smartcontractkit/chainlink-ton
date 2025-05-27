@@ -13,6 +13,7 @@ Data extracted from different snapshots of the Merkle multi-proof verification a
 These are the values of gas measured for two benchmarks, an input with 128 leaves and no proofs, and an input with 10 leaves and 33 proofs (43 input hashes).
 
 Two contract implementations of the algorithm where benchmarked, `MerkleMultiProof_Dict` which uses `Map<Int as uin16, Int as uint256>` to simulate an Array (recommended by the tact documentation), and `MerkleMultiProof_List` which uses a linked list of cells, where each node is a cell containing 3 32byte hashes and a reference to the next node in the list. 
+```
 ┌───────────────────────────┬──────────────┬──────────────┬───────────────────────────────────┬─────────────────────────────────────┐
 │                           │              │              │              keccak256            │               sha256                │
 │         Contract          │   Benchmark  │    Method    ├─────────────┬─────────┬───────────┼───────────────┬─────────┬───────────┤
@@ -30,6 +31,7 @@ Two contract implementations of the algorithm where benchmarked, `MerkleMultiPro
 │ MerkleMultiProof_Lists    │  33 proofs)  │              │             │         │           │               │         │           │
 │                           │              │  merkleRoot  │ 275997      │ 13      │  4707     │ 275763        │ 13      │  4707     │
 └───────────────────────────┴──────────────┴──────────────┴─────────────┴─────────┴───────────┴───────────────┴─────────┴───────────┘
+```
 
 When going from the linked lists to the dictionary implementation of the algorithm, considering the keccak implementation
 - For `Benchmark_A`, a `3.4%` reduction of gas cost is observed, `29720 gas units`.
