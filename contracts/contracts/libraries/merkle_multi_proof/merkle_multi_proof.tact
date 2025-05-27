@@ -4,9 +4,13 @@ import "./exit_codes.tact";
  * @title Chainlink - Libraries - MerkleMultiProof
  */
 
+/// @notice Leaf domain separator, should be used as the first 32 bytes of a leaf's preimage.
 const LEAF_DOMAIN_SEPARATOR: Int = 0x0000000000000000000000000000000000000000000000000000000000000000;
+
+/// @notice Internal domain separator, should be used as the first 32 bytes of an internal node's preimage.
 const INTERNAL_DOMAIN_SEPARATOR: Int = 0x0000000000000000000000000000000000000000000000000000000000000001;
 
+/// @notice Maximum number of hashes that can be computed in a single Merkle root calculation.
 const MAX_NUM_HASHES: Int = 128;
 
 /// @notice Computes the Merkle root based on provided pre-hashed leaf nodes in `leaves`, internal nodes in `proofs`,
