@@ -13,9 +13,6 @@ const config: Config = {
             reportName: 'gas-report',              // report name, default: 'gas-report'
             depthCompare: 2,                       // comparison depth, default: 2
             removeRawResult: true,                 // remove raw metric file, default: true
-            contractExcludes: [                    // exclude specific contracts from snapshot, default: []
-                'TreasuryContract',
-            ],
         }],
     ],
     maxWorkers: "50%",
