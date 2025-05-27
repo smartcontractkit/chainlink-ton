@@ -1,78 +1,78 @@
-import {uint8ArrayToBigInt, bigIntToBytes32} from "./Utils"
+import { uint8ArrayToBigInt, bigIntToBytes32 } from './Utils'
 
 // Internal domain separator for Merkle internal nodes, represented as a 256-bit BigInt (0x01)
-const INTERNAL_DOMAIN_SEPARATOR_BIGINT = 1n;
+const INTERNAL_DOMAIN_SEPARATOR_BIGINT = 1n
 
 // Leaf domain separator (0x00...00), represented as a 256-bit BigInt (0n)
-const LEAF_DOMAIN_SEPARATOR_BIGINT = 0n;
+const LEAF_DOMAIN_SEPARATOR_BIGINT = 0n
 
-const MAX_NUM_HASHES = 256;
+const MAX_NUM_HASHES = 256
 
 class InvalidProof extends Error {}
 class LeavesCannotBeEmpty extends Error {}
 
-export type HashFunction = (data: Uint8Array) => Uint8Array;
+export type HashFunction = (data: Uint8Array) => Uint8Array
 
 export class MerkleHelper {
-    private hash: HashFunction;
+  private hash: HashFunction
 
-    constructor(hashFunction: HashFunction) {
-        this.hash = hashFunction;
-    }
+  constructor(hashFunction: HashFunction) {
+    this.hash = hashFunction
+  }
 
-    public merkleMultiProof(
-      leaves: bigint[],
-      proofs: bigint[],
-      proofFlagBits: bigint // interpreted as 256-bit flags
-    ): bigint {
-      const leavesLen = leaves.length;
-      const proofsLen = proofs.length;
+  public merkleMultiProof(
+    leaves: bigint[],
+    proofs: bigint[],
+    proofFlagBits: bigint, // interpreted as 256-bit flags
+  ): bigint {
+    const leavesLen = leaves.length
+    const proofsLen = proofs.length
 
-      if (leavesLen === 0) throw new LeavesCannotBeEmpty();
-      if (leavesLen > MAX_NUM_HASHES + 1 || proofsLen > MAX_NUM_HASHES + 1) throw new InvalidProof();
+    if (leavesLen === 0) throw new LeavesCannotBeEmpty()
+    if (leavesLen > MAX_NUM_HASHES + 1 || proofsLen > MAX_NUM_HASHES + 1) throw new InvalidProof()
 
-      const totalHashes = leavesLen + proofsLen - 1;
-      if (totalHashes > MAX_NUM_HASHES) throw new InvalidProof();
-      if (totalHashes === 0) return leaves[0];
+    const totalHashes = leavesLen + proofsLen - 1
+    if (totalHashes > MAX_NUM_HASHES) throw new InvalidProof()
+    if (totalHashes === 0) return leaves[0]
 
-      const hashes: bigint[] = new Array(totalHashes);
-      let leafPos = 0;
-      let hashPos = 0;
-      let proofPos = 0;
+    const hashes: bigint[] = new Array(totalHashes)
+    let leafPos = 0
+    let hashPos = 0
+    let proofPos = 0
 
-      for (let i = 0; i < totalHashes; i++) {
-        // Check if bit `i` is set in proofFlagBits
-        const useLeafOrHash = ((proofFlagBits & (1n << BigInt(i))) === (1n << BigInt(i)));
+    for (let i = 0; i < totalHashes; i++) {
+      // Check if bit `i` is set in proofFlagBits
+      const useLeafOrHash = (proofFlagBits & (1n << BigInt(i))) === 1n << BigInt(i)
 
-        let a: bigint;
-        if (useLeafOrHash) {
-          if (leafPos < leavesLen) {
-            a = leaves[leafPos++];
-          } else {
-            a = hashes[hashPos++];
-          }
-        } else {
-          a = proofs[proofPos++];
-        }
-
-        let b: bigint;
+      let a: bigint
+      if (useLeafOrHash) {
         if (leafPos < leavesLen) {
-          b = leaves[leafPos++];
+          a = leaves[leafPos++]
         } else {
-          b = hashes[hashPos++];
+          a = hashes[hashPos++]
         }
-
-        if (hashPos > i) throw new InvalidProof();
-
-        hashes[i] = uint8ArrayToBigInt(this.hashPair(bigIntToBytes32(a), bigIntToBytes32(b)));
+      } else {
+        a = proofs[proofPos++]
       }
 
-      if (hashPos !== totalHashes - 1 || leafPos !== leavesLen || proofPos !== proofsLen) {
-        throw new InvalidProof();
+      let b: bigint
+      if (leafPos < leavesLen) {
+        b = leaves[leafPos++]
+      } else {
+        b = hashes[hashPos++]
       }
 
-      return hashes[totalHashes - 1];
+      if (hashPos > i) throw new InvalidProof()
+
+      hashes[i] = uint8ArrayToBigInt(this.hashPair(bigIntToBytes32(a), bigIntToBytes32(b)))
     }
+
+    if (hashPos !== totalHashes - 1 || leafPos !== leavesLen || proofPos !== proofsLen) {
+      throw new InvalidProof()
+    }
+
+    return hashes[totalHashes - 1]
+  }
 
   /**
    * Hashes two 256-bit BigInts, ordering them by value before hashing (a < b ? hash(a,b) : hash(b,a)).
@@ -81,7 +81,9 @@ export class MerkleHelper {
    * @returns The hashed pair as a 256-bit BigInt.
    */
   private hashPair(a: Uint8Array, b: Uint8Array): Uint8Array {
-    return uint8ArrayToBigInt(a) < uint8ArrayToBigInt(b) ? this.hashInternalNode(a, b) : this.hashInternalNode(b, a);
+    return uint8ArrayToBigInt(a) < uint8ArrayToBigInt(b)
+      ? this.hashInternalNode(a, b)
+      : this.hashInternalNode(b, a)
   }
 
   /**
@@ -94,16 +96,16 @@ export class MerkleHelper {
    */
   private hashInternalNode(left: Uint8Array, right: Uint8Array): Uint8Array {
     // Each component (separator, left, right) is converted to its 32-byte representation.
-    const separatorBytes = bigIntToBytes32(INTERNAL_DOMAIN_SEPARATOR_BIGINT); // 32 bytes
+    const separatorBytes = bigIntToBytes32(INTERNAL_DOMAIN_SEPARATOR_BIGINT) // 32 bytes
 
     // Concatenate the three 32-byte arrays into a single 96-byte array.
-    const combinedBytes = new Uint8Array(96); // 3 * 32 bytes total
-    combinedBytes.set(separatorBytes, 0);   // Place separator at the beginning
-    combinedBytes.set(left, 32);       // Place left child after separator
-    combinedBytes.set(right, 64);      // Place right child after left child
+    const combinedBytes = new Uint8Array(96) // 3 * 32 bytes total
+    combinedBytes.set(separatorBytes, 0) // Place separator at the beginning
+    combinedBytes.set(left, 32) // Place left child after separator
+    combinedBytes.set(right, 64) // Place right child after left child
 
     // Apply hash to the combined 96-byte array.
-    return this.hash(combinedBytes);
+    return this.hash(combinedBytes)
   }
 
   /**
@@ -114,13 +116,13 @@ export class MerkleHelper {
    */
   public getMerkleRoot(hashedLeaves: bigint[]): bigint {
     if (hashedLeaves.length > 256) {
-      throw new Error("Leaves length must not exceed 256.");
+      throw new Error('Leaves length must not exceed 256.')
     }
-    let currentLayer = hashedLeaves.map(leaf => bigIntToBytes32(leaf));
+    let currentLayer = hashedLeaves.map((leaf) => bigIntToBytes32(leaf))
     while (currentLayer.length > 1) {
-      currentLayer = this.computeNextLayer(currentLayer);
+      currentLayer = this.computeNextLayer(currentLayer)
     }
-    return uint8ArrayToBigInt(currentLayer[0]);
+    return uint8ArrayToBigInt(currentLayer[0])
   }
 
   /**
@@ -130,38 +132,35 @@ export class MerkleHelper {
    * @returns An array of 256-bit BigInts for the next layer.
    */
   private computeNextLayer(layer: Uint8Array[]): Uint8Array[] {
-    const leavesLen = layer.length;
-    if (leavesLen === 1) return layer;
+    const leavesLen = layer.length
+    if (leavesLen === 1) return layer
 
-    const nextLayer: Uint8Array[] = [];
+    const nextLayer: Uint8Array[] = []
     for (let i = 0; i < leavesLen; i += 2) {
       if (i === leavesLen - 1) {
-        nextLayer.push(layer[i]);
+        nextLayer.push(layer[i])
       } else {
-        nextLayer.push(this.hashPair(layer[i], layer[i + 1]));
+        nextLayer.push(this.hashPair(layer[i], layer[i + 1]))
       }
     }
-    return nextLayer;
+    return nextLayer
   }
 
+  /**
+   * Helper to hash initial raw data into a 256-bit leaf hash.
+   * This prepends the LEAF_DOMAIN_SEPARATOR and applies hash.
+   * @param data The raw data (string or Uint8Array) to hash for the leaf.
+   * @returns The 256-bit BigInt leaf hash.
+   */
+  public hashLeafData(data: string | Uint8Array, hash: HashFunction): bigint {
+    const dataBytes = typeof data === 'string' ? new TextEncoder().encode(data) : data
+    const separatorBytes = bigIntToBytes32(LEAF_DOMAIN_SEPARATOR_BIGINT) // 32 bytes
 
+    // Concatenate the 32-byte separator with the leaf data bytes
+    const combinedBytes = new Uint8Array(separatorBytes.length + dataBytes.length)
+    combinedBytes.set(separatorBytes, 0)
+    combinedBytes.set(dataBytes, separatorBytes.length)
 
-    /**
-     * Helper to hash initial raw data into a 256-bit leaf hash.
-     * This prepends the LEAF_DOMAIN_SEPARATOR and applies hash.
-     * @param data The raw data (string or Uint8Array) to hash for the leaf.
-     * @returns The 256-bit BigInt leaf hash.
-     */
-    public hashLeafData(data: string | Uint8Array, hash: HashFunction): bigint {
-      const dataBytes = typeof data === 'string' ? new TextEncoder().encode(data) : data;
-      const separatorBytes = bigIntToBytes32(LEAF_DOMAIN_SEPARATOR_BIGINT); // 32 bytes
-
-      // Concatenate the 32-byte separator with the leaf data bytes
-      const combinedBytes = new Uint8Array(separatorBytes.length + dataBytes.length);
-      combinedBytes.set(separatorBytes, 0);
-      combinedBytes.set(dataBytes, separatorBytes.length);
-
-      return uint8ArrayToBigInt(hash(combinedBytes));
-    }
+    return uint8ArrayToBigInt(hash(combinedBytes))
+  }
 }
-

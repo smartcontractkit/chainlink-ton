@@ -1,12 +1,11 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { toNano, Dictionary} from '@ton/core'
-import { MerkleMultiProofCalculator} from '../wrappers/libraries/MerkleMultiProofCalculator'
+import { toNano, Dictionary } from '@ton/core'
+import { MerkleMultiProofCalculator } from '../wrappers/libraries/MerkleMultiProofCalculator'
 import { sha256_sync } from '@ton/crypto'
 
 import '@ton/test-utils'
-import { MerkleHelper, HashFunction} from './helpers/MerkleMultiProof/MerkleMultiProofHelper'
+import { MerkleHelper, HashFunction } from './helpers/MerkleMultiProof/MerkleMultiProofHelper'
 import { listOfHashesAsDictionary } from './helpers/MerkleMultiProof/Utils'
-
 
 describe('MerkleMultiProofCalculatorDict', () => {
   let blockchain: Blockchain
@@ -22,7 +21,9 @@ describe('MerkleMultiProofCalculatorDict', () => {
 
     deployer = await blockchain.treasury('deployer')
 
-    hashFunctionSha = (s: Uint8Array) => { return new Uint8Array(sha256_sync(Buffer.from(s)))}
+    hashFunctionSha = (s: Uint8Array) => {
+      return new Uint8Array(sha256_sync(Buffer.from(s)))
+    }
 
     // Modify this initializaiton to generate test instances with Sha256 or Keccak256
     merkleHelper = new MerkleHelper(hashFunctionSha)
@@ -133,7 +134,6 @@ describe('MerkleMultiProofCalculatorDict', () => {
     })
 
     expect(await calculator.getGetRoot()).toBe(expectedRoot)
-
   })
 
   it('merkleRoot 128', async () => {
@@ -145,7 +145,7 @@ describe('MerkleMultiProofCalculatorDict', () => {
 
     const hashedLeavesDict = listOfHashesAsDictionary(hashedLeaves)
 
-    const flagsUint128: bigint  = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFn 
+    const flagsUint128: bigint = 0xffffffffffffffffffffffffffffffffn
 
     const expectedRoot = merkleHelper.getMerkleRoot(hashedLeaves)
 
@@ -174,5 +174,4 @@ describe('MerkleMultiProofCalculatorDict', () => {
 
     expect(await calculator.getGetRoot()).toBe(expectedRoot)
   })
-
 })
