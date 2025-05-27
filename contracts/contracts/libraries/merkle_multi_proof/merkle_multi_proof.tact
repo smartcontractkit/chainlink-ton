@@ -23,7 +23,6 @@ const ERROR_MISMATCHED_LEAF_COUNT: Int = 1010;
 const ERROR_MISMATCHED_PROOF_COUNT: Int = 1011;
 const ERROR_FINAL_HASH_NOT_FOUND: Int = 1012;
 
-
 /// @notice Computes the Merkle root based on provided pre-hashed leaf nodes in `leaves`, internal nodes in `proofs`,
 /// and using `proofFlagBits` to determine whether to use a proof element or a previously computed node during each step.
 /// @param leaves A map containing pre-hashed leaves. The first 32 bytes of each preimage should match LEAF_DOMAIN_SEPARATOR.
