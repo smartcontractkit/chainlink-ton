@@ -4,7 +4,6 @@
   "description": "Chainlink TON smart contracts",
   "author": "Chainlink Labs",
   "license": "BUSL-1.1",
-  "private": false,
   "files": [
     "build",
     "contracts",
@@ -13,25 +12,29 @@
   "scripts": {
     "bp": "blueprint",
     "start": "blueprint run",
-    "build": "blueprint build",
-    "test": "jest --verbose"
+    "build": "blueprint build --all",
+    "test": "jest --verbose",
+    "fmt-contracts:check": "tact-fmt --check contracts",
+    "fmt-contracts": "tact-fmt --write contracts",
+    "fmt-typescript:check": "prettier --check .",
+    "fmt-typescript": "prettier --write ."
   },
   "devDependencies": {
+    "@tact-lang/compiler": "^1.6.5",
+    "@ton-community/func-js": "^0.9.1",
     "@ton/blueprint": "^0.29.0",
+    "@ton/core": "~0",
+    "@ton/crypto": "^3.3.0",
     "@ton/sandbox": "^0.28.0",
     "@ton/test-utils": "^0.5.0",
+    "@ton/tolk-js": "^0.10.0",
+    "@ton/ton": "^15.2.1",
     "@types/jest": "^29.5.14",
     "@types/node": "^22.14.0",
     "jest": "^29.7.0",
     "prettier": "^3.5.3",
-    "@ton/ton": "^15.2.1",
-    "@ton/core": "~0",
-    "@ton/crypto": "^3.3.0",
     "ts-jest": "^29.3.1",
     "ts-node": "^10.9.2",
-    "typescript": "^5.8.3",
-    "@ton/tolk-js": "^0.10.0",
-    "@tact-lang/compiler": "^1.6.5",
-    "@ton-community/func-js": "^0.9.1"
+    "typescript": "^5.8.3"
   }
 }

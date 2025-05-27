@@ -1,0 +1,41 @@
+name: TON - Relayer - Publish Docker Image
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+  pull_request:
+    types: [labeled, opened, synchronize, reopened]  # Trigger when a label is added
+
+jobs:
+  build-publish-docker:
+    name: Build & Publish Docker Image
+    if: ${{ github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'build-publish-docker') }}
+    permissions:
+      contents: read
+      id-token: write
+    uses: smartcontractkit/.github/.github/workflows/reusable-docker-build-publish.yml@317784689643295083653d9c9d08d34d8e379a7f # 2025-05-13
+    with:
+      # Internal dev ECR, retention policy based on tag
+      aws-ecr-name: chainlink-plugins-dev
+      aws-region-ecr: us-west-2
+      aws-region-gati: us-west-2
+      dockerfile: scripts/build/Dockerfile.build.nix
+      docker-build-context: .
+      docker-build-args: |
+        CHAINLINK_USER=chainlink
+        COMMIT_SHA=${{ github.sha }}
+      docker-manifest-sign: true
+      docker-tag-custom-suffix: "-chainlink-ton"
+      git-sha: ${{ github.sha }}
+      github-event-name: ${{ github.event_name }}
+      github-ref-name: ${{ github.ref_name }}
+      github-ref-type: ${{ github.ref_type }}
+      github-workflow-repository: ${{ github.repository }}
+    secrets:
+      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID_STAGING }}
+      AWS_ROLE_PUBLISH_ARN: ${{ secrets.AWS_ROLE_PUBLISH_ARN_STAGING }}
+      AWS_ROLE_GATI_ARN: ${{ secrets.AWS_ROLE_ARN_GATI_READONLY }}
+      AWS_LAMBDA_GATI_URL: ${{ secrets.AWS_LAMBDA_URL_GATI }}

@@ -24,7 +24,7 @@ type Method interface {
 // Calls a writer method on the contract and waits for it to be received.
 // It does not wait for all the trace to be received, only the first message.
 // Use CallWaitRecursively to wait for all the trace to be received.
-func (c *Contract) CallWait(method Method, queryId uint64) (*MessageReceived, error) {
+func (c *Contract) CallWait(method Method, queryId uint64) (*ReceivedMessage, error) {
 	b := cell.BeginCell()
 	b.StoreUInt(method.OpCode(), 32)
 	b.StoreUInt(queryId, 64)
@@ -33,7 +33,10 @@ func (c *Contract) CallWait(method Method, queryId uint64) (*MessageReceived, er
 	return c.SendMessageWait(body)
 }
 
-func (c *Contract) CallWaitRecursively(method Method, queryId uint64) (*MessageReceived, error) {
+// Calls a writer method on the contract and waits for it to be received.
+// It waits for all the trace (outgoing messages) to be received.
+// Use CallWait to wait onlyfor this first message.
+func (c *Contract) CallWaitRecursively(method Method, queryId uint64) (*ReceivedMessage, error) {
 	sentMessage, err := c.CallWait(method, queryId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send message: %w", err)
@@ -45,7 +48,8 @@ func (c *Contract) CallWaitRecursively(method Method, queryId uint64) (*MessageR
 	return sentMessage, nil
 }
 
-func (c *Contract) SendMessageWait(body *cell.Cell) (*MessageReceived, error) {
+// Calls a writer method on the contract and waits for it to be received.
+func (c *Contract) SendMessageWait(body *cell.Cell) (*ReceivedMessage, error) {
 	m, _, err := c.ApiClient.SendWaitTransaction(context.TODO(),
 		*c.Address,
 		&wallet.Message{
@@ -62,6 +66,7 @@ func (c *Contract) SendMessageWait(body *cell.Cell) (*MessageReceived, error) {
 	return m, err
 }
 
+// Calls a getter method on the contract and waits for it to be received.
 func (c *Contract) Get(key string, params ...interface{}) (*ton.ExecutionResult, error) {
 	block, err := c.ApiClient.Api.CurrentMasterchainInfo(context.Background())
 	if err != nil {

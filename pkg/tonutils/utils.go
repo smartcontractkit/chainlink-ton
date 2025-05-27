@@ -13,7 +13,7 @@ func GetRandomWallet(client ton.APIClientWrapped, version wallet.Version, option
 	if err != nil {
 		return nil, fmt.Errorf("Failed to generate random wallet: %v", err)
 	}
-	pw, perr := wallet.FromPrivateKeyWithOptions(client, w.PrivateKey(), wallet.V3R2, option)
+	pw, perr := wallet.FromPrivateKeyWithOptions(client, w.PrivateKey(), version, option)
 	if perr != nil {
 		return nil, fmt.Errorf("Failed to generate random wallet: %v", perr)
 	}

@@ -4,7 +4,7 @@ type Queue[T any] struct {
 	queue *[]T
 }
 
-func (q *Queue[T]) PushAll(items []T) {
+func (q *Queue[T]) PushAll(items ...T) {
 	*q.queue = append(*q.queue, items...)
 }
 
@@ -31,7 +31,7 @@ func (q *Queue[T]) IsEmpty() bool {
 	return len(*q.queue) == 0
 }
 
-func NewEmpyQueue[T any]() *Queue[T] {
+func NewEmptyQueue[T any]() *Queue[T] {
 	newVar := make([]T, 0)
 	return &Queue[T]{queue: &newVar}
 }

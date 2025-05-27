@@ -2,6 +2,7 @@ package tonutils
 
 import (
 	"fmt"
+	"math/big"
 
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
@@ -29,104 +30,112 @@ const (
 // of the message, the total fees charged to the sender, the storage fees
 // collected, the bounced status, and the outgoing messages sent and received.
 
-type MessageSent struct {
-	Msg         *tlb.InternalMessage
-	Amount      uint
-	LamportTime uint64 // Lamport time of sender when emitting the message
-	FwdFee      uint   // Of sending this message. This is paid by the sender of the message. It is 0 on external messages.
+type SentMessage struct {
+	InternalMsg *tlb.InternalMessage
+	Amount      *big.Int
+	LamportTime uint64   // Lamport time of sender when emitting the message
+	FwdFee      *big.Int // Of sending this message. This is paid by the sender of the message. It is 0 on external messages.
 }
 
 // MessageSentFromInternalMessage creates a MessageSent from an internal message
-func MessageSentFromInternalMessage(internalMessage *tlb.InternalMessage) MessageSent {
-	return MessageSent{
-		Msg:         internalMessage,
-		Amount:      uint(internalMessage.Amount.Nano().Uint64()),
+func MessageSentFromInternalMessage(internalMessage *tlb.InternalMessage) SentMessage {
+	return SentMessage{
+		InternalMsg: internalMessage,
+		Amount:      internalMessage.Amount.Nano(),
 		LamportTime: internalMessage.CreatedLT,
-		FwdFee:      uint(internalMessage.FwdFee.Nano().Uint64()), // Will be zero if it is an external message
+		FwdFee:      internalMessage.FwdFee.Nano(), // Will be zero if it is an external message
 	}
 }
 
-type MessageReceived struct {
+type ReceivedMessage struct {
 	// Sent step
 
 	InternalMsg *tlb.InternalMessage
-	Amount      uint
+	Amount      *big.Int
 	ExternalMsg *tlb.ExternalMessageIn
-	LamportTime uint64 // Lamport time of sender when emitting the message
-	ImportFee   uint   // Import fee of the message. This is paid by the receiver of the message when calling acceptMessage(). It is 0 on internal messages.
-	FwdFee      uint   // Of sending this message. This is paid by the sender of the message. It is 0 on external messages.
+	LamportTime uint64   // Lamport time of sender when emitting the message
+	ImportFee   *big.Int // Import fee of the message. This is paid by the receiver of the message when calling acceptMessage(). It is 0 on internal messages.
+	FwdFee      *big.Int // Of sending this message. This is paid by the sender of the message. It is 0 on external messages.
 
 	// Received step
 
-	StorageFeeCharged        uint               // Rent dued at the moment of sending the message (charged to receiver)
-	MsgFeesChargedToSender   uint               // FwdFees
-	TotalActionFees          uint               // Fees charged to the sender for sending messages. This + the fwdFee of each outgoing msg forms the total charged in the action phase.
-	GasFee                   uint               // Fees charged to the receiver for processing the message.
-	MagicFee                 uint               // Unknown origin fee
-	Bounced                  bool               //
-	Success                  bool               //
-	ExitCode                 int32              //
-	OutgoingMessagesSent     []*MessageSent     //
-	OutgoingMessagesReceived []*MessageReceived //
-	Events                   []Event
+	StorageFeeCharged                *big.Int           // Rent dued at the moment of sending the message (charged to receiver)
+	MsgFeesChargedToSender           *big.Int           // FwdFees
+	TotalActionFees                  *big.Int           // Fees charged to the sender for sending messages. This + the fwdFee of each outgoing msg forms the total charged in the action phase.
+	GasFee                           *big.Int           // Fees charged to the receiver for processing the message.
+	MagicFee                         *big.Int           // Unknown origin fee
+	Bounced                          bool               //
+	Success                          bool               //
+	ExitCode                         ExitCode           //
+	OutgoingInternalMessagesSent     []*SentMessage     //
+	OutgoingInternalMessagesReceived []*ReceivedMessage //
+	OutgoingExternalMessages         []OutgoingExternalMessages
 }
 
-type Event struct {
+type OutgoingExternalMessages struct {
 	CreatedAt uint32
 	LT        uint64
 	Body      *cell.Cell
 }
 
-func (e *Event) AsString() (string, error) {
+func (e *OutgoingExternalMessages) AsString() (string, error) {
 	str, err := e.Body.BeginParse().LoadStringSnake()
 	if err != nil {
 		return "", fmt.Errorf("failed to parse event body: %s\n", err)
-	} else {
-		return str, nil
 	}
+	return str, nil
 }
 
-func (m *MessageReceived) TotalActionPhaseFees() uint {
+func (m *ReceivedMessage) TotalActionPhaseFees() *big.Int {
 	total := m.TotalActionFees
-	for _, sentMessage := range m.OutgoingMessagesSent {
-		total += sentMessage.FwdFee
+	for _, sentMessage := range m.OutgoingInternalMessagesSent {
+		total.Add(total, sentMessage.FwdFee)
 	}
-	for _, receivedMessage := range m.OutgoingMessagesReceived {
-		total += receivedMessage.FwdFee
+	for _, receivedMessage := range m.OutgoingInternalMessagesReceived {
+		total.Add(total, receivedMessage.FwdFee)
+	}
+	return total
+}
+
+func Sum(values ...*big.Int) *big.Int {
+	total := big.NewInt(0)
+	for _, v := range values {
+		total.Add(total, v)
 	}
 	return total
 }
 
 // Excludes the storage fee
-func (m *MessageReceived) TotalTransactionExecutionFee() uint {
-	total := m.ImportFee + // For external messages
-		m.GasFee + // Compute phase
-		m.TotalActionPhaseFees() + // Action phase
-		m.MagicFee // Somewere
-	return total
+func (m *ReceivedMessage) TotalTransactionExecutionFee() *big.Int {
+	return Sum(
+		m.ImportFee,              // For external messages
+		m.GasFee,                 // Compute phase
+		m.TotalActionPhaseFees(), // Action phase
+		m.MagicFee,               // Somewere
+	)
 }
 
-func (m *MessageReceived) Status() MsgStatus {
-	if len(m.OutgoingMessagesSent) == 0 {
+func (m *ReceivedMessage) Status() MsgStatus {
+	if len(m.OutgoingInternalMessagesSent) == 0 {
 		return Finalized
 	}
-	if len(m.OutgoingMessagesReceived) != 0 {
+	if len(m.OutgoingInternalMessagesReceived) != 0 {
 		return Cascading
 	}
 	return Received
 }
 
-func (m *MessageReceived) NetCreditResult() int {
-	return int(m.Amount) - int(m.OutgoingAmount())
+func (m *ReceivedMessage) NetCreditResult() *big.Int {
+	return big.NewInt(0).Sub(m.Amount, m.OutgoingAmount())
 }
 
-func (m *MessageReceived) OutgoingAmount() uint {
-	base := uint(0)
-	for _, sentMessage := range m.OutgoingMessagesSent {
-		base += sentMessage.Amount
+func (m *ReceivedMessage) OutgoingAmount() *big.Int {
+	base := big.NewInt(0)
+	for _, sentMessage := range m.OutgoingInternalMessagesSent {
+		base.Add(base, sentMessage.Amount)
 	}
-	for _, receivedMessage := range m.OutgoingMessagesReceived {
-		base += receivedMessage.Amount
+	for _, receivedMessage := range m.OutgoingInternalMessagesReceived {
+		base.Add(base, receivedMessage.Amount)
 	}
 	return base
 }
@@ -141,46 +150,42 @@ func (m *MessageReceived) OutgoingAmount() uint {
 // messages
 // - maps the outgoing messages to the sent messages
 // - updates the bounced status if the transaction was bounced
-func MapToReceivedMessage(txOnReceived *tlb.Transaction) (MessageReceived, error) {
-	fmt.Println("===================\n===================\nMapToReceivedMessage")
-	var internalMessage *tlb.InternalMessage
-	var externalMessage *tlb.ExternalMessageIn
-	amount := uint(0)
-	importFee := uint(0)
-	fwdFee := uint(0)
+func MapToReceivedMessage(txOnReceived *tlb.Transaction) (ReceivedMessage, error) {
+	var (
+		internalMessage *tlb.InternalMessage
+		externalMessage *tlb.ExternalMessageIn
+		amount          = big.NewInt(0)
+		importFee       = big.NewInt(0)
+		fwdFee          = big.NewInt(0)
+	)
 	switch txOnReceived.IO.In.MsgType {
 	case tlb.MsgTypeExternalIn:
-		fmt.Printf("Transaction AsExternalIn: %+v\n", txOnReceived.IO.In.AsExternalIn())
 		externalMessage = txOnReceived.IO.In.AsExternalIn()
-		importFee = uint(externalMessage.ImportFee.Nano().Uint64())
+		importFee = externalMessage.ImportFee.Nano()
 	case tlb.MsgTypeExternalOut:
-		fmt.Printf("Transaction AsExternalOut: %+v\n", txOnReceived.IO.In.AsExternalOut())
 	case tlb.MsgTypeInternal:
-		fmt.Printf("Transaction AsInternal: %+v\n", txOnReceived.IO.In.AsInternal())
 		internalMessage = txOnReceived.IO.In.AsInternal()
-		amount = uint(internalMessage.Amount.Nano().Uint64())
-		fwdFee = uint(internalMessage.FwdFee.Nano().Uint64())
+		amount = internalMessage.Amount.Nano()
+		fwdFee = internalMessage.FwdFee.Nano()
 	}
-	fmt.Println("===================")
-	fmt.Printf("TX dump: %+v", txOnReceived)
-	fmt.Println("===================")
-	res := MessageReceived{
-		InternalMsg:              internalMessage,
-		Amount:                   amount,
-		ExternalMsg:              externalMessage,
-		LamportTime:              txOnReceived.LT,
-		ImportFee:                importFee,
-		FwdFee:                   fwdFee,
-		MsgFeesChargedToSender:   0,
-		StorageFeeCharged:        0,
-		GasFee:                   0,
-		MagicFee:                 uint(txOnReceived.TotalFees.Coins.Nano().Uint64()) - importFee,
-		Bounced:                  false,
-		Success:                  false,
-		ExitCode:                 0,
-		TotalActionFees:          0,
-		OutgoingMessagesSent:     make([]*MessageSent, 0),
-		OutgoingMessagesReceived: make([]*MessageReceived, 0),
+	newVar := txOnReceived.TotalFees.Coins.Nano()
+	res := ReceivedMessage{
+		InternalMsg:                      internalMessage,
+		Amount:                           amount,
+		ExternalMsg:                      externalMessage,
+		LamportTime:                      txOnReceived.LT,
+		ImportFee:                        importFee,
+		FwdFee:                           fwdFee,
+		MsgFeesChargedToSender:           big.NewInt(0),
+		StorageFeeCharged:                big.NewInt(0),
+		GasFee:                           big.NewInt(0),
+		MagicFee:                         big.NewInt(0).Sub(newVar, importFee),
+		Bounced:                          false,
+		Success:                          false,
+		ExitCode:                         0,
+		TotalActionFees:                  big.NewInt(0),
+		OutgoingInternalMessagesSent:     make([]*SentMessage, 0),
+		OutgoingInternalMessagesReceived: make([]*ReceivedMessage, 0),
 	}
 
 	// TODO: find magic fee
@@ -209,44 +214,35 @@ func MapToReceivedMessage(txOnReceived *tlb.Transaction) (MessageReceived, error
 
 	if dsc, ok := txOnReceived.Description.(tlb.TransactionDescriptionOrdinary); ok {
 		if dsc.BouncePhase != nil {
-			fmt.Printf("Transaction BouncePhase: %+v\n", dsc.BouncePhase)
 			if _, ok = dsc.BouncePhase.Phase.(tlb.BouncePhaseOk); ok {
 				// transaction was bounced, and coins were returned to sender
 				// this can happen mostly on custom contracts
-				fmt.Printf("Transaction was bounced\n")
 				res.Bounced = true
 			}
 		}
 		if dsc.CreditPhase != nil {
-			fmt.Printf("Transaction CreditPhase: %+v\n", dsc.CreditPhase)
 		}
 		computePhase, ok := dsc.ComputePhase.Phase.(tlb.ComputePhaseVM)
-		fmt.Printf("Transaction ComputePhase: %+v\n", computePhase)
 		if ok {
 			res.Success = computePhase.Success
-			res.ExitCode = computePhase.Details.ExitCode
-			res.GasFee = uint(computePhase.GasFees.Nano().Uint64())
-			res.MagicFee -= res.GasFee
+			res.ExitCode = ExitCode(computePhase.Details.ExitCode)
+			res.GasFee = computePhase.GasFees.Nano()
+			res.MagicFee.Sub(res.MagicFee, res.GasFee)
 		}
 		if dsc.StoragePhase != nil {
-			fmt.Printf("Transaction StoragePhase.Status: %+v\n", dsc.StoragePhase.StatusChange)
-			fmt.Printf("Transaction StoragePhase.StorageFeesCollected: %d\n", dsc.StoragePhase.StorageFeesCollected.Nano())
 			if dsc.StoragePhase.StorageFeesDue != nil {
-				fmt.Printf("Transaction StoragePhase.StorageFeesDue: %d\n", dsc.StoragePhase.StorageFeesDue.Nano())
 			}
-			res.StorageFeeCharged = uint(dsc.StoragePhase.StorageFeesCollected.Nano().Uint64())
-			res.MagicFee -= res.StorageFeeCharged
+			res.StorageFeeCharged = dsc.StoragePhase.StorageFeesCollected.Nano()
+			res.MagicFee.Sub(res.MagicFee, res.StorageFeeCharged)
 		}
 		if dsc.ActionPhase != nil {
-			fmt.Printf("Transaction ActionPhase: %+v\n", dsc.ActionPhase)
 			if dsc.ActionPhase.TotalActionFees != nil {
-				res.TotalActionFees = uint(dsc.ActionPhase.TotalActionFees.Nano().Uint64())
-				res.MagicFee -= res.TotalActionFees
+				res.TotalActionFees = dsc.ActionPhase.TotalActionFees.Nano()
+				res.MagicFee.Sub(res.MagicFee, res.TotalActionFees)
 			}
 		}
 	}
 	if txOnReceived.IO.Out == nil {
-		fmt.Printf("Transaction has no outgoing messages\n")
 		return res, nil
 	}
 	outgoingMessages, err := txOnReceived.IO.Out.ToSlice()
@@ -260,14 +256,12 @@ func MapToReceivedMessage(txOnReceived *tlb.Transaction) (MessageReceived, error
 // mapOutgoingMessages maps the outgoing tlb messages to SentMessages, storing
 // them into OutgoingMessagesSent and updates the total fees charged to the
 // sender
-func (m *MessageReceived) mapOutgoingMessages(outgoingMessages []tlb.Message) {
-	m.OutgoingMessagesSent = make([]*MessageSent, 0, len(outgoingMessages))
+func (m *ReceivedMessage) mapOutgoingMessages(outgoingMessages []tlb.Message) {
+	m.OutgoingInternalMessagesSent = make([]*SentMessage, 0, len(outgoingMessages))
 	for _, outgoingMessage := range outgoingMessages {
-		fmt.Printf("- MsgType %+v\n", outgoingMessage.MsgType)
 		switch outgoingMessage.MsgType {
 		case tlb.MsgTypeInternal:
 			outgoingInternalMessage := outgoingMessage.AsInternal()
-			fmt.Printf("Outgoing message: %+v\n", outgoingInternalMessage)
 			m.AppendSentMessage(outgoingInternalMessage)
 		case tlb.MsgTypeExternalOut:
 			outgoingExternalMessage := outgoingMessage.AsExternalOut()
@@ -276,19 +270,17 @@ func (m *MessageReceived) mapOutgoingMessages(outgoingMessages []tlb.Message) {
 	}
 }
 
-func (m *MessageReceived) AppendEvent(outMsg *tlb.ExternalMessageOut) {
-	e := Event{outMsg.CreatedAt, outMsg.CreatedLT, outMsg.Body}
-	str, _ := e.AsString()
-	fmt.Printf("Event: %s\n", str)
-	m.Events = append(m.Events, e)
+func (m *ReceivedMessage) AppendEvent(outMsg *tlb.ExternalMessageOut) {
+	e := OutgoingExternalMessages{outMsg.CreatedAt, outMsg.CreatedLT, outMsg.Body}
+	m.OutgoingExternalMessages = append(m.OutgoingExternalMessages, e)
 }
 
 // AppendSentMessage appends the outgoing message to the list of sent messages
 // and updates the total fees charged to the sender
-func (r *MessageReceived) AppendSentMessage(outgoingInternalMessage *tlb.InternalMessage) {
+func (r *ReceivedMessage) AppendSentMessage(outgoingInternalMessage *tlb.InternalMessage) {
 	messageSent := MessageSentFromInternalMessage(outgoingInternalMessage)
-	r.OutgoingMessagesSent = append(r.OutgoingMessagesSent, &messageSent)
-	r.MsgFeesChargedToSender += uint(outgoingInternalMessage.FwdFee.Nano().Uint64())
+	r.OutgoingInternalMessagesSent = append(r.OutgoingInternalMessagesSent, &messageSent)
+	r.MsgFeesChargedToSender.Add(r.MsgFeesChargedToSender, outgoingInternalMessage.FwdFee.Nano())
 }
 
 // WaitForOutgoingMessagesToBeReceived waits for the outgoing messages to be received and
@@ -297,23 +289,18 @@ func (r *MessageReceived) AppendSentMessage(outgoingInternalMessage *tlb.Interna
 //
 // TODO: This could be optimized if the message stored the outgoing messages
 // grouped by address
-func (m *MessageReceived) WaitForOutgoingMessagesToBeReceived(ac *ApiClient) error {
-	fmt.Printf("===================\nWaitForOutgoingMessagesToBeReceived\n")
-	outgoingMessagesSentQueue := AsQueue(&m.OutgoingMessagesSent)
+func (m *ReceivedMessage) WaitForOutgoingMessagesToBeReceived(ac *ApiClient) error {
+	outgoingMessagesSentQueue := AsQueue(&m.OutgoingInternalMessagesSent)
 	for {
 		sentMessage, ok := outgoingMessagesSentQueue.Pop()
 		if !ok {
-			fmt.Printf("No outgoing messages\n")
 			break
 		}
-		fmt.Printf("Waiting for outgoing message to arrive: %s\n- - - - - - - - - - - -\n", sentMessage.Msg.Dump())
-		transactionsReceived := ac.SubscribeToTransactions(*sentMessage.Msg.DstAddr, m.LamportTime)
+		transactionsReceived := ac.SubscribeToTransactions(*sentMessage.InternalMsg.DstAddr, m.LamportTime)
 
-		var receivedMessage *MessageReceived
+		var receivedMessage *ReceivedMessage
 		for rTX := range transactionsReceived {
-			fmt.Printf("Transaction arrived: %s\n", rTX.Dump())
 			if rTX.IO.In != nil && rTX.IO.In.MsgType == tlb.MsgTypeInternal {
-				fmt.Printf("Transaction is internal\n")
 				var err error
 				receivedMessage, err = sentMessage.MapToReceivedMessageIfMatches(rTX)
 				if err != nil {
@@ -324,8 +311,7 @@ func (m *MessageReceived) WaitForOutgoingMessagesToBeReceived(ac *ApiClient) err
 				}
 			}
 		}
-		m.OutgoingMessagesReceived = append(m.OutgoingMessagesReceived, receivedMessage)
-		fmt.Println("----------------------------")
+		m.OutgoingInternalMessagesReceived = append(m.OutgoingInternalMessagesReceived, receivedMessage)
 	}
 
 	return nil
@@ -338,7 +324,7 @@ func (m *MessageReceived) WaitForOutgoingMessagesToBeReceived(ac *ApiClient) err
 // TODO: Of course this would be more efficient with a map, but I haven't found
 // an identifier that can be used as a key. Maybe it can be sharded by the
 // recipient address at least.
-func (m MessageSent) MapToReceivedMessageIfMatches(rTX *tlb.Transaction) (*MessageReceived, error) {
+func (m SentMessage) MapToReceivedMessageIfMatches(rTX *tlb.Transaction) (*ReceivedMessage, error) {
 	if rTX.IO.In == nil || rTX.IO.In.MsgType != tlb.MsgTypeInternal {
 		return nil, fmt.Errorf("transaction is not internal: %s", rTX.Dump())
 	}
@@ -346,7 +332,6 @@ func (m MessageSent) MapToReceivedMessageIfMatches(rTX *tlb.Transaction) (*Messa
 	if !m.MatchesReceived(incommingMessage) {
 		return nil, nil
 	}
-	fmt.Printf("Incomming message matches sent message\n")
 	receivedMessage, err := MapToReceivedMessage(rTX)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse sent message: %w", err)
@@ -356,22 +341,19 @@ func (m MessageSent) MapToReceivedMessageIfMatches(rTX *tlb.Transaction) (*Messa
 
 // MatchesReceived checks if the incoming message is the same as the message
 // originally sent (m)
-func (m MessageSent) MatchesReceived(incommingMessage *tlb.InternalMessage) bool {
+func (m SentMessage) MatchesReceived(incomingMessage *tlb.InternalMessage) bool {
 	// Implementation note:
 	// This could use early returns, but the code was designed with debugging in
 	// mind.
 	isSameMessage := true
-	sentMessage := m.Msg
-	if !incommingMessage.SrcAddr.Equals(sentMessage.SenderAddr()) {
-		fmt.Printf("IsSameMessage: Transaction arrived from a different source address: expected %s, got %s\n", sentMessage.SenderAddr().StringRaw(), incommingMessage.SrcAddr.StringRaw())
+	sentMessage := m.InternalMsg
+	if !incomingMessage.SrcAddr.Equals(sentMessage.SenderAddr()) {
 		isSameMessage = false
 	}
-	if !incommingMessage.DstAddr.Equals(sentMessage.DestAddr()) {
-		fmt.Printf("IsSameMessage: Transaction arrived to a different destination address: expected %s, got %s\n", sentMessage.DestAddr().StringRaw(), incommingMessage.DstAddr.StringRaw())
+	if !incomingMessage.DstAddr.Equals(sentMessage.DestAddr()) {
 		isSameMessage = false
 	}
-	if !(incommingMessage.CreatedLT == sentMessage.CreatedLT) {
-		fmt.Printf("IsSameMessage: Transaction arrived to with a different LT: expected %d, got %d\n", m.LamportTime, incommingMessage.CreatedLT)
+	if incomingMessage.CreatedLT != sentMessage.CreatedLT {
 		isSameMessage = false
 	}
 	return isSameMessage
