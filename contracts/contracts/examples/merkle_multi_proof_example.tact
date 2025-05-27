@@ -1,6 +1,7 @@
 import "../libraries/merkle_multi_proof.tact";
 
 message MerkleMultiProof {
+    queryId: Int as uint64;
     leaves: map<Int as uint16, Int as uint256>;
     leavesLen: Int as uint16;
     proofs: map<Int as uint16, Int as uint256>;
@@ -9,7 +10,7 @@ message MerkleMultiProof {
 }
 
 /// An example contract is necessary for testing and compiling the MerkleMultiProof library.
-contract MerkleMultiProofCalculatorDict {
+contract MerkleMultiProofCalculator {
     root: Int as uint256 = 0;
 
     receive(proof: MerkleMultiProof) {

@@ -1,3 +1,5 @@
+import {Dictionary } from "@ton/core"
+
 // Converts a BigInt to a 32-byte (256-bit) Uint8Array, padding with leading zeros if necessary.
 export function bigIntToBytes32(value: bigint): Uint8Array {
   // Convert BigInt to hexadecimal string, then pad to 64 characters (32 bytes)
@@ -16,4 +18,12 @@ export function uint8ArrayToBigInt(bytes: Uint8Array): bigint {
     result = (result << 8n) | BigInt(byte);
   }
   return result;
+}
+
+export function listOfHashesAsDictionary(list: bigint[]): Dictionary<number, bigint> {
+  let dict: Dictionary<number, bigint> = Dictionary.empty();
+  for (let i = 0; i < list.length; i++) {
+    dict.set(i, list[i]);
+  }
+  return dict;
 }
