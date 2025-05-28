@@ -8,8 +8,7 @@
   ],
   "scripts": {
     "ci:changeset:publish": "yarn changeset publish",
-    "ci:changeset:version": "yarn changeset version && yarn version patch --no-git-tag",
-    "dev:build": "yarn tact --config tact.config.json"
+    "ci:changeset:version": "yarn changeset version && yarn version patch --no-git-tag"
   },
   "repository": {
     "type": "git",
