@@ -84,21 +84,31 @@ func (s *TONChainWriterService) Ready() error {
 }
 
 func (s *TONChainWriterService) SubmitTransaction(ctx context.Context, contractName, method string, args any, transactionID types.IdempotencyKey, toAddress string, meta *types.TxMeta, value *big.Int) error {
-	//TODO implement me
-	panic("implement me")
+	// TODO(NONEVM-1460): implement
+	return nil
 }
 
 func (s *TONChainWriterService) GetTransactionStatus(ctx context.Context, transactionID types.IdempotencyKey) (types.TransactionStatus, error) {
-	//TODO implement me
-	panic("implement me")
+	// TODO(NONEVM-1460): implement
+	return types.Finalized, nil
 }
 
 func (s *TONChainWriterService) GetFeeComponents(ctx context.Context) (*types.ChainFeeComponents, error) {
-	//TODO implement me
-	panic("implement me")
+	// TODO(NONEVM-1460): implement
+	// Dummy fee components
+	feeComponents := &types.ChainFeeComponents{
+		ExecutionFee:        big.NewInt(1000),
+		DataAvailabilityFee: big.NewInt(0),
+	}
+	return feeComponents, nil
 }
 
 func (s *TONChainWriterService) GetEstimateFee(ctx context.Context, contract, method string, args any, toAddress string, meta *types.TxMeta, val *big.Int) (types.EstimateFee, error) {
-	//TODO implement me
-	panic("implement me")
+	// TODO(NONEVM-1460): implement
+	// Dummy estimate
+	estimate := types.EstimateFee{
+		Fee:      big.NewInt(2),
+		Decimals: 18,
+	}
+	return estimate, nil
 }
