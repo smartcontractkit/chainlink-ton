@@ -73,9 +73,9 @@ We can see that the obtained gas cost results approximate the estimated gas amou
 
 ### Conclusions
 
-Most of the gas cost for this algorithm comes from the size of the input, which must be loaded in memory and the amount of cells that need to be initialized. 
- 
-Accessing elements via map.get(index) seems to be more efficient than manually parsing cell structures. This operation involves TVM dictionary operations, while these also traverse cell structures (Patricia trees), they are often more optimized for collections, and the TVM might benefit from internal caching or more efficient traversal paths, especially for sequential integer keys
+Most of the gas cost for this algorithm seems to come from the size of the input, which must be loaded in memory and the amount of cells that need to be initialized and parsed, as well as general operations and jumps count and. 
+
+Implementing data structures using the Map type ended up being more efficient than manually creating and parsing cells. Operations on these dictionaries are pretty optimized and you don't risk driving up the cost by poor handling of cells and slices.
 
 The gas cost of the keccack256 algorithm being 3 times the one of the sha256 per byte is not as significant as it looks in algorithms that need to initialize memory space for computation. In the cases where a really big input needs to be hashed, the cost of initializing and parsing this big input is much higher than that of actually performing the gas operation. 
 
