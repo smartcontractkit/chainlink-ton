@@ -2,7 +2,7 @@
   pkgs,
   rev,
 }: let
-  package-info = builtins.fromJSON (builtins.readFile ../../package.json);
+  package-info = builtins.fromJSON (builtins.readFile ../../pkg/package.json);
 in
   pkgs.buildGo124Module rec {
     inherit (package-info) version;

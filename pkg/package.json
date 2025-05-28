@@ -1,0 +1,8 @@
+{
+  "name": "chainlink-ton",
+  "private": true,
+  "version": "0.0.1",
+  "description": "Chainlink TON integration (Golang) module and SDK",
+  "author": "Chainlink Labs",
+  "license": "MIT"
+}
