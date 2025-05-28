@@ -12,7 +12,9 @@ import (
 	relaytypes "github.com/smartcontractkit/chainlink-common/pkg/types"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/core"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/chainreader"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/chainwriter"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/config"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/txm"
 )
 
@@ -106,8 +108,12 @@ func (r *Relayer) NewContractWriter(_ context.Context, config []byte) (relaytype
 }
 
 func (r *Relayer) NewContractReader(_ context.Context, chainReaderConfig []byte) (relaytypes.ContractReader, error) {
-	// TODO(NONEVM-1460): implement
-	return nil, nil
+	crCfg := config.ContractReader{}
+	if err := json.Unmarshal(chainReaderConfig, &crCfg); err != nil {
+		return nil, fmt.Errorf("failed to unmarshall chain reader config: %v", err)
+	}
+
+	return chainreader.NewContractReaderService(r.lggr, crCfg, r.chain.LogPoller())
 }
 
 func (r *Relayer) NewConfigProvider(ctx context.Context, args relaytypes.RelayArgs) (relaytypes.ConfigProvider, error) {
