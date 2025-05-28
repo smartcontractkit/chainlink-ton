@@ -9,7 +9,7 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
-var INVENTORY_CONTRACT_PATH = test_utils.GetBuildDir("examples/async-communication/request-reply-with-two-dependencies/inventory/inventory_Inventory.pkg")
+var INVENTORY_CONTRACT_PATH = test_utils.GetBuildDir("examples.async-communication.request-reply-with-two-dependencies.Inventory/tact_Inventory.pkg")
 
 type InventoryProvider struct {
 	apiClient tonutils.ApiClient

@@ -9,7 +9,7 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
-var PRICE_REGISTRY_CONTRACT_PATH = test_utils.GetBuildDir("examples/async-communication/request-reply/price_registry/price_registry_PriceRegistry.pkg")
+var PRICE_REGISTRY_CONTRACT_PATH = test_utils.GetBuildDir("examples.async-communication.request-reply.PriceRegistry/tact_PriceRegistry.pkg")
 
 type PriceRegistryProvider struct {
 	apiClient tonutils.ApiClient

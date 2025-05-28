@@ -8,7 +8,7 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
-var COUNTER_CONTRACT_PATH = test_utils.GetBuildDir("examples/async-communication/two-phase-commit/counter/counter_Counter.pkg")
+var COUNTER_CONTRACT_PATH = test_utils.GetBuildDir("examples.async-communication.two-phase-commit.Counter/tact_Counter.pkg")
 
 type CounterProvider struct {
 	apiClient tonutils.ApiClient

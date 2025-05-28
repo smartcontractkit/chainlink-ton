@@ -6,7 +6,7 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
-var ITEM_COUNT_CONTRACT_PATH = test_utils.GetBuildDir("examples/async-communication/request-reply-with-two-dependencies/item_count/item_count_ItemCount.pkg")
+var ITEM_COUNT_CONTRACT_PATH = test_utils.GetBuildDir("examples.async-communication.request-reply-with-two-dependencies.ItemCount/tact_ItemCount.pkg")
 
 type ItemCountProvider struct {
 	apiClient tonutils.ApiClient

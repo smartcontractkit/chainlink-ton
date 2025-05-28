@@ -6,7 +6,7 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
-var ITEM_PRICE_CONTRACT_PATH = test_utils.GetBuildDir("examples/async-communication/request-reply-with-two-dependencies/item_price/item_price_ItemPrice.pkg")
+var ITEM_PRICE_CONTRACT_PATH = test_utils.GetBuildDir("examples.async-communication.request-reply-with-two-dependencies.ItemPrice/tact_ItemPrice.pkg")
 
 type ItemPriceProvider struct {
 	apiClient tonutils.ApiClient

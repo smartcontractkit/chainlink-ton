@@ -8,7 +8,7 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
-var MEMORY_CONTRACT_PATH = test_utils.GetBuildDir("examples/async-communication/two-msg-chain/memory/memory_Memory.pkg")
+var MEMORY_CONTRACT_PATH = test_utils.GetBuildDir("examples.async-communication.two-msg-chain.Memory/tact_Memory.pkg")
 
 type MemoryProvider struct {
 	apiClient tonutils.ApiClient

@@ -9,7 +9,7 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
-var STORAGE_CONTRACT_PATH = test_utils.GetBuildDir("examples/async-communication/request-reply/storage/storage_Storage.pkg")
+var STORAGE_CONTRACT_PATH = test_utils.GetBuildDir("examples.async-communication.request-reply.Storage/tact_Storage.pkg")
 
 type StorageProvider struct {
 	apiClient tonutils.ApiClient

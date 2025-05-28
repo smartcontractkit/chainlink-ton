@@ -9,7 +9,7 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
-var DB_CONTRACT_PATH = test_utils.GetBuildDir("examples/async-communication/two-phase-commit/db/db_DB.pkg")
+var DB_CONTRACT_PATH = test_utils.GetBuildDir("examples.async-communication.two-phase-commit.DB/tact_DB.pkg")
 
 type DBProvider struct {
 	apiClient tonutils.ApiClient
