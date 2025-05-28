@@ -1,6 +1,6 @@
 # Async Communication Examples
 
-This document describes some examples developed to illustratie async communication
+This document describes some examples developed to illustrate async communication
 
 ## Directory structure
 
@@ -22,7 +22,7 @@ To run a specific test, you might run `go test -v -run ^TestExampleName$ github.
 
 ## Diagram Convention
 
-Diagrams where made following [Mermaid](https://mermaid-js.github.io/mermaid/#/) syntax. If you are using VSCode, I suggest installing [Markdown Preview Mermaid Support](https://marketplace.visualstudio.com/items/?itemName=bierner.markdown-mermaid) extension.
+Diagrams were made following [Mermaid](https://mermaid-js.github.io/mermaid/#/) syntax. If you are using VSCode, I suggest installing [Markdown Preview Mermaid Support](https://marketplace.visualstudio.com/items/?itemName=bierner.markdown-mermaid) extension.
 
 In the following diagrams, I am using dashed-line arrows --> to denote external messages, solid-line arrows for internal messages, actor for rpc clients and blocks for smart contracts.
 
@@ -50,7 +50,7 @@ sequenceDiagram
 
 ## Test possible replay attack
 
-An article described a possible attack vector consisting on replaying failed transactions. It suggested that the seqno of a wallet was not incremented when processing a transfer with an amount higher than the balance. This was proven to be false.
+An article described a possible attack vector consisting of replaying failed transactions. It suggested that the seqno of a wallet was not incremented when processing a transfer with an amount higher than the balance. This was proven to be false.
 
 ## Two msg chain
 
@@ -155,8 +155,8 @@ sequenceDiagram
     DB->>+CounterA: saveValue()
     DB->>+CounterB: saveValue()
     deactivate DB
-    CounterA->>-CounterA:SaveValue()
-    CounterB->>-CounterB:SaveValue()
+    CounterA->>-CounterA:saveValue()
+    CounterB->>-CounterB:saveValue()
 ```
 
 It is missing a rollback, but that is pretty trivial.
