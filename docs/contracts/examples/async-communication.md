@@ -50,7 +50,7 @@ sequenceDiagram
 
 ## Test possible replay attack
 
-An article described a possible attack vector consisting on replaying failed transactions. It suggested that the seqno of a wallet was not incremented when processing a transfer with an amount higher than the balance. This was proven to be false.
+An article described a possible attack vector consisting of replaying failed transactions. It suggested that the seqno of a wallet was not incremented when processing a transfer with an amount higher than the balance. This was proven to be false.
 
 ## Two msg chain
 
@@ -155,8 +155,8 @@ sequenceDiagram
     DB->>+CounterA: saveValue()
     DB->>+CounterB: saveValue()
     deactivate DB
-    CounterA->>-CounterA:SaveValue()
-    CounterB->>-CounterB:SaveValue()
+    CounterA->>-CounterA:saveValue()
+    CounterB->>-CounterB:saveValue()
 ```
 
 It is missing a rollback, but that is pretty trivial.
