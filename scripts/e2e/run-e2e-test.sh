@@ -1,10 +1,10 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -euo pipefail
 
 # configuration & global variables
 ROOT_DIR=$(git rev-parse --show-toplevel)
 DEFAULT_CHAINLINK_CORE_DIR="${ROOT_DIR}/../chainlink"
-CORE_VERSION_FILE_PATH="${ROOT_DIR}/scripts/e2e/.core_version"
+CORE_VERSION_FILE_PATH="${ROOT_DIR}/scripts/.core_version"
 
 # test database configuration
 PG_CONTAINER_NAME="cl_pg"

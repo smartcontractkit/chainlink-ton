@@ -16,7 +16,8 @@ jobs:
             cmd: 'cd integration-tests/smoke/ccip && go test ccip_ton_messaging_test.go -timeout 12m -test.parallel=2 -count=1 -json'
 
     name: Integration Tests (${{ matrix.type.name }})
-    runs-on: ubuntu-latest
+    # TODO: remove: temp GHA degraded with the latest ubuntu image
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -28,7 +29,7 @@ jobs:
 
       - name: Read Chainlink Core Ref from .core_version
         id: read_core_ref
-        run: echo "CORE_REF=$(cat ./scripts/e2e/.core_version | tr -d '[:space:]')" >> $GITHUB_OUTPUT
+        run: echo "CORE_REF=$(cat ./scripts/.core_version | tr -d '[:space:]')" >> $GITHUB_OUTPUT
 
       - name: Checkout Chainlink Core repo
         uses: actions/checkout@v4
@@ -45,7 +46,7 @@ jobs:
 
   integration-test-ccip:
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: [integration-test-matrix]
     steps:
       - name: Fail the job if ccip tests in PR not successful

@@ -32,7 +32,7 @@ git clone https://github.com/smartcontractkit/chainlink.git ../chainlink
 
 ### 3.2. `.core_version` File
 
-The `scripts/e2e/.core_version` file within this repository specifies the `chainlink` Git reference (branch, tag, or commit) to be used for tests. The `run-e2e-test.sh` script automatically ensures your local `chainlink` checkout matches this specified version.
+The `scripts/.core_version` file within this repository specifies the `chainlink` Git reference (branch, tag, or commit) to be used for tests. The `run-e2e-test.sh` script automatically ensures your local `chainlink` checkout matches this specified version.
 
 ### 3.3. Start PostgreSQL
 
@@ -79,7 +79,7 @@ nix develop . -c ./scripts/e2e/run-e2e-test.sh --test-command "your_test_command
 The `run-e2e-test.sh` script orchestrates the E2E testing process by performing the following actions:
 
 1.  **Validates Directories:** Confirms the presence of both `chainlink-ton` and `chainlink` project directories.
-2.  **Checks Chainlink Version:** Verifies that your local `chainlink` checkout matches the Git reference specified in `scripts/e2e/.core_version`. It will error if a mismatch is detected.
+2.  **Checks Chainlink Version:** Verifies that your local `chainlink` checkout matches the Git reference specified in `scripts/.core_version`. It will error if a mismatch is detected.
 3.  **Prepares Chainlink:**
     * Modifies `chainlink`'s `go.mod` file to use the local `chainlink-ton` module.
     * Updates Go dependencies (`go mod tidy`, `go mod download`).
@@ -98,6 +98,6 @@ E2E tests are fully integrated into the GitHub Actions CI pipeline.
 
 ## 7. Key Files
 
+* `scripts/.core_version`: The definitive source of truth for the `chainlink` Git reference used in tests.
 * `scripts/e2e/run-e2e-test.sh`: The main script responsible for orchestrating E2E tests.
-* `scripts/e2e/.core_version`: The definitive source of truth for the `chainlink` Git reference used in tests.
 * `.github/workflows/ccip-integration-test.yml`: The GitHub Actions CI workflow that automates E2E testing.
