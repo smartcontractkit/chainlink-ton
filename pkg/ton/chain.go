@@ -10,13 +10,19 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/types"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/core"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/client"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/config"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/fees"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/txm"
 )
 
 type Chain interface {
 	types.ChainService
 
 	ID() string
+	TxManager() TxManager
+	FeeEstimator() fees.Estimator
+	MultiClient() *client.MultiClient
 	// TODO(NONEVM-1460): add remaining Chain interface functions
 }
 
@@ -32,6 +38,9 @@ type chain struct {
 	services.StateMachine
 	stopCh services.StopChan
 	id     string
+
+	txm         *txm.Txm
+	multiClient *client.MultiClient
 
 	lggr logger.Logger
 	// TODO(NONEVM-1460): implement remaining members
@@ -99,4 +108,16 @@ func (c *chain) Replay(ctx context.Context, fromBlock string, args map[string]an
 func (c *chain) ID() string {
 	// TODO(NONEVM-1460): implement
 	return c.id
+}
+
+func (c *chain) TxManager() TxManager {
+	return c.txm
+}
+
+func (c *chain) FeeEstimator() fees.Estimator {
+	return c.txm.FeeEstimator()
+}
+
+func (c *chain) MultiClient() *client.MultiClient {
+	return c.multiClient
 }
