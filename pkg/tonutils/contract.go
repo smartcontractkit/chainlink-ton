@@ -50,7 +50,7 @@ func (c *Contract) CallWaitRecursively(method Method, queryId uint64) (*Received
 
 // Calls a writer method on the contract and waits for it to be received.
 func (c *Contract) SendMessageWait(body *cell.Cell) (*ReceivedMessage, error) {
-	return c.ApiClient.SendWaitTransaction(context.TODO(),
+	m, _, err := c.ApiClient.SendWaitTransaction(context.TODO(),
 		*c.Address,
 		&wallet.Message{
 			Mode: wallet.PayGasSeparately,
@@ -63,6 +63,7 @@ func (c *Contract) SendMessageWait(body *cell.Cell) (*ReceivedMessage, error) {
 			},
 		},
 	)
+	return m, err
 }
 
 // Calls a getter method on the contract and waits for it to be received.

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math/big"
 	"testing"
-	"time"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/tonutils/tests/test_utils"
 	"github.com/stretchr/testify/assert"
@@ -39,7 +38,6 @@ func TestLowBalanceReplayAttack(t *testing.T) {
 			fmt.Println("Error:", err)
 		}
 
-		time.Sleep(time.Second * 5)
 		newBalance, err := test_utils.GetBalance(alice)
 		assert.NoError(t, err, "Failed to get balance: %v", err)
 		test_utils.VerifyTransaction(t, resultMessage, lastBalance, big.NewInt(0), newBalance)

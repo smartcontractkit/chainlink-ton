@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
@@ -21,17 +22,17 @@ type ApiClient struct {
 
 // SendWaitTransaction waits for the transaction to be sent and returns the
 // resulting message with the outgoing messages if any.
-func (ac *ApiClient) SendWaitTransaction(ctx context.Context, dstAddr address.Address, messageToSend *wallet.Message) (*ReceivedMessage, error) {
-	tx, _, err := ac.Wallet.SendWaitTransaction(ctx, messageToSend)
+func (ac *ApiClient) SendWaitTransaction(ctx context.Context, dstAddr address.Address, messageToSend *wallet.Message) (*ReceivedMessage, uint32, error) {
+	tx, block, err := ac.Wallet.SendWaitTransaction(ctx, messageToSend)
 	if err != nil {
-		return nil, fmt.Errorf("deposit transaction failed for %s: %w", dstAddr.String(), err)
+		return nil, 0, fmt.Errorf("deposit transaction failed for %s: %w", dstAddr.String(), err)
 	}
 
 	receivedMessage, err := MapToReceivedMessage(tx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get outgoing messages: %w", err)
+		return nil, 0, fmt.Errorf("failed to get outgoing messages: %w", err)
 	}
-	return &receivedMessage, nil
+	return &receivedMessage, block.SeqNo, nil
 }
 
 // WaitForTrace waits for all outgoing messages to be received and all their
@@ -63,7 +64,7 @@ func (m *ReceivedMessage) WaitForTrace(ac *ApiClient) error {
 // waits for all outgoing messages to be confirmed recursively. It will return
 // the resulting message in a Finalized state.
 func (ac *ApiClient) SendWaitTransactionRecursively(ctx context.Context, dstAddr address.Address, messageToSend *wallet.Message) (*ReceivedMessage, error) {
-	sentMessage, err := ac.SendWaitTransaction(ctx, dstAddr, messageToSend)
+	sentMessage, seqno, err := ac.SendWaitTransaction(ctx, dstAddr, messageToSend)
 	if err != nil {
 		return nil, fmt.Errorf("failed to SendWaitTransaction: %w", err)
 	}
@@ -71,6 +72,27 @@ func (ac *ApiClient) SendWaitTransactionRecursively(ctx context.Context, dstAddr
 	if err != nil {
 		return nil, fmt.Errorf("failed to wait for trace: %w", err)
 	}
+	ctx2 := ac.Api.Client().StickyContext(ctx) // TODO maybe unnecesary
+	master, err := ac.Api.WaitForBlock(seqno).CurrentMasterchainInfo(ctx2)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get masterchain info for funder balance check: %w", err)
+	}
+	fmt.Printf("Masterchain SeqNo: %d\n", master.SeqNo)
+
+	for {
+		// Check if the block is ready
+		if master.SeqNo > seqno {
+			break
+		}
+		time.Sleep(time.Millisecond * 500)
+		fmt.Printf("Waiting for block %d to be ready...\n", seqno)
+		master, err = ac.Api.WaitForBlock(seqno).CurrentMasterchainInfo(ctx2)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get masterchain info for funder balance check: %w", err)
+		}
+		fmt.Printf("Masterchain SeqNo: %d\n", master.SeqNo)
+	}
+
 	return sentMessage, nil
 }
 
