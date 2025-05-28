@@ -129,25 +129,26 @@ func getWallet(t *testing.T, api ton.APIClientWrapped) *wallet.Wallet {
 	}
 	// Get seed phrase from environment variable
 	seedPhrase := os.Getenv("SIGNER_WALLET_SEED_PHRASE")
-	if seedPhrase == "" {
-		t.Fatalf("Environment variable SIGNER_WALLET_SEED_PHRASE not set or empty")
-	}
+	assert.NotEqual(t, seedPhrase, "", "Environment variable SIGNER_WALLET_SEED_PHRASE not set or empty")
+
 	words := strings.Fields(seedPhrase)
 
 	// Create wallet from seed with password
 	w, err := wallet.FromSeed(api, words, wallet.V3R2)
-	if err != nil {
-		t.Fatalf("Failed to create wallet from seed: %v", err)
-	}
+	assert.NoError(t, err, "Failed to create wallet from seed: %v", err)
+
 	baseFunderWallet, err := wallet.FromPrivateKeyWithOptions(api, w.PrivateKey(), wallet.V3R2, wallet.WithWorkchain(-1))
 
 	//TODO: This is hardcoded for MyLocalTon pre-funded wallet
 	funderWallet, err := baseFunderWallet.GetSubwallet(42)
+	assert.NoError(t, err, "Failed to get subwallet: %v", err)
 	t.Logf("Funder wallet address: %s", funderWallet.WalletAddress().StringRaw())
 
 	// Check Funder Balance
 	masterInfo, err := api.GetMasterchainInfo(context.Background())
+	assert.NoError(t, err, "Failed to get masterchain info for funder balance check: %v", err)
 	funderBalance, err := funderWallet.GetBalance(context.Background(), masterInfo)
+	assert.NoError(t, err, "Failed to get funder balance: %v", err)
 	t.Logf("Funder balance: %s", funderBalance.String())
 
 	return funderWallet
