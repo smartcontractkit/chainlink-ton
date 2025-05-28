@@ -6,7 +6,11 @@ import (
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
+	"github.com/smartcontractkit/chainlink-common/pkg/sqlutil"
 	"github.com/smartcontractkit/chainlink-common/pkg/types"
+	"github.com/smartcontractkit/chainlink-common/pkg/types/core"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/config"
 )
 
 type Chain interface {
@@ -14,6 +18,12 @@ type Chain interface {
 
 	ID() string
 	// TODO(NONEVM-1460): add remaining Chain interface functions
+}
+
+type ChainOpts struct {
+	Logger   logger.Logger
+	KeyStore core.Keystore
+	DS       sqlutil.DataSource
 }
 
 var _ Chain = (*chain)(nil)
@@ -25,6 +35,16 @@ type chain struct {
 
 	lggr logger.Logger
 	// TODO(NONEVM-1460): implement remaining members
+}
+
+func NewChain(cfg *config.TOMLConfig, opts ChainOpts) (Chain, error) {
+	// TODO(NONEVM-1460): implement actual constructor, return dummy chain for now
+	c := &chain{
+		lggr:   logger.Named(opts.Logger, "DummyChain"),
+		stopCh: make(services.StopChan),
+		id:     "dummy",
+	}
+	return c, nil
 }
 
 func (c *chain) Name() string {
