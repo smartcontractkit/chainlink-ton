@@ -23,7 +23,7 @@ jobs:
         run: nix develop -c go build -v ./...
 
       - name: Run tests
-        run: nix develop -c go test -v -count=1 -p=1 ./...
+        run: nix develop -c go test -v -count=1 -p=1 $(find . -type d -not -path './pkg/tonutils/*' -not -path './pkg/tonutils')
   build-pkgs:
     name: Build and package (Nix and Docker)
     runs-on: ubuntu-latest
