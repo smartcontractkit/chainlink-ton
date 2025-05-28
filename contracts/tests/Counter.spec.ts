@@ -39,4 +39,22 @@ describe('Counter', () => {
     // the check is done inside beforeEach
     // blockchain and counter are ready to use
   })
+
+  it('should have type and version', async () => {
+    const typeAndVersion = await counter.getTypeAndVersion()
+    expect(typeAndVersion).toBe('com.chainlink.ton.examples.Counter v1.0.0')
+  })
+
+  it('should have the right code and hash', async () => {
+    const expectedCode = (await Counter.fromInit(0n, 0n)).init?.code
+    if (!expectedCode) {
+      throw new Error('Expected code is not defined')
+    }
+    const code = await counter.getCode()
+    const expectedHash = expectedCode.hash()
+    expect(code.toString('hex')).toBe(expectedCode.toString('hex'))
+    const expectedHashInt = BigInt('0x' + expectedHash.toString('hex'))
+    const hash = await counter.getCodeHash()
+    expect(hash).toBe(expectedHashInt)
+  })
 })
