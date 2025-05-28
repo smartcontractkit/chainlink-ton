@@ -72,8 +72,7 @@ func (ac *ApiClient) SendWaitTransactionRecursively(ctx context.Context, dstAddr
 	if err != nil {
 		return nil, fmt.Errorf("failed to wait for trace: %w", err)
 	}
-	ctx2 := ac.Api.Client().StickyContext(ctx) // TODO maybe unnecesary
-	master, err := ac.Api.WaitForBlock(seqno).CurrentMasterchainInfo(ctx2)
+	master, err := ac.Api.WaitForBlock(seqno).CurrentMasterchainInfo(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get masterchain info for funder balance check: %w", err)
 	}
@@ -86,7 +85,7 @@ func (ac *ApiClient) SendWaitTransactionRecursively(ctx context.Context, dstAddr
 		}
 		time.Sleep(time.Millisecond * 500)
 		fmt.Printf("Waiting for block %d to be ready...\n", seqno)
-		master, err = ac.Api.WaitForBlock(seqno).CurrentMasterchainInfo(ctx2)
+		master, err = ac.Api.WaitForBlock(seqno).CurrentMasterchainInfo(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get masterchain info for funder balance check: %w", err)
 		}
