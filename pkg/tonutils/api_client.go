@@ -80,7 +80,7 @@ func (ac *ApiClient) SendWaitTransactionRecursively(ctx context.Context, dstAddr
 
 	for {
 		// Check if the block is ready
-		if master.SeqNo > seqno {
+		if master.SeqNo > seqno+1 {
 			break
 		}
 		time.Sleep(time.Millisecond * 500)
