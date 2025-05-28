@@ -86,35 +86,11 @@ trait Upgradeable with Ownable2Step, TypeAndVersion {
         let code = getCode();
         let sha = code.hash();
         emit(UpgradedEvent {
-            version: self.upgradeableVersion(),
+            version: self.version(),
             code,
             sha,
         }.toCell());
     }
-
-    /// --- TypeAndVersion Functions ---
-
-    /// Version must be a semantic version string (e.g. "1.0.0").
-    override fun version(): String {
-        return self.upgradeableVersion();
-    }
-
-    // Type must be a Reverse Domain Name Notation string that is unique to the contract and should not change between versions.
-    // Example: "com.chainlink.project.package.ContractName"
-    // Read more about Reverse DNS Notation at https://en.wikipedia.org/wiki/Reverse_domain_name_notation
-    override fun type(): String {
-        return self.upgradeableType();
-    }
-
-    /// --- Delegated TypeAndVersion Functions ---
-
-    /// Version must be a semantic version string (e.g. "1.0.0").
-    abstract fun upgradeableVersion(): String;
-
-    // Type must be a Reverse Domain Name Notation string that is unique to the contract and should not change between versions.
-    // Example: "com.chainlink.project.package.ContractName"
-    // Read more about Reverse DNS Notation at https://en.wikipedia.org/wiki/Reverse_domain_name_notation
-    abstract fun upgradeableType(): String;
 }
 
 /// Changes the code of the contract.

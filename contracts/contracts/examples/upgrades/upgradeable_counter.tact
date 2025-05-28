@@ -44,22 +44,12 @@ trait UpgradeableCounter with Upgradeable {
         throw(EXIT_CODE_UNIMPLEMENTED_FUNCTION);
     }
 
-    /// --- Upgradeable Functions ---
+    /// --- TypeAndVersion Functions ---
 
     // Type must be a Reverse Domain Name Notation string that is unique to the contract and should not change between versions.
     // Example: "com.chainlink.project.package.ContractName"
     // Read more about Reverse DNS Notation at https://en.wikipedia.org/wiki/Reverse_domain_name_notation
-    override fun upgradeableType(): String {
+    override fun type(): String {
         return "com.chainlink.ton.examples.upgrades.UpgradeableCounter";
     }
-
-    // Version must be a semantic version string (e.g. "1.0.0").
-    override fun upgradeableVersion(): String {
-        return self.upgradeableCounterVersion();
-    }
-
-    /// --- Deletaed Upgradeable Functions ---
-
-    // Version must be a semantic version string (e.g. "1.0.0").
-    abstract fun upgradeableCounterVersion(): String;
 }

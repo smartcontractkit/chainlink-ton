@@ -37,8 +37,10 @@ contract UpgradeableCounterV1 with UpgradeableCounter {
         return self.value;
     }
 
+    /// --- TypeAndVersion Functions ---
+
     // Version must be a semantic version string (e.g. "1.0.0").
-    override fun upgradeableCounterVersion(): String {
+    override fun version(): String {
         return "1.0.0";
     }
 }
