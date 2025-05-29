@@ -12,10 +12,10 @@ jobs:
       matrix:
         type:
           # Note: list of tests, add more tests here
-          - name: 'Messaging Test'
+          - name: 'Barebone EVM > TON Messaging'
             cmd: 'cd integration-tests/smoke/ccip && go test ccip_ton_messaging_test.go -timeout 12m -test.parallel=2 -count=1 -json'
 
-    name: Integration Tests (${{ matrix.type.name }})
+    name: ${{ matrix.type.name }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
