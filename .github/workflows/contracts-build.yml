@@ -33,10 +33,7 @@ jobs:
         run: |
           cp pkg/tonutils/.env.example pkg/tonutils/.env
           pushd pkg/tonutils/tests/
-          nix develop .#contracts -c go test -v -parallel 1 -timeout 30m
-          popd
-          pushd pkg/tonutils/tests/async_communication
-          nix develop .#contracts -c go test -v -parallel 1 -timeout 30m
+          ./test.sh
 
   build-nixpkg:
     name: Build nix package
