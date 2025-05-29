@@ -11,4 +11,3 @@
 
 - [Getting Started](../docs/getting-started.md)
 - [Build](../docs/contracts/build.md)
-- [Examples](../docs/contracts/examples/README.md)
