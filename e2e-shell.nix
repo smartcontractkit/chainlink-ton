@@ -26,7 +26,7 @@ pkgs.mkShell {
     export CL_DATABASE_URL="postgresql://''${PG_USER}:''${PG_PASSWORD}@localhost:''${PG_PORT}/''${PG_DB}?sslmode=disable"
 
     echo ""
-    echo "Chainlink TON CCIP E2E shell."
+    echo "Welcome to Chainlink TON CCIP E2E shell."
     echo "----------------------------------------------------"
     echo "This shell includes tools from the default shell, plus:"
     echo "  - Docker, PostgreSQL, Coreutils (for container management)"
