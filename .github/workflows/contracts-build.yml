@@ -19,11 +19,6 @@ jobs:
         with:
           nix_path: nixpkgs=channel:nixos-unstable
 
-      - name: Deploy MyLocalTON (background)
-        run: |
-          pushd mylocalton
-          docker compose up -d
-
       - name: Run build
         run: |
           pushd contracts
@@ -34,16 +29,14 @@ jobs:
           pushd contracts
           nix develop .#contracts -c yarn test
 
-      - name: Wait for MyLocalTON to be ready
-        run: |
-          echo "Waiting for MyLocalTON to be ready..."
-          timeout 300 bash -c 'until curl -s http://localhost:8080/last; do sleep 5; done'
-
       - name: Run Go tests
         run: |
           cp pkg/tonutils/.env.example pkg/tonutils/.env
+          pushd pkg/tonutils/tests/
+          CTF_CONFIGS=./test_utils/ton_mylocalton.toml nix develop .#contracts -c go test -v -parallel 1 -timeout 30m
+          popd
           pushd pkg/tonutils/tests/async_communication
-          nix develop .#contracts -c go test -v -timeout 30m
+          CTF_CONFIGS=../test_utils/ton_mylocalton.toml nix develop .#contracts -c go test -v -parallel 1 -timeout 30m
 
   build-nixpkg:
     name: Build nix package

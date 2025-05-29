@@ -42,18 +42,15 @@ func GetBuildDir(contractPath string) string {
 	return path.Join(buildsDir, contractPath)
 }
 
-func SetUpTest(t *testing.T, initialAmount *big.Int, count uint) []tonutils.ApiClient {
+func SetUpTest(t *testing.T, initialAmount *big.Int, fundedAccountsCount uint, liteapiURL string) (accounts []tonutils.ApiClient) {
+
 	// Connect to TON testnet
 	client := liteclient.NewConnectionPool()
-	cfg, err := liteclient.GetConfigFromUrl(context.Background(), "http://127.0.0.1:8000/localhost.global.config.json")
-	if err != nil {
-		t.Fatalf("Failed to get testnet config: %v", err)
-	}
+	cfg, err := liteclient.GetConfigFromUrl(context.Background(), fmt.Sprintf("http://%s/localhost.global.config.json", liteapiURL))
+	assert.NoError(t, err, "Failed to get testnet config: %v", err)
 
 	err = client.AddConnectionsFromConfig(context.Background(), cfg)
-	if err != nil {
-		t.Fatalf("Failed to connect to TON network: %v", err)
-	}
+	assert.NoError(t, err, "Failed to connect to TON network: %v", err)
 
 	// Initialize TON API client
 	api := ton.NewAPIClient(client)
@@ -69,8 +66,8 @@ func SetUpTest(t *testing.T, initialAmount *big.Int, count uint) []tonutils.ApiC
 
 	initialCoinAmount := tlb.FromNanoTON(initialAmount)
 
-	accounts := make([]tonutils.ApiClient, count)
-	for i := range count {
+	accounts = make([]tonutils.ApiClient, fundedAccountsCount)
+	for i := range fundedAccountsCount {
 		accounts[i] = createAndFundWallet(t, api, funder, initialCoinAmount)
 	}
 

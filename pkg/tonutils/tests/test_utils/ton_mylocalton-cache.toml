@@ -1,0 +1,11 @@
+[blockchain_a]
+type = 'ton'
+image = 'ghcr.io/neodix42/mylocalton:latest'
+pull_image = false
+port = ''
+port_ws = ''
+chain_id = ''
+docker_cmd_params = []
+public_key = ''
+contracts_dir = ''
+custom_ports = []
