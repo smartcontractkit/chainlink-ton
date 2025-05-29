@@ -41,6 +41,7 @@ jobs:
         run: |
           nix develop . --command bash -c '
             scripts/e2e/setup-env.sh --core-dir "${GITHUB_WORKSPACE}/chainlink" &&
+            export CL_DATABASE_URL="postgresql://postgres:postgres@localhost:5432/chainlink_test?sslmode=disable" &&
             scripts/e2e/run-test.sh --core-dir "${GITHUB_WORKSPACE}/chainlink" --test-command "${{ matrix.type.cmd }}"
           '
 
