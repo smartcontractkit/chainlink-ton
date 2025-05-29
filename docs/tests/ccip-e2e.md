@@ -22,11 +22,22 @@ To run E2E tests locally, you will need:
 * **Chainlink Repository:** A local clone of `smartcontractkit/chainlink`.
 * **Go:** Required for building Chainlink and running tests.
 * **Standard Unix Utilities:** `git`, `realpath`, `tr`, `pg_isready`.
-* **Nix (Optional):** Recommended for mirroring the CI environment locally and ensuring consistency.
+* **Nix (Recommended):** Provides a consistent development environment (devShells.e2e) with all other necessary dependencies (Go, standard Unix utilities like git, realpath, tr, pg_isready, Docker CLI) pre-configured. Using the Nix shell is the recommended way to ensure your local setup mirrors the CI environment.
 
 ## 3. Setup
 
 Follow these steps to set up your E2E testing environment:
+
+### 3.0. Using the Nix E2E Shell (Recommended)
+1. Enter the Shell: Navigate to the root of the chainlink-ton repository and run:
+
+```bash
+  nix develop .#e2e
+```
+
+This command activates the E2E development shell, which provides all necessary tools and sets up some environment variables (like default PostgreSQL connection parameters and `CL_DATABASE_URL`). Your command prompt will likely change to indicate you are in the Nix shell.
+
+2. Proceed with Setup: Once inside the Nix shell, continue with the steps below (3.1, 3.2, 3.3). The `scripts/e2e/setup-env.sh` script will respect the environment variables set by the Nix shell (e.g., for database configuration) or use its internal defaults if run standalone.
 
 ### 3.1. Clone Chainlink Core
 
@@ -65,17 +76,30 @@ After successfully running setup-env.sh and executing the export `CL_DATABASE_UR
 
 ### 4.1. Usage
 
+**Using the Nix E2E Shell (Recommended):**
+
+1. Ensure you are inside the Nix E2E shell (`nix develop .#e2e`).
+2. If you haven't set up the environment in this session using the CI-like command, you can run the setup-env script:
 ```bash
-./scripts/e2e/run-test.sh --test-command "<go_test_command>" [--core-dir /path/to/chainlink_core]
+  ./scripts/e2e/setup-env.sh --core-dir /path/to/chainlink_core  # (Or your desired path)
 ```
 
-**Arguments:**
+3. Then run tests using the run-test script:
 
-- `--test-command "<go_test_command>"`: (Required) The Go test command to be executed within the chainlink core directory.
-  - Example: "cd integration-tests/smoke/ccip && go test ccip_ton_messaging_test.go -timeout 12m -count=1 -json"
+```bash
+  ./scripts/e2e/run-test.sh --core-dir /path/to/chainlink_core --test-command "<go_test_command>"
+```
+Example:
+```bash
+./scripts/e2e/run-test.sh --core-dir ../chainlink --test-command "cd integration-tests/smoke/ccip && go test ccip_ton_messaging_test.go -timeout 12m -count=1 -json"
+```
+
 - `-c`, `--core-dir /path/to/chainlink_core`: (Optional) Path to your local chainlink repository (defaults to `../chainlink`). This should match the one used with `setup-env.sh`.
 
-### 4.2. Example Workflow
+**Note**: After you execute this export command, the CL_DATABASE_URL is set for your current Nix shell session. This variable is typically available again even if you exit and re-enter the shell using nix develop ., as long as the environment is consistently activated in the same way. If it’s not available in a new session, you may need to re-export it manually.
+This approach provides the environmental consistency of Nix while allowing you to execute each step of the testing process individually. This can be easier for development, allowing you to inspect the state or re-run specific steps without exiting the Nix environment. To exit the Nix shell when you are done, you can typically type `exit`.
+
+### 4.2. Example Workflow (Manual/Standalone)
 
 1. Set up the environment:
 ```bash
@@ -89,39 +113,6 @@ export CL_DATABASE_URL="postgresql://postgres:postgres@localhost:5432/chainlink_
 ```bash
 ./scripts/e2e/run-test.sh --test-command "cd integration-tests/smoke/ccip && go test ccip_ton_messaging_test.go -timeout 12m -count=1 -json"
 ```
-
-### 4.3. Using Nix
-
-To ensure your local testing environment closely mirrors the CI environment (in terms of available tools and their versions), it's recommended to run the E2E tests within a Nix development shell.
-
-1. Enter the Nix Development Shell:
-Open your terminal in the chainlink-ton project root and run:
-
-```bash
-nix develop .
-```
-
-This command will drop you into a new shell session where all dependencies defined in your Nix flake (or shell.nix) are available. Your command prompt will likely change to indicate you are in the Nix shell.
-
-Follow the Standard Local Workflow (Inside the Nix Shell):
-Once inside the Nix shell, you can follow the same steps outlined in section "4.2. Example Workflow". The commands will use the tools provided by the Nix environment:
-
-a.  Set up the environment:
-```bash
-./scripts/e2e/setup-env.sh
-```
-b.  Export the database URL (use the exact command printed by setup-env.sh in the previous step):
-```bash
-export CL_DATABASE_URL="postgresql://postgres:postgres@localhost:5432/chainlink_test?sslmode=disable"
-```
-**Note**: After you execute this export command, the CL_DATABASE_URL is set for your current Nix shell session. This variable is typically available again even if you exit and re-enter the shell using nix develop ., as long as the environment is consistently activated in the same way. If it’s not available in a new session, you may need to re-export it manually.
-
-c.  Run the tests:
-```bash
-./scripts/e2e/run-test.sh --test-command "cd integration-tests/smoke/ccip && go test ccip_ton_messaging_test.go -timeout 12m -count=1 -json"
-```
-
-This approach provides the environmental consistency of Nix while allowing you to execute each step of the testing process individually. This can be easier for development, allowing you to inspect the state or re-run specific steps without exiting the Nix environment. To exit the Nix shell when you are done, you can typically type `exit`.
 
 ## 5. How It Works
 
