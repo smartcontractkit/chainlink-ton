@@ -31,11 +31,16 @@
       chainlink-ton = pkgs.callPackage ./cmd/chainlink-ton commonArgs;
       # Resolve sub-modules
       contracts = pkgs.callPackage ./contracts commonArgs;
+      # Resolve tools
+      dependency-analyzer = pkgs.callPackage ./tools/dependency_analyzer commonArgs;
     in rec {
       # Output a set of dev environments (shells)
       devShells =
         {
           default = pkgs.callPackage ./shell.nix {inherit pkgs;};
+          # Development shell for dependency analyzer
+          dependency-analyzer = pkgs.callPackage ./tools/dependency_analyzer/shell.nix {inherit pkgs;};
+          # Development shell for running the CCIP E2E tests
           e2e = pkgs.callPackage ./e2e-shell.nix {inherit pkgs;};
         }
         // contracts.devShells;
@@ -46,6 +51,8 @@
           # Chainlink core node plugin (default + alias)
           inherit chainlink-ton;
           default = chainlink-ton;
+          # Dependency analyzer
+          dependency-analyzer = dependency-analyzer.packages.default;
         }
         // contracts.packages;
     });
