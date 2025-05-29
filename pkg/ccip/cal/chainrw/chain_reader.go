@@ -1,4 +1,4 @@
-package chainreader
+package chainrw
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 	"github.com/smartcontractkit/chainlink-common/pkg/types"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/config"
+	"github.com/smartcontractkit/chainlink-ton/pkg/config"
 )
 
 type EventsReader interface {
@@ -17,7 +17,7 @@ type EventsReader interface {
 	// TODO(NONEVM-1460): add remaining functions
 }
 
-const ServiceName = "TONContractReader"
+const ReaderServiceName = "TONContractReader"
 
 type ContractReaderService struct {
 	types.UnimplementedContractReader
@@ -38,7 +38,7 @@ var (
 
 func NewContractReaderService(lggr logger.Logger, cfg config.ContractReader, reader EventsReader) (*ContractReaderService, error) {
 	cr := &ContractReaderService{
-		lggr:   logger.Named(lggr, ServiceName),
+		lggr:   logger.Named(lggr, ReaderServiceName),
 		reader: reader,
 	}
 
@@ -54,7 +54,7 @@ func (s *ContractReaderService) Name() string {
 // An error is returned if starting any internal services fails. Subsequent calls to Start return
 // and error.
 func (s *ContractReaderService) Start(ctx context.Context) error {
-	return s.StartOnce(ServiceName, func() error {
+	return s.StartOnce(ReaderServiceName, func() error {
 		s.lggr.Debugw("Starting ContractReaderService", "config", s.reader)
 		// TODO(NONEVM-1460): start up log poller
 		return nil
@@ -64,7 +64,7 @@ func (s *ContractReaderService) Start(ctx context.Context) error {
 // Close implements the services.ServiceCtx interface and stops all background services and cleans
 // up used resources. Subsequent calls to Close return an error.
 func (s *ContractReaderService) Close() error {
-	return s.StopOnce(ServiceName, func() error {
+	return s.StopOnce(ReaderServiceName, func() error {
 		s.wg.Wait()
 		return nil
 	})

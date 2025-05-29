@@ -9,8 +9,8 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/loop"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/core"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton"
-	toncfg "github.com/smartcontractkit/chainlink-ton/pkg/ton/config"
+	toncfg "github.com/smartcontractkit/chainlink-ton/pkg/config"
+	"github.com/smartcontractkit/chainlink-ton/pkg/relay"
 )
 
 const (
@@ -57,18 +57,18 @@ func (p *pluginRelayer) NewRelayer(ctx context.Context, rawConfig string, loopKs
 	}
 
 	// TODO(NONEVM-1460): decode TOML config
-	opts := ton.ChainOpts{
+	opts := relay.ChainOpts{
 		Logger:   p.Logger,
 		KeyStore: loopKs,
 		DS:       nil, // TODO(NONEVM-1460): add ds
 	}
 
-	chain, err := ton.NewChain(&cfg.TON, opts)
+	chain, err := relay.NewChain(&cfg.TON, opts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create TON chain: %w", err)
 	}
-	
-	relayer := ton.NewRelayer(p.Logger, chain, capRegistry)
+
+	relayer := relay.NewRelayer(p.Logger, chain, capRegistry)
 	p.SubService(relayer)
 	return relayer, nil
 }

@@ -1,4 +1,4 @@
-package ton
+package relay
 
 import (
 	"context"
@@ -10,10 +10,10 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/types"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/core"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/client"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/config"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/fees"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/txm"
+	"github.com/smartcontractkit/chainlink-ton/pkg/client"
+	"github.com/smartcontractkit/chainlink-ton/pkg/config"
+	"github.com/smartcontractkit/chainlink-ton/pkg/fees"
+	"github.com/smartcontractkit/chainlink-ton/pkg/txm"
 )
 
 type LogPoller interface {

@@ -1,4 +1,4 @@
-package ton
+package relay
 
 import (
 	"context"
@@ -12,10 +12,9 @@ import (
 	relaytypes "github.com/smartcontractkit/chainlink-common/pkg/types"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/core"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/chainreader"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/chainwriter"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/config"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/txm"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/cal/chainrw"
+	"github.com/smartcontractkit/chainlink-ton/pkg/config"
+	"github.com/smartcontractkit/chainlink-ton/pkg/txm"
 )
 
 var _ TxManager = (*txm.Txm)(nil)
@@ -99,12 +98,12 @@ func (r *Relayer) Replay(ctx context.Context, fromBlock string, args map[string]
 }
 
 func (r *Relayer) NewContractWriter(_ context.Context, config []byte) (relaytypes.ContractWriter, error) {
-	cwCfg := chainwriter.ChainWriterConfig{}
+	cwCfg := chainrw.ChainWriterConfig{}
 	if err := json.Unmarshal(config, &cwCfg); err != nil {
 		return nil, fmt.Errorf("failed to unmarshall chain writer config: %v", err)
 	}
 
-	return chainwriter.NewTONChainWriterService(r.lggr, *r.chain.MultiClient(), r.chain.TxManager(), r.chain.FeeEstimator(), cwCfg)
+	return chainrw.NewTONChainWriterService(r.lggr, *r.chain.MultiClient(), r.chain.TxManager(), r.chain.FeeEstimator(), cwCfg)
 }
 
 func (r *Relayer) NewContractReader(_ context.Context, chainReaderConfig []byte) (relaytypes.ContractReader, error) {
@@ -113,7 +112,7 @@ func (r *Relayer) NewContractReader(_ context.Context, chainReaderConfig []byte)
 		return nil, fmt.Errorf("failed to unmarshall chain reader config: %v", err)
 	}
 
-	return chainreader.NewContractReaderService(r.lggr, crCfg, r.chain.LogPoller())
+	return chainrw.NewContractReaderService(r.lggr, crCfg, r.chain.LogPoller())
 }
 
 func (r *Relayer) NewConfigProvider(ctx context.Context, args relaytypes.RelayArgs) (relaytypes.ConfigProvider, error) {

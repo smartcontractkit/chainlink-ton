@@ -1,4 +1,4 @@
-package chainwriter
+package chainrw
 
 import (
 	"context"
@@ -8,12 +8,12 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 	"github.com/smartcontractkit/chainlink-common/pkg/types"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/client"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/fees"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/txm"
+	"github.com/smartcontractkit/chainlink-ton/pkg/client"
+	"github.com/smartcontractkit/chainlink-ton/pkg/fees"
+	"github.com/smartcontractkit/chainlink-ton/pkg/txm"
 )
 
-const ServiceName = "TONChainWriter"
+const WriterServiceName = "TONChainWriter"
 
 type TONChainWriterService struct {
 	lggr   logger.Logger
@@ -60,13 +60,13 @@ func NewTONChainWriterService(logger logger.Logger, client client.MultiClient, t
 }
 
 func (s *TONChainWriterService) Start(_ context.Context) error {
-	return s.StartOnce(ServiceName, func() error {
+	return s.StartOnce(WriterServiceName, func() error {
 		return nil
 	})
 }
 
 func (s *TONChainWriterService) Close() error {
-	return s.StopOnce(ServiceName, func() error {
+	return s.StopOnce(WriterServiceName, func() error {
 		return nil
 	})
 }

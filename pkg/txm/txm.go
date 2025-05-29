@@ -7,7 +7,7 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/fees"
+	"github.com/smartcontractkit/chainlink-ton/pkg/fees"
 )
 
 type TxManager interface {
