@@ -41,7 +41,7 @@
           # Development shell for dependency analyzer
           dependency-analyzer = pkgs.callPackage ./tools/dependency_analyzer/shell.nix {inherit pkgs;};
           # Development shell for running the CCIP E2E tests
-          e2e = pkgs.callPackage ./e2e-shell.nix {inherit pkgs;};
+          ccip-e2e = pkgs.callPackage ./ccip-e2e-shell.nix {inherit pkgs;};
         }
         // contracts.devShells;
 
