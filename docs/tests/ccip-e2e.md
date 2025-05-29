@@ -32,7 +32,7 @@ Follow these steps to set up your E2E testing environment:
 1. Enter the Shell: Navigate to the root of the chainlink-ton repository and run:
 
 ```bash
-  nix develop .#e2e
+  nix develop .#ccip-e2e
 ```
 
 This command activates the E2E development shell, which provides all necessary tools and sets up some environment variables (like default PostgreSQL connection parameters and `CL_DATABASE_URL`). Your command prompt will likely change to indicate you are in the Nix shell.
@@ -78,7 +78,7 @@ After successfully running setup-env.sh and executing the export `CL_DATABASE_UR
 
 **Using the Nix E2E Shell (Recommended):**
 
-1. Ensure you are inside the Nix E2E shell (`nix develop .#e2e`).
+1. Ensure you are inside the Nix E2E shell (`nix develop .#ccip-e2e`).
 2. If you haven't set up the environment in this session using the CI-like command, you can run the setup-env script:
 ```bash
   ./scripts/e2e/setup-env.sh --core-dir /path/to/chainlink_core  # (Or your desired path)

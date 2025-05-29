@@ -91,7 +91,7 @@ jobs:
 
       - name: Setup Environment and Run Tests
         run: |
-          nix develop .#e2e -c bash -c '
+          nix develop .#ccip-e2e -c bash -c '
             scripts/e2e/setup-env.sh --core-dir "${GITHUB_WORKSPACE}/chainlink" && \
             scripts/e2e/run-test.sh --core-dir "${GITHUB_WORKSPACE}/chainlink" --test-command "${{ matrix.type.cmd }}"
           '
