@@ -41,6 +41,7 @@ jobs:
 
       - name: Run Go tests
         run: |
+          cp pkg/tonutils/.env.example pkg/tonutils/.env
           pushd pkg/tonutils/tests/async_communication
           nix develop .#contracts -c go test -v -timeout 30m
 
