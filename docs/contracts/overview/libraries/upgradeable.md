@@ -17,14 +17,24 @@ message(10) Upgrade {
 }
 ```
 
+Provides the following functions:
+
+```tact
+/// Sends an outgoing external message with the version, code, and SHA256 hash of the new code.
+fun emitUpgradeEvent()
+```
+
 Provides the following getters:
 
 ```tact
-/// A getter to check if the contract uses this trait.
-get fun isUpgradeable(): Bool
-
 /// A getter returning the current version of the contract.
 get fun type_and_version(): String
+
+// Returns the current code of the contract.
+get fun code(): Cell
+
+// Returns the sha256 hash of the current code of the contract.
+get fun codeHash(): Int
 ```
 
 ### Requirements
@@ -39,13 +49,13 @@ owner: Address;
 Required function implementations:
 
 ```tact
-/// Version must be a semantic version string (e.g. "1.0.0").
-abstract fun upgradeableVersion(): String;
+/// Type must be a Reverse Domain Name Notation string that is unique to the contract and should not change between versions.
+/// Example: "com.chainlink.project.package.ContractName"
+/// Read more about Reverse DNS Notation at https://en.wikipedia.org/wiki/Reverse_domain_name_notation
+abstract fun type(): String;
 
-// Type must be a Reverse Domain Name Notation string that is unique to the contract and should not change between versions.
-// Example: "com.chainlink.project.package.ContractName"
-// Read more about Reverse DNS Notation at https://en.wikipedia.org/wiki/Reverse_domain_name_notation
-abstract fun upgradeableType(): String;
+/// Version must be a semantic version string (e.g. "1.0.0").
+abstract fun version(): String;
 ```
 
 ## Speciali initialization

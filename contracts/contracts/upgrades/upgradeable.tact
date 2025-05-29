@@ -82,6 +82,7 @@ trait Upgradeable with Ownable2Step, TypeAndVersion {
         throw(0); // Success exit code
     }
 
+    /// Sends an outgoing external message with the version, code, and SHA256 hash of the new code.
     fun emitUpgradeEvent() {
         let code = getCode();
         let sha = code.hash();
