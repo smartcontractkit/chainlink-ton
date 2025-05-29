@@ -1,4 +1,4 @@
-name: 'Run CCIP Integration Tests'
+name: 'TON - CCIP Integration Tests'
 
 on:
   pull_request:
