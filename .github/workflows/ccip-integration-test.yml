@@ -5,8 +5,47 @@ on:
   push:
     branches:
       - 'main'
+
+env:
+  DOCKER_CACHE_KEY: ccip-e2e-images-v1
+  DOCKER_CACHE_DIR: ${{ github.workspace }}/.cache
+  DOCKER_CACHE_TAR_NAME: ccip-e2e-docker-images.tar
+  # TON localnet(mylocalton) docker images & CCIP E2E test database image
+  DOCKER_IMAGES: >-
+    ghcr.io/neodix42/mylocalton-docker:latest
+    redis:latest
+    postgres:17
+    ghcr.io/neodix42/ton-http-api:latest
+    ghcr.io/neodix42/mylocalton-docker-faucet:latest
+    postgres:14-alpine
 jobs:
+  prepare-images:
+    name: Prepare and Cache Docker Images
+    runs-on: ubuntu-latest
+    steps:
+      - name: Prepare cache dir
+        run: mkdir -p ${{ env.DOCKER_CACHE_DIR }}
+
+      - name: Restore image-tar cache
+        id: cache-images
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.DOCKER_CACHE_DIR }}/${{ env.DOCKER_CACHE_TAR_NAME }}
+          key: ${{ env.DOCKER_CACHE_KEY }}
+
+      - name: Pull & save images on cache miss
+        if: steps.cache-images.outputs.cache-hit != 'true'
+        run: |
+          echo "Cache miss: pulling images"
+          for img in ${{ env.DOCKER_IMAGES }}; do
+            docker pull "$img"
+          done
+          echo "Saving to tarball…"
+          docker save ${{ env.DOCKER_IMAGES }} \
+            -o ${{ env.DOCKER_CACHE_DIR }}/${{ env.DOCKER_CACHE_TAR_NAME }}
+
   integration-test-matrix:
+    needs: prepare-images
     strategy:
       fail-fast: false
       matrix:
@@ -17,48 +56,22 @@ jobs:
 
     name: ${{ matrix.type.name }}
     runs-on: ubuntu-latest
-    env:
-      CACHE_DIR: ${{ github.workspace }}/.cache
-      CACHE_KEY: ccip-e2e-images-v1
-      # TON localnet(Mylocalton) Docker images & E2E Test DB image
-      DOCKER_IMAGES: >-
-        ghcr.io/neodix42/mylocalton-docker:latest
-        redis:latest
-        postgres:17
-        ghcr.io/neodix42/ton-http-api:latest
-        ghcr.io/neodix42/mylocalton-docker-faucet:latest
-        
-        postgres:14-alpine
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Prepare docker image cache directory
-        run: mkdir -p ${{ env.CACHE_DIR }}
-
-      - name: Restore Docker image cache
-        id: cache-docker
+      - name: Restore cached docker images
+        id: docker-cache-restore
         uses: actions/cache@v4
         with:
-          path: ${{ env.CACHE_DIR }}/ccip-e2e-docker-images.tar
-          key: ${{ env.CACHE_KEY }}
+          path: ${{ env.DOCKER_CACHE_DIR }}/${{ env.DOCKER_CACHE_TAR_NAME }}
+          key: ${{ env.DOCKER_CACHE_KEY }}
 
-      - name: Pull & save Docker images on cache miss
-        if: steps.cache-docker.outputs.cache-hit != 'true'
+      - name: Load docker images
+        if: steps.docker-cache-restore.outputs.cache-hit == 'true'
         run: |
-          echo "Cache miss → pulling images"
-          for img in ${{ env.DOCKER_IMAGES }}; do
-            echo "Pulling $img"
-            docker pull "$img"
-          done
-          echo "Saving to cache"
-          docker save ${{ env.DOCKER_IMAGES }} -o ${{ env.CACHE_DIR }}/ccip-e2e-docker-images.tar
-
-      - name: Load Docker images on cache hit
-        if: steps.cache-docker.outputs.cache-hit == 'true'
-        run: |
-          echo "Cache hit → loading images"
-          docker load -i ${{ env.CACHE_DIR }}/ccip-e2e-docker-images.tar
+          echo "Cache hit for key '${{ env.DOCKER_CACHE_KEY }}'. Loading images from tarball..."
+          docker load -i ${{ env.DOCKER_CACHE_DIR }}/${{ env.DOCKER_CACHE_TAR_NAME }}
 
       - name: Install Nix
         uses: cachix/install-nix-action@02a151ada4993995686f9ed4f1be7cfbb229e56f # v31
@@ -78,16 +91,16 @@ jobs:
 
       - name: Setup Environment and Run Tests
         run: |
-            nix develop .#e2e -c bash -c '
-              scripts/e2e/setup-env.sh --core-dir "${GITHUB_WORKSPACE}/chainlink" && \
-              scripts/e2e/run-test.sh --core-dir "${GITHUB_WORKSPACE}/chainlink" --test-command "${{ matrix.type.cmd }}"
-            '
+          nix develop .#e2e -c bash -c '
+            scripts/e2e/setup-env.sh --core-dir "${GITHUB_WORKSPACE}/chainlink" && \
+            scripts/e2e/run-test.sh --core-dir "${GITHUB_WORKSPACE}/chainlink" --test-command "${{ matrix.type.cmd }}"
+          '
 
   integration-test-ccip:
     if: always()
     runs-on: ubuntu-latest
     needs: [integration-test-matrix]
     steps:
-      - name: Fail the job if ccip tests in PR not successful
+      - name: Fail if any CCIP test failed
         if: always() && needs.integration-test-matrix.result == 'failure'
         run: exit 1
