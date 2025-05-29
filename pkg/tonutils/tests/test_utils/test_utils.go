@@ -82,7 +82,7 @@ func createAndFundWallet(t *testing.T, api *ton.APIClient, funder tonutils.ApiCl
 	assert.NoError(t, err, "Failed to create new wallet: %v", err)
 	transferToAlice, err := funder.Wallet.BuildTransfer(aliceWallet.WalletAddress(), initialCoinAmount, false, "deposit")
 	assert.NoError(t, err, "Failed to build transfer: %v", err)
-	result, err := funder.SendWaitTransactionRecursively(context.TODO(), *aliceWallet.WalletAddress(), transferToAlice)
+	result, err := funder.SendAndWaitForTrace(context.TODO(), *aliceWallet.WalletAddress(), transferToAlice)
 	assert.NoError(t, err, "Failed to send transaction: %v", err)
 	assert.True(t, result.Success && !result.Bounced, "Transaction failed")
 	alice := tonutils.ApiClient{

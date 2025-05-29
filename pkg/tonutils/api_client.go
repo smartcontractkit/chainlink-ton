@@ -60,10 +60,10 @@ func (m *ReceivedMessage) WaitForTrace(ac *ApiClient) error {
 	return nil
 }
 
-// SendWaitTransactionRecursively waits for the transaction to be sent and
+// SendAndWaitForTrace waits for the transaction to be sent and
 // waits for all outgoing messages to be confirmed recursively. It will return
 // the resulting message in a Finalized state.
-func (ac *ApiClient) SendWaitTransactionRecursively(ctx context.Context, dstAddr address.Address, messageToSend *wallet.Message) (*ReceivedMessage, error) {
+func (ac *ApiClient) SendAndWaitForTrace(ctx context.Context, dstAddr address.Address, messageToSend *wallet.Message) (*ReceivedMessage, error) {
 	sentMessage, seqno, err := ac.SendWaitTransaction(ctx, dstAddr, messageToSend)
 	if err != nil {
 		return nil, fmt.Errorf("failed to SendWaitTransaction: %w", err)
