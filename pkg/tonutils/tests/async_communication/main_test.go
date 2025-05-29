@@ -3,24 +3,20 @@ package async_communication
 import (
 	"testing"
 
-	"github.com/smartcontractkit/chainlink-testing-framework/framework"
 	"github.com/smartcontractkit/chainlink-testing-framework/framework/components/blockchain"
 )
-
-type CfgTon struct {
-	BlockchainA *blockchain.Input `toml:"blockchain_a" validate:"required"`
-}
 
 var bc *blockchain.Output
 
 func TestMain(m *testing.M) {
 	// Deploy MyLocalTON
-	in, err := framework.Load[CfgTon](nil)
-	if err != nil {
-		panic(err)
+	bcInput := &blockchain.Input{
+		Image: "ghcr.io/neodix42/mylocalton-docker:latest", // optional
+		Type:  "ton",
 	}
+	var err error
+	bc, err = blockchain.NewBlockchainNetwork(bcInput)
 
-	bc, err = blockchain.NewBlockchainNetwork(in.BlockchainA)
 	if err != nil {
 		panic(err)
 	}

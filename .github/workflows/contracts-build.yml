@@ -33,10 +33,10 @@ jobs:
         run: |
           cp pkg/tonutils/.env.example pkg/tonutils/.env
           pushd pkg/tonutils/tests/
-          CTF_CONFIGS=./test_utils/ton_mylocalton.toml nix develop .#contracts -c go test -v -parallel 1 -timeout 30m
+          nix develop .#contracts -c go test -v -parallel 1 -timeout 30m
           popd
           pushd pkg/tonutils/tests/async_communication
-          CTF_CONFIGS=../test_utils/ton_mylocalton.toml nix develop .#contracts -c go test -v -parallel 1 -timeout 30m
+          nix develop .#contracts -c go test -v -parallel 1 -timeout 30m
 
   build-nixpkg:
     name: Build nix package
