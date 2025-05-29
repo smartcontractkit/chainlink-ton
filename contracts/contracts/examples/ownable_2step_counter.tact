@@ -1,5 +1,5 @@
-import "../lib/type_and_version";
-import "../access/ownable_2step.tact";
+import "../lib/upgrades/type_and_version";
+import "../lib/access/ownable_2step.tact";
 
 message SetCount {
     queryId: Int as uint64;
