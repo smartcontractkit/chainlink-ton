@@ -36,6 +36,7 @@
       devShells =
         {
           default = pkgs.callPackage ./shell.nix {inherit pkgs;};
+          e2e = pkgs.callPackage ./e2e-shell.nix {inherit pkgs;};
         }
         // contracts.devShells;
 
