@@ -16,8 +16,7 @@ jobs:
             cmd: 'cd integration-tests/smoke/ccip && go test ccip_ton_messaging_test.go -timeout 12m -test.parallel=2 -count=1 -json'
 
     name: Integration Tests (${{ matrix.type.name }})
-    # TODO: remove: temp GHA degraded with the latest ubuntu image
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -38,15 +37,14 @@ jobs:
           ref: ${{ steps.read_core_ref.outputs.CORE_REF }}
           path: chainlink
 
-      - name: Run Integration Tests
+      - name: Setup Environment and Run Tests
         run: |
-          nix develop . -c ./scripts/e2e/run-e2e-test.sh \
-            --core-dir "${{ github.workspace }}/chainlink" \
-            --test-command "${{ matrix.type.cmd }}"
+          nix develop . -c "source ./scripts/e2e/setup-env.sh --core-dir ${{ github.workspace }}/chainlink && \
+          ./scripts/e2e/run-test.sh --core-dir ${{ github.workspace }}/chainlink --test-command '${{ matrix.type.cmd }}'"
 
   integration-test-ccip:
     if: always()
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     needs: [integration-test-matrix]
     steps:
       - name: Fail the job if ccip tests in PR not successful

@@ -1,4 +1,32 @@
 #!/usr/bin/env bash
+
+# This script sets up the end-to-end (e2e) testing environment for Chainlink CCIP.
+# It performs the following main actions:
+#   1. Defines and validates paths for the Chainlink TON and Chainlink Core repositories.
+#   2. Verifies that the Chainlink Core repository is at the blessed commit specified in .core_version.
+#   3. Tears down any existing PostgreSQL test database container.
+#   4. Starts a new PostgreSQL container for testing.
+#   5. Prepares the Chainlink Core repository by:
+#      - Replacing the chainlink-ton dependency with the local version.
+#      - Tidying Go modules.
+#      - Downloading Go module dependencies.
+#      - Building the 'ccip.test' binary.
+#      - Preparing the test database schema using 'ccip.test local db preparetest'.
+#
+# Usage: ./scripts/e2e/setup-env.sh [-c|--core-dir <core_dir>]
+#
+# Arguments:
+#   -c, --core-dir <core_dir>: Optional. Path to the Chainlink Core directory.
+#                              Defaults to ../chainlink relative to the script's root directory.
+#
+# Environment Variables:
+#   Implicitly uses CL_DATABASE_URL after setting it up.
+#
+# Notes:
+#   - This script modifies the go.mod file of the specified Chainlink Core directory
+#     to use the local Chainlink TON project.
+#   - Ensure that the blessed commit in .core_version matches with the Core repository git ref.
+
 set -euo pipefail
 
 # configuration & global variables
@@ -16,7 +44,6 @@ PG_PASSWORD="postgres"
 
 # configurable arguments
 ARG_CORE_DIR=""
-ARG_TEST_COMMAND=""
 
 log_info() {
   echo "INFO: $1"
@@ -26,8 +53,8 @@ log_error() {
   echo "ERROR: $1" >&2
 }
 
-print_usage() {
-  echo "Usage: $0 --test-command <cmd> [-c|--core-dir <core_dir>]" >&2
+print_usage_setup() {
+  echo "Usage: $0 [-c|--core-dir <core_dir>]" >&2
 }
 
 validate_project_dir() {
@@ -50,31 +77,19 @@ while [[ $# -gt 0 ]]; do
     ARG_CORE_DIR="$2"
     shift 2
     ;;
-  --test-command)
-    ARG_TEST_COMMAND="$2"
-    shift 2
-    ;;
   *)
     log_error "Unknown option: $1"
-    print_usage
+    print_usage_setup
     exit 1
     ;;
   esac
 done
 
-if [ -z "$ARG_TEST_COMMAND" ]; then
-  # example: "cd integration-tests/smoke/ccip && go test ccip_ton_messaging_test.go -timeout 12m -test.parallel=2 -count=1 -json"
-  log_error "--test-command is a required argument."
-  print_usage
-  exit 1
-fi
-
 CHAINLINK_CORE_DIR=$(realpath "${ARG_CORE_DIR:-$DEFAULT_CHAINLINK_CORE_DIR}")
 
-log_info "=== CCIP Integration Test Runner ==="
+log_info "=== CHAINLINK TON CCIP - E2E Test Environment Setup ==="
 log_info "Using Chainlink TON: $ROOT_DIR"
 log_info "Using Chainlink Core: $CHAINLINK_CORE_DIR"
-log_info "Test Command: $ARG_TEST_COMMAND"
 
 validate_project_dir "$ROOT_DIR" "Chainlink TON"
 validate_project_dir "$CHAINLINK_CORE_DIR" "Chainlink Core"
@@ -140,7 +155,6 @@ log_info "Waiting for Postgres to accept connections on $PG_HOST:$PG_PORT..."
 
 SECONDS=0
 while ! pg_isready -h "$PG_HOST" -p "$PG_PORT" -U "$PG_USER" -d "$PG_DB" &>/dev/null; do
-  # timeout after 30s
   if ((SECONDS > 30)); then
     log_error "Postgres did not become ready within 30s."
     log_error "Container logs:"
@@ -150,9 +164,9 @@ while ! pg_isready -h "$PG_HOST" -p "$PG_PORT" -U "$PG_USER" -d "$PG_DB" &>/dev/
   sleep 1
 done
 
-DB_URL="postgresql://${PG_USER}:${PG_PASSWORD}@${PG_HOST}:${PG_PORT}/${PG_DB}?sslmode=disable"
-export CL_DATABASE_URL="$DB_URL"
-log_info "Test Database URL: $DB_URL"
+CL_DATABASE_URL="postgresql://${PG_USER}:${PG_PASSWORD}@${PG_HOST}:${PG_PORT}/${PG_DB}?sslmode=disable"
+log_info "Test Database URL: $CL_DATABASE_URL "
+export CL_DATABASE_URL
 
 # Core Setup
 log_info "Preparing Chainlink Core (dependencies, build, DB setup)..."
@@ -160,23 +174,26 @@ log_info "Preparing Chainlink Core (dependencies, build, DB setup)..."
   cd "$CHAINLINK_CORE_DIR"
   log_info "Active Go version: $(go version)"
 
-  # modify go.mod to use local chainlink-ton
   go mod edit -replace="github.com/smartcontractkit/chainlink-ton=$ROOT_DIR"
   go run github.com/jmank88/gomods@v0.1.5 tidy
 
-  # download go vendor packages
   go mod download
   if [ -f "./integration-tests/go.mod" ]; then
     (cd "./integration-tests" && go mod download)
   fi
-  # build the ccip test binary
   go build -o ccip.test .
 
-  # setup the database
   ./ccip.test local db preparetest
 )
 
-log_info "Executing Test Command in $CHAINLINK_CORE_DIR: $ARG_TEST_COMMAND"
-(cd "$CHAINLINK_CORE_DIR" && eval "$ARG_TEST_COMMAND")
 log_info "=================================="
-log_info "Test command execution finished."
+log_info "Environment setup complete."
+log_info "Chainlink Core Directory used: $CHAINLINK_CORE_DIR"
+log_info "Root Directory used: $ROOT_DIR"
+log_info "Please ensure CL_DATABASE_URL is exported in your environment before running tests."
+log_info "export CL_DATABASE_URL=${CL_DATABASE_URL}"
+log_info "=================================="
+log_info "IMPORTANT: Please note this setup adds the following replace directive to chainlink core:"
+log_info "  replace github.com/smartcontractkit/chainlink-ton => ${ROOT_DIR}"
+log_info "This will use your local chainlink-ton code in the core repo."
+log_info "=================================="
