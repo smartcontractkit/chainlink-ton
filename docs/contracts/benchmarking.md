@@ -6,7 +6,7 @@
 To capture metrics of the current implementation and store it as a snapshot locally, run:
 
 ```bash
-BENCH_NEW="some snapshot label" npx jest
+BENCH_NEW="some snapshot label" yarn jest
 ```
 
 This will store a json file on the .snapshots directory.
@@ -14,7 +14,7 @@ This will store a json file on the .snapshots directory.
 To get a gas report which compares the highest gas cost for each operation obtained in the execution, run:
 
 ```bash
-BENCH_DIFF=true npx jest
+BENCH_DIFF=true yarn jest
 ```
 
 Note that the generated gas report is not extensive, as it only covers the highest gas cost for each method throughout the whole execution.
