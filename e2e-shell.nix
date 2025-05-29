@@ -18,6 +18,13 @@ pkgs.mkShell {
   ]);
 
   shellHook = ''
+    export PG_CONTAINER_NAME=cl_pg
+    export PG_PORT=5432
+    export PG_USER=postgres
+    export PG_PASSWORD=postgres
+    export PG_DB=chainlink_test
+    export CL_DATABASE_URL="postgresql://''${PG_USER}:''${PG_PASSWORD}@localhost:''${PG_PORT}/''${PG_DB}?sslmode=disable"
+
     echo ""
     echo "Chainlink TON CCIP E2E shell."
     echo "----------------------------------------------------"
