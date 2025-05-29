@@ -1,4 +1,4 @@
-import "../lib/type_and_version";
+import "./type_and_version";
 import "../access/ownable_2step";
 
 /// Message for upgrading a contract.

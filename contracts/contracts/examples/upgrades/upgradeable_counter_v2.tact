@@ -1,5 +1,5 @@
 import "./upgradeable_counter";
-import "../../upgrades/upgradeable";
+import "../../lib/upgrades/upgradeable";
 
 /// UpgradeableCounterV1 Layout
 /// Must match the attributes of the UpgradeableCounterV1 contract + the lazyDeploymentBit at the beginning.

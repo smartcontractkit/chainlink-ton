@@ -1,4 +1,4 @@
-import "../lib/type_and_version";
+import "../lib/upgrades/type_and_version";
 
 // Counter contract (Tact example)
 //
