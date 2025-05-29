@@ -73,13 +73,15 @@ fi
 
 CHAINLINK_CORE_DIR=$(realpath "${ARG_CORE_DIR:-$DEFAULT_CHAINLINK_CORE_DIR}")
 
-log_info "Verifying Chainlink Core version in run-test.sh..."
+log_info "Verifying Chainlink Core version..."
 
+# check core version file
 if [ ! -f "$CORE_VERSION_FILE_PATH" ]; then
   log_error "Core version file not found: $CORE_VERSION_FILE_PATH"
   exit 1
 fi
 
+# checked out core ref validation
 BLESSED_CORE_REF=$(tr -d '[:space:]' <"$CORE_VERSION_FILE_PATH")
 if [ -z "$BLESSED_CORE_REF" ]; then
   log_error "Core version file is empty: $CORE_VERSION_FILE_PATH"
@@ -115,6 +117,7 @@ else
   log_info "Chainlink Core version matches. Current commit: $CURRENT_CORE_COMMIT"
 fi
 
+# test database URL availability validation
 if [ -z "${CL_DATABASE_URL:-}" ]; then
   log_error "CL_DATABASE_URL is not set. Please ensure CL_DATABASE_URL is exported (e.g. by running setup-env.sh)."
   exit 1

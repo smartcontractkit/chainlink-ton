@@ -96,11 +96,13 @@ validate_project_dir "$CHAINLINK_CORE_DIR" "Chainlink Core"
 
 log_info "Verifying Chainlink Core version..."
 
+# check core version file
 if [ ! -f "$CORE_VERSION_FILE_PATH" ]; then
   log_error "Core version file not found: $CORE_VERSION_FILE_PATH"
   exit 1
 fi
 
+# checked out core ref validation
 BLESSED_CORE_REF=$(tr -d '[:space:]' <"$CORE_VERSION_FILE_PATH")
 if [ -z "$BLESSED_CORE_REF" ]; then
   log_error "Core version file is empty: $CORE_VERSION_FILE_PATH"
@@ -136,6 +138,7 @@ else
   log_info "Chainlink Core version matches. Current commit: $CURRENT_CORE_COMMIT"
 fi
 
+# test database setup
 log_info "Tearing down any existing '$PG_CONTAINER_NAME'..."
 docker rm -f "$PG_CONTAINER_NAME" &>/dev/null || true
 
@@ -166,7 +169,7 @@ done
 
 CL_DATABASE_URL="postgresql://${PG_USER}:${PG_PASSWORD}@${PG_HOST}:${PG_PORT}/${PG_DB}?sslmode=disable"
 log_info "Test Database URL: $CL_DATABASE_URL "
-export CL_DATABASE_URL
+export CL_DATABASE_URL # this is needed for the ccip.test binary to connect to the database
 
 # Core Setup
 log_info "Preparing Chainlink Core (dependencies, build, DB setup)..."
