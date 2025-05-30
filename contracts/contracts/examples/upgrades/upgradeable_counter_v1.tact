@@ -43,4 +43,10 @@ contract UpgradeableCounterV1 with UpgradeableCounter {
     override fun version(): String {
         return "1.0.0";
     }
+
+    override fun migrate(_stateToBeMigrated: Cell): Cell {
+        dump("UpgradeableCounterV1 does not require state migration in this version.");
+        return beginCell().endCell();
+        // throw(1000); // Should not be called in this version
+    }
 }

@@ -51,36 +51,23 @@ trait Upgradeable with Ownable2Step, TypeAndVersion {
         // Step 1: Code Replacement
         // Change the contract code to the new version. This change becomes
         // effective by the end of the compute phase of the transaction.
+        let data = getData();
+        dump("Upgrading contract version");
         setCode(_upgrade.code);
+        dump("New code set successfully.");
+        let newData = self.migrate(data);
+        setData(newData);
 
-        // Step 2: State Migration
-        //
-        // All upgradeable contracts must have an init() function that handles
-        // the migrating data from the old version to the new version.
-        //
-        // The init() function must receive one argument: a Cell containing
-        // the data to be migrated.
-        //
-        // All contracts with an init() function have a _lazyDeploymentBit at
-        // the beginning of their storage layout. Setting it to false ensures
-        // the init() function will be called.
-        let initParams = LazyDeploymentLayout {
-            _lazyDeploymentBit: false,
-            data: getData(), // Current state to be migrated
-        }.toCell();
-
-        // Apply the initial state for the new version. Changes take effect
-        // immediately, but contract attributes won't be repopulated until
-        // the end of the transaction.
-        setData(initParams);
-
-        // Step 3: Execution Control
-        // The Tact compiler automatically adds a setData() call at the end
-        // of every transaction. Since we've already set our data properly,
-        // we must halt execution to prevent a double setData() call which
-        // could corrupt our state.
+        // // Step 3: Execution Control
+        // // The Tact compiler automatically adds a setData() call at the end
+        // // of every transaction. Since we've already set our data properly,
+        // // we must halt execution to prevent a double setData() call which
+        // // could corrupt our state.
+        self.emitUpgradeEvent();
         throw(0); // Success exit code
     }
+
+    abstract fun migrate(stateToBeMigrated: Cell): Cell;
 
     /// Sends an outgoing external message with the version, code, and SHA256 hash of the new code.
     fun emitUpgradeEvent() {
@@ -96,7 +83,19 @@ trait Upgradeable with Ownable2Step, TypeAndVersion {
 
 /// Changes the code of the contract.
 /// It will be applied by the end of the current transaction.
-asm fun setCode(code: Cell) { SETCODE }
+inline fun setCode(code: Cell) {
+    _setCode(code.asSlice());
+    // _setCodeCell(code);
+}
+
+asm fun _setCodeCell(code: Cell) { 
+    c3 POP
+}
+
+asm fun _setCode(code: Slice) { 
+    BLESS
+    c3 POP
+}
 
 /// Changes the storage cell of the contract.
 /// The change is immediate, but the attributes won't be repopulated.

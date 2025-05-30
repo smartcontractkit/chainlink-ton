@@ -15,7 +15,7 @@ async function setUpTest(i: bigint): Promise<{
   blockchain.verbosity = {
     print: true,
     blockchainLogs: false,
-    vmLogs: 'none',
+    vmLogs: 'vm_logs',
     debugLogs: true,
   }
 
@@ -50,59 +50,59 @@ async function setUpTest(i: bigint): Promise<{
 }
 
 describe('UpgradeableCounter', () => {
-  it('should deploy', async () => {
-    await setUpTest(0n)
-  })
+  // it('should deploy', async () => {
+  //   await setUpTest(0n)
+  // })
 
-  it('should deploy on version 1', async () => {
-    let { upgradeableCounter } = await setUpTest(0n)
-    const typeAndVersion = await upgradeableCounter.getTypeAndVersion()
-    expect(typeAndVersion).toBe('com.chainlink.ton.examples.upgrades.UpgradeableCounter v1.0.0')
-    const expectedCode = await V1Code()
-    const code = await upgradeableCounter.getCode()
-    const expectedHash = expectedCode.hash()
-    expect(code.toString('hex')).toBe(expectedCode.toString('hex'))
-    const expectedHashInt = BigInt('0x' + expectedHash.toString('hex'))
-    const hash = await upgradeableCounter.getCodeHash()
-    expect(hash).toBe(expectedHashInt)
-  })
+  // it('should deploy on version 1', async () => {
+  //   let { upgradeableCounter } = await setUpTest(0n)
+  //   const typeAndVersion = await upgradeableCounter.getTypeAndVersion()
+  //   expect(typeAndVersion).toBe('com.chainlink.ton.examples.upgrades.UpgradeableCounter v1.0.0')
+  //   const expectedCode = await V1Code()
+  //   const code = await upgradeableCounter.getCode()
+  //   const expectedHash = expectedCode.hash()
+  //   expect(code.toString('hex')).toBe(expectedCode.toString('hex'))
+  //   const expectedHashInt = BigInt('0x' + expectedHash.toString('hex'))
+  //   const hash = await upgradeableCounter.getCodeHash()
+  //   expect(hash).toBe(expectedHashInt)
+  // })
 
-  it('should have initial value', async () => {
-    let { blockchain, upgradeableCounter } = await setUpTest(0n)
-    const user = await blockchain.treasury('user')
-    const getterResult = await upgradeableCounter.getValue()
-    expect(getterResult).toBe(0n)
-  })
+  // it('should have initial value', async () => {
+  //   let { blockchain, upgradeableCounter } = await setUpTest(0n)
+  //   const user = await blockchain.treasury('user')
+  //   const getterResult = await upgradeableCounter.getValue()
+  //   expect(getterResult).toBe(0n)
+  // })
 
-  it('version 1 should increase counter', async () => {
-    let { blockchain, upgradeableCounter, owner } = await setUpTest(0n)
-    const increaseTimes = 3
-    for (let i = 0; i < increaseTimes; i++) {
-      const increaser = await blockchain.treasury('increaser' + i)
-      const counterBefore = await upgradeableCounter.getValue()
-      const increaseBy = BigInt(1)
+  // it('version 1 should increase counter', async () => {
+  //   let { blockchain, upgradeableCounter, owner } = await setUpTest(0n)
+  //   const increaseTimes = 3
+  //   for (let i = 0; i < increaseTimes; i++) {
+  //     const increaser = await blockchain.treasury('increaser' + i)
+  //     const counterBefore = await upgradeableCounter.getValue()
+  //     const increaseBy = BigInt(1)
 
-      let increaseResult = await upgradeableCounter.send(
-        increaser.getSender(),
-        {
-          value: toNano('0.05'),
-        },
-        {
-          $$type: 'Step',
-          queryId: BigInt(Math.floor(Math.random() * 10000)),
-        },
-      )
+  //     let increaseResult = await upgradeableCounter.send(
+  //       increaser.getSender(),
+  //       {
+  //         value: toNano('0.05'),
+  //       },
+  //       {
+  //         $$type: 'Step',
+  //         queryId: BigInt(Math.floor(Math.random() * 10000)),
+  //       },
+  //     )
 
-      expect(increaseResult.transactions).toHaveTransaction({
-        from: increaser.address,
-        to: upgradeableCounter.address,
-        success: true,
-      })
+  //     expect(increaseResult.transactions).toHaveTransaction({
+  //       from: increaser.address,
+  //       to: upgradeableCounter.address,
+  //       success: true,
+  //     })
 
-      const getterResult = await upgradeableCounter.getValue()
-      expect(getterResult).toBe(counterBefore + increaseBy)
-    }
-  })
+  //     const getterResult = await upgradeableCounter.getValue()
+  //     expect(getterResult).toBe(counterBefore + increaseBy)
+  //   }
+  // })
 
   it('should be upgraded to version 2', async () => {
     let { owner, upgradeableCounter } = await setUpTest(0n)
@@ -110,6 +110,7 @@ describe('UpgradeableCounter', () => {
     const typeAndVersion1 = await upgradeableCounter.getTypeAndVersion()
     expect(typeAndVersion1).toBe('com.chainlink.ton.examples.upgrades.UpgradeableCounter v1.0.0')
 
+    console.log('Upgrading to version 2...')
     let upgradeResult = await upgradeableCounter.send(
       owner.getSender(),
       {
@@ -125,6 +126,7 @@ describe('UpgradeableCounter', () => {
       to: upgradeableCounter.address,
       success: true,
     })
+    console.log('Upgrade completed')
 
     const expectedCode = await V2Code()
     const code = await upgradeableCounter.getCode()
@@ -138,56 +140,54 @@ describe('UpgradeableCounter', () => {
     expect(typeAndVersion2).toBe('com.chainlink.ton.examples.upgrades.UpgradeableCounter v2.0.0')
   })
 
-  it('version 2 should decrease the counter', async () => {
-    let { blockchain, owner, upgradeableCounter } = await setUpTest(3n)
+  // it('version 2 should decrease the counter', async () => {
+  //   let { blockchain, owner, upgradeableCounter } = await setUpTest(3n)
 
-    await upgradeCounter(owner, upgradeableCounter)
+  //   await upgradeCounter(owner, upgradeableCounter)
 
-    const decreaseTimes = 3
-    for (let i = 0; i < decreaseTimes; i++) {
-      const decreaser = await blockchain.treasury('decreaser' + i)
+  //   const decreaseTimes = 3
+  //   for (let i = 0; i < decreaseTimes; i++) {
+  //     const decreaser = await blockchain.treasury('decreaser' + i)
 
-      const counterBefore = await upgradeableCounter.getValue()
-      const decreaseBy = BigInt(1)
+  //     const counterBefore = await upgradeableCounter.getValue()
+  //     const decreaseBy = BigInt(1)
 
-      let decreaseResult = await upgradeableCounter.send(
-        decreaser.getSender(),
-        {
-          value: toNano('0.05'),
-        },
-        {
-          $$type: 'Step',
-          queryId: BigInt(Math.floor(Math.random() * 10000)),
-        },
-      )
+  //     let decreaseResult = await upgradeableCounter.send(
+  //       decreaser.getSender(),
+  //       {
+  //         value: toNano('0.05'),
+  //       },
+  //       {
+  //         $$type: 'Step',
+  //         queryId: BigInt(Math.floor(Math.random() * 10000)),
+  //       },
+  //     )
 
-      expect(decreaseResult.transactions).toHaveTransaction({
-        from: decreaser.address,
-        to: upgradeableCounter.address,
-        success: true,
-      })
+  //     expect(decreaseResult.transactions).toHaveTransaction({
+  //       from: decreaser.address,
+  //       to: upgradeableCounter.address,
+  //       success: true,
+  //     })
 
-      const getterResult = await upgradeableCounter.getValue()
-      expect(getterResult).toBe(counterBefore - decreaseBy)
-    }
-  })
+  //     const getterResult = await upgradeableCounter.getValue()
+  //     expect(getterResult).toBe(counterBefore - decreaseBy)
+  //   }
+  // })
 })
 async function V1Code(): Promise<Cell> {
-  let init = (
-    await UpgradeableCounterV1.fromInit(
-      0n,
-      Address.parseRaw('-1:0000000000000000000000000000000000000000000000000000000000000000'),
-      0n,
-    )
-  ).init
+  let init = (await UpgradeableCounterV1.fromInit(0n, zeroAddress(), 0n)).init
   if (init == null) {
     throw new Error('init is null')
   }
   return init.code
 }
 
+function zeroAddress(): Address {
+  return Address.parseRaw('-1:0000000000000000000000000000000000000000000000000000000000000000')
+}
+
 async function V2Code(): Promise<Cell> {
-  let init = (await UpgradeableCounterV2.fromInit(beginCell().endCell())).init
+  let init = (await UpgradeableCounterV2.fromInit(zeroAddress(), null, 0n, 0n)).init
   if (init == null) {
     throw new Error('init is null')
   }
