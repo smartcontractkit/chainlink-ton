@@ -76,7 +76,6 @@ func (ac *ApiClient) SendAndWaitForTrace(ctx context.Context, dstAddr address.Ad
 	if err != nil {
 		return nil, fmt.Errorf("failed to get masterchain info for funder balance check: %w", err)
 	}
-	fmt.Printf("Masterchain SeqNo: %d\n", master.SeqNo)
 
 	for {
 		// Check if the block is ready
@@ -84,12 +83,10 @@ func (ac *ApiClient) SendAndWaitForTrace(ctx context.Context, dstAddr address.Ad
 			break
 		}
 		time.Sleep(time.Millisecond * 500)
-		fmt.Printf("Waiting for block %d to be ready...\n", seqno)
 		master, err = ac.Api.WaitForBlock(seqno).CurrentMasterchainInfo(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get masterchain info for funder balance check: %w", err)
 		}
-		fmt.Printf("Masterchain SeqNo: %d\n", master.SeqNo)
 	}
 
 	return sentMessage, nil

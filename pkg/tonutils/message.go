@@ -272,8 +272,6 @@ func (m *ReceivedMessage) mapOutgoingMessages(outgoingMessages []tlb.Message) {
 
 func (m *ReceivedMessage) AppendEvent(outMsg *tlb.ExternalMessageOut) {
 	e := OutgoingExternalMessages{outMsg.CreatedAt, outMsg.CreatedLT, outMsg.Body}
-	str, _ := e.AsString()
-	fmt.Printf("Event: %s\n", str)
 	m.OutgoingExternalMessages = append(m.OutgoingExternalMessages, e)
 }
 
