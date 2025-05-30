@@ -77,13 +77,6 @@ contract UpgradeableCounterV1 with UpgradeableCounter {
 Version 2
 
 ```tact
-struct UpgradeableCounterV1Layout {
-    _lazyDeploymentBit: Bool;
-    owner: Address;
-    id: Int as uint32;
-    value: Int as uint32;
-}
-
 contract UpgradeableCounterV2 with UpgradeableCounter {
     owner: Address;
     value: Int as uint64;
@@ -92,7 +85,7 @@ contract UpgradeableCounterV2 with UpgradeableCounter {
     init(
         stateToBeMigrated: Cell,
     ) {
-        let stateV1 = UpgradeableCounterV1Layout.fromCell(stateToBeMigrated);
+        let stateV1 = UpgradeableCounterV1.fromCell(stateToBeMigrated); // Note we are using the contract from V1
         self.owner = stateV1.owner;
         self.id = stateV1.id;
         self.value = stateV1.value;
@@ -111,7 +104,7 @@ contract UpgradeableCounterV2 with UpgradeableCounter {
     init(
         stateToBeMigrated: Cell,
     ) {
-        let stateV1 = UpgradeableCounterV1Layout.fromCell(stateToBeMigrated);
+        let stateV1 = UpgradeableCounterV1.fromCell(stateToBeMigrated);
         self.owner = stateV1.owner;
         self.id = stateV1.id;
         self.value = stateV1.value;
