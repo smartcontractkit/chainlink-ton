@@ -1,19 +1,6 @@
-import "./upgradeable_counter";
 import "../../lib/upgrades/upgradeable";
-
-/// UpgradeableCounterV1 Layout
-/// Must match the attributes of the UpgradeableCounterV1 contract + the lazyDeploymentBit at the beginning.
-struct UpgradeableCounterV1Layout {
-    /// Used for contracts with init() function. Ignore.
-    _lazyDeploymentBit: Bool;
-    /// Contract owner
-    owner: Address;
-    pendingOwner: Address?;
-    /// Counter id
-    id: Int as uint32;
-    /// Counter value
-    value: Int as uint32;
-}
+import "./upgradeable_counter";
+import "./upgradeable_counter_v1";
 
 /// This is version 2.0.0 of the UpgradeableCounter contract, which subtracts 1 to the counter on each step, instead of adding 1.
 contract UpgradeableCounterV2 with UpgradeableCounter {
@@ -35,7 +22,7 @@ contract UpgradeableCounterV2 with UpgradeableCounter {
     init(
         stateToBeMigrated: Cell,
     ) {
-        let stateV1 = UpgradeableCounterV1Layout.fromCell(stateToBeMigrated);
+        let stateV1 = UpgradeableCounterV1.fromCell(stateToBeMigrated);
         self.owner = stateV1.owner;
         self.pendingOwner = stateV1.pendingOwner;
         self.id = stateV1.id;
