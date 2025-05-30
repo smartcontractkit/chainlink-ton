@@ -53,7 +53,7 @@ func TestTwoMsgChain(t *testing.T) {
 
 		fmt.Printf("Deploying storage contract with memory address %s\n", memoryContract.Contract.Address.String())
 		storageContract, err := two_msg_chain.NewStorageProvider(alice).Deploy(two_msg_chain.StorageInitData{ID: (rand.Uint32()), MemoryAddress: memoryContract.Contract.Address})
-		assert.NoError(t, err, "Failed to deploy storge contract: %v", err)
+		assert.NoError(t, err, "Failed to deploy storage contract: %v", err)
 		fmt.Printf("Storage contract deployed at %s\n", storageContract.Contract.Address.String())
 
 		fmt.Printf("Checking if memory contract is deployed\n")
