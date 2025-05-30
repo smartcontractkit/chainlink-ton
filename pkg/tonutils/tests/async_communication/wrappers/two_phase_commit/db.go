@@ -6,6 +6,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/tonutils"
 	"github.com/smartcontractkit/chainlink-ton/pkg/tonutils/tests/test_utils"
 	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
@@ -30,7 +31,7 @@ func (p *DBProvider) Deploy(initData DBInitData) (DB, error) {
 	c := cell.BeginCell()
 	c.StoreUInt(0, 1) // For some reason, if the contract is defined with an init function, you must write a 0 bit before the arguments
 	c.StoreUInt(uint64(initData.ID), 32)
-	contract, err := p.apiClient.Deploy(DB_CONTRACT_PATH, c.EndCell())
+	contract, err := p.apiClient.Deploy(DB_CONTRACT_PATH, c.EndCell(), tlb.MustFromTON("1"))
 	if err != nil {
 		return DB{}, err
 	}
@@ -55,7 +56,7 @@ func (m beginTransaction) StoreArgs(b *cell.Builder) error {
 
 func (s DB) BeginTransaction() (queryID uint64, msgReceived *tonutils.ReceivedMessage, err error) {
 	queryID = rand.Uint64()
-	msgReceived, err = s.Contract.CallWaitRecursively(beginTransaction{}, queryID)
+	msgReceived, err = s.Contract.CallWaitRecursively(beginTransaction{}, queryID, tlb.MustFromTON("0.5"))
 	return queryID, msgReceived, err
 }
 
@@ -78,7 +79,7 @@ func (s DB) SetValue(counterAddr *address.Address, value uint32) (msgReceived *t
 	msgReceived, err = s.Contract.CallWaitRecursively(setValue{
 		Counter: counterAddr,
 		Value:   value,
-	}, queryID)
+	}, queryID, tlb.MustFromTON("0.5"))
 	return msgReceived, err
 }
 
@@ -93,6 +94,6 @@ func (m commit) StoreArgs(b *cell.Builder) error {
 
 func (s DB) Commit() (queryID uint64, msgReceived *tonutils.ReceivedMessage, err error) {
 	queryID = rand.Uint64()
-	msgReceived, err = s.Contract.CallWaitRecursively(commit{}, queryID)
+	msgReceived, err = s.Contract.CallWaitRecursively(commit{}, queryID, tlb.MustFromTON("0.5"))
 	return queryID, msgReceived, err
 }

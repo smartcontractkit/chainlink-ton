@@ -6,6 +6,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/tonutils"
 	"github.com/smartcontractkit/chainlink-ton/pkg/tonutils/tests/test_utils"
 	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
@@ -31,7 +32,7 @@ func (p *StorageProvider) Deploy(initData StorageInitData) (Storage, error) {
 	b := cell.BeginCell()
 	b.StoreUInt(uint64(initData.ID), 32)
 	b.StoreAddr(initData.MemoryAddress)
-	contract, err := p.apiClient.Deploy(STORAGE_CONTRACT_PATH, b.EndCell())
+	contract, err := p.apiClient.Deploy(STORAGE_CONTRACT_PATH, b.EndCell(), tlb.MustFromTON("1"))
 	if err != nil {
 		return Storage{}, err
 	}
@@ -61,6 +62,6 @@ func (s Storage) Store(i uint32) (queryID uint64, msgReceived *tonutils.Received
 	queryID = rand.Uint64()
 	msgReceived, err = s.Contract.CallWaitRecursively(storeMethod{
 		Value: i,
-	}, queryID)
+	}, queryID, tlb.MustFromTON("0.5"))
 	return queryID, msgReceived, err
 }

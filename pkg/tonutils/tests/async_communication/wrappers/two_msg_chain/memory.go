@@ -5,6 +5,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/tonutils"
 	"github.com/smartcontractkit/chainlink-ton/pkg/tonutils/tests/test_utils"
+	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
@@ -30,7 +31,7 @@ func (p *MemoryProvider) Deploy(initData MemoryInitData) (Memory, error) {
 	b.StoreUInt(0, 1) // For some reason, if the contract is defined with an init function, you must write a 0 bit before the arguments
 	b.StoreUInt(uint64(initData.ID), 32)
 	b.StoreUInt(uint64(0), 32)
-	contract, err := p.apiClient.Deploy(MEMORY_CONTRACT_PATH, b.EndCell())
+	contract, err := p.apiClient.Deploy(MEMORY_CONTRACT_PATH, b.EndCell(), tlb.MustFromTON("1"))
 	if err != nil {
 		return Memory{}, err
 	}
@@ -60,7 +61,7 @@ func (m Memory) SetValue(i uint32) (queryID uint64, msgReceived *tonutils.Receiv
 	queryID = rand.Uint64()
 	msgReceived, err = m.Contract.CallWaitRecursively(setValueMethod{
 		Value: i,
-	}, queryID)
+	}, queryID, tlb.MustFromTON("0.5"))
 	return queryID, msgReceived, err
 }
 

@@ -3,6 +3,7 @@ package request_reply_with_two_dependencies
 import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/tonutils"
 	"github.com/smartcontractkit/chainlink-ton/pkg/tonutils/tests/test_utils"
+	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
@@ -28,7 +29,7 @@ func (p *ItemCountProvider) Deploy(initData ItemCountInitData) (ItemCount, error
 	b := cell.BeginCell()
 	b.StoreUInt(uint64(initData.ID), 32)
 	b.StoreUInt(initData.Count, 64)
-	contract, err := p.apiClient.Deploy(ITEM_COUNT_CONTRACT_PATH, b.EndCell())
+	contract, err := p.apiClient.Deploy(ITEM_COUNT_CONTRACT_PATH, b.EndCell(), tlb.MustFromTON("1"))
 	if err != nil {
 		return ItemCount{}, err
 	}

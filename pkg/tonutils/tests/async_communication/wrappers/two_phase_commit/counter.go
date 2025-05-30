@@ -5,6 +5,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/tonutils"
 	"github.com/smartcontractkit/chainlink-ton/pkg/tonutils/tests/test_utils"
+	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
@@ -33,7 +34,7 @@ func (p *CounterProvider) Deploy(initData CounterInitData) (Counter, error) {
 	c.StoreUInt(uint64(initData.ID), 32)
 	c.StoreUInt(uint64(initData.Value), 32)
 	c.StoreBoolBit(initData.AutoAck)
-	contract, err := p.apiClient.Deploy(COUNTER_CONTRACT_PATH, c.EndCell())
+	contract, err := p.apiClient.Deploy(COUNTER_CONTRACT_PATH, c.EndCell(), tlb.MustFromTON("1"))
 	if err != nil {
 		return Counter{}, err
 	}
@@ -58,7 +59,7 @@ func (m sendAck) StoreArgs(b *cell.Builder) error {
 
 func (c Counter) SendAck() (queryID uint64, msgReceived *tonutils.ReceivedMessage, err error) {
 	queryID = rand.Uint64()
-	msgReceived, err = c.Contract.CallWaitRecursively(sendAck{}, queryID)
+	msgReceived, err = c.Contract.CallWaitRecursively(sendAck{}, queryID, tlb.MustFromTON("0.5"))
 	return queryID, msgReceived, err
 }
 

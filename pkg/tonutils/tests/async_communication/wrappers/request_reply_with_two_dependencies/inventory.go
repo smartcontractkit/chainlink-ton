@@ -6,6 +6,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/tonutils"
 	"github.com/smartcontractkit/chainlink-ton/pkg/tonutils/tests/test_utils"
 	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
@@ -29,7 +30,7 @@ func (p *InventoryProvider) Deploy(initData InventoryInitData) (Inventory, error
 	b := cell.BeginCell()
 	b.StoreUInt(0, 1)
 	b.StoreUInt(uint64(initData.ID), 32)
-	contract, err := p.apiClient.Deploy(INVENTORY_CONTRACT_PATH, b.EndCell())
+	contract, err := p.apiClient.Deploy(INVENTORY_CONTRACT_PATH, b.EndCell(), tlb.MustFromTON("1"))
 	if err != nil {
 		return Inventory{}, err
 	}
@@ -65,7 +66,7 @@ func (p Inventory) SendAddItem(key uint8, priceAddr *address.Address, countAddr 
 		PriceAddr: priceAddr,
 		CountAddr: countAddr,
 		Key:       key,
-	}, queryID)
+	}, queryID, tlb.MustFromTON("0.5"))
 	return queryID, msgReceived, err
 }
 
