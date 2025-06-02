@@ -1,0 +1,33 @@
+name: Changesets
+
+on:
+  push:
+    branches:
+      - main
+
+permissions: {}
+
+jobs:
+  changesets:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    outputs:
+      changesets_published: ${{ steps.changesets.outputs.published }}
+      changesets_publishedPackages: ${{ steps.changesets.outputs.publishedPackages }}
+    steps:
+      - name: changesets
+        id: changesets
+        uses: smartcontractkit/.github/actions/cicd-changesets@cicd-changesets/1.1.1
+        with:
+          git-user: app-token-issuer-integrations[bot]
+          git-email: app-token-issuer-integrations[bot]@users.noreply.github.com
+          # Tags created like: <pkg>/v<version>
+          changesets-tag-separator: "/v"
+          # Except the root package, which is tagged like: v<version> (Go module convention)
+          changesets-root-version-package-path: ./pkg/package.json
+          pnpm-use-cache: false
+          aws-region: us-west-2
+          aws-role-arn: ${{ secrets.AWS_ROLE_ARN_GATI_READONLY }}
+          aws-lambda-url: ${{ secrets.AWS_LAMBDA_URL_GATI_CHANGESETS }}

@@ -4,7 +4,8 @@
   "version": "0.0.1",
   "description": "Chainlink TON SDK and node (LOOP) plugin",
   "workspaces": [
-    "contracts"
+    "contracts",
+    "pkg"
   ],
   "scripts": {
     "ci:changeset:publish": "yarn changeset publish",
