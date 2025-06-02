@@ -89,14 +89,9 @@ if [ -z "$BLESSED_CORE_REF" ]; then
 fi
 log_info "Expected Chainlink Core ref (from .core_version): $BLESSED_CORE_REF"
 
-if ! (cd "$CHAINLINK_CORE_DIR" && git rev-parse --is-inside-work-tree >/dev/null 2>&1); then
-  log_error "Chainlink Core directory '$CHAINLINK_CORE_DIR' is not a git repository."
-  exit 1
-fi
-
-CURRENT_CORE_COMMIT=$(cd "$CHAINLINK_CORE_DIR" && git rev-parse HEAD 2>/dev/null)
-if [ -z "$CURRENT_CORE_COMMIT" ]; then
-  log_error "Could not determine current commit in '$CHAINLINK_CORE_DIR'. Check if it's a valid git repo with commits."
+if ! CURRENT_CORE_COMMIT=$(cd "$CHAINLINK_CORE_DIR" && git rev-parse HEAD); then
+  log_error "Failed to get current commit from Chainlink Core directory '$CHAINLINK_CORE_DIR'"
+  log_error "Ensure the directory exists and is a valid git repository with commits."
   exit 1
 fi
 
