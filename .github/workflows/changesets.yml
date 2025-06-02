@@ -25,6 +25,8 @@ jobs:
           git-email: app-token-issuer-integrations[bot]@users.noreply.github.com
           # Tags created like: <pkg>/v<version>
           changesets-tag-separator: "/v"
+          # Except the root package, which is tagged like: v<version> (Go module convention)
+          changesets-root-version-package-path: ./pkg/package.json
           pnpm-use-cache: false
           aws-region: us-west-2
           aws-role-arn: ${{ secrets.AWS_ROLE_ARN_GATI_READONLY }}
