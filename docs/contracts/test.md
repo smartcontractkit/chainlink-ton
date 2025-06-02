@@ -1,4 +1,4 @@
-# Chainlink TON - Smart Contracts - Build
+# Chainlink TON - Smart Contracts - Test
 
 ### Build the contracts and bindings
 
