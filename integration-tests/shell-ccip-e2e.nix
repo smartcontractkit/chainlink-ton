@@ -6,7 +6,7 @@
 
 let
   # import the default shell to reuse its buildInputs
-  defaultShellBuildInputs = (import ./shell.nix { inherit stdenv pkgs lib; }).buildInputs;
+  defaultShellBuildInputs = (import ../shell.nix { inherit stdenv pkgs lib; }).buildInputs;
 in
 pkgs.mkShell {
   name = "chainlink-ton-ccip-e2e-shell";
