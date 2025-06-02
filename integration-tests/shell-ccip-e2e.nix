@@ -25,15 +25,19 @@ pkgs.mkShell {
     export PG_DB=chainlink_test
     export CL_DATABASE_URL="postgresql://''${PG_USER}:''${PG_PASSWORD}@localhost:''${PG_PORT}/''${PG_DB}?sslmode=disable"
 
+    alias setup-e2e="./scripts/e2e/setup-env.sh"
+    alias run-e2e="./scripts/e2e/run-test.sh"
+
     echo ""
     echo "Welcome to Chainlink TON CCIP E2E shell."
     echo "----------------------------------------------------"
-    echo "To set up the E2E environment (Test DB, Chainlink Core):"
-    echo "  ./scripts/e2e/setup-env.sh"
+    echo "Quick commands:"
+    echo "  setup-e2e [--core-dir /path/to/chainlink_core]                     # Set up the E2E environment"
+    echo "  run-e2e [--core-dir /path/to/chainlink_core] --test-command \"..\" # Run E2E tests"
     echo ""
-    echo "Then, to run your E2E tests:"
-    echo "  CL_DATABASE_URL is already set in this shell environment."
-    echo "  ./scripts/e2e/run-test.sh --test-command \"YOUR_TEST_COMMAND_HERE\""
+    echo "Example workflow:"
+    echo "  setup-e2e"
+    echo "  run-e2e --test-command \"cd integration-tests/smoke/ccip && go test ccip_ton_..."
     echo ""
   '';
 }
