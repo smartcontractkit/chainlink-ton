@@ -19,7 +19,7 @@ jobs:
     steps:
       - name: changesets
         id: changesets
-        uses: smartcontractkit/.github/actions/cicd-changesets@dx-906/changesets-root-package # TODO: update when cicd-changesets/1.2.0  is released
+        uses: smartcontractkit/.github/actions/cicd-changesets@dx-906/changesets-root-package-test # TODO: update when cicd-changesets/1.2.0  is released
         with:
           git-user: app-token-issuer-integrations[bot]
           git-email: app-token-issuer-integrations[bot]@users.noreply.github.com
