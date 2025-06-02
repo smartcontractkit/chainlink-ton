@@ -1,5 +1,6 @@
 {
   "name": "@chainlink/contracts-ton",
+  "private": true,
   "version": "0.0.1",
   "description": "Chainlink TON smart contracts",
   "author": "Chainlink Labs",
