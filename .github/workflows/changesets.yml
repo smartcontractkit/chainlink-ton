@@ -19,7 +19,7 @@ jobs:
     steps:
       - name: changesets
         id: changesets
-        uses: smartcontractkit/.github/actions/cicd-changesets@cicd-changesets/1.1.1
+        uses: smartcontractkit/.github/actions/cicd-changesets@cicd-changesets/1.1.2
         with:
           git-user: app-token-issuer-integrations[bot]
           git-email: app-token-issuer-integrations[bot]@users.noreply.github.com
