@@ -1,8 +1,6 @@
 # Changelog Index
 
-This repository adheres to [Semantic Versioning](http://semver.org/).
-
-Chainlink-Starknet contains a number of projects, all individually versioned and released. Please consult the following changelogs for more information:
+This repository adheres to [Semantic Versioning](http://semver.org/) and contains a number of projects, all individually versioned and released. Please consult the following changelogs for more information:
 
 - [chainlink-ton](/pkg/)
 - [@chainlink/contracts-ton](/contracts/)
