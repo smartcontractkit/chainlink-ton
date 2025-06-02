@@ -9,7 +9,7 @@
   ],
   "scripts": {
     "ci:changeset:publish": "yarn changeset publish",
-    "ci:changeset:version": "yarn changeset version && yarn version --patch --no-git-tag-version"
+    "ci:changeset:version": "yarn changeset version"
   },
   "repository": {
     "type": "git",
