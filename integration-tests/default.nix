@@ -11,8 +11,6 @@ in
     # Note: other integration test environments could go here
   };
 
-  # any integration-test related packages
-  packages = {
-    # Could include test utilities, custom test runners, etc.
-  };
+  # integration-test related packages including test utilities, custom test runners, etc.
+  packages = {};
 }
