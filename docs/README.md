@@ -1,7 +1,7 @@
 # Chainlink TON - Documentation
 
 - [Getting Started](./getting-started.md)
-- [Contracts - Build](./contracts/build.md)
+- [Contracts Documentation](./contracts)
 - [Plugin - Build](./plugin/build.md)
 
 ## Misc/dev-guides
