@@ -70,7 +70,7 @@ The E2E testing process is managed by two main scripts: `setup-env.sh` and `run-
 **`setup-env.sh` (Environment Setup)**
 setup-env.sh prepares the testing environment by:
 
-* Verifying your Chainlink core checkout matches the required version in .core_version
+* Verifying your Chainlink core checkout matches the required version in `.core_version`
 * Starting a PostgreSQL container for test data
 * Modifying Chainlink's `go.mod` to use your local chainlink-ton code
 * Building the test binary and preparing the database schema
