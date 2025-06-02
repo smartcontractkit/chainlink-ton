@@ -105,8 +105,19 @@ fi
 if [ "$CURRENT_CORE_COMMIT" != "$BLESSED_CORE_REF_COMMIT" ]; then
   log_error "Chainlink Core version mismatch!"
   log_error "  Current commit in '$CHAINLINK_CORE_DIR': $CURRENT_CORE_COMMIT"
-  log_error "  Expected commit for ref '$BLESSED_CORE_REF': $BLESSED_CORE_REF_COMMIT (resolved from $CORE_VERSION_FILE_PATH)"
-  log_error "Please checkout the correct commit/branch in '$CHAINLINK_CORE_DIR' or run setup-env.sh."
+
+  # Find which branch contains this commit
+  CONTAINING_BRANCH=$(cd "$CHAINLINK_CORE_DIR" && git branch -r --contains "$BLESSED_CORE_REF_COMMIT" 2>/dev/null | head -1 | sed 's/.*origin\///' | xargs)
+
+  if [ -n "$CONTAINING_BRANCH" ]; then
+    log_error "  Expected commit: $BLESSED_CORE_REF_COMMIT (from branch: $CONTAINING_BRANCH)"
+    log_error "  This may be a specific stable commit, not the branch tip."
+    log_error "  Run: cd '$CHAINLINK_CORE_DIR' && git checkout $BLESSED_CORE_REF_COMMIT"
+    log_error "  Note: This will put you in detached HEAD state, which is expected for this pinned version."
+  else
+    log_error "  Expected commit: $BLESSED_CORE_REF_COMMIT (you may need to fetch first)"
+    log_error "  Run: cd '$CHAINLINK_CORE_DIR' && git fetch && git checkout $BLESSED_CORE_REF_COMMIT"
+  fi
   exit 1
 else
   log_info "Chainlink Core version matches. Current commit: $CURRENT_CORE_COMMIT"
