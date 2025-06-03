@@ -6,6 +6,10 @@ on:
     branches:
       - 'main'
 
+permissions:
+  contents: read
+  actions: read
+
 env:
   DOCKER_CACHE_KEY: ccip-e2e-images-v0
   DOCKER_CACHE_DIR: ${{ github.workspace }}/.cache
