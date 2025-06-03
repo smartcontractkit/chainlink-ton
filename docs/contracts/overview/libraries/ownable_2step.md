@@ -6,7 +6,8 @@ The implementation is meant to replicate the functionality in [Ownable2Step.sol]
 
 There are no method modifiers in Tact, so ownership enforcement for a specific message receiver is implemented with the `requireOwner()` function, just like in the native `@stdlib/ownable` trait. 
 
-Example: 
+Example:
+
 ```tact
     receive(msg: SetCount) {
         // Use the requireOwner() function from the Ownable2Step trait to only allow the owner to send this message.
@@ -16,7 +17,7 @@ Example:
     }
 ```
 
-### Interface
+## Interface
 
 This trait supports the `"org.ton.ownable"` interface, and expands it with the ownership transfer functions. The complete interface is identified as `"chainlink.ownable.2step"` and supports the following main receivers and functions:
 
@@ -34,7 +35,8 @@ receive(msg: TransferOwnership);
 receive(msg: AcceptOwnership);
 ```
 
-### Exit codes
+## Exit codes
+
 The following exit codes could be thrown from these operations:
 
 - `ERROR_ONLY_CALLABLE_BY_OWNER = 132`
@@ -43,3 +45,6 @@ The following exit codes could be thrown from these operations:
 
 The `ERROR_ONLY_CALLABLE_BY_OWNER` exit code number matches the one thrown by the `@stdlib/ownable` trait when `requireOwner()` rejects a message.
 
+## Diagram
+
+![ownable_2step.drawio.svg - diagram](./ownable_2step.drawio.svg)
