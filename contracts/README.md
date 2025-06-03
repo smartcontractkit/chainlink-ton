@@ -8,4 +8,5 @@
 - `scripts` - scripts used by the project.
 
 ## Documentation
+
 Refer to the [Contracts Documentation](../docs/contracts)
