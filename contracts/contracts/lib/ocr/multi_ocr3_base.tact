@@ -21,6 +21,7 @@ const ERROR_INVALID_SEQUENCE_LENGTH: Int = 1015;
 const ERROR_UNAUTHORIZED_SIGNER: Int = 1016;
 const ERROR_NON_UNIQUE_SIGNATURES: Int = 1017;
 const ERROR_INVALID_SIGNATURE: Int = 1018;
+const ERROR_NON_EXISTENT_OCR_PLUGIN_TYPE: Int = 1019;
 
 // Maximum number of oracles the offchain reporting protocol is designed for
 const MAX_NUM_ORACLES: Int = 255;
@@ -114,7 +115,7 @@ message Transmit{
 }
 
 message SetOCR3Config{
-	configDiges: Int as uint256;
+	configDigest: Int as uint256;
 	ocrPluginType: Int as uint8;
 	bigF: Int as uint8;
 	isSignatureVerificationEnabled: Bool;
@@ -128,15 +129,17 @@ trait MultiOCR3Base {
 	ocr3BaseState: OCR3BaseState;
 
 	receive(msg: SetOCR3Config) {
+		throwUnless(ERROR_NON_EXISTENT_OCR_PLUGIN_TYPE, msg.ocrPluginType == OCR_PLUGIN_TYPE_COMMIT || msg.ocrPluginType == OCR_PLUGIN_TYPE_EXECUTION);
+
 		//self.requireOwner();
 		throwUnless(ERROR_BIG_F_MUST_BE_POSITIVE, msg.bigF > 0);
 
-		let ocrConfig = newOCRConfig();
-
 		let option = self.ocr3BaseState.ocr3Configs.get(msg.ocrPluginType);
-		if (option != null) {
-			ocrConfig = option!!
-		}
+		if (option == null) {
+			self.ocr3BaseState.ocr3Configs.set(msg.ocrPluginType, newOCRConfig());
+		} 
+
+		let ocrConfig = self.ocr3BaseState.ocr3Configs.get(msg.ocrPluginType)!!;
 
 		// If F is 0, then the config is not yet set.
 		if ocrConfig.configInfo.bigF == 0 {
@@ -152,27 +155,48 @@ trait MultiOCR3Base {
 		throwUnless(ERROR_NO_TRANSMITTERS, msg.transmitters.length > 0);
 		
 		if (msg.isSignatureVerificationEnabled) {
-/*
-
-            // NOTE: Transmitters cannot exceed signers. Transmitters do not have to be >= 3F + 1 because they can
-            // match >= 3fChain + 1, where fChain <= F. fChain is not represented in MultiOCR3Base - so we skip this check.
-            assign_signer_oracles(
-                &mut ocr3_state.signer_oracles, ocr_plugin_type, &signers
-            );
-*/
 			throwUnless(ERROR_TOO_MANY_SIGNERS, msg.signers.length <= MAX_NUM_ORACLES);
 			throwUnless(ERROR_BIG_F_TOO_HIGH, msg.signers.length > 3 * msg.bigF);
 			throwUnless(ERROR_TOO_MANY_TRANSMITTERS, msg.signers.length >= msg.transmitters.length);
 
 			ocrConfig.configInfo.n = msg.signers.length ;
 			ocrConfig.signers = msg.signers;
-			assignSignerOracles(ocrPluginType, msg.signers);
+			self.assignSignerOracles(msg.ocrPluginType, msg.signers);
 		}
+		ocrConfig.transmitters = msg.transmitters;
+
+		self.assignTransmitterOracles(
+			msg.ocrPluginType,
+			msg.transmitters
+		);
+
+		ocrConfig.configInfo.bigF = msg.bigF;
+		ocrConfig.configInfo.configDigest = msg.configDigest;
+		
+		emit(ConfigSet {
+			ocrPluginType: msg.ocrPluginType,
+			configDigest: ocrConfig.configInfo.configDigest,
+			signers: ocrConfig.signers,
+			transmitters: ocrConfig.transmitters,
+			bigF: ocrConfig.configInfo.bigF
+		}.toCell());
 	}
 
 	fun assignSignerOracles(ocrPluginType: Int, signers: ArrayUint256) {
-		throwUnless(ERROR_REPEATED_SIGNERS, !hasDuplicates(signers));
+		throwUnless(ERROR_REPEATED_SIGNERS, !signers.hasDuplicates());
+		// TODO: We cannot do ed25519 public key validation on chain. For now we assume valid keys.
+		self.ocr3BaseState.signerOracles.set(
+			ocrPluginType,
+			signers
+		);
+	}
 
+	fun assignTransmitterOracles(ocrPluginType: Int, transmitters: ArrayAddress) {
+		throwUnless(ERROR_REPEATED_TRANSMITTERS, !transmitters.hasDuplicates());
+		self.ocr3BaseState.transmitterOracles.set(
+			ocrPluginType,
+			transmitters
+		);
 	}
 
 

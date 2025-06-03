@@ -36,9 +36,9 @@ extends fun get(self: ArrayUint256, index: Int): Int {
 	return value!!;
 }
 
-fun hasDuplicates(array: ArrayUint256) {
+extends fun hasDuplicates(self: ArrayUint256): Bool {
 	let seen: map<Int as uint256, Bool> = emptyMap();
-	foreach (key, value in array.array){
+	foreach (key, value in self.array){
 		if (seen.get(value) != null) {
 			return true; // Duplicate found
 		}
@@ -47,9 +47,9 @@ fun hasDuplicates(array: ArrayUint256) {
 	return false; // No duplicates found
 }
 
-fun hasDuplicates(array: ArrayAddress) {
+extends fun hasDuplicates(self: ArrayAddress): Bool {
 	let seen: map<Address, Bool> = emptyMap();
-	foreach (key, value in array.array){
+	foreach (key, value in self.array){
 		if (seen.get(value) != null) {
 			return true; // Duplicate found
 		}
