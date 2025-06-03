@@ -11,7 +11,12 @@ struct Ownable2Step {
 }
 ```
 
-#### Message Handlers
+Example:
+
+```tact
+    receive(msg: SetCount) {
+        // Use the requireOwner() function from the Ownable2Step trait to only allow the owner to send this message.
+        self.requireOwner();
 
 The module exposes a single message handler, `onInternalMessage`, which processes the following messages.
 
@@ -135,8 +140,7 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
 }
 ```
 
-##### Protect Your Message Handlers
-For your contract's own messages that require owner-only access, you must manually parse the sender's address and call the requireOwner function.
+## Interface
 
 Continuing the onInternalMessage function from the previous step:
 
@@ -163,8 +167,9 @@ Continuing the onInternalMessage function from the previous step:
 }
 ```
 
-##### Expose Getters (Optional)
-You can provide convenient top-level getters on your contract that retrieve data from the Ownable2Step module.
+## Exit codes
+
+The following exit codes could be thrown from these operations:
 
 ``` tolk
 get owner(): address {
@@ -180,3 +185,6 @@ get counter(): uint32 {
 ```
 
 
+## Diagram
+
+![ownable_2step.drawio.svg - diagram](./ownable_2step.drawio.svg)
