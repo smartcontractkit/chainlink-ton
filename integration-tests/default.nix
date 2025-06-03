@@ -1,13 +1,11 @@
 {
   pkgs,
   rev,
-}:
-let
+}: let
   # Any integration-test specific configuration
-in
-{
+in {
   devShells = {
-    ccip-e2e = pkgs.callPackage ./shell-ccip-e2e.nix { inherit pkgs; };
+    ccip-e2e = pkgs.callPackage ./shell-ccip-e2e.nix {inherit pkgs;};
     # Note: other integration test environments could go here
   };
 
