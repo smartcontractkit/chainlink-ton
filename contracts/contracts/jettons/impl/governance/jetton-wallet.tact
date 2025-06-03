@@ -1,5 +1,6 @@
 import "./messages";
 import "./constants";
+import "../utils";
 
 contract JettonWalletGovernance(
     status: Int as uint4,
