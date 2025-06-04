@@ -187,4 +187,4 @@ get counter(): uint32 {
 
 ## Diagram
 
-![ownable_2step.drawio.svg - diagram](./ownable_2step.drawio.svg)
+![Ownable2Step flow diagram](./ownable_2step.drawio.svg)
