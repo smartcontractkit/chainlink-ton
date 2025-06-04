@@ -1,5 +1,5 @@
-import "../lib/type_and_version";
-import "../access/ownable_2step.tact";
+import "../lib/upgrades/type_and_version";
+import "../lib/access/ownable_2step.tact";
 
 message SetCount {
     queryId: Int as uint64;
@@ -7,7 +7,6 @@ message SetCount {
 }
 
 /// Ownable Counter contract example
-///
 contract OwnableCounter with Ownable2Step, TypeAndVersion {
     // Ownership variables, required by the Ownable2Step trait
     owner: Address;
@@ -50,14 +49,14 @@ contract OwnableCounter with Ownable2Step, TypeAndVersion {
 
     // --- TypeAndVersion Functions ---
 
-    // Type must be a Reverse Domain Name Notation string that is uinique to the contract and should not change betwen versions.
+    // Type must be a Reverse Domain Name Notation string that is unique to the contract and should not change between versions.
     // Example: "com.chainlink.project.package.ContractName"
     // Read more about Reverse DNS Notation at https://en.wikipedia.org/wiki/Reverse_domain_name_notation
     override fun type(): String {
         return "com.chainlink.ton.examples.OwnableCounter";
     }
 
-    // Version must be a semantic version string (e.g. "1.0.0"). Don't use "v" prefix; it will be added automatically.
+    // Version must be a semantic version string (e.g. "1.0.0").
     override fun version(): String {
         return "1.0.0";
     }

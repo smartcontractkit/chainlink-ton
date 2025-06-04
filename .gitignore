@@ -28,3 +28,9 @@ docs/local/**
 
 # Root node tools
 node_modules/
+
+# Go build artifacts
+chainlink-ton
+
+# macOS Finder metadata
+.DS_Store

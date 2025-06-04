@@ -9,7 +9,8 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/loop"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/core"
 
-	// TODO: import the ton relayer package
+	toncfg "github.com/smartcontractkit/chainlink-ton/pkg/config"
+	"github.com/smartcontractkit/chainlink-ton/pkg/relay"
 )
 
 const (
@@ -51,6 +52,21 @@ type pluginRelayer struct {
 // NewRelayer implements the Loopp factory method used by the Loopp server to instantiate a relayer
 // [github.com/smartcontractkit/chainlink-common/pkg/loop.PluginRelayer]
 func (p *pluginRelayer) NewRelayer(ctx context.Context, rawConfig string, loopKs loop.Keystore, capRegistry core.CapabilitiesRegistry) (loop.Relayer, error) {
-	// TODO: Initialize the chain and relayer service
-	return nil, fmt.Errorf("not implemented")
+	cfg := toncfg.TOMLConfig{}
+
+	// TODO(NONEVM-1460): decode TOML config
+	opts := relay.ChainOpts{
+		Logger:   p.Logger,
+		KeyStore: loopKs,
+		DS:       nil, // TODO(NONEVM-1460): add ds
+	}
+
+	chain, err := relay.NewChain(&cfg, opts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create TON chain: %w", err)
+	}
+
+	relayer := relay.NewRelayer(p.Logger, chain, capRegistry)
+	p.SubService(relayer)
+	return relayer, nil
 }

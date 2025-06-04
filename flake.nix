@@ -31,6 +31,7 @@
       chainlink-ton = pkgs.callPackage ./cmd/chainlink-ton commonArgs;
       # Resolve sub-modules
       contracts = pkgs.callPackage ./contracts commonArgs;
+      integration-tests = pkgs.callPackage ./integration-tests commonArgs;
       # Resolve tools
       dependency-analyzer = pkgs.callPackage ./tools/dependency_analyzer commonArgs;
     in rec {
@@ -41,7 +42,8 @@
           # Development shell for dependency analyzer
           dependency-analyzer = pkgs.callPackage ./tools/dependency_analyzer/shell.nix {inherit pkgs;};
         }
-        // contracts.devShells;
+        // contracts.devShells
+        // integration-tests.devShells;
 
       # Output a set of packages (e.g., CL core node plugins, sc artifacts, etc.)
       packages =

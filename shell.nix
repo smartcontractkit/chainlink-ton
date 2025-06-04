@@ -17,6 +17,10 @@ pkgs.mkShell {
       gotools
       go-mockery
 
+      # TS/Node set of tools for changesets
+      nodejs_23
+      (yarn.override {nodejs = nodejs_23;})
+
       # Extra tools
       git
       jq

@@ -1,5 +1,6 @@
 {
   "name": "@chainlink/contracts-ton",
+  "private": true,
   "version": "0.0.1",
   "description": "Chainlink TON smart contracts",
   "author": "Chainlink Labs",
@@ -20,14 +21,14 @@
     "fmt-typescript": "prettier --write ."
   },
   "devDependencies": {
-    "@tact-lang/compiler": "^1.6.5",
+    "@tact-lang/compiler": "1.6.13",
     "@ton-community/func-js": "^0.9.1",
-    "@ton/blueprint": "^0.29.0",
-    "@ton/core": "~0",
+    "@ton/blueprint": "^0.33.0",
+    "@ton/core": "^0.60.1",
     "@ton/crypto": "^3.3.0",
-    "@ton/sandbox": "^0.28.0",
-    "@ton/test-utils": "^0.5.0",
-    "@ton/tolk-js": "^0.10.0",
+    "@ton/sandbox": "^0.31.0",
+    "@ton/test-utils": "^0.6.0",
+    "@ton/tolk-js": "^0.12.0",
     "@ton/ton": "^15.2.1",
     "@types/jest": "^29.5.14",
     "@types/node": "^22.14.0",

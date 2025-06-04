@@ -1,12 +1,13 @@
 # Chainlink TON - Smart Contracts - Build
 
-## NPM/Tact build
+## Building the contracts
 
-Build `contracts` module/lib manually:
+We use Blueprint to compile our tact contracts. Refer to the [Blueprint build documentation](https://github.com/ton-org/blueprint#building-contracts). To build a contract, a file ending in `.compile.ts` must be placed under `wrappers` in the blueprint project's directory.
 
 ```bash
 # Enter the specific #contracts dev shell
 nix develop .#contracts
+
 # Build the contracts module
 pushd contracts
 yarn
@@ -15,7 +16,7 @@ yarn build
 
 ## Nix build
 
-Build `contracts` Nix package:
+You can also build a `contracts` Nix package:
 
 ```bash
 nix build .#contracts --print-out-paths # labeled pkg
