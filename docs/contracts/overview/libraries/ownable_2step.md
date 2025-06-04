@@ -47,4 +47,4 @@ The `ERROR_ONLY_CALLABLE_BY_OWNER` exit code number matches the one thrown by th
 
 ## Diagram
 
-![ownable_2step.drawio.svg - diagram](./ownable_2step.drawio.svg)
+![Ownable2Step flow diagram](./ownable_2step.drawio.svg)
