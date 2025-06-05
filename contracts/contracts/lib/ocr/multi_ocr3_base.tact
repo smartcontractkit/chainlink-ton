@@ -27,10 +27,14 @@ message Transmitted {
 	configDigest: Int as uint256;
 	sequenceNumber: Int as uint64
 }
-message Transmit{
-	
-}
 
+/// @notice Sets offchain reporting protocol configuration incl. participating oracles.
+/// NOTE: The OCR3 config must be sanity-checked against the home-chain registry configuration, to ensure home-chain
+/// and remote-chain parity!
+/// @param ocrConfigArgs OCR config update args.
+/// @dev precondition number of transmitters should match the expected F/fChain relationship.
+/// For transmitters, the function only validates that len(transmitters) > 0 && len(transmitters) <= MAX_NUM_ORACLES
+/// && len(transmitters) <= len(signers) [if sig verification is enabled].
 message SetOCR3Config{
 	configDigest: Int as uint256;
 	ocrPluginType: Int as uint8;
@@ -90,6 +94,11 @@ trait MultiOCR3Base {
 		ocrConfig.configInfo.bigF = msg.bigF;
 		ocrConfig.configInfo.configDigest = msg.configDigest;
 		
+		self.ocr3BaseState.ocr3Configs.set(
+			msg.ocrPluginType,
+			ocrConfig
+		);
+
 		emit(ConfigSet {
 			ocrPluginType: msg.ocrPluginType,
 			configDigest: ocrConfig.configInfo.configDigest,
@@ -97,6 +106,65 @@ trait MultiOCR3Base {
 			transmitters: ocrConfig.transmitters,
 			bigF: ocrConfig.configInfo.bigF
 		}.toCell());
+	}
+
+	fun transmit(
+		transmitter: Address,
+		ocrPluginType: Int,
+		reportContext: ReportContext,
+		report: Slice,
+		signatures: ArrayCells,
+        ) { 
+		let ocrConfigOption = self.ocr3BaseState.ocr3Configs.get(ocrPluginType);
+		throwUnless(ERROR_NON_EXISTENT_OCR_PLUGIN_TYPE, ocrConfigOption != null);
+		let ocrConfig = ocrConfigOption!!;
+		let configInfo: ConfigInfo = ocrConfig.configInfo;
+
+		// TODO: EVM checks transaction data length here
+
+		throwUnless(ERROR_CONFIG_DIGEST_MISMATCH, reportContext.configDigest == configInfo.configDigest);
+
+		// TODO assert_chain_not_forked
+
+		let pluginTransmitters = self.ocr3BaseState.transmitterOracles.get(ocrPluginType);
+		throwUnless(ERROR_UNAUTHORIZED_TRANSMITTER, pluginTransmitters != null && pluginTransmitters!!.has(transmitter));
+
+
+		if (configInfo.isSignatureVerificationEnabled) {
+			let expectedSignatures = configInfo.bigF + 1;
+			throwUnless(ERROR_WRONG_NUMBER_OF_SIGNATURES, signatures.length == expectedSignatures);
+			let hashedReport = self.hashReport(report, reportContext);
+			let pluginSigners = self.ocr3BaseState.signerOracles.get(ocrPluginType);
+			throwUnless(ERROR_NON_EXISTENT_OCR_PLUGIN_TYPE, pluginSigners != null);
+			self.verifySignature(pluginSigners!!, hashedReport, signatures);
+		}
+		emit(Transmitted {
+			ocrPluginType: ocrPluginType,
+			configDigest: reportContext.configDigest,
+			sequenceNumber: reportContext.sequenceBytes
+		}.toCell());
+	}
+
+	fun hashReport(report: Slice, reportContext: ReportContext): Int {
+		let data = beginCell().storeSlice(report)
+			.storeUint(reportContext.configDigest, 256)
+			.storeUint(0, 192) // Padding to 256 bits
+			.storeUint(reportContext.sequenceBytes, 64)
+			.asSlice();
+		return sha256(data);
+	}
+
+	fun verifySignature(
+		signers: ArrayUint256,
+		hashedReport: Int,
+		signatures: ArrayCells
+	) {
+		let i = 0;
+		while (i < signatures.length) {
+			let signature = signatures.get(i).asSlice();
+			let signerKey = signers.get(i);
+			checkSignature(hashedReport, signature, signerKey);
+		}
 	}
 
 	fun assignSignerOracles(ocrPluginType: Int, signers: ArrayUint256) {
@@ -115,31 +183,5 @@ trait MultiOCR3Base {
 			transmitters
 		);
 	}
-
-
-	/*
-        signer_oracles: &mut Table<u8, vector<ed25519::UnvalidatedPublicKey>>,
-        ocr_plugin_type: u8,
-        signers: &vector<vector<u8>>
-    ) {
-        assert!(!has_duplicates(signers), error::invalid_argument(E_REPEATED_SIGNERS));
-
-        let validated_signers =
-            signers.map_ref(|signer| {
-                let maybe_validated_public_key =
-                    ed25519::new_validated_public_key_from_bytes(*signer);
-                assert!(
-                    maybe_validated_public_key.is_some(),
-                    error::invalid_argument(E_COULD_NOT_VALIDATE_SIGNER_KEY)
-                );
-                ed25519::public_key_into_unvalidated(maybe_validated_public_key.extract())
-            });
-
-        signer_oracles.upsert(ocr_plugin_type, validated_signers);
-    }
-	receive(msg: Transmit){
-		
-	}
-	*/
 }
 

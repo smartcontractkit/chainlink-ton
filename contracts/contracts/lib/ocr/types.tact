@@ -6,7 +6,6 @@ const MAX_NUM_ORACLES: Int = 255;
 const OCR_PLUGIN_TYPE_COMMIT: Int = 0;
 const OCR_PLUGIN_TYPE_EXECUTION: Int = 1;
 
-
 struct OCR3BaseState {
 	chainId: Int as uint8;
 	// ocr plugin type -> ocr config
@@ -15,6 +14,15 @@ struct OCR3BaseState {
 	signerOracles: map<Int, ArrayUint256>;
 	// ocr plugin type -> transmitters
 	transmitterOracles: map<Int, ArrayAddress>;
+}
+
+fun newOCR3BaseState(chainId: Int): OCR3BaseState {
+	return OCR3BaseState {
+		chainId: chainId,
+		ocr3Configs: emptyMap(),
+		signerOracles: emptyMap(),
+		transmitterOracles: emptyMap()
+	};
 }
 
 struct OCRConfig {
@@ -54,14 +62,11 @@ struct Oracle {
 } 
 
 
-fun newOCR3BaseState(chainId: Int): OCR3BaseState {
-	return OCR3BaseState {
-		chainId: chainId,
-		ocr3Configs: emptyMap(),
-		signerOracles: emptyMap(),
-		transmitterOracles: emptyMap()
-	};
+//TODO: On EVM and Aptos this is passed as an array of bytes with manual parsing and validation. Check if it's ok to use this Tact struct isntead.
+struct ReportContext {
+	configDigest: Int as uint256;
+	//Should be a uint64 with 24 bytes of padding
+	sequenceBytes: Int as uint64
 }
-
 
 
