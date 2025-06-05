@@ -3,8 +3,8 @@ import { Address, address, beginCell, Cell, Message, toNano } from '@ton/core'
 import '@ton/test-utils'
 import {
   Bouncer,
-  loadBounce,
-  loadBouncedEvent,
+  loadError,
+  loadErrorEvent,
   loadSuccessEvent,
 } from '../../../wrappers/examples/handcrafted-bounced-messages/Bouncer'
 import {
@@ -144,43 +144,30 @@ describe('HandcraftedBouncedMessages', () => {
       success: true,
     })
 
-    const bouncedTransaction = requestResult.transactions.find(
+    const errorTransaction = requestResult.transactions.find(
       (tx) =>
         tx.inMessage?.info.type === 'internal' &&
         tx.inMessage.info.src.equals(bouncer.address) &&
         tx.inMessage.info.dest.equals(requester.address),
     )
 
-    const bouncedBody = bouncedTransaction?.inMessage?.body.beginParse()
-    const bouncedMessage = loadBounce(bouncedBody!)
-    expect(bouncedMessage).toEqual({
-      $$type: 'Bounce',
+    const errorBody = errorTransaction?.inMessage?.body.beginParse()
+    const errorMessage = loadError(errorBody!)
+    expect(errorMessage).toEqual({
+      $$type: 'Error',
       queryId: 1n,
       exitCode: 5n,
     })
 
-    const event = bouncedTransaction?.outMessages.values().find((msg: Message) => {
+    const event = errorTransaction?.outMessages.values().find((msg: Message) => {
       return msg.info.type === 'external-out'
     })
     let eventBody = event?.body.beginParse()
-    let bouncedEvent = loadBouncedEvent(eventBody!)
-    expect(bouncedEvent).toEqual({
-      $$type: 'BouncedEvent',
+    let errorEvent = loadErrorEvent(eventBody!)
+    expect(errorEvent).toEqual({
+      $$type: 'ErrorEvent',
       queryId: 1n,
       exitCode: 5n,
     })
   })
 })
-
-function loadComment(event: Message) {
-  const eventSlice = event.body.beginParse()!
-  eventSlice.skip(32)
-  const len = eventSlice.remainingBits
-  const bits = eventSlice.loadBits(len)
-
-  const bytesAsHex = bits.toString()
-  const bytes = Buffer.from(bytesAsHex, 'hex')
-  const string = bytes.toString('utf8')
-
-  return string
-}

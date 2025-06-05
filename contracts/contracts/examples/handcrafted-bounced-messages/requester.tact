@@ -11,7 +11,7 @@ message(1) Request {
     value: Int as uint64;
 }
 
-message(400) Bounce {
+message(400) Error {
     queryId: Int as uint64;
     exitCode: Int as uint32;
 }
@@ -20,7 +20,7 @@ message(200) Success {
     queryId: Int as uint64;
 }
 
-struct BouncedEvent {
+struct ErrorEvent {
     queryId: Int as uint64;
     exitCode: Int as uint32;
 }
@@ -46,8 +46,8 @@ contract Requester() {
         });
     }
 
-    receive(msg: Bounce) {
-        emit(BouncedEvent {
+    receive(msg: Error) {
+        emit(ErrorEvent {
             queryId: msg.queryId,
             exitCode: msg.exitCode,
         }.toCell());

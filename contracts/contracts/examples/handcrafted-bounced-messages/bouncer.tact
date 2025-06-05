@@ -12,7 +12,7 @@ contract Bouncer() {
                 queryId: msg.queryId,
             }.toCell());
         } catch (e) {
-            self.reply(Bounce {
+            self.reply(Error {
                 queryId: msg.queryId,
                 exitCode: e,
             }.toCell());
