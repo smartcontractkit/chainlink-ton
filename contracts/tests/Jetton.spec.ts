@@ -17,7 +17,7 @@ class JettonMetadata {
 function bufferToChunks(buffer: Buffer, chunkSize: number): Buffer[] {
   const chunks: Buffer[] = []
   for (let i = 0; i < buffer.length; i += chunkSize) {
-    chunks.push(buffer.slice(i, i + chunkSize))
+    chunks.push(buffer.subarray(i, i + chunkSize))
   }
   return chunks
 }
@@ -192,9 +192,7 @@ describe('Jetton Sender Tests', () => {
   // Getting jetton data
   it('jetton mastercontract should have metadata', async () => {
     const data = await jettonMinter.getGetJettonData()
-    console.log('Jetton data.jettonContent:', data.jettonContent)
     const json = flattenSnakeCell(data.jettonContent).toString('utf8')
-    console.log('Jetton metadata JSON:', json)
     const metadataJson = JSON.parse(json)
     expect(metadataJson.name).toEqual(jettonMetadata.name)
     expect(metadataJson.description).toEqual(jettonMetadata.description)
