@@ -4,7 +4,7 @@ import '@ton/test-utils'
 import { Bouncer, loadRequest } from '../../../wrappers/examples/bounced-messages/Bouncer'
 import { loadSendRequest, Requester } from '../../../wrappers/examples/bounced-messages/Requester'
 
-async function setUpTest(i: bigint): Promise<{
+async function setUpTest(): Promise<{
   blockchain: Blockchain
   deployer: SandboxContract<TreasuryContract>
   owner: SandboxContract<TreasuryContract>
@@ -68,11 +68,11 @@ async function setUpTest(i: bigint): Promise<{
 
 describe('BouncedMessages', () => {
   it('should deploy', async () => {
-    await setUpTest(0n)
+    await setUpTest()
   })
 
   it('should not bounce message', async () => {
-    let { blockchain, deployer, requester, bouncer } = await setUpTest(0n)
+    let { blockchain, deployer, requester, bouncer } = await setUpTest()
     const requestResult = await requester.send(
       deployer.getSender(),
       { value: toNano('0.05'), bounce: false },
@@ -102,7 +102,7 @@ describe('BouncedMessages', () => {
   })
 
   it('should bounce message', async () => {
-    let { blockchain, deployer, requester, bouncer } = await setUpTest(0n)
+    let { blockchain, deployer, requester, bouncer } = await setUpTest()
     const requestResult = await requester.send(
       deployer.getSender(),
       { value: toNano('0.05'), bounce: true },

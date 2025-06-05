@@ -13,7 +13,7 @@ import {
   Requester,
 } from '../../../wrappers/examples/handcrafted-bounced-messages/Requester'
 
-async function setUpTest(i: bigint): Promise<{
+async function setUpTest(): Promise<{
   blockchain: Blockchain
   deployer: SandboxContract<TreasuryContract>
   owner: SandboxContract<TreasuryContract>
@@ -77,11 +77,11 @@ async function setUpTest(i: bigint): Promise<{
 
 describe('HandcraftedBouncedMessages', () => {
   it('should deploy', async () => {
-    await setUpTest(0n)
+    await setUpTest()
   })
 
   it('should not bounce message', async () => {
-    let { blockchain, deployer, requester, bouncer } = await setUpTest(0n)
+    let { blockchain, deployer, requester, bouncer } = await setUpTest()
     const requestResult = await requester.send(
       deployer.getSender(),
       { value: toNano('0.05'), bounce: false },
@@ -107,7 +107,6 @@ describe('HandcraftedBouncedMessages', () => {
     )
 
     const successBody = successTransaction?.inMessage?.body.beginParse()
-    console.log('successBody', successBody)
     const bouncedMessage = loadSuccess(successBody!)
     expect(bouncedMessage).toEqual({
       $$type: 'Success',
@@ -126,7 +125,7 @@ describe('HandcraftedBouncedMessages', () => {
   })
 
   it('should bounce message', async () => {
-    let { deployer, requester, bouncer } = await setUpTest(0n)
+    let { deployer, requester, bouncer } = await setUpTest()
     const requestResult = await requester.send(
       deployer.getSender(),
       { value: toNano('0.05'), bounce: true },
