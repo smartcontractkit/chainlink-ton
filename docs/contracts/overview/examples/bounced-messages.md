@@ -35,31 +35,6 @@ sequenceDiagram
   - Only 224 bits of useful data available in bounced receivers
 - **No Control**: You cannot customize the content of bounced messages
 
-### Example: Standard Bounce Message Handling
-
-In the `requester.tact` contract, bounce messages are handled using the `bounced` receiver:
-
-```tact
-contract Requester() {
-    receive(msg: SendRequest) {
-        // Send message with bounce enabled (default)
-        message(MessageParameters {
-            to: msg.address,
-            value: 0,
-            mode: SendRemainingValue | SendIgnoreErrors,
-            body: Request {
-                queryId: msg.queryId,
-                value: msg.value,
-            }.toCell(),
-        });
-    }
-
-    bounced(msg: bounced<Request>) {
-        emit("Bounced message received".asComment());
-    }
-}
-```
-
 ## Approach 2: Handcrafted Error Messages
 
 For more sophisticated error handling, you can implement custom error messaging using Tact's **try-catch** functionality. This approach gives you full control over error communication.
