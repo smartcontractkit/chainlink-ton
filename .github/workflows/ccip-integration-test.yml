@@ -94,6 +94,9 @@ jobs:
           path: chainlink
 
       - name: Setup Environment and Run Tests
+        env:
+          # TODO: remove this once we're public, prevent network lookups for the private module
+          GOPRIVATE: github.com/smartcontractkit/chainlink-ton
         run: |
           nix develop .#ccip-e2e -c scripts/e2e/setup-env.sh --core-dir "${GITHUB_WORKSPACE}/chainlink"
           nix develop .#ccip-e2e -c scripts/e2e/run-test.sh --core-dir "${GITHUB_WORKSPACE}/chainlink" --test-command "${{ matrix.type.cmd }}"
