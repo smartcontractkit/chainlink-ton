@@ -1,1 +1,1 @@
-export * from '../../build/jetton.SimpleJettonReceiver/tact_SimpleJettonReceiver'
+export * from '../../build/jetton.OnrampMock/tact_OnrampMock'

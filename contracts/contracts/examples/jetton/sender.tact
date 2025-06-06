@@ -20,12 +20,14 @@ struct TactJettonWalletStateInit {
 
 /// Message that represents a request to send jettons. Contains the amount of jettons to send and the destination address.
 message(0x6984f9bb) SendJettonsFast {
+    queryId: Int as uint64;
     amount: Int as coins;
     destination: Address;
 }
 
 /// Message that represents a request to send jettons with additional parameters.
 message(0xe815f1d0) SendJettonsExtended {
+    queryId: Int as uint64;
     amount: Int as coins;
     destination: Address;
     customPayload: Cell;
@@ -50,7 +52,7 @@ contract JettonSender(
     }
 
     /// To send jettons, we need to send a message to our Jetton Wallet contract.
-    fun sendJettons(receiver: Address, amount: Int) {
+    fun sendJettons(queryId: Int, receiver: Address, amount: Int) {
         let thisContractJettonWallet = self.calculateJettonWalletAddress(
             myAddress(),
         );
@@ -59,7 +61,7 @@ contract JettonSender(
             to: thisContractJettonWallet,
             value: 0,
             body: JettonTransfer {
-                queryId: 0,
+                queryId,
                 amount,
                 destination: receiver,
                 responseDestination: myAddress(),
@@ -71,7 +73,7 @@ contract JettonSender(
         });
     }
 
-    fun sendJettonsExtended(receiver: Address, amount: Int, forwardTonAmount: Int, forwardPayload: Slice, customPayload: Cell?) {
+    fun sendJettonsExtended(queryId: Int, receiver: Address, amount: Int, forwardTonAmount: Int, forwardPayload: Slice, customPayload: Cell?) {
         let thisContractJettonWallet = self.calculateJettonWalletAddress(
             myAddress(),
         );
@@ -80,7 +82,7 @@ contract JettonSender(
             to: thisContractJettonWallet,
             value: 0,
             body: JettonTransfer {
-                queryId: 0,
+                queryId,
                 amount,
                 destination: receiver,
                 responseDestination: myAddress(),
@@ -93,11 +95,12 @@ contract JettonSender(
     }
 
     receive(msg: SendJettonsFast) {
-        self.sendJettons(msg.destination, msg.amount);
+        self.sendJettons(msg.queryId, msg.destination, msg.amount);
     }
 
     receive(msg: SendJettonsExtended) {
         self.sendJettonsExtended(
+            msg.queryId,
             msg.destination,
             msg.amount,
             msg.forwardTonAmount,
