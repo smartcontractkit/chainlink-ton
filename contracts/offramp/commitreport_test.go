@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
 func TestCommitReport_gobinding(t *testing.T) {
@@ -68,9 +69,13 @@ func TestCommitReport_gobinding(t *testing.T) {
 		return
 	}
 
+	rb := c.ToBOC()
+	newCell, err := cell.FromBOC(rb)
+	require.NoError(t, err)
+
 	// Decode from cell
 	var decoded CommitReport
-	if err := tlb.LoadFromCell(&decoded, c.BeginParse()); err != nil {
+	if err := tlb.LoadFromCell(&decoded, newCell.BeginParse()); err != nil {
 		fmt.Printf("Error decoding: %v\n", err)
 		return
 	}
