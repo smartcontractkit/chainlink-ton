@@ -183,8 +183,6 @@ log_info "Preparing Chainlink Core (dependencies, build, DB setup)..."
   cd "$CHAINLINK_CORE_DIR"
   log_info "Active Go version: $(go version)"
 
-  # TODO: remove this once we're public, prevent network lookups for the private module
-  export GOPRIVATE=github.com/smartcontractkit/chainlink-ton
   go mod edit -replace="github.com/smartcontractkit/chainlink-ton=$ROOT_DIR"
   go run github.com/jmank88/gomods@v0.1.5 tidy
 
