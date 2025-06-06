@@ -1,4 +1,4 @@
-package offramp
+package bindings
 
 import (
 	"fmt"
@@ -44,17 +44,16 @@ type MerkleRoot struct {
 	MerkleRoot          []byte `tlb:"bits 256"`
 }
 
-// Signature represents an ECDSA signature.
+// Signature represents an ED25519 signature.
 type Signature struct {
-	R *big.Int `tlb:"## 256"`
-	S *big.Int `tlb:"## 256"`
-	V uint8    `tlb:"## 8"`
+	Sig []byte `tlb:"bits 512"`
 }
 
 // Helper functions to convert slices to dictionaries for serialization.
 
-// SliceToDictMerkleRoot converts a []MerkleRoot to a *boc.Dictionary.
-func SliceToDictMerkleRoot(slice []MerkleRoot) (*cell.Dictionary, error) {
+// SliceToDict converts a slice of any serializable type T to a *cell.Dictionary.
+// The dictionary keys are 32-bit unsigned integers representing the slice index.
+func SliceToDict[T any](slice []T) (*cell.Dictionary, error) {
 	dict := cell.NewDict(32) // 32-bit keys
 	for i, item := range slice {
 		keyCell := cell.BeginCell()
@@ -63,64 +62,8 @@ func SliceToDictMerkleRoot(slice []MerkleRoot) (*cell.Dictionary, error) {
 		}
 		valueCell, err := tlb.ToCell(item)
 		if err != nil {
-			return nil, fmt.Errorf("failed to serialize MerkleRoot at index %d: %w", i, err)
-		}
-		if err := dict.Set(keyCell.EndCell(), valueCell); err != nil {
-			return nil, fmt.Errorf("failed to set dict entry %d: %w", i, err)
-		}
-	}
-	return dict, nil
-}
-
-// SliceToDictSignature converts a []Signature to a *boc.Dictionary.
-func SliceToDictSignature(slice []Signature) (*cell.Dictionary, error) {
-	dict := cell.NewDict(32) // 32-bit keys
-	for i, item := range slice {
-		keyCell := cell.BeginCell()
-		if err := keyCell.StoreUInt(uint64(i), 32); err != nil {
-			return nil, fmt.Errorf("failed to store key %d: %w", i, err)
-		}
-		valueCell, err := tlb.ToCell(item)
-		if err != nil {
-			return nil, fmt.Errorf("failed to serialize Signature at index %d: %w", i, err)
-		}
-		if err := dict.Set(keyCell.EndCell(), valueCell); err != nil {
-			return nil, fmt.Errorf("failed to set dict entry %d: %w", i, err)
-		}
-	}
-	return dict, nil
-}
-
-// SliceToDictTokenPriceUpdate converts a []TokenPriceUpdate to a *boc.Dictionary.
-func SliceToDictTokenPriceUpdate(slice []TokenPriceUpdate) (*cell.Dictionary, error) {
-	dict := cell.NewDict(32) // 32-bit keys
-	for i, item := range slice {
-		keyCell := cell.BeginCell()
-		if err := keyCell.StoreUInt(uint64(i), 32); err != nil {
-			return nil, fmt.Errorf("failed to store key %d: %w", i, err)
-		}
-		valueCell, err := tlb.ToCell(item)
-		if err != nil {
-			return nil, fmt.Errorf("failed to serialize TokenPriceUpdate at index %d: %w", i, err)
-		}
-		if err := dict.Set(keyCell.EndCell(), valueCell); err != nil {
-			return nil, fmt.Errorf("failed to set dict entry %d: %w", i, err)
-		}
-	}
-	return dict, nil
-}
-
-// SliceToDictGasPriceUpdate converts a []GasPriceUpdate to a *boc.Dictionary.
-func SliceToDictGasPriceUpdate(slice []GasPriceUpdate) (*cell.Dictionary, error) {
-	dict := cell.NewDict(32) // 32-bit keys
-	for i, item := range slice {
-		keyCell := cell.BeginCell()
-		if err := keyCell.StoreUInt(uint64(i), 32); err != nil {
-			return nil, fmt.Errorf("failed to store key %d: %w", i, err)
-		}
-		valueCell, err := tlb.ToCell(item)
-		if err != nil {
-			return nil, fmt.Errorf("failed to serialize GasPriceUpdate at index %d: %w", i, err)
+			// Consider using %T to get the type name in the error message
+			return nil, fmt.Errorf("failed to serialize item of type %T at index %d: %w", item, i, err)
 		}
 		if err := dict.Set(keyCell.EndCell(), valueCell); err != nil {
 			return nil, fmt.Errorf("failed to set dict entry %d: %w", i, err)

@@ -1,4 +1,4 @@
-package offramp
+package bindings
 
 import (
 	"fmt"
@@ -12,11 +12,10 @@ import (
 )
 
 func TestCommitReport_gobinding(t *testing.T) {
-	// Example CommitReport
 	addr, err := address.ParseAddr("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")
 	require.NoError(t, err)
 
-	tokenPriceSlice, err := SliceToDictTokenPriceUpdate([]TokenPriceUpdate{
+	tokenPriceSlice, err := SliceToDict([]TokenPriceUpdate{
 		{
 			SourceToken: addr,
 			UsdPerToken: big.NewInt(1000000), // Example value
@@ -24,7 +23,7 @@ func TestCommitReport_gobinding(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	gasPriceSlice, err := SliceToDictGasPriceUpdate([]GasPriceUpdate{
+	gasPriceSlice, err := SliceToDict([]GasPriceUpdate{
 		{
 			DestChainSelector: 1,
 			UsdPerUnitGas:     big.NewInt(2000000),
@@ -33,7 +32,7 @@ func TestCommitReport_gobinding(t *testing.T) {
 	require.NoError(t, err)
 
 	onrampAddr := make([]byte, 256)
-	merkleRoots, err := SliceToDictMerkleRoot([]MerkleRoot{
+	merkleRoots, err := SliceToDict([]MerkleRoot{
 		{
 			SourceChainSelector: 1,
 			OnRampAddress:       onrampAddr,
@@ -43,12 +42,9 @@ func TestCommitReport_gobinding(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
-
-	signatureSlice, err := SliceToDictSignature([]Signature{
+	signatureSlice, err := SliceToDict([]Signature{
 		{
-			R: big.NewInt(1111111111),
-			S: big.NewInt(2222222222),
-			V: 27,
+			Sig: make([]byte, 64),
 		},
 	})
 
@@ -81,4 +77,5 @@ func TestCommitReport_gobinding(t *testing.T) {
 	}
 
 	require.Equal(t, commitReport, decoded)
+	require.Equal(t, c.Hash(), newCell.Hash())
 }
