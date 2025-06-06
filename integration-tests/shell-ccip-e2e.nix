@@ -24,6 +24,8 @@ in
       export PG_PASSWORD=postgres
       export PG_DB=chainlink_test
       export CL_DATABASE_URL="postgresql://''${PG_USER}:''${PG_PASSWORD}@localhost:''${PG_PORT}/''${PG_DB}?sslmode=disable"
+      # TODO: remove this once we're public, prevent network lookups for the private module
+      export GOPRIVATE=github.com/smartcontractkit/chainlink-ton
 
       alias setup-e2e="./scripts/e2e/setup-env.sh"
       alias run-e2e="./scripts/e2e/run-test.sh"
