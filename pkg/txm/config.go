@@ -17,17 +17,15 @@ type TONTxmConfig struct {
 	StickyNodeContextEnabled bool          // Whether to use sticky context (single node per lifecycle)
 }
 
-func DefaultTonTxmConfig() TONTxmConfig {
-	return TONTxmConfig{
-		BroadcastChanSize:        100,
-		ConfirmPollInterval:      5 * time.Second,
-		SendRetryDelay:           3 * time.Second,
-		MaxSendRetryAttempts:     5,
-		MaxConfirmationAttempts:  0, // 0 means infinite attempts until TTL
-		TxTTL:                    10 * time.Minute,
-		PruneInterval:            4 * time.Hour,
-		PruneTxExpiration:        2 * time.Hour,
-		SimulationEnabled:        true,
-		StickyNodeContextEnabled: true,
-	}
+var DefaultConfigSet = TONTxmConfig{
+	BroadcastChanSize:        100,
+	ConfirmPollInterval:      5 * time.Second,
+	SendRetryDelay:           3 * time.Second,
+	MaxSendRetryAttempts:     5,
+	MaxConfirmationAttempts:  0, // 0 means infinite attempts until TTL
+	TxTTL:                    10 * time.Minute,
+	PruneInterval:            4 * time.Hour,
+	PruneTxExpiration:        2 * time.Hour,
+	SimulationEnabled:        true,
+	StickyNodeContextEnabled: true,
 }

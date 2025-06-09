@@ -1,6 +1,7 @@
 package txm
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"sync"
@@ -41,7 +42,7 @@ type TONTxm struct {
 }
 
 type TONTxmRequest struct {
-	FromAddress     address.Address // Source wallet address
+	FromWallet      wallet.Wallet   // Source wallet address
 	ContractAddress address.Address // Destination contract or wallet address
 	Body            *cell.Cell      // Encoded message body (method + params)
 	Amount          tlb.Coins       // Amount in nanotons
@@ -90,11 +91,15 @@ func (t *TONTxm) GetClient() ton.APIClientWrapped {
 
 func (t *TONTxm) Start(ctx context.Context) error {
 	return t.Starter.StartOnce("TONTxm", func() error {
-		t.Done.Add(2) // waitgroup: broadcast loop and confirm loop
+		t.Done.Add(1) // waitgroup: broadcast loop and confirm loop
 		go t.broadcastLoop()
 		// go t.confirmLoop()
 		return nil
 	})
+}
+
+func (t *TONTxm) InflightCount() (int, int) {
+	return len(t.BroadcastChan), t.AccountStore.GetTotalInflightCount()
 }
 
 func (t *TONTxm) Close() error {
@@ -110,12 +115,13 @@ func (t *TONTxm) Close() error {
 // the key is the ABI type.
 func (t *TONTxm) Enqueue(request TONTxmRequest) error {
 	// Ensure we can sign with the requested address
-	if _, err := t.Keystore.Sign(context.Background(), request.FromAddress.String(), nil); err != nil {
+	publicKey := fmt.Sprintf("%064x", request.FromWallet.PrivateKey().Public())
+	if _, err := t.Keystore.Sign(context.Background(), publicKey, nil); err != nil {
 		return fmt.Errorf("failed to sign: %w", err)
 	}
 
 	tx := &TONTx{
-		From:            request.FromAddress,
+		From:            *request.FromWallet.Address(),
 		To:              request.ContractAddress,
 		Amount:          request.Amount,
 		Body:            request.Body,
@@ -169,6 +175,7 @@ func (t *TONTxm) broadcastLoop() {
 			}
 
 			internalMsg := &tlb.InternalMessage{
+				SrcAddr:     &tx.From,
 				DstAddr:     &tx.To,
 				Bounce:      tx.Bounceable,
 				IHRDisabled: true,
@@ -223,3 +230,45 @@ func (t *TONTxm) broadcastLoop() {
 
 // 	return true, res.TotalFees, nil
 // }
+
+func isTxFinalizedOnTON(ctx context.Context, api *ton.APIClient, addr *address.Address, targetLt uint64, targetHash []byte) (bool, error) {
+	// Step 1: Get latest masterchain block
+	masterBlock, err := api.CurrentMasterchainInfo(ctx)
+	if err != nil {
+		return false, fmt.Errorf("failed to get masterchain info: %w", err)
+	}
+
+	// Step 2: Get latest account state at that block
+	acc, err := api.GetAccount(ctx, masterBlock, addr)
+	if err != nil {
+		return false, fmt.Errorf("failed to get account state: %w", err)
+	}
+
+	nextLt := acc.LastTxLT
+	nextHash := acc.LastTxHash
+
+	// Step 3: Walk transaction history
+	for i := 0; i < 20; i++ {
+		txs, err := api.ListTransactions(ctx, addr, 10, nextLt, nextHash)
+		if err != nil {
+			return false, fmt.Errorf("failed to list transactions: %w", err)
+		}
+
+		if len(txs) == 0 {
+			break
+		}
+
+		for _, tx := range txs {
+			if tx.LT == targetLt && bytes.Equal(tx.Hash, targetHash) {
+				return true, nil // ✅ Transaction is finalized
+			}
+		}
+
+		// Prepare for next batch
+		last := txs[len(txs)-1]
+		nextLt = last.PrevTxLT
+		nextHash = last.PrevTxHash
+	}
+
+	return false, nil // Not found = not finalized (yet)
+}
