@@ -13,22 +13,16 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/client"
 	"github.com/smartcontractkit/chainlink-ton/pkg/config"
 	"github.com/smartcontractkit/chainlink-ton/pkg/fees"
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
 	"github.com/smartcontractkit/chainlink-ton/pkg/txm"
 )
-
-type LogPoller interface {
-	Start(context.Context) error
-	Ready() error
-	Close() error
-	// TODO(NONEVM-1460): add remaining functions
-}
 
 type Chain interface {
 	types.ChainService
 
 	ID() string
 	TxManager() TxManager
-	LogPoller() LogPoller
+	LogPoller() logpoller.LogPoller
 	FeeEstimator() fees.Estimator
 	MultiClient() *client.MultiClient
 	// TODO(NONEVM-1460): add remaining Chain interface functions
@@ -49,7 +43,7 @@ type chain struct {
 
 	txm         *txm.Txm
 	multiClient *client.MultiClient
-	lp          LogPoller
+	lp          logpoller.LogPoller
 
 	lggr logger.Logger
 	// TODO(NONEVM-1460): implement remaining members
@@ -131,6 +125,6 @@ func (c *chain) MultiClient() *client.MultiClient {
 	return c.multiClient
 }
 
-func (c *chain) LogPoller() LogPoller {
+func (c *chain) LogPoller() logpoller.LogPoller {
 	return c.lp
 }
