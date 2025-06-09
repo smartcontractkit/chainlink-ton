@@ -1,5 +1,3 @@
-import "../access/ownable_2step.tact";
-import "../upgrades/type_and_version.tact";
 import "../shared/array.tact";
 import "./types.tact";
 import "./exit_codes.tact";
@@ -124,7 +122,7 @@ trait MultiOCR3Base {
 
 		throwUnless(ERROR_CONFIG_DIGEST_MISMATCH, reportContext.configDigest == configInfo.configDigest);
 
-		// TODO assert_chain_not_forked
+		// TODO assert_chain_not_forked, not sure how to do this check or if it's even necessary in TON
 
 		let pluginTransmitters = self.ocr3BaseState.transmitterOracles.get(ocrPluginType);
 		throwUnless(ERROR_UNAUTHORIZED_TRANSMITTER, pluginTransmitters != null && pluginTransmitters!!.has(transmitter));
@@ -163,11 +161,11 @@ trait MultiOCR3Base {
 		while (i < signatures.length) {
 			let signature = signatures.get(i).asSlice();
 			let signerKey = signers.get(i);
-			checkSignature(hashedReport, signature, signerKey);
+			throwUnless(ERROR_INVALID_SIGNATURE, checkSignature(hashedReport, signature, signerKey));
 		}
 	}
 
-	fun assignSignerOracles(ocrPluginType: Int, signers: ArrayUint256) {
+	inline fun assignSignerOracles(ocrPluginType: Int, signers: ArrayUint256) {
 		throwUnless(ERROR_REPEATED_SIGNERS, !signers.hasDuplicates());
 		// TODO: We cannot do ed25519 public key validation on chain. For now we assume valid keys.
 		self.ocr3BaseState.signerOracles.set(
@@ -176,7 +174,7 @@ trait MultiOCR3Base {
 		);
 	}
 
-	fun assignTransmitterOracles(ocrPluginType: Int, transmitters: ArrayAddress) {
+	inline fun assignTransmitterOracles(ocrPluginType: Int, transmitters: ArrayAddress) {
 		throwUnless(ERROR_REPEATED_TRANSMITTERS, !transmitters.hasDuplicates());
 		self.ocr3BaseState.transmitterOracles.set(
 			ocrPluginType,

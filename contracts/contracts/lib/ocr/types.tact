@@ -31,13 +31,12 @@ struct OCRConfig {
 	transmitters: ArrayAddress;
 }
 
-fun newOCRConfig(): OCRConfig {
+inline fun newOCRConfig(): OCRConfig {
 	return OCRConfig {
 		configInfo: newConfigInfo(),
 		signers: newArrayUint256(),
 		transmitters: newArrayAddress()
 	}
-
 }
 
 struct ConfigInfo {
@@ -47,7 +46,7 @@ struct ConfigInfo {
 	isSignatureVerificationEnabled: Bool;
 }
 
-fun newConfigInfo(): ConfigInfo {
+inline fun newConfigInfo(): ConfigInfo {
 	return ConfigInfo {
 		configDigest: 0,
 		bigF: 0,
@@ -61,12 +60,9 @@ struct Oracle {
 	role: Int as uint8;
 } 
 
-
 //TODO: On EVM and Aptos this is passed as an array of bytes with manual parsing and validation. Check if it's ok to use this Tact struct isntead.
 struct ReportContext {
 	configDigest: Int as uint256;
 	//Should be a uint64 with 24 bytes of padding
 	sequenceBytes: Int as uint64
 }
-
-
