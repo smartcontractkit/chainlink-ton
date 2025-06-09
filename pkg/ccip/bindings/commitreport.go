@@ -54,6 +54,8 @@ type Signature struct {
 }
 
 // ToCell implements a custom cell serialization for CommitReport to handle TON's cell reference limitations
+//
+//	(Only up to 4 refs per cell, while CommitReport has five)
 func (c *CommitReport) ToCell() (*cell.Cell, error) {
 	mainCell := cell.BeginCell()
 
@@ -137,54 +139,54 @@ func (c *CommitReport) ToCell() (*cell.Cell, error) {
 
 // LoadFromCell loads CommitReport from a cell
 func (c *CommitReport) LoadFromCell(loader *cell.Slice) error {
-	// Load PriceUpdates
+	// first Load PriceUpdates from the loader
 	priceUpdatesCell, err := loader.LoadRef()
 	if err != nil {
 		return fmt.Errorf("failed to load price updates cell: %w", err)
 	}
 
+	// Check if the priceUpdatesCell has enough references
 	if priceUpdatesCell.RefsNum() < 2 {
 		return fmt.Errorf("not enough references in merkle roots cell")
 	}
 
+	// Load TokenPriceUpdates first and GasPriceUpdates second
 	tokenRef, err := priceUpdatesCell.LoadRef()
 	if err != nil {
 		return fmt.Errorf("failed to load token price updates dictionary: %w", err)
 	}
-
 	tokenDict, err := tokenRef.ToDict(32)
 	if err != nil {
 		return err
 	}
-
 	c.PriceUpdates.TokenPriceUpdates = tokenDict
 
 	gasPriceRef, err := priceUpdatesCell.LoadRef()
 	if err != nil {
 		return fmt.Errorf("failed to load gas price dictionary: %w", err)
 	}
-
 	gasPriceDict, err := gasPriceRef.ToDict(32)
 	if err != nil {
 		return err
 	}
 	c.PriceUpdates.GasPriceUpdates = gasPriceDict
 
-	// Load MerkleRoots
+	// Load MerkleRoots next from the loader
 	merkleRootsCell, err := loader.LoadRef()
 	if err != nil {
 		return fmt.Errorf("failed to load merkle roots cell: %w", err)
 	}
 
+	// Check if the merkleRootsCell has enough references
 	if merkleRootsCell.RefsNum() < 2 {
 		return fmt.Errorf("not enough references in merkle roots cell")
 	}
 
+	// Load BlessedMerkleRoots first and UnblessedMerkleRoots second
 	blessedRef, err := merkleRootsCell.LoadRef()
 	if err != nil {
 		return fmt.Errorf("failed to load blessed merkle roots: %w", err)
 	}
-
 	blessedDict, err := blessedRef.ToDict(32)
 	if err != nil {
 		return fmt.Errorf("failed to convert blessed merkle roots to dict: %w", err)
@@ -201,14 +203,10 @@ func (c *CommitReport) LoadFromCell(loader *cell.Slice) error {
 	}
 	c.MerkleRoot.UnblessedMerkleRoots = unblessedDict
 
-	// Load RMNSignatures
+	// Finally load RMNSignatures from the loader
 	sigRef, err := loader.LoadRef()
 	if err != nil {
 		return fmt.Errorf("failed to load RMN signatures: %w", err)
-	}
-	if sigRef == nil {
-		c.RMNSignatures = nil
-		return nil // No signatures to load
 	}
 
 	c.RMNSignatures, err = sigRef.ToDict(32)

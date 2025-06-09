@@ -71,6 +71,5 @@ func TestCommitReport_gobinding(t *testing.T) {
 	var decoded CommitReport
 	err = tlb.LoadFromCell(&decoded, newCell.BeginParse())
 	require.NoError(t, err)
-	//require.Equal(t, commitReport, decoded)
 	require.Equal(t, c.Hash(), newCell.Hash())
 }
