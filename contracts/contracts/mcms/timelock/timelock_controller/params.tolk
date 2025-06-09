@@ -1,0 +1,12 @@
+const DONE_TIMESTAMP = 1;
+const ADMIN_ROLE = 0;
+const PROPOSER_ROLE = 1;
+const CANCELLER_ROLE = 2;
+const EXECUTOR_ROLE = 3;
+const ADD_ACCOUNT = 0;
+const REMOVE_ACCOUNT = 1;
+const UNSET_STATE = 0;
+const WAITING_STATE = 1;
+const READY_STATE = 2;
+const DONE_STATE = 3;
+const MIN_TON_FOR_STORAGE = 1000000000; // 1 TON
