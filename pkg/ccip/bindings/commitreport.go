@@ -72,71 +72,26 @@ func SliceToDict[T any](slice []T) (*cell.Dictionary, error) {
 	return dict, nil
 }
 
-// DictToSliceMerkleRoot converts a *boc.Dictionary to a []MerkleRoot.
-func DictToSliceMerkleRoot(dict *cell.Dictionary) ([]MerkleRoot, error) {
-	var result []MerkleRoot
-	d, err := dict.LoadAll()
+// DictToSlice converts a *cell.Dictionary to a slice of any deserializable type T.
+func DictToSlice[T any](dict *cell.Dictionary) ([]T, error) {
+	var result []T
+
+	if dict == nil {
+		return nil, nil
+	}
+
+	entries, err := dict.LoadAll()
 	if err != nil {
 		return nil, err
 	}
 
-	for i, valueCell := range d {
-		var item MerkleRoot
-		if err := tlb.LoadFromCell(&item, valueCell.Value); err != nil {
-			return nil, fmt.Errorf("failed to deserialize MerkleRoot at index %d: %w", i, err)
+	for i, entry := range entries {
+		var item T
+		if err := tlb.LoadFromCell(&item, entry.Value); err != nil {
+			return nil, fmt.Errorf("failed to deserialize item of type %T at index %d: %w", item, i, err)
 		}
 		result = append(result, item)
 	}
-	return result, nil
-}
 
-// DictToSliceSignature converts a *boc.Dictionary to a []Signature.
-func DictToSliceSignature(dict *cell.Dictionary) ([]Signature, error) {
-	var result []Signature
-	d, err := dict.LoadAll()
-	if err != nil {
-		return nil, err
-	}
-	for i, slice := range d {
-		var item Signature
-		if err := tlb.LoadFromCell(&item, slice.Value); err != nil {
-			return nil, fmt.Errorf("failed to deserialize Signature at index %d: %w", i, err)
-		}
-		result = append(result, item)
-	}
-	return result, nil
-}
-
-// DictToSliceTokenPriceUpdate converts a *boc.Dictionary to a []TokenPriceUpdate.
-func DictToSliceTokenPriceUpdate(dict *cell.Dictionary) ([]TokenPriceUpdate, error) {
-	var result []TokenPriceUpdate
-	d, err := dict.LoadAll()
-	if err != nil {
-		return nil, err
-	}
-	for i, slice := range d {
-		var item TokenPriceUpdate
-		if err := tlb.LoadFromCell(&item, slice.Value); err != nil {
-			return nil, fmt.Errorf("failed to deserialize TokenPriceUpdate at index %d: %w", i, err)
-		}
-		result = append(result, item)
-	}
-	return result, nil
-}
-
-// DictToSliceGasPriceUpdate converts a *boc.Dictionary to a []GasPriceUpdate.
-func DictToSliceGasPriceUpdate(dict *cell.Dictionary) ([]GasPriceUpdate, error) {
-	var result []GasPriceUpdate
-	d, err := dict.LoadAll()
-	if err != nil {
-		return nil, err
-	}
-	for i, slice := range d {
-		var item GasPriceUpdate
-		if err := tlb.LoadFromCell(&item, slice.Value); err != nil {
-			return nil, fmt.Errorf("failed to deserialize GasPriceUpdate at index %d: %w", i, err)
-		}
-		result = append(result, item)
-	}
 	return result, nil
 }
