@@ -60,10 +60,7 @@ func TestCommitReport_gobinding(t *testing.T) {
 
 	// Encode to cell
 	c, err := tlb.ToCell(commitReport)
-	if err != nil {
-		fmt.Printf("Error encoding: %v\n", err)
-		return
-	}
+	require.NoError(t, err)
 
 	rb := c.ToBOC()
 	newCell, err := cell.FromBOC(rb)
