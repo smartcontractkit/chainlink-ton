@@ -60,7 +60,7 @@ func TestCommitReport_gobinding(t *testing.T) {
 	}
 
 	// Encode to cell
-	c, err := commitReport.ToCell()
+	c, err := tlb.ToCell(commitReport)
 	require.NoError(t, err)
 
 	rb := c.ToBOC()
