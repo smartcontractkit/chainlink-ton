@@ -9,7 +9,7 @@ import (
 )
 
 type UnconfirmedTx struct {
-	SeqNo        uint64
+	LT           uint64
 	ExpirationMs uint64
 	Tx           *TONTx
 }
@@ -27,17 +27,17 @@ func NewTxStore() *TxStore {
 	}
 }
 
-// AddUnconfirmed adds a new unconfirmed transaction by seqno.
-func (s *TxStore) AddUnconfirmed(seqNo uint64, expirationMs uint64, tx *TONTx) error {
+// AddUnconfirmed adds a new unconfirmed transaction by LT.
+func (s *TxStore) AddUnconfirmed(lt uint64, expirationMs uint64, tx *TONTx) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	if _, exists := s.unconfirmedTxes[seqNo]; exists {
-		return fmt.Errorf("seqNo already exists: %d", seqNo)
+	if _, exists := s.unconfirmedTxes[lt]; exists {
+		return fmt.Errorf("lt already exists: %d", lt)
 	}
 
-	s.unconfirmedTxes[seqNo] = &UnconfirmedTx{
-		SeqNo:        seqNo,
+	s.unconfirmedTxes[lt] = &UnconfirmedTx{
+		LT:           lt,
 		ExpirationMs: expirationMs,
 		Tx:           tx,
 	}
@@ -45,16 +45,16 @@ func (s *TxStore) AddUnconfirmed(seqNo uint64, expirationMs uint64, tx *TONTx) e
 	return nil
 }
 
-// Confirm marks a transaction as confirmed and removes it by seqno.
-func (s *TxStore) Confirm(seqNo uint64) error {
+// Confirm marks a transaction as confirmed and removes it by LT.
+func (s *TxStore) Confirm(lt uint64) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	if _, exists := s.unconfirmedTxes[seqNo]; !exists {
-		return fmt.Errorf("no such unconfirmed seqNo: %d", seqNo)
+	if _, exists := s.unconfirmedTxes[lt]; !exists {
+		return fmt.Errorf("no such unconfirmed LT: %d", lt)
 	}
 
-	delete(s.unconfirmedTxes, seqNo)
+	delete(s.unconfirmedTxes, lt)
 	return nil
 }
 
