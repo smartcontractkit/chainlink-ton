@@ -40,7 +40,10 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
 
     val (_, adminExists) = accountExists(STORAGE_ADMIN_ACCOUNTS, senderAddress);
     if (adminExists) {
-        if (handleAdminMessages(op, queryID, myBalance, msgValue, msgBody)) {
+        var msgHandeled = Upgradeable__onInternalMessage(op, myBalance, msgValue, msgFull, msgBody)
+          || RBACAccessControl__onInternalMessage(op, myBalance, msgValue, msgFull, msgBody)
+          || RBACTimelockAdmin__onInternalMessage(op, myBalance, msgValue, msgFull, msgBody);
+        if (msgHandeled) {
             return;
         }
     }

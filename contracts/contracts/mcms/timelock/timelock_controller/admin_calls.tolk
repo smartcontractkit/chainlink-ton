@@ -7,7 +7,7 @@ import "./storage.tolk";
 import "../common/accounts.tolk";
 
 @inline
-fun handleAdminMessages(op: int, queryID: int, myBalance: int, msgValue: int, msgBody: slice): int {
+fun RBACAccessControl__onInternalMessage(op: int, myBalance: int, msgValue: int, msgFull: cell, msgBody: slice) {
     if (op == OP_UPDATE_ACCOUNTS) {
         val operation = msgBody.loadUint(1);
         val role = msgBody.loadUint(32);
@@ -52,6 +52,25 @@ fun handleAdminMessages(op: int, queryID: int, myBalance: int, msgValue: int, ms
         return -1;
     }
 
+    // We didn't handle the message, so we return 0
+    return 0;
+}
+
+@inline
+fun Upgradeable__onInternalMessage(op: int, myBalance: int, msgValue: int, msgFull: cell, msgBody: slice) {
+    if (op == OP_UPGRADE) {
+        val (newData, newCode) = (msgBody.loadRef(), msgBody.loadRef());
+        msgBody.assertEnd();
+        contract.setData(newData);
+        contract.setCodePostponed(newCode);
+        return -1;
+    }
+
+    return 0;
+}
+
+@inline
+fun RBACTimelockAdmin__onInternalMessage(op: int, myBalance: int, msgValue: int, msgFull: cell, msgBody: slice) {
     if (op == OP_UPDATE_DELAY) {
         val delay = msgBody.loadUint(32);
         msgBody.assertEnd();
@@ -73,14 +92,6 @@ fun handleAdminMessages(op: int, queryID: int, myBalance: int, msgValue: int, ms
         }
 
         saveStorage();
-        return -1;
-    }
-
-    if (op == OP_UPGRADE) {
-        val (newData, newCode) = (msgBody.loadRef(), msgBody.loadRef());
-        msgBody.assertEnd();
-        contract.setData(newData);
-        contract.setCodePostponed(newCode);
         return -1;
     }
 
