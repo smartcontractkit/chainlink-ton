@@ -6,7 +6,7 @@ struct (0x00000001) Step {
     queryId: uint64;
 }
 
-fun upgradeableCounter$handleMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: slice): bool {    
+fun upgradeableCounter$handleMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: slice, migrate: () -> void): bool {    
     // Upgradeable Handlers
-    return upgradeable$handleMessage(myBalance, msgValue, msgFull, msgBody);
+    return upgradeable$handleMessage(myBalance, msgValue, msgFull, msgBody, migrate);
 }

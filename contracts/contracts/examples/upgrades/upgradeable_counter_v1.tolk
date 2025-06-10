@@ -22,7 +22,7 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
         return;
     }
 
-    if (upgradeableCounter$handleMessage(myBalance, msgValue, msgFull, msgBody)) {
+    if (upgradeableCounter$handleMessage(myBalance, msgValue, msgFull, msgBody, migrate)) {
         return;
     }
 
@@ -43,3 +43,6 @@ get value(): int {
     val storage = loadData();
     return storage.value;
 }
+
+@method_id(1666)
+fun migrate(): void { }

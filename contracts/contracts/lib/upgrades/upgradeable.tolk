@@ -7,13 +7,13 @@ struct (0x0000000A) Upgrade {
     code: cell;
 }
 
-fun upgradeable$handleMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: slice): bool {
+fun upgradeable$handleMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: slice, migrate: () -> void): bool {
     try {
         var upgrade = Upgrade.fromSlice(msgBody);
 
         var data = contract.getData();
         debug.printString("Upgrade received:");
-        doUpgrade(upgrade.code);
+        doUpgrade(upgrade.code, migrate);
         return true;
     } catch(exitCode) {
         if (exitCode != 63) { // 63 is the error code for unknown opcode
@@ -24,14 +24,12 @@ fun upgradeable$handleMessage(myBalance: int, msgValue: int, msgFull: cell, msgB
 
 }
 
-fun doUpgrade(code: cell) {
+fun doUpgrade(code: cell, migrate: () -> void) {
     contract.setCodePostponed(code);
     debug.printString("Code postponed, now migrating data...");
     var cont = transformSliceToContinuation(code.beginParse());
     debug.printString("Loading continuation as current code...");
     setTvmRegisterC3(cont);
     debug.printString("Jumping to migration function...");
-    wouldBeMigrateFunction();
+    migrate();
 }
-
-fun wouldBeMigrateFunction(): void asm "1666 JMP";

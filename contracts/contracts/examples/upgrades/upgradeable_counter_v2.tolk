@@ -22,6 +22,10 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
     if (isMessageBounced(flags)) { // ignore all bounced messages
         return;
     }
+    
+    if (upgradeableCounter$handleMessage(myBalance, msgValue, msgFull, msgBody, migrate)) {
+        return;
+    }
 
     val msg = IncomingMessage.fromSlice(msgBody);  // 63 error code is thrown if the message opcode is unknown
 
