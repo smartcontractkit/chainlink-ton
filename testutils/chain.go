@@ -25,7 +25,7 @@ import (
 
 var once = &sync.Once{}
 
-func CreateTonWallet(t *testing.T, client ton.APIClientWrapped, version wallet.Version, option wallet.Option) *wallet.Wallet {
+func CreateTonWallet(t *testing.T, client ton.APIClientWrapped, version wallet.VersionConfig, option wallet.Option) *wallet.Wallet {
 	seed := wallet.NewSeed()
 	rw, err := wallet.FromSeed(client, seed, version)
 	require.NoError(t, err, fmt.Errorf("Failed to generate random wallet: %v", err))

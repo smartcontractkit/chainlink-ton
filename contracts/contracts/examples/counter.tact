@@ -8,9 +8,14 @@ import "../lib/upgrades/type_and_version";
 //
 // Opcodes are explicitly set to match the original constants.
 //
-message(4) SetCount {
+message(4) Increment {
     queryId: Int as uint64; // Standard query_id field
-    newCount: Int as uint32; // Argument for the operation
+}
+
+message(5) IncrementMult {
+    queryId: Int as uint64; // Standard query_id field
+    a: Int as uint32; // Argument for the operation
+    b: Int as uint32; // Argument for the operation
 }
 
 // --- Contract Definition ---
@@ -34,10 +39,17 @@ contract Counter with TypeAndVersion {
     // Each receiver handles one specific message type (identified by opcode).
     // Tact automatically parses the message body into the `msg` object.[3, 4, 5]
 
-    // Handles SetCount message (opcode 4)
-    receive(msg: SetCount) {
+    // Handles Increment message (opcode 4)
+    receive(msg: Increment) {
         // Update state variable directly using the parsed argument from the message.
-        self.count = msg.newCount;
+        self.count += 1;
+        // State change is automatically persisted by Tact. No save_data() call needed.[1]
+    }
+
+    // Handles Increment message (opcode 4)
+    receive(msg: IncrementMult) {
+        // Update state variable directly using the parsed argument from the message.
+        self.count += msg.a * msg.b;
         // State change is automatically persisted by Tact. No save_data() call needed.[1]
     }
 

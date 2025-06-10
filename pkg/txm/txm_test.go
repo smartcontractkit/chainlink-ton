@@ -21,6 +21,14 @@ import (
 
 var keystore *testutils.TestKeystore
 
+var walletVersion = wallet.ConfigHighloadV3{
+	MessageTTL: 120, // 2 minutes TTL
+	MessageBuilder: func(ctx context.Context, subWalletId uint32) (id uint32, createdAt int64, err error) {
+		tm := time.Now().Unix() - 30
+		return uint32(10000 + tm%(1<<23)), tm, nil
+	},
+}
+
 func TestTxmLocal(t *testing.T) {
 	logger := logger.Test(t)
 
@@ -28,14 +36,14 @@ func TestTxmLocal(t *testing.T) {
 	require.NotNil(t, nodeClient)
 	logger.Debugw("Started MyLocalTON")
 
-	wallet := testutils.CreateTonWallet(t, nodeClient, wallet.V3R2, wallet.WithWorkchain(0))
+	wallet := testutils.CreateTonWallet(t, nodeClient, walletVersion, wallet.WithWorkchain(0))
 	require.NotNil(t, wallet)
 	logger.Debugw("Created TON Wallet")
 
 	tonChain := testutils.StartTonChain(t, nodeClient, chainsel.TON_LOCALNET.Selector, wallet)
 	require.NotNil(t, tonChain)
 
-	time.Sleep(6 * time.Second)
+	time.Sleep(7 * time.Second)
 
 	block, err := tonChain.Client.CurrentMasterchainInfo(context.Background())
 	require.NoError(t, err)
@@ -72,12 +80,8 @@ func runTxmTest(t *testing.T, logger logger.Logger, config txm.TONTxmConfig, ton
 	counterAddr, stateInit, err := testutils.DeployCounterContract(ctx, tonChain.Client, tonChain.Wallet)
 	require.NoError(t, err)
 
-	// // 2. Send deploy tx
-	body := cell.BeginCell().
-		// MustStoreUInt(4, 32).  // opcode: SetCount
-		// MustStoreUInt(1, 64).  // queryId
-		// MustStoreUInt(14, 32). // newCount
-		EndCell()
+	// 2. Send deploy tx
+	body := cell.BeginCell().EndCell()
 	err = tonTxm.Enqueue(txm.TONTxmRequest{
 		FromWallet:      *tonChain.Wallet,
 		ContractAddress: *counterAddr,
@@ -88,35 +92,57 @@ func runTxmTest(t *testing.T, logger logger.Logger, config txm.TONTxmConfig, ton
 	})
 	require.NoError(t, err)
 
-	// Wait for deployment tx
-	time.Sleep(10 * time.Second)
+	// 3. Wait for deployment tx
+	time.Sleep(6 * time.Second)
 
-	// 3. Check initial state
+	// 4. Check initial state
 	initial, err := testutils.ReadCounter(ctx, tonChain.Client, counterAddr)
 	require.NoError(t, err)
 	logger.Infow("Deployed counter contract", "address", counterAddr.String(), "stateInit", stateInit.String())
 	logger.Infow("Initial counter value", "value", initial)
-
 	require.Equal(t, uint64(0), initial)
 
-	// // 4. Increment multiple times
-	// expected := initial
-	// for i := 0; i < iterations; i++ {
-	// 	body, err := testutils.EncodeIncrement()
-	// 	require.NoError(t, err)
+	// 5. Increment multiple times
+	queryId := uint64(0)
+	expected := initial
+	for i := 0; i < iterations; i++ {
+		incrementMsgBody, err := testutils.EncodeIncrement(queryId)
+		require.NoError(t, err)
 
-	// 	err = tonTxm.Enqueue(txm.TONTxmRequest{
-	// 		FromAddress:     *tonChain.Wallet.Address(),
-	// 		ContractAddress: *counterAddr,
-	// 		Amount:          tlb.MustFromTON("0.05"),
-	// 		Bounce:          true,
-	// 		Body:            body,
-	// 	})
-	// 	require.NoError(t, err)
-	// 	expected++
-	// }
+		err = tonTxm.Enqueue(txm.TONTxmRequest{
+			FromWallet:      *tonChain.Wallet,
+			ContractAddress: *counterAddr,
+			Amount:          tlb.MustFromTON("0.05"),
+			Bounce:          false,
+			Body:            incrementMsgBody,
+		})
+		require.NoError(t, err)
+		expected++
+		queryId++
 
-	// // 5. Wait for all txs to process
+		incrementMultMsgBody, err := testutils.EncodeIncrementMult(queryId, 3, 4) // incremented value
+		require.NoError(t, err)
+
+		err = tonTxm.Enqueue(txm.TONTxmRequest{
+			FromWallet:      *tonChain.Wallet,
+			ContractAddress: *counterAddr,
+			Amount:          tlb.MustFromTON("0.05"),
+			Bounce:          false,
+			Body:            incrementMultMsgBody,
+		})
+		require.NoError(t, err)
+		expected += 3 * 4
+		queryId++
+	}
+
+	// 6. Verify all tx were confirmed
+	require.Eventually(t, func() bool {
+		final, err := testutils.ReadCounter(ctx, tonChain.Client, counterAddr)
+		require.NoError(t, err)
+		return final == expected
+	}, 60*time.Second, 250*time.Millisecond)
+
+	// // 4. Wait for all txs
 	// for {
 	// 	queueLen, unconfirmedLen := tonTxm.InflightCount()
 	// 	logger.Debugw("Inflight count", "queued", queueLen, "unconfirmed", unconfirmedLen)
@@ -126,9 +152,9 @@ func runTxmTest(t *testing.T, logger logger.Logger, config txm.TONTxmConfig, ton
 	// 	time.Sleep(500 * time.Millisecond)
 	// }
 
-	// time.Sleep(5 * time.Second) // finality buffer
+	// time.Sleep(5 * time.Second) // Finality buffer
 
-	// // 6. Verify final counter value
+	// // 5. Check final value
 	// final, err := testutils.ReadCounter(ctx, tonChain.Client, counterAddr)
 	// require.NoError(t, err)
 	// require.Equal(t, expected, final)

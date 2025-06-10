@@ -1,7 +1,6 @@
 package txm
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"sync"
@@ -156,15 +155,6 @@ func (t *TONTxm) broadcastLoop() {
 		case tx := <-t.BroadcastChan:
 			t.Logger.Debugw("broadcasting transaction", "to", tx.To.String(), "amount", tx.Amount.Nano().String())
 
-			// 1. Estimate gas (optional)
-			// if tx.EstimateGas {
-			// 	ok, err := t.SimulateTransaction(ctx, tx)
-			// 	if err != nil || !ok {
-			// 		t.Logger.Errorw("simulation failed", "err", err, "to", tx.To.String())
-			// 		continue
-			// 	}
-			// }
-
 			var st tlb.StateInit
 			if tx.StateInit != nil {
 				err := tlb.LoadFromCell(&st, tx.StateInit.BeginParse())
@@ -182,6 +172,8 @@ func (t *TONTxm) broadcastLoop() {
 				Amount:      tx.Amount,
 				StateInit:   &st,
 				Body:        tx.Body,
+				CreatedAt:   uint32(tx.CreatedAt.Unix()),
+				CreatedLT:   uint64(tx.CreatedAt.Unix()),
 			}
 
 			msg := &wallet.Message{
@@ -199,76 +191,30 @@ func (t *TONTxm) broadcastLoop() {
 			// }
 
 			// 3. Sign and send
-			if err := t.Wallet.Send(ctx, msg); err != nil {
+			tlbTx, block, err := t.Wallet.SendWaitTransaction(ctx, msg)
+			if err != nil {
 				t.Logger.Errorw("failed to broadcast tx", "err", err, "to", tx.To.String())
 				continue
 			}
 
 			t.Logger.Infow("transaction broadcasted", "to", tx.To.String(), "amount", tx.Amount.Nano().String())
 
+			txStore := t.AccountStore.GetTxStore(t.Wallet.Address().String())
+
+			blockData, err := t.Client.GetBlockData(ctx, block)
+			if err != nil {
+				t.Logger.Errorf("GetBlockData err: %w", err)
+			}
+
+			expirationTimestampSecs := uint64(blockData.BlockInfo.GenUtime) + uint64(t.Config.SendRetryDelay.Seconds())
+			err = txStore.AddUnconfirmed(tlbTx.LT, expirationTimestampSecs, tx)
+
+			if err != nil {
+				t.Logger.Errorf("AddUnconfirmed err: %w", err)
+			}
 		case <-t.Stop:
 			t.Logger.Debugw("broadcastLoop: stopped")
 			return
 		}
 	}
-}
-
-// func (t *TONTxm) SimulateTransaction(ctx context.Context, msg *wallet.Message, from address.Address) (bool, uint64, error) {
-// 	extMsgCell, err := wallet.EncodeExternalMessage(msg, &from)
-// 	if err != nil {
-// 		return false, 0, fmt.Errorf("failed to encode external message: %w", err)
-// 	}
-
-// 	res, err := t.Client.RunExecutor(ctx, *msg.InternalMessage.DstAddr, extMsgCell, nil)
-// 	if err != nil {
-// 		return false, 0, fmt.Errorf("simulation failed: %w", err)
-// 	}
-
-// 	if !res.Success {
-// 		return false, 0, fmt.Errorf("simulation failed with exit code %d", res.ExitCode)
-// 	}
-
-// 	return true, res.TotalFees, nil
-// }
-
-func isTxFinalizedOnTON(ctx context.Context, api *ton.APIClient, addr *address.Address, targetLt uint64, targetHash []byte) (bool, error) {
-	// Step 1: Get latest masterchain block
-	masterBlock, err := api.CurrentMasterchainInfo(ctx)
-	if err != nil {
-		return false, fmt.Errorf("failed to get masterchain info: %w", err)
-	}
-
-	// Step 2: Get latest account state at that block
-	acc, err := api.GetAccount(ctx, masterBlock, addr)
-	if err != nil {
-		return false, fmt.Errorf("failed to get account state: %w", err)
-	}
-
-	nextLt := acc.LastTxLT
-	nextHash := acc.LastTxHash
-
-	// Step 3: Walk transaction history
-	for i := 0; i < 20; i++ {
-		txs, err := api.ListTransactions(ctx, addr, 10, nextLt, nextHash)
-		if err != nil {
-			return false, fmt.Errorf("failed to list transactions: %w", err)
-		}
-
-		if len(txs) == 0 {
-			break
-		}
-
-		for _, tx := range txs {
-			if tx.LT == targetLt && bytes.Equal(tx.Hash, targetHash) {
-				return true, nil // ✅ Transaction is finalized
-			}
-		}
-
-		// Prepare for next batch
-		last := txs[len(txs)-1]
-		nextLt = last.PrevTxLT
-		nextHash = last.PrevTxHash
-	}
-
-	return false, nil // Not found = not finalized (yet)
 }

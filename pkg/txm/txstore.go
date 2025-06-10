@@ -9,8 +9,8 @@ import (
 )
 
 type UnconfirmedTx struct {
-	Hash         string
-	ExpirationMs int64
+	SeqNo        uint64
+	ExpirationMs uint64
 	Tx           *TONTx
 }
 
@@ -18,25 +18,26 @@ type UnconfirmedTx struct {
 type TxStore struct {
 	lock sync.RWMutex
 
-	unconfirmedTxes map[string]*UnconfirmedTx
+	unconfirmedTxes map[uint64]*UnconfirmedTx
 }
 
 func NewTxStore() *TxStore {
 	return &TxStore{
-		unconfirmedTxes: map[string]*UnconfirmedTx{},
+		unconfirmedTxes: map[uint64]*UnconfirmedTx{},
 	}
 }
 
-func (s *TxStore) AddUnconfirmed(hash string, expirationMs int64, tx *TONTx) error {
+// AddUnconfirmed adds a new unconfirmed transaction by seqno.
+func (s *TxStore) AddUnconfirmed(seqNo uint64, expirationMs uint64, tx *TONTx) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	if _, exists := s.unconfirmedTxes[hash]; exists {
-		return fmt.Errorf("hash already exists: %s", hash)
+	if _, exists := s.unconfirmedTxes[seqNo]; exists {
+		return fmt.Errorf("seqNo already exists: %d", seqNo)
 	}
 
-	s.unconfirmedTxes[hash] = &UnconfirmedTx{
-		Hash:         hash,
+	s.unconfirmedTxes[seqNo] = &UnconfirmedTx{
+		SeqNo:        seqNo,
 		ExpirationMs: expirationMs,
 		Tx:           tx,
 	}
@@ -44,17 +45,20 @@ func (s *TxStore) AddUnconfirmed(hash string, expirationMs int64, tx *TONTx) err
 	return nil
 }
 
-func (s *TxStore) Confirm(hash string) error {
+// Confirm marks a transaction as confirmed and removes it by seqno.
+func (s *TxStore) Confirm(seqNo uint64) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	if _, exists := s.unconfirmedTxes[hash]; !exists {
-		return fmt.Errorf("no such unconfirmed hash: %s", hash)
+	if _, exists := s.unconfirmedTxes[seqNo]; !exists {
+		return fmt.Errorf("no such unconfirmed seqNo: %d", seqNo)
 	}
-	delete(s.unconfirmedTxes, hash)
+
+	delete(s.unconfirmedTxes, seqNo)
 	return nil
 }
 
+// GetUnconfirmed returns all unconfirmed transactions sorted by expiration time ascending.
 func (s *TxStore) GetUnconfirmed() []*UnconfirmedTx {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
@@ -62,9 +66,7 @@ func (s *TxStore) GetUnconfirmed() []*UnconfirmedTx {
 	unconfirmed := maps.Values(s.unconfirmedTxes)
 
 	sort.Slice(unconfirmed, func(i, j int) bool {
-		a := unconfirmed[i]
-		b := unconfirmed[j]
-		return a.ExpirationMs < b.ExpirationMs
+		return unconfirmed[i].ExpirationMs < unconfirmed[j].ExpirationMs
 	})
 
 	return unconfirmed
@@ -87,19 +89,21 @@ func NewAccountStore() *AccountStore {
 	}
 }
 
-func (c *AccountStore) GetTxStore(fromAddress string) *TxStore {
+// GetTxStore returns the TxStore for an account, creating it if missing.
+func (c *AccountStore) GetTxStore(accountAddress string) *TxStore {
 	c.lock.Lock()
 	defer c.lock.Unlock()
-	store, ok := c.store[fromAddress]
-	if !ok {
+
+	store, exists := c.store[accountAddress]
+	if !exists {
 		store = NewTxStore()
-		c.store[fromAddress] = store
+		c.store[accountAddress] = store
 	}
 	return store
 }
 
+// GetTotalInflightCount returns the total count of unconfirmed txs across all accounts.
 func (c *AccountStore) GetTotalInflightCount() int {
-	// use read lock for methods that read underlying data
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 
@@ -107,18 +111,17 @@ func (c *AccountStore) GetTotalInflightCount() int {
 	for _, store := range c.store {
 		count += store.InflightCount()
 	}
-
 	return count
 }
 
+// GetAllUnconfirmed returns a map from account address to their list of unconfirmed transactions.
 func (c *AccountStore) GetAllUnconfirmed() map[string][]*UnconfirmedTx {
-	// use read lock for methods that read underlying data
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 
 	allUnconfirmed := map[string][]*UnconfirmedTx{}
-	for fromAddressStr, store := range c.store {
-		allUnconfirmed[fromAddressStr] = store.GetUnconfirmed()
+	for account, store := range c.store {
+		allUnconfirmed[account] = store.GetUnconfirmed()
 	}
 	return allUnconfirmed
 }
