@@ -46,3 +46,9 @@ get value(): int {
 
 @method_id(1666)
 fun migrate(): void { }
+
+const version= "1.0.0";
+
+get type_and_version(): cell {
+    return upgradeableCounter$type_and_version(version);
+}

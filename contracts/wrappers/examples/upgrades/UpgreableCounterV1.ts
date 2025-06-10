@@ -89,4 +89,19 @@ export class UpgradeableCounterV1 implements Contract {
     const result = await provider.get('value', [])
     return result.stack.readNumber()
   }
+
+  async getTypeAndVersion(provider: ContractProvider): Promise<string> {
+    const result = await provider.get('type_and_version', [])
+    return result.stack.readString()
+  }
+
+  async getCode(provider: ContractProvider): Promise<Cell> {
+    const result = await provider.get('code', [])
+    return result.stack.readCell()
+  }
+
+  async getCodeHash(provider: ContractProvider): Promise<number> {
+    const result = await provider.get('code_hash', [])
+    return result.stack.readNumber()
+  }
 }

@@ -61,3 +61,9 @@ fun migrate() {
     contract.setData(newStorage.toCell());
     debug.printString("Migration completed successfully.");
 }
+
+const version= "2.0.0";
+
+get type_and_version(): cell {
+    return upgradeableCounter$type_and_version(version);
+}
