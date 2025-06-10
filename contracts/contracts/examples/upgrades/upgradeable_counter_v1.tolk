@@ -1,8 +1,6 @@
 import "./upgradeable_counter.tolk";
 import "./upgradeable_counter_v1_storage.tolk";
 
-type IncomingMessage = Step;
-
 fun loadData() {
     return StorageV1.fromCell(contract.getData());
 }
@@ -22,20 +20,16 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
         return;
     }
 
-    if (upgradeableCounter$handleMessage(myBalance, msgValue, msgFull, msgBody, migrate)) {
+    if (upgradeableCounter$handleMessage(myBalance, msgValue, msgFull, msgBody, migrateStorage, step)) {
         return;
     }
+}
 
-    val msg = IncomingMessage.fromSlice(msgBody);  // 63 error code is thrown if the message opcode is unknown
-
-    match (msg) {
-        Step => {
-            /// Instructs the contract to step the counter.
-            var storage = loadData();
-            storage.value += 1;
-            saveData(storage);
-        }
-    }
+fun step(queryId: uint64) {
+    /// Instructs the contract to step the counter.
+    var storage = loadData();
+    storage.value += 1;
+    saveData(storage);
 }
 
 /// Gets the current counter value.

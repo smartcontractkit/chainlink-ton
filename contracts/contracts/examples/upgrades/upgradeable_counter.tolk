@@ -24,9 +24,30 @@ struct (0x00000001) Step {
     queryId: uint64;
 }
 
-fun upgradeableCounter$handleMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: slice, migrateStorage: (cell) -> cell): bool {    
+type IncomingMessage = Step;
+
+fun upgradeableCounter$handleMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: slice, migrateStorage: (cell) -> cell, step: (uint64) -> void): bool {    
     // Upgradeable Handlers
-    return upgradeable$handleMessage(myBalance, msgValue, msgFull, msgBody, migrateStorage);
+    if (upgradeable$handleMessage(myBalance, msgValue, msgFull, msgBody, migrateStorage)) {
+        return true;
+    }
+
+    try {   
+        val msg = IncomingMessage.fromSlice(msgBody);
+
+        match (msg) {
+            Step => {
+                /// Instructs the contract to step the counter.
+                step(msg.queryId);
+            }
+        }
+    } catch (exitCode) {
+        if (exitCode != 63) { // 63 is the error code for unknown opcode
+            throw exitCode; // rethrow other errors
+        }
+        return false; // ignore unknown opcodes
+    }
+    return true; // message handled
 }
 
 const typeStr= "com.chainlink.ton.examples.upgrades.UpgradeableCounter";
