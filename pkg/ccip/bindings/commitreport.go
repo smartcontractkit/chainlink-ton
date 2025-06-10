@@ -249,7 +249,7 @@ func SliceToDict[T any](slice []T) (*cell.Dictionary, error) {
 func DictToSlice[T any](dict *cell.Dictionary) ([]T, error) {
 	var result []T
 
-	if dict == nil {
+	if dict == nil || dict.IsEmpty() {
 		return nil, nil
 	}
 
