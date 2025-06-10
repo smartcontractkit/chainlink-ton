@@ -45,7 +45,7 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
         SetCount => {
             /// Instructs the contract to step the counter.
             var storage = loadData();
-            storage.value += msg.newCount;
+            storage.value = msg.newCount;
             saveData(storage);
         }
     }
@@ -61,7 +61,7 @@ get id(): int {
     val storage = loadData();
     return storage.id;
 }
-    
+
 const contract_type= "com.chainlink.ton.examples.Counter";
 
 const version= "1.0.0";

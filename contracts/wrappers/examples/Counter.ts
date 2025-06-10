@@ -28,17 +28,17 @@ export class Counter implements Contract {
     readonly init?: { code: Cell; data: Cell },
   ) {}
 
-  static createFromAddress(address: Address) {
+  static createFromAddress(address: Address): Counter {
     return new Counter(address)
   }
 
-  static createFromConfig(config: CounterConfig, code: Cell, workchain = 0) {
+  static createFromConfig(config: CounterConfig, code: Cell, workchain = 0): Counter {
     const data = counterConfigToCell(config)
     const init = { code, data }
     return new Counter(contractAddress(workchain, init), init)
   }
 
-  async sendDeploy(provider: ContractProvider, via: Sender, value: bigint) {
+  async sendDeploy(provider: ContractProvider, via: Sender, value: bigint): Promise<void> {
     await provider.internal(via, {
       value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
@@ -52,32 +52,42 @@ export class Counter implements Contract {
     opts: {
       value: bigint
       queryId?: number
-      count: number
+      newCount: number
     },
-  ) {
+  ): Promise<void> {
     await provider.internal(via, {
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: beginCell()
         .storeUint(Opcodes.OP_SET_COUNT, 32)
         .storeUint(opts.queryId ?? 0, 64)
-        .storeUint(opts.count, 32)
+        .storeUint(opts.newCount, 32)
         .endCell(),
     })
   }
 
-  async getValue(provider: ContractProvider) {
+  async getValue(provider: ContractProvider): Promise<number> {
     const result = await provider.get('value', [])
     return result.stack.readNumber()
   }
 
-  async getId(provider: ContractProvider) {
+  async getId(provider: ContractProvider): Promise<number> {
     const result = await provider.get('id', [])
     return result.stack.readNumber()
   }
 
-  async getTypeAndVersion(provider: ContractProvider) {
+  async getTypeAndVersion(provider: ContractProvider): Promise<string> {
     const result = await provider.get('type_and_version', [])
+    return result.stack.readString()
+  }
+
+  async getCode(provider: ContractProvider): Promise<Cell> {
+    const result = await provider.get('code', [])
+    return result.stack.readCell()
+  }
+
+  async getCodeHash(provider: ContractProvider): Promise<number> {
+    const result = await provider.get('code_hash', [])
     return result.stack.readNumber()
   }
 }
