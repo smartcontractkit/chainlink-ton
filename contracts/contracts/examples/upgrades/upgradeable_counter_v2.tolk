@@ -45,8 +45,8 @@ get value(): int {
     return storage.value;
 }
 
-@method_id(1666)
-fun migrate(c: cell): cell {
+@method_id(1000)
+fun migrateStorage(c: cell): cell {
     // Parse it as StorageV1
     var oldStorage = StorageV1.fromCell(c);
     // Create new StorageV2 with the old value and id

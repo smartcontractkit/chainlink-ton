@@ -24,9 +24,9 @@ struct (0x00000001) Step {
     queryId: uint64;
 }
 
-fun upgradeableCounter$handleMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: slice, migrate: (cell) -> cell): bool {    
+fun upgradeableCounter$handleMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: slice, migrateStorage: (cell) -> cell): bool {    
     // Upgradeable Handlers
-    return upgradeable$handleMessage(myBalance, msgValue, msgFull, msgBody, migrate);
+    return upgradeable$handleMessage(myBalance, msgValue, msgFull, msgBody, migrateStorage);
 }
 
 const typeStr= "com.chainlink.ton.examples.upgrades.UpgradeableCounter";

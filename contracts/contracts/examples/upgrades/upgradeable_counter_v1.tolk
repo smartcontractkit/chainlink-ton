@@ -44,8 +44,8 @@ get value(): int {
     return storage.value;
 }
 
-@method_id(1666)
-fun migrate(c: cell): cell { return beginCell().endCell(); }
+@method_id(1000)
+fun migrateStorage(c: cell): cell { return beginCell().endCell(); }
 
 const version= "1.0.0";
 
