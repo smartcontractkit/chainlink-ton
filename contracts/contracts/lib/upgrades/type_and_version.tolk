@@ -1,12 +1,12 @@
 /// Implements getters for contract type and version, current code and code hash.
 
-/// The implementor is expected to implement a `type_and_version(): cell` getter, wrapping a call to `typeAndVersio$handle_type_and_version(contract_type, version);`
+/// The implementor is expected to implement a `type_and_version(): cell` getter, wrapping a call to `typeAndVersion$handle_type_and_version(contract_type, version);`
 /// Example:
 /// ```tolk
 /// const contract_type= "com.chainlink.ton.examples.Counter";
 /// const version= "1.0.0";
 /// get type_and_version(): cell {
-///     return typeAndVersio$handle_type_and_version(contract_type, version);
+///     return typeAndVersion$handle_type_and_version(contract_type, version);
 /// }
 /// ```
 
@@ -17,7 +17,7 @@
 /// Read more about Reverse DNS Notation at https://en.wikipedia.org/wiki/Reverse_domain_name_notation
 ///
 /// `versionStr` must be a semantic version string (e.g. "1.0.0").
-fun typeAndVersio$handle_type_and_version(typeStr: slice, versionStr: slice): cell {
+fun typeAndVersion$handle_type_and_version(typeStr: slice, versionStr: slice): cell {
     return beginCell().storeSlice(typeStr).storeSlice(" v").storeSlice(versionStr).endCell();
 }
 
