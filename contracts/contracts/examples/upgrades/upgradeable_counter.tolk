@@ -15,5 +15,5 @@ fun upgradeableCounter$handleMessage(myBalance: int, msgValue: int, msgFull: cel
 const typeStr= "com.chainlink.ton.examples.upgrades.UpgradeableCounter";
 
 fun upgradeableCounter$type_and_version(versionStr: slice): cell {
-    return typeAndVersio$handle_type_and_version(typeStr, versionStr);
+    return typeAndVersion$handle_type_and_version(typeStr, versionStr);
 }
