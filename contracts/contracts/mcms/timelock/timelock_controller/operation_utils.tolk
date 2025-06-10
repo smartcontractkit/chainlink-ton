@@ -1,10 +1,12 @@
+tolk 0.13
+
 @inline
-fun hashOperation(tonValue: int, predecessor: int, salt: int, account: slice, msgToSend: cell): int {
+fun hashOperation(tonValue: int, predecessor: int, salt: int, account: address, msgToSend: cell): int {
     return beginCell()
         .storeCoins(tonValue)
         .storeUint(predecessor, 256)
         .storeUint(salt, 256)
-        .storeSlice(account)
+        .storeAddress(account)
         .storeRef(msgToSend)
         .endCell()
         .hash();
