@@ -15,11 +15,10 @@ struct (0x00000004) SetCount {
 
 struct Storage {
     id: uint32;
-    count: uint32;
+    value: uint32;
 }
 
-
-type IncomingMessage = Step;
+type IncomingMessage = SetCount;
 
 fun loadData() {
     return Storage.fromCell(contract.getData());
@@ -58,7 +57,7 @@ get value(): int {
     return storage.value;
 }
 
-get id(): Int {
+get id(): int {
     val storage = loadData();
     return storage.id;
 }

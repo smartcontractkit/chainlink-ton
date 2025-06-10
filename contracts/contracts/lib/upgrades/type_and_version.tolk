@@ -6,12 +6,12 @@ fun typeAndVersio$handle_type_and_version(contractType: slice, version: slice): 
 }
 
 // Returns the current code of the contract.
-get fun code(): Cell {
+get fun code(): cell {
     return contract.getCode();
 }
 
 // Returns the sha256 hash of the current code of the contract.
-get fun codeHash(): Int {
+get fun codeHash(): int {
     return contract.getCode().hash();
 }
 
