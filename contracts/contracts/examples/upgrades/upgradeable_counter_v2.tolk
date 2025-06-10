@@ -46,10 +46,7 @@ get value(): int {
 }
 
 @method_id(1666)
-fun migrate() {
-    debug.printString("Migrating from StorageV1 to StorageV2...");
-    // Get storage cell
-    var c = contract.getData();
+fun migrate(c: cell): cell {
     // Parse it as StorageV1
     var oldStorage = StorageV1.fromCell(c);
     // Create new StorageV2 with the old value and id
@@ -57,9 +54,7 @@ fun migrate() {
         value: oldStorage.value as uint64,
         id: oldStorage.id,
     };
-    // Save the new storage cell
-    contract.setData(newStorage.toCell());
-    debug.printString("Migration completed successfully.");
+    return newStorage.toCell();
 }
 
 const version= "2.0.0";

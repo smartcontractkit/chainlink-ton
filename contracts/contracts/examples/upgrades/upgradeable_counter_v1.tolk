@@ -45,7 +45,7 @@ get value(): int {
 }
 
 @method_id(1666)
-fun migrate(): void { }
+fun migrate(c: cell): cell { return beginCell().endCell(); }
 
 const version= "1.0.0";
 
