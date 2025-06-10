@@ -1,3 +1,5 @@
+tolk 0.13
+
 import "./storage.tolk";
 import "./operation_utils.tolk";
 import "./params.tolk";
@@ -27,7 +29,7 @@ get getTimestamp(id: int): int {
     return timestampSlice!.loadUint(32);
 }
 
-get getHashOperation(tonValue: int, predecessor: int, salt: int, account: slice, msgToSend: cell): int {
+get getHashOperation(tonValue: int, predecessor: int, salt: int, account: address, msgToSend: cell): int {
     loadStorage();
 
     return hashOperation(tonValue, predecessor, salt, account, msgToSend);
@@ -53,7 +55,7 @@ get getOperationState(id: int): int {
     return READY_STATE;
 }
 
-get getHasRole(role: int, account: slice): bool {
+get getHasRole(role: int, account: address): bool {
     loadStorage();
 
     if (role > EXECUTOR_ROLE) {
