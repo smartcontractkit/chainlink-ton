@@ -61,8 +61,9 @@ func (c *CommitReport) ToCell() (*cell.Cell, error) {
 
 	// Store PriceUpdates as first reference
 	priceUpdatesCell := cell.BeginCell()
-	if c.PriceUpdates.TokenPriceUpdates != nil {
-		err := priceUpdatesCell.StoreRef(c.PriceUpdates.TokenPriceUpdates.AsCell())
+	tuc := c.PriceUpdates.TokenPriceUpdates.AsCell()
+	if tuc != nil {
+		err := priceUpdatesCell.StoreRef(tuc)
 		if err != nil {
 			return nil, err
 		}
@@ -73,8 +74,9 @@ func (c *CommitReport) ToCell() (*cell.Cell, error) {
 		}
 	}
 
-	if c.PriceUpdates.GasPriceUpdates != nil {
-		err := priceUpdatesCell.StoreRef(c.PriceUpdates.GasPriceUpdates.AsCell())
+	gpu := c.PriceUpdates.GasPriceUpdates.AsCell()
+	if gpu != nil {
+		err := priceUpdatesCell.StoreRef(gpu)
 		if err != nil {
 			return nil, err
 		}
@@ -91,8 +93,9 @@ func (c *CommitReport) ToCell() (*cell.Cell, error) {
 
 	// Store MerkleRoot as second reference
 	merkleRootsCell := cell.BeginCell()
-	if c.MerkleRoot.BlessedMerkleRoots != nil {
-		err = merkleRootsCell.StoreRef(c.MerkleRoot.BlessedMerkleRoots.AsCell())
+	bmc := c.MerkleRoot.BlessedMerkleRoots.AsCell()
+	if bmc != nil {
+		err = merkleRootsCell.StoreRef(bmc)
 		if err != nil {
 			return nil, err
 		}
@@ -104,8 +107,9 @@ func (c *CommitReport) ToCell() (*cell.Cell, error) {
 		}
 	}
 
-	if c.MerkleRoot.UnblessedMerkleRoots != nil {
-		err = merkleRootsCell.StoreRef(c.MerkleRoot.UnblessedMerkleRoots.AsCell())
+	umc := c.MerkleRoot.UnblessedMerkleRoots.AsCell()
+	if umc != nil {
+		err = merkleRootsCell.StoreRef(umc)
 		if err != nil {
 			return nil, err
 		}
@@ -122,8 +126,9 @@ func (c *CommitReport) ToCell() (*cell.Cell, error) {
 	}
 
 	// Store RMNSignatures as third reference
-	if c.RMNSignatures != nil {
-		err = mainCell.StoreRef(c.RMNSignatures.AsCell())
+	sc := c.RMNSignatures.AsCell()
+	if sc != nil {
+		err = mainCell.StoreRef(sc)
 		if err != nil {
 			return nil, err
 		}
