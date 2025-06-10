@@ -43,9 +43,6 @@ describe('Counter', () => {
     const contractCode = await counter.getCode()
     const expectedHash = code.hash()
     expect(contractCode.toString('hex')).toBe(code.toString('hex'))
-    // This is old code, using biging
-    // const expectedHashInt = BigInt('0x' + expectedHash.toString('hex'))
-    // Should be using a decimal representation
     const expectedHashInt = parseInt(expectedHash.toString('hex'), 16)
     const hash = await counter.getCodeHash()
     expect(hash).toBe(expectedHashInt)
