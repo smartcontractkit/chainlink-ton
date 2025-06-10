@@ -1,4 +1,4 @@
-/// Implements getters for contract type and version.
+/// Implements getters for contract type and version, current code and code hash.
 
 /// The implementor is expected to implmement a `type_and_version(): cell` getter, wrapping a call to `typeAndVersio$handle_type_and_version(contract_type, version);`
 /// Example:
