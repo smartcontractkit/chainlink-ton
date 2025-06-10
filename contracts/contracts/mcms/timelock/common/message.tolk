@@ -1,3 +1,5 @@
+tolk 0.13
+
 const MSG_INFO_REST_BITS = 1 + 4 + 4 + 64 + 32;
 const MSG_WITH_STATE_INIT_AND_BODY_SIZE = MSG_INFO_REST_BITS + 1 + 1 + 1;
 const MSG_HAVE_STATE_INIT = 4;
@@ -30,10 +32,10 @@ fun builder.storePrefixOnlyBody(mutate self): builder {
 }
 
 @inline_ref
-fun sendSimpleMessage(amount: int, to: slice, body: cell, mode: int) {
+fun sendSimpleMessage(amount: int, to: address, body: cell, mode: int) {
     val msg = beginCell()
         .storeUint(0x18, 6)
-        .storeSlice(to)
+        .storeAddress(to)
         .storeCoins(amount)
         .storeUint(1, 107)
         .storeRef(body)

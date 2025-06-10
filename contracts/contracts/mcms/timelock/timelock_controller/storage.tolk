@@ -1,3 +1,37 @@
+tolk 0.13
+
+// RBACTimelock contract storage, auto-serialized to/from cells.
+struct Storage {
+    // id: uint32;          // required to allow multiple independent instances, since contract address depends on initial state
+
+    minDelay: uint32;       // minimum delay for operations in seconds
+    timestampCount: int32;  // number of timestamps stored, used to track the size of the storage
+    timestamps: dict;       // maps operation id to timestamp
+
+    rbac: Cell<RBACStorage>;
+}
+
+// RBACStorage contains role-based access control accounts.
+struct RBACStorage {
+    adminAccounts: dict;
+    proposerAccounts: dict;
+    executorAccounts: dict;
+    cancellerAccounts: dict;
+}
+
+// load contract data using auto-deserialization
+@inline
+fun loadData() {
+    return Storage.fromCell(contract.getData());
+}
+
+// save contract data into persistent storage using auto-serialization
+@inline
+fun saveData(data: Storage) {
+    contract.setData(data.toCell());
+}
+
+// TODO: remove globals
 global STORAGE_MIN_DELAY: int;
 global STORAGE_TIMESTAMP_COUNT: int;
 global STORAGE_ADMIN_ACCOUNTS: dict;
@@ -7,31 +41,32 @@ global STORAGE_CANCELLER_ACCOUNTS: dict;
 global STORAGE_TIMESTAMPS: dict;
 
 @inline
-fun loadStorage() {
-    var ds = contract.getData().beginParse();
-    STORAGE_MIN_DELAY = ds.loadUint(32);
-    STORAGE_TIMESTAMP_COUNT = ds.loadUint(32);
-    var ref = ds.loadRef();
-    var refDs = ref.beginParse();
-    STORAGE_ADMIN_ACCOUNTS = refDs.loadDict();
-    STORAGE_PROPOSER_ACCOUNTS = refDs.loadDict();
-    STORAGE_EXECUTOR_ACCOUNTS = refDs.loadDict();
-    STORAGE_CANCELLER_ACCOUNTS = refDs.loadDict();
-    STORAGE_TIMESTAMPS = ds.loadDict();
+fun loadStorage() { 
+    val s = loadData();
+    STORAGE_MIN_DELAY = s.minDelay;
+    STORAGE_TIMESTAMP_COUNT = s.timestampCount;
+    STORAGE_TIMESTAMPS = s.timestamps;
+
+    // Load RBAC accounts from the serialized data
+    var rbac = RBACStorage.fromCell(s.rbac);
+    STORAGE_ADMIN_ACCOUNTS = rbac.adminAccounts;
+    STORAGE_PROPOSER_ACCOUNTS = rbac.proposerAccounts;
+    STORAGE_EXECUTOR_ACCOUNTS = rbac.executorAccounts;
+    STORAGE_CANCELLER_ACCOUNTS = rbac.cancellerAccounts;
 }
 
 @inline
 fun saveStorage() {
-    contract.setData(beginCell()
-        .storeUint(STORAGE_MIN_DELAY, 32)
-        .storeUint(STORAGE_TIMESTAMP_COUNT, 32)
-        .storeRef(beginCell()
-            .storeDict(STORAGE_ADMIN_ACCOUNTS)
-            .storeDict(STORAGE_PROPOSER_ACCOUNTS)
-            .storeDict(STORAGE_EXECUTOR_ACCOUNTS)
-            .storeDict(STORAGE_CANCELLER_ACCOUNTS)
-            .endCell()
-        )
-        .storeDict(STORAGE_TIMESTAMPS)
-    .endCell());
+    var rbac = RBACStorage{
+        adminAccounts: STORAGE_ADMIN_ACCOUNTS,
+        proposerAccounts: STORAGE_PROPOSER_ACCOUNTS,
+        executorAccounts: STORAGE_EXECUTOR_ACCOUNTS,
+        cancellerAccounts: STORAGE_CANCELLER_ACCOUNTS,
+    };
+    saveData(Storage{
+        minDelay: STORAGE_MIN_DELAY,
+        timestampCount: STORAGE_TIMESTAMP_COUNT,
+        timestamps: STORAGE_TIMESTAMPS,
+        rbac: rbac.toCell(),
+    });
 }

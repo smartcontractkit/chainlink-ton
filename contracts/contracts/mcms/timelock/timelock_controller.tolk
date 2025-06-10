@@ -1,3 +1,5 @@
+tolk 0.13
+
 import "@stdlib/tvm-dicts";
 import "common/workchain.tolk";
 import "timelock_controller/error.tolk";
@@ -24,7 +26,7 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
 
     loadStorage();
 
-    val senderAddress: slice = cs.loadAddress();
+    val senderAddress: address = cs.loadAddress();
     cs.loadAddress(); // skip dst
     cs.loadCoins(); // skip value
     cs.skipBits(1); // skip extracurrency collection
@@ -114,7 +116,7 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
 
             var msg = beginCell()
                 .storeMsgFlagsAndAddressNone(BOUNCEABLE)
-                .storeSlice(targetAccount)
+                .storeAddress(targetAccount)
                 .storeCoins(tonValue)
                 .storeOnlyBodyRef(msgToSend);
             sendMessage(msg.endCell(), SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
