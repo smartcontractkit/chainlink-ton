@@ -2,7 +2,7 @@ import "@stdlib/tvm-lowlevel";
 import "@stdlib/tvm-dicts.tolk";
 
 // TODO opcode from hashed name
-struct (0xA) Upgrade {
+struct (0x0000000A) Upgrade {
     code: cell;
 }
 

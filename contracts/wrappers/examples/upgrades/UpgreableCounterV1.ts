@@ -19,8 +19,8 @@ export function counterConfigToCell(config: CounterConfig): Cell {
 }
 
 export const Opcodes = {
-  OP_STEP: 0x1,
-  OP_UPGRADE: 0xa,
+  OP_STEP: 0x00000001,
+  OP_UPGRADE: 0x0000000a,
 }
 
 export class UpgradeableCounterV1 implements Contract {

@@ -13,7 +13,6 @@ fun saveData(data: StorageV1) {
 
 fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: slice) {
     if (msgBody.isEnd()) { // ignore all empty messages
-        debug.printString("Empty message received, ignoring.");
         return;
     }
 
@@ -24,14 +23,11 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
     }
 
     // UpgradeableCounter Handlers
-    debug.printString("UpgradeableCounter handler");
     val msg = IncomingMessage.fromSlice(msgBody);  // 63 error code is thrown if the message opcode is unknown
-    debug.print(msg);
 
     match (msg) {
         Step => {
             var storage = loadData();
-            debug.printString("Step counter");
             storage.value += 1;
             saveData(storage);
         }

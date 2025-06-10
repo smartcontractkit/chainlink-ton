@@ -93,8 +93,7 @@ describe('UpgradeableCounter', () => {
       console.log('Counter before increase:', counterBefore)
       let increaseResult = await upgradeableCounter.sendStep(increaser.getSender(), {
         value: toNano('0.05'),
-        // queryId: Math.floor(Math.random() * 10000),
-        queryId: 1,
+        queryId: Math.floor(Math.random() * 10000),
       })
       console.log('Increased')
 
