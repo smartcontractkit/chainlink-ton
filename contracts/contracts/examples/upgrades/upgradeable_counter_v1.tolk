@@ -22,11 +22,15 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
         return;
     }
 
-    // UpgradeableCounter Handlers
+    if (upgradeableCounter$handleMessage(myBalance, msgValue, msgFull, msgBody)) {
+        return;
+    }
+
     val msg = IncomingMessage.fromSlice(msgBody);  // 63 error code is thrown if the message opcode is unknown
 
     match (msg) {
         Step => {
+            /// Instructs the contract to step the counter.
             var storage = loadData();
             storage.value += 1;
             saveData(storage);
@@ -35,7 +39,6 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
 }
 
 /// Gets the current counter value.
-/// This function should be overridden in the derived contract
 get value(): int {
     val storage = loadData();
     return storage.value;

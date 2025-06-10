@@ -55,16 +55,33 @@ export class UpgradeableCounterV1 implements Contract {
       queryId?: number
     },
   ) {
-    console.log('sendStep')
-    let body = beginCell()
-      .storeUint(Opcodes.OP_STEP, 32)
-      .storeUint(opts.queryId ?? 0, 64)
-      .endCell()
-    console.log('body', body.asSlice())
     await provider.internal(via, {
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body,
+      body: beginCell()
+        .storeUint(Opcodes.OP_STEP, 32)
+        .storeUint(opts.queryId ?? 0, 64)
+        .endCell(),
+    })
+  }
+
+  async sendUpgrade(
+    provider: ContractProvider,
+    via: Sender,
+    opts: {
+      value: bigint
+      queryId?: number
+      code: Cell
+    },
+  ) {
+    await provider.internal(via, {
+      value: opts.value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: beginCell()
+        .storeUint(Opcodes.OP_UPGRADE, 32)
+        .storeUint(opts.queryId ?? 0, 64)
+        .storeRef(opts.code)
+        .endCell(),
     })
   }
 

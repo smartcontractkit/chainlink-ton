@@ -23,12 +23,11 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
         return;
     }
 
-    // UpgradeableCounter Handlers
-
     val msg = IncomingMessage.fromSlice(msgBody);  // 63 error code is thrown if the message opcode is unknown
 
     match (msg) {
         Step => {
+            /// Instructs the contract to step the counter.
             var storage = loadData();
             storage.value -= 1;
             saveData(storage);
@@ -37,19 +36,24 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
 }
 
 /// Gets the current counter value.
-/// This function should be overridden in the derived contract
 get value(): int {
     val storage = loadData();
     return storage.value;
 }
 
 @method_id(1666)
-fun migrate(c: cell): cell {
-    // Migration logic to convert from StorageV1 to StorageV2
+fun migrate() {
+    debug.printString("Migrating from StorageV1 to StorageV2...");
+    // Get storage cell
+    var c = contract.getData();
+    // Parse it as StorageV1
     var oldStorage = StorageV1.fromCell(c);
+    // Create new StorageV2 with the old value and id
     var newStorage = StorageV2{
         value: oldStorage.value as uint64,
         id: oldStorage.id,
     };
-    return newStorage.toCell();
+    // Save the new storage cell
+    contract.setData(newStorage.toCell());
+    debug.printString("Migration completed successfully.");
 }
