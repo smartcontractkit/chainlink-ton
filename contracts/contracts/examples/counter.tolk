@@ -67,5 +67,5 @@ const contract_type= "com.chainlink.ton.examples.Counter";
 const version= "1.0.0";
 
 get type_and_version(): cell {
-    return typeAndVersio$handle_type_and_version(contract_type, version);
+    return typeAndVersion$handle_type_and_version(contract_type, version);
 }
