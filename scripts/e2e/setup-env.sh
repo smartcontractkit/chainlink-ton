@@ -127,7 +127,7 @@ if [ "$CURRENT_CORE_COMMIT" != "$BLESSED_CORE_REF_COMMIT" ]; then
   log_error "Chainlink Core version mismatch!"
   log_error "  Current commit in '$CHAINLINK_CORE_DIR': $CURRENT_CORE_COMMIT"
 
-  # find which branch contains this commit
+  # Find which branch contains this commit
   CONTAINING_BRANCH=$(cd "$CHAINLINK_CORE_DIR" && git branch -r --contains "$BLESSED_CORE_REF_COMMIT" 2>/dev/null | head -1 | sed 's/.*origin\///' | xargs)
 
   if [ -n "$CONTAINING_BRANCH" ]; then
