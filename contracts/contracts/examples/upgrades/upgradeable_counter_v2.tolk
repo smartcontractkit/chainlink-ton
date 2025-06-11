@@ -23,7 +23,7 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
         return;
     }
     
-    if (upgradeableCounter$handleMessage(myBalance, msgValue, msgFull, msgBody, migrate)) {
+    if (UpgradeableCounter{}.onInternalMessage(myBalance, msgValue, msgFull, msgBody, migrateStorage)) {
         return;
     }
 

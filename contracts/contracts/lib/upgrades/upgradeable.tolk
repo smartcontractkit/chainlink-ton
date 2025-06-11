@@ -38,7 +38,12 @@ struct (0x0000000A) Upgrade {
 /// @method_id(1000)
 /// fun migrateStorage(c: cell): cell { return beginCell().endCell(); }
 ///
-fun upgradeable$handleMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: slice, migrateStorage: (cell) -> cell): bool {
+
+struct Upgradeable {}
+
+fun Upgradeable.onInternalMessage(self, myBalance: int, msgValue: int, msgFull: cell, msgBody: slice,
+    migrateStorage: (cell) -> cell, // This function is expected to be provided by the contract
+): bool {
     try {
         var upgrade = Upgrade.fromSlice(msgBody);
 
@@ -51,7 +56,6 @@ fun upgradeable$handleMessage(myBalance: int, msgValue: int, msgFull: cell, msgB
         }
         return false; // ignore unknown opcodes
     }
-
 }
 
 fun doUpgrade(code: cell, migrateStorage: (cell) -> cell) {
