@@ -1,13 +1,14 @@
-import "./upgradeable_counter.tolk";
-import "./upgradeable_counter_v1_storage.tolk";
+import "../shared.tolk";
+import "./../v1/storage.tolk";
+import "./storage.tolk";
 
 type IncomingMessage = Step;
 
 fun loadData() {
-    return StorageV1.fromCell(contract.getData());
+    return StorageV2.fromCell(contract.getData());
 }
 
-fun saveData(data: StorageV1) {
+fun saveData(data: StorageV2) {
     contract.setData(data.toCell());
 }
 
@@ -23,7 +24,7 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
     }
     
     val upgradeable = Upgradeable{migrateStorage};
-    if (UpgradeableCounter{upgradeable}.onInternalMessage(myBalance, msgValue, msgFull, msgBody)) {
+    if (upgradeable.onInternalMessage(myBalance, msgValue, msgFull, msgBody)) {
         return;
     }
 
@@ -33,7 +34,7 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
         Step => {
             /// Instructs the contract to step the counter.
             var storage = loadData();
-            storage.value += 1;
+            storage.value -= 1;
             saveData(storage);
         }
     }
@@ -46,9 +47,18 @@ get value(): int {
 }
 
 @method_id(1000)
-fun migrateStorage(c: cell): cell { return beginCell().endCell(); }
+fun migrateStorage(c: cell): cell {
+    // Parse it as StorageV1
+    var oldStorage = StorageV1.fromCell(c);
+    // Create new StorageV2 with the old value and id
+    var newStorage = StorageV2{
+        value: oldStorage.value as uint64,
+        id: oldStorage.id,
+    };
+    return newStorage.toCell();
+}
 
-const version= "1.0.0";
+const version= "2.0.0";
 
 get type_and_version(): cell {
     return upgradeableCounter$type_and_version(version);

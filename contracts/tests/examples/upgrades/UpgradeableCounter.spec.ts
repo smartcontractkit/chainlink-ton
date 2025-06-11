@@ -27,7 +27,7 @@ async function setUpTest(i: number): Promise<{
   let deployer = await blockchain.treasury('deployer')
   let owner = await blockchain.treasury('owner')
 
-  let codeV1 = await compile('UpgradeableCounterV1')
+  let codeV1 = await compile('examples.upgrades.UpgradeableCounterV1')
 
   let upgradeableCounter = blockchain.openContract(
     UpgradeableCounterV1.createFromConfig(
@@ -58,7 +58,7 @@ async function setUpTest(i: number): Promise<{
     owner,
     upgradeableCounter,
     codeV1,
-    codeV2: await compile('UpgradeableCounterV2'),
+    codeV2: await compile('examples.upgrades.UpgradeableCounterV2'),
   }
 }
 
@@ -168,7 +168,7 @@ async function upgradeCounter(
   owner: SandboxContract<TreasuryContract>,
   upgradeableCounter: SandboxContract<UpgradeableCounterV1>,
 ) {
-  let code = await compile('UpgradeableCounterV2')
+  let code = await compile('examples.upgrades.UpgradeableCounterV2')
   let upgradeResult = await upgradeableCounter.sendUpgrade(owner.getSender(), {
     value: toNano('0.05'),
     code,
