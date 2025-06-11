@@ -8,9 +8,9 @@ This trait implements the ability for a contract to upgrade its code and migrate
 
 ### Provides
 
-Exposes receiver for `Upgrade` message of type:
+Exposes receiver for `Upgradeable` message of type:
 
-```tact
+```tolk
 /// Message for upgrading a contract.
 message(10) Upgrade {
     code: Cell;
@@ -19,14 +19,14 @@ message(10) Upgrade {
 
 Provides the following functions:
 
-```tact
+```tolk
 /// Sends an outgoing external message with the version, code, and SHA256 hash of the new code.
 fun emitUpgradeEvent()
 ```
 
 Provides the following getters:
 
-```tact
+```tolk
 /// A getter returning the current version of the contract.
 get fun type_and_version(): String
 
@@ -41,14 +41,14 @@ get fun codeHash(): Int
 
 Required contract attributes:
 
-```tact
+```tolk
 /// Contract owner address that can perform upgrades.
 owner: Address;
 ```
 
 Required function implementations:
 
-```tact
+```tolk
 /// Type must be a Reverse Domain Name Notation string that is unique to the contract and should not change between versions.
 /// Example: "com.chainlink.project.package.ContractName"
 /// Read more about Reverse DNS Notation at https://en.wikipedia.org/wiki/Reverse_domain_name_notation
@@ -66,7 +66,7 @@ Example:
 
 Version 1
 
-```tact
+```tolk
 contract UpgradeableCounterV1 with UpgradeableCounter {
     owner: Address;
     id: Int as uint32;
@@ -76,7 +76,7 @@ contract UpgradeableCounterV1 with UpgradeableCounter {
 
 Version 2
 
-```tact
+```tolk
 contract UpgradeableCounterV2 with UpgradeableCounter {
     owner: Address;
     value: Int as uint64;
@@ -95,7 +95,7 @@ contract UpgradeableCounterV2 with UpgradeableCounter {
 
 They should also emit an Upgraded event at the end of the `init()` function:
 
-```tact
+```tolk
 contract UpgradeableCounterV2 with UpgradeableCounter {
     owner: Address;
     value: Int as uint64;
