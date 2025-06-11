@@ -43,7 +43,6 @@ fun upgradeable$handleMessage(myBalance: int, msgValue: int, msgFull: cell, msgB
         var upgrade = Upgrade.fromSlice(msgBody);
 
         var data = contract.getData();
-        debug.printString("Upgrade received:");
         doUpgrade(upgrade.code, migrateStorage);
         return true;
     } catch(exitCode) {
@@ -57,17 +56,9 @@ fun upgradeable$handleMessage(myBalance: int, msgValue: int, msgFull: cell, msgB
 
 fun doUpgrade(code: cell, migrateStorage: (cell) -> cell) {
     contract.setCodePostponed(code);
-    debug.printString("Code postponed, now migrating data...");
     var cont = transformSliceToContinuation(code.beginParse());
-    debug.printString("Loading continuation as current code...");
     setTvmRegisterC3(cont);
-    debug.printString("Jumping to migration function...");
-
-    debug.printString("Migrating from StorageV1 to StorageV2...");
-    // Get storage cell
     var c = contract.getData();
     var newStorage = migrateStorage(c);
-    // Save the new storage cell
     contract.setData(newStorage);
-    debug.printString("Migration completed successfully.");
 }
