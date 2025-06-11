@@ -1,5 +1,6 @@
 import "@stdlib/tvm-lowlevel";
 import "@stdlib/tvm-dicts.tolk";
+import "../emit.tolk";
 
 /// Upgradeable message handler.
 ///
@@ -42,6 +43,7 @@ import "@stdlib/tvm-dicts.tolk";
 ///
 struct Upgradeable {
     migrateStorage: (cell) -> cell; // This function is expected to be provided by the contract
+    version: () -> cell; // The version of the contract code, e.g., "1.0.0"
     // TODO on ownable2step:
     // ownable2Step: Ownable2Step;
 }
@@ -70,6 +72,15 @@ fun Upgradeable.requireUpgrade(self) {
     // self.ownable2Step.requireOwner();
 }
 
+struct UpgradedEvent {
+    /// The version of the contract after the upgrade.
+    version: cell;
+    /// The new code of the contract.
+    code: cell;
+    /// The SHA256 hash of the new code.
+    sha: uint256;
+}
+
 fun Upgradeable.doUpgrade(self, code: cell) {
     self.requireUpgrade();
     contract.setCodePostponed(code);
@@ -78,4 +89,9 @@ fun Upgradeable.doUpgrade(self, code: cell) {
     var c = contract.getData();
     var newStorage = self.migrateStorage(c);
     contract.setData(newStorage);
+    emitEvent(UpgradedEvent{
+        version: self.version(),
+        code: code,
+        sha: code.hash(),
+        }.toCell());
 }

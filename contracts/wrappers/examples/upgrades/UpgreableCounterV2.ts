@@ -100,8 +100,8 @@ export class UpgradeableCounterV2 implements Contract {
     return result.stack.readCell()
   }
 
-  async getCodeHash(provider: ContractProvider): Promise<number> {
+  async getCodeHash(provider: ContractProvider): Promise<BigInt> {
     const result = await provider.get('codeHash', [])
-    return result.stack.readNumber()
+    return result.stack.readBigNumber()
   }
 }

@@ -7,6 +7,7 @@ import {
   ContractProvider,
   Sender,
   SendMode,
+  Slice,
 } from '@ton/core'
 import { crc32 } from 'zlib'
 
@@ -101,8 +102,22 @@ export class UpgradeableCounterV1 implements Contract {
     return result.stack.readCell()
   }
 
-  async getCodeHash(provider: ContractProvider): Promise<number> {
+  async getCodeHash(provider: ContractProvider): Promise<BigInt> {
     const result = await provider.get('codeHash', [])
-    return result.stack.readNumber()
+    return result.stack.readBigNumber()
+  }
+}
+export function loadUpgradedEvent(slice: Slice): {
+  version: string
+  code: Cell
+  codeHash: bigint
+} {
+  const version = slice.loadStringRefTail()
+  const code = slice.loadRef()
+  const codeHash = slice.loadUintBig(256)
+  return {
+    version,
+    code,
+    codeHash,
   }
 }

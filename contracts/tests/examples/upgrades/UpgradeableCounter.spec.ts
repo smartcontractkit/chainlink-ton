@@ -1,9 +1,10 @@
 import { Blockchain, SandboxContract, Treasury, TreasuryContract } from '@ton/sandbox'
-import { Address, address, beginCell, Cell, toNano } from '@ton/core'
+import { Address, address, beginCell, Cell, Message, toNano } from '@ton/core'
 import '@ton/test-utils'
 import {
   UpgradeableCounterV1,
   CounterConfig,
+  loadUpgradedEvent,
 } from '../../../wrappers/examples/upgrades/UpgreableCounterV1'
 import { compile } from '@ton/blueprint'
 import { UpgradeableCounterV2 } from '../../../wrappers/examples/upgrades/UpgreableCounterV2'
@@ -75,9 +76,9 @@ describe('UpgradeableCounter', () => {
     const currentCode = await upgradeableCounter.getCode()
     const expectedHash = codeV1.hash()
     expect(currentCode.toString('hex')).toBe(codeV1.toString('hex'))
-    const expectedHashInt = parseInt(expectedHash.toString('hex'), 16)
+    const expectedHashBigInt = BigInt('0x' + expectedHash.toString('hex'))
     const hash = await upgradeableCounter.getCodeHash()
-    expect(hash).toBe(expectedHashInt)
+    expect(hash).toBe(expectedHashBigInt)
   })
 
   it('should have initial value', async () => {
@@ -111,7 +112,13 @@ describe('UpgradeableCounter', () => {
   })
 
   it('should be upgraded to version 2', async () => {
-    let { blockchain, owner, upgradeableCounter: upgradeableCounterV1, codeV2 } = await setUpTest(0)
+    let {
+      blockchain,
+      owner,
+      upgradeableCounter: upgradeableCounterV1,
+      codeV1,
+      codeV2,
+    } = await setUpTest(0)
 
     const typeAndVersion1 = await upgradeableCounterV1.getTypeAndVersion()
     expect(typeAndVersion1).toBe('com.chainlink.ton.examples.upgrades.UpgradeableCounter v1.0.0')
@@ -133,12 +140,27 @@ describe('UpgradeableCounter', () => {
     const code = await upgradeableCounterV2.getCode()
     const expectedHash = codeV2.hash()
     expect(code.toString('hex')).toBe(codeV2.toString('hex'))
-    const expectedHashInt = parseInt(expectedHash.toString('hex'), 16)
+    const expectedHashBigInt = BigInt('0x' + expectedHash.toString('hex'))
     const hash = await upgradeableCounterV2.getCodeHash()
-    expect(hash).toBe(expectedHashInt)
+    expect(hash).toBe(expectedHashBigInt)
 
     const typeAndVersion2 = await upgradeableCounterV2.getTypeAndVersion()
     expect(typeAndVersion2).toBe('com.chainlink.ton.examples.upgrades.UpgradeableCounter v2.0.0')
+
+    const upgradeTransaction = upgradeResult.transactions.find(
+      (tx) =>
+        tx.inMessage?.info.type === 'internal' &&
+        tx.inMessage.info.src.equals(owner.address) &&
+        tx.inMessage.info.dest.equals(upgradeableCounterV1.address),
+    )
+    const event = upgradeTransaction?.outMessages.values().find((msg: Message) => {
+      return msg.info.type === 'external-out'
+    })
+    expect(event).toBeDefined()
+    const upgradedEvent = loadUpgradedEvent(event!.body.beginParse())
+    expect(upgradedEvent.version).toBe('2.0.0')
+    expect(upgradedEvent.code.toString('hex')).toBe(codeV2.toString('hex'))
+    expect(upgradedEvent.codeHash).toBe(expectedHashBigInt)
   })
 
   it('version 2 should decrease the counter', async () => {
