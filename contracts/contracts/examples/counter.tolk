@@ -1,13 +1,8 @@
 import "../lib/upgrades/type_and_version.tolk";
 
-// Counter contract (Tact example)
-//
-// --- Message Definitions ---
-//
-// Messages correspond to FunC/Tolk opcodes for setter operations.
-//
-// Opcodes are explicitly set to match the original constants.
-//
+/// Counter contract (Tolk example)
+
+/// Message to set the counter value.
 struct (0x00000004) SetCount {
     queryId: uint64; // Standard query_id field
     newCount: uint32; // Argument for the operation
@@ -57,11 +52,13 @@ get value(): int {
     return storage.value;
 }
 
+/// Gets the current id of the contract.
 get id(): int {
     val storage = loadData();
     return storage.id;
 }
 
+/// Gets the current type and version of the contract.
 get typeAndVersion(): cell {
     return TypeAndVersion {
         typeStr: "com.chainlink.ton.examples.Counter",
