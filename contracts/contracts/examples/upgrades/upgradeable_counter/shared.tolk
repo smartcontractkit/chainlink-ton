@@ -6,27 +6,27 @@ import "./../../../lib/upgrades/type_and_version.tolk";
 ///
 /// - V1 adds 1 to the counter on each step.
 /// - V2 subtracts 1 to the counter on each step.
-
-/// The implementor is expected to implement a `typeAndVersion(): cell` getter, wrapping a call to `upgradeableCounter$typeAndVersion(contract_type, version);`
+///
+/// The implementor is expected to implement a `typeAndVersion(): cell` getter, wrapping a call to `UpgradeableCounter.typeAndVersion();`
 /// Example:
 /// ```tolk
-/// const version= "1.0.0";
 /// get typeAndVersion(): cell {
-///     return upgradeableCounter$typeAndVersion(version);
+///     val upgradeable = Upgradeable{migrateStorage};
+///     val upgradeableCounter = UpgradeableCounter{upgradeable, versionStr};
+///     return upgradeableCounter.typeAndVersion();
 /// }
 /// ```
 ///
 /// `versionStr` must be a semantic version string (e.g. "1.0.0").
+struct UpgradeableCounter {
+    upgradeable: Upgradeable,
+    versionStr: slice,
+}
 
 // TODO opcode from hashed name
 /// Instructs the contract to step the counter.
 struct (0x00000001) Step {
     queryId: uint64;
-}
-
-struct UpgradeableCounter {
-    upgradeable: Upgradeable,
-    versionStr: slice,
 }
 
 fun UpgradeableCounter.onInternalMessage(self, myBalance: int, msgValue: int, msgFull: cell, msgBody: slice): bool {    
