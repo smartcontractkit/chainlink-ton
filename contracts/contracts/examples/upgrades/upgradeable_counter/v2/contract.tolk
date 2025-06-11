@@ -1,5 +1,5 @@
 import "../shared.tolk";
-import "./../v1/storage.tolk";
+import "../v1/storage.tolk";
 import "./storage.tolk";
 
 type IncomingMessage = Step;

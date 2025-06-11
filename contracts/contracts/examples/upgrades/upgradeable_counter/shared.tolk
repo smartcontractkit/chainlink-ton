@@ -1,5 +1,5 @@
-import "./../../../lib/upgrades/upgradeable.tolk";
-import "./../../../lib/upgrades/type_and_version.tolk";
+import "../../../lib/upgrades/upgradeable.tolk";
+import "../../../lib/upgrades/type_and_version.tolk";
 
 /// This is a Step Counter that implements Upgradeable trait.
 /// It is able to be upgraded in place and migrate the data layout.
