@@ -24,11 +24,12 @@ struct (0x00000001) Step {
     queryId: uint64;
 }
 
-struct UpgradeableCounter {}
+struct UpgradeableCounter {
+    upgradeable: Upgradeable,
+}
 
-fun UpgradeableCounter.onInternalMessage(self, myBalance: int, msgValue: int, msgFull: cell, msgBody: slice, migrateStorage: (cell) -> cell): bool {    
-    // Upgradeable Handlers
-    return Upgradeable{}.onInternalMessage(myBalance, msgValue, msgFull, msgBody, migrateStorage);
+fun UpgradeableCounter.onInternalMessage(self, myBalance: int, msgValue: int, msgFull: cell, msgBody: slice): bool {    
+    return self.upgradeable.onInternalMessage(myBalance, msgValue, msgFull, msgBody);
 }
 
 const typeStr= "com.chainlink.ton.examples.upgrades.UpgradeableCounter";

@@ -21,8 +21,9 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
     if (isMessageBounced(flags)) { // ignore all bounced messages
         return;
     }
-
-    if (UpgradeableCounter{}.onInternalMessage(myBalance, msgValue, msgFull, msgBody, migrateStorage)) {
+    
+    val upgradeable = Upgradeable{migrateStorage};
+    if (UpgradeableCounter{upgradeable}.onInternalMessage(myBalance, msgValue, msgFull, msgBody)) {
         return;
     }
 

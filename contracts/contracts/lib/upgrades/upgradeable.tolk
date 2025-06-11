@@ -39,16 +39,16 @@ struct (0x0000000A) Upgrade {
 /// fun migrateStorage(c: cell): cell { return beginCell().endCell(); }
 ///
 
-struct Upgradeable {}
-
-fun Upgradeable.onInternalMessage(self, myBalance: int, msgValue: int, msgFull: cell, msgBody: slice,
+struct Upgradeable {
     migrateStorage: (cell) -> cell, // This function is expected to be provided by the contract
-): bool {
+}
+
+fun Upgradeable.onInternalMessage(self, myBalance: int, msgValue: int, msgFull: cell, msgBody: slice): bool {
     try {
         var upgrade = Upgrade.fromSlice(msgBody);
 
         var data = contract.getData();
-        doUpgrade(upgrade.code, migrateStorage);
+        doUpgrade(upgrade.code, self.migrateStorage);
         return true;
     } catch(exitCode) {
         if (exitCode != 63) { // 63 is the error code for unknown opcode

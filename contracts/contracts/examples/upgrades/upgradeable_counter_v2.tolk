@@ -23,7 +23,8 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
         return;
     }
     
-    if (UpgradeableCounter{}.onInternalMessage(myBalance, msgValue, msgFull, msgBody, migrateStorage)) {
+    val upgradeable = Upgradeable{migrateStorage};
+    if (upgradeable.onInternalMessage(myBalance, msgValue, msgFull, msgBody)) {
         return;
     }
 
