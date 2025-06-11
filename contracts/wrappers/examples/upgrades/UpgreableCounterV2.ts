@@ -23,20 +23,20 @@ export const Opcodes = {
   OP_UPGRADE: 0x0000000a,
 }
 
-export class UpgradeableCounterV1 implements Contract {
+export class UpgradeableCounterV2 implements Contract {
   constructor(
     readonly address: Address,
     readonly init?: { code: Cell; data: Cell },
   ) {}
 
   static createFromAddress(address: Address) {
-    return new UpgradeableCounterV1(address)
+    return new UpgradeableCounterV2(address)
   }
 
   static createFromConfig(config: CounterConfig, code: Cell, workchain = 0) {
     const data = counterConfigToCell(config)
     const init = { code, data }
-    return new UpgradeableCounterV1(contractAddress(workchain, init), init)
+    return new UpgradeableCounterV2(contractAddress(workchain, init), init)
   }
 
   async sendDeploy(provider: ContractProvider, via: Sender, value: bigint) {

@@ -7,12 +7,12 @@ import "./../../../lib/upgrades/type_and_version.tolk";
 /// - V1 adds 1 to the counter on each step.
 /// - V2 subtracts 1 to the counter on each step.
 
-/// The implementor is expected to implement a `type_and_version(): cell` getter, wrapping a call to `upgradeableCounter$type_and_version(contract_type, version);`
+/// The implementor is expected to implement a `typeAndVersion(): cell` getter, wrapping a call to `upgradeableCounter$typeAndVersion(contract_type, version);`
 /// Example:
 /// ```tolk
 /// const version= "1.0.0";
-/// get type_and_version(): cell {
-///     return upgradeableCounter$type_and_version(version);
+/// get typeAndVersion(): cell {
+///     return upgradeableCounter$typeAndVersion(version);
 /// }
 /// ```
 ///
@@ -26,6 +26,7 @@ struct (0x00000001) Step {
 
 struct UpgradeableCounter {
     upgradeable: Upgradeable,
+    versionStr: slice,
 }
 
 fun UpgradeableCounter.onInternalMessage(self, myBalance: int, msgValue: int, msgFull: cell, msgBody: slice): bool {    
@@ -34,6 +35,6 @@ fun UpgradeableCounter.onInternalMessage(self, myBalance: int, msgValue: int, ms
 
 const typeStr= "com.chainlink.ton.examples.upgrades.UpgradeableCounter";
 
-fun upgradeableCounter$type_and_version(versionStr: slice): cell {
-    return typeAndVersion$handle_type_and_version(typeStr, versionStr);
+fun UpgradeableCounter.typeAndVersion(self): cell {
+    return TypeAndVersion{typeStr, versionStr: self.versionStr}.typeAndVersion();
 }

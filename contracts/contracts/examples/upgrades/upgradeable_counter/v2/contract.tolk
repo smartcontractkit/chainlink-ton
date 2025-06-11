@@ -12,7 +12,11 @@ fun saveData(data: StorageV2) {
     contract.setData(data.toCell());
 }
 
+const versionStr = "2.0.0";
+
 fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: slice) {
+    val upgradeable = Upgradeable{migrateStorage};
+    val upgradeableCounter = UpgradeableCounter{upgradeable, versionStr};
     if (msgBody.isEnd()) { // ignore all empty messages
         return;
     }
@@ -23,8 +27,7 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
         return;
     }
     
-    val upgradeable = Upgradeable{migrateStorage};
-    if (upgradeable.onInternalMessage(myBalance, msgValue, msgFull, msgBody)) {
+    if (upgradeableCounter.onInternalMessage(myBalance, msgValue, msgFull, msgBody)) {
         return;
     }
 
@@ -58,8 +61,8 @@ fun migrateStorage(c: cell): cell {
     return newStorage.toCell();
 }
 
-const version= "2.0.0";
-
-get type_and_version(): cell {
-    return upgradeableCounter$type_and_version(version);
+get typeAndVersion(): cell {
+    val upgradeable = Upgradeable{migrateStorage};
+    val upgradeableCounter = UpgradeableCounter{upgradeable, versionStr}; // This is repeated because we cannot declare immutable variables (val) globally in Tolk
+    return upgradeableCounter.typeAndVersion();
 }
