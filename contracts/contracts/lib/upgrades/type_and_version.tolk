@@ -17,8 +17,13 @@
 /// Read more about Reverse DNS Notation at https://en.wikipedia.org/wiki/Reverse_domain_name_notation
 ///
 /// `versionStr` must be a semantic version string (e.g. "1.0.0").
-fun typeAndVersion$handle_type_and_version(typeStr: slice, versionStr: slice): cell {
-    return beginCell().storeSlice(typeStr).storeSlice(" v").storeSlice(versionStr).endCell();
+struct TypeAndVersion {
+    typeStr: slice,
+    versionStr: slice,
+}
+
+fun TypeAndVersion.typeAndVersion(self): cell {
+    return beginCell().storeSlice(self.typeStr).storeSlice(" v").storeSlice(self.versionStr).endCell();
 }
 
 // Returns the current code of the contract.
@@ -27,7 +32,7 @@ get fun code(): cell {
 }
 
 // Returns the sha256 hash of the current code of the contract.
-get fun code_hash(): int {
+get fun codeHash(): int {
     return contract.getCode().hash();
 }
 
