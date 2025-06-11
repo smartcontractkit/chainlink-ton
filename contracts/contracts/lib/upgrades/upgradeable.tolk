@@ -42,6 +42,8 @@ import "@stdlib/tvm-dicts.tolk";
 ///
 struct Upgradeable {
     migrateStorage: (cell) -> cell; // This function is expected to be provided by the contract
+    // TODO on ownable2step:
+    // ownable2Step: Ownable2Step;
 }
 
 /// Message for upgrading a contract.
@@ -53,9 +55,7 @@ struct (0x78db4d86) Upgrade {
 fun Upgradeable.onInternalMessage(self, myBalance: int, msgValue: int, msgFull: cell, msgBody: slice): bool {
     try {
         var upgrade = Upgrade.fromSlice(msgBody);
-
-        var data = contract.getData();
-        doUpgrade(upgrade.code, self.migrateStorage);
+        self.doUpgrade(upgrade.code);
         return true;
     } catch(exitCode) {
         if (exitCode != 63) { // 63 is the error code for unknown opcode
@@ -65,11 +65,17 @@ fun Upgradeable.onInternalMessage(self, myBalance: int, msgValue: int, msgFull: 
     }
 }
 
-fun doUpgrade(code: cell, migrateStorage: (cell) -> cell) {
+fun Upgradeable.requireUpgrade(self) {
+    // TODO on ownable2step: throw error if sender is not the contract owner
+    // self.ownable2Step.requireOwner();
+}
+
+fun Upgradeable.doUpgrade(self, code: cell) {
+    self.requireUpgrade();
     contract.setCodePostponed(code);
     var cont = transformSliceToContinuation(code.beginParse());
     setTvmRegisterC3(cont);
     var c = contract.getData();
-    var newStorage = migrateStorage(c);
+    var newStorage = self.migrateStorage(c);
     contract.setData(newStorage);
 }
