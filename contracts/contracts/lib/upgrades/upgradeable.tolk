@@ -1,7 +1,6 @@
 import "@stdlib/tvm-lowlevel";
 import "@stdlib/tvm-dicts.tolk";
 
-// TODO opcode from hashed name
 struct (0x0000000A) Upgrade {
     queryId: uint64;
     code: cell;
@@ -37,8 +36,8 @@ struct (0x0000000A) Upgrade {
 /// }
 /// @method_id(1000)
 /// fun migrateStorage(c: cell): cell { return beginCell().endCell(); }
+///```
 ///
-
 struct Upgradeable {
     migrateStorage: (cell) -> cell, // This function is expected to be provided by the contract
 }

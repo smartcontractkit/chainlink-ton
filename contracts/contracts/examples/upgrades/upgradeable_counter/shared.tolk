@@ -23,7 +23,6 @@ struct UpgradeableCounter {
     versionStr: slice,
 }
 
-// TODO opcode from hashed name
 /// Instructs the contract to step the counter.
 struct (0x00000001) Step {
     queryId: uint64;
