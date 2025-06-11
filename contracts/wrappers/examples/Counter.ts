@@ -77,7 +77,7 @@ export class Counter implements Contract {
   }
 
   async getTypeAndVersion(provider: ContractProvider): Promise<string> {
-    const result = await provider.get('type_and_version', [])
+    const result = await provider.get('typeAndVersion', [])
     return result.stack.readString()
   }
 
@@ -87,7 +87,7 @@ export class Counter implements Contract {
   }
 
   async getCodeHash(provider: ContractProvider): Promise<number> {
-    const result = await provider.get('code_hash', [])
+    const result = await provider.get('codeHash', [])
     return result.stack.readNumber()
   }
 }
