@@ -8,6 +8,7 @@ import {
   Sender,
   SendMode,
 } from '@ton/core'
+import { crc32 } from 'zlib'
 
 export type CounterConfig = {
   id: number
@@ -20,7 +21,7 @@ export function counterConfigToCell(config: CounterConfig): Cell {
 
 export const Opcodes = {
   OP_STEP: 0x00000001,
-  OP_UPGRADE: 0x0000000a,
+  OP_UPGRADE: crc32('Upgrade'),
 }
 
 export class UpgradeableCounterV1 implements Contract {

@@ -19,8 +19,8 @@ import "../../../lib/upgrades/type_and_version.tolk";
 ///
 /// `versionStr` must be a semantic version string (e.g. "1.0.0").
 struct UpgradeableCounter {
-    upgradeable: Upgradeable,
-    versionStr: slice,
+    upgradeable: Upgradeable;
+    versionStr: slice;
 }
 
 /// Instructs the contract to step the counter.

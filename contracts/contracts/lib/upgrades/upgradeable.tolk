@@ -1,11 +1,6 @@
 import "@stdlib/tvm-lowlevel";
 import "@stdlib/tvm-dicts.tolk";
 
-struct (0x0000000A) Upgrade {
-    queryId: uint64;
-    code: cell;
-}
-
 /// Upgradeable message handler.
 ///
 /// This function is expected to be called from the contract's
@@ -35,11 +30,24 @@ struct (0x0000000A) Upgrade {
 ///     throw 63; // 63 error code is thrown if the message opcode is unknown
 /// }
 /// @method_id(1000)
-/// fun migrateStorage(c: cell): cell { return beginCell().endCell(); }
-///```
+/// fun migrateStorage(c: cell): cell {
+///     var oldStorage = StorageV1.fromCell(c);
+///     var newStorage = StorageV2{
+///         value: oldStorage.value as uint64,
+///         id: oldStorage.id,
+///     };
+///     return newStorage.toCell();
+/// }
+/// ```
 ///
 struct Upgradeable {
-    migrateStorage: (cell) -> cell, // This function is expected to be provided by the contract
+    migrateStorage: (cell) -> cell; // This function is expected to be provided by the contract
+}
+
+/// Message for upgrading a contract.
+struct (0x78db4d86) Upgrade {
+    queryId: uint64;
+    code: cell;
 }
 
 fun Upgradeable.onInternalMessage(self, myBalance: int, msgValue: int, msgFull: cell, msgBody: slice): bool {
