@@ -1,16 +1,17 @@
 /// Implements getters for contract type and version, current code and code hash.
 
-/// The implementor is expected to implement a `type_and_version(): cell` getter, wrapping a call to `typeAndVersion$handle_type_and_version(contract_type, version);`
+/// The implementor is expected to implement a `typeAndVersion(): cell` getter, wrapping a call to `TypeAndVersion.typeAndVersion;`
+///
 /// Example:
+///
 /// ```tolk
-/// const contract_type= "com.chainlink.ton.examples.Counter";
-/// const version= "1.0.0";
-/// get type_and_version(): cell {
-///     return typeAndVersion$handle_type_and_version(contract_type, version);
+/// get typeAndVersion(): cell {
+///     return TypeAndVersion {
+///         typeStr: "com.chainlink.ton.examples.Counter",
+///         versionStr: "1.0.0",
+///     }.typeAndVersion();
 /// }
 /// ```
-
-/// A getter returning the current type and version of the contract.
 ///
 /// `typeStr` must be a Reverse Domain Name Notation string that is unique to the contract and should not change between versions.
 /// Example: "com.chainlink.project.package.ContractName"
@@ -22,6 +23,7 @@ struct TypeAndVersion {
     versionStr: slice,
 }
 
+/// A getter returning the current type and version of the contract.
 fun TypeAndVersion.typeAndVersion(self): cell {
     return beginCell().storeSlice(self.typeStr).storeSlice(" v").storeSlice(self.versionStr).endCell();
 }
