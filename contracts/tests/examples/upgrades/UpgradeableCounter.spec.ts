@@ -6,6 +6,7 @@ import {
   CounterConfig,
 } from '../../../wrappers/examples/upgrades/UpgreableCounterV1'
 import { compile } from '@ton/blueprint'
+import { UpgradeableCounterV2 } from '../../../wrappers/examples/upgrades/UpgreableCounterV2'
 
 async function setUpTest(i: number): Promise<{
   blockchain: Blockchain
@@ -110,55 +111,63 @@ describe('UpgradeableCounter', () => {
   })
 
   it('should be upgraded to version 2', async () => {
-    let { owner, upgradeableCounter, codeV2 } = await setUpTest(0)
+    let { blockchain, owner, upgradeableCounter: upgradeableCounterV1, codeV2 } = await setUpTest(0)
 
-    const typeAndVersion1 = await upgradeableCounter.getTypeAndVersion()
+    const typeAndVersion1 = await upgradeableCounterV1.getTypeAndVersion()
     expect(typeAndVersion1).toBe('com.chainlink.ton.examples.upgrades.UpgradeableCounter v1.0.0')
 
-    let upgradeResult = await upgradeableCounter.sendUpgrade(owner.getSender(), {
+    let upgradeResult = await upgradeableCounterV1.sendUpgrade(owner.getSender(), {
       value: toNano('0.05'),
       code: codeV2,
     })
     expect(upgradeResult.transactions).toHaveTransaction({
       from: owner.address,
-      to: upgradeableCounter.address,
+      to: upgradeableCounterV1.address,
       success: true,
     })
 
-    const code = await upgradeableCounter.getCode()
+    let upgradeableCounterV2 = blockchain.openContract(
+      UpgradeableCounterV2.createFromAddress(upgradeableCounterV1.address),
+    )
+
+    const code = await upgradeableCounterV2.getCode()
     const expectedHash = codeV2.hash()
     expect(code.toString('hex')).toBe(codeV2.toString('hex'))
     const expectedHashInt = parseInt(expectedHash.toString('hex'), 16)
-    const hash = await upgradeableCounter.getCodeHash()
+    const hash = await upgradeableCounterV2.getCodeHash()
     expect(hash).toBe(expectedHashInt)
 
-    const typeAndVersion2 = await upgradeableCounter.getTypeAndVersion()
+    const typeAndVersion2 = await upgradeableCounterV2.getTypeAndVersion()
     expect(typeAndVersion2).toBe('com.chainlink.ton.examples.upgrades.UpgradeableCounter v2.0.0')
   })
 
   it('version 2 should decrease the counter', async () => {
-    let { blockchain, owner, upgradeableCounter } = await setUpTest(3)
+    let { blockchain, owner, upgradeableCounter: upgradeableCounterV1 } = await setUpTest(3)
 
-    await upgradeCounter(owner, upgradeableCounter)
+    await upgradeCounter(owner, upgradeableCounterV1)
+
+    let upgradeableCounterV2 = blockchain.openContract(
+      UpgradeableCounterV2.createFromAddress(upgradeableCounterV1.address),
+    )
 
     const decreaseTimes = 3
     for (let i = 0; i < decreaseTimes; i++) {
       const decreaser = await blockchain.treasury('decreaser' + i)
 
-      const counterBefore = await upgradeableCounter.getValue()
+      const counterBefore = await upgradeableCounterV2.getValue()
 
-      let decreaseResult = await upgradeableCounter.sendStep(decreaser.getSender(), {
+      let decreaseResult = await upgradeableCounterV2.sendStep(decreaser.getSender(), {
         value: toNano('0.05'),
         queryId: Math.floor(Math.random() * 10000),
       })
 
       expect(decreaseResult.transactions).toHaveTransaction({
         from: decreaser.address,
-        to: upgradeableCounter.address,
+        to: upgradeableCounterV2.address,
         success: true,
       })
 
-      const getterResult = await upgradeableCounter.getValue()
+      const getterResult = await upgradeableCounterV2.getValue()
       expect(getterResult).toBe(counterBefore - 1)
     }
   })
