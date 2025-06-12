@@ -81,6 +81,8 @@ struct UpgradedEvent {
     sha: uint256;
 }
 
+const UPGRADED_EVENT = 0xa33b498e; // Event topic for the upgrade event
+
 fun Upgradeable.doUpgrade(self, code: cell) {
     self.requireUpgrade();
     contract.setCodePostponed(code);
@@ -89,9 +91,9 @@ fun Upgradeable.doUpgrade(self, code: cell) {
     var c = contract.getData();
     var newStorage = self.migrateStorage(c);
     contract.setData(newStorage);
-    emitEvent(UpgradedEvent{
+    emit(UPGRADED_EVENT, UpgradedEvent{
         version: self.version(),
         code: code,
         sha: code.hash(),
-        }.toCell());
+        });
 }
