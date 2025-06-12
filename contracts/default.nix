@@ -6,7 +6,7 @@
 
   # source yarn.lock at the root of the repo
   yarnLock = ../yarn.lock;
-  
+
   # Define packages first
   packages = rec {
     # Official TON Jetton contract in FunC
@@ -70,7 +70,10 @@
 in {
   # Output a set of specifc shells
   devShells = {
-    contracts = pkgs.callPackage ./shell.nix {inherit pkgs; jetton-contracts = packages.contracts-jetton-func;};
+    contracts = pkgs.callPackage ./shell.nix {
+      inherit pkgs;
+      jetton-contracts = packages.contracts-jetton-func;
+    };
   };
 
   # Output a set of specifc packages
