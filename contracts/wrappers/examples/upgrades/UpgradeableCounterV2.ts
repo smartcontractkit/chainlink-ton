@@ -95,7 +95,7 @@ export class UpgradeableCounterV2 implements Contract, TypeAndVersion, Upgradeab
     return this.typeAndVersion.getCode(provider)
   }
 
-  async getCodeHash(provider: ContractProvider): Promise<number> {
+  async getCodeHash(provider: ContractProvider): Promise<bigint> {
     return this.typeAndVersion.getCodeHash(provider)
   }
 
