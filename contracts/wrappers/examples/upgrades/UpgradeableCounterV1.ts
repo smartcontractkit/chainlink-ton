@@ -10,6 +10,7 @@ import {
 } from '@ton/core'
 import { Upgradeable } from '../../libraries/upgrades/Upgradeable'
 import { compile } from '@ton/blueprint'
+import { TypeAndVersion } from '../../libraries/TypeAndVersion'
 
 export type CounterConfig = {
   id: number
@@ -24,12 +25,16 @@ export const Opcodes = {
   OP_STEP: 0x00000001,
 }
 
-export class UpgradeableCounterV1 extends Upgradeable {
+export class UpgradeableCounterV1 implements TypeAndVersion, Upgradeable {
+  private typeAndVersion: TypeAndVersion
+  private upgradeable: Upgradeable
+
   constructor(
     readonly address: Address,
     readonly init?: { code: Cell; data: Cell },
   ) {
-    super(address, init)
+    this.typeAndVersion = new TypeAndVersion()
+    this.upgradeable = new Upgradeable()
   }
 
   static createFromAddress(address: Address) {
@@ -81,18 +86,29 @@ export class UpgradeableCounterV1 extends Upgradeable {
     return result.stack.readNumber()
   }
 
+  // Delegate TypeAndVersion methods
   async getTypeAndVersion(provider: ContractProvider): Promise<string> {
-    const result = await provider.get('typeAndVersion', [])
-    return result.stack.readString()
+    return this.typeAndVersion.getTypeAndVersion(provider)
   }
 
   async getCode(provider: ContractProvider): Promise<Cell> {
-    const result = await provider.get('code', [])
-    return result.stack.readCell()
+    return this.typeAndVersion.getCode(provider)
   }
 
-  async getCodeHash(provider: ContractProvider): Promise<BigInt> {
-    const result = await provider.get('codeHash', [])
-    return result.stack.readBigNumber()
+  async getCodeHash(provider: ContractProvider): Promise<number> {
+    return this.typeAndVersion.getCodeHash(provider)
+  }
+
+  // Delegate Upgradeable methods
+  async sendUpgrade(
+    provider: ContractProvider,
+    via: Sender,
+    opts: {
+      value: bigint
+      queryId?: number
+      code: Cell
+    },
+  ) {
+    await this.upgradeable.sendUpgrade(provider, via, opts)
   }
 }

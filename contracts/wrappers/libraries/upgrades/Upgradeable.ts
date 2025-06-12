@@ -15,11 +15,8 @@ export const Opcodes = {
   OP_UPGRADE: crc32('Upgrade'),
 }
 
-export abstract class Upgradeable implements Contract {
-  constructor(
-    readonly address: Address,
-    readonly init?: { code: Cell; data: Cell },
-  ) {}
+export class Upgradeable {
+  readonly address: Address
 
   async sendUpgrade(
     provider: ContractProvider,
@@ -41,7 +38,9 @@ export abstract class Upgradeable implements Contract {
     })
   }
 
-  abstract code(): Promise<Cell>
+  code(): Promise<Cell> {
+    throw new Error('Method not implemented.')
+  }
 }
 
 export async function sendUpgradeAndReturnNewVersion<T extends Upgradeable>(
