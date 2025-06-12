@@ -28,7 +28,7 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
 
     // Load the contract storage
     var s = loadData();
-    var rbac = RBACAccessControl.fromCell(s.rbac);
+    var rbac = AccessControl.fromCell(s.rbac);
 
     val senderAddress: address = cs.loadAddress();
     cs.loadAddress(); // skip dst
@@ -55,6 +55,7 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
         var msgHandeled = 0
           || rbac.onInternalMessage(op, myBalance, msgValue, msgFull, msgBody)
           || timelockAdmin.onInternalMessage(op, myBalance, msgValue, msgFull, msgBody);
+
         if (msgHandeled) {
             // Map from underlying trait storage to contract storage
             s.minDelay = timelockAdmin.minDelay;
