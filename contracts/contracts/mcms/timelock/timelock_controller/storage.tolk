@@ -10,7 +10,7 @@ struct Storage {
     timestampCount: int32;  // number of timestamps stored, used to track the size of the storage
     timestamps: dict;       // maps operation id to timestamp
 
-    rbac: Cell<RBACAccessControl>;
+    rbac: Cell<AccessControl>;
 }
 
 // load contract data using auto-deserialization

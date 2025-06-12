@@ -8,7 +8,7 @@ import "./params.tolk";
 
 get getTimelockControllerData(): (int, int, dict, dict, dict, dict, dict) {
     val s = loadData();
-    val rbac = RBACAccessControl.fromCell(s.rbac);
+    val rbac = AccessControl.fromCell(s.rbac);
     return (
         s.minDelay,
         s.timestampCount,
@@ -57,5 +57,5 @@ get getOperationState(id: int): int {
 
 get getHasRole(role: int, account: address): bool {
     val s = loadData();
-    return RBACAccessControl.fromCell(s.rbac).get_getHasRole(role, account)
+    return AccessControl.fromCell(s.rbac).hasRole(role, account)
 }
