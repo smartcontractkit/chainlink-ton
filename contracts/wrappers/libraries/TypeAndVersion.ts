@@ -11,8 +11,8 @@ export class TypeAndVersion {
     return result.stack.readCell()
   }
 
-  async getCodeHash(provider: ContractProvider): Promise<number> {
+  async getCodeHash(provider: ContractProvider): Promise<bigint> {
     const result = await provider.get('codeHash', [])
-    return result.stack.readNumber()
+    return result.stack.readBigNumber()
   }
 }

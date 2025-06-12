@@ -41,11 +41,11 @@ describe('Counter', () => {
 
   it('should have the right code and hash', async () => {
     const contractCode = await counter.getCode()
-    const expectedHash = code.hash()
+    const expectedHashBuffer = code.hash()
     expect(contractCode.toString('hex')).toBe(code.toString('hex'))
-    const expectedHashInt = parseInt(expectedHash.toString('hex'), 16)
+    const expectedHash = BigInt('0x' + expectedHashBuffer.toString('hex'))
     const hash = await counter.getCodeHash()
-    expect(hash).toBe(expectedHashInt)
+    expect(hash).toBe(expectedHash)
   })
 
   it('should count', async () => {
