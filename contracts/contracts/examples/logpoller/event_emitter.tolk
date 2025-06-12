@@ -1,3 +1,5 @@
+// TODO: Test contract for logpoller example, 
+// TODO: happy to merge with other example contracts with event emit functionality
 const op_reset_counter = 0x3dc2af2d;
 
 // global variables context
