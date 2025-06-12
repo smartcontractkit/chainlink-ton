@@ -90,7 +90,7 @@ export class Counter implements Contract, TypeAndVersion {
     return this.typeAndVersion.getCode(provider)
   }
 
-  async getCodeHash(provider: ContractProvider): Promise<number> {
+  async getCodeHash(provider: ContractProvider): Promise<bigint> {
     return this.typeAndVersion.getCodeHash(provider)
   }
 }
