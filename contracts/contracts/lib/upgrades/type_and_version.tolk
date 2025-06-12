@@ -35,9 +35,7 @@ get fun code(): cell {
 
 // Returns the sha256 hash of the current code of the contract.
 get fun codeHash(): int {
-    val hashd = contract.getCode().hash();
-    debug.print(hashd);
-    return hashd;
+    return contract.getCode().hash();
 }
 
 
