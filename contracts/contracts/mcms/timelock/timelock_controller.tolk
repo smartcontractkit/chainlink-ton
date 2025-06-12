@@ -1,4 +1,4 @@
-tolk 0.13
+tolk 0.99
 
 import "@stdlib/tvm-dicts";
 import "common/workchain.tolk";
@@ -40,9 +40,27 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
 
     val (_, adminExists) = accountExists(STORAGE_ADMIN_ACCOUNTS, senderAddress);
     if (adminExists) {
-        var msgHandeled = Upgradeable__onInternalMessage(op, myBalance, msgValue, msgFull, msgBody)
-          || RBACAccessControl__onInternalMessage(op, myBalance, msgValue, msgFull, msgBody)
-          || RBACTimelockAdmin__onInternalMessage(op, myBalance, msgValue, msgFull, msgBody);
+        // Handle RBAC access control operations
+        var rbac: RBACAccessControl = {
+            adminAccounts: STORAGE_ADMIN_ACCOUNTS,
+            proposerAccounts: STORAGE_PROPOSER_ACCOUNTS,
+            executorAccounts: STORAGE_EXECUTOR_ACCOUNTS,
+            cancellerAccounts: STORAGE_CANCELLER_ACCOUNTS,
+        };
+
+        // Handle admin upgrade operations
+        var upgradeable: Upgradeable = {};
+
+        // Handle RBACTimelockAdmin operations
+        var timelockAdmin: RBACTimelockAdmin = {
+            minDelay: STORAGE_MIN_DELAY,
+            timestampCount: STORAGE_TIMESTAMP_COUNT,
+            timestamps: STORAGE_TIMESTAMPS,
+        };
+
+        var msgHandeled = upgradeable.onInternalMessage(op, myBalance, msgValue, msgFull, msgBody)
+          || rbac.onInternalMessage(op, myBalance, msgValue, msgFull, msgBody)
+          || timelockAdmin.onInternalMessage(op, myBalance, msgValue, msgFull, msgBody);
         if (msgHandeled) {
             return;
         }
