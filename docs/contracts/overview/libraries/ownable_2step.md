@@ -90,19 +90,20 @@ First, define your contract's storage struct and include Ownable2Step as a field
 ``` tolk
 import "../lib/access/ownable_2step.tolk";
 
-struct OwnableCounter {
+struct Counter {
     id: uint64;
-    count: uint32;
+    value: uint32;
+
     ownable: Ownable2Step; // Embed the module's struct
 }
 
 // Helper to load contract data using auto-deserialization
-fun loadData(): OwnableCounter {
-    return OwnableCounter.fromCell(contract.getData());
+fun loadData(): Counter {
+    return Counter.fromCell(contract.getData());
 }
 
 // Helper to save contract data using auto-serialization
-fun saveData(data: OwnableCounter) {
+fun saveData(data: Counter) {
     contract.setData(data.toCell());
 }
 ```

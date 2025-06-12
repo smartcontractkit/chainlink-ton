@@ -10,7 +10,7 @@ import {
   SendMode,
 } from '@ton/core'
 import { crc32 } from 'zlib'
-import { createHash } from 'crypto'
+import { CellCodec, sha256_32 } from '../utils'
 
 // @dev Initializes the contract
 export type Init = {
@@ -123,6 +123,9 @@ export type InMessage =
 
 // RBACTimelock contract storage
 export type ContractData = {
+  /// ID allows multiple independent instances, since contract address depends on initial state.
+  id: number // uint32
+
   // Minimum delay for operations in seconds
   minDelay: number
   // Map of operation id to timestamp
@@ -190,9 +193,8 @@ export const opcodes = {
 
 export const builder = {
   message: {
-    encode: () => ({
-      // Creates a new `AccessControl_Init` message.
-      init: (msg: Init): Cell => {
+    init: {
+      encode: (msg: Init): Cell => {
         return beginCell()
           .storeUint(opcodes.in.Init, 32)
           .storeUint(msg.queryId, 64)
@@ -204,15 +206,39 @@ export const builder = {
           .storeRef(msg.bypassers)
           .endCell()
       },
-      // Creates a new `Timelock_TopUp` message.
-      topUp: (msg: TopUp): Cell => {
+      decode: (cell: Cell): Init => {
+        const s = cell.beginParse()
+        s.skip(32) // skip opcode
+        return {
+          queryId: s.loadUintBig(64),
+          minDelay: s.loadUintBig(64),
+          admin: s.loadAddress(),
+          proposers: s.loadRef(),
+          executors: s.loadRef(),
+          cancellers: s.loadRef(),
+          bypassers: s.loadRef(),
+        }
+      },
+    } as CellCodec<Init>,
+
+    topUp: {
+      encode: (msg: TopUp): Cell => {
         return beginCell() // break line
           .storeUint(opcodes.in.TopUp, 32)
           .storeUint(msg.queryId, 64)
           .endCell()
       },
-      // Creates a new `Timelock_ScheduleBatch` message.
-      scheduleBatch: (msg: ScheduleBatch): Cell => {
+      decode: (cell: Cell): TopUp => {
+        const s = cell.beginParse()
+        s.skip(32) // skip opcode
+        return {
+          queryId: s.loadUintBig(64),
+        }
+      },
+    } as CellCodec<TopUp>,
+
+    scheduleBatch: {
+      encode: (msg: ScheduleBatch): Cell => {
         return beginCell()
           .storeUint(opcodes.in.ScheduleBatch, 32)
           .storeUint(msg.queryId, 64)
@@ -222,16 +248,40 @@ export const builder = {
           .storeUint(msg.delay, 64)
           .endCell()
       },
-      // Creates a new `Timelock_Cancel` message.
-      cancel: (msg: Cancel): Cell => {
+      decode: (cell: Cell): ScheduleBatch => {
+        const s = cell.beginParse()
+        s.skip(32) // skip opcode
+        return {
+          queryId: s.loadUintBig(64),
+          calls: s.loadRef(),
+          predecessor: s.loadUintBig(256),
+          salt: s.loadUintBig(256),
+          delay: -1, // TODO: decode delay properly (number vs bigint mismatch)
+          // delay: s.loadUintBig(64),
+        }
+      },
+    } as CellCodec<ScheduleBatch>,
+
+    cancel: {
+      encode: (msg: Cancel): Cell => {
         return beginCell()
           .storeUint(opcodes.in.Cancel, 32)
           .storeUint(msg.queryId, 64)
           .storeUint(msg.id, 256)
           .endCell()
       },
-      // Creates a new `Timelock_ExecuteBatch` message.
-      executeBatch: (msg: ExecuteBatch): Cell => {
+      decode: (cell: Cell): Cancel => {
+        const s = cell.beginParse()
+        s.skip(32) // skip opcode
+        return {
+          queryId: s.loadUintBig(64),
+          id: s.loadUintBig(256),
+        }
+      },
+    } as CellCodec<Cancel>,
+
+    executeBatch: {
+      encode: (msg: ExecuteBatch): Cell => {
         return beginCell()
           .storeUint(opcodes.in.ExecuteBatch, 32)
           .storeUint(msg.queryId, 64)
@@ -240,46 +290,96 @@ export const builder = {
           .storeUint(msg.salt, 256)
           .endCell()
       },
-      // Creates a new `Timelock_UpdateDelay` message.
-      updateDelay: (msg: UpdateDelay): Cell => {
+      decode: (cell: Cell): ExecuteBatch => {
+        const s = cell.beginParse()
+        s.skip(32) // skip opcode
+        return {
+          queryId: s.loadUintBig(64),
+          calls: s.loadRef(),
+          predecessor: s.loadUintBig(256),
+          salt: s.loadUintBig(256),
+        }
+      },
+    } as CellCodec<ExecuteBatch>,
+
+    updateDelay: {
+      encode: (msg: UpdateDelay): Cell => {
         return beginCell()
           .storeUint(opcodes.in.UpdateDelay, 32)
           .storeUint(msg.queryId, 64)
           .storeUint(msg.newDelay, 64)
           .endCell()
       },
-      // Creates a new `Timelock_BlockFunctionSelector` message.
-      blockFunctionSelector: (msg: BlockFunctionSelector): Cell => {
+      decode: (cell: Cell): UpdateDelay => {
+        const s = cell.beginParse()
+        s.skip(32) // skip opcode
+        return {
+          queryId: s.loadUintBig(64),
+          newDelay: -1, // TODO: decode delay properly (number vs bigint mismatch)
+          // newDelay: s.loadUintBig(64),
+        }
+      },
+    } as CellCodec<UpdateDelay>,
+
+    blockFunctionSelector: {
+      encode: (msg: BlockFunctionSelector): Cell => {
         return beginCell()
           .storeUint(opcodes.in.BlockFunctionSelector, 32)
           .storeUint(msg.queryId, 64)
           .storeUint(msg.selector, 32)
           .endCell()
       },
-      // Creates a new `Timelock_UnblockFunctionSelector` message.
-      unblockFunctionSelector: (msg: UnblockFunctionSelector): Cell => {
+      decode: (cell: Cell): BlockFunctionSelector => {
+        const s = cell.beginParse()
+        s.skip(32) // skip opcode
+        return {
+          queryId: s.loadUintBig(64),
+          selector: s.loadUint(32),
+        }
+      },
+    } as CellCodec<BlockFunctionSelector>,
+
+    unblockFunctionSelector: {
+      encode: (msg: UnblockFunctionSelector): Cell => {
         return beginCell()
           .storeUint(opcodes.in.UnblockFunctionSelector, 32)
           .storeUint(msg.queryId, 64)
           .storeUint(msg.selector, 32)
           .endCell()
       },
-      // Creates a new `Timelock_BypasserExecuteBatch` message.
-      bypasserExecuteBatch: (msg: BypasserExecuteBatch): Cell => {
+      decode: (cell: Cell): UnblockFunctionSelector => {
+        const s = cell.beginParse()
+        s.skip(32) // skip opcode
+        return {
+          queryId: s.loadUintBig(64),
+          selector: s.loadUint(32),
+        }
+      },
+    } as CellCodec<UnblockFunctionSelector>,
+
+    bypasserExecuteBatch: {
+      encode: (msg: BypasserExecuteBatch): Cell => {
         return beginCell()
           .storeUint(opcodes.in.BypasserExecuteBatch, 32)
           .storeUint(msg.queryId, 64)
           .storeRef(msg.calls)
           .endCell()
       },
-    }),
-    decode: {}, // Decoding functions can be added here if needed
+      decode: (cell: Cell): BypasserExecuteBatch => {
+        const s = cell.beginParse()
+        s.skip(32) // skip opcode
+        return {
+          queryId: s.loadUintBig(64),
+          calls: s.loadRef(),
+        }
+      },
+    } as CellCodec<BypasserExecuteBatch>,
   },
   data: {
-    encode: () => ({
-      // Creates a new `Timelock_Data` contract data cell
-      contractData: (data: ContractData): Cell => {
+    contractData: {
+      encode: (data: ContractData): Cell => {
         return beginCell()
+          .storeUint(data.id, 32)
           .storeUint(data.minDelay, 64)
           .storeDict(data.timestamps)
           .storeUint(data.blockedFnSelectorsLen || 0, 32) // blocked_fn_selectors_len
@@ -290,30 +390,47 @@ export const builder = {
           .storeRef(data.rbac)
           .endCell()
       },
-      // Creates a new `Timelock_Call.hasRole` data cell
-      call: (call: Call): Cell => {
+      decode: (cell: Cell): ContractData => {
+        throw new Error('not implemented')
+      },
+    } as CellCodec<ContractData>,
+
+    call: {
+      encode: (call: Call): Cell => {
         return beginCell()
           .storeAddress(call.target)
           .storeCoins(call.value)
           .storeRef(call.data)
           .endCell()
       },
-      operationBatch: (op: OperationBatch): Cell => {
+      decode: (cell: Cell): Call => {
+        const stack = cell.beginParse()
+        return {
+          target: stack.loadAddress(),
+          value: stack.loadCoins(),
+          data: stack.loadRef(),
+        }
+      },
+    } as CellCodec<Call>,
+
+    operationBatch: {
+      encode: (op: OperationBatch): Cell => {
         return beginCell()
           .storeRef(op.calls)
           .storeUint(op.predecessor, 256)
           .storeUint(op.salt, 256)
           .endCell()
       },
-    }),
+      decode: (cell: Cell): OperationBatch => {
+        const s = cell.beginParse()
+        return {
+          calls: s.loadRef(),
+          predecessor: s.loadUintBig(256),
+          salt: s.loadUintBig(256),
+        }
+      },
+    } as CellCodec<OperationBatch>,
   },
-}
-
-// Helper function to compute a 32-bit SHA-256 hash of a string (e.g., Tolk's stringSha256_32)
-const sha256_32 = (input: string): bigint => {
-  const hash = createHash('sha256').update(input).digest()
-  // Take the first 4 bytes as a 32-bit unsigned integer (big-endian)
-  return BigInt(hash.readUInt32BE(0))
 }
 
 // TODO: keccak256 should be used as a default (compatibility with EVM contracts)
@@ -358,7 +475,7 @@ export class ContractClient implements Contract {
   }
 
   static newFrom(data: ContractData, code: Cell, workchain = 0) {
-    const init = { code, data: builder.data.encode().contractData(data) }
+    const init = { code, data: builder.data.contractData.encode(data) }
     return new ContractClient(contractAddress(workchain, init), init)
   }
 
@@ -371,11 +488,11 @@ export class ContractClient implements Contract {
   }
 
   async sendInit(provider: ContractProvider, via: Sender, value: bigint, body: Init) {
-    return this.sendInternal(provider, via, value, builder.message.encode().init(body))
+    return this.sendInternal(provider, via, value, builder.message.init.encode(body))
   }
 
   async sendTopUp(provider: ContractProvider, via: Sender, value: bigint = 0n, body: TopUp) {
-    return this.sendInternal(provider, via, value, builder.message.encode().topUp(body))
+    return this.sendInternal(provider, via, value, builder.message.topUp.encode(body))
   }
 
   async sendScheduleBatch(
@@ -384,19 +501,19 @@ export class ContractClient implements Contract {
     value: bigint = 0n,
     body: ScheduleBatch,
   ) {
-    return this.sendInternal(p, via, value, builder.message.encode().scheduleBatch(body))
+    return this.sendInternal(p, via, value, builder.message.scheduleBatch.encode(body))
   }
 
   async sendCancel(p: ContractProvider, via: Sender, value: bigint = 0n, body: Cancel) {
-    return this.sendInternal(p, via, value, builder.message.encode().cancel(body))
+    return this.sendInternal(p, via, value, builder.message.cancel.encode(body))
   }
 
   async sendExecuteBatch(p: ContractProvider, via: Sender, value: bigint = 0n, body: ExecuteBatch) {
-    return this.sendInternal(p, via, value, builder.message.encode().executeBatch(body))
+    return this.sendInternal(p, via, value, builder.message.executeBatch.encode(body))
   }
 
   async sendUpdateDelay(p: ContractProvider, via: Sender, value: bigint = 0n, body: UpdateDelay) {
-    return this.sendInternal(p, via, value, builder.message.encode().updateDelay(body))
+    return this.sendInternal(p, via, value, builder.message.updateDelay.encode(body))
   }
 
   async sendBlockFunctionSelector(
@@ -405,7 +522,7 @@ export class ContractClient implements Contract {
     value: bigint = 0n,
     body: BlockFunctionSelector,
   ) {
-    return this.sendInternal(p, via, value, builder.message.encode().blockFunctionSelector(body))
+    return this.sendInternal(p, via, value, builder.message.blockFunctionSelector.encode(body))
   }
 
   async sendUnblockFunctionSelector(
@@ -414,7 +531,7 @@ export class ContractClient implements Contract {
     value: bigint = 0n,
     body: UnblockFunctionSelector,
   ) {
-    return this.sendInternal(p, via, value, builder.message.encode().unblockFunctionSelector(body))
+    return this.sendInternal(p, via, value, builder.message.unblockFunctionSelector.encode(body))
   }
 
   async sendBypasserExecuteBatch(
@@ -423,7 +540,7 @@ export class ContractClient implements Contract {
     value: bigint = 0n,
     body: BypasserExecuteBatch,
   ) {
-    return this.sendInternal(p, via, value, builder.message.encode().bypasserExecuteBatch(body))
+    return this.sendInternal(p, via, value, builder.message.bypasserExecuteBatch.encode(body))
   }
 
   // --- Getters ---
@@ -497,14 +614,26 @@ export class ContractClient implements Contract {
   }
 
   async getHashOperationBatch(p: ContractProvider, op: OperationBatch): Promise<bigint> {
-    return p
-      .get('hashOperationBatch', [
-        {
-          type: 'slice',
-          cell: builder.data.encode().operationBatch(op),
-        },
-      ])
-      .then((r) => r.stack.readBigNumber())
+    return (
+      p
+        // Notice: to encode an `op: OperationBatch` struct,
+        // members need to individually be encoded as arguments
+        .get('hashOperationBatch', [
+          {
+            type: 'cell',
+            cell: op.calls,
+          },
+          {
+            type: 'int',
+            value: op.predecessor,
+          },
+          {
+            type: 'int',
+            value: op.salt,
+          },
+        ])
+        .then((r) => r.stack.readBigNumber())
+    )
   }
 
   async getBlockedFunctionSelectorCount(p: ContractProvider): Promise<number> {

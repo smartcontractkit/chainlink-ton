@@ -12,11 +12,11 @@ import {
   SendMode,
 } from '@ton/core'
 
-import { Ownable2StepConfig } from '../libraries/access/Ownable2Step'
+import * as ownable2step from '../libraries/access/Ownable2Step'
 import { asSnakeData } from '../../utils/Utils'
 
 export type FeeQuoterStorage = {
-  ownable: Ownable2StepConfig
+  ownable: ownable2step.Data
   maxFeeJuelsPerMsg: bigint
   linkToken: Address
   tokenPriceStalenessThreshold: bigint
