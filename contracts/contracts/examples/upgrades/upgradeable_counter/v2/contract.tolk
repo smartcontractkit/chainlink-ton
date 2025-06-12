@@ -23,9 +23,10 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
 
     var cs = msgFull.beginParse();
     val flags = cs.loadMessageFlags();
-    if (isMessageBounced(flags)) { // ignore all bounced messages
-        return;
-    }
+    // TODO isMessageBounced disappeared in Tolk 0.99
+    // if (isMessageBounced(flags)) { // ignore all bounced messages
+    //     return;
+    // }
     
     if (upgradeableCounter.onInternalMessage(myBalance, msgValue, msgFull, msgBody)) {
         return;
