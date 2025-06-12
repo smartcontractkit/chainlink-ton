@@ -7,22 +7,23 @@ import "./operation_utils.tolk";
 import "./params.tolk";
 
 get getTimelockControllerData(): (int, int, dict, dict, dict, dict, dict) {
-    loadStorage();
+    val s = loadData();
+    val rbac = RBACAccessControl.fromCell(s.rbac);
     return (
-        STORAGE_MIN_DELAY,
-        STORAGE_TIMESTAMP_COUNT,
-        STORAGE_ADMIN_ACCOUNTS,
-        STORAGE_PROPOSER_ACCOUNTS,
-        STORAGE_EXECUTOR_ACCOUNTS,
-        STORAGE_CANCELLER_ACCOUNTS,
-        STORAGE_TIMESTAMPS
+        s.minDelay,
+        s.timestampCount,
+        rbac.adminAccounts,
+        rbac.proposerAccounts,
+        rbac.executorAccounts,
+        rbac.cancellerAccounts,
+        s.timestamps,
     );
 }
 
 get getTimestamp(id: int): int {
-    loadStorage();
+    val s = loadData();
 
-    var (timestampSlice, exists) = STORAGE_TIMESTAMPS.uDictGet(256, id);
+    var (timestampSlice, exists) = s.timestamps.uDictGet(256, id);
     if (!exists) {
         return 0;
     }
@@ -31,15 +32,13 @@ get getTimestamp(id: int): int {
 }
 
 get getHashOperation(tonValue: int, predecessor: int, salt: int, account: address, msgToSend: cell): int {
-    loadStorage();
-
     return hashOperation(tonValue, predecessor, salt, account, msgToSend);
 }
 
 get getOperationState(id: int): int {
-    loadStorage();
+    val s = loadData();
 
-    var (timestampSlice, exists) = STORAGE_TIMESTAMPS.uDictGet(256, id);
+    var (timestampSlice, exists) = s.timestamps.uDictGet(256, id);
     if (!exists) {
         return UNSET_STATE;
     }

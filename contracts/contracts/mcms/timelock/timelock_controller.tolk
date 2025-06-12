@@ -26,7 +26,9 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
     //     return;
     // }
 
-    loadStorage();
+    // Load the contract storage
+    var s = loadData();
+    var rbac = RBACAccessControl.fromCell(s.rbac);
 
     val senderAddress: address = cs.loadAddress();
     cs.loadAddress(); // skip dst
@@ -40,47 +42,32 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
     val op = msgBody.loadMessageOp();
     val queryID = msgBody.loadMessageQueryId();
 
-    val (_, adminExists) = accountExists(STORAGE_ADMIN_ACCOUNTS, senderAddress);
+    val (_, adminExists) = accountExists(rbac.adminAccounts, senderAddress);
     if (adminExists) {
-        // Map from global storage to underlying trait storage
-        // Handle RBAC access control operations
-        var rbac: RBACAccessControl = {
-            adminAccounts: STORAGE_ADMIN_ACCOUNTS,
-            proposerAccounts: STORAGE_PROPOSER_ACCOUNTS,
-            executorAccounts: STORAGE_EXECUTOR_ACCOUNTS,
-            cancellerAccounts: STORAGE_CANCELLER_ACCOUNTS,
-        };
-
-        // Handle RBACTimelockAdmin operations
+        // Map from underlying contract storage to trait storage
+        // RBACTimelockAdmin operations handler
         var timelockAdmin: RBACTimelockAdmin = {
-            minDelay: STORAGE_MIN_DELAY,
-            timestampCount: STORAGE_TIMESTAMP_COUNT,
-            timestamps: STORAGE_TIMESTAMPS,
+            minDelay: s.minDelay,
+            timestampCount: s.timestampCount,
+            timestamps: s.timestamps,
         };
 
         var msgHandeled = 0
           || rbac.onInternalMessage(op, myBalance, msgValue, msgFull, msgBody)
           || timelockAdmin.onInternalMessage(op, myBalance, msgValue, msgFull, msgBody);
         if (msgHandeled) {
-            // Map from underlying trait storage to global storage
-            // RBACAccessControl
-            STORAGE_ADMIN_ACCOUNTS = rbac.adminAccounts;
-            STORAGE_PROPOSER_ACCOUNTS = rbac.proposerAccounts;
-            STORAGE_EXECUTOR_ACCOUNTS = rbac.executorAccounts;
-            STORAGE_CANCELLER_ACCOUNTS = rbac.cancellerAccounts;
-
-            // RBACTimelockAdmin
-            STORAGE_MIN_DELAY = timelockAdmin.minDelay;
-            STORAGE_TIMESTAMP_COUNT = timelockAdmin.timestampCount;
-            STORAGE_TIMESTAMPS = timelockAdmin.timestamps;
-
+            // Map from underlying trait storage to contract storage
+            s.minDelay = timelockAdmin.minDelay;
+            s.timestampCount = timelockAdmin.timestampCount;
+            s.timestamps = timelockAdmin.timestamps;
+            s.rbac = rbac.toCell();
             // Save the updated storage
-            saveStorage();
+            saveData(s);
             return;
         }
     }
 
-    val (_, proposerExists) = accountExists(STORAGE_PROPOSER_ACCOUNTS, senderAddress);
+    val (_, proposerExists) = accountExists(rbac.proposerAccounts, senderAddress);
     if (proposerExists) {
         if (op == OP_SCHEDULE) {
             val delay = msgBody.loadUint(32);
@@ -91,39 +78,39 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
             val msgToSend = msgBody.loadRef();
             msgBody.assertEnd();
 
-            assert(delay >= STORAGE_MIN_DELAY, ERROR_INVALID_DELAY);
+            assert(delay >= s.minDelay, ERROR_INVALID_DELAY);
 
             val id = hashOperation(tonValue, predecessor, salt, targetAccount, msgToSend);
 
-            val (_, exists) = STORAGE_TIMESTAMPS.uDictGet(256, id);
+            val (_, exists) = s.timestamps.uDictGet(256, id);
             assert(!exists, ERROR_OPERATION_EXISTS);
             val timestampSlice = beginCell().storeUint(blockchain.now() + delay, 32).endCell().beginParse();
-            STORAGE_TIMESTAMPS.uDictSet(256, id, timestampSlice);
-            STORAGE_TIMESTAMP_COUNT += 1;
-            saveStorage();
+            s.timestamps.uDictSet(256, id, timestampSlice);
+            s.timestampCount += 1;
+            saveData(s);
             return;
         }
     }
 
-    val (_, cancellerExists) = accountExists(STORAGE_CANCELLER_ACCOUNTS, senderAddress);
+    val (_, cancellerExists) = accountExists(rbac.cancellerAccounts, senderAddress);
     if (cancellerExists) {
         if (op == OP_CANCEL) {
             val id = msgBody.loadUint(256);
             msgBody.assertEnd();
 
-            var (timestampSlice, exists) = STORAGE_TIMESTAMPS.uDictGet(256, id);
+            var (timestampSlice, exists) = s.timestamps.uDictGet(256, id);
             assert(exists, ERROR_OPERATION_NOT_EXISTS);
             val timestamp = timestampSlice!.loadUint(32);
             assert(timestamp != DONE_TIMESTAMP, ERROR_INVALID_OPERATION_STATE);
 
-            STORAGE_TIMESTAMPS.uDictDelete(256, id);
-            STORAGE_TIMESTAMP_COUNT -= 1;
-            saveStorage();
+            s.timestamps.uDictDelete(256, id);
+            s.timestampCount -= 1;
+            saveData(s);
             return;
         }
     }
 
-    var (_, executorExists) = accountExists(STORAGE_EXECUTOR_ACCOUNTS, senderAddress);
+    var (_, executorExists) = accountExists(rbac.executorAccounts, senderAddress);
     if (executorExists) {
         if (op == OP_EXECUTE) {
             val tonValue = msgBody.loadCoins();
@@ -134,7 +121,7 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
             msgBody.assertEnd();
 
             if (predecessor > 0) {
-                var (timestampSlice, exists) = STORAGE_TIMESTAMPS.uDictGet(256, predecessor);
+                var (timestampSlice, exists) = s.timestamps.uDictGet(256, predecessor);
                 assert(exists, ERROR_PREDECESSOR_NOT_EXISTS);
                 val timestamp = timestampSlice!.loadUint(32);
                 assert(timestamp == DONE_TIMESTAMP, ERROR_INVALID_PREDECOSSOR_STATE);
@@ -142,7 +129,7 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
 
             val id = hashOperation(tonValue, predecessor, salt, targetAccount, msgToSend);
 
-            var (timestampSlice, exists) = STORAGE_TIMESTAMPS.uDictGet(256, id);
+            var (timestampSlice, exists) = s.timestamps.uDictGet(256, id);
             assert(exists, ERROR_OPERATION_NOT_EXISTS);
             val timestamp = timestampSlice!.loadUint(32);
             assert(timestamp <= blockchain.now(), ERROR_INVALID_OPERATION_STATE);
@@ -158,8 +145,8 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
             op.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 
             timestampSlice = beginCell().storeUint(DONE_TIMESTAMP, 32).endCell().beginParse();
-            STORAGE_TIMESTAMPS.uDictSet(256, id, timestampSlice);
-            saveStorage();
+            s.timestamps.uDictSet(256, id, timestampSlice);
+            saveData(s);
             return;
         }
     }
