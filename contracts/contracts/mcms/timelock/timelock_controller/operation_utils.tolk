@@ -1,4 +1,4 @@
-tolk 0.13
+tolk 0.99
 
 @inline
 fun hashOperation(tonValue: int, predecessor: int, salt: int, account: address, msgToSend: cell): int {

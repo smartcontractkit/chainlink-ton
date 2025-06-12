@@ -1,4 +1,4 @@
-tolk 0.13
+tolk 0.99
 
 const DONE_TIMESTAMP = 1;
 const ADMIN_ROLE = 0;
