@@ -2,6 +2,7 @@ package txm
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"sync"
 	"time"
@@ -9,7 +10,9 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/loop"
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
+	commontypes "github.com/smartcontractkit/chainlink-common/pkg/types"
 	"github.com/smartcontractkit/chainlink-common/pkg/utils"
+	commonutils "github.com/smartcontractkit/chainlink-common/pkg/utils"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
@@ -24,6 +27,7 @@ const (
 	MAX_BROADCAST_RETRY_DURATION = 30 * time.Second
 	BROADCAST_DELAY_DURATION     = 2 * time.Second
 	DEFAULT_ENERGY_MULTIPLIER    = 1.5
+	LIST_TRANSACTIONS_BATCH_SIZE = uint32(20)
 )
 
 type TONTxm struct {
@@ -90,9 +94,9 @@ func (t *TONTxm) GetClient() ton.APIClientWrapped {
 
 func (t *TONTxm) Start(ctx context.Context) error {
 	return t.Starter.StartOnce("TONTxm", func() error {
-		t.Done.Add(1) // waitgroup: broadcast loop and confirm loop
+		t.Done.Add(2) // waitgroup: broadcast loop and confirm loop
 		go t.broadcastLoop()
-		// go t.confirmLoop()
+		go t.confirmLoop()
 		return nil
 	})
 }
@@ -173,7 +177,6 @@ func (t *TONTxm) broadcastLoop() {
 				StateInit:   &st,
 				Body:        tx.Body,
 				CreatedAt:   uint32(tx.CreatedAt.Unix()),
-				CreatedLT:   uint64(tx.CreatedAt.Unix()),
 			}
 
 			msg := &wallet.Message{
@@ -206,8 +209,11 @@ func (t *TONTxm) broadcastLoop() {
 				t.Logger.Errorf("GetBlockData err: %w", err)
 			}
 
-			expirationTimestampSecs := uint64(blockData.BlockInfo.GenUtime) + uint64(t.Config.SendRetryDelay.Seconds())
-			err = txStore.AddUnconfirmed(tlbTx.LT, expirationTimestampSecs, tx)
+			expirationTimestampSecs := blockData.BlockInfo.EndLt + uint64(t.Config.SendRetryDelay.Seconds())
+			txHash := hex.EncodeToString(tlbTx.Hash)
+			tx.MsgHash = hex.EncodeToString(internalMsg.Payload().Hash())
+			tx.LT = tlbTx.LT
+			err = txStore.AddUnconfirmed(txHash, expirationTimestampSecs, tx)
 
 			if err != nil {
 				t.Logger.Errorf("AddUnconfirmed err: %w", err)
@@ -215,6 +221,85 @@ func (t *TONTxm) broadcastLoop() {
 		case <-t.Stop:
 			t.Logger.Debugw("broadcastLoop: stopped")
 			return
+		}
+	}
+}
+
+func (t *TONTxm) confirmLoop() {
+	defer t.Done.Done()
+
+	ctx, cancel := commonutils.ContextFromChan(t.Stop)
+	defer cancel()
+
+	pollDuration := time.Duration(t.Config.ConfirmPollSecs) * time.Second
+	tick := time.After(pollDuration)
+
+	t.Logger.Debugw("confirmLoop: started")
+
+	for {
+		select {
+		case <-tick:
+			start := time.Now()
+
+			t.checkUnconfirmed(ctx)
+
+			remaining := pollDuration - time.Since(start)
+			if remaining > 0 {
+				// reset tick for the remaining time
+				tick = time.After(commonutils.WithJitter(remaining))
+			} else {
+				// reset tick to fire immediately
+				tick = time.After(0)
+			}
+		case <-t.Stop:
+			t.Logger.Debugw("confirmLoop: stopped")
+			return
+		}
+	}
+}
+
+func (t *TONTxm) checkUnconfirmed(ctx context.Context) {
+	allUnconfirmedTxs := t.AccountStore.GetAllUnconfirmed()
+
+	block, err := t.Client.CurrentMasterchainInfo(ctx)
+	if err != nil {
+		t.Logger.Errorw("failed to get current masterchain block", "error", err)
+		return
+	}
+
+	for accountAddress, unconfirmedTxs := range allUnconfirmedTxs {
+		txStore := t.AccountStore.GetTxStore(accountAddress)
+
+		// Get the source account (sender)
+		sourceAddr, _ := address.ParseAddr(accountAddress)
+		sourceAccount, err := t.Client.GetAccount(ctx, block, sourceAddr)
+		if err != nil {
+			t.Logger.Errorw("failed to get source account", "address", accountAddress, "error", err)
+			continue
+		}
+
+		// Get transactions from source address
+		txs, err := t.Client.ListTransactions(ctx, sourceAddr, LIST_TRANSACTIONS_BATCH_SIZE, sourceAccount.LastTxLT, sourceAccount.LastTxHash)
+		if err != nil {
+			t.Logger.Errorw("failed to list transactions", "address", accountAddress, "error", err)
+			continue
+		}
+
+		for _, unconfirmedTx := range unconfirmedTxs {
+			for _, tx := range txs {
+				txHash := hex.EncodeToString(tx.Hash)
+
+				if txHash == unconfirmedTx.Hash {
+					// Transaction found on-chain - mark as confirmed
+					// The fact that it exists means it was processed successfully
+					if err := txStore.Confirm(unconfirmedTx.Hash); err != nil {
+						t.Logger.Errorw("failed to confirm tx in TxStore", "hash", unconfirmedTx.Hash, "error", err)
+					}
+					unconfirmedTx.Tx.Status = commontypes.Finalized
+					t.Logger.Infow("transaction confirmed", "hash", unconfirmedTx.Hash, "to", unconfirmedTx.Tx.To.String())
+					break
+				}
+			}
 		}
 	}
 }

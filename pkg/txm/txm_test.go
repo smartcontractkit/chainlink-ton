@@ -2,7 +2,6 @@ package txm_test
 
 import (
 	"context"
-	"log"
 	"testing"
 	"time"
 
@@ -45,14 +44,16 @@ func TestTxmLocal(t *testing.T) {
 
 	time.Sleep(7 * time.Second)
 
-	block, err := tonChain.Client.CurrentMasterchainInfo(context.Background())
-	require.NoError(t, err)
-
-	log.Println("master proof checks are completed successfully, now communication is 100% safe!")
-
 	ctx := tonChain.Client.Client().StickyContext(context.Background())
-	balance, err := wallet.GetBalance(ctx, block)
-	require.False(t, balance.IsZero())
+
+	require.Eventually(t, func() bool {
+		block, err := tonChain.Client.CurrentMasterchainInfo(context.Background())
+		require.NoError(t, err)
+
+		balance, err := wallet.GetBalance(ctx, block)
+		require.NoError(t, err)
+		return !balance.IsZero()
+	}, 60*time.Second, 500*time.Millisecond)
 
 	logger.Debugw("Funded wallet")
 
@@ -93,7 +94,7 @@ func runTxmTest(t *testing.T, logger logger.Logger, config txm.TONTxmConfig, ton
 	require.NoError(t, err)
 
 	// 3. Wait for deployment tx
-	time.Sleep(6 * time.Second)
+	waitForStableInflightCount(logger, tonTxm, 15*time.Second)
 
 	// 4. Check initial state
 	initial, err := testutils.ReadCounter(ctx, tonChain.Client, counterAddr)
@@ -135,28 +136,41 @@ func runTxmTest(t *testing.T, logger logger.Logger, config txm.TONTxmConfig, ton
 		queryId++
 	}
 
-	// 6. Verify all tx were confirmed
-	require.Eventually(t, func() bool {
-		final, err := testutils.ReadCounter(ctx, tonChain.Client, counterAddr)
-		require.NoError(t, err)
-		return final == expected
-	}, 60*time.Second, 250*time.Millisecond)
+	// 6. Wait for all txs
+	waitForStableInflightCount(logger, tonTxm, 30*time.Second)
 
-	// // 4. Wait for all txs
-	// for {
-	// 	queueLen, unconfirmedLen := tonTxm.InflightCount()
-	// 	logger.Debugw("Inflight count", "queued", queueLen, "unconfirmed", unconfirmedLen)
-	// 	if queueLen == 0 && unconfirmedLen == 0 {
-	// 		break
-	// 	}
-	// 	time.Sleep(500 * time.Millisecond)
-	// }
+	// 7. Check final value
+	final, err := testutils.ReadCounter(ctx, tonChain.Client, counterAddr)
+	require.NoError(t, err)
+	logger.Infow("Final counter value", "value", final)
+	require.Equal(t, expected, final)
+}
 
-	// time.Sleep(5 * time.Second) // Finality buffer
+func waitForStableInflightCount(logger logger.Logger, txm *txm.TONTxm, duration time.Duration) {
+	const checkInterval = 200 * time.Millisecond
+	stableSince := time.Now()
+	stabilityReached := false
 
-	// // 5. Check final value
-	// final, err := testutils.ReadCounter(ctx, tonChain.Client, counterAddr)
-	// require.NoError(t, err)
-	// require.Equal(t, expected, final)
-	// logger.Infow("Final counter value", "value", final)
+	for {
+		queueLen, unconfirmedLen := txm.InflightCount()
+
+		if queueLen == 0 && unconfirmedLen == 0 {
+			if !stabilityReached {
+				logger.Debugw("Inflight count stable at zero, starting timer")
+				stabilityReached = true
+			}
+			if time.Since(stableSince) >= duration {
+				logger.Debugw("Inflight count was stable for full duration", "duration", duration)
+				return
+			}
+		} else {
+			if stabilityReached {
+				logger.Warnw("Inflight count was stable but changed", "queueLen", queueLen, "unconfirmedLen", unconfirmedLen, "elapsed", time.Since(stableSince))
+			}
+			stableSince = time.Now()
+			stabilityReached = false
+		}
+
+		time.Sleep(checkInterval)
+	}
 }

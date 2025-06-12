@@ -6,7 +6,7 @@ import (
 
 type TONTxmConfig struct {
 	BroadcastChanSize        uint          // Size of the broadcast queue
-	ConfirmPollInterval      time.Duration // Interval to poll for transaction confirmations
+	ConfirmPollSecs          uint          // Interval to poll for transaction confirmations
 	SendRetryDelay           time.Duration // Delay between send retry attempts
 	MaxSendRetryAttempts     uint          // Max retries before giving up broadcasting
 	MaxConfirmationAttempts  uint          // Optional: times to check before giving up confirmation (if TTL isn't used)
@@ -19,7 +19,7 @@ type TONTxmConfig struct {
 
 var DefaultConfigSet = TONTxmConfig{
 	BroadcastChanSize:        100,
-	ConfirmPollInterval:      5 * time.Second,
+	ConfirmPollSecs:          5,
 	SendRetryDelay:           3 * time.Second,
 	MaxSendRetryAttempts:     5,
 	MaxConfirmationAttempts:  0, // 0 means infinite attempts until TTL
