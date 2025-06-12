@@ -1,5 +1,6 @@
 import "@stdlib/common.tolk";
 import "../lib/upgrades/type_and_version.tolk";
+import "../lib/common/message_flags.tolk";
 
 /// Counter contract (Tolk example)
 
@@ -30,10 +31,10 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
     }
 
     var cs = msgFull.beginParse();
-    // TODO isMessageBounced disappeared in Tolk 0.99
-    // if (isMessageBounced(flags)) { // ignore all bounced messages
-    //     return;
-    // }
+    val flags = cs.loadMessageFlags();
+    if (isMessageBounced(flags)) { // ignore all bounced messages
+        return;
+    }
 
     val msg = IncomingMessage.fromSlice(msgBody);  // 63 error code is thrown if the message opcode is unknown
 
