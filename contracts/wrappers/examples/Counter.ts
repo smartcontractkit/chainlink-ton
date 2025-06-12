@@ -8,6 +8,7 @@ import {
   Sender,
   SendMode,
 } from '@ton/core'
+import { TypeAndVersion } from '../libraries/TypeAndVersion'
 
 export type CounterConfig = {
   id: number
@@ -22,11 +23,13 @@ export const Opcodes = {
   OP_SET_COUNT: 0x00000004,
 }
 
-export class Counter implements Contract {
+export class Counter extends TypeAndVersion implements Contract {
   constructor(
     readonly address: Address,
     readonly init?: { code: Cell; data: Cell },
-  ) {}
+  ) {
+    super(address, init)
+  }
 
   static createFromAddress(address: Address): Counter {
     return new Counter(address)
@@ -73,21 +76,6 @@ export class Counter implements Contract {
 
   async getId(provider: ContractProvider): Promise<number> {
     const result = await provider.get('id', [])
-    return result.stack.readNumber()
-  }
-
-  async getTypeAndVersion(provider: ContractProvider): Promise<string> {
-    const result = await provider.get('typeAndVersion', [])
-    return result.stack.readString()
-  }
-
-  async getCode(provider: ContractProvider): Promise<Cell> {
-    const result = await provider.get('code', [])
-    return result.stack.readCell()
-  }
-
-  async getCodeHash(provider: ContractProvider): Promise<number> {
-    const result = await provider.get('codeHash', [])
     return result.stack.readNumber()
   }
 }
