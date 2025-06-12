@@ -43,7 +43,7 @@ import "../emit.tolk";
 ///
 struct Upgradeable {
     migrateStorage: (cell) -> cell; // This function is expected to be provided by the contract
-    version: () -> cell; // The version of the contract code, e.g., "1.0.0"
+    version: () -> slice; // The version of the contract code, e.g., "1.0.0"
     // TODO on ownable2step:
     // ownable2Step: Ownable2Step;
 }
@@ -73,12 +73,12 @@ fun Upgradeable.requireUpgrade(self) {
 }
 
 struct UpgradedEvent {
-    /// The version of the contract after the upgrade.
-    version: cell;
     /// The new code of the contract.
     code: cell;
     /// The SHA256 hash of the new code.
     sha: uint256;
+    /// The version of the contract after the upgrade.
+    version: UnsafeBodyNoRef<slice>;
 }
 
 const UPGRADED_EVENT = 0xa33b498e; // Event topic for the upgrade event
@@ -92,8 +92,10 @@ fun Upgradeable.doUpgrade(self, code: cell) {
     var newStorage = self.migrateStorage(c);
     contract.setData(newStorage);
     emit(UPGRADED_EVENT, UpgradedEvent{
-        version: self.version(),
         code: code,
         sha: code.hash(),
+        version: UnsafeBodyNoRef {
+            bodyForceNoRef: self.version(),
+            },
         });
 }

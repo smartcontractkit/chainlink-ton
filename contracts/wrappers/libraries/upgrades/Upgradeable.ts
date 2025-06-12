@@ -64,9 +64,9 @@ export function loadUpgradedEvent(slice: Slice): {
   code: Cell
   codeHash: bigint
 } {
-  const version = slice.loadStringRefTail()
   const code = slice.loadRef()
   const codeHash = slice.loadUintBig(256)
+  const version = slice.loadStringTail()
   return {
     version,
     code,

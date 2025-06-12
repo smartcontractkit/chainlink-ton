@@ -62,7 +62,7 @@ fun migrateStorage(c: cell): cell {
     return newStorage.toCell();
 }
 @method_id(1001)
-fun version(): cell { return beginCell().storeSlice(versionStr).endCell(); }
+fun version(): slice { return versionStr; }
 
 get typeAndVersion(): cell {
     val upgradeable = Upgradeable{migrateStorage, version};
