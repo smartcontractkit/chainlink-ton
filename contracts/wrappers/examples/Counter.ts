@@ -23,12 +23,14 @@ export const Opcodes = {
   OP_SET_COUNT: 0x00000004,
 }
 
-export class Counter extends TypeAndVersion implements Contract {
+export class Counter implements Contract, TypeAndVersion {
+  private typeAndVersion: TypeAndVersion
+
   constructor(
     readonly address: Address,
     readonly init?: { code: Cell; data: Cell },
   ) {
-    super(address, init)
+    this.typeAndVersion = new TypeAndVersion()
   }
 
   static createFromAddress(address: Address): Counter {
@@ -77,5 +79,18 @@ export class Counter extends TypeAndVersion implements Contract {
   async getId(provider: ContractProvider): Promise<number> {
     const result = await provider.get('id', [])
     return result.stack.readNumber()
+  }
+
+  // Delegate TypeAndVersion methods
+  async getTypeAndVersion(provider: ContractProvider): Promise<string> {
+    return this.typeAndVersion.getTypeAndVersion(provider)
+  }
+
+  async getCode(provider: ContractProvider): Promise<Cell> {
+    return this.typeAndVersion.getCode(provider)
+  }
+
+  async getCodeHash(provider: ContractProvider): Promise<number> {
+    return this.typeAndVersion.getCodeHash(provider)
   }
 }
