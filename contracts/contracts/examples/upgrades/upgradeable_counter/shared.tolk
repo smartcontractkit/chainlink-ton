@@ -19,8 +19,11 @@ import "../../../lib/upgrades/type_and_version.tolk";
 ///
 /// `versionStr` must be a semantic version string (e.g. "1.0.0").
 struct UpgradeableCounter {
-    upgradeable: Upgradeable;
+    /// Required attributes.
     versionStr: slice;
+    /// Abstract methods that must be implemented by the contract.
+    version: () -> slice;
+    migrateStorage: (cell) -> cell;
 }
 
 /// Instructs the contract to step the counter.
@@ -29,7 +32,12 @@ struct (0x00000001) Step {
 }
 
 fun UpgradeableCounter.onInternalMessage(self, myBalance: int, msgValue: int, msgFull: cell, msgBody: slice): bool {    
-    return self.upgradeable.onInternalMessage(myBalance, msgValue, msgFull, msgBody);
+    val upgradeable = Upgradeable{
+        version: self.version,
+        migrateStorage: self.migrateStorage,
+        requireUpgrade: null, // Use the default implementation
+    };
+    return upgradeable.onInternalMessage(myBalance, msgValue, msgFull, msgBody);
 }
 
 const typeStr= "com.chainlink.ton.examples.upgrades.UpgradeableCounter";

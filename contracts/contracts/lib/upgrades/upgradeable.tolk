@@ -42,8 +42,11 @@ import "../emit.tolk";
 /// ```
 ///
 struct Upgradeable {
-    migrateStorage: (cell) -> cell; // This function is expected to be provided by the contract
-    version: () -> slice; // The version of the contract code, e.g., "1.0.0"
+    /// Abstract methods that must be implemented by the contract.
+    migrateStorage: (cell) -> cell;
+    version: () -> slice;
+    /// Provided methods that can be overridden by the contract.
+    requireUpgrade: (() -> void)?; // This method requires the sender to be the contract owner by default. It can be overridden to bypass it or implement custom logic.
     // TODO on ownable2step:
     // ownable2Step: Ownable2Step;
 }
@@ -57,6 +60,11 @@ struct (0x78db4d86) Upgradeable_Upgrade {
 fun Upgradeable.onInternalMessage(self, myBalance: int, msgValue: int, msgFull: cell, msgBody: slice): bool {
     try {
         var upgrade = Upgradeable_Upgrade.fromSlice(msgBody);
+        if (self.requireUpgrade != null) {
+            self.requireUpgrade();
+        } else {
+            self.virtual_requireUpgrade();
+        }
         self.doUpgrade(upgrade.code);
         return true;
     } catch(exitCode) {
@@ -67,7 +75,7 @@ fun Upgradeable.onInternalMessage(self, myBalance: int, msgValue: int, msgFull: 
     }
 }
 
-fun Upgradeable.requireUpgrade(self) {
+fun Upgradeable.virtual_requireUpgrade(self) {
     // TODO on ownable2step: throw error if sender is not the contract owner
     // self.ownable2Step.requireOwner();
 }
@@ -84,7 +92,6 @@ struct UpgradedEvent {
 const UPGRADED_EVENT = 0xa33b498e; // Event topic for the upgrade event
 
 fun Upgradeable.doUpgrade(self, code: cell) {
-    self.requireUpgrade();
     contract.setCodePostponed(code);
     var cont = transformSliceToContinuation(code.beginParse());
     setTvmRegisterC3(cont);

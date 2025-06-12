@@ -15,8 +15,11 @@ fun saveData(data: StorageV1) {
 const versionStr = "1.0.0";
 
 fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: slice) {
-    val upgradeable = Upgradeable{migrateStorage, version};
-    val upgradeableCounter = UpgradeableCounter{upgradeable, versionStr};
+    val this = UpgradeableCounter{
+        versionStr,
+        version,
+        migrateStorage,
+    };
 
     if (msgBody.isEnd()) { // ignore all empty messages
         return;
@@ -28,7 +31,7 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
         return;
     }
     
-    if (upgradeableCounter.onInternalMessage(myBalance, msgValue, msgFull, msgBody)) {
+    if (this.onInternalMessage(myBalance, msgValue, msgFull, msgBody)) {
         return;
     }
 
@@ -56,7 +59,10 @@ fun migrateStorage(c: cell): cell { return beginCell().endCell(); }
 fun version(): slice { return versionStr; }
 
 get typeAndVersion(): cell {
-    val upgradeable = Upgradeable{migrateStorage, version};
-    val upgradeableCounter = UpgradeableCounter{upgradeable, versionStr}; // This is repeated because we cannot declare immutable variables (val) globally in Tolk
-    return upgradeableCounter.typeAndVersion();
+    val this = UpgradeableCounter{
+        versionStr,
+        version,
+        migrateStorage,
+    };
+    return this.typeAndVersion();
 }
