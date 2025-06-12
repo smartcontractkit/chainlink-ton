@@ -6,7 +6,7 @@ import "../emit.tolk";
 ///
 /// This function is expected to be called from the contract's
 /// `onInternalMessage` handler.
-/// It processes the Upgrade message and performs the upgrade if applicable.
+/// It processes the Upgradeable_Upgrade message and performs the upgrade if applicable.
 /// It returns true if the message was handled (i.e., an upgrade was performed),
 /// or false if the message was ignored (e.g., due to an unknown opcode).
 /// The `migrateStorage` function is expected to be provided by the contract
@@ -49,14 +49,14 @@ struct Upgradeable {
 }
 
 /// Message for upgrading a contract.
-struct (0x78db4d86) Upgrade {
+struct (0x78db4d86) Upgradeable_Upgrade {
     queryId: uint64;
     code: cell;
 }
 
 fun Upgradeable.onInternalMessage(self, myBalance: int, msgValue: int, msgFull: cell, msgBody: slice): bool {
     try {
-        var upgrade = Upgrade.fromSlice(msgBody);
+        var upgrade = Upgradeable_Upgrade.fromSlice(msgBody);
         self.doUpgrade(upgrade.code);
         return true;
     } catch(exitCode) {
