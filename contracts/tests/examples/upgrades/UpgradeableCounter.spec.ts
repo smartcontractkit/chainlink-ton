@@ -5,9 +5,9 @@ import {
   UpgradeableCounterV1,
   CounterConfig,
   loadUpgradedEvent,
-} from '../../../wrappers/examples/upgrades/UpgreableCounterV1'
+} from '../../../wrappers/examples/upgrades/UpgradeableCounterV1'
 import { compile } from '@ton/blueprint'
-import { UpgradeableCounterV2 } from '../../../wrappers/examples/upgrades/UpgreableCounterV2'
+import { UpgradeableCounterV2 } from '../../../wrappers/examples/upgrades/UpgradeableCounterV2'
 
 async function setUpTest(i: number): Promise<{
   blockchain: Blockchain
