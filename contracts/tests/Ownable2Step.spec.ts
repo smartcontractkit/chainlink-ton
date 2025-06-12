@@ -1,7 +1,9 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { toNano } from '@ton/core'
-import { OwnableCounter } from '../wrappers/access/OwnableCounter'
+import { Address, toNano } from '@ton/core'
+import { OwnableCounter, OwnableCounterStorage } from '../wrappers/access/tolk_OwnableCounter'
 import '@ton/test-utils'
+import { compile } from '@ton/blueprint'
+
 
 const ERROR_ONLY_CALLABLE_BY_OWNER = 132
 const ERROR_CANNOT_TRANSFER_TO_SELF = 1001
@@ -14,21 +16,24 @@ describe('Ownable2Step Counter', () => {
 
   beforeEach(async () => {
     blockchain = await Blockchain.create()
-
-    counter = blockchain.openContract(await OwnableCounter.fromInit(1337n, 13n))
-
     deployer = await blockchain.treasury('deployer')
 
-    const deployResult = await counter.send(
+    let code = await compile('OwnableTolkCounter')
+    let data: OwnableCounterStorage = {
+      id: 1,
+      count: 14,
+      ownable: {
+        owner: deployer.address,
+        pendingOwner: null,
+      },
+    }
+
+    counter = blockchain.openContract(OwnableCounter.createFromConfig(data, code))
+
+
+    const deployResult = await counter.sendDeploy(
       deployer.getSender(),
-      {
-        value: toNano('0.05'),
-      },
-      {
-        $$type: 'SetCount',
-        queryId: 1n,
-        newCount: 14n,
-      },
+      toNano('0.05')
     )
 
     expect(deployResult.transactions).toHaveTransaction({
@@ -37,11 +42,6 @@ describe('Ownable2Step Counter', () => {
       deploy: true,
       success: true,
     })
-  })
-
-  it('Test00: Should have type and version', async () => {
-    const typeAndVersion = await counter.getTypeAndVersion()
-    expect(typeAndVersion).toBe('com.chainlink.ton.examples.OwnableCounter v1.0.0')
   })
 
   it('Test01: Should set deployer as owner', async () => {
@@ -53,18 +53,14 @@ describe('Ownable2Step Counter', () => {
   it('Test02: Should allow owner to call SetCount', async () => {
     const owner = await blockchain.treasury('deployer')
 
-    const newCount = 100n
+    const newCount = 100
 
-    const result = await counter.send(
+    const result = await counter.sendSetCount(
       owner.getSender(),
       {
         value: toNano('0.05'),
-      },
-      {
-        $$type: 'SetCount',
-        queryId: 0n,
-        newCount: newCount,
-      },
+        count: newCount
+      }
     )
     expect(result.transactions).toHaveTransaction({
       from: owner.address,
@@ -72,24 +68,20 @@ describe('Ownable2Step Counter', () => {
       success: true,
     })
 
-    const countAfterTx = await counter.getCount()
+    const countAfterTx = await counter.getCounter()
 
     expect(countAfterTx).toBe(newCount)
   })
 
   it('Test03: Should prevent non owner from calling SetCount', async () => {
     const other = await blockchain.treasury('other')
-    const initialCount = await counter.getCount()
+    const initialCount = await counter.getCounter()
 
-    const result = await counter.send(
+    const result = await counter.sendSetCount(
       other.getSender(),
       {
         value: toNano('0.05'),
-      },
-      {
-        $$type: 'SetCount',
-        queryId: 0n,
-        newCount: 100n,
+        count: 100,
       },
     )
     expect(result.transactions).toHaveTransaction({
@@ -99,7 +91,7 @@ describe('Ownable2Step Counter', () => {
       success: false,
     })
 
-    const countAfterTx = await counter.getCount()
+    const countAfterTx = await counter.getCounter()
 
     expect(countAfterTx).toBe(initialCount)
   })
@@ -107,16 +99,12 @@ describe('Ownable2Step Counter', () => {
   it('Test04: TransferOwnership should not directly transfer the ownership', async () => {
     const owner = await blockchain.treasury('deployer')
     const other = await blockchain.treasury('other')
-    const initialCount = await counter.getCount()
+    const initialCount = await counter.getCounter()
 
-    const resultTransferOwnership = await counter.send(
+    const resultTransferOwnership = await counter.sendTransferOwnership(
       owner.getSender(),
       {
         value: toNano('0.05'),
-      },
-      {
-        $$type: 'TransferOwnership',
-        queryId: 0n,
         newOwner: other.address,
       },
     )
@@ -131,15 +119,11 @@ describe('Ownable2Step Counter', () => {
     expect(contractOwner.toString()).toBe(owner.address.toString())
 
     // Check that the pending owner cannot operate as owner
-    const resultSetCount = await counter.send(
+    const resultSetCount = await counter.sendSetCount(
       other.getSender(),
       {
         value: toNano('0.05'),
-      },
-      {
-        $$type: 'SetCount',
-        queryId: 0n,
-        newCount: 100n,
+        count: 100,
       },
     )
 
@@ -150,7 +134,7 @@ describe('Ownable2Step Counter', () => {
       success: false,
     })
 
-    const countAfterTx = await counter.getCount()
+    const countAfterTx = await counter.getCounter()
 
     expect(countAfterTx).toBe(initialCount)
   })
@@ -159,26 +143,18 @@ describe('Ownable2Step Counter', () => {
     const owner = await blockchain.treasury('deployer')
     const other = await blockchain.treasury('other')
 
-    await counter.send(
+    await counter.sendTransferOwnership(
       owner.getSender(),
       {
         value: toNano('0.05'),
-      },
-      {
-        $$type: 'TransferOwnership',
-        queryId: 0n,
         newOwner: other.address,
       },
     )
 
-    const resultAcceptOwnership = await counter.send(
+    const resultAcceptOwnership = await counter.sendAcceptOwnership(
       other.getSender(),
       {
         value: toNano('0.05'),
-      },
-      {
-        $$type: 'AcceptOwnership',
-        queryId: 0n,
       },
     )
     expect(resultAcceptOwnership.transactions).toHaveTransaction({
@@ -192,15 +168,11 @@ describe('Ownable2Step Counter', () => {
     expect(newOwner.toString()).toBe(other.address.toString())
 
     // Check that the new owner can operate as owner
-    const resultSetCount = await counter.send(
+    const resultSetCount = await counter.sendSetCount(
       other.getSender(),
       {
         value: toNano('0.05'),
-      },
-      {
-        $$type: 'SetCount',
-        queryId: 0n,
-        newCount: 100n,
+        count: 100,
       },
     )
 
@@ -210,45 +182,33 @@ describe('Ownable2Step Counter', () => {
       success: true,
     })
 
-    const countAfterTx = await counter.getCount()
+    const countAfterTx = await counter.getCounter()
     expect(countAfterTx).toBe(100n)
   })
 
   it('Test06 : AcceptOwnership should not allow the original owner to operate as owner', async () => {
     const owner = await blockchain.treasury('deployer')
     const other = await blockchain.treasury('other')
-    await counter.send(
+    await counter.sendTransferOwnership(
       owner.getSender(),
       {
         value: toNano('0.05'),
-      },
-      {
-        $$type: 'TransferOwnership',
-        queryId: 0n,
         newOwner: other.address,
       },
     )
-    await counter.send(
+    await counter.sendAcceptOwnership(
       other.getSender(),
       {
         value: toNano('0.05'),
       },
-      {
-        $$type: 'AcceptOwnership',
-        queryId: 0n,
-      },
     )
 
     // Check that the original owner cannot operate as owner
-    const resultSetCount = await counter.send(
+    const resultSetCount = await counter.sendSetCount(
       owner.getSender(),
       {
         value: toNano('0.05'),
-      },
-      {
-        $$type: 'SetCount',
-        queryId: 0n,
-        newCount: 100n,
+        count: 100,
       },
     )
     expect(resultSetCount.transactions).toHaveTransaction({
@@ -261,14 +221,10 @@ describe('Ownable2Step Counter', () => {
 
   it('Test07: Should prevent users from calling AcceptOwnership with no pending owner ', async () => {
     const other = await blockchain.treasury('other')
-    const result = await counter.send(
+    const result = await counter.sendAcceptOwnership(
       other.getSender(),
       {
         value: toNano('0.05'),
-      },
-      {
-        $$type: 'AcceptOwnership',
-        queryId: 0n,
       },
     )
     expect(result.transactions).toHaveTransaction({
@@ -283,26 +239,18 @@ describe('Ownable2Step Counter', () => {
     const pendingOwner = await blockchain.treasury('pendingOwner')
     const other = await blockchain.treasury('other')
 
-    await counter.send(
+    await counter.sendTransferOwnership(
       deployer.getSender(),
       {
         value: toNano('0.05'),
-      },
-      {
-        $$type: 'TransferOwnership',
-        queryId: 0n,
         newOwner: pendingOwner.address,
       },
     )
 
-    const result = await counter.send(
+    const result = await counter.sendAcceptOwnership(
       other.getSender(),
       {
         value: toNano('0.05'),
-      },
-      {
-        $$type: 'AcceptOwnership',
-        queryId: 0n,
       },
     )
     expect(result.transactions).toHaveTransaction({
@@ -315,14 +263,10 @@ describe('Ownable2Step Counter', () => {
 
   it('Test09: Should prevent non owner from calling TransferOwnership', async () => {
     const other = await blockchain.treasury('other')
-    const result = await counter.send(
+    const result = await counter.sendTransferOwnership(
       other.getSender(),
       {
         value: toNano('0.05'),
-      },
-      {
-        $$type: 'TransferOwnership',
-        queryId: 0n,
         newOwner: other.address,
       },
     )
@@ -336,14 +280,10 @@ describe('Ownable2Step Counter', () => {
 
   it('Test10: Should prevent transfer to self', async () => {
     const owner = await blockchain.treasury('deployer')
-    const result = await counter.send(
+    const result = await counter.sendTransferOwnership(
       owner.getSender(),
       {
         value: toNano('0.05'),
-      },
-      {
-        $$type: 'TransferOwnership',
-        queryId: 0n,
         newOwner: owner.address,
       },
     )
