@@ -5,6 +5,4 @@ const OP_CANCEL = 0x70b511b7; // "OP_CANCEL"c; // 0x70b511b7
 const OP_EXECUTE = 0x2f25a5fd; // "OP_EXECUTE"c; // 0x2f25a5fd
 const OP_TOP_UP = 0x2a6fa953; // "OP_TOP_UP"c; // 0x2a6fa953
 const OP_UPDATE_DELAY = 0x7be47a8e; // "OP_UPDATE_DELAY"c; // 0x7be47a8e
-const OP_UPDATE_ACCOUNTS = 0x1f6ce878; // "OP_UPDATE_ACCOUNTS"c; // 0x1f6ce878
 const OP_CLEAR_TIMESTAMPS = 0xe8448df0; // "OP_CLEAR_TIMESTAMPS"c; // 0xe8448df0
-const OP_UPGRADE = 0x6720c139; // "OP_UPGRADE"c; // 0x6720c139

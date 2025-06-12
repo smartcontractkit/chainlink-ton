@@ -28,7 +28,7 @@
     "@ton/crypto": "^3.3.0",
     "@ton/sandbox": "^0.32.2",
     "@ton/test-utils": "^0.7.0",
-    "@ton/tolk-js": "^0.13.0",
+    "@ton/tolk-js": "^0.99.0",
     "@ton/ton": "^15.2.1",
     "@types/jest": "^29.5.14",
     "@types/node": "^24.0.0",

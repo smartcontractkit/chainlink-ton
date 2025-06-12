@@ -1,9 +1,10 @@
 tolk 0.99
 
+import "../../../lib/access/access_control.tolk";
+
 import "./storage.tolk";
 import "./operation_utils.tolk";
 import "./params.tolk";
-import "../common/accounts.tolk";
 
 get getTimelockControllerData(): (int, int, dict, dict, dict, dict, dict) {
     loadStorage();
@@ -56,27 +57,6 @@ get getOperationState(id: int): int {
 }
 
 get getHasRole(role: int, account: address): bool {
-    loadStorage();
-
-    if (role > EXECUTOR_ROLE) {
-        return false;
-    }
-
-    var accounts = STORAGE_ADMIN_ACCOUNTS;
-
-    if (role == PROPOSER_ROLE) {
-        accounts = STORAGE_PROPOSER_ACCOUNTS;
-    }
-
-    if (role == CANCELLER_ROLE) {
-        accounts = STORAGE_CANCELLER_ACCOUNTS;
-    }
-
-    if (role == EXECUTOR_ROLE) {
-        accounts = STORAGE_EXECUTOR_ACCOUNTS;
-    }
-
-    var (_, exists) = accountExists(accounts, account);
-
-    return exists;
+    val s = loadData();
+    return RBACAccessControl.fromCell(s.rbac).get_getHasRole(role, account)
 }

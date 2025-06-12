@@ -33,12 +33,11 @@ fun builder.storePrefixOnlyBody(mutate self): builder {
 
 @inline_ref
 fun sendSimpleMessage(amount: int, to: address, body: cell, mode: int) {
-    val msg = beginCell()
-        .storeUint(0x18, 6)
-        .storeAddress(to)
-        .storeCoins(amount)
-        .storeUint(1, 107)
-        .storeRef(body)
-    .endCell();
-    sendMessage(msg, mode);
+    val op = createMessage({
+        bounce: true,
+        value: amount,
+        dest: to,
+        body: body
+    });
+    op.send(mode);
 }
