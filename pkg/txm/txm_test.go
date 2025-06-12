@@ -16,6 +16,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/txm"
 	"github.com/smartcontractkit/chainlink-ton/testutils"
+	"github.com/smartcontractkit/chainlink-ton/tonutils"
 )
 
 var keystore *testutils.TestKeystore
@@ -41,8 +42,6 @@ func TestTxmLocal(t *testing.T) {
 
 	tonChain := testutils.StartTonChain(t, nodeClient, chainsel.TON_LOCALNET.Selector, wallet)
 	require.NotNil(t, tonChain)
-
-	time.Sleep(7 * time.Second)
 
 	ctx := tonChain.Client.Client().StickyContext(context.Background())
 
@@ -70,7 +69,11 @@ func TestTxmLocal(t *testing.T) {
 func runTxmTest(t *testing.T, logger logger.Logger, config txm.TONTxmConfig, tonChain cldf_ton.Chain, keystore loop.Keystore, iterations int) {
 	ctx := context.Background()
 
-	tonTxm := txm.New(logger, keystore, tonChain.Client, tonChain.Wallet, config)
+	apiClient := tonutils.ApiClient{
+		Api:    tonChain.Client,
+		Wallet: *tonChain.Wallet,
+	}
+	tonTxm := txm.New(logger, keystore, apiClient, config)
 	err := tonTxm.Start(ctx)
 	require.NoError(t, err)
 	defer func() {

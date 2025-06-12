@@ -2,7 +2,6 @@ package txm
 
 import (
 	"context"
-	"encoding/hex"
 	"fmt"
 	"sync"
 	"time"
@@ -13,9 +12,9 @@ import (
 	commontypes "github.com/smartcontractkit/chainlink-common/pkg/types"
 	"github.com/smartcontractkit/chainlink-common/pkg/utils"
 	commonutils "github.com/smartcontractkit/chainlink-common/pkg/utils"
+	"github.com/smartcontractkit/chainlink-ton/tonutils"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
-	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
@@ -26,8 +25,6 @@ const (
 	MAX_RETRY_ATTEMPTS           = 5
 	MAX_BROADCAST_RETRY_DURATION = 30 * time.Second
 	BROADCAST_DELAY_DURATION     = 2 * time.Second
-	DEFAULT_ENERGY_MULTIPLIER    = 1.5
-	LIST_TRANSACTIONS_BATCH_SIZE = uint32(20)
 )
 
 type TONTxm struct {
@@ -35,8 +32,7 @@ type TONTxm struct {
 	Keystore loop.Keystore
 	Config   TONTxmConfig
 
-	Client        ton.APIClientWrapped
-	Wallet        *wallet.Wallet
+	Client        tonutils.ApiClient
 	BroadcastChan chan *TONTx
 	AccountStore  *AccountStore
 	Starter       utils.StartStopOnce
@@ -54,13 +50,12 @@ type TONTxmRequest struct {
 	Simulate        bool            // Optional: simulate instead of sending
 }
 
-func New(lgr logger.Logger, keystore loop.Keystore, client ton.APIClientWrapped, wallet *wallet.Wallet, config TONTxmConfig) *TONTxm {
+func New(lgr logger.Logger, keystore loop.Keystore, client tonutils.ApiClient, config TONTxmConfig) *TONTxm {
 	txm := &TONTxm{
 		Logger:        logger.Named(lgr, "TONTxm"),
 		Keystore:      keystore,
 		Config:        config,
 		Client:        client,
-		Wallet:        wallet,
 		BroadcastChan: make(chan *TONTx, config.BroadcastChanSize),
 		AccountStore:  NewAccountStore(),
 		Stop:          make(chan struct{}),
@@ -88,7 +83,7 @@ func (t *TONTxm) HealthReport() map[string]error {
 	return map[string]error{t.Name(): t.Starter.Healthy()}
 }
 
-func (t *TONTxm) GetClient() ton.APIClientWrapped {
+func (t *TONTxm) GetClient() tonutils.ApiClient {
 	return t.Client
 }
 
@@ -135,7 +130,6 @@ func (t *TONTxm) Enqueue(request TONTxmRequest) error {
 		EstimateGas:     request.Simulate,
 		Attempt:         0,
 		OutOfTimeErrors: 0,
-		MsgHash:         "",
 	}
 
 	select {
@@ -194,7 +188,7 @@ func (t *TONTxm) broadcastLoop() {
 			// }
 
 			// 3. Sign and send
-			tlbTx, block, err := t.Wallet.SendWaitTransaction(ctx, msg)
+			receivedMessage, _, err := t.Client.SendWaitTransaction(ctx, tx.To, msg)
 			if err != nil {
 				t.Logger.Errorw("failed to broadcast tx", "err", err, "to", tx.To.String())
 				continue
@@ -202,18 +196,18 @@ func (t *TONTxm) broadcastLoop() {
 
 			t.Logger.Infow("transaction broadcasted", "to", tx.To.String(), "amount", tx.Amount.Nano().String())
 
-			txStore := t.AccountStore.GetTxStore(t.Wallet.Address().String())
+			txStore := t.AccountStore.GetTxStore(t.Client.Wallet.Address().String())
 
-			blockData, err := t.Client.GetBlockData(ctx, block)
+			lamportTime := receivedMessage.LamportTime
+			lamportTimeSecs := lamportTime / 1000
+			expirationTimestampSecs := lamportTimeSecs + uint64(t.Config.SendRetryDelay.Seconds())
+
 			if err != nil {
-				t.Logger.Errorf("GetBlockData err: %w", err)
+				t.Logger.Errorw("failed to MapToReceivedMessage", "tx", tx, "error", err)
 			}
+			tx.ReceivedMessage = *receivedMessage
 
-			expirationTimestampSecs := blockData.BlockInfo.EndLt + uint64(t.Config.SendRetryDelay.Seconds())
-			txHash := hex.EncodeToString(tlbTx.Hash)
-			tx.MsgHash = hex.EncodeToString(internalMsg.Payload().Hash())
-			tx.LT = tlbTx.LT
-			err = txStore.AddUnconfirmed(txHash, expirationTimestampSecs, tx)
+			err = txStore.AddUnconfirmed(lamportTime, expirationTimestampSecs, tx)
 
 			if err != nil {
 				t.Logger.Errorf("AddUnconfirmed err: %w", err)
@@ -228,7 +222,7 @@ func (t *TONTxm) broadcastLoop() {
 func (t *TONTxm) confirmLoop() {
 	defer t.Done.Done()
 
-	ctx, cancel := commonutils.ContextFromChan(t.Stop)
+	_, cancel := commonutils.ContextFromChan(t.Stop)
 	defer cancel()
 
 	pollDuration := time.Duration(t.Config.ConfirmPollSecs) * time.Second
@@ -241,7 +235,7 @@ func (t *TONTxm) confirmLoop() {
 		case <-tick:
 			start := time.Now()
 
-			t.checkUnconfirmed(ctx)
+			t.checkUnconfirmed()
 
 			remaining := pollDuration - time.Since(start)
 			if remaining > 0 {
@@ -258,48 +252,27 @@ func (t *TONTxm) confirmLoop() {
 	}
 }
 
-func (t *TONTxm) checkUnconfirmed(ctx context.Context) {
+func (t *TONTxm) checkUnconfirmed() {
 	allUnconfirmedTxs := t.AccountStore.GetAllUnconfirmed()
-
-	block, err := t.Client.CurrentMasterchainInfo(ctx)
-	if err != nil {
-		t.Logger.Errorw("failed to get current masterchain block", "error", err)
-		return
-	}
 
 	for accountAddress, unconfirmedTxs := range allUnconfirmedTxs {
 		txStore := t.AccountStore.GetTxStore(accountAddress)
 
-		// Get the source account (sender)
-		sourceAddr, _ := address.ParseAddr(accountAddress)
-		sourceAccount, err := t.Client.GetAccount(ctx, block, sourceAddr)
-		if err != nil {
-			t.Logger.Errorw("failed to get source account", "address", accountAddress, "error", err)
-			continue
-		}
-
-		// Get transactions from source address
-		txs, err := t.Client.ListTransactions(ctx, sourceAddr, LIST_TRANSACTIONS_BATCH_SIZE, sourceAccount.LastTxLT, sourceAccount.LastTxHash)
-		if err != nil {
-			t.Logger.Errorw("failed to list transactions", "address", accountAddress, "error", err)
-			continue
-		}
-
 		for _, unconfirmedTx := range unconfirmedTxs {
-			for _, tx := range txs {
-				txHash := hex.EncodeToString(tx.Hash)
-
-				if txHash == unconfirmedTx.Hash {
-					// Transaction found on-chain - mark as confirmed
-					// The fact that it exists means it was processed successfully
-					if err := txStore.Confirm(unconfirmedTx.Hash); err != nil {
-						t.Logger.Errorw("failed to confirm tx in TxStore", "hash", unconfirmedTx.Hash, "error", err)
-					}
-					unconfirmedTx.Tx.Status = commontypes.Finalized
-					t.Logger.Infow("transaction confirmed", "hash", unconfirmedTx.Hash, "to", unconfirmedTx.Tx.To.String())
-					break
-				}
+			msgStatus := unconfirmedTx.Tx.ReceivedMessage.Status()
+			err := unconfirmedTx.Tx.ReceivedMessage.WaitForTrace(&t.Client)
+			if err != nil {
+				t.Logger.Errorw("failed to wait for outgoing messages to be received", "LT", unconfirmedTx.LT, "error", err)
+				continue
 			}
+
+			if err := txStore.Confirm(unconfirmedTx.LT); err != nil {
+				t.Logger.Errorw("failed to confirm tx in TxStore", "LT", unconfirmedTx.LT, "error", err)
+			}
+			unconfirmedTx.Tx.Status = commontypes.Finalized
+			msgStatus = unconfirmedTx.Tx.ReceivedMessage.Status()
+			t.Logger.Infow("transaction confirmed", "LT", unconfirmedTx.LT, "status", msgStatus)
+			break
 		}
 	}
 }

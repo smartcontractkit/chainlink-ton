@@ -9,7 +9,7 @@ import (
 )
 
 type UnconfirmedTx struct {
-	Hash         string
+	LT           uint64
 	ExpirationMs uint64
 	Tx           *TONTx
 }
@@ -18,26 +18,26 @@ type UnconfirmedTx struct {
 type TxStore struct {
 	lock sync.RWMutex
 
-	unconfirmedTxes map[string]*UnconfirmedTx
+	unconfirmedTxes map[uint64]*UnconfirmedTx
 }
 
 func NewTxStore() *TxStore {
 	return &TxStore{
-		unconfirmedTxes: map[string]*UnconfirmedTx{},
+		unconfirmedTxes: map[uint64]*UnconfirmedTx{},
 	}
 }
 
-// AddUnconfirmed adds a new unconfirmed transaction by hash.
-func (s *TxStore) AddUnconfirmed(hash string, expirationMs uint64, tx *TONTx) error {
+// AddUnconfirmed adds a new unconfirmed transaction by lamport time.
+func (s *TxStore) AddUnconfirmed(lt uint64, expirationMs uint64, tx *TONTx) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	if _, exists := s.unconfirmedTxes[hash]; exists {
-		return fmt.Errorf("hash already exists: %s", hash)
+	if _, exists := s.unconfirmedTxes[lt]; exists {
+		return fmt.Errorf("hash already exists: %d", lt)
 	}
 
-	s.unconfirmedTxes[hash] = &UnconfirmedTx{
-		Hash:         hash,
+	s.unconfirmedTxes[lt] = &UnconfirmedTx{
+		LT:           lt,
 		ExpirationMs: expirationMs,
 		Tx:           tx,
 	}
@@ -46,15 +46,15 @@ func (s *TxStore) AddUnconfirmed(hash string, expirationMs uint64, tx *TONTx) er
 }
 
 // Confirm marks a transaction as confirmed and removes it by LT.
-func (s *TxStore) Confirm(hash string) error {
+func (s *TxStore) Confirm(lt uint64) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	if _, exists := s.unconfirmedTxes[hash]; !exists {
-		return fmt.Errorf("no such unconfirmed hash: %s", hash)
+	if _, exists := s.unconfirmedTxes[lt]; !exists {
+		return fmt.Errorf("no such unconfirmed hash: %d", lt)
 	}
 
-	delete(s.unconfirmedTxes, hash)
+	delete(s.unconfirmedTxes, lt)
 	return nil
 }
 
