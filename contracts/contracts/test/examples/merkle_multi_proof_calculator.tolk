@@ -1,4 +1,4 @@
-import "../../lib/merkle_multi_proof/merkle_multi_proof.tolk"
+import "../../lib/crypto/merkle_multi_proof.tolk"
 import "../../lib/utils.tolk"
 
 struct MerkleMultiProofCalculator {

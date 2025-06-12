@@ -10,11 +10,11 @@ import {
   SendMode,
 } from '@ton/core'
 
-import { Ownable2StepConfig } from '../libraries/access/Ownable2Step'
 import { OCR3Base } from '../libraries/ocr/MultiOCR3Base'
+import * as ownable2step from '../libraries/access/Ownable2Step'
 
 export type OffRampStorage = {
-  ownable: Ownable2StepConfig
+  ownable: ownable2step.Data
   deployerCode: Cell
   merkleRootCode: Cell
   feeQuoter: Address

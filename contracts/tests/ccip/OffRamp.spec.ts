@@ -96,6 +96,7 @@ describe('OffRamp', () => {
       let data: OffRampStorage = {
         ownable: {
           owner: deployer.address,
+          pendingOwner: null,
         },
         deployerCode: deployerCode,
         merkleRootCode,

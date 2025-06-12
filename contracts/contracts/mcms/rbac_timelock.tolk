@@ -310,7 +310,7 @@ struct (0xf410a31b) Timelock_FunctionSelectorUnblocked {
 
 // --- Storage ---
 
-/// AccessControl contract struct, host storage and runtime hooks (extensions).
+/// Timelock contract struct, host storage and runtime hooks (extensions).
 struct Timelock<T> {
     data: Timelock_Data;
 
@@ -321,7 +321,8 @@ struct Timelock<T> {
 
 /// RBACTimelock contract storage, auto-serialized to/from cells.
 struct Timelock_Data {
-    // id: uint32;          // required to allow multiple independent instances, since contract address depends on initial state
+    /// ID allows multiple independent instances, since contract address depends on initial state.
+    id: uint32;
 
     /// Minimum delay for operations in seconds
     minDelay: uint64;
@@ -381,6 +382,10 @@ struct Timelock_Hooks<T> {
 }
 
 // --- Constants ---
+
+const TOPIC_BYPASSER_CALL_EXECUTED = stringCrc32("Timelock_BypasserCallExecuted");
+const TOPIC_CALL_SCHEDULED = stringCrc32("Timelock_CallScheduled");
+const TOPIC_CALL_EXECUTED = stringCrc32("Timelock_CallExecuted");
 
 /// TODO: use keccak256 hash function to match Ethereum implementation
 /// Notice: role constants are kept as original Ethereum implementation (keccak256)
@@ -571,24 +576,22 @@ fun Timelock<T>.scheduleBatch(
         val call = cc.next();
         self.checkFunctionSelectorNotBlocked(call.data.beginParse());
 
-        // Send a message to the sender to notify about the change
-        val reply = createMessage({
-            bounce: false,
-            value: 0, // TODO: how to pay for this message fee? or do we emit?
-            dest: sender,
-            body: Timelock_CallScheduled{
-                queryId,
-                id,
-                index,
-                call: call.toCell(),
-                predecessor,
-                salt,
-                delay
-            }
-        });
-        reply.send(SEND_MODE_PAY_FEES_SEPARATELY);
+        val body = Timelock_CallScheduled{
+            queryId,
+            id,
+            index,
+            call: call.toCell(),
+            predecessor,
+            salt,
+            delay
+        };
+        emit(TOPIC_CALL_SCHEDULED, body);
+
         index += 1;
     }
+
+    // TODO: reply to sender once for the whole batch (+ return extra funds if any)
+    // Send a message to the sender to notify about the change (e.g., Timelock_BatchScheduled)
 }
 
 /// @dev Schedule an operation that becomes valid after a given delay.
@@ -653,25 +656,23 @@ fun Timelock<T>.executeBatch(
         val call = cc.next();
         self.execute(call);
 
-        // Send a message to the sender to notify about the change
-        val reply = createMessage({
-            bounce: false,
-            value: 0, // TODO: how to pay for this message fee? or do we emit?
-            dest: sender,
-            body: Timelock_CallExecuted{
-                queryId,
-                id,
-                index,
-                target: call.target,
-                value: call.value,
-                data: call.data
-            }
-        });
-        reply.send(SEND_MODE_REGULAR);
+        val body = Timelock_CallExecuted{
+            queryId,
+            id,
+            index,
+            target: call.target,
+            value: call.value,
+            data: call.data
+        };
+        emit(TOPIC_CALL_EXECUTED, body);
+
         index += 1;
     }
 
     self.afterCall(id);
+
+    // TODO: reply to sender once for the whole batch (+ return extra funds if any)
+    // Send a message to the sender to notify about the change (e.g., Timelock_BatchExecuted)
 }
 
 /// @dev Execute an operation's call.
@@ -817,22 +818,19 @@ fun Timelock<T>.bypasserExecuteBatch(
         val call = cc.next();
         self.execute(call);
 
-        // Send a message to the sender to notify about the change
-        val reply = createMessage({
-            bounce: false,
-            value: 0, // TODO: how to pay for this message fee? or do we emit?
-            dest: sender,
-            body: Timelock_BypasserCallExecuted{
-                queryId,
-                index,
-                target: call.target,
-                value: call.value,
-                data: call.data
-            }
-        });
-        reply.send(SEND_MODE_REGULAR);
+        val body = Timelock_BypasserCallExecuted{
+            queryId,
+            index,
+            target: call.target,
+            value: call.value,
+            data: call.data
+        };
+        emit(TOPIC_BYPASSER_CALL_EXECUTED, body);
         index += 1;
     }
+
+    // TODO: reply to sender once for the whole batch (+ return extra funds if any)
+    // Send a message to the sender to notify about the change (e.g., Timelock_BypasserBatchExecuted)
 }
 
 /// @dev Returns the number of blocked function selectors.
