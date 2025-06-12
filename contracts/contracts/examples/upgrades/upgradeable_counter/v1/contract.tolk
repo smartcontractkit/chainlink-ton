@@ -1,3 +1,4 @@
+import "../../../../lib/common/message_flags.tolk";
 import "../shared.tolk";
 import "./storage.tolk";
 
@@ -23,10 +24,9 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
 
     var cs = msgFull.beginParse();
     val flags = cs.loadMessageFlags();
-    // TODO isMessageBounced disappeared in Tolk 0.99
-    // if (isMessageBounced(flags)) { // ignore all bounced messages
-    //     return;
-    // }
+    if (isMessageBounced(flags)) { // ignore all bounced messages
+        return;
+    }
     
     if (upgradeableCounter.onInternalMessage(myBalance, msgValue, msgFull, msgBody)) {
         return;
