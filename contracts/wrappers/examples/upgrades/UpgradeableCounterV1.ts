@@ -7,9 +7,9 @@ import {
   ContractProvider,
   Sender,
   SendMode,
-  Slice,
 } from '@ton/core'
-import { crc32 } from 'zlib'
+import { Upgradeable } from '../../libraries/upgrades/Upgradeable'
+import { compile } from '@ton/blueprint'
 
 export type CounterConfig = {
   id: number
@@ -22,17 +22,26 @@ export function counterConfigToCell(config: CounterConfig): Cell {
 
 export const Opcodes = {
   OP_STEP: 0x00000001,
-  OP_UPGRADE: crc32('Upgrade'),
 }
 
-export class UpgradeableCounterV1 implements Contract {
+export class UpgradeableCounterV1 extends Upgradeable {
   constructor(
     readonly address: Address,
     readonly init?: { code: Cell; data: Cell },
-  ) {}
+  ) {
+    super(address, init)
+  }
 
   static createFromAddress(address: Address) {
     return new UpgradeableCounterV1(address)
+  }
+
+  static code(): Promise<Cell> {
+    return compile('examples.upgrades.UpgradeableCounterV1')
+  }
+
+  code(): Promise<Cell> {
+    return compile('examples.upgrades.UpgradeableCounterV1')
   }
 
   static createFromConfig(config: CounterConfig, code: Cell, workchain = 0) {
@@ -67,26 +76,6 @@ export class UpgradeableCounterV1 implements Contract {
     })
   }
 
-  async sendUpgrade(
-    provider: ContractProvider,
-    via: Sender,
-    opts: {
-      value: bigint
-      queryId?: number
-      code: Cell
-    },
-  ) {
-    await provider.internal(via, {
-      value: opts.value,
-      sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: beginCell()
-        .storeUint(Opcodes.OP_UPGRADE, 32)
-        .storeUint(opts.queryId ?? 0, 64)
-        .storeRef(opts.code)
-        .endCell(),
-    })
-  }
-
   async getValue(provider: ContractProvider) {
     const result = await provider.get('value', [])
     return result.stack.readNumber()
@@ -105,19 +94,5 @@ export class UpgradeableCounterV1 implements Contract {
   async getCodeHash(provider: ContractProvider): Promise<BigInt> {
     const result = await provider.get('codeHash', [])
     return result.stack.readBigNumber()
-  }
-}
-export function loadUpgradedEvent(slice: Slice): {
-  version: string
-  code: Cell
-  codeHash: bigint
-} {
-  const version = slice.loadStringRefTail()
-  const code = slice.loadRef()
-  const codeHash = slice.loadUintBig(256)
-  return {
-    version,
-    code,
-    codeHash,
   }
 }
