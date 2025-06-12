@@ -45,10 +45,8 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
 
 // We need to add this boilerplate to any ownable_2step contract to handle ownership transfer messages
 
-    debug.printString("123");
     match(msg) {
         SetCount => {
-            debug.printString("hola");
             var storage = loadData();
 
             // Ensure the sender is the owner
@@ -58,7 +56,6 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
                 return;
             }
             var sender: address = cs.loadAddress(); 
-            debug.print(sender);
             storage.ownable.requireOwner(sender);
 
             storage.count = msg.count;

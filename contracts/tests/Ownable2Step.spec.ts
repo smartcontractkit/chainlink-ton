@@ -183,7 +183,7 @@ describe('Ownable2Step Counter', () => {
     })
 
     const countAfterTx = await counter.getCounter()
-    expect(countAfterTx).toBe(100n)
+    expect(countAfterTx).toBe(100)
   })
 
   it('Test06 : AcceptOwnership should not allow the original owner to operate as owner', async () => {

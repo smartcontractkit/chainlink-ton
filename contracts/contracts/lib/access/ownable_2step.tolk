@@ -19,13 +19,13 @@ struct Ownable2Step {
 // --- Message Structs ---
 
 /// Message sent by the owner to transfer ownership of a contract.
-struct (0x00101) Ownable2Step_TransferOwnership {
+struct (0x00000101) Ownable2Step_TransferOwnership {
     queryId: uint64;
     newOwner: address;
 }
 
 /// Message sent by the pending owner to accept ownership of a contract.
-struct (0x00102) Ownable2Step_AcceptOwnership {
+struct (0x00000102) Ownable2Step_AcceptOwnership {
     queryId: uint64;
 }
 
@@ -59,9 +59,7 @@ fun Ownable2Step.onInternalMessage(mutate self, myBalance: int, msgValue: int, m
 
         //This will fail with exitcode 63 if the message is not an Ownable2Step message
 
-        debug.printString("before fromSlice");
         var msg = Ownable2Step_Messages.fromSlice(msgBody);
-        debug.printString("after fromSlice");
 
         match (msg) {
             Ownable2Step_TransferOwnership => {
@@ -78,11 +76,8 @@ fun Ownable2Step.onInternalMessage(mutate self, myBalance: int, msgValue: int, m
 
     } catch (exitCode) {
         if (exitCode != 63) { // 63 is "unknown opcode"
-            debug.printString("unexpected exit code");
-            debug.print(exitCode);
             throw exitCode;
         }
-        debug.printString("Not an Ownable2Step message");
         return false; // Not an Ownable2Step message
     }
 }
