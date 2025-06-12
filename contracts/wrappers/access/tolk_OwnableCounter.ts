@@ -8,7 +8,6 @@ import {
   Sender,
   SendMode,
 } from '@ton/core'
-import { crc32 } from 'zlib'
 
 export type Ownable2Step = {
     owner: Address,
@@ -41,8 +40,8 @@ export function counterConfigToCell(config: OwnableCounterStorage): Cell {
 
 export const Opcodes = {
   OP_SET_COUNT: 0x00000001,
-  OP_TRANSFER_OWNERSHIP: crc32('Ownable2Step_TransferOwnership'),
-  OP_ACCEPT_OWNERHSIP: crc32('Ownable2Step_AcceptOwnership'),
+  OP_TRANSFER_OWNERSHIP: 0x00101,
+  OP_ACCEPT_OWNERHSIP: 0x00102,
 }
 
 export class OwnableCounter implements Contract {
