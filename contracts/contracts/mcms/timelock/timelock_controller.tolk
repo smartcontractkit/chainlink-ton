@@ -1,10 +1,12 @@
 tolk 0.99
 
 import "@stdlib/tvm-dicts";
+import "../../lib/access/access_control.tolk";
+
 import "common/workchain.tolk";
-import "timelock_controller/error.tolk";
-import "common/accounts.tolk";
 import "common/message.tolk";
+
+import "timelock_controller/error.tolk";
 import "timelock_controller/storage.tolk";
 import "timelock_controller/op.tolk";
 import "timelock_controller/params.tolk";
@@ -12,7 +14,6 @@ import "timelock_controller/operation_utils.tolk";
 import "timelock_controller/get.tolk";
 import "timelock_controller/admin_calls.tolk";
 
-// onInternalMessage is the main entrypoint; it's called when a contract receives an internal message from other contracts
 fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: slice) {
     if (msgBody.isEnd()) { // ignore all empty messages
         return;
@@ -20,9 +21,10 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
 
     var cs: slice = msgFull.beginParse();
     val flags = cs.loadMessageFlags();
-    if (isMessageBounced(flags)) { // ignore all bounced messages
-        return;
-    }
+    // TODO: not available in tolk 0.99
+    // if (isMessageBounced(flags)) { // ignore all bounced messages
+    //     return;
+    // }
 
     loadStorage();
 
@@ -40,6 +42,7 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
 
     val (_, adminExists) = accountExists(STORAGE_ADMIN_ACCOUNTS, senderAddress);
     if (adminExists) {
+        // Map from global storage to underlying trait storage
         // Handle RBAC access control operations
         var rbac: RBACAccessControl = {
             adminAccounts: STORAGE_ADMIN_ACCOUNTS,
@@ -48,9 +51,6 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
             cancellerAccounts: STORAGE_CANCELLER_ACCOUNTS,
         };
 
-        // Handle admin upgrade operations
-        var upgradeable: Upgradeable = {};
-
         // Handle RBACTimelockAdmin operations
         var timelockAdmin: RBACTimelockAdmin = {
             minDelay: STORAGE_MIN_DELAY,
@@ -58,10 +58,24 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
             timestamps: STORAGE_TIMESTAMPS,
         };
 
-        var msgHandeled = upgradeable.onInternalMessage(op, myBalance, msgValue, msgFull, msgBody)
+        var msgHandeled = 0
           || rbac.onInternalMessage(op, myBalance, msgValue, msgFull, msgBody)
           || timelockAdmin.onInternalMessage(op, myBalance, msgValue, msgFull, msgBody);
         if (msgHandeled) {
+            // Map from underlying trait storage to global storage
+            // RBACAccessControl
+            STORAGE_ADMIN_ACCOUNTS = rbac.adminAccounts;
+            STORAGE_PROPOSER_ACCOUNTS = rbac.proposerAccounts;
+            STORAGE_EXECUTOR_ACCOUNTS = rbac.executorAccounts;
+            STORAGE_CANCELLER_ACCOUNTS = rbac.cancellerAccounts;
+
+            // RBACTimelockAdmin
+            STORAGE_MIN_DELAY = timelockAdmin.minDelay;
+            STORAGE_TIMESTAMP_COUNT = timelockAdmin.timestampCount;
+            STORAGE_TIMESTAMPS = timelockAdmin.timestamps;
+
+            // Save the updated storage
+            saveStorage();
             return;
         }
     }
@@ -135,12 +149,13 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
 
             reserveToncoinsOnBalance(MIN_TON_FOR_STORAGE, RESERVE_MODE_EXACT_AMOUNT);
 
-            var msg = beginCell()
-                .storeMsgFlagsAndAddressNone(BOUNCEABLE)
-                .storeAddress(targetAccount)
-                .storeCoins(tonValue)
-                .storeOnlyBodyRef(msgToSend);
-            sendMessage(msg.endCell(), SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+            val op = createMessage({
+                bounce: true,
+                value: tonValue,
+                dest: targetAccount,
+                body: msgToSend
+            });
+            op.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 
             timestampSlice = beginCell().storeUint(DONE_TIMESTAMP, 32).endCell().beginParse();
             STORAGE_TIMESTAMPS.uDictSet(256, id, timestampSlice);

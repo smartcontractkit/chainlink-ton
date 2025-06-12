@@ -1,5 +1,7 @@
 tolk 0.99
 
+import "../../../lib/access/access_control.tolk";
+
 // RBACTimelock contract storage, auto-serialized to/from cells.
 struct Storage {
     // id: uint32;          // required to allow multiple independent instances, since contract address depends on initial state
@@ -8,15 +10,7 @@ struct Storage {
     timestampCount: int32;  // number of timestamps stored, used to track the size of the storage
     timestamps: dict;       // maps operation id to timestamp
 
-    rbac: Cell<RBACStorage>;
-}
-
-// RBACStorage contains role-based access control accounts.
-struct RBACStorage {
-    adminAccounts: dict;
-    proposerAccounts: dict;
-    executorAccounts: dict;
-    cancellerAccounts: dict;
+    rbac: Cell<RBACAccessControl>;
 }
 
 // load contract data using auto-deserialization
@@ -48,7 +42,7 @@ fun loadStorage() {
     STORAGE_TIMESTAMPS = s.timestamps;
 
     // Load RBAC accounts from the serialized data
-    var rbac = RBACStorage.fromCell(s.rbac);
+    var rbac = RBACAccessControl.fromCell(s.rbac);
     STORAGE_ADMIN_ACCOUNTS = rbac.adminAccounts;
     STORAGE_PROPOSER_ACCOUNTS = rbac.proposerAccounts;
     STORAGE_EXECUTOR_ACCOUNTS = rbac.executorAccounts;
@@ -57,7 +51,7 @@ fun loadStorage() {
 
 @inline
 fun saveStorage() {
-    var rbac = RBACStorage{
+    var rbac = RBACAccessControl{
         adminAccounts: STORAGE_ADMIN_ACCOUNTS,
         proposerAccounts: STORAGE_PROPOSER_ACCOUNTS,
         executorAccounts: STORAGE_EXECUTOR_ACCOUNTS,
