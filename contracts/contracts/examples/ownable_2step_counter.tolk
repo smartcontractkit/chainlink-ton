@@ -1,5 +1,10 @@
 import "./../lib/access/ownable_2step.tolk";
 
+/// Having msgFlags (4 bits), check that a message is bounced.
+/// Effectively, it's `msgFlags & 1` (the lowest bit present).
+fun isMessageBounced(msgFlags: int): int
+    asm "1 PUSHINT" "AND";
+
 struct OwnableCounter {
     id: uint64;
     count: uint32;

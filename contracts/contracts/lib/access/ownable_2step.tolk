@@ -9,7 +9,6 @@ const ERROR_CANNOT_TRANSFER_TO_SELF = 1001;
 /// Custom exit code indicating that only the proposed (pending) owner may accept ownership.
 const ERROR_MUST_BE_PROPOSED_OWNER = 1002;
 
-
 /// Ownable2Step trait provides ownership two-step transfer functionality.
 struct Ownable2Step {
     owner: address;
