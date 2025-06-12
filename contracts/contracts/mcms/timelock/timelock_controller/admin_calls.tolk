@@ -1,4 +1,4 @@
-tolk 0.13
+tolk 0.99
 
 import "./op.tolk";
 import "./error.tolk";
@@ -6,8 +6,15 @@ import "./params.tolk";
 import "./storage.tolk";
 import "../common/accounts.tolk";
 
+struct RBACAccessControl {
+    adminAccounts: dict,
+    proposerAccounts: dict,
+    executorAccounts: dict,
+    cancellerAccounts: dict,
+}
+
 @inline
-fun RBACAccessControl__onInternalMessage(op: int, myBalance: int, msgValue: int, msgFull: cell, msgBody: slice) {
+fun RBACAccessControl.onInternalMessage(self, op: int, myBalance: int, msgValue: int, msgFull: cell, msgBody: slice) {
     if (op == OP_UPDATE_ACCOUNTS) {
         val operation = msgBody.loadUint(1);
         val role = msgBody.loadUint(32);
@@ -56,8 +63,10 @@ fun RBACAccessControl__onInternalMessage(op: int, myBalance: int, msgValue: int,
     return 0;
 }
 
+struct Upgradeable { }
+
 @inline
-fun Upgradeable__onInternalMessage(op: int, myBalance: int, msgValue: int, msgFull: cell, msgBody: slice) {
+fun Upgradeable.onInternalMessage(self, op: int, myBalance: int, msgValue: int, msgFull: cell, msgBody: slice) {
     if (op == OP_UPGRADE) {
         val (newData, newCode) = (msgBody.loadRef(), msgBody.loadRef());
         msgBody.assertEnd();
@@ -69,8 +78,15 @@ fun Upgradeable__onInternalMessage(op: int, myBalance: int, msgValue: int, msgFu
     return 0;
 }
 
+
+struct RBACTimelockAdmin {
+    minDelay: int,
+    timestampCount: int,
+    timestamps: dict,
+}
+
 @inline
-fun RBACTimelockAdmin__onInternalMessage(op: int, myBalance: int, msgValue: int, msgFull: cell, msgBody: slice) {
+fun RBACTimelockAdmin.onInternalMessage(self, op: int, myBalance: int, msgValue: int, msgFull: cell, msgBody: slice) {
     if (op == OP_UPDATE_DELAY) {
         val delay = msgBody.loadUint(32);
         msgBody.assertEnd();
