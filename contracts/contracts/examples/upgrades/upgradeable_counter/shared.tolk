@@ -32,7 +32,7 @@ struct (0x00000001) Step {
 }
 
 fun UpgradeableCounter.onInternalMessage(self, myBalance: int, msgValue: int, msgFull: cell, msgBody: slice): bool {    
-    val upgradeable = Upgradeable{
+    val upgradeable = Upgradeable<null>{
         version: self.version,
         migrateStorage: self.migrateStorage,
         requireUpgrade: null, // Use the default implementation
