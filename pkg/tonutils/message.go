@@ -358,3 +358,28 @@ func (m SentMessage) MatchesReceived(incomingMessage *tlb.InternalMessage) bool 
 	}
 	return isSameMessage
 }
+
+// WaitForTrace waits for all outgoing messages to be received and all their
+// outgoing messages to be received recursively. It will return the resulting
+// message in a Finalized state.
+func (m *ReceivedMessage) WaitForTrace(ac *ApiClient) error {
+	if m.Status() == Finalized {
+		return nil
+	}
+
+	messagesWithUnconfirmedOutgoingMessages := NewEmptyQueue[*ReceivedMessage]()
+	messagesWithUnconfirmedOutgoingMessages.Push(m)
+
+	for {
+		cascadingMessage, ok := messagesWithUnconfirmedOutgoingMessages.Pop()
+		if !ok {
+			break
+		}
+		err := cascadingMessage.WaitForOutgoingMessagesToBeReceived(ac)
+		if err != nil {
+			return fmt.Errorf("failed to wait for outgoing messages: %w", err)
+		}
+		messagesWithUnconfirmedOutgoingMessages.PushAll(cascadingMessage.OutgoingInternalMessagesReceived...)
+	}
+	return nil
+}
