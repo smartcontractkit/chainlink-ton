@@ -165,11 +165,11 @@ func (ac *ApiClient) Deploy(contractPath string, initData *cell.Cell, amount tlb
 	if err != nil {
 		return nil, fmt.Errorf("failed to wait for trace: %w", err)
 	}
-	if receivedMessage.ExitCode != ExitCode_Success || len(receivedMessage.OutgoingInternalMessagesReceived) != 1 {
+	if receivedMessage.ExitCode != ExitCode_Success || len(receivedMessage.OutgoingInternalReceivedMessages) != 1 {
 		return nil, fmt.Errorf("contract deployment failed: error sending external message: exit code %d: %s", receivedMessage.ExitCode, receivedMessage.ExitCode.Describe())
 
 	}
-	deployExitCode := receivedMessage.OutgoingInternalMessagesReceived[0].ExitCode
+	deployExitCode := receivedMessage.OutgoingInternalReceivedMessages[0].ExitCode
 	if !deployExitCode.IsSuccessfulDeployment() {
 		return nil, fmt.Errorf("contract deployment failed: exit code %d: %s", deployExitCode, deployExitCode.Describe())
 	}

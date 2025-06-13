@@ -32,7 +32,7 @@ func TestDepositFees(t *testing.T) {
 	aliceBalance := test_utils.MustGetBalance(t, alice)
 	test_utils.VerifyTransaction(t, externalMessageReceived, initialAmount, big.NewInt(0).Neg(transferAmount), aliceBalance)
 
-	internalMessagedReceivedByBob := externalMessageReceived.OutgoingInternalMessagesReceived[0]
+	internalMessagedReceivedByBob := externalMessageReceived.OutgoingInternalReceivedMessages[0]
 	assert.NotNil(t, internalMessagedReceivedByBob, "Internal message not received by Bob")
 	bobBalance := test_utils.MustGetBalance(t, bob)
 	test_utils.VerifyTransaction(t, internalMessagedReceivedByBob, initialAmount, transferAmount, bobBalance)

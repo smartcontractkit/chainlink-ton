@@ -72,8 +72,8 @@ type ReceivedMessage struct {
 	Bounced                          bool               // Indicates if the transaction was bounced
 	Success                          bool               // Indicates if the transaction was successful
 	ExitCode                         ExitCode           // Exit code of the transaction execution
-	OutgoingInternalMessagesSent     []*SentMessage     // Internal messages sent as a result of this message
-	OutgoingInternalMessagesReceived []*ReceivedMessage // Internal messages that have been received by their recipients
+	OutgoingInternalSentMessages     []*SentMessage     // Internal messages sent as a result of this message
+	OutgoingInternalReceivedMessages []*ReceivedMessage // Internal messages that have been received by their recipients
 	OutgoingExternalMessages         []OutgoingExternalMessages
 }
 
@@ -102,10 +102,10 @@ func (e *OutgoingExternalMessages) AsString() (string, error) {
 // and forwarding during transaction execution.
 func (m *ReceivedMessage) TotalActionPhaseFees() *big.Int {
 	total := m.TotalActionFees
-	for _, sentMessage := range m.OutgoingInternalMessagesSent {
+	for _, sentMessage := range m.OutgoingInternalSentMessages {
 		total.Add(total, sentMessage.FwdFee)
 	}
-	for _, receivedMessage := range m.OutgoingInternalMessagesReceived {
+	for _, receivedMessage := range m.OutgoingInternalReceivedMessages {
 		total.Add(total, receivedMessage.FwdFee)
 	}
 	return total
@@ -139,10 +139,10 @@ func (m *ReceivedMessage) TotalTransactionExecutionFee() *big.Int {
 // Returns Finalized if no outgoing messages exist, Cascading if some outgoing messages
 // have been received, or Received if outgoing messages exist but none have been received yet.
 func (m *ReceivedMessage) Status() MsgStatus {
-	if len(m.OutgoingInternalMessagesSent) == 0 {
+	if len(m.OutgoingInternalSentMessages) == 0 {
 		return Finalized
 	}
-	if len(m.OutgoingInternalMessagesReceived) != 0 {
+	if len(m.OutgoingInternalReceivedMessages) != 0 {
 		return Cascading
 	}
 	return Received
@@ -160,10 +160,10 @@ func (m *ReceivedMessage) NetCreditResult() *big.Int {
 // recipients. This represents the total outflow from the current message.
 func (m *ReceivedMessage) OutgoingAmount() *big.Int {
 	base := big.NewInt(0)
-	for _, sentMessage := range m.OutgoingInternalMessagesSent {
+	for _, sentMessage := range m.OutgoingInternalSentMessages {
 		base.Add(base, sentMessage.Amount)
 	}
-	for _, receivedMessage := range m.OutgoingInternalMessagesReceived {
+	for _, receivedMessage := range m.OutgoingInternalReceivedMessages {
 		base.Add(base, receivedMessage.Amount)
 	}
 	return base
@@ -215,8 +215,8 @@ func MapToReceivedMessage(txOnReceived *tlb.Transaction) (ReceivedMessage, error
 		Success:                          false,
 		ExitCode:                         0,
 		TotalActionFees:                  big.NewInt(0),
-		OutgoingInternalMessagesSent:     make([]*SentMessage, 0),
-		OutgoingInternalMessagesReceived: make([]*ReceivedMessage, 0),
+		OutgoingInternalSentMessages:     make([]*SentMessage, 0),
+		OutgoingInternalReceivedMessages: make([]*ReceivedMessage, 0),
 	}
 
 	// TODO: find magic fee
@@ -289,7 +289,7 @@ func MapToReceivedMessage(txOnReceived *tlb.Transaction) (ReceivedMessage, error
 // It also updates the total fees charged to the sender for forwarding messages.
 // Both internal and external outgoing messages are handled appropriately.
 func (m *ReceivedMessage) mapOutgoingMessages(outgoingMessages []tlb.Message) {
-	m.OutgoingInternalMessagesSent = make([]*SentMessage, 0, len(outgoingMessages))
+	m.OutgoingInternalSentMessages = make([]*SentMessage, 0, len(outgoingMessages))
 	for _, outgoingMessage := range outgoingMessages {
 		switch outgoingMessage.MsgType {
 		case tlb.MsgTypeInternal:
@@ -315,7 +315,7 @@ func (m *ReceivedMessage) AppendEvent(outMsg *tlb.ExternalMessageOut) {
 // messages that were sent as a result of processing the current message.
 func (r *ReceivedMessage) AppendSentMessage(outgoingInternalMessage *tlb.InternalMessage) {
 	messageSent := NewSentMessage(outgoingInternalMessage)
-	r.OutgoingInternalMessagesSent = append(r.OutgoingInternalMessagesSent, &messageSent)
+	r.OutgoingInternalSentMessages = append(r.OutgoingInternalSentMessages, &messageSent)
 	r.MsgFeesChargedToSender.Add(r.MsgFeesChargedToSender, outgoingInternalMessage.FwdFee.Nano())
 }
 
@@ -330,7 +330,7 @@ func (r *ReceivedMessage) AppendSentMessage(outgoingInternalMessage *tlb.Interna
 //
 // TODO: This could be optimized by grouping outgoing messages by recipient address
 func (m *ReceivedMessage) WaitForOutgoingMessagesToBeReceived(ac *ApiClient) error {
-	outgoingMessagesSentQueue := AsQueue(&m.OutgoingInternalMessagesSent)
+	outgoingMessagesSentQueue := AsQueue(&m.OutgoingInternalSentMessages)
 	for {
 		sentMessage, ok := outgoingMessagesSentQueue.Pop()
 		if !ok {
@@ -351,7 +351,7 @@ func (m *ReceivedMessage) WaitForOutgoingMessagesToBeReceived(ac *ApiClient) err
 				}
 			}
 		}
-		m.OutgoingInternalMessagesReceived = append(m.OutgoingInternalMessagesReceived, receivedMessage)
+		m.OutgoingInternalReceivedMessages = append(m.OutgoingInternalReceivedMessages, receivedMessage)
 	}
 
 	return nil
@@ -432,7 +432,7 @@ func (m *ReceivedMessage) WaitForTrace(ac *ApiClient) error {
 		if err != nil {
 			return fmt.Errorf("failed to wait for outgoing messages: %w", err)
 		}
-		messagesWithUnconfirmedOutgoingMessages.PushAll(cascadingMessage.OutgoingInternalMessagesReceived...)
+		messagesWithUnconfirmedOutgoingMessages.PushAll(cascadingMessage.OutgoingInternalReceivedMessages...)
 	}
 	return nil
 }
