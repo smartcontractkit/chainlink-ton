@@ -47,14 +47,12 @@ fun UpgradeableWithLock.onInternalMessage(self, myBalance: int, msgValue: int, m
     var upgradeable = Upgradeable<requireUpgradeClosureArgs>{
         version: self.version,
         migrateStorage: self.migrateStorage,
-        requireUpgrade: null,
-    };
-    val upgradeableCopy = upgradeable;
-    upgradeable.requireUpgrade = Closure{
+        requireUpgrade: Closure {
         callable: requireUpgradeClosureCallable,
         arg: requireUpgradeClosureArgs{
-            // upgradeable: upgradeableCopy,
-            locked: self.locked,
+                // upgradeable: upgradeableCopy,
+                locked: self.locked,
+            },
         },
     };
     return upgradeable.onInternalMessage(myBalance, msgValue, msgFull, msgBody);
