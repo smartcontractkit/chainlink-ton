@@ -14,7 +14,7 @@ const OP_UPDATE_ACCOUNTS = 0x1f6ce878; // "OP_UPDATE_ACCOUNTS"c; // 0x1f6ce878
 ///
 /// May emit a {RoleGranted} event.
 ///
-struct AccessControl_GrantRole {
+struct (0x95cd540f) AccessControl_GrantRole {
     /// Query ID of the change owner request.
     queryId: uint64;
 
@@ -34,15 +34,18 @@ struct AccessControl_GrantRole {
 ///
 /// May emit a {RoleRevoked} event.
 ///
-struct AccessControl_RevokeRole {
+struct (0x969b0db9) AccessControl_RevokeRole {
     /// Query ID of the change owner request.
     queryId: uint64;
 
     /// Role of the account.
     role: uint32;
-    /// New account to add.
+    /// Account to revoke.
     account: address;
 }
+
+/// @dev Union of all access control messages.
+type AccessControl_Message = AccessControl_GrantRole | AccessControl_RevokeRole;
 
 // --- Error codes ---
 
@@ -70,55 +73,79 @@ struct AccessControl {
 }
 
 @inline
-fun AccessControl.onInternalMessage(mutate self, op: int, myBalance: int, msgValue: int, msgFull: cell, msgBody: slice) {
+fun AccessControl.messageFromSlice(msgBody: slice) {
+    try {
+        return AccessControl_Message.fromSlice(msgBody);
+    } catch(exitCode) {
+        return null; // 63 is the error code for unknown opcode
+    }
+}
+
+@inline
+fun AccessControl.onInternalMessage(mutate self, myBalance: int, msgValue: int, msgFull: cell, msgBody: slice) {
     // TODO: update tests to work with this check
     // self.onlyRole(ADMIN_ROLE, msgFull);
-
-    if (op == OP_UPDATE_ACCOUNTS) {
-        val operation = msgBody.loadUint(1);
-        val role = msgBody.loadUint(32);
-        val account = msgBody.loadAddress();
-        msgBody.assertEnd();
-
-        assert(role <= EXECUTOR_ROLE, ERROR_INVALID_ROLE);
-
-        if (role == ADMIN_ROLE) {
-            if (operation == ADD_ACCOUNT) {
-                addAccount(mutate self.adminAccounts, account);
-            } else {
-                removeAccount(mutate self.adminAccounts, account);
+    val msg = AccessControl.messageFromSlice(msgBody);
+    if (msg == null) {
+        // TODO: replace old code path
+        val op = msgBody.loadMessageOp();
+        return match (op) {
+            OP_UPDATE_ACCOUNTS => {
+                self.onUpdateAccounts(myBalance, msgValue, msgFull, msgBody);
+                return -1;
             }
-        }
-
-        if (role == PROPOSER_ROLE) {
-            if (operation == ADD_ACCOUNT) {
-                addAccount(mutate self.proposerAccounts, account);
-            } else {
-                removeAccount(mutate self.proposerAccounts, account);
-            }
-        }
-
-        if (role == CANCELLER_ROLE) {
-            if (operation == ADD_ACCOUNT) {
-                addAccount(mutate self.cancellerAccounts, account);
-            } else {
-                removeAccount(mutate self.cancellerAccounts, account);
-            }
-        }
-
-        if (role == EXECUTOR_ROLE) {
-            if (operation == ADD_ACCOUNT) {
-                addAccount(mutate self.executorAccounts, account);
-            } else {
-                removeAccount(mutate self.executorAccounts, account);
-            }
-        }
-
-        return -1;
+            else => 0
+        };
     }
 
-    // We didn't handle the message, so we return 0
-    return 0;
+    return match (msg) {
+        AccessControl_GrantRole => -1,
+        AccessControl_RevokeRole => -1,
+    };
+}
+
+
+@inline
+fun AccessControl.onUpdateAccounts(mutate self, myBalance: int, msgValue: int, msgFull: cell, msgBody: slice) {
+    val queryID = msgBody.loadMessageQueryId();
+    val operation = msgBody.loadUint(1);
+    val role = msgBody.loadUint(32);
+    val account = msgBody.loadAddress();
+    msgBody.assertEnd();
+
+    assert(role <= EXECUTOR_ROLE, ERROR_INVALID_ROLE);
+
+    if (role == ADMIN_ROLE) {
+        if (operation == ADD_ACCOUNT) {
+            addAccount(mutate self.adminAccounts, account);
+        } else {
+            removeAccount(mutate self.adminAccounts, account);
+        }
+    }
+
+    if (role == PROPOSER_ROLE) {
+        if (operation == ADD_ACCOUNT) {
+            addAccount(mutate self.proposerAccounts, account);
+        } else {
+            removeAccount(mutate self.proposerAccounts, account);
+        }
+    }
+
+    if (role == CANCELLER_ROLE) {
+        if (operation == ADD_ACCOUNT) {
+            addAccount(mutate self.cancellerAccounts, account);
+        } else {
+            removeAccount(mutate self.cancellerAccounts, account);
+        }
+    }
+
+    if (role == EXECUTOR_ROLE) {
+        if (operation == ADD_ACCOUNT) {
+            addAccount(mutate self.executorAccounts, account);
+        } else {
+            removeAccount(mutate self.executorAccounts, account);
+        }
+    }
 }
 
 /// @dev Modifier that checks that an account has a specific role. Reverts

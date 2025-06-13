@@ -1,4 +1,4 @@
-import { OwnableCounter } from '../wrappers/access/OwnableCounter'
+import { OwnableCounter } from '../wrappers/lib/access/OwnableCounter'
 import { NetworkProvider } from '@ton/blueprint'
 
 export async function run(provider: NetworkProvider) {
