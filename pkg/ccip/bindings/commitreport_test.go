@@ -13,8 +13,7 @@ import (
 func TestCommitReport_gobinding(t *testing.T) {
 	addr, err := address.ParseAddr("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")
 	require.NoError(t, err)
-
-	tokenPriceSlice, err := SliceToDict([]TokenPriceUpdate{
+	tokenPriceSlice, err := SliceToDict([]TokenPriceUpdateTLB{
 		{
 			SourceToken: addr,
 			UsdPerToken: big.NewInt(1000000), // Example value
@@ -22,37 +21,35 @@ func TestCommitReport_gobinding(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	gasPriceSlice, err := SliceToDict([]GasPriceUpdate{
+	gasPriceSlice, err := SliceToDict([]GasPriceUpdateTLB{
 		{
 			DestChainSelector: 1,
 			UsdPerUnitGas:     big.NewInt(2000000),
 		},
 	})
 	require.NoError(t, err)
-
-	onrampAddr := make([]byte, 256)
-	merkleRoots, err := SliceToDict([]MerkleRoot{
+	merkleRoots, err := SliceToDict([]MerkleRootTLB{
 		{
 			SourceChainSelector: 1,
-			OnRampAddress:       onrampAddr,
+			OnRampAddress:       make([]byte, 64),
 			MinSeqNr:            100,
 			MaxSeqNr:            200,
-			MerkleRoot:          onrampAddr,
+			MerkleRoot:          make([]byte, 32),
 		},
 	})
 	require.NoError(t, err)
-	signatureSlice, err := SliceToDict([]Signature{
+	signatureSlice, err := SliceToDict([]SignatureTLB{
 		{
 			Sig: make([]byte, 64),
 		},
 	})
 
-	commitReport := CommitReport{
-		PriceUpdates: PriceUpdates{
+	commitReport := CommitReportTLB{
+		PriceUpdates: PriceUpdatesTLB{
 			TokenPriceUpdates: tokenPriceSlice,
 			GasPriceUpdates:   gasPriceSlice,
 		},
-		MerkleRoot: MerkleRoots{
+		MerkleRoot: MerkleRootsTLB{
 			UnblessedMerkleRoots: merkleRoots,
 			BlessedMerkleRoots:   merkleRoots,
 		},
@@ -68,7 +65,7 @@ func TestCommitReport_gobinding(t *testing.T) {
 	require.NoError(t, err)
 
 	// Decode from cell
-	var decoded CommitReport
+	var decoded CommitReportTLB
 	err = tlb.LoadFromCell(&decoded, newCell.BeginParse())
 	require.NoError(t, err)
 	require.Equal(t, c.Hash(), newCell.Hash())

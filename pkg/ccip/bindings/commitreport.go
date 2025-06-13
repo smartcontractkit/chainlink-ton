@@ -9,47 +9,47 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
-// CommitReport represents the top-level structure for a commit report.
-type CommitReport struct {
-	PriceUpdates  PriceUpdates     `tlb:"^"`
-	MerkleRoot    MerkleRoots      `tlb:"^"`
+// CommitReportTLB represents the top-level structure for a commit report.
+type CommitReportTLB struct {
+	PriceUpdates  PriceUpdatesTLB  `tlb:"^"`
+	MerkleRoot    MerkleRootsTLB   `tlb:"^"`
 	RMNSignatures *cell.Dictionary `tlb:"dict 32"`
 }
 
-type MerkleRoots struct {
+type MerkleRootsTLB struct {
 	BlessedMerkleRoots   *cell.Dictionary `tlb:"dict 32"`
 	UnblessedMerkleRoots *cell.Dictionary `tlb:"dict 32"`
 }
 
-// PriceUpdates holds token and gas price updates.
-type PriceUpdates struct {
+// PriceUpdatesTLB holds token and gas price updates.
+type PriceUpdatesTLB struct {
 	TokenPriceUpdates *cell.Dictionary `tlb:"dict 32"`
 	GasPriceUpdates   *cell.Dictionary `tlb:"dict 32"`
 }
 
-// TokenPriceUpdate represents a price update for a token.
-type TokenPriceUpdate struct {
+// TokenPriceUpdateTLB represents a price update for a token.
+type TokenPriceUpdateTLB struct {
 	SourceToken *address.Address `tlb:"addr"`
 	UsdPerToken *big.Int         `tlb:"## 256"`
 }
 
-// GasPriceUpdate represents a gas price update for a chain.
-type GasPriceUpdate struct {
+// GasPriceUpdateTLB represents a gas price update for a chain.
+type GasPriceUpdateTLB struct {
 	DestChainSelector uint64   `tlb:"## 64"`
 	UsdPerUnitGas     *big.Int `tlb:"## 256"`
 }
 
-// MerkleRoot represents a Merkle root for a chain's data.
-type MerkleRoot struct {
+// MerkleRootTLB represents a Merkle root for a chain's data.
+type MerkleRootTLB struct {
 	SourceChainSelector uint64 `tlb:"## 64"`
-	OnRampAddress       []byte `tlb:"bits 256"`
+	OnRampAddress       []byte `tlb:"bits 512"`
 	MinSeqNr            uint64 `tlb:"## 64"`
 	MaxSeqNr            uint64 `tlb:"## 64"`
 	MerkleRoot          []byte `tlb:"bits 256"`
 }
 
-// Signature represents an ED25519 signature.
-type Signature struct {
+// SignatureTLB represents an ED25519 signature.
+type SignatureTLB struct {
 	Sig []byte `tlb:"bits 512"`
 }
 

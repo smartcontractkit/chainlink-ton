@@ -13,16 +13,15 @@ func TestCommitReport_gobinding_arraypacking(t *testing.T) {
 	addr, err := address.ParseAddr("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")
 	require.NoError(t, err)
 
-	onrampAddr := make([]byte, 256)
 	commitReport := CommitReportLC{
 		PriceUpdates: PriceUpdatesLC{
-			TokenPriceUpdates: []TokenPriceUpdate{
+			TokenPriceUpdates: []TokenPriceUpdateLC{
 				{
 					SourceToken: addr,
 					UsdPerToken: big.NewInt(1000000), // Example value
 				},
 			},
-			GasPriceUpdates: []GasPriceUpdate{
+			GasPriceUpdates: []GasPriceUpdateLC{
 				{
 					DestChainSelector: 1,
 					UsdPerUnitGas:     big.NewInt(2000000),
@@ -30,28 +29,29 @@ func TestCommitReport_gobinding_arraypacking(t *testing.T) {
 			},
 		},
 		MerkleRoot: MerkleRootsLC{
-			UnblessedMerkleRoots: []MerkleRoot{
+			UnblessedMerkleRoots: []MerkleRootLC{
 				{
 					SourceChainSelector: 1,
-					OnRampAddress:       onrampAddr,
+					OnRampAddress:       make([]byte, 64),
 					MinSeqNr:            100,
 					MaxSeqNr:            200,
-					MerkleRoot:          onrampAddr,
+					MerkleRoot:          make([]byte, 32),
 				},
 			},
-			BlessedMerkleRoots: []MerkleRoot{
+			BlessedMerkleRoots: []MerkleRootLC{
 				{
 					SourceChainSelector: 1,
-					OnRampAddress:       onrampAddr,
+					OnRampAddress:       make([]byte, 64),
 					MinSeqNr:            100,
 					MaxSeqNr:            200,
-					MerkleRoot:          onrampAddr,
+					MerkleRoot:          make([]byte, 32),
 				},
 			},
 		},
-		RMNSignatures: []Signature{
+		RMNSignatures: []SignatureLC{
 			{
-				Sig: make([]byte, 64),
+				R: make([]byte, 32),
+				S: make([]byte, 32),
 			},
 		},
 	}
@@ -65,7 +65,8 @@ func TestCommitReport_gobinding_arraypacking(t *testing.T) {
 	require.NoError(t, err)
 
 	// Decode from cell
-	decoded, err := DeserializeFromLinkedCells[CommitReportLC](newCell)
+	decoded := CommitReportLC{}
+	err = DeserializeFromLinkedCells(&decoded, newCell)
 	require.NoError(t, err)
 	require.Equal(t, c.Hash(), newCell.Hash())
 	require.Equal(t, commitReport, decoded)
