@@ -251,8 +251,6 @@ func MapToReceivedMessage(txOnReceived *tlb.Transaction) (ReceivedMessage, error
 				res.Bounced = true
 			}
 		}
-		if dsc.CreditPhase != nil {
-		}
 		computePhase, ok := dsc.ComputePhase.Phase.(tlb.ComputePhaseVM)
 		if ok {
 			res.Success = computePhase.Success
@@ -261,8 +259,6 @@ func MapToReceivedMessage(txOnReceived *tlb.Transaction) (ReceivedMessage, error
 			res.MagicFee.Sub(res.MagicFee, res.GasFee)
 		}
 		if dsc.StoragePhase != nil {
-			if dsc.StoragePhase.StorageFeesDue != nil {
-			}
 			res.StorageFeeCharged = dsc.StoragePhase.StorageFeesCollected.Nano()
 			res.MagicFee.Sub(res.MagicFee, res.StorageFeeCharged)
 		}
