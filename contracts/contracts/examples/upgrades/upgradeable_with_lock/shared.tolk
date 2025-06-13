@@ -48,8 +48,8 @@ fun UpgradeableWithLock.onInternalMessage(self, myBalance: int, msgValue: int, m
         version: self.version,
         migrateStorage: self.migrateStorage,
         requireUpgrade: Closure {
-        callable: requireUpgradeClosureCallable,
-        arg: requireUpgradeClosureArgs{
+            callable: requireUpgradeClosureCallable,
+            arg: requireUpgradeClosureArgs{
                 // upgradeable: upgradeableCopy,
                 locked: self.locked,
             },
