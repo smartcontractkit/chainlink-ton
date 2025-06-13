@@ -111,9 +111,9 @@ func (m *ReceivedMessage) TotalActionPhaseFees() *big.Int {
 	return total
 }
 
-// sum calculates the total of multiple big.Int values and returns the result.
+// Sum calculates the total of multiple big.Int values and returns the result.
 // This is a utility function for aggregating fee amounts and other numeric values.
-func sum(values ...*big.Int) *big.Int {
+func Sum(values ...*big.Int) *big.Int {
 	total := big.NewInt(0)
 	for _, v := range values {
 		total.Add(total, v)
@@ -127,7 +127,7 @@ func sum(values ...*big.Int) *big.Int {
 // This represents the complete execution cost for processing the message.
 // Excludes the storage fee
 func (m *ReceivedMessage) TotalTransactionExecutionFee() *big.Int {
-	return sum(
+	return Sum(
 		m.ImportFee,              // For external messages
 		m.GasFee,                 // Compute phase
 		m.TotalActionPhaseFees(), // Action phase

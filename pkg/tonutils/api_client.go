@@ -24,6 +24,13 @@ type ApiClient struct {
 	Wallet wallet.Wallet
 }
 
+func NewApiClient(api ton.APIClientWrapped, wallet wallet.Wallet) ApiClient {
+	return ApiClient{
+		Api:    api,
+		Wallet: wallet,
+	}
+}
+
 // SendWaitTransaction sends a transaction to the specified address and waits for
 // it to be confirmed on the blockchain. It returns the resulting ReceivedMessage
 // with outgoing messages (if any) and the block sequence number where the

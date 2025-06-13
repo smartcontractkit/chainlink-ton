@@ -59,10 +59,7 @@ func SetUpTest(t *testing.T, initialAmount *big.Int, fundedAccountsCount uint, l
 	funderWallet := getWallet(t, api)
 
 	// Run the spec tests, which are fully chain agnostic
-	funder := tonutils.ApiClient{
-		Api:    api,
-		Wallet: *funderWallet,
-	}
+	funder := tonutils.NewApiClient(api, *funderWallet)
 
 	initialCoinAmount := tlb.FromNanoTON(initialAmount)
 
@@ -82,10 +79,7 @@ func createAndFundWallet(t *testing.T, api *ton.APIClient, funder tonutils.ApiCl
 	result, err := funder.SendAndWaitForTrace(context.TODO(), *aliceWallet.WalletAddress(), transferToAlice)
 	assert.NoError(t, err, "Failed to send transaction: %v", err)
 	assert.True(t, result.Success && !result.Bounced, "Transaction failed")
-	alice := tonutils.ApiClient{
-		Api:    api,
-		Wallet: *aliceWallet,
-	}
+	alice := tonutils.NewApiClient(api, *aliceWallet)
 	return alice
 }
 
