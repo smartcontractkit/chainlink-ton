@@ -42,10 +42,11 @@ type GasPriceUpdate struct {
 // MerkleRoot represents a Merkle root for a chain's data.
 type MerkleRoot struct {
 	SourceChainSelector uint64 `tlb:"## 64"`
-	OnRampAddress       []byte `tlb:"bits 512"`
-	MinSeqNr            uint64 `tlb:"## 64"`
-	MaxSeqNr            uint64 `tlb:"## 64"`
-	MerkleRoot          []byte `tlb:"bits 256"`
+	// TODO: revisit this, Right now EVM/SVM on-chain uses 32 bytes, and it's too small for TON
+	OnRampAddress []byte `tlb:"bits 512"`
+	MinSeqNr      uint64 `tlb:"## 64"`
+	MaxSeqNr      uint64 `tlb:"## 64"`
+	MerkleRoot    []byte `tlb:"bits 256"`
 }
 
 // Signature represents an ED25519 signature.
