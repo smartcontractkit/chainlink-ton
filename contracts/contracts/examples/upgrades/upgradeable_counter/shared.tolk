@@ -35,7 +35,7 @@ fun UpgradeableCounter.onInternalMessage(self, myBalance: int, msgValue: int, ms
     val upgradeable = Upgradeable<null>{
         version: self.version,
         migrateStorage: self.migrateStorage,
-        requireUpgrade: null, // Use the default implementation
+        override_requireUpgrade: null, // Use the default implementation
     };
     return upgradeable.onInternalMessage(myBalance, msgValue, msgFull, msgBody);
 }

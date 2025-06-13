@@ -31,26 +31,24 @@ struct (0x00000001) SwitchLock {
     queryId: uint64;
 }
 
-struct requireUpgradeClosureArgs {
-    // upgradeable: Upgradeable<requireUpgradeClosureArgs>;
+struct override_requireUpgradeArgs {
     locked: bool;
 }
 
 const LOCKED_EXIT_CODE = 1000;
 
-fun requireUpgradeClosureCallable(args: requireUpgradeClosureArgs): void {
-    // args.upgradeable.virtual_requireUpgrade();
-    assert(args.locked!, LOCKED_EXIT_CODE); // Unlock the contract
+fun requireUpgradeClosureCallable(autoArgs: override_requireUpgradeArgs, args: Upgradeable_Impl): void {
+    args.requireUpgrade();
+    assert(autoArgs.locked!, LOCKED_EXIT_CODE); // Unlock the contract
 }
 
 fun UpgradeableWithLock.onInternalMessage(self, myBalance: int, msgValue: int, msgFull: cell, msgBody: slice): bool {    
-    var upgradeable = Upgradeable<requireUpgradeClosureArgs>{
+    var upgradeable = Upgradeable<override_requireUpgradeArgs>{
         version: self.version,
         migrateStorage: self.migrateStorage,
-        requireUpgrade: Closure {
-            callable: requireUpgradeClosureCallable,
-            arg: requireUpgradeClosureArgs{
-                // upgradeable: upgradeableCopy,
+        override_requireUpgrade: Upgradeable_override_requireUpgrade<override_requireUpgradeArgs>{
+            call: requireUpgradeClosureCallable,
+            autoArgs: override_requireUpgradeArgs{
                 locked: self.locked,
             },
         },
