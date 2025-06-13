@@ -11,7 +11,10 @@ struct RBACTimelockAdmin {
 }
 
 @inline
-fun RBACTimelockAdmin.onInternalMessage(mutate self, op: int, myBalance: int, msgValue: int, msgFull: cell, msgBody: slice) {
+fun RBACTimelockAdmin.onInternalMessage(mutate self, myBalance: int, msgValue: int, msgFull: cell, msgBody: slice) {
+    val op = msgBody.loadMessageOp();
+    val queryID = msgBody.loadMessageQueryId();
+
     if (op == OP_UPDATE_DELAY) {
         val delay = msgBody.loadUint(32);
         msgBody.assertEnd();

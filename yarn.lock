@@ -3918,7 +3918,11 @@ yocto-queue@^0.1.0:
 
 zlib@^1.0.5:
   version "1.0.5"
+<<<<<<< HEAD
   resolved "https://registry.yarnpkg.com/zlib/-/zlib-1.0.5.tgz#6e7c972fc371c645a6afb03ab14769def114fcc0"
+=======
+  resolved "https://registry.npmjs.org/zlib/-/zlib-1.0.5.tgz#6e7c972fc371c645a6afb03ab14769def114fcc0"
+>>>>>>> 314f802 (AC union message type)
   integrity sha512-40fpE2II+Cd3k8HWTWONfeKE2jL+P42iWJ1zzps5W51qcTsOUKM5Q5m2PFb0CLxlmFAaUuUdJGc3OfZy947v0w==
 
 zod@^3.21.4, zod@^3.22.4:

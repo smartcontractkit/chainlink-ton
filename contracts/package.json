@@ -15,6 +15,8 @@
     "start": "blueprint run",
     "build": "blueprint build --all",
     "test": "jest --verbose",
+    "fmt:check": "yarn fmt-contracts:check && yarn fmt-typescript:check",
+    "fmt": "yarn fmt-contracts && yarn fmt-typescript",
     "fmt-contracts:check": "tact-fmt --check contracts",
     "fmt-contracts": "tact-fmt --write contracts",
     "fmt-typescript:check": "prettier --check .",
@@ -37,8 +39,14 @@
     "prettier": "^3.5.3",
     "ts-jest": "^29.4.0",
     "ts-node": "^10.9.2",
+<<<<<<< HEAD
     "typescript": "^5.8.3",
     "crc-32": "^1.2.2",
+=======
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+>>>>>>> 314f802 (AC union message type)
     "zlib": "^1.0.5"
   }
 }

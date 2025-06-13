@@ -13,6 +13,8 @@ import {
   timelockControllerConfigToCell,
 } from '../../../wrappers/mcms/timelock/TimelockController'
 
+import * as ac from '../../../wrappers/lib/access/AccessControl'
+
 describe('TimelockController', () => {
   let code: Cell
 
@@ -74,6 +76,18 @@ describe('TimelockController', () => {
     expect(await timelockController.getIsProposer(deployer.address)).toEqual(true)
     expect(await timelockController.getIsCanceller(deployer.address)).toEqual(true)
     expect(await timelockController.getIsExecutor(deployer.address)).toEqual(true)
+  })
+
+  it('successfully parsed AccessControll opcode', async () => {
+    const body = ac.Builder.grantRole({ queryId: 1n, role: 1n, account: other.address })
+    const result = await timelockController.sendInternal(deployer.getSender(), toNano('0.05'), body)
+
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: timelockController.address,
+      success: true,
+      op: ac.Opcodes.GrantRole,
+    })
   })
 
   it('successful update account - add admin account', async () => {
