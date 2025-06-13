@@ -24,11 +24,10 @@ const (
 	Finalized
 )
 
-// Message represents a message in the TON blockchain.
-//
-// It contains the internal message, the status of the message, the Lamport time
-// of the message, the total fees charged to the sender, the storage fees
-// collected, the bounced status, and the outgoing messages sent and received.
+// SentMessage represents a message that has been sent from one contract to another
+// in the TON blockchain. It contains information about the internal message,
+// the amount transferred, the Lamport time when the message was sent, and the
+// forward fees paid by the sender.
 
 type SentMessage struct {
 	InternalMsg *tlb.InternalMessage
@@ -37,7 +36,9 @@ type SentMessage struct {
 	FwdFee      *big.Int // Of sending this message. This is paid by the sender of the message. It is 0 on external messages.
 }
 
-// MessageSentFromInternalMessage creates a MessageSent from an internal message
+// MessageSentFromInternalMessage creates a SentMessage from an internal message.
+// It extracts the amount, Lamport time, and forward fees from the internal message
+// to create a complete SentMessage representation.
 func MessageSentFromInternalMessage(internalMessage *tlb.InternalMessage) SentMessage {
 	return SentMessage{
 		InternalMsg: internalMessage,
@@ -47,6 +48,10 @@ func MessageSentFromInternalMessage(internalMessage *tlb.InternalMessage) SentMe
 	}
 }
 
+// ReceivedMessage represents a message that has been received and processed by a contract
+// in the TON blockchain. It contains comprehensive information about both the sending
+// and receiving phases of the message, including fees, execution results, and any
+// outgoing messages generated during processing.
 type ReceivedMessage struct {
 	// Sent step
 
@@ -59,25 +64,30 @@ type ReceivedMessage struct {
 
 	// Received step
 
-	StorageFeeCharged                *big.Int           // Rent dued at the moment of sending the message (charged to receiver)
-	MsgFeesChargedToSender           *big.Int           // FwdFees
+	StorageFeeCharged                *big.Int           // Rent due at the moment of sending the message (charged to receiver)
+	MsgFeesChargedToSender           *big.Int           // Forward fees
 	TotalActionFees                  *big.Int           // Fees charged to the sender for sending messages. This + the fwdFee of each outgoing msg forms the total charged in the action phase.
 	GasFee                           *big.Int           // Fees charged to the receiver for processing the message.
 	MagicFee                         *big.Int           // Unknown origin fee
-	Bounced                          bool               //
-	Success                          bool               //
-	ExitCode                         ExitCode           //
-	OutgoingInternalMessagesSent     []*SentMessage     //
-	OutgoingInternalMessagesReceived []*ReceivedMessage //
+	Bounced                          bool               // Indicates if the transaction was bounced
+	Success                          bool               // Indicates if the transaction was successful
+	ExitCode                         ExitCode           // Exit code of the transaction execution
+	OutgoingInternalMessagesSent     []*SentMessage     // Internal messages sent as a result of this message
+	OutgoingInternalMessagesReceived []*ReceivedMessage // Internal messages that have been received by their recipients
 	OutgoingExternalMessages         []OutgoingExternalMessages
 }
 
+// OutgoingExternalMessages represents external messages sent by a contract,
+// typically used for events or notifications that are emitted to external systems.
 type OutgoingExternalMessages struct {
 	CreatedAt uint32
 	LT        uint64
 	Body      *cell.Cell
 }
 
+// AsString attempts to parse the message body as a string.
+// This is commonly used for external messages that contain text data or event information.
+// Returns an error if the body cannot be parsed as a string.
 func (e *OutgoingExternalMessages) AsString() (string, error) {
 	str, err := e.Body.BeginParse().LoadStringSnake()
 	if err != nil {
@@ -86,6 +96,10 @@ func (e *OutgoingExternalMessages) AsString() (string, error) {
 	return str, nil
 }
 
+// TotalActionPhaseFees calculates the total fees charged during the action phase,
+// including the base action fees and forward fees for all outgoing messages
+// (both sent and received). This represents the complete cost of message processing
+// and forwarding during transaction execution.
 func (m *ReceivedMessage) TotalActionPhaseFees() *big.Int {
 	total := m.TotalActionFees
 	for _, sentMessage := range m.OutgoingInternalMessagesSent {
@@ -97,7 +111,9 @@ func (m *ReceivedMessage) TotalActionPhaseFees() *big.Int {
 	return total
 }
 
-func Sum(values ...*big.Int) *big.Int {
+// sum calculates the total of multiple big.Int values and returns the result.
+// This is a utility function for aggregating fee amounts and other numeric values.
+func sum(values ...*big.Int) *big.Int {
 	total := big.NewInt(0)
 	for _, v := range values {
 		total.Add(total, v)
@@ -105,16 +121,23 @@ func Sum(values ...*big.Int) *big.Int {
 	return total
 }
 
+// TotalTransactionExecutionFee calculates the total fees for executing a transaction,
+// excluding storage fees. This includes import fees (for external messages),
+// gas fees (compute phase), action phase fees, and any additional fees.
+// This represents the complete execution cost for processing the message.
 // Excludes the storage fee
 func (m *ReceivedMessage) TotalTransactionExecutionFee() *big.Int {
-	return Sum(
+	return sum(
 		m.ImportFee,              // For external messages
 		m.GasFee,                 // Compute phase
 		m.TotalActionPhaseFees(), // Action phase
-		m.MagicFee,               // Somewere
+		m.MagicFee,               // Somewhere
 	)
 }
 
+// Status returns the current status of the message based on its outgoing messages.
+// Returns Finalized if no outgoing messages exist, Cascading if some outgoing messages
+// have been received, or Received if outgoing messages exist but none have been received yet.
 func (m *ReceivedMessage) Status() MsgStatus {
 	if len(m.OutgoingInternalMessagesSent) == 0 {
 		return Finalized
@@ -125,10 +148,16 @@ func (m *ReceivedMessage) Status() MsgStatus {
 	return Received
 }
 
+// NetCreditResult calculates the net amount credited to the recipient after
+// accounting for all outgoing payments. This is the amount received minus
+// the total amount sent in outgoing messages.
 func (m *ReceivedMessage) NetCreditResult() *big.Int {
 	return big.NewInt(0).Sub(m.Amount, m.OutgoingAmount())
 }
 
+// OutgoingAmount calculates the total amount sent in all outgoing messages,
+// including both sent messages and messages that have been received by their
+// recipients. This represents the total outflow from the current message.
 func (m *ReceivedMessage) OutgoingAmount() *big.Int {
 	base := big.NewInt(0)
 	for _, sentMessage := range m.OutgoingInternalMessagesSent {
@@ -140,16 +169,18 @@ func (m *ReceivedMessage) OutgoingAmount() *big.Int {
 	return base
 }
 
-// NewMessage creates a new message with the given transaction and internal
-// message. It will be in the Received state and will have the outgoing messages
-// mapped to the sent messages.
+// MapToReceivedMessage creates a ReceivedMessage from a transaction that represents
+// a message being received and processed. It extracts all relevant information
+// including fees, execution results, bounced status, and outgoing messages.
 //
-// - updates the total fees
-// - updates the storage fees collected
-// - updates the status to Received or Finalized if there are no outgoing
-// messages
-// - maps the outgoing messages to the sent messages
-// - updates the bounced status if the transaction was bounced
+// The function:
+// - Updates the total fees
+// - Updates the storage fees collected
+// - Updates the status to Received or Finalized if there are no outgoing messages
+// - Maps the outgoing messages to the sent messages
+// - Updates the bounced status if the transaction was bounced
+//
+// Returns an error if the transaction cannot be properly parsed.
 func MapToReceivedMessage(txOnReceived *tlb.Transaction) (ReceivedMessage, error) {
 	var (
 		internalMessage *tlb.InternalMessage
@@ -253,9 +284,10 @@ func MapToReceivedMessage(txOnReceived *tlb.Transaction) (ReceivedMessage, error
 	return res, nil
 }
 
-// mapOutgoingMessages maps the outgoing tlb messages to SentMessages, storing
-// them into OutgoingMessagesSent and updates the total fees charged to the
-// sender
+// mapOutgoingMessages processes the outgoing TLB messages from a transaction and
+// converts them into SentMessages, storing them in OutgoingMessagesSent.
+// It also updates the total fees charged to the sender for forwarding messages.
+// Both internal and external outgoing messages are handled appropriately.
 func (m *ReceivedMessage) mapOutgoingMessages(outgoingMessages []tlb.Message) {
 	m.OutgoingInternalMessagesSent = make([]*SentMessage, 0, len(outgoingMessages))
 	for _, outgoingMessage := range outgoingMessages {
@@ -270,26 +302,33 @@ func (m *ReceivedMessage) mapOutgoingMessages(outgoingMessages []tlb.Message) {
 	}
 }
 
+// AppendEvent adds an external message to the list of outgoing external messages.
+// External messages are typically used for events or notifications that are
+// emitted by contracts to communicate with external systems.
 func (m *ReceivedMessage) AppendEvent(outMsg *tlb.ExternalMessageOut) {
 	e := OutgoingExternalMessages{outMsg.CreatedAt, outMsg.CreatedLT, outMsg.Body}
 	m.OutgoingExternalMessages = append(m.OutgoingExternalMessages, e)
 }
 
-// AppendSentMessage appends the outgoing message to the list of sent messages
-// and updates the total fees charged to the sender
+// AppendSentMessage adds an outgoing internal message to the list of sent messages
+// and updates the total forward fees charged to the sender. This tracks all
+// messages that were sent as a result of processing the current message.
 func (r *ReceivedMessage) AppendSentMessage(outgoingInternalMessage *tlb.InternalMessage) {
 	messageSent := MessageSentFromInternalMessage(outgoingInternalMessage)
 	r.OutgoingInternalMessagesSent = append(r.OutgoingInternalMessagesSent, &messageSent)
 	r.MsgFeesChargedToSender.Add(r.MsgFeesChargedToSender, outgoingInternalMessage.FwdFee.Nano())
 }
 
-// WaitForOutgoingMessagesToBeReceived waits for the outgoing messages to be
-// received and will block until all outgoing messages are received. It will
-// update the OutgoingInternalMessagesReceived field of the message, and will
-// return an error if any of the outgoing messages failed to be processed.
+// WaitForOutgoingMessagesToBeReceived waits for all outgoing messages to be
+// received by their respective recipients and blocks until completion. It
+// subscribes to transactions for each recipient address and matches incoming
+// transactions with the sent messages. The OutgoingInternalMessagesReceived
+// field is updated with the received messages.
 //
-// TODO: This could be optimized if the message stored the outgoing messages
-// grouped by address
+// Returns an error if any of the outgoing messages failed to be processed
+// or if there are issues with transaction monitoring.
+//
+// TODO: This could be optimized by grouping outgoing messages by recipient address
 func (m *ReceivedMessage) WaitForOutgoingMessagesToBeReceived(ac *ApiClient) error {
 	outgoingMessagesSentQueue := AsQueue(&m.OutgoingInternalMessagesSent)
 	for {
@@ -318,15 +357,16 @@ func (m *ReceivedMessage) WaitForOutgoingMessagesToBeReceived(ac *ApiClient) err
 	return nil
 }
 
-// MapToReceivedMessageIfMatches checks if the tx and incomming message information
-// matches itself and returns a MessageReceived accordingly.
+// MapToReceivedMessageIfMatches checks if a transaction corresponds to the reception
+// of this sent message and returns a ReceivedMessage if there's a match. It validates
+// that the transaction contains an internal message and that the message details
+// (addresses, Lamport time) match the originally sent message.
 //
-// It will return an error if the transaction is not an internal message or if
-// the incoming message does not match the sent message.
+// Returns nil if the transaction doesn't match this sent message, or an error
+// if the transaction cannot be processed properly.
 //
-// TODO: Of course this would be more efficient with a map, but I haven't found
-// an identifier that can be used as a key. Maybe it can be sharded by the
-// recipient address at least.
+// TODO: This matching could be more efficient with proper indexing by recipient
+// address or other identifiers.
 func (m SentMessage) MapToReceivedMessageIfMatches(rTX *tlb.Transaction) (*ReceivedMessage, error) {
 	if rTX.IO.In == nil || rTX.IO.In.MsgType != tlb.MsgTypeInternal {
 		return nil, fmt.Errorf("transaction is not internal: %s", rTX.Dump())
@@ -342,8 +382,13 @@ func (m SentMessage) MapToReceivedMessageIfMatches(rTX *tlb.Transaction) (*Recei
 	return &receivedMessage, nil
 }
 
-// MatchesReceived checks if the incoming message is the same as the message
-// originally sent (m)
+// MatchesReceived verifies if an incoming message corresponds to this originally
+// sent message by comparing source address, destination address, and creation
+// Lamport time. This is used to track the lifecycle of messages across the
+// TON blockchain network.
+//
+// Implementation note: This method uses explicit boolean logic rather than
+// early returns to facilitate debugging and verification of matching criteria.
 func (m SentMessage) MatchesReceived(incomingMessage *tlb.InternalMessage) bool {
 	// Implementation note:
 	// This could use early returns, but the code was designed with debugging in
@@ -362,10 +407,14 @@ func (m SentMessage) MatchesReceived(incomingMessage *tlb.InternalMessage) bool 
 	return isSameMessage
 }
 
-// WaitForTrace waits for all outgoing messages to be received and all their
-// outgoing messages to be received recursively. It will modify the
-// OutgoingInternalMessagesReceived field of the message, and will return an
-// error if any of the outgoing messages failed to be processed.
+// WaitForTrace waits for the complete execution trace of a message, including
+// all outgoing messages and their subsequent outgoing messages recursively.
+// This ensures that the entire message cascade has been processed and finalized.
+// It modifies the OutgoingInternalMessagesReceived field and returns an error
+// if any part of the trace fails to process.
+//
+// The function returns immediately if the message is already in Finalized state.
+// Otherwise, it processes all cascading messages until the entire trace is complete.
 func (m *ReceivedMessage) WaitForTrace(ac *ApiClient) error {
 	if m.Status() == Finalized {
 		return nil

@@ -9,6 +9,7 @@ import "fmt"
 type ExitCode int
 
 // ExitCode for the message that deploys a contract will be ExitCode_InvalidIncomingMessage(130).
+// TODO it can also be other exit codes. This is the code returned by contracts not implementing the empty received message handler.
 func (c ExitCode) IsSuccessfulDeployment() bool {
 	return c == ExitCode_InvalidIncomingMessage
 }
