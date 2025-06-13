@@ -1,6 +1,6 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { toNano } from '@ton/core'
-import { OwnableCounter } from '../wrappers/access/OwnableCounter'
+import { OwnableCounter } from '../../../wrappers/lib/access/OwnableCounter'
 import '@ton/test-utils'
 
 const ERROR_ONLY_CALLABLE_BY_OWNER = 132

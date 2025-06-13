@@ -39,9 +39,6 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
 
     forceChain(WORKCHAIN, senderAddress, ERROR_WRONG_WORKCHAIN);
 
-    val op = msgBody.loadMessageOp();
-    val queryID = msgBody.loadMessageQueryId();
-
     val (_, adminExists) = accountExists(rbac.adminAccounts, senderAddress);
     if (adminExists) {
         // Map from underlying contract storage to trait storage
@@ -53,8 +50,8 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
         };
 
         var msgHandeled = 0
-          || rbac.onInternalMessage(op, myBalance, msgValue, msgFull, msgBody)
-          || timelockAdmin.onInternalMessage(op, myBalance, msgValue, msgFull, msgBody);
+          || rbac.onInternalMessage(myBalance, msgValue, msgFull, msgBody)
+          || timelockAdmin.onInternalMessage(myBalance, msgValue, msgFull, msgBody);
 
         if (msgHandeled) {
             // Map from underlying trait storage to contract storage
@@ -68,6 +65,8 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
         }
     }
 
+    val op = msgBody.loadMessageOp();
+    val queryID = msgBody.loadMessageQueryId();
     val (_, proposerExists) = accountExists(rbac.proposerAccounts, senderAddress);
     if (proposerExists) {
         if (op == OP_SCHEDULE) {

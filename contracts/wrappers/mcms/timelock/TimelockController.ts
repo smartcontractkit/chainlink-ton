@@ -112,6 +112,14 @@ export class TimelockController implements Contract {
     return new TimelockController(contractAddress(workchain, init), init)
   }
 
+  async sendInternal(provider: ContractProvider, via: Sender, value: bigint, body: Cell) {
+    await provider.internal(via, {
+      value: value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: body,
+    })
+  }
+
   async sendSchedule(
     provider: ContractProvider,
     via: Sender,
