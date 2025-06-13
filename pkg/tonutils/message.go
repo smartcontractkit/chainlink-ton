@@ -36,10 +36,10 @@ type SentMessage struct {
 	FwdFee      *big.Int // Of sending this message. This is paid by the sender of the message. It is 0 on external messages.
 }
 
-// MessageSentFromInternalMessage creates a SentMessage from an internal message.
+// NewSentMessage creates a SentMessage from an internal message.
 // It extracts the amount, Lamport time, and forward fees from the internal message
 // to create a complete SentMessage representation.
-func MessageSentFromInternalMessage(internalMessage *tlb.InternalMessage) SentMessage {
+func NewSentMessage(internalMessage *tlb.InternalMessage) SentMessage {
 	return SentMessage{
 		InternalMsg: internalMessage,
 		Amount:      internalMessage.Amount.Nano(),
@@ -314,7 +314,7 @@ func (m *ReceivedMessage) AppendEvent(outMsg *tlb.ExternalMessageOut) {
 // and updates the total forward fees charged to the sender. This tracks all
 // messages that were sent as a result of processing the current message.
 func (r *ReceivedMessage) AppendSentMessage(outgoingInternalMessage *tlb.InternalMessage) {
-	messageSent := MessageSentFromInternalMessage(outgoingInternalMessage)
+	messageSent := NewSentMessage(outgoingInternalMessage)
 	r.OutgoingInternalMessagesSent = append(r.OutgoingInternalMessagesSent, &messageSent)
 	r.MsgFeesChargedToSender.Add(r.MsgFeesChargedToSender, outgoingInternalMessage.FwdFee.Nano())
 }
