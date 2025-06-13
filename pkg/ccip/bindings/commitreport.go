@@ -53,8 +53,8 @@ type Signature struct {
 	Sig []byte `tlb:"bits 512"`
 }
 
-// Packs an array of T into a linked cell chain, each cell up to 1023 bits. Note that only one ref is stored in each cell, and one T
-func packArray[T any](array []T) (*cell.Cell, error) {
+// PackArray packs an array of T into a linked cell chain, each cell up to 1023 bits. Note that only one ref is stored in each cell, and one T
+func PackArray[T any](array []T) (*cell.Cell, error) {
 	builder := cell.BeginCell()
 	cells := []*cell.Builder{builder}
 
@@ -85,7 +85,7 @@ func packArray[T any](array []T) (*cell.Cell, error) {
 	return next, nil
 }
 
-func unpackArray[T any](root *cell.Cell) ([]T, error) {
+func UnpackArray[T any](root *cell.Cell) ([]T, error) {
 	var result []T
 	curr := root
 	for curr != nil {

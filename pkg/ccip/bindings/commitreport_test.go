@@ -28,7 +28,7 @@ func TestLoadArray_LoadToArrayFitMultipleInSingleCell(t *testing.T) {
 			UsdPerToken: big.NewInt(5000000),
 		},
 	}
-	c, err := packArray(slice)
+	c, err := PackArray(slice)
 	require.NoError(t, err)
 
 	// For this test, each token update is only 258 bits, so we can fit up to 3 of them in a single cell.
@@ -40,6 +40,10 @@ func TestLoadArray_LoadToArrayFitMultipleInSingleCell(t *testing.T) {
 	ref, err := c.PeekRef(0)
 	require.NoError(t, err)
 	require.Equal(t, int(ref.BitsSize()), 258*2)
+
+	array, err := UnpackArray[TokenPriceUpdate](c)
+	require.NoError(t, err)
+	require.Len(t, array, 5)
 }
 
 func TestLoadArray_FitSingleUpdateInSingleCell(t *testing.T) {
@@ -67,8 +71,12 @@ func TestLoadArray_FitSingleUpdateInSingleCell(t *testing.T) {
 			UsdPerToken: big.NewInt(5000000),
 		},
 	}
-	c, err := packArray(slice)
+	c, err := PackArray(slice)
 	require.NoError(t, err)
+
+	array, err := UnpackArray[TokenPriceUpdate](c)
+	require.NoError(t, err)
+	require.Len(t, array, 5)
 
 	// For this test, each token update is only 523 bits, so we can fit only 1 of them in a single cell.
 	// we only need five cells to store 5 elements
@@ -83,7 +91,7 @@ func TestLoadArray_FitSingleUpdateInSingleCell(t *testing.T) {
 func TestCommitReport_EncodingAndDecoding(t *testing.T) {
 	addr, err := address.ParseAddr("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")
 	require.NoError(t, err)
-	tokenPriceCell, err := packArray([]TokenPriceUpdate{
+	tokenPriceCell, err := PackArray([]TokenPriceUpdate{
 		{
 			SourceToken: addr,
 			UsdPerToken: big.NewInt(1000000), // Example value
@@ -91,14 +99,14 @@ func TestCommitReport_EncodingAndDecoding(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	gasPriceCell, err := packArray([]GasPriceUpdate{
+	gasPriceCell, err := PackArray([]GasPriceUpdate{
 		{
 			DestChainSelector: 1,
 			UsdPerUnitGas:     big.NewInt(2000000),
 		},
 	})
 	require.NoError(t, err)
-	merkleRoots, err := packArray([]MerkleRoot{
+	merkleRoots, err := PackArray([]MerkleRoot{
 		{
 			SourceChainSelector: 1,
 			OnRampAddress:       make([]byte, 64),
@@ -108,7 +116,7 @@ func TestCommitReport_EncodingAndDecoding(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
-	signatureCell, err := packArray([]Signature{
+	signatureCell, err := PackArray([]Signature{
 		{
 			Sig: make([]byte, 64),
 		},
