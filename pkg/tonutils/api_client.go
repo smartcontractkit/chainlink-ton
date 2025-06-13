@@ -38,17 +38,17 @@ func NewApiClient(api ton.APIClientWrapped, wallet wallet.Wallet) ApiClient {
 //
 // This method only waits for the initial transaction confirmation, not for any
 // outgoing messages to be processed. Use SendAndWaitForTrace for complete trace waiting.
-func (ac *ApiClient) SendWaitTransaction(ctx context.Context, dstAddr address.Address, messageToSend *wallet.Message) (*ReceivedMessage, uint32, error) {
+func (ac *ApiClient) SendWaitTransaction(ctx context.Context, dstAddr address.Address, messageToSend *wallet.Message) (*ReceivedMessage, *ton.BlockIDExt, error) {
 	tx, block, err := ac.Wallet.SendWaitTransaction(ctx, messageToSend)
 	if err != nil {
-		return nil, 0, fmt.Errorf("deposit transaction failed for %s: %w", dstAddr.String(), err)
+		return nil, nil, fmt.Errorf("deposit transaction failed for %s: %w", dstAddr.String(), err)
 	}
 
 	receivedMessage, err := MapToReceivedMessage(tx)
 	if err != nil {
-		return nil, 0, fmt.Errorf("failed to get outgoing messages: %w", err)
+		return nil, nil, fmt.Errorf("failed to get outgoing messages: %w", err)
 	}
-	return &receivedMessage, block.SeqNo, nil
+	return &receivedMessage, block, nil
 }
 
 // SendAndWaitForTrace sends a transaction to the specified address and waits for
@@ -59,7 +59,7 @@ func (ac *ApiClient) SendWaitTransaction(ctx context.Context, dstAddr address.Ad
 // The method returns the resulting message in a Finalized state, meaning all
 // outgoing messages have been confirmed and processed.
 func (ac *ApiClient) SendAndWaitForTrace(ctx context.Context, dstAddr address.Address, messageToSend *wallet.Message) (*ReceivedMessage, error) {
-	sentMessage, seqno, err := ac.SendWaitTransaction(ctx, dstAddr, messageToSend)
+	sentMessage, block, err := ac.SendWaitTransaction(ctx, dstAddr, messageToSend)
 	if err != nil {
 		return nil, fmt.Errorf("failed to SendWaitTransaction: %w", err)
 	}
@@ -67,18 +67,18 @@ func (ac *ApiClient) SendAndWaitForTrace(ctx context.Context, dstAddr address.Ad
 	if err != nil {
 		return nil, fmt.Errorf("failed to wait for trace: %w", err)
 	}
-	master, err := ac.Api.WaitForBlock(seqno).CurrentMasterchainInfo(ctx)
+	master, err := ac.Api.WaitForBlock(block.SeqNo).CurrentMasterchainInfo(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get masterchain info for funder balance check: %w", err)
 	}
 
 	for {
 		// Check if the block is ready
-		if master.SeqNo > seqno+1 {
+		if master.SeqNo > block.SeqNo+1 {
 			break
 		}
 		time.Sleep(time.Millisecond * 500)
-		master, err = ac.Api.WaitForBlock(seqno).CurrentMasterchainInfo(ctx)
+		master, err = ac.Api.WaitForBlock(block.SeqNo).CurrentMasterchainInfo(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get masterchain info for funder balance check: %w", err)
 		}
