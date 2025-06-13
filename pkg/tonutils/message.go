@@ -283,9 +283,10 @@ func (r *ReceivedMessage) AppendSentMessage(outgoingInternalMessage *tlb.Interna
 	r.MsgFeesChargedToSender.Add(r.MsgFeesChargedToSender, outgoingInternalMessage.FwdFee.Nano())
 }
 
-// WaitForOutgoingMessagesToBeReceived waits for the outgoing messages to be received and
-// returns the list of new sent messagses. It will block until all outgoing
-// messages are received.
+// WaitForOutgoingMessagesToBeReceived waits for the outgoing messages to be
+// received and will block until all outgoing messages are received. It will
+// update the OutgoingInternalMessagesReceived field of the message, and will
+// return an error if any of the outgoing messages failed to be processed.
 //
 // TODO: This could be optimized if the message stored the outgoing messages
 // grouped by address
@@ -317,9 +318,11 @@ func (m *ReceivedMessage) WaitForOutgoingMessagesToBeReceived(ac *ApiClient) err
 	return nil
 }
 
-// MapToReceivedMessageIfMatches checks if the tx and incomming message infirmation
-// matches itself and returns a MessageReceived accordingly. It returns true if the message
-// matched
+// MapToReceivedMessageIfMatches checks if the tx and incomming message information
+// matches itself and returns a MessageReceived accordingly.
+//
+// It will return an error if the transaction is not an internal message or if
+// the incoming message does not match the sent message.
 //
 // TODO: Of course this would be more efficient with a map, but I haven't found
 // an identifier that can be used as a key. Maybe it can be sharded by the
@@ -360,8 +363,9 @@ func (m SentMessage) MatchesReceived(incomingMessage *tlb.InternalMessage) bool 
 }
 
 // WaitForTrace waits for all outgoing messages to be received and all their
-// outgoing messages to be received recursively. It will return the resulting
-// message in a Finalized state.
+// outgoing messages to be received recursively. It will modify the
+// OutgoingInternalMessagesReceived field of the message, and will return an
+// error if any of the outgoing messages failed to be processed.
 func (m *ReceivedMessage) WaitForTrace(ac *ApiClient) error {
 	if m.Status() == Finalized {
 		return nil
