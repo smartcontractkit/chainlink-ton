@@ -101,3 +101,25 @@ func Uint32From(res *ton.ExecutionResult, err error) (uint32, error) {
 
 	return uint32(val.Uint64()), nil
 }
+
+// SubscribeToMessages returns a channel with all incoming messages for the
+// given address that came after lt (Lamport Time). It will work retroactively,
+// meaning that it will return all messages that are already in the blockchain
+// and all new ones.
+func (c *Contract) SubscribeToMessages(lt uint64) chan *ReceivedMessage {
+	messagesReceived := make(chan *ReceivedMessage)
+	go func() {
+		transactionsReceived := c.ApiClient.SubscribeToTransactions(*c.Address, lt)
+
+		for rTX := range transactionsReceived {
+			if rTX.IO.In != nil {
+				var err error
+				receivedMessage, err := MapToReceivedMessage(rTX)
+				if err != nil {
+				}
+				messagesReceived <- &receivedMessage
+			}
+		}
+	}()
+	return messagesReceived
+}
