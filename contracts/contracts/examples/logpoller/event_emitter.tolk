@@ -41,23 +41,24 @@ fun onInternalMessage(msgFull: cell, msgBody: slice) {
     cs.loadMessageFlags();
     val sender = cs.loadAddress();
 
-    if (sender.bitsEqual(ctxOwnerAddress) & !msgBody.isEnd()) {
-        val op = msgBody.loadMessageOp();
-        val queryId = msgBody.loadMessageQueryId();
-        if (op == op_reset_counter) {
-            ctxCounter = 0;
-            storeCtx();
-            
-            // Emit external log message for counter reset
-            val resetEvent = createExternalLogMessage({
-                dest: createAddressNone(),
-                body: CounterResetEvent {
-                    timestamp: blockchain.now(),
-                    resetBy: sender
-                    }
-                });
-            resetEvent.send(SEND_MODE_REGULAR);
-            return;
+    if (sender.bitsEqual(ctxOwnerAddress)) {
+        if (!msgBody.isEnd()) {
+            val op = msgBody.loadMessageOp();
+            if (op == op_reset_counter) {
+                ctxCounter = 0;
+                storeCtx();
+                
+                // Emit external log message for counter reset
+                val resetEvent = createExternalLogMessage({
+                    dest: createAddressNone(),
+                    body: CounterResetEvent {
+                        timestamp: blockchain.now(),
+                        resetBy: sender
+                        }
+                    });
+                resetEvent.send(SEND_MODE_REGULAR);
+                return;
+            }
         }
     }
 
