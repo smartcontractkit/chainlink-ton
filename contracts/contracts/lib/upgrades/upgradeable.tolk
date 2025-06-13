@@ -46,18 +46,18 @@ struct Upgradeable<T> {
     migrateStorage: (cell) -> cell;
     version: () -> slice;
     /// Provided methods that can be overridden by the contract.
-    requireUpgrade: Closure<T>?; // This method requires the sender to be the contract owner by default. It can be overridden to bypass it or implement custom logic.
+    requireUpgrade: Closure<T, Upgradeable<T>>?; // This method requires the sender to be the contract owner by default. It can be overridden to bypass it or implement custom logic.
     // TODO on ownable2step:
     // ownable2Step: Ownable2Step;
 }
 
-struct Closure<T> {
-    callable: (T) -> void;
-    arg: T;
+struct Closure<A, T> {
+    call: (A, T) -> void;
+    autoArgs: A;
 }
 
-fun Closure<T>.Run(self) {
-    self.callable(self.arg);
+fun Closure<A, T>.Run(self, args: T) {
+    self.call(self.autoArgs, args);
 }
 
 /// Message for upgrading a contract.

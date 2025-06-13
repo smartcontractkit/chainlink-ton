@@ -38,9 +38,9 @@ struct requireUpgradeClosureArgs {
 
 const LOCKED_EXIT_CODE = 1000;
 
-fun requireUpgradeClosureCallable(args: requireUpgradeClosureArgs): void {
-    // args.upgradeable.virtual_requireUpgrade();
-    assert(args.locked!, LOCKED_EXIT_CODE); // Unlock the contract
+fun requireUpgradeClosureCallable<T>(autoArgs: requireUpgradeClosureArgs, args: Upgradeable<T>): void {
+    args.virtual_requireUpgrade();
+    assert(autoArgs.locked!, LOCKED_EXIT_CODE); // Unlock the contract
 }
 
 fun UpgradeableWithLock.onInternalMessage(self, myBalance: int, msgValue: int, msgFull: cell, msgBody: slice): bool {    
@@ -51,8 +51,8 @@ fun UpgradeableWithLock.onInternalMessage(self, myBalance: int, msgValue: int, m
     };
     val upgradeableCopy = upgradeable;
     upgradeable.requireUpgrade = Closure{
-        callable: requireUpgradeClosureCallable,
-        arg: requireUpgradeClosureArgs{
+        call: requireUpgradeClosureCallable,
+        autoArgs: requireUpgradeClosureArgs{
             // upgradeable: upgradeableCopy,
             locked: self.locked,
         },
