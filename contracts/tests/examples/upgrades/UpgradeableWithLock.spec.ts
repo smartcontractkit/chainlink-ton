@@ -1,5 +1,5 @@
-import { Blockchain, SandboxContract, Treasury, TreasuryContract } from '@ton/sandbox'
-import { Address, address, beginCell, Cell, Message, toNano } from '@ton/core'
+import { Blockchain, SandboxContract, SendMessageResult, TreasuryContract } from '@ton/sandbox'
+import { Cell, Message, toNano, Transaction } from '@ton/core'
 import '@ton/test-utils'
 import { UpgradeableWithLockV1 } from '../../../wrappers/examples/upgrades/UpgradeableWithLockV1'
 import { UpgradeableWithLockV2 } from '../../../wrappers/examples/upgrades/UpgradeableWithLockV2'
@@ -84,7 +84,6 @@ describe('UpgradeableWithLock', () => {
       blockchain,
       owner,
       upgradeableWithLock: upgradeableWithLockV1,
-      codeV1,
       codeV2,
     } = await setUpTest(0)
 
@@ -114,20 +113,14 @@ describe('UpgradeableWithLock', () => {
   })
 
   it('locked should not be upgraded to version 2', async () => {
-    let {
-      blockchain,
-      owner,
-      upgradeableWithLock: upgradeableWithLockV1,
-      codeV1,
-      codeV2,
-    } = await setUpTest(0)
+    let { owner, upgradeableWithLock: upgradeableWithLockV1, codeV1 } = await setUpTest(0)
 
     const typeAndVersion1 = await upgradeableWithLockV1.getTypeAndVersion()
     expect(typeAndVersion1).toBe('com.chainlink.ton.examples.upgrades.UpgradeableWithLock v1.0.0')
 
     await upgradeableWithLockV1.sendSwitchLock(owner.getSender(), { value: toNano('0.05') })
 
-    let { upgradeResult, newVersionInstance } = await sendUpgradeAndReturnNewVersion(
+    await sendUpgradeAndReturnNewVersion(
       upgradeableWithLockV1,
       owner.getSender(),
       toNano('0.05'),
@@ -150,7 +143,6 @@ describe('UpgradeableWithLock', () => {
       blockchain,
       owner,
       upgradeableWithLock: upgradeableWithLockV1,
-      codeV1,
       codeV2,
     } = await setUpTest(0)
 
@@ -187,7 +179,7 @@ async function validateUpgradeResults(
   blockchain: Blockchain,
   newVersionInstance: UpgradeableWithLockV2,
   codeV2: Cell,
-  upgradeResult,
+  upgradeResult: SendMessageResult,
   owner: SandboxContract<TreasuryContract>,
   upgradeableWithLockV1: SandboxContract<UpgradeableWithLockV1>,
 ) {
@@ -204,7 +196,7 @@ async function validateUpgradeResults(
   expect(typeAndVersion2).toBe('com.chainlink.ton.examples.upgrades.UpgradeableWithLock v2.0.0')
 
   const upgradeTransaction = upgradeResult.transactions.find(
-    (tx) =>
+    (tx: Transaction) =>
       tx.inMessage?.info.type === 'internal' &&
       tx.inMessage.info.src.equals(owner.address) &&
       tx.inMessage.info.dest.equals(upgradeableWithLockV1.address),

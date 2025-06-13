@@ -1,5 +1,5 @@
-import { Blockchain, SandboxContract, Treasury, TreasuryContract } from '@ton/sandbox'
-import { Address, address, beginCell, Cell, Message, toNano } from '@ton/core'
+import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
+import { Cell, Message, toNano } from '@ton/core'
 import '@ton/test-utils'
 import { UpgradeableCounterV1 } from '../../../wrappers/examples/upgrades/UpgradeableCounterV1'
 import { UpgradeableCounterV2 } from '../../../wrappers/examples/upgrades/UpgradeableCounterV2'
@@ -111,13 +111,7 @@ describe('UpgradeableCounter', () => {
   })
 
   it('should be upgraded to version 2', async () => {
-    let {
-      blockchain,
-      owner,
-      upgradeableCounter: upgradeableCounterV1,
-      codeV1,
-      codeV2,
-    } = await setUpTest(0)
+    let { blockchain, owner, upgradeableCounter: upgradeableCounterV1, codeV2 } = await setUpTest(0)
 
     const typeAndVersion1 = await upgradeableCounterV1.getTypeAndVersion()
     expect(typeAndVersion1).toBe('com.chainlink.ton.examples.upgrades.UpgradeableCounter v1.0.0')
