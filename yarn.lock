@@ -501,7 +501,7 @@
     dataloader "^1.4.0"
     node-fetch "^2.5.0"
 
-"@changesets/get-release-plan@^4.0.12":
+"@changesets/get-release-plan@^4.0.12", "@changesets/get-release-plan@^4.0.13":
   version "4.0.13"
   resolved "https://registry.npmjs.org/@changesets/get-release-plan/-/get-release-plan-4.0.13.tgz#02e2d9b89a3911bfc4bf1dafe237098b4b7454e9"
   integrity sha512-DWG1pus72FcNeXkM12tx+xtExyH/c9I1z+2aXlObH3i9YA7+WZEVaiHzHl03thpvAgWTRaH64MpfHxozfF7Dvg==
@@ -4318,7 +4318,7 @@ yocto-queue@^0.1.0:
 
 zlib@^1.0.5:
   version "1.0.5"
-  resolved "https://registry.yarnpkg.com/zlib/-/zlib-1.0.5.tgz#6e7c972fc371c645a6afb03ab14769def114fcc0"
+  resolved "https://registry.npmjs.org/zlib/-/zlib-1.0.5.tgz#6e7c972fc371c645a6afb03ab14769def114fcc0"
   integrity sha512-40fpE2II+Cd3k8HWTWONfeKE2jL+P42iWJ1zzps5W51qcTsOUKM5Q5m2PFb0CLxlmFAaUuUdJGc3OfZy947v0w==
 
 zod@^3.21.4, zod@^3.22.4:
