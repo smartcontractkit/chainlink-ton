@@ -179,8 +179,6 @@ func Test_TON_Events_POC(t *testing.T) {
 	t.Run("poll for increment and reset events", func(t *testing.T) {
 		t.Log("Polling for increment and reset events...")
 
-		start := time.Now()
-
 		events, err := poc.PollEventsFromTransactions(
 			t.Context(),
 			ctx.Client,
@@ -201,7 +199,6 @@ func Test_TON_Events_POC(t *testing.T) {
 
 			if inc, ok := event.AsCounterIncrement(); ok {
 				foundIncrement = true
-				t.Logf("== CounterIncrementEvent after %s", time.Since(start))
 				t.Logf("  NewValue: %d", inc.NewValue)
 				t.Logf("  TriggeredBy: %s", inc.TriggeredBy.String())
 				t.Logf("  Timestamp: %d", inc.Timestamp)
@@ -211,7 +208,6 @@ func Test_TON_Events_POC(t *testing.T) {
 
 			if reset, ok := event.AsCounterReset(); ok {
 				foundReset = true
-				t.Logf("== CounterResetEvent after %s", time.Since(start))
 				t.Logf("  ResetBy: %s", reset.ResetBy.String())
 				t.Logf("  Timestamp: %d", reset.Timestamp)
 				t.Logf("  Raw Body: %s", event.RawBody.Dump())
