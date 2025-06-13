@@ -46,17 +46,19 @@ struct Upgradeable<T> {
     migrateStorage: (cell) -> cell;
     version: () -> slice;
     /// Provided methods that can be overridden by the contract.
-    requireUpgrade: Closure<T, Upgradeable<T>>?; // This method requires the sender to be the contract owner by default. It can be overridden to bypass it or implement custom logic.
+    requireUpgrade: Closure<T>?; // This method requires the sender to be the contract owner by default. It can be overridden to bypass it or implement custom logic.
     // TODO on ownable2step:
     // ownable2Step: Ownable2Step;
 }
 
-struct Closure<A, T> {
-    call: (A, T) -> void;
+struct Upgradeable_Impl {}
+
+struct Closure<A> {
+    call: (A, Upgradeable_Impl) -> void;
     autoArgs: A;
 }
 
-fun Closure<A, T>.Run(self, args: T) {
+fun Closure<A>.Run(self, args: Upgradeable_Impl) {
     self.call(self.autoArgs, args);
 }
 
@@ -70,9 +72,9 @@ fun Upgradeable<T>.onInternalMessage(self, myBalance: int, msgValue: int, msgFul
     try {
         var upgrade = Upgradeable_Upgrade.fromSlice(msgBody);
         if (self.requireUpgrade != null) {
-            self.requireUpgrade.Run();
+            self.requireUpgrade.Run(Upgradeable_Impl{});
         } else {
-            self.virtual_requireUpgrade();
+            Upgradeable_Impl{}.requireUpgrade();
         }
         self.doUpgrade(upgrade.code);
         return true;
@@ -84,7 +86,7 @@ fun Upgradeable<T>.onInternalMessage(self, myBalance: int, msgValue: int, msgFul
     }
 }
 
-fun Upgradeable<T>.virtual_requireUpgrade(self) {
+fun Upgradeable_Impl.requireUpgrade(self) {
     // TODO on ownable2step: throw error if sender is not the contract owner
     // self.ownable2Step.requireOwner();
 }
