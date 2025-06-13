@@ -103,9 +103,12 @@ struct UpgradedEvent {
 const UPGRADED_EVENT = 0xa33b498e; // Event topic for the upgrade event
 
 fun Upgradeable<T>.doUpgrade(self, code: cell) {
+    // Schedule the code to be changed after the compute phase
     contract.setCodePostponed(code);
+    // Load the code dinamically
     var cont = transformSliceToContinuation(code.beginParse());
-    setTvmRegisterC3(cont);
+    setTvmRegisterC3(cont); // After this line, we are running the new code
+    // Call the migrateStorage function implemented by the new version
     var c = contract.getData();
     var newStorage = self.migrateStorage(c);
     contract.setData(newStorage);
@@ -113,7 +116,7 @@ fun Upgradeable<T>.doUpgrade(self, code: cell) {
         code: code,
         sha: code.hash(),
         version: UnsafeBodyNoRef {
-            bodyForceNoRef: self.version(),
+            bodyForceNoRef: self.version(), // This is expected to be the version of the new code
             },
         });
 }
