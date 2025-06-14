@@ -21,12 +21,6 @@ import (
 
 var _ services.Service = &TONTxm{}
 
-const (
-	MAX_RETRY_ATTEMPTS           = 5
-	MAX_BROADCAST_RETRY_DURATION = 30 * time.Second
-	BROADCAST_DELAY_DURATION     = 2 * time.Second
-)
-
 type TONTxm struct {
 	Logger   logger.Logger
 	Keystore loop.Keystore
@@ -61,14 +55,7 @@ func New(lgr logger.Logger, keystore loop.Keystore, client tonutils.ApiClient, c
 		Stop:          make(chan struct{}),
 	}
 
-	// Set defaults for missing config values
-	txm.setDefaults()
-
 	return txm
-}
-
-func (t *TONTxm) setDefaults() {
-
 }
 
 func (t *TONTxm) Name() string {
@@ -119,17 +106,15 @@ func (t *TONTxm) Enqueue(request TONTxmRequest) error {
 	}
 
 	tx := &TONTx{
-		From:            *request.FromWallet.Address(),
-		To:              request.ContractAddress,
-		Amount:          request.Amount,
-		Body:            request.Body,
-		StateInit:       request.StateInit,
-		Bounceable:      request.Bounce,
-		CreatedAt:       time.Now(),
-		Expiration:      time.Now().Add(5 * time.Minute), // Optional TTL logic
-		EstimateGas:     request.Simulate,
-		Attempt:         0,
-		OutOfTimeErrors: 0,
+		From:        *request.FromWallet.Address(),
+		To:          request.ContractAddress,
+		Amount:      request.Amount,
+		Body:        request.Body,
+		StateInit:   request.StateInit,
+		Bounceable:  request.Bounce,
+		CreatedAt:   time.Now(),
+		Expiration:  time.Now().Add(5 * time.Minute),
+		EstimateGas: request.Simulate,
 	}
 
 	select {
@@ -188,35 +173,65 @@ func (t *TONTxm) broadcastLoop() {
 			// }
 
 			// 3. Sign and send
-			receivedMessage, _, err := t.Client.SendWaitTransaction(ctx, tx.To, msg)
+			err := t.broadcastWithRetry(ctx, tx, msg)
 			if err != nil {
-				t.Logger.Errorw("failed to broadcast tx", "err", err, "to", tx.To.String())
+				t.Logger.Errorw("broadcast failed after retries", "err", err)
 				continue
-			}
-
-			t.Logger.Infow("transaction broadcasted", "to", tx.To.String(), "amount", tx.Amount.Nano().String())
-
-			txStore := t.AccountStore.GetTxStore(t.Client.Wallet.Address().String())
-
-			lamportTime := receivedMessage.LamportTime
-			lamportTimeSecs := lamportTime / 1000
-			expirationTimestampSecs := lamportTimeSecs + uint64(t.Config.SendRetryDelay.Seconds())
-
-			if err != nil {
-				t.Logger.Errorw("failed to MapToReceivedMessage", "tx", tx, "error", err)
-			}
-			tx.ReceivedMessage = *receivedMessage
-
-			err = txStore.AddUnconfirmed(lamportTime, expirationTimestampSecs, tx)
-
-			if err != nil {
-				t.Logger.Errorf("AddUnconfirmed err: %w", err)
 			}
 		case <-t.Stop:
 			t.Logger.Debugw("broadcastLoop: stopped")
 			return
 		}
 	}
+}
+
+func (t *TONTxm) broadcastWithRetry(ctx context.Context, tx *TONTx, msg *wallet.Message) error {
+	var receivedMessage *tonutils.ReceivedMessage
+	var err error
+
+	for attempt := uint(1); attempt <= t.Config.MaxSendRetryAttempts; attempt++ {
+		receivedMessage, _, err = t.Client.SendWaitTransaction(ctx, tx.To, msg)
+
+		if err == nil {
+			t.Logger.Infow("transaction broadcasted", "to", tx.To.String(), "amount", tx.Amount.Nano().String())
+			break
+		}
+
+		t.Logger.Warnw("failed to broadcast tx, will retry", "attempt", attempt, "err", err, "to", tx.To.String())
+
+		select {
+		case <-time.After(t.Config.SendRetryDelay):
+		case <-t.Stop:
+			t.Logger.Debugw("broadcastWithRetry: stopped during retry delay")
+			return fmt.Errorf("broadcast aborted")
+		}
+	}
+
+	if err != nil {
+		t.Logger.Errorw("failed to broadcast tx after retries", "err", err, "to", tx.To.String())
+		return err
+	}
+
+	// Save receivedMessage into tx
+	tx.ReceivedMessage = *receivedMessage
+
+	// Determine expiration
+	lamportTime := receivedMessage.LamportTime
+	lamportTimeSecs := lamportTime / 1000
+	expirationTimestampSecs := lamportTimeSecs + uint64(t.Config.SendRetryDelay.Seconds())
+
+	txStore := t.AccountStore.GetTxStore(t.Client.Wallet.Address().String())
+	if txStore == nil {
+		return fmt.Errorf("txStore not found for sender %s", t.Client.Wallet.Address().String())
+	}
+
+	err = txStore.AddUnconfirmed(lamportTime, expirationTimestampSecs, tx)
+	if err != nil {
+		t.Logger.Errorf("AddUnconfirmed err: %v", err)
+		return err
+	}
+
+	return nil
 }
 
 func (t *TONTxm) confirmLoop() {
@@ -259,20 +274,39 @@ func (t *TONTxm) checkUnconfirmed() {
 		txStore := t.AccountStore.GetTxStore(accountAddress)
 
 		for _, unconfirmedTx := range unconfirmedTxs {
-			msgStatus := unconfirmedTx.Tx.ReceivedMessage.Status()
-			err := unconfirmedTx.Tx.ReceivedMessage.WaitForTrace(&t.Client)
+			tx := unconfirmedTx.Tx
+			receivedMessage := tx.ReceivedMessage
+
+			err := tx.ReceivedMessage.WaitForTrace(&t.Client)
 			if err != nil {
-				t.Logger.Errorw("failed to wait for outgoing messages to be received", "LT", unconfirmedTx.LT, "error", err)
+				t.Logger.Errorw("failed to wait for trace", "LT", unconfirmedTx.LT, "error", err)
 				continue
 			}
 
-			if err := txStore.Confirm(unconfirmedTx.LT); err != nil {
-				t.Logger.Errorw("failed to confirm tx in TxStore", "LT", unconfirmedTx.LT, "error", err)
+			msgStatus := receivedMessage.Status()
+
+			if msgStatus != tonutils.Finalized {
+				continue
 			}
-			unconfirmedTx.Tx.Status = commontypes.Finalized
-			msgStatus = unconfirmedTx.Tx.ReceivedMessage.Status()
-			t.Logger.Infow("transaction confirmed", "LT", unconfirmedTx.LT, "status", msgStatus)
-			break
+
+			exitCode := receivedMessage.OutcomeExitCode()
+			traceSucceeded := receivedMessage.TraceSucceeded()
+
+			if traceSucceeded {
+				if err := txStore.Confirm(unconfirmedTx.LT); err != nil {
+					t.Logger.Errorw("failed to confirm tx in TxStore", "LT", unconfirmedTx.LT, "error", err)
+					continue
+				}
+				tx.Status = commontypes.Finalized
+				t.Logger.Infow("transaction confirmed", "LT", unconfirmedTx.LT, "status", msgStatus, "exitCode", exitCode)
+			} else {
+				if err := txStore.Confirm(unconfirmedTx.LT); err != nil {
+					t.Logger.Errorw("failed to confirm tx in TxStore", "LT", unconfirmedTx.LT, "error", err)
+					continue
+				}
+				tx.Status = commontypes.Failed
+				t.Logger.Warnw("transaction failed", "LT", unconfirmedTx.LT, "status", msgStatus, "exitCode", exitCode)
+			}
 		}
 	}
 }

@@ -13,6 +13,10 @@ func (c ExitCode) IsSuccessfulDeployment() bool {
 	return c == ExitCode_InvalidIncomingMessage
 }
 
+func (c ExitCode) IsSuccess() bool {
+	return c == ExitCode_Success
+}
+
 const (
 	ExitCode_Success                                                                  ExitCode = 0   // Standard successful execution exit code.
 	ExitCode_Success_Variant                                                          ExitCode = 1   // Alternative successful execution exit code. Reserved, but does not occur.

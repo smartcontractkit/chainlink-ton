@@ -358,3 +358,34 @@ func (m SentMessage) MatchesReceived(incomingMessage *tlb.InternalMessage) bool 
 	}
 	return isSameMessage
 }
+
+// OutcomeExitCode returns the first non-success exit code found in this message
+// or any of its outgoing internal messages. If all messages succeeded, it returns
+// the success exit code.
+func (m *ReceivedMessage) OutcomeExitCode() ExitCode {
+	if !m.Success {
+		return m.ExitCode
+	}
+	for _, msg := range m.OutgoingInternalMessagesReceived {
+		if code := msg.OutcomeExitCode(); code != ExitCode_Success {
+			return code
+		}
+	}
+	return ExitCode_Success
+}
+
+// TraceSucceeded recursively checks if this message
+// and all its OutgoingInternalMessagesReceived succeeded. A message is
+// considered successful if Success == true or if the ExitCode indicates
+// a successful deployment (errorCode.IsSuccessfulDeployment() == true).
+func (m *ReceivedMessage) TraceSucceeded() bool {
+	if !m.Success && !m.ExitCode.IsSuccessfulDeployment() {
+		return false
+	}
+	for _, msg := range m.OutgoingInternalMessagesReceived {
+		if !msg.TraceSucceeded() {
+			return false
+		}
+	}
+	return true
+}

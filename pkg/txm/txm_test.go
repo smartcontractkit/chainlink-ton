@@ -61,7 +61,7 @@ func TestTxmLocal(t *testing.T) {
 	require.NotNil(t, keystore)
 
 	config := txm.DefaultConfigSet
-	require.NotNil(t, config)
+	config.ConfirmPollSecs = 2
 
 	runTxmTest(t, logger, config, tonChain, keystore, 5)
 }
@@ -90,7 +90,7 @@ func runTxmTest(t *testing.T, logger logger.Logger, config txm.TONTxmConfig, ton
 		FromWallet:      *tonChain.Wallet,
 		ContractAddress: *counterAddr,
 		Amount:          tlb.MustFromTON("0.05"),
-		Bounce:          false,
+		Bounce:          true,
 		StateInit:       stateInit,
 		Body:            body,
 	})
@@ -117,7 +117,7 @@ func runTxmTest(t *testing.T, logger logger.Logger, config txm.TONTxmConfig, ton
 			FromWallet:      *tonChain.Wallet,
 			ContractAddress: *counterAddr,
 			Amount:          tlb.MustFromTON("0.05"),
-			Bounce:          false,
+			Bounce:          true,
 			Body:            incrementMsgBody,
 		})
 		require.NoError(t, err)
@@ -131,7 +131,7 @@ func runTxmTest(t *testing.T, logger logger.Logger, config txm.TONTxmConfig, ton
 			FromWallet:      *tonChain.Wallet,
 			ContractAddress: *counterAddr,
 			Amount:          tlb.MustFromTON("0.05"),
-			Bounce:          false,
+			Bounce:          true,
 			Body:            incrementMultMsgBody,
 		})
 		require.NoError(t, err)

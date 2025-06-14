@@ -17,11 +17,9 @@ type TONTx struct {
 	Body            *cell.Cell      // optional body to attach
 	StateInit       *cell.Cell      // optional, for deploying new contracts
 	Bounceable      bool            // whether the destination is bounceable
-	Attempt         uint64          // how many times we've retried sending
 	CreatedAt       time.Time       // when the tx was first enqueued
 	Expiration      time.Time       // expiration timestamp based on TTL
 	EstimateGas     bool            // whether to simulate before sending
-	OutOfTimeErrors uint            // optional: counter of out-of-time errors if modeled
 	Status          commontypes.TransactionStatus
 	ReceivedMessage tonutils.ReceivedMessage
 }
