@@ -41,11 +41,11 @@ type GasPriceUpdate struct {
 
 // MerkleRoot represents a Merkle root for a chain's data.
 type MerkleRoot struct {
-	SourceChainSelector uint64     `tlb:"## 64"`
-	OnRampAddress       *cell.Cell `tlb:"."`
-	MinSeqNr            uint64     `tlb:"## 64"`
-	MaxSeqNr            uint64     `tlb:"## 64"`
-	MerkleRoot          []byte     `tlb:"bits 256"`
+	SourceChainSelector uint64 `tlb:"## 64"`
+	OnRampAddress       []byte `tlb:"bits 512"`
+	MinSeqNr            uint64 `tlb:"## 64"`
+	MaxSeqNr            uint64 `tlb:"## 64"`
+	MerkleRoot          []byte `tlb:"bits 256"`
 }
 
 // Signature represents an ED25519 signature.
@@ -108,15 +108,4 @@ func UnpackArray[T any](root *cell.Cell) ([]T, error) {
 		}
 	}
 	return result, nil
-}
-
-func AddressToCell(addr *address.Address) (*cell.Cell, error) {
-	if addr == nil {
-		return nil, fmt.Errorf("address cannot be nil")
-	}
-	builder := cell.BeginCell()
-	if err := builder.StoreAddr(addr); err != nil {
-		return nil, fmt.Errorf("failed to store address: %w", err)
-	}
-	return builder.EndCell(), nil
 }

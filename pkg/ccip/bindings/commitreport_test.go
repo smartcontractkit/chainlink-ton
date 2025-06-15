@@ -1,6 +1,7 @@
 package bindings
 
 import (
+	"fmt"
 	"math/big"
 	"testing"
 
@@ -46,7 +47,7 @@ func TestLoadArray_LoadToArrayFitMultipleInSingleCell(t *testing.T) {
 	require.Len(t, array, 5)
 }
 
-func TestLoadArray_FitSingleUpdateInSingleCell(t *testing.T) {
+func TestLoadArray_FitSingleUpdateInSingleCell_TokenUpdates(t *testing.T) {
 	addr, err := address.ParseAddr("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")
 	require.NoError(t, err)
 	slice := []TokenPriceUpdate{
@@ -88,6 +89,45 @@ func TestLoadArray_FitSingleUpdateInSingleCell(t *testing.T) {
 	}
 }
 
+func TestLoadArray_FitSingleUpdateInSingleCell_MerkleRoots(t *testing.T) {
+	merkleRoots, err := PackArray([]MerkleRoot{
+		{
+			SourceChainSelector: 1,
+			OnRampAddress:       make([]byte, 512),
+			MinSeqNr:            100,
+			MaxSeqNr:            200,
+			MerkleRoot:          make([]byte, 32),
+		},
+		{
+			SourceChainSelector: 1,
+			OnRampAddress:       make([]byte, 512),
+			MinSeqNr:            100,
+			MaxSeqNr:            200,
+			MerkleRoot:          make([]byte, 32),
+		},
+		{
+			SourceChainSelector: 1,
+			OnRampAddress:       make([]byte, 512),
+			MinSeqNr:            100,
+			MaxSeqNr:            200,
+			MerkleRoot:          make([]byte, 32),
+		},
+	})
+	require.NoError(t, err)
+	_, err = UnpackArray[MerkleRoot](merkleRoots)
+	require.NoError(t, err)
+	//require.Len(t, array, 5)
+
+	// For this test, each token update is only 523 bits, so we can fit only 1 of them in a single cell.
+	// we only need five cells to store 5 elements
+	//require.Equal(t, 4, getTotalReference(c))
+	//for i := 0; i < 4; i++ {
+	//	c, err = c.PeekRef(0)
+	//	require.NoError(t, err)
+	//	require.Equal(t, int(c.BitsSize()), 523)
+	//}
+}
+
 func TestCommitReport_EncodingAndDecoding(t *testing.T) {
 	addr, err := address.ParseAddr("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")
 	require.NoError(t, err)
@@ -106,12 +146,24 @@ func TestCommitReport_EncodingAndDecoding(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
-	onRampAddrCell, err := AddressToCell(addr)
-	require.NoError(t, err)
 	merkleRoots, err := PackArray([]MerkleRoot{
 		{
 			SourceChainSelector: 1,
-			OnRampAddress:       onRampAddrCell,
+			OnRampAddress:       make([]byte, 512),
+			MinSeqNr:            100,
+			MaxSeqNr:            200,
+			MerkleRoot:          make([]byte, 32),
+		},
+		{
+			SourceChainSelector: 1,
+			OnRampAddress:       make([]byte, 512),
+			MinSeqNr:            100,
+			MaxSeqNr:            200,
+			MerkleRoot:          make([]byte, 32),
+		},
+		{
+			SourceChainSelector: 1,
+			OnRampAddress:       make([]byte, 512),
 			MinSeqNr:            100,
 			MaxSeqNr:            200,
 			MerkleRoot:          make([]byte, 32),
@@ -160,4 +212,15 @@ func getTotalReference(c *cell.Cell) int {
 		}
 	}
 	return totalRefs
+}
+
+func addressToCell(addr *address.Address) (*cell.Cell, error) {
+	if addr == nil {
+		return nil, fmt.Errorf("address cannot be nil")
+	}
+	builder := cell.BeginCell()
+	if err := builder.StoreAddr(addr); err != nil {
+		return nil, fmt.Errorf("failed to store address: %w", err)
+	}
+	return builder.EndCell(), nil
 }
