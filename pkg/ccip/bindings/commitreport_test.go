@@ -106,10 +106,12 @@ func TestCommitReport_EncodingAndDecoding(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
+	onRampAddrCell, err := AddressToCell(addr)
+	require.NoError(t, err)
 	merkleRoots, err := PackArray([]MerkleRoot{
 		{
 			SourceChainSelector: 1,
-			OnRampAddress:       make([]byte, 64),
+			OnRampAddress:       onRampAddrCell,
 			MinSeqNr:            100,
 			MaxSeqNr:            200,
 			MerkleRoot:          make([]byte, 32),
