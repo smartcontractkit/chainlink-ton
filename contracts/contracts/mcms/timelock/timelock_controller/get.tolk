@@ -55,5 +55,5 @@ get getOperationState(id: int): int {
 
 get getHasRole(role: int, account: address): bool {
     val s = loadData();
-    return AccessControl.fromCell(s.rbac).hasRole(role, account)
+    return AccessControl_Data.fromCell(s.rbac).hasRole(role, account)
 }
