@@ -17,7 +17,7 @@ struct AccessControlEnumerable<T> {
 /// AccessControl data struct, auto-serialized to/from cells.
 struct AccessControlEnumerable_Data {
     // Underlying access control data
-    acData: AccessControl_Data;
+    underlying: AccessControl_Data;
     // Enumerates role members
     roleMembers: dict; // maps role to list of members
 }
@@ -47,6 +47,7 @@ struct AccessControlEnumerable_Hooks<T> {
 @inline
 fun AccessControlEnumerable<T>.onInternalMessage(mutate self, myBalance: int, msgValue: int, msgFull: cell, msgBody: slice) {
     // Construct extension hooks
+    // Notice: no closures in Tolk, so we use static functions
     val hooks: AccessControl_Hooks<AccessControlEnumerable<T>> = {
         msgSender: AccessControlEnumerable_super_msgSender<T>,
         grantRole: AccessControlEnumerable_super_grantRole<T>, 
@@ -55,9 +56,9 @@ fun AccessControlEnumerable<T>.onInternalMessage(mutate self, myBalance: int, ms
 
     // Construct trait instance (with AccessControl<T>)
     var ac: AccessControl<AccessControlEnumerable<T>> = {
-        data: self.data.acData,
+        data: self.data.underlying,
         // Set up runtime extensions
-        context: self,
+        context: self, // context to be injected into hooks
         hooks: hooks,
     };
     return ac.onInternalMessage(myBalance, msgValue, msgFull, msgBody);
@@ -79,7 +80,7 @@ fun AccessControlEnumerable<T>.msgSender(mutate self, msgFull: cell): address {
         return self.hooks.msgSender!(self.context!, msgFull); // extension hook
     }
 
-    return self.data.acData.msgSender(msgFull); // default implementation
+    return self.data.underlying.msgSender(msgFull); // default implementation
 }
 
 /// @dev Attempts to grant `role` to `account` and returns a boolean indicating if `role` was granted.
@@ -115,7 +116,7 @@ fun AccessControlEnumerable<T>.revokeRole(mutate self, queryId: uint64, role: in
 /// @dev Returns `true` if `account` has been granted `role`.
 @inline
 fun AccessControlEnumerable_Data.hasRole(self, role: int, account: address): bool {
-    return self.acData.hasRole(role, account);
+    return self.underlying.hasRole(role, account);
 }
 
 /// @dev Returns the number of accounts that have `role`. Can be used
@@ -138,7 +139,7 @@ fun AccessControlEnumerable_Data.getRoleMemberCount(self, role: int): int {
 ///
 /// Emits a {RoleGranted} event if `role` was granted. 
 fun AccessControlEnumerable_Data.grantRole(mutate self, queryId: uint64, role: int, account: address): bool {
-    val granted = self.acData.grantRole(queryId, role, account);
+    val granted = self.underlying.grantRole(queryId, role, account);
     if (granted) {
         // TODO: add account to roleMembers for role
     }
@@ -152,7 +153,7 @@ fun AccessControlEnumerable_Data.grantRole(mutate self, queryId: uint64, role: i
 ///
 /// Emits a {RoleRevoked} event if `role` was revoked.
 fun AccessControlEnumerable_Data.revokeRole(mutate self, queryId: uint64, role: int, account: address): bool {
-    val revoked = self.acData.revokeRole(queryId, role, account);
+    val revoked = self.underlying.revokeRole(queryId, role, account);
     if (revoked) {
         // TODO: remove account from roleMembers for role
     }
@@ -164,16 +165,16 @@ fun AccessControlEnumerable_Data.revokeRole(mutate self, queryId: uint64, role: 
 // These are static and global because Tolk does not yet support closures, anonymous fn, or interfaces.
 
 /// @dev Hook in an extension, or call super (default) implementation.
-fun AccessControlEnumerable_super_msgSender<T>(selfie: AccessControlEnumerable<T>, msgFull: cell): address {
-    return selfie.msgSender(msgFull); // proxy to self
+fun AccessControlEnumerable_super_msgSender<T>(ctx: AccessControlEnumerable<T>, msgFull: cell): address {
+    return ctx.msgSender(msgFull); // proxy to self via context hook
 }
 
 /// @dev Hook in an extension, or call super (default) implementation.
-fun AccessControlEnumerable_super_grantRole<T>(selfie: AccessControlEnumerable<T>, queryId: uint64, role: int, account: address): bool {
-    return selfie.grantRole(queryId, role, account); // proxy to self
+fun AccessControlEnumerable_super_grantRole<T>(ctx: AccessControlEnumerable<T>, queryId: uint64, role: int, account: address): bool {
+    return ctx.grantRole(queryId, role, account); // proxy to self via context hook
 }
 
 /// @dev Hook in an extension, or call super (default) implementation.
-fun AccessControlEnumerable_super_revokeRole<T>(selfie: AccessControlEnumerable<T>, queryId: uint64, role: int, account: address): bool {
-    return selfie.revokeRole(queryId, role, account); // proxy to self
+fun AccessControlEnumerable_super_revokeRole<T>(ctx: AccessControlEnumerable<T>, queryId: uint64, role: int, account: address): bool {
+    return ctx.revokeRole(queryId, role, account); // proxy to self via context hook
 }
