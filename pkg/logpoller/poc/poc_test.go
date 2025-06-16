@@ -101,19 +101,14 @@ func Test_TON_Events_POC(t *testing.T) {
 		time.Sleep(15 * time.Second)
 	})
 
-	evs := poc.StartEventSubscription(t, ctx.Client, ctx.ContractAddress)
-	defer evs.Stop()
+	registry := poc.NewContractEventRegistry(true)
+	registry.RegisterContractEvents(ctx.ContractAddress,
+		&poc.CounterResetEvent{},
+		&poc.CounterIncrementEvent{},
+	)
 
-	t.Run("register contract events", func(t *testing.T) {
-		// Note: This allows generic event parsing with
-		//
-		// type EventContainer struct {
-		// 	Event any `tlb:"[CounterResetEvent,CounterIncrementEvent]"`
-		// }
-		// tlb.LoadFromCell(&container, body.BeginParse())
-		tlb.RegisterWithName("CounterResetEvent", poc.CounterResetEvent{})
-		tlb.RegisterWithName("CounterIncrementEvent", poc.CounterIncrementEvent{})
-	})
+	evs := poc.StartEventSubscription(t, ctx.Client, registry)
+	defer evs.Stop()
 
 	t.Run("increment counter", func(t *testing.T) {
 		t.Log("Testing counter increment...")
@@ -173,18 +168,17 @@ func Test_TON_Events_POC(t *testing.T) {
 		t.Logf("Counter value after reset: %d", resetValue)
 
 		require.True(t, resetValue.Cmp(big.NewInt(0)) == 0, "Counter should be reset to 0")
-
 	})
 
 	t.Run("poll for increment and reset events", func(t *testing.T) {
 		t.Log("Polling for increment and reset events...")
 
-		events, err := poc.PollEventsFromTransactions(
+		events, err := poc.PollEventsFromContracts(
 			t.Context(),
 			ctx.Client,
 			ctx.ConnectionPool,
-			ctx.ContractAddress,
-			10, // max transactions, in practice this should be
+			registry,
+			10,
 		)
 		require.NoError(t, err, "Polling failed")
 

@@ -2,9 +2,29 @@
 // TODO: happy to merge with other example contracts with event emit functionality
 const op_reset_counter = 0x3dc2af2d;
 
-// global variables context
+// TODO: extract to a lib
+fun emit<T>(topic: int, body: T) {
+    val emitMsg = createExternalLogMessage({
+        dest: ExtOutLogBucket { topic },
+        body
+    });
+    emitMsg.send(SEND_MODE_REGULAR);
+}
+
 global ctxOwnerAddress: address;
 global ctxCounter: int;
+
+// events
+struct CounterResetEvent {
+    timestamp: uint32;
+    resetBy: address;
+}
+
+struct CounterIncrementEvent {
+    timestamp: uint32;
+    newValue: uint32;
+    triggeredBy: address;
+}
 
 @inline
 fun loadCtx() {
@@ -23,18 +43,6 @@ fun storeCtx() {
     );
 }
 
-// Event structures for logging
-struct (0x1001) CounterResetEvent {
-    timestamp: uint32;
-    resetBy: address;
-}
-
-struct (0x1002) CounterIncrementEvent {
-    timestamp: uint32;
-    newValue: uint32;
-    triggeredBy: address;
-}
-
 fun onInternalMessage(msgFull: cell, msgBody: slice) {
     loadCtx();
     var cs = msgFull.beginParse();
@@ -49,14 +57,10 @@ fun onInternalMessage(msgFull: cell, msgBody: slice) {
                 storeCtx();
                 
                 // Emit external log message for counter reset
-                val resetEvent = createExternalLogMessage({
-                    dest: createAddressNone(),
-                    body: CounterResetEvent {
-                        timestamp: blockchain.now(),
-                        resetBy: sender
-                        }
-                    });
-                resetEvent.send(SEND_MODE_REGULAR);
+                emit<CounterResetEvent>(1001, {
+                    timestamp: blockchain.now(),
+                    resetBy: sender
+                });
                 return;
             }
         }
@@ -66,15 +70,11 @@ fun onInternalMessage(msgFull: cell, msgBody: slice) {
     storeCtx();
 
     // Emit external log message for counter increment
-    val incrementEvent = createExternalLogMessage({
-        dest: createAddressNone(),
-        body: CounterIncrementEvent {
-            timestamp: blockchain.now(),
-            newValue: ctxCounter,
-            triggeredBy: sender
-            }
-        });
-    incrementEvent.send(SEND_MODE_REGULAR);
+    emit<CounterIncrementEvent>(1002, {
+        timestamp: blockchain.now(),
+        newValue: ctxCounter,
+        triggeredBy: sender
+    });
 }
 
 get counter(): int {

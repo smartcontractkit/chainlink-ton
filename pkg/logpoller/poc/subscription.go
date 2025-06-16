@@ -3,6 +3,7 @@ package poc
 import (
 	"context"
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -13,46 +14,65 @@ import (
 )
 
 type EventSubscriber struct {
-	transactions chan *tlb.Transaction
-	cancel       context.CancelFunc
-	events       chan Event
+	subscriptions map[string]context.CancelFunc // contract address -> cancel func
+	events        chan Event
+	registry      *ContractEventRegistry
+	mu            sync.RWMutex
 }
 
-func StartEventSubscription(t *testing.T, client ton.APIClientWrapped, contractAddress *address.Address) *EventSubscriber {
-	master, err := client.CurrentMasterchainInfo(context.Background())
-	require.NoError(t, err, "Failed to get masterchain info")
-
-	acc, err := client.GetAccount(context.Background(), master, contractAddress)
-	require.NoError(t, err, "Failed to get contract account")
-
-	// Setup subscription
-	transactions := make(chan *tlb.Transaction, 10)
-	events := make(chan Event, 10)
-
-	subscriptionCtx, cancel := context.WithCancel(context.Background())
-	go client.SubscribeOnTransactions(subscriptionCtx, contractAddress, acc.LastTxLT, transactions)
-
+func StartEventSubscription(t *testing.T, client ton.APIClientWrapped, registry *ContractEventRegistry) *EventSubscriber {
 	evs := &EventSubscriber{
-		transactions: transactions,
-		cancel:       cancel,
-		events:       events,
+		subscriptions: make(map[string]context.CancelFunc),
+		events:        make(chan Event, 10),
+		registry:      registry,
 	}
 
-	// Start event parsing
-	go evs.parseEvents()
+	// Subscribe to all registered contracts
+	contractAddresses := registry.GetRegisteredContracts()
+	for _, contractAddr := range contractAddresses {
+		err := evs.subscribeToContract(client, contractAddr)
+		require.NoError(t, err, "Failed to subscribe to contract %s", contractAddr.String())
+	}
 
-	t.Log("Event monitoring started")
+	t.Logf("Event monitoring started for %d contracts", len(contractAddresses))
 	return evs
 }
 
-func (evs *EventSubscriber) parseEvents() {
-	for tx := range evs.transactions {
-		events := ParseEventsFromTransaction(tx)
+func (evs *EventSubscriber) subscribeToContract(client ton.APIClientWrapped, contractAddr *address.Address) error {
+	master, err := client.CurrentMasterchainInfo(context.Background())
+	if err != nil {
+		return fmt.Errorf("failed to get masterchain info: %w", err)
+	}
+
+	acc, err := client.GetAccount(context.Background(), master, contractAddr)
+	if err != nil {
+		return fmt.Errorf("failed to get contract account: %w", err)
+	}
+
+	transactions := make(chan *tlb.Transaction, 10)
+	subscriptionCtx, cancel := context.WithCancel(context.Background())
+
+	evs.mu.Lock()
+	evs.subscriptions[contractAddr.String()] = cancel
+	evs.mu.Unlock()
+
+	// Start subscription
+	go client.SubscribeOnTransactions(subscriptionCtx, contractAddr, acc.LastTxLT, transactions)
+
+	// Start event parsing for this contract
+	go evs.parseEventsForContract(transactions, contractAddr)
+
+	return nil
+}
+
+func (evs *EventSubscriber) parseEventsForContract(transactions <-chan *tlb.Transaction, contractAddr *address.Address) {
+	for tx := range transactions {
+		events := evs.registry.ParseEventsFromTransaction(tx)
 		for _, event := range events {
 			select {
 			case evs.events <- event:
 			default:
-				// Buffer full, skip event
+				fmt.Printf("WARNING: Event buffer full, skipping event from %s\n", contractAddr.String())
 			}
 		}
 	}
@@ -80,7 +100,12 @@ func (evs *EventSubscriber) WaitForEvent(predicate func(*Event) bool, timeout ti
 }
 
 func (evs *EventSubscriber) Stop() {
-	if evs.cancel != nil {
-		evs.cancel()
+	evs.mu.Lock()
+	defer evs.mu.Unlock()
+
+	for contractAddr, cancel := range evs.subscriptions {
+		fmt.Printf("Stopping subscription for contract: %s\n", contractAddr)
+		cancel()
 	}
+	evs.subscriptions = make(map[string]context.CancelFunc)
 }
