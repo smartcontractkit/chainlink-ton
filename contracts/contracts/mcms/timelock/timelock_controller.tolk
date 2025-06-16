@@ -21,6 +21,8 @@ const ROLE_EXECUTOR = 12; // TODO: keccak256("EXECUTOR_ROLE");
 const ROLE_CANCELLER = 13; // TODO: keccak256("CANCELLER_ROLE");
 const ROLE_BYPASSER = 14; // TODO: keccak256("BYPASSER_ROLE");
 
+struct Timelock {}
+
 fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: slice) {
     if (msgBody.isEnd()) { // ignore all empty messages
         return;
@@ -35,9 +37,11 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
 
     // Load the contract storage
     var s = loadData();
-    var rbac: AccessControlEnumerable = {
+    var rbac: AccessControlEnumerable<Timelock> = {
         data: AccessControlEnumerable_Data.fromCell(s.rbac),
-        hooks: null, // no hooks for now
+        // no runtime extensions
+        context: null,
+        hooks: null,
     };
 
     val senderAddress: address = cs.loadAddress();
