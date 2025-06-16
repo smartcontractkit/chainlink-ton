@@ -8,7 +8,7 @@ import "./params.tolk";
 
 get getTimelockControllerData(): (int, int, dict, dict) {
     val s = loadData();
-    val rbac = AccessControl.fromCell(s.rbac);
+    val rbac = AccessControl_Data.fromCell(s.rbac);
 
     return (
         s.minDelay,
