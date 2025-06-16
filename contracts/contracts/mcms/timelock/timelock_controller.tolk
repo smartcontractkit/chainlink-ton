@@ -14,6 +14,13 @@ import "timelock_controller/operation_utils.tolk";
 import "timelock_controller/get.tolk";
 import "timelock_controller/admin_calls.tolk";
 
+// Notice: role constants are kept as original Ethereum implementation (keccak256)
+const ROLE_ADMIN = 10; // TODO: keccak256("ADMIN_ROLE");
+const ROLE_PROPOSER = 11; // TODO: keccak256("PROPOSER_ROLE");
+const ROLE_EXECUTOR = 12; // TODO: keccak256("EXECUTOR_ROLE");
+const ROLE_CANCELLER = 13; // TODO: keccak256("CANCELLER_ROLE");
+const ROLE_BYPASSER = 14; // TODO: keccak256("BYPASSER_ROLE");
+
 fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: slice) {
     if (msgBody.isEnd()) { // ignore all empty messages
         return;
@@ -39,8 +46,7 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
 
     forceChain(WORKCHAIN, senderAddress, ERROR_WRONG_WORKCHAIN);
 
-    val (_, adminExists) = accountExists(rbac.adminAccounts, senderAddress);
-    if (adminExists) {
+    if (rbac.hasRole(ROLE_ADMIN, senderAddress)) {
         // Map from underlying contract storage to trait storage
         // RBACTimelockAdmin operations handler
         var timelockAdmin: RBACTimelockAdmin = {
@@ -67,8 +73,7 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
 
     val op = msgBody.loadMessageOp();
     val queryID = msgBody.loadMessageQueryId();
-    val (_, proposerExists) = accountExists(rbac.proposerAccounts, senderAddress);
-    if (proposerExists) {
+    if (rbac.hasRole(ROLE_PROPOSER, senderAddress)) {
         if (op == OP_SCHEDULE) {
             val delay = msgBody.loadUint(32);
             val tonValue = msgBody.loadCoins();
@@ -92,8 +97,7 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
         }
     }
 
-    val (_, cancellerExists) = accountExists(rbac.cancellerAccounts, senderAddress);
-    if (cancellerExists) {
+    if (rbac.hasRole(ROLE_CANCELLER, senderAddress)) {
         if (op == OP_CANCEL) {
             val id = msgBody.loadUint(256);
             msgBody.assertEnd();
@@ -110,8 +114,7 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
         }
     }
 
-    var (_, executorExists) = accountExists(rbac.executorAccounts, senderAddress);
-    if (executorExists) {
+    if (rbac.hasRole(ROLE_EXECUTOR, senderAddress)) {
         if (op == OP_EXECUTE) {
             val tonValue = msgBody.loadCoins();
             val predecessor = msgBody.loadUint(256);
