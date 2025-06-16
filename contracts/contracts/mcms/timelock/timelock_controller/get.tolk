@@ -6,17 +6,15 @@ import "./storage.tolk";
 import "./operation_utils.tolk";
 import "./params.tolk";
 
-get getTimelockControllerData(): (int, int, dict, dict, dict, dict, dict) {
+get getTimelockControllerData(): (int, int, dict, dict) {
     val s = loadData();
     val rbac = AccessControl.fromCell(s.rbac);
+
     return (
         s.minDelay,
         s.timestampCount,
-        rbac.adminAccounts,
-        rbac.proposerAccounts,
-        rbac.executorAccounts,
-        rbac.cancellerAccounts,
         s.timestamps,
+        rbac.roles,
     );
 }
 
