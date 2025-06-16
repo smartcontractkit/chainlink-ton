@@ -73,11 +73,11 @@ struct AccessControl_RoleData {
 
 struct AccessControl_Hooks {
     // Hook to get the sender of the message.
-    msgSender: (AccessControl_Data, cell) -> address;
+    msgSender: ((AccessControl_Data, cell) -> address)?;
     // Hook to grant a role.
-    grantRole: (AccessControl_Data, uint64, int, address) -> bool;
+    grantRole: ((AccessControl_Data, uint64, int, address) -> bool)?;
     // Hook to revoke a role.
-    revokeRole: (AccessControl_Data, uint64, int, address) -> bool;
+    revokeRole: ((AccessControl_Data, uint64, int, address) -> bool)?;
 }
 
 // --- Constants ---
@@ -116,8 +116,7 @@ fun AccessControl.checkRoleSender(self, role: int, msgFull: cell) {
 ///
 /// Override available via `hooks.msgSender` hook.
 fun AccessControl.msgSender(self, msgFull: cell): address {
-    // if (self.hooks != null && self.hooks.msgSender != null) {
-    if (self.hooks != null) {        
+    if (self.hooks != null && self.hooks.msgSender != null) {
         // Use the hook to get the sender if available
         return self.hooks.msgSender(self.data, msgFull);
     }
@@ -232,8 +231,7 @@ fun AccessControl.setRoleAdmin(mutate self, queryId: uint64, role: int, adminRol
 ///
 /// Emits a {RoleGranted} event if `role` was granted. 
 fun AccessControl.grantRole(mutate self, queryId: uint64, role: int, account: address): bool {
-    // if (self.hooks != null && self.hooks.grantRole != null) {
-    if (self.hooks != null) {
+    if (self.hooks != null && self.hooks.grantRole != null) {
         return self.hooks.grantRole(self.data, queryId, role, account); // extension hook
     }
 
@@ -246,8 +244,7 @@ fun AccessControl.grantRole(mutate self, queryId: uint64, role: int, account: ad
 ///
 /// Emits a {RoleRevoked} event if `role` was revoked.
 fun AccessControl.revokeRole(mutate self, queryId: uint64, role: int, account: address): bool {
-    // if (self.hooks != null && self.hooks.revokeRole != null) {
-    if (self.hooks != null) {
+    if (self.hooks != null && self.hooks.revokeRole != null) {
         return self.hooks.revokeRole(self.data, queryId, role, account); // extension hook
     }
 
