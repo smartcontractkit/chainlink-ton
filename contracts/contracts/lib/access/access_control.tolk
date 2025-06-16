@@ -1,6 +1,6 @@
 tolk 0.99
 
-const OP_UPDATE_ACCOUNTS = 0x1f6ce878; // "OP_UPDATE_ACCOUNTS"c; // 0x1f6ce878
+import "@stdlib/tvm-dicts";
 
 // --- Message structs ---
 
@@ -19,7 +19,7 @@ struct (0x95cd540f) AccessControl_GrantRole {
     queryId: uint64;
 
     /// Role of the account.
-    role: uint32;
+    role: uint256;
     /// New account to add.
     account: address;
 }
@@ -39,7 +39,7 @@ struct (0x969b0db9) AccessControl_RevokeRole {
     queryId: uint64;
 
     /// Role of the account.
-    role: uint32;
+    role: uint256;
     /// Account to revoke.
     account: address;
 }
@@ -47,106 +47,28 @@ struct (0x969b0db9) AccessControl_RevokeRole {
 /// @dev Union of all access control messages.
 type AccessControl_Message = AccessControl_GrantRole | AccessControl_RevokeRole;
 
-// --- Error codes ---
+// --- Storage structs ---
 
-// TODO: figure out error codes
-const ERROR_INVALID_ROLE = 89;
-const ERROR_ACCOUNT_EXISTS = 95;
-const ERROR_ACCOUNT_NOT_EXISTS = 96;
-const ERROR_ACCOUNT_MISSING_ROLE = 98;
+/// Internal storage struct for role data
+///
+/// Each role has a mapping of accounts that have been granted that role,
+/// and an admin role that can manage that role. 
+struct RoleData {
+    hasRole: dict;
+    adminRole: uint256;
+}
 
-// TODO: remove static roles and use dynamic roles instead
-const ADMIN_ROLE = 0;
-const PROPOSER_ROLE = 1;
-const CANCELLER_ROLE = 2;
-const EXECUTOR_ROLE = 3;
-
-// TODO: remove sub-op int and use message structs instead
-const ADD_ACCOUNT = 0;
-const REMOVE_ACCOUNT = 1;
-
+// AccessControl storage struct, auto-serialized to/from cells.
 struct AccessControl {
-    adminAccounts: dict,
-    proposerAccounts: dict,
-    executorAccounts: dict,
-    cancellerAccounts: dict,
+    roles: dict;
 }
 
-@inline
-fun AccessControl.messageFromSlice(msgBody: slice) {
-    try {
-        return AccessControl_Message.fromSlice(msgBody);
-    } catch(exitCode) {
-        return null; // 63 is the error code for unknown opcode
-    }
-}
+// --- Constants ---
 
-@inline
-fun AccessControl.onInternalMessage(mutate self, myBalance: int, msgValue: int, msgFull: cell, msgBody: slice) {
-    // TODO: update tests to work with this check
-    // self.onlyRole(ADMIN_ROLE, msgFull);
-    val msg = AccessControl.messageFromSlice(msgBody);
-    if (msg == null) {
-        // TODO: replace old code path
-        val op = msgBody.loadMessageOp();
-        return match (op) {
-            OP_UPDATE_ACCOUNTS => {
-                self.onUpdateAccounts(myBalance, msgValue, msgFull, msgBody);
-                return -1;
-            }
-            else => 0
-        };
-    }
+const DEFAULT_ADMIN_ROLE = 0x00;
 
-    return match (msg) {
-        AccessControl_GrantRole => -1,
-        AccessControl_RevokeRole => -1,
-    };
-}
-
-
-@inline
-fun AccessControl.onUpdateAccounts(mutate self, myBalance: int, msgValue: int, msgFull: cell, msgBody: slice) {
-    val queryID = msgBody.loadMessageQueryId();
-    val operation = msgBody.loadUint(1);
-    val role = msgBody.loadUint(32);
-    val account = msgBody.loadAddress();
-    msgBody.assertEnd();
-
-    assert(role <= EXECUTOR_ROLE, ERROR_INVALID_ROLE);
-
-    if (role == ADMIN_ROLE) {
-        if (operation == ADD_ACCOUNT) {
-            addAccount(mutate self.adminAccounts, account);
-        } else {
-            removeAccount(mutate self.adminAccounts, account);
-        }
-    }
-
-    if (role == PROPOSER_ROLE) {
-        if (operation == ADD_ACCOUNT) {
-            addAccount(mutate self.proposerAccounts, account);
-        } else {
-            removeAccount(mutate self.proposerAccounts, account);
-        }
-    }
-
-    if (role == CANCELLER_ROLE) {
-        if (operation == ADD_ACCOUNT) {
-            addAccount(mutate self.cancellerAccounts, account);
-        } else {
-            removeAccount(mutate self.cancellerAccounts, account);
-        }
-    }
-
-    if (role == EXECUTOR_ROLE) {
-        if (operation == ADD_ACCOUNT) {
-            addAccount(mutate self.executorAccounts, account);
-        } else {
-            removeAccount(mutate self.executorAccounts, account);
-        }
-    }
-}
+const ERROR_ACCESS_CONTROL_UNOTHORIZED_ACCOUNT = 90;
+const ERROR_ACCESS_CONTROL_BAD_CONFIRMATION = 91;
 
 /// @dev Modifier that checks that an account has a specific role. Reverts
 /// with a standardized message including the required role.
@@ -159,40 +81,29 @@ fun AccessControl.onlyRole(self, role: int, msgFull: cell) {
 }
 
 // @dev Returns `true` if `account` has been granted `role`.
-@inline
 fun AccessControl.hasRole(self, role: int, account: address): bool {
-    if (role > EXECUTOR_ROLE) {
+    // Check if the role is valid
+    val (data, exists) = self.roles.uDictGet(256, role);
+    if (!exists) {
         return false;
     }
-
-    var accounts = self.adminAccounts;
-
-    if (role == PROPOSER_ROLE) {
-        accounts = self.proposerAccounts;
-    }
-
-    if (role == CANCELLER_ROLE) {
-        accounts = self.cancellerAccounts;
-    }
-
-    if (role == EXECUTOR_ROLE) {
-        accounts = self.executorAccounts;
-    }
-
-    var (_, exists) = accountExists(accounts, account);
-    return exists;
+    
+    // Check if the account exists in the role data
+    val d = RoleData.fromSlice(data!);
+    val (_, key) = account.getWorkchainAndHash();
+    val (_, accExists) = d.hasRole.uDictGet(256, key);
+    return accExists;
 }
 
 /// @dev Revert with a standard message if `_msgSender()` is missing `role`.
 ///
 /// Format of the revert message is described in {_checkRole}.
 ///
-@inline
 fun AccessControl.checkRoleSender(self, role: int, msgFull: cell) {
-    val sender = msgFull.beginParse().loadAddress();
-    if (!self.hasRole(role, sender)) {
-        throw(ERROR_ACCOUNT_MISSING_ROLE, "AccessControl: account ${account} is missing role ${role}");
-    }
+    val sender = msgFull.beginParse()
+        .skipBits(4) // skip msgFlags from incoming message body (4 bits).
+        .loadAddress();
+    self.checkRole(role, sender);
 }
 
 /// @dev Revert with a standard message if `account` is missing `role`.
@@ -201,11 +112,22 @@ fun AccessControl.checkRoleSender(self, role: int, msgFull: cell) {
 ///
 /// /^AccessControl: account (0x[0-9a-f]{40}) is missing role (0x[0-9a-f]{64})$/
 ///
-@inline
 fun AccessControl.checkRole(self, role: int, account: address) {
     if (!self.hasRole(role, account)) {
-        throw(ERROR_ACCOUNT_MISSING_ROLE, "AccessControl: account ${account} is missing role ${role}");
+        throw(ERROR_ACCESS_CONTROL_UNOTHORIZED_ACCOUNT); // TODO: attach error arguments
     }
+}
+
+/// @dev Returns the admin role that controls `role`. See {grantRole} and {revokeRole}.
+///
+/// To change a role's admin, use {setRoleAdmin}.
+fun AccessControl.getRoleAdmin(self, role: int): int {
+    val (data, exists) = self.roles.uDictGet(256, role);
+    if (!exists) {
+        return DEFAULT_ADMIN_ROLE;
+    }
+
+    return RoleData.fromSlice(data!).adminRole;
 }
 
 // --- Getters ---
@@ -216,29 +138,147 @@ fun AccessControl.get_hasRole(self, role: int, account: address): bool {
    return self.hasRole(role, account)
 }
 
-// --- Utils ---
+/// @dev getter to export by the contract
+@inline
+fun AccessControl.get_getRoleAdmin(self, role: int): int {
+   return self.getRoleAdmin(role)
+}
+
+// --- Message handler ---
 
 @inline
-fun accountExists(accounts: dict, account: address): (int, bool) {
+fun AccessControl.onInternalMessage(mutate self, myBalance: int, msgValue: int, msgFull: cell, msgBody: slice) {
+    val msg = AccessControl.messageFromSlice(msgBody);
+    if (msg == null) {
+        return 0; // unknown message, not handled
+    }
+
+    match (msg) {
+        AccessControl_GrantRole => {
+            self.onlyRole(self.getRoleAdmin(msg.role), msgFull);
+            self.grantRole(msg.queryId, msg.role, msg.account);
+        },
+        AccessControl_RevokeRole => {
+            self.onlyRole(self.getRoleAdmin(msg.role), msgFull);
+            self.revokeRole(msg.queryId, msg.role, msg.account);
+        },
+    };
+    return -1; // handled
+}
+
+// --- Internal helpers ---
+
+@inline
+fun AccessControl.messageFromSlice(msgBody: slice) {
+    try {
+        return AccessControl_Message.fromSlice(msgBody);
+    } catch(exitCode) {
+        return null; // 63 is the error code for unknown opcode
+    }
+}
+
+@inline
+fun AccessControl.getRoleDataOrSetDefault(mutate self, role: int): RoleData {
+    // Check if the role is valid
+    val (data, exists) = self.roles.uDictGet(256, role);
+    if (exists) {
+        return RoleData.fromSlice(data!);
+    }
+
+    // Create a new role data if it doesn't exist
+    var _data: RoleData = {
+        hasRole: createEmptyDict(),
+        adminRole: DEFAULT_ADMIN_ROLE
+    };
+    self.roles.uDictSet(256, role, _data.toCell().beginParse());
+    return _data;
+}
+
+/// @dev Revokes `role` from the calling account.
+///
+/// Roles are often managed via {grantRole} and {revokeRole}: this function's
+/// purpose is to provide a mechanism for accounts to lose their privileges
+/// if they are compromised (such as when a trusted device is misplaced).
+///
+/// If the calling account had been revoked `role`, emits a {RoleRevoked} event.
+///
+/// Requirements:
+///
+/// - the caller must be `callerConfirmation`.
+///
+/// May emit a {RoleRevoked} event.
+fun AccessControl.renounceRole(mutate self, queryId: uint64, role: int, callerConfirmation: address, msgFull: cell): bool {
+    val sender = msgFull.beginParse()
+        .skipBits(4) // skip msgFlags from incoming message body (4 bits).
+        .loadAddress();
+    if (callerConfirmation != sender) {
+        throw(ERROR_ACCESS_CONTROL_BAD_CONFIRMATION); // TODO: attach error arguments
+    }
+
+    // Renouncing a role is equivalent to revoking it from the caller
+    return self.revokeRole(queryId, role, callerConfirmation);
+}
+
+/// @dev Sets `adminRole` as `role`'s admin role.
+///
+/// Emits a {RoleAdminChanged} event.
+fun AccessControl.setRoleAdmin(mutate self, queryId: uint64, role: int, adminRole: int) {
+    var d: RoleData = self.getRoleDataOrSetDefault(role);
+    val previousAdminRole = d.adminRole;
+    // Update the admin role for the role
+    d.adminRole = adminRole;
+
+    // Save the updated role data
+    self.roles.uDictSet(256, role, d.toCell().beginParse());
+    // TODO: emit RoleAdminChanged(role, previousAdminRole, adminRole);
+}
+
+/// @dev Attempts to grant `role` to `account` and returns a boolean indicating if `role` was granted.
+///
+/// Internal function without access restriction.
+///
+/// Emits a {RoleGranted} event if `role` was granted. 
+fun AccessControl.grantRole(mutate self, queryId: uint64, role: int, account: address): bool {
+    var d: RoleData = self.getRoleDataOrSetDefault(role);
+
+    // Check if the account exists in the role data
     val (_, key) = account.getWorkchainAndHash();
-    val (_, exists) = accounts.uDictGet(256, key);
-    return (key, exists);
+    val (_, exists) = d.hasRole.uDictGet(256, key);
+
+    if (exists) {
+        return false; // nothing to do
+    }
+
+    // Add the account to the role
+    d.hasRole.uDictSet(256, key, createEmptySlice());
+    // TODO: emit RoleGranted(role, account, _msgSender());
+
+    // Save the updated role data
+    self.roles.uDictSet(256, role, d.toCell().beginParse());
+    return true; // role granted successfully
 }
 
-@inline
-fun addAccount(mutate accounts: dict, account: address): dict {
-    val (key, exists) = accountExists(accounts, account);
-    assert(!exists, ERROR_ACCOUNT_EXISTS);
+/// @dev Attempts to revoke `role` from `account` and returns a boolean indicating if `role` was revoked.
+///
+/// Internal function without access restriction.
+///
+/// Emits a {RoleRevoked} event if `role` was revoked.
+fun AccessControl.revokeRole(mutate self, queryId: uint64, role: int, account: address): bool {
+    var d: RoleData = self.getRoleDataOrSetDefault(role);
 
-    accounts.uDictSet(256, key, beginCell().endCell().beginParse());
-    return accounts;
-}
+    // Check if the account exists in the role data
+    val (_, key) = account.getWorkchainAndHash();
+    val (_, exists) = d.hasRole.uDictGet(256, key);
 
-@inline
-fun removeAccount(mutate accounts: dict, account: address): dict {
-    val (key, exists) = accountExists(accounts, account);
-    assert(exists, ERROR_ACCOUNT_NOT_EXISTS);
+    if (!exists) {
+        return false; // nothing to do
+    }
 
-    accounts.uDictDelete(256, key);
-    return accounts;
+    // Remove the account from the role
+    d.hasRole.uDictDelete(256, key);
+    // TODO: emit RoleRevoked(role, account, _msgSender());
+
+    // Save the updated role data
+    self.roles.uDictSet(256, role, d.toCell().beginParse());
+    return true; // role revoked successfully
 }
