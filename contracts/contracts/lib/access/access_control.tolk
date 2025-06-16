@@ -98,18 +98,9 @@ fun AccessControl.onlyRole(self, role: int, msgFull: cell) {
 }
 
 // @dev Returns `true` if `account` has been granted `role`.
+@inline
 fun AccessControl.hasRole(self, role: int, account: address): bool {
-    // Check if the role is valid
-    val (data, exists) = self.data.roles.uDictGet(256, role);
-    if (!exists) {
-        return false;
-    }
-    
-    // Check if the account exists in the role data
-    val d = AccessControl_RoleData.fromSlice(data!);
-    val (_, key) = account.getWorkchainAndHash();
-    val (_, accExists) = d.hasRole.uDictGet(256, key);
-    return accExists;
+    return self.data.hasRole(role, account); // no hooks for now, proxy to default implementation
 }
 
 /// @dev Revert with a standard message if `_msgSender()` is missing `role`.
@@ -270,6 +261,22 @@ fun AccessControll_Data.msgSender(self, msgFull: cell): address {
     return msgFull.beginParse()
         .skipBits(4) // skip msgFlags from incoming message body (4 bits).
         .loadAddress();
+}
+
+// @dev Returns `true` if `account` has been granted `role`.
+@inline
+fun AccessControl_Data.hasRole(self, role: int, account: address): bool {
+    // Check if the role is valid
+    val (data, exists) = self.roles.uDictGet(256, role);
+    if (!exists) {
+        return false;
+    }
+
+    // Check if the account exists in the role data
+    val d = AccessControl_RoleData.fromSlice(data!);
+    val (_, key) = account.getWorkchainAndHash();
+    val (_, accExists) = d.hasRole.uDictGet(256, key);
+    return accExists;
 }
 
 @inline
