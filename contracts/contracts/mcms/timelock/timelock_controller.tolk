@@ -35,7 +35,10 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
 
     // Load the contract storage
     var s = loadData();
-    var rbac = AccessControl.fromCell(s.rbac);
+    var rbac: AccessControl = {
+        data: AccessControl_Data.fromCell(s.rbac),
+        hooks: null, // no hooks for now
+    };
 
     val senderAddress: address = cs.loadAddress();
     cs.loadAddress(); // skip dst
@@ -64,7 +67,7 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
             s.minDelay = timelockAdmin.minDelay;
             s.timestampCount = timelockAdmin.timestampCount;
             s.timestamps = timelockAdmin.timestamps;
-            s.rbac = rbac.toCell();
+            s.rbac = rbac.data.toCell();
             // Save the updated storage
             saveData(s);
             return;

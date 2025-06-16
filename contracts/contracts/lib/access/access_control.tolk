@@ -49,18 +49,35 @@ type AccessControl_Message = AccessControl_GrantRole | AccessControl_RevokeRole;
 
 // --- Storage structs ---
 
+// AccessControl storage struct, auto-serialized to/from cells.
+struct AccessControl {
+    data: AccessControl_Data;
+    hooks: AccessControl_Hooks?;
+}
+
+/// AccessControl data struct, auto-serialized to/from cells.
+struct AccessControl_Data {
+    roles: dict;
+}
+
 /// Internal storage struct for role data
 ///
 /// Each role has a mapping of accounts that have been granted that role,
 /// and an admin role that can manage that role. 
-struct RoleData {
+struct AccessControl_RoleData {
     hasRole: dict;
     adminRole: uint256;
 }
 
-// AccessControl storage struct, auto-serialized to/from cells.
-struct AccessControl {
-    roles: dict;
+// --- Hooks struct (extensions) ---
+
+struct AccessControl_Hooks {
+    // Hook to get the sender of the message.
+    msgSender: (AccessControl_Data, cell) -> address;
+    // Hook to grant a role.
+    grantRole: (AccessControl_Data, uint64, int, address) -> bool;
+    // Hook to revoke a role.
+    revokeRole: (AccessControl_Data, uint64, int, address) -> bool;
 }
 
 // --- Constants ---
@@ -83,13 +100,13 @@ fun AccessControl.onlyRole(self, role: int, msgFull: cell) {
 // @dev Returns `true` if `account` has been granted `role`.
 fun AccessControl.hasRole(self, role: int, account: address): bool {
     // Check if the role is valid
-    val (data, exists) = self.roles.uDictGet(256, role);
+    val (data, exists) = self.data.roles.uDictGet(256, role);
     if (!exists) {
         return false;
     }
     
     // Check if the account exists in the role data
-    val d = RoleData.fromSlice(data!);
+    val d = AccessControl_RoleData.fromSlice(data!);
     val (_, key) = account.getWorkchainAndHash();
     val (_, accExists) = d.hasRole.uDictGet(256, key);
     return accExists;
@@ -100,10 +117,21 @@ fun AccessControl.hasRole(self, role: int, account: address): bool {
 /// Format of the revert message is described in {_checkRole}.
 ///
 fun AccessControl.checkRoleSender(self, role: int, msgFull: cell) {
-    val sender = msgFull.beginParse()
-        .skipBits(4) // skip msgFlags from incoming message body (4 bits).
-        .loadAddress();
+    val sender = self.msgSender(msgFull);
     self.checkRole(role, sender);
+}
+
+/// @dev Returns the sender of the message.
+///
+/// Override available via `hooks.msgSender` hook.
+fun AccessControl.msgSender(self, msgFull: cell): address {
+    // if (self.hooks != null && self.hooks.msgSender != null) {
+    if (self.hooks != null) {        
+        // Use the hook to get the sender if available
+        return self.hooks.msgSender(self.data, msgFull);
+    }
+
+    return self.data.msgSender(msgFull);
 }
 
 /// @dev Revert with a standard message if `account` is missing `role`.
@@ -122,12 +150,12 @@ fun AccessControl.checkRole(self, role: int, account: address) {
 ///
 /// To change a role's admin, use {setRoleAdmin}.
 fun AccessControl.getRoleAdmin(self, role: int): int {
-    val (data, exists) = self.roles.uDictGet(256, role);
+    val (data, exists) = self.data.roles.uDictGet(256, role);
     if (!exists) {
         return DEFAULT_ADMIN_ROLE;
     }
 
-    return RoleData.fromSlice(data!).adminRole;
+    return AccessControl_RoleData.fromSlice(data!).adminRole;
 }
 
 // --- Getters ---
@@ -177,23 +205,6 @@ fun AccessControl.messageFromSlice(msgBody: slice) {
     }
 }
 
-@inline
-fun AccessControl.getRoleDataOrSetDefault(mutate self, role: int): RoleData {
-    // Check if the role is valid
-    val (data, exists) = self.roles.uDictGet(256, role);
-    if (exists) {
-        return RoleData.fromSlice(data!);
-    }
-
-    // Create a new role data if it doesn't exist
-    var _data: RoleData = {
-        hasRole: createEmptyDict(),
-        adminRole: DEFAULT_ADMIN_ROLE
-    };
-    self.roles.uDictSet(256, role, _data.toCell().beginParse());
-    return _data;
-}
-
 /// @dev Revokes `role` from the calling account.
 ///
 /// Roles are often managed via {grantRole} and {revokeRole}: this function's
@@ -208,9 +219,7 @@ fun AccessControl.getRoleDataOrSetDefault(mutate self, role: int): RoleData {
 ///
 /// May emit a {RoleRevoked} event.
 fun AccessControl.renounceRole(mutate self, queryId: uint64, role: int, callerConfirmation: address, msgFull: cell): bool {
-    val sender = msgFull.beginParse()
-        .skipBits(4) // skip msgFlags from incoming message body (4 bits).
-        .loadAddress();
+    val sender = self.msgSender(msgFull);
     if (callerConfirmation != sender) {
         throw(ERROR_ACCESS_CONTROL_BAD_CONFIRMATION); // TODO: attach error arguments
     }
@@ -223,7 +232,68 @@ fun AccessControl.renounceRole(mutate self, queryId: uint64, role: int, callerCo
 ///
 /// Emits a {RoleAdminChanged} event.
 fun AccessControl.setRoleAdmin(mutate self, queryId: uint64, role: int, adminRole: int) {
-    var d: RoleData = self.getRoleDataOrSetDefault(role);
+    return self.data.setRoleAdmin(queryId, role, adminRole); // no hooks for now, proxy to default implementation
+}
+
+/// @dev Attempts to grant `role` to `account` and returns a boolean indicating if `role` was granted.
+///
+/// Internal function without access restriction.
+///
+/// Emits a {RoleGranted} event if `role` was granted. 
+fun AccessControl.grantRole(mutate self, queryId: uint64, role: int, account: address): bool {
+    // if (self.hooks != null && self.hooks.grantRole != null) {
+    if (self.hooks != null) {
+        return self.hooks.grantRole(self.data, queryId, role, account); // extension hook
+    }
+
+    return self.data.grantRole(queryId, role, account); // default implementation
+}
+
+/// @dev Attempts to revoke `role` from `account` and returns a boolean indicating if `role` was revoked.
+///
+/// Internal function without access restriction.
+///
+/// Emits a {RoleRevoked} event if `role` was revoked.
+fun AccessControl.revokeRole(mutate self, queryId: uint64, role: int, account: address): bool {
+    // if (self.hooks != null && self.hooks.revokeRole != null) {
+    if (self.hooks != null) {
+        return self.hooks.revokeRole(self.data, queryId, role, account); // extension hook
+    }
+
+    return self.data.revokeRole(queryId, role, account); // default implementation
+}
+
+/// --- Underlying default implementation ---
+
+fun AccessControll_Data.msgSender(self, msgFull: cell): address {
+    // Fallback to parsing the message body to get the sender
+    return msgFull.beginParse()
+        .skipBits(4) // skip msgFlags from incoming message body (4 bits).
+        .loadAddress();
+}
+
+@inline
+fun AccessControl_Data.getRoleDataOrSetDefault(mutate self, role: int): AccessControl_RoleData {
+    // Check if the role is valid
+    val (data, exists) = self.roles.uDictGet(256, role);
+    if (exists) {
+        return AccessControl_RoleData.fromSlice(data!);
+    }
+
+    // Create a new role data if it doesn't exist
+    var _data: AccessControl_RoleData = {
+        hasRole: createEmptyDict(),
+        adminRole: DEFAULT_ADMIN_ROLE
+    };
+    self.roles.uDictSet(256, role, _data.toCell().beginParse());
+    return _data;
+}
+
+/// @dev Sets `adminRole` as `role`'s admin role.
+///
+/// Emits a {RoleAdminChanged} event.
+fun AccessControl_Data.setRoleAdmin(mutate self, queryId: uint64, role: int, adminRole: int) {
+    var d: AccessControl_RoleData = self.getRoleDataOrSetDefault(role);
     val previousAdminRole = d.adminRole;
     // Update the admin role for the role
     d.adminRole = adminRole;
@@ -238,8 +308,8 @@ fun AccessControl.setRoleAdmin(mutate self, queryId: uint64, role: int, adminRol
 /// Internal function without access restriction.
 ///
 /// Emits a {RoleGranted} event if `role` was granted. 
-fun AccessControl.grantRole(mutate self, queryId: uint64, role: int, account: address): bool {
-    var d: RoleData = self.getRoleDataOrSetDefault(role);
+fun AccessControl_Data.grantRole(mutate self, queryId: uint64, role: int, account: address): bool {
+    var d: AccessControl_RoleData = self.getRoleDataOrSetDefault(role);
 
     // Check if the account exists in the role data
     val (_, key) = account.getWorkchainAndHash();
@@ -263,8 +333,8 @@ fun AccessControl.grantRole(mutate self, queryId: uint64, role: int, account: ad
 /// Internal function without access restriction.
 ///
 /// Emits a {RoleRevoked} event if `role` was revoked.
-fun AccessControl.revokeRole(mutate self, queryId: uint64, role: int, account: address): bool {
-    var d: RoleData = self.getRoleDataOrSetDefault(role);
+fun AccessControl_Data.revokeRole(mutate self, queryId: uint64, role: int, account: address): bool {
+    var d: AccessControl_RoleData = self.getRoleDataOrSetDefault(role);
 
     // Check if the account exists in the role data
     val (_, key) = account.getWorkchainAndHash();
