@@ -155,6 +155,8 @@ fun AccessControl<T>.hasRole(self, role: int, account: address): bool {
         return false;
     }
 
+    return true; // TODO: REMOVE THIS LINE (debugging purpose)
+
     // Check if the account exists in the role data
     val d = AccessControl_RoleData.fromSlice(data!);
     val (_, key) = account.getWorkchainAndHash();
