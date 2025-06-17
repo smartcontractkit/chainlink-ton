@@ -39,8 +39,8 @@ export function counterConfigToCell(config: OwnableCounterStorage): Cell {
 
 export const Opcodes = {
   OP_SET_COUNT: 0x00000001,
-  OP_TRANSFER_OWNERSHIP: 0xf21b7da1,
-  OP_ACCEPT_OWNERHSIP: 0xf9e29e4a,
+  OP_TRANSFER_OWNERSHIP: crc32('Ownable2Step_TransferOwnership'),
+  OP_ACCEPT_OWNERHSIP: crc32('Ownable2Step_AcceptOwnership'),
 }
 
 export class OwnableCounter implements Contract {
