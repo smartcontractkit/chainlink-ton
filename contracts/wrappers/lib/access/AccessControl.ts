@@ -33,6 +33,17 @@ export type RevokeRole = {
   account: Address
 }
 
+// @dev Renounces `role` from calling account.
+export type RenounceRole = {
+  /// Query ID of the change owner request.
+  queryId: bigint
+
+  /// Role of the account.
+  role: bigint
+  /// Caller confirmation of an account to revoke.
+  callerConfirmation: Address
+}
+
 /// @dev Union of all access control messages.
 type Message = GrantRole | RevokeRole
 
@@ -44,10 +55,11 @@ const ERROR_ACCOUNT_MISSING_ROLE = 98
 export const Opcodes = {
   GrantRole: crc32('AccessControl_GrantRole'),
   RevokeRole: crc32('AccessControl_RevokeRole'),
+  RenounceRole: crc32('AccessControl_RenounceRole'),
 }
 
 export const Builder = {
-  /// Creates a new `GrantRole` message.
+  /// Creates a new `AccessControl_GrantRole` message.
   grantRole: (msg: GrantRole): Cell => {
     return beginCell()
       .storeUint(Opcodes.GrantRole, 32)
@@ -56,13 +68,22 @@ export const Builder = {
       .storeAddress(msg.account)
       .endCell()
   },
-  /// Creates a new `RevokeRole` message.
+  /// Creates a new `AccessControl_RevokeRole` message.
   revokeRole: (msg: RevokeRole): Cell => {
     return beginCell()
       .storeUint(Opcodes.RevokeRole, 32)
       .storeUint(msg.queryId, 64)
       .storeUint(msg.role, 32)
       .storeAddress(msg.account)
+      .endCell()
+  },
+  /// Creates a new `AccessControl_RenounceRole` message.
+  renounceRole: (msg: RenounceRole): Cell => {
+    return beginCell()
+      .storeUint(Opcodes.RevokeRole, 32)
+      .storeUint(msg.queryId, 64)
+      .storeUint(msg.role, 32)
+      .storeAddress(msg.callerConfirmation)
       .endCell()
   },
 }
