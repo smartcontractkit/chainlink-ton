@@ -37,12 +37,15 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
 
     // Load the contract storage
     var s = loadData();
+
     var rbac: AccessControlEnumerable<Timelock> = {
         data: AccessControlEnumerable_Data.fromCell(s.rbac),
         // no runtime extensions
         context: null,
         hooks: null,
     };
+
+    return; // TODO: REMOVE THIS LINE (debugging purpose)
 
     val senderAddress: address = cs.loadAddress();
     cs.loadAddress(); // skip dst
