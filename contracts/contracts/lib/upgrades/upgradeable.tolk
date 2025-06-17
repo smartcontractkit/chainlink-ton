@@ -17,17 +17,26 @@ import "../emit.tolk";
 /// Example usage:
 /// ```tolk
 /// fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: slice) {
+///     val this = UpgradeableCounter{
+///         versionStr,
+///         version,
+///         migrateStorage,
+///     };
+///
 ///     if (msgBody.isEnd()) { // ignore all empty messages
 ///         return;
 ///     }
+///
 ///     var cs = msgFull.beginParse();
 ///     val flags = cs.loadMessageFlags();
 ///     if (isMessageBounced(flags)) { // ignore all bounced messages
 ///         return;
 ///     }
-///     if (upgradeableCounter$handleMessage(myBalance, msgValue, msgFull, msgBody, migrate)) {
+///
+///     if (this.onInternalMessage(myBalance, msgValue, msgFull, msgBody)) {
 ///         return;
 ///     }
+///
 ///     throw 63; // 63 error code is thrown if the message opcode is unknown
 /// }
 /// @method_id(1000)
