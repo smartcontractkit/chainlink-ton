@@ -1,3 +1,5 @@
+import "./../utils.tolk";
+
 // Exit codes
 
 /// Matches the exit code for `TactExitCodeAccessDenied` from `@stdlib`.
@@ -52,9 +54,11 @@ type Ownable2Step_Messages =
 fun Ownable2Step.onInternalMessage(mutate self, myBalance: int, msgValue: int, msgFull: cell, msgBody: slice): bool {
     try {
         var cs = msgFull.beginParse();
-        _ = cs.loadMessageFlags();
+        var flags = cs.loadMessageFlags();
+        if (isMessageBounced(flags)) { // ignore all bounced messages
+            return false;
+        }
         var sender: address = cs.loadAddress();
-
 
         //This will fail with exitcode 63 if the message is not an Ownable2Step message
 
