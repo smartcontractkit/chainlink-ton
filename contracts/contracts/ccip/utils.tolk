@@ -65,3 +65,65 @@ fun Iterator<T>.next(mutate self): T {
     }
     return self.data.loadAny<T>();
 }
+
+import "@stdlib/tvm-dicts.tolk";
+
+// TODO: mark functions as @pure
+struct Map<V> {
+    value: dict;
+    keyLen: int8;
+}
+
+@inline
+fun Map<V>.new(keyLen: int): Map<V> {
+    return Map { value: createEmptyDict(), keyLen }
+}
+
+@inline
+fun Map<V>.isEmpty(self): bool {
+    return self.value.dictIsEmpty();
+}
+
+@inline
+fun Map<V>.get(self, key: slice): (V?, bool) {
+    val (value, exists) = self.value.sDictGet(self.keyLen, key);
+    if (!exists) {
+        return (null, false);
+    }
+    return (V.fromCell(value), true);
+}
+
+@inline
+fun Map<V>.set(mutate self, key: slice, value: V): void {
+    return self.value.sDictSet(self.keyLen, key, value.toCell().beginParse());
+}
+
+// TODO: mark functions as @pure
+struct UMap<K, V> {
+    value: dict;
+    keyLen: int8;
+}
+
+@inline
+fun UMap<K, V>.new(keyLen: int): UMap<K, V> {
+    return UMap { value: createEmptyDict(), keyLen }
+}
+
+@inline
+fun UMap<K, V>.isEmpty(self): bool {
+    return self.value.dictIsEmpty();
+}
+
+@inline
+fun UMap<K, V>.get(self, key: K): (V?, bool) {
+    val (value, exists) = self.value.uDictGet(self.keyLen, key);
+    if (!exists) {
+        return (null, false);
+    }
+    return (V.fromCell(value), true);
+}
+
+@inline
+fun UMap<K, V>.set(mutate self, key: K, value: V): void {
+    return (self.value.uDictSet(self.keyLen, key, value.toCell().beginParse()));
+}

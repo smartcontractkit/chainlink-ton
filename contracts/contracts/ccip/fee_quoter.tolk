@@ -1,6 +1,5 @@
 import "types.tolk";
 import "utils.tolk";
-import "@stdlib/tvm-dicts.tolk";
 
 struct Storage {
     owner: address;
@@ -10,9 +9,9 @@ struct Storage {
     tokenPriceStalenessThreshold: uint64;
 
     // NOTE: for now we're embedding token/gas price data
-    usdPerToken: dict; // (sdict) address -> TimestampedPrice
+    usdPerToken: Map<TimestampedPrice>; // (sdict len=36*8) address -> TimestampedPrice
     // TODO: can this sit on DestChain?
-    usdPerUnitGasByDestChain: dict; // (idict) chainSelector -> TimestampedPrice
+    usdPerUnitGasByDestChain: UMap<uint64, TimestampedPrice>; // (idict len=32) chainSelector -> TimestampedPrice
 
     // premium_multiplier_wei_per_eth? how do we handle this
 
@@ -42,10 +41,10 @@ fun onUpdatePrices(priceUpdates: PriceUpdates) {
         val update = iter.next();
 
         // TODO: having to set len here isn't ideal
-        st.usdPerToken.sDictSet(36, update.sourceToken as slice, TimestampedPrice {
+        st.usdPerToken.set(update.sourceToken as slice, TimestampedPrice {
             value: update.usdPerToken as uint224,
             timestamp
-        }.toCell().beginParse())
+        })
     }
 
     var iter2 = Iterator<GasPriceUpdate>.new(priceUpdates.gasPriceUpdates, 64+256);
@@ -53,10 +52,10 @@ fun onUpdatePrices(priceUpdates: PriceUpdates) {
         val update = iter2.next();
 
         // TODO: having to set len here isn't ideal
-        st.usdPerUnitGasByDestChain.iDictSet(64, update.destChainSelector, TimestampedPrice {
+        st.usdPerUnitGasByDestChain.set(update.destChainSelector, TimestampedPrice {
             value: update.usdPerUnitGas as uint224,
             timestamp
-        }.toCell().beginParse())
+        })
     }
 
     // TODO: persist state changes
