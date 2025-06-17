@@ -77,8 +77,10 @@ struct AccessControl_RoleData {
 struct AccessControl_Hooks<T> {
     // Hook to get the sender of the message.
     msgSender: ((T, cell) -> address)?;
+
     // Hook to grant a role.
     grantRole: ((T, uint64, int, address) -> bool)?;
+
     // Hook to revoke a role.
     revokeRole: ((T, uint64, int, address) -> bool)?;
 }
