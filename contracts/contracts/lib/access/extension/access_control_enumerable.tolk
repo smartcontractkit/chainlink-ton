@@ -60,7 +60,7 @@ fun AccessControlEnumerable<T>.hasRole(self, role: int, account: address): bool 
 
     var super: AccessControl<AccessControlEnumerable<T>>
         = self.hookTrait__AccessControl(); // hook into AccessControl<T> trait
-    // super.hooks.hasRole = null; // disable self to avoid recursion
+    // super.hooks!.hasRole = null; // disable self to avoid recursion
 
     return super.hasRole(role, account); // default implementation
 }

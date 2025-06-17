@@ -363,7 +363,7 @@ export class TimelockController implements Contract {
   }
 
   async getIsAdmin(provider: ContractProvider, account: Address) {
-    const result = await provider.get('getHasRole', [
+    const result = await provider.get('hasRole', [
       {
         type: 'int',
         value: BigInt(Params.admin_role),
@@ -377,7 +377,7 @@ export class TimelockController implements Contract {
   }
 
   async getIsProposer(provider: ContractProvider, account: Address) {
-    const result = await provider.get('getHasRole', [
+    const result = await provider.get('hasRole', [
       {
         type: 'int',
         value: BigInt(Params.proposer_role),
@@ -391,7 +391,7 @@ export class TimelockController implements Contract {
   }
 
   async getIsCanceller(provider: ContractProvider, account: Address) {
-    const result = await provider.get('getHasRole', [
+    const result = await provider.get('hasRole', [
       {
         type: 'int',
         value: BigInt(Params.canceller_role),
@@ -405,7 +405,7 @@ export class TimelockController implements Contract {
   }
 
   async getIsExecutor(provider: ContractProvider, account: Address) {
-    const result = await provider.get('getHasRole', [
+    const result = await provider.get('hasRole', [
       {
         type: 'int',
         value: BigInt(Params.executor_role),

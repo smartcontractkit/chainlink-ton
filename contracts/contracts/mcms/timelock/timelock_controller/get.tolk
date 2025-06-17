@@ -56,7 +56,7 @@ get getOperationState(id: int): int {
 // TODO: dummy type for AccessControlEnumerable
 struct Any {}
 
-get getHasRole(role: int, account: address): bool {
+get hasRole(role: int, account: address): bool {
     val s = loadData();
     val ac = AccessControlEnumerable<Any> {
         data: AccessControlEnumerable_Data.fromCell(s.rbac),
