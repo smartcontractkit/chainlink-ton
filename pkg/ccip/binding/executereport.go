@@ -46,6 +46,7 @@ type Signature struct {
 	Sig []byte `tlb:"bits 512"`
 }
 
+// TODO: duplicate from commitreport.go, will remove once it merged
 // PackArray packs an array of T into a linked cell chain, each cell up to 1023 bits. Note that only one ref is stored in each cell, and one T
 func PackArray[T any](array []T) (*cell.Cell, error) {
 	builder := cell.BeginCell()
@@ -78,6 +79,7 @@ func PackArray[T any](array []T) (*cell.Cell, error) {
 	return next, nil
 }
 
+// TODO: duplicate from commitreport.go, will remove once it merged
 func UnpackArray[T any](root *cell.Cell) ([]T, error) {
 	var result []T
 	curr := root

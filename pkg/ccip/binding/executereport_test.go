@@ -73,7 +73,7 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 func NewDummyCell() (*cell.Cell, error) {
 	builder := cell.BeginCell()
 	payload := []byte("place holder")
-	if err := builder.StoreSlice([]byte("placeholder"), uint(len(payload))); err != nil {
+	if err := builder.StoreSlice(payload, uint(len(payload))); err != nil {
 		return nil, err
 	}
 	return builder.EndCell(), nil
