@@ -11,7 +11,7 @@ import (
 type UnconfirmedTx struct {
 	LT           uint64
 	ExpirationMs uint64
-	Tx           *TONTx
+	Tx           *Tx
 }
 
 // TxStore tracks broadcast & unconfirmed txs per account address per chain id
@@ -28,7 +28,7 @@ func NewTxStore() *TxStore {
 }
 
 // AddUnconfirmed adds a new unconfirmed transaction by lamport time.
-func (s *TxStore) AddUnconfirmed(lt uint64, expirationMs uint64, tx *TONTx) error {
+func (s *TxStore) AddUnconfirmed(lt uint64, expirationMs uint64, tx *Tx) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 

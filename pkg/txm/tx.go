@@ -10,7 +10,7 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
-type TONTx struct {
+type Tx struct {
 	From            address.Address // wallet used to send the message
 	To              address.Address // destination address
 	Amount          tlb.Coins       // amount to send

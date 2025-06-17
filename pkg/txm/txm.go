@@ -19,22 +19,22 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
-var _ services.Service = &TONTxm{}
+var _ services.Service = &Txm{}
 
-type TONTxm struct {
+type Txm struct {
 	Logger   logger.Logger
 	Keystore loop.Keystore
-	Config   TONTxmConfig
+	Config   Config
 
 	Client        tonutils.ApiClient
-	BroadcastChan chan *TONTx
+	BroadcastChan chan *Tx
 	AccountStore  *AccountStore
 	Starter       utils.StartStopOnce
 	Done          sync.WaitGroup
 	Stop          chan struct{}
 }
 
-type TONTxmRequest struct {
+type Request struct {
 	FromWallet      wallet.Wallet   // Source wallet address
 	ContractAddress address.Address // Destination contract or wallet address
 	Body            *cell.Cell      // Encoded message body (method + params)
@@ -44,13 +44,13 @@ type TONTxmRequest struct {
 	Simulate        bool            // Optional: simulate instead of sending
 }
 
-func New(lgr logger.Logger, keystore loop.Keystore, client tonutils.ApiClient, config TONTxmConfig) *TONTxm {
-	txm := &TONTxm{
-		Logger:        logger.Named(lgr, "TONTxm"),
+func New(lgr logger.Logger, keystore loop.Keystore, client tonutils.ApiClient, config Config) *Txm {
+	txm := &Txm{
+		Logger:        logger.Named(lgr, "Txm"),
 		Keystore:      keystore,
 		Config:        config,
 		Client:        client,
-		BroadcastChan: make(chan *TONTx, config.BroadcastChanSize),
+		BroadcastChan: make(chan *Tx, config.BroadcastChanSize),
 		AccountStore:  NewAccountStore(),
 		Stop:          make(chan struct{}),
 	}
@@ -58,24 +58,24 @@ func New(lgr logger.Logger, keystore loop.Keystore, client tonutils.ApiClient, c
 	return txm
 }
 
-func (t *TONTxm) Name() string {
+func (t *Txm) Name() string {
 	return t.Logger.Name()
 }
 
-func (t *TONTxm) Ready() error {
+func (t *Txm) Ready() error {
 	return t.Starter.Ready()
 }
 
-func (t *TONTxm) HealthReport() map[string]error {
+func (t *Txm) HealthReport() map[string]error {
 	return map[string]error{t.Name(): t.Starter.Healthy()}
 }
 
-func (t *TONTxm) GetClient() tonutils.ApiClient {
+func (t *Txm) GetClient() tonutils.ApiClient {
 	return t.Client
 }
 
-func (t *TONTxm) Start(ctx context.Context) error {
-	return t.Starter.StartOnce("TONTxm", func() error {
+func (t *Txm) Start(ctx context.Context) error {
+	return t.Starter.StartOnce("Txm", func() error {
 		t.Done.Add(2) // waitgroup: broadcast loop and confirm loop
 		go t.broadcastLoop()
 		go t.confirmLoop()
@@ -83,12 +83,12 @@ func (t *TONTxm) Start(ctx context.Context) error {
 	})
 }
 
-func (t *TONTxm) InflightCount() (int, int) {
+func (t *Txm) InflightCount() (int, int) {
 	return len(t.BroadcastChan), t.AccountStore.GetTotalInflightCount()
 }
 
-func (t *TONTxm) Close() error {
-	return t.Starter.StopOnce("TONTxm", func() error {
+func (t *Txm) Close() error {
+	return t.Starter.StopOnce("Txm", func() error {
 		close(t.Stop)
 		t.Done.Wait()
 		return nil
@@ -98,14 +98,14 @@ func (t *TONTxm) Close() error {
 // Enqueues a transaction for broadcasting.
 // Each item in the params array should be a map with a single key-value pair, where
 // the key is the ABI type.
-func (t *TONTxm) Enqueue(request TONTxmRequest) error {
+func (t *Txm) Enqueue(request Request) error {
 	// Ensure we can sign with the requested address
 	publicKey := fmt.Sprintf("%064x", request.FromWallet.PrivateKey().Public())
 	if _, err := t.Keystore.Sign(context.Background(), publicKey, nil); err != nil {
 		return fmt.Errorf("failed to sign: %w", err)
 	}
 
-	tx := &TONTx{
+	tx := &Tx{
 		From:        *request.FromWallet.Address(),
 		To:          request.ContractAddress,
 		Amount:      request.Amount,
@@ -125,7 +125,7 @@ func (t *TONTxm) Enqueue(request TONTxmRequest) error {
 	}
 }
 
-func (t *TONTxm) broadcastLoop() {
+func (t *Txm) broadcastLoop() {
 	defer t.Done.Done()
 
 	ctx, cancel := utils.ContextFromChan(t.Stop)
@@ -185,7 +185,7 @@ func (t *TONTxm) broadcastLoop() {
 	}
 }
 
-func (t *TONTxm) broadcastWithRetry(ctx context.Context, tx *TONTx, msg *wallet.Message) error {
+func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Message) error {
 	var receivedMessage *tonutils.ReceivedMessage
 	var err error
 
@@ -234,7 +234,7 @@ func (t *TONTxm) broadcastWithRetry(ctx context.Context, tx *TONTx, msg *wallet.
 	return nil
 }
 
-func (t *TONTxm) confirmLoop() {
+func (t *Txm) confirmLoop() {
 	defer t.Done.Done()
 
 	_, cancel := commonutils.ContextFromChan(t.Stop)
@@ -267,7 +267,7 @@ func (t *TONTxm) confirmLoop() {
 	}
 }
 
-func (t *TONTxm) checkUnconfirmed() {
+func (t *Txm) checkUnconfirmed() {
 	allUnconfirmedTxs := t.AccountStore.GetAllUnconfirmed()
 
 	for accountAddress, unconfirmedTxs := range allUnconfirmedTxs {

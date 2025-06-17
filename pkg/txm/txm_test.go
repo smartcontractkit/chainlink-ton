@@ -66,7 +66,7 @@ func TestTxmLocal(t *testing.T) {
 	runTxmTest(t, logger, config, tonChain, keystore, 5)
 }
 
-func runTxmTest(t *testing.T, logger logger.Logger, config txm.TONTxmConfig, tonChain cldf_ton.Chain, keystore loop.Keystore, iterations int) {
+func runTxmTest(t *testing.T, logger logger.Logger, config txm.Config, tonChain cldf_ton.Chain, keystore loop.Keystore, iterations int) {
 	ctx := context.Background()
 
 	apiClient := tonutils.ApiClient{
@@ -86,7 +86,7 @@ func runTxmTest(t *testing.T, logger logger.Logger, config txm.TONTxmConfig, ton
 
 	// 2. Send deploy tx
 	body := cell.BeginCell().EndCell()
-	err = tonTxm.Enqueue(txm.TONTxmRequest{
+	err = tonTxm.Enqueue(txm.Request{
 		FromWallet:      *tonChain.Wallet,
 		ContractAddress: *counterAddr,
 		Amount:          tlb.MustFromTON("0.05"),
@@ -113,7 +113,7 @@ func runTxmTest(t *testing.T, logger logger.Logger, config txm.TONTxmConfig, ton
 		incrementMsgBody, err := testutils.EncodeIncrement(queryId)
 		require.NoError(t, err)
 
-		err = tonTxm.Enqueue(txm.TONTxmRequest{
+		err = tonTxm.Enqueue(txm.Request{
 			FromWallet:      *tonChain.Wallet,
 			ContractAddress: *counterAddr,
 			Amount:          tlb.MustFromTON("0.05"),
@@ -127,7 +127,7 @@ func runTxmTest(t *testing.T, logger logger.Logger, config txm.TONTxmConfig, ton
 		incrementMultMsgBody, err := testutils.EncodeIncrementMult(queryId, 3, 4) // incremented value
 		require.NoError(t, err)
 
-		err = tonTxm.Enqueue(txm.TONTxmRequest{
+		err = tonTxm.Enqueue(txm.Request{
 			FromWallet:      *tonChain.Wallet,
 			ContractAddress: *counterAddr,
 			Amount:          tlb.MustFromTON("0.05"),
@@ -149,7 +149,7 @@ func runTxmTest(t *testing.T, logger logger.Logger, config txm.TONTxmConfig, ton
 	require.Equal(t, expected, final)
 }
 
-func waitForStableInflightCount(logger logger.Logger, txm *txm.TONTxm, duration time.Duration) {
+func waitForStableInflightCount(logger logger.Logger, txm *txm.Txm, duration time.Duration) {
 	const checkInterval = 200 * time.Millisecond
 	stableSince := time.Now()
 	stabilityReached := false
