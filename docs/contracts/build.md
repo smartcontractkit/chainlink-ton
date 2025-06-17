@@ -2,7 +2,7 @@
 
 ## Building the contracts
 
-We use Blueprint to compile our tact contracts. Refer to the [Blueprint build documentation](https://github.com/ton-org/blueprint#building-contracts). To build a contract, a file ending in `.compile.ts` must be placed under `wrappers` in the blueprint project's directory.
+We use Blueprint to compile our contracts. Refer to the [Blueprint build documentation](https://github.com/ton-org/blueprint#building-contracts). To build a contract, a file ending in `.compile.ts` must be placed under `wrappers` in the blueprint project's directory.
 
 ```bash
 # Enter the specific #contracts dev shell
