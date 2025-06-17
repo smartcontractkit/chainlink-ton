@@ -68,11 +68,28 @@ fun Ownable2Step.onInternalMessage(mutate self, myBalance: int, msgValue: int, m
             Ownable2Step_TransferOwnership => {
                 self.transferOwnership(sender, msg.newOwner);
                 // TODO: emit Ownable2Step_OwnershipTransferRequested
+                val emitMsg = createExternalLogMessage({
+                    dest: createAddressNone(),
+                    body: Ownable2Step_OwnershipTransferRequested {
+                        queryId: msg.queryId,
+                        newOwner: msg.newOwner
+                    }
+                });
+                emitMsg.send(SEND_MODE_REGULAR);
             },
+
             Ownable2Step_AcceptOwnership => {
                 var oldOwner = self.owner;
                 self.acceptOwnership(sender);
-                // TODO: emit Ownable2Step_OwnershipTransferred
+                val emitMsg = createExternalLogMessage({
+                    dest: createAddressNone(),
+                    body: Ownable2Step_OwnershipTransferred {
+                        queryId: msg.queryId,
+                        oldOwner: oldOwner,
+                        newOwner: sender
+                    }
+                });
+                emitMsg.send(SEND_MODE_REGULAR);
             }
         }
         return true;
@@ -120,12 +137,6 @@ fun Ownable2Step.acceptOwnership(mutate self, sender: address) {
     var previousOwner = self.owner;
     self.owner = sender;
     self.pendingOwner = null;
-
-    // TODO: emit OwnershipTransferred {
-    //     queryId: <someQueryId>,
-    //     oldOwner: previousOwner,
-    //     newOwner: self.owner,
-    // }.toCell()
 }
 
 // --- Getter Functions ---
