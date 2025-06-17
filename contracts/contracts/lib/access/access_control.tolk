@@ -44,8 +44,32 @@ struct (0x969b0db9) AccessControl_RevokeRole {
     account: address;
 }
 
+/// @dev Revokes `role` from the calling account.
+///
+/// Roles are often managed via {grantRole} and {revokeRole}: this function's
+/// purpose is to provide a mechanism for accounts to lose their privileges
+/// if they are compromised (such as when a trusted device is misplaced).
+///
+/// If `account` had been granted `role`, emits a {RoleRevoked} event.
+///
+/// Requirements:
+///
+/// - the caller must be `callerConfirmation`.
+///
+/// May emit a {RoleRevoked} event.
+///
+struct (0x39452c46) AccessControl_RenounceRole {
+    /// Query ID of the change owner request.
+    queryId: uint64;
+
+    /// Role of the account.
+    role: uint256;
+    /// Account to revoke.
+    callerConfirmation: address;
+}
+
 /// @dev Union of all access control messages.
-type AccessControl_Message = AccessControl_GrantRole | AccessControl_RevokeRole;
+type AccessControl_Message = AccessControl_GrantRole | AccessControl_RevokeRole | AccessControl_RenounceRole;
 
 // --- Storage structs ---
 
@@ -222,7 +246,7 @@ fun AccessControl<T>.renounceRole(mutate self, queryId: uint64, role: int, calle
     }
 
     // Renouncing a role is equivalent to revoking it from the caller
-    return self.revokeRole(queryId, role, callerConfirmation);
+    return self.revokeRole(queryId, role, callerConfirmation, msgFull);
 }
 
 /// @dev Sets `adminRole` as `role`'s admin role.
@@ -349,6 +373,9 @@ fun AccessControl<T>.onInternalMessage(mutate self, myBalance: int, msgValue: in
         },
         AccessControl_RevokeRole => {
             self.revokeRole(msg.queryId, msg.role, msg.account, msgFull);
+        },
+        AccessControl_RenounceRole => {
+            self.renounceRole(msg.queryId, msg.role, msg.callerConfirmation, msgFull);
         },
     };
     return -1; // handled
