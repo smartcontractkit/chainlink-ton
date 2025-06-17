@@ -98,19 +98,19 @@ describe('TimelockController', () => {
     // expect(await timelockController.getIsExecutor(deployer.address)).toEqual(true)
   })
 
-  // it('successfully parsed AccessControll opcode', async () => {
-  //   const body = ac.builder.message
-  //     .encode()
-  //     .grantRole({ queryId: 1n, role: 1n, account: other.address })
-  //   const result = await timelockController.sendInternal(deployer.getSender(), toNano('0.05'), body)
+  it('successfully parsed AccessControll opcode', async () => {
+    const body = ac.builder.message
+      .encode()
+      .grantRole({ queryId: 1n, role: 1n, account: other.address })
+    const result = await timelockController.sendInternal(deployer.getSender(), toNano('0.05'), body)
 
-  //   expect(result.transactions).toHaveTransaction({
-  //     from: deployer.address,
-  //     to: timelockController.address,
-  //     success: true,
-  //     op: ac.opcodes.GrantRole,
-  //   })
-  // })
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: timelockController.address,
+      success: true,
+      op: ac.opcodes.GrantRole,
+    })
+  })
 
   // it('successful update account - add admin account', async () => {
   //   const result = await timelockController.sendAddAccount(deployer.getSender(), {
