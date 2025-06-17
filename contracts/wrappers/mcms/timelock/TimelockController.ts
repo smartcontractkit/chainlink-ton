@@ -10,12 +10,12 @@ import {
   SendMode,
 } from '@ton/core'
 
-export type TimelockControllerConfig = {
+export type TimelockControllerStorage = {
   minDelay: number
-  adminAccounts: Dictionary<Buffer, Buffer>
-  proposerAccounts: Dictionary<Buffer, Buffer>
-  cancellerAccounts: Dictionary<Buffer, Buffer>
-  executorAccounts: Dictionary<Buffer, Buffer>
+  timestampCount?: number
+  timestamp?: Dictionary<Buffer, Buffer>
+
+  rbac: Cell
 }
 
 export type ExecuteData = {
@@ -26,38 +26,24 @@ export type ExecuteData = {
   msgToSend: Cell
 }
 
-export function createAccountsDictionary(accounts: Address[]): Dictionary<Buffer, Buffer> {
-  let dict = Dictionary.empty(Dictionary.Keys.Buffer(32), Dictionary.Values.Buffer(0))
-
-  for (let i = 0; i < accounts.length; i++) {
-    dict.set(accounts[i].hash, Buffer.alloc(0))
-  }
-
-  return dict
-}
-
-export function timelockControllerConfigToCell(config: TimelockControllerConfig): Cell {
-  return beginCell()
-    .storeUint(config.minDelay, 32)
-    .storeUint(0, 32) // timestamp_count
-    .storeRef(
-      beginCell()
-        .storeDict(config.adminAccounts)
-        .storeDict(config.proposerAccounts)
-        .storeDict(config.cancellerAccounts)
-        .storeDict(config.executorAccounts)
-        .endCell(),
-    )
-    .storeDict() // timestamps
-    .endCell()
+export const Builder = {
+  /// Creates a new `AccessControl_GrantRole` message.
+  asStorage: (config: TimelockControllerStorage): Cell => {
+    return beginCell()
+      .storeUint(config.minDelay, 32)
+      .storeUint(config.timestampCount || 0, 32) // timestamp_count
+      .storeDict(config.timestamp)
+      .storeRef(config.rbac)
+      .endCell()
+  },
 }
 
 export abstract class Params {
   static done_timestamp = 1
-  static admin_role = 0
-  static proposer_role = 1
-  static canceller_role = 2
-  static executor_role = 3
+  static admin_role = 0n
+  static proposer_role = 1n
+  static canceller_role = 2n
+  static executor_role = 3n
   static add_account = 0
   static remove_account = 1
   static unset_state = 0
@@ -106,8 +92,8 @@ export class TimelockController implements Contract {
     return new TimelockController(address)
   }
 
-  static createFromConfig(config: TimelockControllerConfig, code: Cell, workchain = 0) {
-    const data = timelockControllerConfigToCell(config)
+  static createFromConfig(config: TimelockControllerStorage, code: Cell, workchain = 0) {
+    const data = Builder.asStorage(config)
     const init = { code, data }
     return new TimelockController(contractAddress(workchain, init), init)
   }

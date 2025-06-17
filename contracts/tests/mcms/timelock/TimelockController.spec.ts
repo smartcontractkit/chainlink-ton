@@ -7,10 +7,9 @@ import {
   ExecuteData,
   Opcodes,
   Params,
+  Builder,
   TimelockController,
-  TimelockControllerConfig,
-  createAccountsDictionary,
-  timelockControllerConfigToCell,
+  TimelockControllerStorage,
 } from '../../../wrappers/mcms/timelock/TimelockController'
 
 import * as ac from '../../../wrappers/lib/access/AccessControl'
@@ -37,14 +36,27 @@ describe('TimelockController', () => {
     other = await blockchain.treasury('other')
     minDelay = 7
 
+    const roleData: ac.ContractRoleData = {
+      hasRole: ac.builder.data.encode().hasRoleDict([deployer.address]),
+      adminRole: 0n, // default admin role
+    }
+
+    const rbacStorage: ac.ContractData = {
+      roles: ac.builder.data.encode().rolesDict(
+        new Map([
+          [Params.admin_role, roleData],
+          [Params.proposer_role, roleData],
+          [Params.canceller_role, roleData],
+          [Params.executor_role, roleData],
+        ]),
+      ),
+    }
+
     timelockController = blockchain.openContract(
       TimelockController.createFromConfig(
         {
           minDelay: minDelay,
-          adminAccounts: createAccountsDictionary([deployer.address]),
-          proposerAccounts: createAccountsDictionary([deployer.address]),
-          cancellerAccounts: createAccountsDictionary([deployer.address]),
-          executorAccounts: createAccountsDictionary([deployer.address]),
+          rbac: ac.builder.data.encode().contractData(rbacStorage),
         },
         code,
       ),
@@ -79,21 +91,23 @@ describe('TimelockController', () => {
   })
 
   it('successfully parsed AccessControll opcode', async () => {
-    const body = ac.Builder.grantRole({ queryId: 1n, role: 1n, account: other.address })
+    const body = ac.builder.message
+      .encode()
+      .grantRole({ queryId: 1n, role: 1n, account: other.address })
     const result = await timelockController.sendInternal(deployer.getSender(), toNano('0.05'), body)
 
     expect(result.transactions).toHaveTransaction({
       from: deployer.address,
       to: timelockController.address,
       success: true,
-      op: ac.Opcodes.GrantRole,
+      op: ac.opcodes.GrantRole,
     })
   })
 
   it('successful update account - add admin account', async () => {
     const result = await timelockController.sendAddAccount(deployer.getSender(), {
       value: toNano('0.05'),
-      role: Params.admin_role,
+      role: Number(Params.admin_role),
       account: other.address,
     })
 
@@ -110,7 +124,7 @@ describe('TimelockController', () => {
   it('successful update account - add proposer account', async () => {
     const result = await timelockController.sendAddAccount(deployer.getSender(), {
       value: toNano('0.05'),
-      role: Params.proposer_role,
+      role: Number(Params.proposer_role),
       account: other.address,
     })
 
@@ -127,7 +141,7 @@ describe('TimelockController', () => {
   it('successful update account - add canceller account', async () => {
     const result = await timelockController.sendAddAccount(deployer.getSender(), {
       value: toNano('0.05'),
-      role: Params.canceller_role,
+      role: Number(Params.canceller_role),
       account: other.address,
     })
 
@@ -144,7 +158,7 @@ describe('TimelockController', () => {
   it('successful update account - add executor account', async () => {
     const result = await timelockController.sendAddAccount(deployer.getSender(), {
       value: toNano('0.05'),
-      role: Params.executor_role,
+      role: Number(Params.executor_role),
       account: other.address,
     })
 
@@ -161,7 +175,7 @@ describe('TimelockController', () => {
   it('successful update account - remove admin account', async () => {
     const result = await timelockController.sendRemoveAccount(deployer.getSender(), {
       value: toNano('0.05'),
-      role: Params.admin_role,
+      role: Number(Params.admin_role),
       account: deployer.address,
     })
 
@@ -178,7 +192,7 @@ describe('TimelockController', () => {
   it('successful update account - remove proposer account', async () => {
     const result = await timelockController.sendRemoveAccount(deployer.getSender(), {
       value: toNano('0.05'),
-      role: Params.proposer_role,
+      role: Number(Params.proposer_role),
       account: deployer.address,
     })
 
@@ -195,7 +209,7 @@ describe('TimelockController', () => {
   it('successful update account - remove canceller account', async () => {
     const result = await timelockController.sendRemoveAccount(deployer.getSender(), {
       value: toNano('0.05'),
-      role: Params.canceller_role,
+      role: Number(Params.canceller_role),
       account: deployer.address,
     })
 
@@ -212,7 +226,7 @@ describe('TimelockController', () => {
   it('successful update account - remove executor account', async () => {
     const result = await timelockController.sendRemoveAccount(deployer.getSender(), {
       value: toNano('0.05'),
-      role: Params.executor_role,
+      role: Number(Params.executor_role),
       account: deployer.address,
     })
 
@@ -229,7 +243,7 @@ describe('TimelockController', () => {
   it('invalid sender for update accounts: wrong_op', async () => {
     const result = await timelockController.sendAddAccount(other.getSender(), {
       value: toNano('0.05'),
-      role: Params.admin_role,
+      role: Number(Params.admin_role),
       account: other.address,
     })
 
@@ -245,7 +259,7 @@ describe('TimelockController', () => {
   it('account exists error for update accounts', async () => {
     const result = await timelockController.sendAddAccount(deployer.getSender(), {
       value: toNano('0.05'),
-      role: Params.admin_role,
+      role: Number(Params.admin_role),
       account: deployer.address,
     })
 
@@ -261,7 +275,7 @@ describe('TimelockController', () => {
   it('account not exists error for update accounts', async () => {
     const result = await timelockController.sendRemoveAccount(deployer.getSender(), {
       value: toNano('0.05'),
-      role: Params.admin_role,
+      role: Number(Params.admin_role),
       account: other.address,
     })
 
