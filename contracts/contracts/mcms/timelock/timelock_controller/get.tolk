@@ -53,7 +53,16 @@ get getOperationState(id: int): int {
     return READY_STATE;
 }
 
+// TODO: dummy type for AccessControlEnumerable
+struct Any {}
+
 get getHasRole(role: int, account: address): bool {
     val s = loadData();
-    return AccessControl_Data.fromCell(s.rbac).hasRole(role, account)
+    val ac = AccessControlEnumerable<Any> {
+        data: AccessControlEnumerable_Data.fromCell(s.rbac),
+        context: null, // No context or hooks needed for this check
+        hooks: null,
+    };
+
+    return ac.hasRole(role, account)
 }
