@@ -159,7 +159,7 @@ fun AccessControlEnumerable<T>.revokeRole(mutate self, queryId: uint64, role: in
         = self.hookTrait__AccessControl(); // hook into AccessControl<T> trait
     super.hooks!.revokeRole = null; // disable self to avoid recursion
 
-    return self.revokeRole(queryId, role, account, msgFull); // default implementation
+    return super.revokeRole(queryId, role, account, msgFull); // default implementation
 }
 
 /// @dev Attempts to revoke `role` from `account` and returns a boolean indicating if `role` was revoked.

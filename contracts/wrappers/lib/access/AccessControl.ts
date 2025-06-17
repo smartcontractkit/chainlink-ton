@@ -159,15 +159,15 @@ export class AccessControl implements Contract {
     })
   }
 
-  async sendGrantRole(p: ContractProvider, via: Sender, body: GrantRole, value: bigint = 0n) {
+  async sendGrantRole(p: ContractProvider, via: Sender, value: bigint = 0n, body: GrantRole) {
     return this.sendInternal(p, via, value, builder.message.encode().grantRole(body))
   }
 
-  async sendRevokeRole(p: ContractProvider, via: Sender, body: RevokeRole, value: bigint = 0n) {
+  async sendRevokeRole(p: ContractProvider, via: Sender, value: bigint = 0n, body: RevokeRole) {
     return this.sendInternal(p, via, value, builder.message.encode().revokeRole(body))
   }
 
-  async sendRenounceRole(p: ContractProvider, via: Sender, body: RenounceRole, value: bigint = 0n) {
+  async sendRenounceRole(p: ContractProvider, via: Sender, value: bigint = 0n, body: RenounceRole) {
     return this.sendInternal(p, via, value, builder.message.encode().renounceRole(body))
   }
 
