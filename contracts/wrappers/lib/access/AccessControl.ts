@@ -45,11 +45,11 @@ export type RenounceRole = {
 }
 
 /// @dev Union of all access control messages.
-export type Message = GrantRole | RevokeRole
+export type Message = GrantRole | RevokeRole | RenounceRole
 
 // AccessControl contract data struct
 export type ContractData = {
-  roles: Dictionary<Buffer, Cell>
+  roles: Dictionary<bigint, Cell>
 }
 
 /// Internal storage struct for role data
@@ -81,6 +81,7 @@ export const builder = {
           .storeAddress(msg.account)
           .endCell()
       },
+
       /// Creates a new `AccessControl_RevokeRole` message.
       revokeRole: (msg: RevokeRole): Cell => {
         return beginCell()
@@ -90,6 +91,7 @@ export const builder = {
           .storeAddress(msg.account)
           .endCell()
       },
+
       /// Creates a new `AccessControl_RenounceRole` message.
       renounceRole: (msg: RenounceRole): Cell => {
         return beginCell()
@@ -104,37 +106,82 @@ export const builder = {
   },
   data: {
     encode: () => {
-      // Creates a new `AccessControl_ContractData` contract data cell with the given roles.
-      const _encodeContractData = (data: ContractData): Cell => {
-        return beginCell().storeDict(data.roles).endCell()
-      }
-
-      // Creates a new `AccessControl_RoleData.hasRole` contract data cell with the given roles.
-      const _encodeHasRoleDict = (accounts: Address[]): Dictionary<Buffer, Buffer> => {
-        const dict = Dictionary.empty(Dictionary.Keys.Buffer(32), Dictionary.Values.Buffer(0))
-        const addAccountFn = (dict, account) => dict.set(account.hash, Buffer.alloc(0))
-        return accounts.reduce(addAccountFn, dict)
-      }
-
-      // Creates a new `AccessControl_RoleData` contract data cell with the given role data.
       const _encodeRoleData = (roleData: ContractRoleData): Cell => {
-        return beginCell().storeDict(roleData.hasRole).storeUint(roleData.adminRole, 256).endCell()
-      }
-
-      // Creates a new `AccessControl_Roles` contract data cell with the given roles.
-      const _encodeRolesDict = (roles: Map<bigint, ContractRoleData>): Dictionary<Buffer, Cell> => {
-        const dict = Dictionary.empty(Dictionary.Keys.BigUint(256), Dictionary.Values.Cell())
-        const addRoleDataFn = (dict, role) => dict.set(role, _encodeRoleData(roles.get(role)!))
-        return roles.keys().reduce(addRoleDataFn, dict)
+        return beginCell() // break line
+          .storeDict(roleData.hasRole)
+          .storeUint(roleData.adminRole, 256)
+          .endCell()
       }
 
       return {
-        contractData: _encodeContractData,
-        hasRoleDict: _encodeHasRoleDict,
+        // Creates a new `AccessControl_ContractData` contract data cell with the given roles.
+        contractData: (data: ContractData): Cell => {
+          return beginCell() // break line
+            .storeDict(data.roles)
+            .endCell()
+        },
+
+        // Creates a new `AccessControl_RoleData.hasRole` contract data cell with the given roles.
+        hasRoleDict: (accounts: Address[]): Dictionary<Buffer, Buffer> => {
+          const dict = Dictionary.empty(Dictionary.Keys.Buffer(32), Dictionary.Values.Buffer(0))
+          const addAccountFn = (dict, account) => dict.set(account.hash, Buffer.alloc(0))
+          return accounts.reduce(addAccountFn, dict)
+        },
+
+        // Creates a new `AccessControl_RoleData` contract data cell with the given role data.
         roleData: _encodeRoleData,
-        rolesDict: _encodeRolesDict,
+
+        // Creates a new `AccessControl_Data.roles` contract data cell with the given roles.
+        rolesDict: (roles: Map<bigint, ContractRoleData>): Dictionary<bigint, Cell> => {
+          const dict = Dictionary.empty(Dictionary.Keys.BigUint(256), Dictionary.Values.Cell())
+          const addRoleDataFn = (dict, role) => dict.set(role, _encodeRoleData(roles.get(role)!))
+          return roles.keys().reduce(addRoleDataFn, dict)
+        },
       }
     },
     decode: () => {}, // Decoding functions can be added here if needed
   },
+}
+
+// AccessControl contract bindings
+export class AccessControl implements Contract {
+  constructor(readonly address: Address) {}
+
+  static newFrom(address: Address): AccessControl {
+    return new AccessControl(address)
+  }
+
+  async sendInternal(p: ContractProvider, via: Sender, value: bigint, body: Cell) {
+    await p.internal(via, {
+      value: value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: body,
+    })
+  }
+
+  async sendGrantRole(p: ContractProvider, via: Sender, body: GrantRole, value: bigint = 0n) {
+    return this.sendInternal(p, via, value, builder.message.encode().grantRole(body))
+  }
+
+  async sendRevokeRole(p: ContractProvider, via: Sender, body: RevokeRole, value: bigint = 0n) {
+    return this.sendInternal(p, via, value, builder.message.encode().revokeRole(body))
+  }
+
+  async sendRenounceRole(p: ContractProvider, via: Sender, body: RenounceRole, value: bigint = 0n) {
+    return this.sendInternal(p, via, value, builder.message.encode().renounceRole(body))
+  }
+
+  async getHasRole(p: ContractProvider, role: bigint, account: Address) {
+    const result = await p.get('hasRole', [
+      {
+        type: 'int',
+        value: role,
+      },
+      {
+        type: 'slice',
+        cell: beginCell().storeAddress(account).endCell(),
+      },
+    ])
+    return result.stack.readBoolean()
+  }
 }
