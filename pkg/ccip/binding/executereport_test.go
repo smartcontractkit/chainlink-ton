@@ -25,6 +25,7 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 			Amount:            big.NewInt(10),
 		},
 	})
+	require.NoError(t, err)
 	rampMessageCell := Any2TONRampMessage{
 		Header: RampMessageHeader{
 			MessageID:           make([]byte, 32),
@@ -46,6 +47,7 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 			Sig: make([]byte, 64),
 		},
 	})
+	require.NoError(t, err)
 
 	report := ExecuteReport{
 		SourceChainSelector: 1,
