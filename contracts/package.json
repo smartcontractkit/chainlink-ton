@@ -36,7 +36,9 @@
     "prettier": "^3.5.3",
     "ts-jest": "^29.3.1",
     "ts-node": "^10.9.2",
-    "typescript": "^5.8.3",
-    "crc-32": "^1.2.2"
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "zlib": "^1.0.5"
   }
 }

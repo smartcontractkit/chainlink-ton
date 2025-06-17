@@ -18,13 +18,13 @@ struct Ownable2Step {
 // --- Message Structs ---
 
 /// Message sent by the owner to transfer ownership of a contract.
-struct (0x00000101) Ownable2Step_TransferOwnership {
+struct (0xF21B7DA1) Ownable2Step_TransferOwnership {
     queryId: uint64;
     newOwner: address;
 }
 
 /// Message sent by the pending owner to accept ownership of a contract.
-struct (0x00000102) Ownable2Step_AcceptOwnership {
+struct (0xF9E29E4A) Ownable2Step_AcceptOwnership {
     queryId: uint64;
 }
 

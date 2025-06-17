@@ -134,8 +134,8 @@ The module exposes a single message handler, `onInternalMessage`, which processe
 
 | Message                        | Opcode       | Description                                        |
 | ------------------------------ | ------------ | -------------------------------------------------- |
-| `Ownable2Step_TransferOwnership` | `0x00000101` | Initiates an ownership transfer to a `newOwner`.   |
-| `Ownable2Step_AcceptOwnership`   | `0x00000102` | Sent by the pending owner to accept the ownership. |
+| `Ownable2Step_TransferOwnership` | `0xF21B7DA1` | Initiates an ownership transfer to a `newOwner`.   |
+| `Ownable2Step_AcceptOwnership`   | `0xF9E29E4A` | Sent by the pending owner to accept the ownership. |
 
 ---
 

@@ -1,8 +1,13 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Address, toNano } from '@ton/core'
-import { OwnableCounter, OwnableCounterStorage } from '../wrappers/access/tolk_OwnableCounter'
+import {
+  OwnableCounter,
+  OwnableCounterStorage,
+  Opcodes,
+} from '../wrappers/access/tolk_OwnableCounter'
 import '@ton/test-utils'
 import { compile } from '@ton/blueprint'
+import { crc32 } from 'zlib'
 
 const ERROR_ONLY_CALLABLE_BY_OWNER = 132
 const ERROR_CANNOT_TRANSFER_TO_SELF = 1001
@@ -243,5 +248,10 @@ describe('Ownable2Step Counter', () => {
       exitCode: ERROR_CANNOT_TRANSFER_TO_SELF,
       success: false,
     })
+  })
+
+  it('Test11: OpCodes are computed correctly', () => {
+    expect(Opcodes.OP_TRANSFER_OWNERSHIP === crc32('Ownable2Step_TransferOwnership'))
+    expect(Opcodes.OP_ACCEPT_OWNERHSIP === crc32('Ownable2Step_AcceptOwnership'))
   })
 })
