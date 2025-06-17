@@ -10,8 +10,8 @@ import {
 } from '@ton/core'
 
 export type Ownable2Step = {
-    owner: Address,
-    pendingOwner: Address | null
+  owner: Address
+  pendingOwner: Address | null
 }
 
 export type OwnableCounterStorage = {
@@ -26,16 +26,15 @@ export function counterConfigToCell(config: OwnableCounterStorage): Cell {
     .storeUint(config.count, 32)
     .storeAddress(config.ownable.owner)
 
-    if (config.ownable.pendingOwner) {
-        builder
-          .storeBit(1) // Store '1' to indicate the address is present
-          .storeAddress(config.ownable.pendingOwner); // Then store the address
-    } else {
-        builder.storeBit(0); // Store '0' to indicate the address is absent
-    }
+  if (config.ownable.pendingOwner) {
+    builder
+      .storeBit(1) // Store '1' to indicate the address is present
+      .storeAddress(config.ownable.pendingOwner) // Then store the address
+  } else {
+    builder.storeBit(0) // Store '0' to indicate the address is absent
+  }
 
-    return builder.endCell()
-
+  return builder.endCell()
 }
 
 export const Opcodes = {
@@ -108,7 +107,7 @@ export class OwnableCounter implements Contract {
     })
   }
 
-   async sendAcceptOwnership(
+  async sendAcceptOwnership(
     provider: ContractProvider,
     via: Sender,
     opts: {
@@ -126,8 +125,7 @@ export class OwnableCounter implements Contract {
     })
   }
 
-
-async getCounter(provider: ContractProvider): Promise<number> {
+  async getCounter(provider: ContractProvider): Promise<number> {
     const result = await provider.get('counter', [])
     return result.stack.readNumber()
   }
@@ -142,5 +140,3 @@ async getCounter(provider: ContractProvider): Promise<number> {
     return result.stack.readNumber()
   }
 }
-
-
