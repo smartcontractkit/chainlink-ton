@@ -8,16 +8,12 @@ import {
   Sender,
   SendMode,
 } from '@ton/core'
-
-export type Ownable2Step = {
-  owner: Address
-  pendingOwner: Address | null
-}
+import { Ownable2Step, Ownable2StepConfig } from '../../libraries/access/Ownable2Step'
 
 export type OwnableCounterStorage = {
   id: number
   count: number
-  ownable: Ownable2Step
+  ownable: Ownable2StepConfig
 }
 
 export function counterConfigToCell(config: OwnableCounterStorage): Cell {
@@ -39,15 +35,16 @@ export function counterConfigToCell(config: OwnableCounterStorage): Cell {
 
 export const Opcodes = {
   OP_SET_COUNT: 0x00000001,
-  OP_TRANSFER_OWNERSHIP: 0xf21b7da1,
-  OP_ACCEPT_OWNERHSIP: 0xf9e29e4a,
 }
 
-export class OwnableCounter implements Contract {
+export class OwnableCounter extends Ownable2Step {
+
   constructor(
     readonly address: Address,
     readonly init?: { code: Cell; data: Cell },
-  ) {}
+  ) {
+    super()
+  }
 
   static createFromAddress(address: Address) {
     return new OwnableCounter(address)
@@ -83,44 +80,6 @@ export class OwnableCounter implements Contract {
         .storeUint(Opcodes.OP_SET_COUNT, 32)
         .storeUint(opts.queryId ?? 0, 64)
         .storeUint(opts.count, 32)
-        .endCell(),
-    })
-  }
-
-  async sendTransferOwnership(
-    provider: ContractProvider,
-    via: Sender,
-    opts: {
-      value: bigint
-      queryId?: number
-      newOwner: Address
-    },
-  ) {
-    await provider.internal(via, {
-      value: opts.value,
-      sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: beginCell()
-        .storeUint(Opcodes.OP_TRANSFER_OWNERSHIP, 32)
-        .storeUint(opts.queryId ?? 0, 64)
-        .storeAddress(opts.newOwner)
-        .endCell(),
-    })
-  }
-
-  async sendAcceptOwnership(
-    provider: ContractProvider,
-    via: Sender,
-    opts: {
-      value: bigint
-      queryId?: number
-    },
-  ) {
-    await provider.internal(via, {
-      value: opts.value,
-      sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: beginCell()
-        .storeUint(Opcodes.OP_ACCEPT_OWNERHSIP, 32)
-        .storeUint(opts.queryId ?? 0, 64)
         .endCell(),
     })
   }
