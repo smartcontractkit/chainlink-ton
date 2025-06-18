@@ -2,9 +2,9 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Address, toNano } from '@ton/core'
 import {
   OwnableCounter,
-  OwnableCounterStorage,
+ OwnableCounterStorage,
   Opcodes,
-} from '../wrappers/access/tolk_OwnableCounter'
+} from '../wrappers/lib/access/OwnableCounter'
 import '@ton/test-utils'
 import { compile } from '@ton/blueprint'
 import { crc32 } from 'zlib'
