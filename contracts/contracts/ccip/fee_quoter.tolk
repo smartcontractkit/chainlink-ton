@@ -1,4 +1,5 @@
 import "types.tolk";
+import "../deployable/types.tolk";
 import "utils.tolk";
 
 struct Storage {
@@ -11,15 +12,19 @@ struct Storage {
     // NOTE: for now we're embedding token/gas price data
     usdPerToken: Map<TimestampedPrice>; // (sdict len=36*8) address -> TimestampedPrice
     // TODO: can this sit on DestChain?
-    usdPerUnitGasByDestChain: UMap<uint64, TimestampedPrice>; // (idict len=32) chainSelector -> TimestampedPrice
+    usdPerUnitGasByDestChain: UMap<uint64, TimestampedPrice>; // (idict len=64) chainSelector -> TimestampedPrice
 
-    // premium_multiplier_wei_per_eth? how do we handle this
+    premiumMultiplierWeiPerEth: Map<uint64>; // (sdict len=36*8) token address -> multiplier
 
     // TODO: both fee quoter and onramp store DestChainConfig, can we share a single subcontract?
 }
 
 fun Storage.load() {
     return Storage.fromCell(contract.getData());
+}
+
+fun Storage.store(self) {
+    return contract.setData(self.toCell());
 }
 
 struct TimestampedPrice {
@@ -40,9 +45,8 @@ fun onUpdatePrices(priceUpdates: PriceUpdates) {
     while (!iter.empty()) {
         val update = iter.next();
 
-        // TODO: having to set len here isn't ideal
         st.usdPerToken.set(update.sourceToken as slice, TimestampedPrice {
-            value: update.usdPerToken as uint224,
+            value: update.usdPerToken,
             timestamp
         })
     }
@@ -51,9 +55,8 @@ fun onUpdatePrices(priceUpdates: PriceUpdates) {
     while (!iter2.empty()) {
         val update = iter2.next();
 
-        // TODO: having to set len here isn't ideal
         st.usdPerUnitGasByDestChain.set(update.destChainSelector, TimestampedPrice {
-            value: update.usdPerUnitGas as uint224,
+            value: update.usdPerUnitGas,
             timestamp
         })
     }
@@ -61,14 +64,35 @@ fun onUpdatePrices(priceUpdates: PriceUpdates) {
     // TODO: persist state changes
 }
 
-fun onGetValidatedFee(destChainSelector: uint64, msg: CCIPSend) {
-    // let addr = initOf(DestChainConfig, self, destChainSelector)
+fun onGetValidatedFee(msg: CCIPSend) {
     // call getValidatedFee on DestChainConfig
+    val getValidatedFeeMsg = createMessage({
+        bounce: true,
+        value: 0,
+        dest: {
+            stateInit: {
+                code: createEmptyCell(),
+                data: Deployable {
+                    owner: contract.getAddress(),
+                    ty: 2, // TODO: alias constant for DestChainConfig
+                    id: msg.destChainSelector.toCell(),
+                }.toCell(),
+            }
+        }
+        // TODO:
+        // body: GetValidatedFee {}
+    })
+    // NOTE: this can get bounced if dest chain doesn't exist, in which case we should send
+    // an error notification to the user and refund
+
     // pass through information on token/jetton amounts
 }
 
 fun onMessageValidated(msg: null) {
     // convert gas cost to actual fee
+    // total_cost_usd = gas * gas_cost + premium_fee_usd_wei + data_availability_cost_usd;
+    // fee_token_cost = total_cost_usd / fee_token_price.value
+
     // validate user transferred enough value
     // else refund and notify
     // call publish on onramp

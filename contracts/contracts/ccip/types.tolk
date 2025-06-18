@@ -39,14 +39,21 @@ struct PriceUpdates {
 
 struct TokenPriceUpdate {
     sourceToken: address; // This is the local token
-    usdPerToken: uint256;
+    usdPerToken: uint224;
 }
 
 struct GasPriceUpdate {
     destChainSelector: uint64;
-    usdPerUnitGas: uint256;
+    usdPerUnitGas: uint224;
 }
 
 struct (0x10000001) GetValidatedFee {
     msg: CCIPSend
 }
+
+// Errors
+
+
+const ERROR_UNKNOWN_DEST_CHAIN_SELECTOR: int = 0x1;
+const ERROR_DEST_CHAIN_NOT_ENABLED: int = 0x2;
+const ERROR_FEE_TOKEN_NOT_SUPPORTED: int = 0x3;
