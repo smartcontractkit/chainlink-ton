@@ -2,9 +2,6 @@ tolk 0.99
 
 import "@stdlib/tvm-dicts";
 
-
-// --- Utils (composability) ---
-
 // --- Message structs ---
 
 /// @dev Grants `role` to `account`.
@@ -103,19 +100,13 @@ struct AccessControl_RoleData {
 
 struct AccessControl_Hooks<T> {
     // Hook to get the sender of the message.
-    _msgSender: ((T, cell) -> address)?;
+    msgSender: ((T, cell) -> address)?;
 
-    // Hook to grant a role.
-    grantRole: ((T, uint64, int, address, cell) -> bool)?;
+    // Hook before granting a role.
+    shouldGrantRole: ((T, uint64, int, address) -> void)?;
 
-    // Hook to revoke a role.
-    revokeRole: ((T, uint64, int, address, cell) -> bool)?;
-
-    // Hook (underlying) to grant a role.
-    _grantRole: ((T, uint64, int, address) -> bool)?;
-
-    // Hook (underlying) to revoke a role.
-    _revokeRole: ((T, uint64, int, address) -> bool)?;
+    // Hook before revoking a role.
+    shouldRevokeRole: ((T, uint64, int, address) -> void)?;
 }
 
 // --- Constants ---
@@ -129,10 +120,10 @@ const ERROR_ACCESS_CONTROL_BAD_CONFIRMATION = 91;
 
 /// @dev Returns the sender of the message.
 ///
-/// Override available via {AccessControl_Hooks<T>._msgSender} hook.
-fun AccessControl<T>._msgSender(self, msgFull: cell): address {
-    if (self.hooks != null && self.hooks._msgSender != null) {
-        return self.hooks._msgSender(self.context!, msgFull); // extension hook
+/// Override available via {AccessControl_Hooks<T>.msgSender} hook.
+fun AccessControl<T>.msgSender(self, msgFull: cell): address {
+    if (self.hooks != null && self.hooks.msgSender != null) {
+        return self.hooks.msgSender(self.context!, msgFull); // extension hook
     }
 
     // Fallback to parsing the message body to get the sender
@@ -152,9 +143,6 @@ fun AccessControl<T>.onlyRole(self, role: int, msgFull: cell) {
 
 // @dev Returns `true` if `account` has been granted `role`.
 fun AccessControl<T>.hasRole(self, role: int, account: address): bool {
-    debug.printString("ACCESS CONTROL ENUM: called");
-    debug.print(role);
-
     // Check if the role is valid
     val (data, exists) = self.data.roles.uDictGetRef(256, role);
     if (!exists) {
@@ -168,11 +156,11 @@ fun AccessControl<T>.hasRole(self, role: int, account: address): bool {
     return accExists;
 }
 
-/// @dev Revert with a standard message if `_msgSender()` is missing `role`.
+/// @dev Revert with a standard message if `msgSender()` is missing `role`.
 ///
 /// Format of the revert message is described in {_checkRole}.
 fun AccessControl<T>.checkRoleSender(self, role: int, msgFull: cell) {
-    val sender = self._msgSender(msgFull);
+    val sender = self.msgSender(msgFull);
     self.checkRole(role, sender);
 }
 
@@ -206,15 +194,7 @@ fun AccessControl<T>.getRoleAdmin(self, role: int): int {
 /// - the caller must have `role`'s admin role.
 ///
 /// Emits a {RoleGranted} event if `role` was granted.
-/// Override available via {AccessControl_Hooks<T>.grantRole} hook.
 fun AccessControl<T>.grantRole(mutate self, queryId: uint64, role: int, account: address, msgFull: cell): bool {
-    if (self.hooks != null && self.hooks.grantRole != null) {
-        return self.hooks.grantRole(self.context!, queryId, role, account, msgFull); // extension hook
-    }
-
-    debug.printString("ACCESS CONTROL #grantRole");
-    debug.print(role);
-
     self.onlyRole(self.getRoleAdmin(role), msgFull);
     return self._grantRole(queryId, role, account); // default implementation
 }
@@ -225,12 +205,7 @@ fun AccessControl<T>.grantRole(mutate self, queryId: uint64, role: int, account:
 /// - the caller must have `role`'s admin role.
 ///
 /// Emits a {RoleRevoked} event if `role` was revoked.
-/// Override available via {AccessControl_Hooks<T>.revokeRole} hook.
 fun AccessControl<T>.revokeRole(mutate self, queryId: uint64, role: int, account: address, msgFull: cell): bool {
-    if (self.hooks != null && self.hooks.revokeRole != null) {
-        return self.hooks.revokeRole(self.context!, queryId, role, account, msgFull); // extension hook
-    }
-
     self.onlyRole(self.getRoleAdmin(role), msgFull);
     return self._revokeRole(queryId, role, account);
 }
@@ -249,7 +224,7 @@ fun AccessControl<T>.revokeRole(mutate self, queryId: uint64, role: int, account
 ///
 /// May emit a {RoleRevoked} event.
 fun AccessControl<T>.renounceRole(mutate self, queryId: uint64, role: int, callerConfirmation: address, msgFull: cell): bool {
-    val sender = self._msgSender(msgFull);
+    val sender = self.msgSender(msgFull);
     if (callerConfirmation != sender) {
         throw(ERROR_ACCESS_CONTROL_BAD_CONFIRMATION); // TODO: attach error arguments
     }
@@ -278,8 +253,8 @@ fun AccessControl<T>._setRoleAdmin(mutate self, queryId: uint64, role: int, admi
 ///
 /// Emits a {RoleGranted} event if `role` was granted.
 fun AccessControl<T>._grantRole(mutate self, queryId: uint64, role: int, account: address): bool {
-    if (self.hooks != null && self.hooks._grantRole != null) {
-        return self.hooks._grantRole(self.context!, queryId, role, account); // extension hook
+    if (self.hooks != null && self.hooks.shouldGrantRole != null) {
+        self.hooks.shouldGrantRole(self.context!, queryId, role, account); // extension hook
     }
 
     // Default implementation of granting a role
@@ -289,23 +264,13 @@ fun AccessControl<T>._grantRole(mutate self, queryId: uint64, role: int, account
     val (_, key) = account.getWorkchainAndHash();
     val (_, exists) = d.hasRole.uDictGet(256, key);
 
-    debug.printString("ACCESS CONTROL #_grantRole 1");
-    debug.print(role);
-    debug.print(d);
-
     if (exists) {
         return false; // nothing to do
     }
 
     // Add the account to the role
     d.hasRole.uDictSet(256, key, createEmptySlice());
-    // TODO: emit RoleGranted(role, account, _msgSender());
-
-    val (_, exists2) = d.hasRole.uDictGet(256, key);
-
-    debug.printString("ACCESS CONTROL #_grantRole 2");
-    debug.print(role);
-    debug.print(d);
+    // TODO: emit RoleGranted(role, account, msgSender());
 
     // Save the updated role data
     self.data.roles.uDictSetRef(256, role, d.toCell());
@@ -318,8 +283,8 @@ fun AccessControl<T>._grantRole(mutate self, queryId: uint64, role: int, account
 ///
 /// Emits a {RoleRevoked} event if `role` was revoked.
 fun AccessControl<T>._revokeRole(mutate self, queryId: uint64, role: int, account: address): bool {
-    if (self.hooks != null && self.hooks._revokeRole != null) {
-        return self.hooks._revokeRole(self.context!, queryId, role, account); // extension hook
+    if (self.hooks != null && self.hooks.shouldRevokeRole != null) {
+        self.hooks.shouldRevokeRole(self.context!, queryId, role, account); // extension hook
     }
 
     // Default implementation of revoking a role
@@ -335,7 +300,7 @@ fun AccessControl<T>._revokeRole(mutate self, queryId: uint64, role: int, accoun
 
     // Remove the account from the role
     d.hasRole.uDictDelete(256, key);
-    // TODO: emit RoleRevoked(role, account, _msgSender());
+    // TODO: emit RoleRevoked(role, account, msgSender());
 
     // Save the updated role data
     self.data.roles.uDictSetRef(256, role, d.toCell());
@@ -376,17 +341,20 @@ fun AccessControl<T>.get_getRoleAdmin(self, role: int): int {
    return self.getRoleAdmin(role)
 }
 
-// --- Message handler ---
+// --- Message handlers ---
 
 @inline
 fun AccessControl<T>.onInternalMessage(mutate self, myBalance: int, msgValue: int, msgFull: cell, msgBody: slice) {
-    var msg: AccessControl_Message;
     try {
-        msg = AccessControl_Message.fromSlice(msgBody);
+        val msg = AccessControl_Message.fromSlice(msgBody);
+        return self.onInternalMessageStruct(myBalance, msgValue, msgFull, msg);
     } catch(exitCode) {
         return 0; // unknown message, not handled
     }
+}
 
+@inline
+fun AccessControl<T>.onInternalMessageStruct(mutate self, myBalance: int, msgValue: int, msgFull: cell, msg: AccessControl_Message) {
     match (msg) {
         AccessControl_GrantRole => {
             self.grantRole(msg.queryId, msg.role, msg.account, msgFull);
