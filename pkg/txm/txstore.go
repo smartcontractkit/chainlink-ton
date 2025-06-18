@@ -19,20 +19,21 @@ type UnconfirmedTx struct {
 type FinalizedTx struct {
 	ReceivedMessage tonutils.ReceivedMessage
 	ExitCode        tonutils.ExitCode
+	TraceSucceeded  bool
 }
 
 // TxStore tracks broadcast & unconfirmed txs per account address per chain id
 type TxStore struct {
 	lock sync.RWMutex
 
-	unconfirmedTxs      map[uint64]*UnconfirmedTx // broadcasted transactions awaiting trace finalization
-	finalizedErroredTxs map[uint64]*FinalizedTx   // finalized and errored transactions held onto for status
+	unconfirmedTxs map[uint64]*UnconfirmedTx // broadcasted transactions awaiting trace finalization
+	finalizedTxs   map[uint64]*FinalizedTx   // finalized and errored transactions held onto for status
 }
 
 func NewTxStore() *TxStore {
 	return &TxStore{
-		unconfirmedTxs:      map[uint64]*UnconfirmedTx{},
-		finalizedErroredTxs: map[uint64]*FinalizedTx{},
+		unconfirmedTxs: map[uint64]*UnconfirmedTx{},
+		finalizedTxs:   map[uint64]*FinalizedTx{},
 	}
 }
 
@@ -42,7 +43,10 @@ func (s *TxStore) AddUnconfirmed(lt uint64, expirationMs uint64, tx *Tx) error {
 	defer s.lock.Unlock()
 
 	if _, exists := s.unconfirmedTxs[lt]; exists {
-		return fmt.Errorf("hash already exists: %d", lt)
+		return fmt.Errorf("tx already exists: %d", lt)
+	}
+	if _, exists := s.finalizedTxs[lt]; exists {
+		return fmt.Errorf("tx already exists: %d", lt)
 	}
 
 	s.unconfirmedTxs[lt] = &UnconfirmedTx{
@@ -61,17 +65,19 @@ func (s *TxStore) MarkFinalized(lt uint64, success bool, exitCode tonutils.ExitC
 
 	unconfirmedTx, exists := s.unconfirmedTxs[lt]
 	if !exists {
-		return fmt.Errorf("no such unconfirmed hash: %d", lt)
+		return fmt.Errorf("no such unconfirmed tx: %d", lt)
+	}
+	if _, exists := s.finalizedTxs[lt]; exists {
+		return fmt.Errorf("tx already finalized: %d", lt)
 	}
 
 	delete(s.unconfirmedTxs, lt)
 
-	if !success {
-		// move transaction to finalized errored map
-		s.finalizedErroredTxs[lt] = &FinalizedTx{
-			ReceivedMessage: unconfirmedTx.Tx.ReceivedMessage,
-			ExitCode:        exitCode,
-		}
+	// move transaction to finalized map
+	s.finalizedTxs[lt] = &FinalizedTx{
+		ReceivedMessage: unconfirmedTx.Tx.ReceivedMessage,
+		ExitCode:        exitCode,
+		TraceSucceeded:  success,
 	}
 
 	return nil
