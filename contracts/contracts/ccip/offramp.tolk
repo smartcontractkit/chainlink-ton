@@ -145,7 +145,8 @@ fun commit(msg: Commit) {
         updatePricesMsg.send(SEND_MODE_REGULAR);
     }
 
-    var roots = Iterator<MerkleRoot>.new(report.unblessedMerkleRoots, 512);
+    // TODO: assert cells are well-formed
+    var roots = Iterator<MerkleRoot>.new(report.unblessedMerkleRoots);
     // TODO: also iterate over blessed roots
 
     while (!roots.empty()) {

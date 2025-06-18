@@ -41,7 +41,8 @@ fun onUpdatePrices(priceUpdates: PriceUpdates) {
     var st = Storage.load();
     val timestamp = blockchain.now();
 
-    var iter = Iterator<TokenPriceUpdate>.new(priceUpdates.tokenPriceUpdates, 36*8+256);
+    // TODO: assert cells are well-formed
+    var iter = Iterator<TokenPriceUpdate>.new(priceUpdates.tokenPriceUpdates);
     while (!iter.empty()) {
         val update = iter.next();
 
@@ -51,7 +52,7 @@ fun onUpdatePrices(priceUpdates: PriceUpdates) {
         })
     }
 
-    var iter2 = Iterator<GasPriceUpdate>.new(priceUpdates.gasPriceUpdates, 64+256);
+    var iter2 = Iterator<GasPriceUpdate>.new(priceUpdates.gasPriceUpdates);
     while (!iter2.empty()) {
         val update = iter2.next();
 
