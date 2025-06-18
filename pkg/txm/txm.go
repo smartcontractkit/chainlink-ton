@@ -9,7 +9,6 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/loop"
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
-	commontypes "github.com/smartcontractkit/chainlink-common/pkg/types"
 	"github.com/smartcontractkit/chainlink-common/pkg/utils"
 	commonutils "github.com/smartcontractkit/chainlink-common/pkg/utils"
 	"github.com/smartcontractkit/chainlink-ton/tonutils"
@@ -35,6 +34,7 @@ type Txm struct {
 }
 
 type Request struct {
+	Mode            uint8           // Send mode for TON message
 	FromWallet      wallet.Wallet   // Source wallet address
 	ContractAddress address.Address // Destination contract or wallet address
 	Body            *cell.Cell      // Encoded message body (method + params)
@@ -106,6 +106,7 @@ func (t *Txm) Enqueue(request Request) error {
 	}
 
 	tx := &Tx{
+		Mode:        request.Mode,
 		From:        *request.FromWallet.Address(),
 		To:          request.ContractAddress,
 		Amount:      request.Amount,
@@ -159,7 +160,7 @@ func (t *Txm) broadcastLoop() {
 			}
 
 			msg := &wallet.Message{
-				Mode:            1, // Pay fees from amount,
+				Mode:            tx.Mode,
 				InternalMessage: internalMsg,
 			}
 
@@ -292,19 +293,14 @@ func (t *Txm) checkUnconfirmed() {
 			exitCode := receivedMessage.OutcomeExitCode()
 			traceSucceeded := receivedMessage.TraceSucceeded()
 
+			if err := txStore.MarkFinalized(unconfirmedTx.LT, traceSucceeded, exitCode); err != nil {
+				t.Logger.Errorw("failed to mark tx as finalized in TxStore", "LT", unconfirmedTx.LT, "error", err)
+				continue
+			}
+
 			if traceSucceeded {
-				if err := txStore.Confirm(unconfirmedTx.LT); err != nil {
-					t.Logger.Errorw("failed to confirm tx in TxStore", "LT", unconfirmedTx.LT, "error", err)
-					continue
-				}
-				tx.Status = commontypes.Finalized
 				t.Logger.Infow("transaction confirmed", "LT", unconfirmedTx.LT, "status", msgStatus, "exitCode", exitCode)
 			} else {
-				if err := txStore.Confirm(unconfirmedTx.LT); err != nil {
-					t.Logger.Errorw("failed to confirm tx in TxStore", "LT", unconfirmedTx.LT, "error", err)
-					continue
-				}
-				tx.Status = commontypes.Failed
 				t.Logger.Warnw("transaction failed", "LT", unconfirmedTx.LT, "status", msgStatus, "exitCode", exitCode)
 			}
 		}

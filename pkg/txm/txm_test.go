@@ -87,6 +87,7 @@ func runTxmTest(t *testing.T, logger logger.Logger, config txm.Config, tonChain 
 	// 2. Send deploy tx
 	body := cell.BeginCell().EndCell()
 	err = tonTxm.Enqueue(txm.Request{
+		Mode:            wallet.PayGasSeparately,
 		FromWallet:      *tonChain.Wallet,
 		ContractAddress: *counterAddr,
 		Amount:          tlb.MustFromTON("0.05"),
@@ -114,6 +115,7 @@ func runTxmTest(t *testing.T, logger logger.Logger, config txm.Config, tonChain 
 		require.NoError(t, err)
 
 		err = tonTxm.Enqueue(txm.Request{
+			Mode:            wallet.PayGasSeparately,
 			FromWallet:      *tonChain.Wallet,
 			ContractAddress: *counterAddr,
 			Amount:          tlb.MustFromTON("0.05"),
@@ -128,6 +130,7 @@ func runTxmTest(t *testing.T, logger logger.Logger, config txm.Config, tonChain 
 		require.NoError(t, err)
 
 		err = tonTxm.Enqueue(txm.Request{
+			Mode:            wallet.PayGasSeparately,
 			FromWallet:      *tonChain.Wallet,
 			ContractAddress: *counterAddr,
 			Amount:          tlb.MustFromTON("0.05"),

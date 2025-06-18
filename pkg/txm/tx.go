@@ -3,7 +3,6 @@ package txm
 import (
 	"time"
 
-	commontypes "github.com/smartcontractkit/chainlink-common/pkg/types"
 	"github.com/smartcontractkit/chainlink-ton/tonutils"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
@@ -11,15 +10,15 @@ import (
 )
 
 type Tx struct {
-	From            address.Address // wallet used to send the message
-	To              address.Address // destination address
-	Amount          tlb.Coins       // amount to send
-	Body            *cell.Cell      // optional body to attach
-	StateInit       *cell.Cell      // optional, for deploying new contracts
-	Bounceable      bool            // whether the destination is bounceable
-	CreatedAt       time.Time       // when the tx was first enqueued
-	Expiration      time.Time       // expiration timestamp based on TTL
-	EstimateGas     bool            // whether to simulate before sending
-	Status          commontypes.TransactionStatus
-	ReceivedMessage tonutils.ReceivedMessage
+	Mode            uint8                    // send mode bitmask, controls how the TON message is processed
+	From            address.Address          // wallet used to send the message
+	To              address.Address          // destination address
+	Amount          tlb.Coins                // amount to send
+	Body            *cell.Cell               // optional body to attach
+	StateInit       *cell.Cell               // optional, for deploying new contracts
+	Bounceable      bool                     // whether the destination is bounceable
+	CreatedAt       time.Time                // when the tx was first enqueued
+	Expiration      time.Time                // expiration timestamp based on TTL
+	EstimateGas     bool                     // whether to simulate before sending
+	ReceivedMessage tonutils.ReceivedMessage // received message
 }

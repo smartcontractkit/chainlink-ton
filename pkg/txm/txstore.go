@@ -5,6 +5,8 @@ import (
 	"sort"
 	"sync"
 
+	"github.com/smartcontractkit/chainlink-ton/tonutils"
+
 	"golang.org/x/exp/maps"
 )
 
@@ -14,16 +16,23 @@ type UnconfirmedTx struct {
 	Tx           *Tx
 }
 
+type FinalizedTx struct {
+	ReceivedMessage tonutils.ReceivedMessage
+	ExitCode        tonutils.ExitCode
+}
+
 // TxStore tracks broadcast & unconfirmed txs per account address per chain id
 type TxStore struct {
 	lock sync.RWMutex
 
-	unconfirmedTxes map[uint64]*UnconfirmedTx
+	unconfirmedTxs      map[uint64]*UnconfirmedTx // broadcasted transactions awaiting trace finalization
+	finalizedErroredTxs map[uint64]*FinalizedTx   // finalized and errored transactions held onto for status
 }
 
 func NewTxStore() *TxStore {
 	return &TxStore{
-		unconfirmedTxes: map[uint64]*UnconfirmedTx{},
+		unconfirmedTxs:      map[uint64]*UnconfirmedTx{},
+		finalizedErroredTxs: map[uint64]*FinalizedTx{},
 	}
 }
 
@@ -32,11 +41,11 @@ func (s *TxStore) AddUnconfirmed(lt uint64, expirationMs uint64, tx *Tx) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	if _, exists := s.unconfirmedTxes[lt]; exists {
+	if _, exists := s.unconfirmedTxs[lt]; exists {
 		return fmt.Errorf("hash already exists: %d", lt)
 	}
 
-	s.unconfirmedTxes[lt] = &UnconfirmedTx{
+	s.unconfirmedTxs[lt] = &UnconfirmedTx{
 		LT:           lt,
 		ExpirationMs: expirationMs,
 		Tx:           tx,
@@ -46,15 +55,25 @@ func (s *TxStore) AddUnconfirmed(lt uint64, expirationMs uint64, tx *Tx) error {
 }
 
 // Confirm marks a transaction as confirmed and removes it by LT.
-func (s *TxStore) Confirm(lt uint64) error {
+func (s *TxStore) MarkFinalized(lt uint64, success bool, exitCode tonutils.ExitCode) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	if _, exists := s.unconfirmedTxes[lt]; !exists {
+	unconfirmedTx, exists := s.unconfirmedTxs[lt]
+	if !exists {
 		return fmt.Errorf("no such unconfirmed hash: %d", lt)
 	}
 
-	delete(s.unconfirmedTxes, lt)
+	delete(s.unconfirmedTxs, lt)
+
+	if !success {
+		// move transaction to finalized errored map
+		s.finalizedErroredTxs[lt] = &FinalizedTx{
+			ReceivedMessage: unconfirmedTx.Tx.ReceivedMessage,
+			ExitCode:        exitCode,
+		}
+	}
+
 	return nil
 }
 
@@ -63,7 +82,7 @@ func (s *TxStore) GetUnconfirmed() []*UnconfirmedTx {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 
-	unconfirmed := maps.Values(s.unconfirmedTxes)
+	unconfirmed := maps.Values(s.unconfirmedTxs)
 
 	sort.Slice(unconfirmed, func(i, j int) bool {
 		return unconfirmed[i].ExpirationMs < unconfirmed[j].ExpirationMs
@@ -75,7 +94,7 @@ func (s *TxStore) GetUnconfirmed() []*UnconfirmedTx {
 func (s *TxStore) InflightCount() int {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
-	return len(s.unconfirmedTxes)
+	return len(s.unconfirmedTxs)
 }
 
 type AccountStore struct {
