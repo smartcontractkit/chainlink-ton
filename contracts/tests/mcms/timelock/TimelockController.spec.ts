@@ -101,7 +101,7 @@ describe('TimelockController', () => {
   it('successfully parsed AccessControll opcode', async () => {
     const body = ac.builder.message
       .encode()
-      .grantRole({ queryId: 1n, role: 1n, account: other.address })
+      .grantRole({ queryId: 1n, role: 1337n, account: other.address })
     const result = await timelockController.sendInternal(deployer.getSender(), toNano('0.05'), body)
 
     expect(result.transactions).toHaveTransaction({
@@ -110,6 +110,8 @@ describe('TimelockController', () => {
       success: true,
       op: ac.opcodes.GrantRole,
     })
+
+    expect(await acContract.getHasRole(1337n, other.address)).toEqual(true)
   })
 
   // it('successful update account - add admin account', async () => {
