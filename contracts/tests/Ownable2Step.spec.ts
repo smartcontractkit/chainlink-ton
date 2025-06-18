@@ -2,7 +2,7 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Address, toNano } from '@ton/core'
 import {
   OwnableCounter,
- OwnableCounterStorage,
+  OwnableCounterStorage,
   Opcodes,
 } from '../wrappers/lib/access/OwnableCounter'
 import '@ton/test-utils'
