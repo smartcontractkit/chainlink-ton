@@ -2,6 +2,9 @@ tolk 0.99
 
 import "@stdlib/tvm-dicts";
 
+
+// --- Utils (composability) ---
+
 // --- Message structs ---
 
 /// @dev Grants `role` to `account`.
@@ -92,8 +95,8 @@ struct AccessControl_Data {
 /// Each role has a mapping of accounts that have been granted that role,
 /// and an admin role that can manage that role. 
 struct AccessControl_RoleData {
-    hasRole: dict;
     adminRole: uint256;
+    hasRole: dict;
 }
 
 // --- Hooks struct (extensions) ---
@@ -149,16 +152,17 @@ fun AccessControl<T>.onlyRole(self, role: int, msgFull: cell) {
 
 // @dev Returns `true` if `account` has been granted `role`.
 fun AccessControl<T>.hasRole(self, role: int, account: address): bool {
+    debug.printString("ACCESS CONTROL ENUM: called");
+    debug.print(role);
+
     // Check if the role is valid
-    val (data, exists) = self.data.roles.uDictGet(256, role);
+    val (data, exists) = self.data.roles.uDictGetRef(256, role);
     if (!exists) {
         return false;
     }
 
-    return true; // TODO: REMOVE THIS LINE (debugging purpose)
-
     // Check if the account exists in the role data
-    val d = AccessControl_RoleData.fromSlice(data!);
+    val d = AccessControl_RoleData.fromCell(data!);
     val (_, key) = account.getWorkchainAndHash();
     val (_, accExists) = d.hasRole.uDictGet(256, key);
     return accExists;
@@ -188,12 +192,12 @@ fun AccessControl<T>.checkRole(self, role: int, account: address) {
 ///
 /// To change a role's admin, use {setRoleAdmin}.
 fun AccessControl<T>.getRoleAdmin(self, role: int): int {
-    val (data, exists) = self.data.roles.uDictGet(256, role);
+    val (data, exists) = self.data.roles.uDictGetRef(256, role);
     if (!exists) {
         return DEFAULT_ADMIN_ROLE;
     }
 
-    return AccessControl_RoleData.fromSlice(data!).adminRole;
+    return AccessControl_RoleData.fromCell(data!).adminRole;
 }
 
 /// @dev Grants `role` to `account`.
@@ -207,6 +211,9 @@ fun AccessControl<T>.grantRole(mutate self, queryId: uint64, role: int, account:
     if (self.hooks != null && self.hooks.grantRole != null) {
         return self.hooks.grantRole(self.context!, queryId, role, account, msgFull); // extension hook
     }
+
+    debug.printString("ACCESS CONTROL #grantRole");
+    debug.print(role);
 
     self.onlyRole(self.getRoleAdmin(role), msgFull);
     return self._grantRole(queryId, role, account); // default implementation
@@ -261,7 +268,7 @@ fun AccessControl<T>._setRoleAdmin(mutate self, queryId: uint64, role: int, admi
     d.adminRole = adminRole;
 
     // Save the updated role data
-    self.data.roles.uDictSet(256, role, d.toCell().beginParse());
+    self.data.roles.uDictSetRef(256, role, d.toCell());
     // TODO: emit RoleAdminChanged(role, previousAdminRole, adminRole);
 }
 
@@ -282,6 +289,10 @@ fun AccessControl<T>._grantRole(mutate self, queryId: uint64, role: int, account
     val (_, key) = account.getWorkchainAndHash();
     val (_, exists) = d.hasRole.uDictGet(256, key);
 
+    debug.printString("ACCESS CONTROL #_grantRole 1");
+    debug.print(role);
+    debug.print(d);
+
     if (exists) {
         return false; // nothing to do
     }
@@ -290,8 +301,14 @@ fun AccessControl<T>._grantRole(mutate self, queryId: uint64, role: int, account
     d.hasRole.uDictSet(256, key, createEmptySlice());
     // TODO: emit RoleGranted(role, account, _msgSender());
 
+    val (_, exists2) = d.hasRole.uDictGet(256, key);
+
+    debug.printString("ACCESS CONTROL #_grantRole 2");
+    debug.print(role);
+    debug.print(d);
+
     // Save the updated role data
-    self.data.roles.uDictSet(256, role, d.toCell().beginParse());
+    self.data.roles.uDictSetRef(256, role, d.toCell());
     return true; // role granted successfully
 }
 
@@ -321,7 +338,7 @@ fun AccessControl<T>._revokeRole(mutate self, queryId: uint64, role: int, accoun
     // TODO: emit RoleRevoked(role, account, _msgSender());
 
     // Save the updated role data
-    self.data.roles.uDictSet(256, role, d.toCell().beginParse());
+    self.data.roles.uDictSetRef(256, role, d.toCell());
     return true; // role revoked successfully
 }
 
@@ -330,17 +347,18 @@ fun AccessControl<T>._revokeRole(mutate self, queryId: uint64, role: int, accoun
 @inline
 fun AccessControl_Data.getRoleDataOrSetDefault(mutate self, role: int): AccessControl_RoleData {
     // Check if the role is valid
-    val (data, exists) = self.roles.uDictGet(256, role);
+    val (data, exists) = self.roles.uDictGetRef(256, role);
     if (exists) {
-        return AccessControl_RoleData.fromSlice(data!);
+        return AccessControl_RoleData.fromCell(data!);
     }
 
     // Create a new role data if it doesn't exist
     var _data: AccessControl_RoleData = {
+        adminRole: DEFAULT_ADMIN_ROLE,
+        // Initialize hasRole as an empty dictionary
         hasRole: createEmptyDict(),
-        adminRole: DEFAULT_ADMIN_ROLE
     };
-    self.roles.uDictSet(256, role, _data.toCell().beginParse());
+    self.roles.uDictSetRef(256, role, _data.toCell());
     return _data;
 }
 
@@ -380,5 +398,6 @@ fun AccessControl<T>.onInternalMessage(mutate self, myBalance: int, msgValue: in
             self.renounceRole(msg.queryId, msg.role, msg.callerConfirmation, msgFull);
         },
     };
+
     return -1; // handled
 }
