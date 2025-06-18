@@ -13,10 +13,10 @@ import (
 var DB_CONTRACT_PATH = test_utils.GetBuildDir("examples.async-communication.two-phase-commit.DB/tact_DB.pkg")
 
 type DBProvider struct {
-	apiClient tonutils.ApiClient
+	apiClient tonutils.SignedAPIClient
 }
 
-func NewDBProvider(apiClient tonutils.ApiClient) *DBProvider {
+func NewDBProvider(apiClient tonutils.SignedAPIClient) *DBProvider {
 	return &DBProvider{
 		apiClient: apiClient,
 	}

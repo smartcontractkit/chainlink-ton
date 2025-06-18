@@ -10,10 +10,10 @@ import (
 var ITEM_PRICE_CONTRACT_PATH = test_utils.GetBuildDir("examples.async-communication.request-reply.ItemPrice/tact_ItemPrice.pkg")
 
 type ItemPriceProvider struct {
-	apiClient tonutils.ApiClient
+	apiClient tonutils.SignedAPIClient
 }
 
-func NewItemPriceProvider(apiClient tonutils.ApiClient) *ItemPriceProvider {
+func NewItemPriceProvider(apiClient tonutils.SignedAPIClient) *ItemPriceProvider {
 	return &ItemPriceProvider{
 		apiClient: apiClient,
 	}

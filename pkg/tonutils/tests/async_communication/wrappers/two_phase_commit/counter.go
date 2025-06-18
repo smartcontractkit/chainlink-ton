@@ -12,10 +12,10 @@ import (
 var COUNTER_CONTRACT_PATH = test_utils.GetBuildDir("examples.async-communication.two-phase-commit.Counter/tact_Counter.pkg")
 
 type CounterProvider struct {
-	apiClient tonutils.ApiClient
+	apiClient tonutils.SignedAPIClient
 }
 
-func NewCounterProvider(apiClient tonutils.ApiClient) *CounterProvider {
+func NewCounterProvider(apiClient tonutils.SignedAPIClient) *CounterProvider {
 	return &CounterProvider{
 		apiClient: apiClient,
 	}

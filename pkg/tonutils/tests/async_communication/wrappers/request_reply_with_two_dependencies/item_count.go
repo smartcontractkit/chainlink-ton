@@ -10,10 +10,10 @@ import (
 var ITEM_COUNT_CONTRACT_PATH = test_utils.GetBuildDir("examples.async-communication.request-reply-with-two-dependencies.ItemCount/tact_ItemCount.pkg")
 
 type ItemCountProvider struct {
-	apiClient tonutils.ApiClient
+	apiClient tonutils.SignedAPIClient
 }
 
-func NewItemCountProvider(apiClient tonutils.ApiClient) *ItemCountProvider {
+func NewItemCountProvider(apiClient tonutils.SignedAPIClient) *ItemCountProvider {
 	return &ItemCountProvider{
 		apiClient: apiClient,
 	}

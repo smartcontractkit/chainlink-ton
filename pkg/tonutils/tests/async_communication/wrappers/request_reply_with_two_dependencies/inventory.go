@@ -13,10 +13,10 @@ import (
 var INVENTORY_CONTRACT_PATH = test_utils.GetBuildDir("examples.async-communication.request-reply-with-two-dependencies.Inventory/tact_Inventory.pkg")
 
 type InventoryProvider struct {
-	apiClient tonutils.ApiClient
+	apiClient tonutils.SignedAPIClient
 }
 
-func NewInventoryProvider(apiClient tonutils.ApiClient) *InventoryProvider {
+func NewInventoryProvider(apiClient tonutils.SignedAPIClient) *InventoryProvider {
 	return &InventoryProvider{
 		apiClient: apiClient,
 	}

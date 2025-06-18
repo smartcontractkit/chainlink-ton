@@ -12,10 +12,10 @@ import (
 var MEMORY_CONTRACT_PATH = test_utils.GetBuildDir("examples.async-communication.two-msg-chain.Memory/tact_Memory.pkg")
 
 type MemoryProvider struct {
-	apiClient tonutils.ApiClient
+	apiClient tonutils.SignedAPIClient
 }
 
-func NewMemoryProvider(apiClient tonutils.ApiClient) *MemoryProvider {
+func NewMemoryProvider(apiClient tonutils.SignedAPIClient) *MemoryProvider {
 	return &MemoryProvider{
 		apiClient: apiClient,
 	}

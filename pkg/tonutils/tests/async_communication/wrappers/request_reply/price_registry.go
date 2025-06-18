@@ -13,10 +13,10 @@ import (
 var PRICE_REGISTRY_CONTRACT_PATH = test_utils.GetBuildDir("examples.async-communication.request-reply.PriceRegistry/tact_PriceRegistry.pkg")
 
 type PriceRegistryProvider struct {
-	apiClient tonutils.ApiClient
+	apiClient tonutils.SignedAPIClient
 }
 
-func NewPriceRegistryProvider(apiClient tonutils.ApiClient) *PriceRegistryProvider {
+func NewPriceRegistryProvider(apiClient tonutils.SignedAPIClient) *PriceRegistryProvider {
 	return &PriceRegistryProvider{
 		apiClient: apiClient,
 	}

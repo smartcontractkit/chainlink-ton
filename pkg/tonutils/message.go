@@ -325,14 +325,14 @@ func (r *ReceivedMessage) AppendSentMessage(outgoingInternalMessage *tlb.Interna
 // or if there are issues with transaction monitoring.
 //
 // TODO: This could be optimized by grouping outgoing messages by recipient address
-func (m *ReceivedMessage) WaitForOutgoingMessagesToBeReceived(ac *ApiClient) error {
+func (m *ReceivedMessage) WaitForOutgoingMessagesToBeReceived(c *SignedAPIClient) error {
 	outgoingMessagesSentQueue := AsQueue(&m.OutgoingInternalSentMessages)
 	for {
 		sentMessage, ok := outgoingMessagesSentQueue.Pop()
 		if !ok {
 			break
 		}
-		transactionsReceived := ac.SubscribeToTransactions(*sentMessage.InternalMsg.DstAddr, m.LamportTime)
+		transactionsReceived := c.SubscribeToTransactions(*sentMessage.InternalMsg.DstAddr, m.LamportTime)
 
 		var receivedMessage *ReceivedMessage
 		for rTX := range transactionsReceived {
@@ -411,7 +411,7 @@ func (m SentMessage) MatchesReceived(incomingMessage *tlb.InternalMessage) bool 
 //
 // The function returns immediately if the message is already in Finalized state.
 // Otherwise, it processes all cascading messages until the entire trace is complete.
-func (m *ReceivedMessage) WaitForTrace(ac *ApiClient) error {
+func (m *ReceivedMessage) WaitForTrace(c *SignedAPIClient) error {
 	if m.Status() == Finalized {
 		return nil
 	}
@@ -424,7 +424,7 @@ func (m *ReceivedMessage) WaitForTrace(ac *ApiClient) error {
 		if !ok {
 			break
 		}
-		err := cascadingMessage.WaitForOutgoingMessagesToBeReceived(ac)
+		err := cascadingMessage.WaitForOutgoingMessagesToBeReceived(c)
 		if err != nil {
 			return fmt.Errorf("failed to wait for outgoing messages: %w", err)
 		}

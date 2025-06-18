@@ -42,7 +42,7 @@ func GetBuildDir(contractPath string) string {
 	return path.Join(buildsDir, contractPath)
 }
 
-func SetUpTest(t *testing.T, initialAmount *big.Int, fundedAccountsCount uint, liteapiURL string) (accounts []tonutils.ApiClient) {
+func SetUpTest(t *testing.T, initialAmount *big.Int, fundedAccountsCount uint, liteapiURL string) (accounts []tonutils.SignedAPIClient) {
 
 	// Connect to TON testnet
 	client := liteclient.NewConnectionPool()
@@ -59,11 +59,11 @@ func SetUpTest(t *testing.T, initialAmount *big.Int, fundedAccountsCount uint, l
 	funderWallet := getWallet(t, api)
 
 	// Run the spec tests, which are fully chain agnostic
-	funder := tonutils.NewApiClient(api, *funderWallet)
+	funder := tonutils.NewSignedAPIClient(api, *funderWallet)
 
 	initialCoinAmount := tlb.FromNanoTON(initialAmount)
 
-	accounts = make([]tonutils.ApiClient, fundedAccountsCount)
+	accounts = make([]tonutils.SignedAPIClient, fundedAccountsCount)
 	for i := range fundedAccountsCount {
 		accounts[i] = createAndFundWallet(t, api, funder, initialCoinAmount)
 	}
@@ -71,7 +71,7 @@ func SetUpTest(t *testing.T, initialAmount *big.Int, fundedAccountsCount uint, l
 	return accounts
 }
 
-func createAndFundWallet(t *testing.T, api *ton.APIClient, funder tonutils.ApiClient, initialCoinAmount tlb.Coins) tonutils.ApiClient {
+func createAndFundWallet(t *testing.T, api *ton.APIClient, funder tonutils.SignedAPIClient, initialCoinAmount tlb.Coins) tonutils.SignedAPIClient {
 	aliceWallet, err := tonutils.GetRandomWallet(api, wallet.V3R2, wallet.WithWorkchain(0))
 	assert.NoError(t, err, "Failed to create new wallet: %v", err)
 	transferToAlice, err := funder.Wallet.BuildTransfer(aliceWallet.WalletAddress(), initialCoinAmount, false, "deposit")
@@ -79,21 +79,21 @@ func createAndFundWallet(t *testing.T, api *ton.APIClient, funder tonutils.ApiCl
 	result, err := funder.SendAndWaitForTrace(context.TODO(), *aliceWallet.WalletAddress(), transferToAlice)
 	assert.NoError(t, err, "Failed to send transaction: %v", err)
 	assert.True(t, result.Success && !result.Bounced, "Transaction failed")
-	alice := tonutils.NewApiClient(api, *aliceWallet)
+	alice := tonutils.NewSignedAPIClient(api, *aliceWallet)
 	return alice
 }
 
-func GetWalletSeqno(apiClient tonutils.ApiClient) (uint, error) {
+func GetWalletSeqno(apiClient tonutils.SignedAPIClient) (uint, error) {
 	return UintFrom(Get(apiClient, "seqno"))
 }
 
-func Get(apiClient tonutils.ApiClient, key string) (*ton.ExecutionResult, error) {
-	block, err := apiClient.Api.CurrentMasterchainInfo(context.TODO())
+func Get(apiClient tonutils.SignedAPIClient, key string) (*ton.ExecutionResult, error) {
+	block, err := apiClient.Client.CurrentMasterchainInfo(context.TODO())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get current block: %w", err)
 	}
 
-	return apiClient.Api.WaitForBlock(block.SeqNo).RunGetMethod(context.TODO(), block, apiClient.Wallet.WalletAddress(), key)
+	return apiClient.Client.WaitForBlock(block.SeqNo).RunGetMethod(context.TODO(), block, apiClient.Wallet.WalletAddress(), key)
 }
 
 func UintFrom(res *ton.ExecutionResult, err error) (uint, error) {
@@ -146,17 +146,17 @@ func getWallet(t *testing.T, api ton.APIClientWrapped) *wallet.Wallet {
 }
 
 // returns balance of the account in nanotons
-func GetBalance(apiClient tonutils.ApiClient) (*big.Int, error) {
+func GetBalance(apiClient tonutils.SignedAPIClient) (*big.Int, error) {
 
-	ctx := apiClient.Api.Client().StickyContext(context.Background())
-	master, err := apiClient.Api.CurrentMasterchainInfo(ctx)
+	ctx := apiClient.Client.Client().StickyContext(context.Background())
+	master, err := apiClient.Client.CurrentMasterchainInfo(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get masterchain info for funder balance check: %w", err)
 	}
 
 	// we use WaitForBlock to make sure block is ready,
 	// it is optional but escapes us from liteserver block not ready errors
-	res, err := apiClient.Api.WaitForBlock(master.SeqNo).GetAccount(ctx, master, apiClient.Wallet.WalletAddress())
+	res, err := apiClient.Client.WaitForBlock(master.SeqNo).GetAccount(ctx, master, apiClient.Wallet.WalletAddress())
 	if err != nil {
 		return nil, fmt.Errorf("get account err: %s", err.Error())
 	}
@@ -215,7 +215,7 @@ Final balance    %14d
 	assert.Equal(t, expectedNetTransfer, m.NetCreditResult(), "Expected transfered amount does not match actual net transaction result: %d != %d: Expected - Actual = %d", expectedNetTransfer, m.NetCreditResult(), big.NewInt(0).Sub(expectedNetTransfer, m.NetCreditResult()))
 }
 
-func MustGetBalance(t *testing.T, apiClient tonutils.ApiClient) *big.Int {
+func MustGetBalance(t *testing.T, apiClient tonutils.SignedAPIClient) *big.Int {
 	finalBalance, err := GetBalance(apiClient)
 	assert.NoError(t, err, "Failed to get balance: %v", err)
 	return finalBalance

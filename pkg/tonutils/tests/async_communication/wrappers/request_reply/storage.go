@@ -13,10 +13,10 @@ import (
 var STORAGE_CONTRACT_PATH = test_utils.GetBuildDir("examples.async-communication.request-reply.Storage/tact_Storage.pkg")
 
 type StorageProvider struct {
-	apiClient tonutils.ApiClient
+	apiClient tonutils.SignedAPIClient
 }
 
-func NewStorageProvider(apiClient tonutils.ApiClient) *StorageProvider {
+func NewStorageProvider(apiClient tonutils.SignedAPIClient) *StorageProvider {
 	return &StorageProvider{
 		apiClient: apiClient,
 	}

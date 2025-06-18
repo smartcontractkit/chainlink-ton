@@ -15,18 +15,18 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
-// ApiClient provides a high-level interface for interacting with the TON blockchain.
+// SignedAPIClient provides a high-level interface for interacting with the TON blockchain.
 // It wraps the low-level TON API client and wallet functionality to provide
 // convenient methods for sending transactions, deploying contracts, and monitoring
 // message flows.
-type ApiClient struct {
-	Api    ton.APIClientWrapped
+type SignedAPIClient struct {
+	Client ton.APIClientWrapped
 	Wallet wallet.Wallet
 }
 
-func NewApiClient(api ton.APIClientWrapped, wallet wallet.Wallet) ApiClient {
-	return ApiClient{
-		Api:    api,
+func NewSignedAPIClient(client ton.APIClientWrapped, wallet wallet.Wallet) SignedAPIClient {
+	return SignedAPIClient{
+		Client: client,
 		Wallet: wallet,
 	}
 }
@@ -38,8 +38,8 @@ func NewApiClient(api ton.APIClientWrapped, wallet wallet.Wallet) ApiClient {
 //
 // This method only waits for the initial transaction confirmation, not for any
 // outgoing messages to be processed. Use SendAndWaitForTrace for complete trace waiting.
-func (ac *ApiClient) SendWaitTransaction(ctx context.Context, dstAddr address.Address, messageToSend *wallet.Message) (*ReceivedMessage, *ton.BlockIDExt, error) {
-	tx, block, err := ac.Wallet.SendWaitTransaction(ctx, messageToSend)
+func (c *SignedAPIClient) SendWaitTransaction(ctx context.Context, dstAddr address.Address, messageToSend *wallet.Message) (*ReceivedMessage, *ton.BlockIDExt, error) {
+	tx, block, err := c.Wallet.SendWaitTransaction(ctx, messageToSend)
 	if err != nil {
 		return nil, nil, fmt.Errorf("deposit transaction failed for %s: %w", dstAddr.String(), err)
 	}
@@ -58,16 +58,16 @@ func (ac *ApiClient) SendWaitTransaction(ctx context.Context, dstAddr address.Ad
 //
 // The method returns the resulting message in a Finalized state, meaning all
 // outgoing messages have been confirmed and processed.
-func (ac *ApiClient) SendAndWaitForTrace(ctx context.Context, dstAddr address.Address, messageToSend *wallet.Message) (*ReceivedMessage, error) {
-	sentMessage, block, err := ac.SendWaitTransaction(ctx, dstAddr, messageToSend)
+func (c *SignedAPIClient) SendAndWaitForTrace(ctx context.Context, dstAddr address.Address, messageToSend *wallet.Message) (*ReceivedMessage, error) {
+	sentMessage, block, err := c.SendWaitTransaction(ctx, dstAddr, messageToSend)
 	if err != nil {
 		return nil, fmt.Errorf("failed to SendWaitTransaction: %w", err)
 	}
-	err = sentMessage.WaitForTrace(ac)
+	err = sentMessage.WaitForTrace(c)
 	if err != nil {
 		return nil, fmt.Errorf("failed to wait for trace: %w", err)
 	}
-	master, err := ac.Api.WaitForBlock(block.SeqNo).CurrentMasterchainInfo(ctx)
+	master, err := c.Client.WaitForBlock(block.SeqNo).CurrentMasterchainInfo(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get masterchain info for funder balance check: %w", err)
 	}
@@ -78,7 +78,7 @@ func (ac *ApiClient) SendAndWaitForTrace(ctx context.Context, dstAddr address.Ad
 			break
 		}
 		time.Sleep(time.Millisecond * 500)
-		master, err = ac.Api.WaitForBlock(block.SeqNo).CurrentMasterchainInfo(ctx)
+		master, err = c.Client.WaitForBlock(block.SeqNo).CurrentMasterchainInfo(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get masterchain info for funder balance check: %w", err)
 		}
@@ -91,11 +91,11 @@ func (ac *ApiClient) SendAndWaitForTrace(ctx context.Context, dstAddr address.Ad
 // the given address that came after lt (Lamport Time). It will work
 // retroactively, so it will return all transactions that are already in the
 // blockchain and all new ones.
-func (ac *ApiClient) SubscribeToTransactions(address address.Address, lt uint64) chan *tlb.Transaction {
+func (c *SignedAPIClient) SubscribeToTransactions(address address.Address, lt uint64) chan *tlb.Transaction {
 	transactionsReceived := make(chan *tlb.Transaction)
 
 	// it is a blocking call, so we start it asynchronously
-	go ac.Api.SubscribeOnTransactions(context.Background(), &address, lt, transactionsReceived)
+	go c.Client.SubscribeOnTransactions(context.Background(), &address, lt, transactionsReceived)
 	return transactionsReceived
 }
 
@@ -118,7 +118,7 @@ type CompiledContract struct {
 // the contract compilation fails, the deployment transaction fails, or the
 // deployment exit code indicates failure.
 // TODO this is Tact specific. Should migrate to Tolk output
-func (ac *ApiClient) Deploy(contractPath string, initData *cell.Cell, amount tlb.Coins) (*Contract, error) {
+func (c *SignedAPIClient) Deploy(contractPath string, initData *cell.Cell, amount tlb.Coins) (*Contract, error) {
 	compiledContract, err := getCompiledContract(contractPath)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to compile contract: %v", err)
@@ -146,7 +146,7 @@ func (ac *ApiClient) Deploy(contractPath string, initData *cell.Cell, amount tlb
 	msgBody := cell.BeginCell().EndCell()
 
 	// Deploy the contract
-	addr, tx, _, err := ac.Wallet.DeployContractWaitTransaction(
+	addr, tx, _, err := c.Wallet.DeployContractWaitTransaction(
 		context.Background(),
 		amount,
 		msgBody,
@@ -161,7 +161,7 @@ func (ac *ApiClient) Deploy(contractPath string, initData *cell.Cell, amount tlb
 	if err != nil {
 		return nil, fmt.Errorf("failed to get outgoing messages: %w", err)
 	}
-	err = receivedMessage.WaitForTrace(ac)
+	err = receivedMessage.WaitForTrace(c)
 	if err != nil {
 		return nil, fmt.Errorf("failed to wait for trace: %w", err)
 	}
@@ -174,7 +174,7 @@ func (ac *ApiClient) Deploy(contractPath string, initData *cell.Cell, amount tlb
 		return nil, fmt.Errorf("contract deployment failed: exit code %d: %s", deployExitCode, deployExitCode.Describe())
 	}
 
-	return &Contract{addr, ac}, nil
+	return &Contract{addr, c}, nil
 }
 
 // getCompiledContract reads and parses a compiled contract JSON file.

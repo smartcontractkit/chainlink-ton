@@ -12,8 +12,8 @@ import (
 )
 
 type Contract struct {
-	Address   *address.Address
-	ApiClient *ApiClient
+	Address *address.Address
+	Client  *SignedAPIClient
 }
 
 type Method interface {
@@ -41,7 +41,7 @@ func (c *Contract) CallWaitRecursively(method Method, queryId uint64, amount tlb
 	if err != nil {
 		return nil, fmt.Errorf("failed to send message: %w", err)
 	}
-	err = sentMessage.WaitForTrace(c.ApiClient)
+	err = sentMessage.WaitForTrace(c.Client)
 	if err != nil {
 		return nil, fmt.Errorf("failed to wait for trace: %w", err)
 	}
@@ -50,7 +50,7 @@ func (c *Contract) CallWaitRecursively(method Method, queryId uint64, amount tlb
 
 // Calls a writer method on the contract and waits for it to be received.
 func (c *Contract) SendMessageWait(body *cell.Cell, amount tlb.Coins) (*ReceivedMessage, error) {
-	m, _, err := c.ApiClient.SendWaitTransaction(context.TODO(),
+	m, _, err := c.Client.SendWaitTransaction(context.TODO(),
 		*c.Address,
 		&wallet.Message{
 			Mode: wallet.PayGasSeparately,
@@ -68,12 +68,12 @@ func (c *Contract) SendMessageWait(body *cell.Cell, amount tlb.Coins) (*Received
 
 // Calls a getter method on the contract and waits for it to be received.
 func (c *Contract) Get(key string, params ...interface{}) (*ton.ExecutionResult, error) {
-	block, err := c.ApiClient.Api.CurrentMasterchainInfo(context.Background())
+	block, err := c.Client.Client.CurrentMasterchainInfo(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get current block: %w", err)
 	}
 
-	return c.ApiClient.Api.WaitForBlock(block.SeqNo).RunGetMethod(context.Background(), block, c.Address, key, params...)
+	return c.Client.Client.WaitForBlock(block.SeqNo).RunGetMethod(context.Background(), block, c.Address, key, params...)
 }
 
 func Uint64From(res *ton.ExecutionResult, err error) (uint64, error) {
@@ -109,7 +109,7 @@ func Uint32From(res *ton.ExecutionResult, err error) (uint32, error) {
 func (c *Contract) SubscribeToMessages(lt uint64) chan *ReceivedMessage {
 	messagesReceived := make(chan *ReceivedMessage)
 	go func() {
-		transactionsReceived := c.ApiClient.SubscribeToTransactions(*c.Address, lt)
+		transactionsReceived := c.Client.SubscribeToTransactions(*c.Address, lt)
 
 		for rTX := range transactionsReceived {
 			if rTX.IO.In != nil {
