@@ -120,7 +120,10 @@ fun AccessControlEnumerable<T>.grantRole(mutate self, queryId: uint64, role: int
         = self.hookTrait__AccessControl(); // hook into AccessControl<T> trait
     super.hooks!.grantRole = null; // disable self to avoid recursion
 
-    return super.grantRole(queryId, role, account, msgFull); // default implementation
+    // TODO: continue fixing this
+    val result = super.grantRole(queryId, role, account, msgFull); // default implementation
+    self.data.underlying = super.data; // update underlying data
+    return result;
 }
 
 /// @dev Attempts to grant `role` to `account` and returns a boolean indicating if `role` was granted.
@@ -143,6 +146,9 @@ fun AccessControlEnumerable<T>._grantRole(mutate self, queryId: uint64, role: in
     if (granted) {
         // TODO: add account to roleMembers for role
     }
+    // TODO: continue fixing this
+    self.data.underlying = super.data;
+
     return granted;
 }
 
@@ -223,10 +229,25 @@ fun AccessControlEnumerable<T>.get_getRoleMembers(self, role: int): int {
 // --- Message handler ---
 
 @inline
-fun AccessControlEnumerable<T>.onInternalMessage(mutate self, myBalance: int, msgValue: int, msgFull: cell, msgBody: slice) {
+fun AccessControlEnumerable<T>.onInternalMessage(mutate self, myBalance: int, msgValue: int, msgFull: cell, msgBody: slice): int {
     var super: AccessControl<AccessControlEnumerable<T>>
         = self.hookTrait__AccessControl(); // hook into AccessControl<T> trait
-    return super.onInternalMessage(myBalance, msgValue, msgFull, msgBody);
+
+    debug.printString("ACCESS CONTROL EEEE #onInternalMessage 1");
+    debug.print(self.data);
+    debug.print(super.data);
+
+    val handeled = super.onInternalMessage(myBalance, msgValue, msgFull, msgBody);
+    if (handeled) {
+        self.data.underlying = super.data; // update underlying data
+    }
+
+
+    debug.printString("ACCESS CONTROL EEEE #onInternalMessage 2");
+    debug.print(self.data);
+    debug.print(super.data);
+
+    return handeled
 }
 
 // --- Extension hooks ---
@@ -264,24 +285,24 @@ fun AccessControlEnumerable_Hooks<T>._msgSender(ctx: AccessControlEnumerable<T>,
 
 /// @dev Hook in an extension, or call super (default) implementation.
 @inline
-fun AccessControlEnumerable_Hooks<T>.grantRole(ctx: AccessControlEnumerable<T>, queryId: uint64, role: int, account: address, msgFull: cell): bool {
+fun AccessControlEnumerable_Hooks<T>.grantRole(mutate ctx: AccessControlEnumerable<T>, queryId: uint64, role: int, account: address, msgFull: cell): bool {
     return ctx.grantRole(queryId, role, account, msgFull); // proxy to self via context hook
 }
 
 /// @dev Hook in an extension, or call super (default) implementation.
 @inline
-fun AccessControlEnumerable_Hooks<T>.revokeRole(ctx: AccessControlEnumerable<T>, queryId: uint64, role: int, account: address, msgFull: cell): bool {
+fun AccessControlEnumerable_Hooks<T>.revokeRole(mutate ctx: AccessControlEnumerable<T>, queryId: uint64, role: int, account: address, msgFull: cell): bool {
     return ctx.revokeRole(queryId, role, account, msgFull); // proxy to self via context hook
 }
 
 /// @dev Hook in an extension, or call super (default) implementation.
 @inline
-fun AccessControlEnumerable_Hooks<T>._grantRole(ctx: AccessControlEnumerable<T>, queryId: uint64, role: int, account: address): bool {
+fun AccessControlEnumerable_Hooks<T>._grantRole(mutate ctx: AccessControlEnumerable<T>, queryId: uint64, role: int, account: address): bool {
     return ctx._grantRole(queryId, role, account); // proxy to self via context hook
 }
 
 /// @dev Hook in an extension, or call super (default) implementation.
 @inline
-fun AccessControlEnumerable_Hooks<T>._revokeRole(ctx: AccessControlEnumerable<T>, queryId: uint64, role: int, account: address): bool {
+fun AccessControlEnumerable_Hooks<T>._revokeRole(mutate ctx: AccessControlEnumerable<T>, queryId: uint64, role: int, account: address): bool {
     return ctx._revokeRole(queryId, role, account); // proxy to self via context hook
 }
