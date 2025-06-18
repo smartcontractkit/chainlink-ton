@@ -48,8 +48,6 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
 
     match(msg) {
         SetCount => {
-            var storage = loadData();
-
             // Ensure the sender is the owner
             var cs: slice = msgFull.beginParse();
             val flags = cs.loadMessageFlags();
@@ -57,6 +55,7 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
                 return;
             }
             var sender: address = cs.loadAddress(); 
+
             storage.ownable.requireOwner(sender);
 
             storage.count = msg.count;
