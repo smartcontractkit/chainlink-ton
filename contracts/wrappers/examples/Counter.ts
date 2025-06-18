@@ -82,7 +82,7 @@ export class Counter implements Contract, TypeAndVersion {
   }
 
   // Delegate TypeAndVersion methods
-  async getTypeAndVersion(provider: ContractProvider): Promise<string> {
+  async getTypeAndVersion(provider: ContractProvider): Promise<{ type: string; version: string }> {
     return this.typeAndVersion.getTypeAndVersion(provider)
   }
 

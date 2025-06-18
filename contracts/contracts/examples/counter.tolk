@@ -61,7 +61,7 @@ get id(): int {
 }
 
 /// Gets the current type and version of the contract.
-get typeAndVersion(): cell {
+get typeAndVersion(): (slice, slice) {
     return TypeAndVersion {
         typeStr: "com.chainlink.ton.examples.Counter",
         versionStr: "1.0.0",

@@ -24,8 +24,8 @@ struct TypeAndVersion {
 }
 
 /// A getter returning the current type and version of the contract.
-fun TypeAndVersion.typeAndVersion(self): cell {
-    return beginCell().storeSlice(self.typeStr).storeSlice(" v").storeSlice(self.versionStr).endCell();
+fun TypeAndVersion.typeAndVersion(self): (slice, slice) {
+    return (self.typeStr, self.versionStr);
 }
 
 // Returns the current code of the contract.
