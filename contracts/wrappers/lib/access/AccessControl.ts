@@ -54,8 +54,8 @@ export type ContractData = {
 
 /// Internal storage struct for role data
 export type ContractRoleData = {
-  hasRole: Dictionary<Buffer, Buffer>
   adminRole: bigint
+  hasRole: Dictionary<Buffer, Buffer>
 }
 
 const ERROR_INVALID_ROLE = 89
@@ -77,7 +77,7 @@ export const builder = {
         return beginCell()
           .storeUint(opcodes.GrantRole, 32)
           .storeUint(msg.queryId, 64)
-          .storeUint(msg.role, 32)
+          .storeUint(msg.role, 256)
           .storeAddress(msg.account)
           .endCell()
       },
@@ -87,7 +87,7 @@ export const builder = {
         return beginCell()
           .storeUint(opcodes.RevokeRole, 32)
           .storeUint(msg.queryId, 64)
-          .storeUint(msg.role, 32)
+          .storeUint(msg.role, 256)
           .storeAddress(msg.account)
           .endCell()
       },
@@ -97,7 +97,7 @@ export const builder = {
         return beginCell()
           .storeUint(opcodes.RevokeRole, 32)
           .storeUint(msg.queryId, 64)
-          .storeUint(msg.role, 32)
+          .storeUint(msg.role, 256)
           .storeAddress(msg.callerConfirmation)
           .endCell()
       },
@@ -108,8 +108,8 @@ export const builder = {
     encode: () => {
       const _encodeRoleData = (roleData: ContractRoleData): Cell => {
         return beginCell() // break line
-          .storeDict(roleData.hasRole)
           .storeUint(roleData.adminRole, 256)
+          .storeDict(roleData.hasRole)
           .endCell()
       }
 

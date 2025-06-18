@@ -15,11 +15,11 @@ import "timelock_controller/get.tolk";
 import "timelock_controller/admin_calls.tolk";
 
 // Notice: role constants are kept as original Ethereum implementation (keccak256)
-const ROLE_ADMIN = 10; // TODO: keccak256("ADMIN_ROLE");
-const ROLE_PROPOSER = 11; // TODO: keccak256("PROPOSER_ROLE");
-const ROLE_EXECUTOR = 12; // TODO: keccak256("EXECUTOR_ROLE");
-const ROLE_CANCELLER = 13; // TODO: keccak256("CANCELLER_ROLE");
-const ROLE_BYPASSER = 14; // TODO: keccak256("BYPASSER_ROLE");
+const ROLE_ADMIN = 0; // TODO: keccak256("ADMIN_ROLE");
+const ROLE_PROPOSER = 1; // TODO: keccak256("PROPOSER_ROLE");
+const ROLE_CANCELLER = 2; // TODO: keccak256("CANCELLER_ROLE");
+const ROLE_EXECUTOR = 3; // TODO: keccak256("EXECUTOR_ROLE");
+const ROLE_BYPASSER = 4; // TODO: keccak256("BYPASSER_ROLE");
 
 struct Timelock {}
 
@@ -45,8 +45,6 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
         hooks: null,
     };
 
-    return; // TODO: REMOVE THIS LINE (debugging purpose)
-
     val senderAddress: address = cs.loadAddress();
     cs.loadAddress(); // skip dst
     cs.loadCoins(); // skip value
@@ -70,6 +68,7 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
           || timelockAdmin.onInternalMessage(myBalance, msgValue, msgFull, msgBody);
 
         if (msgHandeled) {
+            debug.printString("Admin message handled");
             // Map from underlying trait storage to contract storage
             s.minDelay = timelockAdmin.minDelay;
             s.timestampCount = timelockAdmin.timestampCount;
@@ -82,6 +81,7 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
     }
 
     val op = msgBody.loadMessageOp();
+    debug.print(op);
     val queryID = msgBody.loadMessageQueryId();
     if (rbac.hasRole(ROLE_PROPOSER, senderAddress)) {
         if (op == OP_SCHEDULE) {
