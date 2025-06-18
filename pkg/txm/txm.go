@@ -96,8 +96,6 @@ func (t *Txm) Close() error {
 }
 
 // Enqueues a transaction for broadcasting.
-// Each item in the params array should be a map with a single key-value pair, where
-// the key is the ABI type.
 func (t *Txm) Enqueue(request Request) error {
 	// Ensure we can sign with the requested address
 	publicKey := fmt.Sprintf("%064x", request.FromWallet.PrivateKey().Public())
@@ -126,6 +124,7 @@ func (t *Txm) Enqueue(request Request) error {
 	}
 }
 
+// Continuously listens and broadcasts enqueued transactions
 func (t *Txm) broadcastLoop() {
 	defer t.Done.Done()
 
@@ -186,6 +185,7 @@ func (t *Txm) broadcastLoop() {
 	}
 }
 
+// Attempts to broadcast a transaction with retries on failure.
 func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Message) error {
 	var receivedMessage *tonutils.ReceivedMessage
 	var err error
@@ -235,6 +235,7 @@ func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Messag
 	return nil
 }
 
+// Periodically checks unconfirmed transactions for finality.
 func (t *Txm) confirmLoop() {
 	defer t.Done.Done()
 
@@ -268,6 +269,7 @@ func (t *Txm) confirmLoop() {
 	}
 }
 
+// Validates the confirmation status of all unconfirmed transactions by resolving their traces.
 func (t *Txm) checkUnconfirmed() {
 	allUnconfirmedTxs := t.AccountStore.GetAllUnconfirmed()
 
