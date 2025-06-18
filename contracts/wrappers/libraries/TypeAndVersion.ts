@@ -1,9 +1,9 @@
 import { Address, Cell, Contract, ContractProvider } from '@ton/core'
 
 export class TypeAndVersion {
-  async getTypeAndVersion(provider: ContractProvider): Promise<string> {
+  async getTypeAndVersion(provider: ContractProvider): Promise<{ type: string; version: string }> {
     const result = await provider.get('typeAndVersion', [])
-    return result.stack.readString()
+    return { type: result.stack.readString(), version: result.stack.readString() }
   }
 
   async getCode(provider: ContractProvider): Promise<Cell> {

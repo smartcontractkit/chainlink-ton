@@ -36,7 +36,8 @@ describe('Counter', () => {
 
   it('should have type and version', async () => {
     const typeAndVersion = await counter.getTypeAndVersion()
-    expect(typeAndVersion).toBe('com.chainlink.ton.examples.Counter v1.0.0')
+    expect(typeAndVersion.type).toBe('com.chainlink.ton.examples.Counter')
+    expect(typeAndVersion.version).toBe('1.0.0')
   })
 
   it('should have the right code and hash', async () => {
