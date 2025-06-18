@@ -42,23 +42,22 @@ fun emit<T>(topic: int, body: T) {
 // Iterates over arrays stored as snake data.
 struct Iterator<T> {
     data: slice;
-    elemSize: int; // TODO: some type of compile time sizeof()
 }
 
 @inline
-fun Iterator<T>.new(data: cell, elemSize: int) {
-    return Iterator<T> { data: data.beginParse(), elemSize };
+fun Iterator<T>.new(data: cell) {
+    return Iterator<T> { data: data.beginParse() };
 }
 
 @inline
 fun Iterator<T>.empty(self): bool {
-    return self.data.isEndOfBits()
+    return self.data.isEnd()
 }
 
 @inline
 fun Iterator<T>.next(mutate self): T {
     var (bits, refs) = self.data.remainingBitsAndRefsCount();
-    if (bits < self.elemSize) {
+    if (bits == 0) {
         // TODO: assert refs == 1
         // TODO: load vs preload?
         self.data = self.data.loadRef().beginParse();
