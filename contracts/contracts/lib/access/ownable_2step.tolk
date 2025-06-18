@@ -67,7 +67,6 @@ fun Ownable2Step.onInternalMessage(mutate self, myBalance: int, msgValue: int, m
         match (msg) {
             Ownable2Step_TransferOwnership => {
                 self.transferOwnership(sender, msg.newOwner);
-                // TODO: emit Ownable2Step_OwnershipTransferRequested
                 val emitMsg = createExternalLogMessage({
                     dest: createAddressNone(),
                     body: Ownable2Step_OwnershipTransferRequested {
