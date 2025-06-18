@@ -25,6 +25,8 @@ struct Storage {
 
     // dynamic config
     config: Cell<DynamicConfig>;
+
+    destChainConfigs: UMap<uint64, DestChainConfig>; // chainSelector -> DestChainConfig;
 }
 
 struct DynamicConfig {
@@ -34,12 +36,12 @@ struct DynamicConfig {
     allowlistAdmin: address;
 }
 
-// struct DestChainConfig has store, drop {
-//     sequence_number: u64,
-//     allowlist_enabled: bool,
-//     router: address,
-//     allowed_senders: vector<address>
-// }
+struct DestChainConfig {
+    router: address;
+    sequenceNumber: uint64;
+    allowlistEnabled: bool;
+    allowedSenders: Map<bool>; // address -> bool;
+}
 // TODO: move allowlist into accounts
 // user calls wallet -> account contract -> router, account verifies dest chain and if
 // the user is allowed to send. This will also allow users to deposit funds ahead of time
@@ -49,13 +51,28 @@ fun Storage.load() {
     return Storage.fromCell(contract.getData());
 }
 
+fun Storage.store(self) {
+    return contract.setData(self.toCell());
+}
+
 fun onInternalMessage(msgCell: cell, msgBody: slice) {
 }
 
 fun onSend(msg: CCIPSend) {
     val st = Storage.load();
+    // TODO: validate message came from router
 
-    // call into fee_quoter to validate and calculate fees
+    // validate allowlist
+    val (maybeDestChainConfig, exists) = st.destChainConfigs.get(msg.destChainSelector);
+    assert(exists, ERROR_UNKNOWN_DEST_CHAIN_SELECTOR);
+    val destChainConfig = maybeDestChainConfig!;
+    if (destChainConfig.allowlistEnabled) {
+        // TODO:
+    }
+
+    // validate jetton amounts match msg.tokenAmounts
+
+    // call into feeQuoter to validate and calculate fees
     val getValidatedFeeMsg = createMessage({
         bounce: true,
         value: 0,
@@ -70,11 +87,21 @@ fun onSend(msg: CCIPSend) {
 
 // TODO: do we follow solana model and merge router + onramp?
 fun onPublish(msg: CCIPSend) {
+    var st = Storage.load();
     // validate message originating from trusted fee quoter
 
+    // assign sequence number, we can't do this sooner since the message might fail validation/getFee
+    val (maybeDestChainConfig, exists) = st.destChainConfigs.get(msg.destChainSelector);
+    assert(exists, ERROR_UNKNOWN_DEST_CHAIN_SELECTOR);
+    var destChainConfig = maybeDestChainConfig!;
+    val seqNr = destChainConfig.sequenceNumber;
+    destChainConfig.sequenceNumber = destChainConfig.sequenceNumber + 1;
+    st.destChainConfigs.set(msg.destChainSelector, destChainConfig);
+    st.store();
+
     emit(CCIP_MESSAGE_SENT_TOPIC, CCIPMessageSent {
-        destChainSelector: 0, // TODO:
-        sequenceNumber: 0, // TODO:
+        destChainSelector: msg.destChainSelector,
+        sequenceNumber: seqNr,
         message: msg
     });
 

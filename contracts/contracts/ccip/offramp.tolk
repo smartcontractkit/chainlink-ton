@@ -2,7 +2,7 @@ import "types.tolk";
 import "../deployable/types.tolk";
 import "utils.tolk";
 
-struct OffRamp {
+struct Storage {
     owner: address;
     feeQuoter: address;
 
@@ -17,8 +17,12 @@ struct OffRamp {
     latestPriceSequenceNumber: uint64,
 }
 
-fun OffRamp.load() {
-    return OffRamp.fromCell(contract.getData());
+fun Storage.load() {
+    return Storage.fromCell(contract.getData());
+}
+
+fun Storage.store(self) {
+    return contract.setData(self.toCell());
 }
 
 struct SkippedAlreadyExecuted {
@@ -63,10 +67,10 @@ struct RampMessageHeader { // 512
 
 struct Any2TONRampMessage {
     header: Cell<RampMessageHeader>;
-    sender: address;
+    sender: cell;
     data: cell;
     receiver: address;
-    gasLimit: uint256; // TODO: does this make sense?
+    gasLimit: coins; // TODO: does this make sense?
     tokenAmounts: cell; // vec<Any2TONTokenTransfer>
     // maybe mark these amounts as slice remaining then parse them by hand to avoid requiring this to be a map<> at send time?
 }
@@ -96,7 +100,6 @@ struct CommitReport {
 
 struct (0x00000001) Commit {
     queryId: uint64;
-    // follow Aptos format https://github.com/smartcontractkit/chainlink-aptos/blob/b5a3129e50ea2da03e9df35a456d64c8ed322ff3/contracts/ccip/ccip_offramp/sources/offramp.move#L1083-L1121
     // TODO: could just store as one slice since context is fixed size
     reportContext: cell;
     report: cell;
@@ -105,7 +108,6 @@ struct (0x00000001) Commit {
 
 struct (0x00000002) Execute {
     queryId: uint64;
-    // follow Aptos format https://github.com/smartcontractkit/chainlink-aptos/blob/b5a3129e50ea2da03e9df35a456d64c8ed322ff3/contracts/ccip/ccip_offramp/sources/offramp.move#L1150-L1220
     // TODO: could just store as one slice since context is fixed size
     reportContext: cell;
     report: cell;
@@ -122,7 +124,7 @@ fun onInternalMessage(msgCell: cell, msgBody: slice) {
 }
 
 fun commit(msg: Commit) {
-    val st = OffRamp.load();
+    val st = Storage.load();
 
     // ocr3 base: validate signatures
     // NOTE: we always want to calculate cell_hash(report) when validating
@@ -143,8 +145,8 @@ fun commit(msg: Commit) {
         updatePricesMsg.send(SEND_MODE_REGULAR);
     }
 
-    // TODO: also iterate over blessed roots
     var roots = Iterator<MerkleRoot>.new(report.unblessedMerkleRoots, 512);
+    // TODO: also iterate over blessed roots
 
     while (!roots.empty()) {
         val root = roots.next();
@@ -183,7 +185,7 @@ fun commit(msg: Commit) {
 }
 
 fun _execute(msg: Execute) {
-    val st = OffRamp.load();
+    val st = Storage.load();
 
     // ocr3 base: validate execute report
 

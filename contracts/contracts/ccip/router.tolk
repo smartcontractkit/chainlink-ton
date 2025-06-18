@@ -6,11 +6,15 @@ struct Storage {
     owner: address;
 
     // TODO: expand this with versions support
-    onramp: address;
+    onRamp: address;
 }
 
 fun Storage.load() {
     return Storage.fromCell(contract.getData());
+}
+
+fun Storage.store(self) {
+    return contract.setData(self.toCell());
 }
 
 type Msg = CCIPSend | JettonTransferNotification;
@@ -26,7 +30,7 @@ fun onInternalMessage(msgCell: cell, msgBody: slice) {
 fun onSend(msg: CCIPSend) {
     ccipSend(msg);  
 
-    // // Forward excesses
+    // Forward excesses
     // self.forward(msg.sender, null, false, null);
 }
 
@@ -53,13 +57,22 @@ fun onTransferNotification(msgCell: cell, msg: JettonTransferNotification) {
 
     ccipSend(sendMsg);
 
-    // // Forward excesses
+    // Forward excesses
     // self.forward(msg.sender, null, false, null);
 }
 
 fun ccipSend(msg: CCIPSend) {
+    val st = Storage.load();
+
     // call into onramp
     // ccipSend(onRamp, msg, value/token amounts)        
+    val sendMsg = createMessage({
+        bounce: true,
+        value: 0,
+        dest: st.onRamp,
+        // body: Send { msg },
+    });
+    sendMsg.send(SEND_MODE_REGULAR);
 }
 
 // TypeAndVersion

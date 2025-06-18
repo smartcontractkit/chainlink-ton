@@ -90,7 +90,7 @@ fun Map<V>.get(self, key: slice): (V?, bool) {
     if (!exists) {
         return (null, false);
     }
-    return (V.fromCell(value), true);
+    return (V.fromSlice(value!), true);
 }
 
 @inline
@@ -114,13 +114,15 @@ fun UMap<K, V>.isEmpty(self): bool {
     return self.value.dictIsEmpty();
 }
 
+// TODO: add getRef, setRef/Builder analogs since values might be too big to fit
+
 @inline
 fun UMap<K, V>.get(self, key: K): (V?, bool) {
     val (value, exists) = self.value.uDictGet(self.keyLen, key);
     if (!exists) {
         return (null, false);
     }
-    return (V.fromCell(value), true);
+    return (V.fromSlice(value!), true);
 }
 
 @inline
