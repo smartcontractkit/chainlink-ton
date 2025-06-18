@@ -81,7 +81,7 @@ export class UpgradeableWithLockV2 implements Contract, TypeAndVersion, Upgradea
   }
 
   // Delegate TypeAndVersion methods
-  async getTypeAndVersion(provider: ContractProvider): Promise<string> {
+  async getTypeAndVersion(provider: ContractProvider): Promise<{ type: string; version: string }> {
     return this.typeAndVersion.getTypeAndVersion(provider)
   }
 

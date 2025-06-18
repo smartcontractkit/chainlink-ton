@@ -71,7 +71,8 @@ describe('UpgradeableCounter', () => {
   it('should deploy on version 1', async () => {
     let { upgradeableCounter, codeV1 } = await setUpTest(0)
     const typeAndVersion = await upgradeableCounter.getTypeAndVersion()
-    expect(typeAndVersion).toBe('com.chainlink.ton.examples.upgrades.UpgradeableCounter v1.0.0')
+    expect(typeAndVersion.type).toBe('com.chainlink.ton.examples.upgrades.UpgradeableCounter')
+    expect(typeAndVersion.version).toBe('1.0.0')
     const currentCode = await upgradeableCounter.getCode()
     const expectedHash = codeV1.hash()
     expect(currentCode.toString('hex')).toBe(codeV1.toString('hex'))
@@ -114,7 +115,8 @@ describe('UpgradeableCounter', () => {
     let { blockchain, owner, upgradeableCounter: upgradeableCounterV1, codeV2 } = await setUpTest(0)
 
     const typeAndVersion1 = await upgradeableCounterV1.getTypeAndVersion()
-    expect(typeAndVersion1).toBe('com.chainlink.ton.examples.upgrades.UpgradeableCounter v1.0.0')
+    expect(typeAndVersion1.type).toBe('com.chainlink.ton.examples.upgrades.UpgradeableCounter')
+    expect(typeAndVersion1.version).toBe('1.0.0')
 
     let { upgradeResult, newVersionInstance } = await sendUpgradeAndReturnNewVersion(
       upgradeableCounterV1,
@@ -138,7 +140,8 @@ describe('UpgradeableCounter', () => {
     expect(hash).toBe(expectedHashBigInt)
 
     const typeAndVersion2 = await upgradeableCounterV2.getTypeAndVersion()
-    expect(typeAndVersion2).toBe('com.chainlink.ton.examples.upgrades.UpgradeableCounter v2.0.0')
+    expect(typeAndVersion2.type).toBe('com.chainlink.ton.examples.upgrades.UpgradeableCounter')
+    expect(typeAndVersion2.version).toBe('2.0.0')
 
     const upgradeTransaction = upgradeResult.transactions.find(
       (tx) =>

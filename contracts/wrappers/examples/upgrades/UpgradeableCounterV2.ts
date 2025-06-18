@@ -87,7 +87,7 @@ export class UpgradeableCounterV2 implements Contract, TypeAndVersion, Upgradeab
   }
 
   // Delegate TypeAndVersion methods
-  async getTypeAndVersion(provider: ContractProvider): Promise<string> {
+  async getTypeAndVersion(provider: ContractProvider): Promise<{ type: string; version: string }> {
     return this.typeAndVersion.getTypeAndVersion(provider)
   }
 

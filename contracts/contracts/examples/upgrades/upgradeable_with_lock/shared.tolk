@@ -7,10 +7,10 @@ import "../../../lib/upgrades/type_and_version.tolk";
 /// - V1 adds 1 to the counter on each step.
 /// - V2 subtracts 1 to the counter on each step.
 ///
-/// The implementor is expected to implement a `typeAndVersion(): cell` getter, wrapping a call to `UpgradeableWithLock.typeAndVersion();`
+/// The implementor is expected to implement a `typeAndVersion(): (slice, slice)` getter, wrapping a call to `UpgradeableWithLock.typeAndVersion();`
 /// Example:
 /// ```tolk
-/// get typeAndVersion(): cell {
+/// get typeAndVersion(): (slice, slice) {
 ///     val upgradeable = Upgradeable{migrateStorage};
 ///     val upgradeableCounter = UpgradeableWithLock{upgradeable, versionStr};
 ///     return upgradeableCounter.typeAndVersion();
@@ -58,6 +58,6 @@ fun UpgradeableWithLock.onInternalMessage(self, myBalance: int, msgValue: int, m
 
 const typeStr= "com.chainlink.ton.examples.upgrades.UpgradeableWithLock";
 
-fun UpgradeableWithLock.typeAndVersion(self): cell {
+fun UpgradeableWithLock.typeAndVersion(self): (slice, slice) {
     return TypeAndVersion{typeStr, versionStr: self.versionStr}.typeAndVersion();
 }

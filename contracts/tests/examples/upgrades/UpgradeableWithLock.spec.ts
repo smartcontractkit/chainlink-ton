@@ -70,7 +70,8 @@ describe('UpgradeableWithLock', () => {
   it('should deploy on version 1', async () => {
     let { upgradeableWithLock, codeV1 } = await setUpTest(0)
     const typeAndVersion = await upgradeableWithLock.getTypeAndVersion()
-    expect(typeAndVersion).toBe('com.chainlink.ton.examples.upgrades.UpgradeableWithLock v1.0.0')
+    expect(typeAndVersion.type).toBe('com.chainlink.ton.examples.upgrades.UpgradeableWithLock')
+    expect(typeAndVersion.version).toBe('1.0.0')
     const currentCode = await upgradeableWithLock.getCode()
     const expectedHash = codeV1.hash()
     expect(currentCode.toString('hex')).toBe(codeV1.toString('hex'))
@@ -88,7 +89,8 @@ describe('UpgradeableWithLock', () => {
     } = await setUpTest(0)
 
     const typeAndVersion1 = await upgradeableWithLockV1.getTypeAndVersion()
-    expect(typeAndVersion1).toBe('com.chainlink.ton.examples.upgrades.UpgradeableWithLock v1.0.0')
+    expect(typeAndVersion1.type).toBe('com.chainlink.ton.examples.upgrades.UpgradeableWithLock')
+    expect(typeAndVersion1.version).toBe('1.0.0')
 
     let { upgradeResult, newVersionInstance } = await sendUpgradeAndReturnNewVersion(
       upgradeableWithLockV1,
@@ -116,7 +118,8 @@ describe('UpgradeableWithLock', () => {
     let { owner, upgradeableWithLock: upgradeableWithLockV1, codeV1 } = await setUpTest(0)
 
     const typeAndVersion1 = await upgradeableWithLockV1.getTypeAndVersion()
-    expect(typeAndVersion1).toBe('com.chainlink.ton.examples.upgrades.UpgradeableWithLock v1.0.0')
+    expect(typeAndVersion1.type).toBe('com.chainlink.ton.examples.upgrades.UpgradeableWithLock')
+    expect(typeAndVersion1.version).toBe('1.0.0')
 
     await upgradeableWithLockV1.sendSwitchLock(owner.getSender(), { value: toNano('0.05') })
 
@@ -128,7 +131,8 @@ describe('UpgradeableWithLock', () => {
     )
 
     const typeAndVersion2 = await upgradeableWithLockV1.getTypeAndVersion()
-    expect(typeAndVersion2).toBe('com.chainlink.ton.examples.upgrades.UpgradeableWithLock v1.0.0')
+    expect(typeAndVersion2.type).toBe('com.chainlink.ton.examples.upgrades.UpgradeableWithLock')
+    expect(typeAndVersion2.version).toBe('1.0.0')
 
     const code = await upgradeableWithLockV1.getCode()
     const expectedHash = codeV1.hash()
@@ -147,7 +151,8 @@ describe('UpgradeableWithLock', () => {
     } = await setUpTest(0)
 
     const typeAndVersion1 = await upgradeableWithLockV1.getTypeAndVersion()
-    expect(typeAndVersion1).toBe('com.chainlink.ton.examples.upgrades.UpgradeableWithLock v1.0.0')
+    expect(typeAndVersion1.type).toBe('com.chainlink.ton.examples.upgrades.UpgradeableWithLock')
+    expect(typeAndVersion1.version).toBe('1.0.0')
 
     await upgradeableWithLockV1.sendSwitchLock(owner.getSender(), { value: toNano('0.05') })
     await upgradeableWithLockV1.sendSwitchLock(owner.getSender(), { value: toNano('0.05') })
@@ -193,7 +198,8 @@ async function validateUpgradeResults(
   expect(hash).toBe(expectedHashBigInt)
 
   const typeAndVersion2 = await upgradeableWithLockV2.getTypeAndVersion()
-  expect(typeAndVersion2).toBe('com.chainlink.ton.examples.upgrades.UpgradeableWithLock v2.0.0')
+  expect(typeAndVersion2.type).toBe('com.chainlink.ton.examples.upgrades.UpgradeableWithLock')
+  expect(typeAndVersion2.version).toBe('2.0.0')
 
   const upgradeTransaction = upgradeResult.transactions.find(
     (tx: Transaction) =>

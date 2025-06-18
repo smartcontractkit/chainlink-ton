@@ -1,11 +1,11 @@
 /// Implements getters for contract type and version, current code and code hash.
 
-/// The implementor is expected to implement a `typeAndVersion(): cell` getter, wrapping a call to `TypeAndVersion.typeAndVersion;`
+/// The implementor is expected to implement a `typeAndVersion(): (slice, slice)` getter, wrapping a call to `TypeAndVersion.typeAndVersion;`
 ///
 /// Example:
 ///
 /// ```tolk
-/// get typeAndVersion(): cell {
+/// get typeAndVersion(): (slice, slice) {
 ///     return TypeAndVersion {
 ///         typeStr: "com.chainlink.ton.examples.Counter",
 ///         versionStr: "1.0.0",

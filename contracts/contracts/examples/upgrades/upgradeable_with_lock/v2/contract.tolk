@@ -65,7 +65,7 @@ fun migrateStorage(c: cell): cell { return c; }
 @method_id(1001)
 fun version(): slice { return versionStr; }
 
-get typeAndVersion(): cell {
+get typeAndVersion(): (slice, slice) {
     val this = UpgradeableWithLock{
         versionStr,
         version,
