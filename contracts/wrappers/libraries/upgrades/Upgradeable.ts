@@ -12,7 +12,7 @@ import { SandboxContract, SendMessageResult } from '@ton/sandbox'
 import { crc32 } from 'zlib'
 
 export const Opcodes = {
-  OP_UPGRADE: crc32('Upgrade'),
+  OP_UPGRADE: crc32('Upgradeable_Upgrade'),
 }
 
 export class Upgradeable {
