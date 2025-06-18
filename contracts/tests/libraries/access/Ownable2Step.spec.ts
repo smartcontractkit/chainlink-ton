@@ -249,5 +249,4 @@ describe('Ownable2Step Counter', () => {
       success: false,
     })
   })
-
 })

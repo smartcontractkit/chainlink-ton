@@ -38,7 +38,6 @@ export const Opcodes = {
 }
 
 export class OwnableCounter extends Ownable2Step {
-
   constructor(
     readonly address: Address,
     readonly init?: { code: Cell; data: Cell },
