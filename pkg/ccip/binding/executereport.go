@@ -17,13 +17,12 @@ type ExecuteReport struct {
 }
 
 type Any2TONRampMessage struct {
-	Header   RampMessageHeader `tlb:"^"`
-	Sender   []byte            `tlb:"bits 512"`
-	Data     *cell.Cell        `tlb:"^"`
-	Receiver *address.Address  `tlb:"addr"`
-	// TODO having GasLimit here will exceed the 1023 bits limit for a single cell, so it is commented out, plus TON seems to use explicit gas limits
-	//GasLimit     []byte     `tlb:"bits 256"`
-	TokenAmounts *cell.Cell `tlb:"^"` // []Any2TONTokenTransfer
+	Header       RampMessageHeader `tlb:"^"`
+	Sender       *cell.Cell        `tlb:"^"`
+	Data         *cell.Cell        `tlb:"^"`
+	Receiver     *address.Address  `tlb:"addr"`
+	GasLimit     []byte            `tlb:"bits 256"`
+	TokenAmounts *cell.Cell        `tlb:"^"`
 }
 
 type RampMessageHeader struct {
@@ -35,7 +34,7 @@ type RampMessageHeader struct {
 }
 
 type Any2TONTokenTransfer struct {
-	SourcePoolAddress []byte           `tlb:"bits 256"`
+	SourcePoolAddress *cell.Cell       `tlb:"^"`
 	DestPoolAddress   *address.Address `tlb:"addr"`
 	DestGasAmount     uint32           `tlb:"## 32"`
 	ExtraData         *cell.Cell       `tlb:"^"` // TBD

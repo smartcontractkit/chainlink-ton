@@ -18,7 +18,7 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 
 	tokenAmountsCell, err := PackArray([]Any2TONTokenTransfer{
 		{
-			SourcePoolAddress: make([]byte, 32),
+			SourcePoolAddress: dummyCell,
 			DestPoolAddress:   addr,
 			DestGasAmount:     1000,
 			ExtraData:         dummyCell,
@@ -34,10 +34,10 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 			SequenceNumber:      1,
 			Nonce:               0,
 		},
-		Sender:   make([]byte, 64),
-		Data:     dummyCell,
-		Receiver: addr,
-		//GasLimit:     make([]byte, 32),
+		Sender:       dummyCell,
+		Data:         dummyCell,
+		Receiver:     addr,
+		GasLimit:     make([]byte, 32),
 		TokenAmounts: tokenAmountsCell,
 	}
 	require.NoError(t, err)
