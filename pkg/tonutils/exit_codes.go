@@ -8,13 +8,19 @@ import "fmt"
 // - TON documentation:  https://docs.ton.org/v3/documentation/tvm/tvm-exit-codes
 type ExitCode int
 
-// ExitCode for the message that deploys a contract will be ExitCode_InvalidIncomingMessage(130).
+// ExitCode for the message that deploys a contract can be different depending on the contract implementation.
+// If the contract has an empty received message handler, and you are deploying it with an empty message, it will return ExitCode_Success.
+// If the contract does not handle empty messages, it will return ExitCode_Tolk_UnmatchedOpcode or ExitCode_Tact_InvalidIncomingMessage.
+// [NOT IMPLEMENTED] If you are deploying a contract with a non-empty message, it will return ExitCode_Success if the contract handles the message correctly.
 // TODO it can also be other exit codes. This is the code returned by contracts not implementing the empty received message handler.
 func (c ExitCode) IsSuccessfulDeployment() bool {
-	return c == ExitCode_InvalidIncomingMessage
+	return c == ExitCode_Success || // If contract has empty receiver
+		c == ExitCode_Tolk_UnmatchedOpcode || c == ExitCode_Tact_InvalidIncomingMessage // If contract doesn't handle empty messages
 }
 
 const (
+	/// TVM exit codes
+
 	ExitCode_Success                                                                  ExitCode = 0   // Standard successful execution exit code.
 	ExitCode_Success_Variant                                                          ExitCode = 1   // Alternative successful execution exit code. Reserved, but does not occur.
 	ExitCode_StackUnderflow                                                           ExitCode = 2   // Stack underflow.
@@ -44,16 +50,23 @@ const (
 	ExitCode_LibraryChangeActionError                                                 ExitCode = 42  // Library change action error.
 	ExitCode_ExceededMaximumNumberOfCellsInTheLibraryOrTheMaximumDepthOfTheMerkleTree ExitCode = 43  // Exceeded the maximum number of cells in the library or the maximum depth of the Merkle tree.
 	ExitCode_AccountStateSizeExceededLimits                                           ExitCode = 50  // Account state size exceeded limits.
-	ExitCode_NullReferenceException                                                   ExitCode = 128 // Null reference exception. Configurable since Tact 1.6.
-	ExitCode_InvalidSerializationPrefix                                               ExitCode = 129 // Invalid serialization prefix.
-	ExitCode_InvalidIncomingMessage                                                   ExitCode = 130 // Invalid incoming message — there is no receiver for the opcode of the received message.
-	ExitCode_ConstraintsError                                                         ExitCode = 131 // Constraints error. Reserved, but never thrown.
-	ExitCode_AccessDenied                                                             ExitCode = 132 // Access denied — someone other than the owner sent a message to the contract.
-	ExitCode_ContractStopped                                                          ExitCode = 133 // Contract stopped.
-	ExitCode_InvalidArgument                                                          ExitCode = 134 // Invalid argument.
-	ExitCode_CodeOfAContractWasNotFound                                               ExitCode = 135 // Code of a contract was not found.
-	ExitCode_InvalidStandardAddress                                                   ExitCode = 136 // Invalid standard address.
-	ExitCode_NotABasechainAddress                                                     ExitCode = 138 // Not a basechain address. Available since Tact 1.6.3.
+
+	/// Tolk exit codes
+
+	ExitCode_Tolk_UnmatchedOpcode ExitCode = 63 // Tolk compiler: Unmatched opcode. Thrown by Tolk when it receives an opcode that it does not recognize.
+
+	/// Tact exit codes
+
+	ExitCode_NullReferenceException          ExitCode = 128 // Tact compiler: Null reference exception. Configurable since Tact 1.6.
+	ExitCode_InvalidSerializationPrefix      ExitCode = 129 // Tact compiler: Invalid serialization prefix.
+	ExitCode_Tact_InvalidIncomingMessage     ExitCode = 130 // Tact compiler: Invalid incoming message — there is no receiver for the opcode of the received message.
+	ExitCode_Tact_ConstraintsError           ExitCode = 131 // Tact compiler: Constraints error. Reserved, but never thrown.
+	ExitCode_Tact_AccessDenied               ExitCode = 132 // Tact compiler: Access denied — someone other than the owner sent a message to the contract.
+	ExitCode_Tact_ContractStopped            ExitCode = 133 // Tact compiler: Contract stopped.
+	ExitCode_Tact_InvalidArgument            ExitCode = 134 // Tact compiler: Invalid argument.
+	ExitCode_Tact_CodeOfAContractWasNotFound ExitCode = 135 // Tact compiler: Code of a contract was not found.
+	ExitCode_Tact_InvalidStandardAddress     ExitCode = 136 // Tact compiler: Invalid standard address.
+	ExitCode_Tact_NotABasechainAddress       ExitCode = 138 // Tact compiler: Not a basechain address. Available since Tact 1.6.3.
 )
 
 // Describe provides human-readable descriptions for common TON Virtual Machine (TVM) exit codes.
@@ -117,21 +130,21 @@ func (c ExitCode) Describe() string {
 		return "Null reference exception"
 	case ExitCode_InvalidSerializationPrefix:
 		return "Invalid serialization prefix"
-	case ExitCode_InvalidIncomingMessage:
+	case ExitCode_Tact_InvalidIncomingMessage:
 		return "Invalid incoming message"
-	case ExitCode_ConstraintsError:
+	case ExitCode_Tact_ConstraintsError:
 		return "Constraints error"
-	case ExitCode_AccessDenied:
+	case ExitCode_Tact_AccessDenied:
 		return "Access denied"
-	case ExitCode_ContractStopped:
+	case ExitCode_Tact_ContractStopped:
 		return "Contract stopped"
-	case ExitCode_InvalidArgument:
+	case ExitCode_Tact_InvalidArgument:
 		return "Invalid argument"
-	case ExitCode_CodeOfAContractWasNotFound:
+	case ExitCode_Tact_CodeOfAContractWasNotFound:
 		return "Code of a contract was not found"
-	case ExitCode_InvalidStandardAddress:
+	case ExitCode_Tact_InvalidStandardAddress:
 		return "Invalid standard address"
-	case ExitCode_NotABasechainAddress:
+	case ExitCode_Tact_NotABasechainAddress:
 		return "Not a basechain address"
 	default:
 		return fmt.Sprintf("Non-standard exit code: %d", c)
