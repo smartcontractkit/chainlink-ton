@@ -51,15 +51,15 @@ type Storage struct {
 	Contract tonutils.Contract
 }
 
-type storeMethod struct {
+type storeMessage struct {
 	queryId uint64
 	Value   uint32
 }
 
-func (m storeMethod) OpCode() uint64 {
+func (m storeMessage) OpCode() uint64 {
 	return 0x1
 }
-func (m storeMethod) StoreArgs(b *cell.Builder) error {
+func (m storeMessage) StoreArgs(b *cell.Builder) error {
 	b.StoreUInt(m.queryId, 64)
 	b.StoreUInt(uint64(m.Value), 32)
 	return nil
@@ -67,6 +67,6 @@ func (m storeMethod) StoreArgs(b *cell.Builder) error {
 
 func (s Storage) Store(i uint32) (msgReceived *tonutils.ReceivedMessage, err error) {
 	queryId := rand.Uint64()
-	msgReceived, err = s.Contract.CallWaitRecursively(storeMethod{queryId, i}, tlb.MustFromTON("0.5"))
+	msgReceived, err = s.Contract.CallWaitRecursively(storeMessage{queryId, i}, tlb.MustFromTON("0.5"))
 	return msgReceived, err
 }

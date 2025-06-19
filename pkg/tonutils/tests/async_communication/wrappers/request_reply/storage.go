@@ -50,16 +50,16 @@ type Storage struct {
 	Contract tonutils.Contract
 }
 
-type getPriceFromMethod struct {
+type getPriceFromMessage struct {
 	queryId       uint64
 	PriceRegistry *address.Address
 	Key           uint8
 }
 
-func (m getPriceFromMethod) OpCode() uint64 {
+func (m getPriceFromMessage) OpCode() uint64 {
 	return 0x1
 }
-func (m getPriceFromMethod) StoreArgs(b *cell.Builder) error {
+func (m getPriceFromMessage) StoreArgs(b *cell.Builder) error {
 	b.StoreUInt(m.queryId, 64)
 	b.StoreAddr(m.PriceRegistry)
 	b.StoreUInt(uint64(m.Key), 8)
@@ -68,7 +68,7 @@ func (m getPriceFromMethod) StoreArgs(b *cell.Builder) error {
 
 func (s Storage) SendGetPriceFrom(priceRegistry *address.Address, key uint8) (msgReceived *tonutils.ReceivedMessage, err error) {
 	queryId := rand.Uint64()
-	msgReceived, err = s.Contract.CallWaitRecursively(getPriceFromMethod{queryId, priceRegistry, key}, tlb.MustFromTON("0.5"))
+	msgReceived, err = s.Contract.CallWaitRecursively(getPriceFromMessage{queryId, priceRegistry, key}, tlb.MustFromTON("0.5"))
 	return msgReceived, err
 }
 

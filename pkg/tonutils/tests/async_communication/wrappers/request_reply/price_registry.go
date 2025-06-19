@@ -49,16 +49,16 @@ type PriceRegistry struct {
 	Contract tonutils.Contract
 }
 
-type AddPriceItemMethod struct {
+type AddPriceItemMessage struct {
 	queryId uint64
 	Key     uint8
 	Addr    *address.Address
 }
 
-func (m AddPriceItemMethod) OpCode() uint64 {
+func (m AddPriceItemMessage) OpCode() uint64 {
 	return 0x3
 }
-func (m AddPriceItemMethod) StoreArgs(b *cell.Builder) error {
+func (m AddPriceItemMessage) StoreArgs(b *cell.Builder) error {
 	b.StoreUInt(m.queryId, 64)
 	b.StoreUInt(uint64(m.Key), 8)
 	b.StoreAddr(m.Addr)
@@ -67,6 +67,6 @@ func (m AddPriceItemMethod) StoreArgs(b *cell.Builder) error {
 
 func (p PriceRegistry) SendAddPriceItem(key uint8, addr *address.Address) (msgReceived *tonutils.ReceivedMessage, err error) {
 	queryId := rand.Uint64()
-	msgReceived, err = p.Contract.CallWaitRecursively(AddPriceItemMethod{queryId, key, addr}, tlb.MustFromTON("0.5"))
+	msgReceived, err = p.Contract.CallWaitRecursively(AddPriceItemMessage{queryId, key, addr}, tlb.MustFromTON("0.5"))
 	return msgReceived, err
 }

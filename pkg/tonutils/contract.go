@@ -16,27 +16,27 @@ type Contract struct {
 	Client  *SignedAPIClient
 }
 
-type Method interface {
+type Message interface {
 	OpCode() uint64
 	StoreArgs(*cell.Builder) error
 }
 
-// Calls a writer method on the contract and waits for it to be received.
+// Calls a writer message on the contract and waits for it to be received.
 // It does not wait for all the trace to be received, only the first message.
 // Use CallWaitRecursively to wait for all the trace to be received.
-func (c *Contract) CallWait(method Method, amount tlb.Coins) (*ReceivedMessage, error) {
+func (c *Contract) CallWait(message Message, amount tlb.Coins) (*ReceivedMessage, error) {
 	b := cell.BeginCell()
-	b.StoreUInt(method.OpCode(), 32)
-	method.StoreArgs(b)
+	b.StoreUInt(message.OpCode(), 32)
+	message.StoreArgs(b)
 	body := b.EndCell()
 	return c.SendMessageWait(body, amount)
 }
 
-// Calls a writer method on the contract and waits for it to be received.
+// Calls a writer message on the contract and waits for it to be received.
 // It waits for all the trace (outgoing messages) to be received.
 // Use CallWait to wait onlyfor this first message.
-func (c *Contract) CallWaitRecursively(method Method, amount tlb.Coins) (*ReceivedMessage, error) {
-	sentMessage, err := c.CallWait(method, amount)
+func (c *Contract) CallWaitRecursively(message Message, amount tlb.Coins) (*ReceivedMessage, error) {
+	sentMessage, err := c.CallWait(message, amount)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send message: %w", err)
 	}
@@ -47,7 +47,7 @@ func (c *Contract) CallWaitRecursively(method Method, amount tlb.Coins) (*Receiv
 	return sentMessage, nil
 }
 
-// Calls a writer method on the contract and waits for it to be received.
+// Calls a writer message on the contract and waits for it to be received.
 func (c *Contract) SendMessageWait(body *cell.Cell, amount tlb.Coins) (*ReceivedMessage, error) {
 	m, _, err := c.Client.SendWaitTransaction(context.TODO(),
 		*c.Address,
@@ -90,7 +90,7 @@ func Uint64From(res *ton.ExecutionResult, err error) (uint64, error) {
 
 func Uint32From(res *ton.ExecutionResult, err error) (uint32, error) {
 	if err != nil {
-		return 0, fmt.Errorf("failed to run get method: %w", err)
+		return 0, fmt.Errorf("failed to run get message: %w", err)
 	}
 
 	val, err := res.Int(0)

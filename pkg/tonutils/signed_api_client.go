@@ -19,7 +19,7 @@ import (
 
 // SignedAPIClient provides a high-level interface for interacting with the TON blockchain.
 // It wraps the low-level TON API client and wallet functionality to provide
-// convenient methods for sending transactions, deploying contracts, and monitoring
+// convenient messages for sending transactions, deploying contracts, and monitoring
 // message flows.
 type SignedAPIClient struct {
 	Client ton.APIClientWrapped
@@ -38,7 +38,7 @@ func NewSignedAPIClient(client ton.APIClientWrapped, wallet wallet.Wallet) Signe
 // with outgoing messages (if any) and the block sequence number where the
 // transaction was included.
 //
-// This method only waits for the initial transaction confirmation, not for any
+// This message only waits for the initial transaction confirmation, not for any
 // outgoing messages to be processed. Use SendAndWaitForTrace for complete trace waiting.
 func (c *SignedAPIClient) SendWaitTransaction(ctx context.Context, dstAddr address.Address, messageToSend *wallet.Message) (*ReceivedMessage, *ton.BlockIDExt, error) {
 	tx, block, err := c.Wallet.SendWaitTransaction(ctx, messageToSend)
@@ -58,7 +58,7 @@ func (c *SignedAPIClient) SendWaitTransaction(ctx context.Context, dstAddr addre
 // subsequent outgoing messages recursively. It ensures that the entire message
 // cascade has been processed and finalized before returning.
 //
-// The method returns the resulting message in a Finalized state, meaning all
+// The message returns the resulting message in a Finalized state, meaning all
 // outgoing messages have been confirmed and processed.
 func (c *SignedAPIClient) SendAndWaitForTrace(ctx context.Context, dstAddr address.Address, messageToSend *wallet.Message) (*ReceivedMessage, error) {
 	sentMessage, block, err := c.SendWaitTransaction(ctx, dstAddr, messageToSend)

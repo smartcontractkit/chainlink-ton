@@ -50,15 +50,15 @@ type Counter struct {
 	Contract tonutils.Contract
 }
 
-type setCountMethod struct {
+type setCountMessage struct {
 	queryId uint64
 	value   uint32
 }
 
-func (m setCountMethod) OpCode() uint64 {
+func (m setCountMessage) OpCode() uint64 {
 	return 0x4
 }
-func (m setCountMethod) StoreArgs(b *cell.Builder) error {
+func (m setCountMessage) StoreArgs(b *cell.Builder) error {
 	b.StoreUInt(m.queryId, 64)
 	b.StoreUInt(uint64(m.value), 32)
 	return nil
@@ -66,7 +66,7 @@ func (m setCountMethod) StoreArgs(b *cell.Builder) error {
 
 func (c Counter) SendSetCount(value uint32) (msgReceived *tonutils.ReceivedMessage, err error) {
 	queryId := rand.Uint64()
-	msgReceived, err = c.Contract.CallWaitRecursively(setCountMethod{queryId, value}, tlb.MustFromTON("0.5"))
+	msgReceived, err = c.Contract.CallWaitRecursively(setCountMessage{queryId, value}, tlb.MustFromTON("0.5"))
 	return msgReceived, err
 }
 

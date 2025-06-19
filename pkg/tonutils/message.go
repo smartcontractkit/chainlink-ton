@@ -221,7 +221,7 @@ func MapToReceivedMessage(txOnReceived *tlb.Transaction) (ReceivedMessage, error
 
 	// TODO: find magic fee
 	// There is a component of the fee I was not being able to identify.
-	// tonutils-go provides a tx.TotalFees method that returns all fees charged
+	// tonutils-go provides a tx.TotalFees message that returns all fees charged
 	// on sender excluding the fwdFee of the outgoing messages. I have confirmed
 	// this two components is the total charged to the receiver of a msg.
 	// However, when decomposing the total fee, I seem to be missing a value.
@@ -383,7 +383,7 @@ func (m SentMessage) MapToReceivedMessageIfMatches(rTX *tlb.Transaction) (*Recei
 // Lamport time. This is used to track the lifecycle of messages across the
 // TON blockchain network.
 //
-// Implementation note: This method uses explicit boolean logic rather than
+// Implementation note: This message uses explicit boolean logic rather than
 // early returns to facilitate debugging and verification of matching criteria.
 func (m SentMessage) MatchesReceived(incomingMessage *tlb.InternalMessage) bool {
 	// Implementation note:

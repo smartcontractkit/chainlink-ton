@@ -50,33 +50,33 @@ type DB struct {
 	Contract tonutils.Contract
 }
 
-type beginTransactionMethod struct {
+type beginTransactionMessage struct {
 	queryId uint64
 }
 
-func (m beginTransactionMethod) OpCode() uint64 {
+func (m beginTransactionMessage) OpCode() uint64 {
 	return 0x1
 }
-func (m beginTransactionMethod) StoreArgs(b *cell.Builder) error {
+func (m beginTransactionMessage) StoreArgs(b *cell.Builder) error {
 	b.StoreUInt(m.queryId, 64)
 	return nil
 }
 
 func (s DB) BeginTransaction(queryId uint64) (msgReceived *tonutils.ReceivedMessage, err error) {
-	msgReceived, err = s.Contract.CallWaitRecursively(beginTransactionMethod{queryId}, tlb.MustFromTON("0.5"))
+	msgReceived, err = s.Contract.CallWaitRecursively(beginTransactionMessage{queryId}, tlb.MustFromTON("0.5"))
 	return msgReceived, err
 }
 
-type setValueMethod struct {
+type setValueMessage struct {
 	queryId uint64
 	Counter *address.Address
 	Value   uint32
 }
 
-func (m setValueMethod) OpCode() uint64 {
+func (m setValueMessage) OpCode() uint64 {
 	return 0x2
 }
-func (m setValueMethod) StoreArgs(b *cell.Builder) error {
+func (m setValueMessage) StoreArgs(b *cell.Builder) error {
 	b.StoreUInt(m.queryId, 64)
 	b.StoreAddr(m.Counter)
 	b.StoreUInt(uint64(m.Value), 32)
@@ -85,24 +85,24 @@ func (m setValueMethod) StoreArgs(b *cell.Builder) error {
 
 func (s DB) SetValue(counterAddr *address.Address, value uint32) (msgReceived *tonutils.ReceivedMessage, err error) {
 	queryId := rand.Uint64()
-	msgReceived, err = s.Contract.CallWaitRecursively(setValueMethod{queryId, counterAddr, value}, tlb.MustFromTON("0.5"))
+	msgReceived, err = s.Contract.CallWaitRecursively(setValueMessage{queryId, counterAddr, value}, tlb.MustFromTON("0.5"))
 	return msgReceived, err
 }
 
-type commitMethod struct {
+type commitMessage struct {
 	queryId uint64
 }
 
-func (m commitMethod) OpCode() uint64 {
+func (m commitMessage) OpCode() uint64 {
 	return 0x5
 }
-func (m commitMethod) StoreArgs(b *cell.Builder) error {
+func (m commitMessage) StoreArgs(b *cell.Builder) error {
 	b.StoreUInt(m.queryId, 64)
 	return nil
 }
 
 func (s DB) Commit() (msgReceived *tonutils.ReceivedMessage, err error) {
 	queryId := rand.Uint64()
-	msgReceived, err = s.Contract.CallWaitRecursively(commitMethod{queryId}, tlb.MustFromTON("0.5"))
+	msgReceived, err = s.Contract.CallWaitRecursively(commitMessage{queryId}, tlb.MustFromTON("0.5"))
 	return msgReceived, err
 }
