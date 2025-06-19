@@ -11,6 +11,7 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 	"github.com/smartcontractkit/chainlink-common/pkg/utils"
 	commonutils "github.com/smartcontractkit/chainlink-common/pkg/utils"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/key"
 	"github.com/smartcontractkit/chainlink-ton/tonutils"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
@@ -106,11 +107,17 @@ func (t *Txm) Close() error {
 // Enqueues a transaction for broadcasting.
 func (t *Txm) Enqueue(request Request) error {
 	// Ensure we can sign with the requested address
-	publicKey := fmt.Sprintf("%064x", request.FromWallet.PrivateKey().Public())
-	if _, err := t.Keystore.Sign(context.Background(), publicKey, nil); err != nil {
+	pubKey := request.FromWallet.PrivateKey().Public()
+	pubKeyHex, err := key.PublicKeyHex(pubKey)
+	if err != nil {
+		return fmt.Errorf("failed to convert public key to hex: %w", err)
+	}
+
+	if _, err := t.Keystore.Sign(context.Background(), pubKeyHex, nil); err != nil {
 		return fmt.Errorf("failed to sign: %w", err)
 	}
 
+	txExpirationMins := time.Duration(t.Config.TxExpirationMins)
 	tx := &Tx{
 		Mode:        request.Mode,
 		From:        *request.FromWallet.Address(),
@@ -120,7 +127,7 @@ func (t *Txm) Enqueue(request Request) error {
 		StateInit:   request.StateInit,
 		Bounceable:  request.Bounce,
 		CreatedAt:   time.Now(),
-		Expiration:  time.Now().Add(5 * time.Minute),
+		Expiration:  time.Now().Add(txExpirationMins * time.Minute),
 		EstimateGas: request.Simulate,
 	}
 

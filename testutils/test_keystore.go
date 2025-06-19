@@ -3,10 +3,10 @@ package testutils
 import (
 	"context"
 	"crypto/ed25519"
-	"fmt"
 	"testing"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/loop"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/key"
 )
 
 type TestKeystore struct {
@@ -21,11 +21,16 @@ func NewTestKeystore(t *testing.T) *TestKeystore {
 }
 
 func (tk *TestKeystore) AddKey(privateKey ed25519.PrivateKey) {
-	publicKey := fmt.Sprintf("%064x", privateKey.Public())
-	if _, ok := tk.Keys[publicKey]; ok {
-		tk.t.Fatalf("Key already exists: %s", publicKey)
+	pubKey := privateKey.Public()
+	pubKeyHex, err := key.PublicKeyHex(pubKey)
+	if err != nil {
+		tk.t.Fatalf("failed to convert public key to hex: %s", err)
 	}
-	tk.Keys[publicKey] = privateKey
+
+	if _, ok := tk.Keys[pubKeyHex]; ok {
+		tk.t.Fatalf("Key already exists: %s", pubKeyHex)
+	}
+	tk.Keys[pubKeyHex] = privateKey
 }
 
 func (tk *TestKeystore) Sign(ctx context.Context, id string, hash []byte) ([]byte, error) {
