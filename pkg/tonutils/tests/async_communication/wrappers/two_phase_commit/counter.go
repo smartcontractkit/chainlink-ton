@@ -53,19 +53,22 @@ type Counter struct {
 	Contract tonutils.Contract
 }
 
-type sendAck struct{}
+type sendAck struct {
+	queryId uint64
+}
 
 func (m sendAck) OpCode() uint64 {
 	return 0x3
 }
 func (m sendAck) StoreArgs(b *cell.Builder) error {
+	b.StoreUInt(m.queryId, 64)
 	return nil
 }
 
-func (c Counter) SendAck() (queryID uint64, msgReceived *tonutils.ReceivedMessage, err error) {
-	queryID = rand.Uint64()
-	msgReceived, err = c.Contract.CallWaitRecursively(sendAck{}, queryID, tlb.MustFromTON("0.5"))
-	return queryID, msgReceived, err
+func (c Counter) SendAck() (msgReceived *tonutils.ReceivedMessage, err error) {
+	queryId := rand.Uint64()
+	msgReceived, err = c.Contract.CallWaitRecursively(sendAck{queryId}, tlb.MustFromTON("0.5"))
+	return msgReceived, err
 }
 
 func (c Counter) GetValue() (uint32, error) {

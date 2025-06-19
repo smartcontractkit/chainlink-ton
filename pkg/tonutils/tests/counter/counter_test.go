@@ -39,7 +39,7 @@ func TestCounter(t *testing.T) {
 		fmt.Printf("Initial value: %d\n", result)
 
 		fmt.Printf("Sending SetCount request\n")
-		_, msgReceived, err := counter.SendSetCount(1)
+		msgReceived, err := counter.SendSetCount(1)
 		assert.NoError(t, err, "Failed to send SetCount request: %v", err)
 		assert.Equal(t, tonutils.ExitCode_Success, msgReceived.ExitCode, "Expected exit code 0, got %d", msgReceived.ExitCode)
 		outgoingCount := len(msgReceived.OutgoingInternalReceivedMessages)

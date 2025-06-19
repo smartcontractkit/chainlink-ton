@@ -50,7 +50,7 @@ func TestRequestReply(t *testing.T) {
 
 		for index, name := range priceIndex {
 			fmt.Printf("Sending AddPriceItem request for %s, key: %d, addr: %s\n", name, uint8(index), itemAddresses[index].String())
-			_, _, err := priceRegistry.SendAddPriceItem(uint8(index), itemAddresses[index])
+			_, err := priceRegistry.SendAddPriceItem(uint8(index), itemAddresses[index])
 			assert.NoError(t, err, "Failed to send AddPriceItem request: %v", err)
 			fmt.Printf("AddPriceItem request sent\n")
 		}
@@ -64,7 +64,7 @@ func TestRequestReply(t *testing.T) {
 
 		for index, name := range priceIndex {
 			fmt.Printf("Sending GetPrice request for %s\n", name)
-			_, _, err = storage.SendGetPriceFrom(priceRegistry.Contract.Address, uint8(index))
+			_, err = storage.SendGetPriceFrom(priceRegistry.Contract.Address, uint8(index))
 			assert.NoError(t, err, "Failed to send GetPriceFrom request: %v", err)
 			fmt.Printf("GetPriceFrom request sent\n")
 

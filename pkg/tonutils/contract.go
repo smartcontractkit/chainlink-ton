@@ -24,10 +24,9 @@ type Method interface {
 // Calls a writer method on the contract and waits for it to be received.
 // It does not wait for all the trace to be received, only the first message.
 // Use CallWaitRecursively to wait for all the trace to be received.
-func (c *Contract) CallWait(method Method, queryId uint64, amount tlb.Coins) (*ReceivedMessage, error) {
+func (c *Contract) CallWait(method Method, amount tlb.Coins) (*ReceivedMessage, error) {
 	b := cell.BeginCell()
 	b.StoreUInt(method.OpCode(), 32)
-	b.StoreUInt(queryId, 64)
 	method.StoreArgs(b)
 	body := b.EndCell()
 	return c.SendMessageWait(body, amount)
@@ -36,8 +35,8 @@ func (c *Contract) CallWait(method Method, queryId uint64, amount tlb.Coins) (*R
 // Calls a writer method on the contract and waits for it to be received.
 // It waits for all the trace (outgoing messages) to be received.
 // Use CallWait to wait onlyfor this first message.
-func (c *Contract) CallWaitRecursively(method Method, queryId uint64, amount tlb.Coins) (*ReceivedMessage, error) {
-	sentMessage, err := c.CallWait(method, queryId, amount)
+func (c *Contract) CallWaitRecursively(method Method, amount tlb.Coins) (*ReceivedMessage, error) {
+	sentMessage, err := c.CallWait(method, amount)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send message: %w", err)
 	}

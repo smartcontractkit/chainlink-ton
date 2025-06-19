@@ -51,6 +51,7 @@ type Storage struct {
 }
 
 type getCapitalFromMethod struct {
+	queryId       uint64
 	PriceRegistry *address.Address
 	Key           uint8
 }
@@ -59,18 +60,16 @@ func (m getCapitalFromMethod) OpCode() uint64 {
 	return 0x1
 }
 func (m getCapitalFromMethod) StoreArgs(b *cell.Builder) error {
+	b.StoreUInt(m.queryId, 64)
 	b.StoreAddr(m.PriceRegistry)
 	b.StoreUInt(uint64(m.Key), 8)
 	return nil
 }
 
-func (s Storage) SendGetCapitalFrom(priceRegistry *address.Address, key uint8) (queryID uint64, msgReceived *tonutils.ReceivedMessage, err error) {
-	queryID = rand.Uint64()
-	msgReceived, err = s.Contract.CallWaitRecursively(getCapitalFromMethod{
-		PriceRegistry: priceRegistry,
-		Key:           key,
-	}, queryID, tlb.MustFromTON("0.5"))
-	return queryID, msgReceived, err
+func (s Storage) SendGetCapitalFrom(priceRegistry *address.Address, key uint8) (msgReceived *tonutils.ReceivedMessage, err error) {
+	queryId := rand.Uint64()
+	msgReceived, err = s.Contract.CallWaitRecursively(getCapitalFromMethod{queryId, priceRegistry, key}, tlb.MustFromTON("0.5"))
+	return msgReceived, err
 }
 
 func (s Storage) GetValue() (uint64, error) {

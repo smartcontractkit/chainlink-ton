@@ -29,7 +29,7 @@ func TestTwoMsgChain(t *testing.T) {
 		assert.Equal(t, initValue, initValueReturned, "Initial value should be %d", initValue)
 		fmt.Printf("Storing value %d in memory contract\n", initValue)
 		const valueToStore = uint32(2)
-		_, msgRec, err := memoryContract.SetValue(valueToStore)
+		msgRec, err := memoryContract.SetValue(valueToStore)
 		assert.NoError(t, err, "Failed to store value: %v", err)
 		_ = msgRec
 		fmt.Printf("Checking if value is stored in memory contract\n")
@@ -64,7 +64,7 @@ func TestTwoMsgChain(t *testing.T) {
 
 		const valueToStore = uint32(2)
 		fmt.Printf("Storing value %d in storage contract\n", valueToStore)
-		_, msgRec, err := storageContract.Store(valueToStore)
+		msgRec, err := storageContract.Store(valueToStore)
 		assert.NoError(t, err, "Failed to store value: %v", err)
 		_ = msgRec
 

@@ -51,23 +51,23 @@ type Memory struct {
 }
 
 type setValueMethod struct {
-	Value uint32
+	queryId uint64
+	Value   uint32
 }
 
 func (m setValueMethod) OpCode() uint64 {
 	return 0x1
 }
 func (m setValueMethod) StoreArgs(b *cell.Builder) error {
+	b.StoreUInt(m.queryId, 64)
 	b.StoreUInt(uint64(m.Value), 32)
 	return nil
 }
 
-func (m Memory) SetValue(i uint32) (queryID uint64, msgReceived *tonutils.ReceivedMessage, err error) {
-	queryID = rand.Uint64()
-	msgReceived, err = m.Contract.CallWaitRecursively(setValueMethod{
-		Value: i,
-	}, queryID, tlb.MustFromTON("0.5"))
-	return queryID, msgReceived, err
+func (m Memory) SetValue(i uint32) (msgReceived *tonutils.ReceivedMessage, err error) {
+	queryId := rand.Uint64()
+	msgReceived, err = m.Contract.CallWaitRecursively(setValueMethod{queryId, i}, tlb.MustFromTON("0.5"))
+	return msgReceived, err
 }
 
 func (m Memory) GetValue() (uint32, error) {

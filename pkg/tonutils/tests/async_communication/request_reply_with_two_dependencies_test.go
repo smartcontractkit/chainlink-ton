@@ -64,7 +64,7 @@ func TestRequestReplyWithTwoDependencies(t *testing.T) {
 
 		for index, name := range priceIndex {
 			fmt.Printf("Sending AddItem request for %s, key: %d, priceAddr: %s, countAddr: %s\n", name, uint8(index), itemAddresses[index].PriceAddr.String(), itemAddresses[index].CountAddr.String())
-			_, _, err := inventory.SendAddItem(uint8(index), itemAddresses[index].PriceAddr, itemAddresses[index].CountAddr)
+			_, err := inventory.SendAddItem(uint8(index), itemAddresses[index].PriceAddr, itemAddresses[index].CountAddr)
 			assert.NoError(t, err, "Failed to send AddItem request: %v", err)
 			fmt.Printf("AddItem request sent\n")
 		}
@@ -78,7 +78,7 @@ func TestRequestReplyWithTwoDependencies(t *testing.T) {
 
 		for index, name := range priceIndex {
 			fmt.Printf("Sending GetCapitalFrom request for %s\n", name)
-			_, _, err = storage.SendGetCapitalFrom(inventory.Contract.Address, uint8(index))
+			_, err = storage.SendGetCapitalFrom(inventory.Contract.Address, uint8(index))
 			assert.NoError(t, err, "Failed to send GetCapitalFrom request: %v", err)
 			fmt.Printf("GetCapitalFrom request sent\n")
 
