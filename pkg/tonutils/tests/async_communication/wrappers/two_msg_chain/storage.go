@@ -65,7 +65,7 @@ func (m storeMessage) StoreArgs(b *cell.Builder) error {
 	return nil
 }
 
-func (s Storage) Store(i uint32) (msgReceived *tonutils.ReceivedMessage, err error) {
+func (s Storage) SendStore(i uint32) (msgReceived *tonutils.ReceivedMessage, err error) {
 	queryId := rand.Uint64()
 	msgReceived, err = s.Contract.CallWaitRecursively(storeMessage{queryId, i}, tlb.MustFromTON("0.5"))
 	return msgReceived, err

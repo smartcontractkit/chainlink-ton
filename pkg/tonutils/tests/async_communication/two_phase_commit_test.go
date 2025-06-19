@@ -41,20 +41,20 @@ func TestTwoPhaseCommit(t *testing.T) {
 
 		fmt.Printf("Beginning transaction\n")
 		txId := rand.Uint64()
-		_, err = dbContract.BeginTransaction(txId)
+		_, err = dbContract.SendBeginTransaction(txId)
 		assert.NoError(t, err, "Failed to begin transaction: %v", err)
 		fmt.Printf("Transaction started with ID %d\n", txId)
 
 		fmt.Printf("Setting value in counter A to %d\n", valueForCounterA)
-		_, err = dbContract.SetValue(counterA.Contract.Address, valueForCounterA)
+		_, err = dbContract.SendSetValue(counterA.Contract.Address, valueForCounterA)
 		assert.NoError(t, err, "Failed to set value in counter A: %v", err)
 
 		fmt.Printf("Setting value in counter B to %d\n", valueForCounterB)
-		_, err = dbContract.SetValue(counterB.Contract.Address, valueForCounterB)
+		_, err = dbContract.SendSetValue(counterB.Contract.Address, valueForCounterB)
 		assert.NoError(t, err, "Failed to set value in counter B: %v", err)
 
 		fmt.Printf("Committing transaction\n")
-		_, err = dbContract.Commit()
+		_, err = dbContract.SendCommit()
 		assert.NoError(t, err, "Failed to commit transaction: %v", err)
 		fmt.Printf("Transaction committed\n")
 
@@ -98,19 +98,19 @@ func TestTwoPhaseCommit(t *testing.T) {
 
 		fmt.Printf("Beginning transaction\n")
 		txId := rand.Uint64()
-		_, err = dbContract.BeginTransaction(txId)
+		_, err = dbContract.SendBeginTransaction(txId)
 		assert.NoError(t, err, "Failed to begin transaction: %v", err)
 		fmt.Printf("Transaction started with ID %d\n", txId)
 
 		fmt.Printf("Setting value in counter A to %d\n", valueForCounterA)
-		_, err = dbContract.SetValue(counterA.Contract.Address, valueForCounterA)
+		_, err = dbContract.SendSetValue(counterA.Contract.Address, valueForCounterA)
 		assert.NoError(t, err, "Failed to set value in counter A: %v", err)
 
 		fmt.Printf("Sending ack to counter A\n")
 		_, err = counterA.SendAck()
 
 		fmt.Printf("Setting value in counter B to %d\n", valueForCounterB)
-		_, err = dbContract.SetValue(counterB.Contract.Address, valueForCounterB)
+		_, err = dbContract.SendSetValue(counterB.Contract.Address, valueForCounterB)
 		assert.NoError(t, err, "Failed to set value in counter B: %v", err)
 
 		fmt.Printf("Sending ack to counter B\n")
@@ -125,7 +125,7 @@ func TestTwoPhaseCommit(t *testing.T) {
 		assert.Equal(t, initValue, valueB, "Counter B value mismatch: expected %d, got %d", valueForCounterB, valueB)
 
 		fmt.Printf("Committing transaction\n")
-		_, err = dbContract.Commit()
+		_, err = dbContract.SendCommit()
 		assert.NoError(t, err, "Failed to commit transaction: %v", err)
 		fmt.Printf("Transaction committed\n")
 
@@ -169,20 +169,20 @@ func TestTwoPhaseCommit(t *testing.T) {
 
 		fmt.Printf("Beginning transaction\n")
 		txId := rand.Uint64()
-		_, err = dbContract.BeginTransaction(txId)
+		_, err = dbContract.SendBeginTransaction(txId)
 		assert.NoError(t, err, "Failed to begin transaction: %v", err)
 		fmt.Printf("Transaction started with ID %d\n", txId)
 
 		fmt.Printf("Setting value in counter A to %d\n", valueForCounterA)
-		_, err = dbContract.SetValue(counterA.Contract.Address, valueForCounterA)
+		_, err = dbContract.SendSetValue(counterA.Contract.Address, valueForCounterA)
 		assert.NoError(t, err, "Failed to set value in counter A: %v", err)
 
 		fmt.Printf("Setting value in counter B to %d\n", valueForCounterB)
-		_, err = dbContract.SetValue(counterB.Contract.Address, valueForCounterB)
+		_, err = dbContract.SendSetValue(counterB.Contract.Address, valueForCounterB)
 		assert.NoError(t, err, "Failed to set value in counter B: %v", err)
 
 		fmt.Printf("Committing transaction\n")
-		_, err = dbContract.Commit()
+		_, err = dbContract.SendCommit()
 		assert.NoError(t, err, "Failed to commit transaction: %v", err)
 		fmt.Printf("Transaction committed\n")
 
@@ -240,23 +240,23 @@ func TestTwoPhaseCommit(t *testing.T) {
 
 		fmt.Printf("Beginning transaction\n")
 		txId := rand.Uint64()
-		_, err = dbContract.BeginTransaction(txId)
+		_, err = dbContract.SendBeginTransaction(txId)
 		assert.NoError(t, err, "Failed to begin transaction: %v", err)
 		fmt.Printf("Transaction started with ID %d\n", txId)
 
 		fmt.Printf("Setting value in counter A to %d\n", valueForCounterA)
-		_, err = dbContract.SetValue(counterA.Contract.Address, valueForCounterA)
+		_, err = dbContract.SendSetValue(counterA.Contract.Address, valueForCounterA)
 		assert.NoError(t, err, "Failed to set value in counter A: %v", err)
 
 		fmt.Printf("Setting value in counter B to %d\n", valueForCounterB)
-		_, err = dbContract.SetValue(counterB.Contract.Address, valueForCounterB)
+		_, err = dbContract.SendSetValue(counterB.Contract.Address, valueForCounterB)
 		assert.NoError(t, err, "Failed to set value in counter B: %v", err)
 
 		fmt.Printf("Sending ack to counter A\n")
 		_, err = counterA.SendAck()
 
 		fmt.Printf("Committing transaction\n")
-		_, err = dbContract.Commit()
+		_, err = dbContract.SendCommit()
 		assert.NoError(t, err, "Failed to commit transaction: %v", err)
 		fmt.Printf("Transaction committed\n")
 

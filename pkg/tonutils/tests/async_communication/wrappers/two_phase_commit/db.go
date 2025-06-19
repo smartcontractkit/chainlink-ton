@@ -62,7 +62,7 @@ func (m beginTransactionMessage) StoreArgs(b *cell.Builder) error {
 	return nil
 }
 
-func (s DB) BeginTransaction(queryId uint64) (msgReceived *tonutils.ReceivedMessage, err error) {
+func (s DB) SendBeginTransaction(queryId uint64) (msgReceived *tonutils.ReceivedMessage, err error) {
 	msgReceived, err = s.Contract.CallWaitRecursively(beginTransactionMessage{queryId}, tlb.MustFromTON("0.5"))
 	return msgReceived, err
 }
@@ -83,7 +83,7 @@ func (m setValueMessage) StoreArgs(b *cell.Builder) error {
 	return nil
 }
 
-func (s DB) SetValue(counterAddr *address.Address, value uint32) (msgReceived *tonutils.ReceivedMessage, err error) {
+func (s DB) SendSetValue(counterAddr *address.Address, value uint32) (msgReceived *tonutils.ReceivedMessage, err error) {
 	queryId := rand.Uint64()
 	msgReceived, err = s.Contract.CallWaitRecursively(setValueMessage{queryId, counterAddr, value}, tlb.MustFromTON("0.5"))
 	return msgReceived, err
@@ -101,7 +101,7 @@ func (m commitMessage) StoreArgs(b *cell.Builder) error {
 	return nil
 }
 
-func (s DB) Commit() (msgReceived *tonutils.ReceivedMessage, err error) {
+func (s DB) SendCommit() (msgReceived *tonutils.ReceivedMessage, err error) {
 	queryId := rand.Uint64()
 	msgReceived, err = s.Contract.CallWaitRecursively(commitMessage{queryId}, tlb.MustFromTON("0.5"))
 	return msgReceived, err
