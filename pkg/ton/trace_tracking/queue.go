@@ -1,20 +1,20 @@
 package trace_tracking
 
-type Queue[T any] struct {
+type queue[T any] struct {
 	items *[]T
 }
 
-func (q *Queue[T]) PushAll(items ...T) {
+func (q *queue[T]) PushAll(items ...T) {
 	*q.items = append(*q.items, items...)
 }
 
-func (q *Queue[T]) Push(item T) {
+func (q *queue[T]) Push(item T) {
 	*q.items = append(*q.items, item)
 }
 
 // Pop removes the first item from the queue and returns it. If the queue is
 // empty, it returns the zero value of T and false.
-func (q *Queue[T]) Pop() (item T, ok bool) {
+func (q *queue[T]) Pop() (item T, ok bool) {
 	if q.IsEmpty() {
 		return item, false
 	}
@@ -27,17 +27,17 @@ func (q *Queue[T]) Pop() (item T, ok bool) {
 	return item, true
 }
 
-func (q *Queue[T]) IsEmpty() bool {
+func (q *queue[T]) IsEmpty() bool {
 	return len(*q.items) == 0
 }
 
-func NewEmptyQueue[T any]() *Queue[T] {
+func newEmptyQueue[T any]() *queue[T] {
 	newVar := make([]T, 0)
-	return &Queue[T]{items: &newVar}
+	return &queue[T]{items: &newVar}
 }
 
 // IN PLACE: This uses the provided slice as the storage. It is used to modify
 // a slice as a queue.
-func AsQueue[T any](list *[]T) *Queue[T] {
-	return &Queue[T]{items: list}
+func asQueue[T any](list *[]T) *queue[T] {
+	return &queue[T]{items: list}
 }

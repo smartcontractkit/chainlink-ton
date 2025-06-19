@@ -327,7 +327,7 @@ func (r *ReceivedMessage) AppendSentMessage(outgoingInternalMessage *tlb.Interna
 //
 // TODO: This could be optimized by grouping outgoing messages by recipient address
 func (m *ReceivedMessage) WaitForOutgoingMessagesToBeReceived(c *SignedAPIClient) error {
-	outgoingMessagesSentQueue := AsQueue(&m.OutgoingInternalSentMessages)
+	outgoingMessagesSentQueue := asQueue(&m.OutgoingInternalSentMessages)
 	for {
 		sentMessage, ok := outgoingMessagesSentQueue.Pop()
 		if !ok {
@@ -417,7 +417,7 @@ func (m *ReceivedMessage) WaitForTrace(c *SignedAPIClient) error {
 		return nil
 	}
 
-	messagesWithUnconfirmedOutgoingMessages := NewEmptyQueue[*ReceivedMessage]()
+	messagesWithUnconfirmedOutgoingMessages := newEmptyQueue[*ReceivedMessage]()
 	messagesWithUnconfirmedOutgoingMessages.Push(m)
 
 	for {
