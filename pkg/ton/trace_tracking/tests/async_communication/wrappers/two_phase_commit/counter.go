@@ -36,11 +36,11 @@ func (p *CounterProvider) Deploy(initData CounterInitData) (Counter, error) {
 	c.StoreUInt(uint64(initData.ID), 32)
 	c.StoreUInt(uint64(initData.Value), 32)
 	c.StoreBoolBit(initData.AutoAck)
-	contractCode, err := wrappers.CompiledContract(COUNTER_CONTRACT_PATH)
+	compiledContract, err := wrappers.ParseCompiledContract(COUNTER_CONTRACT_PATH)
 	if err != nil {
 		return Counter{}, fmt.Errorf("Failed to compile contract: %v", err)
 	}
-	contract, err := wrappers.Deploy(contractCode, &p.apiClient, c.EndCell(), tlb.MustFromTON("1"))
+	contract, err := wrappers.Deploy(compiledContract, &p.apiClient, c.EndCell(), tlb.MustFromTON("1"))
 	if err != nil {
 		return Counter{}, err
 	}

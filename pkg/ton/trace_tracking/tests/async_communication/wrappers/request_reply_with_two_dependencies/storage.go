@@ -33,11 +33,11 @@ func (p *StorageProvider) Deploy(initData StorageInitData) (Storage, error) {
 	b := cell.BeginCell()
 	b.StoreUInt(0, 1)
 	b.MustStoreUInt(uint64(initData.ID), 32)
-	contractCode, err := wrappers.CompiledContract(STORAGE_CONTRACT_PATH)
+	compiledContract, err := wrappers.ParseCompiledContract(STORAGE_CONTRACT_PATH)
 	if err != nil {
 		return Storage{}, fmt.Errorf("Failed to compile contract: %v", err)
 	}
-	contract, err := wrappers.Deploy(contractCode, &p.apiClient, b.EndCell(), tlb.MustFromTON("1"))
+	contract, err := wrappers.Deploy(compiledContract, &p.apiClient, b.EndCell(), tlb.MustFromTON("1"))
 	if err != nil {
 		return Storage{}, err
 	}

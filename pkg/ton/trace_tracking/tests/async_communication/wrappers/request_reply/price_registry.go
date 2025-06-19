@@ -32,11 +32,11 @@ func (p *PriceRegistryProvider) Deploy(initData PriceRegistryInitData) (PriceReg
 	b := cell.BeginCell()
 	b.StoreUInt(0, 1)
 	b.StoreUInt(uint64(initData.ID), 32)
-	contractCode, err := wrappers.CompiledContract(PRICE_REGISTRY_CONTRACT_PATH)
+	compiledContract, err := wrappers.ParseCompiledContract(PRICE_REGISTRY_CONTRACT_PATH)
 	if err != nil {
 		return PriceRegistry{}, fmt.Errorf("Failed to compile contract: %v", err)
 	}
-	contract, err := wrappers.Deploy(contractCode, &p.apiClient, b.EndCell(), tlb.MustFromTON("1"))
+	contract, err := wrappers.Deploy(compiledContract, &p.apiClient, b.EndCell(), tlb.MustFromTON("1"))
 	if err != nil {
 		return PriceRegistry{}, err
 	}

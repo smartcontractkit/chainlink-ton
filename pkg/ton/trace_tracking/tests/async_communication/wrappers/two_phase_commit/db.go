@@ -33,11 +33,11 @@ func (p *DBProvider) Deploy(initData DBInitData) (DB, error) {
 	c := cell.BeginCell()
 	c.StoreUInt(0, 1) // For some reason, if the contract is defined with an init function, you must write a 0 bit before the arguments
 	c.StoreUInt(uint64(initData.ID), 32)
-	contractCode, err := wrappers.CompiledContract(DB_CONTRACT_PATH)
+	compiledContract, err := wrappers.ParseCompiledContract(DB_CONTRACT_PATH)
 	if err != nil {
 		return DB{}, fmt.Errorf("Failed to compile contract: %v", err)
 	}
-	contract, err := wrappers.Deploy(contractCode, &p.apiClient, c.EndCell(), tlb.MustFromTON("1"))
+	contract, err := wrappers.Deploy(compiledContract, &p.apiClient, c.EndCell(), tlb.MustFromTON("1"))
 	if err != nil {
 		return DB{}, err
 	}

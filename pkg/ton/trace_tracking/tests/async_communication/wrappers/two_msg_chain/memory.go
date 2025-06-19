@@ -33,11 +33,11 @@ func (p *MemoryProvider) Deploy(initData MemoryInitData) (Memory, error) {
 	b.StoreUInt(0, 1) // For some reason, if the contract is defined with an init function, you must write a 0 bit before the arguments
 	b.StoreUInt(uint64(initData.ID), 32)
 	b.StoreUInt(uint64(0), 32)
-	contractCode, err := wrappers.CompiledContract(MEMORY_CONTRACT_PATH)
+	compiledContract, err := wrappers.ParseCompiledContract(MEMORY_CONTRACT_PATH)
 	if err != nil {
 		return Memory{}, fmt.Errorf("Failed to compile contract: %v", err)
 	}
-	contract, err := wrappers.Deploy(contractCode, &p.apiClient, b.EndCell(), tlb.MustFromTON("1"))
+	contract, err := wrappers.Deploy(compiledContract, &p.apiClient, b.EndCell(), tlb.MustFromTON("1"))
 	if err != nil {
 		return Memory{}, err
 	}

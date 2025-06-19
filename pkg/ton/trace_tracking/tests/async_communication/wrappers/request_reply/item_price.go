@@ -32,11 +32,11 @@ func (p *ItemPriceProvider) Deploy(initData ItemPriceInitData) (ItemPrice, error
 	b := cell.BeginCell()
 	b.StoreUInt(uint64(initData.ID), 32)
 	b.StoreUInt(initData.Price, 64)
-	contractCode, err := wrappers.CompiledContract(ITEM_PRICE_CONTRACT_PATH)
+	compiledContract, err := wrappers.ParseCompiledContract(ITEM_PRICE_CONTRACT_PATH)
 	if err != nil {
 		return ItemPrice{}, fmt.Errorf("Failed to compile contract: %v", err)
 	}
-	contract, err := wrappers.Deploy(contractCode, &p.apiClient, b.EndCell(), tlb.MustFromTON("1"))
+	contract, err := wrappers.Deploy(compiledContract, &p.apiClient, b.EndCell(), tlb.MustFromTON("1"))
 	if err != nil {
 		return ItemPrice{}, err
 	}

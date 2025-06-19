@@ -32,11 +32,11 @@ func (p *ItemCountProvider) Deploy(initData ItemCountInitData) (ItemCount, error
 	b := cell.BeginCell()
 	b.StoreUInt(uint64(initData.ID), 32)
 	b.StoreUInt(initData.Count, 64)
-	contractCode, err := wrappers.CompiledContract(ITEM_COUNT_CONTRACT_PATH)
+	compiledContract, err := wrappers.ParseCompiledContract(ITEM_COUNT_CONTRACT_PATH)
 	if err != nil {
 		return ItemCount{}, fmt.Errorf("Failed to compile contract: %v", err)
 	}
-	contract, err := wrappers.Deploy(contractCode, &p.apiClient, b.EndCell(), tlb.MustFromTON("1"))
+	contract, err := wrappers.Deploy(compiledContract, &p.apiClient, b.EndCell(), tlb.MustFromTON("1"))
 	if err != nil {
 		return ItemCount{}, err
 	}
