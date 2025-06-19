@@ -15,13 +15,17 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/cal/chainrw"
 	"github.com/smartcontractkit/chainlink-ton/pkg/config"
 	"github.com/smartcontractkit/chainlink-ton/pkg/txm"
+	"github.com/smartcontractkit/chainlink-ton/tonutils"
 )
 
 var _ TxManager = (*txm.Txm)(nil)
 
 type TxManager interface {
 	services.Service
-	// TODO(NONEVM-1460): add remaining interface functions
+
+	Enqueue(request txm.Request) error
+	GetClient() tonutils.ApiClient
+	InflightCount() (int, int)
 }
 
 var _ relaytypes.Relayer = &Relayer{}

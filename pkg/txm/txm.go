@@ -18,7 +18,15 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
-var _ services.Service = &Txm{}
+type TxManager interface {
+	services.Service
+
+	Enqueue(request Request) error
+	GetClient() tonutils.ApiClient
+	InflightCount() (int, int)
+}
+
+var _ TxManager = (*Txm)(nil)
 
 type Txm struct {
 	Logger   logger.Logger

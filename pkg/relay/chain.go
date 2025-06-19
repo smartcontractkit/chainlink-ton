@@ -124,7 +124,7 @@ func (c *chain) TxManager() TxManager {
 }
 
 func (c *chain) FeeEstimator() fees.Estimator {
-	return c.txm.FeeEstimator()
+	return nil
 }
 
 func (c *chain) MultiClient() *client.MultiClient {
