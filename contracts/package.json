@@ -28,7 +28,7 @@
     "@ton/crypto": "^3.3.0",
     "@ton/sandbox": "^0.31.0",
     "@ton/test-utils": "^0.6.0",
-    "@ton/tolk-js": "0.99.0",
+    "@ton/tolk-js": "^0.99.0",
     "@ton/ton": "^15.2.1",
     "@types/jest": "^29.5.14",
     "@types/node": "^22.14.0",
@@ -36,6 +36,7 @@
     "prettier": "^3.5.3",
     "ts-jest": "^29.3.1",
     "ts-node": "^10.9.2",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "zlib": "^1.0.5"
   }
 }
