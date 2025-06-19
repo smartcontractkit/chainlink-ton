@@ -1,6 +1,7 @@
 package two_msg_chain
 
 import (
+	"fmt"
 	"math/rand/v2"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/tonutils"
@@ -31,7 +32,11 @@ func (p *MemoryProvider) Deploy(initData MemoryInitData) (Memory, error) {
 	b.StoreUInt(0, 1) // For some reason, if the contract is defined with an init function, you must write a 0 bit before the arguments
 	b.StoreUInt(uint64(initData.ID), 32)
 	b.StoreUInt(uint64(0), 32)
-	contract, err := p.apiClient.Deploy(MEMORY_CONTRACT_PATH, b.EndCell(), tlb.MustFromTON("1"))
+	contractCode, err := tonutils.CompiledContract(MEMORY_CONTRACT_PATH)
+	if err != nil {
+		return Memory{}, fmt.Errorf("Failed to compile contract: %v", err)
+	}
+	contract, err := p.apiClient.Deploy(contractCode, b.EndCell(), tlb.MustFromTON("1"))
 	if err != nil {
 		return Memory{}, err
 	}

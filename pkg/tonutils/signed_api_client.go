@@ -117,7 +117,7 @@ type TolkCompiledContract struct {
 	Hex        string `json:"hex"`
 }
 
-type CompiledContract interface {
+type compiledContract interface {
 	CodeCell() (*cell.Cell, error)
 }
 
@@ -172,18 +172,7 @@ func (c TolkCompiledContract) CodeCell() (*cell.Cell, error) {
 // the contract compilation fails, the deployment transaction fails, or the
 // deployment exit code indicates failure.
 // TODO this is Tact specific. Should migrate to Tolk output
-func (c *SignedAPIClient) Deploy(contractPath string, initData *cell.Cell, amount tlb.Coins) (*Contract, error) {
-	compiledContract, err := getCompiledContract(contractPath)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to compile contract: %v", err)
-	}
-
-	// Parse the BOC binary into a cell
-	codeCell, err := compiledContract.CodeCell()
-	if err != nil {
-		return nil, fmt.Errorf("Failed to parse BOC binary: %v", err)
-	}
-
+func (c *SignedAPIClient) Deploy(codeCell *cell.Cell, initData *cell.Cell, amount tlb.Coins) (*Contract, error) {
 	// Create empty message body for deployment
 	msgBody := cell.BeginCell().EndCell()
 
@@ -219,11 +208,25 @@ func (c *SignedAPIClient) Deploy(contractPath string, initData *cell.Cell, amoun
 	return &Contract{addr, c}, nil
 }
 
+func CompiledContract(path string) (*cell.Cell, error) {
+	compiledContract, err := getCompiledContract(path)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to compile contract: %v", err)
+	}
+
+	// Parse the BOC binary into a cell
+	codeCell, err := compiledContract.CodeCell()
+	if err != nil {
+		return nil, fmt.Errorf("Failed to parse BOC binary: %v", err)
+	}
+	return codeCell, nil
+}
+
 // getCompiledContract reads and parses a compiled contract JSON file.
 // It validates that the contract file exists and contains the required
 // fields (Name, Code, Abi). Returns a CompiledContract struct or an error
 // if the file cannot be read or parsed.
-func getCompiledContract(contractPath string) (CompiledContract, error) {
+func getCompiledContract(contractPath string) (compiledContract, error) {
 	// Check if contract file exists
 	if _, err := os.Stat(contractPath); os.IsNotExist(err) {
 		return nil, fmt.Errorf("Contract file not found: %s", contractPath)

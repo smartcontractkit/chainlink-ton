@@ -1,6 +1,7 @@
 package two_phase_commit
 
 import (
+	"fmt"
 	"math/rand/v2"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/tonutils"
@@ -34,7 +35,11 @@ func (p *CounterProvider) Deploy(initData CounterInitData) (Counter, error) {
 	c.StoreUInt(uint64(initData.ID), 32)
 	c.StoreUInt(uint64(initData.Value), 32)
 	c.StoreBoolBit(initData.AutoAck)
-	contract, err := p.apiClient.Deploy(COUNTER_CONTRACT_PATH, c.EndCell(), tlb.MustFromTON("1"))
+	contractCode, err := tonutils.CompiledContract(COUNTER_CONTRACT_PATH)
+	if err != nil {
+		return Counter{}, fmt.Errorf("Failed to compile contract: %v", err)
+	}
+	contract, err := p.apiClient.Deploy(contractCode, c.EndCell(), tlb.MustFromTON("1"))
 	if err != nil {
 		return Counter{}, err
 	}

@@ -1,6 +1,7 @@
 package request_reply
 
 import (
+	"fmt"
 	"math/rand/v2"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/tonutils"
@@ -30,7 +31,11 @@ func (p *PriceRegistryProvider) Deploy(initData PriceRegistryInitData) (PriceReg
 	b := cell.BeginCell()
 	b.StoreUInt(0, 1)
 	b.StoreUInt(uint64(initData.ID), 32)
-	contract, err := p.apiClient.Deploy(PRICE_REGISTRY_CONTRACT_PATH, b.EndCell(), tlb.MustFromTON("1"))
+	contractCode, err := tonutils.CompiledContract(PRICE_REGISTRY_CONTRACT_PATH)
+	if err != nil {
+		return PriceRegistry{}, fmt.Errorf("Failed to compile contract: %v", err)
+	}
+	contract, err := p.apiClient.Deploy(contractCode, b.EndCell(), tlb.MustFromTON("1"))
 	if err != nil {
 		return PriceRegistry{}, err
 	}

@@ -1,6 +1,7 @@
 package request_reply_with_two_dependencies
 
 import (
+	"fmt"
 	"math/rand/v2"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/tonutils"
@@ -31,7 +32,11 @@ func (p *StorageProvider) Deploy(initData StorageInitData) (Storage, error) {
 	b := cell.BeginCell()
 	b.StoreUInt(0, 1)
 	b.MustStoreUInt(uint64(initData.ID), 32)
-	contract, err := p.apiClient.Deploy(STORAGE_CONTRACT_PATH, b.EndCell(), tlb.MustFromTON("1"))
+	contractCode, err := tonutils.CompiledContract(STORAGE_CONTRACT_PATH)
+	if err != nil {
+		return Storage{}, fmt.Errorf("Failed to compile contract: %v", err)
+	}
+	contract, err := p.apiClient.Deploy(contractCode, b.EndCell(), tlb.MustFromTON("1"))
 	if err != nil {
 		return Storage{}, err
 	}

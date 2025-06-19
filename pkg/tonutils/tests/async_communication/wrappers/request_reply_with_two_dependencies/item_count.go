@@ -1,6 +1,8 @@
 package request_reply_with_two_dependencies
 
 import (
+	"fmt"
+
 	"github.com/smartcontractkit/chainlink-ton/pkg/tonutils"
 	"github.com/smartcontractkit/chainlink-ton/pkg/tonutils/tests/test_utils"
 	"github.com/xssnick/tonutils-go/tlb"
@@ -29,7 +31,11 @@ func (p *ItemCountProvider) Deploy(initData ItemCountInitData) (ItemCount, error
 	b := cell.BeginCell()
 	b.StoreUInt(uint64(initData.ID), 32)
 	b.StoreUInt(initData.Count, 64)
-	contract, err := p.apiClient.Deploy(ITEM_COUNT_CONTRACT_PATH, b.EndCell(), tlb.MustFromTON("1"))
+	contractCode, err := tonutils.CompiledContract(ITEM_COUNT_CONTRACT_PATH)
+	if err != nil {
+		return ItemCount{}, fmt.Errorf("Failed to compile contract: %v", err)
+	}
+	contract, err := p.apiClient.Deploy(contractCode, b.EndCell(), tlb.MustFromTON("1"))
 	if err != nil {
 		return ItemCount{}, err
 	}
