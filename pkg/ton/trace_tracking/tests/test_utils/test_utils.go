@@ -11,7 +11,6 @@ import (
 	"testing"
 
 	"github.com/joho/godotenv"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/testing_utils"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/trace_tracking"
 	"github.com/stretchr/testify/assert"
 	liteclient "github.com/xssnick/tonutils-go/liteclient"
@@ -72,8 +71,21 @@ func SetUpTest(t *testing.T, initialAmount *big.Int, fundedAccountsCount uint, l
 	return accounts
 }
 
+func GetRandomWallet(client ton.APIClientWrapped, version wallet.Version, option wallet.Option) (*wallet.Wallet, error) {
+	seed := wallet.NewSeed()
+	w, err := wallet.FromSeed(client, seed, version)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to generate random wallet: %v", err)
+	}
+	pw, perr := wallet.FromPrivateKeyWithOptions(client, w.PrivateKey(), version, option)
+	if perr != nil {
+		return nil, fmt.Errorf("Failed to generate random wallet: %v", perr)
+	}
+	return pw, nil
+}
+
 func createAndFundWallet(t *testing.T, api *ton.APIClient, funder trace_tracking.SignedAPIClient, initialCoinAmount tlb.Coins) trace_tracking.SignedAPIClient {
-	aliceWallet, err := testing_utils.GetRandomWallet(api, wallet.V3R2, wallet.WithWorkchain(0))
+	aliceWallet, err := GetRandomWallet(api, wallet.V3R2, wallet.WithWorkchain(0))
 	assert.NoError(t, err, "Failed to create new wallet: %v", err)
 	transferToAlice, err := funder.Wallet.BuildTransfer(aliceWallet.WalletAddress(), initialCoinAmount, false, "deposit")
 	assert.NoError(t, err, "Failed to build transfer: %v", err)
