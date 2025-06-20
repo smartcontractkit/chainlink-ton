@@ -129,6 +129,7 @@ func TestLoadArray_FitSingleUpdateInSingleCell_MerkleRoots(t *testing.T) {
 }
 
 func TestLoadArray_AddressTooSmall(t *testing.T) {
+	// Note: for OnRampAddress that requires 64 bytes length, if the address bytes is smaller than 64, tlb.toCell() will return error, if bytes array is more than 64 bytes, only first 512 bits will be used.
 	_, err := PackArray([]MerkleRoot{
 		{
 			SourceChainSelector: 1,
@@ -150,7 +151,6 @@ func TestLoadArray_AddressTooSmall(t *testing.T) {
 		},
 	})
 	require.EqualError(t, err, "failed to serialize element 0: failed to serialize field MerkleRoot to cell: failed to store bits 256, err: too small slice for this size")
-
 }
 
 func TestCommitReport_EncodingAndDecoding(t *testing.T) {
