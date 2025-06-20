@@ -1,9 +1,10 @@
 import "types.tolk";
 import "../deployable/types.tolk";
+import "../lib/access/ownable_2step.tolk";
 import "utils.tolk";
 
 struct Storage {
-    owner: address;
+    ownable: Ownable2Step;
     feeQuoter: address;
 
     // TODO: embed ocr3 base state
@@ -203,12 +204,6 @@ fun _execute(msg: Execute) {
 // NOTE: this assumes router has a well known, static address. So two stage deployment: put up router, then compile the addr into contracts
 // (or init contract state with that router addr? probably what solana does)
 
-// TypeAndVersion
-//
-// override fun type(): String {
-//     return "com.chainlink.ton.ccip.OffRamp";
-// }
-//
-// override fun version(): String {
-//     return "1.0.0";
-// }
+get typeAndVersion(): (slice, slice) {
+     return ("com.chainlink.ton.ccip.OffRamp", "1.0.0");
+ }

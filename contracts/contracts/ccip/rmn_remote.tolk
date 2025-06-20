@@ -1,6 +1,9 @@
+import "types.tolk";
+import "../lib/access/ownable_2step.tolk";
+import "../lib/upgrades/type_and_version.tolk";
 
 struct Storage {
-    owner: address;
+    ownable: Ownable2Step;
 }
 
 fun Storage.load() {
@@ -15,12 +18,6 @@ fun onInternalMessage(msgCell: cell, msgBody: slice) {
 }
 
 
-// TypeAndVersion
-
-// override fun type(): String {
-//     return "com.chainlink.ton.ccip.RMNRemote";
-// }
-
-// override fun version(): String {
-//     return "1.0.0";
-// }
+get typeAndVersion(): (slice, slice) {
+     return ("com.chainlink.ton.ccip.RMNRemote", "1.0.0");
+ }

@@ -1,5 +1,6 @@
 import "types.tolk";
 import "../deployable/types.tolk";
+import "../lib/upgrades/type_and_version.tolk";
 import "utils.tolk";
 
 struct Storage {
@@ -11,8 +12,8 @@ struct Storage {
 
     // NOTE: for now we're embedding token/gas price data
     usdPerToken: Map<TimestampedPrice>; // (sdict len=36*8) address -> TimestampedPrice
-    // TODO: can this sit on DestChain?
-    usdPerUnitGasByDestChain: UMap<uint64, TimestampedPrice>; // (idict len=64) chainSelector -> TimestampedPrice
+    // TODO: this is on DestChain instead (same as Solana)
+    // usdPerUnitGasByDestChain: UMap<uint64, TimestampedPrice>; // (idict len=64) chainSelector -> TimestampedPrice
 
     premiumMultiplierWeiPerEth: Map<uint64>; // (sdict len=36*8) token address -> multiplier
 
@@ -25,11 +26,6 @@ fun Storage.load() {
 
 fun Storage.store(self) {
     return contract.setData(self.toCell());
-}
-
-struct TimestampedPrice {
-    value: uint224;
-    timestamp: uint64;
 }
 
 fun onInternalMessage(msgCell: cell, msgBody: slice) {
@@ -56,13 +52,14 @@ fun onUpdatePrices(priceUpdates: PriceUpdates) {
     while (!iter2.empty()) {
         val update = iter2.next();
 
-        st.usdPerUnitGasByDestChain.set(update.destChainSelector, TimestampedPrice {
-            value: update.usdPerUnitGas,
-            timestamp
-        })
+        // TODO: propagate gas updates to destchainconfig.usPerUnitGas
+        // st.usdPerUnitGasByDestChain.set(update.destChainSelector, TimestampedPrice {
+        //     value: update.usdPerUnitGas,
+        //     timestamp
+        // })
     }
 
-    // TODO: persist state changes
+    st.store();
 }
 
 fun onGetValidatedFee(msg: CCIPSend) {
@@ -89,10 +86,23 @@ fun onGetValidatedFee(msg: CCIPSend) {
     // pass through information on token/jetton amounts
 }
 
-fun onMessageValidated(msg: null) {
-    // convert gas cost to actual fee
-    // total_cost_usd = gas * gas_cost + premium_fee_usd_wei + data_availability_cost_usd;
-    // fee_token_cost = total_cost_usd / fee_token_price.value
+fun onMessageValidated(msg: CCIPSend) {
+    var st = Storage.load();
+
+    // TODO: this should be eagerly validated in the router.ccipSend to revert early?
+    val (maybeFeeTokenPrice, exists) = st.usdPerToken.get(msg.feeToken as slice);
+    assert(exists, ERROR_FEE_TOKEN_NOT_SUPPORTED);
+    val feeTokenPrice = maybeFeeTokenPrice!;
+
+    // val premiumMultiplier = fee_token_config.premium_multiplier_wei_per_eth as uint256;
+    // At this step, every fee component has been raised to 36 decimals
+    // let feeTokenValue =
+    //     (network_fee.premium * premium_multiplier) + execution_cost + data_availability_cost;
+
+    // Fee token value is in 36 decimals
+    // Fee token price is in 18 decimals USD for 1e18 smallest token denominations.
+    // The result is the fee in the fee tokens smallest denominations (e.g. lamport for Sol).
+    // let fee_token_amount = (feeTokenValue / feeTokenPrice)
 
     // validate user transferred enough value
     // else refund and notify
@@ -101,10 +111,6 @@ fun onMessageValidated(msg: null) {
 
 // apply_premium_multiplier_wei_per_eth_updates??
 
-// fun type(): String {
-//     return "com.chainlink.ton.ccip.FeeQuoter";
-// }
-
-// fun version(): String {
-//     return "1.0.0";
-// }
+get typeAndVersion(): (slice, slice) {
+     return ("com.chainlink.ton.ccip.FeeQuoter", "1.0.0");
+ }

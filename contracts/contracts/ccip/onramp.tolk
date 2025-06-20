@@ -1,4 +1,6 @@
 import "types.tolk";
+import "../lib/access/ownable_2step.tolk";
+import "../lib/upgrades/type_and_version.tolk";
 import "utils.tolk";
 
 // TODO: use sha256("CCIPMessageSent")
@@ -11,7 +13,7 @@ struct CCIPMessageSent {
 }
 
 struct Storage {
-    owner: address;
+    ownable: Ownable2Step;
 
     chainSelector: uint64;
     // TODO: rmnRemote, nonceManager, tokenAdminRegistry
@@ -70,7 +72,7 @@ fun onSend(msg: CCIPSend) {
         // TODO:
     }
 
-    // validate jetton amounts match msg.tokenAmounts
+    // TODO: validate jetton amounts match msg.tokenAmounts
 
     // call into feeQuoter to validate and calculate fees
     val getValidatedFeeMsg = createMessage({
@@ -86,6 +88,7 @@ fun onSend(msg: CCIPSend) {
 }
 
 // TODO: do we follow solana model and merge router + onramp?
+// aptos also does this
 fun onPublish(msg: CCIPSend) {
     var st = Storage.load();
     // validate message originating from trusted fee quoter
@@ -108,12 +111,6 @@ fun onPublish(msg: CCIPSend) {
     // notify user
 }
 
-// TypeAndVersion
-
-// fun type(): String {
-//     return "com.chainlink.ton.ccip.OnRamp";
-// }
-
-// fun version(): String {
-//     return "1.0.0";
-// }
+get typeAndVersion(): (slice, slice) {
+     return ("com.chainlink.ton.ccip.OnRamp", "1.0.0");
+ }
