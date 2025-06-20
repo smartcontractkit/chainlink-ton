@@ -93,21 +93,21 @@ func TestLoadArray_FitSingleUpdateInSingleCell_MerkleRoots(t *testing.T) {
 	merkleRoots, err := PackArray([]MerkleRoot{
 		{
 			SourceChainSelector: 1,
-			OnRampAddress:       make([]byte, 512),
+			OnRampAddress:       make([]byte, 64),
 			MinSeqNr:            100,
 			MaxSeqNr:            200,
 			MerkleRoot:          make([]byte, 32),
 		},
 		{
 			SourceChainSelector: 1,
-			OnRampAddress:       make([]byte, 512),
+			OnRampAddress:       make([]byte, 64),
 			MinSeqNr:            100,
 			MaxSeqNr:            200,
 			MerkleRoot:          make([]byte, 32),
 		},
 		{
 			SourceChainSelector: 1,
-			OnRampAddress:       make([]byte, 512),
+			OnRampAddress:       make([]byte, 64),
 			MinSeqNr:            100,
 			MaxSeqNr:            200,
 			MerkleRoot:          make([]byte, 32),
@@ -126,6 +126,31 @@ func TestLoadArray_FitSingleUpdateInSingleCell_MerkleRoots(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, int(merkleRoots.BitsSize()), 960)
 	}
+}
+
+func TestLoadArray_AddressTooSmall(t *testing.T) {
+	_, err := PackArray([]MerkleRoot{
+		{
+			SourceChainSelector: 1,
+			OnRampAddress:       make([]byte, 63),
+			MinSeqNr:            100,
+			MaxSeqNr:            200,
+			MerkleRoot:          make([]byte, 32),
+		},
+	})
+	require.EqualError(t, err, "failed to serialize element 0: failed to serialize field OnRampAddress to cell: failed to store bits 512, err: too small slice for this size")
+
+	_, err = PackArray([]MerkleRoot{
+		{
+			SourceChainSelector: 1,
+			OnRampAddress:       make([]byte, 64),
+			MinSeqNr:            100,
+			MaxSeqNr:            200,
+			MerkleRoot:          make([]byte, 31),
+		},
+	})
+	require.EqualError(t, err, "failed to serialize element 0: failed to serialize field MerkleRoot to cell: failed to store bits 256, err: too small slice for this size")
+
 }
 
 func TestCommitReport_EncodingAndDecoding(t *testing.T) {
