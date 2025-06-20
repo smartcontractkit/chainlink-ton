@@ -1,7 +1,3 @@
-
-fun isMessageBounced(msgFlags: int): int
-    asm "1 PUSHINT" "AND";
-
 @inline
 fun emit<T>(topic: int, body: T) {
     val emitMsg = createExternalLogMessage({
@@ -114,6 +110,7 @@ fun UMap<K, V>.isEmpty(self): bool {
 }
 
 // TODO: add getRef, setRef/Builder analogs since values might be too big to fit
+// TODO: add get! variant that asserts value exists
 
 @inline
 fun UMap<K, V>.get(self, key: K): (V?, bool) {

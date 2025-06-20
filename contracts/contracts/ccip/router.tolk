@@ -1,9 +1,12 @@
 import "types.tolk";
+import "../lib/access/ownable_2step.tolk";
+import "../lib/upgrades/type_and_version.tolk";
 import "../deployable/types.tolk";
 import "utils.tolk";
+import "../lib/utils.tolk";
 
 struct Storage {
-    owner: address;
+    ownable: Ownable2Step;
 
     // TODO: expand this with versions support
     onRamp: address;
@@ -45,7 +48,7 @@ fun onTransferNotification(msgCell: cell, msg: JettonTransferNotification) {
     val sender: address = cs.loadAddress();
 
     // TODO: need to validate that the transfer notification came from our own wallet
-    assert(sender == st.owner) throw ERROR_NOT_OWNER;
+    // assert(sender == st.owner) throw ERROR_NOT_OWNER;
     // TODO: need to validate the jetton (master) address, but to do this we need to
     // derive the address. We can probably fetch that from the ccip send payload's tokenAmounts
 
@@ -64,7 +67,7 @@ fun onTransferNotification(msgCell: cell, msg: JettonTransferNotification) {
 fun ccipSend(msg: CCIPSend) {
     val st = Storage.load();
 
-    // call into onramp
+    // forward to onRamp
     // ccipSend(onRamp, msg, value/token amounts)        
     val sendMsg = createMessage({
         bounce: true,
@@ -75,12 +78,6 @@ fun ccipSend(msg: CCIPSend) {
     sendMsg.send(SEND_MODE_REGULAR);
 }
 
-// TypeAndVersion
-//
-// override fun type(): String {
-//     return "com.chainlink.ton.ccip.Router";
-// }
-//
-// override fun version(): String {
-//     return "1.0.0";
-// }
+get typeAndVersion(): (slice, slice) {
+     return ("com.chainlink.ton.ccip.Router", "1.0.0");
+ }
