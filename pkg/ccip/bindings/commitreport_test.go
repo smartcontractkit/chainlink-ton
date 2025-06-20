@@ -114,18 +114,18 @@ func TestLoadArray_FitSingleUpdateInSingleCell_MerkleRoots(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
-	_, err = UnpackArray[MerkleRoot](merkleRoots)
+	array, err := UnpackArray[MerkleRoot](merkleRoots)
 	require.NoError(t, err)
-	//require.Len(t, array, 5)
+	require.Len(t, array, 3)
 
-	// For this test, each token update is only 523 bits, so we can fit only 1 of them in a single cell.
-	// we only need five cells to store 5 elements
-	//require.Equal(t, 4, getTotalReference(c))
-	//for i := 0; i < 4; i++ {
-	//	c, err = c.PeekRef(0)
-	//	require.NoError(t, err)
-	//	require.Equal(t, int(c.BitsSize()), 523)
-	//}
+	//For this test, each token update is only 960 bits, so we can fit only 1 of them in a single cell.
+	//we only need five cells to store 3 elements
+	require.Equal(t, 2, getTotalReference(merkleRoots))
+	for i := 0; i < 2; i++ {
+		merkleRoots, err = merkleRoots.PeekRef(0)
+		require.NoError(t, err)
+		require.Equal(t, int(merkleRoots.BitsSize()), 960)
+	}
 }
 
 func TestCommitReport_EncodingAndDecoding(t *testing.T) {

@@ -53,7 +53,7 @@ type Signature struct {
 	Sig []byte `tlb:"bits 512"`
 }
 
-// PackArray packs an array of T into a linked cell chain, each cell up to 1023 bits. Note that only one ref is stored in each cell, and one T
+// PackArray packs an array of T into a linked cell chain, each cell holds up to 1023 bits. Note that only one ref is stored in each cell, and as many complete T elements as fit in the cell.
 func PackArray[T any](array []T) (*cell.Cell, error) {
 	builder := cell.BeginCell()
 	cells := []*cell.Builder{builder}
