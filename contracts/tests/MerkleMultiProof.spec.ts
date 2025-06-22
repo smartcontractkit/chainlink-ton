@@ -88,6 +88,12 @@ describe('MerkleMultiProofCalculatorDict', () => {
       0,
       0n,
     )
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: calculator.address,
+      success: true,
+
+    })
     expect(await calculator.getRoot()).toBe(1337n)
   })
 
