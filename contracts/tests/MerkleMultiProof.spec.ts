@@ -1,6 +1,9 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { toNano, Cell, Builder, beginCell } from '@ton/core'
-import { MerkleMultiProofCalculator, MerkleMultiProofCalculatorStorage } from '../wrappers/libraries/MerkleMultiProofCalculator'
+import {
+  MerkleMultiProofCalculator,
+  MerkleMultiProofCalculatorStorage,
+} from '../wrappers/libraries/MerkleMultiProofCalculator'
 import { sha256_sync } from '@ton/crypto'
 
 import '@ton/test-utils'
@@ -8,31 +11,31 @@ import { MerkleHelper, HashFunction } from './helpers/MerkleMultiProof/MerkleMul
 import { compile } from '@ton/blueprint'
 
 export function listAsSnake(array: bigint[]): Cell {
-    const cells: Builder[] = [];
-    let builder = beginCell();
-    let countInCurrent = 0;
+  const cells: Builder[] = []
+  let builder = beginCell()
+  let countInCurrent = 0
 
-    for (const value of array) {
-        if (countInCurrent === 3) {
-            cells.push(builder);
-            builder = beginCell();
-            countInCurrent = 0;
-        }
-        builder.storeUint(value, 256);
-        countInCurrent++;
+  for (const value of array) {
+    if (countInCurrent === 3) {
+      cells.push(builder)
+      builder = beginCell()
+      countInCurrent = 0
     }
+    builder.storeUint(value, 256)
+    countInCurrent++
+  }
 
-    cells.push(builder);
+  cells.push(builder)
 
-    // Build the linked structure from the end
-    let current = cells[cells.length - 1].endCell();
-    for (let i = cells.length - 2; i >= 0; i--) {
-        const b = cells[i];
-        b.storeRef(current);
-        current = b.endCell();
-    }
+  // Build the linked structure from the end
+  let current = cells[cells.length - 1].endCell()
+  for (let i = cells.length - 2; i >= 0; i--) {
+    const b = cells[i]
+    b.storeRef(current)
+    current = b.endCell()
+  }
 
-    return current;
+  return current
 }
 
 describe('MerkleMultiProofCalculatorDict', () => {
@@ -46,11 +49,10 @@ describe('MerkleMultiProofCalculatorDict', () => {
     blockchain = await Blockchain.create()
 
     let code = await compile('MerkleProof')
-    let data: MerkleMultiProofCalculatorStorage = 
-        {
-          id: 1,
-          root: 0n, // Initial root, will be updated on deploy
-        }
+    let data: MerkleMultiProofCalculatorStorage = {
+      id: 1,
+      root: 0n, // Initial root, will be updated on deploy
+    }
     calculator = blockchain.openContract(MerkleMultiProofCalculator.createFromConfig(data, code))
 
     deployer = await blockchain.treasury('deployer')
@@ -61,7 +63,6 @@ describe('MerkleMultiProofCalculatorDict', () => {
 
     // Modify this initializaiton to generate test instances with Sha256 or Keccak256
     merkleHelper = new MerkleHelper(hashFunctionSha)
-
 
     const deployResult = await calculator.sendDeploy(deployer.getSender(), toNano('0.05'))
 
@@ -75,7 +76,7 @@ describe('MerkleMultiProofCalculatorDict', () => {
 
   it('Initial deploy should return root 0', async () => {
     expect(await calculator.getRoot()).toBe(0n)
-      })
+  })
 
   it('Single leaf should be returned as root', async () => {
     let leaves = listAsSnake([1337n])
@@ -92,7 +93,6 @@ describe('MerkleMultiProofCalculatorDict', () => {
       from: deployer.address,
       to: calculator.address,
       success: true,
-
     })
     expect(await calculator.getRoot()).toBe(1337n)
   })

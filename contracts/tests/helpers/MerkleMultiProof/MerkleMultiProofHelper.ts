@@ -2,10 +2,12 @@ import { uint8ArrayToBigInt, bigIntToBytes32 } from './Utils'
 import { beginCell } from '@ton/core'
 
 // Internal domain separator for Merkle internal nodes, represented as a 256-bit BigInt (0x01)
-const INTERNAL_DOMAIN_SEPARATOR_BIGINT = 0x0000000000000000000000000000000000000000000000000000000000000001n
+const INTERNAL_DOMAIN_SEPARATOR_BIGINT =
+  0x0000000000000000000000000000000000000000000000000000000000000001n
 
 // Leaf domain separator (0x00...00), represented as a 256-bit BigInt (0n)
-const LEAF_DOMAIN_SEPARATOR_BIGINT = 0x0000000000000000000000000000000000000000000000000000000000000000n
+const LEAF_DOMAIN_SEPARATOR_BIGINT =
+  0x0000000000000000000000000000000000000000000000000000000000000000n
 
 const MAX_NUM_HASHES = 256
 
@@ -82,9 +84,7 @@ export class MerkleHelper {
    * @returns The hashed pair as a 256-bit BigInt.
    */
   private hashPair(a: bigint, b: bigint): bigint {
-    return (a < b)
-      ? this.hashInternalNode(a, b)
-      : this.hashInternalNode(b, a)
+    return a < b ? this.hashInternalNode(a, b) : this.hashInternalNode(b, a)
   }
 
   /**

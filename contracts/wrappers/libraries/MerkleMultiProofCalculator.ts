@@ -15,10 +15,7 @@ export type MerkleMultiProofCalculatorStorage = {
 }
 
 export function MerkleRootCalculatorToCell(config: MerkleMultiProofCalculatorStorage): Cell {
-  return  beginCell()
-    .storeUint(config.id, 64)
-    .storeUint(config.root, 256)
-    .endCell()
+  return beginCell().storeUint(config.id, 64).storeUint(config.root, 256).endCell()
 }
 
 export const Opcodes = {
@@ -40,14 +37,23 @@ export class MerkleMultiProofCalculator implements Contract {
     const init = { code, data }
     return new MerkleMultiProofCalculator(contractAddress(workchain, init), init)
   }
-  
-  async sendMerkleRoot(provider: ContractProvider, via: Sender, value: bigint, leaves: Cell, levesLen: number, proofs: Cell, proofsLen: number, proofFlagBits: bigint) {
+
+  async sendMerkleRoot(
+    provider: ContractProvider,
+    via: Sender,
+    value: bigint,
+    leaves: Cell,
+    levesLen: number,
+    proofs: Cell,
+    proofsLen: number,
+    proofFlagBits: bigint,
+  ) {
     await provider.internal(via, {
       value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: beginCell()
         .storeUint(Opcodes.OP_MERKLE_ROOT, 32)
-        .storeUint(0, 64) 
+        .storeUint(0, 64)
         .storeRef(leaves)
         .storeUint(levesLen, 16)
         .storeRef(proofs)
@@ -58,8 +64,8 @@ export class MerkleMultiProofCalculator implements Contract {
   }
 
   async getRoot(provider: ContractProvider): Promise<bigint> {
-    const result = await provider.get('root', []);
-    return result.stack.readBigNumber();
+    const result = await provider.get('root', [])
+    return result.stack.readBigNumber()
   }
 
   async sendDeploy(provider: ContractProvider, via: Sender, value: bigint) {
@@ -70,6 +76,3 @@ export class MerkleMultiProofCalculator implements Contract {
     })
   }
 }
-
-
-
