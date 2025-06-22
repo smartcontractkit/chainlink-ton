@@ -66,7 +66,7 @@ The following exit codes can be thrown by this module's operations:
 
 This struct implements basic contract ownership, including a 2-step ownership transfer process.
 
-### Overview: The "Structs as Traits" Pattern
+### The "Structs as Traits" Pattern
 
 Since Tolk v0.99 does not support native inheritance or traits, we use a composability pattern based on structs and extension functions. This `Ownable2Step` module encapsulates its state and logic within a struct, which can then be embedded into your main contract's state.
 

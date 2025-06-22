@@ -53,6 +53,10 @@ type Ownable2Step_Messages =
 /// Handles `Ownable2Step` messages for ownership management.
 fun Ownable2Step.onInternalMessage(mutate self, myBalance: int, msgValue: int, msgFull: cell, msgBody: slice): bool {
     try {
+
+        //This will fail with exitcode 63 if the message is not an Ownable2Step message
+        var msg = Ownable2Step_Messages.fromSlice(msgBody);
+
         var cs = msgFull.beginParse();
         var flags = cs.loadMessageFlags();
         if (isMessageBounced(flags)) { // ignore all bounced messages
@@ -60,14 +64,9 @@ fun Ownable2Step.onInternalMessage(mutate self, myBalance: int, msgValue: int, m
         }
         var sender: address = cs.loadAddress();
 
-        //This will fail with exitcode 63 if the message is not an Ownable2Step message
-
-        var msg = Ownable2Step_Messages.fromSlice(msgBody);
-
         match (msg) {
             Ownable2Step_TransferOwnership => {
                 self.transferOwnership(sender, msg.newOwner);
-                // TODO: emit Ownable2Step_OwnershipTransferRequested
                 val emitMsg = createExternalLogMessage({
                     dest: createAddressNone(),
                     body: Ownable2Step_OwnershipTransferRequested {
