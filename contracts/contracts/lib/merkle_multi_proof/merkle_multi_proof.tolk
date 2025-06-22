@@ -26,9 +26,9 @@ const MAX_NUM_HASHES: int = 128;
 /// and using `proofFlagBits` to determine whether to use a proof element or a previously computed node during each step.
 fun merkleRoot(
     leaves: Iterator<uint256>,
-    leavesLen: int16,
+    leavesLen: uint16,
     proofs: Iterator<uint256>,
-    proofsLen: int16,
+    proofsLen: uint16,
     proofFlagBits: uint256,
 ): int {
     assert (leavesLen != 0, ERROR_INVALID_PROOF_LEAVES_CANNOT_BE_EMPTY);
@@ -72,6 +72,7 @@ fun merkleRoot(
             b = leaves.next();
         } else {
             b = hashes.get(hashPos);
+            hashPos += 1;
         }
         
         // Hash the two children to get the parent

@@ -3,7 +3,7 @@ import "./../lib/utils.tolk"
 
 struct MerkleMultiProofCalculator {
     id: uint64,
-    root: int256?
+    root: uint256
 }
 
 fun loadData(): MerkleMultiProofCalculator {
@@ -17,9 +17,9 @@ fun saveData(data: MerkleMultiProofCalculator) {
 struct(0x00000001) CalculateRoot {
     queryId: uint64,
     leaves: cell,
-    leavesLen: int16,
+    leavesLen: uint16,
     proofs: cell,
-    proofsLen: int16,
+    proofsLen: uint16,
     proofFlagBits: uint256,
 }
 
@@ -29,11 +29,10 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
     }
 
     var storage = loadData();
-
     val msg = CalculateRoot.fromSlice(msgBody);
-    
+
     var leavesIterator = Iterator<uint256>.new(msg.leaves);
-    var proofsIterator = Iterator<uint256>.new(msg.leaves);
+    var proofsIterator = Iterator<uint256>.new(msg.proofs);
     val root = merkleRoot(
         leavesIterator,
         msg.leavesLen,
@@ -46,11 +45,8 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
     saveData(storage);
 }
 
-get root(): int256 {
+get root(): uint256 {
     var storage = loadData();
-    if (storage.root == null) {
-        return 0;
-    }
-    return storage.root!; // safe to unwrap since we initialized it above
+    return storage.root;
 }
 
