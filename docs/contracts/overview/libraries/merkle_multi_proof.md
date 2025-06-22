@@ -19,4 +19,3 @@ fun merkleRoot(
 ): int 256
 ```
 
-
