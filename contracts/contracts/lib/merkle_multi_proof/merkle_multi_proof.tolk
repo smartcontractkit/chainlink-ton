@@ -22,7 +22,7 @@ fun merkleRoot(
     proofs: Iterator<uint256>,
     proofsLen: uint16,
     proofFlagBits: uint256,
-): int {
+): uint256 {
     assert (leavesLen != 0, ERROR_INVALID_PROOF_LEAVES_CANNOT_BE_EMPTY);
     assert (leavesLen <= MAX_NUM_HASHES, ERROR_INVALID_PROOF_LEAVES_TOO_LARGE + 1);
     assert (proofsLen <= MAX_NUM_HASHES, ERROR_INVALID_PROOF_PROOFS_TOO_LARGE + 1);

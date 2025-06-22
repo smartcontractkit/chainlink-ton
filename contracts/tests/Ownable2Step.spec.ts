@@ -1,5 +1,5 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { Address, toNano } from '@ton/core'
+import { toNano } from '@ton/core'
 import {
   OwnableCounter,
   OwnableCounterStorage,
