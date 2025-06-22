@@ -10,7 +10,6 @@ For more information reference the [EVM implementation](https://github.com/smart
 
 ```tolk
 fun merkleRoot(
-    fun merkleRoot(
     leaves: Iterator<uint256>,
     leavesLen: uint16,
     proofs: Iterator<uint256>,
