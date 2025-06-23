@@ -26,7 +26,7 @@ jobs:
           nix develop .#contracts -c yarn && yarn build
 
       - name: Run tests
-        run: nix develop -c go test -v -count=1 -p=1 $(go list ./... | grep -v /pkg/ton/trace_tracking/tests/)
+        run: nix develop -c go test -v -count=1 -p=1 $(go list ./... | grep -v /pkg/ton/)
 
       - name: Run trace tracker tests
         run: |
