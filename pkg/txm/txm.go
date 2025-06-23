@@ -7,15 +7,16 @@ import (
 	"sync"
 	"time"
 
+	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/ton/wallet"
+	"github.com/xssnick/tonutils-go/tvm/cell"
+
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/loop"
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 	commontypes "github.com/smartcontractkit/chainlink-common/pkg/types"
 	commonutils "github.com/smartcontractkit/chainlink-common/pkg/utils"
-	"github.com/xssnick/tonutils-go/address"
-	"github.com/xssnick/tonutils-go/tlb"
-	"github.com/xssnick/tonutils-go/ton/wallet"
-	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/key"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
@@ -26,7 +27,7 @@ type TxManager interface {
 	services.Service
 
 	Enqueue(request Request) error
-	GetTransactionStatus(ctx context.Context, lt uint64) (commontypes.TransactionStatus, tvm.ExitCode, error)
+	GetTransactionStatus(ctx context.Context, lt uint64) (commontypes.TransactionStatus, tvm.ExitCode, tlb.Coins, error)
 	GetClient() tracetracking.SignedAPIClient
 	InflightCount() (int, int)
 }
@@ -316,30 +317,30 @@ func (t *Txm) checkUnconfirmed() {
 }
 
 // GetTransactionStatus translates internal TON transaction state to chainlink common statuses.
-func (t *Txm) GetTransactionStatus(ctx context.Context, lt uint64) (commontypes.TransactionStatus, tvm.ExitCode, error) {
+func (t *Txm) GetTransactionStatus(ctx context.Context, lt uint64) (commontypes.TransactionStatus, tvm.ExitCode, tlb.Coins, error) {
 	txStore := t.AccountStore.GetTxStore(t.Client.Wallet.Address().String())
 	if txStore == nil {
-		return commontypes.Unknown, 0, fmt.Errorf("txStore not found for sender %s", t.Client.Wallet.Address().String())
+		return commontypes.Unknown, 0, tlb.ZeroCoins, fmt.Errorf("txStore not found for sender %s", t.Client.Wallet.Address().String())
 	}
 
-	status, succeeded, exitCode, found := txStore.GetTxState(lt)
+	status, succeeded, exitCode, totalActionFees, found := txStore.GetTxState(lt)
 	if !found {
-		return commontypes.Unknown, 0, fmt.Errorf("transaction with id %d not found", lt)
+		return commontypes.Unknown, 0, totalActionFees, fmt.Errorf("transaction with id %d not found", lt)
 	}
 
 	switch status {
 	case tracetracking.NotFound:
-		return commontypes.Unknown, 0, fmt.Errorf("transaction not found in state map: %d", lt)
+		return commontypes.Unknown, 0, totalActionFees, fmt.Errorf("transaction not found in state map: %d", lt)
 	case tracetracking.Cascading:
-		return commontypes.Pending, 0, nil
+		return commontypes.Pending, 0, totalActionFees, nil
 	case tracetracking.Received:
-		return commontypes.Unconfirmed, 0, nil
+		return commontypes.Unconfirmed, 0, totalActionFees, nil
 	case tracetracking.Finalized:
 		if succeeded {
-			return commontypes.Finalized, exitCode, nil
+			return commontypes.Finalized, exitCode, totalActionFees, nil
 		}
-		return commontypes.Failed, exitCode, nil
+		return commontypes.Failed, exitCode, totalActionFees, nil
 	default:
-		return commontypes.Unknown, 0, fmt.Errorf("unexpected transaction state for lt %d: %d", lt, status)
+		return commontypes.Unknown, 0, totalActionFees, fmt.Errorf("unexpected transaction state for lt %d: %d", lt, status)
 	}
 }
