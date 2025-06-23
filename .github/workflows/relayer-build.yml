@@ -26,7 +26,9 @@ jobs:
           nix develop .#contracts -c yarn && yarn build
 
       - name: Run tests
-        run: nix develop -c go test -v -count=1 -p=1 -timeout 30m ./...
+        run: |
+          cp pkg/ton/trace_tracking/tests/.env.example pkg/ton/trace_tracking/tests/.env
+          nix develop -c go test -v -count=1 -p=1 -timeout 30m ./...
 
   build-pkgs:
     name: Build and package (Nix and Docker)
