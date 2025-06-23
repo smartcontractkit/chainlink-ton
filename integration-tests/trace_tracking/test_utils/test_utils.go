@@ -137,7 +137,7 @@ func UintFrom(res *ton.ExecutionResult, err error) (uint, error) {
 func getWallet(t *testing.T, api ton.APIClientWrapped) *wallet.Wallet {
 	// Load .env file from the project root
 	repoRoot := GetRepoRootDir()
-	err := godotenv.Load(path.Join(repoRoot, "pkg/ton/trace_tracking/tests/.env"))
+	err := godotenv.Load(path.Join(repoRoot, "integration-tests/trace_tracking/.env"))
 	if err != nil {
 		// It's okay if the .env file doesn't exist in some environments
 		// so we'll just log it instead of failing

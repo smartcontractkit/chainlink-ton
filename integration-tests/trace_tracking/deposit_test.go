@@ -1,4 +1,4 @@
-package tests
+package trace_tracking
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/trace_tracking/tests/test_utils"
+	"github.com/smartcontractkit/chainlink-ton/integration-tests/trace_tracking/test_utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/xssnick/tonutils-go/tlb"
 )

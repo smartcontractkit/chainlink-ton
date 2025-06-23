@@ -1,16 +1,16 @@
-package request_reply_with_two_dependencies
+package request_reply
 
 import (
 	"fmt"
 
+	"github.com/smartcontractkit/chainlink-ton/integration-tests/trace_tracking/test_utils"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/trace_tracking"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/trace_tracking/tests/test_utils"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
-var ITEM_PRICE_CONTRACT_PATH = test_utils.GetBuildDir("examples.async-communication.request-reply-with-two-dependencies.ItemPrice/tact_ItemPrice.pkg")
+var ITEM_PRICE_CONTRACT_PATH = test_utils.GetBuildDir("examples.async-communication.request-reply.ItemPrice/tact_ItemPrice.pkg")
 
 type ItemPriceProvider struct {
 	apiClient trace_tracking.SignedAPIClient
