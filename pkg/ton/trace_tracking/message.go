@@ -327,12 +327,12 @@ func (r *ReceivedMessage) AppendSentMessage(outgoingInternalMessage *tlb.Interna
 //
 // TODO: This could be optimized by grouping outgoing messages by recipient address
 func (m *ReceivedMessage) WaitForOutgoingMessagesToBeReceived(c *SignedAPIClient) error {
-	outgoingMessagesSentQueue := asQueue(&m.OutgoingInternalSentMessages)
 	for {
-		sentMessage, ok := outgoingMessagesSentQueue.Pop()
-		if !ok {
+		if len(m.OutgoingInternalSentMessages) == 0 {
 			break
 		}
+		sentMessage := m.OutgoingInternalSentMessages[0]
+		m.OutgoingInternalSentMessages = m.OutgoingInternalSentMessages[1:]
 		transactionsReceived := c.SubscribeToTransactions(*sentMessage.InternalMsg.DstAddr, m.LamportTime)
 
 		var receivedMessage *ReceivedMessage
@@ -417,19 +417,20 @@ func (m *ReceivedMessage) WaitForTrace(c *SignedAPIClient) error {
 		return nil
 	}
 
-	messagesWithUnconfirmedOutgoingMessages := newEmptyQueue[*ReceivedMessage]()
-	messagesWithUnconfirmedOutgoingMessages.Push(m)
+	messagesWithUnconfirmedOutgoingMessages := make([]*ReceivedMessage, 0)
+	messagesWithUnconfirmedOutgoingMessages = append(messagesWithUnconfirmedOutgoingMessages, m)
 
 	for {
-		cascadingMessage, ok := messagesWithUnconfirmedOutgoingMessages.Pop()
-		if !ok {
+		if len(messagesWithUnconfirmedOutgoingMessages) == 0 {
 			break
 		}
+		cascadingMessage := messagesWithUnconfirmedOutgoingMessages[0]
+		messagesWithUnconfirmedOutgoingMessages = messagesWithUnconfirmedOutgoingMessages[1:]
 		err := cascadingMessage.WaitForOutgoingMessagesToBeReceived(c)
 		if err != nil {
 			return fmt.Errorf("failed to wait for outgoing messages: %w", err)
 		}
-		messagesWithUnconfirmedOutgoingMessages.PushAll(cascadingMessage.OutgoingInternalReceivedMessages...)
+		messagesWithUnconfirmedOutgoingMessages = append(messagesWithUnconfirmedOutgoingMessages, cascadingMessage.OutgoingInternalReceivedMessages...)
 	}
 	return nil
 }
