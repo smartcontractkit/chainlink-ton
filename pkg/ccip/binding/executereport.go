@@ -104,58 +104,6 @@ func UnpackArray[T any](root *cell.Cell) ([]T, error) {
 	return result, nil
 }
 
-// Unpack2DByteArrayFromCell unpacks a 2D byte array from a linked cell structure.
-func Unpack2DByteArrayFromCell(c *cell.Cell) ([][]byte, error) {
-	if c == nil {
-		return [][]byte{}, nil
-	}
-
-	var result [][]byte
-	s := c.BeginParse()
-	for s.BitsLeft() > 0 {
-		// Read the length (assume 16 bits for length)
-		length, err := s.LoadUInt(16)
-		if err != nil {
-			return nil, fmt.Errorf("failed to load length: %w", err)
-		}
-		remaining := int(length)
-		var data []byte
-		curr := s
-		if remaining == 0 {
-			result = append(result, []byte{})
-			// No data to read, just continue to next
-			s = curr
-			continue
-		}
-		for remaining > 0 {
-			bitsToRead := remaining * 8
-			if int(curr.BitsLeft()) < bitsToRead {
-				bitsToRead = int(curr.BitsLeft())
-			}
-			part, err := curr.LoadSlice(uint(bitsToRead))
-			if err != nil {
-				return nil, fmt.Errorf("failed to load byte array part: %w", err)
-			}
-			data = append(data, part...)
-			remaining -= len(part)
-			if remaining > 0 {
-				if curr.RefsNum() == 0 {
-					return nil, fmt.Errorf("unexpected end of snake cell chain")
-				}
-				ref, err := curr.LoadRef()
-				if err != nil {
-					return nil, fmt.Errorf("failed to load next cell ref: %w", err)
-				}
-				curr = ref
-			}
-		}
-		result = append(result, data)
-		// After reading, update s to the current position in the main cell
-		s = curr
-	}
-	return result, nil
-}
-
 // PackByteArrayToCell packs a byte array into a linked cell structure, supporting empty arrays.
 func PackByteArrayToCell(data []byte) (*cell.Cell, error) {
 	if len(data) == 0 {
@@ -220,6 +168,58 @@ func UnloadCellToByteArray(c *cell.Cell) ([]byte, error) {
 		} else {
 			curr = nil
 		}
+	}
+	return result, nil
+}
+
+// Unpack2DByteArrayFromCell unpacks a 2D byte array from a linked cell structure.
+func Unpack2DByteArrayFromCell(c *cell.Cell) ([][]byte, error) {
+	if c == nil {
+		return [][]byte{}, nil
+	}
+
+	var result [][]byte
+	s := c.BeginParse()
+	for s.BitsLeft() > 0 {
+		// Read the length (assume 16 bits for length)
+		length, err := s.LoadUInt(16)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load length: %w", err)
+		}
+		remaining := int(length)
+		var data []byte
+		curr := s
+		if remaining == 0 {
+			result = append(result, []byte{})
+			// No data to read, just continue to next
+			s = curr
+			continue
+		}
+		for remaining > 0 {
+			bitsToRead := remaining * 8
+			if int(curr.BitsLeft()) < bitsToRead {
+				bitsToRead = int(curr.BitsLeft())
+			}
+			part, err := curr.LoadSlice(uint(bitsToRead))
+			if err != nil {
+				return nil, fmt.Errorf("failed to load byte array part: %w", err)
+			}
+			data = append(data, part...)
+			remaining -= len(part)
+			if remaining > 0 {
+				if curr.RefsNum() == 0 {
+					return nil, fmt.Errorf("unexpected end of snake cell chain")
+				}
+				ref, err := curr.LoadRef()
+				if err != nil {
+					return nil, fmt.Errorf("failed to load next cell ref: %w", err)
+				}
+				curr = ref
+			}
+		}
+		result = append(result, data)
+		// After reading, update s to the current position in the main cell
+		s = curr
 	}
 	return result, nil
 }
