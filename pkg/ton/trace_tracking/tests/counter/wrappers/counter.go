@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"math/rand/v2"
 
-	"github.com/smartcontractkit/chainlink-ton/node_modules/chainlink-ton/ton/wrappers"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/trace_tracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/trace_tracking/tests/test_utils"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
