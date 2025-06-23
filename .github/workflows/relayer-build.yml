@@ -19,6 +19,9 @@ jobs:
         with:
           nix_path: nixpkgs=channel:nixos-unstable
 
+      - name: Run build
+        run: nix develop -c go build -v ./...
+
       - name: Run tests
         run: nix develop -c go test -v -count=1 -p=1 -timeout 30m ./...
 
