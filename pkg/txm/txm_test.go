@@ -2,6 +2,7 @@ package txm_test
 
 import (
 	"context"
+	"math/big"
 	"testing"
 	"time"
 
@@ -9,6 +10,8 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/loop"
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
+	counter "github.com/smartcontractkit/chainlink-ton/contracts/wrappers/examples"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wallet_config"
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton/wallet"
@@ -21,14 +24,6 @@ import (
 
 var keystore *testutils.TestKeystore
 
-var walletVersion = wallet.ConfigHighloadV3{
-	MessageTTL: 120, // 2 minutes TTL
-	MessageBuilder: func(ctx context.Context, subWalletId uint32) (id uint32, createdAt int64, err error) {
-		tm := time.Now().Unix() - 30
-		return uint32(10000 + tm%(1<<23)), tm, nil
-	},
-}
-
 func TestTxmLocal(t *testing.T) {
 	logger := logger.Test(t)
 
@@ -36,7 +31,7 @@ func TestTxmLocal(t *testing.T) {
 	require.NotNil(t, nodeClient)
 	logger.Debugw("Started MyLocalTON")
 
-	wallet := testutils.CreateTonWallet(t, nodeClient, walletVersion, wallet.WithWorkchain(0))
+	wallet := testutils.CreateTonWallet(t, nodeClient, wallet_config.WalletVersion, wallet.WithWorkchain(0))
 	require.NotNil(t, wallet)
 	logger.Debugw("Created TON Wallet")
 
@@ -80,8 +75,12 @@ func runTxmTest(t *testing.T, logger logger.Logger, config txm.Config, tonChain 
 		_ = tonTxm.Close()
 	}()
 
-	// 1. Deploy the counter contract
-	counterAddr, stateInit, err := testutils.DeployCounterContract(ctx, tonChain.Client, tonChain.Wallet)
+	// 1. Builds the counter contract state init
+	counterCfg := counter.CounterConfig{
+		ID:    big.NewInt(1337),
+		Count: big.NewInt(0),
+	}
+	counterAddr, stateInit, err := counter.BuildCounterStateInit(ctx, counterCfg)
 	require.NoError(t, err)
 
 	// 2. Send deploy tx
@@ -101,7 +100,7 @@ func runTxmTest(t *testing.T, logger logger.Logger, config txm.Config, tonChain 
 	waitForStableInflightCount(logger, tonTxm, 15*time.Second)
 
 	// 4. Check initial state
-	initial, err := testutils.ReadCounter(ctx, tonChain.Client, counterAddr)
+	initial, err := counter.GetCount(ctx, tonChain.Client, counterAddr)
 	require.NoError(t, err)
 	logger.Infow("Deployed counter contract", "address", counterAddr.String(), "stateInit", stateInit.String())
 	logger.Infow("Initial counter value", "value", initial)
@@ -111,7 +110,7 @@ func runTxmTest(t *testing.T, logger logger.Logger, config txm.Config, tonChain 
 	queryId := uint64(0)
 	expected := initial
 	for i := 0; i < iterations; i++ {
-		incrementMsgBody, err := testutils.EncodeIncrement(queryId)
+		incrementMsgBody, err := counter.IncrementPayload(queryId)
 		require.NoError(t, err)
 
 		err = tonTxm.Enqueue(txm.Request{
@@ -126,7 +125,7 @@ func runTxmTest(t *testing.T, logger logger.Logger, config txm.Config, tonChain 
 		expected++
 		queryId++
 
-		incrementMultMsgBody, err := testutils.EncodeIncrementMult(queryId, 3, 4) // incremented value
+		incrementMultMsgBody, err := counter.IncrementMultPayload(queryId, 3, 4) // incremented value
 		require.NoError(t, err)
 
 		err = tonTxm.Enqueue(txm.Request{
@@ -146,7 +145,7 @@ func runTxmTest(t *testing.T, logger logger.Logger, config txm.Config, tonChain 
 	waitForStableInflightCount(logger, tonTxm, 30*time.Second)
 
 	// 7. Check final value
-	final, err := testutils.ReadCounter(ctx, tonChain.Client, counterAddr)
+	final, err := counter.GetCount(ctx, tonChain.Client, counterAddr)
 	require.NoError(t, err)
 	logger.Infow("Final counter value", "value", final)
 	require.Equal(t, expected, final)
