@@ -13,7 +13,7 @@ import (
 
 func TestDepositFees(t *testing.T) {
 	var initialAmount = big.NewInt(1_000_000_000_000)
-	accs := test_utils.SetUpTest(t, initialAmount, 2, bc.Nodes[0].ExternalHTTPUrl)
+	accs := test_utils.SetUpTest(t, initialAmount, 2)
 	alice := accs[0]
 	bob := accs[1]
 

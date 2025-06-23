@@ -7,11 +7,14 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/joho/godotenv"
+	"github.com/smartcontractkit/chainlink-testing-framework/framework/components/blockchain"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/trace_tracking"
+	"github.com/smartcontractkit/freeport"
 	"github.com/stretchr/testify/assert"
 	liteclient "github.com/xssnick/tonutils-go/liteclient"
 	"github.com/xssnick/tonutils-go/tlb"
@@ -42,8 +45,17 @@ func GetBuildDir(contractPath string) string {
 	return path.Join(buildsDir, contractPath)
 }
 
-func SetUpTest(t *testing.T, initialAmount *big.Int, fundedAccountsCount uint, liteapiURL string) (accounts []trace_tracking.SignedAPIClient) {
+func SetUpTest(t *testing.T, initialAmount *big.Int, fundedAccountsCount uint) (accounts []trace_tracking.SignedAPIClient) {
 
+	// Deploy MyLocalTON
+	bcInput := &blockchain.Input{
+		Type: "ton",
+		Port: strconv.Itoa(freeport.GetOne(t)),
+	}
+	var err error
+	bc, err := blockchain.NewBlockchainNetwork(bcInput)
+	assert.NoError(t, err, "Failed to create blockchain network: %v", err)
+	liteapiURL := bc.Nodes[0].ExternalHTTPUrl
 	// Connect to TON testnet
 	client := liteclient.NewConnectionPool()
 	cfg, err := liteclient.GetConfigFromUrl(context.Background(), fmt.Sprintf("http://%s/localhost.global.config.json", liteapiURL))

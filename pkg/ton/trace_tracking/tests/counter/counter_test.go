@@ -16,7 +16,7 @@ import (
 func TestCounter(t *testing.T) {
 	t.Run("TestCounter", func(t *testing.T) {
 		var initialAmount = big.NewInt(1_000_000_000_000)
-		seeders := test_utils.SetUpTest(t, initialAmount, 1, bc.Nodes[0].ExternalHTTPUrl)
+		seeders := test_utils.SetUpTest(t, initialAmount, 1)
 		alice := seeders[0]
 
 		const transferAmount = 100

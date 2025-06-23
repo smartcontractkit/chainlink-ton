@@ -4,7 +4,7 @@ go 1.24.2
 
 require (
 	github.com/hashicorp/go-plugin v1.6.3
-	github.com/smartcontractkit/chainlink-testing-framework/framework v0.8.6
+	github.com/smartcontractkit/chainlink-testing-framework/framework v0.9.2
 )
 
 require (
@@ -131,7 +131,7 @@ require (
 	github.com/scylladb/go-reflectx v1.0.1 // indirect
 	github.com/shopspring/decimal v1.4.0 // indirect
 	github.com/sigurn/crc16 v0.0.0-20211026045750-20ab5afb07e3 // indirect
-	github.com/smartcontractkit/freeport v0.1.0 // indirect
+	github.com/smartcontractkit/freeport v0.1.0
 	github.com/smartcontractkit/grpc-proxy v0.0.0-20240830132753-a7e17fec5ab7 // indirect
 	github.com/smartcontractkit/libocr v0.0.0-20250220133800-f3b940c4f298 // indirect
 	github.com/stretchr/testify v1.10.0
