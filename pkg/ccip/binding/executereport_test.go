@@ -102,6 +102,29 @@ func TestPack2DByteArrayToCell_TooLong(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestPackAndUnloadCellToByteArray(t *testing.T) {
+	tests := []struct {
+		name  string
+		input []byte
+	}{
+		{"empty", []byte{}},
+		{"short", []byte("hello")},
+		{"long", make([]byte, 1024)},
+		{"very long", make([]byte, 100_000)},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cell, err := PackByteArrayToCell(tt.input)
+			require.NoError(t, err)
+
+			output, err := UnloadCellToByteArray(cell)
+			require.NoError(t, err)
+			require.Equal(t, tt.input, output)
+		})
+	}
+}
+
 // NewDummyCell returns a cell containing the string "placeholder" in its data.
 func NewDummyCell() (*cell.Cell, error) {
 	builder := cell.BeginCell()

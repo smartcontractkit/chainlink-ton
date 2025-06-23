@@ -156,6 +156,74 @@ func Unpack2DByteArrayFromCell(c *cell.Cell) ([][]byte, error) {
 	return result, nil
 }
 
+// PackByteArrayToCell packs a byte array into a linked cell structure, supporting empty arrays.
+func PackByteArrayToCell(data []byte) (*cell.Cell, error) {
+	if len(data) == 0 {
+		return nil, nil
+	}
+	cells := make([]*cell.Builder, 0)
+	curr := cell.BeginCell()
+	cells = append(cells, curr)
+
+	for offset := 0; offset < len(data); {
+		bitsLeft := curr.BitsLeft()
+		bytesFit := int(bitsLeft / 8)
+		if bytesFit > len(data)-offset {
+			bytesFit = len(data) - offset
+		}
+		if bytesFit > 0 {
+			if err := curr.StoreSlice(data[offset:offset+bytesFit], uint(bytesFit*8)); err != nil {
+				return nil, fmt.Errorf("failed to store bytes: %w", err)
+			}
+			offset += bytesFit
+		}
+		if offset < len(data) && bytesFit == 0 {
+			curr = cell.BeginCell()
+			cells = append(cells, curr)
+		}
+	}
+
+	var next *cell.Cell
+	for i := len(cells) - 1; i >= 0; i-- {
+		if next != nil {
+			if err := cells[i].StoreRef(next); err != nil {
+				return nil, fmt.Errorf("failed to link cell: %w", err)
+			}
+		}
+		next = cells[i].EndCell()
+	}
+	return next, nil
+}
+
+// UnloadCellToByteArray unpacks a linked cell structure into a byte array, supporting empty arrays.
+func UnloadCellToByteArray(c *cell.Cell) ([]byte, error) {
+	if c == nil {
+		return []byte{}, nil
+	}
+	var result []byte
+	curr := c
+	for curr != nil {
+		s := curr.BeginParse()
+		for s.BitsLeft() > 0 {
+			part, err := s.LoadSlice(s.BitsLeft())
+			if err != nil {
+				return nil, fmt.Errorf("failed to load bytes: %w", err)
+			}
+			result = append(result, part...)
+		}
+		if curr.RefsNum() > 0 {
+			ref, err := curr.PeekRef(0)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get next cell ref: %w", err)
+			}
+			curr = ref
+		} else {
+			curr = nil
+		}
+	}
+	return result, nil
+}
+
 // Pack2DByteArrayToCell packs a 2D byte array into a linked cell structure.
 func Pack2DByteArrayToCell(arrays [][]byte) (*cell.Cell, error) {
 	var cells []*cell.Builder
