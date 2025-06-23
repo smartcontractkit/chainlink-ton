@@ -1,4 +1,4 @@
-package async_communication
+package async
 
 import (
 	"fmt"
@@ -6,7 +6,7 @@ import (
 	"math/rand/v2"
 	"testing"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/trace_tracking/tests/async_communication/wrappers/two_msg_chain"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/trace_tracking/tests/async/wrappers/two_msg_chain"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/trace_tracking/tests/test_utils"
 	"github.com/stretchr/testify/assert"
 )

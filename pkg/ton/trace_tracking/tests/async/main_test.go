@@ -1,4 +1,4 @@
-package async_communication
+package async
 
 import (
 	"testing"
