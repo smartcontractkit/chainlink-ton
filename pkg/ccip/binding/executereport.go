@@ -172,104 +172,37 @@ func UnloadCellToByteArray(c *cell.Cell) ([]byte, error) {
 	return result, nil
 }
 
-// Unpack2DByteArrayFromCell unpacks a 2D byte array from a linked cell structure.
-func Unpack2DByteArrayFromCell(c *cell.Cell) ([][]byte, error) {
-	if c == nil {
-		return [][]byte{}, nil
-	}
-
-	var result [][]byte
-	s := c.BeginParse()
-	for s.BitsLeft() > 0 {
-		// Read the length (assume 16 bits for length)
-		length, err := s.LoadUInt(16)
-		if err != nil {
-			return nil, fmt.Errorf("failed to load length: %w", err)
-		}
-		remaining := int(length)
-		var data []byte
-		curr := s
-		if remaining == 0 {
-			result = append(result, []byte{})
-			// No data to read, just continue to next
-			s = curr
-			continue
-		}
-		for remaining > 0 {
-			bitsToRead := remaining * 8
-			if int(curr.BitsLeft()) < bitsToRead {
-				bitsToRead = int(curr.BitsLeft())
-			}
-			part, err := curr.LoadSlice(uint(bitsToRead))
-			if err != nil {
-				return nil, fmt.Errorf("failed to load byte array part: %w", err)
-			}
-			data = append(data, part...)
-			remaining -= len(part)
-			if remaining > 0 {
-				if curr.RefsNum() == 0 {
-					return nil, fmt.Errorf("unexpected end of snake cell chain")
-				}
-				ref, err := curr.LoadRef()
-				if err != nil {
-					return nil, fmt.Errorf("failed to load next cell ref: %w", err)
-				}
-				curr = ref
-			}
-		}
-		result = append(result, data)
-		// After reading, update s to the current position in the main cell
-		s = curr
-	}
-	return result, nil
-}
-
-// Pack2DByteArrayToCell packs a 2D byte array into a linked cell structure.
+// Pack2DByteArrayToCell packs a 2D byte array into a linked cell structure, supporting empty arrays.
 func Pack2DByteArrayToCell(arrays [][]byte) (*cell.Cell, error) {
-	var cells []*cell.Builder
-	var currBuilder *cell.Builder
+	if len(arrays) == 0 {
+		return nil, nil
+	}
+	builder := cell.BeginCell()
+	cells := []*cell.Builder{builder}
 
-	for i := 0; i < len(arrays); i++ {
-		data := arrays[i]
+	for _, data := range arrays {
 		length := len(data)
 		if length > 0xFFFF {
 			return nil, fmt.Errorf("byte array too long: %d", length)
 		}
-
-		// If no builder yet, or not enough bits for length, start a new cell
-		if currBuilder == nil || currBuilder.BitsLeft() < 16 {
-			currBuilder = cell.BeginCell()
-			cells = append(cells, currBuilder)
+		if builder.BitsLeft() < 16 {
+			builder = cell.BeginCell()
+			cells = append(cells, builder)
 		}
-
-		if err := currBuilder.StoreUInt(uint64(length), 16); err != nil {
+		if err := builder.StoreUInt(uint64(length), 16); err != nil {
 			return nil, fmt.Errorf("failed to store length: %w", err)
 		}
-
-		toWrite := length
-		offset := 0
-
-		for toWrite > 0 {
-			bitsLeft := currBuilder.BitsLeft()
-			bytesFit := bitsLeft / 8
-			if int(bytesFit) > toWrite {
-				bytesFit = uint(toWrite)
+		if length > 0 {
+			dataCell, err := PackByteArrayToCell(data)
+			if err != nil {
+				return nil, fmt.Errorf("failed to pack inner array: %w", err)
 			}
-			if bytesFit > 0 {
-				if err := currBuilder.StoreSlice(data[offset:uint(offset)+bytesFit], bytesFit*8); err != nil {
-					return nil, fmt.Errorf("failed to store bytes: %w", err)
-				}
-				toWrite -= int(bytesFit)
-				offset += int(bytesFit)
-			}
-			if toWrite > 0 && bytesFit == 0 {
-				currBuilder = cell.BeginCell()
-				cells = append(cells, currBuilder)
+			if err := builder.StoreRef(dataCell); err != nil {
+				return nil, fmt.Errorf("failed to store ref: %w", err)
 			}
 		}
 	}
 
-	// Link all cells in reverse order
 	var next *cell.Cell
 	for i := len(cells) - 1; i >= 0; i-- {
 		if next != nil {
@@ -280,4 +213,43 @@ func Pack2DByteArrayToCell(arrays [][]byte) (*cell.Cell, error) {
 		next = cells[i].EndCell()
 	}
 	return next, nil
+}
+
+// Unpack2DByteArrayFromCell unpacks a 2D byte array from a linked cell structure, supporting empty arrays.
+func Unpack2DByteArrayFromCell(c *cell.Cell) ([][]byte, error) {
+	if c == nil {
+		return [][]byte{}, nil
+	}
+	var result [][]byte
+	s := c.BeginParse()
+	for s.BitsLeft() > 0 {
+		length, err := s.LoadUInt(16)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load length: %w", err)
+		}
+		if length == 0 {
+			result = append(result, []byte{})
+			continue
+		}
+		if s.RefsNum() == 0 {
+			return nil, fmt.Errorf("expected ref for non-empty array")
+		}
+		ref, err := s.LoadRef()
+		if err != nil {
+			return nil, fmt.Errorf("failed to load ref: %w", err)
+		}
+		refCell, err := ref.ToCell()
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert ref to cell: %w", err)
+		}
+		data, err := UnloadCellToByteArray(refCell)
+		if err != nil {
+			return nil, fmt.Errorf("failed to unpack inner array: %w", err)
+		}
+		if len(data) != int(length) {
+			return nil, fmt.Errorf("length mismatch: expected %d, got %d", length, len(data))
+		}
+		result = append(result, data)
+	}
+	return result, nil
 }

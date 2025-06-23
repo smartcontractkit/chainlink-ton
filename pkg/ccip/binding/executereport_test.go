@@ -86,10 +86,10 @@ func TestPackAndUnpack2DByteArrayToCell(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cell, err := Pack2DByteArrayToCell(tt.input)
+			c, err := Pack2DByteArrayToCell(tt.input)
 			require.NoError(t, err)
 
-			output, err := Unpack2DByteArrayFromCell(cell)
+			output, err := Unpack2DByteArrayFromCell(c)
 			require.NoError(t, err)
 			require.Equal(t, tt.input, output)
 		})
