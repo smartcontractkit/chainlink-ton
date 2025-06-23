@@ -1,4 +1,4 @@
-package counter
+package counter_legacy
 
 import (
 	"context"
@@ -14,7 +14,7 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
-var COUNTER_CONTRACT_PATH = testutils.GetBuildDir("Counter.compiled.json")
+var COUNTER_CONTRACT_PATH = testutils.GetBuildDir("CounterLegacy.compiled.json")
 
 type CounterConfig struct {
 	ID    *big.Int

@@ -19,7 +19,7 @@ message(5) IncrementMult {
 }
 
 // --- Contract Definition ---
-contract Counter with TypeAndVersion {
+contract CounterLegacy with TypeAndVersion {
     // --- State Variables ---
     // Declared as contract fields. Persistence is handled automatically by Tact.
     // Types and sizes (`as uint32`) match the FunC storage layout.

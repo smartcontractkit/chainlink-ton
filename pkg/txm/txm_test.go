@@ -10,7 +10,7 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/loop"
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
-	counter "github.com/smartcontractkit/chainlink-ton/contracts/wrappers/examples"
+	counter_legacy "github.com/smartcontractkit/chainlink-ton/contracts/wrappers/examples"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wallet_config"
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/tlb"
@@ -76,11 +76,11 @@ func runTxmTest(t *testing.T, logger logger.Logger, config txm.Config, tonChain 
 	}()
 
 	// 1. Builds the counter contract state init
-	counterCfg := counter.CounterConfig{
+	counterCfg := counter_legacy.CounterConfig{
 		ID:    big.NewInt(1337),
 		Count: big.NewInt(0),
 	}
-	counterAddr, stateInit, err := counter.BuildCounterStateInit(ctx, counterCfg)
+	counterAddr, stateInit, err := counter_legacy.BuildCounterStateInit(ctx, counterCfg)
 	require.NoError(t, err)
 
 	// 2. Send deploy tx
@@ -100,7 +100,7 @@ func runTxmTest(t *testing.T, logger logger.Logger, config txm.Config, tonChain 
 	waitForStableInflightCount(logger, tonTxm, 15*time.Second)
 
 	// 4. Check initial state
-	initial, err := counter.GetCount(ctx, tonChain.Client, counterAddr)
+	initial, err := counter_legacy.GetCount(ctx, tonChain.Client, counterAddr)
 	require.NoError(t, err)
 	logger.Infow("Deployed counter contract", "address", counterAddr.String(), "stateInit", stateInit.String())
 	logger.Infow("Initial counter value", "value", initial)
@@ -110,7 +110,7 @@ func runTxmTest(t *testing.T, logger logger.Logger, config txm.Config, tonChain 
 	queryId := uint64(0)
 	expected := initial
 	for i := 0; i < iterations; i++ {
-		incrementMsgBody, err := counter.IncrementPayload(queryId)
+		incrementMsgBody, err := counter_legacy.IncrementPayload(queryId)
 		require.NoError(t, err)
 
 		err = tonTxm.Enqueue(txm.Request{
@@ -125,7 +125,7 @@ func runTxmTest(t *testing.T, logger logger.Logger, config txm.Config, tonChain 
 		expected++
 		queryId++
 
-		incrementMultMsgBody, err := counter.IncrementMultPayload(queryId, 3, 4) // incremented value
+		incrementMultMsgBody, err := counter_legacy.IncrementMultPayload(queryId, 3, 4) // incremented value
 		require.NoError(t, err)
 
 		err = tonTxm.Enqueue(txm.Request{
@@ -145,7 +145,7 @@ func runTxmTest(t *testing.T, logger logger.Logger, config txm.Config, tonChain 
 	waitForStableInflightCount(logger, tonTxm, 30*time.Second)
 
 	// 7. Check final value
-	final, err := counter.GetCount(ctx, tonChain.Client, counterAddr)
+	final, err := counter_legacy.GetCount(ctx, tonChain.Client, counterAddr)
 	require.NoError(t, err)
 	logger.Infow("Final counter value", "value", final)
 	require.Equal(t, expected, final)
