@@ -71,6 +71,37 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 	require.Equal(t, c.Hash(), newCell.Hash())
 }
 
+func TestPackAndUnpack2DByteArrayToCell(t *testing.T) {
+	tests := []struct {
+		name  string
+		input [][]byte
+	}{
+		{"empty", [][]byte{}},
+		{"single empty", [][]byte{{}}},
+		{"single short", [][]byte{[]byte("abc")}},
+		{"multiple short", [][]byte{[]byte("abc"), []byte("defg")}},
+		{"long array", [][]byte{make([]byte, 1000)}},
+		{"multiple long", [][]byte{make([]byte, 500), make([]byte, 800)}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cell, err := Pack2DByteArrayToCell(tt.input)
+			require.NoError(t, err)
+
+			output, err := Unpack2DByteArrayFromCell(cell)
+			require.NoError(t, err)
+			require.Equal(t, tt.input, output)
+		})
+	}
+}
+
+func TestPack2DByteArrayToCell_TooLong(t *testing.T) {
+	tooLong := make([]byte, 0x10000+1)
+	_, err := Pack2DByteArrayToCell([][]byte{tooLong})
+	require.Error(t, err)
+}
+
 // NewDummyCell returns a cell containing the string "placeholder" in its data.
 func NewDummyCell() (*cell.Cell, error) {
 	builder := cell.BeginCell()
