@@ -30,24 +30,23 @@ var once = &sync.Once{}
 func CreateTonWallet(t *testing.T, client ton.APIClientWrapped, version wallet.VersionConfig, option wallet.Option) *wallet.Wallet {
 	seed := wallet.NewSeed()
 	rw, err := wallet.FromSeed(client, seed, version)
-	require.NoError(t, err, fmt.Errorf("Failed to generate random wallet: %v", err))
+	require.NoError(t, err, "failed to generate random wallet: %w", err)
 	pw, perr := wallet.FromPrivateKeyWithOptions(client, rw.PrivateKey(), version, option)
-	require.NoError(t, perr)
-	require.NoError(t, perr, fmt.Errorf("Failed to generate random wallet: %v", err))
+	require.NoError(t, perr, "failed to generate random wallet: %w", err)
 	return pw
 }
 
 func fundTonWallets(t *testing.T, client ton.APIClientWrapped, recipients []*address.Address, amounts []tlb.Coins) {
 	t.Logf("Funding %d wallets", len(recipients))
-	rawHlWallet, err := wallet.FromSeed(client, strings.Fields(blockchain.DefaultTonHlWalletMnemonic), wallet.HighloadV2Verified)
+	rawHlWallet, err := wallet.FromSeed(client, strings.Fields(blockchain.DefaultTonHlWalletMnemonic), wallet.HighloadV2Verified) //nolint:staticcheck
 	require.NoError(t, err, "failed to create highload wallet")
-	mcFunderWallet, err := wallet.FromPrivateKeyWithOptions(client, rawHlWallet.PrivateKey(), wallet.HighloadV2Verified, wallet.WithWorkchain(-1))
+	mcFunderWallet, err := wallet.FromPrivateKeyWithOptions(client, rawHlWallet.PrivateKey(), wallet.HighloadV2Verified, wallet.WithWorkchain(-1)) //nolint:staticcheck
 	require.NoError(t, err, "failed to create highload wallet")
 	subWalletID := uint32(42)
 	funder, err := mcFunderWallet.GetSubwallet(subWalletID)
 	require.NoError(t, err, "failed to get highload subwallet")
 	// double check funder address
-	require.Equal(t, funder.Address().StringRaw(), blockchain.DefaultTonHlWalletAddress, "funder address mismatch")
+	require.Equal(t, blockchain.DefaultTonHlWalletAddress, funder.Address().StringRaw(), "funder address mismatch")
 
 	if len(recipients) != len(amounts) {
 		t.Fatalf("number of recipients (%d) does not match number of amounts (%d)", len(recipients), len(amounts))
@@ -56,7 +55,7 @@ func fundTonWallets(t *testing.T, client ton.APIClientWrapped, recipients []*add
 	messages := make([]*wallet.Message, len(recipients))
 	for i, addr := range recipients {
 		transfer, terr := funder.BuildTransfer(addr, amounts[i], false, "")
-		require.NoError(t, terr, fmt.Sprintf("failed to build transfer for %s", addr.String()))
+		require.NoError(t, terr, "failed to build transfer for %w", addr.String())
 		messages[i] = transfer
 	}
 	_, _, txerr := funder.SendManyWaitTransaction(t.Context(), messages)
@@ -157,11 +156,11 @@ func CreateAPIClient(t *testing.T, chainID uint64) *ton.APIClient {
 	}
 
 	bcOut, err := blockchain.NewBlockchainNetwork(bcInput)
-	require.NoError(t, err, "Failed to create blockchain network")
+	require.NoError(t, err, "failed to create blockchain network")
 	networkCfg := fmt.Sprintf("http://%s/localhost.global.config.json", bcOut.Nodes[0].ExternalHTTPUrl)
 
 	cfg, err := liteclient.GetConfigFromUrl(t.Context(), networkCfg)
-	require.NoError(t, err, "Failed to get config from URL: %s", networkCfg)
+	require.NoError(t, err, "failed to get config from URL: %w", networkCfg)
 
 	connectionPool := liteclient.NewConnectionPool()
 	err = connectionPool.AddConnectionsFromConfig(t.Context(), cfg)

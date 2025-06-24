@@ -1,4 +1,4 @@
-package counter_legacy
+package counterlegacy
 
 import (
 	"context"
@@ -6,15 +6,15 @@ import (
 	"math/big"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/contract"
-
 	"github.com/smartcontractkit/chainlink-ton/testutils"
+
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
-var COUNTER_CONTRACT_PATH = testutils.GetBuildDir("CounterLegacy.compiled.json")
+var CounterContractPath = testutils.GetBuildDir("CounterLegacy.compiled.json")
 
 type CounterConfig struct {
 	ID    *big.Int
@@ -23,9 +23,9 @@ type CounterConfig struct {
 
 // Creates StateInit and computes address
 func BuildCounterStateInit(ctx context.Context, config CounterConfig) (*address.Address, *cell.Cell, error) {
-	code, err := contract.ParseCompiledContract(COUNTER_CONTRACT_PATH)
+	code, err := contract.ParseCompiledContract(CounterContractPath)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Failed to compile contract: %v", err)
+		return nil, nil, fmt.Errorf("failed to compile contract: %w", err)
 	}
 
 	data := cell.BeginCell().
@@ -49,17 +49,17 @@ func BuildCounterStateInit(ctx context.Context, config CounterConfig) (*address.
 	return contractAddr, stateInitCell, nil
 }
 
-func IncrementPayload(queryId uint64) (*cell.Cell, error) {
+func IncrementPayload(queryID uint64) (*cell.Cell, error) {
 	msg := cell.BeginCell().
 		MustStoreUInt(4, 32).      // opcode
-		MustStoreUInt(queryId, 64) // query_id
+		MustStoreUInt(queryID, 64) // query_id
 	return msg.EndCell(), nil
 }
 
-func IncrementMultPayload(queryId uint64, a uint32, b uint32) (*cell.Cell, error) {
+func IncrementMultPayload(queryID uint64, a uint32, b uint32) (*cell.Cell, error) {
 	msg := cell.BeginCell().
 		MustStoreUInt(5, 32).       // opcode
-		MustStoreUInt(queryId, 64). // query_id
+		MustStoreUInt(queryID, 64). // query_id
 		MustStoreUInt(uint64(a), 32).
 		MustStoreUInt(uint64(b), 32)
 	return msg.EndCell(), nil
