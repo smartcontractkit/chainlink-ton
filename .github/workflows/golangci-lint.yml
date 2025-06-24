@@ -3,6 +3,9 @@ name: golangci_lint
 on:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   golang_lint_integration_tests:
     name: Golang Lint Integration Tests
@@ -18,6 +21,10 @@ jobs:
 
       - name: Print golangci-lint Version
         run: nix develop -c golangci-lint --version
+
+      - name: Download golangci-lint config
+        run: |
+          curl -o .golangci.yml https://raw.githubusercontent.com/smartcontractkit/chainlink/develop/.golangci.yml
 
       - name: golangci-lint
         run: nix develop -c "cd ./integration-tests && golangci-lint -c ../.golangci.yaml --out-format checkstyle:golangci-lint-integration-tests-report.xml run"
@@ -49,6 +56,10 @@ jobs:
       - name: Print golangci-lint Version
         run: nix develop -c golangci-lint --version
 
+      - name: Download golangci-lint config
+        run: |
+          curl -o .golangci.yml https://raw.githubusercontent.com/smartcontractkit/chainlink/develop/.golangci.yml
+          
       - name: golangci-lint
         run: nix develop -c "cd ./pkg && golangci-lint -c ../.golangci.yaml --out-format checkstyle:golangci-lint-relay-report.xml run"
 
