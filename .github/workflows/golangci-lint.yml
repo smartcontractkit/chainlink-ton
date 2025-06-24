@@ -1,0 +1,65 @@
+name: golangci_lint
+
+on:
+  pull_request:
+
+jobs:
+  golang_lint_integration_tests:
+    name: Golang Lint Integration Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@02a151ada4993995686f9ed4f1be7cfbb229e56f # v31
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+
+      - name: Print golangci-lint Version
+        run: nix develop -c golangci-lint --version
+
+      - name: golangci-lint
+        run: nix develop -c "cd ./integration-tests && golangci-lint -c ../.golangci.yaml --out-format checkstyle:golangci-lint-integration-tests-report.xml run"
+
+      - name: Print lint report artifact
+        if: failure()
+        shell: bash
+        run: cat ./integration-tests/golangci-lint-integration-tests-report.xml
+
+      - name: Store lint report artifact
+        if: always()
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        with:
+          name: golangci-lint-integration-tests-report
+          path: ./integration-tests/golangci-lint-integration-tests-report.xml
+
+  golang_lint_relay:
+    name: Golang Lint Relay tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@02a151ada4993995686f9ed4f1be7cfbb229e56f # v31
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+
+      - name: Print golangci-lint Version
+        run: nix develop -c golangci-lint --version
+
+      - name: golangci-lint
+        run: nix develop -c "cd ./pkg && golangci-lint -c ../.golangci.yaml --out-format checkstyle:golangci-lint-relay-report.xml run"
+
+      - name: Print lint report artifact
+        if: failure()
+        shell: bash
+        run: cat ./pkg/golangci-lint-relay-report.xml
+
+      - name: Store lint report artifact
+        if: always()
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        with:
+          name: golangci-lint-relay-report
+          path: ./pkg/golangci-lint-report.xml
