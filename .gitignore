@@ -36,5 +36,4 @@ node_modules/
 .DS_Store
 
 # Golangci-lint reports
-golangci-lint-relay-report.xml
-golangci-lint-integration-tests-report.xml
+golangci-lint-*-report.xml
