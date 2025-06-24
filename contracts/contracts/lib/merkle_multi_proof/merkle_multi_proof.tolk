@@ -19,20 +19,17 @@ const MAX_NUM_HASHES: int = 128;
 /// and using `proofFlagBits` to determine whether to use a proof element or a previously computed node during each step.
 fun merkleRoot(
     leaves: Iterator<uint256>,
-    leavesLen: uint16,
     proofs: Iterator<uint256>,
-    proofsLen: uint16,
     proofFlagBits: uint256,
 ): uint256 {
+    val leavesLen = leaves.countBytes() / 32;
+    val proofsLen = proofs.countBytes() / 32;
+
     assert (leavesLen != 0, ERROR_INVALID_PROOF_LEAVES_CANNOT_BE_EMPTY);
     assert (leavesLen <= MAX_NUM_HASHES, ERROR_INVALID_PROOF_LEAVES_TOO_LARGE + 1);
     assert (proofsLen <= MAX_NUM_HASHES, ERROR_INVALID_PROOF_PROOFS_TOO_LARGE + 1);
 
-    assert (leaves.countBytes() / 32 == leavesLen, ERROR_INVALID_PROOF_DATA_SIZE_MISMATCH);
-    assert (proofs.countBytes() / 32 == proofsLen, ERROR_INVALID_PROOF_DATA_SIZE_MISMATCH);
-
     var totalHashes: int = leavesLen + proofsLen - 1;
-
     assert (totalHashes <= MAX_NUM_HASHES, ERROR_INVALID_PROOF_TOTAL_HASHES_EXCEEDED_MAX);
 
     if (totalHashes == 0) {
@@ -41,9 +38,8 @@ fun merkleRoot(
 
     var hashes = createEmptyTuple();
 
-    // indexes over the leaves, proofs, and hashes
+    // index over the hashes tuple
     var hashPos: int = 0;
-
     var i: int = 0;
     while (i < totalHashes) {
         // Find the first hash needed to compute the parent.

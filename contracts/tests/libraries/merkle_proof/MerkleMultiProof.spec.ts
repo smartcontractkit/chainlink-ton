@@ -57,9 +57,7 @@ describe('MerkleMultiProofCalculatorDict', () => {
       deployer.getSender(),
       toNano('0.5'),
       leaves,
-      1,
       Cell.EMPTY,
-      0,
       0n,
     )
     expect(result.transactions).toHaveTransaction({
@@ -129,9 +127,7 @@ describe('MerkleMultiProofCalculatorDict', () => {
       deployer.getSender(),
       toNano('10000'),
       listAsSnake(leaves),
-      10,
       listAsSnake(proofs),
-      33,
       flagsUint256,
     )
     expect(result.transactions).toHaveTransaction({
@@ -159,9 +155,7 @@ describe('MerkleMultiProofCalculatorDict', () => {
       deployer.getSender(),
       toNano('100000'),
       listAsSnake(hashedLeaves),
-      128,
       Cell.EMPTY,
-      0,
       flagsUint128,
     )
 

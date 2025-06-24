@@ -43,9 +43,7 @@ export class MerkleMultiProofCalculator implements Contract {
     via: Sender,
     value: bigint,
     leaves: Cell,
-    levesLen: number,
     proofs: Cell,
-    proofsLen: number,
     proofFlagBits: bigint,
   ) {
     await provider.internal(via, {
@@ -55,9 +53,7 @@ export class MerkleMultiProofCalculator implements Contract {
         .storeUint(Opcodes.OP_MERKLE_ROOT, 32)
         .storeUint(0, 64)
         .storeRef(leaves)
-        .storeUint(levesLen, 16)
         .storeRef(proofs)
-        .storeUint(proofsLen, 16)
         .storeUint(proofFlagBits, 256)
         .endCell(),
     })
