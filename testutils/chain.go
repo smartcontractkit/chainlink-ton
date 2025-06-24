@@ -61,7 +61,7 @@ func fundTonWallets(t *testing.T, client ton.APIClientWrapped, recipients []*add
 	}
 	_, _, txerr := funder.SendManyWaitTransaction(t.Context(), messages)
 	require.NoError(t, txerr, "airdrop transaction failed")
-	
+
 	err = waitForAirdropCompletion(t, client, recipients, amounts, 60*time.Second, false)
 	require.NoError(t, err, "airdrop completion verification failed")
 	t.Logf("%d wallets funded", len(recipients))
@@ -70,7 +70,7 @@ func fundTonWallets(t *testing.T, client ton.APIClientWrapped, recipients []*add
 func waitForAirdropCompletion(t *testing.T, client ton.APIClientWrapped, recipients []*address.Address, expectedAmounts []tlb.Coins, timeout time.Duration, verbose bool) error {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	
+
 	// get initial balances
 	initialBalances := make(map[string]tlb.Coins)
 	currentBlock, err := client.CurrentMasterchainInfo(ctx)
@@ -103,7 +103,7 @@ func waitForAirdropCompletion(t *testing.T, client ton.APIClientWrapped, recipie
 					}
 					expectedMin := tlb.MustFromNano(
 						initialBalance.Nano().Add(initialBalance.Nano(), expectedAmount.Nano()), 9)
-					
+
 					if acc.State.Balance.Nano().Cmp(expectedMin.Nano()) >= 0 {
 						if verbose {
 							t.Logf("%s balance is sufficient: %s >= %s", addr.String(), acc.State.Balance.String(), expectedMin.String())
@@ -115,7 +115,7 @@ func waitForAirdropCompletion(t *testing.T, client ton.APIClientWrapped, recipie
 			}
 		}(addr, expectedAmounts[i], initialBalances[addr.String()])
 	}
-	
+
 	// wait for all to complete
 	count := 0
 	for {
@@ -155,18 +155,9 @@ func CreateAPIClient(t *testing.T, chainID uint64) *ton.APIClient {
 		Image:   "ghcr.io/neodix42/mylocalton-docker:latest",
 		Port:    strconv.Itoa(freeport.GetOne(t)),
 	}
-	var bcOut *blockchain.Output
 
-	const maxRetries = 10
-	for i := 0; i < maxRetries; i++ {
-		bcOut, err = blockchain.NewBlockchainNetwork(bcInput)
-		if err == nil {
-			break
-		}
-		t.Logf("Error creating TON network (attempt %d/%d): %v", i+1, maxRetries, err)
-		time.Sleep(time.Second)
-	}
-	require.NoError(t, err, "Failed to create blockchain network after %d attempts", maxRetries)
+	bcOut, err := blockchain.NewBlockchainNetwork(bcInput)
+	require.NoError(t, err, "Failed to create blockchain network")
 	networkCfg := fmt.Sprintf("http://%s/localhost.global.config.json", bcOut.Nodes[0].ExternalHTTPUrl)
 
 	cfg, err := liteclient.GetConfigFromUrl(t.Context(), networkCfg)
@@ -179,16 +170,7 @@ func CreateAPIClient(t *testing.T, chainID uint64) *ton.APIClient {
 	client := ton.NewAPIClient(connectionPool, ton.ProofCheckPolicyFast)
 	client.SetTrustedBlockFromConfig(cfg)
 
-	const readinessRetries = 30
-	var lastErr error
-	for i := 0; i < readinessRetries; i++ {
-		_, lastErr = client.GetMasterchainInfo(t.Context())
-		if lastErr == nil {
-			break
-		}
-		t.Logf("API server not ready yet (attempt %d/%d): %v", i+1, readinessRetries, lastErr)
-		time.Sleep(time.Second)
-	}
-	require.NoError(t, lastErr, "TON network not ready after %d attempts", readinessRetries)
+	_, err = client.GetMasterchainInfo(t.Context())
+	require.NoError(t, err, "TON network not ready")
 	return client
 }
