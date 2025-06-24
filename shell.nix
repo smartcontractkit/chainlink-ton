@@ -30,4 +30,13 @@ pkgs.mkShell {
     ++ lib.optionals stdenv.hostPlatform.isDarwin [
       libiconv
     ];
+  shellHook = ''
+    # use upstream golangci-lint config from core Chainlink repository
+    alias golint="golangci-lint run --config <(curl -sSL https://raw.githubusercontent.com/smartcontractkit/chainlink/develop/.golangci.yml) --path-mode \"abs\""
+    echo ""
+    echo "You can lint your code with:"
+    echo "    golint ./pkg/..."
+    echo "    golint ./integration-tests/..."
+    echo ""
+  '';
 }
