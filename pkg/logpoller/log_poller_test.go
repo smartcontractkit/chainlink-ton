@@ -11,10 +11,12 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/testutils"
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
 )
 
 type CounterIncrementEvent struct {
@@ -23,12 +25,10 @@ type CounterIncrementEvent struct {
 	TriggeredBy *address.Address `tlb:"addr"`
 }
 
-func (CounterIncrementEvent) Topic() uint64 { return 1002 }
-
 // TODO: move this to integration tests
 func Test_LogPoller(t *testing.T) {
 	ctx := context.Background()
-	// TODO: access TON chain via CTFv2 
+	// TODO: access TON chain via CTFv2
 	pool := liteclient.NewConnectionPool()
 	cfg, err := liteclient.GetConfigFromUrl(ctx, "http://127.0.0.1:8000/localhost.global.config.json")
 	require.NoError(t, err)
@@ -59,26 +59,39 @@ func Test_LogPoller(t *testing.T) {
 		2*time.Second, // tick every 2s
 		100,           // page size
 	)
+
 	// register our increment‐event filter
-	flt := logpoller.Filter{
-		Name:    "ctr_inc",
-		Address: addr,
-		Topic:   1002,
+	filter := types.Filter{
+		Address:    *addr,
+		EventName:  "CounterIncrementEvent",
+		EventTopic: 1002,
 	}
-	require.NoError(t, lp.RegisterFilter(ctx, flt,
-		CounterIncrementEvent{}),
-	)
+	lp.RegisterFilter(ctx, filter)
 
 	require.NoError(t, lp.Start(ctx))
+	defer func() {
+		require.NoError(t, lp.Close())
+	}()
 
-	w.SendWaitTransaction(ctx, testutils.IncrementMessage(addr))
+	// TODO: we can lookup block number by seqno
+	_, _, err = w.SendWaitTransaction(ctx, testutils.IncrementMessage(addr))
+	require.NoError(t, err)
 
 	require.Eventually(t, func() bool {
-		return len(lp.Store().ListEvents()) > 0
+		return len(lp.Store().ListLogs()) > 0
 	}, 30*time.Second, 1*time.Second, "expected at least one increment event")
 
-	evs := lp.Store().ListEvents()
-	require.Len(t, evs, 1)
-	t.Logf("Event: %+v", evs[0])
-	require.Equal(t, addr.String(), evs[0].Source.String())
+	// TODO: add log query
+	logs := lp.Store().ListLogs()
+	require.Len(t, logs, 1)
+	require.Equal(t, addr.String(), logs[0].Address.String())
+	require.Equal(t, uint64(1002), logs[0].EventTopic, "unexpected event topic")
+
+	var event CounterIncrementEvent
+	c, err := cell.FromBOC(logs[0].Data)
+	require.NoError(t, err, "failed to parse BOC")
+	err = tlb.LoadFromCell(&event, c.BeginParse())
+	require.NoError(t, err, "failed to unmarshal CounterIncrementEvent")
+	require.Equal(t, uint32(1), event.NewValue, "unexpected new value in event")
+	require.Equal(t, w.Address().String(), event.TriggeredBy.String(), "unexpected triggered by address")
 }

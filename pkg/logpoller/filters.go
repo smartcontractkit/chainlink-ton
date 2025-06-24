@@ -2,109 +2,78 @@ package logpoller
 
 import (
 	"context"
-	"reflect"
 	"sync"
 
 	"github.com/xssnick/tonutils-go/address"
-	"github.com/xssnick/tonutils-go/tlb"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
 )
 
-type Filter struct {
-	Name    string           // unique
-	Address *address.Address // contract
-	Topic   uint64           // event topic
-}
-
-type filters struct {
+type Filters struct {
 	mu               sync.RWMutex
-	filtersByName    map[string]Filter
+	filtersByName    map[string]types.Filter
 	filtersByAddress map[string]map[uint64]struct{}
-	parsersByAddress map[string]*EventParser
 }
 
-func newFilters() *filters {
-	return &filters{
-		filtersByName:    make(map[string]Filter),
+func newFilters() *Filters {
+	return &Filters{
+		filtersByName:    make(map[string]types.Filter),
 		filtersByAddress: make(map[string]map[uint64]struct{}),
-		parsersByAddress: make(map[string]*EventParser),
 	}
 }
 
-func (f *filters) RegisterFilter(ctx context.Context, filter Filter, eventType reflect.Type) error {
+func (f *Filters) RegisterFilter(ctx context.Context, flt types.Filter) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	// by name
-	f.filtersByName[filter.Name] = filter
-	// index by address→topic
-	a := filter.Address.String()
+	f.filtersByName[flt.Name] = flt
+	a := flt.Address.String()
 	if f.filtersByAddress[a] == nil {
 		f.filtersByAddress[a] = make(map[uint64]struct{})
 	}
-	f.filtersByAddress[a][filter.Topic] = struct{}{}
-	// ensure parser exists
-	if f.parsersByAddress[a] == nil {
-		f.parsersByAddress[a] = NewEventParser(false)
-	}
-	f.parsersByAddress[a].topicRegistry[filter.Topic] = eventType
-	return nil
+	f.filtersByAddress[a][flt.EventTopic] = struct{}{}
 }
 
-func (f *filters) UnregisterFilter(ctx context.Context, name string) error {
+func (f *Filters) UnregisterFilter(ctx context.Context, name string) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	fl, ok := f.filtersByName[name]
+	flt, ok := f.filtersByName[name]
 	if !ok {
-		return nil
+		return
 	}
 	delete(f.filtersByName, name)
-	a := fl.Address.String()
-	delete(f.filtersByAddress[a], fl.Topic)
+	a := flt.Address.String()
+	delete(f.filtersByAddress[a], flt.EventTopic)
 	if len(f.filtersByAddress[a]) == 0 {
 		delete(f.filtersByAddress, a)
-		delete(f.parsersByAddress, a)
 	}
-	return nil
 }
 
-func (f *filters) GetDistinctAddresses(ctx context.Context) []*address.Address {
+func (f *Filters) GetDistinctAddresses() []address.Address {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
-	var out []*address.Address
+	out := make([]address.Address, 0, len(f.filtersByAddress))
 	for a := range f.filtersByAddress {
-		out = append(out, address.MustParseAddr(a))
+		out = append(out, *address.MustParseAddr(a))
 	}
 	return out
 }
 
-func (f *filters) MatchingFiltersForTransaction(tx *tlb.Transaction) []Event {
+// For a given (contractAddr, topic), return all FilterIDs that match.
+func (f *Filters) MatchingFilters(contractAddr address.Address, topic uint64) []int64 {
 	f.mu.RLock()
-	copyParsers := make(map[string]*EventParser, len(f.parsersByAddress))
-	for a, p := range f.parsersByAddress {
-		copyParsers[a] = p
+	defer f.mu.RUnlock()
+	var out []int64
+	byTopic, ok := f.filtersByAddress[contractAddr.String()]
+	if !ok {
+		return nil
 	}
-	f.mu.RUnlock()
-
-	var out []Event
-	if tx.IO.Out == nil {
-		return out
+	if _, watched := byTopic[topic]; !watched {
+		return nil
 	}
-	msgs, err := tx.IO.Out.ToSlice()
-	if err != nil {
-		return out
-	}
-	for _, msg := range msgs {
-		if msg.MsgType != tlb.MsgTypeExternalOut {
-			continue
-		}
-		ext := msg.AsExternalOut()
-		if ext.Body == nil {
-			continue
-		}
-		a := ext.SrcAddr.String()
-		if parser := copyParsers[a]; parser != nil {
-			if ev := parser.parseEventFromMessage(ext); ev != nil {
-				out = append(out, *ev)
-			}
+	// collect all IDs whose Filter.Address/topic match
+	for _, flt := range f.filtersByName {
+		if flt.Address.Equals(&contractAddr) && flt.EventTopic == topic {
+			out = append(out, flt.ID)
 		}
 	}
 	return out

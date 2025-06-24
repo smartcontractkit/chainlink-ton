@@ -1,68 +1,54 @@
-// logpoller/store.go
 package logpoller
 
 import (
 	"sync"
+	"time"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
 )
 
-// InMemoryStore implements StateStore + event capture in one.
 type InMemoryStore struct {
 	mu              sync.Mutex
 	lastSeq         uint32
 	contractCursors map[string]uint64
-	events          []Event
+	logs            []types.Log
 }
 
-// NewInMemoryStore builds a fresh store.
 func NewInMemoryStore() *InMemoryStore {
 	return &InMemoryStore{
 		contractCursors: make(map[string]uint64),
-		events:          make([]Event, 0),
 	}
 }
 
-// LoadLastSeq returns the last processed masterchain seq.
-func (s *InMemoryStore) LoadLastSeq() (uint32, error) {
+func (s *InMemoryStore) LoadLastSeq() uint32 {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.lastSeq, nil
+	return s.lastSeq
 }
 
-// SaveLastSeq persists the highest masterchain seq processed.
-func (s *InMemoryStore) SaveLastSeq(seq uint32) error {
+func (s *InMemoryStore) SaveLastSeq(seq uint32) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.lastSeq = seq
-	return nil
 }
 
-// LoadContractCursor returns the last LT cursor for a given contract.
-func (s *InMemoryStore) LoadContractCursor(addr string) (uint64, error) {
+func (s *InMemoryStore) SaveLog(log types.Log) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.contractCursors[addr], nil
+	now := time.Now().UTC()
+	log.ReceivedAt = now
+	if log.ExpiresAt == nil && log.ReceivedAt != (time.Time{}) {
+		// TODO: use configurable retention period
+		exp := now.Add(24 * time.Hour)
+		log.ExpiresAt = &exp
+	}
+	s.logs = append(s.logs, log)
 }
 
-// SaveContractCursor updates the LT cursor for a contract.
-func (s *InMemoryStore) SaveContractCursor(addr string, cursor uint64) error {
+func (s *InMemoryStore) ListLogs() []types.Log {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.contractCursors[addr] = cursor
-	return nil
-}
-
-// SaveEvent appends a processed Event to the in‐memory log.
-func (s *InMemoryStore) SaveEvent(ev Event) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.events = append(s.events, ev)
-}
-
-// ListEvents returns a snapshot of all recorded Events.
-func (s *InMemoryStore) ListEvents() []Event {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	out := make([]Event, len(s.events))
-	copy(out, s.events)
+	out := make([]types.Log, len(s.logs))
+	copy(out, s.logs)
 	return out
 }

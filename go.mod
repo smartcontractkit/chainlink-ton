@@ -6,7 +6,7 @@ require (
 	github.com/hashicorp/go-plugin v1.6.3
 	github.com/smartcontractkit/chainlink-common v0.7.1-0.20250527164052-5a4fb8e255ff
 	github.com/smartcontractkit/chainlink-framework/multinode v0.0.0-20250522110034-65c54665034a
-	github.com/smartcontractkit/chainlink-testing-framework/framework v0.9.6-0.20250623175229-fd3a78f0b1b2
+	github.com/smartcontractkit/chainlink-testing-framework/framework v0.9.6
 	github.com/stretchr/testify v1.10.0
 	github.com/test-go/testify v1.1.4
 	github.com/xssnick/tonutils-go v1.13.0
