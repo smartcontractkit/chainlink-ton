@@ -4,7 +4,7 @@ go 1.24.2
 
 require (
 	github.com/joho/godotenv v1.5.1
-	github.com/smartcontractkit/chainlink-testing-framework/framework v0.9.2
+	github.com/smartcontractkit/chainlink-testing-framework/framework v0.9.6
 	github.com/smartcontractkit/chainlink-ton v0.0.0
 	github.com/smartcontractkit/freeport v0.1.0
 	github.com/stretchr/testify v1.10.0
