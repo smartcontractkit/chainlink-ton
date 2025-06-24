@@ -1,4 +1,4 @@
-import { Dictionary } from '@ton/core'
+import { Builder, beginCell, Cell } from '@ton/core'
 
 // Converts a BigInt to a 32-byte (256-bit) Uint8Array, padding with leading zeros if necessary.
 export function bigIntToBytes32(value: bigint): Uint8Array {
@@ -20,10 +20,32 @@ export function uint8ArrayToBigInt(bytes: Uint8Array): bigint {
   return result
 }
 
-export function listOfHashesAsDictionary(list: bigint[]): Dictionary<number, bigint> {
-  let dict: Dictionary<number, bigint> = Dictionary.empty()
-  for (let i = 0; i < list.length; i++) {
-    dict.set(i, list[i])
+export function listAsSnake(array: bigint[]): Cell {
+  const cells: Builder[] = []
+  let builder = beginCell()
+  let countInCurrent = 0
+
+  for (const value of array) {
+    if (countInCurrent === 3) {
+      cells.push(builder)
+      builder = beginCell()
+      countInCurrent = 0
+    }
+    builder.storeUint(value, 256)
+    countInCurrent++
   }
-  return dict
+
+  cells.push(builder)
+
+  // Build the linked structure from the end
+  let current = cells[cells.length - 1].endCell()
+  for (let i = cells.length - 2; i >= 0; i--) {
+    const b = cells[i]
+    b.storeRef(current)
+    current = b.endCell()
+  }
+
+  return current
 }
+
+

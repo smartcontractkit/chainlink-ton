@@ -1,42 +1,15 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { toNano, Cell, Builder, beginCell } from '@ton/core'
+import { toNano, Cell } from '@ton/core'
 import {
   MerkleMultiProofCalculator,
   MerkleMultiProofCalculatorStorage,
-} from '../wrappers/libraries/MerkleMultiProofCalculator'
+} from '../../../wrappers/libraries/merkle_proof/MerkleMultiProofCalculator'
 import { sha256_sync } from '@ton/crypto'
 
 import '@ton/test-utils'
-import { MerkleHelper, HashFunction } from './helpers/MerkleMultiProof/MerkleMultiProofHelper'
+import { MerkleHelper, HashFunction } from './helpers/MerkleMultiProofHelper'
 import { compile } from '@ton/blueprint'
-
-export function listAsSnake(array: bigint[]): Cell {
-  const cells: Builder[] = []
-  let builder = beginCell()
-  let countInCurrent = 0
-
-  for (const value of array) {
-    if (countInCurrent === 3) {
-      cells.push(builder)
-      builder = beginCell()
-      countInCurrent = 0
-    }
-    builder.storeUint(value, 256)
-    countInCurrent++
-  }
-
-  cells.push(builder)
-
-  // Build the linked structure from the end
-  let current = cells[cells.length - 1].endCell()
-  for (let i = cells.length - 2; i >= 0; i--) {
-    const b = cells[i]
-    b.storeRef(current)
-    current = b.endCell()
-  }
-
-  return current
-}
+import { listAsSnake } from './helpers/Utils'
 
 describe('MerkleMultiProofCalculatorDict', () => {
   let blockchain: Blockchain
