@@ -1,3 +1,5 @@
+const ERROR_INVALID_DATA = 0x77;
+
 fun isMessageBounced(msgFlags: int): int
     asm "1 PUSHINT" "AND";
 
@@ -38,4 +40,12 @@ fun Iterator<T>.next(mutate self): T {
     return self.data.loadAny<T>();
 }
 
+// Expensive to calculate
+@inline
+fun Iterator<T>. countBytes(self): int {
+    val maxCells = 128;
+    val (cellsCount, dataBitsSize, cellRefs) = self.data.calculateSizeStrict(maxCells);
+    assert(dataBitsSize % 8 == 0, ERROR_INVALID_DATA);
+    return dataBitsSize / 8;
+}
 

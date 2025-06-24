@@ -7,6 +7,7 @@ const ERROR_INVALID_PROOF_LEAVES_CANNOT_BE_EMPTY: int = 1001;
 const ERROR_INVALID_PROOF_LEAVES_TOO_LARGE: int = 1002;
 const ERROR_INVALID_PROOF_PROOFS_TOO_LARGE: int = 1003;
 const ERROR_INVALID_PROOF_TOTAL_HASHES_EXCEEDED_MAX: int = 1004;
+const ERROR_INVALID_PROOF_DATA_SIZE_MISMATCH: int = 1005;
 
 /// @notice internal domain separator, should be used as the first 32 bytes of an internal node's preimage.
 const INTERNAL_DOMAIN_SEPARATOR: int = 0x0000000000000000000000000000000000000000000000000000000000000001;
@@ -26,6 +27,9 @@ fun merkleRoot(
     assert (leavesLen != 0, ERROR_INVALID_PROOF_LEAVES_CANNOT_BE_EMPTY);
     assert (leavesLen <= MAX_NUM_HASHES, ERROR_INVALID_PROOF_LEAVES_TOO_LARGE + 1);
     assert (proofsLen <= MAX_NUM_HASHES, ERROR_INVALID_PROOF_PROOFS_TOO_LARGE + 1);
+
+    assert (leaves.countBytes() / 32 == leavesLen, ERROR_INVALID_PROOF_DATA_SIZE_MISMATCH);
+    assert (proofs.countBytes() / 32 == proofsLen, ERROR_INVALID_PROOF_DATA_SIZE_MISMATCH);
 
     var totalHashes: int = leavesLen + proofsLen - 1;
 
