@@ -1,6 +1,7 @@
 package testutils
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -17,10 +18,11 @@ import (
 
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 
-	"github.com/smartcontractkit/chainlink-testing-framework/framework"
-	"github.com/smartcontractkit/chainlink-testing-framework/framework/components/blockchain"
 	"github.com/xssnick/tonutils-go/liteclient"
 	"github.com/xssnick/tonutils-go/ton"
+
+	"github.com/smartcontractkit/chainlink-testing-framework/framework"
+	"github.com/smartcontractkit/chainlink-testing-framework/framework/components/blockchain"
 )
 
 var once = &sync.Once{}
@@ -36,6 +38,7 @@ func CreateTonWallet(t *testing.T, client ton.APIClientWrapped, version wallet.V
 }
 
 func fundTonWallets(t *testing.T, client ton.APIClientWrapped, recipients []*address.Address, amounts []tlb.Coins) {
+	t.Logf("Funding %d wallets", len(recipients))
 	rawHlWallet, err := wallet.FromSeed(client, strings.Fields(blockchain.DefaultTonHlWalletMnemonic), wallet.HighloadV2Verified)
 	require.NoError(t, err, "failed to create highload wallet")
 	mcFunderWallet, err := wallet.FromPrivateKeyWithOptions(client, rawHlWallet.PrivateKey(), wallet.HighloadV2Verified, wallet.WithWorkchain(-1))
@@ -58,7 +61,75 @@ func fundTonWallets(t *testing.T, client ton.APIClientWrapped, recipients []*add
 	}
 	_, _, txerr := funder.SendManyWaitTransaction(t.Context(), messages)
 	require.NoError(t, txerr, "airdrop transaction failed")
-	// we don't wait for the transaction to be confirmed here, as it may take some time
+	
+	err = waitForAirdropCompletion(t, client, recipients, amounts, 60*time.Second, false)
+	require.NoError(t, err, "airdrop completion verification failed")
+	t.Logf("%d wallets funded", len(recipients))
+}
+
+func waitForAirdropCompletion(t *testing.T, client ton.APIClientWrapped, recipients []*address.Address, expectedAmounts []tlb.Coins, timeout time.Duration, verbose bool) error {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	
+	// get initial balances
+	initialBalances := make(map[string]tlb.Coins)
+	currentBlock, err := client.CurrentMasterchainInfo(ctx)
+	require.NoError(t, err, "failed to get current block")
+	for _, addr := range recipients {
+		if acc, err := client.GetAccount(ctx, currentBlock, addr); err == nil {
+			initialBalances[addr.String()] = acc.State.Balance
+		} else {
+			initialBalances[addr.String()] = tlb.ZeroCoins // the account might not exist yet
+		}
+	}
+	completed := make(chan string, len(recipients))
+	// concurrently check balances
+	for i, addr := range recipients {
+		go func(addr *address.Address, expectedAmount, initialBalance tlb.Coins) {
+			ticker := time.NewTicker(time.Second)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case <-ticker.C:
+					block, err := client.CurrentMasterchainInfo(ctx)
+					if err != nil {
+						continue
+					}
+					acc, err := client.GetAccount(ctx, block, addr)
+					if err != nil {
+						continue
+					}
+					expectedMin := tlb.MustFromNano(
+						initialBalance.Nano().Add(initialBalance.Nano(), expectedAmount.Nano()), 9)
+					
+					if acc.State.Balance.Nano().Cmp(expectedMin.Nano()) >= 0 {
+						if verbose {
+							t.Logf("%s balance is sufficient: %s >= %s", addr.String(), acc.State.Balance.String(), expectedMin.String())
+						}
+						completed <- addr.String()
+						return
+					}
+				}
+			}
+		}(addr, expectedAmounts[i], initialBalances[addr.String()])
+	}
+	
+	// wait for all to complete
+	count := 0
+	for {
+		select {
+		case <-completed:
+			count++
+			if count == len(recipients) {
+				t.Log("✓ Airdrop completed")
+				return nil
+			}
+		case <-ctx.Done():
+			return fmt.Errorf("timeout: %d/%d completed", count, len(recipients))
+		}
+	}
 }
 
 func StartTonChain(t *testing.T, nodeClient *ton.APIClient, chainID uint64, wallet *wallet.Wallet) cldf_ton.Chain {

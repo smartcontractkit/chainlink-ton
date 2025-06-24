@@ -10,7 +10,7 @@ require (
 	github.com/smartcontractkit/chainlink-common v0.7.1-0.20250527164052-5a4fb8e255ff
 	github.com/smartcontractkit/chainlink-deployments-framework v0.10.0
 	github.com/smartcontractkit/chainlink-framework/multinode v0.0.0-20250522110034-65c54665034a
-	github.com/smartcontractkit/chainlink-testing-framework/framework v0.9.2
+	github.com/smartcontractkit/chainlink-testing-framework/framework v0.9.6
 	github.com/stretchr/testify v1.10.0
 	github.com/xssnick/tonutils-go v1.13.0
 	golang.org/x/exp v0.0.0-20250408133849-7e4ce0ab07d0
