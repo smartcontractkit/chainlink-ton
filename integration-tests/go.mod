@@ -1,4 +1,4 @@
-module github.com/smartcontractkit/chainlink-ton/integration-tests
+module integration-tests
 
 replace github.com/smartcontractkit/chainlink-ton => ../
 
