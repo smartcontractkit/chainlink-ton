@@ -100,7 +100,7 @@ func (r *Relayer) Replay(ctx context.Context, fromBlock string, args map[string]
 func (r *Relayer) NewContractWriter(_ context.Context, config []byte) (relaytypes.ContractWriter, error) {
 	cwCfg := chainrw.ChainWriterConfig{}
 	if err := json.Unmarshal(config, &cwCfg); err != nil {
-		return nil, fmt.Errorf("failed to unmarshall chain writer config: %v", err)
+		return nil, fmt.Errorf("failed to unmarshall chain writer config: %w", err)
 	}
 
 	return chainrw.NewTONChainWriterService(r.lggr, *r.chain.MultiClient(), r.chain.TxManager(), r.chain.FeeEstimator(), cwCfg)
@@ -109,7 +109,7 @@ func (r *Relayer) NewContractWriter(_ context.Context, config []byte) (relaytype
 func (r *Relayer) NewContractReader(_ context.Context, chainReaderConfig []byte) (relaytypes.ContractReader, error) {
 	crCfg := config.ContractReader{}
 	if err := json.Unmarshal(chainReaderConfig, &crCfg); err != nil {
-		return nil, fmt.Errorf("failed to unmarshall chain reader config: %v", err)
+		return nil, fmt.Errorf("failed to unmarshall chain reader config: %w", err)
 	}
 
 	return chainrw.NewContractReaderService(r.lggr, crCfg, r.chain.LogPoller())

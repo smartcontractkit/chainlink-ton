@@ -1,0 +1,56 @@
+name: golangci_lint
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  CONFIG_URL: https://raw.githubusercontent.com/smartcontractkit/chainlink/develop/.golangci.yml
+
+jobs:
+  golangci-lint:
+    name: Lint ${{ matrix.dir }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        dir: [integration-tests, pkg]
+
+    # REPORT_PATH will be, e.g.,
+    # integration-tests/golangci-lint-integration-tests-report.xml
+    env:
+      REPORT_PATH: ${{ format('{0}/golangci-lint-{0}-report.xml', matrix.dir) }}
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@02a151ada4993995686f9ed4f1be7cfbb229e56f # v31
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+
+      - name: Print golangci-lint version
+        run: nix develop -c golangci-lint --version
+
+      - name: Download golangci-lint config
+        run: curl -fsSL "${{ env.CONFIG_URL }}" -o .golangci.yml
+
+      - name: Run golangci-lint
+        run: |
+          nix develop -c golangci-lint run \
+            --config ./.golangci.yml \
+            --output.checkstyle.path="${{ env.REPORT_PATH }}"
+
+      - name: Print lint report on failure
+        if: failure()
+        run: cat "${{ env.REPORT_PATH }}"
+
+      - name: Upload lint report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.dir }}-lint-report
+          path: ${{ env.REPORT_PATH }}
