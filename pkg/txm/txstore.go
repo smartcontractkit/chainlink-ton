@@ -103,6 +103,30 @@ func (s *TxStore) InflightCount() int {
 	return len(s.unconfirmedTxs)
 }
 
+// GetTxState returns the message status, whether the transaction trace succeeded,
+// the exit code, and whether the transaction was found at all.
+// - MsgStatus indicates the lifecycle state of the message.
+// - isSucceeded indicates whether the transaction trace execution succeeded.
+// - ExitCode contains the VM result code.
+// - found tells whether the transaction was present in memory.
+func (s *TxStore) GetTxState(lt uint64) (tonutils.MsgStatus, bool, tonutils.ExitCode, bool) {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+
+	if _, exists := s.unconfirmedTxs[lt]; exists {
+		// Transaction is seen but not finalized
+		return tonutils.Cascading, false, 0, true
+	}
+
+	if tx, exists := s.finalizedTxs[lt]; exists {
+		// Transaction is finalized (success or failure is indicated separately)
+		return tonutils.Finalized, tx.TraceSucceeded, tx.ExitCode, true
+	}
+
+	// Transaction not found in any store
+	return tonutils.NotFound, false, 0, false
+}
+
 type AccountStore struct {
 	store map[string]*TxStore // map account address to txstore
 	lock  sync.RWMutex

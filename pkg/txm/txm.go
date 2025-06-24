@@ -9,6 +9,7 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/loop"
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
+	commontypes "github.com/smartcontractkit/chainlink-common/pkg/types"
 	"github.com/smartcontractkit/chainlink-common/pkg/utils"
 	commonutils "github.com/smartcontractkit/chainlink-common/pkg/utils"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/key"
@@ -23,6 +24,7 @@ type TxManager interface {
 	services.Service
 
 	Enqueue(request Request) error
+	GetTransactionStatus(ctx context.Context, lt uint64) (commontypes.TransactionStatus, tonutils.ExitCode, error)
 	GetClient() tonutils.ApiClient
 	InflightCount() (int, int)
 }
@@ -50,7 +52,6 @@ type Request struct {
 	Amount          tlb.Coins       // Amount in nanotons
 	Bounce          bool            // Bounce on error (TON message flag)
 	StateInit       *cell.Cell      // Optional: contract deploy init
-	Simulate        bool            // Optional: simulate instead of sending
 }
 
 func New(lgr logger.Logger, keystore loop.Keystore, client tonutils.ApiClient, config Config) *Txm {
@@ -119,16 +120,15 @@ func (t *Txm) Enqueue(request Request) error {
 
 	txExpirationMins := time.Duration(t.Config.TxExpirationMins)
 	tx := &Tx{
-		Mode:        request.Mode,
-		From:        *request.FromWallet.Address(),
-		To:          request.ContractAddress,
-		Amount:      request.Amount,
-		Body:        request.Body,
-		StateInit:   request.StateInit,
-		Bounceable:  request.Bounce,
-		CreatedAt:   time.Now(),
-		Expiration:  time.Now().Add(txExpirationMins * time.Minute),
-		EstimateGas: request.Simulate,
+		Mode:       request.Mode,
+		From:       *request.FromWallet.Address(),
+		To:         request.ContractAddress,
+		Amount:     request.Amount,
+		Body:       request.Body,
+		StateInit:  request.StateInit,
+		Bounceable: request.Bounce,
+		CreatedAt:  time.Now(),
+		Expiration: time.Now().Add(txExpirationMins * time.Minute),
 	}
 
 	select {
@@ -177,15 +177,6 @@ func (t *Txm) broadcastLoop() {
 				Mode:            tx.Mode,
 				InternalMessage: internalMsg,
 			}
-
-			// if tx.EstimateGas {
-			// 	ok, gasUsed, err := t.SimulateTransaction(ctx, msg, tx.From)
-			// 	if err != nil || !ok {
-			// 		t.Logger.Errorw("simulation failed", "err", err, "to", tx.To.String())
-			// 		continue
-			// 	}
-			// 	t.Logger.Infow("simulation succeeded", "to", tx.To.String(), "gasUsed", gasUsed)
-			// }
 
 			// 3. Sign and send
 			err := t.broadcastWithRetry(ctx, tx, msg)
@@ -295,15 +286,13 @@ func (t *Txm) checkUnconfirmed() {
 			tx := unconfirmedTx.Tx
 			receivedMessage := tx.ReceivedMessage
 
-			err := tx.ReceivedMessage.WaitForTrace(&t.Client)
+			err := receivedMessage.WaitForTrace(&t.Client)
 			if err != nil {
 				t.Logger.Errorw("failed to wait for trace", "LT", unconfirmedTx.LT, "error", err)
 				continue
 			}
 
-			msgStatus := receivedMessage.Status()
-
-			if msgStatus != tonutils.Finalized {
+			if !receivedMessage.TraceFinalized() {
 				continue
 			}
 
@@ -316,10 +305,39 @@ func (t *Txm) checkUnconfirmed() {
 			}
 
 			if traceSucceeded {
-				t.Logger.Infow("transaction confirmed", "LT", unconfirmedTx.LT, "status", msgStatus, "exitCode", exitCode)
+				t.Logger.Infow("transaction confirmed", "LT", unconfirmedTx.LT, "exitCode", exitCode)
 			} else {
-				t.Logger.Warnw("transaction failed", "LT", unconfirmedTx.LT, "status", msgStatus, "exitCode", exitCode)
+				t.Logger.Warnw("transaction failed", "LT", unconfirmedTx.LT, "exitCode", exitCode)
 			}
 		}
+	}
+}
+
+// GetTransactionStatus translates internal TON transaction state to chainlink common statuses.
+func (t *Txm) GetTransactionStatus(ctx context.Context, lt uint64) (commontypes.TransactionStatus, tonutils.ExitCode, error) {
+	txStore := t.AccountStore.GetTxStore(t.Client.Wallet.Address().String())
+	if txStore == nil {
+		return commontypes.Unknown, 0, fmt.Errorf("txStore not found for sender %s", t.Client.Wallet.Address().String())
+	}
+
+	status, succeeded, exitCode, found := txStore.GetTxState(lt)
+	if !found {
+		return commontypes.Unknown, 0, fmt.Errorf("transaction with id %d not found", lt)
+	}
+
+	switch status {
+	case tonutils.NotFound:
+		return commontypes.Unknown, 0, fmt.Errorf("transaction not found in state map: %d", lt)
+	case tonutils.Cascading:
+		return commontypes.Pending, 0, nil
+	case tonutils.Received:
+		return commontypes.Unconfirmed, 0, nil
+	case tonutils.Finalized:
+		if succeeded {
+			return commontypes.Finalized, exitCode, nil
+		}
+		return commontypes.Failed, exitCode, nil
+	default:
+		return commontypes.Unknown, 0, fmt.Errorf("unexpected transaction state for lt %d: %d", lt, status)
 	}
 }

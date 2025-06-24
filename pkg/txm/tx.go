@@ -19,6 +19,5 @@ type Tx struct {
 	Bounceable      bool                     // whether the destination is bounceable
 	CreatedAt       time.Time                // when the tx was first enqueued
 	Expiration      time.Time                // expiration timestamp based on TTL
-	EstimateGas     bool                     // whether to simulate before sending
 	ReceivedMessage tonutils.ReceivedMessage // received message
 }

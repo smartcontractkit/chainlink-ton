@@ -19,6 +19,7 @@ import (
 type MsgStatus int
 
 const (
+	NotFound MsgStatus = -1
 	Received MsgStatus = iota
 	Cascading
 	Finalized
@@ -384,6 +385,20 @@ func (m *ReceivedMessage) TraceSucceeded() bool {
 	}
 	for _, msg := range m.OutgoingInternalMessagesReceived {
 		if !msg.TraceSucceeded() {
+			return false
+		}
+	}
+	return true
+}
+
+// TraceFinalized returns true if the message and all its outgoing internal messages
+// (recursively) are in MsgStatus Finalized.
+func (m *ReceivedMessage) TraceFinalized() bool {
+	if m.Status() != Finalized {
+		return false
+	}
+	for _, msg := range m.OutgoingInternalMessagesReceived {
+		if !msg.TraceFinalized() {
 			return false
 		}
 	}
