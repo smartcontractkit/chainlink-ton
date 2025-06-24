@@ -27,7 +27,8 @@ jobs:
           curl -o .golangci.yml https://raw.githubusercontent.com/smartcontractkit/chainlink/develop/.golangci.yml
 
       - name: golangci-lint
-        run: nix develop -c "cd ./integration-tests && golangci-lint -c ../.golangci.yaml --out-format checkstyle:golangci-lint-integration-tests-report.xml run"
+        working-directory: ./integration-tests
+        run: nix develop -c golangci-lint -c ../.golangci.yaml --out-format checkstyle:golangci-lint-integration-tests-report.xml run
 
       - name: Print lint report artifact
         if: failure()
@@ -61,7 +62,8 @@ jobs:
           curl -o .golangci.yml https://raw.githubusercontent.com/smartcontractkit/chainlink/develop/.golangci.yml
           
       - name: golangci-lint
-        run: nix develop -c "cd ./pkg && golangci-lint -c ../.golangci.yaml --out-format checkstyle:golangci-lint-relay-report.xml run"
+        working-directory: ./pkg
+        run: nix develop -c golangci-lint -c ../.golangci.yaml --out-format checkstyle:golangci-lint-relay-report.xml run
 
       - name: Print lint report artifact
         if: failure()
