@@ -156,8 +156,6 @@ github.com/sirupsen/logrus v1.9.3 h1:dueUQJ1C2q9oE3F7wvmSGAaVtTmUizReu6fjN8uqzbQ
 github.com/sirupsen/logrus v1.9.3/go.mod h1:naHLuLoDiP4jHNo9R0sCBMtWGeIprob74mVsIT4qYEQ=
 github.com/smartcontractkit/chainlink-testing-framework/framework v0.9.2 h1:qiTJ1HLN2yKjaX6WlFcE4dd9HqxTeCTe/dNJhCyUeQk=
 github.com/smartcontractkit/chainlink-testing-framework/framework v0.9.2/go.mod h1:q99H9vcMJDs6T+zsSI8XJZd6PUkZnyG3iaRbrYNUCTk=
-github.com/smartcontractkit/chainlink-testing-framework/framework v0.9.6-0.20250623175229-fd3a78f0b1b2 h1:wzMSCRhSHdKhNnl9j1+Jv0gZI9HlqnvoGoHDAo14jgY=
-github.com/smartcontractkit/chainlink-testing-framework/framework v0.9.6-0.20250623175229-fd3a78f0b1b2/go.mod h1:q99H9vcMJDs6T+zsSI8XJZd6PUkZnyG3iaRbrYNUCTk=
 github.com/smartcontractkit/freeport v0.1.0 h1:3MZHeti5m+tSTBCq5R8rhawFHxrnQZYBZVL+xgS1sPo=
 github.com/smartcontractkit/freeport v0.1.0/go.mod h1:T4zH9R8R8lVWKfU7tUvYz2o2jMv1OpGCdpY2j2QZXzU=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
