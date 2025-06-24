@@ -1,4 +1,4 @@
-package wallet_config
+package config
 
 import (
 	"context"

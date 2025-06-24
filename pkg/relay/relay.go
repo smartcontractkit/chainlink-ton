@@ -9,7 +9,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
-	relaytypes "github.com/smartcontractkit/chainlink-common/pkg/types"
+	commontypes "github.com/smartcontractkit/chainlink-common/pkg/types"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/core"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/cal/chainrw"
@@ -24,11 +24,12 @@ type TxManager interface {
 	services.Service
 
 	Enqueue(request txm.Request) error
+	GetTransactionStatus(ctx context.Context, lt uint64) (commontypes.TransactionStatus, tonutils.ExitCode, error)
 	GetClient() tonutils.ApiClient
 	InflightCount() (int, int)
 }
 
-var _ relaytypes.Relayer = &Relayer{}
+var _ commontypes.Relayer = &Relayer{}
 
 type Relayer struct {
 	services.StateMachine
@@ -49,7 +50,7 @@ func (r *Relayer) Name() string {
 	return r.lggr.Name()
 }
 
-func (r *Relayer) EVM() (relaytypes.EVMService, error) {
+func (r *Relayer) EVM() (commontypes.EVMService, error) {
 	return nil, errors.New("unimplemented")
 }
 
@@ -81,15 +82,15 @@ func (r *Relayer) HealthReport() map[string]error {
 	return hp
 }
 
-func (r *Relayer) LatestHead(ctx context.Context) (relaytypes.Head, error) {
+func (r *Relayer) LatestHead(ctx context.Context) (commontypes.Head, error) {
 	return r.chain.LatestHead(ctx)
 }
 
-func (r *Relayer) GetChainStatus(ctx context.Context) (relaytypes.ChainStatus, error) {
+func (r *Relayer) GetChainStatus(ctx context.Context) (commontypes.ChainStatus, error) {
 	return r.chain.GetChainStatus(ctx)
 }
 
-func (r *Relayer) ListNodeStatuses(ctx context.Context, pageSize int32, pageToken string) (stats []relaytypes.NodeStatus, nextPageToken string, total int, err error) {
+func (r *Relayer) ListNodeStatuses(ctx context.Context, pageSize int32, pageToken string) (stats []commontypes.NodeStatus, nextPageToken string, total int, err error) {
 	return r.chain.ListNodeStatuses(ctx, pageSize, pageToken)
 }
 
@@ -101,7 +102,7 @@ func (r *Relayer) Replay(ctx context.Context, fromBlock string, args map[string]
 	return r.chain.Replay(ctx, fromBlock, args)
 }
 
-func (r *Relayer) NewContractWriter(_ context.Context, config []byte) (relaytypes.ContractWriter, error) {
+func (r *Relayer) NewContractWriter(_ context.Context, config []byte) (commontypes.ContractWriter, error) {
 	cwCfg := chainrw.ChainWriterConfig{}
 	if err := json.Unmarshal(config, &cwCfg); err != nil {
 		return nil, fmt.Errorf("failed to unmarshall chain writer config: %w", err)
@@ -110,7 +111,7 @@ func (r *Relayer) NewContractWriter(_ context.Context, config []byte) (relaytype
 	return chainrw.NewTONChainWriterService(r.lggr, *r.chain.MultiClient(), r.chain.TxManager(), r.chain.FeeEstimator(), cwCfg)
 }
 
-func (r *Relayer) NewContractReader(_ context.Context, chainReaderConfig []byte) (relaytypes.ContractReader, error) {
+func (r *Relayer) NewContractReader(_ context.Context, chainReaderConfig []byte) (commontypes.ContractReader, error) {
 	crCfg := config.ContractReader{}
 	if err := json.Unmarshal(chainReaderConfig, &crCfg); err != nil {
 		return nil, fmt.Errorf("failed to unmarshall chain reader config: %w", err)
@@ -119,44 +120,44 @@ func (r *Relayer) NewContractReader(_ context.Context, chainReaderConfig []byte)
 	return chainrw.NewContractReaderService(r.lggr, crCfg, r.chain.LogPoller())
 }
 
-func (r *Relayer) NewConfigProvider(ctx context.Context, args relaytypes.RelayArgs) (relaytypes.ConfigProvider, error) {
+func (r *Relayer) NewConfigProvider(ctx context.Context, args commontypes.RelayArgs) (commontypes.ConfigProvider, error) {
 	// TODO(NONEVM-1460): implement
 	return nil, nil
 }
 
-func (r *Relayer) NewMedianProvider(ctx context.Context, rargs relaytypes.RelayArgs, pargs relaytypes.PluginArgs) (relaytypes.MedianProvider, error) {
+func (r *Relayer) NewMedianProvider(ctx context.Context, rargs commontypes.RelayArgs, pargs commontypes.PluginArgs) (commontypes.MedianProvider, error) {
 	// TODO(NONEVM-1460): implement
 	return nil, nil
 }
 
-func (r *Relayer) NewFunctionsProvider(ctx context.Context, rargs relaytypes.RelayArgs, pargs relaytypes.PluginArgs) (relaytypes.FunctionsProvider, error) {
+func (r *Relayer) NewFunctionsProvider(ctx context.Context, rargs commontypes.RelayArgs, pargs commontypes.PluginArgs) (commontypes.FunctionsProvider, error) {
 	return nil, errors.New("functions are not supported for TON")
 }
 
-func (r *Relayer) NewAutomationProvider(ctx context.Context, rargs relaytypes.RelayArgs, pargs relaytypes.PluginArgs) (relaytypes.AutomationProvider, error) {
+func (r *Relayer) NewAutomationProvider(ctx context.Context, rargs commontypes.RelayArgs, pargs commontypes.PluginArgs) (commontypes.AutomationProvider, error) {
 	return nil, errors.New("automation is not supported for TON")
 }
 
-func (r *Relayer) NewMercuryProvider(ctx context.Context, rargs relaytypes.RelayArgs, pargs relaytypes.PluginArgs) (relaytypes.MercuryProvider, error) {
+func (r *Relayer) NewMercuryProvider(ctx context.Context, rargs commontypes.RelayArgs, pargs commontypes.PluginArgs) (commontypes.MercuryProvider, error) {
 	return nil, errors.New("mercury is not supported for TON")
 }
 
-func (r *Relayer) NewLLOProvider(ctx context.Context, rargs relaytypes.RelayArgs, pargs relaytypes.PluginArgs) (relaytypes.LLOProvider, error) {
+func (r *Relayer) NewLLOProvider(ctx context.Context, rargs commontypes.RelayArgs, pargs commontypes.PluginArgs) (commontypes.LLOProvider, error) {
 	return nil, errors.New("data streams is not supported for TON")
 }
 
-func (r *Relayer) NewCCIPCommitProvider(ctx context.Context, rargs relaytypes.RelayArgs, pargs relaytypes.PluginArgs) (relaytypes.CCIPCommitProvider, error) {
+func (r *Relayer) NewCCIPCommitProvider(ctx context.Context, rargs commontypes.RelayArgs, pargs commontypes.PluginArgs) (commontypes.CCIPCommitProvider, error) {
 	return nil, errors.New("ccip.commit is not supported for TON")
 }
 
-func (r *Relayer) NewCCIPExecProvider(ctx context.Context, rargs relaytypes.RelayArgs, pargs relaytypes.PluginArgs) (relaytypes.CCIPExecProvider, error) {
+func (r *Relayer) NewCCIPExecProvider(ctx context.Context, rargs commontypes.RelayArgs, pargs commontypes.PluginArgs) (commontypes.CCIPExecProvider, error) {
 	return nil, errors.New("ccip.exec is not supported for TON")
 }
 
-func (r *Relayer) NewPluginProvider(ctx context.Context, rargs relaytypes.RelayArgs, pargs relaytypes.PluginArgs) (relaytypes.PluginProvider, error) {
+func (r *Relayer) NewPluginProvider(ctx context.Context, rargs commontypes.RelayArgs, pargs commontypes.PluginArgs) (commontypes.PluginProvider, error) {
 	return nil, errors.New("plugin provider is not supported for TON")
 }
 
-func (r *Relayer) NewOCR3CapabilityProvider(ctx context.Context, rargs relaytypes.RelayArgs, pargs relaytypes.PluginArgs) (relaytypes.OCR3CapabilityProvider, error) {
+func (r *Relayer) NewOCR3CapabilityProvider(ctx context.Context, rargs commontypes.RelayArgs, pargs commontypes.PluginArgs) (commontypes.OCR3CapabilityProvider, error) {
 	return nil, errors.New("ocr3 capability provider is not supported for TON")
 }

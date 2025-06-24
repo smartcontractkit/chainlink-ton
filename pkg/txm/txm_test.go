@@ -7,22 +7,21 @@ import (
 	"time"
 
 	chainsel "github.com/smartcontractkit/chain-selectors"
+
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/loop"
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	counter_legacy "github.com/smartcontractkit/chainlink-ton/contracts/wrappers/examples"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wallet_config"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/config"
+	"github.com/smartcontractkit/chainlink-ton/pkg/txm"
+	"github.com/smartcontractkit/chainlink-ton/testutils"
+	"github.com/smartcontractkit/chainlink-ton/tonutils"
+
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton/wallet"
 	"github.com/xssnick/tonutils-go/tvm/cell"
-
-	"github.com/smartcontractkit/chainlink-ton/pkg/txm"
-	"github.com/smartcontractkit/chainlink-ton/testutils"
-	"github.com/smartcontractkit/chainlink-ton/tonutils"
 )
-
-var keystore *testutils.TestKeystore
 
 func TestTxmLocal(t *testing.T) {
 	logger := logger.Test(t)
@@ -31,7 +30,7 @@ func TestTxmLocal(t *testing.T) {
 	require.NotNil(t, nodeClient)
 	logger.Debugw("Started MyLocalTON")
 
-	wallet := testutils.CreateTonWallet(t, nodeClient, wallet_config.WalletVersion, wallet.WithWorkchain(0))
+	wallet := testutils.CreateTonWallet(t, nodeClient, config.WalletVersion, wallet.WithWorkchain(0))
 	require.NotNil(t, wallet)
 	logger.Debugw("Created TON Wallet")
 
@@ -107,13 +106,13 @@ func runTxmTest(t *testing.T, logger logger.Logger, config txm.Config, tonChain 
 	require.Equal(t, uint64(0), initial)
 
 	// 5. Increment multiple times
-	queryId := uint64(0)
+	queryID := uint64(0)
 	expected := initial
 	for i := 0; i < iterations; i++ {
-		incrementMsgBody, err := counter_legacy.IncrementPayload(queryId)
-		require.NoError(t, err)
+		incrementMsgBody, incErr := counter_legacy.IncrementPayload(queryID)
+		require.NoError(t, incErr)
 
-		err = tonTxm.Enqueue(txm.Request{
+		incErr = tonTxm.Enqueue(txm.Request{
 			Mode:            wallet.PayGasSeparately,
 			FromWallet:      *tonChain.Wallet,
 			ContractAddress: *counterAddr,
@@ -121,14 +120,14 @@ func runTxmTest(t *testing.T, logger logger.Logger, config txm.Config, tonChain 
 			Bounce:          true,
 			Body:            incrementMsgBody,
 		})
-		require.NoError(t, err)
+		require.NoError(t, incErr)
 		expected++
-		queryId++
+		queryID++
 
-		incrementMultMsgBody, err := counter_legacy.IncrementMultPayload(queryId, 3, 4) // incremented value
-		require.NoError(t, err)
+		incrementMultMsgBody, incErr := counter_legacy.IncrementMultPayload(queryID, 3, 4) // incremented value
+		require.NoError(t, incErr)
 
-		err = tonTxm.Enqueue(txm.Request{
+		incErr = tonTxm.Enqueue(txm.Request{
 			Mode:            wallet.PayGasSeparately,
 			FromWallet:      *tonChain.Wallet,
 			ContractAddress: *counterAddr,
@@ -136,9 +135,9 @@ func runTxmTest(t *testing.T, logger logger.Logger, config txm.Config, tonChain 
 			Bounce:          true,
 			Body:            incrementMultMsgBody,
 		})
-		require.NoError(t, err)
+		require.NoError(t, incErr)
 		expected += 3 * 4
-		queryId++
+		queryID++
 	}
 
 	// 6. Wait for all txs

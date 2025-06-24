@@ -2,6 +2,7 @@ package txm
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -10,10 +11,10 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/loop"
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 	commontypes "github.com/smartcontractkit/chainlink-common/pkg/types"
-	"github.com/smartcontractkit/chainlink-common/pkg/utils"
 	commonutils "github.com/smartcontractkit/chainlink-common/pkg/utils"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/key"
 	"github.com/smartcontractkit/chainlink-ton/tonutils"
+
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton/wallet"
@@ -39,7 +40,7 @@ type Txm struct {
 	Client        tonutils.ApiClient
 	BroadcastChan chan *Tx
 	AccountStore  *AccountStore
-	Starter       utils.StartStopOnce
+	Starter       commonutils.StartStopOnce
 	Done          sync.WaitGroup
 	Stop          chan struct{}
 }
@@ -118,7 +119,7 @@ func (t *Txm) Enqueue(request Request) error {
 		return fmt.Errorf("failed to sign: %w", err)
 	}
 
-	txExpirationMins := time.Duration(t.Config.TxExpirationMins)
+	txExpirationMins := time.Minute * time.Duration(t.Config.TxExpirationMins) //nolint:gosec // ignoring G115 overflow conversion
 	tx := &Tx{
 		Mode:       request.Mode,
 		From:       *request.FromWallet.Address(),
@@ -128,14 +129,14 @@ func (t *Txm) Enqueue(request Request) error {
 		StateInit:  request.StateInit,
 		Bounceable: request.Bounce,
 		CreatedAt:  time.Now(),
-		Expiration: time.Now().Add(txExpirationMins * time.Minute),
+		Expiration: time.Now().Add(txExpirationMins),
 	}
 
 	select {
 	case t.BroadcastChan <- tx:
 		return nil
 	default:
-		return fmt.Errorf("broadcast channel full, could not enqueue transaction")
+		return errors.New("broadcast channel full, could not enqueue transaction")
 	}
 }
 
@@ -143,7 +144,7 @@ func (t *Txm) Enqueue(request Request) error {
 func (t *Txm) broadcastLoop() {
 	defer t.Done.Done()
 
-	ctx, cancel := utils.ContextFromChan(t.Stop)
+	ctx, cancel := commonutils.ContextFromChan(t.Stop)
 	defer cancel()
 
 	t.Logger.Debugw("broadcastLoop: started")
@@ -170,7 +171,7 @@ func (t *Txm) broadcastLoop() {
 				Amount:      tx.Amount,
 				StateInit:   &st,
 				Body:        tx.Body,
-				CreatedAt:   uint32(tx.CreatedAt.Unix()),
+				CreatedAt:   uint32(tx.CreatedAt.Unix()), //nolint:gosec // ignoring G115 overflow conversion
 			}
 
 			msg := &wallet.Message{
@@ -210,7 +211,7 @@ func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Messag
 		case <-time.After(t.Config.SendRetryDelay):
 		case <-t.Stop:
 			t.Logger.Debugw("broadcastWithRetry: stopped during retry delay")
-			return fmt.Errorf("broadcast aborted")
+			return errors.New("broadcast aborted")
 		}
 	}
 
@@ -248,7 +249,7 @@ func (t *Txm) confirmLoop() {
 	_, cancel := commonutils.ContextFromChan(t.Stop)
 	defer cancel()
 
-	pollDuration := time.Duration(t.Config.ConfirmPollSecs) * time.Second
+	pollDuration := time.Duration(t.Config.ConfirmPollSecs) * time.Second //nolint:gosec // ignoring G115 overflow conversion
 	tick := time.After(pollDuration)
 
 	t.Logger.Debugw("confirmLoop: started")
