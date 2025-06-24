@@ -28,7 +28,7 @@ jobs:
 
       - name: golangci-lint
         working-directory: ./integration-tests
-        run: nix develop -c golangci-lint run -c ../.golangci.yml --output.checkstyle.path checkstyle:golangci-lint-integration-tests-report.xml
+        run: nix develop -c golangci-lint run -c ../.golangci.yml --output.checkstyle.path golangci-lint-integration-tests-report.xml
 
       - name: Print lint report artifact
         if: failure()
@@ -63,7 +63,7 @@ jobs:
           
       - name: golangci-lint
         working-directory: ./pkg
-        run: nix develop -c golangci-lint run -c ../.golangci.yml --output.checkstyle.path checkstyle:golangci-lint-relay-report.xml
+        run: nix develop -c golangci-lint run -c ../.golangci.yml --output.checkstyle.path golangci-lint-relay-report.xml
 
       - name: Print lint report artifact
         if: failure()
