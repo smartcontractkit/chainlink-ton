@@ -147,7 +147,16 @@ func Test_TON_Events_POC(t *testing.T) {
 	t.Run("increment counter", func(t *testing.T) {
 		t.Log("Testing counter reset...")
 
+		masterBefore, err := ctx.Client.CurrentMasterchainInfo(t.Context())
+		require.NoError(t, err, "Failed to get master block before reset")
+		t.Logf("Master block BEFORE reset: %d", masterBefore.SeqNo)
+
 		ctx.Wallet.SendWaitTransaction(t.Context(), testutils.ResetMessage(ctx.ContractAddress))
+
+		// Add block debugging
+		masterAfter, err := ctx.Client.CurrentMasterchainInfo(t.Context())
+		require.NoError(t, err, "Failed to get master block after reset")
+		t.Logf("Master block AFTER reset: %d", masterAfter.SeqNo)
 
 		event, err := evs.WaitForEvent(func(e *poc.Event) bool {
 			_, ok := e.AsCounterReset()

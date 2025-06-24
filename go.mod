@@ -6,7 +6,8 @@ require (
 	github.com/hashicorp/go-plugin v1.6.3
 	github.com/smartcontractkit/chainlink-common v0.7.1-0.20250527164052-5a4fb8e255ff
 	github.com/smartcontractkit/chainlink-framework/multinode v0.0.0-20250522110034-65c54665034a
-	github.com/smartcontractkit/chainlink-testing-framework/framework v0.9.4
+	github.com/smartcontractkit/chainlink-testing-framework/framework v0.9.6-0.20250623175229-fd3a78f0b1b2
+	github.com/stretchr/testify v1.10.0
 	github.com/test-go/testify v1.1.4
 	github.com/xssnick/tonutils-go v1.13.0
 )
@@ -123,7 +124,6 @@ require (
 	github.com/smartcontractkit/freeport v0.1.0 // indirect
 	github.com/smartcontractkit/grpc-proxy v0.0.0-20240830132753-a7e17fec5ab7 // indirect
 	github.com/smartcontractkit/libocr v0.0.0-20250220133800-f3b940c4f298 // indirect
-	github.com/stretchr/testify v1.10.0 // indirect
 	github.com/testcontainers/testcontainers-go v0.37.0 // indirect
 	github.com/tidwall/gjson v1.14.4 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
