@@ -47,5 +47,3 @@ export function listAsSnake(array: bigint[]): Cell {
 
   return current
 }
-
-
