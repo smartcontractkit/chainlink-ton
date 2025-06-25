@@ -161,12 +161,43 @@ func TestCommitReport_EncodingAndDecoding(t *testing.T) {
 			SourceToken: addr,
 			UsdPerToken: big.NewInt(1000000), // Example value
 		},
+		{
+			SourceToken: addr,
+			UsdPerToken: big.NewInt(1000000), // Example value
+		},
+		{
+			SourceToken: addr,
+			UsdPerToken: big.NewInt(1000000), // Example value
+		},
+		{
+			SourceToken: addr,
+			UsdPerToken: big.NewInt(1000000), // Example value
+		},
+		{
+			SourceToken: addr,
+			UsdPerToken: big.NewInt(1000000), // Example value
+		},
 	})
 	require.NoError(t, err)
 
 	gasPriceCell, err := PackArray([]GasPriceUpdate{
 		{
 			DestChainSelector: 1,
+			UsdPerUnitGas:     big.NewInt(2000000),
+		},
+		{
+			DestChainSelector: 2,
+			UsdPerUnitGas:     big.NewInt(2000000),
+		},
+		{
+			DestChainSelector: 3,
+			UsdPerUnitGas:     big.NewInt(2000000),
+		}, {
+			DestChainSelector: 4,
+			UsdPerUnitGas:     big.NewInt(2000000),
+		},
+		{
+			DestChainSelector: 5,
 			UsdPerUnitGas:     big.NewInt(2000000),
 		},
 	})
@@ -226,6 +257,13 @@ func TestCommitReport_EncodingAndDecoding(t *testing.T) {
 	err = tlb.LoadFromCell(&decoded, newCell.BeginParse())
 	require.NoError(t, err)
 	require.Equal(t, c.Hash(), newCell.Hash())
+
+	gu, err := UnpackArray[GasPriceUpdate](decoded.PriceUpdates.GasPriceUpdates)
+	require.NoError(t, err)
+	require.Len(t, gu, 5)
+	tu, err := UnpackArray[TokenPriceUpdate](decoded.PriceUpdates.TokenPriceUpdates)
+	require.NoError(t, err)
+	require.Len(t, tu, 5)
 }
 
 func getTotalReference(c *cell.Cell) int {
