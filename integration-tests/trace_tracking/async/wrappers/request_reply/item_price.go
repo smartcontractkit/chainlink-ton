@@ -41,7 +41,7 @@ func (p *ItemPriceProvider) Deploy(initData ItemPriceInitData) (ItemPrice, error
 	}
 	compiledContract, err := wrappers.ParseCompiledContract(ITEM_PRICE_CONTRACT_PATH)
 	if err != nil {
-		return ItemPrice{}, fmt.Errorf("Failed to compile contract: %v", err)
+		return ItemPrice{}, fmt.Errorf("Failed to compile contract: %w", err)
 	}
 	contract, err := wrappers.Deploy(&p.apiClient, compiledContract, b.EndCell(), tlb.MustFromTON("1"))
 	if err != nil {

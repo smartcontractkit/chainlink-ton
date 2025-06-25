@@ -51,7 +51,7 @@ func (p *CounterProvider) Deploy(initData CounterInitData) (Counter, error) {
 	}
 	compiledContract, err := wrappers.ParseCompiledContract(COUNTER_CONTRACT_PATH)
 	if err != nil {
-		return Counter{}, fmt.Errorf("Failed to compile contract: %v", err)
+		return Counter{}, fmt.Errorf("Failed to compile contract: %w", err)
 	}
 	contract, err := wrappers.Deploy(&p.apiClient, compiledContract, c.EndCell(), tlb.MustFromTON("1"))
 	if err != nil {

@@ -41,7 +41,7 @@ func (p *InventoryProvider) Deploy(initData InventoryInitData) (Inventory, error
 	}
 	compiledContract, err := wrappers.ParseCompiledContract(INVENTORY_CONTRACT_PATH)
 	if err != nil {
-		return Inventory{}, fmt.Errorf("Failed to compile contract: %v", err)
+		return Inventory{}, fmt.Errorf("Failed to compile contract: %w", err)
 	}
 	contract, err := wrappers.Deploy(&p.apiClient, compiledContract, b.EndCell(), tlb.MustFromTON("1"))
 	if err != nil {

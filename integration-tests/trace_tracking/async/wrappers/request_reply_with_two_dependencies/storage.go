@@ -42,7 +42,7 @@ func (p *StorageProvider) Deploy(initData StorageInitData) (Storage, error) {
 	}
 	compiledContract, err := wrappers.ParseCompiledContract(STORAGE_CONTRACT_PATH)
 	if err != nil {
-		return Storage{}, fmt.Errorf("Failed to compile contract: %v", err)
+		return Storage{}, fmt.Errorf("Failed to compile contract: %w", err)
 	}
 	contract, err := wrappers.Deploy(&p.apiClient, compiledContract, b.EndCell(), tlb.MustFromTON("1"))
 	if err != nil {

@@ -42,7 +42,7 @@ func (p *DBProvider) Deploy(initData DBInitData) (DB, error) {
 	}
 	compiledContract, err := wrappers.ParseCompiledContract(DB_CONTRACT_PATH)
 	if err != nil {
-		return DB{}, fmt.Errorf("Failed to compile contract: %v", err)
+		return DB{}, fmt.Errorf("Failed to compile contract: %w", err)
 	}
 	contract, err := wrappers.Deploy(&p.apiClient, compiledContract, c.EndCell(), tlb.MustFromTON("1"))
 	if err != nil {

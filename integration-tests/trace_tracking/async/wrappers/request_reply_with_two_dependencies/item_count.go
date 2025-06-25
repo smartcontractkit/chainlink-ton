@@ -41,7 +41,7 @@ func (p *ItemCountProvider) Deploy(initData ItemCountInitData) (ItemCount, error
 	}
 	compiledContract, err := wrappers.ParseCompiledContract(ITEM_COUNT_CONTRACT_PATH)
 	if err != nil {
-		return ItemCount{}, fmt.Errorf("Failed to compile contract: %v", err)
+		return ItemCount{}, fmt.Errorf("Failed to compile contract: %w", err)
 	}
 	contract, err := wrappers.Deploy(&p.apiClient, compiledContract, b.EndCell(), tlb.MustFromTON("1"))
 	if err != nil {

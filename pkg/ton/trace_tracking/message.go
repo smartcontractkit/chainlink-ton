@@ -92,7 +92,7 @@ type OutgoingExternalMessages struct {
 func (e *OutgoingExternalMessages) AsString() (string, error) {
 	str, err := e.Body.BeginParse().LoadStringSnake()
 	if err != nil {
-		return "", fmt.Errorf("failed to parse event body: %s", err)
+		return "", fmt.Errorf("failed to parse event body: %w", err)
 	}
 	return str, nil
 }
@@ -295,6 +295,8 @@ func (m *ReceivedMessage) mapOutgoingMessages(outgoingMessages []tlb.Message) {
 		case tlb.MsgTypeExternalOut:
 			outgoingExternalMessage := outgoingMessage.AsExternalOut()
 			m.AppendEvent(outgoingExternalMessage)
+		case tlb.MsgTypeExternalIn:
+			panic("ReceivedMessage should not contain external in messages, only external out messages")
 		}
 	}
 }
@@ -310,10 +312,10 @@ func (m *ReceivedMessage) AppendEvent(outMsg *tlb.ExternalMessageOut) {
 // AppendSentMessage adds an outgoing internal message to the list of sent messages
 // and updates the total forward fees charged to the sender. This tracks all
 // messages that were sent as a result of processing the current message.
-func (r *ReceivedMessage) AppendSentMessage(outgoingInternalMessage *tlb.InternalMessage) {
+func (m *ReceivedMessage) AppendSentMessage(outgoingInternalMessage *tlb.InternalMessage) {
 	messageSent := NewSentMessage(outgoingInternalMessage)
-	r.OutgoingInternalSentMessages = append(r.OutgoingInternalSentMessages, &messageSent)
-	r.MsgFeesChargedToSender.Add(r.MsgFeesChargedToSender, outgoingInternalMessage.FwdFee.Nano())
+	m.OutgoingInternalSentMessages = append(m.OutgoingInternalSentMessages, &messageSent)
+	m.MsgFeesChargedToSender.Add(m.MsgFeesChargedToSender, outgoingInternalMessage.FwdFee.Nano())
 }
 
 // WaitForOutgoingMessagesToBeReceived waits for all outgoing messages to be

@@ -29,7 +29,7 @@ func GetRepoRootDir() string {
 	res := exec.Command("git", "rev-parse", "--show-toplevel")
 	stdout, err := res.Output()
 	if err != nil {
-		panic(fmt.Sprintf("Failed to get repo root dir: %v", err))
+		panic(fmt.Sprintf("Failed to get repo root dir: %w", err))
 	}
 	rootDir := strings.TrimSpace(string(stdout))
 	return rootDir
@@ -54,15 +54,15 @@ func SetUpTest(t *testing.T, initialAmount *big.Int, fundedAccountsCount uint) (
 	}
 	var err error
 	bc, err := blockchain.NewBlockchainNetwork(bcInput)
-	assert.NoError(t, err, "Failed to create blockchain network: %v", err)
+	assert.NoError(t, err, "Failed to create blockchain network: %w", err)
 	liteapiURL := bc.Nodes[0].ExternalHTTPUrl
 	// Connect to TON testnet
 	client := liteclient.NewConnectionPool()
 	cfg, err := liteclient.GetConfigFromUrl(context.Background(), fmt.Sprintf("http://%s/localhost.global.config.json", liteapiURL))
-	assert.NoError(t, err, "Failed to get testnet config: %v", err)
+	assert.NoError(t, err, "Failed to get testnet config: %w", err)
 
 	err = client.AddConnectionsFromConfig(context.Background(), cfg)
-	assert.NoError(t, err, "Failed to connect to TON network: %v", err)
+	assert.NoError(t, err, "Failed to connect to TON network: %w", err)
 
 	// Initialize TON API client
 	api := ton.NewAPIClient(client)
@@ -87,7 +87,7 @@ func GetRandomWallet(client ton.APIClientWrapped, version wallet.Version, option
 	seed := wallet.NewSeed()
 	w, err := wallet.FromSeed(client, seed, version)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to generate random wallet: %v", err)
+		return nil, fmt.Errorf("Failed to generate random wallet: %w", err)
 	}
 	pw, perr := wallet.FromPrivateKeyWithOptions(client, w.PrivateKey(), version, option)
 	if perr != nil {
@@ -98,11 +98,11 @@ func GetRandomWallet(client ton.APIClientWrapped, version wallet.Version, option
 
 func createAndFundWallet(t *testing.T, api *ton.APIClient, funder trace_tracking.SignedAPIClient, initialCoinAmount tlb.Coins) trace_tracking.SignedAPIClient {
 	aliceWallet, err := GetRandomWallet(api, wallet.V3R2, wallet.WithWorkchain(0))
-	assert.NoError(t, err, "Failed to create new wallet: %v", err)
+	assert.NoError(t, err, "Failed to create new wallet: %w", err)
 	transferToAlice, err := funder.Wallet.BuildTransfer(aliceWallet.WalletAddress(), initialCoinAmount, false, "deposit")
-	assert.NoError(t, err, "Failed to build transfer: %v", err)
+	assert.NoError(t, err, "Failed to build transfer: %w", err)
 	result, err := funder.SendAndWaitForTrace(context.TODO(), *aliceWallet.WalletAddress(), transferToAlice)
-	assert.NoError(t, err, "Failed to send transaction: %v", err)
+	assert.NoError(t, err, "Failed to send transaction: %w", err)
 	assert.True(t, result.Success && !result.Bounced, "Transaction failed")
 	alice := trace_tracking.NewSignedAPIClient(api, *aliceWallet)
 	return alice
@@ -141,7 +141,7 @@ func getWallet(t *testing.T, api ton.APIClientWrapped) *wallet.Wallet {
 	if err != nil {
 		// It's okay if the .env file doesn't exist in some environments
 		// so we'll just log it instead of failing
-		t.Logf("Warning: Error loading .env file: %v", err)
+		t.Logf("Warning: Error loading .env file: %w", err)
 	}
 	// Get seed phrase from environment variable
 	seedPhrase := os.Getenv("SIGNER_WALLET_SEED_PHRASE")
@@ -151,20 +151,20 @@ func getWallet(t *testing.T, api ton.APIClientWrapped) *wallet.Wallet {
 
 	// Create wallet from seed with password
 	w, err := wallet.FromSeed(api, words, wallet.V3R2)
-	assert.NoError(t, err, "Failed to create wallet from seed: %v", err)
+	assert.NoError(t, err, "Failed to create wallet from seed: %w", err)
 
 	baseFunderWallet, err := wallet.FromPrivateKeyWithOptions(api, w.PrivateKey(), wallet.V3R2, wallet.WithWorkchain(-1))
 
 	//TODO: This is hardcoded for MyLocalTon pre-funded wallet
 	funderWallet, err := baseFunderWallet.GetSubwallet(42)
-	assert.NoError(t, err, "Failed to get subwallet: %v", err)
+	assert.NoError(t, err, "Failed to get subwallet: %w", err)
 	t.Logf("Funder wallet address: %s", funderWallet.WalletAddress().StringRaw())
 
 	// Check Funder Balance
 	masterInfo, err := api.GetMasterchainInfo(context.Background())
-	assert.NoError(t, err, "Failed to get masterchain info for funder balance check: %v", err)
+	assert.NoError(t, err, "Failed to get masterchain info for funder balance check: %w", err)
 	funderBalance, err := funderWallet.GetBalance(context.Background(), masterInfo)
-	assert.NoError(t, err, "Failed to get funder balance: %v", err)
+	assert.NoError(t, err, "Failed to get funder balance: %w", err)
 	t.Logf("Funder balance: %s", funderBalance.String())
 
 	return funderWallet
@@ -183,7 +183,7 @@ func GetBalance(apiClient trace_tracking.SignedAPIClient) (*big.Int, error) {
 	// it is optional but escapes us from liteserver block not ready errors
 	res, err := apiClient.Client.WaitForBlock(master.SeqNo).GetAccount(ctx, master, apiClient.Wallet.WalletAddress())
 	if err != nil {
-		return nil, fmt.Errorf("get account err: %s", err.Error())
+		return nil, fmt.Errorf("get account err: %w", err.Error())
 	}
 	if res.IsActive {
 		return res.State.Balance.Nano(), nil
@@ -242,6 +242,6 @@ Final balance    %14d
 
 func MustGetBalance(t *testing.T, apiClient trace_tracking.SignedAPIClient) *big.Int {
 	finalBalance, err := GetBalance(apiClient)
-	assert.NoError(t, err, "Failed to get balance: %v", err)
+	assert.NoError(t, err, "Failed to get balance: %w", err)
 	return finalBalance
 }

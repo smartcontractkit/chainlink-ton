@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -111,7 +112,11 @@ func Uint32From(res *ton.ExecutionResult, err error) (uint32, error) {
 		return 0, fmt.Errorf("failed to extract value: %w", err)
 	}
 
-	return uint32(val.Uint64()), nil
+	u64 := val.Uint64()
+	if u64 > uint64(^uint32(0)) {
+		return 0, fmt.Errorf("value %d overflows uint32", u64)
+	}
+	return uint32(u64), nil
 }
 
 // SubscribeToMessages returns a channel with all incoming messages for the
@@ -154,19 +159,19 @@ func (c tactCompiledContract) codeCell() (*cell.Cell, error) {
 	// Extract the Base64-encoded BOC
 	codeBoc64 := c.Code
 	if codeBoc64 == "" {
-		return nil, fmt.Errorf("codeBoc64 field is empty in the JSON")
+		return nil, errors.New("codeBoc64 field is empty in the JSON")
 	}
 
 	// Decode the Base64 string to get the actual BOC binary
 	codeBocBinary, err := base64.StdEncoding.DecodeString(codeBoc64)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode base64: %v", err)
+		return nil, fmt.Errorf("failed to decode base64: %w", err)
 	}
 
 	// Parse the BOC binary into a cell
 	codeCell, err := cell.FromBOC(codeBocBinary)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse BOC binary: %v", err)
+		return nil, fmt.Errorf("failed to parse BOC binary: %w", err)
 	}
 	return codeCell, nil
 }
@@ -175,19 +180,19 @@ func (c tolkCompiledContract) codeCell() (*cell.Cell, error) {
 	// Extract the Hex-encoded BOC
 	codeBocHex := c.Hex
 	if codeBocHex == "" {
-		return nil, fmt.Errorf("codeBocHex field is empty in the JSON")
+		return nil, errors.New("codeBocHex field is empty in the JSON")
 	}
 
 	// Decode the Hex string to get the actual BOC binary
 	codeBocBytes, err := hex.DecodeString(codeBocHex)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode hex: %v", err)
+		return nil, fmt.Errorf("failed to decode hex: %w", err)
 	}
 
 	// Parse the BOC binary into a cell
 	codeCell, err := cell.FromBOC(codeBocBytes)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse BOC binary: %v", err)
+		return nil, fmt.Errorf("failed to parse BOC binary: %w", err)
 	}
 	return codeCell, nil
 }
@@ -210,7 +215,7 @@ func Deploy(client *trace_tracking.SignedAPIClient, codeCell *cell.Cell, initDat
 		initData,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("deployment failed: %v", err)
+		return nil, fmt.Errorf("deployment failed: %w", err)
 	}
 
 	receivedMessage, err := trace_tracking.MapToReceivedMessage(tx)
@@ -221,9 +226,8 @@ func Deploy(client *trace_tracking.SignedAPIClient, codeCell *cell.Cell, initDat
 	if err != nil {
 		return nil, fmt.Errorf("failed to wait for trace: %w", err)
 	}
-	if receivedMessage.ExitCode != tvm.ExitCode_Success || len(receivedMessage.OutgoingInternalReceivedMessages) != 1 {
+	if receivedMessage.ExitCode != tvm.ExitCodeSuccess || len(receivedMessage.OutgoingInternalReceivedMessages) != 1 {
 		return nil, fmt.Errorf("contract deployment failed: error sending external message: exit code %d: %s", receivedMessage.ExitCode, receivedMessage.ExitCode.Describe())
-
 	}
 	deployExitCode := receivedMessage.OutgoingInternalReceivedMessages[0].ExitCode
 	if !deployExitCode.IsSuccessfulDeployment() {
@@ -240,26 +244,27 @@ func ParseCompiledContract(path string) (*cell.Cell, error) {
 	}
 	jsonData, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read compiled contract: %v", err)
+		return nil, fmt.Errorf("failed to read compiled contract: %w", err)
 	}
 
-	if strings.HasSuffix(path, ".pkg") {
+	switch {
+	case strings.HasSuffix(path, ".pkg"):
 		// Parse the JSON
 		compiledContract := &tactCompiledContract{}
 		err = json.Unmarshal(jsonData, &compiledContract)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse JSON: %v", err)
+			return nil, fmt.Errorf("failed to parse JSON: %w", err)
 		}
 		return compiledContract.codeCell()
-	} else if strings.HasSuffix(path, ".compiled.json") {
+	case strings.HasSuffix(path, ".compiled.json"):
 		// Parse the JSON
 		compiledContract := &tolkCompiledContract{}
 		err = json.Unmarshal(jsonData, &compiledContract)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse JSON: %v", err)
+			return nil, fmt.Errorf("failed to parse JSON: %w", err)
 		}
 		return compiledContract.codeCell()
-	} else {
+	default:
 		return nil, fmt.Errorf("unsupported contract file format: %s", path)
 	}
 }

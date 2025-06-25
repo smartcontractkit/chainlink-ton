@@ -45,7 +45,7 @@ func (p *MemoryProvider) Deploy(initData MemoryInitData) (Memory, error) {
 	}
 	compiledContract, err := wrappers.ParseCompiledContract(MEMORY_CONTRACT_PATH)
 	if err != nil {
-		return Memory{}, fmt.Errorf("Failed to compile contract: %v", err)
+		return Memory{}, fmt.Errorf("Failed to compile contract: %w", err)
 	}
 	contract, err := wrappers.Deploy(&p.apiClient, compiledContract, b.EndCell(), tlb.MustFromTON("1"))
 	if err != nil {

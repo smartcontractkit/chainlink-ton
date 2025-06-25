@@ -41,7 +41,7 @@ func (p *PriceRegistryProvider) Deploy(initData PriceRegistryInitData) (PriceReg
 	}
 	compiledContract, err := wrappers.ParseCompiledContract(PRICE_REGISTRY_CONTRACT_PATH)
 	if err != nil {
-		return PriceRegistry{}, fmt.Errorf("Failed to compile contract: %v", err)
+		return PriceRegistry{}, fmt.Errorf("Failed to compile contract: %w", err)
 	}
 	contract, err := wrappers.Deploy(&p.apiClient, compiledContract, b.EndCell(), tlb.MustFromTON("1"))
 	if err != nil {
