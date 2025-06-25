@@ -29,36 +29,38 @@ type LogPoller interface {
 
 type Service struct {
 	services.Service
-	eng        *services.Engine
-	lggr       logger.SugaredLogger
-	client     ton.APIClientWrapped
-	fltrs      *Filters
-	store      *InMemoryStore
-	pollPeriod time.Duration
-	pageSize   uint32
+	eng                *services.Engine
+	lggr               logger.SugaredLogger
+	client             ton.APIClientWrapped
+	filters            *Filters
+	store              *InMemoryStore
+	pollPeriod         time.Duration
+	pageSize           uint32
+	lastProcessedSeqNo uint32 // last processed masterchain seqno
 }
 
 func NewLogPoller(
 	lggr logger.Logger,
 	client ton.APIClientWrapped,
+	// TODO: replace with global TON relayer config
 	pollPeriod time.Duration,
 	pageSize uint32,
 ) *Service {
-	st := NewInMemoryStore()
-	fl := newFilters()
-	p := &Service{
+	store := NewInMemoryStore()
+	filters := newFilters()
+	lp := &Service{
 		lggr:       logger.Sugared(lggr),
 		client:     client,
-		fltrs:      fl,
-		store:      st,
+		filters:    filters,
+		store:      store,
 		pollPeriod: pollPeriod,
 		pageSize:   pageSize,
 	}
-	p.Service, p.eng = services.Config{
+	lp.Service, lp.eng = services.Config{
 		Name:  "Service",
-		Start: p.start,
+		Start: lp.start,
 	}.NewServiceEngine(lggr)
-	return p
+	return lp
 }
 
 func (lp *Service) start(ctx context.Context) error {
@@ -71,24 +73,45 @@ func (lp *Service) start(ctx context.Context) error {
 	return nil
 }
 
-func (lp *Service) run(ctx context.Context) error {
-	lastSeq := lp.store.LoadLastSeq()
+func (lp *Service) run(ctx context.Context) (err error) {
+	defer func() {
+		if rec := recover(); rec != nil {
+			err = fmt.Errorf("panic recovered: %v", rec)
+		}
+	}()
+
+	lastProcessedSeq, err := lp.getLastProcessedSeqNo()
+	if err != nil {
+		return fmt.Errorf("LoadLastSeq: %w", err)
+	}
+	// TODO: load filter from persistent store
+	// TODO: implement backfill logic(if there is filters marked for backfill)
+
+	// get the current masterchain seqno
 	master, err := lp.client.CurrentMasterchainInfo(ctx)
 	if err != nil {
 		return err
 	}
-	if master.SeqNo <= lastSeq {
-		return nil
+	// compare with last processed seqno, if last seqno is higher, there is a problem
+	if master.SeqNo < lastProcessedSeq {
+		return fmt.Errorf("last seqno (%d) > chain seqno (%d)", lastProcessedSeq, master.SeqNo)
 	}
+	// if we already processed this seqno, skip
+	if master.SeqNo == lastProcessedSeq {
+		lp.lggr.Debugw("skipping already processed masterchain seq", "seq", master.SeqNo)
+	}
+	lp.lggr.Debugw("Got new seq range to process", "from", lastProcessedSeq+1, "to", master.SeqNo)
 
-	addrs := lp.fltrs.GetDistinctAddresses()
+	// load the addresses from filters that we're interested in
+	addrs := lp.filters.GetDistinctAddresses()
 	for _, addr := range addrs {
-		if err := lp.loadForAddress(ctx, lastSeq, master, &addr); err != nil {
+		if err := lp.loadForAddress(ctx, lastProcessedSeq, master, &addr); err != nil {
 			lp.lggr.Errorw("loadForAddress failed", "addr", addr.String(), "err", err)
 		}
 	}
 
-	lp.store.SaveLastSeq(master.SeqNo)
+	// save the last processed seqno
+	lp.lastProcessedSeqNo = master.SeqNo
 	return nil
 }
 
@@ -99,34 +122,28 @@ func (lp *Service) loadForAddress(
 	master *ton.BlockIDExt,
 	contractAddr *address.Address,
 ) error {
-    // — end cursor: current state —
-    accEnd, err := lp.client.GetAccount(ctx, master, contractAddr)
-    if err != nil {
-        return err
-    }
-    endLT, endHash := accEnd.LastTxLT, accEnd.LastTxHash
+	accEnd, err := lp.client.GetAccount(ctx, master, contractAddr)
+	if err != nil {
+		return err
+	}
+	endLT, endHash := accEnd.LastTxLT, accEnd.LastTxHash
 
-    // — start cursor: re-fetch the old block at lastSeq —
-		// TODO: add tests
-		// TODO: alternatively we can store the last cursor by contract(in filter) in the store
-    var startLT uint64
-    var startHash []byte
-    if lastSeq > 0 {
-        // 1) get the BlockIDExt for that seqno
-        oldBlk, err := lp.client.LookupBlock(ctx, master.Workchain, master.Shard, lastSeq)
-        if err != nil {
-            return fmt.Errorf("couldn't fetch master block %d: %w", lastSeq, err)
-        }
-        // 2) re-load the account at that historic block
-        accStart, err := lp.client.GetAccount(ctx, oldBlk, contractAddr)
-        if err != nil {
-            return fmt.Errorf("couldn't get account at old block %d: %w", lastSeq, err)
-        }
-        startLT = accStart.LastTxLT
-        startHash = accStart.LastTxHash
-    }
+	var startLT uint64
+	var startHash []byte
+	if lastSeq > 0 {
+		oldBlk, err := lp.client.LookupBlock(ctx, master.Workchain, master.Shard, lastSeq)
+		if err != nil {
+			return fmt.Errorf("couldn't fetch master block %d: %w", lastSeq, err)
+		}
+		accStart, err := lp.client.GetAccount(ctx, oldBlk, contractAddr)
+		if err != nil {
+			return fmt.Errorf("couldn't get account at old block %d: %w", lastSeq, err)
+		}
+		startLT = accStart.LastTxLT
+		startHash = accStart.LastTxHash
+	}
 
-    curLT, curHash := endLT, endHash
+	curLT, curHash := endLT, endHash
 	for {
 		batch, err := lp.client.ListTransactions(ctx, contractAddr, lp.pageSize, curLT, curHash)
 		if errors.Is(err, ton.ErrNoTransactionsWereFound) {
@@ -141,7 +158,7 @@ func (lp *Service) loadForAddress(
 			if tx.LT < startLT || (tx.LT == startLT && bytes.Equal(tx.Hash, startHash)) {
 				goto DONE
 			}
-			// for each msg in tx.IO.Out:
+
 			msgs, _ := tx.IO.Out.ToSlice()
 			for _, msg := range msgs {
 				if msg.MsgType != tlb.MsgTypeExternalOut {
@@ -152,7 +169,7 @@ func (lp *Service) loadForAddress(
 					continue
 				}
 				topic := ExtractEventTopicFromAddress(ext.DstAddr)
-				fIDs := lp.fltrs.MatchingFilters(*ext.SrcAddr, topic)
+				fIDs := lp.filters.MatchingFilters(*ext.SrcAddr, topic)
 				if len(fIDs) == 0 {
 					continue
 				}
@@ -178,12 +195,24 @@ DONE:
 	return nil
 }
 
+func (lp *Service) getLastProcessedSeqNo() (uint32, error) {
+	lastProcessed := lp.lastProcessedSeqNo
+	if lastProcessed > 0 {
+		return lastProcessed, nil
+	}
+
+	// TODO: get the latest processed seqno from log table
+
+	// TODO: implement lookbackwindow configuration and fallback logic if needed
+	return lastProcessed, nil
+}
+
 func (lp *Service) RegisterFilter(ctx context.Context, flt types.Filter) {
-	lp.fltrs.RegisterFilter(ctx, flt)
+	lp.filters.RegisterFilter(ctx, flt)
 }
 
 func (lp *Service) UnregisterFilter(ctx context.Context, name string) {
-	lp.fltrs.UnregisterFilter(ctx, name)
+	lp.filters.UnregisterFilter(ctx, name)
 }
 
 func (lp *Service) Store() *InMemoryStore {

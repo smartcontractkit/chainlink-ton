@@ -7,29 +7,14 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
 )
 
+// TODO: refactor as orm, for the first iteration we can directly read logs in memory
 type InMemoryStore struct {
 	mu              sync.Mutex
-	lastSeq         uint32
-	contractCursors map[string]uint64
 	logs            []types.Log
 }
 
 func NewInMemoryStore() *InMemoryStore {
-	return &InMemoryStore{
-		contractCursors: make(map[string]uint64),
-	}
-}
-
-func (s *InMemoryStore) LoadLastSeq() uint32 {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.lastSeq
-}
-
-func (s *InMemoryStore) SaveLastSeq(seq uint32) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.lastSeq = seq
+	return &InMemoryStore{}
 }
 
 func (s *InMemoryStore) SaveLog(log types.Log) {
@@ -39,6 +24,7 @@ func (s *InMemoryStore) SaveLog(log types.Log) {
 	log.ReceivedAt = now
 	if log.ExpiresAt == nil && log.ReceivedAt != (time.Time{}) {
 		// TODO: use configurable retention period
+		// TODO: there is no expiration logic in memory store currently
 		exp := now.Add(24 * time.Hour)
 		log.ExpiresAt = &exp
 	}
