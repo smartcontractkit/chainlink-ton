@@ -62,6 +62,18 @@ get value(): int {
     return storage.value;
 }
 
+/// Gets the current owner of the contract.
+get owner(): address {
+    val storage = loadData();
+    return storage.ownable2Step.get_owner();
+}
+
+/// Gets the pending owner of the contract, if any.
+get pendingOwner(): address? {
+    val storage = loadData();
+    return storage.ownable2Step.get_pendingOwner();
+}
+
 @method_id(1000)
 fun migrateStorage(c: cell): cell { return beginCell().endCell(); }
 @method_id(1001)

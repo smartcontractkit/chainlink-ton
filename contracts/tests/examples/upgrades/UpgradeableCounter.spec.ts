@@ -198,4 +198,106 @@ describe('UpgradeableCounter', () => {
       expect(getterResult).toBe(counterBefore - 1)
     }
   })
+
+  it('should fail when non-owner tries to upgrade', async () => {
+    let { blockchain, upgradeableCounter, codeV2 } = await setUpTest(0)
+    const nonOwner = await blockchain.treasury('nonOwner')
+
+    // Try to upgrade from non-owner address - should fail
+    const upgradeResult = await upgradeableCounter.sendUpgrade(nonOwner.getSender(), {
+      value: toNano('0.05'),
+      queryId: Math.floor(Math.random() * 10000),
+      code: codeV2,
+    })
+
+    expect(upgradeResult.transactions).toHaveTransaction({
+      from: nonOwner.address,
+      to: upgradeableCounter.address,
+      success: false,
+    })
+
+    // Verify the contract is still on version 1
+    const typeAndVersion = await upgradeableCounter.getTypeAndVersion()
+    expect(typeAndVersion.version).toBe('1.0.0')
+  })
+
+  it('should transfer ownership and allow new owner to upgrade', async () => {
+    let { blockchain, owner, upgradeableCounter, codeV2 } = await setUpTest(0)
+    const newOwner = await blockchain.treasury('newOwner')
+
+    // Verify initial owner
+    const initialOwner = await upgradeableCounter.getOwner()
+    expect(initialOwner.equals(owner.address)).toBe(true)
+
+    // Transfer ownership
+    const transferResult = await upgradeableCounter.sendTransferOwnership(owner.getSender(), {
+      value: toNano('0.05'),
+      queryId: Math.floor(Math.random() * 10000),
+      newOwner: newOwner.address,
+    })
+
+    expect(transferResult.transactions).toHaveTransaction({
+      from: owner.address,
+      to: upgradeableCounter.address,
+      success: true,
+    })
+
+    // Verify pending owner is set
+    const pendingOwner = await upgradeableCounter.getPendingOwner()
+    expect(pendingOwner?.equals(newOwner.address)).toBe(true)
+
+    // Accept ownership from new owner
+    const acceptResult = await upgradeableCounter.sendAcceptOwnership(newOwner.getSender(), {
+      value: toNano('0.05'),
+      queryId: Math.floor(Math.random() * 10000),
+    })
+
+    expect(acceptResult.transactions).toHaveTransaction({
+      from: newOwner.address,
+      to: upgradeableCounter.address,
+      success: true,
+    })
+
+    // Verify ownership transfer is complete
+    const currentOwner = await upgradeableCounter.getOwner()
+    expect(currentOwner.equals(newOwner.address)).toBe(true)
+
+    // Old owner should no longer be able to upgrade
+    const oldOwnerUpgradeResult = await upgradeableCounter.sendUpgrade(owner.getSender(), {
+      value: toNano('0.05'),
+      queryId: Math.floor(Math.random() * 10000),
+      code: codeV2,
+    })
+
+    expect(oldOwnerUpgradeResult.transactions).toHaveTransaction({
+      from: owner.address,
+      to: upgradeableCounter.address,
+      success: false,
+    })
+
+    // New owner should be able to upgrade
+    let { upgradeResult, newVersionInstance } = await sendUpgradeAndReturnNewVersion(
+      upgradeableCounter,
+      newOwner.getSender(),
+      toNano('0.05'),
+      UpgradeableCounterV2,
+    )
+
+    expect(upgradeResult.transactions).toHaveTransaction({
+      from: newOwner.address,
+      to: upgradeableCounter.address,
+      success: true,
+    })
+
+    let upgradeableCounterV2 = blockchain.openContract(newVersionInstance)
+
+    // Verify the contract is now on version 2
+    const typeAndVersion = await upgradeableCounterV2.getTypeAndVersion()
+    expect(typeAndVersion.type).toBe('com.chainlink.ton.examples.upgrades.UpgradeableCounter')
+    expect(typeAndVersion.version).toBe('2.0.0')
+
+    // Verify new owner is still the owner after upgrade
+    const finalOwner = await upgradeableCounterV2.getOwner()
+    expect(finalOwner.equals(newOwner.address)).toBe(true)
+  })
 })

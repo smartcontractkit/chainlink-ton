@@ -11,7 +11,11 @@ import {
 import { Upgradeable } from '../../libraries/upgrades/Upgradeable'
 import { compile } from '@ton/blueprint'
 import { TypeAndVersion } from '../../libraries/TypeAndVersion'
-import { Ownable2StepConfig, storeOwnable2StepConfig } from '../../libraries/access/Ownable2Step'
+import {
+  Ownable2Step,
+  Ownable2StepConfig,
+  storeOwnable2StepConfig,
+} from '../../libraries/access/Ownable2Step'
 
 export type CounterConfig = {
   id: number
@@ -33,6 +37,7 @@ export const Opcodes = {
 export class UpgradeableCounterV2 implements Contract, TypeAndVersion, Upgradeable {
   private typeAndVersion: TypeAndVersion
   private upgradeable: Upgradeable
+  private ownable: Ownable2Step
 
   constructor(
     readonly address: Address,
@@ -40,6 +45,7 @@ export class UpgradeableCounterV2 implements Contract, TypeAndVersion, Upgradeab
   ) {
     this.typeAndVersion = new TypeAndVersion()
     this.upgradeable = new Upgradeable()
+    this.ownable = new Ownable2Step()
   }
 
   static createFromAddress(address: Address) {
@@ -115,5 +121,39 @@ export class UpgradeableCounterV2 implements Contract, TypeAndVersion, Upgradeab
     },
   ) {
     await this.upgradeable.sendUpgrade(provider, via, opts)
+  }
+
+  // Ownership methods
+  async getOwner(provider: ContractProvider): Promise<Address> {
+    const result = await provider.get('owner', [])
+    return result.stack.readAddress()
+  }
+
+  async getPendingOwner(provider: ContractProvider): Promise<Address | null> {
+    const result = await provider.get('pendingOwner', [])
+    return result.stack.readAddressOpt()
+  }
+
+  async sendTransferOwnership(
+    provider: ContractProvider,
+    via: Sender,
+    opts: {
+      value: bigint
+      queryId?: number
+      newOwner: Address
+    },
+  ) {
+    await this.ownable.sendTransferOwnership(provider, via, opts)
+  }
+
+  async sendAcceptOwnership(
+    provider: ContractProvider,
+    via: Sender,
+    opts: {
+      value: bigint
+      queryId?: number
+    },
+  ) {
+    await this.ownable.sendAcceptOwnership(provider, via, opts)
   }
 }
