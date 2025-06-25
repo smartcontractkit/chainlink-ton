@@ -1,7 +1,9 @@
 import "types.tolk";
 import "../lib/access/ownable_2step.tolk";
+import "../lib/utils.tolk";
 import "../lib/upgrades/type_and_version.tolk";
 import "utils.tolk";
+import "../lib/utils.tolk";
 
 // TODO: use sha256("CCIPMessageSent")
 const CCIP_MESSAGE_SENT_TOPIC: int = 0x99; // for easier indexing
@@ -15,7 +17,8 @@ struct CCIPMessageSent {
 struct Storage {
     ownable: Ownable2Step;
 
-    chainSelector: uint64;
+    // static config
+    chainSelector: uint64; // source chain selector
     // TODO: rmnRemote, nonceManager, tokenAdminRegistry
     // hmm, need to consider the design here.
     // probably like solana tokenAdminRegistry will be fused into onramp/router
@@ -39,7 +42,7 @@ struct DynamicConfig {
 }
 
 struct DestChainConfig {
-    router: address;
+    router: address; // TODO: probably just bytes
     sequenceNumber: uint64;
     allowlistEnabled: bool;
     allowedSenders: Map<bool>; // address -> bool;
@@ -57,12 +60,36 @@ fun Storage.store(self) {
     return contract.setData(self.toCell());
 }
 
+type Msg = OnRampSend;
+
 fun onInternalMessage(msgCell: cell, msgBody: slice) {
+    // TODO: does this waste gas?
+    if (msgBody.isEnd()) { // ignore all empty messages
+        return;
+    }
+
+    var cs     = msgCell.beginParse();
+    val flags  = cs.loadMessageFlags();
+    if (isMessageBounced(flags)) { return; } // ignore all bounced messages
+    val sender = cs.loadAddress();
+
+    val msg = Msg.fromSlice(msgBody);
+    match (msg) {
+        OnRampSend => {
+            onSend(msg, sender)
+        }
+    }
 }
 
-fun onSend(msg: CCIPSend) {
+fun onSend(payload: OnRampSend, sender: address) {
     val st = Storage.load();
     // TODO: validate message came from router
+
+    val msg = payload.msg.load();
+
+    // TEMP: publish so we unblock e2e
+    onPublish(msg);
+    return;
 
     // validate allowlist
     val (maybeDestChainConfig, exists) = st.destChainConfigs.get(msg.destChainSelector);
@@ -70,6 +97,8 @@ fun onSend(msg: CCIPSend) {
     val destChainConfig = maybeDestChainConfig!;
     if (destChainConfig.allowlistEnabled) {
         // TODO:
+        // val (allowed, exists) = destChainConfig.allowedSenders.get(sender);
+        // assert(exists && allowed!, ERROR_SENDER_NOT_ALLOWED);
     }
 
     // TODO: validate jetton amounts match msg.tokenAmounts
@@ -77,7 +106,7 @@ fun onSend(msg: CCIPSend) {
     // call into feeQuoter to validate and calculate fees
     val getValidatedFeeMsg = createMessage({
         bounce: true,
-        value: 0,
+        value: ton("0.05"), // TODO:
         dest: st.config.load().feeQuoter,
         body: GetValidatedFee {
             msg,
@@ -85,16 +114,17 @@ fun onSend(msg: CCIPSend) {
         }
     });
     getValidatedFeeMsg.send(SEND_MODE_REGULAR);
+
+
 }
 
-// TODO: do we follow solana model and merge router + onramp?
-// aptos also does this
+// TODO: do we follow solana model and merge router + onramp? aptos also does this
 fun onPublish(msg: CCIPSend) {
     var st = Storage.load();
-    // validate message originating from trusted fee quoter
+    // TODO: validate message originating from trusted fee quoter
 
     // assign sequence number, we can't do this sooner since the message might fail validation/getFee
-    val (maybeDestChainConfig, exists) = st.destChainConfigs.get(msg.destChainSelector);
+    val (maybeDestChainConfig, exists) = st.destChainConfigs.getRef(msg.destChainSelector);
     assert(exists, ERROR_UNKNOWN_DEST_CHAIN_SELECTOR);
     var destChainConfig = maybeDestChainConfig!;
     val seqNr = destChainConfig.sequenceNumber;
@@ -108,7 +138,7 @@ fun onPublish(msg: CCIPSend) {
         message: msg
     });
 
-    // notify user
+    // TODO: notify user
 }
 
 get typeAndVersion(): (slice, slice) {

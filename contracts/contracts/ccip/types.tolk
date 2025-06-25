@@ -13,6 +13,13 @@ struct TokenAmount {
     token: address;
 }
 
+struct (0x10000001) SetRamp {
+    queryId: uint64;
+    // TODO: support onramp and offramp, support list
+    destChainSelector: uint64;
+    onRamp: address;
+}
+
 struct (0x00000001) CCIPSend {
     queryId: uint64;
     destChainSelector: uint64;
@@ -28,6 +35,14 @@ struct (0x7362d09c) JettonTransferNotification {
     amount: coins;
     sender: address;
     forwardPayload: Cell<CCIPSend>?; // could also be RemainingBitsAndRefs
+}
+
+// OnRamp
+struct (0x00000002) OnRampSend {
+    // queryId is embedded in the first element of CCIPSend
+    msg: Cell<CCIPSend>;
+    caller: address;
+    // TODO: metadata { caller, value, tokenAmounts }
 }
 
 // FeeQuoter
@@ -64,3 +79,4 @@ const ERROR_DEST_CHAIN_NOT_ENABLED: int = 0x2;
 const ERROR_FEE_TOKEN_NOT_SUPPORTED: int = 0x3;
 const ERROR_STALE_GAS_PRICE: int = 0x4;
 const ERROR_INVALID_MSG_DATA: int = 0x5;
+const ERROR_SENDER_NOT_ALLOWED: int = 0x6;

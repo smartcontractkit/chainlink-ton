@@ -66,7 +66,7 @@ fun onGetValidatedFee(msg: CCIPSend) {
     // call getValidatedFee on DestChainConfig
     val getValidatedFeeMsg = createMessage({
         bounce: true,
-        value: 0,
+        value: ton("0.05"), // TODO:
         dest: {
             stateInit: {
                 code: createEmptyCell(),

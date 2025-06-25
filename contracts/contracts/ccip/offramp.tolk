@@ -139,7 +139,7 @@ fun commit(msg: Commit) {
     if (report.priceUpdates != null) {
         val updatePricesMsg = createMessage({
             bounce: true, // TODO:
-            value: 0, // TODO:
+            value: ton("0.05"), // TODO:
             dest: st.feeQuoter,
             body: report.priceUpdates!.load(),
         });
@@ -156,7 +156,7 @@ fun commit(msg: Commit) {
         // initialize CommitReport subcontract
         val initMsg = createMessage({
             bounce: true, // TODO:
-            value: 0, // TODO:
+            value: ton("0.05"), // TODO:
             dest: {
                 // NOTE: we want to initialize to a stub(CommitReport, owner, report_id), then upgrade via .init()
                 // that way the address is deterministic and not dependent on report contents
