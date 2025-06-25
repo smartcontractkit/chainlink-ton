@@ -31,7 +31,7 @@ var (
 	_ types.ContractWriter = &TONChainWriterService{}
 )
 
-// nolint // ignoring naming suggestion
+//nolint:nolintlint // ignoring naming suggestion
 type ChainWriterConfig struct {
 	Programs map[string]ProgramConfig `json:"programs"`
 }

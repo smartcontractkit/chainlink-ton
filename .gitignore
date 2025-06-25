@@ -34,3 +34,6 @@ node_modules/
 
 # macOS Finder metadata
 .DS_Store
+
+# Golangci-lint reports
+golangci-lint-*-report.xml

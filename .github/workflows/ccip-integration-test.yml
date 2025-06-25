@@ -14,13 +14,9 @@ env:
   DOCKER_CACHE_KEY: ccip-e2e-images-v0
   DOCKER_CACHE_DIR: ${{ github.workspace }}/.cache
   DOCKER_CACHE_TAR_NAME: ccip-e2e-docker-images.tar
-  # TON localnet(mylocalton) docker images & CCIP E2E test database image
+  # mylocalton docker image / CCIP E2E test database image
   DOCKER_IMAGES: >-
     ghcr.io/neodix42/mylocalton-docker:latest
-    redis:latest
-    postgres:17
-    ghcr.io/neodix42/ton-http-api:latest
-    ghcr.io/neodix42/mylocalton-docker-faucet:latest
     postgres:14-alpine
 jobs:
   prepare-images:
