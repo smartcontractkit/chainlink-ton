@@ -6,8 +6,9 @@ import (
 	"math/rand/v2"
 	"testing"
 
-	"github.com/smartcontractkit/chainlink-ton/integration-tests/trace_tracking/async/wrappers/request_reply_with_two_dependencies"
-	"github.com/smartcontractkit/chainlink-ton/integration-tests/trace_tracking/test_utils"
+	"integration-tests/trace_tracking/async/wrappers/request_reply_with_two_dependencies"
+	"integration-tests/trace_tracking/test_utils"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/xssnick/tonutils-go/address"
 )

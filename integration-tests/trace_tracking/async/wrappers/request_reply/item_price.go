@@ -3,7 +3,8 @@ package request_reply
 import (
 	"fmt"
 
-	"github.com/smartcontractkit/chainlink-ton/integration-tests/trace_tracking/test_utils"
+	"integration-tests/trace_tracking/test_utils"
+
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/trace_tracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 	"github.com/xssnick/tonutils-go/tlb"

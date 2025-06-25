@@ -7,8 +7,9 @@ import (
 
 	"testing"
 
-	counter "github.com/smartcontractkit/chainlink-ton/integration-tests/trace_tracking/counter/wrappers"
-	"github.com/smartcontractkit/chainlink-ton/integration-tests/trace_tracking/test_utils"
+	counter "integration-tests/trace_tracking/counter/wrappers"
+	"integration-tests/trace_tracking/test_utils"
+
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 	"github.com/stretchr/testify/assert"
 )
