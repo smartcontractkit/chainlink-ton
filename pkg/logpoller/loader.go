@@ -14,7 +14,7 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 )
 
-// TODO: refactor as subengine, with scheduled background workers
+// TODO: refactor as subengine, with background workers
 
 type Loader struct {
 	lggr   logger.SugaredLogger
@@ -32,7 +32,7 @@ func NewLoader(
 }
 
 // TODO: block vs message
-func (lc *Loader) BackfillForAddresses(ctx context.Context, addresses []*address.Address, fromSeqNo, toSeqNo uint32) ([]*tlb.ExternalMessageOut, error) {
+func (lc *Loader) BackfillForAddresses(ctx context.Context, addresses []*address.Address, fromSeqNo uint32, currentMaster *ton.BlockIDExt) ([]*tlb.ExternalMessageOut, error) {
 	// TODO: refactor to use background workers for scale
 	var allMsgs []*tlb.ExternalMessageOut
 	var mu sync.Mutex
@@ -41,7 +41,7 @@ func (lc *Loader) BackfillForAddresses(ctx context.Context, addresses []*address
 		wg.Add(1)
 		go func(addr *address.Address) {
 			defer wg.Done()
-			msgs, err := lc.fetchMessagesForAddress(ctx, addr, fromSeqNo, toSeqNo)
+			msgs, err := lc.fetchMessagesForAddress(ctx, addr, fromSeqNo, currentMaster)
 			if err != nil {
 				lc.lggr.Errorw("failed to fetch messages", "addr", addr.String(), "err", err)
 				return
@@ -55,13 +55,8 @@ func (lc *Loader) BackfillForAddresses(ctx context.Context, addresses []*address
 	return allMsgs, nil
 }
 
-func (lc *Loader) fetchMessagesForAddress(ctx context.Context, addr *address.Address, fromSeqNo, toSeqNo uint32) ([]*tlb.ExternalMessageOut, error) {
-	latest, err := lc.client.LookupBlock(ctx, -1, 0, toSeqNo)
-	if err != nil {
-		return nil, err
-	}
-
-	accEnd, err := lc.client.GetAccount(ctx, latest, addr)
+func (lc *Loader) fetchMessagesForAddress(ctx context.Context, addr *address.Address, fromSeqNo uint32, currentMaster *ton.BlockIDExt) ([]*tlb.ExternalMessageOut, error) {
+	accEnd, err := lc.client.GetAccount(ctx, currentMaster, addr)
 	if err != nil {
 		return nil, err
 	}
@@ -69,8 +64,8 @@ func (lc *Loader) fetchMessagesForAddress(ctx context.Context, addr *address.Add
 
 	var startLT uint64
 	var startHash []byte
-	if fromSeqNo > 0 {
-		oldBlk, err := lc.client.LookupBlock(ctx, -1, 0, fromSeqNo)
+	if fromSeqNo > 1 {
+		oldBlk, err := lc.client.LookupBlock(ctx, currentMaster.Workchain, currentMaster.Shard, fromSeqNo)
 		if err != nil {
 			return nil, fmt.Errorf("couldn't fetch the old master block %d: %w", fromSeqNo, err)
 		}
@@ -88,6 +83,7 @@ func (lc *Loader) fetchMessagesForAddress(ctx context.Context, addr *address.Add
 
 paginationLoop:
 	for {
+		// TODO: use pagination from lp
 		batch, err := lc.client.ListTransactions(ctx, addr, 100, curLT, curHash)
 		if errors.Is(err, ton.ErrNoTransactionsWereFound) {
 			break
@@ -105,6 +101,7 @@ paginationLoop:
 
 			msgs, _ := tx.IO.Out.ToSlice()
 			for _, msg := range msgs {
+				// filter only external outgoing messages
 				if msg.MsgType != tlb.MsgTypeExternalOut {
 					continue
 				}

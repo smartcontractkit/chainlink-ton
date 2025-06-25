@@ -27,7 +27,7 @@ type LogPoller interface {
 }
 
 type logCollector interface {
-	BackfillForAddresses(ctx context.Context, addresses []*address.Address, fromSeqNo, toSeqNo uint32) (msgs []*tlb.ExternalMessageOut, err error)
+	BackfillForAddresses(ctx context.Context, addresses []*address.Address, fromSeqNo uint32, currentMaster *ton.BlockIDExt) (msgs []*tlb.ExternalMessageOut, err error)
 }
 
 type Service struct {
@@ -112,7 +112,7 @@ func (lp *Service) run(ctx context.Context) (err error) {
 		return nil
 	}
 
-	err = lp.processBlocksRange(ctx, addresses, lastProcessedSeq+1, master.SeqNo)
+	err = lp.processBlocksRange(ctx, addresses, lastProcessedSeq+1, master)
 	if err != nil {
 		return fmt.Errorf("processBlocksRange: %w", err)
 	}
@@ -122,10 +122,10 @@ func (lp *Service) run(ctx context.Context) (err error) {
 	return nil
 }
 
-func (lp *Service) processBlocksRange(ctx context.Context, addresses []*address.Address, fromSeqNo, toSeqNo uint32) error {
-	lp.lggr.Debugw("Got new seq range to process", "from", fromSeqNo, "to", toSeqNo)
+func (lp *Service) processBlocksRange(ctx context.Context, addresses []*address.Address, fromSeqNo uint32, currentMaster *ton.BlockIDExt) error {
+	lp.lggr.Debugw("Got new seq range to process", "from", fromSeqNo, "to", currentMaster.SeqNo)
 
-	msgs, err := lp.loader.BackfillForAddresses(ctx, addresses, fromSeqNo, toSeqNo)
+	msgs, err := lp.loader.BackfillForAddresses(ctx, addresses, fromSeqNo, currentMaster)
 	if err != nil {
 		return fmt.Errorf("BackfillForAddresses: %w", err)
 	}
@@ -196,6 +196,6 @@ func (lp *Service) UnregisterFilter(ctx context.Context, name string) {
 	lp.filters.UnregisterFilter(ctx, name)
 }
 
-func (lp *Service) Store() *InMemoryStore {
-	return lp.store
+func (lp *Service) GetLogs() []types.Log {
+	return lp.store.GetLogs()
 }

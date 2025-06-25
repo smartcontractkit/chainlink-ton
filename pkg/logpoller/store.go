@@ -31,7 +31,7 @@ func (s *InMemoryStore) SaveLog(log types.Log) {
 	s.logs = append(s.logs, log)
 }
 
-func (s *InMemoryStore) ListLogs() []types.Log {
+func (s *InMemoryStore) GetLogs() []types.Log {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	out := make([]types.Log, len(s.logs))

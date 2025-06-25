@@ -78,11 +78,12 @@ func Test_LogPoller(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Eventually(t, func() bool {
-		return len(lp.Store().ListLogs()) > 0
+		return len(lp.GetLogs()) > 0
 	}, 30*time.Second, 1*time.Second, "expected at least one increment event")
 
 	// TODO: add log query
-	logs := lp.Store().ListLogs()
+	logs := lp.GetLogs()
+	
 	require.Len(t, logs, 1)
 	require.Equal(t, addr.String(), logs[0].Address.String())
 	require.Equal(t, uint64(1002), logs[0].EventTopic, "unexpected event topic")
