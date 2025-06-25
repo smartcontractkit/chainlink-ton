@@ -54,6 +54,7 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 		Message:             rampMessageCell,
 		OffChainTokenData:   dummyCell,
 		Proofs:              signatureCell,
+		ProofFlagBits:       big.NewInt(0),
 	}
 
 	// Encode to cell

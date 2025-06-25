@@ -14,6 +14,7 @@ type ExecuteReport struct {
 	Message             Any2TONRampMessage `tlb:"^"`
 	OffChainTokenData   *cell.Cell         `tlb:"^"`
 	Proofs              *cell.Cell         `tlb:"^"` // []Signature
+	ProofFlagBits       *big.Int           `tlb:"## 256"`
 }
 
 type Any2TONRampMessage struct {
