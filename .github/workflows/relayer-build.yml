@@ -33,7 +33,7 @@ jobs:
       - name: Run integration tests
         run: |
           pushd integration-tests
-          cp trace_tracking/.env.example trace_tracking/.env
+          cp tracetracking/.env.example tracetracking/.env
           nix develop -c go test -v -count=1 -p=1 -timeout 30m ./...
 
   build-pkgs:

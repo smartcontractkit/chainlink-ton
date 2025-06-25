@@ -10,7 +10,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/trace_tracking"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
@@ -21,7 +21,7 @@ import (
 
 type Contract struct {
 	Address *address.Address
-	Client  *trace_tracking.SignedAPIClient
+	Client  *tracetracking.SignedAPIClient
 }
 
 type Message interface {
@@ -32,7 +32,7 @@ type Message interface {
 // Calls a writer message on the contract and waits for it to be received.
 // It does not wait for all the trace to be received, only the first message.
 // Use CallWaitRecursively to wait for all the trace to be received.
-func (c *Contract) CallWait(message Message, amount tlb.Coins) (*trace_tracking.ReceivedMessage, error) {
+func (c *Contract) CallWait(message Message, amount tlb.Coins) (*tracetracking.ReceivedMessage, error) {
 	b := cell.BeginCell()
 	err := b.StoreUInt(message.OpCode(), 32)
 	if err != nil {
@@ -49,7 +49,7 @@ func (c *Contract) CallWait(message Message, amount tlb.Coins) (*trace_tracking.
 // Calls a writer message on the contract and waits for it to be received.
 // It waits for all the trace (outgoing messages) to be received.
 // Use CallWait to wait onlyfor this first message.
-func (c *Contract) CallWaitRecursively(message Message, amount tlb.Coins) (*trace_tracking.ReceivedMessage, error) {
+func (c *Contract) CallWaitRecursively(message Message, amount tlb.Coins) (*tracetracking.ReceivedMessage, error) {
 	sentMessage, err := c.CallWait(message, amount)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send message: %w", err)
@@ -62,7 +62,7 @@ func (c *Contract) CallWaitRecursively(message Message, amount tlb.Coins) (*trac
 }
 
 // Calls a writer message on the contract and waits for it to be received.
-func (c *Contract) SendMessageWait(body *cell.Cell, amount tlb.Coins) (*trace_tracking.ReceivedMessage, error) {
+func (c *Contract) SendMessageWait(body *cell.Cell, amount tlb.Coins) (*tracetracking.ReceivedMessage, error) {
 	m, _, err := c.Client.SendWaitTransaction(context.TODO(),
 		*c.Address,
 		&wallet.Message{
@@ -123,15 +123,15 @@ func Uint32From(res *ton.ExecutionResult, err error) (uint32, error) {
 // given address that came after lt (Lamport Time). It will work retroactively,
 // meaning that it will return all messages that are already in the blockchain
 // and all new ones.
-func (c *Contract) SubscribeToMessages(lt uint64) chan *trace_tracking.ReceivedMessage {
-	messagesReceived := make(chan *trace_tracking.ReceivedMessage)
+func (c *Contract) SubscribeToMessages(lt uint64) chan *tracetracking.ReceivedMessage {
+	messagesReceived := make(chan *tracetracking.ReceivedMessage)
 	go func() {
 		transactionsReceived := c.Client.SubscribeToTransactions(*c.Address, lt)
 
 		for rTX := range transactionsReceived {
 			if rTX.IO.In != nil {
 				var err error
-				receivedMessage, err := trace_tracking.MapToReceivedMessage(rTX)
+				receivedMessage, err := tracetracking.MapToReceivedMessage(rTX)
 				if err != nil {
 					fmt.Printf("Failed to map received message: %v\n", err)
 					continue
@@ -202,7 +202,7 @@ func (c tolkCompiledContract) codeCell() (*cell.Cell, error) {
 // TON to be sent to the contract upon deployment.
 // It returns the contract wrapper if the deployment is successful.
 // The function returns an error if the deployment fails.
-func Deploy(client *trace_tracking.SignedAPIClient, codeCell *cell.Cell, initData *cell.Cell, amount tlb.Coins) (*Contract, error) {
+func Deploy(client *tracetracking.SignedAPIClient, codeCell *cell.Cell, initData *cell.Cell, amount tlb.Coins) (*Contract, error) {
 	// Create empty message body for deployment
 	msgBody := cell.BeginCell().EndCell()
 
@@ -218,7 +218,7 @@ func Deploy(client *trace_tracking.SignedAPIClient, codeCell *cell.Cell, initDat
 		return nil, fmt.Errorf("deployment failed: %w", err)
 	}
 
-	receivedMessage, err := trace_tracking.MapToReceivedMessage(tx)
+	receivedMessage, err := tracetracking.MapToReceivedMessage(tx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get outgoing messages: %w", err)
 	}
