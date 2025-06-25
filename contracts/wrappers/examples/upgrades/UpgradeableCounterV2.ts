@@ -11,14 +11,19 @@ import {
 import { Upgradeable } from '../../libraries/upgrades/Upgradeable'
 import { compile } from '@ton/blueprint'
 import { TypeAndVersion } from '../../libraries/TypeAndVersion'
+import { Ownable2StepConfig, storeOwnable2StepConfig } from '../../libraries/access/Ownable2Step'
 
 export type CounterConfig = {
   id: number
   value: number
+  ownable: Ownable2StepConfig
 }
 
 export function counterConfigToCell(config: CounterConfig): Cell {
-  return beginCell().storeUint(config.id, 32).storeUint(config.value, 32).endCell()
+  const builder = beginCell().storeUint(config.id, 32).storeUint(config.value, 32)
+
+  storeOwnable2StepConfig(builder, config.ownable)
+  return builder.endCell()
 }
 
 export const Opcodes = {

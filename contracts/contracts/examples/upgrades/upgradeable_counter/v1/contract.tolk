@@ -1,4 +1,4 @@
-import "../../../../lib/common/message_flags.tolk";
+import "../../../../lib/utils.tolk";
 import "../shared.tolk";
 import "./storage.tolk";
 
@@ -15,11 +15,6 @@ fun saveData(data: StorageV1) {
 const versionStr = "1.0.0";
 
 fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: slice) {
-    val this = UpgradeableCounter{
-        versionStr,
-        version,
-        migrateStorage,
-    };
 
     if (msgBody.isEnd()) { // ignore all empty messages
         return;
@@ -30,7 +25,22 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
     if (isMessageBounced(flags)) { // ignore all bounced messages
         return;
     }
+
+    var storage = loadData();
+    var handled = storage.ownable2Step.onInternalMessage(myBalance, msgValue, msgFull, msgBody);
+
+    if (handled) {
+        saveData(storage);
+        return;
+    }
     
+    val this = UpgradeableCounter{
+        versionStr,
+        version,
+        migrateStorage,
+        ownable2Step: storage.ownable2Step,
+    };
+
     if (this.onInternalMessage(myBalance, msgValue, msgFull, msgBody)) {
         return;
     }
@@ -40,7 +50,6 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
     match (msg) {
         Step => {
             /// Instructs the contract to step the counter.
-            var storage = loadData();
             storage.value += 1;
             saveData(storage);
         }
@@ -59,10 +68,12 @@ fun migrateStorage(c: cell): cell { return beginCell().endCell(); }
 fun version(): slice { return versionStr; }
 
 get typeAndVersion(): (slice, slice) {
+    val storage = loadData();
     val this = UpgradeableCounter{
         versionStr,
         version,
         migrateStorage,
+        ownable2Step: storage.ownable2Step,
     };
     return this.typeAndVersion();
 }

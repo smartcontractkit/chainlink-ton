@@ -35,7 +35,7 @@ async function setUpTest(i: number): Promise<{
       {
         id: 0,
         value: i,
-        // owner.address,
+        ownable: { owner: owner.address, pendingOwner: null },
       },
       codeV1,
     ),

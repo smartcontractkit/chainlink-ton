@@ -1,6 +1,6 @@
 import "@stdlib/common.tolk";
 import "../lib/upgrades/type_and_version.tolk";
-import "../lib/common/message_flags.tolk";
+import "../lib/utils.tolk";
 
 /// Counter contract (Tolk example)
 

@@ -1,5 +1,6 @@
 import "../../../lib/upgrades/upgradeable.tolk";
 import "../../../lib/upgrades/type_and_version.tolk";
+import "../../../lib/access/ownable_2step.tolk";
 
 /// This is a Step Counter that implements Upgradeable trait.
 /// It is able to be upgraded in place and migrate the data layout.
@@ -19,6 +20,7 @@ import "../../../lib/upgrades/type_and_version.tolk";
 ///
 /// `versionStr` must be a semantic version string (e.g. "1.0.0").
 struct UpgradeableCounter {
+    ownable2Step: Ownable2Step;
     /// Required attributes.
     versionStr: slice;
     /// Abstract methods that must be implemented by the contract.
@@ -31,11 +33,29 @@ struct (0x00000001) Step {
     queryId: uint64;
 }
 
-fun UpgradeableCounter.onInternalMessage(self, myBalance: int, msgValue: int, msgFull: cell, msgBody: slice): bool {    
-    val upgradeable = Upgradeable<null>{
+struct requireUpgradeAutoArgs {
+    ownable2Step: Ownable2Step;
+    sender: address;
+}
+
+fun requireUpgrade(autoargs: requireUpgradeAutoArgs) {
+    autoargs.ownable2Step.requireOwner(autoargs.sender)
+}
+
+fun UpgradeableCounter.onInternalMessage(self, myBalance: int, msgValue: int, msgFull: cell, msgBody: slice): bool {
+    var cs: slice = msgFull.beginParse();
+    val flags = cs.loadMessageFlags();
+    var sender: address = cs.loadAddress();
+    val upgradeable = Upgradeable<requireUpgradeAutoArgs>{
         version: self.version,
         migrateStorage: self.migrateStorage,
-        override_requireUpgrade: null, // Use the default implementation
+        requireUpgrade: Upgradeable_requireUpgrade<requireUpgradeAutoArgs> {
+            call: requireUpgrade,
+            autoArgs: requireUpgradeAutoArgs {
+                ownable2Step: self.ownable2Step,
+                sender: sender,
+            },
+        },
     };
     return upgradeable.onInternalMessage(myBalance, msgValue, msgFull, msgBody);
 }
