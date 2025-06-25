@@ -1,9 +1,14 @@
 package logpoller
 
 import (
+	"bytes"
 	"context"
+	"errors"
+	"fmt"
+	"sync"
 
 	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
@@ -11,21 +16,112 @@ import (
 
 // TODO: refactor as subengine, with scheduled background workers
 
-type LogCollector struct {
-	lggr logger.SugaredLogger
+type Loader struct {
+	lggr   logger.SugaredLogger
+	client ton.APIClientWrapped
 }
 
-func NewLogCollector(
+func NewLoader(
 	client ton.APIClientWrapped,
 	lggr logger.Logger,
-) *LogCollector {
-	return &LogCollector{
-		lggr: logger.Sugared(lggr),
+) *Loader {
+	return &Loader{
+		lggr:   logger.Sugared(lggr),
+		client: client,
 	}
 }
 
-func (lc *LogCollector) BackfillForAddresses(ctx context.Context, addresses []address.Address, fromSeqNo, toSeqNo uint32) error {
-	//
-	return nil
+// TODO: block vs message
+func (lc *Loader) BackfillForAddresses(ctx context.Context, addresses []*address.Address, fromSeqNo, toSeqNo uint32) ([]*tlb.ExternalMessageOut, error) {
+	// TODO: refactor to use background workers for scale
+	var allMsgs []*tlb.ExternalMessageOut
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+	for _, addr := range addresses {
+		wg.Add(1)
+		go func(addr *address.Address) {
+			defer wg.Done()
+			msgs, err := lc.fetchMessagesForAddress(ctx, addr, fromSeqNo, toSeqNo)
+			if err != nil {
+				lc.lggr.Errorw("failed to fetch messages", "addr", addr.String(), "err", err)
+				return
+			}
+			mu.Lock()
+			allMsgs = append(allMsgs, msgs...)
+			mu.Unlock()
+		}(addr)
+	}
+	wg.Wait()
+	return allMsgs, nil
+}
 
+func (lc *Loader) fetchMessagesForAddress(ctx context.Context, addr *address.Address, fromSeqNo, toSeqNo uint32) ([]*tlb.ExternalMessageOut, error) {
+	latest, err := lc.client.LookupBlock(ctx, -1, 0, toSeqNo)
+	if err != nil {
+		return nil, err
+	}
+
+	accEnd, err := lc.client.GetAccount(ctx, latest, addr)
+	if err != nil {
+		return nil, err
+	}
+	endLT, endHash := accEnd.LastTxLT, accEnd.LastTxHash
+
+	var startLT uint64
+	var startHash []byte
+	if fromSeqNo > 0 {
+		oldBlk, err := lc.client.LookupBlock(ctx, -1, 0, fromSeqNo)
+		if err != nil {
+			return nil, fmt.Errorf("couldn't fetch the old master block %d: %w", fromSeqNo, err)
+		}
+		accStart, err := lc.client.GetAccount(ctx, oldBlk, addr)
+		if err != nil {
+			// TODO: this can be true if the account was not initialized at that block
+			return nil, fmt.Errorf("couldn't get account at old block %d: %w", fromSeqNo, err)
+		}
+		startLT = accStart.LastTxLT
+		startHash = accStart.LastTxHash
+	}
+
+	var messages []*tlb.ExternalMessageOut
+	curLT, curHash := endLT, endHash
+
+paginationLoop:
+	for {
+		batch, err := lc.client.ListTransactions(ctx, addr, 100, curLT, curHash)
+		if errors.Is(err, ton.ErrNoTransactionsWereFound) {
+			break
+		} else if err != nil {
+			return nil, fmt.Errorf("ListTransactions: %w", err)
+		}
+		if len(batch) == 0 {
+			break
+		}
+
+		for _, tx := range batch {
+			if tx.LT < startLT || (tx.LT == startLT && bytes.Equal(tx.Hash, startHash)) {
+				break paginationLoop
+			}
+
+			msgs, _ := tx.IO.Out.ToSlice()
+			for _, msg := range msgs {
+				if msg.MsgType != tlb.MsgTypeExternalOut {
+					continue
+				}
+				ext := msg.AsExternalOut()
+				if ext.Body == nil {
+					continue
+				}
+				messages = append(messages, ext)
+			}
+		}
+
+		last := batch[len(batch)-1]
+		curLT, curHash = last.PrevTxLT, last.PrevTxHash
+		if len(batch) < 100 {
+			break
+		}
+	}
+
+	return messages, nil
 }

@@ -1,9 +1,8 @@
 package logpoller
 
 import (
-	"bytes"
 	"context"
-	"errors"
+	"encoding/binary"
 	"fmt"
 	"time"
 
@@ -27,12 +26,17 @@ type LogPoller interface {
 	// TODO(NONEVM-1460): add remaining functions
 }
 
+type logCollector interface {
+	BackfillForAddresses(ctx context.Context, addresses []*address.Address, fromSeqNo, toSeqNo uint32) (msgs []*tlb.ExternalMessageOut, err error)
+}
+
 type Service struct {
 	services.Service
 	eng                *services.Engine
 	lggr               logger.SugaredLogger
 	client             ton.APIClientWrapped
 	filters            *Filters
+	loader             logCollector
 	store              *InMemoryStore
 	pollPeriod         time.Duration
 	pageSize           uint32
@@ -56,6 +60,7 @@ func NewLogPoller(
 		pollPeriod: pollPeriod,
 		pageSize:   pageSize,
 	}
+	lp.loader = NewLoader(lp.client, lp.lggr)
 	lp.Service, lp.eng = services.Config{
 		Name:  "Service",
 		Start: lp.start,
@@ -100,14 +105,16 @@ func (lp *Service) run(ctx context.Context) (err error) {
 	if master.SeqNo == lastProcessedSeq {
 		lp.lggr.Debugw("skipping already processed masterchain seq", "seq", master.SeqNo)
 	}
-	lp.lggr.Debugw("Got new seq range to process", "from", lastProcessedSeq+1, "to", master.SeqNo)
 
 	// load the addresses from filters that we're interested in
-	addrs := lp.filters.GetDistinctAddresses()
-	for _, addr := range addrs {
-		if err := lp.loadForAddress(ctx, lastProcessedSeq, master, &addr); err != nil {
-			lp.lggr.Errorw("loadForAddress failed", "addr", addr.String(), "err", err)
-		}
+	addresses := lp.filters.GetDistinctAddresses()
+	if len(addresses) == 0 {
+		return nil
+	}
+
+	err = lp.processBlocksRange(ctx, addresses, lastProcessedSeq+1, master.SeqNo)
+	if err != nil {
+		return fmt.Errorf("processBlocksRange: %w", err)
 	}
 
 	// save the last processed seqno
@@ -115,84 +122,58 @@ func (lp *Service) run(ctx context.Context) (err error) {
 	return nil
 }
 
-// TODO: scale with background workers
-func (lp *Service) loadForAddress(
-	ctx context.Context,
-	lastSeq uint32,
-	master *ton.BlockIDExt,
-	contractAddr *address.Address,
-) error {
-	accEnd, err := lp.client.GetAccount(ctx, master, contractAddr)
+func (lp *Service) processBlocksRange(ctx context.Context, addresses []*address.Address, fromSeqNo, toSeqNo uint32) error {
+	lp.lggr.Debugw("Got new seq range to process", "from", fromSeqNo, "to", toSeqNo)
+
+	msgs, err := lp.loader.BackfillForAddresses(ctx, addresses, fromSeqNo, toSeqNo)
 	if err != nil {
-		return err
+		return fmt.Errorf("BackfillForAddresses: %w", err)
 	}
-	endLT, endHash := accEnd.LastTxLT, accEnd.LastTxHash
-
-	var startLT uint64
-	var startHash []byte
-	if lastSeq > 0 {
-		oldBlk, err := lp.client.LookupBlock(ctx, master.Workchain, master.Shard, lastSeq)
-		if err != nil {
-			return fmt.Errorf("couldn't fetch master block %d: %w", lastSeq, err)
-		}
-		accStart, err := lp.client.GetAccount(ctx, oldBlk, contractAddr)
-		if err != nil {
-			return fmt.Errorf("couldn't get account at old block %d: %w", lastSeq, err)
-		}
-		startLT = accStart.LastTxLT
-		startHash = accStart.LastTxHash
+	err = lp.processMessages(msgs)
+	if err != nil {
+		return fmt.Errorf("processMessages: %w", err)
 	}
 
-	curLT, curHash := endLT, endHash
-	for {
-		batch, err := lp.client.ListTransactions(ctx, contractAddr, lp.pageSize, curLT, curHash)
-		if errors.Is(err, ton.ErrNoTransactionsWereFound) {
-			break
-		} else if err != nil {
-			return fmt.Errorf("ListTransactions: %w", err)
-		}
-		if len(batch) == 0 {
-			break
-		}
-		for _, tx := range batch {
-			if tx.LT < startLT || (tx.LT == startLT && bytes.Equal(tx.Hash, startHash)) {
-				goto DONE
-			}
-
-			msgs, _ := tx.IO.Out.ToSlice()
-			for _, msg := range msgs {
-				if msg.MsgType != tlb.MsgTypeExternalOut {
-					continue
-				}
-				ext := msg.AsExternalOut()
-				if ext.Body == nil {
-					continue
-				}
-				topic := ExtractEventTopicFromAddress(ext.DstAddr)
-				fIDs := lp.filters.MatchingFilters(*ext.SrcAddr, topic)
-				if len(fIDs) == 0 {
-					continue
-				}
-
-				for _, fid := range fIDs {
-					lp.store.SaveLog(types.Log{
-						FilterID:   fid,
-						SeqNo:      master.SeqNo,
-						Address:    *ext.SrcAddr,
-						EventTopic: topic,
-						Data:       ext.Body.ToBOC(),
-					})
-				}
-			}
-		}
-		last := batch[len(batch)-1]
-		curLT, curHash = last.PrevTxLT, last.PrevTxHash
-		if len(batch) < int(lp.pageSize) {
-			break
-		}
-	}
-DONE:
 	return nil
+}
+
+func (lp *Service) processMessages(msgs []*tlb.ExternalMessageOut) error {
+	for _, msg := range msgs {
+		if err := lp.Process(msg); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+
+func (lp *Service) Process(msg *tlb.ExternalMessageOut) error {
+	topic := extractEventTopicFromAddress(msg.DstAddr)
+	fIDs := lp.filters.MatchingFilters(*msg.SrcAddr, topic)
+	if len(fIDs) == 0 {
+		return nil // no filters matched, nothing to do
+	}
+
+	for _, fid := range fIDs {
+		lp.store.SaveLog(types.Log{
+			FilterID:   fid,
+			// TODO: we need custom type for processing
+			// SeqNo:      master.SeqNo,
+			Address:    *msg.SrcAddr,
+			EventTopic: topic,
+			Data:       msg.Body.ToBOC(),
+		})
+	}
+	return nil
+}
+
+
+// ExtOutLogBucket dst-address format is: [prefix..][topic:8 bytes]
+// We grab the last 8 bytes.
+// TODO: add link for ExtOutLogBucket format and specification
+func extractEventTopicFromAddress(addr *address.Address) uint64 {
+	data := addr.Data() // 32 bytes
+	return binary.BigEndian.Uint64(data[24:])
 }
 
 func (lp *Service) getLastProcessedSeqNo() (uint32, error) {

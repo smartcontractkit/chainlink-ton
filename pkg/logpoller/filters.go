@@ -48,12 +48,13 @@ func (f *Filters) UnregisterFilter(ctx context.Context, name string) {
 	}
 }
 
-func (f *Filters) GetDistinctAddresses() []address.Address {
+func (f *Filters) GetDistinctAddresses() []*address.Address {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
-	out := make([]address.Address, 0, len(f.filtersByAddress))
+	out := make([]*address.Address, 0, len(f.filtersByAddress))
 	for a := range f.filtersByAddress {
-		out = append(out, *address.MustParseAddr(a))
+		addr := address.MustParseAddr(a)
+		out = append(out, addr)
 	}
 	return out
 }
