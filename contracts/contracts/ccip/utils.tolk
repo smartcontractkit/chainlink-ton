@@ -61,12 +61,24 @@ fun Iterator<T>.next(mutate self): T {
     return self.data.loadAny<T>();
 }
 
+const ERROR_INVALID_DATA = 0x77;
+
+// Expensive to calculate
+@pure
+fun Iterator<T>.countBytes(self): int {
+    val maxCells = 128;
+    val (cellsCount, dataBitsSize, cellRefs, traversed) = self.data.calculateSize(maxCells);
+    assert(traversed, ERROR_INVALID_DATA);
+    assert(dataBitsSize % 8 == 0, ERROR_INVALID_DATA);
+    return dataBitsSize / 8;
+}
+
 import "@stdlib/tvm-dicts.tolk";
 
 // TODO: mark functions as @pure
 struct Map<V> {
     value: dict;
-    keyLen: int8;
+    keyLen: uint16;
 }
 
 @inline
@@ -96,7 +108,7 @@ fun Map<V>.set(mutate self, key: slice, value: V): void {
 // TODO: mark functions as @pure
 struct UMap<K, V> {
     value: dict;
-    keyLen: int8;
+    keyLen: uint16;
 }
 
 @inline
@@ -124,4 +136,18 @@ fun UMap<K, V>.get(self, key: K): (V?, bool) {
 @inline
 fun UMap<K, V>.set(mutate self, key: K, value: V): void {
     return (self.value.uDictSet(self.keyLen, key, value.toCell().beginParse()));
+}
+
+@inline
+fun UMap<K, V>.getRef(self, key: K): (V?, bool) {
+    val (value, exists) = self.value.uDictGetRef(self.keyLen, key);
+    if (!exists) {
+        return (null, false);
+    }
+    return (V.fromCell(value!), true);
+}
+
+@inline
+fun UMap<K, V>.setRef(mutate self, key: K, value: V): void {
+    return (self.value.uDictSetRef(self.keyLen, key, value.toCell()));
 }

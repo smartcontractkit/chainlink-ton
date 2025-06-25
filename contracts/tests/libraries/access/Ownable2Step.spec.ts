@@ -26,7 +26,6 @@ describe('Ownable2Step Counter', () => {
       count: 14,
       ownable: {
         owner: deployer.address,
-        pendingOwner: null,
       },
     }
 

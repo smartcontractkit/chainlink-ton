@@ -19,7 +19,7 @@ export const Opcodes = {
 
 export type Ownable2StepConfig = {
   owner: Address
-  pendingOwner: Address | null
+  pendingOwner?: Address
 }
 
 export class Ownable2Step {

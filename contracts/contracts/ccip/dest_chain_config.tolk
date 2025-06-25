@@ -115,8 +115,6 @@ fun onGetValidatedFee(msg: CCIPSend) {
         (tokenCount, premiumFeeUsdWei, tokenTransferGas, tokenTransferBytesOverhead) = getTokenTransferCost(cfg, mutate tokensIter, tokenPrices);
     };
 
-    // getDataAvailabilityMultiplier()
-
     // Execution cost
 
     // Calculate calldata gas cost while accounting for EIP-7623 variable calldata gas pricing
@@ -124,7 +122,7 @@ fun onGetValidatedFee(msg: CCIPSend) {
     // This calculation is not exact, the goal is to not lose money on large payloads.
     // The fixed OCR report calldata overhead gas is accounted for in `dest_gas_overhead`.
     // It is not included in the calculation below for simplicity.
-    val (_cellsCount, dataBitsSize, _cellRefs, traversed) = msg.data.calculateSize(99); // TODO: find a constant
+    val (_cellsCount, dataBitsSize, _cellRefs, traversed) = msg.data.calculateSize(99); // TODO: use Iterator.lenBytes
     assert(traversed, ERROR_INVALID_MSG_DATA);
     assert(dataBitsSize % 8 == 0, ERROR_INVALID_MSG_DATA);
     val calldataLen = dataBitsSize / 8 as uint256 + tokenTransferBytesOverhead;
@@ -202,6 +200,8 @@ fun getTokenTransferCost(cfg: Storage, mutate tokens: Iterator<TokenAmount>, tok
             // NOTE: for this calc to work we'd need to lookup the token prices in feeQuoter then pass into here
             // this also makes sense so we do the token pricing lookup all at the same time, vs for it to have a chance to drift
 
+            // TODO: a lot of the as uint256 annotations seem to be unnecessary
+
             var bpsFeeUsdWei = 0;
             if (transferFeeConfig.deciBps > 0) {
                 val (maybeTokenPrice, exists) = tokenPrices.get(tokenAmount.token as slice);
@@ -210,14 +210,8 @@ fun getTokenTransferCost(cfg: Storage, mutate tokens: Iterator<TokenAmount>, tok
 
                 // Calculate token transfer value, then apply fee ratio
                 // ratio represents multiples of 0.1bps, or 1e-5
-
-                // let token_usd_value =
-                //     calc_usd_value_from_token_amount(
-                //         local_token_amount, token_price.value
-                //     );
-                // bps_fee_usd_wei =
-                //     (token_usd_value * (transfer_fee_config.deci_bps as u256))
-                //         / VAL_1E5;
+                val tokenUsdValue = tokenAmount.amount as uint256 * tokenPrice / VAL_1E18;
+                bpsFeeUsdWei = (tokenUsdValue * (transferFeeConfig.deciBps as uint256)) / VAL_1E5;
             };
 
             tokenTransferGas += transferFeeConfig.destGasOverhead;

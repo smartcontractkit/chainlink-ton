@@ -20,32 +20,46 @@ fun Storage.store(self) {
     return contract.setData(self.toCell());
 }
 
-type Msg = CCIPSend | JettonTransferNotification;
+type Msg = CCIPSend | SetRamp | JettonTransferNotification;
 
 fun onInternalMessage(msgCell: cell, msgBody: slice) {
+    // TODO: does this waste gas?
+    if (msgBody.isEnd()) { // ignore all empty messages
+        return;
+    }
+
+    var cs     = msgCell.beginParse();
+    val flags  = cs.loadMessageFlags();
+    if (isMessageBounced(flags)) { return; } // ignore all bounced messages
+    val sender = cs.loadAddress();
+
     val msg = Msg.fromSlice(msgBody);
     match (msg) {
-        CCIPSend => { onSend(msg) }
-        JettonTransferNotification => { onTransferNotification(msgCell, msg) }
+        SetRamp => { onSetRamp(msg, sender) }
+        CCIPSend => { onSend(msg, sender) }
+        JettonTransferNotification => { onTransferNotification(msgCell, msg, sender) }
     }
 }
 
-fun onSend(msg: CCIPSend) {
-    ccipSend(msg);  
+fun onSetRamp(msg: SetRamp, sender: address) {
+    var st = Storage.load();
+    st.ownable.requireOwner(sender);
+
+    st.onRamp = msg.onRamp;
+    st.store();
+
+    // TODO: emit(OnRampSet)
+}
+
+fun onSend(msg: CCIPSend, sender: address) {
+    ccipSend(msg, sender);
 
     // Forward excesses
     // self.forward(msg.sender, null, false, null);
 }
 
-fun onTransferNotification(msgCell: cell, msg: JettonTransferNotification) {
-    var cs: slice = msgCell.beginParse();
-    val flags = cs.loadMessageFlags();
-    if (isMessageBounced(flags)) { // ignore all bounced messages
-        return;
-    }
-
+fun onTransferNotification(msgCell: cell, msg: JettonTransferNotification, sender: address) {
     val st = Storage.load();
-    val sender: address = cs.loadAddress();
 
     // TODO: need to validate that the transfer notification came from our own wallet
     // assert(sender == st.owner) throw ERROR_NOT_OWNER;
@@ -58,22 +72,22 @@ fun onTransferNotification(msgCell: cell, msg: JettonTransferNotification) {
     // TODO: store msg.amount + value
     // make sure msg.amount == sendMsg.token amount
 
-    ccipSend(sendMsg);
+    ccipSend(sendMsg, msg.sender);
 
     // Forward excesses
     // self.forward(msg.sender, null, false, null);
 }
 
-fun ccipSend(msg: CCIPSend) {
+fun ccipSend(msg: CCIPSend, caller: address) {
     val st = Storage.load();
 
     // forward to onRamp
-    // ccipSend(onRamp, msg, value/token amounts)        
+    // ccipSend(onRamp, msg, value/token amounts)
     val sendMsg = createMessage({
         bounce: true,
-        value: 0,
+        value: ton("0.1"), // TODO:
         dest: st.onRamp,
-        // body: Send { msg },
+        body: OnRampSend { msg: msg.toCell(), caller },
     });
     sendMsg.send(SEND_MODE_REGULAR);
 }
