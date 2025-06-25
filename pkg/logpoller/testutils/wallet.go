@@ -1,7 +1,6 @@
 package testutils
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 
@@ -28,17 +27,18 @@ func CreateTonWallet(t *testing.T, client ton.APIClientWrapped, version wallet.V
 }
 
 func FundTonWallets(t *testing.T, client ton.APIClientWrapped, recipients []*address.Address, amounts []tlb.Coins) {
-	rawHlWallet, err := wallet.FromSeed(client, strings.Fields(blockchain.DefaultTonHlWalletMnemonic), wallet.HighloadV2Verified)
+	v := wallet.HighloadV2Verified //nolint:staticcheck // only available version from mylocalton
+	rawHlWallet, err := wallet.FromSeed(client, strings.Fields(blockchain.DefaultTonHlWalletMnemonic), v)
 	require.NoError(t, err, "failed to create highload wallet")
 
-	mcFunderWallet, err := wallet.FromPrivateKeyWithOptions(client, rawHlWallet.PrivateKey(), wallet.HighloadV2Verified, wallet.WithWorkchain(-1))
+	mcFunderWallet, err := wallet.FromPrivateKeyWithOptions(client, rawHlWallet.PrivateKey(), v, wallet.WithWorkchain(-1))
 	require.NoError(t, err, "failed to create highload wallet")
 
 	subWalletID := uint32(42)
 	funder, err := mcFunderWallet.GetSubwallet(subWalletID)
 	require.NoError(t, err, "failed to get highload subwallet")
 
-	require.Equal(t, funder.Address().StringRaw(), blockchain.DefaultTonHlWalletAddress, "funder address mismatch")
+	require.Equal(t, blockchain.DefaultTonHlWalletAddress, funder.Address().StringRaw(), "funder address mismatch")
 
 	if len(recipients) != len(amounts) {
 		t.Fatalf("number of recipients (%d) does not match number of amounts (%d)", len(recipients), len(amounts))
@@ -46,8 +46,8 @@ func FundTonWallets(t *testing.T, client ton.APIClientWrapped, recipients []*add
 
 	messages := make([]*wallet.Message, len(recipients))
 	for i, addr := range recipients {
-		transfer, err := funder.BuildTransfer(addr, amounts[i], false, "")
-		require.NoError(t, err, fmt.Sprintf("failed to build transfer for %s", addr.String()))
+		transfer, terr := funder.BuildTransfer(addr, amounts[i], false, "")
+		require.NoError(t, terr)
 		messages[i] = transfer
 	}
 

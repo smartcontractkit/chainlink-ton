@@ -9,8 +9,8 @@ import (
 
 // TODO: refactor as orm, for the first iteration we can directly read logs in memory
 type InMemoryStore struct {
-	mu              sync.Mutex
-	logs            []types.Log
+	mu   sync.Mutex
+	logs []types.Log
 }
 
 func NewInMemoryStore() *InMemoryStore {

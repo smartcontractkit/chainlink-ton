@@ -147,7 +147,6 @@ func (lp *Service) processMessages(msgs []*tlb.ExternalMessageOut) error {
 	return nil
 }
 
-
 func (lp *Service) Process(msg *tlb.ExternalMessageOut) error {
 	topic := extractEventTopicFromAddress(msg.DstAddr)
 	fIDs := lp.filters.MatchingFilters(*msg.SrcAddr, topic)
@@ -157,7 +156,7 @@ func (lp *Service) Process(msg *tlb.ExternalMessageOut) error {
 
 	for _, fid := range fIDs {
 		lp.store.SaveLog(types.Log{
-			FilterID:   fid,
+			FilterID: fid,
 			// TODO: we need custom type for processing
 			// SeqNo:      master.SeqNo,
 			Address:    *msg.SrcAddr,
@@ -167,7 +166,6 @@ func (lp *Service) Process(msg *tlb.ExternalMessageOut) error {
 	}
 	return nil
 }
-
 
 // ExtOutLogBucket dst-address format is: [prefix..][topic:8 bytes]
 // We grab the last 8 bytes.

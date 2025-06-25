@@ -67,12 +67,12 @@ func Test_LogPoller(t *testing.T) {
 	)
 	// TODO: replace with airdrop util
 	require.Eventually(t, func() bool {
-		m, err := client.CurrentMasterchainInfo(ctx)
-		if err != nil {
+		m, cerr := client.CurrentMasterchainInfo(ctx)
+		if cerr != nil {
 			return false
 		}
-		bal, err := w.GetBalance(ctx, m)
-		if err != nil {
+		bal, berr := w.GetBalance(ctx, m)
+		if berr != nil {
 			return false
 		}
 		return !bal.IsZero()
