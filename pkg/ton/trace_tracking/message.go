@@ -92,7 +92,7 @@ type OutgoingExternalMessages struct {
 func (e *OutgoingExternalMessages) AsString() (string, error) {
 	str, err := e.Body.BeginParse().LoadStringSnake()
 	if err != nil {
-		return "", fmt.Errorf("failed to parse event body: %s\n", err)
+		return "", fmt.Errorf("failed to parse event body: %s", err)
 	}
 	return str, nil
 }
@@ -327,10 +327,7 @@ func (r *ReceivedMessage) AppendSentMessage(outgoingInternalMessage *tlb.Interna
 //
 // TODO: This could be optimized by grouping outgoing messages by recipient address
 func (m *ReceivedMessage) WaitForOutgoingMessagesToBeReceived(c *SignedAPIClient) error {
-	for {
-		if len(m.OutgoingInternalSentMessages) == 0 {
-			break
-		}
+	for len(m.OutgoingInternalSentMessages) != 0 {
 		sentMessage := m.OutgoingInternalSentMessages[0]
 		m.OutgoingInternalSentMessages = m.OutgoingInternalSentMessages[1:]
 		transactionsReceived := c.SubscribeToTransactions(*sentMessage.InternalMsg.DstAddr, m.LamportTime)
@@ -420,10 +417,7 @@ func (m *ReceivedMessage) WaitForTrace(c *SignedAPIClient) error {
 	messagesWithUnconfirmedOutgoingMessages := make([]*ReceivedMessage, 0)
 	messagesWithUnconfirmedOutgoingMessages = append(messagesWithUnconfirmedOutgoingMessages, m)
 
-	for {
-		if len(messagesWithUnconfirmedOutgoingMessages) == 0 {
-			break
-		}
+	for len(messagesWithUnconfirmedOutgoingMessages) != 0 {
 		cascadingMessage := messagesWithUnconfirmedOutgoingMessages[0]
 		messagesWithUnconfirmedOutgoingMessages = messagesWithUnconfirmedOutgoingMessages[1:]
 		err := cascadingMessage.WaitForOutgoingMessagesToBeReceived(c)

@@ -128,6 +128,8 @@ func (c *Contract) SubscribeToMessages(lt uint64) chan *trace_tracking.ReceivedM
 				var err error
 				receivedMessage, err := trace_tracking.MapToReceivedMessage(rTX)
 				if err != nil {
+					fmt.Printf("Failed to map received message: %v\n", err)
+					continue
 				}
 				messagesReceived <- &receivedMessage
 			}
@@ -158,13 +160,13 @@ func (c tactCompiledContract) codeCell() (*cell.Cell, error) {
 	// Decode the Base64 string to get the actual BOC binary
 	codeBocBinary, err := base64.StdEncoding.DecodeString(codeBoc64)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to decode base64: %v", err)
+		return nil, fmt.Errorf("failed to decode base64: %v", err)
 	}
 
 	// Parse the BOC binary into a cell
 	codeCell, err := cell.FromBOC(codeBocBinary)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to parse BOC binary: %v", err)
+		return nil, fmt.Errorf("failed to parse BOC binary: %v", err)
 	}
 	return codeCell, nil
 }
@@ -179,13 +181,13 @@ func (c tolkCompiledContract) codeCell() (*cell.Cell, error) {
 	// Decode the Hex string to get the actual BOC binary
 	codeBocBytes, err := hex.DecodeString(codeBocHex)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to decode hex: %v", err)
+		return nil, fmt.Errorf("failed to decode hex: %v", err)
 	}
 
 	// Parse the BOC binary into a cell
 	codeCell, err := cell.FromBOC(codeBocBytes)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to parse BOC binary: %v", err)
+		return nil, fmt.Errorf("failed to parse BOC binary: %v", err)
 	}
 	return codeCell, nil
 }
@@ -234,11 +236,11 @@ func Deploy(client *trace_tracking.SignedAPIClient, codeCell *cell.Cell, initDat
 func ParseCompiledContract(path string) (*cell.Cell, error) {
 	// Check if contract file exists
 	if _, err := os.Stat(path); os.IsNotExist(err) {
-		return nil, fmt.Errorf("Contract file not found: %s", path)
+		return nil, fmt.Errorf("contract file not found: %s", path)
 	}
 	jsonData, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to read compiled contract: %v", err)
+		return nil, fmt.Errorf("failed to read compiled contract: %v", err)
 	}
 
 	if strings.HasSuffix(path, ".pkg") {
@@ -246,7 +248,7 @@ func ParseCompiledContract(path string) (*cell.Cell, error) {
 		compiledContract := &tactCompiledContract{}
 		err = json.Unmarshal(jsonData, &compiledContract)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to parse JSON: %v", err)
+			return nil, fmt.Errorf("failed to parse JSON: %v", err)
 		}
 		return compiledContract.codeCell()
 	} else if strings.HasSuffix(path, ".compiled.json") {
@@ -254,10 +256,10 @@ func ParseCompiledContract(path string) (*cell.Cell, error) {
 		compiledContract := &tolkCompiledContract{}
 		err = json.Unmarshal(jsonData, &compiledContract)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to parse JSON: %v", err)
+			return nil, fmt.Errorf("failed to parse JSON: %v", err)
 		}
 		return compiledContract.codeCell()
 	} else {
-		return nil, fmt.Errorf("Unsupported contract file format: %s", path)
+		return nil, fmt.Errorf("unsupported contract file format: %s", path)
 	}
 }

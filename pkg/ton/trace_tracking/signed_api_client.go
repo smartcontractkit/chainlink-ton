@@ -68,11 +68,7 @@ func (c *SignedAPIClient) SendAndWaitForTrace(ctx context.Context, dstAddr addre
 		return nil, fmt.Errorf("failed to get masterchain info for funder balance check: %w", err)
 	}
 
-	for {
-		// Check if the block is ready
-		if master.SeqNo > block.SeqNo+1 {
-			break
-		}
+	for master.SeqNo <= block.SeqNo+1 {
 		time.Sleep(time.Millisecond * 500)
 		master, err = c.Client.WaitForBlock(block.SeqNo).CurrentMasterchainInfo(ctx)
 		if err != nil {
