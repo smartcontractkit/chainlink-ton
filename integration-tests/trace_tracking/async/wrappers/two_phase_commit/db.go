@@ -12,7 +12,7 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
-var DB_CONTRACT_PATH = test_utils.GetBuildDir("examples.async-communication.two-phase-commit.DB/tact_DB.pkg")
+var DB_CONTRACT_PATH = test_utils.GetBuildDir("examples.async-communication.two-phase-commit.DB.compiled.json")
 
 type DBProvider struct {
 	apiClient trace_tracking.SignedAPIClient

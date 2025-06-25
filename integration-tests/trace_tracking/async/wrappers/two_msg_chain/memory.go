@@ -11,7 +11,7 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
-var MEMORY_CONTRACT_PATH = test_utils.GetBuildDir("examples.async-communication.two-msg-chain.Memory/tact_Memory.pkg")
+var MEMORY_CONTRACT_PATH = test_utils.GetBuildDir("examples.async-communication.two-msg-chain.Memory.compiled.json")
 
 type MemoryProvider struct {
 	apiClient trace_tracking.SignedAPIClient

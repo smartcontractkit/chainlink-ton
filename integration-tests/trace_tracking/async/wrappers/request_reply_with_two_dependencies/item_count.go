@@ -10,7 +10,7 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
-var ITEM_COUNT_CONTRACT_PATH = test_utils.GetBuildDir("examples.async-communication.request-reply-with-two-dependencies.ItemCount/tact_ItemCount.pkg")
+var ITEM_COUNT_CONTRACT_PATH = test_utils.GetBuildDir("examples.async-communication.request-reply-with-two-dependencies.ItemCount.compiled.json")
 
 type ItemCountProvider struct {
 	apiClient trace_tracking.SignedAPIClient

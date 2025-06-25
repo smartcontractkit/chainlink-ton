@@ -10,7 +10,7 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
-var ITEM_PRICE_CONTRACT_PATH = test_utils.GetBuildDir("examples.async-communication.request-reply-with-two-dependencies.ItemPrice/tact_ItemPrice.pkg")
+var ITEM_PRICE_CONTRACT_PATH = test_utils.GetBuildDir("examples.async-communication.request-reply-with-two-dependencies.ItemPrice.compiled.json")
 
 type ItemPriceProvider struct {
 	apiClient trace_tracking.SignedAPIClient

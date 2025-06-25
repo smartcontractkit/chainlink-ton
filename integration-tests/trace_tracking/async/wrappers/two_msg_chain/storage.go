@@ -12,7 +12,7 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
-var STORAGE_CONTRACT_PATH = test_utils.GetBuildDir("examples.async-communication.two-msg-chain.Storage/tact_Storage.pkg")
+var STORAGE_CONTRACT_PATH = test_utils.GetBuildDir("examples.async-communication.two-msg-chain.Storage.compiled.json")
 
 type StorageProvider struct {
 	apiClient trace_tracking.SignedAPIClient

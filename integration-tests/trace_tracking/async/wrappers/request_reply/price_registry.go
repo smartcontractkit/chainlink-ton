@@ -12,7 +12,7 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
-var PRICE_REGISTRY_CONTRACT_PATH = test_utils.GetBuildDir("examples.async-communication.request-reply.PriceRegistry/tact_PriceRegistry.pkg")
+var PRICE_REGISTRY_CONTRACT_PATH = test_utils.GetBuildDir("examples.async-communication.request-reply.PriceRegistry.compiled.json")
 
 type PriceRegistryProvider struct {
 	apiClient trace_tracking.SignedAPIClient
