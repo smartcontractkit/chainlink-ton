@@ -104,6 +104,7 @@ func (lp *Service) run(ctx context.Context) (err error) {
 	// if we already processed this seqno, skip
 	if master.SeqNo == lastProcessedSeq {
 		lp.lggr.Debugw("skipping already processed masterchain seq", "seq", master.SeqNo)
+		return nil
 	}
 
 	// load the addresses from filters that we're interested in
@@ -196,6 +197,7 @@ func (lp *Service) UnregisterFilter(ctx context.Context, name string) {
 	lp.filters.UnregisterFilter(ctx, name)
 }
 
+// TODO: temp log query function, we'll need to define what's the proper query we need from CAL
 func (lp *Service) GetLogs() []types.Log {
 	return lp.store.GetLogs()
 }

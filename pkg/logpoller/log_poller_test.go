@@ -2,6 +2,8 @@ package logpoller_test
 
 import (
 	"context"
+	"fmt"
+	"strconv"
 	"testing"
 	"time"
 
@@ -13,7 +15,10 @@ import (
 	"github.com/xssnick/tonutils-go/ton/wallet"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
+	"github.com/smartcontractkit/freeport"
+
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+	"github.com/smartcontractkit/chainlink-testing-framework/framework/components/blockchain"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/testutils"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
@@ -28,9 +33,28 @@ type CounterIncrementEvent struct {
 // TODO: move this to integration tests
 func Test_LogPoller(t *testing.T) {
 	ctx := context.Background()
-	// TODO: access TON chain via CTFv2
+
+	useExistingTON := true
+	var networkCfg string
+
+	if !useExistingTON {
+		bcInput := &blockchain.Input{
+			Type:  "ton",
+			Image: "ghcr.io/neodix42/mylocalton-docker:latest",
+			Port:  strconv.Itoa(freeport.GetOne(t)),
+		}
+
+		bcOut, err := blockchain.NewBlockchainNetwork(bcInput)
+		require.NoError(t, err, "failed to create blockchain network")
+		networkCfg = fmt.Sprintf("http://%s/localhost.global.config.json", bcOut.Nodes[0].ExternalHTTPUrl)
+	} else {
+		networkCfg = "http://127.0.0.1:8000/localhost.global.config.json"
+	}
+
 	pool := liteclient.NewConnectionPool()
-	cfg, err := liteclient.GetConfigFromUrl(ctx, "http://127.0.0.1:8000/localhost.global.config.json")
+
+	cfg, err := liteclient.GetConfigFromUrl(ctx, networkCfg)
+
 	require.NoError(t, err)
 	require.NoError(t, pool.AddConnectionsFromConfig(ctx, cfg))
 
@@ -41,16 +65,23 @@ func Test_LogPoller(t *testing.T) {
 		[]*address.Address{w.WalletAddress()},
 		[]tlb.Coins{tlb.MustFromTON("1000")},
 	)
+	// TODO: replace with airdrop util
 	require.Eventually(t, func() bool {
 		m, err := client.CurrentMasterchainInfo(ctx)
-		require.NoError(t, err)
+		if err != nil {
+			return false
+		}
 		bal, err := w.GetBalance(ctx, m)
-		require.NoError(t, err)
+		if err != nil {
+			return false
+		}
 		return !bal.IsZero()
 	}, 60*time.Second, 500*time.Millisecond)
 
 	addr, err := testutils.DeployCounterContract(ctx, client, w)
 	require.NoError(t, err)
+
+	// TODO: better way to wait for contract deployment
 	time.Sleep(15 * time.Second)
 
 	lp := logpoller.NewLogPoller(
@@ -83,7 +114,7 @@ func Test_LogPoller(t *testing.T) {
 
 	// TODO: add log query
 	logs := lp.GetLogs()
-	
+
 	require.Len(t, logs, 1)
 	require.Equal(t, addr.String(), logs[0].Address.String())
 	require.Equal(t, uint64(1002), logs[0].EventTopic, "unexpected event topic")
