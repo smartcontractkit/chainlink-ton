@@ -31,9 +31,18 @@ type MemoryInitData struct {
 func (p *MemoryProvider) Deploy(initData MemoryInitData) (Memory, error) {
 	// Deploy the contract
 	b := cell.BeginCell()
-	b.StoreUInt(0, 1) // For some reason, if the contract is defined with an init function, you must write a 0 bit before the arguments
-	b.StoreUInt(uint64(initData.ID), 32)
-	b.StoreUInt(uint64(0), 32)
+	err := b.StoreUInt(0, 1) // For some reason, if the contract is defined with an init function, you must write a 0 bit before the arguments
+	if err != nil {
+		return Memory{}, fmt.Errorf("failed to store init bit: %w", err)
+	}
+	err = b.StoreUInt(uint64(initData.ID), 32)
+	if err != nil {
+		return Memory{}, fmt.Errorf("failed to store ID: %w", err)
+	}
+	err = b.StoreUInt(uint64(0), 32)
+	if err != nil {
+		return Memory{}, fmt.Errorf("failed to store initial value: %w", err)
+	}
 	compiledContract, err := wrappers.ParseCompiledContract(MEMORY_CONTRACT_PATH)
 	if err != nil {
 		return Memory{}, fmt.Errorf("Failed to compile contract: %v", err)
@@ -61,8 +70,14 @@ func (m setValueMessage) OpCode() uint64 {
 	return 0x1
 }
 func (m setValueMessage) StoreArgs(b *cell.Builder) error {
-	b.StoreUInt(m.queryId, 64)
-	b.StoreUInt(uint64(m.Value), 32)
+	err := b.StoreUInt(m.queryId, 64)
+	if err != nil {
+		return fmt.Errorf("failed to store queryId: %w", err)
+	}
+	err = b.StoreUInt(uint64(m.Value), 32)
+	if err != nil {
+		return fmt.Errorf("failed to store Value: %w", err)
+	}
 	return nil
 }
 

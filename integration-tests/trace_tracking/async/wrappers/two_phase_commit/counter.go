@@ -33,10 +33,22 @@ type CounterInitData struct {
 func (p *CounterProvider) Deploy(initData CounterInitData) (Counter, error) {
 	// Deploy the contract
 	c := cell.BeginCell()
-	c.StoreUInt(0, 1) // For some reason, if the contract is defined with an init function, you must write a 0 bit before the arguments
-	c.StoreUInt(uint64(initData.ID), 32)
-	c.StoreUInt(uint64(initData.Value), 32)
-	c.StoreBoolBit(initData.AutoAck)
+	err := c.StoreUInt(0, 1) // For some reason, if the contract is defined with an init function, you must write a 0 bit before the arguments
+	if err != nil {
+		return Counter{}, fmt.Errorf("failed to store init bit: %w", err)
+	}
+	err = c.StoreUInt(uint64(initData.ID), 32)
+	if err != nil {
+		return Counter{}, fmt.Errorf("failed to store ID: %w", err)
+	}
+	err = c.StoreUInt(uint64(initData.Value), 32)
+	if err != nil {
+		return Counter{}, fmt.Errorf("failed to store Value: %w", err)
+	}
+	err = c.StoreBoolBit(initData.AutoAck)
+	if err != nil {
+		return Counter{}, fmt.Errorf("failed to store AutoAck: %w", err)
+	}
 	compiledContract, err := wrappers.ParseCompiledContract(COUNTER_CONTRACT_PATH)
 	if err != nil {
 		return Counter{}, fmt.Errorf("Failed to compile contract: %v", err)
@@ -63,7 +75,10 @@ func (m sendAckMessage) OpCode() uint64 {
 	return 0x3
 }
 func (m sendAckMessage) StoreArgs(b *cell.Builder) error {
-	b.StoreUInt(m.queryId, 64)
+	err := b.StoreUInt(m.queryId, 64)
+	if err != nil {
+		return fmt.Errorf("failed to store queryId: %w", err)
+	}
 	return nil
 }
 

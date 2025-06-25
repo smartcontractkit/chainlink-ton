@@ -31,8 +31,14 @@ type ItemPriceInitData struct {
 func (p *ItemPriceProvider) Deploy(initData ItemPriceInitData) (ItemPrice, error) {
 	// Deploy the contract
 	b := cell.BeginCell()
-	b.StoreUInt(uint64(initData.ID), 32)
-	b.StoreUInt(initData.Price, 64)
+	err := b.StoreUInt(uint64(initData.ID), 32)
+	if err != nil {
+		return ItemPrice{}, fmt.Errorf("failed to store ID: %w", err)
+	}
+	err = b.StoreUInt(initData.Price, 64)
+	if err != nil {
+		return ItemPrice{}, fmt.Errorf("failed to store Price: %w", err)
+	}
 	compiledContract, err := wrappers.ParseCompiledContract(ITEM_PRICE_CONTRACT_PATH)
 	if err != nil {
 		return ItemPrice{}, fmt.Errorf("Failed to compile contract: %v", err)

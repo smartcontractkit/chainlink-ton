@@ -31,8 +31,14 @@ type InventoryInitData struct {
 
 func (p *InventoryProvider) Deploy(initData InventoryInitData) (Inventory, error) {
 	b := cell.BeginCell()
-	b.StoreUInt(0, 1)
-	b.StoreUInt(uint64(initData.ID), 32)
+	err := b.StoreUInt(0, 1)
+	if err != nil {
+		return Inventory{}, fmt.Errorf("failed to store init bit: %w", err)
+	}
+	err = b.StoreUInt(uint64(initData.ID), 32)
+	if err != nil {
+		return Inventory{}, fmt.Errorf("failed to store ID: %w", err)
+	}
 	compiledContract, err := wrappers.ParseCompiledContract(INVENTORY_CONTRACT_PATH)
 	if err != nil {
 		return Inventory{}, fmt.Errorf("Failed to compile contract: %v", err)
@@ -62,10 +68,22 @@ func (m AddItemMessage) OpCode() uint64 {
 	return 0x2
 }
 func (m AddItemMessage) StoreArgs(b *cell.Builder) error {
-	b.StoreUInt(m.queryId, 64)
-	b.StoreUInt(uint64(m.Key), 8)
-	b.StoreAddr(m.PriceAddr)
-	b.StoreAddr(m.CountAddr)
+	err := b.StoreUInt(m.queryId, 64)
+	if err != nil {
+		return fmt.Errorf("failed to store queryId: %w", err)
+	}
+	err = b.StoreUInt(uint64(m.Key), 8)
+	if err != nil {
+		return fmt.Errorf("failed to store Key: %w", err)
+	}
+	err = b.StoreAddr(m.PriceAddr)
+	if err != nil {
+		return fmt.Errorf("failed to store PriceAddr: %w", err)
+	}
+	err = b.StoreAddr(m.CountAddr)
+	if err != nil {
+		return fmt.Errorf("failed to store CountAddr: %w", err)
+	}
 	return nil
 }
 

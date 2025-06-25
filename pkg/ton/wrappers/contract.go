@@ -33,8 +33,14 @@ type Message interface {
 // Use CallWaitRecursively to wait for all the trace to be received.
 func (c *Contract) CallWait(message Message, amount tlb.Coins) (*trace_tracking.ReceivedMessage, error) {
 	b := cell.BeginCell()
-	b.StoreUInt(message.OpCode(), 32)
-	message.StoreArgs(b)
+	err := b.StoreUInt(message.OpCode(), 32)
+	if err != nil {
+		return nil, fmt.Errorf("failed to store opcode: %w", err)
+	}
+	err = message.StoreArgs(b)
+	if err != nil {
+		return nil, fmt.Errorf("failed to store message args: %w", err)
+	}
 	body := b.EndCell()
 	return c.SendMessageWait(body, amount)
 }

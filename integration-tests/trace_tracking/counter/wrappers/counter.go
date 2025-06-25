@@ -32,8 +32,14 @@ type CounterInitData struct {
 func (p *CounterProvider) Deploy(initData CounterInitData) (Counter, error) {
 	// Deploy the contract
 	b := cell.BeginCell()
-	b.StoreUInt(uint64(initData.ID), 32)
-	b.StoreUInt(uint64(initData.Value), 32)
+	err := b.StoreUInt(uint64(initData.ID), 32)
+	if err != nil {
+		return Counter{}, fmt.Errorf("failed to store ID: %w", err)
+	}
+	err = b.StoreUInt(uint64(initData.Value), 32)
+	if err != nil {
+		return Counter{}, fmt.Errorf("failed to store Value: %w", err)
+	}
 	compiledContract, err := wrappers.ParseCompiledContract(COUNTER_CONTRACT_PATH)
 	if err != nil {
 		return Counter{}, fmt.Errorf("Failed to compile contract: %v", err)
@@ -61,8 +67,14 @@ func (m setCountMessage) OpCode() uint64 {
 	return 0x4
 }
 func (m setCountMessage) StoreArgs(b *cell.Builder) error {
-	b.StoreUInt(m.queryId, 64)
-	b.StoreUInt(uint64(m.value), 32)
+	err := b.StoreUInt(m.queryId, 64)
+	if err != nil {
+		return fmt.Errorf("failed to store queryId: %w", err)
+	}
+	err = b.StoreUInt(uint64(m.value), 32)
+	if err != nil {
+		return fmt.Errorf("failed to store value: %w", err)
+	}
 	return nil
 }
 

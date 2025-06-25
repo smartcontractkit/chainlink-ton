@@ -31,8 +31,14 @@ type ItemCountInitData struct {
 func (p *ItemCountProvider) Deploy(initData ItemCountInitData) (ItemCount, error) {
 	// Deploy the contract
 	b := cell.BeginCell()
-	b.StoreUInt(uint64(initData.ID), 32)
-	b.StoreUInt(initData.Count, 64)
+	err := b.StoreUInt(uint64(initData.ID), 32)
+	if err != nil {
+		return ItemCount{}, fmt.Errorf("failed to store ID: %w", err)
+	}
+	err = b.StoreUInt(initData.Count, 64)
+	if err != nil {
+		return ItemCount{}, fmt.Errorf("failed to store Count: %w", err)
+	}
 	compiledContract, err := wrappers.ParseCompiledContract(ITEM_COUNT_CONTRACT_PATH)
 	if err != nil {
 		return ItemCount{}, fmt.Errorf("Failed to compile contract: %v", err)
