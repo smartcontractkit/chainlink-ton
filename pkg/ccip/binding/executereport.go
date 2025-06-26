@@ -23,7 +23,7 @@ type Any2TONRampMessage struct {
 	Data         *cell.Cell        `tlb:"^"`
 	Receiver     *address.Address  `tlb:"addr"`
 	GasLimit     []byte            `tlb:"bits 256"`
-	TokenAmounts *cell.Cell        `tlb:"^"`
+	TokenAmounts *cell.Dictionary  `tlb:"dict 32"`
 }
 
 type RampMessageHeader struct {
@@ -46,8 +46,52 @@ type Signature struct {
 	Sig []byte `tlb:"bits 512"`
 }
 
-// TODO: duplicate from commitreport.go, will remove once it merged
-// PackArray packs an array of T into a linked cell chain, each cell up to 1023 bits. Note that only one ref is stored in each cell, and one T
+// SliceToDict Helper functions to convert slices to dictionaries for serialization.
+// converts a slice of any serializable type T to a *cell.Dictionary.
+// The dictionary keys are 32-bit unsigned integers representing the slice index.
+func SliceToDict[T any](slice []T) (*cell.Dictionary, error) {
+	dict := cell.NewDict(32) // 32-bit keys
+	for i, item := range slice {
+		keyCell := cell.BeginCell()
+		if err := keyCell.StoreUInt(uint64(i), 32); err != nil {
+			return nil, fmt.Errorf("failed to store key %d: %w", i, err)
+		}
+		valueCell, err := tlb.ToCell(item)
+		if err != nil {
+			// Consider using %T to get the type name in the error message
+			return nil, fmt.Errorf("failed to serialize item of type %T at index %d: %w", item, i, err)
+		}
+		if err := dict.Set(keyCell.EndCell(), valueCell); err != nil {
+			return nil, fmt.Errorf("failed to set dict entry %d: %w", i, err)
+		}
+	}
+	return dict, nil
+}
+
+// DictToSlice converts a *cell.Dictionary to a slice of any deserializable type T.
+func DictToSlice[T any](dict *cell.Dictionary) ([]T, error) {
+	var result []T
+
+	if dict == nil {
+		return nil, nil
+	}
+
+	entries, err := dict.LoadAll()
+	if err != nil {
+		return nil, err
+	}
+
+	for i, entry := range entries {
+		var item T
+		if err := tlb.LoadFromCell(&item, entry.Value); err != nil {
+			return nil, fmt.Errorf("failed to deserialize item of type %T at index %d: %w", item, i, err)
+		}
+		result = append(result, item)
+	}
+
+	return result, nil
+}
+
 func PackArray[T any](array []T) (*cell.Cell, error) {
 	builder := cell.BeginCell()
 	cells := []*cell.Builder{builder}
@@ -79,7 +123,6 @@ func PackArray[T any](array []T) (*cell.Cell, error) {
 	return next, nil
 }
 
-// TODO: duplicate from commitreport.go, will remove once it merged
 func UnpackArray[T any](root *cell.Cell) ([]T, error) {
 	var result []T
 	curr := root

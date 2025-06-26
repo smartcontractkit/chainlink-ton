@@ -10,19 +10,57 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
+func TestTokenAmounts(t *testing.T) {
+	addr, err := address.ParseAddr("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")
+	require.NoError(t, err)
+	dummyCell1, err := NewDummyCell()
+	require.NoError(t, err)
+	dummyCell2, err := NewDummyCell()
+	require.NoError(t, err)
+
+	tokenAmountsCell, err := SliceToDict([]Any2TONTokenTransfer{
+		{
+			SourcePoolAddress: dummyCell1,
+			DestPoolAddress:   addr,
+			DestGasAmount:     1000,
+			ExtraData:         dummyCell2,
+			Amount:            big.NewInt(10),
+		},
+	})
+	require.NoError(t, err)
+
+	array, err := DictToSlice[Any2TONTokenTransfer](tokenAmountsCell)
+	require.NoError(t, err)
+	require.Len(t, array, 1)
+}
+
 func TestExecute_EncodingAndDecoding(t *testing.T) {
 	addr, err := address.ParseAddr("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")
 	require.NoError(t, err)
 	dummyCell, err := NewDummyCell()
 	require.NoError(t, err)
 
-	tokenAmountsCell, err := PackArray([]Any2TONTokenTransfer{
+	tokenAmountsDict, err := SliceToDict([]Any2TONTokenTransfer{
 		{
 			SourcePoolAddress: dummyCell,
 			DestPoolAddress:   addr,
 			DestGasAmount:     1000,
 			ExtraData:         dummyCell,
 			Amount:            big.NewInt(10),
+		},
+		{
+			SourcePoolAddress: dummyCell,
+			DestPoolAddress:   addr,
+			DestGasAmount:     2000,
+			ExtraData:         dummyCell,
+			Amount:            big.NewInt(20),
+		},
+		{
+			SourcePoolAddress: dummyCell,
+			DestPoolAddress:   addr,
+			DestGasAmount:     3000,
+			ExtraData:         dummyCell,
+			Amount:            big.NewInt(30),
 		},
 	})
 	require.NoError(t, err)
@@ -38,7 +76,7 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 		Data:         dummyCell,
 		Receiver:     addr,
 		GasLimit:     make([]byte, 32),
-		TokenAmounts: tokenAmountsCell,
+		TokenAmounts: tokenAmountsDict,
 	}
 	require.NoError(t, err)
 
@@ -70,6 +108,9 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 	err = tlb.LoadFromCell(&decoded, newCell.BeginParse())
 	require.NoError(t, err)
 	require.Equal(t, c.Hash(), newCell.Hash())
+	token, err := DictToSlice[Any2TONTokenTransfer](decoded.Message.TokenAmounts)
+	require.NoError(t, err)
+	require.Equal(t, 3, len(token))
 }
 
 func TestPackAndUnpack2DByteArrayToCell(t *testing.T) {
