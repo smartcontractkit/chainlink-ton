@@ -101,4 +101,40 @@ export class OnRamp implements Contract {
       body: beginCell().endCell(),
     })
   }
+
+  async sendUpdateDestChainConfig(provider: ContractProvider, via: Sender, opts: {
+    owner: Address,
+    isEnabled: boolean,
+    maxNumberOfTokensPerMsg: number,
+    maxDataBytes: number,
+    maxPerMsgGasLimit: number,
+    destGasOverhead: number,
+    destGasPerPayloadByteBase: number,
+    destGasPerPayloadByteHigh: number,
+    destGasPerPayloadByteThreshold: number,
+    destDataAvailabilityOverheadGas: number,
+    destGasPerDataAvailabilityByte: number,
+    destDataAvailabilityMultiplierBps: number,
+
+    chainFamilySelector: number, // 4 bytes
+    enforceOutOfOrder: boolean,
+
+    defaultTokenFeeUsdCents: number,
+    defaultTokenDestGasOverhead: number,
+    defaultTxGasLimit: number,
+
+    // Multiplier for gas costs, 1e18 based so 11e17 = 10% extra cost.
+    gasMultiplierWeiPerEth: bigint,
+    gasPriceStalenessThreshold: number,
+    networkFeeUsdCents: number,
+    value: bigint
+    }) {
+    await provider.internal(via, {
+      value: opts.value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: beginCell()
+        .storeAddress(opts.owner)
+        .endCell(),
+    })
+  }
 }

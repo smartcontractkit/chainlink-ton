@@ -45,6 +45,14 @@ struct (0x00000002) OnRampSend {
     // TODO: metadata { caller, value, tokenAmounts }
 }
 
+struct SetDynamicConfig {}
+
+struct UpdateDestChainConfigs {}
+
+struct UpdateAllowlist {}
+
+struct WithdrawFeeTokens {}
+
 // FeeQuoter
 
 struct TimestampedPrice {
@@ -67,7 +75,28 @@ struct GasPriceUpdate {
     usdPerUnitGas: uint224;
 }
 
-struct (0x10000001) GetValidatedFee {
+struct (0x10000001) UpdatePrices {
+    updates: PriceUpdates    
+}
+
+struct (0x10000002) UpdateFeeTokens {
+    // add
+    // remove
+}
+struct (0x10000003) UpdatePremiumMultiplierWeiPerEth {
+    // token, multiplier
+}
+
+struct (0x10000004) UpdateTokenTransferFeeConfigs {
+    // add
+    // remove
+}
+
+struct (0x10000005) UpdateDestChainConfig {
+    destChainSelector: uint64;
+}
+
+struct (0x10000006) GetValidatedFee {
     msg: CCIPSend
 }
 
