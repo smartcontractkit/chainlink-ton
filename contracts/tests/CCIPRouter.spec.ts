@@ -5,6 +5,7 @@ import { Router, RouterStorage } from '../wrappers/ccip/Router'
 import { OnRamp, OnRampStorage } from '../wrappers/ccip/OnRamp'
 
 import '@ton/test-utils'
+import { createTimestampedPriceValue, FeeQuoter, FeeQuoterStorage } from '../wrappers/ccip/FeeQuoter'
 
 const ZERO_ADDRESS: Address = Address.parse("0:0000000000000000000000000000000000000000000000000000000000000000");
 const CHAINSEL_EVM_TEST_90000001 =  909606746561742123n;
@@ -107,6 +108,7 @@ describe('Router', () => {
   let blockchain: Blockchain
   let deployer: SandboxContract<TreasuryContract>
   let router: SandboxContract<Router>
+  let feeQuoter: SandboxContract<FeeQuoter>
   let onRamp: SandboxContract<OnRamp>
 
   beforeEach(async () => {
@@ -122,6 +124,33 @@ describe('Router', () => {
     }
     router = blockchain.openContract(Router.createFromConfig(data, code))
 
+    // setup fee quoter
+    {
+      let code = await compile('FeeQuoter')
+      let data: FeeQuoterStorage = {
+          ownable: {
+              owner: deployer.address
+          },
+          maxFeeJuelsPerMsg: 1_000_000n,
+          linkToken: ZERO_ADDRESS,
+          tokenPriceStalenessThreshold: 1_000n,
+          usdPerToken: Dictionary.empty(Dictionary.Keys.Address(), createTimestampedPriceValue()),
+          premiumMultiplierWeiPerEth: Dictionary.empty(Dictionary.Keys.Address(), Dictionary.Values.BigUint(64)),
+      }
+       // add config for EVM destination
+
+      // TODO: use deployable to make deterministic
+      feeQuoter = blockchain.openContract(FeeQuoter.createFromConfig(data, code))
+
+      let result = await feeQuoter.sendDeploy(deployer.getSender(), toNano('1'))
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: feeQuoter.address,
+        deploy: true,
+        success: true,
+      })
+    }
+    // setup onramp
     {
       let code = await compile('OnRamp')
       let data: OnRampStorage = {
@@ -130,12 +159,11 @@ describe('Router', () => {
           },
           chainSelector: CHAINSEL_TON,
           config: {
-              feeQuoter: ZERO_ADDRESS,
+              feeQuoter: feeQuoter.address,
               feeAggregator: deployer.address,
               allowlistAdmin: deployer.address
           },
           destChainConfigs: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Cell())
-          // TODO: insert initial dest chain config
       }
       // add config for EVM destination
       data.destChainConfigs.set(CHAINSEL_EVM_TEST_90000001, beginCell()
@@ -146,8 +174,6 @@ describe('Router', () => {
         .storeDict(Dictionary.empty(Dictionary.Keys.Address(), Dictionary.Values.Bool()))
         .storeUint(Dictionary.Keys.Address().bits, 16) // keyLen
         .endCell());
-
-      console.log(data.destChainConfigs.get(CHAINSEL_EVM_TEST_90000001));
 
       // TODO: use deployable to make deterministic
       onRamp = blockchain.openContract(OnRamp.createFromConfig(data, code))

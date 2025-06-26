@@ -1,12 +1,10 @@
-struct Deployable {
+struct Deployable<T> {
     owner: address;
-    ty: uint16;
-    id: cell;
+    id: T // builder on serialize, RemainingBitsAndRefs on deserialize
 }
 
-struct Initialize {
-    data: cell;
-    code: cell;
+struct (0x1234) Initialize { // TODO: use stateInit definition?
+    stateInit: ContractState;
 }
 
 const ERROR_NOT_OWNER: int = 0x1;

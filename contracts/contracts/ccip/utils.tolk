@@ -108,7 +108,7 @@ fun Map<V>.set(mutate self, key: slice, value: V): void {
 // TODO: mark functions as @pure
 struct UMap<K, V> {
     value: dict;
-    keyLen: uint16;
+    keyLen: uint16; // TODO: get rid of keylen to save storage space, wish we could us a type param
 }
 
 @inline
@@ -121,7 +121,6 @@ fun UMap<K, V>.isEmpty(self): bool {
     return self.value.dictIsEmpty();
 }
 
-// TODO: add getRef, setRef/Builder analogs since values might be too big to fit
 // TODO: add get! variant that asserts value exists
 
 @inline

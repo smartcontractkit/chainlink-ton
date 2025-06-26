@@ -74,7 +74,23 @@ struct TokenTransferFeeConfig {
     destBytesOverhead: uint32;
 }
 
+type Msg = Initialize | GetValidatedFee;
+
 fun onInternalMessage(msgCell: cell, msgBody: slice) {
+    // TODO: does this waste gas?
+    if (msgBody.isEnd()) { // ignore all empty messages
+        return;
+    }
+
+    var cs     = msgCell.beginParse();
+    val flags  = cs.loadMessageFlags();
+    if (isMessageBounced(flags)) { return; } // ignore all bounced messages
+    val sender = cs.loadAddress();
+
+    val msg = Msg.fromSlice(msgBody);
+
+    // TODO: if we receive Initialize {} treat that as an update (make sure to assert caller == owner again)
+    // ignore tokenTransferFeeConfigs part of the value since that's a separate update call? or merge the two
 }
 
 fun Storage.getValidatedGasPrice(self): (uint112, uint112) {
