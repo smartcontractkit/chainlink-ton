@@ -92,6 +92,8 @@ func DictToSlice[T any](dict *cell.Dictionary) ([]T, error) {
 	return result, nil
 }
 
+// PackArray packs a slice of any serializable type T into a linked cell structure.
+// TODO duplicated from commit report codec, remove once merged
 func PackArray[T any](array []T) (*cell.Cell, error) {
 	builder := cell.BeginCell()
 	cells := []*cell.Builder{builder}
@@ -123,6 +125,8 @@ func PackArray[T any](array []T) (*cell.Cell, error) {
 	return next, nil
 }
 
+// UnpackArray unpacks a linked cell structure into a slice of any deserializable type T.
+// // TODO duplicated from commit report codec, remove once merged
 func UnpackArray[T any](root *cell.Cell) ([]T, error) {
 	var result []T
 	curr := root
