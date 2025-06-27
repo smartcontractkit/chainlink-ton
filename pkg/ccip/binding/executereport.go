@@ -10,11 +10,11 @@ import (
 )
 
 type ExecuteReport struct {
-	SourceChainSelector uint64             `tlb:"## 64"`
-	Message             Any2TONRampMessage `tlb:"^"`
-	OffChainTokenData   *cell.Cell         `tlb:"^"`
-	Proofs              *cell.Cell         `tlb:"^"` // []Signature
-	ProofFlagBits       *big.Int           `tlb:"## 256"`
+	SourceChainSelector uint64     `tlb:"## 64"`
+	Messages            *cell.Cell `tlb:"^"`
+	OffChainTokenData   *cell.Cell `tlb:"^"`
+	Proofs              *cell.Cell `tlb:"^"` // []Signature
+	ProofFlagBits       *big.Int   `tlb:"## 256"`
 }
 
 type Any2TONRampMessage struct {

@@ -62,7 +62,6 @@ func TestTokenAmounts(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
-
 	array, err := UnPackArrayWithRefChaining[Any2TONTokenTransfer](tokenAmountsCell)
 	require.NoError(t, err)
 	require.Len(t, array, 6)
@@ -74,7 +73,7 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 	dummyCell, err := NewDummyCell()
 	require.NoError(t, err)
 
-	tokenAmountsDict, err := PackArrayWithRefChaining([]Any2TONTokenTransfer{
+	tokenAmountsCell, err := PackArrayWithRefChaining([]Any2TONTokenTransfer{
 		{
 			SourcePoolAddress: dummyCell,
 			DestPoolAddress:   addr,
@@ -98,20 +97,36 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
-	rampMessageCell := Any2TONRampMessage{
-		Header: RampMessageHeader{
-			MessageID:           make([]byte, 32),
-			SourceChainSelector: 1,
-			DestChainSelector:   2,
-			SequenceNumber:      1,
-			Nonce:               0,
+	rampMessageCell, err := PackArrayWithRefChaining([]Any2TONRampMessage{
+		{
+			Header: RampMessageHeader{
+				MessageID:           make([]byte, 32),
+				SourceChainSelector: 1,
+				DestChainSelector:   2,
+				SequenceNumber:      1,
+				Nonce:               0,
+			},
+			Sender:       dummyCell,
+			Data:         dummyCell,
+			Receiver:     addr,
+			GasLimit:     make([]byte, 32),
+			TokenAmounts: tokenAmountsCell,
 		},
-		Sender:       dummyCell,
-		Data:         dummyCell,
-		Receiver:     addr,
-		GasLimit:     make([]byte, 32),
-		TokenAmounts: tokenAmountsDict,
-	}
+		{
+			Header: RampMessageHeader{
+				MessageID:           make([]byte, 32),
+				SourceChainSelector: 2,
+				DestChainSelector:   3,
+				SequenceNumber:      2,
+				Nonce:               1,
+			},
+			Sender:       dummyCell,
+			Data:         dummyCell,
+			Receiver:     addr,
+			GasLimit:     make([]byte, 32),
+			TokenAmounts: tokenAmountsCell,
+		},
+	})
 	require.NoError(t, err)
 
 	signatureCell, err := PackArrayWithStaticType([]Signature{
@@ -123,7 +138,7 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 
 	report := ExecuteReport{
 		SourceChainSelector: 1,
-		Message:             rampMessageCell,
+		Messages:            rampMessageCell,
 		OffChainTokenData:   dummyCell,
 		Proofs:              signatureCell,
 		ProofFlagBits:       big.NewInt(0),
@@ -142,7 +157,9 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 	err = tlb.LoadFromCell(&decoded, newCell.BeginParse())
 	require.NoError(t, err)
 	require.Equal(t, c.Hash(), newCell.Hash())
-	token, err := UnPackArrayWithRefChaining[Any2TONTokenTransfer](decoded.Message.TokenAmounts)
+	messages, err := UnPackArrayWithRefChaining[Any2TONRampMessage](decoded.Messages)
+	require.NoError(t, err)
+	token, err := UnPackArrayWithRefChaining[Any2TONTokenTransfer](messages[0].TokenAmounts)
 	require.NoError(t, err)
 	require.Equal(t, 3, len(token))
 }
