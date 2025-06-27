@@ -5,6 +5,7 @@ import "utils.tolk";
 
 struct Storage {
     ownable: Ownable2Step;
+    deployer: cell; // Deployable compiled code
     feeQuoter: address;
 
     // TODO: embed ocr3 base state
@@ -124,6 +125,13 @@ fun onInternalMessage(msgCell: cell, msgBody: slice) {
     }
 }
 
+@pure @inline
+fun getMerkleRootID(merkleRoot: uint256): builder {
+    return beginCell() // id:u16 = 2 | destChainSelector:u64
+        .storeUint(2, 16) // TODO: alias constant for MerkleRoot
+        .storeUint(merkleRoot, 256);
+}
+
 fun commit(msg: Commit) {
     val st = Storage.load();
 
@@ -155,25 +163,25 @@ fun commit(msg: Commit) {
 
         // initialize CommitReport subcontract
         val initMsg = createMessage({
-            bounce: true, // TODO:
-            value: ton("0.05"), // TODO:
+            bounce: true, // TODO: could bounce if root already exists
+            value: ton("0.1"), // TODO:
             dest: {
-                // NOTE: we want to initialize to a stub(CommitReport, owner, report_id), then upgrade via .init()
-                // that way the address is deterministic and not dependent on report contents
                 stateInit: {
-                    code: createEmptyCell(), // TODO: deployable, I think we need to embed this as a cell in storage?
+                    code: st.deployer,
                     data: Deployable {
                         owner: contract.getAddress(),
-                        ty: 1, // TODO: alias constants for MerkleRoot etc
-                        id: root.merkleRoot.toCell(), // TODO: expensive
+                        id: getMerkleRootID(root.merkleRoot),
                     }.toCell(),
                 },
-                // toShard
+                // TODO: toShard so it's collocated with offramp
             },
             // TODO:
             // body: Initialize {
-            //     data,
-            //     code,
+            //     stateInit: {
+            //         code: st.destChainConfigCode,
+            //         data: DestChainConfig_Storage {
+            //         }.toCell(),
+            //     }
             // },
         });
         initMsg.send(SEND_MODE_REGULAR);

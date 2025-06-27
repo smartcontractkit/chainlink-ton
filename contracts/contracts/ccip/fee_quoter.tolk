@@ -78,6 +78,7 @@ fun onUpdateDestChainConfig(msg: UpdateDestChainConfig, msgBody: slice, sender: 
                     id: getDestChainConfigID(msg.destChainSelector),
                 }.toCell(),
             }
+            // TODO: toShard so it's collocated with offramp
         },
         body: Initialize {
             stateInit: {
