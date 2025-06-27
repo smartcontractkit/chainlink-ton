@@ -1,3 +1,5 @@
+import "utils.tolk";
+
 struct MerkleRoot {
     sourceChainSelector: uint64;
     onRampAddress: bytes64; // TODO: this needed to be fixed size for iteration

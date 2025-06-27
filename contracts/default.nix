@@ -23,7 +23,7 @@ in {
       yarnOfflineCache = pkgs.fetchYarnDeps {
         inherit yarnLock;
         # pin the vendor hash (update using 'pkgs.lib.fakeHash')
-        hash = "sha256-kmU1H6ejZ6QS3R/JEqksqe/YYjFuHG5eDRlxes25y5o=";
+        hash = "sha256-Bqfzxa4YgogbK4CSCQUhjd+kJqig/d+B4hneekFmAZA=";
       };
 
       # postPatch script to copy root yarn.lock to the current build directory (and make it writeable)
