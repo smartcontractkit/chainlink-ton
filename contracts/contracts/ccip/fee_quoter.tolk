@@ -51,10 +51,18 @@ fun onInternalMessage(msgCell: cell, msgBody: slice) {
     match (msg) {
         UpdatePrices => { onUpdatePrices(msg.updates) }
         UpdateDestChainConfig => { onUpdateDestChainConfig(msg, msgBody, sender) }
-        GetValidatedFee => { onGetValidatedFee(msg.msg) }
+        GetValidatedFee => { onGetValidatedFee(msg) }
     }
 }
 
+@pure @inline
+fun getDestChainConfigID(destChainSelector: uint64): builder {
+    return beginCell() // id:u16 = 1 | destChainSelector:u64
+        .storeUint(1, 16) // TODO: alias constant for DestChainConfig
+        .storeUint(destChainSelector, 64);
+}
+
+// TODO: allow providing an array of these msg to feeQuoter
 fun onUpdateDestChainConfig(msg: UpdateDestChainConfig, msgBody: slice, sender: address) {
     var st = Storage.load();
     st.ownable.requireOwner(sender);
@@ -67,16 +75,23 @@ fun onUpdateDestChainConfig(msg: UpdateDestChainConfig, msgBody: slice, sender: 
                 code: st.deployer,
                 data: Deployable<builder> {
                     owner: contract.getAddress(),
-                    id: beginCell() // id:u16 = 1 | destChainSelector:u64
-                        .storeUint(1, 16) // TODO: alias constant for DestChainConfig
-                        .storeUint(msg.destChainSelector, 64),
+                    id: getDestChainConfigID(msg.destChainSelector),
                 }.toCell(),
             }
         },
         body: Initialize {
             stateInit: {
                 code: st.destChainConfigCode,
-                data: msgBody.toCell() // cheaper than encoding msg again
+                data: DestChainConfig_Storage {
+                    owner: contract.getAddress(),
+                    config: msg.destChainConfig,
+                    usdPerUnitGas: GasPrice {
+                        executionGasPrice: 0,
+                        dataAvailabilityGasPrice: 0,
+                        timestamp: 0, // TODO: temp set as blockchain.now() to pass validation
+                    }.toCell(),
+                    tokenTransferFeeConfigs: Map<TokenTransferFeeConfig>.new(288) // TODO: 288 or 276?
+                }.toCell()
             }
         }
     });
@@ -114,7 +129,8 @@ fun onUpdatePrices(priceUpdates: PriceUpdates) {
     st.store();
 }
 
-fun onGetValidatedFee(msg: CCIPSend) {
+fun onGetValidatedFee(payload: GetValidatedFee) {
+    val msg = payload.msg;
     // TODO: validate origin
     var st = Storage.load();
 
@@ -127,14 +143,11 @@ fun onGetValidatedFee(msg: CCIPSend) {
                 code: st.deployer,
                 data: Deployable<builder> {
                     owner: contract.getAddress(),
-                    id: beginCell() // id:u16 = 1 | destChainSelector:u64
-                        .storeUint(1, 16) // TODO: alias constant for DestChainConfig
-                        .storeUint(msg.destChainSelector, 64),
+                    id: getDestChainConfigID(msg.destChainSelector),
                 }.toCell(),
             }
-        }
-        // TODO:
-        // body: GetValidatedFee {}
+        },
+        body: GetValidatedFee { msg }
     });
     getValidatedFeeMsg.send(SEND_MODE_REGULAR);
     // NOTE: this can get bounced if dest chain doesn't exist, in which case we should send

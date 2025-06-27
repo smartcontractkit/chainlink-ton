@@ -87,12 +87,8 @@ fun onSend(payload: OnRampSend, sender: address) {
 
     val msg = payload.msg.load();
 
-    // TEMP: publish so we unblock e2e
-    onPublish(msg);
-    return;
-
     // validate allowlist
-    val (maybeDestChainConfig, exists) = st.destChainConfigs.get(msg.destChainSelector);
+    val (maybeDestChainConfig, exists) = st.destChainConfigs.getRef(msg.destChainSelector);
     assert(exists, ERROR_UNKNOWN_DEST_CHAIN_SELECTOR);
     val destChainConfig = maybeDestChainConfig!;
     if (destChainConfig.allowlistEnabled) {
@@ -115,7 +111,8 @@ fun onSend(payload: OnRampSend, sender: address) {
     });
     getValidatedFeeMsg.send(SEND_MODE_REGULAR);
 
-
+    // TEMP: publish so we unblock e2e
+    onPublish(msg);
 }
 
 // TODO: do we follow solana model and merge router + onramp? aptos also does this

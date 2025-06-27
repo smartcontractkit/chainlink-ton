@@ -1,8 +1,10 @@
 import "types.tolk";
+import "../deployable/types.tolk";
 import "../lib/upgrades/type_and_version.tolk";
 import "utils.tolk";
+import "../lib/utils.tolk";
 
-const VAL_1E5: uint256 = 100000;
+const VAL_1E5:  uint256 = 100000;
 const VAL_1E14: uint256 = 100000000000000;
 const VAL_1E16: uint256 = 10000000000000000;
 const VAL_1E18: uint256 = 1000000000000000000;
@@ -13,65 +15,17 @@ const TON_2_EVM_MESSAGE_FIXED_BYTES_PER_TOKEN = 1;
 
 const CCIP_LOCK_OR_BURN_V1_RET_BYTES = 32;
 
-const CHAIN_FAMILY_SELECTOR_EVM: uint32 = 0x2812d52c;
-const CHAIN_FAMILY_SELECTOR_SVM: uint32 = 0x1e10bdc4;
+const CHAIN_FAMILY_SELECTOR_EVM:   uint32 = 0x2812d52c;
+const CHAIN_FAMILY_SELECTOR_SVM:   uint32 = 0x1e10bdc4;
 const CHAIN_FAMILY_SELECTOR_APTOS: uint32 = 0xac77ffec;
-const CHAIN_FAMILY_SELECTOR_SUI: uint32 = 0xc4e05953;
+const CHAIN_FAMILY_SELECTOR_SUI:   uint32 = 0xc4e05953;
 
-struct GasPrice {
-    executionGasPrice: uint112;
-    dataAvailabilityGasPrice: uint112;
-    timestamp: uint64;
+fun DestChainConfig_Storage.load() {
+    return DestChainConfig_Storage.fromCell(contract.getData());
 }
 
-// This represents FeeQuoter's DestChainConfig (not OnRamp)
-struct Storage {
-    owner: address;
-
-    isEnabled: bool;
-    maxNumberOfTokensPerMsg: uint16;
-    maxDataBytes: uint32;
-    maxPerMsgGasLimit: uint32;
-    destGasOverhead: uint32;
-    destGasPerPayloadByteBase: uint8;
-    destGasPerPayloadByteHigh: uint8;
-    destGasPerPayloadByteThreshold: uint16;
-    destDataAvailabilityOverheadGas: uint32;
-    destGasPerDataAvailabilityByte: uint16;
-    destDataAvailabilityMultiplierBps: uint32;
-
-    chainFamilySelector: uint32; // 4 bytes
-    enforceOutOfOrder: bool;
-
-    defaultTokenFeeUsdCents: uint16;
-    defaultTokenDestGasOverhead: uint32;
-    defaultTxGasLimit: uint32;
-
-    // Multiplier for gas costs, 1e18 based so 11e17 = 10% extra cost.
-    gasMultiplierWeiPerEth: uint64;
-    gasPriceStalenessThreshold: uint32;
-    networkFeeUsdCents: uint32;
-
-    usdPerUnitGas: Cell<GasPrice>; // TODO: it'd be nice if this wasn't split off
-
-    tokenTransferFeeConfigs: Map<TokenTransferFeeConfig>; // (sdict) address -> TokenTransferFeeConfig
-}
-
-fun Storage.load() {
-    return Storage.fromCell(contract.getData());
-}
-
-fun Storage.store(self) {
+fun DestChainConfig_Storage.store(self) {
     return contract.setData(self.toCell());
-}
-
-struct TokenTransferFeeConfig {
-    isEnabled: bool;
-    minFeeUsdCents: uint32;
-    maxFeeUsdCents: uint32;
-    deciBps: uint16;
-    destGasOverhead: uint32;
-    destBytesOverhead: uint32;
 }
 
 type Msg = Initialize | GetValidatedFee;
@@ -89,13 +43,18 @@ fun onInternalMessage(msgCell: cell, msgBody: slice) {
 
     val msg = Msg.fromSlice(msgBody);
 
-    // TODO: if we receive Initialize {} treat that as an update (make sure to assert caller == owner again)
-    // ignore tokenTransferFeeConfigs part of the value since that's a separate update call? or merge the two
+    match (msg) {
+        Initialize => {
+            // TODO: if we receive Initialize {} treat that as an update (make sure to assert caller == owner again)
+            // ignore tokenTransferFeeConfigs part of the value since that's a separate update call? or merge the two
+        }
+        GetValidatedFee => { onGetValidatedFee(msg) }
+    }
 }
 
-fun Storage.getValidatedGasPrice(self): (uint112, uint112) {
+fun DestChainConfig_Storage.getValidatedGasPrice(self): (uint112, uint112) {
     val price = self.usdPerUnitGas.load();
-    val threshold = self.gasPriceStalenessThreshold as int64;
+    val threshold = self.config.gasPriceStalenessThreshold as int64;
     val elapsedTime = blockchain.now() - price.timestamp;
 
     assert(threshold == 0 || threshold > elapsedTime, ERROR_STALE_GAS_PRICE);
@@ -103,11 +62,12 @@ fun Storage.getValidatedGasPrice(self): (uint112, uint112) {
     return (price.executionGasPrice, price.dataAvailabilityGasPrice)
 }
 
-fun onGetValidatedFee(msg: CCIPSend) {
-    val cfg = Storage.load();
+fun onGetValidatedFee(payload: GetValidatedFee): (uint256, uint256, uint256) {
+    val msg = payload.msg;
+    val st = DestChainConfig_Storage.load();
     // validate message came from trusted fee quoter (owner)
 
-    assert(cfg.isEnabled, ERROR_DEST_CHAIN_NOT_ENABLED);
+    assert(st.config.isEnabled, ERROR_DEST_CHAIN_NOT_ENABLED);
     // TODO: assert(cfg.feeTokens contains msg.feeToken, ERROR_FEE_TOKEN_NOT_SUPPORTED);
 
     var gasLimit = 0;
@@ -116,19 +76,18 @@ fun onGetValidatedFee(msg: CCIPSend) {
     //     CHAIN_FAMILY_SELECTOR_EVM | CHAIN_FAMILY_SELECTOR_APTOS | CHAIN_FAMILY_SELECTOR_SUI => { } // resolveGenericGasLimit()
     //     CHAIN_FAMILY_SELECTOR_SVM => { } // resolveSVMGasLimit()
     // }
-
     // validateDestFamilyAddress(cfg.chainFamilySelector, receiver, gasLimit);
 
     // TODO: this can throw and bounce the message
-    val (executionGasPrice, dataAvailabilityGasPrice) = cfg.getValidatedGasPrice();
+    val (executionGasPrice, dataAvailabilityGasPrice) = st.getValidatedGasPrice();
 
     // Network fee
 
     var tokensIter = Iterator<TokenAmount>.new(msg.tokenAmounts);
-    var (tokenCount, premiumFeeUsdWei, tokenTransferGas, tokenTransferBytesOverhead) = (0, cfg.networkFeeUsdCents as uint256, 0, 0);
+    var (tokenCount, premiumFeeUsdWei, tokenTransferGas, tokenTransferBytesOverhead) = (0, st.config.networkFeeUsdCents as uint256, 0, 0);
     if (!tokensIter.empty()) {
         val tokenPrices = Map<uint224>.new(36*8); // TODO: pass this through from feeQuoter
-        (tokenCount, premiumFeeUsdWei, tokenTransferGas, tokenTransferBytesOverhead) = getTokenTransferCost(cfg, mutate tokensIter, tokenPrices);
+        (tokenCount, premiumFeeUsdWei, tokenTransferGas, tokenTransferBytesOverhead) = getTokenTransferCost(st, mutate tokensIter, tokenPrices);
     };
 
     // Execution cost
@@ -142,19 +101,19 @@ fun onGetValidatedFee(msg: CCIPSend) {
     assert(traversed, ERROR_INVALID_MSG_DATA);
     assert(dataBitsSize % 8 == 0, ERROR_INVALID_MSG_DATA);
     val calldataLen = dataBitsSize / 8 as uint256 + tokenTransferBytesOverhead;
-    var calldataGas = calldataLen * cfg.destGasPerPayloadByteBase as uint256;
-    val calldataThreshold = cfg.destGasPerPayloadByteThreshold as uint256;
+    var calldataGas = calldataLen * st.config.destGasPerPayloadByteBase as uint256;
+    val calldataThreshold = st.config.destGasPerPayloadByteThreshold as uint256;
     if (calldataLen > calldataThreshold) {
-        val baseCalldataGas = cfg.destGasPerPayloadByteBase as uint256 * calldataThreshold;
+        val baseCalldataGas = st.config.destGasPerPayloadByteBase as uint256 * calldataThreshold;
         val extraBytes = calldataLen - calldataThreshold;
-        val extraCalldataGas = extraBytes * cfg.destGasPerPayloadByteHigh as uint256;
+        val extraCalldataGas = extraBytes * st.config.destGasPerPayloadByteHigh as uint256;
         calldataGas = baseCalldataGas + extraCalldataGas;
     }
-    val executionGas = gasLimit + cfg.destGasOverhead as uint256 + calldataGas + tokenTransferGas;
+    val executionGas = gasLimit + st.config.destGasOverhead as uint256 + calldataGas + tokenTransferGas;
 
     val executionCost = executionGasPrice
         * executionGas
-        * cfg.gasMultiplierWeiPerEth as uint256;
+        * st.config.gasMultiplierWeiPerEth as uint256;
 
     // Data availability cost
 
@@ -169,14 +128,14 @@ fun onGetValidatedFee(msg: CCIPSend) {
     // independently of message cost. Its value is determined by CCIP lane implementation, e.g.
     // the overhead data posted for OCR.
     val dataAvailabilityGas = dataAvailabilityLengthBytes
-        * cfg.destGasPerDataAvailabilityByte as uint256
-        + cfg.destDataAvailabilityOverheadGas as uint256;
+        * st.config.destGasPerDataAvailabilityByte as uint256
+        + st.config.destDataAvailabilityOverheadGas as uint256;
 
     // data_availability_gas_price is in 18 decimals, dest_data_availability_multiplier_bps is in 4 decimals
     // We pad 14 decimals to bring the result to 36 decimals, in line with token bps and execution fee.
     val dataAvailabilityCost = dataAvailabilityGasPrice
         * dataAvailabilityGas
-        * cfg.destDataAvailabilityMultiplierBps as uint256
+        * st.config.destDataAvailabilityMultiplierBps as uint256
         * VAL_1E14;
 
     // val premiumMultiplier = fee_token_config.premium_multiplier_wei_per_eth as uint256;
@@ -192,7 +151,7 @@ fun onGetValidatedFee(msg: CCIPSend) {
     return (premiumFeeUsdWei, executionCost, dataAvailabilityCost)
 }
 
-fun getTokenTransferCost(cfg: Storage, mutate tokens: Iterator<TokenAmount>, tokenPrices: Map<uint224>): (int, uint256, uint32, uint32) {
+fun getTokenTransferCost(st: DestChainConfig_Storage, mutate tokens: Iterator<TokenAmount>, tokenPrices: Map<uint224>): (int, uint256, uint32, uint32) {
     var tokenTransferFeeWei: uint256 = 0;
     var tokenTransferGas: uint32 = 0;
     var tokenTransferBytesOverhead: uint32 = 0;
@@ -203,14 +162,14 @@ fun getTokenTransferCost(cfg: Storage, mutate tokens: Iterator<TokenAmount>, tok
         val tokenAmount = tokens.next();
         count += 1;
 
-        val (maybeCfg, exists) = cfg.tokenTransferFeeConfigs.get(tokenAmount.token as slice);
+        val (maybeCfg, exists) = st.tokenTransferFeeConfigs.get(tokenAmount.token as slice);
         assert(exists, ERROR_UNKNOWN_DEST_CHAIN_SELECTOR);
         val transferFeeConfig = maybeCfg!;
 
         if (!transferFeeConfig.isEnabled) {
             // If the token has no specific overrides configured, we use the global defaults.
-            tokenTransferFeeWei +=((cfg.defaultTokenFeeUsdCents as uint256) * VAL_1E16);
-            tokenTransferGas += cfg.defaultTokenDestGasOverhead;
+            tokenTransferFeeWei +=((st.config.defaultTokenFeeUsdCents as uint256) * VAL_1E16);
+            tokenTransferGas += st.config.defaultTokenDestGasOverhead;
             tokenTransferBytesOverhead += CCIP_LOCK_OR_BURN_V1_RET_BYTES;
         } else {
             // NOTE: for this calc to work we'd need to lookup the token prices in feeQuoter then pass into here

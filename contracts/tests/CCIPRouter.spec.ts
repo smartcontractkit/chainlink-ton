@@ -9,7 +9,7 @@ import { createTimestampedPriceValue, FeeQuoter, FeeQuoterStorage } from '../wra
 
 const ZERO_ADDRESS: Address = Address.parse("0:0000000000000000000000000000000000000000000000000000000000000000");
 const CHAINSEL_EVM_TEST_90000001 =  909606746561742123n;
-const CHAINSEL_TON =  123n; // TODO:
+const CHAINSEL_TON =  13879075125137744094n;
 
 // https://github.com/ton-blockchain/liquid-staking-contract/blob/1f4e9badbed52a4cf80cc58e4bb36ed375c6c8e7/utils.ts#L269-L294
 export const getExternals = (transactions: BlockchainTransaction[]) => {
@@ -17,37 +17,7 @@ export const getExternals = (transactions: BlockchainTransaction[]) => {
     return transactions.reduce((all, curExt) => [...all, ...curExt.externals], externals);
 }
 
-const testPartial = (cmp: any, match: any) => {
-    for (let key in match) {
-        if(!(key in cmp)) {
-            throw Error(`Unknown key ${key} in ${cmp}`);
-        }
-
-        if(match[key] instanceof Address) {
-            if(!(cmp[key] instanceof Address)) {
-                return false
-            }
-            if(!(match[key] as Address).equals(cmp[key])) {
-                return false
-            }
-        }
-        else if(match[key] instanceof Cell) {
-            if(!(cmp[key] instanceof Cell)) {
-                return false;
-            }
-            if(!(match[key] as Cell).equals(cmp[key])) {
-                return false;
-            }
-        }
-        else if(match[key] !== cmp[key]){
-            return false;
-        }
-    }
-    return true;
-}
-
 export const testLog = (message: Message, from: Address, topic: number | bigint, matcher?:(body: Cell) => boolean) => {
-    // Meh
     if(message.info.type !== "external-out") {
         console.log("Wrong from");
         return false;
@@ -72,32 +42,34 @@ type CCIPMessageSentParams = {
     message: Cell, // TODO: parse further so we can assert on it
 }
 export const testLogMessageSent  = (message: Message, from: Address, match: Partial<CCIPMessageSentParams>) => {
-    return testLog(message, from, LogTypes.MessageSent, x => {
+    return testLog(message, from, LogTypes.CCIPMessageSent, x => {
         const bs = x.beginParse();
         const msg : CCIPMessageSentParams = {
             destChainSelector: bs.loadUintBig(64),
             sequenceNumber: bs.loadUintBig(64),
             message: bs.loadRef()
         }
-        // TODO: use a better helper here so we get more info
-        return testPartial(msg, match);
+        // TODO: do we need to do anything special for Address/Cell?
+        expect(msg).toMatchObject(match);
+        return true
     });
 }
 
 type Log = CCIPMessageSentParams |  number;
 
 enum LogTypes {
-  MessageSent = 0x99
+  CCIPMessageSent = 0x99
 }
 
-type LogMatch<T extends LogTypes> = T extends LogTypes.MessageSent ? Partial<CCIPMessageSentParams>
+type LogMatch<T extends LogTypes> = T extends LogTypes.CCIPMessageSent ? Partial<CCIPMessageSentParams>
     : number;
 export const assertLog = <T extends LogTypes>(transactions: BlockchainTransaction[], from: Address, type: T, match:LogMatch<T> ) => {
     expect(getExternals(transactions).some(x => {
         let res = false;
         switch(type) {
-            case LogTypes.MessageSent:
-                res = testLogMessageSent(x, from, match as Partial<CCIPMessageSentParams>);
+            case LogTypes.CCIPMessageSent:
+                testLogMessageSent(x, from, match as Partial<CCIPMessageSentParams>);
+                res = true;
                 break;
         }
         return res;
@@ -115,6 +87,8 @@ describe('Router', () => {
     blockchain = await Blockchain.create()
     deployer = await blockchain.treasury('deployer')
 
+    let deployerCode = await compile('Deployable')
+
     let code = await compile('Router')
     let data: RouterStorage = {
       ownable: {
@@ -127,19 +101,21 @@ describe('Router', () => {
     // setup fee quoter
     {
       let code = await compile('FeeQuoter')
+      let destChainConfigCode = await compile('DestChainConfig')
       let data: FeeQuoterStorage = {
           ownable: {
               owner: deployer.address
           },
-          maxFeeJuelsPerMsg: 1_000_000n,
+          deployerCode,
+          destChainConfigCode,
+          maxFeeJuelsPerMsg: 1000000n,
           linkToken: ZERO_ADDRESS,
-          tokenPriceStalenessThreshold: 1_000n,
+          tokenPriceStalenessThreshold: 1000n,
           usdPerToken: Dictionary.empty(Dictionary.Keys.Address(), createTimestampedPriceValue()),
           premiumMultiplierWeiPerEth: Dictionary.empty(Dictionary.Keys.Address(), Dictionary.Values.BigUint(64)),
       }
        // add config for EVM destination
 
-      // TODO: use deployable to make deterministic
       feeQuoter = blockchain.openContract(FeeQuoter.createFromConfig(data, code))
 
       let result = await feeQuoter.sendDeploy(deployer.getSender(), toNano('1'))
@@ -148,7 +124,42 @@ describe('Router', () => {
         to: feeQuoter.address,
         deploy: true,
         success: true,
+      });
+
+
+      result = await feeQuoter.sendUpdateDestChainConfig(deployer.getSender(), {
+        value: toNano('1'),
+        destChainSelector: CHAINSEL_EVM_TEST_90000001,
+        config: {
+						// minimal valid config
+            isEnabled: true,
+            maxNumberOfTokensPerMsg: 0, // TODO:
+            maxDataBytes: 100,
+            maxPerMsgGasLimit: 100,
+            destGasOverhead: 0,
+            destGasPerPayloadByteBase: 0,
+            destGasPerPayloadByteHigh: 0,
+            destGasPerPayloadByteThreshold: 0,
+            destDataAvailabilityOverheadGas: 0,
+            destGasPerDataAvailabilityByte: 0,
+            destDataAvailabilityMultiplierBps: 0,
+            chainFamilySelector: 0,
+            enforceOutOfOrder: true,
+            defaultTokenFeeUsdCents: 0,
+            defaultTokenDestGasOverhead: 0,
+            defaultTxGasLimit: 1,
+            gasMultiplierWeiPerEth: 0n,
+            gasPriceStalenessThreshold: 0,
+            networkFeeUsdCents: 0
+        }
       })
+      // a destChainConfig subcontract must have been created
+      expect(result.transactions).toHaveTransaction({
+        from: feeQuoter.address,
+        deploy: true,
+        success: true,
+      })
+      // TODO: call UpdateTokenTransferFeeConfigs, or maybe bundle this with UpdateDestChainConfig
     }
     // setup onramp
     {
@@ -175,7 +186,7 @@ describe('Router', () => {
         .storeUint(Dictionary.Keys.Address().bits, 16) // keyLen
         .endCell());
 
-      // TODO: use deployable to make deterministic
+      // TODO: use deployable to make deterministic?
       onRamp = blockchain.openContract(OnRamp.createFromConfig(data, code))
 
       let result = await onRamp.sendDeploy(deployer.getSender(), toNano('1'))
@@ -229,13 +240,25 @@ describe('Router', () => {
       deploy: false,
       success: true,
     })
-
-    // TODO: assert message went to feeQuoter
+    // assert message went to feeQuoter
+    expect(result.transactions).toHaveTransaction({
+      from: onRamp.address,
+      to: feeQuoter.address,
+      deploy: false,
+      success: true,
+    })
+    // fee quoter called the destChainConfig
+    expect(result.transactions).toHaveTransaction({
+      from: feeQuoter.address,
+      // to: feeQuoter.address,
+      deploy: false,
+      success: true,
+    })
 
     console.log(getExternals(result.transactions))
 
     // assert CCIPMessageSent
-    assertLog(result.transactions, onRamp.address, LogTypes.MessageSent, { destChainSelector: CHAINSEL_EVM_TEST_90000001 })
+    assertLog(result.transactions, onRamp.address, LogTypes.CCIPMessageSent, { destChainSelector: CHAINSEL_EVM_TEST_90000001 })
 
   })
   //   expect(await calculator.getGetRoot()).toBe(expectedRoot)
