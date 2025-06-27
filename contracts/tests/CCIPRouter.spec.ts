@@ -5,75 +5,94 @@ import { Router, RouterStorage } from '../wrappers/ccip/Router'
 import { OnRamp, OnRampStorage } from '../wrappers/ccip/OnRamp'
 
 import '@ton/test-utils'
-import { createTimestampedPriceValue, FeeQuoter, FeeQuoterStorage } from '../wrappers/ccip/FeeQuoter'
+import {
+  createTimestampedPriceValue,
+  FeeQuoter,
+  FeeQuoterStorage,
+} from '../wrappers/ccip/FeeQuoter'
 
-const ZERO_ADDRESS: Address = Address.parse("0:0000000000000000000000000000000000000000000000000000000000000000");
-const CHAINSEL_EVM_TEST_90000001 =  909606746561742123n;
-const CHAINSEL_TON =  13879075125137744094n;
+const ZERO_ADDRESS: Address = Address.parse(
+  '0:0000000000000000000000000000000000000000000000000000000000000000',
+)
+const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
+const CHAINSEL_TON = 13879075125137744094n
 
 // https://github.com/ton-blockchain/liquid-staking-contract/blob/1f4e9badbed52a4cf80cc58e4bb36ed375c6c8e7/utils.ts#L269-L294
 export const getExternals = (transactions: BlockchainTransaction[]) => {
-    const externals:Message[] = [];
-    return transactions.reduce((all, curExt) => [...all, ...curExt.externals], externals);
+  const externals: Message[] = []
+  return transactions.reduce((all, curExt) => [...all, ...curExt.externals], externals)
 }
 
-export const testLog = (message: Message, from: Address, topic: number | bigint, matcher?:(body: Cell) => boolean) => {
-    if(message.info.type !== "external-out") {
-        console.log("Wrong from");
-        return false;
-    }
-    if(!message.info.src.equals(from))
-        return false;
-    if(!message.info.dest)
-        return false;
-    if(message.info.dest!.value !== BigInt(topic))
-        return false;
-    if(matcher !== undefined) {
-        if(!message.body)
-            console.log("No body");
-        return matcher(message.body);
-    }
-    return true;
-};
+export const testLog = (
+  message: Message,
+  from: Address,
+  topic: number | bigint,
+  matcher?: (body: Cell) => boolean,
+) => {
+  if (message.info.type !== 'external-out') {
+    console.log('Wrong from')
+    return false
+  }
+  if (!message.info.src.equals(from)) return false
+  if (!message.info.dest) return false
+  if (message.info.dest!.value !== BigInt(topic)) return false
+  if (matcher !== undefined) {
+    if (!message.body) console.log('No body')
+    return matcher(message.body)
+  }
+  return true
+}
 
 type CCIPMessageSentParams = {
-    destChainSelector: bigint,
-    sequenceNumber: bigint;
-    message: Cell, // TODO: parse further so we can assert on it
+  destChainSelector: bigint
+  sequenceNumber: bigint
+  message: Cell // TODO: parse further so we can assert on it
 }
-export const testLogMessageSent  = (message: Message, from: Address, match: Partial<CCIPMessageSentParams>) => {
-    return testLog(message, from, LogTypes.CCIPMessageSent, x => {
-        const bs = x.beginParse();
-        const msg : CCIPMessageSentParams = {
-            destChainSelector: bs.loadUintBig(64),
-            sequenceNumber: bs.loadUintBig(64),
-            message: bs.loadRef()
-        }
-        // TODO: do we need to do anything special for Address/Cell?
-        expect(msg).toMatchObject(match);
-        return true
-    });
+export const testLogMessageSent = (
+  message: Message,
+  from: Address,
+  match: Partial<CCIPMessageSentParams>,
+) => {
+  return testLog(message, from, LogTypes.CCIPMessageSent, (x) => {
+    const bs = x.beginParse()
+    const msg: CCIPMessageSentParams = {
+      destChainSelector: bs.loadUintBig(64),
+      sequenceNumber: bs.loadUintBig(64),
+      message: bs.loadRef(),
+    }
+    // TODO: do we need to do anything special for Address/Cell?
+    expect(msg).toMatchObject(match)
+    return true
+  })
 }
 
-type Log = CCIPMessageSentParams |  number;
+type Log = CCIPMessageSentParams | number
 
 enum LogTypes {
-  CCIPMessageSent = 0x99
+  CCIPMessageSent = 0x99,
 }
 
-type LogMatch<T extends LogTypes> = T extends LogTypes.CCIPMessageSent ? Partial<CCIPMessageSentParams>
-    : number;
-export const assertLog = <T extends LogTypes>(transactions: BlockchainTransaction[], from: Address, type: T, match:LogMatch<T> ) => {
-    expect(getExternals(transactions).some(x => {
-        let res = false;
-        switch(type) {
-            case LogTypes.CCIPMessageSent:
-                testLogMessageSent(x, from, match as Partial<CCIPMessageSentParams>);
-                res = true;
-                break;
-        }
-        return res;
-    })).toBe(true);
+type LogMatch<T extends LogTypes> = T extends LogTypes.CCIPMessageSent
+  ? Partial<CCIPMessageSentParams>
+  : number
+export const assertLog = <T extends LogTypes>(
+  transactions: BlockchainTransaction[],
+  from: Address,
+  type: T,
+  match: LogMatch<T>,
+) => {
+  expect(
+    getExternals(transactions).some((x) => {
+      let res = false
+      switch (type) {
+        case LogTypes.CCIPMessageSent:
+          testLogMessageSent(x, from, match as Partial<CCIPMessageSentParams>)
+          res = true
+          break
+      }
+      return res
+    }),
+  ).toBe(true)
 }
 
 describe('Router', () => {
@@ -92,9 +111,9 @@ describe('Router', () => {
     let code = await compile('Router')
     let data: RouterStorage = {
       ownable: {
-        owner: deployer.address
+        owner: deployer.address,
       },
-      onRamp: ZERO_ADDRESS
+      onRamp: ZERO_ADDRESS,
     }
     router = blockchain.openContract(Router.createFromConfig(data, code))
 
@@ -103,18 +122,21 @@ describe('Router', () => {
       let code = await compile('FeeQuoter')
       let destChainConfigCode = await compile('DestChainConfig')
       let data: FeeQuoterStorage = {
-          ownable: {
-              owner: deployer.address
-          },
-          deployerCode,
-          destChainConfigCode,
-          maxFeeJuelsPerMsg: 1000000n,
-          linkToken: ZERO_ADDRESS,
-          tokenPriceStalenessThreshold: 1000n,
-          usdPerToken: Dictionary.empty(Dictionary.Keys.Address(), createTimestampedPriceValue()),
-          premiumMultiplierWeiPerEth: Dictionary.empty(Dictionary.Keys.Address(), Dictionary.Values.BigUint(64)),
+        ownable: {
+          owner: deployer.address,
+        },
+        deployerCode,
+        destChainConfigCode,
+        maxFeeJuelsPerMsg: 1000000n,
+        linkToken: ZERO_ADDRESS,
+        tokenPriceStalenessThreshold: 1000n,
+        usdPerToken: Dictionary.empty(Dictionary.Keys.Address(), createTimestampedPriceValue()),
+        premiumMultiplierWeiPerEth: Dictionary.empty(
+          Dictionary.Keys.Address(),
+          Dictionary.Values.BigUint(64),
+        ),
       }
-       // add config for EVM destination
+      // add config for EVM destination
 
       feeQuoter = blockchain.openContract(FeeQuoter.createFromConfig(data, code))
 
@@ -124,34 +146,33 @@ describe('Router', () => {
         to: feeQuoter.address,
         deploy: true,
         success: true,
-      });
-
+      })
 
       result = await feeQuoter.sendUpdateDestChainConfig(deployer.getSender(), {
         value: toNano('1'),
         destChainSelector: CHAINSEL_EVM_TEST_90000001,
         config: {
-						// minimal valid config
-            isEnabled: true,
-            maxNumberOfTokensPerMsg: 0, // TODO:
-            maxDataBytes: 100,
-            maxPerMsgGasLimit: 100,
-            destGasOverhead: 0,
-            destGasPerPayloadByteBase: 0,
-            destGasPerPayloadByteHigh: 0,
-            destGasPerPayloadByteThreshold: 0,
-            destDataAvailabilityOverheadGas: 0,
-            destGasPerDataAvailabilityByte: 0,
-            destDataAvailabilityMultiplierBps: 0,
-            chainFamilySelector: 0,
-            enforceOutOfOrder: true,
-            defaultTokenFeeUsdCents: 0,
-            defaultTokenDestGasOverhead: 0,
-            defaultTxGasLimit: 1,
-            gasMultiplierWeiPerEth: 0n,
-            gasPriceStalenessThreshold: 0,
-            networkFeeUsdCents: 0
-        }
+          // minimal valid config
+          isEnabled: true,
+          maxNumberOfTokensPerMsg: 0, // TODO:
+          maxDataBytes: 100,
+          maxPerMsgGasLimit: 100,
+          destGasOverhead: 0,
+          destGasPerPayloadByteBase: 0,
+          destGasPerPayloadByteHigh: 0,
+          destGasPerPayloadByteThreshold: 0,
+          destDataAvailabilityOverheadGas: 0,
+          destGasPerDataAvailabilityByte: 0,
+          destDataAvailabilityMultiplierBps: 0,
+          chainFamilySelector: 0,
+          enforceOutOfOrder: true,
+          defaultTokenFeeUsdCents: 0,
+          defaultTokenDestGasOverhead: 0,
+          defaultTxGasLimit: 1,
+          gasMultiplierWeiPerEth: 0n,
+          gasPriceStalenessThreshold: 0,
+          networkFeeUsdCents: 0,
+        },
       })
       // a destChainConfig subcontract must have been created
       expect(result.transactions).toHaveTransaction({
@@ -165,26 +186,29 @@ describe('Router', () => {
     {
       let code = await compile('OnRamp')
       let data: OnRampStorage = {
-          ownable: {
-              owner: deployer.address
-          },
-          chainSelector: CHAINSEL_TON,
-          config: {
-              feeQuoter: feeQuoter.address,
-              feeAggregator: deployer.address,
-              allowlistAdmin: deployer.address
-          },
-          destChainConfigs: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Cell())
+        ownable: {
+          owner: deployer.address,
+        },
+        chainSelector: CHAINSEL_TON,
+        config: {
+          feeQuoter: feeQuoter.address,
+          feeAggregator: deployer.address,
+          allowlistAdmin: deployer.address,
+        },
+        destChainConfigs: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Cell()),
       }
       // add config for EVM destination
-      data.destChainConfigs.set(CHAINSEL_EVM_TEST_90000001, beginCell()
-        .storeAddress(router.address) // TODO:
-        .storeUint(0n, 64)
-        .storeBit(false)
-        // Map<>
-        .storeDict(Dictionary.empty(Dictionary.Keys.Address(), Dictionary.Values.Bool()))
-        .storeUint(Dictionary.Keys.Address().bits, 16) // keyLen
-        .endCell());
+      data.destChainConfigs.set(
+        CHAINSEL_EVM_TEST_90000001,
+        beginCell()
+          .storeAddress(router.address) // TODO:
+          .storeUint(0n, 64)
+          .storeBit(false)
+          // Map<>
+          .storeDict(Dictionary.empty(Dictionary.Keys.Address(), Dictionary.Values.Bool()))
+          .storeUint(Dictionary.Keys.Address().bits, 16) // keyLen
+          .endCell(),
+      )
 
       // TODO: use deployable to make deterministic?
       onRamp = blockchain.openContract(OnRamp.createFromConfig(data, code))
@@ -258,8 +282,9 @@ describe('Router', () => {
     console.log(getExternals(result.transactions))
 
     // assert CCIPMessageSent
-    assertLog(result.transactions, onRamp.address, LogTypes.CCIPMessageSent, { destChainSelector: CHAINSEL_EVM_TEST_90000001 })
-
+    assertLog(result.transactions, onRamp.address, LogTypes.CCIPMessageSent, {
+      destChainSelector: CHAINSEL_EVM_TEST_90000001,
+    })
   })
   //   expect(await calculator.getGetRoot()).toBe(expectedRoot)
 })

@@ -10,30 +10,29 @@ import {
   SendMode,
 } from '@ton/core'
 
-import { Ownable2StepConfig } from "../libraries/access/Ownable2Step"
+import { Ownable2StepConfig } from '../libraries/access/Ownable2Step'
 
 export type OnRampStorage = {
-  ownable: Ownable2StepConfig,
-  chainSelector: bigint,
+  ownable: Ownable2StepConfig
+  chainSelector: bigint
   config: {
-    feeQuoter: Address,
-    feeAggregator: Address,
-    allowlistAdmin: Address,
-  },
-  destChainConfigs: Dictionary<bigint, Cell>,
+    feeQuoter: Address
+    feeAggregator: Address
+    allowlistAdmin: Address
+  }
+  destChainConfigs: Dictionary<bigint, Cell>
 }
 
 export type DestChainConfig = {
-  router: Address,
-  sequenceNumber: number,
-  allowlistEnabled: boolean,
-  allowedSenders: Dictionary<Address, boolean>,
+  router: Address
+  sequenceNumber: number
+  allowlistEnabled: boolean
+  allowedSenders: Dictionary<Address, boolean>
 }
 
 export const Builder = {
   asStorage: (config: OnRampStorage): Cell => {
-    let builder = beginCell()
-      .storeAddress(config.ownable.owner)
+    let builder = beginCell().storeAddress(config.ownable.owner)
     // TODO: use storeMaybeBuilder()
     if (config.ownable.pendingOwner) {
       builder
@@ -43,38 +42,37 @@ export const Builder = {
       builder.storeBit(0) // Store '0' to indicate the address is absent
     }
 
-    return builder
-      .storeUint(config.chainSelector, 64)
-       // Cell<DynamicConfig>
-       .storeRef(
-       beginCell()
-         .storeAddress(config.config.feeQuoter)
-         .storeAddress(config.config.feeAggregator)
-         .storeAddress(config.config.allowlistAdmin)
-         .endCell()
-       )
-      // Map<> type
+    return (
+      builder
+        .storeUint(config.chainSelector, 64)
+        // Cell<DynamicConfig>
+        .storeRef(
+          beginCell()
+            .storeAddress(config.config.feeQuoter)
+            .storeAddress(config.config.feeAggregator)
+            .storeAddress(config.config.allowlistAdmin)
+            .endCell(),
+        )
+        // Map<> type
         .storeDict(config.destChainConfigs)
         .storeUint(64, 16) // keyLen
-      .endCell()
+        .endCell()
+    )
   },
 }
-export abstract class Params {
-}
+export abstract class Params {}
 
 export abstract class Opcodes {
   static ccipSend = 0x00000001
 }
 
-export abstract class Errors {
-}
+export abstract class Errors {}
 
 export class OnRamp implements Contract {
   constructor(
     readonly address: Address,
     readonly init?: { code: Cell; data: Cell },
   ) {}
-
 
   static createFromAddress(address: Address) {
     return new OnRamp(address)

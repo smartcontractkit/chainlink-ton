@@ -12,64 +12,62 @@ import {
   SendMode,
 } from '@ton/core'
 
-import { Ownable2StepConfig } from "../libraries/access/Ownable2Step"
+import { Ownable2StepConfig } from '../libraries/access/Ownable2Step'
 
 export type FeeQuoterStorage = {
-  ownable: Ownable2StepConfig,
-  deployerCode: Cell,
-  destChainConfigCode: Cell,
-  maxFeeJuelsPerMsg: bigint,
-  linkToken: Address,
-  tokenPriceStalenessThreshold: bigint,
-  usdPerToken: Dictionary<Address, TimestampedPrice>,
-  premiumMultiplierWeiPerEth: Dictionary<Address, bigint>,
+  ownable: Ownable2StepConfig
+  deployerCode: Cell
+  destChainConfigCode: Cell
+  maxFeeJuelsPerMsg: bigint
+  linkToken: Address
+  tokenPriceStalenessThreshold: bigint
+  usdPerToken: Dictionary<Address, TimestampedPrice>
+  premiumMultiplierWeiPerEth: Dictionary<Address, bigint>
 }
 
 export type TimestampedPrice = {
-  value: bigint,
-  timestamp: bigint,
+  value: bigint
+  timestamp: bigint
 }
 
 export function createTimestampedPriceValue(): DictionaryValue<TimestampedPrice> {
-    return {
-        serialize: (src, builder) => {
-            builder
-              .storeUint(src.value, 224)
-              .storeUint(src.timestamp, 64);
-        },
-        parse: (src): TimestampedPrice => {
-            return {
-              value: src.loadUintBig(224),
-              timestamp: src.loadUintBig(64),
-            }
-        }
-    }
+  return {
+    serialize: (src, builder) => {
+      builder.storeUint(src.value, 224).storeUint(src.timestamp, 64)
+    },
+    parse: (src): TimestampedPrice => {
+      return {
+        value: src.loadUintBig(224),
+        timestamp: src.loadUintBig(64),
+      }
+    },
+  }
 }
 
 export type DestChainConfig = {
-  isEnabled: boolean,
-  maxNumberOfTokensPerMsg: number,
-  maxDataBytes: number,
-  maxPerMsgGasLimit: number,
-  destGasOverhead: number,
-  destGasPerPayloadByteBase: number,
-  destGasPerPayloadByteHigh: number,
-  destGasPerPayloadByteThreshold: number,
-  destDataAvailabilityOverheadGas: number,
-  destGasPerDataAvailabilityByte: number,
-  destDataAvailabilityMultiplierBps: number,
+  isEnabled: boolean
+  maxNumberOfTokensPerMsg: number
+  maxDataBytes: number
+  maxPerMsgGasLimit: number
+  destGasOverhead: number
+  destGasPerPayloadByteBase: number
+  destGasPerPayloadByteHigh: number
+  destGasPerPayloadByteThreshold: number
+  destDataAvailabilityOverheadGas: number
+  destGasPerDataAvailabilityByte: number
+  destDataAvailabilityMultiplierBps: number
 
-  chainFamilySelector: number, // 4 bytes
-  enforceOutOfOrder: boolean,
+  chainFamilySelector: number // 4 bytes
+  enforceOutOfOrder: boolean
 
-  defaultTokenFeeUsdCents: number,
-  defaultTokenDestGasOverhead: number,
-  defaultTxGasLimit: number,
+  defaultTokenFeeUsdCents: number
+  defaultTokenDestGasOverhead: number
+  defaultTxGasLimit: number
 
   // Multiplier for gas costs, 1e18 based so 11e17 = 10% extra cost.
-  gasMultiplierWeiPerEth: bigint,
-  gasPriceStalenessThreshold: number,
-  networkFeeUsdCents: number,
+  gasMultiplierWeiPerEth: bigint
+  gasPriceStalenessThreshold: number
+  networkFeeUsdCents: number
 }
 
 export function destChainConfigToBuilder(config: DestChainConfig): TonBuilder {
@@ -97,8 +95,7 @@ export function destChainConfigToBuilder(config: DestChainConfig): TonBuilder {
 
 export const Builder = {
   asStorage: (config: FeeQuoterStorage): Cell => {
-    let builder = beginCell()
-      .storeAddress(config.ownable.owner)
+    let builder = beginCell().storeAddress(config.ownable.owner)
     // TODO: use storeMaybeBuilder()
     if (config.ownable.pendingOwner) {
       builder
@@ -108,37 +105,36 @@ export const Builder = {
       builder.storeBit(0) // Store '0' to indicate the address is absent
     }
 
-    return builder
-      .storeRef(config.deployerCode)
-      .storeRef(config.destChainConfigCode)
-      .storeUint(config.maxFeeJuelsPerMsg, 96)
-      .storeAddress(config.linkToken)
-      .storeUint(config.tokenPriceStalenessThreshold, 64)
-      // Map<> type
+    return (
+      builder
+        .storeRef(config.deployerCode)
+        .storeRef(config.destChainConfigCode)
+        .storeUint(config.maxFeeJuelsPerMsg, 96)
+        .storeAddress(config.linkToken)
+        .storeUint(config.tokenPriceStalenessThreshold, 64)
+        // Map<> type
         .storeDict(config.usdPerToken)
         .storeUint(64, 16) // keyLen
-      // Map<> type
+        // Map<> type
         .storeDict(config.premiumMultiplierWeiPerEth)
         .storeUint(64, 16) // keyLen
-      .endCell()
+        .endCell()
+    )
   },
 }
-export abstract class Params {
-}
+export abstract class Params {}
 
 export abstract class Opcodes {
   static updateDestChainConfig = 0x10000005
 }
 
-export abstract class Errors {
-}
+export abstract class Errors {}
 
 export class FeeQuoter implements Contract {
   constructor(
     readonly address: Address,
     readonly init?: { code: Cell; data: Cell },
   ) {}
-
 
   static createFromAddress(address: Address) {
     return new FeeQuoter(address)
@@ -166,11 +162,15 @@ export class FeeQuoter implements Contract {
     })
   }
 
-  async sendUpdateDestChainConfig(provider: ContractProvider, via: Sender, opts: {
-    value: bigint,
-    destChainSelector: bigint,
-    config: DestChainConfig,
-   }) {
+  async sendUpdateDestChainConfig(
+    provider: ContractProvider,
+    via: Sender,
+    opts: {
+      value: bigint
+      destChainSelector: bigint
+      config: DestChainConfig
+    },
+  ) {
     await provider.internal(via, {
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
