@@ -1,7 +1,9 @@
 import "types.tolk";
-import "../deployable/types.tolk";
 import "../lib/access/ownable_2step.tolk";
+import "../lib/upgrades/type_and_version.tolk";
+import "../deployable/types.tolk";
 import "utils.tolk";
+import "../lib/utils.tolk";
 
 struct Storage {
     ownable: Ownable2Step;
@@ -118,21 +120,31 @@ struct (0x00000002) Execute {
 type Msg = Commit | Execute;
 
 fun onInternalMessage(msgCell: cell, msgBody: slice) {
+    // TODO: does this waste gas?
+    if (msgBody.isEnd()) { // ignore all empty messages
+        return;
+    }
+
+    var cs     = msgCell.beginParse();
+    val flags  = cs.loadMessageFlags();
+    if (isMessageBounced(flags)) { return; } // ignore all bounced messages
+    val sender = cs.loadAddress();
+
     val msg = Msg.fromSlice(msgBody);
     match (msg) {
-        Commit => { commit(msg) }
-        Execute => { _execute(msg) }
+        Commit => { commit(msg, sender) }
+        Execute => { _execute(msg, sender) }
     }
 }
 
 @pure @inline
 fun getMerkleRootID(merkleRoot: uint256): builder {
-    return beginCell() // id:u16 = 2 | destChainSelector:u64
+    return beginCell() // id:u16 = 2 | merkleRoot:256
         .storeUint(2, 16) // TODO: alias constant for MerkleRoot
         .storeUint(merkleRoot, 256);
 }
 
-fun commit(msg: Commit) {
+fun commit(msg: Commit, sender: address) {
     val st = Storage.load();
 
     // ocr3 base: validate signatures
@@ -161,7 +173,7 @@ fun commit(msg: Commit) {
     while (!roots.empty()) {
         val root = roots.next();
 
-        // initialize CommitReport subcontract
+        // initialize MerkleRoot subcontract
         val initMsg = createMessage({
             bounce: true, // TODO: could bounce if root already exists
             value: ton("0.1"), // TODO:
@@ -194,7 +206,7 @@ fun commit(msg: Commit) {
     })
 }
 
-fun _execute(msg: Execute) {
+fun _execute(msg: Execute, sender: address) {
     val st = Storage.load();
 
     // ocr3 base: validate execute report
