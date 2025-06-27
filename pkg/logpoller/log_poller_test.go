@@ -24,6 +24,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
 )
 
+// TODO: reuse ccip types -> check commit report codec PR
 type CounterIncrementEvent struct {
 	Timestamp   uint32           `tlb:"## 32"`
 	NewValue    uint32           `tlb:"## 32"`
@@ -51,6 +52,7 @@ func Test_LogPoller(t *testing.T) {
 		networkCfg = "http://127.0.0.1:8000/localhost.global.config.json"
 	}
 
+	// TODO: can replace multiclient?
 	pool := liteclient.NewConnectionPool()
 
 	cfg, err := liteclient.GetConfigFromUrl(ctx, networkCfg)
@@ -91,6 +93,7 @@ func Test_LogPoller(t *testing.T) {
 		100,           // page size
 	)
 
+	// TODO: where should we initialize the log poller filters?
 	// register our increment‐event filter
 	filter := types.Filter{
 		Address:    *addr,

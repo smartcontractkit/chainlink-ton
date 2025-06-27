@@ -23,10 +23,71 @@ type LogPoller interface {
 	Close() error
 	RegisterFilter(ctx context.Context, flt types.Filter) error
 	UnregisterFilter(ctx context.Context, name string) error
-	// TODO(NONEVM-1460): add remaining functions
+
+	// TODO: where to parse CCIP events?
+	// TODO: define exposed interface for the log poller 
+	// TODO: can we have CCIP functions directly here? I don't think so? at least we need to translate CCIP domain into "log" style
+	// TODO: filter registration & event ingestion -> log polling from CAL diagram
+
+	// TODO: contract / report gobindings / ccip logics shouldn't be in logpoller
+	// offramp.tolk
+	// struct CommitReportAccepted {
+  //   priceUpdates: Cell<PriceUpdates>?;
+  //   blessedMerkleRoots: cell;
+  //   unblessedMerkleRoots: cell;
+	// }
+
+	// 	struct PriceUpdates {
+	//     tokenPriceUpdates: cell; // vec<TokenPriceUpdate>
+	//     gasPriceUpdates: cell; // vec<GasPriceUpdate>
+	// }
+
+	// from https://github.com/smartcontractkit/chainlink-ton/pull/40/files
+	// CommitReport represents the top-level structure for a commit report.
+	// type CommitReport struct {
+	// 	PriceUpdates  PriceUpdates `tlb:"^"`
+	// 	MerkleRoot    MerkleRoots  `tlb:"^"`
+	// 	RMNSignatures *cell.Cell   `tlb:"^"`
+	// }
+
+	// type MerkleRoots struct {
+	// 	BlessedMerkleRoots   *cell.Cell `tlb:"^"`
+	// 	UnblessedMerkleRoots *cell.Cell `tlb:"^"`
+	// }
+
+	// // PriceUpdates holds token and gas price updates.
+	// type PriceUpdates struct {
+	// 	TokenPriceUpdates *cell.Cell `tlb:"^"`
+	// 	GasPriceUpdates   *cell.Cell `tlb:"^"`
+	// }
+
+	// (dest - CommitReportAccepted)**: reads CommitReportAccepted events starting from a given timestamp.
+	// func (l *DefaultAccessor) CommitReportsGTETimestamp(
+	// 	ctx context.Context,
+	// 	ts time.Time,
+	// 	confidence primitives.ConfidenceLevel,
+	// 	limit int,
+	// ) ([]cciptypes.CommitPluginReportWithMeta, error) {
+	// TODO: let's start like this..
+	FilteredCCIPLogs(ctx context.Context, evtSrcAddress string, topic uint64, limit int) ([]types.Log, error) 
+
+	// (dest - ExecutionStateChanged)**: in a given range. The presence of these events indicates that an attempt to execute the message has been made, which the system considers "executed".
+	// func (l *DefaultAccessor) ExecutedMessages(
+	// 	ctx context.Context,
+	// 	rangesPerChain map[cciptypes.ChainSelector][]cciptypes.SeqNumRange,
+	// 	confidence cciptypes.ConfidenceLevel,
+	// ) (map[cciptypes.ChainSelector][]cciptypes.SeqNum, error) {
+
+	// (src - CCIPMessageSent)**: all messages being sent to the provided dest chain, between the provided sequence numbers. Messages are sorted ascending based on their timestamp
+	// func (l *TONAccessor) MsgsBetweenSeqNums(
+	// 	ctx context.Context,
+	// 	destChainSelector cciptypes.ChainSelector,
+	// 	seqNumRange cciptypes.SeqNumRange,
+	// ) ([]cciptypes.Message, error) {
 }
 
 type logCollector interface {
+	// TODO: solidify replay strategy
 	BackfillForAddresses(ctx context.Context, addresses []*address.Address, fromSeqNo uint32, currentMaster *ton.BlockIDExt) (msgs []*tlb.ExternalMessageOut, err error)
 }
 
@@ -149,6 +210,7 @@ func (lp *Service) processMessages(msgs []*tlb.ExternalMessageOut) error {
 
 func (lp *Service) Process(msg *tlb.ExternalMessageOut) error {
 	topic := extractEventTopicFromAddress(msg.DstAddr)
+	lp.lggr.Debugw("Processing message", "src", msg.SrcAddr, "dst", msg.DstAddr, "topic", topic)
 	fIDs := lp.filters.MatchingFilters(*msg.SrcAddr, topic)
 	if len(fIDs) == 0 {
 		return nil // no filters matched, nothing to do
@@ -193,6 +255,11 @@ func (lp *Service) RegisterFilter(ctx context.Context, flt types.Filter) {
 
 func (lp *Service) UnregisterFilter(ctx context.Context, name string) {
 	lp.filters.UnregisterFilter(ctx, name)
+}
+
+// TODO: address.Address vs string for source address? probably db-friendly string is better
+func (lp *Service) FilteredCCIPLogs(ctx context.Context, evtSrcAddress string, topic uint64, limit int) ([]types.Log, error) {
+	return lp.store.GetLogsByTopic(evtSrcAddress, topic, limit), nil
 }
 
 // TODO: temp log query function, we'll need to define what's the proper query we need from CAL
