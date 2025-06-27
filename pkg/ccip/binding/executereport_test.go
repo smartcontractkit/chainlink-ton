@@ -18,7 +18,41 @@ func TestTokenAmounts(t *testing.T) {
 	dummyCell2, err := NewDummyCell()
 	require.NoError(t, err)
 
-	tokenAmountsCell, err := SliceToDict([]Any2TONTokenTransfer{
+	tokenAmountsCell, err := PackArrayWithRefChaining([]Any2TONTokenTransfer{
+		{
+			SourcePoolAddress: dummyCell1,
+			DestPoolAddress:   addr,
+			DestGasAmount:     1000,
+			ExtraData:         dummyCell2,
+			Amount:            big.NewInt(10),
+		},
+		{
+			SourcePoolAddress: dummyCell1,
+			DestPoolAddress:   addr,
+			DestGasAmount:     1000,
+			ExtraData:         dummyCell2,
+			Amount:            big.NewInt(10),
+		},
+		{
+			SourcePoolAddress: dummyCell1,
+			DestPoolAddress:   addr,
+			DestGasAmount:     1000,
+			ExtraData:         dummyCell2,
+			Amount:            big.NewInt(10),
+		}, {
+			SourcePoolAddress: dummyCell1,
+			DestPoolAddress:   addr,
+			DestGasAmount:     1000,
+			ExtraData:         dummyCell2,
+			Amount:            big.NewInt(10),
+		},
+		{
+			SourcePoolAddress: dummyCell1,
+			DestPoolAddress:   addr,
+			DestGasAmount:     1000,
+			ExtraData:         dummyCell2,
+			Amount:            big.NewInt(10),
+		},
 		{
 			SourcePoolAddress: dummyCell1,
 			DestPoolAddress:   addr,
@@ -29,9 +63,9 @@ func TestTokenAmounts(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	array, err := DictToSlice[Any2TONTokenTransfer](tokenAmountsCell)
+	array, err := UnPackArrayWithRefChaining[Any2TONTokenTransfer](tokenAmountsCell)
 	require.NoError(t, err)
-	require.Len(t, array, 1)
+	require.Len(t, array, 6)
 }
 
 func TestExecute_EncodingAndDecoding(t *testing.T) {
@@ -40,7 +74,7 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 	dummyCell, err := NewDummyCell()
 	require.NoError(t, err)
 
-	tokenAmountsDict, err := SliceToDict([]Any2TONTokenTransfer{
+	tokenAmountsDict, err := PackArrayWithRefChaining([]Any2TONTokenTransfer{
 		{
 			SourcePoolAddress: dummyCell,
 			DestPoolAddress:   addr,
@@ -80,7 +114,7 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 	}
 	require.NoError(t, err)
 
-	signatureCell, err := PackArray([]Signature{
+	signatureCell, err := PackArrayWithStaticType([]Signature{
 		{
 			Sig: make([]byte, 64),
 		},
@@ -108,7 +142,7 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 	err = tlb.LoadFromCell(&decoded, newCell.BeginParse())
 	require.NoError(t, err)
 	require.Equal(t, c.Hash(), newCell.Hash())
-	token, err := DictToSlice[Any2TONTokenTransfer](decoded.Message.TokenAmounts)
+	token, err := UnPackArrayWithRefChaining[Any2TONTokenTransfer](decoded.Message.TokenAmounts)
 	require.NoError(t, err)
 	require.Equal(t, 3, len(token))
 }

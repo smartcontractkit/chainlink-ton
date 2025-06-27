@@ -23,7 +23,7 @@ type Any2TONRampMessage struct {
 	Data         *cell.Cell        `tlb:"^"`
 	Receiver     *address.Address  `tlb:"addr"`
 	GasLimit     []byte            `tlb:"bits 256"`
-	TokenAmounts *cell.Dictionary  `tlb:"dict 32"`
+	TokenAmounts *cell.Cell        `tlb:"^"`
 }
 
 type RampMessageHeader struct {
@@ -46,55 +46,78 @@ type Signature struct {
 	Sig []byte `tlb:"bits 512"`
 }
 
-// SliceToDict Helper functions to convert slices to dictionaries for serialization.
-// converts a slice of any serializable type T to a *cell.Dictionary.
-// The dictionary keys are 32-bit unsigned integers representing the slice index.
-func SliceToDict[T any](slice []T) (*cell.Dictionary, error) {
-	dict := cell.NewDict(32) // 32-bit keys
-	for i, item := range slice {
-		keyCell := cell.BeginCell()
-		if err := keyCell.StoreUInt(uint64(i), 32); err != nil {
-			return nil, fmt.Errorf("failed to store key %d: %w", i, err)
-		}
-		valueCell, err := tlb.ToCell(item)
+// PackArrayWithRefChaining packs a slice of any serializable type T into a linked cell structure,
+// storing each element as a cell reference. When only one reference slot is left, it starts a new cell
+// and uses the last reference for chaining.
+func PackArrayWithRefChaining[T any](array []T) (*cell.Cell, error) {
+	builder := cell.BeginCell()
+	cells := []*cell.Builder{builder}
+
+	for i, v := range array {
+		c, err := tlb.ToCell(v)
 		if err != nil {
-			// Consider using %T to get the type name in the error message
-			return nil, fmt.Errorf("failed to serialize item of type %T at index %d: %w", item, i, err)
+			return nil, fmt.Errorf("failed to serialize element %d: %w", i, err)
 		}
-		if err := dict.Set(keyCell.EndCell(), valueCell); err != nil {
-			return nil, fmt.Errorf("failed to set dict entry %d: %w", i, err)
+
+		// If only one ref left, start a new cell for chaining
+		if builder.RefsLeft() <= 1 {
+			builder = cell.BeginCell()
+			cells = append(cells, builder)
+		}
+		if err := builder.StoreRef(c); err != nil {
+			return nil, fmt.Errorf("failed to store element %d: %w", i, err)
 		}
 	}
-	return dict, nil
+
+	// Link cells in reverse order
+	var next *cell.Cell
+	for i := len(cells) - 1; i >= 0; i-- {
+		if next != nil {
+			if err := cells[i].StoreRef(next); err != nil {
+				return nil, fmt.Errorf("failed to store ref at cell %d: %w", i, err)
+			}
+		}
+		next = cells[i].EndCell()
+	}
+	return next, nil
 }
 
-// DictToSlice converts a *cell.Dictionary to a slice of any deserializable type T.
-func DictToSlice[T any](dict *cell.Dictionary) ([]T, error) {
+// UnPackArrayWithRefChaining unpacks a linked cell structure created by PackArrayWithRefChaining
+// into a slice of type T. Each element is stored as a cell reference. If a cell has 4 references,
+// the last reference is used for chaining to the next cell and is not decoded as an element.
+func UnPackArrayWithRefChaining[T any](root *cell.Cell) ([]T, error) {
 	var result []T
-
-	if dict == nil {
-		return nil, nil
-	}
-
-	entries, err := dict.LoadAll()
-	if err != nil {
-		return nil, err
-	}
-
-	for i, entry := range entries {
-		var item T
-		if err := tlb.LoadFromCell(&item, entry.Value); err != nil {
-			return nil, fmt.Errorf("failed to deserialize item of type %T at index %d: %w", item, i, err)
+	curr := root
+	for curr != nil {
+		length := curr.RefsNum()
+		chainIdx := 3 // chaining happens only when there are 4 refs, at index 3
+		for i := 0; i < int(length); i++ {
+			ref, err := curr.PeekRef(i)
+			if err != nil {
+				return nil, fmt.Errorf("failed to unpack array, at ref index %d: %w", i, err)
+			}
+			if length == 4 && i == chainIdx {
+				curr = ref
+				break // move to next cell, do not decode this ref
+			}
+			var v T
+			if err := tlb.LoadFromCell(&v, ref.BeginParse()); err != nil {
+				return nil, fmt.Errorf("failed to decode element: %w", err)
+			}
+			result = append(result, v)
 		}
-		result = append(result, item)
+		if length < 4 {
+			break
+		}
 	}
-
 	return result, nil
 }
 
-// PackArray packs a slice of any serializable type T into a linked cell structure.
+// PackArrayWithStaticType packs a slice of any serializable type T into a linked cell structure.
+// Elements are stored directly in the cell's bits. If an element does not fit, a new cell is started.
+// Cells are linked via references for arrays that span multiple cells.
 // TODO duplicated from commit report codec, remove once merged
-func PackArray[T any](array []T) (*cell.Cell, error) {
+func PackArrayWithStaticType[T any](array []T) (*cell.Cell, error) {
 	builder := cell.BeginCell()
 	cells := []*cell.Builder{builder}
 
@@ -125,9 +148,11 @@ func PackArray[T any](array []T) (*cell.Cell, error) {
 	return next, nil
 }
 
-// UnpackArray unpacks a linked cell structure into a slice of any deserializable type T.
-// // TODO duplicated from commit report codec, remove once merged
-func UnpackArray[T any](root *cell.Cell) ([]T, error) {
+// UnpackArrayWithStaticType unpacks a linked cell structure created by PackArrayWithStaticType
+// into a slice of type T. Elements are read from the cell's bits, and the function follows references
+// to subsequent cells as needed.
+// TODO duplicated from commit report codec, remove once merged
+func UnpackArrayWithStaticType[T any](root *cell.Cell) ([]T, error) {
 	var result []T
 	curr := root
 	for curr != nil {
