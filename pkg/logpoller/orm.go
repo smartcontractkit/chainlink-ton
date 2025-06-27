@@ -46,7 +46,7 @@ func (s *InMemoryStore) GetLogs() []types.Log {
 
 // TODO: However, is filter - result match guaranteed?
 
-func (s *InMemoryStore) GetLogsByTopic(evtSrcAddress string, topic uint64, limit int) []types.Log {
+func (s *InMemoryStore) GetLogsByTopic(evtSrcAddress string, topic uint64, limit int) ([]types.Log, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	var out []types.Log
@@ -56,7 +56,7 @@ func (s *InMemoryStore) GetLogsByTopic(evtSrcAddress string, topic uint64, limit
 		}
 	}
 	if limit > 0 && len(out) > limit {
-		return out[:limit]
+		return out[:limit], nil
 	}
-	return out
+	return out, nil
 }

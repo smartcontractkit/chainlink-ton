@@ -257,9 +257,9 @@ func (lp *Service) UnregisterFilter(ctx context.Context, name string) {
 	lp.filters.UnregisterFilter(ctx, name)
 }
 
-// TODO: address.Address vs string for source address? probably db-friendly string is better
+// TODO: add query per CCIP event type
 func (lp *Service) FilteredCCIPLogs(ctx context.Context, evtSrcAddress string, topic uint64, limit int) ([]types.Log, error) {
-	return lp.store.GetLogsByTopic(evtSrcAddress, topic, limit), nil
+	return lp.store.GetLogsByTopic(evtSrcAddress, topic, limit)
 }
 
 // TODO: temp log query function, we'll need to define what's the proper query we need from CAL
