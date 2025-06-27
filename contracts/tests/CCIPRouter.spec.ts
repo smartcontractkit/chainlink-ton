@@ -3,6 +3,7 @@ import { toNano, Address, Cell, Dictionary, Message, beginCell } from '@ton/core
 import { compile } from '@ton/blueprint'
 import { Router, RouterStorage } from '../wrappers/ccip/Router'
 import { OnRamp, OnRampStorage } from '../wrappers/ccip/OnRamp'
+import { OffRamp, OffRampStorage } from '../wrappers/ccip/OffRamp'
 
 import '@ton/test-utils'
 import {
@@ -101,6 +102,7 @@ describe('Router', () => {
   let router: SandboxContract<Router>
   let feeQuoter: SandboxContract<FeeQuoter>
   let onRamp: SandboxContract<OnRamp>
+  let offRamp: SandboxContract<OffRamp>
 
   beforeEach(async () => {
     blockchain = await Blockchain.create()
@@ -217,6 +219,32 @@ describe('Router', () => {
       expect(result.transactions).toHaveTransaction({
         from: deployer.address,
         to: onRamp.address,
+        deploy: true,
+        success: true,
+      })
+    }
+    // setup offramp
+    {
+      let code = await compile('OffRamp')
+      let data: OffRampStorage = {
+          ownable: {
+              owner: deployer.address,
+          },
+          deployerCode: deployerCode,
+          merkleRootCode: Cell.EMPTY,
+          feeQuoter: feeQuoter.address,
+          chainSelector: CHAINSEL_TON,
+          permissionlessExecutionThresholdSeconds: 60,
+          latestPriceSequenceNumber: 0n,
+      }
+
+      // TODO: use deployable to make deterministic?
+      offRamp = blockchain.openContract(OffRamp.createFromConfig(data, code))
+
+      let result = await offRamp.sendDeploy(deployer.getSender(), toNano('1'))
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: offRamp.address,
         deploy: true,
         success: true,
       })
