@@ -11,42 +11,38 @@ import {
 } from '@ton/core'
 
 export type DeployableStorage = {
-  owner: Address,
-  ty: number,
-  id: Cell,
+  owner: Address
+  ty: number
+  id: Cell
 }
 
 export type DestChainConfig = {
-  router: Address,
-  sequenceNumber: number,
-  allowlistEnabled: boolean,
-  allowedSenders: Dictionary<Address, boolean>,
+  router: Address
+  sequenceNumber: number
+  allowlistEnabled: boolean
+  allowedSenders: Dictionary<Address, boolean>
 }
 
 export const Builder = {
   asStorage: (config: DeployableStorage): Cell => {
-    return  beginCell()
+    return beginCell()
       .storeAddress(config.owner)
       .storeUint(config.ty, 16)
       .storeRef(config.id)
       .endCell()
   },
 }
-export abstract class Params {
-}
+export abstract class Params {}
 
-export abstract class Opcodes {
-}
+export abstract class Opcodes {}
 
-export abstract class Errors {
-}
+export abstract class Errors {}
 
 export class Deployable implements Contract {
   constructor(
     readonly address: Address,
     readonly init?: { code: Cell; data: Cell },
   ) {}
-
 
   static createFromAddress(address: Address) {
     return new Deployable(address)
@@ -66,5 +62,4 @@ export class Deployable implements Contract {
       body: body,
     })
   }
-
 }

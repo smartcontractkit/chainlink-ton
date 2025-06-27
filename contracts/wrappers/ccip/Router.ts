@@ -9,10 +9,10 @@ import {
   SendMode,
 } from '@ton/core'
 
-import { Ownable2StepConfig } from "../libraries/access/Ownable2Step"
+import { Ownable2StepConfig } from '../libraries/access/Ownable2Step'
 
 export type RouterStorage = {
-  ownable: Ownable2StepConfig,
+  ownable: Ownable2StepConfig
 
   onRamp: Address
 }
@@ -20,8 +20,7 @@ export type RouterStorage = {
 export const Builder = {
   /// Creates a new `AccessControl_GrantRole` message.
   asStorage: (config: RouterStorage): Cell => {
-    let builder = beginCell()
-      .storeAddress(config.ownable.owner)
+    let builder = beginCell().storeAddress(config.ownable.owner)
 
     // TODO: use storeMaybeBuilder()
     if (config.ownable.pendingOwner) {
@@ -32,28 +31,23 @@ export const Builder = {
       builder.storeBit(0) // Store '0' to indicate the address is absent
     }
 
-    return builder
-      .storeAddress(config.onRamp)
-      .endCell()
+    return builder.storeAddress(config.onRamp).endCell()
   },
 }
-export abstract class Params {
-}
+export abstract class Params {}
 
 export abstract class Opcodes {
-  static setRamp  = 0x10000001
+  static setRamp = 0x10000001
   static ccipSend = 0x00000001
 }
 
-export abstract class Errors {
-}
+export abstract class Errors {}
 
 export class Router implements Contract {
   constructor(
     readonly address: Address,
     readonly init?: { code: Cell; data: Cell },
   ) {}
-
 
   static createFromAddress(address: Address) {
     return new Router(address)
@@ -80,18 +74,18 @@ export class Router implements Contract {
       value: bigint
       queryID?: number
       destChainSelector: bigint
-      onRamp: Address,
+      onRamp: Address
     },
   ) {
     await provider.internal(via, {
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: beginCell()
-      .storeUint(Opcodes.setRamp, 32)
-      .storeUint(opts.queryID ?? 0, 64)
-      .storeUint(opts.destChainSelector, 64)
-      .storeAddress(opts.onRamp)
-      .endCell(),
+        .storeUint(Opcodes.setRamp, 32)
+        .storeUint(opts.queryID ?? 0, 64)
+        .storeUint(opts.destChainSelector, 64)
+        .storeAddress(opts.onRamp)
+        .endCell(),
     })
   }
 
@@ -113,15 +107,15 @@ export class Router implements Contract {
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: beginCell()
-      .storeUint(Opcodes.ccipSend, 32)
-      .storeUint(opts.queryID ?? 0, 64)
-      .storeUint(opts.destChainSelector, 64)
-      .storeRef(opts.receiver)
-      .storeRef(opts.data)
-      .storeRef(opts.tokenAmounts) // TODO: pack inputs
-      .storeAddress(opts.feeToken)
-      .storeRef(opts.extraArgs)
-      .endCell(),
+        .storeUint(Opcodes.ccipSend, 32)
+        .storeUint(opts.queryID ?? 0, 64)
+        .storeUint(opts.destChainSelector, 64)
+        .storeRef(opts.receiver)
+        .storeRef(opts.data)
+        .storeRef(opts.tokenAmounts) // TODO: pack inputs
+        .storeAddress(opts.feeToken)
+        .storeRef(opts.extraArgs)
+        .endCell(),
     })
   }
 }
