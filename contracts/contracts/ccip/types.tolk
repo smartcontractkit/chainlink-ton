@@ -75,6 +75,59 @@ struct GasPriceUpdate {
     usdPerUnitGas: uint224;
 }
 
+struct FeeQuoterDestChainConfig {
+    isEnabled: bool;
+    maxNumberOfTokensPerMsg: uint16;
+    maxDataBytes: uint32;
+    maxPerMsgGasLimit: uint32;
+    destGasOverhead: uint32;
+    destGasPerPayloadByteBase: uint8;
+    destGasPerPayloadByteHigh: uint8;
+    destGasPerPayloadByteThreshold: uint16;
+    destDataAvailabilityOverheadGas: uint32;
+    destGasPerDataAvailabilityByte: uint16;
+    destDataAvailabilityMultiplierBps: uint32;
+
+    chainFamilySelector: uint32; // 4 bytes
+    enforceOutOfOrder: bool;
+
+    defaultTokenFeeUsdCents: uint16;
+    defaultTokenDestGasOverhead: uint32;
+    defaultTxGasLimit: uint32;
+
+    // Multiplier for gas costs, 1e18 based so 11e17 = 10% extra cost.
+    gasMultiplierWeiPerEth: uint64;
+    gasPriceStalenessThreshold: uint32;
+    networkFeeUsdCents: uint32;
+}
+
+struct GasPrice {
+    executionGasPrice: uint112;
+    dataAvailabilityGasPrice: uint112;
+    timestamp: uint64;
+}
+
+// This represents FeeQuoter's DestChainConfig (not OnRamp)
+struct DestChainConfig_Storage {
+    owner: address;
+
+    config: FeeQuoterDestChainConfig;
+
+    usdPerUnitGas: Cell<GasPrice>; // TODO: it'd be nice if this wasn't split off
+
+    tokenTransferFeeConfigs: Map<TokenTransferFeeConfig>; // (sdict) address -> TokenTransferFeeConfig
+}
+
+struct TokenTransferFeeConfig {
+    isEnabled: bool;
+    minFeeUsdCents: uint32;
+    maxFeeUsdCents: uint32;
+    deciBps: uint16;
+    destGasOverhead: uint32;
+    destBytesOverhead: uint32;
+}
+
+
 struct (0x10000001) UpdatePrices {
     updates: PriceUpdates    
 }
@@ -94,6 +147,7 @@ struct (0x10000004) UpdateTokenTransferFeeConfigs {
 
 struct (0x10000005) UpdateDestChainConfig {
     destChainSelector: uint64;
+    destChainConfig: FeeQuoterDestChainConfig;
 }
 
 struct (0x10000006) GetValidatedFee {
@@ -101,7 +155,6 @@ struct (0x10000006) GetValidatedFee {
 }
 
 // Errors
-
 
 const ERROR_UNKNOWN_DEST_CHAIN_SELECTOR: int = 0x1;
 const ERROR_DEST_CHAIN_NOT_ENABLED: int = 0x2;

@@ -1,5 +1,6 @@
 import {
   Address,
+  Builder as TonBuilder,
   beginCell,
   Cell,
   Contract,
@@ -15,6 +16,8 @@ import { Ownable2StepConfig } from "../libraries/access/Ownable2Step"
 
 export type FeeQuoterStorage = {
   ownable: Ownable2StepConfig,
+  deployerCode: Cell,
+  destChainConfigCode: Cell,
   maxFeeJuelsPerMsg: bigint,
   linkToken: Address,
   tokenPriceStalenessThreshold: bigint,
@@ -42,6 +45,56 @@ export function createTimestampedPriceValue(): DictionaryValue<TimestampedPrice>
         }
     }
 }
+
+export type DestChainConfig = {
+  isEnabled: boolean,
+  maxNumberOfTokensPerMsg: number,
+  maxDataBytes: number,
+  maxPerMsgGasLimit: number,
+  destGasOverhead: number,
+  destGasPerPayloadByteBase: number,
+  destGasPerPayloadByteHigh: number,
+  destGasPerPayloadByteThreshold: number,
+  destDataAvailabilityOverheadGas: number,
+  destGasPerDataAvailabilityByte: number,
+  destDataAvailabilityMultiplierBps: number,
+
+  chainFamilySelector: number, // 4 bytes
+  enforceOutOfOrder: boolean,
+
+  defaultTokenFeeUsdCents: number,
+  defaultTokenDestGasOverhead: number,
+  defaultTxGasLimit: number,
+
+  // Multiplier for gas costs, 1e18 based so 11e17 = 10% extra cost.
+  gasMultiplierWeiPerEth: bigint,
+  gasPriceStalenessThreshold: number,
+  networkFeeUsdCents: number,
+}
+
+export function destChainConfigToBuilder(config: DestChainConfig): TonBuilder {
+  return beginCell()
+    .storeBit(config.isEnabled)
+    .storeUint(config.maxNumberOfTokensPerMsg, 16)
+    .storeUint(config.maxDataBytes, 32)
+    .storeUint(config.maxPerMsgGasLimit, 32)
+    .storeUint(config.destGasOverhead, 32)
+    .storeUint(config.destGasPerPayloadByteBase, 8)
+    .storeUint(config.destGasPerPayloadByteHigh, 8)
+    .storeUint(config.destGasPerPayloadByteThreshold, 16)
+    .storeUint(config.destDataAvailabilityOverheadGas, 32)
+    .storeUint(config.destGasPerDataAvailabilityByte, 16)
+    .storeUint(config.destDataAvailabilityMultiplierBps, 32)
+    .storeUint(config.chainFamilySelector, 32)
+    .storeBit(config.enforceOutOfOrder)
+    .storeUint(config.defaultTokenFeeUsdCents, 16)
+    .storeUint(config.defaultTokenDestGasOverhead, 32)
+    .storeUint(config.defaultTxGasLimit, 32)
+    .storeUint(config.gasMultiplierWeiPerEth, 64)
+    .storeUint(config.gasPriceStalenessThreshold, 32)
+    .storeUint(config.networkFeeUsdCents, 32)
+}
+
 export const Builder = {
   asStorage: (config: FeeQuoterStorage): Cell => {
     let builder = beginCell()
@@ -56,6 +109,8 @@ export const Builder = {
     }
 
     return builder
+      .storeRef(config.deployerCode)
+      .storeRef(config.destChainConfigCode)
       .storeUint(config.maxFeeJuelsPerMsg, 96)
       .storeAddress(config.linkToken)
       .storeUint(config.tokenPriceStalenessThreshold, 64)
@@ -72,6 +127,7 @@ export abstract class Params {
 }
 
 export abstract class Opcodes {
+  static updateDestChainConfig = 0x10000005
 }
 
 export abstract class Errors {
@@ -107,6 +163,22 @@ export class FeeQuoter implements Contract {
       value: value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: beginCell().endCell(),
+    })
+  }
+
+  async sendUpdateDestChainConfig(provider: ContractProvider, via: Sender, opts: {
+    value: bigint,
+    destChainSelector: bigint,
+    config: DestChainConfig,
+   }) {
+    await provider.internal(via, {
+      value: opts.value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: beginCell()
+        .storeUint(Opcodes.updateDestChainConfig, 32)
+        .storeUint(opts.destChainSelector, 64)
+        .storeBuilder(destChainConfigToBuilder(opts.config))
+        .endCell(),
     })
   }
 }

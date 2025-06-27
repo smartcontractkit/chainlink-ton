@@ -37,7 +37,7 @@ in {
         yarnBuildHook
         yarnInstallHook
         # Needed for executing package.json scripts
-        nodejs_23
+        nodejs_24
       ];
 
       meta = with pkgs.lib; {
