@@ -87,9 +87,7 @@ fun onSend(payload: OnRampSend, sender: address) {
     val msg = payload.msg.load();
 
     // validate allowlist
-    val (maybeDestChainConfig, exists) = st.destChainConfigs.getRef(msg.destChainSelector);
-    assert(exists, ERROR_UNKNOWN_DEST_CHAIN_SELECTOR);
-    val destChainConfig = maybeDestChainConfig!;
+    val destChainConfig = st.destChainConfigs.mustGetRef(msg.destChainSelector, ERROR_UNKNOWN_DEST_CHAIN_SELECTOR);
     if (destChainConfig.allowlistEnabled) {
         // TODO:
         // val (allowed, exists) = destChainConfig.allowedSenders.get(sender);
@@ -120,9 +118,7 @@ fun onPublish(msg: CCIPSend, sender: address) {
     // TODO: validate message originating from trusted fee quoter
 
     // assign sequence number, we can't do this sooner since the message might fail validation/getFee
-    val (maybeDestChainConfig, exists) = st.destChainConfigs.getRef(msg.destChainSelector);
-    assert(exists, ERROR_UNKNOWN_DEST_CHAIN_SELECTOR);
-    var destChainConfig = maybeDestChainConfig!;
+    var destChainConfig = st.destChainConfigs.mustGetRef(msg.destChainSelector, ERROR_UNKNOWN_DEST_CHAIN_SELECTOR);
     val seqNr = destChainConfig.sequenceNumber;
     destChainConfig.sequenceNumber = destChainConfig.sequenceNumber + 1;
     st.destChainConfigs.set(msg.destChainSelector, destChainConfig);

@@ -162,10 +162,8 @@ fun getTokenTransferCost(st: DestChainConfig_Storage, mutate tokens: Iterator<To
         val tokenAmount = tokens.next();
         count += 1;
 
-        val (maybeCfg, exists) = st.tokenTransferFeeConfigs.get(tokenAmount.token);
-        assert(exists, ERROR_UNKNOWN_DEST_CHAIN_SELECTOR);
-        val transferFeeConfig = maybeCfg!;
-
+        // TODO: use different error code than dest chain selector
+        val transferFeeConfig = st.tokenTransferFeeConfigs.mustGet(tokenAmount.token, ERROR_UNKNOWN_DEST_CHAIN_SELECTOR);
         if (!transferFeeConfig.isEnabled) {
             // If the token has no specific overrides configured, we use the global defaults.
             tokenTransferFeeWei +=((st.config.defaultTokenFeeUsdCents as uint256) * VAL_1E16);
@@ -179,9 +177,7 @@ fun getTokenTransferCost(st: DestChainConfig_Storage, mutate tokens: Iterator<To
 
             var bpsFeeUsdWei = 0;
             if (transferFeeConfig.deciBps > 0) {
-                val (maybeTokenPrice, exists) = tokenPrices.get(tokenAmount.token);
-                assert(exists, ERROR_UNKNOWN_DEST_CHAIN_SELECTOR);
-                val tokenPrice = maybeTokenPrice!;
+                val tokenPrice = tokenPrices.mustGet(tokenAmount.token, ERROR_UNKNOWN_DEST_CHAIN_SELECTOR);
 
                 // Calculate token transfer value, then apply fee ratio
                 // ratio represents multiples of 0.1bps, or 1e-5

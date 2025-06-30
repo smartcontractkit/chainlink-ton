@@ -102,6 +102,13 @@ fun Map<V>.get(self, key: address): (V?, bool) {
     return (V.fromSlice(value!), true);
 }
 
+@inline
+fun Map<V>.mustGet(self, key: address, errorCode: int): V {
+    val (value, exists) = self.value.sDictGet(ADDR_KEY_LEN, key as slice);
+    assert(exists, errorCode);
+    return V.fromSlice(value!);
+}
+
 @inline @pure
 fun Map<V>.set(mutate self, key: address, value: V): void {
     return self.value.sDictSet(ADDR_KEY_LEN, key as slice, value.toCell().beginParse());
@@ -123,8 +130,6 @@ fun UMap<K, V>.isEmpty(self): bool {
     return self.value.dictIsEmpty();
 }
 
-// TODO: add get! variant that asserts value exists
-
 @inline @pure
 fun UMap<K, V>.get(self, key: K): (V?, bool) {
     val (value, exists) = self.value.uDictGet(self.keyLen, key);
@@ -134,13 +139,15 @@ fun UMap<K, V>.get(self, key: K): (V?, bool) {
     return (V.fromSlice(value!), true);
 }
 
-@inline @pure
-fun UMap<K, V>.set(mutate self, key: K, value: V): void {
-    return (self.value.uDictSet(self.keyLen, key, value.toCell().beginParse()));
+@inline
+fun UMap<K, V>.mustGet(self, key: K, errorCode: int): V {
+    val (maybeValue, exists) = self.value.uDictGet(self.keyLen, key);
+    assert(exists, errorCode);
+    return maybeValue!;
 }
 
 @inline @pure
-fun UMap<K, V>.getRef(self, key: K): (V?, bool) {
+fun UMap<K, V>.getRef(self, key: K, errorCode: int): V {
     val (value, exists) = self.value.uDictGetRef(self.keyLen, key);
     if (!exists) {
         return (null, false);
@@ -148,7 +155,20 @@ fun UMap<K, V>.getRef(self, key: K): (V?, bool) {
     return (V.fromCell(value!), true);
 }
 
+@inline
+fun UMap<K, V>.mustGetRef(self, key: K, errorCode: int): V {
+    val (maybeValue, exists) = self.value.uDictGetRef(self.keyLen, key);
+    assert(exists, errorCode);
+    return V.fromCell(maybeValue!);
+}
+
+@inline @pure
+fun UMap<K, V>.set(mutate self, key: K, value: V): void {
+    return (self.value.uDictSet(self.keyLen, key, value.toCell().beginParse()));
+}
+
 @inline @pure
 fun UMap<K, V>.setRef(mutate self, key: K, value: V): void {
     return (self.value.uDictSetRef(self.keyLen, key, value.toCell()));
 }
+

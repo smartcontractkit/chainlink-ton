@@ -163,9 +163,7 @@ fun onMessageValidated(msg: CCIPSend) {
     var st = Storage.load();
 
     // TODO: this should be eagerly validated in the router.ccipSend to revert early?
-    val (maybeFeeTokenPrice, exists) = st.usdPerToken.get(msg.feeToken);
-    assert(exists, ERROR_FEE_TOKEN_NOT_SUPPORTED);
-    val feeTokenPrice = maybeFeeTokenPrice!;
+    val feeTokenPrice = st.usdPerToken.mustGet(msg.feeToken, ERROR_FEE_TOKEN_NOT_SUPPORTED);
 
     // val premiumMultiplier = fee_token_config.premium_multiplier_wei_per_eth as uint256;
     // At this step, every fee component has been raised to 36 decimals
