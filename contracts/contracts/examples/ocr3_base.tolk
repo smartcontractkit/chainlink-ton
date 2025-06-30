@@ -16,7 +16,7 @@ fun saveData(data: OCR3BaseExampleContract) {
 
 struct (0x00000001) Transmit {
     transmitter: address, //TODO: might have to use the sender address for testing here
-    ocrPluginType: int,
+    ocrPluginType: uint16,
     reportContext: ReportContext,
     report: cell,
     signatures: cell, //Iterator<uint256>

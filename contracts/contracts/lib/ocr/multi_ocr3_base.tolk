@@ -69,7 +69,7 @@ fun OCR3Base.setOcr3Config(mutate self, msg: OCR3Base_SetOCR3Config) {
 	//self.requireOwner();
 	assert(msg.bigF > 0, ERROR_BIG_F_MUST_BE_POSITIVE);
 
-	val (ocrConfig, ok) = self.ocr3Configs.get(msg.ocrPluginType);
+	var (ocrConfig, ok) = self.ocr3Configs.get(msg.ocrPluginType);
 	if (!ok) {
 		//initialize the config if it does not exist
 		ocrConfig = newOCRConfig()
@@ -130,7 +130,7 @@ fun OCR3Base.setOcr3Config(mutate self, msg: OCR3Base_SetOCR3Config) {
 }
 
 fun OCR3Base.transmit(
-    self,
+    mutate self,
     transmitter: address,
     ocrPluginType: int,
     reportContext: ReportContext,
@@ -193,7 +193,7 @@ fun OCR3Base.verifySignature(
 	while (!signaturesIt.empty() || !signersIt.empty()) {
 		val signature = signaturesIt.next();
 		val signerKey = signersIt.next();
-		assert(isSignatureValid(hashedReport, signature, signerKey), ERROR_INVALID_SIGNATURE );
+		assert(isSignatureValid(hashedReport, beginCell().storeUint(signature, 256).endCell().beginParse(), signerKey), ERROR_INVALID_SIGNATURE );
 	}
 }
 
@@ -211,7 +211,7 @@ fun OCR3Base.assignSignerOracles(
 }
 
 fun OCR3Base.assignTransmitterOracles(
-	self,
+	mutate self,
 	ocrPluginType: int,
 	transmitters: cell // Iterator<address>
 ) {
