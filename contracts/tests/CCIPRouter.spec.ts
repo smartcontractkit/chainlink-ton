@@ -224,7 +224,6 @@ describe('Router', () => {
           .storeBit(false)
           // Map<>
           .storeDict(Dictionary.empty(Dictionary.Keys.Address(), Dictionary.Values.Bool()))
-          .storeUint(Dictionary.Keys.Address().bits, 16) // keyLen
           .endCell(),
       )
 

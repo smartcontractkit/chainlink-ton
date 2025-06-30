@@ -91,7 +91,7 @@ fun onUpdateDestChainConfig(msg: UpdateDestChainConfig, msgBody: slice, sender: 
                         dataAvailabilityGasPrice: 0,
                         timestamp: 0, // TODO: temp set as blockchain.now() to pass validation
                     }.toCell(),
-                    tokenTransferFeeConfigs: Map<TokenTransferFeeConfig>.new(288) // TODO: 288 or 276?
+                    tokenTransferFeeConfigs: Map<TokenTransferFeeConfig>.new()
                 }.toCell()
             }
         }
@@ -110,7 +110,7 @@ fun onUpdatePrices(priceUpdates: PriceUpdates) {
     while (!iter.empty()) {
         val update = iter.next();
 
-        st.usdPerToken.set(update.sourceToken as slice, TimestampedPrice {
+        st.usdPerToken.set(update.sourceToken, TimestampedPrice {
             value: update.usdPerToken,
             timestamp
         })
@@ -153,6 +153,7 @@ fun onGetValidatedFee(payload: GetValidatedFee) {
     getValidatedFeeMsg.send(SEND_MODE_REGULAR);
     // NOTE: this can get bounced if dest chain doesn't exist, in which case we should send
     // an error notification to the user and refund
+    // it could also get bounced on a validation error
 
     // pass through information on token/jetton amounts
 }
@@ -162,7 +163,7 @@ fun onMessageValidated(msg: CCIPSend) {
     var st = Storage.load();
 
     // TODO: this should be eagerly validated in the router.ccipSend to revert early?
-    val (maybeFeeTokenPrice, exists) = st.usdPerToken.get(msg.feeToken as slice);
+    val (maybeFeeTokenPrice, exists) = st.usdPerToken.get(msg.feeToken);
     assert(exists, ERROR_FEE_TOKEN_NOT_SUPPORTED);
     val feeTokenPrice = maybeFeeTokenPrice!;
 

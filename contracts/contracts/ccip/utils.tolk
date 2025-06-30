@@ -75,34 +75,36 @@ fun Iterator<T>.countBytes(self): int {
 
 import "@stdlib/tvm-dicts.tolk";
 
-// TODO: mark functions as @pure
+// https://github.com/ton-org/ton-core/blob/213fed91d6f63d978c27588509e15ab53c8bafdb/src/dict/Dictionary.ts#L425
+const ADDR_KEY_LEN = 267;
+
+// NOTE: this assumes the slice keys are address values
 struct Map<V> {
     value: dict;
-    keyLen: uint16;
 }
 
-@inline
-fun Map<V>.new(keyLen: int): Map<V> {
-    return Map { value: createEmptyDict(), keyLen }
+@inline @pure
+fun Map<V>.new(): Map<V> {
+    return Map { value: createEmptyDict() }
 }
 
-@inline
+@inline @pure
 fun Map<V>.isEmpty(self): bool {
     return self.value.dictIsEmpty();
 }
 
-@inline
-fun Map<V>.get(self, key: slice): (V?, bool) {
-    val (value, exists) = self.value.sDictGet(self.keyLen, key);
+@inline @pure
+fun Map<V>.get(self, key: address): (V?, bool) {
+    val (value, exists) = self.value.sDictGet(ADDR_KEY_LEN, key as slice);
     if (!exists) {
         return (null, false);
     }
     return (V.fromSlice(value!), true);
 }
 
-@inline
-fun Map<V>.set(mutate self, key: slice, value: V): void {
-    return self.value.sDictSet(self.keyLen, key, value.toCell().beginParse());
+@inline @pure
+fun Map<V>.set(mutate self, key: address, value: V): void {
+    return self.value.sDictSet(ADDR_KEY_LEN, key as slice, value.toCell().beginParse());
 }
 
 // TODO: mark functions as @pure
@@ -123,7 +125,7 @@ fun UMap<K, V>.isEmpty(self): bool {
 
 // TODO: add get! variant that asserts value exists
 
-@inline
+@inline @pure
 fun UMap<K, V>.get(self, key: K): (V?, bool) {
     val (value, exists) = self.value.uDictGet(self.keyLen, key);
     if (!exists) {
@@ -132,12 +134,12 @@ fun UMap<K, V>.get(self, key: K): (V?, bool) {
     return (V.fromSlice(value!), true);
 }
 
-@inline
+@inline @pure
 fun UMap<K, V>.set(mutate self, key: K, value: V): void {
     return (self.value.uDictSet(self.keyLen, key, value.toCell().beginParse()));
 }
 
-@inline
+@inline @pure
 fun UMap<K, V>.getRef(self, key: K): (V?, bool) {
     val (value, exists) = self.value.uDictGetRef(self.keyLen, key);
     if (!exists) {
@@ -146,7 +148,7 @@ fun UMap<K, V>.getRef(self, key: K): (V?, bool) {
     return (V.fromCell(value!), true);
 }
 
-@inline
+@inline @pure
 fun UMap<K, V>.setRef(mutate self, key: K, value: V): void {
     return (self.value.uDictSetRef(self.keyLen, key, value.toCell()));
 }
