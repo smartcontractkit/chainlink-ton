@@ -449,9 +449,7 @@ func (m *ReceivedMessage) OutcomeExitCode() tvm.ExitCode {
 }
 
 // TraceSucceeded recursively checks if this message
-// and all its OutgoingInternalMessagesReceived succeeded. A message is
-// considered successful if Success == true or if the ExitCode indicates
-// a successful deployment (errorCode.IsSuccessfulDeployment() == true).
+// and all its OutgoingInternalMessagesReceived succeeded.
 func (m *ReceivedMessage) TraceSucceeded() bool {
 	if !m.Success {
 		return false
