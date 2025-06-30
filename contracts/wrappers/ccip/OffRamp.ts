@@ -33,15 +33,14 @@ export const Builder = {
       builder.storeBit(0) // Store '0' to indicate the address is absent
     }
 
-    return (
-      builder
-        .storeRef(config.deployerCode)
-        .storeAddress(config.feeQuoter)
-        .storeUint(config.chainSelector, 64)
-        .storeUint(config.permissionlessExecutionThresholdSeconds, 32)
-        .storeUint(config.latestPriceSequenceNumber, 64)
-        .endCell()
-    )
+    return builder
+      .storeRef(config.deployerCode)
+      .storeRef(config.merkleRootCode)
+      .storeAddress(config.feeQuoter)
+      .storeUint(config.chainSelector, 64)
+      .storeUint(config.permissionlessExecutionThresholdSeconds, 32)
+      .storeUint(config.latestPriceSequenceNumber, 64)
+      .endCell()
   },
 }
 export abstract class Params {}

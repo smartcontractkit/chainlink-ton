@@ -110,25 +110,41 @@ describe('Router', () => {
 
     let deployerCode = await compile('Deployable')
 
-    let code = await compile('Router')
+    let destChainConfigCodeRaw = await compile('DestChainConfig')
+    let merkleRootCodeRaw = await compile('MerkleRoot')
+
+    // Populate the emulator library code
+    // https://docs.ton.org/v3/documentation/data-formats/tlb/library-cells#testing-in-the-blueprint
+    const _libs = Dictionary.empty(Dictionary.Keys.BigUint(256), Dictionary.Values.Cell())
+    _libs.set(BigInt(`0x${destChainConfigCodeRaw.hash().toString('hex')}`), destChainConfigCodeRaw)
+    _libs.set(BigInt(`0x${destChainConfigCodeRaw.hash().toString('hex')}`), destChainConfigCodeRaw)
+    _libs.set(BigInt(`0x${merkleRootCodeRaw.hash().toString('hex')}`), merkleRootCodeRaw)
+    const libs = beginCell().storeDictDirect(_libs).endCell()
+    blockchain.libs = libs
+
+    let routerCode = await compile('Router')
     let data: RouterStorage = {
       ownable: {
         owner: deployer.address,
       },
       onRamp: ZERO_ADDRESS,
     }
-    router = blockchain.openContract(Router.createFromConfig(data, code))
+    router = blockchain.openContract(Router.createFromConfig(data, routerCode))
 
     // setup fee quoter
     {
       let code = await compile('FeeQuoter')
-      let destChainConfigCode = await compile('DestChainConfig')
+
+      // Use a library reference
+      let libPrep = beginCell().storeUint(2, 8).storeBuffer(destChainConfigCodeRaw.hash()).endCell()
+      let destChainConfigCode = new Cell({ exotic: true, bits: libPrep.bits, refs: libPrep.refs })
+
       let data: FeeQuoterStorage = {
         ownable: {
           owner: deployer.address,
         },
         deployerCode,
-        destChainConfigCode,
+        destChainConfigCode: destChainConfigCode,
         maxFeeJuelsPerMsg: 1000000n,
         linkToken: ZERO_ADDRESS,
         tokenPriceStalenessThreshold: 1000n,
@@ -226,16 +242,21 @@ describe('Router', () => {
     // setup offramp
     {
       let code = await compile('OffRamp')
+
+      // Use a library reference
+      let libPrep = beginCell().storeUint(2, 8).storeBuffer(destChainConfigCodeRaw.hash()).endCell()
+      let merkleRootCode = new Cell({ exotic: true, bits: libPrep.bits, refs: libPrep.refs })
+
       let data: OffRampStorage = {
-          ownable: {
-              owner: deployer.address,
-          },
-          deployerCode: deployerCode,
-          merkleRootCode: Cell.EMPTY,
-          feeQuoter: feeQuoter.address,
-          chainSelector: CHAINSEL_TON,
-          permissionlessExecutionThresholdSeconds: 60,
-          latestPriceSequenceNumber: 0n,
+        ownable: {
+          owner: deployer.address,
+        },
+        deployerCode: deployerCode,
+        merkleRootCode,
+        feeQuoter: feeQuoter.address,
+        chainSelector: CHAINSEL_TON,
+        permissionlessExecutionThresholdSeconds: 60,
+        latestPriceSequenceNumber: 0n,
       }
 
       // TODO: use deployable to make deterministic?

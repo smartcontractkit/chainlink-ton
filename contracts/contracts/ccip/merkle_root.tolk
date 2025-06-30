@@ -1,5 +1,8 @@
 import "types.tolk";
 import "../lib/upgrades/type_and_version.tolk";
+import "../deployable/types.tolk";
+import "utils.tolk";
+import "../lib/utils.tolk";
 
 // State stores the general state machine indicating which phase we're in
 // TODO: we might be able to merge this into execution_states
@@ -16,32 +19,30 @@ const EXECUTION_STATE_SUCCESS: uint8 = 2;
 const EXECUTION_STATE_FAILURE: uint8 = 3;
 // TODO: we need to fit additional states: TOKEN_TRANSFER | EXECUTE
 
-struct Storage {
-    owner: address;
-    state: uint8;
-    report: Cell<MerkleRoot>;
-    states: uint256;          // modeled as a bytemap, so we can batch up to 32 executions
-    executionStates: uint256; // modeled as a bytemap, so we can batch up to 32 executions
-
-    tokenAmounts: dict; // seqNum -> tokenAddress -> (amount: coins, failed: bool)
-    // if any amount has failed = true, allows re-executing and will only transfer remaining
+fun MerkleRoot_Storage.load() {
+    return MerkleRoot_Storage.fromCell(contract.getData());
 }
 
-fun Storage.load() {
-    return Storage.fromCell(contract.getData());
-}
-
-fun Storage.store(self) {
+fun MerkleRoot_Storage.store(self) {
     return contract.setData(self.toCell());
 }
 
-fun onInternalMessage(msgCell: cell, msgBody: slice) {
-}
+type Msg = ExecuteReport;
 
-// used for initializing the root after upgrading from the stub
-fun onInit() {
-    // TODO: can only be called by the owner
-    
+fun onInternalMessage(msgCell: cell, msgBody: slice) {
+    // TODO: does this waste gas?
+    if (msgBody.isEnd()) { // ignore all empty messages
+        return;
+    }
+
+    var cs     = msgCell.beginParse();
+    val flags  = cs.loadMessageFlags();
+    if (isMessageBounced(flags)) { return; } // ignore all bounced messages
+    val sender = cs.loadAddress();
+
+    val msg = Msg.fromSlice(msgBody);
+    match (msg) {
+    }
 }
 
 fun onExecute() { // TODO: rename to something like process
@@ -61,6 +62,8 @@ fun onExecute() { // TODO: rename to something like process
     // set state = execution
     // call execute
 }
+
+// TODO: should we wait for all transfers to either complete or fail before we allow retry?
 
 fun onExcesses() {
     // if state == token_transfer

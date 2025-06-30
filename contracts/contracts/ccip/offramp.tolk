@@ -8,6 +8,7 @@ import "../lib/utils.tolk";
 struct Storage {
     ownable: Ownable2Step;
     deployer: cell; // Deployable compiled code
+    merkleRootCode: cell; // make sure to use a library cell offchain to save space
     feeQuoter: address;
 
     // TODO: embed ocr3 base state
@@ -187,14 +188,19 @@ fun commit(msg: Commit, sender: address) {
                 },
                 // TODO: toShard so it's collocated with offramp
             },
-            // TODO:
-            // body: Initialize {
-            //     stateInit: {
-            //         code: st.destChainConfigCode,
-            //         data: DestChainConfig_Storage {
-            //         }.toCell(),
-            //     }
-            // },
+            body: Initialize {
+                stateInit: {
+                    code: st.merkleRootCode,
+                    data: MerkleRoot_Storage {
+                        owner: contract.getAddress(),
+                        state: 0,
+                        report: root.toCell(),
+                        states: 0,
+                        executionStates: 0,
+                        tokenBalances: UMap<uint64, Map<TokenBalance>>.new(64),
+                    }.toCell(),
+                }
+            },
         });
         initMsg.send(SEND_MODE_REGULAR);
     }

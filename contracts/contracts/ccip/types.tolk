@@ -156,6 +156,27 @@ struct (0x10000006) GetValidatedFee {
     msg: CCIPSend
 }
 
+// OffRamp
+
+struct MerkleRoot_Storage {
+    owner: address;
+    state: uint8;
+    report: Cell<MerkleRoot>;
+    states: uint256;          // modeled as a bytemap, so we can batch up to 32 executions
+    executionStates: uint256; // modeled as a bytemap, so we can batch up to 32 executions
+
+    tokenBalances: UMap<uint64, Map<TokenBalance>>; // seqNum -> tokenAddress -> (amount: coins, failed: bool)
+    // if any amount has failed = true, allows re-executing and will only transfer remaining
+}
+
+struct TokenBalance {
+    amount: coins;
+    failed: bool; // if marked as failed, a retry will allow re-sending these
+}
+
+struct (0x10000010) ExecuteReport {
+}
+
 // Errors
 
 const ERROR_UNKNOWN_DEST_CHAIN_SELECTOR: int = 0x1;

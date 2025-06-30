@@ -111,11 +111,11 @@ fun onSend(payload: OnRampSend, sender: address) {
     getValidatedFeeMsg.send(SEND_MODE_REGULAR);
 
     // TEMP: publish so we unblock e2e
-    onPublish(msg);
+    onPublish(msg, sender);
 }
 
 // TODO: do we follow solana model and merge router + onramp? aptos also does this
-fun onPublish(msg: CCIPSend) {
+fun onPublish(msg: CCIPSend, sender: address) {
     var st = Storage.load();
     // TODO: validate message originating from trusted fee quoter
 
