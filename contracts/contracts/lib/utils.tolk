@@ -44,7 +44,7 @@ fun Iterator<T>.next(mutate self): T {
 
 // Expensive to calculate
 @inline
-fun Iterator<T>. countBytes(self): int {
+fun Iterator<T>.countBytes(self): int {
     val maxCells = 128;
     val (cellsCount, dataBitsSize, cellRefs) = self.data.calculateSizeStrict(maxCells);
     assert(dataBitsSize % 8 == 0, ERROR_INVALID_DATA);
@@ -95,4 +95,44 @@ fun UMap<K, V>.getRef(self, key: K): (V?, bool) {
 @inline
 fun UMap<K, V>.setRef(mutate self, key: K, value: V): void {
     return (self.value.uDictSetRef(self.keyLen, key, value.toCell()));
+}
+
+
+
+fun Iterator<T>.has(mutate self, elem: T): bool {
+    while (!self.empty()) {
+        val current = self.next();
+        if (current == elem) {
+            return true;
+        }
+    }
+    return false;
+}
+
+//TODO: I am not sure if it is more efficient to use a tuple or a dictionary here
+//      Using tuple the complexity is O(n^2) but using dictionaries we need to create cells which probably costs more gas
+@inline
+fun Iterator<T>.hasDuplicates(mutate self): bool {
+    var visited = createEmptyTuple();
+    while (!self.empty()) {
+        val current = self.next();
+        if (has(current, visited)) {
+            return true;
+        } else {
+            visited.push<T>(current);
+        }
+    }
+    return false;
+}
+
+@inline
+fun has<T>(element: T, tuple: tuple) {
+    val size = tuple.size();
+    var i = 0;
+    while(i < size){
+        if (tuple.get<T>(i) == element) {
+            return true;
+        }
+    }
+    return false;
 }

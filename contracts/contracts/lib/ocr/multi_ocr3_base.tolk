@@ -87,15 +87,18 @@ fun OCR3Base.setOcr3Config(mutate self, msg: OCR3Base_SetOCR3Config) {
 		);
 	}
 
-	// TODO: assert(msg.transmitters.length <= MAX_NUM_ORACLES, ERROR_TOO_MANY_TRANSMITTERS);
-	// TODO: assert(msg.transmitters.length > 0, ERROR_NO_TRANSMITTERS);
+	val transmitters_length = Iterator<address>.new(msg.transmitters).countBytes() /36;
+
+	assert(transmitters_length <= MAX_NUM_ORACLES, ERROR_TOO_MANY_TRANSMITTERS);
+	assert(transmitters_length > 0, ERROR_NO_TRANSMITTERS);
 	
 	if (msg.isSignatureVerificationEnabled) {
-		// TODO: assert(msg.signers.length <= MAX_NUM_ORACLES, ERROR_TOO_MANY_SIGNERS);
-		// TODO: assert(msg.signers.length > 3 * msg.bigF, ERROR_BIG_F_TOO_HIGH);
-		// TODO: assert(msg.signers.length >= msg.transmitters.length, ERROR_TOO_MANY_TRANSMITTERS);
+		val signers_length = Iterator<uint256>.new(msg.signers).countBytes() / 32;
+		assert(signers_length <= MAX_NUM_ORACLES, ERROR_TOO_MANY_SIGNERS);
+		assert(signers_length > 3 * msg.bigF, ERROR_BIG_F_TOO_HIGH);
+		assert(signers_length >= transmitters_length, ERROR_TOO_MANY_TRANSMITTERS);
 
-		// TODO: ocrConfig.configInfo.n = msg.signers.length ;
+		ocrConfig.configInfo.n = signers_length;
 		ocrConfig.signers = msg.signers;
 		self.assignSignerOracles(msg.ocrPluginType, msg.signers);
 	}
@@ -135,10 +138,10 @@ fun OCR3Base.transmit(
     ocrPluginType: int,
     reportContext: ReportContext,
     report: cell,
-    signatures: cell, //Iterator<uint512>
+    signatures: cell, //Iterator<SignatureEd25519>
     ) { 
-    var (ocrConfig, ok) = self.ocr3Configs.get(ocrPluginType);
-    assert(ok, ERROR_NON_EXISTENT_OCR_PLUGIN_TYPE);
+    var (ocrConfig, foundConfig) = self.ocr3Configs.get(ocrPluginType);
+    assert(foundConfig, ERROR_NON_EXISTENT_OCR_PLUGIN_TYPE);
     ocrConfig = ocrConfig!;
     var configInfo: ConfigInfo = ocrConfig.configInfo;
     
@@ -148,14 +151,16 @@ fun OCR3Base.transmit(
     
     // TODO: assert_chain_not_forked, not sure how to do this check or if it's even necessary in TON
     
-    // TODO: check that transmitter is in the authorized transmitters. 
-    //(var pluginTransmitters, ok) = self.transmitterOracles.get(ocrPluginType);
-    //assert(ok && pluginTransmitters!.has(transmitter), ERROR_UNAUTHORIZED_TRANSMITTER);
+    // TODO: Maybe it's better to store the signers and transmitters as dictionaries so we don't have to iterate over them here?  
+    val(pluginTransmitters, foundTransmitters) = self.transmitterOracles.get(ocrPluginType);
+    assert(foundTransmitters && Iterator<address>.new(pluginTransmitters!).has(transmitter), ERROR_UNAUTHORIZED_TRANSMITTER);
+
     
     
     if (configInfo.isSignatureVerificationEnabled) {
     	var expectedSignatures = configInfo.bigF + 1;
-    	// TODO: assert(signatures.length == expectedSignatures, ERROR_WRONG_NUMBER_OF_SIGNATURES);
+	val signatures_length = Iterator<SignatureEd25519>.new(signatures).countBytes() / 64;
+    	assert(signatures_length == expectedSignatures, ERROR_WRONG_NUMBER_OF_SIGNATURES);
     	var hashedReport = self.hashReport(report, reportContext);
     	var (pluginSigners, ok) = self.signerOracles.get(ocrPluginType);
     	assert(ok, ERROR_NON_EXISTENT_OCR_PLUGIN_TYPE);
@@ -202,7 +207,7 @@ fun OCR3Base.assignSignerOracles(
 	ocrPluginType: uint16,
 	signers: cell /*Iterator<uint256>*/
 ) {
-	// TODO: assert(!signers.hasDuplicates(), ERROR_REPEATED_SIGNERS);
+	assert(!Iterator<uint256>.new(signers).hasDuplicates(), ERROR_REPEATED_SIGNERS);
 	// TODO: We cannot do ed25519 public key validation on chain. For now we assume valid keys.
 	self.signerOracles.set(
 		ocrPluginType,
@@ -215,7 +220,7 @@ fun OCR3Base.assignTransmitterOracles(
 	ocrPluginType: int,
 	transmitters: cell // Iterator<address>
 ) {
-	//TODO: assert(!transmitters.hasDuplicates(), ERROR_REPEATED_TRANSMITTERS);
+	assert(!Iterator<address>.new(transmitters).hasDuplicates(), ERROR_REPEATED_TRANSMITTERS);
 	self.transmitterOracles.set(
 		ocrPluginType,
 		transmitters
