@@ -60,7 +60,11 @@ struct Oracle {
 	role: uint8;
 } 
 
-//TODO: On EVM and Aptos this is passed as an array of bytes with manual parsing and validation. Check if it's ok to use this Tact struct isntead.
+struct SignatureEd25519 {
+	r: uint256;
+	s: uint256
+}
+
 struct ReportContext {
 	configDigest: uint256;
 	//Should be a uint64 with 24 bytes of padding

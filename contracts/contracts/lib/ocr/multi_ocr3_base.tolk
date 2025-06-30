@@ -66,7 +66,7 @@ fun OCR3Base.setOcr3Config(mutate self, msg: OCR3Base_SetOCR3Config) {
 
 	assert(msg.ocrPluginType == OCR_PLUGIN_TYPE_COMMIT || msg.ocrPluginType == OCR_PLUGIN_TYPE_EXECUTION, ERROR_NON_EXISTENT_OCR_PLUGIN_TYPE);
 
-	//self.requireOwner();
+	//TODO: self.requireOwner();
 	assert(msg.bigF > 0, ERROR_BIG_F_MUST_BE_POSITIVE);
 
 	var (ocrConfig, ok) = self.ocr3Configs.get(msg.ocrPluginType);
@@ -135,7 +135,7 @@ fun OCR3Base.transmit(
     ocrPluginType: int,
     reportContext: ReportContext,
     report: cell,
-    signatures: cell, //Iterator<uint256>
+    signatures: cell, //Iterator<uint512>
     ) { 
     var (ocrConfig, ok) = self.ocr3Configs.get(ocrPluginType);
     assert(ok, ERROR_NON_EXISTENT_OCR_PLUGIN_TYPE);
@@ -146,10 +146,11 @@ fun OCR3Base.transmit(
     
     assert(reportContext.configDigest == configInfo.configDigest, ERROR_CONFIG_DIGEST_MISMATCH);
     
-    // TODO assert_chain_not_forked, not sure how to do this check or if it's even necessary in TON
+    // TODO: assert_chain_not_forked, not sure how to do this check or if it's even necessary in TON
     
+    // TODO: check that transmitter is in the authorized transmitters. 
     //(var pluginTransmitters, ok) = self.transmitterOracles.get(ocrPluginType);
-    //TODO: check that transmitter is in the authorized transmitters. assert(ok && pluginTransmitters!.has(transmitter), ERROR_UNAUTHORIZED_TRANSMITTER);
+    //assert(ok && pluginTransmitters!.has(transmitter), ERROR_UNAUTHORIZED_TRANSMITTER);
     
     
     if (configInfo.isSignatureVerificationEnabled) {
@@ -185,15 +186,14 @@ fun OCR3Base.verifySignature(
 	mutate self,
 	signers: cell, // Iterator<uint256>
 	hashedReport: uint256,
-	signatures: cell // Array<slice> TODO: not sure about howt o encode this type
+	signatures: cell // Iterator<SignatureEd25519>
 ) {
-	//TODO: Replace uint256 for the correct type for the iterator for signatures
-	var signaturesIt = Iterator<uint256>.new(signatures); 
+	var signaturesIt = Iterator<SignatureEd25519>.new(signatures); 
 	var signersIt = Iterator<uint256>.new(signers);
 	while (!signaturesIt.empty() || !signersIt.empty()) {
 		val signature = signaturesIt.next();
 		val signerKey = signersIt.next();
-		assert(isSignatureValid(hashedReport, beginCell().storeUint(signature, 256).endCell().beginParse(), signerKey), ERROR_INVALID_SIGNATURE );
+		assert(isSignatureValid(hashedReport,signature.toCell().beginParse(), signerKey), ERROR_INVALID_SIGNATURE );
 	}
 }
 
