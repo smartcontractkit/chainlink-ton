@@ -294,7 +294,7 @@ func (t *Txm) checkUnconfirmed() {
 				continue
 			}
 
-			if !receivedMessage.TraceFinalized() {
+			if receivedMessage.Status() != tracetracking.Finalized {
 				continue
 			}
 

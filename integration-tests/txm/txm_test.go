@@ -21,6 +21,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/txm"
 
 	"github.com/stretchr/testify/require"
+	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton/wallet"
 	"github.com/xssnick/tonutils-go/tvm/cell"
@@ -40,18 +41,7 @@ func TestTxmLocal(t *testing.T) {
 	tonChain := test_utils.StartTonChain(t, nodeClient, chainsel.TON_LOCALNET.Selector, wallet)
 	require.NotNil(t, tonChain)
 
-	ctx := tonChain.Client.Client().StickyContext(context.Background())
-
-	require.Eventually(t, func() bool {
-		block, err := tonChain.Client.CurrentMasterchainInfo(context.Background())
-		require.NoError(t, err)
-
-		balance, err := wallet.GetBalance(ctx, block)
-		require.NoError(t, err)
-		return !balance.IsZero()
-	}, 60*time.Second, 500*time.Millisecond)
-
-	logger.Debugw("Funded wallet")
+	test_utils.FundTonWallets(t, nodeClient, []*address.Address{wallet.Address()}, []tlb.Coins{tlb.MustFromTON("1000")})
 
 	keystore := relayer_utils.NewTestKeystore(t)
 	keystore.AddKey(wallet.PrivateKey())

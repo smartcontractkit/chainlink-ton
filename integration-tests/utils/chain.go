@@ -36,7 +36,7 @@ func CreateTonWallet(t *testing.T, client ton.APIClientWrapped, version wallet.V
 	return pw
 }
 
-func fundTonWallets(t *testing.T, client ton.APIClientWrapped, recipients []*address.Address, amounts []tlb.Coins) {
+func FundTonWallets(t *testing.T, client ton.APIClientWrapped, recipients []*address.Address, amounts []tlb.Coins) {
 	t.Logf("Funding %d wallets", len(recipients))
 	rawHlWallet, err := wallet.FromSeed(client, strings.Fields(blockchain.DefaultTonHlWalletMnemonic), wallet.HighloadV2Verified) //nolint:staticcheck
 	require.NoError(t, err, "failed to create highload wallet")
@@ -87,6 +87,10 @@ func waitForAirdropCompletion(t *testing.T, client ton.APIClientWrapped, recipie
 		go func(addr *address.Address, expectedAmount, initialBalance tlb.Coins) {
 			ticker := time.NewTicker(time.Second)
 			defer ticker.Stop()
+
+			expectedMin := tlb.MustFromNano(
+				initialBalance.Nano().Add(initialBalance.Nano(), expectedAmount.Nano()), 9)
+
 			for {
 				select {
 				case <-ctx.Done():
@@ -100,9 +104,6 @@ func waitForAirdropCompletion(t *testing.T, client ton.APIClientWrapped, recipie
 					if err != nil {
 						continue
 					}
-					expectedMin := tlb.MustFromNano(
-						initialBalance.Nano().Add(initialBalance.Nano(), expectedAmount.Nano()), 9)
-
 					if acc.State.Balance.Nano().Cmp(expectedMin.Nano()) >= 0 {
 						if verbose {
 							t.Logf("%s balance is sufficient: %s >= %s", addr.String(), acc.State.Balance.String(), expectedMin.String())
@@ -131,14 +132,12 @@ func waitForAirdropCompletion(t *testing.T, client ton.APIClientWrapped, recipie
 	}
 }
 
-func StartTonChain(t *testing.T, nodeClient *ton.APIClient, chainID uint64, wallet *wallet.Wallet) cldf_ton.Chain {
-	// airdrop the deployer wallet
-	fundTonWallets(t, nodeClient, []*address.Address{wallet.Address()}, []tlb.Coins{tlb.MustFromTON("1000")})
+func StartTonChain(t *testing.T, nodeClient *ton.APIClient, chainID uint64, deployerWallet *wallet.Wallet) cldf_ton.Chain {
 	ton := cldf_ton.Chain{
 		ChainMetadata: cldf_ton.ChainMetadata{Selector: chainID},
 		Client:        nodeClient,
-		Wallet:        wallet,
-		WalletAddress: wallet.Address(),
+		Wallet:        deployerWallet,
+		WalletAddress: deployerWallet.Address(),
 	}
 	return ton
 }

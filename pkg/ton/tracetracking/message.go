@@ -437,14 +437,26 @@ func (m *ReceivedMessage) WaitForTrace(c *SignedAPIClient) error {
 // or any of its outgoing internal messages. If all messages succeeded, it returns
 // the success exit code.
 func (m *ReceivedMessage) OutcomeExitCode() tvm.ExitCode {
-	if !m.Success {
-		return m.ExitCode
+	if m == nil {
+		return tvm.ExitCodeSuccess
 	}
-	for _, msg := range m.OutgoingInternalReceivedMessages {
-		if code := msg.OutcomeExitCode(); code != tvm.ExitCodeSuccess {
-			return code
+
+	stack := []*ReceivedMessage{m}
+
+	for len(stack) > 0 {
+		n := len(stack) - 1
+		curr := stack[n]
+		stack = stack[:n]
+
+		if !curr.Success {
+			return curr.ExitCode
+		}
+
+		for i := len(curr.OutgoingInternalReceivedMessages) - 1; i >= 0; i-- {
+			stack = append(stack, curr.OutgoingInternalReceivedMessages[i])
 		}
 	}
+
 	return tvm.ExitCodeSuccess
 }
 
@@ -456,20 +468,6 @@ func (m *ReceivedMessage) TraceSucceeded() bool {
 	}
 	for _, msg := range m.OutgoingInternalReceivedMessages {
 		if !msg.TraceSucceeded() {
-			return false
-		}
-	}
-	return true
-}
-
-// TraceFinalized returns true if the message and all its outgoing internal messages
-// (recursively) are in MsgStatus Finalized.
-func (m *ReceivedMessage) TraceFinalized() bool {
-	if m.Status() != Finalized {
-		return false
-	}
-	for _, msg := range m.OutgoingInternalReceivedMessages {
-		if !msg.TraceFinalized() {
 			return false
 		}
 	}
