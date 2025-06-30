@@ -109,7 +109,7 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 			Sender:       dummyCell,
 			Data:         dummyCell,
 			Receiver:     addr,
-			GasLimit:     make([]byte, 32),
+			GasLimit:     tlb.MustFromNano(big.NewInt(1000), 1),
 			TokenAmounts: tokenAmountsCell,
 		},
 		{
@@ -123,7 +123,7 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 			Sender:       dummyCell,
 			Data:         dummyCell,
 			Receiver:     addr,
-			GasLimit:     make([]byte, 32),
+			GasLimit:     tlb.MustFromNano(big.NewInt(1000), 1),
 			TokenAmounts: tokenAmountsCell,
 		},
 	})

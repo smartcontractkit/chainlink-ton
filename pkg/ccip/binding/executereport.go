@@ -22,7 +22,7 @@ type Any2TONRampMessage struct {
 	Sender       *cell.Cell        `tlb:"^"`
 	Data         *cell.Cell        `tlb:"^"`
 	Receiver     *address.Address  `tlb:"addr"`
-	GasLimit     []byte            `tlb:"bits 256"`
+	GasLimit     tlb.Coins         `tlb:"."`
 	TokenAmounts *cell.Cell        `tlb:"^"`
 }
 
