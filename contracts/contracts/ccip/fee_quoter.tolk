@@ -8,7 +8,7 @@ import "../lib/utils.tolk";
 struct Storage {
     ownable: Ownable2Step;
     deployer: cell; // Deployable compiled code
-    destChainConfigCode: cell;
+    destChainConfigCode: cell; // make sure to use a library cell offchain to save space
 
     maxFeeJuelsPerMsg: uint96;
     linkToken: address;
