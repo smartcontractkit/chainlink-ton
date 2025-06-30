@@ -1,4 +1,4 @@
-package testutils
+package utils
 
 import (
 	"fmt"
@@ -14,7 +14,7 @@ func GetRepoRootDir() string {
 	res := exec.Command("git", "rev-parse", "--show-toplevel")
 	stdout, err := res.Output()
 	if err != nil {
-		panic(fmt.Sprintf("Failed to get repo root dir: %v", err))
+		panic(fmt.Sprintf("Failed to get repo root dir: %s", err))
 	}
 	rootDir := strings.TrimSpace(string(stdout))
 	return rootDir

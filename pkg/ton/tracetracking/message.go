@@ -21,6 +21,7 @@ import (
 type MsgStatus int
 
 const (
+	NotFound MsgStatus = -1
 	Received MsgStatus = iota
 	Cascading
 	Finalized
@@ -430,4 +431,49 @@ func (m *ReceivedMessage) WaitForTrace(c *SignedAPIClient) error {
 		messagesWithUnconfirmedOutgoingMessages = append(messagesWithUnconfirmedOutgoingMessages, cascadingMessage.OutgoingInternalReceivedMessages...)
 	}
 	return nil
+}
+
+// OutcomeExitCode returns the first non-success exit code found in this message
+// or any of its outgoing internal messages. If all messages succeeded, it returns
+// the success exit code.
+func (m *ReceivedMessage) OutcomeExitCode() tvm.ExitCode {
+	if !m.Success {
+		return m.ExitCode
+	}
+	for _, msg := range m.OutgoingInternalReceivedMessages {
+		if code := msg.OutcomeExitCode(); code != tvm.ExitCodeSuccess {
+			return code
+		}
+	}
+	return tvm.ExitCodeSuccess
+}
+
+// TraceSucceeded recursively checks if this message
+// and all its OutgoingInternalMessagesReceived succeeded. A message is
+// considered successful if Success == true or if the ExitCode indicates
+// a successful deployment (errorCode.IsSuccessfulDeployment() == true).
+func (m *ReceivedMessage) TraceSucceeded() bool {
+	if !m.Success {
+		return false
+	}
+	for _, msg := range m.OutgoingInternalReceivedMessages {
+		if !msg.TraceSucceeded() {
+			return false
+		}
+	}
+	return true
+}
+
+// TraceFinalized returns true if the message and all its outgoing internal messages
+// (recursively) are in MsgStatus Finalized.
+func (m *ReceivedMessage) TraceFinalized() bool {
+	if m.Status() != Finalized {
+		return false
+	}
+	for _, msg := range m.OutgoingInternalReceivedMessages {
+		if !msg.TraceFinalized() {
+			return false
+		}
+	}
+	return true
 }

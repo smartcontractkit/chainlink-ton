@@ -14,8 +14,9 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/cal/chainrw"
 	"github.com/smartcontractkit/chainlink-ton/pkg/config"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/txm"
-	"github.com/smartcontractkit/chainlink-ton/tonutils"
 )
 
 var _ TxManager = (*txm.Txm)(nil)
@@ -24,8 +25,8 @@ type TxManager interface {
 	services.Service
 
 	Enqueue(request txm.Request) error
-	GetTransactionStatus(ctx context.Context, lt uint64) (commontypes.TransactionStatus, tonutils.ExitCode, error)
-	GetClient() tonutils.ApiClient
+	GetTransactionStatus(ctx context.Context, lt uint64) (commontypes.TransactionStatus, tvm.ExitCode, error)
+	GetClient() tracetracking.SignedAPIClient
 	InflightCount() (int, int)
 }
 

@@ -5,7 +5,8 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/smartcontractkit/chainlink-ton/tonutils"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
 	"golang.org/x/exp/maps"
 )
@@ -17,8 +18,8 @@ type UnconfirmedTx struct {
 }
 
 type FinalizedTx struct {
-	ReceivedMessage tonutils.ReceivedMessage
-	ExitCode        tonutils.ExitCode
+	ReceivedMessage tracetracking.ReceivedMessage
+	ExitCode        tvm.ExitCode
 	TraceSucceeded  bool
 }
 
@@ -59,7 +60,7 @@ func (s *TxStore) AddUnconfirmed(lt uint64, expirationMs uint64, tx *Tx) error {
 }
 
 // Confirm marks a transaction as confirmed and removes it by LT.
-func (s *TxStore) MarkFinalized(lt uint64, success bool, exitCode tonutils.ExitCode) error {
+func (s *TxStore) MarkFinalized(lt uint64, success bool, exitCode tvm.ExitCode) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
@@ -109,22 +110,22 @@ func (s *TxStore) InflightCount() int {
 // - isSucceeded indicates whether the transaction trace execution succeeded.
 // - ExitCode contains the VM result code.
 // - found tells whether the transaction was present in memory.
-func (s *TxStore) GetTxState(lt uint64) (tonutils.MsgStatus, bool, tonutils.ExitCode, bool) {
+func (s *TxStore) GetTxState(lt uint64) (tracetracking.MsgStatus, bool, tvm.ExitCode, bool) {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 
 	if _, exists := s.unconfirmedTxs[lt]; exists {
 		// Transaction is seen but not finalized
-		return tonutils.Cascading, false, 0, true
+		return tracetracking.Cascading, false, 0, true
 	}
 
 	if tx, exists := s.finalizedTxs[lt]; exists {
 		// Transaction is finalized (success or failure is indicated separately)
-		return tonutils.Finalized, tx.TraceSucceeded, tx.ExitCode, true
+		return tracetracking.Finalized, tx.TraceSucceeded, tx.ExitCode, true
 	}
 
 	// Transaction not found in any store
-	return tonutils.NotFound, false, 0, false
+	return tracetracking.NotFound, false, 0, false
 }
 
 type AccountStore struct {

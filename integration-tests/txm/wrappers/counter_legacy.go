@@ -1,12 +1,13 @@
-package counterlegacy
+package counter_legacy
 
 import (
 	"context"
 	"fmt"
 	"math/big"
 
+	test_utils "integration-tests/utils"
+
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/contract"
-	"github.com/smartcontractkit/chainlink-ton/testutils"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
@@ -14,7 +15,7 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
-var CounterContractPath = testutils.GetBuildDir("CounterLegacy.compiled.json")
+var CounterContractPath = test_utils.GetBuildDir("CounterLegacy.compiled.json")
 
 type CounterConfig struct {
 	ID    *big.Int

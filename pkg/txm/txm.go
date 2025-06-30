@@ -13,7 +13,8 @@ import (
 	commontypes "github.com/smartcontractkit/chainlink-common/pkg/types"
 	commonutils "github.com/smartcontractkit/chainlink-common/pkg/utils"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/key"
-	"github.com/smartcontractkit/chainlink-ton/tonutils"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
@@ -25,8 +26,8 @@ type TxManager interface {
 	services.Service
 
 	Enqueue(request Request) error
-	GetTransactionStatus(ctx context.Context, lt uint64) (commontypes.TransactionStatus, tonutils.ExitCode, error)
-	GetClient() tonutils.ApiClient
+	GetTransactionStatus(ctx context.Context, lt uint64) (commontypes.TransactionStatus, tvm.ExitCode, error)
+	GetClient() tracetracking.SignedAPIClient
 	InflightCount() (int, int)
 }
 
@@ -37,7 +38,7 @@ type Txm struct {
 	Keystore loop.Keystore
 	Config   Config
 
-	Client        tonutils.ApiClient
+	Client        tracetracking.SignedAPIClient
 	BroadcastChan chan *Tx
 	AccountStore  *AccountStore
 	Starter       commonutils.StartStopOnce
@@ -55,7 +56,7 @@ type Request struct {
 	StateInit       *cell.Cell      // Optional: contract deploy init
 }
 
-func New(lgr logger.Logger, keystore loop.Keystore, client tonutils.ApiClient, config Config) *Txm {
+func New(lgr logger.Logger, keystore loop.Keystore, client tracetracking.SignedAPIClient, config Config) *Txm {
 	txm := &Txm{
 		Logger:        logger.Named(lgr, "Txm"),
 		Keystore:      keystore,
@@ -81,7 +82,7 @@ func (t *Txm) HealthReport() map[string]error {
 	return map[string]error{t.Name(): t.Starter.Healthy()}
 }
 
-func (t *Txm) GetClient() tonutils.ApiClient {
+func (t *Txm) GetClient() tracetracking.SignedAPIClient {
 	return t.Client
 }
 
@@ -194,7 +195,7 @@ func (t *Txm) broadcastLoop() {
 
 // Attempts to broadcast a transaction with retries on failure.
 func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Message) error {
-	var receivedMessage *tonutils.ReceivedMessage
+	var receivedMessage *tracetracking.ReceivedMessage
 	var err error
 
 	for attempt := uint(1); attempt <= t.Config.MaxSendRetryAttempts; attempt++ {
@@ -315,7 +316,7 @@ func (t *Txm) checkUnconfirmed() {
 }
 
 // GetTransactionStatus translates internal TON transaction state to chainlink common statuses.
-func (t *Txm) GetTransactionStatus(ctx context.Context, lt uint64) (commontypes.TransactionStatus, tonutils.ExitCode, error) {
+func (t *Txm) GetTransactionStatus(ctx context.Context, lt uint64) (commontypes.TransactionStatus, tvm.ExitCode, error) {
 	txStore := t.AccountStore.GetTxStore(t.Client.Wallet.Address().String())
 	if txStore == nil {
 		return commontypes.Unknown, 0, fmt.Errorf("txStore not found for sender %s", t.Client.Wallet.Address().String())
@@ -327,13 +328,13 @@ func (t *Txm) GetTransactionStatus(ctx context.Context, lt uint64) (commontypes.
 	}
 
 	switch status {
-	case tonutils.NotFound:
+	case tracetracking.NotFound:
 		return commontypes.Unknown, 0, fmt.Errorf("transaction not found in state map: %d", lt)
-	case tonutils.Cascading:
+	case tracetracking.Cascading:
 		return commontypes.Pending, 0, nil
-	case tonutils.Received:
+	case tracetracking.Received:
 		return commontypes.Unconfirmed, 0, nil
-	case tonutils.Finalized:
+	case tracetracking.Finalized:
 		if succeeded {
 			return commontypes.Finalized, exitCode, nil
 		}
