@@ -40,7 +40,7 @@ func TestSVMExtraArgsV1_TLBEncodeDecode(t *testing.T) {
 	accountCell, err := Pack2DByteArrayToCell(accountList)
 	require.NoError(t, err)
 
-	orig := SVMExtraArgsV1{
+	orig := TLBSVMExtraArgsV1{
 		ComputeUnits:             42,
 		AccountIsWritableBitmap:  0xDEADBEEF,
 		AllowOutOfOrderExecution: false,
@@ -51,7 +51,7 @@ func TestSVMExtraArgsV1_TLBEncodeDecode(t *testing.T) {
 	c, err := tlb.ToCell(orig)
 	require.NoError(t, err)
 
-	var decoded SVMExtraArgsV1
+	var decoded TLBSVMExtraArgsV1
 	err = tlb.LoadFromCell(&decoded, c.BeginParse())
 	require.NoError(t, err)
 	require.Equal(t, orig.ComputeUnits, decoded.ComputeUnits)
@@ -63,5 +63,16 @@ func TestSVMExtraArgsV1_TLBEncodeDecode(t *testing.T) {
 	require.NoError(t, err)
 	for i, addr := range accountList {
 		require.Equal(t, addr, parsedAccountList[i])
+	}
+
+	decodedArgs, err := decoded.ExportSVMExtraArgsV1()
+	require.NoError(t, err)
+	require.Equal(t, orig.ComputeUnits, decodedArgs.ComputeUnits)
+	require.Equal(t, orig.AccountIsWritableBitmap, decodedArgs.AccountIsWritableBitmap)
+	require.Equal(t, orig.AllowOutOfOrderExecution, decodedArgs.AllowOutOfOrderExecution)
+	require.Equal(t, orig.TokenReceiver, decodedArgs.TokenReceiver)
+	require.Equal(t, len(accountList), len(decodedArgs.Accounts))
+	for i, addr := range accountList {
+		require.Equal(t, addr, decodedArgs.Accounts[i])
 	}
 }
