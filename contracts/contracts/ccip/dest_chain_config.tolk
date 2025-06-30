@@ -86,7 +86,7 @@ fun onGetValidatedFee(payload: GetValidatedFee): (uint256, uint256, uint256) {
     var tokensIter = Iterator<TokenAmount>.new(msg.tokenAmounts);
     var (tokenCount, premiumFeeUsdWei, tokenTransferGas, tokenTransferBytesOverhead) = (0, st.config.networkFeeUsdCents as uint256, 0, 0);
     if (!tokensIter.empty()) {
-        val tokenPrices = Map<uint224>.new(36*8); // TODO: pass this through from feeQuoter
+        val tokenPrices = Map<uint224>.new(); // TODO: pass this through from feeQuoter
         (tokenCount, premiumFeeUsdWei, tokenTransferGas, tokenTransferBytesOverhead) = getTokenTransferCost(st, mutate tokensIter, tokenPrices);
     };
 
@@ -162,7 +162,7 @@ fun getTokenTransferCost(st: DestChainConfig_Storage, mutate tokens: Iterator<To
         val tokenAmount = tokens.next();
         count += 1;
 
-        val (maybeCfg, exists) = st.tokenTransferFeeConfigs.get(tokenAmount.token as slice);
+        val (maybeCfg, exists) = st.tokenTransferFeeConfigs.get(tokenAmount.token);
         assert(exists, ERROR_UNKNOWN_DEST_CHAIN_SELECTOR);
         val transferFeeConfig = maybeCfg!;
 
@@ -179,7 +179,7 @@ fun getTokenTransferCost(st: DestChainConfig_Storage, mutate tokens: Iterator<To
 
             var bpsFeeUsdWei = 0;
             if (transferFeeConfig.deciBps > 0) {
-                val (maybeTokenPrice, exists) = tokenPrices.get(tokenAmount.token as slice);
+                val (maybeTokenPrice, exists) = tokenPrices.get(tokenAmount.token);
                 assert(exists, ERROR_UNKNOWN_DEST_CHAIN_SELECTOR);
                 val tokenPrice = maybeTokenPrice!;
 

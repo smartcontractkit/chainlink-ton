@@ -105,21 +105,15 @@ export const Builder = {
       builder.storeBit(0) // Store '0' to indicate the address is absent
     }
 
-    return (
-      builder
-        .storeRef(config.deployerCode)
-        .storeRef(config.destChainConfigCode)
-        .storeUint(config.maxFeeJuelsPerMsg, 96)
-        .storeAddress(config.linkToken)
-        .storeUint(config.tokenPriceStalenessThreshold, 64)
-        // Map<> type
-        .storeDict(config.usdPerToken)
-        .storeUint(64, 16) // keyLen
-        // Map<> type
-        .storeDict(config.premiumMultiplierWeiPerEth)
-        .storeUint(64, 16) // keyLen
-        .endCell()
-    )
+    return builder
+      .storeRef(config.deployerCode)
+      .storeRef(config.destChainConfigCode)
+      .storeUint(config.maxFeeJuelsPerMsg, 96)
+      .storeAddress(config.linkToken)
+      .storeUint(config.tokenPriceStalenessThreshold, 64)
+      .storeDict(config.usdPerToken)
+      .storeDict(config.premiumMultiplierWeiPerEth)
+      .endCell()
   },
 }
 export abstract class Params {}
