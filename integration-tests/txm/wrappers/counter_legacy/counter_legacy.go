@@ -7,7 +7,7 @@ import (
 
 	test_utils "integration-tests/utils"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/contract"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
@@ -15,7 +15,7 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
-var CounterContractPath = test_utils.GetBuildDir("CounterLegacy.compiled.json")
+var CounterContractPath = test_utils.GetBuildDir("CounterLegacy/tact_CounterLegacy.pkg")
 
 type CounterConfig struct {
 	ID    *big.Int
@@ -24,7 +24,7 @@ type CounterConfig struct {
 
 // Creates StateInit and computes address
 func BuildCounterStateInit(ctx context.Context, config CounterConfig) (*address.Address, *cell.Cell, error) {
-	code, err := contract.ParseCompiledContract(CounterContractPath)
+	code, err := wrappers.ParseCompiledContract(CounterContractPath)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to compile contract: %w", err)
 	}
