@@ -1,10 +1,13 @@
 import { uint8ArrayToBigInt, bigIntToBytes32 } from './Utils'
+import { beginCell } from '@ton/core'
 
 // Internal domain separator for Merkle internal nodes, represented as a 256-bit BigInt (0x01)
-const INTERNAL_DOMAIN_SEPARATOR_BIGINT = 1n
+const INTERNAL_DOMAIN_SEPARATOR_BIGINT =
+  0x0000000000000000000000000000000000000000000000000000000000000001n
 
 // Leaf domain separator (0x00...00), represented as a 256-bit BigInt (0n)
-const LEAF_DOMAIN_SEPARATOR_BIGINT = 0n
+const LEAF_DOMAIN_SEPARATOR_BIGINT =
+  0x0000000000000000000000000000000000000000000000000000000000000000n
 
 const MAX_NUM_HASHES = 256
 
@@ -64,7 +67,7 @@ export class MerkleHelper {
 
       if (hashPos > i) throw new InvalidProof()
 
-      hashes[i] = uint8ArrayToBigInt(this.hashPair(bigIntToBytes32(a), bigIntToBytes32(b)))
+      hashes[i] = this.hashPair(a, b)
     }
 
     if (hashPos !== totalHashes - 1 || leafPos !== leavesLen || proofPos !== proofsLen) {
@@ -80,10 +83,8 @@ export class MerkleHelper {
    * @param b The second 256-bit BigInt.
    * @returns The hashed pair as a 256-bit BigInt.
    */
-  private hashPair(a: Uint8Array, b: Uint8Array): Uint8Array {
-    return uint8ArrayToBigInt(a) < uint8ArrayToBigInt(b)
-      ? this.hashInternalNode(a, b)
-      : this.hashInternalNode(b, a)
+  private hashPair(a: bigint, b: bigint): bigint {
+    return a < b ? this.hashInternalNode(a, b) : this.hashInternalNode(b, a)
   }
 
   /**
@@ -94,18 +95,14 @@ export class MerkleHelper {
    * @param right The right child hash (256-bit BigInt).
    * @returns The internal node hash as a 256-bit BigInt.
    */
-  private hashInternalNode(left: Uint8Array, right: Uint8Array): Uint8Array {
-    // Each component (separator, left, right) is converted to its 32-byte representation.
-    const separatorBytes = bigIntToBytes32(INTERNAL_DOMAIN_SEPARATOR_BIGINT) // 32 bytes
+  private hashInternalNode(left: bigint, right: bigint): bigint {
+    var data = beginCell()
+      .storeUint(INTERNAL_DOMAIN_SEPARATOR_BIGINT, 256)
+      .storeUint(left, 256)
+      .storeUint(right, 256)
+      .endCell()
 
-    // Concatenate the three 32-byte arrays into a single 96-byte array.
-    const combinedBytes = new Uint8Array(96) // 3 * 32 bytes total
-    combinedBytes.set(separatorBytes, 0) // Place separator at the beginning
-    combinedBytes.set(left, 32) // Place left child after separator
-    combinedBytes.set(right, 64) // Place right child after left child
-
-    // Apply hash to the combined 96-byte array.
-    return this.hash(combinedBytes)
+    return uint8ArrayToBigInt(data.hash())
   }
 
   /**
@@ -118,11 +115,11 @@ export class MerkleHelper {
     if (hashedLeaves.length > 256) {
       throw new Error('Leaves length must not exceed 256.')
     }
-    let currentLayer = hashedLeaves.map((leaf) => bigIntToBytes32(leaf))
+    let currentLayer = hashedLeaves
     while (currentLayer.length > 1) {
       currentLayer = this.computeNextLayer(currentLayer)
     }
-    return uint8ArrayToBigInt(currentLayer[0])
+    return currentLayer[0]
   }
 
   /**
@@ -131,11 +128,11 @@ export class MerkleHelper {
    * @param layer An array of 256-bit BigInts for the current layer.
    * @returns An array of 256-bit BigInts for the next layer.
    */
-  private computeNextLayer(layer: Uint8Array[]): Uint8Array[] {
+  private computeNextLayer(layer: bigint[]): bigint[] {
     const leavesLen = layer.length
     if (leavesLen === 1) return layer
 
-    const nextLayer: Uint8Array[] = []
+    const nextLayer: bigint[] = []
     for (let i = 0; i < leavesLen; i += 2) {
       if (i === leavesLen - 1) {
         nextLayer.push(layer[i])
