@@ -1,6 +1,7 @@
 import "types.tolk";
 import "../lib/access/ownable_2step.tolk";
 import "../lib/upgrades/type_and_version.tolk";
+import "./../lib/merkle_multi_proof/merkle_multi_proof.tolk"
 import "../deployable/types.tolk";
 import "utils.tolk";
 import "../lib/utils.tolk";
@@ -90,9 +91,10 @@ struct Any2TONTokenTransfer {
 
 struct ExecutionReport {
     sourceChainSelector: uint64;
-    message: Any2TONRampMessage;
+    messages: cell; // vec<Any2TONRampMessage>
     offchainTokenData: cell; // TODO: vec<vec<u8>>, one per token
     proofs: cell; // Proofs used to construct the merkle root TODO: vec<bytes32>
+    proofFlagBits: uint256;
 }
 
 // Matches the EVM struct
@@ -142,6 +144,7 @@ fun onInternalMessage(msgCell: cell, msgBody: slice) {
 fun getMerkleRootID(merkleRoot: uint256): builder {
     return beginCell() // id:u16 = 2 | merkleRoot:256
         .storeUint(2, 16) // TODO: alias constant for MerkleRoot
+        // TODO: include sourceChainSelector
         .storeUint(merkleRoot, 256);
 }
 
@@ -149,7 +152,6 @@ fun commit(msg: Commit, sender: address) {
     val st = Storage.load();
 
     // ocr3 base: validate signatures
-    // NOTE: we always want to calculate cell_hash(report) when validating
 
     // parse report
     val report = CommitReport.fromCell(msg.report);
@@ -220,8 +222,59 @@ fun _execute(msg: Execute, sender: address) {
     // parse report
     val report = ExecutionReport.fromCell(msg.report);
 
+    var hashedLeaves = createEmptyTuple();
+
+    // TODO: metadata hash:
+    var messages = Iterator<Cell<Any2TONRampMessage>>.new(report.messages);
+    // TODO: is offchainTokenData not hashed?
+    while (!messages.empty()) {
+        val messageCell = messages.next();
+
+        val message = messageCell.load();
+        val header = message.header.load();
+
+        // Commits do not verify the destChainSelector in the message since only the root is committed, so we
+        // have to check it explicitly. This check is also important as we have assumed the metaDataHash above uses
+        // the i_chainSelector as the destChainSelector.
+        assert(header.destChainSelector == st.chainSelector, ERROR_INVALID_MESSAGE_DEST_CHAIN_SELECTOR);
+
+        // If the message source chain selector does not match the report's source chain selector and the root has not
+        // been committed for the report source chain selector this will be caught by the root verification.
+        // This acts as an extra check to ensure the message source chain selector matches the report's source chain.
+        assert(header.sourceChainSelector == report.sourceChainSelector, ERROR_SOURCE_CHAIN_SELECTOR_MISMATCH);
+
+        // Hashes the cell data + refs recursively
+        val hash = messageCell.hash(); // TODO: mix together with metadata hash
+        hashedLeaves.push(hash);
+    }
+
     // calculate merkle root
+    var leavesIterator = TupleIterator<uint256>.new(hashedLeaves);
+    var proofsIterator = Iterator<uint256>.new(report.proofs);
+    val root = merkleRoot(
+        leavesIterator,
+        proofsIterator,
+        report.proofFlagBits,
+    );
+
     // send message to MerkleRoot (execute)
+    // val executeMsg = createMessage({
+    //     bounce: true, // TODO: could bounce if root already exists
+    //     value: ton("0.1"), // TODO:
+    //     dest: {
+    //         stateInit: {
+    //             code: st.deployer,
+    //             data: Deployable {
+    //                 owner: contract.getAddress(),
+    //                 id: getMerkleRootID(root.merkleRoot),
+    //             }.toCell(),
+    //         },
+    //         // TODO: toShard so it's collocated with offramp
+    //     },
+    //     // TODO:
+    //     // body: Execute { },
+    // });
+    // executeMsg.send(SEND_MODE_REGULAR);
 }
 
 // TODO: handle signals from MerkleRoot (release tokens, execute)

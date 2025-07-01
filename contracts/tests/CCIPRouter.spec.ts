@@ -274,9 +274,9 @@ describe('Router', () => {
         success: true,
       })
     }
-  })
+  }, 15_000) // we do a fair bit of setup so increase the timeout here
 
-  it('it works', async () => {
+  it('onramp', async () => {
     // Configure onRamp on router
     let result = await router.sendSetRamp(deployer.getSender(), {
       value: toNano('1'),
@@ -347,5 +347,11 @@ describe('Router', () => {
       destChainSelector: CHAINSEL_EVM_TEST_90000001,
     })
   })
-  //   expect(await calculator.getGetRoot()).toBe(expectedRoot)
+
+  it('offramp', async () => {
+    // configure oracle set
+    // generate a report
+    // call commit
+    // call exec
+  })
 })

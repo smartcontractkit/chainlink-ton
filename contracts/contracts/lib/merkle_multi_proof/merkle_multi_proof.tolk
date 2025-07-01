@@ -17,13 +17,14 @@ const MAX_NUM_HASHES: int = 128;
 
 /// @notice Computes the Merkle root based on provided pre-hashed leaf nodes in `leaves`, internal nodes in `proofs`,
 /// and using `proofFlagBits` to determine whether to use a proof element or a previously computed node during each step.
-fun merkleRoot(
-    leaves: Iterator<uint256>,
+fun merkleRoot<I>(
+    leaves: I, // Iterator or TupleIterator<uint256>
     proofs: Iterator<uint256>,
     proofFlagBits: uint256,
 ): uint256 {
-    val leavesLen = leaves.countBytes() / 32;
-    val proofsLen = proofs.countBytes() / 32;
+    val leavesLen = leaves.size(32);
+    val proofsLen = proofs.size(32);
+    // TODO: we need to call endParse() to ensure data was fully parsed
 
     assert (leavesLen != 0, ERROR_INVALID_PROOF_LEAVES_CANNOT_BE_EMPTY);
     assert (leavesLen <= MAX_NUM_HASHES, ERROR_INVALID_PROOF_LEAVES_TOO_LARGE + 1);
