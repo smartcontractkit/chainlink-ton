@@ -167,7 +167,6 @@ fun onMessageValidated(payload: MessageValidated, sender: address) {
     // TODO: validate origin: must be dest_chain_config belonging to us
     var st = Storage.load();
 
-
     // TODO: this should be eagerly validated in the router.ccipSend to revert early?
     val feeTokenPrice = st.usdPerToken.mustGet(msg.feeToken, ERROR_FEE_TOKEN_NOT_SUPPORTED);
     val premiumMultiplier = st.premiumMultiplierWeiPerEth.mustGet(msg.feeToken, ERROR_FEE_TOKEN_NOT_SUPPORTED) as uint256;

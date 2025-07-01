@@ -109,9 +109,6 @@ fun onSend(payload: OnRampSend, sender: address) {
         }
     });
     getValidatedFeeMsg.send(SEND_MODE_REGULAR);
-
-    // TEMP: publish so we unblock e2e
-    // onPublish(msg, sender);
 }
 
 // TODO: do we follow solana model and merge router + onramp? aptos also does this
