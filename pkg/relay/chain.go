@@ -124,6 +124,7 @@ func (c *chain) TxManager() TxManager {
 }
 
 func (c *chain) FeeEstimator() fees.Estimator {
+	// TODO(NONEVM-1460): implement
 	return nil
 }
 
