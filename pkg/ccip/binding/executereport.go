@@ -1,6 +1,7 @@
 package binding
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
 
@@ -93,13 +94,12 @@ func UnPackArrayWithRefChaining[T any](root *cell.Cell) ([]T, error) {
 	curr := root
 	for curr != nil {
 		length := curr.RefsNum()
-		chainIdx := 3 // chaining happens only when there are 4 refs, at index 3
-		for i := 0; i < int(length); i++ {
-			ref, err := curr.PeekRef(i)
+		for i := uint(0); i < curr.RefsNum(); i++ {
+			ref, err := curr.PeekRef(int(i))
 			if err != nil {
 				return nil, fmt.Errorf("failed to unpack array, at ref index %d: %w", i, err)
 			}
-			if length == 4 && i == chainIdx {
+			if length == 4 && i == 3 { // chaining happens only when there are 4 refs, at index 3
 				curr = ref
 				break // move to next cell, do not decode this ref
 			}
@@ -191,15 +191,15 @@ func PackByteArrayToCell(data []byte) (*cell.Cell, error) {
 
 	for offset := 0; offset < len(data); {
 		bitsLeft := curr.BitsLeft()
-		bytesFit := int(bitsLeft / 8)
-		if bytesFit > len(data)-offset {
-			bytesFit = len(data) - offset
+		bytesFit := bitsLeft / 8
+		if int(bytesFit) > len(data)-offset {
+			bytesFit = uint(len(data) - offset)
 		}
 		if bytesFit > 0 {
-			if err := curr.StoreSlice(data[offset:offset+bytesFit], uint(bytesFit*8)); err != nil {
+			if err := curr.StoreSlice(data[offset:offset+int(bytesFit)], bytesFit*8); err != nil {
 				return nil, fmt.Errorf("failed to store bytes: %w", err)
 			}
-			offset += bytesFit
+			offset += int(bytesFit)
 		}
 		if offset < len(data) && bytesFit == 0 {
 			curr = cell.BeginCell()
@@ -308,7 +308,7 @@ func Unpack2DByteArrayFromCell(c *cell.Cell) ([][]byte, error) {
 			continue
 		}
 		if s.RefsNum() == 0 {
-			return nil, fmt.Errorf("expected ref for non-empty array")
+			return nil, errors.New("expected ref for non-empty array")
 		}
 		ref, err := s.LoadRef()
 		if err != nil {
