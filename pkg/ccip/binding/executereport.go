@@ -60,7 +60,7 @@ func PackArrayWithRefChaining[T any](array []T) (*cell.Cell, error) {
 		}
 
 		// If only one ref left, start a new cell for chaining
-		if builder.RefsLeft() <= 1 {
+		if builder.RefsLeft() == 1 {
 			builder = cell.BeginCell()
 			cells = append(cells, builder)
 		}
