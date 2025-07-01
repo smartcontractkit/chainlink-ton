@@ -4,13 +4,13 @@ import { compile } from '@ton/blueprint'
 import { Router, RouterStorage } from '../wrappers/ccip/Router'
 import { OnRamp, OnRampStorage } from '../wrappers/ccip/OnRamp'
 import { OffRamp, OffRampStorage } from '../wrappers/ccip/OffRamp'
-
-import '@ton/test-utils'
 import {
   createTimestampedPriceValue,
   FeeQuoter,
   FeeQuoterStorage,
+  TimestampedPrice,
 } from '../wrappers/ccip/FeeQuoter'
+import '@ton/test-utils'
 
 const ZERO_ADDRESS: Address = Address.parse(
   '0:0000000000000000000000000000000000000000000000000000000000000000',
@@ -154,8 +154,12 @@ describe('Router', () => {
           Dictionary.Values.BigUint(64),
         ),
       }
-      // add config for EVM destination
-
+      // HACK: pre-insert token data
+      data.usdPerToken.set(ZERO_ADDRESS, {
+        value: 123n,
+        timestamp: BigInt(Date.now()),
+      } as TimestampedPrice)
+      data.premiumMultiplierWeiPerEth.set(ZERO_ADDRESS, 1n)
       feeQuoter = blockchain.openContract(FeeQuoter.createFromConfig(data, code))
 
       let result = await feeQuoter.sendDeploy(deployer.getSender(), toNano('1'))
@@ -166,6 +170,7 @@ describe('Router', () => {
         success: true,
       })
 
+      // add config for EVM destination
       result = await feeQuoter.sendUpdateDestChainConfig(deployer.getSender(), {
         value: toNano('1'),
         destChainSelector: CHAINSEL_EVM_TEST_90000001,
@@ -323,6 +328,14 @@ describe('Router', () => {
     expect(result.transactions).toHaveTransaction({
       from: feeQuoter.address,
       // to: feeQuoter.address,
+      deploy: false,
+      success: true,
+    })
+
+    // destChainConfig -> feeQuoter -> onRamp
+    expect(result.transactions).toHaveTransaction({
+      from: feeQuoter.address,
+      to: onRamp.address,
       deploy: false,
       success: true,
     })

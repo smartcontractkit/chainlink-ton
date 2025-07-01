@@ -62,7 +62,7 @@ fun DestChainConfig_Storage.getValidatedGasPrice(self): (uint112, uint112) {
     return (price.executionGasPrice, price.dataAvailabilityGasPrice)
 }
 
-fun onGetValidatedFee(payload: GetValidatedFee): (uint256, uint256, uint256) {
+fun onGetValidatedFee(payload: GetValidatedFee) {
     val msg = payload.msg;
     val st = DestChainConfig_Storage.load();
     // validate message came from trusted fee quoter (owner)
@@ -138,17 +138,21 @@ fun onGetValidatedFee(payload: GetValidatedFee): (uint256, uint256, uint256) {
         * st.config.destDataAvailabilityMultiplierBps as uint256
         * VAL_1E14;
 
-    // val premiumMultiplier = fee_token_config.premium_multiplier_wei_per_eth as uint256;
-    // At this step, every fee component has been raised to 36 decimals
-    // let feeTokenValue =
-    //     (network_fee.premium * premium_multiplier) + execution_cost + data_availability_cost;
-
-    // Fee token value is in 36 decimals
-    // Fee token price is in 18 decimals USD for 1e18 smallest token denominations.
-    // The result is the fee in the fee tokens smallest denominations (e.g. lamport for Sol).
-    // let fee_token_amount = (fee_token_value / fee_token_price)
-
-    return (premiumFeeUsdWei, executionCost, dataAvailabilityCost)
+    val messageValidatedMsg = createMessage({
+        bounce: false,
+        value: ton("0.05"), // TODO:
+        dest: st.owner,
+        body: MessageValidated {
+            msg: msg.toCell(),
+            caller: payload.caller,
+            fees: Fees {
+                premiumFeeUsdWei,
+                executionCost,
+                dataAvailabilityCost,
+            }.toCell()
+        },
+    });
+    messageValidatedMsg.send(SEND_MODE_REGULAR);
 }
 
 fun getTokenTransferCost(st: DestChainConfig_Storage, mutate tokens: Iterator<TokenAmount>, tokenPrices: Map<uint224>): (int, uint256, uint32, uint32) {

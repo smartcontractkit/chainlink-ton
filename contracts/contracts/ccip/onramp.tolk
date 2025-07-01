@@ -59,7 +59,7 @@ fun Storage.store(self) {
     return contract.setData(self.toCell());
 }
 
-type Msg = OnRampSend;
+type Msg = OnRampSend | Publish;
 
 fun onInternalMessage(msgCell: cell, msgBody: slice) {
     // TODO: does this waste gas?
@@ -77,6 +77,7 @@ fun onInternalMessage(msgCell: cell, msgBody: slice) {
         OnRampSend => {
             onSend(msg, sender)
         }
+        Publish => { onPublish(msg.msg.load(), sender) }
     }
 }
 
@@ -103,13 +104,14 @@ fun onSend(payload: OnRampSend, sender: address) {
         dest: st.config.load().feeQuoter,
         body: GetValidatedFee {
             msg,
+            caller: contract.getAddress(),
             // TODO: ...
         }
     });
     getValidatedFeeMsg.send(SEND_MODE_REGULAR);
 
     // TEMP: publish so we unblock e2e
-    onPublish(msg, sender);
+    // onPublish(msg, sender);
 }
 
 // TODO: do we follow solana model and merge router + onramp? aptos also does this

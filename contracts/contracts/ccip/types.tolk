@@ -47,6 +47,13 @@ struct (0x00000002) OnRampSend {
     // TODO: metadata { caller, value, tokenAmounts }
 }
 
+struct (0x00000003) Publish {
+    // queryId is embedded in the first element of CCIPSend
+    msg: Cell<CCIPSend>;
+    // caller: address; TODO:
+    // TODO: metadata { caller, value, tokenAmounts }
+}
+
 struct SetDynamicConfig {}
 
 struct UpdateDestChainConfigs {}
@@ -153,7 +160,22 @@ struct (0x10000005) UpdateDestChainConfig {
 }
 
 struct (0x10000006) GetValidatedFee {
-    msg: CCIPSend
+    msg: CCIPSend;
+    caller: address;
+    // TODO: metadata { caller, value, tokenAmounts }
+}
+
+struct Fees {
+    premiumFeeUsdWei: uint256;
+    executionCost: uint256;
+    dataAvailabilityCost: uint256;
+}
+
+struct (0x10000007) MessageValidated {
+    msg: Cell<CCIPSend>;
+    caller: address;
+    // TODO: metadata { caller, value, tokenAmounts }
+    fees: Cell<Fees>,
 }
 
 // OffRamp
@@ -179,9 +201,9 @@ struct (0x10000010) ExecuteReport {
 
 // Errors
 
-const ERROR_UNKNOWN_DEST_CHAIN_SELECTOR: int = 0x1;
-const ERROR_DEST_CHAIN_NOT_ENABLED: int = 0x2;
-const ERROR_FEE_TOKEN_NOT_SUPPORTED: int = 0x3;
-const ERROR_STALE_GAS_PRICE: int = 0x4;
-const ERROR_INVALID_MSG_DATA: int = 0x5;
-const ERROR_SENDER_NOT_ALLOWED: int = 0x6;
+const ERROR_UNKNOWN_DEST_CHAIN_SELECTOR: int = 256;
+const ERROR_DEST_CHAIN_NOT_ENABLED: int = 257;
+const ERROR_FEE_TOKEN_NOT_SUPPORTED: int = 258;
+const ERROR_STALE_GAS_PRICE: int = 259;
+const ERROR_INVALID_MSG_DATA: int = 260;
+const ERROR_SENDER_NOT_ALLOWED: int = 261;
