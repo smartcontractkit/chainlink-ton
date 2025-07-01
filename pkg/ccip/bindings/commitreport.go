@@ -16,6 +16,7 @@ type CommitReport struct {
 	RMNSignatures *cell.Cell   `tlb:"^"`
 }
 
+// MerkleRoots holds the blessed and unblessed Merkle roots.
 type MerkleRoots struct {
 	BlessedMerkleRoots   *cell.Cell `tlb:"^"`
 	UnblessedMerkleRoots *cell.Cell `tlb:"^"`
@@ -85,6 +86,7 @@ func PackArray[T any](array []T) (*cell.Cell, error) {
 	return next, nil
 }
 
+// UnpackArray unpacks a linked cell structure into a slice of T. Each cell might hold multiple elements, and the function traverses the linked cells to extract all elements.
 func UnpackArray[T any](root *cell.Cell) ([]T, error) {
 	var result []T
 	curr := root
