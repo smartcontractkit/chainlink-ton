@@ -22,7 +22,6 @@ type Any2TONRampMessage struct {
 	Sender       *cell.Cell        `tlb:"^"`
 	Data         *cell.Cell        `tlb:"^"`
 	Receiver     *address.Address  `tlb:"addr"`
-	GasLimit     tlb.Coins         `tlb:"."`
 	TokenAmounts *cell.Cell        `tlb:"^"`
 }
 
@@ -37,7 +36,6 @@ type RampMessageHeader struct {
 type Any2TONTokenTransfer struct {
 	SourcePoolAddress *cell.Cell       `tlb:"^"`
 	DestPoolAddress   *address.Address `tlb:"addr"`
-	DestGasAmount     uint32           `tlb:"## 32"`
 	ExtraData         *cell.Cell       `tlb:"^"` // TBD
 	Amount            *big.Int         `tlb:"## 256"`
 }
