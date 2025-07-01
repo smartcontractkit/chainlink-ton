@@ -198,15 +198,20 @@ func PackByteArrayToCell(data []byte) (*cell.Cell, error) {
 	for offset := 0; offset < len(data); {
 		bitsLeft := curr.BitsLeft()
 		bytesFit := bitsLeft / 8
+		toWrite := len(data) - offset
 
 		// sanity check for bytesFit
 		if bytesFit > uint(math.MaxInt) {
 			return nil, fmt.Errorf("bytesFit %d exceeds math.MaxInt", bytesFit)
+		} else if toWrite < 0 {
+			// this should not happen, but adding for type safty check
+			return nil, fmt.Errorf("offset %d exceeds data length %d", offset, len(data))
 		}
 
-		if int(bytesFit) > len(data)-offset {
-			bytesFit = uint(len(data) - offset)
+		if int(bytesFit) > toWrite {
+			bytesFit = uint(toWrite)
 		}
+
 		if bytesFit > 0 {
 			if err := curr.StoreSlice(data[offset:offset+int(bytesFit)], bytesFit*8); err != nil {
 				return nil, fmt.Errorf("failed to store bytes: %w", err)
@@ -314,6 +319,9 @@ func Unpack2DByteArrayFromCell(c *cell.Cell) ([][]byte, error) {
 		length, err := s.LoadUInt(16)
 		if err != nil {
 			return nil, fmt.Errorf("failed to load length: %w", err)
+		}
+		if length > uint64(math.MaxInt) {
+			return nil, fmt.Errorf("length %d overflows int", length)
 		}
 		if length == 0 {
 			result = append(result, []byte{})
