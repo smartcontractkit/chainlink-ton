@@ -150,7 +150,7 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 	require.NoError(t, err)
 	token, err := UnPackArrayWithRefChaining[Any2TONTokenTransfer](messages[0].TokenAmounts)
 	require.NoError(t, err)
-	require.Equal(t, 3, len(token))
+	require.Len(t, len(token), 3)
 }
 
 func TestPackAndUnpack2DByteArrayToCell(t *testing.T) {

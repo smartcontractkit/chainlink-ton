@@ -3,6 +3,7 @@ package binding
 import (
 	"errors"
 	"fmt"
+	"math"
 	"math/big"
 
 	"github.com/xssnick/tonutils-go/address"
@@ -94,8 +95,13 @@ func UnPackArrayWithRefChaining[T any](root *cell.Cell) ([]T, error) {
 	curr := root
 	for curr != nil {
 		length := curr.RefsNum()
-		for i := uint(0); i < curr.RefsNum(); i++ {
-			ref, err := curr.PeekRef(int(i))
+
+		// sanity check for length
+		if length > uint(math.MaxInt) {
+			return result, fmt.Errorf("length %d exceeds math.MaxInt", length)
+		}
+		for i := 0; i < int(length); i++ {
+			ref, err := curr.PeekRef(i)
 			if err != nil {
 				return nil, fmt.Errorf("failed to unpack array, at ref index %d: %w", i, err)
 			}
@@ -192,6 +198,12 @@ func PackByteArrayToCell(data []byte) (*cell.Cell, error) {
 	for offset := 0; offset < len(data); {
 		bitsLeft := curr.BitsLeft()
 		bytesFit := bitsLeft / 8
+
+		// sanity check for bytesFit
+		if bytesFit > uint(math.MaxInt) {
+			return nil, fmt.Errorf("bytesFit %d exceeds math.MaxInt", bytesFit)
+		}
+
 		if int(bytesFit) > len(data)-offset {
 			bytesFit = uint(len(data) - offset)
 		}
