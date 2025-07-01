@@ -30,7 +30,10 @@ docs/local/**
 node_modules/
 
 # Go build artifacts
-chainlink-ton
+/chainlink-ton
 
 # macOS Finder metadata
 .DS_Store
+
+# Golangci-lint reports
+golangci-lint-*-report.xml
