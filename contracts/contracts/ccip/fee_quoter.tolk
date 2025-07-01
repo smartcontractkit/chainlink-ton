@@ -34,7 +34,7 @@ fun Storage.store(self) {
     return contract.setData(self.toCell());
 }
 
-type Msg = UpdatePrices | UpdateDestChainConfig | GetValidatedFee; // | MessageValidated
+type Msg = UpdatePrices | UpdateDestChainConfig | GetValidatedFee | MessageValidated; // | MessageValidated
 
 fun onInternalMessage(msgCell: cell, msgBody: slice) {
     // TODO: does this waste gas?
@@ -51,7 +51,8 @@ fun onInternalMessage(msgCell: cell, msgBody: slice) {
     match (msg) {
         UpdatePrices => { onUpdatePrices(msg.updates) }
         UpdateDestChainConfig => { onUpdateDestChainConfig(msg, msgBody, sender) }
-        GetValidatedFee => { onGetValidatedFee(msg) }
+        GetValidatedFee => { onGetValidatedFee(msg, sender) }
+        MessageValidated => { onMessageValidated(msg, sender) }
     }
 }
 
@@ -130,9 +131,10 @@ fun onUpdatePrices(priceUpdates: PriceUpdates) {
     st.store();
 }
 
-fun onGetValidatedFee(payload: GetValidatedFee) {
+// NOTE: for getValidatedFee to be a getter, we'd need to merge destchainconfig into feequoter
+fun onGetValidatedFee(payload: GetValidatedFee, sender: address) {
     val msg = payload.msg;
-    // TODO: validate origin
+    // TODO: validate origin? or charge
     var st = Storage.load();
 
     // call getValidatedFee on DestChainConfig
@@ -148,7 +150,7 @@ fun onGetValidatedFee(payload: GetValidatedFee) {
                 }.toCell(),
             }
         },
-        body: GetValidatedFee { msg }
+        body: GetValidatedFee { msg, caller: sender }
     });
     getValidatedFeeMsg.send(SEND_MODE_REGULAR);
     // NOTE: this can get bounced if dest chain doesn't exist, in which case we should send
@@ -158,26 +160,38 @@ fun onGetValidatedFee(payload: GetValidatedFee) {
     // pass through information on token/jetton amounts
 }
 
-fun onMessageValidated(msg: CCIPSend) {
-    // TODO: validate origin
+fun onMessageValidated(payload: MessageValidated, sender: address) {
+    val msg = payload.msg.load();
+    val fees = payload.fees.load();
+
+    // TODO: validate origin: must be dest_chain_config belonging to us
     var st = Storage.load();
+
 
     // TODO: this should be eagerly validated in the router.ccipSend to revert early?
     val feeTokenPrice = st.usdPerToken.mustGet(msg.feeToken, ERROR_FEE_TOKEN_NOT_SUPPORTED);
+    val premiumMultiplier = st.premiumMultiplierWeiPerEth.mustGet(msg.feeToken, ERROR_FEE_TOKEN_NOT_SUPPORTED) as uint256;
 
-    // val premiumMultiplier = fee_token_config.premium_multiplier_wei_per_eth as uint256;
     // At this step, every fee component has been raised to 36 decimals
-    // let feeTokenValue =
-    //     (network_fee.premium * premium_multiplier) + execution_cost + data_availability_cost;
+    val feeTokenValue =
+        (fees.premiumFeeUsdWei * premiumMultiplier) + fees.executionCost + fees.dataAvailabilityCost;
 
     // Fee token value is in 36 decimals
     // Fee token price is in 18 decimals USD for 1e18 smallest token denominations.
     // The result is the fee in the fee tokens smallest denominations (e.g. lamport for Sol).
-    // let fee_token_amount = (feeTokenValue / feeTokenPrice)
+    val feeTokenAmount = (feeTokenValue / feeTokenPrice.value);
 
     // validate user transferred enough value
     // else refund and notify
+
     // call publish on onramp
+    val getValidatedFeeMsg = createMessage({
+        bounce: true,
+        value: ton("0.05"), // TODO:
+        dest: payload.caller, // this is the onramp
+        body: Publish { msg: payload.msg }
+    });
+    getValidatedFeeMsg.send(SEND_MODE_REGULAR);
 }
 
 // apply_premium_multiplier_wei_per_eth_updates??
