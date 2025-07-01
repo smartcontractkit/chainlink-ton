@@ -9,6 +9,7 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
+// ExecuteReport represents CCIP execute report messages on the TON blockchain.
 type ExecuteReport struct {
 	SourceChainSelector uint64     `tlb:"## 64"`
 	Messages            *cell.Cell `tlb:"^"`
@@ -17,6 +18,7 @@ type ExecuteReport struct {
 	ProofFlagBits       *big.Int   `tlb:"## 256"`
 }
 
+// Any2TONRampMessage represents ramp message, which is part of the execute report.
 type Any2TONRampMessage struct {
 	Header       RampMessageHeader `tlb:"^"`
 	Sender       *cell.Cell        `tlb:"^"`
@@ -25,6 +27,7 @@ type Any2TONRampMessage struct {
 	TokenAmounts *cell.Cell        `tlb:"^"`
 }
 
+// RampMessageHeader contains metadata for a ramp message.
 type RampMessageHeader struct {
 	MessageID           []byte `tlb:"bits 256"`
 	SourceChainSelector uint64 `tlb:"## 64"`
@@ -33,6 +36,7 @@ type RampMessageHeader struct {
 	Nonce               uint64 `tlb:"## 64"`
 }
 
+// Any2TONTokenTransfer represents a token transfer within a ramp message.
 type Any2TONTokenTransfer struct {
 	SourcePoolAddress *cell.Cell       `tlb:"^"`
 	DestPoolAddress   *address.Address `tlb:"addr"`
@@ -40,6 +44,7 @@ type Any2TONTokenTransfer struct {
 	Amount            *big.Int         `tlb:"## 256"`
 }
 
+// Signature represents a cryptographic signature used in the execute report.
 type Signature struct {
 	Sig []byte `tlb:"bits 512"`
 }
