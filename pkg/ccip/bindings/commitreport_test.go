@@ -36,10 +36,10 @@ func TestLoadArray_LoadToArrayFitMultipleInSingleCell(t *testing.T) {
 	require.Equal(t, 1, getTotalReference(c))
 
 	// first cell has 3 elements, second cell has 2 elements
-	require.Equal(t, c.BitsSize(), 258*3)
+	require.Equal(t, 258*3, c.BitsSize())
 	ref, err := c.PeekRef(0)
 	require.NoError(t, err)
-	require.Equal(t, ref.BitsSize(), 258*2)
+	require.Equal(t, 258*2, ref.BitsSize())
 
 	array, err := UnpackArray[TokenPriceUpdate](c)
 	require.NoError(t, err)
@@ -84,7 +84,7 @@ func TestLoadArray_FitSingleUpdateInSingleCell_TokenUpdates(t *testing.T) {
 	for i := 0; i < 4; i++ {
 		c, err = c.PeekRef(0)
 		require.NoError(t, err)
-		require.Equal(t, c.BitsSize(), 523)
+		require.Equal(t, 523, c.BitsSize())
 	}
 }
 
@@ -123,7 +123,7 @@ func TestLoadArray_FitSingleUpdateInSingleCell_MerkleRoots(t *testing.T) {
 	for i := 0; i < 2; i++ {
 		merkleRoots, err = merkleRoots.PeekRef(0)
 		require.NoError(t, err)
-		require.Equal(t, merkleRoots.BitsSize(), 960)
+		require.Equal(t, 960, merkleRoots.BitsSize())
 	}
 }
 
@@ -230,6 +230,7 @@ func TestCommitReport_EncodingAndDecoding(t *testing.T) {
 			Sig: make([]byte, 64),
 		},
 	})
+	require.NoError(t, err)
 
 	commitReport := CommitReport{
 		PriceUpdates: PriceUpdates{
