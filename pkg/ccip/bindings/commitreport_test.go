@@ -1,6 +1,8 @@
 package bindings
 
 import (
+	"fmt"
+	"math"
 	"math/big"
 	"testing"
 
@@ -33,13 +35,15 @@ func TestLoadArray_LoadToArrayFitMultipleInSingleCell(t *testing.T) {
 
 	// For this test, each token update is only 258 bits, so we can fit up to 3 of them in a single cell.
 	// we only need two cells to store 5 elements, so c should have 1 ref.
-	require.Equal(t, 1, getTotalReference(c))
+	refNum, err := getTotalReference(c)
+	require.NoError(t, err)
+	require.Equal(t, uint(1), refNum)
 
 	// first cell has 3 elements, second cell has 2 elements
-	require.Equal(t, 258*3, c.BitsSize())
+	require.Equal(t, uint(258*3), c.BitsSize())
 	ref, err := c.PeekRef(0)
 	require.NoError(t, err)
-	require.Equal(t, 258*2, ref.BitsSize())
+	require.Equal(t, uint(258*2), ref.BitsSize())
 
 	array, err := UnpackArray[TokenPriceUpdate](c)
 	require.NoError(t, err)
@@ -80,11 +84,13 @@ func TestLoadArray_FitSingleUpdateInSingleCell_TokenUpdates(t *testing.T) {
 
 	// For this test, each token update is only 523 bits, so we can fit only 1 of them in a single cell.
 	// we only need five cells to store 5 elements
-	require.Equal(t, 4, getTotalReference(c))
+	refNum, err := getTotalReference(c)
+	require.NoError(t, err)
+	require.Equal(t, uint(4), refNum)
 	for i := 0; i < 4; i++ {
 		c, err = c.PeekRef(0)
 		require.NoError(t, err)
-		require.Equal(t, 523, c.BitsSize())
+		require.Equal(t, uint(523), c.BitsSize())
 	}
 }
 
@@ -119,11 +125,13 @@ func TestLoadArray_FitSingleUpdateInSingleCell_MerkleRoots(t *testing.T) {
 
 	// For this test, each token update is only 960 bits, so we can fit only 1 of them in a single cell.
 	// we only need five cells to store 3 elements
-	require.Equal(t, 2, getTotalReference(merkleRoots))
+	refNum, err := getTotalReference(merkleRoots)
+	require.NoError(t, err)
+	require.Equal(t, uint(2), refNum)
 	for i := 0; i < 2; i++ {
 		merkleRoots, err = merkleRoots.PeekRef(0)
 		require.NoError(t, err)
-		require.Equal(t, 960, merkleRoots.BitsSize())
+		require.Equal(t, uint(960), merkleRoots.BitsSize())
 	}
 }
 
@@ -266,13 +274,20 @@ func TestCommitReport_EncodingAndDecoding(t *testing.T) {
 	require.Len(t, tu, 5)
 }
 
-func getTotalReference(c *cell.Cell) uint {
+func getTotalReference(c *cell.Cell) (uint, error) {
 	totalRefs := c.RefsNum()
 	for i := uint(0); i < c.RefsNum(); i++ {
+		if i > uint(math.MaxInt) {
+			return 0, fmt.Errorf("reference index %d exceeds math.MaxInt", i)
+		}
 		ref, err := c.PeekRef(int(i))
 		if err == nil && ref != nil {
-			totalRefs += getTotalReference(ref)
+			subRefs, subErr := getTotalReference(ref)
+			if subErr != nil {
+				return 0, subErr
+			}
+			totalRefs += subRefs
 		}
 	}
-	return totalRefs
+	return totalRefs, nil
 }
