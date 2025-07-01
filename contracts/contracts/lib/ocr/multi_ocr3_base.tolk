@@ -11,8 +11,8 @@ import "./../utils.tolk";
 struct OCR3Base_ConfigSet {
     ocrPluginType: uint16;
     configDigest: uint256;
-    signers: cell; //Iterator<uint256>
-    transmitters: cell; // Iterator<address>
+    signers: cell; //Vector<uint256>
+    transmitters: cell; // Vector<address>
     bigF: uint8;
 }
 
@@ -33,13 +33,14 @@ struct OCR3Base_Transmitted {
 /// @dev precondition number of transmitters should match the expected F/fChain relationship.
 /// For transmitters, the function only validates that len(transmitters) > 0 && len(transmitters) <= MAX_NUM_ORACLES
 /// && len(transmitters) <= len(signers) [if sig verification is enabled].
+//TODO: Calculate crc32 for the message opcode
 struct (0x00000001) OCR3Base_SetOCR3Config {
     configDigest: uint256;
     ocrPluginType: uint16;
     bigF: uint8;
     isSignatureVerificationEnabled: bool;
-    signers: cell; //Iterator<uint256>;
-    transmitters: cell; //Iterator<address>;
+    signers: cell; //Vector<uint256>;
+    transmitters: cell; //Vector<address>;
 }
 
 fun OCR3Base.onInternalMessage(mutate self, myBalance: int, msgValue: int, msgFull: cell, msgBody: slice) {
@@ -138,7 +139,7 @@ fun OCR3Base.transmit(
     ocrPluginType: int,
     reportContext: ReportContext,
     report: cell,
-    signatures: cell, //Iterator<SignatureEd25519>
+    signatures: cell, //Vector<SignatureEd25519>
     ) { 
     var (ocrConfig, foundConfig) = self.ocr3Configs.get(ocrPluginType);
     assert(foundConfig, ERROR_NON_EXISTENT_OCR_PLUGIN_TYPE);
@@ -155,8 +156,6 @@ fun OCR3Base.transmit(
     val(pluginTransmitters, foundTransmitters) = self.transmitterOracles.get(ocrPluginType);
     assert(foundTransmitters && Iterator<address>.new(pluginTransmitters!).has(transmitter), ERROR_UNAUTHORIZED_TRANSMITTER);
 
-    
-    
     if (configInfo.isSignatureVerificationEnabled) {
     	var expectedSignatures = configInfo.bigF + 1;
 	val signatures_length = Iterator<SignatureEd25519>.new(signatures).countBytes() / 64;
@@ -189,9 +188,9 @@ fun OCR3Base.hashReport(self, report: cell, reportContext: ReportContext): int {
 
 fun OCR3Base.verifySignature(
 	mutate self,
-	signers: cell, // Iterator<uint256>
+	signers: cell, // Vector<uint256>
 	hashedReport: uint256,
-	signatures: cell // Iterator<SignatureEd25519>
+	signatures: cell // Vector<SignatureEd25519>
 ) {
 	var signaturesIt = Iterator<SignatureEd25519>.new(signatures); 
 	var signersIt = Iterator<uint256>.new(signers);
@@ -205,7 +204,7 @@ fun OCR3Base.verifySignature(
 fun OCR3Base.assignSignerOracles(
 	mutate self,
 	ocrPluginType: uint16,
-	signers: cell /*Iterator<uint256>*/
+	signers: cell /*Vector<uint256>*/
 ) {
 	assert(!Iterator<uint256>.new(signers).hasDuplicates(), ERROR_REPEATED_SIGNERS);
 	// TODO: We cannot do ed25519 public key validation on chain. For now we assume valid keys.
@@ -218,7 +217,7 @@ fun OCR3Base.assignSignerOracles(
 fun OCR3Base.assignTransmitterOracles(
 	mutate self,
 	ocrPluginType: int,
-	transmitters: cell // Iterator<address>
+	transmitters: cell // Vector<address>
 ) {
 	assert(!Iterator<address>.new(transmitters).hasDuplicates(), ERROR_REPEATED_TRANSMITTERS);
 	self.transmitterOracles.set(
