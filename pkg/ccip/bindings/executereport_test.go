@@ -1,4 +1,4 @@
-package binding
+package bindings
 
 import (
 	"math/big"
@@ -22,35 +22,41 @@ func TestTokenAmounts(t *testing.T) {
 		{
 			SourcePoolAddress: dummyCell1,
 			DestPoolAddress:   addr,
+			DestGasAmount:     1000,
 			ExtraData:         dummyCell2,
 			Amount:            big.NewInt(10),
 		},
 		{
 			SourcePoolAddress: dummyCell1,
 			DestPoolAddress:   addr,
+			DestGasAmount:     1000,
 			ExtraData:         dummyCell2,
 			Amount:            big.NewInt(10),
 		},
 		{
 			SourcePoolAddress: dummyCell1,
 			DestPoolAddress:   addr,
+			DestGasAmount:     1000,
 			ExtraData:         dummyCell2,
 			Amount:            big.NewInt(10),
 		}, {
 			SourcePoolAddress: dummyCell1,
 			DestPoolAddress:   addr,
+			DestGasAmount:     1000,
 			ExtraData:         dummyCell2,
 			Amount:            big.NewInt(10),
 		},
 		{
 			SourcePoolAddress: dummyCell1,
 			DestPoolAddress:   addr,
+			DestGasAmount:     1000,
 			ExtraData:         dummyCell2,
 			Amount:            big.NewInt(10),
 		},
 		{
 			SourcePoolAddress: dummyCell1,
 			DestPoolAddress:   addr,
+			DestGasAmount:     1000,
 			ExtraData:         dummyCell2,
 			Amount:            big.NewInt(10),
 		},
@@ -71,18 +77,21 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 		{
 			SourcePoolAddress: dummyCell,
 			DestPoolAddress:   addr,
+			DestGasAmount:     1000,
 			ExtraData:         dummyCell,
 			Amount:            big.NewInt(10),
 		},
 		{
 			SourcePoolAddress: dummyCell,
 			DestPoolAddress:   addr,
+			DestGasAmount:     1000,
 			ExtraData:         dummyCell,
 			Amount:            big.NewInt(20),
 		},
 		{
 			SourcePoolAddress: dummyCell,
 			DestPoolAddress:   addr,
+			DestGasAmount:     1000,
 			ExtraData:         dummyCell,
 			Amount:            big.NewInt(30),
 		},
@@ -100,6 +109,7 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 			Sender:       dummyCell,
 			Data:         dummyCell,
 			Receiver:     addr,
+			GasLimit:     tlb.MustFromNano(big.NewInt(1000), 1),
 			TokenAmounts: tokenAmountsCell,
 		},
 		{
@@ -113,6 +123,7 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 			Sender:       dummyCell,
 			Data:         dummyCell,
 			Receiver:     addr,
+			GasLimit:     tlb.MustFromNano(big.NewInt(1000), 1),
 			TokenAmounts: tokenAmountsCell,
 		},
 	})
