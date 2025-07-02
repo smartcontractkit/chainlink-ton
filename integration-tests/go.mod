@@ -8,7 +8,7 @@ require (
 	github.com/smartcontractkit/chainlink-ton v0.0.0
 	github.com/smartcontractkit/freeport v0.1.0
 	github.com/stretchr/testify v1.10.0
-	github.com/xssnick/tonutils-go v1.12.0
+	github.com/xssnick/tonutils-go v1.13.0
 )
 
 replace github.com/smartcontractkit/chainlink-ton => ../

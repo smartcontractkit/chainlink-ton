@@ -178,6 +178,7 @@ github.com/tklauser/numcpus v0.10.0 h1:18njr6LDBk1zuna922MgdjQuJFjrdppsZG60sHGfj
 github.com/tklauser/numcpus v0.10.0/go.mod h1:BiTKazU708GQTYF4mB+cmlpT2Is1gLk7XVuEeem8LsQ=
 github.com/xssnick/tonutils-go v1.12.0 h1:Qn1yf/S6OEFD4a1sdpq8qHMzqJFjHaOWxmuXiDNWvZs=
 github.com/xssnick/tonutils-go v1.12.0/go.mod h1:Wj8TFiUUc7IGdLn2X/ZDzmMs/1b4fsF3iJzH/l+PXTI=
+github.com/xssnick/tonutils-go v1.13.0/go.mod h1:EDe/9D/HZpAenbR+WPMQHICOF0BZWAe01TU5+Vpg08k=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.2.1/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yusufpapurcu/wmi v1.2.4 h1:zFUKzehAFReQwLys1b/iSMl+JQGSCSjtVqQn9bBrPo0=

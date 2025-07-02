@@ -22,7 +22,7 @@ type ExecuteReport struct {
 
 // Any2TONRampMessage represents ramp message, which is part of the execute report.
 type Any2TONRampMessage struct {
-	Header       RampMessageHeader `tlb:"^"`
+	Header       RampMessageHeader `tlb:"."`
 	Sender       *cell.Cell        `tlb:"^"`
 	Data         *cell.Cell        `tlb:"^"`
 	Receiver     *address.Address  `tlb:"addr"`
