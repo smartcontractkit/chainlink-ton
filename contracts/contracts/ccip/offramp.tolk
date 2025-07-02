@@ -76,13 +76,13 @@ struct Any2TONRampMessage {
     sender: cell;
     data: cell;
     receiver: address;
-    gasLimit: coins; // TODO: does this make sense?
+    // gasLimit: coins; // TODO: no gas limit because it's up to the receiver to pay for it's gas
     tokenAmounts: cell; // vec<Any2TONTokenTransfer>
     // maybe mark these amounts as slice remaining then parse them by hand to avoid requiring this to be a map<> at send time?
 }
 
 struct Any2TONTokenTransfer {
-    soucePoolAddress: cell;
+    sourcePoolAddress: cell;
     destPoolAddress: address;
     destGasAmount: uint32;
     extraData: cell;
@@ -123,7 +123,6 @@ struct (0x00000002) Execute {
 type Msg = Commit | Execute;
 
 fun onInternalMessage(msgCell: cell, msgBody: slice) {
-    // TODO: does this waste gas?
     if (msgBody.isEnd()) { // ignore all empty messages
         return;
     }

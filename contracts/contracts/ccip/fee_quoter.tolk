@@ -37,7 +37,6 @@ fun Storage.store(self) {
 type Msg = UpdatePrices | UpdateDestChainConfig | GetValidatedFee | MessageValidated; // | MessageValidated
 
 fun onInternalMessage(msgCell: cell, msgBody: slice) {
-    // TODO: does this waste gas?
     if (msgBody.isEnd()) { // ignore all empty messages
         return;
     }
@@ -90,7 +89,7 @@ fun onUpdateDestChainConfig(msg: UpdateDestChainConfig, msgBody: slice, sender: 
                     usdPerUnitGas: GasPrice {
                         executionGasPrice: 0,
                         dataAvailabilityGasPrice: 0,
-                        timestamp: 0, // TODO: temp set as blockchain.now() to pass validation
+                        timestamp: 0,
                     }.toCell(),
                     tokenTransferFeeConfigs: Map<TokenTransferFeeConfig>.new()
                 }.toCell()

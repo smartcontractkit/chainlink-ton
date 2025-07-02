@@ -30,7 +30,6 @@ fun MerkleRoot_Storage.store(self) {
 type Msg = ExecuteReport;
 
 fun onInternalMessage(msgCell: cell, msgBody: slice) {
-    // TODO: does this waste gas?
     if (msgBody.isEnd()) { // ignore all empty messages
         return;
     }
