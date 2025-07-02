@@ -2,54 +2,80 @@ import "@stdlib/tvm-lowlevel";
 import "@stdlib/tvm-dicts.tolk";
 import "../emit.tolk";
 
-/// Upgradeable message handler.
+/// Upgradeable contract interface.
+/// This interface defines the structure and methods required for a contract to
+/// be upgradeable.
 ///
-/// This function is expected to be called from the contract's
-/// `onInternalMessage` handler.
-/// It processes the Upgradeable_Upgrade message and performs the upgrade if applicable.
-/// It returns true if the message was handled (i.e., an upgrade was performed),
-/// or false if the message was ignored (e.g., due to an unknown opcode).
-/// The `migrateStorage` function is expected to be provided by the contract
-/// and should handle the migration of the storage data from the old version to
-/// the new version. Its method_id must be set explicitly in the contract, and
-/// be consistent across versions.
-/// 
+/// - `migrateStorage`: A function that migrates the storage from the old
+/// version to the new version. Its method_id must be set explicitly in the
+/// contract, and be consistent across versions.
+/// - `version`: A function that returns the version of the contract as a
+/// string. e.g. "1.0.0".
+/// - `requireUpgrade`: Enforces any requirements for upgrading the contract,
+/// like ownership, and throws an error if not met. It is typed as a struct to
+/// allow for more complex upgrade requirements. passing extra arguments to the
+/// upgrade function, such as the contract owner address.
+///
 /// Example usage:
 /// ```tolk
-/// fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: slice) {
-///     val this = UpgradeableCounter{
-///         versionStr,
-///         version,
-///         migrateStorage,
-///     };
-///
-///     if (msgBody.isEnd()) { // ignore all empty messages
-///         return;
-///     }
-///
-///     var cs = msgFull.beginParse();
-///     val flags = cs.loadMessageFlags();
-///     if (isMessageBounced(flags)) { // ignore all bounced messages
-///         return;
-///     }
-///
-///     if (this.onInternalMessage(myBalance, msgValue, msgFull, msgBody)) {
-///         return;
-///     }
-///
-///     throw 63; // 63 error code is thrown if the message opcode is unknown
+/// struct StorageV2 {
+///     value: uint64;
+///     id: uint32;
+///     ownable2Step: Ownable2Step;
 /// }
+///
+/// fun loadData() {
+///     return StorageV2.fromCell(contract.getData());
+/// }
+///
+/// fun saveData(data: StorageV2) {
+///     contract.setData(data.toCell());
+/// }
+/// 
 /// @method_id(1000)
 /// fun migrateStorage(c: cell): cell {
+///     // Parse it as StorageV1
 ///     var oldStorage = StorageV1.fromCell(c);
+///     // Create new StorageV2 with the old value and id
 ///     var newStorage = StorageV2{
 ///         value: oldStorage.value as uint64,
 ///         id: oldStorage.id,
+///         ownable2Step: oldStorage.ownable2Step,
 ///     };
 ///     return newStorage.toCell();
 /// }
-/// ```
+/// @method_id(1001)
+/// fun version(): slice { return "2.0.0"; }
 ///
+/// struct requireUpgradeAutoArgs {
+///     ownable2Step: Ownable2Step;
+///     sender: address;
+/// }
+///
+/// fun requireUpgrade(autoargs: requireUpgradeAutoArgs) {
+///     autoargs.ownable2Step.requireOwner(autoargs.sender)
+/// }
+///
+/// fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: slice) {
+///     var cs: slice = msgFull.beginParse();
+///     val flags = cs.loadMessageFlags();
+///     var sender: address = cs.loadAddress();
+///     var storage = loadData();
+///     val handled = Upgradeable<requireUpgradeAutoArgs>{
+///         version: version,
+///         migrateStorage: migrateStorage,
+///         requireUpgrade: Upgradeable_requireUpgrade<requireUpgradeAutoArgs> {
+///             call: requireUpgrade,
+///             autoArgs: requireUpgradeAutoArgs {
+///                 ownable2Step: storage.ownable2Step,
+///                 sender: sender,
+///             },
+///         },
+///     }.onInternalMessage(myBalance, msgValue, msgFull, msgBody);
+///     if (handled) {
+///         return;
+///     }
+/// ```
 struct Upgradeable<T> {
     /// Abstract methods that must be implemented by the contract.
     migrateStorage: (cell) -> cell;
@@ -73,6 +99,13 @@ struct (0x0aa811ed) Upgradeable_Upgrade {
     code: cell;
 }
 
+/// Upgradeable message handler.
+///
+/// This function is expected to be called from the contract's
+/// `onInternalMessage` handler.
+/// It processes the Upgradeable_Upgrade message and performs the upgrade if applicable.
+/// It returns true if the message was handled (i.e., an upgrade was performed),
+/// or false if the message was ignored (e.g., due to an unknown opcode).
 fun Upgradeable<T>.onInternalMessage(self, myBalance: int, msgValue: int, msgFull: cell, msgBody: slice): bool {
     try {
         var upgrade = Upgradeable_Upgrade.fromSlice(msgBody);
