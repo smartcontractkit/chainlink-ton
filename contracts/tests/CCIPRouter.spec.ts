@@ -204,6 +204,7 @@ describe('Router', () => {
         success: true,
       })
       // TODO: call UpdateTokenTransferFeeConfigs, or maybe bundle this with UpdateDestChainConfig
+      // TODO: call UpdatePrices so there's a price available and the timestamp isn't zero
     }
     // setup onramp
     {
