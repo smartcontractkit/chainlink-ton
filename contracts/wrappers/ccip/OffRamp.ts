@@ -45,7 +45,10 @@ export const Builder = {
 }
 export abstract class Params {}
 
-export abstract class Opcodes {}
+export abstract class Opcodes {
+  static commit = 0x00000001
+  static execute = 0x00000002
+}
 
 export abstract class Errors {}
 
@@ -78,6 +81,54 @@ export class OffRamp implements Contract {
       value: value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: beginCell().endCell(),
+    })
+  }
+
+  async sendCommit(
+    provider: ContractProvider,
+    via: Sender,
+    opts: {
+      value: bigint
+      queryID?: number
+      reportContext: Cell
+      report: Cell
+      signatures: Cell
+    },
+  ) {
+    await provider.internal(via, {
+      value: opts.value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: beginCell()
+        .storeUint(Opcodes.commit, 32)
+        .storeUint(opts.queryID ?? 0, 64)
+        .storeRef(opts.reportContext)
+        .storeRef(opts.report)
+        .storeRef(opts.signatures)
+        .endCell(),
+    })
+  }
+
+  async sendExecute(
+    provider: ContractProvider,
+    via: Sender,
+    opts: {
+      value: bigint
+      queryID?: number
+      reportContext: Cell
+      report: Cell
+      signatures: Cell
+    },
+  ) {
+    await provider.internal(via, {
+      value: opts.value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: beginCell()
+        .storeUint(Opcodes.execute, 32)
+        .storeUint(opts.queryID ?? 0, 64)
+        .storeRef(opts.reportContext)
+        .storeRef(opts.report)
+        .storeRef(opts.signatures)
+        .endCell(),
     })
   }
 }
