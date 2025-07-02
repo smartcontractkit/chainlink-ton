@@ -18,8 +18,8 @@ pkgs.mkShell {
       go-mockery
 
       # TS/Node set of tools for changesets
-      nodejs_23
-      (yarn.override {nodejs = nodejs_23;})
+      nodejs_24
+      (yarn.override {nodejs = nodejs_24;})
 
       # Extra tools
       git
