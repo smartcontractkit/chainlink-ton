@@ -198,7 +198,7 @@ func PackByteArrayToCell(data []byte) (*cell.Cell, error) {
 		bytesFit := curr.BitsLeft() / 8
 		remainingBytes := len(data) - offset
 
-		// sanity check for bytesFit
+		// sanity check for bytesFit before int conversion
 		if bytesFit > uint(math.MaxInt) {
 			return nil, fmt.Errorf("bytesFit %d overflows int", bytesFit)
 		}
@@ -207,6 +207,11 @@ func PackByteArrayToCell(data []byte) (*cell.Cell, error) {
 		if int(bytesFit) < remainingBytes {
 			// current cell is smaller than remaining data, write as much as fits in the current cell
 			writeLen = int(bytesFit)
+		}
+
+		// sanity check for writeLen before int conversion
+		if writeLen < 0 {
+			return nil, fmt.Errorf("writeLen is negative: %d", writeLen)
 		}
 
 		if bytesFit > 0 {
