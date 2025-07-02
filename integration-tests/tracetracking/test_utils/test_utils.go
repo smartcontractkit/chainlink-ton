@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"math/big"
 	"os"
-	"os/exec"
 	"path"
 	"strconv"
 	"strings"
 	"testing"
+
+	testutils "integration-tests/utils"
 
 	"github.com/joho/godotenv"
 	"github.com/smartcontractkit/chainlink-testing-framework/framework/components/blockchain"
@@ -21,29 +22,6 @@ import (
 	ton "github.com/xssnick/tonutils-go/ton"
 	wallet "github.com/xssnick/tonutils-go/ton/wallet"
 )
-
-func GetRepoRootDir() string {
-	// use git rev-parse --show-toplevel
-	// to get the root directory of the git repository
-
-	res := exec.Command("git", "rev-parse", "--show-toplevel")
-	stdout, err := res.Output()
-	if err != nil {
-		panic(fmt.Sprintf("Failed to get repo root dir: %s", err))
-	}
-	rootDir := strings.TrimSpace(string(stdout))
-	return rootDir
-}
-
-func GetBuildsDir() string {
-	repoRoot := GetRepoRootDir()
-	return path.Join(repoRoot, "contracts", "build")
-}
-
-func GetBuildDir(contractPath string) string {
-	buildsDir := GetBuildsDir()
-	return path.Join(buildsDir, contractPath)
-}
 
 func SetUpTest(t *testing.T, initialAmount *big.Int, fundedAccountsCount uint) (accounts []tracetracking.SignedAPIClient) {
 
@@ -136,7 +114,7 @@ func UintFrom(res *ton.ExecutionResult, err error) (uint, error) {
 
 func getWallet(t *testing.T, api ton.APIClientWrapped) *wallet.Wallet {
 	// Load .env file from the project root
-	repoRoot := GetRepoRootDir()
+	repoRoot := testutils.GetRepoRootDir()
 	err := godotenv.Load(path.Join(repoRoot, "integration-tests/tracetracking/.env"))
 	if err != nil {
 		// It's okay if the .env file doesn't exist in some environments
