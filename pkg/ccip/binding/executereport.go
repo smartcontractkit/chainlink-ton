@@ -98,7 +98,7 @@ func UnPackArrayWithRefChaining[T any](root *cell.Cell) ([]T, error) {
 
 		// sanity check for length
 		if length > uint(math.MaxInt) {
-			return result, fmt.Errorf("length %d exceeds math.MaxInt", length)
+			return result, fmt.Errorf("length %d overflows int", length)
 		}
 		for i := 0; i < int(length); i++ {
 			ref, err := curr.PeekRef(i)
@@ -191,34 +191,30 @@ func PackByteArrayToCell(data []byte) (*cell.Cell, error) {
 	if len(data) == 0 {
 		return nil, nil
 	}
-	cells := make([]*cell.Builder, 0)
-	curr := cell.BeginCell()
-	cells = append(cells, curr)
+	cells := []*cell.Builder{cell.BeginCell()}
+	curr := cells[0]
 
 	for offset := 0; offset < len(data); {
-		bitsLeft := curr.BitsLeft()
-		bytesFit := bitsLeft / 8
-		toWrite := len(data) - offset
+		bytesFit := curr.BitsLeft() / 8
+		remainingBytes := len(data) - offset
 
 		// sanity check for bytesFit
 		if bytesFit > uint(math.MaxInt) {
-			return nil, fmt.Errorf("bytesFit %d exceeds math.MaxInt", bytesFit)
-		} else if toWrite < 0 {
-			// this should not happen, but adding for type safty check
-			return nil, fmt.Errorf("offset %d exceeds data length %d", offset, len(data))
+			return nil, fmt.Errorf("bytesFit %d overflows int", bytesFit)
 		}
 
-		if int(bytesFit) > toWrite {
-			bytesFit = uint(toWrite)
+		writeLen := remainingBytes
+		if int(bytesFit) < remainingBytes {
+			// current cell is smaller than remaining data, write as much as fits in the current cell
+			writeLen = int(bytesFit)
 		}
 
 		if bytesFit > 0 {
-			if err := curr.StoreSlice(data[offset:offset+int(bytesFit)], bytesFit*8); err != nil {
+			if err := curr.StoreSlice(data[offset:offset+writeLen], uint(writeLen)*8); err != nil {
 				return nil, fmt.Errorf("failed to store bytes: %w", err)
 			}
-			offset += int(bytesFit)
-		}
-		if offset < len(data) && bytesFit == 0 {
+			offset += writeLen
+		} else {
 			curr = cell.BeginCell()
 			cells = append(cells, curr)
 		}
