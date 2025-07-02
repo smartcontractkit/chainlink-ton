@@ -18,7 +18,7 @@ struct Storage {
 
     // static config
     chainSelector: uint64; // source chain selector
-    // TODO: rmnRemote, nonceManager, tokenAdminRegistry
+    // TODO: rmnRemote (only used to validate curse on getFee), nonceManager, tokenAdminRegistry
     // hmm, need to consider the design here.
     // probably like solana tokenAdminRegistry will be fused into onramp/router
     // but the problem is unbounded dict growth

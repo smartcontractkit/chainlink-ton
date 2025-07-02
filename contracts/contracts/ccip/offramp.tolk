@@ -72,7 +72,7 @@ struct RampMessageHeader { // 512
 }
 
 struct Any2TONRampMessage {
-    header: Cell<RampMessageHeader>;
+    header: RampMessageHeader;
     sender: cell;
     data: cell;
     receiver: address;
@@ -219,32 +219,36 @@ fun _execute(msg: Execute, sender: address) {
 
     // ocr3 base: validate execute report
 
+    // TODO: manual execution flag
+    // TODO: check if chain was cursed by RMNRemote
+
     // parse report
     val report = ExecutionReport.fromCell(msg.report);
+
+    // TODO: if messages.empty() throw EMPTY_REPORT
+    // if report.messages.len != offchainTokenData.len throw UNEXPECTED_TOKEN_DATA
+    // ^- perhaps easier to validate by checking if offchainTokenData iter is still empty after the while loop
 
     var hashedLeaves = createEmptyTuple();
 
     // TODO: metadata hash:
-    var messages = Iterator<Cell<Any2TONRampMessage>>.new(report.messages);
+    var messages = Iterator<Any2TONRampMessage>.new(report.messages);
     // TODO: is offchainTokenData not hashed?
     while (!messages.empty()) {
-        val messageCell = messages.next();
-
-        val message = messageCell.load();
-        val header = message.header.load();
+        val message = messages.next();
 
         // Commits do not verify the destChainSelector in the message since only the root is committed, so we
         // have to check it explicitly. This check is also important as we have assumed the metaDataHash above uses
         // the i_chainSelector as the destChainSelector.
-        assert(header.destChainSelector == st.chainSelector, ERROR_INVALID_MESSAGE_DEST_CHAIN_SELECTOR);
+        assert(message.header.destChainSelector == st.chainSelector, ERROR_INVALID_MESSAGE_DEST_CHAIN_SELECTOR);
 
         // If the message source chain selector does not match the report's source chain selector and the root has not
         // been committed for the report source chain selector this will be caught by the root verification.
         // This acts as an extra check to ensure the message source chain selector matches the report's source chain.
-        assert(header.sourceChainSelector == report.sourceChainSelector, ERROR_SOURCE_CHAIN_SELECTOR_MISMATCH);
+        assert(message.header.sourceChainSelector == report.sourceChainSelector, ERROR_SOURCE_CHAIN_SELECTOR_MISMATCH);
 
         // Hashes the cell data + refs recursively
-        val hash = messageCell.hash(); // TODO: mix together with metadata hash
+        val hash = message.toCell().hash(); // TODO: mix together with metadata hash
         hashedLeaves.push(hash);
     }
 
@@ -259,7 +263,7 @@ fun _execute(msg: Execute, sender: address) {
 
     // send message to MerkleRoot (execute)
     // val executeMsg = createMessage({
-    //     bounce: true, // TODO: could bounce if root already exists
+    //     bounce: true, // TODO: will bounce if root doesn't exist -> throw RootNotCommitted
     //     value: ton("0.1"), // TODO:
     //     dest: {
     //         stateInit: {
@@ -275,6 +279,8 @@ fun _execute(msg: Execute, sender: address) {
     //     // body: Execute { },
     // });
     // executeMsg.send(SEND_MODE_REGULAR);
+
+    // TODO: how do we handle incrementing the nonce? since execution is async this might take a while
 }
 
 // TODO: handle signals from MerkleRoot (release tokens, execute)
