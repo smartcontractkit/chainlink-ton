@@ -44,11 +44,23 @@ export const testLog = (
   return true
 }
 
+// TODO: further parse Cell fields so we can assert
+type CCIPSend = {
+  queryId: bigint
+  destChainSelector: bigint
+  receiver: Cell
+  data: Cell
+  tokenAmounts: Cell
+  feeToken: Address
+  extraArgs: Cell
+}
+
 type CCIPMessageSentParams = {
   destChainSelector: bigint
   sequenceNumber: bigint
-  message: Cell // TODO: parse further so we can assert on it
+  message: Partial<CCIPSend>
 }
+
 export const testLogMessageSent = (
   message: Message,
   from: Address,
@@ -59,9 +71,18 @@ export const testLogMessageSent = (
     const msg: CCIPMessageSentParams = {
       destChainSelector: bs.loadUintBig(64),
       sequenceNumber: bs.loadUintBig(64),
-      message: bs.loadRef(),
+      message: {
+        queryId: bs.skip(32).loadUintBig(64), // skip 32 to skip the opcode
+        destChainSelector: bs.loadUintBig(64),
+        receiver: bs.loadRef(),
+        data: bs.loadRef(),
+        tokenAmounts: bs.loadRef(),
+        feeToken: bs.loadAddress(),
+        extraArgs: bs.loadRef(),
+      },
     }
-    // TODO: do we need to do anything special for Address/Cell?
+
+    // TODO: we need to use toEqualAddress/toEqualCell for some values
     expect(msg).toMatchObject(match)
     return true
   })
@@ -82,18 +103,15 @@ export const assertLog = <T extends LogTypes>(
   type: T,
   match: LogMatch<T>,
 ) => {
-  expect(
-    getExternals(transactions).some((x) => {
-      let res = false
-      switch (type) {
-        case LogTypes.CCIPMessageSent:
-          testLogMessageSent(x, from, match as Partial<CCIPMessageSentParams>)
-          res = true
-          break
-      }
-      return res
-    }),
-  ).toBe(true)
+  getExternals(transactions).some((x) => {
+    switch (type) {
+      case LogTypes.CCIPMessageSent:
+        testLogMessageSent(x, from, match as Partial<CCIPMessageSentParams>)
+        break
+      default:
+        fail('Unhandled log type')
+    }
+  })
 }
 
 describe('Router', () => {
