@@ -4,11 +4,12 @@
   "version": "0.0.1",
   "description": "Chainlink TON SDK and node (LOOP) plugin",
   "workspaces": [
-    "contracts"
+    "contracts",
+    "pkg"
   ],
   "scripts": {
     "ci:changeset:publish": "yarn changeset publish",
-    "ci:changeset:version": "yarn changeset version && yarn version patch --no-git-tag"
+    "ci:changeset:version": "yarn changeset version"
   },
   "repository": {
     "type": "git",
@@ -23,7 +24,6 @@
   "devDependencies": {
     "@changesets/changelog-github": "^0.5.1",
     "@changesets/cli": "~2.29.2",
-    "semver": "^7.7.1",
-    "@tact-lang/compiler": "1.6.10"
+    "semver": "^7.7.1"
   }
 }

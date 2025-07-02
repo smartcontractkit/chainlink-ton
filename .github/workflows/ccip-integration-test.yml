@@ -1,0 +1,104 @@
+name: 'TON - CCIP Integration Tests'
+
+on:
+  pull_request:
+  push:
+    branches:
+      - 'main'
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  DOCKER_CACHE_KEY: ccip-e2e-images-v0
+  DOCKER_CACHE_DIR: ${{ github.workspace }}/.cache
+  DOCKER_CACHE_TAR_NAME: ccip-e2e-docker-images.tar
+  # mylocalton docker image / CCIP E2E test database image
+  DOCKER_IMAGES: >-
+    ghcr.io/neodix42/mylocalton-docker:latest
+    postgres:14-alpine
+jobs:
+  prepare-images:
+    name: Prepare and Cache Docker Images
+    runs-on: ubuntu-latest
+    steps:
+      - name: Prepare cache dir
+        run: mkdir -p ${{ env.DOCKER_CACHE_DIR }}
+
+      - name: Restore image-tar cache
+        id: cache-images
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.DOCKER_CACHE_DIR }}/${{ env.DOCKER_CACHE_TAR_NAME }}
+          key: ${{ env.DOCKER_CACHE_KEY }}
+
+      - name: Pull & save images on cache miss
+        if: steps.cache-images.outputs.cache-hit != 'true'
+        run: |
+          echo "Cache miss: pulling images"
+          for img in ${{ env.DOCKER_IMAGES }}; do
+            docker pull "$img"
+          done
+          echo "Saving to tarball…"
+          docker save ${{ env.DOCKER_IMAGES }} \
+            -o ${{ env.DOCKER_CACHE_DIR }}/${{ env.DOCKER_CACHE_TAR_NAME }}
+
+  integration-test-matrix:
+    needs: prepare-images
+    strategy:
+      fail-fast: false
+      matrix:
+        type:
+          # Note: list of tests, add more tests here
+          - name: 'Barebone EVM > TON Messaging'
+            cmd: 'cd integration-tests/smoke/ccip && go test ccip_ton_messaging_test.go -timeout 12m -test.parallel=2 -count=1 -json'
+
+    name: ${{ matrix.type.name }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Restore cached docker images
+        id: docker-cache-restore
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.DOCKER_CACHE_DIR }}/${{ env.DOCKER_CACHE_TAR_NAME }}
+          key: ${{ env.DOCKER_CACHE_KEY }}
+
+      - name: Load docker images
+        if: steps.docker-cache-restore.outputs.cache-hit == 'true'
+        run: |
+          echo "Cache hit for key '${{ env.DOCKER_CACHE_KEY }}'. Loading images from tarball..."
+          docker load -i ${{ env.DOCKER_CACHE_DIR }}/${{ env.DOCKER_CACHE_TAR_NAME }}
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@02a151ada4993995686f9ed4f1be7cfbb229e56f # v31
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+
+      - name: Read Chainlink Core Ref from .core_version
+        id: read_core_ref
+        run: echo "CORE_REF=$(cat ./scripts/.core_version | tr -d '[:space:]')" >> $GITHUB_OUTPUT
+
+      - name: Checkout Chainlink Core repo
+        uses: actions/checkout@v4
+        with:
+          repository: smartcontractkit/chainlink
+          ref: ${{ steps.read_core_ref.outputs.CORE_REF }}
+          path: chainlink
+
+      - name: Setup Environment and Run Tests
+        run: |
+          nix develop .#ccip-e2e -c scripts/e2e/setup-env.sh --core-dir "${GITHUB_WORKSPACE}/chainlink"
+          nix develop .#ccip-e2e -c scripts/e2e/run-test.sh --core-dir "${GITHUB_WORKSPACE}/chainlink" --test-command "${{ matrix.type.cmd }}"
+
+  integration-test-ccip:
+    if: always()
+    runs-on: ubuntu-latest
+    needs: [integration-test-matrix]
+    steps:
+      - name: Fail if any CCIP test failed
+        if: always() && needs.integration-test-matrix.result == 'failure'
+        run: exit 1

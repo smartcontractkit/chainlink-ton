@@ -2,7 +2,7 @@
   pkgs,
   rev,
 }: let
-  package-info = builtins.fromJSON (builtins.readFile ../../package.json);
+  package-info = builtins.fromJSON (builtins.readFile ../../pkg/package.json);
 in
   pkgs.buildGo124Module rec {
     inherit (package-info) version;
@@ -18,7 +18,7 @@ in
     ];
 
     # pin the vendor hash (update using 'pkgs.lib.fakeHash')
-    vendorHash = "sha256-2ix0VJbz9LotA3wBqJCwP5dhQMzSkNbScjnItn8Wl5A=";
+    vendorHash = "sha256-6fNHelNU2jmDHbvvLF/cGdsQL6yxBkWE3MqsAjDuZtQ=";
 
     # postInstall script to write version and rev to share folder
     postInstall = ''

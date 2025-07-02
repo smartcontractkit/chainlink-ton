@@ -24,16 +24,10 @@ jobs:
           pushd contracts
           nix develop .#contracts -c yarn && yarn build
 
-      - name: Run TypeScript tests
+      - name: Run tests
         run: |
           pushd contracts
           nix develop .#contracts -c yarn test
-
-      - name: Run Go tests
-        run: |
-          cp pkg/tonutils/.env.example pkg/tonutils/.env
-          pushd pkg/tonutils/tests/
-          ./test.sh
 
   build-nixpkg:
     name: Build nix package
