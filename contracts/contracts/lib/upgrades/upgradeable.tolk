@@ -1,6 +1,6 @@
 import "@stdlib/tvm-lowlevel";
 import "@stdlib/tvm-dicts.tolk";
-import "../emit.tolk";
+import "../utils.tolk";
 
 /// Upgradeable contract interface.
 /// This interface defines the structure and methods required for a contract to
