@@ -20,6 +20,8 @@ Session.vim
 # Keep some docs local
 docs/local/**
 
+.direnv
+
 # Nix package build out-link - any 'result' folder in the tree
 **/result
 
