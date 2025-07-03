@@ -20,18 +20,18 @@ struct Iterator<T> {
     data: slice;
 }
 
-@inline
+@inline @pure
 fun Iterator<T>.new(data: cell) {
     return Iterator<T> { data: data.beginParse() };
 }
 
-@inline
+@inline @pure
 fun Iterator<T>.empty(self): bool {
     return self.data.isEnd()
 }
 
 
-@inline
+@inline @pure
 fun Iterator<T>.next(mutate self): T {
     var (bits, refs) = self.data.remainingBitsAndRefsCount();
     if (bits == 0) {
@@ -49,6 +49,49 @@ fun Iterator<T>.countBytes(self): int {
     val (cellsCount, dataBitsSize, cellRefs) = self.data.calculateSizeStrict(maxCells);
     assert(dataBitsSize % 8 == 0, ERROR_INVALID_DATA);
     return dataBitsSize / 8;
+}
+
+@inline
+fun Iterator<T>.has(mutate self, elem: T): bool {
+    while (!self.empty()) {
+        val current = self.next();
+        if (current == elem) {
+            return true;
+        }
+    }
+    return false;
+}
+
+//TODO: I am not sure if it is more efficient to use a tuple or a dictionary here
+//      Using tuple the complexity is O(n^2) but using dictionaries we need to create cells which probably costs more gas
+@inline
+fun Iterator<T>.hasDuplicates(mutate self): bool {
+    var visited = createEmptyTuple();
+    while (!self.empty()) {
+        val current = self.next();
+        if (has(current, visited)) {
+            return true;
+        } else {
+            visited.push<T>(current);
+        }
+    }
+    return false;
+}
+
+@inline
+fun has<T>(element: T, tuple: tuple) {
+    val size = tuple.size();
+    var i = 0;
+    while(i < size){
+        if (tuple.get<T>(i) == element) {
+            return true;
+        }
+    }
+    return false;
+
+@inline
+fun Iterator<T>.size(self, elemSize: int): int {
+    return self.countBytes() / elemSize
 }
 
 // TODO: mark functions as @pure
@@ -98,41 +141,34 @@ fun UMap<K, V>.setRef(mutate self, key: K, value: V): void {
 }
 
 
-
-fun Iterator<T>.has(mutate self, elem: T): bool {
-    while (!self.empty()) {
-        val current = self.next();
-        if (current == elem) {
-            return true;
-        }
-    }
-    return false;
+struct TupleIterator<T> {
+    pos: int = 0;
+    len: int; // TLEN is 26 gas, we cache the value for minimal savings
+    data: tuple;
 }
 
-//TODO: I am not sure if it is more efficient to use a tuple or a dictionary here
-//      Using tuple the complexity is O(n^2) but using dictionaries we need to create cells which probably costs more gas
-@inline
-fun Iterator<T>.hasDuplicates(mutate self): bool {
-    var visited = createEmptyTuple();
-    while (!self.empty()) {
-        val current = self.next();
-        if (has(current, visited)) {
-            return true;
-        } else {
-            visited.push<T>(current);
-        }
-    }
-    return false;
+@inline @pure
+fun TupleIterator<T>.new(data: tuple) {
+    return TupleIterator<T> { data, len: data.size() };
 }
 
-@inline
-fun has<T>(element: T, tuple: tuple) {
-    val size = tuple.size();
-    var i = 0;
-    while(i < size){
-        if (tuple.get<T>(i) == element) {
-            return true;
-        }
-    }
-    return false;
+@inline @pure
+fun TupleIterator<T>.empty(self): bool {
+    // TODO: should we cache data.size()?
+    return self.pos >= self.len
+}
+
+
+@inline @pure
+fun TupleIterator<T>.next(mutate self): T {
+    var offset = self.pos;
+    self.pos += 1;
+    return self.data.get<T>(offset);
+}
+
+@inline @pure
+fun TupleIterator<T>.size(self, elemSize: int): int {
+    // elemSize is ignored since we know exact size,
+    // param is there for interface compatibility
+    return self.len;
 }

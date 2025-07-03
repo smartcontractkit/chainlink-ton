@@ -9,8 +9,8 @@ pkgs.mkShell {
     alejandra
 
     # TS/Node set of tools for TON dev
-    nodejs_23
-    (yarn.override {nodejs = nodejs_23;})
+    nodejs_24
+    (yarn.override {nodejs = nodejs_24;})
     nodePackages.typescript
     nodePackages.typescript-language-server
     nodePackages.npm

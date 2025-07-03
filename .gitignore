@@ -20,6 +20,8 @@ Session.vim
 # Keep some docs local
 docs/local/**
 
+.direnv
+
 # Nix package build out-link - any 'result' folder in the tree
 **/result
 
@@ -34,3 +36,6 @@ node_modules/
 
 # macOS Finder metadata
 .DS_Store
+
+# Golangci-lint reports
+golangci-lint-*-report.xml

@@ -23,7 +23,7 @@ in {
       yarnOfflineCache = pkgs.fetchYarnDeps {
         inherit yarnLock;
         # pin the vendor hash (update using 'pkgs.lib.fakeHash')
-        hash = "sha256-kmU1H6ejZ6QS3R/JEqksqe/YYjFuHG5eDRlxes25y5o=";
+        hash = "sha256-qew0YS9vSV0ukoFP5E2zQsiuAyzB5N0FMi+8s0C8k/U=";
       };
 
       # postPatch script to copy root yarn.lock to the current build directory (and make it writeable)
@@ -37,7 +37,7 @@ in {
         yarnBuildHook
         yarnInstallHook
         # Needed for executing package.json scripts
-        nodejs_23
+        nodejs_24
       ];
 
       meta = with pkgs.lib; {

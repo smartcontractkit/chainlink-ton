@@ -124,7 +124,8 @@ func (c *chain) TxManager() TxManager {
 }
 
 func (c *chain) FeeEstimator() fees.Estimator {
-	return c.txm.FeeEstimator()
+	// TODO(NONEVM-1460): implement
+	return nil
 }
 
 func (c *chain) MultiClient() *client.MultiClient {
