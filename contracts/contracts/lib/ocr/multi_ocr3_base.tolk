@@ -35,6 +35,7 @@ struct OCR3Base_Transmitted {
 /// && len(transmitters) <= len(signers) [if sig verification is enabled].
 //TODO: Calculate crc32 for the message opcode
 struct (0x00000001) OCR3Base_SetOCR3Config {
+    queryId: uint64;
     configDigest: uint256;
     ocrPluginType: uint16;
     bigF: uint8;
