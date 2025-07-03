@@ -128,14 +128,11 @@ describe('Router', () => {
 
     let deployerCode = await compile('Deployable')
 
-    let destChainConfigCodeRaw = await compile('DestChainConfig')
     let merkleRootCodeRaw = await compile('MerkleRoot')
 
     // Populate the emulator library code
     // https://docs.ton.org/v3/documentation/data-formats/tlb/library-cells#testing-in-the-blueprint
     const _libs = Dictionary.empty(Dictionary.Keys.BigUint(256), Dictionary.Values.Cell())
-    _libs.set(BigInt(`0x${destChainConfigCodeRaw.hash().toString('hex')}`), destChainConfigCodeRaw)
-    _libs.set(BigInt(`0x${destChainConfigCodeRaw.hash().toString('hex')}`), destChainConfigCodeRaw)
     _libs.set(BigInt(`0x${merkleRootCodeRaw.hash().toString('hex')}`), merkleRootCodeRaw)
     const libs = beginCell().storeDictDirect(_libs).endCell()
     blockchain.libs = libs
@@ -153,16 +150,10 @@ describe('Router', () => {
     {
       let code = await compile('FeeQuoter')
 
-      // Use a library reference
-      let libPrep = beginCell().storeUint(2, 8).storeBuffer(destChainConfigCodeRaw.hash()).endCell()
-      let destChainConfigCode = new Cell({ exotic: true, bits: libPrep.bits, refs: libPrep.refs })
-
       let data: FeeQuoterStorage = {
         ownable: {
           owner: deployer.address,
         },
-        deployerCode,
-        destChainConfigCode: destChainConfigCode,
         maxFeeJuelsPerMsg: 1000000n,
         linkToken: ZERO_ADDRESS,
         tokenPriceStalenessThreshold: 1000n,
@@ -171,6 +162,7 @@ describe('Router', () => {
           Dictionary.Keys.Address(),
           Dictionary.Values.BigUint(64),
         ),
+        destChainConfigs: Dictionary.empty(Dictionary.Keys.BigUint(64)),
       }
       // HACK: pre-insert token data
       data.usdPerToken.set(ZERO_ADDRESS, {
@@ -215,10 +207,8 @@ describe('Router', () => {
           networkFeeUsdCents: 0,
         },
       })
-      // a destChainConfig subcontract must have been created
       expect(result.transactions).toHaveTransaction({
-        from: feeQuoter.address,
-        deploy: true,
+        to: feeQuoter.address,
         success: true,
       })
       // TODO: call UpdateTokenTransferFeeConfigs, or maybe bundle this with UpdateDestChainConfig
@@ -267,7 +257,7 @@ describe('Router', () => {
       let code = await compile('OffRamp')
 
       // Use a library reference
-      let libPrep = beginCell().storeUint(2, 8).storeBuffer(destChainConfigCodeRaw.hash()).endCell()
+      let libPrep = beginCell().storeUint(2, 8).storeBuffer(merkleRootCodeRaw.hash()).endCell()
       let merkleRootCode = new Cell({ exotic: true, bits: libPrep.bits, refs: libPrep.refs })
 
       let data: OffRampStorage = {
@@ -340,13 +330,6 @@ describe('Router', () => {
     expect(result.transactions).toHaveTransaction({
       from: onRamp.address,
       to: feeQuoter.address,
-      deploy: false,
-      success: true,
-    })
-    // fee quoter called the destChainConfig
-    expect(result.transactions).toHaveTransaction({
-      from: feeQuoter.address,
-      // to: feeQuoter.address,
       deploy: false,
       success: true,
     })

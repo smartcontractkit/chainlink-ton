@@ -23,9 +23,7 @@ fun Storage.store(self) {
 type Msg = CCIPSend | SetRamp | JettonTransferNotification;
 
 fun onInternalMessage(msgCell: cell, msgBody: slice) {
-    if (msgBody.isEnd()) { // ignore all empty messages
-        return;
-    }
+    if (msgBody.isEnd()) { return; } // ignore all empty messages
 
     var cs     = msgCell.beginParse();
     val flags  = cs.loadMessageFlags();

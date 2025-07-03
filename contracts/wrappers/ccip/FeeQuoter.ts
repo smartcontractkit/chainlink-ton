@@ -16,13 +16,12 @@ import { Ownable2StepConfig } from '../libraries/access/Ownable2Step'
 
 export type FeeQuoterStorage = {
   ownable: Ownable2StepConfig
-  deployerCode: Cell
-  destChainConfigCode: Cell
   maxFeeJuelsPerMsg: bigint
   linkToken: Address
   tokenPriceStalenessThreshold: bigint
   usdPerToken: Dictionary<Address, TimestampedPrice>
   premiumMultiplierWeiPerEth: Dictionary<Address, bigint>
+  destChainConfigs: Dictionary<bigint, DestChainConfig>
 }
 
 export type TimestampedPrice = {
@@ -106,13 +105,14 @@ export const Builder = {
     }
 
     return builder
-      .storeRef(config.deployerCode)
-      .storeRef(config.destChainConfigCode)
       .storeUint(config.maxFeeJuelsPerMsg, 96)
       .storeAddress(config.linkToken)
       .storeUint(config.tokenPriceStalenessThreshold, 64)
       .storeDict(config.usdPerToken)
       .storeDict(config.premiumMultiplierWeiPerEth)
+      // UMap<> type
+      .storeDict(config.destChainConfigs)
+      .storeUint(64, 16) // keyLen
       .endCell()
   },
 }

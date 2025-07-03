@@ -47,13 +47,6 @@ struct (0x00000002) OnRampSend {
     // TODO: metadata { caller, value, tokenAmounts }
 }
 
-struct (0x00000003) Publish {
-    // queryId is embedded in the first element of CCIPSend
-    msg: Cell<CCIPSend>;
-    // caller: address; TODO:
-    // TODO: metadata { caller, value, tokenAmounts }
-}
-
 struct SetDynamicConfig {}
 
 struct UpdateDestChainConfigs {}
@@ -81,7 +74,8 @@ struct TokenPriceUpdate {
 
 struct GasPriceUpdate {
     destChainSelector: uint64;
-    usdPerUnitGas: uint224;
+    executionGasPrice: uint112;
+    dataAvailabilityGasPrice: uint112;
 }
 
 struct FeeQuoterDestChainConfig {
@@ -116,17 +110,6 @@ struct GasPrice {
     timestamp: uint64;
 }
 
-// This represents FeeQuoter's DestChainConfig (not OnRamp)
-struct DestChainConfig_Storage {
-    owner: address;
-
-    config: FeeQuoterDestChainConfig;
-
-    usdPerUnitGas: Cell<GasPrice>; // TODO: it'd be nice if this wasn't split off
-
-    tokenTransferFeeConfigs: Map<TokenTransferFeeConfig>; // (sdict) address -> TokenTransferFeeConfig
-}
-
 struct TokenTransferFeeConfig {
     isEnabled: bool;
     minFeeUsdCents: uint32;
@@ -159,23 +142,20 @@ struct (0x10000005) UpdateDestChainConfig {
     destChainConfig: FeeQuoterDestChainConfig;
 }
 
-struct (0x10000006) GetValidatedFee {
-    msg: CCIPSend;
-    caller: address;
-    // TODO: metadata { caller, value, tokenAmounts }
-}
-
-struct Fees {
-    premiumFeeUsdWei: uint256;
-    executionCost: uint256;
-    dataAvailabilityCost: uint256;
-}
-
-struct (0x10000007) MessageValidated {
+struct (0x10000006) GetValidatedFee<C> {
     msg: Cell<CCIPSend>;
-    caller: address;
-    // TODO: metadata { caller, value, tokenAmounts }
-    fees: Cell<Fees>,
+    metadata: Cell<C>,
+}
+
+struct Metadata {
+    caller: address,
+    // TODO: metadata { value, tokenAmounts }
+}
+
+struct (0x00000003) MessageValidated<C> {
+    msg: Cell<CCIPSend>;
+    metadata: Cell<C>,
+    fee: uint256; // TODO: maybe coins?
 }
 
 // OffRamp

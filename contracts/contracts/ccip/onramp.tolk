@@ -30,7 +30,7 @@ struct Storage {
     // dynamic config
     config: Cell<DynamicConfig>;
 
-    destChainConfigs: UMap<uint64, DestChainConfig>; // chainSelector -> DestChainConfig;
+    destChainConfigs: UMap<uint64, DestChainConfig>; // chainSelector -> DestChainConfig
 }
 
 struct DynamicConfig {
@@ -41,10 +41,10 @@ struct DynamicConfig {
 }
 
 struct DestChainConfig {
-    router: address; // TODO: probably just bytes
+    router: address; // TODO: probably just bytes/cell
     sequenceNumber: uint64;
     allowlistEnabled: bool;
-    allowedSenders: Map<bool>; // address -> bool;
+    allowedSenders: Map<bool>; // address -> bool
 }
 // TODO: move allowlist into accounts
 // user calls wallet -> account contract -> router, account verifies dest chain and if
@@ -59,12 +59,10 @@ fun Storage.store(self) {
     return contract.setData(self.toCell());
 }
 
-type Msg = OnRampSend | Publish;
+type Msg = OnRampSend | MessageValidated<Metadata>;
 
 fun onInternalMessage(msgCell: cell, msgBody: slice) {
-    if (msgBody.isEnd()) { // ignore all empty messages
-        return;
-    }
+    if (msgBody.isEnd()) { return; } // ignore all empty messages
 
     var cs     = msgCell.beginParse();
     val flags  = cs.loadMessageFlags();
@@ -73,10 +71,8 @@ fun onInternalMessage(msgCell: cell, msgBody: slice) {
 
     val msg = Msg.fromSlice(msgBody);
     match (msg) {
-        OnRampSend => {
-            onSend(msg, sender)
-        }
-        Publish => { onPublish(msg.msg.load(), sender) }
+        OnRampSend => { onSend(msg, sender) }
+        MessageValidated<Metadata> => { onMessageValidated(msg, sender) }
     }
 }
 
@@ -95,25 +91,33 @@ fun onSend(payload: OnRampSend, sender: address) {
     }
 
     // TODO: validate jetton amounts match msg.tokenAmounts
-
+    //
     // call into feeQuoter to validate and calculate fees
     val getValidatedFeeMsg = createMessage({
         bounce: true,
         value: ton("0.05"), // TODO:
         dest: st.config.load().feeQuoter,
-        body: GetValidatedFee {
-            msg,
-            caller: contract.getAddress(),
-            // TODO: ...
+        body: GetValidatedFee<Metadata> {
+            msg: payload.msg,
+            metadata: Metadata {
+                caller: contract.getAddress(),
+                // TODO: ...
+            }.toCell() 
         }
     });
     getValidatedFeeMsg.send(SEND_MODE_REGULAR);
 }
 
 // TODO: do we follow solana model and merge router + onramp? aptos also does this
-fun onPublish(msg: CCIPSend, sender: address) {
+fun onMessageValidated(payload: MessageValidated<Metadata>, sender: address) {
+    val msg = payload.msg.load();
     var st = Storage.load();
-    // TODO: validate message originating from trusted fee quoter
+    val config = st.config.load();
+    // notification must come from fee quoter
+    assert(config.feeQuoter == sender, ERROR_SENDER_NOT_ALLOWED);
+
+    // validate user transferred enough value
+    // else refund and notify
 
     // assign sequence number, we can't do this sooner since the message might fail validation/getFee
     var destChainConfig = st.destChainConfigs.mustGetRef(msg.destChainSelector, ERROR_UNKNOWN_DEST_CHAIN_SELECTOR);

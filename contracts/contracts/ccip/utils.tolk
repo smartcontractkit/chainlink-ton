@@ -68,7 +68,7 @@ fun UMap<K, V>.get(self, key: K): (V?, bool) {
 fun UMap<K, V>.mustGet(self, key: K, errorCode: int): V {
     val (maybeValue, exists) = self.value.uDictGet(self.keyLen, key);
     assert(exists, errorCode);
-    return maybeValue!;
+    return V.fromSlice(maybeValue!);
 }
 
 @inline @pure
@@ -97,3 +97,7 @@ fun UMap<K, V>.setRef(mutate self, key: K, value: V): void {
     return (self.value.uDictSetRef(self.keyLen, key, value.toCell()));
 }
 
+@inline @pure
+fun UMap<K, V>.replace(mutate self, key: K, value: V): bool {
+    return (self.value.uDictSetIfExists(self.keyLen, key, value.toCell().beginParse()));
+}
