@@ -1,8 +1,10 @@
 package bindings
 
 import (
+	"fmt"
 	"math/big"
 
+	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
@@ -27,17 +29,38 @@ type SVMExtraArgsV1 struct {
 	Accounts                 [][]byte
 }
 
-func (s *TLBSVMExtraArgsV1) ExportSVMExtraArgsV1() (SVMExtraArgsV1, error) {
-	accounts, err := Unpack2DByteArrayFromCell(s.Accounts)
+func (s *SVMExtraArgsV1) ToCell() (*cell.Cell, error) {
+	accounts, err := Pack2DByteArrayToCell(s.Accounts)
 	if err != nil {
-		return SVMExtraArgsV1{}, err
+		return nil, err
 	}
 
-	return SVMExtraArgsV1{
+	tlbArgs := TLBSVMExtraArgsV1{
 		ComputeUnits:             s.ComputeUnits,
 		AccountIsWritableBitmap:  s.AccountIsWritableBitmap,
 		AllowOutOfOrderExecution: s.AllowOutOfOrderExecution,
 		TokenReceiver:            s.TokenReceiver,
 		Accounts:                 accounts,
-	}, nil
+	}
+
+	return tlb.ToCell(tlbArgs)
+}
+
+func (s *SVMExtraArgsV1) LoadFromCell(c *cell.Slice) error {
+	var tlbExtraArgs TLBSVMExtraArgsV1
+	if err := tlb.LoadFromCell(&tlbExtraArgs, c); err != nil {
+		return err
+	}
+
+	accounts, err := Unpack2DByteArrayFromCell(tlbExtraArgs.Accounts)
+	if err != nil {
+		return fmt.Errorf("Unpack2DByteArrayFromCell: %w", err)
+	}
+
+	s.ComputeUnits = tlbExtraArgs.ComputeUnits
+	s.AccountIsWritableBitmap = tlbExtraArgs.AccountIsWritableBitmap
+	s.AllowOutOfOrderExecution = tlbExtraArgs.AllowOutOfOrderExecution
+	s.TokenReceiver = tlbExtraArgs.TokenReceiver
+	s.Accounts = accounts
+	return nil
 }
