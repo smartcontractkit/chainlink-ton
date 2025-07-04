@@ -1,9 +1,11 @@
 import "../../../../lib/utils.tolk";
-import "../shared.tolk";
+import "../../../../lib/upgrades/type_and_version.tolk";
+import "../../../../lib/upgrades/upgradeable.tolk";
+import "../../../../lib/access/ownable_2step.tolk";
 import "./storage.tolk";
 import "../v1/storage.tolk";
 
-type IncomingMessage = Step;
+type IncomingMessage = Upgradeable_Upgrade | Step;
 
 fun loadData() {
     return StorageV2.fromCell(contract.getData());
@@ -13,7 +15,12 @@ fun saveData(data: StorageV2) {
     contract.setData(data.toCell());
 }
 
+const typeStr= "com.chainlink.ton.examples.upgrades.UpgradeableCounter";
 const versionStr = "2.0.0";
+
+struct (0x00000001) Step {
+    queryId: uint64;
+}
 
 fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: slice) {
     if (msgBody.isEnd()) { // ignore all empty messages
@@ -34,21 +41,17 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
         return;
     }
 
-    val this = UpgradeableCounter{
-        versionStr,
-        version,
-        migrate,
-        ownable2Step: storage.ownable2Step,
-    };
-
-    
-    if (this.onInternalMessage(myBalance, msgValue, msgFull, msgBody)) {
-        return;
-    }
-
     val msg = IncomingMessage.fromSlice(msgBody);  // 63 error code is thrown if the message opcode is unknown
 
     match (msg) {
+        Upgradeable_Upgrade => {
+            var sender: address = cs.loadAddress();
+            storage.ownable2Step.requireOwner(sender);
+            Upgradeable{
+                migrate: migrate,
+                version: version,
+            }.upgrade(msg.code);
+        }
         Step => {
             /// Instructs the contract to step the counter.
             storage.value -= 1;
@@ -91,12 +94,5 @@ fun migrate(storage: cell): cell {
 fun version(): slice { return versionStr; }
 
 get typeAndVersion(): (slice, slice) {
-    val storage = loadData();
-    val this = UpgradeableCounter{
-        versionStr,
-        version,
-        migrate,
-        ownable2Step: storage.ownable2Step,
-    };
-    return this.typeAndVersion();
+    return TypeAndVersion{typeStr, versionStr}.typeAndVersion();
 }

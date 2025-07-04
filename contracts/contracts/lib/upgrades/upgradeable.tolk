@@ -76,48 +76,17 @@ import "../utils.tolk";
 ///         return;
 ///     }
 /// ```
-struct Upgradeable<T> {
+struct Upgradeable {
     /// Abstract methods that must be implemented by the contract.
     migrate: (cell) -> cell;
     version: () -> slice;
-    /// Provided methods that can be overridden by the contract.
-    requireUpgrade: Upgradeable_requireUpgrade<T>; // This method requires the sender to be the contract owner by default. It can be overridden to bypass it or implement custom logic.
 }
 
-struct Upgradeable_requireUpgrade<T> {
-    call: (T) -> void;
-    autoArgs: T;
-}
-
-fun Upgradeable_requireUpgrade<T>.Run(self) {
-    self.call(self.autoArgs);
-}
 
 /// Message for upgrading a contract.
 struct (0x0aa811ed) Upgradeable_Upgrade {
     queryId: uint64;
     code: cell;
-}
-
-/// Upgradeable message handler.
-///
-/// This function is expected to be called from the contract's
-/// `onInternalMessage` handler.
-/// It processes the Upgradeable_Upgrade message and performs the upgrade if applicable.
-/// It returns true if the message was handled (i.e., an upgrade was performed),
-/// or false if the message was ignored (e.g., due to an unknown opcode).
-fun Upgradeable<T>.onInternalMessage(self, myBalance: int, msgValue: int, msgFull: cell, msgBody: slice): bool {
-    try {
-        var upgrade = Upgradeable_Upgrade.fromSlice(msgBody);
-        self.requireUpgrade.Run();
-        self.doUpgrade(upgrade.code);
-        return true;
-    } catch(exitCode) {
-        if (exitCode != 63) { // 63 is the error code for unknown opcode
-            throw exitCode; // rethrow other errors
-        }
-        return false; // ignore unknown opcodes
-    }
 }
 
 struct UpgradedEvent {
@@ -131,7 +100,7 @@ struct UpgradedEvent {
 
 const UPGRADED_EVENT = 0xa33b498e; // Event topic for the upgrade event
 
-fun Upgradeable<T>.doUpgrade(self, code: cell) {
+fun Upgradeable.upgrade(self, code: cell) {
     // Schedule the code to be changed after the compute phase
     contract.setCodePostponed(code);
     // Load the code dinamically
