@@ -89,7 +89,7 @@ fun OCR3Base.setOcr3Config(mutate self, msg: OCR3Base_SetOCR3Config) {
 		);
 	}
 
-	val transmitters_length = Iterator<address>.new(msg.transmitters).countBytes() /36;
+	val transmitters_length = Iterator<address>.new(msg.transmitters).countBytes() / 36;
 
 	assert(transmitters_length <= MAX_NUM_ORACLES, ERROR_TOO_MANY_TRANSMITTERS);
 	assert(transmitters_length > 0, ERROR_NO_TRANSMITTERS);

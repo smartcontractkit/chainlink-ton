@@ -1,9 +1,10 @@
 import "./../lib/ocr/multi_ocr3_base.tolk";
 import "./../lib/ocr/types.tolk";
+import "./../lib/ocr/exit_codes.tolk";
 import "./../lib/utils.tolk";
 
 struct OCR3BaseExampleContract {
-    OCR3Base: OCR3Base;
+    ocr3Base: OCR3Base;
 }
 
 fun loadData(): OCR3BaseExampleContract {
@@ -41,7 +42,7 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
         Transmit => {
         //Using the transmit function validates signatures and emits an event
             var storage = loadData();
-            storage.OCR3Base.transmit(
+            storage.ocr3Base.transmit(
                 msg.transmitter,
                 msg.ocrPluginType,
                 msg.reportContext,
@@ -52,8 +53,15 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
         //The SetOCR3Config message configures authorized signers and transmitters
         OCR3Base_SetOCR3Config => {
             var storage = loadData();
-            storage.OCR3Base.setOcr3Config(msg);
+            storage.ocr3Base.setOcr3Config(msg);
             saveData(storage);
         }
      }
+}
+
+get ocr3Config(ocrPluginType: uint16): OCRConfig {
+    val s = loadData();
+    val (config, exists) = s.ocr3Base.ocr3Configs.get(ocrPluginType);
+    assert(exists, ERROR_NON_EXISTENT_OCR_PLUGIN_TYPE);
+    return config!;
 }
