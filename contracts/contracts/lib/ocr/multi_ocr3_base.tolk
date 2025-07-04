@@ -1,4 +1,4 @@
-import "./types.tolk"
+import "./types.tolk";
 import "/exit_codes.tolk";
 import "./../utils.tolk";
 
@@ -153,17 +153,18 @@ fun OCR3Base.transmit(
     
     // TODO: assert_chain_not_forked, not sure how to do this check or if it's even necessary in TON
     
-    // TODO: Maybe it's better to store the signers and transmitters as dictionaries so we don't have to iterate over them here?  
+    // TODO: Store the signers and transmitters as dictionaries so we don't have to iterate over them here?  
     val(pluginTransmitters, foundTransmitters) = self.transmitterOracles.get(ocrPluginType);
-    assert(foundTransmitters && Iterator<address>.new(pluginTransmitters!).has(transmitter), ERROR_UNAUTHORIZED_TRANSMITTER);
+    assert(foundTransmitters && pluginTransmitters!.has(transmitter), ERROR_UNAUTHORIZED_TRANSMITTER);
 
     if (configInfo.isSignatureVerificationEnabled) {
     	var expectedSignatures = configInfo.bigF + 1;
-	val signatures_length = Iterator<SignatureEd25519>.new(signatures).countBytes() / 64;
+	val signatures_length = Iterator<SignatureEd25519>.new(signatures).countBytes() / 64; //expensive
     	assert(signatures_length == expectedSignatures, ERROR_WRONG_NUMBER_OF_SIGNATURES);
     	var hashedReport = self.hashReport(report, reportContext);
     	var (pluginSigners, ok) = self.signerOracles.get(ocrPluginType);
     	assert(ok, ERROR_NON_EXISTENT_OCR_PLUGIN_TYPE);
+
     	self.verifySignature(pluginSigners!, hashedReport, signatures);
     }
     val emitMsg = createExternalLogMessage({
@@ -221,8 +222,19 @@ fun OCR3Base.assignTransmitterOracles(
 	transmitters: cell // Vector<address>
 ) {
 	assert(!Iterator<address>.new(transmitters).hasDuplicates(), ERROR_REPEATED_TRANSMITTERS);
+	var transmittersDict = Map<uint16>.new(); 
+	var transmittersIt = Iterator<address>.new(transmitters);
+	var i = 0;
+	while (!transmittersIt.empty()) {
+		val transmitter = transmittersIt.next();
+		i = i + 1;
+		transmittersDict.set(
+			transmitter,
+			i
+		);
+	}
 	self.transmitterOracles.set(
 		ocrPluginType,
-		transmitters
-	);
+		transmittersDict
+	)
 }
