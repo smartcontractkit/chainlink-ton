@@ -1,0 +1,86 @@
+import "@stdlib/common.tolk";
+import "../../lib/utils.tolk";
+import "../../lib/jetton/messages.tolk";
+import "../../lib/jetton/utils.tolk";
+import "../../lib/utils.tolk";
+import "../../lib/jetton/jetton_client.tolk";
+
+// OnrampMock contract in Tolk
+// Mock onramp that accepts jetton transfers if they meet the fee requirement
+
+const FEE = 5;
+
+const INCORRECT_SENDER_ERROR = 100;
+const FORWARD_PAYLOAD_REQUIRED_ERROR = 101;
+
+struct OnrampMock {
+    JettonClient: JettonClient;
+}
+
+// Event emitted when fee is insufficient
+struct InsufficientFee {
+    queryId: uint64;
+    sender: address;
+}
+
+// Event emitted when request is accepted
+struct AcceptedRequest {
+    queryId: uint64;
+    sender: address;
+    payload: cell;
+}
+
+fun loadData(): OnrampMock {
+    return OnrampMock.fromCell(contract.getData());
+}
+
+fun saveData(data: OnrampMock) {
+    contract.setData(data.toCell());
+}
+
+fun OnrampMock.handleJettonTransferNotification(mutate self, msg: JettonNotification, sender: address) {
+    // Check if the sender is our jetton wallet
+    assert(sender == self.JettonClient.walletAddress(), INCORRECT_SENDER_ERROR);
+
+    assert(msg.forwardPayload != null, FORWARD_PAYLOAD_REQUIRED_ERROR);
+
+    // Handle the jetton transfer
+    if (msg.amount < FEE) {
+        emit(JETTON_TOPIC, InsufficientFee {
+            queryId: msg.queryId,
+            sender: sender,
+            });
+    } else {
+        emit(JETTON_TOPIC, AcceptedRequest {
+            queryId: msg.queryId,
+            sender: sender,
+            payload: msg.forwardPayload!,
+            });
+    }
+}
+
+type IncomingMessage = JettonNotification;
+
+fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: slice) {
+    if (msgBody.isEnd()) { // ignore all empty messages
+        return;
+    }
+
+    var cs = msgFull.beginParse();
+    val flags = cs.loadMessageFlags();
+    if (isMessageBounced(flags)) { // ignore all bounced messages
+        return;
+    }
+
+    val msg = IncomingMessage.fromSlice(msgBody);
+
+    val sender = cs.loadAddress();
+    var this = loadData();
+
+    // Check if this is a jetton notification
+    match (msg) {
+        JettonNotification => { 
+            this.handleJettonTransferNotification(msg, sender);
+        }
+    }
+}
