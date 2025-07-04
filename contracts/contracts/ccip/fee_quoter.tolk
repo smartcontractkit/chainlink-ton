@@ -30,8 +30,8 @@ struct Storage {
 
     // TODO: this is on DestChain instead (same as Solana)
     // usdPerUnitGasByDestChain: UMap<uint64, TimestampedPrice>; // (idict len=64) chainSelector -> TimestampedPrice
-    // TODO: merge usdPerToken and premiumMultiplierWeiPerEth into one BillingToken config like solana to reduce lookups?
     usdPerToken: Map<TimestampedPrice>;
+    // TODO: use presence in this map to validate a token as feeToken
     premiumMultiplierWeiPerEth: Map<uint64>;
 
     destChainConfigs: UMap<uint64, DestChainConfig>
@@ -236,7 +236,6 @@ get fun validatedFee(msg: CCIPSend): uint256 {
     return feeTokenAmount;
 }
 
-// TODO: pass through information on token/jetton amounts
 fun onGetValidatedFee(payload: GetValidatedFee<cell>, sender: address) {
     val msg = payload.msg.load();
     val feeTokenAmount = validatedFee(msg);
@@ -254,6 +253,7 @@ fun onGetValidatedFee(payload: GetValidatedFee<cell>, sender: address) {
     getValidatedFeeMsg.send(SEND_MODE_REGULAR);
 }
 
+// TODO: a lot of the as uint256 annotations seem to be unnecessary in this function
 fun getTokenTransferCost(st: Storage, destChainConfig: DestChainConfig, mutate tokens: Iterator<TokenAmount>): (int, uint256, uint32, uint32) {
     var tokenTransferFeeWei: uint256 = 0;
     var tokenTransferGas: uint32 = 0;
@@ -265,23 +265,16 @@ fun getTokenTransferCost(st: Storage, destChainConfig: DestChainConfig, mutate t
         val tokenAmount = tokens.next();
         count += 1;
 
-        // TODO: use different error code than dest chain selector
-        val transferFeeConfig = destChainConfig.tokenTransferFeeConfigs.mustGet(tokenAmount.token, ERROR_UNKNOWN_DEST_CHAIN_SELECTOR);
+        val transferFeeConfig = destChainConfig.tokenTransferFeeConfigs.mustGet(tokenAmount.token, ERROR_TOKEN_NOT_SUPPORTED);
         if (!transferFeeConfig.isEnabled) {
             // If the token has no specific overrides configured, we use the global defaults.
             tokenTransferFeeWei +=((destChainConfig.config.defaultTokenFeeUsdCents as uint256) * VAL_1E16);
             tokenTransferGas += destChainConfig.config.defaultTokenDestGasOverhead;
             tokenTransferBytesOverhead += CCIP_LOCK_OR_BURN_V1_RET_BYTES;
         } else {
-            // NOTE: for this calc to work we'd need to lookup the token prices in feeQuoter then pass into here
-            // this also makes sense so we do the token pricing lookup all at the same time, vs for it to have a chance to drift
-
-            // TODO: a lot of the as uint256 annotations seem to be unnecessary
-
             var bpsFeeUsdWei = 0;
             if (transferFeeConfig.deciBps > 0) {
-                val tokenPrice = st.usdPerToken.mustGet(tokenAmount.token, ERROR_UNKNOWN_DEST_CHAIN_SELECTOR);
-                // TODO: this doesn't validate timestamp??
+                val tokenPrice = st.usdPerToken.mustGet(tokenAmount.token, ERROR_TOKEN_NOT_SUPPORTED);
 
                 // Calculate token transfer value, then apply fee ratio
                 // ratio represents multiples of 0.1bps, or 1e-5
