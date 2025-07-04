@@ -124,7 +124,7 @@ struct UpgradedEvent {
     /// The new code of the contract.
     code: cell;
     /// The SHA256 hash of the new code.
-    sha: uint256;
+    hash: uint256;
     /// The version of the contract after the upgrade.
     version: UnsafeBodyNoRef<slice>;
 }
@@ -143,7 +143,7 @@ fun Upgradeable<T>.doUpgrade(self, code: cell) {
     contract.setData(newStorage);
     emit(UPGRADED_EVENT, UpgradedEvent{
         code: code,
-        sha: code.hash(),
+        hash: code.hash(),
         version: UnsafeBodyNoRef {
             bodyForceNoRef: self.version(), // This is expected to be the version of the new code
             },
