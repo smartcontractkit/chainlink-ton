@@ -37,7 +37,7 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
     val this = UpgradeableCounter{
         versionStr,
         version,
-        migrateStorage,
+        migrate,
         ownable2Step: storage.ownable2Step,
     };
 
@@ -75,7 +75,7 @@ get pendingOwner(): address? {
 }
 
 @method_id(1000)
-fun migrateStorage(c: cell): cell { return beginCell().endCell(); }
+fun migrate(storage: cell): cell { return beginCell().endCell(); }
 @method_id(1001)
 fun version(): slice { return versionStr; }
 
@@ -84,7 +84,7 @@ get typeAndVersion(): (slice, slice) {
     val this = UpgradeableCounter{
         versionStr,
         version,
-        migrateStorage,
+        migrate,
         ownable2Step: storage.ownable2Step,
     };
     return this.typeAndVersion();

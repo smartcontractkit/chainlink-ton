@@ -12,7 +12,7 @@ import "../../../lib/access/ownable_2step.tolk";
 /// Example:
 /// ```tolk
 /// get typeAndVersion(): (slice, slice) {
-///     val upgradeable = Upgradeable{migrateStorage};
+///     val upgradeable = Upgradeable{migrate};
 ///     val upgradeableCounter = UpgradeableCounter{upgradeable, versionStr};
 ///     return upgradeableCounter.typeAndVersion();
 /// }
@@ -25,7 +25,7 @@ struct UpgradeableCounter {
     versionStr: slice;
     /// Abstract methods that must be implemented by the contract.
     version: () -> slice;
-    migrateStorage: (cell) -> cell;
+    migrate: (cell) -> cell;
 }
 
 /// Instructs the contract to step the counter.
@@ -48,7 +48,7 @@ fun UpgradeableCounter.onInternalMessage(self, myBalance: int, msgValue: int, ms
     var sender: address = cs.loadAddress();
     val upgradeable = Upgradeable<requireUpgradeAutoArgs>{
         version: self.version,
-        migrateStorage: self.migrateStorage,
+        migrate: self.migrate,
         requireUpgrade: Upgradeable_requireUpgrade<requireUpgradeAutoArgs> {
             call: requireUpgrade,
             autoArgs: requireUpgradeAutoArgs {
