@@ -20,7 +20,7 @@ export const Opcodes = {
 
 export type Ownable2StepConfig = {
   owner: Address
-  pendingOwner: Address | null
+  pendingOwner?: Address
 }
 export function storeOwnable2StepConfig(builder: Builder, config: Ownable2StepConfig) {
   builder.storeAddress(config.owner)

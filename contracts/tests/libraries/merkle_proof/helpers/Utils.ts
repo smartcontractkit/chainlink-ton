@@ -1,4 +1,5 @@
 import { Builder, beginCell, Cell } from '@ton/core'
+import { asSnakeData } from '../../../utils'
 
 // Converts a BigInt to a 32-byte (256-bit) Uint8Array, padding with leading zeros if necessary.
 export function bigIntToBytes32(value: bigint): Uint8Array {
@@ -21,29 +22,5 @@ export function uint8ArrayToBigInt(bytes: Uint8Array): bigint {
 }
 
 export function listAsSnake(array: bigint[]): Cell {
-  const cells: Builder[] = []
-  let builder = beginCell()
-  let countInCurrent = 0
-
-  for (const value of array) {
-    if (countInCurrent === 3) {
-      cells.push(builder)
-      builder = beginCell()
-      countInCurrent = 0
-    }
-    builder.storeUint(value, 256)
-    countInCurrent++
-  }
-
-  cells.push(builder)
-
-  // Build the linked structure from the end
-  let current = cells[cells.length - 1].endCell()
-  for (let i = cells.length - 2; i >= 0; i--) {
-    const b = cells[i]
-    b.storeRef(current)
-    current = b.endCell()
-  }
-
-  return current
+  return asSnakeData(array, (item) => new Builder().storeUint(item, 256))
 }
