@@ -14,6 +14,7 @@ import { Ownable2StepConfig } from '../libraries/access/Ownable2Step'
 
 export type OnRampStorage = {
   ownable: Ownable2StepConfig
+  router: Address
   chainSelector: bigint
   config: {
     feeQuoter: Address
@@ -44,6 +45,7 @@ export const Builder = {
 
     return (
       builder
+        .storeAddress(config.router)
         .storeUint(config.chainSelector, 64)
         // Cell<DynamicConfig>
         .storeRef(

@@ -221,6 +221,7 @@ describe('Router', () => {
         ownable: {
           owner: deployer.address,
         },
+        router: router.address,
         chainSelector: CHAINSEL_TON,
         config: {
           feeQuoter: feeQuoter.address,

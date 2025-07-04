@@ -17,6 +17,7 @@ struct Storage {
     ownable: Ownable2Step;
 
     // static config
+    router: address;
     chainSelector: uint64; // source chain selector
     // TODO: rmnRemote (only used to validate curse on getFee), nonceManager, tokenAdminRegistry
     // hmm, need to consider the design here.
@@ -78,7 +79,8 @@ fun onInternalMessage(msgCell: cell, msgBody: slice) {
 
 fun onSend(payload: OnRampSend, sender: address) {
     val st = Storage.load();
-    // TODO: validate message came from router
+    // ccipSend must be forwarded from the router
+    assert(st.router == sender, ERROR_SENDER_NOT_ALLOWED);
 
     val msg = payload.msg.load();
 
@@ -91,7 +93,7 @@ fun onSend(payload: OnRampSend, sender: address) {
     }
 
     // TODO: validate jetton amounts match msg.tokenAmounts
-    //
+
     // call into feeQuoter to validate and calculate fees
     val getValidatedFeeMsg = createMessage({
         bounce: true,
@@ -110,11 +112,12 @@ fun onSend(payload: OnRampSend, sender: address) {
 
 // TODO: do we follow solana model and merge router + onramp? aptos also does this
 fun onMessageValidated(payload: MessageValidated<Metadata>, sender: address) {
-    val msg = payload.msg.load();
     var st = Storage.load();
     val config = st.config.load();
     // notification must come from fee quoter
     assert(config.feeQuoter == sender, ERROR_SENDER_NOT_ALLOWED);
+
+    val msg = payload.msg.load();
 
     // validate user transferred enough value
     // else refund and notify
