@@ -105,6 +105,8 @@ func runLogPollerTest(t *testing.T, logger logger.Logger, tonChain cldf_ton.Chai
 	require.Equal(t, wallet.Address().String(), event.TriggeredBy.String(), "unexpected triggered by address")
 }
 
+
+// TODO: gobindings below should be in contracts/bindings/go, we can also consider separating go modules by production and test contracts 
 func deployCounterContract(ctx context.Context, client ton.APIClientWrapped, wallet *wallet.Wallet) (*address.Address, error) {
 	addr, _, _, err := wallet.DeployContractWaitTransaction(
 		ctx,

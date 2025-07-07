@@ -1,15 +1,8 @@
-// TODO: Test contract for logpoller example, 
+import "../../lib/utils.tolk";
+
+// Note: Test contract for logpoller PoC
 // TODO: happy to merge with other example contracts with event emit functionality
 const op_reset_counter = 0x3dc2af2d;
-
-// TODO: extract to a lib
-fun emit<T>(topic: int, body: T) {
-    val emitMsg = createExternalLogMessage({
-        dest: ExtOutLogBucket { topic },
-        body
-    });
-    emitMsg.send(SEND_MODE_REGULAR);
-}
 
 global ctxOwnerAddress: address;
 global ctxCounter: int;
