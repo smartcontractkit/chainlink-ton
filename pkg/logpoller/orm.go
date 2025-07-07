@@ -39,11 +39,10 @@ func (s *InMemoryStore) GetLogs() []types.Log {
 	return out
 }
 
-// TODO: Access Layer unlikely to know the registered filter ID, 
+// TODO: Access Layer unlikely to know the registered filter ID,
 // TODO: Name is more suitable since it's known to the protocol
 // TODO: Or even better, event topic is enough to identify the logs(orm shouldn't know about filters)
 // TODO: Topic should be available with Event gobindings, so we can use it to filter logs
-
 // TODO: However, is filter - result match guaranteed?
 
 func (s *InMemoryStore) GetLogsByTopic(evtSrcAddress string, topic uint64, limit int) ([]types.Log, error) {

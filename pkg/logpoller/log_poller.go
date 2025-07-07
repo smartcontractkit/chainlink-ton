@@ -23,18 +23,17 @@ type LogPoller interface {
 	Close() error
 	RegisterFilter(ctx context.Context, flt types.Filter) error
 	UnregisterFilter(ctx context.Context, name string) error
-
 	// TODO: where to parse CCIP events?
-	// TODO: define exposed interface for the log poller 
+	// TODO: define exposed interface for the log poller
 	// TODO: can we have CCIP functions directly here? I don't think so? at least we need to translate CCIP domain into "log" style
 	// TODO: filter registration & event ingestion -> log polling from CAL diagram
 
 	// TODO: contract / report gobindings / ccip logics shouldn't be in logpoller
 	// offramp.tolk
 	// struct CommitReportAccepted {
-  //   priceUpdates: Cell<PriceUpdates>?;
-  //   blessedMerkleRoots: cell;
-  //   unblessedMerkleRoots: cell;
+	//   priceUpdates: Cell<PriceUpdates>?;
+	//   blessedMerkleRoots: cell;
+	//   unblessedMerkleRoots: cell;
 	// }
 
 	// 	struct PriceUpdates {
@@ -69,7 +68,7 @@ type LogPoller interface {
 	// 	limit int,
 	// ) ([]cciptypes.CommitPluginReportWithMeta, error) {
 	// TODO: let's start like this..
-	FilteredCCIPLogs(ctx context.Context, evtSrcAddress string, topic uint64, limit int) ([]types.Log, error) 
+	FilteredCCIPLogs(ctx context.Context, evtSrcAddress string, topic uint64, limit int) ([]types.Log, error)
 
 	// (dest - ExecutionStateChanged)**: in a given range. The presence of these events indicates that an attempt to execute the message has been made, which the system considers "executed".
 	// func (l *DefaultAccessor) ExecutedMessages(
