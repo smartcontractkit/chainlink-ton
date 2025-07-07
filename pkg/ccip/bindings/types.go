@@ -1,11 +1,7 @@
 package bindings
 
 import (
-	"fmt"
 	"math/big"
-
-	"github.com/xssnick/tonutils-go/tlb"
-	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
 type GenericExtraArgsV2 struct {
@@ -13,54 +9,10 @@ type GenericExtraArgsV2 struct {
 	AllowOutOfOrderExecution bool     `tlb:"bool"`
 }
 
-type TLBSVMExtraArgsV1 struct {
-	ComputeUnits             uint32     `tlb:"## 32"`
-	AccountIsWritableBitmap  uint64     `tlb:"## 64"`
-	AllowOutOfOrderExecution bool       `tlb:"bool"`
-	TokenReceiver            []byte     `tlb:"bits 256"`
-	Accounts                 *cell.Cell `tlb:"^"` //[][32]byte
-}
-
 type SVMExtraArgsV1 struct {
-	ComputeUnits             uint32
-	AccountIsWritableBitmap  uint64
-	AllowOutOfOrderExecution bool
-	TokenReceiver            []byte
-	Accounts                 [][]byte
-}
-
-func (s SVMExtraArgsV1) ToCell() (*cell.Cell, error) {
-	accounts, err := Pack2DByteArrayToCell(s.Accounts)
-	if err != nil {
-		return nil, err
-	}
-
-	tlbArgs := TLBSVMExtraArgsV1{
-		ComputeUnits:             s.ComputeUnits,
-		AccountIsWritableBitmap:  s.AccountIsWritableBitmap,
-		AllowOutOfOrderExecution: s.AllowOutOfOrderExecution,
-		TokenReceiver:            s.TokenReceiver,
-		Accounts:                 accounts,
-	}
-
-	return tlb.ToCell(tlbArgs)
-}
-
-func (s *SVMExtraArgsV1) LoadFromCell(c *cell.Slice) error {
-	var tlbExtraArgs TLBSVMExtraArgsV1
-	if err := tlb.LoadFromCell(&tlbExtraArgs, c); err != nil {
-		return err
-	}
-
-	accounts, err := Unpack2DByteArrayFromCell(tlbExtraArgs.Accounts)
-	if err != nil {
-		return fmt.Errorf("Unpack2DByteArrayFromCell: %w", err)
-	}
-
-	s.ComputeUnits = tlbExtraArgs.ComputeUnits
-	s.AccountIsWritableBitmap = tlbExtraArgs.AccountIsWritableBitmap
-	s.AllowOutOfOrderExecution = tlbExtraArgs.AllowOutOfOrderExecution
-	s.TokenReceiver = tlbExtraArgs.TokenReceiver
-	s.Accounts = accounts
-	return nil
+	ComputeUnits             uint32       `tlb:"## 32"`
+	AccountIsWritableBitmap  uint64       `tlb:"## 64"`
+	AllowOutOfOrderExecution bool         `tlb:"bool"`
+	TokenReceiver            []byte       `tlb:"bits 256"`
+	Accounts                 SnakeBytes2D `tlb:"^"`
 }
