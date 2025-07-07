@@ -1,4 +1,4 @@
-name: golangci_lint
+name: TON - Go Code Linting
 
 on:
   pull_request:
