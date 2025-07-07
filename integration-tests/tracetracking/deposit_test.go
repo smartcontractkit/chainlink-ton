@@ -6,7 +6,7 @@ import (
 	"math/big"
 	"testing"
 
-	"integration-tests/tracetracking/test_utils"
+	"integration-tests/tracetracking/testutils"
 
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/tlb"
@@ -14,7 +14,7 @@ import (
 
 func TestDepositFees(t *testing.T) {
 	var initialAmount = big.NewInt(1_000_000_000_000)
-	accs := test_utils.SetUpTest(t, initialAmount, 2)
+	accs := testutils.SetUpTest(t, initialAmount, 2)
 	alice := accs[0]
 	bob := accs[1]
 
@@ -30,11 +30,11 @@ func TestDepositFees(t *testing.T) {
 	fmt.Printf("Transaction finalized\n")
 	fmt.Printf("\n==========================\nFinalized msg: %+v\n==========================\n", externalMessageReceived)
 
-	aliceBalance := test_utils.MustGetBalance(t, alice)
-	test_utils.VerifyTransaction(t, externalMessageReceived, initialAmount, big.NewInt(0).Neg(transferAmount), aliceBalance)
+	aliceBalance := testutils.MustGetBalance(t, alice)
+	testutils.VerifyTransaction(t, externalMessageReceived, initialAmount, big.NewInt(0).Neg(transferAmount), aliceBalance)
 
 	internalMessagedReceivedByBob := externalMessageReceived.OutgoingInternalReceivedMessages[0]
 	require.NotNil(t, internalMessagedReceivedByBob, "Internal message not received by Bob")
-	bobBalance := test_utils.MustGetBalance(t, bob)
-	test_utils.VerifyTransaction(t, internalMessagedReceivedByBob, initialAmount, transferAmount, bobBalance)
+	bobBalance := testutils.MustGetBalance(t, bob)
+	testutils.VerifyTransaction(t, internalMessagedReceivedByBob, initialAmount, transferAmount, bobBalance)
 }

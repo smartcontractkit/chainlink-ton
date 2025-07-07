@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"integration-tests/tracetracking/async/wrappers/twophasecommit"
-	"integration-tests/tracetracking/test_utils"
+	"integration-tests/tracetracking/testutils"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -16,7 +16,7 @@ import (
 func TestTwoPhaseCommit(t *testing.T) {
 	t.Run("AutoAck", func(t *testing.T) {
 		var initialAmount = big.NewInt(1_000_000_000_000)
-		accs := test_utils.SetUpTest(t, initialAmount, 1)
+		accs := testutils.SetUpTest(t, initialAmount, 1)
 		alice := accs[0]
 
 		fmt.Printf("\n\n\n\n\n\nTest Setup\n==========================\n")
@@ -73,7 +73,7 @@ func TestTwoPhaseCommit(t *testing.T) {
 
 	t.Run("AcksBeforeCommit", func(t *testing.T) {
 		var initialAmount = big.NewInt(1_000_000_000_000)
-		accs := test_utils.SetUpTest(t, initialAmount, 1)
+		accs := testutils.SetUpTest(t, initialAmount, 1)
 		alice := accs[0]
 
 		fmt.Printf("\n\n\n\n\n\nTest Setup\n==========================\n")
@@ -110,6 +110,7 @@ func TestTwoPhaseCommit(t *testing.T) {
 
 		fmt.Printf("Sending ack to counter A\n")
 		_, err = counterA.SendAck()
+		require.NoError(t, err, "Failed to send ack to counter A: %w", err)
 
 		fmt.Printf("Setting value in counter B to %d\n", valueForCounterB)
 		_, err = dbContract.SendSetValue(counterB.Contract.Address, valueForCounterB)
@@ -117,6 +118,7 @@ func TestTwoPhaseCommit(t *testing.T) {
 
 		fmt.Printf("Sending ack to counter B\n")
 		_, err = counterB.SendAck()
+		require.NoError(t, err, "Failed to send ack to counter B: %w", err)
 
 		fmt.Printf("Checking value in counters\n")
 		valueA, err := counterA.GetValue()
@@ -144,7 +146,7 @@ func TestTwoPhaseCommit(t *testing.T) {
 
 	t.Run("AcksAfterCommit", func(t *testing.T) {
 		var initialAmount = big.NewInt(1_000_000_000_000)
-		accs := test_utils.SetUpTest(t, initialAmount, 1)
+		accs := testutils.SetUpTest(t, initialAmount, 1)
 		alice := accs[0]
 
 		fmt.Printf("\n\n\n\n\n\nTest Setup\n==========================\n")
@@ -190,6 +192,7 @@ func TestTwoPhaseCommit(t *testing.T) {
 
 		fmt.Printf("Sending ack to counter A\n")
 		_, err = counterA.SendAck()
+		require.NoError(t, err, "Failed to send ack to counter A: %w", err)
 
 		fmt.Printf("Checking value in counters\n")
 		valueA, err := counterA.GetValue()
@@ -201,6 +204,7 @@ func TestTwoPhaseCommit(t *testing.T) {
 
 		fmt.Printf("Sending ack to counter B\n")
 		_, err = counterB.SendAck()
+		require.NoError(t, err, "Failed to send ack to counter B: %w", err)
 
 		fmt.Printf("Checking value in counters\n")
 		valueA, err = counterA.GetValue()
@@ -215,7 +219,7 @@ func TestTwoPhaseCommit(t *testing.T) {
 
 	t.Run("OneAckAfterCommit", func(t *testing.T) {
 		var initialAmount = big.NewInt(1_000_000_000_000)
-		accs := test_utils.SetUpTest(t, initialAmount, 1)
+		accs := testutils.SetUpTest(t, initialAmount, 1)
 		alice := accs[0]
 
 		fmt.Printf("\n\n\n\n\n\nTest Setup\n==========================\n")
@@ -256,6 +260,7 @@ func TestTwoPhaseCommit(t *testing.T) {
 
 		fmt.Printf("Sending ack to counter A\n")
 		_, err = counterA.SendAck()
+		require.NoError(t, err, "Failed to send ack to counter A: %w", err)
 
 		fmt.Printf("Committing transaction\n")
 		_, err = dbContract.SendCommit()
@@ -272,6 +277,7 @@ func TestTwoPhaseCommit(t *testing.T) {
 
 		fmt.Printf("Sending ack to counter B\n")
 		_, err = counterB.SendAck()
+		require.NoError(t, err, "Failed to send ack to counter B: %w", err)
 
 		fmt.Printf("Checking value in counters\n")
 		valueA, err = counterA.GetValue()

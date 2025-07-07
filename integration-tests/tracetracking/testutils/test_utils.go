@@ -1,4 +1,4 @@
-package test_utils
+package testutils
 
 import (
 	"context"
@@ -71,7 +71,7 @@ func GetRandomWallet(client ton.APIClientWrapped, version wallet.Version, option
 	}
 	pw, perr := wallet.FromPrivateKeyWithOptions(client, w.PrivateKey(), version, option)
 	if perr != nil {
-		return nil, fmt.Errorf("Failed to generate random wallet: %v", perr)
+		return nil, fmt.Errorf("Failed to generate random wallet: %w", perr)
 	}
 	return pw, nil
 }
@@ -111,7 +111,7 @@ func UintFrom(res *ton.ExecutionResult, err error) (uint, error) {
 		return 0, fmt.Errorf("failed to extract value: %w", err)
 	}
 
-	return uint(val.Int64()), nil
+	return uint(val.Int64()), nil //nolint:gosec
 }
 
 func getWallet(t *testing.T, api ton.APIClientWrapped) *wallet.Wallet {
@@ -134,6 +134,7 @@ func getWallet(t *testing.T, api ton.APIClientWrapped) *wallet.Wallet {
 	require.NoError(t, err, "Failed to create wallet from seed: %w", err)
 
 	baseFunderWallet, err := wallet.FromPrivateKeyWithOptions(api, w.PrivateKey(), wallet.V3R2, wallet.WithWorkchain(-1))
+	require.NoError(t, err, "Failed to create base funder wallet: %w", err)
 
 	//TODO: This is hardcoded for MyLocalTon pre-funded wallet
 	funderWallet, err := baseFunderWallet.GetSubwallet(42)

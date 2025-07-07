@@ -4,18 +4,19 @@ import (
 	"fmt"
 	"math/rand/v2"
 
-	test_utils "integration-tests/utils"
-
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
+
+	test_utils "integration-tests/utils"
 )
 
 var CounterContractPath = test_utils.GetBuildDir("Counter.compiled.json")
 
-type CounterProvider struct {
+//nolint:revive
+type CounterProvider struct { 
 	apiClient tracetracking.SignedAPIClient // TODO use pointer
 }
 
@@ -25,6 +26,7 @@ func NewCounterProvider(apiClient tracetracking.SignedAPIClient) *CounterProvide
 	}
 }
 
+//nolint:revive
 type CounterInitData struct {
 	ID    uint32
 	Value uint32

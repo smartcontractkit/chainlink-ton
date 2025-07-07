@@ -1,4 +1,4 @@
-package request_reply
+package requestreply
 
 import (
 	"fmt"
@@ -84,7 +84,7 @@ func (m AddPriceItemMessage) StoreArgs(b *cell.Builder) error {
 }
 
 func (p PriceRegistry) SendAddPriceItem(key uint8, addr *address.Address) (msgReceived *tracetracking.ReceivedMessage, err error) {
-	queryID := rand.Uint64()
+	queryID := rand.Uint64() //nolint:gosec
 	msgReceived, err = p.Contract.CallWaitRecursively(AddPriceItemMessage{queryID, key, addr}, tlb.MustFromTON("0.5"))
 	return msgReceived, err
 }

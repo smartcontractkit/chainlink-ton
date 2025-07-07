@@ -13,7 +13,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
-var COUNTER_CONTRACT_PATH = test_utils.GetBuildDir("examples.async-communication.two-phase-commit.Counter/tact_Counter.pkg")
+var CounterContractPath = test_utils.GetBuildDir("examples.async-communication.two-phase-commit.Counter/tact_Counter.pkg")
 
 type CounterProvider struct {
 	apiClient tracetracking.SignedAPIClient
@@ -50,7 +50,7 @@ func (p *CounterProvider) Deploy(initData CounterInitData) (Counter, error) {
 	if err != nil {
 		return Counter{}, fmt.Errorf("failed to store AutoAck: %w", err)
 	}
-	compiledContract, err := wrappers.ParseCompiledContract(COUNTER_CONTRACT_PATH)
+	compiledContract, err := wrappers.ParseCompiledContract(CounterContractPath)
 	if err != nil {
 		return Counter{}, fmt.Errorf("Failed to compile contract: %w", err)
 	}
@@ -84,7 +84,7 @@ func (m sendAckMessage) StoreArgs(b *cell.Builder) error {
 }
 
 func (c Counter) SendAck() (msgReceived *tracetracking.ReceivedMessage, err error) {
-	queryID := rand.Uint64()
+	queryID := rand.Uint64() //nolint:gosec
 	msgReceived, err = c.Contract.CallWaitRecursively(sendAckMessage{queryID}, tlb.MustFromTON("0.5"))
 	return msgReceived, err
 }

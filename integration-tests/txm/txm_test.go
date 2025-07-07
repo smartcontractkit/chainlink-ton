@@ -72,7 +72,7 @@ func runTxmTest(t *testing.T, logger logger.Logger, config txm.Config, tonChain 
 		ID:    big.NewInt(1337),
 		Count: big.NewInt(0),
 	}
-	counterAddr, stateInit, err := counter_legacy.BuildCounterStateInit(ctx, counterCfg)
+	counterAddr, stateInit, err := counter_legacy.BuildCounterStateInit(counterCfg)
 	require.NoError(t, err)
 
 	// 2. Send deploy tx

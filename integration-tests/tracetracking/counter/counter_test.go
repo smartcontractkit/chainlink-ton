@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	counter "integration-tests/tracetracking/counter/wrappers"
-	"integration-tests/tracetracking/test_utils"
+	"integration-tests/tracetracking/testutils"
 
 	"github.com/stretchr/testify/require"
 
@@ -18,7 +18,7 @@ import (
 func TestCounter(t *testing.T) {
 	t.Run("TestCounter", func(t *testing.T) {
 		var initialAmount = big.NewInt(1_000_000_000_000)
-		seeders := test_utils.SetUpTest(t, initialAmount, 1)
+		seeders := testutils.SetUpTest(t, initialAmount, 1)
 		alice := seeders[0]
 
 		fmt.Printf("\n\n\n\n\n\nTest Setup\n==========================\n")

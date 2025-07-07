@@ -7,8 +7,8 @@ import (
 
 	"testing"
 
-	"integration-tests/tracetracking/async/wrappers/request_reply"
-	"integration-tests/tracetracking/test_utils"
+	"integration-tests/tracetracking/async/wrappers/requestreply"
+	"integration-tests/tracetracking/testutils"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -18,7 +18,7 @@ import (
 func TestRequestReply(t *testing.T) {
 	t.Run("TestRequestReply", func(t *testing.T) {
 		var initialAmount = big.NewInt(1_000_000_000_000)
-		seeders := test_utils.SetUpTest(t, initialAmount, 1)
+		seeders := testutils.SetUpTest(t, initialAmount, 1)
 		alice := seeders[0]
 
 		fmt.Printf("\n\n\n\n\n\nTest Setup\n==========================\n")
@@ -36,14 +36,14 @@ func TestRequestReply(t *testing.T) {
 		fmt.Printf("Deploying ItemPrice contracts\n")
 		for index, name := range priceIndex {
 			fmt.Printf("Deploying ItemPrice %s", name)
-			itemPrice, err := request_reply.NewItemPriceProvider(alice).Deploy(request_reply.ItemPriceInitData{ID: (rand.Uint32()), Price: prices[name]})
+			itemPrice, err := requestreply.NewItemPriceProvider(alice).Deploy(requestreply.ItemPriceInitData{ID: (rand.Uint32()), Price: prices[name]})
 			require.NoError(t, err, "Failed to deploy ItemPrice contract: %w", err)
 			fmt.Printf("ItemPrice contract deployed at %s\n", itemPrice.Contract.Address.String())
 			itemAddresses[index] = itemPrice.Contract.Address
 		}
 
 		fmt.Printf("Deploying PriceRegistry contract with addresses %+v: \n", itemAddresses)
-		priceRegistry, err := request_reply.NewPriceRegistryProvider(alice).Deploy(request_reply.PriceRegistryInitData{ID: (rand.Uint32())})
+		priceRegistry, err := requestreply.NewPriceRegistryProvider(alice).Deploy(requestreply.PriceRegistryInitData{ID: (rand.Uint32())})
 		require.NoError(t, err, "Failed to deploy PriceRegistry contract: %w", err)
 		fmt.Printf("PriceRegistry contract deployed at %s\n", priceRegistry.Contract.Address.String())
 
@@ -55,7 +55,7 @@ func TestRequestReply(t *testing.T) {
 		}
 
 		fmt.Printf("Deploying Storage contract\n")
-		storage, err := request_reply.NewStorageProvider(alice).Deploy(request_reply.StorageInitData{ID: (rand.Uint32())})
+		storage, err := requestreply.NewStorageProvider(alice).Deploy(requestreply.StorageInitData{ID: (rand.Uint32())})
 		require.NoError(t, err, "Failed to deploy Storage contract: %w", err)
 		fmt.Printf("Storage contract deployed at %s\n", storage.Contract.Address.String())
 
