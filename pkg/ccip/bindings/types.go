@@ -29,7 +29,7 @@ type SVMExtraArgsV1 struct {
 	Accounts                 [][]byte
 }
 
-func (s *SVMExtraArgsV1) ToCell() (*cell.Cell, error) {
+func (s SVMExtraArgsV1) ToCell() (*cell.Cell, error) {
 	accounts, err := Pack2DByteArrayToCell(s.Accounts)
 	if err != nil {
 		return nil, err

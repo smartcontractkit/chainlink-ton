@@ -45,11 +45,11 @@ func TestSVMExtraArgsV1_ToCellAndLoadFromCell(t *testing.T) {
 		Accounts:                 accountList,
 	}
 
-	cell, err := orig.ToCell()
+	cell, err := tlb.ToCell(orig)
 	require.NoError(t, err)
 
 	var decoded SVMExtraArgsV1
-	err = decoded.LoadFromCell(cell.BeginParse())
+	err = tlb.LoadFromCell(&decoded, cell.BeginParse())
 	require.NoError(t, err)
 	require.Equal(t, orig.ComputeUnits, decoded.ComputeUnits)
 	require.Equal(t, orig.AccountIsWritableBitmap, decoded.AccountIsWritableBitmap)
