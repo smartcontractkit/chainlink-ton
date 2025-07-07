@@ -163,7 +163,7 @@ func TestLoadArray_AddressTooSmall(t *testing.T) {
 func TestCommitReport_EncodingAndDecoding(t *testing.T) {
 	addr, err := address.ParseAddr("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")
 	require.NoError(t, err)
-	tokenPriceCell, err := PackArray([]TokenPriceUpdate{
+	tokenPriceSlice := []TokenPriceUpdate{
 		{
 			SourceToken: addr,
 			UsdPerToken: big.NewInt(1000000), // Example value
@@ -184,10 +184,10 @@ func TestCommitReport_EncodingAndDecoding(t *testing.T) {
 			SourceToken: addr,
 			UsdPerToken: big.NewInt(1000000), // Example value
 		},
-	})
+	}
 	require.NoError(t, err)
 
-	gasPriceCell, err := PackArray([]GasPriceUpdate{
+	gasPriceSlice := []GasPriceUpdate{
 		{
 			DestChainSelector: 1,
 			UsdPerUnitGas:     big.NewInt(2000000),
@@ -207,9 +207,9 @@ func TestCommitReport_EncodingAndDecoding(t *testing.T) {
 			DestChainSelector: 5,
 			UsdPerUnitGas:     big.NewInt(2000000),
 		},
-	})
+	}
 	require.NoError(t, err)
-	merkleRoots, err := PackArray([]MerkleRoot{
+	merkleRoots := []MerkleRoot{
 		{
 			SourceChainSelector: 1,
 			OnRampAddress:       make([]byte, 512),
@@ -231,19 +231,19 @@ func TestCommitReport_EncodingAndDecoding(t *testing.T) {
 			MaxSeqNr:            200,
 			MerkleRoot:          make([]byte, 32),
 		},
-	})
+	}
 	require.NoError(t, err)
-	signatureCell, err := PackArray([]Signature{
+	signatureCell := []Signature{
 		{
 			Sig: make([]byte, 64),
 		},
-	})
+	}
 	require.NoError(t, err)
 
 	commitReport := CommitReport{
 		PriceUpdates: PriceUpdates{
-			TokenPriceUpdates: tokenPriceCell,
-			GasPriceUpdates:   gasPriceCell,
+			TokenPriceUpdates: tokenPriceSlice,
+			GasPriceUpdates:   gasPriceSlice,
 		},
 		MerkleRoot: MerkleRoots{
 			UnblessedMerkleRoots: merkleRoots,
@@ -266,10 +266,10 @@ func TestCommitReport_EncodingAndDecoding(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, c.Hash(), newCell.Hash())
 
-	gu, err := UnpackArray[GasPriceUpdate](decoded.PriceUpdates.GasPriceUpdates)
+	gu := decoded.PriceUpdates.GasPriceUpdates
 	require.NoError(t, err)
 	require.Len(t, gu, 5)
-	tu, err := UnpackArray[TokenPriceUpdate](decoded.PriceUpdates.TokenPriceUpdates)
+	tu := decoded.PriceUpdates.TokenPriceUpdates
 	require.NoError(t, err)
 	require.Len(t, tu, 5)
 }

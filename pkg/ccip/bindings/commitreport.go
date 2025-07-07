@@ -11,21 +11,21 @@ import (
 
 // CommitReport represents the top-level structure for a commit report.
 type CommitReport struct {
-	PriceUpdates  PriceUpdates `tlb:"^"`
-	MerkleRoot    MerkleRoots  `tlb:"^"`
-	RMNSignatures *cell.Cell   `tlb:"^"`
+	PriceUpdates  PriceUpdates         `tlb:"^"`
+	MerkleRoot    MerkleRoots          `tlb:"^"`
+	RMNSignatures SnakeData[Signature] `tlb:"^"`
 }
 
 // MerkleRoots holds the blessed and unblessed Merkle roots.
 type MerkleRoots struct {
-	BlessedMerkleRoots   *cell.Cell `tlb:"^"`
-	UnblessedMerkleRoots *cell.Cell `tlb:"^"`
+	BlessedMerkleRoots   SnakeData[MerkleRoot] `tlb:"^"`
+	UnblessedMerkleRoots SnakeData[MerkleRoot] `tlb:"^"`
 }
 
 // PriceUpdates holds token and gas price updates.
 type PriceUpdates struct {
-	TokenPriceUpdates *cell.Cell `tlb:"^"`
-	GasPriceUpdates   *cell.Cell `tlb:"^"`
+	TokenPriceUpdates SnakeData[TokenPriceUpdate] `tlb:"^"`
+	GasPriceUpdates   SnakeData[GasPriceUpdate]   `tlb:"^"`
 }
 
 // TokenPriceUpdate represents a price update for a token.
@@ -52,6 +52,32 @@ type MerkleRoot struct {
 // Signature represents an ED25519 signature.
 type Signature struct {
 	Sig []byte `tlb:"bits 512"`
+}
+
+type SnakeData[T any] []T
+
+// ToCell packs the SnakeData into a cell. It uses PackArray to serialize the data.
+func (s SnakeData[T]) ToCell() (*cell.Cell, error) {
+	packed, err := PackArray(s)
+	if err != nil {
+		return nil, err
+	}
+
+	return packed, nil
+}
+
+// LoadFromCell loads the SnakeData from a cell slice. It uses UnpackArray to deserialize the data.
+func (s *SnakeData[T]) LoadFromCell(c *cell.Slice) error {
+	cl, err := c.ToCell()
+	if err != nil {
+		return fmt.Errorf("failed to convert slice to cell: %w", err)
+	}
+	arr, err := UnpackArray[T](cl)
+	if err != nil {
+		return err
+	}
+	*s = arr
+	return nil
 }
 
 // PackArray packs an array of T into a linked cell chain, each cell holds up to 1023 bits. Note that only one ref is stored in each cell, and as many complete T elements as fit in the cell.
