@@ -3,7 +3,7 @@ import "@stdlib/common.tolk";
 // Jetton message definitions in Tolk
 
 // Common jetton opcodes (matching the FunC definitions)
-const OP_TRANSFER = 0xf8a7ea5;
+const OP_TRANSFER = 0x0f8a7ea5;
 const OP_TRANSFER_NOTIFICATION = 0x7362d09c;
 const OP_INTERNAL_TRANSFER = 0x178d4519;
 const OP_EXCESSES = 0xd53276db;
@@ -11,7 +11,7 @@ const OP_BURN = 0x595f07bc;
 const OP_BURN_NOTIFICATION = 0x7bdd97de;
 
 // Jetton Transfer message - sent to jetton wallet to initiate transfer
-struct (0xf8a7ea5)JettonTransfer {
+struct (0x0f8a7ea5)JettonTransfer {
     queryId: uint64;
     amount: coins;
     destination: address;

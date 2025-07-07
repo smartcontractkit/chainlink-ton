@@ -1,85 +1,14 @@
 import '@ton/test-utils'
-import { Address, beginCell, Cell, Message, toNano } from '@ton/core'
+import { Address, beginCell, Cell, Dictionary, Message, toNano } from '@ton/core'
 import { SandboxContract, TreasuryContract, Blockchain } from '@ton/sandbox'
 import { compile } from '@ton/blueprint'
-import {
-  JettonMinter,
-  JettonWallet,
-  JettonSender,
-  OnrampMock,
-  type ChangeContentMessage,
-  type MintMessage,
-  type SendJettonsFastMessage,
-  type SendJettonsExtendedMessage,
-  jettonMinterConfigToCell,
-  jettonWalletConfigToCell,
-  jettonSenderConfigToCell,
-  onrampMockConfigToCell,
-} from '../wrappers/examples/jetton'
+import { JettonMinter, JettonWallet, JettonSender, OnrampMock } from '../wrappers/examples/jetton'
+import { sha256 } from '@ton/crypto'
 
-class JettonMetadata {
-  name: string
-  description: string
-  symbol: string
-  decimals: number
-  image_data: string
-}
+const ONCHAIN_CONTENT_PREFIX = 0x00
+const OFFCHAIN_CONTENT_PREFIX = 0x01
 
-function bufferToChunks(buffer: Buffer, chunkSize: number): Buffer[] {
-  const chunks: Buffer[] = []
-  for (let i = 0; i < buffer.length; i += chunkSize) {
-    chunks.push(buffer.subarray(i, i + chunkSize))
-  }
-  return chunks
-}
-
-export function makeSnakeCell(data: Buffer): Cell {
-  const chunks = bufferToChunks(data, 127)
-
-  if (chunks.length === 0) {
-    return beginCell().endCell()
-  }
-
-  if (chunks.length === 1) {
-    return beginCell().storeBuffer(chunks[0]).endCell()
-  }
-
-  let curCell = beginCell()
-
-  for (let i = chunks.length - 1; i >= 0; i--) {
-    const chunk = chunks[i]
-
-    curCell.storeBuffer(chunk)
-
-    if (i - 1 >= 0) {
-      const nextCell = beginCell()
-      nextCell.storeRef(curCell)
-      curCell = nextCell
-    }
-  }
-
-  return curCell.endCell()
-}
-
-export function flattenSnakeCell(cell: Cell): Buffer {
-  let c: Cell | null = cell
-  let output = Buffer.alloc(0)
-
-  while (c) {
-    const cs = c.beginParse()
-    const remainingBits = cs.remainingBits
-    if (remainingBits === 0) {
-      break
-    }
-
-    const data = cs.loadBits(remainingBits)
-    // bitResult.writeBits(data)
-    output = Buffer.concat([output, data.subbuffer(0, remainingBits)!])
-    c = c.refs && c.refs[0]
-  }
-
-  return output
-}
+const jettonDataURI = 'smartcontract.com'
 
 describe('Send and Receive Jettons', () => {
   let blockchain: Blockchain
@@ -93,27 +22,12 @@ describe('Send and Receive Jettons', () => {
   let jettonWalletCode: Cell
   let userWallet: (address: Address) => Promise<SandboxContract<JettonWallet>>
 
-  let jettonMetadata: JettonMetadata
-
-  // read ./link.png and save as base64
-  let imageData = `<svg width="21" height="22" viewBox="0 0 21 22" fill="none" xmlns="http://www.w3.org/2000/svg">
-<path d="M10.5046 4.87361L16.1192 7.97661V14.2074L10.5201 17.3302L4.90549 14.2322V8.00139L10.5046 4.87361ZM10.5046 0.293457L8.44421 1.44345L2.8348 4.57124L0.774414 5.72123V8.01131V14.2371V16.5272L2.8348 17.6673L8.44936 20.7703L10.5098 21.9104L12.5701 20.7604L18.1693 17.6326L20.2296 16.4876V14.1975V7.96669V5.67662L18.1693 4.53654L12.5547 1.43354L10.4943 0.293457H10.5046Z" fill="#375BD2"/>
-</svg>`
-
-  jettonMetadata = {
-    name: 'Chainlink',
-    description: 'Chainlink token on TON blockchain',
-    symbol: 'LINK',
-    decimals: 18,
-    image_data: imageData,
-  }
-
   beforeEach(async () => {
     blockchain = await Blockchain.create()
 
     deployer = await blockchain.treasury('deployer')
 
-    defaultContent = makeSnakeCell(Buffer.from(JSON.stringify(jettonMetadata), 'utf8'))
+    defaultContent = beginCell().storeStringTail(jettonDataURI).endCell()
 
     // get jetton wallet code
     jettonWalletCode = await compile('jetton.JettonWallet')
@@ -138,7 +52,6 @@ describe('Send and Receive Jettons', () => {
       from: deployer.address,
       to: jettonMinter.address,
       deploy: true,
-      success: true,
     })
 
     // deploy jetton sender contract
@@ -199,13 +112,34 @@ describe('Send and Receive Jettons', () => {
   // Getting jetton data
   it('jetton mastercontract should have metadata', async () => {
     const data = await jettonMinter.getJettonData()
-    const json = flattenSnakeCell(data.jettonContent).toString('utf8')
-    const metadataJson = JSON.parse(json)
-    expect(metadataJson.name).toEqual(jettonMetadata.name)
-    expect(metadataJson.description).toEqual(jettonMetadata.description)
-    expect(metadataJson.symbol).toEqual(jettonMetadata.symbol)
-    expect(metadataJson.decimals).toEqual(jettonMetadata.decimals)
-    expect(metadataJson.image_data).toEqual(jettonMetadata.image_data)
+    let slice = data.jettonContent.beginParse()
+    let prefix = slice.loadUint(8)
+    expect(prefix).toEqual(ONCHAIN_CONTENT_PREFIX)
+    let dictionary = Dictionary.load(Dictionary.Keys.BigUint(256), Dictionary.Values.Cell(), slice)
+
+    const firstKeyHashBigInt = BigInt(
+      '0x' + (await sha256(Buffer.from('uri', 'utf8'))).toString('hex'),
+    )
+    const uriCell = dictionary.get(firstKeyHashBigInt)
+    if (!uriCell) {
+      throw new Error('URI not found in dictionary')
+    }
+    let uriSlice = uriCell?.beginParse()
+    uriSlice.loadBits(8) // There is a 0x00 prefix
+    const uri = uriSlice.loadStringTail()
+    expect(uri).toEqual(jettonDataURI)
+    const seccondKeyHashBigInt = BigInt(
+      '0x' + (await sha256(Buffer.from('decimals', 'utf8'))).toString('hex'),
+    )
+    const decimalCell = dictionary.get(seccondKeyHashBigInt)
+    if (!decimalCell) {
+      throw new Error('Decimals not found in dictionary')
+    }
+    let decimalsSlice = decimalCell?.beginParse()
+    decimalsSlice.loadBits(8) // There is a 0x00 prefix
+    const decimals = decimalsSlice.loadStringTail()
+    const decimalCharHex = Buffer.from(decimals, 'utf8').toString('hex')
+    expect(decimals).toEqual('9')
   })
 
   // basic send, without any extra params
@@ -314,21 +248,6 @@ describe('Receiving Jettons as an Onramp Mock', () => {
   let jettonWalletCode: Cell
   let userWallet: (address: Address) => Promise<SandboxContract<JettonWallet>>
 
-  let jettonMetadata: JettonMetadata
-
-  // read ./link.png and save as base64
-  let imageData = `<svg width="21" height="22" viewBox="0 0 21 22" fill="none" xmlns="http://www.w3.org/2000/svg">
-<path d="M10.5046 4.87361L16.1192 7.97661V14.2074L10.5201 17.3302L4.90549 14.2322V8.00139L10.5046 4.87361ZM10.5046 0.293457L8.44421 1.44345L2.8348 4.57124L0.774414 5.72123V8.01131V14.2371V16.5272L2.8348 17.6673L8.44936 20.7703L10.5098 21.9104L12.5701 20.7604L18.1693 17.6326L20.2296 16.4876V14.1975V7.96669V5.67662L18.1693 4.53654L12.5547 1.43354L10.4943 0.293457H10.5046Z" fill="#375BD2"/>
-</svg>`
-
-  jettonMetadata = {
-    name: 'Chainlink',
-    description: 'Chainlink token on TON blockchain',
-    symbol: 'LINK',
-    decimals: 18,
-    image_data: imageData,
-  }
-
   beforeEach(async () => {
     blockchain = await Blockchain.create()
     blockchain.verbosity = {
@@ -339,7 +258,8 @@ describe('Receiving Jettons as an Onramp Mock', () => {
     }
     deployer = await blockchain.treasury('deployer')
 
-    defaultContent = makeSnakeCell(Buffer.from(JSON.stringify(jettonMetadata), 'utf8'))
+    // defaultContent = makeSnakeCell(Buffer.from(JSON.stringify(jettonMetadata), 'utf8'))
+    defaultContent = beginCell().storeStringTail(jettonDataURI).endCell()
 
     // get jetton wallet code
     jettonWalletCode = await compile('jetton.JettonWallet')
@@ -364,7 +284,6 @@ describe('Receiving Jettons as an Onramp Mock', () => {
       from: deployer.address,
       to: jettonMinter.address,
       deploy: true,
-      success: true,
     })
 
     // deploy jetton sender contract

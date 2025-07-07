@@ -38,7 +38,7 @@ fun saveData(data: JettonSender) {
 }
 
 // Send basic jetton transfer
-fun JettonSender.sendJettons(self, storage: JettonSender, queryId: uint64, receiver: address, amount: coins) {
+fun JettonSender.sendJettons(self, msg: SendJettonsFast) {
     // val thisContractJettonWallet = calculateTolkJettonWalletAddress(
     //     contract.getAddress(),
     //     storage.minterAddress,
@@ -66,9 +66,9 @@ fun JettonSender.sendJettons(self, storage: JettonSender, queryId: uint64, recei
         value: 0,
         dest: self.JettonClient.walletAddress(),
         body: JettonTransfer {
-            queryId: queryId,
-            amount: amount,
-            destination: receiver,
+            queryId: msg.queryId,
+            amount: msg.amount,
+            destination: msg.destination,
             responseDestination: contract.getAddress(),
             customPayload: null,
             forwardTonAmount: 0,
@@ -78,8 +78,7 @@ fun JettonSender.sendJettons(self, storage: JettonSender, queryId: uint64, recei
 }
 
 // Send extended jetton transfer with additional parameters
-fun JettonSender.sendJettonsExtended(self, storage: JettonSender, queryId: uint64, receiver: address, amount: coins, 
-                       forwardTonAmount: coins, forwardPayload: cell, customPayload: cell?) {
+fun JettonSender.sendJettonsExtended(self, msg: SendJettonsExtended) {
     // val thisContractJettonWallet = calculateTolkJettonWalletAddress(
     //     contract.getAddress(),
     //     storage.minterAddress,
@@ -107,13 +106,13 @@ fun JettonSender.sendJettonsExtended(self, storage: JettonSender, queryId: uint6
         value: 0,
         dest: self.JettonClient.walletAddress(),
         body: JettonTransfer {
-            queryId: queryId,
-            amount: amount,
-            destination: receiver,
+            queryId: msg.queryId,
+            amount: msg.amount,
+            destination: msg.destination,
             responseDestination: contract.getAddress(),
-            customPayload: customPayload,
-            forwardTonAmount: forwardTonAmount,
-            forwardPayload: forwardPayload
+            customPayload: msg.customPayload,
+            forwardTonAmount: msg.forwardTonAmount,
+            forwardPayload: msg.forwardPayload
             }
         }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
@@ -134,18 +133,10 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
 
     match (msg) {
         SendJettonsFast => {
-            this.sendJettons(this, msg.queryId, msg.destination, msg.amount);
+            this.sendJettons(msg);
         }
         SendJettonsExtended => {
-            this.sendJettonsExtended(
-                this,
-                msg.queryId, 
-                msg.destination, 
-                msg.amount,
-                msg.forwardTonAmount,
-                msg.forwardPayload,
-                msg.customPayload
-            );
+            this.sendJettonsExtended(msg);
         }
     }
 }

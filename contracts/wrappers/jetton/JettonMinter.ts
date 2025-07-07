@@ -37,10 +37,14 @@ export function jettonMinterConfigToCell(config: JettonMinterConfig): Cell {
   return beginCell()
     .storeCoins(config.totalSupply)
     .storeAddress(config.admin)
-    .storeAddress(config.transferAdmin ?? new Address(0, Buffer.alloc(32, 0)))
+    .storeAddress(config.transferAdmin ?? zeroAddress())
     .storeRef(config.walletCode)
     .storeRef(content)
     .endCell()
+}
+
+function zeroAddress() {
+  return new Address(0, Buffer.alloc(32, 0))
 }
 
 export function parseJettonMinterData(data: Cell) {
@@ -57,14 +61,14 @@ export function parseJettonMinterData(data: Cell) {
 export const MinterOpcodes = {
   MINT: JettonOpcodes.MINT,
   BURN_NOTIFICATION: JettonOpcodes.BURN_NOTIFICATION,
-  PROVIDE_WALLET_ADDRESS: JettonOpcodes.PROVIDE_WALLET_ADDRESS,
-  TAKE_WALLET_ADDRESS: JettonOpcodes.TAKE_WALLET_ADDRESS,
+  // PROVIDE_WALLET_ADDRESS: JettonOpcodes.PROVIDE_WALLET_ADDRESS,
+  // TAKE_WALLET_ADDRESS: JettonOpcodes.TAKE_WALLET_ADDRESS,
   CHANGE_ADMIN: JettonOpcodes.CHANGE_ADMIN,
   CLAIM_ADMIN: JettonOpcodes.CLAIM_ADMIN,
   DROP_ADMIN: JettonOpcodes.DROP_ADMIN,
   CHANGE_METADATA_URL: JettonOpcodes.CHANGE_METADATA_URL,
   UPGRADE: JettonOpcodes.UPGRADE,
-  TOP_UP: JettonOpcodes.TOP_UP,
+  // TOP_UP: JettonOpcodes.TOP_UP,
   INTERNAL_TRANSFER: JettonOpcodes.INTERNAL_TRANSFER,
   EXCESSES: JettonOpcodes.EXCESSES,
 }
@@ -126,8 +130,8 @@ export class JettonMinter implements Contract {
       .storeUint(MinterOpcodes.INTERNAL_TRANSFER, 32)
       .storeUint(opts.message.queryId, 64)
       .storeCoins(opts.message.jettonAmount)
-      .storeAddress(opts.message.from ?? null)
-      .storeAddress(opts.message.responseDestination ?? null)
+      .storeAddress(opts.message.from ?? zeroAddress())
+      .storeAddress(opts.message.responseDestination ?? zeroAddress())
       .storeCoins(opts.message.forwardTonAmount ?? 0n)
 
     if (opts.message.customPayload) {
@@ -151,26 +155,26 @@ export class JettonMinter implements Contract {
     })
   }
 
-  async sendDiscovery(
-    provider: ContractProvider,
-    via: Sender,
-    opts: {
-      value?: bigint
-      owner: Address
-      includeAddress: boolean
-    },
-  ) {
-    await provider.internal(via, {
-      value: opts.value ?? toNano('0.1'),
-      sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: beginCell()
-        .storeUint(MinterOpcodes.PROVIDE_WALLET_ADDRESS, 32)
-        .storeUint(0, 64) // query_id
-        .storeAddress(opts.owner)
-        .storeBit(opts.includeAddress)
-        .endCell(),
-    })
-  }
+  // async sendDiscovery(
+  //   provider: ContractProvider,
+  //   via: Sender,
+  //   opts: {
+  //     value?: bigint
+  //     owner: Address
+  //     includeAddress: boolean
+  //   },
+  // ) {
+  //   await provider.internal(via, {
+  //     value: opts.value ?? toNano('0.1'),
+  //     sendMode: SendMode.PAY_GAS_SEPARATELY,
+  //     body: beginCell()
+  //       .storeUint(MinterOpcodes.PROVIDE_WALLET_ADDRESS, 32)
+  //       .storeUint(0, 64) // query_id
+  //       .storeAddress(opts.owner)
+  //       .storeBit(opts.includeAddress)
+  //       .endCell(),
+  //   })
+  // }
 
   async sendChangeAdmin(
     provider: ContractProvider,
@@ -251,16 +255,16 @@ export class JettonMinter implements Contract {
     })
   }
 
-  async sendTopUp(provider: ContractProvider, via: Sender, value: bigint = toNano('0.1')) {
-    await provider.internal(via, {
-      value,
-      sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: beginCell()
-        .storeUint(MinterOpcodes.TOP_UP, 32)
-        .storeUint(0, 64) // query_id
-        .endCell(),
-    })
-  }
+  // async sendTopUp(provider: ContractProvider, via: Sender, value: bigint = toNano('0.1')) {
+  //   await provider.internal(via, {
+  //     value,
+  //     sendMode: SendMode.PAY_GAS_SEPARATELY,
+  //     body: beginCell()
+  //       .storeUint(MinterOpcodes.TOP_UP, 32)
+  //       .storeUint(0, 64) // query_id
+  //       .endCell(),
+  //   })
+  // }
 
   async sendUpgrade(
     provider: ContractProvider,
