@@ -1,4 +1,4 @@
-package two_msg_chain
+package twomsgchain
 
 import (
 	"fmt"
@@ -6,13 +6,14 @@ import (
 
 	test_utils "integration-tests/utils"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
-var MEMORY_CONTRACT_PATH = test_utils.GetBuildDir("examples.async-communication.two-msg-chain.Memory/tact_Memory.pkg")
+var MemoryContractPath = test_utils.GetBuildDir("examples.async-communication.two-msg-chain.Memory/tact_Memory.pkg")
 
 type MemoryProvider struct {
 	apiClient tracetracking.SignedAPIClient
@@ -43,9 +44,9 @@ func (p *MemoryProvider) Deploy(initData MemoryInitData) (Memory, error) {
 	if err != nil {
 		return Memory{}, fmt.Errorf("failed to store initial value: %w", err)
 	}
-	compiledContract, err := wrappers.ParseCompiledContract(MEMORY_CONTRACT_PATH)
+	compiledContract, err := wrappers.ParseCompiledContract(MemoryContractPath)
 	if err != nil {
-		return Memory{}, fmt.Errorf("Failed to compile contract: %w", err)
+		return Memory{}, fmt.Errorf("failed to compile contract: %w", err)
 	}
 	contract, err := wrappers.Deploy(&p.apiClient, compiledContract, b.EndCell(), tlb.MustFromTON("1"))
 	if err != nil {
@@ -62,7 +63,7 @@ type Memory struct {
 }
 
 type setValueMessage struct {
-	queryId uint64
+	queryID uint64
 	Value   uint32
 }
 
@@ -70,9 +71,9 @@ func (m setValueMessage) OpCode() uint64 {
 	return 0x1
 }
 func (m setValueMessage) StoreArgs(b *cell.Builder) error {
-	err := b.StoreUInt(m.queryId, 64)
+	err := b.StoreUInt(m.queryID, 64)
 	if err != nil {
-		return fmt.Errorf("failed to store queryId: %w", err)
+		return fmt.Errorf("failed to store queryID: %w", err)
 	}
 	err = b.StoreUInt(uint64(m.Value), 32)
 	if err != nil {
@@ -82,8 +83,8 @@ func (m setValueMessage) StoreArgs(b *cell.Builder) error {
 }
 
 func (m Memory) SendSetValue(i uint32) (msgReceived *tracetracking.ReceivedMessage, err error) {
-	queryId := rand.Uint64()
-	msgReceived, err = m.Contract.CallWaitRecursively(setValueMessage{queryId, i}, tlb.MustFromTON("0.5"))
+	queryID := rand.Uint64()
+	msgReceived, err = m.Contract.CallWaitRecursively(setValueMessage{queryID, i}, tlb.MustFromTON("0.5"))
 	return msgReceived, err
 }
 

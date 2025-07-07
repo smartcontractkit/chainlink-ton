@@ -1,4 +1,4 @@
-package two_phase_commit
+package twophasecommit
 
 import (
 	"fmt"
@@ -6,14 +6,15 @@ import (
 
 	test_utils "integration-tests/utils"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
-var DB_CONTRACT_PATH = test_utils.GetBuildDir("examples.async-communication.two-phase-commit.DB/tact_DB.pkg")
+var DbContractPath = test_utils.GetBuildDir("examples.async-communication.two-phase-commit.DB/tact_DB.pkg")
 
 type DBProvider struct {
 	apiClient tracetracking.SignedAPIClient
@@ -40,9 +41,9 @@ func (p *DBProvider) Deploy(initData DBInitData) (DB, error) {
 	if err != nil {
 		return DB{}, fmt.Errorf("failed to store ID: %w", err)
 	}
-	compiledContract, err := wrappers.ParseCompiledContract(DB_CONTRACT_PATH)
+	compiledContract, err := wrappers.ParseCompiledContract(DbContractPath)
 	if err != nil {
-		return DB{}, fmt.Errorf("Failed to compile contract: %w", err)
+		return DB{}, fmt.Errorf("failed to compile contract: %w", err)
 	}
 	contract, err := wrappers.Deploy(&p.apiClient, compiledContract, c.EndCell(), tlb.MustFromTON("1"))
 	if err != nil {
@@ -59,27 +60,27 @@ type DB struct {
 }
 
 type beginTransactionMessage struct {
-	queryId uint64
+	queryID uint64
 }
 
 func (m beginTransactionMessage) OpCode() uint64 {
 	return 0x1
 }
 func (m beginTransactionMessage) StoreArgs(b *cell.Builder) error {
-	err := b.StoreUInt(m.queryId, 64)
+	err := b.StoreUInt(m.queryID, 64)
 	if err != nil {
-		return fmt.Errorf("failed to store queryId: %w", err)
+		return fmt.Errorf("failed to store queryID: %w", err)
 	}
 	return nil
 }
 
-func (s DB) SendBeginTransaction(queryId uint64) (msgReceived *tracetracking.ReceivedMessage, err error) {
-	msgReceived, err = s.Contract.CallWaitRecursively(beginTransactionMessage{queryId}, tlb.MustFromTON("0.5"))
+func (s DB) SendBeginTransaction(queryID uint64) (msgReceived *tracetracking.ReceivedMessage, err error) {
+	msgReceived, err = s.Contract.CallWaitRecursively(beginTransactionMessage{queryID}, tlb.MustFromTON("0.5"))
 	return msgReceived, err
 }
 
 type setValueMessage struct {
-	queryId uint64
+	queryID uint64
 	Counter *address.Address
 	Value   uint32
 }
@@ -88,9 +89,9 @@ func (m setValueMessage) OpCode() uint64 {
 	return 0x2
 }
 func (m setValueMessage) StoreArgs(b *cell.Builder) error {
-	err := b.StoreUInt(m.queryId, 64)
+	err := b.StoreUInt(m.queryID, 64)
 	if err != nil {
-		return fmt.Errorf("failed to store queryId: %w", err)
+		return fmt.Errorf("failed to store queryID: %w", err)
 	}
 	err = b.StoreAddr(m.Counter)
 	if err != nil {
@@ -104,28 +105,28 @@ func (m setValueMessage) StoreArgs(b *cell.Builder) error {
 }
 
 func (s DB) SendSetValue(counterAddr *address.Address, value uint32) (msgReceived *tracetracking.ReceivedMessage, err error) {
-	queryId := rand.Uint64()
-	msgReceived, err = s.Contract.CallWaitRecursively(setValueMessage{queryId, counterAddr, value}, tlb.MustFromTON("0.5"))
+	queryID := rand.Uint64()
+	msgReceived, err = s.Contract.CallWaitRecursively(setValueMessage{queryID, counterAddr, value}, tlb.MustFromTON("0.5"))
 	return msgReceived, err
 }
 
 type commitMessage struct {
-	queryId uint64
+	queryID uint64
 }
 
 func (m commitMessage) OpCode() uint64 {
 	return 0x5
 }
 func (m commitMessage) StoreArgs(b *cell.Builder) error {
-	err := b.StoreUInt(m.queryId, 64)
+	err := b.StoreUInt(m.queryID, 64)
 	if err != nil {
-		return fmt.Errorf("failed to store queryId: %w", err)
+		return fmt.Errorf("failed to store queryID: %w", err)
 	}
 	return nil
 }
 
 func (s DB) SendCommit() (msgReceived *tracetracking.ReceivedMessage, err error) {
-	queryId := rand.Uint64()
-	msgReceived, err = s.Contract.CallWaitRecursively(commitMessage{queryId}, tlb.MustFromTON("0.5"))
+	queryID := rand.Uint64()
+	msgReceived, err = s.Contract.CallWaitRecursively(commitMessage{queryID}, tlb.MustFromTON("0.5"))
 	return msgReceived, err
 }

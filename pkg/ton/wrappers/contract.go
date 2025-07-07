@@ -134,7 +134,7 @@ func (c *Contract) SubscribeToMessages(lt uint64) chan *tracetracking.ReceivedMe
 				var err error
 				receivedMessage, err := tracetracking.MapToReceivedMessage(rTX)
 				if err != nil {
-					fmt.Printf("Failed to map received message: %v\n", err)
+					fmt.Printf("failed to map received message: %v\n", err)
 					continue
 				}
 				messagesReceived <- &receivedMessage

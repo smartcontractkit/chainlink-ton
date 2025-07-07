@@ -40,8 +40,8 @@ Usage:
 
 ```bash
 nix develop .                   # drops you into the dev environment
-golint ./pkg/...                # lint your pkg directory
-golint ./integration-tests/...  # lint integration tests
+cd pkg && golint ./...                # lint your pkg directory
+cd integration-tests && golint ./...  # lint integration tests
 ```
 
 This ensures you’re always using the exact same lint rules as our CI without writing any config files locally.
