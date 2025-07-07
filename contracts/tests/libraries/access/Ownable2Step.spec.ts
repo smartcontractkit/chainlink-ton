@@ -1,13 +1,11 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { Address, toNano } from '@ton/core'
+import { toNano } from '@ton/core'
 import {
   OwnableCounter,
   OwnableCounterStorage,
-  Opcodes,
 } from '../../../wrappers/examples/access/OwnableCounter'
 import '@ton/test-utils'
 import { compile } from '@ton/blueprint'
-import { crc32 } from 'zlib'
 
 const ERROR_ONLY_CALLABLE_BY_OWNER = 132
 const ERROR_CANNOT_TRANSFER_TO_SELF = 1001
@@ -28,7 +26,6 @@ describe('Ownable2Step Counter', () => {
       count: 14,
       ownable: {
         owner: deployer.address,
-        pendingOwner: null,
       },
     }
 
