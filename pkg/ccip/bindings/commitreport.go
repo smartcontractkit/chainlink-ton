@@ -57,6 +57,7 @@ type Signature struct {
 type SnakeData[T any] []T
 
 // ToCell packs the SnakeData into a cell. It uses PackArray to serialize the data.
+// currently this function is not using pointer receiver, lack of support from tonutils-go library https://github.com/xssnick/tonutils-go/issues/340
 func (s SnakeData[T]) ToCell() (*cell.Cell, error) {
 	packed, err := PackArray(s)
 	if err != nil {

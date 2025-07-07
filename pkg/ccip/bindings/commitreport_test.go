@@ -265,13 +265,8 @@ func TestCommitReport_EncodingAndDecoding(t *testing.T) {
 	err = tlb.LoadFromCell(&decoded, newCell.BeginParse())
 	require.NoError(t, err)
 	require.Equal(t, c.Hash(), newCell.Hash())
-
-	gu := decoded.PriceUpdates.GasPriceUpdates
-	require.NoError(t, err)
-	require.Len(t, gu, 5)
-	tu := decoded.PriceUpdates.TokenPriceUpdates
-	require.NoError(t, err)
-	require.Len(t, tu, 5)
+	require.Len(t, decoded.PriceUpdates.GasPriceUpdates, 5)
+	require.Len(t, decoded.PriceUpdates.TokenPriceUpdates, 5)
 }
 
 func getTotalReference(c *cell.Cell) (uint, error) {
