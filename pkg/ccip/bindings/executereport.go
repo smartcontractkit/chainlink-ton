@@ -15,7 +15,7 @@ import (
 type ExecuteReport struct {
 	SourceChainSelector uint64                       `tlb:"## 64"`
 	Messages            SnakeRef[Any2TONRampMessage] `tlb:"^"`
-	OffChainTokenData   *cell.Cell                   `tlb:"^"`
+	OffChainTokenData   SnakeBytes2D                 `tlb:"^"`
 	Proofs              SnakeData[Signature]         `tlb:"^"` // []Signature
 	ProofFlagBits       *big.Int                     `tlb:"## 256"`
 }
@@ -23,8 +23,8 @@ type ExecuteReport struct {
 // Any2TONRampMessage represents ramp message, which is part of the execute report.
 type Any2TONRampMessage struct {
 	Header       RampMessageHeader              `tlb:"."`
-	Sender       *cell.Cell                     `tlb:"^"`
-	Data         *cell.Cell                     `tlb:"^"`
+	Sender       SnakeBytes                     `tlb:"^"`
+	Data         SnakeBytes                     `tlb:"^"`
 	Receiver     *address.Address               `tlb:"addr"`
 	GasLimit     tlb.Coins                      `tlb:"."`
 	TokenAmounts SnakeRef[Any2TONTokenTransfer] `tlb:"^"`
@@ -51,34 +51,6 @@ type Any2TONTokenTransfer struct {
 // Signature represents a cryptographic signature used in the execute report.
 type Signature struct {
 	Sig []byte `tlb:"bits 512"`
-}
-
-type SnakeRef[T any] []T
-
-// ToCell packs the SnakeData into a cell. It uses PackArray to serialize the data.
-// TODO Duplicate from commit report gobinding, remove once merged
-func (s SnakeRef[T]) ToCell() (*cell.Cell, error) {
-	packed, err := PackArrayWithRefChaining(s)
-	if err != nil {
-		return nil, err
-	}
-
-	return packed, nil
-}
-
-// LoadFromCell loads the SnakeData from a cell slice. It uses UnpackArray to deserialize the data.
-// TODO Duplicate from commit report gobinding, remove once merged
-func (s *SnakeRef[T]) LoadFromCell(c *cell.Slice) error {
-	cl, err := c.ToCell()
-	if err != nil {
-		return fmt.Errorf("failed to convert slice to cell: %w", err)
-	}
-	arr, err := UnPackArrayWithRefChaining[T](cl)
-	if err != nil {
-		return err
-	}
-	*s = arr
-	return nil
 }
 
 // PackArrayWithRefChaining packs a slice of any serializable type T into a linked cell structure,
@@ -150,36 +122,6 @@ func UnPackArrayWithRefChaining[T any](root *cell.Cell) ([]T, error) {
 		}
 	}
 	return result, nil
-}
-
-// SnakeData is a generic type for packing and unpacking slices of any type T into a cell structure.
-// TODO Duplicate from commit report gobinding, remove once merged
-type SnakeData[T any] []T
-
-// ToCell packs the SnakeData into a cell. It uses PackArray to serialize the data.
-// TODO Duplicate from commit report gobinding, remove once merged
-func (s SnakeData[T]) ToCell() (*cell.Cell, error) {
-	packed, err := PackArrayWithStaticType(s)
-	if err != nil {
-		return nil, err
-	}
-
-	return packed, nil
-}
-
-// LoadFromCell loads the SnakeData from a cell slice. It uses UnpackArray to deserialize the data.
-// TODO Duplicate from commit report gobinding, remove once merged
-func (s *SnakeData[T]) LoadFromCell(c *cell.Slice) error {
-	cl, err := c.ToCell()
-	if err != nil {
-		return fmt.Errorf("failed to convert slice to cell: %w", err)
-	}
-	arr, err := UnpackArrayWithStaticType[T](cl)
-	if err != nil {
-		return err
-	}
-	*s = arr
-	return nil
 }
 
 // PackArrayWithStaticType packs a slice of any serializable type T into a linked cell structure.
@@ -409,4 +351,117 @@ func Unpack2DByteArrayFromCell(c *cell.Cell) ([][]byte, error) {
 		result = append(result, data)
 	}
 	return result, nil
+}
+
+// ----------- Below is wrapper types that implement the ToCell and LoadFromCell methods for packing and unpacking into cell structures. -----------
+
+// SnakeData is a generic type for packing and unpacking slices of any type T into a cell structure.
+// TODO Duplicate from commit report gobinding, remove once merged
+type SnakeData[T any] []T
+
+// ToCell packs the SnakeData into a cell. It uses PackArray to serialize the data.
+// TODO Duplicate from commit report gobinding, remove once merged
+func (s SnakeData[T]) ToCell() (*cell.Cell, error) {
+	packed, err := PackArrayWithStaticType(s)
+	if err != nil {
+		return nil, err
+	}
+
+	return packed, nil
+}
+
+// LoadFromCell loads the SnakeData from a cell slice. It uses UnpackArray to deserialize the data.
+// TODO Duplicate from commit report gobinding, remove once merged
+func (s *SnakeData[T]) LoadFromCell(c *cell.Slice) error {
+	cl, err := c.ToCell()
+	if err != nil {
+		return fmt.Errorf("failed to convert slice to cell: %w", err)
+	}
+	arr, err := UnpackArrayWithStaticType[T](cl)
+	if err != nil {
+		return err
+	}
+	*s = arr
+	return nil
+}
+
+// SnakeBytes is a byte array type for packing and unpacking into a cell structure.
+type SnakeBytes []byte
+
+// ToCell packs the SnakeBytes into a cell. It uses PackByteArrayToCell to serialize the data.
+func (s SnakeBytes) ToCell() (*cell.Cell, error) {
+	cl, err := PackByteArrayToCell(s)
+	if err != nil {
+		return nil, fmt.Errorf("failed to pack byte array: %w", err)
+	}
+
+	return cl, nil
+}
+
+// LoadFromCell loads the SnakeBytes from a cell slice. It uses UnloadCellToByteArray to deserialize the data.
+func (s *SnakeBytes) LoadFromCell(c *cell.Slice) error {
+	cl, err := c.ToCell()
+	if err != nil {
+		return fmt.Errorf("failed to convert slice to cell: %w", err)
+	}
+	data, err := UnloadCellToByteArray(cl)
+	if err != nil {
+		return fmt.Errorf("failed to unpack byte array: %w", err)
+	}
+	*s = data
+	return nil
+}
+
+// SnakeBytes2D is a 2D byte array type for packing and unpacking into a cell structure.
+type SnakeBytes2D [][]byte
+
+// ToCell packs the SnakeBytes2D into a cell. It uses Pack2DByteArrayToCell to serialize the data.
+func (s SnakeBytes2D) ToCell() (*cell.Cell, error) {
+	cl, err := Pack2DByteArrayToCell(s)
+	if err != nil {
+		return nil, fmt.Errorf("failed to pack 2D byte array: %w", err)
+	}
+
+	return cl, nil
+}
+
+// LoadFromCell loads the SnakeBytes2D from a cell slice. It uses Unpack2DByteArrayFromCell to deserialize the data.
+func (s *SnakeBytes2D) LoadFromCell(c *cell.Slice) error {
+	cl, err := c.ToCell()
+	if err != nil {
+		return fmt.Errorf("failed to convert slice to cell: %w", err)
+	}
+	data, err := Unpack2DByteArrayFromCell(cl)
+	if err != nil {
+		return fmt.Errorf("failed to unpack 2D byte array: %w", err)
+	}
+	*s = data
+	return nil
+}
+
+// SnakeRef is a generic type for packing and unpacking slices of any type T into a cell structure with references chaining.
+type SnakeRef[T any] []T
+
+// ToCell packs the SnakeRef into a cell. It uses PackArrayWithRefChaining to serialize the data.
+func (s SnakeRef[T]) ToCell() (*cell.Cell, error) {
+	packed, err := PackArrayWithRefChaining(s)
+	if err != nil {
+		return nil, err
+	}
+
+	return packed, nil
+}
+
+// LoadFromCell loads the SnakeRef from a cell slice. It uses UnPackArrayWithRefChaining to deserialize the data.
+func (s *SnakeRef[T]) LoadFromCell(c *cell.Slice) error {
+	cl, err := c.ToCell()
+	if err != nil {
+		return fmt.Errorf("failed to convert slice to cell: %w", err)
+	}
+	arr, err := UnPackArrayWithRefChaining[T](cl)
+	if err != nil {
+		return err
+	}
+	*s = arr
+	return nil
 }
