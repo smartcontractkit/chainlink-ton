@@ -4,6 +4,10 @@ import { SandboxContract, TreasuryContract, Blockchain } from '@ton/sandbox'
 import { compile } from '@ton/blueprint'
 import { JettonMinter, JettonWallet, JettonSender, OnrampMock } from '../wrappers/examples/jetton'
 import { sha256 } from '@ton/crypto'
+import {
+  downloadAndVerifyJettonContracts,
+  JettonContractVerifier,
+} from '../scripts/jetton-contract-verifier'
 
 const ONCHAIN_CONTENT_PREFIX = 0x00
 const OFFCHAIN_CONTENT_PREFIX = 0x01
@@ -23,6 +27,8 @@ describe('Send and Receive Jettons', () => {
   let userWallet: (address: Address) => Promise<SandboxContract<JettonWallet>>
 
   beforeEach(async () => {
+    expect(await downloadAndVerifyJettonContracts()).toEqual(true)
+
     blockchain = await Blockchain.create()
 
     deployer = await blockchain.treasury('deployer')
@@ -249,6 +255,8 @@ describe('Receiving Jettons as an Onramp Mock', () => {
   let userWallet: (address: Address) => Promise<SandboxContract<JettonWallet>>
 
   beforeEach(async () => {
+    expect(await downloadAndVerifyJettonContracts()).toEqual(true)
+
     blockchain = await Blockchain.create()
     blockchain.verbosity = {
       print: true,
