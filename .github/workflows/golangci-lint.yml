@@ -40,9 +40,10 @@ jobs:
 
       - name: Run golangci-lint
         run: |
-          nix develop -c golangci-lint run \
-            --config ./.golangci.yml \
-            --output.checkstyle.path="${{ env.REPORT_PATH }}"
+          cd ${{ matrix.dir }}
+          nix develop -c golangci-lint run ./... \
+            --config ../.golangci.yml \
+            --output.checkstyle.path="../${{ env.REPORT_PATH }}"
 
       - name: Print lint report on failure
         if: failure()
