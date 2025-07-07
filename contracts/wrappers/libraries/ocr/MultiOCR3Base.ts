@@ -12,6 +12,9 @@ import {
 import { crc32 } from 'zlib'
 import { asSnakeData, fromSnakeData } from '../../../tests/utils'
 
+export const OCR3_PLUGIN_TYPE_COMMIT = 0x0000
+export const OCR3_PLUGIN_TYPE_EXECUTE = 0x0001
+
 export const Opcodes = {
   //TODO: OP_SET_OCR3_CONFIG: crc32('Ownable2Step_TransferOwnership'),
   OP_SET_OCR3_CONFIG: 0x000000001,
@@ -37,7 +40,8 @@ export type ConfigInfo = {
 
 export type SignatureEd25519 = {
   r: bigint,
-  s: bigint
+  s: bigint,
+  signer: bigint
 }
 
 export function newOCR3BaseCell(chainId: number): Cell {
@@ -92,8 +96,12 @@ export class OCR3Base {
     opts: {
       value: bigint,
       queryId?: number,
+      configDigest: bigint,
       ocrPluginType: number,
-      ocr3Config: OCR3Config,
+      bigF: number,
+      isSignatureVerificationEnabled: boolean,
+      signers: bigint[], // public keys
+      transmitters: Address[],
     }) {
       await provider.internal(via, {
         value: opts.value,
@@ -101,16 +109,16 @@ export class OCR3Base {
         body: beginCell()
           .storeUint(Opcodes.OP_SET_OCR3_CONFIG, 32)
           .storeUint(opts.queryId ?? 0, 64)
-          .storeUint(opts.ocr3Config.configInfo.configDigest, 256)
+          .storeUint(opts.configDigest, 256)
           .storeUint(opts.ocrPluginType, 16)
-          .storeUint(opts.ocr3Config.configInfo.bigF, 8)
-          .storeUint(opts.ocr3Config.configInfo.isSignatureVerificationEnabled ? -1 : 0, 1)
+          .storeUint(opts.bigF, 8)
+          .storeBit(opts.isSignatureVerificationEnabled)
           .storeRef(asSnakeData<bigint>(
-            opts.ocr3Config.signers,
+            opts.signers,
             (item) => new Builder().storeUint(item, 256)
           ))
           .storeRef(asSnakeData<Address>(
-            opts.ocr3Config.transmitters,
+            opts.transmitters,
             (item) => new Builder().storeAddress(item)
           ))
           .endCell(),

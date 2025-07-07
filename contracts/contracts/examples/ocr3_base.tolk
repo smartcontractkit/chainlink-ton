@@ -42,6 +42,7 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
         Transmit => {
         //Using the transmit function validates signatures and emits an event
             var storage = loadData();
+            debug.print(1);
             storage.ocr3Base.transmit(
                 msg.transmitter,
                 msg.ocrPluginType,

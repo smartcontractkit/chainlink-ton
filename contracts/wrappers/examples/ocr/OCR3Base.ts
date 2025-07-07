@@ -13,9 +13,7 @@ import { asSnakeData } from '../../../tests/utils'
 
 
 export function ocr3BaseExampleStorage(): Cell {
-  const builder = beginCell()
-    .storeRef(newOCR3BaseCell(1)) //using dummy chainId 1
-  return builder.endCell()
+  return  newOCR3BaseCell(1) //using dummy chainId 1
 }
 
 export class OCR3BaseExample extends OCR3Base {
