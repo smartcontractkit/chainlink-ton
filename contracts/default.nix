@@ -6,6 +6,14 @@
 
   # source yarn.lock at the root of the repo
   yarnLock = ../yarn.lock;
+  
+  # Fetch jetton contracts from GitHub
+  jettonContracts = pkgs.fetchFromGitHub {
+    owner = "ton-blockchain";
+    repo = "jetton-contract";
+    rev = "3d24b419f2ce49c09abf6b8703998187fe358ec9";
+    sha256 = "sha256-jel0z/DsndlpnWuUhm4vzoacM/zboLCIqcPmPqBsDgU=";
+  };
 in {
   # Output a set of specifc shells
   devShells = {
@@ -47,5 +55,37 @@ in {
         changelog = "https://github.com/smartcontractkit/chainlink-ton/releases/tag/v${version}";
       };
     });
+    
+    # Jetton contracts package
+    jetton-contracts = pkgs.stdenv.mkDerivation {
+      name = "jetton-contracts";
+      version = "1.0.0";
+      
+      src = jettonContracts;
+      
+      buildPhase = ''
+        echo "Preparing jetton contracts..."
+      '';
+      
+      installPhase = ''
+        # Copy jetton contracts to the output directory
+        mkdir -p $out/contracts/contracts/jetton
+        cp -r $src/contracts/* $out/contracts/contracts/jetton/
+        
+        # Create a simple script to show where the contracts are
+        mkdir -p $out/bin
+        cat > $out/bin/show-jetton-contracts << 'EOF'
+#!/bin/bash
+echo "Jetton contracts are located at: $out/contracts/contracts/jetton"
+ls -la $out/contracts/contracts/jetton
+EOF
+        chmod +x $out/bin/show-jetton-contracts
+      '';
+      
+      meta = with pkgs.lib; {
+        description = "TON Jetton contracts from ton-blockchain/jetton-contract";
+        license = licenses.mit;
+      };
+    };
   };
 }

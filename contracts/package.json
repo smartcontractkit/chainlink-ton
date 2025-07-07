@@ -18,8 +18,7 @@
     "fmt-contracts:check": "tact-fmt --check contracts",
     "fmt-contracts": "tact-fmt --write contracts",
     "fmt-typescript:check": "prettier --check .",
-    "fmt-typescript": "prettier --write .",
-    "jetton-verify": "ts-node scripts/jetton-contract-verifier.ts"
+    "fmt-typescript": "prettier --write ."
   },
   "devDependencies": {
     "@changesets/cli": "~2.29.2",
