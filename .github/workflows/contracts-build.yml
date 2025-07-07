@@ -22,7 +22,8 @@ jobs:
       - name: Download Jetton contracts
         run: |
           pushd contracts/scripts
-          nix develop .#contracts -c yarn run jetton-verify
+          nix build .#jetton-contracts
+          cp -r ./result/contracts/contracts/jetton/* ./contracts/contracts/jetton/
 
       - name: Run build
         run: |
