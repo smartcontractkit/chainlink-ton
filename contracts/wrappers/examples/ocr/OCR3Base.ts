@@ -8,7 +8,7 @@ import {
   Sender,
   SendMode,
 } from '@ton/core'
-import { newOCR3BaseCell, OCR3Base, ReportContext, SignatureEd25519 } from '../../libraries/ocr/MultiOCR3Base'
+import { newOCR3BaseCell, OCR3Base, OCR3Config, ocr3ConfigFromCell, ReportContext, SignatureEd25519 } from '../../libraries/ocr/MultiOCR3Base'
 import { asSnakeData } from '../../../tests/utils'
 
 
@@ -69,5 +69,17 @@ export class OCR3BaseExample extends OCR3Base {
           ))
           .endCell()
       })
+    }
+
+    async getOCR3Config(provider: ContractProvider, ocrPluginType: number): Promise<OCR3Config> {
+      const result = await provider.get(
+        'ocr3Config', 
+        [{
+          type: 'int',
+          value: BigInt(ocrPluginType),
+        }]
+      )
+      const ocr3ConfigCell = result.stack.readCell()
+      return ocr3ConfigFromCell(ocr3ConfigCell)
     }
 }

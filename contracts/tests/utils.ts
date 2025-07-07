@@ -1,4 +1,4 @@
-import { beginCell, Builder, Cell } from '@ton/core'
+import { beginCell, Builder, Cell, Slice } from '@ton/core'
 
 export function asSnakeData<T>(array: T[], builderFn: (item: T) => Builder): Cell {
   const cells: Builder[] = []
@@ -26,3 +26,27 @@ export function asSnakeData<T>(array: T[], builderFn: (item: T) => Builder): Cel
   }
   return current
 }
+
+export function fromSnakeData<T>(data: Cell, readerFn: (cs: Slice) => T): T[] {
+  const array: T[] = []
+  let cs = data.beginParse()
+  while (!isEmpty(cs)) {
+    if (cs.remainingBits > 0) {
+      const item = readerFn(cs)
+      array.push(item)
+    } else {
+      cs = cs.loadRef().beginParse()
+    }
+  }
+  return array
+}
+
+export function isEmpty(slice: Slice): boolean {
+  const remainingBits = slice.remainingBits
+  const remainingRefs = slice.remainingRefs
+  if (remainingBits > 0 || remainingRefs > 0) {
+    return true
+  }
+  return false
+}
+

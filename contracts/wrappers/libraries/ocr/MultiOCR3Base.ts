@@ -10,7 +10,7 @@ import {
 } from '@ton/core'
 
 import { crc32 } from 'zlib'
-import { asSnakeData } from '../../../tests/utils'
+import { asSnakeData, fromSnakeData } from '../../../tests/utils'
 
 export const Opcodes = {
   //TODO: OP_SET_OCR3_CONFIG: crc32('Ownable2Step_TransferOwnership'),
@@ -49,7 +49,41 @@ export function newOCR3BaseCell(chainId: number): Cell {
     .storeUint(16, 16)
     .storeDict(Dictionary.empty())
     .endCell()
+}
+
+export function ocr3ConfigFromCell(cell: Cell): OCR3Config {
+  var cs = cell.beginParse()
+  const configDigest = BigInt(cs.loadUint(256))
+  const bigF = cs.loadUint(8)
+  const n = cs.loadUint(8)
+  const isSignatureVerificationEnabled = cs.loadBoolean()
+  const signersCell = cs.loadRef()
+  const transmittersCell = cs.loadRef()
+
+  const signers = fromSnakeData(
+    signersCell,
+    (cs) => {
+      const signer = BigInt(cs.loadUint(256))
+      return signer
+    })
+  const transmitters = fromSnakeData(
+    transmittersCell,
+    (cs) => {
+      const address = cs.loadAddress()
+      return address
+    })
+  return {
+    configInfo: {
+      configDigest,
+      bigF,
+      n,
+      isSignatureVerificationEnabled
+    },
+    signers,
+    transmitters
   }
+
+}
 
 export class OCR3Base {
   async sendSetOCR3Config(
@@ -83,4 +117,5 @@ export class OCR3Base {
       })
   }
 }
+
  
