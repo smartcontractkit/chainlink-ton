@@ -6,14 +6,15 @@ import (
 
 	test_utils "integration-tests/utils"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
-var PRICE_REGISTRY_CONTRACT_PATH = test_utils.GetBuildDir("examples.async-communication.request-reply.PriceRegistry/tact_PriceRegistry.pkg")
+var PriceRegistryContractPath = test_utils.GetBuildDir("examples.async-communication.request-reply.PriceRegistry/tact_PriceRegistry.pkg")
 
 type PriceRegistryProvider struct {
 	apiClient tracetracking.SignedAPIClient
@@ -39,7 +40,7 @@ func (p *PriceRegistryProvider) Deploy(initData PriceRegistryInitData) (PriceReg
 	if err != nil {
 		return PriceRegistry{}, fmt.Errorf("failed to store ID: %w", err)
 	}
-	compiledContract, err := wrappers.ParseCompiledContract(PRICE_REGISTRY_CONTRACT_PATH)
+	compiledContract, err := wrappers.ParseCompiledContract(PriceRegistryContractPath)
 	if err != nil {
 		return PriceRegistry{}, fmt.Errorf("Failed to compile contract: %w", err)
 	}

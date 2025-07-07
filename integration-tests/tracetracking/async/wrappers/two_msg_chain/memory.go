@@ -6,13 +6,14 @@ import (
 
 	test_utils "integration-tests/utils"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
-var MEMORY_CONTRACT_PATH = test_utils.GetBuildDir("examples.async-communication.two-msg-chain.Memory/tact_Memory.pkg")
+var MemoryContractPath = test_utils.GetBuildDir("examples.async-communication.two-msg-chain.Memory/tact_Memory.pkg")
 
 type MemoryProvider struct {
 	apiClient tracetracking.SignedAPIClient
@@ -43,7 +44,7 @@ func (p *MemoryProvider) Deploy(initData MemoryInitData) (Memory, error) {
 	if err != nil {
 		return Memory{}, fmt.Errorf("failed to store initial value: %w", err)
 	}
-	compiledContract, err := wrappers.ParseCompiledContract(MEMORY_CONTRACT_PATH)
+	compiledContract, err := wrappers.ParseCompiledContract(MemoryContractPath)
 	if err != nil {
 		return Memory{}, fmt.Errorf("Failed to compile contract: %w", err)
 	}

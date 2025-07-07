@@ -10,6 +10,7 @@ import (
 	"integration-tests/tracetracking/test_utils"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/address"
 )
 
@@ -46,33 +47,32 @@ func TestRequestReplyWithTwoDependencies(t *testing.T) {
 		for index, name := range priceIndex {
 			fmt.Printf("Deploying ItemPrice %s", name)
 			itemPrice, err := request_reply_with_two_dependencies.NewItemPriceProvider(alice).Deploy(request_reply_with_two_dependencies.ItemPriceInitData{ID: (rand.Uint32()), Price: prices[name]})
-			assert.NoError(t, err, "Failed to deploy ItemPrice contract: %w", err)
+			require.NoError(t, err, "Failed to deploy ItemPrice contract: %w", err)
 			fmt.Printf("ItemPrice contract deployed at %s\n", itemPrice.Contract.Address.String())
 
 			fmt.Printf("Deploying ItemCount %s", name)
 			itemCount, err := request_reply_with_two_dependencies.NewItemCountProvider(alice).Deploy(request_reply_with_two_dependencies.ItemCountInitData{ID: (rand.Uint32()), Count: quantity[name]})
-			assert.NoError(t, err, "Failed to deploy ItemCount contract: %w", err)
+			require.NoError(t, err, "Failed to deploy ItemCount contract: %w", err)
 			fmt.Printf("ItemCount contract deployed at %s\n", itemCount.Contract.Address.String())
 
 			itemAddresses[index] = Item{itemPrice.Contract.Address, itemCount.Contract.Address}
-
 		}
 
 		fmt.Printf("Deploying Inventory contract with addresses %+v: \n", itemAddresses)
 		inventory, err := request_reply_with_two_dependencies.NewInventoryProvider(alice).Deploy(request_reply_with_two_dependencies.InventoryInitData{ID: (rand.Uint32())})
-		assert.NoError(t, err, "Failed to deploy Inventory contract: %w", err)
+		require.NoError(t, err, "Failed to deploy Inventory contract: %w", err)
 		fmt.Printf("Inventory contract deployed at %s\n", inventory.Contract.Address.String())
 
 		for index, name := range priceIndex {
 			fmt.Printf("Sending AddItem request for %s, key: %d, priceAddr: %s, countAddr: %s\n", name, uint8(index), itemAddresses[index].PriceAddr.String(), itemAddresses[index].CountAddr.String())
 			_, err := inventory.SendAddItem(uint8(index), itemAddresses[index].PriceAddr, itemAddresses[index].CountAddr)
-			assert.NoError(t, err, "Failed to send AddItem request: %w", err)
+			require.NoError(t, err, "Failed to send AddItem request: %w", err)
 			fmt.Printf("AddItem request sent\n")
 		}
 
 		fmt.Printf("Deploying Storage contract\n")
 		storage, err := request_reply_with_two_dependencies.NewStorageProvider(alice).Deploy(request_reply_with_two_dependencies.StorageInitData{ID: (rand.Uint32())})
-		assert.NoError(t, err, "Failed to deploy Storage contract: %w", err)
+		require.NoError(t, err, "Failed to deploy Storage contract: %w", err)
 		fmt.Printf("Storage contract deployed at %s\n", storage.Contract.Address.String())
 
 		fmt.Printf("\n\n\n\n\n\nTest Started\n==========================\n")
@@ -80,12 +80,12 @@ func TestRequestReplyWithTwoDependencies(t *testing.T) {
 		for index, name := range priceIndex {
 			fmt.Printf("Sending GetCapitalFrom request for %s\n", name)
 			_, err = storage.SendGetCapitalFrom(inventory.Contract.Address, uint8(index))
-			assert.NoError(t, err, "Failed to send GetCapitalFrom request: %w", err)
+			require.NoError(t, err, "Failed to send GetCapitalFrom request: %w", err)
 			fmt.Printf("GetCapitalFrom request sent\n")
 
 			fmt.Printf("Checking result\n")
 			result, err := storage.GetValue()
-			assert.NoError(t, err, "Failed to get value: %w", err)
+			require.NoError(t, err, "Failed to get value: %w", err)
 			expectedCapital := prices[name] * quantity[name]
 			assert.Equal(t, expectedCapital, result, "Expected capital %d, got %d", expectedCapital, result)
 			fmt.Printf("Result: %d\n", result)
