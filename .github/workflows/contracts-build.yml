@@ -19,6 +19,11 @@ jobs:
         with:
           nix_path: nixpkgs=channel:nixos-unstable
 
+      - name: Download Jetton contracts
+        run: |
+          pushd contracts/scripts
+          nix develop .#contracts -c yarn run jetton-verify
+
       - name: Run build
         run: |
           pushd contracts

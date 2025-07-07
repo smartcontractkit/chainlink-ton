@@ -293,3 +293,61 @@ export async function getJettonContractHashes(): Promise<Record<string, string>>
   const verifier = new JettonContractVerifier()
   return await verifier.updateExpectedHashes()
 }
+
+/**
+ * Main function to run the script from command line
+ */
+async function main() {
+  const args = process.argv.slice(2)
+
+  if (args.includes('--help') || args.includes('-h')) {
+    console.log(`
+Usage: node jetton-contract-verifier.js [options]
+
+Options:
+  --contracts-dir <path>  Custom directory for contracts (default: auto-detected)
+  --update-hashes        Update expected hashes from current files
+  --help, -h             Show this help message
+
+Examples:
+  node jetton-contract-verifier.js
+  node jetton-contract-verifier.js --contracts-dir ./custom-contracts
+  node jetton-contract-verifier.js --update-hashes
+`)
+    process.exit(0)
+  }
+
+  try {
+    if (args.includes('--update-hashes')) {
+      console.log('🔍 Updating expected hashes...')
+      const hashes = await getJettonContractHashes()
+      console.log('\n📝 Current hashes:')
+      Object.entries(hashes).forEach(([file, hash]) => {
+        console.log(`  ${file}: ${hash}`)
+      })
+      return
+    }
+
+    const contractsDirIndex = args.indexOf('--contracts-dir')
+    const contractsDir = contractsDirIndex !== -1 ? args[contractsDirIndex + 1] : undefined
+
+    console.log('🚀 Starting jetton contract verification...')
+    const success = await downloadAndVerifyJettonContracts(contractsDir)
+
+    if (success) {
+      console.log('\n🎉 All done! Jetton contracts are ready to use.')
+      process.exit(0)
+    } else {
+      console.error('\n💥 Some files failed to download or verify.')
+      process.exit(1)
+    }
+  } catch (error) {
+    console.error('❌ Error:', error instanceof Error ? error.message : error)
+    process.exit(1)
+  }
+}
+
+// Run main function if this file is executed directly
+if (require.main === module) {
+  main()
+}
