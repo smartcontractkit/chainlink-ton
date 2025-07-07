@@ -143,6 +143,7 @@ export class JettonContractVerifier {
         result.verified = result.hash === fileInfo.expectedHash
         if (!result.verified) {
           result.error = `Hash mismatch. Expected: ${fileInfo.expectedHash}, Got: ${result.hash}`
+          return result
         }
       } else {
         result.verified = true // Consider verified if no expected hash
