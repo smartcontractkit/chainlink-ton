@@ -20,6 +20,8 @@ Session.vim
 # Keep some docs local
 docs/local/**
 
+.direnv
+
 # Nix package build out-link - any 'result' folder in the tree
 **/result
 
@@ -37,3 +39,6 @@ node_modules/
 
 # Golangci-lint reports
 golangci-lint-*-report.xml
+
+# Golangci-lint config(We use a upstream config from core, see getting-started.md)
+.golangci.yml
