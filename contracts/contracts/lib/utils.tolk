@@ -1,6 +1,7 @@
 import "@stdlib/tvm-dicts.tolk";
 
 const ERROR_INVALID_DATA = 0x77;
+const ERROR_BITMAP_OUT_OF_BOUNDS = 0x78;
 
 fun isMessageBounced(msgFlags: int): int
     asm "1 PUSHINT" "AND";
@@ -223,4 +224,25 @@ fun TupleIterator<T>.size(self, elemSize: int): int {
     // elemSize is ignored since we know exact size,
     // param is there for interface compatibility
     return self.len;
+}
+
+struct Bitmap256 {
+    bits: uint256;
+}
+
+@inline
+fun Bitmap256.new(): Bitmap256 {
+    return Bitmap256 { bits: 0 };
+}
+
+@inline
+fun Bitmap256.set(mutate self, index: int): void {
+    assert(index >= 0 && index < 256, ERROR_BITMAP_OUT_OF_BOUNDS);
+    self.bits = self.bits | (1 << index);
+}
+
+@inline
+fun Bitmap256.has(self, index: int): bool {
+    assert(index >= 0 && index < 256, ERROR_BITMAP_OUT_OF_BOUNDS);
+    return (self.bits & (1 << index)) != 0;
 }

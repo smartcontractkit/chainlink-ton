@@ -10,18 +10,18 @@ struct OCR3Base {
 	chainId: uint8;
 	// ocr plugin type -> ocr config
 	ocr3Configs: UMap<uint16, OCRConfig>;
-        // ocr plugin type -> Vector<signer>
-	signerOracles: UMap<uint16, cell>; 
-	// ocr plugin type -> <transmitter -> index> // stored as dict for quick inclusion check
-	transmitterOracles: UMap<uint16,Map<uint16>>; 
+        // ocr plugin type -> <signer -> index>
+	signerOracles: UMap<uint16, UMap<uint256, uint8>>; 
+	// ocr plugin type -> <transmitter -> index>
+	transmitterOracles: UMap<uint16,Map<uint8>>; 
 }
 
 fun newOCR3BaseState(chainId: int): OCR3Base {
 	return OCR3Base {
 		chainId: chainId,
 		ocr3Configs: UMap<uint16, OCRConfig>.new(16),
-		signerOracles: UMap<uint16, cell>.new(16),
-		transmitterOracles: UMap<uint16, Map<uint16>>.new(16)
+		signerOracles: UMap<uint16, UMap<uint256, uint8>>.new(16),
+		transmitterOracles: UMap<uint16, Map<uint8>>.new(16)
 	};
 }
 
@@ -55,10 +55,10 @@ fun newConfigInfo(): ConfigInfo {
 	};
 }
 
-// TODO It would be more efficient to store 3 hashes per cell, pretty awkward though
 struct SignatureEd25519 {
 	r: uint256;
-	s: uint256
+	s: uint256;
+	signer: uint256
 }
 
 // TODO replace with cell?

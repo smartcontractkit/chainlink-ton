@@ -190,16 +190,22 @@ fun OCR3Base.hashReport(self, report: cell, reportContext: ReportContext): int {
 
 fun OCR3Base.verifySignature(
 	mutate self,
-	signers: cell, // Vector<uint256>
+	signers: UMap<uint256, uint8>, // <signer -> index>
 	hashedReport: uint256,
 	signatures: cell // Vector<SignatureEd25519>
 ) {
+	var seen = Bitmap256.new();
 	var signaturesIt = Iterator<SignatureEd25519>.new(signatures); 
-	var signersIt = Iterator<uint256>.new(signers);
-	while (!signaturesIt.empty() || !signersIt.empty()) {
+	while (!signaturesIt.empty()) {
 		val signature = signaturesIt.next();
-		val signerKey = signersIt.next();
-		assert(isSignatureValid(hashedReport,signature.toCell().beginParse(), signerKey), ERROR_INVALID_SIGNATURE );
+		val signer = signature.signer;
+
+		val (signerIndex, authorized) = signers.get(signer);
+		assert(authorized, ERROR_UNAUTHORIZED_SIGNER);
+		assert(isSignatureValid(hashedReport,signature.toCell().beginParse(), signer),	ERROR_INVALID_SIGNATURE);
+
+		assert(!seen.has(signerIndex!), ERROR_NON_UNIQUE_SIGNATURES);
+		seen.set(signerIndex!);
 	}
 }
 
@@ -210,9 +216,20 @@ fun OCR3Base.assignSignerOracles(
 ) {
 	assert(!Iterator<uint256>.new(signers).hasDuplicates(), ERROR_REPEATED_SIGNERS);
 	// TODO: We cannot do ed25519 public key validation on chain. For now we assume valid keys.
+	var signersDict = UMap<uint256, uint8>.new(256);
+	var signersIt = Iterator<uint256>.new(signers);
+	var i = 0;
+	while (!signersIt.empty()) {
+		val signer = signersIt.next();
+		i = i + 1;
+		signersDict.set(
+			signer,
+			i
+		);
+	}
 	self.signerOracles.set(
 		ocrPluginType,
-		signers
+		signersDict
 	);
 }
 
@@ -222,7 +239,7 @@ fun OCR3Base.assignTransmitterOracles(
 	transmitters: cell // Vector<address>
 ) {
 	assert(!Iterator<address>.new(transmitters).hasDuplicates(), ERROR_REPEATED_TRANSMITTERS);
-	var transmittersDict = Map<uint16>.new(); 
+	var transmittersDict = Map<uint8>.new(); 
 	var transmittersIt = Iterator<address>.new(transmitters);
 	var i = 0;
 	while (!transmittersIt.empty()) {
