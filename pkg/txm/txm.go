@@ -2,57 +2,344 @@ package txm
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"sync"
+	"time"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+	"github.com/smartcontractkit/chainlink-common/pkg/loop"
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
+	commontypes "github.com/smartcontractkit/chainlink-common/pkg/types"
+	commonutils "github.com/smartcontractkit/chainlink-common/pkg/utils"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/key"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/fees"
+	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/ton/wallet"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
 type TxManager interface {
 	services.Service
-	// TODO(NONEVM-1460): add remaining interface functions
+
+	Enqueue(request Request) error
+	GetTransactionStatus(ctx context.Context, lt uint64) (commontypes.TransactionStatus, tvm.ExitCode, error)
+	GetClient() tracetracking.SignedAPIClient
+	InflightCount() (int, int)
 }
 
 var _ TxManager = (*Txm)(nil)
 
 type Txm struct {
-	services.StateMachine
-	lggr   logger.Logger
-	chStop services.StopChan
-	done   sync.WaitGroup
-	fee    fees.Estimator
-	// TODO(NONEVM-1460): add remaining members
+	Logger   logger.Logger
+	Keystore loop.Keystore
+	Config   Config
+
+	Client        tracetracking.SignedAPIClient
+	BroadcastChan chan *Tx
+	AccountStore  *AccountStore
+	Starter       commonutils.StartStopOnce
+	Done          sync.WaitGroup
+	Stop          chan struct{}
 }
 
-func (txm *Txm) Start(ctx context.Context) error {
-	return txm.StartOnce("Txm", func() error {
-		txm.lggr.Debugw("Starting Txm service")
-		// TODO(NONEVM-1460): implement actual start logic
+type Request struct {
+	Mode            uint8           // Send mode for TON message
+	FromWallet      wallet.Wallet   // Source wallet address
+	ContractAddress address.Address // Destination contract or wallet address
+	Body            *cell.Cell      // Encoded message body (method + params)
+	Amount          tlb.Coins       // Amount in nanotons
+	Bounce          bool            // Bounce on error (TON message flag)
+	StateInit       *cell.Cell      // Optional: contract deploy init
+}
+
+func New(lgr logger.Logger, keystore loop.Keystore, client tracetracking.SignedAPIClient, config Config) *Txm {
+	txm := &Txm{
+		Logger:        logger.Named(lgr, "Txm"),
+		Keystore:      keystore,
+		Config:        config,
+		Client:        client,
+		BroadcastChan: make(chan *Tx, config.BroadcastChanSize),
+		AccountStore:  NewAccountStore(),
+		Stop:          make(chan struct{}),
+	}
+
+	return txm
+}
+
+func (t *Txm) Name() string {
+	return t.Logger.Name()
+}
+
+func (t *Txm) Ready() error {
+	return t.Starter.Ready()
+}
+
+func (t *Txm) HealthReport() map[string]error {
+	return map[string]error{t.Name(): t.Starter.Healthy()}
+}
+
+func (t *Txm) GetClient() tracetracking.SignedAPIClient {
+	return t.Client
+}
+
+func (t *Txm) Start(ctx context.Context) error {
+	return t.Starter.StartOnce("Txm", func() error {
+		t.Done.Add(2) // waitgroup: broadcast loop and confirm loop
+		go t.broadcastLoop()
+		go t.confirmLoop()
 		return nil
 	})
 }
 
-func (txm *Txm) Close() error {
-	return txm.StopOnce("Txm", func() error {
-		txm.lggr.Debugw("Stopping Txm service")
-		close(txm.chStop)
-		txm.done.Wait()
-		return txm.fee.Close()
+func (t *Txm) InflightCount() (int, int) {
+	return len(t.BroadcastChan), t.AccountStore.GetTotalInflightCount()
+}
+
+func (t *Txm) Close() error {
+	return t.Starter.StopOnce("Txm", func() error {
+		close(t.Stop)
+		t.Done.Wait()
+		return nil
 	})
 }
 
-func (txm *Txm) HealthReport() map[string]error {
-	return map[string]error{
-		txm.Name(): txm.Healthy(),
+// Enqueues a transaction for broadcasting.
+func (t *Txm) Enqueue(request Request) error {
+	// Ensure we can sign with the requested address
+	pubKey := request.FromWallet.PrivateKey().Public()
+	pubKeyHex, err := key.PublicKeyHex(pubKey)
+	if err != nil {
+		return fmt.Errorf("failed to convert public key to hex: %w", err)
+	}
+
+	if _, err := t.Keystore.Sign(context.Background(), pubKeyHex, nil); err != nil {
+		return fmt.Errorf("failed to sign: %w", err)
+	}
+
+	txExpirationMins := time.Minute * time.Duration(t.Config.TxExpirationMins) //nolint:gosec // ignoring G115 overflow conversion
+	tx := &Tx{
+		Mode:       request.Mode,
+		From:       *request.FromWallet.Address(),
+		To:         request.ContractAddress,
+		Amount:     request.Amount,
+		Body:       request.Body,
+		StateInit:  request.StateInit,
+		Bounceable: request.Bounce,
+		CreatedAt:  time.Now(),
+		Expiration: time.Now().Add(txExpirationMins),
+	}
+
+	select {
+	case t.BroadcastChan <- tx:
+		return nil
+	default:
+		return errors.New("broadcast channel full, could not enqueue transaction")
 	}
 }
 
-func (txm *Txm) Name() string {
-	return txm.lggr.Name()
+// Continuously listens and broadcasts enqueued transactions
+func (t *Txm) broadcastLoop() {
+	defer t.Done.Done()
+
+	ctx, cancel := commonutils.ContextFromChan(t.Stop)
+	defer cancel()
+
+	t.Logger.Debugw("broadcastLoop: started")
+
+	for {
+		select {
+		case tx := <-t.BroadcastChan:
+			t.Logger.Debugw("broadcasting transaction", "to", tx.To.String(), "amount", tx.Amount.Nano().String())
+
+			var st tlb.StateInit
+			if tx.StateInit != nil {
+				err := tlb.LoadFromCell(&st, tx.StateInit.BeginParse())
+				if err != nil {
+					t.Logger.Errorw("load from cell failed", "err", err, "to", tx.To.String())
+					continue
+				}
+			}
+
+			internalMsg := &tlb.InternalMessage{
+				SrcAddr:     &tx.From,
+				DstAddr:     &tx.To,
+				Bounce:      tx.Bounceable,
+				IHRDisabled: true,
+				Amount:      tx.Amount,
+				StateInit:   &st,
+				Body:        tx.Body,
+				CreatedAt:   uint32(tx.CreatedAt.Unix()), //nolint:gosec // ignoring G115 overflow conversion
+			}
+
+			msg := &wallet.Message{
+				Mode:            tx.Mode,
+				InternalMessage: internalMsg,
+			}
+
+			// 3. Sign and send
+			err := t.broadcastWithRetry(ctx, tx, msg)
+			if err != nil {
+				t.Logger.Errorw("broadcast failed after retries", "err", err)
+				continue
+			}
+		case <-t.Stop:
+			t.Logger.Debugw("broadcastLoop: stopped")
+			return
+		}
+	}
 }
 
-func (txm *Txm) FeeEstimator() fees.Estimator {
-	return txm.fee
+// Attempts to broadcast a transaction with retries on failure.
+func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Message) error {
+	var receivedMessage *tracetracking.ReceivedMessage
+	var err error
+
+	for attempt := uint(1); attempt <= t.Config.MaxSendRetryAttempts; attempt++ {
+		receivedMessage, _, err = t.Client.SendWaitTransaction(ctx, tx.To, msg)
+
+		if err == nil {
+			t.Logger.Infow("transaction broadcasted", "to", tx.To.String(), "amount", tx.Amount.Nano().String())
+			break
+		}
+
+		t.Logger.Warnw("failed to broadcast tx, will retry", "attempt", attempt, "err", err, "to", tx.To.String())
+
+		select {
+		case <-time.After(t.Config.SendRetryDelay):
+		case <-t.Stop:
+			t.Logger.Debugw("broadcastWithRetry: stopped during retry delay")
+			return errors.New("broadcast aborted")
+		}
+	}
+
+	if err != nil {
+		t.Logger.Errorw("failed to broadcast tx after retries", "err", err, "to", tx.To.String())
+		return err
+	}
+
+	// Save receivedMessage into tx
+	tx.ReceivedMessage = *receivedMessage
+
+	// Determine expiration
+	lamportTime := receivedMessage.LamportTime
+	lamportTimeSecs := lamportTime / 1000
+	expirationTimestampSecs := lamportTimeSecs + uint64(t.Config.SendRetryDelay.Seconds())
+
+	txStore := t.AccountStore.GetTxStore(t.Client.Wallet.Address().String())
+	if txStore == nil {
+		return fmt.Errorf("txStore not found for sender %s", t.Client.Wallet.Address().String())
+	}
+
+	err = txStore.AddUnconfirmed(lamportTime, expirationTimestampSecs, tx)
+	if err != nil {
+		t.Logger.Errorf("AddUnconfirmed err: %v", err)
+		return err
+	}
+
+	return nil
+}
+
+// Periodically checks unconfirmed transactions for finality.
+func (t *Txm) confirmLoop() {
+	defer t.Done.Done()
+
+	_, cancel := commonutils.ContextFromChan(t.Stop)
+	defer cancel()
+
+	pollDuration := time.Duration(t.Config.ConfirmPollSecs) * time.Second //nolint:gosec // ignoring G115 overflow conversion
+	tick := time.After(pollDuration)
+
+	t.Logger.Debugw("confirmLoop: started")
+
+	for {
+		select {
+		case <-tick:
+			start := time.Now()
+
+			t.checkUnconfirmed()
+
+			remaining := pollDuration - time.Since(start)
+			if remaining > 0 {
+				// reset tick for the remaining time
+				tick = time.After(commonutils.WithJitter(remaining))
+			} else {
+				// reset tick to fire immediately
+				tick = time.After(0)
+			}
+		case <-t.Stop:
+			t.Logger.Debugw("confirmLoop: stopped")
+			return
+		}
+	}
+}
+
+// Validates the confirmation status of all unconfirmed transactions by resolving their traces.
+func (t *Txm) checkUnconfirmed() {
+	allUnconfirmedTxs := t.AccountStore.GetAllUnconfirmed()
+
+	for accountAddress, unconfirmedTxs := range allUnconfirmedTxs {
+		txStore := t.AccountStore.GetTxStore(accountAddress)
+
+		for _, unconfirmedTx := range unconfirmedTxs {
+			tx := unconfirmedTx.Tx
+			receivedMessage := tx.ReceivedMessage
+
+			err := receivedMessage.WaitForTrace(&t.Client)
+			if err != nil {
+				t.Logger.Errorw("failed to wait for trace", "LT", unconfirmedTx.LT, "error", err)
+				continue
+			}
+
+			if receivedMessage.Status() != tracetracking.Finalized {
+				continue
+			}
+
+			exitCode := receivedMessage.OutcomeExitCode()
+			traceSucceeded := receivedMessage.TraceSucceeded()
+
+			if err := txStore.MarkFinalized(unconfirmedTx.LT, traceSucceeded, exitCode); err != nil {
+				t.Logger.Errorw("failed to mark tx as finalized in TxStore", "LT", unconfirmedTx.LT, "error", err)
+				continue
+			}
+
+			if traceSucceeded {
+				t.Logger.Infow("transaction confirmed", "LT", unconfirmedTx.LT, "exitCode", exitCode)
+			} else {
+				t.Logger.Warnw("transaction failed", "LT", unconfirmedTx.LT, "exitCode", exitCode)
+			}
+		}
+	}
+}
+
+// GetTransactionStatus translates internal TON transaction state to chainlink common statuses.
+func (t *Txm) GetTransactionStatus(ctx context.Context, lt uint64) (commontypes.TransactionStatus, tvm.ExitCode, error) {
+	txStore := t.AccountStore.GetTxStore(t.Client.Wallet.Address().String())
+	if txStore == nil {
+		return commontypes.Unknown, 0, fmt.Errorf("txStore not found for sender %s", t.Client.Wallet.Address().String())
+	}
+
+	status, succeeded, exitCode, found := txStore.GetTxState(lt)
+	if !found {
+		return commontypes.Unknown, 0, fmt.Errorf("transaction with id %d not found", lt)
+	}
+
+	switch status {
+	case tracetracking.NotFound:
+		return commontypes.Unknown, 0, fmt.Errorf("transaction not found in state map: %d", lt)
+	case tracetracking.Cascading:
+		return commontypes.Pending, 0, nil
+	case tracetracking.Received:
+		return commontypes.Unconfirmed, 0, nil
+	case tracetracking.Finalized:
+		if succeeded {
+			return commontypes.Finalized, exitCode, nil
+		}
+		return commontypes.Failed, exitCode, nil
+	default:
+		return commontypes.Unknown, 0, fmt.Errorf("unexpected transaction state for lt %d: %d", lt, status)
+	}
 }

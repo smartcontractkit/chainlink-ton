@@ -1,6 +1,7 @@
 import {
   Address,
   beginCell,
+  Builder,
   Cell,
   Contract,
   ContractProvider,
@@ -19,7 +20,18 @@ export const Opcodes = {
 
 export type Ownable2StepConfig = {
   owner: Address
-  pendingOwner: Address | null
+  pendingOwner?: Address
+}
+export function storeOwnable2StepConfig(builder: Builder, config: Ownable2StepConfig) {
+  builder.storeAddress(config.owner)
+
+  if (config.pendingOwner) {
+    builder
+      .storeBit(1) // Store '1' to indicate the address is present
+      .storeAddress(config.pendingOwner) // Then store the address
+  } else {
+    builder.storeBit(0) // Store '0' to indicate the address is absent
+  }
 }
 
 export class Ownable2Step {
