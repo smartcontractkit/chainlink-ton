@@ -1,17 +1,18 @@
-package request_reply_with_two_dependencies
+package requestreplywithtwodependencies
 
 import (
 	"fmt"
 
 	test_utils "integration-tests/utils"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
-var ITEM_PRICE_CONTRACT_PATH = test_utils.GetBuildDir("examples.async-communication.request-reply-with-two-dependencies.ItemPrice/tact_ItemPrice.pkg")
+var ItemPriceContractPath = test_utils.GetBuildDir("examples.async-communication.request-reply-with-two-dependencies.ItemPrice/tact_ItemPrice.pkg")
 
 type ItemPriceProvider struct {
 	apiClient tracetracking.SignedAPIClient
@@ -39,7 +40,7 @@ func (p *ItemPriceProvider) Deploy(initData ItemPriceInitData) (ItemPrice, error
 	if err != nil {
 		return ItemPrice{}, fmt.Errorf("failed to store Price: %w", err)
 	}
-	compiledContract, err := wrappers.ParseCompiledContract(ITEM_PRICE_CONTRACT_PATH)
+	compiledContract, err := wrappers.ParseCompiledContract(ItemPriceContractPath)
 	if err != nil {
 		return ItemPrice{}, fmt.Errorf("Failed to compile contract: %w", err)
 	}

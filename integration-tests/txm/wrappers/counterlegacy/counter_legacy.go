@@ -1,4 +1,4 @@
-package counter_legacy
+package counterlegacy
 
 import (
 	"context"
@@ -23,7 +23,7 @@ type CounterConfig struct {
 }
 
 // Creates StateInit and computes address
-func BuildCounterStateInit(ctx context.Context, config CounterConfig) (*address.Address, *cell.Cell, error) {
+func BuildCounterStateInit(ctx context.Context, config CounterConfig) (*address.Address, *cell.Cell, error) { //nolint:revive @briansztamfater ctx is not in use
 	code, err := wrappers.ParseCompiledContract(CounterContractPath)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to compile contract: %w", err)

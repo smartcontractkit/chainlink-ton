@@ -133,6 +133,7 @@ func waitForAirdropCompletion(t *testing.T, client ton.APIClientWrapped, recipie
 }
 
 func StartTonChain(t *testing.T, nodeClient *ton.APIClient, chainID uint64, deployerWallet *wallet.Wallet) cldf_ton.Chain {
+	t.Helper()
 	ton := cldf_ton.Chain{
 		ChainMetadata: cldf_ton.ChainMetadata{Selector: chainID},
 		Client:        nodeClient,

@@ -1,4 +1,4 @@
-package two_phase_commit
+package twophasecommit
 
 import (
 	"fmt"
@@ -6,10 +6,11 @@ import (
 
 	test_utils "integration-tests/utils"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
 var COUNTER_CONTRACT_PATH = test_utils.GetBuildDir("examples.async-communication.two-phase-commit.Counter/tact_Counter.pkg")
@@ -68,23 +69,23 @@ type Counter struct {
 }
 
 type sendAckMessage struct {
-	queryId uint64
+	queryID uint64
 }
 
 func (m sendAckMessage) OpCode() uint64 {
 	return 0x3
 }
 func (m sendAckMessage) StoreArgs(b *cell.Builder) error {
-	err := b.StoreUInt(m.queryId, 64)
+	err := b.StoreUInt(m.queryID, 64)
 	if err != nil {
-		return fmt.Errorf("failed to store queryId: %w", err)
+		return fmt.Errorf("failed to store queryID: %w", err)
 	}
 	return nil
 }
 
 func (c Counter) SendAck() (msgReceived *tracetracking.ReceivedMessage, err error) {
-	queryId := rand.Uint64()
-	msgReceived, err = c.Contract.CallWaitRecursively(sendAckMessage{queryId}, tlb.MustFromTON("0.5"))
+	queryID := rand.Uint64()
+	msgReceived, err = c.Contract.CallWaitRecursively(sendAckMessage{queryID}, tlb.MustFromTON("0.5"))
 	return msgReceived, err
 }
 

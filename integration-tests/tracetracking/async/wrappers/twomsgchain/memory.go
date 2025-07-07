@@ -1,4 +1,4 @@
-package two_msg_chain
+package twomsgchain
 
 import (
 	"fmt"
@@ -63,7 +63,7 @@ type Memory struct {
 }
 
 type setValueMessage struct {
-	queryId uint64
+	queryID uint64
 	Value   uint32
 }
 
@@ -71,9 +71,9 @@ func (m setValueMessage) OpCode() uint64 {
 	return 0x1
 }
 func (m setValueMessage) StoreArgs(b *cell.Builder) error {
-	err := b.StoreUInt(m.queryId, 64)
+	err := b.StoreUInt(m.queryID, 64)
 	if err != nil {
-		return fmt.Errorf("failed to store queryId: %w", err)
+		return fmt.Errorf("failed to store queryID: %w", err)
 	}
 	err = b.StoreUInt(uint64(m.Value), 32)
 	if err != nil {
@@ -83,8 +83,8 @@ func (m setValueMessage) StoreArgs(b *cell.Builder) error {
 }
 
 func (m Memory) SendSetValue(i uint32) (msgReceived *tracetracking.ReceivedMessage, err error) {
-	queryId := rand.Uint64()
-	msgReceived, err = m.Contract.CallWaitRecursively(setValueMessage{queryId, i}, tlb.MustFromTON("0.5"))
+	queryID := rand.Uint64() //nolint:gosec
+	msgReceived, err = m.Contract.CallWaitRecursively(setValueMessage{queryID, i}, tlb.MustFromTON("0.5"))
 	return msgReceived, err
 }
 

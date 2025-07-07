@@ -10,7 +10,7 @@ import (
 
 	test_utils "integration-tests/utils"
 
-	counter_legacy "integration-tests/txm/wrappers/counter_legacy"
+	counter_legacy "integration-tests/txm/wrappers/counterlegacy"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/loop"

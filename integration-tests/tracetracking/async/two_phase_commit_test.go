@@ -6,7 +6,7 @@ import (
 	"math/rand/v2"
 	"testing"
 
-	"integration-tests/tracetracking/async/wrappers/two_phase_commit"
+	"integration-tests/tracetracking/async/wrappers/twophasecommit"
 	"integration-tests/tracetracking/test_utils"
 
 	"github.com/stretchr/testify/assert"
@@ -21,19 +21,19 @@ func TestTwoPhaseCommit(t *testing.T) {
 
 		fmt.Printf("\n\n\n\n\n\nTest Setup\n==========================\n")
 		const initValue = uint32(0)
-		counterProvider := two_phase_commit.NewCounterProvider(alice)
+		counterProvider := twophasecommit.NewCounterProvider(alice)
 		fmt.Printf("Deploying counter A with initial value %d\n", initValue)
-		counterA, err := counterProvider.Deploy(two_phase_commit.CounterInitData{ID: (rand.Uint32()), Value: initValue, AutoAck: true})
+		counterA, err := counterProvider.Deploy(twophasecommit.CounterInitData{ID: (rand.Uint32()), Value: initValue, AutoAck: true})
 		require.NoError(t, err, "Failed to deploy counter A contract: %w", err)
 		fmt.Printf("Counter A deployed at %s\n", counterA.Contract.Address.String())
 
 		fmt.Printf("Deploying counter B with initial value %d\n", initValue)
-		counterB, err := counterProvider.Deploy(two_phase_commit.CounterInitData{ID: (rand.Uint32()), Value: initValue, AutoAck: true})
+		counterB, err := counterProvider.Deploy(twophasecommit.CounterInitData{ID: (rand.Uint32()), Value: initValue, AutoAck: true})
 		require.NoError(t, err, "Failed to deploy counter B contract: %w", err)
 		fmt.Printf("Counter B deployed at %s\n", counterB.Contract.Address.String())
 
 		fmt.Printf("Deploying DB contract\n")
-		dbContract, err := two_phase_commit.NewDBProvider(alice).Deploy(two_phase_commit.DBInitData{ID: (rand.Uint32())})
+		dbContract, err := twophasecommit.NewDBProvider(alice).Deploy(twophasecommit.DBInitData{ID: (rand.Uint32())})
 		require.NoError(t, err, "Failed to deploy DB contract: %w", err)
 		fmt.Printf("DB contract deployed at %s\n", dbContract.Contract.Address.String())
 
@@ -78,19 +78,19 @@ func TestTwoPhaseCommit(t *testing.T) {
 
 		fmt.Printf("\n\n\n\n\n\nTest Setup\n==========================\n")
 		const initValue = uint32(0)
-		counterProvider := two_phase_commit.NewCounterProvider(alice)
+		counterProvider := twophasecommit.NewCounterProvider(alice)
 		fmt.Printf("Deploying counter A with initial value %d\n", initValue)
-		counterA, err := counterProvider.Deploy(two_phase_commit.CounterInitData{ID: (rand.Uint32()), Value: initValue, AutoAck: false})
+		counterA, err := counterProvider.Deploy(twophasecommit.CounterInitData{ID: (rand.Uint32()), Value: initValue, AutoAck: false})
 		require.NoError(t, err, "Failed to deploy counter A contract: %w", err)
 		fmt.Printf("Counter A deployed at %s\n", counterA.Contract.Address.String())
 
 		fmt.Printf("Deploying counter B with initial value %d\n", initValue)
-		counterB, err := counterProvider.Deploy(two_phase_commit.CounterInitData{ID: (rand.Uint32()), Value: initValue, AutoAck: false})
+		counterB, err := counterProvider.Deploy(twophasecommit.CounterInitData{ID: (rand.Uint32()), Value: initValue, AutoAck: false})
 		require.NoError(t, err, "Failed to deploy counter A contract: %w", err)
 		fmt.Printf("Counter B deployed at %s\n", counterB.Contract.Address.String())
 
 		fmt.Printf("Deploying DB contract\n")
-		dbContract, err := two_phase_commit.NewDBProvider(alice).Deploy(two_phase_commit.DBInitData{ID: (rand.Uint32())})
+		dbContract, err := twophasecommit.NewDBProvider(alice).Deploy(twophasecommit.DBInitData{ID: (rand.Uint32())})
 		require.NoError(t, err, "Failed to deploy DB contract: %w", err)
 		fmt.Printf("DB contract deployed at %s\n", dbContract.Contract.Address.String())
 
@@ -149,19 +149,19 @@ func TestTwoPhaseCommit(t *testing.T) {
 
 		fmt.Printf("\n\n\n\n\n\nTest Setup\n==========================\n")
 		const initValue = uint32(0)
-		counterProvider := two_phase_commit.NewCounterProvider(alice)
+		counterProvider := twophasecommit.NewCounterProvider(alice)
 		fmt.Printf("Deploying counter A with initial value %d\n", initValue)
-		counterA, err := counterProvider.Deploy(two_phase_commit.CounterInitData{ID: (rand.Uint32()), Value: initValue, AutoAck: false})
+		counterA, err := counterProvider.Deploy(twophasecommit.CounterInitData{ID: (rand.Uint32()), Value: initValue, AutoAck: false})
 		require.NoError(t, err, "Failed to deploy counter A contract: %w", err)
 		fmt.Printf("Counter A deployed at %s\n", counterA.Contract.Address.String())
 
 		fmt.Printf("Deploying counter B with initial value %d\n", initValue)
-		counterB, err := counterProvider.Deploy(two_phase_commit.CounterInitData{ID: (rand.Uint32()), Value: initValue, AutoAck: false})
+		counterB, err := counterProvider.Deploy(twophasecommit.CounterInitData{ID: (rand.Uint32()), Value: initValue, AutoAck: false})
 		require.NoError(t, err, "Failed to deploy counter A contract: %w", err)
 		fmt.Printf("Counter B deployed at %s\n", counterB.Contract.Address.String())
 
 		fmt.Printf("Deploying DB contract\n")
-		dbContract, err := two_phase_commit.NewDBProvider(alice).Deploy(two_phase_commit.DBInitData{ID: (rand.Uint32())})
+		dbContract, err := twophasecommit.NewDBProvider(alice).Deploy(twophasecommit.DBInitData{ID: (rand.Uint32())})
 		require.NoError(t, err, "Failed to deploy DB contract: %w", err)
 		fmt.Printf("DB contract deployed at %s\n", dbContract.Contract.Address.String())
 
@@ -220,19 +220,19 @@ func TestTwoPhaseCommit(t *testing.T) {
 
 		fmt.Printf("\n\n\n\n\n\nTest Setup\n==========================\n")
 		const initValue = uint32(0)
-		counterProvider := two_phase_commit.NewCounterProvider(alice)
+		counterProvider := twophasecommit.NewCounterProvider(alice)
 		fmt.Printf("Deploying counter A with initial value %d\n", initValue)
-		counterA, err := counterProvider.Deploy(two_phase_commit.CounterInitData{ID: (rand.Uint32()), Value: initValue, AutoAck: false})
+		counterA, err := counterProvider.Deploy(twophasecommit.CounterInitData{ID: (rand.Uint32()), Value: initValue, AutoAck: false})
 		require.NoError(t, err, "Failed to deploy counter A contract: %w", err)
 		fmt.Printf("Counter A deployed at %s\n", counterA.Contract.Address.String())
 
 		fmt.Printf("Deploying counter B with initial value %d\n", initValue)
-		counterB, err := counterProvider.Deploy(two_phase_commit.CounterInitData{ID: (rand.Uint32()), Value: initValue, AutoAck: false})
+		counterB, err := counterProvider.Deploy(twophasecommit.CounterInitData{ID: (rand.Uint32()), Value: initValue, AutoAck: false})
 		require.NoError(t, err, "Failed to deploy counter A contract: %w", err)
 		fmt.Printf("Counter B deployed at %s\n", counterB.Contract.Address.String())
 
 		fmt.Printf("Deploying DB contract\n")
-		dbContract, err := two_phase_commit.NewDBProvider(alice).Deploy(two_phase_commit.DBInitData{ID: (rand.Uint32())})
+		dbContract, err := twophasecommit.NewDBProvider(alice).Deploy(twophasecommit.DBInitData{ID: (rand.Uint32())})
 		require.NoError(t, err, "Failed to deploy DB contract: %w", err)
 		fmt.Printf("DB contract deployed at %s\n", dbContract.Contract.Address.String())
 

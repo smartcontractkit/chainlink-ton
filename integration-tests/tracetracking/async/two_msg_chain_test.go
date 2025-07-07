@@ -6,7 +6,7 @@ import (
 	"math/rand/v2"
 	"testing"
 
-	"integration-tests/tracetracking/async/wrappers/two_msg_chain"
+	"integration-tests/tracetracking/async/wrappers/twomsgchain"
 	"integration-tests/tracetracking/test_utils"
 
 	"github.com/stretchr/testify/assert"
@@ -21,7 +21,7 @@ func TestTwoMsgChain(t *testing.T) {
 		const initValue = uint32(0)
 		fmt.Printf("\n\n\n\n\n\nTestStarted\n==========================\n")
 		fmt.Printf("Deploying memory contract with initial value %d\n", initValue)
-		memoryContract, err := two_msg_chain.NewMemoryProvider(alice).Deploy(two_msg_chain.MemoryInitData{ID: rand.Uint32()})
+		memoryContract, err := twomsgchain.NewMemoryProvider(alice).Deploy(twomsgchain.MemoryInitData{ID: rand.Uint32()})
 		require.NoError(t, err, "Failed to deploy memory contract: %w", err)
 		fmt.Printf("Memory contract deployed at %s\n", memoryContract.Contract.Address.String())
 		fmt.Printf("Checking if memory contract is deployed\n")
@@ -48,12 +48,12 @@ func TestTwoMsgChain(t *testing.T) {
 		fmt.Printf("\n\n\n\n\n\nTestStarted\n==========================\n")
 		const initValue = uint32(0)
 		fmt.Printf("Deploying memory contract with initial value %d\n", initValue)
-		memoryContract, err := two_msg_chain.NewMemoryProvider(alice).Deploy(two_msg_chain.MemoryInitData{ID: (rand.Uint32())})
+		memoryContract, err := twomsgchain.NewMemoryProvider(alice).Deploy(twomsgchain.MemoryInitData{ID: (rand.Uint32())})
 		require.NoError(t, err, "Failed to deploy memory contract: %w", err)
 		fmt.Printf("Memory contract deployed at %s\n", memoryContract.Contract.Address.String())
 
 		fmt.Printf("Deploying storage contract with memory address %s\n", memoryContract.Contract.Address.String())
-		storageContract, err := two_msg_chain.NewStorageProvider(alice).Deploy(two_msg_chain.StorageInitData{ID: (rand.Uint32()), MemoryAddress: memoryContract.Contract.Address})
+		storageContract, err := twomsgchain.NewStorageProvider(alice).Deploy(twomsgchain.StorageInitData{ID: (rand.Uint32()), MemoryAddress: memoryContract.Contract.Address})
 		require.NoError(t, err, "Failed to deploy storage contract: %w", err)
 		fmt.Printf("Storage contract deployed at %s\n", storageContract.Contract.Address.String())
 

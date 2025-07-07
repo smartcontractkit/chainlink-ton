@@ -6,11 +6,12 @@ import (
 
 	test_utils "integration-tests/utils"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
 var STORAGE_CONTRACT_PATH = test_utils.GetBuildDir("examples.async-communication.request-reply.Storage/tact_Storage.pkg")
@@ -59,7 +60,7 @@ type Storage struct {
 }
 
 type getPriceFromMessage struct {
-	queryId       uint64
+	queryID       uint64
 	PriceRegistry *address.Address
 	Key           uint8
 }
@@ -68,9 +69,9 @@ func (m getPriceFromMessage) OpCode() uint64 {
 	return 0x1
 }
 func (m getPriceFromMessage) StoreArgs(b *cell.Builder) error {
-	err := b.StoreUInt(m.queryId, 64)
+	err := b.StoreUInt(m.queryID, 64)
 	if err != nil {
-		return fmt.Errorf("failed to store queryId: %w", err)
+		return fmt.Errorf("failed to store queryID: %w", err)
 	}
 	err = b.StoreAddr(m.PriceRegistry)
 	if err != nil {
@@ -84,8 +85,8 @@ func (m getPriceFromMessage) StoreArgs(b *cell.Builder) error {
 }
 
 func (s Storage) SendGetPriceFrom(priceRegistry *address.Address, key uint8) (msgReceived *tracetracking.ReceivedMessage, err error) {
-	queryId := rand.Uint64()
-	msgReceived, err = s.Contract.CallWaitRecursively(getPriceFromMessage{queryId, priceRegistry, key}, tlb.MustFromTON("0.5"))
+	queryID := rand.Uint64()
+	msgReceived, err = s.Contract.CallWaitRecursively(getPriceFromMessage{queryID, priceRegistry, key}, tlb.MustFromTON("0.5"))
 	return msgReceived, err
 }
 

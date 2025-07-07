@@ -1,4 +1,4 @@
-package request_reply_with_two_dependencies
+package requestreplywithtwodependencies
 
 import (
 	"fmt"
@@ -6,14 +6,15 @@ import (
 
 	test_utils "integration-tests/utils"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
-var STORAGE_CONTRACT_PATH = test_utils.GetBuildDir("examples.async-communication.request-reply.Storage/tact_Storage.pkg")
+var StorageContractPath = test_utils.GetBuildDir("examples.async-communication.request-reply.Storage/tact_Storage.pkg")
 
 type StorageProvider struct {
 	apiClient tracetracking.SignedAPIClient
@@ -40,7 +41,7 @@ func (p *StorageProvider) Deploy(initData StorageInitData) (Storage, error) {
 	if err != nil {
 		return Storage{}, fmt.Errorf("failed to store ID: %w", err)
 	}
-	compiledContract, err := wrappers.ParseCompiledContract(STORAGE_CONTRACT_PATH)
+	compiledContract, err := wrappers.ParseCompiledContract(StorageContractPath)
 	if err != nil {
 		return Storage{}, fmt.Errorf("Failed to compile contract: %w", err)
 	}
@@ -59,7 +60,7 @@ type Storage struct {
 }
 
 type getCapitalFromMessage struct {
-	queryId       uint64
+	queryID       uint64
 	PriceRegistry *address.Address
 	Key           uint8
 }
@@ -68,9 +69,9 @@ func (m getCapitalFromMessage) OpCode() uint64 {
 	return 0x1
 }
 func (m getCapitalFromMessage) StoreArgs(b *cell.Builder) error {
-	err := b.StoreUInt(m.queryId, 64)
+	err := b.StoreUInt(m.queryID, 64)
 	if err != nil {
-		return fmt.Errorf("failed to store queryId: %w", err)
+		return fmt.Errorf("failed to store queryID: %w", err)
 	}
 	err = b.StoreAddr(m.PriceRegistry)
 	if err != nil {
@@ -84,8 +85,8 @@ func (m getCapitalFromMessage) StoreArgs(b *cell.Builder) error {
 }
 
 func (s Storage) SendGetCapitalFrom(priceRegistry *address.Address, key uint8) (msgReceived *tracetracking.ReceivedMessage, err error) {
-	queryId := rand.Uint64()
-	msgReceived, err = s.Contract.CallWaitRecursively(getCapitalFromMessage{queryId, priceRegistry, key}, tlb.MustFromTON("0.5"))
+	queryID := rand.Uint64() //nolint:gosec
+	msgReceived, err = s.Contract.CallWaitRecursively(getCapitalFromMessage{queryID, priceRegistry, key}, tlb.MustFromTON("0.5"))
 	return msgReceived, err
 }
 

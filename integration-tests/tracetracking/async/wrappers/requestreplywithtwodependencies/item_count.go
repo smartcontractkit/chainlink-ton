@@ -1,17 +1,18 @@
-package request_reply_with_two_dependencies
+package requestreplywithtwodependencies
 
 import (
 	"fmt"
 
 	test_utils "integration-tests/utils"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
-var ITEM_COUNT_CONTRACT_PATH = test_utils.GetBuildDir("examples.async-communication.request-reply-with-two-dependencies.ItemCount/tact_ItemCount.pkg")
+var ItemCountContractPath = test_utils.GetBuildDir("examples.async-communication.request-reply-with-two-dependencies.ItemCount/tact_ItemCount.pkg")
 
 type ItemCountProvider struct {
 	apiClient tracetracking.SignedAPIClient
@@ -39,7 +40,7 @@ func (p *ItemCountProvider) Deploy(initData ItemCountInitData) (ItemCount, error
 	if err != nil {
 		return ItemCount{}, fmt.Errorf("failed to store Count: %w", err)
 	}
-	compiledContract, err := wrappers.ParseCompiledContract(ITEM_COUNT_CONTRACT_PATH)
+	compiledContract, err := wrappers.ParseCompiledContract(ItemCountContractPath)
 	if err != nil {
 		return ItemCount{}, fmt.Errorf("Failed to compile contract: %w", err)
 	}

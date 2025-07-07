@@ -6,7 +6,7 @@ import (
 	"math/rand/v2"
 	"testing"
 
-	"integration-tests/tracetracking/async/wrappers/request_reply_with_two_dependencies"
+	"integration-tests/tracetracking/async/wrappers/requestreplywithtwodependencies"
 	"integration-tests/tracetracking/test_utils"
 
 	"github.com/stretchr/testify/assert"
@@ -24,8 +24,6 @@ func TestRequestReplyWithTwoDependencies(t *testing.T) {
 		var initialAmount = big.NewInt(1_000_000_000_000)
 		seeders := test_utils.SetUpTest(t, initialAmount, 1)
 		alice := seeders[0]
-
-		const transferAmount = 100
 
 		fmt.Printf("\n\n\n\n\n\nTest Setup\n==========================\n")
 
@@ -46,12 +44,12 @@ func TestRequestReplyWithTwoDependencies(t *testing.T) {
 		fmt.Printf("Deploying ItemPrice and ItemCount contracts\n")
 		for index, name := range priceIndex {
 			fmt.Printf("Deploying ItemPrice %s", name)
-			itemPrice, err := request_reply_with_two_dependencies.NewItemPriceProvider(alice).Deploy(request_reply_with_two_dependencies.ItemPriceInitData{ID: (rand.Uint32()), Price: prices[name]})
+			itemPrice, err := requestreplywithtwodependencies.NewItemPriceProvider(alice).Deploy(requestreplywithtwodependencies.ItemPriceInitData{ID: (rand.Uint32()), Price: prices[name]})
 			require.NoError(t, err, "Failed to deploy ItemPrice contract: %w", err)
 			fmt.Printf("ItemPrice contract deployed at %s\n", itemPrice.Contract.Address.String())
 
 			fmt.Printf("Deploying ItemCount %s", name)
-			itemCount, err := request_reply_with_two_dependencies.NewItemCountProvider(alice).Deploy(request_reply_with_two_dependencies.ItemCountInitData{ID: (rand.Uint32()), Count: quantity[name]})
+			itemCount, err := requestreplywithtwodependencies.NewItemCountProvider(alice).Deploy(requestreplywithtwodependencies.ItemCountInitData{ID: (rand.Uint32()), Count: quantity[name]})
 			require.NoError(t, err, "Failed to deploy ItemCount contract: %w", err)
 			fmt.Printf("ItemCount contract deployed at %s\n", itemCount.Contract.Address.String())
 
@@ -59,19 +57,19 @@ func TestRequestReplyWithTwoDependencies(t *testing.T) {
 		}
 
 		fmt.Printf("Deploying Inventory contract with addresses %+v: \n", itemAddresses)
-		inventory, err := request_reply_with_two_dependencies.NewInventoryProvider(alice).Deploy(request_reply_with_two_dependencies.InventoryInitData{ID: (rand.Uint32())})
+		inventory, err := requestreplywithtwodependencies.NewInventoryProvider(alice).Deploy(requestreplywithtwodependencies.InventoryInitData{ID: (rand.Uint32())})
 		require.NoError(t, err, "Failed to deploy Inventory contract: %w", err)
 		fmt.Printf("Inventory contract deployed at %s\n", inventory.Contract.Address.String())
 
 		for index, name := range priceIndex {
-			fmt.Printf("Sending AddItem request for %s, key: %d, priceAddr: %s, countAddr: %s\n", name, uint8(index), itemAddresses[index].PriceAddr.String(), itemAddresses[index].CountAddr.String())
-			_, err := inventory.SendAddItem(uint8(index), itemAddresses[index].PriceAddr, itemAddresses[index].CountAddr)
+			fmt.Printf("Sending AddItem request for %s, key: %d, priceAddr: %s, countAddr: %s\n", name, uint8(index), itemAddresses[index].PriceAddr.String(), itemAddresses[index].CountAddr.String()) //nolint:gosec
+			_, err := inventory.SendAddItem(uint8(index), itemAddresses[index].PriceAddr, itemAddresses[index].CountAddr) //nolint:gosec
 			require.NoError(t, err, "Failed to send AddItem request: %w", err)
 			fmt.Printf("AddItem request sent\n")
 		}
 
 		fmt.Printf("Deploying Storage contract\n")
-		storage, err := request_reply_with_two_dependencies.NewStorageProvider(alice).Deploy(request_reply_with_two_dependencies.StorageInitData{ID: (rand.Uint32())})
+		storage, err := requestreplywithtwodependencies.NewStorageProvider(alice).Deploy(requestreplywithtwodependencies.StorageInitData{ID: (rand.Uint32())})
 		require.NoError(t, err, "Failed to deploy Storage contract: %w", err)
 		fmt.Printf("Storage contract deployed at %s\n", storage.Contract.Address.String())
 
@@ -79,7 +77,7 @@ func TestRequestReplyWithTwoDependencies(t *testing.T) {
 
 		for index, name := range priceIndex {
 			fmt.Printf("Sending GetCapitalFrom request for %s\n", name)
-			_, err = storage.SendGetCapitalFrom(inventory.Contract.Address, uint8(index))
+			_, err = storage.SendGetCapitalFrom(inventory.Contract.Address, uint8(index)) //nolint:gosec
 			require.NoError(t, err, "Failed to send GetCapitalFrom request: %w", err)
 			fmt.Printf("GetCapitalFrom request sent\n")
 

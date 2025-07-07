@@ -59,7 +59,7 @@ type PriceRegistry struct {
 }
 
 type AddPriceItemMessage struct {
-	queryId uint64
+	queryID uint64
 	Key     uint8
 	Addr    *address.Address
 }
@@ -68,9 +68,9 @@ func (m AddPriceItemMessage) OpCode() uint64 {
 	return 0x3
 }
 func (m AddPriceItemMessage) StoreArgs(b *cell.Builder) error {
-	err := b.StoreUInt(m.queryId, 64)
+	err := b.StoreUInt(m.queryID, 64)
 	if err != nil {
-		return fmt.Errorf("failed to store queryId: %w", err)
+		return fmt.Errorf("failed to store queryID: %w", err)
 	}
 	err = b.StoreUInt(uint64(m.Key), 8)
 	if err != nil {
@@ -84,7 +84,7 @@ func (m AddPriceItemMessage) StoreArgs(b *cell.Builder) error {
 }
 
 func (p PriceRegistry) SendAddPriceItem(key uint8, addr *address.Address) (msgReceived *tracetracking.ReceivedMessage, err error) {
-	queryId := rand.Uint64()
-	msgReceived, err = p.Contract.CallWaitRecursively(AddPriceItemMessage{queryId, key, addr}, tlb.MustFromTON("0.5"))
+	queryID := rand.Uint64()
+	msgReceived, err = p.Contract.CallWaitRecursively(AddPriceItemMessage{queryID, key, addr}, tlb.MustFromTON("0.5"))
 	return msgReceived, err
 }

@@ -2,6 +2,7 @@ package test_utils
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/big"
 	"os"
@@ -124,7 +125,7 @@ func getWallet(t *testing.T, api ton.APIClientWrapped) *wallet.Wallet {
 	}
 	// Get seed phrase from environment variable
 	seedPhrase := os.Getenv("SIGNER_WALLET_SEED_PHRASE")
-	require.NotEqual(t, seedPhrase, "", "Environment variable SIGNER_WALLET_SEED_PHRASE not set or empty")
+	require.NotEqual(t, "", seedPhrase, "Environment variable SIGNER_WALLET_SEED_PHRASE not set or empty")
 
 	words := strings.Fields(seedPhrase)
 
@@ -166,7 +167,7 @@ func GetBalance(apiClient tracetracking.SignedAPIClient) (*big.Int, error) {
 	if res.IsActive {
 		return res.State.Balance.Nano(), nil
 	}
-	return nil, fmt.Errorf("account is not active")
+	return nil, errors.New("account is not active")
 }
 
 func VerifyTransaction(t *testing.T, m *tracetracking.ReceivedMessage, initialBalance *big.Int, expectedNetTransfer *big.Int, finalBalance *big.Int) {
@@ -215,7 +216,7 @@ Final balance    %14d
 		finalBalance,
 	)
 	require.Equal(t, expectedBalance, finalBalance, "Expected balance does not match actual balance: %d != %d: Expected - Actual = %d", expectedBalance, finalBalance, big.NewInt(0).Sub(expectedBalance, finalBalance))
-	require.Equal(t, expectedNetTransfer, m.NetCreditResult(), "Expected transfered amount does not match actual net transaction result: %d != %d: Expected - Actual = %d", expectedNetTransfer, m.NetCreditResult(), big.NewInt(0).Sub(expectedNetTransfer, m.NetCreditResult()))
+	require.Equal(t, expectedNetTransfer, m.NetCreditResult(), "Expected transferred amount does not match actual net transaction result: %d != %d: Expected - Actual = %d", expectedNetTransfer, m.NetCreditResult(), big.NewInt(0).Sub(expectedNetTransfer, m.NetCreditResult()))
 }
 
 func MustGetBalance(t *testing.T, apiClient tracetracking.SignedAPIClient) *big.Int {
