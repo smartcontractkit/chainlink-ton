@@ -38,9 +38,10 @@ func CreateTonWallet(t *testing.T, client ton.APIClientWrapped, version wallet.V
 
 func FundTonWallets(t *testing.T, client ton.APIClientWrapped, recipients []*address.Address, amounts []tlb.Coins) {
 	t.Logf("Funding %d wallets", len(recipients))
-	rawHlWallet, err := wallet.FromSeed(client, strings.Fields(blockchain.DefaultTonHlWalletMnemonic), wallet.HighloadV2Verified) //nolint:staticcheck
+	walletVersion := wallet.HighloadV2Verified //nolint:staticcheck // only option in mylocalton-docker
+	rawHlWallet, err := wallet.FromSeed(client, strings.Fields(blockchain.DefaultTonHlWalletMnemonic), walletVersion)
 	require.NoError(t, err, "failed to create highload wallet")
-	mcFunderWallet, err := wallet.FromPrivateKeyWithOptions(client, rawHlWallet.PrivateKey(), wallet.HighloadV2Verified, wallet.WithWorkchain(-1)) //nolint:staticcheck
+	mcFunderWallet, err := wallet.FromPrivateKeyWithOptions(client, rawHlWallet.PrivateKey(), walletVersion, wallet.WithWorkchain(-1))
 	require.NoError(t, err, "failed to create highload wallet")
 	subWalletID := uint32(42)
 	funder, err := mcFunderWallet.GetSubwallet(subWalletID)

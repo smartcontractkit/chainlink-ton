@@ -6,12 +6,13 @@ import (
 	"math/rand/v2"
 	"testing"
 
-	"integration-tests/tracetracking/async/wrappers/requestreplywithtwodependencies"
-	"integration-tests/tracetracking/testutils"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"github.com/xssnick/tonutils-go/address"
+
+	"integration-tests/tracetracking/async/wrappers/requestreplywithtwodependencies"
+	"integration-tests/tracetracking/testutils"
 )
 
 type Item struct {
@@ -45,12 +46,12 @@ func TestRequestReplyWithTwoDependencies(t *testing.T) {
 		for index, name := range priceIndex {
 			fmt.Printf("Deploying ItemPrice %s", name)
 			itemPrice, err := requestreplywithtwodependencies.NewItemPriceProvider(alice).Deploy(requestreplywithtwodependencies.ItemPriceInitData{ID: (rand.Uint32()), Price: prices[name]})
-			require.NoError(t, err, "Failed to deploy ItemPrice contract: %w", err)
+			require.NoError(t, err, "failed to deploy ItemPrice contract: %w", err)
 			fmt.Printf("ItemPrice contract deployed at %s\n", itemPrice.Contract.Address.String())
 
 			fmt.Printf("Deploying ItemCount %s", name)
 			itemCount, err := requestreplywithtwodependencies.NewItemCountProvider(alice).Deploy(requestreplywithtwodependencies.ItemCountInitData{ID: (rand.Uint32()), Count: quantity[name]})
-			require.NoError(t, err, "Failed to deploy ItemCount contract: %w", err)
+			require.NoError(t, err, "failed to deploy ItemCount contract: %w", err)
 			fmt.Printf("ItemCount contract deployed at %s\n", itemCount.Contract.Address.String())
 
 			itemAddresses[index] = Item{itemPrice.Contract.Address, itemCount.Contract.Address}
@@ -58,32 +59,32 @@ func TestRequestReplyWithTwoDependencies(t *testing.T) {
 
 		fmt.Printf("Deploying Inventory contract with addresses %+v: \n", itemAddresses)
 		inventory, err := requestreplywithtwodependencies.NewInventoryProvider(alice).Deploy(requestreplywithtwodependencies.InventoryInitData{ID: (rand.Uint32())})
-		require.NoError(t, err, "Failed to deploy Inventory contract: %w", err)
+		require.NoError(t, err, "failed to deploy Inventory contract: %w", err)
 		fmt.Printf("Inventory contract deployed at %s\n", inventory.Contract.Address.String())
 
 		for index, name := range priceIndex {
-			fmt.Printf("Sending AddItem request for %s, key: %d, priceAddr: %s, countAddr: %s\n", name, uint8(index), itemAddresses[index].PriceAddr.String(), itemAddresses[index].CountAddr.String()) //nolint:gosec
-			_, err := inventory.SendAddItem(uint8(index), itemAddresses[index].PriceAddr, itemAddresses[index].CountAddr) //nolint:gosec
-			require.NoError(t, err, "Failed to send AddItem request: %w", err)
+			fmt.Printf("Sending AddItem request for %s, key: %d, priceAddr: %s, countAddr: %s\n", name, index, itemAddresses[index].PriceAddr.String(), itemAddresses[index].CountAddr.String())
+			_, serr := inventory.SendAddItem(uint8(index), itemAddresses[index].PriceAddr, itemAddresses[index].CountAddr) //nolint:gosec // testing purpose
+			require.NoError(t, serr, "failed to send AddItem request: %w", serr)
 			fmt.Printf("AddItem request sent\n")
 		}
 
 		fmt.Printf("Deploying Storage contract\n")
 		storage, err := requestreplywithtwodependencies.NewStorageProvider(alice).Deploy(requestreplywithtwodependencies.StorageInitData{ID: (rand.Uint32())})
-		require.NoError(t, err, "Failed to deploy Storage contract: %w", err)
+		require.NoError(t, err, "failed to deploy Storage contract: %w", err)
 		fmt.Printf("Storage contract deployed at %s\n", storage.Contract.Address.String())
 
 		fmt.Printf("\n\n\n\n\n\nTest Started\n==========================\n")
 
 		for index, name := range priceIndex {
 			fmt.Printf("Sending GetCapitalFrom request for %s\n", name)
-			_, err = storage.SendGetCapitalFrom(inventory.Contract.Address, uint8(index)) //nolint:gosec
-			require.NoError(t, err, "Failed to send GetCapitalFrom request: %w", err)
+			_, err = storage.SendGetCapitalFrom(inventory.Contract.Address, uint8(index)) //nolint:gosec // testing purpose
+			require.NoError(t, err, "failed to send GetCapitalFrom request: %w", err)
 			fmt.Printf("GetCapitalFrom request sent\n")
 
 			fmt.Printf("Checking result\n")
 			result, err := storage.GetValue()
-			require.NoError(t, err, "Failed to get value: %w", err)
+			require.NoError(t, err, "failed to get value: %w", err)
 			expectedCapital := prices[name] * quantity[name]
 			assert.Equal(t, expectedCapital, result, "Expected capital %d, got %d", expectedCapital, result)
 			fmt.Printf("Result: %d\n", result)

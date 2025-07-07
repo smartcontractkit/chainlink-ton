@@ -43,7 +43,7 @@ func (p *DBProvider) Deploy(initData DBInitData) (DB, error) {
 	}
 	compiledContract, err := wrappers.ParseCompiledContract(DbContractPath)
 	if err != nil {
-		return DB{}, fmt.Errorf("Failed to compile contract: %w", err)
+		return DB{}, fmt.Errorf("failed to compile contract: %w", err)
 	}
 	contract, err := wrappers.Deploy(&p.apiClient, compiledContract, c.EndCell(), tlb.MustFromTON("1"))
 	if err != nil {
@@ -105,7 +105,7 @@ func (m setValueMessage) StoreArgs(b *cell.Builder) error {
 }
 
 func (s DB) SendSetValue(counterAddr *address.Address, value uint32) (msgReceived *tracetracking.ReceivedMessage, err error) {
-	queryID := rand.Uint64() //nolint:gosec
+	queryID := rand.Uint64()
 	msgReceived, err = s.Contract.CallWaitRecursively(setValueMessage{queryID, counterAddr, value}, tlb.MustFromTON("0.5"))
 	return msgReceived, err
 }
@@ -126,7 +126,7 @@ func (m commitMessage) StoreArgs(b *cell.Builder) error {
 }
 
 func (s DB) SendCommit() (msgReceived *tracetracking.ReceivedMessage, err error) {
-	queryID := rand.Uint64() //nolint:gosec
+	queryID := rand.Uint64()
 	msgReceived, err = s.Contract.CallWaitRecursively(commitMessage{queryID}, tlb.MustFromTON("0.5"))
 	return msgReceived, err
 }

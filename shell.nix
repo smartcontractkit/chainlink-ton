@@ -35,8 +35,8 @@ pkgs.mkShell {
     alias golint="golangci-lint run --config <(curl -sSL https://raw.githubusercontent.com/smartcontractkit/chainlink/develop/.golangci.yml) --path-mode \"abs\""
     echo ""
     echo "You can lint your code with:"
-    echo "    golint ./pkg/..."
-    echo "    golint ./integration-tests/..."
+    echo "    cd pkg && golint ./..."
+    echo "    cd integration-tests && golint ./..."
     echo ""
   '';
 }

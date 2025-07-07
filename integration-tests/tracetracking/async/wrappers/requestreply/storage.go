@@ -43,7 +43,7 @@ func (p *StorageProvider) Deploy(initData StorageInitData) (Storage, error) {
 	}
 	compiledContract, err := wrappers.ParseCompiledContract(StorageContractPath)
 	if err != nil {
-		return Storage{}, fmt.Errorf("Failed to compile contract: %w", err)
+		return Storage{}, fmt.Errorf("failed to compile contract: %w", err)
 	}
 	contract, err := wrappers.Deploy(&p.apiClient, compiledContract, b.EndCell(), tlb.MustFromTON("1"))
 	if err != nil {
@@ -85,7 +85,7 @@ func (m getPriceFromMessage) StoreArgs(b *cell.Builder) error {
 }
 
 func (s Storage) SendGetPriceFrom(priceRegistry *address.Address, key uint8) (msgReceived *tracetracking.ReceivedMessage, err error) {
-	queryID := rand.Uint64() //nolint:gosec
+	queryID := rand.Uint64()
 	msgReceived, err = s.Contract.CallWaitRecursively(getPriceFromMessage{queryID, priceRegistry, key}, tlb.MustFromTON("0.5"))
 	return msgReceived, err
 }

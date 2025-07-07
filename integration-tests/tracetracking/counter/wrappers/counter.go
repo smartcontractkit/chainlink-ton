@@ -7,16 +7,16 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
+	test_utils "integration-tests/utils"
+
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
-
-	test_utils "integration-tests/utils"
 )
 
 var CounterContractPath = test_utils.GetBuildDir("Counter.compiled.json")
 
-//nolint:revive
-type CounterProvider struct { 
+//nolint:revive // test purpose
+type CounterProvider struct {
 	apiClient tracetracking.SignedAPIClient // TODO use pointer
 }
 
@@ -26,7 +26,7 @@ func NewCounterProvider(apiClient tracetracking.SignedAPIClient) *CounterProvide
 	}
 }
 
-//nolint:revive
+//nolint:revive // test purpose
 type CounterInitData struct {
 	ID    uint32
 	Value uint32
@@ -45,7 +45,7 @@ func (p *CounterProvider) Deploy(initData CounterInitData) (Counter, error) {
 	}
 	compiledContract, err := wrappers.ParseCompiledContract(CounterContractPath)
 	if err != nil {
-		return Counter{}, fmt.Errorf("Failed to compile contract: %w", err)
+		return Counter{}, fmt.Errorf("failed to compile contract: %w", err)
 	}
 	contract, err := wrappers.Deploy(&p.apiClient, compiledContract, b.EndCell(), tlb.MustFromTON("1"))
 	if err != nil {
@@ -82,7 +82,7 @@ func (m setCountMessage) StoreArgs(b *cell.Builder) error {
 }
 
 func (c Counter) SendSetCount(value uint32) (msgReceived *tracetracking.ReceivedMessage, err error) {
-	queryID := rand.Uint64() //nolint:gosec
+	queryID := rand.Uint64()
 	msgReceived, err = c.Contract.CallWaitRecursively(setCountMessage{queryID, value}, tlb.MustFromTON("0.5"))
 	return msgReceived, err
 }

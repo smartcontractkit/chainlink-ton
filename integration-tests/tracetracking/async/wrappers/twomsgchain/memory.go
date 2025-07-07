@@ -46,7 +46,7 @@ func (p *MemoryProvider) Deploy(initData MemoryInitData) (Memory, error) {
 	}
 	compiledContract, err := wrappers.ParseCompiledContract(MemoryContractPath)
 	if err != nil {
-		return Memory{}, fmt.Errorf("Failed to compile contract: %w", err)
+		return Memory{}, fmt.Errorf("failed to compile contract: %w", err)
 	}
 	contract, err := wrappers.Deploy(&p.apiClient, compiledContract, b.EndCell(), tlb.MustFromTON("1"))
 	if err != nil {
@@ -83,7 +83,7 @@ func (m setValueMessage) StoreArgs(b *cell.Builder) error {
 }
 
 func (m Memory) SendSetValue(i uint32) (msgReceived *tracetracking.ReceivedMessage, err error) {
-	queryID := rand.Uint64() //nolint:gosec
+	queryID := rand.Uint64()
 	msgReceived, err = m.Contract.CallWaitRecursively(setValueMessage{queryID, i}, tlb.MustFromTON("0.5"))
 	return msgReceived, err
 }

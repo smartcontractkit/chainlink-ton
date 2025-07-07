@@ -42,7 +42,7 @@ func (p *InventoryProvider) Deploy(initData InventoryInitData) (Inventory, error
 	}
 	compiledContract, err := wrappers.ParseCompiledContract(InventoryContractPath)
 	if err != nil {
-		return Inventory{}, fmt.Errorf("Failed to compile contract: %w", err)
+		return Inventory{}, fmt.Errorf("failed to compile contract: %w", err)
 	}
 	contract, err := wrappers.Deploy(&p.apiClient, compiledContract, b.EndCell(), tlb.MustFromTON("1"))
 	if err != nil {
@@ -89,7 +89,7 @@ func (m AddItemMessage) StoreArgs(b *cell.Builder) error {
 }
 
 func (p Inventory) SendAddItem(key uint8, priceAddr *address.Address, countAddr *address.Address) (msgReceived *tracetracking.ReceivedMessage, err error) {
-	queryID := rand.Uint64() //nolint:gosec
+	queryID := rand.Uint64()
 	msgReceived, err = p.Contract.CallWaitRecursively(AddItemMessage{queryID, key, priceAddr, countAddr}, tlb.MustFromTON("0.5"))
 	return msgReceived, err
 }

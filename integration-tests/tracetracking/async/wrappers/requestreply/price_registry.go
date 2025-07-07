@@ -42,7 +42,7 @@ func (p *PriceRegistryProvider) Deploy(initData PriceRegistryInitData) (PriceReg
 	}
 	compiledContract, err := wrappers.ParseCompiledContract(PriceRegistryContractPath)
 	if err != nil {
-		return PriceRegistry{}, fmt.Errorf("Failed to compile contract: %w", err)
+		return PriceRegistry{}, fmt.Errorf("failed to compile contract: %w", err)
 	}
 	contract, err := wrappers.Deploy(&p.apiClient, compiledContract, b.EndCell(), tlb.MustFromTON("1"))
 	if err != nil {
@@ -84,7 +84,7 @@ func (m AddPriceItemMessage) StoreArgs(b *cell.Builder) error {
 }
 
 func (p PriceRegistry) SendAddPriceItem(key uint8, addr *address.Address) (msgReceived *tracetracking.ReceivedMessage, err error) {
-	queryID := rand.Uint64() //nolint:gosec
+	queryID := rand.Uint64()
 	msgReceived, err = p.Contract.CallWaitRecursively(AddPriceItemMessage{queryID, key, addr}, tlb.MustFromTON("0.5"))
 	return msgReceived, err
 }

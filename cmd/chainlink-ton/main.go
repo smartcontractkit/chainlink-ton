@@ -22,7 +22,7 @@ func main() {
 	defer s.Stop()
 
 	p := &pluginRelayer{Plugin: loop.Plugin{Logger: s.Logger}}
-	defer s.Logger.ErrorIfFn(p.Close, "Failed to close")
+	defer s.Logger.ErrorIfFn(p.Close, "failed to close")
 
 	s.MustRegister(p)
 

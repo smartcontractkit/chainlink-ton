@@ -34,15 +34,15 @@ func SetUpTest(t *testing.T, initialAmount *big.Int, fundedAccountsCount uint) (
 	}
 	var err error
 	bc, err := blockchain.NewBlockchainNetwork(bcInput)
-	require.NoError(t, err, "Failed to create blockchain network: %w", err)
+	require.NoError(t, err, "failed to create blockchain network: %w", err)
 	liteapiURL := bc.Nodes[0].ExternalHTTPUrl
 	// Connect to TON testnet
 	client := liteclient.NewConnectionPool()
 	cfg, err := liteclient.GetConfigFromUrl(context.Background(), fmt.Sprintf("http://%s/localhost.global.config.json", liteapiURL))
-	require.NoError(t, err, "Failed to get testnet config: %w", err)
+	require.NoError(t, err, "failed to get testnet config: %w", err)
 
 	err = client.AddConnectionsFromConfig(context.Background(), cfg)
-	require.NoError(t, err, "Failed to connect to TON network: %w", err)
+	require.NoError(t, err, "failed to connect to TON network: %w", err)
 
 	// Initialize TON API client
 	api := ton.NewAPIClient(client)
@@ -67,22 +67,22 @@ func GetRandomWallet(client ton.APIClientWrapped, version wallet.Version, option
 	seed := wallet.NewSeed()
 	w, err := wallet.FromSeed(client, seed, version)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to generate random wallet: %w", err)
+		return nil, fmt.Errorf("failed to generate random wallet: %w", err)
 	}
 	pw, perr := wallet.FromPrivateKeyWithOptions(client, w.PrivateKey(), version, option)
 	if perr != nil {
-		return nil, fmt.Errorf("Failed to generate random wallet: %w", perr)
+		return nil, fmt.Errorf("failed to generate random wallet: %w", perr)
 	}
 	return pw, nil
 }
 
 func createAndFundWallet(t *testing.T, api *ton.APIClient, funder tracetracking.SignedAPIClient, initialCoinAmount tlb.Coins) tracetracking.SignedAPIClient {
 	aliceWallet, err := GetRandomWallet(api, wallet.V3R2, wallet.WithWorkchain(0))
-	require.NoError(t, err, "Failed to create new wallet: %w", err)
+	require.NoError(t, err, "failed to create new wallet: %w", err)
 	transferToAlice, err := funder.Wallet.BuildTransfer(aliceWallet.WalletAddress(), initialCoinAmount, false, "deposit")
-	require.NoError(t, err, "Failed to build transfer: %w", err)
+	require.NoError(t, err, "failed to build transfer: %w", err)
 	result, err := funder.SendAndWaitForTrace(context.TODO(), *aliceWallet.WalletAddress(), transferToAlice)
-	require.NoError(t, err, "Failed to send transaction: %w", err)
+	require.NoError(t, err, "failed to send transaction: %w", err)
 	require.True(t, result.Success && !result.Bounced, "Transaction failed")
 	alice := tracetracking.NewSignedAPIClient(api, *aliceWallet)
 	return alice
@@ -111,7 +111,7 @@ func UintFrom(res *ton.ExecutionResult, err error) (uint, error) {
 		return 0, fmt.Errorf("failed to extract value: %w", err)
 	}
 
-	return uint(val.Int64()), nil //nolint:gosec
+	return uint(val.Int64()), nil //nolint:gosec // test purpose
 }
 
 func getWallet(t *testing.T, api ton.APIClientWrapped) *wallet.Wallet {
@@ -125,27 +125,27 @@ func getWallet(t *testing.T, api ton.APIClientWrapped) *wallet.Wallet {
 	}
 	// Get seed phrase from environment variable
 	seedPhrase := os.Getenv("SIGNER_WALLET_SEED_PHRASE")
-	require.NotEqual(t, "", seedPhrase, "Environment variable SIGNER_WALLET_SEED_PHRASE not set or empty")
+	require.NotEmpty(t, seedPhrase, "Environment variable SIGNER_WALLET_SEED_PHRASE not set or empty")
 
 	words := strings.Fields(seedPhrase)
 
 	// Create wallet from seed with password
 	w, err := wallet.FromSeed(api, words, wallet.V3R2)
-	require.NoError(t, err, "Failed to create wallet from seed: %w", err)
+	require.NoError(t, err, "failed to create wallet from seed: %w", err)
 
 	baseFunderWallet, err := wallet.FromPrivateKeyWithOptions(api, w.PrivateKey(), wallet.V3R2, wallet.WithWorkchain(-1))
-	require.NoError(t, err, "Failed to create base funder wallet: %w", err)
+	require.NoError(t, err, "failed to create base funder wallet: %w", err)
 
 	//TODO: This is hardcoded for MyLocalTon pre-funded wallet
 	funderWallet, err := baseFunderWallet.GetSubwallet(42)
-	require.NoError(t, err, "Failed to get subwallet: %w", err)
+	require.NoError(t, err, "failed to get subwallet: %w", err)
 	t.Logf("Funder wallet address: %s", funderWallet.WalletAddress().StringRaw())
 
 	// Check Funder Balance
 	masterInfo, err := api.GetMasterchainInfo(context.Background())
-	require.NoError(t, err, "Failed to get masterchain info for funder balance check: %w", err)
+	require.NoError(t, err, "failed to get masterchain info for funder balance check: %w", err)
 	funderBalance, err := funderWallet.GetBalance(context.Background(), masterInfo)
-	require.NoError(t, err, "Failed to get funder balance: %w", err)
+	require.NoError(t, err, "failed to get funder balance: %w", err)
 	t.Logf("Funder balance: %s", funderBalance.String())
 
 	return funderWallet
@@ -222,6 +222,6 @@ Final balance    %14d
 
 func MustGetBalance(t *testing.T, apiClient tracetracking.SignedAPIClient) *big.Int {
 	finalBalance, err := GetBalance(apiClient)
-	require.NoError(t, err, "Failed to get balance: %w", err)
+	require.NoError(t, err, "failed to get balance: %w", err)
 	return finalBalance
 }
