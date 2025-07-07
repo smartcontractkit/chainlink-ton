@@ -13,21 +13,21 @@ import (
 
 // ExecuteReport represents CCIP execute report messages on the TON blockchain.
 type ExecuteReport struct {
-	SourceChainSelector uint64     `tlb:"## 64"`
-	Messages            *cell.Cell `tlb:"^"`
-	OffChainTokenData   *cell.Cell `tlb:"^"`
-	Proofs              *cell.Cell `tlb:"^"` // []Signature
-	ProofFlagBits       *big.Int   `tlb:"## 256"`
+	SourceChainSelector uint64                       `tlb:"## 64"`
+	Messages            SnakeRef[Any2TONRampMessage] `tlb:"^"`
+	OffChainTokenData   *cell.Cell                   `tlb:"^"`
+	Proofs              SnakeData[Signature]         `tlb:"^"` // []Signature
+	ProofFlagBits       *big.Int                     `tlb:"## 256"`
 }
 
 // Any2TONRampMessage represents ramp message, which is part of the execute report.
 type Any2TONRampMessage struct {
-	Header       RampMessageHeader `tlb:"."`
-	Sender       *cell.Cell        `tlb:"^"`
-	Data         *cell.Cell        `tlb:"^"`
-	Receiver     *address.Address  `tlb:"addr"`
-	GasLimit     tlb.Coins         `tlb:"."`
-	TokenAmounts *cell.Cell        `tlb:"^"`
+	Header       RampMessageHeader              `tlb:"."`
+	Sender       *cell.Cell                     `tlb:"^"`
+	Data         *cell.Cell                     `tlb:"^"`
+	Receiver     *address.Address               `tlb:"addr"`
+	GasLimit     tlb.Coins                      `tlb:"."`
+	TokenAmounts SnakeRef[Any2TONTokenTransfer] `tlb:"^"`
 }
 
 // RampMessageHeader contains metadata for a ramp message.
@@ -51,6 +51,34 @@ type Any2TONTokenTransfer struct {
 // Signature represents a cryptographic signature used in the execute report.
 type Signature struct {
 	Sig []byte `tlb:"bits 512"`
+}
+
+type SnakeRef[T any] []T
+
+// ToCell packs the SnakeData into a cell. It uses PackArray to serialize the data.
+// TODO Duplicate from commit report gobinding, remove once merged
+func (s SnakeRef[T]) ToCell() (*cell.Cell, error) {
+	packed, err := PackArrayWithRefChaining(s)
+	if err != nil {
+		return nil, err
+	}
+
+	return packed, nil
+}
+
+// LoadFromCell loads the SnakeData from a cell slice. It uses UnpackArray to deserialize the data.
+// TODO Duplicate from commit report gobinding, remove once merged
+func (s *SnakeRef[T]) LoadFromCell(c *cell.Slice) error {
+	cl, err := c.ToCell()
+	if err != nil {
+		return fmt.Errorf("failed to convert slice to cell: %w", err)
+	}
+	arr, err := UnPackArrayWithRefChaining[T](cl)
+	if err != nil {
+		return err
+	}
+	*s = arr
+	return nil
 }
 
 // PackArrayWithRefChaining packs a slice of any serializable type T into a linked cell structure,
@@ -122,6 +150,36 @@ func UnPackArrayWithRefChaining[T any](root *cell.Cell) ([]T, error) {
 		}
 	}
 	return result, nil
+}
+
+// SnakeData is a generic type for packing and unpacking slices of any type T into a cell structure.
+// TODO Duplicate from commit report gobinding, remove once merged
+type SnakeData[T any] []T
+
+// ToCell packs the SnakeData into a cell. It uses PackArray to serialize the data.
+// TODO Duplicate from commit report gobinding, remove once merged
+func (s SnakeData[T]) ToCell() (*cell.Cell, error) {
+	packed, err := PackArrayWithStaticType(s)
+	if err != nil {
+		return nil, err
+	}
+
+	return packed, nil
+}
+
+// LoadFromCell loads the SnakeData from a cell slice. It uses UnpackArray to deserialize the data.
+// TODO Duplicate from commit report gobinding, remove once merged
+func (s *SnakeData[T]) LoadFromCell(c *cell.Slice) error {
+	cl, err := c.ToCell()
+	if err != nil {
+		return fmt.Errorf("failed to convert slice to cell: %w", err)
+	}
+	arr, err := UnpackArrayWithStaticType[T](cl)
+	if err != nil {
+		return err
+	}
+	*s = arr
+	return nil
 }
 
 // PackArrayWithStaticType packs a slice of any serializable type T into a linked cell structure.

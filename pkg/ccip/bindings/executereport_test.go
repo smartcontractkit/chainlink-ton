@@ -73,7 +73,7 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 	dummyCell, err := NewDummyCell()
 	require.NoError(t, err)
 
-	tokenAmountsCell, err := PackArrayWithRefChaining([]Any2TONTokenTransfer{
+	tokenAmountsSlice := []Any2TONTokenTransfer{
 		{
 			SourcePoolAddress: dummyCell,
 			DestPoolAddress:   addr,
@@ -95,9 +95,9 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 			ExtraData:         dummyCell,
 			Amount:            big.NewInt(30),
 		},
-	})
+	}
 	require.NoError(t, err)
-	rampMessageCell, err := PackArrayWithRefChaining([]Any2TONRampMessage{
+	rampMessageSlice := []Any2TONRampMessage{
 		{
 			Header: RampMessageHeader{
 				MessageID:           make([]byte, 32),
@@ -110,7 +110,7 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 			Data:         dummyCell,
 			Receiver:     addr,
 			GasLimit:     tlb.MustFromNano(big.NewInt(1000), 1),
-			TokenAmounts: tokenAmountsCell,
+			TokenAmounts: tokenAmountsSlice,
 		},
 		{
 			Header: RampMessageHeader{
@@ -124,21 +124,21 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 			Data:         dummyCell,
 			Receiver:     addr,
 			GasLimit:     tlb.MustFromNano(big.NewInt(1000), 1),
-			TokenAmounts: tokenAmountsCell,
+			TokenAmounts: tokenAmountsSlice,
 		},
-	})
+	}
 	require.NoError(t, err)
 
-	signatureCell, err := PackArrayWithStaticType([]Signature{
+	signatureCell := []Signature{
 		{
 			Sig: make([]byte, 64),
 		},
-	})
+	}
 	require.NoError(t, err)
 
 	report := ExecuteReport{
 		SourceChainSelector: 1,
-		Messages:            rampMessageCell,
+		Messages:            rampMessageSlice,
 		OffChainTokenData:   dummyCell,
 		Proofs:              signatureCell,
 		ProofFlagBits:       big.NewInt(0),
@@ -157,11 +157,8 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 	err = tlb.LoadFromCell(&decoded, newCell.BeginParse())
 	require.NoError(t, err)
 	require.Equal(t, c.Hash(), newCell.Hash())
-	messages, err := UnPackArrayWithRefChaining[Any2TONRampMessage](decoded.Messages)
-	require.NoError(t, err)
-	token, err := UnPackArrayWithRefChaining[Any2TONTokenTransfer](messages[0].TokenAmounts)
-	require.NoError(t, err)
-	require.Len(t, token, 3)
+	require.Len(t, decoded.Messages[0].TokenAmounts, 3)
+	require.Len(t, decoded.Proofs, 1)
 }
 
 func TestPackAndUnpack2DByteArrayToCell(t *testing.T) {
