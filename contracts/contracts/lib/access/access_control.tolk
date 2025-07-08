@@ -93,6 +93,10 @@ struct AccessControl_Data {
 /// and an admin role that can manage that role. 
 struct AccessControl_RoleData {
     adminRole: uint256;
+
+    // Number of members in the role
+    membersLen: uint64;
+    // Members of the role, indexed by their address hash.
     hasRole: dict;
 }
 
@@ -188,6 +192,58 @@ fun AccessControl<T>.getRoleAdmin(self, role: int): int {
     return AccessControl_RoleData.fromCell(data!).adminRole;
 }
 
+// --- Methods - <AccessControl<T>> enumerable extension ---
+
+/// @dev Returns one of the accounts that have `role`. `index` must be a
+/// value between 0 and {getRoleMemberCount}, non-inclusive.
+///
+/// Role bearers are not sorted in any particular way, and their ordering may change at any point.
+@inline
+fun AccessControl<T>.getRoleMember(self, role: int, index: uint32): address {
+    // Check if the role is valid
+    val (data, exists) = self.data.roles.uDictGetRef(256, role);
+    if (!exists) {
+        return createAddressNone(); // role does not exist
+    }
+
+    // Check if the account exists in the role data
+    val d = AccessControl_RoleData.fromCell(data!);
+    if (index >= d.membersLen) {
+        return createAddressNone(); // index out of bounds
+    }
+
+    // Get the account at the specified index
+    val (_, acc, _) = d.hasRole.uDictGetNext(256, index);
+    return acc;
+}
+
+/// @dev Returns the number of accounts that have `role`. Can be used
+/// together with {getRoleMember} to enumerate all bearers of a role.
+@inline
+fun AccessControl<T>.getRoleMemberCount(self, role: int): int {
+    // Check if the role is valid
+    val (data, exists) = self.data.roles.uDictGetRef(256, role);
+    if (!exists) {
+        return 0; // role does not exist
+    }
+
+    return AccessControl_RoleData.fromCell(data!).membersLen;
+}
+
+/// @dev Return all accounts that have `role`.
+@inline
+fun AccessControl<T>.getRoleMembers(self, role: int): dict {
+    // Check if the role is valid
+    val (data, exists) = self.data.roleMembers.uDictGet(256, role);
+    if (!exists) {
+        return createEmptyDict(); // role does not exist
+    }
+
+    return AccessControl_RoleData.fromCell(data!).hasRole;
+}
+
+// --- Methods - mutations ---
+
 /// @dev Grants `role` to `account`.
 ///
 /// Requirements:
@@ -270,6 +326,7 @@ fun AccessControl<T>._grantRole(mutate self, queryId: uint64, role: int, account
 
     // Add the account to the role
     d.hasRole.uDictSet(256, key, createEmptySlice());
+    d.membersLen += 1; // increment the number of members in the role
     // TODO: emit RoleGranted(role, account, msgSender());
 
     // Save the updated role data
@@ -300,6 +357,7 @@ fun AccessControl<T>._revokeRole(mutate self, queryId: uint64, role: int, accoun
 
     // Remove the account from the role
     d.hasRole.uDictDelete(256, key);
+    d.membersLen -= 1; // decrement the number of members in the role
     // TODO: emit RoleRevoked(role, account, msgSender());
 
     // Save the updated role data
@@ -322,6 +380,7 @@ fun AccessControl_Data.getRoleDataOrSetDefault(mutate self, role: int): AccessCo
         adminRole: DEFAULT_ADMIN_ROLE,
         // Initialize hasRole as an empty dictionary
         hasRole: createEmptyDict(),
+        membersLen: 0,
     };
     self.roles.uDictSetRef(256, role, _data.toCell());
     return _data;
@@ -339,6 +398,26 @@ fun AccessControl<T>.get_hasRole(self, role: int, account: address): bool {
 @inline
 fun AccessControl<T>.get_getRoleAdmin(self, role: int): int {
    return self.getRoleAdmin(role)
+}
+
+// --- Getters - <AccessControl<T>> enumerable extension ---
+
+/// @dev getter to export downstream
+@inline
+fun AccessControl<T>.get_getRoleMember(self, role: int, index: uint32): address {
+   return self.getRoleMember(role, index)
+}
+
+/// @dev getter to export downstream
+@inline
+fun AccessControl<T>.get_getRoleMemberCount(self, role: int): int {
+   return self.getRoleMemberCount(role)
+}
+
+/// @dev getter to export downstream
+@inline
+fun AccessControl<T>.get_getRoleMembers(self, role: int): int {
+   return self.getRoleMembers(role)
 }
 
 // --- Message handlers ---

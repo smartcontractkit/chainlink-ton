@@ -10,7 +10,7 @@ struct Storage {
     timestampCount: uint32; // number of timestamps stored, used to track the size of the storage
     timestamps: dict;       // maps operation id to timestamp
 
-    rbac: Cell<AccessControlEnumerable_Data>;
+    rbac: Cell<AccessControl_Data>;
 }
 
 // load contract data using auto-deserialization
