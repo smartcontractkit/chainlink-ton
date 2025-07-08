@@ -36,10 +36,10 @@ describe('Send and Receive Jettons', () => {
     defaultContent = beginCell().storeStringTail(jettonDataURI).endCell()
 
     // get jetton wallet code
-    jettonWalletCode = await compile('jetton.JettonWallet')
+    jettonWalletCode = await JettonWalletCode()
 
     // deploy jetton minter
-    const jettonMinterCode = await compile('jetton.JettonMinter')
+    const jettonMinterCode = await JettonMinterCode()
     jettonMinter = blockchain.openContract(
       JettonMinter.createFromConfig(
         {
@@ -270,10 +270,10 @@ describe('Receiving Jettons as an Onramp Mock', () => {
     defaultContent = beginCell().storeStringTail(jettonDataURI).endCell()
 
     // get jetton wallet code
-    jettonWalletCode = await compile('jetton.JettonWallet')
+    jettonWalletCode = await JettonWalletCode()
 
     // deploy jetton minter
-    const jettonMinterCode = await compile('jetton.JettonMinter')
+    const jettonMinterCode = await JettonMinterCode()
     jettonMinter = blockchain.openContract(
       JettonMinter.createFromConfig(
         {
@@ -453,3 +453,11 @@ describe('Receiving Jettons as an Onramp Mock', () => {
     }
   })
 })
+
+async function JettonMinterCode(): Promise<Cell> {
+  return await compile('jetton.JettonMinter')
+}
+
+async function JettonWalletCode(): Promise<Cell> {
+  return await compile('jetton.JettonWallet')
+}

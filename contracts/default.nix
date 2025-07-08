@@ -14,6 +14,18 @@
     rev = "3d24b419f2ce49c09abf6b8703998187fe358ec9";
     sha256 = "sha256-jel0z/DsndlpnWuUhm4vzoacM/zboLCIqcPmPqBsDgU=";
   };
+  
+  # Fetch func compiler binary
+  funcCompiler = pkgs.fetchurl {
+    url = "https://github.com/ton-blockchain/ton/releases/download/v2025.06/func-mac-arm64";
+    sha256 = "sha256-8lNW8Z6na2RkzVs25V4tuQuMxF8HmDufpQCFVHJLjTQ=";
+  };
+  
+  # Fetch fift compiler binary
+  fiftCompiler = pkgs.fetchurl {
+    url = "https://github.com/ton-blockchain/ton/releases/download/v2025.06/fift-mac-arm64";
+    sha256 = "sha256-WS/IHHIjR0S3G5x3N3EOozlHTcX7dcok0gP6OmSmWrw=";
+  };
 in {
   # Output a set of specifc shells
   devShells = {
@@ -56,34 +68,57 @@ in {
       };
     });
     
-    # Jetton contracts package
+    # Jetton contracts package  
     jetton-contracts = pkgs.stdenv.mkDerivation {
       name = "jetton-contracts";
-      version = "1.0.0";
+      version = "1.0.2";
       
       src = jettonContracts;
       
+      nativeBuildInputs = [ pkgs.makeWrapper ];
+      
       buildPhase = ''
-        echo "Preparing jetton contracts..."
+        echo "Preparing jetton contracts compilation..."
+        
+        # Make func compiler executable
+        cp ${funcCompiler} ./func
+        chmod +x ./func
+        
+        # Create output directory for compiled contracts
+        mkdir -p compiled
+        
+        # Compile jetton contracts using func
+        echo "Compiling jetton-minter.fc..."
+        ./func -o compiled/jetton-minter.fif -S contracts/stdlib.fc contracts/jetton-minter.fc || echo "Warning: jetton-minter compilation failed"
+        
+        echo "Compiling jetton-wallet.fc..."
+        ./func -o compiled/jetton-wallet.fif -S contracts/stdlib.fc contracts/jetton-wallet.fc || echo "Warning: jetton-wallet compilation failed"
+        
+        echo "Compilation completed!"
       '';
       
       installPhase = ''
-        # Copy jetton contracts to the output directory
-        mkdir -p $out/contracts/contracts/jetton
-        cp -r $src/contracts/* $out/contracts/contracts/jetton/
+        # Copy source contracts to the output directory
+        mkdir -p $out/contracts/jetton
+        cp -r $src/contracts/* $out/contracts/jetton/
         
-        # Create a simple script to show where the contracts are
+        # Copy compiled contracts if they exist
+        if [ -d compiled ]; then
+          mkdir -p $out/compiled
+          cp compiled/* $out/compiled/ 2>/dev/null || echo "No compiled files to copy"
+        fi
+        
+        # Create wrapper scripts for the compilers
         mkdir -p $out/bin
-        cat > $out/bin/show-jetton-contracts << 'EOF'
-#!/bin/bash
-echo "Jetton contracts are located at: $out/contracts/contracts/jetton"
-ls -la $out/contracts/contracts/jetton
-EOF
-        chmod +x $out/bin/show-jetton-contracts
+        cp ${funcCompiler} $out/bin/func
+        chmod +x $out/bin/func
+        
+        cp ${fiftCompiler} $out/bin/fift
+        chmod +x $out/bin/fift
       '';
       
       meta = with pkgs.lib; {
-        description = "TON Jetton contracts from ton-blockchain/jetton-contract";
+        description = "TON Jetton contracts from ton-blockchain/jetton-contract with func and fift compilers";
         license = licenses.mit;
       };
     };
