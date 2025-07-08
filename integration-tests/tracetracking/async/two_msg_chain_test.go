@@ -6,6 +6,8 @@ import (
 	"math/rand/v2"
 	"testing"
 
+	chainsel "github.com/smartcontractkit/chain-selectors"
+
 	"integration-tests/tracetracking/async/wrappers/twomsgchain"
 	"integration-tests/tracetracking/testutils"
 
@@ -16,7 +18,7 @@ import (
 func TestTwoMsgChain(t *testing.T) {
 	t.Run("TestMemoryContract", func(t *testing.T) {
 		var initialAmount = big.NewInt(1_000_000_000_000)
-		accs := testutils.SetUpTest(t, initialAmount, 1)
+		accs := testutils.SetUpTest(t, chainsel.TON_LOCALNET.Selector, initialAmount, 1)
 		alice := accs[0]
 		const initValue = uint32(0)
 		fmt.Printf("\n\n\n\n\n\nTestStarted\n==========================\n")
@@ -42,7 +44,7 @@ func TestTwoMsgChain(t *testing.T) {
 
 	t.Run("TestTwoMsgChain", func(t *testing.T) {
 		var initialAmount = big.NewInt(1_000_000_000_000)
-		accs := testutils.SetUpTest(t, initialAmount, 1)
+		accs := testutils.SetUpTest(t, chainsel.TON_LOCALNET.Selector, initialAmount, 1)
 		alice := accs[0]
 
 		fmt.Printf("\n\n\n\n\n\nTestStarted\n==========================\n")

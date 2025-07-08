@@ -6,6 +6,8 @@ import (
 	"math/rand/v2"
 	"testing"
 
+	chainsel "github.com/smartcontractkit/chain-selectors"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -23,7 +25,7 @@ type Item struct {
 func TestRequestReplyWithTwoDependencies(t *testing.T) {
 	t.Run("TestRequestReplyWithTwoDependencies", func(t *testing.T) {
 		var initialAmount = big.NewInt(1_000_000_000_000)
-		seeders := testutils.SetUpTest(t, initialAmount, 1)
+		seeders := testutils.SetUpTest(t, chainsel.TON_LOCALNET.Selector, initialAmount, 1)
 		alice := seeders[0]
 
 		fmt.Printf("\n\n\n\n\n\nTest Setup\n==========================\n")
