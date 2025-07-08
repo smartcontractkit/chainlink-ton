@@ -33,7 +33,6 @@ export function fromSnakeData<T>(data: Cell, readerFn: (cs: Slice) => T): T[] {
   while (!isEmpty(cs)) {
     if (cs.remainingBits > 0) {
       const item = readerFn(cs)
-      console.log(item)
       array.push(item)
     } else {
       cs = cs.loadRef().beginParse()

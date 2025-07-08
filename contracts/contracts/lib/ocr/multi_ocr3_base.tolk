@@ -1,5 +1,5 @@
 import "./types.tolk";
-import "/exit_codes.tolk";
+import "./exit_codes.tolk";
 import "./../utils.tolk";
 
 /// @notice Event, triggers a new run of the offchain reporting protocol.
@@ -76,6 +76,7 @@ fun OCR3Base.setOcr3Config(mutate self, msg: OCR3Base_SetOCR3Config) {
 	
 	if (msg.isSignatureVerificationEnabled) {
 		val signers_length = Iterator<uint256>.new(msg.signers).countBytes() / 32;
+		assert(signers_length > 0, ERROR_NO_SIGNERS);
 		assert(signers_length <= MAX_NUM_ORACLES, ERROR_TOO_MANY_SIGNERS);
 		assert(signers_length > 3 * msg.bigF, ERROR_BIG_F_TOO_HIGH);
 		assert(signers_length >= transmitters_length, ERROR_TOO_MANY_TRANSMITTERS);
