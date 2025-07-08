@@ -1,0 +1,70 @@
+package onramp
+
+import (
+	"math/big"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tvm/cell"
+)
+
+type CCIPMessageSent struct {
+	DestChainSelector uint64   `tlb:"## 64"`
+	SequenceNumber    uint64   `tlb:"## 64"`
+	Message           CCIPSend `tlb:"^"`
+}
+
+// GenericExtraArgsV2 represents generic extra arguments for transactions.
+type GenericExtraArgsV2 struct {
+	GasLimit                 *big.Int `tlb:"## 256"`
+	AllowOutOfOrderExecution bool     `tlb:"bool"`
+}
+
+// SVMExtraArgsV1 represents extra arguments for SVM transactions.
+type SVMExtraArgsV1 struct {
+	ComputeUnits             uint32              `tlb:"## 32"`
+	AccountIsWritableBitmap  uint64              `tlb:"## 64"`
+	AllowOutOfOrderExecution bool                `tlb:"bool"`
+	TokenReceiver            []byte              `tlb:"bits 256"`
+	Accounts                 common.SnakeBytes2D `tlb:"^"`
+}
+
+// TokenAmount is a structure that holds the amount and token address for a CCIP transaction.
+type TokenAmount struct {
+	Amount *big.Int        `tlb:"## 256"`
+	Token  address.Address `tlb:"addr"`
+}
+
+// CCIPSend represents a CCIP message to be sent.
+type CCIPSend struct {
+	QueryID                  uint64                        `tlb:"## 64"`
+	DestinationChainSelector uint64                        `tlb:"## 64"`
+	Receiver                 common.SnakeBytes             `tlb:"^"`
+	TokenAmounts             common.SnakeData[TokenAmount] `tlb:"^"`
+	ExtraArgs                cell.Cell                     `tlb:"^"` // four bytes tag + GenericExtraArgsV2 or SVMExtraArgsV1
+}
+
+type DestChainConfig struct {
+	Router           address.Address `tlb:"addr"`
+	SequenceNumber   uint64          `tlb:"## 64"`
+	AllowListEnabled bool            `tlb:"bool"`
+	AllowedSender    cell.Dictionary `tlb:"dict 36"` // TODO check if this is correct, on-chain contract uses Map<address> -> bool
+}
+
+type DynamicConfig struct {
+	feeQuoter      address.Address `tlb:"addr"`
+	FeeAggregator  address.Address `tlb:"addr"`
+	AllowListAdmin address.Address `tlb:"addr"`
+}
+
+type Ownable2Step struct {
+	owner        address.Address `tlb:"addr"`
+	pendingOwner address.Address `tlb:"addr"` // TODO check if this is correct, on-chain contract uses ?address
+}
+
+type Storage struct {
+	Ownable          Ownable2Step                    `tlb:"^"`
+	ChainSelector    uint64                          `tlb:"## 64"`
+	Config           common.SnakeData[DynamicConfig] `tlb:"^"`
+	DestChainConfigs cell.Dictionary                 `tlb:"dict 36"` // TODO check if this is correct, on-chain contract uses Map<uint64> -> DestChainConfig
+}

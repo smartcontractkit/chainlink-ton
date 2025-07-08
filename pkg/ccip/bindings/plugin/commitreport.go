@@ -1,28 +1,29 @@
-package bindings
+package plugin
 
 import (
 	"math/big"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/xssnick/tonutils-go/address"
 )
 
 // CommitReport represents the top-level structure for a commit report.
 type CommitReport struct {
-	PriceUpdates  PriceUpdates         `tlb:"^"`
-	MerkleRoot    MerkleRoots          `tlb:"^"`
-	RMNSignatures SnakeData[Signature] `tlb:"^"`
+	PriceUpdates  PriceUpdates                `tlb:"^"`
+	MerkleRoot    MerkleRoots                 `tlb:"^"`
+	RMNSignatures common.SnakeData[Signature] `tlb:"^"`
 }
 
 // MerkleRoots holds the blessed and unblessed Merkle roots.
 type MerkleRoots struct {
-	BlessedMerkleRoots   SnakeData[MerkleRoot] `tlb:"^"`
-	UnblessedMerkleRoots SnakeData[MerkleRoot] `tlb:"^"`
+	BlessedMerkleRoots   common.SnakeData[MerkleRoot] `tlb:"^"`
+	UnblessedMerkleRoots common.SnakeData[MerkleRoot] `tlb:"^"`
 }
 
 // PriceUpdates holds token and gas price updates.
 type PriceUpdates struct {
-	TokenPriceUpdates SnakeData[TokenPriceUpdate] `tlb:"^"`
-	GasPriceUpdates   SnakeData[GasPriceUpdate]   `tlb:"^"`
+	TokenPriceUpdates common.SnakeData[TokenPriceUpdate] `tlb:"^"`
+	GasPriceUpdates   common.SnakeData[GasPriceUpdate]   `tlb:"^"`
 }
 
 // TokenPriceUpdate represents a price update for a token.
@@ -44,4 +45,9 @@ type MerkleRoot struct {
 	MinSeqNr            uint64 `tlb:"## 64"`
 	MaxSeqNr            uint64 `tlb:"## 64"`
 	MerkleRoot          []byte `tlb:"bits 256"`
+}
+
+// Signature represents an ED25519 signature.
+type Signature struct {
+	Sig []byte `tlb:"bits 512"`
 }

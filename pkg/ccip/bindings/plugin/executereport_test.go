@@ -1,9 +1,10 @@
-package bindings
+package plugin
 
 import (
 	"math/big"
 	"testing"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
@@ -13,12 +14,12 @@ import (
 func TestTokenAmounts(t *testing.T) {
 	addr, err := address.ParseAddr("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")
 	require.NoError(t, err)
-	dummyCell1, err := NewDummyCell()
+	dummyCell1, err := common.NewDummyCell()
 	require.NoError(t, err)
-	dummyCell2, err := NewDummyCell()
+	dummyCell2, err := common.NewDummyCell()
 	require.NoError(t, err)
 
-	tokenAmountsCell, err := PackArrayWithRefChaining([]Any2TONTokenTransfer{
+	tokenAmountsCell, err := common.PackArrayWithRefChaining([]Any2TONTokenTransfer{
 		{
 			SourcePoolAddress: dummyCell1,
 			DestPoolAddress:   addr,
@@ -62,7 +63,7 @@ func TestTokenAmounts(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
-	array, err := UnPackArrayWithRefChaining[Any2TONTokenTransfer](tokenAmountsCell)
+	array, err := common.UnPackArrayWithRefChaining[Any2TONTokenTransfer](tokenAmountsCell)
 	require.NoError(t, err)
 	require.Len(t, array, 6)
 }
@@ -70,7 +71,7 @@ func TestTokenAmounts(t *testing.T) {
 func TestExecute_EncodingAndDecoding(t *testing.T) {
 	addr, err := address.ParseAddr("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")
 	require.NoError(t, err)
-	dummyCell, err := NewDummyCell()
+	dummyCell, err := common.NewDummyCell()
 	require.NoError(t, err)
 
 	tokenAmountsSlice := []Any2TONTokenTransfer{

@@ -1,34 +1,13 @@
-package bindings
+package common
 
 import (
 	"errors"
 	"fmt"
 	"math"
-	"math/big"
 
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
-
-// Signature represents an ED25519 signature.
-type Signature struct {
-	Sig []byte `tlb:"bits 512"`
-}
-
-// GenericExtraArgsV2 represents generic extra arguments for transactions.
-type GenericExtraArgsV2 struct {
-	GasLimit                 *big.Int `tlb:"## 256"`
-	AllowOutOfOrderExecution bool     `tlb:"bool"`
-}
-
-// SVMExtraArgsV1 represents extra arguments for SVM transactions.
-type SVMExtraArgsV1 struct {
-	ComputeUnits             uint32       `tlb:"## 32"`
-	AccountIsWritableBitmap  uint64       `tlb:"## 64"`
-	AllowOutOfOrderExecution bool         `tlb:"bool"`
-	TokenReceiver            []byte       `tlb:"bits 256"`
-	Accounts                 SnakeBytes2D `tlb:"^"`
-}
 
 // PackArrayWithRefChaining packs a slice of any serializable type T into a linked cell structure,
 // storing each element as a cell reference. When only one reference slot is left, it starts a new cell
@@ -422,4 +401,14 @@ func (s *SnakeRef[T]) LoadFromCell(c *cell.Slice) error {
 	}
 	*s = arr
 	return nil
+}
+
+// NewDummyCell returns a cell containing the string "placeholder" in its data.
+func NewDummyCell() (*cell.Cell, error) {
+	builder := cell.BeginCell()
+	payload := []byte("place holder")
+	if err := builder.StoreSlice(payload, uint(len(payload))); err != nil {
+		return nil, err
+	}
+	return builder.EndCell(), nil
 }

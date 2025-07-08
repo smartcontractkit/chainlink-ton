@@ -1,67 +1,16 @@
-package bindings
+package common
 
 import (
+	"fmt"
+	"math"
 	"math/big"
 	"testing"
 
-	"github.com/gagliardetto/solana-go"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/plugin"
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/address"
-	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
-
-func TestGenericExtraArgsV2_TLBEncodeDecode(t *testing.T) {
-	orig := GenericExtraArgsV2{
-		GasLimit:                 big.NewInt(123456789),
-		AllowOutOfOrderExecution: true,
-	}
-
-	c, err := tlb.ToCell(orig)
-	require.NoError(t, err)
-
-	var decoded GenericExtraArgsV2
-	err = tlb.LoadFromCell(&decoded, c.BeginParse())
-	require.NoError(t, err)
-	require.Equal(t, orig.GasLimit, decoded.GasLimit)
-	require.Equal(t, orig.AllowOutOfOrderExecution, decoded.AllowOutOfOrderExecution)
-}
-
-func TestSVMExtraArgsV1_ToCellAndLoadFromCell(t *testing.T) {
-	solanaAddr1, err := solana.NewRandomPrivateKey()
-	require.NoError(t, err)
-
-	solanaAddr2, err := solana.NewRandomPrivateKey()
-	require.NoError(t, err)
-
-	accountList := [][]byte{
-		solanaAddr1.PublicKey().Bytes(),
-		solanaAddr2.PublicKey().Bytes(),
-	}
-
-	orig := SVMExtraArgsV1{
-		ComputeUnits:             42,
-		AccountIsWritableBitmap:  0xDEADBEEF,
-		AllowOutOfOrderExecution: false,
-		TokenReceiver:            solanaAddr1.PublicKey().Bytes(),
-		Accounts:                 accountList,
-	}
-
-	cell, err := tlb.ToCell(orig)
-	require.NoError(t, err)
-
-	var decoded SVMExtraArgsV1
-	err = tlb.LoadFromCell(&decoded, cell.BeginParse())
-	require.NoError(t, err)
-	require.Equal(t, orig.ComputeUnits, decoded.ComputeUnits)
-	require.Equal(t, orig.AccountIsWritableBitmap, decoded.AccountIsWritableBitmap)
-	require.Equal(t, orig.AllowOutOfOrderExecution, decoded.AllowOutOfOrderExecution)
-	require.Equal(t, orig.TokenReceiver, decoded.TokenReceiver)
-	require.Equal(t, len(orig.Accounts), len(decoded.Accounts))
-	for i, addr := range orig.Accounts {
-		require.Equal(t, addr, decoded.Accounts[i])
-	}
-}
 
 func TestPackAndUnloadCellToByteArray(t *testing.T) {
 	tests := []struct {
@@ -76,24 +25,14 @@ func TestPackAndUnloadCellToByteArray(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cell, err := PackByteArrayToCell(tt.input)
+			c, err := PackByteArrayToCell(tt.input)
 			require.NoError(t, err)
 
-			output, err := UnloadCellToByteArray(cell)
+			output, err := UnloadCellToByteArray(c)
 			require.NoError(t, err)
 			require.Equal(t, tt.input, output)
 		})
 	}
-}
-
-// NewDummyCell returns a cell containing the string "placeholder" in its data.
-func NewDummyCell() (*cell.Cell, error) {
-	builder := cell.BeginCell()
-	payload := []byte("place holder")
-	if err := builder.StoreSlice(payload, uint(len(payload))); err != nil {
-		return nil, err
-	}
-	return builder.EndCell(), nil
 }
 
 func TestPackAndUnpack2DByteArrayToCell(t *testing.T) {
@@ -128,7 +67,7 @@ func TestPack2DByteArrayToCell_TooLong(t *testing.T) {
 }
 
 func TestLoadArray_LoadToArrayFitMultipleInSingleCell(t *testing.T) {
-	slice := []TokenPriceUpdate{
+	slice := []plugin.TokenPriceUpdate{
 		{
 			UsdPerToken: big.NewInt(1000000),
 		},
@@ -160,7 +99,7 @@ func TestLoadArray_LoadToArrayFitMultipleInSingleCell(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, uint(258*2), ref.BitsSize())
 
-	array, err := UnpackArrayWithStaticType[TokenPriceUpdate](c)
+	array, err := UnpackArrayWithStaticType[plugin.TokenPriceUpdate](c)
 	require.NoError(t, err)
 	require.Len(t, array, 5)
 }
@@ -168,7 +107,7 @@ func TestLoadArray_LoadToArrayFitMultipleInSingleCell(t *testing.T) {
 func TestLoadArray_FitSingleUpdateInSingleCell_TokenUpdates(t *testing.T) {
 	addr, err := address.ParseAddr("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")
 	require.NoError(t, err)
-	slice := []TokenPriceUpdate{
+	slice := []plugin.TokenPriceUpdate{
 		{
 			SourceToken: addr,
 			UsdPerToken: big.NewInt(1000000),
@@ -193,7 +132,7 @@ func TestLoadArray_FitSingleUpdateInSingleCell_TokenUpdates(t *testing.T) {
 	c, err := PackArrayWithStaticType(slice)
 	require.NoError(t, err)
 
-	array, err := UnpackArrayWithStaticType[TokenPriceUpdate](c)
+	array, err := UnpackArrayWithStaticType[plugin.TokenPriceUpdate](c)
 	require.NoError(t, err)
 	require.Len(t, array, 5)
 
@@ -210,7 +149,7 @@ func TestLoadArray_FitSingleUpdateInSingleCell_TokenUpdates(t *testing.T) {
 }
 
 func TestLoadArray_FitSingleUpdateInSingleCell_MerkleRoots(t *testing.T) {
-	merkleRoots, err := PackArrayWithStaticType([]MerkleRoot{
+	merkleRoots, err := PackArrayWithStaticType([]plugin.MerkleRoot{
 		{
 			SourceChainSelector: 1,
 			OnRampAddress:       make([]byte, 64),
@@ -234,7 +173,7 @@ func TestLoadArray_FitSingleUpdateInSingleCell_MerkleRoots(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
-	array, err := UnpackArrayWithStaticType[MerkleRoot](merkleRoots)
+	array, err := UnpackArrayWithStaticType[plugin.MerkleRoot](merkleRoots)
 	require.NoError(t, err)
 	require.Len(t, array, 3)
 
@@ -252,7 +191,7 @@ func TestLoadArray_FitSingleUpdateInSingleCell_MerkleRoots(t *testing.T) {
 
 func TestLoadArray_AddressTooSmall(t *testing.T) {
 	// Note: for OnRampAddress that requires 64 bytes length, if the address bytes is smaller than 64, tlb.toCell() will return error, if bytes array is more than 64 bytes, only first 512 bits will be used.
-	_, err := PackArrayWithStaticType([]MerkleRoot{
+	_, err := PackArrayWithStaticType([]plugin.MerkleRoot{
 		{
 			SourceChainSelector: 1,
 			OnRampAddress:       make([]byte, 63),
@@ -263,7 +202,7 @@ func TestLoadArray_AddressTooSmall(t *testing.T) {
 	})
 	require.EqualError(t, err, "failed to serialize element 0: failed to serialize field OnRampAddress to cell: failed to store bits 512, err: too small slice for this size")
 
-	_, err = PackArrayWithStaticType([]MerkleRoot{
+	_, err = PackArrayWithStaticType([]plugin.MerkleRoot{
 		{
 			SourceChainSelector: 1,
 			OnRampAddress:       make([]byte, 64),
@@ -273,4 +212,22 @@ func TestLoadArray_AddressTooSmall(t *testing.T) {
 		},
 	})
 	require.EqualError(t, err, "failed to serialize element 0: failed to serialize field MerkleRoot to cell: failed to store bits 256, err: too small slice for this size")
+}
+
+func getTotalReference(c *cell.Cell) (uint, error) {
+	totalRefs := c.RefsNum()
+	for i := uint(0); i < c.RefsNum(); i++ {
+		if i > uint(math.MaxInt) {
+			return 0, fmt.Errorf("reference index %d exceeds math.MaxInt", i)
+		}
+		ref, err := c.PeekRef(int(i))
+		if err == nil && ref != nil {
+			subRefs, subErr := getTotalReference(ref)
+			if subErr != nil {
+				return 0, subErr
+			}
+			totalRefs += subRefs
+		}
+	}
+	return totalRefs, nil
 }
