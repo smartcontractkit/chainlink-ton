@@ -118,7 +118,7 @@ struct (0x00000001) SetCount { /* ... */ }
 type IncomingMessage = SetCount;
 
 fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: slice) {
-    if (msgBody.isEnd()) { // Ignore all empty messages
+    if (msgBody.isEndOfBits() && msgBody.isEndOfRefs()) { // Ignore all empty messages
         return;
     }
 
@@ -172,13 +172,13 @@ Continuing the onInternalMessage function from the previous step:
 The following exit codes could be thrown from these operations:
 
 ``` tolk
-get owner(): address {
+get fun owner(): address {
     var storage = loadData();
     // Delegate the call to the module's getter
     return storage.ownable.get_owner();
 }
 
-get counter(): uint32 {
+get fun counter(): uint32 {
     var storage = loadData();
     return storage.count;
 }

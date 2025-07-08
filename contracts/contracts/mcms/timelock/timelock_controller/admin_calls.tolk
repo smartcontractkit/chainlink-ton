@@ -1,4 +1,4 @@
-tolk 0.99
+tolk 1.0
 
 import "./op.tolk";
 import "./error.tolk";

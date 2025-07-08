@@ -1,4 +1,4 @@
-tolk 0.99
+tolk 1.0
 
 import "@stdlib/tvm-dicts";
 import "../../lib/access/access_control.tolk";
@@ -24,7 +24,7 @@ const ROLE_BYPASSER = 4; // TODO: keccak256("BYPASSER_ROLE");
 struct Timelock {}
 
 fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: slice) {
-    if (msgBody.isEnd()) { // ignore all empty messages
+    if (msgBody.isEndOfBits() && msgBody.isEndOfRefs()) { // ignore all empty messages
         return;
     }
 
@@ -188,14 +188,14 @@ fun Timelock.hookTrait__AccessControl(self): AccessControl<Timelock>{
 // --- Getters - <AccessControl<T>> extension ---
 
 /// @see <AccessControl<T>.hasRole>
-get hasRole(role: int, account: address): bool {
+get fun hasRole(role: int, account: address): bool {
     var timelock: Timelock = {};
     var rbac = timelock.hookTrait__AccessControl();
     return rbac.hasRole(role, account);
 }
 
 /// @see <AccessControl<T>.getRoleAdmin>
-get getRoleAdmin(role: int): int {
+get fun getRoleAdmin(role: int): int {
     var timelock: Timelock = {};
     var rbac = timelock.hookTrait__AccessControl();
     return rbac.getRoleAdmin(role);
@@ -204,21 +204,21 @@ get getRoleAdmin(role: int): int {
 // --- Getters - <AccessControl<T>> enumerable extension ---
 
 /// @see <AccessControl<T>.getRoleMember>
-get getRoleMember(role: int, index: uint32): address {
+get fun getRoleMember(role: int, index: uint32): address {
     var timelock: Timelock = {};
     var rbac = timelock.hookTrait__AccessControl();
     return rbac.getRoleMember(role, index);
 }
 
 /// @see <AccessControl<T>.getRoleMemberCount>
-get getRoleMemberCount(role: int): int {
+get fun getRoleMemberCount(role: int): int {
     var timelock: Timelock = {};
     var rbac = timelock.hookTrait__AccessControl();
     return rbac.getRoleMemberCount(role);
 }
 
 /// @see <AccessControl<T>.getRoleMembers>
-get getRoleMembers(role: int): dict {
+get fun getRoleMembers(role: int): dict {
     var timelock: Timelock = {};
     var rbac = timelock.hookTrait__AccessControl();
     return rbac.getRoleMembers(role);

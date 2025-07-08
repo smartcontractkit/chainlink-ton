@@ -1145,7 +1145,7 @@
 
 "@ton/blueprint@^0.38.0":
   version "0.38.0"
-  resolved "https://registry.yarnpkg.com/@ton/blueprint/-/blueprint-0.38.0.tgz#bb6166251c025dbc81650aa4b10e199327dc003c"
+  resolved "https://registry.npmjs.org/@ton/blueprint/-/blueprint-0.38.0.tgz#bb6166251c025dbc81650aa4b10e199327dc003c"
   integrity sha512-2N+rwSTdyTYo6Wry4VLg/jkZ/FjbXpT9KevLAqKXqxx5QLUN7Hs76wnNd3ORSIJJZ7/bnHtrenPQsuUxIwwi8g==
   dependencies:
     "@ton-api/client" "^0.2.0"
@@ -1200,7 +1200,7 @@
 
 "@ton/sandbox@^0.35.1":
   version "0.35.1"
-  resolved "https://registry.yarnpkg.com/@ton/sandbox/-/sandbox-0.35.1.tgz#6b211b981c4088f9aa591b3cae9964b44e23300b"
+  resolved "https://registry.npmjs.org/@ton/sandbox/-/sandbox-0.35.1.tgz#6b211b981c4088f9aa591b3cae9964b44e23300b"
   integrity sha512-h7oYbCLWRxYNU6quNKyC0Ji4F1VOKTMzy758MxYFmVY+VmV95Bj6fECiQFS0+u4Qy6TEAePuoSnQxMHW3eqRbQ==
   dependencies:
     "@vscode/debugadapter" "^1.68.0"
@@ -1210,21 +1210,21 @@
 
 "@ton/test-utils@^0.9.0":
   version "0.9.0"
-  resolved "https://registry.yarnpkg.com/@ton/test-utils/-/test-utils-0.9.0.tgz#d0de1de4bbf3f72256bf8488e2d9504923081eb7"
+  resolved "https://registry.npmjs.org/@ton/test-utils/-/test-utils-0.9.0.tgz#d0de1de4bbf3f72256bf8488e2d9504923081eb7"
   integrity sha512-tDrzqKOsejNIzmyrv1lozhoUxelzbVeVAymihKy+Kso6VPtKcY33tGCrb5b84r7DGFx2BJ/BUjNSxnYrNXxPbQ==
   dependencies:
     node-inspect-extracted "^2.0.0"
 
 "@ton/tolk-js@^1.0.0":
   version "1.0.0"
-  resolved "https://registry.yarnpkg.com/@ton/tolk-js/-/tolk-js-1.0.0.tgz#f9863d8ed7016ea50890e5d33d9972042ef61c0f"
+  resolved "https://registry.npmjs.org/@ton/tolk-js/-/tolk-js-1.0.0.tgz#f9863d8ed7016ea50890e5d33d9972042ef61c0f"
   integrity sha512-OWFybjqo7MYZBB2XSuALEaH3uMJQeQHKbpbTmCWXJYnZskhPT4jwBshZ0gDvTskag++rwyPkcYTNJsfi6ngMXw==
   dependencies:
     arg "^5.0.2"
 
 "@ton/ton@^15.3.1":
   version "15.3.1"
-  resolved "https://registry.yarnpkg.com/@ton/ton/-/ton-15.3.1.tgz#c20688b27eb8ce8474610843804a7599679c38a2"
+  resolved "https://registry.npmjs.org/@ton/ton/-/ton-15.3.1.tgz#c20688b27eb8ce8474610843804a7599679c38a2"
   integrity sha512-+UuvbE0o0VIU/0W90STO+emRIDr3Vs39LdbX5ySm/Ra+RQJSiH0KX6TDOFqWDmD2Wzk4/zw21KwSiZ6Xjk8zlw==
   dependencies:
     axios "^1.6.7"
@@ -4018,7 +4018,7 @@ to-regex-range@^5.0.1:
 
 ton-lite-client@^3.1.1:
   version "3.1.1"
-  resolved "https://registry.yarnpkg.com/ton-lite-client/-/ton-lite-client-3.1.1.tgz#9b5655eb56c84164ebf2075117077c6d21c17ce6"
+  resolved "https://registry.npmjs.org/ton-lite-client/-/ton-lite-client-3.1.1.tgz#9b5655eb56c84164ebf2075117077c6d21c17ce6"
   integrity sha512-jhgwRC0txsekBact1rFwgGE3DdgRnMDk2htHZjzLgO9PupdVLAkoFJJ3K9LvtXgY7bKFRcTI+GZWCZk2xRJ0Ig==
   dependencies:
     adnl "^1.0.3"
