@@ -122,7 +122,7 @@ describe('Router', () => {
   let onRamp: SandboxContract<OnRamp>
   let offRamp: SandboxContract<OffRamp>
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     blockchain = await Blockchain.create()
     deployer = await blockchain.treasury('deployer')
 
@@ -284,7 +284,7 @@ describe('Router', () => {
         success: true,
       })
     }
-  }, 15_000) // we do a fair bit of setup so increase the timeout here
+  }, 60_000) // setup can take a while, since we deploy contracts
 
   it('onramp', async () => {
     // Configure onRamp on router
