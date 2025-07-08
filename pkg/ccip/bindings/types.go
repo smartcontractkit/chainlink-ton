@@ -10,11 +10,18 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
+// Signature represents an ED25519 signature.
+type Signature struct {
+	Sig []byte `tlb:"bits 512"`
+}
+
+// GenericExtraArgsV2 represents generic extra arguments for transactions.
 type GenericExtraArgsV2 struct {
 	GasLimit                 *big.Int `tlb:"## 256"`
 	AllowOutOfOrderExecution bool     `tlb:"bool"`
 }
 
+// SVMExtraArgsV1 represents extra arguments for SVM transactions.
 type SVMExtraArgsV1 struct {
 	ComputeUnits             uint32       `tlb:"## 32"`
 	AccountIsWritableBitmap  uint64       `tlb:"## 64"`
@@ -97,7 +104,6 @@ func UnPackArrayWithRefChaining[T any](root *cell.Cell) ([]T, error) {
 // PackArrayWithStaticType packs a slice of any serializable type T into a linked cell structure.
 // Elements are stored directly in the cell's bits. If an element does not fit, a new cell is started.
 // Cells are linked via references for arrays that span multiple cells.
-// TODO duplicated from commit report codec, remove once merged
 func PackArrayWithStaticType[T any](array []T) (*cell.Cell, error) {
 	builder := cell.BeginCell()
 	cells := []*cell.Builder{builder}
@@ -132,7 +138,6 @@ func PackArrayWithStaticType[T any](array []T) (*cell.Cell, error) {
 // UnpackArrayWithStaticType unpacks a linked cell structure created by PackArrayWithStaticType
 // into a slice of type T. Elements are read from the cell's bits, and the function follows references
 // to subsequent cells as needed.
-// TODO duplicated from commit report codec, remove once merged
 func UnpackArrayWithStaticType[T any](root *cell.Cell) ([]T, error) {
 	var result []T
 	curr := root
@@ -326,22 +331,15 @@ func Unpack2DByteArrayFromCell(c *cell.Cell) ([][]byte, error) {
 // ----------- Below is wrapper types that implement the ToCell and LoadFromCell methods for packing and unpacking into cell structures. -----------
 
 // SnakeData is a generic type for packing and unpacking slices of any type T into a cell structure.
-// TODO Duplicate from commit report gobinding, remove once merged
 type SnakeData[T any] []T
 
 // ToCell packs the SnakeData into a cell. It uses PackArray to serialize the data.
-// TODO Duplicate from commit report gobinding, remove once merged
+// currently this function is not using pointer receiver, lack of support from tonutils-go library https://github.com/xssnick/tonutils-go/issues/340
 func (s SnakeData[T]) ToCell() (*cell.Cell, error) {
-	packed, err := PackArrayWithStaticType(s)
-	if err != nil {
-		return nil, err
-	}
-
-	return packed, nil
+	return PackArrayWithStaticType(s)
 }
 
 // LoadFromCell loads the SnakeData from a cell slice. It uses UnpackArray to deserialize the data.
-// TODO Duplicate from commit report gobinding, remove once merged
 func (s *SnakeData[T]) LoadFromCell(c *cell.Slice) error {
 	cl, err := c.ToCell()
 	if err != nil {
@@ -360,12 +358,7 @@ type SnakeBytes []byte
 
 // ToCell packs the SnakeBytes into a cell. It uses PackByteArrayToCell to serialize the data.
 func (s SnakeBytes) ToCell() (*cell.Cell, error) {
-	cl, err := PackByteArrayToCell(s)
-	if err != nil {
-		return nil, fmt.Errorf("failed to pack byte array: %w", err)
-	}
-
-	return cl, nil
+	return PackByteArrayToCell(s)
 }
 
 // LoadFromCell loads the SnakeBytes from a cell slice. It uses UnloadCellToByteArray to deserialize the data.
@@ -387,12 +380,7 @@ type SnakeBytes2D [][]byte
 
 // ToCell packs the SnakeBytes2D into a cell. It uses Pack2DByteArrayToCell to serialize the data.
 func (s SnakeBytes2D) ToCell() (*cell.Cell, error) {
-	cl, err := Pack2DByteArrayToCell(s)
-	if err != nil {
-		return nil, fmt.Errorf("failed to pack 2D byte array: %w", err)
-	}
-
-	return cl, nil
+	return Pack2DByteArrayToCell(s)
 }
 
 // LoadFromCell loads the SnakeBytes2D from a cell slice. It uses Unpack2DByteArrayFromCell to deserialize the data.

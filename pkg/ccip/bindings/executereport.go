@@ -44,8 +44,3 @@ type Any2TONTokenTransfer struct {
 	ExtraData         *cell.Cell       `tlb:"^"`
 	Amount            *big.Int         `tlb:"## 256"`
 }
-
-// Signature represents a cryptographic signature used in the execute report.
-type Signature struct {
-	Sig []byte `tlb:"bits 512"`
-}
