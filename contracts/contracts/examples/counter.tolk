@@ -25,8 +25,24 @@ fun saveData(data: Storage) {
     contract.setData(data.toCell());
 }
 
+<<<<<<< HEAD
 fun onInternalMessage(in: InMessage) {
     val msg = lazy IncomingMessage.fromSlice(in.body);  // 63 error code is thrown if the message opcode is unknown
+=======
+fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: slice) {
+    if (msgBody.isEndOfBits() && msgBody.isEndOfRefs()) { // ignore all empty messages
+        return;
+    }
+
+    var cs = msgFull.beginParse();
+    val flags = cs.loadMessageFlags();
+    if (isMessageBounced(flags)) { // ignore all bounced messages
+        return;
+    }
+
+    val msg = IncomingMessage.fromSlice(msgBody);  // 63 error code is thrown if the message opcode is unknown
+
+>>>>>>> 59fe496 (Update contracts to tolk 1.0)
     match (msg) {
         SetCount => {
             /// Instructs the contract to step the counter.

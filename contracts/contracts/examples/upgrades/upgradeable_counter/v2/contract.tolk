@@ -22,8 +22,19 @@ struct (0x00000001) Step {
     queryId: uint64;
 }
 
+<<<<<<< HEAD
 fun onInternalMessage(in: InMessage) {
     if (in.body.isEmpty()) { // ignore all empty messages
+=======
+fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: slice) {
+    if (msgBody.isEndOfBits() && msgBody.isEndOfRefs()) { // ignore all empty messages
+        return;
+    }
+
+    var cs = msgFull.beginParse();
+    val flags = cs.loadMessageFlags();
+    if (isMessageBounced(flags)) { // ignore all bounced messages
+>>>>>>> 59fe496 (Update contracts to tolk 1.0)
         return;
     }
 

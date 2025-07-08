@@ -1,4 +1,4 @@
-tolk 0.99
+tolk 1.0
 
 const OP_SCHEDULE = 0xc3e106f4; // "OP_SCHEDULE"c; // 0xc3e106f4
 const OP_CANCEL = 0x70b511b7; // "OP_CANCEL"c; // 0x70b511b7
