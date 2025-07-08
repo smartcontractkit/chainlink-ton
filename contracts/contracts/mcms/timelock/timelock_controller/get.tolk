@@ -52,17 +52,3 @@ get getOperationState(id: int): int {
 
     return READY_STATE;
 }
-
-// TODO: dummy type for AccessControl
-struct Any {}
-
-get hasRole(role: int, account: address): bool {
-    val s = loadData();
-    val ac = AccessControl<Any> {
-        data: AccessControl_Data.fromCell(s.rbac),
-        context: null, // No context or hooks needed for this check
-        hooks: null,
-    };
-
-    return ac.hasRole(role, account)
-}

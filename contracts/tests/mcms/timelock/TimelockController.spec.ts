@@ -80,6 +80,11 @@ describe('TimelockController', () => {
     })
 
     expect(await acContract.getHasRole(Params.admin_role, deployer.address)).toEqual(true)
+    expect(await acContract.getRoleAdmin(Params.admin_role)).toEqual(0n) // default admin role
+
+    const memberAddr = await acContract.getRoleMember(Params.admin_role, 0n)
+    expect(memberAddr).not.toBeNull()
+    expect(memberAddr!.toString()).toEqual(deployer.address.toString()) // default admin role
 
     // const timelockControllerData = await timelockController.getTimelockControllerData()
     // expect(timelockControllerData.minDelay).toEqual(minDelay)
@@ -109,6 +114,11 @@ describe('TimelockController', () => {
     })
 
     expect(await acContract.getHasRole(1337n, other.address)).toEqual(true)
+    expect(await acContract.getRoleAdmin(1337n)).toEqual(0n) // default admin role
+
+    const memberAddr = await acContract.getRoleMember(1337n, 0n)
+    expect(memberAddr).not.toBeNull()
+    expect(memberAddr!.toString()).toEqual(other.address.toString()) // default admin role
   })
 
   // it('successful update account - add admin account', async () => {
