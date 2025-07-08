@@ -20,7 +20,7 @@ describe('Ownable2Step Counter', () => {
     blockchain = await Blockchain.create()
     deployer = await blockchain.treasury('deployer')
 
-    let code = await compile('OwnableTolkCounter')
+    let code = await compile('OwnableCounter')
     let data: OwnableCounterStorage = {
       id: 1,
       count: 14,
