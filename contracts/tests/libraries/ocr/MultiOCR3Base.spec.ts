@@ -8,7 +8,7 @@ import { sha256_sync } from '@ton/crypto'
 
 import '@ton/test-utils'
 import { compile } from '@ton/blueprint'
-import { OCR3_PLUGIN_TYPE_COMMIT, OCR3Base } from '../../../wrappers/libraries/ocr/MultiOCR3Base'
+import { OCR3_PLUGIN_TYPE_COMMIT, equalsConfig, OCR3Base } from '../../../wrappers/libraries/ocr/MultiOCR3Base'
 import { OCR3BaseExample } from '../../../wrappers/examples/ocr/OCR3Base'
 
 describe('OCR3Base Tests', () => {
@@ -57,7 +57,7 @@ describe('OCR3Base Tests', () => {
     const result = await ocr3Base.sendSetOCR3Config(
       deployer.getSender(), 
       {
-          value: toNano('0.05'),
+          value: toNano('100'),
           configDigest: valid_config_digest,
           ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
           bigF: bigF,
@@ -84,8 +84,8 @@ describe('OCR3Base Tests', () => {
       signers: [signer1, signer2, signer3, signer4],
       transmitters: [transmitter1.address, transmitter2.address, transmitter3.address, transmitter4.address]
     }
-    
-    expect(config).toBe(expectedConfig)
+
+    expect(equalsConfig(config, expectedConfig)).toBeTruthy()
   })
 
 })

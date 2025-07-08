@@ -44,26 +44,6 @@ struct (0x00000001) OCR3Base_SetOCR3Config {
     transmitters: cell; //Vector<address>;
 }
 
-fun OCR3Base.onInternalMessage(mutate self, myBalance: int, msgValue: int, msgFull: cell, msgBody: slice) {
-
-    try {
-    	var msg = OCR3Base_SetOCR3Config.fromSlice(msgBody);
-	var cs = msgFull.beginParse();
-	var flags = cs.loadMessageFlags();
-	if (isMessageBounced(flags)) { // ignore all bounced messages
-            return false;
-        }
-	self.setOcr3Config(msg);
-	return true;
-
-    } catch (exitCode) {
-        if (exitCode != 63) { // 63 is "unknown opcode"
-            throw exitCode;
-        }
-        return false; // Not an OCR3Base message
-    }
-}
-
 fun OCR3Base.setOcr3Config(mutate self, msg: OCR3Base_SetOCR3Config) {
 
 	assert(msg.ocrPluginType == OCR_PLUGIN_TYPE_COMMIT || msg.ocrPluginType == OCR_PLUGIN_TYPE_EXECUTION, ERROR_NON_EXISTENT_OCR_PLUGIN_TYPE);
@@ -89,7 +69,7 @@ fun OCR3Base.setOcr3Config(mutate self, msg: OCR3Base_SetOCR3Config) {
 		);
 	}
 
-	val transmitters_length = Iterator<address>.new(msg.transmitters).countBytes() / 36;
+	val transmitters_length = countAddresses(msg.transmitters);
 
 	assert(transmitters_length <= MAX_NUM_ORACLES, ERROR_TOO_MANY_TRANSMITTERS);
 	assert(transmitters_length > 0, ERROR_NO_TRANSMITTERS);
@@ -141,7 +121,7 @@ fun OCR3Base.transmit(
     reportContext: ReportContext,
     report: cell,
     signatures: cell, //Vector<SignatureEd25519>
-    ) { 
+) { 
     var (ocrConfig, foundConfig) = self.ocr3Configs.get(ocrPluginType);
     assert(foundConfig, ERROR_NON_EXISTENT_OCR_PLUGIN_TYPE);
     ocrConfig = ocrConfig!;
@@ -214,13 +194,13 @@ fun OCR3Base.assignSignerOracles(
 	ocrPluginType: uint16,
 	signers: cell /*Vector<uint256>*/
 ) {
-	assert(!Iterator<uint256>.new(signers).hasDuplicates(), ERROR_REPEATED_SIGNERS);
 	// TODO: We cannot do ed25519 public key validation on chain. For now we assume valid keys.
 	var signersDict = UMap<uint256, uint8>.new(256);
 	var signersIt = Iterator<uint256>.new(signers);
 	var i = 0;
 	while (!signersIt.empty()) {
 		val signer = signersIt.next();
+		assert(!signersDict.has(signer), ERROR_REPEATED_SIGNERS);
 		i = i + 1;
 		signersDict.set(
 			signer,
@@ -238,12 +218,12 @@ fun OCR3Base.assignTransmitterOracles(
 	ocrPluginType: int,
 	transmitters: cell // Vector<address>
 ) {
-	assert(!Iterator<address>.new(transmitters).hasDuplicates(), ERROR_REPEATED_TRANSMITTERS);
 	var transmittersDict = Map<uint8>.new(); 
 	var transmittersIt = Iterator<address>.new(transmitters);
 	var i = 0;
 	while (!transmittersIt.empty()) {
 		val transmitter = transmittersIt.next();
+		assert(!transmittersDict.has(transmitter), ERROR_REPEATED_TRANSMITTERS);
 		i = i + 1;
 		transmittersDict.set(
 			transmitter,

@@ -13,7 +13,7 @@ import { asSnakeData } from '../../../tests/utils'
 
 
 export function ocr3BaseExampleStorage(): Cell {
-  return  newOCR3BaseCell(1) //using dummy chainId 1
+  return newOCR3BaseCell(1) //using dummy chainId 1
 }
 
 export class OCR3BaseExample extends OCR3Base {
@@ -56,7 +56,7 @@ export class OCR3BaseExample extends OCR3Base {
         value: opts.value,
         sendMode: SendMode.PAY_GAS_SEPARATELY,
         body: beginCell()
-          .storeUint(0x00000001, 32)//opcode
+          .storeUint(0x00000002, 32)//opcode
           .storeUint(opts.ocrPluginType, 16)
           .storeUint(opts.reportContext.configDigest, 256)
           .storeUint(opts.reportContext.sequenceBytes, 64)
@@ -77,7 +77,16 @@ export class OCR3BaseExample extends OCR3Base {
           value: BigInt(ocrPluginType),
         }]
       )
-      const ocr3ConfigCell = result.stack.readCell()
-      return ocr3ConfigFromCell(ocr3ConfigCell)
+      const resultStack = result.stack
+      const ocr3Config = beginCell()
+        .storeUint(resultStack.readBigNumber(), 256)
+        .storeUint(resultStack.readNumber(), 8)
+        .storeUint(resultStack.readNumber(), 8)
+        .storeBit(resultStack.readBoolean())
+        .storeRef(resultStack.readCell())
+        .storeRef(resultStack.readCell())
+        .endCell()
+
+      return ocr3ConfigFromCell(ocr3Config)
     }
 }

@@ -52,28 +52,21 @@ fun Iterator<T>.countBytes(self): int {
     return dataBitsSize / 8;
 }
 
+// For address snake data
+@inline
+fun countAddresses(data: cell): int {
+    val maxCells = 128;
+    val (cellsCount, dataBitsSize, cellRefs) = data.calculateSizeStrict(maxCells);
+    assert(dataBitsSize % ADDR_KEY_LEN == 0, ERROR_INVALID_DATA);
+    return dataBitsSize / ADDR_KEY_LEN;
+}
+
 @inline
 fun Iterator<T>.has(mutate self, elem: T): bool {
     while (!self.empty()) {
         val current = self.next();
         if (current == elem) {
             return true;
-        }
-    }
-    return false;
-}
-
-//TODO: I am not sure if it is more efficient to use a tuple or a dictionary here
-//      Using tuple the complexity is O(n^2) but using dictionaries we need to create cells which probably costs more gas
-@inline
-fun Iterator<T>.hasDuplicates(mutate self): bool {
-    var visited = createEmptyTuple();
-    while (!self.empty()) {
-        val current = self.next();
-        if (has(current, visited)) {
-            return true;
-        } else {
-            visited.push<T>(current);
         }
     }
     return false;

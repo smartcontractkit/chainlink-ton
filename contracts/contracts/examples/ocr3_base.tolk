@@ -15,7 +15,7 @@ fun saveData(data: OCR3BaseExampleContract) {
     contract.setData(data.toCell());
 }
 
-struct (0x00000001) Transmit {
+struct (0x00000002) Transmit {
     transmitter: address, //TODO: might have to use the sender address for testing here
     ocrPluginType: uint16,
     reportContext: ReportContext,
@@ -38,11 +38,11 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
     }
 
     val msg = IncomingMessage.fromSlice(msgBody);
+
     match (msg) {
         Transmit => {
         //Using the transmit function validates signatures and emits an event
             var storage = loadData();
-            debug.print(1);
             storage.ocr3Base.transmit(
                 msg.transmitter,
                 msg.ocrPluginType,
