@@ -1,7 +1,7 @@
 tolk 0.99
 
 import "@stdlib/tvm-dicts";
-import "../../lib/access/extension/access_control_enumerable.tolk";
+import "../../lib/access/access_control.tolk";
 
 import "common/workchain.tolk";
 import "common/message.tolk";
@@ -38,8 +38,8 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
     // Load the contract storage
     var s = loadData();
 
-    var rbac: AccessControlEnumerable<Timelock> = {
-        data: AccessControlEnumerable_Data.fromCell(s.rbac),
+    var rbac: AccessControl<Timelock> = {
+        data: AccessControl_Data.fromCell(s.rbac),
         // no runtime extensions
         context: null,
         hooks: null,

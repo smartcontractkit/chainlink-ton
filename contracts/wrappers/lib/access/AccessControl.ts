@@ -55,6 +55,8 @@ export type ContractData = {
 /// Internal storage struct for role data
 export type ContractRoleData = {
   adminRole: bigint
+
+  membersLen: bigint
   hasRole: Dictionary<Buffer, Buffer>
 }
 
@@ -109,6 +111,7 @@ export const builder = {
       const _encodeRoleData = (roleData: ContractRoleData): Cell => {
         return beginCell() // break line
           .storeUint(roleData.adminRole, 256)
+          .storeUint(roleData.membersLen, 64)
           .storeDict(roleData.hasRole)
           .endCell()
       }
