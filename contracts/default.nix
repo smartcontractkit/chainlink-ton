@@ -50,15 +50,22 @@ in {
 
     # Official TON Jetton contract in FunC
     contracts-jetton-func = pkgs.buildNpmPackage (finalAttrs: rec {
-      inherit (package-info) version;
       pname = "contracts-jetton-func";
+
       src = pkgs.fetchgit {
         url = "https://github.com/ton-blockchain/jetton-contract.git";
         rev = "3d24b419f2ce49c09abf6b8703998187fe358ec9"; # jetton-1.2, Jun 7, 2025
         hash = "sha256-jel0z/DsndlpnWuUhm4vzoacM/zboLCIqcPmPqBsDgU=";
       };
+      version = (builtins.fromJSON (builtins.readFile "${src}/package.json")).version;
 
       npmDepsHash = "sha256-EZtvTf19MjSKTWNir6pcP9XHwUIpE4ILSlhS+cQD/7w=";
+
+      meta = with pkgs.lib; {
+        description = "Reference implementation of Jetton (fungible token) smart contract for TON.";
+        license = licenses.mit;
+        changelog = "https://github.com/ton-blockchain/jetton-contract/releases/tag/jetton-1.2";
+      };
     });
   };
 }
