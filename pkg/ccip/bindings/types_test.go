@@ -7,6 +7,7 @@ import (
 	"github.com/gagliardetto/solana-go"
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
 func TestGenericExtraArgsV2_TLBEncodeDecode(t *testing.T) {
@@ -59,4 +60,68 @@ func TestSVMExtraArgsV1_ToCellAndLoadFromCell(t *testing.T) {
 	for i, addr := range orig.Accounts {
 		require.Equal(t, addr, decoded.Accounts[i])
 	}
+}
+
+func TestPackAndUnloadCellToByteArray(t *testing.T) {
+	tests := []struct {
+		name  string
+		input []byte
+	}{
+		{"empty", []byte{}},
+		{"short", []byte("hello")},
+		{"long", make([]byte, 1024)},
+		{"very long", make([]byte, 100_000)},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cell, err := PackByteArrayToCell(tt.input)
+			require.NoError(t, err)
+
+			output, err := UnloadCellToByteArray(cell)
+			require.NoError(t, err)
+			require.Equal(t, tt.input, output)
+		})
+	}
+}
+
+// NewDummyCell returns a cell containing the string "placeholder" in its data.
+func NewDummyCell() (*cell.Cell, error) {
+	builder := cell.BeginCell()
+	payload := []byte("place holder")
+	if err := builder.StoreSlice(payload, uint(len(payload))); err != nil {
+		return nil, err
+	}
+	return builder.EndCell(), nil
+}
+
+func TestPackAndUnpack2DByteArrayToCell(t *testing.T) {
+	tests := []struct {
+		name  string
+		input [][]byte
+	}{
+		{"empty", [][]byte{}},
+		{"single empty", [][]byte{{}}},
+		{"single short", [][]byte{[]byte("abc")}},
+		{"multiple short", [][]byte{[]byte("abc"), []byte("defg")}},
+		{"long array", [][]byte{make([]byte, 1000)}},
+		{"multiple long", [][]byte{make([]byte, 500), make([]byte, 800)}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c, err := Pack2DByteArrayToCell(tt.input)
+			require.NoError(t, err)
+
+			output, err := Unpack2DByteArrayFromCell(c)
+			require.NoError(t, err)
+			require.Equal(t, tt.input, output)
+		})
+	}
+}
+
+func TestPack2DByteArrayToCell_TooLong(t *testing.T) {
+	tooLong := make([]byte, 0x10000+1)
+	_, err := Pack2DByteArrayToCell([][]byte{tooLong})
+	require.Error(t, err)
 }
