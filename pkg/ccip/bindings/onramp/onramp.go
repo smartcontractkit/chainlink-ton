@@ -48,7 +48,7 @@ type DestChainConfig struct {
 	Router           address.Address `tlb:"addr"`
 	SequenceNumber   uint64          `tlb:"## 64"`
 	AllowListEnabled bool            `tlb:"bool"`
-	AllowedSender    cell.Dictionary `tlb:"dict 36"` // TODO check if this is correct, on-chain contract uses Map<address> -> bool
+	AllowedSender    cell.Dictionary `tlb:"dict 512"` // TODO check if this is correct, on-chain contract uses Map<address> -> bool
 }
 
 type DynamicConfig struct {
@@ -66,5 +66,5 @@ type Storage struct {
 	Ownable          Ownable2Step                    `tlb:"^"`
 	ChainSelector    uint64                          `tlb:"## 64"`
 	Config           common.SnakeData[DynamicConfig] `tlb:"^"`
-	DestChainConfigs cell.Dictionary                 `tlb:"dict 36"` // TODO check if this is correct, on-chain contract uses Map<uint64> -> DestChainConfig
+	DestChainConfigs cell.Dictionary                 `tlb:"dict 64"` // TODO check if this is correct, on-chain contract uses Map<uint64> -> DestChainConfig
 }
