@@ -1,13 +1,9 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { toNano } from '@ton/core'
-<<<<<<<< HEAD:contracts/tests/libraries/access/Ownable2Step.spec.ts
 import {
   OwnableCounter,
   OwnableCounterStorage,
 } from '../../../wrappers/examples/access/OwnableCounter'
-========
-import { OwnableCounter } from '../../../wrappers/lib/access/OwnableCounter'
->>>>>>>> 314f802 (AC union message type):contracts/tests/lib/access/Ownable2Step.spec.ts
 import '@ton/test-utils'
 import { compile } from '@ton/blueprint'
 

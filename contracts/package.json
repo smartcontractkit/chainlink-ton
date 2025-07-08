@@ -39,14 +39,9 @@
     "prettier": "^3.5.3",
     "ts-jest": "^29.4.0",
     "ts-node": "^10.9.2",
-<<<<<<< HEAD
-    "typescript": "^5.8.3",
-    "crc-32": "^1.2.2",
-=======
     "typescript": "^5.8.3"
   },
   "dependencies": {
->>>>>>> 314f802 (AC union message type)
     "zlib": "^1.0.5"
   }
 }
