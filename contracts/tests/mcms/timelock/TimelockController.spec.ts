@@ -13,7 +13,6 @@ import {
 } from '../../../wrappers/mcms/timelock/TimelockController'
 
 import * as ac from '../../../wrappers/lib/access/AccessControl'
-import * as ace from '../../../wrappers/lib/access/extension/AccessControlEnumerable'
 
 describe('TimelockController', () => {
   let code: Cell
@@ -42,27 +41,25 @@ describe('TimelockController', () => {
     minDelay = 7
 
     const roleData: ac.ContractRoleData = {
-      hasRole: ac.builder.data.encode().hasRoleDict([deployer.address]),
       adminRole: 0n, // default admin role
+      membersLen: 1n, // one member (deployer)
+      hasRole: ac.builder.data.encode().hasRoleDict([deployer.address]),
     }
 
-    const rbacStorage: ace.ContractData = {
-      underlying: {
-        roles: ac.builder.data.encode().rolesDict(
-          new Map([
-            [Params.admin_role, roleData],
-            [Params.proposer_role, roleData],
-            [Params.canceller_role, roleData],
-            [Params.executor_role, roleData],
-          ]),
-        ),
-      },
-      roleMembers: ace.builder.data.encode().roleMembersDict([deployer.address]),
+    const rbacStorage: ac.ContractData = {
+      roles: ac.builder.data.encode().rolesDict(
+        new Map([
+          [Params.admin_role, roleData],
+          [Params.proposer_role, roleData],
+          [Params.canceller_role, roleData],
+          [Params.executor_role, roleData],
+        ]),
+      ),
     }
 
     const data = {
       minDelay: minDelay,
-      rbac: ace.builder.data.encode().contractData(rbacStorage),
+      rbac: ac.builder.data.encode().contractData(rbacStorage),
     }
 
     timelockController = blockchain.openContract(TimelockController.createFromConfig(data, code))
