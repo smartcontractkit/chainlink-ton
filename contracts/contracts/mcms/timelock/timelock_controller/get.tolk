@@ -58,8 +58,8 @@ struct Any {}
 
 get hasRole(role: int, account: address): bool {
     val s = loadData();
-    val ac = AccessControlEnumerable<Any> {
-        data: AccessControlEnumerable_Data.fromCell(s.rbac),
+    val ac = AccessControl<Any> {
+        data: AccessControl_Data.fromCell(s.rbac),
         context: null, // No context or hooks needed for this check
         hooks: null,
     };
