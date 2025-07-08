@@ -19,11 +19,9 @@ jobs:
         with:
           nix_path: nixpkgs=channel:nixos-unstable
 
-      - name: Download Jetton contracts
+      - name: Fetch and build Jetton contracts
         run: |
-          pushd contracts/scripts
-          nix build .#jetton-contracts
-          cp -r ./result/contracts/contracts/jetton/* ./contracts/contracts/jetton/
+          nix build .#contracts-jetton-func
 
       - name: Run build
         run: |

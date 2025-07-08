@@ -4,10 +4,9 @@ import { SandboxContract, TreasuryContract, Blockchain } from '@ton/sandbox'
 import { compile } from '@ton/blueprint'
 import { JettonMinter, JettonWallet, JettonSender, OnrampMock } from '../wrappers/examples/jetton'
 import { sha256 } from '@ton/crypto'
-import {
-  downloadAndVerifyJettonContracts,
-  JettonContractVerifier,
-} from '../scripts/jetton-contract-verifier'
+import { resolve } from 'path'
+import { readFileSync } from 'fs'
+import { execSync } from 'child_process'
 
 const ONCHAIN_CONTENT_PREFIX = 0x00
 const OFFCHAIN_CONTENT_PREFIX = 0x01
@@ -27,8 +26,6 @@ describe('Send and Receive Jettons', () => {
   let userWallet: (address: Address) => Promise<SandboxContract<JettonWallet>>
 
   beforeEach(async () => {
-    expect(await downloadAndVerifyJettonContracts()).toEqual(true)
-
     blockchain = await Blockchain.create()
 
     deployer = await blockchain.treasury('deployer')
@@ -255,8 +252,6 @@ describe('Receiving Jettons as an Onramp Mock', () => {
   let userWallet: (address: Address) => Promise<SandboxContract<JettonWallet>>
 
   beforeEach(async () => {
-    expect(await downloadAndVerifyJettonContracts()).toEqual(true)
-
     blockchain = await Blockchain.create()
     blockchain.verbosity = {
       print: true,
@@ -454,10 +449,46 @@ describe('Receiving Jettons as an Onramp Mock', () => {
   })
 })
 
+function findGitRoot(): string {
+  try {
+    const gitRoot = execSync('git rev-parse --show-toplevel', {
+      encoding: 'utf8',
+      cwd: __dirname,
+    }).trim()
+    return gitRoot
+  } catch (error) {
+    throw new Error('Could not find git repository root. Make sure you are in a git repository.')
+  }
+}
+
 async function JettonMinterCode(): Promise<Cell> {
-  return await compile('jetton.JettonMinter')
+  const compiledPath = resolve(
+    findGitRoot(),
+    'result/lib/node_modules/jetton/build/JettonMinter.compiled.json',
+  )
+  const compiled = JSON.parse(readFileSync(compiledPath, 'utf8'))
+  const hex = compiled.hex
+  if (!hex) {
+    throw new Error('Compiled JettonMinter code hex not found in JSON')
+  }
+  // Remove 0x prefix if present
+  const hexStr = hex.startsWith('0x') ? hex.slice(2) : hex
+  const boc = Buffer.from(hexStr, 'hex')
+  return Cell.fromBoc(boc)[0]
 }
 
 async function JettonWalletCode(): Promise<Cell> {
-  return await compile('jetton.JettonWallet')
+  const compiledPath = resolve(
+    findGitRoot(),
+    'result/lib/node_modules/jetton/build/JettonWallet.compiled.json',
+  )
+  const compiled = JSON.parse(readFileSync(compiledPath, 'utf8'))
+  const hex = compiled.hex
+  if (!hex) {
+    throw new Error('Compiled JettonWallet code hex not found in JSON')
+  }
+  // Remove 0x prefix if present
+  const hexStr = hex.startsWith('0x') ? hex.slice(2) : hex
+  const boc = Buffer.from(hexStr, 'hex')
+  return Cell.fromBoc(boc)[0]
 }
