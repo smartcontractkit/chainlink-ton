@@ -182,3 +182,44 @@ fun Timelock.hookTrait__AccessControl(self): AccessControl<Timelock>{
         hooks: null,
     };
 }
+
+// --- Getters ---
+
+// --- Getters - <AccessControl<T>> extension ---
+
+/// @see <AccessControl<T>.hasRole>
+get hasRole(role: int, account: address): bool {
+    var timelock: Timelock = {};
+    var rbac = timelock.hookTrait__AccessControl();
+    return rbac.hasRole(role, account);
+}
+
+/// @see <AccessControl<T>.getRoleAdmin>
+get getRoleAdmin(role: int): int {
+    var timelock: Timelock = {};
+    var rbac = timelock.hookTrait__AccessControl();
+    return rbac.getRoleAdmin(role);
+}
+
+// --- Getters - <AccessControl<T>> enumerable extension ---
+
+/// @see <AccessControl<T>.getRoleMember>
+get getRoleMember(role: int, index: uint32): address {
+    var timelock: Timelock = {};
+    var rbac = timelock.hookTrait__AccessControl();
+    return rbac.getRoleMember(role, index);
+}
+
+/// @see <AccessControl<T>.getRoleMemberCount>
+get getRoleMemberCount(role: int): int {
+    var timelock: Timelock = {};
+    var rbac = timelock.hookTrait__AccessControl();
+    return rbac.getRoleMemberCount(role);
+}
+
+/// @see <AccessControl<T>.getRoleMembers>
+get getRoleMembers(role: int): dict {
+    var timelock: Timelock = {};
+    var rbac = timelock.hookTrait__AccessControl();
+    return rbac.getRoleMembers(role);
+}
