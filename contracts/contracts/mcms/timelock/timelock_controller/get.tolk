@@ -53,7 +53,7 @@ get getOperationState(id: int): int {
     return READY_STATE;
 }
 
-// TODO: dummy type for AccessControlEnumerable
+// TODO: dummy type for AccessControl
 struct Any {}
 
 get hasRole(role: int, account: address): bool {
