@@ -1,4 +1,4 @@
-tolk 0.99
+tolk 1.0
 
 import "../../../lib/access/access_control.tolk";
 
@@ -6,7 +6,7 @@ import "./storage.tolk";
 import "./operation_utils.tolk";
 import "./params.tolk";
 
-get getTimelockControllerData(): (int, int, dict, dict) {
+get fun getTimelockControllerData(): (int, int, dict, dict) {
     val s = loadData();
     val rbac = AccessControl_Data.fromCell(s.rbac);
 
@@ -18,7 +18,7 @@ get getTimelockControllerData(): (int, int, dict, dict) {
     );
 }
 
-get getTimestamp(id: int): int {
+get fun getTimestamp(id: int): int {
     val s = loadData();
 
     var (timestampSlice, exists) = s.timestamps.uDictGet(256, id);
@@ -29,11 +29,11 @@ get getTimestamp(id: int): int {
     return timestampSlice!.loadUint(32);
 }
 
-get getHashOperation(tonValue: int, predecessor: int, salt: int, account: address, msgToSend: cell): int {
+get fun getHashOperation(tonValue: int, predecessor: int, salt: int, account: address, msgToSend: cell): int {
     return hashOperation(tonValue, predecessor, salt, account, msgToSend);
 }
 
-get getOperationState(id: int): int {
+get fun getOperationState(id: int): int {
     val s = loadData();
 
     var (timestampSlice, exists) = s.timestamps.uDictGet(256, id);

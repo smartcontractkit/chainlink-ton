@@ -1,4 +1,4 @@
-tolk 0.99
+tolk 1.0
 
 const DONE_TIMESTAMP = 1;
 const UNSET_STATE = 0;
