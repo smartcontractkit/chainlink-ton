@@ -369,7 +369,7 @@
 
 "@changesets/assemble-release-plan@^6.0.8", "@changesets/assemble-release-plan@^6.0.9":
   version "6.0.9"
-  resolved "https://registry.yarnpkg.com/@changesets/assemble-release-plan/-/assemble-release-plan-6.0.9.tgz#8aa5baf0037a85812e320172e83b92ca31e85fd6"
+  resolved "https://registry.npmjs.org/@changesets/assemble-release-plan/-/assemble-release-plan-6.0.9.tgz#8aa5baf0037a85812e320172e83b92ca31e85fd6"
   integrity sha512-tPgeeqCHIwNo8sypKlS3gOPmsS3wP0zHt67JDuL20P4QcXiw/O4Hl7oXiuLnP9yg+rXLQ2sScdV1Kkzde61iSQ==
   dependencies:
     "@changesets/errors" "^0.2.0"
