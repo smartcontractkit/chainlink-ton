@@ -104,16 +104,18 @@ export const Builder = {
       builder.storeBit(0) // Store '0' to indicate the address is absent
     }
 
-    return builder
-      .storeUint(config.maxFeeJuelsPerMsg, 96)
-      .storeAddress(config.linkToken)
-      .storeUint(config.tokenPriceStalenessThreshold, 64)
-      .storeDict(config.usdPerToken)
-      .storeDict(config.premiumMultiplierWeiPerEth)
-      // UMap<> type
-      .storeDict(config.destChainConfigs)
-      .storeUint(64, 16) // keyLen
-      .endCell()
+    return (
+      builder
+        .storeUint(config.maxFeeJuelsPerMsg, 96)
+        .storeAddress(config.linkToken)
+        .storeUint(config.tokenPriceStalenessThreshold, 64)
+        .storeDict(config.usdPerToken)
+        .storeDict(config.premiumMultiplierWeiPerEth)
+        // UMap<> type
+        .storeDict(config.destChainConfigs)
+        .storeUint(64, 16) // keyLen
+        .endCell()
+    )
   },
 }
 export abstract class Params {}
