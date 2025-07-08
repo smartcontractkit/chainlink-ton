@@ -213,8 +213,16 @@ fun AccessControl<T>.getRoleMember(self, role: int, index: uint32): address {
     }
 
     // Get the account at the specified index
-    val (_, acc, _) = d.hasRole.uDictGetNext(256, index);
-    return acc;
+    var (key, acc, _) = d.hasRole.uDictGetNext(256, index);
+
+    // Reconstruct the address from the key
+    return beginCell()
+        .storeUint(0b10, 2) // internal address
+        .storeUint(0b0, 1) // anycast, always 0
+        .storeUint(0, 8) // workchain ID
+        .storeUint(key!, 256)
+        .endCell()
+        .beginParse() as address;
 }
 
 /// @dev Returns the number of accounts that have `role`. Can be used
@@ -234,7 +242,7 @@ fun AccessControl<T>.getRoleMemberCount(self, role: int): int {
 @inline
 fun AccessControl<T>.getRoleMembers(self, role: int): dict {
     // Check if the role is valid
-    val (data, exists) = self.data.roleMembers.uDictGet(256, role);
+    val (data, exists) = self.data.roles.uDictGetRef(256, role);
     if (!exists) {
         return createEmptyDict(); // role does not exist
     }
@@ -416,7 +424,7 @@ fun AccessControl<T>.get_getRoleMemberCount(self, role: int): int {
 
 /// @dev getter to export downstream
 @inline
-fun AccessControl<T>.get_getRoleMembers(self, role: int): int {
+fun AccessControl<T>.get_getRoleMembers(self, role: int): dict {
    return self.getRoleMembers(role)
 }
 

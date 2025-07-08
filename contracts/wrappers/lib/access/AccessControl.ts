@@ -174,7 +174,7 @@ export class AccessControl implements Contract {
     return this.sendInternal(p, via, value, builder.message.encode().renounceRole(body))
   }
 
-  async getHasRole(p: ContractProvider, role: bigint, account: Address) {
+  async getHasRole(p: ContractProvider, role: bigint, account: Address): Promise<boolean> {
     const result = await p.get('hasRole', [
       {
         type: 'int',
@@ -187,4 +187,40 @@ export class AccessControl implements Contract {
     ])
     return result.stack.readBoolean()
   }
+
+  async getRoleAdmin(p: ContractProvider, role: bigint): Promise<bigint> {
+    const result = await p.get('getRoleAdmin', [
+      {
+        type: 'int',
+        value: role,
+      },
+    ])
+    return result.stack.readBigNumber()
+  }
+
+  async getRoleMember(p: ContractProvider, role: bigint, index: bigint): Promise<Address | null> {
+    const result = await p.get('getRoleMember', [
+      {
+        type: 'int',
+        value: role,
+      },
+      {
+        type: 'int',
+        value: index,
+      },
+    ])
+    return result.stack.readAddressOpt()
+  }
+
+  async getRoleMemberCount(p: ContractProvider, role: bigint): Promise<bigint> {
+    const result = await p.get('getRoleMemberCount', [
+      {
+        type: 'int',
+        value: role,
+      },
+    ])
+    return result.stack.readBigNumber()
+  }
+
+  // TODO: add getRoleMembers binding
 }
