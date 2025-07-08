@@ -39,3 +39,6 @@ node_modules/
 
 # Golangci-lint reports
 golangci-lint-*-report.xml
+
+# Golangci-lint config(We use a upstream config from core, see getting-started.md)
+.golangci.yml

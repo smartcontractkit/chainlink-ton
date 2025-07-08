@@ -10,7 +10,7 @@ import (
 
 	test_utils "integration-tests/utils"
 
-	counter_legacy "integration-tests/txm/wrappers/counter_legacy"
+	counter_legacy "integration-tests/txm/wrappers/counterlegacy"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/loop"
@@ -72,7 +72,7 @@ func runTxmTest(t *testing.T, logger logger.Logger, config txm.Config, tonChain 
 		ID:    big.NewInt(1337),
 		Count: big.NewInt(0),
 	}
-	counterAddr, stateInit, err := counter_legacy.BuildCounterStateInit(ctx, counterCfg)
+	counterAddr, stateInit, err := counter_legacy.BuildCounterStateInit(counterCfg)
 	require.NoError(t, err)
 
 	// 2. Send deploy tx
