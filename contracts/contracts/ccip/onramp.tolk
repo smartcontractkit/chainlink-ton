@@ -56,8 +56,22 @@ fun Storage.store(self) {
 
 type Msg = OnRampSend | MessageValidated<Metadata> | SetDynamicConfig | OnRampUpdateDestChainConfigs;
 
+<<<<<<< HEAD
 fun onInternalMessage(in: InMessage) {
     val msg = lazy Msg.fromSlice(in.body);
+=======
+fun onInternalMessage(msgCell: cell, msgBody: slice) {
+    if (msgBody.isEndOfBits() && msgBody.isEndOfRefs()) { // ignore all empty messages
+        return;
+    }
+
+    var cs     = msgCell.beginParse();
+    val flags  = cs.loadMessageFlags();
+    if (isMessageBounced(flags)) { return; } // ignore all bounced messages
+    val sender = cs.loadAddress();
+
+    val msg = Msg.fromSlice(msgBody);
+>>>>>>> 59fe496 (Update contracts to tolk 1.0)
     match (msg) {
         OnRampSend => { send(msg, in.senderAddress) }
         MessageValidated<Metadata> => { onMessageValidated(msg, in.senderAddress) }
@@ -142,6 +156,7 @@ fun onMessageValidated(payload: MessageValidated<Metadata>, sender: address) {
     // TODO: notify user
 }
 
+<<<<<<< HEAD
 get fun isChainSupported(destChainSelector: uint64): bool {
     val st = lazy Storage.load();
     val (_, exists) = st.destChainConfigs.get(destChainSelector);
@@ -228,6 +243,8 @@ fun withdrawFeeTokens() {
     
 }
 
+=======
+>>>>>>> 59fe496 (Update contracts to tolk 1.0)
 get fun typeAndVersion(): (slice, slice) {
      return ("com.chainlink.ton.ccip.OnRamp", "1.0.0");
  }

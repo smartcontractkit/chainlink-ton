@@ -21,7 +21,11 @@ fun Iterator<T>.new(data: cell): Iterator<T> {
 
 @inline @pure
 fun Iterator<T>.empty(self): bool {
+<<<<<<< HEAD
     return self.data.isEmpty()
+=======
+    return self.data.isEndOfBits() && self.data.isEndOfRefs();
+>>>>>>> 59fe496 (Update contracts to tolk 1.0)
 }
 
 

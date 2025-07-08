@@ -1,4 +1,4 @@
-tolk 0.99
+tolk 1.0
 
 const ERROR_ZERO_NPUT = 81;
 const ERROR_INVALID_CALLER = 82;

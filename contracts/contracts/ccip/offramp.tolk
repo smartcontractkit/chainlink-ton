@@ -122,8 +122,22 @@ struct (0x00000002) Execute {
 
 type Msg = Commit | Execute;
 
+<<<<<<< HEAD
 fun onInternalMessage(in:InMessage) {
     val msg = lazy Msg.fromSlice(in.body);
+=======
+fun onInternalMessage(msgCell: cell, msgBody: slice) {
+    if (msgBody.isEndOfBits() && msgBody.isEndOfRefs()) { // ignore all empty messages
+        return;
+    }
+
+    var cs     = msgCell.beginParse();
+    val flags  = cs.loadMessageFlags();
+    if (isMessageBounced(flags)) { return; } // ignore all bounced messages
+    val sender = cs.loadAddress();
+
+    val msg = Msg.fromSlice(msgBody);
+>>>>>>> 59fe496 (Update contracts to tolk 1.0)
     match (msg) {
         Commit => { commit(msg, in.senderAddress) }
         Execute => { _execute(msg, in.senderAddress) }
@@ -283,6 +297,7 @@ fun _execute(msg: Execute, sender: address) {
 // NOTE: this assumes router has a well known, static address. So two stage deployment: put up router, then compile the addr into contracts
 // (or init contract state with that router addr? probably what solana does)
 
+<<<<<<< HEAD
 // get fun executionState() {
 //     // TODO: node will need to directly look at MerkleRoot subcontracts
 // }
@@ -316,6 +331,8 @@ get fun allSourceChainConfigs(): tuple {
 
 fun applySourceChainConfigUpdates() {}
 
+=======
+>>>>>>> 59fe496 (Update contracts to tolk 1.0)
 get fun typeAndVersion(): (slice, slice) {
      return ("com.chainlink.ton.ccip.OffRamp", "1.0.0");
  }

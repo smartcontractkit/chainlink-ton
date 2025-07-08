@@ -1,4 +1,4 @@
-tolk 0.99
+tolk 1.0
 
 const MSG_INFO_REST_BITS = 1 + 4 + 4 + 64 + 32;
 const MSG_WITH_STATE_INIT_AND_BODY_SIZE = MSG_INFO_REST_BITS + 1 + 1 + 1;
