@@ -52,7 +52,7 @@ struct DestChainConfig {
 // the user is allowed to send. This will also allow users to deposit funds ahead of time
 // unless we intend to keep the allow list small?
 
-fun Storage.load() {
+fun Storage.load(): Storage {
     return Storage.fromCell(contract.getData());
 }
 
@@ -62,23 +62,20 @@ fun Storage.store(self) {
 
 type Msg = OnRampSend | MessageValidated<Metadata>;
 
-fun onInternalMessage(msgCell: cell, msgBody: slice) {
-    if (msgBody.isEnd()) { return; } // ignore all empty messages
-
-    var cs     = msgCell.beginParse();
-    val flags  = cs.loadMessageFlags();
-    if (isMessageBounced(flags)) { return; } // ignore all bounced messages
-    val sender = cs.loadAddress();
-
-    val msg = Msg.fromSlice(msgBody);
+fun onInternalMessage(in: InMessage) {
+    val msg = lazy Msg.fromSlice(in.body);
     match (msg) {
-        OnRampSend => { onSend(msg, sender) }
-        MessageValidated<Metadata> => { onMessageValidated(msg, sender) }
+        OnRampSend => { send(msg, in.senderAddress) }
+        MessageValidated<Metadata> => { onMessageValidated(msg, in.senderAddress) }
+        else => {
+            // ignore empty messages, "wrong opcode" for others
+            assert (in.body.isEmpty()) throw 0xFFFF
+        }
     }
 }
 
-fun onSend(payload: OnRampSend, sender: address) {
-    val st = Storage.load();
+fun send(payload: OnRampSend, sender: address) {
+    val st = lazy Storage.load();
     // ccipSend must be forwarded from the router
     assert(st.router == sender, ERROR_SENDER_NOT_ALLOWED);
 
@@ -88,8 +85,8 @@ fun onSend(payload: OnRampSend, sender: address) {
     val destChainConfig = st.destChainConfigs.mustGetRef(msg.destChainSelector, ERROR_UNKNOWN_DEST_CHAIN_SELECTOR);
     if (destChainConfig.allowlistEnabled) {
         // TODO:
-        // val (allowed, exists) = destChainConfig.allowedSenders.get(sender);
-        // assert(exists && allowed!, ERROR_SENDER_NOT_ALLOWED);
+        val (allowed, exists) = destChainConfig.allowedSenders.get(sender);
+        assert(exists && allowed!, ERROR_SENDER_NOT_ALLOWED);
     }
 
     // TODO: validate jetton amounts match msg.tokenAmounts
@@ -112,7 +109,7 @@ fun onSend(payload: OnRampSend, sender: address) {
 
 // TODO: do we follow solana model and merge router + onramp? aptos also does this
 fun onMessageValidated(payload: MessageValidated<Metadata>, sender: address) {
-    var st = Storage.load();
+    var st = lazy Storage.load();
     val config = st.config.load();
     // notification must come from fee quoter
     assert(config.feeQuoter == sender, ERROR_SENDER_NOT_ALLOWED);
@@ -138,6 +135,6 @@ fun onMessageValidated(payload: MessageValidated<Metadata>, sender: address) {
     // TODO: notify user
 }
 
-get typeAndVersion(): (slice, slice) {
+get fun typeAndVersion(): (slice, slice) {
      return ("com.chainlink.ton.ccip.OnRamp", "1.0.0");
  }

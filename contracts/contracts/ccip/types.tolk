@@ -119,23 +119,31 @@ struct TokenTransferFeeConfig {
     destBytesOverhead: uint32;
 }
 
-
 struct (0x10000001) UpdatePrices {
     updates: PriceUpdates    
 }
 
-struct (0x10000002) UpdateFeeTokens {
-    // add
-    // remove
-}
-struct (0x10000003) UpdatePremiumMultiplierWeiPerEth {
-    // token, multiplier
+struct FeeToken {
+    premiumMultiplierWeiPerEth: uint64
 }
 
-struct (0x10000004) UpdateTokenTransferFeeConfigs {
-    // add
-    // remove
+struct (0x10000002) UpdateFeeTokens {
+    add: Map<FeeToken>; // token -> config
+    remove: cell; // vector<address>
 }
+
+// NOTE: we just merged this into UpdateFeeTokens
+// struct (0x10000003) UpdatePremiumMultiplierWeiPerEth { // token, multiplier }
+
+struct (0x10000004) UpdateTokenTransferFeeConfigs {
+    // TODO: would these be more efficient as snakedata (key, value)?
+    updates: UMap<uint64, UpdateTokenTransferFeeConfig>; // destChainSelector -> updates
+}
+
+struct UpdateTokenTransferFeeConfig {
+    add: Map<TokenTransferFeeConfig>; // token address -> config
+    remove: cell; // vector<address>
+} 
 
 struct (0x10000005) UpdateDestChainConfig {
     destChainSelector: uint64;

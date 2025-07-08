@@ -37,7 +37,7 @@ struct Storage {
     destChainConfigs: UMap<uint64, DestChainConfig>
 }
 
-fun Storage.load() {
+fun Storage.load(): Storage {
     return Storage.fromCell(contract.getData());
 }
 
@@ -55,29 +55,91 @@ struct DestChainConfig {
     tokenTransferFeeConfigs: Map<TokenTransferFeeConfig>; // (sdict) address -> TokenTransferFeeConfig
 }
 
-type Msg = UpdatePrices | UpdateDestChainConfig | GetValidatedFee<cell>; // marked as cell since we never attempt to load the metadata
+type Msg = UpdatePrices
+    | UpdateFeeTokens
+    | UpdateTokenTransferFeeConfigs
+    | UpdateDestChainConfig
+    | GetValidatedFee<cell>; // marked as cell since we never attempt to load the metadata
 
-fun onInternalMessage(msgCell: cell, msgBody: slice) {
-    if (msgBody.isEnd()) { return; } // ignore all empty messages
-
-    var cs     = msgCell.beginParse();
-    val flags  = cs.loadMessageFlags();
-    if (isMessageBounced(flags)) { return; } // ignore all bounced messages
-    val sender = cs.loadAddress();
-
-    val msg = Msg.fromSlice(msgBody);
+fun onInternalMessage(in: InMessage) {
+    val msg = lazy Msg.fromSlice(in.body);
     match (msg) {
-        UpdatePrices => { onUpdatePrices(msg.updates) }
-        UpdateDestChainConfig => { onUpdateDestChainConfig(msg, msgBody, sender) }
-        GetValidatedFee<cell> => { onGetValidatedFee(msg, sender) }
+        UpdatePrices => {
+            // TODO: validate that price updates came from the offramp
+            var st = lazy Storage.load();
+            updatePrices(mutate st, msg.updates);
+            st.store();
+        }
+        UpdateFeeTokens => {
+            var st = lazy Storage.load();
+            st.ownable.requireOwner(in.senderAddress);
+            updateFeeTokens(mutate st, msg);
+            st.store();
+        }
+        UpdateTokenTransferFeeConfigs => {
+            var st = lazy Storage.load();
+            st.ownable.requireOwner(in.senderAddress);
+            updateTokenTransferFeeConfigs(mutate st, msg);
+            st.store();
+        }
+        UpdateDestChainConfig => {
+            var st = lazy Storage.load();
+            st.ownable.requireOwner(in.senderAddress);
+            updateDestChainConfig(mutate st, msg); // TODO: pass in st.destChainConfigs instead
+            st.store();
+        }
+        GetValidatedFee<cell> => { onGetValidatedFee(msg, in.senderAddress) }
+        else => {
+            // ignore empty messages, "wrong opcode" for others
+            assert (in.body.isEmpty()) throw 0xFFFF
+        }
+    }
+}
+
+fun updateFeeTokens(mutate st: Storage, msg: UpdateFeeTokens) {
+    var (token, config, exists) = msg.add.min();
+    while (exists) {
+        st.premiumMultiplierWeiPerEth.set(token!, config!.premiumMultiplierWeiPerEth);
+
+        (token, config, exists) = msg.add.next(token!);
+    }
+
+    var iter = Iterator<address>.new(msg.remove);
+    while (!iter.empty()) {
+        val tokenAddr = iter.next();
+        st.premiumMultiplierWeiPerEth.delete(tokenAddr);
+    }
+}
+
+fun updateTokenTransferFeeConfigs(mutate st: Storage, msg: UpdateTokenTransferFeeConfigs) {
+    var (destChainSelector, update, exists) = msg.updates.min();
+    while (exists) {
+        val (maybeDestChainConfig, configExists) = st.destChainConfigs.get(destChainSelector!);
+        if (configExists) {
+            var destChainConfig = maybeDestChainConfig!;
+
+            var (tokenAddr, config, existsInner) = update!.add.min();
+            while (existsInner) {
+                destChainConfig.tokenTransferFeeConfigs.set(tokenAddr!, config!);
+
+                (tokenAddr, config, existsInner) = update!.add.next(tokenAddr!);
+            }
+
+            var iter = Iterator<address>.new(update!.remove);
+            while (!iter.empty()) {
+                val tokenAddr = iter.next();
+                destChainConfig.tokenTransferFeeConfigs.delete(tokenAddr);
+            }
+
+            st.destChainConfigs.replace(destChainSelector!, destChainConfig);
+        }
+
+        (destChainSelector, update, exists) = msg.updates.next(destChainSelector!);
     }
 }
 
 // TODO: allow providing an array of these msgs to feeQuoter
-fun onUpdateDestChainConfig(msg: UpdateDestChainConfig, msgBody: slice, sender: address) {
-    var st = Storage.load();
-    st.ownable.requireOwner(sender);
-
+fun updateDestChainConfig(mutate st: Storage, msg: UpdateDestChainConfig) {
     val (maybeDestChainConfig, exists) = st.destChainConfigs.get(msg.destChainSelector);
     if (exists) {
         var destChainConfig = maybeDestChainConfig!;
@@ -94,13 +156,9 @@ fun onUpdateDestChainConfig(msg: UpdateDestChainConfig, msgBody: slice, sender: 
             tokenTransferFeeConfigs: Map<TokenTransferFeeConfig>.new()
         })
     }
-    st.store();
 }
 
-fun onUpdatePrices(priceUpdates: PriceUpdates) {
-    // TODO: validate that price updates came from the offramp
-
-    var st = Storage.load();
+fun updatePrices(mutate st: Storage, priceUpdates: PriceUpdates) {
     val timestamp = blockchain.now();
 
     // TODO: assert cells are well-formed
@@ -147,7 +205,7 @@ fun DestChainConfig.getValidatedGasPrice(self): (uint112, uint112) {
 }
 
 get fun validatedFee(msg: CCIPSend): uint256 {
-    var st = Storage.load();
+    var st = lazy Storage.load();
 
     val destChainConfig = st.destChainConfigs.mustGet(msg.destChainSelector, ERROR_DEST_CHAIN_NOT_ENABLED);
     assert(destChainConfig.config.isEnabled, ERROR_DEST_CHAIN_NOT_ENABLED);
@@ -293,6 +351,6 @@ fun getTokenTransferCost(st: Storage, destChainConfig: DestChainConfig, mutate t
     return (count, tokenTransferFeeWei, tokenTransferGas, tokenTransferBytesOverhead);
 }
 
-get typeAndVersion(): (slice, slice) {
+get fun typeAndVersion(): (slice, slice) {
      return ("com.chainlink.ton.ccip.FeeQuoter", "1.0.0");
  }

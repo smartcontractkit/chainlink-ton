@@ -23,7 +23,7 @@ struct Storage {
     latestPriceSequenceNumber: uint64,
 }
 
-fun Storage.load() {
+fun Storage.load(): Storage {
     return Storage.fromCell(contract.getData());
 }
 
@@ -122,18 +122,15 @@ struct (0x00000002) Execute {
 
 type Msg = Commit | Execute;
 
-fun onInternalMessage(msgCell: cell, msgBody: slice) {
-    if (msgBody.isEnd()) { return; } // ignore all empty messages
-
-    var cs     = msgCell.beginParse();
-    val flags  = cs.loadMessageFlags();
-    if (isMessageBounced(flags)) { return; } // ignore all bounced messages
-    val sender = cs.loadAddress();
-
-    val msg = Msg.fromSlice(msgBody);
+fun onInternalMessage(in:InMessage) {
+    val msg = lazy Msg.fromSlice(in.body);
     match (msg) {
-        Commit => { commit(msg, sender) }
-        Execute => { _execute(msg, sender) }
+        Commit => { commit(msg, in.senderAddress) }
+        Execute => { _execute(msg, in.senderAddress) }
+        else => {
+            // ignore empty messages, "wrong opcode" for others
+            assert (in.body.isEmpty()) throw 0xFFFF
+        }
     }
 }
 
@@ -146,7 +143,7 @@ fun getMerkleRootID(merkleRoot: uint256): builder {
 }
 
 fun commit(msg: Commit, sender: address) {
-    val st = Storage.load();
+    val st = lazy Storage.load();
 
     // ocr3 base: validate signatures
 
@@ -212,7 +209,7 @@ fun commit(msg: Commit, sender: address) {
 }
 
 fun _execute(msg: Execute, sender: address) {
-    val st = Storage.load();
+    val st = lazy Storage.load();
 
     // ocr3 base: validate execute report
 
@@ -286,6 +283,6 @@ fun _execute(msg: Execute, sender: address) {
 // NOTE: this assumes router has a well known, static address. So two stage deployment: put up router, then compile the addr into contracts
 // (or init contract state with that router addr? probably what solana does)
 
-get typeAndVersion(): (slice, slice) {
+get fun typeAndVersion(): (slice, slice) {
      return ("com.chainlink.ton.ccip.OffRamp", "1.0.0");
  }

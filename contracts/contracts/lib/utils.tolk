@@ -1,9 +1,5 @@
 const ERROR_INVALID_DATA = 0x77;
 
-fun isMessageBounced(msgFlags: int): int
-    asm "1 PUSHINT" "AND";
-
-
 @inline
 fun emit<T>(topic: int, body: T) {
     val emitMsg = createExternalLogMessage({
@@ -25,7 +21,7 @@ fun Iterator<T>.new(data: cell) {
 
 @inline @pure
 fun Iterator<T>.empty(self): bool {
-    return self.data.isEnd()
+    return self.data.isEmpty()
 }
 
 
