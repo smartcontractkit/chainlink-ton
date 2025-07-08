@@ -38,12 +38,8 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
     // Load the contract storage
     var s = loadData();
 
-    var rbac: AccessControl<Timelock> = {
-        data: AccessControl_Data.fromCell(s.rbac),
-        // no runtime extensions
-        context: null,
-        hooks: null,
-    };
+    var timelock: Timelock = {};
+    var rbac = timelock.hookTrait__AccessControl();
 
     val senderAddress: address = cs.loadAddress();
     cs.loadAddress(); // skip dst
@@ -169,4 +165,20 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
     }
 
     throw ERROR_WRONG_OP;
+}
+
+// --- Extension hooks ---
+
+@inline
+fun Timelock.hookTrait__AccessControl(self): AccessControl<Timelock>{
+    // Load the contract storage
+    var s = loadData();
+
+    // Construct trait instance (with AccessControl<Timelock>)
+    return {
+        data: AccessControl_Data.fromCell(s.rbac),
+        // no runtime extensions
+        context: null,
+        hooks: null,
+    };
 }
