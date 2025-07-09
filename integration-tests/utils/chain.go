@@ -154,7 +154,7 @@ func CreateAPIClient(t *testing.T, chainID uint64) *ton.APIClient {
 	bcInput := &blockchain.Input{
 		ChainID:   strconv.FormatUint(chainID, 10),
 		Type:      "ton",
-		Image:     "ghcr.io/neodix42/mylocalton-docker:latest",
+		Image:     "ghcr.io/neodix42/mylocalton-docker:sha256:69cdfa23783acd2162f6730f4b05a1916b1b75629114fbfb6519aa3aff482246",
 		PullImage: true,
 		Port:      strconv.Itoa(port),
 	}
