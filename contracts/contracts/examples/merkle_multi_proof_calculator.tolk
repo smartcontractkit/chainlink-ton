@@ -22,11 +22,7 @@ struct(0x00000001) CalculateRoot {
 }
 
 fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: slice) {
-<<<<<<< HEAD
     if (msgBody.isEmpty()) { // ignore all empty messages
-=======
-    if (msgBody.isEndOfBits() && msgBody.isEndOfRefs()) { // ignore all empty messages
->>>>>>> 59fe496 (Update contracts to tolk 1.0)
         return;
     }
 

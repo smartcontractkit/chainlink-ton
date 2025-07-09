@@ -210,6 +210,20 @@ get fun getRoleMember(role: int, index: uint32): address {
     return rbac.getRoleMember(role, index);
 }
 
+/// @see <AccessControl<T>.getRoleMemberFirst>
+get fun getRoleMemberFirst(role: int): address {
+    var timelock: Timelock = {};
+    var rbac = timelock.hookTrait__AccessControl();
+    return rbac.getRoleMemberFirst(role);
+}
+
+/// @see <AccessControl<T>.getRoleMemberNext>
+get fun getRoleMemberNext(role: int, pivot: address): address {
+    var timelock: Timelock = {};
+    var rbac = timelock.hookTrait__AccessControl();
+    return rbac.getRoleMemberNext(role, pivot);
+}
+
 /// @see <AccessControl<T>.getRoleMemberCount>
 get fun getRoleMemberCount(role: int): int {
     var timelock: Timelock = {};
