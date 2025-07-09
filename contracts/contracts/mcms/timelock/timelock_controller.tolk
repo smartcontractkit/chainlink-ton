@@ -64,7 +64,6 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
           || timelockAdmin.onInternalMessage(myBalance, msgValue, msgFull, msgBody);
 
         if (msgHandeled) {
-            debug.printString("Admin message handled");
             // Map from underlying trait storage to contract storage
             s.minDelay = timelockAdmin.minDelay;
             s.timestampCount = timelockAdmin.timestampCount;
