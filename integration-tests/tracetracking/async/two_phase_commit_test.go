@@ -16,9 +16,10 @@ import (
 )
 
 func TestTwoPhaseCommit(t *testing.T) {
+	var initialAmount = big.NewInt(1_000_000_000_000)
+	accs := testutils.SetUpTest(t, chainsel.TON_LOCALNET.Selector, initialAmount, 1)
+
 	t.Run("AutoAck", func(t *testing.T) {
-		var initialAmount = big.NewInt(1_000_000_000_000)
-		accs := testutils.SetUpTest(t, chainsel.TON_LOCALNET.Selector, initialAmount, 1)
 		alice := accs[0]
 
 		fmt.Printf("\n\n\n\n\n\nTest Setup\n==========================\n")
@@ -74,8 +75,6 @@ func TestTwoPhaseCommit(t *testing.T) {
 	})
 
 	t.Run("AcksBeforeCommit", func(t *testing.T) {
-		var initialAmount = big.NewInt(1_000_000_000_000)
-		accs := testutils.SetUpTest(t, chainsel.TON_LOCALNET.Selector, initialAmount, 1)
 		alice := accs[0]
 
 		fmt.Printf("\n\n\n\n\n\nTest Setup\n==========================\n")
@@ -147,8 +146,6 @@ func TestTwoPhaseCommit(t *testing.T) {
 	})
 
 	t.Run("AcksAfterCommit", func(t *testing.T) {
-		var initialAmount = big.NewInt(1_000_000_000_000)
-		accs := testutils.SetUpTest(t, chainsel.TON_LOCALNET.Selector, initialAmount, 1)
 		alice := accs[0]
 
 		fmt.Printf("\n\n\n\n\n\nTest Setup\n==========================\n")
@@ -220,8 +217,6 @@ func TestTwoPhaseCommit(t *testing.T) {
 	})
 
 	t.Run("OneAckAfterCommit", func(t *testing.T) {
-		var initialAmount = big.NewInt(1_000_000_000_000)
-		accs := testutils.SetUpTest(t, chainsel.TON_LOCALNET.Selector, initialAmount, 1)
 		alice := accs[0]
 
 		fmt.Printf("\n\n\n\n\n\nTest Setup\n==========================\n")

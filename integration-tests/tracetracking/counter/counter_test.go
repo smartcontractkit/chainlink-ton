@@ -18,9 +18,10 @@ import (
 )
 
 func TestCounter(t *testing.T) {
+	var initialAmount = big.NewInt(1_000_000_000_000)
+	seeders := testutils.SetUpTest(t, chainsel.TON_LOCALNET.Selector, initialAmount, 1)
+
 	t.Run("TestCounter", func(t *testing.T) {
-		var initialAmount = big.NewInt(1_000_000_000_000)
-		seeders := testutils.SetUpTest(t, chainsel.TON_LOCALNET.Selector, initialAmount, 1)
 		alice := seeders[0]
 
 		fmt.Printf("\n\n\n\n\n\nTest Setup\n==========================\n")

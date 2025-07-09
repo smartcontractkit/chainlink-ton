@@ -16,9 +16,10 @@ import (
 )
 
 func TestTwoMsgChain(t *testing.T) {
+	var initialAmount = big.NewInt(1_000_000_000_000)
+	accs := testutils.SetUpTest(t, chainsel.TON_LOCALNET.Selector, initialAmount, 1)
+
 	t.Run("TestMemoryContract", func(t *testing.T) {
-		var initialAmount = big.NewInt(1_000_000_000_000)
-		accs := testutils.SetUpTest(t, chainsel.TON_LOCALNET.Selector, initialAmount, 1)
 		alice := accs[0]
 		const initValue = uint32(0)
 		fmt.Printf("\n\n\n\n\n\nTestStarted\n==========================\n")
@@ -43,10 +44,7 @@ func TestTwoMsgChain(t *testing.T) {
 	})
 
 	t.Run("TestTwoMsgChain", func(t *testing.T) {
-		var initialAmount = big.NewInt(1_000_000_000_000)
-		accs := testutils.SetUpTest(t, chainsel.TON_LOCALNET.Selector, initialAmount, 1)
 		alice := accs[0]
-
 		fmt.Printf("\n\n\n\n\n\nTestStarted\n==========================\n")
 		const initValue = uint32(0)
 		fmt.Printf("Deploying memory contract with initial value %d\n", initValue)
