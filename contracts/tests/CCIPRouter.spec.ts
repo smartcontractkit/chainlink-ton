@@ -11,10 +11,8 @@ import {
   TimestampedPrice,
 } from '../wrappers/ccip/FeeQuoter'
 import '@ton/test-utils'
+import { ZERO_ADDRESS } from './utils'
 
-const ZERO_ADDRESS: Address = Address.parse(
-  '0:0000000000000000000000000000000000000000000000000000000000000000',
-)
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_TON = 13879075125137744094n
 
@@ -169,7 +167,6 @@ describe('Router', () => {
         value: 123n,
         timestamp: BigInt(Date.now()),
       } as TimestampedPrice)
-      data.premiumMultiplierWeiPerEth.set(ZERO_ADDRESS, 1n)
       feeQuoter = blockchain.openContract(FeeQuoter.createFromConfig(data, code))
 
       let result = await feeQuoter.sendDeploy(deployer.getSender(), toNano('1'))
@@ -211,7 +208,16 @@ describe('Router', () => {
         to: feeQuoter.address,
         success: true,
       })
-      // TODO: call UpdateTokenTransferFeeConfigs, or maybe bundle this with UpdateDestChainConfig
+      // configure the feeToken
+      result = await feeQuoter.sendUpdateFeeTokens(deployer.getSender(), {
+        value: toNano('1'),
+        add: [{ token: ZERO_ADDRESS, premiumMultiplier: 1n }],
+        remove: [],
+      })
+      expect(result.transactions).toHaveTransaction({
+        to: feeQuoter.address,
+        success: true,
+      })
       // TODO: call UpdatePrices so there's a price available and the timestamp isn't zero
     }
     // setup onramp

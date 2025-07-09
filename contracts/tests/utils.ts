@@ -1,4 +1,6 @@
-import { beginCell, Builder, Cell } from '@ton/core'
+import { Address, beginCell, Builder, Cell } from '@ton/core'
+
+export const ZERO_ADDRESS: Address = Address.parse('0:0000000000000000000000000000000000000000000000000000000000000000');
 
 export function asSnakeData<T>(array: T[], builderFn: (item: T) => Builder): Cell {
   const cells: Builder[] = []

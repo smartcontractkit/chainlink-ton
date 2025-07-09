@@ -1,3 +1,4 @@
+import "@stdlib/lisp-lists"
 import "types.tolk";
 import "../lib/access/ownable_2step.tolk";
 import "../deployable/types.tolk";
@@ -88,7 +89,7 @@ fun onInternalMessage(in: InMessage) {
             updateDestChainConfig(mutate st, msg); // TODO: pass in st.destChainConfigs instead
             st.store();
         }
-        GetValidatedFee<cell> => { onGetValidatedFee(msg, in.senderAddress) }
+        GetValidatedFee<cell> => { getValidatedFee(msg, in.senderAddress) }
         else => {
             // ignore empty messages, "wrong opcode" for others
             assert (in.body.isEmpty()) throw 0xFFFF
@@ -209,7 +210,9 @@ get fun validatedFee(msg: CCIPSend): uint256 {
 
     val destChainConfig = st.destChainConfigs.mustGet(msg.destChainSelector, ERROR_DEST_CHAIN_NOT_ENABLED);
     assert(destChainConfig.config.isEnabled, ERROR_DEST_CHAIN_NOT_ENABLED);
-    // TODO: assert(cfg.feeTokens contains msg.feeToken, ERROR_FEE_TOKEN_NOT_SUPPORTED);
+    // validate the fee token is actually supported
+    val premiumMultiplier = st.premiumMultiplierWeiPerEth.mustGet(msg.feeToken, ERROR_FEE_TOKEN_NOT_SUPPORTED) as uint256;
+    val feeTokenPrice = st.usdPerToken.mustGet(msg.feeToken, ERROR_FEE_TOKEN_NOT_SUPPORTED);
 
     var gasLimit = 0;
     // NOTE: we could deploy distinct contracts to cut down on code
@@ -278,10 +281,6 @@ get fun validatedFee(msg: CCIPSend): uint256 {
         * destChainConfig.config.destDataAvailabilityMultiplierBps as uint256
         * VAL_1E14;
 
-    // TODO: this should be eagerly validated in the router.ccipSend to revert early?
-    val feeTokenPrice = st.usdPerToken.mustGet(msg.feeToken, ERROR_FEE_TOKEN_NOT_SUPPORTED);
-    val premiumMultiplier = st.premiumMultiplierWeiPerEth.mustGet(msg.feeToken, ERROR_FEE_TOKEN_NOT_SUPPORTED) as uint256;
-
     // At this step, every fee component has been raised to 36 decimals
     val feeTokenValue =
         (premiumFeeUsdWei * premiumMultiplier) + executionCost + dataAvailabilityCost;
@@ -294,7 +293,7 @@ get fun validatedFee(msg: CCIPSend): uint256 {
     return feeTokenAmount;
 }
 
-fun onGetValidatedFee(payload: GetValidatedFee<cell>, sender: address) {
+fun getValidatedFee(payload: GetValidatedFee<cell>, sender: address) {
     val msg = payload.msg.load();
     val feeTokenAmount = validatedFee(msg);
 
@@ -349,6 +348,61 @@ fun getTokenTransferCost(st: Storage, destChainConfig: DestChainConfig, mutate t
         }
     }
     return (count, tokenTransferFeeWei, tokenTransferGas, tokenTransferBytesOverhead);
+}
+
+get fun tokenPrice(token: address): TimestampedPrice {
+    val st = lazy Storage.load();
+    return st.usdPerToken.mustGet(token, ERROR_TOKEN_NOT_SUPPORTED);
+}
+
+// vec<TimestampedPrice>
+get fun tokenPrices(tokens: tuple): tuple {
+    val st = lazy Storage.load();
+    
+    var list: tuple? = null;
+
+    // TODO: are we able to get dynamic tuple inputs in getters?
+    var iter = TupleIterator<address>.new(tokens);
+
+    while(!iter.empty()) {
+        val token = iter.next();
+        list = listPrepend(token, list);
+    }
+    return list!;
+}
+
+get fun destinationChainGasPrice(destChainSelector: uint64) {
+    
+}
+
+get fun tokenAndGasPrices(token: address, destChainSelector: uint64) {
+    
+}
+
+// vec<address>
+get fun feeTokens(): tuple {
+    val st = lazy Storage.load();
+    var d = st.premiumMultiplierWeiPerEth.value;
+    
+    var list: tuple? = null;
+    do {
+        var (key: slice?, _value: slice?, found: bool) = d.sDictDeleteFirstAndGet(ADDR_KEY_LEN);
+        if (found) {
+            var address = key! as address;
+            list = listPrepend(address, list);
+        }
+    } while (found);
+    return list!;
+}
+
+get fun tokenTransferFeeConfig() {}
+
+// TODO: processMessageArgs(), processPoolReturnData()?
+
+get fun destChainConfig() {}
+
+get fun staticConfig() {
+    // maxFeeJuelsPerMsg, linkToken, tokenPriceStalenessThreshold
 }
 
 get fun typeAndVersion(): (slice, slice) {

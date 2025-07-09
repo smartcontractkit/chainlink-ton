@@ -47,7 +47,16 @@ struct (0x00000002) OnRampSend {
     // TODO: metadata { caller, value, tokenAmounts }
 }
 
-struct SetDynamicConfig {}
+struct OnRampDynamicConfig {
+    feeQuoter: address;
+    // destination address that will receive tokens on withdrawFees
+    feeAggregator: address;
+    allowlistAdmin: address;
+}
+
+struct (0x10000003) SetDynamicConfig {
+    config: OnRampDynamicConfig
+}
 
 struct UpdateDestChainConfigs {}
 

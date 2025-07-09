@@ -283,6 +283,39 @@ fun _execute(msg: Execute, sender: address) {
 // NOTE: this assumes router has a well known, static address. So two stage deployment: put up router, then compile the addr into contracts
 // (or init contract state with that router addr? probably what solana does)
 
+// get fun executionState() {
+//     // TODO: node will need to directly look at MerkleRoot subcontracts
+// }
+
+// get fun merkleRoot() {
+//     // TODO: node will need to directly look at MerkleRoot subcontracts
+// }
+
+get fun latestPriceSequenceNumber() {
+    
+}
+
+get fun staticConfig() {
+    // chainSelector, gasForCallExactCheck?, rmnRemote, nonceManager, tokenAdminRegistry
+}
+
+
+fun setDynamicConfig() {
+    
+}
+
+get fun dynamicConfig() {
+    
+}
+
+get fun sourceChainConfig() {}
+
+get fun allSourceChainConfigs(): tuple {
+    return createEmptyTuple()
+}
+
+fun applySourceChainConfigUpdates() {}
+
 get fun typeAndVersion(): (slice, slice) {
      return ("com.chainlink.ton.ccip.OffRamp", "1.0.0");
  }

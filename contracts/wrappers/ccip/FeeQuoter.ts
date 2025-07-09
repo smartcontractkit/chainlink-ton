@@ -13,6 +13,7 @@ import {
 } from '@ton/core'
 
 import { Ownable2StepConfig } from '../libraries/access/Ownable2Step'
+import { asSnakeData } from '../../tests/utils'
 
 export type FeeQuoterStorage = {
   ownable: Ownable2StepConfig
@@ -121,7 +122,9 @@ export const Builder = {
 export abstract class Params {}
 
 export abstract class Opcodes {
-  static updateDestChainConfig = 0x10000005
+  static updateFeeTokens          = 0x10000002
+  static updateTransferFeeConfigs = 0x10000004
+  static updateDestChainConfig    = 0x10000005
 }
 
 export abstract class Errors {}
@@ -174,6 +177,36 @@ export class FeeQuoter implements Contract {
         .storeUint(Opcodes.updateDestChainConfig, 32)
         .storeUint(opts.destChainSelector, 64)
         .storeBuilder(destChainConfigToBuilder(opts.config))
+        .endCell(),
+    })
+  }
+
+  async sendUpdateFeeTokens(
+    provider: ContractProvider,
+    via: Sender,
+    opts: {
+      value: bigint
+      add: { token: Address, premiumMultiplier: bigint }[]
+      remove: Address[]
+    },
+  ) {
+    // token -> premiumMultiplierWeiPerEth
+    let add = Dictionary.empty(
+      Dictionary.Keys.Address(),
+      Dictionary.Values.BigUint(64),
+    );
+    for (const config of opts.add) {
+      add.set(config.token, config.premiumMultiplier);
+    }
+    const remove = asSnakeData(opts.remove, (addr) => new TonBuilder().storeAddress(addr))
+
+    return await provider.internal(via, {
+      value: opts.value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: beginCell()
+        .storeUint(Opcodes.updateFeeTokens, 32)
+        .storeDict(add)
+        .storeRef(remove)
         .endCell(),
     })
   }

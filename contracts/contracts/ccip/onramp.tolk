@@ -1,3 +1,4 @@
+import "@stdlib/lisp-lists"
 import "types.tolk";
 import "../lib/access/ownable_2step.tolk";
 import "../lib/upgrades/type_and_version.tolk";
@@ -29,16 +30,10 @@ struct Storage {
     // does onramp even do anything apart from forwarding to fee quoter?
 
     // dynamic config
-    config: Cell<DynamicConfig>;
+    config: Cell<OnRampDynamicConfig>;
 
+    // TODO: stop using getRef/use get if it can fit
     destChainConfigs: UMap<uint64, DestChainConfig>; // chainSelector -> DestChainConfig
-}
-
-struct DynamicConfig {
-    feeQuoter: address;
-    // destination address that will receive tokens on withdrawFees
-    feeAggregator: address;
-    allowlistAdmin: address;
 }
 
 struct DestChainConfig {
@@ -60,13 +55,19 @@ fun Storage.store(self) {
     return contract.setData(self.toCell());
 }
 
-type Msg = OnRampSend | MessageValidated<Metadata>;
+type Msg = OnRampSend | MessageValidated<Metadata> | SetDynamicConfig;
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy Msg.fromSlice(in.body);
     match (msg) {
         OnRampSend => { send(msg, in.senderAddress) }
         MessageValidated<Metadata> => { onMessageValidated(msg, in.senderAddress) }
+        SetDynamicConfig => {
+            var st = lazy Storage.load();
+            st.ownable.requireOwner(in.senderAddress);
+            st.config = msg.config.toCell();
+            st.store();
+        }
         else => {
             // ignore empty messages, "wrong opcode" for others
             assert (in.body.isEmpty()) throw 0xFFFF
@@ -133,6 +134,74 @@ fun onMessageValidated(payload: MessageValidated<Metadata>, sender: address) {
     });
 
     // TODO: notify user
+}
+
+get fun isChainSupported(destChainSelector: uint64): bool {
+    val st = lazy Storage.load();
+    val (_, exists) = st.destChainConfigs.getRef(destChainSelector);
+    return exists;
+}
+
+get fun expectedNextSequenceNumber(destChainSelector: uint64): uint64 {
+    val st = lazy Storage.load();
+    val config = st.destChainConfigs.mustGetRef(destChainSelector,ERROR_UNKNOWN_DEST_CHAIN_SELECTOR);
+    return config.sequenceNumber;
+}
+
+// TODO: getFee forwarding? users should just call the fee quoter
+
+get fun staticConfig() {
+    // chainSelector, rmnRemote, nonceManager, tokenAdminRegistry
+}
+
+get fun dynamicConfig(): OnRampDynamicConfig {
+    val st = lazy Storage.load();
+    return st.config.load()
+}
+
+fun applyDestChainConfigUpdates() {
+    
+}
+
+get fun destChainConfig(destChainSelector: uint64): DestChainConfig {
+    val st = lazy Storage.load();
+    return st.destChainConfigs.mustGetRef(destChainSelector,ERROR_UNKNOWN_DEST_CHAIN_SELECTOR);
+}
+
+// vec<address>
+get fun allowedSendersList(destChainSelector: uint64): tuple {
+    val st = lazy Storage.load();
+    val config = st.destChainConfigs.mustGetRef(destChainSelector,ERROR_UNKNOWN_DEST_CHAIN_SELECTOR);
+    var d = config.allowedSenders.value;
+
+    var list: tuple? = null;
+    do {
+        var (key: slice?, _value: slice?, found: bool) = d.sDictDeleteFirstAndGet(ADDR_KEY_LEN);
+        if (found) {
+            // var (wc, addressHash) = (key! as address).getWorkchainAndHash();
+            // list = listPrepend([wc, addressHash], list);
+            var address = key! as address;
+            list = listPrepend(address, list);
+        }
+    } while (found);
+
+    return list!;
+}
+
+fun applyAllowlistUpdates() {
+    
+}
+
+// outboundNonce() TODO: nonceManager?
+// calculateMetadataHash/calculateMessageHash
+
+get fun supportedTokens() {
+    // TODO?
+}
+
+
+fun withdrawFeeTokens() {
+    
 }
 
 get fun typeAndVersion(): (slice, slice) {

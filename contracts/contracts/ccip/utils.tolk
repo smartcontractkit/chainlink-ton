@@ -99,7 +99,7 @@ fun UMap<K, V>.mustGet(self, key: K, errorCode: int): V {
 }
 
 @inline @pure
-fun UMap<K, V>.getRef(self, key: K, errorCode: int): V {
+fun UMap<K, V>.getRef(self, key: K): (V?, bool) {
     val (value, exists) = self.value.uDictGetRef(self.keyLen, key);
     if (!exists) {
         return (null, false);
