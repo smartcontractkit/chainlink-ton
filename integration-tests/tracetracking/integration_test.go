@@ -1,28 +1,95 @@
-package async
+package tracetracking
 
 import (
+	"context"
 	"fmt"
 	"math/big"
 	"math/rand/v2"
-
 	"testing"
 
 	"integration-tests/tracetracking/async/wrappers/requestreply"
 	"integration-tests/tracetracking/async/wrappers/requestreplywithtwodependencies"
 	"integration-tests/tracetracking/async/wrappers/twomsgchain"
 	"integration-tests/tracetracking/async/wrappers/twophasecommit"
+	counter "integration-tests/tracetracking/counter/wrappers"
 	"integration-tests/tracetracking/testutils"
 
 	chainsel "github.com/smartcontractkit/chain-selectors"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tlb"
 )
 
-func TestRequestReply(t *testing.T) {
+func TestIntegration(t *testing.T) {
 	var initialAmount = big.NewInt(1_000_000_000_000)
-	accs := testutils.SetUpTest(t, chainsel.TON_LOCALNET.Selector, initialAmount, 1)
+	accs := testutils.SetUpTest(t, chainsel.TON_LOCALNET.Selector, initialAmount, 2)
+	t.Run("TestDepositFees", func(t *testing.T) {
+		alice := accs[0]
+		bob := accs[1]
+
+		var transferAmount = big.NewInt(100)
+		fmt.Printf("\n\n\n\n\n\nTestStarted\n==========================\n")
+		transfer, err := alice.Wallet.BuildTransfer(bob.Wallet.WalletAddress(), tlb.FromNanoTON(transferAmount), false, "deposit")
+		require.NoError(t, err, "failed to build transfer: %w", err)
+		externalMessageReceived, _, err := alice.SendWaitTransaction(context.TODO(), *bob.Wallet.WalletAddress(), transfer)
+		require.NoError(t, err, "failed to send transaction: %w", err)
+		fmt.Printf("\n==========================\nreceivedMessage: %+v\n==========================\n", externalMessageReceived)
+		rerr := externalMessageReceived.WaitForTrace(&bob)
+		require.NoError(t, rerr, "failed to wait for trace: %w", rerr)
+		fmt.Printf("Transaction finalized\n")
+		fmt.Printf("\n==========================\nFinalized msg: %+v\n==========================\n", externalMessageReceived)
+
+		aliceBalance := testutils.MustGetBalance(t, alice)
+		testutils.VerifyTransaction(t, externalMessageReceived, initialAmount, big.NewInt(0).Neg(transferAmount), aliceBalance)
+
+		internalMessagedReceivedByBob := externalMessageReceived.OutgoingInternalReceivedMessages[0]
+		require.NotNil(t, internalMessagedReceivedByBob, "Internal message not received by Bob")
+		bobBalance := testutils.MustGetBalance(t, bob)
+		testutils.VerifyTransaction(t, internalMessagedReceivedByBob, initialAmount, transferAmount, bobBalance)
+	})
+
+	t.Run("TestCounter", func(t *testing.T) {
+		alice := accs[0]
+
+		fmt.Printf("\n\n\n\n\n\nTest Setup\n==========================\n")
+
+		fmt.Printf("Deploying Counter contract\n")
+		counter, err := counter.NewCounterProvider(alice).Deploy(counter.CounterInitData{ID: (rand.Uint32()), Value: 100})
+		require.NoError(t, err, "failed to deploy Counter contract: %w", err)
+		fmt.Printf("Counter contract deployed at %s\n", counter.Contract.Address.String())
+
+		fmt.Printf("\n\n\n\n\n\nTest Started\n==========================\n")
+
+		fmt.Printf("Checking initial value\n")
+		result, err := counter.GetValue()
+		require.NoError(t, err, "failed to get initial value: %w", err)
+		expectedValue := uint32(100)
+		require.Equal(t, expectedValue, result, "Expected initial value %d, got %d", expectedValue, result)
+		fmt.Printf("Initial value: %d\n", result)
+
+		fmt.Printf("Sending SetCount request\n")
+		msgReceived, err := counter.SendSetCount(1)
+		require.NoError(t, err, "failed to send SetCount request: %w", err)
+		require.Equal(t, tvm.ExitCodeSuccess, msgReceived.ExitCode, "Expected exit code 0, got %d", msgReceived.ExitCode)
+		outgoingCount := len(msgReceived.OutgoingInternalReceivedMessages)
+		require.Equal(t, 1, outgoingCount, "Expected 1 outgoing internal received message, got %d", outgoingCount)
+		internalExitCode := msgReceived.OutgoingInternalReceivedMessages[0].ExitCode
+		require.Equal(t, tvm.ExitCodeSuccess, internalExitCode, "Expected exit code 0, got %d", internalExitCode)
+		fmt.Printf("msgReceived: %+v\n", msgReceived)
+		fmt.Printf("SetCount request sent\n")
+
+		fmt.Printf("Checking result\n")
+		result, err = counter.GetValue()
+		require.NoError(t, err, "failed to get value: %w", err)
+		expectedValue = uint32(1)
+		require.Equal(t, expectedValue, result, "Expected value %d, got %d", expectedValue, result)
+		fmt.Printf("Result: %d\n", result)
+
+		fmt.Printf("Test completed successfully\n")
+	})
 
 	t.Run("TestRequestReply", func(t *testing.T) {
 		alice := accs[0]
