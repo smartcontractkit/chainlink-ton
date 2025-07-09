@@ -41,26 +41,23 @@ import "../utils.tolk";
  * accounts that have been granted it.
  */
 
-const LEN_ADDRESS = 267;  // '100' (std addr no anycast) + workchain 8 + hash LEN_ROLE
-const LEN_ROLE = 256; // LEN_ROLE bits for role ID
-
 // --- Message structs ---
 
 /// @dev Grants `role` to `account`.
 ///
-/// If `account` had not been already granted `role`, emits a {RoleGranted} event.
+/// If `account` had not been already granted `role`, emits a {AccessControl_RoleGranted} event.
 ///
 /// Requirements:
 ///
 /// - the caller must have `role`'s admin role.
 ///
-/// May emit a {RoleGranted} event.
+/// May emit a {AccessControl_RoleGranted} event.
 ///
 struct (0x95cd540f) AccessControl_GrantRole {
     /// Query ID of the change owner request.
     queryId: uint64;
 
-    /// Role of the account.
+    /// Role definition.
     role: uint256;
     /// New account to add.
     account: address;
@@ -68,19 +65,19 @@ struct (0x95cd540f) AccessControl_GrantRole {
 
 /// @dev Revokes `role` from `account`.
 ///
-/// If `account` had been granted `role`, emits a {RoleRevoked} event.
+/// If `account` had been granted `role`, emits a {AccessControl_RoleRevoked} event.
 ///
 /// Requirements:
 ///
 /// - the caller must have `role`'s admin role.
 ///
-/// May emit a {RoleRevoked} event.
+/// May emit a {AccessControl_RoleRevoked} event.
 ///
 struct (0x969b0db9) AccessControl_RevokeRole {
     /// Query ID of the change owner request.
     queryId: uint64;
 
-    /// Role of the account.
+    /// Role definition.
     role: uint256;
     /// Account to revoke.
     account: address;
@@ -88,23 +85,24 @@ struct (0x969b0db9) AccessControl_RevokeRole {
 
 /// @dev Revokes `role` from the calling account.
 ///
-/// Roles are often managed via {grantRole} and {revokeRole}: this function's
-/// purpose is to provide a mechanism for accounts to lose their privileges
-/// if they are compromised (such as when a trusted device is misplaced).
+/// Roles are often managed via {AccessControl_GrantRole} and
+/// {AccessControl_RevokeRole}: this function's purpose is to provide a
+/// mechanism for accounts to lose their privileges if they are
+/// compromised (such as when a trusted device is misplaced).
 ///
-/// If `account` had been granted `role`, emits a {RoleRevoked} event.
+/// If `account` had been granted `role`, emits a {AccessControl_RoleRevoked} event.
 ///
 /// Requirements:
 ///
 /// - the caller must be `callerConfirmation`.
 ///
-/// May emit a {RoleRevoked} event.
+/// May emit a {AccessControl_RoleRevoked} event.
 ///
 struct (0x39452c46) AccessControl_RenounceRole {
     /// Query ID of the change owner request.
     queryId: uint64;
 
-    /// Role of the account.
+    /// Role definition.
     role: uint256;
     /// Account to revoke.
     callerConfirmation: address;
@@ -112,6 +110,62 @@ struct (0x39452c46) AccessControl_RenounceRole {
 
 /// @dev Union of all access control messages.
 type AccessControl_Message = AccessControl_GrantRole | AccessControl_RevokeRole | AccessControl_RenounceRole;
+
+// --- Message structs - outgoing ---
+
+/// @dev Emitted when `account` is granted `role`.
+///
+/// `sender` is the account that originated the contract call. This account bears the admin role (for the granted role).
+/// Expected in cases where the role was granted using the internal {AccessControl-_grantRole}.
+///
+struct (0xcf3ca837) AccessControl_RoleGranted {
+    /// Query ID of the change owner request.
+    queryId: uint64;
+
+    /// Role definition.
+    role: uint256;
+    /// New account added.
+    account: address;
+    /// Account that requested the change.
+    sender: address;
+}
+
+/// @dev Emitted when `account` is revoked `role`.
+///
+/// `sender` is the account that originated the contract call:
+///  - if using `revokeRole`, it is the admin role bearer
+/// - if using `renounceRole`, it is the role bearer (i.e. `account`)
+///
+struct (0x990fe1c7) AccessControl_RoleRevoked {
+    /// Query ID of the change owner request.
+    queryId: uint64;
+
+    /// Role definition.
+    role: uint256;
+    /// Account revoked.
+    account: address;
+    /// Account that requested the change.
+    sender: address;
+}
+
+/// @dev Emitted when `newAdminRole` is set as ``role``'s admin role, replacing `previousAdminRole`
+///
+/// `DEFAULT_ADMIN_ROLE` is the starting admin for all roles, despite
+/// {AccessControl_RoleAdminChanged} not being emitted to signal this.
+///
+struct (0xbd7e8bce) AccessControl_RoleAdminChanged {
+    /// Query ID of the change owner request.
+    queryId: uint64;
+
+    /// Role definition.
+    role: uint256;
+    /// Previous admin role of the specific role.
+    previousAdminRole: uint256;
+    /// New admin role of the specific role.
+    newAdminRole: uint256;
+    /// Account that requested the change.
+    sender: address;
+}
 
 // --- Storage structs ---
 
@@ -161,6 +215,11 @@ const DEFAULT_ADMIN_ROLE = 0x00;
 
 const ERROR_ACCESS_CONTROL_UNOTHORIZED_ACCOUNT = 90;
 const ERROR_ACCESS_CONTROL_BAD_CONFIRMATION = 91;
+
+// --- Constants - storage ---
+
+const LEN_ADDRESS = 267;  // '100' (std addr no anycast) + workchain 8 + hash LEN_ROLE
+const LEN_ROLE = 256; // LEN_ROLE bits for role ID
 
 // --- Methods ---
 
@@ -337,7 +396,7 @@ fun AccessControl<T>.getRoleMembers(self, role: int): dict {
 /// Requirements:
 /// - the caller must have `role`'s admin role.
 ///
-/// Emits a {RoleGranted} event if `role` was granted.
+/// Emits a {AccessControl_RoleGranted} event if `role` was granted.
 fun AccessControl<T>.grantRole(mutate self, queryId: uint64, role: int, account: address, msgFull: cell): bool {
     self.onlyRole(self.getRoleAdmin(role), msgFull);
     return self._grantRole(queryId, role, account); // default implementation
@@ -348,7 +407,7 @@ fun AccessControl<T>.grantRole(mutate self, queryId: uint64, role: int, account:
 /// Requirements:
 /// - the caller must have `role`'s admin role.
 ///
-/// Emits a {RoleRevoked} event if `role` was revoked.
+/// Emits a {AccessControl_RoleRevoked} event if `role` was revoked.
 fun AccessControl<T>.revokeRole(mutate self, queryId: uint64, role: int, account: address, msgFull: cell): bool {
     self.onlyRole(self.getRoleAdmin(role), msgFull);
     return self._revokeRole(queryId, role, account);
@@ -360,13 +419,13 @@ fun AccessControl<T>.revokeRole(mutate self, queryId: uint64, role: int, account
 /// purpose is to provide a mechanism for accounts to lose their privileges
 /// if they are compromised (such as when a trusted device is misplaced).
 ///
-/// If the calling account had been revoked `role`, emits a {RoleRevoked} event.
+/// If the calling account had been revoked `role`, emits a {AccessControl_RoleRevoked} event.
 ///
 /// Requirements:
 ///
 /// - the caller must be `callerConfirmation`.
 ///
-/// May emit a {RoleRevoked} event.
+/// May emit a {AccessControl_RoleRevoked} event.
 fun AccessControl<T>.renounceRole(mutate self, queryId: uint64, role: int, callerConfirmation: address, msgFull: cell): bool {
     val sender = self.msgSender(msgFull);
     if (callerConfirmation != sender) {
@@ -379,7 +438,7 @@ fun AccessControl<T>.renounceRole(mutate self, queryId: uint64, role: int, calle
 
 /// @dev Sets `adminRole` as `role`'s admin role.
 ///
-/// Emits a {RoleAdminChanged} event.
+/// Emits a {AccessControl_RoleAdminChanged} event.
 fun AccessControl<T>._setRoleAdmin(mutate self, queryId: uint64, role: int, adminRole: int) {
     var d: AccessControl_RoleData = self.data.getRoleDataOrSetDefault(role);
     val previousAdminRole = d.adminRole;
@@ -395,7 +454,7 @@ fun AccessControl<T>._setRoleAdmin(mutate self, queryId: uint64, role: int, admi
 ///
 /// Internal function without access restriction.
 ///
-/// Emits a {RoleGranted} event if `role` was granted.
+/// Emits a {AccessControl_RoleGranted} event if `role` was granted.
 fun AccessControl<T>._grantRole(mutate self, queryId: uint64, role: int, account: address): bool {
     if (self.hooks != null && self.hooks.shouldGrantRole != null) {
         self.hooks.shouldGrantRole(self.context!, queryId, role, account); // extension hook
@@ -425,7 +484,7 @@ fun AccessControl<T>._grantRole(mutate self, queryId: uint64, role: int, account
 ///
 /// Internal function without access restriction.
 ///
-/// Emits a {RoleRevoked} event if `role` was revoked.
+/// Emits a {AccessControl_RoleRevoked} event if `role` was revoked.
 fun AccessControl<T>._revokeRole(mutate self, queryId: uint64, role: int, account: address): bool {
     if (self.hooks != null && self.hooks.shouldRevokeRole != null) {
         self.hooks.shouldRevokeRole(self.context!, queryId, role, account); // extension hook
