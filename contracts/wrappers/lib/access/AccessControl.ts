@@ -66,9 +66,16 @@ const ERROR_ACCOUNT_NOT_EXISTS = 96
 const ERROR_ACCOUNT_MISSING_ROLE = 98
 
 export const opcodes = {
-  GrantRole: crc32('AccessControl_GrantRole'),
-  RevokeRole: crc32('AccessControl_RevokeRole'),
-  RenounceRole: crc32('AccessControl_RenounceRole'),
+  in: {
+    GrantRole: crc32('AccessControl_GrantRole'),
+    RevokeRole: crc32('AccessControl_RevokeRole'),
+    RenounceRole: crc32('AccessControl_RenounceRole'),
+  },
+  out: {
+    RoleGranted: crc32('AccessControl_RoleGranted'),
+    RoleRevoked: crc32('AccessControl_RoleRevoked'),
+    RoleAdminChanged: crc32('AccessControl_RoleAdminChanged'),
+  }
 }
 
 export const builder = {
@@ -77,7 +84,7 @@ export const builder = {
       /// Creates a new `AccessControl_GrantRole` message.
       grantRole: (msg: GrantRole): Cell => {
         return beginCell()
-          .storeUint(opcodes.GrantRole, 32)
+          .storeUint(opcodes.in.GrantRole, 32)
           .storeUint(msg.queryId, 64)
           .storeUint(msg.role, 256)
           .storeAddress(msg.account)
@@ -87,7 +94,7 @@ export const builder = {
       /// Creates a new `AccessControl_RevokeRole` message.
       revokeRole: (msg: RevokeRole): Cell => {
         return beginCell()
-          .storeUint(opcodes.RevokeRole, 32)
+          .storeUint(opcodes.in.RevokeRole, 32)
           .storeUint(msg.queryId, 64)
           .storeUint(msg.role, 256)
           .storeAddress(msg.account)
@@ -97,7 +104,7 @@ export const builder = {
       /// Creates a new `AccessControl_RenounceRole` message.
       renounceRole: (msg: RenounceRole): Cell => {
         return beginCell()
-          .storeUint(opcodes.RevokeRole, 32)
+          .storeUint(opcodes.in.RevokeRole, 32)
           .storeUint(msg.queryId, 64)
           .storeUint(msg.role, 256)
           .storeAddress(msg.callerConfirmation)
