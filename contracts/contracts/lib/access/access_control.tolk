@@ -3,6 +3,44 @@ tolk 1.0
 import "@stdlib/tvm-dicts";
 import "../utils.tolk";
 
+/**
+ * @dev Contract module that allows children to implement role-based access
+ * control mechanisms. This version is a port of OpenZeppelin {access/AccessControl.sol}
+ * and {access/extensions/AccessControlEnumerable.sol}, merged to allow enumerating role
+ * members as TVM dictionaries are iterable.
+ *
+ * Roles are referred to by their `int` identifier. These should be exposed
+ * in the external API and be unique. The best way to achieve this is by
+ * using `const` hash digests (256 bit):
+ *
+ * ```tolk
+ * const DEFAULT_ADMIN_ROLE = 0x00;
+ * ```
+ *
+ * Roles can be used to represent a set of permissions. To restrict access to a
+ * function call, use {checkRole}:
+ *
+ * ```tolk
+ * fun foo(rbac: AccessControl<T>, acc: address) {
+ *     rbac.checkRole(MY_ROLE, acc));
+ *     ...
+ * }
+ * ```
+ *
+ * Roles can be granted and revoked dynamically via the {AccessControl_GrantRole} and
+ * {AccessControl_RevokeRole} messages. Each role has an associated admin role, and only
+ * accounts that have a role's admin role can call {grantRole} and {revokeRole}.
+ *
+ * By default, the admin role for all roles is `DEFAULT_ADMIN_ROLE`, which means
+ * that only accounts with this role will be able to grant or revoke other
+ * roles. More complex role relationships can be created by using
+ * {_setRoleAdmin}.
+ *
+ * WARNING: The `DEFAULT_ADMIN_ROLE` is also its own admin: it has permission to
+ * grant and revoke this role. Extra precautions should be taken to secure
+ * accounts that have been granted it.
+ */
+
 const LEN_ADDRESS = 267;  // '100' (std addr no anycast) + workchain 8 + hash LEN_ROLE
 const LEN_ROLE = 256; // LEN_ROLE bits for role ID
 

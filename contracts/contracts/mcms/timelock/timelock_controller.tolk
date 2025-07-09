@@ -185,6 +185,10 @@ fun Timelock.hookTrait__AccessControl(self): AccessControl<Timelock>{
 
 // --- Getters ---
 
+get fun typeAndVersion(): (slice, slice) {
+     return ("com.chainlink.ton.mcms.Timelock", "1.0.0");
+ }
+
 // --- Getters - <AccessControl<T>> extension ---
 
 /// @see <AccessControl<T>.hasRole>
