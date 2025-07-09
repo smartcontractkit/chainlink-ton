@@ -1,6 +1,10 @@
 tolk 1.0
 
 import "@stdlib/tvm-dicts";
+import "../utils.tolk";
+
+const LEN_ADDRESS = 267;  // '100' (std addr no anycast) + workchain 8 + hash LEN_ROLE
+const LEN_ROLE = 256; // LEN_ROLE bits for role ID
 
 // --- Message structs ---
 
@@ -10,7 +14,7 @@ import "@stdlib/tvm-dicts";
 ///
 /// Requirements:
 ///
-/// - the caller must have ``role``'s admin role.
+/// - the caller must have `role`'s admin role.
 ///
 /// May emit a {RoleGranted} event.
 ///
@@ -30,7 +34,7 @@ struct (0x95cd540f) AccessControl_GrantRole {
 ///
 /// Requirements:
 ///
-/// - the caller must have ``role``'s admin role.
+/// - the caller must have `role`'s admin role.
 ///
 /// May emit a {RoleRevoked} event.
 ///
@@ -148,15 +152,14 @@ fun AccessControl<T>.onlyRole(self, role: int, msgFull: cell) {
 // @dev Returns `true` if `account` has been granted `role`.
 fun AccessControl<T>.hasRole(self, role: int, account: address): bool {
     // Check if the role is valid
-    val (data, exists) = self.data.roles.uDictGetRef(256, role);
+    val (data, exists) = self.data.roles.uDictGetRef(LEN_ROLE, role);
     if (!exists) {
         return false;
     }
 
     // Check if the account exists in the role data
     val d = AccessControl_RoleData.fromCell(data!);
-    val (_, key) = account.getWorkchainAndHash();
-    val (_, accExists) = d.hasRole.uDictGet(256, key);
+    val (_, accExists) = d.hasRole.sDictGet(LEN_ADDRESS, account as slice);
     return accExists;
 }
 
@@ -184,7 +187,7 @@ fun AccessControl<T>.checkRole(self, role: int, account: address) {
 ///
 /// To change a role's admin, use {setRoleAdmin}.
 fun AccessControl<T>.getRoleAdmin(self, role: int): int {
-    val (data, exists) = self.data.roles.uDictGetRef(256, role);
+    val (data, exists) = self.data.roles.uDictGetRef(LEN_ROLE, role);
     if (!exists) {
         return DEFAULT_ADMIN_ROLE;
     }
@@ -197,32 +200,71 @@ fun AccessControl<T>.getRoleAdmin(self, role: int): int {
 /// @dev Returns one of the accounts that have `role`. `index` must be a
 /// value between 0 and {getRoleMemberCount}, non-inclusive.
 ///
+/// This function is useful for enumerating all accounts that have a role, but is expensive
+/// in terms of gas. It is recommended to use {getRoleMemberFirst} and {getRoleMemberNext}
+/// to iterate through the accounts in a more gas-efficient way.
+///
 /// Role bearers are not sorted in any particular way, and their ordering may change at any point.
 @inline
 fun AccessControl<T>.getRoleMember(self, role: int, index: uint32): address {
     // Check if the role is valid
-    val (data, exists) = self.data.roles.uDictGetRef(256, role);
+    val (data, exists) = self.data.roles.uDictGetRef(LEN_ROLE, role);
     if (!exists) {
         return createAddressNone(); // role does not exist
     }
 
     // Check if the account exists in the role data
-    val d = AccessControl_RoleData.fromCell(data!);
+    var d = AccessControl_RoleData.fromCell(data!);
     if (index >= d.membersLen) {
         return createAddressNone(); // index out of bounds
     }
 
-    // Get the account at the specified index
-    var (key, acc, _) = d.hasRole.uDictGetNext(256, index);
+    // Notice: we need to iterate through the dictionary to get the account at the specified index.
+    // This is not efficient, but it is the only way to get an account at index without additional data structures.
+    var i = 0;
+    while (i < index) {
+        d.hasRole.sDictDeleteFirstAndGet(LEN_ADDRESS);
+    }
 
-    // Reconstruct the address from the key
-    return beginCell()
-        .storeUint(0b10, 2) // internal address
-        .storeUint(0b0, 1) // anycast, always 0
-        .storeUint(0, 8) // workchain ID
-        .storeUint(key!, 256)
-        .endCell()
-        .beginParse() as address;
+    // Get the account at the specified index
+    var (acc: slice?, _: slice?, _: bool) = d.hasRole.sDictDeleteFirstAndGet(LEN_ADDRESS);
+    return acc! as address;
+}
+
+@inline
+fun AccessControl<T>.getRoleMemberFirst(self, role: int): address {
+    // Check if the role is valid
+    val (data, exists) = self.data.roles.uDictGetRef(LEN_ROLE, role);
+    if (!exists) {
+        return createAddressNone(); // role does not exist
+    }
+
+    val d = AccessControl_RoleData.fromCell(data!);
+    if (d.membersLen == 0) {
+        return createAddressNone(); // no members in the role
+    }
+
+    // Get the first account in the role data
+    var (acc, _, _) = d.hasRole.sDictGetFirst(LEN_ADDRESS);
+    return acc! as address;
+}
+
+@inline
+fun AccessControl<T>.getRoleMemberNext(self, role: int, pivot: address): address {
+    // Check if the role is valid
+    val (data, exists) = self.data.roles.uDictGetRef(LEN_ROLE, role);
+    if (!exists) {
+        return createAddressNone(); // role does not exist
+    }
+
+    // Get the next account in the role data after the pivot
+    val d = AccessControl_RoleData.fromCell(data!);
+    var (acc, _, accExists) = d.hasRole.sDictGetNext(LEN_ADDRESS, pivot as slice);
+    if (!accExists) {
+        return createAddressNone(); // no next account
+    }
+
+    return acc! as address;
 }
 
 /// @dev Returns the number of accounts that have `role`. Can be used
@@ -230,7 +272,7 @@ fun AccessControl<T>.getRoleMember(self, role: int, index: uint32): address {
 @inline
 fun AccessControl<T>.getRoleMemberCount(self, role: int): int {
     // Check if the role is valid
-    val (data, exists) = self.data.roles.uDictGetRef(256, role);
+    val (data, exists) = self.data.roles.uDictGetRef(LEN_ROLE, role);
     if (!exists) {
         return 0; // role does not exist
     }
@@ -242,7 +284,7 @@ fun AccessControl<T>.getRoleMemberCount(self, role: int): int {
 @inline
 fun AccessControl<T>.getRoleMembers(self, role: int): dict {
     // Check if the role is valid
-    val (data, exists) = self.data.roles.uDictGetRef(256, role);
+    val (data, exists) = self.data.roles.uDictGetRef(LEN_ROLE, role);
     if (!exists) {
         return createEmptyDict(); // role does not exist
     }
@@ -307,7 +349,7 @@ fun AccessControl<T>._setRoleAdmin(mutate self, queryId: uint64, role: int, admi
     d.adminRole = adminRole;
 
     // Save the updated role data
-    self.data.roles.uDictSetRef(256, role, d.toCell());
+    self.data.roles.uDictSetRef(LEN_ROLE, role, d.toCell());
     // TODO: emit RoleAdminChanged(role, previousAdminRole, adminRole);
 }
 
@@ -325,20 +367,19 @@ fun AccessControl<T>._grantRole(mutate self, queryId: uint64, role: int, account
     var d: AccessControl_RoleData = self.data.getRoleDataOrSetDefault(role);
 
     // Check if the account exists in the role data
-    val (_, key) = account.getWorkchainAndHash();
-    val (_, exists) = d.hasRole.uDictGet(256, key);
+    val (_, exists) = d.hasRole.sDictGet(LEN_ADDRESS, account as slice);
 
     if (exists) {
         return false; // nothing to do
     }
 
     // Add the account to the role
-    d.hasRole.uDictSet(256, key, createEmptySlice());
+    d.hasRole.sDictSet(LEN_ADDRESS, account as slice, createEmptySlice());
     d.membersLen += 1; // increment the number of members in the role
     // TODO: emit RoleGranted(role, account, msgSender());
 
     // Save the updated role data
-    self.data.roles.uDictSetRef(256, role, d.toCell());
+    self.data.roles.uDictSetRef(LEN_ROLE, role, d.toCell());
     return true; // role granted successfully
 }
 
@@ -356,20 +397,19 @@ fun AccessControl<T>._revokeRole(mutate self, queryId: uint64, role: int, accoun
     var d: AccessControl_RoleData = self.data.getRoleDataOrSetDefault(role);
 
     // Check if the account exists in the role data
-    val (_, key) = account.getWorkchainAndHash();
-    val (_, exists) = d.hasRole.uDictGet(256, key);
+    val (_, exists) = d.hasRole.sDictGet(LEN_ADDRESS, account as slice);
 
     if (!exists) {
         return false; // nothing to do
     }
 
     // Remove the account from the role
-    d.hasRole.uDictDelete(256, key);
+    d.hasRole.sDictDelete(LEN_ADDRESS, account as slice);
     d.membersLen -= 1; // decrement the number of members in the role
     // TODO: emit RoleRevoked(role, account, msgSender());
 
     // Save the updated role data
-    self.data.roles.uDictSetRef(256, role, d.toCell());
+    self.data.roles.uDictSetRef(LEN_ROLE, role, d.toCell());
     return true; // role revoked successfully
 }
 
@@ -378,7 +418,7 @@ fun AccessControl<T>._revokeRole(mutate self, queryId: uint64, role: int, accoun
 @inline
 fun AccessControl_Data.getRoleDataOrSetDefault(mutate self, role: int): AccessControl_RoleData {
     // Check if the role is valid
-    val (data, exists) = self.roles.uDictGetRef(256, role);
+    val (data, exists) = self.roles.uDictGetRef(LEN_ROLE, role);
     if (exists) {
         return AccessControl_RoleData.fromCell(data!);
     }
@@ -390,7 +430,7 @@ fun AccessControl_Data.getRoleDataOrSetDefault(mutate self, role: int): AccessCo
         hasRole: createEmptyDict(),
         membersLen: 0,
     };
-    self.roles.uDictSetRef(256, role, _data.toCell());
+    self.roles.uDictSetRef(LEN_ROLE, role, _data.toCell());
     return _data;
 }
 
@@ -426,6 +466,18 @@ fun AccessControl<T>.get_getRoleMemberCount(self, role: int): int {
 @inline
 fun AccessControl<T>.get_getRoleMembers(self, role: int): dict {
    return self.getRoleMembers(role)
+}
+
+// @dev getter to export downstream
+@inline
+fun AccessControl<T>.get_getRoleMemberFirst(self, role: int): address {
+   return self.getRoleMemberFirst(role)
+}
+
+/// @dev getter to export downstream
+@inline
+fun AccessControl<T>.get_getRoleMemberNext(self, role: int, pivot: slice): address {
+   return self.getRoleMemberNext(role, pivot)
 }
 
 // --- Message handlers ---
