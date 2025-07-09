@@ -8,13 +8,15 @@ import (
 
 	"integration-tests/tracetracking/testutils"
 
+	chainsel "github.com/smartcontractkit/chain-selectors"
+
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/tlb"
 )
 
 func TestDepositFees(t *testing.T) {
 	var initialAmount = big.NewInt(1_000_000_000_000)
-	accs := testutils.SetUpTest(t, initialAmount, 2)
+	accs := testutils.SetUpTest(t, chainsel.TON_LOCALNET.Selector, initialAmount, 2)
 	alice := accs[0]
 	bob := accs[1]
 
