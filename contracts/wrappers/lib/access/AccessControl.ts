@@ -126,8 +126,8 @@ export const builder = {
 
         // Creates a new `AccessControl_RoleData.hasRole` contract data cell with the given roles.
         hasRoleDict: (accounts: Address[]): Dictionary<Buffer, Buffer> => {
-          const dict = Dictionary.empty(Dictionary.Keys.Buffer(32), Dictionary.Values.Buffer(0))
-          const addAccountFn = (dict, account) => dict.set(account.hash, Buffer.alloc(0))
+          const dict = Dictionary.empty(Dictionary.Keys.Address(), Dictionary.Values.Buffer(0))
+          const addAccountFn = (dict, account: Address) => dict.set(account, Buffer.alloc(0))
           return accounts.reduce(addAccountFn, dict)
         },
 

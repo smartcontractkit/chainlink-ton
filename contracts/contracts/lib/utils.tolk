@@ -145,9 +145,10 @@ fun Map<V>.keysDestructs(mutate self): tuple? {
     return list;
 }
 
+// Notice: currently not available in tolk 1.0/stdlib
 @pure
 fun dict.sDictGetNext(self, keyLen: int, pivot: slice): (slice?, slice?, bool)
-    asm(pivot self keyLen -> 1 0 2) "DICTGETNEXT" "NULLSWAPIFNOT2"
+    asm(pivot self keyLen -> 1 0 2) "DICTGETNEXT" "NULLSWAPIFNOT2";
 
 @inline @pure
 fun Map<V>.min(self): (address?, V?, bool) {
