@@ -85,3 +85,8 @@ fun TupleIterator<T>.size(self, elemSize: int): int {
     // param is there for interface compatibility
     return self.len;
 }
+
+// Notice: currently not available in tolk 1.0/stdlib
+@pure
+fun dict.sDictGetNext(self, keyLen: int, pivot: slice): (slice?, slice?, bool)
+    asm(pivot self keyLen -> 1 0 2) "DICTGETNEXT" "NULLSWAPIFNOT2";
