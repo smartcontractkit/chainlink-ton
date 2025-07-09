@@ -41,30 +41,30 @@ type CCIPSend struct {
 	DestinationChainSelector uint64                        `tlb:"## 64"`
 	Receiver                 common.SnakeBytes             `tlb:"^"`
 	TokenAmounts             common.SnakeData[TokenAmount] `tlb:"^"`
-	ExtraArgs                cell.Cell                     `tlb:"^"` // four bytes tag + GenericExtraArgsV2 or SVMExtraArgsV1
+	ExtraArgs                *cell.Cell                    `tlb:"^"` // four bytes tag + GenericExtraArgsV2 or SVMExtraArgsV1
 }
 
 type DestChainConfig struct {
-	Router           address.Address `tlb:"addr"`
-	SequenceNumber   uint64          `tlb:"## 64"`
-	AllowListEnabled bool            `tlb:"bool"`
-	AllowedSender    cell.Dictionary `tlb:"dict 512"` // TODO check if this is correct, on-chain contract uses Map<address> -> bool
+	Router           *address.Address `tlb:"addr"`
+	SequenceNumber   uint64           `tlb:"## 64"`
+	AllowListEnabled bool             `tlb:"bool"`
+	AllowedSender    *cell.Dictionary `tlb:"dict 267"` // it's not documented anywhere, but the address in cell uses 267 bits
 }
 
 type DynamicConfig struct {
-	feeQuoter      address.Address `tlb:"addr"`
-	FeeAggregator  address.Address `tlb:"addr"`
-	AllowListAdmin address.Address `tlb:"addr"`
+	FeeQuoter      *address.Address `tlb:"addr"`
+	FeeAggregator  *address.Address `tlb:"addr"`
+	AllowListAdmin *address.Address `tlb:"addr"`
 }
 
 type Ownable2Step struct {
-	owner        address.Address `tlb:"addr"`
-	pendingOwner address.Address `tlb:"addr"` // TODO check if this is correct, on-chain contract uses ?address
+	Owner        *address.Address `tlb:"addr"`
+	PendingOwner *address.Address `tlb:"maybe addr"` // PendingOwner is optional
 }
 
 type Storage struct {
 	Ownable          Ownable2Step                    `tlb:"^"`
 	ChainSelector    uint64                          `tlb:"## 64"`
 	Config           common.SnakeData[DynamicConfig] `tlb:"^"`
-	DestChainConfigs cell.Dictionary                 `tlb:"dict 64"` // TODO check if this is correct, on-chain contract uses Map<uint64> -> DestChainConfig
+	DestChainConfigs *cell.Dictionary                `tlb:"dict 64"` // TODO check if this is correct, on-chain contract uses Map<uint64> -> DestChainConfig
 }
