@@ -155,6 +155,7 @@ func CreateAPIClient(t *testing.T, chainID uint64) *ton.APIClient {
 		ChainID: strconv.FormatUint(chainID, 10),
 		Type:    "ton",
 		Image:   "ghcr.io/neodix42/mylocalton-docker:latest",
+		PullImage: true,
 		Port:    strconv.Itoa(port),
 	}
 
