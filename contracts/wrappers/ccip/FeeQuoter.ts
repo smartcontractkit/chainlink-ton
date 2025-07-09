@@ -122,9 +122,9 @@ export const Builder = {
 export abstract class Params {}
 
 export abstract class Opcodes {
-  static updateFeeTokens          = 0x10000002
+  static updateFeeTokens = 0x10000002
   static updateTransferFeeConfigs = 0x10000004
-  static updateDestChainConfig    = 0x10000005
+  static updateDestChainConfig = 0x10000005
 }
 
 export abstract class Errors {}
@@ -186,17 +186,14 @@ export class FeeQuoter implements Contract {
     via: Sender,
     opts: {
       value: bigint
-      add: { token: Address, premiumMultiplier: bigint }[]
+      add: { token: Address; premiumMultiplier: bigint }[]
       remove: Address[]
     },
   ) {
     // token -> premiumMultiplierWeiPerEth
-    let add = Dictionary.empty(
-      Dictionary.Keys.Address(),
-      Dictionary.Values.BigUint(64),
-    );
+    let add = Dictionary.empty(Dictionary.Keys.Address(), Dictionary.Values.BigUint(64))
     for (const config of opts.add) {
-      add.set(config.token, config.premiumMultiplier);
+      add.set(config.token, config.premiumMultiplier)
     }
     const remove = asSnakeData(opts.remove, (addr) => new TonBuilder().storeAddress(addr))
 
