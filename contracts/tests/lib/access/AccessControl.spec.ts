@@ -17,8 +17,14 @@ describe('AccessControl', () => {
     const computed = crc32('some_str')
     expect(computed).toBe(0xef3af4b0)
 
-    expect(opcodes.GrantRole).toBe(0x95cd540f)
-    expect(opcodes.RevokeRole).toBe(0x969b0db9)
-    expect(opcodes.RenounceRole).toBe(0x39452c46)
+    // In opcodes
+    expect(opcodes.in.GrantRole).toBe(0x95cd540f)
+    expect(opcodes.in.RevokeRole).toBe(0x969b0db9)
+    expect(opcodes.in.RenounceRole).toBe(0x39452c46)
+
+    // Out opcodes
+    expect(opcodes.out.RoleGranted).toBe(0xcf3ca837)
+    expect(opcodes.out.RoleRevoked).toBe(0x990fe1c7)
+    expect(opcodes.out.RoleAdminChanged).toBe(0xbd7e8bce)
   })
 })

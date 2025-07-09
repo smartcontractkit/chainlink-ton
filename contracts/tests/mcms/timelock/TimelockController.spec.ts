@@ -110,7 +110,7 @@ describe('TimelockController', () => {
       from: deployer.address,
       to: timelockController.address,
       success: true,
-      op: ac.opcodes.GrantRole,
+      op: ac.opcodes.in.GrantRole,
     })
 
     expect(await acContract.getHasRole(1337n, other.address)).toEqual(true)
