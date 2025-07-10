@@ -13,16 +13,16 @@ import {
 } from '@ton/core'
 
 import { Ownable2StepConfig } from '../libraries/access/Ownable2Step'
+import { asSnakeData } from '../../tests/utils'
 
 export type FeeQuoterStorage = {
   ownable: Ownable2StepConfig
-  deployerCode: Cell
-  destChainConfigCode: Cell
   maxFeeJuelsPerMsg: bigint
   linkToken: Address
   tokenPriceStalenessThreshold: bigint
   usdPerToken: Dictionary<Address, TimestampedPrice>
   premiumMultiplierWeiPerEth: Dictionary<Address, bigint>
+  destChainConfigs: Dictionary<bigint, DestChainConfig>
 }
 
 export type TimestampedPrice = {
@@ -95,31 +95,32 @@ export function destChainConfigToBuilder(config: DestChainConfig): TonBuilder {
 
 export const Builder = {
   asStorage: (config: FeeQuoterStorage): Cell => {
-    let builder = beginCell().storeAddress(config.ownable.owner)
-    // TODO: use storeMaybeBuilder()
-    if (config.ownable.pendingOwner) {
-      builder
-        .storeBit(1) // Store '1' to indicate the address is present
-        .storeAddress(config.ownable.pendingOwner) // Then store the address
-    } else {
-      builder.storeBit(0) // Store '0' to indicate the address is absent
-    }
-
-    return builder
-      .storeRef(config.deployerCode)
-      .storeRef(config.destChainConfigCode)
-      .storeUint(config.maxFeeJuelsPerMsg, 96)
-      .storeAddress(config.linkToken)
-      .storeUint(config.tokenPriceStalenessThreshold, 64)
-      .storeDict(config.usdPerToken)
-      .storeDict(config.premiumMultiplierWeiPerEth)
-      .endCell()
+    return (
+      beginCell()
+        .storeAddress(config.ownable.owner)
+        .storeMaybeBuilder(
+          config.ownable.pendingOwner
+            ? beginCell().storeAddress(config.ownable.pendingOwner)
+            : null,
+        )
+        .storeUint(config.maxFeeJuelsPerMsg, 96)
+        .storeAddress(config.linkToken)
+        .storeUint(config.tokenPriceStalenessThreshold, 64)
+        .storeDict(config.usdPerToken)
+        .storeDict(config.premiumMultiplierWeiPerEth)
+        // UMap<> type
+        .storeDict(config.destChainConfigs)
+        .storeUint(64, 16) // keyLen
+        .endCell()
+    )
   },
 }
 export abstract class Params {}
 
 export abstract class Opcodes {
-  static updateDestChainConfig = 0x10000005
+  static updateFeeTokens = 0x20000002
+  static updateTransferFeeConfigs = 0x20000003
+  static updateDestChainConfig = 0x20000004
 }
 
 export abstract class Errors {}
@@ -172,6 +173,33 @@ export class FeeQuoter implements Contract {
         .storeUint(Opcodes.updateDestChainConfig, 32)
         .storeUint(opts.destChainSelector, 64)
         .storeBuilder(destChainConfigToBuilder(opts.config))
+        .endCell(),
+    })
+  }
+
+  async sendUpdateFeeTokens(
+    provider: ContractProvider,
+    via: Sender,
+    opts: {
+      value: bigint
+      add: { token: Address; premiumMultiplier: bigint }[]
+      remove: Address[]
+    },
+  ) {
+    // token -> premiumMultiplierWeiPerEth
+    let add = Dictionary.empty(Dictionary.Keys.Address(), Dictionary.Values.BigUint(64))
+    for (const config of opts.add) {
+      add.set(config.token, config.premiumMultiplier)
+    }
+    const remove = asSnakeData(opts.remove, (addr) => new TonBuilder().storeAddress(addr))
+
+    return await provider.internal(via, {
+      value: opts.value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: beginCell()
+        .storeUint(Opcodes.updateFeeTokens, 32)
+        .storeDict(add)
+        .storeRef(remove)
         .endCell(),
     })
   }

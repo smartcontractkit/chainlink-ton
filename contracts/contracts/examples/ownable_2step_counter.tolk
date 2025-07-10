@@ -8,13 +8,13 @@ struct OwnableCounter {
 }
 
 // load contract data using auto-deserialization
-fun loadData(): OwnableCounter {
+fun OwnableCounter.load(): OwnableCounter {
     return OwnableCounter.fromCell(contract.getData());
 }
 
 // save contract data into persistent storage using auto-serialization
-fun saveData(data: OwnableCounter) {
-    contract.setData(data.toCell());
+fun OwnableCounter.store(self) {
+    contract.setData(self.toCell());
 }
 
 struct (0x00000001) SetCount {
@@ -24,57 +24,51 @@ struct (0x00000001) SetCount {
 
 type IncomingMessage = SetCount;
 
-fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: slice) {
-    if (msgBody.isEnd()) { // ignore all empty messages
-        return;
-    }
+fun onInternalMessage(in: InMessage) {
+    var storage = lazy OwnableCounter.load();
 
-    var storage = loadData();
-
+    val sender = in.senderAddress;
     // Try to handle ownable_2step trait messages first
-    var handled = storage.ownable.onInternalMessage(myBalance, msgValue, msgFull, msgBody);
+    var handled = storage.ownable.onInternalMessage(sender, in.body);
 
     // | chain other trait handlers here
 
     if (handled) {
         // Store updates and return
-        saveData(storage);
+        storage.store();
         return;
     }
 
-    val msg = IncomingMessage.fromSlice(msgBody);
+    val msg = lazy IncomingMessage.fromSlice(in.body);
 
 // We need to add this boilerplate to any ownable_2step contract to handle ownership transfer messages
 
     match(msg) {
         SetCount => {
             // Ensure the sender is the owner
-            var cs: slice = msgFull.beginParse();
-            val flags = cs.loadMessageFlags();
-            if (isMessageBounced(flags)) { // ignore all bounced messages
-                return;
-            }
-            var sender: address = cs.loadAddress(); 
-
             storage.ownable.requireOwner(sender);
 
             storage.count = msg.count;
-            saveData(storage);
+            storage.store();
         }        
+        else => {
+            // ignore empty messages, "wrong opcode" for others
+            assert (in.body.isEmpty()) throw 0xFFFF
+        }
     }
 }
 
-get counter(): uint32 {
-    var storage = loadData();
+get fun counter(): uint32 {
+    var storage = lazy OwnableCounter.load();
     return storage.count;
 }
 
-get owner(): address {
-    var storage = loadData();
+get fun owner(): address {
+    var storage = lazy OwnableCounter.load();
     return storage.ownable.get_owner();
 }
 
-get id(): uint64 {
-    var storage = loadData();
+get fun id(): uint64 {
+    var storage = lazy OwnableCounter.load();
     return storage.id;
 }

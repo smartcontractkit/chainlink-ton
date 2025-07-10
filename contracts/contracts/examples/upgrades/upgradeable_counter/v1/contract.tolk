@@ -21,31 +21,24 @@ struct (0x00000001) Step {
     queryId: uint64;
 }
 
-fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: slice) {
-
-    if (msgBody.isEnd()) { // ignore all empty messages
+fun onInternalMessage(in: InMessage) {
+    if (in.body.isEmpty()) { // ignore all empty messages
         return;
     }
 
-    var cs = msgFull.beginParse();
-    val flags = cs.loadMessageFlags();
-    if (isMessageBounced(flags)) { // ignore all bounced messages
-        return;
-    }
-
+    val sender = in.senderAddress;
     var storage = loadData();
-    var handled = storage.ownable2Step.onInternalMessage(myBalance, msgValue, msgFull, msgBody);
+    var handled = storage.ownable2Step.onInternalMessage(sender, in.body);
 
     if (handled) {
         saveData(storage);
         return;
     }
 
-    val msg = IncomingMessage.fromSlice(msgBody);  // 63 error code is thrown if the message opcode is unknown
+    val msg = IncomingMessage.fromSlice(in.body);  // 63 error code is thrown if the message opcode is unknown
 
     match (msg) {
         Upgradeable_Upgrade => {
-            var sender: address = cs.loadAddress();
             storage.ownable2Step.requireOwner(sender);
             Upgradeable{
                 migrate: migrate,
@@ -61,19 +54,19 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
 }
 
 /// Gets the current counter value.
-get value(): int {
+get fun value(): int {
     val storage = loadData();
     return storage.value;
 }
 
 /// Gets the current owner of the contract.
-get owner(): address {
+get fun owner(): address {
     val storage = loadData();
     return storage.ownable2Step.get_owner();
 }
 
 /// Gets the pending owner of the contract, if any.
-get pendingOwner(): address? {
+get fun pendingOwner(): address? {
     val storage = loadData();
     return storage.ownable2Step.get_pendingOwner();
 }
@@ -83,6 +76,6 @@ fun migrate(storage: cell): cell { return beginCell().endCell(); }
 @method_id(1001)
 fun version(): slice { return versionStr; }
 
-get typeAndVersion(): (slice, slice) {
+get fun typeAndVersion(): (slice, slice) {
     return TypeAndVersion{typeStr, versionStr}.typeAndVersion();
 }
