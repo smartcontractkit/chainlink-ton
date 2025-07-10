@@ -66,6 +66,138 @@ import "timelock_controller/admin_calls.tolk";
 
 // --- Messages - incoming ---
 
+/// @dev Schedule an operation containing a batch of transactions.
+///
+/// Emits one {Timelock_CallScheduled} event per transaction in the batch.
+///
+/// Requirements:
+///
+/// - the caller must have the 'proposer' or 'admin' role.
+/// - all payloads must not start with a blocked function selector.
+///
+struct (0x94718f4) Timelock_ScheduleBatch {
+    /// Query ID of the change owner request.
+    queryId: uint64;
+
+    // Array of calls to be scheduled
+    calls: cell; // TODO: encode as vec<Call>
+    // Predecessor operation ID
+    predecessor: uint256;
+    // Salt used to derive the operation ID
+    salt: uint256;
+    // Delay in seconds before the operation can be executed
+    delay: uint64;
+}
+
+/// @dev Cancel an operation.
+///
+/// Requirements:
+///
+/// - the caller must have the 'canceller' or 'admin' role.
+///
+struct (0xaf3bf1d0) Timelock_Cancel {
+    /// Query ID of the change owner request.
+    queryId: uint64;
+
+    /// ID of the operation to cancel.
+    id: uint256;
+}
+
+/// @dev Execute an (ready) operation containing a batch of transactions.
+///
+/// Emits one {Timelock_CallExecuted} event per transaction in the batch.
+///
+/// Requirements:
+///
+/// - the caller must have the 'executor' or 'admin' role.
+///
+struct (0x6e9Bf263) Timelock_ExecuteBatch {
+    /// Query ID of the change owner request.
+    queryId: uint64;
+
+    // Array of calls to be scheduled
+    calls: cell; // TODO: encode as vec<Call>
+    // Predecessor operation ID
+    predecessor: uint256;
+    // Salt used to derive the operation ID
+    salt: uint256;
+}
+
+/// @dev Changes the minimum timelock duration for future operations.
+///
+/// Emits a {Timelock_MinDelayChange} event.
+///
+/// Requirements:
+///
+/// - the caller must have the 'admin' role.
+///
+struct (0x7a57a45c) Timelock_UpdateDelay {
+    /// Query ID of the change owner request.
+    queryId: uint64;
+
+    /// New minimum delay in seconds for future operations.
+    newDelay: uint64;
+}
+
+/// @dev Blocks a function selector from being used, i.e. schedule
+/// operations with this function selector will revert.
+///
+/// Note that blocked selectors are only checked when an operation is being
+/// scheduled, not when it is executed. You may want to check any pending
+/// operations for whether they contain the blocked selector and cancel them.
+///
+/// Requirements:
+///
+/// - the caller must have the 'admin' role.
+///
+struct (0x2637af77) Timelock_BlockFunctionSelector {
+    /// Query ID of the change owner request.
+    queryId: uint64;
+
+    /// Function selector to block.
+    selector: uint64;
+}
+
+/// @dev Unblocks a previously blocked function selector so it can be used again.
+///
+/// Requirements:
+///
+/// - the caller must have the 'admin' role.
+///
+struct (0x26f19f4e) Timelock_UnblockFunctionSelector {
+    /// Query ID of the change owner request.
+    queryId: uint64;
+
+    /// Function selector to unblock.
+    selector: uint64;
+}
+
+/// @dev Directly execute a batch of transactions, bypassing any other checks.
+///
+/// Emits one {Timelock_BypasserCallExecuted} event per transaction in the batch.
+///
+/// Requirements:
+///
+/// - the caller must have the 'bypasser' or 'admin' role.
+///
+struct (0xbb0e9f7d) Timelock_BypasserExecuteBatch {
+    /// Query ID of the change owner request.
+    queryId: uint64;
+
+    /// Array of calls to be scheduled
+    calls: cell; // TODO: encode as vec<Call>
+}
+
+/// @dev Union of all incoming messages.
+type Timelock_Message = Timelock_ScheduleBatch
+    | Timelock_Cancel
+    | Timelock_ExecuteBatch
+    | Timelock_UpdateDelay
+    | Timelock_UnblockFunctionSelector
+    | Timelock_BlockFunctionSelector
+    | Timelock_UnblockFunctionSelector
+    | Timelock_BypasserExecuteBatch;
+
 // --- Messages - outgoing ---
 
 /// @dev Emitted when a call is scheduled as part of operation `id`.

@@ -41,7 +41,7 @@ import "../utils.tolk";
  * accounts that have been granted it.
  */
 
-// --- Message structs ---
+// --- Messages - incoming ---
 
 /// @dev Grants `role` to `account`.
 ///
@@ -108,10 +108,12 @@ struct (0x39452c46) AccessControl_RenounceRole {
     callerConfirmation: address;
 }
 
-/// @dev Union of all access control messages.
-type AccessControl_Message = AccessControl_GrantRole | AccessControl_RevokeRole | AccessControl_RenounceRole;
+/// @dev Union of all incoming messages.
+type AccessControl_Message = AccessControl_GrantRole
+    | AccessControl_RevokeRole
+    | AccessControl_RenounceRole;
 
-// --- Message structs - outgoing ---
+// --- Messages - outgoing ---
 
 /// @dev Emitted when `account` is granted `role`.
 ///
