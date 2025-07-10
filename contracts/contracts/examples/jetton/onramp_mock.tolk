@@ -61,26 +61,19 @@ fun OnrampMock.handleJettonTransferNotification(mutate self, msg: JettonNotifica
 
 type IncomingMessage = JettonNotification;
 
-fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: slice) {
-    if (msgBody.isEnd()) { // ignore all empty messages
+fun onInternalMessage(in: InMessage) {
+    if (in.body.isEmpty()) { // ignore all empty messages
         return;
     }
 
-    var cs = msgFull.beginParse();
-    val flags = cs.loadMessageFlags();
-    if (isMessageBounced(flags)) { // ignore all bounced messages
-        return;
-    }
+    val msg = IncomingMessage.fromSlice(in.body);
 
-    val msg = IncomingMessage.fromSlice(msgBody);
-
-    val sender = cs.loadAddress();
     var this = loadData();
 
     // Check if this is a jetton notification
     match (msg) {
         JettonNotification => { 
-            this.handleJettonTransferNotification(msg, sender);
+            this.handleJettonTransferNotification(msg, in.senderAddress);
         }
     }
 }

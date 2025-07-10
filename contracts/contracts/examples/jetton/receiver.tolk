@@ -24,25 +24,18 @@ fun JettonReceiver.saveData(self) {
 
 type IncomingMessage = JettonNotification;
 
-fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: slice) {
-    if (msgBody.isEnd()) { // ignore all empty messages
+fun onInternalMessage(in: InMessage) {
+    if (in.body.isEmpty()) { // ignore all empty messages
         return;
     }
 
-    var cs = msgFull.beginParse();
-    val flags = cs.loadMessageFlags();
-    if (isMessageBounced(flags)) { // ignore all bounced messages
-        return;
-    }
+    val msg = IncomingMessage.fromSlice(in.body);
 
-    val msg = IncomingMessage.fromSlice(msgBody);
-
-    val sender = cs.loadAddress();
     var this = loadData();
 
     match (msg) {
         JettonNotification => { 
-            this.handleJettonTransferNotification(msg, sender);
+            this.handleJettonTransferNotification(msg, in.senderAddress);
         }
     }
 }
@@ -60,12 +53,12 @@ fun JettonReceiver.handleJettonTransferNotification(mutate self, msg: JettonNoti
 }
 
 // For testing
-get amountChecker(): coins {
+get fun amountChecker(): coins {
     val this = loadData();
     return this.amountChecker;
 }
 
-get payloadChecker(): slice {
+get fun payloadChecker(): slice {
     val this = loadData();
     return this.payloadChecker;
 }
