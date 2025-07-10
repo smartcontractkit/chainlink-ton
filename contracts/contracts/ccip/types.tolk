@@ -21,7 +21,7 @@ struct Any2TVMRampMessage {
     sender: cell;
     data: cell;
     receiver: address;
-    // gasLimit: coins; // TODO: no gas limit because it's up to the receiver to pay for it's gas
+    gasLimit: coins;
     tokenAmounts: cell; // vec<Any2TONTokenTransfer>
     // maybe mark these amounts as slice remaining then parse them by hand to avoid requiring this to be a map<> at send time?
 }
