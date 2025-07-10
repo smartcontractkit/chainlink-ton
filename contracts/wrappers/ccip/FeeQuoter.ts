@@ -122,9 +122,9 @@ export const Builder = {
 export abstract class Params {}
 
 export abstract class Opcodes {
-  static updateFeeTokens = 0x10000002
-  static updateTransferFeeConfigs = 0x10000004
-  static updateDestChainConfig = 0x10000005
+  static updateFeeTokens = 0x20000002
+  static updateTransferFeeConfigs = 0x20000003
+  static updateDestChainConfig = 0x20000004
 }
 
 export abstract class Errors {}

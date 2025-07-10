@@ -236,18 +236,6 @@ describe('Router', () => {
         },
         destChainConfigs: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Cell()),
       }
-      // add config for EVM destination
-      data.destChainConfigs.set(
-        CHAINSEL_EVM_TEST_90000001,
-        beginCell()
-          .storeAddress(router.address) // TODO:
-          .storeUint(0n, 64)
-          .storeBit(false)
-          // Map<>
-          .storeDict(Dictionary.empty(Dictionary.Keys.Address(), Dictionary.Values.Bool()))
-          .endCell(),
-      )
-
       // TODO: use deployable to make deterministic?
       onRamp = blockchain.openContract(OnRamp.createFromConfig(data, code))
 
@@ -256,6 +244,18 @@ describe('Router', () => {
         from: deployer.address,
         to: onRamp.address,
         deploy: true,
+        success: true,
+      })
+
+      // add config for EVM destination
+      result = await onRamp.sendUpdateDestChainConfigs(deployer.getSender(), {
+        value: toNano('1'),
+        destChainConfigs: [{ destChainSelector: CHAINSEL_EVM_TEST_90000001, router: ZERO_ADDRESS, allowlistEnabled: false }]
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: onRamp.address,
+        deploy: false,
         success: true,
       })
     }

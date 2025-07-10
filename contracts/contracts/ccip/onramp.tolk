@@ -4,6 +4,7 @@ import "../lib/access/ownable_2step.tolk";
 import "../lib/upgrades/type_and_version.tolk";
 import "utils.tolk";
 import "../lib/utils.tolk";
+import "@stdlib/tvm-dicts";
 
 // TODO: use sha256("CCIPMessageSent")
 const CCIP_MESSAGE_SENT_TOPIC: int = 0x99; // for easier indexing
@@ -55,7 +56,7 @@ fun Storage.store(self) {
     return contract.setData(self.toCell());
 }
 
-type Msg = OnRampSend | MessageValidated<Metadata> | SetDynamicConfig;
+type Msg = OnRampSend | MessageValidated<Metadata> | SetDynamicConfig | OnRampUpdateDestChainConfigs;
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy Msg.fromSlice(in.body);
@@ -66,6 +67,12 @@ fun onInternalMessage(in: InMessage) {
             var st = lazy Storage.load();
             st.ownable.requireOwner(in.senderAddress);
             st.config = msg.config.toCell();
+            st.store();
+        }
+        OnRampUpdateDestChainConfigs => {
+            var st = lazy Storage.load();
+            st.ownable.requireOwner(in.senderAddress);
+            applyDestChainConfigUpdates(mutate st, msg.updates);
             st.store();
         }
         else => {
@@ -83,7 +90,7 @@ fun send(payload: OnRampSend, sender: address) {
     val msg = payload.msg.load();
 
     // validate allowlist
-    val destChainConfig = st.destChainConfigs.mustGetRef(msg.destChainSelector, ERROR_UNKNOWN_DEST_CHAIN_SELECTOR);
+    val destChainConfig = st.destChainConfigs.mustGet(msg.destChainSelector, ERROR_UNKNOWN_DEST_CHAIN_SELECTOR);
     if (destChainConfig.allowlistEnabled) {
         // TODO:
         val (allowed, exists) = destChainConfig.allowedSenders.get(sender);
@@ -121,7 +128,7 @@ fun onMessageValidated(payload: MessageValidated<Metadata>, sender: address) {
     // else refund and notify
 
     // assign sequence number, we can't do this sooner since the message might fail validation/getFee
-    var destChainConfig = st.destChainConfigs.mustGetRef(msg.destChainSelector, ERROR_UNKNOWN_DEST_CHAIN_SELECTOR);
+    var destChainConfig = st.destChainConfigs.mustGet(msg.destChainSelector, ERROR_UNKNOWN_DEST_CHAIN_SELECTOR);
     val seqNr = destChainConfig.sequenceNumber;
     destChainConfig.sequenceNumber = destChainConfig.sequenceNumber + 1;
     st.destChainConfigs.set(msg.destChainSelector, destChainConfig);
@@ -138,13 +145,13 @@ fun onMessageValidated(payload: MessageValidated<Metadata>, sender: address) {
 
 get fun isChainSupported(destChainSelector: uint64): bool {
     val st = lazy Storage.load();
-    val (_, exists) = st.destChainConfigs.getRef(destChainSelector);
+    val (_, exists) = st.destChainConfigs.get(destChainSelector);
     return exists;
 }
 
 get fun expectedNextSequenceNumber(destChainSelector: uint64): uint64 {
     val st = lazy Storage.load();
-    val config = st.destChainConfigs.mustGetRef(destChainSelector,ERROR_UNKNOWN_DEST_CHAIN_SELECTOR);
+    val config = st.destChainConfigs.mustGet(destChainSelector,ERROR_UNKNOWN_DEST_CHAIN_SELECTOR);
     return config.sequenceNumber;
 }
 
@@ -159,19 +166,38 @@ get fun dynamicConfig(): OnRampDynamicConfig {
     return st.config.load()
 }
 
-fun applyDestChainConfigUpdates() {
-    
+fun applyDestChainConfigUpdates(mutate st: Storage, updates: cell) {
+    var iter = Iterator<OnRampUpdateDestChainConfig>.new(updates);
+
+    while (!iter.empty()) {
+        val update = iter.next();
+        // create or update entries
+        val (maybeConfig, exists) = st.destChainConfigs.get(update.destChainSelector);
+        if (exists) {
+            var config = maybeConfig!;
+            config.router = update.router;
+            config.allowlistEnabled = update.allowlistEnabled;
+            st.destChainConfigs.replace(update.destChainSelector, config);
+        } else {
+            st.destChainConfigs.set(update.destChainSelector, DestChainConfig {
+                router: update.router,
+                sequenceNumber: 0,
+                allowlistEnabled: update.allowlistEnabled,
+                allowedSenders: Map<bool>.new(),
+            })
+        }
+    }
 }
 
 get fun destChainConfig(destChainSelector: uint64): DestChainConfig {
     val st = lazy Storage.load();
-    return st.destChainConfigs.mustGetRef(destChainSelector,ERROR_UNKNOWN_DEST_CHAIN_SELECTOR);
+    return st.destChainConfigs.mustGet(destChainSelector,ERROR_UNKNOWN_DEST_CHAIN_SELECTOR);
 }
 
 // vec<address>
 get fun allowedSendersList(destChainSelector: uint64): tuple {
     val st = lazy Storage.load();
-    val config = st.destChainConfigs.mustGetRef(destChainSelector,ERROR_UNKNOWN_DEST_CHAIN_SELECTOR);
+    val config = st.destChainConfigs.mustGet(destChainSelector,ERROR_UNKNOWN_DEST_CHAIN_SELECTOR);
     var d = config.allowedSenders.value;
 
     var list: tuple? = null;
@@ -189,7 +215,6 @@ get fun allowedSendersList(destChainSelector: uint64): tuple {
 }
 
 fun applyAllowlistUpdates() {
-    
 }
 
 // outboundNonce() TODO: nonceManager?

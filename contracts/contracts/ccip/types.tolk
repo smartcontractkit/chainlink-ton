@@ -40,7 +40,7 @@ struct (0x7362d09c) JettonTransferNotification {
 }
 
 // OnRamp
-struct (0x00000002) OnRampSend {
+struct (0x10000002) OnRampSend {
     // queryId is embedded in the first element of CCIPSend
     msg: Cell<CCIPSend>;
     caller: address;
@@ -58,7 +58,15 @@ struct (0x10000003) SetDynamicConfig {
     config: OnRampDynamicConfig
 }
 
-struct UpdateDestChainConfigs {}
+struct OnRampUpdateDestChainConfig {
+    destChainSelector: uint64;
+    router: address;
+    allowlistEnabled: bool;
+}
+
+struct (0x10000004) OnRampUpdateDestChainConfigs {
+    updates: cell; // vec<OrRampUpdateDestChainConfig>
+}
 
 struct UpdateAllowlist {}
 
@@ -128,7 +136,7 @@ struct TokenTransferFeeConfig {
     destBytesOverhead: uint32;
 }
 
-struct (0x10000001) UpdatePrices {
+struct (0x20000001) UpdatePrices {
     updates: PriceUpdates    
 }
 
@@ -136,7 +144,7 @@ struct FeeToken {
     premiumMultiplierWeiPerEth: uint64
 }
 
-struct (0x10000002) UpdateFeeTokens {
+struct (0x20000002) UpdateFeeTokens {
     add: Map<FeeToken>; // token -> config
     remove: cell; // vector<address>
 }
@@ -144,7 +152,7 @@ struct (0x10000002) UpdateFeeTokens {
 // NOTE: we just merged this into UpdateFeeTokens
 // struct (0x10000003) UpdatePremiumMultiplierWeiPerEth { // token, multiplier }
 
-struct (0x10000004) UpdateTokenTransferFeeConfigs {
+struct (0x20000003) UpdateTokenTransferFeeConfigs {
     // TODO: would these be more efficient as snakedata (key, value)?
     updates: UMap<uint64, UpdateTokenTransferFeeConfig>; // destChainSelector -> updates
 }
@@ -154,12 +162,12 @@ struct UpdateTokenTransferFeeConfig {
     remove: cell; // vector<address>
 } 
 
-struct (0x10000005) UpdateDestChainConfig {
+struct (0x20000004) UpdateDestChainConfig {
     destChainSelector: uint64;
     destChainConfig: FeeQuoterDestChainConfig;
 }
 
-struct (0x10000006) GetValidatedFee<C> {
+struct (0x20000005) GetValidatedFee<C> {
     msg: Cell<CCIPSend>;
     metadata: Cell<C>,
 }

@@ -1,5 +1,6 @@
 import {
   Address,
+  Builder as TonBuilder,
   beginCell,
   Cell,
   Contract,
@@ -11,6 +12,7 @@ import {
 } from '@ton/core'
 
 import { Ownable2StepConfig } from '../libraries/access/Ownable2Step'
+import { asSnakeData } from '../../tests/utils'
 
 export type OnRampStorage = {
   ownable: Ownable2StepConfig
@@ -66,6 +68,8 @@ export abstract class Params {}
 
 export abstract class Opcodes {
   static ccipSend = 0x00000001
+  static setDynamicConfig= 0x10000003
+  static updateDestChainConfigs= 0x10000004
 }
 
 export abstract class Errors {}
@@ -99,6 +103,45 @@ export class OnRamp implements Contract {
       value: value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: beginCell().endCell(),
+    })
+  }
+
+  async sendSetDynamicConfig(
+    provider: ContractProvider,
+    via: Sender,
+    opts: {
+      value: bigint
+      config: boolean,
+    },
+  ) {
+    await provider.internal(via, {
+      value: opts.value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: beginCell()
+        .storeUint(Opcodes.setDynamicConfig, 32)
+        .endCell(),
+    })
+  }
+
+  async sendUpdateDestChainConfigs(
+    provider: ContractProvider,
+    via: Sender,
+    opts: {
+      value: bigint
+      destChainConfigs: { destChainSelector: bigint, router: Address, allowlistEnabled: boolean }[]
+    },
+  ) {
+    await provider.internal(via, {
+      value: opts.value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: beginCell()
+        .storeUint(Opcodes.updateDestChainConfigs, 32)
+        .storeRef(asSnakeData(opts.destChainConfigs, (config) => new TonBuilder()
+          .storeUint(config.destChainSelector, 64)
+          .storeAddress(config.router)
+          .storeBit(config.allowlistEnabled)
+        ))
+        .endCell(),
     })
   }
 }

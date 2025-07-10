@@ -15,7 +15,7 @@ struct Iterator<T> {
 }
 
 @inline @pure
-fun Iterator<T>.new(data: cell) {
+fun Iterator<T>.new(data: cell): Iterator<T> {
     return Iterator<T> { data: data.beginParse() };
 }
 
