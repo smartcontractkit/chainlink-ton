@@ -96,7 +96,7 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 			Amount:            big.NewInt(30),
 		},
 	}
-	require.NoError(t, err)
+
 	rampMessageSlice := []Any2TONRampMessage{
 		{
 			Header: RampMessageHeader{
@@ -127,14 +127,12 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 			TokenAmounts: tokenAmountsSlice,
 		},
 	}
-	require.NoError(t, err)
 
 	signatureCell := []Signature{
 		{
 			Sig: make([]byte, 64),
 		},
 	}
-	require.NoError(t, err)
 
 	report := ExecuteReport{
 		SourceChainSelector: 1,

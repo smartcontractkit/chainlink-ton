@@ -90,7 +90,6 @@ func TestCommitReport_EncodingAndDecoding(t *testing.T) {
 			Sig: make([]byte, 64),
 		},
 	}
-	require.NoError(t, err)
 
 	commitReport := CommitReport{
 		PriceUpdates: PriceUpdates{
