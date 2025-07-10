@@ -98,33 +98,181 @@ func NewDummyCell() (*cell.Cell, error) {
 
 func TestPackAndUnpack2DByteArrayToCell(t *testing.T) {
 	tests := []struct {
-		name  string
-		input [][]byte
+		name      string
+		input     [][]byte
+		expectErr bool
 	}{
-		{"empty", [][]byte{}},
-		{"single empty", [][]byte{{}}},
-		{"single short", [][]byte{[]byte("abc")}},
-		{"multiple short", [][]byte{[]byte("abc"), []byte("defg")}},
-		{"long array", [][]byte{make([]byte, 1000)}},
-		{"multiple long", [][]byte{make([]byte, 500), make([]byte, 800)}},
+		// Basic cases
+		{"empty", [][]byte{}, false},
+		{"single empty", [][]byte{{}}, false},
+		{"single short", [][]byte{[]byte("abc")}, false},
+		{"multiple short", [][]byte{[]byte("abc"), []byte("defg")}, false},
+
+		// Size boundary cases
+		{"max length array", [][]byte{make([]byte, 0xFFFF)}, false},
+		{"too long array", [][]byte{make([]byte, 0x10000)}, true},
+
+		// Mixed sizes
+		{"mixed empty and data", [][]byte{{}, []byte("test"), {}, []byte("data")}, false},
+		{"many empty arrays", func() [][]byte {
+			arrays := make([][]byte, 100)
+			for i := range arrays {
+				arrays[i] = []byte{}
+			}
+			return arrays
+		}(), false},
+
+		// Cell capacity edge cases
+		{"large number of small arrays", func() [][]byte {
+			arrays := make([][]byte, 500)
+			for i := range arrays {
+				arrays[i] = []byte{byte(i % 256)}
+			}
+			return arrays
+		}(), false},
+
+		{"arrays that span multiple cells", [][]byte{
+			make([]byte, 1000),
+			make([]byte, 1000),
+			make([]byte, 1000),
+		}, false},
+
+		// Bit alignment edge cases
+		{"single byte arrays", [][]byte{
+			{0x01}, {0x02}, {0x03}, {0x04}, {0x05},
+		}, false},
+
+		{"exactly 127 bytes (fits in one cell with length)", [][]byte{
+			make([]byte, 127), // 127*8 + 16 = 1032 bits (fits in 1023 bits available)
+		}, false},
+
+		{"128 bytes (requires cell split)", [][]byte{
+			make([]byte, 128), // 128*8 + 16 = 1040 bits (exceeds 1023)
+		}, false},
+
+		// Many small arrays that require multiple cells
+		{"many tiny arrays", func() [][]byte {
+			arrays := make([][]byte, 200)
+			for i := range arrays {
+				arrays[i] = []byte{byte(i % 256), byte((i + 1) % 256)}
+			}
+			return arrays
+		}(), false},
+
+		// Pathological cases
+		{"alternating empty and large size", [][]byte{
+			{},
+			make([]byte, 1000),
+			{},
+			make([]byte, 1000),
+		}, false},
+
+		// Stress test with various sizes
+		{"random sizes", func() [][]byte {
+			sizes := []int{0, 1, 10, 100, 500, 1000, 5000, 10000}
+			arrays := make([][]byte, len(sizes))
+			for i, size := range sizes {
+				arrays[i] = make([]byte, size)
+				// Fill with pattern for verification
+				for j := range arrays[i] {
+					arrays[i][j] = byte((i + j) % 256)
+				}
+			}
+			return arrays
+		}(), false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c, err := pack2DByteArrayToCell(tt.input)
+
+			if tt.expectErr {
+				require.Error(t, err)
+				return
+			}
+
 			require.NoError(t, err)
 
 			output, err := unpack2DByteArrayFromCell(c)
 			require.NoError(t, err)
-			require.Equal(t, tt.input, output)
+			require.Equal(t, len(tt.input), len(output), "array count mismatch")
+
+			for i, expected := range tt.input {
+				require.Equal(t, expected, output[i], "array %d content mismatch", i)
+			}
 		})
 	}
 }
 
-func TestPack2DByteArrayToCell_TooLong(t *testing.T) {
-	tooLong := make([]byte, 0x10000+1)
-	_, err := pack2DByteArrayToCell([][]byte{tooLong})
-	require.Error(t, err)
+func TestPackAndUnpack2DByteArrayToCell_CellStructure(t *testing.T) {
+	// Test that cell structure is reasonable for large datasets
+	t.Run("cell count for large dataset", func(t *testing.T) {
+		// Create 1000 arrays of 10 bytes each
+		arrays := make([][]byte, 1000)
+		for i := range arrays {
+			arrays[i] = make([]byte, 10)
+		}
+
+		c, err := pack2DByteArrayToCell(arrays)
+		require.NoError(t, err)
+
+		// Count total cells used
+		cellCount, err := getTotalReference(c)
+		require.NoError(t, err)
+
+		// Each array: 16 bits (length) + 80 bits (data) = 96 bits
+		// Cell capacity: ~1023 bits, so ~10 arrays per cell
+		// Expected: ~100 cells + linking overhead
+		require.Less(t, cellCount, uint(100), "too many cells used")
+	})
+
+	t.Run("handles cell boundaries correctly", func(t *testing.T) {
+		// Create arrays that will definitely span multiple cells
+		arrays := [][]byte{
+			make([]byte, 200), // Forces new cell for data
+			make([]byte, 200),
+			make([]byte, 200),
+		}
+
+		c, err := pack2DByteArrayToCell(arrays)
+		require.NoError(t, err)
+
+		output, err := unpack2DByteArrayFromCell(c)
+		require.NoError(t, err)
+		require.Equal(t, arrays, output)
+	})
+}
+
+func TestUnpack2DByteArrayFromCell_CorruptedData(t *testing.T) {
+	t.Run("insufficient data for declared length", func(t *testing.T) {
+		// Create a cell that claims to have more data than actually present
+		builder := cell.BeginCell()
+		// Store length of 100 bytes
+		err := builder.StoreUInt(100, 16)
+		require.NoError(t, err)
+		// But only store 10 bytes
+		err = builder.StoreSlice(make([]byte, 10), 80)
+		require.NoError(t, err)
+
+		c := builder.EndCell()
+
+		_, err = unpack2DByteArrayFromCell(c)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "insufficient data")
+	})
+
+	t.Run("partial length prefix", func(t *testing.T) {
+		// Create a cell with only partial length prefix
+		builder := cell.BeginCell()
+		err := builder.StoreUInt(1, 8) // Only 8 bits instead of 16
+		require.NoError(t, err)
+
+		c := builder.EndCell()
+
+		output, err := unpack2DByteArrayFromCell(c)
+		require.NoError(t, err)
+		require.Empty(t, output) // Should stop when insufficient bits for length
+	})
 }
 
 func TestLoadArray_LoadToArrayFitMultipleInSingleCell(t *testing.T) {

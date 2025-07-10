@@ -1,7 +1,6 @@
 package bindings
 
 import (
-	"errors"
 	"fmt"
 	"math"
 	"math/big"
@@ -243,7 +242,7 @@ func unloadCellToByteArray(c *cell.Cell) ([]byte, error) {
 	return result, nil
 }
 
-// pack2DByteArrayToCell packs a 2D byte array into a linked cell structure, supporting empty arrays.
+// pack2DByteArrayToCell packs a 2D byte array into a linked cell structure, supporting empty arrays and handling partial storage.
 func pack2DByteArrayToCell(arrays [][]byte) (*cell.Cell, error) {
 	if len(arrays) == 0 {
 		return nil, nil
@@ -256,20 +255,38 @@ func pack2DByteArrayToCell(arrays [][]byte) (*cell.Cell, error) {
 		if length > 0xFFFF {
 			return nil, fmt.Errorf("byte array too long: %d", length)
 		}
+
+		// Check if we have space for length (16 bits)
 		if builder.BitsLeft() < 16 {
 			builder = cell.BeginCell()
 			cells = append(cells, builder)
 		}
+
+		// Store length
 		if err := builder.StoreUInt(uint64(length), 16); err != nil {
 			return nil, fmt.Errorf("failed to store length: %w", err)
 		}
+
+		// Store data inline if length > 0, handling partial storage
 		if length > 0 {
-			dataCell, err := packByteArrayToCell(data)
-			if err != nil {
-				return nil, fmt.Errorf("failed to pack inner array: %w", err)
-			}
-			if err := builder.StoreRef(dataCell); err != nil {
-				return nil, fmt.Errorf("failed to store ref: %w", err)
+			offset := 0
+			for offset < length {
+				availableBytes := builder.BitsLeft() / 8
+				if availableBytes == 0 {
+					builder = cell.BeginCell()
+					cells = append(cells, builder)
+					availableBytes = builder.BitsLeft() / 8
+				}
+
+				writeLen := length - offset
+				if uint(writeLen) > availableBytes {
+					writeLen = int(availableBytes)
+				}
+
+				if err := builder.StoreSlice(data[offset:offset+writeLen], uint(writeLen)*8); err != nil {
+					return nil, fmt.Errorf("failed to store data: %w", err)
+				}
+				offset += writeLen
 			}
 		}
 	}
@@ -286,44 +303,75 @@ func pack2DByteArrayToCell(arrays [][]byte) (*cell.Cell, error) {
 	return next, nil
 }
 
-// unpack2DByteArrayFromCell unpacks a 2D byte array from a linked cell structure, supporting empty arrays.
+// unpack2DByteArrayFromCell unpacks a linked cell structure into a 2D byte array, handling partial storage and empty arrays.
 func unpack2DByteArrayFromCell(c *cell.Cell) ([][]byte, error) {
 	if c == nil {
 		return [][]byte{}, nil
 	}
 	var result [][]byte
-	s := c.BeginParse()
-	for s.BitsLeft() > 0 {
-		length, err := s.LoadUInt(16)
-		if err != nil {
-			return nil, fmt.Errorf("failed to load length: %w", err)
+	curr := c
+
+	for curr != nil {
+		s := curr.BeginParse()
+		for s.BitsLeft() >= 16 {
+			length, err := s.LoadUInt(16)
+			if err != nil {
+				return nil, fmt.Errorf("failed to load length: %w", err)
+			}
+			if length > uint64(math.MaxInt) {
+				return nil, fmt.Errorf("length %d overflows int", length)
+			}
+
+			if length == 0 {
+				result = append(result, []byte{})
+				continue
+			}
+
+			// Read data that might span multiple cells
+			data := make([]byte, 0, length)
+			remaining := int(length)
+
+			for remaining > 0 {
+				availableBytes := s.BitsLeft() / 8
+				if availableBytes == 0 {
+					// Move to next cell if current one is exhausted
+					if curr.RefsNum() > 0 {
+						ref, err := curr.PeekRef(0)
+						if err != nil {
+							return nil, fmt.Errorf("failed to get next cell ref: %w", err)
+						}
+						curr = ref
+						s = curr.BeginParse()
+						continue
+					}
+					return nil, fmt.Errorf("insufficient data: need %d more bytes", remaining)
+				}
+
+				readLen := remaining
+				if uint(readLen) > availableBytes {
+					readLen = int(availableBytes)
+				}
+
+				chunk, err := s.LoadSlice(uint(readLen) * 8)
+				if err != nil {
+					return nil, fmt.Errorf("failed to load data chunk: %w", err)
+				}
+				data = append(data, chunk...)
+				remaining -= readLen
+			}
+
+			result = append(result, data)
 		}
-		if length > uint64(math.MaxInt) {
-			return nil, fmt.Errorf("length %d overflows int", length)
+
+		if curr.RefsNum() > 0 {
+			ref, err := curr.PeekRef(0)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get next cell ref: %w", err)
+			}
+			curr = ref
+		} else {
+			curr = nil
 		}
-		if length == 0 {
-			result = append(result, []byte{})
-			continue
-		}
-		if s.RefsNum() == 0 {
-			return nil, errors.New("expected ref for non-empty array")
-		}
-		ref, err := s.LoadRef()
-		if err != nil {
-			return nil, fmt.Errorf("failed to load ref: %w", err)
-		}
-		refCell, err := ref.ToCell()
-		if err != nil {
-			return nil, fmt.Errorf("failed to convert ref to cell: %w", err)
-		}
-		data, err := unloadCellToByteArray(refCell)
-		if err != nil {
-			return nil, fmt.Errorf("failed to unpack inner array: %w", err)
-		}
-		if len(data) != int(length) {
-			return nil, fmt.Errorf("length mismatch: expected %d, got %d", length, len(data))
-		}
-		result = append(result, data)
 	}
 	return result, nil
 }
