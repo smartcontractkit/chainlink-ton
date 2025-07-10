@@ -8,6 +8,63 @@ struct MerkleRoot {
     merkleRoot: uint256;
 }
 
+struct RampMessageHeader { // 512
+    messageId: uint256;
+    sourceChainSelector: uint64;
+    destChainSelector: uint64;
+    sequenceNumber: uint64;
+    nonce: uint64;
+}
+
+struct Any2TVMRampMessage {
+    header: RampMessageHeader;
+    sender: cell;
+    data: cell;
+    receiver: address;
+    // gasLimit: coins; // TODO: no gas limit because it's up to the receiver to pay for it's gas
+    tokenAmounts: cell; // vec<Any2TONTokenTransfer>
+    // maybe mark these amounts as slice remaining then parse them by hand to avoid requiring this to be a map<> at send time?
+}
+
+struct Any2TVMTokenTransfer {
+    sourcePoolAddress: cell;
+    destPoolAddress: address;
+    destGasAmount: uint32;
+    extraData: cell;
+    amount: uint256;
+}
+
+struct TVM2AnyRampMessage {
+    header: RampMessageHeader;
+    sender: address;
+    body: Cell<TVM2AnyRampMessageBody>;
+}
+
+struct TVM2AnyRampMessageBody {
+    receiver: cell;
+    data: cell;
+    extraArgs: cell;
+    tokenAmounts: cell;
+    feeToken: address;
+    feeTokenAmount: uint256;
+    feeValueJuels: uint256;
+}
+
+const LEAF_DOMAIN_SEPARATOR: int = 0x0000000000000000000000000000000000000000000000000000000000000000;
+
+fun TVM2AnyRampMessage.generateMessageId(self, metadataHash: uint256): uint256 {
+    // Loosely based on https://github.com/smartcontractkit/chainlink/blob/d1a9f8be2f222ea30bdf7182aaa6428bfa605cf7/contracts/src/v0.8/ccip/libraries/Internal.sol#L137-L154
+    return beginCell()
+        .storeUint(LEAF_DOMAIN_SEPARATOR, 256)
+        .storeUint(metadataHash, 256)
+        .storeAddress(self.sender)
+        .storeUint(self.header.sequenceNumber, 64)
+        .storeUint(self.header.nonce, 64)
+        .storeRef(self.body)
+        .endCell()
+        .hash()
+}
+
 // Router
  
 struct TokenAmount {
@@ -188,7 +245,7 @@ struct Metadata {
 struct (0x00000003) MessageValidated<C> {
     msg: Cell<CCIPSend>;
     metadata: Cell<C>,
-    fee: uint256; // TODO: maybe coins?
+    fee: uint256; // TODO: size down? coins?
 }
 
 // OffRamp

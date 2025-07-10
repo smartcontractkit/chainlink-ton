@@ -31,28 +31,67 @@ type CCIPSend = {
 type CCIPMessageSentParams = {
   destChainSelector: bigint
   sequenceNumber: bigint
-  message: Partial<CCIPSend>
+  message: {
+    header: {
+      messageId: bigint
+      destChainSelector: bigint
+      sourceChainSelector: bigint
+      sequenceNumber: bigint
+      nonce: bigint
+    }
+    sender: Address
+    receiver: Cell
+    data: Cell
+    extraArgs: Cell
+    tokenAmounts: Cell // TODO: further parse all the fields
+    feeToken: Address
+    feeTokenAmount: bigint
+    feeValueJuels: bigint
+  }
+}
+
+type DeepPartial<T> = {
+  [P in keyof T]?: DeepPartial<T[P]>
 }
 
 export const testLogMessageSent = (
   message: Message,
   from: Address,
-  match: Partial<CCIPMessageSentParams>,
+  match: DeepPartial<CCIPMessageSentParams>,
 ) => {
   return testLog(message, from, LogTypes.CCIPMessageSent, (x) => {
-    const bs = x.beginParse()
-    const msg: CCIPMessageSentParams = {
+    let bs = x.beginParse()
+
+    const destChainSelector = bs.loadUintBig(64)
+    const sequenceNumber = bs.loadUintBig(64)
+
+    bs = bs.loadRef().beginParse()
+
+    const header = {
+      messageId: bs.loadUintBig(256),
+      sourceChainSelector: bs.loadUintBig(64),
       destChainSelector: bs.loadUintBig(64),
       sequenceNumber: bs.loadUintBig(64),
+      nonce: bs.loadUintBig(64),
+    }
+    const sender = bs.loadAddress()
+
+    const body = bs.loadRef().beginParse()
+
+    const msg: CCIPMessageSentParams = {
+      destChainSelector,
+      sequenceNumber,
       message: {
-        queryId: bs.skip(32).loadUintBig(64), // skip 32 to skip the opcode
-        destChainSelector: bs.loadUintBig(64),
-        receiver: bs.loadRef(),
-        data: bs.loadRef(),
-        tokenAmounts: bs.loadRef(),
-        feeToken: bs.loadAddress(),
-        extraArgs: bs.loadRef(),
-      },
+        header,
+        sender,
+        receiver: body.loadRef(),
+        data: body.loadRef(),
+        extraArgs: body.loadRef(),
+        tokenAmounts: body.loadRef(),
+        feeToken: body.loadAddress(),
+        feeTokenAmount: body.loadUintBig(256),
+        feeValueJuels: body.loadUintBig(256),
+      }
     }
 
     // TODO: we need to use toEqualAddress/toEqualCell for some values
@@ -66,7 +105,7 @@ enum LogTypes {
 }
 
 type LogMatch<T extends LogTypes> = T extends LogTypes.CCIPMessageSent
-  ? Partial<CCIPMessageSentParams>
+  ? DeepPartial<CCIPMessageSentParams>
   : number
 export const assertLog = <T extends LogTypes>(
   transactions: BlockchainTransaction[],
@@ -77,7 +116,7 @@ export const assertLog = <T extends LogTypes>(
   getExternals(transactions).some((x) => {
     switch (type) {
       case LogTypes.CCIPMessageSent:
-        testLogMessageSent(x, from, match as Partial<CCIPMessageSentParams>)
+        testLogMessageSent(x, from, match as DeepPartial<CCIPMessageSentParams>)
         break
       default:
         fail('Unhandled log type')
@@ -332,7 +371,11 @@ describe('Router', () => {
 
     // assert CCIPMessageSent
     assertLog(result.transactions, onRamp.address, LogTypes.CCIPMessageSent, {
-      destChainSelector: CHAINSEL_EVM_TEST_90000001,
+      message: {
+        header: {
+          destChainSelector: CHAINSEL_EVM_TEST_90000001,
+        }
+      }
     })
   })
 

@@ -62,35 +62,9 @@ struct SkippedReportExecution {
     sourceChainSelector: uint64;
 }
 
-struct RampMessageHeader { // 512
-    messageId: uint256;
-    sourceChainSelector: uint64;
-    destChainSelector: uint64;
-    sequenceNumber: uint64;
-    nonce: uint64;
-}
-
-struct Any2TONRampMessage {
-    header: RampMessageHeader;
-    sender: cell;
-    data: cell;
-    receiver: address;
-    // gasLimit: coins; // TODO: no gas limit because it's up to the receiver to pay for it's gas
-    tokenAmounts: cell; // vec<Any2TONTokenTransfer>
-    // maybe mark these amounts as slice remaining then parse them by hand to avoid requiring this to be a map<> at send time?
-}
-
-struct Any2TONTokenTransfer {
-    sourcePoolAddress: cell;
-    destPoolAddress: address;
-    destGasAmount: uint32;
-    extraData: cell;
-    amount: uint256;
-}
-
 struct ExecutionReport {
     sourceChainSelector: uint64;
-    messages: cell; // vec<Any2TONRampMessage>
+    messages: cell; // vec<Any2TVMRampMessage>
     offchainTokenData: cell; // TODO: vec<vec<u8>>, one per token
     proofs: cell; // Proofs used to construct the merkle root TODO: vec<bytes32>
     proofFlagBits: uint256;
@@ -225,7 +199,7 @@ fun _execute(msg: Execute, sender: address) {
     var hashedLeaves = createEmptyTuple();
 
     // TODO: metadata hash:
-    var messages = Iterator<Any2TONRampMessage>.new(report.messages);
+    var messages = Iterator<Any2TVMRampMessage>.new(report.messages);
     // TODO: is offchainTokenData not hashed?
     while (!messages.empty()) {
         val message = messages.next();

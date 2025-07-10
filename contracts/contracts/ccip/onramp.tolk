@@ -9,9 +9,9 @@ import "@stdlib/tvm-dicts";
 const CCIP_MESSAGE_SENT_TOPIC: int = 0x99; // for easier indexing
 
 struct CCIPMessageSent {
-    destChainSelector: uint64;
+    destChainSelector: uint64; // NOTE: both these values are already part of message, is it even important to have?
     sequenceNumber: uint64;
-    message: CCIPSend;
+    message: Cell<TVM2AnyRampMessage>;
 }
 
 struct Storage {
@@ -44,6 +44,8 @@ struct DestChainConfig {
 // user calls wallet -> account contract -> router, account verifies dest chain and if
 // the user is allowed to send. This will also allow users to deposit funds ahead of time
 // unless we intend to keep the allow list small?
+// nonceManager: also seems to fit best in a sender subcontract with a dict destChainSelector -> nonce
+// if we pass through account contract then we can grab a nonce and pass it through?
 
 fun Storage.load(): Storage {
     return Storage.fromCell(contract.getData());
@@ -112,6 +114,7 @@ fun send(payload: OnRampSend, sender: address) {
             metadata: Metadata {
                 caller: contract.getAddress(),
                 // TODO: ...
+                // must include nonce
             }.toCell() 
         }
     });
@@ -126,7 +129,8 @@ fun onMessageValidated(payload: MessageValidated<Metadata>, sender: address) {
     // notification must come from fee quoter
     assert(config.feeQuoter == sender, ERROR_SENDER_NOT_ALLOWED);
 
-    val msg = payload.msg.load();
+    val msg: CCIPSend = payload.msg.load();
+    val metadata = payload.metadata.load();
 
     // validate user transferred enough value
     // else refund and notify
@@ -138,10 +142,42 @@ fun onMessageValidated(payload: MessageValidated<Metadata>, sender: address) {
     st.destChainConfigs.set(msg.destChainSelector, destChainConfig);
     st.store();
 
+    var rampMessage = TVM2AnyRampMessage {
+        header: RampMessageHeader {
+            messageId: 0, // populated after hashing
+            sourceChainSelector: st.chainSelector,
+            destChainSelector: msg.destChainSelector,
+            sequenceNumber: seqNr,
+            nonce: 0, // TODO:
+        },
+        sender: metadata.caller,
+        body: TVM2AnyRampMessageBody {
+            receiver: msg.receiver,
+            data: msg.data,
+            extraArgs: msg.extraArgs,
+            tokenAmounts: createEmptyCell(), // TODO:
+            feeToken: msg.feeToken,
+            feeTokenAmount: payload.fee,
+            feeValueJuels: 0, // TODO:
+        }.toCell()
+    };
+
+    // Metadata hash preimage to ensure global uniqueness, ensuring 2 identical messages sent to 2 different lanes
+    // will have a distinct hash.
+    val metadataHash = beginCell()
+        .storeUint(stringSha256("TVM2AnyMessageHashV1"), 256)
+        .storeUint(st.chainSelector, 64)
+        .storeUint(msg.destChainSelector, 64)
+        .storeAddress(contract.getAddress())
+        .endCell()
+        .hash();
+
+    rampMessage.header.messageId = rampMessage.generateMessageId(metadataHash);
+    
     emit(CCIP_MESSAGE_SENT_TOPIC, CCIPMessageSent {
         destChainSelector: msg.destChainSelector,
         sequenceNumber: seqNr,
-        message: msg
+        message: rampMessage.toCell(),
     });
 
     // TODO: notify user
