@@ -52,6 +52,7 @@ func TestIntegration(t *testing.T) {
 	})
 
 	t.Run("TestCounter", func(t *testing.T) {
+		t.Skip("mylocalton doesn't work with tolk 1.0 yet")
 		alice := accs[0]
 
 		fmt.Printf("\n\n\n\n\n\nTest Setup\n==========================\n")
