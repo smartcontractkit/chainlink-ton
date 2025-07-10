@@ -15,23 +15,18 @@ struct JettonWalletData {
     jettonMasterAddress: address;
 }
 
-// Pack jetton wallet data for storage
-fun packJettonWalletData(status: int, balance: coins, ownerAddress: address, jettonMasterAddress: address): cell {
-    return JettonWalletData{
-        status: status,
-        balance: balance,
-        ownerAddress: ownerAddress,
-        jettonMasterAddress: jettonMasterAddress
-    }.toCell();
-}
-
 // Calculate jetton wallet state init
 fun calculateJettonWalletStateInit(ownerAddress: address, jettonMasterAddress: address, jettonWalletCode: cell): cell {
     return StateInit {
         fixedPrefixLength: null,
         special: null,
         code: jettonWalletCode,
-        data: packJettonWalletData(0, 0, ownerAddress, jettonMasterAddress),
+        data: JettonWalletData{
+            status: 0,
+            balance: 0,
+            ownerAddress: ownerAddress,
+            jettonMasterAddress: jettonMasterAddress
+        }.toCell(),
         library: null
     }.toCell();
 }
