@@ -1,7 +1,7 @@
 import "types.tolk";
 import "../lib/upgrades/type_and_version.tolk";
 import "../deployable/types.tolk";
-import "utils.tolk";
+import "../lib/utils.tolk";
 
 // State stores the general state machine indicating which phase we're in
 // TODO: we might be able to merge this into execution_states
@@ -28,22 +28,8 @@ fun MerkleRoot_Storage.store(self) {
 
 type Msg = ExecuteReport;
 
-<<<<<<< HEAD
 fun onInternalMessage(in: InMessage) {
     val msg = lazy Msg.fromSlice(in.body);
-=======
-fun onInternalMessage(msgCell: cell, msgBody: slice) {
-    if (msgBody.isEndOfBits() && msgBody.isEndOfRefs()) { // ignore all empty messages
-        return;
-    }
-
-    var cs     = msgCell.beginParse();
-    val flags  = cs.loadMessageFlags();
-    if (isMessageBounced(flags)) { return; } // ignore all bounced messages
-    val sender = cs.loadAddress();
-
-    val msg = Msg.fromSlice(msgBody);
->>>>>>> 59fe496 (Update contracts to tolk 1.0)
     match (msg) {
         ExecuteReport => {}
         else => {

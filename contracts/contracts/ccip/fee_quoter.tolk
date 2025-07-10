@@ -3,7 +3,7 @@ import "types.tolk";
 import "../lib/access/ownable_2step.tolk";
 import "../deployable/types.tolk";
 import "../lib/upgrades/type_and_version.tolk";
-import "utils.tolk";
+import "../lib/utils.tolk";
 import "../lib/utils.tolk";
 
 const VAL_1E5:  uint256 = 100000;
@@ -50,15 +50,8 @@ fun Storage.store(self) {
 struct DestChainConfig {
     config: FeeQuoterDestChainConfig;
 
-<<<<<<< HEAD
     // TODO: split this out since updates are more frequent?
     usdPerUnitGas: Cell<GasPrice>; // TODO: it'd be nice if this wasn't split off
-=======
-fun onInternalMessage(msgCell: cell, msgBody: slice) {
-    if (msgBody.isEndOfBits() && msgBody.isEndOfRefs()) { // ignore all empty messages
-        return;
-    }
->>>>>>> 59fe496 (Update contracts to tolk 1.0)
 
     tokenTransferFeeConfigs: Map<TokenTransferFeeConfig>; // (sdict) address -> TokenTransferFeeConfig
 }
@@ -323,7 +316,6 @@ fun getTokenTransferCost(st: Storage, destChainConfig: DestChainConfig, mutate t
     var tokenTransferGas: uint32 = 0;
     var tokenTransferBytesOverhead: uint32 = 0;
 
-<<<<<<< HEAD
     var count = 0;
 
     while (!tokens.empty()) {
@@ -413,8 +405,6 @@ get fun staticConfig() {
     // maxFeeJuelsPerMsg, linkToken, tokenPriceStalenessThreshold
 }
 
-=======
->>>>>>> 59fe496 (Update contracts to tolk 1.0)
 get fun typeAndVersion(): (slice, slice) {
      return ("com.chainlink.ton.ccip.FeeQuoter", "1.0.0");
  }

@@ -2,7 +2,7 @@ import "types.tolk";
 import "../lib/access/ownable_2step.tolk";
 import "../lib/upgrades/type_and_version.tolk";
 import "../deployable/types.tolk";
-import "utils.tolk";
+import "../lib/utils.tolk";
 
 struct Storage {
     ownable: Ownable2Step;
@@ -21,22 +21,8 @@ fun Storage.store(self) {
 
 type Msg = CCIPSend | SetRamp | JettonTransferNotification;
 
-<<<<<<< HEAD
 fun onInternalMessage(in: InMessage) {
     val msg = lazy Msg.fromSlice(in.body);
-=======
-fun onInternalMessage(msgCell: cell, msgBody: slice) {
-    if (msgBody.isEndOfBits() && msgBody.isEndOfRefs()) { // ignore all empty messages
-        return;
-    }
-
-    var cs     = msgCell.beginParse();
-    val flags  = cs.loadMessageFlags();
-    if (isMessageBounced(flags)) { return; } // ignore all bounced messages
-    val sender = cs.loadAddress();
-
-    val msg = Msg.fromSlice(msgBody);
->>>>>>> 59fe496 (Update contracts to tolk 1.0)
     match (msg) {
         SetRamp => { onSetRamp(msg, in.senderAddress) }
         CCIPSend => { onSend(msg, in.senderAddress) }

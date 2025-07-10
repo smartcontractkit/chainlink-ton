@@ -116,11 +116,6 @@ fun Upgradeable.upgrade(self, code: cell) {
         // TODO: double check if this is still valid for tolk 1.0
         version: UnsafeBodyNoRef {
             forceInline: self.version(), // This is expected to be the version of the new code
-<<<<<<< HEAD
             },
         });
-=======
-        },
-    });
->>>>>>> 59fe496 (Update contracts to tolk 1.0)
 }
