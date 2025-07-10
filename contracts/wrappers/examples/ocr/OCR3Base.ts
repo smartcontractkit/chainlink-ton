@@ -9,7 +9,7 @@ import {
   SendMode,
 } from '@ton/core'
 import { newOCR3BaseCell, OCR3Base, OCR3Config, ocr3ConfigFromCell, ReportContext, SignatureEd25519 } from '../../libraries/ocr/MultiOCR3Base'
-import { asSnakeData } from '../../../tests/utils'
+import { asSnakeData } from '../../../utils/Utils'
 
 
 export function ocr3BaseExampleStorage(): Cell {

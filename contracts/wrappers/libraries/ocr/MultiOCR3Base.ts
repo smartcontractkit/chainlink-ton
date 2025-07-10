@@ -8,9 +8,11 @@ import {
   Sender,
   SendMode,
 } from '@ton/core'
+import { sign } from '@ton/crypto';
+import { bigIntToUint8Array, uint8ArrayToBigInt } from '../../../utils/Utils'
 
 import { crc32 } from 'zlib'
-import { asSnakeData, fromSnakeData } from '../../../tests/utils'
+import { asSnakeData, fromSnakeData } from '../../../utils/Utils'
 
 export const OCR3_PLUGIN_TYPE_COMMIT = 0x0000
 export const OCR3_PLUGIN_TYPE_EXECUTE = 0x0001
@@ -71,6 +73,23 @@ export type SignatureEd25519 = {
   s: bigint,
   signer: bigint
 }
+
+
+export function createSignature(signer: bigint, data: Buffer<ArrayBufferLike>): SignatureEd25519 {
+  const privateKey = Buffer.from(bigIntToUint8Array(signer));
+
+  const signature = sign(data, privateKey);
+
+  const r = uint8ArrayToBigInt(signature.subarray(0, 32));
+  const s = uint8ArrayToBigInt(signature.subarray(32, 64));
+
+  return {
+    r,
+    s,
+    signer,
+  };
+}
+ 
 
 export function newOCR3BaseCell(chainId: number): Cell {
     return beginCell()
