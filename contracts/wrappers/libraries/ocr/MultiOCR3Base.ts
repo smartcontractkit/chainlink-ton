@@ -8,7 +8,7 @@ import {
   Sender,
   SendMode,
 } from '@ton/core'
-import { sign } from '@ton/crypto';
+import { KeyPair, sign } from '@ton/crypto';
 import { bigIntToUint8Array, uint8ArrayToBigInt } from '../../../utils/Utils'
 
 import { crc32 } from 'zlib'
@@ -75,24 +75,25 @@ export type SignatureEd25519 = {
 }
 
 
-export function createSignature(signer: bigint, data: Buffer<ArrayBufferLike>): SignatureEd25519 {
-  const privateKey = Buffer.from(bigIntToUint8Array(signer));
+export function createSignature(signer: KeyPair, data: Buffer<ArrayBufferLike>): SignatureEd25519 {
 
-  const signature = sign(data, privateKey);
+  const signature = sign(data, signer.secretKey);
 
   const r = uint8ArrayToBigInt(signature.subarray(0, 32));
   const s = uint8ArrayToBigInt(signature.subarray(32, 64));
+  const signerPublicKey = uint8ArrayToBigInt(signer.publicKey)
 
   return {
     r,
     s,
-    signer,
+    signer: signerPublicKey,
   };
 }
  
 
-export function newOCR3BaseCell(chainId: number): Cell {
+export function newOCR3BaseCell(chainId: number, contractId: number): Cell {
     return beginCell()
+    .storeUint(contractId, 64)
     .storeUint(chainId, 8)
     .storeDict(Dictionary.empty())
     .storeUint(16, 16)

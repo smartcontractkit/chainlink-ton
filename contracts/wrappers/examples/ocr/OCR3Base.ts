@@ -13,7 +13,8 @@ import { asSnakeData } from '../../../utils/Utils'
 
 
 export function ocr3BaseExampleStorage(): Cell {
-  return newOCR3BaseCell(1) //using dummy chainId 1
+//using dummy chainId 1 and a radom id for unique addresses
+  return newOCR3BaseCell(1, Math.floor(Math.random() * Number.MAX_SAFE_INTEGER)) 
 }
 
 export class OCR3BaseExample extends OCR3Base {
@@ -63,7 +64,7 @@ export class OCR3BaseExample extends OCR3Base {
           .storeRef(opts.report)
           .storeRef(asSnakeData<SignatureEd25519>(
             opts.signatures,
-            (item) => new Builder().storeUint(item.r, 256).storeUint(item.s, 256)
+            (item) => new Builder().storeUint(item.r, 256).storeUint(item.s, 256).storeUint(item.signer, 256)
           ))
           .endCell()
       })

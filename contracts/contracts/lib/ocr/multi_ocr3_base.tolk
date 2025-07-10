@@ -122,7 +122,7 @@ fun OCR3Base.transmit(
     reportContext: ReportContext,
     report: cell,
     signatures: cell, //Vector<SignatureEd25519>
-) { 
+) {
     var (ocrConfig, foundConfig) = self.ocr3Configs.get(ocrPluginType);
     assert(foundConfig, ERROR_NON_EXISTENT_OCR_PLUGIN_TYPE);
     ocrConfig = ocrConfig!;
@@ -140,13 +140,16 @@ fun OCR3Base.transmit(
 
     if (configInfo.isSignatureVerificationEnabled) {
     	var expectedSignatures = configInfo.bigF + 1;
-	val signatures_length = Iterator<SignatureEd25519>.new(signatures).countBytes() / 64; //expensive
+	debug.print(expectedSignatures);
+	val signatures_length = Iterator<SignatureEd25519>.new(signatures).countBytes() / 96; //expensive
+	debug.print(signatures_length);
     	assert(signatures_length == expectedSignatures, ERROR_WRONG_NUMBER_OF_SIGNATURES);
     	var hashedReport = self.hashReport(report, reportContext);
     	var (pluginSigners, ok) = self.signerOracles.get(ocrPluginType);
     	assert(ok, ERROR_NON_EXISTENT_OCR_PLUGIN_TYPE);
 
     	self.verifySignature(pluginSigners!, hashedReport, signatures);
+	debug.print(4);
     }
     val emitMsg = createExternalLogMessage({
 	dest: createAddressNone(),
@@ -177,17 +180,21 @@ fun OCR3Base.verifySignature(
 ) {
 	var seen = Bitmap256.new();
 	var signaturesIt = Iterator<SignatureEd25519>.new(signatures); 
+	debug.print(10);
 	while (!signaturesIt.empty()) {
 		val signature = signaturesIt.next();
 		val signer = signature.signer;
 
 		val (signerIndex, authorized) = signers.get(signer);
 		assert(authorized, ERROR_UNAUTHORIZED_SIGNER);
+		debug.print(13);
 		assert(isSignatureValid(hashedReport,signature.toCell().beginParse(), signer),	ERROR_INVALID_SIGNATURE);
+		debug.print(11);
 
 		assert(!seen.has(signerIndex!), ERROR_NON_UNIQUE_SIGNATURES);
 		seen.set(signerIndex!);
 	}
+	debug.print(12);
 }
 
 fun OCR3Base.assignSignerOracles(

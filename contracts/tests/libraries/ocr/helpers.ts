@@ -35,23 +35,13 @@ export async function generateRandomMockAddresses(count:number) {
   return addresses
 }
 
-async function generatePublicKeyBigInt() {
+export async function generateEd25519KeyPair() {
   const mnemonics = await mnemonicNew();
-  const keyPair = await mnemonicToPrivateKey(mnemonics);
-  const publicKeyBigInt = BigInt('0x' + keyPair.publicKey.toString('hex'));
-  return publicKeyBigInt;
+  return await mnemonicToPrivateKey(mnemonics);
 }
 
 function generateMockPublicKey(): Buffer {
   return crypto.randomBytes(32); // 32 bytes = 256 bits
-}
-
-export async function generateRandomSigners(count: number) {
-  const signers: bigint[] = [];
-  for (let i = 0; i < count; i++) {
-    signers.push(await generatePublicKeyBigInt());
-  }
-  return signers;
 }
 
 export async function generateRandomMockSigners(count: number) {
@@ -69,4 +59,3 @@ function uint8ArrayToBigInt(bytes: Uint8Array): bigint {
   }
   return result
 }
-

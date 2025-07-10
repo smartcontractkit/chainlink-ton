@@ -4,6 +4,7 @@ import "./../lib/ocr/exit_codes.tolk";
 import "./../lib/utils.tolk";
 
 struct OCR3BaseExampleContract {
+    contractId: uint64;
     ocr3Base: OCR3Base;
 }
 
@@ -16,7 +17,6 @@ fun saveData(data: OCR3BaseExampleContract) {
 }
 
 struct (0x00000002) Transmit {
-    transmitter: address, //TODO: might have to use the sender address for testing here
     ocrPluginType: uint16,
     reportContext: ReportContext,
     report: cell,
@@ -36,6 +36,7 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
     if (isMessageBounced(flags)) { // ignore all bounced messages
         return;
     }
+    val sender: address = cs.loadAddress();
 
     val msg = IncomingMessage.fromSlice(msgBody);
 
@@ -43,8 +44,9 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
         Transmit => {
         //Using the transmit function validates signatures and emits an event
             var storage = loadData();
+
             storage.ocr3Base.transmit(
-                msg.transmitter,
+                sender,
                 msg.ocrPluginType,
                 msg.reportContext,
                 msg.report,

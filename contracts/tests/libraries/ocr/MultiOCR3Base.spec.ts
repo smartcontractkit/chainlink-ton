@@ -1,15 +1,19 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { beginCell, toNano} from '@ton/core'
+import { beginCell, Cell, toNano} from '@ton/core'
 import '@ton/test-utils'
 import { compile } from '@ton/blueprint'
 import { OCR3_PLUGIN_TYPE_COMMIT, OCR3_PLUGIN_TYPE_EXECUTE, SignatureEd25519, createSignature, equalsConfig} from '../../../wrappers/libraries/ocr/MultiOCR3Base'
 import * as ExitCodes from  '../../../wrappers/libraries/ocr/ExitCodes'
 import { OCR3BaseExample } from '../../../wrappers/examples/ocr/OCR3Base'
-import { generateRandomAddresses, generateRandomMockAddresses, generateRandomMockSigners, generateRandomSigners } from './helpers'
+import { generateRandomAddresses, generateRandomMockAddresses, generateRandomMockSigners, generateEd25519KeyPair } from './helpers'
+import { uint8ArrayToBigInt } from '../../../utils/Utils'
+import { KeyPair } from '@ton/crypto'
 
 describe('OCR3Base Tests', () => {
   let blockchain: Blockchain
   let ocr3Base: SandboxContract<OCR3BaseExample>
+
+  let code: Cell
 
   let deployer: SandboxContract<TreasuryContract>
 
@@ -18,26 +22,51 @@ describe('OCR3Base Tests', () => {
   let transmitter3: SandboxContract<TreasuryContract>;
   let transmitter4: SandboxContract<TreasuryContract>;
 
+  let signer1: KeyPair;
+  let signer2: KeyPair;
+  let signer3: KeyPair;
+  let signer4: KeyPair;
+
+  let signer1PublicKey: bigint;
+  let signer2PublicKey: bigint;
+  let signer3PublicKey: bigint;
+  let signer4PublicKey: bigint;
+
   const configDigest: bigint = 0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcden
-  const signer1: bigint = 0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdefn
-  const signer2: bigint = 0xfedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210n
-  const signer3: bigint = 0x1122334455667788990011223344556677889900112233445566778899001122n
-  const signer4: bigint = 0xaabbccddeeff00112233445566778899aabbccddeeff00112233445566778899n
 
-  const reportBytes =
-            0x2b851c4684929f0c20865dcacbd6afb6a2288daa164caf75517009a289fa3135281fb1e4800b11bc2b851c4684929f0c15a9c133ee53500a0100000000000000000000000000000014d87929a32cf0cbdc9e2d07ffc7c33344079de7271268656c6c6f20434349505265636569766572bd8a1fb0af25dc8700d2d302cfbae718c3b2c3c61cfe47f58a45b1126c006490a086010000000000000000000000000000000000000000000000000000000000000000n
+  // The actual content or structure of the report is not important for these tests.
+  // This is a sample that will be used to test the transmit function, the only thing that matters
+  // for this test is that it is serialized and hashed in the same way offchain and onchain.
+  const someReportData = beginCell().storeUint(0x12345678, 32).endCell();
+  const report = beginCell()
+    .storeRef(someReportData)
+    .storeUint(0x12345678, 32) 
+    .endCell()
 
-  beforeEach(async () => {
+  beforeAll(async () => {
+    code = await compile('OCR3Base')
     blockchain = await Blockchain.create()
-    const code = await compile('OCR3Base')
-    ocr3Base = blockchain.openContract(OCR3BaseExample.create(code))
 
     deployer = await blockchain.treasury('deployer')
     transmitter1 = await blockchain.treasury('transmitter1')
     transmitter2 = await blockchain.treasury('transmitter2')
     transmitter3 = await blockchain.treasury('transmitter3')
     transmitter4 = await blockchain.treasury('transmitter4')
-    
+
+    signer1 = await generateEd25519KeyPair() 
+    signer2 = await generateEd25519KeyPair() 
+    signer3 = await generateEd25519KeyPair() 
+    signer4 = await generateEd25519KeyPair() 
+
+    signer1PublicKey = uint8ArrayToBigInt(signer1.publicKey)
+    signer2PublicKey = uint8ArrayToBigInt(signer2.publicKey)
+    signer3PublicKey = uint8ArrayToBigInt(signer3.publicKey)
+    signer4PublicKey = uint8ArrayToBigInt(signer4.publicKey)
+  })
+
+  beforeEach(async () => {
+    ocr3Base = blockchain.openContract(OCR3BaseExample.create(code))
+
     const deployResult = await ocr3Base.sendDeploy(deployer.getSender(), toNano('0.05'))
 
     expect(deployResult.transactions).toHaveTransaction({
@@ -50,7 +79,7 @@ describe('OCR3Base Tests', () => {
 
   it('Test SetOCR3Config with signers', async () => {
     const bigF = 1;
-    const signers = [signer1, signer2, signer3, signer4];
+    const signers = [signer1PublicKey, signer2PublicKey, signer3PublicKey, signer4PublicKey];
     const transmitters = [transmitter1.address, transmitter2.address, transmitter3.address, transmitter4.address];
 
     const result = await ocr3Base.sendSetOCR3Config(
@@ -80,7 +109,7 @@ describe('OCR3Base Tests', () => {
         n: 4, // Number of signers
         isSignatureVerificationEnabled: true
       },
-      signers: [signer1, signer2, signer3, signer4],
+      signers: [signer1PublicKey, signer2PublicKey, signer3PublicKey, signer4PublicKey],
       transmitters: [transmitter1.address, transmitter2.address, transmitter3.address, transmitter4.address]
     }
 
@@ -94,7 +123,7 @@ describe('OCR3Base Tests', () => {
       ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
       bigF: 1,
       isSignatureVerificationEnabled: true,
-      signers: [signer1, signer2, signer3, signer4],
+      signers: [signer1PublicKey, signer2PublicKey, signer3PublicKey, signer4PublicKey],
       transmitters: [transmitter1.address, transmitter2.address, transmitter3.address, transmitter4.address],
     };
 
@@ -103,7 +132,7 @@ describe('OCR3Base Tests', () => {
       ocrPluginType: OCR3_PLUGIN_TYPE_EXECUTE,
       bigF: 1,
       isSignatureVerificationEnabled: true,
-      signers: [signer4, signer3, signer2, signer1],
+      signers: [signer4PublicKey, signer3PublicKey, signer2PublicKey, signer1PublicKey],
       transmitters: [transmitter4.address, transmitter3.address, transmitter2.address, transmitter1.address],
     };
 
@@ -125,7 +154,7 @@ describe('OCR3Base Tests', () => {
       ocrPluginType: invalidType,
       bigF: 1,
       isSignatureVerificationEnabled: true,
-      signers: [signer1, signer2, signer3, signer4],
+      signers: [signer1PublicKey, signer2PublicKey, signer3PublicKey, signer4PublicKey],
       transmitters: [transmitter1.address],
     });
 
@@ -144,7 +173,7 @@ describe('OCR3Base Tests', () => {
       ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
       bigF: 0,
       isSignatureVerificationEnabled: true,
-      signers: [signer1, signer2, signer3, signer4],
+      signers: [signer1PublicKey, signer2PublicKey, signer3PublicKey, signer4PublicKey],
       transmitters: [transmitter1.address],
     });
 
@@ -165,7 +194,7 @@ describe('OCR3Base Tests', () => {
       ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
       bigF: 1,
       isSignatureVerificationEnabled: true,
-      signers: [signer1, signer2, signer3, signer4],
+      signers: [signer1PublicKey, signer2PublicKey, signer3PublicKey, signer4PublicKey],
       transmitters: transmitters,
     });
 
@@ -186,7 +215,7 @@ describe('OCR3Base Tests', () => {
       ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
       bigF: 1,
       isSignatureVerificationEnabled: true,
-      signers: [signer1, signer2, signer3, signer4],
+      signers: [signer1PublicKey, signer2PublicKey, signer3PublicKey, signer4PublicKey],
       transmitters: [],
     });
     expect(result.transactions).toHaveTransaction({
@@ -239,7 +268,7 @@ describe('OCR3Base Tests', () => {
   })
 
   it('SetOCR3Config Fails when signers.length <= 3 * bigF', async () => {
-    const signers = [signer1, signer2, signer3];
+    const signers = [signer1PublicKey, signer2PublicKey, signer3PublicKey];
     const result = await ocr3Base.sendSetOCR3Config(deployer.getSender(), {
       value: toNano('100'),
       configDigest: configDigest,
@@ -258,7 +287,7 @@ describe('OCR3Base Tests', () => {
   })
 
   it('SetOCR3Config Fails when signers length is less than transmitters length', async () => {
-    const signers = [signer1, signer2, signer3, signer4];
+    const signers = [signer1PublicKey, signer2PublicKey, signer3PublicKey, signer4PublicKey];
     const transmitters = await generateRandomAddresses(5);
     const result = await ocr3Base.sendSetOCR3Config(deployer.getSender(), {
       value: toNano('100'),
@@ -284,7 +313,7 @@ describe('OCR3Base Tests', () => {
       ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
       bigF: 1,
       isSignatureVerificationEnabled: true,
-      signers: [signer1, signer1, signer2, signer3],
+      signers: [signer1PublicKey, signer1PublicKey, signer2PublicKey, signer3PublicKey],
       transmitters: [transmitter1.address],
     });
 
@@ -303,7 +332,7 @@ describe('OCR3Base Tests', () => {
       ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
       bigF: 1,
       isSignatureVerificationEnabled: true,
-      signers: [signer1, signer2, signer3, signer4],
+      signers: [signer1PublicKey, signer2PublicKey, signer3PublicKey, signer4PublicKey],
       transmitters: [transmitter1.address, transmitter1.address],
     });
     
@@ -324,7 +353,7 @@ describe('OCR3Base Tests', () => {
       ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
       bigF: 1,
       isSignatureVerificationEnabled: true,
-      signers: [signer1, signer2, signer3, signer4],
+      signers: [signer1PublicKey, signer2PublicKey, signer3PublicKey, signer4PublicKey],
       transmitters: [transmitter1.address, transmitter2.address, transmitter3.address, transmitter4.address],
     });
 
@@ -335,7 +364,7 @@ describe('OCR3Base Tests', () => {
       ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
       bigF: 1,
       isSignatureVerificationEnabled: false, // changed!
-      signers: [signer1, signer2, signer3, signer4],
+      signers: [signer1PublicKey, signer2PublicKey, signer3PublicKey, signer4PublicKey],
       transmitters: [transmitter1.address, transmitter2.address, transmitter3.address, transmitter4.address],
     });
 
@@ -350,7 +379,7 @@ describe('OCR3Base Tests', () => {
 
   it('Test Transmit function works with authorized transmitter', async () => {
     const bigF = 1;
-    const signers = [signer1, signer2, signer3, signer4];
+    const signersPublicKeys = [signer1PublicKey, signer2PublicKey, signer3PublicKey, signer4PublicKey];
     const transmitters = [transmitter1.address, transmitter2.address];
 
     const result = await ocr3Base.sendSetOCR3Config(
@@ -361,7 +390,7 @@ describe('OCR3Base Tests', () => {
           ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
           bigF: bigF,
           isSignatureVerificationEnabled: true,
-          signers: signers,
+          signers: signersPublicKeys,
           transmitters: transmitters
       }
     )
@@ -372,11 +401,9 @@ describe('OCR3Base Tests', () => {
       success: true
     })
 
-    
     const sequenceBytes =0x01
-    const reportBitLength = reportBytes.toString(2).length;
     const hashedReport = beginCell()
-      .storeUint(reportBytes, reportBitLength)
+      .storeRef(report)
       .storeUint(configDigest, 256)
       .storeUint(0, 192) //padding
       .storeUint(sequenceBytes, 64)
@@ -385,6 +412,7 @@ describe('OCR3Base Tests', () => {
 
     const signatures: SignatureEd25519[] = []  
 
+    const signers = [signer1, signer2]
     for (let i = 0; i < signers.length; i++) {
       const signature = createSignature(signers[i], hashedReport);
       signatures.push(signature);
@@ -399,9 +427,7 @@ describe('OCR3Base Tests', () => {
           configDigest: configDigest,
           sequenceBytes: sequenceBytes
         },
-        report: beginCell()
-          .storeUint(reportBytes, reportBitLength)
-          .endCell(),
+        report: report,
         signatures: signatures
       }
     )
@@ -412,6 +438,5 @@ describe('OCR3Base Tests', () => {
       success: true
     })
   })
-
 })
 
