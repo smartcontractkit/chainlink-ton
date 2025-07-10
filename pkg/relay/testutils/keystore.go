@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/loop"
+
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/key"
 )
 

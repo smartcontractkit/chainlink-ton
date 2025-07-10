@@ -35,8 +35,12 @@ jobs:
       - name: Print golangci-lint version
         run: nix develop -c golangci-lint --version
 
-      - name: Download golangci-lint config
-        run: curl -fsSL "${{ env.CONFIG_URL }}" -o .golangci.yml
+      - name: Download and modify golangci-lint config
+        run: |
+          REPO_PREFIX="github.com/${{ github.repository }}"
+          curl -fsSL "${{ env.CONFIG_URL }}" | \
+          yq e ".formatters.settings.goimports.local-prefixes = [\"$REPO_PREFIX\"]" - \
+          > .golangci.yml
 
       - name: Run golangci-lint
         run: |
