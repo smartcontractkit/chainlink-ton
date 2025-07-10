@@ -68,7 +68,15 @@ struct (0x10000004) OnRampUpdateDestChainConfigs {
     updates: cell; // vec<OrRampUpdateDestChainConfig>
 }
 
-struct UpdateAllowlist {}
+struct UpdateAllowlist {
+    destChainSelector: uint64;
+    add: cell; // vec<address>
+    remove: cell; // vec<address>
+}
+
+struct (0x10000005) UpdateAllowlists {
+    updates: cell; // vec<UpdateAllowlist>
+}
 
 struct WithdrawFeeTokens {}
 

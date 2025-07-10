@@ -53,7 +53,7 @@ fun Storage.store(self) {
     return contract.setData(self.toCell());
 }
 
-type Msg = OnRampSend | MessageValidated<Metadata> | SetDynamicConfig | OnRampUpdateDestChainConfigs;
+type Msg = OnRampSend | MessageValidated<Metadata> | SetDynamicConfig | OnRampUpdateDestChainConfigs | UpdateAllowlists;
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy Msg.fromSlice(in.body);
@@ -70,6 +70,12 @@ fun onInternalMessage(in: InMessage) {
             var st = lazy Storage.load();
             st.ownable.requireOwner(in.senderAddress);
             applyDestChainConfigUpdates(mutate st, msg.updates);
+            st.store();
+        }
+        UpdateAllowlists => {
+            var st = lazy Storage.load();
+            st.ownable.requireOwner(in.senderAddress);
+            applyAllowlistUpdates(mutate st, msg.updates);
             st.store();
         }
         else => {
@@ -212,7 +218,28 @@ get fun allowedSendersList(destChainSelector: uint64): tuple {
     return list!;
 }
 
-fun applyAllowlistUpdates() {
+fun applyAllowlistUpdates(mutate st: Storage, updates: cell) {
+    var iter = Iterator<UpdateAllowlist>.new(updates);
+
+    while (!iter.empty()) {
+        val update = iter.next();
+
+        var config = st.destChainConfigs.mustGet(update.destChainSelector, ERROR_UNKNOWN_DEST_CHAIN_SELECTOR);
+
+        var iterAdd = Iterator<address>.new(update.remove);
+        while (!iterAdd.empty()) {
+            val sender = iterAdd.next();
+            config.allowedSenders.set(sender, true);
+        }
+
+        var iterRemove = Iterator<address>.new(update.remove);
+        while (!iterRemove.empty()) {
+            val sender = iterAdd.next();
+            config.allowedSenders.delete(sender);
+        }
+
+        st.destChainConfigs.set(update.destChainSelector, config);
+    }
 }
 
 // outboundNonce() TODO: nonceManager?
