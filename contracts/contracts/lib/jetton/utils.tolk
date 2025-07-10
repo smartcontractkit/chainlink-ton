@@ -37,15 +37,13 @@ fun calculateJettonWalletStateInit(ownerAddress: address, jettonMasterAddress: a
 }
 
 
-fun calculateJettonWalletAddress(stateInit: cell): address {
-    var b = beginCell();
-    b = b.storeUint(4, 3); // 0b100 = addr_std$10 tag; No anycast
-    b = b.storeInt(MY_WORKCHAIN, 8);
-    b = b.storeUint(stateInit.hash(), 256);
-    return b.endCell().beginParse().loadAddress();
-}
 
 fun calculateUserJettonWalletAddress(ownerAddress: address, jettonMasterAddress: address, jettonWalletCode: cell): address {
     val stateInit = calculateJettonWalletStateInit(ownerAddress, jettonMasterAddress, jettonWalletCode);
-    return calculateJettonWalletAddress(stateInit);
+    val addrBuilder = AutoDeployAddress {
+        workchain: MY_WORKCHAIN,
+        stateInit: stateInit,
+        toShard: null,
+    }.buildAddress();
+    return address.fromValidBuilder(addrBuilder);
 }
