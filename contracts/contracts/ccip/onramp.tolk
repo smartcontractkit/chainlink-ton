@@ -28,12 +28,10 @@ struct Storage {
     // it's only used to resolve getPoolBySourceToken when calling lockOrBurn
     // maybe onramp -> feeQuoter -> tokenAdminRegistry(token instance) -> tokenPool.LockAndBurn?
     // NOTE: fee quoter also processes pool return data
-    // does onramp even do anything apart from forwarding to fee quoter?
 
     // dynamic config
     config: Cell<OnRampDynamicConfig>;
 
-    // TODO: stop using getRef/use get if it can fit
     destChainConfigs: UMap<uint64, DestChainConfig>; // chainSelector -> DestChainConfig
 }
 
@@ -116,6 +114,7 @@ fun send(payload: OnRampSend, sender: address) {
 }
 
 // TODO: do we follow solana model and merge router + onramp? aptos also does this
+// does onramp even do anything apart from forwarding to fee quoter?
 fun onMessageValidated(payload: MessageValidated<Metadata>, sender: address) {
     var st = lazy Storage.load();
     val config = st.config.load();
