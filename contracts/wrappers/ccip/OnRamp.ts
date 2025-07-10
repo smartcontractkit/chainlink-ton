@@ -68,8 +68,8 @@ export abstract class Params {}
 
 export abstract class Opcodes {
   static ccipSend = 0x00000001
-  static setDynamicConfig= 0x10000003
-  static updateDestChainConfigs= 0x10000004
+  static setDynamicConfig = 0x10000003
+  static updateDestChainConfigs = 0x10000004
 }
 
 export abstract class Errors {}
@@ -111,15 +111,13 @@ export class OnRamp implements Contract {
     via: Sender,
     opts: {
       value: bigint
-      config: boolean,
+      config: boolean
     },
   ) {
     await provider.internal(via, {
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: beginCell()
-        .storeUint(Opcodes.setDynamicConfig, 32)
-        .endCell(),
+      body: beginCell().storeUint(Opcodes.setDynamicConfig, 32).endCell(),
     })
   }
 
@@ -128,7 +126,7 @@ export class OnRamp implements Contract {
     via: Sender,
     opts: {
       value: bigint
-      destChainConfigs: { destChainSelector: bigint, router: Buffer, allowlistEnabled: boolean }[]
+      destChainConfigs: { destChainSelector: bigint; router: Buffer; allowlistEnabled: boolean }[]
     },
   ) {
     await provider.internal(via, {
@@ -136,11 +134,14 @@ export class OnRamp implements Contract {
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: beginCell()
         .storeUint(Opcodes.updateDestChainConfigs, 32)
-        .storeRef(asSnakeData(opts.destChainConfigs, (config) => new TonBuilder()
-          .storeUint(config.destChainSelector, 64)
-          .storeBuffer(config.router, 64)
-          .storeBit(config.allowlistEnabled)
-        ))
+        .storeRef(
+          asSnakeData(opts.destChainConfigs, (config) =>
+            new TonBuilder()
+              .storeUint(config.destChainSelector, 64)
+              .storeBuffer(config.router, 64)
+              .storeBit(config.allowlistEnabled),
+          ),
+        )
         .endCell(),
     })
   }
