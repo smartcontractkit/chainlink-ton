@@ -1,0 +1,446 @@
+import {
+  Address,
+  beginCell,
+  Cell,
+  Contract,
+  contractAddress,
+  ContractProvider,
+  Dictionary,
+  Sender,
+  SendMode,
+} from '@ton/core'
+import { crc32 } from 'zlib'
+
+export type TimelockControllerStorage = {
+  minDelay: number
+  timestampCount?: number
+  timestamp?: Dictionary<Buffer, Buffer>
+
+  rbac: Cell
+}
+
+export type ExecuteData = {
+  tonValue: bigint
+  predecessor: bigint
+  salt: bigint
+  targetAccount: Address
+  msgToSend: Cell
+}
+
+export const opcodes = {
+  in: {
+    ScheduleBatch: crc32('Timelock_ScheduleBatch'),
+    Cancel: crc32('Timelock_Cancel'),
+    ExecuteBatch: crc32('Timelock_ExecuteBatch'),
+    UpdateDelay: crc32('Timelock_UpdateDelay'),
+    BlockFunctionSelector: crc32('Timelock_BlockFunctionSelector'),
+    UnblockFunctionSelector: crc32('Timelock_UnblockFunctionSelector'),
+    BypasserExecuteBatch: crc32('Timelock_BypasserExecuteBatch'),
+  },
+  out: {
+    CallScheduled: crc32('Timelock_CallScheduled'),
+    CallExecuted: crc32('Timelock_CallExecuted'),
+    BypasserCallExecuted: crc32('Timelock_BypasserCallExecuted'),
+    Canceled: crc32('Timelock_Canceled'),
+    MinDelayChange: crc32('Timelock_MinDelayChange'),
+    FunctionSelectorBlocked: crc32('Timelock_FunctionSelectorBlocked'),
+    FunctionSelectorUnblocked: crc32('Timelock_FunctionSelectorUnblocked'),
+  },
+}
+
+export const Builder = {
+  /// Creates a new `AccessControl_GrantRole` message.
+  asStorage: (config: TimelockControllerStorage): Cell => {
+    return beginCell()
+      .storeUint(config.minDelay, 32)
+      .storeUint(config.timestampCount || 0, 32) // timestamp_count
+      .storeDict(config.timestamp)
+      .storeRef(config.rbac)
+      .endCell()
+  },
+}
+
+export abstract class Params {
+  static done_timestamp = 1
+
+  // TODO: sha256 hash of the function selector
+  static admin_role = 2112602974n
+  static proposer_role = 2908596091n
+  static canceller_role = 973072761n
+  static executor_role = 2599814779n
+  static bypasser_role = 544836961n
+
+  static add_account = 0
+  static remove_account = 1
+  static unset_state = 0
+  static waiting_state = 1
+  static ready_state = 2
+  static done_state = 3
+}
+
+export abstract class Opcodes {
+  static schedule = 0xc3e106f4
+  static cancel = 0x70b511b7
+  static execute = 0x2f25a5fd
+  static top_up = 0x2a6fa953
+  static update_delay = 0x7be47a8e
+  static update_accounts = 0x1f6ce878
+  static clear_timestamps = 0xe8448df0
+}
+
+export abstract class Errors {
+  static zero_input = 81
+  static invalid_caller = 82
+  static insufficient_gas = 83
+  static wrong_workchain = 85
+  static wrong_address = 86
+  static invalid_amount = 87
+  static invalid_call = 88
+  static invalid_role = 89
+  static invalid_delay = 90
+  static operation_exists = 91
+  static operation_not_exists = 92
+  static invalid_operation_state = 93
+  static invalid_predecessor_state = 94
+  static account_exists = 95
+  static account_not_exists = 96
+  static predecessor_not_exists = 97
+  static wrong_op = 0xffff
+}
+
+export class TimelockController implements Contract {
+  constructor(
+    readonly address: Address,
+    readonly init?: { code: Cell; data: Cell },
+  ) {}
+
+  static createFromAddress(address: Address) {
+    return new TimelockController(address)
+  }
+
+  static createFromConfig(config: TimelockControllerStorage, code: Cell, workchain = 0) {
+    const data = Builder.asStorage(config)
+    const init = { code, data }
+    return new TimelockController(contractAddress(workchain, init), init)
+  }
+
+  async sendInternal(provider: ContractProvider, via: Sender, value: bigint, body: Cell) {
+    await provider.internal(via, {
+      value: value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: body,
+    })
+  }
+
+  async sendSchedule(
+    provider: ContractProvider,
+    via: Sender,
+    opts: {
+      value: bigint
+      queryID?: number
+      delay: number
+      tonValue: bigint
+      predecessor: bigint
+      salt: bigint
+      targetAccount: Address
+      msgToSend: Cell
+    },
+  ) {
+    await provider.internal(via, {
+      value: opts.value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: beginCell()
+        .storeUint(Opcodes.schedule, 32)
+        .storeUint(opts.queryID ?? 0, 64)
+        .storeUint(opts.delay, 32)
+        .storeCoins(opts.tonValue)
+        .storeUint(opts.predecessor, 256)
+        .storeUint(opts.salt, 256)
+        .storeAddress(opts.targetAccount)
+        .storeRef(opts.msgToSend)
+        .endCell(),
+    })
+  }
+
+  async sendCancel(
+    provider: ContractProvider,
+    via: Sender,
+    opts: {
+      value: bigint
+      queryID?: number
+      id: bigint
+    },
+  ) {
+    await provider.internal(via, {
+      value: opts.value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: beginCell()
+        .storeUint(Opcodes.cancel, 32)
+        .storeUint(opts.queryID ?? 0, 64)
+        .storeUint(opts.id, 256)
+        .endCell(),
+    })
+  }
+
+  async sendExecute(
+    provider: ContractProvider,
+    via: Sender,
+    opts: {
+      value: bigint
+      queryID?: number
+      tonValue: bigint
+      predecessor: bigint
+      salt: bigint
+      targetAccount: Address
+      msgToSend: Cell
+    },
+  ) {
+    await provider.internal(via, {
+      value: opts.value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: beginCell()
+        .storeUint(Opcodes.execute, 32)
+        .storeUint(opts.queryID ?? 0, 64)
+        .storeCoins(opts.tonValue)
+        .storeUint(opts.predecessor, 256)
+        .storeUint(opts.salt, 256)
+        .storeAddress(opts.targetAccount)
+        .storeRef(opts.msgToSend)
+        .endCell(),
+    })
+  }
+
+  async sendUpdateDelay(
+    provider: ContractProvider,
+    via: Sender,
+    opts: {
+      value: bigint
+      queryID?: number
+      delay: number
+    },
+  ) {
+    await provider.internal(via, {
+      value: opts.value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: beginCell()
+        .storeUint(Opcodes.update_delay, 32)
+        .storeUint(opts.queryID ?? 0, 64)
+        .storeUint(opts.delay, 32)
+        .endCell(),
+    })
+  }
+
+  async sendClearTimestamps(
+    provider: ContractProvider,
+    via: Sender,
+    opts: {
+      value: bigint
+      queryID?: number
+      ids: bigint[]
+    },
+  ) {
+    const ids = opts.ids
+    const idsSlice = beginCell()
+
+    for (let i = 0; i < ids.length; i++) {
+      idsSlice.storeUint(ids[i], 256)
+    }
+
+    await provider.internal(via, {
+      value: opts.value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: beginCell()
+        .storeUint(Opcodes.clear_timestamps, 32)
+        .storeUint(opts.queryID ?? 0, 64)
+        .storeUint(ids.length, 32)
+        .storeSlice(idsSlice.endCell().beginParse())
+        .endCell(),
+    })
+  }
+
+  async sendAddAccount(
+    provider: ContractProvider,
+    via: Sender,
+    opts: {
+      value: bigint
+      queryID?: number
+      role: number
+      account: Address
+    },
+  ) {
+    await provider.internal(via, {
+      value: opts.value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: beginCell()
+        .storeUint(Opcodes.update_accounts, 32)
+        .storeUint(opts.queryID ?? 0, 64)
+        .storeUint(Params.add_account, 1)
+        .storeUint(opts.role, 32)
+        .storeAddress(opts.account)
+        .endCell(),
+    })
+  }
+
+  async sendRemoveAccount(
+    provider: ContractProvider,
+    via: Sender,
+    opts: {
+      value: bigint
+      queryID?: number
+      role: number
+      account: Address
+    },
+  ) {
+    await provider.internal(via, {
+      value: opts.value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: beginCell()
+        .storeUint(Opcodes.update_accounts, 32)
+        .storeUint(opts.queryID ?? 0, 64)
+        .storeUint(Params.remove_account, 1)
+        .storeUint(opts.role, 32)
+        .storeAddress(opts.account)
+        .endCell(),
+    })
+  }
+
+  async sendTopUp(
+    provider: ContractProvider,
+    via: Sender,
+    opts: {
+      value: bigint
+      queryID?: number
+    },
+  ) {
+    await provider.internal(via, {
+      value: opts.value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: beginCell()
+        .storeUint(Opcodes.top_up, 32)
+        .storeUint(opts.queryID ?? 0, 64)
+        .endCell(),
+    })
+  }
+
+  async getTimelockControllerData(provider: ContractProvider) {
+    const { stack } = await provider.get('getTimelockControllerData', [])
+    return {
+      minDelay: stack.readNumber(),
+      timestampCount: stack.readNumber(),
+      adminAccounts: stack.readCellOpt(),
+      proposerAccounts: stack.readCellOpt(),
+      cancellerAccounts: stack.readCellOpt(),
+      executorAccounts: stack.readCellOpt(),
+      timestamps: stack.readCellOpt(),
+    }
+  }
+
+  async getTimestamp(provider: ContractProvider, id: bigint) {
+    const result = await provider.get('getTimestamp', [
+      {
+        type: 'int',
+        value: id,
+      },
+    ])
+    return result.stack.readNumber()
+  }
+
+  async getHashOperation(
+    provider: ContractProvider,
+    tonValue: bigint,
+    predecessor: bigint,
+    salt: bigint,
+    target: Address,
+    msgToSend: Cell,
+  ) {
+    const result = await provider.get('getHashOperation', [
+      {
+        type: 'int',
+        value: tonValue,
+      },
+      {
+        type: 'int',
+        value: predecessor,
+      },
+      {
+        type: 'int',
+        value: salt,
+      },
+      {
+        type: 'slice',
+        cell: beginCell().storeAddress(target).endCell(),
+      },
+      {
+        type: 'cell',
+        cell: msgToSend,
+      },
+    ])
+    return result.stack.readBigNumber()
+  }
+
+  async getOperationState(provider: ContractProvider, id: bigint) {
+    const result = await provider.get('getOperationState', [
+      {
+        type: 'int',
+        value: id,
+      },
+    ])
+    return result.stack.readNumber()
+  }
+
+  async getIsAdmin(provider: ContractProvider, account: Address) {
+    const result = await provider.get('hasRole', [
+      {
+        type: 'int',
+        value: BigInt(Params.admin_role),
+      },
+      {
+        type: 'slice',
+        cell: beginCell().storeAddress(account).endCell(),
+      },
+    ])
+    return result.stack.readBoolean()
+  }
+
+  async getIsProposer(provider: ContractProvider, account: Address) {
+    const result = await provider.get('hasRole', [
+      {
+        type: 'int',
+        value: BigInt(Params.proposer_role),
+      },
+      {
+        type: 'slice',
+        cell: beginCell().storeAddress(account).endCell(),
+      },
+    ])
+    return result.stack.readBoolean()
+  }
+
+  async getIsCanceller(provider: ContractProvider, account: Address) {
+    const result = await provider.get('hasRole', [
+      {
+        type: 'int',
+        value: BigInt(Params.canceller_role),
+      },
+      {
+        type: 'slice',
+        cell: beginCell().storeAddress(account).endCell(),
+      },
+    ])
+    return result.stack.readBoolean()
+  }
+
+  async getIsExecutor(provider: ContractProvider, account: Address) {
+    const result = await provider.get('hasRole', [
+      {
+        type: 'int',
+        value: BigInt(Params.executor_role),
+      },
+      {
+        type: 'slice',
+        cell: beginCell().storeAddress(account).endCell(),
+      },
+    ])
+    return result.stack.readBoolean()
+  }
+}
