@@ -95,18 +95,14 @@ export function destChainConfigToBuilder(config: DestChainConfig): TonBuilder {
 
 export const Builder = {
   asStorage: (config: FeeQuoterStorage): Cell => {
-    let builder = beginCell().storeAddress(config.ownable.owner)
-    // TODO: use storeMaybeBuilder()
-    if (config.ownable.pendingOwner) {
-      builder
-        .storeBit(1) // Store '1' to indicate the address is present
-        .storeAddress(config.ownable.pendingOwner) // Then store the address
-    } else {
-      builder.storeBit(0) // Store '0' to indicate the address is absent
-    }
-
     return (
-      builder
+      beginCell()
+        .storeAddress(config.ownable.owner)
+        .storeMaybeBuilder(
+          config.ownable.pendingOwner
+            ? beginCell().storeAddress(config.ownable.pendingOwner)
+            : null,
+        )
         .storeUint(config.maxFeeJuelsPerMsg, 96)
         .storeAddress(config.linkToken)
         .storeUint(config.tokenPriceStalenessThreshold, 64)
