@@ -18,7 +18,7 @@ func TestTokenAmounts(t *testing.T) {
 	dummyCell2, err := NewDummyCell()
 	require.NoError(t, err)
 
-	tokenAmountsCell, err := PackArrayWithRefChaining([]Any2TONTokenTransfer{
+	tokenAmountsCell, err := packArrayWithRefChaining([]Any2TONTokenTransfer{
 		{
 			SourcePoolAddress: dummyCell1,
 			DestPoolAddress:   addr,
@@ -62,7 +62,7 @@ func TestTokenAmounts(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
-	array, err := UnPackArrayWithRefChaining[Any2TONTokenTransfer](tokenAmountsCell)
+	array, err := unPackArrayWithRefChaining[Any2TONTokenTransfer](tokenAmountsCell)
 	require.NoError(t, err)
 	require.Len(t, array, 6)
 }

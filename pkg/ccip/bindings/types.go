@@ -30,10 +30,10 @@ type SVMExtraArgsV1 struct {
 	Accounts                 SnakeBytes2D `tlb:"^"`
 }
 
-// PackArrayWithRefChaining packs a slice of any serializable type T into a linked cell structure,
+// packArrayWithRefChaining packs a slice of any serializable type T into a linked cell structure,
 // storing each element as a cell reference. When only one reference slot is left, it starts a new cell
 // and uses the last reference for chaining.
-func PackArrayWithRefChaining[T any](array []T) (*cell.Cell, error) {
+func packArrayWithRefChaining[T any](array []T) (*cell.Cell, error) {
 	builder := cell.BeginCell()
 	cells := []*cell.Builder{builder}
 
@@ -66,10 +66,10 @@ func PackArrayWithRefChaining[T any](array []T) (*cell.Cell, error) {
 	return next, nil
 }
 
-// UnPackArrayWithRefChaining unpacks a linked cell structure created by PackArrayWithRefChaining
+// unPackArrayWithRefChaining unpacks a linked cell structure created by packArrayWithRefChaining
 // into a slice of type T. Each element is stored as a cell reference. If a cell has 4 references,
 // the last reference is used for chaining to the next cell and is not decoded as an element.
-func UnPackArrayWithRefChaining[T any](root *cell.Cell) ([]T, error) {
+func unPackArrayWithRefChaining[T any](root *cell.Cell) ([]T, error) {
 	var result []T
 	curr := root
 	for curr != nil {
@@ -101,10 +101,10 @@ func UnPackArrayWithRefChaining[T any](root *cell.Cell) ([]T, error) {
 	return result, nil
 }
 
-// PackArrayWithStaticType packs a slice of any serializable type T into a linked cell structure.
+// packArrayWithStaticType packs a slice of any serializable type T into a linked cell structure.
 // Elements are stored directly in the cell's bits. If an element does not fit, a new cell is started.
 // Cells are linked via references for arrays that span multiple cells.
-func PackArrayWithStaticType[T any](array []T) (*cell.Cell, error) {
+func packArrayWithStaticType[T any](array []T) (*cell.Cell, error) {
 	builder := cell.BeginCell()
 	cells := []*cell.Builder{builder}
 
@@ -135,10 +135,10 @@ func PackArrayWithStaticType[T any](array []T) (*cell.Cell, error) {
 	return next, nil
 }
 
-// UnpackArrayWithStaticType unpacks a linked cell structure created by PackArrayWithStaticType
+// unpackArrayWithStaticType unpacks a linked cell structure created by packArrayWithStaticType
 // into a slice of type T. Elements are read from the cell's bits, and the function follows references
 // to subsequent cells as needed.
-func UnpackArrayWithStaticType[T any](root *cell.Cell) ([]T, error) {
+func unpackArrayWithStaticType[T any](root *cell.Cell) ([]T, error) {
 	var result []T
 	curr := root
 	for curr != nil {
@@ -163,8 +163,8 @@ func UnpackArrayWithStaticType[T any](root *cell.Cell) ([]T, error) {
 	return result, nil
 }
 
-// PackByteArrayToCell packs a byte array into a linked cell structure, supporting empty arrays.
-func PackByteArrayToCell(data []byte) (*cell.Cell, error) {
+// packByteArrayToCell packs a byte array into a linked cell structure, supporting empty arrays.
+func packByteArrayToCell(data []byte) (*cell.Cell, error) {
 	if len(data) == 0 {
 		return nil, nil
 	}
@@ -214,8 +214,8 @@ func PackByteArrayToCell(data []byte) (*cell.Cell, error) {
 	return next, nil
 }
 
-// UnloadCellToByteArray unpacks a linked cell structure into a byte array, supporting empty arrays.
-func UnloadCellToByteArray(c *cell.Cell) ([]byte, error) {
+// unloadCellToByteArray unpacks a linked cell structure into a byte array, supporting empty arrays.
+func unloadCellToByteArray(c *cell.Cell) ([]byte, error) {
 	if c == nil {
 		return []byte{}, nil
 	}
@@ -243,8 +243,8 @@ func UnloadCellToByteArray(c *cell.Cell) ([]byte, error) {
 	return result, nil
 }
 
-// Pack2DByteArrayToCell packs a 2D byte array into a linked cell structure, supporting empty arrays.
-func Pack2DByteArrayToCell(arrays [][]byte) (*cell.Cell, error) {
+// pack2DByteArrayToCell packs a 2D byte array into a linked cell structure, supporting empty arrays.
+func pack2DByteArrayToCell(arrays [][]byte) (*cell.Cell, error) {
 	if len(arrays) == 0 {
 		return nil, nil
 	}
@@ -264,7 +264,7 @@ func Pack2DByteArrayToCell(arrays [][]byte) (*cell.Cell, error) {
 			return nil, fmt.Errorf("failed to store length: %w", err)
 		}
 		if length > 0 {
-			dataCell, err := PackByteArrayToCell(data)
+			dataCell, err := packByteArrayToCell(data)
 			if err != nil {
 				return nil, fmt.Errorf("failed to pack inner array: %w", err)
 			}
@@ -286,8 +286,8 @@ func Pack2DByteArrayToCell(arrays [][]byte) (*cell.Cell, error) {
 	return next, nil
 }
 
-// Unpack2DByteArrayFromCell unpacks a 2D byte array from a linked cell structure, supporting empty arrays.
-func Unpack2DByteArrayFromCell(c *cell.Cell) ([][]byte, error) {
+// unpack2DByteArrayFromCell unpacks a 2D byte array from a linked cell structure, supporting empty arrays.
+func unpack2DByteArrayFromCell(c *cell.Cell) ([][]byte, error) {
 	if c == nil {
 		return [][]byte{}, nil
 	}
@@ -316,7 +316,7 @@ func Unpack2DByteArrayFromCell(c *cell.Cell) ([][]byte, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to convert ref to cell: %w", err)
 		}
-		data, err := UnloadCellToByteArray(refCell)
+		data, err := unloadCellToByteArray(refCell)
 		if err != nil {
 			return nil, fmt.Errorf("failed to unpack inner array: %w", err)
 		}
@@ -336,7 +336,7 @@ type SnakeData[T any] []T
 // ToCell packs the SnakeData into a cell. It uses PackArray to serialize the data.
 // currently this function is not using pointer receiver, lack of support from tonutils-go library https://github.com/xssnick/tonutils-go/issues/340
 func (s SnakeData[T]) ToCell() (*cell.Cell, error) {
-	return PackArrayWithStaticType(s)
+	return packArrayWithStaticType(s)
 }
 
 // LoadFromCell loads the SnakeData from a cell slice. It uses UnpackArray to deserialize the data.
@@ -345,7 +345,7 @@ func (s *SnakeData[T]) LoadFromCell(c *cell.Slice) error {
 	if err != nil {
 		return fmt.Errorf("failed to convert slice to cell: %w", err)
 	}
-	arr, err := UnpackArrayWithStaticType[T](cl)
+	arr, err := unpackArrayWithStaticType[T](cl)
 	if err != nil {
 		return err
 	}
@@ -356,18 +356,18 @@ func (s *SnakeData[T]) LoadFromCell(c *cell.Slice) error {
 // SnakeBytes is a byte array type for packing and unpacking into a cell structure.
 type SnakeBytes []byte
 
-// ToCell packs the SnakeBytes into a cell. It uses PackByteArrayToCell to serialize the data.
+// ToCell packs the SnakeBytes into a cell. It uses packByteArrayToCell to serialize the data.
 func (s SnakeBytes) ToCell() (*cell.Cell, error) {
-	return PackByteArrayToCell(s)
+	return packByteArrayToCell(s)
 }
 
-// LoadFromCell loads the SnakeBytes from a cell slice. It uses UnloadCellToByteArray to deserialize the data.
+// LoadFromCell loads the SnakeBytes from a cell slice. It uses unloadCellToByteArray to deserialize the data.
 func (s *SnakeBytes) LoadFromCell(c *cell.Slice) error {
 	cl, err := c.ToCell()
 	if err != nil {
 		return fmt.Errorf("failed to convert slice to cell: %w", err)
 	}
-	data, err := UnloadCellToByteArray(cl)
+	data, err := unloadCellToByteArray(cl)
 	if err != nil {
 		return fmt.Errorf("failed to unpack byte array: %w", err)
 	}
@@ -378,18 +378,18 @@ func (s *SnakeBytes) LoadFromCell(c *cell.Slice) error {
 // SnakeBytes2D is a 2D byte array type for packing and unpacking into a cell structure.
 type SnakeBytes2D [][]byte
 
-// ToCell packs the SnakeBytes2D into a cell. It uses Pack2DByteArrayToCell to serialize the data.
+// ToCell packs the SnakeBytes2D into a cell. It uses pack2DByteArrayToCell to serialize the data.
 func (s SnakeBytes2D) ToCell() (*cell.Cell, error) {
-	return Pack2DByteArrayToCell(s)
+	return pack2DByteArrayToCell(s)
 }
 
-// LoadFromCell loads the SnakeBytes2D from a cell slice. It uses Unpack2DByteArrayFromCell to deserialize the data.
+// LoadFromCell loads the SnakeBytes2D from a cell slice. It uses unpack2DByteArrayFromCell to deserialize the data.
 func (s *SnakeBytes2D) LoadFromCell(c *cell.Slice) error {
 	cl, err := c.ToCell()
 	if err != nil {
 		return fmt.Errorf("failed to convert slice to cell: %w", err)
 	}
-	data, err := Unpack2DByteArrayFromCell(cl)
+	data, err := unpack2DByteArrayFromCell(cl)
 	if err != nil {
 		return fmt.Errorf("failed to unpack 2D byte array: %w", err)
 	}
@@ -400,23 +400,18 @@ func (s *SnakeBytes2D) LoadFromCell(c *cell.Slice) error {
 // SnakeRef is a generic type for packing and unpacking slices of any type T into a cell structure with references chaining.
 type SnakeRef[T any] []T
 
-// ToCell packs the SnakeRef into a cell. It uses PackArrayWithRefChaining to serialize the data.
+// ToCell packs the SnakeRef into a cell. It uses packArrayWithRefChaining to serialize the data.
 func (s SnakeRef[T]) ToCell() (*cell.Cell, error) {
-	packed, err := PackArrayWithRefChaining(s)
-	if err != nil {
-		return nil, err
-	}
-
-	return packed, nil
+	return packArrayWithRefChaining(s)
 }
 
-// LoadFromCell loads the SnakeRef from a cell slice. It uses UnPackArrayWithRefChaining to deserialize the data.
+// LoadFromCell loads the SnakeRef from a cell slice. It uses unPackArrayWithRefChaining to deserialize the data.
 func (s *SnakeRef[T]) LoadFromCell(c *cell.Slice) error {
 	cl, err := c.ToCell()
 	if err != nil {
 		return fmt.Errorf("failed to convert slice to cell: %w", err)
 	}
-	arr, err := UnPackArrayWithRefChaining[T](cl)
+	arr, err := unPackArrayWithRefChaining[T](cl)
 	if err != nil {
 		return err
 	}

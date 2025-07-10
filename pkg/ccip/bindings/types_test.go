@@ -76,10 +76,10 @@ func TestPackAndUnloadCellToByteArray(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cell, err := PackByteArrayToCell(tt.input)
+			cell, err := packByteArrayToCell(tt.input)
 			require.NoError(t, err)
 
-			output, err := UnloadCellToByteArray(cell)
+			output, err := unloadCellToByteArray(cell)
 			require.NoError(t, err)
 			require.Equal(t, tt.input, output)
 		})
@@ -111,10 +111,10 @@ func TestPackAndUnpack2DByteArrayToCell(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c, err := Pack2DByteArrayToCell(tt.input)
+			c, err := pack2DByteArrayToCell(tt.input)
 			require.NoError(t, err)
 
-			output, err := Unpack2DByteArrayFromCell(c)
+			output, err := unpack2DByteArrayFromCell(c)
 			require.NoError(t, err)
 			require.Equal(t, tt.input, output)
 		})
@@ -123,7 +123,7 @@ func TestPackAndUnpack2DByteArrayToCell(t *testing.T) {
 
 func TestPack2DByteArrayToCell_TooLong(t *testing.T) {
 	tooLong := make([]byte, 0x10000+1)
-	_, err := Pack2DByteArrayToCell([][]byte{tooLong})
+	_, err := pack2DByteArrayToCell([][]byte{tooLong})
 	require.Error(t, err)
 }
 
@@ -145,7 +145,7 @@ func TestLoadArray_LoadToArrayFitMultipleInSingleCell(t *testing.T) {
 			UsdPerToken: big.NewInt(5000000),
 		},
 	}
-	c, err := PackArrayWithStaticType(slice)
+	c, err := packArrayWithStaticType(slice)
 	require.NoError(t, err)
 
 	// For this test, each token update is only 258 bits, so we can fit up to 3 of them in a single cell.
@@ -160,7 +160,7 @@ func TestLoadArray_LoadToArrayFitMultipleInSingleCell(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, uint(258*2), ref.BitsSize())
 
-	array, err := UnpackArrayWithStaticType[TokenPriceUpdate](c)
+	array, err := unpackArrayWithStaticType[TokenPriceUpdate](c)
 	require.NoError(t, err)
 	require.Len(t, array, 5)
 }
@@ -190,10 +190,10 @@ func TestLoadArray_FitSingleUpdateInSingleCell_TokenUpdates(t *testing.T) {
 			UsdPerToken: big.NewInt(5000000),
 		},
 	}
-	c, err := PackArrayWithStaticType(slice)
+	c, err := packArrayWithStaticType(slice)
 	require.NoError(t, err)
 
-	array, err := UnpackArrayWithStaticType[TokenPriceUpdate](c)
+	array, err := unpackArrayWithStaticType[TokenPriceUpdate](c)
 	require.NoError(t, err)
 	require.Len(t, array, 5)
 
@@ -210,7 +210,7 @@ func TestLoadArray_FitSingleUpdateInSingleCell_TokenUpdates(t *testing.T) {
 }
 
 func TestLoadArray_FitSingleUpdateInSingleCell_MerkleRoots(t *testing.T) {
-	merkleRoots, err := PackArrayWithStaticType([]MerkleRoot{
+	merkleRoots, err := packArrayWithStaticType([]MerkleRoot{
 		{
 			SourceChainSelector: 1,
 			OnRampAddress:       make([]byte, 64),
@@ -234,7 +234,7 @@ func TestLoadArray_FitSingleUpdateInSingleCell_MerkleRoots(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
-	array, err := UnpackArrayWithStaticType[MerkleRoot](merkleRoots)
+	array, err := unpackArrayWithStaticType[MerkleRoot](merkleRoots)
 	require.NoError(t, err)
 	require.Len(t, array, 3)
 
@@ -252,7 +252,7 @@ func TestLoadArray_FitSingleUpdateInSingleCell_MerkleRoots(t *testing.T) {
 
 func TestLoadArray_AddressTooSmall(t *testing.T) {
 	// Note: for OnRampAddress that requires 64 bytes length, if the address bytes is smaller than 64, tlb.toCell() will return error, if bytes array is more than 64 bytes, only first 512 bits will be used.
-	_, err := PackArrayWithStaticType([]MerkleRoot{
+	_, err := packArrayWithStaticType([]MerkleRoot{
 		{
 			SourceChainSelector: 1,
 			OnRampAddress:       make([]byte, 63),
@@ -263,7 +263,7 @@ func TestLoadArray_AddressTooSmall(t *testing.T) {
 	})
 	require.EqualError(t, err, "failed to serialize element 0: failed to serialize field OnRampAddress to cell: failed to store bits 512, err: too small slice for this size")
 
-	_, err = PackArrayWithStaticType([]MerkleRoot{
+	_, err = packArrayWithStaticType([]MerkleRoot{
 		{
 			SourceChainSelector: 1,
 			OnRampAddress:       make([]byte, 64),
