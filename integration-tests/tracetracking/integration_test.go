@@ -15,6 +15,7 @@ import (
 	"integration-tests/tracetracking/testutils"
 
 	chainsel "github.com/smartcontractkit/chain-selectors"
+
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
 	"github.com/stretchr/testify/assert"
