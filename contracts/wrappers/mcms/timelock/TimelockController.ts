@@ -9,6 +9,7 @@ import {
   Sender,
   SendMode,
 } from '@ton/core'
+import { crc32 } from 'zlib'
 
 export type TimelockControllerStorage = {
   minDelay: number
@@ -26,6 +27,19 @@ export type ExecuteData = {
   msgToSend: Cell
 }
 
+export const opcodes = {
+  in: {},
+  out: {
+    CallScheduled: crc32('Timelock_CallScheduled'),
+    CallExecuted: crc32('Timelock_CallExecuted'),
+    BypasserCallExecuted: crc32('Timelock_BypasserCallExecuted'),
+    Canceled: crc32('Timelock_Canceled'),
+    MinDelayChange: crc32('Timelock_MinDelayChange'),
+    FunctionSelectorBlocked: crc32('Timelock_FunctionSelectorBlocked'),
+    FunctionSelectorUnblocked: crc32('Timelock_FunctionSelectorUnblocked'),
+  },
+}
+
 export const Builder = {
   /// Creates a new `AccessControl_GrantRole` message.
   asStorage: (config: TimelockControllerStorage): Cell => {
@@ -40,10 +54,14 @@ export const Builder = {
 
 export abstract class Params {
   static done_timestamp = 1
-  static admin_role = 0n
-  static proposer_role = 1n
-  static canceller_role = 2n
-  static executor_role = 3n
+
+  // TODO: sha256 hash of the function selector
+  static admin_role = 2112602974n
+  static proposer_role = 2908596091n
+  static canceller_role = 973072761n
+  static executor_role = 2599814779n
+  static bypasser_role = 544836961n
+
   static add_account = 0
   static remove_account = 1
   static unset_state = 0
