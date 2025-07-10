@@ -62,7 +62,7 @@ func TestTokenAmounts(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
-	array, err := unPackArrayWithRefChaining[Any2TONTokenTransfer](tokenAmountsCell)
+	array, err := unpackArrayWithRefChaining[Any2TONTokenTransfer](tokenAmountsCell)
 	require.NoError(t, err)
 	require.Len(t, array, 6)
 }

@@ -86,7 +86,7 @@ func TestPackAndUnloadCellToByteArray(t *testing.T) {
 	}
 }
 
-// NewDummyCell returns a cell containing the string "placeholder" in its data.
+// NewDummyCell returns a cell containing the string "place holder" in its data.
 func NewDummyCell() (*cell.Cell, error) {
 	builder := cell.BeginCell()
 	payload := []byte("place holder")

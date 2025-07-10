@@ -65,10 +65,10 @@ func packArrayWithRefChaining[T any](array []T) (*cell.Cell, error) {
 	return next, nil
 }
 
-// unPackArrayWithRefChaining unpacks a linked cell structure created by packArrayWithRefChaining
+// unpackArrayWithRefChaining unpacks a linked cell structure created by packArrayWithRefChaining
 // into a slice of type T. Each element is stored as a cell reference. If a cell has 4 references,
 // the last reference is used for chaining to the next cell and is not decoded as an element.
-func unPackArrayWithRefChaining[T any](root *cell.Cell) ([]T, error) {
+func unpackArrayWithRefChaining[T any](root *cell.Cell) ([]T, error) {
 	var result []T
 	curr := root
 	for curr != nil {
@@ -453,13 +453,13 @@ func (s SnakeRef[T]) ToCell() (*cell.Cell, error) {
 	return packArrayWithRefChaining(s)
 }
 
-// LoadFromCell loads the SnakeRef from a cell slice. It uses unPackArrayWithRefChaining to deserialize the data.
+// LoadFromCell loads the SnakeRef from a cell slice. It uses unpackArrayWithRefChaining to deserialize the data.
 func (s *SnakeRef[T]) LoadFromCell(c *cell.Slice) error {
 	cl, err := c.ToCell()
 	if err != nil {
 		return fmt.Errorf("failed to convert slice to cell: %w", err)
 	}
-	arr, err := unPackArrayWithRefChaining[T](cl)
+	arr, err := unpackArrayWithRefChaining[T](cl)
 	if err != nil {
 		return err
 	}
