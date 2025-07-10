@@ -253,7 +253,7 @@ fun AccessControl<T>.hasRole(self, role: int, account: address): bool {
     }
 
     // Check if the account exists in the role data
-    val d = AccessControl_RoleData.fromCell(data!);
+    val d = lazy AccessControl_RoleData.fromCell(data!);
     val (_, accExists) = d.hasRole.sDictGet(LEN_ADDRESS, account as slice);
     return accExists;
 }
@@ -287,7 +287,8 @@ fun AccessControl<T>.getRoleAdmin(self, role: int): int {
         return DEFAULT_ADMIN_ROLE;
     }
 
-    return AccessControl_RoleData.fromCell(data!).adminRole;
+    val d = lazy AccessControl_RoleData.fromCell(data!);
+    return d.adminRole;
 }
 
 // --- Methods - <AccessControl<T>> enumerable extension ---
@@ -309,7 +310,7 @@ fun AccessControl<T>.getRoleMember(self, role: int, index: uint32): address {
     }
 
     // Check if the account exists in the role data
-    var d = AccessControl_RoleData.fromCell(data!);
+    var d = lazy AccessControl_RoleData.fromCell(data!);
     if (index >= d.membersLen) {
         return createAddressNone(); // index out of bounds
     }
@@ -334,7 +335,7 @@ fun AccessControl<T>.getRoleMemberFirst(self, role: int): address {
         return createAddressNone(); // role does not exist
     }
 
-    val d = AccessControl_RoleData.fromCell(data!);
+    val d = lazy AccessControl_RoleData.fromCell(data!);
     if (d.membersLen == 0) {
         return createAddressNone(); // no members in the role
     }
@@ -353,7 +354,7 @@ fun AccessControl<T>.getRoleMemberNext(self, role: int, pivot: address): address
     }
 
     // Get the next account in the role data after the pivot
-    val d = AccessControl_RoleData.fromCell(data!);
+    val d = lazy AccessControl_RoleData.fromCell(data!);
     var (acc, _, accExists) = d.hasRole.sDictGetNext(LEN_ADDRESS, pivot as slice);
     if (!accExists) {
         return createAddressNone(); // no next account
@@ -372,7 +373,8 @@ fun AccessControl<T>.getRoleMemberCount(self, role: int): int {
         return 0; // role does not exist
     }
 
-    return AccessControl_RoleData.fromCell(data!).membersLen;
+    val d = lazy AccessControl_RoleData.fromCell(data!);
+    return d.membersLen;
 }
 
 /// @dev Return all accounts that have `role`.
@@ -384,7 +386,8 @@ fun AccessControl<T>.getRoleMembers(self, role: int): dict {
         return createEmptyDict(); // role does not exist
     }
 
-    return AccessControl_RoleData.fromCell(data!).hasRole;
+    val d = lazy AccessControl_RoleData.fromCell(data!);
+    return d.hasRole;
 }
 
 // --- Methods - mutations ---
