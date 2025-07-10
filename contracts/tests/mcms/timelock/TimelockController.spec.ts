@@ -3,6 +3,7 @@ import { Cell, beginCell, toNano } from '@ton/core'
 import '@ton/test-utils'
 import { compile } from '@ton/blueprint'
 import {
+  opcodes,
   Errors,
   ExecuteData,
   Opcodes,
@@ -41,7 +42,7 @@ describe('TimelockController', () => {
     minDelay = 7
 
     const roleData: ac.ContractRoleData = {
-      adminRole: 0n, // default admin role
+      adminRole: Params.admin_role, // default admin role
       membersLen: 1n, // one member (deployer)
       hasRole: ac.builder.data.encode().hasRoleDict([deployer.address]),
     }
@@ -66,6 +67,19 @@ describe('TimelockController', () => {
     acContract = blockchain.openContract(ac.AccessControl.newFrom(timelockController.address))
   })
 
+  it('Should compute crc32 opcodes', async () => {
+      // In opcodes
+  
+      // Out opcodes
+      expect(opcodes.out.CallScheduled).toBe(0xc55fca54)
+      expect(opcodes.out.CallExecuted).toBe(0x49ea5d0e)
+      expect(opcodes.out.BypasserCallExecuted).toBe(0x9c7f3010)
+      expect(opcodes.out.Canceled).toBe(0x580e80f2)
+      expect(opcodes.out.MinDelayChange).toBe(0x904b14e0)
+      expect(opcodes.out.FunctionSelectorBlocked).toBe(0x9c4d6d94)
+      expect(opcodes.out.FunctionSelectorUnblocked).toBe(0xf410a31b)
+    })
+
   it('should deploy', async () => {
     const deployResult = await timelockController.sendTopUp(deployer.getSender(), {
       value: toNano('0.05'),
@@ -80,7 +94,7 @@ describe('TimelockController', () => {
     })
 
     expect(await acContract.getHasRole(Params.admin_role, deployer.address)).toEqual(true)
-    expect(await acContract.getRoleAdmin(Params.admin_role)).toEqual(0n) // default admin role
+    expect(await acContract.getRoleAdmin(Params.admin_role)).toEqual(Params.admin_role) // default admin role
 
     const memberAddr = await acContract.getRoleMember(Params.admin_role, 0n)
     expect(memberAddr).not.toBeNull()
@@ -103,7 +117,7 @@ describe('TimelockController', () => {
   it('successfully parsed AccessControll opcode', async () => {
     const body = ac.builder.message
       .encode()
-      .grantRole({ queryId: 1n, role: 1337n, account: other.address })
+      .grantRole({ queryId: 1n, role: Params.proposer_role, account: other.address })
     const result = await timelockController.sendInternal(deployer.getSender(), toNano('0.05'), body)
 
     expect(result.transactions).toHaveTransaction({
@@ -113,12 +127,18 @@ describe('TimelockController', () => {
       op: ac.opcodes.in.GrantRole,
     })
 
-    expect(await acContract.getHasRole(1337n, other.address)).toEqual(true)
-    expect(await acContract.getRoleAdmin(1337n)).toEqual(0n) // default admin role
+    expect(await acContract.getRoleAdmin(Params.proposer_role)).toEqual(Params.admin_role)
 
-    const memberAddr = await acContract.getRoleMember(1337n, 0n)
-    expect(memberAddr).not.toBeNull()
-    expect(memberAddr!.toString()).toEqual(other.address.toString()) // default admin role
+    expect(await acContract.getHasRole(Params.proposer_role, deployer.address)).toEqual(true)
+    expect(await acContract.getHasRole(Params.proposer_role, other.address)).toEqual(true)
+
+    const member0Addr = await acContract.getRoleMember(Params.proposer_role, 0n)
+    expect(member0Addr).not.toBeNull()
+    expect(member0Addr!.toString()).toEqual(deployer.address.toString()) // default admin role
+
+    const member1Addr = await acContract.getRoleMember(Params.proposer_role, 1n)
+    expect(member1Addr).not.toBeNull()
+    expect(member1Addr!.toString()).toEqual(other.address.toString()) // default admin role
   })
 
   // it('successful update account - add admin account', async () => {
