@@ -28,7 +28,15 @@ export type ExecuteData = {
 }
 
 export const opcodes = {
-  in: {},
+  in: {
+    ScheduleBatch: crc32('Timelock_ScheduleBatch'),
+    Cancel: crc32('Timelock_Cancel'),
+    ExecuteBatch: crc32('Timelock_ExecuteBatch'),
+    UpdateDelay: crc32('Timelock_UpdateDelay'),
+    BlockFunctionSelector: crc32('Timelock_BlockFunctionSelector'),
+    UnblockFunctionSelector: crc32('Timelock_UnblockFunctionSelector'),
+    BypasserExecuteBatch: crc32('Timelock_BypasserExecuteBatch'),
+  },
   out: {
     CallScheduled: crc32('Timelock_CallScheduled'),
     CallExecuted: crc32('Timelock_CallExecuted'),

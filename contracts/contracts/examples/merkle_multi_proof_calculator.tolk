@@ -1,5 +1,5 @@
-import "./../lib/merkle_multi_proof/merkle_multi_proof.tolk"
-import "./../lib/utils.tolk"
+import "../lib/merkle_multi_proof/merkle_multi_proof.tolk"
+import "../lib/utils.tolk"
 
 struct MerkleMultiProofCalculator {
     id: uint64,
