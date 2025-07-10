@@ -22,7 +22,7 @@ struct(0x00000001) CalculateRoot {
 }
 
 fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: slice) {
-    if (msgBody.isEnd()) { // ignore all empty messages
+    if (msgBody.isEmpty()) { // ignore all empty messages
         return;
     }
 
@@ -41,7 +41,7 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
     saveData(storage);
 }
 
-get root(): uint256 {
+get fun root(): uint256 {
     var storage = loadData();
     return storage.root;
 }

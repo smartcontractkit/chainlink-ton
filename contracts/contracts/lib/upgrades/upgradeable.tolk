@@ -114,7 +114,7 @@ fun Upgradeable.upgrade(self, code: cell) {
         code: code,
         hash: code.hash(),
         version: UnsafeBodyNoRef {
-            bodyForceNoRef: self.version(), // This is expected to be the version of the new code
+            forceInline: self.version(), // This is expected to be the version of the new code
             },
         });
 }
