@@ -109,7 +109,7 @@ struct (0x39452c46) AccessControl_RenounceRole {
 }
 
 /// @dev Union of all incoming messages.
-type AccessControl_InMessage = AccessControl_GrantRole
+type AccessControl_Message = AccessControl_GrantRole
     | AccessControl_RevokeRole
     | AccessControl_RenounceRole;
 
