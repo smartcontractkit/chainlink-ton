@@ -68,17 +68,24 @@ describe('TimelockController', () => {
   })
 
   it('Should compute crc32 opcodes', async () => {
-      // In opcodes
-  
-      // Out opcodes
-      expect(opcodes.out.CallScheduled).toBe(0xc55fca54)
-      expect(opcodes.out.CallExecuted).toBe(0x49ea5d0e)
-      expect(opcodes.out.BypasserCallExecuted).toBe(0x9c7f3010)
-      expect(opcodes.out.Canceled).toBe(0x580e80f2)
-      expect(opcodes.out.MinDelayChange).toBe(0x904b14e0)
-      expect(opcodes.out.FunctionSelectorBlocked).toBe(0x9c4d6d94)
-      expect(opcodes.out.FunctionSelectorUnblocked).toBe(0xf410a31b)
-    })
+    // In opcodes
+    expect(opcodes.in.ScheduleBatch).toBe(0x94718f4)
+    expect(opcodes.in.Cancel).toBe(0xaf3bf1d0)
+    expect(opcodes.in.ExecuteBatch).toBe(0x6e9bf263)
+    expect(opcodes.in.UpdateDelay).toBe(0x7a57a45c)
+    expect(opcodes.in.BlockFunctionSelector).toBe(0x2637af77)
+    expect(opcodes.in.UnblockFunctionSelector).toBe(0x26f19f4e)
+    expect(opcodes.in.BypasserExecuteBatch).toBe(0xbb0e9f7d)
+
+    // Out opcodes
+    expect(opcodes.out.CallScheduled).toBe(0xc55fca54)
+    expect(opcodes.out.CallExecuted).toBe(0x49ea5d0e)
+    expect(opcodes.out.BypasserCallExecuted).toBe(0x9c7f3010)
+    expect(opcodes.out.Canceled).toBe(0x580e80f2)
+    expect(opcodes.out.MinDelayChange).toBe(0x904b14e0)
+    expect(opcodes.out.FunctionSelectorBlocked).toBe(0x9c4d6d94)
+    expect(opcodes.out.FunctionSelectorUnblocked).toBe(0xf410a31b)
+  })
 
   it('should deploy', async () => {
     const deployResult = await timelockController.sendTopUp(deployer.getSender(), {

@@ -1,7 +1,7 @@
 import "types.tolk";
 import "../lib/access/ownable_2step.tolk";
 import "../lib/upgrades/type_and_version.tolk";
-import "./../lib/merkle_multi_proof/merkle_multi_proof.tolk"
+import "../lib/merkle_multi_proof/merkle_multi_proof.tolk"
 import "../deployable/types.tolk";
 import "../lib/utils.tolk";
 import "../lib/ocr/multi_ocr3_base";

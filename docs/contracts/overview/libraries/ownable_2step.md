@@ -66,7 +66,6 @@ The following exit codes can be thrown by this module's operations:
 | 1001 | `ERROR_CANNOT_TRANSFER_TO_SELF`   | The proposed new owner is the same as the current owner.                     |
 | 1002 | `ERROR_MUST_BE_PROPOSED_OWNER`    | The sender of `AcceptOwnership` is not the pending owner.                      |
 
-
 ## Overview
 
 This struct implements basic contract ownership, including a 2-step ownership transfer process.
@@ -89,7 +88,7 @@ To integrate this module, you embed the Ownable2Step struct into your contract's
 First, define your contract's storage struct and include Ownable2Step as a field. It's also common practice to have helper functions for loading and saving state.
 
 ``` tolk
-import "./../lib/access/ownable_2step.tolk";
+import "../lib/access/ownable_2step.tolk";
 
 struct OwnableCounter {
     id: uint64;
