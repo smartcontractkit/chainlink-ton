@@ -250,7 +250,7 @@ describe('Router', () => {
       // add config for EVM destination
       result = await onRamp.sendUpdateDestChainConfigs(deployer.getSender(), {
         value: toNano('1'),
-        destChainConfigs: [{ destChainSelector: CHAINSEL_EVM_TEST_90000001, router: ZERO_ADDRESS, allowlistEnabled: false }]
+        destChainConfigs: [{ destChainSelector: CHAINSEL_EVM_TEST_90000001, router: Buffer.alloc(64), allowlistEnabled: false }]
       })
       expect(result.transactions).toHaveTransaction({
         from: deployer.address,

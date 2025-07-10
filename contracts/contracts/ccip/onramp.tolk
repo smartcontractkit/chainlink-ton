@@ -38,7 +38,7 @@ struct Storage {
 }
 
 struct DestChainConfig {
-    router: address; // TODO: probably just bytes/cell
+    router: bytes64;
     sequenceNumber: uint64;
     allowlistEnabled: bool;
     allowedSenders: Map<bool>; // address -> bool

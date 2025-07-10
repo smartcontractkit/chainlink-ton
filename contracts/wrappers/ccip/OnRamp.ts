@@ -128,7 +128,7 @@ export class OnRamp implements Contract {
     via: Sender,
     opts: {
       value: bigint
-      destChainConfigs: { destChainSelector: bigint, router: Address, allowlistEnabled: boolean }[]
+      destChainConfigs: { destChainSelector: bigint, router: Buffer, allowlistEnabled: boolean }[]
     },
   ) {
     await provider.internal(via, {
@@ -138,7 +138,7 @@ export class OnRamp implements Contract {
         .storeUint(Opcodes.updateDestChainConfigs, 32)
         .storeRef(asSnakeData(opts.destChainConfigs, (config) => new TonBuilder()
           .storeUint(config.destChainSelector, 64)
-          .storeAddress(config.router)
+          .storeBuffer(config.router, 64)
           .storeBit(config.allowlistEnabled)
         ))
         .endCell(),
