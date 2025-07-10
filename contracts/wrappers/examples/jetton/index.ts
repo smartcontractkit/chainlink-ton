@@ -36,14 +36,6 @@ export {
   jettonSenderConfigToCell,
 } from './JettonSender'
 
-// Jetton Receiver
-export {
-  JettonReceiver,
-  ReceiverConstants,
-  type JettonReceiverConfig,
-  jettonReceiverConfigToCell,
-} from './JettonReceiver'
-
 // Simple Jetton Receiver
 export {
   SimpleJettonReceiver,
