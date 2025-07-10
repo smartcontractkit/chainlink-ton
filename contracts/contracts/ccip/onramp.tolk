@@ -3,7 +3,6 @@ import "types.tolk";
 import "../lib/access/ownable_2step.tolk";
 import "../lib/upgrades/type_and_version.tolk";
 import "../lib/utils.tolk";
-import "../lib/utils.tolk";
 import "@stdlib/tvm-dicts";
 
 // TODO: use sha256("CCIPMessageSent")

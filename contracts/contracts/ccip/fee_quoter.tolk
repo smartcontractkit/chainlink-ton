@@ -4,7 +4,6 @@ import "../lib/access/ownable_2step.tolk";
 import "../deployable/types.tolk";
 import "../lib/upgrades/type_and_version.tolk";
 import "../lib/utils.tolk";
-import "../lib/utils.tolk";
 
 const VAL_1E5:  uint256 = 100000;
 const VAL_1E14: uint256 = 100000000000000;

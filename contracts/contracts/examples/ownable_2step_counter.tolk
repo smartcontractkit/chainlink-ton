@@ -1,5 +1,5 @@
-import "./../lib/access/ownable_2step.tolk";
-import "./../lib/utils.tolk";
+import "../lib/access/ownable_2step.tolk";
+import "../lib/utils.tolk";
 
 struct OwnableCounter {
     id: uint64;
