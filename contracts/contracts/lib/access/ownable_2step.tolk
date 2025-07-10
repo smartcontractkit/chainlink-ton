@@ -51,54 +51,41 @@ type Ownable2Step_Messages =
     | Ownable2Step_AcceptOwnership;
 
 /// Handles `Ownable2Step` messages for ownership management.
-fun Ownable2Step.onInternalMessage(mutate self, myBalance: int, msgValue: int, msgFull: cell, msgBody: slice): bool {
-    try {
+fun Ownable2Step.onInternalMessage(mutate self, sender: address, body: slice): bool {
+    //This will fail with exitcode 63 if the message is not an Ownable2Step message
+    var msg = lazy Ownable2Step_Messages.fromSlice(body);
 
-        //This will fail with exitcode 63 if the message is not an Ownable2Step message
-        var msg = Ownable2Step_Messages.fromSlice(msgBody);
+    match (msg) {
+        Ownable2Step_TransferOwnership => {
+            self.transferOwnership(sender, msg.newOwner);
+            val emitMsg = createExternalLogMessage({
+                dest: createAddressNone(),
+                body: Ownable2Step_OwnershipTransferRequested {
+                    queryId: msg.queryId,
+                    newOwner: msg.newOwner
+                }
+            });
+            emitMsg.send(SEND_MODE_REGULAR);
+        },
 
-        var cs = msgFull.beginParse();
-        var flags = cs.loadMessageFlags();
-        if (isMessageBounced(flags)) { // ignore all bounced messages
-            return false;
+        Ownable2Step_AcceptOwnership => {
+            var oldOwner = self.owner;
+            self.acceptOwnership(sender);
+            val emitMsg = createExternalLogMessage({
+                dest: createAddressNone(),
+                body: Ownable2Step_OwnershipTransferred {
+                    queryId: msg.queryId,
+                    oldOwner: oldOwner,
+                    newOwner: sender
+                }
+            });
+            emitMsg.send(SEND_MODE_REGULAR);
         }
-        var sender: address = cs.loadAddress();
-
-        match (msg) {
-            Ownable2Step_TransferOwnership => {
-                self.transferOwnership(sender, msg.newOwner);
-                val emitMsg = createExternalLogMessage({
-                    dest: createAddressNone(),
-                    body: Ownable2Step_OwnershipTransferRequested {
-                        queryId: msg.queryId,
-                        newOwner: msg.newOwner
-                    }
-                });
-                emitMsg.send(SEND_MODE_REGULAR);
-            },
-
-            Ownable2Step_AcceptOwnership => {
-                var oldOwner = self.owner;
-                self.acceptOwnership(sender);
-                val emitMsg = createExternalLogMessage({
-                    dest: createAddressNone(),
-                    body: Ownable2Step_OwnershipTransferred {
-                        queryId: msg.queryId,
-                        oldOwner: oldOwner,
-                        newOwner: sender
-                    }
-                });
-                emitMsg.send(SEND_MODE_REGULAR);
-            }
+        else => {
+            return false; // Not an Ownable2Step message
         }
-        return true;
-
-    } catch (exitCode) {
-        if (exitCode != 63) { // 63 is "unknown opcode"
-            throw exitCode;
-        }
-        return false; // Not an Ownable2Step message
     }
+    return true;
 }
 
 
