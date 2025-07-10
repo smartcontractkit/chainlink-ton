@@ -320,6 +320,7 @@ fun AccessControl<T>.getRoleMember(self, role: int, index: uint32): address {
     var i = 0;
     while (i < index) {
         d.hasRole.sDictDeleteFirstAndGet(LEN_ADDRESS);
+        i += 1; // increment to next account
     }
 
     // Get the account at the specified index
@@ -613,17 +614,8 @@ fun AccessControl<T>.get_getRoleMemberNext(self, role: int, pivot: slice): addre
 
 @inline
 fun AccessControl<T>.onInternalMessage(mutate self, myBalance: int, msgValue: int, msgFull: cell, msgBody: slice) {
-    try {
-        val msg = AccessControl_Message.fromSlice(msgBody);
-        return self.onInternalMessageStruct(myBalance, msgValue, msgFull, msg);
-    } catch(exitCode) {
-        return 0; // unknown message, not handled
-    }
-}
-
-@inline
-fun AccessControl<T>.onInternalMessageStruct(mutate self, myBalance: int, msgValue: int, msgFull: cell, msg: AccessControl_Message) {
     val sender = self.msgSender(msgFull);
+    val msg = lazy AccessControl_Message.fromSlice(msgBody);
     match (msg) {
         AccessControl_GrantRole => {
             self.grantRole(msg.queryId, sender, msg.role, msg.account);
@@ -634,6 +626,9 @@ fun AccessControl<T>.onInternalMessageStruct(mutate self, myBalance: int, msgVal
         AccessControl_RenounceRole => {
             self.renounceRole(msg.queryId, sender, msg.role, msg.callerConfirmation);
         },
+        else => {
+            return 0; // unknown message, not handled
+        }
     };
 
     return -1; // handled

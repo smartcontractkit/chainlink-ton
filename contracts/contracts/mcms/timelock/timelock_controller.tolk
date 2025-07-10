@@ -11,12 +11,148 @@ import "timelock_controller/operation_utils.tolk";
 import "timelock_controller/get.tolk";
 import "timelock_controller/admin_calls.tolk";
 
+/**
+ * @notice Contract module which acts as a timelocked controller with role-based
+ * access control. When set as the owner of an `Ownable` smart contract, it
+ * can enforce a timelock on `onlyOwner` maintenance operations and prevent
+ * a list of blocked functions from being called. The timelock can be bypassed
+ * by a bypasser or an admin in emergency situations that require quick action.
+ *
+ * Non-emergency actions are expected to follow the timelock.
+ *
+ * The contract has five roles. Each role can be inhabited by multiple
+ * (potentially overlapping) addresses.
+ *
+ * 1) Admin: The admin manages membership for all roles (including the admin
+ *    role itself). The admin automatically inhabits all other roles. The admin
+ *    can call the bypasserExecuteBatch function to bypass any restrictions like
+ *    the delay imposed by the timelock and the list of blocked functions. The
+ *    admin can manage the list of blocked functions. In practice, the admin
+ *    role is expected to (1) be inhabited by a contract requiring a secure
+ *    quorum of votes before taking any action and (2) to be used rarely, namely
+ *    only for emergency actions or configuration of the RBACTimelock.
+ *
+ * 2) Proposer: The proposer can schedule delayed operations that don't use any
+ *    blocked function selector.
+ *
+ * 3) Executor: The executor can execute previously scheduled operations once
+ *    their delay has expired. The contract enforces that the calls in an
+ *    operation are executed with the correct args (target, data, value), but
+ *    the executor can freely choose the gas limit. Since the executor is
+ *    typically not particularly trusted, we recommend that (transitive) callees
+ *    implement standard behavior of simply reverting if insufficient gas is
+ *    provided. In particular, this means callees should not have non-reverting
+ *    gas-dependent branches.
+ *
+ * 4) Canceller: The canceller can cancel operations that have been scheduled
+ *    but not yet executed.
+ *
+ * 5) Bypasser: The bypasser can bypass any restrictions like the delay imposed
+ *    by the timelock and the list of blocked functions to immediately execute
+ *    operations, e.g. in case of emergencies.
+ *
+ * Note that this contract doesn't place any restrictions on the gas limit used
+ * when executing operations. See the above comment on the executor role for
+ * more details.
+ *
+ * @dev This contract is a modified version of OpenZeppelin's
+ * contracts/governance/TimelockController.sol contract from v4.7.0, accessed in
+ * commit 561d1061fc568f04c7a65853538e834a889751e8 of
+ * github.com/OpenZeppelin/openzeppelin-contracts
+ * Said contract is under "Copyright (c) 2016-2023 zOS Global Limited and
+ * contributors" and its original MIT license can be found at
+ * https://github.com/OpenZeppelin/openzeppelin-contracts/blob/561d1061fc568f04c7a65853538e834a889751e8/LICENSE
+ */
+
+// --- Messages - incoming ---
+
+// --- Messages - outgoing ---
+
+/// @dev Emitted when a call is scheduled as part of operation `id`.
+struct (0xc55fca54) Timelock_CallScheduled {
+    /// Query ID of the change owner request.
+    queryId: uint64;
+
+    /// 
+    id: uint256;
+    index: uint64;
+    target: address;
+    value: coins;
+    data: cell;
+    predecessor: uint256;
+    salt: uint256;
+    delay: uint64;
+}
+
+/// @dev Emitted when a call is performed as part of operation `id`.
+struct (0x49ea5d0e) Timelock_CallExecuted {
+    /// Query ID of the change owner request.
+    queryId: uint64;
+
+    /// 
+    id: uint256;
+    index: uint64;
+    target: address;
+    value: coins;
+    data: cell;
+}
+
+/// @dev Emitted when a call is performed via bypasser.
+struct (0x9c7f3010) Timelock_BypasserCallExecuted {
+    /// Query ID of the change owner request.
+    queryId: uint64;
+
+    /// 
+    index: uint64;
+    target: address;
+    value: coins;
+    data: cell;
+}
+
+/// @dev Emitted when operation `id` is cancelled.
+struct (0x580e80f2) Timelock_Canceled {
+    /// Query ID of the change owner request.
+    queryId: uint64;
+
+    /// 
+    id: uint256;
+}
+
+/// @dev Emitted when the minimum delay for future operations is modified.
+struct (0x904b14e0) Timelock_MinDelayChange {
+    /// Query ID of the change owner request.
+    queryId: uint64;
+
+    /// 
+    oldDuration: uint64;
+    newDuration: uint64;
+}
+
+/// @dev Emitted when a function selector is blocked.
+struct (0x9c4d6d94) Timelock_FunctionSelectorBlocked {
+    /// Query ID of the change owner request.
+    queryId: uint64;
+
+    /// 
+    selector: uint64;
+}
+
+/// @dev Emitted when a function selector is unblocked.
+struct (0xf410a31b) Timelock_FunctionSelectorUnblocked {
+    /// Query ID of the change owner request.
+    queryId: uint64;
+
+    /// 
+    selector: uint64;
+}
+
+// TODO: use keccak256 hash function to match Ethereum implementation
 // Notice: role constants are kept as original Ethereum implementation (keccak256)
-const ROLE_ADMIN = 0; // TODO: keccak256("ADMIN_ROLE");
-const ROLE_PROPOSER = 1; // TODO: keccak256("PROPOSER_ROLE");
-const ROLE_CANCELLER = 2; // TODO: keccak256("CANCELLER_ROLE");
-const ROLE_EXECUTOR = 3; // TODO: keccak256("EXECUTOR_ROLE");
-const ROLE_BYPASSER = 4; // TODO: keccak256("BYPASSER_ROLE");
+const ADMIN_ROLE = stringSha256_32("ADMIN_ROLE");
+const PROPOSER_ROLE = stringSha256_32("PROPOSER_ROLE");
+const CANCELLER_ROLE = stringSha256_32("CANCELLER_ROLE");
+const EXECUTOR_ROLE = stringSha256_32("EXECUTOR_ROLE");
+const BYPASSER_ROLE = stringSha256_32("BYPASSER_ROLE");
 
 struct Timelock {}
 
@@ -45,7 +181,8 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
     cs.loadCoins(); // skip ihr_fee
     var fwdFee = cs.loadCoins();
 
-    if (rbac.hasRole(ROLE_ADMIN, senderAddress)) {
+    val res = rbac.hasRole(ADMIN_ROLE, senderAddress);
+    if (rbac.hasRole(ADMIN_ROLE, senderAddress)) {
         // Map from underlying contract storage to trait storage
         // RBACTimelockAdmin operations handler
         var timelockAdmin: RBACTimelockAdmin = {
@@ -71,9 +208,8 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
     }
 
     val op = msgBody.loadMessageOp();
-    debug.print(op);
     val queryID = msgBody.loadMessageQueryId();
-    if (rbac.hasRole(ROLE_PROPOSER, senderAddress)) {
+    if (rbac.hasRole(PROPOSER_ROLE, senderAddress)) {
         if (op == OP_SCHEDULE) {
             val delay = msgBody.loadUint(32);
             val tonValue = msgBody.loadCoins();
@@ -97,7 +233,7 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
         }
     }
 
-    if (rbac.hasRole(ROLE_CANCELLER, senderAddress)) {
+    if (rbac.hasRole(CANCELLER_ROLE, senderAddress)) {
         if (op == OP_CANCEL) {
             val id = msgBody.loadUint(256);
             msgBody.assertEnd();
@@ -114,7 +250,7 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
         }
     }
 
-    if (rbac.hasRole(ROLE_EXECUTOR, senderAddress)) {
+    if (rbac.hasRole(EXECUTOR_ROLE, senderAddress)) {
         if (op == OP_EXECUTE) {
             val tonValue = msgBody.loadCoins();
             val predecessor = msgBody.loadUint(256);
