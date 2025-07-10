@@ -3,9 +3,6 @@ tolk 1.0
 import "@stdlib/tvm-dicts";
 import "../../lib/access/access_control.tolk";
 
-import "common/workchain.tolk";
-import "common/message.tolk";
-
 import "timelock_controller/error.tolk";
 import "timelock_controller/storage.tolk";
 import "timelock_controller/op.tolk";
@@ -47,8 +44,6 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
     cs.skipBits(1); // skip extracurrency collection
     cs.loadCoins(); // skip ihr_fee
     var fwdFee = cs.loadCoins();
-
-    forceChain(WORKCHAIN, senderAddress, ERROR_WRONG_WORKCHAIN);
 
     if (rbac.hasRole(ROLE_ADMIN, senderAddress)) {
         // Map from underlying contract storage to trait storage
