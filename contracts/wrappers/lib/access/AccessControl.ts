@@ -75,7 +75,7 @@ export const opcodes = {
     RoleGranted: crc32('AccessControl_RoleGranted'),
     RoleRevoked: crc32('AccessControl_RoleRevoked'),
     RoleAdminChanged: crc32('AccessControl_RoleAdminChanged'),
-  }
+  },
 }
 
 export const builder = {
