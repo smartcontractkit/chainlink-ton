@@ -77,7 +77,13 @@ func waitForAirdropCompletion(t *testing.T, client ton.APIClientWrapped, recipie
 	require.NoError(t, err, "failed to get current block")
 	for _, addr := range recipients {
 		if acc, err := client.GetAccount(ctx, currentBlock, addr); err == nil {
-			initialBalances[addr.String()] = acc.State.Balance
+			if acc.State != nil {
+				t.Logf("Account state for %s: %v", addr.String(), acc.State)
+				t.Log("Initial balance for", addr.String(), "is", acc.State.Balance.String())
+				initialBalances[addr.String()] = acc.State.Balance
+			} else {
+				initialBalances[addr.String()] = tlb.ZeroCoins
+			}
 		} else {
 			initialBalances[addr.String()] = tlb.ZeroCoins // the account might not exist yet
 		}
@@ -105,7 +111,7 @@ func waitForAirdropCompletion(t *testing.T, client ton.APIClientWrapped, recipie
 					if err != nil {
 						continue
 					}
-					if acc.State.Balance.Nano().Cmp(expectedMin.Nano()) >= 0 {
+					if acc.State != nil && acc.State.Balance.Nano().Cmp(expectedMin.Nano()) >= 0 {
 						if verbose {
 							t.Logf("%s balance is sufficient: %s >= %s", addr.String(), acc.State.Balance.String(), expectedMin.String())
 						}
@@ -144,30 +150,38 @@ func StartTonChain(t *testing.T, nodeClient *ton.APIClient, chainID uint64, depl
 	return ton
 }
 
-func CreateAPIClient(t *testing.T, chainID uint64) *ton.APIClient {
+func CreateAPIClient(t *testing.T, chainID uint64, useAlreadyRunningNetwork bool) *ton.APIClient {
 	t.Helper()
-	err := framework.DefaultNetwork(once)
-	require.NoError(t, err)
 
-	port := freeport.GetOne(t)
+	var networkCfg string
 
-	bcInput := &blockchain.Input{
-		ChainID: strconv.FormatUint(chainID, 10),
-		Type:    "ton",
-		Image:   "ghcr.io/neodix42/mylocalton-docker:latest",
-		Port:    strconv.Itoa(port),
+	if useAlreadyRunningNetwork {
+		t.Logf("Using existing network for chain ID %d", chainID)
+		networkCfg = "http://localhost:8000/localhost.global.config.json"
+	} else {
+
+		err := framework.DefaultNetwork(once)
+		require.NoError(t, err)
+
+		port := freeport.GetOne(t)
+
+		bcInput := &blockchain.Input{
+			ChainID: strconv.FormatUint(chainID, 10),
+			Type:    "ton",
+			Image:   "ghcr.io/neodix42/mylocalton-docker:latest",
+			Port:    strconv.Itoa(port),
+		}
+
+		bcOut, err := blockchain.NewBlockchainNetwork(bcInput)
+		require.NoError(t, err, "failed to create blockchain network")
+
+		t.Cleanup(func() {
+			ctfErr := framework.RemoveTestContainers()
+			require.NoError(t, ctfErr, "failed to remove test containers")
+			freeport.Return([]int{port})
+		})
+		networkCfg = fmt.Sprintf("http://%s/localhost.global.config.json", bcOut.Nodes[0].ExternalHTTPUrl)
 	}
-
-	bcOut, err := blockchain.NewBlockchainNetwork(bcInput)
-	require.NoError(t, err, "failed to create blockchain network")
-
-	t.Cleanup(func() {
-		ctfErr := framework.RemoveTestContainers()
-		require.NoError(t, ctfErr, "failed to remove test containers")
-		freeport.Return([]int{port})
-	})
-
-	networkCfg := fmt.Sprintf("http://%s/localhost.global.config.json", bcOut.Nodes[0].ExternalHTTPUrl)
 
 	cfg, err := liteclient.GetConfigFromUrl(t.Context(), networkCfg)
 	require.NoError(t, err, "failed to get config from URL: %w", networkCfg)

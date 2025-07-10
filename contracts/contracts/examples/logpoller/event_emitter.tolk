@@ -1,81 +1,87 @@
+// Note: Test CCIPMessageSent event emitter for logpoller PoC
+
 import "../../lib/utils.tolk";
 
-// Note: Test contract for logpoller PoC
-// TODO: happy to merge with other example contracts with event emit functionality
-const op_reset_counter = 0x3dc2af2d;
+global ctxDestChainSelector: uint64;
+global ctxSequenceNumber: uint64;
 
-global ctxOwnerAddress: address;
-global ctxCounter: int;
+// msgs
+struct (0x00000001) CCIPSend {
+    queryId: uint64;
+}
+
+struct (0x00000002) Reset {
+    queryId: uint64;
+}
 
 // events
-struct CounterResetEvent {
-    timestamp: uint32;
-    resetBy: address;
+const CCIP_MESSAGE_SENT_TOPIC: int = 0x99; // for easier indexing
+struct CCIPMessageSent {
+    destChainSelector: uint64;
+    sequenceNumber: uint64;
 }
 
-struct CounterIncrementEvent {
-    timestamp: uint32;
-    newValue: uint32;
-    triggeredBy: address;
-}
-
+// TODO: use storage instead
 @inline
 fun loadCtx() {
     var cs = contract.getData().beginParse();
-    ctxOwnerAddress = cs.loadAddress(); 
-    ctxCounter = cs.loadUint(32);
+    ctxDestChainSelector = cs.loadUint(64); 
+    ctxSequenceNumber = cs.loadUint(64);
 }
 
 @inline
 fun storeCtx() {
     contract.setData(
         beginCell()
-        .storeAddress(ctxOwnerAddress)
-        .storeUint(ctxCounter, 32)
+        .storeUint(ctxDestChainSelector, 64)
+        .storeUint(ctxSequenceNumber, 64)
         .endCell()
     );
 }
 
-fun onInternalMessage(msgFull: cell, msgBody: slice) {
-    loadCtx();
-    var cs = msgFull.beginParse();
-    cs.loadMessageFlags();
-    val sender = cs.loadAddress();
+type Msg = CCIPSend | Reset;
 
-    if (sender.bitsEqual(ctxOwnerAddress)) {
-        if (!msgBody.isEnd()) {
-            val op = msgBody.loadMessageOp();
-            if (op == op_reset_counter) {
-                ctxCounter = 0;
-                storeCtx();
-                
-                // Emit external log message for counter reset
-                emit<CounterResetEvent>(1001, {
-                    timestamp: blockchain.now(),
-                    resetBy: sender
-                });
-                return;
-            }
-        }
+fun onInternalMessage(msgCell: cell, msgBody: slice) {
+    if (msgBody.isEnd()) { // ignore all empty messages
+        return;
     }
 
-    ctxCounter += 1;
-    storeCtx();
+    loadCtx();
 
-    // Emit external log message for counter increment
-    emit<CounterIncrementEvent>(1002, {
-        timestamp: blockchain.now(),
-        newValue: ctxCounter,
-        triggeredBy: sender
+    var cs = msgCell.beginParse();
+    val flags  = cs.loadMessageFlags();
+    if (isMessageBounced(flags)) { return; } // ignore all bounced messages
+
+    val msg = Msg.fromSlice(msgBody);
+    match (msg) {
+        CCIPSend => { onSend(msg) }
+        Reset => { onReset(msg) }
+    }
+
+    storeCtx();
+}
+
+fun onSend(payload: CCIPSend) {
+    ctxSequenceNumber += 1;
+
+    // Emit external log message for CCIPSend
+    emit<CCIPMessageSent>(CCIP_MESSAGE_SENT_TOPIC, {
+        destChainSelector: ctxDestChainSelector,
+        sequenceNumber: ctxSequenceNumber
     });
 }
 
-get counter(): int {
-    loadCtx();
-    return ctxCounter;
+fun onReset(payload: Reset) {
+    ctxSequenceNumber = 0;
+    // no event, validate with query
 }
 
-get owner(): address {
+get destChainSelector(): uint64 {
     loadCtx();
-    return ctxOwnerAddress;
+    return ctxDestChainSelector;
+}
+
+get sequenceNumber(): uint64 {
+    loadCtx();
+    return ctxSequenceNumber;
 }

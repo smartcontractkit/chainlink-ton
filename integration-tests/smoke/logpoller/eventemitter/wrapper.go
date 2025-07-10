@@ -22,7 +22,7 @@ import (
 
 var EventEmitterPath = test_utils.GetBuildDir("examples.logpoller.event-emitter.compiled.json")
 
-func DeployCounterContract(ctx context.Context, client ton.APIClientWrapped, wallet *wallet.Wallet) (*address.Address, error) {
+func DeployEventEmitterContract(ctx context.Context, client ton.APIClientWrapped, wallet *wallet.Wallet, destChainSelector uint64) (*address.Address, error) {
 	// TODO: any context is not being used in contract helpers
 	sigClient := &tracetracking.SignedAPIClient{
 		Client: client,
@@ -37,8 +37,8 @@ func DeployCounterContract(ctx context.Context, client ton.APIClientWrapped, wal
 		sigClient,
 		codeCell,
 		cell.BeginCell().
-			MustStoreAddr(wallet.WalletAddress()).
-			MustStoreUInt(0, 32).
+			MustStoreUInt(destChainSelector, 64).
+			MustStoreUInt(0, 64).
 			EndCell(), tlb.MustFromTON("0.1"),
 	)
 	if err != nil {
@@ -48,9 +48,9 @@ func DeployCounterContract(ctx context.Context, client ton.APIClientWrapped, wal
 	return contract.Address, nil
 }
 
-func IncrementMessage(contractAddress *address.Address) *wallet.Message {
+func CCIPSendMessage(contractAddress *address.Address) *wallet.Message {
 	msgBody := cell.BeginCell().
-		MustStoreUInt(0x12345678, 32). // Any non-reset op code
+		MustStoreUInt(0x00000001, 32). // CCIPSend op code
 		MustStoreUInt(0, 64).          // Query ID
 		EndCell()
 
@@ -68,12 +68,10 @@ func IncrementMessage(contractAddress *address.Address) *wallet.Message {
 	return msg
 }
 
-const OpResetCounter = 0x3dc2af2d
-
 func ResetMessage(contractAddress *address.Address) *wallet.Message {
 	msgBody := cell.BeginCell().
-		MustStoreUInt(OpResetCounter, 32). // Reset op code
-		MustStoreUInt(0, 64).              // Query ID
+		MustStoreUInt(0x00000002, 32). // Reset op code
+		MustStoreUInt(0, 64).          // Query ID
 		EndCell()
 
 	msg := &wallet.Message{
@@ -89,46 +87,30 @@ func ResetMessage(contractAddress *address.Address) *wallet.Message {
 	return msg
 }
 
-func GetCounterValue(ctx context.Context, client ton.APIClientWrapped, contractAddress *address.Address) (*big.Int, error) {
-	// TODO: for contract getters, probably it would be better to have master chain block as a parameter
-	b, err := client.CurrentMasterchainInfo(ctx)
+func GetDestinationChain(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddress *address.Address) (*big.Int, error) {
+	res, err := client.RunGetMethod(ctx, block, contractAddress, "destChainSelector")
 	if err != nil {
-		return nil, fmt.Errorf("failed to get current block: %w", err)
-	}
-
-	res, err := client.RunGetMethod(ctx, b, contractAddress, "counter")
-	if err != nil {
-		return nil, fmt.Errorf("failed to run get method 'counter': %w", err)
+		return nil, fmt.Errorf("failed to run get method 'destChainSelector': %w", err)
 	}
 
 	val, err := res.Int(0)
 	if err != nil {
-		return nil, fmt.Errorf("failed to extract counter value: %w", err)
+		return nil, fmt.Errorf("failed to extract destChainSelector value: %w", err)
 	}
 
 	return val, nil
 }
 
-func GetOwner(ctx context.Context, client ton.APIClientWrapped, contractAddress *address.Address) (*address.Address, error) {
-	b, err := client.CurrentMasterchainInfo(ctx)
+func GetSequenceNumber(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddress *address.Address) (*big.Int, error) {
+	res, err := client.RunGetMethod(ctx, block, contractAddress, "sequenceNumber")
 	if err != nil {
-		return nil, fmt.Errorf("failed to get current block: %w", err)
+		return nil, fmt.Errorf("failed to run get method 'sequenceNumber': %w", err)
 	}
 
-	res, err := client.RunGetMethod(ctx, b, contractAddress, "owner")
+	val, err := res.Int(0)
 	if err != nil {
-		return nil, fmt.Errorf("failed to run get method 'owner': %w", err)
+		return nil, fmt.Errorf("failed to extract sequenceNumber value: %w", err)
 	}
 
-	addrSlice, err := res.Slice(0)
-	if err != nil {
-		return nil, fmt.Errorf("failed to extract owner address slice: %w", err)
-	}
-
-	addr, err := addrSlice.LoadAddr()
-	if err != nil {
-		return nil, fmt.Errorf("failed to load owner address: %w", err)
-	}
-
-	return addr, nil
+	return val, nil
 }

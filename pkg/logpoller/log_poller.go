@@ -12,6 +12,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
+
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
 )
 
@@ -23,7 +24,7 @@ type LogPoller interface {
 	Close() error
 	RegisterFilter(ctx context.Context, flt types.Filter) error
 	UnregisterFilter(ctx context.Context, name string) error
-	
+
 	// TODO: TON CCIP E2E M2 - Only implement the methods that are needed for TON as source chain
 	MsgLogsBetweenSeqNums(ctx context.Context, destChainSelector string, start, end uint64) ([]types.Log, error)
 	LatestMsgLogSeqNum(ctx context.Context, destChainSelector string) (uint64, error)
@@ -116,6 +117,7 @@ func (lp *Service) run(ctx context.Context) (err error) {
 	if len(addresses) == 0 {
 		return nil
 	}
+	lp.lggr.Debugw("Processing messages for addresses", "addresses", addresses)
 
 	err = lp.processBlocksRange(ctx, addresses, lastProcessedSeq+1, master)
 	if err != nil {

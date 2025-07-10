@@ -98,6 +98,13 @@ paginationLoop:
 			if tx.LT < startLT || (tx.LT == startLT && bytes.Equal(tx.Hash, startHash)) {
 				break paginationLoop
 			}
+			lc.lggr.Debugw("Processing transaction", "txLT", tx.LT, "txHash", tx.Hash, "account", addr.String())
+			lc.lggr.Debugf("Transaction: %s", tx.String())
+
+			if tx.IO.Out == nil {
+				lc.lggr.Debugw("Skipping transaction with nil Out", "txLT", tx.LT)
+				continue
+			}
 
 			msgs, _ := tx.IO.Out.ToSlice()
 			for _, msg := range msgs {
