@@ -167,13 +167,13 @@ struct (0xbd7e8bce) AccessControl_RoleAdminChanged {
     newAdminRole: uint256;
 }
 
-// --- Storage structs ---
+// --- Storage ---
 
-// AccessControl storage struct, auto-serialized to/from cells.
+/// AccessControl contract struct, host storage and runtime hooks (extensions).
 struct AccessControl<T> {
     data: AccessControl_Data;
 
-    // Runtime hooks (extensions)
+    /// Runtime hooks (extensions)
     context: T?,
     hooks: AccessControl_Hooks<T>?;
 }
@@ -198,14 +198,15 @@ struct AccessControl_RoleData {
 
 // --- Hooks struct (extensions) ---
 
+/// @dev Hook extensions exposed by the AccessControl contract.
 struct AccessControl_Hooks<T> {
-    // Hook to get the sender of the message.
+    /// Hook to get the sender of the message.
     msgSender: ((T, cell) -> address)?;
 
-    // Hook before granting a role.
+    /// Hook before granting a role.
     shouldGrantRole: ((T, uint64, int, address) -> void)?;
 
-    // Hook before revoking a role.
+    /// Hook before revoking a role.
     shouldRevokeRole: ((T, uint64, int, address) -> void)?;
 }
 
