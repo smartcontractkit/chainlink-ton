@@ -1,8 +1,6 @@
 package bindings
 
 import (
-	"fmt"
-	"math"
 	"math/big"
 	"testing"
 
@@ -118,22 +116,4 @@ func TestCommitReport_EncodingAndDecoding(t *testing.T) {
 	require.Equal(t, c.Hash(), newCell.Hash())
 	require.Len(t, decoded.PriceUpdates.GasPriceUpdates, 5)
 	require.Len(t, decoded.PriceUpdates.TokenPriceUpdates, 5)
-}
-
-func getTotalReference(c *cell.Cell) (uint, error) {
-	totalRefs := c.RefsNum()
-	for i := uint(0); i < c.RefsNum(); i++ {
-		if i > uint(math.MaxInt) {
-			return 0, fmt.Errorf("reference index %d exceeds math.MaxInt", i)
-		}
-		ref, err := c.PeekRef(int(i))
-		if err == nil && ref != nil {
-			subRefs, subErr := getTotalReference(ref)
-			if subErr != nil {
-				return 0, subErr
-			}
-			totalRefs += subRefs
-		}
-	}
-	return totalRefs, nil
 }

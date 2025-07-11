@@ -137,7 +137,7 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 	report := ExecuteReport{
 		SourceChainSelector: 1,
 		Messages:            rampMessageSlice,
-		OffChainTokenData:   [][]byte{{0x1}, {0x2, 0x3}},
+		OffChainTokenData:   SnakeRef[SnakeBytes]{make([]byte, 120), make([]byte, 130)},
 		Proofs:              signatureCell,
 		ProofFlagBits:       big.NewInt(0),
 	}

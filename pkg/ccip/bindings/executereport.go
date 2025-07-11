@@ -12,7 +12,7 @@ import (
 type ExecuteReport struct {
 	SourceChainSelector uint64                       `tlb:"## 64"`
 	Messages            SnakeRef[Any2TONRampMessage] `tlb:"^"`
-	OffChainTokenData   SnakeBytes2D                 `tlb:"^"`
+	OffChainTokenData   SnakeRef[SnakeBytes]         `tlb:"^"`
 	Proofs              SnakeData[Signature]         `tlb:"^"` // []Signature
 	ProofFlagBits       *big.Int                     `tlb:"## 256"`
 }

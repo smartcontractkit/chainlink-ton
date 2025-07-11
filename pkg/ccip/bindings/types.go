@@ -22,11 +22,11 @@ type GenericExtraArgsV2 struct {
 
 // SVMExtraArgsV1 represents extra arguments for SVM transactions.
 type SVMExtraArgsV1 struct {
-	ComputeUnits             uint32       `tlb:"## 32"`
-	AccountIsWritableBitmap  uint64       `tlb:"## 64"`
-	AllowOutOfOrderExecution bool         `tlb:"bool"`
-	TokenReceiver            []byte       `tlb:"bits 256"`
-	Accounts                 SnakeBytes2D `tlb:"^"`
+	ComputeUnits             uint32               `tlb:"## 32"`
+	AccountIsWritableBitmap  uint64               `tlb:"## 64"`
+	AllowOutOfOrderExecution bool                 `tlb:"bool"`
+	TokenReceiver            []byte               `tlb:"bits 256"`
+	Accounts                 SnakeRef[SnakeBytes] `tlb:"^"`
 }
 
 // packArrayWithRefChaining packs a slice of any serializable type T into a linked cell structure,
@@ -165,7 +165,8 @@ func unpackArrayWithStaticType[T any](root *cell.Cell) ([]T, error) {
 // packByteArrayToCell packs a byte array into a linked cell structure, supporting empty arrays.
 func packByteArrayToCell(data []byte) (*cell.Cell, error) {
 	if len(data) == 0 {
-		return nil, nil
+		// Return an empty cell instead of nil for empty arrays
+		return cell.BeginCell().EndCell(), nil
 	}
 	cells := []*cell.Builder{cell.BeginCell()}
 	curr := cells[0]
@@ -218,7 +219,7 @@ func unloadCellToByteArray(c *cell.Cell) ([]byte, error) {
 	if c == nil {
 		return []byte{}, nil
 	}
-	var result []byte
+	result := make([]byte, 0)
 	curr := c
 	for curr != nil {
 		s := curr.BeginParse()
@@ -229,140 +230,6 @@ func unloadCellToByteArray(c *cell.Cell) ([]byte, error) {
 			}
 			result = append(result, part...)
 		}
-		if curr.RefsNum() > 0 {
-			ref, err := curr.PeekRef(0)
-			if err != nil {
-				return nil, fmt.Errorf("failed to get next cell ref: %w", err)
-			}
-			curr = ref
-		} else {
-			curr = nil
-		}
-	}
-	return result, nil
-}
-
-// pack2DByteArrayToCell packs a 2D byte array into a linked cell structure, supporting empty arrays and handling partial storage.
-func pack2DByteArrayToCell(arrays [][]byte) (*cell.Cell, error) {
-	if len(arrays) == 0 {
-		return nil, nil
-	}
-	builder := cell.BeginCell()
-	cells := []*cell.Builder{builder}
-
-	for _, data := range arrays {
-		length := len(data)
-		if length > 0xFFFF {
-			return nil, fmt.Errorf("byte array too long: %d", length)
-		}
-
-		// Check if we have space for length (16 bits)
-		if builder.BitsLeft() < 16 {
-			builder = cell.BeginCell()
-			cells = append(cells, builder)
-		}
-
-		// Store length
-		if err := builder.StoreUInt(uint64(length), 16); err != nil {
-			return nil, fmt.Errorf("failed to store length: %w", err)
-		}
-
-		// Store data inline if length > 0, handling partial storage
-		if length > 0 {
-			offset := 0
-			for offset < length {
-				availableBytes := builder.BitsLeft() / 8
-				if availableBytes == 0 {
-					builder = cell.BeginCell()
-					cells = append(cells, builder)
-					availableBytes = builder.BitsLeft() / 8
-				}
-
-				writeLen := length - offset
-				if uint(writeLen) > availableBytes {
-					writeLen = int(availableBytes)
-				}
-
-				if err := builder.StoreSlice(data[offset:offset+writeLen], uint(writeLen)*8); err != nil {
-					return nil, fmt.Errorf("failed to store data: %w", err)
-				}
-				offset += writeLen
-			}
-		}
-	}
-
-	var next *cell.Cell
-	for i := len(cells) - 1; i >= 0; i-- {
-		if next != nil {
-			if err := cells[i].StoreRef(next); err != nil {
-				return nil, fmt.Errorf("failed to link cell: %w", err)
-			}
-		}
-		next = cells[i].EndCell()
-	}
-	return next, nil
-}
-
-// unpack2DByteArrayFromCell unpacks a linked cell structure into a 2D byte array, handling partial storage and empty arrays.
-func unpack2DByteArrayFromCell(c *cell.Cell) ([][]byte, error) {
-	if c == nil {
-		return [][]byte{}, nil
-	}
-	var result [][]byte
-	curr := c
-
-	for curr != nil {
-		s := curr.BeginParse()
-		for s.BitsLeft() >= 16 {
-			length, err := s.LoadUInt(16)
-			if err != nil {
-				return nil, fmt.Errorf("failed to load length: %w", err)
-			}
-			if length > uint64(math.MaxInt) {
-				return nil, fmt.Errorf("length %d overflows int", length)
-			}
-
-			if length == 0 {
-				result = append(result, []byte{})
-				continue
-			}
-
-			// Read data that might span multiple cells
-			data := make([]byte, 0, length)
-			remaining := int(length)
-
-			for remaining > 0 {
-				availableBytes := s.BitsLeft() / 8
-				if availableBytes == 0 {
-					// Move to next cell if current one is exhausted
-					if curr.RefsNum() > 0 {
-						ref, err := curr.PeekRef(0)
-						if err != nil {
-							return nil, fmt.Errorf("failed to get next cell ref: %w", err)
-						}
-						curr = ref
-						s = curr.BeginParse()
-						continue
-					}
-					return nil, fmt.Errorf("insufficient data: need %d more bytes", remaining)
-				}
-
-				readLen := remaining
-				if uint(readLen) > availableBytes {
-					readLen = int(availableBytes)
-				}
-
-				chunk, err := s.LoadSlice(uint(readLen) * 8)
-				if err != nil {
-					return nil, fmt.Errorf("failed to load data chunk: %w", err)
-				}
-				data = append(data, chunk...)
-				remaining -= readLen
-			}
-
-			result = append(result, data)
-		}
-
 		if curr.RefsNum() > 0 {
 			ref, err := curr.PeekRef(0)
 			if err != nil {
@@ -418,28 +285,6 @@ func (s *SnakeBytes) LoadFromCell(c *cell.Slice) error {
 	data, err := unloadCellToByteArray(cl)
 	if err != nil {
 		return fmt.Errorf("failed to unpack byte array: %w", err)
-	}
-	*s = data
-	return nil
-}
-
-// SnakeBytes2D is a 2D byte array type for packing and unpacking into a cell structure.
-type SnakeBytes2D [][]byte
-
-// ToCell packs the SnakeBytes2D into a cell. It uses pack2DByteArrayToCell to serialize the data.
-func (s SnakeBytes2D) ToCell() (*cell.Cell, error) {
-	return pack2DByteArrayToCell(s)
-}
-
-// LoadFromCell loads the SnakeBytes2D from a cell slice. It uses unpack2DByteArrayFromCell to deserialize the data.
-func (s *SnakeBytes2D) LoadFromCell(c *cell.Slice) error {
-	cl, err := c.ToCell()
-	if err != nil {
-		return fmt.Errorf("failed to convert slice to cell: %w", err)
-	}
-	data, err := unpack2DByteArrayFromCell(cl)
-	if err != nil {
-		return fmt.Errorf("failed to unpack 2D byte array: %w", err)
 	}
 	*s = data
 	return nil

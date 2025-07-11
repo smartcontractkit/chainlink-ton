@@ -1,6 +1,8 @@
 package bindings
 
 import (
+	"fmt"
+	"math"
 	"math/big"
 	"testing"
 
@@ -34,7 +36,7 @@ func TestSVMExtraArgsV1_ToCellAndLoadFromCell(t *testing.T) {
 	solanaAddr2, err := solana.NewRandomPrivateKey()
 	require.NoError(t, err)
 
-	accountList := [][]byte{
+	accountList := SnakeRef[SnakeBytes]{
 		solanaAddr1.PublicKey().Bytes(),
 		solanaAddr2.PublicKey().Bytes(),
 	}
@@ -99,23 +101,23 @@ func NewDummyCell() (*cell.Cell, error) {
 func TestPackAndUnpack2DByteArrayToCell(t *testing.T) {
 	tests := []struct {
 		name      string
-		input     [][]byte
+		input     SnakeRef[SnakeBytes]
 		expectErr bool
 	}{
 		// Basic cases
-		{"empty", [][]byte{}, false},
-		{"single empty", [][]byte{{}}, false},
-		{"single short", [][]byte{[]byte("abc")}, false},
-		{"multiple short", [][]byte{[]byte("abc"), []byte("defg")}, false},
+		// Note no empty arrays, as they are not allowed in SnakeRef
+		{"empty", SnakeRef[SnakeBytes]{[]byte{}}, false},
+		{"single empty", SnakeRef[SnakeBytes]{{}}, false},
+		{"single short", SnakeRef[SnakeBytes]{[]byte("abc")}, false},
+		{"multiple short", SnakeRef[SnakeBytes]{[]byte("abc"), []byte("defg")}, false},
 
 		// Size boundary cases
-		{"max length array", [][]byte{make([]byte, 0xFFFF)}, false},
-		{"too long array", [][]byte{make([]byte, 0x10000)}, true},
+		{"max length array", SnakeRef[SnakeBytes]{make([]byte, 0xFFFF)}, false},
 
 		// Mixed sizes
-		{"mixed empty and data", [][]byte{{}, []byte("test"), {}, []byte("data")}, false},
-		{"many empty arrays", func() [][]byte {
-			arrays := make([][]byte, 100)
+		{"mixed empty and data", SnakeRef[SnakeBytes]{{}, []byte("test"), {}, []byte("data")}, false},
+		{"many empty arrays", func() SnakeRef[SnakeBytes] {
+			arrays := make(SnakeRef[SnakeBytes], 100)
 			for i := range arrays {
 				arrays[i] = []byte{}
 			}
@@ -123,36 +125,36 @@ func TestPackAndUnpack2DByteArrayToCell(t *testing.T) {
 		}(), false},
 
 		// Cell capacity edge cases
-		{"large number of small arrays", func() [][]byte {
-			arrays := make([][]byte, 500)
+		{"large number of small arrays", func() SnakeRef[SnakeBytes] {
+			arrays := make(SnakeRef[SnakeBytes], 500)
 			for i := range arrays {
 				arrays[i] = []byte{byte(i % 256)}
 			}
 			return arrays
 		}(), false},
 
-		{"arrays that span multiple cells", [][]byte{
+		{"arrays that span multiple cells", SnakeRef[SnakeBytes]{
 			make([]byte, 1000),
 			make([]byte, 1000),
 			make([]byte, 1000),
 		}, false},
 
 		// Bit alignment edge cases
-		{"single byte arrays", [][]byte{
+		{"single byte arrays", SnakeRef[SnakeBytes]{
 			{0x01}, {0x02}, {0x03}, {0x04}, {0x05},
 		}, false},
 
-		{"exactly 127 bytes (fits in one cell with length)", [][]byte{
+		{"exactly 127 bytes (fits in one cell with length)", SnakeRef[SnakeBytes]{
 			make([]byte, 127), // 127*8 + 16 = 1032 bits (fits in 1023 bits available)
 		}, false},
 
-		{"128 bytes (requires cell split)", [][]byte{
+		{"128 bytes (requires cell split)", SnakeRef[SnakeBytes]{
 			make([]byte, 128), // 128*8 + 16 = 1040 bits (exceeds 1023)
 		}, false},
 
 		// Many small arrays that require multiple cells
-		{"many tiny arrays", func() [][]byte {
-			arrays := make([][]byte, 200)
+		{"many tiny arrays", func() SnakeRef[SnakeBytes] {
+			arrays := make(SnakeRef[SnakeBytes], 200)
 			for i := range arrays {
 				arrays[i] = []byte{byte(i % 256), byte((i + 1) % 256)}
 			}
@@ -160,7 +162,7 @@ func TestPackAndUnpack2DByteArrayToCell(t *testing.T) {
 		}(), false},
 
 		// Pathological cases
-		{"alternating empty and large size", [][]byte{
+		{"alternating empty and large size", SnakeRef[SnakeBytes]{
 			{},
 			make([]byte, 1000),
 			{},
@@ -168,9 +170,9 @@ func TestPackAndUnpack2DByteArrayToCell(t *testing.T) {
 		}, false},
 
 		// Stress test with various sizes
-		{"random sizes", func() [][]byte {
+		{"random sizes", func() SnakeRef[SnakeBytes] {
 			sizes := []int{0, 1, 10, 100, 500, 1000, 5000, 10000}
-			arrays := make([][]byte, len(sizes))
+			arrays := make(SnakeRef[SnakeBytes], len(sizes))
 			for i, size := range sizes {
 				arrays[i] = make([]byte, size)
 				// Fill with pattern for verification
@@ -184,7 +186,7 @@ func TestPackAndUnpack2DByteArrayToCell(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c, err := pack2DByteArrayToCell(tt.input)
+			c, err := tlb.ToCell(tt.input)
 
 			if tt.expectErr {
 				require.Error(t, err)
@@ -192,8 +194,8 @@ func TestPackAndUnpack2DByteArrayToCell(t *testing.T) {
 			}
 
 			require.NoError(t, err)
-
-			output, err := unpack2DByteArrayFromCell(c)
+			var output SnakeRef[SnakeBytes]
+			err = tlb.LoadFromCell(&output, c.BeginParse())
 			require.NoError(t, err)
 			require.Equal(t, len(tt.input), len(output), "array count mismatch")
 
@@ -205,73 +207,70 @@ func TestPackAndUnpack2DByteArrayToCell(t *testing.T) {
 }
 
 func TestPackAndUnpack2DByteArrayToCell_CellStructure(t *testing.T) {
-	// Test that cell structure is reasonable for large datasets
 	t.Run("cell count for large dataset", func(t *testing.T) {
 		// Create 1000 arrays of 10 bytes each
-		arrays := make([][]byte, 1000)
+		arrays := make(SnakeRef[SnakeBytes], 1000)
 		for i := range arrays {
-			arrays[i] = make([]byte, 10)
+			arrays[i] = make([]byte, 100)
 		}
 
-		c, err := pack2DByteArrayToCell(arrays)
+		c, err := tlb.ToCell(arrays)
 		require.NoError(t, err)
 
-		// Count total cells used
+		// Verify unpacking works correctly
+		var output SnakeRef[SnakeBytes]
+		err = tlb.LoadFromCell(&output, c.BeginParse())
+		require.NoError(t, err)
+		require.Equal(t, len(arrays), len(output))
+
+		// With SnakeRef, each array element becomes a cell reference
+		// Plus chaining references for the structure
+		// Expect: 1000 data refs + ~250 chain refs = ~1250 total refs
 		cellCount, err := getTotalReference(c)
 		require.NoError(t, err)
+		require.Equal(t, cellCount, uint(1333), "should have at least 1000 data references")
+	})
 
-		// Each array: 16 bits (length) + 80 bits (data) = 96 bits
-		// Cell capacity: ~1023 bits, so ~10 arrays per cell
-		// Expected: ~100 cells + linking overhead
-		require.Less(t, cellCount, uint(100), "too many cells used")
+	t.Run("cell count for large dataset", func(t *testing.T) {
+		// Create 1000 arrays of 10 bytes each
+		arrays := make(SnakeRef[SnakeBytes], 1000)
+		for i := range arrays {
+			arrays[i] = make([]byte, 130)
+		}
+
+		c, err := tlb.ToCell(arrays)
+		require.NoError(t, err)
+
+		// Verify unpacking works correctly
+		var output SnakeRef[SnakeBytes]
+		err = tlb.LoadFromCell(&output, c.BeginParse())
+		require.NoError(t, err)
+		require.Equal(t, len(arrays), len(output))
+
+		// Data references: 1000 (one per array element in SnakeRef)
+		// Internal references: 1000 (one per 130-byte SnakeBytes that spans 2 cells)
+		// Chain references: ⌊1000/3⌋ = 333 (for SnakeRef chaining)
+		// Total references: 1000 + 1000 + 333 = 2333 references
+		cellCount, err := getTotalReference(c)
+		require.NoError(t, err)
+		require.Equal(t, cellCount, uint(2333), "should have at least 1000 data references")
 	})
 
 	t.Run("handles cell boundaries correctly", func(t *testing.T) {
 		// Create arrays that will definitely span multiple cells
-		arrays := [][]byte{
+		arrays := SnakeRef[SnakeBytes]{
 			make([]byte, 200), // Forces new cell for data
 			make([]byte, 200),
 			make([]byte, 200),
 		}
 
-		c, err := pack2DByteArrayToCell(arrays)
+		c, err := tlb.ToCell(arrays)
 		require.NoError(t, err)
 
-		output, err := unpack2DByteArrayFromCell(c)
+		var output SnakeRef[SnakeBytes]
+		err = tlb.LoadFromCell(&output, c.BeginParse())
 		require.NoError(t, err)
 		require.Equal(t, arrays, output)
-	})
-}
-
-func TestUnpack2DByteArrayFromCell_CorruptedData(t *testing.T) {
-	t.Run("insufficient data for declared length", func(t *testing.T) {
-		// Create a cell that claims to have more data than actually present
-		builder := cell.BeginCell()
-		// Store length of 100 bytes
-		err := builder.StoreUInt(100, 16)
-		require.NoError(t, err)
-		// But only store 10 bytes
-		err = builder.StoreSlice(make([]byte, 10), 80)
-		require.NoError(t, err)
-
-		c := builder.EndCell()
-
-		_, err = unpack2DByteArrayFromCell(c)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "insufficient data")
-	})
-
-	t.Run("partial length prefix", func(t *testing.T) {
-		// Create a cell with only partial length prefix
-		builder := cell.BeginCell()
-		err := builder.StoreUInt(1, 8) // Only 8 bits instead of 16
-		require.NoError(t, err)
-
-		c := builder.EndCell()
-
-		output, err := unpack2DByteArrayFromCell(c)
-		require.NoError(t, err)
-		require.Empty(t, output) // Should stop when insufficient bits for length
 	})
 }
 
@@ -421,4 +420,22 @@ func TestLoadArray_AddressTooSmall(t *testing.T) {
 		},
 	})
 	require.EqualError(t, err, "failed to serialize element 0: failed to serialize field MerkleRoot to cell: failed to store bits 256, err: too small slice for this size")
+}
+
+func getTotalReference(c *cell.Cell) (uint, error) {
+	totalRefs := c.RefsNum()
+	for i := uint(0); i < c.RefsNum(); i++ {
+		if i > uint(math.MaxInt) {
+			return 0, fmt.Errorf("reference index %d exceeds math.MaxInt", i)
+		}
+		ref, err := c.PeekRef(int(i))
+		if err == nil && ref != nil {
+			subRefs, subErr := getTotalReference(ref)
+			if subErr != nil {
+				return 0, subErr
+			}
+			totalRefs += subRefs
+		}
+	}
+	return totalRefs, nil
 }
