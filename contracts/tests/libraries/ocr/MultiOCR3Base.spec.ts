@@ -129,6 +129,14 @@ describe('OCR3Base Tests', () => {
     .storeRef(someReportData)
     .storeUint(0x12345678, 32) 
     .endCell()
+  const sequenceBytes =0x01
+  const hashedReport = beginCell()
+    .storeRef(report)
+    .storeUint(configDigest, 256)
+    .storeUint(0, 192) //padding
+    .storeUint(sequenceBytes, 64)
+    .endCell()
+    .hash()
 
   beforeAll(async () => {
     code = await compile('OCR3Base')
@@ -594,15 +602,6 @@ describe('OCR3Base Tests', () => {
       success: true
     })
 
-    const sequenceBytes =0x01
-    const hashedReport = beginCell()
-      .storeRef(report)
-      .storeUint(configDigest, 256)
-      .storeUint(0, 192) //padding
-      .storeUint(sequenceBytes, 64)
-      .endCell()
-      .hash()
-
     const signatures: SignatureEd25519[] = []  
 
     const signers = [signer1, signer2]
@@ -662,15 +661,6 @@ describe('OCR3Base Tests', () => {
       success: true
     })
 
-    const sequenceBytes =0x01
-    const hashedReport = beginCell()
-      .storeRef(report)
-      .storeUint(configDigest, 256)
-      .storeUint(0, 192) //padding
-      .storeUint(sequenceBytes, 64)
-      .endCell()
-      .hash()
-
     const signatures: SignatureEd25519[] = []  
 
     const signers = [signer1, signer2]
@@ -725,15 +715,6 @@ describe('OCR3Base Tests', () => {
       transmitters,
     });
 
-    const sequenceBytes = 0x01;
-    const hashedReport = beginCell()
-      .storeRef(report)
-      .storeUint(configDigest, 256)
-      .storeUint(0, 192)
-      .storeUint(sequenceBytes, 64)
-      .endCell()
-      .hash();
-
     const unauthorizedSignature = createSignature(unauthorizedSigner, hashedReport);
     const validSignature = createSignature(signer1, hashedReport);
 
@@ -768,15 +749,6 @@ describe('OCR3Base Tests', () => {
       signers: signersPublicKeys,
       transmitters,
     });
-
-    const sequenceBytes = 0x01;
-    const hashedReport = beginCell()
-      .storeRef(report)
-      .storeUint(configDigest, 256)
-      .storeUint(0, 192)
-      .storeUint(sequenceBytes, 64)
-      .endCell()
-      .hash();
 
     const sig = createSignature(signer1, hashedReport);
 
@@ -855,15 +827,6 @@ describe('OCR3Base Tests', () => {
       transmitters,
     });
 
-    const sequenceBytes = 0x01;
-    const hashedReport = beginCell()
-      .storeRef(report)
-      .storeUint(configDigest, 256)
-      .storeUint(0, 192)
-      .storeUint(sequenceBytes, 64)
-      .endCell()
-      .hash();
-
     const signature = createSignature(signer1, hashedReport);
     const signature2 = createSignature(signer2, hashedReport);
 
@@ -899,15 +862,6 @@ describe('OCR3Base Tests', () => {
       transmitters,
     });
 
-    const sequenceBytes = 0x01;
-    const hashedReport = beginCell()
-      .storeRef(report)
-      .storeUint(configDigest, 256)
-      .storeUint(0, 192)
-      .storeUint(sequenceBytes, 64)
-      .endCell()
-      .hash();
-
     const onlyOneSig = createSignature(signer1, hashedReport); // Needs 2 (bigF+1)
 
     const transmitResult = await ocr3Base.sendTransmit(transmitter1.getSender(), {
@@ -939,11 +893,12 @@ describe('OCR3Base Tests', () => {
       transmitters,
     });
 
-    const newSigners: bigint[] = []
+    const newSigners: KeyPair[] = []
     for (let i = 0; i < 4; i++) {
       const newSigner = await generateEd25519KeyPair()
-      newSigners.push(uint8ArrayToBigInt(newSigner.publicKey))
+      newSigners.push(newSigner)
     }
+    const newSignersPublicKeys: bigint[] = newSigners.map(signer => uint8ArrayToBigInt(signer.publicKey));
 
     await ocr3Base.sendSetOCR3Config(deployer.getSender(), {
       value: toNano('100'),
@@ -951,18 +906,9 @@ describe('OCR3Base Tests', () => {
       ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
       bigF,
       isSignatureVerificationEnabled: true,
-      signers: newSigners,
+      signers: newSignersPublicKeys,
       transmitters: [transmitter1.address, transmitter2.address],
     });
-
-    const sequenceBytes = 0x01;
-    const hashedReport = beginCell()
-      .storeRef(report)
-      .storeUint(configDigest, 256)
-      .storeUint(0, 192) //padding
-      .storeUint(sequenceBytes, 64)
-      .endCell()
-      .hash()
     const signatures: SignatureEd25519[] = []
     signatures.push(createSignature(signer1, hashedReport)) // Old signer
     signatures.push(createSignature(signer2, hashedReport)) // Old signer
@@ -980,11 +926,42 @@ describe('OCR3Base Tests', () => {
         signatures: signatures
       }
     )
+    //Old signers should not be able to sign
     expect(result.transactions).toHaveTransaction({
       from: transmitter1.address,
       to: ocr3Base.address,
       exitCode: ExitCodes.ERROR_UNAUTHORIZED_SIGNER,
       success: false
+    })
+
+    const resultWithNewSigners = await ocr3Base.sendTransmit(
+      transmitter1.getSender(),
+      {
+        value: toNano('0.05'),
+        ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
+        reportContext: {
+          configDigest: configDigest,
+          sequenceBytes: sequenceBytes
+        },
+        report: report,
+        signatures: [
+          createSignature(newSigners[0], hashedReport),
+          createSignature(newSigners[1], hashedReport)
+        ]
+      }
+    )
+
+    // New signers should be able to sign
+    expect(resultWithNewSigners.transactions).toHaveTransaction({
+      from: transmitter1.address,
+      to: ocr3Base.address,
+      success: true
+    })
+
+    assertLog(resultWithNewSigners.transactions, ocr3Base.address, LogTypes.OCR3BaseTransmitted, {
+      ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
+      configDigest: configDigest,
+      sequenceNumber: sequenceBytes
     })
   })
 })
