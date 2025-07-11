@@ -262,7 +262,7 @@ fun applyAllowlistUpdates(mutate st: Storage, updates: cell) {
 
         var config = st.destChainConfigs.mustGet(update.destChainSelector, ERROR_UNKNOWN_DEST_CHAIN_SELECTOR);
 
-        var iterAdd = Iterator<address>.new(update.remove);
+        var iterAdd = Iterator<address>.new(update.add);
         while (!iterAdd.empty()) {
             val sender = iterAdd.next();
             config.allowedSenders.set(sender, true);
@@ -270,7 +270,7 @@ fun applyAllowlistUpdates(mutate st: Storage, updates: cell) {
 
         var iterRemove = Iterator<address>.new(update.remove);
         while (!iterRemove.empty()) {
-            val sender = iterAdd.next();
+            val sender = iterRemove.next();
             config.allowedSenders.delete(sender);
         }
 
