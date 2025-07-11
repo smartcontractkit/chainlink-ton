@@ -117,6 +117,8 @@ describe('OCR3Base Tests', () => {
   let signer3PublicKey: bigint;
   let signer4PublicKey: bigint;
 
+  let signersPublicKeys: bigint[];
+
   const configDigest: bigint = 0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcden
 
   // The actual content or structure of the report is not important for these tests.
@@ -147,6 +149,15 @@ describe('OCR3Base Tests', () => {
     signer2PublicKey = uint8ArrayToBigInt(signer2.publicKey)
     signer3PublicKey = uint8ArrayToBigInt(signer3.publicKey)
     signer4PublicKey = uint8ArrayToBigInt(signer4.publicKey)
+
+    signersPublicKeys = [
+      uint8ArrayToBigInt(signer1.publicKey),
+      uint8ArrayToBigInt(signer2.publicKey),
+      uint8ArrayToBigInt(signer3.publicKey),
+      uint8ArrayToBigInt(signer4.publicKey),
+    ];
+
+
   })
 
   beforeEach(async () => {
@@ -241,8 +252,8 @@ describe('OCR3Base Tests', () => {
         n: 4, // Number of signers
         isSignatureVerificationEnabled: true
       },
-      signers: [signer1PublicKey, signer2PublicKey, signer3PublicKey, signer4PublicKey],
-      transmitters: [transmitter1.address, transmitter2.address]
+      signers: signers,
+      transmitters: transmitters
     }
 
     expectEqualsConfig(config, expectedConfig)
@@ -562,7 +573,6 @@ describe('OCR3Base Tests', () => {
 
   it('Test Transmit function works with authorized transmitter', async () => {
     const bigF = 1;
-    const signersPublicKeys = [signer1PublicKey, signer2PublicKey, signer3PublicKey, signer4PublicKey];
     const transmitters = [transmitter1.address, transmitter2.address];
 
     const result = await ocr3Base.sendSetOCR3Config(
@@ -625,6 +635,356 @@ describe('OCR3Base Tests', () => {
       ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
       configDigest: configDigest,
       sequenceNumber: sequenceBytes
+    })
+  })
+
+  it('Transmit fails with unauthorized transmitter', async () => {
+    const bigF = 1;
+    const signersPublicKeys = [signer1PublicKey, signer2PublicKey, signer3PublicKey, signer4PublicKey];
+    const transmitters = [transmitter1.address, transmitter2.address];
+
+    const result = await ocr3Base.sendSetOCR3Config(
+      deployer.getSender(), 
+      {
+          value: toNano('100'),
+          configDigest: configDigest,
+          ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
+          bigF: bigF,
+          isSignatureVerificationEnabled: true,
+          signers: signersPublicKeys,
+          transmitters: transmitters
+      }
+    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: ocr3Base.address,
+      success: true
+    })
+
+    const sequenceBytes =0x01
+    const hashedReport = beginCell()
+      .storeRef(report)
+      .storeUint(configDigest, 256)
+      .storeUint(0, 192) //padding
+      .storeUint(sequenceBytes, 64)
+      .endCell()
+      .hash()
+
+    const signatures: SignatureEd25519[] = []  
+
+    const signers = [signer1, signer2]
+    for (let i = 0; i < signers.length; i++) {
+      const signature = createSignature(signers[i], hashedReport);
+      signatures.push(signature);
+    }
+
+    const transmitResult = await ocr3Base.sendTransmit(
+      transmitter3.getSender(), 
+      {
+        value: toNano('0.05'),
+        ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
+        reportContext: {
+          configDigest: configDigest,
+          sequenceBytes: sequenceBytes
+        },
+        report: report,
+        signatures: signatures
+      }
+    )
+
+    expect(transmitResult.transactions).toHaveTransaction({
+      from: transmitter3.address,
+      to: ocr3Base.address,
+      exitCode: ExitCodes.ERROR_UNAUTHORIZED_TRANSMITTER,
+      success: false
+    })
+  })
+
+  it('Transmit fails with signatures from unauthorized signers', async () => {
+    const bigF = 1;
+
+    const unauthorizedSigner = await generateEd25519KeyPair();
+
+    const signersPublicKeys = [
+      signer1PublicKey,
+      signer2PublicKey,
+      signer3PublicKey,
+      signer4PublicKey,
+    ];
+
+    const transmitters = [transmitter1.address];
+
+    await ocr3Base.sendSetOCR3Config(deployer.getSender(), {
+      value: toNano('100'),
+      configDigest,
+      ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
+      bigF,
+      isSignatureVerificationEnabled: true,
+      signers: signersPublicKeys,
+      transmitters,
+    });
+
+    const sequenceBytes = 0x01;
+    const hashedReport = beginCell()
+      .storeRef(report)
+      .storeUint(configDigest, 256)
+      .storeUint(0, 192)
+      .storeUint(sequenceBytes, 64)
+      .endCell()
+      .hash();
+
+    const unauthorizedSignature = createSignature(unauthorizedSigner, hashedReport);
+    const validSignature = createSignature(signer1, hashedReport);
+
+    const transmitResult = await ocr3Base.sendTransmit(transmitter1.getSender(), {
+      value: toNano('0.05'),
+      ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
+      reportContext: { configDigest, sequenceBytes },
+      report,
+      signatures: [validSignature, unauthorizedSignature],
+    });
+
+    expect(transmitResult.transactions).toHaveTransaction({
+      from: transmitter1.address,
+      to: ocr3Base.address,
+      exitCode: ExitCodes.ERROR_UNAUTHORIZED_SIGNER,
+      success: false,
+    });
+
+  })
+
+  it('Transmit fails with repeated signatures', async () => {
+    const bigF = 1;
+
+    const transmitters = [transmitter1.address];
+
+    await ocr3Base.sendSetOCR3Config(deployer.getSender(), {
+      value: toNano('100'),
+      configDigest,
+      ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
+      bigF,
+      isSignatureVerificationEnabled: true,
+      signers: signersPublicKeys,
+      transmitters,
+    });
+
+    const sequenceBytes = 0x01;
+    const hashedReport = beginCell()
+      .storeRef(report)
+      .storeUint(configDigest, 256)
+      .storeUint(0, 192)
+      .storeUint(sequenceBytes, 64)
+      .endCell()
+      .hash();
+
+    const sig = createSignature(signer1, hashedReport);
+
+    const transmitResult = await ocr3Base.sendTransmit(transmitter1.getSender(), {
+      value: toNano('0.05'),
+      ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
+      reportContext: { configDigest, sequenceBytes },
+      report,
+      signatures: [sig, sig], // Repeated
+    });
+
+    expect(transmitResult.transactions).toHaveTransaction({
+      from: transmitter1.address,
+      to: ocr3Base.address,
+      exitCode: ExitCodes.ERROR_NON_UNIQUE_SIGNATURES,
+      success: false,
+    });
+
+  })
+
+  it('Transmit fails with mismatched configDigest', async () => {
+  const transmitters = [transmitter1.address];
+    const bigF = 1;
+
+    await ocr3Base.sendSetOCR3Config(deployer.getSender(), {
+      value: toNano('100'),
+      configDigest,
+      ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
+      bigF,
+      isSignatureVerificationEnabled: true,
+      signers: signersPublicKeys,
+      transmitters,
+    });
+
+    const sequenceBytes = 0x01;
+    const wrongDigest = 0xBADBADBADBADn;
+
+    const hashedReport = beginCell()
+      .storeRef(report)
+      .storeUint(wrongDigest, 256)
+      .storeUint(0, 192)
+      .storeUint(sequenceBytes, 64)
+      .endCell()
+      .hash();
+
+    const signature = createSignature(signer1, hashedReport);
+    const signature2 = createSignature(signer2, hashedReport);
+
+    const transmitResult = await ocr3Base.sendTransmit(transmitter1.getSender(), {
+      value: toNano('0.05'),
+      ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
+      reportContext: { configDigest: wrongDigest, sequenceBytes },
+      report,
+      signatures: [signature, signature2],
+    });
+
+    expect(transmitResult.transactions).toHaveTransaction({
+      from: transmitter1.address,
+      to: ocr3Base.address,
+      exitCode: ExitCodes.ERROR_CONFIG_DIGEST_MISMATCH,
+      success: false,
+    });
+  })
+
+  it('Transmit fails with non existent OCR plugin type', async () => {
+    const bigF = 1;
+    const transmitters = [transmitter1.address];
+
+    await ocr3Base.sendSetOCR3Config(deployer.getSender(), {
+      value: toNano('100'),
+      configDigest,
+      ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
+      bigF,
+      isSignatureVerificationEnabled: true,
+      signers: signersPublicKeys,
+      transmitters,
+    });
+
+    const sequenceBytes = 0x01;
+    const hashedReport = beginCell()
+      .storeRef(report)
+      .storeUint(configDigest, 256)
+      .storeUint(0, 192)
+      .storeUint(sequenceBytes, 64)
+      .endCell()
+      .hash();
+
+    const signature = createSignature(signer1, hashedReport);
+    const signature2 = createSignature(signer2, hashedReport);
+
+    const invalidPluginType = 0xFFFF;
+
+    const transmitResult = await ocr3Base.sendTransmit(transmitter1.getSender(), {
+      value: toNano('0.05'),
+      ocrPluginType: invalidPluginType,
+      reportContext: { configDigest, sequenceBytes },
+      report,
+      signatures: [signature, signature2],
+    });
+
+    expect(transmitResult.transactions).toHaveTransaction({
+      from: transmitter1.address,
+      to: ocr3Base.address,
+      exitCode: ExitCodes.ERROR_NON_EXISTENT_OCR_PLUGIN_TYPE,
+      success: false,
+    });
+
+  })
+  it('Transmit fails when signatures.length is not bigF + 1', async () => {
+    const bigF = 1;
+    const transmitters = [transmitter1.address];
+
+    await ocr3Base.sendSetOCR3Config(deployer.getSender(), {
+      value: toNano('100'),
+      configDigest,
+      ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
+      bigF,
+      isSignatureVerificationEnabled: true,
+      signers: signersPublicKeys,
+      transmitters,
+    });
+
+    const sequenceBytes = 0x01;
+    const hashedReport = beginCell()
+      .storeRef(report)
+      .storeUint(configDigest, 256)
+      .storeUint(0, 192)
+      .storeUint(sequenceBytes, 64)
+      .endCell()
+      .hash();
+
+    const onlyOneSig = createSignature(signer1, hashedReport); // Needs 2 (bigF+1)
+
+    const transmitResult = await ocr3Base.sendTransmit(transmitter1.getSender(), {
+      value: toNano('0.05'),
+      ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
+      reportContext: { configDigest, sequenceBytes },
+      report,
+      signatures: [onlyOneSig],
+    });
+
+    expect(transmitResult.transactions).toHaveTransaction({
+      from: transmitter1.address,
+      to: ocr3Base.address,
+      exitCode: ExitCodes.ERROR_WRONG_NUMBER_OF_SIGNATURES,
+      success: false,
+    });
+  })
+
+  it('Old signers cannot transmit after config update', async () => {
+    const bigF = 1
+    const transmitters = [transmitter1.address, transmitter2.address];
+    await ocr3Base.sendSetOCR3Config(deployer.getSender(), {
+      value: toNano('100'),
+      configDigest,
+      ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
+      bigF,
+      isSignatureVerificationEnabled: true,
+      signers: signersPublicKeys,
+      transmitters,
+    });
+
+    const newSigners: bigint[] = []
+    for (let i = 0; i < 4; i++) {
+      const newSigner = await generateEd25519KeyPair()
+      newSigners.push(uint8ArrayToBigInt(newSigner.publicKey))
+    }
+
+    await ocr3Base.sendSetOCR3Config(deployer.getSender(), {
+      value: toNano('100'),
+      configDigest,
+      ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
+      bigF,
+      isSignatureVerificationEnabled: true,
+      signers: newSigners,
+      transmitters: [transmitter1.address, transmitter2.address],
+    });
+
+    const sequenceBytes = 0x01;
+    const hashedReport = beginCell()
+      .storeRef(report)
+      .storeUint(configDigest, 256)
+      .storeUint(0, 192) //padding
+      .storeUint(sequenceBytes, 64)
+      .endCell()
+      .hash()
+    const signatures: SignatureEd25519[] = []
+    signatures.push(createSignature(signer1, hashedReport)) // Old signer
+    signatures.push(createSignature(signer2, hashedReport)) // Old signer
+
+    const result = await ocr3Base.sendTransmit(
+      transmitter1.getSender(),
+      {
+        value: toNano('0.05'),
+        ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
+        reportContext: {
+          configDigest: configDigest,
+          sequenceBytes: sequenceBytes
+        },
+        report: report,
+        signatures: signatures
+      }
+    )
+    expect(result.transactions).toHaveTransaction({
+      from: transmitter1.address,
+      to: ocr3Base.address,
+      exitCode: ExitCodes.ERROR_UNAUTHORIZED_SIGNER,
+      success: false
     })
   })
 })
