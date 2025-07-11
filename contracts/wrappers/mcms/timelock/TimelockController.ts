@@ -16,6 +16,9 @@ export type TimelockControllerStorage = {
   timestampCount?: number
   timestamp?: Dictionary<Buffer, Buffer>
 
+  blockedFnSelectorsLen?: number
+  blockedFnSelectors?: Dictionary<number, Buffer>
+
   rbac: Cell
 }
 
@@ -55,6 +58,8 @@ export const Builder = {
       .storeUint(config.minDelay, 32)
       .storeUint(config.timestampCount || 0, 32) // timestamp_count
       .storeDict(config.timestamp)
+      .storeUint(config.blockedFnSelectorsLen || 0, 32) // blocked_fn_selectors_len
+      .storeDict(config.blockedFnSelectors || Dictionary.empty(Dictionary.Keys.Uint(32), Dictionary.Values.Buffer(0)))
       .storeRef(config.rbac)
       .endCell()
   },
