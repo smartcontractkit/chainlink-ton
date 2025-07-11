@@ -3,10 +3,12 @@ package eventemitter
 import (
 	"context"
 	"fmt"
+	"math/big"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
@@ -35,6 +37,24 @@ func NewEventEmitter(t *testing.T, client ton.APIClientWrapped, name string, des
 	if err != nil {
 		return nil, err
 	}
+
+	b, err := client.CurrentMasterchainInfo(ctx)
+	require.NoError(t, err)
+
+	resDestChainSel, err := GetDestinationChain(ctx, client, b, addr)
+	require.NoError(t, err)
+	require.Equal(t, destChainSelector, resDestChainSel.Uint64(), "unexpected destination chain selector for "+name)
+
+	_, _, err = wallet.SendWaitTransaction(ctx, CCIPSendMessage(addr))
+	require.NoError(t, err)
+
+	require.Eventually(t, func() bool {
+		b, err := client.CurrentMasterchainInfo(ctx)
+		require.NoError(t, err)
+		increasedSeqNo, err := GetSequenceNumber(ctx, client, b, addr)
+		require.NoError(t, err)
+		return increasedSeqNo.Cmp(big.NewInt(0)) > 0
+	}, 30*time.Second, 2*time.Second)
 
 	return &EventEmitter{
 		t:                 t,
@@ -127,7 +147,6 @@ func (e *EventEmitter) eventLoop() {
 			e.t.Logf("Context cancelled for %s", e.name)
 			return
 		case <-e.ticker.C:
-			e.t.Logf("Ticker fired for %s", e.name)
 			if err := e.SendCCIPMessage(); err != nil {
 				e.t.Logf("ERROR sending CCIP message from %s: %v", e.name, err)
 				continue

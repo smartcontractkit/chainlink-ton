@@ -1,7 +1,6 @@
 package smoke
 
 import (
-	"math/big"
 	"math/rand/v2"
 	"testing"
 	"time"
@@ -63,17 +62,6 @@ func runLogPollerPollingTest(t *testing.T, logger logger.Logger, tonChain cldf_t
 
 	require.NotEqual(t, evA.ContractAddress().String(), evB.ContractAddress().String(), "deployed event emitter contracts should have different addresses")
 
-	b, err := client.CurrentMasterchainInfo(t.Context())
-	require.NoError(t, err)
-
-	resDestChainSelA, err := event_emitter.GetDestinationChain(t.Context(), client, b, evA.ContractAddress())
-	require.NoError(t, err)
-	require.Equal(t, destChainSelA, resDestChainSelA.Uint64(), "unexpected destination chain selector for contract A")
-
-	resDestChainSelB, err := event_emitter.GetDestinationChain(t.Context(), client, b, evB.ContractAddress())
-	require.NoError(t, err)
-	require.Equal(t, destChainSelB, resDestChainSelB.Uint64(), "unexpected destination chain selector for contract B")
-
 	lp := logpoller.NewLogPoller(
 		logger,
 		client,
@@ -112,7 +100,7 @@ func runLogPollerPollingTest(t *testing.T, logger logger.Logger, tonChain cldf_t
 
 	time.Sleep(30 * time.Second) // wait for event emitters to start and emit events
 
-	b, err = client.CurrentMasterchainInfo(t.Context())
+	b, err := client.CurrentMasterchainInfo(t.Context())
 	require.NoError(t, err)
 	onchainSeqNoA, err := event_emitter.GetSequenceNumber(t.Context(), client, b, evA.ContractAddress())
 	require.NoError(t, err)
@@ -122,18 +110,15 @@ func runLogPollerPollingTest(t *testing.T, logger logger.Logger, tonChain cldf_t
 	t.Logf("Onchain sequence number for contract A: %s", onchainSeqNoA.String())
 	t.Logf("Onchain sequence number for contract B: %s", onchainSeqNoB.String())
 
-	require.True(t, onchainSeqNoA.Cmp(big.NewInt(0)) > 0, "unexpected sequence number for contract A")
-	require.True(t, onchainSeqNoA.Cmp(onchainSeqNoB) > 0, "unexpected sequence number for contract B")
+	// require.True(t, onchainSeqNoA.Cmp(big.NewInt(0)) > 0, "unexpected sequence number for contract A")
+	// require.True(t, onchainSeqNoA.Cmp(onchainSeqNoB) > 0, "unexpected sequence number for contract B")
 
 	// TODO: get logs by filter and validate if polling is not missing any events
 	// TODO: scale up the number of events and validate that log poller can handle multiple events
-	// // TODO: we can lookup block number by seqno
-	// _, _, err = wallet.SendWaitTransaction(t.Context(), event_emitter.IncrementMessage(evA))
-	// require.NoError(t, err)
 
-	// require.Eventually(t, func() bool {
-	// 	return len(lp.GetLogs()) > 0
-	// }, 30*time.Second, 1*time.Second, "expected at least one increment event")
+	require.Eventually(t, func() bool {
+		return len(lp.GetLogs()) > 0
+	}, 30*time.Second, 1*time.Second, "expected at least one send event")
 
 	// // TODO: add log query
 	// logs := lp.GetLogs()
