@@ -1,9 +1,25 @@
-// Note: Test CCIPMessageSent event emitter for logpoller PoC
-
+// Note: Test CCIPMessageSent event emitter for logpoller TON>EVM tests
 import "../../lib/utils.tolk";
 
-global ctxDestChainSelector: uint64;
-global ctxSequenceNumber: uint64;
+// events
+const CCIP_MESSAGE_SENT_TOPIC: int = 0x99; // for easier indexing
+struct CCIPMessageSent {
+    destChainSelector: uint64;
+    sequenceNumber: uint64;
+}
+
+struct Storage {
+    destChainSelector: uint64;
+    sequenceNumber: uint64;
+}
+
+fun Storage.load(): Storage {
+    return Storage.fromCell(contract.getData());
+}
+
+fun Storage.store(self) {
+    return contract.setData(self.toCell());
+}
 
 // msgs
 struct (0x00000001) CCIPSend {
@@ -14,74 +30,44 @@ struct (0x00000002) Reset {
     queryId: uint64;
 }
 
-// events
-const CCIP_MESSAGE_SENT_TOPIC: int = 0x99; // for easier indexing
-struct CCIPMessageSent {
-    destChainSelector: uint64;
-    sequenceNumber: uint64;
-}
-
-// TODO: use storage instead
-@inline
-fun loadCtx() {
-    var cs = contract.getData().beginParse();
-    ctxDestChainSelector = cs.loadUint(64); 
-    ctxSequenceNumber = cs.loadUint(64);
-}
-
-@inline
-fun storeCtx() {
-    contract.setData(
-        beginCell()
-        .storeUint(ctxDestChainSelector, 64)
-        .storeUint(ctxSequenceNumber, 64)
-        .endCell()
-    );
-}
-
 type Msg = CCIPSend | Reset;
 
-fun onInternalMessage(msgCell: cell, msgBody: slice) {
-    if (msgBody.isEnd()) { // ignore all empty messages
-        return;
-    }
-
-    loadCtx();
-
-    var cs = msgCell.beginParse();
-    val flags  = cs.loadMessageFlags();
-    if (isMessageBounced(flags)) { return; } // ignore all bounced messages
-
-    val msg = Msg.fromSlice(msgBody);
+fun onInternalMessage(in: InMessage) {
+    val msg = lazy Msg.fromSlice(in.body);
     match (msg) {
         CCIPSend => { onSend(msg) }
         Reset => { onReset(msg) }
+        else => {
+            assert (in.body.isEmpty()) throw 0xFFFF // ignore empty messages, "wrong opcode" for others
+        }
     }
-
-    storeCtx();
 }
 
 fun onSend(payload: CCIPSend) {
-    ctxSequenceNumber += 1;
-
+    var st = Storage.load();
+    st.sequenceNumber = st.sequenceNumber + 1;
+    st.store();
     // Emit external log message for CCIPSend
     emit<CCIPMessageSent>(CCIP_MESSAGE_SENT_TOPIC, {
-        destChainSelector: ctxDestChainSelector,
-        sequenceNumber: ctxSequenceNumber
+        destChainSelector: st.destChainSelector,
+        sequenceNumber: st.sequenceNumber
     });
+    
 }
 
 fun onReset(payload: Reset) {
-    ctxSequenceNumber = 0;
+    var st = Storage.load();
+    st.sequenceNumber = 0;
+    st.store();
     // no event, validate with query
 }
 
-get destChainSelector(): uint64 {
-    loadCtx();
-    return ctxDestChainSelector;
+get fun destChainSelector(): uint64 {
+    var st = lazy Storage.load();
+    return st.destChainSelector;
 }
 
-get sequenceNumber(): uint64 {
-    loadCtx();
-    return ctxSequenceNumber;
+get fun sequenceNumber(): uint64 {
+    var st = lazy Storage.load();
+    return st.sequenceNumber;
 }
