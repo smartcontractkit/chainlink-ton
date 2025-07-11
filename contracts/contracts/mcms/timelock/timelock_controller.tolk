@@ -4,11 +4,9 @@ import "@stdlib/tvm-dicts";
 import "../../lib/access/access_control.tolk";
 
 import "timelock_controller/error.tolk";
-import "timelock_controller/storage.tolk";
 import "timelock_controller/op.tolk";
 import "timelock_controller/params.tolk";
 import "timelock_controller/operation_utils.tolk";
-import "timelock_controller/get.tolk";
 import "timelock_controller/admin_calls.tolk";
 
 /**
@@ -155,7 +153,7 @@ struct (0x2637af77) Timelock_BlockFunctionSelector {
     queryId: uint64;
 
     /// Function selector to block.
-    selector: uint64;
+    selector: uint32;
 }
 
 /// @dev Unblocks a previously blocked function selector so it can be used again.
@@ -169,7 +167,7 @@ struct (0x26f19f4e) Timelock_UnblockFunctionSelector {
     queryId: uint64;
 
     /// Function selector to unblock.
-    selector: uint64;
+    selector: uint32;
 }
 
 /// @dev Directly execute a batch of transactions, bypassing any other checks.
@@ -266,7 +264,7 @@ struct (0x9c4d6d94) Timelock_FunctionSelectorBlocked {
     queryId: uint64;
 
     /// 
-    selector: uint64;
+    selector: uint32;
 }
 
 /// @dev Emitted when a function selector is unblocked.
@@ -275,8 +273,55 @@ struct (0xf410a31b) Timelock_FunctionSelectorUnblocked {
     queryId: uint64;
 
     /// 
-    selector: uint64;
+    selector: uint32;
 }
+
+// --- Storage ---
+
+/// AccessControl contract struct, host storage and runtime hooks (extensions).
+struct Timelock<T> {
+    // data: Timelock_Data;
+
+    /// Runtime hooks (extensions)
+    context: T? = null,
+    hooks: Timelock_Hooks<T>? = null;
+}
+
+/// RBACTimelock contract storage, auto-serialized to/from cells.
+struct Timelock_Data {
+    // id: uint32;          // required to allow multiple independent instances, since contract address depends on initial state
+
+    minDelay: uint32;       // minimum delay for operations in seconds
+    timestampCount: uint32; // number of timestamps stored, used to track the size of the storage
+    timestamps: dict;       // maps operation id to timestamp
+
+    rbac: Cell<AccessControl_Data>;
+}
+
+/// Load from contract data using auto-serialization.
+@inline
+fun Timelock_Data.fromContractData() {
+    return Timelock_Data.fromCell(contract.getData());
+}
+
+/// Store as contract data into persistent storage using auto-serialization.
+@inline
+fun Timelock_Data.storeAsContractData(self) {
+    contract.setData(self.toCell());
+}
+
+// --- Hooks struct (extensions) ---
+
+/// @dev Hook extensions exposed by the Timelock contract.
+struct Timelock_Hooks<T> {
+    /// @dev AccessControl hooks exposed by the Timelock contract.
+    rbac: AccessControl_Hooks<T>;
+
+    /// Hook to get the identifier of an operation containing a batch of transactions.
+    hashOperationBatch: ((T, cell, uint256, uint256) -> address)?;
+}
+
+// --- Constants ---
 
 // TODO: use keccak256 hash function to match Ethereum implementation
 // Notice: role constants are kept as original Ethereum implementation (keccak256)
@@ -285,8 +330,6 @@ const PROPOSER_ROLE = stringSha256_32("PROPOSER_ROLE");
 const CANCELLER_ROLE = stringSha256_32("CANCELLER_ROLE");
 const EXECUTOR_ROLE = stringSha256_32("EXECUTOR_ROLE");
 const BYPASSER_ROLE = stringSha256_32("BYPASSER_ROLE");
-
-struct Timelock {}
 
 fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: slice) {
     if (msgBody.isEndOfBits() && msgBody.isEndOfRefs()) { // ignore all empty messages
@@ -301,9 +344,9 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
     // }
 
     // Load the contract storage
-    var s = loadData();
+    var s = Timelock_Data.fromContractData();
 
-    var timelock: Timelock = {};
+    var timelock: Timelock<bool> = {};
     var rbac = timelock.hookTrait__AccessControl();
 
     val senderAddress: address = cs.loadAddress();
@@ -334,7 +377,7 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
             s.timestamps = timelockAdmin.timestamps;
             s.rbac = rbac.data.toCell();
             // Save the updated storage
-            saveData(s);
+            s.storeAsContractData();
             return;
         }
     }
@@ -360,7 +403,7 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
             val timestampSlice = beginCell().storeUint(blockchain.now() + delay, 32).endCell().beginParse();
             s.timestamps.uDictSet(256, id, timestampSlice);
             s.timestampCount += 1;
-            saveData(s);
+            s.storeAsContractData();
             return;
         }
     }
@@ -377,7 +420,7 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
 
             s.timestamps.uDictDelete(256, id);
             s.timestampCount -= 1;
-            saveData(s);
+            s.storeAsContractData();
             return;
         }
     }
@@ -417,7 +460,7 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
 
             timestampSlice = beginCell().storeUint(DONE_TIMESTAMP, 32).endCell().beginParse();
             s.timestamps.uDictSet(256, id, timestampSlice);
-            saveData(s);
+            s.storeAsContractData();
             return;
         }
     }
@@ -432,16 +475,16 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
 // --- Extension hooks ---
 
 @inline
-fun Timelock.hookTrait__AccessControl(self): AccessControl<Timelock>{
+fun Timelock<T>.hookTrait__AccessControl(self): AccessControl<T>{
     // Load the contract storage
-    var s = loadData();
+    var s = Timelock_Data.fromContractData();
 
     // Construct trait instance (with AccessControl<Timelock>)
     return {
         data: AccessControl_Data.fromCell(s.rbac),
-        // no runtime extensions
-        context: null,
-        hooks: null,
+        // Set up runtime hooks (extensions)
+        context: self.context,
+        hooks: self.hooks != null ? self.hooks!.rbac : null,
     };
 }
 
@@ -449,20 +492,20 @@ fun Timelock.hookTrait__AccessControl(self): AccessControl<Timelock>{
 
 get fun typeAndVersion(): (slice, slice) {
      return ("com.chainlink.ton.mcms.Timelock", "1.0.0");
- }
+}
 
 // --- Getters - <AccessControl<T>> extension ---
 
 /// @see <AccessControl<T>.hasRole>
 get fun hasRole(role: int, account: address): bool {
-    var timelock: Timelock = {};
+    var timelock: Timelock<bool> = {};
     var rbac = timelock.hookTrait__AccessControl();
     return rbac.hasRole(role, account);
 }
 
 /// @see <AccessControl<T>.getRoleAdmin>
 get fun getRoleAdmin(role: int): int {
-    var timelock: Timelock = {};
+    var timelock: Timelock<bool> = {};
     var rbac = timelock.hookTrait__AccessControl();
     return rbac.getRoleAdmin(role);
 }
@@ -471,35 +514,35 @@ get fun getRoleAdmin(role: int): int {
 
 /// @see <AccessControl<T>.getRoleMember>
 get fun getRoleMember(role: int, index: uint32): address {
-    var timelock: Timelock = {};
+    var timelock: Timelock<bool> = {};
     var rbac = timelock.hookTrait__AccessControl();
     return rbac.getRoleMember(role, index);
 }
 
 /// @see <AccessControl<T>.getRoleMemberFirst>
 get fun getRoleMemberFirst(role: int): address {
-    var timelock: Timelock = {};
+    var timelock: Timelock<bool> = {};
     var rbac = timelock.hookTrait__AccessControl();
     return rbac.getRoleMemberFirst(role);
 }
 
 /// @see <AccessControl<T>.getRoleMemberNext>
 get fun getRoleMemberNext(role: int, pivot: address): address {
-    var timelock: Timelock = {};
+    var timelock: Timelock<bool> = {};
     var rbac = timelock.hookTrait__AccessControl();
     return rbac.getRoleMemberNext(role, pivot);
 }
 
 /// @see <AccessControl<T>.getRoleMemberCount>
 get fun getRoleMemberCount(role: int): int {
-    var timelock: Timelock = {};
+    var timelock: Timelock<bool> = {};
     var rbac = timelock.hookTrait__AccessControl();
     return rbac.getRoleMemberCount(role);
 }
 
 /// @see <AccessControl<T>.getRoleMembers>
 get fun getRoleMembers(role: int): dict {
-    var timelock: Timelock = {};
+    var timelock: Timelock<bool> = {};
     var rbac = timelock.hookTrait__AccessControl();
     return rbac.getRoleMembers(role);
 }
