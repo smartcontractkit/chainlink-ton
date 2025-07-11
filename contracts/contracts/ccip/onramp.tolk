@@ -90,7 +90,7 @@ fun onInternalMessage(in: InMessage) {
 fun send(payload: OnRampSend, sender: address) {
     val st = lazy Storage.load();
     // ccipSend must be forwarded from the router
-    assert(st.router == sender, ERROR_SENDER_NOT_ALLOWED);
+    assert(st.router == sender, ERROR_UNAUTHORIZED);
 
     val msg = payload.msg.load();
 
@@ -123,7 +123,7 @@ fun onMessageValidated(payload: MessageValidated<Metadata>, sender: address) {
     var st = lazy Storage.load();
     val config = st.config.load();
     // notification must come from fee quoter
-    assert(config.feeQuoter == sender, ERROR_SENDER_NOT_ALLOWED);
+    assert(config.feeQuoter == sender, ERROR_UNAUTHORIZED);
 
     val msg: CCIPSend = payload.msg.load();
     val metadata = payload.metadata.load();
