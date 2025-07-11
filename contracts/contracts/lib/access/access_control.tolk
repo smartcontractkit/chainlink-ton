@@ -243,7 +243,7 @@ fun AccessControl<T>.msgSender(self, msgFull: cell): address {
 ///
 /// Format of the revert message is described in {_checkRole}.
 @inline
-fun AccessControl<T>.onlyRole(self, role: int, msgFull: cell) {
+fun AccessControl<T>.onlyRole(self, role: int, msgFull: cell): void {
     self.checkRoleSender(role, msgFull)
 }
 
@@ -264,7 +264,7 @@ fun AccessControl<T>.hasRole(self, role: int, account: address): bool {
 /// @dev Revert with a standard message if `msgSender()` is missing `role`.
 ///
 /// Format of the revert message is described in {_checkRole}.
-fun AccessControl<T>.checkRoleSender(self, role: int, msgFull: cell) {
+fun AccessControl<T>.checkRoleSender(self, role: int, msgFull: cell): void {
     val sender = self.msgSender(msgFull);
     self.checkRole(role, sender);
 }
@@ -275,7 +275,7 @@ fun AccessControl<T>.checkRoleSender(self, role: int, msgFull: cell) {
 ///
 /// /^AccessControl: account (0x[0-9a-f]{40}) is missing role (0x[0-9a-f]{64})$/
 ///
-fun AccessControl<T>.checkRole(self, role: int, account: address) {
+fun AccessControl<T>.checkRole(self, role: int, account: address): void {
     if (!self.hasRole(role, account)) {
         throw(ERROR_ACCESS_CONTROL_UNOTHORIZED_ACCOUNT); // TODO: attach error arguments
     }
