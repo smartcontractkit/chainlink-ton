@@ -65,12 +65,8 @@ export function newOCR3BaseCell(chainId: number, contractId: number): Cell {
     return beginCell()
     .storeUint(contractId, 64)
     .storeUint(chainId, 8)
-    .storeDict(Dictionary.empty())
-    .storeUint(16, 16)
-    .storeDict(Dictionary.empty())
-    .storeUint(16, 16)
-    .storeDict(Dictionary.empty())
-    .storeUint(16, 16)
+    .storeBit(false)
+    .storeBit(false)
     .endCell()
 }
 

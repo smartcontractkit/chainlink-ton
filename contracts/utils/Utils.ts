@@ -1,4 +1,4 @@
-import { beginCell, Builder, Cell, Slice } from '@ton/core'
+import { Tuple, beginCell, Builder, Cell, Slice, TupleItem, TupleReader } from '@ton/core'
 
 // Converts a BigInt to a 32-byte (256-bit) Uint8Array, padding with leading zeros if necessary.
 export function bigIntToUint8Array(value: bigint): Uint8Array {
@@ -70,4 +70,9 @@ export function isEmpty(slice: Slice): boolean {
   }
   return true
 }
+
+
+
+
+
 

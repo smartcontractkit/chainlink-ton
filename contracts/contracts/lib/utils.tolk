@@ -1,4 +1,5 @@
 import "@stdlib/tvm-dicts.tolk";
+import "@stdlib/lisp-lists"
 
 const ERROR_INVALID_DATA = 0x77;
 const ERROR_BITMAP_OUT_OF_BOUNDS = 0x78;
@@ -134,6 +135,20 @@ fun Map<V>.has(self, key: address): bool {
     return exists;
 }
 
+//Returns a lisp-list with the keys of the map, destroys the dictionary in the process
+@inline
+fun Map<V>.keysDestructs(mutate self): tuple? {  
+    var list: tuple? = null;
+    do {
+        var (key: slice?, _value: slice?, found: bool) = self.value.sDictDeleteFirstAndGet(ADDR_KEY_LEN);
+        if (found) {
+            var address = key! as address;
+            list = listPrepend(address, list);
+        }
+    } while (found);
+    return list;
+}
+
 // TODO: mark functions as @pure
 struct UMap<K, V> {
     value: dict;
@@ -184,6 +199,21 @@ fun UMap<K, V>.getRef(self, key: K): (V?, bool) {
 @inline
 fun UMap<K, V>.setRef(mutate self, key: K, value: V): void {
     return (self.value.uDictSetRef(self.keyLen, key, value.toCell()));
+}
+
+
+//Returns a lisp-list with the keys of the map, destroys the dictionary in the process
+@inline
+fun UMap<K, V>.keysDestructs(mutate self): tuple? {
+    var list: tuple? = null;
+    do {
+        var (key: int?, _value: slice?, found: bool) = self.value.uDictDeleteFirstAndGet(self.keyLen);
+        if (found) {
+            var value = key! as K;
+            list = listPrepend(value, list);
+        }
+    } while (found);
+    return list;
 }
 
 

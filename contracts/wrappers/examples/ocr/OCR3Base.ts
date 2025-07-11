@@ -7,6 +7,7 @@ import {
   ContractProvider,
   Sender,
   SendMode,
+  TupleItem,
 } from '@ton/core'
 import { newOCR3BaseCell, OCR3Base, OCR3Config, ocr3ConfigFromCell, ReportContext, SignatureEd25519 } from '../../libraries/ocr/MultiOCR3Base'
 import { asSnakeData } from '../../../utils/Utils'
@@ -71,23 +72,66 @@ export class OCR3BaseExample extends OCR3Base {
     }
 
     async getOCR3Config(provider: ContractProvider, ocrPluginType: number): Promise<OCR3Config> {
-      const result = await provider.get(
-        'ocr3Config', 
+      const resultConfigInfo = await provider.get(
+        'ocr3ConfigInfo', 
         [{
           type: 'int',
           value: BigInt(ocrPluginType),
         }]
       )
-      const resultStack = result.stack
-      const ocr3Config = beginCell()
-        .storeUint(resultStack.readBigNumber(), 256)
-        .storeUint(resultStack.readNumber(), 8)
-        .storeUint(resultStack.readNumber(), 8)
-        .storeBit(resultStack.readBoolean())
-        .storeRef(resultStack.readCell())
-        .storeRef(resultStack.readCell())
-        .endCell()
+      const configInfoStack = resultConfigInfo.stack
 
-      return ocr3ConfigFromCell(ocr3Config)
+      const configDigest = configInfoStack.readBigNumber()
+      const bigF = configInfoStack.readNumber()
+      const n = configInfoStack.readNumber()
+      const isSignatureVerificationEnabled = configInfoStack.readBoolean()
+      
+      const resultTransmitters = await provider.get(
+        'ocr3Transmitters', 
+        [{
+          type: 'int',
+          value: BigInt(ocrPluginType),
+        }]
+      )
+      const transmittersStack = resultTransmitters.stack
+      const transmittersTupleItems = transmittersStack.readLispList()
+      const transmitters: Address[] = transmittersTupleItems.map(
+        (t:TupleItem) => {
+          if (t.type !== 'cell' && t.type !== 'slice' && t.type !== 'builder') {
+              throw Error('Not a cell: ' + t.type);
+          }
+          return t.cell.beginParse().loadAddress();
+        }
+      )
+
+      const resultSigners = await provider.get(
+        'ocr3Signers',
+        [{
+          type: 'int',
+          value: BigInt(ocrPluginType),
+        }]
+      )
+      const signersStack = resultSigners.stack
+      const signersTupleItems = signersStack.readLispList()
+      const signers: bigint[] = signersTupleItems.map(
+        (t: TupleItem) => {
+          if(t.type != 'int') {
+            throw Error('Not an int: ' + t.type)
+          }
+          return t.value
+        } 
+      )
+
+      const ocr3Config = {
+        configInfo: {
+          configDigest: configDigest,
+          bigF: bigF,
+          n: n,
+          isSignatureVerificationEnabled: isSignatureVerificationEnabled,
+        },
+        signers: signers,
+        transmitters: transmitters
+      }
+      return ocr3Config
     }
 }

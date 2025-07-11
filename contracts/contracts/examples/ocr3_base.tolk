@@ -62,9 +62,26 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
      }
 }
 
-get ocr3Config(ocrPluginType: uint16): OCRConfig {
+get ocr3ConfigInfo(ocrPluginType: uint16): ConfigInfo {
     val s = loadData();
-    val (config, exists) = s.ocr3Base.ocr3Configs.get(ocrPluginType);
-    assert(exists, ERROR_NON_EXISTENT_OCR_PLUGIN_TYPE);
-    return config!;
+    val config = s.ocr3Base.getConfig(ocrPluginType);
+    assert(config != null, ERROR_NON_EXISTENT_OCR_PLUGIN_TYPE);
+    return config!.configInfo;
 }
+
+get ocr3Signers(ocrPluginType: uint16): tuple? {
+    val s = loadData();
+    val config = s.ocr3Base.getConfig(ocrPluginType);
+    assert(config != null, ERROR_NON_EXISTENT_OCR_PLUGIN_TYPE);
+    var d = config!.signers;
+    return d.keysDestructs(); 
+}
+
+get ocr3Transmitters(ocrPluginType: uint16): tuple? {
+    val s = loadData();
+    val config = s.ocr3Base.getConfig(ocrPluginType);
+    assert(config != null, ERROR_NON_EXISTENT_OCR_PLUGIN_TYPE);
+    var d  = config!.transmitters;
+    return d.keysDestructs(); 
+}
+
