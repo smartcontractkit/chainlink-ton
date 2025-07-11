@@ -281,7 +281,7 @@ struct (0xf410a31b) Timelock_FunctionSelectorUnblocked {
 
 /// AccessControl contract struct, host storage and runtime hooks (extensions).
 struct Timelock<T> {
-    // data: Timelock_Data;
+    data: Timelock_Data;
 
     /// Runtime hooks (extensions)
     context: T? = null,
@@ -292,10 +292,19 @@ struct Timelock<T> {
 struct Timelock_Data {
     // id: uint32;          // required to allow multiple independent instances, since contract address depends on initial state
 
-    minDelay: uint32;       // minimum delay for operations in seconds
-    timestampCount: uint32; // number of timestamps stored, used to track the size of the storage
-    timestamps: dict;       // maps operation id to timestamp
+    /// Minimum delay for operations in seconds
+    minDelay: uint32;
+    /// Number of timestamps stored, used to track the size of the storage
+    timestampCount: uint32;
+    // Map of operation id to timestamp
+    timestamps: dict;
 
+    /// Number of fn selectors blocked by the contract.
+    blockedFnSelectorsLen: uint32;
+    /// Map of blocked function selectors.
+    blockedFnSelectors: dict;
+
+    /// AccessControl trait data
     rbac: Cell<AccessControl_Data>;
 }
 
@@ -309,6 +318,16 @@ fun Timelock_Data.fromContractData() {
 @inline
 fun Timelock_Data.storeAsContractData(self) {
     contract.setData(self.toCell());
+}
+
+/// Represents a single call
+struct Timelock_Call {
+    /// Address of the target contract to call.
+    target: address;
+    /// Value in TONs to send with the call.
+    value: coins;
+    /// Data to send with the call - message body.
+    data: cell;
 }
 
 /// Batch of transactions represented as a operation, which can be scheduled and executed.
@@ -342,6 +361,11 @@ const CANCELLER_ROLE = stringSha256_32("CANCELLER_ROLE");
 const EXECUTOR_ROLE = stringSha256_32("EXECUTOR_ROLE");
 const BYPASSER_ROLE = stringSha256_32("BYPASSER_ROLE");
 
+// --- Constants - storage ---
+
+/// Represents TON message op code size
+const LEN_BLOCKED_FN_SELECTOR = 32;
+
 // --- Methods ---
 
 /// @dev Returns the operation batch hashe as its ID.
@@ -354,6 +378,102 @@ fun Timelock<T>.hashOperationBatch(self, op: OperationBatch): uint256 {
 
     // Fallback to taking the standard cell hash of the operation
     return op.hash()
+}
+
+/// @dev Blocks a function selector from being used, i.e. schedule
+/// operations with this function selector will revert.
+///
+/// Note that blocked selectors are only checked when an operation is being
+/// scheduled, not when it is executed. You may want to check any pending
+/// operations for whether they contain the blocked selector and cancel them.
+///
+/// Requirements:
+///
+/// - the caller must have the 'admin' role.
+///
+fun Timelock<T>.blockFunctionSelector(mutate self, queryId: uint64, sender: address, selector: uint32): bool {
+    // if (_blockedFunctionSelectors.add(selector)) {
+    //     emit FunctionSelectorBlocked(selector);
+    // }
+    return false; // TODO: implement
+}
+
+/// @dev Unblocks a previously blocked function selector so it can be used again.
+///
+/// Requirements:
+///
+/// - the caller must have the 'admin' role.
+///
+fun Timelock<T>.unblockFunctionSelector(mutate self, queryId: uint64, sender: address, selector: uint32): bool {
+    // if (_blockedFunctionSelectors.remove(selector)) {
+    //     emit FunctionSelectorUnblocked(selector);
+    // }
+    return false; // TODO: implement
+}
+
+/// @dev Returns the number of blocked function selectors.
+fun Timelock<T>.getBlockedFunctionSelectorCount(self, selector: uint32): uint32 {
+    return self.data.blockedFnSelectorsLen;
+}
+
+/// @dev Returns the blocked function selector with the given index.
+///
+/// This function is useful for enumerating all accounts that have a role, but is expensive
+/// in terms of gas. It is recommended to use {getBlockedFunctionSelectorFirst} and {getBlockedFunctionSelectorNext}
+/// to iterate through the accounts in a more gas-efficient way.
+///
+/// Function selectors are not sorted in any particular way, and their ordering may
+/// change at any point.
+///
+/// WARNING: When using {getBlockedFunctionSelectorCount} and
+/// {getBlockedFunctionSelectorAt} via RPC, make sure you perform all queries
+/// on the same block. When using these functions within an onchain
+/// transaction, make sure that the state of this contract hasn't changed in
+/// between invocations to avoid time-of-check time-of-use bugs.
+///
+/// See the following
+/// https://forum.openzeppelin.com/t/iterating-over-elements-on-enumerableset-in-openzeppelin-contracts/2296[forum
+/// post] for more information.
+///
+@inline
+fun Timelock<T>.getBlockedFunctionSelectorAt(self, index: uint32): uint32 {
+    if (index >= self.data.blockedFnSelectorsLen) {
+        return 0; // index out of bounds
+    }
+
+    // Notice: we need to iterate through the dictionary to get the item at the specified index.
+    // This is not efficient, but it is the only way to get an item at index without additional data structures.
+    var i = 0;
+    while (i < index) {
+        self.data.blockedFnSelectors.uDictDeleteFirstAndGet(LEN_BLOCKED_FN_SELECTOR);
+        i += 1; // increment to next account
+    }
+
+    // Get the item at the specified index
+    var (selector: slice?, _: slice?, _: bool) = self.data.blockedFnSelectors.uDictDeleteFirstAndGet(LEN_BLOCKED_FN_SELECTOR);
+    return selector! as uint32;
+}
+
+@inline
+fun Timelock<T>.getBlockedFunctionSelectorFirst(self): uint32 {
+    if (self.data.blockedFnSelectorsLen == 0) {
+        return 0; // no blocked function selectors
+    }
+
+    // Get the first item in the map
+    var (selector, _, _) = self.data.blockedFnSelectors.uDictGetFirst(LEN_BLOCKED_FN_SELECTOR);
+    return selector! as uint32;
+}
+
+@inline
+fun Timelock<T>.getBlockedFunctionSelectorNext(self, pivot: uint32): uint32 {
+    // Get the next item in the map, after the pivot
+    var (selector, _, exists) = self.data.blockedFnSelectors.uDictGetNext(LEN_BLOCKED_FN_SELECTOR, pivot);
+    if (!exists) {
+        return 0; // no next item
+    }
+
+    return selector! as uint32;
 }
 
 fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: slice) {
@@ -370,8 +490,7 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
 
     // Load the contract storage
     var s = Timelock_Data.fromContractData();
-
-    var timelock: Timelock<bool> = {};
+    var timelock: Timelock<bool> = { data: s }; // TODO: merge with above
     var rbac = timelock.hookTrait__AccessControl();
 
     val senderAddress: address = cs.loadAddress();
@@ -501,12 +620,9 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
 
 @inline
 fun Timelock<T>.hookTrait__AccessControl(self): AccessControl<T>{
-    // Load the contract storage
-    var s = Timelock_Data.fromContractData();
-
     // Construct trait instance (with AccessControl<Timelock>)
     return {
-        data: AccessControl_Data.fromCell(s.rbac),
+        data: AccessControl_Data.fromCell(self.data.rbac),
         // Set up runtime hooks (extensions)
         context: self.context,
         hooks: self.hooks != null ? self.hooks!.rbac : null,
@@ -523,14 +639,14 @@ get fun typeAndVersion(): (slice, slice) {
 
 /// @see <AccessControl<T>.hasRole>
 get fun hasRole(role: int, account: address): bool {
-    var timelock: Timelock<bool> = {};
+    var timelock: Timelock<bool> = { data: Timelock_Data.fromContractData() };
     var rbac = timelock.hookTrait__AccessControl();
     return rbac.hasRole(role, account);
 }
 
 /// @see <AccessControl<T>.getRoleAdmin>
 get fun getRoleAdmin(role: int): int {
-    var timelock: Timelock<bool> = {};
+    var timelock: Timelock<bool> = { data: Timelock_Data.fromContractData() };
     var rbac = timelock.hookTrait__AccessControl();
     return rbac.getRoleAdmin(role);
 }
@@ -539,35 +655,35 @@ get fun getRoleAdmin(role: int): int {
 
 /// @see <AccessControl<T>.getRoleMember>
 get fun getRoleMember(role: int, index: uint32): address {
-    var timelock: Timelock<bool> = {};
+    var timelock: Timelock<bool> = { data: Timelock_Data.fromContractData() };
     var rbac = timelock.hookTrait__AccessControl();
     return rbac.getRoleMember(role, index);
 }
 
 /// @see <AccessControl<T>.getRoleMemberFirst>
 get fun getRoleMemberFirst(role: int): address {
-    var timelock: Timelock<bool> = {};
+    var timelock: Timelock<bool> = { data: Timelock_Data.fromContractData() };
     var rbac = timelock.hookTrait__AccessControl();
     return rbac.getRoleMemberFirst(role);
 }
 
 /// @see <AccessControl<T>.getRoleMemberNext>
 get fun getRoleMemberNext(role: int, pivot: address): address {
-    var timelock: Timelock<bool> = {};
+    var timelock: Timelock<bool> = { data: Timelock_Data.fromContractData() };
     var rbac = timelock.hookTrait__AccessControl();
     return rbac.getRoleMemberNext(role, pivot);
 }
 
 /// @see <AccessControl<T>.getRoleMemberCount>
 get fun getRoleMemberCount(role: int): int {
-    var timelock: Timelock<bool> = {};
+    var timelock: Timelock<bool> = { data: Timelock_Data.fromContractData() };
     var rbac = timelock.hookTrait__AccessControl();
     return rbac.getRoleMemberCount(role);
 }
 
 /// @see <AccessControl<T>.getRoleMembers>
 get fun getRoleMembers(role: int): dict {
-    var timelock: Timelock<bool> = {};
+    var timelock: Timelock<bool> = { data: Timelock_Data.fromContractData() };
     var rbac = timelock.hookTrait__AccessControl();
     return rbac.getRoleMembers(role);
 }
