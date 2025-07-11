@@ -203,7 +203,7 @@ struct (0xc55fca54) Timelock_CallScheduled {
     /// Query ID of the change owner request.
     queryId: uint64;
 
-    /// 
+    /// ID of the operation that was scheduled.
     id: uint256;
     index: uint64;
     target: address;
@@ -219,7 +219,7 @@ struct (0x49ea5d0e) Timelock_CallExecuted {
     /// Query ID of the change owner request.
     queryId: uint64;
 
-    /// 
+    /// ID of the operation that was executed.
     id: uint256;
     index: uint64;
     target: address;
@@ -244,7 +244,7 @@ struct (0x580e80f2) Timelock_Canceled {
     /// Query ID of the change owner request.
     queryId: uint64;
 
-    /// 
+    /// ID of the cancelled operation.
     id: uint256;
 }
 
@@ -253,8 +253,9 @@ struct (0x904b14e0) Timelock_MinDelayChange {
     /// Query ID of the change owner request.
     queryId: uint64;
 
-    /// 
+    /// Duration of the old minimum delay in seconds.
     oldDuration: uint64;
+    /// Duration of the new minimum delay in seconds.
     newDuration: uint64;
 }
 
@@ -263,7 +264,7 @@ struct (0x9c4d6d94) Timelock_FunctionSelectorBlocked {
     /// Query ID of the change owner request.
     queryId: uint64;
 
-    /// 
+    /// Function selector that was blocked.
     selector: uint32;
 }
 
@@ -272,7 +273,7 @@ struct (0xf410a31b) Timelock_FunctionSelectorUnblocked {
     /// Query ID of the change owner request.
     queryId: uint64;
 
-    /// 
+    /// Function selector that was unblocked.
     selector: uint32;
 }
 
@@ -310,6 +311,16 @@ fun Timelock_Data.storeAsContractData(self) {
     contract.setData(self.toCell());
 }
 
+/// Batch of transactions represented as a operation, which can be scheduled and executed.
+struct OperationBatch {
+    // Array of calls to be scheduled
+    calls: cell; // TODO: encode as vec<Call>
+    // Predecessor operation ID
+    predecessor: uint256;
+    // Salt used to derive the operation ID
+    salt: uint256;
+}
+
 // --- Hooks struct (extensions) ---
 
 /// @dev Hook extensions exposed by the Timelock contract.
@@ -318,7 +329,7 @@ struct Timelock_Hooks<T> {
     rbac: AccessControl_Hooks<T>;
 
     /// Hook to get the identifier of an operation containing a batch of transactions.
-    hashOperationBatch: ((T, cell, uint256, uint256) -> address)?;
+    hashOperationBatch: ((T, OperationBatch) -> uint256)?;
 }
 
 // --- Constants ---
@@ -330,6 +341,20 @@ const PROPOSER_ROLE = stringSha256_32("PROPOSER_ROLE");
 const CANCELLER_ROLE = stringSha256_32("CANCELLER_ROLE");
 const EXECUTOR_ROLE = stringSha256_32("EXECUTOR_ROLE");
 const BYPASSER_ROLE = stringSha256_32("BYPASSER_ROLE");
+
+// --- Methods ---
+
+/// @dev Returns the operation batch hashe as its ID.
+///
+/// Override available via {Timelock_Hooks<T>.hashOperationBatch} hook.
+fun Timelock<T>.hashOperationBatch(self, op: OperationBatch): uint256 {
+    if (self.hooks != null && self.hooks.hashOperationBatch != null) {
+        return self.hooks.hashOperationBatch(self.context!, op); // extension hook
+    }
+
+    // Fallback to taking the standard cell hash of the operation
+    return op.hash()
+}
 
 fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: slice) {
     if (msgBody.isEndOfBits() && msgBody.isEndOfRefs()) { // ignore all empty messages
