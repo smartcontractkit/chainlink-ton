@@ -49,9 +49,6 @@ fun onSetRamp(msg: SetRamp, sender: address) {
 
 fun onSend(msg: CCIPSend, sender: address) {
     ccipSend(msg, sender);
-
-    // Forward excesses
-    // self.forward(msg.sender, null, false, null);
 }
 
 fun onTransferNotification(msg: JettonTransferNotification, sender: address) {

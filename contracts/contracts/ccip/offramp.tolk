@@ -109,8 +109,8 @@ fun onInternalMessage(in:InMessage) {
 
 @pure @inline
 fun getMerkleRootID(merkleRoot: uint256): builder {
-    return beginCell() // id:u16 = 2 | merkleRoot:256
-        .storeUint(2, 16) // TODO: alias constant for MerkleRoot
+    return beginCell() // id:u16 = 1 | merkleRoot:256
+        .storeUint(1, 16) // TODO: alias constant for MerkleRoot
         // TODO: include sourceChainSelector
         .storeUint(merkleRoot, 256);
 }

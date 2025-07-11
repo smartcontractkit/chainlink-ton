@@ -5,7 +5,7 @@ import "../lib/upgrades/type_and_version.tolk";
 import "../lib/utils.tolk";
 import "@stdlib/tvm-dicts";
 
-// TODO: use sha256("CCIPMessageSent")
+// TODO: use crc32("CCIPMessageSent")
 const CCIP_MESSAGE_SENT_TOPIC: int = 0x99; // for easier indexing
 
 struct CCIPMessageSent {
