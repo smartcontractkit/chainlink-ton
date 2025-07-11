@@ -361,6 +361,8 @@ const CANCELLER_ROLE = stringSha256_32("CANCELLER_ROLE");
 const EXECUTOR_ROLE = stringSha256_32("EXECUTOR_ROLE");
 const BYPASSER_ROLE = stringSha256_32("BYPASSER_ROLE");
 
+const ERROR_SELECTOR_IS_BLOCKED = 101;
+
 // --- Constants - storage ---
 
 /// Represents TON message op code size
@@ -474,6 +476,22 @@ fun Timelock<T>.getBlockedFunctionSelectorNext(self, pivot: uint32): uint32 {
     }
 
     return selector! as uint32;
+}
+
+/// @dev Checks to see if the function being scheduled is blocked. 
+@inline
+fun Timelock<T>.checkFunctionSelectorNotBlocked(self, data: slice): void {
+    if (data.isEndOfBits() || data.remainingBitsCount() < 32) { // ignore all empty messages
+        return;
+    }
+
+    // Load the function selector from the message body
+    val selector = data.loadMessageOp(); // 32-bit integer
+    var (_, exists) = self.data.blockedFnSelectors.uDictGet(LEN_BLOCKED_FN_SELECTOR, selector);
+
+    if (exists) {
+        throw(ERROR_SELECTOR_IS_BLOCKED); // TODO: attach error arguments
+    }
 }
 
 fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: slice) {
