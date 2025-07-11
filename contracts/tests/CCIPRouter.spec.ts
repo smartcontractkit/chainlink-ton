@@ -91,10 +91,9 @@ export const testLogMessageSent = (
         feeToken: body.loadAddress(),
         feeTokenAmount: body.loadUintBig(256),
         feeValueJuels: body.loadUintBig(256),
-      }
+      },
     }
 
-    // TODO: we need to use toEqualAddress/toEqualCell for some values
     expect(msg).toMatchObject(match)
     return true
   })
@@ -374,8 +373,9 @@ describe('Router', () => {
       message: {
         header: {
           destChainSelector: CHAINSEL_EVM_TEST_90000001,
-        }
-      }
+        },
+        sender: deployer.address,
+      },
     })
   })
 

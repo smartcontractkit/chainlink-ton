@@ -100,8 +100,7 @@ struct (0x7362d09c) JettonTransferNotification {
 struct (0x10000002) OnRampSend {
     // queryId is embedded in the first element of CCIPSend
     msg: Cell<CCIPSend>;
-    caller: address;
-    // TODO: metadata { caller, value, tokenAmounts }
+    metadata: Metadata
 }
 
 struct OnRampDynamicConfig {
@@ -238,7 +237,7 @@ struct (0x20000005) GetValidatedFee<C> {
 }
 
 struct Metadata {
-    caller: address,
+    sender: address,
     // TODO: metadata { value, tokenAmounts }
 }
 

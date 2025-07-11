@@ -78,3 +78,21 @@ export function isEmpty(slice: Slice): boolean {
 export function hashSync(data: string): bigint {
   return uint8ArrayToBigInt(sha256_sync(data))
 }
+
+function tonEquals(a, b) {
+  if (a instanceof Address) {
+    if (!(b instanceof Address)) return false
+    return a.equals(b)
+  }
+
+  if (a instanceof Cell) {
+    if (!(b instanceof Cell)) return false
+    return a.equals(b)
+  }
+
+  return undefined
+}
+
+// Extend expect to support Address and Cell equality
+import { expect } from '@jest/globals'
+expect.addEqualityTesters([tonEquals])

@@ -111,11 +111,7 @@ fun send(payload: OnRampSend, sender: address) {
         dest: st.config.load().feeQuoter,
         body: GetValidatedFee<Metadata> {
             msg: payload.msg,
-            metadata: Metadata {
-                caller: contract.getAddress(),
-                // TODO: ...
-                // must include nonce
-            }.toCell() 
+            metadata: payload.metadata.toCell(), // TODO: must include nonce 
         }
     });
     getValidatedFeeMsg.send(SEND_MODE_REGULAR);
@@ -150,7 +146,7 @@ fun onMessageValidated(payload: MessageValidated<Metadata>, sender: address) {
             sequenceNumber: seqNr,
             nonce: 0, // TODO:
         },
-        sender: metadata.caller,
+        sender: metadata.sender,
         body: TVM2AnyRampMessageBody {
             receiver: msg.receiver,
             data: msg.data,
