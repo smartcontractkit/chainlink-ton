@@ -2,6 +2,12 @@ import "./types.tolk";
 import "./exit_codes.tolk";
 import "./../utils.tolk";
 
+
+//TODO: use sha256("OCRBase_ConfigSet")
+const OCR3BASE_CONFIG_SET_TOPIC: int = 0xAA;
+//TODO: use sha256("OCRBase_Transmitted")
+const OCR3BASE_TRANSMITTED: int = 0xAB;
+
 /// @notice Event, triggers a new run of the offchain reporting protocol.
 /// @param ocrPluginType OCR plugin type for which the config was set.
 /// @param configDigest configDigest of this configuration.
@@ -101,18 +107,14 @@ fun OCR3Base.setOcr3Config(mutate self, msg: OCR3Base_SetOCR3Config) {
 		ocrConfig
 	);
 
-	//TODO: Emit on a topic using emit<T> from utils.tolk
-	val emitMsg = createExternalLogMessage({
-		dest:createAddressNone(),
-		body: OCR3Base_ConfigSet {
+	emit(OCR3BASE_CONFIG_SET_TOPIC, OCR3Base_ConfigSet {
 			ocrPluginType: msg.ocrPluginType,
 			configDigest: ocrConfig.configInfo.configDigest,
 			signers: ocrConfig.signers,
 			transmitters: ocrConfig.transmitters,
 			bigF: ocrConfig.configInfo.bigF
 		}
-	});
-	emitMsg.send(SEND_MODE_REGULAR);
+	);
 }
 
 fun OCR3Base.transmit(
@@ -140,26 +142,20 @@ fun OCR3Base.transmit(
 
     if (configInfo.isSignatureVerificationEnabled) {
     	var expectedSignatures = configInfo.bigF + 1;
-	debug.print(expectedSignatures);
 	val signatures_length = Iterator<SignatureEd25519>.new(signatures).countBytes() / 96; //expensive
-	debug.print(signatures_length);
     	assert(signatures_length == expectedSignatures, ERROR_WRONG_NUMBER_OF_SIGNATURES);
     	var hashedReport = self.hashReport(report, reportContext);
     	var (pluginSigners, ok) = self.signerOracles.get(ocrPluginType);
     	assert(ok, ERROR_NON_EXISTENT_OCR_PLUGIN_TYPE);
 
     	self.verifySignature(pluginSigners!, hashedReport, signatures);
-	debug.print(4);
     }
-    val emitMsg = createExternalLogMessage({
-	dest: createAddressNone(),
-	body: OCR3Base_Transmitted {
+
+    emit(OCR3BASE_TRANSMITTED, OCR3Base_Transmitted {
 	    ocrPluginType: ocrPluginType,
 	    configDigest: reportContext.configDigest,
 	    sequenceNumber: reportContext.sequenceBytes
-	}
     });
-    emitMsg.send(SEND_MODE_REGULAR);
 }
 
 fun OCR3Base.hashReport(self, report: cell, reportContext: ReportContext): int {
@@ -180,21 +176,17 @@ fun OCR3Base.verifySignature(
 ) {
 	var seen = Bitmap256.new();
 	var signaturesIt = Iterator<SignatureEd25519>.new(signatures); 
-	debug.print(10);
 	while (!signaturesIt.empty()) {
 		val signature = signaturesIt.next();
 		val signer = signature.signer;
 
 		val (signerIndex, authorized) = signers.get(signer);
 		assert(authorized, ERROR_UNAUTHORIZED_SIGNER);
-		debug.print(13);
 		assert(isSignatureValid(hashedReport,signature.toCell().beginParse(), signer),	ERROR_INVALID_SIGNATURE);
-		debug.print(11);
 
 		assert(!seen.has(signerIndex!), ERROR_NON_UNIQUE_SIGNATURES);
 		seen.set(signerIndex!);
 	}
-	debug.print(12);
 }
 
 fun OCR3Base.assignSignerOracles(

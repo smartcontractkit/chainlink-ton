@@ -29,7 +29,7 @@ export async function generateRandomAddresses(count:number) {
   return addresses
 }
 
-export async function generateRandomMockAddresses(count:number) {
+export function generateRandomMockAddresses(count:number) {
   const addresses: Address[] = []
   for (let i = 0; i < count; i++) {
     addresses.push(generateMockTonAddress());
@@ -46,7 +46,7 @@ function generateMockPublicKey(): Buffer {
   return crypto.randomBytes(32); // 32 bytes = 256 bits
 }
 
-export async function generateRandomMockSigners(count: number) {
+export function generateRandomMockSigners(count: number) {
   const signers: bigint[] = [];
   for (let i = 0; i < count; i++) {
     signers.push(uint8ArrayToBigInt(generateMockPublicKey()));

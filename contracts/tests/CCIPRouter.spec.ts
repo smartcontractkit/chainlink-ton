@@ -10,6 +10,7 @@ import {
   FeeQuoterStorage,
   TimestampedPrice,
 } from '../wrappers/ccip/FeeQuoter'
+import {testLog, getExternals} from './Logs'
 import '@ton/test-utils'
 
 const ZERO_ADDRESS: Address = Address.parse(
@@ -17,32 +18,6 @@ const ZERO_ADDRESS: Address = Address.parse(
 )
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_TON = 13879075125137744094n
-
-// https://github.com/ton-blockchain/liquid-staking-contract/blob/1f4e9badbed52a4cf80cc58e4bb36ed375c6c8e7/utils.ts#L269-L294
-export const getExternals = (transactions: BlockchainTransaction[]) => {
-  const externals: Message[] = []
-  return transactions.reduce((all, curExt) => [...all, ...curExt.externals], externals)
-}
-
-export const testLog = (
-  message: Message,
-  from: Address,
-  topic: number | bigint,
-  matcher?: (body: Cell) => boolean,
-) => {
-  if (message.info.type !== 'external-out') {
-    console.log('Wrong from')
-    return false
-  }
-  if (!message.info.src.equals(from)) return false
-  if (!message.info.dest) return false
-  if (message.info.dest!.value !== BigInt(topic)) return false
-  if (matcher !== undefined) {
-    if (!message.body) console.log('No body')
-    return matcher(message.body)
-  }
-  return true
-}
 
 // TODO: further parse Cell fields so we can assert
 type CCIPSend = {
@@ -87,8 +62,6 @@ export const testLogMessageSent = (
     return true
   })
 }
-
-type Log = CCIPMessageSentParams | number
 
 enum LogTypes {
   CCIPMessageSent = 0x99,

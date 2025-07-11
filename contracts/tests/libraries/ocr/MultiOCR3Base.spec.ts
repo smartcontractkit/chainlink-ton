@@ -1,13 +1,98 @@
-import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { beginCell, Cell, toNano} from '@ton/core'
+import { Blockchain, BlockchainTransaction, SandboxContract, TreasuryContract } from '@ton/sandbox'
+import { Address, beginCell, Cell, Message, toNano} from '@ton/core'
 import '@ton/test-utils'
 import { compile } from '@ton/blueprint'
 import { OCR3_PLUGIN_TYPE_COMMIT, OCR3_PLUGIN_TYPE_EXECUTE, SignatureEd25519, createSignature} from '../../../wrappers/libraries/ocr/MultiOCR3Base'
 import * as ExitCodes from  '../../../wrappers/libraries/ocr/ExitCodes'
 import { OCR3BaseExample } from '../../../wrappers/examples/ocr/OCR3Base'
+import { asSnakeData, fromSnakeData } from '../../../utils/Utils'
 import { generateRandomAddresses, generateRandomMockAddresses, generateRandomMockSigners, generateEd25519KeyPair, expectEqualsConfig } from './helpers'
 import { uint8ArrayToBigInt } from '../../../utils/Utils'
 import { KeyPair } from '@ton/crypto'
+import { testLog, getExternals } from '../../Logs'
+
+enum LogTypes {
+  OCR3BaseConfigSet = 0xAA,
+  OCR3BaseTransmitted = 0xAB,
+}
+
+type OCR3BaseConfigSet = {
+  ocrPluginType: number;
+  configDigest: bigint;
+  signers: bigint[];
+  transmitters: Address[];
+  bigF: number
+}
+
+type OCR3BaseTransmitted = {
+  ocrPluginType: number;
+  configDigest: bigint;
+  sequenceNumber: number
+}
+
+export const testConfigSetLogMessage  = (
+  message: Message,
+  from: Address,
+  match: OCR3BaseConfigSet,
+) => {
+  return testLog(message, from, LogTypes.OCR3BaseConfigSet, (x) => {
+    const cs = x.beginParse()
+    const ocrPluginType = cs.loadUint(16)
+    const configDigest = cs.loadUintBig(256)
+    const signers = fromSnakeData(cs.loadRef(), (x) => x.loadUintBig(256))
+    const transmitters = fromSnakeData(cs.loadRef(), (x) => x.loadAddress())
+    const bigF = cs.loadUint(8)
+
+    expect(ocrPluginType).toEqual(match.ocrPluginType)
+    expect(configDigest).toEqual(match.configDigest)
+    expect(signers).toEqual(match.signers)
+    for (let i = 0; i < transmitters.length; i++) {
+      expect(transmitters[i].toString()).toEqual(match.transmitters![i].toString())
+    }
+    expect(bigF).toEqual(match.bigF)
+    return true
+  })
+}
+
+export const testTransmittedLogMessage = (
+  message: Message,
+  from: Address,
+  match: Partial<OCR3BaseTransmitted>,
+) => {
+  return testLog(message, from, LogTypes.OCR3BaseTransmitted, (x) => {
+    const cs = x.beginParse()
+    const msg = {
+      ocrPluginType: cs.loadUint(16),
+      configDigest: cs.loadUintBig(256),
+      sequenceNumber: cs.loadUint(64),
+    }
+    expect(msg).toMatchObject(match)
+    return true
+  })
+}
+
+type LogMatch<T extends LogTypes> =
+  T extends LogTypes.OCR3BaseConfigSet ? Partial<OCR3BaseConfigSet> :
+  T extends LogTypes.OCR3BaseTransmitted ? Partial<OCR3BaseTransmitted> :
+  number;
+
+export const assertLog = <T extends LogTypes>(
+  transactions: BlockchainTransaction[],
+  from: Address,
+  type: T,
+  match: LogMatch<T>,
+) => {
+  getExternals(transactions).some((x) => {
+    switch(type) {
+      case LogTypes.OCR3BaseConfigSet:
+        return testConfigSetLogMessage(x, from, match as OCR3BaseConfigSet);
+      case LogTypes.OCR3BaseTransmitted:
+        return testTransmittedLogMessage(x, from, match as Partial<OCR3BaseTransmitted>);
+      default:
+        throw new Error(`Unknown log type: ${type}`);
+    }
+  })
+}
 
 describe('OCR3Base Tests', () => {
   let blockchain: Blockchain
@@ -114,6 +199,14 @@ describe('OCR3Base Tests', () => {
     }
 
     expectEqualsConfig(config, expectedConfig)
+
+    assertLog(result.transactions, ocr3Base.address, LogTypes.OCR3BaseConfigSet, {
+      ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
+      configDigest: configDigest,
+      signers: signers,
+      transmitters: transmitters,
+      bigF: bigF
+    })
   })
 
   it('Update already set config with SetOCR3Config ', async () => {
@@ -154,6 +247,14 @@ describe('OCR3Base Tests', () => {
 
     expectEqualsConfig(config, expectedConfig)
 
+    assertLog(result.transactions, ocr3Base.address, LogTypes.OCR3BaseConfigSet, {
+      ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
+      configDigest: configDigest,
+      signers: signers,
+      transmitters: transmitters,
+      bigF: bigF
+    })
+
     const newSigners: bigint[] = []
     for (let i = 0; i < 4; i++) {
       const newSigner = await generateEd25519KeyPair()
@@ -191,6 +292,14 @@ describe('OCR3Base Tests', () => {
 
     const newConfig = await ocr3Base.getOCR3Config(OCR3_PLUGIN_TYPE_COMMIT)
     expectEqualsConfig(newExpectedConfig, newConfig)
+
+    assertLog(updateConfigResult.transactions, ocr3Base.address, LogTypes.OCR3BaseConfigSet, {
+      ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
+      configDigest: configDigest,
+      signers: newSigners,
+      transmitters: [transmitter3.address, transmitter4.address],
+      bigF: bigF
+    })
   })
 
 
@@ -263,8 +372,7 @@ describe('OCR3Base Tests', () => {
   });
 
   it('SetOCR3Config Fails when transmitters length is more than MAX_NUM_ORACLES', async () => {
-    const transmitters = await generateRandomMockAddresses(256)
-    console.log('generated random transmitters')
+    const transmitters = generateRandomMockAddresses(256)
     const result = await ocr3Base.sendSetOCR3Config(deployer.getSender(), {
       value: toNano('100'),
       configDigest: configDigest,
@@ -304,16 +412,14 @@ describe('OCR3Base Tests', () => {
   })
 
   it('SetOCR3Config Fails when signers length is more than MAX_NUM_ORACLES', async () => {
-    const signers = await generateRandomMockSigners(256)
-    console.log('generated random signers')
+    const signers = generateRandomMockSigners(256)
     const result = await ocr3Base.sendSetOCR3Config(deployer.getSender(), {
       value: toNano('100'),
       configDigest: configDigest,
       ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
       bigF: 1,
       isSignatureVerificationEnabled: true,
-      signers: signers,
-      transmitters: [transmitter1.address],
+      signers: signers, transmitters: [transmitter1.address],
     })
     expect(result.transactions).toHaveTransaction({
       from: deployer.address,
@@ -513,6 +619,12 @@ describe('OCR3Base Tests', () => {
       from: transmitter1.address,
       to: ocr3Base.address,
       success: true
+    })
+
+    assertLog(transmitResult.transactions, ocr3Base.address, LogTypes.OCR3BaseTransmitted, {
+      ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
+      configDigest: configDigest,
+      sequenceNumber: sequenceBytes
     })
   })
 })
