@@ -17,17 +17,6 @@ import { ZERO_ADDRESS } from '../utils/Utils'
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_TON = 13879075125137744094n
 
-// TODO: further parse Cell fields so we can assert
-type CCIPSend = {
-  queryId: bigint
-  destChainSelector: bigint
-  receiver: Cell
-  data: Cell
-  tokenAmounts: Cell
-  feeToken: Address
-  extraArgs: Cell
-}
-
 type CCIPMessageSentParams = {
   destChainSelector: bigint
   sequenceNumber: bigint
