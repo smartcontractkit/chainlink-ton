@@ -130,7 +130,7 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 
 	signatureCell := []Signature{
 		{
-			Sig: make([]byte, 64),
+			Sig: make([]byte, 32),
 		},
 	}
 

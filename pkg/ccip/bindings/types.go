@@ -11,7 +11,7 @@ import (
 
 // Signature represents an ED25519 signature.
 type Signature struct {
-	Sig []byte `tlb:"bits 512"`
+	Sig []byte `tlb:"bits 256"`
 }
 
 // GenericExtraArgsV2 represents generic extra arguments for transactions.

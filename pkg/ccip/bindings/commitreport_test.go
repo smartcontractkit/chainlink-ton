@@ -85,7 +85,7 @@ func TestCommitReport_EncodingAndDecoding(t *testing.T) {
 	require.NoError(t, err)
 	signatureCell := []Signature{
 		{
-			Sig: make([]byte, 64),
+			Sig: make([]byte, 32),
 		},
 	}
 
