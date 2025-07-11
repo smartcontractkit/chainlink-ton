@@ -40,33 +40,7 @@ export type ConfigInfo = {
   isSignatureVerificationEnabled: boolean,
 }
 
-export function equalsConfig(config1: OCR3Config, config2: OCR3Config): boolean {
-  // Compare configInfo
-  const c1 = config1.configInfo;
-  const c2 = config2.configInfo;
 
-  const configInfoEqual = 
-    c1.configDigest === c2.configDigest &&
-    c1.bigF === c2.bigF &&
-    c1.n === c2.n &&
-    c1.isSignatureVerificationEnabled === c2.isSignatureVerificationEnabled;
-
-  if (!configInfoEqual) return false;
-
-  // Compare signers (bigint arrays)
-  if (config1.signers.length !== config2.signers.length) return false;
-  for (let i = 0; i < config1.signers.length; i++) {
-    if (config1.signers[i] !== config2.signers[i]) return false;
-  }
-
-  // Compare transmitters (Address arrays)
-  if (config1.transmitters.length !== config2.transmitters.length) return false;
-  for (let i = 0; i < config1.transmitters.length; i++) {
-    if (config1.transmitters[i].toString() !== config2.transmitters[i].toString()) return false;
-  }
-
-  return true;
-}
 
 export type SignatureEd25519 = {
   r: bigint,

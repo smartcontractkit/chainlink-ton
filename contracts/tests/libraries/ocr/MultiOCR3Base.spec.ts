@@ -2,10 +2,10 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { beginCell, Cell, toNano} from '@ton/core'
 import '@ton/test-utils'
 import { compile } from '@ton/blueprint'
-import { OCR3_PLUGIN_TYPE_COMMIT, OCR3_PLUGIN_TYPE_EXECUTE, SignatureEd25519, createSignature, equalsConfig} from '../../../wrappers/libraries/ocr/MultiOCR3Base'
+import { OCR3_PLUGIN_TYPE_COMMIT, OCR3_PLUGIN_TYPE_EXECUTE, SignatureEd25519, createSignature} from '../../../wrappers/libraries/ocr/MultiOCR3Base'
 import * as ExitCodes from  '../../../wrappers/libraries/ocr/ExitCodes'
 import { OCR3BaseExample } from '../../../wrappers/examples/ocr/OCR3Base'
-import { generateRandomAddresses, generateRandomMockAddresses, generateRandomMockSigners, generateEd25519KeyPair } from './helpers'
+import { generateRandomAddresses, generateRandomMockAddresses, generateRandomMockSigners, generateEd25519KeyPair, expectEqualsConfig } from './helpers'
 import { uint8ArrayToBigInt } from '../../../utils/Utils'
 import { KeyPair } from '@ton/crypto'
 
@@ -113,7 +113,7 @@ describe('OCR3Base Tests', () => {
       transmitters: [transmitter1.address, transmitter2.address, transmitter3.address, transmitter4.address]
     }
 
-    expect(equalsConfig(config, expectedConfig)).toBeTruthy()
+    expectEqualsConfig(config, expectedConfig)
   })
 
 
@@ -142,8 +142,8 @@ describe('OCR3Base Tests', () => {
     const result1 = await ocr3Base.getOCR3Config(OCR3_PLUGIN_TYPE_COMMIT);
     const result2 = await ocr3Base.getOCR3Config(OCR3_PLUGIN_TYPE_EXECUTE);
 
-    expect(equalsConfig(result1, { configInfo: { configDigest: config1.configDigest, bigF: 1, n: 4, isSignatureVerificationEnabled: true }, signers: config1.signers, transmitters: config1.transmitters })).toBeTruthy();
-    expect(equalsConfig(result2, { configInfo: { configDigest: config2.configDigest, bigF: 1, n: 4, isSignatureVerificationEnabled: true }, signers: config2.signers, transmitters: config2.transmitters })).toBeTruthy();
+    expectEqualsConfig(result1, { configInfo: { configDigest: config1.configDigest, bigF: 1, n: 4, isSignatureVerificationEnabled: true }, signers: config1.signers, transmitters: config1.transmitters })
+    expectEqualsConfig(result2, { configInfo: { configDigest: config2.configDigest, bigF: 1, n: 4, isSignatureVerificationEnabled: true }, signers: config2.signers, transmitters: config2.transmitters })
   });
 
   it('SetOCR3Config Fails with invalid ocrPluginType', async () => {
