@@ -116,6 +116,83 @@ describe('OCR3Base Tests', () => {
     expectEqualsConfig(config, expectedConfig)
   })
 
+  it('Update already set config with SetOCR3Config ', async () => {
+    const bigF = 1;
+    const signers = [signer1PublicKey, signer2PublicKey, signer3PublicKey, signer4PublicKey];
+    const transmitters = [transmitter1.address, transmitter2.address];
+
+    const result = await ocr3Base.sendSetOCR3Config(
+      deployer.getSender(), 
+      {
+          value: toNano('100'),
+          configDigest: configDigest,
+          ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
+          bigF: bigF,
+          isSignatureVerificationEnabled: true,
+          signers: signers,
+          transmitters: transmitters
+      }
+    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: ocr3Base.address,
+      success: true
+    })
+
+    const config = await ocr3Base.getOCR3Config(OCR3_PLUGIN_TYPE_COMMIT)
+    const expectedConfig = {
+      configInfo: {
+        configDigest: configDigest,
+        bigF: bigF,
+        n: 4, // Number of signers
+        isSignatureVerificationEnabled: true
+      },
+      signers: [signer1PublicKey, signer2PublicKey, signer3PublicKey, signer4PublicKey],
+      transmitters: [transmitter1.address, transmitter2.address]
+    }
+
+    expectEqualsConfig(config, expectedConfig)
+
+    const newSigners: bigint[] = []
+    for (let i = 0; i < 4; i++) {
+      const newSigner = await generateEd25519KeyPair()
+      newSigners.push(uint8ArrayToBigInt(newSigner.publicKey))
+    }
+
+    const updateConfigResult = await ocr3Base.sendSetOCR3Config(
+      deployer.getSender(),
+      {
+        value: toNano('100'),
+        configDigest: configDigest,
+        ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
+        bigF: bigF,
+        isSignatureVerificationEnabled: true,
+        signers: newSigners,
+        transmitters: [transmitter3.address, transmitter4.address]
+      }
+    )
+    expect(updateConfigResult.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: ocr3Base.address,
+      success: true
+    })
+
+    const newExpectedConfig = {
+      configInfo: {
+        configDigest: configDigest,
+        bigF: bigF,
+        n: 4,
+        isSignatureVerificationEnabled: true
+      },
+      signers: newSigners,
+      transmitters: [transmitter3.address, transmitter4.address]
+    }
+
+    const newConfig = await ocr3Base.getOCR3Config(OCR3_PLUGIN_TYPE_COMMIT)
+    expectEqualsConfig(newExpectedConfig, newConfig)
+  })
+
 
   it('Can set Commit and Execute configs independently', async () => {
     const config1 = {
