@@ -40,14 +40,11 @@ export type ConfigInfo = {
   isSignatureVerificationEnabled: boolean,
 }
 
-
-
 export type SignatureEd25519 = {
   r: bigint,
   s: bigint,
   signer: bigint
 }
-
 
 export function createSignature(signer: KeyPair, data: Buffer<ArrayBufferLike>): SignatureEd25519 {
 
@@ -63,7 +60,6 @@ export function createSignature(signer: KeyPair, data: Buffer<ArrayBufferLike>):
     signer: signerPublicKey,
   };
 }
- 
 
 export function newOCR3BaseCell(chainId: number, contractId: number): Cell {
     return beginCell()
@@ -90,14 +86,12 @@ export function ocr3ConfigFromCell(cell: Cell): OCR3Config {
   const signers = fromSnakeData(
     signersCell,
     (cs) => {
-      const signer = cs.loadUintBig(256)
-      return signer
+      return cs.loadUintBig(256)
     })
   const transmitters = fromSnakeData(
     transmittersCell,
     (cs) => {
-      const address = cs.loadAddress()
-      return address
+      return cs.loadAddress()
     })
 
   return {
