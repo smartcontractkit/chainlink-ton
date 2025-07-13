@@ -2,6 +2,7 @@ package eventemitter
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"math/big"
 	"sync"
@@ -10,15 +11,16 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
 )
 
 type EventEmitter struct {
-	name              string           // name of the event emitter
-	contractAddress   *address.Address // address of the event emitter contract
-	destChainSelector uint64
-	lastCounter       uint64
+	name            string           // name of the event emitter
+	contractAddress *address.Address // address of the event emitter contract
+	id              uint64
+	lastCounter     uint64
 
 	// Test helper fields
 	client  ton.APIClientWrapped // msg sender client
@@ -42,7 +44,7 @@ func NewEventEmitter(t *testing.T, client ton.APIClientWrapped, name string, sel
 	b, err := client.CurrentMasterchainInfo(ctx)
 	require.NoError(t, err)
 
-	resSelector, err := GetSelector(ctx, client, b, addr)
+	resSelector, err := GetID(ctx, client, b, addr)
 	require.NoError(t, err)
 	require.Equal(t, selector, resSelector.Uint64(), "unexpected destination chain selector for "+name)
 
@@ -50,27 +52,129 @@ func NewEventEmitter(t *testing.T, client ton.APIClientWrapped, name string, sel
 	require.NoError(t, err)
 	require.Equal(t, initialCounter.Cmp(big.NewInt(0)), 0)
 
-	_, _, err = wallet.SendWaitTransaction(ctx, IncreaseCounterMsg(addr))
+	tx, block, err := wallet.SendWaitTransaction(ctx, IncreaseCounterMsg(addr))
 	require.NoError(t, err)
 
+	account, err := client.GetAccount(ctx, block, addr)
+	if err == nil {
+		t.Logf("Contract balance: %s", account.State.Balance.String())
+		t.Logf("Contract last transaction LT: %d", account.LastTxLT)
+		t.Logf("Contract last transaction hash: %s", base64.StdEncoding.EncodeToString(account.LastTxHash))
+	}
+
+	// CORRECT OUTPUT MESSAGE ANALYSIS using your pattern
+	if tx.IO.Out == nil {
+		t.Logf("❌ No output messages found!")
+	} else {
+		msgs, err := tx.IO.Out.ToSlice()
+		if err != nil {
+			t.Logf("❌ Error converting output messages: %v", err)
+		} else {
+			t.Logf("Transaction has %d output messages", len(msgs))
+
+			for i, msg := range msgs {
+				t.Logf("=== Output Message %d ===", i)
+				t.Logf("Message type: %s", msg.MsgType)
+
+				// Check if it's an external out message (your events)
+				if msg.MsgType == tlb.MsgTypeExternalOut {
+					ext := msg.AsExternalOut()
+					t.Logf("✅ Found external out message (event)")
+
+					if ext.Body != nil {
+						t.Logf("Event body: %d bits, %d refs", ext.Body.BitsSize(), ext.Body.RefsNum())
+
+						// Parse the event data
+						bodySlice := ext.Body.BeginParse()
+						if bodySlice.BitsLeft() >= 32 {
+							eventTopic, err := bodySlice.LoadUInt(32)
+							if err == nil {
+								t.Logf("Event topic: 0x%x", eventTopic)
+
+								if eventTopic == 0x1234 { // COUNTER_INCREASED_TOPIC
+									t.Logf("🎉 COUNTER_INCREASED event found!")
+									if bodySlice.BitsLeft() >= 128 {
+										id, _ := bodySlice.LoadUInt(64)
+										counter, _ := bodySlice.LoadUInt(64)
+										t.Logf("Event data - ID: %d, Counter: %d", id, counter)
+									}
+								} else if eventTopic == 0x5678 { // COUNTER_RESET_TOPIC
+									t.Logf("🎉 COUNTER_RESET event found!")
+									if bodySlice.BitsLeft() >= 64 {
+										id, _ := bodySlice.LoadUInt(64)
+										t.Logf("Event data - ID: %d", id)
+									}
+								} else {
+									t.Logf("❓ Unknown event topic: 0x%x", eventTopic)
+								}
+							} else {
+								t.Logf("❌ Error parsing event topic: %v", err)
+							}
+						}
+
+						// Raw event body for debugging
+						bodyBOC := base64.StdEncoding.EncodeToString(ext.Body.ToBOC())
+						t.Logf("Raw event body BOC: %s", bodyBOC)
+					} else {
+						t.Logf("❌ External message has no body")
+					}
+				} else if msg.MsgType == tlb.MsgTypeInternal {
+					internal := msg.AsInternal()
+					t.Logf("📝 Internal message to: %s", internal.DstAddr.String())
+					t.Logf("📝 Internal message amount: %s", internal.Amount.String())
+
+					if internal.Body != nil {
+						t.Logf("Internal message body: %d bits", internal.Body.BitsSize())
+						bodyBOC := base64.StdEncoding.EncodeToString(internal.Body.ToBOC())
+						t.Logf("Internal message body BOC: %s", bodyBOC)
+					}
+					// Internal messages are not events, but contract-to-contract calls
+				} else {
+					t.Logf("❓ Other message type: %s", msg.MsgType)
+				}
+			}
+		}
+	}
+
+	// Check transaction success details
+	if tx.Description != nil {
+		t.Logf("Transaction description type: %T", tx.Description)
+		// Try to get more details about why it might be failing
+	}
+
+	// Use the SAME block where transaction was processed
+	counterAfterTx, err := GetCounter(ctx, client, block, addr)
+	require.NoError(t, err)
+	t.Logf("Counter after initial transaction (same block): %d", counterAfterTx.Uint64())
+
+	// Wait and check from a newer block
+	time.Sleep(3 * time.Second)
+	freshBlock, err := client.CurrentMasterchainInfo(ctx)
+	require.NoError(t, err)
+	t.Logf("Fresh block: %d", freshBlock.SeqNo)
+
+	counterFromFresh, err := GetCounter(ctx, client, freshBlock, addr)
+	require.NoError(t, err)
+	t.Logf("Counter from fresh block: %d", counterFromFresh.Uint64())
+
 	require.Eventually(t, func() bool {
-		b, err := client.CurrentMasterchainInfo(ctx)
+		bbb, err := client.CurrentMasterchainInfo(ctx)
 		require.NoError(t, err)
-		increasedCounter, err := GetCounter(ctx, client, b, addr)
+		increasedCounter, err := GetCounter(ctx, client, bbb, addr)
 		require.NoError(t, err)
 		return increasedCounter.Cmp(big.NewInt(0)) > 0
-	}, 30*time.Second, 2*time.Second)
+	}, 10*time.Second, 2*time.Second)
 
 	return &EventEmitter{
-		t:                 t,
-		ctx:               ctx,
-		name:              name,
-		client:            client,
-		contractAddress:   addr,
-		destChainSelector: selector,
-		wallet:            wallet,
-		lastCounter:       0,
-		running:           false,
+		t:               t,
+		ctx:             ctx,
+		name:            name,
+		client:          client,
+		contractAddress: addr,
+		id:              selector,
+		wallet:          wallet,
+		lastCounter:     0,
+		running:         false,
 	}, nil
 }
 
@@ -152,7 +256,7 @@ func (e *EventEmitter) ContractAddress() *address.Address {
 }
 
 func (e *EventEmitter) GetSelector() uint64 {
-	return e.destChainSelector
+	return e.id
 }
 
 func (e *EventEmitter) LastSentCounter() uint64 {

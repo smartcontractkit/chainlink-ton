@@ -2,8 +2,10 @@ package eventemitter
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"math/big"
+	"math/rand/v2"
 
 	test_utils "integration-tests/utils"
 
@@ -22,7 +24,7 @@ import (
 
 var EventEmitterPath = test_utils.GetBuildDir("examples.logpoller.event-emitter.compiled.json")
 
-func DeployEventEmitterContract(ctx context.Context, client ton.APIClientWrapped, wallet *wallet.Wallet, selector uint64) (*address.Address, error) {
+func DeployEventEmitterContract(ctx context.Context, client ton.APIClientWrapped, wallet *wallet.Wallet, id uint64) (*address.Address, error) {
 	// TODO: any context is not being used in contract helpers
 	sigClient := &tracetracking.SignedAPIClient{
 		Client: client,
@@ -37,7 +39,7 @@ func DeployEventEmitterContract(ctx context.Context, client ton.APIClientWrapped
 		sigClient,
 		codeCell,
 		cell.BeginCell().
-			MustStoreUInt(selector, 64).
+			MustStoreUInt(id, 64).
 			MustStoreUInt(0, 64). // initial counter value
 			EndCell(),
 		tlb.MustFromTON("0.1"),
@@ -51,7 +53,38 @@ func DeployEventEmitterContract(ctx context.Context, client ton.APIClientWrapped
 
 func IncreaseCounterMsg(contractAddress *address.Address) *wallet.Message {
 	msgBody := cell.BeginCell().
-		MustStoreUInt(0x00001234, 32). // IncreaseCounter op code
+		MustStoreUInt(0x7e8764ef, 32).    // IncreaseCounter op code
+		MustStoreUInt(rand.Uint64(), 64). // queryId
+		EndCell()
+
+	fmt.Printf("Message body BOC: %s\n", base64.StdEncoding.EncodeToString(msgBody.ToBOC()))
+
+	// Debug: Check if the body has the expected structure
+	slice := msgBody.BeginParse()
+	fmt.Printf("Original body bits: %d, refs: %d\n", slice.BitsLeft(), slice.RefsNum())
+
+	opcode, _ := slice.LoadUInt(32)
+	queryId, _ := slice.LoadUInt(64)
+	fmt.Printf("After parsing - opcode: 0x%x, queryId: %d, remaining bits: %d\n", opcode, queryId, slice.BitsLeft())
+
+	msg := &wallet.Message{
+		Mode: 1,
+		InternalMessage: &tlb.InternalMessage{
+			IHRDisabled: true,
+			Bounce:      true,
+			DstAddr:     contractAddress,
+			Amount:      tlb.MustFromTON("0.1"),
+			Body:        msgBody,
+		},
+	}
+
+	return msg
+}
+
+func ResetCounterMsg(contractAddress *address.Address) *wallet.Message {
+	msgBody := cell.BeginCell().
+		MustStoreUInt(0x3a752f06, 32).    // ResetCounter op code
+		MustStoreUInt(rand.Uint64(), 64). // queryId
 		EndCell()
 
 	msg := &wallet.Message{
@@ -68,15 +101,15 @@ func IncreaseCounterMsg(contractAddress *address.Address) *wallet.Message {
 	return msg
 }
 
-func GetSelector(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddress *address.Address) (*big.Int, error) {
-	res, err := client.RunGetMethod(ctx, block, contractAddress, "selector")
+func GetID(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddress *address.Address) (*big.Int, error) {
+	res, err := client.RunGetMethod(ctx, block, contractAddress, "id")
 	if err != nil {
-		return nil, fmt.Errorf("failed to run get method 'selector': %w", err)
+		return nil, fmt.Errorf("failed to run get method 'id': %w", err)
 	}
 
 	val, err := res.Int(0)
 	if err != nil {
-		return nil, fmt.Errorf("failed to extract selector value: %w", err)
+		return nil, fmt.Errorf("failed to extract id value: %w", err)
 	}
 
 	return val, nil
