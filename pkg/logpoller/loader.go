@@ -31,7 +31,10 @@ func NewLoader(
 	}
 }
 
-// TODO: block vs message
+// TODO: block vs message -> block: master chain number -> get all shard chain seqNo(indexing target)
+// TODO: list transaction -> weird trick. need to test but feels very hacky. need to think about LT and Hash
+// TODO: block -> memory overhead(not related txs on logpoller memory)
+// TODO: account -> not sure if we can nicely have all transactions between two different seqNos
 func (lc *Loader) BackfillForAddresses(ctx context.Context, addresses []*address.Address, fromSeqNo uint32, currentMaster *ton.BlockIDExt) ([]*tlb.ExternalMessageOut, error) {
 	// TODO: refactor to use background workers for scale
 	var allMsgs []*tlb.ExternalMessageOut

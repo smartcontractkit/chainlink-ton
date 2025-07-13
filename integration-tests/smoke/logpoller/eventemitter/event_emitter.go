@@ -45,6 +45,10 @@ func NewEventEmitter(t *testing.T, client ton.APIClientWrapped, name string, des
 	require.NoError(t, err)
 	require.Equal(t, destChainSelector, resDestChainSel.Uint64(), "unexpected destination chain selector for "+name)
 
+	initialSeqNo, err := GetSequenceNumber(ctx, client, b, addr)
+	require.NoError(t, err)
+	require.Greater(t, initialSeqNo.Cmp(big.NewInt(0)), 0)
+
 	_, _, err = wallet.SendWaitTransaction(ctx, CCIPSendMessage(addr))
 	require.NoError(t, err)
 

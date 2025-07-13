@@ -25,7 +25,7 @@ import (
 func Test_LogPoller(t *testing.T) {
 	logger := logger.Test(t)
 
-	nodeClient := test_utils.CreateAPIClient(t, chainsel.TON_LOCALNET.Selector, true)
+	nodeClient := test_utils.CreateAPIClient(t, chainsel.TON_LOCALNET.Selector, false)
 	require.NotNil(t, nodeClient)
 
 	admin := test_utils.CreateTonWallet(t, nodeClient, config.WalletVersion, wallet.WithWorkchain(0))

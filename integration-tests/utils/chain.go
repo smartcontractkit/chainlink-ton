@@ -168,7 +168,7 @@ func CreateAPIClient(t *testing.T, chainID uint64, useAlreadyRunningNetwork bool
 		bcInput := &blockchain.Input{
 			ChainID: strconv.FormatUint(chainID, 10),
 			Type:    "ton",
-			Image:   "ghcr.io/neodix42/mylocalton-docker:latest",
+			Image:   "ghcr.io/smartcontractkit/chainlink-ton/mylocalton-docker-2025-06",
 			Port:    strconv.Itoa(port),
 		}
 

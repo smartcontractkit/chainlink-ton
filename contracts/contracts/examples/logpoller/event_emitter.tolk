@@ -31,22 +31,27 @@ struct (0x00000002) Reset {
 }
 
 type Msg = CCIPSend | Reset;
-
+// TODO: this is not working
 fun onInternalMessage(in: InMessage) {
-    val msg = lazy Msg.fromSlice(in.body);
-    match (msg) {
-        CCIPSend => { onSend(msg) }
-        Reset => { onReset(msg) }
-        else => {
-            assert (in.body.isEmpty()) throw 0xFFFF // ignore empty messages, "wrong opcode" for others
-        }
-    }
+    var st = lazy Storage.load();
+    st.sequenceNumber = 2;
+    st.store();
+
+    // val msg = lazy Msg.fromSlice(in.body);
+    // match (msg) {
+    //     CCIPSend => { onSend(msg) }
+    //     Reset => { onReset(msg) }
+    //     else => {
+    //         assert (in.body.isEmpty()) throw 0xFFFF // ignore empty messages, "wrong opcode" for others
+    //     }
+    // }
 }
 
 fun onSend(payload: CCIPSend) {
-    var st = Storage.load();
+    var st = lazy Storage.load();
     st.sequenceNumber = st.sequenceNumber + 1;
     st.store();
+
     // Emit external log message for CCIPSend
     emit<CCIPMessageSent>(CCIP_MESSAGE_SENT_TOPIC, {
         destChainSelector: st.destChainSelector,
@@ -56,7 +61,7 @@ fun onSend(payload: CCIPSend) {
 }
 
 fun onReset(payload: Reset) {
-    var st = Storage.load();
+    var st = lazy  Storage.load();
     st.sequenceNumber = 0;
     st.store();
     // no event, validate with query

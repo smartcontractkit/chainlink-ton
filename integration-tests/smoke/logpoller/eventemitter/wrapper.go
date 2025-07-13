@@ -38,7 +38,7 @@ func DeployEventEmitterContract(ctx context.Context, client ton.APIClientWrapped
 		codeCell,
 		cell.BeginCell().
 			MustStoreUInt(destChainSelector, 64).
-			MustStoreUInt(0, 64).
+			MustStoreUInt(2, 64).
 			EndCell(), tlb.MustFromTON("0.1"),
 	)
 	if err != nil {
@@ -48,6 +48,20 @@ func DeployEventEmitterContract(ctx context.Context, client ton.APIClientWrapped
 	return contract.Address, nil
 }
 
+// event_emitter.go:155: ERROR sending CCIP message from evA: failed to send CCIP message: failed to send message: lite server error, code 0: cannot apply external message to current state : External message was not accepted
+//
+//	Cannot run message on account: inbound external message rejected by transaction 240A17F0B19161AB2ACC4BEB5314A5377E31E3CA4E71D7E06BD9C8A2EA7EBFC8:
+//	exitcode=9, steps=76, gas_used=0
+//	VM Log (truncated):
+//	...01F264C858CF16CF8301CF16
+//	execute PUSHCONT x30C824CF40CF8384095005A1A514CF40
+//	execute IFELSE
+//	execute CTOS
+//	execute XCHG2 s0,s4
+//	execute LDSLICEX
+//	execute LDI 1
+//	handling exception code 9: cell underflow
+//	default exception handler, terminating vm with exit code 9v
 func CCIPSendMessage(contractAddress *address.Address) *wallet.Message {
 	msgBody := cell.BeginCell().
 		MustStoreUInt(0x00000001, 32). // CCIPSend op code
