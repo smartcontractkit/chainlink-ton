@@ -15,7 +15,6 @@ import (
 	"github.com/xssnick/tonutils-go/ton/wallet"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
-	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
@@ -25,30 +24,22 @@ import (
 func Test_LogPoller(t *testing.T) {
 	logger := logger.Test(t)
 
-	nodeClient := test_utils.CreateAPIClient(t, chainsel.TON_LOCALNET.Selector, false)
+	nodeClient := test_utils.CreateAPIClient(t, chainsel.TON_LOCALNET.Selector, true)
 	require.NotNil(t, nodeClient)
 
 	admin := test_utils.CreateTonWallet(t, nodeClient, config.WalletVersion, wallet.WithWorkchain(0))
 	require.NotNil(t, admin)
+	senderA := test_utils.CreateTonWallet(t, nodeClient, config.WalletVersion, wallet.WithWorkchain(0))
+	require.NotNil(t, senderA)
+	senderB := test_utils.CreateTonWallet(t, nodeClient, config.WalletVersion, wallet.WithWorkchain(0))
+	require.NotNil(t, senderB)
 
 	tonChain := test_utils.StartTonChain(t, nodeClient, chainsel.TON_LOCALNET.Selector, admin)
 	require.NotNil(t, tonChain)
-	t.Log(admin.Address().String())
 
-	test_utils.FundTonWallets(t, nodeClient, []*address.Address{admin.Address()}, []tlb.Coins{tlb.MustFromTON("1000")})
+	test_utils.FundTonWallets(t, nodeClient, []*address.Address{admin.Address(), senderA.Address(), senderB.Address()}, []tlb.Coins{tlb.MustFromTON("1000"), tlb.MustFromTON("1000"), tlb.MustFromTON("1000")})
 
-	runLogPollerPollingTest(t, logger, tonChain)
-}
-
-func runLogPollerPollingTest(t *testing.T, logger logger.Logger, tonChain cldf_ton.Chain) {
 	client := tonChain.Client
-
-	senderA := test_utils.CreateTonWallet(t, client, config.WalletVersion, wallet.WithWorkchain(0))
-	require.NotNil(t, senderA)
-	senderB := test_utils.CreateTonWallet(t, client, config.WalletVersion, wallet.WithWorkchain(0))
-	require.NotNil(t, senderB)
-
-	test_utils.FundTonWallets(t, client, []*address.Address{senderA.Address(), senderB.Address()}, []tlb.Coins{tlb.MustFromTON("1000"), tlb.MustFromTON("1000")})
 
 	destChainSelA := rand.Uint64()
 	destChainSelB := rand.Uint64()
@@ -56,7 +47,6 @@ func runLogPollerPollingTest(t *testing.T, logger logger.Logger, tonChain cldf_t
 	// just use two different contracts and emitter helpers to simplify the test...
 	evA, err := event_emitter.NewEventEmitter(t, client, "evA", destChainSelA, senderA)
 	require.NoError(t, err)
-
 	evB, err := event_emitter.NewEventEmitter(t, client, "evB", destChainSelB, senderB)
 	require.NoError(t, err)
 
@@ -72,15 +62,15 @@ func runLogPollerPollingTest(t *testing.T, logger logger.Logger, tonChain cldf_t
 	// register filters
 	filterA := types.Filter{
 		Address:    *evA.ContractAddress(),
-		EventName:  "CCIPMessageSent",
-		EventTopic: 0x99,
+		EventName:  "CounterIncreased",
+		EventTopic: 0x1234,
 	}
 	lp.RegisterFilter(t.Context(), filterA)
 
 	filterB := types.Filter{
 		Address:    *evB.ContractAddress(),
-		EventName:  "CCIPMessageSent",
-		EventTopic: 0x99,
+		EventName:  "CounterIncreased",
+		EventTopic: 0x1234,
 	}
 	lp.RegisterFilter(t.Context(), filterB)
 
@@ -102,9 +92,9 @@ func runLogPollerPollingTest(t *testing.T, logger logger.Logger, tonChain cldf_t
 
 	b, err := client.CurrentMasterchainInfo(t.Context())
 	require.NoError(t, err)
-	onchainSeqNoA, err := event_emitter.GetSequenceNumber(t.Context(), client, b, evA.ContractAddress())
+	onchainSeqNoA, err := event_emitter.GetCounter(t.Context(), client, b, evA.ContractAddress())
 	require.NoError(t, err)
-	onchainSeqNoB, err := event_emitter.GetSequenceNumber(t.Context(), client, b, evB.ContractAddress())
+	onchainSeqNoB, err := event_emitter.GetCounter(t.Context(), client, b, evB.ContractAddress())
 	require.NoError(t, err)
 
 	t.Logf("Onchain sequence number for contract A: %s", onchainSeqNoA.String())

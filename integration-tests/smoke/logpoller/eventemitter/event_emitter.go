@@ -18,7 +18,7 @@ type EventEmitter struct {
 	name              string           // name of the event emitter
 	contractAddress   *address.Address // address of the event emitter contract
 	destChainSelector uint64
-	lastSeqNo         uint64
+	lastCounter       uint64
 
 	// Test helper fields
 	client  ton.APIClientWrapped // msg sender client
@@ -31,33 +31,34 @@ type EventEmitter struct {
 	running bool
 }
 
-func NewEventEmitter(t *testing.T, client ton.APIClientWrapped, name string, destChainSelector uint64, wallet *wallet.Wallet) (*EventEmitter, error) {
+func NewEventEmitter(t *testing.T, client ton.APIClientWrapped, name string, selector uint64, wallet *wallet.Wallet) (*EventEmitter, error) {
 	ctx := t.Context()
-	addr, err := DeployEventEmitterContract(ctx, client, wallet, destChainSelector)
+	addr, err := DeployEventEmitterContract(ctx, client, wallet, selector)
 	if err != nil {
 		return nil, err
 	}
 
+	// verify the contract deployment
 	b, err := client.CurrentMasterchainInfo(ctx)
 	require.NoError(t, err)
 
-	resDestChainSel, err := GetDestinationChain(ctx, client, b, addr)
+	resSelector, err := GetSelector(ctx, client, b, addr)
 	require.NoError(t, err)
-	require.Equal(t, destChainSelector, resDestChainSel.Uint64(), "unexpected destination chain selector for "+name)
+	require.Equal(t, selector, resSelector.Uint64(), "unexpected destination chain selector for "+name)
 
-	initialSeqNo, err := GetSequenceNumber(ctx, client, b, addr)
+	initialCounter, err := GetCounter(ctx, client, b, addr)
 	require.NoError(t, err)
-	require.Greater(t, initialSeqNo.Cmp(big.NewInt(0)), 0)
+	require.Equal(t, initialCounter.Cmp(big.NewInt(0)), 0)
 
-	_, _, err = wallet.SendWaitTransaction(ctx, CCIPSendMessage(addr))
+	_, _, err = wallet.SendWaitTransaction(ctx, IncreaseCounterMsg(addr))
 	require.NoError(t, err)
 
 	require.Eventually(t, func() bool {
 		b, err := client.CurrentMasterchainInfo(ctx)
 		require.NoError(t, err)
-		increasedSeqNo, err := GetSequenceNumber(ctx, client, b, addr)
+		increasedCounter, err := GetCounter(ctx, client, b, addr)
 		require.NoError(t, err)
-		return increasedSeqNo.Cmp(big.NewInt(0)) > 0
+		return increasedCounter.Cmp(big.NewInt(0)) > 0
 	}, 30*time.Second, 2*time.Second)
 
 	return &EventEmitter{
@@ -66,9 +67,9 @@ func NewEventEmitter(t *testing.T, client ton.APIClientWrapped, name string, des
 		name:              name,
 		client:            client,
 		contractAddress:   addr,
-		destChainSelector: destChainSelector,
+		destChainSelector: selector,
 		wallet:            wallet,
-		lastSeqNo:         0,
+		lastCounter:       0,
 		running:           false,
 	}, nil
 }
@@ -103,35 +104,16 @@ func (e *EventEmitter) StopEventEmitter() {
 	e.running = false
 }
 
-// SendCCIPMessage sends a single CCIP message immediately
-func (e *EventEmitter) SendCCIPMessage() error {
-	msg := CCIPSendMessage(e.contractAddress)
+func (e *EventEmitter) SendIncreaseCounterMsg() error {
+	msg := IncreaseCounterMsg(e.contractAddress)
 
 	_, _, err := e.wallet.SendWaitTransaction(e.ctx, msg)
 	if err != nil {
-		return fmt.Errorf("failed to send CCIP message: %w", err)
+		return fmt.Errorf("failed to send message: %w", err)
 	}
-
-	// Update sequence number after successful send
+	// Update counter after successful send
 	e.mu.Lock()
-	e.lastSeqNo++
-	e.mu.Unlock()
-
-	return nil
-}
-
-// ResetContract sends a reset message to the contract
-func (e *EventEmitter) ResetContract() error {
-	msg := ResetMessage(e.contractAddress)
-
-	_, _, err := e.wallet.SendWaitTransaction(e.ctx, msg)
-	if err != nil {
-		return fmt.Errorf("failed to send reset message: %w", err)
-	}
-
-	// Reset local sequence number
-	e.mu.Lock()
-	e.lastSeqNo = 0
+	e.lastCounter++
 	e.mu.Unlock()
 
 	return nil
@@ -151,11 +133,11 @@ func (e *EventEmitter) eventLoop() {
 			e.t.Logf("Context cancelled for %s", e.name)
 			return
 		case <-e.ticker.C:
-			if err := e.SendCCIPMessage(); err != nil {
-				e.t.Logf("ERROR sending CCIP message from %s: %v", e.name, err)
+			if err := e.SendIncreaseCounterMsg(); err != nil {
+				e.t.Logf("ERROR sending message from %s: %v", e.name, err)
 				continue
 			} else {
-				e.t.Logf("CCIP message sent successfully from %s, sequence number: %d", e.name, e.lastSeqNo)
+				e.t.Logf("message sent successfully from %s, sequence number: %d", e.name, e.lastCounter)
 			}
 		}
 	}
@@ -169,10 +151,10 @@ func (e *EventEmitter) ContractAddress() *address.Address {
 	return e.contractAddress
 }
 
-func (e *EventEmitter) DestinationChainSelector() uint64 {
+func (e *EventEmitter) GetSelector() uint64 {
 	return e.destChainSelector
 }
 
-func (e *EventEmitter) LastSentSequenceNumber() uint64 {
-	return e.lastSeqNo
+func (e *EventEmitter) LastSentCounter() uint64 {
+	return e.lastCounter
 }
