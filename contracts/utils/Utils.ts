@@ -1,7 +1,6 @@
 import { Tuple, beginCell, Builder, Cell, Slice, TupleItem, TupleReader, Address } from '@ton/core'
 import { sha256_sync } from '@ton/crypto'
 
-
 export const ZERO_ADDRESS: Address = Address.parse(
   '0:0000000000000000000000000000000000000000000000000000000000000000',
 )
@@ -25,7 +24,6 @@ export function uint8ArrayToBigInt(bytes: Uint8Array): bigint {
   }
   return result
 }
-
 
 export function asSnakeData<T>(array: T[], builderFn: (item: T) => Builder): Cell {
   const cells: Builder[] = []
@@ -78,6 +76,5 @@ export function isEmpty(slice: Slice): boolean {
 }
 
 export function hashSync(data: string): bigint {
-  return uint8ArrayToBigInt(sha256_sync(data));
+  return uint8ArrayToBigInt(sha256_sync(data))
 }
-

@@ -10,7 +10,7 @@ import {
   FeeQuoterStorage,
   TimestampedPrice,
 } from '../wrappers/ccip/FeeQuoter'
-import {testLog, getExternals} from './Logs'
+import { testLog, getExternals } from './Logs'
 import '@ton/test-utils'
 import { ZERO_ADDRESS } from '../utils/Utils'
 

@@ -1,5 +1,5 @@
-import { Address, Cell, Message } from "@ton/core"
-import { BlockchainTransaction } from "@ton/sandbox"
+import { Address, Cell, Message } from '@ton/core'
+import { BlockchainTransaction } from '@ton/sandbox'
 
 // https://github.com/ton-blockchain/liquid-staking-contract/blob/1f4e9badbed52a4cf80cc58e4bb36ed375c6c8e7/utils.ts#L269-L294
 export const getExternals = (transactions: BlockchainTransaction[]) => {
