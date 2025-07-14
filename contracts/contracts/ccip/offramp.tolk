@@ -183,7 +183,7 @@ fun commit(msg: Commit, sender: address) {
                         report: root.toCell(),
                         states: 0,
                         executionStates: 0,
-                        tokenBalances: UMap<uint64, Map<TokenBalance>>.new(64),
+                        tokenBalances: UMap<uint64, Map<TokenBalance>>.new(),
                     }.toCell(),
                 }
             },

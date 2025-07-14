@@ -17,7 +17,7 @@ struct Config {
 fun newOCRConfig(): Config {
 	return Config {
 		configInfo: ConfigInfo{},
-		signers: UMap<uint256, uint8>.new(256),
+		signers: UMap<uint256, uint8>.new(),
 		transmitters: Map<uint8>.new()
 	}
 }
@@ -28,7 +28,7 @@ fun Config.assignSignerOracles(
 	signers: cell /*Vector<uint256>*/
 ) {
 	// TODO: Right now we cannot do ed25519 public key validation on chain. For now we assume valid keys.
-	var signersDict = UMap<uint256, uint8>.new(256);
+	var signersDict = UMap<uint256, uint8>.new();
 	var signersIt = Iterator<uint256>.new(signers);
 	var i = 0;
 	while (!signersIt.empty()) {

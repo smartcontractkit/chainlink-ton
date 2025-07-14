@@ -53,9 +53,7 @@ export const Builder = {
             .storeAddress(config.config.allowlistAdmin)
             .endCell(),
         )
-        // UMap<> type
         .storeDict(config.destChainConfigs)
-        .storeUint(64, 16) // keyLen
         .endCell()
     )
   },
