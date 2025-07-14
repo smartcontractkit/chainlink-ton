@@ -1,8 +1,7 @@
 import "@stdlib/common.tolk";
 import "../../lib/utils.tolk";
-import "../../lib/jetton/messages.tolk";
 import "../../lib/jetton/utils.tolk";
-import "../../lib/utils.tolk";
+import "../../lib/jetton/messages.tolk";
 import "../../lib/jetton/jetton_client.tolk";
 
 // OnrampMock contract in Tolk
