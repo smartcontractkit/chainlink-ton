@@ -333,7 +333,7 @@ struct Timelock_Call {
 /// Batch of transactions represented as a operation, which can be scheduled and executed.
 struct OperationBatch {
     // Array of calls to be scheduled
-    calls: cell; // TODO: encode as vec<Call>
+    calls: cell; // TODO: encode as vec<Timelock_Call>
     // Predecessor operation ID
     predecessor: uint256;
     // Salt used to derive the operation ID
@@ -367,6 +367,9 @@ const DONE_TIMESTAMP = 1;
 const ERROR_SELECTOR_IS_BLOCKED = 101;
 const ERROR_OPERATION_NOT_READY = 102;
 const ERROR_OPERATION_MISSING_DEPENDENCY = 103;
+const ERROR_OPERATION_CAN_NOT_BE_CANCELLED = 104;
+const ERROR_OPERATION_ALREADY_SCHEDULED = 105;
+const ERROR_INSUFFICIENT_DELAY = 106;
 
 // --- Constants - storage ---
 
@@ -437,6 +440,66 @@ fun Timelock<T>.hashOperationBatch(self, op: OperationBatch): uint256 {
     return op.hash()
 }
 
+/// @dev Schedule an operation containing a batch of transactions.
+///
+/// Emits one {Timelock_CallScheduled} event per transaction in the batch.
+///
+/// Requirements:
+///
+/// - the caller must have the 'proposer' or 'admin' role.
+/// - all payloads must not start with a blocked function selector.
+///
+fun Timelock<T>.scheduleBatch(
+    mutate self,
+    queryId: uint64,
+    sender: address,
+    calls: cell, // TODO: encode as vec<Timelock_Call>
+    predecessor: uint256,
+    salt: uint256,
+    delay: uint64
+): void {
+    self.onlyRoleOrAdminRole(PROPOSER_ROLE, sender);
+
+    val id = self.hashOperationBatch(OperationBatch{calls, predecessor, salt});
+    self.schedule(id, delay);
+    // TODO: iterate and schedule each call in the batch
+    // for (uint256 i = 0; i < calls.length; ++i) {
+    //     _checkFunctionSelectorNotBlocked(calls[i].data);
+    //     emit CallScheduled(id, i, calls[i].target, calls[i].value, calls[i].data, predecessor, salt, delay);
+    // }
+}
+
+/// @dev Schedule an operation that becomes valid after a given delay.
+fun Timelock<T>.schedule(mutate self, id: uint256, delay: uint64): void {
+    assert(!self.isOperation(id)) throw ERROR_OPERATION_ALREADY_SCHEDULED;
+    assert(delay >= self.getMinDelay()) throw ERROR_INSUFFICIENT_DELAY;
+
+    self.data.timestamps.uDictSet(256, id, blockchain.now() + delay); // seconds since epoch
+}
+
+/// @dev Cancel an operation.
+///
+/// Requirements:
+///
+/// - the caller must have the 'canceller' or 'admin' role.
+///
+fun Timelock<T>.cancel(mutate self, queryId: uint64, sender: address, id: uint256): void {
+    self.onlyRoleOrAdminRole(CANCELLER_ROLE, sender);
+    assert(self.isOperationPending(id)) throw ERROR_OPERATION_CAN_NOT_BE_CANCELLED;
+
+    // Remove the timestamp for the operation
+    self.data.timestamps.uDictDelete(256, id);
+
+    // Send a message to the sender to notify about the change
+    val reply = createMessage({
+        bounce: false,
+        value: 0,
+        dest: sender,
+        body: Timelock_Canceled {queryId, id}
+    });
+    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
 /// @dev Execute an (ready) operation containing a batch of transactions.
 /// Note that we perform a raw call to each target. Raw calls to targets that
 /// don't have associated contract code will always succeed regardless of
@@ -448,7 +511,14 @@ fun Timelock<T>.hashOperationBatch(self, op: OperationBatch): uint256 {
 ///
 /// - the caller must have the 'executor' or 'admin' role.
 ///
-fun Timelock<T>.executeBatch(mutate self, queryId: uint64, sender: address, calls: cell, predecessor: uint256, salt: uint256): void {
+fun Timelock<T>.executeBatch(
+    mutate self,
+    queryId: uint64,
+    sender: address,
+    calls: cell, // TODO: encode as vec<Timelock_Call>
+    predecessor: uint256,
+    salt: uint256
+): void {
     self.onlyRoleOrAdminRole(EXECUTOR_ROLE, sender);
 
     val id = self.hashOperationBatch(OperationBatch{calls, predecessor, salt});
@@ -474,13 +544,13 @@ fun Timelock<T>.execute(self, call: Timelock_Call): void {
 
 /// @dev Hook before execution of an operation's calls.
 fun Timelock<T>.beforeCall(self, id: uint256, predecessor: uint256): void {
-    assert (self.isOperationReady(id)) throw ERROR_OPERATION_NOT_READY;
-    assert (predecessor == 0 || self.isOperationDone(predecessor)) throw ERROR_OPERATION_MISSING_DEPENDENCY;
+    assert(self.isOperationReady(id)) throw ERROR_OPERATION_NOT_READY;
+    assert(predecessor == 0 || self.isOperationDone(predecessor)) throw ERROR_OPERATION_MISSING_DEPENDENCY;
 }
 
 /// @dev Hook after execution of an operation's calls.
 fun Timelock<T>.afterCall(mutate self, id: uint256): void {
-    assert (self.isOperationReady(id)) throw ERROR_OPERATION_NOT_READY;
+    assert(self.isOperationReady(id)) throw ERROR_OPERATION_NOT_READY;
     self.data.timestamps.uDictSet(256, id, DONE_TIMESTAMP); // Mark the operation as done
 }
 
