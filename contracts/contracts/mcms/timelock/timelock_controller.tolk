@@ -365,6 +365,8 @@ const BYPASSER_ROLE = stringSha256_32("BYPASSER_ROLE");
 const DONE_TIMESTAMP = 1;
 
 const ERROR_SELECTOR_IS_BLOCKED = 101;
+const ERROR_OPERATION_NOT_READY = 102;
+const ERROR_OPERATION_MISSING_DEPENDENCY = 103;
 
 // --- Constants - storage ---
 
@@ -433,6 +435,53 @@ fun Timelock<T>.hashOperationBatch(self, op: OperationBatch): uint256 {
 
     // Fallback to taking the standard cell hash of the operation
     return op.hash()
+}
+
+/// @dev Execute an (ready) operation containing a batch of transactions.
+/// Note that we perform a raw call to each target. Raw calls to targets that
+/// don't have associated contract code will always succeed regardless of
+/// payload.
+///
+/// Emits one {CallExecuted} event per transaction in the batch.
+///
+/// Requirements:
+///
+/// - the caller must have the 'executor' or 'admin' role.
+///
+fun Timelock<T>.executeBatch(mutate self, queryId: uint64, sender: address, calls: cell, predecessor: uint256, salt: uint256): void {
+    self.onlyRoleOrAdminRole(EXECUTOR_ROLE, sender);
+
+    val id = self.hashOperationBatch(OperationBatch{calls, predecessor, salt});
+    self.beforeCall(id, predecessor);
+    // TODO: iterate and execute each call in the batch
+    // for (uint256 i = 0; i < calls.length; ++i) {
+    //     _execute(calls[i]);
+    //     emit CallExecuted(id, i, calls[i].target, calls[i].value, calls[i].data);
+    // }
+    self.afterCall(id);
+}
+
+/// @dev Execute an operation's call.
+fun Timelock<T>.execute(self, call: Timelock_Call): void {
+    val msg = createMessage({
+        bounce: true, // TODO: how to handle bounced messages (errors)?
+        value: call.value,
+        dest: call.target,
+        body: call.data
+    });
+    msg.send(SEND_MODE_REGULAR);
+}
+
+/// @dev Hook before execution of an operation's calls.
+fun Timelock<T>.beforeCall(self, id: uint256, predecessor: uint256): void {
+    assert (self.isOperationReady(id)) throw ERROR_OPERATION_NOT_READY;
+    assert (predecessor == 0 || self.isOperationDone(predecessor)) throw ERROR_OPERATION_MISSING_DEPENDENCY;
+}
+
+/// @dev Hook after execution of an operation's calls.
+fun Timelock<T>.afterCall(mutate self, id: uint256): void {
+    assert (self.isOperationReady(id)) throw ERROR_OPERATION_NOT_READY;
+    self.data.timestamps.uDictSet(256, id, DONE_TIMESTAMP); // Mark the operation as done
 }
 
 /// @dev Blocks a function selector from being used, i.e. schedule
