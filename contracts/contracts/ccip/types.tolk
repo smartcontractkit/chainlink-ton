@@ -2,7 +2,7 @@ import "../lib/utils.tolk";
 
 struct MerkleRoot {
     sourceChainSelector: uint64;
-    onRampAddress: bytes64; // TODO: this needed to be fixed size for iteration
+    onRampAddress: bytes64; // TODO: this needed to be fixed size for iteration, use a len prefix
     minSeqNr: uint64;
     maxSeqNr: uint64;
     merkleRoot: uint256;
@@ -52,15 +52,41 @@ struct TVM2AnyRampMessageBody {
 
 const LEAF_DOMAIN_SEPARATOR: int = 0x0000000000000000000000000000000000000000000000000000000000000000;
 
+fun Any2TVMRampMessage.generateMessageId(self, metadataHash: uint256): uint256 {
+    // Loosely based on https://github.com/smartcontractkit/chainlink-ccip/blob/2d2ce6abb3f7626dbd3008e4232da4faa839feff/chains/evm/contracts/libraries/Internal.sol#L113-L134
+    return beginCell()
+        .storeUint(LEAF_DOMAIN_SEPARATOR, 256)
+        .storeUint(metadataHash, 256)
+        // header
+        .storeRef(
+            beginCell()
+            .storeUint(self.header.messageId, 256)
+            .storeAddress(self.receiver)
+            .storeUint(self.header.sequenceNumber, 64)
+            .storeCoins(self.gasLimit)
+            .storeUint(self.header.nonce, 64)
+            .endCell()
+        )
+        // message
+        .storeRef(self.sender)
+        // TODO: determine how hashing refs works, usually we want to len-prefix but it might already be included
+        .storeRef(self.data)
+        .storeRef(self.tokenAmounts)
+        .endCell()
+        .hash()
+}
+
 fun TVM2AnyRampMessage.generateMessageId(self, metadataHash: uint256): uint256 {
     // Loosely based on https://github.com/smartcontractkit/chainlink/blob/d1a9f8be2f222ea30bdf7182aaa6428bfa605cf7/contracts/src/v0.8/ccip/libraries/Internal.sol#L137-L154
     return beginCell()
         .storeUint(LEAF_DOMAIN_SEPARATOR, 256)
         .storeUint(metadataHash, 256)
+        // header
         .storeAddress(self.sender)
         .storeUint(self.header.sequenceNumber, 64)
         .storeUint(self.header.nonce, 64)
-        .storeRef(self.body)
+        // message
+        .storeRef(self.body) // receiver, data, extraArgs, tokenAmounts, feeToken (addr, amount) TODO: we need to exclude feeValueJuels?
         .endCell()
         .hash()
 }
@@ -280,3 +306,4 @@ const ERROR_INVALID_MESSAGE_DEST_CHAIN_SELECTOR = 262;
 const ERROR_SOURCE_CHAIN_SELECTOR_MISMATCH = 263;
 const ERROR_TOKEN_NOT_SUPPORTED: int = 264;
 const ERROR_UNAUTHORIZED: int = 265;
+const ERROR_SOURCE_CHAIN_NOT_ENABLED: int = 266;

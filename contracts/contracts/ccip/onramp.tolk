@@ -35,7 +35,7 @@ struct Storage {
 }
 
 struct DestChainConfig {
-    router: bytes64;
+    router: bytes64; // TODO: len-prefix
     sequenceNumber: uint64;
     allowlistEnabled: bool;
     allowedSenders: Map<bool>; // address -> bool
