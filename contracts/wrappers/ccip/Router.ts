@@ -20,18 +20,13 @@ export type RouterStorage = {
 export const Builder = {
   /// Creates a new `AccessControl_GrantRole` message.
   asStorage: (config: RouterStorage): Cell => {
-    let builder = beginCell().storeAddress(config.ownable.owner)
-
-    // TODO: use storeMaybeBuilder()
-    if (config.ownable.pendingOwner) {
-      builder
-        .storeBit(1) // Store '1' to indicate the address is present
-        .storeAddress(config.ownable.pendingOwner) // Then store the address
-    } else {
-      builder.storeBit(0) // Store '0' to indicate the address is absent
-    }
-
-    return builder.storeAddress(config.onRamp).endCell()
+    return beginCell()
+      .storeAddress(config.ownable.owner)
+      .storeMaybeBuilder(
+        config.ownable.pendingOwner ? beginCell().storeAddress(config.ownable.pendingOwner) : null,
+      )
+      .storeAddress(config.onRamp)
+      .endCell()
   },
 }
 export abstract class Params {}

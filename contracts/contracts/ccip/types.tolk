@@ -1,4 +1,4 @@
-import "utils.tolk";
+import "../lib/utils.tolk";
 
 struct MerkleRoot {
     sourceChainSelector: uint64;
@@ -40,23 +40,33 @@ struct (0x7362d09c) JettonTransferNotification {
 }
 
 // OnRamp
-struct (0x00000002) OnRampSend {
+struct (0x10000002) OnRampSend {
     // queryId is embedded in the first element of CCIPSend
     msg: Cell<CCIPSend>;
     caller: address;
     // TODO: metadata { caller, value, tokenAmounts }
 }
 
-struct (0x00000003) Publish {
-    // queryId is embedded in the first element of CCIPSend
-    msg: Cell<CCIPSend>;
-    // caller: address; TODO:
-    // TODO: metadata { caller, value, tokenAmounts }
+struct OnRampDynamicConfig {
+    feeQuoter: address;
+    // destination address that will receive tokens on withdrawFees
+    feeAggregator: address;
+    allowlistAdmin: address;
 }
 
-struct SetDynamicConfig {}
+struct (0x10000003) SetDynamicConfig {
+    config: OnRampDynamicConfig
+}
 
-struct UpdateDestChainConfigs {}
+struct OnRampUpdateDestChainConfig {
+    destChainSelector: uint64;
+    router: bytes64;
+    allowlistEnabled: bool;
+}
+
+struct (0x10000004) OnRampUpdateDestChainConfigs {
+    updates: cell; // vec<OrRampUpdateDestChainConfig>
+}
 
 struct UpdateAllowlist {}
 
@@ -81,7 +91,8 @@ struct TokenPriceUpdate {
 
 struct GasPriceUpdate {
     destChainSelector: uint64;
-    usdPerUnitGas: uint224;
+    executionGasPrice: uint112;
+    dataAvailabilityGasPrice: uint112;
 }
 
 struct FeeQuoterDestChainConfig {
@@ -116,17 +127,6 @@ struct GasPrice {
     timestamp: uint64;
 }
 
-// This represents FeeQuoter's DestChainConfig (not OnRamp)
-struct DestChainConfig_Storage {
-    owner: address;
-
-    config: FeeQuoterDestChainConfig;
-
-    usdPerUnitGas: Cell<GasPrice>; // TODO: it'd be nice if this wasn't split off
-
-    tokenTransferFeeConfigs: Map<TokenTransferFeeConfig>; // (sdict) address -> TokenTransferFeeConfig
-}
-
 struct TokenTransferFeeConfig {
     isEnabled: bool;
     minFeeUsdCents: uint32;
@@ -136,46 +136,51 @@ struct TokenTransferFeeConfig {
     destBytesOverhead: uint32;
 }
 
-
-struct (0x10000001) UpdatePrices {
+struct (0x20000001) UpdatePrices {
     updates: PriceUpdates    
 }
 
-struct (0x10000002) UpdateFeeTokens {
-    // add
-    // remove
-}
-struct (0x10000003) UpdatePremiumMultiplierWeiPerEth {
-    // token, multiplier
+struct FeeToken {
+    premiumMultiplierWeiPerEth: uint64
 }
 
-struct (0x10000004) UpdateTokenTransferFeeConfigs {
-    // add
-    // remove
+struct (0x20000002) UpdateFeeTokens {
+    add: Map<FeeToken>; // token -> config
+    remove: cell; // vector<address>
 }
 
-struct (0x10000005) UpdateDestChainConfig {
+// NOTE: we just merged this into UpdateFeeTokens
+// struct (0x10000003) UpdatePremiumMultiplierWeiPerEth { // token, multiplier }
+
+struct (0x20000003) UpdateTokenTransferFeeConfigs {
+    // TODO: would these be more efficient as snakedata (key, value)?
+    updates: UMap<uint64, UpdateTokenTransferFeeConfig>; // destChainSelector -> updates
+}
+
+struct UpdateTokenTransferFeeConfig {
+    add: Map<TokenTransferFeeConfig>; // token address -> config
+    remove: cell; // vector<address>
+} 
+
+struct (0x20000004) UpdateDestChainConfig {
     destChainSelector: uint64;
     destChainConfig: FeeQuoterDestChainConfig;
 }
 
-struct (0x10000006) GetValidatedFee {
-    msg: CCIPSend;
-    caller: address;
-    // TODO: metadata { caller, value, tokenAmounts }
-}
-
-struct Fees {
-    premiumFeeUsdWei: uint256;
-    executionCost: uint256;
-    dataAvailabilityCost: uint256;
-}
-
-struct (0x10000007) MessageValidated {
+struct (0x20000005) GetValidatedFee<C> {
     msg: Cell<CCIPSend>;
-    caller: address;
-    // TODO: metadata { caller, value, tokenAmounts }
-    fees: Cell<Fees>,
+    metadata: Cell<C>,
+}
+
+struct Metadata {
+    caller: address,
+    // TODO: metadata { value, tokenAmounts }
+}
+
+struct (0x00000003) MessageValidated<C> {
+    msg: Cell<CCIPSend>;
+    metadata: Cell<C>,
+    fee: uint256; // TODO: maybe coins?
 }
 
 // OffRamp
@@ -209,3 +214,4 @@ const ERROR_INVALID_MSG_DATA: int = 260;
 const ERROR_SENDER_NOT_ALLOWED: int = 261;
 const ERROR_INVALID_MESSAGE_DEST_CHAIN_SELECTOR = 262;
 const ERROR_SOURCE_CHAIN_SELECTOR_MISMATCH = 263;
+const ERROR_TOKEN_NOT_SUPPORTED: int = 264;

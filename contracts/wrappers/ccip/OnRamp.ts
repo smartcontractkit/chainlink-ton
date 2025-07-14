@@ -1,5 +1,6 @@
 import {
   Address,
+  Builder as TonBuilder,
   beginCell,
   Cell,
   Contract,
@@ -11,9 +12,11 @@ import {
 } from '@ton/core'
 
 import { Ownable2StepConfig } from '../libraries/access/Ownable2Step'
+import { asSnakeData } from '../../utils/Utils'
 
 export type OnRampStorage = {
   ownable: Ownable2StepConfig
+  router: Address
   chainSelector: bigint
   config: {
     feeQuoter: Address
@@ -32,18 +35,15 @@ export type DestChainConfig = {
 
 export const Builder = {
   asStorage: (config: OnRampStorage): Cell => {
-    let builder = beginCell().storeAddress(config.ownable.owner)
-    // TODO: use storeMaybeBuilder()
-    if (config.ownable.pendingOwner) {
-      builder
-        .storeBit(1) // Store '1' to indicate the address is present
-        .storeAddress(config.ownable.pendingOwner) // Then store the address
-    } else {
-      builder.storeBit(0) // Store '0' to indicate the address is absent
-    }
-
     return (
-      builder
+      beginCell()
+        .storeAddress(config.ownable.owner)
+        .storeMaybeBuilder(
+          config.ownable.pendingOwner
+            ? beginCell().storeAddress(config.ownable.pendingOwner)
+            : null,
+        )
+        .storeAddress(config.router)
         .storeUint(config.chainSelector, 64)
         // Cell<DynamicConfig>
         .storeRef(
@@ -64,6 +64,8 @@ export abstract class Params {}
 
 export abstract class Opcodes {
   static ccipSend = 0x00000001
+  static setDynamicConfig = 0x10000003
+  static updateDestChainConfigs = 0x10000004
 }
 
 export abstract class Errors {}
@@ -97,6 +99,46 @@ export class OnRamp implements Contract {
       value: value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: beginCell().endCell(),
+    })
+  }
+
+  async sendSetDynamicConfig(
+    provider: ContractProvider,
+    via: Sender,
+    opts: {
+      value: bigint
+      config: boolean
+    },
+  ) {
+    await provider.internal(via, {
+      value: opts.value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: beginCell().storeUint(Opcodes.setDynamicConfig, 32).endCell(),
+    })
+  }
+
+  async sendUpdateDestChainConfigs(
+    provider: ContractProvider,
+    via: Sender,
+    opts: {
+      value: bigint
+      destChainConfigs: { destChainSelector: bigint; router: Buffer; allowlistEnabled: boolean }[]
+    },
+  ) {
+    await provider.internal(via, {
+      value: opts.value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: beginCell()
+        .storeUint(Opcodes.updateDestChainConfigs, 32)
+        .storeRef(
+          asSnakeData(opts.destChainConfigs, (config) =>
+            new TonBuilder()
+              .storeUint(config.destChainSelector, 64)
+              .storeBuffer(config.router, 64)
+              .storeBit(config.allowlistEnabled),
+          ),
+        )
+        .endCell(),
     })
   }
 }

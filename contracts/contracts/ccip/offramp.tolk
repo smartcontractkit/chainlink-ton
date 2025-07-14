@@ -3,7 +3,6 @@ import "../lib/access/ownable_2step.tolk";
 import "../lib/upgrades/type_and_version.tolk";
 import "./../lib/merkle_multi_proof/merkle_multi_proof.tolk"
 import "../deployable/types.tolk";
-import "utils.tolk";
 import "../lib/utils.tolk";
 
 struct Storage {
@@ -23,7 +22,7 @@ struct Storage {
     latestPriceSequenceNumber: uint64,
 }
 
-fun Storage.load() {
+fun Storage.load(): Storage {
     return Storage.fromCell(contract.getData());
 }
 
@@ -122,20 +121,15 @@ struct (0x00000002) Execute {
 
 type Msg = Commit | Execute;
 
-fun onInternalMessage(msgCell: cell, msgBody: slice) {
-    if (msgBody.isEnd()) { // ignore all empty messages
-        return;
-    }
-
-    var cs     = msgCell.beginParse();
-    val flags  = cs.loadMessageFlags();
-    if (isMessageBounced(flags)) { return; } // ignore all bounced messages
-    val sender = cs.loadAddress();
-
-    val msg = Msg.fromSlice(msgBody);
+fun onInternalMessage(in:InMessage) {
+    val msg = lazy Msg.fromSlice(in.body);
     match (msg) {
-        Commit => { commit(msg, sender) }
-        Execute => { _execute(msg, sender) }
+        Commit => { commit(msg, in.senderAddress) }
+        Execute => { _execute(msg, in.senderAddress) }
+        else => {
+            // ignore empty messages, "wrong opcode" for others
+            assert (in.body.isEmpty()) throw 0xFFFF
+        }
     }
 }
 
@@ -148,7 +142,7 @@ fun getMerkleRootID(merkleRoot: uint256): builder {
 }
 
 fun commit(msg: Commit, sender: address) {
-    val st = Storage.load();
+    val st = lazy Storage.load();
 
     // ocr3 base: validate signatures
 
@@ -214,7 +208,7 @@ fun commit(msg: Commit, sender: address) {
 }
 
 fun _execute(msg: Execute, sender: address) {
-    val st = Storage.load();
+    val st = lazy Storage.load();
 
     // ocr3 base: validate execute report
 
@@ -288,6 +282,39 @@ fun _execute(msg: Execute, sender: address) {
 // NOTE: this assumes router has a well known, static address. So two stage deployment: put up router, then compile the addr into contracts
 // (or init contract state with that router addr? probably what solana does)
 
-get typeAndVersion(): (slice, slice) {
+// get fun executionState() {
+//     // TODO: node will need to directly look at MerkleRoot subcontracts
+// }
+
+// get fun merkleRoot() {
+//     // TODO: node will need to directly look at MerkleRoot subcontracts
+// }
+
+get fun latestPriceSequenceNumber() {
+    
+}
+
+get fun staticConfig() {
+    // chainSelector, gasForCallExactCheck?, rmnRemote, nonceManager, tokenAdminRegistry
+}
+
+
+fun setDynamicConfig() {
+    
+}
+
+get fun dynamicConfig() {
+    
+}
+
+get fun sourceChainConfig() {}
+
+get fun allSourceChainConfigs(): tuple {
+    return createEmptyTuple()
+}
+
+fun applySourceChainConfigUpdates() {}
+
+get fun typeAndVersion(): (slice, slice) {
      return ("com.chainlink.ton.ccip.OffRamp", "1.0.0");
  }

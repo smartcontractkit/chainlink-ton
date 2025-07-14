@@ -12,10 +12,8 @@ import {
 } from '../wrappers/ccip/FeeQuoter'
 import {testLog, getExternals} from './Logs'
 import '@ton/test-utils'
+import { ZERO_ADDRESS } from '../utils/Utils'
 
-const ZERO_ADDRESS: Address = Address.parse(
-  '0:0000000000000000000000000000000000000000000000000000000000000000',
-)
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_TON = 13879075125137744094n
 
@@ -95,20 +93,17 @@ describe('Router', () => {
   let onRamp: SandboxContract<OnRamp>
   let offRamp: SandboxContract<OffRamp>
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     blockchain = await Blockchain.create()
     deployer = await blockchain.treasury('deployer')
 
     let deployerCode = await compile('Deployable')
 
-    let destChainConfigCodeRaw = await compile('DestChainConfig')
     let merkleRootCodeRaw = await compile('MerkleRoot')
 
     // Populate the emulator library code
     // https://docs.ton.org/v3/documentation/data-formats/tlb/library-cells#testing-in-the-blueprint
     const _libs = Dictionary.empty(Dictionary.Keys.BigUint(256), Dictionary.Values.Cell())
-    _libs.set(BigInt(`0x${destChainConfigCodeRaw.hash().toString('hex')}`), destChainConfigCodeRaw)
-    _libs.set(BigInt(`0x${destChainConfigCodeRaw.hash().toString('hex')}`), destChainConfigCodeRaw)
     _libs.set(BigInt(`0x${merkleRootCodeRaw.hash().toString('hex')}`), merkleRootCodeRaw)
     const libs = beginCell().storeDictDirect(_libs).endCell()
     blockchain.libs = libs
@@ -126,16 +121,10 @@ describe('Router', () => {
     {
       let code = await compile('FeeQuoter')
 
-      // Use a library reference
-      let libPrep = beginCell().storeUint(2, 8).storeBuffer(destChainConfigCodeRaw.hash()).endCell()
-      let destChainConfigCode = new Cell({ exotic: true, bits: libPrep.bits, refs: libPrep.refs })
-
       let data: FeeQuoterStorage = {
         ownable: {
           owner: deployer.address,
         },
-        deployerCode,
-        destChainConfigCode: destChainConfigCode,
         maxFeeJuelsPerMsg: 1000000n,
         linkToken: ZERO_ADDRESS,
         tokenPriceStalenessThreshold: 1000n,
@@ -144,13 +133,13 @@ describe('Router', () => {
           Dictionary.Keys.Address(),
           Dictionary.Values.BigUint(64),
         ),
+        destChainConfigs: Dictionary.empty(Dictionary.Keys.BigUint(64)),
       }
       // HACK: pre-insert token data
       data.usdPerToken.set(ZERO_ADDRESS, {
         value: 123n,
         timestamp: BigInt(Date.now()),
       } as TimestampedPrice)
-      data.premiumMultiplierWeiPerEth.set(ZERO_ADDRESS, 1n)
       feeQuoter = blockchain.openContract(FeeQuoter.createFromConfig(data, code))
 
       let result = await feeQuoter.sendDeploy(deployer.getSender(), toNano('1'))
@@ -188,13 +177,20 @@ describe('Router', () => {
           networkFeeUsdCents: 0,
         },
       })
-      // a destChainConfig subcontract must have been created
       expect(result.transactions).toHaveTransaction({
-        from: feeQuoter.address,
-        deploy: true,
+        to: feeQuoter.address,
         success: true,
       })
-      // TODO: call UpdateTokenTransferFeeConfigs, or maybe bundle this with UpdateDestChainConfig
+      // configure the feeToken
+      result = await feeQuoter.sendUpdateFeeTokens(deployer.getSender(), {
+        value: toNano('1'),
+        add: [{ token: ZERO_ADDRESS, premiumMultiplier: 1n }],
+        remove: [],
+      })
+      expect(result.transactions).toHaveTransaction({
+        to: feeQuoter.address,
+        success: true,
+      })
       // TODO: call UpdatePrices so there's a price available and the timestamp isn't zero
     }
     // setup onramp
@@ -204,6 +200,7 @@ describe('Router', () => {
         ownable: {
           owner: deployer.address,
         },
+        router: router.address,
         chainSelector: CHAINSEL_TON,
         config: {
           feeQuoter: feeQuoter.address,
@@ -212,18 +209,6 @@ describe('Router', () => {
         },
         destChainConfigs: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Cell()),
       }
-      // add config for EVM destination
-      data.destChainConfigs.set(
-        CHAINSEL_EVM_TEST_90000001,
-        beginCell()
-          .storeAddress(router.address) // TODO:
-          .storeUint(0n, 64)
-          .storeBit(false)
-          // Map<>
-          .storeDict(Dictionary.empty(Dictionary.Keys.Address(), Dictionary.Values.Bool()))
-          .endCell(),
-      )
-
       // TODO: use deployable to make deterministic?
       onRamp = blockchain.openContract(OnRamp.createFromConfig(data, code))
 
@@ -234,13 +219,31 @@ describe('Router', () => {
         deploy: true,
         success: true,
       })
+
+      // add config for EVM destination
+      result = await onRamp.sendUpdateDestChainConfigs(deployer.getSender(), {
+        value: toNano('1'),
+        destChainConfigs: [
+          {
+            destChainSelector: CHAINSEL_EVM_TEST_90000001,
+            router: Buffer.alloc(64),
+            allowlistEnabled: false,
+          },
+        ],
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: onRamp.address,
+        deploy: false,
+        success: true,
+      })
     }
     // setup offramp
     {
       let code = await compile('OffRamp')
 
       // Use a library reference
-      let libPrep = beginCell().storeUint(2, 8).storeBuffer(destChainConfigCodeRaw.hash()).endCell()
+      let libPrep = beginCell().storeUint(2, 8).storeBuffer(merkleRootCodeRaw.hash()).endCell()
       let merkleRootCode = new Cell({ exotic: true, bits: libPrep.bits, refs: libPrep.refs })
 
       let data: OffRampStorage = {
@@ -266,7 +269,7 @@ describe('Router', () => {
         success: true,
       })
     }
-  }, 15_000) // we do a fair bit of setup so increase the timeout here
+  }, 60_000) // setup can take a while, since we deploy contracts
 
   it('onramp', async () => {
     // Configure onRamp on router
@@ -313,13 +316,6 @@ describe('Router', () => {
     expect(result.transactions).toHaveTransaction({
       from: onRamp.address,
       to: feeQuoter.address,
-      deploy: false,
-      success: true,
-    })
-    // fee quoter called the destChainConfig
-    expect(result.transactions).toHaveTransaction({
-      from: feeQuoter.address,
-      // to: feeQuoter.address,
       deploy: false,
       success: true,
     })

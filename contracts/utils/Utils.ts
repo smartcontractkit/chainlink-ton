@@ -1,4 +1,9 @@
-import { Tuple, beginCell, Builder, Cell, Slice, TupleItem, TupleReader } from '@ton/core'
+import { Tuple, beginCell, Builder, Cell, Slice, TupleItem, TupleReader, Address } from '@ton/core'
+
+
+export const ZERO_ADDRESS: Address = Address.parse(
+  '0:0000000000000000000000000000000000000000000000000000000000000000',
+)
 
 // Converts a BigInt to a 32-byte (256-bit) Uint8Array, padding with leading zeros if necessary.
 export function bigIntToUint8Array(value: bigint): Uint8Array {

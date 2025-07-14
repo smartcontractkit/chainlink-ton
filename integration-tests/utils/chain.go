@@ -38,9 +38,10 @@ func CreateTonWallet(t *testing.T, client ton.APIClientWrapped, version wallet.V
 
 func FundTonWallets(t *testing.T, client ton.APIClientWrapped, recipients []*address.Address, amounts []tlb.Coins) {
 	t.Logf("Funding %d wallets", len(recipients))
-	rawHlWallet, err := wallet.FromSeed(client, strings.Fields(blockchain.DefaultTonHlWalletMnemonic), wallet.HighloadV2Verified) //nolint:staticcheck
+	walletVersion := wallet.HighloadV2Verified //nolint:staticcheck // only option in mylocalton-docker
+	rawHlWallet, err := wallet.FromSeed(client, strings.Fields(blockchain.DefaultTonHlWalletMnemonic), walletVersion)
 	require.NoError(t, err, "failed to create highload wallet")
-	mcFunderWallet, err := wallet.FromPrivateKeyWithOptions(client, rawHlWallet.PrivateKey(), wallet.HighloadV2Verified, wallet.WithWorkchain(-1)) //nolint:staticcheck
+	mcFunderWallet, err := wallet.FromPrivateKeyWithOptions(client, rawHlWallet.PrivateKey(), walletVersion, wallet.WithWorkchain(-1))
 	require.NoError(t, err, "failed to create highload wallet")
 	subWalletID := uint32(42)
 	funder, err := mcFunderWallet.GetSubwallet(subWalletID)
@@ -133,6 +134,7 @@ func waitForAirdropCompletion(t *testing.T, client ton.APIClientWrapped, recipie
 }
 
 func StartTonChain(t *testing.T, nodeClient *ton.APIClient, chainID uint64, deployerWallet *wallet.Wallet) cldf_ton.Chain {
+	t.Helper()
 	ton := cldf_ton.Chain{
 		ChainMetadata: cldf_ton.ChainMetadata{Selector: chainID},
 		Client:        nodeClient,
@@ -147,15 +149,24 @@ func CreateAPIClient(t *testing.T, chainID uint64) *ton.APIClient {
 	err := framework.DefaultNetwork(once)
 	require.NoError(t, err)
 
+	port := freeport.GetOne(t)
+
 	bcInput := &blockchain.Input{
 		ChainID: strconv.FormatUint(chainID, 10),
 		Type:    "ton",
 		Image:   "ghcr.io/neodix42/mylocalton-docker:latest",
-		Port:    strconv.Itoa(freeport.GetOne(t)),
+		Port:    strconv.Itoa(port),
 	}
 
 	bcOut, err := blockchain.NewBlockchainNetwork(bcInput)
 	require.NoError(t, err, "failed to create blockchain network")
+
+	t.Cleanup(func() {
+		ctfErr := framework.RemoveTestContainers()
+		require.NoError(t, ctfErr, "failed to remove test containers")
+		freeport.Return([]int{port})
+	})
+
 	networkCfg := fmt.Sprintf("http://%s/localhost.global.config.json", bcOut.Nodes[0].ExternalHTTPUrl)
 
 	cfg, err := liteclient.GetConfigFromUrl(t.Context(), networkCfg)
@@ -170,5 +181,6 @@ func CreateAPIClient(t *testing.T, chainID uint64) *ton.APIClient {
 
 	_, err = client.GetMasterchainInfo(t.Context())
 	require.NoError(t, err, "TON network not ready")
+
 	return client
 }

@@ -12,11 +12,11 @@ func GetRandomWallet(t *testing.T, client ton.APIClientWrapped, version wallet.V
 	seed := wallet.NewSeed()
 	w, err := wallet.FromSeed(client, seed, version)
 	if err != nil {
-		t.Fatalf("Failed to generate random wallet: %s", err)
+		t.Fatalf("failed to generate random wallet: %s", err)
 	}
 	pw, perr := wallet.FromPrivateKeyWithOptions(client, w.PrivateKey(), version, option)
 	if perr != nil {
-		t.Fatalf("Failed to generate random wallet: %v", perr)
+		t.Fatalf("failed to generate random wallet: %v", perr)
 	}
 	return pw
 }

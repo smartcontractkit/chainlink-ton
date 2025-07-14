@@ -26,25 +26,14 @@ struct (0x00000002) Transmit {
 // Support the SetOCR3Config message from multi_ocr3_base.tolk
 type IncomingMessage = Transmit | OCR3Base_SetOCR3Config;
 
-fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: slice) {
-    if (msgBody.isEnd()) { // ignore all empty messages
-        return;
-    }
-
-    var cs = msgFull.beginParse();
-    var flags = cs.loadMessageFlags();
-    if (isMessageBounced(flags)) { // ignore all bounced messages
-        return;
-    }
-    val sender: address = cs.loadAddress();
-
-    val msg = IncomingMessage.fromSlice(msgBody);
+fun onInternalMessage(in: InMessage) {
+    val msg = lazy IncomingMessage.fromSlice(in.body);
 
     match (msg) {
         Transmit => {
         //Using the transmit function validates signatures and emits an event
-            var storage = loadData();
-
+            var storage = lazy loadData();
+            val sender = in.senderAddress;
             storage.ocr3Base.transmit(
                 sender,
                 msg.ocrPluginType,
@@ -55,30 +44,35 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
         },
         //The SetOCR3Config message configures authorized signers and transmitters
         OCR3Base_SetOCR3Config => {
-            var storage = loadData();
+            // On a real contract you would invoke requireOwner here
+            var storage = lazy loadData();
             storage.ocr3Base.setOcr3Config(msg);
             saveData(storage);
-        }
+        },
+        else => {
+            // ignore empty messages, "wrong opcode" for others
+            assert (in.body.isEmpty()) throw 0xFFFF
+        }        
      }
 }
 
-get ocr3ConfigInfo(ocrPluginType: uint16): ConfigInfo {
-    val s = loadData();
+get fun ocr3ConfigInfo(ocrPluginType: uint16): ConfigInfo {
+    val s = lazy loadData();
     val config = s.ocr3Base.getConfig(ocrPluginType);
     assert(config != null, ERROR_NON_EXISTENT_OCR_PLUGIN_TYPE);
     return config!.configInfo;
 }
 
-get ocr3Signers(ocrPluginType: uint16): tuple? {
-    val s = loadData();
+get fun ocr3Signers(ocrPluginType: uint16): tuple? {
+    val s = lazy loadData();
     val config = s.ocr3Base.getConfig(ocrPluginType);
     assert(config != null, ERROR_NON_EXISTENT_OCR_PLUGIN_TYPE);
     var d = config!.signers;
     return d.keysDestructs(); 
 }
 
-get ocr3Transmitters(ocrPluginType: uint16): tuple? {
-    val s = loadData();
+get fun ocr3Transmitters(ocrPluginType: uint16): tuple? {
+    val s = lazy loadData();
     val config = s.ocr3Base.getConfig(ocrPluginType);
     assert(config != null, ERROR_NON_EXISTENT_OCR_PLUGIN_TYPE);
     var d  = config!.transmitters;

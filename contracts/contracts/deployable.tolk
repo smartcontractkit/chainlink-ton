@@ -3,20 +3,12 @@
 // }
 
 import "deployable/types.tolk";
-import "lib/utils.tolk";
 
-fun onInternalMessage(msgCell: cell, inMsgBody: slice) {
-    var cs: slice = msgCell.beginParse();
-    val flags = cs.loadMessageFlags();
-    if (isMessageBounced(flags)) { // ignore all bounced messages
-        return;
-    }
-
+fun onInternalMessage(in: InMessage) {
     val st = Deployable<RemainingBitsAndRefs>.load();
-    val sender: address = cs.loadAddress();
-    assert(sender == st.owner) throw ERROR_NOT_OWNER;
+    assert(in.senderAddress == st.owner) throw ERROR_NOT_OWNER;
 
-    val payload = Initialize.fromSlice(inMsgBody);
+    val payload = Initialize.fromSlice(in.body);
     contract.setCodePostponed(payload.stateInit.code);
     contract.setData(payload.stateInit.data);
 }
