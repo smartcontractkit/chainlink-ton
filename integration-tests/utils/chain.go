@@ -36,6 +36,28 @@ func CreateTonWallet(t *testing.T, client ton.APIClientWrapped, version wallet.V
 	return pw
 }
 
+// TODO: we don't need to specify workchain?
+func CreateTonHighloadWallet(t *testing.T, client ton.APIClientWrapped) *wallet.Wallet {
+	seed := wallet.NewSeed()
+	w, err := wallet.FromSeed(client, seed, wallet.ConfigHighloadV3{
+		MessageTTL: 60 * 5,
+		MessageBuilder: func(ctx context.Context, subWalletId uint32) (id uint32, createdAt int64, err error) {
+			// Due to specific of externals emulation on liteserver,
+			// we need to take something less than or equals to block time, as message creation time,
+			// otherwise external message will be rejected, because time will be > than emulation time
+			// hope it will be fixed in the next LS versions
+			createdAt = time.Now().Unix() - 30
+
+			// example query id which will allow you to send 1 tx per second
+			// but you better to implement your own iterator in database, then you can send unlimited
+			// but make sure id is less than 1 << 23, when it is higher start from 0 again
+			return uint32(createdAt % (1 << 23)), createdAt, nil
+		},
+	})
+	require.NoError(t, err, "failed to generate random wallet: %w", err)
+	return w
+}
+
 func FundTonWallets(t *testing.T, client ton.APIClientWrapped, recipients []*address.Address, amounts []tlb.Coins) {
 	t.Logf("Funding %d wallets", len(recipients))
 	walletVersion := wallet.HighloadV2Verified //nolint:staticcheck // only option in mylocalton-docker

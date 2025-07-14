@@ -2,7 +2,6 @@ package eventemitter
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
 	"math/big"
 	"math/rand/v2"
@@ -23,6 +22,20 @@ import (
 // TODO: we should also consider separating go modules by production and test contracts
 
 var EventEmitterPath = test_utils.GetBuildDir("examples.logpoller.event-emitter.compiled.json")
+
+var (
+	CounterIncreasedTopic uint64 = 0x1234
+	CounterResetTopic     uint64 = 0x5678
+)
+
+type CounterIncreased struct {
+	ID      uint64 `tlb:"## 64"`
+	Counter uint64 `tlb:"## 64"`
+}
+
+type CounterReset struct {
+	ID uint64 `tlb:"## 64"`
+}
 
 func DeployEventEmitterContract(ctx context.Context, client ton.APIClientWrapped, wallet *wallet.Wallet, id uint64) (*address.Address, error) {
 	// TODO: any context is not being used in contract helpers
@@ -56,16 +69,6 @@ func IncreaseCounterMsg(contractAddress *address.Address) *wallet.Message {
 		MustStoreUInt(0x7e8764ef, 32).    // IncreaseCounter op code
 		MustStoreUInt(rand.Uint64(), 64). // queryId
 		EndCell()
-
-	fmt.Printf("Message body BOC: %s\n", base64.StdEncoding.EncodeToString(msgBody.ToBOC()))
-
-	// Debug: Check if the body has the expected structure
-	slice := msgBody.BeginParse()
-	fmt.Printf("Original body bits: %d, refs: %d\n", slice.BitsLeft(), slice.RefsNum())
-
-	opcode, _ := slice.LoadUInt(32)
-	queryId, _ := slice.LoadUInt(64)
-	fmt.Printf("After parsing - opcode: 0x%x, queryId: %d, remaining bits: %d\n", opcode, queryId, slice.BitsLeft())
 
 	msg := &wallet.Message{
 		Mode: 1,

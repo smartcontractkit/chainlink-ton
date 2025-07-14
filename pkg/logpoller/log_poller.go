@@ -32,7 +32,7 @@ type LogPoller interface {
 
 type logCollector interface {
 	// TODO: solidify replay strategy
-	BackfillForAddresses(ctx context.Context, addresses []*address.Address, fromSeqNo uint32, currentMaster *ton.BlockIDExt) (msgs []*tlb.ExternalMessageOut, err error)
+	BackfillForAddresses(ctx context.Context, addresses []*address.Address, prevBlock *ton.BlockIDExt, toBlock *ton.BlockIDExt) (msgs []*tlb.ExternalMessageOut, err error)
 }
 
 type Service struct {
@@ -44,7 +44,6 @@ type Service struct {
 	loader             logCollector
 	store              *InMemoryStore
 	pollPeriod         time.Duration
-	pageSize           uint32
 	lastProcessedSeqNo uint32 // last processed masterchain seqno
 }
 
@@ -63,9 +62,8 @@ func NewLogPoller(
 		filters:    filters,
 		store:      store,
 		pollPeriod: pollPeriod,
-		pageSize:   pageSize,
 	}
-	lp.loader = NewLoader(lp.client, lp.lggr)
+	lp.loader = NewLoader(lp.client, lp.lggr, pageSize)
 	lp.Service, lp.eng = services.Config{
 		Name:  "Service",
 		Start: lp.start,
@@ -98,17 +96,17 @@ func (lp *Service) run(ctx context.Context) (err error) {
 	// TODO: implement backfill logic(if there is filters marked for backfill)
 
 	// get the current masterchain seqno
-	master, err := lp.client.CurrentMasterchainInfo(ctx)
+	toBlock, err := lp.client.CurrentMasterchainInfo(ctx)
 	if err != nil {
 		return err
 	}
 	// compare with last processed seqno, if last seqno is higher, there is a problem
-	if master.SeqNo < lastProcessedSeq {
-		return fmt.Errorf("last seqno (%d) > chain seqno (%d)", lastProcessedSeq, master.SeqNo)
+	if toBlock.SeqNo < lastProcessedSeq {
+		return fmt.Errorf("last seqno (%d) > chain seqno (%d)", lastProcessedSeq, toBlock.SeqNo)
 	}
 	// if we already processed this seqno, skip
-	if master.SeqNo == lastProcessedSeq {
-		lp.lggr.Debugw("skipping already processed masterchain seq", "seq", master.SeqNo)
+	if toBlock.SeqNo == lastProcessedSeq {
+		lp.lggr.Debugw("skipping already processed masterchain seq", "seq", toBlock.SeqNo)
 		return nil
 	}
 
@@ -119,20 +117,35 @@ func (lp *Service) run(ctx context.Context) (err error) {
 	}
 	lp.lggr.Debugw("Processing messages for addresses", "addresses", addresses)
 
-	err = lp.processBlocksRange(ctx, addresses, lastProcessedSeq+1, master)
+	var prevBlock *ton.BlockIDExt
+	// get the prevBlock based on the last processed seqno(masterchain)
+
+	if lastProcessedSeq == 0 {
+		// For the first run, we don't have a previous block to reference
+		prevBlock = nil
+		lp.lggr.Debugw("First run detected, processing from genesis", "toSeq", toBlock.SeqNo)
+	} else {
+		// Get the prevBlock based on the last processed seqno
+		prevBlock, err = lp.client.LookupBlock(ctx, toBlock.Workchain, toBlock.Shard, lastProcessedSeq)
+		if err != nil {
+			return fmt.Errorf("LookupBlock: %w", err)
+		}
+	}
+
+	err = lp.processBlocksRange(ctx, addresses, prevBlock, toBlock)
 	if err != nil {
 		return fmt.Errorf("processBlocksRange: %w", err)
 	}
 
 	// save the last processed seqno
-	lp.lastProcessedSeqNo = master.SeqNo
+	lp.lastProcessedSeqNo = toBlock.SeqNo
 	return nil
 }
 
-func (lp *Service) processBlocksRange(ctx context.Context, addresses []*address.Address, fromSeqNo uint32, currentMaster *ton.BlockIDExt) error {
-	lp.lggr.Debugw("Got new seq range to process", "from", fromSeqNo, "to", currentMaster.SeqNo)
+func (lp *Service) processBlocksRange(ctx context.Context, addresses []*address.Address, prevBlock *ton.BlockIDExt, toBlock *ton.BlockIDExt) error {
+	lp.lggr.Debugw("Got new seq range to process", "from", prevBlock.SeqNo, "to", toBlock.SeqNo)
 
-	msgs, err := lp.loader.BackfillForAddresses(ctx, addresses, fromSeqNo, currentMaster)
+	msgs, err := lp.loader.BackfillForAddresses(ctx, addresses, prevBlock, toBlock)
 	if err != nil {
 		return fmt.Errorf("BackfillForAddresses: %w", err)
 	}
