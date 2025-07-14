@@ -375,7 +375,7 @@ const LEN_BLOCKED_FN_SELECTOR = 32;
 
 /// @dev Requires that the sender has the given role or the admin role.
 fun Timelock<T>.onlyRoleOrAdminRole(self, role: int, sender: address): void {
-    var rbac = self.hookTrait__AccessControl();
+    val rbac = self.hookTrait__AccessControl();
     if (!rbac.hasRole(ADMIN_ROLE, sender)) {
         rbac.requireRole(role, sender);
     }
@@ -447,10 +447,26 @@ fun Timelock<T>.hashOperationBatch(self, op: OperationBatch): uint256 {
 /// - the caller must have the 'admin' role.
 ///
 fun Timelock<T>.blockFunctionSelector(mutate self, queryId: uint64, sender: address, selector: uint32): bool {
-    // if (_blockedFunctionSelectors.add(selector)) {
-    //     emit FunctionSelectorBlocked(selector);
-    // }
-    return false; // TODO: implement
+    val rbac = self.hookTrait__AccessControl();
+    rbac.requireRole(ADMIN_ROLE, sender);
+
+    val updated = self.data.blockedFnSelectors.uDictSetIfNotExists(LEN_BLOCKED_FN_SELECTOR, selector, createEmptySlice());
+    if (updated) {
+        self.data.blockedFnSelectorsLen += 1;
+
+        // Send a message to the sender to notify about the change
+        val reply = createMessage({
+            bounce: false,
+            value: 0,
+            dest: sender,
+            body: Timelock_FunctionSelectorBlocked {queryId, selector}
+        });
+        reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+
+        return true;
+    }
+
+    return false;
 }
 
 /// @dev Unblocks a previously blocked function selector so it can be used again.
@@ -460,10 +476,26 @@ fun Timelock<T>.blockFunctionSelector(mutate self, queryId: uint64, sender: addr
 /// - the caller must have the 'admin' role.
 ///
 fun Timelock<T>.unblockFunctionSelector(mutate self, queryId: uint64, sender: address, selector: uint32): bool {
-    // if (_blockedFunctionSelectors.remove(selector)) {
-    //     emit FunctionSelectorUnblocked(selector);
-    // }
-    return false; // TODO: implement
+    val rbac = self.hookTrait__AccessControl();
+    rbac.requireRole(ADMIN_ROLE, sender);
+
+    val updated = self.data.blockedFnSelectors.uDictDelete(LEN_BLOCKED_FN_SELECTOR, selector);
+    if (updated) {
+        self.data.blockedFnSelectorsLen -= 1;
+
+        // Send a message to the sender to notify about the change
+        val reply = createMessage({
+            bounce: false,
+            value: 0,
+            dest: sender,
+            body: Timelock_FunctionSelectorUnblocked {queryId, selector}
+        });
+        reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+
+        return true;
+    }
+
+    return false;
 }
 
 /// @dev Returns the number of blocked function selectors.
@@ -562,7 +594,7 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
 
     // Load the contract storage
     var s = Timelock_Data.fromContractData();
-    var timelock: Timelock<bool> = { data: s }; // TODO: merge with above
+    val timelock: Timelock<bool> = { data: s }; // TODO: merge with above
     var rbac = timelock.hookTrait__AccessControl();
 
     val senderAddress: address = cs.loadAddress();
@@ -707,15 +739,15 @@ get fun typeAndVersion(): (slice, slice) {
 
 /// @see <AccessControl<T>.hasRole>
 get fun hasRole(role: int, account: address): bool {
-    var timelock: Timelock<bool> = { data: Timelock_Data.fromContractData() };
-    var rbac = timelock.hookTrait__AccessControl();
+    val timelock: Timelock<bool> = { data: Timelock_Data.fromContractData() };
+    val rbac = timelock.hookTrait__AccessControl();
     return rbac.hasRole(role, account);
 }
 
 /// @see <AccessControl<T>.getRoleAdmin>
 get fun getRoleAdmin(role: int): int {
-    var timelock: Timelock<bool> = { data: Timelock_Data.fromContractData() };
-    var rbac = timelock.hookTrait__AccessControl();
+    val timelock: Timelock<bool> = { data: Timelock_Data.fromContractData() };
+    val rbac = timelock.hookTrait__AccessControl();
     return rbac.getRoleAdmin(role);
 }
 
@@ -723,35 +755,35 @@ get fun getRoleAdmin(role: int): int {
 
 /// @see <AccessControl<T>.getRoleMember>
 get fun getRoleMember(role: int, index: uint32): address {
-    var timelock: Timelock<bool> = { data: Timelock_Data.fromContractData() };
-    var rbac = timelock.hookTrait__AccessControl();
+    val timelock: Timelock<bool> = { data: Timelock_Data.fromContractData() };
+    val rbac = timelock.hookTrait__AccessControl();
     return rbac.getRoleMember(role, index);
 }
 
 /// @see <AccessControl<T>.getRoleMemberFirst>
 get fun getRoleMemberFirst(role: int): address {
-    var timelock: Timelock<bool> = { data: Timelock_Data.fromContractData() };
-    var rbac = timelock.hookTrait__AccessControl();
+    val timelock: Timelock<bool> = { data: Timelock_Data.fromContractData() };
+    val rbac = timelock.hookTrait__AccessControl();
     return rbac.getRoleMemberFirst(role);
 }
 
 /// @see <AccessControl<T>.getRoleMemberNext>
 get fun getRoleMemberNext(role: int, pivot: address): address {
-    var timelock: Timelock<bool> = { data: Timelock_Data.fromContractData() };
-    var rbac = timelock.hookTrait__AccessControl();
+    val timelock: Timelock<bool> = { data: Timelock_Data.fromContractData() };
+    val rbac = timelock.hookTrait__AccessControl();
     return rbac.getRoleMemberNext(role, pivot);
 }
 
 /// @see <AccessControl<T>.getRoleMemberCount>
 get fun getRoleMemberCount(role: int): int {
-    var timelock: Timelock<bool> = { data: Timelock_Data.fromContractData() };
-    var rbac = timelock.hookTrait__AccessControl();
+    val timelock: Timelock<bool> = { data: Timelock_Data.fromContractData() };
+    val rbac = timelock.hookTrait__AccessControl();
     return rbac.getRoleMemberCount(role);
 }
 
 /// @see <AccessControl<T>.getRoleMembers>
 get fun getRoleMembers(role: int): dict {
-    var timelock: Timelock<bool> = { data: Timelock_Data.fromContractData() };
-    var rbac = timelock.hookTrait__AccessControl();
+    val timelock: Timelock<bool> = { data: Timelock_Data.fromContractData() };
+    val rbac = timelock.hookTrait__AccessControl();
     return rbac.getRoleMembers(role);
 }
