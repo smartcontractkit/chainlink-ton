@@ -3,6 +3,7 @@ package tracetracking
 import (
 	"fmt"
 	"math/big"
+	"strings"
 
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
@@ -72,12 +73,50 @@ type ReceivedMessage struct {
 	TotalActionFees                  *big.Int           // Fees charged to the sender for sending messages. This + the fwdFee of each outgoing msg forms the total charged in the action phase.
 	GasFee                           *big.Int           // Fees charged to the receiver for processing the message.
 	MagicFee                         *big.Int           // Unknown origin fee
-	Bounced                          bool               // Indicates if the transaction was bounced
+	EmitedBoucedMessage              bool               // Indicates if the transaction was bounced
 	Success                          bool               // Indicates if the transaction was successful
 	ExitCode                         tvm.ExitCode       // Exit code of the transaction execution
 	OutgoingInternalSentMessages     []*SentMessage     // Internal messages sent as a result of this message
 	OutgoingInternalReceivedMessages []*ReceivedMessage // Internal messages that have been received by their recipients
 	OutgoingExternalMessages         []OutgoingExternalMessages
+}
+
+// Outputs a nicely indented string representation of the trace tree, with the exit codes, bouced tags and sender-receiver
+func (m *ReceivedMessage) Dump() string {
+	lines := dumpRec(m)
+	return strings.Join(lines, "\n")
+}
+
+func dumpRec(m *ReceivedMessage) []string {
+	describeExitCode := func(exitCode tvm.ExitCode) string {
+		if exitCode == 0 {
+			return "0"
+		}
+		return fmt.Sprintf("%d (%s)", exitCode, exitCode.Describe())
+	}
+	output := make([]string, 1)
+	if m.InternalMsg != nil {
+		slice := m.InternalMsg.Body.BeginParse()
+		opcode, err := slice.LoadUInt(32)
+		if err != nil {
+			panic(fmt.Sprintf("failed to load opcode from message body: %s", err))
+		}
+		output[0] = fmt.Sprintf("%s -- (opcode: %x exit code: %s, bounced: %t) --> %s",
+			m.InternalMsg.SrcAddr.String(), opcode, describeExitCode(m.ExitCode), m.InternalMsg.Bounced, m.InternalMsg.DstAddr.String())
+	} else if m.ExternalMsg != nil {
+		output[0] = fmt.Sprintf("%s -- (exit code: %s) --> %s",
+			m.ExternalMsg.SrcAddr.String(), describeExitCode(m.ExitCode), m.ExternalMsg.DstAddr.String())
+	}
+	for _, sentMessage := range m.OutgoingInternalReceivedMessages {
+		for j, line := range dumpRec(sentMessage) {
+			if j == 0 {
+				output = append(output, fmt.Sprintf("└ %s", line))
+			} else {
+				output = append(output, fmt.Sprintf("│ %s", line))
+			}
+		}
+	}
+	return output
 }
 
 // OutgoingExternalMessages represents external messages sent by a contract,
@@ -214,7 +253,7 @@ func MapToReceivedMessage(txOnReceived *tlb.Transaction) (ReceivedMessage, error
 		StorageFeeCharged:                big.NewInt(0),
 		GasFee:                           big.NewInt(0),
 		MagicFee:                         big.NewInt(0).Sub(newVar, importFee),
-		Bounced:                          false,
+		EmitedBoucedMessage:              false,
 		Success:                          false,
 		ExitCode:                         0,
 		TotalActionFees:                  big.NewInt(0),
@@ -251,7 +290,7 @@ func MapToReceivedMessage(txOnReceived *tlb.Transaction) (ReceivedMessage, error
 			if _, ok = dsc.BouncePhase.Phase.(tlb.BouncePhaseOk); ok {
 				// transaction was bounced, and coins were returned to sender
 				// this can happen mostly on custom contracts
-				res.Bounced = true
+				res.EmitedBoucedMessage = true
 			}
 		}
 		computePhase, ok := dsc.ComputePhase.Phase.(tlb.ComputePhaseVM)

@@ -22,7 +22,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 )
 
-func SetUpTest(t *testing.T, chainID uint64, initialAmount *big.Int, fundedAccountsCount uint) (accounts []tracetracking.SignedAPIClient) {
+func SetUpTest(t *testing.T, chainID uint64, initialAmount *big.Int, fundedAccountsCount uint) (newWallet func() tracetracking.SignedAPIClient) {
 	api := testutils.CreateAPIClient(t, chainID)
 
 	// Get wallet for operations
@@ -33,12 +33,11 @@ func SetUpTest(t *testing.T, chainID uint64, initialAmount *big.Int, fundedAccou
 
 	initialCoinAmount := tlb.FromNanoTON(initialAmount)
 
-	accounts = make([]tracetracking.SignedAPIClient, fundedAccountsCount)
-	for i := range fundedAccountsCount {
-		accounts[i] = createAndFundWallet(t, api, funder, initialCoinAmount)
+	newWallet = func() tracetracking.SignedAPIClient {
+		return CreateAndFundWallet(t, api, funder, initialCoinAmount)
 	}
 
-	return accounts
+	return newWallet
 }
 
 func GetRandomWallet(client ton.APIClientWrapped, version wallet.Version, option wallet.Option) (*wallet.Wallet, error) {
@@ -54,14 +53,14 @@ func GetRandomWallet(client ton.APIClientWrapped, version wallet.Version, option
 	return pw, nil
 }
 
-func createAndFundWallet(t *testing.T, api *ton.APIClient, funder tracetracking.SignedAPIClient, initialCoinAmount tlb.Coins) tracetracking.SignedAPIClient {
+func CreateAndFundWallet(t *testing.T, api *ton.APIClient, funder tracetracking.SignedAPIClient, initialCoinAmount tlb.Coins) tracetracking.SignedAPIClient {
 	aliceWallet, err := GetRandomWallet(api, wallet.V3R2, wallet.WithWorkchain(0))
 	require.NoError(t, err, "failed to create new wallet: %w", err)
 	transferToAlice, err := funder.Wallet.BuildTransfer(aliceWallet.WalletAddress(), initialCoinAmount, false, "deposit")
 	require.NoError(t, err, "failed to build transfer: %w", err)
 	result, err := funder.SendAndWaitForTrace(context.TODO(), *aliceWallet.WalletAddress(), transferToAlice)
 	require.NoError(t, err, "failed to send transaction: %w", err)
-	require.True(t, result.Success && !result.Bounced, "Transaction failed")
+	require.True(t, result.Success && !result.EmitedBoucedMessage, "Transaction failed")
 	alice := tracetracking.NewSignedAPIClient(api, *aliceWallet)
 	return alice
 }
