@@ -443,7 +443,7 @@ fun AccessControl<T>.renounceRole(mutate self, queryId: uint64, sender: address,
 /// @dev Sets `adminRole` as `role`'s admin role.
 ///
 /// Emits a {AccessControl_RoleAdminChanged} event.
-fun AccessControl<T>._setRoleAdmin(mutate self, queryId: uint64, sender: address, role: int, adminRole: int) {
+fun AccessControl<T>._setRoleAdmin(mutate self, queryId: uint64, sender: address, role: int, adminRole: int): void {
     var d: AccessControl_RoleData = self.data.getRoleDataOrSetDefault(role);
     val previousAdminRole = d.adminRole;
     // Update the admin role for the role

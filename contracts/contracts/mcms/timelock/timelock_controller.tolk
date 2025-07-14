@@ -64,6 +64,32 @@ import "timelock_controller/admin_calls.tolk";
 
 // --- Messages - incoming ---
 
+/// @dev Initializes the contract with the following parameters:
+///
+/// - `minDelay`: initial minimum delay for operations
+/// - `admin`: account to be granted admin role
+/// - `proposers`: accounts to be granted proposer role
+/// - `executors`: accounts to be granted executor role
+/// - `cancellers`: accounts to be granted canceller role
+/// - `bypassers`: accounts to be granted bypasser role
+///
+struct (0x4982fcfd) Timelock_Init {
+    /// Query ID of the change owner request.
+    queryId: uint64;
+
+    /// Minimum delay in seconds for future operations.
+    minDelay: uint64;
+
+    /// Address of the admin account.
+    admin: address;
+
+    /// Collection of addresses to be granted proposer, executor, canceller and bypasser roles.
+    proposers: cell; // TODO: encode as vec<Address>
+    executors: cell; // TODO: encode as vec<Address>
+    cancellers: cell; // TODO: encode as vec<Address>
+    bypassers: cell; // TODO: encode as vec<Address>
+}
+
 /// @dev Schedule an operation containing a batch of transactions.
 ///
 /// Emits one {Timelock_CallScheduled} event per transaction in the batch.
@@ -78,7 +104,7 @@ struct (0x94718f4) Timelock_ScheduleBatch {
     queryId: uint64;
 
     // Array of calls to be scheduled
-    calls: cell; // TODO: encode as vec<Call>
+    calls: cell; // TODO: encode as vec<Timelock_Call>
     // Predecessor operation ID
     predecessor: uint256;
     // Salt used to derive the operation ID
@@ -114,7 +140,7 @@ struct (0x6e9Bf263) Timelock_ExecuteBatch {
     queryId: uint64;
 
     // Array of calls to be scheduled
-    calls: cell; // TODO: encode as vec<Call>
+    calls: cell; // TODO: encode as vec<Timelock_Call>
     // Predecessor operation ID
     predecessor: uint256;
     // Salt used to derive the operation ID
@@ -183,11 +209,12 @@ struct (0xbb0e9f7d) Timelock_BypasserExecuteBatch {
     queryId: uint64;
 
     /// Array of calls to be scheduled
-    calls: cell; // TODO: encode as vec<Call>
+    calls: cell; // TODO: encode as vec<Timelock_Call>
 }
 
 /// @dev Union of all incoming messages.
-type Timelock_Message = Timelock_ScheduleBatch
+type Timelock_InMessage = Timelock_Init
+    | Timelock_ScheduleBatch
     | Timelock_Cancel
     | Timelock_ExecuteBatch
     | Timelock_UpdateDelay
@@ -438,6 +465,54 @@ fun Timelock<T>.hashOperationBatch(self, op: OperationBatch): uint256 {
 
     // Fallback to taking the standard cell hash of the operation
     return op.hash()
+}
+
+/// @dev Initializes the contract
+fun Timelock<T>.init(mutate self, sender: address, body: Timelock_Init): void {
+    // TODO: add a check to secure contract initialization
+    //   - check that the contract is not already initialized
+    //   - check that the deployer is the Timelock_Init sender
+
+    var rbac = self.hookTrait__AccessControl();
+
+    rbac._setRoleAdmin(ADMIN_ROLE, ADMIN_ROLE);
+    rbac._setRoleAdmin(PROPOSER_ROLE, ADMIN_ROLE);
+    rbac._setRoleAdmin(EXECUTOR_ROLE, ADMIN_ROLE);
+    rbac._setRoleAdmin(CANCELLER_ROLE, ADMIN_ROLE);
+    rbac._setRoleAdmin(BYPASSER_ROLE, ADMIN_ROLE);
+
+    rbac._grantRole(ADMIN_ROLE, body.admin);
+
+    // Grant roles to proposers, executors, cancellers and bypassers
+    // TODO: iterate and grant roles
+    // for (uint256 i = 0; i < body.proposers.length; ++i) {
+    //     _grantRole(PROPOSER_ROLE, body.proposers[i]);
+    // }
+
+    // TODO: iterate and grant roles
+    // for (uint256 i = 0; i < body.executors.length; ++i) {
+    //     _grantRole(EXECUTOR_ROLE, body.executors[i]);
+    // }
+
+    // TODO: iterate and grant roles
+    // for (uint256 i = 0; i < body.cancellers.length; ++i) {
+    //     _grantRole(CANCELLER_ROLE, body.cancellers[i]);
+    // }
+
+    // TODO: iterate and grant roles
+    // for (uint256 i = 0; i < body.bypassers.length; ++i) {
+    //     _grantRole(BYPASSER_ROLE, body.bypassers[i]);
+    // }
+
+    self.data.minDelay = body.minDelay;
+    // Send a message to the sender to notify about the change
+    val reply = createMessage({
+        bounce: false,
+        value: 0,
+        dest: sender,
+        body: Timelock_MinDelayChange {queryId: body.queryId, oldDuration: 0, newDuration: body.minDelay}
+    });
+    reply.send(SEND_MODE_REGULAR); // pay the message fee from the value, keep the rest
 }
 
 /// @dev Schedule an operation containing a batch of transactions.
@@ -703,6 +778,8 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
     if (msgBody.isEndOfBits() && msgBody.isEndOfRefs()) {
         return; // accept TON coins without any further processing
     }
+
+    // TODO: handle Timelock_Init message (constructor)
 
     var cs: slice = msgFull.beginParse();
     val flags = cs.loadMessageFlags();
