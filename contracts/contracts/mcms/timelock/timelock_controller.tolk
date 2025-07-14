@@ -293,7 +293,7 @@ struct Timelock_Data {
     // id: uint32;          // required to allow multiple independent instances, since contract address depends on initial state
 
     /// Minimum delay for operations in seconds
-    minDelay: uint32;
+    minDelay: uint64;
     /// Number of timestamps stored, used to track the size of the storage
     timestampCount: uint32;
     // Map of operation id to timestamp
@@ -353,13 +353,16 @@ struct Timelock_Hooks<T> {
 
 // --- Constants ---
 
-// TODO: use keccak256 hash function to match Ethereum implementation
-// Notice: role constants are kept as original Ethereum implementation (keccak256)
+/// TODO: use keccak256 hash function to match Ethereum implementation
+/// Notice: role constants are kept as original Ethereum implementation (keccak256)
 const ADMIN_ROLE = stringSha256_32("ADMIN_ROLE");
 const PROPOSER_ROLE = stringSha256_32("PROPOSER_ROLE");
 const CANCELLER_ROLE = stringSha256_32("CANCELLER_ROLE");
 const EXECUTOR_ROLE = stringSha256_32("EXECUTOR_ROLE");
 const BYPASSER_ROLE = stringSha256_32("BYPASSER_ROLE");
+
+/// Timestamp value used to mark an operation as done
+const DONE_TIMESTAMP = 1;
 
 const ERROR_SELECTOR_IS_BLOCKED = 101;
 
@@ -369,6 +372,56 @@ const ERROR_SELECTOR_IS_BLOCKED = 101;
 const LEN_BLOCKED_FN_SELECTOR = 32;
 
 // --- Methods ---
+
+/// @dev Requires that the sender has the given role or the admin role.
+fun Timelock<T>.onlyRoleOrAdminRole(self, role: int, sender: address): void {
+    var rbac = self.hookTrait__AccessControl();
+    if (!rbac.hasRole(ADMIN_ROLE, sender)) {
+        rbac.requireRole(role, sender);
+    }
+}
+
+/// @dev Returns whether an id correspond to a registered operation. This
+/// includes both Pending, Ready and Done operations.
+fun Timelock<T>.isOperation(self, id: int): bool {
+    return self.data.getTimestamp(id) > 0;
+}
+
+/// @dev Returns whether an operation is pending or not.
+fun Timelock<T>.isOperationPending(self, id: int): bool {
+    return self.data.getTimestamp(id) > DONE_TIMESTAMP;
+}
+
+/// @dev Returns whether an operation is ready or not.
+fun Timelock<T>.isOperationReady(self, id: int): bool {
+    val t = self.data.getTimestamp(id);
+    return t > DONE_TIMESTAMP && t <= blockchain.now();
+}
+
+/// @dev Returns whether an operation is done or not.
+fun Timelock<T>.isOperationDone(self, id: int): bool {
+    return self.data.getTimestamp(id) == DONE_TIMESTAMP;
+}
+
+/// @dev Returns the timestamp at with an operation becomes ready (0 for
+/// unset operations, 1 for done operations).
+fun Timelock<T>.getTimestamp(self, id: int): uint256 {
+    // Get the timestamp for the given id from the timestamps dictionary
+    var (timestampSlice, exists) = self.data.timestamps.uDictGet(256, id);
+    if (!exists) {
+        return 0; // operation not exists
+    }
+
+    // Load the timestamp from the slice
+    return timestampSlice!.loadUint(32); // TODO: use 64 bits for timestamp
+}
+
+/// @dev Returns the minimum delay for an operation to become valid.
+///
+/// This value can be changed by executing an operation that calls `updateDelay`.
+fun Timelock<T>.getMinDelay(self): uint64 {
+    return self.data.minDelay;
+}
 
 /// @dev Returns the operation batch hashe as its ID.
 ///
@@ -495,8 +548,9 @@ fun Timelock<T>.checkFunctionSelectorNotBlocked(self, data: slice): void {
 }
 
 fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: slice) {
-    if (msgBody.isEndOfBits() && msgBody.isEndOfRefs()) { // ignore all empty messages
-        return;
+    // Contract might receive/hold ETH as part of the maintenance process.
+    if (msgBody.isEndOfBits() && msgBody.isEndOfRefs()) {
+        return; // accept TON coins without any further processing
     }
 
     var cs: slice = msgFull.beginParse();
@@ -625,10 +679,6 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
             s.storeAsContractData();
             return;
         }
-    }
-
-    if (op == OP_TOP_UP) {
-        return; // just accept tons
     }
 
     throw ERROR_WRONG_OP;

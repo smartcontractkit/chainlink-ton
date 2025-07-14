@@ -97,7 +97,6 @@ describe('TimelockController', () => {
       to: timelockController.address,
       deploy: true,
       success: true,
-      op: Opcodes.top_up,
     })
 
     expect(await acContract.getHasRole(Params.admin_role, deployer.address)).toEqual(true)
