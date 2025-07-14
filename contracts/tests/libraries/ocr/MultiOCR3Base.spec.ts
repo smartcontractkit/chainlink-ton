@@ -17,7 +17,7 @@ import {
   generateRandomMockSigners,
   generateEd25519KeyPair,
   expectEqualsConfig,
-} from './helpers'
+} from './Helpers'
 import { uint8ArrayToBigInt } from '../../../utils/Utils'
 import { KeyPair } from '@ton/crypto'
 import { assertLog } from './Logs'
