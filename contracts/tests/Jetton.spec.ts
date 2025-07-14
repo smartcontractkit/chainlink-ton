@@ -131,10 +131,10 @@ describe('Send and Receive Jettons', () => {
     uriSlice.loadBits(8) // There is a 0x00 prefix
     const uri = uriSlice.loadStringTail()
     expect(uri).toEqual(jettonDataURI)
-    const seccondKeyHashBigInt = BigInt(
+    const secondKeyHashBigInt = BigInt(
       '0x' + (await sha256(Buffer.from('decimals', 'utf8'))).toString('hex'),
     )
-    const decimalCell = dictionary.get(seccondKeyHashBigInt)
+    const decimalCell = dictionary.get(secondKeyHashBigInt)
     if (!decimalCell) {
       throw new Error('Decimals not found in dictionary')
     }
@@ -388,10 +388,10 @@ describe('Receiving Jettons as an Onramp Mock', () => {
 
     let nextQueryId = 0n
 
-    const insuffientFeeEventMessage = await sendCallWithAmount(insufficientJettonTransferAmount)
+    const insufficientFeeEventMessage = await sendCallWithAmount(insufficientJettonTransferAmount)
     // Note: Event parsing would need to be implemented based on the actual contract events
     // For now, we'll just check that the transaction was successful
-    expect(insuffientFeeEventMessage).toBeDefined()
+    expect(insufficientFeeEventMessage).toBeDefined()
 
     const receiverJettonWallet = await userWallet(onrampMock.address)
     const jettonReceiverDataAfter = await receiverJettonWallet.getWalletData()
