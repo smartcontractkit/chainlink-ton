@@ -24,6 +24,7 @@ export const Opcodes = {
 
 export type ReportContext = {
   configDigest: bigint,
+  padding: bigint, // 0x00
   sequenceBytes: number
 }
 

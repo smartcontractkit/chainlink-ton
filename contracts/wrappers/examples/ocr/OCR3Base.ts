@@ -61,6 +61,7 @@ export class OCR3BaseExample extends OCR3Base {
           .storeUint(0x00000002, 32)//opcode
           .storeUint(opts.ocrPluginType, 16)
           .storeUint(opts.reportContext.configDigest, 256)
+          .storeUint(opts.reportContext.padding, 192) //should be zero
           .storeUint(opts.reportContext.sequenceBytes, 64)
           .storeRef(opts.report)
           .storeRef(asSnakeData<SignatureEd25519>(

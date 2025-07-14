@@ -532,6 +532,7 @@ describe('OCR3Base Tests', () => {
         ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
         reportContext: {
           configDigest: configDigest,
+          padding: 0n,
           sequenceBytes: sequenceBytes
         },
         report: report,
@@ -591,6 +592,7 @@ describe('OCR3Base Tests', () => {
         ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
         reportContext: {
           configDigest: configDigest,
+          padding: 0n,
           sequenceBytes: sequenceBytes
         },
         report: report,
@@ -636,7 +638,7 @@ describe('OCR3Base Tests', () => {
     const transmitResult = await ocr3Base.sendTransmit(transmitter1.getSender(), {
       value: toNano('0.05'),
       ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
-      reportContext: { configDigest, sequenceBytes },
+      reportContext: { configDigest, padding: 0n, sequenceBytes },
       report,
       signatures: [validSignature, unauthorizedSignature],
     });
@@ -670,7 +672,7 @@ describe('OCR3Base Tests', () => {
     const transmitResult = await ocr3Base.sendTransmit(transmitter1.getSender(), {
       value: toNano('0.05'),
       ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
-      reportContext: { configDigest, sequenceBytes },
+      reportContext: { configDigest, padding: 0n, sequenceBytes },
       report,
       signatures: [sig, sig], // Repeated
     });
@@ -715,7 +717,7 @@ describe('OCR3Base Tests', () => {
     const transmitResult = await ocr3Base.sendTransmit(transmitter1.getSender(), {
       value: toNano('0.05'),
       ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
-      reportContext: { configDigest: wrongDigest, sequenceBytes },
+      reportContext: { configDigest: wrongDigest, padding: 0n, sequenceBytes },
       report,
       signatures: [signature, signature2],
     });
@@ -750,7 +752,7 @@ describe('OCR3Base Tests', () => {
     const transmitResult = await ocr3Base.sendTransmit(transmitter1.getSender(), {
       value: toNano('0.05'),
       ocrPluginType: invalidPluginType,
-      reportContext: { configDigest, sequenceBytes },
+      reportContext: { configDigest,padding: 0n, sequenceBytes },
       report,
       signatures: [signature, signature2],
     });
@@ -782,7 +784,7 @@ describe('OCR3Base Tests', () => {
     const transmitResult = await ocr3Base.sendTransmit(transmitter1.getSender(), {
       value: toNano('0.05'),
       ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
-      reportContext: { configDigest, sequenceBytes },
+      reportContext: { configDigest, padding: 0n, sequenceBytes },
       report,
       signatures: [onlyOneSig],
     });
@@ -835,6 +837,7 @@ describe('OCR3Base Tests', () => {
         ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
         reportContext: {
           configDigest: configDigest,
+          padding: 0n,
           sequenceBytes: sequenceBytes
         },
         report: report,
@@ -856,6 +859,7 @@ describe('OCR3Base Tests', () => {
         ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
         reportContext: {
           configDigest: configDigest,
+          padding: 0n,
           sequenceBytes: sequenceBytes
         },
         report: report,

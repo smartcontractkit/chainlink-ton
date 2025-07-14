@@ -46,7 +46,7 @@ struct Config {
 
 fun newOCRConfig(): Config {
 	return Config {
-		configInfo: newConfigInfo(),
+		configInfo: ConfigInfo{},
 		signers: UMap<uint256, uint8>.new(256),
 		transmitters: Map<uint8>.new()
 	}
@@ -99,23 +99,14 @@ struct ConfigInfo {
 	isSignatureVerificationEnabled: bool = false;
 }
 
-fun newConfigInfo(): ConfigInfo {
-	return ConfigInfo {
-		configDigest: 0,
-		bigF: 0,
-		n: 0,
-		isSignatureVerificationEnabled: false
-	};
-}
-
 struct SignatureEd25519 {
 	r: uint256;
 	s: uint256;
 	signer: uint256
 }
 
-// TODO replace with cell?
 struct ReportContext {
 	configDigest: uint256;
+	_padding: bytes24;
 	sequenceBytes: uint64
 }
