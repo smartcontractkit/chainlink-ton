@@ -79,7 +79,7 @@ export const testLogMessageSent = (
         tokenAmounts: body.loadRef(),
         feeToken: body.loadAddress(),
         feeTokenAmount: body.loadUintBig(256),
-        feeValueJuels: body.loadUintBig(256),
+        feeValueJuels: bs.loadUintBig(96),
       },
     }
 
@@ -318,7 +318,7 @@ describe('Router', () => {
       value: toNano('1'),
       queryID: 1,
       destChainSelector: CHAINSEL_EVM_TEST_90000001,
-      receiver: Cell.EMPTY,
+      receiver: Buffer.alloc(64),
       data: Cell.EMPTY,
       tokenAmounts: Cell.EMPTY,
       feeToken: ZERO_ADDRESS,

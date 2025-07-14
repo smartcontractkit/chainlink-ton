@@ -35,7 +35,7 @@ struct Storage {
 }
 
 struct DestChainConfig {
-    router: bytes64; // TODO: len-prefix
+    router: CrossChainAddress;
     sequenceNumber: uint64;
     allowlistEnabled: bool;
     allowedSenders: Map<bool>; // address -> bool
@@ -148,14 +148,14 @@ fun onMessageValidated(payload: MessageValidated<Metadata>, sender: address) {
         },
         sender: metadata.sender,
         body: TVM2AnyRampMessageBody {
-            receiver: msg.receiver,
+            receiver: msg.receiver.toCell(),
             data: msg.data,
             extraArgs: msg.extraArgs,
             tokenAmounts: createEmptyCell(), // TODO:
             feeToken: msg.feeToken,
             feeTokenAmount: payload.fee,
-            feeValueJuels: 0, // TODO:
-        }.toCell()
+        }.toCell(),
+        feeValueJuels: 0, // TODO:
     };
 
     // Metadata hash preimage to ensure global uniqueness, ensuring 2 identical messages sent to 2 different lanes

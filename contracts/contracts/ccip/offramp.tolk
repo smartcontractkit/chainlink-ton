@@ -28,7 +28,7 @@ struct SourceChainConfig {
     isEnabled: bool;
     minSeqNr: uint64;
     isRMNVerificationDisabled: bool;
-    onRamp: bytes64; // TODO: len-prefix
+    onRamp: CrossChainAddress;
 }
 
 fun Storage.load(): Storage {

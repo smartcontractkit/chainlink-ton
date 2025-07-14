@@ -1,8 +1,27 @@
 import "../lib/utils.tolk";
 
+// 1-byte length prefixed byte slice (up to 64 bytes)
+// Almost all uses need to Cell<> box this type because it can be sized up to 8+512 bits
+type CrossChainAddress = slice;
+
+fun CrossChainAddress.packToBuilder(self, mutate b: builder) {
+    val nBits = self.remainingBitsCount();
+    assert(nBits % 8 == 0, 5);
+    val nBytes = nBits / 8;
+    assert(nBytes <= 64, 5);
+    b.storeUint(nBytes, 8);
+    b.storeSlice(self);
+}
+
+fun CrossChainAddress.unpackFromSlice(mutate s: slice) {
+    val nBytes= s.loadUint(8);
+    assert(nBytes <= 64, 5);
+    return s.loadBits(nBytes * 8);
+}
+
 struct MerkleRoot {
     sourceChainSelector: uint64;
-    onRampAddress: bytes64; // TODO: this needed to be fixed size for iteration, use a len prefix
+    onRampAddress: CrossChainAddress;
     minSeqNr: uint64;
     maxSeqNr: uint64;
     merkleRoot: uint256;
@@ -38,16 +57,17 @@ struct TVM2AnyRampMessage {
     header: RampMessageHeader;
     sender: address;
     body: Cell<TVM2AnyRampMessageBody>;
+    feeValueJuels: uint96; // entire supply of LINK always fits into u96
 }
 
+// NOTE: overflows because receiver is up to byte64, and fee token data is 3*256
 struct TVM2AnyRampMessageBody {
-    receiver: cell;
+    receiver: Cell<CrossChainAddress>;
     data: cell;
     extraArgs: cell;
     tokenAmounts: cell;
     feeToken: address;
     feeTokenAmount: uint256;
-    feeValueJuels: uint256;
 }
 
 const LEAF_DOMAIN_SEPARATOR: int = 0x0000000000000000000000000000000000000000000000000000000000000000;
@@ -86,7 +106,7 @@ fun TVM2AnyRampMessage.generateMessageId(self, metadataHash: uint256): uint256 {
         .storeUint(self.header.sequenceNumber, 64)
         .storeUint(self.header.nonce, 64)
         // message
-        .storeRef(self.body) // receiver, data, extraArgs, tokenAmounts, feeToken (addr, amount) TODO: we need to exclude feeValueJuels?
+        .storeRef(self.body) // receiver, data, extraArgs, tokenAmounts, feeToken (addr, amount) NOTE: feeValueJuels deliberately excluded
         .endCell()
         .hash()
 }
@@ -108,7 +128,7 @@ struct (0x10000001) SetRamp {
 struct (0x00000001) CCIPSend {
     queryId: uint64;
     destChainSelector: uint64;
-    receiver: cell; // bytes32?
+    receiver: CrossChainAddress;
     data: cell;
     tokenAmounts: cell; // vec<tokenAmount>
     feeToken: address;
@@ -142,7 +162,7 @@ struct (0x10000003) SetDynamicConfig {
 
 struct OnRampUpdateDestChainConfig {
     destChainSelector: uint64;
-    router: bytes64;
+    router: CrossChainAddress;
     allowlistEnabled: bool;
 }
 
