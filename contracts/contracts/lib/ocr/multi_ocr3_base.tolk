@@ -39,8 +39,8 @@ struct OCR3Base_Transmitted {
 /// @dev precondition number of transmitters should match the expected F/fChain relationship.
 /// For transmitters, the function only validates that len(transmitters) > 0 && len(transmitters) <= MAX_NUM_ORACLES
 /// && len(transmitters) <= len(signers) [if sig verification is enabled].
-//TODO: Calculate crc32 for the message opcode
-struct (0x00000001) OCR3Base_SetOCR3Config {
+// 0x2B78359F = crc32('OCR3Base_SetOCR3Config')
+struct (0x2B78359F) OCR3Base_SetOCR3Config {
     queryId: uint64;
     configDigest: uint256;
     ocrPluginType: uint16;
@@ -51,7 +51,6 @@ struct (0x00000001) OCR3Base_SetOCR3Config {
 }
 
 fun OCR3Base.setOcr3Config(mutate self, msg: OCR3Base_SetOCR3Config) {
-	//TODO: self.requireOwner();
 	assert(msg.bigF > 0, ERROR_BIG_F_MUST_BE_POSITIVE);
 
 	var ocrConfig = self.getConfig(msg.ocrPluginType);
@@ -116,11 +115,11 @@ fun OCR3Base.transmit(
     ocrConfig = ocrConfig!;
     var configInfo: ConfigInfo = ocrConfig.configInfo;
     
-    // TODO: EVM checks transaction data length here
+    // TODO: EVM checks transaction data length here, I think it's probably too expensive to do this in TON 
     
     assert(reportContext.configDigest == configInfo.configDigest, ERROR_CONFIG_DIGEST_MISMATCH);
     
-    // TODO: assert_chain_not_forked, not sure how to do this check or if it's even necessary in TON
+    // TODO: EVM checks assert_chain_not_forked, not sure how to do this check or if it's even necessary in TON
     
     val pluginTransmitters = ocrConfig.transmitters;
 

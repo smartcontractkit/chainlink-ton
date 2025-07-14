@@ -18,8 +18,7 @@ export const OCR3_PLUGIN_TYPE_COMMIT = 0x0000
 export const OCR3_PLUGIN_TYPE_EXECUTE = 0x0001
 
 export const Opcodes = {
-  //TODO: OP_SET_OCR3_CONFIG: crc32('Ownable2Step_TransferOwnership'),
-  OP_SET_OCR3_CONFIG: 0x000000001,
+  OP_SET_OCR3_CONFIG: crc32('OCR3Base_SetOCR3Config'),
 }
 
 export type ReportContext = {

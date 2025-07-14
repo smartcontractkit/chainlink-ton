@@ -57,7 +57,7 @@ fun Config.assignSignerOracles(
 	mutate self,
 	signers: cell /*Vector<uint256>*/
 ) {
-	// TODO: We cannot do ed25519 public key validation on chain. For now we assume valid keys.
+	// TODO: Right now we cannot do ed25519 public key validation on chain. For now we assume valid keys.
 	var signersDict = UMap<uint256, uint8>.new(256);
 	var signersIt = Iterator<uint256>.new(signers);
 	var i = 0;

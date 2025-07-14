@@ -194,8 +194,6 @@ fun UMap<K, V>.has(self, key: K): bool {
     return exists;
 }
 
-// TODO: add get! variant that asserts value exists
-
 @inline
 fun UMap<K, V>.get(self, key: K): (V?, bool) {
     val (value, exists) = self.value.uDictGet(self.keyLen, key);

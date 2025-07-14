@@ -57,10 +57,8 @@ export const assertLog = (
 ) => {
   return getExternals(transactions).some((x) => {
     if (type === OCR3BaseLogTypes.OCR3BaseConfigSet) {
-      console.log('topic OCR3BaseConfigSet', OCR3BaseLogTypes.OCR3BaseConfigSet.toString(16))
       return testConfigSetLogMessage(x, from, match as OCR3BaseConfigSet)
     } else if (type === OCR3BaseLogTypes.OCR3BaseTransmitted) {
-      console.log('topic OCR3BaseTransmitted', OCR3BaseLogTypes.OCR3BaseTransmitted.toString(16))
       return testTransmittedLogMessage(x, from, match as Partial<OCR3BaseTransmitted>)
     } else {
       throw new Error(`Unknown log type: ${type.toString()}`)
