@@ -69,6 +69,7 @@ describe('TimelockController', () => {
 
   it('Should compute crc32 opcodes', async () => {
     // In opcodes
+    expect(opcodes.in.Init).toBe(0x4982fcfd)
     expect(opcodes.in.ScheduleBatch).toBe(0x94718f4)
     expect(opcodes.in.Cancel).toBe(0xaf3bf1d0)
     expect(opcodes.in.ExecuteBatch).toBe(0x6e9bf263)
