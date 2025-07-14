@@ -1,6 +1,5 @@
 tolk 1.0
 
-const DONE_TIMESTAMP = 1;
 const UNSET_STATE = 0;
 const WAITING_STATE = 1;
 const READY_STATE = 2;

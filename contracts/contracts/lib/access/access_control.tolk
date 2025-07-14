@@ -18,11 +18,11 @@ import "../utils.tolk";
  * ```
  *
  * Roles can be used to represent a set of permissions. To restrict access to a
- * function call, use {checkRole}:
+ * function call, use {requireRole}:
  *
  * ```tolk
  * fun foo(rbac: AccessControl<T>, acc: address) {
- *     rbac.checkRole(MY_ROLE, acc));
+ *     rbac.requireRole(MY_ROLE, acc));
  *     ...
  * }
  * ```
@@ -241,10 +241,10 @@ fun AccessControl<T>.msgSender(self, msgFull: cell): address {
 /// @dev Modifier that checks that an account has a specific role. Reverts
 /// with a standardized message including the required role.
 ///
-/// Format of the revert message is described in {_checkRole}.
+/// Format of the revert message is described in {requireRole}.
 @inline
 fun AccessControl<T>.onlyRole(self, role: int, msgFull: cell): void {
-    self.checkRoleSender(role, msgFull)
+    self.requireRoleSender(role, msgFull)
 }
 
 // @dev Returns `true` if `account` has been granted `role`.
@@ -263,10 +263,10 @@ fun AccessControl<T>.hasRole(self, role: int, account: address): bool {
 
 /// @dev Revert with a standard message if `msgSender()` is missing `role`.
 ///
-/// Format of the revert message is described in {_checkRole}.
-fun AccessControl<T>.checkRoleSender(self, role: int, msgFull: cell): void {
+/// Format of the revert message is described in {requireRole}.
+fun AccessControl<T>.requireRoleSender(self, role: int, msgFull: cell): void {
     val sender = self.msgSender(msgFull);
-    self.checkRole(role, sender);
+    self.requireRole(role, sender);
 }
 
 /// @dev Revert with a standard message if `account` is missing `role`.
@@ -275,7 +275,7 @@ fun AccessControl<T>.checkRoleSender(self, role: int, msgFull: cell): void {
 ///
 /// /^AccessControl: account (0x[0-9a-f]{40}) is missing role (0x[0-9a-f]{64})$/
 ///
-fun AccessControl<T>.checkRole(self, role: int, account: address): void {
+fun AccessControl<T>.requireRole(self, role: int, account: address): void {
     if (!self.hasRole(role, account)) {
         throw(ERROR_ACCESS_CONTROL_UNOTHORIZED_ACCOUNT); // TODO: attach error arguments
     }
@@ -403,7 +403,7 @@ fun AccessControl<T>.getRoleMembers(self, role: int): dict {
 ///
 /// Emits a {AccessControl_RoleGranted} event if `role` was granted.
 fun AccessControl<T>.grantRole(mutate self, queryId: uint64, sender: address, role: int, account: address): bool {
-    self.checkRole(self.getRoleAdmin(role), sender);
+    self.requireRole(self.getRoleAdmin(role), sender);
     return self._grantRole(queryId, sender, role, account); // default implementation
 }
 
@@ -414,7 +414,7 @@ fun AccessControl<T>.grantRole(mutate self, queryId: uint64, sender: address, ro
 ///
 /// Emits a {AccessControl_RoleRevoked} event if `role` was revoked.
 fun AccessControl<T>.revokeRole(mutate self, queryId: uint64, sender: address, role: int, account: address): bool {
-    self.checkRole(self.getRoleAdmin(role), sender);
+    self.requireRole(self.getRoleAdmin(role), sender);
     return self._revokeRole(queryId, sender, role, account);
 }
 

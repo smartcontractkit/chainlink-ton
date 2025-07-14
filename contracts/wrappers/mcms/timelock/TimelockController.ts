@@ -55,7 +55,7 @@ export const Builder = {
   /// Creates a new `AccessControl_GrantRole` message.
   asStorage: (config: TimelockControllerStorage): Cell => {
     return beginCell()
-      .storeUint(config.minDelay, 32)
+      .storeUint(config.minDelay, 64)
       .storeUint(config.timestampCount || 0, 32) // timestamp_count
       .storeDict(config.timestamp)
       .storeUint(config.blockedFnSelectorsLen || 0, 32) // blocked_fn_selectors_len
@@ -323,10 +323,6 @@ export class TimelockController implements Contract {
     await provider.internal(via, {
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: beginCell()
-        .storeUint(Opcodes.top_up, 32)
-        .storeUint(opts.queryID ?? 0, 64)
-        .endCell(),
     })
   }
 
