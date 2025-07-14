@@ -9,7 +9,7 @@ import {
   SendMode,
 } from '@ton/core'
 import { KeyPair, sign } from '@ton/crypto';
-import { bigIntToUint8Array, uint8ArrayToBigInt } from '../../../utils/Utils'
+import { bigIntToUint8Array, hashSync, uint8ArrayToBigInt } from '../../../utils/Utils'
 
 import { crc32 } from 'zlib'
 import { asSnakeData, fromSnakeData } from '../../../utils/Utils'
@@ -141,3 +141,4 @@ export class OCR3Base {
 }
 
  
+

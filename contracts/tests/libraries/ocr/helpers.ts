@@ -3,9 +3,7 @@ import { mnemonicNew, mnemonicToPrivateKey } from '@ton/crypto';
 import { WalletContractV4 } from '@ton/ton';
 import crypto from 'crypto';
 import { uint8ArrayToBigInt } from "../../../utils/Utils";
-import { OCR3Config } from "../../../wrappers/libraries/ocr/MultiOCR3Base";
-import { testLog, getExternals } from '../../Logs'
-import {fromSnakeData } from '../../../utils/Utils'
+import {  OCR3Config } from "../../../wrappers/libraries/ocr/MultiOCR3Base";
 import { BlockchainTransaction } from "@ton/sandbox";
 
 async function generateRandomTonAddress() {
@@ -90,87 +88,6 @@ export function expectEqualsConfig(config1: OCR3Config, config2: OCR3Config) {
   }
 }
 
-export enum LogTypes {
-  OCR3BaseConfigSet = 0xAA,
-  OCR3BaseTransmitted = 0xAB,
-}
 
-type OCR3BaseConfigSet = {
-  ocrPluginType: number;
-  configDigest: bigint;
-  signers: bigint[];
-  transmitters: Address[];
-  bigF: number
-}
-
-type OCR3BaseTransmitted = {
-  ocrPluginType: number;
-  configDigest: bigint;
-  sequenceNumber: number
-}
-
-export const testConfigSetLogMessage  = (
-  message: Message,
-  from: Address,
-  match: OCR3BaseConfigSet,
-) => {
-  return testLog(message, from, LogTypes.OCR3BaseConfigSet, (x) => {
-    const cs = x.beginParse()
-    const ocrPluginType = cs.loadUint(16)
-    const configDigest = cs.loadUintBig(256)
-    const signers = fromSnakeData(cs.loadRef(), (x) => x.loadUintBig(256))
-    const transmitters = fromSnakeData(cs.loadRef(), (x) => x.loadAddress())
-    const bigF = cs.loadUint(8)
-
-    expect(ocrPluginType).toEqual(match.ocrPluginType)
-    expect(configDigest).toEqual(match.configDigest)
-    expect(signers.sort()).toEqual(match.signers.sort())
-    for (let i = 0; i < transmitters.length; i++) {
-      expect(transmitters[i].toString()).toEqual(match.transmitters![i].toString())
-    }
-    expect(bigF).toEqual(match.bigF)
-    return true
-  })
-}
-
-export const testTransmittedLogMessage = (
-  message: Message,
-  from: Address,
-  match: Partial<OCR3BaseTransmitted>,
-) => {
-  return testLog(message, from, LogTypes.OCR3BaseTransmitted, (x) => {
-    const cs = x.beginParse()
-    const msg = {
-      ocrPluginType: cs.loadUint(16),
-      configDigest: cs.loadUintBig(256),
-      sequenceNumber: cs.loadUint(64),
-    }
-    expect(msg).toMatchObject(match)
-    return true
-  })
-}
-
-type LogMatch<T extends LogTypes> =
-  T extends LogTypes.OCR3BaseConfigSet ? Partial<OCR3BaseConfigSet> :
-  T extends LogTypes.OCR3BaseTransmitted ? Partial<OCR3BaseTransmitted> :
-  number;
-
-export const assertLog = <T extends LogTypes>(
-  transactions: BlockchainTransaction[],
-  from: Address,
-  type: T,
-  match: LogMatch<T>,
-) => {
-  getExternals(transactions).some((x) => {
-    switch(type) {
-      case LogTypes.OCR3BaseConfigSet:
-        return testConfigSetLogMessage(x, from, match as OCR3BaseConfigSet);
-      case LogTypes.OCR3BaseTransmitted:
-        return testTransmittedLogMessage(x, from, match as Partial<OCR3BaseTransmitted>);
-      default:
-        throw new Error(`Unknown log type: ${type}`);
-    }
-  })
-}
 
 

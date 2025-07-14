@@ -1,4 +1,5 @@
 import { Tuple, beginCell, Builder, Cell, Slice, TupleItem, TupleReader, Address } from '@ton/core'
+import { sha256_sync } from '@ton/crypto'
 
 
 export const ZERO_ADDRESS: Address = Address.parse(
@@ -76,8 +77,7 @@ export function isEmpty(slice: Slice): boolean {
   return true
 }
 
-
-
-
-
+export function hashSync(data: string): bigint {
+  return uint8ArrayToBigInt(sha256_sync(data));
+}
 

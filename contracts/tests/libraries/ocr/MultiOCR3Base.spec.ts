@@ -4,10 +4,12 @@ import '@ton/test-utils'
 import { compile } from '@ton/blueprint'
 import { OCR3_PLUGIN_TYPE_COMMIT, OCR3_PLUGIN_TYPE_EXECUTE, SignatureEd25519, createSignature} from '../../../wrappers/libraries/ocr/MultiOCR3Base'
 import * as ExitCodes from  '../../../wrappers/libraries/ocr/ExitCodes'
+import {OCR3BaseLogTypes } from '../../../wrappers/libraries/ocr/Logs'
 import { OCR3BaseExample } from '../../../wrappers/examples/ocr/OCR3Base'
-import { generateRandomAddresses, generateRandomMockAddresses, generateRandomMockSigners, generateEd25519KeyPair, expectEqualsConfig, assertLog, LogTypes } from './helpers'
+import { generateRandomAddresses, generateRandomMockAddresses, generateRandomMockSigners, generateEd25519KeyPair, expectEqualsConfig} from './helpers'
 import { uint8ArrayToBigInt } from '../../../utils/Utils'
 import { KeyPair } from '@ton/crypto'
+import { assertLog } from './Logs'
 
 describe('OCR3Base Tests', () => {
   let blockchain: Blockchain
@@ -127,7 +129,7 @@ describe('OCR3Base Tests', () => {
 
     expectEqualsConfig(config, expectedConfig)
 
-    assertLog(result.transactions, ocr3Base.address, LogTypes.OCR3BaseConfigSet, {
+    assertLog(result.transactions, ocr3Base.address, OCR3BaseLogTypes.OCR3BaseConfigSet, {
       ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
       configDigest,
       signers: signersPublicKeys,
@@ -286,7 +288,7 @@ describe('OCR3Base Tests', () => {
     const result = await setupAndTransmit()
     expectSuccessfulTransaction(result, transmitters[0].address, ocr3Base.address)
 
-    assertLog(result.transactions, ocr3Base.address, LogTypes.OCR3BaseTransmitted, {
+    assertLog(result.transactions, ocr3Base.address, OCR3BaseLogTypes.OCR3BaseTransmitted, {
       ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
       configDigest,
       sequenceNumber: sequenceBytes
@@ -445,7 +447,7 @@ describe('OCR3Base Tests', () => {
 
     expectSuccessfulTransaction(resultWithNewSigners, transmitters[0].address, ocr3Base.address)
 
-    assertLog(resultWithNewSigners.transactions, ocr3Base.address, LogTypes.OCR3BaseTransmitted, {
+    assertLog(resultWithNewSigners.transactions, ocr3Base.address, OCR3BaseLogTypes.OCR3BaseTransmitted, {
       ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
       configDigest,
       sequenceNumber: sequenceBytes
