@@ -14,55 +14,61 @@ struct CounterReset {
     id: uint64;
 }
 
-// opcodes
-const INCREASE_COUNTER_OPCODE = 0x7e8764ef;
-const RESET_COUNTER_OPCODE = 0x3a752f06;
-
-global ctxId: uint64;
-global ctxCounter: uint64;
-
-@inline
-fun loadCtx() {
-    var cs = contract.getData().beginParse();
-    ctxId = cs.loadUint(64);
-    ctxCounter = cs.loadUint(64); 
+struct Storage {
+    id: uint64;
+    counter: uint64;
 }
 
-@inline
-fun storeCtx(){
-    contract.setData(
-        beginCell()
-        .storeUint(ctxId, 64)
-        .storeUint(ctxCounter, 64)
-        .endCell()
-    );
+fun Storage.load(): Storage {
+    return Storage.fromCell(contract.getData());
 }
 
-fun onInternalMessage(msgFull: cell, msgBody: slice) {
-    loadCtx();
-    val op = msgBody.loadMessageOp();
-    if (op == INCREASE_COUNTER_OPCODE) {
-        ctxCounter += 1;
-        storeCtx();
-        emit<CounterIncreased>(COUNTER_INCREASED_TOPIC, {
-            id: ctxId,
-            counter: ctxCounter
-        });
-    } else if (op == RESET_COUNTER_OPCODE) {
-        ctxCounter = 0;
-        storeCtx();
-        emit<CounterReset>(COUNTER_RESET_TOPIC, {
-            id: ctxId
-        });
+fun Storage.store(self) {
+    return contract.setData(self.toCell());
+}
+struct (0x7e8764ef) IncreaseCounter {
+    queryId: uint64
+}
+struct (0x3a752f06) ResetCounter {
+    queryId: uint64
+}
+
+type Msg = IncreaseCounter | ResetCounter
+
+fun onInternalMessage(in: InMessage) {
+    val msg = lazy Msg.fromSlice(in.body);
+    match (msg) {
+        IncreaseCounter => { 
+            var st = lazy Storage.load();
+            st.counter = st.counter + 1;
+            st.store();
+
+            emit<CounterIncreased>(COUNTER_INCREASED_TOPIC, {
+                id: st.id,
+                counter: st.counter
+            });
+        }
+        ResetCounter => {
+            var st = lazy Storage.load();
+            st.counter = 0;
+            st.store();
+
+            emit<CounterReset>(COUNTER_RESET_TOPIC, {
+                id: st.id
+            });
+        }
+        else => {
+            assert (in.body.isEmpty()) throw 0xFFFF
+        }
     }
 }
 
 get fun id(): uint64 {
-    loadCtx();
-    return ctxId;
+    var st = lazy Storage.load();
+    return st.id;
 }
 
 get fun counter(): uint64 {
-    loadCtx();
-    return ctxCounter;
+    var st = lazy Storage.load();
+    return st.counter;
 }

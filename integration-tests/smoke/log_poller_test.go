@@ -28,7 +28,7 @@ import (
 
 // TODO: clean up
 func Test_LogPoller(t *testing.T) {
-	useAlreadyRunningNetwork := true
+	useAlreadyRunningNetwork := false
 
 	nodeClient := test_utils.CreateAPIClient(t, chainsel.TON_LOCALNET.Selector, useAlreadyRunningNetwork)
 	require.NotNil(t, nodeClient)

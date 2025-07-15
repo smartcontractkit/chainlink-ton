@@ -8,7 +8,7 @@ require (
 	github.com/smartcontractkit/chain-selectors v1.0.60
 	github.com/smartcontractkit/chainlink-common v0.7.1-0.20250527164052-5a4fb8e255ff
 	github.com/smartcontractkit/chainlink-deployments-framework v0.10.0
-	github.com/smartcontractkit/chainlink-testing-framework/framework v0.9.9
+	github.com/smartcontractkit/chainlink-testing-framework/framework v0.10.4-0.20250715093717-c04d8ef39fa3
 	github.com/smartcontractkit/chainlink-ton v0.0.0
 	github.com/smartcontractkit/freeport v0.1.0
 	github.com/stretchr/testify v1.10.0
