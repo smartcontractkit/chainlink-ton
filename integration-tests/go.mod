@@ -9,7 +9,6 @@ require (
 	github.com/smartcontractkit/chainlink-deployments-framework v0.17.3
 	github.com/smartcontractkit/chainlink-testing-framework/framework v0.10.4
 	github.com/smartcontractkit/chainlink-ton v0.0.0
-	github.com/smartcontractkit/freeport v0.1.1
 	github.com/stretchr/testify v1.10.0
 	github.com/xssnick/tonutils-go v1.13.0
 )
@@ -125,7 +124,7 @@ require (
 	github.com/shopspring/decimal v1.4.0 // indirect
 	github.com/sigurn/crc16 v0.0.0-20211026045750-20ab5afb07e3 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
-	github.com/smartcontractkit/freeport v0.1.0 // indirect
+	github.com/smartcontractkit/freeport v0.1.1 // indirect
 	github.com/smartcontractkit/grpc-proxy v0.0.0-20240830132753-a7e17fec5ab7 // indirect
 	github.com/smartcontractkit/libocr v0.0.0-20250220133800-f3b940c4f298 // indirect
 	github.com/testcontainers/testcontainers-go v0.37.0 // indirect

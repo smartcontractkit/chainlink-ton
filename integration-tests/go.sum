@@ -137,9 +137,8 @@ github.com/go-viper/mapstructure/v2 v2.2.1/go.mod h1:oJDH3BJKyqBA2TXFhDsKDGDTlnd
 github.com/goccy/go-json v0.10.3 h1:KZ5WoDbxAIgm2HNbYckL0se1fHD6rz5j4ywS6ebzDqA=
 github.com/goccy/go-json v0.10.3/go.mod h1:oq7eo15ShAhp70Anwd5lgX2pLfOS3QCiwU/PULtXL6M=
 github.com/godbus/dbus/v5 v5.0.4/go.mod h1:xhWf0FNVPg57R7Z0UbKHbJfkEywrmjJnf7w5xrFpKfA=
+github.com/gofrs/uuid v4.0.0+incompatible h1:1SD/1F5pU8p29ybwgQSwpQk+mwdRrXCYuPhW6m+TnJw=
 github.com/gofrs/uuid v4.0.0+incompatible/go.mod h1:b2aQJv3Z4Fp6yNu3cdSllBxTCLRxnplIgP/c0N/04lM=
-github.com/gofrs/uuid v4.3.1+incompatible h1:0/KbAdpx3UXAx1kEOWHJeOkpbgRFGHVgv+CFIY7dBJI=
-github.com/gofrs/uuid v4.3.1+incompatible/go.mod h1:b2aQJv3Z4Fp6yNu3cdSllBxTCLRxnplIgP/c0N/04lM=
 github.com/gogo/protobuf v1.3.2 h1:Ov1cvc58UF3b5XjBnZv7+opcTcQFZebYjWzi34vdm4Q=
 github.com/gogo/protobuf v1.3.2/go.mod h1:P1XiOD3dCwIKUDQYPy72D8LYyHL2YPYrpS2s69NZV8Q=
 github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b/go.mod h1:SBH7ygxi8pfUlaOkMMuAQtPIUF8ecWP5IEl/CR7VP2Q=
@@ -379,13 +378,11 @@ github.com/smartcontractkit/chain-selectors v1.0.60 h1:X/5CcVB5izIaMrGRdl0hc6sSb
 github.com/smartcontractkit/chain-selectors v1.0.60/go.mod h1:xsKM0aN3YGcQKTPRPDDtPx2l4mlTN1Djmg0VVXV40b8=
 github.com/smartcontractkit/chainlink-common v0.7.1-0.20250527164052-5a4fb8e255ff h1:GoRNlJYu6eXru1JHQzaiX3f5FI2IDvMZuUyGMZUgYm4=
 github.com/smartcontractkit/chainlink-common v0.7.1-0.20250527164052-5a4fb8e255ff/go.mod h1:TF9ZqBV0QA3X1T4BoLGp0FfJpOQOcQ+ggKu1MlsWKYw=
-github.com/smartcontractkit/chainlink-deployments-framework v0.10.0 h1:DTLUJsC66GC7GHlx8VARpvRym7SnoJClWb+XKPvAves=
-github.com/smartcontractkit/chainlink-deployments-framework v0.10.0/go.mod h1:pe1X7qw2h+bYH90OheAlZ/vYCq8SKOnFAXGWUmIIeSc=
+github.com/smartcontractkit/chainlink-deployments-framework v0.17.3 h1:zOh6ievxXQwRzNJ9S6mFS75ioDHWakGb75dzndw2kW0=
 github.com/smartcontractkit/chainlink-deployments-framework v0.17.3/go.mod h1:UBZsviBNPyQFi3iGvf+Zq+8Vn4Phpt+UrEk8eUIc/lM=
 github.com/smartcontractkit/chainlink-testing-framework/framework v0.10.4 h1:ZCsiFaN9QYfNO3/1+TTRzMQeMx6uRead09pFx7OHacQ=
 github.com/smartcontractkit/chainlink-testing-framework/framework v0.10.4/go.mod h1:47sm4C5wBxR8VBAZoDRGSt5wJwDJN3vVeE36l5vQs1g=
-github.com/smartcontractkit/freeport v0.1.0 h1:3MZHeti5m+tSTBCq5R8rhawFHxrnQZYBZVL+xgS1sPo=
-github.com/smartcontractkit/freeport v0.1.0/go.mod h1:T4zH9R8R8lVWKfU7tUvYz2o2jMv1OpGCdpY2j2QZXzU=
+github.com/smartcontractkit/freeport v0.1.1 h1:B5fhEtmgomdIhw03uPVbVTP6oPv27fBhZsoZZMSIS8I=
 github.com/smartcontractkit/freeport v0.1.1/go.mod h1:T4zH9R8R8lVWKfU7tUvYz2o2jMv1OpGCdpY2j2QZXzU=
 github.com/smartcontractkit/grpc-proxy v0.0.0-20240830132753-a7e17fec5ab7 h1:12ijqMM9tvYVEm+nR826WsrNi6zCKpwBhuApq127wHs=
 github.com/smartcontractkit/grpc-proxy v0.0.0-20240830132753-a7e17fec5ab7/go.mod h1:FX7/bVdoep147QQhsOPkYsPEXhGZjeYx6lBSaSXtZOA=
