@@ -57,47 +57,37 @@ func (lc *Loader) BackfillForAddresses(ctx context.Context, addresses []*address
 }
 
 // Note: (prevBlock, toBlock] is the range of blocks to fetch messages from
+// TODO: stream messages back to log poller to avoid memory overhead
+
 func (lc *Loader) fetchMessagesForAddress(ctx context.Context, addr *address.Address, prevBlock *ton.BlockIDExt, toBlock *ton.BlockIDExt) ([]*tlb.ExternalMessageOut, error) {
-	// wait for the latest block to be available in the node we're querying, and get account state
-	res, err := lc.client.WaitForBlock(toBlock.SeqNo).GetAccount(ctx, toBlock, addr)
+	startLT, endLT, endHash, err := lc.getTransactionBounds(ctx, addr, prevBlock, toBlock)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get account state for %s in block %d: %w", addr.String(), toBlock.SeqNo, err)
-	}
-	// starting cursor for the transaction list
-	endLT, endHash := res.LastTxLT, res.LastTxHash
-
-	var lastSeenLT uint64
-	// Handle the case where prevBlock is nil (first run)
-	if prevBlock == nil {
-		lastSeenLT = 0
-		lc.lggr.Debugw("fresh start", "address", addr.String(), "toSeq", toBlock.SeqNo)
-	} else if prevBlock.SeqNo > 0 {
-		// Get the previous block to establish the boundary
-		accPrev, err := lc.client.GetAccount(ctx, prevBlock, addr)
-		if err != nil {
-			lastSeenLT = 0 // Account didn't exist before this range
-		} else {
-			lastSeenLT = accPrev.LastTxLT // This is the boundary BEFORE fromBlock
-		}
-	} else {
-		lastSeenLT = 0
+		return nil, err
 	}
 
-	if lastSeenLT >= endLT {
-		// (startLT, endLT] no transactions to process
-		lc.lggr.Debugw("No transactions to process", "address", addr.String(), "startLT", lastSeenLT, "endLT", endLT)
+	if startLT >= endLT {
+		lc.lggr.Debugw("No transactions to process", "address", addr.String(), "startLT", startLT, "endLT", endLT)
 		return nil, nil
 	}
 
-	// TODO: stream messages back to log poller to avoid memory overhead
-	var messages []*tlb.ExternalMessageOut
+	lc.lggr.Debugw("Scanning transaction range",
+		"address", addr.String(),
+		"fromSeqNo", func() uint32 {
+			if prevBlock != nil {
+				return prevBlock.SeqNo
+			}
+			return 0
+		}(),
+		"toSeqNo", toBlock.SeqNo,
+		"startLT", startLT,
+		"endLT", endLT,
+		"range", fmt.Sprintf("(%d, %d]", startLT, endLT))
 
+	var messages []*tlb.ExternalMessageOut
 	curLT, curHash := endLT, endHash
 	done := false
 
 	for !done {
-		// ListTransactions - returns list of transactions before (including) passed lt and hash, the oldest one is first in result slice
-		// Transactions will be verified to match final tx hash, which should be taken from proved account state, then it is safe.
 		batch, err := lc.client.ListTransactions(ctx, addr, lc.pageSize, curLT, curHash)
 		if errors.Is(err, ton.ErrNoTransactionsWereFound) {
 			break
@@ -105,27 +95,13 @@ func (lc *Loader) fetchMessagesForAddress(ctx context.Context, addr *address.Add
 			return nil, fmt.Errorf("ListTransactions: %w", err)
 		}
 
-		lc.lggr.Debugw("Scanning transaction range",
-			"address", addr.String(),
-			"fromSeqNo", func() uint32 {
-				if prevBlock != nil {
-					return prevBlock.SeqNo
-				}
-				return 0
-			}(),
-			"toSeqNo", toBlock.SeqNo,
-			"startLT", lastSeenLT,
-			"endLT", endLT,
-			"range", fmt.Sprintf("(%d, %d]", lastSeenLT, endLT))
-
-		// no more txs
 		if len(batch) == 0 {
 			break
 		}
 
 		// txs in batch is old to new order
 		for _, tx := range batch {
-			if tx.LT <= lastSeenLT {
+			if tx.LT <= startLT {
 				// found transaction that is already processed, break the loop
 				done = true
 				continue
@@ -159,4 +135,28 @@ func (lc *Loader) fetchMessagesForAddress(ctx context.Context, addr *address.Add
 	}
 
 	return messages, nil
+}
+
+func (lc *Loader) getTransactionBounds(ctx context.Context, addr *address.Address, prevBlock *ton.BlockIDExt, toBlock *ton.BlockIDExt) (startLT, endLT uint64, endHash []byte, err error) {
+	res, err := lc.client.WaitForBlock(toBlock.SeqNo).GetAccount(ctx, toBlock, addr)
+	if err != nil {
+		return 0, 0, nil, fmt.Errorf("failed to get account state for %s in block %d: %w", addr.String(), toBlock.SeqNo, err)
+	}
+	endLT, endHash = res.LastTxLT, res.LastTxHash
+
+	if prevBlock == nil {
+		startLT = 0
+		lc.lggr.Debugw("fresh start", "address", addr.String(), "toSeq", toBlock.SeqNo)
+	} else if prevBlock.SeqNo > 0 {
+		accPrev, err := lc.client.GetAccount(ctx, prevBlock, addr)
+		if err != nil {
+			startLT = 0 // account didn't exist before this range
+		} else {
+			startLT = accPrev.LastTxLT
+		}
+	} else {
+		startLT = 0
+	}
+
+	return startLT, endLT, endHash, nil
 }

@@ -23,7 +23,7 @@ import (
 )
 
 func SetUpTest(t *testing.T, chainID uint64, initialAmount *big.Int, fundedAccountsCount uint) (accounts []tracetracking.SignedAPIClient) {
-	api := testutils.CreateAPIClient(t, chainID)
+	api := testutils.CreateAPIClient(t, chainID, false)
 
 	// Get wallet for operations
 	funderWallet := getWallet(t, api)

@@ -28,7 +28,9 @@ import (
 
 // TODO: clean up
 func Test_LogPoller(t *testing.T) {
-	nodeClient := test_utils.CreateAPIClient(t, chainsel.TON_LOCALNET.Selector, true)
+	useAlreadyRunningNetwork := true
+
+	nodeClient := test_utils.CreateAPIClient(t, chainsel.TON_LOCALNET.Selector, useAlreadyRunningNetwork)
 	require.NotNil(t, nodeClient)
 
 	admin := test_utils.CreateTonWallet(t, nodeClient, config.WalletVersion, wallet.WithWorkchain(0))
@@ -44,24 +46,24 @@ func Test_LogPoller(t *testing.T) {
 
 	client := tonChain.Client
 
-	counterIdA := rand.Uint64()
-
-	emitter, err := event_emitter.NewEventEmitter(t, client, "evA", counterIdA, sender)
+	emitter, err := event_emitter.NewEventEmitter(t.Context(), client, "evA", rand.Uint64(), sender, logger.Test(t))
 	require.NoError(t, err)
 
 	// Configuration
-	events := event_emitter.Input{
+	events := event_emitter.Config{
 		TotalBatches: 3,
 		TxPerBatch:   2,
 		MsgPerTx:     5,
 	}
-	allTxResults := emitter.CreateEvents(events)
+	allTxResults, err := emitter.CreateTestEvents(t.Context(), events)
+	require.NoError(t, err)
 	blockCounts := make(map[uint32]int)
 	for _, tx := range allTxResults {
 		blockCounts[tx.Block.SeqNo]++
 	}
 
 	lastTx := allTxResults[len(allTxResults)-1]
+
 	t.Logf("All transactions sent. Final tx: Block=%d, LT=%d", lastTx.Block.SeqNo, lastTx.Tx.LT)
 	expectedEventCount := events.TotalBatches * events.TxPerBatch * events.MsgPerTx
 
@@ -148,21 +150,18 @@ func Test_LogPoller(t *testing.T) {
 	var duplicateCounters = make(map[uint64][]int)
 
 	for i, extMsg := range allExtMsgs {
-		if extMsg.Body != nil {
-			var event event_emitter.CounterIncreased
-			err := tlb.LoadFromCell(&event, extMsg.Body.BeginParse())
-			if err != nil {
-				t.Logf("Failed to parse event %d: %v", i, err)
-				continue
-			}
+		event, err := test_utils.LoadEventFromMsg[event_emitter.CounterIncreased](extMsg)
+		if err != nil {
+			t.Logf("Failed to parse event %d: %v", i, err)
+			continue
+		}
 
-			counterValues = append(counterValues, event.Counter)
+		counterValues = append(counterValues, event.Counter)
 
-			if prevIndex, exists := uniqueCounters[event.Counter]; exists {
-				duplicateCounters[event.Counter] = append(duplicateCounters[event.Counter], prevIndex, i)
-			} else {
-				uniqueCounters[event.Counter] = i
-			}
+		if prevIndex, exists := uniqueCounters[event.Counter]; exists {
+			duplicateCounters[event.Counter] = append(duplicateCounters[event.Counter], prevIndex, i)
+		} else {
+			uniqueCounters[event.Counter] = i
 		}
 	}
 
@@ -226,9 +225,8 @@ func Test_LogPoller(t *testing.T) {
 
 	seen := map[uint64]bool{}
 	for i, ext := range msgs {
-		var ev event_emitter.CounterIncreased
-		require.NoError(t, tlb.LoadFromCell(&ev, ext.Body.BeginParse()),
-			"failed to parse event #%d", i)
+		ev, err := test_utils.LoadEventFromMsg[event_emitter.CounterIncreased](ext)
+		require.NoError(t, err, "failed to parse event #%d", i)
 		require.False(t, seen[ev.Counter],
 			"duplicate counter %d in loader result", ev.Counter)
 		seen[ev.Counter] = true
@@ -332,11 +330,11 @@ func Test_LogPoller(t *testing.T) {
 	logs := lp.GetLogs()
 	require.Greater(t, len(logs), 0, "expected at least one log entry")
 
-	var event event_emitter.CounterIncreased
 	c, err := cell.FromBOC(logs[0].Data)
 	require.NoError(t, err)
-	err = tlb.LoadFromCell(&event, c.BeginParse())
+	event, err := test_utils.LoadEventFromCell[event_emitter.CounterIncreased](c)
 	require.NoError(t, err)
+
 	t.Logf("Received event: %+v", event)
 	// require.Equal(t, uint32(1), event.NewValue, "unexpected new value in event")
 }

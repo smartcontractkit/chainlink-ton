@@ -1,22 +1,28 @@
 package utils
 
 import (
-	"testing"
+	"fmt"
 
-	"github.com/xssnick/tonutils-go/ton"
-	"github.com/xssnick/tonutils-go/ton/wallet"
+	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
-// TODO: this is a temporary placeholder for linter setup, remove once we have tonutils package
-func GetRandomWallet(t *testing.T, client ton.APIClientWrapped, version wallet.Version, option wallet.Option) *wallet.Wallet {
-	seed := wallet.NewSeed()
-	w, err := wallet.FromSeed(client, seed, version)
+func LoadEventFromCell[T any](cell *cell.Cell) (T, error) {
+	var event T
+	if cell == nil {
+		return event, fmt.Errorf("cell is nil")
+	}
+	err := tlb.LoadFromCell(&event, cell.BeginParse())
 	if err != nil {
-		t.Fatalf("failed to generate random wallet: %s", err)
+		return event, fmt.Errorf("failed to parse %T event: %w", event, err)
 	}
-	pw, perr := wallet.FromPrivateKeyWithOptions(client, w.PrivateKey(), version, option)
-	if perr != nil {
-		t.Fatalf("failed to generate random wallet: %v", perr)
+	return event, nil
+}
+
+func LoadEventFromMsg[T any](msg *tlb.ExternalMessageOut) (T, error) {
+	var event T
+	if msg.Body == nil {
+		return event, fmt.Errorf("message body is nil")
 	}
-	return pw
+	return LoadEventFromCell[T](msg.Body)
 }
