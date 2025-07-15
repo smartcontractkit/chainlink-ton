@@ -8,12 +8,12 @@ struct OCR3BaseExampleContract {
     ocr3Base: OCR3Base;
 }
 
-fun loadData(): OCR3BaseExampleContract {
+fun OCR3BaseExampleContract.load() {
     return OCR3BaseExampleContract.fromCell(contract.getData());
 }
 
-fun saveData(data: OCR3BaseExampleContract) {
-    contract.setData(data.toCell());
+fun OCR3BaseExampleContract.store(self) {
+    contract.setData(self.toCell());
 }
 
 struct (0x00000002) Transmit {
@@ -32,7 +32,7 @@ fun onInternalMessage(in: InMessage) {
     match (msg) {
         Transmit => {
         //Using the transmit function validates signatures and emits an event
-            var storage = lazy loadData();
+            var storage = lazy OCR3BaseExampleContract.load();
             val sender = in.senderAddress;
             storage.ocr3Base.transmit(
                 sender,
@@ -45,9 +45,9 @@ fun onInternalMessage(in: InMessage) {
         //The SetOCR3Config message configures authorized signers and transmitters
         OCR3Base_SetOCR3Config => {
             // On a real contract you would invoke requireOwner here
-            var storage = lazy loadData();
+            var storage = lazy OCR3BaseExampleContract.load();
             storage.ocr3Base.setOcr3Config(msg);
-            saveData(storage);
+            storage.store();
         },
         else => {
             // ignore empty messages, "wrong opcode" for others
@@ -57,14 +57,14 @@ fun onInternalMessage(in: InMessage) {
 }
 
 get fun ocr3ConfigInfo(ocrPluginType: uint16): ConfigInfo {
-    val s = lazy loadData();
+    val s = lazy OCR3BaseExampleContract.load();
     val config = s.ocr3Base.getConfig(ocrPluginType);
     assert(config != null, ERROR_NON_EXISTENT_OCR_PLUGIN_TYPE);
     return config!.configInfo;
 }
 
 get fun ocr3Signers(ocrPluginType: uint16): tuple? {
-    val s = lazy loadData();
+    val s = lazy OCR3BaseExampleContract.load();
     val config = s.ocr3Base.getConfig(ocrPluginType);
     assert(config != null, ERROR_NON_EXISTENT_OCR_PLUGIN_TYPE);
     var d = config!.signers;
@@ -72,7 +72,7 @@ get fun ocr3Signers(ocrPluginType: uint16): tuple? {
 }
 
 get fun ocr3Transmitters(ocrPluginType: uint16): tuple? {
-    val s = lazy loadData();
+    val s = lazy OCR3BaseExampleContract.load();
     val config = s.ocr3Base.getConfig(ocrPluginType);
     assert(config != null, ERROR_NON_EXISTENT_OCR_PLUGIN_TYPE);
     var d  = config!.transmitters;
