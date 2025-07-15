@@ -44,7 +44,17 @@ fun OnrampMock.handleJettonTransferNotification(
     // Check if the sender is our jetton wallet
     assert(sender == self.JettonClient.walletAddress(), INCORRECT_SENDER_ERROR);
 
-    assert(msg.forwardPayload != null, FORWARD_PAYLOAD_REQUIRED_ERROR);
+    var forwardPayloadCell: cell;
+    var msgForwardPayload: slice | cell = msg.forwardPayload;
+    match (msgForwardPayload) {
+        slice => {
+            assert (msgForwardPayload.isEmpty() == false) throw FORWARD_PAYLOAD_REQUIRED_ERROR;
+            forwardPayloadCell = beginCell().storeSlice(msgForwardPayload).endCell();
+        }
+        cell => {
+            forwardPayloadCell = msgForwardPayload;
+        }
+    }
 
     // Handle the jetton transfer
     if (msg.amount < FEE) {
@@ -55,7 +65,7 @@ fun OnrampMock.handleJettonTransferNotification(
             AcceptedRequest {
                 queryId: msg.queryId,
                 sender: sender,
-                payload: msg.forwardPayload!,
+                payload: forwardPayloadCell!,
             }
         );
     }
