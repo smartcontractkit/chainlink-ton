@@ -11,7 +11,6 @@ require (
 	github.com/smartcontractkit/chainlink-deployments-framework v0.17.3
 	github.com/smartcontractkit/chainlink-framework/multinode v0.0.0-20250522110034-65c54665034a
 	github.com/smartcontractkit/chainlink-ton/integration-tests v0.0.0-00010101000000-000000000000
-	github.com/smartcontractkit/mcms v0.16.1
 	github.com/xssnick/tonutils-go v1.13.0
 	golang.org/x/exp v0.0.0-20250408133849-7e4ce0ab07d0
 )
@@ -103,6 +102,7 @@ require (
 	github.com/smartcontractkit/chainlink-ccip/chains/solana v0.0.0-20250520123946-6aaf88e0848a // indirect
 	github.com/smartcontractkit/chainlink-protos/job-distributor v0.12.0 // indirect
 	github.com/smartcontractkit/chainlink-testing-framework/framework v0.10.4 // indirect
+	github.com/smartcontractkit/mcms v0.16.1 // indirect
 	github.com/spf13/cast v1.7.1 // indirect
 	github.com/stephenlacy/go-ethereum-hdwallet v0.0.0-20230913225845-a4fa94429863 // indirect
 	github.com/streamingfast/logging v0.0.0-20230608130331-f22c91403091 // indirect

@@ -1,4 +1,4 @@
-package ccip_onramp
+package ops
 
 import (
 	"context"
@@ -11,16 +11,30 @@ import (
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain/ton/provider"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/smartcontractkit/chainlink-ton/ops"
+	"github.com/smartcontractkit/chainlink-ton/ops/ccip_onramp"
 	"github.com/stretchr/testify/require"
 )
 
 func TestDeployAndInitCCIPOnrampOp(t *testing.T) {
 	t.Parallel()
-	reporter := cld_ops.NewMemoryReporter()
+
+	bundle, deps := setupEnv(t)
+	_, err := cld_ops.ExecuteOperation(bundle, ccip_onramp.DeployOnRampOp, deps, ops.OpTxInput[ccip_onramp.DeployCCIPOnrampInput]{})
+	require.NoError(t, err, "failed to deploy Onramp CCIP Package with DeployOnRampOp")
+}
+
+func TestDeployAndInitCCIPOnrampSequence(t *testing.T) {
+	t.Parallel()
+	bundle, deps := setupEnv(t)
+	_, err := cld_ops.ExecuteSequence(bundle, ccip_onramp.DeployAndInitCCIPOnRampSequence, deps, ops.OpTxInput[ccip_onramp.DeployCCIPOnrampInput]{})
+	require.NoError(t, err, "failed to deploy Onramp CCIP Package with DeployAndInitCCIPOnRampSequence")
+}
+
+func setupEnv(t *testing.T) (cld_ops.Bundle, ops.TonDeps) {
 	bundle := cld_ops.NewBundle(
 		context.Background,
 		logger.Test(t),
-		reporter,
+		cld_ops.NewMemoryReporter(),
 	)
 
 	localTonSelector, err := chainsel.GetChainDetailsByChainIDAndFamily("-217", chainsel.FamilyTon)
@@ -39,14 +53,5 @@ func TestDeployAndInitCCIPOnrampOp(t *testing.T) {
 		TonChain: gotChain,
 	}
 
-	_, err = cld_ops.ExecuteOperation(bundle, DeployOnRampOp, deps, ops.OpTxInput[DeployCCIPOnrampInput]{})
-	require.NoError(t, err, "failed to deploy Onramp CCIP Package")
+	return bundle, deps
 }
-
-//func TestDeployAndInitCCIPOnrampSequence(t *testing.T) {
-//	t.Parallel()
-//	ccipSeqReport, err := cld_ops.ExecuteSequence(env.OperationsBundle, DeployAndInitCCIPOnRampSequence, deps, ccipSeqInput)
-//	if err != nil {
-//		return cldf.ChangesetOutput{}, fmt.Errorf("failed to deploy CCIP for Aptos chain %d: %w", chainSel, err)
-//	}
-//}
