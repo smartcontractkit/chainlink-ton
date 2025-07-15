@@ -49,7 +49,16 @@ fun JettonReceiver.handleJettonTransferNotification(
 
     // Handle the jetton transfer - simple implementation just updates trackers
     self.amountChecker += msg.amount;
-    self.payloadChecker = msg.forwardPayload;
+    match (msg.forwardPayload) {
+        RemainingBitsAndRefs => {
+            // If the forward payload is empty, we store null
+            self.payloadChecker = beginCell().storeSlice(msg.forwardPayload).endCell();
+        }
+        cell => {
+            // If the forward payload is a cell, we store it
+            self.payloadChecker = msg.forwardPayload;
+        }
+    }
 
     self.store();
 }
