@@ -28,7 +28,7 @@ func SetUpTest(t *testing.T, chainID uint64, initialAmount *big.Int, fundedAccou
 	amounts := make([]tlb.Coins, fundedAccountsCount)
 
 	for i := range fundedAccountsCount {
-		w := testutils.CreateTonWallet(t, api, wallet.V3R2, wallet.WithWorkchain(0))
+		w := testutils.CreateRandomTonWallet(t, api, wallet.V3R2, wallet.WithWorkchain(0))
 		recipients[i] = w.Address()
 		amounts[i] = tlb.FromNanoTON(initialAmount)
 
