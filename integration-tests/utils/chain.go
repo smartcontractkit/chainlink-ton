@@ -156,7 +156,8 @@ func CreateAPIClient(t *testing.T, chainID uint64) *ton.APIClient {
 		Type:    "ton",
 		Port:    strconv.Itoa(port),
 		CustomEnv: map[string]string{
-			"VERSION_CAPABILITIES": "11",
+			"VERSION_CAPABILITIES":        "11",
+			"NEXT_BLOCK_GENERATION_DELAY": "0.5",
 		},
 	}
 
