@@ -78,3 +78,9 @@ fun JettonClient.sendExtended(
     })
         .send(sendMode);
 }
+
+// Assert that the sender is the jetton wallet address. Used for validating incoming notifications.
+@inline
+fun JettonClient.isWallet(self, sender: address): bool {
+    return sender == self.walletAddress();
+}
