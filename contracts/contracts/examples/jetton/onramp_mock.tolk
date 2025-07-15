@@ -4,12 +4,6 @@ import "../../lib/jetton/messages.tolk"
 import "../../lib/jetton/utils.tolk"
 import "../../lib/utils.tolk"
 
-;
-;
-;
-;
-;
-
 // OnrampMock contract in Tolk
 // Mock onramp that accepts jetton transfers if they meet the fee requirement
 const FEE = 5
@@ -34,11 +28,11 @@ struct AcceptedRequest {
     payload: cell
 }
 
-fun loadData(): OnrampMock {
+fun OnrampMock.load(): OnrampMock {
     return OnrampMock.fromCell(contract.getData());
 }
 
-fun saveData(data: OnrampMock) {
+fun OnrampMock.store(data: OnrampMock) {
     contract.setData(data.toCell());
 }
 
@@ -72,7 +66,7 @@ type IncomingMessage = JettonNotification
 fun onInternalMessage(in: InMessage) {
     val msg = IncomingMessage.fromSlice(in.body);
 
-    var this = loadData();
+    var this = OnrampMock.load();
 
     // Check if this is a jetton notification
     match (msg) {
