@@ -1,32 +1,37 @@
-import "@stdlib/common.tolk";
-import "../../lib/utils.tolk";
-import "../../lib/jetton/utils.tolk";
-import "../../lib/jetton/messages.tolk";
-import "../../lib/jetton/jetton_client.tolk";
+import "@stdlib/common.tolk"
+import "../../lib/jetton/jetton_client.tolk"
+import "../../lib/jetton/messages.tolk"
+import "../../lib/jetton/utils.tolk"
+import "../../lib/utils.tolk"
+
+;
+;
+;
+;
+;
 
 // OnrampMock contract in Tolk
 // Mock onramp that accepts jetton transfers if they meet the fee requirement
+const FEE = 5
 
-const FEE = 5;
-
-const INCORRECT_SENDER_ERROR = 100;
-const FORWARD_PAYLOAD_REQUIRED_ERROR = 101;
+const INCORRECT_SENDER_ERROR = 100
+const FORWARD_PAYLOAD_REQUIRED_ERROR = 101
 
 struct OnrampMock {
-    JettonClient: JettonClient;
+    JettonClient: JettonClient
 }
 
 // Event emitted when fee is insufficient
 struct InsufficientFee {
-    queryId: uint64;
-    sender: address;
+    queryId: uint64
+    sender: address
 }
 
 // Event emitted when request is accepted
 struct AcceptedRequest {
-    queryId: uint64;
-    sender: address;
-    payload: cell;
+    queryId: uint64
+    sender: address
+    payload: cell
 }
 
 fun loadData(): OnrampMock {
@@ -37,7 +42,11 @@ fun saveData(data: OnrampMock) {
     contract.setData(data.toCell());
 }
 
-fun OnrampMock.handleJettonTransferNotification(mutate self, msg: JettonNotification, sender: address) {
+fun OnrampMock.handleJettonTransferNotification(
+    mutate self,
+    msg: JettonNotification,
+    sender: address,
+) {
     // Check if the sender is our jetton wallet
     assert(sender == self.JettonClient.walletAddress(), INCORRECT_SENDER_ERROR);
 
@@ -45,34 +54,33 @@ fun OnrampMock.handleJettonTransferNotification(mutate self, msg: JettonNotifica
 
     // Handle the jetton transfer
     if (msg.amount < FEE) {
-        emit(JETTON_TOPIC, InsufficientFee {
-            queryId: msg.queryId,
-            sender: sender,
-            });
+        emit(JETTON_TOPIC, InsufficientFee { queryId: msg.queryId, sender: sender });
     } else {
-        emit(JETTON_TOPIC, AcceptedRequest {
-            queryId: msg.queryId,
-            sender: sender,
-            payload: msg.forwardPayload!,
-            });
+        emit(
+            JETTON_TOPIC,
+            AcceptedRequest {
+                queryId: msg.queryId,
+                sender: sender,
+                payload: msg.forwardPayload!,
+            }
+        );
     }
 }
 
-type IncomingMessage = JettonNotification;
+type IncomingMessage = JettonNotification
 
 fun onInternalMessage(in: InMessage) {
-    if (in.body.isEmpty()) { // ignore all empty messages
-        return;
-    }
-
     val msg = IncomingMessage.fromSlice(in.body);
 
     var this = loadData();
 
     // Check if this is a jetton notification
     match (msg) {
-        JettonNotification => { 
+        JettonNotification => {
             this.handleJettonTransferNotification(msg, in.senderAddress);
+        }
+        else => {
+            // ignore empty messages, "wrong opcode" for others  
         }
     }
 }
