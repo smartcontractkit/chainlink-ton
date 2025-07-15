@@ -510,7 +510,7 @@ fun Timelock<T>.init(mutate self, sender: address, body: Timelock_Init): void {
     // Send a message to the sender to notify about the change
     val reply = createMessage({
         bounce: false,
-        value: 0,
+        value: 0, // TODO: how to pay for this message fee? or do we emit?
         dest: sender,
         body: Timelock_MinDelayChange {queryId: body.queryId, oldDuration: 0, newDuration: body.minDelay}
     });
@@ -549,7 +549,7 @@ fun Timelock<T>.scheduleBatch(
         // Send a message to the sender to notify about the change
         val reply = createMessage({
             bounce: false,
-            value: 0, // TODO: how to pay for this message fee?
+            value: 0, // TODO: how to pay for this message fee? or do we emit?
             dest: sender,
             body: Timelock_CallScheduled {queryId, id, index, target: call.target, value: call.value, data: call.data, predecessor, salt, delay}
         });
@@ -594,7 +594,7 @@ fun Timelock<T>.cancel(mutate self, queryId: uint64, sender: address, id: uint25
 /// don't have associated contract code will always succeed regardless of
 /// payload.
 ///
-/// Emits one {CallExecuted} event per transaction in the batch.
+/// Emits one {Timelock_CallExecuted} event per transaction in the batch.
 ///
 /// Requirements:
 ///
@@ -604,7 +604,7 @@ fun Timelock<T>.executeBatch(
     mutate self,
     queryId: uint64,
     sender: address,
-    calls: cell, // TODO: vec<Timelock_Call>
+    calls: cell, // vec<Timelock_Call>
     predecessor: uint256,
     salt: uint256
 ): void {
@@ -622,7 +622,7 @@ fun Timelock<T>.executeBatch(
         // Send a message to the sender to notify about the change
         val reply = createMessage({
             bounce: false,
-            value: 0, // TODO: how to pay for this message fee?
+            value: 0, // TODO: how to pay for this message fee? or do we emit?
             dest: sender,
             body: Timelock_CallExecuted {queryId, id, index, target: call.target, value: call.value, data: call.data}
         });
@@ -635,6 +635,7 @@ fun Timelock<T>.executeBatch(
 
 /// @dev Execute an operation's call.
 fun Timelock<T>.execute(self, call: Timelock_Call): void {
+    // TODO: notice, we can not require success before continuing with the next call (async execution model)
     val msg = createMessage({
         bounce: true, // TODO: how to handle bounced messages (errors)?
         value: call.value,
@@ -654,6 +655,30 @@ fun Timelock<T>.beforeCall(self, id: uint256, predecessor: uint256): void {
 fun Timelock<T>.afterCall(mutate self, id: uint256): void {
     assert(self.isOperationReady(id)) throw ERROR_OPERATION_NOT_READY;
     self.data.timestamps.uDictSet(256, id, DONE_TIMESTAMP); // Mark the operation as done
+}
+
+/// @dev Changes the minimum timelock duration for future operations.
+///
+/// Emits a {Timelock_MinDelayChange} event.
+///
+/// Requirements:
+///
+/// - the caller must have the 'admin' role.
+///
+fun Timelock<T>.updateDelay(mutate self, queryId: uint64, sender: address, newDelay: uint256): void {
+    val rbac = self.hookTrait__AccessControl();
+    rbac.requireRole(ADMIN_ROLE, sender);
+
+    // Send a message to the sender to notify about the change
+    val reply = createMessage({
+        bounce: false,
+        value: 0,
+        dest: sender,
+        body: Timelock_MinDelayChange {queryId: queryId, oldDuration: self.data.minDelay, newDuration: newDelay}
+    });
+    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    // Update the minimum delay
+    self.data.minDelay = newDelay;
 }
 
 /// @dev Blocks a function selector from being used, i.e. schedule
