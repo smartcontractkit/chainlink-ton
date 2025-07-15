@@ -59,7 +59,7 @@ func TestSVMExtraArgsV1_ToCellAndLoadFromCell(t *testing.T) {
 	require.Equal(t, orig.AccountIsWritableBitmap, decoded.AccountIsWritableBitmap)
 	require.Equal(t, orig.AllowOutOfOrderExecution, decoded.AllowOutOfOrderExecution)
 	require.Equal(t, orig.TokenReceiver, decoded.TokenReceiver)
-	require.Equal(t, len(orig.Accounts), len(decoded.Accounts))
+	require.Len(t, orig.Accounts, len(decoded.Accounts))
 	for i, addr := range orig.Accounts {
 		require.Equal(t, addr, decoded.Accounts[i])
 	}
@@ -197,7 +197,7 @@ func TestPackAndUnpack2DByteArrayToCell(t *testing.T) {
 			var output SnakeRef[SnakeBytes]
 			err = tlb.LoadFromCell(&output, c.BeginParse())
 			require.NoError(t, err)
-			require.Equal(t, len(tt.input), len(output), "array count mismatch")
+			require.Len(t, tt.input, len(output), "array count mismatch")
 
 			for i, expected := range tt.input {
 				require.Equal(t, expected, output[i], "array %d content mismatch", i)
@@ -221,14 +221,14 @@ func TestPackAndUnpack2DByteArrayToCell_CellStructure(t *testing.T) {
 		var output SnakeRef[SnakeBytes]
 		err = tlb.LoadFromCell(&output, c.BeginParse())
 		require.NoError(t, err)
-		require.Equal(t, len(arrays), len(output))
+		require.Len(t, arrays, len(output))
 
 		// With SnakeRef, each array element becomes a cell reference
 		// Plus chaining references for the structure
 		// Expect: 1000 data refs + ~250 chain refs = ~1250 total refs
 		cellCount, err := getTotalReference(c)
 		require.NoError(t, err)
-		require.Equal(t, cellCount, uint(1333), "should have at least 1000 data references")
+		require.Equal(t, uint(1333), cellCount, "should have at least 1000 data references")
 	})
 
 	t.Run("cell count for large dataset", func(t *testing.T) {
@@ -245,7 +245,7 @@ func TestPackAndUnpack2DByteArrayToCell_CellStructure(t *testing.T) {
 		var output SnakeRef[SnakeBytes]
 		err = tlb.LoadFromCell(&output, c.BeginParse())
 		require.NoError(t, err)
-		require.Equal(t, len(arrays), len(output))
+		require.Len(t, arrays, len(output))
 
 		// Data references: 1000 (one per array element in SnakeRef)
 		// Internal references: 1000 (one per 130-byte SnakeBytes that spans 2 cells)
@@ -253,7 +253,7 @@ func TestPackAndUnpack2DByteArrayToCell_CellStructure(t *testing.T) {
 		// Total references: 1000 + 1000 + 333 = 2333 references
 		cellCount, err := getTotalReference(c)
 		require.NoError(t, err)
-		require.Equal(t, cellCount, uint(2333), "should have at least 1000 data references")
+		require.Equal(t, uint(2333), cellCount, "should have at least 1000 data references")
 	})
 
 	t.Run("handles cell boundaries correctly", func(t *testing.T) {
