@@ -300,21 +300,3 @@ func NewDummyCell() (*cell.Cell, error) {
 	}
 	return builder.EndCell(), nil
 }
-
-func GetTotalReference(c *cell.Cell) (uint, error) {
-	totalRefs := c.RefsNum()
-	for i := uint(0); i < c.RefsNum(); i++ {
-		if i > uint(math.MaxInt) {
-			return 0, fmt.Errorf("reference index %d exceeds math.MaxInt", i)
-		}
-		ref, err := c.PeekRef(int(i))
-		if err == nil && ref != nil {
-			subRefs, subErr := GetTotalReference(ref)
-			if subErr != nil {
-				return 0, subErr
-			}
-			totalRefs += subRefs
-		}
-	}
-	return totalRefs, nil
-}
