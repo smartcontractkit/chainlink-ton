@@ -5,6 +5,7 @@ import "./../lib/merkle_multi_proof/merkle_multi_proof.tolk"
 import "../deployable/types.tolk";
 import "../lib/utils.tolk";
 import "../lib/ocr/multi_ocr3_base";
+import "../lib/ocr/types";
 
 struct Storage {
     ownable: Ownable2Step;
@@ -107,7 +108,7 @@ struct CommitReport {
 struct (0x00000001) Commit {
     queryId: uint64;
     // TODO: could just store as one slice since context is fixed size
-    reportContext: cell;
+    reportContext: ReportContext;
     report: cell;
     signatures: cell;
 }
@@ -115,7 +116,7 @@ struct (0x00000001) Commit {
 struct (0x00000002) Execute {
     queryId: uint64;
     // TODO: could just store as one slice since context is fixed size
-    reportContext: cell;
+    reportContext: ReportContext;
     report: cell;
 }
 
@@ -127,7 +128,7 @@ fun onInternalMessage(in:InMessage) {
         Commit => { commit(msg, in.senderAddress) }
         Execute => { _execute(msg, in.senderAddress) }
         OCR3Base_SetOCR3Config => {
-            val st = lazy Storage.load();
+            var st = lazy Storage.load();
             st.ownable.requireOwner(in.senderAddress);
             st.ocr3Base.setOcr3Config(msg);
             st.store()
@@ -148,9 +149,7 @@ fun getMerkleRootID(merkleRoot: uint256): builder {
 }
 
 fun commit(msg: Commit, sender: address) {
-    val st = lazy Storage.load();
-
-    // ocr3 base: validate signatures
+    var st = lazy Storage.load();
 
     // parse report
     val report = CommitReport.fromCell(msg.report);
@@ -206,6 +205,15 @@ fun commit(msg: Commit, sender: address) {
         initMsg.send(SEND_MODE_REGULAR);
     }
 
+    // Verifies signatures and emits Transmitted event
+    st.ocr3Base.transmit(
+        sender,
+        OCR_PLUGIN_TYPE_COMMIT,
+        msg.reportContext,
+        msg.report,
+        msg.signatures
+    );
+
     emit(CCIP_COMMIT_REPORT_ACCEPTED_TOPIC, CommitReportAccepted {
         priceUpdates: report.priceUpdates,
         blessedMerkleRoots: report.blessedMerkleRoots,
@@ -214,7 +222,7 @@ fun commit(msg: Commit, sender: address) {
 }
 
 fun _execute(msg: Execute, sender: address) {
-    val st = lazy Storage.load();
+    var st = lazy Storage.load();
 
     // ocr3 base: validate execute report
 
@@ -280,6 +288,14 @@ fun _execute(msg: Execute, sender: address) {
     // executeMsg.send(SEND_MODE_REGULAR);
 
     // TODO: how do we handle incrementing the nonce? since execution is async this might take a while
+
+    st.ocr3Base.transmit(
+        sender,
+        OCR_PLUGIN_TYPE_EXECUTE,
+        msg.reportContext,
+        msg.report,
+        beginCell().endCell(),
+    );
 }
 
 // TODO: handle signals from MerkleRoot (release tokens, execute)
