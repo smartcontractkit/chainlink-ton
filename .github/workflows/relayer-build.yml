@@ -23,7 +23,9 @@ jobs:
         run: nix develop -c go build -v ./...
 
       - name: Run tests
-        run: nix develop -c go test -v -count=1 -p=1 -timeout 30m ./...
+        run: |
+          nix develop .#contracts -c yarn && yarn build
+          nix develop -c go test -v -count=1 -p=1 -timeout 30m ./...
 
       - name: Run build contracts for integration tests
         run: |
