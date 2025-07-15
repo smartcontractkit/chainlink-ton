@@ -4,15 +4,13 @@ import (
 	"github.com/Masterminds/semver/v3"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/smartcontractkit/chainlink-ton/ops"
-	mcmstypes "github.com/smartcontractkit/mcms/types"
 	"github.com/xssnick/tonutils-go/address"
 )
 
 type DeployCCIPOnrampInput struct{}
 
 type DeployCCIPOnrampSeqOutput struct {
-	CCIPAddress    *address.Address
-	MCMSOperations []mcmstypes.BatchOperation
+	CCIPAddress *address.Address
 }
 
 var DeployAndInitCCIPOnRampSequence = operations.NewSequence(
@@ -32,8 +30,6 @@ func deployCCIPSequence(b operations.Bundle, deps ops.TonDeps, in ops.OpTxInput[
 		return output, err
 	}
 
-	output.Objects.MCMSOperations = out.Output.Objects.MCMSOperations
 	output.Objects.CCIPAddress = out.Output.Objects.CCIPAddress
-
 	return output, nil
 }

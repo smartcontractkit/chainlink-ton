@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestDeployAndInitCCIPOnrampSeq(t *testing.T) {
+func TestDeployAndInitCCIPOnrampOp(t *testing.T) {
 	t.Parallel()
 	reporter := cld_ops.NewMemoryReporter()
 	bundle := cld_ops.NewBundle(
@@ -42,3 +42,11 @@ func TestDeployAndInitCCIPOnrampSeq(t *testing.T) {
 	_, err = cld_ops.ExecuteOperation(bundle, DeployOnRampOp, deps, ops.OpTxInput[DeployCCIPOnrampInput]{})
 	require.NoError(t, err, "failed to deploy Onramp CCIP Package")
 }
+
+//func TestDeployAndInitCCIPOnrampSequence(t *testing.T) {
+//	t.Parallel()
+//	ccipSeqReport, err := cld_ops.ExecuteSequence(env.OperationsBundle, DeployAndInitCCIPOnRampSequence, deps, ccipSeqInput)
+//	if err != nil {
+//		return cldf.ChangesetOutput{}, fmt.Errorf("failed to deploy CCIP for Aptos chain %d: %w", chainSel, err)
+//	}
+//}
