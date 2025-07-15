@@ -105,11 +105,7 @@ export class JettonWallet implements Contract {
       .storeAddress(opts.message.destination)
       .storeAddress(opts.message.responseDestination)
 
-    if (opts.message.customPayload) {
-      body.storeBit(1).storeRef(opts.message.customPayload)
-    } else {
-      body.storeBit(0)
-    }
+    body.storeMaybeRef(opts.message.customPayload)
 
     body.storeCoins(opts.message.forwardTonAmount)
 
