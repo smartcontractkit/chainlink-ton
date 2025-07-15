@@ -3,8 +3,9 @@ package plugin
 import (
 	"math/big"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/xssnick/tonutils-go/address"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 )
 
 // CommitReport represents the top-level structure for a commit report.

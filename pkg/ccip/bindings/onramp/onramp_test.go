@@ -5,11 +5,12 @@ import (
 	"testing"
 
 	"github.com/gagliardetto/solana-go"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 )
 
 func TestGenericExtraArgsV2_TLBEncodeDecode(t *testing.T) {
@@ -58,7 +59,7 @@ func TestSVMExtraArgsV1_ToCellAndLoadFromCell(t *testing.T) {
 	require.Equal(t, orig.AccountIsWritableBitmap, decoded.AccountIsWritableBitmap)
 	require.Equal(t, orig.AllowOutOfOrderExecution, decoded.AllowOutOfOrderExecution)
 	require.Equal(t, orig.TokenReceiver, decoded.TokenReceiver)
-	require.Equal(t, len(orig.Accounts), len(decoded.Accounts))
+	require.Len(t, orig.Accounts, len(decoded.Accounts))
 	for i, addr := range orig.Accounts {
 		require.Equal(t, addr, decoded.Accounts[i])
 	}
@@ -127,7 +128,7 @@ func TestDestChainConfig(t *testing.T) {
 
 	loadedKV, err := decoded.AllowedSender.LoadAll()
 	require.NoError(t, err)
-	require.Equal(t, len(kv), len(loadedKV))
+	require.Len(t, kv, len(loadedKV))
 	for k, v := range kv {
 		loadedV := loadedKV[k]
 		require.Equal(t, v, loadedV, "Value for key %s does not match", k)
@@ -159,6 +160,7 @@ func TestStorage(t *testing.T) {
 	k = cell.BeginCell()
 	require.NoError(t, k.StoreUInt(uint64(10), 64)) // Example chain selector
 	err = destConfigMap.Set(k.EndCell(), c)
+	require.NoError(t, err)
 
 	s := Storage{
 		Ownable: Ownable2Step{
@@ -187,7 +189,7 @@ func TestStorage(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, s.Ownable.Owner, decoded.Ownable.Owner)
 	require.Equal(t, s.ChainSelector, decoded.ChainSelector)
-	require.Equal(t, len(s.Config), len(decoded.Config))
+	require.Len(t, s.Config, len(decoded.Config))
 	for i := range s.Config {
 		require.Equal(t, s.Config[i].FeeAggregator, decoded.Config[i].FeeAggregator)
 		require.Equal(t, s.Config[i].FeeQuoter, decoded.Config[i].FeeQuoter)
@@ -196,7 +198,7 @@ func TestStorage(t *testing.T) {
 	require.NotNil(t, decoded.DestChainConfigs)
 	destConfigDecodedMap, err := decoded.DestChainConfigs.LoadAll()
 	require.NoError(t, err)
-	require.Equal(t, 1, len(destConfigDecodedMap))
+	require.Len(t, destConfigDecodedMap, 1)
 	for _, v := range destConfigDecodedMap {
 		var destConfig DestChainConfig
 		err = tlb.LoadFromCell(&destConfig, v.Value)
@@ -207,7 +209,7 @@ func TestStorage(t *testing.T) {
 
 		allowedSenderMap, err := destConfig.AllowedSender.LoadAll()
 		require.NoError(t, err)
-		require.Equal(t, 1, len(allowedSenderMap))
+		require.Len(t, allowedSenderMap, 1)
 		for _, v := range allowedSenderMap {
 			loadedAddr, err := v.Key.LoadAddr()
 			require.NoError(t, err)
