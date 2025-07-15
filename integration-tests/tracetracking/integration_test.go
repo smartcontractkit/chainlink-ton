@@ -27,7 +27,6 @@ func TestIntegration(t *testing.T) {
 	var initialAmount = big.NewInt(1_000_000_000_000)
 	accs := testutils.SetUpTest(t, chainsel.TON_LOCALNET.Selector, initialAmount, 2)
 	t.Run("TestDepositFees", func(t *testing.T) {
-		t.Parallel()
 		alice := accs[0]
 		bob := accs[1]
 
@@ -53,7 +52,6 @@ func TestIntegration(t *testing.T) {
 	})
 
 	t.Run("TestCounter", func(t *testing.T) {
-		t.Parallel()
 		alice := accs[0]
 
 		t.Logf("\n\n\n\n\n\nTest Setup\n==========================\n")
@@ -94,7 +92,6 @@ func TestIntegration(t *testing.T) {
 	})
 
 	t.Run("TestRequestReply", func(t *testing.T) {
-		t.Parallel()
 		alice := accs[0]
 
 		t.Logf("\n\n\n\n\n\nTest Setup\n==========================\n")
@@ -160,7 +157,6 @@ func TestIntegration(t *testing.T) {
 	}
 
 	t.Run("TestRequestReplyWithTwoDependencies", func(t *testing.T) {
-		t.Parallel()
 		alice := accs[0]
 
 		t.Logf("\n\n\n\n\n\nTest Setup\n==========================\n")
@@ -231,7 +227,6 @@ func TestIntegration(t *testing.T) {
 	})
 
 	t.Run("TestMemoryContract", func(t *testing.T) {
-		t.Parallel()
 		alice := accs[0]
 		const initValue = uint32(0)
 		t.Logf("\n\n\n\n\n\nTestStarted\n==========================\n")
@@ -256,7 +251,6 @@ func TestIntegration(t *testing.T) {
 	})
 
 	t.Run("TestTwoMsgChain", func(t *testing.T) {
-		t.Parallel()
 		alice := accs[0]
 		t.Logf("\n\n\n\n\n\nTestStarted\n==========================\n")
 		const initValue = uint32(0)
@@ -289,7 +283,6 @@ func TestIntegration(t *testing.T) {
 	})
 
 	t.Run("AutoAck", func(t *testing.T) {
-		t.Parallel()
 		alice := accs[0]
 
 		t.Logf("\n\n\n\n\n\nTest Setup\n==========================\n")
@@ -345,7 +338,6 @@ func TestIntegration(t *testing.T) {
 	})
 
 	t.Run("AcksBeforeCommit", func(t *testing.T) {
-		t.Parallel()
 		alice := accs[0]
 
 		t.Logf("\n\n\n\n\n\nTest Setup\n==========================\n")
@@ -417,7 +409,6 @@ func TestIntegration(t *testing.T) {
 	})
 
 	t.Run("AcksAfterCommit", func(t *testing.T) {
-		t.Parallel()
 		alice := accs[0]
 
 		t.Logf("\n\n\n\n\n\nTest Setup\n==========================\n")
@@ -489,7 +480,6 @@ func TestIntegration(t *testing.T) {
 	})
 
 	t.Run("OneAckAfterCommit", func(t *testing.T) {
-		t.Parallel()
 		alice := accs[0]
 
 		t.Logf("\n\n\n\n\n\nTest Setup\n==========================\n")
