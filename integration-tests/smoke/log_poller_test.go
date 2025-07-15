@@ -33,7 +33,7 @@ func Test_LogPoller(t *testing.T) {
 	nodeClient := test_utils.CreateAPIClient(t, chainsel.TON_LOCALNET.Selector, useAlreadyRunningNetwork)
 	require.NotNil(t, nodeClient)
 
-	admin := test_utils.CreateTonWallet(t, nodeClient, config.WalletVersion, wallet.WithWorkchain(0))
+	admin := test_utils.CreateRandomTonWallet(t, nodeClient, config.WalletVersion, wallet.WithWorkchain(0))
 	require.NotNil(t, admin)
 
 	sender := test_utils.CreateTonHighloadWallet(t, nodeClient)
