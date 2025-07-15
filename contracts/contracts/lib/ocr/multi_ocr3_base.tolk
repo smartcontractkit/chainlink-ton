@@ -50,6 +50,29 @@ struct (0x2B78359F) OCR3Base_SetOCR3Config {
     transmitters: cell; //Vector<address>;
 }
 
+struct OCR3Base {
+	chainId: uint8;
+	commit: Cell<Config>?;
+	execute: Cell<Config>?;
+}
+
+fun OCR3Base.getConfig(self, ocrPluginType: uint16): Config? {
+	if (ocrPluginType == OCR_PLUGIN_TYPE_COMMIT) {
+		if (self.commit == null) {
+			return null;
+		}
+		return self.commit!.load();
+
+	} else if (ocrPluginType == OCR_PLUGIN_TYPE_EXECUTE) {
+		if (self.execute == null) {
+			return null;
+		}
+		return self.execute!.load();
+	} else {
+		throw ERROR_NON_EXISTENT_OCR_PLUGIN_TYPE;
+	}
+}
+
 fun OCR3Base.setOcr3Config(mutate self, msg: OCR3Base_SetOCR3Config) {
 	assert(msg.bigF > 0, ERROR_BIG_F_MUST_BE_POSITIVE);
 

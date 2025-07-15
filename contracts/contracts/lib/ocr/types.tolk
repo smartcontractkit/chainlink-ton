@@ -7,36 +7,6 @@ const MAX_NUM_ORACLES: int = 255;
 const OCR_PLUGIN_TYPE_COMMIT: int = 0;
 const OCR_PLUGIN_TYPE_EXECUTE: int = 1;
 
-struct OCR3Base {
-	chainId: uint8;
-	commit: Cell<Config>?;
-	execute: Cell<Config>?;
-}
-
-fun newOCR3BaseState(chainId: int): OCR3Base {
-	return OCR3Base {
-		chainId: chainId,
-		commit: newOCRConfig().toCell(),
-		execute: newOCRConfig().toCell()
-	};
-}
-
-fun OCR3Base.getConfig(self, ocrPluginType: uint16): Config? {
-	if (ocrPluginType == OCR_PLUGIN_TYPE_COMMIT) {
-		if (self.commit == null) {
-			return null;
-		}
-		return self.commit!.load();
-
-	} else if (ocrPluginType == OCR_PLUGIN_TYPE_EXECUTE) {
-		if (self.execute == null) {
-			return null;
-		}
-		return self.execute!.load();
-	} else {
-		throw ERROR_NON_EXISTENT_OCR_PLUGIN_TYPE;
-	}
-}
 
 struct Config {
 	configInfo: ConfigInfo;
