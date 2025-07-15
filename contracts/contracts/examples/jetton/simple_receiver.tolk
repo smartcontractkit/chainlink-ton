@@ -45,7 +45,7 @@ fun JettonReceiver.handleJettonTransferNotification(
     sender: address,
 ) {
     // Check if the sender is our jetton wallet
-    assert (self.jettonClient.isWallet(sender)) throw INCORRECT_SENDER_ERROR;
+    assert (self.JettonClient.isWallet(sender)) throw INCORRECT_SENDER_ERROR;
 
     // Handle the jetton transfer - simple implementation just updates trackers
     self.amountChecker += msg.amount;
