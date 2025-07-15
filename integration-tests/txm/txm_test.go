@@ -33,7 +33,7 @@ func TestTxmLocal(t *testing.T) {
 	require.NotNil(t, nodeClient)
 	logger.Debugw("Started MyLocalTON")
 
-	wallet := test_utils.CreateTonWallet(t, nodeClient, config.WalletVersion, wallet.WithWorkchain(0))
+	wallet := test_utils.CreateRandomTonWallet(t, nodeClient, config.WalletVersion, wallet.WithWorkchain(0))
 	require.NotNil(t, wallet)
 	logger.Debugw("Created TON Wallet")
 

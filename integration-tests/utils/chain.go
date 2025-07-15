@@ -21,13 +21,12 @@ import (
 	"github.com/xssnick/tonutils-go/liteclient"
 	"github.com/xssnick/tonutils-go/ton"
 
-	"github.com/smartcontractkit/chainlink-testing-framework/framework"
 	"github.com/smartcontractkit/chainlink-testing-framework/framework/components/blockchain"
 )
 
 var once = &sync.Once{}
 
-func CreateTonWallet(t *testing.T, client ton.APIClientWrapped, version wallet.VersionConfig, option wallet.Option) *wallet.Wallet {
+func CreateRandomTonWallet(t *testing.T, client ton.APIClientWrapped, version wallet.VersionConfig, option wallet.Option) *wallet.Wallet {
 	seed := wallet.NewSeed()
 	rw, err := wallet.FromSeed(client, seed, version)
 	require.NoError(t, err, "failed to generate random wallet: %w", err)
@@ -176,30 +175,35 @@ func CreateAPIClient(t *testing.T, chainID uint64, useAlreadyRunningNetwork bool
 	t.Helper()
 
 	var networkCfg string
-
 	if useAlreadyRunningNetwork {
 		t.Logf("Using existing network for chain ID %d", chainID)
 		networkCfg = "http://localhost:8000/localhost.global.config.json"
 	} else {
-		err := framework.DefaultNetwork(once)
-		require.NoError(t, err)
-
 		port := freeport.GetOne(t)
-
 		bcInput := &blockchain.Input{
 			ChainID: strconv.FormatUint(chainID, 10),
 			Type:    "ton",
 			Port:    strconv.Itoa(port),
+			CustomEnv: map[string]string{
+				"VERSION_CAPABILITIES":        "11",
+				"NEXT_BLOCK_GENERATION_DELAY": "0.5",
+			},
 		}
 
 		bcOut, err := blockchain.NewBlockchainNetwork(bcInput)
 		require.NoError(t, err, "failed to create blockchain network")
 
 		t.Cleanup(func() {
-			ctfErr := framework.RemoveTestContainers()
-			require.NoError(t, ctfErr, "failed to remove test containers")
+			if bcOut.Container != nil && bcOut.Container.IsRunning() {
+				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+				defer cancel()
+				if cterr := bcOut.Container.Terminate(ctx); cterr != nil {
+					t.Logf("Container termination failed: %v", cterr)
+				}
+			}
 			freeport.Return([]int{port})
 		})
+
 		networkCfg = fmt.Sprintf("http://%s/localhost.global.config.json", bcOut.Nodes[0].ExternalHTTPUrl)
 	}
 
