@@ -107,7 +107,7 @@ func (lc *Loader) fetchMessagesForAddress(ctx context.Context, addr *address.Add
 				continue
 			}
 
-			lc.lggr.Tracef("Processing transaction", "txLT", tx.LT, "txHash", tx.Hash, "contract", addr.String(), "hasOut", tx.IO.Out != nil)
+			lc.lggr.Trace("Processing transaction", "txLT", tx.LT, "txHash", tx.Hash, "contract", addr.String(), "hasOut", tx.IO.Out != nil)
 
 			if tx.IO.Out == nil {
 				continue
@@ -119,7 +119,7 @@ func (lc *Loader) fetchMessagesForAddress(ctx context.Context, addr *address.Add
 				if msg.MsgType == tlb.MsgTypeExternalOut {
 					ext := msg.AsExternalOut()
 					if ext.Body != nil {
-						lc.lggr.Tracef("Found a log message:", "dst", ext.DstAddr, "src", ext.SrcAddr)
+						lc.lggr.Trace("Found a log message:", "dst", ext.DstAddr, "src", ext.SrcAddr)
 						messages = append(messages, ext)
 					}
 				}
@@ -144,17 +144,18 @@ func (lc *Loader) getTransactionBounds(ctx context.Context, addr *address.Addres
 	}
 	endLT, endHash = res.LastTxLT, res.LastTxHash
 
-	if prevBlock == nil {
+	switch {
+	case prevBlock == nil:
 		startLT = 0
 		lc.lggr.Debugw("fresh start", "address", addr.String(), "toSeq", toBlock.SeqNo)
-	} else if prevBlock.SeqNo > 0 {
+	case prevBlock.SeqNo > 0:
 		accPrev, err := lc.client.GetAccount(ctx, prevBlock, addr)
 		if err != nil {
 			startLT = 0 // account didn't exist before this range
 		} else {
 			startLT = accPrev.LastTxLT
 		}
-	} else {
+	default:
 		startLT = 0
 	}
 

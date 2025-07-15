@@ -181,7 +181,6 @@ func CreateAPIClient(t *testing.T, chainID uint64, useAlreadyRunningNetwork bool
 		t.Logf("Using existing network for chain ID %d", chainID)
 		networkCfg = "http://localhost:8000/localhost.global.config.json"
 	} else {
-
 		err := framework.DefaultNetwork(once)
 		require.NoError(t, err)
 

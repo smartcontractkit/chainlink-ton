@@ -195,8 +195,7 @@ func Test_LogPoller(t *testing.T) {
 		t.Logf("Expected range size: %d, Actual unique counters: %d", expectedRange, len(uniqueCounters))
 	}
 
-	require.Equal(t, expectedEventCount, len(uniqueCounters),
-		"Should have exactly %d unique counter values", expectedEventCount)
+	require.Len(t, uniqueCounters, expectedEventCount, "Should have exactly %d unique counter values", expectedEventCount)
 
 	t.Logf("=== Verifying Loader.BackfillForAddresses ===")
 
@@ -214,7 +213,7 @@ func Test_LogPoller(t *testing.T) {
 	toBlock, err := client.CurrentMasterchainInfo(t.Context())
 	require.NoError(t, err)
 
-	loader := logpoller.NewLoader(client, logger.Test(t), uint32(limit))
+	loader := logpoller.NewLoader(client, logger.Test(t), limit)
 	msgs, err := loader.BackfillForAddresses(
 		t.Context(),
 		[]*address.Address{emitter.ContractAddress()},
@@ -282,7 +281,7 @@ func Test_LogPoller(t *testing.T) {
 	}
 
 	t.Logf("Chunked results: %d unique counters (expected %d from full range)", len(totalChunkedCounters), len(seen))
-	require.Equal(t, len(seen), len(allCounters))
+	require.Len(t, allCounters, len(seen))
 	t.Logf("✅ Chunked range queries work correctly")
 
 	t.SkipNow()
@@ -319,7 +318,7 @@ func Test_LogPoller(t *testing.T) {
 	onchainSeqNoA, err := event_emitter.GetCounter(t.Context(), client, b, emitter.ContractAddress())
 	require.NoError(t, err)
 
-	require.True(t, onchainSeqNoA.Cmp(big.NewInt(0)) > 0, "unexpected sequence number for contract A")
+	require.Positive(t, onchainSeqNoA.Cmp(big.NewInt(0)), "unexpected sequence number for contract A")
 	// TODO: get logs by filter and validate if polling is not missing any events
 	// TODO: scale up the number of events and validate that log poller can handle multiple events
 
@@ -328,7 +327,7 @@ func Test_LogPoller(t *testing.T) {
 	}, 30*time.Second, 1*time.Second, "expected at least one send event")
 
 	logs := lp.GetLogs()
-	require.Greater(t, len(logs), 0, "expected at least one log entry")
+	require.NotEmpty(t, logs, "expected at least one log entry")
 
 	c, err := cell.FromBOC(logs[0].Data)
 	require.NoError(t, err)

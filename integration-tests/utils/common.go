@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/xssnick/tonutils-go/tlb"
@@ -10,7 +11,7 @@ import (
 func LoadEventFromCell[T any](cell *cell.Cell) (T, error) {
 	var event T
 	if cell == nil {
-		return event, fmt.Errorf("cell is nil")
+		return event, errors.New("cell is nil")
 	}
 	err := tlb.LoadFromCell(&event, cell.BeginParse())
 	if err != nil {
@@ -22,7 +23,7 @@ func LoadEventFromCell[T any](cell *cell.Cell) (T, error) {
 func LoadEventFromMsg[T any](msg *tlb.ExternalMessageOut) (T, error) {
 	var event T
 	if msg.Body == nil {
-		return event, fmt.Errorf("message body is nil")
+		return event, errors.New("message body is nil")
 	}
 	return LoadEventFromCell[T](msg.Body)
 }

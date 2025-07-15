@@ -290,6 +290,7 @@ func (e *EventEmitter) logBlockDistribution(allTxResults []TxResult) {
 			}
 		}
 		e.lggr.Debugf("Total Empty Blocks in Range: %d", totalGaps)
+
 	}
 }
 
