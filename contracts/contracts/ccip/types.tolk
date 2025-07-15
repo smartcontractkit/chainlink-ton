@@ -89,7 +89,6 @@ fun Any2TVMRampMessage.generateMessageId(self, metadataHash: uint256): uint256 {
         )
         // message
         .storeRef(self.sender)
-        // TODO: determine how hashing refs works, usually we want to len-prefix but it might already be included
         .storeRef(self.data)
         .storeRef(self.tokenAmounts)
         .endCell()
