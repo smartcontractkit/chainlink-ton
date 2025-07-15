@@ -1,7 +1,5 @@
 import "@stdlib/common.tolk"
 
-;
-
 // Jetton wallet utilities for Tolk
 const JETTON_TOPIC : int = 0x351 // for easier indexing
 

@@ -4,11 +4,6 @@ import "../../lib/jetton/messages.tolk"
 import "../../lib/jetton/utils.tolk"
 import "../../lib/utils.tolk"
 
-;
-;
-;
-;
-;
 // JettonSender contract in Tolk
 // Allows sending jettons to other addresses
 struct JettonSender {
