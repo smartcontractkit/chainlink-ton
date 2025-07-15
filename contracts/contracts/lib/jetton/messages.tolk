@@ -1,5 +1,3 @@
-import "@stdlib/common.tolk"
-
 // Jetton message definitions in Tolk
 // Common jetton opcodes (matching the FunC definitions)
 const OP_TRANSFER = 0x0f8a7ea5

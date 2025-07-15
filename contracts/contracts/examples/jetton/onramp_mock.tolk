@@ -5,6 +5,10 @@ import "../../lib/jetton/utils.tolk"
 import "../../lib/utils.tolk"
 import "../../lib/utils.tolk"
 
+
+
+
+
 // OnrampMock contract in Tolk
 // Mock onramp that accepts jetton transfers if they meet the fee requirement
 const FEE = 5
@@ -29,11 +33,11 @@ struct AcceptedRequest {
     payload: cell
 }
 
-fun loadData(): OnrampMock {
+fun OnrampMock.load(): OnrampMock {
     return OnrampMock.fromCell(contract.getData());
 }
 
-fun saveData(data: OnrampMock) {
+fun OnrampMock.store(data: OnrampMock) {
     contract.setData(data.toCell());
 }
 
@@ -65,19 +69,18 @@ fun OnrampMock.handleJettonTransferNotification(
 type IncomingMessage = JettonNotification
 
 fun onInternalMessage(in: InMessage) {
-    if (in.body.isEmpty()) {
-        // ignore all empty messages
-        return;
-    }
+    val msg = lazy IncomingMessage.fromSlice(in.body);
 
-    val msg = IncomingMessage.fromSlice(in.body);
+    var this = OnrampMock.load();
 
-    var this = loadData();
-
-    // Check if this is a jetton notification
+    // Check if this is a jetton notification  
     match (msg) {
         JettonNotification => {
             this.handleJettonTransferNotification(msg, in.senderAddress);
+        }
+        else => {
+            // ignore empty messages, "wrong opcode" for others  
+            assert (in.body.isEmpty()) throw 0xFFFF;
         }
     }
 }

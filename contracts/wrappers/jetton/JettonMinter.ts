@@ -11,6 +11,7 @@ import {
   toNano,
 } from '@ton/core'
 import { JettonOpcodes } from '../examples/jetton/types'
+import { ZERO_ADDRESS } from '../../tests/utils'
 
 export type JettonMinterContent = {
   uri: string
@@ -37,14 +38,10 @@ export function jettonMinterConfigToCell(config: JettonMinterConfig): Cell {
   return beginCell()
     .storeCoins(config.totalSupply)
     .storeAddress(config.admin)
-    .storeAddress(config.transferAdmin ?? zeroAddress())
+    .storeAddress(config.transferAdmin ?? ZERO_ADDRESS)
     .storeRef(config.walletCode)
     .storeRef(content)
     .endCell()
-}
-
-function zeroAddress() {
-  return new Address(0, Buffer.alloc(32, 0))
 }
 
 export function parseJettonMinterData(data: Cell) {
@@ -130,8 +127,8 @@ export class JettonMinter implements Contract {
       .storeUint(MinterOpcodes.INTERNAL_TRANSFER, 32)
       .storeUint(opts.message.queryId, 64)
       .storeCoins(opts.message.jettonAmount)
-      .storeAddress(opts.message.from ?? zeroAddress())
-      .storeAddress(opts.message.responseDestination ?? zeroAddress())
+      .storeAddress(opts.message.from ?? ZERO_ADDRESS)
+      .storeAddress(opts.message.responseDestination ?? ZERO_ADDRESS)
       .storeCoins(opts.message.forwardTonAmount ?? 0n)
 
     if (opts.message.customPayload) {

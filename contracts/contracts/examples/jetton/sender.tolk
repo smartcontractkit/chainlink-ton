@@ -39,26 +39,6 @@ fun saveData(data: JettonSender) {
 
 // Send basic jetton transfer
 fun JettonSender.sendJettons(self, msg: SendJettonsFast) {
-    // val thisContractJettonWallet = calculateTolkJettonWalletAddress(
-    //     contract.getAddress(),
-    //     storage.minterAddress,
-    //     storage.jettonWalletCode
-    // );
-    // Create jetton transfer message
-    // var transferMsg = beginCell();
-    // transferMsg = transferMsg.storeUint(OP_TRANSFER, 32);
-    // transferMsg = transferMsg.storeUint(queryId, 64);
-    // transferMsg = transferMsg.storeCoins(amount);
-    // transferMsg = transferMsg.storeAddress(receiver);
-    // transferMsg = transferMsg.storeAddress(getAddress()); // response destination
-    // transferMsg = transferMsg.storeMaybeRef(null); // custom payload
-    // transferMsg = transferMsg.storeCoins(0); // forward ton amount
-    // transferMsg = transferMsg.storeBool(false); // forward payload in ref?
-    // // No forward payload (empty)
-    // sendRawMessage(
-    // buildInternalMessage(thisContractJettonWallet, 0, transferMsg.endCell()),
-    // SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE
-    // );
     createMessage({
         bounce: true,
         value: 0,
@@ -78,26 +58,6 @@ fun JettonSender.sendJettons(self, msg: SendJettonsFast) {
 
 // Send extended jetton transfer with additional parameters
 fun JettonSender.sendJettonsExtended(self, msg: SendJettonsExtended) {
-    // val thisContractJettonWallet = calculateTolkJettonWalletAddress(
-    //     contract.getAddress(),
-    //     storage.minterAddress,
-    //     storage.jettonWalletCode
-    // );
-    // // Create jetton transfer message
-    // var transferMsg = beginCell();
-    // transferMsg = transferMsg.storeUint(OP_TRANSFER, 32);
-    // transferMsg = transferMsg.storeUint(queryId, 64);
-    // transferMsg = transferMsg.storeCoins(amount);
-    // transferMsg = transferMsg.storeAddress(receiver);
-    // transferMsg = transferMsg.storeAddress(getAddress()); // response destination
-    // transferMsg = transferMsg.storeMaybeRef(customPayload);
-    // transferMsg = transferMsg.storeCoins(forwardTonAmount);
-    // transferMsg = transferMsg.storeBool(false); // forward payload inline, not in ref
-    // transferMsg = transferMsg.storeSlice(forwardPayload);
-    // sendRawMessage(
-    //     buildInternalMessage(thisContractJettonWallet, 0, transferMsg.endCell()),
-    //     SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE
-    // );
     createMessage({
         bounce: true,
         value: 0,

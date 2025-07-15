@@ -3,9 +3,6 @@ import "@stdlib/common.tolk"
 // Jetton wallet utilities for Tolk
 const JETTON_TOPIC : int = 0x351 // for easier indexing
 
-const STATUS_SIZE = 4
-const MY_WORKCHAIN = 0 // Basechain
-
 // Jetton Wallet state structure  
 struct JettonWalletData {
     status: uint4
@@ -46,11 +43,6 @@ fun calculateUserJettonWalletAddress(
         jettonMasterAddress,
         jettonWalletCode
     );
-    val addrBuilder = AutoDeployAddress {
-        workchain: MY_WORKCHAIN,
-        stateInit: stateInit,
-        toShard: null,
-    }
-        .buildAddress();
+    val addrBuilder = AutoDeployAddress { stateInit: stateInit, toShard: null }.buildAddress();
     return address.fromValidBuilder(addrBuilder);
 }
