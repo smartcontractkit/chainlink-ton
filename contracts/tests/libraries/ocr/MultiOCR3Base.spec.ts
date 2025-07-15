@@ -37,7 +37,7 @@ describe('OCR3Base Tests', () => {
   const someReportData = beginCell().storeUint(0x12345678, 32).endCell()
   const report = beginCell().storeRef(someReportData).storeUint(0x12345678, 32).endCell()
   const sequenceBytes = 0x01
-  const hashedReport = hashReport(report, {configDigest, padding: 0n, sequenceBytes})
+  const hashedReport = hashReport(report, { configDigest, padding: 0n, sequenceBytes })
 
   beforeAll(async () => {
     code = await compile('OCR3Base')
@@ -201,7 +201,7 @@ describe('OCR3Base Tests', () => {
 
     const [result1, result2] = await Promise.all([
       ocr3Base.getOCR3Config(OCR3_PLUGIN_TYPE_COMMIT),
-      ocr3Base.getOCR3Config(OCR3_PLUGIN_TYPE_EXECUTE)
+      ocr3Base.getOCR3Config(OCR3_PLUGIN_TYPE_EXECUTE),
     ])
 
     expectEqualsConfig(result1, {
