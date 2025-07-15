@@ -64,17 +64,18 @@ fun OnrampMock.handleJettonTransferNotification(
 type IncomingMessage = JettonNotification
 
 fun onInternalMessage(in: InMessage) {
-    val msg = IncomingMessage.fromSlice(in.body);
+    val msg = lazy IncomingMessage.fromSlice(in.body);
 
     var this = OnrampMock.load();
 
-    // Check if this is a jetton notification
+    // Check if this is a jetton notification  
     match (msg) {
         JettonNotification => {
             this.handleJettonTransferNotification(msg, in.senderAddress);
         }
         else => {
             // ignore empty messages, "wrong opcode" for others  
+            assert (in.body.isEmpty()) throw 0xFFFF;
         }
     }
 }
