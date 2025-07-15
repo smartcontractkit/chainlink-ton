@@ -1,4 +1,4 @@
-name: golangci_lint
+name: TON - Go Code Linting
 
 on:
   pull_request:
@@ -35,14 +35,19 @@ jobs:
       - name: Print golangci-lint version
         run: nix develop -c golangci-lint --version
 
-      - name: Download golangci-lint config
-        run: curl -fsSL "${{ env.CONFIG_URL }}" -o .golangci.yml
+      - name: Download and modify golangci-lint config
+        run: |
+          REPO_PREFIX="github.com/${{ github.repository }}"
+          curl -fsSL "${{ env.CONFIG_URL }}" | \
+          yq e ".formatters.settings.goimports.local-prefixes = [\"$REPO_PREFIX\"]" - \
+          > .golangci.yml
 
       - name: Run golangci-lint
         run: |
-          nix develop -c golangci-lint run \
-            --config ./.golangci.yml \
-            --output.checkstyle.path="${{ env.REPORT_PATH }}"
+          cd ${{ matrix.dir }}
+          nix develop -c golangci-lint run ./... \
+            --config ../.golangci.yml \
+            --output.checkstyle.path="../${{ env.REPORT_PATH }}"
 
       - name: Print lint report on failure
         if: failure()

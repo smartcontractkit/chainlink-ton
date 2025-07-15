@@ -18,25 +18,26 @@ pkgs.mkShell {
       go-mockery
 
       # TS/Node set of tools for changesets
-      nodejs_23
-      (yarn.override {nodejs = nodejs_23;})
+      nodejs_24
+      (yarn.override {nodejs = nodejs_24;})
 
       # Extra tools
       git
       jq
       kubectl
       kubernetes-helm
+      yq-go # for manipulating golangci-lint config
     ]
     ++ lib.optionals stdenv.hostPlatform.isDarwin [
       libiconv
     ];
   shellHook = ''
-    # use upstream golangci-lint config from core Chainlink repository
-    alias golint="golangci-lint run --config <(curl -sSL https://raw.githubusercontent.com/smartcontractkit/chainlink/develop/.golangci.yml) --path-mode \"abs\""
+    # use upstream golangci-lint config from core Chainlink repository, overriding the local prefixes
+    alias golint="golangci-lint run --config <(curl -sSL https://raw.githubusercontent.com/smartcontractkit/chainlink/develop/.golangci.yml | yq e '.formatters.settings.goimports.local-prefixes = [\"github.com/smartcontractkit/chainlink-ton\"]' -) --path-mode \"abs\""
     echo ""
     echo "You can lint your code with:"
-    echo "    golint ./pkg/..."
-    echo "    golint ./integration-tests/..."
+    echo "    cd pkg && golint ./..."
+    echo "    cd integration-tests && golint ./..."
     echo ""
   '';
 }

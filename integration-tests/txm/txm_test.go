@@ -6,25 +6,24 @@ import (
 	"testing"
 	"time"
 
-	chainsel "github.com/smartcontractkit/chain-selectors"
-
-	test_utils "integration-tests/utils"
-
-	counter_legacy "integration-tests/txm/wrappers/counter_legacy"
-
-	"github.com/smartcontractkit/chainlink-common/pkg/logger"
-	"github.com/smartcontractkit/chainlink-common/pkg/loop"
-	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
-	relayer_utils "github.com/smartcontractkit/chainlink-ton/pkg/relay/testutils"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/config"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
-	"github.com/smartcontractkit/chainlink-ton/pkg/txm"
-
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton/wallet"
 	"github.com/xssnick/tonutils-go/tvm/cell"
+
+	chainsel "github.com/smartcontractkit/chain-selectors"
+	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+	"github.com/smartcontractkit/chainlink-common/pkg/loop"
+	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
+
+	relayer_utils "github.com/smartcontractkit/chainlink-ton/pkg/relay/testutils"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/config"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
+	"github.com/smartcontractkit/chainlink-ton/pkg/txm"
+
+	counter_legacy "integration-tests/txm/wrappers/counterlegacy"
+	test_utils "integration-tests/utils"
 )
 
 func TestTxmLocal(t *testing.T) {
@@ -72,7 +71,7 @@ func runTxmTest(t *testing.T, logger logger.Logger, config txm.Config, tonChain 
 		ID:    big.NewInt(1337),
 		Count: big.NewInt(0),
 	}
-	counterAddr, stateInit, err := counter_legacy.BuildCounterStateInit(ctx, counterCfg)
+	counterAddr, stateInit, err := counter_legacy.BuildCounterStateInit(counterCfg)
 	require.NoError(t, err)
 
 	// 2. Send deploy tx
