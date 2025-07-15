@@ -11,7 +11,7 @@ import {
 import { KeyPair, sign } from '@ton/crypto'
 import { bigIntToUint8Array, hashSync, uint8ArrayToBigInt } from '../../../utils/Utils'
 
-import { crc32 } from 'zlib'
+import { crc32 } from 'zlib' 
 import { asSnakeData, fromSnakeData } from '../../../utils/Utils'
 
 export const OCR3_PLUGIN_TYPE_COMMIT = 0x0000
@@ -129,4 +129,15 @@ export class OCR3Base {
         .endCell(),
     })
   }
+}
+
+export const hashReport = (report:Cell, context: ReportContext) => {
+  return beginCell()
+    .storeRef(report)
+    .storeUint(context.configDigest, 256)
+    .storeUint(context.padding, 192) // padding, should be 0
+    .storeUint(context.sequenceBytes, 64)
+    .endCell()
+    .hash()
+
 }

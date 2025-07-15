@@ -7,6 +7,7 @@ import {
   OCR3_PLUGIN_TYPE_EXECUTE,
   SignatureEd25519,
   createSignature,
+  hashReport,
 } from '../../../wrappers/libraries/ocr/MultiOCR3Base'
 import * as ExitCodes from '../../../wrappers/libraries/ocr/ExitCodes'
 import { OCR3BaseLogTypes } from '../../../wrappers/libraries/ocr/Logs'
@@ -36,32 +37,26 @@ describe('OCR3Base Tests', () => {
   const someReportData = beginCell().storeUint(0x12345678, 32).endCell()
   const report = beginCell().storeRef(someReportData).storeUint(0x12345678, 32).endCell()
   const sequenceBytes = 0x01
-  const hashedReport = beginCell()
-    .storeRef(report)
-    .storeUint(configDigest, 256)
-    .storeUint(0, 192) // padding
-    .storeUint(sequenceBytes, 64)
-    .endCell()
-    .hash()
+  const hashedReport = hashReport(report, {configDigest, padding: 0n, sequenceBytes})
 
   beforeAll(async () => {
     code = await compile('OCR3Base')
     blockchain = await Blockchain.create()
 
     deployer = await blockchain.treasury('deployer')
-    transmitters = [
-      await blockchain.treasury('transmitter1'),
-      await blockchain.treasury('transmitter2'),
-      await blockchain.treasury('transmitter3'),
-      await blockchain.treasury('transmitter4'),
-    ]
+    transmitters = await Promise.all([
+      blockchain.treasury('transmitter1'),
+      blockchain.treasury('transmitter2'),
+      blockchain.treasury('transmitter3'),
+      blockchain.treasury('transmitter4'),
+    ])
 
-    signers = [
-      await generateEd25519KeyPair(),
-      await generateEd25519KeyPair(),
-      await generateEd25519KeyPair(),
-      await generateEd25519KeyPair(),
-    ]
+    signers = await Promise.all([
+      generateEd25519KeyPair(),
+      generateEd25519KeyPair(),
+      generateEd25519KeyPair(),
+      generateEd25519KeyPair(),
+    ])
 
     signersPublicKeys = signers.map((signer) => uint8ArrayToBigInt(signer.publicKey))
   })
@@ -204,8 +199,10 @@ describe('OCR3Base Tests', () => {
     await setOCR3Config(config1)
     await setOCR3Config(config2)
 
-    const result1 = await ocr3Base.getOCR3Config(OCR3_PLUGIN_TYPE_COMMIT)
-    const result2 = await ocr3Base.getOCR3Config(OCR3_PLUGIN_TYPE_EXECUTE)
+    const [result1, result2] = await Promise.all([
+      ocr3Base.getOCR3Config(OCR3_PLUGIN_TYPE_COMMIT),
+      ocr3Base.getOCR3Config(OCR3_PLUGIN_TYPE_EXECUTE)
+    ])
 
     expectEqualsConfig(result1, {
       configInfo: {
