@@ -26,12 +26,12 @@ struct (0xe815f1d0) SendJettonsExtended {
 
 type IncomingMessage = SendJettonsFast | SendJettonsExtended
 
-fun loadData(): JettonSender {
+fun JettonSender.load(): JettonSender {
     return JettonSender.fromCell(contract.getData());
 }
 
-fun saveData(data: JettonSender) {
-    contract.setData(data.toCell());
+fun JettonSender.store(self) {
+    contract.setData(self.toCell());
 }
 
 // Send basic jetton transfer
@@ -68,7 +68,7 @@ fun onInternalMessage(in: InMessage) {
     }
 
     val msg = IncomingMessage.fromSlice(in.body);
-    var this = loadData();
+    var this = JettonSender.load();
 
     match (msg) {
         SendJettonsFast => {
