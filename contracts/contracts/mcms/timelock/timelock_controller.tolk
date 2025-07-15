@@ -470,7 +470,17 @@ fun Timelock<T>.hashOperationBatch(self, op: OperationBatch): uint256 {
 }
 
 /// @dev Initializes the contract
-fun Timelock<T>.init(mutate self, sender: address, body: Timelock_Init): void {
+fun Timelock<T>.init(
+    mutate self,
+    sender: address,
+    queryId: uint64,
+    minDelay: uint64,
+    admin: address,
+    proposers: cell,  // vec<address>
+    executors: cell,  // vec<address>
+    cancellers: cell, // vec<address>
+    bypassers: cell,  // vec<address>
+): void {
     // TODO: add a check to secure contract initialization
     //   - check that the contract is not already initialized
     //   - check that the deployer is the Timelock_Init sender
@@ -483,36 +493,36 @@ fun Timelock<T>.init(mutate self, sender: address, body: Timelock_Init): void {
     rbac._setRoleAdmin(CANCELLER_ROLE, ADMIN_ROLE);
     rbac._setRoleAdmin(BYPASSER_ROLE, ADMIN_ROLE);
 
-    rbac._grantRole(ADMIN_ROLE, body.admin);
+    rbac._grantRole(ADMIN_ROLE, admin);
 
     // Grant roles to proposers, executors, cancellers and bypassers
-    var proposers = Iterator<address>.new(body.proposers);
-    while (!proposers.empty()) {
-        rbac._grantRole(PROPOSER_ROLE, proposers.next());
+    var pp = Iterator<address>.new(proposers);
+    while (!pp.empty()) {
+        rbac._grantRole(PROPOSER_ROLE, pp.next());
     }
 
-    var executors = Iterator<address>.new(body.executors);
-    while (!executors.empty()) {
-        rbac._grantRole(EXECUTOR_ROLE, executors.next());
+    var ee = Iterator<address>.new(executors);
+    while (!ee.empty()) {
+        rbac._grantRole(EXECUTOR_ROLE, ee.next());
     }
 
-    var cancellers = Iterator<address>.new(body.cancellers);
-    while (!cancellers.empty()) {
-        rbac._grantRole(CANCELLER_ROLE, cancellers.next());
+    var cc = Iterator<address>.new(cancellers);
+    while (!cc.empty()) {
+        rbac._grantRole(CANCELLER_ROLE, cc.next());
     }
 
-    var bypassers = Iterator<address>.new(body.bypassers);
-    while (!bypassers.empty()) {
-        rbac._grantRole(BYPASSER_ROLE, bypassers.next());
+    var bb = Iterator<address>.new(bypassers);
+    while (!bb.empty()) {
+        rbac._grantRole(BYPASSER_ROLE, bb.next());
     }
 
-    self.data.minDelay = body.minDelay;
+    self.data.minDelay = minDelay;
     // Send a message to the sender to notify about the change
     val reply = createMessage({
         bounce: false,
         value: 0, // TODO: how to pay for this message fee? or do we emit?
         dest: sender,
-        body: Timelock_MinDelayChange {queryId: body.queryId, oldDuration: 0, newDuration: body.minDelay}
+        body: Timelock_MinDelayChange {queryId, oldDuration: 0, newDuration: minDelay}
     });
     reply.send(SEND_MODE_REGULAR); // pay the message fee from the value, keep the rest
 }
@@ -528,8 +538,8 @@ fun Timelock<T>.init(mutate self, sender: address, body: Timelock_Init): void {
 ///
 fun Timelock<T>.scheduleBatch(
     mutate self,
-    queryId: uint64,
     sender: address,
+    queryId: uint64,
     calls: cell, // vec<Timelock_Call>
     predecessor: uint256,
     salt: uint256,
@@ -572,7 +582,7 @@ fun Timelock<T>.schedule(mutate self, id: uint256, delay: uint64): void {
 ///
 /// - the caller must have the 'canceller' or 'admin' role.
 ///
-fun Timelock<T>.cancel(mutate self, queryId: uint64, sender: address, id: uint256): void {
+fun Timelock<T>.cancel(mutate self, sender: address, queryId: uint64, id: uint256): void {
     self.onlyRoleOrAdminRole(CANCELLER_ROLE, sender);
     assert(self.isOperationPending(id)) throw ERROR_OPERATION_CAN_NOT_BE_CANCELLED;
 
@@ -602,8 +612,8 @@ fun Timelock<T>.cancel(mutate self, queryId: uint64, sender: address, id: uint25
 ///
 fun Timelock<T>.executeBatch(
     mutate self,
-    queryId: uint64,
     sender: address,
+    queryId: uint64,
     calls: cell, // vec<Timelock_Call>
     predecessor: uint256,
     salt: uint256
@@ -657,6 +667,40 @@ fun Timelock<T>.afterCall(mutate self, id: uint256): void {
     self.data.timestamps.uDictSet(256, id, DONE_TIMESTAMP); // Mark the operation as done
 }
 
+/// @dev Directly execute a batch of transactions, bypassing any other checks.
+///
+/// Emits one {Timelock_BypasserCallExecuted} event per transaction in the batch.
+///
+/// Requirements:
+///
+/// - the caller must have the 'bypasser' or 'admin' role.
+///
+fun Timelock<T>.bypasserExecuteBatch(
+    mutate self,
+    sender: address,
+    queryId: uint64,
+    calls: cell, // vec<Timelock_Call>
+): void {
+    self.onlyRoleOrAdminRole(BYPASSER_ROLE, sender);
+
+    var index = 0;
+    var cc = Iterator<Timelock_Call>.new(calls);
+    while (!cc.empty()) {
+        val call = cc.next();
+        self.execute(call);
+
+        // Send a message to the sender to notify about the change
+        val reply = createMessage({
+            bounce: false,
+            value: 0, // TODO: how to pay for this message fee? or do we emit?
+            dest: sender,
+            body: Timelock_BypasserCallExecuted{queryId, index, target: call.target, value: call.value, data: call.data}
+        });
+        reply.send(SEND_MODE_REGULAR);
+        index += 1;
+    }
+}
+
 /// @dev Changes the minimum timelock duration for future operations.
 ///
 /// Emits a {Timelock_MinDelayChange} event.
@@ -665,7 +709,7 @@ fun Timelock<T>.afterCall(mutate self, id: uint256): void {
 ///
 /// - the caller must have the 'admin' role.
 ///
-fun Timelock<T>.updateDelay(mutate self, queryId: uint64, sender: address, newDelay: uint256): void {
+fun Timelock<T>.updateDelay(mutate self, sender: address, queryId: uint64, newDelay: uint256): void {
     val rbac = self.hookTrait__AccessControl();
     rbac.requireRole(ADMIN_ROLE, sender);
 
@@ -692,7 +736,7 @@ fun Timelock<T>.updateDelay(mutate self, queryId: uint64, sender: address, newDe
 ///
 /// - the caller must have the 'admin' role.
 ///
-fun Timelock<T>.blockFunctionSelector(mutate self, queryId: uint64, sender: address, selector: uint32): bool {
+fun Timelock<T>.blockFunctionSelector(mutate self, sender: address, queryId: uint64, selector: uint32): bool {
     val rbac = self.hookTrait__AccessControl();
     rbac.requireRole(ADMIN_ROLE, sender);
 
@@ -721,7 +765,7 @@ fun Timelock<T>.blockFunctionSelector(mutate self, queryId: uint64, sender: addr
 ///
 /// - the caller must have the 'admin' role.
 ///
-fun Timelock<T>.unblockFunctionSelector(mutate self, queryId: uint64, sender: address, selector: uint32): bool {
+fun Timelock<T>.unblockFunctionSelector(mutate self, sender: address, queryId: uint64, selector: uint32): bool {
     val rbac = self.hookTrait__AccessControl();
     rbac.requireRole(ADMIN_ROLE, sender);
 
