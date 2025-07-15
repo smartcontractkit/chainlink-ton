@@ -165,8 +165,13 @@ func CreateAPIClient(t *testing.T, chainID uint64) *ton.APIClient {
 	require.NoError(t, err, "failed to create blockchain network")
 
 	t.Cleanup(func() {
-		rterr := bcOut.Container.Terminate(t.Context())
-		require.NoError(t, rterr, "failed to remove test containers")
+		if bcOut.Container != nil && bcOut.Container.IsRunning() {
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+			if err := bcOut.Container.Terminate(ctx); err != nil {
+				t.Logf("Container termination failed: %v", err)
+			}
+		}
 		freeport.Return([]int{port})
 	})
 
