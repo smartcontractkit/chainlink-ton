@@ -46,7 +46,7 @@ struct Any2TVMRampMessage {
 }
 
 struct Any2TVMTokenTransfer {
-    sourcePoolAddress: cell;
+    sourcePoolAddress: Cell<CrossChainAddress>;
     destPoolAddress: address;
     destGasAmount: uint32;
     extraData: cell;
