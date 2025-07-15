@@ -4,14 +4,14 @@ import "../lib/upgrades/type_and_version.tolk";
 import "./../lib/merkle_multi_proof/merkle_multi_proof.tolk"
 import "../deployable/types.tolk";
 import "../lib/utils.tolk";
+import "../lib/ocr/multi_ocr3_base";
 
 struct Storage {
     ownable: Ownable2Step;
     deployer: cell; // Deployable compiled code
     merkleRootCode: cell; // make sure to use a library cell offchain to save space
     feeQuoter: address;
-
-    // TODO: embed ocr3 base state
+    ocr3Base: OCR3Base
 
     // static config
     chainSelector: uint64;
@@ -119,13 +119,19 @@ struct (0x00000002) Execute {
     report: cell;
 }
 
-type Msg = Commit | Execute;
+type Msg = Commit | Execute | OCR3Base_SetOCR3Config;
 
 fun onInternalMessage(in:InMessage) {
     val msg = lazy Msg.fromSlice(in.body);
     match (msg) {
         Commit => { commit(msg, in.senderAddress) }
         Execute => { _execute(msg, in.senderAddress) }
+        OCR3Base_SetOCR3Config => {
+            val st = lazy Storage.load();
+            st.ownable.requireOwner(in.senderAddress);
+            st.ocr3Base.setOcr3Config(msg);
+            st.store()
+        }
         else => {
             // ignore empty messages, "wrong opcode" for others
             assert (in.body.isEmpty()) throw 0xFFFF
