@@ -1,8 +1,6 @@
 import "@stdlib/common.tolk"
 import "../../lib/jetton/jetton_client.tolk"
 import "../../lib/jetton/messages.tolk"
-import "../../lib/jetton/utils.tolk"
-import "../../lib/utils.tolk"
 
 // JettonSender contract in Tolk
 // Allows sending jettons to other addresses
