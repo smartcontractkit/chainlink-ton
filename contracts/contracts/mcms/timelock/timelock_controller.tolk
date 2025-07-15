@@ -228,6 +228,8 @@ type Timelock_InMessage = Timelock_Init
 // --- Messages - outgoing ---
 
 /// @dev Emitted when a call is scheduled as part of operation `id`.
+/// TODO: fix message size - do we split the message?
+@overflow1023_policy("suppress")
 struct (0xc55fca54) Timelock_CallScheduled {
     /// Query ID of the change owner request.
     queryId: uint64;
@@ -418,23 +420,23 @@ fun Timelock<T>.onlyRoleOrAdminRole(self, role: int, sender: address): void {
 /// @dev Returns whether an id correspond to a registered operation. This
 /// includes both Pending, Ready and Done operations.
 fun Timelock<T>.isOperation(self, id: int): bool {
-    return self.data.getTimestamp(id) > 0;
+    return self.getTimestamp(id) > 0;
 }
 
 /// @dev Returns whether an operation is pending or not.
 fun Timelock<T>.isOperationPending(self, id: int): bool {
-    return self.data.getTimestamp(id) > DONE_TIMESTAMP;
+    return self.getTimestamp(id) > DONE_TIMESTAMP;
 }
 
 /// @dev Returns whether an operation is ready or not.
 fun Timelock<T>.isOperationReady(self, id: int): bool {
-    val t = self.data.getTimestamp(id);
+    val t = self.getTimestamp(id);
     return t > DONE_TIMESTAMP && t <= blockchain.now();
 }
 
 /// @dev Returns whether an operation is done or not.
 fun Timelock<T>.isOperationDone(self, id: int): bool {
-    return self.data.getTimestamp(id) == DONE_TIMESTAMP;
+    return self.getTimestamp(id) == DONE_TIMESTAMP;
 }
 
 /// @dev Returns the timestamp at with an operation becomes ready (0 for
@@ -466,7 +468,7 @@ fun Timelock<T>.hashOperationBatch(self, op: OperationBatch): uint256 {
     }
 
     // Fallback to taking the standard cell hash of the operation
-    return op.hash()
+    return op.toCell().hash();
 }
 
 /// @dev Initializes the contract
@@ -487,33 +489,33 @@ fun Timelock<T>.init(
 
     var rbac = self.hookTrait__AccessControl();
 
-    rbac._setRoleAdmin(ADMIN_ROLE, ADMIN_ROLE);
-    rbac._setRoleAdmin(PROPOSER_ROLE, ADMIN_ROLE);
-    rbac._setRoleAdmin(EXECUTOR_ROLE, ADMIN_ROLE);
-    rbac._setRoleAdmin(CANCELLER_ROLE, ADMIN_ROLE);
-    rbac._setRoleAdmin(BYPASSER_ROLE, ADMIN_ROLE);
+    rbac._setRoleAdmin(queryId, sender, ADMIN_ROLE, ADMIN_ROLE);
+    rbac._setRoleAdmin(queryId, sender, PROPOSER_ROLE, ADMIN_ROLE);
+    rbac._setRoleAdmin(queryId, sender, EXECUTOR_ROLE, ADMIN_ROLE);
+    rbac._setRoleAdmin(queryId, sender, CANCELLER_ROLE, ADMIN_ROLE);
+    rbac._setRoleAdmin(queryId, sender, BYPASSER_ROLE, ADMIN_ROLE);
 
-    rbac._grantRole(ADMIN_ROLE, admin);
+    rbac._grantRole(queryId, sender, ADMIN_ROLE, admin);
 
     // Grant roles to proposers, executors, cancellers and bypassers
     var pp = Iterator<address>.new(proposers);
     while (!pp.empty()) {
-        rbac._grantRole(PROPOSER_ROLE, pp.next());
+        rbac._grantRole(queryId, sender, PROPOSER_ROLE, pp.next());
     }
 
     var ee = Iterator<address>.new(executors);
     while (!ee.empty()) {
-        rbac._grantRole(EXECUTOR_ROLE, ee.next());
+        rbac._grantRole(queryId, sender, EXECUTOR_ROLE, ee.next());
     }
 
     var cc = Iterator<address>.new(cancellers);
     while (!cc.empty()) {
-        rbac._grantRole(CANCELLER_ROLE, cc.next());
+        rbac._grantRole(queryId, sender, CANCELLER_ROLE, cc.next());
     }
 
     var bb = Iterator<address>.new(bypassers);
     while (!bb.empty()) {
-        rbac._grantRole(BYPASSER_ROLE, bb.next());
+        rbac._grantRole(queryId, sender, BYPASSER_ROLE, bb.next());
     }
 
     self.data.minDelay = minDelay;
@@ -522,7 +524,7 @@ fun Timelock<T>.init(
         bounce: false,
         value: 0, // TODO: how to pay for this message fee? or do we emit?
         dest: sender,
-        body: Timelock_MinDelayChange {queryId, oldDuration: 0, newDuration: minDelay}
+        body: Timelock_MinDelayChange{queryId, oldDuration: 0, newDuration: minDelay}
     });
     reply.send(SEND_MODE_REGULAR); // pay the message fee from the value, keep the rest
 }
@@ -554,14 +556,24 @@ fun Timelock<T>.scheduleBatch(
     var cc = Iterator<Timelock_Call>.new(calls);
     while (!cc.empty()) {
         val call = cc.next();
-        self.checkFunctionSelectorNotBlocked(call.data);
+        self.checkFunctionSelectorNotBlocked(call.data.beginParse());
 
         // Send a message to the sender to notify about the change
         val reply = createMessage({
             bounce: false,
             value: 0, // TODO: how to pay for this message fee? or do we emit?
             dest: sender,
-            body: Timelock_CallScheduled {queryId, id, index, target: call.target, value: call.value, data: call.data, predecessor, salt, delay}
+            body: Timelock_CallScheduled{
+                queryId,
+                id,
+                index,
+                target: call.target,
+                value: call.value,
+                data: call.data,
+                predecessor,
+                salt,
+                delay
+            }
         });
         reply.send(SEND_MODE_REGULAR);
         index += 1;
@@ -573,7 +585,9 @@ fun Timelock<T>.schedule(mutate self, id: uint256, delay: uint64): void {
     assert(!self.isOperation(id)) throw ERROR_OPERATION_ALREADY_SCHEDULED;
     assert(delay >= self.getMinDelay()) throw ERROR_INSUFFICIENT_DELAY;
 
-    self.data.timestamps.uDictSet(256, id, blockchain.now() + delay); // seconds since epoch
+    // TODO: should use 64 bit value for timestamp
+    val value = beginCell().storeUint(blockchain.now() + delay, 32).endCell().beginParse();
+    self.data.timestamps.uDictSet(256, id, value); // seconds since epoch
 }
 
 /// @dev Cancel an operation.
@@ -594,7 +608,7 @@ fun Timelock<T>.cancel(mutate self, sender: address, queryId: uint64, id: uint25
         bounce: false,
         value: 0,
         dest: sender,
-        body: Timelock_Canceled {queryId, id}
+        body: Timelock_Canceled{queryId, id}
     });
     reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
@@ -634,7 +648,14 @@ fun Timelock<T>.executeBatch(
             bounce: false,
             value: 0, // TODO: how to pay for this message fee? or do we emit?
             dest: sender,
-            body: Timelock_CallExecuted {queryId, id, index, target: call.target, value: call.value, data: call.data}
+            body: Timelock_CallExecuted{
+                queryId,
+                id,
+                index,
+                target: call.target,
+                value: call.value,
+                data: call.data
+            }
         });
         reply.send(SEND_MODE_REGULAR);
         index += 1;
@@ -664,7 +685,10 @@ fun Timelock<T>.beforeCall(self, id: uint256, predecessor: uint256): void {
 /// @dev Hook after execution of an operation's calls.
 fun Timelock<T>.afterCall(mutate self, id: uint256): void {
     assert(self.isOperationReady(id)) throw ERROR_OPERATION_NOT_READY;
-    self.data.timestamps.uDictSet(256, id, DONE_TIMESTAMP); // Mark the operation as done
+
+    // TODO: optimize, this should be static constant
+    val value = beginCell().storeUint(DONE_TIMESTAMP, 32).endCell().beginParse();
+    self.data.timestamps.uDictSet(256, id, value); // Mark the operation as done
 }
 
 /// @dev Directly execute a batch of transactions, bypassing any other checks.
@@ -694,7 +718,13 @@ fun Timelock<T>.bypasserExecuteBatch(
             bounce: false,
             value: 0, // TODO: how to pay for this message fee? or do we emit?
             dest: sender,
-            body: Timelock_BypasserCallExecuted{queryId, index, target: call.target, value: call.value, data: call.data}
+            body: Timelock_BypasserCallExecuted{
+                queryId,
+                index,
+                target: call.target,
+                value: call.value,
+                data: call.data
+            }
         });
         reply.send(SEND_MODE_REGULAR);
         index += 1;
@@ -709,7 +739,7 @@ fun Timelock<T>.bypasserExecuteBatch(
 ///
 /// - the caller must have the 'admin' role.
 ///
-fun Timelock<T>.updateDelay(mutate self, sender: address, queryId: uint64, newDelay: uint256): void {
+fun Timelock<T>.updateDelay(mutate self, sender: address, queryId: uint64, newDelay: uint64): void {
     val rbac = self.hookTrait__AccessControl();
     rbac.requireRole(ADMIN_ROLE, sender);
 
@@ -718,7 +748,11 @@ fun Timelock<T>.updateDelay(mutate self, sender: address, queryId: uint64, newDe
         bounce: false,
         value: 0,
         dest: sender,
-        body: Timelock_MinDelayChange {queryId: queryId, oldDuration: self.data.minDelay, newDuration: newDelay}
+        body: Timelock_MinDelayChange{
+            queryId,
+            oldDuration: self.data.minDelay,
+            newDuration: newDelay
+        }
     });
     reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
     // Update the minimum delay
@@ -749,7 +783,7 @@ fun Timelock<T>.blockFunctionSelector(mutate self, sender: address, queryId: uin
             bounce: false,
             value: 0,
             dest: sender,
-            body: Timelock_FunctionSelectorBlocked {queryId, selector}
+            body: Timelock_FunctionSelectorBlocked{queryId, selector}
         });
         reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 
@@ -778,7 +812,7 @@ fun Timelock<T>.unblockFunctionSelector(mutate self, sender: address, queryId: u
             bounce: false,
             value: 0,
             dest: sender,
-            body: Timelock_FunctionSelectorUnblocked {queryId, selector}
+            body: Timelock_FunctionSelectorUnblocked{queryId, selector}
         });
         reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 
@@ -886,18 +920,54 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
 
     // Load the contract storage
     var s = Timelock_Data.fromContractData();
-    val timelock: Timelock<bool> = { data: s }; // TODO: merge with above
+    var timelock: Timelock<bool> = { data: s }; // TODO: merge with above
     var rbac = timelock.hookTrait__AccessControl();
 
-    val senderAddress: address = cs.loadAddress();
-    cs.loadAddress(); // skip dst
-    cs.loadCoins(); // skip value
-    cs.skipBits(1); // skip extracurrency collection
-    cs.loadCoins(); // skip ihr_fee
-    var fwdFee = cs.loadCoins();
+    val sender: address = cs.loadAddress();
 
-    val res = rbac.hasRole(ADMIN_ROLE, senderAddress);
-    if (rbac.hasRole(ADMIN_ROLE, senderAddress)) {
+    val msg = lazy Timelock_InMessage.fromSlice(msgBody);
+    match (msg) {
+        Timelock_Init => {
+            timelock.init(sender, msg.queryId, msg.minDelay, msg.admin, msg.proposers, msg.executors, msg.cancellers, msg.bypassers);
+            timelock.data.storeAsContractData();
+        }
+        Timelock_UpdateDelay => {
+            timelock.updateDelay(sender, msg.queryId, msg.newDelay);
+            timelock.data.storeAsContractData();
+        }
+        Timelock_BlockFunctionSelector => {
+            timelock.blockFunctionSelector(sender, msg.queryId, msg.selector);
+            timelock.data.storeAsContractData();
+        }
+        Timelock_UnblockFunctionSelector => {
+            timelock.unblockFunctionSelector(sender, msg.queryId, msg.selector);
+            timelock.data.storeAsContractData();
+        }
+        Timelock_ScheduleBatch => {
+            timelock.scheduleBatch(sender, msg.queryId, msg.calls, msg.predecessor, msg.salt, msg.delay);
+            timelock.data.storeAsContractData();
+        }
+        Timelock_ExecuteBatch => {
+            timelock.executeBatch(sender, msg.queryId, msg.calls, msg.predecessor, msg.salt);
+            timelock.data.storeAsContractData();
+        }
+        Timelock_Cancel => {
+            timelock.cancel(sender, msg.queryId, msg.id);
+            timelock.data.storeAsContractData();
+        }
+        Timelock_BypasserExecuteBatch => {
+            timelock.bypasserExecuteBatch(sender, msg.queryId, msg.calls);
+            timelock.data.storeAsContractData();
+        }
+        else => {
+            // TODO!
+            // ignore empty messages, "wrong opcode" for others
+            // assert (in.body.isEmpty()) throw 0xFFFF
+        }
+    }
+
+    val res = rbac.hasRole(ADMIN_ROLE, sender);
+    if (rbac.hasRole(ADMIN_ROLE, sender)) {
         // Map from underlying contract storage to trait storage
         // RBACTimelockAdmin operations handler
         var timelockAdmin: RBACTimelockAdmin = {
@@ -924,7 +994,7 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
 
     val op = msgBody.loadMessageOp();
     val queryID = msgBody.loadMessageQueryId();
-    if (rbac.hasRole(PROPOSER_ROLE, senderAddress)) {
+    if (rbac.hasRole(PROPOSER_ROLE, sender)) {
         if (op == OP_SCHEDULE) {
             val delay = msgBody.loadUint(32);
             val tonValue = msgBody.loadCoins();
@@ -948,7 +1018,7 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
         }
     }
 
-    if (rbac.hasRole(CANCELLER_ROLE, senderAddress)) {
+    if (rbac.hasRole(CANCELLER_ROLE, sender)) {
         if (op == OP_CANCEL) {
             val id = msgBody.loadUint(256);
             msgBody.assertEnd();
@@ -965,7 +1035,7 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
         }
     }
 
-    if (rbac.hasRole(EXECUTOR_ROLE, senderAddress)) {
+    if (rbac.hasRole(EXECUTOR_ROLE, sender)) {
         if (op == OP_EXECUTE) {
             val tonValue = msgBody.loadCoins();
             val predecessor = msgBody.loadUint(256);
