@@ -1,6 +1,8 @@
 tolk 1.0
 
 import "@stdlib/tvm-dicts";
+
+import "../../lib/utils.tolk";
 import "../../lib/access/access_control.tolk";
 
 import "timelock_controller/error.tolk";
@@ -84,10 +86,10 @@ struct (0x4982fcfd) Timelock_Init {
     admin: address;
 
     /// Collection of addresses to be granted proposer, executor, canceller and bypasser roles.
-    proposers: cell; // TODO: encode as vec<Address>
-    executors: cell; // TODO: encode as vec<Address>
-    cancellers: cell; // TODO: encode as vec<Address>
-    bypassers: cell; // TODO: encode as vec<Address>
+    proposers: cell;  // vec<address>
+    executors: cell;  // vec<address>
+    cancellers: cell; // vec<address>
+    bypassers: cell;  // vec<address>
 }
 
 /// @dev Schedule an operation containing a batch of transactions.
@@ -104,7 +106,7 @@ struct (0x94718f4) Timelock_ScheduleBatch {
     queryId: uint64;
 
     // Array of calls to be scheduled
-    calls: cell; // TODO: encode as vec<Timelock_Call>
+    calls: cell; // vec<Timelock_Call>
     // Predecessor operation ID
     predecessor: uint256;
     // Salt used to derive the operation ID
@@ -140,7 +142,7 @@ struct (0x6e9Bf263) Timelock_ExecuteBatch {
     queryId: uint64;
 
     // Array of calls to be scheduled
-    calls: cell; // TODO: encode as vec<Timelock_Call>
+    calls: cell; // vec<Timelock_Call>
     // Predecessor operation ID
     predecessor: uint256;
     // Salt used to derive the operation ID
@@ -209,7 +211,7 @@ struct (0xbb0e9f7d) Timelock_BypasserExecuteBatch {
     queryId: uint64;
 
     /// Array of calls to be scheduled
-    calls: cell; // TODO: encode as vec<Timelock_Call>
+    calls: cell; // vec<Timelock_Call>
 }
 
 /// @dev Union of all incoming messages.
@@ -360,7 +362,7 @@ struct Timelock_Call {
 /// Batch of transactions represented as a operation, which can be scheduled and executed.
 struct OperationBatch {
     // Array of calls to be scheduled
-    calls: cell; // TODO: encode as vec<Timelock_Call>
+    calls: cell; // vec<Timelock_Call>
     // Predecessor operation ID
     predecessor: uint256;
     // Salt used to derive the operation ID
@@ -484,25 +486,25 @@ fun Timelock<T>.init(mutate self, sender: address, body: Timelock_Init): void {
     rbac._grantRole(ADMIN_ROLE, body.admin);
 
     // Grant roles to proposers, executors, cancellers and bypassers
-    // TODO: iterate and grant roles
-    // for (uint256 i = 0; i < body.proposers.length; ++i) {
-    //     _grantRole(PROPOSER_ROLE, body.proposers[i]);
-    // }
+    var proposers = Iterator<address>.new(body.proposers);
+    while (!proposers.empty()) {
+        rbac._grantRole(PROPOSER_ROLE, proposers.next());
+    }
 
-    // TODO: iterate and grant roles
-    // for (uint256 i = 0; i < body.executors.length; ++i) {
-    //     _grantRole(EXECUTOR_ROLE, body.executors[i]);
-    // }
+    var executors = Iterator<address>.new(body.executors);
+    while (!executors.empty()) {
+        rbac._grantRole(EXECUTOR_ROLE, executors.next());
+    }
 
-    // TODO: iterate and grant roles
-    // for (uint256 i = 0; i < body.cancellers.length; ++i) {
-    //     _grantRole(CANCELLER_ROLE, body.cancellers[i]);
-    // }
+    var cancellers = Iterator<address>.new(body.cancellers);
+    while (!cancellers.empty()) {
+        rbac._grantRole(CANCELLER_ROLE, cancellers.next());
+    }
 
-    // TODO: iterate and grant roles
-    // for (uint256 i = 0; i < body.bypassers.length; ++i) {
-    //     _grantRole(BYPASSER_ROLE, body.bypassers[i]);
-    // }
+    var bypassers = Iterator<address>.new(body.bypassers);
+    while (!bypassers.empty()) {
+        rbac._grantRole(BYPASSER_ROLE, bypassers.next());
+    }
 
     self.data.minDelay = body.minDelay;
     // Send a message to the sender to notify about the change
@@ -528,7 +530,7 @@ fun Timelock<T>.scheduleBatch(
     mutate self,
     queryId: uint64,
     sender: address,
-    calls: cell, // TODO: encode as vec<Timelock_Call>
+    calls: cell, // vec<Timelock_Call>
     predecessor: uint256,
     salt: uint256,
     delay: uint64
@@ -537,11 +539,23 @@ fun Timelock<T>.scheduleBatch(
 
     val id = self.hashOperationBatch(OperationBatch{calls, predecessor, salt});
     self.schedule(id, delay);
-    // TODO: iterate and schedule each call in the batch
-    // for (uint256 i = 0; i < calls.length; ++i) {
-    //     _checkFunctionSelectorNotBlocked(calls[i].data);
-    //     emit CallScheduled(id, i, calls[i].target, calls[i].value, calls[i].data, predecessor, salt, delay);
-    // }
+
+    var index = 0;
+    var cc = Iterator<Timelock_Call>.new(calls);
+    while (!cc.empty()) {
+        val call = cc.next();
+        self.checkFunctionSelectorNotBlocked(call.data);
+
+        // Send a message to the sender to notify about the change
+        val reply = createMessage({
+            bounce: false,
+            value: 0, // TODO: how to pay for this message fee?
+            dest: sender,
+            body: Timelock_CallScheduled {queryId, id, index, target: call.target, value: call.value, data: call.data, predecessor, salt, delay}
+        });
+        reply.send(SEND_MODE_REGULAR);
+        index += 1;
+    }
 }
 
 /// @dev Schedule an operation that becomes valid after a given delay.
@@ -590,7 +604,7 @@ fun Timelock<T>.executeBatch(
     mutate self,
     queryId: uint64,
     sender: address,
-    calls: cell, // TODO: encode as vec<Timelock_Call>
+    calls: cell, // TODO: vec<Timelock_Call>
     predecessor: uint256,
     salt: uint256
 ): void {
@@ -598,11 +612,24 @@ fun Timelock<T>.executeBatch(
 
     val id = self.hashOperationBatch(OperationBatch{calls, predecessor, salt});
     self.beforeCall(id, predecessor);
-    // TODO: iterate and execute each call in the batch
-    // for (uint256 i = 0; i < calls.length; ++i) {
-    //     _execute(calls[i]);
-    //     emit CallExecuted(id, i, calls[i].target, calls[i].value, calls[i].data);
-    // }
+
+    var index = 0;
+    var cc = Iterator<Timelock_Call>.new(calls);
+    while (!cc.empty()) {
+        val call = cc.next();
+        self.execute(call);
+
+        // Send a message to the sender to notify about the change
+        val reply = createMessage({
+            bounce: false,
+            value: 0, // TODO: how to pay for this message fee?
+            dest: sender,
+            body: Timelock_CallExecuted {queryId, id, index, target: call.target, value: call.value, data: call.data}
+        });
+        reply.send(SEND_MODE_REGULAR);
+        index += 1;
+    }
+
     self.afterCall(id);
 }
 
