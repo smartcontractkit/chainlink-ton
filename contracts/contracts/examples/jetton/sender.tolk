@@ -1,6 +1,5 @@
 import "@stdlib/common.tolk"
 import "../../lib/jetton/jetton_client.tolk"
-import "../../lib/jetton/messages.tolk"
 
 // JettonSender contract in Tolk
 // Allows sending jettons to other addresses
@@ -37,40 +36,29 @@ fun saveData(data: JettonSender) {
 
 // Send basic jetton transfer
 fun JettonSender.sendJettons(self, msg: SendJettonsFast) {
-    createMessage({
-        bounce: true,
-        value: 0,
-        dest: self.JettonClient.walletAddress(),
-        body: JettonTransfer {
-            queryId: msg.queryId,
-            amount: msg.amount,
-            destination: msg.destination,
-            responseDestination: contract.getAddress(),
-            customPayload: null,
-            forwardTonAmount: 0,
-            forwardPayload: beginCell().endCell().beginParse(),
-        },
-    })
-        .send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    self.JettonClient.sendSimple(
+        { bounce: true, value: 0 },
+        SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE,
+        msg.queryId,
+        msg.amount,
+        msg.destination,
+        contract.getAddress()
+    );
 }
 
 // Send extended jetton transfer with additional parameters
 fun JettonSender.sendJettonsExtended(self, msg: SendJettonsExtended) {
-    createMessage({
-        bounce: true,
-        value: 0,
-        dest: self.JettonClient.walletAddress(),
-        body: JettonTransfer {
-            queryId: msg.queryId,
-            amount: msg.amount,
-            destination: msg.destination,
-            responseDestination: contract.getAddress(),
-            customPayload: msg.customPayload,
-            forwardTonAmount: msg.forwardTonAmount,
-            forwardPayload: msg.forwardPayload,
-        },
-    })
-        .send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    self.JettonClient.sendExtended(
+        { bounce: true, value: 0 },
+        SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE,
+        msg.queryId,
+        msg.amount,
+        msg.destination,
+        contract.getAddress(),
+        msg.customPayload,
+        msg.forwardTonAmount,
+        msg.forwardPayload
+    );
 }
 
 fun onInternalMessage(in: InMessage) {
