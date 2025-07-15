@@ -22,11 +22,11 @@ type GenericExtraArgsV2 struct {
 
 // SVMExtraArgsV1 represents extra arguments for SVM transactions.
 type SVMExtraArgsV1 struct {
-	ComputeUnits             uint32              `tlb:"## 32"`
-	AccountIsWritableBitmap  uint64              `tlb:"## 64"`
-	AllowOutOfOrderExecution bool                `tlb:"bool"`
-	TokenReceiver            []byte              `tlb:"bits 256"`
-	Accounts                 common.SnakeBytes2D `tlb:"^"`
+	ComputeUnits             uint32                             `tlb:"## 32"`
+	AccountIsWritableBitmap  uint64                             `tlb:"## 64"`
+	AllowOutOfOrderExecution bool                               `tlb:"bool"`
+	TokenReceiver            []byte                             `tlb:"bits 256"`
+	Accounts                 common.SnakeRef[common.SnakeBytes] `tlb:"^"`
 }
 
 // TokenAmount is a structure that holds the amount and token address for a CCIP transaction.

@@ -35,7 +35,7 @@ func TestSVMExtraArgsV1_ToCellAndLoadFromCell(t *testing.T) {
 	solanaAddr2, err := solana.NewRandomPrivateKey()
 	require.NoError(t, err)
 
-	accountList := [][]byte{
+	accountList := common.SnakeRef[common.SnakeBytes]{
 		solanaAddr1.PublicKey().Bytes(),
 		solanaAddr2.PublicKey().Bytes(),
 	}
