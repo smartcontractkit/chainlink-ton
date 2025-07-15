@@ -1,58 +1,74 @@
-// Jetton message definitions in Tolk
-// Common jetton opcodes (matching the FunC definitions)
-const OP_TRANSFER = 0x0f8a7ea5
-const OP_TRANSFER_NOTIFICATION = 0x7362d09c
-const OP_INTERNAL_TRANSFER = 0x178d4519
-const OP_EXCESSES = 0xd53276db
-const OP_BURN = 0x595f07bc
-const OP_BURN_NOTIFICATION = 0x7bdd97de
+type ForwardPayloadRemainder = RemainingBitsAndRefs
 
-// Jetton Transfer message - sent to jetton wallet to initiate transfer
-struct (0x0f8a7ea5) JettonTransfer {
+struct (0x0f8a7ea5) AskToTransfer {
     queryId: uint64
-    amount: coins
-    destination: address
-    responseDestination: address
+    jettonAmount: coins
+    transferRecipient: address
+    sendExcessesTo: address
     customPayload: cell?
     forwardTonAmount: coins
-    forwardPayload: cell? // Can be either inline slice or reference
+    forwardPayload: ForwardPayloadRemainder
 }
 
-// Jetton Transfer Notification - sent to destination address when receiving jettons
-struct (0x7362d09c) JettonNotification {
+struct (0x7362d09c) TransferNotificationForRecipient {
     queryId: uint64
-    amount: coins
-    sender: address
-    forwardPayload: cell?
+    jettonAmount: coins
+    transferInitiator: address
+    forwardPayload: ForwardPayloadRemainder
 }
 
-// Internal Transfer - sent between jetton wallets
-struct (0x178d4519) JettonTransferInternal {
+struct (0x178d4519) InternalTransferStep {
     queryId: uint64
-    amount: coins
-    sender: address
-    responseDestination: address
+    jettonAmount: coins
+    transferInitiator: address
+    sendExcessesTo: address
     forwardTonAmount: coins
-    forwardPayload: slice
+    forwardPayload: ForwardPayloadRemainder
 }
 
-// Excesses message - returns excess TON to response destination
-struct JettonExcesses {
+struct (0xd53276db) ReturnExcessesBack {
     queryId: uint64
 }
 
-// Burn message - burn jettons
-struct (0x595f07bc) JettonBurn {
+struct (0x595f07bc) AskToBurn {
     queryId: uint64
-    amount: coins
-    responseDestination: address
+    jettonAmount: coins
+    sendExcessesTo: address
     customPayload: cell?
 }
 
-// Burn notification - notification to jetton master about burned tokens
-struct (0x7bdd97de) JettonBurnNotification {
+struct (0x7bdd97de) BurnNotificationForMinter {
     queryId: uint64
-    amount: coins
-    sender: address
-    responseDestination: address
+    jettonAmount: coins
+    burnInitiator: address
+    sendExcessesTo: address
+}
+
+struct (0x2c76b973) RequestWalletAddress {
+    queryId: uint64
+    ownerAddress: address
+    includeOwnerAddress: bool
+}
+
+struct (0xd1735400) ResponseWalletAddress {
+    queryId: uint64
+    jettonWalletAddress: address
+    ownerAddress: Cell<address>?
+}
+
+struct (0x00000015) MintNewJettons {
+    queryId: uint64
+    mintRecipient: address
+    tonAmount: coins
+    internalTransferMsg: Cell<InternalTransferStep>
+}
+
+struct (0x00000003) ChangeMinterAdmin {
+    queryId: uint64
+    newAdminAddress: address
+}
+
+struct (0x00000004) ChangeMinterContent {
+    queryId: uint64
+    newContent: cell
 }

@@ -1,17 +1,23 @@
-import "@stdlib/common.tolk";
-import "../../lib/jetton/messages.tolk";
-import "../../lib/jetton/utils.tolk";
-import "../../lib/utils.tolk";
-import "../../lib/jetton/jetton_client.tolk";
+import "@stdlib/common.tolk"
+import "../../lib/jetton/jetton_client.tolk"
+import "../../lib/jetton/messages.tolk"
+import "../../lib/jetton/utils.tolk"
+import "../../lib/utils.tolk"
+
+;
+;
+;
+;
+;
 
 // SimpleJettonReceiver contract in Tolk
 // Simple receiver that just tracks amounts and payloads
-const INCORRECT_SENDER_ERROR = 100;
+const INCORRECT_SENDER_ERROR = 100
 
 struct SimpleJettonReceiver {
-    JettonClient: JettonClient;
-    amountChecker: coins;
-    payloadChecker: cell?;
+    JettonClient: JettonClient
+    amountChecker: coins
+    payloadChecker: ForwardPayloadRemainder
 }
 
 fun loadData(): SimpleJettonReceiver {
@@ -22,10 +28,11 @@ fun SimpleJettonReceiver.saveData(self) {
     contract.setData(self.toCell());
 }
 
-type IncomingMessage = JettonNotification;
+type IncomingMessage = TransferNotificationForRecipient
 
 fun onInternalMessage(in: InMessage) {
-    if (in.body.isEmpty()) { // ignore all empty messages
+    if (in.body.isEmpty()) {
+        // ignore all empty messages
         return;
     }
 
@@ -34,18 +41,22 @@ fun onInternalMessage(in: InMessage) {
     var this = loadData();
 
     match (msg) {
-        JettonNotification => { 
+        TransferNotificationForRecipient => {
             this.handleJettonTransferNotification(msg, in.senderAddress);
         }
     }
 }
 
-fun JettonReceiver.handleJettonTransferNotification(mutate self, msg: JettonNotification, sender: address) {
+fun JettonReceiver.handleJettonTransferNotification(
+    mutate self,
+    msg: TransferNotificationForRecipient,
+    sender: address,
+) {
     // Check if the sender is our jetton wallet
     assert(sender == self.JettonClient.walletAddress(), INCORRECT_SENDER_ERROR);
 
     // Handle the jetton transfer - simple implementation just updates trackers
-    self.amountChecker += msg.amount;
+    self.amountChecker += msg.jettonAmount;
     self.payloadChecker = msg.forwardPayload;
 
     self.saveData();
@@ -58,5 +69,5 @@ get fun amountChecker(): coins {
 
 get fun payloadChecker(): cell? {
     val this = loadData();
-    return this.payloadChecker;
+    return this.payloadChecker.toCell();
 }

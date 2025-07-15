@@ -29,7 +29,7 @@ struct (0xe815f1d0) SendJettonsExtended {
     destination: address
     customPayload: cell
     forwardTonAmount: coins
-    forwardPayload: cell
+    forwardPayload: ForwardPayloadRemainder
 }
 
 type IncomingMessage = SendJettonsFast | SendJettonsExtended
@@ -48,14 +48,14 @@ fun JettonSender.sendJettons(self, msg: SendJettonsFast) {
         bounce: true,
         value: 0,
         dest: self.JettonClient.walletAddress(),
-        body: JettonTransfer {
+        body: AskToTransfer {
             queryId: msg.queryId,
-            amount: msg.amount,
-            destination: msg.destination,
-            responseDestination: contract.getAddress(),
+            jettonAmount: msg.amount,
+            transferRecipient: msg.destination,
+            sendExcessesTo: contract.getAddress(),
             customPayload: null,
             forwardTonAmount: 0,
-            forwardPayload: null,
+            forwardPayload: beginCell().endCell().beginParse(),
         },
     })
         .send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
@@ -67,11 +67,11 @@ fun JettonSender.sendJettonsExtended(self, msg: SendJettonsExtended) {
         bounce: true,
         value: 0,
         dest: self.JettonClient.walletAddress(),
-        body: JettonTransfer {
+        body: AskToTransfer {
             queryId: msg.queryId,
-            amount: msg.amount,
-            destination: msg.destination,
-            responseDestination: contract.getAddress(),
+            jettonAmount: msg.amount,
+            transferRecipient: msg.destination,
+            sendExcessesTo: contract.getAddress(),
             customPayload: msg.customPayload,
             forwardTonAmount: msg.forwardTonAmount,
             forwardPayload: msg.forwardPayload,
