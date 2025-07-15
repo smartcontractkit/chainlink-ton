@@ -63,7 +63,7 @@ func NewLogPoller(
 		store:      store,
 		pollPeriod: pollPeriod,
 	}
-	lp.loader = NewLoader(lp.client, lp.lggr, pageSize)
+	lp.loader = NewLoader(lp.client, lp.lggr, pageSize, 10) // TODO: block confirmations should be configurable
 	lp.Service, lp.eng = services.Config{
 		Name:  "Service",
 		Start: lp.start,

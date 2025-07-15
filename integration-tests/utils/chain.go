@@ -55,7 +55,7 @@ func CreateTonHighloadWallet(t *testing.T, client ton.APIClientWrapped) *wallet.
 }
 
 func FundTonWallets(t *testing.T, client ton.APIClientWrapped, recipients []*address.Address, amounts []tlb.Coins) {
-	t.Logf("Funding %d wallets", len(recipients))
+	t.Logf("╭ Funding %d wallets", len(recipients))
 	walletVersion := wallet.HighloadV2Verified //nolint:staticcheck // only option in mylocalton-docker
 	rawHlWallet, err := wallet.FromSeed(client, strings.Fields(blockchain.DefaultTonHlWalletMnemonic), walletVersion)
 	require.NoError(t, err, "failed to create highload wallet")
@@ -82,7 +82,7 @@ func FundTonWallets(t *testing.T, client ton.APIClientWrapped, recipients []*add
 
 	err = waitForAirdropCompletion(t, client, recipients, amounts, 60*time.Second, false)
 	require.NoError(t, err, "airdrop completion verification failed")
-	t.Logf("%d wallets funded", len(recipients))
+	t.Logf("╰ %d wallets funded", len(recipients))
 }
 
 func waitForAirdropCompletion(t *testing.T, client ton.APIClientWrapped, recipients []*address.Address, expectedAmounts []tlb.Coins, timeout time.Duration, verbose bool) error {
@@ -182,8 +182,8 @@ func CreateAPIClient(t *testing.T, chainID uint64, useAlreadyRunningNetwork bool
 			Type:    "ton",
 			Port:    strconv.Itoa(port),
 			CustomEnv: map[string]string{
-				"VERSION_CAPABILITIES":        "11",
-				"NEXT_BLOCK_GENERATION_DELAY": "0.5",
+				"VERSION_CAPABILITIES": "11",
+				// "NEXT_BLOCK_GENERATION_DELAY": "0.5",
 			},
 		}
 

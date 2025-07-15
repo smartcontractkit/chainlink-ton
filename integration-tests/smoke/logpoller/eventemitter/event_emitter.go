@@ -20,9 +20,9 @@ import (
 
 // TODO: better name
 type Config struct {
-	TotalBatches int
-	TxPerBatch   int
-	MsgPerTx     int
+	BatchCount int
+	TxPerBatch int
+	MsgPerTx   int
 }
 
 // todo: no need for custom type
@@ -167,14 +167,14 @@ func (e *EventEmitter) SendIncreaseCounterMsg(ctx context.Context) (*tlb.Transac
 }
 
 func (e *EventEmitter) SendMultipleIncreaseCounterMsg(ctx context.Context, count int) (*tlb.Transaction, *ton.BlockIDExt, error) {
-	e.lggr.Debugf("Sending multiple increase counter messages from %s", e.name)
-
 	messages := make([]*wallet.Message, count)
 	for i := 0; i < count; i++ {
 		msg := IncreaseCounterMsg(e.contractAddress)
 		messages[i] = msg
 	}
+	e.lggr.Debugf("wallet workchain: %d", e.wallet.Address().Workchain())
 	tx, block, err := e.wallet.SendManyWaitTransaction(ctx, messages)
+	e.lggr.Debugf("Sent %d increase counter messages from %s, workchain: %d", count, e.name, block.Workchain)
 	if err != nil {
 		e.lggr.Debugf("Failed to send multiple messages: %v", err)
 		return nil, nil, err
@@ -183,17 +183,18 @@ func (e *EventEmitter) SendMultipleIncreaseCounterMsg(ctx context.Context, count
 	return tx, block, nil
 }
 
-func (e *EventEmitter) CreateTestEvents(ctx context.Context, input Config) ([]TxResult, error) {
-	var allTxResults []TxResult
+func (e *EventEmitter) CreateBulkTestEvents(ctx context.Context, cfg Config) ([]TxResult, error) {
+	var txs []TxResult
 	e.lggr.Debugf("=== Starting to send %d batches of %d transactions with %d messages each ===",
-		input.TotalBatches, input.TxPerBatch, input.MsgPerTx)
+		cfg.BatchCount, cfg.TxPerBatch, cfg.MsgPerTx)
 
 	// Send transactions in batches with block waits
-	for batchNum := 0; batchNum < input.TotalBatches; batchNum++ {
+	for batchNum := 0; batchNum < cfg.BatchCount; batchNum++ {
 		// Send multiple transactions in this batch
-		for txNum := 0; txNum < input.TxPerBatch; txNum++ {
+		for txNum := 0; txNum < cfg.TxPerBatch; txNum++ {
 			// Send transaction with multiple messages
-			tx, block, err := e.SendMultipleIncreaseCounterMsg(ctx, input.MsgPerTx)
+			e.lggr.Debugf("╭ Sending multiple increase counter messages from %s", e.name)
+			tx, block, err := e.SendMultipleIncreaseCounterMsg(ctx, cfg.MsgPerTx)
 			if err != nil {
 				return nil, fmt.Errorf("failed to send tx %d in batch %d: %w", txNum, batchNum, err)
 			}
@@ -203,34 +204,29 @@ func (e *EventEmitter) CreateTestEvents(ctx context.Context, input Config) ([]Tx
 				Block:    block,
 				BatchNum: batchNum,
 				TxNum:    txNum,
-				MsgCount: input.MsgPerTx,
+				MsgCount: cfg.MsgPerTx,
 			}
-			allTxResults = append(allTxResults, txResult)
+			txs = append(txs, txResult)
 
-			e.lggr.Debugf("Sent: Batch=%d, Tx=%d, Messages=%d, LT=%d, Hash=%s, BlockSeq=%d",
-				batchNum, txNum, input.MsgPerTx, tx.LT, hex.EncodeToString(tx.Hash), block.SeqNo)
+			e.lggr.Debugf("╰ Sent: Batch=%d, Tx=%d, Messages=%d, LT=%d, Hash=%s, BlockSeq=%d",
+				batchNum, txNum, cfg.MsgPerTx, tx.LT, hex.EncodeToString(tx.Hash), block.SeqNo)
 		}
 
-		// Simple delay between batches to try to get different blocks
-		if batchNum < input.TotalBatches-1 {
-			currentBlockSeq := allTxResults[len(allTxResults)-1].Block.SeqNo
-			e.lggr.Debugf("Waiting for block %d confirmation...", currentBlockSeq)
+		// delay between batches to try to get different blocks
+		if batchNum < cfg.BatchCount-1 {
+			currentBlockSeq := txs[len(txs)-1].Block.SeqNo
+			e.lggr.Debugf("Block %d: waiting for confirmation...", currentBlockSeq)
 
-			// Wait for current block to be confirmed
-			_, err := e.client.WaitForBlock(currentBlockSeq).GetAccount(ctx,
-				allTxResults[len(allTxResults)-1].Block, e.ContractAddress())
+			// wait for current block to be confirmed
+			_, err := e.client.WaitForBlock(currentBlockSeq).GetAccount(ctx, txs[len(txs)-1].Block, e.ContractAddress())
 			if err != nil {
 				return nil, fmt.Errorf("failed to wait for block %d confirmation: %w", currentBlockSeq, err)
 			}
-			e.lggr.Debugf("Block %d confirmed", currentBlockSeq)
+			e.lggr.Debugf("Block %d: confirmed", currentBlockSeq)
 		}
 	}
-
-	e.lggr.Debugf("=== All transactions sent ===")
-	e.lggr.Debugf("Total transactions: %d (each with %d messages)", len(allTxResults), input.MsgPerTx)
-
-	e.logBlockDistribution(allTxResults)
-	return allTxResults, nil
+	e.logBlockDistribution(txs)
+	return txs, nil
 }
 
 func (e *EventEmitter) logBlockDistribution(allTxResults []TxResult) {
@@ -246,15 +242,6 @@ func (e *EventEmitter) logBlockDistribution(allTxResults []TxResult) {
 
 	e.lggr.Debugf("=== Block Distribution Analysis ===")
 	e.lggr.Debugf("Transactions distributed across %d unique blocks:", len(blockCounts))
-
-	for blockSeq, count := range blockCounts {
-		e.lggr.Debugf("Block %d: %d transactions", blockSeq, count)
-		for _, txResult := range blockTxs[blockSeq] {
-			e.lggr.Debugf("  - Batch %d, Tx %d (%d msgs): LT=%d, Hash=%s",
-				txResult.BatchNum, txResult.TxNum, txResult.MsgCount, txResult.Tx.LT,
-				hex.EncodeToString(txResult.Tx.Hash)[:16]+"...")
-		}
-	}
 
 	if len(blockCounts) <= 1 {
 		e.lggr.Debugf("WARNING: Expected transactions to be spread across multiple blocks, but only found %d block(s)", len(blockCounts))
@@ -314,15 +301,5 @@ func (e *EventEmitter) logBlockDistribution(allTxResults []TxResult) {
 	e.lggr.Debugf("Total Blocks Used: %d", len(blockSeqNos))
 	if len(blockSeqNos) > 0 {
 		e.lggr.Debugf("Block Range: %d - %d (span of %d blocks)", blockSeqNos[0], blockSeqNos[len(blockSeqNos)-1], blockSeqNos[len(blockSeqNos)-1]-blockSeqNos[0]+1)
-
-		totalGaps := 0
-		for i := 1; i < len(blockSeqNos); i++ {
-			gap := blockSeqNos[i] - blockSeqNos[i-1] - 1
-			totalGaps += int(gap)
-			if gap > 0 {
-				e.lggr.Debugf("Gap between blocks %d and %d: %d empty blocks", blockSeqNos[i-1], blockSeqNos[i], gap)
-			}
-		}
-		e.lggr.Debugf("Total Empty Blocks in Range: %d", totalGaps)
 	}
 }
