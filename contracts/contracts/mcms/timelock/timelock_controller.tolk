@@ -9,7 +9,6 @@ import "timelock_controller/error.tolk";
 import "timelock_controller/op.tolk";
 import "timelock_controller/params.tolk";
 import "timelock_controller/operation_utils.tolk";
-import "timelock_controller/admin_calls.tolk";
 
 /**
  * @notice Contract module which acts as a timelocked controller with role-based
@@ -909,8 +908,6 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
         return; // accept TON coins without any further processing
     }
 
-    // TODO: handle Timelock_Init message (constructor)
-
     var cs: slice = msgFull.beginParse();
     val flags = cs.loadMessageFlags();
     // TODO: not available in tolk 0.99
@@ -918,12 +915,12 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
     //     return;
     // }
 
+    val sender: address = cs.loadAddress();
+
     // Load the contract storage
     var s = Timelock_Data.fromContractData();
     var timelock: Timelock<bool> = { data: s }; // TODO: merge with above
     var rbac = timelock.hookTrait__AccessControl();
-
-    val sender: address = cs.loadAddress();
 
     val msg = lazy Timelock_InMessage.fromSlice(msgBody);
     match (msg) {
@@ -960,40 +957,23 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
             timelock.data.storeAsContractData();
         }
         else => {
+            val msgHandeled = 0
+                || rbac.onInternalMessage(myBalance, msgValue, msgFull, msgBody);;
+
+            if (msgHandeled) {
+                // Map from underlying trait storage to contract storage
+                timelock.data.rbac = rbac.data.toCell();
+                timelock.data.storeAsContractData();
+                return;
+            }
+
             // TODO!
             // ignore empty messages, "wrong opcode" for others
             // assert (in.body.isEmpty()) throw 0xFFFF
         }
     }
 
-    val res = rbac.hasRole(ADMIN_ROLE, sender);
-    if (rbac.hasRole(ADMIN_ROLE, sender)) {
-        // Map from underlying contract storage to trait storage
-        // RBACTimelockAdmin operations handler
-        var timelockAdmin: RBACTimelockAdmin = {
-            minDelay: s.minDelay,
-            timestampCount: s.timestampCount,
-            timestamps: s.timestamps,
-        };
-
-        var msgHandeled = 0
-          || rbac.onInternalMessage(myBalance, msgValue, msgFull, msgBody)
-          || timelockAdmin.onInternalMessage(myBalance, msgValue, msgFull, msgBody);
-
-        if (msgHandeled) {
-            // Map from underlying trait storage to contract storage
-            s.minDelay = timelockAdmin.minDelay;
-            s.timestampCount = timelockAdmin.timestampCount;
-            s.timestamps = timelockAdmin.timestamps;
-            s.rbac = rbac.data.toCell();
-            // Save the updated storage
-            s.storeAsContractData();
-            return;
-        }
-    }
-
     val op = msgBody.loadMessageOp();
-    val queryID = msgBody.loadMessageQueryId();
     if (rbac.hasRole(PROPOSER_ROLE, sender)) {
         if (op == OP_SCHEDULE) {
             val delay = msgBody.loadUint(32);
