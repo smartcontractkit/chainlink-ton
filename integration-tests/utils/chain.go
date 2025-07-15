@@ -27,7 +27,7 @@ import (
 
 var once = &sync.Once{}
 
-func CreateTonWallet(t *testing.T, client ton.APIClientWrapped, version wallet.VersionConfig, option wallet.Option) *wallet.Wallet {
+func CreateRandomTonWallet(t *testing.T, client ton.APIClientWrapped, version wallet.VersionConfig, option wallet.Option) *wallet.Wallet {
 	seed := wallet.NewSeed()
 	rw, err := wallet.FromSeed(client, seed, version)
 	require.NoError(t, err, "failed to generate random wallet: %w", err)
@@ -154,16 +154,24 @@ func CreateAPIClient(t *testing.T, chainID uint64) *ton.APIClient {
 	bcInput := &blockchain.Input{
 		ChainID: strconv.FormatUint(chainID, 10),
 		Type:    "ton",
-		Image:   "ghcr.io/neodix42/mylocalton-docker:latest",
 		Port:    strconv.Itoa(port),
+		CustomEnv: map[string]string{
+			"VERSION_CAPABILITIES":        "11",
+			"NEXT_BLOCK_GENERATION_DELAY": "0.5",
+		},
 	}
 
 	bcOut, err := blockchain.NewBlockchainNetwork(bcInput)
 	require.NoError(t, err, "failed to create blockchain network")
 
 	t.Cleanup(func() {
-		ctfErr := framework.RemoveTestContainers()
-		require.NoError(t, ctfErr, "failed to remove test containers")
+		if bcOut.Container != nil && bcOut.Container.IsRunning() {
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+			if cterr := bcOut.Container.Terminate(ctx); cterr != nil {
+				t.Logf("Container termination failed: %v", cterr)
+			}
+		}
 		freeport.Return([]int{port})
 	})
 
