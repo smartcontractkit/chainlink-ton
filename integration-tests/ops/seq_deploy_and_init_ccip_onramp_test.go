@@ -3,11 +3,10 @@ package ops
 import (
 	"testing"
 
-	"github.com/stretchr/testify/require"
-
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/smartcontractkit/chainlink-ton/ops"
 	"github.com/smartcontractkit/chainlink-ton/ops/ccip_onramp"
+	"github.com/stretchr/testify/require"
 )
 
 func TestDeployAndInitCCIPOnrampSequence(t *testing.T) {
