@@ -154,16 +154,18 @@ func CreateAPIClient(t *testing.T, chainID uint64) *ton.APIClient {
 	bcInput := &blockchain.Input{
 		ChainID: strconv.FormatUint(chainID, 10),
 		Type:    "ton",
-		Image:   "ghcr.io/neodix42/mylocalton-docker:latest",
 		Port:    strconv.Itoa(port),
+		CustomEnv: map[string]string{
+			"VERSION_CAPABILITIES": "11",
+		},
 	}
 
 	bcOut, err := blockchain.NewBlockchainNetwork(bcInput)
 	require.NoError(t, err, "failed to create blockchain network")
 
 	t.Cleanup(func() {
-		ctfErr := framework.RemoveTestContainers()
-		require.NoError(t, ctfErr, "failed to remove test containers")
+		err := framework.RemoveTestContainers()
+		require.NoError(t, err, "failed to remove test containers")
 		freeport.Return([]int{port})
 	})
 
