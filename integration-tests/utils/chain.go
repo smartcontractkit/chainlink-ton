@@ -168,8 +168,8 @@ func CreateAPIClient(t *testing.T, chainID uint64) *ton.APIClient {
 		if bcOut.Container != nil && bcOut.Container.IsRunning() {
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
-			if err := bcOut.Container.Terminate(ctx); err != nil {
-				t.Logf("Container termination failed: %v", err)
+			if cterr := bcOut.Container.Terminate(ctx); cterr != nil {
+				t.Logf("Container termination failed: %v", cterr)
 			}
 		}
 		freeport.Return([]int{port})
