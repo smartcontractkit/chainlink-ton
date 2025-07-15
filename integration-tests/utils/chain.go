@@ -165,7 +165,7 @@ func CreateAPIClient(t *testing.T, chainID uint64) *ton.APIClient {
 	require.NoError(t, err, "failed to create blockchain network")
 
 	t.Cleanup(func() {
-		rterr := framework.RemoveTestContainers()
+		rterr := bcOut.Container.Terminate(t.Context())
 		require.NoError(t, rterr, "failed to remove test containers")
 		freeport.Return([]int{port})
 	})
