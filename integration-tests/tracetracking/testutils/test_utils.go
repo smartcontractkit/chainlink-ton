@@ -7,45 +7,23 @@ import (
 	"math/big"
 	"os"
 	"path"
-	"strconv"
 	"strings"
 	"testing"
 
 	testutils "integration-tests/utils"
 
 	"github.com/joho/godotenv"
-	"github.com/smartcontractkit/freeport"
 	"github.com/stretchr/testify/require"
 
-	liteclient "github.com/xssnick/tonutils-go/liteclient"
 	"github.com/xssnick/tonutils-go/tlb"
 	ton "github.com/xssnick/tonutils-go/ton"
 	wallet "github.com/xssnick/tonutils-go/ton/wallet"
 
-	"github.com/smartcontractkit/chainlink-testing-framework/framework/components/blockchain"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 )
 
-func SetUpTest(t *testing.T, initialAmount *big.Int, fundedAccountsCount uint) (accounts []tracetracking.SignedAPIClient) {
-	// Deploy MyLocalTON
-	bcInput := &blockchain.Input{
-		Type: "ton",
-		Port: strconv.Itoa(freeport.GetOne(t)),
-	}
-	var err error
-	bc, err := blockchain.NewBlockchainNetwork(bcInput)
-	require.NoError(t, err, "failed to create blockchain network: %w", err)
-	liteapiURL := bc.Nodes[0].ExternalHTTPUrl
-	// Connect to TON testnet
-	client := liteclient.NewConnectionPool()
-	cfg, err := liteclient.GetConfigFromUrl(context.Background(), fmt.Sprintf("http://%s/localhost.global.config.json", liteapiURL))
-	require.NoError(t, err, "failed to get testnet config: %w", err)
-
-	err = client.AddConnectionsFromConfig(context.Background(), cfg)
-	require.NoError(t, err, "failed to connect to TON network: %w", err)
-
-	// Initialize TON API client
-	api := ton.NewAPIClient(client)
+func SetUpTest(t *testing.T, chainID uint64, initialAmount *big.Int, fundedAccountsCount uint) (accounts []tracetracking.SignedAPIClient) {
+	api := testutils.CreateAPIClient(t, chainID)
 
 	// Get wallet for operations
 	funderWallet := getWallet(t, api)

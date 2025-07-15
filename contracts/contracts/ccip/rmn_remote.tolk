@@ -18,6 +18,6 @@ fun onInternalMessage(msgCell: cell, msgBody: slice) {
 }
 
 
-get typeAndVersion(): (slice, slice) {
+get fun typeAndVersion(): (slice, slice) {
      return ("com.chainlink.ton.ccip.RMNRemote", "1.0.0");
  }
