@@ -1,3 +1,5 @@
+import "../../../../lib/access/ownable_2step.tolk";
+
 struct StorageV2 {
     value: uint64;
     id: uint32;

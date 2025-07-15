@@ -27,7 +27,7 @@ import (
 
 var once = &sync.Once{}
 
-func CreateTonWallet(t *testing.T, client ton.APIClientWrapped, version wallet.VersionConfig, option wallet.Option) *wallet.Wallet {
+func CreateRandomTonWallet(t *testing.T, client ton.APIClientWrapped, version wallet.VersionConfig, option wallet.Option) *wallet.Wallet {
 	seed := wallet.NewSeed()
 	rw, err := wallet.FromSeed(client, seed, version)
 	require.NoError(t, err, "failed to generate random wallet: %w", err)
@@ -149,15 +149,32 @@ func CreateAPIClient(t *testing.T, chainID uint64) *ton.APIClient {
 	err := framework.DefaultNetwork(once)
 	require.NoError(t, err)
 
+	port := freeport.GetOne(t)
+
 	bcInput := &blockchain.Input{
 		ChainID: strconv.FormatUint(chainID, 10),
 		Type:    "ton",
-		Image:   "ghcr.io/neodix42/mylocalton-docker:latest",
-		Port:    strconv.Itoa(freeport.GetOne(t)),
+		Port:    strconv.Itoa(port),
+		CustomEnv: map[string]string{
+			"VERSION_CAPABILITIES":        "11",
+			"NEXT_BLOCK_GENERATION_DELAY": "0.5",
+		},
 	}
 
 	bcOut, err := blockchain.NewBlockchainNetwork(bcInput)
 	require.NoError(t, err, "failed to create blockchain network")
+
+	t.Cleanup(func() {
+		if bcOut.Container != nil && bcOut.Container.IsRunning() {
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+			if cterr := bcOut.Container.Terminate(ctx); cterr != nil {
+				t.Logf("Container termination failed: %v", cterr)
+			}
+		}
+		freeport.Return([]int{port})
+	})
+
 	networkCfg := fmt.Sprintf("http://%s/localhost.global.config.json", bcOut.Nodes[0].ExternalHTTPUrl)
 
 	cfg, err := liteclient.GetConfigFromUrl(t.Context(), networkCfg)
@@ -172,5 +189,6 @@ func CreateAPIClient(t *testing.T, chainID uint64) *ton.APIClient {
 
 	_, err = client.GetMasterchainInfo(t.Context())
 	require.NoError(t, err, "TON network not ready")
+
 	return client
 }
