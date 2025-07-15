@@ -15,7 +15,7 @@ struct (0x0f8a7ea5) JettonTransfer {
     responseDestination: address
     customPayload: cell?
     forwardTonAmount: coins
-    forwardPayload: cell? // Can be either inline slice or reference
+    forwardPayload: slice | cell // Can be either inline slice or reference
 }
 
 // Jetton Transfer Notification - sent to destination address when receiving jettons

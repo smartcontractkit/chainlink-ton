@@ -48,7 +48,7 @@ fun JettonSender.sendJettons(self, msg: SendJettonsFast) {
             responseDestination: contract.getAddress(),
             customPayload: null,
             forwardTonAmount: 0,
-            forwardPayload: null,
+            forwardPayload: beginCell().endCell().beginParse(),
         },
     })
         .send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
