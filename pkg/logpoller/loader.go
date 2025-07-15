@@ -137,6 +137,19 @@ func (lc *Loader) fetchMessagesForAddress(ctx context.Context, addr *address.Add
 	return messages, nil
 }
 
+/**
+ * getTransactionBounds determines the logical time (LT) range for scanning transactions
+ * between two blocks for a specific address on the TON blockchain.
+ *
+ * ┌prevBlock─┐ ┌fromBlock─┐     ┌─toBlock──┐
+ * │ TX│TX│TX │ │ TX│TX│TX │ ... │ TX│TX│TX │
+ * └────────│─┘ └─│────────┘     └────────│─┘
+ *          │     │ <- txs in interest -> │
+ *	  lastSeenLT                        endLT
+ *    (startLT)
+ * prevBlock: Block where the address was last seen(already processed)
+ * toBlock: Block where the scan ends
+ */
 func (lc *Loader) getTransactionBounds(ctx context.Context, addr *address.Address, prevBlock *ton.BlockIDExt, toBlock *ton.BlockIDExt) (startLT, endLT uint64, endHash []byte, err error) {
 	res, err := lc.client.WaitForBlock(toBlock.SeqNo).GetAccount(ctx, toBlock, addr)
 	if err != nil {
