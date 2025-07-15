@@ -3,6 +3,7 @@ package eventemitter
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"math/big"
 	"sort"
@@ -43,12 +44,9 @@ type EventEmitter struct {
 	wallet *wallet.Wallet
 	lggr   logger.Logger
 
-	// Context management
-	ctx     context.Context
-	cancel  context.CancelFunc
-	ticker  *time.Ticker
 	mu      sync.RWMutex
 	running bool
+	done    chan struct{}
 }
 
 func NewEventEmitter(ctx context.Context, client ton.APIClientWrapped, name string, id uint64, wallet *wallet.Wallet, lggr logger.Logger) (*EventEmitter, error) {
@@ -95,15 +93,13 @@ func (e *EventEmitter) StartEventEmitter(ctx context.Context, interval time.Dura
 	defer e.mu.Unlock()
 
 	if e.running {
-		return fmt.Errorf("event emitter is already running")
+		return errors.New("event emitter is already running")
 	}
 
-	e.ctx, e.cancel = context.WithCancel(ctx)
-	e.ticker = time.NewTicker(interval)
+	e.done = make(chan struct{})
 	e.running = true
 
-	go e.eventLoop()
-
+	go e.eventLoop(ctx, interval)
 	return nil
 }
 
@@ -115,9 +111,47 @@ func (e *EventEmitter) StopEventEmitter() {
 		return
 	}
 
-	e.cancel()
-	e.ticker.Stop()
+	// Wait for eventLoop to finish
+	<-e.done
 	e.running = false
+}
+
+func (e *EventEmitter) IsRunning() bool {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	return e.running
+}
+
+// TODO: use for live event ingestion test
+// eventLoop runs the continuous event emission loop
+func (e *EventEmitter) eventLoop(ctx context.Context, interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			e.lggr.Debugf("Context cancelled for %s", e.name)
+			close(e.done)
+			return
+		case <-ticker.C:
+			if _, _, err := e.SendIncreaseCounterMsg(ctx); err != nil {
+				e.lggr.Debugf("ERROR sending message from %s: %v", e.name, err)
+			}
+		}
+	}
+}
+
+func (e *EventEmitter) Name() string {
+	return e.name
+}
+
+func (e *EventEmitter) ContractAddress() *address.Address {
+	return e.contractAddress
+}
+
+func (e *EventEmitter) GetID() uint64 {
+	return e.id
 }
 
 func (e *EventEmitter) SendIncreaseCounterMsg(ctx context.Context) (*tlb.Transaction, *ton.BlockIDExt, error) {
@@ -256,7 +290,7 @@ func (e *EventEmitter) logBlockDistribution(allTxResults []TxResult) {
 	}
 
 	// Get sorted block sequence numbers
-	var blockSeqNos []uint32
+	blockSeqNos := make([]uint32, 0, len(blockTxMap))
 	for seqNo := range blockTxMap {
 		blockSeqNos = append(blockSeqNos, seqNo)
 	}
@@ -290,44 +324,5 @@ func (e *EventEmitter) logBlockDistribution(allTxResults []TxResult) {
 			}
 		}
 		e.lggr.Debugf("Total Empty Blocks in Range: %d", totalGaps)
-
 	}
-}
-
-func (e *EventEmitter) IsRunning() bool {
-	e.mu.RLock()
-	defer e.mu.RUnlock()
-	return e.running
-}
-
-// TODO: use for live event ingestion test
-// eventLoop runs the continuous event emission loop
-func (e *EventEmitter) eventLoop() {
-	e.lggr.Debugf("Starting event loop for %s", e.name)
-	for {
-		select {
-		case <-e.ctx.Done():
-			e.lggr.Debugf("Context cancelled for %s", e.name)
-			return
-		case <-e.ticker.C:
-			if _, _, err := e.SendIncreaseCounterMsg(e.ctx); err != nil {
-				e.lggr.Debugf("ERROR sending message from %s: %v", e.name, err)
-				continue
-			} else {
-				e.lggr.Debugf("message sent successfully from %s", e.name)
-			}
-		}
-	}
-}
-
-func (e *EventEmitter) Name() string {
-	return e.name
-}
-
-func (e *EventEmitter) ContractAddress() *address.Address {
-	return e.contractAddress
-}
-
-func (e *EventEmitter) GetID() uint64 {
-	return e.id
 }

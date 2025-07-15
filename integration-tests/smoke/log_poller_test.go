@@ -224,8 +224,8 @@ func Test_LogPoller(t *testing.T) {
 
 	seen := map[uint64]bool{}
 	for i, ext := range msgs {
-		ev, err := test_utils.LoadEventFromMsg[event_emitter.CounterIncreased](ext)
-		require.NoError(t, err, "failed to parse event #%d", i)
+		ev, lerr := test_utils.LoadEventFromMsg[event_emitter.CounterIncreased](ext)
+		require.NoError(t, lerr, "failed to parse event #%d", i)
 		require.False(t, seen[ev.Counter],
 			"duplicate counter %d in loader result", ev.Counter)
 		seen[ev.Counter] = true
@@ -245,6 +245,7 @@ func Test_LogPoller(t *testing.T) {
 	totalBlocks := toBlock.SeqNo - fromBlock.SeqNo + 1
 	chunkSize := totalBlocks / 3 // Split into 3 chunks
 
+	// TODO: block range is different with source transactions, find a better way to get blocks that extMsgOut is included
 	testRanges := []struct {
 		name    string
 		fromSeq uint32
@@ -284,56 +285,66 @@ func Test_LogPoller(t *testing.T) {
 	require.Len(t, allCounters, len(seen))
 	t.Logf("✅ Chunked range queries work correctly")
 
-	t.SkipNow()
+	t.Run("Log Poller Live Event Ingestion", func(t *testing.T) {
+		t.Skip("TODO: Implement")
 
-	lp := logpoller.NewLogPoller(
-		logger.Test(t),
-		client,
-		3*time.Second,
-		100, // page size
-	)
+		lp := logpoller.NewLogPoller(
+			logger.Test(t),
+			client,
+			3*time.Second,
+			100, // page size
+		)
 
-	// register filters
-	filterA := types.Filter{
-		Address:    *emitter.ContractAddress(),
-		EventName:  "CounterIncreased",
-		EventTopic: event_emitter.CounterIncreasedTopic,
-	}
-	lp.RegisterFilter(t.Context(), filterA)
+		// register filters
+		filterA := types.Filter{
+			Address:    *emitter.ContractAddress(),
+			EventName:  "CounterIncreased",
+			EventTopic: event_emitter.CounterIncreasedTopic,
+		}
+		lp.RegisterFilter(t.Context(), filterA)
 
-	require.NoError(t, lp.Start(t.Context()))
-	defer func() {
-		require.NoError(t, lp.Close())
-	}()
+		require.NoError(t, lp.Start(t.Context()))
+		defer func() {
+			require.NoError(t, lp.Close())
+		}()
 
-	// start event emitters
-	err = emitter.StartEventEmitter(t.Context(), 300*time.Millisecond)
-	require.NoError(t, err)
-	require.True(t, emitter.IsRunning(), "event emitter A should be running")
+		// start event emitters
+		err = emitter.StartEventEmitter(t.Context(), 300*time.Millisecond)
+		require.NoError(t, err)
+		require.True(t, emitter.IsRunning(), "event emitter A should be running")
 
-	time.Sleep(15 * time.Second) // wait for event emitters to start and emit events
+		time.Sleep(15 * time.Second) // wait for event emitters to start and emit events
 
-	b, err := client.CurrentMasterchainInfo(t.Context())
-	require.NoError(t, err)
-	onchainSeqNoA, err := event_emitter.GetCounter(t.Context(), client, b, emitter.ContractAddress())
-	require.NoError(t, err)
+		b, err := client.CurrentMasterchainInfo(t.Context())
+		require.NoError(t, err)
+		onchainSeqNoA, err := event_emitter.GetCounter(t.Context(), client, b, emitter.ContractAddress())
+		require.NoError(t, err)
 
-	require.Positive(t, onchainSeqNoA.Cmp(big.NewInt(0)), "unexpected sequence number for contract A")
-	// TODO: get logs by filter and validate if polling is not missing any events
-	// TODO: scale up the number of events and validate that log poller can handle multiple events
+		require.Positive(t, onchainSeqNoA.Cmp(big.NewInt(0)), "unexpected sequence number for contract A")
+		// TODO: get logs by filter and validate if polling is not missing any events
+		// TODO: scale up the number of events and validate that log poller can handle multiple events
 
-	require.Eventually(t, func() bool {
-		return len(lp.GetLogs()) > 0
-	}, 30*time.Second, 1*time.Second, "expected at least one send event")
+		require.Eventually(t, func() bool {
+			return len(lp.GetLogs()) > 0
+		}, 30*time.Second, 1*time.Second, "expected at least one send event")
 
-	logs := lp.GetLogs()
-	require.NotEmpty(t, logs, "expected at least one log entry")
+		logs := lp.GetLogs()
+		require.NotEmpty(t, logs, "expected at least one log entry")
 
-	c, err := cell.FromBOC(logs[0].Data)
-	require.NoError(t, err)
-	event, err := test_utils.LoadEventFromCell[event_emitter.CounterIncreased](c)
-	require.NoError(t, err)
+		c, err := cell.FromBOC(logs[0].Data)
+		require.NoError(t, err)
+		event, err := test_utils.LoadEventFromCell[event_emitter.CounterIncreased](c)
+		require.NoError(t, err)
 
-	t.Logf("Received event: %+v", event)
-	// require.Equal(t, uint32(1), event.NewValue, "unexpected new value in event")
+		t.Logf("Received event: %+v", event)
+		// require.Equal(t, uint32(1), event.NewValue, "unexpected new value in event")
+	})
+
+	t.Run("Log Poller Backfill Event Ingestion", func(t *testing.T) {
+		t.Skip("TODO: Implement")
+	})
+
+	t.Run("Log Poller Query Interface", func(t *testing.T) {
+		t.Skip("TODO: Implement")
+	})
 }

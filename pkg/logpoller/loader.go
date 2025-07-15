@@ -56,9 +56,8 @@ func (lc *Loader) BackfillForAddresses(ctx context.Context, addresses []*address
 	return allMsgs, nil
 }
 
-// Note: (prevBlock, toBlock] is the range of blocks to fetch messages from
+// Note: (prevBlock, toBlock] is the range of blocks to fetch messages from, see getTransactionBounds for details
 // TODO: stream messages back to log poller to avoid memory overhead
-
 func (lc *Loader) fetchMessagesForAddress(ctx context.Context, addr *address.Address, prevBlock *ton.BlockIDExt, toBlock *ton.BlockIDExt) ([]*tlb.ExternalMessageOut, error) {
 	startLT, endLT, endHash, err := lc.getTransactionBounds(ctx, addr, prevBlock, toBlock)
 	if err != nil {
@@ -150,6 +149,7 @@ func (lc *Loader) fetchMessagesForAddress(ctx context.Context, addr *address.Add
  * prevBlock: Block where the address was last seen(already processed)
  * toBlock: Block where the scan ends
  */
+//  TODO: can we reduce the number of calls to GetAccount?
 func (lc *Loader) getTransactionBounds(ctx context.Context, addr *address.Address, prevBlock *ton.BlockIDExt, toBlock *ton.BlockIDExt) (startLT, endLT uint64, endHash []byte, err error) {
 	res, err := lc.client.WaitForBlock(toBlock.SeqNo).GetAccount(ctx, toBlock, addr)
 	if err != nil {
