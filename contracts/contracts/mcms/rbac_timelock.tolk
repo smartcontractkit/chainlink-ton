@@ -935,55 +935,50 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
     match (msg) {
         Timelock_Init => {
             timelock.init(sender, msg.queryId, msg.minDelay, msg.admin, msg.proposers, msg.executors, msg.cancellers, msg.bypassers);
-            timelock.data.storeAsContractData();
         }
         Timelock_TopUp => {
-            // Top up the contract balance, no action needed
+            // Top up the contract balance, no action needed, return early - no need to update storage
+            return;
         }
         Timelock_UpdateDelay => {
             timelock.updateDelay(sender, msg.queryId, msg.newDelay);
-            timelock.data.storeAsContractData();
         }
         Timelock_BlockFunctionSelector => {
             timelock.blockFunctionSelector(sender, msg.queryId, msg.selector);
-            timelock.data.storeAsContractData();
         }
         Timelock_UnblockFunctionSelector => {
             timelock.unblockFunctionSelector(sender, msg.queryId, msg.selector);
-            timelock.data.storeAsContractData();
         }
         Timelock_ScheduleBatch => {
             timelock.scheduleBatch(sender, msg.queryId, msg.calls, msg.predecessor, msg.salt, msg.delay);
-            timelock.data.storeAsContractData();
         }
         Timelock_ExecuteBatch => {
             timelock.executeBatch(sender, msg.queryId, msg.calls, msg.predecessor, msg.salt);
-            timelock.data.storeAsContractData();
         }
         Timelock_Cancel => {
             timelock.cancel(sender, msg.queryId, msg.id);
-            timelock.data.storeAsContractData();
         }
         Timelock_BypasserExecuteBatch => {
             timelock.bypasserExecuteBatch(sender, msg.queryId, msg.calls);
-            timelock.data.storeAsContractData();
         }
         else => {
             var rbac = timelock.hookTrait__AccessControl();
+
             val msgHandeled = 0
                 || rbac.onInternalMessage(myBalance, msgValue, msgFull, msgBody);;
 
-            if (msgHandeled) {
-                // Map from underlying trait storage to contract storage
-                timelock.data.rbac = rbac.data.toCell();
-                timelock.data.storeAsContractData();
-                return;
+            if (!msgHandeled) {
+                // If the message was not handled, throw an error
+                throw ERROR_WRONG_OP;
             }
 
-            // If the message was not handled, throw an error
-            throw ERROR_WRONG_OP
+            // Map from underlying trait storage to contract storage
+            timelock.data.rbac = rbac.data.toCell();
         }
     }
+
+    // Store the updated contract data
+    timelock.data.storeAsContractData();
 }
 
 // --- Extension hooks ---
