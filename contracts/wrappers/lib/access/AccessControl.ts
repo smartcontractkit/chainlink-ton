@@ -157,7 +157,7 @@ export const builder = {
 export class AccessControl implements Contract {
   constructor(readonly address: Address) {}
 
-  static newFrom(address: Address): AccessControl {
+  static newAt(address: Address): AccessControl {
     return new AccessControl(address)
   }
 
