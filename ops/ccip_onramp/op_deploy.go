@@ -24,7 +24,7 @@ func deployOnRamp(b operations.Bundle, deps ops.TonDeps, in ops.OpTxInput[Deploy
 	output := ops.OpTxResult[DeployCCIPOnrampSeqOutput]{}
 
 	// TODO wrap the code cell creation somewhere
-	CounterContractPath := test_utils.GetBuildDir("Onramp.compiled.json")
+	CounterContractPath := test_utils.GetBuildDir("OnRamp.compiled.json")
 	codeCell, err := wrappers.ParseCompiledContract(CounterContractPath)
 	if err != nil {
 		return output, fmt.Errorf("failed to compile contract: %w", err)
