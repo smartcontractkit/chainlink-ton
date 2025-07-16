@@ -38,6 +38,7 @@ type EventEmitter struct {
 	name            string           // name of the event emitter
 	contractAddress *address.Address // address of the event emitter contract
 	id              uint64
+	sentCounter     uint64
 	targetCounter   *big.Int
 
 	// Dependencies
@@ -113,7 +114,6 @@ func (e *EventEmitter) StopEventEmitter() {
 		return
 	}
 
-	// Wait for eventLoop to finish
 	<-e.done
 	e.running = false
 }
@@ -128,22 +128,41 @@ func (e *EventEmitter) eventLoop(ctx context.Context, interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
+	target := e.targetCounter.Uint64()
+
 	for {
+		if e.sentCounter < target {
+			select {
+			case <-ctx.Done():
+				e.lggr.Debugf("Context cancelled during sending for %s", e.name)
+				close(e.done)
+				return
+			case <-ticker.C:
+				if _, _, err := e.SendIncreaseCounterMsg(ctx); err != nil {
+					e.lggr.Debugf("ERROR sending message from %s: %v", e.name, err)
+				} else {
+					e.mu.Lock()
+					e.sentCounter++
+					e.mu.Unlock()
+				}
+			}
+			continue
+		}
+
+		// all messages have been sent. confirm the on-chain state.
 		if e.shouldStop(ctx) {
+			e.lggr.Debugf("On-chain counter confirmed for %s, stopping.", e.name)
 			close(e.done)
 			return
 		}
 
 		select {
 		case <-ctx.Done():
-			e.lggr.Debugf("Context cancelled for %s", e.name)
+			e.lggr.Debugf("Context cancelled during verification for %s", e.name)
 			close(e.done)
 			return
 		case <-ticker.C:
-			// on a new tick, send the next message.
-			if _, _, err := e.SendIncreaseCounterMsg(ctx); err != nil {
-				e.lggr.Debugf("ERROR sending message from %s: %v", e.name, err)
-			}
+			e.lggr.Debugf("All messages sent, waiting for on-chain confirmation...")
 		}
 	}
 }

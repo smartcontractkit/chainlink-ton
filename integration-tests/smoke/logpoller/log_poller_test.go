@@ -100,13 +100,12 @@ func waitForBlock(t *testing.T, client ton.APIClientWrapped, toBlock *ton.BlockI
 }
 
 func Test_LogPoller(t *testing.T) {
-	useAlreadyRunningNetwork := true
+	useAlreadyRunningNetwork := false
 
 	client := test_utils.CreateAPIClient(t, chainsel.TON_LOCALNET.Selector, useAlreadyRunningNetwork).WithRetry()
 	require.NotNil(t, client)
 
 	t.Run("log poller:loader event ingestion", func(t *testing.T) {
-		t.Skip()
 		// t.Parallel()
 
 		cfg := event_emitter.Config{
@@ -272,6 +271,12 @@ func Test_LogPoller(t *testing.T) {
 			}
 
 			if len(logs) != targetCounter {
+				for _, msg := range msgs {
+					event, err := test_utils.LoadEventFromMsg[event_emitter.CounterIncreased](msg)
+					require.NoError(t, err, "failed to parse event from log")
+					t.Logf("Event Counter=%d", event.Counter)
+				}
+
 				t.Logf("Waiting for logs... have %d, want %d", len(logs), targetCounter)
 				return false // Not enough logs yet, Eventually will retry.
 			}
