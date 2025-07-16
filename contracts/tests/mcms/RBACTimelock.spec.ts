@@ -9,17 +9,17 @@ import {
   Opcodes,
   Params,
   Builder,
-  TimelockController,
-  TimelockControllerStorage,
-} from '../../../wrappers/mcms/timelock/TimelockController'
+  RBACTimelock,
+  RBACTimelockStorage,
+} from '../../wrappers/mcms/RBACTimelock'
 
-import * as ac from '../../../wrappers/lib/access/AccessControl'
+import * as ac from '../../wrappers/lib/access/AccessControl'
 
-describe('TimelockController', () => {
+describe('RBACTimelock', () => {
   let code: Cell
 
   beforeAll(async () => {
-    code = await compile('mcms.timelock.Timelock')
+    code = await compile('mcms.RBACTimelock')
   })
 
   let blockchain: Blockchain
@@ -28,7 +28,7 @@ describe('TimelockController', () => {
 
   // Contract bindings
   let acContract: SandboxContract<ac.AccessControl>
-  let timelockController: SandboxContract<TimelockController>
+  let timelock: SandboxContract<RBACTimelock>
 
   let minDelay: number
   let scheduleSnapshot: BlockchainSnapshot
@@ -63,8 +63,8 @@ describe('TimelockController', () => {
       rbac: ac.builder.data.encode().contractData(rbacStorage),
     }
 
-    timelockController = blockchain.openContract(TimelockController.createFromConfig(data, code))
-    acContract = blockchain.openContract(ac.AccessControl.newFrom(timelockController.address))
+    timelock = blockchain.openContract(RBACTimelock.createFromConfig(data, code))
+    acContract = blockchain.openContract(ac.AccessControl.newFrom(timelock.address))
   })
 
   it('Should compute crc32 opcodes', async () => {
@@ -90,13 +90,13 @@ describe('TimelockController', () => {
   })
 
   it('should deploy', async () => {
-    const deployResult = await timelockController.sendTopUp(deployer.getSender(), {
+    const deployResult = await timelock.sendTopUp(deployer.getSender(), {
       value: toNano('0.05'),
     })
 
     expect(deployResult.transactions).toHaveTransaction({
       from: deployer.address,
-      to: timelockController.address,
+      to: timelock.address,
       deploy: true,
       success: true,
     })
@@ -108,29 +108,29 @@ describe('TimelockController', () => {
     expect(memberAddr).not.toBeNull()
     expect(memberAddr!.toString()).toEqual(deployer.address.toString()) // default admin role
 
-    // const timelockControllerData = await timelockController.getTimelockControllerData()
-    // expect(timelockControllerData.minDelay).toEqual(minDelay)
-    // expect(timelockControllerData.timestampCount).toEqual(0)
-    // expect(timelockControllerData.adminAccounts).not.toEqual(null)
-    // expect(timelockControllerData.proposerAccounts).not.toEqual(null)
-    // expect(timelockControllerData.cancellerAccounts).not.toEqual(null)
-    // expect(timelockControllerData.executorAccounts).not.toEqual(null)
-    // expect(timelockControllerData.timestamps).toEqual(null)
-    // expect(await timelockController.getIsAdmin(deployer.address)).toEqual(true)
-    // expect(await timelockController.getIsProposer(deployer.address)).toEqual(true)
-    // expect(await timelockController.getIsCanceller(deployer.address)).toEqual(true)
-    // expect(await timelockController.getIsExecutor(deployer.address)).toEqual(true)
+    // const timelockData = await timelock.getRBACTimelockData()
+    // expect(timelockData.minDelay).toEqual(minDelay)
+    // expect(timelockData.timestampCount).toEqual(0)
+    // expect(timelockData.adminAccounts).not.toEqual(null)
+    // expect(timelockData.proposerAccounts).not.toEqual(null)
+    // expect(timelockData.cancellerAccounts).not.toEqual(null)
+    // expect(timelockData.executorAccounts).not.toEqual(null)
+    // expect(timelockData.timestamps).toEqual(null)
+    // expect(await timelock.getIsAdmin(deployer.address)).toEqual(true)
+    // expect(await timelock.getIsProposer(deployer.address)).toEqual(true)
+    // expect(await timelock.getIsCanceller(deployer.address)).toEqual(true)
+    // expect(await timelock.getIsExecutor(deployer.address)).toEqual(true)
   })
 
   it('successfully parsed AccessControll opcode', async () => {
     const body = ac.builder.message
       .encode()
       .grantRole({ queryId: 1n, role: Params.proposer_role, account: other.address })
-    const result = await timelockController.sendInternal(deployer.getSender(), toNano('0.05'), body)
+    const result = await timelock.sendInternal(deployer.getSender(), toNano('0.05'), body)
 
     expect(result.transactions).toHaveTransaction({
       from: deployer.address,
-      to: timelockController.address,
+      to: timelock.address,
       success: true,
       op: ac.opcodes.in.GrantRole,
     })
@@ -150,7 +150,7 @@ describe('TimelockController', () => {
   })
 
   // it('successful update account - add admin account', async () => {
-  //   const result = await timelockController.sendAddAccount(deployer.getSender(), {
+  //   const result = await timelock.sendAddAccount(deployer.getSender(), {
   //     value: toNano('0.05'),
   //     role: Number(Params.admin_role),
   //     account: other.address,
@@ -158,16 +158,16 @@ describe('TimelockController', () => {
 
   //   expect(result.transactions).toHaveTransaction({
   //     from: deployer.address,
-  //     to: timelockController.address,
+  //     to: timelock.address,
   //     success: true,
   //     op: Opcodes.update_accounts,
   //   })
 
-  //   expect(await timelockController.getIsAdmin(other.address)).toEqual(true)
+  //   expect(await timelock.getIsAdmin(other.address)).toEqual(true)
   // })
 
   // it('successful update account - add proposer account', async () => {
-  //   const result = await timelockController.sendAddAccount(deployer.getSender(), {
+  //   const result = await timelock.sendAddAccount(deployer.getSender(), {
   //     value: toNano('0.05'),
   //     role: Number(Params.proposer_role),
   //     account: other.address,
@@ -175,16 +175,16 @@ describe('TimelockController', () => {
 
   //   expect(result.transactions).toHaveTransaction({
   //     from: deployer.address,
-  //     to: timelockController.address,
+  //     to: timelock.address,
   //     success: true,
   //     op: Opcodes.update_accounts,
   //   })
 
-  //   expect(await timelockController.getIsProposer(other.address)).toEqual(true)
+  //   expect(await timelock.getIsProposer(other.address)).toEqual(true)
   // })
 
   // it('successful update account - add canceller account', async () => {
-  //   const result = await timelockController.sendAddAccount(deployer.getSender(), {
+  //   const result = await timelock.sendAddAccount(deployer.getSender(), {
   //     value: toNano('0.05'),
   //     role: Number(Params.canceller_role),
   //     account: other.address,
@@ -192,16 +192,16 @@ describe('TimelockController', () => {
 
   //   expect(result.transactions).toHaveTransaction({
   //     from: deployer.address,
-  //     to: timelockController.address,
+  //     to: timelock.address,
   //     success: true,
   //     op: Opcodes.update_accounts,
   //   })
 
-  //   expect(await timelockController.getIsCanceller(other.address)).toEqual(true)
+  //   expect(await timelock.getIsCanceller(other.address)).toEqual(true)
   // })
 
   // it('successful update account - add executor account', async () => {
-  //   const result = await timelockController.sendAddAccount(deployer.getSender(), {
+  //   const result = await timelock.sendAddAccount(deployer.getSender(), {
   //     value: toNano('0.05'),
   //     role: Number(Params.executor_role),
   //     account: other.address,
@@ -209,16 +209,16 @@ describe('TimelockController', () => {
 
   //   expect(result.transactions).toHaveTransaction({
   //     from: deployer.address,
-  //     to: timelockController.address,
+  //     to: timelock.address,
   //     success: true,
   //     op: Opcodes.update_accounts,
   //   })
 
-  //   expect(await timelockController.getIsExecutor(other.address)).toEqual(true)
+  //   expect(await timelock.getIsExecutor(other.address)).toEqual(true)
   // })
 
   // it('successful update account - remove admin account', async () => {
-  //   const result = await timelockController.sendRemoveAccount(deployer.getSender(), {
+  //   const result = await timelock.sendRemoveAccount(deployer.getSender(), {
   //     value: toNano('0.05'),
   //     role: Number(Params.admin_role),
   //     account: deployer.address,
@@ -226,16 +226,16 @@ describe('TimelockController', () => {
 
   //   expect(result.transactions).toHaveTransaction({
   //     from: deployer.address,
-  //     to: timelockController.address,
+  //     to: timelock.address,
   //     success: true,
   //     op: Opcodes.update_accounts,
   //   })
 
-  //   expect(await timelockController.getIsAdmin(deployer.address)).toEqual(false)
+  //   expect(await timelock.getIsAdmin(deployer.address)).toEqual(false)
   // })
 
   // it('successful update account - remove proposer account', async () => {
-  //   const result = await timelockController.sendRemoveAccount(deployer.getSender(), {
+  //   const result = await timelock.sendRemoveAccount(deployer.getSender(), {
   //     value: toNano('0.05'),
   //     role: Number(Params.proposer_role),
   //     account: deployer.address,
@@ -243,16 +243,16 @@ describe('TimelockController', () => {
 
   //   expect(result.transactions).toHaveTransaction({
   //     from: deployer.address,
-  //     to: timelockController.address,
+  //     to: timelock.address,
   //     success: true,
   //     op: Opcodes.update_accounts,
   //   })
 
-  //   expect(await timelockController.getIsProposer(deployer.address)).toEqual(false)
+  //   expect(await timelock.getIsProposer(deployer.address)).toEqual(false)
   // })
 
   // it('successful update account - remove canceller account', async () => {
-  //   const result = await timelockController.sendRemoveAccount(deployer.getSender(), {
+  //   const result = await timelock.sendRemoveAccount(deployer.getSender(), {
   //     value: toNano('0.05'),
   //     role: Number(Params.canceller_role),
   //     account: deployer.address,
@@ -260,16 +260,16 @@ describe('TimelockController', () => {
 
   //   expect(result.transactions).toHaveTransaction({
   //     from: deployer.address,
-  //     to: timelockController.address,
+  //     to: timelock.address,
   //     success: true,
   //     op: Opcodes.update_accounts,
   //   })
 
-  //   expect(await timelockController.getIsCanceller(deployer.address)).toEqual(false)
+  //   expect(await timelock.getIsCanceller(deployer.address)).toEqual(false)
   // })
 
   // it('successful update account - remove executor account', async () => {
-  //   const result = await timelockController.sendRemoveAccount(deployer.getSender(), {
+  //   const result = await timelock.sendRemoveAccount(deployer.getSender(), {
   //     value: toNano('0.05'),
   //     role: Number(Params.executor_role),
   //     account: deployer.address,
@@ -277,16 +277,16 @@ describe('TimelockController', () => {
 
   //   expect(result.transactions).toHaveTransaction({
   //     from: deployer.address,
-  //     to: timelockController.address,
+  //     to: timelock.address,
   //     success: true,
   //     op: Opcodes.update_accounts,
   //   })
 
-  //   expect(await timelockController.getIsExecutor(deployer.address)).toEqual(false)
+  //   expect(await timelock.getIsExecutor(deployer.address)).toEqual(false)
   // })
 
   // it('invalid sender for update accounts: wrong_op', async () => {
-  //   const result = await timelockController.sendAddAccount(other.getSender(), {
+  //   const result = await timelock.sendAddAccount(other.getSender(), {
   //     value: toNano('0.05'),
   //     role: Number(Params.admin_role),
   //     account: other.address,
@@ -294,7 +294,7 @@ describe('TimelockController', () => {
 
   //   expect(result.transactions).toHaveTransaction({
   //     from: other.address,
-  //     to: timelockController.address,
+  //     to: timelock.address,
   //     success: false,
   //     op: Opcodes.update_accounts,
   //     exitCode: Errors.wrong_op,
@@ -302,7 +302,7 @@ describe('TimelockController', () => {
   // })
 
   // it('account exists error for update accounts', async () => {
-  //   const result = await timelockController.sendAddAccount(deployer.getSender(), {
+  //   const result = await timelock.sendAddAccount(deployer.getSender(), {
   //     value: toNano('0.05'),
   //     role: Number(Params.admin_role),
   //     account: deployer.address,
@@ -310,7 +310,7 @@ describe('TimelockController', () => {
 
   //   expect(result.transactions).toHaveTransaction({
   //     from: deployer.address,
-  //     to: timelockController.address,
+  //     to: timelock.address,
   //     success: false,
   //     op: Opcodes.update_accounts,
   //     exitCode: Errors.account_exists,
@@ -318,7 +318,7 @@ describe('TimelockController', () => {
   // })
 
   // it('account not exists error for update accounts', async () => {
-  //   const result = await timelockController.sendRemoveAccount(deployer.getSender(), {
+  //   const result = await timelock.sendRemoveAccount(deployer.getSender(), {
   //     value: toNano('0.05'),
   //     role: Number(Params.admin_role),
   //     account: other.address,
@@ -326,7 +326,7 @@ describe('TimelockController', () => {
 
   //   expect(result.transactions).toHaveTransaction({
   //     from: deployer.address,
-  //     to: timelockController.address,
+  //     to: timelock.address,
   //     success: false,
   //     op: Opcodes.update_accounts,
   //     exitCode: Errors.account_not_exists,
@@ -336,30 +336,30 @@ describe('TimelockController', () => {
   // it('successful update delay', async () => {
   //   const delay = 100
 
-  //   const result = await timelockController.sendUpdateDelay(deployer.getSender(), {
+  //   const result = await timelock.sendUpdateDelay(deployer.getSender(), {
   //     value: toNano('0.05'),
   //     delay: delay,
   //   })
 
   //   expect(result.transactions).toHaveTransaction({
   //     from: deployer.address,
-  //     to: timelockController.address,
+  //     to: timelock.address,
   //     success: true,
   //     op: Opcodes.update_delay,
   //   })
 
-  //   expect((await timelockController.getTimelockControllerData()).minDelay).toEqual(delay)
+  //   expect((await timelock.getRBACTimelockData()).minDelay).toEqual(delay)
   // })
 
   // it('invalid sender for update delay: wrong_op', async () => {
-  //   const result = await timelockController.sendUpdateDelay(other.getSender(), {
+  //   const result = await timelock.sendUpdateDelay(other.getSender(), {
   //     value: toNano('0.05'),
   //     delay: 100,
   //   })
 
   //   expect(result.transactions).toHaveTransaction({
   //     from: other.address,
-  //     to: timelockController.address,
+  //     to: timelock.address,
   //     success: false,
   //     op: Opcodes.update_delay,
   //     exitCode: Errors.wrong_op,
@@ -372,7 +372,7 @@ describe('TimelockController', () => {
   //   const salt = 0n
   //   const targetAccount = deployer.address
   //   const msgToSend = beginCell().endCell()
-  //   const result = await timelockController.sendSchedule(deployer.getSender(), {
+  //   const result = await timelock.sendSchedule(deployer.getSender(), {
   //     value: toNano('1.05'),
   //     delay: minDelay,
   //     tonValue: tonValue,
@@ -384,7 +384,7 @@ describe('TimelockController', () => {
 
   //   expect(result.transactions).toHaveTransaction({
   //     from: deployer.address,
-  //     to: timelockController.address,
+  //     to: timelock.address,
   //     success: true,
   //     op: Opcodes.schedule,
   //   })
@@ -397,7 +397,7 @@ describe('TimelockController', () => {
   //     .storeRef(msgToSend)
   //     .endCell()
   //     .hash()
-  //   const id = await timelockController.getHashOperation(
+  //   const id = await timelock.getHashOperation(
   //     tonValue,
   //     predecessor,
   //     salt,
@@ -405,12 +405,12 @@ describe('TimelockController', () => {
   //     msgToSend,
   //   )
   //   expect(id).toEqual(BigInt('0x' + offchainId.toString('hex')))
-  //   expect(await timelockController.getTimestamp(id)).toEqual(result.transactions[1].now + minDelay)
-  //   expect(await timelockController.getOperationState(id)).toEqual(Params.waiting_state)
-  //   const timelockControllerData = await timelockController.getTimelockControllerData()
-  //   expect(timelockControllerData.timestampCount).toEqual(1)
-  //   expect(timelockControllerData.timestamps).not.toEqual(null)
-  //   expect(await timelockController.getOperationState(1n)).toEqual(Params.unset_state)
+  //   expect(await timelock.getTimestamp(id)).toEqual(result.transactions[1].now + minDelay)
+  //   expect(await timelock.getOperationState(id)).toEqual(Params.waiting_state)
+  //   const timelockData = await timelock.getRBACTimelockData()
+  //   expect(timelockData.timestampCount).toEqual(1)
+  //   expect(timelockData.timestamps).not.toEqual(null)
+  //   expect(await timelock.getOperationState(1n)).toEqual(Params.unset_state)
 
   //   scheduleSnapshot = blockchain.snapshot()
   //   scheduleId = id
@@ -424,7 +424,7 @@ describe('TimelockController', () => {
   // })
 
   // it('invalid delay for schedule', async () => {
-  //   const result = await timelockController.sendSchedule(deployer.getSender(), {
+  //   const result = await timelock.sendSchedule(deployer.getSender(), {
   //     value: toNano('0.05'),
   //     delay: minDelay - 1,
   //     tonValue: toNano('0.1'),
@@ -436,7 +436,7 @@ describe('TimelockController', () => {
 
   //   expect(result.transactions).toHaveTransaction({
   //     from: deployer.address,
-  //     to: timelockController.address,
+  //     to: timelock.address,
   //     success: false,
   //     op: Opcodes.schedule,
   //     exitCode: Errors.invalid_delay,
@@ -444,7 +444,7 @@ describe('TimelockController', () => {
   // })
 
   // it('operation exists for schedule', async () => {
-  //   await timelockController.sendSchedule(deployer.getSender(), {
+  //   await timelock.sendSchedule(deployer.getSender(), {
   //     value: toNano('0.05'),
   //     delay: minDelay,
   //     tonValue: toNano('0.1'),
@@ -454,7 +454,7 @@ describe('TimelockController', () => {
   //     msgToSend: beginCell().endCell(),
   //   })
 
-  //   const result = await timelockController.sendSchedule(deployer.getSender(), {
+  //   const result = await timelock.sendSchedule(deployer.getSender(), {
   //     value: toNano('0.05'),
   //     delay: minDelay,
   //     tonValue: toNano('0.1'),
@@ -466,7 +466,7 @@ describe('TimelockController', () => {
 
   //   expect(result.transactions).toHaveTransaction({
   //     from: deployer.address,
-  //     to: timelockController.address,
+  //     to: timelock.address,
   //     success: false,
   //     op: Opcodes.schedule,
   //     exitCode: Errors.operation_exists,
@@ -474,7 +474,7 @@ describe('TimelockController', () => {
   // })
 
   // it('invalid sender for schedule: wrong_op', async () => {
-  //   const result = await timelockController.sendSchedule(other.getSender(), {
+  //   const result = await timelock.sendSchedule(other.getSender(), {
   //     value: toNano('0.05'),
   //     delay: 100,
   //     tonValue: toNano('0.1'),
@@ -486,7 +486,7 @@ describe('TimelockController', () => {
 
   //   expect(result.transactions).toHaveTransaction({
   //     from: other.address,
-  //     to: timelockController.address,
+  //     to: timelock.address,
   //     success: false,
   //     op: Opcodes.schedule,
   //     exitCode: Errors.wrong_op,
@@ -496,34 +496,34 @@ describe('TimelockController', () => {
   // it('successful cancel', async () => {
   //   await blockchain.loadFrom(scheduleSnapshot)
 
-  //   const result = await timelockController.sendCancel(deployer.getSender(), {
+  //   const result = await timelock.sendCancel(deployer.getSender(), {
   //     value: toNano('0.05'),
   //     id: scheduleId,
   //   })
 
   //   expect(result.transactions).toHaveTransaction({
   //     from: deployer.address,
-  //     to: timelockController.address,
+  //     to: timelock.address,
   //     success: true,
   //     op: Opcodes.cancel,
   //   })
 
-  //   expect(await timelockController.getTimestamp(scheduleId)).toEqual(0)
-  //   expect(await timelockController.getOperationState(scheduleId)).toEqual(Params.unset_state)
-  //   const timelockControllerData = await timelockController.getTimelockControllerData()
-  //   expect(timelockControllerData.timestampCount).toEqual(0)
-  //   expect(timelockControllerData.timestamps).toEqual(null)
+  //   expect(await timelock.getTimestamp(scheduleId)).toEqual(0)
+  //   expect(await timelock.getOperationState(scheduleId)).toEqual(Params.unset_state)
+  //   const timelockData = await timelock.getRBACTimelockData()
+  //   expect(timelockData.timestampCount).toEqual(0)
+  //   expect(timelockData.timestamps).toEqual(null)
   // })
 
   // it('operation not exists for cancel', async () => {
-  //   const result = await timelockController.sendCancel(deployer.getSender(), {
+  //   const result = await timelock.sendCancel(deployer.getSender(), {
   //     value: toNano('0.05'),
   //     id: 1n,
   //   })
 
   //   expect(result.transactions).toHaveTransaction({
   //     from: deployer.address,
-  //     to: timelockController.address,
+  //     to: timelock.address,
   //     success: false,
   //     op: Opcodes.cancel,
   //     exitCode: Errors.operation_not_exists,
@@ -532,14 +532,14 @@ describe('TimelockController', () => {
 
   // it('invalid operation state (already done) for cancel', async () => {
   //   await blockchain.loadFrom(scheduleSnapshot)
-  //   blockchain.now = await timelockController.getTimestamp(scheduleId)
-  //   expect(await timelockController.getOperationState(scheduleId)).toEqual(Params.ready_state)
+  //   blockchain.now = await timelock.getTimestamp(scheduleId)
+  //   expect(await timelock.getOperationState(scheduleId)).toEqual(Params.ready_state)
 
-  //   await timelockController.sendTopUp(deployer.getSender(), {
+  //   await timelock.sendTopUp(deployer.getSender(), {
   //     value: toNano('1'),
   //   })
 
-  //   await timelockController.sendExecute(deployer.getSender(), {
+  //   await timelock.sendExecute(deployer.getSender(), {
   //     value: toNano('0.05'),
   //     tonValue: executeData.tonValue,
   //     predecessor: executeData.predecessor,
@@ -548,14 +548,14 @@ describe('TimelockController', () => {
   //     msgToSend: executeData.msgToSend,
   //   })
 
-  //   const result = await timelockController.sendCancel(deployer.getSender(), {
+  //   const result = await timelock.sendCancel(deployer.getSender(), {
   //     value: toNano('0.05'),
   //     id: scheduleId,
   //   })
 
   //   expect(result.transactions).toHaveTransaction({
   //     from: deployer.address,
-  //     to: timelockController.address,
+  //     to: timelock.address,
   //     success: false,
   //     op: Opcodes.cancel,
   //     exitCode: Errors.invalid_operation_state,
@@ -563,14 +563,14 @@ describe('TimelockController', () => {
   // })
 
   // it('invalid sender for cancel: wrong_op', async () => {
-  //   const result = await timelockController.sendCancel(other.getSender(), {
+  //   const result = await timelock.sendCancel(other.getSender(), {
   //     value: toNano('0.05'),
   //     id: 1n,
   //   })
 
   //   expect(result.transactions).toHaveTransaction({
   //     from: other.address,
-  //     to: timelockController.address,
+  //     to: timelock.address,
   //     success: false,
   //     op: Opcodes.cancel,
   //     exitCode: Errors.wrong_op,
@@ -580,14 +580,14 @@ describe('TimelockController', () => {
   // it('successful execute', async () => {
   //   await blockchain.loadFrom(scheduleSnapshot)
 
-  //   blockchain.now = await timelockController.getTimestamp(scheduleId)
-  //   expect(await timelockController.getOperationState(scheduleId)).toEqual(Params.ready_state)
+  //   blockchain.now = await timelock.getTimestamp(scheduleId)
+  //   expect(await timelock.getOperationState(scheduleId)).toEqual(Params.ready_state)
 
-  //   await timelockController.sendTopUp(deployer.getSender(), {
+  //   await timelock.sendTopUp(deployer.getSender(), {
   //     value: toNano('1'),
   //   })
 
-  //   const result = await timelockController.sendExecute(deployer.getSender(), {
+  //   const result = await timelock.sendExecute(deployer.getSender(), {
   //     value: toNano('0.05'),
   //     tonValue: executeData.tonValue,
   //     predecessor: executeData.predecessor,
@@ -598,30 +598,30 @@ describe('TimelockController', () => {
 
   //   expect(result.transactions).toHaveTransaction({
   //     from: deployer.address,
-  //     to: timelockController.address,
+  //     to: timelock.address,
   //     success: true,
   //     op: Opcodes.execute,
   //   })
 
   //   expect(result.transactions).toHaveTransaction({
-  //     from: timelockController.address,
+  //     from: timelock.address,
   //     to: executeData.targetAccount,
   //   })
 
-  //   expect(await timelockController.getTimestamp(scheduleId)).toEqual(Params.done_timestamp)
-  //   expect(await timelockController.getOperationState(scheduleId)).toEqual(Params.done_state)
+  //   expect(await timelock.getTimestamp(scheduleId)).toEqual(Params.done_timestamp)
+  //   expect(await timelock.getOperationState(scheduleId)).toEqual(Params.done_state)
   // })
 
   // it('successful execute with predecessor', async () => {
   //   await blockchain.loadFrom(scheduleSnapshot)
 
-  //   blockchain.now = await timelockController.getTimestamp(scheduleId)
+  //   blockchain.now = await timelock.getTimestamp(scheduleId)
 
-  //   await timelockController.sendTopUp(deployer.getSender(), {
+  //   await timelock.sendTopUp(deployer.getSender(), {
   //     value: toNano('1'),
   //   })
 
-  //   await timelockController.sendExecute(deployer.getSender(), {
+  //   await timelock.sendExecute(deployer.getSender(), {
   //     value: toNano('0.05'),
   //     tonValue: executeData.tonValue,
   //     predecessor: executeData.predecessor,
@@ -635,7 +635,7 @@ describe('TimelockController', () => {
   //   const salt = 100n
   //   const targetAccount = deployer.address
   //   const msgToSend = beginCell().endCell()
-  //   await timelockController.sendSchedule(deployer.getSender(), {
+  //   await timelock.sendSchedule(deployer.getSender(), {
   //     value: toNano('0.05'),
   //     delay: minDelay,
   //     tonValue: tonValue,
@@ -645,16 +645,16 @@ describe('TimelockController', () => {
   //     msgToSend: msgToSend,
   //   })
 
-  //   const id = await timelockController.getHashOperation(
+  //   const id = await timelock.getHashOperation(
   //     tonValue,
   //     predecessor,
   //     salt,
   //     targetAccount,
   //     msgToSend,
   //   )
-  //   blockchain.now = await timelockController.getTimestamp(id)
+  //   blockchain.now = await timelock.getTimestamp(id)
 
-  //   const result = await timelockController.sendExecute(deployer.getSender(), {
+  //   const result = await timelock.sendExecute(deployer.getSender(), {
   //     value: toNano('0.05'),
   //     tonValue: tonValue,
   //     predecessor: predecessor,
@@ -665,22 +665,22 @@ describe('TimelockController', () => {
 
   //   expect(result.transactions).toHaveTransaction({
   //     from: deployer.address,
-  //     to: timelockController.address,
+  //     to: timelock.address,
   //     success: true,
   //     op: Opcodes.execute,
   //   })
 
   //   expect(result.transactions).toHaveTransaction({
-  //     from: timelockController.address,
+  //     from: timelock.address,
   //     to: executeData.targetAccount,
   //   })
 
-  //   expect(await timelockController.getTimestamp(id)).toEqual(Params.done_timestamp)
-  //   expect(await timelockController.getOperationState(id)).toEqual(Params.done_state)
+  //   expect(await timelock.getTimestamp(id)).toEqual(Params.done_timestamp)
+  //   expect(await timelock.getOperationState(id)).toEqual(Params.done_state)
   // })
 
   // it('predecessor not exists for execute', async () => {
-  //   const result = await timelockController.sendExecute(deployer.getSender(), {
+  //   const result = await timelock.sendExecute(deployer.getSender(), {
   //     value: toNano('0.05'),
   //     tonValue: executeData.tonValue,
   //     predecessor: 1000000n,
@@ -691,7 +691,7 @@ describe('TimelockController', () => {
 
   //   expect(result.transactions).toHaveTransaction({
   //     from: deployer.address,
-  //     to: timelockController.address,
+  //     to: timelock.address,
   //     success: false,
   //     op: Opcodes.execute,
   //     exitCode: Errors.predecessor_not_exists,
@@ -706,7 +706,7 @@ describe('TimelockController', () => {
   //   const salt = 100n
   //   const targetAccount = deployer.address
   //   const msgToSend = beginCell().endCell()
-  //   await timelockController.sendSchedule(deployer.getSender(), {
+  //   await timelock.sendSchedule(deployer.getSender(), {
   //     value: toNano('0.05'),
   //     delay: minDelay,
   //     tonValue: tonValue,
@@ -716,16 +716,16 @@ describe('TimelockController', () => {
   //     msgToSend: msgToSend,
   //   })
 
-  //   const id = await timelockController.getHashOperation(
+  //   const id = await timelock.getHashOperation(
   //     tonValue,
   //     predecessor,
   //     salt,
   //     targetAccount,
   //     msgToSend,
   //   )
-  //   blockchain.now = await timelockController.getTimestamp(id)
+  //   blockchain.now = await timelock.getTimestamp(id)
 
-  //   const result = await timelockController.sendExecute(deployer.getSender(), {
+  //   const result = await timelock.sendExecute(deployer.getSender(), {
   //     value: toNano('0.05'),
   //     tonValue: tonValue,
   //     predecessor: predecessor,
@@ -736,7 +736,7 @@ describe('TimelockController', () => {
 
   //   expect(result.transactions).toHaveTransaction({
   //     from: deployer.address,
-  //     to: timelockController.address,
+  //     to: timelock.address,
   //     success: false,
   //     op: Opcodes.execute,
   //     exitCode: Errors.invalid_predecessor_state,
@@ -746,10 +746,10 @@ describe('TimelockController', () => {
   // it('insufficient ton funds for execute', async () => {
   //   await blockchain.loadFrom(scheduleSnapshot)
 
-  //   blockchain.now = await timelockController.getTimestamp(scheduleId)
-  //   expect(await timelockController.getOperationState(scheduleId)).toEqual(Params.ready_state)
+  //   blockchain.now = await timelock.getTimestamp(scheduleId)
+  //   expect(await timelock.getOperationState(scheduleId)).toEqual(Params.ready_state)
 
-  //   const result = await timelockController.sendExecute(deployer.getSender(), {
+  //   const result = await timelock.sendExecute(deployer.getSender(), {
   //     value: toNano('0.05'),
   //     tonValue: executeData.tonValue,
   //     predecessor: executeData.predecessor,
@@ -760,7 +760,7 @@ describe('TimelockController', () => {
 
   //   expect(result.transactions).toHaveTransaction({
   //     from: deployer.address,
-  //     to: timelockController.address,
+  //     to: timelock.address,
   //     success: false,
   //     op: Opcodes.execute,
   //     exitCode: 0,
@@ -771,7 +771,7 @@ describe('TimelockController', () => {
   // it('invalid operation state for execute', async () => {
   //   await blockchain.loadFrom(scheduleSnapshot)
 
-  //   const result = await timelockController.sendExecute(deployer.getSender(), {
+  //   const result = await timelock.sendExecute(deployer.getSender(), {
   //     value: toNano('0.05'),
   //     tonValue: executeData.tonValue,
   //     predecessor: executeData.predecessor,
@@ -782,7 +782,7 @@ describe('TimelockController', () => {
 
   //   expect(result.transactions).toHaveTransaction({
   //     from: deployer.address,
-  //     to: timelockController.address,
+  //     to: timelock.address,
   //     success: false,
   //     op: Opcodes.execute,
   //     exitCode: Errors.invalid_operation_state,
@@ -790,7 +790,7 @@ describe('TimelockController', () => {
   // })
 
   // it('operation not exists for execute', async () => {
-  //   const result = await timelockController.sendExecute(deployer.getSender(), {
+  //   const result = await timelock.sendExecute(deployer.getSender(), {
   //     value: toNano('0.05'),
   //     tonValue: toNano('1'),
   //     predecessor: 0n,
@@ -801,7 +801,7 @@ describe('TimelockController', () => {
 
   //   expect(result.transactions).toHaveTransaction({
   //     from: deployer.address,
-  //     to: timelockController.address,
+  //     to: timelock.address,
   //     success: false,
   //     op: Opcodes.execute,
   //     exitCode: Errors.operation_not_exists,
@@ -809,7 +809,7 @@ describe('TimelockController', () => {
   // })
 
   // it('invalid sender for execute: wrong_op', async () => {
-  //   const result = await timelockController.sendExecute(other.getSender(), {
+  //   const result = await timelock.sendExecute(other.getSender(), {
   //     value: toNano('0.05'),
   //     tonValue: toNano('1'),
   //     predecessor: 0n,
@@ -820,7 +820,7 @@ describe('TimelockController', () => {
 
   //   expect(result.transactions).toHaveTransaction({
   //     from: other.address,
-  //     to: timelockController.address,
+  //     to: timelock.address,
   //     success: false,
   //     op: Opcodes.execute,
   //     exitCode: Errors.wrong_op,
@@ -833,7 +833,7 @@ describe('TimelockController', () => {
   //   const salt1 = 100n
   //   const targetAccount = deployer.address
   //   const msgToSend = beginCell().endCell()
-  //   await timelockController.sendSchedule(deployer.getSender(), {
+  //   await timelock.sendSchedule(deployer.getSender(), {
   //     value: toNano('0.05'),
   //     delay: minDelay,
   //     tonValue: tonValue,
@@ -844,7 +844,7 @@ describe('TimelockController', () => {
   //   })
 
   //   const salt2 = 100n
-  //   await timelockController.sendSchedule(deployer.getSender(), {
+  //   await timelock.sendSchedule(deployer.getSender(), {
   //     value: toNano('0.05'),
   //     delay: minDelay,
   //     tonValue: tonValue,
@@ -854,14 +854,14 @@ describe('TimelockController', () => {
   //     msgToSend: msgToSend,
   //   })
 
-  //   const id1 = await timelockController.getHashOperation(
+  //   const id1 = await timelock.getHashOperation(
   //     tonValue,
   //     predecessor,
   //     salt1,
   //     targetAccount,
   //     msgToSend,
   //   )
-  //   const id2 = await timelockController.getHashOperation(
+  //   const id2 = await timelock.getHashOperation(
   //     tonValue,
   //     predecessor,
   //     salt2,
@@ -869,34 +869,34 @@ describe('TimelockController', () => {
   //     msgToSend,
   //   )
 
-  //   const result = await timelockController.sendClearTimestamps(deployer.getSender(), {
+  //   const result = await timelock.sendClearTimestamps(deployer.getSender(), {
   //     value: toNano('0.05'),
   //     ids: [id1, id2],
   //   })
 
   //   expect(result.transactions).toHaveTransaction({
   //     from: deployer.address,
-  //     to: timelockController.address,
+  //     to: timelock.address,
   //     success: true,
   //     op: Opcodes.clear_timestamps,
   //   })
 
-  //   expect(await timelockController.getTimestamp(id1)).toEqual(Params.unset_state)
-  //   expect(await timelockController.getTimestamp(id2)).toEqual(Params.unset_state)
-  //   const timelockControllerData = await timelockController.getTimelockControllerData()
-  //   expect(timelockControllerData.timestampCount).toEqual(0)
-  //   expect(timelockControllerData.timestamps).toEqual(null)
+  //   expect(await timelock.getTimestamp(id1)).toEqual(Params.unset_state)
+  //   expect(await timelock.getTimestamp(id2)).toEqual(Params.unset_state)
+  //   const timelockData = await timelock.getRBACTimelockData()
+  //   expect(timelockData.timestampCount).toEqual(0)
+  //   expect(timelockData.timestamps).toEqual(null)
   // })
 
   // it('invalid sender for clear timestamps: wrong_op', async () => {
-  //   const result = await timelockController.sendClearTimestamps(other.getSender(), {
+  //   const result = await timelock.sendClearTimestamps(other.getSender(), {
   //     value: toNano('0.05'),
   //     ids: [1n, 2n],
   //   })
 
   //   expect(result.transactions).toHaveTransaction({
   //     from: other.address,
-  //     to: timelockController.address,
+  //     to: timelock.address,
   //     success: false,
   //     op: Opcodes.clear_timestamps,
   //     exitCode: Errors.wrong_op,
