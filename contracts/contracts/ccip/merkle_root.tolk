@@ -1,7 +1,7 @@
 import "types.tolk";
 import "../lib/upgrades/type_and_version.tolk";
 import "../deployable/types.tolk";
-import "utils.tolk";
+import "../lib/utils.tolk";
 
 // State stores the general state machine indicating which phase we're in
 // TODO: we might be able to merge this into execution_states

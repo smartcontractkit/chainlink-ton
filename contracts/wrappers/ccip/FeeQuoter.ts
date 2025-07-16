@@ -13,7 +13,7 @@ import {
 } from '@ton/core'
 
 import { Ownable2StepConfig } from '../libraries/access/Ownable2Step'
-import { asSnakeData } from '../../tests/utils'
+import { asSnakeData } from '../../utils/Utils'
 
 export type FeeQuoterStorage = {
   ownable: Ownable2StepConfig
