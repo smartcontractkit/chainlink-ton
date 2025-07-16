@@ -180,7 +180,7 @@ struct AccessControl<T> {
 
 /// AccessControl data struct, auto-serialized to/from cells.
 struct AccessControl_Data {
-    roles: dict;
+    roles: dict; // map<int, AccessControl_RoleData>
 }
 
 /// Internal storage struct for role data
@@ -193,7 +193,7 @@ struct AccessControl_RoleData {
     // Number of members in the role
     membersLen: uint64;
     // Members of the role, indexed by their address hash.
-    hasRole: dict;
+    hasRole: dict; // map<address, slice>
 }
 
 // --- Hooks struct (extensions) ---
@@ -201,13 +201,13 @@ struct AccessControl_RoleData {
 /// @dev Hook extensions exposed by the AccessControl contract.
 struct AccessControl_Hooks<T> {
     /// Hook to get the sender of the message.
-    msgSender: ((T, cell) -> address)?;
+    msgSender: ((T?, cell) -> address)?;
 
     /// Hook before granting a role.
-    shouldGrantRole: ((T, uint64, int, address) -> void)?;
+    shouldGrantRole: ((T?, uint64, int, address) -> void)?;
 
     /// Hook before revoking a role.
-    shouldRevokeRole: ((T, uint64, int, address) -> void)?;
+    shouldRevokeRole: ((T?, uint64, int, address) -> void)?;
 }
 
 // --- Constants ---
@@ -229,7 +229,7 @@ const LEN_ROLE = 256; // LEN_ROLE bits for role ID
 /// Override available via {AccessControl_Hooks<T>.msgSender} hook.
 fun AccessControl<T>.msgSender(self, msgFull: cell): address {
     if (self.hooks != null && self.hooks.msgSender != null) {
-        return self.hooks.msgSender(self.context!, msgFull); // extension hook
+        return self.hooks.msgSender(self.context, msgFull); // extension hook
     }
 
     // Fallback to parsing the message body to get the sender
@@ -471,7 +471,7 @@ fun AccessControl<T>._setRoleAdmin(mutate self, queryId: uint64, sender: address
 /// Emits a {AccessControl_RoleGranted} event if `role` was granted.
 fun AccessControl<T>._grantRole(mutate self, queryId: uint64, sender: address, role: int, account: address): bool {
     if (self.hooks != null && self.hooks.shouldGrantRole != null) {
-        self.hooks.shouldGrantRole(self.context!, queryId, role, account); // extension hook
+        self.hooks.shouldGrantRole(self.context, queryId, role, account); // extension hook
     }
 
     // Default implementation of granting a role
@@ -512,7 +512,7 @@ fun AccessControl<T>._grantRole(mutate self, queryId: uint64, sender: address, r
 /// Emits a {AccessControl_RoleRevoked} event if `role` was revoked.
 fun AccessControl<T>._revokeRole(mutate self, queryId: uint64, sender: address, role: int, account: address): bool {
     if (self.hooks != null && self.hooks.shouldRevokeRole != null) {
-        self.hooks.shouldRevokeRole(self.context!, queryId, role, account); // extension hook
+        self.hooks.shouldRevokeRole(self.context, queryId, role, account); // extension hook
     }
 
     // Default implementation of revoking a role
