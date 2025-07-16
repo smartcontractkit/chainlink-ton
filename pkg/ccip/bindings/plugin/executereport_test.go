@@ -152,5 +152,5 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, c.Hash(), newCell.Hash())
 	require.Len(t, decoded.Messages[0].TokenAmounts, 3)
-	require.Len(t, decoded.Proofs, 1)
+	require.Len(t, decoded.Proofs, 2)
 }
