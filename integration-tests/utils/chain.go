@@ -23,7 +23,7 @@ import (
 	"github.com/smartcontractkit/chainlink-testing-framework/framework/components/blockchain"
 )
 
-func CreateRandomTonWallet(t *testing.T, client ton.APIClientWrapped, version wallet.VersionConfig, option wallet.Option) *wallet.Wallet {
+func CreateRandomWallet(t *testing.T, client ton.APIClientWrapped, version wallet.VersionConfig, option wallet.Option) *wallet.Wallet {
 	seed := wallet.NewSeed()
 	rw, err := wallet.FromSeed(client, seed, version)
 	require.NoError(t, err, "failed to generate random wallet: %w", err)
@@ -33,7 +33,7 @@ func CreateRandomTonWallet(t *testing.T, client ton.APIClientWrapped, version wa
 }
 
 // TODO: we don't need to specify workchain?
-func CreateTonHighloadWallet(t *testing.T, client ton.APIClientWrapped) *wallet.Wallet {
+func CreateRandomHighloadWallet(t *testing.T, client ton.APIClientWrapped) *wallet.Wallet {
 	seed := wallet.NewSeed()
 	w, err := wallet.FromSeed(client, seed, wallet.ConfigHighloadV3{
 		MessageTTL: 60 * 5,
@@ -54,7 +54,7 @@ func CreateTonHighloadWallet(t *testing.T, client ton.APIClientWrapped) *wallet.
 	return w
 }
 
-func FundTonWallets(t *testing.T, client ton.APIClientWrapped, recipients []*address.Address, amounts []tlb.Coins) {
+func FundWallets(t *testing.T, client ton.APIClientWrapped, recipients []*address.Address, amounts []tlb.Coins) {
 	t.Logf("╭ Funding %d wallets", len(recipients))
 	walletVersion := wallet.HighloadV2Verified //nolint:staticcheck // only option in mylocalton-docker
 	rawHlWallet, err := wallet.FromSeed(client, strings.Fields(blockchain.DefaultTonHlWalletMnemonic), walletVersion)
@@ -157,7 +157,7 @@ func waitForAirdropCompletion(t *testing.T, client ton.APIClientWrapped, recipie
 	}
 }
 
-func StartTonChain(t *testing.T, nodeClient *ton.APIClient, chainID uint64, deployerWallet *wallet.Wallet) cldf_ton.Chain {
+func StartChain(t *testing.T, nodeClient *ton.APIClient, chainID uint64, deployerWallet *wallet.Wallet) cldf_ton.Chain {
 	t.Helper()
 	ton := cldf_ton.Chain{
 		ChainMetadata: cldf_ton.ChainMetadata{Selector: chainID},

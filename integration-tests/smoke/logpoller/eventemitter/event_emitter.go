@@ -38,6 +38,7 @@ type EventEmitter struct {
 	name            string           // name of the event emitter
 	contractAddress *address.Address // address of the event emitter contract
 	id              uint64
+	targetCounter   *big.Int
 
 	// Dependencies
 	client ton.APIClientWrapped // msg sender client
@@ -88,7 +89,7 @@ func NewEventEmitter(ctx context.Context, client ton.APIClientWrapped, name stri
 	}, nil
 }
 
-func (e *EventEmitter) StartEventEmitter(ctx context.Context, interval time.Duration) error {
+func (e *EventEmitter) StartEventEmitter(ctx context.Context, interval time.Duration, targetCounter *big.Int) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
@@ -96,6 +97,7 @@ func (e *EventEmitter) StartEventEmitter(ctx context.Context, interval time.Dura
 		return errors.New("event emitter is already running")
 	}
 
+	e.targetCounter = targetCounter
 	e.done = make(chan struct{})
 	e.running = true
 
@@ -122,24 +124,48 @@ func (e *EventEmitter) IsRunning() bool {
 	return e.running
 }
 
-// TODO: use for live event ingestion test
-// eventLoop runs the continuous event emission loop
 func (e *EventEmitter) eventLoop(ctx context.Context, interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
 	for {
+		if e.shouldStop(ctx) {
+			close(e.done)
+			return
+		}
+
 		select {
 		case <-ctx.Done():
 			e.lggr.Debugf("Context cancelled for %s", e.name)
 			close(e.done)
 			return
 		case <-ticker.C:
+			// on a new tick, send the next message.
 			if _, _, err := e.SendIncreaseCounterMsg(ctx); err != nil {
 				e.lggr.Debugf("ERROR sending message from %s: %v", e.name, err)
 			}
 		}
 	}
+}
+
+func (e *EventEmitter) shouldStop(ctx context.Context) bool {
+	if e.targetCounter == nil {
+		return false
+	}
+
+	b, err := e.client.CurrentMasterchainInfo(ctx)
+	if err != nil {
+		e.lggr.Debugf("ERROR getting masterchain info for %s: %v", e.name, err)
+		return false
+	}
+
+	currentCounter, err := GetCounter(ctx, e.client, b, e.contractAddress)
+	if err != nil {
+		e.lggr.Debugf("ERROR getting counter for %s: %v", e.name, err)
+		return false
+	}
+
+	return currentCounter.Cmp(e.targetCounter) >= 0
 }
 
 func (e *EventEmitter) Name() string {
@@ -172,9 +198,7 @@ func (e *EventEmitter) SendMultipleIncreaseCounterMsg(ctx context.Context, count
 		msg := IncreaseCounterMsg(e.contractAddress)
 		messages[i] = msg
 	}
-	e.lggr.Debugf("wallet workchain: %d", e.wallet.Address().Workchain())
 	tx, block, err := e.wallet.SendManyWaitTransaction(ctx, messages)
-	e.lggr.Debugf("Sent %d increase counter messages from %s, workchain: %d", count, e.name, block.Workchain)
 	if err != nil {
 		e.lggr.Debugf("Failed to send multiple messages: %v", err)
 		return nil, nil, err

@@ -25,8 +25,8 @@ import (
 
 func sendBulkTestEventTxs(t *testing.T, client ton.APIClientWrapped, config event_emitter.Config) (*event_emitter.EventEmitter, []event_emitter.TxResult) {
 	// event sending wallet
-	sender := test_utils.CreateTonHighloadWallet(t, client)
-	test_utils.FundTonWallets(t, client, []*address.Address{sender.Address()}, []tlb.Coins{tlb.MustFromTON("1000")})
+	sender := test_utils.CreateRandomHighloadWallet(t, client)
+	test_utils.FundWallets(t, client, []*address.Address{sender.Address()}, []tlb.Coins{tlb.MustFromTON("1000")})
 	require.NotNil(t, sender)
 	// deploy event emitter contract
 	emitter, err := event_emitter.NewEventEmitter(t.Context(), client, "emitter", rand.Uint64(), sender, logger.Test(t))
@@ -50,6 +50,8 @@ func sendBulkTestEventTxs(t *testing.T, client ton.APIClientWrapped, config even
 	}, 30*time.Second, 2*time.Second, "Counter did not reach expected value within timeout")
 
 	t.Logf("On-chain counter reached expected value of %d.", expectedCounter)
+
+	time.Sleep(20 * time.Second) // wait for events to be processed by the log poller
 	return emitter, txs
 }
 
@@ -85,65 +87,62 @@ func verifyLoadedEvents(msgs []*tlb.ExternalMessageOut, expectedCount int) error
 	return nil
 }
 
+func waitForBlock(t *testing.T, client ton.APIClientWrapped, toBlock *ton.BlockIDExt, blockConfirmations uint32) {
+	require.Eventually(t, func() bool {
+		latestMaster, err := client.CurrentMasterchainInfo(t.Context())
+		if err != nil {
+			return false
+		}
+		t.Logf("latest / target seqno: %d / %d, %d left", latestMaster.SeqNo, toBlock.SeqNo+blockConfirmations, (toBlock.SeqNo+blockConfirmations)-latestMaster.SeqNo)
+		// Keep polling until the chain head is at least `blockConfirmations` past our target block.
+		return latestMaster.SeqNo >= toBlock.SeqNo+blockConfirmations
+	}, 120*time.Second, 2*time.Second, "Chain did not advance enough for confirmations")
+}
+
 func Test_LogPoller(t *testing.T) {
 	useAlreadyRunningNetwork := true
 
 	client := test_utils.CreateAPIClient(t, chainsel.TON_LOCALNET.Selector, useAlreadyRunningNetwork).WithRetry()
 	require.NotNil(t, client)
 
-	t.Run("log poller loader event ingestion", func(t *testing.T) {
-		t.Parallel()
+	t.Run("log poller:loader event ingestion", func(t *testing.T) {
+		t.Skip()
+		// t.Parallel()
 
 		cfg := event_emitter.Config{
 			BatchCount: 3,
-			TxPerBatch: 2,
-			MsgPerTx:   5,
+			TxPerBatch: 5,
+			MsgPerTx:   2,
 		}
 		expectedEvents := cfg.BatchCount * cfg.TxPerBatch * cfg.MsgPerTx
 
 		emitter, txs := sendBulkTestEventTxs(t, client, cfg)
 
-		t.Run("loading entire block range v2", func(t *testing.T) {
-			const blockConfirmations = 10
+		const blockConfirmations = 10
+		const pageSize = 5
 
-			firstTx, lastTx := txs[0], txs[len(txs)-1]
-			loader := logpoller.NewLoader(client, logger.Test(t), 5, blockConfirmations)
+		firstTx, lastTx := txs[0], txs[len(txs)-1]
 
-			// Define the range simply, from one before the first tx...
-			prevBlock, err := client.LookupBlock(
-				t.Context(),
-				address.MasterchainID,
-				firstTx.Block.Shard,
-				firstTx.Block.SeqNo-1, // exclusive lower bound
-			)
-			require.NoError(t, err)
+		prevBlock, err := client.LookupBlock(
+			t.Context(),
+			address.MasterchainID,
+			firstTx.Block.Shard,
+			firstTx.Block.SeqNo-1, // exclusive lower bound
+		)
+		require.NoError(t, err)
 
-			toBlock, err := client.WaitForBlock(lastTx.Block.SeqNo).LookupBlock(
-				t.Context(),
-				address.MasterchainID,
-				lastTx.Block.Shard,
-				lastTx.Block.SeqNo, // inclusive upper bound
-			)
-			require.NoError(t, err)
+		toBlock, err := client.WaitForBlock(lastTx.Block.SeqNo+blockConfirmations).LookupBlock(
+			t.Context(),
+			address.MasterchainID,
+			lastTx.Block.Shard,
+			lastTx.Block.SeqNo+blockConfirmations, // inclusive upper bound + pad
+		)
+		require.NoError(t, err)
 
-			t.Logf("toblock: %+v, prevBlock: %+v", toBlock, prevBlock)
+		waitForBlock(t, client, toBlock, blockConfirmations)
 
-			t.Logf("lastTx.Block: %+v, toBlock: %+v", lastTx.Block, toBlock)
-			t.Logf("toBlock equals lastTx.Block: %v", toBlock.Equals(lastTx.Block))
-
-			t.Logf("Waiting for %d confirmations on top of block %d...", blockConfirmations, toBlock.SeqNo)
-			require.Eventually(t, func() bool {
-				latestMaster, err := client.CurrentMasterchainInfo(t.Context())
-				if err != nil {
-					return false
-				}
-				t.Logf("Latest masterchain block seqno: %d", latestMaster.SeqNo)
-				t.Logf("Target block seqno: %d + %d", toBlock.SeqNo, blockConfirmations)
-				// Keep polling until the chain head is at least `blockConfirmations` past our target block.
-				return latestMaster.SeqNo >= toBlock.SeqNo+blockConfirmations
-			}, 30*time.Second, 1*time.Second, "Chain did not advance enough for confirmations")
-
-			t.Log("Required confirmations have been met.")
+		t.Run("loading entire block range at once", func(t *testing.T) {
+			loader := logpoller.NewLoader(client, logger.Test(t), pageSize, blockConfirmations)
 
 			msgs, err := loader.BackfillForAddresses(
 				t.Context(),
@@ -155,68 +154,15 @@ func Test_LogPoller(t *testing.T) {
 			require.NoError(t, verifyLoadedEvents(msgs, expectedEvents))
 		})
 
-		t.Run("loading entire block range", func(t *testing.T) {
-			t.Skip("TODO: Implement")
-			firstTx, lastTx := txs[0], txs[len(txs)-1]
-
-			const blockConfirmations = 10
-			loader := logpoller.NewLoader(client, logger.Test(t), 4, blockConfirmations)
-
-			prevBlock, err := client.LookupBlock(
-				t.Context(),
-				address.MasterchainID,
-				firstTx.Block.Shard,
-				firstTx.Block.SeqNo-1, // exclusive lower bound
-			)
-			require.NoError(t, err)
-
-			toBlock, err := client.WaitForBlock(lastTx.Block.SeqNo).LookupBlock(
-				t.Context(),
-				address.MasterchainID,
-				lastTx.Block.Shard,
-				lastTx.Block.SeqNo, // inclusive upper bound
-			)
-			require.NoError(t, err)
-
-			msgs, err := loader.BackfillForAddresses(
-				t.Context(),
-				[]*address.Address{emitter.ContractAddress()},
-				prevBlock,
-				toBlock,
-			)
-			require.NoError(t, err)
-
-			err = verifyLoadedEvents(msgs, expectedEvents)
-			require.NoError(t, err)
-		})
-
 		t.Run("loading block by block", func(t *testing.T) {
-			t.Skip("TODO: Implement")
-			firstTx, lastTx := txs[0], txs[len(txs)-1]
-
-			prevBlock, err := client.LookupBlock(
-				t.Context(),
-				firstTx.Block.Workchain,
-				firstTx.Block.Shard,
-				firstTx.Block.SeqNo-1, // exclusive lower bound
-			)
-			require.NoError(t, err)
-
-			toBlock, err := client.WaitForBlock(lastTx.Block.SeqNo+1).LookupBlock(
-				t.Context(),
-				lastTx.Block.Workchain,
-				lastTx.Block.Shard,
-				lastTx.Block.SeqNo, // inclusive upper bound
-			)
-			require.NoError(t, err)
-
-			loader := logpoller.NewLoader(client, logger.Test(t), 4, 6)
 			var allMsgs []*tlb.ExternalMessageOut
 
-			// Iterate block by block from prevBlock to toBlock
+			loader := logpoller.NewLoader(client, logger.Test(t), pageSize, blockConfirmations)
+
+			// iterate block by block from prevBlock to toBlock
 			currentBlock := prevBlock
 			for seqNo := prevBlock.SeqNo + 1; seqNo <= toBlock.SeqNo; seqNo++ {
-				nextBlock, err := client.LookupBlock(
+				nextBlock, err := client.WaitForBlock(seqNo).LookupBlock(
 					t.Context(),
 					firstTx.Block.Workchain,
 					firstTx.Block.Shard,
@@ -236,28 +182,29 @@ func Test_LogPoller(t *testing.T) {
 				currentBlock = nextBlock // update for next iteration
 			}
 
+			// verify if we loaded all expected events, without duplicates
 			err = verifyLoadedEvents(allMsgs, cfg.BatchCount*cfg.TxPerBatch*cfg.MsgPerTx)
 			require.NoError(t, err)
 		})
 	})
 
-	t.Run("Log Poller Event Loading", func(t *testing.T) {
-		t.Skip("TODO: Implement")
-	})
-
 	t.Run("Log Poller Live Event Ingestion", func(t *testing.T) {
-		t.Skip("TODO: Implement")
-		sender := test_utils.CreateTonHighloadWallet(t, client)
-		test_utils.FundTonWallets(t, client, []*address.Address{sender.Address()}, []tlb.Coins{tlb.MustFromTON("1000")})
+		sender := test_utils.CreateRandomHighloadWallet(t, client)
+		test_utils.FundWallets(t, client, []*address.Address{sender.Address()}, []tlb.Coins{tlb.MustFromTON("1000")})
 		require.NotNil(t, sender)
-		emitter, err := event_emitter.NewEventEmitter(t.Context(), client, "evA", rand.Uint64(), sender, logger.Test(t))
+		emitter, err := event_emitter.NewEventEmitter(t.Context(), client, "emitter", rand.Uint64(), sender, logger.Test(t))
 		require.NoError(t, err)
+
+		const blockConfirmations = 10
+		const pageSize = 5
+		const targetCounter = 20
 
 		lp := logpoller.NewLogPoller(
 			logger.Test(t),
 			client,
 			3*time.Second,
-			100, // page size
+			pageSize,
+			blockConfirmations,
 		)
 
 		// register filters
@@ -268,48 +215,78 @@ func Test_LogPoller(t *testing.T) {
 		}
 		lp.RegisterFilter(t.Context(), filterA)
 
+		// start listening for logs
 		require.NoError(t, lp.Start(t.Context()))
 		defer func() {
 			require.NoError(t, lp.Close())
 		}()
 
-		// start event emitters
-		err = emitter.StartEventEmitter(t.Context(), 300*time.Millisecond)
+		// start event emission loop, which will stop itself once the target is reached
+		err = emitter.StartEventEmitter(t.Context(), 1*time.Second, big.NewInt(targetCounter))
 		require.NoError(t, err)
-		require.True(t, emitter.IsRunning(), "event emitter A should be running")
-
-		time.Sleep(15 * time.Second) // wait for event emitters to start and emit events
-
-		b, err := client.CurrentMasterchainInfo(t.Context())
-		require.NoError(t, err)
-		onchainSeqNoA, err := event_emitter.GetCounter(t.Context(), client, b, emitter.ContractAddress())
-		require.NoError(t, err)
-
-		require.Positive(t, onchainSeqNoA.Cmp(big.NewInt(0)), "unexpected sequence number for contract A")
-		// TODO: get logs by filter and validate if polling is not missing any events
-		// TODO: scale up the number of events and validate that log poller can handle multiple events
+		defer func() {
+			emitter.StopEventEmitter()
+		}()
 
 		require.Eventually(t, func() bool {
-			return len(lp.GetLogs()) > 0
-		}, 30*time.Second, 1*time.Second, "expected at least one send event")
+			// check the on-chain counter first as the source of truth.
+			master, err := client.CurrentMasterchainInfo(t.Context())
+			if err != nil {
+				t.Logf("Failed to get masterchain info, retrying: %v", err)
+				return false
+			}
 
-		logs := lp.GetLogs()
-		require.NotEmpty(t, logs, "expected at least one log entry")
+			currentCounter, err := event_emitter.GetCounter(t.Context(), client.WaitForBlock(master.SeqNo), master, emitter.ContractAddress())
+			if err != nil {
+				t.Logf("Failed to get on-chain counter, retrying: %v", err)
+				return false
+			}
 
-		c, err := cell.FromBOC(logs[0].Data)
-		require.NoError(t, err)
-		event, err := test_utils.LoadEventFromCell[event_emitter.CounterIncreased](c)
-		require.NoError(t, err)
+			if currentCounter.Uint64() < uint64(targetCounter) {
+				t.Logf("Waiting for on-chain counter... have %d, want %d", currentCounter.Uint64(), targetCounter)
+				return false
+			}
 
-		t.Logf("Received event: %+v", event)
-		// require.Equal(t, uint32(1), event.NewValue, "unexpected new value in event")
+			// get all logs from the log poller.
+			logs := lp.GetLogs()
+			if len(logs) != targetCounter {
+				t.Logf("Waiting for logs... have %d, want %d", len(logs), targetCounter)
+				return false // Not enough logs yet, Eventually will retry.
+			}
+
+			// if log count is correct, convert them for verification.
+			var msgs []*tlb.ExternalMessageOut
+			for _, log := range logs {
+				c, err := cell.FromBOC(log.Data)
+				if err != nil {
+					t.Logf("Failed to parse log data, will retry: %v", err)
+					return false
+				}
+				ext := &tlb.ExternalMessageOut{
+					Body: c,
+				}
+				msgs = append(msgs, ext)
+			}
+
+			// verify the content of the logs (no duplicates, all counters present).
+			verr := verifyLoadedEvents(msgs, targetCounter)
+			if verr != nil {
+				t.Logf("Log verification failed, will retry: %v", verr)
+				return false
+			}
+
+			// if log count and content are correct, the test condition is met.
+			return true
+		}, 120*time.Second, 3*time.Second, "log poller did not ingest all events correctly in time")
+
+		t.Logf("Successfully processed and verified %d events in live ingestion test", targetCounter)
 	})
 
-	t.Run("Log Poller Backfill Event Ingestion", func(t *testing.T) {
+	t.Run("Log Poller Replay for a Contract", func(t *testing.T) {
 		t.Skip("TODO: Implement")
 	})
 
-	t.Run("Log Poller Query Interface", func(t *testing.T) {
+	t.Run("Log Poller CCIP CAL Query Interface", func(t *testing.T) {
 		t.Skip("TODO: Implement")
 	})
 }

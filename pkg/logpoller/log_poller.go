@@ -45,6 +45,7 @@ type Service struct {
 	store              *InMemoryStore
 	pollPeriod         time.Duration
 	lastProcessedSeqNo uint32 // last processed masterchain seqno
+	blockConfirmations uint32 // number of confirmations to wait before processing a block
 }
 
 func NewLogPoller(
@@ -53,17 +54,19 @@ func NewLogPoller(
 	// TODO: replace with global TON relayer config
 	pollPeriod time.Duration,
 	pageSize uint32,
+	blockConfirmations uint32,
 ) *Service {
 	store := NewInMemoryStore()
 	filters := newFilters()
 	lp := &Service{
-		lggr:       logger.Sugared(lggr),
-		client:     client,
-		filters:    filters,
-		store:      store,
-		pollPeriod: pollPeriod,
+		lggr:               logger.Sugared(lggr),
+		client:             client,
+		filters:            filters,
+		store:              store,
+		pollPeriod:         pollPeriod,
+		blockConfirmations: blockConfirmations,
 	}
-	lp.loader = NewLoader(lp.client, lp.lggr, pageSize, 10) // TODO: block confirmations should be configurable
+	lp.loader = NewLoader(lp.client, lp.lggr, pageSize, blockConfirmations)
 	lp.Service, lp.eng = services.Config{
 		Name:  "Service",
 		Start: lp.start,
@@ -95,19 +98,35 @@ func (lp *Service) run(ctx context.Context) (err error) {
 	// TODO: load filter from persistent store
 	// TODO: implement backfill logic(if there is filters marked for backfill)
 
-	// get the current masterchain seqno
-	toBlock, err := lp.client.CurrentMasterchainInfo(ctx)
+	// get the current masterchain head
+	currentMaster, err := lp.client.CurrentMasterchainInfo(ctx)
 	if err != nil {
 		return err
 	}
-	// compare with last processed seqno, if last seqno is higher, there is a problem
-	if toBlock.SeqNo < lastProcessedSeq {
-		return fmt.Errorf("last seqno (%d) > chain seqno (%d)", lastProcessedSeq, toBlock.SeqNo)
-	}
-	// if we already processed this seqno, skip
-	if toBlock.SeqNo == lastProcessedSeq {
-		lp.lggr.Debugw("skipping already processed masterchain seq", "seq", toBlock.SeqNo)
+
+	// calculate the latest block we can safely process with confirmations
+	safeToProcessSeq := currentMaster.SeqNo - lp.blockConfirmations
+
+	// if safe to process is behind last processed, we need to wait for more blocks
+	if safeToProcessSeq < lastProcessedSeq {
+		blocksLeft := lastProcessedSeq - safeToProcessSeq
+		lp.lggr.Debugw("waiting for more blocks to process",
+			"lastProcessed", lastProcessedSeq,
+			"safeToProcess", safeToProcessSeq,
+			"blocksLeft", blocksLeft)
 		return nil
+	}
+
+	// if we already processed everything we can safely process, skip
+	if safeToProcessSeq == lastProcessedSeq {
+		lp.lggr.Debugw("skipping already processed safe seq", "seq", safeToProcessSeq)
+		return nil
+	}
+
+	// get the actual block to process (the safe one)
+	toBlock, err := lp.client.LookupBlock(ctx, currentMaster.Workchain, currentMaster.Shard, safeToProcessSeq)
+	if err != nil {
+		return fmt.Errorf("LookupBlock for safe seq %d: %w", safeToProcessSeq, err)
 	}
 
 	// load the addresses from filters that we're interested in
@@ -118,14 +137,14 @@ func (lp *Service) run(ctx context.Context) (err error) {
 	lp.lggr.Debugw("Processing messages for addresses", "addresses", addresses)
 
 	var prevBlock *ton.BlockIDExt
-	// get the prevBlock based on the last processed seqno(masterchain)
 
-	if lastProcessedSeq == 0 {
-		// For the first run, we don't have a previous block to reference
+	switch lastProcessedSeq {
+	case 0:
+		// for the first run, we don't have a previous block to reference
 		prevBlock = nil
 		lp.lggr.Debugw("First run detected, processing from genesis", "toSeq", toBlock.SeqNo)
-	} else {
-		// Get the prevBlock based on the last processed seqno
+	default:
+		// get the prevBlock based on the last processed seqno
 		prevBlock, err = lp.client.LookupBlock(ctx, toBlock.Workchain, toBlock.Shard, lastProcessedSeq)
 		if err != nil {
 			return fmt.Errorf("LookupBlock: %w", err)
@@ -143,14 +162,19 @@ func (lp *Service) run(ctx context.Context) (err error) {
 }
 
 func (lp *Service) processBlocksRange(ctx context.Context, addresses []*address.Address, prevBlock *ton.BlockIDExt, toBlock *ton.BlockIDExt) error {
-	lp.lggr.Debugw("Got new seq range to process", "from", prevBlock.SeqNo, "to", toBlock.SeqNo)
+	switch {
+	case prevBlock == nil:
+		lp.lggr.Debugw("Got new seq range to process (from genesis)", "from", 0, "to", toBlock.SeqNo)
+	default:
+		lp.lggr.Debugw("Got new seq range to process", "from", prevBlock.SeqNo, "to", toBlock.SeqNo)
+	}
 
 	msgs, err := lp.loader.BackfillForAddresses(ctx, addresses, prevBlock, toBlock)
 	if err != nil {
 		return fmt.Errorf("BackfillForAddresses: %w", err)
 	}
-	err = lp.processMessages(msgs)
-	if err != nil {
+
+	if err := lp.processMessages(msgs); err != nil {
 		return fmt.Errorf("processMessages: %w", err)
 	}
 
