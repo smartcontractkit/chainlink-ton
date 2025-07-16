@@ -33,6 +33,7 @@ export type ExecuteData = {
 export const opcodes = {
   in: {
     Init: crc32('Timelock_Init'),
+    TopUp: crc32('Timelock_TopUp'),
     ScheduleBatch: crc32('Timelock_ScheduleBatch'),
     Cancel: crc32('Timelock_Cancel'),
     ExecuteBatch: crc32('Timelock_ExecuteBatch'),
@@ -324,6 +325,10 @@ export class TimelockController implements Contract {
     await provider.internal(via, {
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: beginCell()
+        .storeUint(opcodes.in.TopUp, 32)
+        .storeUint(opts.queryID ?? 0, 64)
+        .endCell(),
     })
   }
 
