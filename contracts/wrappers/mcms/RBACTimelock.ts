@@ -11,7 +11,7 @@ import {
 } from '@ton/core'
 import { crc32 } from 'zlib'
 
-export type TimelockControllerStorage = {
+export type RBACTimelockStorage = {
   minDelay: number
   timestamp?: Dictionary<Buffer, Buffer>
 
@@ -54,7 +54,7 @@ export const opcodes = {
 
 export const Builder = {
   /// Creates a new `AccessControl_GrantRole` message.
-  asStorage: (config: TimelockControllerStorage): Cell => {
+  asStorage: (config: RBACTimelockStorage): Cell => {
     return beginCell()
       .storeUint(config.minDelay, 64)
       .storeDict(config.timestamp)
@@ -116,20 +116,20 @@ export abstract class Errors {
   static wrong_op = 0xffff
 }
 
-export class TimelockController implements Contract {
+export class RBACTimelock implements Contract {
   constructor(
     readonly address: Address,
     readonly init?: { code: Cell; data: Cell },
   ) {}
 
   static createFromAddress(address: Address) {
-    return new TimelockController(address)
+    return new RBACTimelock(address)
   }
 
-  static createFromConfig(config: TimelockControllerStorage, code: Cell, workchain = 0) {
+  static createFromConfig(config: RBACTimelockStorage, code: Cell, workchain = 0) {
     const data = Builder.asStorage(config)
     const init = { code, data }
-    return new TimelockController(contractAddress(workchain, init), init)
+    return new RBACTimelock(contractAddress(workchain, init), init)
   }
 
   async sendInternal(provider: ContractProvider, via: Sender, value: bigint, body: Cell) {
@@ -330,8 +330,8 @@ export class TimelockController implements Contract {
     })
   }
 
-  async getTimelockControllerData(provider: ContractProvider) {
-    const { stack } = await provider.get('getTimelockControllerData', [])
+  async getRBACTimelockData(provider: ContractProvider) {
+    const { stack } = await provider.get('getRBACTimelockData', [])
     return {
       minDelay: stack.readNumber(),
       adminAccounts: stack.readCellOpt(),
