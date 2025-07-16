@@ -15,7 +15,7 @@ type ExecuteReport struct {
 	SourceChainSelector uint64                              `tlb:"## 64"`
 	Messages            common.SnakeRef[Any2TVMRampMessage] `tlb:"^"`
 	OffChainTokenData   common.SnakeRef[common.SnakeBytes]  `tlb:"^"`
-	Proofs              common.SnakeData[common.Signature]  `tlb:"^"` // []Signature
+	Proofs              common.SnakeRef[common.SnakeBytes]  `tlb:"^"`
 	ProofFlagBits       *big.Int                            `tlb:"## 256"`
 }
 

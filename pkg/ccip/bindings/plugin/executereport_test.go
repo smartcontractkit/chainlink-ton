@@ -130,17 +130,11 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 		},
 	}
 
-	signatureCell := []common.Signature{
-		{
-			Sig: make([]byte, 32),
-		},
-	}
-
 	report := ExecuteReport{
 		SourceChainSelector: 1,
 		Messages:            rampMessageSlice,
 		OffChainTokenData:   common.SnakeRef[common.SnakeBytes]{make([]byte, 120), make([]byte, 130)},
-		Proofs:              signatureCell,
+		Proofs:              common.SnakeRef[common.SnakeBytes]{make([]byte, 32), make([]byte, 32)},
 		ProofFlagBits:       big.NewInt(0),
 	}
 

@@ -70,20 +70,20 @@ func TestOwnable2Step(t *testing.T) {
 	require.NoError(t, err)
 
 	// case 1 with no pending owner
-	orig := Ownable2Step{
+	orig := common.Ownable2Step{
 		Owner:        addr,
 		PendingOwner: nil,
 	}
 	cell, err := tlb.ToCell(orig)
 	require.NoError(t, err)
-	var decoded Ownable2Step
+	var decoded common.Ownable2Step
 	err = tlb.LoadFromCell(&decoded, cell.BeginParse())
 	require.NoError(t, err)
 	require.Equal(t, orig.Owner, decoded.Owner)
 	require.Equal(t, orig.PendingOwner, decoded.PendingOwner)
 
 	// case 2 with pending owner
-	orig2 := Ownable2Step{
+	orig2 := common.Ownable2Step{
 		Owner:        addr,
 		PendingOwner: addr,
 	}
@@ -163,7 +163,7 @@ func TestStorage(t *testing.T) {
 	require.NoError(t, err)
 
 	s := Storage{
-		Ownable: Ownable2Step{
+		Ownable: common.Ownable2Step{
 			Owner: dummyAddr,
 		},
 		ChainSelector: 42,

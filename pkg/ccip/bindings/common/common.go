@@ -5,11 +5,18 @@ import (
 	"fmt"
 	"math"
 
+	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
-// Signature represents an ED25519 signature.
+// Ownable2Step represents a two-step ownership structure, where an owner can set a pending owner.
+type Ownable2Step struct {
+	Owner        *address.Address `tlb:"addr"`
+	PendingOwner *address.Address `tlb:"maybe addr"` // PendingOwner is optional
+}
+
+// Signature is a type that represents a cryptographic signature used in MerkleProofs
 type Signature struct {
 	Sig []byte `tlb:"bits 256"`
 }

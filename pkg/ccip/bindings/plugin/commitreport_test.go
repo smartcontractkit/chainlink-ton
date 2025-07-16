@@ -86,11 +86,6 @@ func TestCommitReport_EncodingAndDecoding(t *testing.T) {
 		},
 	}
 	require.NoError(t, err)
-	signatureCell := []common.Signature{
-		{
-			Sig: make([]byte, 32),
-		},
-	}
 
 	commitReport := CommitReport{
 		PriceUpdates: PriceUpdates{
@@ -101,7 +96,7 @@ func TestCommitReport_EncodingAndDecoding(t *testing.T) {
 			UnblessedMerkleRoots: merkleRoots,
 			BlessedMerkleRoots:   merkleRoots,
 		},
-		RMNSignatures: signatureCell,
+		RMNSignatures: cell.BeginCell().EndCell(),
 	}
 
 	// Encode to cell
