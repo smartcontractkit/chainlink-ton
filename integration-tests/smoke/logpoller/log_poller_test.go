@@ -107,8 +107,7 @@ func Test_LogPoller(t *testing.T) {
 	require.NotNil(t, client)
 
 	t.Run("log poller:log collector event ingestion", func(t *testing.T) {
-		t.Skip("TODO: Enable this")
-		// t.Parallel()
+		t.Parallel()
 
 		cfg := event_emitter.Config{
 			BatchCount: 3,
@@ -143,6 +142,7 @@ func Test_LogPoller(t *testing.T) {
 		waitForBlock(t, client, toBlock, blockConfirmations)
 
 		t.Run("loading entire block range at once", func(t *testing.T) {
+			t.Parallel()
 			loader := logpoller.NewLogCollector(client, logger.Test(t), pageSize, blockConfirmations)
 
 			msgs, berr := loader.BackfillForAddresses(
@@ -156,6 +156,7 @@ func Test_LogPoller(t *testing.T) {
 		})
 
 		t.Run("loading block by block", func(t *testing.T) {
+			t.Parallel()
 			var allMsgs []*tlb.ExternalMessageOut
 
 			loader := logpoller.NewLogCollector(client, logger.Test(t), pageSize, blockConfirmations)
@@ -190,6 +191,7 @@ func Test_LogPoller(t *testing.T) {
 	})
 
 	t.Run("Logpoller live event ingestion", func(t *testing.T) {
+		t.Parallel()
 		senderA := test_utils.CreateRandomHighloadWallet(t, client)
 		senderB := test_utils.CreateRandomHighloadWallet(t, client)
 		test_utils.FundWallets(t, client, []*address.Address{senderA.Address(), senderB.Address()}, []tlb.Coins{tlb.MustFromTON("1000"), tlb.MustFromTON("1000")})
@@ -216,6 +218,7 @@ func Test_LogPoller(t *testing.T) {
 
 		// register filters
 		filterA := types.Filter{
+			Name:       "FilterA",
 			Address:    *emitterA.ContractAddress(),
 			EventName:  "CounterIncreased",
 			EventTopic: event_emitter.CounterIncreasedTopic,
@@ -223,6 +226,7 @@ func Test_LogPoller(t *testing.T) {
 		lp.RegisterFilter(t.Context(), filterA)
 
 		filterB := types.Filter{
+			Name:       "FilterB",
 			Address:    *emitterB.ContractAddress(),
 			EventName:  "CounterIncreased",
 			EventTopic: event_emitter.CounterIncreasedTopic,
@@ -244,176 +248,227 @@ func Test_LogPoller(t *testing.T) {
 			emitterA.StopEventEmitter()
 			emitterB.StopEventEmitter()
 		}()
-
 		require.Eventually(t, func() bool {
-			// check the on-chain counter first as the source of truth.
+			// Check both emitters' on-chain counters
 			master, err := client.CurrentMasterchainInfo(t.Context())
 			if err != nil {
 				t.Logf("Failed to get masterchain info, retrying: %v", err)
 				return false
 			}
 
-			currentCounter, err := event_emitter.GetCounter(t.Context(), client.WaitForBlock(master.SeqNo), master, emitterA.ContractAddress())
+			// Check emitterA
+			counterA, err := event_emitter.GetCounter(t.Context(), client.WaitForBlock(master.SeqNo), master, emitterA.ContractAddress())
 			if err != nil {
-				t.Logf("Failed to get on-chain counter, retrying: %v", err)
+				t.Logf("Failed to get on-chain counter for emitterA, retrying: %v", err)
 				return false
 			}
 
-			if currentCounter.Uint64() < uint64(targetCounter) {
-				t.Logf("Waiting for on-chain counter... have %d, want %d", currentCounter.Uint64(), targetCounter)
+			if counterA.Uint64() < uint64(targetCounter) {
+				t.Logf("Waiting for on-chain counter A... have %d, want %d", counterA.Uint64(), targetCounter)
 				return false
 			}
 
-			// get all logs from the log poller.
-			logs := lp.GetLogs(emitterA.ContractAddress())
-			t.Logf("Log poller has %d logs for emitter A", len(logs))
+			// Check emitterB
+			counterB, err := event_emitter.GetCounter(t.Context(), client.WaitForBlock(master.SeqNo), master, emitterB.ContractAddress())
+			if err != nil {
+				t.Logf("Failed to get on-chain counter for emitterB, retrying: %v", err)
+				return false
+			}
 
-			var msgs []*tlb.ExternalMessageOut
-			for _, log := range logs {
+			if counterB.Uint64() < uint64(targetCounter) {
+				t.Logf("Waiting for on-chain counter B... have %d, want %d", counterB.Uint64(), targetCounter)
+				return false
+			}
+
+			// Check log poller has ingested events from both
+			logsA := lp.GetLogs(emitterA.ContractAddress())
+			logsB := lp.GetLogs(emitterB.ContractAddress())
+
+			t.Logf("Log poller has %d logs for emitter A, %d logs for emitter B", len(logsA), len(logsB))
+
+			// Convert logs to messages for emitterA
+			var msgsA []*tlb.ExternalMessageOut
+			for _, log := range logsA {
 				c, err := cell.FromBOC(log.Data)
 				if err != nil {
-					t.Logf("Failed to parse log data, will retry: %v", err)
+					t.Logf("Failed to parse log data for emitterA, will retry: %v", err)
 					return false
 				}
 				ext := &tlb.ExternalMessageOut{
 					Body: c,
 				}
-				msgs = append(msgs, ext)
+				msgsA = append(msgsA, ext)
 			}
 
-			// verify the content of the logs (no duplicates, all counters present).
-			verr := verifyLoadedEvents(msgs, targetCounter)
-			if verr != nil {
-				t.Logf("Log verification failed, will retry: %v", verr)
+			// Convert logs to messages for emitterB
+			var msgsB []*tlb.ExternalMessageOut
+			for _, log := range logsB {
+				c, err := cell.FromBOC(log.Data)
+				if err != nil {
+					t.Logf("Failed to parse log data for emitterB, will retry: %v", err)
+					return false
+				}
+				ext := &tlb.ExternalMessageOut{
+					Body: c,
+				}
+				msgsB = append(msgsB, ext)
+			}
+
+			// Verify the content of the logs for emitterA (no duplicates, all counters present)
+			verrA := verifyLoadedEvents(msgsA, targetCounter)
+			if verrA != nil {
+				t.Logf("Log verification failed for emitterA, will retry: %v", verrA)
 				return false
 			}
 
-			if len(logs) != targetCounter {
-				for _, msg := range msgs {
+			// Verify the content of the logs for emitterB (no duplicates, all counters present)
+			verrB := verifyLoadedEvents(msgsB, targetCounter)
+			if verrB != nil {
+				t.Logf("Log verification failed for emitterB, will retry: %v", verrB)
+				return false
+			}
+
+			if len(logsA) != targetCounter {
+				for _, msg := range msgsA {
 					event, err := test_utils.LoadEventFromMsg[event_emitter.CounterIncreased](msg)
 					require.NoError(t, err, "failed to parse event from log")
-					t.Logf("Event Counter=%d", event.Counter)
+					t.Logf("EmitterA Event Counter=%d", event.Counter)
 				}
-
-				t.Logf("Waiting for logs... have %d, want %d", len(logs), targetCounter)
+				t.Logf("Waiting for logs A... have %d, want %d", len(logsA), targetCounter)
 				return false // Not enough logs yet, Eventually will retry.
 			}
 
-			// if log count and content are correct, the test condition is met.
+			if len(logsB) != targetCounter {
+				for _, msg := range msgsB {
+					event, err := test_utils.LoadEventFromMsg[event_emitter.CounterIncreased](msg)
+					require.NoError(t, err, "failed to parse event from log")
+					t.Logf("EmitterB Event Counter=%d", event.Counter)
+				}
+				t.Logf("Waiting for logs B... have %d, want %d", len(logsB), targetCounter)
+				return false // Not enough logs yet, Eventually will retry.
+			}
+
+			// If log count and content are correct for both, the test condition is met
 			return true
 		}, 120*time.Second, 3*time.Second, "log poller did not ingest all events correctly in time")
 
 		t.Logf("Successfully processed and verified %d events in live ingestion test", targetCounter)
 
-		// the log poller service itself provides a simple query interface(w/o full DSL support)
-		// define filters to find logs where the counter is between 5 and 10.
-		// the CounterIncreased event data layout is [ID (8 bytes), Counter (8 bytes)].
-		// so, the Counter field is at offset 8.
-		// we can try to create event type > cell filter util, but that's whole another story.
-		// this is somewhat similar to "LogsDataWordBetween" in evm logpoller,
-		// TODO: with SQL we might need to implement a more efficient way to query logs.
-		t.Run("Cell Query, events from emitter A", func(t *testing.T) {
-			filters := []logpoller.CellQuery{
-				{
-					Offset:   8,
-					Operator: logpoller.GT,
-					Value:    binary.BigEndian.AppendUint64(nil, 5),
-				},
-				{
-					Offset:   8,
-					Operator: logpoller.LTE,
-					Value:    binary.BigEndian.AppendUint64(nil, 10),
-				},
-			}
-
-			logs, err := lp.FilteredLogsByTopic(emitterA.ContractAddress(), event_emitter.CounterIncreasedTopic, filters)
-			require.NoError(t, err)
-
-			require.Len(t, logs, 5, "expected exactly 6 logs for the range 5-10")
-
-			for _, log := range logs {
-				c, err := cell.FromBOC(log.Data)
-				require.NoError(t, err)
-				ext := &tlb.ExternalMessageOut{Body: c}
-				event, err := test_utils.LoadEventFromMsg[event_emitter.CounterIncreased](ext)
-				require.NoError(t, err)
-
-				// check that the counter is within the expected range
-				require.Greater(t, event.Counter, uint64(5))
-				require.LessOrEqual(t, event.Counter, uint64(10))
-				t.Logf("Verified filtered event with counter: %d", event.Counter)
-			}
-		})
-
-		t.Run("Log Poller Query With Cell Filter, events from emitter B", func(t *testing.T) {
-			filters := []logpoller.CellQuery{
-				{
-					Offset:   8,
-					Operator: logpoller.GTE,
-					Value:    binary.BigEndian.AppendUint64(nil, 1),
-				},
-				{
-					Offset:   8,
-					Operator: logpoller.LTE,
-					Value:    binary.BigEndian.AppendUint64(nil, 3),
-				},
-			}
-
-			logs, err := lp.FilteredLogsByTopic(emitterB.ContractAddress(), event_emitter.CounterIncreasedTopic, filters)
-			require.NoError(t, err)
-
-			require.Len(t, logs, 3, "expected exactly 3 logs for the range 1-3")
-
-			for _, log := range logs {
-				c, err := cell.FromBOC(log.Data)
-				require.NoError(t, err)
-				ext := &tlb.ExternalMessageOut{Body: c}
-				event, err := test_utils.LoadEventFromMsg[event_emitter.CounterIncreased](ext)
-				require.NoError(t, err)
-
-				// check that the counter is within the expected range
-				require.GreaterOrEqual(t, event.Counter, uint64(1))
-				require.LessOrEqual(t, event.Counter, uint64(3))
-				t.Logf("Verified filtered event with counter: %d", event.Counter)
-			}
-		})
-
-		t.Run("Log Poller Query With Cell Query, all events from emitter B", func(t *testing.T) {
-			query := []logpoller.CellQuery{
-				{
-					Offset:   0,
-					Operator: logpoller.EQ,
-					Value:    binary.BigEndian.AppendUint64(nil, emitterB.GetID()),
-				},
-			}
-
-			logs, err := lp.FilteredLogsByTopic(emitterB.ContractAddress(), event_emitter.CounterIncreasedTopic, query)
-			require.NoError(t, err)
-
-			require.Len(t, logs, targetCounter, "expected exactly %d logs for the emitter B", targetCounter)
-
-			seen := make(map[uint64]bool, targetCounter)
-			for _, log := range logs {
-				c, err := cell.FromBOC(log.Data)
-				require.NoError(t, err)
-				ext := &tlb.ExternalMessageOut{Body: c}
-				event, err := test_utils.LoadEventFromMsg[event_emitter.CounterIncreased](ext)
-				require.NoError(t, err)
-
-				require.GreaterOrEqual(t, event.Counter, uint64(1))
-				require.LessOrEqual(t, event.Counter, uint64(targetCounter))
-
-				if seen[event.Counter] {
-					t.Fatalf("duplicate counter %d found", event.Counter)
+		t.Run("Cell Query Tests", func(t *testing.T) {
+			// the log poller service itself provides a simple query interface(w/o full DSL support)
+			// define filters to find logs where the counter is between 5 and 10.
+			// the CounterIncreased event data layout is [ID (8 bytes), Counter (8 bytes)].
+			// so, the Counter field is at offset 8.
+			// we can try to create event type > cell filter util, but that's whole another story.
+			// this is somewhat similar to "LogsDataWordBetween" in evm logpoller,
+			// TODO: with SQL we might need to implement a more efficient way to query logs.
+			t.Run("Cell Query, events from emitter A", func(t *testing.T) {
+				t.Parallel()
+				filters := []logpoller.CellQuery{
+					{
+						Offset:   8,
+						Operator: logpoller.GT,
+						Value:    binary.BigEndian.AppendUint64(nil, 5),
+					},
+					{
+						Offset:   8,
+						Operator: logpoller.LTE,
+						Value:    binary.BigEndian.AppendUint64(nil, 10),
+					},
 				}
-				seen[event.Counter] = true
-			}
 
-			for i := 1; i <= int(targetCounter); i++ {
-				if !seen[uint64(i)] { //nolint:gosec // test code
-					t.Fatalf("missing counter %d", i)
+				logs, err := lp.FilteredLogsByTopic(emitterA.ContractAddress(), event_emitter.CounterIncreasedTopic, filters)
+				require.NoError(t, err)
+
+				require.Len(t, logs, 5, "expected exactly 6 logs for the range 5-10")
+
+				for _, log := range logs {
+					c, err := cell.FromBOC(log.Data)
+					require.NoError(t, err)
+					ext := &tlb.ExternalMessageOut{Body: c}
+					event, err := test_utils.LoadEventFromMsg[event_emitter.CounterIncreased](ext)
+					require.NoError(t, err)
+
+					// check that the counter is within the expected range
+					require.Greater(t, event.Counter, uint64(5))
+					require.LessOrEqual(t, event.Counter, uint64(10))
+					t.Logf("Verified filtered event with counter: %d", event.Counter)
 				}
-			}
+			})
+
+			t.Run("Log Poller Query With Cell Filter, events from emitter B", func(t *testing.T) {
+				t.Parallel()
+				filters := []logpoller.CellQuery{
+					{
+						Offset:   8,
+						Operator: logpoller.GTE,
+						Value:    binary.BigEndian.AppendUint64(nil, 1),
+					},
+					{
+						Offset:   8,
+						Operator: logpoller.LTE,
+						Value:    binary.BigEndian.AppendUint64(nil, 3),
+					},
+				}
+
+				logs, err := lp.FilteredLogsByTopic(emitterB.ContractAddress(), event_emitter.CounterIncreasedTopic, filters)
+				require.NoError(t, err)
+
+				require.Len(t, logs, 3, "expected exactly 3 logs for the range 1-3")
+
+				for _, log := range logs {
+					c, err := cell.FromBOC(log.Data)
+					require.NoError(t, err)
+					ext := &tlb.ExternalMessageOut{Body: c}
+					event, err := test_utils.LoadEventFromMsg[event_emitter.CounterIncreased](ext)
+					require.NoError(t, err)
+
+					// check that the counter is within the expected range
+					require.GreaterOrEqual(t, event.Counter, uint64(1))
+					require.LessOrEqual(t, event.Counter, uint64(3))
+					t.Logf("Verified filtered event with counter: %d", event.Counter)
+				}
+			})
+
+			t.Run("Log Poller Query With Cell Query, all events from emitter B", func(t *testing.T) {
+				t.Parallel()
+				// the CounterIncreased event data layout is [ID (8 bytes), Counter (8 bytes)].
+				query := []logpoller.CellQuery{
+					{
+						Offset:   0,
+						Operator: logpoller.EQ,
+						Value:    binary.BigEndian.AppendUint64(nil, emitterB.GetID()), // compare ID
+					},
+				}
+
+				logs, err := lp.FilteredLogsByTopic(emitterB.ContractAddress(), event_emitter.CounterIncreasedTopic, query)
+				require.NoError(t, err)
+
+				require.Len(t, logs, targetCounter, "expected exactly %d logs for the emitter B", targetCounter)
+
+				seen := make(map[uint64]bool, targetCounter)
+				for _, log := range logs {
+					c, err := cell.FromBOC(log.Data)
+					require.NoError(t, err)
+					ext := &tlb.ExternalMessageOut{Body: c}
+					event, err := test_utils.LoadEventFromMsg[event_emitter.CounterIncreased](ext)
+					require.NoError(t, err)
+
+					require.GreaterOrEqual(t, event.Counter, uint64(1))
+					require.LessOrEqual(t, event.Counter, uint64(targetCounter))
+
+					if seen[event.Counter] {
+						t.Fatalf("duplicate counter %d found", event.Counter)
+					}
+					seen[event.Counter] = true
+				}
+
+				for i := 1; i <= int(targetCounter); i++ {
+					if !seen[uint64(i)] { //nolint:gosec // test code
+						t.Fatalf("missing counter %d", i)
+					}
+				}
+			})
 		})
 	})
 
