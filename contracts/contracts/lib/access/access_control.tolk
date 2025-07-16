@@ -109,7 +109,7 @@ struct (0x39452c46) AccessControl_RenounceRole {
 }
 
 /// @dev Union of all incoming messages.
-type AccessControl_Message = AccessControl_GrantRole
+type AccessControl_InMessage = AccessControl_GrantRole
     | AccessControl_RevokeRole
     | AccessControl_RenounceRole;
 
@@ -618,7 +618,7 @@ fun AccessControl<T>.get_getRoleMemberNext(self, role: int, pivot: slice): addre
 @inline
 fun AccessControl<T>.onInternalMessage(mutate self, myBalance: int, msgValue: int, msgFull: cell, msgBody: slice) {
     val sender = self.msgSender(msgFull);
-    val msg = lazy AccessControl_Message.fromSlice(msgBody);
+    val msg = lazy AccessControl_InMessage.fromSlice(msgBody);
     match (msg) {
         AccessControl_GrantRole => {
             self.grantRole(msg.queryId, sender, msg.role, msg.account);
