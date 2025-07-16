@@ -11,11 +11,7 @@ import {
   toNano,
 } from '@ton/core'
 import { JettonOpcodes } from '../examples/jetton/types'
-// import { ZERO_ADDRESS } from '../../tests/utils'
-
-export const ZERO_ADDRESS: Address = Address.parse(
-  '0:0000000000000000000000000000000000000000000000000000000000000000',
-)
+import { ZERO_ADDRESS } from '../../tests/utils'
 
 export type JettonMinterContent = {
   uri: string
