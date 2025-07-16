@@ -1,12 +1,10 @@
-package plugin
+package ocr
 
 import (
 	"math/big"
 
-	"github.com/xssnick/tonutils-go/address"
-	"github.com/xssnick/tonutils-go/tvm/cell"
-
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/xssnick/tonutils-go/address"
 )
 
 // SignatureEd25519 represents a signature structure used in commit reports.
@@ -18,9 +16,9 @@ type SignatureEd25519 struct {
 
 // CommitReport represents the top-level structure for a commit report.
 type CommitReport struct {
-	PriceUpdates  PriceUpdates `tlb:"^"`
-	MerkleRoot    MerkleRoots  `tlb:"^"`
-	RMNSignatures *cell.Cell   `tlb:"^"` // will just be empty cell as RMN is getting deprecated
+	PriceUpdates  PriceUpdates                       `tlb:"^"`
+	MerkleRoot    MerkleRoots                        `tlb:"^"`
+	RMNSignatures common.SnakeRef[common.SnakeBytes] `tlb:"^"`
 }
 
 // MerkleRoots holds the blessed and unblessed Merkle roots.
