@@ -286,13 +286,18 @@ func Test_LogPoller(t *testing.T) {
 		}, 120*time.Second, 3*time.Second, "log poller did not ingest all events correctly in time")
 
 		t.Logf("Successfully processed and verified %d events in live ingestion test", targetCounter)
+
+		t.Run("Log Poller Query With Byte Range", func(t *testing.T) {
+			t.Skip("TODO: Implement")
+		})
+	})
+
+	t.Run("Log Poller CCIP CAL Query Interface", func(t *testing.T) {
+		t.Skip("TODO: Implement")
 	})
 
 	t.Run("Log Poller Replay for a Contract", func(t *testing.T) {
 		t.Skip("TODO: Implement")
 	})
 
-	t.Run("Log Poller CCIP CAL Query Interface", func(t *testing.T) {
-		t.Skip("TODO: Implement")
-	})
 }
