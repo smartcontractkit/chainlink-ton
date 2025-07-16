@@ -190,14 +190,15 @@ func Test_LogPoller(t *testing.T) {
 	})
 
 	t.Run("Logpoller live event ingestion", func(t *testing.T) {
-		sender := test_utils.CreateRandomHighloadWallet(t, client)
-		test_utils.FundWallets(t, client, []*address.Address{sender.Address()}, []tlb.Coins{tlb.MustFromTON("1000")})
-		require.NotNil(t, sender)
+		senderA := test_utils.CreateRandomHighloadWallet(t, client)
+		senderB := test_utils.CreateRandomHighloadWallet(t, client)
+		test_utils.FundWallets(t, client, []*address.Address{senderA.Address(), senderB.Address()}, []tlb.Coins{tlb.MustFromTON("1000"), tlb.MustFromTON("1000")})
+		require.NotNil(t, senderA)
 
-		emitterA, err := event_emitter.NewEventEmitter(t.Context(), client, "emitterA", rand.Uint64(), sender, logger.Test(t))
+		emitterA, err := event_emitter.NewEventEmitter(t.Context(), client, "emitterA", rand.Uint64(), senderA, logger.Test(t))
 		require.NoError(t, err)
 
-		emitterB, err := event_emitter.NewEventEmitter(t.Context(), client, "emitterB", rand.Uint64(), sender, logger.Test(t))
+		emitterB, err := event_emitter.NewEventEmitter(t.Context(), client, "emitterB", rand.Uint64(), senderB, logger.Test(t))
 		require.NoError(t, err)
 
 		const blockConfirmations = 10
