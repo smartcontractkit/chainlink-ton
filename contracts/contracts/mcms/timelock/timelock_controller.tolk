@@ -91,6 +91,14 @@ struct (0x4982fcfd) Timelock_Init {
     bypassers: cell;  // vec<address>
 }
 
+/// @dev Top up contract with TON coins.
+/// Contract might receive/hold TON as part of the maintenance process.
+///
+struct (0xfee62ba6) Timelock_TopUp {
+    /// Query ID of the change owner request.
+    queryId: uint64;
+}
+
 /// @dev Schedule an operation containing a batch of transactions.
 ///
 /// Emits one {Timelock_CallScheduled} event per transaction in the batch.
@@ -215,6 +223,7 @@ struct (0xbb0e9f7d) Timelock_BypasserExecuteBatch {
 
 /// @dev Union of all incoming messages.
 type Timelock_InMessage = Timelock_Init
+    | Timelock_TopUp
     | Timelock_ScheduleBatch
     | Timelock_Cancel
     | Timelock_ExecuteBatch
@@ -903,11 +912,6 @@ fun Timelock<T>.checkFunctionSelectorNotBlocked(self, data: slice): void {
 }
 
 fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: slice) {
-    // Contract might receive/hold ETH as part of the maintenance process.
-    if (msgBody.isEndOfBits() && msgBody.isEndOfRefs()) {
-        return; // accept TON coins without any further processing
-    }
-
     var cs: slice = msgFull.beginParse();
     val flags = cs.loadMessageFlags();
     // TODO: not available in tolk 0.99
@@ -927,34 +931,46 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
         Timelock_Init => {
             timelock.init(sender, msg.queryId, msg.minDelay, msg.admin, msg.proposers, msg.executors, msg.cancellers, msg.bypassers);
             timelock.data.storeAsContractData();
+            return;
+        }
+        Timelock_TopUp => {
+            // Top up the contract balance, no action needed
+            return;
         }
         Timelock_UpdateDelay => {
             timelock.updateDelay(sender, msg.queryId, msg.newDelay);
             timelock.data.storeAsContractData();
+            return;
         }
         Timelock_BlockFunctionSelector => {
             timelock.blockFunctionSelector(sender, msg.queryId, msg.selector);
             timelock.data.storeAsContractData();
+            return;
         }
         Timelock_UnblockFunctionSelector => {
             timelock.unblockFunctionSelector(sender, msg.queryId, msg.selector);
             timelock.data.storeAsContractData();
+            return;
         }
         Timelock_ScheduleBatch => {
             timelock.scheduleBatch(sender, msg.queryId, msg.calls, msg.predecessor, msg.salt, msg.delay);
             timelock.data.storeAsContractData();
+            return;
         }
         Timelock_ExecuteBatch => {
             timelock.executeBatch(sender, msg.queryId, msg.calls, msg.predecessor, msg.salt);
             timelock.data.storeAsContractData();
+            return;
         }
         Timelock_Cancel => {
             timelock.cancel(sender, msg.queryId, msg.id);
             timelock.data.storeAsContractData();
+            return;
         }
         Timelock_BypasserExecuteBatch => {
             timelock.bypasserExecuteBatch(sender, msg.queryId, msg.calls);
             timelock.data.storeAsContractData();
+            return;
         }
         else => {
             val msgHandeled = 0
