@@ -411,6 +411,19 @@ const MIN_TON_FOR_STORAGE = 1000000000; // 1 TON
 
 // --- Methods ---
 
+/// @dev Loads the Timelock contract data from persistent storage.
+fun Timelock<T>.load(context: T? = null, hooks: Timelock_Hooks<T>? = null): Timelock<T> {
+    // Load the contract data from the persistent storage
+    var data = Timelock_Data.fromContractData();
+
+    // Return the Timelock instance with loaded data and hooks
+    return Timelock<T> {
+        data: data,
+        context: context,
+        hooks: hooks,
+    };
+}
+
 /// @dev Requires that the sender has the given role or the admin role.
 fun Timelock<T>.onlyRoleOrAdminRole(self, role: int, sender: address): void {
     val rbac = self.hookTrait__AccessControl();
@@ -828,7 +841,7 @@ fun Timelock<T>.unblockFunctionSelector(mutate self, sender: address, queryId: u
 }
 
 /// @dev Returns the number of blocked function selectors.
-fun Timelock<T>.getBlockedFunctionSelectorCount(self, selector: uint32): uint32 {
+fun Timelock<T>.getBlockedFunctionSelectorCount(self): uint32 {
     return self.data.blockedFnSelectorsLen;
 }
 
@@ -857,16 +870,19 @@ fun Timelock<T>.getBlockedFunctionSelectorAt(self, index: uint32): uint32 {
         return 0; // index out of bounds
     }
 
+    // Get a mutable reference to the blocked function selectors map (used for iteration)
+    var blockedFnSelectors = self.data.blockedFnSelectors;
+
     // Notice: we need to iterate through the dictionary to get the item at the specified index.
     // This is not efficient, but it is the only way to get an item at index without additional data structures.
     var i = 0;
     while (i < index) {
-        self.data.blockedFnSelectors.uDictDeleteFirstAndGet(LEN_BLOCKED_FN_SELECTOR);
+        blockedFnSelectors.uDictDeleteFirstAndGet(LEN_BLOCKED_FN_SELECTOR);
         i += 1; // increment to next account
     }
 
     // Get the item at the specified index
-    var (selector: slice?, _: slice?, _: bool) = self.data.blockedFnSelectors.uDictDeleteFirstAndGet(LEN_BLOCKED_FN_SELECTOR);
+    var (selector: int?, _: slice?, _: bool) = blockedFnSelectors.uDictDeleteFirstAndGet(LEN_BLOCKED_FN_SELECTOR);
     return selector! as uint32;
 }
 
@@ -914,7 +930,6 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
 
     // Load the contract storage
     var timelock: Timelock<bool> = { data: Timelock_Data.fromContractData() };
-    var rbac = timelock.hookTrait__AccessControl();
 
     val msg = lazy Timelock_InMessage.fromSlice(msgBody);
     match (msg) {
@@ -954,6 +969,7 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
             timelock.data.storeAsContractData();
         }
         else => {
+            var rbac = timelock.hookTrait__AccessControl();
             val msgHandeled = 0
                 || rbac.onInternalMessage(myBalance, msgValue, msgFull, msgBody);;
 
@@ -989,18 +1005,65 @@ get fun typeAndVersion(): (slice, slice) {
      return ("com.chainlink.ton.mcms.Timelock", "1.0.0");
 }
 
+/// @see <Timelock<T>.isOperation>
+get fun isOperation(id: int): bool {
+    return Timelock<bool>.load().isOperation(id);
+}
+
+/// @see <Timelock<T>.isOperationPending>
+get fun isOperationPending(id: int): bool {
+    return Timelock<bool>.load().isOperationPending(id);
+}
+
+/// @see <Timelock<T>.isOperationReady>
+get fun isOperationReady(id: int): bool {
+    return Timelock<bool>.load().isOperationReady(id);
+}
+
+/// @see <Timelock<T>.isOperationDone>
+get fun isOperationDone(id: int): bool {
+    return Timelock<bool>.load().isOperationDone(id);
+}
+
+/// @see <Timelock<T>.getTimestamp>
+get fun getTimestamp(id: int): uint256 {
+    return Timelock<bool>.load().getTimestamp(id);
+}
+
+/// @see <Timelock<T>.getMinDelay>
+get fun getMinDelay(): uint64 {
+    return Timelock<bool>.load().getMinDelay();
+}
+
+/// @see <Timelock<T>.hashOperationBatch>
+get fun hashOperationBatch(op: OperationBatch): uint256 {
+    return Timelock<bool>.load().hashOperationBatch(op);
+}
+
+/// @see <Timelock<T>.getBlockedFunctionSelectorCount>
+get fun getBlockedFunctionSelectorCount(): uint32 {
+    return Timelock<bool>.load().getBlockedFunctionSelectorCount();
+}
+
+/// @see <Timelock<T>.getBlockedFunctionSelectorAt>
+get fun getBlockedFunctionSelectorAt(index: uint32): uint32 {
+    return Timelock<bool>.load().getBlockedFunctionSelectorAt(index);
+}
+
+// TODO: should we also expose <Timelock<T>._checkFunctionSelectorNotBlocked (not in EVM version)?
+
 // --- Getters - <AccessControl<T>> extension ---
 
 /// @see <AccessControl<T>.hasRole>
 get fun hasRole(role: int, account: address): bool {
-    val timelock: Timelock<bool> = { data: Timelock_Data.fromContractData() };
+    val timelock = Timelock<bool>.load();
     val rbac = timelock.hookTrait__AccessControl();
     return rbac.hasRole(role, account);
 }
 
 /// @see <AccessControl<T>.getRoleAdmin>
 get fun getRoleAdmin(role: int): int {
-    val timelock: Timelock<bool> = { data: Timelock_Data.fromContractData() };
+    val timelock = Timelock<bool>.load();
     val rbac = timelock.hookTrait__AccessControl();
     return rbac.getRoleAdmin(role);
 }
@@ -1009,35 +1072,30 @@ get fun getRoleAdmin(role: int): int {
 
 /// @see <AccessControl<T>.getRoleMember>
 get fun getRoleMember(role: int, index: uint32): address {
-    val timelock: Timelock<bool> = { data: Timelock_Data.fromContractData() };
-    val rbac = timelock.hookTrait__AccessControl();
+    val rbac = Timelock<bool>.load().hookTrait__AccessControl();
     return rbac.getRoleMember(role, index);
 }
 
 /// @see <AccessControl<T>.getRoleMemberFirst>
 get fun getRoleMemberFirst(role: int): address {
-    val timelock: Timelock<bool> = { data: Timelock_Data.fromContractData() };
-    val rbac = timelock.hookTrait__AccessControl();
+    val rbac = Timelock<bool>.load().hookTrait__AccessControl();
     return rbac.getRoleMemberFirst(role);
 }
 
 /// @see <AccessControl<T>.getRoleMemberNext>
 get fun getRoleMemberNext(role: int, pivot: address): address {
-    val timelock: Timelock<bool> = { data: Timelock_Data.fromContractData() };
-    val rbac = timelock.hookTrait__AccessControl();
+    val rbac = Timelock<bool>.load().hookTrait__AccessControl();
     return rbac.getRoleMemberNext(role, pivot);
 }
 
 /// @see <AccessControl<T>.getRoleMemberCount>
 get fun getRoleMemberCount(role: int): int {
-    val timelock: Timelock<bool> = { data: Timelock_Data.fromContractData() };
-    val rbac = timelock.hookTrait__AccessControl();
+    val rbac = Timelock<bool>.load().hookTrait__AccessControl();
     return rbac.getRoleMemberCount(role);
 }
 
 /// @see <AccessControl<T>.getRoleMembers>
 get fun getRoleMembers(role: int): dict {
-    val timelock: Timelock<bool> = { data: Timelock_Data.fromContractData() };
-    val rbac = timelock.hookTrait__AccessControl();
+    val rbac = Timelock<bool>.load().hookTrait__AccessControl();
     return rbac.getRoleMembers(role);
 }
