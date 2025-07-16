@@ -3,7 +3,6 @@ import "../lib/access/ownable_2step.tolk";
 import "../lib/upgrades/type_and_version.tolk";
 import "./../lib/merkle_multi_proof/merkle_multi_proof.tolk"
 import "../deployable/types.tolk";
-import "utils.tolk";
 import "../lib/utils.tolk";
 
 struct Storage {

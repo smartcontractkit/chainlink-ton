@@ -1,4 +1,4 @@
-import "utils.tolk";
+import "../lib/utils.tolk";
 
 struct MerkleRoot {
     sourceChainSelector: uint64;
