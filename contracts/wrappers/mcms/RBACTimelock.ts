@@ -11,6 +11,116 @@ import {
 } from '@ton/core'
 import { crc32 } from 'zlib'
 
+// @dev Initializes the contract
+export type Init = {
+  /// Query ID of the change owner request.
+  queryId: bigint
+
+  /// Minimum delay in seconds for future operations.
+  minDelay: bigint
+
+  /// Address of the admin account.
+  admin: Address
+
+  /// Collection of addresses to be granted proposer, executor, canceller and bypasser roles.
+  proposers: Cell // vec<address>
+  executors: Cell // vec<address>
+  cancellers: Cell // vec<address>
+  bypassers: Cell // vec<address>
+}
+
+// @dev Top up contract with TON coins.
+export type TopUp = {
+  /// Query ID of the change owner request.
+  queryId: bigint
+}
+
+// @dev Schedule an operation containing a batch of transactions.
+export type ScheduleBatch = {
+  /// Query ID of the change owner request.
+  queryId: bigint
+
+  // Array of calls to be scheduled
+  calls: Cell // vec<Timelock_Call>
+  // Predecessor operation ID
+  predecessor: bigint
+  // Salt used to derive the operation ID
+  salt: bigint
+  // Delay in seconds before the operation can be executed
+  delay: number
+}
+
+// @dev Cancel an operation.
+export type Cancel = {
+  /// Query ID of the change owner request.
+  queryId: bigint
+
+  /// ID of the operation to cancel.
+  id: bigint
+}
+
+// @dev Execute an (ready) operation containing a batch of transactions.
+export type ExecuteBatch = {
+  /// Query ID of the change owner request.
+  queryId: bigint
+
+  // Array of calls to be scheduled
+  calls: Cell // vec<Timelock_Call>
+  // Predecessor operation ID
+  predecessor: bigint
+  // Salt used to derive the operation ID
+  salt: bigint
+}
+
+// @dev Changes the minimum timelock duration for future operations.
+export type UpdateDelay = {
+  /// Query ID of the change owner request.
+  queryId: bigint
+
+  /// New minimum delay in seconds for future operations.
+  newDelay: number
+}
+
+// @dev Blocks a function selector from being used
+export type BlockFunctionSelector = {
+  /// Query ID of the change owner request.
+  queryId: bigint
+
+  /// Function selector to block.
+  selector: number
+}
+
+// @dev Unblocks a previously blocked function selector so it can be used again.
+export type UnblockFunctionSelector = {
+  /// Query ID of the change owner request.
+  queryId: bigint
+
+  /// Function selector to unblock.
+  selector: number
+}
+
+// @dev Directly execute a batch of transactions, bypassing any other checks.
+export type BypasserExecuteBatch = {
+  /// Query ID of the change owner request.
+  queryId: bigint
+
+  // Array of calls to be scheduled
+  calls: Cell // vec<Timelock_Call>
+}
+
+/// @dev Union of all (input) messages.
+export type Message =
+  | Init
+  | TopUp
+  | ScheduleBatch
+  | Cancel
+  | ExecuteBatch
+  | UpdateDelay
+  | UnblockFunctionSelector
+  | BlockFunctionSelector
+  | UnblockFunctionSelector
+  | BypasserExecuteBatch
+
 export type RBACTimelockStorage = {
   minDelay: number
   timestamp?: Dictionary<Buffer, Buffer>
@@ -52,8 +162,97 @@ export const opcodes = {
   },
 }
 
+export const builder = {
+  message: {
+    encode: () => ({
+      // Creates a new `AccessControl_Init` message.
+      init: (msg: Init): Cell => {
+        return beginCell()
+          .storeUint(opcodes.in.Init, 32)
+          .storeUint(msg.queryId, 64)
+          .storeUint(msg.minDelay, 32)
+          .storeAddress(msg.admin)
+          .storeRef(msg.proposers)
+          .storeRef(msg.executors)
+          .storeRef(msg.cancellers)
+          .storeRef(msg.bypassers)
+          .endCell()
+      },
+      // Creates a new `Timelock_TopUp` message.
+      topUp: (msg: TopUp): Cell => {
+        return beginCell() // break line
+          .storeUint(opcodes.in.TopUp, 32)
+          .storeUint(msg.queryId, 64)
+          .endCell()
+      },
+      // Creates a new `Timelock_ScheduleBatch` message.
+      scheduleBatch: (msg: ScheduleBatch): Cell => {
+        return beginCell()
+          .storeUint(opcodes.in.ScheduleBatch, 32)
+          .storeUint(msg.queryId, 64)
+          .storeRef(msg.calls)
+          .storeUint(msg.predecessor, 256)
+          .storeUint(msg.salt, 256)
+          .storeUint(msg.delay, 32)
+          .endCell()
+      },
+      // Creates a new `Timelock_Cancel` message.
+      cancel: (msg: Cancel): Cell => {
+        return beginCell()
+          .storeUint(opcodes.in.Cancel, 32)
+          .storeUint(msg.queryId, 64)
+          .storeUint(msg.id, 256)
+          .endCell()
+      },
+      // Creates a new `Timelock_ExecuteBatch` message.
+      executeBatch: (msg: ExecuteBatch): Cell => {
+        return beginCell()
+          .storeUint(opcodes.in.ExecuteBatch, 32)
+          .storeUint(msg.queryId, 64)
+          .storeRef(msg.calls)
+          .storeUint(msg.predecessor, 256)
+          .storeUint(msg.salt, 256)
+          .endCell()
+      },
+      // Creates a new `Timelock_UpdateDelay` message.
+      updateDelay: (msg: UpdateDelay): Cell => {
+        return beginCell()
+          .storeUint(opcodes.in.UpdateDelay, 32)
+          .storeUint(msg.queryId, 64)
+          .storeUint(msg.newDelay, 32)
+          .endCell()
+      },
+      // Creates a new `Timelock_BlockFunctionSelector` message.
+      blockFunctionSelector: (msg: BlockFunctionSelector): Cell => {
+        return beginCell()
+          .storeUint(opcodes.in.BlockFunctionSelector, 32)
+          .storeUint(msg.queryId, 64)
+          .storeUint(msg.selector, 32)
+          .endCell()
+      },
+      // Creates a new `Timelock_UnblockFunctionSelector` message.
+      unblockFunctionSelector: (msg: UnblockFunctionSelector): Cell => {
+        return beginCell()
+          .storeUint(opcodes.in.UnblockFunctionSelector, 32)
+          .storeUint(msg.queryId, 64)
+          .storeUint(msg.selector, 32)
+          .endCell()
+      },
+      // Creates a new `Timelock_BypasserExecuteBatch` message.
+      bypasserExecuteBatch: (msg: BypasserExecuteBatch): Cell => {
+        return beginCell()
+          .storeUint(opcodes.in.BypasserExecuteBatch, 32)
+          .storeUint(msg.queryId, 64)
+          .storeRef(msg.calls)
+          .endCell()
+      },
+    }),
+    decode: {}, // Decoding functions can be added here if needed
+  },
+  data: {},
+}
+
 export const Builder = {
-  /// Creates a new `AccessControl_GrantRole` message.
   asStorage: (config: RBACTimelockStorage): Cell => {
     return beginCell()
       .storeUint(config.minDelay, 64)
