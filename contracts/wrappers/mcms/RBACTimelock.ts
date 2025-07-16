@@ -13,16 +13,16 @@ import { crc32 } from 'zlib'
 
 // @dev Initializes the contract
 export type Init = {
-  /// Query ID of the change owner request.
+  // Query ID of the change owner request.
   queryId: bigint
 
-  /// Minimum delay in seconds for future operations.
+  // Minimum delay in seconds for future operations.
   minDelay: bigint
 
-  /// Address of the admin account.
+  // Address of the admin account.
   admin: Address
 
-  /// Collection of addresses to be granted proposer, executor, canceller and bypasser roles.
+  // Collection of addresses to be granted proposer, executor, canceller and bypasser roles.
   proposers: Cell // vec<address>
   executors: Cell // vec<address>
   cancellers: Cell // vec<address>
@@ -31,13 +31,13 @@ export type Init = {
 
 // @dev Top up contract with TON coins.
 export type TopUp = {
-  /// Query ID of the change owner request.
+  // Query ID of the change owner request.
   queryId: bigint
 }
 
 // @dev Schedule an operation containing a batch of transactions.
 export type ScheduleBatch = {
-  /// Query ID of the change owner request.
+  // Query ID of the change owner request.
   queryId: bigint
 
   // Array of calls to be scheduled
@@ -52,16 +52,16 @@ export type ScheduleBatch = {
 
 // @dev Cancel an operation.
 export type Cancel = {
-  /// Query ID of the change owner request.
+  // Query ID of the change owner request.
   queryId: bigint
 
-  /// ID of the operation to cancel.
+  // ID of the operation to cancel.
   id: bigint
 }
 
 // @dev Execute an (ready) operation containing a batch of transactions.
 export type ExecuteBatch = {
-  /// Query ID of the change owner request.
+  // Query ID of the change owner request.
   queryId: bigint
 
   // Array of calls to be scheduled
@@ -74,19 +74,19 @@ export type ExecuteBatch = {
 
 // @dev Changes the minimum timelock duration for future operations.
 export type UpdateDelay = {
-  /// Query ID of the change owner request.
+  // Query ID of the change owner request.
   queryId: bigint
 
-  /// New minimum delay in seconds for future operations.
+  // New minimum delay in seconds for future operations.
   newDelay: number
 }
 
 // @dev Blocks a function selector from being used
 export type BlockFunctionSelector = {
-  /// Query ID of the change owner request.
+  // Query ID of the change owner request.
   queryId: bigint
 
-  /// Function selector to block.
+  // Function selector to block.
   selector: number
 }
 
@@ -101,14 +101,14 @@ export type UnblockFunctionSelector = {
 
 // @dev Directly execute a batch of transactions, bypassing any other checks.
 export type BypasserExecuteBatch = {
-  /// Query ID of the change owner request.
+  // Query ID of the change owner request.
   queryId: bigint
 
   // Array of calls to be scheduled
   calls: Cell // vec<Timelock_Call>
 }
 
-/// @dev Union of all (input) messages.
+// @dev Union of all (input) messages.
 export type Message =
   | Init
   | TopUp
@@ -121,14 +121,30 @@ export type Message =
   | UnblockFunctionSelector
   | BypasserExecuteBatch
 
-export type RBACTimelockStorage = {
+// RBACTimelock contract storage
+export type ContractData = {
+  // Minimum delay for operations in seconds
   minDelay: number
-  timestamp?: Dictionary<Buffer, Buffer>
+  // Map of operation id to timestamp
+  timestamps?: Dictionary<Buffer, Buffer>
 
+  // Number of fn selectors blocked by the contract.
   blockedFnSelectorsLen?: number
+  // Map of blocked function selectors.
   blockedFnSelectors?: Dictionary<number, Buffer>
 
+  // AccessControl trait data
   rbac: Cell
+}
+
+// Represents a single call
+export type Call = {
+  // Address of the target contract to call.
+  target: Address
+  // Value in TONs to send with the call.
+  value: bigint
+  // Data to send with the call - message body.
+  data: Cell
 }
 
 export type ExecuteData = {
@@ -249,21 +265,30 @@ export const builder = {
     }),
     decode: {}, // Decoding functions can be added here if needed
   },
-  data: {},
-}
-
-export const Builder = {
-  asStorage: (config: RBACTimelockStorage): Cell => {
-    return beginCell()
-      .storeUint(config.minDelay, 64)
-      .storeDict(config.timestamp)
-      .storeUint(config.blockedFnSelectorsLen || 0, 32) // blocked_fn_selectors_len
-      .storeDict(
-        config.blockedFnSelectors ||
-          Dictionary.empty(Dictionary.Keys.Uint(32), Dictionary.Values.Buffer(0)),
-      )
-      .storeRef(config.rbac)
-      .endCell()
+  data: {
+    encode: () => ({
+      // Creates a new `Timelock_Data` contract data cell
+      contractData: (data: ContractData): Cell => {
+        return beginCell()
+          .storeUint(data.minDelay, 64)
+          .storeDict(data.timestamps)
+          .storeUint(data.blockedFnSelectorsLen || 0, 32) // blocked_fn_selectors_len
+          .storeDict(
+            data.blockedFnSelectors ||
+              Dictionary.empty(Dictionary.Keys.Uint(32), Dictionary.Values.Buffer(0)),
+          )
+          .storeRef(data.rbac)
+          .endCell()
+      },
+      // Creates a new `Timelock_Call.hasRole` data cell
+      call: (call: Call): Cell => {
+        return beginCell()
+          .storeAddress(call.target)
+          .storeCoins(call.value)
+          .storeRef(call.data)
+          .endCell()
+      },
+    }),
   },
 }
 
@@ -321,13 +346,12 @@ export class RBACTimelock implements Contract {
     readonly init?: { code: Cell; data: Cell },
   ) {}
 
-  static createFromAddress(address: Address) {
+  static newAt(address: Address): RBACTimelock {
     return new RBACTimelock(address)
   }
 
-  static createFromConfig(config: RBACTimelockStorage, code: Cell, workchain = 0) {
-    const data = Builder.asStorage(config)
-    const init = { code, data }
+  static newFrom(data: ContractData, code: Cell, workchain = 0) {
+    const init = { code, data: builder.data.encode().contractData(data) }
     return new RBACTimelock(contractAddress(workchain, init), init)
   }
 
