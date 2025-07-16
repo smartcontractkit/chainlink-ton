@@ -223,7 +223,6 @@ type Timelock_InMessage = Timelock_Init
     | Timelock_Cancel
     | Timelock_ExecuteBatch
     | Timelock_UpdateDelay
-    | Timelock_UnblockFunctionSelector
     | Timelock_BlockFunctionSelector
     | Timelock_UnblockFunctionSelector
     | Timelock_BypasserExecuteBatch;
@@ -328,7 +327,7 @@ struct Timelock_Data {
 
     /// Minimum delay for operations in seconds
     minDelay: uint64;
-    // Map of operation id to timestamp
+    /// Map of operation id to timestamp
     timestamps: dict;
 
     /// Number of fn selectors blocked by the contract.

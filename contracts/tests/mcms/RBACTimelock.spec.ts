@@ -4,13 +4,12 @@ import '@ton/test-utils'
 import { compile } from '@ton/blueprint'
 import {
   opcodes,
+  builder,
   Errors,
   ExecuteData,
   Opcodes,
   Params,
-  Builder,
   RBACTimelock,
-  RBACTimelockStorage,
 } from '../../wrappers/mcms/RBACTimelock'
 
 import * as ac from '../../wrappers/lib/access/AccessControl'
@@ -63,8 +62,8 @@ describe('RBACTimelock', () => {
       rbac: ac.builder.data.encode().contractData(rbacStorage),
     }
 
-    timelock = blockchain.openContract(RBACTimelock.createFromConfig(data, code))
-    acContract = blockchain.openContract(ac.AccessControl.newFrom(timelock.address))
+    timelock = blockchain.openContract(RBACTimelock.newFrom(data, code))
+    acContract = blockchain.openContract(ac.AccessControl.newAt(timelock.address))
   })
 
   it('Should compute crc32 opcodes', async () => {
