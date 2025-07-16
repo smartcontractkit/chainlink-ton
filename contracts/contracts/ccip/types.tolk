@@ -71,12 +71,12 @@ struct TVM2AnyRampMessageBody {
     feeTokenAmount: uint256;
 }
 
-const LEAF_DOMAIN_SEPARATOR: int = 0x0000000000000000000000000000000000000000000000000000000000000000;
+const LEAF_DOMAIN_SEPARATOR: slice = stringHexToSlice("0000000000000000000000000000000000000000000000000000000000000000");
 
 fun Any2TVMRampMessage.generateMessageId(self, metadataHash: uint256): uint256 {
     // Loosely based on https://github.com/smartcontractkit/chainlink-ccip/blob/2d2ce6abb3f7626dbd3008e4232da4faa839feff/chains/evm/contracts/libraries/Internal.sol#L113-L134
     return beginCell()
-        .storeUint(LEAF_DOMAIN_SEPARATOR, 256)
+        .storeSlice(LEAF_DOMAIN_SEPARATOR)
         .storeUint(metadataHash, 256)
         // header
         .storeRef(
@@ -99,7 +99,7 @@ fun Any2TVMRampMessage.generateMessageId(self, metadataHash: uint256): uint256 {
 fun TVM2AnyRampMessage.generateMessageId(self, metadataHash: uint256): uint256 {
     // Loosely based on https://github.com/smartcontractkit/chainlink/blob/d1a9f8be2f222ea30bdf7182aaa6428bfa605cf7/contracts/src/v0.8/ccip/libraries/Internal.sol#L137-L154
     return beginCell()
-        .storeUint(LEAF_DOMAIN_SEPARATOR, 256)
+        .storeSlice(LEAF_DOMAIN_SEPARATOR)
         .storeUint(metadataHash, 256)
         // header
         .storeAddress(self.sender)
