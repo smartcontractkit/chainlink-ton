@@ -37,7 +37,7 @@ struct RampMessageHeader { // 512
 
 struct Any2TVMRampMessage {
     header: RampMessageHeader;
-    sender: cell;
+    sender: Cell<CrossChainAddress>;
     data: cell;
     receiver: address;
     gasLimit: coins;
@@ -60,7 +60,6 @@ struct TVM2AnyRampMessage {
     feeValueJuels: uint96; // entire supply of LINK always fits into u96
 }
 
-// NOTE: overflows because receiver is up to byte64, and fee token data is 3*256
 struct TVM2AnyRampMessageBody {
     receiver: Cell<CrossChainAddress>;
     data: cell;
