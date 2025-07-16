@@ -328,12 +328,12 @@ struct Timelock_Data {
     /// Minimum delay for operations in seconds
     minDelay: uint64;
     /// Map of operation id to timestamp
-    timestamps: dict;
+    timestamps: dict; // map<int, uint32>
 
     /// Number of fn selectors blocked by the contract.
     blockedFnSelectorsLen: uint32;
     /// Map of blocked function selectors.
-    blockedFnSelectors: dict;
+    blockedFnSelectors: dict; // map<uint32, slice>
 
     /// AccessControl trait data
     rbac: Cell<AccessControl_Data>;
@@ -379,7 +379,7 @@ struct Timelock_Hooks<T> {
     rbac: AccessControl_Hooks<T>;
 
     /// Hook to get the identifier of an operation containing a batch of transactions.
-    hashOperationBatch: ((T, OperationBatch) -> uint256)?;
+    hashOperationBatch: ((T?, OperationBatch) -> uint256)?;
 }
 
 // --- Constants ---
@@ -479,7 +479,7 @@ fun Timelock<T>.getMinDelay(self): uint64 {
 /// Override available via {Timelock_Hooks<T>.hashOperationBatch} hook.
 fun Timelock<T>.hashOperationBatch(self, op: OperationBatch): uint256 {
     if (self.hooks != null && self.hooks.hashOperationBatch != null) {
-        return self.hooks.hashOperationBatch(self.context!, op); // extension hook
+        return self.hooks.hashOperationBatch(self.context, op); // extension hook
     }
 
     // Fallback to taking the standard cell hash of the operation
