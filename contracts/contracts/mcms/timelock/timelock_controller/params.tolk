@@ -1,7 +1,0 @@
-tolk 1.0
-
-const UNSET_STATE = 0;
-const WAITING_STATE = 1;
-const READY_STATE = 2;
-const DONE_STATE = 3;
-const MIN_TON_FOR_STORAGE = 1000000000; // 1 TON
