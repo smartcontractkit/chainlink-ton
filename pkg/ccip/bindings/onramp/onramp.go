@@ -40,7 +40,7 @@ type TokenAmount struct {
 type CCIPSend struct {
 	QueryID                  uint64                        `tlb:"## 64"`
 	DestinationChainSelector uint64                        `tlb:"## 64"`
-	Receiver                 common.SnakeBytes             `tlb:"^"`
+	Receiver                 common.CrossChainAddress      `tlb:"."`
 	TokenAmounts             common.SnakeData[TokenAmount] `tlb:"^"`
 	ExtraArgs                *cell.Cell                    `tlb:"^"` // four bytes tag + GenericExtraArgsV2 or SVMExtraArgsV1
 }

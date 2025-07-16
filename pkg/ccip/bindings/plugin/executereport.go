@@ -13,20 +13,20 @@ import (
 // ExecuteReport represents CCIP execute report messages on the TON blockchain.
 type ExecuteReport struct {
 	SourceChainSelector uint64                              `tlb:"## 64"`
-	Messages            common.SnakeRef[Any2TONRampMessage] `tlb:"^"`
+	Messages            common.SnakeRef[Any2TVMRampMessage] `tlb:"^"`
 	OffChainTokenData   common.SnakeRef[common.SnakeBytes]  `tlb:"^"`
-	Proofs              common.SnakeData[Signature]         `tlb:"^"` // []Signature
+	Proofs              common.SnakeData[common.Signature]  `tlb:"^"` // []Signature
 	ProofFlagBits       *big.Int                            `tlb:"## 256"`
 }
 
-// Any2TONRampMessage represents ramp message, which is part of the execute report.
-type Any2TONRampMessage struct {
+// Any2TVMRampMessage represents ramp message, which is part of the execute report.
+type Any2TVMRampMessage struct {
 	Header       RampMessageHeader                     `tlb:"."`
-	Sender       common.SnakeBytes                     `tlb:"^"`
+	Sender       common.CrossChainAddress              `tlb:"."`
 	Data         common.SnakeBytes                     `tlb:"^"`
 	Receiver     *address.Address                      `tlb:"addr"`
 	GasLimit     tlb.Coins                             `tlb:"."`
-	TokenAmounts common.SnakeRef[Any2TONTokenTransfer] `tlb:"^"`
+	TokenAmounts common.SnakeRef[Any2TVMTokenTransfer] `tlb:"^"`
 }
 
 // RampMessageHeader contains metadata for a ramp message.
@@ -38,11 +38,11 @@ type RampMessageHeader struct {
 	Nonce               uint64 `tlb:"## 64"`
 }
 
-// Any2TONTokenTransfer represents a token transfer within a ramp message.
-type Any2TONTokenTransfer struct {
-	SourcePoolAddress *cell.Cell       `tlb:"^"`
-	DestPoolAddress   *address.Address `tlb:"addr"`
-	DestGasAmount     uint32           `tlb:"## 32"`
-	ExtraData         *cell.Cell       `tlb:"^"`
-	Amount            *big.Int         `tlb:"## 256"`
+// Any2TVMTokenTransfer represents a token transfer within a ramp message.
+type Any2TVMTokenTransfer struct {
+	SourcePoolAddress common.CrossChainAddress `tlb:"."`
+	DestPoolAddress   *address.Address         `tlb:"addr"`
+	DestGasAmount     uint32                   `tlb:"## 32"`
+	ExtraData         *cell.Cell               `tlb:"^"`
+	Amount            *big.Int                 `tlb:"## 256"`
 }

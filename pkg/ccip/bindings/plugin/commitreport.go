@@ -10,9 +10,9 @@ import (
 
 // CommitReport represents the top-level structure for a commit report.
 type CommitReport struct {
-	PriceUpdates  PriceUpdates                `tlb:"^"`
-	MerkleRoot    MerkleRoots                 `tlb:"^"`
-	RMNSignatures common.SnakeData[Signature] `tlb:"^"`
+	PriceUpdates  PriceUpdates                       `tlb:"^"`
+	MerkleRoot    MerkleRoots                        `tlb:"^"`
+	RMNSignatures common.SnakeData[common.Signature] `tlb:"^"`
 }
 
 // MerkleRoots holds the blessed and unblessed Merkle roots.
@@ -41,14 +41,9 @@ type GasPriceUpdate struct {
 
 // MerkleRoot represents a Merkle root for a chain's data.
 type MerkleRoot struct {
-	SourceChainSelector uint64 `tlb:"## 64"`
-	OnRampAddress       []byte `tlb:"bits 512"`
-	MinSeqNr            uint64 `tlb:"## 64"`
-	MaxSeqNr            uint64 `tlb:"## 64"`
-	MerkleRoot          []byte `tlb:"bits 256"`
-}
-
-// Signature represents an ED25519 signature.
-type Signature struct {
-	Sig []byte `tlb:"bits 256"`
+	SourceChainSelector uint64                   `tlb:"## 64"`
+	OnRampAddress       common.CrossChainAddress `tlb:"."`
+	MinSeqNr            uint64                   `tlb:"## 64"`
+	MaxSeqNr            uint64                   `tlb:"## 64"`
+	MerkleRoot          []byte                   `tlb:"bits 256"`
 }

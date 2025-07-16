@@ -8,6 +8,8 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 )
 
 func TestCommitReport_EncodingAndDecoding(t *testing.T) {
@@ -59,31 +61,32 @@ func TestCommitReport_EncodingAndDecoding(t *testing.T) {
 		},
 	}
 	require.NoError(t, err)
+	onrampAddr := common.CrossChainAddress{0x01, 0x02, 0x03, 0x04, 0x05}
 	merkleRoots := []MerkleRoot{
 		{
 			SourceChainSelector: 1,
-			OnRampAddress:       make([]byte, 512),
+			OnRampAddress:       onrampAddr,
 			MinSeqNr:            100,
 			MaxSeqNr:            200,
 			MerkleRoot:          make([]byte, 32),
 		},
 		{
 			SourceChainSelector: 1,
-			OnRampAddress:       make([]byte, 512),
+			OnRampAddress:       onrampAddr,
 			MinSeqNr:            100,
 			MaxSeqNr:            200,
 			MerkleRoot:          make([]byte, 32),
 		},
 		{
 			SourceChainSelector: 1,
-			OnRampAddress:       make([]byte, 512),
+			OnRampAddress:       onrampAddr,
 			MinSeqNr:            100,
 			MaxSeqNr:            200,
 			MerkleRoot:          make([]byte, 32),
 		},
 	}
 	require.NoError(t, err)
-	signatureCell := []Signature{
+	signatureCell := []common.Signature{
 		{
 			Sig: make([]byte, 32),
 		},

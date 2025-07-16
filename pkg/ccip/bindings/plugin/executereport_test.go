@@ -15,56 +15,55 @@ import (
 func TestTokenAmounts(t *testing.T) {
 	addr, err := address.ParseAddr("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")
 	require.NoError(t, err)
-	dummyCell1, err := common.NewDummyCell()
-	require.NoError(t, err)
-	dummyCell2, err := common.NewDummyCell()
+	dummyCell, err := common.NewDummyCell()
 	require.NoError(t, err)
 
-	tokenAmountsCell, err := tlb.ToCell(common.SnakeRef[Any2TONTokenTransfer]{
+	onrampAddr := common.CrossChainAddress{0x01, 0x02, 0x03, 0x04, 0x05}
+	tokenAmountsCell, err := tlb.ToCell(common.SnakeRef[Any2TVMTokenTransfer]{
 		{
-			SourcePoolAddress: dummyCell1,
+			SourcePoolAddress: onrampAddr,
 			DestPoolAddress:   addr,
 			DestGasAmount:     1000,
-			ExtraData:         dummyCell2,
+			ExtraData:         dummyCell,
 			Amount:            big.NewInt(10),
 		},
 		{
-			SourcePoolAddress: dummyCell1,
+			SourcePoolAddress: onrampAddr,
 			DestPoolAddress:   addr,
 			DestGasAmount:     1000,
-			ExtraData:         dummyCell2,
+			ExtraData:         dummyCell,
 			Amount:            big.NewInt(10),
 		},
 		{
-			SourcePoolAddress: dummyCell1,
+			SourcePoolAddress: onrampAddr,
 			DestPoolAddress:   addr,
 			DestGasAmount:     1000,
-			ExtraData:         dummyCell2,
+			ExtraData:         dummyCell,
 			Amount:            big.NewInt(10),
 		}, {
-			SourcePoolAddress: dummyCell1,
+			SourcePoolAddress: onrampAddr,
 			DestPoolAddress:   addr,
 			DestGasAmount:     1000,
-			ExtraData:         dummyCell2,
+			ExtraData:         dummyCell,
 			Amount:            big.NewInt(10),
 		},
 		{
-			SourcePoolAddress: dummyCell1,
+			SourcePoolAddress: onrampAddr,
 			DestPoolAddress:   addr,
 			DestGasAmount:     1000,
-			ExtraData:         dummyCell2,
+			ExtraData:         dummyCell,
 			Amount:            big.NewInt(10),
 		},
 		{
-			SourcePoolAddress: dummyCell1,
+			SourcePoolAddress: onrampAddr,
 			DestPoolAddress:   addr,
 			DestGasAmount:     1000,
-			ExtraData:         dummyCell2,
+			ExtraData:         dummyCell,
 			Amount:            big.NewInt(10),
 		},
 	})
 	require.NoError(t, err)
-	array := common.SnakeRef[Any2TONTokenTransfer]{}
+	array := common.SnakeRef[Any2TVMTokenTransfer]{}
 	err = tlb.LoadFromCell(&array, tokenAmountsCell.BeginParse())
 	require.NoError(t, err)
 	require.Len(t, array, 6)
@@ -75,24 +74,24 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 	require.NoError(t, err)
 	dummyCell, err := common.NewDummyCell()
 	require.NoError(t, err)
-
-	tokenAmountsSlice := []Any2TONTokenTransfer{
+	onrampAddr := common.CrossChainAddress{0x01, 0x02, 0x03, 0x04, 0x05}
+	tokenAmountsSlice := []Any2TVMTokenTransfer{
 		{
-			SourcePoolAddress: dummyCell,
+			SourcePoolAddress: onrampAddr,
 			DestPoolAddress:   addr,
 			DestGasAmount:     1000,
 			ExtraData:         dummyCell,
 			Amount:            big.NewInt(10),
 		},
 		{
-			SourcePoolAddress: dummyCell,
+			SourcePoolAddress: onrampAddr,
 			DestPoolAddress:   addr,
 			DestGasAmount:     1000,
 			ExtraData:         dummyCell,
 			Amount:            big.NewInt(20),
 		},
 		{
-			SourcePoolAddress: dummyCell,
+			SourcePoolAddress: onrampAddr,
 			DestPoolAddress:   addr,
 			DestGasAmount:     1000,
 			ExtraData:         dummyCell,
@@ -100,7 +99,7 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 		},
 	}
 
-	rampMessageSlice := []Any2TONRampMessage{
+	rampMessageSlice := []Any2TVMRampMessage{
 		{
 			Header: RampMessageHeader{
 				MessageID:           make([]byte, 32),
@@ -109,7 +108,7 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 				SequenceNumber:      1,
 				Nonce:               0,
 			},
-			Sender:       make([]byte, 64),
+			Sender:       onrampAddr,
 			Data:         make([]byte, 1000),
 			Receiver:     addr,
 			GasLimit:     tlb.MustFromNano(big.NewInt(1000), 1),
@@ -123,7 +122,7 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 				SequenceNumber:      2,
 				Nonce:               1,
 			},
-			Sender:       make([]byte, 64),
+			Sender:       onrampAddr,
 			Data:         make([]byte, 1000),
 			Receiver:     addr,
 			GasLimit:     tlb.MustFromNano(big.NewInt(1000), 1),
@@ -131,7 +130,7 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 		},
 	}
 
-	signatureCell := []Signature{
+	signatureCell := []common.Signature{
 		{
 			Sig: make([]byte, 32),
 		},

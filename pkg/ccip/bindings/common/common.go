@@ -1,12 +1,74 @@
 package common
 
 import (
+	"errors"
 	"fmt"
 	"math"
 
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
+
+// Signature represents an ED25519 signature.
+type Signature struct {
+	Sig []byte `tlb:"bits 256"`
+}
+
+// CrossChainAddress is a type that represents a cross-chain address.
+type CrossChainAddress []byte
+
+// ToCell converts the CrossChainAddress to a cell structure.
+func (c CrossChainAddress) ToCell() (*cell.Cell, error) {
+	addrLength := len(c)
+	// max length is 64 bytes, plus 1 byte for the length prefix
+	if addrLength > 64 {
+		return nil, fmt.Errorf("crosschain address length %d exceeds maximum of 64 bytes", len(c))
+	}
+
+	if addrLength == 0 {
+		return nil, errors.New("crosschain address is empty")
+	}
+
+	builder := cell.BeginCell()
+	err := builder.StoreSlice([]byte{uint8(addrLength)}, 8) // store the first byte as length
+	if err != nil {
+		return nil, err
+	}
+
+	if err := builder.StoreSlice(c, uint(len(c))*8); err != nil {
+		return nil, fmt.Errorf("failed to store cross-chain address: %w", err)
+	}
+	return builder.EndCell(), nil
+}
+
+func (c *CrossChainAddress) LoadFromCell(s *cell.Slice) error {
+	if s.BitsLeft() < 8 {
+		return errors.New("crosschain address is too short")
+	}
+
+	length, err := s.LoadSlice(8)
+	if err != nil {
+		return fmt.Errorf("failed to load cross-chain address length: %w", err)
+	}
+
+	addrLength := int(length[0]) // first byte is the length
+	if addrLength < 1 || addrLength > 64 {
+		return fmt.Errorf("invalid crosschain address length %d", addrLength)
+	}
+
+	// Check if the remaining bits are enough for the address
+	if s.BitsLeft() < uint(addrLength)*8 {
+		return errors.New("crosschain address is too short")
+	}
+
+	addr, err := s.LoadSlice(uint(addrLength) * 8)
+	if err != nil {
+		return fmt.Errorf("failed to load cross-chain address: %w", err)
+	}
+
+	*c = addr
+	return nil
+}
 
 // PackArrayWithRefChaining packs a slice of any serializable type T into a linked cell structure,
 // storing each element as a cell reference. When only one reference slot is left, it starts a new cell

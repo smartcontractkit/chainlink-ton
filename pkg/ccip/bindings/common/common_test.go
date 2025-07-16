@@ -12,6 +12,76 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
+func TestCrossChainAddress_ToCell(t *testing.T) {
+	tests := []struct {
+		name      string
+		addr      CrossChainAddress
+		expectErr bool
+	}{
+		{"empty address", CrossChainAddress{}, true},
+		{"too short", CrossChainAddress{0x05}, false},
+		{"valid address", CrossChainAddress{0x01, 0xFF}, false},
+		{"too long", CrossChainAddress(make([]byte, 66)), true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c, err := tt.addr.ToCell()
+			if tt.expectErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.NotNil(t, c)
+			}
+		})
+	}
+}
+
+func TestCrossChainAddress_LoadFromCell(t *testing.T) {
+	tests := []struct {
+		name      string
+		setupData []byte
+		expectErr bool
+	}{
+		{"valid data", []byte{0x01, 0xFF}, false},
+		{"invalid length", []byte{0x00}, true},
+		{"too long", []byte{0x41}, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			builder := cell.BeginCell()
+			err := builder.StoreSlice(tt.setupData, uint(len(tt.setupData))*8)
+			require.NoError(t, err)
+
+			c := builder.EndCell()
+			var addr CrossChainAddress
+			err = addr.LoadFromCell(c.BeginParse())
+
+			if tt.expectErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tt.setupData[1:], []byte(addr))
+			}
+		})
+	}
+}
+
+func TestCrossChainAddress_RoundTrip(t *testing.T) {
+	original := CrossChainAddress{0x05, 0x01, 0x02, 0x03, 0x04, 0x05}
+
+	c, err := original.ToCell()
+	require.NoError(t, err)
+	require.Equal(t, uint(56), c.BitsSize(), "CrossChainAddress should be 56 bits (7 bytes)")
+
+	var restored CrossChainAddress
+	err = restored.LoadFromCell(c.BeginParse())
+	require.NoError(t, err)
+
+	require.Equal(t, original, restored)
+}
+
 func TestPackAndUnloadCellToByteArray(t *testing.T) {
 	tests := []struct {
 		name  string
