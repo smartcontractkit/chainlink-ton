@@ -38,26 +38,16 @@ fun OnrampMock.store(data: OnrampMock) {
 
 fun OnrampMock.handleJettonTransferNotification(
     mutate self,
-    msg: JettonNotification,
+    msg: TransferNotificationForRecipient,
     sender: address,
 ) {
     // Check if the sender is our jetton wallet
     assert(sender == self.JettonClient.walletAddress(), INCORRECT_SENDER_ERROR);
 
-    var forwardPayloadCell: cell;
-    var msgForwardPayload: slice | cell = msg.forwardPayload;
-    match (msgForwardPayload) {
-        slice => {
-            assert (msgForwardPayload.isEmpty() == false) throw FORWARD_PAYLOAD_REQUIRED_ERROR;
-            forwardPayloadCell = beginCell().storeSlice(msgForwardPayload).endCell();
-        }
-        cell => {
-            forwardPayloadCell = msgForwardPayload;
-        }
-    }
+    var forwardPayloadCell = loadForwardPayloadAsCell(msg.forwardPayload);
 
     // Handle the jetton transfer
-    if (msg.amount < FEE) {
+    if (msg.jettonAmount < FEE) {
         emit(JETTON_TOPIC, InsufficientFee { queryId: msg.queryId, sender: sender });
     } else {
         emit(
@@ -71,7 +61,7 @@ fun OnrampMock.handleJettonTransferNotification(
     }
 }
 
-type IncomingMessage = JettonNotification
+type IncomingMessage = TransferNotificationForRecipient
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy IncomingMessage.fromSlice(in.body);
@@ -80,7 +70,7 @@ fun onInternalMessage(in: InMessage) {
 
     // Check if this is a jetton notification  
     match (msg) {
-        JettonNotification => {
+        TransferNotificationForRecipient => {
             this.handleJettonTransferNotification(msg, in.senderAddress);
         }
         else => {

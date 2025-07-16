@@ -20,7 +20,7 @@ fun SimpleJettonReceiver.store(self) {
     contract.setData(self.toCell());
 }
 
-type IncomingMessage = JettonNotification
+type IncomingMessage = TransferNotificationForRecipient
 
 fun onInternalMessage(in: InMessage) {
     if (in.body.isEmpty()) {
@@ -33,7 +33,7 @@ fun onInternalMessage(in: InMessage) {
     var this = SimpleJettonReceiver.load();
 
     match (msg) {
-        JettonNotification => {
+        TransferNotificationForRecipient => {
             this.handleJettonTransferNotification(msg, in.senderAddress);
         }
     }
@@ -41,26 +41,15 @@ fun onInternalMessage(in: InMessage) {
 
 fun JettonReceiver.handleJettonTransferNotification(
     mutate self,
-    msg: JettonNotification,
+    msg: TransferNotificationForRecipient,
     sender: address,
 ) {
     // Check if the sender is our jetton wallet
     assert (self.JettonClient.isWallet(sender)) throw INCORRECT_SENDER_ERROR;
 
     // Handle the jetton transfer - simple implementation just updates trackers
-    self.amountChecker += msg.amount;
-    match (msg.forwardPayload) {
-        RemainingBitsAndRefs => {
-            // If the forward payload is empty, we store null
-            self.payloadChecker = beginCell().storeSlice(msg.forwardPayload).endCell();
-        }
-        cell => {
-            // If the forward payload is a cell, we store it
-            self.payloadChecker = msg.forwardPayload;
-        }
-    }
-
-    self.store();
+    self.amountChecker += msg.jettonAmount;
+    self.payloadChecker = loadMaybeForwardPayloadAsCell(msg.forwardPayload);
 }
 
 get fun amountChecker(): coins {

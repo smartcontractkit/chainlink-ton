@@ -1,4 +1,5 @@
 import "./utils.tolk"
+import "messages"
 import "../../lib/jetton/messages.tolk"
 
 struct JettonClient {
@@ -36,14 +37,14 @@ fun JettonClient.sendSimple(
         bounce: sendOptions.bounce,
         value: sendOptions.value,
         dest: self.walletAddress(),
-        body: JettonTransfer {
+        body: AskToTransfer {
             queryId: queryId,
-            amount: amount,
-            destination: destination,
-            responseDestination: contract.getAddress(),
+            jettonAmount: amount,
+            transferRecipient: destination,
+            sendExcessesTo: contract.getAddress(),
             customPayload: null,
             forwardTonAmount: 0,
-            forwardPayload: beginCell().endCell().beginParse(),
+            forwardPayload: beginCell().storeBool(false).endCell().beginParse(),
         },
     })
         .send(sendMode);
@@ -62,19 +63,28 @@ fun JettonClient.sendExtended(
     forwardTonAmount: coins,
     forwardPayload: slice | cell,
 ) {
+    var body = beginCell().storeAny(AskToTransfer {
+        queryId: queryId,
+        jettonAmount: amount,
+        transferRecipient: destination,
+        sendExcessesTo: responseDestination,
+        customPayload: customPayload,
+        forwardTonAmount: forwardTonAmount,
+        forwardPayload: beginCell().endCell().beginParse(),
+    });
+    match (forwardPayload) {
+        cell => {
+            body.storeMaybeRef(forwardPayload);
+        }
+        slice => {
+            body.storeBool(false).storeSlice(forwardPayload);
+        }
+    }
     createMessage({
         bounce: sendOptions.bounce,
         value: sendOptions.value,
         dest: self.walletAddress(),
-        body: JettonTransfer {
-            queryId: queryId,
-            amount: amount,
-            destination: destination,
-            responseDestination: responseDestination,
-            customPayload: customPayload,
-            forwardTonAmount: forwardTonAmount,
-            forwardPayload: forwardPayload,
-        },
+        body: body,
     })
         .send(sendMode);
 }
@@ -83,4 +93,52 @@ fun JettonClient.sendExtended(
 @inline
 fun JettonClient.isWallet(self, sender: address): bool {
     return sender == self.walletAddress();
+}
+
+@inline
+fun loadMaybeForwardPayloadAsCell(forwardPayload: ForwardPayloadRemainder): cell? {
+    val forwardPayloadCell = forwardPayload.loadMaybeRef();
+    if (forwardPayloadCell != null) {
+        forwardPayload.assertEnd();
+        return forwardPayloadCell;
+    } else {
+        if (forwardPayload.isEmpty()) {
+            return null;
+        }
+        return beginCell().storeSlice(forwardPayload).endCell();
+    }
+}
+
+@inline
+fun loadMaybeForwardPayloadAsSlice(forwardPayload: ForwardPayloadRemainder): slice? {
+    val forwardPayloadCell = forwardPayload.loadMaybeRef();
+    if (forwardPayloadCell != null) {
+        forwardPayload.assertEnd();
+        return forwardPayloadCell!.beginParse();
+    } else {
+        if (forwardPayload.isEmpty()) {
+            return null;
+        }
+        return forwardPayload;
+    }
+}
+
+@inline
+fun loadForwardPayloadAsCell(forwardPayload: ForwardPayloadRemainder): cell? {
+    val forwardPayloadCell = forwardPayload.loadMaybeRef();
+    if (forwardPayloadCell != null) {
+        forwardPayload.assertEnd();
+        return forwardPayloadCell;
+    }
+    return beginCell().storeSlice(forwardPayload).endCell();
+}
+
+@inline
+fun loadForwardPayloadAsSlice(forwardPayload: ForwardPayloadRemainder): slice? {
+    val forwardPayloadCell = forwardPayload.loadMaybeRef();
+    if (forwardPayloadCell != null) {
+        forwardPayload.assertEnd();
+        return forwardPayloadCell!.beginParse();
+    }
+    return forwardPayload;
 }
