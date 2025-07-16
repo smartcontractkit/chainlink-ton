@@ -47,7 +47,7 @@ func CreateRandomHighloadWallet(t *testing.T, client ton.APIClientWrapped) *wall
 			// example query id which will allow you to send 1 tx per second
 			// but you better to implement your own iterator in database, then you can send unlimited
 			// but make sure id is less than 1 << 23, when it is higher start from 0 again
-			return uint32(createdAt % (1 << 23)), createdAt, nil
+			return uint32(createdAt % (1 << 23)), createdAt, nil //nolint:gosec // test wallet
 		},
 	})
 	require.NoError(t, err, "failed to generate random wallet: %w", err)

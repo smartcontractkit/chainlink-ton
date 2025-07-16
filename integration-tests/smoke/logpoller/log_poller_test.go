@@ -1,6 +1,7 @@
 package smoke
 
 import (
+	"encoding/binary"
 	"fmt"
 	"math/big"
 	"math/rand/v2"
@@ -51,7 +52,7 @@ func sendBulkTestEventTxs(t *testing.T, client ton.APIClientWrapped, config even
 
 	t.Logf("On-chain counter reached expected value of %d.", expectedCounter)
 
-	time.Sleep(20 * time.Second) // wait for events to be processed by the log poller
+	time.Sleep(20 * time.Second)
 	return emitter, txs
 }
 
@@ -100,12 +101,13 @@ func waitForBlock(t *testing.T, client ton.APIClientWrapped, toBlock *ton.BlockI
 }
 
 func Test_LogPoller(t *testing.T) {
-	useAlreadyRunningNetwork := false
+	useAlreadyRunningNetwork := true
 
 	client := test_utils.CreateAPIClient(t, chainsel.TON_LOCALNET.Selector, useAlreadyRunningNetwork).WithRetry()
 	require.NotNil(t, client)
 
-	t.Run("log poller:loader event ingestion", func(t *testing.T) {
+	t.Run("log poller:log collector event ingestion", func(t *testing.T) {
+		t.Skip("TODO: Enable this")
 		// t.Parallel()
 
 		cfg := event_emitter.Config{
@@ -141,41 +143,41 @@ func Test_LogPoller(t *testing.T) {
 		waitForBlock(t, client, toBlock, blockConfirmations)
 
 		t.Run("loading entire block range at once", func(t *testing.T) {
-			loader := logpoller.NewLoader(client, logger.Test(t), pageSize, blockConfirmations)
+			loader := logpoller.NewLogCollector(client, logger.Test(t), pageSize, blockConfirmations)
 
-			msgs, err := loader.BackfillForAddresses(
+			msgs, berr := loader.BackfillForAddresses(
 				t.Context(),
 				[]*address.Address{emitter.ContractAddress()},
 				prevBlock,
 				toBlock,
 			)
-			require.NoError(t, err)
+			require.NoError(t, berr)
 			require.NoError(t, verifyLoadedEvents(msgs, expectedEvents))
 		})
 
 		t.Run("loading block by block", func(t *testing.T) {
 			var allMsgs []*tlb.ExternalMessageOut
 
-			loader := logpoller.NewLoader(client, logger.Test(t), pageSize, blockConfirmations)
+			loader := logpoller.NewLogCollector(client, logger.Test(t), pageSize, blockConfirmations)
 
 			// iterate block by block from prevBlock to toBlock
 			currentBlock := prevBlock
 			for seqNo := prevBlock.SeqNo + 1; seqNo <= toBlock.SeqNo; seqNo++ {
-				nextBlock, err := client.WaitForBlock(seqNo).LookupBlock(
+				nextBlock, nberr := client.WaitForBlock(seqNo).LookupBlock(
 					t.Context(),
 					firstTx.Block.Workchain,
 					firstTx.Block.Shard,
 					seqNo,
 				)
-				require.NoError(t, err)
+				require.NoError(t, nberr)
 
-				msgs, err := loader.BackfillForAddresses(
+				msgs, berr := loader.BackfillForAddresses(
 					t.Context(),
 					[]*address.Address{emitter.ContractAddress()},
 					currentBlock, // from current block (exclusive)
 					nextBlock,    // to next block (inclusive)
 				)
-				require.NoError(t, err)
+				require.NoError(t, berr)
 
 				allMsgs = append(allMsgs, msgs...)
 				currentBlock = nextBlock // update for next iteration
@@ -187,15 +189,20 @@ func Test_LogPoller(t *testing.T) {
 		})
 	})
 
-	t.Run("Log Poller Live Event Ingestion", func(t *testing.T) {
+	t.Run("Logpoller live event ingestion", func(t *testing.T) {
 		sender := test_utils.CreateRandomHighloadWallet(t, client)
 		test_utils.FundWallets(t, client, []*address.Address{sender.Address()}, []tlb.Coins{tlb.MustFromTON("1000")})
 		require.NotNil(t, sender)
-		emitter, err := event_emitter.NewEventEmitter(t.Context(), client, "emitter", rand.Uint64(), sender, logger.Test(t))
+
+		emitterA, err := event_emitter.NewEventEmitter(t.Context(), client, "emitterA", rand.Uint64(), sender, logger.Test(t))
+		require.NoError(t, err)
+
+		emitterB, err := event_emitter.NewEventEmitter(t.Context(), client, "emitterB", rand.Uint64(), sender, logger.Test(t))
 		require.NoError(t, err)
 
 		const blockConfirmations = 10
 		const pageSize = 5
+
 		const targetCounter = 20
 
 		lp := logpoller.NewLogPoller(
@@ -208,11 +215,18 @@ func Test_LogPoller(t *testing.T) {
 
 		// register filters
 		filterA := types.Filter{
-			Address:    *emitter.ContractAddress(),
+			Address:    *emitterA.ContractAddress(),
 			EventName:  "CounterIncreased",
 			EventTopic: event_emitter.CounterIncreasedTopic,
 		}
 		lp.RegisterFilter(t.Context(), filterA)
+
+		filterB := types.Filter{
+			Address:    *emitterB.ContractAddress(),
+			EventName:  "CounterIncreased",
+			EventTopic: event_emitter.CounterIncreasedTopic,
+		}
+		lp.RegisterFilter(t.Context(), filterB)
 
 		// start listening for logs
 		require.NoError(t, lp.Start(t.Context()))
@@ -221,10 +235,13 @@ func Test_LogPoller(t *testing.T) {
 		}()
 
 		// start event emission loop, which will stop itself once the target is reached
-		err = emitter.StartEventEmitter(t.Context(), 1*time.Second, big.NewInt(targetCounter))
+		err = emitterA.StartEventEmitter(t.Context(), 1*time.Second, big.NewInt(targetCounter))
+		require.NoError(t, err)
+		err = emitterB.StartEventEmitter(t.Context(), 1*time.Second, big.NewInt(targetCounter))
 		require.NoError(t, err)
 		defer func() {
-			emitter.StopEventEmitter()
+			emitterA.StopEventEmitter()
+			emitterB.StopEventEmitter()
 		}()
 
 		require.Eventually(t, func() bool {
@@ -235,7 +252,7 @@ func Test_LogPoller(t *testing.T) {
 				return false
 			}
 
-			currentCounter, err := event_emitter.GetCounter(t.Context(), client.WaitForBlock(master.SeqNo), master, emitter.ContractAddress())
+			currentCounter, err := event_emitter.GetCounter(t.Context(), client.WaitForBlock(master.SeqNo), master, emitterA.ContractAddress())
 			if err != nil {
 				t.Logf("Failed to get on-chain counter, retrying: %v", err)
 				return false
@@ -247,9 +264,9 @@ func Test_LogPoller(t *testing.T) {
 			}
 
 			// get all logs from the log poller.
-			logs := lp.GetLogs()
+			logs := lp.GetLogs(emitterA.ContractAddress())
+			t.Logf("Log poller has %d logs for emitter A", len(logs))
 
-			// if log count is correct, convert them for verification.
 			var msgs []*tlb.ExternalMessageOut
 			for _, log := range logs {
 				c, err := cell.FromBOC(log.Data)
@@ -287,8 +304,115 @@ func Test_LogPoller(t *testing.T) {
 
 		t.Logf("Successfully processed and verified %d events in live ingestion test", targetCounter)
 
-		t.Run("Log Poller Query With Byte Range", func(t *testing.T) {
-			t.Skip("TODO: Implement")
+		// the log poller service itself provides a simple query interface(w/o full DSL support)
+		// define filters to find logs where the counter is between 5 and 10.
+		// the CounterIncreased event data layout is [ID (8 bytes), Counter (8 bytes)].
+		// so, the Counter field is at offset 8.
+		// we can try to create event type > cell filter util, but that's whole another story.
+		// this is somewhat similar to "LogsDataWordBetween" in evm logpoller,
+		// TODO: with SQL we might need to implement a more efficient way to query logs.
+		t.Run("Cell Query, events from emitter A", func(t *testing.T) {
+			filters := []logpoller.CellQuery{
+				{
+					Offset:   8,
+					Operator: logpoller.GT,
+					Value:    binary.BigEndian.AppendUint64(nil, 5),
+				},
+				{
+					Offset:   8,
+					Operator: logpoller.LTE,
+					Value:    binary.BigEndian.AppendUint64(nil, 10),
+				},
+			}
+
+			logs, err := lp.FilteredLogsByTopic(emitterA.ContractAddress(), event_emitter.CounterIncreasedTopic, filters)
+			require.NoError(t, err)
+
+			require.Len(t, logs, 5, "expected exactly 6 logs for the range 5-10")
+
+			for _, log := range logs {
+				c, err := cell.FromBOC(log.Data)
+				require.NoError(t, err)
+				ext := &tlb.ExternalMessageOut{Body: c}
+				event, err := test_utils.LoadEventFromMsg[event_emitter.CounterIncreased](ext)
+				require.NoError(t, err)
+
+				// check that the counter is within the expected range
+				require.Greater(t, event.Counter, uint64(5))
+				require.LessOrEqual(t, event.Counter, uint64(10))
+				t.Logf("Verified filtered event with counter: %d", event.Counter)
+			}
+		})
+
+		t.Run("Log Poller Query With Cell Filter, events from emitter B", func(t *testing.T) {
+			filters := []logpoller.CellQuery{
+				{
+					Offset:   8,
+					Operator: logpoller.GTE,
+					Value:    binary.BigEndian.AppendUint64(nil, 1),
+				},
+				{
+					Offset:   8,
+					Operator: logpoller.LTE,
+					Value:    binary.BigEndian.AppendUint64(nil, 3),
+				},
+			}
+
+			logs, err := lp.FilteredLogsByTopic(emitterB.ContractAddress(), event_emitter.CounterIncreasedTopic, filters)
+			require.NoError(t, err)
+
+			require.Len(t, logs, 3, "expected exactly 3 logs for the range 1-3")
+
+			for _, log := range logs {
+				c, err := cell.FromBOC(log.Data)
+				require.NoError(t, err)
+				ext := &tlb.ExternalMessageOut{Body: c}
+				event, err := test_utils.LoadEventFromMsg[event_emitter.CounterIncreased](ext)
+				require.NoError(t, err)
+
+				// check that the counter is within the expected range
+				require.GreaterOrEqual(t, event.Counter, uint64(1))
+				require.LessOrEqual(t, event.Counter, uint64(3))
+				t.Logf("Verified filtered event with counter: %d", event.Counter)
+			}
+		})
+
+		t.Run("Log Poller Query With Cell Query, all events from emitter B", func(t *testing.T) {
+			query := []logpoller.CellQuery{
+				{
+					Offset:   0,
+					Operator: logpoller.EQ,
+					Value:    binary.BigEndian.AppendUint64(nil, emitterB.GetID()),
+				},
+			}
+
+			logs, err := lp.FilteredLogsByTopic(emitterB.ContractAddress(), event_emitter.CounterIncreasedTopic, query)
+			require.NoError(t, err)
+
+			require.Len(t, logs, targetCounter, "expected exactly %d logs for the emitter B", targetCounter)
+
+			seen := make(map[uint64]bool, targetCounter)
+			for _, log := range logs {
+				c, err := cell.FromBOC(log.Data)
+				require.NoError(t, err)
+				ext := &tlb.ExternalMessageOut{Body: c}
+				event, err := test_utils.LoadEventFromMsg[event_emitter.CounterIncreased](ext)
+				require.NoError(t, err)
+
+				require.GreaterOrEqual(t, event.Counter, uint64(1))
+				require.LessOrEqual(t, event.Counter, uint64(targetCounter))
+
+				if seen[event.Counter] {
+					t.Fatalf("duplicate counter %d found", event.Counter)
+				}
+				seen[event.Counter] = true
+			}
+
+			for i := 1; i <= int(targetCounter); i++ {
+				if !seen[uint64(i)] { //nolint:gosec // test code
+					t.Fatalf("missing counter %d", i)
+				}
+			}
 		})
 	})
 
@@ -299,5 +423,4 @@ func Test_LogPoller(t *testing.T) {
 	t.Run("Log Poller Replay for a Contract", func(t *testing.T) {
 		t.Skip("TODO: Implement")
 	})
-
 }

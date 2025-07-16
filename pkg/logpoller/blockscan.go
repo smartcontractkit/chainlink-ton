@@ -12,16 +12,22 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 )
 
-// Note: V1 -> block-based backfill with ListTransactions - Lower Liteclient calls
-// Note: V2 -> block-based backfill with GetTransactionsV2
-// Note: V3 -> block-based backfill with GetBlock(low-level) - higher memory pressure
+// TEMPORARY BENCHMARK IMPLEMENTATIONS FOR TON TRANSACTION INGESTION
+//
+// These are experimental versions used for performance testing and comparison:
+// - V1: account-based backfill with ListTransactions (Lower Liteclient calls)
+// - V2: block-based backfill with GetTransactionsV2
+// - V3: block-based backfill with GetBlock (low-level, higher memory pressure)
+//
+// These implementations will be DELETED after liteclient call benchmarking is complete
+// and the optimal approach is selected for the production TON CCIP implementation.
 // TODO: clean up after liteclient call benchmark
-func (lc *Loader) BackfillForAddressesV2(ctx context.Context, addresses []*address.Address, prevMaster, toMaster *ton.BlockIDExt) ([]*tlb.ExternalMessageOut, error) {
+func (lc *LogCollector) BackfillForAddressesV2(ctx context.Context, addresses []*address.Address, prevMaster, toMaster *ton.BlockIDExt) ([]*tlb.ExternalMessageOut, error) {
 	if prevMaster.Workchain != address.MasterchainID || toMaster.Workchain != address.MasterchainID {
 		return nil, fmt.Errorf("BackfillForAddresses now requires masterchain blocks, got workchains %d and %d", prevMaster.Workchain, toMaster.Workchain)
 	}
 
-	// GATEKEEPER LOGIC: Ensure the requested block range is safe to process.
+	// ensure the requested block range is safe to process.
 	latestMaster, err := lc.client.CurrentMasterchainInfo(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("could not get current masterchain info: %w", err)
@@ -31,7 +37,7 @@ func (lc *Loader) BackfillForAddressesV2(ctx context.Context, addresses []*addre
 			"toBlock", toMaster.SeqNo,
 			"requiredConfirmations", lc.blockConfirmations,
 			"latestMasterBlock", latestMaster.SeqNo)
-		// Not an error, just nothing to do yet.
+		// not an error, just nothing to do yet.
 		return nil, nil
 	}
 
@@ -60,7 +66,7 @@ func (lc *Loader) BackfillForAddressesV2(ctx context.Context, addresses []*addre
 	return lc.scanShardsForMessagesV2(ctx, allShardsToScan, monitoredAddresses)
 }
 
-func (lc *Loader) findAllShardsInRange(ctx context.Context, prevMaster, toMaster *ton.BlockIDExt, shardLastSeqno map[string]uint32) ([]*ton.BlockIDExt, error) {
+func (lc *LogCollector) findAllShardsInRange(ctx context.Context, prevMaster, toMaster *ton.BlockIDExt, shardLastSeqno map[string]uint32) ([]*ton.BlockIDExt, error) {
 	var allDiscoveredShards []*ton.BlockIDExt
 
 	for seqno := prevMaster.SeqNo + 1; seqno <= toMaster.SeqNo; seqno++ {
@@ -89,7 +95,7 @@ func (lc *Loader) findAllShardsInRange(ctx context.Context, prevMaster, toMaster
 	return allDiscoveredShards, nil
 }
 
-func (lc *Loader) getNotSeenShards(ctx context.Context, shard *ton.BlockIDExt, shardLastSeqno map[string]uint32) ([]*ton.BlockIDExt, error) {
+func (lc *LogCollector) getNotSeenShards(ctx context.Context, shard *ton.BlockIDExt, shardLastSeqno map[string]uint32) ([]*ton.BlockIDExt, error) {
 	if no, ok := shardLastSeqno[getShardID(shard)]; ok && no >= shard.SeqNo {
 		return nil, nil
 	}
@@ -117,7 +123,7 @@ func (lc *Loader) getNotSeenShards(ctx context.Context, shard *ton.BlockIDExt, s
 	return ret, nil
 }
 
-func (lc *Loader) BackfillForAddressesV3(ctx context.Context, addresses []*address.Address, prevMaster, toMaster *ton.BlockIDExt) ([]*tlb.ExternalMessageOut, error) {
+func (lc *LogCollector) BackfillForAddressesV3(ctx context.Context, addresses []*address.Address, prevMaster, toMaster *ton.BlockIDExt) ([]*tlb.ExternalMessageOut, error) {
 	if prevMaster.Workchain != address.MasterchainID || toMaster.Workchain != address.MasterchainID {
 		return nil, fmt.Errorf("BackfillForAddresses now requires masterchain blocks, got workchains %d and %d", prevMaster.Workchain, toMaster.Workchain)
 	}
@@ -159,7 +165,7 @@ func (lc *Loader) BackfillForAddressesV3(ctx context.Context, addresses []*addre
 	return lc.scanShardsForMessages(ctx, allShardsToScan, monitoredAddresses)
 }
 
-func (lc *Loader) scanShardsForMessages(ctx context.Context, shards []*ton.BlockIDExt, monitoredAddresses map[string]struct{}) ([]*tlb.ExternalMessageOut, error) {
+func (lc *LogCollector) scanShardsForMessages(ctx context.Context, shards []*ton.BlockIDExt, monitoredAddresses map[string]struct{}) ([]*tlb.ExternalMessageOut, error) {
 	var allMsgs []*tlb.ExternalMessageOut
 	var mu sync.Mutex
 	var wg sync.WaitGroup
@@ -191,7 +197,7 @@ func (lc *Loader) scanShardsForMessages(ctx context.Context, shards []*ton.Block
 	}
 }
 
-func (lc *Loader) scanBlock(ctx context.Context, blockToScan *ton.BlockIDExt, monitoredAddresses map[string]struct{}) ([]*tlb.ExternalMessageOut, error) {
+func (lc *LogCollector) scanBlock(ctx context.Context, blockToScan *ton.BlockIDExt, monitoredAddresses map[string]struct{}) ([]*tlb.ExternalMessageOut, error) {
 	pinnedAPI := lc.client.WaitForBlock(blockToScan.SeqNo)
 
 	block, err := pinnedAPI.GetBlockData(ctx, blockToScan)
@@ -275,7 +281,7 @@ func logTxInfos(l logger.SugaredLogger, infos []ton.TransactionShortInfo, blockS
 	l.Debugw("GetBlockTransactionsV2 batch content", "block_seqno", blockSeqno, "page", page, "transactions", txDetails)
 }
 
-func (lc *Loader) scanShardsForMessagesV2(ctx context.Context, shards []*ton.BlockIDExt, monitoredAddresses map[string]struct{}) ([]*tlb.ExternalMessageOut, error) {
+func (lc *LogCollector) scanShardsForMessagesV2(ctx context.Context, shards []*ton.BlockIDExt, monitoredAddresses map[string]struct{}) ([]*tlb.ExternalMessageOut, error) {
 	var allFoundTxs []*tlb.Transaction
 	var mu sync.Mutex
 	var wg sync.WaitGroup
@@ -327,7 +333,7 @@ func (lc *Loader) scanShardsForMessagesV2(ctx context.Context, shards []*ton.Blo
 
 	return finalMessages, nil
 }
-func (lc *Loader) fetchAllTransactionsInBlock(ctx context.Context, blockToScan *ton.BlockIDExt) ([]*tlb.Transaction, error) {
+func (lc *LogCollector) fetchAllTransactionsInBlock(ctx context.Context, blockToScan *ton.BlockIDExt) ([]*tlb.Transaction, error) {
 	var transactions []*tlb.Transaction
 	var mu sync.Mutex
 

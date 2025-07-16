@@ -22,7 +22,7 @@ func newFilters() *Filters {
 	}
 }
 
-func (f *Filters) RegisterFilter(ctx context.Context, flt types.Filter) {
+func (f *Filters) RegisterFilter(_ context.Context, flt types.Filter) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.filtersByName[flt.Name] = flt
@@ -33,7 +33,7 @@ func (f *Filters) RegisterFilter(ctx context.Context, flt types.Filter) {
 	f.filtersByAddress[a][flt.EventTopic] = struct{}{}
 }
 
-func (f *Filters) UnregisterFilter(ctx context.Context, name string) {
+func (f *Filters) UnregisterFilter(_ context.Context, name string) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	flt, ok := f.filtersByName[name]

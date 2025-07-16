@@ -13,21 +13,41 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 )
 
-// TODO: refactor as subengine, with background workers
-type Loader struct {
-	lggr               logger.SugaredLogger
-	client             ton.APIClientWrapped
-	pageSize           uint32
-	blockConfirmations uint32
+// TON LogCollector - CCIP MVP Implementation
+//
+// This LogCollector implements transaction scanning and external message extraction
+// for the TON CCIP MVP. It uses account-based transaction scanning with the
+// ListTransactions API to fetch transaction history for monitored addresses.
+//
+// Current MVP approach:
+// - Account-based scanning using ListTransactions (reduces liteclient calls)
+// - Concurrent processing per address for better performance
+// - In-memory message aggregation (will be optimized for production)
+//
+// The collector handles TON's unique transaction model where each account maintains
+// its own transaction chain with logical time (LT) ordering, allowing efficient
+// range-based scanning between blocks.
+
+// LogCollector handles scanning TON blockchain for external messages from specific addresses.
+// This is a simplified implementation for TON CCIP MVP that will be refactored into
+// a proper subengine with background workers for production use.
+//
+// TODO(NONEVM-2188): refactor as subengine, with background workers for production scalability
+type LogCollector struct {
+	lggr               logger.SugaredLogger // Logger for debugging and monitoring
+	client             ton.APIClientWrapped // TON blockchain client
+	pageSize           uint32               // Number of transactions to fetch per API call
+	blockConfirmations uint32               // Number of confirmations to wait before processing
 }
 
-func NewLoader(
+// NewLogCollector creates a new LogCollector instance for TON CCIP MVP
+func NewLogCollector(
 	client ton.APIClientWrapped,
 	lggr logger.Logger,
 	pageSize uint32,
 	blockConfirmations uint32,
-) *Loader {
-	return &Loader{
+) *LogCollector {
+	return &LogCollector{
 		lggr:               logger.Sugared(lggr),
 		client:             client,
 		pageSize:           pageSize,
@@ -35,8 +55,15 @@ func NewLoader(
 	}
 }
 
-// TODO: refactor to use background workers for scale
-func (lc *Loader) BackfillForAddresses(ctx context.Context, addresses []*address.Address, prevBlock *ton.BlockIDExt, toBlock *ton.BlockIDExt) ([]*tlb.ExternalMessageOut, error) {
+// BackfillForAddresses scans TON blockchain for external messages from specified addresses
+// between prevBlock and toBlock. This MVP implementation uses concurrent goroutines
+// per address for improved performance.
+//
+// For TON CCIP MVP, this provides sufficient throughput while keeping implementation simple.
+// Production version will use background worker pools for better resource management.
+//
+// TODO(NONEVM-2188): refactor to use background workers for scale in production
+func (lc *LogCollector) BackfillForAddresses(ctx context.Context, addresses []*address.Address, prevBlock *ton.BlockIDExt, toBlock *ton.BlockIDExt) ([]*tlb.ExternalMessageOut, error) {
 	var allMsgs []*tlb.ExternalMessageOut
 	var mu sync.Mutex
 	var wg sync.WaitGroup
@@ -58,9 +85,17 @@ func (lc *Loader) BackfillForAddresses(ctx context.Context, addresses []*address
 	return allMsgs, nil
 }
 
-// Note: (prevBlock, toBlock] is the range of blocks to fetch messages from, see getTransactionBounds for details
-// TODO: stream messages back to log poller to avoid memory overhead
-func (lc *Loader) fetchMessagesForAddress(ctx context.Context, addr *address.Address, prevBlock *ton.BlockIDExt, toBlock *ton.BlockIDExt) ([]*tlb.ExternalMessageOut, error) {
+// fetchMessagesForAddress retrieves external messages for a specific address within a block range.
+// Uses TON's account-based transaction model with logical time (LT) bounds for efficient scanning.
+//
+// The method:
+// 1. Determines LT bounds using account states at prevBlock and toBlock
+// 2. Uses ListTransactions to paginate through the account's transaction history
+// 3. Filters for ExternalMessageOut entries within the specified range
+//
+// Note: Block range (prevBlock, toBlock] is exclusive of prevBlock, inclusive of toBlock
+// TODO: stream messages back to log poller to avoid memory overhead in production
+func (lc *LogCollector) fetchMessagesForAddress(ctx context.Context, addr *address.Address, prevBlock *ton.BlockIDExt, toBlock *ton.BlockIDExt) ([]*tlb.ExternalMessageOut, error) {
 	if prevBlock != nil && prevBlock.SeqNo >= toBlock.SeqNo {
 		return nil, fmt.Errorf("prevBlock %d is not before toBlock %d", prevBlock.SeqNo, toBlock.SeqNo)
 	}
@@ -133,9 +168,12 @@ func (lc *Loader) fetchMessagesForAddress(ctx context.Context, addr *address.Add
 }
 
 /**
- * getTransactionBounds determines the logical time (LT) range for scanning transactions
- * between two blocks for a specific address on the TON blockchain.
- *
+// getTransactionBounds determines the logical time (LT) range for scanning transactions
+// between two blocks for a specific address on the TON blockchain.
+//
+// TON's account-based transaction model uses logical time (LT) to order transactions
+// within each account's transaction chain. This allows efficient range-based scanning.
+//
  * ┌prevBlock─┐ ┌fromBlock─┐     ┌─toBlock──┐
  * │ TX│TX│TX │ │ TX│TX│TX │ ... │ TX│TX│TX │
  * └────────│─┘ └─│────────┘     └────────│─┘
@@ -144,10 +182,9 @@ func (lc *Loader) fetchMessagesForAddress(ctx context.Context, addr *address.Add
  *    (startLT)
  * prevBlock: Block where the address was last seen(already processed)
  * toBlock: Block where the scan ends
- */
+*/
 //  TODO: can we reduce the number of calls to GetAccount?
-func (lc *Loader) getTransactionBounds(ctx context.Context, addr *address.Address, prevBlock *ton.BlockIDExt, toBlock *ton.BlockIDExt) (startLT, endLT uint64, endHash []byte, err error) {
-
+func (lc *LogCollector) getTransactionBounds(ctx context.Context, addr *address.Address, prevBlock *ton.BlockIDExt, toBlock *ton.BlockIDExt) (startLT, endLT uint64, endHash []byte, err error) {
 	switch {
 	case prevBlock == nil:
 		startLT = 0
@@ -162,7 +199,8 @@ func (lc *Loader) getTransactionBounds(ctx context.Context, addr *address.Addres
 	default:
 		startLT = 0
 	}
-
+	// Get the account state at toBlock to find the end boundary
+	// Wait for block confirmations before accessing account state
 	waitBlockNum := toBlock.SeqNo + lc.blockConfirmations
 	res, err := lc.client.WaitForBlock(waitBlockNum).GetAccount(ctx, toBlock, addr)
 	if err != nil {
@@ -172,6 +210,10 @@ func (lc *Loader) getTransactionBounds(ctx context.Context, addr *address.Addres
 	return startLT, res.LastTxLT, res.LastTxHash, nil
 }
 
+// logBatch provides debug logging for transaction batches during TON CCIP MVP development.
+// Helps with monitoring and debugging the transaction scanning process.
+//
+// TODO: remove debug function in production version
 func logBatch(l logger.SugaredLogger, batch []*tlb.Transaction, addr string, page int) {
 	if len(batch) == 0 {
 		l.Debugw("ListTransactions batch is empty", "address", addr, "page", page)

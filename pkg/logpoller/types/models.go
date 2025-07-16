@@ -6,6 +6,16 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 )
 
+// TON CCIP MVP Types
+//
+// This package contains minimal type definitions for TON CCIP MVP implementation.
+// These types will be expanded with additional fields for replay functionality,
+// easier debugging, block data, and other production features as needed.
+//
+// Current implementation focuses on core log polling and filtering capabilities.
+// Future enhancements will include more comprehensive block and transaction data
+// similar to the Solana implementation pattern.
+
 type Filter struct {
 	ID            int64
 	Name          string
@@ -14,7 +24,7 @@ type Filter struct {
 	EventTopic    uint64 // topic identifier of a event log
 	StartingSeqNo uint32 // set starting seqno when registering the filter
 	Retention     time.Duration
-	// TODO: add more fields
+	// TODO: add more fields for production (IsDeleted, IsBackfilled, MaxLogsKept, etc.)
 }
 
 // TODO: do we want to store the workchain and its seqno to be able to query the block directly?
@@ -28,6 +38,8 @@ type Log struct {
 	ReceivedAt time.Time
 	ExpiresAt  *time.Time
 	Error      *string
+	// TODO: add fields for replay and debugging (BlockHash, BlockNumber, BlockTimestamp, TxHash, etc.)
 }
 
-// TODO: define block, for easier debug and replay
+// TODO: define block, transaction, and other data structures for easier debug and replay
+// Similar to Solana's BlockData, ProgramLog, ProgramEvent, and Block types
