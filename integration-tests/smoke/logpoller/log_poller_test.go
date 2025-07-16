@@ -101,7 +101,7 @@ func waitForBlock(t *testing.T, client ton.APIClientWrapped, toBlock *ton.BlockI
 }
 
 func Test_LogPoller(t *testing.T) {
-	useAlreadyRunningNetwork := true
+	useAlreadyRunningNetwork := false
 
 	client := test_utils.CreateAPIClient(t, chainsel.TON_LOCALNET.Selector, useAlreadyRunningNetwork).WithRetry()
 	require.NotNil(t, client)
