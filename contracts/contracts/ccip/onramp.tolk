@@ -2,7 +2,6 @@ import "@stdlib/lisp-lists"
 import "types.tolk";
 import "../lib/access/ownable_2step.tolk";
 import "../lib/upgrades/type_and_version.tolk";
-import "utils.tolk";
 import "../lib/utils.tolk";
 import "@stdlib/tvm-dicts";
 
