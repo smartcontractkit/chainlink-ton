@@ -249,10 +249,6 @@ func Test_LogPoller(t *testing.T) {
 
 			// get all logs from the log poller.
 			logs := lp.GetLogs()
-			if len(logs) != targetCounter {
-				t.Logf("Waiting for logs... have %d, want %d", len(logs), targetCounter)
-				return false // Not enough logs yet, Eventually will retry.
-			}
 
 			// if log count is correct, convert them for verification.
 			var msgs []*tlb.ExternalMessageOut
@@ -273,6 +269,11 @@ func Test_LogPoller(t *testing.T) {
 			if verr != nil {
 				t.Logf("Log verification failed, will retry: %v", verr)
 				return false
+			}
+
+			if len(logs) != targetCounter {
+				t.Logf("Waiting for logs... have %d, want %d", len(logs), targetCounter)
+				return false // Not enough logs yet, Eventually will retry.
 			}
 
 			// if log count and content are correct, the test condition is met.

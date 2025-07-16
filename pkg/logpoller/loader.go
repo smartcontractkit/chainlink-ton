@@ -37,21 +37,6 @@ func NewLoader(
 
 // TODO: refactor to use background workers for scale
 func (lc *Loader) BackfillForAddresses(ctx context.Context, addresses []*address.Address, prevBlock *ton.BlockIDExt, toBlock *ton.BlockIDExt) ([]*tlb.ExternalMessageOut, error) {
-
-	// GATEKEEPER LOGIC: Ensure the requested block range is safe to process.
-	latestMaster, err := lc.client.CurrentMasterchainInfo(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("could not get current masterchain info: %w", err)
-	}
-	if toBlock.SeqNo+lc.blockConfirmations > latestMaster.SeqNo {
-		lc.lggr.Debugw("Requested block range is too new, skipping poll cycle.",
-			"toBlock", toBlock.SeqNo,
-			"requiredConfirmations", lc.blockConfirmations,
-			"latestMasterBlock", latestMaster.SeqNo)
-		// Not an error, just nothing to do yet.
-		return nil, nil
-	}
-
 	var allMsgs []*tlb.ExternalMessageOut
 	var mu sync.Mutex
 	var wg sync.WaitGroup
