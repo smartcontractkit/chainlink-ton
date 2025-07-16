@@ -194,13 +194,6 @@ func (lp *Service) run(ctx context.Context) (err error) {
 // from the specified addresses. It delegates to the LogCollector for the actual
 // block scanning and then processes the returned messages.
 func (lp *Service) processBlocksRange(ctx context.Context, addresses []*address.Address, prevBlock *ton.BlockIDExt, toBlock *ton.BlockIDExt) error {
-	switch {
-	case prevBlock == nil:
-		lp.lggr.Debugw("Got new seq range to process (from genesis)", "from", 0, "to", toBlock.SeqNo)
-	default:
-		lp.lggr.Debugw("Got new seq range to process", "from", prevBlock.SeqNo, "to", toBlock.SeqNo)
-	}
-
 	msgs, err := lp.loader.BackfillForAddresses(ctx, addresses, prevBlock, toBlock)
 	if err != nil {
 		return fmt.Errorf("BackfillForAddresses: %w", err)

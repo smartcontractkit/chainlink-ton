@@ -115,7 +115,7 @@ func (lc *LogCollector) fetchMessagesForAddress(ctx context.Context, addr *addre
 	)
 
 	if startLT >= endLT {
-		lc.lggr.Tracef("No transactions to process", "address", addr.String(), "startLT", startLT, "endLT", endLT)
+		lc.lggr.Trace("No transactions to process", "address", addr.String(), "startLT", startLT, "endLT", endLT)
 		return nil, nil
 	}
 
@@ -130,8 +130,6 @@ func (lc *LogCollector) fetchMessagesForAddress(ctx context.Context, addr *addre
 		} else if err != nil {
 			return nil, fmt.Errorf("ListTransactions: %w", err)
 		}
-
-		logBatch(lc.lggr, batch, addr.String(), page)
 
 		// Filter and process messages within the current batch.
 		// The batch is sorted from oldest to newest.
@@ -190,8 +188,8 @@ func (lc *LogCollector) getTransactionBounds(ctx context.Context, addr *address.
 		startLT = 0
 		lc.lggr.Debugw("fresh start", "address", addr.String(), "toSeq", toBlock.SeqNo)
 	case prevBlock.SeqNo > 0:
-		accPrev, err := lc.client.GetAccount(ctx, prevBlock, addr)
-		if err != nil {
+		accPrev, accErr := lc.client.GetAccount(ctx, prevBlock, addr)
+		if accErr != nil {
 			startLT = 0 // account didn't exist before this range
 		} else {
 			startLT = accPrev.LastTxLT
@@ -208,21 +206,4 @@ func (lc *LogCollector) getTransactionBounds(ctx context.Context, addr *address.
 	}
 
 	return startLT, res.LastTxLT, res.LastTxHash, nil
-}
-
-// logBatch provides debug logging for transaction batches during TON CCIP MVP development.
-// Helps with monitoring and debugging the transaction scanning process.
-//
-// TODO: remove debug function in production version
-func logBatch(l logger.SugaredLogger, batch []*tlb.Transaction, addr string, page int) {
-	if len(batch) == 0 {
-		l.Debugw("ListTransactions batch is empty", "address", addr, "page", page)
-		return
-	}
-
-	var txDetails []string
-	for _, tx := range batch {
-		txDetails = append(txDetails, fmt.Sprintf("{LT: %d, Hash: %x}", tx.LT, tx.Hash))
-	}
-	l.Debugw("ListTransactions batch content", "address", addr, "page", page, "transactions", txDetails)
 }
