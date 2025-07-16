@@ -1,6 +1,7 @@
 import "@stdlib/tvm-dicts.tolk";
 import "@stdlib/lisp-lists"
 
+const ERROR_WRONG_OP = 0xffff;
 const ERROR_INVALID_DATA = 0x77;
 const ERROR_BITMAP_OUT_OF_BOUNDS = 0x78;
 

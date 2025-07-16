@@ -13,7 +13,6 @@ import { crc32 } from 'zlib'
 
 export type TimelockControllerStorage = {
   minDelay: number
-  timestampCount?: number
   timestamp?: Dictionary<Buffer, Buffer>
 
   blockedFnSelectorsLen?: number
@@ -58,7 +57,6 @@ export const Builder = {
   asStorage: (config: TimelockControllerStorage): Cell => {
     return beginCell()
       .storeUint(config.minDelay, 64)
-      .storeUint(config.timestampCount || 0, 32) // timestamp_count
       .storeDict(config.timestamp)
       .storeUint(config.blockedFnSelectorsLen || 0, 32) // blocked_fn_selectors_len
       .storeDict(
@@ -336,7 +334,6 @@ export class TimelockController implements Contract {
     const { stack } = await provider.get('getTimelockControllerData', [])
     return {
       minDelay: stack.readNumber(),
-      timestampCount: stack.readNumber(),
       adminAccounts: stack.readCellOpt(),
       proposerAccounts: stack.readCellOpt(),
       cancellerAccounts: stack.readCellOpt(),

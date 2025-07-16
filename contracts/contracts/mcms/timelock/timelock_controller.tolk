@@ -5,11 +5,6 @@ import "@stdlib/tvm-dicts";
 import "../../lib/utils.tolk";
 import "../../lib/access/access_control.tolk";
 
-import "timelock_controller/error.tolk";
-import "timelock_controller/op.tolk";
-import "timelock_controller/params.tolk";
-import "timelock_controller/operation_utils.tolk";
-
 /**
  * @notice Contract module which acts as a timelocked controller with role-based
  * access control. When set as the owner of an `Ownable` smart contract, it
@@ -333,8 +328,6 @@ struct Timelock_Data {
 
     /// Minimum delay for operations in seconds
     minDelay: uint64;
-    /// Number of timestamps stored, used to track the size of the storage
-    timestampCount: uint32;
     // Map of operation id to timestamp
     timestamps: dict;
 
@@ -414,6 +407,8 @@ const ERROR_INSUFFICIENT_DELAY = 106;
 
 /// Represents TON message op code size
 const LEN_BLOCKED_FN_SELECTOR = 32;
+/// Represents the amount of TON coins we reserve on the balance to pay for storage fees.
+const MIN_TON_FOR_STORAGE = 1000000000; // 1 TON
 
 // --- Methods ---
 
@@ -681,13 +676,16 @@ fun Timelock<T>.execute(self, call: Timelock_Call): void {
         dest: call.target,
         body: call.data
     });
-    msg.send(SEND_MODE_REGULAR);
+    msg.send(SEND_MODE_PAY_FEES_SEPARATELY);
 }
 
 /// @dev Hook before execution of an operation's calls.
 fun Timelock<T>.beforeCall(self, id: uint256, predecessor: uint256): void {
     assert(self.isOperationReady(id)) throw ERROR_OPERATION_NOT_READY;
     assert(predecessor == 0 || self.isOperationDone(predecessor)) throw ERROR_OPERATION_MISSING_DEPENDENCY;
+
+    // We need to reserve TON coins on the balance to pay for storage fees
+    reserveToncoinsOnBalance(MIN_TON_FOR_STORAGE, RESERVE_MODE_EXACT_AMOUNT);
 }
 
 /// @dev Hook after execution of an operation's calls.
@@ -983,95 +981,10 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
                 return;
             }
 
-            // TODO!
-            // ignore empty messages, "wrong opcode" for others
-            // assert (in.body.isEmpty()) throw 0xFFFF
+            // If the message was not handled, throw an error
+            throw ERROR_WRONG_OP
         }
     }
-
-    val op = msgBody.loadMessageOp();
-    if (rbac.hasRole(PROPOSER_ROLE, sender)) {
-        if (op == OP_SCHEDULE) {
-            val delay = msgBody.loadUint(32);
-            val tonValue = msgBody.loadCoins();
-            val predecessor = msgBody.loadUint(256);
-            val salt = msgBody.loadUint(256);
-            val targetAccount = msgBody.loadAddress();
-            val msgToSend = msgBody.loadRef();
-            msgBody.assertEnd();
-
-            assert(delay >= s.minDelay, ERROR_INVALID_DELAY);
-
-            val id = hashOperation(tonValue, predecessor, salt, targetAccount, msgToSend);
-
-            val (_, exists) = s.timestamps.uDictGet(256, id);
-            assert(!exists, ERROR_OPERATION_EXISTS);
-            val timestampSlice = beginCell().storeUint(blockchain.now() + delay, 32).endCell().beginParse();
-            s.timestamps.uDictSet(256, id, timestampSlice);
-            s.timestampCount += 1;
-            s.storeAsContractData();
-            return;
-        }
-    }
-
-    if (rbac.hasRole(CANCELLER_ROLE, sender)) {
-        if (op == OP_CANCEL) {
-            val id = msgBody.loadUint(256);
-            msgBody.assertEnd();
-
-            var (timestampSlice, exists) = s.timestamps.uDictGet(256, id);
-            assert(exists, ERROR_OPERATION_NOT_EXISTS);
-            val timestamp = timestampSlice!.loadUint(32);
-            assert(timestamp != DONE_TIMESTAMP, ERROR_INVALID_OPERATION_STATE);
-
-            s.timestamps.uDictDelete(256, id);
-            s.timestampCount -= 1;
-            s.storeAsContractData();
-            return;
-        }
-    }
-
-    if (rbac.hasRole(EXECUTOR_ROLE, sender)) {
-        if (op == OP_EXECUTE) {
-            val tonValue = msgBody.loadCoins();
-            val predecessor = msgBody.loadUint(256);
-            val salt = msgBody.loadUint(256);
-            val targetAccount = msgBody.loadAddress();
-            val msgToSend = msgBody.loadRef();
-            msgBody.assertEnd();
-
-            if (predecessor > 0) {
-                var (timestampSlice, exists) = s.timestamps.uDictGet(256, predecessor);
-                assert(exists, ERROR_PREDECESSOR_NOT_EXISTS);
-                val timestamp = timestampSlice!.loadUint(32);
-                assert(timestamp == DONE_TIMESTAMP, ERROR_INVALID_PREDECOSSOR_STATE);
-            }
-
-            val id = hashOperation(tonValue, predecessor, salt, targetAccount, msgToSend);
-
-            var (timestampSlice, exists) = s.timestamps.uDictGet(256, id);
-            assert(exists, ERROR_OPERATION_NOT_EXISTS);
-            val timestamp = timestampSlice!.loadUint(32);
-            assert(timestamp <= blockchain.now(), ERROR_INVALID_OPERATION_STATE);
-
-            reserveToncoinsOnBalance(MIN_TON_FOR_STORAGE, RESERVE_MODE_EXACT_AMOUNT);
-
-            val op = createMessage({
-                bounce: true,
-                value: tonValue,
-                dest: targetAccount,
-                body: msgToSend
-            });
-            op.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
-
-            timestampSlice = beginCell().storeUint(DONE_TIMESTAMP, 32).endCell().beginParse();
-            s.timestamps.uDictSet(256, id, timestampSlice);
-            s.storeAsContractData();
-            return;
-        }
-    }
-
-    throw ERROR_WRONG_OP;
 }
 
 // --- Extension hooks ---
