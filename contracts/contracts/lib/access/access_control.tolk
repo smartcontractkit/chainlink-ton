@@ -329,6 +329,20 @@ fun AccessControl<T>.getRoleMember(self, role: int, index: uint32): address {
     return acc! as address;
 }
 
+/// @dev Returns the number of accounts that have `role`. Can be used
+/// together with {getRoleMember} to enumerate all bearers of a role.
+@inline
+fun AccessControl<T>.getRoleMemberCount(self, role: int): int {
+    // Check if the role is valid
+    val (data, exists) = self.data.roles.uDictGetRef(LEN_ROLE, role);
+    if (!exists) {
+        return 0; // role does not exist
+    }
+
+    val d = lazy AccessControl_RoleData.fromCell(data!);
+    return d.membersLen;
+}
+
 @inline
 fun AccessControl<T>.getRoleMemberFirst(self, role: int): address {
     // Check if the role is valid
@@ -363,20 +377,6 @@ fun AccessControl<T>.getRoleMemberNext(self, role: int, pivot: address): address
     }
 
     return acc! as address;
-}
-
-/// @dev Returns the number of accounts that have `role`. Can be used
-/// together with {getRoleMember} to enumerate all bearers of a role.
-@inline
-fun AccessControl<T>.getRoleMemberCount(self, role: int): int {
-    // Check if the role is valid
-    val (data, exists) = self.data.roles.uDictGetRef(LEN_ROLE, role);
-    if (!exists) {
-        return 0; // role does not exist
-    }
-
-    val d = lazy AccessControl_RoleData.fromCell(data!);
-    return d.membersLen;
 }
 
 /// @dev Return all accounts that have `role`.
@@ -593,12 +593,6 @@ fun AccessControl<T>.get_getRoleMemberCount(self, role: int): int {
    return self.getRoleMemberCount(role)
 }
 
-/// @dev getter to export downstream
-@inline
-fun AccessControl<T>.get_getRoleMembers(self, role: int): dict {
-   return self.getRoleMembers(role)
-}
-
 // @dev getter to export downstream
 @inline
 fun AccessControl<T>.get_getRoleMemberFirst(self, role: int): address {
@@ -609,6 +603,12 @@ fun AccessControl<T>.get_getRoleMemberFirst(self, role: int): address {
 @inline
 fun AccessControl<T>.get_getRoleMemberNext(self, role: int, pivot: slice): address {
    return self.getRoleMemberNext(role, pivot)
+}
+
+/// @dev getter to export downstream
+@inline
+fun AccessControl<T>.get_getRoleMembers(self, role: int): dict {
+   return self.getRoleMembers(role)
 }
 
 // --- Message handlers ---

@@ -3,7 +3,6 @@ import {
   beginCell,
   Cell,
   Contract,
-  contractAddress,
   ContractProvider,
   Dictionary,
   Sender,
@@ -183,53 +182,94 @@ export class ContractClient implements Contract {
     return this.sendInternal(p, via, value, builder.message.encode().renounceRole(body))
   }
 
+  // --- Getters ---
+
   async getHasRole(p: ContractProvider, role: bigint, account: Address): Promise<boolean> {
-    const result = await p.get('hasRole', [
-      {
-        type: 'int',
-        value: role,
-      },
-      {
-        type: 'slice',
-        cell: beginCell().storeAddress(account).endCell(),
-      },
-    ])
-    return result.stack.readBoolean()
+    return p
+      .get('hasRole', [
+        {
+          type: 'int',
+          value: role,
+        },
+        {
+          type: 'slice',
+          cell: beginCell().storeAddress(account).endCell(),
+        },
+      ])
+      .then((r) => r.stack.readBoolean())
   }
 
   async getRoleAdmin(p: ContractProvider, role: bigint): Promise<bigint> {
-    const result = await p.get('getRoleAdmin', [
-      {
-        type: 'int',
-        value: role,
-      },
-    ])
-    return result.stack.readBigNumber()
+    return p
+      .get('getRoleAdmin', [
+        {
+          type: 'int',
+          value: role,
+        },
+      ])
+      .then((r) => r.stack.readBigNumber())
   }
 
   async getRoleMember(p: ContractProvider, role: bigint, index: bigint): Promise<Address | null> {
-    const result = await p.get('getRoleMember', [
-      {
-        type: 'int',
-        value: role,
-      },
-      {
-        type: 'int',
-        value: index,
-      },
-    ])
-    return result.stack.readAddressOpt()
+    return p
+      .get('getRoleMember', [
+        {
+          type: 'int',
+          value: role,
+        },
+        {
+          type: 'int',
+          value: index,
+        },
+      ])
+      .then((r) => r.stack.readAddressOpt())
   }
 
   async getRoleMemberCount(p: ContractProvider, role: bigint): Promise<bigint> {
-    const result = await p.get('getRoleMemberCount', [
-      {
-        type: 'int',
-        value: role,
-      },
-    ])
-    return result.stack.readBigNumber()
+    return p
+      .get('getRoleMemberCount', [
+        {
+          type: 'int',
+          value: role,
+        },
+      ])
+      .then((r) => r.stack.readBigNumber())
   }
 
-  // TODO: add getRoleMembers binding
+  async getRoleMemberFirst(p: ContractProvider, role: bigint): Promise<Address> {
+    return p
+      .get('getRoleMemberFirst', [
+        {
+          type: 'int',
+          value: role,
+        },
+      ])
+      .then((r) => r.stack.readAddress())
+  }
+
+  async getRoleMemberNext(p: ContractProvider, role: bigint, pivot: Address): Promise<Address> {
+    return p
+      .get('getRoleMemberNext', [
+        {
+          type: 'int',
+          value: role,
+        },
+        {
+          type: 'slice',
+          cell: beginCell().storeAddress(pivot).endCell(),
+        },
+      ])
+      .then((r) => r.stack.readAddress())
+  }
+
+  async getRoleMembers(p: ContractProvider, role: bigint): Promise<Cell> {
+    return p
+      .get('getRoleMembers', [
+        {
+          type: 'int',
+          value: role,
+        },
+      ])
+      .then((r) => r.stack.readCell()) // TODO: check if this works and can be read as a dictionary
+  }
 }
