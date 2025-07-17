@@ -299,6 +299,13 @@ export const builder = {
           .storeRef(call.data)
           .endCell()
       },
+      operationBatch: (op: OperationBatch): Cell => {
+        return beginCell()
+          .storeRef(op.calls)
+          .storeUint(op.predecessor, 256)
+          .storeUint(op.salt, 256)
+          .endCell()
+      },
     }),
   },
 }
@@ -471,94 +478,97 @@ export class ContractClient implements Contract {
 
   // --- Getters ---
 
-  async getTypeAndVersion(provider: ContractProvider): Promise<[string, string]> {
-    const result = await provider.get('typeAndVersion', [])
-    const type = result.stack.readString()
-    const version = result.stack.readString()
+  async getTypeAndVersion(p: ContractProvider): Promise<[string, string]> {
+    const r = await p.get('typeAndVersion', [])
+    const type = r.stack.readString()
+    const version = r.stack.readString()
     return [type, version]
   }
 
-  async isOperation(provider: ContractProvider, id: bigint): Promise<boolean> {
-    const result = await provider.get('isOperation', [
-      {
-        type: 'int',
-        value: id,
-      },
-    ])
-    return result.stack.readBoolean()
+  async isOperation(p: ContractProvider, id: bigint): Promise<boolean> {
+    return p
+      .get('isOperation', [
+        {
+          type: 'int',
+          value: id,
+        },
+      ])
+      .then((r) => r.stack.readBoolean())
   }
 
-  async isOperationPending(provider: ContractProvider, id: bigint): Promise<boolean> {
-    const result = await provider.get('isOperationPending', [
-      {
-        type: 'int',
-        value: id,
-      },
-    ])
-    return result.stack.readBoolean()
+  async isOperationPending(p: ContractProvider, id: bigint): Promise<boolean> {
+    return p
+      .get('isOperationPending', [
+        {
+          type: 'int',
+          value: id,
+        },
+      ])
+      .then((r) => r.stack.readBoolean())
   }
 
-  async isOpertionReady(provider: ContractProvider, id: bigint): Promise<boolean> {
-    const result = await provider.get('isOperationReady', [
-      {
-        type: 'int',
-        value: id,
-      },
-    ])
-    return result.stack.readBoolean()
+  async isOperationReady(p: ContractProvider, id: bigint): Promise<boolean> {
+    return p
+      .get('isOperationReady', [
+        {
+          type: 'int',
+          value: id,
+        },
+      ])
+      .then((r) => r.stack.readBoolean())
   }
 
-  async isOperationDone(provider: ContractProvider, id: bigint): Promise<boolean> {
-    const result = await provider.get('isOperationDone', [
-      {
-        type: 'int',
-        value: id,
-      },
-    ])
-    return result.stack.readBoolean()
+  async isOperationDone(p: ContractProvider, id: bigint): Promise<boolean> {
+    return p
+      .get('isOperationDone', [
+        {
+          type: 'int',
+          value: id,
+        },
+      ])
+      .then((r) => r.stack.readBoolean())
   }
 
-  async getTimestamp(provider: ContractProvider, id: bigint): Promise<bigint> {
-    const result = await provider.get('getTimestamp', [
-      {
-        type: 'int',
-        value: id,
-      },
-    ])
-    return result.stack.readBigNumber()
+  async getTimestamp(p: ContractProvider, id: bigint): Promise<bigint> {
+    return p
+      .get('getTimestamp', [
+        {
+          type: 'int',
+          value: id,
+        },
+      ])
+      .then((r) => r.stack.readBigNumber())
   }
 
   async getMinDelay(p: ContractProvider): Promise<bigint> {
-    const result = await p.get('getMinDelay', [])
-    return result.stack.readBigNumber()
+    return p // break line
+      .get('getMinDelay', [])
+      .then((result) => result.stack.readBigNumber())
   }
 
   async getHashOperationBatch(p: ContractProvider, op: OperationBatch): Promise<bigint> {
-    const result = await p.get('hashOperationBatch', [
-      {
-        type: 'slice',
-        cell: beginCell()
-          .storeRef(op.calls)
-          .storeUint(op.predecessor, 256)
-          .storeUint(op.salt, 256)
-          .endCell(),
-      },
-    ])
-    return result.stack.readBigNumber()
+    return p
+      .get('hashOperationBatch', [
+        {
+          type: 'slice',
+          cell: builder.data.encode().operationBatch(op),
+        },
+      ])
+      .then((r) => r.stack.readBigNumber())
   }
 
   async getBlockedFunctionSelectorCount(p: ContractProvider): Promise<number> {
-    const result = await p.get('getBlockedFunctionSelectorCount', [])
-    return result.stack.readNumber()
+    return p.get('getBlockedFunctionSelectorCount', []).then((r) => r.stack.readNumber())
   }
 
   async getBlockedFunctionSelectorAt(p: ContractProvider, index: number): Promise<number> {
-    const result = await p.get('getBlockedFunctionSelectorAt', [
-      {
-        type: 'int',
-        value: BigInt(index),
-      },
-    ])
-    return result.stack.readNumber()
+    return p
+      .get('getBlockedFunctionSelectorAt', [
+        {
+          type: 'int',
+          value: BigInt(index),
+        },
+      ])
+      .then((r) => r.stack.readNumber())
   }
 }
