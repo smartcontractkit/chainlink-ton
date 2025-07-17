@@ -3,6 +3,7 @@ package utils
 import (
 	"context"
 	"fmt"
+	"integration-tests/config"
 	"strconv"
 	"strings"
 	"testing"
@@ -32,7 +33,6 @@ func CreateRandomWallet(t *testing.T, client ton.APIClientWrapped, version walle
 	return pw
 }
 
-// TODO: we don't need to specify workchain?
 func CreateRandomHighloadWallet(t *testing.T, client ton.APIClientWrapped) *wallet.Wallet {
 	seed := wallet.NewSeed()
 	w, err := wallet.FromSeed(client, seed, wallet.ConfigHighloadV3{
@@ -168,44 +168,23 @@ func StartChain(t *testing.T, nodeClient *ton.APIClient, chainID uint64, deploye
 	return ton
 }
 
-func CreateAPIClient(t *testing.T, chainID uint64, useAlreadyRunningNetwork bool) *ton.APIClient {
+// CreateAPIClient sets up a TON API client for integration tests.
+// It reads config.UseExistingNetwork to decide whether to create a new
+// ephemeral network or connect to a pre-existing one.
+func CreateAPIClient(t *testing.T, chainID uint64) *ton.APIClient {
 	t.Helper()
 
 	var networkCfg string
-	if useAlreadyRunningNetwork {
-		t.Logf("Using existing network for chain ID %d", chainID)
-		networkCfg = "http://localhost:8000/localhost.global.config.json"
+	var err error
+
+	if config.UseExistingNetwork {
+		networkCfg = getExistingNetworkConfig(t, chainID)
 	} else {
-		port := freeport.GetOne(t)
-		bcInput := &blockchain.Input{
-			ChainID: strconv.FormatUint(chainID, 10),
-			Type:    "ton",
-			Port:    strconv.Itoa(port),
-			CustomEnv: map[string]string{
-				"VERSION_CAPABILITIES": "11",
-				// "NEXT_BLOCK_GENERATION_DELAY": "0.5",
-			},
-		}
-
-		bcOut, err := blockchain.NewBlockchainNetwork(bcInput)
-		require.NoError(t, err, "failed to create blockchain network")
-
-		t.Cleanup(func() {
-			if bcOut.Container != nil && bcOut.Container.IsRunning() {
-				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-				defer cancel()
-				if cterr := bcOut.Container.Terminate(ctx); cterr != nil {
-					t.Logf("Container termination failed: %v", cterr)
-				}
-			}
-			freeport.Return([]int{port})
-		})
-
-		networkCfg = fmt.Sprintf("http://%s/localhost.global.config.json", bcOut.Nodes[0].ExternalHTTPUrl)
+		networkCfg = createNewNetwork(t, chainID)
 	}
 
 	cfg, err := liteclient.GetConfigFromUrl(t.Context(), networkCfg)
-	require.NoError(t, err, "failed to get config from URL: %w", networkCfg)
+	require.NoError(t, err, "failed to get config from URL: %s", networkCfg)
 
 	connectionPool := liteclient.NewConnectionPool()
 	err = connectionPool.AddConnectionsFromConfig(t.Context(), cfg)
@@ -218,4 +197,43 @@ func CreateAPIClient(t *testing.T, chainID uint64, useAlreadyRunningNetwork bool
 	require.NoError(t, err, "TON network not ready")
 
 	return client
+}
+
+// getExistingNetworkConfig returns the hardcoded configuration for a pre-existing network.
+func getExistingNetworkConfig(t *testing.T, chainID uint64) string {
+	t.Helper()
+	t.Logf("Using existing network for chain ID %d", chainID)
+	return "http://localhost:8000/localhost.global.config.json"
+}
+
+// createNewNetwork provisions a new, temporary TON network for the test's duration.
+// It handles port allocation and automatic container cleanup.
+func createNewNetwork(t *testing.T, chainID uint64) string {
+	t.Helper()
+	t.Logf("Creating new ephemeral network for chain ID %d", chainID)
+
+	port := freeport.GetOne(t)
+	bcInput := &blockchain.Input{
+		ChainID:   strconv.FormatUint(chainID, 10),
+		Type:      "ton",
+		Port:      strconv.Itoa(port),
+		CustomEnv: map[string]string{"VERSION_CAPABILITIES": "11"},
+	}
+
+	bcOut, err := blockchain.NewBlockchainNetwork(bcInput)
+	require.NoError(t, err, "failed to create blockchain network")
+
+	// The cleanup function ensures the temporary network is terminated after the test.
+	t.Cleanup(func() {
+		if bcOut.Container != nil && bcOut.Container.IsRunning() {
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+			if cterr := bcOut.Container.Terminate(ctx); cterr != nil {
+				t.Logf("Container termination failed: %v", cterr)
+			}
+		}
+		freeport.Return([]int{port})
+	})
+
+	return fmt.Sprintf("http://%s/localhost.global.config.json", bcOut.Nodes[0].ExternalHTTPUrl)
 }

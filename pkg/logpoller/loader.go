@@ -122,7 +122,6 @@ func (lc *LogCollector) fetchMessagesForAddress(ctx context.Context, addr *addre
 	var messages []*tlb.ExternalMessageOut
 	curLT, curHash := endLT, endHash
 
-	page := 0
 	for {
 		batch, err := lc.client.ListTransactions(ctx, addr, lc.pageSize, curLT, curHash)
 		if errors.Is(err, ton.ErrNoTransactionsWereFound) || len(batch) == 0 {
@@ -163,7 +162,6 @@ func (lc *LogCollector) fetchMessagesForAddress(ctx context.Context, addr *addre
 		// move the cursor to just before the *oldest* tx in this batch,
 		// so next page picks up right where this one left off
 		curLT, curHash = batch[0].PrevTxLT, batch[0].PrevTxHash
-		page++
 	}
 
 	return messages, nil

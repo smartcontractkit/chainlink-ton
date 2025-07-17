@@ -101,9 +101,7 @@ func waitForBlock(t *testing.T, client ton.APIClientWrapped, toBlock *ton.BlockI
 }
 
 func Test_LogPoller(t *testing.T) {
-	useAlreadyRunningNetwork := false
-
-	client := test_utils.CreateAPIClient(t, chainsel.TON_LOCALNET.Selector, useAlreadyRunningNetwork).WithRetry()
+	client := test_utils.CreateAPIClient(t, chainsel.TON_LOCALNET.Selector).WithRetry()
 	require.NotNil(t, client)
 
 	t.Run("log poller:log collector event ingestion", func(t *testing.T) {

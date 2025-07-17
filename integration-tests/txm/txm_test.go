@@ -29,7 +29,7 @@ import (
 func TestTxmLocal(t *testing.T) {
 	logger := logger.Test(t)
 
-	nodeClient := test_utils.CreateAPIClient(t, chainsel.TON_LOCALNET.Selector, false)
+	nodeClient := test_utils.CreateAPIClient(t, chainsel.TON_LOCALNET.Selector)
 	require.NotNil(t, nodeClient)
 	logger.Debugw("Started MyLocalTON")
 
