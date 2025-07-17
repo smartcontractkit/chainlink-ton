@@ -214,10 +214,13 @@ func createNewNetwork(t *testing.T, chainID uint64) string {
 
 	port := freeport.GetOne(t)
 	bcInput := &blockchain.Input{
-		ChainID:   strconv.FormatUint(chainID, 10),
-		Type:      "ton",
-		Port:      strconv.Itoa(port),
-		CustomEnv: map[string]string{"VERSION_CAPABILITIES": "11"},
+		ChainID: strconv.FormatUint(chainID, 10),
+		Type:    "ton",
+		Port:    strconv.Itoa(port),
+		CustomEnv: map[string]string{
+			"VERSION_CAPABILITIES":        "11",
+			"NEXT_BLOCK_GENERATION_DELAY": "0.5",
+		},
 	}
 
 	bcOut, err := blockchain.NewBlockchainNetwork(bcInput)
