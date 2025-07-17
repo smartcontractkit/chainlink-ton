@@ -103,7 +103,7 @@ struct (0xfee62ba6) Timelock_TopUp {
 /// - the caller must have the 'proposer' or 'admin' role.
 /// - all payloads must not start with a blocked function selector.
 ///
-struct (0x94718f4) Timelock_ScheduleBatch {
+struct (0x094718f4) Timelock_ScheduleBatch {
     /// Query ID of the change owner request.
     queryId: uint64;
 
@@ -590,7 +590,8 @@ fun Timelock<T>.scheduleBatch(
                 delay
             }
         });
-        reply.send(SEND_MODE_REGULAR);
+        // TODO: can't send this message as it overflows the message size limit
+        // reply.send(SEND_MODE_REGULAR);
         index += 1;
     }
 }
@@ -709,46 +710,6 @@ fun Timelock<T>.afterCall(mutate self, id: uint256): void {
     self.data.timestamps.uDictSet(256, id, value); // Mark the operation as done
 }
 
-/// @dev Directly execute a batch of transactions, bypassing any other checks.
-///
-/// Emits one {Timelock_BypasserCallExecuted} event per transaction in the batch.
-///
-/// Requirements:
-///
-/// - the caller must have the 'bypasser' or 'admin' role.
-///
-fun Timelock<T>.bypasserExecuteBatch(
-    mutate self,
-    sender: address,
-    queryId: uint64,
-    calls: cell, // vec<Timelock_Call>
-): void {
-    self.onlyRoleOrAdminRole(BYPASSER_ROLE, sender);
-
-    var index = 0;
-    var cc = Iterator<Timelock_Call>.new(calls);
-    while (!cc.empty()) {
-        val call = cc.next();
-        self.execute(call);
-
-        // Send a message to the sender to notify about the change
-        val reply = createMessage({
-            bounce: false,
-            value: 0, // TODO: how to pay for this message fee? or do we emit?
-            dest: sender,
-            body: Timelock_BypasserCallExecuted{
-                queryId,
-                index,
-                target: call.target,
-                value: call.value,
-                data: call.data
-            }
-        });
-        reply.send(SEND_MODE_REGULAR);
-        index += 1;
-    }
-}
-
 /// @dev Changes the minimum timelock duration for future operations.
 ///
 /// Emits a {Timelock_MinDelayChange} event.
@@ -838,6 +799,46 @@ fun Timelock<T>.unblockFunctionSelector(mutate self, sender: address, queryId: u
     }
 
     return false;
+}
+
+/// @dev Directly execute a batch of transactions, bypassing any other checks.
+///
+/// Emits one {Timelock_BypasserCallExecuted} event per transaction in the batch.
+///
+/// Requirements:
+///
+/// - the caller must have the 'bypasser' or 'admin' role.
+///
+fun Timelock<T>.bypasserExecuteBatch(
+    mutate self,
+    sender: address,
+    queryId: uint64,
+    calls: cell, // vec<Timelock_Call>
+): void {
+    self.onlyRoleOrAdminRole(BYPASSER_ROLE, sender);
+
+    var index = 0;
+    var cc = Iterator<Timelock_Call>.new(calls);
+    while (!cc.empty()) {
+        val call = cc.next();
+        self.execute(call);
+
+        // Send a message to the sender to notify about the change
+        val reply = createMessage({
+            bounce: false,
+            value: 0, // TODO: how to pay for this message fee? or do we emit?
+            dest: sender,
+            body: Timelock_BypasserCallExecuted{
+                queryId,
+                index,
+                target: call.target,
+                value: call.value,
+                data: call.data
+            }
+        });
+        reply.send(SEND_MODE_REGULAR);
+        index += 1;
+    }
 }
 
 /// @dev Returns the number of blocked function selectors.
@@ -937,6 +938,15 @@ fun Timelock<T>.onInternalMessage(mutate self, msgSender: address, msgValue: coi
             // Top up the contract balance, no action needed, return early - no need to update storage
             return;
         }
+        Timelock_ScheduleBatch => {
+            self.scheduleBatch(msgSender, msg.queryId, msg.calls, msg.predecessor, msg.salt, msg.delay);
+        }
+        Timelock_Cancel => {
+            self.cancel(msgSender, msg.queryId, msg.id);
+        }
+        Timelock_ExecuteBatch => {
+            self.executeBatch(msgSender, msg.queryId, msg.calls, msg.predecessor, msg.salt);
+        }
         Timelock_UpdateDelay => {
             self.updateDelay(msgSender, msg.queryId, msg.newDelay);
         }
@@ -945,15 +955,6 @@ fun Timelock<T>.onInternalMessage(mutate self, msgSender: address, msgValue: coi
         }
         Timelock_UnblockFunctionSelector => {
             self.unblockFunctionSelector(msgSender, msg.queryId, msg.selector);
-        }
-        Timelock_ScheduleBatch => {
-            self.scheduleBatch(msgSender, msg.queryId, msg.calls, msg.predecessor, msg.salt, msg.delay);
-        }
-        Timelock_ExecuteBatch => {
-            self.executeBatch(msgSender, msg.queryId, msg.calls, msg.predecessor, msg.salt);
-        }
-        Timelock_Cancel => {
-            self.cancel(msgSender, msg.queryId, msg.id);
         }
         Timelock_BypasserExecuteBatch => {
             self.bypasserExecuteBatch(msgSender, msg.queryId, msg.calls);
