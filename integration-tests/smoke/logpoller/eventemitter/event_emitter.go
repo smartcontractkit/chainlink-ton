@@ -131,60 +131,33 @@ func (e *EventEmitter) eventLoop(ctx context.Context, interval time.Duration) {
 	target := e.targetCounter.Uint64()
 
 	for {
-		if e.sentCounter < target {
-			select {
-			case <-ctx.Done():
-				e.lggr.Debugf("Context cancelled during sending for %s", e.name)
-				close(e.done)
-				return
-			case <-ticker.C:
-				if _, _, err := e.SendIncreaseCounterMsg(ctx); err != nil {
-					e.lggr.Debugf("ERROR sending message from %s: %v", e.name, err)
-				} else {
-					e.mu.Lock()
-					e.sentCounter++
-					e.mu.Unlock()
-				}
-			}
-			continue
-		}
-
-		// all messages have been sent. confirm the on-chain state.
-		if e.shouldStop(ctx) {
-			e.lggr.Debugf("On-chain counter confirmed for %s, stopping.", e.name)
-			close(e.done)
-			return
-		}
-
 		select {
 		case <-ctx.Done():
-			e.lggr.Debugf("Context cancelled during verification for %s", e.name)
+			e.lggr.Debugf("Context cancelled for %s", e.name)
 			close(e.done)
 			return
 		case <-ticker.C:
-			e.lggr.Debugf("All messages sent, waiting for on-chain confirmation...")
+			e.mu.RLock()
+			sent := e.sentCounter
+			e.mu.RUnlock()
+
+			if sent >= target {
+				e.lggr.Debugf("Target count of %d reached for %s, stopping.", target, e.name)
+				close(e.done)
+				return
+			}
+
+			// Send message outside the lock
+			if _, _, err := e.SendIncreaseCounterMsg(ctx); err != nil {
+				e.lggr.Debugf("ERROR sending message from %s: %v", e.name, err)
+			} else {
+				// Only lock when updating the counter
+				e.mu.Lock()
+				e.sentCounter++
+				e.mu.Unlock()
+			}
 		}
 	}
-}
-
-func (e *EventEmitter) shouldStop(ctx context.Context) bool {
-	if e.targetCounter == nil {
-		return false
-	}
-
-	b, err := e.client.CurrentMasterchainInfo(ctx)
-	if err != nil {
-		e.lggr.Debugf("ERROR getting masterchain info for %s: %v", e.name, err)
-		return false
-	}
-
-	currentCounter, err := GetCounter(ctx, e.client, b, e.contractAddress)
-	if err != nil {
-		e.lggr.Debugf("ERROR getting counter for %s: %v", e.name, err)
-		return false
-	}
-
-	return currentCounter.Cmp(e.targetCounter) >= 0
 }
 
 func (e *EventEmitter) Name() string {
