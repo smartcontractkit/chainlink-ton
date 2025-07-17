@@ -166,6 +166,7 @@ struct OnRampUpdateDestChainConfig {
     allowlistEnabled: bool;
 }
 
+// TODO: make this direct snakedata by using RemainingBitsAndRefs? this way it's not cell->cell
 struct (0x10000004) OnRampUpdateDestChainConfigs {
     updates: cell; // vec<OrRampUpdateDestChainConfig>
 }
@@ -176,6 +177,7 @@ struct UpdateAllowlist {
     remove: cell; // vec<address>
 }
 
+// TODO: make this direct snakedata by using RemainingBitsAndRefs? this way it's not cell->cell
 struct (0x10000005) UpdateAllowlists {
     updates: cell; // vec<UpdateAllowlist>
 }

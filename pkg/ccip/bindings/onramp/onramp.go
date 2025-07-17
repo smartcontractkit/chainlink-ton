@@ -4,6 +4,7 @@ import (
 	"math/big"
 
 	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
@@ -67,3 +68,34 @@ type Storage struct {
 	Config           DynamicConfig       `tlb:"^"`
 	DestChainConfigs *cell.Dictionary    `tlb:"dict 64"`
 }
+
+// Methods
+
+type SetDynamicConfig struct {
+	_ tlb.Magic `tlb:"#10000003"`
+	DynamicConfig
+}
+
+type UpdateDestChainConfig struct {
+	DestinationChainSelector uint64                   `tlb:"## 64"`
+	Router                   common.CrossChainAddress `tlb:"."`
+	AllowListEnabled         bool                     `tlb:"bool"`
+}
+
+type UpdateDestChainConfigs struct {
+	_       tlb.Magic                               `tlb:"#10000004"`
+	Updates common.SnakeData[UpdateDestChainConfig] `tlb:"^"`
+}
+
+type UpdateAllowlist struct {
+	DestinationChainSelector uint64                             `tlb:"## 64"`
+	Add                      common.SnakeData[*address.Address] `tlb:"^"`
+	Remove                   common.SnakeData[*address.Address] `tlb:"^"`
+}
+
+type UpdateAllowlists struct {
+	_       tlb.Magic                         `tlb:"#10000005"`
+	Updates common.SnakeData[UpdateAllowlist] `tlb:"^"`
+}
+
+type WithdrawFeeTokens struct{}
