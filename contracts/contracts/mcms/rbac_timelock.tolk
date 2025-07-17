@@ -924,48 +924,45 @@ fun Timelock<T>.checkFunctionSelectorNotBlocked(self, data: slice): void {
     }
 }
 
-// TODO: handle bounced messages
-fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: slice) {
-    val sender: address = msgFull.beginParse().loadAddress();
+// --- Message handlers ---
 
-    // Load the contract storage
-    var timelock: Timelock<bool> = { data: Timelock_Data.fromContractData() };
-
+@inline
+fun Timelock<T>.onInternalMessage(mutate self, msgSender: address, msgValue: coins, msgBody: slice) {
     val msg = lazy Timelock_InMessage.fromSlice(msgBody);
     match (msg) {
         Timelock_Init => {
-            timelock.init(sender, msg.queryId, msg.minDelay, msg.admin, msg.proposers, msg.executors, msg.cancellers, msg.bypassers);
+            self.init(msgSender, msg.queryId, msg.minDelay, msg.admin, msg.proposers, msg.executors, msg.cancellers, msg.bypassers);
         }
         Timelock_TopUp => {
             // Top up the contract balance, no action needed, return early - no need to update storage
             return;
         }
         Timelock_UpdateDelay => {
-            timelock.updateDelay(sender, msg.queryId, msg.newDelay);
+            self.updateDelay(msgSender, msg.queryId, msg.newDelay);
         }
         Timelock_BlockFunctionSelector => {
-            timelock.blockFunctionSelector(sender, msg.queryId, msg.selector);
+            self.blockFunctionSelector(msgSender, msg.queryId, msg.selector);
         }
         Timelock_UnblockFunctionSelector => {
-            timelock.unblockFunctionSelector(sender, msg.queryId, msg.selector);
+            self.unblockFunctionSelector(msgSender, msg.queryId, msg.selector);
         }
         Timelock_ScheduleBatch => {
-            timelock.scheduleBatch(sender, msg.queryId, msg.calls, msg.predecessor, msg.salt, msg.delay);
+            self.scheduleBatch(msgSender, msg.queryId, msg.calls, msg.predecessor, msg.salt, msg.delay);
         }
         Timelock_ExecuteBatch => {
-            timelock.executeBatch(sender, msg.queryId, msg.calls, msg.predecessor, msg.salt);
+            self.executeBatch(msgSender, msg.queryId, msg.calls, msg.predecessor, msg.salt);
         }
         Timelock_Cancel => {
-            timelock.cancel(sender, msg.queryId, msg.id);
+            self.cancel(msgSender, msg.queryId, msg.id);
         }
         Timelock_BypasserExecuteBatch => {
-            timelock.bypasserExecuteBatch(sender, msg.queryId, msg.calls);
+            self.bypasserExecuteBatch(msgSender, msg.queryId, msg.calls);
         }
         else => {
-            var rbac = timelock.hookTrait__AccessControl();
+            var rbac = self.hookTrait__AccessControl();
 
             val msgHandeled = 0
-                || rbac.onInternalMessage(myBalance, msgValue, msgFull, msgBody);;
+                || rbac.onInternalMessage(msgSender, msgValue, msgBody);
 
             if (!msgHandeled) {
                 // If the message was not handled, throw an error
@@ -973,9 +970,16 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
             }
 
             // Map from underlying trait storage to contract storage
-            timelock.data.rbac = rbac.data.toCell();
+            self.data.rbac = rbac.data.toCell();
         }
     }
+}
+
+// TODO: handle bounced messages
+fun onInternalMessage(in: InMessage) {
+    // Load the contract storage as Timelock and handle the message
+    var timelock = Timelock<bool>.load();
+    timelock.onInternalMessage(in.senderAddress, in.valueCoins, in.body);
 
     // Store the updated contract data
     timelock.data.storeAsContractData();

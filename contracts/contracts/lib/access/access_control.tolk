@@ -201,7 +201,7 @@ struct AccessControl_RoleData {
 /// @dev Hook extensions exposed by the AccessControl contract.
 struct AccessControl_Hooks<T> {
     /// Hook to get the sender of the message.
-    msgSender: ((T?, cell) -> address)?;
+    msgSender: ((T?, address, slice) -> address)?;
 
     /// Hook before granting a role.
     shouldGrantRole: ((T?, uint64, int, address) -> void)?;
@@ -227,15 +227,13 @@ const LEN_ROLE = 256; // LEN_ROLE bits for role ID
 /// @dev Returns the sender of the message.
 ///
 /// Override available via {AccessControl_Hooks<T>.msgSender} hook.
-fun AccessControl<T>.msgSender(self, msgFull: cell): address {
+fun AccessControl<T>.msgSender(self, msgSender: address, msgBody: slice): address {
     if (self.hooks != null && self.hooks.msgSender != null) {
-        return self.hooks.msgSender(self.context, msgFull); // extension hook
+        return self.hooks.msgSender(self.context, msgSender, msgBody); // extension hook
     }
 
-    // Fallback to parsing the message body to get the sender
-    return msgFull.beginParse()
-        .skipBits(4) // skip msgFlags from incoming message body (4 bits).
-        .loadAddress();
+    // Default implementation: return the address from the message sender
+    return msgSender;
 }
 
 /// @dev Modifier that checks that an account has a specific role. Reverts
@@ -616,8 +614,8 @@ fun AccessControl<T>.get_getRoleMemberNext(self, role: int, pivot: slice): addre
 // --- Message handlers ---
 
 @inline
-fun AccessControl<T>.onInternalMessage(mutate self, myBalance: int, msgValue: int, msgFull: cell, msgBody: slice) {
-    val sender = self.msgSender(msgFull);
+fun AccessControl<T>.onInternalMessage(mutate self, msgSender: address, _msgValue: coins, msgBody: slice) {
+    val sender = self.msgSender(msgSender, msgBody);
     val msg = lazy AccessControl_InMessage.fromSlice(msgBody);
     match (msg) {
         AccessControl_GrantRole => {
