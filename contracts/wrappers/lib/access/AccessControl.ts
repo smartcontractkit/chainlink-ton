@@ -156,11 +156,11 @@ export const builder = {
 }
 
 // AccessControl contract bindings
-export class AccessControl implements Contract {
+export class ContractClient implements Contract {
   constructor(readonly address: Address) {}
 
-  static newAt(address: Address): AccessControl {
-    return new AccessControl(address)
+  static newAt(address: Address): ContractClient {
+    return new ContractClient(address)
   }
 
   async sendInternal(p: ContractProvider, via: Sender, value: bigint, body: Cell) {

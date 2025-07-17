@@ -1,16 +1,9 @@
 import { Blockchain, BlockchainSnapshot, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Cell, beginCell, toNano } from '@ton/core'
-import '@ton/test-utils'
 import { compile } from '@ton/blueprint'
-import {
-  opcodes,
-  builder,
-  roles,
-  Errors,
-  ExecuteData,
-  RBACTimelock,
-} from '../../wrappers/mcms/RBACTimelock'
+import '@ton/test-utils'
 
+import * as rbactl from '../../wrappers/mcms/RBACTimelock'
 import * as ac from '../../wrappers/lib/access/AccessControl'
 
 describe('RBACTimelock', () => {
@@ -25,13 +18,13 @@ describe('RBACTimelock', () => {
   let other: SandboxContract<TreasuryContract>
 
   // Contract bindings
-  let acContract: SandboxContract<ac.AccessControl>
-  let timelock: SandboxContract<RBACTimelock>
+  let acContract: SandboxContract<ac.ContractClient>
+  let timelock: SandboxContract<rbactl.ContractClient>
 
   let minDelay: number
   let scheduleSnapshot: BlockchainSnapshot
   let scheduleId: bigint
-  let executeData: ExecuteData
+  let executeData: rbactl.ExecuteData
 
   beforeEach(async () => {
     blockchain = await Blockchain.create()
@@ -40,7 +33,7 @@ describe('RBACTimelock', () => {
     minDelay = 7
 
     const roleData: ac.ContractRoleData = {
-      adminRole: roles.admin, // default admin role
+      adminRole: rbactl.roles.admin, // default admin role
       membersLen: 1n, // one member (deployer)
       hasRole: ac.builder.data.encode().hasRoleDict([deployer.address]),
     }
@@ -48,10 +41,10 @@ describe('RBACTimelock', () => {
     const rbacStorage: ac.ContractData = {
       roles: ac.builder.data.encode().rolesDict(
         new Map([
-          [roles.admin, roleData],
-          [roles.proposer, roleData],
-          [roles.canceller, roleData],
-          [roles.executor, roleData],
+          [rbactl.roles.admin, roleData],
+          [rbactl.roles.proposer, roleData],
+          [rbactl.roles.canceller, roleData],
+          [rbactl.roles.executor, roleData],
         ]),
       ),
     }
@@ -61,30 +54,30 @@ describe('RBACTimelock', () => {
       rbac: ac.builder.data.encode().contractData(rbacStorage),
     }
 
-    timelock = blockchain.openContract(RBACTimelock.newFrom(data, code))
-    acContract = blockchain.openContract(ac.AccessControl.newAt(timelock.address))
+    timelock = blockchain.openContract(rbactl.ContractClient.newFrom(data, code))
+    acContract = blockchain.openContract(ac.ContractClient.newAt(timelock.address))
   })
 
   it('Should compute crc32 opcodes', async () => {
     // In opcodes
-    expect(opcodes.in.Init).toBe(0x4982fcfd)
-    expect(opcodes.in.TopUp).toBe(0xfee62ba6)
-    expect(opcodes.in.ScheduleBatch).toBe(0x94718f4)
-    expect(opcodes.in.Cancel).toBe(0xaf3bf1d0)
-    expect(opcodes.in.ExecuteBatch).toBe(0x6e9bf263)
-    expect(opcodes.in.UpdateDelay).toBe(0x7a57a45c)
-    expect(opcodes.in.BlockFunctionSelector).toBe(0x2637af77)
-    expect(opcodes.in.UnblockFunctionSelector).toBe(0x26f19f4e)
-    expect(opcodes.in.BypasserExecuteBatch).toBe(0xbb0e9f7d)
+    expect(rbactl.opcodes.in.Init).toBe(0x4982fcfd)
+    expect(rbactl.opcodes.in.TopUp).toBe(0xfee62ba6)
+    expect(rbactl.opcodes.in.ScheduleBatch).toBe(0x94718f4)
+    expect(rbactl.opcodes.in.Cancel).toBe(0xaf3bf1d0)
+    expect(rbactl.opcodes.in.ExecuteBatch).toBe(0x6e9bf263)
+    expect(rbactl.opcodes.in.UpdateDelay).toBe(0x7a57a45c)
+    expect(rbactl.opcodes.in.BlockFunctionSelector).toBe(0x2637af77)
+    expect(rbactl.opcodes.in.UnblockFunctionSelector).toBe(0x26f19f4e)
+    expect(rbactl.opcodes.in.BypasserExecuteBatch).toBe(0xbb0e9f7d)
 
     // Out opcodes
-    expect(opcodes.out.CallScheduled).toBe(0xc55fca54)
-    expect(opcodes.out.CallExecuted).toBe(0x49ea5d0e)
-    expect(opcodes.out.BypasserCallExecuted).toBe(0x9c7f3010)
-    expect(opcodes.out.Canceled).toBe(0x580e80f2)
-    expect(opcodes.out.MinDelayChange).toBe(0x904b14e0)
-    expect(opcodes.out.FunctionSelectorBlocked).toBe(0x9c4d6d94)
-    expect(opcodes.out.FunctionSelectorUnblocked).toBe(0xf410a31b)
+    expect(rbactl.opcodes.out.CallScheduled).toBe(0xc55fca54)
+    expect(rbactl.opcodes.out.CallExecuted).toBe(0x49ea5d0e)
+    expect(rbactl.opcodes.out.BypasserCallExecuted).toBe(0x9c7f3010)
+    expect(rbactl.opcodes.out.Canceled).toBe(0x580e80f2)
+    expect(rbactl.opcodes.out.MinDelayChange).toBe(0x904b14e0)
+    expect(rbactl.opcodes.out.FunctionSelectorBlocked).toBe(0x9c4d6d94)
+    expect(rbactl.opcodes.out.FunctionSelectorUnblocked).toBe(0xf410a31b)
   })
 
   it('should deploy', async () => {
@@ -99,14 +92,14 @@ describe('RBACTimelock', () => {
       success: true,
     })
 
-    expect(await acContract.getHasRole(roles.admin, deployer.address)).toEqual(true)
-    expect(await acContract.getRoleAdmin(roles.admin)).toEqual(roles.admin) // default admin role
+    expect(await acContract.getHasRole(rbactl.roles.admin, deployer.address)).toEqual(true)
+    expect(await acContract.getRoleAdmin(rbactl.roles.admin)).toEqual(rbactl.roles.admin) // default admin role
 
-    const memberAddr = await acContract.getRoleMember(roles.admin, 0n)
+    const memberAddr = await acContract.getRoleMember(rbactl.roles.admin, 0n)
     expect(memberAddr).not.toBeNull()
     expect(memberAddr!.toString()).toEqual(deployer.address.toString()) // default admin role
 
-    // const timelockData = await timelock.getRBACTimelockData()
+    // const timelockData = await getRBACTimelockData()
     // expect(timelockData.minDelay).toEqual(minDelay)
     // expect(timelockData.timestampCount).toEqual(0)
     // expect(timelockData.adminAccounts).not.toEqual(null)
@@ -114,16 +107,16 @@ describe('RBACTimelock', () => {
     // expect(timelockData.cancellerAccounts).not.toEqual(null)
     // expect(timelockData.executorAccounts).not.toEqual(null)
     // expect(timelockData.timestamps).toEqual(null)
-    // expect(await timelock.getIsAdmin(deployer.address)).toEqual(true)
-    // expect(await timelock.getIsProposer(deployer.address)).toEqual(true)
-    // expect(await timelock.getIsCanceller(deployer.address)).toEqual(true)
-    // expect(await timelock.getIsExecutor(deployer.address)).toEqual(true)
+    // expect(await getIsAdmin(deployer.address)).toEqual(true)
+    // expect(await getIsProposer(deployer.address)).toEqual(true)
+    // expect(await getIsCanceller(deployer.address)).toEqual(true)
+    // expect(await getIsExecutor(deployer.address)).toEqual(true)
   })
 
   it('successfully parsed AccessControll opcode', async () => {
     const body = ac.builder.message
       .encode()
-      .grantRole({ queryId: 1n, role: roles.proposer, account: other.address })
+      .grantRole({ queryId: 1n, role: rbactl.roles.proposer, account: other.address })
     const result = await timelock.sendInternal(deployer.getSender(), toNano('0.05'), body)
 
     expect(result.transactions).toHaveTransaction({
@@ -133,16 +126,16 @@ describe('RBACTimelock', () => {
       op: ac.opcodes.in.GrantRole,
     })
 
-    expect(await acContract.getRoleAdmin(roles.proposer)).toEqual(roles.admin)
+    expect(await acContract.getRoleAdmin(rbactl.roles.proposer)).toEqual(rbactl.roles.admin)
 
-    expect(await acContract.getHasRole(roles.proposer, deployer.address)).toEqual(true)
-    expect(await acContract.getHasRole(roles.proposer, other.address)).toEqual(true)
+    expect(await acContract.getHasRole(rbactl.roles.proposer, deployer.address)).toEqual(true)
+    expect(await acContract.getHasRole(rbactl.roles.proposer, other.address)).toEqual(true)
 
-    const member0Addr = await acContract.getRoleMember(roles.proposer, 0n)
+    const member0Addr = await acContract.getRoleMember(rbactl.roles.proposer, 0n)
     expect(member0Addr).not.toBeNull()
     expect(member0Addr!.toString()).toEqual(deployer.address.toString()) // default admin role
 
-    const member1Addr = await acContract.getRoleMember(roles.proposer, 1n)
+    const member1Addr = await acContract.getRoleMember(rbactl.roles.proposer, 1n)
     expect(member1Addr).not.toBeNull()
     expect(member1Addr!.toString()).toEqual(other.address.toString()) // default admin role
   })
@@ -150,7 +143,7 @@ describe('RBACTimelock', () => {
   it('successful update account - add admin account', async () => {
     const body = ac.builder.message
       .encode()
-      .grantRole({ queryId: 1n, role: roles.admin, account: other.address })
+      .grantRole({ queryId: 1n, role: rbactl.roles.admin, account: other.address })
     const result = await timelock.sendInternal(deployer.getSender(), toNano('0.05'), body)
 
     expect(result.transactions).toHaveTransaction({
@@ -160,13 +153,13 @@ describe('RBACTimelock', () => {
       op: ac.opcodes.in.GrantRole,
     })
 
-    expect(await acContract.getHasRole(roles.admin, other.address)).toEqual(true)
+    expect(await acContract.getHasRole(rbactl.roles.admin, other.address)).toEqual(true)
   })
 
   it('successful update account - add proposer account', async () => {
     const body = ac.builder.message
       .encode()
-      .grantRole({ queryId: 1n, role: roles.proposer, account: other.address })
+      .grantRole({ queryId: 1n, role: rbactl.roles.proposer, account: other.address })
     const result = await timelock.sendInternal(deployer.getSender(), toNano('0.05'), body)
 
     expect(result.transactions).toHaveTransaction({
@@ -176,13 +169,13 @@ describe('RBACTimelock', () => {
       op: ac.opcodes.in.GrantRole,
     })
 
-    expect(await acContract.getHasRole(roles.proposer, other.address)).toEqual(true)
+    expect(await acContract.getHasRole(rbactl.roles.proposer, other.address)).toEqual(true)
   })
 
   it('successful update account - add canceller account', async () => {
     const body = ac.builder.message
       .encode()
-      .grantRole({ queryId: 1n, role: roles.canceller, account: other.address })
+      .grantRole({ queryId: 1n, role: rbactl.roles.canceller, account: other.address })
     const result = await timelock.sendInternal(deployer.getSender(), toNano('0.05'), body)
 
     expect(result.transactions).toHaveTransaction({
@@ -192,13 +185,13 @@ describe('RBACTimelock', () => {
       op: ac.opcodes.in.GrantRole,
     })
 
-    expect(await acContract.getHasRole(roles.canceller, other.address)).toEqual(true)
+    expect(await acContract.getHasRole(rbactl.roles.canceller, other.address)).toEqual(true)
   })
 
   it('successful update account - add executor account', async () => {
     const body = ac.builder.message
       .encode()
-      .grantRole({ queryId: 1n, role: roles.executor, account: other.address })
+      .grantRole({ queryId: 1n, role: rbactl.roles.executor, account: other.address })
     const result = await timelock.sendInternal(deployer.getSender(), toNano('0.05'), body)
 
     expect(result.transactions).toHaveTransaction({
@@ -208,20 +201,19 @@ describe('RBACTimelock', () => {
       op: ac.opcodes.in.GrantRole,
     })
 
-    expect(await acContract.getHasRole(roles.executor, other.address)).toEqual(true)
+    expect(await acContract.getHasRole(rbactl.roles.executor, other.address)).toEqual(true)
   })
 
   it('successful update account - remove admin account', async () => {
     const bodyInit = ac.builder.message
       .encode()
-      .grantRole({ queryId: 1n, role: roles.admin, account: deployer.address })
+      .grantRole({ queryId: 1n, role: rbactl.roles.admin, account: deployer.address })
     await timelock.sendInternal(deployer.getSender(), toNano('0.05'), bodyInit)
-    expect(await acContract.getHasRole(roles.admin, deployer.address)).toEqual(true)
-
+    expect(await acContract.getHasRole(rbactl.roles.admin, deployer.address)).toEqual(true)
 
     const body = ac.builder.message
       .encode()
-      .revokeRole({ queryId: 1n, role: roles.admin, account: deployer.address })
+      .revokeRole({ queryId: 1n, role: rbactl.roles.admin, account: deployer.address })
     const result = await timelock.sendInternal(deployer.getSender(), toNano('0.05'), body)
 
     expect(result.transactions).toHaveTransaction({
@@ -231,21 +223,19 @@ describe('RBACTimelock', () => {
       op: ac.opcodes.in.RevokeRole,
     })
 
-    expect(await acContract.getHasRole(roles.admin, deployer.address)).toEqual(false)
+    expect(await acContract.getHasRole(rbactl.roles.admin, deployer.address)).toEqual(false)
   })
 
   it('successful update account - remove proposer account', async () => {
     const bodyInit = ac.builder.message
       .encode()
-      .grantRole({ queryId: 1n, role: roles.proposer, account: deployer.address })
+      .grantRole({ queryId: 1n, role: rbactl.roles.proposer, account: deployer.address })
     await timelock.sendInternal(deployer.getSender(), toNano('0.05'), bodyInit)
-    expect(await acContract.getHasRole(roles.proposer, deployer.address)).toEqual(true)
-
-    expect(await acContract.getHasRole(roles.proposer, deployer.address)).toEqual(true)
+    expect(await acContract.getHasRole(rbactl.roles.proposer, deployer.address)).toEqual(true)
 
     const body = ac.builder.message
       .encode()
-      .revokeRole({ queryId: 1n, role: roles.proposer, account: deployer.address })
+      .revokeRole({ queryId: 1n, role: rbactl.roles.proposer, account: deployer.address })
     const result = await timelock.sendInternal(deployer.getSender(), toNano('0.05'), body)
 
     expect(result.transactions).toHaveTransaction({
@@ -255,21 +245,19 @@ describe('RBACTimelock', () => {
       op: ac.opcodes.in.RevokeRole,
     })
 
-    expect(await acContract.getHasRole(roles.proposer, deployer.address)).toEqual(false)
+    expect(await acContract.getHasRole(rbactl.roles.proposer, deployer.address)).toEqual(false)
   })
 
   it('successful update account - remove canceller account', async () => {
     const bodyInit = ac.builder.message
       .encode()
-      .grantRole({ queryId: 1n, role: roles.canceller, account: deployer.address })
+      .grantRole({ queryId: 1n, role: rbactl.roles.canceller, account: deployer.address })
     await timelock.sendInternal(deployer.getSender(), toNano('0.05'), bodyInit)
-    expect(await acContract.getHasRole(roles.canceller, deployer.address)).toEqual(true)
-
-    expect(await acContract.getHasRole(roles.canceller, deployer.address)).toEqual(true)
+    expect(await acContract.getHasRole(rbactl.roles.canceller, deployer.address)).toEqual(true)
 
     const body = ac.builder.message
       .encode()
-      .revokeRole({ queryId: 1n, role: roles.canceller, account: deployer.address })
+      .revokeRole({ queryId: 1n, role: rbactl.roles.canceller, account: deployer.address })
     const result = await timelock.sendInternal(deployer.getSender(), toNano('0.05'), body)
 
     expect(result.transactions).toHaveTransaction({
@@ -279,21 +267,19 @@ describe('RBACTimelock', () => {
       op: ac.opcodes.in.RevokeRole,
     })
 
-    expect(await acContract.getHasRole(roles.canceller, deployer.address)).toEqual(false)
+    expect(await acContract.getHasRole(rbactl.roles.canceller, deployer.address)).toEqual(false)
   })
 
   it('successful update account - remove executor account', async () => {
     const bodyInit = ac.builder.message
       .encode()
-      .grantRole({ queryId: 1n, role: roles.executor, account: deployer.address })
+      .grantRole({ queryId: 1n, role: rbactl.roles.executor, account: deployer.address })
     await timelock.sendInternal(deployer.getSender(), toNano('0.05'), bodyInit)
-    expect(await acContract.getHasRole(roles.executor, deployer.address)).toEqual(true)
-
-    expect(await acContract.getHasRole(roles.executor, deployer.address)).toEqual(true)
+    expect(await acContract.getHasRole(rbactl.roles.executor, deployer.address)).toEqual(true)
 
     const body = ac.builder.message
       .encode()
-      .revokeRole({ queryId: 1n, role: roles.executor, account: deployer.address })
+      .revokeRole({ queryId: 1n, role: rbactl.roles.executor, account: deployer.address })
     const result = await timelock.sendInternal(deployer.getSender(), toNano('0.05'), body)
 
     expect(result.transactions).toHaveTransaction({
@@ -303,13 +289,13 @@ describe('RBACTimelock', () => {
       op: ac.opcodes.in.RevokeRole,
     })
 
-    expect(await acContract.getHasRole(roles.executor, deployer.address)).toEqual(false)
+    expect(await acContract.getHasRole(rbactl.roles.executor, deployer.address)).toEqual(false)
   })
 
   it('invalid sender for update accounts: wrong_op', async () => {
     const bodyInit = ac.builder.message
       .encode()
-      .grantRole({ queryId: 1n, role: roles.admin, account: other.address })
+      .grantRole({ queryId: 1n, role: rbactl.roles.admin, account: other.address })
     const result = await timelock.sendInternal(other.getSender(), toNano('0.05'), bodyInit)
 
     expect(result.transactions).toHaveTransaction({
@@ -321,55 +307,21 @@ describe('RBACTimelock', () => {
     })
   })
 
-  // it('account exists error for update accounts', async () => {
-  //   const result = await timelock.sendAddAccount(deployer.getSender(), {
-  //     value: toNano('0.05'),
-  //     role: Number(roles.admin_,
-  //     account: deployer.address,
-  //   })
+  it('successful update delay', async () => {
+    const delay = 100
 
-  //   expect(result.transactions).toHaveTransaction({
-  //     from: deployer.address,
-  //     to: timelock.address,
-  //     success: false,
-  //     op: Opcodes.update_accounts,
-  //     exitCode: Errors.account_exists,
-  //   })
-  // })
+    const bodyInit = rbactl.builder.message.encode().updateDelay({ queryId: 1n, newDelay: delay })
+    const result = await timelock.sendInternal(deployer.getSender(), toNano('0.05'), bodyInit)
 
-  // it('account not exists error for update accounts', async () => {
-  //   const result = await timelock.sendRemoveAccount(deployer.getSender(), {
-  //     value: toNano('0.05'),
-  //     role: Number(roles.admin_,
-  //     account: other.address,
-  //   })
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: timelock.address,
+      success: true,
+      op: rbactl.opcodes.in.UpdateDelay,
+    })
 
-  //   expect(result.transactions).toHaveTransaction({
-  //     from: deployer.address,
-  //     to: timelock.address,
-  //     success: false,
-  //     op: Opcodes.update_accounts,
-  //     exitCode: Errors.account_not_exists,
-  //   })
-  // })
-
-  // it('successful update delay', async () => {
-  //   const delay = 100
-
-  //   const result = await timelock.sendUpdateDelay(deployer.getSender(), {
-  //     value: toNano('0.05'),
-  //     delay: delay,
-  //   })
-
-  //   expect(result.transactions).toHaveTransaction({
-  //     from: deployer.address,
-  //     to: timelock.address,
-  //     success: true,
-  //     op: Opcodes.update_delay,
-  //   })
-
-  //   expect((await timelock.getRBACTimelockData()).minDelay).toEqual(delay)
-  // })
+    expect(await timelock.getMinDelay()).toEqual(100n)
+  })
 
   // it('invalid sender for update delay: wrong_op', async () => {
   //   const result = await timelock.sendUpdateDelay(other.getSender(), {
@@ -417,7 +369,7 @@ describe('RBACTimelock', () => {
   //     .storeRef(msgToSend)
   //     .endCell()
   //     .hash()
-  //   const id = await timelock.getHashOperation(
+  //   const id = await getHashOperation(
   //     tonValue,
   //     predecessor,
   //     salt,
@@ -555,7 +507,7 @@ describe('RBACTimelock', () => {
   //   blockchain.now = await timelock.getTimestamp(scheduleId)
   //   expect(await timelock.getOperationState(scheduleId)).toEqual(roles.ready_)
 
-  //   await timelock.sendTopUp(deployer.getSender(), {
+  //   await sendTopUp(deployer.getSender(), {
   //     value: toNano('1'),
   //   })
 
@@ -635,7 +587,7 @@ describe('RBACTimelock', () => {
   // it('successful execute with predecessor', async () => {
   //   await blockchain.loadFrom(scheduleSnapshot)
 
-  //   blockchain.now = await timelock.getTimestamp(scheduleId)
+  //   blockchain.now = await getTimestamp(scheduleId)
 
   //   await timelock.sendTopUp(deployer.getSender(), {
   //     value: toNano('1'),
@@ -821,7 +773,7 @@ describe('RBACTimelock', () => {
 
   //   expect(result.transactions).toHaveTransaction({
   //     from: deployer.address,
-  //     to: timelock.address,
+  //     to: address,
   //     success: false,
   //     op: Opcodes.execute,
   //     exitCode: Errors.operation_not_exists,
