@@ -62,8 +62,8 @@ type DynamicConfig struct {
 
 // Storage represents the storage structure for the CCIP onramp contract.
 type Storage struct {
-	Ownable          common.Ownable2Step             `tlb:"^"`
-	ChainSelector    uint64                          `tlb:"## 64"`
-	Config           common.SnakeData[DynamicConfig] `tlb:"^"`
-	DestChainConfigs *cell.Dictionary                `tlb:"dict 64"`
+	Ownable          common.Ownable2Step `tlb:"^"`
+	ChainSelector    uint64              `tlb:"## 64"`
+	Config           DynamicConfig       `tlb:"^"`
+	DestChainConfigs *cell.Dictionary    `tlb:"dict 64"`
 }
