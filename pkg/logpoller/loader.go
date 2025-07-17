@@ -126,27 +126,31 @@ func (lc *LogCollector) fetchMessagesForAddress(ctx context.Context, addr *addre
 	for {
 		batch, err := lc.client.ListTransactions(ctx, addr, lc.pageSize, curLT, curHash)
 		if errors.Is(err, ton.ErrNoTransactionsWereFound) || len(batch) == 0 {
+			// no more transactions to process
 			break
 		} else if err != nil {
 			return nil, fmt.Errorf("ListTransactions: %w", err)
 		}
 
-		// Filter and process messages within the current batch.
+		// filter and process messages within the current batch.
 		// The batch is sorted from oldest to newest.
 		for _, tx := range batch {
-			if tx.LT > startLT {
-				// This is a valid transaction, process its messages.
-				if tx.IO.Out != nil {
-					msgs, _ := tx.IO.Out.ToSlice()
-					for _, msg := range msgs {
-						if msg.MsgType == tlb.MsgTypeExternalOut {
-							ext := msg.AsExternalOut()
-							if ext.Body != nil {
-								// TODO: stream message back to log poller.Process
-								messages = append(messages, ext)
-							}
-						}
-					}
+			if tx.LT <= startLT || tx.IO.Out == nil {
+				// no need to process older transactions, they are already handled.
+				continue
+			}
+
+			msgs, _ := tx.IO.Out.ToSlice()
+
+			for _, msg := range msgs {
+				// only interested in ExternalMessageOut
+				if msg.MsgType != tlb.MsgTypeExternalOut {
+					continue
+				}
+				ext := msg.AsExternalOut()
+				if ext.Body != nil {
+					// TODO: stream message back to log poller.Process
+					messages = append(messages, ext)
 				}
 			}
 		}
