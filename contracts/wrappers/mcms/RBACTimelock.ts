@@ -479,29 +479,6 @@ export class RBACTimelock implements Contract {
   //   })
   // }
 
-  // async sendRemoveAccount(
-  //   provider: ContractProvider,
-  //   via: Sender,
-  //   opts: {
-  //     value: bigint
-  //     queryID?: number
-  //     role: number
-  //     account: Address
-  //   },
-  // ) {
-  //   await provider.internal(via, {
-  //     value: opts.value,
-  //     sendMode: SendMode.PAY_GAS_SEPARATELY,
-  //     body: beginCell()
-  //       .storeUint(Opcodes.update_accounts, 32)
-  //       .storeUint(opts.queryID ?? 0, 64)
-  //       .storeUint(Params.remove_account, 1)
-  //       .storeUint(opts.role, 32)
-  //       .storeAddress(opts.account)
-  //       .endCell(),
-  //   })
-  // }
-
   async sendTopUp(
     provider: ContractProvider,
     via: Sender,

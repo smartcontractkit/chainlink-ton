@@ -61,9 +61,11 @@ export type ContractRoleData = {
 }
 
 const ERROR_INVALID_ROLE = 89
-const ERROR_ACCOUNT_EXISTS = 95
-const ERROR_ACCOUNT_NOT_EXISTS = 96
-const ERROR_ACCOUNT_MISSING_ROLE = 98
+
+export const errors = {
+  UnouthorizedAccount: 90,
+  BadConfirmation: 91,
+}
 
 export const opcodes = {
   in: {

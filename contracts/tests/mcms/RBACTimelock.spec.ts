@@ -211,89 +211,115 @@ describe('RBACTimelock', () => {
     expect(await acContract.getHasRole(roles.executor, other.address)).toEqual(true)
   })
 
-  // it('successful update account - remove admin account', async () => {
-  //   const result = await timelock.sendRemoveAccount(deployer.getSender(), {
-  //     value: toNano('0.05'),
-  //     role: Number(roles.admin_,
-  //     account: deployer.address,
-  //   })
+  it('successful update account - remove admin account', async () => {
+    const bodyInit = ac.builder.message
+      .encode()
+      .grantRole({ queryId: 1n, role: roles.admin, account: deployer.address })
+    await timelock.sendInternal(deployer.getSender(), toNano('0.05'), bodyInit)
+    expect(await acContract.getHasRole(roles.admin, deployer.address)).toEqual(true)
 
-  //   expect(result.transactions).toHaveTransaction({
-  //     from: deployer.address,
-  //     to: timelock.address,
-  //     success: true,
-  //     op: Opcodes.update_accounts,
-  //   })
 
-  //   expect(await timelock.getIsAdmin(deployer.address)).toEqual(false)
-  // })
+    const body = ac.builder.message
+      .encode()
+      .revokeRole({ queryId: 1n, role: roles.admin, account: deployer.address })
+    const result = await timelock.sendInternal(deployer.getSender(), toNano('0.05'), body)
 
-  // it('successful update account - remove proposer account', async () => {
-  //   const result = await timelock.sendRemoveAccount(deployer.getSender(), {
-  //     value: toNano('0.05'),
-  //     role: Number(roles.proposer_,
-  //     account: deployer.address,
-  //   })
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: timelock.address,
+      success: true,
+      op: ac.opcodes.in.RevokeRole,
+    })
 
-  //   expect(result.transactions).toHaveTransaction({
-  //     from: deployer.address,
-  //     to: timelock.address,
-  //     success: true,
-  //     op: Opcodes.update_accounts,
-  //   })
+    expect(await acContract.getHasRole(roles.admin, deployer.address)).toEqual(false)
+  })
 
-  //   expect(await timelock.getIsProposer(deployer.address)).toEqual(false)
-  // })
+  it('successful update account - remove proposer account', async () => {
+    const bodyInit = ac.builder.message
+      .encode()
+      .grantRole({ queryId: 1n, role: roles.proposer, account: deployer.address })
+    await timelock.sendInternal(deployer.getSender(), toNano('0.05'), bodyInit)
+    expect(await acContract.getHasRole(roles.proposer, deployer.address)).toEqual(true)
 
-  // it('successful update account - remove canceller account', async () => {
-  //   const result = await timelock.sendRemoveAccount(deployer.getSender(), {
-  //     value: toNano('0.05'),
-  //     role: Number(roles.canceller_,
-  //     account: deployer.address,
-  //   })
+    expect(await acContract.getHasRole(roles.proposer, deployer.address)).toEqual(true)
 
-  //   expect(result.transactions).toHaveTransaction({
-  //     from: deployer.address,
-  //     to: timelock.address,
-  //     success: true,
-  //     op: Opcodes.update_accounts,
-  //   })
+    const body = ac.builder.message
+      .encode()
+      .revokeRole({ queryId: 1n, role: roles.proposer, account: deployer.address })
+    const result = await timelock.sendInternal(deployer.getSender(), toNano('0.05'), body)
 
-  //   expect(await timelock.getIsCanceller(deployer.address)).toEqual(false)
-  // })
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: timelock.address,
+      success: true,
+      op: ac.opcodes.in.RevokeRole,
+    })
 
-  // it('successful update account - remove executor account', async () => {
-  //   const result = await timelock.sendRemoveAccount(deployer.getSender(), {
-  //     value: toNano('0.05'),
-  //     role: Number(roles.executor_,
-  //     account: deployer.address,
-  //   })
+    expect(await acContract.getHasRole(roles.proposer, deployer.address)).toEqual(false)
+  })
 
-  //   expect(result.transactions).toHaveTransaction({
-  //     from: deployer.address,
-  //     to: timelock.address,
-  //     success: true,
-  //     op: Opcodes.update_accounts,
-  //   })
+  it('successful update account - remove canceller account', async () => {
+    const bodyInit = ac.builder.message
+      .encode()
+      .grantRole({ queryId: 1n, role: roles.canceller, account: deployer.address })
+    await timelock.sendInternal(deployer.getSender(), toNano('0.05'), bodyInit)
+    expect(await acContract.getHasRole(roles.canceller, deployer.address)).toEqual(true)
 
-  //   expect(await timelock.getIsExecutor(deployer.address)).toEqual(false)
-  // })
+    expect(await acContract.getHasRole(roles.canceller, deployer.address)).toEqual(true)
 
-  // it('invalid sender for update accounts: wrong_op', async () => {
-  //   const result = await timelock.sendAddAccount(other.getSender(), {
-  //     value: toNano('0.05'),
-  //     role: Number(roles.admin_,
-  //     account: other.address,
-  //   })
+    const body = ac.builder.message
+      .encode()
+      .revokeRole({ queryId: 1n, role: roles.canceller, account: deployer.address })
+    const result = await timelock.sendInternal(deployer.getSender(), toNano('0.05'), body)
 
-  //   expect(result.transactions).toHaveTransaction({
-  //     from: other.address,
-  //     to: timelock.address,
-  //     success: false,
-  //     op: Opcodes.update_accounts,
-  //     exitCode: Errors.wrong_op,
-  //   })
-  // })
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: timelock.address,
+      success: true,
+      op: ac.opcodes.in.RevokeRole,
+    })
+
+    expect(await acContract.getHasRole(roles.canceller, deployer.address)).toEqual(false)
+  })
+
+  it('successful update account - remove executor account', async () => {
+    const bodyInit = ac.builder.message
+      .encode()
+      .grantRole({ queryId: 1n, role: roles.executor, account: deployer.address })
+    await timelock.sendInternal(deployer.getSender(), toNano('0.05'), bodyInit)
+    expect(await acContract.getHasRole(roles.executor, deployer.address)).toEqual(true)
+
+    expect(await acContract.getHasRole(roles.executor, deployer.address)).toEqual(true)
+
+    const body = ac.builder.message
+      .encode()
+      .revokeRole({ queryId: 1n, role: roles.executor, account: deployer.address })
+    const result = await timelock.sendInternal(deployer.getSender(), toNano('0.05'), body)
+
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: timelock.address,
+      success: true,
+      op: ac.opcodes.in.RevokeRole,
+    })
+
+    expect(await acContract.getHasRole(roles.executor, deployer.address)).toEqual(false)
+  })
+
+  it('invalid sender for update accounts: wrong_op', async () => {
+    const bodyInit = ac.builder.message
+      .encode()
+      .grantRole({ queryId: 1n, role: roles.admin, account: other.address })
+    const result = await timelock.sendInternal(other.getSender(), toNano('0.05'), bodyInit)
+
+    expect(result.transactions).toHaveTransaction({
+      from: other.address,
+      to: timelock.address,
+      success: false,
+      op: ac.opcodes.in.GrantRole,
+      exitCode: ac.errors.UnouthorizedAccount,
+    })
+  })
 
   // it('account exists error for update accounts', async () => {
   //   const result = await timelock.sendAddAccount(deployer.getSender(), {
