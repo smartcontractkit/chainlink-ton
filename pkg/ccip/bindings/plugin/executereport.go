@@ -22,7 +22,7 @@ type ExecuteReport struct {
 // Any2TVMRampMessage represents ramp message, which is part of the execute report.
 type Any2TVMRampMessage struct {
 	Header       RampMessageHeader                     `tlb:"."`
-	Sender       common.CrossChainAddress              `tlb:"."`
+	Sender       common.CrossChainAddress              `tlb:"^"`
 	Data         common.SnakeBytes                     `tlb:"^"`
 	Receiver     *address.Address                      `tlb:"addr"`
 	GasLimit     tlb.Coins                             `tlb:"."`
@@ -40,7 +40,7 @@ type RampMessageHeader struct {
 
 // Any2TVMTokenTransfer represents a token transfer within a ramp message.
 type Any2TVMTokenTransfer struct {
-	SourcePoolAddress common.CrossChainAddress `tlb:"."`
+	SourcePoolAddress common.CrossChainAddress `tlb:"^"`
 	DestPoolAddress   *address.Address         `tlb:"addr"`
 	DestGasAmount     uint32                   `tlb:"## 32"`
 	ExtraData         *cell.Cell               `tlb:"^"`
