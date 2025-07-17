@@ -5,10 +5,9 @@ import { compile } from '@ton/blueprint'
 import {
   opcodes,
   builder,
+  roles,
   Errors,
   ExecuteData,
-  Opcodes,
-  Params,
   RBACTimelock,
 } from '../../wrappers/mcms/RBACTimelock'
 
@@ -41,7 +40,7 @@ describe('RBACTimelock', () => {
     minDelay = 7
 
     const roleData: ac.ContractRoleData = {
-      adminRole: Params.admin_role, // default admin role
+      adminRole: roles.admin, // default admin role
       membersLen: 1n, // one member (deployer)
       hasRole: ac.builder.data.encode().hasRoleDict([deployer.address]),
     }
@@ -49,10 +48,10 @@ describe('RBACTimelock', () => {
     const rbacStorage: ac.ContractData = {
       roles: ac.builder.data.encode().rolesDict(
         new Map([
-          [Params.admin_role, roleData],
-          [Params.proposer_role, roleData],
-          [Params.canceller_role, roleData],
-          [Params.executor_role, roleData],
+          [roles.admin, roleData],
+          [roles.proposer, roleData],
+          [roles.canceller, roleData],
+          [roles.executor, roleData],
         ]),
       ),
     }
@@ -100,10 +99,10 @@ describe('RBACTimelock', () => {
       success: true,
     })
 
-    expect(await acContract.getHasRole(Params.admin_role, deployer.address)).toEqual(true)
-    expect(await acContract.getRoleAdmin(Params.admin_role)).toEqual(Params.admin_role) // default admin role
+    expect(await acContract.getHasRole(roles.admin, deployer.address)).toEqual(true)
+    expect(await acContract.getRoleAdmin(roles.admin)).toEqual(roles.admin) // default admin role
 
-    const memberAddr = await acContract.getRoleMember(Params.admin_role, 0n)
+    const memberAddr = await acContract.getRoleMember(roles.admin, 0n)
     expect(memberAddr).not.toBeNull()
     expect(memberAddr!.toString()).toEqual(deployer.address.toString()) // default admin role
 
@@ -124,7 +123,7 @@ describe('RBACTimelock', () => {
   it('successfully parsed AccessControll opcode', async () => {
     const body = ac.builder.message
       .encode()
-      .grantRole({ queryId: 1n, role: Params.proposer_role, account: other.address })
+      .grantRole({ queryId: 1n, role: roles.proposer, account: other.address })
     const result = await timelock.sendInternal(deployer.getSender(), toNano('0.05'), body)
 
     expect(result.transactions).toHaveTransaction({
@@ -134,92 +133,88 @@ describe('RBACTimelock', () => {
       op: ac.opcodes.in.GrantRole,
     })
 
-    expect(await acContract.getRoleAdmin(Params.proposer_role)).toEqual(Params.admin_role)
+    expect(await acContract.getRoleAdmin(roles.proposer)).toEqual(roles.admin)
 
-    expect(await acContract.getHasRole(Params.proposer_role, deployer.address)).toEqual(true)
-    expect(await acContract.getHasRole(Params.proposer_role, other.address)).toEqual(true)
+    expect(await acContract.getHasRole(roles.proposer, deployer.address)).toEqual(true)
+    expect(await acContract.getHasRole(roles.proposer, other.address)).toEqual(true)
 
-    const member0Addr = await acContract.getRoleMember(Params.proposer_role, 0n)
+    const member0Addr = await acContract.getRoleMember(roles.proposer, 0n)
     expect(member0Addr).not.toBeNull()
     expect(member0Addr!.toString()).toEqual(deployer.address.toString()) // default admin role
 
-    const member1Addr = await acContract.getRoleMember(Params.proposer_role, 1n)
+    const member1Addr = await acContract.getRoleMember(roles.proposer, 1n)
     expect(member1Addr).not.toBeNull()
     expect(member1Addr!.toString()).toEqual(other.address.toString()) // default admin role
   })
 
-  // it('successful update account - add admin account', async () => {
-  //   const result = await timelock.sendAddAccount(deployer.getSender(), {
-  //     value: toNano('0.05'),
-  //     role: Number(Params.admin_role),
-  //     account: other.address,
-  //   })
+  it('successful update account - add admin account', async () => {
+    const body = ac.builder.message
+      .encode()
+      .grantRole({ queryId: 1n, role: roles.admin, account: other.address })
+    const result = await timelock.sendInternal(deployer.getSender(), toNano('0.05'), body)
 
-  //   expect(result.transactions).toHaveTransaction({
-  //     from: deployer.address,
-  //     to: timelock.address,
-  //     success: true,
-  //     op: Opcodes.update_accounts,
-  //   })
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: timelock.address,
+      success: true,
+      op: ac.opcodes.in.GrantRole,
+    })
 
-  //   expect(await timelock.getIsAdmin(other.address)).toEqual(true)
-  // })
+    expect(await acContract.getHasRole(roles.admin, other.address)).toEqual(true)
+  })
 
-  // it('successful update account - add proposer account', async () => {
-  //   const result = await timelock.sendAddAccount(deployer.getSender(), {
-  //     value: toNano('0.05'),
-  //     role: Number(Params.proposer_role),
-  //     account: other.address,
-  //   })
+  it('successful update account - add proposer account', async () => {
+    const body = ac.builder.message
+      .encode()
+      .grantRole({ queryId: 1n, role: roles.proposer, account: other.address })
+    const result = await timelock.sendInternal(deployer.getSender(), toNano('0.05'), body)
 
-  //   expect(result.transactions).toHaveTransaction({
-  //     from: deployer.address,
-  //     to: timelock.address,
-  //     success: true,
-  //     op: Opcodes.update_accounts,
-  //   })
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: timelock.address,
+      success: true,
+      op: ac.opcodes.in.GrantRole,
+    })
 
-  //   expect(await timelock.getIsProposer(other.address)).toEqual(true)
-  // })
+    expect(await acContract.getHasRole(roles.proposer, other.address)).toEqual(true)
+  })
 
-  // it('successful update account - add canceller account', async () => {
-  //   const result = await timelock.sendAddAccount(deployer.getSender(), {
-  //     value: toNano('0.05'),
-  //     role: Number(Params.canceller_role),
-  //     account: other.address,
-  //   })
+  it('successful update account - add canceller account', async () => {
+    const body = ac.builder.message
+      .encode()
+      .grantRole({ queryId: 1n, role: roles.canceller, account: other.address })
+    const result = await timelock.sendInternal(deployer.getSender(), toNano('0.05'), body)
 
-  //   expect(result.transactions).toHaveTransaction({
-  //     from: deployer.address,
-  //     to: timelock.address,
-  //     success: true,
-  //     op: Opcodes.update_accounts,
-  //   })
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: timelock.address,
+      success: true,
+      op: ac.opcodes.in.GrantRole,
+    })
 
-  //   expect(await timelock.getIsCanceller(other.address)).toEqual(true)
-  // })
+    expect(await acContract.getHasRole(roles.canceller, other.address)).toEqual(true)
+  })
 
-  // it('successful update account - add executor account', async () => {
-  //   const result = await timelock.sendAddAccount(deployer.getSender(), {
-  //     value: toNano('0.05'),
-  //     role: Number(Params.executor_role),
-  //     account: other.address,
-  //   })
+  it('successful update account - add executor account', async () => {
+    const body = ac.builder.message
+      .encode()
+      .grantRole({ queryId: 1n, role: roles.executor, account: other.address })
+    const result = await timelock.sendInternal(deployer.getSender(), toNano('0.05'), body)
 
-  //   expect(result.transactions).toHaveTransaction({
-  //     from: deployer.address,
-  //     to: timelock.address,
-  //     success: true,
-  //     op: Opcodes.update_accounts,
-  //   })
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: timelock.address,
+      success: true,
+      op: ac.opcodes.in.GrantRole,
+    })
 
-  //   expect(await timelock.getIsExecutor(other.address)).toEqual(true)
-  // })
+    expect(await acContract.getHasRole(roles.executor, other.address)).toEqual(true)
+  })
 
   // it('successful update account - remove admin account', async () => {
   //   const result = await timelock.sendRemoveAccount(deployer.getSender(), {
   //     value: toNano('0.05'),
-  //     role: Number(Params.admin_role),
+  //     role: Number(roles.admin_,
   //     account: deployer.address,
   //   })
 
@@ -236,7 +231,7 @@ describe('RBACTimelock', () => {
   // it('successful update account - remove proposer account', async () => {
   //   const result = await timelock.sendRemoveAccount(deployer.getSender(), {
   //     value: toNano('0.05'),
-  //     role: Number(Params.proposer_role),
+  //     role: Number(roles.proposer_,
   //     account: deployer.address,
   //   })
 
@@ -253,7 +248,7 @@ describe('RBACTimelock', () => {
   // it('successful update account - remove canceller account', async () => {
   //   const result = await timelock.sendRemoveAccount(deployer.getSender(), {
   //     value: toNano('0.05'),
-  //     role: Number(Params.canceller_role),
+  //     role: Number(roles.canceller_,
   //     account: deployer.address,
   //   })
 
@@ -270,7 +265,7 @@ describe('RBACTimelock', () => {
   // it('successful update account - remove executor account', async () => {
   //   const result = await timelock.sendRemoveAccount(deployer.getSender(), {
   //     value: toNano('0.05'),
-  //     role: Number(Params.executor_role),
+  //     role: Number(roles.executor_,
   //     account: deployer.address,
   //   })
 
@@ -287,7 +282,7 @@ describe('RBACTimelock', () => {
   // it('invalid sender for update accounts: wrong_op', async () => {
   //   const result = await timelock.sendAddAccount(other.getSender(), {
   //     value: toNano('0.05'),
-  //     role: Number(Params.admin_role),
+  //     role: Number(roles.admin_,
   //     account: other.address,
   //   })
 
@@ -303,7 +298,7 @@ describe('RBACTimelock', () => {
   // it('account exists error for update accounts', async () => {
   //   const result = await timelock.sendAddAccount(deployer.getSender(), {
   //     value: toNano('0.05'),
-  //     role: Number(Params.admin_role),
+  //     role: Number(roles.admin_,
   //     account: deployer.address,
   //   })
 
@@ -319,7 +314,7 @@ describe('RBACTimelock', () => {
   // it('account not exists error for update accounts', async () => {
   //   const result = await timelock.sendRemoveAccount(deployer.getSender(), {
   //     value: toNano('0.05'),
-  //     role: Number(Params.admin_role),
+  //     role: Number(roles.admin_,
   //     account: other.address,
   //   })
 
@@ -405,11 +400,11 @@ describe('RBACTimelock', () => {
   //   )
   //   expect(id).toEqual(BigInt('0x' + offchainId.toString('hex')))
   //   expect(await timelock.getTimestamp(id)).toEqual(result.transactions[1].now + minDelay)
-  //   expect(await timelock.getOperationState(id)).toEqual(Params.waiting_state)
+  //   expect(await timelock.getOperationState(id)).toEqual(roles.waiting_)
   //   const timelockData = await timelock.getRBACTimelockData()
   //   expect(timelockData.timestampCount).toEqual(1)
   //   expect(timelockData.timestamps).not.toEqual(null)
-  //   expect(await timelock.getOperationState(1n)).toEqual(Params.unset_state)
+  //   expect(await timelock.getOperationState(1n)).toEqual(roles.unset_)
 
   //   scheduleSnapshot = blockchain.snapshot()
   //   scheduleId = id
@@ -508,7 +503,7 @@ describe('RBACTimelock', () => {
   //   })
 
   //   expect(await timelock.getTimestamp(scheduleId)).toEqual(0)
-  //   expect(await timelock.getOperationState(scheduleId)).toEqual(Params.unset_state)
+  //   expect(await timelock.getOperationState(scheduleId)).toEqual(roles.unset_)
   //   const timelockData = await timelock.getRBACTimelockData()
   //   expect(timelockData.timestampCount).toEqual(0)
   //   expect(timelockData.timestamps).toEqual(null)
@@ -532,7 +527,7 @@ describe('RBACTimelock', () => {
   // it('invalid operation state (already done) for cancel', async () => {
   //   await blockchain.loadFrom(scheduleSnapshot)
   //   blockchain.now = await timelock.getTimestamp(scheduleId)
-  //   expect(await timelock.getOperationState(scheduleId)).toEqual(Params.ready_state)
+  //   expect(await timelock.getOperationState(scheduleId)).toEqual(roles.ready_)
 
   //   await timelock.sendTopUp(deployer.getSender(), {
   //     value: toNano('1'),
@@ -580,7 +575,7 @@ describe('RBACTimelock', () => {
   //   await blockchain.loadFrom(scheduleSnapshot)
 
   //   blockchain.now = await timelock.getTimestamp(scheduleId)
-  //   expect(await timelock.getOperationState(scheduleId)).toEqual(Params.ready_state)
+  //   expect(await timelock.getOperationState(scheduleId)).toEqual(roles.ready_)
 
   //   await timelock.sendTopUp(deployer.getSender(), {
   //     value: toNano('1'),
@@ -607,8 +602,8 @@ describe('RBACTimelock', () => {
   //     to: executeData.targetAccount,
   //   })
 
-  //   expect(await timelock.getTimestamp(scheduleId)).toEqual(Params.done_timestamp)
-  //   expect(await timelock.getOperationState(scheduleId)).toEqual(Params.done_state)
+  //   expect(await timelock.getTimestamp(scheduleId)).toEqual(roles.done_time)
+  //   expect(await timelock.getOperationState(scheduleId)).toEqual(roles.done_)
   // })
 
   // it('successful execute with predecessor', async () => {
@@ -674,8 +669,8 @@ describe('RBACTimelock', () => {
   //     to: executeData.targetAccount,
   //   })
 
-  //   expect(await timelock.getTimestamp(id)).toEqual(Params.done_timestamp)
-  //   expect(await timelock.getOperationState(id)).toEqual(Params.done_state)
+  //   expect(await timelock.getTimestamp(id)).toEqual(roles.done_time)
+  //   expect(await timelock.getOperationState(id)).toEqual(roles.done_)
   // })
 
   // it('predecessor not exists for execute', async () => {
@@ -746,7 +741,7 @@ describe('RBACTimelock', () => {
   //   await blockchain.loadFrom(scheduleSnapshot)
 
   //   blockchain.now = await timelock.getTimestamp(scheduleId)
-  //   expect(await timelock.getOperationState(scheduleId)).toEqual(Params.ready_state)
+  //   expect(await timelock.getOperationState(scheduleId)).toEqual(roles.ready_)
 
   //   const result = await timelock.sendExecute(deployer.getSender(), {
   //     value: toNano('0.05'),
@@ -880,8 +875,8 @@ describe('RBACTimelock', () => {
   //     op: Opcodes.clear_timestamps,
   //   })
 
-  //   expect(await timelock.getTimestamp(id1)).toEqual(Params.unset_state)
-  //   expect(await timelock.getTimestamp(id2)).toEqual(Params.unset_state)
+  //   expect(await timelock.getTimestamp(id1)).toEqual(roles.unset_)
+  //   expect(await timelock.getTimestamp(id2)).toEqual(roles.unset_)
   //   const timelockData = await timelock.getRBACTimelockData()
   //   expect(timelockData.timestampCount).toEqual(0)
   //   expect(timelockData.timestamps).toEqual(null)
