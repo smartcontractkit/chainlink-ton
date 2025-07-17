@@ -48,10 +48,10 @@ type CCIPSend struct {
 
 // DestChainConfig represents the configuration for a destination chain in the CCIP system.
 type DestChainConfig struct {
-	Router           *address.Address `tlb:"addr"`
-	SequenceNumber   uint64           `tlb:"## 64"`
-	AllowListEnabled bool             `tlb:"bool"`
-	AllowedSender    *cell.Dictionary `tlb:"dict 267"` // it's not documented anywhere, but the address in cell uses 267 bits
+	Router           common.CrossChainAddress `tlb:"."`
+	SequenceNumber   uint64                   `tlb:"## 64"`
+	AllowListEnabled bool                     `tlb:"bool"`
+	AllowedSender    *cell.Dictionary         `tlb:"dict 267"` // it's not documented anywhere, but the address in cell uses 267 bits
 }
 
 // DynamicConfig holds the dynamic configuration for the CCIP system, including fee quoter, fee aggregator, and allow list admin.
