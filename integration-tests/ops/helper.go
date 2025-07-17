@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/smartcontractkit/chainlink-ton/ops"
 	"github.com/stretchr/testify/require"
 
 	chainsel "github.com/smartcontractkit/chain-selectors"
@@ -13,7 +14,6 @@ import (
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain/ton/provider"
 	cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
-	"github.com/smartcontractkit/chainlink-ton/ops"
 )
 
 type opsEnv struct {
