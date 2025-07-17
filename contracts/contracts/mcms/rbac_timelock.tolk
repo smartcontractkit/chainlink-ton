@@ -351,7 +351,7 @@ fun Timelock_Data.storeAsContractData(self) {
     contract.setData(self.toCell());
 }
 
-/// Represents a single call
+/// @dev Represents a single call
 struct Timelock_Call {
     /// Address of the target contract to call.
     target: address;
@@ -361,7 +361,7 @@ struct Timelock_Call {
     data: cell;
 }
 
-/// Batch of transactions represented as a operation, which can be scheduled and executed.
+/// @dev Batch of transactions represented as a operation, which can be scheduled and executed.
 struct OperationBatch {
     // Array of calls to be scheduled
     calls: cell; // vec<Timelock_Call>
