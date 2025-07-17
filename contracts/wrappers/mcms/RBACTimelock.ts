@@ -187,7 +187,7 @@ export const builder = {
         return beginCell()
           .storeUint(opcodes.in.Init, 32)
           .storeUint(msg.queryId, 64)
-          .storeUint(msg.minDelay, 32)
+          .storeUint(msg.minDelay, 64)
           .storeAddress(msg.admin)
           .storeRef(msg.proposers)
           .storeRef(msg.executors)
@@ -210,7 +210,7 @@ export const builder = {
           .storeRef(msg.calls)
           .storeUint(msg.predecessor, 256)
           .storeUint(msg.salt, 256)
-          .storeUint(msg.delay, 32)
+          .storeUint(msg.delay, 64)
           .endCell()
       },
       // Creates a new `Timelock_Cancel` message.
@@ -236,7 +236,7 @@ export const builder = {
         return beginCell()
           .storeUint(opcodes.in.UpdateDelay, 32)
           .storeUint(msg.queryId, 64)
-          .storeUint(msg.newDelay, 32)
+          .storeUint(msg.newDelay, 64)
           .endCell()
       },
       // Creates a new `Timelock_BlockFunctionSelector` message.
@@ -330,19 +330,19 @@ export abstract class Errors {
   static wrong_op = 0xffff
 }
 
-export class RBACTimelock implements Contract {
+export class ContractClient implements Contract {
   constructor(
     readonly address: Address,
     readonly init?: { code: Cell; data: Cell },
   ) {}
 
-  static newAt(address: Address): RBACTimelock {
-    return new RBACTimelock(address)
+  static newAt(address: Address): ContractClient {
+    return new ContractClient(address)
   }
 
   static newFrom(data: ContractData, code: Cell, workchain = 0) {
     const init = { code, data: builder.data.encode().contractData(data) }
-    return new RBACTimelock(contractAddress(workchain, init), init)
+    return new ContractClient(contractAddress(workchain, init), init)
   }
 
   async sendInternal(provider: ContractProvider, via: Sender, value: bigint, body: Cell) {
@@ -496,6 +496,13 @@ export class RBACTimelock implements Contract {
         .endCell(),
     })
   }
+
+  async getMinDelay(p: ContractProvider): Promise<bigint> {
+    const result = await p.get('getMinDelay', [])
+    return result.stack.readBigNumber()
+  }
+
+  // TODO: clean old methods below
 
   async getRBACTimelockData(provider: ContractProvider) {
     const { stack } = await provider.get('getRBACTimelockData', [])
