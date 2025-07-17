@@ -59,13 +59,6 @@ export type ContractRoleData = {
   hasRole: Dictionary<Buffer, Buffer>
 }
 
-const ERROR_INVALID_ROLE = 89
-
-export const errors = {
-  UnouthorizedAccount: 90,
-  BadConfirmation: 91,
-}
-
 export const opcodes = {
   in: {
     GrantRole: crc32('AccessControl_GrantRole'),
@@ -77,6 +70,13 @@ export const opcodes = {
     RoleRevoked: crc32('AccessControl_RoleRevoked'),
     RoleAdminChanged: crc32('AccessControl_RoleAdminChanged'),
   },
+}
+
+const ERROR_INVALID_ROLE = 89
+
+export const errors = {
+  UnouthorizedAccount: 90,
+  BadConfirmation: 91,
 }
 
 export const builder = {

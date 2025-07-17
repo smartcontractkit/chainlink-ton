@@ -62,7 +62,7 @@ describe('RBACTimelock', () => {
     // In opcodes
     expect(rbactl.opcodes.in.Init).toBe(0x4982fcfd)
     expect(rbactl.opcodes.in.TopUp).toBe(0xfee62ba6)
-    expect(rbactl.opcodes.in.ScheduleBatch).toBe(0x94718f4)
+    expect(rbactl.opcodes.in.ScheduleBatch).toBe(0x094718f4)
     expect(rbactl.opcodes.in.Cancel).toBe(0xaf3bf1d0)
     expect(rbactl.opcodes.in.ExecuteBatch).toBe(0x6e9bf263)
     expect(rbactl.opcodes.in.UpdateDelay).toBe(0x7a57a45c)
@@ -336,62 +336,59 @@ describe('RBACTimelock', () => {
     })
   })
 
-  // it('successful schedule', async () => {
-  //   const tonValue = toNano('0.1')
-  //   const predecessor = 0n
-  //   const salt = 0n
-  //   const targetAccount = deployer.address
-  //   const msgToSend = beginCell().endCell()
-  //   const result = await timelock.sendSchedule(deployer.getSender(), {
-  //     value: toNano('1.05'),
-  //     delay: minDelay,
-  //     tonValue: tonValue,
-  //     predecessor: predecessor,
-  //     salt: salt,
-  //     targetAccount: targetAccount,
-  //     msgToSend: msgToSend,
-  //   })
+  it('successful schedule', async () => {
+    const tonValue = toNano('0.1')
+    const predecessor = 0n
+    const salt = 0n
+    const targetAccount = deployer.address
+    const msgToSend = beginCell().endCell()
 
-  //   expect(result.transactions).toHaveTransaction({
-  //     from: deployer.address,
-  //     to: timelock.address,
-  //     success: true,
-  //     op: Opcodes.schedule,
-  //   })
+    const op = {
+      calls: rbactl.builder.data.encode().call({
+        target: targetAccount,
+        value: tonValue,
+        data: msgToSend,
+      }), // TODO: this should be an array of calls: vec<Call>
+      predecessor: predecessor,
+      salt: salt,
+    }
 
-  //   const offchainId = beginCell()
-  //     .storeCoins(tonValue)
-  //     .storeUint(predecessor, 256)
-  //     .storeUint(salt, 256)
-  //     .storeAddress(targetAccount)
-  //     .storeRef(msgToSend)
-  //     .endCell()
-  //     .hash()
-  //   const id = await getHashOperation(
-  //     tonValue,
-  //     predecessor,
-  //     salt,
-  //     targetAccount,
-  //     msgToSend,
-  //   )
-  //   expect(id).toEqual(BigInt('0x' + offchainId.toString('hex')))
-  //   expect(await timelock.getTimestamp(id)).toEqual(result.transactions[1].now + minDelay)
-  //   expect(await timelock.getOperationState(id)).toEqual(roles.waiting_)
-  //   const timelockData = await timelock.getRBACTimelockData()
-  //   expect(timelockData.timestampCount).toEqual(1)
-  //   expect(timelockData.timestamps).not.toEqual(null)
-  //   expect(await timelock.getOperationState(1n)).toEqual(roles.unset_)
+    const result = await timelock.sendScheduleBatch(deployer.getSender(), toNano('1.05'), {
+      queryId: 1n,
+      calls: op.calls,
+      predecessor: op.predecessor,
+      salt: op.salt,
+      delay: minDelay,
+    })
 
-  //   scheduleSnapshot = blockchain.snapshot()
-  //   scheduleId = id
-  //   executeData = {
-  //     tonValue: tonValue,
-  //     predecessor: predecessor,
-  //     salt: salt,
-  //     targetAccount: targetAccount,
-  //     msgToSend: msgToSend,
-  //   }
-  // })
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: timelock.address,
+      success: true,
+      op: rbactl.opcodes.in.ScheduleBatch,
+    })
+
+    const offchainId = rbactl.builder.data.encode().operationBatch(op).hash()
+
+    // TODO: getHashOperationBatch not working
+    const id = BigInt('0x' + offchainId.toString('hex'))
+    // const id = await timelock.getHashOperationBatch(op)
+
+    // expect(id).toEqual(BigInt('0x' + offchainId.toString('hex')))
+    expect(await timelock.getTimestamp(id)).toEqual(BigInt(result.transactions[1].now + minDelay))
+    expect(await timelock.isOperationDone(id)).toEqual(false)
+    expect(await timelock.isOperationReady(1n)).toEqual(false)
+
+    scheduleSnapshot = blockchain.snapshot()
+    scheduleId = id
+    executeData = {
+      tonValue: tonValue,
+      predecessor: predecessor,
+      salt: salt,
+      targetAccount: targetAccount,
+      msgToSend: msgToSend,
+    }
+  })
 
   // it('invalid delay for schedule', async () => {
   //   const result = await timelock.sendSchedule(deployer.getSender(), {

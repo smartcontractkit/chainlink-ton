@@ -317,6 +317,7 @@ const sha256_32 = (input: string): bigint => {
   return BigInt(hash.readUInt32BE(0))
 }
 
+// TODO: keccak256 should be used as a default (compatibility with EVM contracts)
 export const roles = {
   admin: sha256_32('ADMIN_ROLE'), // 2112602974n
   proposer: sha256_32('PROPOSER_ROLE'), // 2908596091n
@@ -370,111 +371,61 @@ export class ContractClient implements Contract {
     })
   }
 
-  // async sendSchedule(
-  //   provider: ContractProvider,
-  //   via: Sender,
-  //   opts: {
-  //     value: bigint
-  //     queryID?: number
-  //     delay: number
-  //     tonValue: bigint
-  //     predecessor: bigint
-  //     salt: bigint
-  //     targetAccount: Address
-  //     msgToSend: Cell
-  //   },
-  // ) {
-  //   await provider.internal(via, {
-  //     value: opts.value,
-  //     sendMode: SendMode.PAY_GAS_SEPARATELY,
-  //     body: beginCell()
-  //       .storeUint(Opcodes.schedule, 32)
-  //       .storeUint(opts.queryID ?? 0, 64)
-  //       .storeUint(opts.delay, 32)
-  //       .storeCoins(opts.tonValue)
-  //       .storeUint(opts.predecessor, 256)
-  //       .storeUint(opts.salt, 256)
-  //       .storeAddress(opts.targetAccount)
-  //       .storeRef(opts.msgToSend)
-  //       .endCell(),
-  //   })
-  // }
+  async sendInit(provider: ContractProvider, via: Sender, value: bigint, body: Init) {
+    return this.sendInternal(provider, via, value, builder.message.encode().init(body))
+  }
 
-  // async sendCancel(
-  //   provider: ContractProvider,
-  //   via: Sender,
-  //   opts: {
-  //     value: bigint
-  //     queryID?: number
-  //     id: bigint
-  //   },
-  // ) {
-  //   await provider.internal(via, {
-  //     value: opts.value,
-  //     sendMode: SendMode.PAY_GAS_SEPARATELY,
-  //     body: beginCell()
-  //       .storeUint(Opcodes.cancel, 32)
-  //       .storeUint(opts.queryID ?? 0, 64)
-  //       .storeUint(opts.id, 256)
-  //       .endCell(),
-  //   })
-  // }
+  async sendTopUp(provider: ContractProvider, via: Sender, value: bigint = 0n, body: TopUp) {
+    return this.sendInternal(provider, via, value, builder.message.encode().topUp(body))
+  }
 
-  // async sendExecute(
-  //   provider: ContractProvider,
-  //   via: Sender,
-  //   opts: {
-  //     value: bigint
-  //     queryID?: number
-  //     tonValue: bigint
-  //     predecessor: bigint
-  //     salt: bigint
-  //     targetAccount: Address
-  //     msgToSend: Cell
-  //   },
-  // ) {
-  //   await provider.internal(via, {
-  //     value: opts.value,
-  //     sendMode: SendMode.PAY_GAS_SEPARATELY,
-  //     body: beginCell()
-  //       .storeUint(Opcodes.execute, 32)
-  //       .storeUint(opts.queryID ?? 0, 64)
-  //       .storeCoins(opts.tonValue)
-  //       .storeUint(opts.predecessor, 256)
-  //       .storeUint(opts.salt, 256)
-  //       .storeAddress(opts.targetAccount)
-  //       .storeRef(opts.msgToSend)
-  //       .endCell(),
-  //   })
-  // }
+  async sendScheduleBatch(
+    p: ContractProvider,
+    via: Sender,
+    value: bigint = 0n,
+    body: ScheduleBatch,
+  ) {
+    return this.sendInternal(p, via, value, builder.message.encode().scheduleBatch(body))
+  }
 
-  // async sendClearTimestamps(
-  //   provider: ContractProvider,
-  //   via: Sender,
-  //   opts: {
-  //     value: bigint
-  //     queryID?: number
-  //     ids: bigint[]
-  //   },
-  // ) {
-  //   const ids = opts.ids
-  //   const idsSlice = beginCell()
+  async sendCancel(p: ContractProvider, via: Sender, value: bigint = 0n, body: Cancel) {
+    return this.sendInternal(p, via, value, builder.message.encode().cancel(body))
+  }
 
-  //   for (let i = 0; i < ids.length; i++) {
-  //     idsSlice.storeUint(ids[i], 256)
-  //   }
+  async sendExecuteBatch(p: ContractProvider, via: Sender, value: bigint = 0n, body: ExecuteBatch) {
+    return this.sendInternal(p, via, value, builder.message.encode().executeBatch(body))
+  }
 
-  //   await provider.internal(via, {
-  //     value: opts.value,
-  //     sendMode: SendMode.PAY_GAS_SEPARATELY,
-  //     body: beginCell()
-  //       .storeUint(Opcodes.clear_timestamps, 32)
-  //       .storeUint(opts.queryID ?? 0, 64)
-  //       .storeUint(ids.length, 32)
-  //       .storeSlice(idsSlice.endCell().beginParse())
-  //       .endCell(),
-  //   })
-  // }
+  async sendUpdateDelay(p: ContractProvider, via: Sender, value: bigint = 0n, body: UpdateDelay) {
+    return this.sendInternal(p, via, value, builder.message.encode().updateDelay(body))
+  }
+
+  async sendBlockFunctionSelector(
+    p: ContractProvider,
+    via: Sender,
+    value: bigint = 0n,
+    body: BlockFunctionSelector,
+  ) {
+    return this.sendInternal(p, via, value, builder.message.encode().blockFunctionSelector(body))
+  }
+
+  async sendUnblockFunctionSelector(
+    p: ContractProvider,
+    via: Sender,
+    value: bigint = 0n,
+    body: UnblockFunctionSelector,
+  ) {
+    return this.sendInternal(p, via, value, builder.message.encode().unblockFunctionSelector(body))
+  }
+
+  async sendBypasserExecuteBatch(
+    p: ContractProvider,
+    via: Sender,
+    value: bigint = 0n,
+    body: BypasserExecuteBatch,
+  ) {
+    return this.sendInternal(p, via, value, builder.message.encode().bypasserExecuteBatch(body))
+  }
 
   // --- Getters ---
 
