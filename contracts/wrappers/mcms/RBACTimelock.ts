@@ -110,7 +110,7 @@ export type BypasserExecuteBatch = {
 }
 
 // @dev Union of all (input) messages.
-export type Message =
+export type InMessage =
   | Init
   | TopUp
   | ScheduleBatch
@@ -146,6 +146,16 @@ export type Call = {
   value: bigint
   // Data to send with the call - message body.
   data: Cell
+}
+
+/// @dev Batch of transactions represented as a operation, which can be scheduled and executed.
+export type OperationBatch = {
+  // Array of calls to be scheduled
+  calls: Cell // vec<Timelock_Call>
+  // Predecessor operation ID
+  predecessor: bigint
+  // Salt used to derive the operation ID
+  salt: bigint
 }
 
 export type ExecuteData = {
@@ -431,26 +441,6 @@ export class ContractClient implements Contract {
   //   })
   // }
 
-  // async sendUpdateDelay(
-  //   provider: ContractProvider,
-  //   via: Sender,
-  //   opts: {
-  //     value: bigint
-  //     queryID?: number
-  //     delay: number
-  //   },
-  // ) {
-  //   await provider.internal(via, {
-  //     value: opts.value,
-  //     sendMode: SendMode.PAY_GAS_SEPARATELY,
-  //     body: beginCell()
-  //       .storeUint(Opcodes.update_delay, 32)
-  //       .storeUint(opts.queryID ?? 0, 64)
-  //       .storeUint(opts.delay, 32)
-  //       .endCell(),
-  //   })
-  // }
-
   // async sendClearTimestamps(
   //   provider: ContractProvider,
   //   via: Sender,
@@ -479,22 +469,63 @@ export class ContractClient implements Contract {
   //   })
   // }
 
-  async sendTopUp(
-    provider: ContractProvider,
-    via: Sender,
-    opts: {
-      value: bigint
-      queryID?: number
-    },
-  ) {
-    await provider.internal(via, {
-      value: opts.value,
-      sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: beginCell()
-        .storeUint(opcodes.in.TopUp, 32)
-        .storeUint(opts.queryID ?? 0, 64)
-        .endCell(),
-    })
+  // --- Getters ---
+
+  async getTypeAndVersion(provider: ContractProvider): Promise<[string, string]> {
+    const result = await provider.get('typeAndVersion', [])
+    const type = result.stack.readString()
+    const version = result.stack.readString()
+    return [type, version]
+  }
+
+  async isOperation(provider: ContractProvider, id: bigint): Promise<boolean> {
+    const result = await provider.get('isOperation', [
+      {
+        type: 'int',
+        value: id,
+      },
+    ])
+    return result.stack.readBoolean()
+  }
+
+  async isOperationPending(provider: ContractProvider, id: bigint): Promise<boolean> {
+    const result = await provider.get('isOperationPending', [
+      {
+        type: 'int',
+        value: id,
+      },
+    ])
+    return result.stack.readBoolean()
+  }
+
+  async isOpertionReady(provider: ContractProvider, id: bigint): Promise<boolean> {
+    const result = await provider.get('isOperationReady', [
+      {
+        type: 'int',
+        value: id,
+      },
+    ])
+    return result.stack.readBoolean()
+  }
+
+  async isOperationDone(provider: ContractProvider, id: bigint): Promise<boolean> {
+    const result = await provider.get('isOperationDone', [
+      {
+        type: 'int',
+        value: id,
+      },
+    ])
+    return result.stack.readBoolean()
+  }
+
+  async getTimestamp(provider: ContractProvider, id: bigint): Promise<bigint> {
+    const result = await provider.get('getTimestamp', [
+      {
+        type: 'int',
+        value: id,
+      },
+    ])
+    return result.stack.readBigNumber()
   }
 
   async getMinDelay(p: ContractProvider): Promise<bigint> {
@@ -502,68 +533,30 @@ export class ContractClient implements Contract {
     return result.stack.readBigNumber()
   }
 
-  // TODO: clean old methods below
-
-  async getRBACTimelockData(provider: ContractProvider) {
-    const { stack } = await provider.get('getRBACTimelockData', [])
-    return {
-      minDelay: stack.readNumber(),
-      adminAccounts: stack.readCellOpt(),
-      proposerAccounts: stack.readCellOpt(),
-      cancellerAccounts: stack.readCellOpt(),
-      executorAccounts: stack.readCellOpt(),
-      timestamps: stack.readCellOpt(),
-    }
-  }
-
-  async getTimestamp(provider: ContractProvider, id: bigint) {
-    const result = await provider.get('getTimestamp', [
-      {
-        type: 'int',
-        value: id,
-      },
-    ])
-    return result.stack.readNumber()
-  }
-
-  async getHashOperation(
-    provider: ContractProvider,
-    tonValue: bigint,
-    predecessor: bigint,
-    salt: bigint,
-    target: Address,
-    msgToSend: Cell,
-  ) {
-    const result = await provider.get('getHashOperation', [
-      {
-        type: 'int',
-        value: tonValue,
-      },
-      {
-        type: 'int',
-        value: predecessor,
-      },
-      {
-        type: 'int',
-        value: salt,
-      },
+  async getHashOperationBatch(p: ContractProvider, op: OperationBatch): Promise<bigint> {
+    const result = await p.get('hashOperationBatch', [
       {
         type: 'slice',
-        cell: beginCell().storeAddress(target).endCell(),
-      },
-      {
-        type: 'cell',
-        cell: msgToSend,
+        cell: beginCell()
+          .storeRef(op.calls)
+          .storeUint(op.predecessor, 256)
+          .storeUint(op.salt, 256)
+          .endCell(),
       },
     ])
     return result.stack.readBigNumber()
   }
 
-  async getOperationState(provider: ContractProvider, id: bigint) {
-    const result = await provider.get('getOperationState', [
+  async getBlockedFunctionSelectorCount(p: ContractProvider): Promise<number> {
+    const result = await p.get('getBlockedFunctionSelectorCount', [])
+    return result.stack.readNumber()
+  }
+
+  async getBlockedFunctionSelectorAt(p: ContractProvider, index: number): Promise<number> {
+    const result = await p.get('getBlockedFunctionSelectorAt', [
       {
         type: 'int',
-        value: id,
+        value: BigInt(index),
       },
     ])
     return result.stack.readNumber()

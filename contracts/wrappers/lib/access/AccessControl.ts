@@ -45,7 +45,7 @@ export type RenounceRole = {
 }
 
 /// @dev Union of all access control messages.
-export type Message = GrantRole | RevokeRole | RenounceRole
+export type InMessage = GrantRole | RevokeRole | RenounceRole
 
 // AccessControl contract data struct
 export type ContractData = {

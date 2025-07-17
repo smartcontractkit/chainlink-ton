@@ -81,11 +81,11 @@ describe('RBACTimelock', () => {
   })
 
   it('should deploy', async () => {
-    const deployResult = await timelock.sendTopUp(deployer.getSender(), {
-      value: toNano('0.05'),
-    })
+    const body = rbactl.builder.message.encode().topUp({ queryId: 1n })
+    // Acts as a deploy
+    const result = await timelock.sendInternal(deployer.getSender(), toNano('0.05'), body)
 
-    expect(deployResult.transactions).toHaveTransaction({
+    expect(result.transactions).toHaveTransaction({
       from: deployer.address,
       to: timelock.address,
       deploy: true,
@@ -323,20 +323,18 @@ describe('RBACTimelock', () => {
     expect(await timelock.getMinDelay()).toEqual(100n)
   })
 
-  // it('invalid sender for update delay: wrong_op', async () => {
-  //   const result = await timelock.sendUpdateDelay(other.getSender(), {
-  //     value: toNano('0.05'),
-  //     delay: 100,
-  //   })
+  it('invalid sender for update delay: wrong_op', async () => {
+    const bodyInit = rbactl.builder.message.encode().updateDelay({ queryId: 1n, newDelay: 100 })
+    const result = await timelock.sendInternal(other.getSender(), toNano('0.05'), bodyInit)
 
-  //   expect(result.transactions).toHaveTransaction({
-  //     from: other.address,
-  //     to: timelock.address,
-  //     success: false,
-  //     op: Opcodes.update_delay,
-  //     exitCode: Errors.wrong_op,
-  //   })
-  // })
+    expect(result.transactions).toHaveTransaction({
+      from: other.address,
+      to: timelock.address,
+      success: false,
+      op: rbactl.opcodes.in.UpdateDelay,
+      exitCode: ac.errors.UnouthorizedAccount,
+    })
+  })
 
   // it('successful schedule', async () => {
   //   const tonValue = toNano('0.1')
@@ -507,9 +505,10 @@ describe('RBACTimelock', () => {
   //   blockchain.now = await timelock.getTimestamp(scheduleId)
   //   expect(await timelock.getOperationState(scheduleId)).toEqual(roles.ready_)
 
-  //   await sendTopUp(deployer.getSender(), {
-  //     value: toNano('1'),
-  //   })
+  // const body = rbactl.builder.message
+  //   .encode()
+  //   .topUp({ queryId: 1n})
+  // const result = await timelock.sendInternal(deployer.getSender(), toNano('1'), body)
 
   //   await timelock.sendExecute(deployer.getSender(), {
   //     value: toNano('0.05'),
@@ -555,9 +554,10 @@ describe('RBACTimelock', () => {
   //   blockchain.now = await timelock.getTimestamp(scheduleId)
   //   expect(await timelock.getOperationState(scheduleId)).toEqual(roles.ready_)
 
-  //   await timelock.sendTopUp(deployer.getSender(), {
-  //     value: toNano('1'),
-  //   })
+  // const body = rbactl.builder.message
+  //   .encode()
+  //   .topUp({ queryId: 1n})
+  // await timelock.sendInternal(deployer.getSender(), toNano('1'), body)
 
   //   const result = await timelock.sendExecute(deployer.getSender(), {
   //     value: toNano('0.05'),
@@ -589,9 +589,10 @@ describe('RBACTimelock', () => {
 
   //   blockchain.now = await getTimestamp(scheduleId)
 
-  //   await timelock.sendTopUp(deployer.getSender(), {
-  //     value: toNano('1'),
-  //   })
+  // const body = rbactl.builder.message
+  //   .encode()
+  //   .topUp({ queryId: 1n})
+  // await timelock.sendInternal(deployer.getSender(), toNano('1'), body)
 
   //   await timelock.sendExecute(deployer.getSender(), {
   //     value: toNano('0.05'),
