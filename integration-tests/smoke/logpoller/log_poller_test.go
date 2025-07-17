@@ -362,7 +362,7 @@ func Test_LogPoller(t *testing.T) {
 			// TODO: with SQL we might need to implement a more efficient way to query logs.
 			t.Run("Cell Query, events from emitter A", func(t *testing.T) {
 				t.Parallel()
-				filters := []logpoller.CellQuery{
+				queries := []logpoller.CellQuery{
 					{
 						Offset:   8,
 						Operator: logpoller.GT,
@@ -375,7 +375,7 @@ func Test_LogPoller(t *testing.T) {
 					},
 				}
 
-				logs, err := lp.FilteredLogsByTopic(emitterA.ContractAddress(), event_emitter.CounterIncreasedTopic, filters)
+				logs, err := lp.FilteredLogsByTopic(emitterA.ContractAddress(), event_emitter.CounterIncreasedTopic, queries)
 				require.NoError(t, err)
 
 				require.Len(t, logs, 5, "expected exactly 6 logs for the range 5-10")
@@ -396,7 +396,7 @@ func Test_LogPoller(t *testing.T) {
 
 			t.Run("Log Poller Query With Cell Filter, events from emitter B", func(t *testing.T) {
 				t.Parallel()
-				filters := []logpoller.CellQuery{
+				queries := []logpoller.CellQuery{
 					{
 						Offset:   8,
 						Operator: logpoller.GTE,
@@ -409,7 +409,7 @@ func Test_LogPoller(t *testing.T) {
 					},
 				}
 
-				logs, err := lp.FilteredLogsByTopic(emitterB.ContractAddress(), event_emitter.CounterIncreasedTopic, filters)
+				logs, err := lp.FilteredLogsByTopic(emitterB.ContractAddress(), event_emitter.CounterIncreasedTopic, queries)
 				require.NoError(t, err)
 
 				require.Len(t, logs, 3, "expected exactly 3 logs for the range 1-3")
@@ -431,7 +431,7 @@ func Test_LogPoller(t *testing.T) {
 			t.Run("Log Poller Query With Cell Query, all events from emitter B", func(t *testing.T) {
 				t.Parallel()
 				// the CounterIncreased event data layout is [ID (8 bytes), Counter (8 bytes)].
-				query := []logpoller.CellQuery{
+				queries := []logpoller.CellQuery{
 					{
 						Offset:   0,
 						Operator: logpoller.EQ,
@@ -439,7 +439,7 @@ func Test_LogPoller(t *testing.T) {
 					},
 				}
 
-				logs, err := lp.FilteredLogsByTopic(emitterB.ContractAddress(), event_emitter.CounterIncreasedTopic, query)
+				logs, err := lp.FilteredLogsByTopic(emitterB.ContractAddress(), event_emitter.CounterIncreasedTopic, queries)
 				require.NoError(t, err)
 
 				require.Len(t, logs, targetCounter, "expected exactly %d logs for the emitter B", targetCounter)

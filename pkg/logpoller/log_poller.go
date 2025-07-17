@@ -280,6 +280,6 @@ func (lp *Service) GetLogs(evtSrcAddress *address.Address) []types.Log {
 
 // FilteredLogsByTopic retrieves logs filtered by address, topic, and additional cell-level queries.
 // This allows for precise filtering based on the internal structure of TON cell data.
-func (lp *Service) FilteredLogsByTopic(evtSrcAddress *address.Address, topic uint64, filters []CellQuery) ([]types.Log, error) {
-	return lp.store.GetLogsByTopicWithFilter(evtSrcAddress.String(), topic, filters)
+func (lp *Service) FilteredLogsByTopic(evtSrcAddress *address.Address, topic uint64, queries []CellQuery) ([]types.Log, error) {
+	return lp.store.GetLogsByTopicWithFilter(evtSrcAddress.String(), topic, queries)
 }
