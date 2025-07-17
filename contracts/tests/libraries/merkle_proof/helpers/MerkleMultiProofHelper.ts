@@ -1,4 +1,4 @@
-import { uint8ArrayToBigInt, bigIntToBytes32 } from './Utils'
+import { uint8ArrayToBigInt, bigIntToUint8Array } from '../../../../utils/Utils'
 import { beginCell } from '@ton/core'
 
 // Internal domain separator for Merkle internal nodes, represented as a 256-bit BigInt (0x01)
@@ -151,7 +151,7 @@ export class MerkleHelper {
    */
   public hashLeafData(data: string | Uint8Array, hash: HashFunction): bigint {
     const dataBytes = typeof data === 'string' ? new TextEncoder().encode(data) : data
-    const separatorBytes = bigIntToBytes32(LEAF_DOMAIN_SEPARATOR_BIGINT) // 32 bytes
+    const separatorBytes = bigIntToUint8Array(LEAF_DOMAIN_SEPARATOR_BIGINT) // 32 bytes
 
     // Concatenate the 32-byte separator with the leaf data bytes
     const combinedBytes = new Uint8Array(separatorBytes.length + dataBytes.length)

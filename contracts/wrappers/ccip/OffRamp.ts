@@ -5,6 +5,7 @@ import {
   Contract,
   contractAddress,
   ContractProvider,
+  Dictionary,
   Sender,
   SendMode,
 } from '@ton/core'
@@ -33,6 +34,8 @@ export const Builder = {
       .storeAddress(config.feeQuoter)
       .storeUint(config.chainSelector, 64)
       .storeUint(config.permissionlessExecutionThresholdSeconds, 32)
+      .storeDict(Dictionary.empty()) // sourceChainConfigs
+      .storeUint(64, 16) // keyLen
       .storeUint(config.latestPriceSequenceNumber, 64)
       .endCell()
   },

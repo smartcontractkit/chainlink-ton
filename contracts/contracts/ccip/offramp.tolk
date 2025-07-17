@@ -3,7 +3,6 @@ import "../lib/access/ownable_2step.tolk";
 import "../lib/upgrades/type_and_version.tolk";
 import "./../lib/merkle_multi_proof/merkle_multi_proof.tolk"
 import "../deployable/types.tolk";
-import "utils.tolk";
 import "../lib/utils.tolk";
 
 struct Storage {
@@ -12,15 +11,24 @@ struct Storage {
     merkleRootCode: cell; // make sure to use a library cell offchain to save space
     feeQuoter: address;
 
-    // TODO: embed ocr3 base state
-
     // static config
     chainSelector: uint64;
     // dynamic config
     permissionlessExecutionThresholdSeconds: uint32,
 
+    // TODO: embed ocr3 base state
+    sourceChainConfigs: UMap<uint64, SourceChainConfig>;
+
     // This is the OCR sequence number, not to be confused with the CCIP message sequence number.
-    latestPriceSequenceNumber: uint64,
+    latestPriceSequenceNumber: uint64;
+}
+
+struct SourceChainConfig {
+    router: address;
+    isEnabled: bool;
+    minSeqNr: uint64;
+    isRMNVerificationDisabled: bool;
+    onRamp: CrossChainAddress;
 }
 
 fun Storage.load(): Storage {
@@ -63,35 +71,9 @@ struct SkippedReportExecution {
     sourceChainSelector: uint64;
 }
 
-struct RampMessageHeader { // 512
-    messageId: uint256;
-    sourceChainSelector: uint64;
-    destChainSelector: uint64;
-    sequenceNumber: uint64;
-    nonce: uint64;
-}
-
-struct Any2TONRampMessage {
-    header: RampMessageHeader;
-    sender: cell;
-    data: cell;
-    receiver: address;
-    // gasLimit: coins; // TODO: no gas limit because it's up to the receiver to pay for it's gas
-    tokenAmounts: cell; // vec<Any2TONTokenTransfer>
-    // maybe mark these amounts as slice remaining then parse them by hand to avoid requiring this to be a map<> at send time?
-}
-
-struct Any2TONTokenTransfer {
-    sourcePoolAddress: cell;
-    destPoolAddress: address;
-    destGasAmount: uint32;
-    extraData: cell;
-    amount: uint256;
-}
-
 struct ExecutionReport {
     sourceChainSelector: uint64;
-    messages: cell; // vec<Any2TONRampMessage>
+    messages: cell; // vec<Any2TVMRampMessage>
     offchainTokenData: cell; // TODO: vec<vec<u8>>, one per token
     proofs: cell; // Proofs used to construct the merkle root TODO: vec<bytes32>
     proofFlagBits: uint256;
@@ -136,8 +118,8 @@ fun onInternalMessage(in:InMessage) {
 
 @pure @inline
 fun getMerkleRootID(merkleRoot: uint256): builder {
-    return beginCell() // id:u16 = 2 | merkleRoot:256
-        .storeUint(2, 16) // TODO: alias constant for MerkleRoot
+    return beginCell() // id:u16 = 1 | merkleRoot:256
+        .storeUint(1, 16) // TODO: alias constant for MerkleRoot
         // TODO: include sourceChainSelector
         .storeUint(merkleRoot, 256);
 }
@@ -169,6 +151,14 @@ fun commit(msg: Commit, sender: address) {
 
     while (!roots.empty()) {
         val root = roots.next();
+
+        // validate lane not cursed
+
+        val sourceChainConfig = st.sourceChainConfigs.mustGet(root.sourceChainSelector, ERROR_SOURCE_CHAIN_NOT_ENABLED);
+        assert(sourceChainConfig.isEnabled,ERROR_SOURCE_CHAIN_NOT_ENABLED);
+
+        // validate against sourceChainConfig etc
+        // increment seqNr
 
         // initialize MerkleRoot subcontract
         val initMsg = createMessage({
@@ -219,14 +209,28 @@ fun _execute(msg: Execute, sender: address) {
     // parse report
     val report = ExecutionReport.fromCell(msg.report);
 
+    var messages = Iterator<Any2TVMRampMessage>.new(report.messages);
+
     // TODO: if messages.empty() throw EMPTY_REPORT
     // if report.messages.len != offchainTokenData.len throw UNEXPECTED_TOKEN_DATA
     // ^- perhaps easier to validate by checking if offchainTokenData iter is still empty after the while loop
 
-    var hashedLeaves = createEmptyTuple();
+    val sourceChainConfig = st.sourceChainConfigs.mustGet(report.sourceChainSelector, ERROR_SOURCE_CHAIN_NOT_ENABLED);
+    assert(sourceChainConfig.isEnabled,ERROR_SOURCE_CHAIN_NOT_ENABLED);
 
-    // TODO: metadata hash:
-    var messages = Iterator<Any2TONRampMessage>.new(report.messages);
+    // We do this hash here instead of in _verify to avoid two separate loops over the same data. Hashing all of the
+    // message fields ensures that the message being executed is correct and not tampered with. Including the known
+    // OnRamp ensures that the message originates from the correct OnRamp version. We know the sourceChainSelector
+    // and destChainSelector are correct because we revert below when they are not.
+    val metadataHash = beginCell()
+        .storeUint(stringSha256("Any2TVMMessageHashV1"), 256)
+        .storeUint(report.sourceChainSelector, 64)
+        .storeUint(st.chainSelector, 64)
+        .storeSlice(sourceChainConfig.onRamp as slice)
+        .endCell()
+        .hash();
+
+    var hashedLeaves = createEmptyTuple();
     // TODO: is offchainTokenData not hashed?
     while (!messages.empty()) {
         val message = messages.next();
@@ -242,7 +246,7 @@ fun _execute(msg: Execute, sender: address) {
         assert(message.header.sourceChainSelector == report.sourceChainSelector, ERROR_SOURCE_CHAIN_SELECTOR_MISMATCH);
 
         // Hashes the cell data + refs recursively
-        val hash = message.toCell().hash(); // TODO: mix together with metadata hash
+        val hash = message.generateMessageId(metadataHash);
         hashedLeaves.push(hash);
     }
 
