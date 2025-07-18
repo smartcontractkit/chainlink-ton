@@ -12,7 +12,7 @@ import {
 } from '@ton/core'
 
 import { Ownable2StepConfig } from '../libraries/access/Ownable2Step'
-import { asSnakeData } from '../../tests/utils'
+import { asSnakeData } from '../../utils/Utils'
 
 export type OnRampStorage = {
   ownable: Ownable2StepConfig
@@ -27,7 +27,7 @@ export type OnRampStorage = {
 }
 
 export type DestChainConfig = {
-  router: Address
+  router: Buffer
   sequenceNumber: number
   allowlistEnabled: boolean
   allowedSenders: Dictionary<Address, boolean>
@@ -134,7 +134,9 @@ export class OnRamp implements Contract {
           asSnakeData(opts.destChainConfigs, (config) =>
             new TonBuilder()
               .storeUint(config.destChainSelector, 64)
-              .storeBuffer(config.router, 64)
+              // CrossChainAddress TODO: assert =< 64
+              .storeUint(config.router.byteLength, 8)
+              .storeBuffer(config.router, config.router.byteLength)
               .storeBit(config.allowlistEnabled),
           ),
         )

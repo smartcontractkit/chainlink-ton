@@ -1,8 +1,5 @@
 import "@stdlib/common.tolk"
 import "../../lib/jetton/jetton_client.tolk"
-import "../../lib/jetton/messages.tolk"
-import "../../lib/jetton/utils.tolk"
-import "../../lib/utils.tolk"
 
 // JettonSender contract in Tolk
 // Allows sending jettons to other addresses
@@ -29,50 +26,39 @@ struct (0xe815f1d0) SendJettonsExtended {
 
 type IncomingMessage = SendJettonsFast | SendJettonsExtended
 
-fun loadData(): JettonSender {
+fun JettonSender.load(): JettonSender {
     return JettonSender.fromCell(contract.getData());
 }
 
-fun saveData(data: JettonSender) {
-    contract.setData(data.toCell());
+fun JettonSender.store(self) {
+    contract.setData(self.toCell());
 }
 
 // Send basic jetton transfer
 fun JettonSender.sendJettons(self, msg: SendJettonsFast) {
-    createMessage({
-        bounce: true,
-        value: 0,
-        dest: self.JettonClient.walletAddress(),
-        body: JettonTransfer {
-            queryId: msg.queryId,
-            amount: msg.amount,
-            destination: msg.destination,
-            responseDestination: contract.getAddress(),
-            customPayload: null,
-            forwardTonAmount: 0,
-            forwardPayload: null,
-        },
-    })
-        .send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    self.JettonClient.sendSimple(
+        { bounce: true, value: 0 },
+        SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE,
+        msg.queryId,
+        msg.amount,
+        msg.destination,
+        contract.getAddress()
+    );
 }
 
 // Send extended jetton transfer with additional parameters
 fun JettonSender.sendJettonsExtended(self, msg: SendJettonsExtended) {
-    createMessage({
-        bounce: true,
-        value: 0,
-        dest: self.JettonClient.walletAddress(),
-        body: JettonTransfer {
-            queryId: msg.queryId,
-            amount: msg.amount,
-            destination: msg.destination,
-            responseDestination: contract.getAddress(),
-            customPayload: msg.customPayload,
-            forwardTonAmount: msg.forwardTonAmount,
-            forwardPayload: msg.forwardPayload,
-        },
-    })
-        .send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    self.JettonClient.sendExtended(
+        { bounce: true, value: 0 },
+        SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE,
+        msg.queryId,
+        msg.amount,
+        msg.destination,
+        contract.getAddress(),
+        msg.customPayload,
+        msg.forwardTonAmount,
+        msg.forwardPayload
+    );
 }
 
 fun onInternalMessage(in: InMessage) {
@@ -82,7 +68,7 @@ fun onInternalMessage(in: InMessage) {
     }
 
     val msg = IncomingMessage.fromSlice(in.body);
-    var this = loadData();
+    var this = JettonSender.load();
 
     match (msg) {
         SendJettonsFast => {

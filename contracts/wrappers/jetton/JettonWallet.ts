@@ -109,14 +109,12 @@ export class JettonWallet implements Contract {
 
     body.storeCoins(opts.message.forwardTonAmount)
 
-    if (forwardPayload) {
-      if (forwardPayload instanceof Cell) {
-        body.storeBit(1).storeRef(forwardPayload)
-      } else {
-        body.storeBit(0).storeSlice(forwardPayload)
-      }
-    } else {
-      body.storeBit(0)
+    const byRef = forwardPayload instanceof Cell
+    body.storeBit(byRef)
+    if (byRef) {
+      body.storeRef(forwardPayload)
+    } else if (forwardPayload) {
+      body.storeSlice(forwardPayload)
     }
 
     await provider.internal(via, {

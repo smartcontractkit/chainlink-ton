@@ -11,7 +11,7 @@ import { MerkleHelper, HashFunction } from './helpers/MerkleMultiProofHelper'
 import { compile } from '@ton/blueprint'
 import { listAsSnake } from './helpers/Utils'
 
-describe('MerkleMultiProofCalculatorDict', () => {
+describe('MerkleMultiProofTests', () => {
   let blockchain: Blockchain
   let deployer: SandboxContract<TreasuryContract>
   let calculator: SandboxContract<MerkleMultiProofCalculator>
