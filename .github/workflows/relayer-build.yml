@@ -19,15 +19,11 @@ jobs:
         with:
           nix_path: nixpkgs=channel:nixos-unstable
 
-      - name: Fetch and build Jetton contracts
-        run: |
-          nix build .#contracts-jetton-func
-
       - name: Run build
         run: nix develop -c go build -v ./...
 
       - name: Run tests
-        run: nix develop -c go test -v -count=1 -p=1 -timeout 30m ./...
+        run: nix develop .#contracts -c go test -v -count=1 -p=1 -timeout 30m ./...
 
       - name: Run build contracts for integration tests
         run: |
@@ -37,7 +33,7 @@ jobs:
       - name: Run integration tests
         run: |
           pushd integration-tests
-          nix develop -c go test -v -count=1 -p=1 -timeout 30m ./...
+          nix develop .#contracts -c go test -v -count=1 -p=1 -timeout 30m ./...
 
   build-pkgs:
     name: Build and package (Nix and Docker)
