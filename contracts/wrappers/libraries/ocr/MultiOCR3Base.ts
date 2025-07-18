@@ -60,9 +60,16 @@ export function createSignature(signer: KeyPair, data: Buffer<ArrayBufferLike>):
   }
 }
 
-export function newOCR3BaseCell(chainId: number, contractId: number): Cell {
+export function newOCR3BaseExampleContractCell(chainId: number, contractId: number): Cell {
   return beginCell()
     .storeUint(contractId, 64)
+    .storeUint(chainId, 8)
+    .storeBit(false)
+    .storeBit(false)
+    .endCell()
+}
+export function newOCR3BaseCell(chainId: number): Cell {
+  return beginCell()
     .storeUint(chainId, 8)
     .storeBit(false)
     .storeBit(false)

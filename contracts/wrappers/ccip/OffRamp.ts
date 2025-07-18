@@ -10,6 +10,7 @@ import {
 } from '@ton/core'
 
 import { Ownable2StepConfig } from '../libraries/access/Ownable2Step'
+import { newOCR3BaseCell, OCR3Base } from '../libraries/ocr/MultiOCR3Base'
 
 export type OffRampStorage = {
   ownable: Ownable2StepConfig
@@ -31,6 +32,10 @@ export const Builder = {
       .storeRef(config.deployerCode)
       .storeRef(config.merkleRootCode)
       .storeAddress(config.feeQuoter)
+      // empty OCR3Base::
+      .storeUint(1, 8) //chainId
+      .storeBit(false)
+      .storeBit(false)
       .storeUint(config.chainSelector, 64)
       .storeUint(config.permissionlessExecutionThresholdSeconds, 32)
       .storeUint(config.latestPriceSequenceNumber, 64)
@@ -46,11 +51,11 @@ export abstract class Opcodes {
 
 export abstract class Errors {}
 
-export class OffRamp implements Contract {
+export class OffRamp extends OCR3Base {
   constructor(
     readonly address: Address,
     readonly init?: { code: Cell; data: Cell },
-  ) {}
+  ) {super()}
 
   static createFromAddress(address: Address) {
     return new OffRamp(address)

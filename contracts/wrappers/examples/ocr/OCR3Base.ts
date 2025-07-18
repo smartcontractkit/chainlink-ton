@@ -11,6 +11,7 @@ import {
 } from '@ton/core'
 import {
   newOCR3BaseCell,
+  newOCR3BaseExampleContractCell,
   OCR3Base,
   OCR3Config,
   ocr3ConfigFromCell,
@@ -21,7 +22,7 @@ import { asSnakeData } from '../../../utils/Utils'
 
 export function ocr3BaseExampleStorage(): Cell {
   //using dummy chainId 1 and a radom id for unique addresses
-  return newOCR3BaseCell(1, Math.floor(Math.random() * Number.MAX_SAFE_INTEGER))
+  return newOCR3BaseExampleContractCell(1, Math.floor(Math.random() * Number.MAX_SAFE_INTEGER))
 }
 
 export class OCR3BaseExample extends OCR3Base {

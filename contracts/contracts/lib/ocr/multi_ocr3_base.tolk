@@ -51,7 +51,7 @@ struct (0x2B78359F) OCR3Base_SetOCR3Config {
 }
 
 struct OCR3Base {
-	chainId: uint8;
+	chainId: uint8; //TODO :Is this even necessary?
 	commit: Cell<Config>?;
 	execute: Cell<Config>?;
 }
