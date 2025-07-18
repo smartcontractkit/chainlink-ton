@@ -900,6 +900,352 @@ func Test_LogPoller(t *testing.T) {
 				require.False(t, result.HasMore)
 			})
 		})
+
+		t.Run("Sorting and Pagination Tests", func(t *testing.T) {
+			t.Run("Sort by TxLT ascending", func(t *testing.T) {
+				t.Parallel()
+
+				options := logpoller.QueryOptions{
+					SortBy: []logpoller.SortBy{
+						{Field: logpoller.SortByTxLT, Order: logpoller.ASC},
+					},
+				}
+
+				result, err := lp.FilteredLogs(
+					emitterA.ContractAddress(),
+					event_emitter.CounterIncreasedTopic,
+					[]logpoller.CellQuery{}, // No cell filters
+					options,
+				)
+				require.NoError(t, err)
+				require.Len(t, result.Logs, targetCounter)
+
+				// verify ascending order by TxLT
+				for i := 1; i < len(result.Logs); i++ {
+					require.LessOrEqual(t, result.Logs[i-1].TxLT, result.Logs[i].TxLT,
+						"logs should be sorted by TxLT in ascending order at index %d", i)
+				}
+				t.Logf("Verified %d logs in ascending TxLT order", len(result.Logs))
+			})
+
+			t.Run("Sort by TxLT descending", func(t *testing.T) {
+				t.Parallel()
+
+				options := logpoller.QueryOptions{
+					SortBy: []logpoller.SortBy{
+						{Field: logpoller.SortByTxLT, Order: logpoller.DESC},
+					},
+				}
+
+				result, err := lp.FilteredLogs(
+					emitterA.ContractAddress(),
+					event_emitter.CounterIncreasedTopic,
+					[]logpoller.CellQuery{},
+					options,
+				)
+				require.NoError(t, err)
+				require.Len(t, result.Logs, targetCounter)
+
+				// Verify descending order by TxLT
+				for i := 1; i < len(result.Logs); i++ {
+					require.GreaterOrEqual(t, result.Logs[i-1].TxLT, result.Logs[i].TxLT,
+						"logs should be sorted by TxLT in descending order at index %d", i)
+				}
+				t.Logf("Verified %d logs in descending TxLT order", len(result.Logs))
+			})
+
+			t.Run("Pagination with limit", func(t *testing.T) {
+				t.Parallel()
+
+				const pageSize = 7
+				options := logpoller.QueryOptions{
+					SortBy: []logpoller.SortBy{
+						{Field: logpoller.SortByTxLT, Order: logpoller.ASC},
+					},
+					Limit: pageSize,
+				}
+
+				result, err := lp.FilteredLogs(
+					emitterA.ContractAddress(),
+					event_emitter.CounterIncreasedTopic,
+					[]logpoller.CellQuery{},
+					options,
+				)
+				require.NoError(t, err)
+				require.Len(t, result.Logs, pageSize)
+				require.True(t, result.HasMore, "should have more results")
+				require.Equal(t, targetCounter, result.Total)
+
+				t.Logf("First page: got %d logs, HasMore=%t, Total=%d",
+					len(result.Logs), result.HasMore, result.Total)
+			})
+
+			t.Run("Pagination with offset", func(t *testing.T) {
+				t.Parallel()
+
+				const pageSize = 5
+				const offset = 8
+
+				options := logpoller.QueryOptions{
+					SortBy: []logpoller.SortBy{
+						{Field: logpoller.SortByTxLT, Order: logpoller.ASC},
+					},
+					Limit:  pageSize,
+					Offset: offset,
+				}
+
+				result, err := lp.FilteredLogs(
+					emitterA.ContractAddress(),
+					event_emitter.CounterIncreasedTopic,
+					[]logpoller.CellQuery{},
+					options,
+				)
+				require.NoError(t, err)
+				require.Len(t, result.Logs, pageSize)
+
+				// Get first page for comparison
+				firstPageOptions := logpoller.QueryOptions{
+					SortBy: []logpoller.SortBy{
+						{Field: logpoller.SortByTxLT, Order: logpoller.ASC},
+					},
+					Limit: offset + pageSize,
+				}
+
+				firstPageResult, err := lp.FilteredLogs(
+					emitterA.ContractAddress(),
+					event_emitter.CounterIncreasedTopic,
+					[]logpoller.CellQuery{},
+					firstPageOptions,
+				)
+				require.NoError(t, err)
+
+				// Verify offset page starts where expected
+				for i := 0; i < pageSize; i++ {
+					require.Equal(t, firstPageResult.Logs[offset+i].TxLT, result.Logs[i].TxLT,
+						"offset page should match the correct slice of first page at index %d", i)
+				}
+
+				t.Logf("Offset page verification passed: offset=%d, pageSize=%d", offset, pageSize)
+			})
+
+			t.Run("Complete pagination test", func(t *testing.T) {
+				t.Parallel()
+
+				const pageSize = 6
+				var allLogs []types.Log
+				var pageCount int
+
+				for offset := 0; ; offset += pageSize {
+					options := logpoller.QueryOptions{
+						SortBy: []logpoller.SortBy{
+							{Field: logpoller.SortByTxLT, Order: logpoller.ASC},
+						},
+						Limit:  pageSize,
+						Offset: offset,
+					}
+
+					result, err := lp.FilteredLogs(
+						emitterA.ContractAddress(),
+						event_emitter.CounterIncreasedTopic,
+						[]logpoller.CellQuery{},
+						options,
+					)
+					require.NoError(t, err)
+
+					if len(result.Logs) == 0 {
+						break
+					}
+
+					allLogs = append(allLogs, result.Logs...)
+					pageCount++
+
+					t.Logf("Page %d: got %d logs, HasMore=%t", pageCount, len(result.Logs), result.HasMore)
+
+					if !result.HasMore {
+						break
+					}
+				}
+
+				// Verify we got all logs and no duplicates
+				require.Len(t, allLogs, targetCounter, "should have collected all logs through pagination")
+
+				// Verify no duplicates by checking TxLT uniqueness
+				seenLTs := make(map[uint64]bool)
+				for _, log := range allLogs {
+					require.False(t, seenLTs[log.TxLT], "found duplicate TxLT: %d", log.TxLT)
+					seenLTs[log.TxLT] = true
+				}
+
+				// Verify still sorted after combining pages
+				for i := 1; i < len(allLogs); i++ {
+					require.LessOrEqual(t, allLogs[i-1].TxLT, allLogs[i].TxLT,
+						"combined pages should maintain sort order at index %d", i)
+				}
+
+				t.Logf("Complete pagination test passed: %d pages, %d total logs", pageCount, len(allLogs))
+			})
+
+			t.Run("Sorting + filtering + pagination", func(t *testing.T) {
+				t.Parallel()
+
+				// Filter for counters 8-15, then sort and paginate
+				cellQueries := []logpoller.CellQuery{
+					{
+						Offset:   8,
+						Operator: logpoller.GTE,
+						Value:    binary.BigEndian.AppendUint64(nil, 8),
+					},
+					{
+						Offset:   8,
+						Operator: logpoller.LTE,
+						Value:    binary.BigEndian.AppendUint64(nil, 15),
+					},
+				}
+
+				options := logpoller.QueryOptions{
+					SortBy: []logpoller.SortBy{
+						{Field: logpoller.SortByTxLT, Order: logpoller.DESC}, // Newest first
+					},
+					Limit:  4,
+					Offset: 1, // Skip the first (newest) result
+				}
+
+				result, err := lp.FilteredLogs(
+					emitterA.ContractAddress(),
+					event_emitter.CounterIncreasedTopic,
+					cellQueries,
+					options,
+				)
+				require.NoError(t, err)
+				require.Len(t, result.Logs, 4)
+
+				// Verify the filtering worked
+				for _, log := range result.Logs {
+					c, err := cell.FromBOC(log.Data)
+					require.NoError(t, err)
+					ext := &tlb.ExternalMessageOut{Body: c}
+					event, err := event.LoadEventFromMsg[event_emitter.CounterIncreased](ext)
+					require.NoError(t, err)
+
+					require.GreaterOrEqual(t, event.Counter, uint64(8))
+					require.LessOrEqual(t, event.Counter, uint64(15))
+				}
+
+				// Verify descending sort order
+				for i := 1; i < len(result.Logs); i++ {
+					require.GreaterOrEqual(t, result.Logs[i-1].TxLT, result.Logs[i].TxLT,
+						"filtered results should be sorted in descending TxLT order at index %d", i)
+				}
+
+				t.Logf("Combined filtering + sorting + pagination test passed")
+			})
+
+			t.Run("Cross-emitter pagination test", func(t *testing.T) {
+				t.Parallel()
+
+				// Test pagination with emitterB events
+				const pageSize = 4
+				var emitterBPages [][]types.Log
+
+				for offset := 0; offset < targetCounter; offset += pageSize {
+					options := logpoller.QueryOptions{
+						SortBy: []logpoller.SortBy{
+							{Field: logpoller.SortByTxLT, Order: logpoller.ASC},
+						},
+						Limit:  pageSize,
+						Offset: offset,
+					}
+
+					result, err := lp.FilteredLogs(
+						emitterB.ContractAddress(),
+						event_emitter.CounterIncreasedTopic,
+						[]logpoller.CellQuery{},
+						options,
+					)
+					require.NoError(t, err)
+
+					if len(result.Logs) > 0 {
+						emitterBPages = append(emitterBPages, result.Logs)
+						t.Logf("EmitterB page %d: got %d logs", len(emitterBPages), len(result.Logs))
+					}
+				}
+
+				// Flatten all pages
+				var allEmitterBLogs []types.Log
+				for _, page := range emitterBPages {
+					allEmitterBLogs = append(allEmitterBLogs, page...)
+				}
+
+				require.Len(t, allEmitterBLogs, targetCounter, "should have all emitterB logs")
+
+				// Verify each log belongs to emitterB by checking the ID in cell data
+				for _, log := range allEmitterBLogs {
+					c, err := cell.FromBOC(log.Data)
+					require.NoError(t, err)
+					ext := &tlb.ExternalMessageOut{Body: c}
+					event, err := event.LoadEventFromMsg[event_emitter.CounterIncreased](ext)
+					require.NoError(t, err)
+
+					require.Equal(t, emitterB.GetID(), event.ID, "log should belong to emitterB")
+				}
+
+				t.Logf("Cross-emitter pagination test passed: %d pages, %d logs", len(emitterBPages), len(allEmitterBLogs))
+			})
+
+			t.Run("Edge case: empty results pagination", func(t *testing.T) {
+				t.Parallel()
+
+				// Filter for impossible range
+				cellQueries := []logpoller.CellQuery{
+					{
+						Offset:   8,
+						Operator: logpoller.GT,
+						Value:    binary.BigEndian.AppendUint64(nil, 100), // No events should match
+					},
+				}
+
+				options := logpoller.QueryOptions{
+					SortBy: []logpoller.SortBy{
+						{Field: logpoller.SortByTxLT, Order: logpoller.ASC},
+					},
+					Limit:  10,
+					Offset: 0,
+				}
+
+				result, err := lp.FilteredLogs(
+					emitterA.ContractAddress(),
+					event_emitter.CounterIncreasedTopic,
+					cellQueries,
+					options,
+				)
+				require.NoError(t, err)
+				require.Empty(t, result.Logs)
+				require.False(t, result.HasMore)
+				require.Equal(t, 0, result.Total)
+			})
+
+			t.Run("Edge case: offset beyond total", func(t *testing.T) {
+				t.Parallel()
+
+				options := logpoller.QueryOptions{
+					SortBy: []logpoller.SortBy{
+						{Field: logpoller.SortByTxLT, Order: logpoller.ASC},
+					},
+					Limit:  5,
+					Offset: targetCounter + 10, // Way beyond available data
+				}
+
+				result, err := lp.FilteredLogs(
+					emitterA.ContractAddress(),
+					event_emitter.CounterIncreasedTopic,
+					[]logpoller.CellQuery{},
+					options,
+				)
+				require.NoError(t, err)
+				require.Empty(t, result.Logs)
+				require.False(t, result.HasMore)
+			})
+		})
 	})
 
 	t.Run("Log Poller CCIP CAL Query Interface", func(t *testing.T) {
