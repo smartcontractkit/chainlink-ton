@@ -230,8 +230,6 @@ type Timelock_InMessage = Timelock_Init
 // --- Messages - outgoing ---
 
 /// @dev Emitted when a call is scheduled as part of operation `id`.
-/// TODO: fix message size - do we split the message?
-@overflow1023_policy("suppress")
 struct (0xc55fca54) Timelock_CallScheduled {
     /// Query ID of the change owner request.
     queryId: uint64;
@@ -239,9 +237,9 @@ struct (0xc55fca54) Timelock_CallScheduled {
     /// ID of the operation that was scheduled.
     id: uint256;
     index: uint64;
-    target: address;
-    value: coins;
-    data: cell;
+    /// Call to be executed as part of the operation.
+    /// Notice: split out into a separate cell to avoid message size limit issues (vs. EVM inline).
+    call: Cell<Timelock_Call>;
     predecessor: uint256;
     salt: uint256;
     delay: uint64;
@@ -582,16 +580,13 @@ fun Timelock<T>.scheduleBatch(
                 queryId,
                 id,
                 index,
-                target: call.target,
-                value: call.value,
-                data: call.data,
+                call: call.toCell(),
                 predecessor,
                 salt,
                 delay
             }
         });
-        // TODO: can't send this message as it overflows the message size limit
-        // reply.send(SEND_MODE_REGULAR);
+        reply.send(SEND_MODE_PAY_FEES_SEPARATELY);
         index += 1;
     }
 }
