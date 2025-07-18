@@ -3,10 +3,13 @@ package logpoller
 import (
 	"bytes"
 	"fmt"
+	"sort"
 
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
 )
 
 // CellQueryEngine provides direct byte-level queries for TON cell (BOC) data.
@@ -32,6 +35,33 @@ type CellQuery struct {
 	Offset   uint     // offset is the byte offset within the log's Data field to start the comparison.
 	Operator Operator // operator is the comparison operator to use.
 	Value    []byte   // value is the byte slice to compare against. The length of the slice determines how many bytes are read from the Data field starting at the offset.
+}
+
+type SortField string
+type SortOrder string
+
+const (
+	SortByTxLT SortField = "tx_lt"
+
+	ASC  SortOrder = "ASC"
+	DESC SortOrder = "DESC"
+)
+
+type SortBy struct {
+	Field SortField
+	Order SortOrder
+}
+
+type QueryOptions struct {
+	Limit  int
+	Offset int
+	SortBy []SortBy
+}
+
+type QueryResult struct {
+	Logs    []types.Log
+	HasMore bool
+	Total   int
 }
 
 type CellQueryEngine struct {
@@ -115,5 +145,59 @@ func (f *CellQueryEngine) compareBytes(dataSlice, queryValue []byte, operator Op
 		return comparison <= 0, nil
 	default:
 		return false, fmt.Errorf("unsupported operator: %s", operator)
+	}
+}
+
+func (f *CellQueryEngine) ApplySorting(logs []types.Log, sortBy []SortBy) {
+	if len(sortBy) == 0 {
+		return
+	}
+
+	sort.Slice(logs, func(i, j int) bool {
+		for _, sortCriteria := range sortBy {
+			var cmp int
+
+			switch sortCriteria.Field {
+			case SortByTxLT:
+				if logs[i].TxLT < logs[j].TxLT {
+					cmp = -1
+				} else if logs[i].TxLT > logs[j].TxLT {
+					cmp = 1
+				}
+			}
+
+			if cmp != 0 {
+				if sortCriteria.Order == DESC {
+					return cmp > 0
+				}
+				return cmp < 0
+			}
+		}
+		return false
+	})
+}
+
+func (f *CellQueryEngine) ApplyPagination(logs []types.Log, limit, offset int) QueryResult {
+	totalCount := len(logs)
+
+	if offset >= totalCount {
+		return QueryResult{
+			Logs:    []types.Log{},
+			HasMore: false,
+			Total:   totalCount,
+		}
+	}
+
+	start := offset
+	end := totalCount
+
+	if limit > 0 && start+limit < totalCount {
+		end = start + limit
+	}
+
+	return QueryResult{
+		Logs:    logs[start:end],
+		HasMore: end < totalCount,
+		Total:   totalCount,
 	}
 }

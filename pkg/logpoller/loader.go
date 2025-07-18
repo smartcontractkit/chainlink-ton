@@ -11,6 +11,8 @@ import (
 	"github.com/xssnick/tonutils-go/ton"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
 )
 
 // TON LogCollector - CCIP MVP Implementation
@@ -63,8 +65,8 @@ func NewLogCollector(
 // Production version will use background worker pools for better resource management.
 //
 // TODO(NONEVM-2188): refactor to use background workers for scale in production
-func (lc *LogCollector) BackfillForAddresses(ctx context.Context, addresses []*address.Address, prevBlock *ton.BlockIDExt, toBlock *ton.BlockIDExt) ([]*tlb.ExternalMessageOut, error) {
-	var allMsgs []*tlb.ExternalMessageOut
+func (lc *LogCollector) BackfillForAddresses(ctx context.Context, addresses []*address.Address, prevBlock *ton.BlockIDExt, toBlock *ton.BlockIDExt) ([]types.MsgWithCtx, error) {
+	var allMsgs []types.MsgWithCtx
 	var mu sync.Mutex
 	var wg sync.WaitGroup
 	for _, addr := range addresses {
@@ -95,7 +97,7 @@ func (lc *LogCollector) BackfillForAddresses(ctx context.Context, addresses []*a
 //
 // Note: Block range (prevBlock, toBlock] is exclusive of prevBlock, inclusive of toBlock
 // TODO: stream messages back to log poller to avoid memory overhead in production
-func (lc *LogCollector) fetchMessagesForAddress(ctx context.Context, addr *address.Address, prevBlock *ton.BlockIDExt, toBlock *ton.BlockIDExt) ([]*tlb.ExternalMessageOut, error) {
+func (lc *LogCollector) fetchMessagesForAddress(ctx context.Context, addr *address.Address, prevBlock *ton.BlockIDExt, toBlock *ton.BlockIDExt) ([]types.MsgWithCtx, error) {
 	if prevBlock != nil && prevBlock.SeqNo >= toBlock.SeqNo {
 		return nil, fmt.Errorf("prevBlock %d is not before toBlock %d", prevBlock.SeqNo, toBlock.SeqNo)
 	}
@@ -119,7 +121,7 @@ func (lc *LogCollector) fetchMessagesForAddress(ctx context.Context, addr *addre
 		return nil, nil
 	}
 
-	var messages []*tlb.ExternalMessageOut
+	var msgsWithCtx []types.MsgWithCtx
 	curLT, curHash := endLT, endHash
 
 	for {
@@ -148,8 +150,13 @@ func (lc *LogCollector) fetchMessagesForAddress(ctx context.Context, addr *addre
 				}
 				ext := msg.AsExternalOut()
 				if ext.Body != nil {
-					// TODO: stream message back to log poller.Process
-					messages = append(messages, ext)
+					// TODO: stream back to log poller.Process
+					event := types.MsgWithCtx{
+						TxHash: tx.Hash,
+						LT:     tx.LT,
+						Msg:    ext,
+					}
+					msgsWithCtx = append(msgsWithCtx, event)
 				}
 			}
 		}
@@ -164,7 +171,7 @@ func (lc *LogCollector) fetchMessagesForAddress(ctx context.Context, addr *addre
 		curLT, curHash = batch[0].PrevTxLT, batch[0].PrevTxHash
 	}
 
-	return messages, nil
+	return msgsWithCtx, nil
 }
 
 /**

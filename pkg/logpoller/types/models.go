@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tlb"
 )
 
 // TON CCIP MVP Types
@@ -29,17 +30,28 @@ type Filter struct {
 
 // TODO: do we want to store the workchain and its seqno to be able to query the block directly?
 type Log struct {
-	ID         int64
-	FilterID   int64
-	SeqNo      uint32
+	ID       int64
+	FilterID int64
+	// SeqNo      uint32 // currently ListTransactions does not return seqno, need to update with block polling
 	Address    address.Address
-	EventTopic uint32
+	TxHash     []byte // Transaction hash for uniqueness
+	TxLT       uint64 // definitive LT
+	Topic      uint32
 	Data       []byte // raw BOC of the body cell
+	CreatedAt  time.Time
 	ReceivedAt time.Time
 	ExpiresAt  *time.Time
 	Error      *string
+	// TODO: Add SeqNo when we have block information available
 	// TODO: add fields for replay and debugging (BlockHash, BlockNumber, BlockTimestamp, TxHash, etc.)
 }
 
 // TODO: define block, transaction, and other data structures for easier debug and replay
 // Similar to Solana's BlockData, ProgramLog, ProgramEvent, and Block types
+
+// TODO: better name
+type MsgWithCtx struct {
+	TxHash []byte
+	LT     uint64
+	Msg    *tlb.ExternalMessageOut
+}
