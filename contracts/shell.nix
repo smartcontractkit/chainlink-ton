@@ -2,6 +2,7 @@
   stdenv,
   pkgs,
   lib,
+  jetton-contracts,
 }:
 pkgs.mkShell {
   buildInputs = with pkgs; [
@@ -21,4 +22,12 @@ pkgs.mkShell {
     git
     jq
   ];
+
+  shellHook = ''
+    # Ensure the build directory exists
+    mkdir -p build/jetton
+
+    # Copy the compiled jetton contracts to the expected location (force overwrite)
+    cp -f ${jetton-contracts}/lib/node_modules/jetton/build/*.compiled.json build/jetton
+  '';
 }
