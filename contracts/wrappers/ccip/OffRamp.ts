@@ -80,8 +80,7 @@ export class OffRamp extends OCR3Base {
       value: value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: beginCell().endCell(),
-    })
-  }
+    }) }
 
   async sendCommit(
     provider: ContractProvider,

@@ -3,7 +3,6 @@ import { toNano, Address, Cell, Dictionary, Message, beginCell } from '@ton/core
 import { compile } from '@ton/blueprint'
 import { Router, RouterStorage } from '../../wrappers/ccip/Router'
 import { OnRamp, OnRampStorage } from '../../wrappers/ccip/OnRamp'
-import { OffRamp, OffRampStorage } from '../../wrappers/ccip/OffRamp'
 import {
   createTimestampedPriceValue,
   FeeQuoter,
@@ -91,7 +90,6 @@ describe('Router', () => {
   let router: SandboxContract<Router>
   let feeQuoter: SandboxContract<FeeQuoter>
   let onRamp: SandboxContract<OnRamp>
-  let offRamp: SandboxContract<OffRamp>
 
   beforeAll(async () => {
     blockchain = await Blockchain.create()
@@ -238,6 +236,7 @@ describe('Router', () => {
         success: true,
       })
     }
+  })
 
   it('onramp', async () => {
     // Configure onRamp on router
@@ -303,13 +302,5 @@ describe('Router', () => {
       destChainSelector: CHAINSEL_EVM_TEST_90000001,
     })
   })
-
-    it('offramp', async () => {
-      // configure oracle set
-      // generate a report
-      // call commit
-      // call exec
-    })
-})
 })
 
