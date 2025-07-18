@@ -3,12 +3,12 @@ package async
 import (
 	"fmt"
 	"math/big"
+	"os"
 	"strings"
 	"testing"
 
 	jetton_wrappers "integration-tests/jetton/wrappers"
 	"integration-tests/tracetracking/testutils"
-	test_utils "integration-tests/utils"
 	"path"
 
 	chainsel "github.com/smartcontractkit/chain-selectors"
@@ -29,9 +29,11 @@ const (
 	OFFCHAIN_CONTENT_PREFIX = 0x01
 )
 
+var PATH_CONTRACTS_JETTON = os.Getenv("PATH_CONTRACTS_JETTON")
+
 // Helper function to load the actual JettonWallet code
 func loadJettonWalletCode() (*cell.Cell, error) {
-	jettonWalletPath := path.Join(test_utils.GetRepoRootDir(), "result/lib/node_modules/jetton/build/JettonWallet.compiled.json")
+	jettonWalletPath := path.Join(PATH_CONTRACTS_JETTON, "JettonWallet.compiled.json")
 	compiledContract, err := wrappers.ParseCompiledContract(jettonWalletPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse JettonWallet contract: %w", err)

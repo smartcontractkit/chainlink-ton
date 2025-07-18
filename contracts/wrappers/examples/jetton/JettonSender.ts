@@ -19,8 +19,8 @@ export function jettonSenderConfigToCell(config: JettonSenderConfig): Cell {
 }
 
 export const SenderOpcodes = {
-  SEND_JETTONS_FAST: JettonOpcodes.SEND_JETTONS_FAST,
-  SEND_JETTONS_EXTENDED: JettonOpcodes.SEND_JETTONS_EXTENDED,
+  SEND_JETTONS_FAST: 0x6984f9bb,
+  SEND_JETTONS_EXTENDED: 0xe815f1d0,
 }
 
 export type SendJettonsFastMessage = {

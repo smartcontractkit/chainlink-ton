@@ -4,9 +4,8 @@ import (
 	"fmt"
 	"math/big"
 	"math/rand/v2"
+	"os"
 	"path"
-
-	test_utils "integration-tests/utils"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
@@ -16,7 +15,9 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
-var JettonMinterContractPath = path.Join(test_utils.GetRepoRootDir(), "result/lib/node_modules/jetton/build/JettonMinter.compiled.json")
+var PATH_CONTRACTS_JETTON = os.Getenv("PATH_CONTRACTS_JETTON")
+
+var JettonMinterContractPath = path.Join(PATH_CONTRACTS_JETTON, "JettonMinter.compiled.json")
 
 type JettonMinterProvider struct {
 	apiClient tracetracking.SignedAPIClient
