@@ -73,17 +73,15 @@ func verifyLoadedEvents(msgs []*tlb.ExternalMessageOut, expectedCount int) error
 		}
 		seen[event.Counter] = true
 	}
-	ok := true
 	// verify all expected counters are present (1 to expectedCount)
+	var missing []int
 	for i := 1; i <= expectedCount; i++ {
 		if !seen[uint64(i)] { //nolint:gosec // test code
-			fmt.Printf("Missing counter: %d\n", i)
-			ok = false
+			missing = append(missing, i)
 		}
 	}
-
-	if !ok {
-		return fmt.Errorf("not all expected counters found, missing some from 1 to %d", expectedCount)
+	if len(missing) > 0 {
+		return fmt.Errorf("not all expected counters found, missing some from 1 to %v", missing)
 	}
 
 	return nil

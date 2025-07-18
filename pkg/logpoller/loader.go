@@ -177,7 +177,7 @@ func (lc *LogCollector) fetchMessagesForAddress(ctx context.Context, addr *addre
  * ┌prevBlock─┐ ┌fromBlock─┐     ┌─toBlock──┐
  * │ TX│TX│TX │ │ TX│TX│TX │ ... │ TX│TX│TX │
  * └────────│─┘ └─│────────┘     └────────│─┘
- *          │     │ <- txs in interest -> │
+ *          │     │ <- txs of interest -> │
  *	  lastSeenLT                        endLT
  *    (startLT)
  * prevBlock: Block where the address was last seen(already processed)
