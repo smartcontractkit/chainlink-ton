@@ -4,10 +4,7 @@ import { compile } from '@ton/blueprint'
 import { Router, RouterStorage } from '../../wrappers/ccip/Router'
 import { OnRamp, OnRampStorage } from '../../wrappers/ccip/OnRamp'
 import { OffRamp, OffRampStorage } from '../../wrappers/ccip/OffRamp'
-import {
-  FeeQuoter,
-  FeeQuoterStorage,
-} from '../../wrappers/tests/mocks/FeeQuoter'
+import { FeeQuoter, FeeQuoterStorage } from '../../wrappers/tests/mocks/FeeQuoter'
 import { testLog, getExternals, expectSuccessfulTransaction } from '../Logs'
 import '@ton/test-utils'
 import { uint8ArrayToBigInt, ZERO_ADDRESS } from '../../utils/Utils'
@@ -21,18 +18,17 @@ const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_TON = 13879075125137744094n
 
 function generateSecureRandomString(length: number): string {
-  const array = new Uint8Array(length);
-  crypto.getRandomValues(array);
-  return Array.from(array, byte => ('0' + (byte % 36).toString(36)).slice(-1)).join('');
+  const array = new Uint8Array(length)
+  crypto.getRandomValues(array)
+  return Array.from(array, (byte) => ('0' + (byte % 36).toString(36)).slice(-1)).join('')
 }
-
 
 describe('OffRamp', () => {
   let blockchain: Blockchain
   let deployer: SandboxContract<TreasuryContract>
   let offRamp: SandboxContract<OffRamp>
   let feeQuoter: SandboxContract<FeeQuoter>
-  let deployerCode: Cell 
+  let deployerCode: Cell
   let merkleRootCodeRaw: Cell
   let transmitters: SandboxContract<TreasuryContract>[]
   let signers: KeyPair[]
@@ -79,10 +75,9 @@ describe('OffRamp', () => {
         success: true,
       })
     }
-   })
+  })
 
-   beforeEach(async () => {
-
+  beforeEach(async () => {
     // Using a different deployer changes the value of owner
     // and gets us a contract with a different address every time
     const generateRandomDeployer = () => {
@@ -135,16 +130,14 @@ describe('OffRamp', () => {
       value: toNano('100'),
       configDigest,
       ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
-      bigF: 1, isSignatureVerificationEnabled: true,
+      bigF: 1,
+      isSignatureVerificationEnabled: true,
       signers: signersPublicKeys,
       transmitters: transmitters.map((t) => t.address),
       ...overrides,
     })
 
-    const result = await offRamp.sendSetOCR3Config(
-      deployer.getSender(),
-      createDefaultConfig()
-    )
+    const result = await offRamp.sendSetOCR3Config(deployer.getSender(), createDefaultConfig())
     expectSuccessfulTransaction(result, deployer.address, offRamp.address)
 
     Logs.assertLog(result.transactions, offRamp.address, OCR3BaseLogTypes.OCR3BaseConfigSet, {

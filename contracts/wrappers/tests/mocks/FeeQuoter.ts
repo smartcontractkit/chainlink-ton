@@ -9,8 +9,7 @@ import {
   SendMode,
 } from '@ton/core'
 
-export type FeeQuoterStorage = {
-}
+export type FeeQuoterStorage = {}
 
 export class FeeQuoter implements Contract {
   constructor(

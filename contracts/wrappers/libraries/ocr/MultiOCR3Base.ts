@@ -68,13 +68,6 @@ export function newOCR3BaseExampleContractCell(chainId: number, contractId: numb
     .storeBit(false)
     .endCell()
 }
-export function newOCR3BaseCell(chainId: number): Cell {
-  return beginCell()
-    .storeUint(chainId, 8)
-    .storeBit(false)
-    .storeBit(false)
-    .endCell()
-}
 
 export function ocr3ConfigFromCell(cell: Cell): OCR3Config {
   var cs = cell.beginParse()

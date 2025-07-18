@@ -10,7 +10,7 @@ import {
 } from '@ton/core'
 
 import { Ownable2StepConfig } from '../libraries/access/Ownable2Step'
-import { newOCR3BaseCell, OCR3Base } from '../libraries/ocr/MultiOCR3Base'
+import { OCR3Base } from '../libraries/ocr/MultiOCR3Base'
 
 export type OffRampStorage = {
   ownable: Ownable2StepConfig
@@ -24,22 +24,26 @@ export type OffRampStorage = {
 
 export const Builder = {
   asStorage: (config: OffRampStorage): Cell => {
-    return beginCell()
-      .storeAddress(config.ownable.owner)
-      .storeMaybeBuilder(
-        config.ownable.pendingOwner ? beginCell().storeAddress(config.ownable.pendingOwner) : null,
-      )
-      .storeRef(config.deployerCode)
-      .storeRef(config.merkleRootCode)
-      .storeAddress(config.feeQuoter)
-      // empty OCR3Base::
-      .storeUint(1, 8) //chainId
-      .storeBit(false)
-      .storeBit(false)
-      .storeUint(config.chainSelector, 64)
-      .storeUint(config.permissionlessExecutionThresholdSeconds, 32)
-      .storeUint(config.latestPriceSequenceNumber, 64)
-      .endCell()
+    return (
+      beginCell()
+        .storeAddress(config.ownable.owner)
+        .storeMaybeBuilder(
+          config.ownable.pendingOwner
+            ? beginCell().storeAddress(config.ownable.pendingOwner)
+            : null,
+        )
+        .storeRef(config.deployerCode)
+        .storeRef(config.merkleRootCode)
+        .storeAddress(config.feeQuoter)
+        // empty OCR3Base::
+        .storeUint(1, 8) //chainId
+        .storeBit(false)
+        .storeBit(false)
+        .storeUint(config.chainSelector, 64)
+        .storeUint(config.permissionlessExecutionThresholdSeconds, 32)
+        .storeUint(config.latestPriceSequenceNumber, 64)
+        .endCell()
+    )
   },
 }
 export abstract class Params {}
@@ -55,7 +59,9 @@ export class OffRamp extends OCR3Base {
   constructor(
     readonly address: Address,
     readonly init?: { code: Cell; data: Cell },
-  ) {super()}
+  ) {
+    super()
+  }
 
   static createFromAddress(address: Address) {
     return new OffRamp(address)
@@ -80,7 +86,8 @@ export class OffRamp extends OCR3Base {
       value: value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: beginCell().endCell(),
-    }) }
+    })
+  }
 
   async sendCommit(
     provider: ContractProvider,

@@ -105,7 +105,7 @@ describe('Router', () => {
     _libs.set(BigInt(`0x${merkleRootCodeRaw.hash().toString('hex')}`), merkleRootCodeRaw)
     const libs = beginCell().storeDictDirect(_libs).endCell()
     blockchain.libs = libs
- // Mock UpdatePrices Message handler
+    // Mock UpdatePrices Message handler
     let routerCode = await compile('Router')
     let data: RouterStorage = {
       ownable: {
@@ -303,4 +303,3 @@ describe('Router', () => {
     })
   })
 })
-
