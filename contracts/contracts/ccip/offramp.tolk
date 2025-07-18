@@ -109,7 +109,7 @@ struct (0x00000001) Commit {
     queryId: uint64;
     // TODO: could just store as one slice since context is fixed size
     reportContext: ReportContext;
-    report: cell;
+    report: CommitReport;
     signatures: cell;
 }
 
@@ -117,7 +117,7 @@ struct (0x00000002) Execute {
     queryId: uint64;
     // TODO: could just store as one slice since context is fixed size
     reportContext: ReportContext;
-    report: cell;
+    report: ExecutionReport;
 }
 
 type Msg = Commit | Execute | OCR3Base_SetOCR3Config;
@@ -151,10 +151,8 @@ fun getMerkleRootID(merkleRoot: uint256): builder {
 fun commit(msg: Commit, sender: address) {
     var st = lazy Storage.load();
 
-    // parse report
-    val report = CommitReport.fromCell(msg.report);
-
     // TODO: verify RMN signatures on blessed roots
+    val report = msg.report;
 
     // update token/gas prices if any
     if (report.priceUpdates != null) {
@@ -162,7 +160,9 @@ fun commit(msg: Commit, sender: address) {
             bounce: true, // TODO:
             value: ton("0.05"), // TODO:
             dest: st.feeQuoter,
-            body: report.priceUpdates!.load(),
+            body: UpdatePrices{
+                updates: report.priceUpdates!.load()
+            },
         });
         updatePricesMsg.send(SEND_MODE_REGULAR);
     }
@@ -210,7 +210,7 @@ fun commit(msg: Commit, sender: address) {
         sender,
         OCR_PLUGIN_TYPE_COMMIT,
         msg.reportContext,
-        msg.report,
+        report.toCell(),
         msg.signatures
     );
 
@@ -228,9 +228,7 @@ fun _execute(msg: Execute, sender: address) {
 
     // TODO: manual execution flag
     // TODO: check if chain was cursed by RMNRemote
-
-    // parse report
-    val report = ExecutionReport.fromCell(msg.report);
+    val report = msg.report;
 
     // TODO: if messages.empty() throw EMPTY_REPORT
     // if report.messages.len != offchainTokenData.len throw UNEXPECTED_TOKEN_DATA
@@ -293,7 +291,7 @@ fun _execute(msg: Execute, sender: address) {
         sender,
         OCR_PLUGIN_TYPE_EXECUTE,
         msg.reportContext,
-        msg.report,
+        msg.report.toCell(),
         beginCell().endCell(),
     );
 }
