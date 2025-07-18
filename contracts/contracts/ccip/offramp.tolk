@@ -127,22 +127,19 @@ fun onInternalMessage(in:InMessage) {
     match (msg) {
         Commit => { commit(msg, in.senderAddress) }
         Execute => { _execute(msg, in.senderAddress) }
-        OCR3Base_SetOCR3Config => {
-            debug.print(1);
-            var st = lazy Storage.load();
-            debug.print(2);
-            st.ownable.requireOwner(in.senderAddress);
-            debug.print(3);
-            st.ocr3Base.setOcr3Config(msg);
-            debug.print(4);
-            st.store();
-            debug.print(5);
-        }
+        OCR3Base_SetOCR3Config => { _setOCR3Config(msg, in.senderAddress)}
         else => {
             // ignore empty messages, "wrong opcode" for others
             assert (in.body.isEmpty()) throw 0xFFFF
         }
     }
+}
+
+fun _setOCR3Config(msg: OCR3Base_SetOCR3Config, sender: address) {
+            var st = lazy Storage.load();
+            st.ownable.requireOwner(sender);
+            st.ocr3Base.setOcr3Config(msg);
+            st.store();
 }
 
 @pure @inline
