@@ -55,7 +55,7 @@ func (s *InMemoryStore) GetLogs(evtSrcAddress string) []types.Log {
 }
 
 // GetLogsByTopicWithFilter finds logs by address and topic, then applies cell-level filters.
-func (s *InMemoryStore) GetLogsByTopicWithFilter(evtSrcAddress string, topic uint64, filters []CellQuery) ([]types.Log, error) {
+func (s *InMemoryStore) GetLogsByTopicWithFilter(evtSrcAddress string, topic uint32, filters []CellQuery) ([]types.Log, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 

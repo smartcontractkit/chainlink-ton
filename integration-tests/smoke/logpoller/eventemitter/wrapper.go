@@ -14,6 +14,7 @@ import (
 	"github.com/xssnick/tonutils-go/ton/wallet"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/hash"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
@@ -24,8 +25,8 @@ import (
 var EventEmitterPath = test_utils.GetBuildDir("examples.logpoller.event-emitter.compiled.json")
 
 var (
-	CounterIncreasedTopic uint64 = 0x1234
-	CounterResetTopic     uint64 = 0x5678
+	CounterIncreasedTopic uint32 = hash.CalcCRC32("CounterIncreased")
+	CounterResetTopic     uint32 = hash.CalcCRC32("CounterReset")
 )
 
 type CounterIncreased struct {
@@ -66,7 +67,7 @@ func DeployEventEmitterContract(ctx context.Context, client ton.APIClientWrapped
 
 func IncreaseCounterMsg(contractAddress *address.Address) *wallet.Message {
 	msgBody := cell.BeginCell().
-		MustStoreUInt(0x7e8764ef, 32).    // IncreaseCounter op code
+		MustStoreUInt(0x10000001, 32).    // IncreaseCounter op code
 		MustStoreUInt(rand.Uint64(), 64). // queryId
 		EndCell()
 
@@ -86,7 +87,7 @@ func IncreaseCounterMsg(contractAddress *address.Address) *wallet.Message {
 
 func ResetCounterMsg(contractAddress *address.Address) *wallet.Message {
 	msgBody := cell.BeginCell().
-		MustStoreUInt(0x3a752f06, 32).    // ResetCounter op code
+		MustStoreUInt(0x10000002, 32).    // ResetCounter op code
 		MustStoreUInt(rand.Uint64(), 64). // queryId
 		EndCell()
 

@@ -2,8 +2,8 @@
 import "../../lib/utils.tolk";
 
 // events
-const COUNTER_INCREASED_TOPIC = 0x1234
-const COUNTER_RESET_TOPIC = 0x5678
+const COUNTER_INCREASED_TOPIC = 0x0e5f2827
+const COUNTER_RESET_TOPIC = 0x9bc5e2cd
 
 struct CounterIncreased {
     id: uint64
@@ -26,10 +26,10 @@ fun Storage.load(): Storage {
 fun Storage.store(self) {
     return contract.setData(self.toCell());
 }
-struct (0x7e8764ef) IncreaseCounter {
+struct (0x10000001) IncreaseCounter {
     queryId: uint64
 }
-struct (0x3a752f06) ResetCounter {
+struct (0x10000002) ResetCounter {
     queryId: uint64
 }
 

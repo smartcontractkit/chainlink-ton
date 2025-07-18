@@ -12,13 +12,13 @@ import (
 type Filters struct {
 	mu               sync.RWMutex
 	filtersByName    map[string]types.Filter
-	filtersByAddress map[string]map[uint64]struct{}
+	filtersByAddress map[string]map[uint32]struct{}
 }
 
 func newFilters() *Filters {
 	return &Filters{
 		filtersByName:    make(map[string]types.Filter),
-		filtersByAddress: make(map[string]map[uint64]struct{}),
+		filtersByAddress: make(map[string]map[uint32]struct{}),
 	}
 }
 
@@ -28,7 +28,7 @@ func (f *Filters) RegisterFilter(_ context.Context, flt types.Filter) {
 	f.filtersByName[flt.Name] = flt
 	a := flt.Address.String()
 	if f.filtersByAddress[a] == nil {
-		f.filtersByAddress[a] = make(map[uint64]struct{})
+		f.filtersByAddress[a] = make(map[uint32]struct{})
 	}
 	f.filtersByAddress[a][flt.EventTopic] = struct{}{}
 }
@@ -60,7 +60,7 @@ func (f *Filters) GetDistinctAddresses() []*address.Address {
 }
 
 // For a given (contractAddr, topic), return all FilterIDs that match.
-func (f *Filters) MatchingFilters(contractAddr address.Address, topic uint64) []int64 {
+func (f *Filters) MatchingFilters(contractAddr address.Address, topic uint32) []int64 {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 	var out []int64

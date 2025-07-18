@@ -2,7 +2,6 @@ package logpoller
 
 import (
 	"context"
-	"encoding/binary"
 	"fmt"
 	"time"
 
@@ -14,6 +13,7 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/event"
 )
 
 // TON LogPoller Service - CCIP MVP Implementation
@@ -221,7 +221,10 @@ func (lp *Service) processMessages(msgs []*tlb.ExternalMessageOut) error {
 // 2. Finds matching filters for the source address and topic
 // 3. Saves logs for each matching filter
 func (lp *Service) Process(msg *tlb.ExternalMessageOut) error {
-	topic := extractEventTopicFromAddress(msg.DstAddr)
+	topic, err := event.ExtractEventTopicFromAddress(msg.DstAddr)
+	if err != nil {
+		return fmt.Errorf("ExtractEventTopicFromAddress: %w", err)
+	}
 	lp.lggr.Debugw("Processing message", "src", msg.SrcAddr, "dst", msg.DstAddr, "topic", topic)
 	fIDs := lp.filters.MatchingFilters(*msg.SrcAddr, topic)
 	if len(fIDs) == 0 {
@@ -239,15 +242,6 @@ func (lp *Service) Process(msg *tlb.ExternalMessageOut) error {
 		})
 	}
 	return nil
-}
-
-// extractEventTopicFromAddress extracts the event topic from a TON address.
-// ExtOutLogBucket dst-address format is: [prefix..][topic:8 bytes]
-// We grab the last 8 bytes as the topic identifier.
-// TODO: add link for ExtOutLogBucket format and specification
-func extractEventTopicFromAddress(addr *address.Address) uint64 {
-	data := addr.Data() // 32 bytes
-	return binary.BigEndian.Uint64(data[24:])
 }
 
 // getLastProcessedSeqNo retrieves the last processed masterchain sequence number.
@@ -280,6 +274,6 @@ func (lp *Service) GetLogs(evtSrcAddress *address.Address) []types.Log {
 
 // FilteredLogsByTopic retrieves logs filtered by address, topic, and additional cell-level queries.
 // This allows for precise filtering based on the internal structure of TON cell data.
-func (lp *Service) FilteredLogsByTopic(evtSrcAddress *address.Address, topic uint64, queries []CellQuery) ([]types.Log, error) {
+func (lp *Service) FilteredLogsByTopic(evtSrcAddress *address.Address, topic uint32, queries []CellQuery) ([]types.Log, error) {
 	return lp.store.GetLogsByTopicWithFilter(evtSrcAddress.String(), topic, queries)
 }

@@ -21,7 +21,7 @@ type Filter struct {
 	Name          string
 	Address       address.Address
 	EventName     string
-	EventTopic    uint64 // topic identifier of a event log
+	EventTopic    uint32 // topic identifier of a event log
 	StartingSeqNo uint32 // set starting seqno when registering the filter
 	Retention     time.Duration
 	// TODO: add more fields for production (IsDeleted, IsBackfilled, MaxLogsKept, etc.)
@@ -33,7 +33,7 @@ type Log struct {
 	FilterID   int64
 	SeqNo      uint32
 	Address    address.Address
-	EventTopic uint64
+	EventTopic uint32
 	Data       []byte // raw BOC of the body cell
 	ReceivedAt time.Time
 	ExpiresAt  *time.Time
