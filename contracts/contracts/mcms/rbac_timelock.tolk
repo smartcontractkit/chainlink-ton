@@ -326,7 +326,7 @@ struct Timelock_Data {
     /// Minimum delay for operations in seconds
     minDelay: uint64;
     /// Map of operation id to timestamp
-    timestamps: dict; // map<int, uint32>
+    timestamps: dict; // map<int, uint64>
 
     /// Number of fn selectors blocked by the contract.
     blockedFnSelectorsLen: uint32;
@@ -454,7 +454,7 @@ fun Timelock<T>.isOperationDone(self, id: int): bool {
 
 /// @dev Returns the timestamp at with an operation becomes ready (0 for
 /// unset operations, 1 for done operations).
-fun Timelock<T>.getTimestamp(self, id: int): uint256 {
+fun Timelock<T>.getTimestamp(self, id: int): uint64 {
     // Get the timestamp for the given id from the timestamps dictionary
     var (timestampSlice, exists) = self.data.timestamps.uDictGet(256, id);
     if (!exists) {
@@ -462,7 +462,7 @@ fun Timelock<T>.getTimestamp(self, id: int): uint256 {
     }
 
     // Load the timestamp from the slice
-    return timestampSlice!.loadUint(32); // TODO: use 64 bits for timestamp
+    return timestampSlice!.loadUint(64);
 }
 
 /// @dev Returns the minimum delay for an operation to become valid.
@@ -596,8 +596,7 @@ fun Timelock<T>.schedule(mutate self, id: uint256, delay: uint64): void {
     assert(!self.isOperation(id)) throw ERROR_OPERATION_ALREADY_SCHEDULED;
     assert(delay >= self.getMinDelay()) throw ERROR_INSUFFICIENT_DELAY;
 
-    // TODO: should use 64 bit value for timestamp
-    val value = beginCell().storeUint(blockchain.now() + delay, 32).endCell().beginParse();
+    val value = beginCell().storeUint(blockchain.now() + delay, 64).endCell().beginParse();
     self.data.timestamps.uDictSet(256, id, value); // seconds since epoch
 }
 
@@ -701,7 +700,7 @@ fun Timelock<T>.afterCall(mutate self, id: uint256): void {
     assert(self.isOperationReady(id)) throw ERROR_OPERATION_NOT_READY;
 
     // TODO: optimize, this should be static constant
-    val value = beginCell().storeUint(DONE_TIMESTAMP, 32).endCell().beginParse();
+    val value = beginCell().storeUint(DONE_TIMESTAMP, 64).endCell().beginParse();
     self.data.timestamps.uDictSet(256, id, value); // Mark the operation as done
 }
 
@@ -1021,7 +1020,7 @@ get fun isOperationDone(id: int): bool {
 }
 
 /// @see <Timelock<T>.getTimestamp>
-get fun getTimestamp(id: int): uint256 {
+get fun getTimestamp(id: int): uint64 {
     return Timelock<bool>.load().getTimestamp(id);
 }
 
