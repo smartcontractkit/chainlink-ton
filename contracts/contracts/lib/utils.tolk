@@ -172,15 +172,23 @@ fun Map<V>.delete(mutate self, key: address): bool {
     return self.value.sDictDelete(ADDR_KEY_LEN, key as slice);
 }
 
-// TODO: mark functions as @pure
 struct UMap<K, V> {
     value: dict;
-    keyLen: uint16; // TODO: get rid of keylen to save storage space, wish we could us a type param
+}
+
+@inline @pure
+fun UMap<uint64, V>.keyLen(self): int {
+    return 64
+}
+
+@inline @pure
+fun UMap<uint256, V>.keyLen(self): int {
+    return 256
 }
 
 @inline
-fun UMap<K, V>.new(keyLen: int): UMap<K, V> {
-    return UMap { value: createEmptyDict(), keyLen }
+fun UMap<K, V>.new(): UMap<K, V> {
+    return UMap { value: createEmptyDict() }
 }
 
 @inline
@@ -190,13 +198,13 @@ fun UMap<K, V>.isEmpty(self): bool {
 
 @inline
 fun UMap<K, V>.has(self, key: K): bool {
-    val (_, exists) = self.value.uDictGet(self.keyLen, key);
+    val (_, exists) = self.value.uDictGet(self.keyLen(), key);
     return exists;
 }
 
 @inline
 fun UMap<K, V>.get(self, key: K): (V?, bool) {
-    val (value, exists) = self.value.uDictGet(self.keyLen, key);
+    val (value, exists) = self.value.uDictGet(self.keyLen(), key);
     if (!exists) {
         return (null, false);
     }
@@ -205,19 +213,19 @@ fun UMap<K, V>.get(self, key: K): (V?, bool) {
 
 @inline
 fun UMap<K, V>.mustGet(self, key: K, errorCode: int): V {
-    val (maybeValue, exists) = self.value.uDictGet(self.keyLen, key);
+    val (maybeValue, exists) = self.value.uDictGet(self.keyLen(), key);
     assert(exists, errorCode);
     return V.fromSlice(maybeValue!);
 }
 
 @inline
 fun UMap<K, V>.set(mutate self, key: K, value: V): void {
-    return (self.value.uDictSet(self.keyLen, key, value.toCell().beginParse()));
+    return (self.value.uDictSet(self.keyLen(), key, value.toCell().beginParse()));
 }
 
 @inline
 fun UMap<K, V>.getRef(self, key: K): (V?, bool) {
-    val (value, exists) = self.value.uDictGetRef(self.keyLen, key);
+    val (value, exists) = self.value.uDictGetRef(self.keyLen(), key);
     if (!exists) {
         return (null, false);
     }
@@ -226,14 +234,14 @@ fun UMap<K, V>.getRef(self, key: K): (V?, bool) {
 
 @inline
 fun UMap<K, V>.mustGetRef(self, key: K, errorCode: int): V {
-    val (maybeValue, exists) = self.value.uDictGetRef(self.keyLen, key);
+    val (maybeValue, exists) = self.value.uDictGetRef(self.keyLen(), key);
     assert(exists, errorCode);
     return V.fromCell(maybeValue!);
 }
 
 @inline
 fun UMap<K, V>.setRef(mutate self, key: K, value: V): void {
-    return (self.value.uDictSetRef(self.keyLen, key, value.toCell()));
+    return (self.value.uDictSetRef(self.keyLen(), key, value.toCell()));
 }
 
 @inline @pure
@@ -247,7 +255,7 @@ fun UMap<K, V>.min(self): (K?, V?, bool) {
 
 @inline @pure
 fun UMap<K, V>.next(self, key: K): (K?, V?, bool) {
-    val (nextKey, value, exists) = self.value.uDictGetNext(self.keyLen, key);
+    val (nextKey, value, exists) = self.value.uDictGetNext(self.keyLen(), key);
     if (!exists) {
         return (null, null, false);
     }
@@ -256,12 +264,12 @@ fun UMap<K, V>.next(self, key: K): (K?, V?, bool) {
 
 @inline @pure
 fun UMap<K, V>.replace(mutate self, key: K, value: V): bool {
-    return (self.value.uDictSetIfExists(self.keyLen, key, value.toCell().beginParse()));
+    return (self.value.uDictSetIfExists(self.keyLen(), key, value.toCell().beginParse()));
 }
 
 @inline @pure
 fun UMap<K, V>.delete(mutate self, key: K): bool {
-    return self.value.sDictDelete(self.keyLen, key);
+    return self.value.sDictDelete(self.keyLen(), key);
 }
 
 //Returns a lisp-list with the keys of the map, destroys the dictionary in the process
@@ -269,7 +277,7 @@ fun UMap<K, V>.delete(mutate self, key: K): bool {
 fun UMap<K, V>.keysDestructs(mutate self): tuple? {
     var list: tuple? = null;
     do {
-        var (key: int?, _value: slice?, found: bool) = self.value.uDictDeleteFirstAndGet(self.keyLen);
+        var (key: int?, _value: slice?, found: bool) = self.value.uDictDeleteFirstAndGet(self.keyLen());
         if (found) {
             var value = key! as K;
             list = listPrepend(value, list);

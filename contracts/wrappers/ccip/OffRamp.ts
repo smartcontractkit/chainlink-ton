@@ -35,7 +35,6 @@ export const Builder = {
       .storeUint(config.chainSelector, 64)
       .storeUint(config.permissionlessExecutionThresholdSeconds, 32)
       .storeDict(Dictionary.empty()) // sourceChainConfigs
-      .storeUint(64, 16) // keyLen
       .storeUint(config.latestPriceSequenceNumber, 64)
       .endCell()
   },

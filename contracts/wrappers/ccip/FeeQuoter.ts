@@ -95,24 +95,18 @@ export function destChainConfigToBuilder(config: DestChainConfig): TonBuilder {
 
 export const Builder = {
   asStorage: (config: FeeQuoterStorage): Cell => {
-    return (
-      beginCell()
-        .storeAddress(config.ownable.owner)
-        .storeMaybeBuilder(
-          config.ownable.pendingOwner
-            ? beginCell().storeAddress(config.ownable.pendingOwner)
-            : null,
-        )
-        .storeUint(config.maxFeeJuelsPerMsg, 96)
-        .storeAddress(config.linkToken)
-        .storeUint(config.tokenPriceStalenessThreshold, 64)
-        .storeDict(config.usdPerToken)
-        .storeDict(config.premiumMultiplierWeiPerEth)
-        // UMap<> type
-        .storeDict(config.destChainConfigs)
-        .storeUint(64, 16) // keyLen
-        .endCell()
-    )
+    return beginCell()
+      .storeAddress(config.ownable.owner)
+      .storeMaybeBuilder(
+        config.ownable.pendingOwner ? beginCell().storeAddress(config.ownable.pendingOwner) : null,
+      )
+      .storeUint(config.maxFeeJuelsPerMsg, 96)
+      .storeAddress(config.linkToken)
+      .storeUint(config.tokenPriceStalenessThreshold, 64)
+      .storeDict(config.usdPerToken)
+      .storeDict(config.premiumMultiplierWeiPerEth)
+      .storeDict(config.destChainConfigs)
+      .endCell()
   },
 }
 export abstract class Params {}
