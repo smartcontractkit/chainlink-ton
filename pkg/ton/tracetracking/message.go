@@ -81,6 +81,13 @@ type ReceivedMessage struct {
 	OutgoingExternalMessages         []OutgoingExternalMessages
 }
 
+func (m *SentMessage) Dump() string {
+	if m.InternalMsg != nil {
+		return describeInternalMsg(m.InternalMsg, nil)
+	}
+	return "event?"
+}
+
 // Outputs a nicely indented string representation of the trace tree, with the exit codes, bouced tags and sender-receiver
 func (m *ReceivedMessage) Dump() string {
 	lines := dumpRec(m)
@@ -88,24 +95,11 @@ func (m *ReceivedMessage) Dump() string {
 }
 
 func dumpRec(m *ReceivedMessage) []string {
-	describeExitCode := func(exitCode tvm.ExitCode) string {
-		if exitCode == 0 {
-			return "0"
-		}
-		return fmt.Sprintf("%d (%s)", exitCode, exitCode.Describe())
-	}
 	output := make([]string, 1)
 	if m.InternalMsg != nil {
-		slice := m.InternalMsg.Body.BeginParse()
-		opcode, err := slice.LoadUInt(32)
-		if err != nil {
-			panic(fmt.Sprintf("failed to load opcode from message body: %s", err))
-		}
-		output[0] = fmt.Sprintf("%s -- (opcode: %x exit code: %s, bounced: %t) --> %s",
-			m.InternalMsg.SrcAddr.String(), opcode, describeExitCode(m.ExitCode), m.InternalMsg.Bounced, m.InternalMsg.DstAddr.String())
+		output[0] = describeInternalMsg(m.InternalMsg, &m.ExitCode)
 	} else if m.ExternalMsg != nil {
-		output[0] = fmt.Sprintf("%s -- (exit code: %s) --> %s",
-			m.ExternalMsg.SrcAddr.String(), describeExitCode(m.ExitCode), m.ExternalMsg.DstAddr.String())
+		output[0] = describeExternalInMsg(m.ExternalMsg, &m.ExitCode)
 	}
 	for _, sentMessage := range m.OutgoingInternalReceivedMessages {
 		for j, line := range dumpRec(sentMessage) {
@@ -116,7 +110,56 @@ func dumpRec(m *ReceivedMessage) []string {
 			}
 		}
 	}
+	for _, sentMessage := range m.OutgoingInternalSentMessages {
+		output = append(output, "└ "+sentMessage.Dump())
+	}
 	return output
+}
+
+func describeExternalInMsg(msg *tlb.ExternalMessageIn, exitCode *tvm.ExitCode) string {
+	description := describeBody(msg.Body)
+	description += ", " + describeExitCode(exitCode)
+	return fmt.Sprintf("%s -- (%s) --> %s",
+		msg.SrcAddr.String(), description, msg.DstAddr.String())
+}
+
+func describeInternalMsg(msg *tlb.InternalMessage, exitCode *tvm.ExitCode) string {
+	description := describeBody(msg.Body)
+	if msg.Bounced {
+		description += ", bounce"
+	}
+	description += ", " + describeExitCode(exitCode)
+	srcAddr := msg.SrcAddr.String()
+	if srcAddr == "NONE" {
+		srcAddr = "external"
+	}
+	return fmt.Sprintf("%s -- (%s) --> %s",
+		srcAddr, description, msg.DstAddr.String())
+}
+
+func describeExitCode(exitCode *tvm.ExitCode) string {
+	if exitCode == nil {
+		return "pending"
+	}
+	if *exitCode == 0 {
+		return "exit code 0"
+	}
+	return fmt.Sprintf("exit code: %d (%s)", *exitCode, exitCode.Describe())
+}
+
+func describeBody(body *cell.Cell) string {
+	slice := body.BeginParse()
+	if slice.BitsLeft() == 0 {
+		return "empty"
+	} else {
+		opcode, err := slice.LoadUInt(32)
+		if err != nil {
+			fmt.Printf("failed to load opcode from message body: %s\n", err)
+			return "opcode: <error>"
+		} else {
+			return fmt.Sprintf("opcode: %x", opcode)
+		}
+	}
 }
 
 // OutgoingExternalMessages represents external messages sent by a contract,

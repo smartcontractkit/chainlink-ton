@@ -1,6 +1,7 @@
 package wrappers
 
 import (
+	"context"
 	"fmt"
 	"math/big"
 	"math/rand/v2"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/ton/jetton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
@@ -73,12 +75,14 @@ func (p *JettonMinterProvider) Deploy(initData JettonMinterInitData) (*JettonMin
 	}
 
 	return &JettonMinter{
-		Contract: *contract,
+		Contract:     *contract,
+		jettonClient: jetton.NewJettonMasterClient(p.apiClient.Client, contract.Address),
 	}, nil
 }
 
 type JettonMinter struct {
-	Contract wrappers.Contract
+	Contract     wrappers.Contract
+	jettonClient *jetton.Client
 }
 
 // JettonMinter opcodes
@@ -94,34 +98,48 @@ const (
 	JettonMinterExcesses          = 0xd53276db
 )
 
+type mintMessage struct {
+	queryID     uint64
+	destination *address.Address
+	tonAmount   *big.Int
+	masterMsg   jettonInternalTransfer
+	// tonAmount       *big.Int
+	// customPayload *cell.Cell
+}
+
 func (m mintMessage) OpCode() uint64 {
 	return JettonMinterMint
 }
 
 func (m mintMessage) StoreArgs(b *cell.Builder) error {
 	// First, build the internal transfer message
-	mintMsg := cell.BeginCell()
-	err := mintMsg.StoreUInt(m.queryID, 64)
-	if err != nil {
-		return fmt.Errorf("failed to store queryID in internal message: %w", err)
-	}
-	err = mintMsg.StoreAddr(m.destination)
-	if err != nil {
-		return fmt.Errorf("failed to store destination in internal message: %w", err)
-	}
-	err = mintMsg.StoreBigCoins(m.tonAmount)
-	if err != nil {
-		return fmt.Errorf("failed to store tonAmount: %w", err)
-	}
-
 	transferMsg := cell.BeginCell()
+	err := transferMsg.StoreUInt(m.masterMsg.OpCode(), 32)
+	if err != nil {
+		return fmt.Errorf("failed to store opcode in transfer message: %w", err)
+	}
 	err = m.masterMsg.Store(transferMsg)
 	if err != nil {
 		return fmt.Errorf("failed to store transfer message args: %w", err)
 	}
-	err = mintMsg.StoreRef(transferMsg.EndCell())
+
+	// Store the mint message arguments in the passed builder
+	err = b.StoreUInt(m.queryID, 64)
 	if err != nil {
-		return fmt.Errorf("failed to store transfer message in mint message: %w", err)
+		return fmt.Errorf("failed to store queryID: %w", err)
+	}
+	err = b.StoreAddr(m.destination)
+	if err != nil {
+		return fmt.Errorf("failed to store destination: %w", err)
+	}
+	err = b.StoreBigCoins(m.tonAmount)
+	if err != nil {
+		return fmt.Errorf("failed to store tonAmount: %w", err)
+	}
+
+	err = b.StoreRef(transferMsg.EndCell())
+	if err != nil {
+		return fmt.Errorf("failed to store transfer message reference: %w", err)
 	}
 
 	return nil
@@ -278,44 +296,45 @@ func (m JettonMinter) SendUpgrade(newData *cell.Cell, newCode *cell.Cell) (msgRe
 }
 
 // Getter methods
-func (m JettonMinter) GetJettonData() (uint64, *address.Address, *address.Address, *cell.Cell, *cell.Cell, error) {
-	result, err := m.Contract.Get("get_jetton_data")
-	if err != nil {
-		return 0, nil, nil, nil, nil, err
-	}
+func (m JettonMinter) GetJettonData() (*jetton.Data, error) {
+	return m.jettonClient.GetJettonData(context.TODO())
+	// result, err := m.Contract.Get("get_jetton_data")
+	// if err != nil {
+	// 	return 0, nil, nil, nil, nil, err
+	// }
 
-	totalSupply, err := result.Int(0)
-	if err != nil {
-		return 0, nil, nil, nil, nil, err
-	}
+	// totalSupply, err := result.Int(0)
+	// if err != nil {
+	// 	return 0, nil, nil, nil, nil, err
+	// }
 
-	_, err = result.Int(1) // mintable flag - not used for now
-	if err != nil {
-		return 0, nil, nil, nil, nil, err
-	}
+	// _, err = result.Int(1) // mintable flag - not used for now
+	// if err != nil {
+	// 	return 0, nil, nil, nil, nil, err
+	// }
 
-	admin, err := result.Slice(2)
-	if err != nil {
-		return 0, nil, nil, nil, nil, err
-	}
+	// admin, err := result.Slice(2)
+	// if err != nil {
+	// 	return 0, nil, nil, nil, nil, err
+	// }
 
-	jettonContent, err := result.Cell(3)
-	if err != nil {
-		return 0, nil, nil, nil, nil, err
-	}
+	// jettonContent, err := result.Cell(3)
+	// if err != nil {
+	// 	return 0, nil, nil, nil, nil, err
+	// }
 
-	walletCode, err := result.Cell(4)
-	if err != nil {
-		return 0, nil, nil, nil, nil, err
-	}
+	// walletCode, err := result.Cell(4)
+	// if err != nil {
+	// 	return 0, nil, nil, nil, nil, err
+	// }
 
-	var adminAddr *address.Address
-	if admin.BitsLeft() > 0 {
-		adminAddr, err = admin.LoadAddr()
-		if err != nil {
-			return 0, nil, nil, nil, nil, err
-		}
-	}
+	// var adminAddr *address.Address
+	// if admin.BitsLeft() > 0 {
+	// 	adminAddr, err = admin.LoadAddr()
+	// 	if err != nil {
+	// 		return 0, nil, nil, nil, nil, err
+	// 	}
+	// }
 
-	return totalSupply.Uint64(), adminAddr, nil, jettonContent, walletCode, nil
+	// return totalSupply.Uint64(), adminAddr, nil, jettonContent, walletCode, nil
 }

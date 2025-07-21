@@ -75,12 +75,7 @@ func (jettonInternalTransfer) OpCode() uint64 {
 }
 
 func (t jettonInternalTransfer) Store(b *cell.Builder) error {
-	err := b.StoreUInt(t.OpCode(), 32)
-	if err != nil {
-		return fmt.Errorf("failed to store opcode: %w", err)
-	}
-
-	err = b.StoreUInt(t.queryID, 64)
+	err := b.StoreUInt(t.queryID, 64)
 	if err != nil {
 		return fmt.Errorf("failed to store query_id: %w", err)
 	}
@@ -106,13 +101,4 @@ func (t jettonInternalTransfer) Store(b *cell.Builder) error {
 		return fmt.Errorf("failed to store forwardPayload: %w", err)
 	}
 	return nil
-}
-
-type mintMessage struct {
-	queryID     uint64
-	destination *address.Address
-	tonAmount   *big.Int
-	masterMsg   jettonInternalTransfer
-	// tonAmount       *big.Int
-	// customPayload *cell.Cell
 }
