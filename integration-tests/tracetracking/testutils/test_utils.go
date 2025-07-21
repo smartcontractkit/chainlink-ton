@@ -19,19 +19,25 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 )
 
-func SetUpTest(t *testing.T, chainID uint64, initialAmount *big.Int, fundedAccountsCount uint) (newWallet func() tracetracking.SignedAPIClient) {
+func SetUpTest(t *testing.T, chainID uint64, initialAmount *big.Int, fundedAccountsCount uint) (accounts []tracetracking.SignedAPIClient) {
 	api := testutils.CreateAPIClient(t, chainID)
 
-	newWallet = func() tracetracking.SignedAPIClient {
-		w := testutils.CreateRandomTonWallet(t, api, wallet.V3R2, wallet.WithWorkchain(0))
-		recipients := []*address.Address{w.Address()}
-		amounts := []tlb.Coins{tlb.FromNanoTON(initialAmount)}
+	accounts = make([]tracetracking.SignedAPIClient, fundedAccountsCount)
 
-		testutils.FundTonWallets(t, api, recipients, amounts)
-		return tracetracking.NewSignedAPIClient(api, *w)
+	recipients := make([]*address.Address, fundedAccountsCount)
+	amounts := make([]tlb.Coins, fundedAccountsCount)
+
+	for i := range fundedAccountsCount {
+		w := testutils.CreateRandomTonWallet(t, api, wallet.V3R2, wallet.WithWorkchain(0))
+		recipients[i] = w.Address()
+		amounts[i] = tlb.FromNanoTON(initialAmount)
+
+		accounts[i] = tracetracking.NewSignedAPIClient(api, *w)
 	}
 
-	return newWallet
+	testutils.FundTonWallets(t, api, recipients, amounts)
+
+	return accounts
 }
 
 func GetRandomWallet(client ton.APIClientWrapped, version wallet.Version, option wallet.Option) (*wallet.Wallet, error) {
