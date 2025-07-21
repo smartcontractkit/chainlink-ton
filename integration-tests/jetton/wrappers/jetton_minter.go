@@ -32,44 +32,23 @@ func NewJettonMinterProvider(apiClient tracetracking.SignedAPIClient) *JettonMin
 }
 
 type JettonMinterInitData struct {
-	TotalSupply   uint64
-	Admin         *address.Address
-	TransferAdmin *address.Address
-	WalletCode    *cell.Cell
-	JettonContent *cell.Cell
+	TotalSupply   *big.Int         `tlb:"var uint 16"`
+	Admin         *address.Address `tlb:"addr"`
+	TransferAdmin *address.Address `tlb:"addr"`
+	WalletCode    *cell.Cell       `tlb:"^"`
+	JettonContent *cell.Cell       `tlb:"^"`
 }
 
 func (p *JettonMinterProvider) Deploy(initData JettonMinterInitData) (*JettonMinter, error) {
-	// Deploy the contract
-	b := cell.BeginCell()
-	err := b.StoreCoins(initData.TotalSupply)
-	if err != nil {
-		return nil, fmt.Errorf("failed to store TotalSupply: %w", err)
-	}
-	err = b.StoreAddr(initData.Admin)
-	if err != nil {
-		return nil, fmt.Errorf("failed to store Admin: %w", err)
-	}
-
-	err = b.StoreAddr(initData.TransferAdmin)
-	if err != nil {
-		return nil, fmt.Errorf("failed to store TransferAdmin: %w", err)
-	}
-
-	err = b.StoreRef(initData.WalletCode)
-	if err != nil {
-		return nil, fmt.Errorf("failed to store WalletCode: %w", err)
-	}
-	err = b.StoreRef(initData.JettonContent)
-	if err != nil {
-		return nil, fmt.Errorf("failed to store JettonContent: %w", err)
-	}
-
 	compiledContract, err := wrappers.ParseCompiledContract(JettonMinterContractPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to compile contract: %w", err)
 	}
-	contract, err := wrappers.Deploy(&p.apiClient, compiledContract, b.EndCell(), tlb.MustFromTON("1"))
+	initDataCell, err := tlb.ToCell(initData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert init data to cell: %w", err)
+	}
+	contract, err := wrappers.Deploy(&p.apiClient, compiledContract, initDataCell, tlb.MustFromTON("1"))
 	if err != nil {
 		return nil, err
 	}
@@ -103,8 +82,6 @@ type mintMessage struct {
 	destination *address.Address
 	tonAmount   *big.Int
 	masterMsg   jettonInternalTransfer
-	// tonAmount       *big.Int
-	// customPayload *cell.Cell
 }
 
 func (m mintMessage) OpCode() uint64 {
@@ -298,43 +275,4 @@ func (m JettonMinter) SendUpgrade(newData *cell.Cell, newCode *cell.Cell) (msgRe
 // Getter methods
 func (m JettonMinter) GetJettonData() (*jetton.Data, error) {
 	return m.jettonClient.GetJettonData(context.TODO())
-	// result, err := m.Contract.Get("get_jetton_data")
-	// if err != nil {
-	// 	return 0, nil, nil, nil, nil, err
-	// }
-
-	// totalSupply, err := result.Int(0)
-	// if err != nil {
-	// 	return 0, nil, nil, nil, nil, err
-	// }
-
-	// _, err = result.Int(1) // mintable flag - not used for now
-	// if err != nil {
-	// 	return 0, nil, nil, nil, nil, err
-	// }
-
-	// admin, err := result.Slice(2)
-	// if err != nil {
-	// 	return 0, nil, nil, nil, nil, err
-	// }
-
-	// jettonContent, err := result.Cell(3)
-	// if err != nil {
-	// 	return 0, nil, nil, nil, nil, err
-	// }
-
-	// walletCode, err := result.Cell(4)
-	// if err != nil {
-	// 	return 0, nil, nil, nil, nil, err
-	// }
-
-	// var adminAddr *address.Address
-	// if admin.BitsLeft() > 0 {
-	// 	adminAddr, err = admin.LoadAddr()
-	// 	if err != nil {
-	// 		return 0, nil, nil, nil, nil, err
-	// 	}
-	// }
-
-	// return totalSupply.Uint64(), adminAddr, nil, jettonContent, walletCode, nil
 }

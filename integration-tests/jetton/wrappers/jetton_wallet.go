@@ -29,37 +29,41 @@ func NewJettonWalletProvider(apiClient tracetracking.SignedAPIClient) *JettonWal
 }
 
 type JettonWalletInitData struct {
-	OwnerAddress        *address.Address
-	JettonMasterAddress *address.Address
-	Balance             uint64
-	Status              uint8
+	Status              uint8            `tlb:"status"`
+	Balance             *big.Int         `tlb:"coins"`
+	OwnerAddress        *address.Address `tlb:"addr"`
+	JettonMasterAddress *address.Address `tlb:"addr"`
 }
 
 func (p *JettonWalletProvider) Deploy(initData JettonWalletInitData) (JettonWallet, error) {
 	// Deploy the contract
-	b := cell.BeginCell()
-	err := b.StoreUInt(uint64(initData.Status), 4)
-	if err != nil {
-		return JettonWallet{}, fmt.Errorf("failed to store Status: %w", err)
-	}
-	err = b.StoreCoins(initData.Balance)
-	if err != nil {
-		return JettonWallet{}, fmt.Errorf("failed to store Balance: %w", err)
-	}
-	err = b.StoreAddr(initData.OwnerAddress)
-	if err != nil {
-		return JettonWallet{}, fmt.Errorf("failed to store OwnerAddress: %w", err)
-	}
-	err = b.StoreAddr(initData.JettonMasterAddress)
-	if err != nil {
-		return JettonWallet{}, fmt.Errorf("failed to store JettonMasterAddress: %w", err)
-	}
+	// b := cell.BeginCell()
+	// err := b.StoreUInt(uint64(initData.Status), 4)
+	// if err != nil {
+	// 	return JettonWallet{}, fmt.Errorf("failed to store Status: %w", err)
+	// }
+	// err = b.StoreBigCoins(initData.Balance)
+	// if err != nil {
+	// 	return JettonWallet{}, fmt.Errorf("failed to store Balance: %w", err)
+	// }
+	// err = b.StoreAddr(initData.OwnerAddress)
+	// if err != nil {
+	// 	return JettonWallet{}, fmt.Errorf("failed to store OwnerAddress: %w", err)
+	// }
+	// err = b.StoreAddr(initData.JettonMasterAddress)
+	// if err != nil {
+	// 	return JettonWallet{}, fmt.Errorf("failed to store JettonMasterAddress: %w", err)
+	// }
 
 	compiledContract, err := wrappers.ParseCompiledContract(JettonWalletContractPath)
 	if err != nil {
 		return JettonWallet{}, fmt.Errorf("failed to compile contract: %w", err)
 	}
-	contract, err := wrappers.Deploy(&p.apiClient, compiledContract, b.EndCell(), tlb.MustFromTON("1"))
+	initDataCell, err := tlb.ToCell(initData)
+	if err != nil {
+		return JettonWallet{}, fmt.Errorf("failed to convert init data to cell: %w", err)
+	}
+	contract, err := wrappers.Deploy(&p.apiClient, compiledContract, initDataCell, tlb.MustFromTON("1"))
 	if err != nil {
 		return JettonWallet{}, err
 	}

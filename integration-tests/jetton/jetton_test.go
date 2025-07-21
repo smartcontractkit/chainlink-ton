@@ -72,7 +72,7 @@ func TestJettonSendAndReceive(t *testing.T) {
 		// Deploy jetton minter
 		t.Logf("Deploying JettonMinter contract\n")
 		setup.jettonMinter, err = jetton_wrappers.NewJettonMinterProvider(setup.deployer).Deploy(jetton_wrappers.JettonMinterInitData{
-			TotalSupply:   0,
+			TotalSupply:   big.NewInt(0),
 			Admin:         setup.deployer.Wallet.WalletAddress(),
 			TransferAdmin: nil,
 			WalletCode:    setup.jettonWalletCode,
