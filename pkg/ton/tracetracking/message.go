@@ -151,15 +151,13 @@ func describeBody(body *cell.Cell) string {
 	slice := body.BeginParse()
 	if slice.BitsLeft() == 0 {
 		return "empty"
-	} else {
-		opcode, err := slice.LoadUInt(32)
-		if err != nil {
-			fmt.Printf("failed to load opcode from message body: %s\n", err)
-			return "opcode: <error>"
-		} else {
-			return fmt.Sprintf("opcode: %x", opcode)
-		}
 	}
+	opcode, err := slice.LoadUInt(32)
+	if err != nil {
+		fmt.Printf("failed to load opcode from message body: %s\n", err)
+		return "opcode: <error>"
+	}
+	return fmt.Sprintf("opcode: %x", opcode)
 }
 
 // OutgoingExternalMessages represents external messages sent by a contract,

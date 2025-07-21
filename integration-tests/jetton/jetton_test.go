@@ -106,16 +106,16 @@ func TestJettonSendAndReceive(t *testing.T) {
 		t.Logf("Msg trace:\n%s\n", sendMintMsg.Dump())
 
 		require.Zero(t, sendMintMsg.ExitCode, "Msg to wallet should have exit code 0")
-		require.Equal(t, 1, len(sendMintMsg.OutgoingInternalReceivedMessages), "Msg to wallet should have 1 outgoing message")
+		require.Len(t, sendMintMsg.OutgoingInternalReceivedMessages, 1, "Msg to wallet should have 1 outgoing message")
 		msgToMinter := sendMintMsg.OutgoingInternalReceivedMessages[0]
 		require.Zero(t, msgToMinter.ExitCode, "Msg to minter should have exit code 0")
-		require.Equal(t, 1, len(msgToMinter.OutgoingInternalReceivedMessages), "Msg to minter should have 1 outgoing message")
+		require.Len(t, msgToMinter.OutgoingInternalReceivedMessages, 1, "Msg to minter should have 1 outgoing message")
 		msgToJettonWallet := msgToMinter.OutgoingInternalReceivedMessages[0]
 		require.Zero(t, msgToJettonWallet.ExitCode, "Msg to jetton wallet should have exit code 0")
-		require.Equal(t, 1, len(msgToJettonWallet.OutgoingInternalReceivedMessages), "Msg to jetton wallet should not have outgoing messages")
+		require.Len(t, msgToJettonWallet.OutgoingInternalReceivedMessages, 1, "Msg to jetton wallet should not have outgoing messages")
 		msgReturnExcessesBack := msgToJettonWallet.OutgoingInternalReceivedMessages[0]
 		require.Zero(t, msgReturnExcessesBack.ExitCode, "Msg to return excesses should have exit code 0")
-		require.Equal(t, 0, len(msgReturnExcessesBack.OutgoingInternalReceivedMessages), "Msg to return excesses should have no outgoing messages")
+		require.Empty(t, msgReturnExcessesBack.OutgoingInternalReceivedMessages, "Msg to return excesses should have no outgoing messages")
 		senderJettonWalletAddress := msgToJettonWallet.InternalMsg.DstAddr
 
 		setup.jettonClient = jetton.NewJettonMasterClient(setup.deployer.Client, setup.jettonMinter.Contract.Address)
