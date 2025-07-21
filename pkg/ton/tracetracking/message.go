@@ -110,9 +110,9 @@ func dumpRec(m *ReceivedMessage) []string {
 	for _, sentMessage := range m.OutgoingInternalReceivedMessages {
 		for j, line := range dumpRec(sentMessage) {
 			if j == 0 {
-				output = append(output, fmt.Sprintf("└ %s", line))
+				output = append(output, "└ "+line)
 			} else {
-				output = append(output, fmt.Sprintf("│ %s", line))
+				output = append(output, "│ "+line)
 			}
 		}
 	}

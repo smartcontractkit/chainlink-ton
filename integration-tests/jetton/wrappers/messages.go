@@ -62,7 +62,7 @@ func (c *cellForwardPayload) Store(b *cell.Builder) error {
 }
 
 type jettonInternalTransfer struct {
-	queryId          uint64
+	queryID          uint64
 	amount           *big.Int
 	from             *address.Address
 	responseAddress  *address.Address
@@ -80,7 +80,7 @@ func (t jettonInternalTransfer) Store(b *cell.Builder) error {
 		return fmt.Errorf("failed to store opcode: %w", err)
 	}
 
-	err = b.StoreUInt(t.queryId, 64)
+	err = b.StoreUInt(t.queryID, 64)
 	if err != nil {
 		return fmt.Errorf("failed to store query_id: %w", err)
 	}

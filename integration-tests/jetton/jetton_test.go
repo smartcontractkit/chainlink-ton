@@ -25,15 +25,15 @@ import (
 )
 
 const (
-	ONCHAIN_CONTENT_PREFIX  = 0x00
-	OFFCHAIN_CONTENT_PREFIX = 0x01
+	OnchainContentPrefix  = 0x00
+	OffchainContentPrefix = 0x01
 )
 
-var PATH_CONTRACTS_JETTON = os.Getenv("PATH_CONTRACTS_JETTON")
+var PathContractsJetton = os.Getenv("PATH_CONTRACTS_JETTON")
 
 // Helper function to load the actual JettonWallet code
 func loadJettonWalletCode() (*cell.Cell, error) {
-	jettonWalletPath := path.Join(PATH_CONTRACTS_JETTON, "JettonWallet.compiled.json")
+	jettonWalletPath := path.Join(PathContractsJetton, "JettonWallet.compiled.json")
 	compiledContract, err := wrappers.ParseCompiledContract(jettonWalletPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse JettonWallet contract: %w", err)
@@ -41,17 +41,17 @@ func loadJettonWalletCode() (*cell.Cell, error) {
 	return compiledContract, nil
 }
 
-const JETTON_DATA_URI = "smartcontract.com"
+const JettonDataURI = "smartcontract.com"
 
 func TestJettonSendAndReceive(t *testing.T) {
-	type setup struct {
+	type testSetup struct {
 		deployer         tracetracking.SignedAPIClient
 		jettonMinter     *jetton_wrappers.JettonMinter
 		jettonSender     *jetton_wrappers.JettonSender
 		jettonWalletCode *cell.Cell
 	}
-	setUpTest := func(t *testing.T) setup {
-		var setup setup
+	setUpTest := func(t *testing.T) testSetup {
+		var setup testSetup
 		var err error
 		var initialAmount = big.NewInt(1_000_000_000_000)
 		accounts := testutils.SetUpTest(t, chainsel.TON_LOCALNET.Selector, initialAmount, 1)
@@ -60,7 +60,7 @@ func TestJettonSendAndReceive(t *testing.T) {
 		fmt.Printf("\n\n\n\n\n\nJetton Test Setup\n==========================\n")
 
 		// Create jetton content
-		defaultContent := createStringCell(t, JETTON_DATA_URI)
+		defaultContent := createStringCell(t, JettonDataURI)
 
 		// Load the actual JettonWallet code
 		setup.jettonWalletCode, err = loadJettonWalletCode()
@@ -107,7 +107,7 @@ func TestJettonSendAndReceive(t *testing.T) {
 	t.Run("TestJettonMetadata", func(t *testing.T) {
 		setup := setUpTest(t)
 		totalSupply, admin, transferAdmin, jettonContent, walletCode, err := setup.jettonMinter.GetJettonData()
-		assert.NoError(t, err, "failed to get jetton data")
+		require.NoError(t, err, "failed to get jetton data")
 		assert.Equal(t, uint64(0), totalSupply, "Total supply should be 0 TON")
 		assert.True(t, setup.deployer.Wallet.WalletAddress().Equals(admin), "Admin should be deployer")
 		assert.Nil(t, transferAdmin, "Transfer admin should be nil")
@@ -116,7 +116,7 @@ func TestJettonSendAndReceive(t *testing.T) {
 		assert.Equal(t, setup.jettonWalletCode.Hash(), walletCode.Hash(), "Jetton wallet code should match the deployed code")
 
 		content, err := nft.ContentFromCell(jettonContent)
-		assert.NoError(t, err, "failed to load content from jetton content cell")
+		require.NoError(t, err, "failed to load content from jetton content cell")
 		switch c := content.(type) {
 		case *nft.ContentOnchain:
 			fmt.Printf("On-chain content URI: %s\n", c.GetAttribute("name"))
@@ -124,9 +124,9 @@ func TestJettonSendAndReceive(t *testing.T) {
 			fmt.Printf("On-chain content URI: %s\n", c.GetAttribute("image"))
 			t.Fatal("On-chain content is not supported in this test, expected off-chain content")
 		case *nft.ContentOffchain:
-			assert.Equal(t, JETTON_DATA_URI, c.URI, "Off-chain content URI should match")
+			assert.Equal(t, JettonDataURI, c.URI, "Off-chain content URI should match")
 		case *nft.ContentSemichain:
-			assert.Equal(t, JETTON_DATA_URI, c.URI, "Semichain content URI should match")
+			assert.Equal(t, JettonDataURI, c.URI, "Semichain content URI should match")
 			fmt.Printf("Semichain content URI: %s\n", c.URI)
 			fmt.Printf("On-chain content name: %s\n", c.GetAttribute("name"))
 			fmt.Printf("On-chain content description: %s\n", c.GetAttribute("description"))
@@ -142,7 +142,7 @@ func TestJettonSendAndReceive(t *testing.T) {
 			jettonAmount,
 			receiver,
 		)
-		assert.NoError(t, err, "failed to send jettons in basic mode")
+		require.NoError(t, err, "failed to send jettons in basic mode")
 		fmt.Printf("JettonSender message received: \n%s\n", replaceAddresses(map[string]string{
 			setup.deployer.Wallet.Address().String():     "Deployer",
 			setup.jettonSender.Contract.Address.String(): "JettonSender",
@@ -153,9 +153,9 @@ func TestJettonSendAndReceive(t *testing.T) {
 		masterClient := jetton.NewJettonMasterClient(setup.deployer.Client, setup.jettonMinter.Contract.Address)
 
 		receiverWallet, err := masterClient.GetJettonWallet(t.Context(), receiver)
-		assert.NoError(t, err, "failed to get receiver wallet")
+		require.NoError(t, err, "failed to get receiver wallet")
 		balance, err := receiverWallet.GetBalance(t.Context())
-		assert.NoError(t, err, "failed to get receiver wallet balance")
+		require.NoError(t, err, "failed to get receiver wallet balance")
 		assert.Equal(t, jettonAmount.Uint64(), balance.Uint64(), "Receiver wallet balance should match sent amount")
 	})
 
@@ -177,15 +177,15 @@ func TestJettonSendAndReceive(t *testing.T) {
 			forwardTonAmount,
 			forwardPayload,
 		)
-		assert.NoError(t, err, "failed to send jettons in basic mode")
+		require.NoError(t, err, "failed to send jettons in basic mode")
 		fmt.Printf("Basic jetton send test passed\n")
 
 		masterClient := jetton.NewJettonMasterClient(setup.deployer.Client, setup.jettonMinter.Contract.Address)
 
 		receiverWallet, err := masterClient.GetJettonWallet(t.Context(), receiver)
-		assert.NoError(t, err, "failed to get receiver wallet")
+		require.NoError(t, err, "failed to get receiver wallet")
 		balance, err := receiverWallet.GetBalance(t.Context())
-		assert.NoError(t, err, "failed to get receiver wallet balance")
+		require.NoError(t, err, "failed to get receiver wallet balance")
 		assert.Equal(t, jettonAmount.Uint64(), balance.Uint64(), "Receiver wallet balance should match sent amount")
 
 		require.NoError(t, err, "failed to send jettons in extended mode")
@@ -193,13 +193,6 @@ func TestJettonSendAndReceive(t *testing.T) {
 
 		fmt.Printf("All jetton send and receive tests completed successfully\n")
 	})
-}
-
-func createStringCell(t *testing.T, s string) *cell.Cell {
-	builder := cell.BeginCell()
-	err := builder.StoreStringSnake(s)
-	assert.NoError(t, err, "failed to store string in cell")
-	return builder.EndCell()
 }
 
 // func TestJettonOnrampMock(t *testing.T) {
@@ -540,4 +533,11 @@ func replaceAddresses(addressMap map[string]string, text string) string {
 		text = strings.ReplaceAll(text, oldAddr, newAddr)
 	}
 	return text
+}
+
+func createStringCell(t *testing.T, s string) *cell.Cell {
+	builder := cell.BeginCell()
+	err := builder.StoreStringSnake(s)
+	require.NoError(t, err, "failed to store string in cell")
+	return builder.EndCell()
 }

@@ -15,9 +15,9 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
-var PATH_CONTRACTS_JETTON = os.Getenv("PATH_CONTRACTS_JETTON")
+var PathContractsJetton = os.Getenv("PATH_CONTRACTS_JETTON")
 
-var JettonMinterContractPath = path.Join(PATH_CONTRACTS_JETTON, "JettonMinter.compiled.json")
+var JettonMinterContractPath = path.Join(PathContractsJetton, "JettonMinter.compiled.json")
 
 type JettonMinterProvider struct {
 	apiClient tracetracking.SignedAPIClient
@@ -137,7 +137,7 @@ func (m JettonMinter) SendMint(tonAmount tlb.Coins, destination *address.Address
 		destination: destination,
 		tonAmount:   tonAmountInJettonMessage,
 		masterMsg: jettonInternalTransfer{
-			queryId:          queryID,
+			queryID:          queryID,
 			amount:           jettonAmount,
 			from:             from,
 			responseAddress:  responseAddress,
