@@ -43,6 +43,8 @@ func loadJettonWalletCode() (*cell.Cell, error) {
 
 const JettonDataURI = "smartcontract.com"
 
+var jettonMintingAmount *big.Int = tlb.MustFromTON("100").Nano()
+
 func TestJettonSendAndReceive(t *testing.T) {
 	type testSetup struct {
 		deployer         tracetracking.SignedAPIClient
@@ -90,7 +92,6 @@ func TestJettonSendAndReceive(t *testing.T) {
 
 		// Mint jettons to sender contract
 		t.Logf("Minting jettons to sender contract\n")
-		jettonMintingAmount := tlb.MustFromTON("100").Nano()
 		sendMintMsg, err := setup.jettonMinter.SendMint(
 			tlb.MustFromTON("0.05"),
 			setup.jettonSender.Contract.Address,
@@ -135,7 +136,7 @@ func TestJettonSendAndReceive(t *testing.T) {
 		setup := setUpTest(t)
 		jettonData, err := setup.jettonMinter.GetJettonData()
 		require.NoError(t, err, "failed to get jetton data")
-		assert.Equal(t, uint64(0), jettonData.TotalSupply, "Total supply should be 0 TON")
+		assert.Equal(t, jettonMintingAmount, jettonData.TotalSupply, "Total supply should be 0 TON")
 		assert.True(t, setup.deployer.Wallet.WalletAddress().Equals(jettonData.AdminAddr), "Admin should be deployer")
 		assert.NotNil(t, jettonData.Content, "Jetton content should not be nil")
 		assert.NotNil(t, jettonData.WalletCode, "Wallet code should not be nil")
