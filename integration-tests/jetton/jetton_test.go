@@ -49,14 +49,13 @@ func TestJettonSendAndReceive(t *testing.T) {
 		jettonMinter     *jetton_wrappers.JettonMinter
 		jettonSender     *jetton_wrappers.JettonSender
 		jettonWalletCode *cell.Cell
-		newTonWallet     func() tracetracking.SignedAPIClient
 	}
 	setUpTest := func(t *testing.T) setup {
 		var setup setup
 		var err error
 		var initialAmount = big.NewInt(1_000_000_000_000)
-		setup.newTonWallet = testutils.SetUpTest(t, chainsel.TON_LOCALNET.Selector, initialAmount, 1)
-		setup.deployer = setup.newTonWallet()
+		accounts := testutils.SetUpTest(t, chainsel.TON_LOCALNET.Selector, initialAmount, 1)
+		setup.deployer = accounts[0]
 
 		fmt.Printf("\n\n\n\n\n\nJetton Test Setup\n==========================\n")
 
