@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"math/big"
 	"math/rand/v2"
-	"os"
+
 	"path"
 
 	"github.com/xssnick/tonutils-go/address"
@@ -16,8 +16,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
-
-var PathContractsJetton = os.Getenv("PATH_CONTRACTS_JETTON")
 
 var JettonMinterContractPath = path.Join(PathContractsJetton, "JettonMinter.compiled.json")
 

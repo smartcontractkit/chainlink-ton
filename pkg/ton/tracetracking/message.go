@@ -154,8 +154,7 @@ func describeBody(body *cell.Cell) string {
 	}
 	opcode, err := slice.LoadUInt(32)
 	if err != nil {
-		fmt.Printf("failed to load opcode from message body: %s\n", err)
-		return "opcode: <error>"
+		return fmt.Sprintf("opcode: <error:%s>", err)
 	}
 	return fmt.Sprintf("opcode: %x", opcode)
 }

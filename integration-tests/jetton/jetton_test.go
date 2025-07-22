@@ -48,6 +48,7 @@ var jettonMintingAmount *big.Int = tlb.MustFromTON("100").Nano()
 func TestJettonSendAndReceive(t *testing.T) {
 	type testSetup struct {
 		deployer         tracetracking.SignedAPIClient
+		receiver         tracetracking.SignedAPIClient
 		jettonMinter     *jetton_wrappers.JettonMinter
 		jettonSender     *jetton_wrappers.JettonSender
 		jettonWalletCode *cell.Cell
@@ -57,8 +58,9 @@ func TestJettonSendAndReceive(t *testing.T) {
 		var setup testSetup
 		var err error
 		var initialAmount = big.NewInt(1_000_000_000_000)
-		accounts := testutils.SetUpTest(t, chainsel.TON_LOCALNET.Selector, initialAmount, 1)
+		accounts := testutils.SetUpTest(t, chainsel.TON_LOCALNET.Selector, initialAmount, 2)
 		setup.deployer = accounts[0]
+		setup.receiver = accounts[1]
 
 		t.Logf("\n\n\n\n\n\nJetton Test Setup\n==========================\n")
 
@@ -159,13 +161,10 @@ func TestJettonSendAndReceive(t *testing.T) {
 		}
 	})
 
-	t.Run("TestJettonSendFast", func(t *testing.T) {
+	t.Run("TestJettonSendFastAutodeployWallet", func(t *testing.T) {
 		setup := setUpTest(t)
-		t.Log("parsing receiver address")
 		receiver := address.MustParseAddr("UQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJKZ") // example address
-		t.Log("receiver address parsed successfully")
 		jettonAmount := tlb.MustFromTON("12").Nano()
-		t.Log("Sending jettons in basic mode")
 		msgReceived, err := setup.jettonSender.SendJettonsFast(
 			jettonAmount,
 			receiver,
@@ -180,6 +179,38 @@ func TestJettonSendAndReceive(t *testing.T) {
 		}, msgReceived.Dump()))
 
 		receiverWallet, err := setup.jettonClient.GetJettonWallet(t.Context(), receiver)
+		require.NoError(t, err, "failed to get receiver wallet")
+		balance, err := receiverWallet.GetBalance(t.Context())
+		require.NoError(t, err, "failed to get receiver wallet balance")
+		assert.Equal(t, jettonAmount.Uint64(), balance.Uint64(), "Receiver wallet balance should match sent amount")
+	})
+
+	t.Run("TestJettonSendFastExistingWallet", func(t *testing.T) {
+		setup := setUpTest(t)
+		t.Logf("Deploying JettonMinter contract\n")
+		receiverJettonWallet, err := jetton_wrappers.NewJettonWalletProvider(setup.receiver).Deploy(jetton_wrappers.JettonWalletInitData{
+			Balance:             big.NewInt(0),
+			OwnerAddress:        setup.receiver.Wallet.Address(),
+			JettonMasterAddress: setup.jettonMinter.Contract.Address,
+		})
+		require.NoError(t, err, "failed to deploy JettonWallet contract")
+		t.Logf("JettonWallet contract deployed at %s\n", receiverJettonWallet.Contract.Address.String())
+
+		jettonAmount := tlb.MustFromTON("12").Nano()
+		msgReceived, err := setup.jettonSender.SendJettonsFast(
+			jettonAmount,
+			setup.receiver.Wallet.Address(),
+		)
+		require.NoError(t, err, "failed to send jettons in basic mode")
+		t.Log("Jettons sent successfully")
+		t.Logf("JettonSender message received: \n%s\n", replaceAddresses(map[string]string{
+			setup.deployer.Wallet.Address().String():     "Deployer",
+			setup.jettonSender.Contract.Address.String(): "JettonSender",
+			setup.jettonMinter.Contract.Address.String(): "JettonMinter",
+			setup.receiver.Wallet.Address().String():     "Receiver",
+		}, msgReceived.Dump()))
+
+		receiverWallet, err := setup.jettonClient.GetJettonWallet(t.Context(), setup.receiver.Wallet.Address())
 		require.NoError(t, err, "failed to get receiver wallet")
 		balance, err := receiverWallet.GetBalance(t.Context())
 		require.NoError(t, err, "failed to get receiver wallet balance")

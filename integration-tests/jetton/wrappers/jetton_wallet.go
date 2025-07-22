@@ -6,8 +6,6 @@ import (
 	"math/rand/v2"
 	"path"
 
-	test_utils "integration-tests/utils"
-
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
@@ -16,7 +14,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
-var JettonWalletContractPath = path.Join(test_utils.GetRepoRootDir(), "result/lib/node_modules/jetton/build/JettonWallet.compiled.json")
+var JettonWalletContractPath = path.Join(PathContractsJetton, "JettonWallet.compiled.json")
 
 type JettonWalletProvider struct {
 	apiClient tracetracking.SignedAPIClient
@@ -29,8 +27,8 @@ func NewJettonWalletProvider(apiClient tracetracking.SignedAPIClient) *JettonWal
 }
 
 type JettonWalletInitData struct {
-	Status              uint8            `tlb:"status"`
-	Balance             *big.Int         `tlb:"coins"`
+	Status              uint8            `tlb:"## 8"`
+	Balance             *big.Int         `tlb:"var uint 16"`
 	OwnerAddress        *address.Address `tlb:"addr"`
 	JettonMasterAddress *address.Address `tlb:"addr"`
 }
