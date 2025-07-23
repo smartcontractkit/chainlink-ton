@@ -157,8 +157,7 @@ func (f *CellQueryEngine) ApplySorting(logs []types.Log, sortBy []SortBy) {
 		for _, sortCriteria := range sortBy {
 			var cmp int
 
-			switch sortCriteria.Field {
-			case SortByTxLT:
+			if sortCriteria.Field == SortByTxLT {
 				if logs[i].TxLT < logs[j].TxLT {
 					cmp = -1
 				} else if logs[i].TxLT > logs[j].TxLT {
