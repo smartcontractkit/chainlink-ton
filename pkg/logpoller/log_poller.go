@@ -10,6 +10,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
+	"github.com/smartcontractkit/chainlink-common/pkg/types/query"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/event"
@@ -51,6 +52,21 @@ type logCollector interface {
 	// extracting ExternalMessageOut entries from monitored addresses.
 	// TODO: solidify replay strategy for production use
 	BackfillForAddresses(ctx context.Context, addresses []*address.Address, prevBlock *ton.BlockIDExt, toBlock *ton.BlockIDExt) (msgs []types.MsgWithCtx, err error)
+}
+
+type ORM interface {
+	ChainID() string
+	HasFilter(ctx context.Context, name string) (bool, error)
+	InsertFilter(ctx context.Context, filter types.Filter) (id int64, err error)
+	SelectFilters(ctx context.Context) ([]types.Filter, error)
+	DeleteFilters(ctx context.Context, filters map[int64]types.Filter) error
+	MarkFilterDeleted(ctx context.Context, id int64) (err error)
+	MarkFilterBackfilled(ctx context.Context, id int64) (err error)
+	GetLatestBlock(ctx context.Context) (int64, error)
+	InsertLogs(context.Context, []types.Log) (err error)
+	SelectSeqNums(ctx context.Context) (map[int64]int64, error)
+	FilteredLogs(ctx context.Context, queryFilter []query.Expression, limitAndSort query.LimitAndSort, queryName string) ([]types.Log, error)
+	PruneLogsForFilter(ctx context.Context, filter types.Filter) (int64, error)
 }
 
 // Service is the main TON log polling service implementation.
