@@ -37,20 +37,13 @@ func (p *SimpleJettonReceiverProvider) Deploy(initData SimpleJettonReceiverInitD
 	b := cell.BeginCell()
 
 	// Store JettonClient config
-	jettonClientBuilder := cell.BeginCell()
-	err := jettonClientBuilder.StoreAddr(initData.MasterAddress)
+	err := b.StoreAddr(initData.MasterAddress)
 	if err != nil {
 		return SimpleJettonReceiver{}, fmt.Errorf("failed to store MasterAddress: %w", err)
 	}
-	err = jettonClientBuilder.StoreRef(initData.JettonWalletCode)
+	err = b.StoreRef(initData.JettonWalletCode)
 	if err != nil {
 		return SimpleJettonReceiver{}, fmt.Errorf("failed to store JettonWalletCode: %w", err)
-	}
-	jettonClientCell := jettonClientBuilder.EndCell()
-
-	err = b.StoreRef(jettonClientCell)
-	if err != nil {
-		return SimpleJettonReceiver{}, fmt.Errorf("failed to store JettonClient: %w", err)
 	}
 
 	err = b.StoreCoins(initData.AmountChecker)
@@ -58,21 +51,9 @@ func (p *SimpleJettonReceiverProvider) Deploy(initData SimpleJettonReceiverInitD
 		return SimpleJettonReceiver{}, fmt.Errorf("failed to store AmountChecker: %w", err)
 	}
 
-	// Store payload checker (optional)
-	if initData.PayloadChecker != nil {
-		err = b.StoreBoolBit(true)
-		if err != nil {
-			return SimpleJettonReceiver{}, fmt.Errorf("failed to store PayloadChecker flag: %w", err)
-		}
-		err = b.StoreRef(initData.PayloadChecker)
-		if err != nil {
-			return SimpleJettonReceiver{}, fmt.Errorf("failed to store PayloadChecker: %w", err)
-		}
-	} else {
-		err = b.StoreBoolBit(false)
-		if err != nil {
-			return SimpleJettonReceiver{}, fmt.Errorf("failed to store PayloadChecker flag: %w", err)
-		}
+	err = b.StoreMaybeRef(initData.PayloadChecker)
+	if err != nil {
+		return SimpleJettonReceiver{}, fmt.Errorf("failed to store PayloadChecker: %w", err)
 	}
 
 	compiledContract, err := wrappers.ParseCompiledContract(SimpleJettonReceiverContractPath)
@@ -97,25 +78,38 @@ type SimpleJettonReceiver struct {
 // It validates the amount and optionally the payload against stored checkers
 
 // Getter methods
-func (r SimpleJettonReceiver) GetAmountChecker() (uint64, error) {
-	return wrappers.Uint64From(r.Contract.Get("amountChecker"))
+func (r SimpleJettonReceiver) GetAmountChecker() (*tlb.Coins, error) {
+	result, err := r.Contract.Get("amountChecker")
+	if err != nil {
+		return nil, err
+	}
+	amount, err := result.Int(0)
+	if err != nil {
+		return nil, err
+	}
+	coins := tlb.MustFromNano(amount, 18)
+	return &coins, nil
 }
 
 func (r SimpleJettonReceiver) GetPayloadChecker() (*cell.Cell, error) {
 	result, err := r.Contract.Get("payloadChecker")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get payload checker: %w", err)
 	}
 
-	// Check if payload checker exists
-	hasPayload, err := result.Int(0)
+	isPayloadCheckerNil, err := result.IsNil(0)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to check if payload checker is nil: %w", err)
+	}
+	if isPayloadCheckerNil {
+		fmt.Printf("Payload checker is nil, no payload validation will be performed\n")
+		fmt.Printf("As tupple: %v\n", result.AsTuple())
+		return nil, nil // No payload checker set
 	}
 
-	if hasPayload.Uint64() == 1 {
-		return result.Cell(1)
+	payload, err := result.Cell(0)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get payload checker cell: %w", err)
 	}
-
-	return nil, nil
+	return payload, nil
 }

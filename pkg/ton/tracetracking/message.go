@@ -113,6 +113,15 @@ func dumpRec(m *ReceivedMessage) []string {
 	for _, sentMessage := range m.OutgoingInternalSentMessages {
 		output = append(output, "└ "+sentMessage.Dump())
 	}
+	var from string
+	if m.InternalMsg != nil {
+		from = m.InternalMsg.DstAddr.String()
+	} else if m.ExternalMsg != nil {
+		from = m.ExternalMsg.DstAddr.String()
+	}
+	for _, externalMessage := range m.OutgoingExternalMessages {
+		output = append(output, "└ "+describeExternalOutMsg(from, externalMessage))
+	}
 	return output
 }
 
@@ -123,8 +132,14 @@ func describeExternalInMsg(msg *tlb.ExternalMessageIn, exitCode *tvm.ExitCode) s
 		msg.SrcAddr.String(), description, msg.DstAddr.String())
 }
 
+func describeExternalOutMsg(src string, msg OutgoingExternalMessages) string {
+	description := describeEmitBody(msg.Body)
+	return fmt.Sprintf("%s emit: (%s)", src, description)
+}
+
 func describeInternalMsg(msg *tlb.InternalMessage, exitCode *tvm.ExitCode) string {
 	description := describeBody(msg.Body)
+	description += ", amount: " + msg.Amount.String()
 	if msg.Bounced {
 		description += ", bounce"
 	}
@@ -153,10 +168,30 @@ func describeBody(body *cell.Cell) string {
 		return "empty"
 	}
 	opcode, err := slice.LoadUInt(32)
-	if err != nil {
-		return fmt.Sprintf("opcode: <error:%s>", err)
+	if err == nil {
+		return fmt.Sprintf("opcode: %x", opcode)
 	}
-	return fmt.Sprintf("opcode: %x", opcode)
+	strSnake, err := body.BeginParse().LoadStringSnake()
+	if err == nil {
+		return fmt.Sprintf("stringSnake: %x", strSnake)
+	}
+	return fmt.Sprintf("body: %s", body.DumpBits())
+}
+
+func describeEmitBody(body *cell.Cell) string {
+	slice := body.BeginParse()
+	if slice.BitsLeft() == 0 {
+		return "empty"
+	}
+	strSnake, err := body.BeginParse().LoadStringSnake()
+	if err == nil {
+		return fmt.Sprintf("stringSnake: %x", strSnake)
+	}
+	opcode, err := slice.LoadUInt(32)
+	if err == nil {
+		return fmt.Sprintf("opcode: %x", opcode)
+	}
+	return fmt.Sprintf("body: %s", body.DumpBits())
 }
 
 // OutgoingExternalMessages represents external messages sent by a contract,

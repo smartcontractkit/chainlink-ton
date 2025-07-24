@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 
@@ -45,17 +46,18 @@ const JettonDataURI = "smartcontract.com"
 
 var jettonMintingAmount *big.Int = tlb.MustFromTON("100").Nano()
 
-func TestJettonSendAndReceive(t *testing.T) {
-	type testSetup struct {
+func TestJettonAll(t *testing.T) {
+	// Common test setup
+	type commonSetup struct {
 		deployer         tracetracking.SignedAPIClient
 		receiver         tracetracking.SignedAPIClient
 		jettonMinter     *jetton_wrappers.JettonMinter
-		jettonSender     *jetton_wrappers.JettonSender
 		jettonWalletCode *cell.Cell
 		jettonClient     *jetton.Client
 	}
-	setUpTest := func(t *testing.T) testSetup {
-		var setup testSetup
+
+	setUpCommon := func(t *testing.T) commonSetup {
+		var setup commonSetup
 		var err error
 		var initialAmount = big.NewInt(1_000_000_000_000)
 		accounts := testutils.SetUpTest(t, chainsel.TON_LOCALNET.Selector, initialAmount, 2)
@@ -83,20 +85,33 @@ func TestJettonSendAndReceive(t *testing.T) {
 		require.NoError(t, err, "failed to deploy JettonMinter contract")
 		t.Logf("JettonMinter contract deployed at %s\n", setup.jettonMinter.Contract.Address.String())
 
+		setup.jettonClient = jetton.NewJettonMasterClient(setup.deployer.Client, setup.jettonMinter.Contract.Address)
+
+		return setup
+	}
+
+	type senderSetup struct {
+		common commonSetup
+		sender *jetton_wrappers.JettonSender
+	}
+
+	setupJettonSender := func(t *testing.T) *senderSetup {
+		setup := setUpCommon(t)
+
 		// Deploy jetton sender contract
 		t.Logf("Deploying JettonSender contract\n")
-		setup.jettonSender, err = jetton_wrappers.NewJettonSenderProvider(setup.deployer).Deploy(jetton_wrappers.JettonSenderInitData{
+		jettonSender, err := jetton_wrappers.NewJettonSenderProvider(setup.deployer).Deploy(jetton_wrappers.JettonSenderInitData{
 			MasterAddress:    setup.jettonMinter.Contract.Address,
 			JettonWalletCode: setup.jettonWalletCode,
 		})
 		require.NoError(t, err, "failed to deploy JettonSender contract")
-		t.Logf("JettonSender contract deployed at %s\n", setup.jettonSender.Contract.Address.String())
+		t.Logf("JettonSender contract deployed at %s\n", jettonSender.Contract.Address.String())
 
 		// Mint jettons to sender contract
 		t.Logf("Minting jettons to sender contract\n")
 		sendMintMsg, err := setup.jettonMinter.SendMint(
 			tlb.MustFromTON("0.05"),
-			setup.jettonSender.Contract.Address,
+			jettonSender.Contract.Address,
 			tlb.MustFromTON("0.05").Nano(),
 			jettonMintingAmount,
 			setup.deployer.Wallet.WalletAddress(),
@@ -120,9 +135,7 @@ func TestJettonSendAndReceive(t *testing.T) {
 		require.Empty(t, msgReturnExcessesBack.OutgoingInternalReceivedMessages, "Msg to return excesses should have no outgoing messages")
 		senderJettonWalletAddress := msgToJettonWallet.InternalMsg.DstAddr
 
-		setup.jettonClient = jetton.NewJettonMasterClient(setup.deployer.Client, setup.jettonMinter.Contract.Address)
-
-		senderJettonWallet, err := setup.jettonClient.GetJettonWallet(t.Context(), setup.jettonSender.Contract.Address)
+		senderJettonWallet, err := setup.jettonClient.GetJettonWallet(t.Context(), jettonSender.Contract.Address)
 		require.NoError(t, err, "failed to get receiver wallet")
 		require.Equal(t, senderJettonWalletAddress, senderJettonWallet.Address(), "Jetton Wallet Address calculated by master contract should match the cretaed one.")
 
@@ -132,13 +145,95 @@ func TestJettonSendAndReceive(t *testing.T) {
 
 		t.Logf("Jettons minted successfully\n")
 
-		return setup
+		return &senderSetup{
+			common: setup,
+			sender: jettonSender,
+		}
 	}
+
+	type onrampMockSetup struct {
+		common       commonSetup
+		jettonSender *jetton_wrappers.JettonSender
+		onrampMock   *jetton_wrappers.OnrampMock
+	}
+
+	setupOnrampMock := func(t *testing.T) *onrampMockSetup {
+		setup := setupJettonSender(t)
+		// Deploy onramp mock contract
+		t.Logf("Deploying OnrampMock contract\n")
+		onrampMock, err := jetton_wrappers.NewOnrampMockProvider(setup.common.deployer).Deploy(jetton_wrappers.OnrampMockInitData{
+			MasterAddress:    setup.common.jettonMinter.Contract.Address,
+			JettonWalletCode: setup.common.jettonWalletCode,
+		})
+		require.NoError(t, err, "failed to deploy OnrampMock contract")
+		t.Logf("OnrampMock contract deployed at %s\n", onrampMock.Contract.Address.String())
+
+		// Mint additional jettons to sender for onramp tests if needed
+		_, err = setup.common.jettonMinter.SendMint(
+			tlb.MustFromTON("0.05"),
+			setup.sender.Contract.Address,
+			tlb.MustFromTON("0.05").Nano(),
+			tlb.MustFromTON("1").Nano(),
+			setup.common.deployer.Wallet.WalletAddress(),
+			setup.common.deployer.Wallet.WalletAddress(),
+			nil,
+			big.NewInt(0),
+		)
+		require.NoError(t, err, "failed to mint additional jettons for onramp tests")
+
+		return &onrampMockSetup{
+			common:       setup.common,
+			jettonSender: setup.sender,
+			onrampMock:   &onrampMock,
+		}
+	}
+
+	type simpleJettonReceiverSetup struct {
+		common         commonSetup
+		jettonSender   *jetton_wrappers.JettonSender
+		simpleReceiver *jetton_wrappers.SimpleJettonReceiver
+	}
+
+	setupSimpleJettonReceiver := func(t *testing.T) *simpleJettonReceiverSetup {
+		setup := setupJettonSender(t)
+
+		// Deploy simple jetton receiver contract
+		t.Logf("Deploying SimpleJettonReceiver contract\n")
+		simpleJettonReceiver, err := jetton_wrappers.NewSimpleJettonReceiverProvider(setup.common.deployer).Deploy(jetton_wrappers.SimpleJettonReceiverInitData{
+			MasterAddress:    setup.common.jettonMinter.Contract.Address,
+			JettonWalletCode: setup.common.jettonWalletCode,
+			AmountChecker:    tlb.MustFromTON("0").Nano().Uint64(),
+			PayloadChecker:   nil,
+		})
+		require.NoError(t, err, "failed to deploy SimpleJettonReceiver contract")
+		t.Logf("SimpleJettonReceiver contract deployed at %s\n", simpleJettonReceiver.Contract.Address.String())
+
+		// Mint additional jettons to sender for receiver tests if needed
+		_, err = setup.common.jettonMinter.SendMint(
+			tlb.MustFromTON("0.05"),
+			setup.sender.Contract.Address,
+			tlb.MustFromTON("0.05").Nano(),
+			tlb.MustFromTON("1").Nano(),
+			setup.common.deployer.Wallet.WalletAddress(),
+			setup.common.deployer.Wallet.WalletAddress(),
+			nil,
+			big.NewInt(0),
+		)
+		require.NoError(t, err, "failed to mint additional jettons for receiver tests")
+
+		return &simpleJettonReceiverSetup{
+			common:         setup.common,
+			jettonSender:   setup.sender,
+			simpleReceiver: &simpleJettonReceiver,
+		}
+	}
+
+	// Test: Jetton Metadata
 	t.Run("TestJettonMetadata", func(t *testing.T) {
-		setup := setUpTest(t)
+		setup := setUpCommon(t)
 		jettonData, err := setup.jettonMinter.GetJettonData()
 		require.NoError(t, err, "failed to get jetton data")
-		assert.Equal(t, jettonMintingAmount, jettonData.TotalSupply, "Total supply should be 0 TON")
+		assert.Zero(t, jettonData.TotalSupply.Uint64(), "Total supply should be 0 TON")
 		assert.True(t, setup.deployer.Wallet.WalletAddress().Equals(jettonData.AdminAddr), "Admin should be deployer")
 		assert.NotNil(t, jettonData.Content, "Jetton content should not be nil")
 		assert.NotNil(t, jettonData.WalletCode, "Wallet code should not be nil")
@@ -161,24 +256,25 @@ func TestJettonSendAndReceive(t *testing.T) {
 		}
 	})
 
+	// Test: Jetton Send and Receive (setup sender when needed)
 	t.Run("TestJettonSendFastAutodeployWallet", func(t *testing.T) {
-		setup := setUpTest(t)
+		setup := setupJettonSender(t)
 		receiver := address.MustParseAddr("UQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJKZ") // example address
 		jettonAmount := tlb.MustFromTON("12").Nano()
-		msgReceived, err := setup.jettonSender.SendJettonsFast(
+		msgReceived, err := setup.sender.SendJettonsFast(
 			jettonAmount,
 			receiver,
 		)
 		require.NoError(t, err, "failed to send jettons in basic mode")
 		t.Log("Jettons sent successfully")
 		t.Logf("JettonSender message received: \n%s\n", replaceAddresses(map[string]string{
-			setup.deployer.Wallet.Address().String():     "Deployer",
-			setup.jettonSender.Contract.Address.String(): "JettonSender",
-			setup.jettonMinter.Contract.Address.String(): "JettonMinter",
+			setup.common.deployer.Wallet.Address().String():     "Deployer",
+			setup.sender.Contract.Address.String():              "JettonSender",
+			setup.common.jettonMinter.Contract.Address.String(): "JettonMinter",
 			receiver.String(): "Receiver",
 		}, msgReceived.Dump()))
 
-		receiverWallet, err := setup.jettonClient.GetJettonWallet(t.Context(), receiver)
+		receiverWallet, err := setup.common.jettonClient.GetJettonWallet(t.Context(), receiver)
 		require.NoError(t, err, "failed to get receiver wallet")
 		balance, err := receiverWallet.GetBalance(t.Context())
 		require.NoError(t, err, "failed to get receiver wallet balance")
@@ -186,31 +282,31 @@ func TestJettonSendAndReceive(t *testing.T) {
 	})
 
 	t.Run("TestJettonSendFastExistingWallet", func(t *testing.T) {
-		setup := setUpTest(t)
+		setup := setupJettonSender(t)
 		t.Logf("Deploying JettonMinter contract\n")
-		receiverJettonWallet, err := jetton_wrappers.NewJettonWalletProvider(setup.receiver).Deploy(jetton_wrappers.JettonWalletInitData{
+		receiverJettonWallet, err := jetton_wrappers.NewJettonWalletProvider(setup.common.receiver).Deploy(jetton_wrappers.JettonWalletInitData{
 			Balance:             big.NewInt(0),
-			OwnerAddress:        setup.receiver.Wallet.Address(),
-			JettonMasterAddress: setup.jettonMinter.Contract.Address,
+			OwnerAddress:        setup.common.receiver.Wallet.Address(),
+			JettonMasterAddress: setup.common.jettonMinter.Contract.Address,
 		})
 		require.NoError(t, err, "failed to deploy JettonWallet contract")
 		t.Logf("JettonWallet contract deployed at %s\n", receiverJettonWallet.Contract.Address.String())
 
 		jettonAmount := tlb.MustFromTON("12").Nano()
-		msgReceived, err := setup.jettonSender.SendJettonsFast(
+		msgReceived, err := setup.sender.SendJettonsFast(
 			jettonAmount,
-			setup.receiver.Wallet.Address(),
+			setup.common.receiver.Wallet.Address(),
 		)
 		require.NoError(t, err, "failed to send jettons in basic mode")
 		t.Log("Jettons sent successfully")
 		t.Logf("JettonSender message received: \n%s\n", replaceAddresses(map[string]string{
-			setup.deployer.Wallet.Address().String():     "Deployer",
-			setup.jettonSender.Contract.Address.String(): "JettonSender",
-			setup.jettonMinter.Contract.Address.String(): "JettonMinter",
-			setup.receiver.Wallet.Address().String():     "Receiver",
+			setup.common.deployer.Wallet.Address().String():     "Deployer",
+			setup.sender.Contract.Address.String():              "JettonSender",
+			setup.common.jettonMinter.Contract.Address.String(): "JettonMinter",
+			setup.common.receiver.Wallet.Address().String():     "Receiver",
 		}, msgReceived.Dump()))
 
-		receiverWallet, err := setup.jettonClient.GetJettonWallet(t.Context(), setup.receiver.Wallet.Address())
+		receiverWallet, err := setup.common.jettonClient.GetJettonWallet(t.Context(), setup.common.receiver.Wallet.Address())
 		require.NoError(t, err, "failed to get receiver wallet")
 		balance, err := receiverWallet.GetBalance(t.Context())
 		require.NoError(t, err, "failed to get receiver wallet balance")
@@ -218,7 +314,7 @@ func TestJettonSendAndReceive(t *testing.T) {
 	})
 
 	t.Run("TestJettonSendExtended", func(t *testing.T) {
-		setup := setUpTest(t)
+		setup := setupJettonSender(t)
 		receiver := address.MustParseAddr("UQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJKZ") // example address
 		tonAmount := tlb.MustFromTON("0.1")
 		jettonAmount := tlb.MustFromTON("12").Nano()
@@ -227,7 +323,7 @@ func TestJettonSendAndReceive(t *testing.T) {
 		customPayload := createStringCell(t, "custom_payload")
 		forwardPayload := createStringCell(t, "forward_payload")
 
-		_, err := setup.jettonSender.SendJettonsExtended(
+		_, err := setup.sender.SendJettonsExtended(
 			tonAmount,
 			jettonAmount,
 			receiver,
@@ -238,7 +334,7 @@ func TestJettonSendAndReceive(t *testing.T) {
 		require.NoError(t, err, "failed to send jettons in basic mode")
 		t.Logf("Basic jetton send test passed\n")
 
-		receiverWallet, err := setup.jettonClient.GetJettonWallet(t.Context(), receiver)
+		receiverWallet, err := setup.common.jettonClient.GetJettonWallet(t.Context(), receiver)
 		require.NoError(t, err, "failed to get receiver wallet")
 		balance, err := receiverWallet.GetBalance(t.Context())
 		require.NoError(t, err, "failed to get receiver wallet balance")
@@ -249,340 +345,255 @@ func TestJettonSendAndReceive(t *testing.T) {
 
 		t.Logf("All jetton send and receive tests completed successfully\n")
 	})
+
+	// Test: Jetton Onramp Mock (setup onramp when needed)
+	t.Run("TestJettonOnrampMock", func(t *testing.T) {
+		setup := setupOnrampMock(t)
+
+		t.Logf("\n\n\n\n\n\nOnramp Mock Tests Started\n==========================\n")
+
+		ccipRequest := "CALL step ON 0x AT evm"
+		buf := []byte(ccipRequest)
+		// this can be any payload that we want receiver to get with transfer notification
+		jettonTransferPayload := cell.BeginCell().MustStoreSlice(buf, uint(len(buf))).EndCell()
+
+		forwardTonAmount := tlb.MustFromTON("1").Nano()
+		customPayload := cell.BeginCell().MustStoreBoolBit(true).EndCell()
+
+		jettonSenderWallet, err := setup.common.jettonClient.GetJettonWallet(t.Context(), setup.jettonSender.Contract.Address)
+		require.NoError(t, err, "failed to get jetton sender wallet")
+		onrampMockJettonWallet, err := setup.common.jettonClient.GetJettonWallet(t.Context(), setup.onrampMock.Contract.Address)
+		require.NoError(t, err, "failed to get onramp mock jetton wallet")
+
+		sendCallWithAmount := func(jettonAmount *big.Int) (tracetracking.OutgoingExternalMessages, error) {
+			msgReceived, err := setup.jettonSender.SendJettonsExtended(
+				tlb.MustFromTON("2"),
+				jettonAmount,
+				setup.onrampMock.Contract.Address,
+				jettonTransferPayload,
+				forwardTonAmount,
+				customPayload,
+			)
+			t.Logf("JettonSender message received: \n%s\n", replaceAddresses(map[string]string{
+				setup.common.deployer.Wallet.Address().String():     "Deployer",
+				setup.jettonSender.Contract.Address.String():        "JettonSender",
+				jettonSenderWallet.Address().String():               "JettonSenderWallet",
+				setup.common.jettonMinter.Contract.Address.String(): "JettonMinter",
+				setup.onrampMock.Contract.Address.String():          "OnrampMock",
+				onrampMockJettonWallet.Address().String():           "OnrampMockJettonWallet",
+			}, msgReceived.Dump()))
+			require.NoError(t, err, "failed to send jettons with custom payload")
+			require.NotEmpty(t, msgReceived.OutgoingInternalReceivedMessages, "Outgoing internal messages should not be empty")
+			msgToSender := msgReceived.OutgoingInternalReceivedMessages[0]
+			require.NotEmpty(t, msgToSender.OutgoingInternalReceivedMessages, "Outgoing internal messages should not be empty")
+			msgToSendersJettonWallet := msgToSender.OutgoingInternalReceivedMessages[0]
+			require.NotEmpty(t, msgToSendersJettonWallet.OutgoingInternalReceivedMessages, "Outgoing internal messages should not be empty")
+			msgToOnrampMockJettonWallet := msgToSendersJettonWallet.OutgoingInternalReceivedMessages[0]
+			assert.Zero(t, msgToOnrampMockJettonWallet.ExitCode, "Onramp mock jetton wallet message should have exit code 0")
+			msgWithExcessesIdx := slices.IndexFunc(msgToOnrampMockJettonWallet.OutgoingInternalReceivedMessages, func(m *tracetracking.ReceivedMessage) bool {
+				return m.InternalMsg.DstAddr.Equals(setup.jettonSender.Contract.Address)
+			})
+			require.Greater(t, msgWithExcessesIdx, -1, "Excesses message should be present in outgoing messages")
+			msgWithExcesses := msgToOnrampMockJettonWallet.OutgoingInternalReceivedMessages[msgWithExcessesIdx]
+			assert.Zero(t, msgWithExcesses.ExitCode, "Excesses message should have exit code 0")
+
+			onrampMockCallIdx := slices.IndexFunc(msgToOnrampMockJettonWallet.OutgoingInternalReceivedMessages, func(m *tracetracking.ReceivedMessage) bool {
+				return m.InternalMsg.DstAddr.Equals(setup.onrampMock.Contract.Address)
+			})
+			require.Greater(t, onrampMockCallIdx, -1, "Onramp mock call message should be present in outgoing messages")
+			onrampMockCall := msgToOnrampMockJettonWallet.OutgoingInternalReceivedMessages[onrampMockCallIdx]
+			require.Zero(t, onrampMockCall.ExitCode, "Onramp mock call should have exit code 0")
+			require.NotEmpty(t, onrampMockCall.OutgoingExternalMessages, "Outgoing external messages should not be empty")
+			eventLog := onrampMockCall.OutgoingExternalMessages[0]
+			return eventLog, nil
+		}
+
+		insufficientJettonTransferAmount := big.NewInt(1)
+		sufficientJettonTransferAmount := big.NewInt(5)
+
+		insufficientFeeEventMessage, err := sendCallWithAmount(insufficientJettonTransferAmount)
+		require.NoError(t, err, "failed to send jettons with insufficient fee")
+		require.NotNil(t, insufficientFeeEventMessage, "Insufficient fee event message should not be nil")
+		receiverJettonWallet, err := setup.common.jettonClient.GetJettonWallet(t.Context(), setup.onrampMock.Contract.Address)
+		require.NoError(t, err, "failed to get receiver wallet")
+		jettonReceiverDataAfter, err := receiverJettonWallet.GetBalance(t.Context())
+		require.NoError(t, err, "failed to get receiver wallet balance")
+		assert.Equal(t, insufficientJettonTransferAmount.Uint64(), jettonReceiverDataAfter.Uint64(), "Receiver wallet balance should match insufficient jetton transfer amount")
+
+		acceptedRequestEventMessage, err := sendCallWithAmount(sufficientJettonTransferAmount)
+		require.NoError(t, err, "failed to send jettons with sufficient fee")
+		require.NotNil(t, acceptedRequestEventMessage, "Accepted request event message should not be nil")
+		jettonReceiverDataAfter2, err := receiverJettonWallet.GetBalance(t.Context())
+		require.NoError(t, err, "failed to get receiver wallet balance after accepted request")
+		assert.Equal(t, insufficientJettonTransferAmount.Add(insufficientJettonTransferAmount, sufficientJettonTransferAmount).Uint64(), jettonReceiverDataAfter2.Uint64(), "Receiver wallet balance should match the sum of insufficient and sufficient jetton transfer amounts")
+	})
+
+	// Test: Jetton Receiver (setup receiver when needed)
+	t.Run("TestJettonReceiver", func(t *testing.T) {
+		setup := setupSimpleJettonReceiver(t)
+
+		t.Logf("\n\n\n\n\n\nJetton Receiver Tests Started\n==========================\n")
+
+		t.Logf("Testing receiver checkers\n")
+		amountChecker, err := setup.simpleReceiver.GetAmountChecker()
+		require.NoError(t, err, "failed to get amount checker")
+		assert.Equal(t, tlb.MustFromTON("0").Nano().Uint64(), amountChecker.Nano().Uint64(), "Amount checker should be 0.1 TON")
+
+		payloadCheckerResult, err := setup.simpleReceiver.GetPayloadChecker()
+		require.NoError(t, err, "failed to get payload checker")
+		assert.Nil(t, payloadCheckerResult, "Payload checker should be nil")
+		t.Logf("Receiver checkers test passed\n")
+
+		t.Logf("Testing sending jettons to receiver\n")
+		expectedPayload := createStringCell(t, "expected_payload")
+		jettonAmount := tlb.MustFromTON("0.5").Nano()
+		receivedMsg, err := setup.jettonSender.SendJettonsExtended(
+			tlb.MustFromTON("2"),
+			jettonAmount,
+			setup.simpleReceiver.Contract.Address,
+			cell.BeginCell().EndCell(),
+			tlb.MustFromTON("0.01").Nano(),
+			expectedPayload,
+		)
+		require.NoError(t, err, "failed to send jettons to receiver")
+		JettonSenderWallet, err := setup.common.jettonClient.GetJettonWallet(t.Context(), setup.jettonSender.Contract.Address)
+		require.NoError(t, err, "failed to get jetton sender wallet")
+		SimpleJettonReceiverWallet, err := setup.common.jettonClient.GetJettonWallet(t.Context(), setup.simpleReceiver.Contract.Address)
+		require.NoError(t, err, "failed to get simple jetton receiver wallet")
+		t.Logf("Jettons sent: \n%s\n", replaceAddresses(map[string]string{
+			setup.common.deployer.Wallet.Address().String():     "Deployer",
+			setup.jettonSender.Contract.Address.String():        "JettonSender",
+			JettonSenderWallet.Address().String():               "JettonSenderWallet",
+			setup.common.jettonMinter.Contract.Address.String(): "JettonMinter",
+			setup.simpleReceiver.Contract.Address.String():      "SimpleJettonReceiver",
+			SimpleJettonReceiverWallet.Address().String():       "SimpleJettonReceiverWallet",
+		}, receivedMsg.Dump()))
+
+		t.Logf("Testing receiver checkers\n")
+		amountChecker, err = setup.simpleReceiver.GetAmountChecker()
+		require.NoError(t, err, "failed to get amount checker")
+		assert.Equal(t, jettonAmount.Uint64(), amountChecker.Nano().Uint64(), "Amount checker should be 0.1 TON")
+
+		payloadCheckerResult, err = setup.simpleReceiver.GetPayloadChecker()
+		require.NoError(t, err, "failed to get payload checker")
+		assert.NotNil(t, payloadCheckerResult, "Payload checker should not be nil")
+		assert.Equal(t, expectedPayload.String(), payloadCheckerResult.String(), "Payload checker should match expected payload")
+		t.Logf("Receiver checkers test passed\n")
+
+		t.Logf("All jetton receiver tests completed successfully\n")
+	})
+
+	// Test: Jetton Wallet Operations (setup wallet when needed)
+	t.Run("TestJettonWalletOperations", func(t *testing.T) {
+		// setup := setUpCommon(t)
+		// // Deploy jetton wallet
+		// t.Logf("Deploying JettonWallet contract\n")
+		// jettonWallet, err := jetton_wrappers.NewJettonWalletProvider(setup.deployer).Deploy(jetton_wrappers.JettonWalletInitData{
+		// 	OwnerAddress:        setup.deployer.Wallet.WalletAddress(),
+		// 	JettonMasterAddress: setup.jettonMinter.Contract.Address, // use jetton minter as master
+		// 	Balance:             tlb.MustFromTON("1").Nano(),
+		// 	Status:              0,
+		// })
+		// require.NoError(t, err, "failed to deploy JettonWallet contract")
+		// t.Logf("JettonWallet contract deployed at %s\n", jettonWallet.Contract.Address.String())
+
+		// t.Logf("\n\n\n\n\n\nJetton Wallet Tests Started\n==========================\n")
+
+		// // Test 1: Transfer jettons
+		// t.Logf("Testing jetton transfer\n")
+		// recipient := address.MustParseAddr("UQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJKZ")
+		// tonAmount := tlb.MustFromTON("0.1")
+		// jettonAmount := tlb.MustFromTON("0.5").Nano()
+		// fwdTonAmount := tlb.MustFromTON("0.01").Nano()
+		// transferMsg, err := jettonWallet.SendTransfer(
+		// 	tonAmount,
+		// 	jettonAmount,
+		// 	recipient,
+		// 	setup.deployer.Wallet.WalletAddress(),
+		// 	nil,
+		// 	fwdTonAmount,
+		// 	jetton_wrappers.NewForwardPayload(cell.BeginCell().EndCell()),
+		// )
+		// require.NoError(t, err, "failed to transfer jettons")
+		// receiverJettonWallet, err := setup.jettonClient.GetJettonWallet(t.Context(), recipient)
+		// require.NoError(t, err, "failed to get receiver wallet")
+		// t.Logf("Jetton transfer message received: \n%s\n", replaceAddresses(map[string]string{
+		// 	setup.deployer.Wallet.Address().String():     "Deployer",
+		// 	jettonWallet.Contract.Address.String():       "JettonWallet",
+		// 	setup.jettonMinter.Contract.Address.String(): "JettonMinter",
+		// 	recipient.String():                           "Receiver",
+		// 	receiverJettonWallet.Address().String():      "ReceiverJettonWallet",
+		// }, transferMsg.Dump()))
+
+		// jettonBalance, err := receiverJettonWallet.GetBalance(t.Context())
+		// require.NoError(t, err, "failed to get receiver wallet balance")
+		// assert.Equal(t, jettonAmount.Uint64(), jettonBalance.Uint64(), "Receiver wallet balance should match sent amount")
+		// t.Logf("Jetton transfer test passed\n")
+
+		// // Test 2: Burn jettons
+		// t.Logf("Testing jetton burn\n")
+		// jettonAmountToBurn := tlb.MustFromTON("0.1")
+		// _, err = jettonWallet.SendBurn(
+		// 	jettonAmountToBurn,
+		// 	setup.deployer.Wallet.WalletAddress(),
+		// 	nil,
+		// )
+		// require.NoError(t, err, "failed to burn jettons")
+		// balanceAfterBurn, err := jettonWallet.GetJettonBalance()
+		// require.NoError(t, err, "failed to get jetton balance after burn")
+		// assert.Equal(t, jettonBalance.Uint64()-jettonAmountToBurn.Nano().Uint64(), balanceAfterBurn.Nano().Uint64(), "Jetton balance after burn should match expected")
+		// t.Logf("Jetton burn test passed\n")
+
+		// t.Logf("All jetton wallet operations tests completed successfully\n")
+	})
+
+	// Test: Jetton Minter Operations
+	t.Run("TestJettonMinterOperations", func(t *testing.T) {
+		// setup := setUpCommon(t)
+		// t.Logf("\n\n\n\n\n\nJetton Minter Tests Started\n==========================\n")
+		// // Test 1: Mint jettons
+		// t.Logf("Testing jetton minting\n")
+		// recipient := address.MustParseAddr("EQCKt2WPGX-fh0cIAz38Ljd_HKzh4UVNyaMqCk7jkKVOjQJz")
+		// _, err := setup.jettonMinter.SendMint(
+		// 	tlb.MustFromTON("0.05"),
+		// 	recipient,
+		// 	tlb.MustFromTON("0.05").Nano(),
+		// 	tlb.MustFromTON("1").Nano(),
+		// 	setup.deployer.Wallet.WalletAddress(),
+		// 	setup.deployer.Wallet.WalletAddress(),
+		// 	nil,
+		// 	big.NewInt(0),
+		// )
+		// require.NoError(t, err, "failed to mint jettons")
+		// t.Logf("Jetton minting test passed\n")
+
+		// // Test 2: Change admin
+		// t.Logf("Testing change admin\n")
+		// newAdmin := address.MustParseAddr("EQCKt2WPGX-fh0cIAz38Ljd_HKzh4UVNyaMqCk7jkKVOjQJz")
+		// _, err = setup.jettonMinter.SendChangeAdmin(newAdmin)
+		// require.NoError(t, err, "failed to change admin")
+		// t.Logf("Change admin test passed\n")
+
+		// // Test 3: Change content
+		// t.Logf("Testing change content\n")
+		// newContent := createStringCell(t, "new_content_uri")
+		// _, err = setup.jettonMinter.SendChangeContent(newContent)
+		// require.NoError(t, err, "failed to change content")
+		// t.Logf("Change content test passed\n")
+
+		// // Test 4: Get jetton data
+		// t.Logf("Testing get jetton data\n")
+		// jettonData, err := setup.jettonMinter.GetJettonData()
+		// require.NoError(t, err, "failed to get jetton data")
+		// assert.GreaterOrEqual(t, jettonData.TotalSupply.Uint64(), tlb.MustFromTON("1").Nano().Uint64(), "Total supply should be at least 1 TON")
+		// assert.NotNil(t, jettonData.AdminAddr, "Admin should not be nil")
+		// assert.NotNil(t, jettonData.Content, "Jetton content should not be nil")
+		// assert.NotNil(t, jettonData.WalletCode, "Wallet code should not be nil")
+		// t.Logf("Get jetton data test passed\n")
+
+		// t.Logf("All jetton minter operations tests completed successfully\n")
+	})
 }
-
-// func TestJettonOnrampMock(t *testing.T) {
-// 	t.Run("TestJettonOnrampMock", func(t *testing.T) {
-// 		var initialAmount = big.NewInt(1_000_000_000_000)
-// 		seeders := testutils.SetUpTest(t, chainsel.TON_LOCALNET.Selector, initialAmount, 1)
-// 		deployer := seeders[0]
-
-// 		t.Logf("\n\n\n\n\n\nJetton Onramp Mock Test Setup\n==========================\n")
-
-// 		// Create jetton content
-// 		jettonDataURI := "smartcontract.com"
-// 		defaultContent := createStringCell(jettonDataURI)
-
-// 		// Load the actual JettonWallet code
-// 		jettonWalletCode, err := loadJettonWalletCode()
-// 		require.NoError(t, err, "failed to load JettonWallet code")
-
-// 		// Deploy jetton minter
-// 		t.Logf("Deploying JettonMinter contract\n")
-// 		jettonMinter, err := jetton_wrappers.NewJettonMinterProvider(deployer).Deploy(jetton_wrappers.JettonMinterInitData{
-// 			TotalSupply:   0,
-// 			Admin:         deployer.Wallet.WalletAddress(),
-// 			TransferAdmin: nil,
-// 			WalletCode:    jettonWalletCode,
-// 			JettonContent: defaultContent,
-// 		})
-// 		require.NoError(t, err, "failed to deploy JettonMinter contract")
-// 		t.Logf("JettonMinter contract deployed at %s\n", jettonMinter.Contract.Address.String())
-
-// 		// Deploy jetton sender contract
-// 		t.Logf("Deploying JettonSender contract\n")
-// 		jettonSender, err := jetton_wrappers.NewJettonSenderProvider(deployer).Deploy(jetton_wrappers.JettonSenderInitData{
-// 			MasterAddress:    jettonMinter.Contract.Address,
-// 			JettonWalletCode: jettonWalletCode,
-// 		})
-// 		require.NoError(t, err, "failed to deploy JettonSender contract")
-// 		t.Logf("JettonSender contract deployed at %s\n", jettonSender.Contract.Address.String())
-
-// 		// Deploy onramp mock contract
-// 		t.Logf("Deploying OnrampMock contract\n")
-// 		onrampMock, err := jetton_wrappers.NewOnrampMockProvider(deployer).Deploy(jetton_wrappers.OnrampMockInitData{
-// 			MasterAddress:    jettonMinter.Contract.Address,
-// 			JettonWalletCode: jettonWalletCode,
-// 		})
-// 		require.NoError(t, err, "failed to deploy OnrampMock contract")
-// 		t.Logf("OnrampMock contract deployed at %s\n", onrampMock.Contract.Address.String())
-
-// 		// Mint jettons to sender contract
-// 		t.Logf("Minting jettons to sender contract\n")
-// 		_, err = jettonMinter.SendMint(
-// 			jettonSender.Contract.Address,
-// 			tlb.MustFromTON("0.05").NanoTON().Uint64(),
-// 			tlb.MustFromTON("1").NanoTON().Uint64(),
-// 			deployer.Wallet.WalletAddress(),
-// 			deployer.Wallet.WalletAddress(),
-// 			nil,
-// 			0,
-// 		)
-// 		require.NoError(t, err, "failed to mint jettons")
-// 		t.Logf("Jettons minted successfully\n")
-
-// 		t.Logf("\n\n\n\n\n\nOnramp Mock Tests Started\n==========================\n")
-
-// 		// Test: Send jettons to onramp mock and verify notification
-// 		t.Logf("Testing onramp mock notification\n")
-// 		forwardPayload := createStringCell("onramp_request")
-// 		_, err = jettonSender.SendJettonsExtended(
-// 			tlb.MustFromTON("0.1").NanoTON().Uint64(),
-// 			onrampMock.Contract.Address,
-// 			nil,
-// 			tlb.MustFromTON("0.01").NanoTON().Uint64(),
-// 			forwardPayload,
-// 		)
-// 		require.NoError(t, err, "failed to send jettons to onramp mock")
-// 		t.Logf("Onramp mock notification test passed\n")
-
-// 		t.Logf("All onramp mock tests completed successfully\n")
-// 	})
-// }
-
-// func TestJettonReceiver(t *testing.T) {
-// 	t.Run("TestJettonReceiver", func(t *testing.T) {
-// 		var initialAmount = big.NewInt(1_000_000_000_000)
-// 		seeders := testutils.SetUpTest(t, chainsel.TON_LOCALNET.Selector, initialAmount, 1)
-// 		deployer := seeders[0]
-
-// 		t.Logf("\n\n\n\n\n\nJetton Receiver Test Setup\n==========================\n")
-
-// 		// Create jetton content
-// 		jettonDataURI := "smartcontract.com"
-// 		defaultContent := createStringCell(jettonDataURI)
-
-// 		// Load the actual JettonWallet code
-// 		jettonWalletCode, err := loadJettonWalletCode()
-// 		require.NoError(t, err, "failed to load JettonWallet code")
-
-// 		// Deploy jetton minter
-// 		t.Logf("Deploying JettonMinter contract\n")
-// 		jettonMinter, err := jetton_wrappers.NewJettonMinterProvider(deployer).Deploy(jetton_wrappers.JettonMinterInitData{
-// 			TotalSupply:   0,
-// 			Admin:         deployer.Wallet.WalletAddress(),
-// 			TransferAdmin: nil,
-// 			WalletCode:    jettonWalletCode,
-// 			JettonContent: defaultContent,
-// 		})
-// 		require.NoError(t, err, "failed to deploy JettonMinter contract")
-// 		t.Logf("JettonMinter contract deployed at %s\n", jettonMinter.Contract.Address.String())
-
-// 		// Deploy jetton sender contract
-// 		t.Logf("Deploying JettonSender contract\n")
-// 		jettonSender, err := jetton_wrappers.NewJettonSenderProvider(deployer).Deploy(jetton_wrappers.JettonSenderInitData{
-// 			MasterAddress:    jettonMinter.Contract.Address,
-// 			JettonWalletCode: jettonWalletCode,
-// 		})
-// 		require.NoError(t, err, "failed to deploy JettonSender contract")
-// 		t.Logf("JettonSender contract deployed at %s\n", jettonSender.Contract.Address.String())
-
-// 		// Deploy simple jetton receiver contract
-// 		t.Logf("Deploying SimpleJettonReceiver contract\n")
-// 		payloadChecker := createStringCell("expected_payload")
-// 		simpleJettonReceiver, err := jetton_wrappers.NewSimpleJettonReceiverProvider(deployer).Deploy(jetton_wrappers.SimpleJettonReceiverInitData{
-// 			MasterAddress:    jettonMinter.Contract.Address,
-// 			JettonWalletCode: jettonWalletCode,
-// 			AmountChecker:    tlb.MustFromTON("0.1").NanoTON().Uint64(),
-// 			PayloadChecker:   payloadChecker,
-// 		})
-// 		require.NoError(t, err, "failed to deploy SimpleJettonReceiver contract")
-// 		t.Logf("SimpleJettonReceiver contract deployed at %s\n", simpleJettonReceiver.Contract.Address.String())
-
-// 		// Mint jettons to sender contract
-// 		t.Logf("Minting jettons to sender contract\n")
-// 		_, err = jettonMinter.SendMint(
-// 			jettonSender.Contract.Address,
-// 			tlb.MustFromTON("0.05").NanoTON().Uint64(),
-// 			tlb.MustFromTON("1").NanoTON().Uint64(),
-// 			deployer.Wallet.WalletAddress(),
-// 			deployer.Wallet.WalletAddress(),
-// 			nil,
-// 			0,
-// 		)
-// 		require.NoError(t, err, "failed to mint jettons")
-// 		t.Logf("Jettons minted successfully\n")
-
-// 		t.Logf("\n\n\n\n\n\nJetton Receiver Tests Started\n==========================\n")
-
-// 		// Test 1: Get receiver checkers
-// 		t.Logf("Testing receiver checkers\n")
-// 		amountChecker, err := simpleJettonReceiver.GetAmountChecker()
-// 		require.NoError(t, err, "failed to get amount checker")
-// 		assert.Equal(t, tlb.MustFromTON("0.1").NanoTON().Uint64(), amountChecker, "Amount checker should be 0.1 TON")
-
-// 		payloadCheckerResult, err := simpleJettonReceiver.GetPayloadChecker()
-// 		require.NoError(t, err, "failed to get payload checker")
-// 		assert.NotNil(t, payloadCheckerResult, "Payload checker should not be nil")
-// 		t.Logf("Receiver checkers test passed\n")
-
-// 		// Test 2: Get simple receiver checkers (duplicate test removed)
-// 		t.Logf("Testing simple receiver checkers\n")
-// 		simpleAmountChecker, err := simpleJettonReceiver.GetAmountChecker()
-// 		require.NoError(t, err, "failed to get simple amount checker")
-// 		assert.Equal(t, tlb.MustFromTON("0.1").NanoTON().Uint64(), simpleAmountChecker, "Simple amount checker should be 0.1 TON")
-
-// 		simplePayloadCheckerResult, err := simpleJettonReceiver.GetPayloadChecker()
-// 		require.NoError(t, err, "failed to get simple payload checker")
-// 		assert.NotNil(t, simplePayloadCheckerResult, "Simple payload checker should not be nil")
-// 		t.Logf("Simple receiver checkers test passed\n")
-
-// 		// Test 3: Send jettons to receiver
-// 		t.Logf("Testing sending jettons to receiver\n")
-// 		expectedPayload := createStringCell("expected_payload")
-// 		_, err = jettonSender.SendJettonsExtended(
-// 			tlb.MustFromTON("0.1").NanoTON().Uint64(),
-// 			simpleJettonReceiver.Contract.Address,
-// 			nil,
-// 			tlb.MustFromTON("0.01").NanoTON().Uint64(),
-// 			expectedPayload,
-// 		)
-// 		require.NoError(t, err, "failed to send jettons to receiver")
-// 		t.Logf("Sending jettons to receiver test passed\n")
-
-// 		// Test 4: Send jettons to simple receiver
-// 		t.Logf("Testing sending jettons to simple receiver\n")
-// 		_, err = jettonSender.SendJettonsExtended(
-// 			tlb.MustFromTON("0.05").NanoTON().Uint64(),
-// 			simpleJettonReceiver.Contract.Address,
-// 			nil,
-// 			tlb.MustFromTON("0.01").NanoTON().Uint64(),
-// 			expectedPayload,
-// 		)
-// 		require.NoError(t, err, "failed to send jettons to simple receiver")
-// 		t.Logf("Sending jettons to simple receiver test passed\n")
-
-// 		t.Logf("All jetton receiver tests completed successfully\n")
-// 	})
-// }
-
-// func TestJettonWalletOperations(t *testing.T) {
-// 	t.Run("TestJettonWalletOperations", func(t *testing.T) {
-// 		var initialAmount = big.NewInt(1_000_000_000_000)
-// 		seeders := testutils.SetUpTest(t, chainsel.TON_LOCALNET.Selector, initialAmount, 1)
-// 		deployer := seeders[0]
-
-// 		t.Logf("\n\n\n\n\n\nJetton Wallet Operations Test Setup\n==========================\n")
-
-// 		// Deploy jetton wallet
-// 		t.Logf("Deploying JettonWallet contract\n")
-// 		jettonWallet, err := jetton_wrappers.NewJettonWalletProvider(deployer).Deploy(jetton_wrappers.JettonWalletInitData{
-// 			OwnerAddress:        deployer.Wallet.WalletAddress(),
-// 			JettonMasterAddress: deployer.Wallet.WalletAddress(), // use deployer as master for testing
-// 			Balance:             tlb.MustFromTON("1").NanoTON().Uint64(),
-// 			Status:              0,
-// 		})
-// 		require.NoError(t, err, "failed to deploy JettonWallet contract")
-// 		t.Logf("JettonWallet contract deployed at %s\n", jettonWallet.Contract.Address.String())
-
-// 		t.Logf("\n\n\n\n\n\nJetton Wallet Tests Started\n==========================\n")
-
-// 		// Test 1: Transfer jettons
-// 		t.Logf("Testing jetton transfer\n")
-// 		recipient := address.MustParseAddr("EQCKt2WPGX-fh0cIAz38Ljd_HKzh4UVNyaMqCk7jkKVOjQJz")
-// 		_, err = jettonWallet.SendTransfer(
-// 			tlb.MustFromTON("0.5").NanoTON().Uint64(),
-// 			recipient,
-// 			deployer.Wallet.WalletAddress(),
-// 			nil,
-// 			tlb.MustFromTON("0.01").NanoTON().Uint64(),
-// 			nil,
-// 		)
-// 		require.NoError(t, err, "failed to transfer jettons")
-// 		t.Logf("Jetton transfer test passed\n")
-
-// 		// Test 2: Burn jettons
-// 		t.Logf("Testing jetton burn\n")
-// 		_, err = jettonWallet.SendBurn(
-// 			tlb.MustFromTON("0.1").NanoTON().Uint64(),
-// 			deployer.Wallet.WalletAddress(),
-// 			nil,
-// 		)
-// 		require.NoError(t, err, "failed to burn jettons")
-// 		t.Logf("Jetton burn test passed\n")
-
-// 		// Test 3: Withdraw TONs
-// 		t.Logf("Testing withdraw TONs\n")
-// 		_, err = jettonWallet.SendWithdrawTons()
-// 		require.NoError(t, err, "failed to withdraw TONs")
-// 		t.Logf("Withdraw TONs test passed\n")
-
-// 		// Test 4: Withdraw jettons
-// 		t.Logf("Testing withdraw jettons\n")
-// 		_, err = jettonWallet.SendWithdrawJettons(
-// 			deployer.Wallet.WalletAddress(),
-// 			tlb.MustFromTON("0.1").NanoTON().Uint64(),
-// 		)
-// 		require.NoError(t, err, "failed to withdraw jettons")
-// 		t.Logf("Withdraw jettons test passed\n")
-
-// 		t.Logf("All jetton wallet operations tests completed successfully\n")
-// 	})
-// }
-
-// func TestJettonMinterOperations(t *testing.T) {
-// 	t.Run("TestJettonMinterOperations", func(t *testing.T) {
-// 		var initialAmount = big.NewInt(1_000_000_000_000)
-// 		seeders := testutils.SetUpTest(t, chainsel.TON_LOCALNET.Selector, initialAmount, 1)
-// 		deployer := seeders[0]
-
-// 		t.Logf("\n\n\n\n\n\nJetton Minter Operations Test Setup\n==========================\n")
-
-// 		// Create jetton content
-// 		jettonDataURI := "smartcontract.com"
-// 		defaultContent := createStringCell(jettonDataURI)
-
-// 		// Load the actual JettonWallet code
-// 		jettonWalletCode, err := loadJettonWalletCode()
-// 		require.NoError(t, err, "failed to load JettonWallet code")
-
-// 		// Deploy jetton minter
-// 		t.Logf("Deploying JettonMinter contract\n")
-// 		jettonMinter, err := jetton_wrappers.NewJettonMinterProvider(deployer).Deploy(jetton_wrappers.JettonMinterInitData{
-// 			TotalSupply:   0,
-// 			Admin:         deployer.Wallet.WalletAddress(),
-// 			TransferAdmin: nil,
-// 			WalletCode:    jettonWalletCode,
-// 			JettonContent: defaultContent,
-// 		})
-// 		require.NoError(t, err, "failed to deploy JettonMinter contract")
-// 		t.Logf("JettonMinter contract deployed at %s\n", jettonMinter.Contract.Address.String())
-
-// 		t.Logf("\n\n\n\n\n\nJetton Minter Tests Started\n==========================\n")
-
-// 		// Test 1: Mint jettons
-// 		t.Logf("Testing jetton minting\n")
-// 		recipient := address.MustParseAddr("EQCKt2WPGX-fh0cIAz38Ljd_HKzh4UVNyaMqCk7jkKVOjQJz")
-// 		_, err = jettonMinter.SendMint(
-// 			recipient,
-// 			tlb.MustFromTON("0.05").NanoTON().Uint64(),
-// 			tlb.MustFromTON("1").NanoTON().Uint64(),
-// 			deployer.Wallet.WalletAddress(),
-// 			deployer.Wallet.WalletAddress(),
-// 			nil,
-// 			0,
-// 		)
-// 		require.NoError(t, err, "failed to mint jettons")
-// 		t.Logf("Jetton minting test passed\n")
-
-// 		// Test 2: Change admin
-// 		t.Logf("Testing change admin\n")
-// 		newAdmin := address.MustParseAddr("EQCKt2WPGX-fh0cIAz38Ljd_HKzh4UVNyaMqCk7jkKVOjQJz")
-// 		_, err = jettonMinter.SendChangeAdmin(newAdmin)
-// 		require.NoError(t, err, "failed to change admin")
-// 		t.Logf("Change admin test passed\n")
-
-// 		// Test 3: Change content
-// 		t.Logf("Testing change content\n")
-// 		newContent := createStringCell("new_content_uri")
-// 		_, err = jettonMinter.SendChangeContent(newContent)
-// 		require.NoError(t, err, "failed to change content")
-// 		t.Logf("Change content test passed\n")
-
-// 		// Test 4: Get jetton data
-// 		t.Logf("Testing get jetton data\n")
-// 		totalSupply, admin, transferAdmin, jettonContent, walletCode, err := jettonMinter.GetJettonData()
-// 		require.NoError(t, err, "failed to get jetton data")
-// 		assert.Equal(t, tlb.MustFromTON("1").NanoTON().Uint64(), totalSupply, "Total supply should be 1 TON")
-// 		assert.NotNil(t, admin, "Admin should not be nil")
-// 		assert.Nil(t, transferAdmin, "Transfer admin should be nil")
-// 		assert.NotNil(t, jettonContent, "Jetton content should not be nil")
-// 		assert.NotNil(t, walletCode, "Wallet code should not be nil")
-// 		t.Logf("Get jetton data test passed\n")
-
-// 		t.Logf("All jetton minter operations tests completed successfully\n")
-// 	})
-// }
 
 func replaceAddresses(addressMap map[string]string, text string) string {
 	for oldAddr, newAddr := range addressMap {

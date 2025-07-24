@@ -139,7 +139,14 @@ func (m sendJettonsExtendedMessage) StoreArgs(b *cell.Builder) error {
 	return nil
 }
 
-func (s JettonSender) SendJettonsExtended(tonAmount tlb.Coins, jettonAmount *big.Int, destination *address.Address, customPayload *cell.Cell, forwardTonAmount *big.Int, forwardPayload *cell.Cell) (msgReceived *tracetracking.ReceivedMessage, err error) {
+func (s JettonSender) SendJettonsExtended(
+	tonAmount tlb.Coins,
+	jettonAmount *big.Int,
+	destination *address.Address,
+	customPayload *cell.Cell,
+	forwardTonAmount *big.Int,
+	forwardPayload *cell.Cell,
+) (msgReceived *tracetracking.ReceivedMessage, err error) {
 	queryID := rand.Uint64()
 	msgReceived, err = s.Contract.CallWaitRecursively(sendJettonsExtendedMessage{
 		queryID:          queryID,

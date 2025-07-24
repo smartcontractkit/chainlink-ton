@@ -35,11 +35,16 @@ type Message interface {
 // Use CallWaitRecursively to wait for all the trace to be received.
 func (c *Contract) CallWait(message Message, amount tlb.Coins) (*tracetracking.ReceivedMessage, error) {
 	b := cell.BeginCell()
-	err := b.StoreUInt(message.OpCode(), 32)
-	if err != nil {
-		return nil, fmt.Errorf("failed to store opcode: %w", err)
+	opcode := message.OpCode()
+	if opcode != 0 { // TODO This is a hack
+		err := b.StoreUInt(opcode, 32)
+		if err != nil {
+			return nil, fmt.Errorf("failed to store opcode: %w", err)
+		}
+	} else {
+		fmt.Printf("Warning: message opcode is 0, this might be a mistake\n")
 	}
-	err = message.StoreArgs(b)
+	err := message.StoreArgs(b)
 	if err != nil {
 		return nil, fmt.Errorf("failed to store message args: %w", err)
 	}
