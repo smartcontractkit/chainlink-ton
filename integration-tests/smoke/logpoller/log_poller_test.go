@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/big"
 	"math/rand/v2"
+	"strconv"
 	"testing"
 	"time"
 
@@ -19,6 +20,7 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+	"github.com/smartcontractkit/chainlink-common/pkg/sqlutil/sqltest"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
@@ -213,8 +215,12 @@ func Test_LogPoller(t *testing.T) {
 
 		const targetCounter = 20
 
+		dbx := sqltest.NewDB(t, sqltest.TestURL(t))
+		orm := logpoller.NewORM(strconv.FormatUint(chainsel.TON_LOCALNET.Selector, 10), dbx, logger.Test(t))
+
 		lp := logpoller.NewLogPoller(
 			logger.Test(t),
+			orm,
 			client,
 			3*time.Second,
 			pageSize,
