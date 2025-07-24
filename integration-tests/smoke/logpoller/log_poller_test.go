@@ -479,6 +479,80 @@ func Test_LogPoller(t *testing.T) {
 					}
 				}
 			})
+
+			t.Run("Log Poller query with parser pattern, all events from emitter B", func(t *testing.T) {
+				t.Parallel()
+
+				parser := func(c *cell.Cell) (any, error) {
+					return event.LoadEventFromCell[event_emitter.CounterIncreased](c)
+				}
+
+				res, err := lp.FilteredParsedLogs(emitterB.ContractAddress(), event_emitter.CounterIncreasedTopic, parser, nil)
+				require.NoError(t, err)
+
+				require.Len(t, res, targetCounter, "expected exactly %d logs for the emitter B", targetCounter)
+
+				seen := make(map[uint64]bool, targetCounter)
+				for i, item := range res {
+					require.IsType(t, event_emitter.CounterIncreased{}, item, "item at index %d has wrong type", i)
+					ev := item.(event_emitter.CounterIncreased)
+
+					require.GreaterOrEqual(t, ev.Counter, uint64(1))
+					require.LessOrEqual(t, ev.Counter, uint64(targetCounter))
+
+					if seen[ev.Counter] {
+						t.Fatalf("duplicate counter %d found", ev.Counter)
+					}
+					seen[ev.Counter] = true
+				}
+
+				for i := 1; i <= int(targetCounter); i++ {
+					if !seen[uint64(i)] { //nolint:gosec // test code
+						t.Fatalf("missing counter %d", i)
+					}
+				}
+			})
+
+			t.Run("Log Poller query with parser pattern with filter, events between 1 to 10 from emitter B", func(t *testing.T) {
+				t.Parallel()
+				from, to := (1), (10)
+
+				parser := func(c *cell.Cell) (any, error) {
+					return event.LoadEventFromCell[event_emitter.CounterIncreased](c)
+				}
+
+				filter := func(parsedEvent any) bool {
+					evt, ok := parsedEvent.(event_emitter.CounterIncreased)
+					if !ok {
+						return false
+					}
+					return evt.Counter >= uint64(from) && evt.Counter <= uint64(to)
+				}
+
+				res, err := lp.FilteredParsedLogs(emitterB.ContractAddress(), event_emitter.CounterIncreasedTopic, parser, filter)
+				require.NoError(t, err)
+
+				require.Len(t, res, to-from+1, "expected exactly 10 logs for the range 1-10")
+				seen := make(map[uint64]bool, to-from+1)
+				for i, item := range res {
+					require.IsType(t, event_emitter.CounterIncreased{}, item, "item at index %d has wrong type", i)
+					ev := item.(event_emitter.CounterIncreased)
+
+					require.GreaterOrEqual(t, ev.Counter, uint64(from))
+					require.LessOrEqual(t, ev.Counter, uint64(to))
+
+					if seen[ev.Counter] {
+						t.Fatalf("duplicate counter %d found", ev.Counter)
+					}
+					seen[ev.Counter] = true
+				}
+
+				for i := 1; i <= int(to); i++ {
+					if !seen[uint64(i)] { //nolint:gosec // test code
+						t.Fatalf("missing counter %d", i)
+					}
+				}
+			})
 		})
 
 		t.Run("Sorting and Pagination Tests", func(t *testing.T) {

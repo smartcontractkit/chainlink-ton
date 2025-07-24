@@ -7,6 +7,7 @@ import (
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
@@ -276,6 +277,30 @@ func (lp *Service) GetLogs(evtSrcAddress *address.Address) []types.Log {
 
 // FilteredLogs retrieves logs filtered by address, topic, and additional cell-level queries.
 // This allows for precise filtering based on the internal structure of TON cell data.
-func (lp *Service) FilteredLogs(evtSrcAddress *address.Address, topic uint32, queries []CellQuery, options QueryOptions) (QueryResult, error) {
-	return lp.store.GetLogsByTopicWithFilter(evtSrcAddress.String(), topic, queries, options)
+func (lp *Service) FilteredLogs(
+	evtSrcAddress *address.Address,
+	topic uint32,
+	queries []CellQuery,
+	options QueryOptions,
+) (QueryResult, error) {
+	return lp.store.GetLogsByTopicWithFilter(
+		evtSrcAddress.String(),
+		topic,
+		queries,
+		options,
+	)
+}
+
+func (lp *Service) FilteredParsedLogs(
+	evtSrcAddress *address.Address,
+	topic uint32,
+	parser func(cell *cell.Cell) (any, error),
+	filter func(parsedEvent any) bool,
+) ([]any, error) {
+	return lp.store.FilteredParsedLogs(
+		evtSrcAddress.String(),
+		topic,
+		parser,
+		filter,
+	)
 }

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
 )
@@ -89,4 +90,41 @@ func (s *InMemoryStore) GetLogsByTopicWithFilter(
 
 	s.cellQueryEngine.ApplySorting(matchingLogs, options.SortBy)
 	return s.cellQueryEngine.ApplyPagination(matchingLogs, options.Limit, options.Offset), nil
+}
+
+func (s *InMemoryStore) FilteredParsedLogs(
+	evtSrcAddress string,
+	topic uint32,
+	parser func(cell *cell.Cell) (any, error),
+	filter func(parsedEvent any) bool,
+) ([]any, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	results := make([]any, 0, len(s.logs))
+	for i, log := range s.logs {
+		if log.Topic != topic || log.Address.String() != evtSrcAddress {
+			continue
+		}
+
+		c, err := cell.FromBOC(log.Data)
+		if err != nil {
+			s.lggr.Warnw("Failed to decode log data from BoC", "index", i, "err", err)
+			continue
+		}
+
+		parsedEvent, err := parser(c)
+		if err != nil {
+			s.lggr.Warnw("Parser failed to process log data", "index", i, "err", err)
+			continue
+		}
+
+		if filter != nil && !filter(parsedEvent) {
+			continue
+		}
+
+		results = append(results, parsedEvent)
+	}
+
+	return results, nil
 }
