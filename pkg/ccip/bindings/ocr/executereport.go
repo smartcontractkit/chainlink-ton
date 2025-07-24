@@ -22,7 +22,7 @@ type ExecuteReport struct {
 // Any2TVMRampMessage represents ramp message, which is part of the execute report.
 type Any2TVMRampMessage struct {
 	Header       RampMessageHeader                     `tlb:"."`
-	Sender       common.CrossChainAddress              `tlb:"."`
+	Sender       common.CrossChainAddress              `tlb:"^"`
 	Data         common.SnakeBytes                     `tlb:"^"`
 	Receiver     *address.Address                      `tlb:"addr"`
 	GasLimit     tlb.Coins                             `tlb:"."`
