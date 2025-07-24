@@ -6,17 +6,27 @@ import (
 
 	"github.com/xssnick/tonutils-go/address"
 
+	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
 )
 
 type Filters struct {
+	orm  ORM
+	lggr logger.SugaredLogger
+
+	//TODO: remove below, inmemeory implementation
 	mu               sync.RWMutex
 	filtersByName    map[string]types.Filter
 	filtersByAddress map[string]map[uint32]struct{}
 }
 
-func newFilters() *Filters {
+func newFilters(lggr logger.Logger, orm ORM) *Filters {
 	return &Filters{
+		orm:  orm,
+		lggr: logger.Sugared(lggr),
+
+		//TODO: remove below, inmemeory implementation
 		filtersByName:    make(map[string]types.Filter),
 		filtersByAddress: make(map[string]map[uint32]struct{}),
 	}

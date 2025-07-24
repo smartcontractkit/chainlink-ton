@@ -75,8 +75,10 @@ type ORM interface {
 // external messages from registered filter addresses.
 type Service struct {
 	services.Service
-	eng                *services.Engine     // Service engine for lifecycle management
+	eng *services.Engine // Service engine for lifecycle management
+
 	lggr               logger.SugaredLogger // Logger instance
+	orm                ORM                  // Data source ORM for persistent storage
 	client             ton.APIClientWrapped // TON blockchain client
 	filters            *Filters             // Registry of active filters
 	loader             logCollector         // Block scanner implementation
@@ -89,6 +91,7 @@ type Service struct {
 // NewLogPoller creates a new TON log polling service instance
 func NewLogPoller(
 	lggr logger.Logger,
+	orm ORM,
 	client ton.APIClientWrapped,
 	// TODO: replace with global TON relayer config
 	pollPeriod time.Duration,
@@ -96,9 +99,10 @@ func NewLogPoller(
 	blockConfirmations uint32,
 ) *Service {
 	store := NewInMemoryStore(lggr)
-	filters := newFilters()
+	filters := newFilters(lggr, orm)
 	lp := &Service{
 		lggr:               logger.Sugared(lggr),
+		orm:                orm,
 		client:             client,
 		filters:            filters,
 		store:              store,
