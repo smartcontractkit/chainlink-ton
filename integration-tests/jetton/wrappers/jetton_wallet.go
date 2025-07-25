@@ -71,73 +71,12 @@ func (m transferMessage) OpCode() uint64 {
 	return JettonWalletTransfer
 }
 
-func (m transferMessage) StoreArgs(b *cell.Builder) error {
-	err := b.StoreUInt(m.queryID, 64)
-	if err != nil {
-		return fmt.Errorf("failed to store queryID: %w", err)
-	}
-	err = b.StoreBigCoins(m.jettonAmount)
-	if err != nil {
-		return fmt.Errorf("failed to store jettonAmount: %w", err)
-	}
-	err = b.StoreAddr(m.destination)
-	if err != nil {
-		return fmt.Errorf("failed to store destination: %w", err)
-	}
-	err = b.StoreAddr(m.responseDestination)
-	if err != nil {
-		return fmt.Errorf("failed to store responseDestination: %w", err)
-	}
-
-	// Store custom payload
-	if m.customPayload != nil {
-		err = b.StoreBoolBit(true)
-		if err != nil {
-			return fmt.Errorf("failed to store custom payload flag: %w", err)
-		}
-		err = b.StoreRef(m.customPayload)
-		if err != nil {
-			return fmt.Errorf("failed to store custom payload: %w", err)
-		}
-	} else {
-		err = b.StoreBoolBit(false)
-		if err != nil {
-			return fmt.Errorf("failed to store custom payload flag: %w", err)
-		}
-	}
-
-	err = b.StoreBigCoins(m.forwardTonAmount)
-	if err != nil {
-		return fmt.Errorf("failed to store forwardTonAmount: %w", err)
-	}
-
-	// Store forward payload
-	err = m.forwardPayload.Store(b)
-	if err != nil {
-		return fmt.Errorf("failed to store forward payload: %w", err)
-	}
-
-	return nil
+type transferPayload struct {
+	self jetton.TransferPayload `tlb:"."`
 }
 
-type autoparseMsg struct {
-	body jetton.TransferPayload
-}
-
-func (m autoparseMsg) OpCode() uint64 {
-	return 0
-}
-
-func (m autoparseMsg) StoreArgs(b *cell.Builder) error {
-	asCell, err := tlb.ToCell(m.body)
-	if err != nil {
-		return fmt.Errorf("failed to convert TransferPayload to cell: %w", err)
-	}
-	err = b.StoreBuilder(asCell.ToBuilder())
-	if err != nil {
-		return fmt.Errorf("failed to store TransferPayload cell: %w", err)
-	}
-	return nil
+func (m transferPayload) OpCode() uint64 {
+	return JettonWalletTransfer
 }
 
 func (w JettonWallet) SendTransfer(tonAmount tlb.Coins, jettonAmount *big.Int, destination *address.Address, responseDestination *address.Address, customPayload *cell.Cell, forwardTonAmount *big.Int, forwardPayload ForwardPayload) (msgReceived *tracetracking.ReceivedMessage, err error) {
@@ -145,17 +84,15 @@ func (w JettonWallet) SendTransfer(tonAmount tlb.Coins, jettonAmount *big.Int, d
 	// 	forwardPayload = NewForwardPayload(cell.BeginCell().EndCell())
 	// }
 	queryID := rand.Uint64()
-	msgReceived, err = w.Contract.CallWaitRecursively(autoparseMsg{
-		body: jetton.TransferPayload{
-			QueryID:             queryID,
-			Amount:              tonAmount,
-			Destination:         destination,
-			ResponseDestination: responseDestination,
-			CustomPayload:       customPayload,
-			ForwardTONAmount:    tonAmount,
-			ForwardPayload:      cell.BeginCell().EndCell(), // TODO accept forward payload
-		},
-	}, tonAmount)
+	msgReceived, err = w.Contract.CallWaitRecursively(transferPayload{jetton.TransferPayload{
+		QueryID:             queryID,
+		Amount:              tonAmount,
+		Destination:         destination,
+		ResponseDestination: responseDestination,
+		CustomPayload:       customPayload,
+		ForwardTONAmount:    tonAmount,
+		ForwardPayload:      cell.BeginCell().EndCell(), // TODO accept forward payload
+	}}, tonAmount)
 	return msgReceived, err
 }
 

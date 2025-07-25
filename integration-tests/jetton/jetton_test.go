@@ -44,7 +44,7 @@ func loadJettonWalletCode() (*cell.Cell, error) {
 
 const JettonDataURI = "smartcontract.com"
 
-var jettonMintingAmount *big.Int = tlb.MustFromTON("100").Nano()
+var jettonMintingAmount tlb.Coins = tlb.MustFromTON("100")
 
 func TestJettonAll(t *testing.T) {
 	// Common test setup
@@ -112,15 +112,21 @@ func TestJettonAll(t *testing.T) {
 		sendMintMsg, err := setup.jettonMinter.SendMint(
 			tlb.MustFromTON("0.05"),
 			jettonSender.Contract.Address,
-			tlb.MustFromTON("0.05").Nano(),
+			tlb.MustFromTON("0.05"),
 			jettonMintingAmount,
 			setup.deployer.Wallet.WalletAddress(),
 			setup.deployer.Wallet.WalletAddress(),
-			nil,
-			big.NewInt(0),
+			jetton_wrappers.ForwardPayload{},
+			tlb.ZeroCoins,
 		)
 		require.NoError(t, err, "failed to mint jettons")
-		t.Logf("Msg trace:\n%s\n", sendMintMsg.Dump())
+		t.Logf("Msg trace:\n%s\n", replaceAddresses(
+			map[string]string{
+				setup.deployer.Wallet.Address().String():     "Deployer",
+				jettonSender.Contract.Address.String():       "JettonSender",
+				setup.jettonMinter.Contract.Address.String(): "JettonMinter",
+			},
+			sendMintMsg.Dump()))
 
 		require.Zero(t, sendMintMsg.ExitCode, "Msg to wallet should have exit code 0")
 		require.Len(t, sendMintMsg.OutgoingInternalReceivedMessages, 1, "Msg to wallet should have 1 outgoing message")
@@ -141,7 +147,7 @@ func TestJettonAll(t *testing.T) {
 
 		balance, err := senderJettonWallet.GetBalance(t.Context())
 		require.NoError(t, err, "failed to get receiver wallet balance")
-		require.Equal(t, jettonMintingAmount.Uint64(), balance.Uint64(), "Receiver wallet balance should match sent amount")
+		require.Equal(t, jettonMintingAmount.Nano().Uint64(), balance.Uint64(), "Receiver wallet balance should match sent amount")
 
 		t.Logf("Jettons minted successfully\n")
 
@@ -172,12 +178,12 @@ func TestJettonAll(t *testing.T) {
 		_, err = setup.common.jettonMinter.SendMint(
 			tlb.MustFromTON("0.05"),
 			setup.sender.Contract.Address,
-			tlb.MustFromTON("0.05").Nano(),
-			tlb.MustFromTON("1").Nano(),
+			tlb.MustFromTON("0.05"),
+			tlb.MustFromTON("1"),
 			setup.common.deployer.Wallet.WalletAddress(),
 			setup.common.deployer.Wallet.WalletAddress(),
-			nil,
-			big.NewInt(0),
+			jetton_wrappers.ForwardPayload{},
+			tlb.ZeroCoins,
 		)
 		require.NoError(t, err, "failed to mint additional jettons for onramp tests")
 
@@ -212,12 +218,12 @@ func TestJettonAll(t *testing.T) {
 		_, err = setup.common.jettonMinter.SendMint(
 			tlb.MustFromTON("0.05"),
 			setup.sender.Contract.Address,
-			tlb.MustFromTON("0.05").Nano(),
-			tlb.MustFromTON("1").Nano(),
+			tlb.MustFromTON("0.05"),
+			tlb.MustFromTON("1"),
 			setup.common.deployer.Wallet.WalletAddress(),
 			setup.common.deployer.Wallet.WalletAddress(),
-			nil,
-			big.NewInt(0),
+			jetton_wrappers.ForwardPayload{},
+			tlb.ZeroCoins,
 		)
 		require.NoError(t, err, "failed to mint additional jettons for receiver tests")
 
@@ -260,7 +266,7 @@ func TestJettonAll(t *testing.T) {
 	t.Run("TestJettonSendFastAutodeployWallet", func(t *testing.T) {
 		setup := setupJettonSender(t)
 		receiver := address.MustParseAddr("UQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJKZ") // example address
-		jettonAmount := tlb.MustFromTON("12").Nano()
+		jettonAmount := tlb.MustFromTON("12")
 		msgReceived, err := setup.sender.SendJettonsFast(
 			jettonAmount,
 			receiver,
@@ -278,7 +284,7 @@ func TestJettonAll(t *testing.T) {
 		require.NoError(t, err, "failed to get receiver wallet")
 		balance, err := receiverWallet.GetBalance(t.Context())
 		require.NoError(t, err, "failed to get receiver wallet balance")
-		assert.Equal(t, jettonAmount.Uint64(), balance.Uint64(), "Receiver wallet balance should match sent amount")
+		assert.Equal(t, jettonAmount.Nano().Uint64(), balance.Uint64(), "Receiver wallet balance should match sent amount")
 	})
 
 	t.Run("TestJettonSendFastExistingWallet", func(t *testing.T) {
@@ -292,7 +298,7 @@ func TestJettonAll(t *testing.T) {
 		require.NoError(t, err, "failed to deploy JettonWallet contract")
 		t.Logf("JettonWallet contract deployed at %s\n", receiverJettonWallet.Contract.Address.String())
 
-		jettonAmount := tlb.MustFromTON("12").Nano()
+		jettonAmount := tlb.MustFromTON("12")
 		msgReceived, err := setup.sender.SendJettonsFast(
 			jettonAmount,
 			setup.common.receiver.Wallet.Address(),
@@ -310,20 +316,20 @@ func TestJettonAll(t *testing.T) {
 		require.NoError(t, err, "failed to get receiver wallet")
 		balance, err := receiverWallet.GetBalance(t.Context())
 		require.NoError(t, err, "failed to get receiver wallet balance")
-		assert.Equal(t, jettonAmount.Uint64(), balance.Uint64(), "Receiver wallet balance should match sent amount")
+		assert.Equal(t, jettonAmount.Nano().Uint64(), balance.Uint64(), "Receiver wallet balance should match sent amount")
 	})
 
 	t.Run("TestJettonSendExtended", func(t *testing.T) {
 		setup := setupJettonSender(t)
 		receiver := address.MustParseAddr("UQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJKZ") // example address
 		tonAmount := tlb.MustFromTON("0.1")
-		jettonAmount := tlb.MustFromTON("12").Nano()
-		forwardTonAmount := tlb.MustFromTON("0.01").Nano()
+		jettonAmount := tlb.MustFromTON("12")
+		forwardTonAmount := tlb.MustFromTON("0.01")
 
 		customPayload := createStringCell(t, "custom_payload")
 		forwardPayload := createStringCell(t, "forward_payload")
 
-		_, err := setup.sender.SendJettonsExtended(
+		msgJettonsExtended, err := setup.sender.SendJettonsExtended(
 			tonAmount,
 			jettonAmount,
 			receiver,
@@ -332,13 +338,18 @@ func TestJettonAll(t *testing.T) {
 			forwardPayload,
 		)
 		require.NoError(t, err, "failed to send jettons in basic mode")
-		t.Logf("Basic jetton send test passed\n")
+		t.Logf("Sent jettons extended:\n%s\n", replaceAddresses(map[string]string{
+			setup.common.deployer.Wallet.Address().String():     "Deployer",
+			setup.sender.Contract.Address.String():              "JettonSender",
+			setup.common.jettonMinter.Contract.Address.String(): "JettonMinter",
+			receiver.String(): "Receiver",
+		}, msgJettonsExtended.Dump()))
 
 		receiverWallet, err := setup.common.jettonClient.GetJettonWallet(t.Context(), receiver)
 		require.NoError(t, err, "failed to get receiver wallet")
 		balance, err := receiverWallet.GetBalance(t.Context())
 		require.NoError(t, err, "failed to get receiver wallet balance")
-		assert.Equal(t, jettonAmount.Uint64(), balance.Uint64(), "Receiver wallet balance should match sent amount")
+		assert.Equal(t, jettonAmount.Nano().Uint64(), balance.Uint64(), "Receiver wallet balance should match sent amount")
 
 		require.NoError(t, err, "failed to send jettons in extended mode")
 		t.Logf("Extended jetton send test passed\n")
@@ -357,7 +368,7 @@ func TestJettonAll(t *testing.T) {
 		// this can be any payload that we want receiver to get with transfer notification
 		jettonTransferPayload := cell.BeginCell().MustStoreSlice(buf, uint(len(buf))).EndCell()
 
-		forwardTonAmount := tlb.MustFromTON("1").Nano()
+		forwardTonAmount := tlb.MustFromTON("1")
 		customPayload := cell.BeginCell().MustStoreBoolBit(true).EndCell()
 
 		jettonSenderWallet, err := setup.common.jettonClient.GetJettonWallet(t.Context(), setup.jettonSender.Contract.Address)
@@ -365,7 +376,7 @@ func TestJettonAll(t *testing.T) {
 		onrampMockJettonWallet, err := setup.common.jettonClient.GetJettonWallet(t.Context(), setup.onrampMock.Contract.Address)
 		require.NoError(t, err, "failed to get onramp mock jetton wallet")
 
-		sendCallWithAmount := func(jettonAmount *big.Int) (tracetracking.OutgoingExternalMessages, error) {
+		sendCallWithAmount := func(jettonAmount tlb.Coins) (tracetracking.OutgoingExternalMessages, error) {
 			msgReceived, err := setup.jettonSender.SendJettonsExtended(
 				tlb.MustFromTON("2"),
 				jettonAmount,
@@ -408,8 +419,8 @@ func TestJettonAll(t *testing.T) {
 			return eventLog, nil
 		}
 
-		insufficientJettonTransferAmount := big.NewInt(1)
-		sufficientJettonTransferAmount := big.NewInt(5)
+		insufficientJettonTransferAmount := tlb.MustFromNano(big.NewInt(1), 18)
+		sufficientJettonTransferAmount := tlb.MustFromNano(big.NewInt(5), 18)
 
 		insufficientFeeEventMessage, err := sendCallWithAmount(insufficientJettonTransferAmount)
 		require.NoError(t, err, "failed to send jettons with insufficient fee")
@@ -418,14 +429,16 @@ func TestJettonAll(t *testing.T) {
 		require.NoError(t, err, "failed to get receiver wallet")
 		jettonReceiverDataAfter, err := receiverJettonWallet.GetBalance(t.Context())
 		require.NoError(t, err, "failed to get receiver wallet balance")
-		assert.Equal(t, insufficientJettonTransferAmount.Uint64(), jettonReceiverDataAfter.Uint64(), "Receiver wallet balance should match insufficient jetton transfer amount")
+		assert.Equal(t, insufficientJettonTransferAmount.Nano().Uint64(), jettonReceiverDataAfter.Uint64(), "Receiver wallet balance should match insufficient jetton transfer amount")
 
 		acceptedRequestEventMessage, err := sendCallWithAmount(sufficientJettonTransferAmount)
 		require.NoError(t, err, "failed to send jettons with sufficient fee")
 		require.NotNil(t, acceptedRequestEventMessage, "Accepted request event message should not be nil")
 		jettonReceiverDataAfter2, err := receiverJettonWallet.GetBalance(t.Context())
 		require.NoError(t, err, "failed to get receiver wallet balance after accepted request")
-		assert.Equal(t, insufficientJettonTransferAmount.Add(insufficientJettonTransferAmount, sufficientJettonTransferAmount).Uint64(), jettonReceiverDataAfter2.Uint64(), "Receiver wallet balance should match the sum of insufficient and sufficient jetton transfer amounts")
+		expectedJettonAmount, err := insufficientJettonTransferAmount.Add(&sufficientJettonTransferAmount)
+		require.NoError(t, err, "failed to calculate expected jetton amount")
+		assert.Equal(t, expectedJettonAmount.Nano().Uint64(), jettonReceiverDataAfter2.Uint64(), "Receiver wallet balance should match the sum of insufficient and sufficient jetton transfer amounts")
 	})
 
 	// Test: Jetton Receiver (setup receiver when needed)
@@ -446,13 +459,13 @@ func TestJettonAll(t *testing.T) {
 
 		t.Logf("Testing sending jettons to receiver\n")
 		expectedPayload := createStringCell(t, "expected_payload")
-		jettonAmount := tlb.MustFromTON("0.5").Nano()
+		jettonAmount := tlb.MustFromTON("0.5")
 		receivedMsg, err := setup.jettonSender.SendJettonsExtended(
 			tlb.MustFromTON("2"),
 			jettonAmount,
 			setup.simpleReceiver.Contract.Address,
 			cell.BeginCell().EndCell(),
-			tlb.MustFromTON("0.01").Nano(),
+			tlb.MustFromTON("0.01"),
 			expectedPayload,
 		)
 		require.NoError(t, err, "failed to send jettons to receiver")
@@ -472,7 +485,7 @@ func TestJettonAll(t *testing.T) {
 		t.Logf("Testing receiver checkers\n")
 		amountChecker, err = setup.simpleReceiver.GetAmountChecker()
 		require.NoError(t, err, "failed to get amount checker")
-		assert.Equal(t, jettonAmount.Uint64(), amountChecker.Nano().Uint64(), "Amount checker should be 0.1 TON")
+		assert.Equal(t, jettonAmount.Nano().Uint64(), amountChecker.Nano().Uint64(), "Amount checker should be 0.1 TON")
 
 		payloadCheckerResult, err = setup.simpleReceiver.GetPayloadChecker()
 		require.NoError(t, err, "failed to get payload checker")

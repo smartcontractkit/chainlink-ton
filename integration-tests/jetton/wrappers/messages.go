@@ -5,100 +5,61 @@ import (
 	"math/big"
 
 	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
-type ForwardPayload interface {
-	Store(b *cell.Builder) error
+type ForwardPayload struct {
+	cell  *cell.Cell
+	slice *cell.Slice
 }
 
 type transferMessage struct {
-	queryID             uint64
-	jettonAmount        *big.Int
-	destination         *address.Address
-	responseDestination *address.Address
-	customPayload       *cell.Cell
-	forwardTonAmount    *big.Int
-	forwardPayload      ForwardPayload
+	queryID             uint64           `tlb:"## 64"`
+	jettonAmount        *big.Int         `tlb:"var uint 16"`
+	destination         *address.Address `tlb:"addr"`
+	responseDestination *address.Address `tlb:"addr"`
+	customPayload       *cell.Cell       `tlb:"cell"`
+	forwardTonAmount    *big.Int         `tlb:"var uint 16"`
+	forwardPayload      ForwardPayload   `tlb:"."`
 }
-
-type cellForwardPayload struct{ payload *cell.Cell }
-
-type sliceForwardPayload struct{ payload *cell.Slice }
 
 func NewForwardPayload[T *cell.Cell | *cell.Slice](payload T) ForwardPayload {
 	switch p := any(payload).(type) {
 	case *cell.Cell:
-		return &cellForwardPayload{payload: p}
+		return ForwardPayload{cell: p}
 	case *cell.Slice:
-		return &sliceForwardPayload{payload: p}
+		return ForwardPayload{slice: p}
 	default:
-		return nil
+		return ForwardPayload{}
 	}
 }
 
-func (c *sliceForwardPayload) Store(b *cell.Builder) error {
-	err := b.StoreBoolBit(false)
+func (c *ForwardPayload) ToCell() (*cell.Cell, error) {
+	b := cell.BeginCell()
+	err := b.StoreMaybeRef(c.cell)
 	if err != nil {
-		return fmt.Errorf("failed to store bool bit: %w", err)
+		return nil, fmt.Errorf("failed to store cell in forward payload: %w", err)
 	}
-	err = b.StoreBuilder(c.payload.ToBuilder())
-	if err != nil {
-		return fmt.Errorf("failed to store payload: %w", err)
+	if c.slice != nil {
+		err = b.StoreBuilder(c.slice.ToBuilder())
+		if err != nil {
+			return nil, fmt.Errorf("failed to store slice in forward payload: %w", err)
+		}
 	}
-	return nil
-}
-
-func (c *cellForwardPayload) Store(b *cell.Builder) error {
-	err := b.StoreBoolBit(true)
-	if err != nil {
-		return fmt.Errorf("failed to store bool bit: %w", err)
-	}
-	err = b.StoreRef(c.payload)
-	if err != nil {
-		return fmt.Errorf("failed to store payload: %w", err)
-	}
-	return nil
+	return b.EndCell(), nil
 }
 
 type jettonInternalTransfer struct {
-	queryID          uint64
-	amount           *big.Int
-	from             *address.Address
-	responseAddress  *address.Address
-	forwardTonAmount *big.Int
-	forwardPayload   ForwardPayload
+	_                tlb.Magic        `tlb:"#178d4519"`
+	QueryID          uint64           `tlb:"## 64"`
+	Amount           *big.Int         `tlb:"var uint 16"`
+	From             *address.Address `tlb:"addr"`
+	ResponseAddress  *address.Address `tlb:"addr"`
+	ForwardTonAmount *big.Int         `tlb:"var uint 16"`
+	ForwardPayload   *cell.Cell       `tlb:"."`
 }
 
 func (jettonInternalTransfer) OpCode() uint64 {
 	return 0x178d4519
-}
-
-func (t jettonInternalTransfer) Store(b *cell.Builder) error {
-	err := b.StoreUInt(t.queryID, 64)
-	if err != nil {
-		return fmt.Errorf("failed to store query_id: %w", err)
-	}
-
-	err = b.StoreBigCoins(t.amount)
-	if err != nil {
-		return fmt.Errorf("failed to store amount: %w", err)
-	}
-	err = b.StoreAddr(t.from)
-	if err != nil {
-		return fmt.Errorf("failed to store from: %w", err)
-	}
-	err = b.StoreAddr(t.responseAddress)
-	if err != nil {
-		return fmt.Errorf("failed to store responseAddress: %w", err)
-	}
-	err = b.StoreBigCoins(t.forwardTonAmount)
-	if err != nil {
-		return fmt.Errorf("failed to store forwardTonAmount: %w", err)
-	}
-	err = t.forwardPayload.Store(b)
-	if err != nil {
-		return fmt.Errorf("failed to store forwardPayload: %w", err)
-	}
-	return nil
 }

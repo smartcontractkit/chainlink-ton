@@ -169,7 +169,7 @@ func describeBody(body *cell.Cell) string {
 	}
 	opcode, err := slice.LoadUInt(32)
 	if err == nil {
-		return fmt.Sprintf("opcode: %x", opcode)
+		return fmt.Sprintf("opcode: 0x %x", opcode)
 	}
 	strSnake, err := body.BeginParse().LoadStringSnake()
 	if err == nil {

@@ -76,94 +76,56 @@ const (
 )
 
 type mintMessage struct {
-	queryID     uint64
-	destination *address.Address
-	tonAmount   *big.Int
-	masterMsg   jettonInternalTransfer
+	_           tlb.Magic              `tlb:"#642b7d07"`
+	QueryID     uint64                 `tlb:"## 64"`
+	Destination *address.Address       `tlb:"addr"`
+	TonAmount   *big.Int               `tlb:"var uint 16"`
+	MasterMsg   jettonInternalTransfer `tlb:"^"`
 }
 
 func (m mintMessage) OpCode() uint64 {
 	return JettonMinterMint
 }
 
-func (m mintMessage) StoreArgs(b *cell.Builder) error {
-	// First, build the internal transfer message
-	transferMsg := cell.BeginCell()
-	err := transferMsg.StoreUInt(m.masterMsg.OpCode(), 32)
-	if err != nil {
-		return fmt.Errorf("failed to store opcode in transfer message: %w", err)
-	}
-	err = m.masterMsg.Store(transferMsg)
-	if err != nil {
-		return fmt.Errorf("failed to store transfer message args: %w", err)
-	}
-
-	// Store the mint message arguments in the passed builder
-	err = b.StoreUInt(m.queryID, 64)
-	if err != nil {
-		return fmt.Errorf("failed to store queryID: %w", err)
-	}
-	err = b.StoreAddr(m.destination)
-	if err != nil {
-		return fmt.Errorf("failed to store destination: %w", err)
-	}
-	err = b.StoreBigCoins(m.tonAmount)
-	if err != nil {
-		return fmt.Errorf("failed to store tonAmount: %w", err)
-	}
-
-	err = b.StoreRef(transferMsg.EndCell())
-	if err != nil {
-		return fmt.Errorf("failed to store transfer message reference: %w", err)
-	}
-
-	return nil
-}
-
-func (m JettonMinter) SendMint(tonAmount tlb.Coins, destination *address.Address, tonAmountInJettonMessage *big.Int, jettonAmount *big.Int, from *address.Address, responseAddress *address.Address, forwardPayload ForwardPayload, forwardTonAmount *big.Int) (msgReceived *tracetracking.ReceivedMessage, err error) {
+func (m JettonMinter) SendMint(tonAmount tlb.Coins, destination *address.Address, tonAmountInJettonMessage tlb.Coins, jettonAmount tlb.Coins, from *address.Address, responseAddress *address.Address, forwardPayload ForwardPayload, forwardTonAmount tlb.Coins) (msgReceived *tracetracking.ReceivedMessage, err error) {
 	queryID := rand.Uint64()
-	if forwardPayload == nil {
-		forwardPayload = NewForwardPayload(cell.BeginCell().ToSlice())
+	forwardPayload = NewForwardPayload(cell.BeginCell().ToSlice())
+	forwardPayloadCell, err := forwardPayload.ToCell()
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert forward payload to cell: %w", err)
 	}
 	msgReceived, err = m.Contract.CallWaitRecursively(mintMessage{
-		queryID:     queryID,
-		destination: destination,
-		tonAmount:   tonAmountInJettonMessage,
-		masterMsg: jettonInternalTransfer{
-			queryID:          queryID,
-			amount:           jettonAmount,
-			from:             from,
-			responseAddress:  responseAddress,
-			forwardPayload:   forwardPayload,
-			forwardTonAmount: forwardTonAmount,
-		}}, tonAmount)
+		QueryID:     queryID,
+		Destination: destination,
+		TonAmount:   tonAmountInJettonMessage.Nano(),
+		MasterMsg: jettonInternalTransfer{
+			QueryID:          queryID,
+			Amount:           jettonAmount.Nano(),
+			From:             from,
+			ResponseAddress:  responseAddress,
+			ForwardTonAmount: forwardTonAmount.Nano(),
+			ForwardPayload:   forwardPayloadCell,
+		},
+	}, tonAmount)
 	return msgReceived, err
 }
 
 type changeAdminMessage struct {
-	queryID  uint64
-	newAdmin *address.Address
+	_        tlb.Magic        `tlb:"#6501f354"`
+	queryID  uint64           `tlb:"## 64"`
+	newAdmin *address.Address `tlb:"addr"`
 }
 
 func (m changeAdminMessage) OpCode() uint64 {
 	return JettonMinterChangeAdmin
 }
 
-func (m changeAdminMessage) StoreArgs(b *cell.Builder) error {
-	err := b.StoreUInt(m.queryID, 64)
-	if err != nil {
-		return fmt.Errorf("failed to store queryID: %w", err)
-	}
-	err = b.StoreAddr(m.newAdmin)
-	if err != nil {
-		return fmt.Errorf("failed to store newAdmin: %w", err)
-	}
-	return nil
-}
-
 func (m JettonMinter) SendChangeAdmin(newAdmin *address.Address) (msgReceived *tracetracking.ReceivedMessage, err error) {
 	queryID := rand.Uint64()
-	msgReceived, err = m.Contract.CallWaitRecursively(changeAdminMessage{queryID, newAdmin}, tlb.MustFromTON("0.1"))
+	msgReceived, err = m.Contract.CallWaitRecursively(changeAdminMessage{
+		queryID:  queryID,
+		newAdmin: newAdmin,
+	}, tlb.MustFromTON("0.1"))
 	return msgReceived, err
 }
 
@@ -190,51 +152,38 @@ func (m JettonMinter) SendClaimAdmin() (msgReceived *tracetracking.ReceivedMessa
 }
 
 type dropAdminMessage struct {
-	queryID uint64
+	_       tlb.Magic `tlb:"#7431f221"`
+	queryID uint64    `tlb:"## 64"`
 }
 
 func (m dropAdminMessage) OpCode() uint64 {
 	return JettonMinterDropAdmin
 }
 
-func (m dropAdminMessage) StoreArgs(b *cell.Builder) error {
-	err := b.StoreUInt(m.queryID, 64)
-	if err != nil {
-		return fmt.Errorf("failed to store queryID: %w", err)
-	}
-	return nil
-}
-
 func (m JettonMinter) SendDropAdmin() (msgReceived *tracetracking.ReceivedMessage, err error) {
 	queryID := rand.Uint64()
-	msgReceived, err = m.Contract.CallWaitRecursively(dropAdminMessage{queryID}, tlb.MustFromTON("0.1"))
+	msgReceived, err = m.Contract.CallWaitRecursively(dropAdminMessage{
+		queryID: queryID,
+	}, tlb.MustFromTON("0.1"))
 	return msgReceived, err
 }
 
 type changeContentMessage struct {
-	queryID uint64
-	content *cell.Cell
+	_       tlb.Magic  `tlb:"#cb862902"`
+	queryID uint64     `tlb:"## 64"`
+	content *cell.Cell `tlb:"cell"`
 }
 
 func (m changeContentMessage) OpCode() uint64 {
 	return JettonMinterChangeMetadataURL
 }
 
-func (m changeContentMessage) StoreArgs(b *cell.Builder) error {
-	err := b.StoreUInt(m.queryID, 64)
-	if err != nil {
-		return fmt.Errorf("failed to store queryID: %w", err)
-	}
-	err = b.StoreRef(m.content)
-	if err != nil {
-		return fmt.Errorf("failed to store content: %w", err)
-	}
-	return nil
-}
-
 func (m JettonMinter) SendChangeContent(content *cell.Cell) (msgReceived *tracetracking.ReceivedMessage, err error) {
 	queryID := rand.Uint64()
-	msgReceived, err = m.Contract.CallWaitRecursively(changeContentMessage{queryID, content}, tlb.MustFromTON("0.1"))
+	msgReceived, err = m.Contract.CallWaitRecursively(changeContentMessage{
+		queryID: queryID,
+		content: content,
+	}, tlb.MustFromTON("0.1"))
 	return msgReceived, err
 }
 
