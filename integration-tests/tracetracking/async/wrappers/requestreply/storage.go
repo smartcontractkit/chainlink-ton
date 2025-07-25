@@ -54,7 +54,7 @@ type Storage struct {
 
 type getPriceFromMessage struct {
 	_             tlb.Magic        `tlb:"#00000001"`
-	queryID       uint64           `tlb:"## 64"`
+	QueryID       uint64           `tlb:"## 64"`
 	PriceRegistry *address.Address `tlb:"addr"`
 	Key           uint8            `tlb:"## 8"`
 }
@@ -66,7 +66,7 @@ func (m getPriceFromMessage) OpCode() uint64 {
 func (s Storage) SendGetPriceFrom(priceRegistry *address.Address, key uint8) (msgReceived *tracetracking.ReceivedMessage, err error) {
 	queryID := rand.Uint64()
 	msgReceived, err = s.Contract.CallWaitRecursively(getPriceFromMessage{
-		queryID:       queryID,
+		QueryID:       queryID,
 		PriceRegistry: priceRegistry,
 		Key:           key,
 	}, tlb.MustFromTON("0.5"))
