@@ -25,30 +25,19 @@ type Contract struct {
 	Client  *tracetracking.SignedAPIClient
 }
 
+// Message must also implement github.com/xssnick/tonutils-go/tlb.Marshaller or provide tlb tags
 type Message interface {
 	OpCode() uint64
-	StoreArgs(*cell.Builder) error
 }
 
 // Calls a writer message on the contract and waits for it to be received.
 // It does not wait for all the trace to be received, only the first message.
 // Use CallWaitRecursively to wait for all the trace to be received.
 func (c *Contract) CallWait(message Message, amount tlb.Coins) (*tracetracking.ReceivedMessage, error) {
-	b := cell.BeginCell()
-	opcode := message.OpCode()
-	if opcode != 0 { // TODO This is a hack
-		err := b.StoreUInt(opcode, 32)
-		if err != nil {
-			return nil, fmt.Errorf("failed to store opcode: %w", err)
-		}
-	} else {
-		fmt.Printf("Warning: message opcode is 0, this might be a mistake\n")
-	}
-	err := message.StoreArgs(b)
+	body, err := tlb.ToCell(message)
 	if err != nil {
 		return nil, fmt.Errorf("failed to store message args: %w", err)
 	}
-	body := b.EndCell()
 	return c.SendMessageWait(body, amount)
 }
 

@@ -7,7 +7,6 @@ import (
 	test_utils "integration-tests/utils"
 
 	"github.com/xssnick/tonutils-go/tlb"
-	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
@@ -26,29 +25,20 @@ func NewMemoryProvider(apiClient tracetracking.SignedAPIClient) *MemoryProvider 
 }
 
 type MemoryInitData struct {
-	ID uint32
+	ID uint32    `tlb:"## 32"`
+	_  tlb.Magic `tlb:"#00000000"`
 }
 
 func (p *MemoryProvider) Deploy(initData MemoryInitData) (Memory, error) {
-	// Deploy the contract
-	b := cell.BeginCell()
-	err := b.StoreUInt(0, 1) // For some reason, if the contract is defined with an init function, you must write a 0 bit before the arguments
+	initDataCell, err := tlb.ToCell(wrappers.LazyLoadingTactContractInitData(initData))
 	if err != nil {
-		return Memory{}, fmt.Errorf("failed to store init bit: %w", err)
-	}
-	err = b.StoreUInt(uint64(initData.ID), 32)
-	if err != nil {
-		return Memory{}, fmt.Errorf("failed to store ID: %w", err)
-	}
-	err = b.StoreUInt(uint64(0), 32)
-	if err != nil {
-		return Memory{}, fmt.Errorf("failed to store initial value: %w", err)
+		return Memory{}, fmt.Errorf("failed to serialize init data: %w", err)
 	}
 	compiledContract, err := wrappers.ParseCompiledContract(MemoryContractPath)
 	if err != nil {
 		return Memory{}, fmt.Errorf("failed to compile contract: %w", err)
 	}
-	contract, err := wrappers.Deploy(&p.apiClient, compiledContract, b.EndCell(), tlb.MustFromTON("1"))
+	contract, err := wrappers.Deploy(&p.apiClient, compiledContract, initDataCell, tlb.MustFromTON("1"))
 	if err != nil {
 		return Memory{}, err
 	}
@@ -63,28 +53,21 @@ type Memory struct {
 }
 
 type setValueMessage struct {
-	queryID uint64
-	Value   uint32
+	_       tlb.Magic `tlb:"#00000001"`
+	queryID uint64    `tlb:"## 64"`
+	Value   uint32    `tlb:"## 32"`
 }
 
 func (m setValueMessage) OpCode() uint64 {
 	return 0x1
 }
-func (m setValueMessage) StoreArgs(b *cell.Builder) error {
-	err := b.StoreUInt(m.queryID, 64)
-	if err != nil {
-		return fmt.Errorf("failed to store queryID: %w", err)
-	}
-	err = b.StoreUInt(uint64(m.Value), 32)
-	if err != nil {
-		return fmt.Errorf("failed to store Value: %w", err)
-	}
-	return nil
-}
 
 func (m Memory) SendSetValue(i uint32) (msgReceived *tracetracking.ReceivedMessage, err error) {
 	queryID := rand.Uint64()
-	msgReceived, err = m.Contract.CallWaitRecursively(setValueMessage{queryID, i}, tlb.MustFromTON("0.5"))
+	msgReceived, err = m.Contract.CallWaitRecursively(setValueMessage{
+		queryID: queryID,
+		Value:   i,
+	}, tlb.MustFromTON("0.5"))
 	return msgReceived, err
 }
 

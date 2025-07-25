@@ -6,7 +6,6 @@ import (
 	test_utils "integration-tests/utils"
 
 	"github.com/xssnick/tonutils-go/tlb"
-	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
@@ -25,26 +24,20 @@ func NewItemCountProvider(apiClient tracetracking.SignedAPIClient) *ItemCountPro
 }
 
 type ItemCountInitData struct {
-	ID    uint32
-	Count uint64
+	ID    uint32 `tlb:"## 32"`
+	Count uint64 `tlb:"## 64"`
 }
 
 func (p *ItemCountProvider) Deploy(initData ItemCountInitData) (ItemCount, error) {
-	// Deploy the contract
-	b := cell.BeginCell()
-	err := b.StoreUInt(uint64(initData.ID), 32)
+	initDataCell, err := tlb.ToCell(initData)
 	if err != nil {
-		return ItemCount{}, fmt.Errorf("failed to store ID: %w", err)
-	}
-	err = b.StoreUInt(initData.Count, 64)
-	if err != nil {
-		return ItemCount{}, fmt.Errorf("failed to store Count: %w", err)
+		return ItemCount{}, fmt.Errorf("failed to serialize init data: %w", err)
 	}
 	compiledContract, err := wrappers.ParseCompiledContract(ItemCountContractPath)
 	if err != nil {
 		return ItemCount{}, fmt.Errorf("failed to compile contract: %w", err)
 	}
-	contract, err := wrappers.Deploy(&p.apiClient, compiledContract, b.EndCell(), tlb.MustFromTON("1"))
+	contract, err := wrappers.Deploy(&p.apiClient, compiledContract, initDataCell, tlb.MustFromTON("1"))
 	if err != nil {
 		return ItemCount{}, err
 	}

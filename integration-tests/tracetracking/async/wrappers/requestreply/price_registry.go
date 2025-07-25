@@ -8,7 +8,6 @@ import (
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
-	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
@@ -27,24 +26,19 @@ func NewPriceRegistryProvider(apiClient tracetracking.SignedAPIClient) *PriceReg
 }
 
 type PriceRegistryInitData struct {
-	ID uint32
+	ID uint32 `tlb:"## 32"`
 }
 
 func (p *PriceRegistryProvider) Deploy(initData PriceRegistryInitData) (PriceRegistry, error) {
-	b := cell.BeginCell()
-	err := b.StoreUInt(0, 1)
+	initDataCell, err := tlb.ToCell(wrappers.LazyLoadingTactContractInitData(initData))
 	if err != nil {
-		return PriceRegistry{}, fmt.Errorf("failed to store init bit: %w", err)
-	}
-	err = b.StoreUInt(uint64(initData.ID), 32)
-	if err != nil {
-		return PriceRegistry{}, fmt.Errorf("failed to store ID: %w", err)
+		return PriceRegistry{}, fmt.Errorf("failed to serialize init data: %w", err)
 	}
 	compiledContract, err := wrappers.ParseCompiledContract(PriceRegistryContractPath)
 	if err != nil {
 		return PriceRegistry{}, fmt.Errorf("failed to compile contract: %w", err)
 	}
-	contract, err := wrappers.Deploy(&p.apiClient, compiledContract, b.EndCell(), tlb.MustFromTON("1"))
+	contract, err := wrappers.Deploy(&p.apiClient, compiledContract, initDataCell, tlb.MustFromTON("1"))
 	if err != nil {
 		return PriceRegistry{}, err
 	}
@@ -59,32 +53,22 @@ type PriceRegistry struct {
 }
 
 type AddPriceItemMessage struct {
-	queryID uint64
-	Key     uint8
-	Addr    *address.Address
+	_       tlb.Magic        `tlb:"#00000003"`
+	queryID uint64           `tlb:"## 64"`
+	Key     uint8            `tlb:"## 8"`
+	Addr    *address.Address `tlb:"addr"`
 }
 
 func (m AddPriceItemMessage) OpCode() uint64 {
 	return 0x3
 }
-func (m AddPriceItemMessage) StoreArgs(b *cell.Builder) error {
-	err := b.StoreUInt(m.queryID, 64)
-	if err != nil {
-		return fmt.Errorf("failed to store queryID: %w", err)
-	}
-	err = b.StoreUInt(uint64(m.Key), 8)
-	if err != nil {
-		return fmt.Errorf("failed to store Key: %w", err)
-	}
-	err = b.StoreAddr(m.Addr)
-	if err != nil {
-		return fmt.Errorf("failed to store Addr: %w", err)
-	}
-	return nil
-}
 
 func (p PriceRegistry) SendAddPriceItem(key uint8, addr *address.Address) (msgReceived *tracetracking.ReceivedMessage, err error) {
 	queryID := rand.Uint64()
-	msgReceived, err = p.Contract.CallWaitRecursively(AddPriceItemMessage{queryID, key, addr}, tlb.MustFromTON("0.5"))
+	msgReceived, err = p.Contract.CallWaitRecursively(AddPriceItemMessage{
+		queryID: queryID,
+		Key:     key,
+		Addr:    addr,
+	}, tlb.MustFromTON("0.5"))
 	return msgReceived, err
 }
