@@ -6,12 +6,13 @@ import (
 	"fmt"
 	"math/big"
 
-	cciptypes "github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
+
+	cciptypes "github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
 )
 
 // CommitPluginCodecV1 is a codec for encoding and decoding commit plugin reports.
@@ -78,7 +79,7 @@ func (cr *CommitPluginCodecV1) Encode(ctx context.Context, report cciptypes.Comm
 		rmnSig64Array := make([]byte, 64)
 		copy(rmnSig64Array[:32], sig.R[:])
 		copy(rmnSig64Array[32:], sig.S[:])
-		sigSlice[i] = bytes.Clone(rmnSig64Array[:])
+		sigSlice[i] = rmnSig64Array
 	}
 
 	cellReport := ocr.CommitReport{

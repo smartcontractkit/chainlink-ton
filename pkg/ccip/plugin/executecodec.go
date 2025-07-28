@@ -8,14 +8,14 @@ import (
 	"math/big"
 	"strings"
 
-	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
-
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
+
+	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 )
 
 // ExecutePluginCodecV1 is a codec for encoding and decoding execute plugin reports.
@@ -54,7 +54,7 @@ func (e *ExecutePluginCodecV1) Encode(ctx context.Context, report ccipocr3.Execu
 					return nil, fmt.Errorf("empty amount for token: %s", tokenAmount.DestTokenAddress)
 				}
 
-				if tokenAmount.Amount.Int.Sign() < 0 {
+				if tokenAmount.Amount.Sign() < 0 {
 					return nil, fmt.Errorf("negative amount for token: %s", tokenAmount.DestTokenAddress)
 				}
 
@@ -121,8 +121,9 @@ func (e *ExecutePluginCodecV1) Encode(ctx context.Context, report ccipocr3.Execu
 			}
 
 			var gasLimitBigInt *big.Int
-			if msg.ExtraArgs != nil && len(msg.ExtraArgs) > 0 {
-				extraArgsDecodeMap, err := e.extraDataCodec.DecodeExtraArgs(msg.ExtraArgs, chainReport.SourceChainSelector)
+			var extraArgsDecodeMap map[string]any
+			if len(msg.ExtraArgs) > 0 {
+				extraArgsDecodeMap, err = e.extraDataCodec.DecodeExtraArgs(msg.ExtraArgs, chainReport.SourceChainSelector)
 				if err != nil {
 					return nil, fmt.Errorf("failed to decode extra args: %w", err)
 				}
@@ -210,6 +211,9 @@ func (e *ExecutePluginCodecV1) Decode(ctx context.Context, data []byte) (ccipocr
 			for _, tokenAmount := range msg.TokenAmounts {
 				var extraData common.SnakeBytes
 				err = tlb.LoadFromCell(&extraData, tokenAmount.ExtraData.BeginParse())
+				if err != nil {
+					return executeReport, fmt.Errorf("unpack extra data: %w", err)
+				}
 
 				destTokenAddr, err := e.addressCodec.AddressStringToBytes(tokenAmount.DestPoolAddress.String())
 				if err != nil {
@@ -261,7 +265,7 @@ func (e *ExecutePluginCodecV1) Decode(ctx context.Context, data []byte) (ccipocr
 		}
 
 		offchainTokenData := make([][][]byte, 0)
-		if tonReport.OffChainTokenData != nil && len(tonReport.OffChainTokenData) > 0 {
+		if len(tonReport.OffChainTokenData) > 0 {
 			tokenDataSlice := make([][]byte, len(tonReport.OffChainTokenData))
 			for i, snakeBytes := range tonReport.OffChainTokenData {
 				tokenDataSlice[i] = snakeBytes
@@ -291,9 +295,8 @@ func extractDestGasAmountFromMap(input map[string]any) (uint32, error) {
 			// Expect uint32
 			if val, ok := fieldValue.(uint32); ok {
 				return val, nil
-			} else {
-				return 0, errors.New("invalid type for destgasamount, expected uint32")
 			}
+			return 0, errors.New("invalid type for destgasamount, expected uint32")
 		default:
 		}
 	}
@@ -311,9 +314,8 @@ func parseExtraArgsMap(input map[string]any) (*big.Int, error) {
 			if val, ok := fieldValue.(*big.Int); ok {
 				outputGas = val
 				return outputGas, nil
-			} else {
-				return nil, fmt.Errorf("unexpected type for gas limit: %T", fieldValue)
 			}
+			return nil, fmt.Errorf("unexpected type for gas limit: %T", fieldValue)
 		default:
 			// no error here, as we only need the keys to gasLimit, other keys can be skipped without like AllowOutOfOrderExecution	etc.
 		}

@@ -2,6 +2,7 @@ package plugin
 
 import (
 	"context"
+	cryptorand "crypto/rand"
 	"math/big"
 	"math/rand"
 	"testing"
@@ -148,7 +149,7 @@ func TestCommitPluginCodecV1(t *testing.T) {
 
 func randomBytes32() (r [32]byte) {
 	b := make([]byte, 32)
-	_, _ = rand.Read(b) // Assignment for errcheck. Only used in tests so we can ignore.
+	_, _ = cryptorand.Read(b) // Assignment for errcheck. Only used in tests so we can ignore.
 	copy(r[:], b)
 	return
 }

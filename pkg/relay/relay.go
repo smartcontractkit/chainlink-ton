@@ -39,6 +39,20 @@ type Relayer struct {
 	stopCh services.StopChan
 }
 
+func (r *Relayer) GetChainInfo(ctx context.Context) (commontypes.ChainInfo, error) {
+	return r.chain.GetChainInfo(ctx)
+}
+
+func (r *Relayer) TON() (commontypes.TONService, error) {
+	// TODO(NONEVM-1460): implement
+	return nil, errors.New("unimplemented")
+}
+
+func (r *Relayer) NewCCIPProvider(ctx context.Context, rargs commontypes.RelayArgs) (commontypes.CCIPProvider, error) {
+	// TODO(NONEVM-1460): implement
+	return nil, errors.New("unimplemented")
+}
+
 func NewRelayer(lggr logger.Logger, chain Chain, _ core.CapabilitiesRegistry) *Relayer {
 	return &Relayer{
 		lggr:   logger.Named(lggr, "Relayer"),
