@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
 )
@@ -55,7 +56,12 @@ func (s *InMemoryStore) GetLogs(evtSrcAddress string) []types.Log {
 }
 
 // GetLogsByTopicWithFilter finds logs by address and topic, then applies cell-level filters.
-func (s *InMemoryStore) GetLogsByTopicWithFilter(evtSrcAddress string, topic uint32, filters []CellQuery) ([]types.Log, error) {
+func (s *InMemoryStore) GetLogsByTopicWithFilter(
+	evtSrcAddress string,
+	topic uint32,
+	filters []CellQuery,
+	options QueryOptions,
+) (QueryResult, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -66,10 +72,9 @@ func (s *InMemoryStore) GetLogsByTopicWithFilter(evtSrcAddress string, topic uin
 
 	for i, log := range s.logs {
 		// match by address and topic (would be indexed query in DB)
-		if log.EventTopic != topic || log.Address.String() != evtSrcAddress {
+		if log.Topic != topic || log.Address.String() != evtSrcAddress {
 			continue
 		}
-		s.lggr.Debugf("Log #%d matched address/topic. Applying %d filters", i, len(filters))
 
 		// extract cell payload for filtering
 		cellPayload, err := s.cellQueryEngine.ExtractCellPayload(log.Data, i)
@@ -79,11 +84,47 @@ func (s *InMemoryStore) GetLogsByTopicWithFilter(evtSrcAddress string, topic uin
 
 		// apply all cell filters
 		if s.cellQueryEngine.PassesAllQueries(cellPayload, filters, i) {
-			s.lggr.Debugf("Log #%d PASSED all filters", i)
 			matchingLogs = append(matchingLogs, log)
 		}
 	}
 
-	s.lggr.Debugf("Query finished. Found %d matching logs", len(matchingLogs))
-	return matchingLogs, nil
+	s.cellQueryEngine.ApplySorting(matchingLogs, options.SortBy)
+	return s.cellQueryEngine.ApplyPagination(matchingLogs, options.Limit, options.Offset), nil
+}
+
+func (s *InMemoryStore) FilteredParsedLogs(
+	evtSrcAddress string,
+	topic uint32,
+	parser func(cell *cell.Cell) (any, error),
+	filter func(parsedEvent any) bool,
+) ([]any, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	results := make([]any, 0, len(s.logs))
+	for i, log := range s.logs {
+		if log.Topic != topic || log.Address.String() != evtSrcAddress {
+			continue
+		}
+
+		c, err := cell.FromBOC(log.Data)
+		if err != nil {
+			s.lggr.Warnw("Failed to decode log data from BoC", "index", i, "err", err)
+			continue
+		}
+
+		parsedEvent, err := parser(c)
+		if err != nil {
+			s.lggr.Warnw("Parser failed to process log data", "index", i, "err", err)
+			continue
+		}
+
+		if filter != nil && !filter(parsedEvent) {
+			continue
+		}
+
+		results = append(results, parsedEvent)
+	}
+
+	return results, nil
 }

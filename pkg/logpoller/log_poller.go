@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/xssnick/tonutils-go/address"
-	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
@@ -44,14 +44,14 @@ type LogPoller interface {
 	Close() error
 	RegisterFilter(ctx context.Context, flt types.Filter) error
 	UnregisterFilter(ctx context.Context, name string) error
-	FilteredLogsByTopic(evtSrcAddress string, topic uint64, filters []CellQuery) ([]types.Log, error)
+	FilteredLogs(evtSrcAddress *address.Address, topic uint32, queries []CellQuery, options QueryOptions) (QueryResult, error)
 }
 
 type logCollector interface {
 	// BackfillForAddresses scans TON blocks between prevBlock and toBlock,
 	// extracting ExternalMessageOut entries from monitored addresses.
 	// TODO: solidify replay strategy for production use
-	BackfillForAddresses(ctx context.Context, addresses []*address.Address, prevBlock *ton.BlockIDExt, toBlock *ton.BlockIDExt) (msgs []*tlb.ExternalMessageOut, err error)
+	BackfillForAddresses(ctx context.Context, addresses []*address.Address, prevBlock *ton.BlockIDExt, toBlock *ton.BlockIDExt) (msgs []types.MsgWithCtx, err error)
 }
 
 // Service is the main TON log polling service implementation.
@@ -207,7 +207,7 @@ func (lp *Service) processBlocksRange(ctx context.Context, addresses []*address.
 }
 
 // processMessages iterates through external messages and processes each one
-func (lp *Service) processMessages(msgs []*tlb.ExternalMessageOut) error {
+func (lp *Service) processMessages(msgs []types.MsgWithCtx) error {
 	for _, msg := range msgs {
 		if err := lp.Process(msg); err != nil {
 			return err
@@ -220,7 +220,8 @@ func (lp *Service) processMessages(msgs []*tlb.ExternalMessageOut) error {
 // 1. Extracts event topic from destination address
 // 2. Finds matching filters for the source address and topic
 // 3. Saves logs for each matching filter
-func (lp *Service) Process(msg *tlb.ExternalMessageOut) error {
+func (lp *Service) Process(msgWithCtx types.MsgWithCtx) error {
+	msg := msgWithCtx.Msg
 	topic, err := event.ExtractEventTopicFromAddress(msg.DstAddr)
 	if err != nil {
 		return fmt.Errorf("ExtractEventTopicFromAddress: %w", err)
@@ -234,11 +235,13 @@ func (lp *Service) Process(msg *tlb.ExternalMessageOut) error {
 	for _, fid := range fIDs {
 		lp.store.SaveLog(types.Log{
 			FilterID: fid,
-			// TODO: we need custom type for to storing block metadata
+			// TODO: we need custom type for to storing block, tx metadata
 			// SeqNo:      master.SeqNo,
-			Address:    *msg.SrcAddr,
-			EventTopic: topic,
-			Data:       msg.Body.ToBOC(),
+			TxHash:  msgWithCtx.TxHash,
+			TxLT:    msgWithCtx.LT,
+			Address: *msg.SrcAddr,
+			Topic:   topic,
+			Data:    msg.Body.ToBOC(),
 		})
 	}
 	return nil
@@ -272,8 +275,32 @@ func (lp *Service) GetLogs(evtSrcAddress *address.Address) []types.Log {
 	return lp.store.GetLogs(evtSrcAddress.String())
 }
 
-// FilteredLogsByTopic retrieves logs filtered by address, topic, and additional cell-level queries.
+// FilteredLogs retrieves logs filtered by address, topic, and additional cell-level queries.
 // This allows for precise filtering based on the internal structure of TON cell data.
-func (lp *Service) FilteredLogsByTopic(evtSrcAddress *address.Address, topic uint32, queries []CellQuery) ([]types.Log, error) {
-	return lp.store.GetLogsByTopicWithFilter(evtSrcAddress.String(), topic, queries)
+func (lp *Service) FilteredLogs(
+	evtSrcAddress *address.Address,
+	topic uint32,
+	queries []CellQuery,
+	options QueryOptions,
+) (QueryResult, error) {
+	return lp.store.GetLogsByTopicWithFilter(
+		evtSrcAddress.String(),
+		topic,
+		queries,
+		options,
+	)
+}
+
+func (lp *Service) FilteredParsedLogs(
+	evtSrcAddress *address.Address,
+	topic uint32,
+	parser func(cell *cell.Cell) (any, error),
+	filter func(parsedEvent any) bool,
+) ([]any, error) {
+	return lp.store.FilteredParsedLogs(
+		evtSrcAddress.String(),
+		topic,
+		parser,
+		filter,
+	)
 }
