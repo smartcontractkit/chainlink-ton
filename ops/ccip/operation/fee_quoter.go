@@ -7,7 +7,7 @@ import (
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	test_utils "github.com/smartcontractkit/chainlink-ton/integration-tests/utils"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 	"github.com/xssnick/tonutils-go/address"
@@ -15,24 +15,24 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
-type DeployOnRampInput struct{}
+type DeployFeeQuoterInput struct{}
 
-type DeployOnRampOutput struct {
-	Address *address.Address
+type DeployFeeQuoterOutput struct {
+	CCIPAddress *address.Address
 }
 
-var DeployOnRampOp = operations.NewOperation(
-	"deploy-onramp-op",
+var DeployFeeQuoterOp = operations.NewOperation(
+	"deploy-fee-quoter-op",
 	semver.MustParse("0.1.0"),
-	"Generates MCMS proposals that deploys OnRamp module on CCIP package",
-	deployOnRamp,
+	"Generates MCMS proposals that deploys FeeQuoter module on CCIP package",
+	deployFeeQuoter,
 )
 
-func deployOnRamp(b operations.Bundle, deps TonDeps, in DeployOnRampInput) (DeployOnRampOutput, error) {
-	output := DeployOnRampOutput{}
+func deployFeeQuoter(b operations.Bundle, deps TonDeps, in DeployFeeQuoterInput) (DeployFeeQuoterOutput, error) {
+	output := DeployFeeQuoterOutput{}
 
 	// TODO wrap the code cell creation somewhere
-	CounterContractPath := test_utils.GetBuildDir("OnRamp.compiled.json")
+	CounterContractPath := test_utils.GetBuildDir("FeeQuoter.compiled.json")
 	codeCell, err := wrappers.ParseCompiledContract(CounterContractPath)
 	if err != nil {
 		return output, fmt.Errorf("failed to compile contract: %w", err)
@@ -40,33 +40,33 @@ func deployOnRamp(b operations.Bundle, deps TonDeps, in DeployOnRampInput) (Depl
 
 	conn := tracetracking.NewSignedAPIClient(deps.TonChain.Client, *deps.TonChain.Wallet)
 
-	// TODO replace with the actuall cell using onramp gobinding https://github.com/smartcontractkit/chainlink-ton/pull/68
+	// TODO replace with the actuall cell using fee quoter gobinding https://github.com/smartcontractkit/chainlink-ton/pull/68
 	contract, err := wrappers.Deploy(&conn, codeCell, cell.BeginCell().EndCell(), tlb.MustFromTON("1"))
 	if err != nil {
-		return output, fmt.Errorf("failed to deploy onramp contract: %w", err)
+		return output, fmt.Errorf("failed to deploy fee quoter contract: %w", err)
 	}
 
-	output.Address = contract.Address
+	output.CCIPAddress = contract.Address
 	return output, nil
 }
 
-type UpdateOnRampDestChainConfigsInput []onramp.UpdateDestChainConfig
+type UpdateFeeQuoterDestChainConfigsInput []feequoter.UpdateDestChainConfig
 
-type UpdateOnRampDestChainConfigsOutput struct {
+type UpdateFeeQuoterDestChainConfigsOutput struct {
 }
 
-var UpdateOnRampDestChainConfigsOp = operations.NewOperation(
+var UpdateFeeQuoterDestChainConfigsOp = operations.NewOperation(
 	"update-dest-chain-configs",
 	semver.MustParse("0.1.0"),
-	"Updates onramp's destination chain configs",
-	updateOnRampDestChainConfigs,
+	"Updates fee quoter's destination chain configs",
+	updateFeeQuoterDestChainConfigs,
 )
 
-func updateOnRampDestChainConfigs(b operations.Bundle, deps TonDeps, in UpdateOnRampDestChainConfigsInput) ([]*tlb.InternalMessage, error) {
+func updateFeeQuoterDestChainConfigs(b operations.Bundle, deps TonDeps, in UpdateFeeQuoterDestChainConfigsInput) ([]*tlb.InternalMessage, error) {
 	address := deps.CCIPOnChainState.TonChains[deps.TonChain.Selector].CCIPAddress
 
-	input := onramp.UpdateDestChainConfigs{
-		Updates: common.SnakeData[onramp.UpdateDestChainConfig](in),
+	input := feequoter.UpdateDestChainConfigs{
+		Updates: common.SnakeData[feequoter.UpdateDestChainConfig](in),
 	}
 
 	payload, err := tlb.ToCell(input)
@@ -78,7 +78,7 @@ func updateOnRampDestChainConfigs(b operations.Bundle, deps TonDeps, in UpdateOn
 		{
 			Bounce: true,
 			// Amount:      amount,
-			// TODO: need to add more addresses to deployments state, CCIPAddress should be OnRamp
+			// TODO: need to add more addresses to deployments state, CCIPAddress should be FeeQuoter
 			DstAddr: &address,
 			Body:    payload,
 		},
@@ -86,7 +86,7 @@ func updateOnRampDestChainConfigs(b operations.Bundle, deps TonDeps, in UpdateOn
 	return messages, nil
 }
 
-// result = await onRamp.sendUpdateDestChainConfigs(deployer.getSender(), {
+// result = await fee-quoter.sendUpdateDestChainConfigs(deployer.getSender(), {
 //   value: toNano('1'),
 //   destChainConfigs: [
 //     {

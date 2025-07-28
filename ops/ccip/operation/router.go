@@ -13,10 +13,10 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
-type DeployCCIPRouterInput struct{}
+type DeployRouterInput struct{}
 
-type DeployCCIPRouterOutput struct {
-	CCIPAddress *address.Address
+type DeployRouterOutput struct {
+	Address *address.Address
 }
 
 var DeployRouterOp = operations.NewOperation(
@@ -26,8 +26,8 @@ var DeployRouterOp = operations.NewOperation(
 	deployRouter,
 )
 
-func deployRouter(b operations.Bundle, deps TonDeps, in DeployCCIPRouterInput) (DeployCCIPRouterOutput, error) {
-	output := DeployCCIPRouterOutput{}
+func deployRouter(b operations.Bundle, deps TonDeps, in DeployRouterInput) (DeployRouterOutput, error) {
+	output := DeployRouterOutput{}
 
 	// TODO wrap the code cell creation somewhere
 	CounterContractPath := test_utils.GetBuildDir("Router.compiled.json")
@@ -44,6 +44,22 @@ func deployRouter(b operations.Bundle, deps TonDeps, in DeployCCIPRouterInput) (
 		return output, fmt.Errorf("failed to deploy router contract: %w", err)
 	}
 
-	output.CCIPAddress = contract.Address
+	output.Address = contract.Address
 	return output, nil
+}
+
+type UpdateRouterDestInput struct{}
+
+type UpdateRouterDestOutput struct {
+}
+
+var UpdateRouterDestOp = operations.NewOperation(
+	"update-router-dest-op",
+	semver.MustParse("0.1.0"),
+	"Generates MCMS proposals that deploys Router module on CCIP package",
+	updateRouterDest,
+)
+
+func updateRouterDest(b operations.Bundle, deps TonDeps, in UpdateRouterDestInput) ([]*tlb.InternalMessage, error) {
+	return nil, nil
 }
