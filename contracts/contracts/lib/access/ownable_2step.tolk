@@ -97,7 +97,6 @@ fun Ownable2Step.onInternalMessage(mutate self, sender: address, body: slice): b
 /// #### Exit codes
 /// * 132: ERROR_ONLY_CALLABLE_BY_OWNER
 fun Ownable2Step.requireOwner(self, sender: address) {
-    debug.print(6);
     assert(sender == self.owner, ERROR_ONLY_CALLABLE_BY_OWNER);
 }
 

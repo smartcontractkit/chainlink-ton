@@ -4,7 +4,7 @@ import { compile } from '@ton/blueprint'
 import { Router, RouterStorage } from '../../wrappers/ccip/Router'
 import { OnRamp, OnRampStorage } from '../../wrappers/ccip/OnRamp'
 import { OffRamp, OffRampStorage } from '../../wrappers/ccip/OffRamp'
-import { FeeQuoter, FeeQuoterStorage } from '../../wrappers/tests/mocks/FeeQuoter'
+import { createTimestampedPriceValue, FeeQuoter, FeeQuoterStorage, TimestampedPrice } from '../../wrappers/ccip/FeeQuoter'
 import { testLog, getExternals, expectSuccessfulTransaction } from '../Logs'
 import '@ton/test-utils'
 import { uint8ArrayToBigInt, ZERO_ADDRESS } from '../../utils/Utils'
@@ -13,6 +13,7 @@ import { expectEqualsConfig, generateEd25519KeyPair } from '../libraries/ocr/Hel
 import { OCR3_PLUGIN_TYPE_COMMIT } from '../../wrappers/libraries/ocr/MultiOCR3Base'
 import * as Logs from '../libraries/ocr/Logs'
 import { OCR3BaseLogTypes } from '../../wrappers/libraries/ocr/Logs'
+import { setupTestFeeQuoter } from './helpers/SetUp'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_TON = 13879075125137744094n
@@ -63,18 +64,9 @@ describe('OffRamp', () => {
     const libs = beginCell().storeDictDirect(_libs).endCell()
     blockchain.libs = libs
 
-    // setup mock fee quoter
-    {
-      let code = await compile('FeeQuoter')
-      feeQuoter = blockchain.openContract(FeeQuoter.create(code))
-      let result = await feeQuoter.sendDeploy(deployer.getSender(), toNano('1'))
-      expect(result.transactions).toHaveTransaction({
-        from: deployer.address,
-        to: feeQuoter.address,
-        deploy: true,
-        success: true,
-      })
-    }
+    // setup fee quoter
+    feeQuoter = await setupTestFeeQuoter(deployer, blockchain)
+
   })
 
   beforeEach(async () => {
