@@ -526,7 +526,7 @@ func Test_LogPoller(t *testing.T) {
 					if !ok {
 						return false
 					}
-					return evt.Counter >= uint64(from) && evt.Counter <= uint64(to)
+					return evt.Counter >= uint64(from) && evt.Counter <= uint64(to) //nolint:gosec // test code
 				}
 
 				res, err := lp.FilteredParsedLogs(emitterB.ContractAddress(), event_emitter.CounterIncreasedTopic, parser, filter)
@@ -538,8 +538,8 @@ func Test_LogPoller(t *testing.T) {
 					require.IsType(t, event_emitter.CounterIncreased{}, item, "item at index %d has wrong type", i)
 					ev := item.(event_emitter.CounterIncreased)
 
-					require.GreaterOrEqual(t, ev.Counter, uint64(from))
-					require.LessOrEqual(t, ev.Counter, uint64(to))
+					require.GreaterOrEqual(t, ev.Counter, uint64(from)) //nolint:gosec // test code
+					require.LessOrEqual(t, ev.Counter, uint64(to))      //nolint:gosec // test code
 
 					if seen[ev.Counter] {
 						t.Fatalf("duplicate counter %d found", ev.Counter)
@@ -547,7 +547,7 @@ func Test_LogPoller(t *testing.T) {
 					seen[ev.Counter] = true
 				}
 
-				for i := 1; i <= int(to); i++ {
+				for i := 1; i <= to; i++ {
 					if !seen[uint64(i)] { //nolint:gosec // test code
 						t.Fatalf("missing counter %d", i)
 					}
