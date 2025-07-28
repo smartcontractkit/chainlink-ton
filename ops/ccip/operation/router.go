@@ -6,6 +6,7 @@ import (
 	"github.com/Masterminds/semver/v3"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	test_utils "github.com/smartcontractkit/chainlink-ton/integration-tests/utils"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 	"github.com/xssnick/tonutils-go/address"
@@ -48,7 +49,10 @@ func deployRouter(b operations.Bundle, deps TonDeps, in DeployRouterInput) (Depl
 	return output, nil
 }
 
-type UpdateRouterDestInput struct{}
+type UpdateRouterDestInput struct {
+	DestChainSelector uint64
+	OnRamp            *address.Address
+}
 
 type UpdateRouterDestOutput struct {
 }
@@ -61,5 +65,24 @@ var UpdateRouterDestOp = operations.NewOperation(
 )
 
 func updateRouterDest(b operations.Bundle, deps TonDeps, in UpdateRouterDestInput) ([]*tlb.InternalMessage, error) {
-	return nil, nil
+	address := deps.CCIPOnChainState.TonChains[deps.TonChain.Selector].Router
+
+	input := router.SetRamp{
+		DestChainSelector: in.DestChainSelector,
+		OnRamp:            in.OnRamp,
+	}
+
+	payload, err := tlb.ToCell(input)
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize router input: %w", err)
+	}
+
+	msg := []*tlb.InternalMessage{
+		{
+			Bounce:  true,
+			DstAddr: &address,
+			Body:    payload,
+		},
+	}
+	return msg, nil
 }
