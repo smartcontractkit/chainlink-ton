@@ -10,7 +10,6 @@ import {
   TupleItem,
 } from '@ton/core'
 import {
-  newOCR3BaseCell,
   newOCR3BaseExampleContractCell,
   OCR3Base,
   OCR3Config,
