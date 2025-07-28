@@ -1,4 +1,4 @@
-package plugin
+package codec
 
 import (
 	"context"
@@ -28,7 +28,6 @@ func randomTONExecuteReport(t *testing.T, sourceChainSelector uint64) ccipocr3.E
 		reportMessages := make([]ccipocr3.Message, msgsPerReport)
 		for j := 0; j < msgsPerReport; j++ {
 			addr, err := address.ParseAddr("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")
-			require.NoError(t, err)
 			require.NoError(t, err)
 			extraData := []byte{0x12, 0x34}
 
