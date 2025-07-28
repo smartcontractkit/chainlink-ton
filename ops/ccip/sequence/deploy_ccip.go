@@ -28,13 +28,15 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 	// Initialize the output
 	output := DeployCCIPSeqOutput{}
 
-	deployRouterReport, err := operations.ExecuteOperation(b, operation.DeployRouterOp, deps, in)
+	routerInput := operation.DeployRouterInput{}
+	deployRouterReport, err := operations.ExecuteOperation(b, operation.DeployRouterOp, deps, routerInput)
 	if err != nil {
 		return output, err
 	}
 	output.RouterAddress = deployRouterReport.Output.Address
 
-	deployOnRampReport, err := operations.ExecuteOperation(b, operation.DeployOnRampOp, deps, in)
+	onrampInput := operation.DeployOnRampInput{}
+	deployOnRampReport, err := operations.ExecuteOperation(b, operation.DeployOnRampOp, deps, onrampInput)
 	if err != nil {
 		return output, err
 	}
