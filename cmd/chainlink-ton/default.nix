@@ -18,7 +18,7 @@ in
     ];
 
     # pin the vendor hash (update using 'pkgs.lib.fakeHash')
-    vendorHash = "sha256-qqZb7duCkioR482ugQO3mE2+TL4EhiTwZU9P4NFynhA=";
+    vendorHash = "sha256-W246kHAlD64KQwUzB31YKohHlkA4JnvBU2swXbpIwdY=";
 
     # postInstall script to write version and rev to share folder
     postInstall = ''
