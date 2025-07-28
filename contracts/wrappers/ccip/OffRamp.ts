@@ -25,25 +25,28 @@ export type OffRampStorage = {
 
 export const Builder = {
   asStorage: (config: OffRampStorage): Cell => {
-
-    return beginCell()
-      .storeAddress(config.ownable.owner)
-      .storeMaybeBuilder(
-        config.ownable.pendingOwner ? beginCell().storeAddress(config.ownable.pendingOwner) : null,
-      )
-      .storeRef(config.deployerCode)
-      .storeRef(config.merkleRootCode)
-      .storeAddress(config.feeQuoter)
-      // empty OCR3Base::
-      .storeUint(1, 8) //chainId
-      .storeBit(false)
-      .storeBit(false)
-      .storeUint(config.chainSelector, 64)
-      .storeUint(config.permissionlessExecutionThresholdSeconds, 32)
-      .storeDict(Dictionary.empty()) // sourceChainConfigs
-      .storeUint(64, 16) // keyLen
-      .storeUint(config.latestPriceSequenceNumber, 64)
-      .endCell()
+    return (
+      beginCell()
+        .storeAddress(config.ownable.owner)
+        .storeMaybeBuilder(
+          config.ownable.pendingOwner
+            ? beginCell().storeAddress(config.ownable.pendingOwner)
+            : null,
+        )
+        .storeRef(config.deployerCode)
+        .storeRef(config.merkleRootCode)
+        .storeAddress(config.feeQuoter)
+        // empty OCR3Base::
+        .storeUint(1, 8) //chainId
+        .storeBit(false)
+        .storeBit(false)
+        .storeUint(config.chainSelector, 64)
+        .storeUint(config.permissionlessExecutionThresholdSeconds, 32)
+        .storeDict(Dictionary.empty()) // sourceChainConfigs
+        .storeUint(64, 16) // keyLen
+        .storeUint(config.latestPriceSequenceNumber, 64)
+        .endCell()
+    )
   },
 }
 export abstract class Params {}

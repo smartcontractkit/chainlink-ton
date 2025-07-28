@@ -4,7 +4,12 @@ import { compile } from '@ton/blueprint'
 import { Router, RouterStorage } from '../../wrappers/ccip/Router'
 import { OnRamp, OnRampStorage } from '../../wrappers/ccip/OnRamp'
 import { OffRamp, OffRampStorage } from '../../wrappers/ccip/OffRamp'
-import { createTimestampedPriceValue, FeeQuoter, FeeQuoterStorage, TimestampedPrice } from '../../wrappers/ccip/FeeQuoter'
+import {
+  createTimestampedPriceValue,
+  FeeQuoter,
+  FeeQuoterStorage,
+  TimestampedPrice,
+} from '../../wrappers/ccip/FeeQuoter'
 import { testLog, getExternals, expectSuccessfulTransaction } from '../Logs'
 import '@ton/test-utils'
 import { uint8ArrayToBigInt, ZERO_ADDRESS } from '../../utils/Utils'
@@ -66,7 +71,6 @@ describe('OffRamp', () => {
 
     // setup fee quoter
     feeQuoter = await setupTestFeeQuoter(deployer, blockchain)
-
   })
 
   beforeEach(async () => {

@@ -1,12 +1,20 @@
-import { Blockchain, SandboxContract, TreasuryContract } from "@ton/sandbox"
-import { ZERO_ADDRESS } from "../../../utils/Utils"
-import { createTimestampedPriceValue, FeeQuoter, FeeQuoterStorage, TimestampedPrice } from "../../../wrappers/ccip/FeeQuoter"
-import { compile } from "@ton/blueprint"
-import { Dictionary, toNano } from "@ton/core"
+import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
+import { ZERO_ADDRESS } from '../../../utils/Utils'
+import {
+  createTimestampedPriceValue,
+  FeeQuoter,
+  FeeQuoterStorage,
+  TimestampedPrice,
+} from '../../../wrappers/ccip/FeeQuoter'
+import { compile } from '@ton/blueprint'
+import { Dictionary, toNano } from '@ton/core'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 
-export const setupTestFeeQuoter = async (deployer: SandboxContract<TreasuryContract> , blockchain: Blockchain ) => {
+export const setupTestFeeQuoter = async (
+  deployer: SandboxContract<TreasuryContract>,
+  blockchain: Blockchain,
+) => {
   let code = await compile('FeeQuoter')
 
   let data: FeeQuoterStorage = {
@@ -84,5 +92,3 @@ export const setupTestFeeQuoter = async (deployer: SandboxContract<TreasuryContr
   return feeQuoter
   // TODO: call UpdatePrices so there's a price available and the timestamp isn't zero
 }
-
-
