@@ -15,7 +15,10 @@ import '@ton/test-utils'
 import { uint8ArrayToBigInt, ZERO_ADDRESS } from '../../utils/Utils'
 import { KeyPair } from '@ton/crypto'
 import { expectEqualsConfig, generateEd25519KeyPair } from '../libraries/ocr/Helpers'
-import { OCR3_PLUGIN_TYPE_COMMIT } from '../../wrappers/libraries/ocr/MultiOCR3Base'
+import {
+  OCR3_PLUGIN_TYPE_COMMIT,
+  OCR3_PLUGIN_TYPE_EXECUTE,
+} from '../../wrappers/libraries/ocr/MultiOCR3Base'
 import * as Logs from '../libraries/ocr/Logs'
 import { OCR3BaseLogTypes } from '../../wrappers/libraries/ocr/Logs'
 import { setupTestFeeQuoter } from './helpers/SetUp'
@@ -119,7 +122,7 @@ describe('OffRamp', () => {
     // blockchain and counter are ready to use
   })
 
-  it('should handle SetOCR3Config', async () => {
+  it('should handle two OCR3 configs', async () => {
     // Helper functions
     const configDigest: bigint = 0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcden
     const createDefaultConfig = (overrides = {}) => ({
@@ -133,15 +136,41 @@ describe('OffRamp', () => {
       ...overrides,
     })
 
-    const result = await offRamp.sendSetOCR3Config(deployer.getSender(), createDefaultConfig())
-    expectSuccessfulTransaction(result, deployer.address, offRamp.address)
+    const resultSetCommit = await offRamp.sendSetOCR3Config(
+      deployer.getSender(),
+      createDefaultConfig(),
+    )
+    expectSuccessfulTransaction(resultSetCommit, deployer.address, offRamp.address)
 
-    Logs.assertLog(result.transactions, offRamp.address, OCR3BaseLogTypes.OCR3BaseConfigSet, {
-      ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
-      configDigest,
-      signers: signersPublicKeys,
-      transmitters: transmitters.map((t) => t.address),
-      bigF: 1,
-    })
+    Logs.assertLog(
+      resultSetCommit.transactions,
+      offRamp.address,
+      OCR3BaseLogTypes.OCR3BaseConfigSet,
+      {
+        ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
+        configDigest,
+        signers: signersPublicKeys,
+        transmitters: transmitters.map((t) => t.address),
+        bigF: 1,
+      },
+    )
+
+    const resultSetExecute = await offRamp.sendSetOCR3Config(
+      deployer.getSender(),
+      createDefaultConfig({ ocrPluginType: OCR3_PLUGIN_TYPE_EXECUTE }),
+    )
+    expectSuccessfulTransaction(resultSetExecute, deployer.address, offRamp.address)
+    Logs.assertLog(
+      resultSetCommit.transactions,
+      offRamp.address,
+      OCR3BaseLogTypes.OCR3BaseConfigSet,
+      {
+        ocrPluginType: OCR3_PLUGIN_TYPE_EXECUTE,
+        configDigest,
+        signers: signersPublicKeys,
+        transmitters: transmitters.map((t) => t.address),
+        bigF: 1,
+      },
+    )
   })
 })
