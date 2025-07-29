@@ -53,14 +53,10 @@ type Storage struct {
 }
 
 type getCapitalFromMessage struct {
-	_             tlb.Magic        `tlb:"#00000001"`
+	_             tlb.Magic        `tlb:"#00000001"` //nolint:revive // This field should stay uninitialized
 	QueryID       uint64           `tlb:"## 64"`
 	PriceRegistry *address.Address `tlb:"addr"`
 	Key           uint8            `tlb:"## 8"`
-}
-
-func (m getCapitalFromMessage) OpCode() uint64 {
-	return 0x1
 }
 
 func (s Storage) SendGetCapitalFrom(priceRegistry *address.Address, key uint8) (msgReceived *tracetracking.ReceivedMessage, err error) {

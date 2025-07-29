@@ -25,14 +25,10 @@ type Contract struct {
 	Client  *tracetracking.SignedAPIClient
 }
 
-// Message must also implement github.com/xssnick/tonutils-go/tlb.Marshaller or provide tlb tags
-type Message interface {
-	OpCode() uint64
-}
-
 // Calls a writer message on the contract and waits for it to be received.
 // It does not wait for all the trace to be received, only the first message.
 // Use CallWaitRecursively to wait for all the trace to be received.
+// Message must implement github.com/xssnick/tonutils-go/tlb.Marshaller or provide tlb tags
 func (c *Contract) CallWait(message any, amount tlb.Coins) (*tracetracking.ReceivedMessage, error) {
 	body, err := tlb.ToCell(message)
 	if err != nil {

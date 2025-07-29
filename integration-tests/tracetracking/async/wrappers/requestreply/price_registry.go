@@ -53,14 +53,10 @@ type PriceRegistry struct {
 }
 
 type AddPriceItemMessage struct {
-	_       tlb.Magic        `tlb:"#00000003"`
+	_       tlb.Magic        `tlb:"#00000003"` //nolint:revive // This field should stay uninitialized
 	QueryID uint64           `tlb:"## 64"`
 	Key     uint8            `tlb:"## 8"`
 	Addr    *address.Address `tlb:"addr"`
-}
-
-func (m AddPriceItemMessage) OpCode() uint64 {
-	return 0x3
 }
 
 func (p PriceRegistry) SendAddPriceItem(key uint8, addr *address.Address) (msgReceived *tracetracking.ReceivedMessage, err error) {

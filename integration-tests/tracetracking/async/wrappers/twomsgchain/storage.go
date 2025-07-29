@@ -54,13 +54,9 @@ type Storage struct {
 }
 
 type storeMessage struct {
-	_       tlb.Magic `tlb:"#00000001"`
+	_       tlb.Magic `tlb:"#00000001"` //nolint:revive // This field should stay uninitialized
 	QueryID uint64    `tlb:"## 64"`
 	Value   uint32    `tlb:"## 32"`
-}
-
-func (m storeMessage) OpCode() uint64 {
-	return 0x1
 }
 
 func (s Storage) SendStore(i uint32) (msgReceived *tracetracking.ReceivedMessage, err error) {

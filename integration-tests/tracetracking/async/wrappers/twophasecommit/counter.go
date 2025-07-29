@@ -54,12 +54,8 @@ type Counter struct {
 }
 
 type sendAckMessage struct {
-	_       tlb.Magic `tlb:"#00000003"`
+	_       tlb.Magic `tlb:"#00000003"` //nolint:revive // This field should stay uninitialized
 	QueryID uint64    `tlb:"## 64"`
-}
-
-func (m sendAckMessage) OpCode() uint64 {
-	return 0x3
 }
 
 func (c Counter) SendAck() (msgReceived *tracetracking.ReceivedMessage, err error) {
