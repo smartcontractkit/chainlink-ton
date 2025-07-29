@@ -1,9 +1,8 @@
 import { Blockchain, BlockchainTransaction, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { toNano, Address, Cell, Dictionary, Message, beginCell } from '@ton/core'
 import { compile } from '@ton/blueprint'
-import { Router, RouterStorage } from '../../wrappers/ccip/Router'
-import { OnRamp, OnRampStorage } from '../../wrappers/ccip/OnRamp'
-import { OffRamp, OffRampStorage } from '../../wrappers/ccip/OffRamp'
+import { CommitReport, OffRampStorage, PriceUpdates } from '../../wrappers/ccip/OffRamp'
+import { OffRamp } from '../../wrappers/ccip/OffRamp'
 import {
   createTimestampedPriceValue,
   FeeQuoter,
@@ -22,6 +21,8 @@ import {
 import * as Logs from '../libraries/ocr/Logs'
 import { OCR3BaseLogTypes } from '../../wrappers/libraries/ocr/Logs'
 import { setupTestFeeQuoter } from './helpers/SetUp'
+
+import { OCR3Base, ReportContext, SignatureEd25519 } from '../../wrappers/libraries/ocr/MultiOCR3Base'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_TON = 13879075125137744094n
@@ -42,6 +43,19 @@ describe('OffRamp', () => {
   let transmitters: SandboxContract<TreasuryContract>[]
   let signers: KeyPair[]
   let signersPublicKeys: bigint[]
+
+  // Helper functions
+  const configDigest: bigint = 0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcden
+  const createDefaultConfig = (overrides = {}) => ({
+    value: toNano('100'),
+    configDigest,
+    ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
+    bigF: 1,
+    isSignatureVerificationEnabled: true,
+    signers: signersPublicKeys,
+    transmitters: transmitters.map((t) => t.address),
+    ...overrides,
+  })
 
   beforeAll(async () => {
     blockchain = await Blockchain.create()
@@ -123,19 +137,6 @@ describe('OffRamp', () => {
   })
 
   it('should handle two OCR3 configs', async () => {
-    // Helper functions
-    const configDigest: bigint = 0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcden
-    const createDefaultConfig = (overrides = {}) => ({
-      value: toNano('100'),
-      configDigest,
-      ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
-      bigF: 1,
-      isSignatureVerificationEnabled: true,
-      signers: signersPublicKeys,
-      transmitters: transmitters.map((t) => t.address),
-      ...overrides,
-    })
-
     const resultSetCommit = await offRamp.sendSetOCR3Config(
       deployer.getSender(),
       createDefaultConfig(),
@@ -172,5 +173,52 @@ describe('OffRamp', () => {
         bigF: 1,
       },
     )
+  })
+
+  it('Test commit', async () => {
+    const resultSetCommit = await offRamp.sendSetOCR3Config(
+      deployer.getSender(),
+      createDefaultConfig(),
+    )
+    expectSuccessfulTransaction(resultSetCommit, deployer.address, offRamp.address)
+
+    Logs.assertLog(
+      resultSetCommit.transactions,
+      offRamp.address,
+      OCR3BaseLogTypes.OCR3BaseConfigSet,
+      {
+        ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
+        configDigest,
+        signers: signersPublicKeys,
+        transmitters: transmitters.map((t) => t.address),
+        bigF: 1,
+      },
+    )
+
+    const resultSetExecute = await offRamp.sendSetOCR3Config(
+      deployer.getSender(),
+      createDefaultConfig({ ocrPluginType: OCR3_PLUGIN_TYPE_EXECUTE }),
+    )
+    expectSuccessfulTransaction(resultSetExecute, deployer.address, offRamp.address)
+
+    let reportContest: ReportContext 
+    let priceUpdates: PriceUpdates[]
+    let blessedMerkleRoots: bigint[]
+    let unblessedMerkleRoots: bigint[]
+    let rmnSignatures: bigint[]
+    let report: CommitReport
+    const signatures = []
+
+    //TODO: build reportContext, report, signatures
+    const resultCommit = await offRamp.sendCommit(
+      deployer.getSender(),
+      {
+        value: toNano('100'),
+        reportContext: reportContext,
+        report: report,
+        signatures: signatures
+      }
+    )
+    expectSuccessfulTransaction(resultCommit, deployer.address, offRamp.address)
   })
 })

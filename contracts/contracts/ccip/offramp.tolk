@@ -94,7 +94,7 @@ struct (0x00000001) Commit {
     // TODO: could just store as one slice since context is fixed size
     reportContext: ReportContext;
     report: CommitReport;
-    signatures: cell;
+    signatures: cell; //vec<SignatureEd25519>
 }
 
 struct (0x00000002) Execute {

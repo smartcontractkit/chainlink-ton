@@ -8,10 +8,13 @@ import {
   Dictionary,
   Sender,
   SendMode,
+  Slice,
 } from '@ton/core'
 
 import { Ownable2StepConfig } from '../libraries/access/Ownable2Step'
-import { OCR3Base } from '../libraries/ocr/MultiOCR3Base'
+import { OCR3Base, ReportContext, SignatureEd25519 } from '../libraries/ocr/MultiOCR3Base'
+
+import { asSnakeData } from '../../utils/Utils'
 
 export type OffRampStorage = {
   ownable: Ownable2StepConfig
@@ -21,6 +24,47 @@ export type OffRampStorage = {
   chainSelector: bigint
   permissionlessExecutionThresholdSeconds: number
   latestPriceSequenceNumber: bigint
+}
+
+export type TokenPriceUpdate = {
+  sourceToken: Address
+  usdPerToken: bigint
+}
+
+export type GasPriceUpdate = {
+  destChainSelector: bigint
+  executionGasPrice: bigint
+  dataAvailabilityGasPrice: bigint
+}
+
+export type PriceUpdates = {
+  tokenPriceUpdates: TokenPriceUpdate[]
+  gasPriceUpdates: GasPriceUpdate[]
+}
+
+export type CommitReport = {
+  priceUpdates?: PriceUpdates 
+  blessedMerkleRoots: bigint[] 
+  unblessedMerkleRoots: bigint[]
+  rmnSignatures: bigint[]
+}
+
+export type ExecutionReport = {
+  sourceChainSelector: bigint
+  messages: Any2TVMRampMessage[]
+  offchainTokenData: number[][]
+  proofs: bigint[]
+  proofFlagBits: bigint
+}
+
+export type CrossChainAddress = Slice
+
+export type Any2TVMRampMessage = {
+  sourcePoolAddress: CrossChainAddress
+  destPoolAddress: Address
+  destGasAmount: number
+  extraData: Cell
+  amount: bigint
 }
 
 export const Builder = {
@@ -98,9 +142,9 @@ export class OffRamp extends OCR3Base {
     opts: {
       value: bigint
       queryID?: number
-      reportContext: Cell
-      report: Cell
-      signatures: Cell
+      reportContext: ReportContext
+      report: CommitReport
+      signatures: SignatureEd25519[]
     },
   ) {
     await provider.internal(via, {
@@ -109,9 +153,12 @@ export class OffRamp extends OCR3Base {
       body: beginCell()
         .storeUint(Opcodes.commit, 32)
         .storeUint(opts.queryID ?? 0, 64)
-        .storeRef(opts.reportContext)
-        .storeRef(opts.report)
-        .storeRef(opts.signatures)
+        .storeUint(opts.reportContext.configDigest, 256)
+        .storeUint(opts.reportContext.padding, 192) //should be zero
+        .storeUint(opts.reportContext.sequenceBytes, 64)
+        .storeRef(commitReportToCell(opts.report))
+        .storeRef(asSnakeData(opts.signatures, (item) =>
+            beginCell().storeUint(item.r, 256).storeUint(item.s, 256).storeUint(item.signer, 256)))
         .endCell(),
     })
   }
@@ -122,9 +169,9 @@ export class OffRamp extends OCR3Base {
     opts: {
       value: bigint
       queryID?: number
-      reportContext: Cell
-      report: Cell
-      signatures: Cell
+      reportContext: ReportContext
+      report: ExecutionReport
+      signatures: SignatureEd25519[]
     },
   ) {
     await provider.internal(via, {
@@ -133,10 +180,20 @@ export class OffRamp extends OCR3Base {
       body: beginCell()
         .storeUint(Opcodes.execute, 32)
         .storeUint(opts.queryID ?? 0, 64)
-        .storeRef(opts.reportContext)
-        .storeRef(opts.report)
-        .storeRef(opts.signatures)
+        .storeUint(opts.reportContext.configDigest, 256)
+        .storeUint(opts.reportContext.padding, 192) //should be zero
+        .storeUint(opts.reportContext.sequenceBytes, 64)
+        .storeRef(ExecutionReportToCell(opts.report))
+        .storeRef(asSnakeData(opts.signatures, (item) =>
+            beginCell().storeUint(item.r, 256).storeUint(item.s, 256).storeUint(item.signer, 256)))
         .endCell(),
     })
   }
+}
+
+function commitReportToCell(report: CommitReport): Cell {
+    throw new Error('Function not implemented.')
+}
+function ExecutionReportToCell(report: ExecutionReport): Cell | import("@ton/core").Builder {
+    throw new Error('Function not implemented.')
 }
