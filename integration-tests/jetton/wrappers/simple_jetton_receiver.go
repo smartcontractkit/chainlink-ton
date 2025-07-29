@@ -5,7 +5,6 @@ import (
 
 	test_utils "integration-tests/utils"
 
-	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
@@ -26,41 +25,22 @@ func NewSimpleJettonReceiverProvider(apiClient tracetracking.SignedAPIClient) *S
 }
 
 type SimpleJettonReceiverInitData struct {
-	MasterAddress    *address.Address
-	JettonWalletCode *cell.Cell
-	AmountChecker    uint64
-	PayloadChecker   *cell.Cell // can be nil
+	JettonClient   JettonClient `tlb:"."`
+	AmountChecker  tlb.Coins    `tlb:"."`
+	PayloadChecker *cell.Cell   `tlb:"^"`
 }
 
 func (p *SimpleJettonReceiverProvider) Deploy(initData SimpleJettonReceiverInitData) (SimpleJettonReceiver, error) {
-	// Deploy the contract
-	b := cell.BeginCell()
-
-	// Store JettonClient config
-	err := b.StoreAddr(initData.MasterAddress)
+	initCell, err := tlb.ToCell(initData)
 	if err != nil {
-		return SimpleJettonReceiver{}, fmt.Errorf("failed to store MasterAddress: %w", err)
-	}
-	err = b.StoreRef(initData.JettonWalletCode)
-	if err != nil {
-		return SimpleJettonReceiver{}, fmt.Errorf("failed to store JettonWalletCode: %w", err)
-	}
-
-	err = b.StoreCoins(initData.AmountChecker)
-	if err != nil {
-		return SimpleJettonReceiver{}, fmt.Errorf("failed to store AmountChecker: %w", err)
-	}
-
-	err = b.StoreMaybeRef(initData.PayloadChecker)
-	if err != nil {
-		return SimpleJettonReceiver{}, fmt.Errorf("failed to store PayloadChecker: %w", err)
+		return SimpleJettonReceiver{}, fmt.Errorf("failed to convert init data to cell: %w", err)
 	}
 
 	compiledContract, err := wrappers.ParseCompiledContract(SimpleJettonReceiverContractPath)
 	if err != nil {
 		return SimpleJettonReceiver{}, fmt.Errorf("failed to compile contract: %w", err)
 	}
-	contract, err := wrappers.Deploy(&p.apiClient, compiledContract, b.EndCell(), tlb.MustFromTON("1"))
+	contract, err := wrappers.Deploy(&p.apiClient, compiledContract, initCell, tlb.MustFromTON("1"))
 	if err != nil {
 		return SimpleJettonReceiver{}, err
 	}

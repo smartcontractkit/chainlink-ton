@@ -25,50 +25,28 @@ func NewJettonReceiverProvider(apiClient tracetracking.SignedAPIClient) *JettonR
 	}
 }
 
+type JettonClient struct {
+	MasterAddress    *address.Address `tlb:"addr"`
+	JettonWalletCode *cell.Cell       `tlb:"^"`
+}
+
 type JettonReceiverInitData struct {
-	MasterAddress    *address.Address
-	JettonWalletCode *cell.Cell
-	AmountChecker    uint64
-	PayloadChecker   *cell.Cell
+	JettonClient   JettonClient `tlb:"^"`
+	AmountChecker  tlb.Coins    `tlb:"."`
+	PayloadChecker *cell.Cell   `tlb:"^"`
 }
 
 func (p *JettonReceiverProvider) Deploy(initData JettonReceiverInitData) (JettonReceiver, error) {
-	// Deploy the contract
-	b := cell.BeginCell()
-
-	// Store JettonClient config
-	jettonClientBuilder := cell.BeginCell()
-	err := jettonClientBuilder.StoreAddr(initData.MasterAddress)
+	initCell, err := tlb.ToCell(initData)
 	if err != nil {
-		return JettonReceiver{}, fmt.Errorf("failed to store MasterAddress: %w", err)
-	}
-	err = jettonClientBuilder.StoreRef(initData.JettonWalletCode)
-	if err != nil {
-		return JettonReceiver{}, fmt.Errorf("failed to store JettonWalletCode: %w", err)
-	}
-	jettonClientCell := jettonClientBuilder.EndCell()
-
-	err = b.StoreRef(jettonClientCell)
-	if err != nil {
-		return JettonReceiver{}, fmt.Errorf("failed to store JettonClient: %w", err)
-	}
-
-	err = b.StoreCoins(initData.AmountChecker)
-	if err != nil {
-		return JettonReceiver{}, fmt.Errorf("failed to store AmountChecker: %w", err)
-	}
-
-	// Store payload checker as a reference cell
-	err = b.StoreRef(initData.PayloadChecker)
-	if err != nil {
-		return JettonReceiver{}, fmt.Errorf("failed to store PayloadChecker: %w", err)
+		return JettonReceiver{}, fmt.Errorf("failed to convert init data to cell: %w", err)
 	}
 
 	compiledContract, err := wrappers.ParseCompiledContract(JettonReceiverContractPath)
 	if err != nil {
 		return JettonReceiver{}, fmt.Errorf("failed to compile contract: %w", err)
 	}
-	contract, err := wrappers.Deploy(&p.apiClient, compiledContract, b.EndCell(), tlb.MustFromTON("1"))
+	contract, err := wrappers.Deploy(&p.apiClient, compiledContract, initCell, tlb.MustFromTON("1"))
 	if err != nil {
 		return JettonReceiver{}, err
 	}

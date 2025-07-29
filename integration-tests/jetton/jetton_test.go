@@ -206,10 +206,12 @@ func TestJettonAll(t *testing.T) {
 		// Deploy simple jetton receiver contract
 		t.Logf("Deploying SimpleJettonReceiver contract\n")
 		simpleJettonReceiver, err := jetton_wrappers.NewSimpleJettonReceiverProvider(setup.common.deployer).Deploy(jetton_wrappers.SimpleJettonReceiverInitData{
-			MasterAddress:    setup.common.jettonMinter.Contract.Address,
-			JettonWalletCode: setup.common.jettonWalletCode,
-			AmountChecker:    tlb.MustFromTON("0").Nano().Uint64(),
-			PayloadChecker:   nil,
+			JettonClient: jetton_wrappers.JettonClient{
+				MasterAddress:    setup.common.jettonMinter.Contract.Address,
+				JettonWalletCode: setup.common.jettonWalletCode,
+			},
+			AmountChecker:  tlb.MustFromTON("0"),
+			PayloadChecker: nil,
 		})
 		require.NoError(t, err, "failed to deploy SimpleJettonReceiver contract")
 		t.Logf("SimpleJettonReceiver contract deployed at %s\n", simpleJettonReceiver.Contract.Address.String())

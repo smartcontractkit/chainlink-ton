@@ -94,6 +94,16 @@ const (
 	JettonMinterExcesses          = 0xd53276db
 )
 
+type jettonInternalTransfer struct {
+	_                tlb.Magic        `tlb:"#178d4519"`
+	QueryID          uint64           `tlb:"## 64"`
+	Amount           tlb.Coins        `tlb:"."`
+	From             *address.Address `tlb:"addr"`
+	ResponseAddress  *address.Address `tlb:"addr"`
+	ForwardTonAmount tlb.Coins        `tlb:"."`
+	ForwardPayload   *cell.Cell       `tlb:"."`
+}
+
 type mintMessage struct {
 	_           tlb.Magic              `tlb:"#642b7d07"`
 	QueryID     uint64                 `tlb:"## 64"`

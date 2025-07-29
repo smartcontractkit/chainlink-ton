@@ -27,27 +27,21 @@ func NewJettonSenderProvider(apiClient tracetracking.SignedAPIClient) *JettonSen
 }
 
 type JettonSenderInitData struct {
-	MasterAddress    *address.Address
-	JettonWalletCode *cell.Cell
+	MasterAddress    *address.Address `tlb:"addr"`
+	JettonWalletCode *cell.Cell       `tlb:"^"`
 }
 
 func (p *JettonSenderProvider) Deploy(initData JettonSenderInitData) (*JettonSender, error) {
-	// Deploy the contract
-	b := cell.BeginCell()
-	err := b.StoreAddr(initData.MasterAddress)
+	initCell, err := tlb.ToCell(initData)
 	if err != nil {
-		return nil, fmt.Errorf("failed to store MasterAddress: %w", err)
-	}
-	err = b.StoreRef(initData.JettonWalletCode)
-	if err != nil {
-		return nil, fmt.Errorf("failed to store JettonWalletCode: %w", err)
+		return nil, fmt.Errorf("failed to convert init data to cell: %w", err)
 	}
 
 	compiledContract, err := wrappers.ParseCompiledContract(JettonSenderContractPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to compile contract: %w", err)
 	}
-	contract, err := wrappers.Deploy(&p.apiClient, compiledContract, b.EndCell(), tlb.MustFromTON("1"))
+	contract, err := wrappers.Deploy(&p.apiClient, compiledContract, initCell, tlb.MustFromTON("1"))
 	if err != nil {
 		return nil, err
 	}

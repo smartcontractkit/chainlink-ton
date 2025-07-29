@@ -26,27 +26,21 @@ func NewOnrampMockProvider(apiClient tracetracking.SignedAPIClient) *OnrampMockP
 }
 
 type OnrampMockInitData struct {
-	MasterAddress    *address.Address
-	JettonWalletCode *cell.Cell
+	MasterAddress    *address.Address `tlb:"addr"`
+	JettonWalletCode *cell.Cell       `tlb:"^"`
 }
 
 func (p *OnrampMockProvider) Deploy(initData OnrampMockInitData) (OnrampMock, error) {
-	// Deploy the contract
-	b := cell.BeginCell()
-	err := b.StoreAddr(initData.MasterAddress)
+	initCell, err := tlb.ToCell(initData)
 	if err != nil {
-		return OnrampMock{}, fmt.Errorf("failed to store MasterAddress: %w", err)
-	}
-	err = b.StoreRef(initData.JettonWalletCode)
-	if err != nil {
-		return OnrampMock{}, fmt.Errorf("failed to store JettonWalletCode: %w", err)
+		return OnrampMock{}, fmt.Errorf("failed to convert init data to cell: %w", err)
 	}
 
 	compiledContract, err := wrappers.ParseCompiledContract(OnrampMockContractPath)
 	if err != nil {
 		return OnrampMock{}, fmt.Errorf("failed to compile contract: %w", err)
 	}
-	contract, err := wrappers.Deploy(&p.apiClient, compiledContract, b.EndCell(), tlb.MustFromTON("1"))
+	contract, err := wrappers.Deploy(&p.apiClient, compiledContract, initCell, tlb.MustFromTON("1"))
 	if err != nil {
 		return OnrampMock{}, err
 	}
