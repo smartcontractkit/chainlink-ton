@@ -60,10 +60,6 @@ type setCountMessage struct {
 	Value   uint32    `tlb:"## 32"`
 }
 
-func (m setCountMessage) OpCode() uint64 {
-	return 0x4
-}
-
 func (c Counter) SendSetCount(value uint32) (msgReceived *tracetracking.ReceivedMessage, err error) {
 	queryID := rand.Uint64()
 	msgReceived, err = c.Contract.CallWaitRecursively(setCountMessage{

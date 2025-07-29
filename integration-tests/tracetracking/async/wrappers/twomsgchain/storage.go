@@ -59,10 +59,6 @@ type storeMessage struct {
 	Value   uint32    `tlb:"## 32"`
 }
 
-func (m storeMessage) OpCode() uint64 {
-	return 0x1
-}
-
 func (s Storage) SendStore(i uint32) (msgReceived *tracetracking.ReceivedMessage, err error) {
 	queryID := rand.Uint64()
 	msgReceived, err = s.Contract.CallWaitRecursively(storeMessage{

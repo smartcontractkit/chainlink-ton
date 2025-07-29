@@ -59,10 +59,6 @@ type AddPriceItemMessage struct {
 	Addr    *address.Address `tlb:"addr"`
 }
 
-func (m AddPriceItemMessage) OpCode() uint64 {
-	return 0x3
-}
-
 func (p PriceRegistry) SendAddPriceItem(key uint8, addr *address.Address) (msgReceived *tracetracking.ReceivedMessage, err error) {
 	queryID := rand.Uint64()
 	msgReceived, err = p.Contract.CallWaitRecursively(AddPriceItemMessage{

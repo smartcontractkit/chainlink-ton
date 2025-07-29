@@ -25,15 +25,11 @@ type Contract struct {
 	Client  *tracetracking.SignedAPIClient
 }
 
-// Message must also implement github.com/xssnick/tonutils-go/tlb.Marshaller or provide tlb tags
-type Message interface {
-	OpCode() uint64
-}
-
 // Calls a writer message on the contract and waits for it to be received.
 // It does not wait for all the trace to be received, only the first message.
 // Use CallWaitRecursively to wait for all the trace to be received.
-func (c *Contract) CallWait(message Message, amount tlb.Coins) (*tracetracking.ReceivedMessage, error) {
+// Message must implement github.com/xssnick/tonutils-go/tlb.Marshaller or provide tlb tags
+func (c *Contract) CallWait(message any, amount tlb.Coins) (*tracetracking.ReceivedMessage, error) {
 	body, err := tlb.ToCell(message)
 	if err != nil {
 		return nil, fmt.Errorf("failed to store message args: %w", err)
@@ -44,7 +40,7 @@ func (c *Contract) CallWait(message Message, amount tlb.Coins) (*tracetracking.R
 // Calls a writer message on the contract and waits for it to be received.
 // It waits for all the trace (outgoing messages) to be received.
 // Use CallWait to wait onlyfor this first message.
-func (c *Contract) CallWaitRecursively(message Message, amount tlb.Coins) (*tracetracking.ReceivedMessage, error) {
+func (c *Contract) CallWaitRecursively(message any, amount tlb.Coins) (*tracetracking.ReceivedMessage, error) {
 	sentMessage, err := c.CallWait(message, amount)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send message: %w", err)

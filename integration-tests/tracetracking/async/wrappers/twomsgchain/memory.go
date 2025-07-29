@@ -58,10 +58,6 @@ type setValueMessage struct {
 	Value   uint32    `tlb:"## 32"`
 }
 
-func (m setValueMessage) OpCode() uint64 {
-	return 0x1
-}
-
 func (m Memory) SendSetValue(i uint32) (msgReceived *tracetracking.ReceivedMessage, err error) {
 	queryID := rand.Uint64()
 	msgReceived, err = m.Contract.CallWaitRecursively(setValueMessage{

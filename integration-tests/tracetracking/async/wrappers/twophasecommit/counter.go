@@ -58,10 +58,6 @@ type sendAckMessage struct {
 	QueryID uint64    `tlb:"## 64"`
 }
 
-func (m sendAckMessage) OpCode() uint64 {
-	return 0x3
-}
-
 func (c Counter) SendAck() (msgReceived *tracetracking.ReceivedMessage, err error) {
 	queryID := rand.Uint64()
 	msgReceived, err = c.Contract.CallWaitRecursively(sendAckMessage{

@@ -60,10 +60,6 @@ type AddItemMessage struct {
 	CountAddr *address.Address `tlb:"addr"`
 }
 
-func (m AddItemMessage) OpCode() uint64 {
-	return 0x2
-}
-
 func (p Inventory) SendAddItem(key uint8, priceAddr *address.Address, countAddr *address.Address) (msgReceived *tracetracking.ReceivedMessage, err error) {
 	queryID := rand.Uint64()
 	msgReceived, err = p.Contract.CallWaitRecursively(AddItemMessage{

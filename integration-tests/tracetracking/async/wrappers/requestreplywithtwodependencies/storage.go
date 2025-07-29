@@ -59,10 +59,6 @@ type getCapitalFromMessage struct {
 	Key           uint8            `tlb:"## 8"`
 }
 
-func (m getCapitalFromMessage) OpCode() uint64 {
-	return 0x1
-}
-
 func (s Storage) SendGetCapitalFrom(priceRegistry *address.Address, key uint8) (msgReceived *tracetracking.ReceivedMessage, err error) {
 	queryID := rand.Uint64()
 	msgReceived, err = s.Contract.CallWaitRecursively(getCapitalFromMessage{
