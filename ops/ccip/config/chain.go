@@ -20,6 +20,8 @@ type ChainDefinition interface {
 	GetSelector() uint64
 }
 
+// EVMChainDefinition is used as the intermediary format: as long as chains can convert
+// to it, we can convert to TON specific format
 type EVMChainDefinition struct {
 	v1_6.ChainDefinition
 	OnRampVersion []byte
@@ -70,10 +72,8 @@ type TonChainDefinition struct {
 	TokenPrices map[*address.Address]*big.Int
 	// FeeQuoterDestChainConfig is the configuration on a fee quoter for this chain as a destination.
 	FeeQuoterDestChainConfig ton_fee_quoter.DestChainConfig `json:"feeQuoterDestChainConfig"`
-	// AddTokenTransferFeeConfigs is the configuration for token transfer fees to be added to fee quoter
-	AddTokenTransferFeeConfigs []ton_fee_quoter.TokenTransferFeeConfigAdded
-	// RemoveTokenTransferFeeConfigs holds token transfer fees to be removed from fee quoter
-	RemoveTokenTransferFeeConfigs []ton_fee_quoter.TokenTransferFeeConfigRemoved
+	// RemoveTokenTransferFeeConfigs holds token transfer fees to added or removed from fee quoter
+	TokenTransferFeeConfigs map[uint64]ton_fee_quoter.UpdateTokenTransferFeeConfig
 }
 
 func (c TonChainDefinition) GetChainFamily() string {

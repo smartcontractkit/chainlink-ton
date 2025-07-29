@@ -21,8 +21,19 @@ func Serialize(msgs []*tlb.InternalMessage) ([][]byte, error) {
 	}
 	return raw, nil
 }
+func Deserialize(raw [][]byte) ([]*tlb.InternalMessage, error) {
+	msgs := make([]*tlb.InternalMessage, len(raw))
+	for i, bytes := range raw {
+		msg, err := unpack[*tlb.InternalMessage](bytes)
+		if err != nil {
+			return nil, err
+		}
+		msgs[i] = msg
+	}
+	return msgs, nil
+}
 
-func unpack[T tlb.Unmarshaler](data []byte) (T, error) {
+func unpack[T any](data []byte) (T, error) {
 	var decoded T
 	cell, err := cell.FromBOC(data)
 	if err != nil {

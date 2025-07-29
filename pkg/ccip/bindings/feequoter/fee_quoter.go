@@ -42,10 +42,24 @@ type DestChainConfig struct {
 	NetworkFeeUsdCents                uint32 `tlb:"## 32"`
 }
 
+type TokenTransferFeeConfig struct {
+	IsEnabled         bool   `tlb:"bool"`
+	MinFeeUsdCents    uint32 `tlb:"## 32"`
+	MaxFeeUsdCents    uint32 `tlb:"## 32"`
+	DeciBps           uint16 `tlb:"## 16"`
+	DestGasOverhead   uint32 `tlb:"## 32"`
+	DestBytesOverhead uint32 `tlb:"## 32"`
+}
+
 // Methods
 
 type UpdatePrices struct{}
 type UpdateFeeTokens struct{}
+
+type UpdateTokenTransferFeeConfig struct {
+	Add    map[*address.Address]TokenTransferFeeConfig
+	Remove []*address.Address `tlb:"addr"`
+}
 type UpdateTokenTransferFeeConfigs struct{}
 
 type UpdateDestChainConfig struct {
