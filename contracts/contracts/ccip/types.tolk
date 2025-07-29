@@ -218,7 +218,7 @@ struct FeeQuoterDestChainConfig {
     destGasPerPayloadByteThreshold: uint16;
     destDataAvailabilityOverheadGas: uint32;
     destGasPerDataAvailabilityByte: uint16;
-    destDataAvailabilityMultiplierBps: uint32;
+    destDataAvailabilityMultiplierBps: uint16;
 
     chainFamilySelector: uint32; // 4 bytes
     enforceOutOfOrder: bool;
