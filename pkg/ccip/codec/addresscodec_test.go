@@ -60,7 +60,6 @@ func TestTONAddress(t *testing.T) {
 	}
 }
 
-// TODO re-enable this test once the OracleIDAsAddressBytes function is checked and used properly
 func TestAddressCodec_OracleIDAsAddressBytes(t *testing.T) {
 	codec := AddressCodec{}
 
