@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/smartcontractkit/chainlink-ton/ops"
+	"github.com/smartcontractkit/chainlink-ton/ops/ccip/operation"
 	"github.com/stretchr/testify/require"
 
 	chainsel "github.com/smartcontractkit/chain-selectors"
@@ -18,7 +18,7 @@ import (
 
 type opsEnv struct {
 	bundle cld_ops.Bundle
-	deps   ops.TonDeps
+	deps   operation.TonDeps
 }
 
 func setupEnv(t *testing.T) opsEnv {
@@ -43,7 +43,7 @@ func setupEnv(t *testing.T) opsEnv {
 	gotChain, ok := b.(ton.Chain)
 	require.True(t, ok, "expected provider to be of type ton.Chain")
 
-	deps := ops.TonDeps{
+	deps := operation.TonDeps{
 		TonChain: gotChain,
 	}
 

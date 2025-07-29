@@ -42,7 +42,7 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 
 	feeQuoterInput := operation.DeployFeeQuoterInput{
 		Params:   in.CCIPConfig.FeeQuoterParams,
-		LinkAddr: &address.Address{},
+		LinkAddr: address.NewAddressNone(),
 	}
 	deployFeeQuoterReport, err := operations.ExecuteOperation(b, operation.DeployFeeQuoterOp, deps, feeQuoterInput)
 	if err != nil {

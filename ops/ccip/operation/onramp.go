@@ -5,7 +5,7 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
-	test_utils "github.com/smartcontractkit/chainlink-ton/integration-tests/utils"
+	"github.com/smartcontractkit/chainlink-ton/ops/ccip/utils"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
@@ -27,7 +27,7 @@ type DeployOnRampOutput struct {
 var DeployOnRampOp = operations.NewOperation(
 	"deploy-onramp-op",
 	semver.MustParse("0.1.0"),
-	"Generates MCMS proposals that deploys OnRamp module on CCIP package",
+	"Deploys the OnRamp contract",
 	deployOnRamp,
 )
 
@@ -35,7 +35,7 @@ func deployOnRamp(b operations.Bundle, deps TonDeps, in DeployOnRampInput) (Depl
 	output := DeployOnRampOutput{}
 
 	// TODO wrap the code cell creation somewhere
-	CounterContractPath := test_utils.GetBuildDir("OnRamp.compiled.json")
+	CounterContractPath := utils.GetBuildDir("OnRamp.compiled.json")
 	codeCell, err := wrappers.ParseCompiledContract(CounterContractPath)
 	if err != nil {
 		return output, fmt.Errorf("failed to compile contract: %w", err)

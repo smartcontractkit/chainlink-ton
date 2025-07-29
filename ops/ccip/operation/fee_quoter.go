@@ -5,8 +5,8 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
-	test_utils "github.com/smartcontractkit/chainlink-ton/integration-tests/utils"
 	"github.com/smartcontractkit/chainlink-ton/ops/ccip/config"
+	"github.com/smartcontractkit/chainlink-ton/ops/ccip/utils"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
@@ -27,7 +27,7 @@ type DeployFeeQuoterOutput struct {
 var DeployFeeQuoterOp = operations.NewOperation(
 	"deploy-fee-quoter-op",
 	semver.MustParse("0.1.0"),
-	"Generates MCMS proposals that deploys FeeQuoter module on CCIP package",
+	"Deploys the FeeQuoter contract",
 	deployFeeQuoter,
 )
 
@@ -35,7 +35,7 @@ func deployFeeQuoter(b operations.Bundle, deps TonDeps, in DeployFeeQuoterInput)
 	output := DeployFeeQuoterOutput{}
 
 	// TODO wrap the code cell creation somewhere
-	CounterContractPath := test_utils.GetBuildDir("FeeQuoter.compiled.json")
+	CounterContractPath := utils.GetBuildDir("FeeQuoter.compiled.json")
 	codeCell, err := wrappers.ParseCompiledContract(CounterContractPath)
 	if err != nil {
 		return output, fmt.Errorf("failed to compile contract: %w", err)
