@@ -65,6 +65,11 @@ func NewChain(cfg *config.TOMLConfig, opts ChainOpts) (Chain, error) {
 	return c, nil
 }
 
+func (c *chain) GetChainInfo(ctx context.Context) (types.ChainInfo, error) {
+	// TODO(NONEVM-1460): implement
+	return types.ChainInfo{}, nil
+}
+
 func (c *chain) Name() string {
 	return c.lggr.Name()
 }
