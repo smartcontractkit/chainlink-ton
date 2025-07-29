@@ -65,8 +65,7 @@ const CCIP_COMMIT_REPORT_ACCEPTED_TOPIC: int = 0x99; // for easier indexing
 
 struct CommitReportAccepted {
     priceUpdates: Cell<PriceUpdates>?;
-    blessedMerkleRoots: cell;
-    unblessedMerkleRoots: cell;
+    merkleRoots: cell // vec<MerkleRoots>
 }
 
 struct SkippedReportExecution {
@@ -84,16 +83,14 @@ struct ExecutionReport {
 // Matches the EVM struct
 struct CommitReport {
     priceUpdates: Cell<PriceUpdates>?; // Price updates for the fee_quoter
-    blessedMerkleRoots: cell; // vec<MerkleRoot> Merkle roots that have been blessed by RMN
-    unblessedMerkleRoots: cell; // vec<MerkleRoot> Merkle roots that don't require RMN blessing
-    rmnSignatures: cell; //vec<bytes32>  The signatures for the blessed merkle roots
+    merkleRoots: cell; // vec<MerkleRoot> Merkle roots 
 }
 
 struct (0x00000001) Commit {
     queryId: uint64;
     // TODO: could just store as one slice since context is fixed size
     reportContext: ReportContext;
-    report: CommitReport;
+    report: Cell<CommitReport>;
     signatures: cell; //vec<SignatureEd25519>
 }
 
@@ -109,7 +106,9 @@ type Msg = Commit | Execute | OCR3Base_SetOCR3Config;
 fun onInternalMessage(in:InMessage) {
     val msg = lazy Msg.fromSlice(in.body);
     match (msg) {
-        Commit => { commit(msg, in.senderAddress) }
+        Commit => { 
+            commit(msg, in.senderAddress) 
+        }
         Execute => { _execute(msg, in.senderAddress) }
         OCR3Base_SetOCR3Config => { _setOCR3Config(msg, in.senderAddress)}
         else => {
@@ -137,8 +136,7 @@ fun getMerkleRootID(merkleRoot: uint256): builder {
 fun commit(msg: Commit, sender: address) {
     var st = lazy Storage.load();
 
-    // TODO: verify RMN signatures on blessed roots
-    val report = msg.report;
+    val report = msg.report.load();
 
     // update token/gas prices if any
     if (report.priceUpdates != null) {
@@ -154,8 +152,7 @@ fun commit(msg: Commit, sender: address) {
     }
 
     // TODO: assert cells are well-formed
-    var roots = Iterator<MerkleRoot>.new(report.unblessedMerkleRoots);
-    // TODO: also iterate over blessed roots
+    var roots = Iterator<MerkleRoot>.new(report.merkleRoots);
 
     while (!roots.empty()) {
         val root = roots.next();
@@ -210,8 +207,7 @@ fun commit(msg: Commit, sender: address) {
 
     emit(CCIP_COMMIT_REPORT_ACCEPTED_TOPIC, CommitReportAccepted {
         priceUpdates: report.priceUpdates,
-        blessedMerkleRoots: report.blessedMerkleRoots,
-        unblessedMerkleRoots: report.unblessedMerkleRoots,
+        merkleRoots: report.merkleRoots,
     })
 }
 

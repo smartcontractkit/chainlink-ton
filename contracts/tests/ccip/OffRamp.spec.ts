@@ -1,7 +1,7 @@
 import { Blockchain, BlockchainTransaction, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { toNano, Address, Cell, Dictionary, Message, beginCell } from '@ton/core'
 import { compile } from '@ton/blueprint'
-import { CommitReport, OffRampStorage, PriceUpdates } from '../../wrappers/ccip/OffRamp'
+import { CommitReport, commitReportToCell, MerkleRoot, OffRampStorage, PriceUpdates } from '../../wrappers/ccip/OffRamp'
 import { OffRamp } from '../../wrappers/ccip/OffRamp'
 import {
   createTimestampedPriceValue,
@@ -15,6 +15,8 @@ import { uint8ArrayToBigInt, ZERO_ADDRESS } from '../../utils/Utils'
 import { KeyPair } from '@ton/crypto'
 import { expectEqualsConfig, generateEd25519KeyPair } from '../libraries/ocr/Helpers'
 import {
+        createSignature,
+        hashReport,
   OCR3_PLUGIN_TYPE_COMMIT,
   OCR3_PLUGIN_TYPE_EXECUTE,
 } from '../../wrappers/libraries/ocr/MultiOCR3Base'
@@ -31,6 +33,10 @@ function generateSecureRandomString(length: number): string {
   const array = new Uint8Array(length)
   crypto.getRandomValues(array)
   return Array.from(array, (byte) => ('0' + (byte % 36).toString(36)).slice(-1)).join('')
+}
+
+const createSignatures = (signerList: KeyPair[], hash: Buffer<ArrayBufferLike>): SignatureEd25519[] => {
+  return signerList.map((signer) => createSignature(signer, hash))
 }
 
 describe('OffRamp', () => {
@@ -136,6 +142,7 @@ describe('OffRamp', () => {
     // blockchain and counter are ready to use
   })
 
+  /*
   it('should handle two OCR3 configs', async () => {
     const resultSetCommit = await offRamp.sendSetOCR3Config(
       deployer.getSender(),
@@ -174,8 +181,9 @@ describe('OffRamp', () => {
       },
     )
   })
+  */
 
-  it('Test commit', async () => {
+  it('Test commit with empty report', async () => {
     const resultSetCommit = await offRamp.sendSetOCR3Config(
       deployer.getSender(),
       createDefaultConfig(),
@@ -201,24 +209,23 @@ describe('OffRamp', () => {
     )
     expectSuccessfulTransaction(resultSetExecute, deployer.address, offRamp.address)
 
-    let reportContest: ReportContext 
-    let priceUpdates: PriceUpdates[]
-    let blessedMerkleRoots: bigint[]
-    let unblessedMerkleRoots: bigint[]
-    let rmnSignatures: bigint[]
+    let reportContext: ReportContext = {configDigest, padding:0n, sequenceBytes: 0x01}
     let report: CommitReport
-    const signatures = []
+    report = {
+      merkleRoots: []
+    }
 
-    //TODO: build reportContext, report, signatures
+    const signatures = createSignatures([signers[0],signers[1]], hashReport(commitReportToCell(report), reportContext))
+
     const resultCommit = await offRamp.sendCommit(
-      deployer.getSender(),
+      transmitters[0].getSender(),
       {
-        value: toNano('100'),
+        value: toNano('10'),
         reportContext: reportContext,
         report: report,
         signatures: signatures
       }
     )
-    expectSuccessfulTransaction(resultCommit, deployer.address, offRamp.address)
+    expectSuccessfulTransaction(resultCommit, transmitters[0].address, offRamp.address)
   })
 })

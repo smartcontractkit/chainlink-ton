@@ -44,9 +44,7 @@ export type PriceUpdates = {
 
 export type CommitReport = {
   priceUpdates?: PriceUpdates 
-  blessedMerkleRoots: bigint[] 
-  unblessedMerkleRoots: bigint[]
-  rmnSignatures: bigint[]
+  merkleRoots: MerkleRoot[] 
 }
 
 export type ExecutionReport = {
@@ -59,12 +57,21 @@ export type ExecutionReport = {
 
 export type CrossChainAddress = Slice
 
+
 export type Any2TVMRampMessage = {
   sourcePoolAddress: CrossChainAddress
   destPoolAddress: Address
   destGasAmount: number
   extraData: Cell
   amount: bigint
+}
+
+export type MerkleRoot = {
+  sourceChainSelector: number
+  onRampAddress: CrossChainAddress,
+  minSeqNr: number,
+  maxSeqNr: number,
+  merkleRoot: bigint
 }
 
 export const Builder = {
@@ -158,7 +165,10 @@ export class OffRamp extends OCR3Base {
         .storeUint(opts.reportContext.sequenceBytes, 64)
         .storeRef(commitReportToCell(opts.report))
         .storeRef(asSnakeData(opts.signatures, (item) =>
-            beginCell().storeUint(item.r, 256).storeUint(item.s, 256).storeUint(item.signer, 256)))
+            beginCell()
+            .storeUint(item.r, 256)
+            .storeUint(item.s, 256)
+            .storeUint(item.signer, 256)))
         .endCell(),
     })
   }
@@ -185,15 +195,44 @@ export class OffRamp extends OCR3Base {
         .storeUint(opts.reportContext.sequenceBytes, 64)
         .storeRef(ExecutionReportToCell(opts.report))
         .storeRef(asSnakeData(opts.signatures, (item) =>
-            beginCell().storeUint(item.r, 256).storeUint(item.s, 256).storeUint(item.signer, 256)))
+            beginCell()
+            .storeUint(item.r, 256)
+            .storeUint(item.s, 256)
+            .storeUint(item.signer, 256)))
         .endCell(),
     })
   }
 }
 
-function commitReportToCell(report: CommitReport): Cell {
-    throw new Error('Function not implemented.')
+
+export function commitReportToCell(report: CommitReport): Cell {
+  let priceUpdates: Cell | undefined = undefined
+  if (report.priceUpdates != undefined) {
+    priceUpdates = beginCell()
+      .storeRef(asSnakeData(report.priceUpdates!.tokenPriceUpdates, (item) => 
+        beginCell()
+        .storeAddress(item.sourceToken)
+        .storeUint(item.usdPerToken, 224)))
+      .storeRef(asSnakeData(report.priceUpdates!.gasPriceUpdates, (item) =>
+        beginCell()
+        .storeUint(item.destChainSelector, 64)
+        .storeUint(item.executionGasPrice, 112)
+        .storeUint(item.dataAvailabilityGasPrice, 112)))
+      .endCell()
+  }
+
+  return beginCell()
+    .storeMaybeRef(priceUpdates)
+    .storeRef(asSnakeData(report.merkleRoots, (item) => 
+      beginCell()
+      .storeUint(item.sourceChainSelector, 64)
+      .storeSlice(item.onRampAddress)
+      .storeUint(item.minSeqNr, 64)
+      .storeUint(item.maxSeqNr, 64)
+      .storeUint(item.merkleRoot, 256)))
+    .endCell()
 }
+
 function ExecutionReportToCell(report: ExecutionReport): Cell | import("@ton/core").Builder {
     throw new Error('Function not implemented.')
 }
