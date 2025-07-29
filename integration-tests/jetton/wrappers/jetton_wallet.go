@@ -102,18 +102,6 @@ const (
 	JettonWalletBurnNotification     = 0x7bdd97de
 )
 
-func (m transferMessage) OpCode() uint64 {
-	return JettonWalletTransfer
-}
-
-type transferPayload struct {
-	self jetton.TransferPayload `tlb:"."`
-}
-
-func (m transferPayload) OpCode() uint64 {
-	return JettonWalletTransfer
-}
-
 func (w JettonWallet) SendTransfer(tonAmount tlb.Coins, jettonAmount tlb.Coins, destination *address.Address, responseDestination *address.Address, customPayload *cell.Cell, forwardTonAmount tlb.Coins, forwardPayload ForwardPayload) (msgReceived *tracetracking.ReceivedMessage, err error) {
 	// if forwardPayload == nil {
 	// 	forwardPayload = NewForwardPayload(cell.BeginCell().EndCell())

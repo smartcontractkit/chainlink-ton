@@ -14,16 +14,6 @@ type ForwardPayload struct {
 	slice *cell.Slice
 }
 
-type transferMessage struct {
-	queryID             uint64           `tlb:"## 64"`
-	jettonAmount        *big.Int         `tlb:"var uint 16"`
-	destination         *address.Address `tlb:"addr"`
-	responseDestination *address.Address `tlb:"addr"`
-	customPayload       *cell.Cell       `tlb:"cell"`
-	forwardTonAmount    *big.Int         `tlb:"var uint 16"`
-	forwardPayload      ForwardPayload   `tlb:"."`
-}
-
 func NewForwardPayload[T *cell.Cell | *cell.Slice](payload T) ForwardPayload {
 	switch p := any(payload).(type) {
 	case *cell.Cell:
