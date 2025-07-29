@@ -55,7 +55,7 @@ type Counter struct {
 
 type sendAckMessage struct {
 	_       tlb.Magic `tlb:"#00000003"`
-	queryID uint64    `tlb:"## 64"`
+	QueryID uint64    `tlb:"## 64"`
 }
 
 func (m sendAckMessage) OpCode() uint64 {
@@ -65,7 +65,7 @@ func (m sendAckMessage) OpCode() uint64 {
 func (c Counter) SendAck() (msgReceived *tracetracking.ReceivedMessage, err error) {
 	queryID := rand.Uint64()
 	msgReceived, err = c.Contract.CallWaitRecursively(sendAckMessage{
-		queryID: queryID,
+		QueryID: queryID,
 	}, tlb.MustFromTON("0.5"))
 	return msgReceived, err
 }

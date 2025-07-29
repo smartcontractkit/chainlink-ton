@@ -195,7 +195,7 @@ func (c tolkCompiledContract) codeCell() (*cell.Cell, error) {
 // TON to be sent to the contract upon deployment.
 // It returns the contract wrapper if the deployment is successful.
 // The function returns an error if the deployment fails.
-func Deploy(client *tracetracking.SignedAPIClient, codeCell *cell.Cell, initData *cell.Cell, amount tlb.Coins) (*Contract, error) {
+func Deploy(client *tracetracking.SignedAPIClient, codeCell *cell.Cell, initData *cell.Cell, amount tlb.Coins, workChain ...int8) (*Contract, error) {
 	// Create empty message body for deployment
 	msgBody := cell.BeginCell().EndCell()
 
@@ -206,6 +206,7 @@ func Deploy(client *tracetracking.SignedAPIClient, codeCell *cell.Cell, initData
 		msgBody,
 		codeCell,
 		initData,
+		workChain...,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("deployment failed: %w", err)
@@ -230,6 +231,30 @@ func Deploy(client *tracetracking.SignedAPIClient, codeCell *cell.Cell, initData
 	// }
 
 	return &Contract{addr, client}, nil
+}
+
+func Open(client *tracetracking.SignedAPIClient, codeCell *cell.Cell, initData *cell.Cell, workchain ...int8) (*Contract, error) {
+	state := &tlb.StateInit{
+		Data: initData,
+		Code: codeCell,
+	}
+
+	stateCell, err := tlb.ToCell(state)
+	if err != nil {
+		return nil, err
+	}
+
+	wc := int8(0)
+	if len(workchain) > 0 {
+		wc = workchain[0]
+	}
+
+	addr := address.NewAddress(0, byte(wc), stateCell.Hash())
+
+	return &Contract{
+		Address: addr,
+		Client:  client,
+	}, nil
 }
 
 func ParseCompiledContract(path string) (*cell.Cell, error) {

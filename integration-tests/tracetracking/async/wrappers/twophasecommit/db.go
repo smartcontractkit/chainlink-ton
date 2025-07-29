@@ -54,7 +54,7 @@ type DB struct {
 
 type beginTransactionMessage struct {
 	_       tlb.Magic `tlb:"#00000001"`
-	queryID uint64    `tlb:"## 64"`
+	QueryID uint64    `tlb:"## 64"`
 }
 
 func (m beginTransactionMessage) OpCode() uint64 {
@@ -63,14 +63,14 @@ func (m beginTransactionMessage) OpCode() uint64 {
 
 func (s DB) SendBeginTransaction(queryID uint64) (msgReceived *tracetracking.ReceivedMessage, err error) {
 	msgReceived, err = s.Contract.CallWaitRecursively(beginTransactionMessage{
-		queryID: queryID,
+		QueryID: queryID,
 	}, tlb.MustFromTON("0.5"))
 	return msgReceived, err
 }
 
 type setValueMessage struct {
 	_       tlb.Magic        `tlb:"#00000002"`
-	queryID uint64           `tlb:"## 64"`
+	QueryID uint64           `tlb:"## 64"`
 	Counter *address.Address `tlb:"addr"`
 	Value   uint32           `tlb:"## 32"`
 }
@@ -82,7 +82,7 @@ func (m setValueMessage) OpCode() uint64 {
 func (s DB) SendSetValue(counterAddr *address.Address, value uint32) (msgReceived *tracetracking.ReceivedMessage, err error) {
 	queryID := rand.Uint64()
 	msgReceived, err = s.Contract.CallWaitRecursively(setValueMessage{
-		queryID: queryID,
+		QueryID: queryID,
 		Counter: counterAddr,
 		Value:   value,
 	}, tlb.MustFromTON("0.5"))
@@ -91,7 +91,7 @@ func (s DB) SendSetValue(counterAddr *address.Address, value uint32) (msgReceive
 
 type commitMessage struct {
 	_       tlb.Magic `tlb:"#00000005"`
-	queryID uint64    `tlb:"## 64"`
+	QueryID uint64    `tlb:"## 64"`
 }
 
 func (m commitMessage) OpCode() uint64 {
@@ -101,7 +101,7 @@ func (m commitMessage) OpCode() uint64 {
 func (s DB) SendCommit() (msgReceived *tracetracking.ReceivedMessage, err error) {
 	queryID := rand.Uint64()
 	msgReceived, err = s.Contract.CallWaitRecursively(commitMessage{
-		queryID: queryID,
+		QueryID: queryID,
 	}, tlb.MustFromTON("0.5"))
 	return msgReceived, err
 }

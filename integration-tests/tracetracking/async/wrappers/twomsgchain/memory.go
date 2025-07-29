@@ -54,7 +54,7 @@ type Memory struct {
 
 type setValueMessage struct {
 	_       tlb.Magic `tlb:"#00000001"`
-	queryID uint64    `tlb:"## 64"`
+	QueryID uint64    `tlb:"## 64"`
 	Value   uint32    `tlb:"## 32"`
 }
 
@@ -65,7 +65,7 @@ func (m setValueMessage) OpCode() uint64 {
 func (m Memory) SendSetValue(i uint32) (msgReceived *tracetracking.ReceivedMessage, err error) {
 	queryID := rand.Uint64()
 	msgReceived, err = m.Contract.CallWaitRecursively(setValueMessage{
-		queryID: queryID,
+		QueryID: queryID,
 		Value:   i,
 	}, tlb.MustFromTON("0.5"))
 	return msgReceived, err

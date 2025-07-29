@@ -54,7 +54,7 @@ type PriceRegistry struct {
 
 type AddPriceItemMessage struct {
 	_       tlb.Magic        `tlb:"#00000003"`
-	queryID uint64           `tlb:"## 64"`
+	QueryID uint64           `tlb:"## 64"`
 	Key     uint8            `tlb:"## 8"`
 	Addr    *address.Address `tlb:"addr"`
 }
@@ -66,7 +66,7 @@ func (m AddPriceItemMessage) OpCode() uint64 {
 func (p PriceRegistry) SendAddPriceItem(key uint8, addr *address.Address) (msgReceived *tracetracking.ReceivedMessage, err error) {
 	queryID := rand.Uint64()
 	msgReceived, err = p.Contract.CallWaitRecursively(AddPriceItemMessage{
-		queryID: queryID,
+		QueryID: queryID,
 		Key:     key,
 		Addr:    addr,
 	}, tlb.MustFromTON("0.5"))

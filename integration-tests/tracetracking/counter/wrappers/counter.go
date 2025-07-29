@@ -56,8 +56,8 @@ type Counter struct {
 
 type setCountMessage struct {
 	_       tlb.Magic `tlb:"#00000004"`
-	queryID uint64    `tlb:"## 64"`
-	value   uint32    `tlb:"## 32"`
+	QueryID uint64    `tlb:"## 64"`
+	Value   uint32    `tlb:"## 32"`
 }
 
 func (m setCountMessage) OpCode() uint64 {
@@ -67,8 +67,8 @@ func (m setCountMessage) OpCode() uint64 {
 func (c Counter) SendSetCount(value uint32) (msgReceived *tracetracking.ReceivedMessage, err error) {
 	queryID := rand.Uint64()
 	msgReceived, err = c.Contract.CallWaitRecursively(setCountMessage{
-		queryID: queryID,
-		value:   value,
+		QueryID: queryID,
+		Value:   value,
 	}, tlb.MustFromTON("0.5"))
 	return msgReceived, err
 }

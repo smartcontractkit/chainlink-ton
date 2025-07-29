@@ -54,7 +54,7 @@ type Inventory struct {
 
 type AddItemMessage struct {
 	_         tlb.Magic        `tlb:"#00000002"`
-	queryID   uint64           `tlb:"## 64"`
+	QueryID   uint64           `tlb:"## 64"`
 	Key       uint8            `tlb:"## 8"`
 	PriceAddr *address.Address `tlb:"addr"`
 	CountAddr *address.Address `tlb:"addr"`
@@ -67,7 +67,7 @@ func (m AddItemMessage) OpCode() uint64 {
 func (p Inventory) SendAddItem(key uint8, priceAddr *address.Address, countAddr *address.Address) (msgReceived *tracetracking.ReceivedMessage, err error) {
 	queryID := rand.Uint64()
 	msgReceived, err = p.Contract.CallWaitRecursively(AddItemMessage{
-		queryID:   queryID,
+		QueryID:   queryID,
 		Key:       key,
 		PriceAddr: priceAddr,
 		CountAddr: countAddr,
