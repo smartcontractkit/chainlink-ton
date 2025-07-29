@@ -1,4 +1,4 @@
-package plugin
+package ocr
 
 import (
 	"math/big"
@@ -87,6 +87,11 @@ func TestCommitReport_EncodingAndDecoding(t *testing.T) {
 	}
 	require.NoError(t, err)
 
+	sigs := common.SnakeRef[common.SnakeBytes]{
+		make(common.SnakeBytes, 64),
+		make(common.SnakeBytes, 64),
+	}
+
 	commitReport := CommitReport{
 		PriceUpdates: PriceUpdates{
 			TokenPriceUpdates: tokenPriceSlice,
@@ -96,7 +101,7 @@ func TestCommitReport_EncodingAndDecoding(t *testing.T) {
 			UnblessedMerkleRoots: merkleRoots,
 			BlessedMerkleRoots:   merkleRoots,
 		},
-		RMNSignatures: cell.BeginCell().EndCell(),
+		RMNSignatures: sigs,
 	}
 
 	// Encode to cell
@@ -112,6 +117,5 @@ func TestCommitReport_EncodingAndDecoding(t *testing.T) {
 	err = tlb.LoadFromCell(&decoded, newCell.BeginParse())
 	require.NoError(t, err)
 	require.Equal(t, c.Hash(), newCell.Hash())
-	require.Len(t, decoded.PriceUpdates.GasPriceUpdates, 5)
-	require.Len(t, decoded.PriceUpdates.TokenPriceUpdates, 5)
+	require.Equal(t, commitReport, decoded)
 }
