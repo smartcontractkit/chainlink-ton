@@ -26,3 +26,15 @@ export const testLog = (
   }
   return true
 }
+export const expectSuccessfulTransaction = (result: any, from: Address, to: Address) => {
+  expect(result.transactions).toHaveTransaction({ from, to, success: true })
+}
+
+export const expectFailedTransaction = (
+  result: any,
+  from: Address,
+  to: Address,
+  exitCode: number,
+) => {
+  expect(result.transactions).toHaveTransaction({ from, to, exitCode, success: false })
+}

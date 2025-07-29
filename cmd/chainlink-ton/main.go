@@ -51,7 +51,7 @@ type pluginRelayer struct {
 
 // NewRelayer implements the Loopp factory method used by the Loopp server to instantiate a relayer
 // [github.com/smartcontractkit/chainlink-common/pkg/loop.PluginRelayer]
-func (p *pluginRelayer) NewRelayer(ctx context.Context, rawConfig string, loopKs loop.Keystore, capRegistry core.CapabilitiesRegistry) (loop.Relayer, error) {
+func (p *pluginRelayer) NewRelayer(ctx context.Context, rawConfig string, loopKs loop.Keystore, csaKeystore core.Keystore, capRegistry core.CapabilitiesRegistry) (loop.Relayer, error) {
 	cfg := toncfg.TOMLConfig{}
 
 	// TODO(NONEVM-1460): decode TOML config

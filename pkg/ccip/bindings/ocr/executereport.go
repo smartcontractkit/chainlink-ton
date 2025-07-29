@@ -1,4 +1,4 @@
-package plugin
+package ocr
 
 import (
 	"math/big"

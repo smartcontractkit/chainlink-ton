@@ -10,6 +10,7 @@ require (
 	github.com/smartcontractkit/chainlink-testing-framework/framework v0.10.4
 	github.com/smartcontractkit/chainlink-ton v0.0.0
 	github.com/smartcontractkit/chainlink-ton/ops v0.0.0-00010101000000-000000000000
+	github.com/smartcontractkit/chainlink/deployment v0.0.0-20250728170612-b2c4e1a4648c
 	github.com/stretchr/testify v1.10.0
 	github.com/xssnick/tonutils-go v1.13.0
 )
@@ -375,7 +376,6 @@ require (
 	github.com/smartcontractkit/chainlink-testing-framework/parrot v0.6.2 // indirect
 	github.com/smartcontractkit/chainlink-testing-framework/seth v1.51.2 // indirect
 	github.com/smartcontractkit/chainlink-tron/relayer v0.0.11-0.20250701132001-f8be142155b6 // indirect
-	github.com/smartcontractkit/chainlink/deployment v0.0.0-20250728170612-b2c4e1a4648c // indirect
 	github.com/smartcontractkit/chainlink/v2 v2.0.0-20250728170612-b2c4e1a4648c // indirect
 	github.com/smartcontractkit/freeport v0.1.1 // indirect
 	github.com/smartcontractkit/grpc-proxy v0.0.0-20240830132753-a7e17fec5ab7 // indirect

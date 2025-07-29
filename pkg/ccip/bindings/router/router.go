@@ -2,7 +2,7 @@ package router
 
 import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/plugin"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
@@ -22,14 +22,14 @@ type SetRamp struct {
 // TODO check if CCIPSend and JettonTransferNotification are needed for CLD
 
 type CCIPSend struct {
-	_                 tlb.Magic                                    `tlb:"#00000001"`
-	QueryID           uint64                                       `tlb:"## 64"`
-	DestChainSelector uint64                                       `tlb:"## 64"`
-	Receiver          common.CrossChainAddress                     `tlb:"^"`
-	Data              cell.Cell                                    `tlb:"^"`
-	TokenAmounts      common.SnakeRef[plugin.Any2TVMTokenTransfer] `tlb:"^"`
-	FeeToken          *address.Address                             `tlb:"addr"`
-	ExtraArgs         *cell.Cell                                   `tlb:"^"`
+	_                 tlb.Magic                                 `tlb:"#00000001"`
+	QueryID           uint64                                    `tlb:"## 64"`
+	DestChainSelector uint64                                    `tlb:"## 64"`
+	Receiver          common.CrossChainAddress                  `tlb:"^"`
+	Data              cell.Cell                                 `tlb:"^"`
+	TokenAmounts      common.SnakeRef[ocr.Any2TVMTokenTransfer] `tlb:"^"`
+	FeeToken          *address.Address                          `tlb:"addr"`
+	ExtraArgs         *cell.Cell                                `tlb:"^"`
 }
 
 type JettonTransferNotification struct {
