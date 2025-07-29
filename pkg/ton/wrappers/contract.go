@@ -39,7 +39,7 @@ func (c *Contract) CallWait(message any, amount tlb.Coins) (*tracetracking.Recei
 
 // Calls a writer message on the contract and waits for it to be received.
 // It waits for all the trace (outgoing messages) to be received.
-// Use CallWait to wait onlyfor this first message.
+// Use CallWait to wait only for this first message.
 func (c *Contract) CallWaitRecursively(message any, amount tlb.Coins) (*tracetracking.ReceivedMessage, error) {
 	sentMessage, err := c.CallWait(message, amount)
 	if err != nil {
