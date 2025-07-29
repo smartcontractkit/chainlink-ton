@@ -1,7 +1,7 @@
-import "./../lib/ocr/multi_ocr3_base.tolk";
-import "./../lib/ocr/types.tolk";
-import "./../lib/ocr/exit_codes.tolk";
-import "./../lib/utils.tolk";
+import "./../../lib/ocr/multi_ocr3_base.tolk";
+import "./../../lib/ocr/types.tolk";
+import "./../../lib/ocr/exit_codes.tolk";
+import "./../../lib/utils.tolk";
 
 struct OCR3BaseExampleContract {
     contractId: uint64;
