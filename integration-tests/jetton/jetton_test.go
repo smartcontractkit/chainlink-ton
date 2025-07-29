@@ -402,7 +402,44 @@ func TestJettonAll(t *testing.T) {
 		assert.Equal(t, setup.receiver.Wallet.Address(), jettonData.AdminAddr, "Admin address should match the new admin address")
 	})
 
-	// TODO Drop admin
+	t.Run("TestJettonMasterDropAdmin", func(t *testing.T) {
+		setup := setUpCommon(t)
+		t.Logf("Testing drop admin\n")
+		dropAdminMsg, err := setup.jettonMinter.SendDropAdmin()
+		require.NoError(t, err, "failed to drop admin")
+		t.Logf("Drop admin message received: \n%s\n", replaceAddresses(map[string]string{
+			setup.deployer.Wallet.Address().String():     "Deployer",
+			setup.jettonMinter.Contract.Address.String(): "JettonMinter",
+			setup.receiver.Wallet.Address().String():     "NewAdmin",
+		}, dropAdminMsg.Dump()))
+		require.Zero(t, dropAdminMsg.ExitCode, "Drop admin message should have exit code 0")
+		require.Len(t, dropAdminMsg.OutgoingInternalReceivedMessages, 1, "Drop admin message should have 1 outgoing message")
+		msgToMinter := dropAdminMsg.OutgoingInternalReceivedMessages[0]
+		require.Zero(t, msgToMinter.ExitCode, "Msg to minter should have exit code 0")
+		require.Empty(t, msgToMinter.OutgoingInternalReceivedMessages, "Msg to minter should have no outgoing messages")
+
+		mintMsg, err := setup.jettonMinter.SendMint(
+			tlb.MustFromTON("0.05"),
+			setup.receiver.Wallet.Address(),
+			tlb.MustFromTON("0.05"),
+			jettonMintingAmount,
+			setup.deployer.Wallet.WalletAddress(),
+			setup.deployer.Wallet.WalletAddress(),
+			tlb.ZeroCoins,
+			jetton_wrappers.ForwardPayload{},
+		)
+		require.NoError(t, err, "failed to mint jettons after admin drop")
+		require.Zero(t, mintMsg.ExitCode, "Mint message should have exit code 0")
+		require.Len(t, mintMsg.OutgoingInternalReceivedMessages, 1, "Mint message should have 1 outgoing message")
+		msgToMinter = mintMsg.OutgoingInternalReceivedMessages[0]
+		require.Equal(t, jetton_wrappers.Error_NotOwner, msgToMinter.ExitCode, "Msg to minter should have")
+
+		jettonData, err := setup.jettonMinter.GetJettonData()
+		require.NoError(t, err, "failed to get jetton data after admin change")
+
+		// Expect admin to be the zero address after dropping admin
+		assert.True(t, jettonData.AdminAddr.Equals(address.NewAddressNone()), "Admin address should be zero after dropping admin")
+	})
 
 	// TODO upgrade?
 

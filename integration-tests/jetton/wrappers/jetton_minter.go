@@ -14,7 +14,16 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
+)
+
+const (
+	Error_InvalidOp      tvm.ExitCode = tvm.ExitCode(72)
+	Error_WrongOp        tvm.ExitCode = tvm.ExitCode(0xffff)
+	Error_NotOwner       tvm.ExitCode = tvm.ExitCode(73)
+	Error_NotValidWallet tvm.ExitCode = tvm.ExitCode(74)
+	Error_WrongWorkchain tvm.ExitCode = tvm.ExitCode(333)
 )
 
 var JettonMinterContractPath = path.Join(PathContractsJetton, "JettonMinter.compiled.json")
