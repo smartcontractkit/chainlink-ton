@@ -6,12 +6,12 @@ import (
 	"github.com/Masterminds/semver/v3"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	test_utils "github.com/smartcontractkit/chainlink-ton/integration-tests/utils"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
-	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
 type DeployRouterInput struct{}
@@ -39,8 +39,19 @@ func deployRouter(b operations.Bundle, deps TonDeps, in DeployRouterInput) (Depl
 
 	conn := tracetracking.NewSignedAPIClient(deps.TonChain.Client, *deps.TonChain.Wallet)
 
-	// TODO replace with the actuall cell using router gobinding
-	contract, err := wrappers.Deploy(&conn, codeCell, cell.BeginCell().EndCell(), tlb.MustFromTON("1"))
+	storage := router.Storage{
+		Ownable: common.Ownable2Step{
+			Owner:        deps.TonChain.WalletAddress,
+			PendingOwner: nil,
+		},
+		OnRamp: nil, // set afterwards
+	}
+	initData, err := tlb.ToCell(storage)
+	if err != nil {
+		return output, fmt.Errorf("failed to pack initData: %w", err)
+	}
+
+	contract, err := wrappers.Deploy(&conn, codeCell, initData, tlb.MustFromTON("1"))
 	if err != nil {
 		return output, fmt.Errorf("failed to deploy router contract: %w", err)
 	}

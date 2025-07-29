@@ -6,19 +6,22 @@ import (
 	"github.com/Masterminds/semver/v3"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	test_utils "github.com/smartcontractkit/chainlink-ton/integration-tests/utils"
+	"github.com/smartcontractkit/chainlink-ton/ops/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
-	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
-type DeployFeeQuoterInput struct{}
+type DeployFeeQuoterInput struct {
+	Params   config.FeeQuoterParams
+	LinkAddr *address.Address
+}
 
 type DeployFeeQuoterOutput struct {
-	CCIPAddress *address.Address
+	Address *address.Address
 }
 
 var DeployFeeQuoterOp = operations.NewOperation(
@@ -40,13 +43,28 @@ func deployFeeQuoter(b operations.Bundle, deps TonDeps, in DeployFeeQuoterInput)
 
 	conn := tracetracking.NewSignedAPIClient(deps.TonChain.Client, *deps.TonChain.Wallet)
 
-	// TODO replace with the actuall cell using fee quoter gobinding https://github.com/smartcontractkit/chainlink-ton/pull/68
-	contract, err := wrappers.Deploy(&conn, codeCell, cell.BeginCell().EndCell(), tlb.MustFromTON("1"))
+	storage := feequoter.Storage{
+		Ownable: common.Ownable2Step{
+			Owner:        deps.TonChain.WalletAddress,
+			PendingOwner: nil,
+		},
+		MaxFeeJuelsPerMsg:            in.Params.MaxFeeJuelsPerMsg,
+		LinkToken:                    in.LinkAddr,
+		TokenPriceStalenessThreshold: in.Params.TokenPriceStalenessThreshold,
+	}
+	initData, err := tlb.ToCell(storage)
+	if err != nil {
+		return output, fmt.Errorf("failed to pack initData: %w", err)
+	}
+
+	// TODO: handle setting FeeTokens and PremiumMultiplierWeiPerEthByFeeToken
+
+	contract, err := wrappers.Deploy(&conn, codeCell, initData, tlb.MustFromTON("1"))
 	if err != nil {
 		return output, fmt.Errorf("failed to deploy fee quoter contract: %w", err)
 	}
 
-	output.CCIPAddress = contract.Address
+	output.Address = contract.Address
 	return output, nil
 }
 

@@ -12,10 +12,13 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
-	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
-type DeployOnRampInput struct{}
+type DeployOnRampInput struct {
+	ChainSelector uint64
+	FeeQuoter     *address.Address
+	FeeAggregator *address.Address
+}
 
 type DeployOnRampOutput struct {
 	Address *address.Address
@@ -40,8 +43,25 @@ func deployOnRamp(b operations.Bundle, deps TonDeps, in DeployOnRampInput) (Depl
 
 	conn := tracetracking.NewSignedAPIClient(deps.TonChain.Client, *deps.TonChain.Wallet)
 
-	// TODO replace with the actuall cell using onramp gobinding https://github.com/smartcontractkit/chainlink-ton/pull/68
-	contract, err := wrappers.Deploy(&conn, codeCell, cell.BeginCell().EndCell(), tlb.MustFromTON("1"))
+	storage := onramp.Storage{
+		Ownable: common.Ownable2Step{
+			Owner:        deps.TonChain.WalletAddress,
+			PendingOwner: nil,
+		},
+		ChainSelector: in.ChainSelector,
+		Config: onramp.DynamicConfig{
+			FeeQuoter:      in.FeeQuoter,
+			FeeAggregator:  in.FeeAggregator,
+			AllowListAdmin: deps.TonChain.WalletAddress,
+		},
+		DestChainConfigs: nil,
+	}
+	initData, err := tlb.ToCell(storage)
+	if err != nil {
+		return output, fmt.Errorf("failed to pack initData: %w", err)
+	}
+
+	contract, err := wrappers.Deploy(&conn, codeCell, initData, tlb.MustFromTON("1"))
 	if err != nil {
 		return output, fmt.Errorf("failed to deploy onramp contract: %w", err)
 	}
