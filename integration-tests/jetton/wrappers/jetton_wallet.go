@@ -2,7 +2,6 @@ package wrappers
 
 import (
 	"fmt"
-	"math/big"
 	"math/rand/v2"
 	"path"
 
@@ -29,7 +28,7 @@ func NewJettonWalletProvider(apiClient tracetracking.SignedAPIClient) *JettonWal
 
 type JettonWalletInitData struct {
 	Status              uint8            `tlb:"## 8"`
-	Balance             *big.Int         `tlb:"var uint 16"`
+	Balance             tlb.Coins        `tlb:"."`
 	OwnerAddress        *address.Address `tlb:"addr"`
 	JettonMasterAddress *address.Address `tlb:"addr"`
 }
@@ -61,7 +60,7 @@ func (p *JettonWalletProvider) OpenFromInit(OwnerAddress,
 	}
 	initData := JettonWalletInitData{
 		Status:              0,
-		Balance:             big.NewInt(0),
+		Balance:             tlb.ZeroCoins,
 		OwnerAddress:        OwnerAddress,
 		JettonMasterAddress: JettonMasterAddress,
 	}

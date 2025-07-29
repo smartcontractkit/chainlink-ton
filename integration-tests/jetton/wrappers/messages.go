@@ -2,7 +2,6 @@ package wrappers
 
 import (
 	"fmt"
-	"math/big"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
@@ -43,10 +42,10 @@ func (c *ForwardPayload) ToCell() (*cell.Cell, error) {
 type jettonInternalTransfer struct {
 	_                tlb.Magic        `tlb:"#178d4519"`
 	QueryID          uint64           `tlb:"## 64"`
-	Amount           *big.Int         `tlb:"var uint 16"`
+	Amount           tlb.Coins        `tlb:"."`
 	From             *address.Address `tlb:"addr"`
 	ResponseAddress  *address.Address `tlb:"addr"`
-	ForwardTonAmount *big.Int         `tlb:"var uint 16"`
+	ForwardTonAmount tlb.Coins        `tlb:"."`
 	ForwardPayload   *cell.Cell       `tlb:"."`
 }
 

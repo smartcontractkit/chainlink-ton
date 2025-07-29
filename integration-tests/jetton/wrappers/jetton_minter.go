@@ -3,7 +3,6 @@ package wrappers
 import (
 	"context"
 	"fmt"
-	"math/big"
 	"math/rand/v2"
 
 	"path"
@@ -39,7 +38,7 @@ func NewJettonMinterProvider(apiClient tracetracking.SignedAPIClient) *JettonMin
 }
 
 type JettonMinterInitData struct {
-	TotalSupply   *big.Int         `tlb:"var uint 16"`
+	TotalSupply   tlb.Coins        `tlb:"."`
 	Admin         *address.Address `tlb:"addr"`
 	TransferAdmin *address.Address `tlb:"addr"`
 	WalletCode    *cell.Cell       `tlb:"^"`
@@ -99,7 +98,7 @@ type mintMessage struct {
 	_           tlb.Magic              `tlb:"#642b7d07"`
 	QueryID     uint64                 `tlb:"## 64"`
 	Destination *address.Address       `tlb:"addr"`
-	TonAmount   *big.Int               `tlb:"var uint 16"`
+	TonAmount   tlb.Coins              `tlb:"."`
 	MasterMsg   jettonInternalTransfer `tlb:"^"`
 }
 
@@ -117,13 +116,13 @@ func (m JettonMinter) SendMint(tonAmount tlb.Coins, destination *address.Address
 	msgReceived, err = m.Contract.CallWaitRecursively(mintMessage{
 		QueryID:     queryID,
 		Destination: destination,
-		TonAmount:   tonAmountInJettonMessage.Nano(),
+		TonAmount:   tonAmountInJettonMessage,
 		MasterMsg: jettonInternalTransfer{
 			QueryID:          queryID,
-			Amount:           jettonAmount.Nano(),
+			Amount:           jettonAmount,
 			From:             from,
 			ResponseAddress:  responseAddress,
-			ForwardTonAmount: forwardTonAmount.Nano(),
+			ForwardTonAmount: forwardTonAmount,
 			ForwardPayload:   forwardPayloadCell,
 		},
 	}, tonAmount)

@@ -2,7 +2,6 @@ package wrappers
 
 import (
 	"fmt"
-	"math/big"
 	"math/rand/v2"
 
 	test_utils "integration-tests/utils"
@@ -65,7 +64,7 @@ type JettonSender struct {
 type sendJettonsFastMessage struct {
 	_           tlb.Magic        `tlb:"#6984f9bb"`
 	QueryID     uint64           `tlb:"## 64"`
-	Amount      *big.Int         `tlb:"var uint 16"`
+	Amount      tlb.Coins        `tlb:"."`
 	Destination *address.Address `tlb:"addr"`
 }
 
@@ -77,7 +76,7 @@ func (s JettonSender) SendJettonsFast(amount tlb.Coins, destination *address.Add
 	queryID := rand.Uint64()
 	msgReceived, err = s.Contract.CallWaitRecursively(sendJettonsFastMessage{
 		QueryID:     queryID,
-		Amount:      amount.Nano(),
+		Amount:      amount,
 		Destination: destination,
 	}, tlb.MustFromTON("0.1"))
 	return msgReceived, err
@@ -87,10 +86,10 @@ func (s JettonSender) SendJettonsFast(amount tlb.Coins, destination *address.Add
 type sendJettonsExtendedMessage struct {
 	_                tlb.Magic        `tlb:"#e815f1d0"`
 	QueryID          uint64           `tlb:"## 64"`
-	Amount           *big.Int         `tlb:"var uint 16"`
+	Amount           tlb.Coins        `tlb:"."`
 	Destination      *address.Address `tlb:"addr"`
 	CustomPayload    *cell.Cell       `tlb:"^"`
-	ForwardTonAmount *big.Int         `tlb:"var uint 16"`
+	ForwardTonAmount tlb.Coins        `tlb:"."`
 	ForwardPayload   *cell.Cell       `tlb:"^"`
 }
 
@@ -109,10 +108,10 @@ func (s JettonSender) SendJettonsExtended(
 	queryID := rand.Uint64()
 	msgReceived, err = s.Contract.CallWaitRecursively(sendJettonsExtendedMessage{
 		QueryID:          queryID,
-		Amount:           jettonAmount.Nano(),
+		Amount:           jettonAmount,
 		Destination:      destination,
 		CustomPayload:    customPayload,
-		ForwardTonAmount: forwardTonAmount.Nano(),
+		ForwardTonAmount: forwardTonAmount,
 		ForwardPayload:   forwardPayload,
 	}, tonAmount)
 	return msgReceived, err

@@ -76,7 +76,7 @@ func TestJettonAll(t *testing.T) {
 		// Deploy jetton minter
 		t.Logf("Deploying JettonMinter contract\n")
 		setup.jettonMinter, err = jetton_wrappers.NewJettonMinterProvider(setup.deployer).Deploy(jetton_wrappers.JettonMinterInitData{
-			TotalSupply:   big.NewInt(0),
+			TotalSupply:   tlb.ZeroCoins,
 			Admin:         setup.deployer.Wallet.WalletAddress(),
 			TransferAdmin: nil,
 			WalletCode:    setup.jettonWalletCode,
@@ -472,7 +472,7 @@ func TestJettonAll(t *testing.T) {
 		setup := setupJettonSender(t)
 		t.Logf("Deploying JettonMinter contract\n")
 		receiverJettonWallet, err := jetton_wrappers.NewJettonWalletProvider(setup.common.receiver).Deploy(jetton_wrappers.JettonWalletInitData{
-			Balance:             big.NewInt(0),
+			Balance:             tlb.ZeroCoins,
 			OwnerAddress:        setup.common.receiver.Wallet.Address(),
 			JettonMasterAddress: setup.common.jettonMinter.Contract.Address,
 		})
