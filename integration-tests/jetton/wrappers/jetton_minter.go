@@ -95,7 +95,7 @@ const (
 )
 
 type jettonInternalTransfer struct {
-	_                tlb.Magic        `tlb:"#178d4519"`
+	_                tlb.Magic        `tlb:"#178d4519"` //nolint:revive // This field should stay uninitialized
 	QueryID          uint64           `tlb:"## 64"`
 	Amount           tlb.Coins        `tlb:"."`
 	From             *address.Address `tlb:"addr"`
@@ -105,7 +105,7 @@ type jettonInternalTransfer struct {
 }
 
 type mintMessage struct {
-	_           tlb.Magic              `tlb:"#642b7d07"`
+	_           tlb.Magic              `tlb:"#642b7d07"` //nolint:revive // This field should stay uninitialized
 	QueryID     uint64                 `tlb:"## 64"`
 	Destination *address.Address       `tlb:"addr"`
 	TonAmount   tlb.Coins              `tlb:"."`
@@ -136,7 +136,7 @@ func (m JettonMinter) SendMint(tonAmount tlb.Coins, destination *address.Address
 }
 
 type changeAdminMessage struct {
-	_        tlb.Magic        `tlb:"#6501f354"`
+	_        tlb.Magic        `tlb:"#6501f354"` //nolint:revive // This field should stay uninitialized
 	QueryID  uint64           `tlb:"## 64"`
 	NewAdmin *address.Address `tlb:"addr"`
 }
@@ -151,7 +151,7 @@ func (m JettonMinter) SendChangeAdmin(newAdmin *address.Address) (msgReceived *t
 }
 
 type claimAdminMessage struct {
-	_       tlb.Magic `tlb:"#fb88e119"`
+	_       tlb.Magic `tlb:"#fb88e119"` //nolint:revive // This field should stay uninitialized
 	QueryID uint64    `tlb:"## 64"`
 }
 
@@ -162,7 +162,7 @@ func (m JettonMinter) SendClaimAdmin() (msgReceived *tracetracking.ReceivedMessa
 }
 
 type dropAdminMessage struct {
-	_       tlb.Magic `tlb:"#7431f221"`
+	_       tlb.Magic `tlb:"#7431f221"` //nolint:revive // This field should stay uninitialized
 	QueryID uint64    `tlb:"## 64"`
 }
 
@@ -175,7 +175,7 @@ func (m JettonMinter) SendDropAdmin() (msgReceived *tracetracking.ReceivedMessag
 }
 
 type changeContentMessage struct {
-	_       tlb.Magic  `tlb:"#cb862902"`
+	_       tlb.Magic  `tlb:"#cb862902"` //nolint:revive // This field should stay uninitialized
 	QueryID uint64     `tlb:"## 64"`
 	Content *cell.Cell `tlb:"^"`
 }
@@ -190,7 +190,7 @@ func (m JettonMinter) SendChangeContent(content *cell.Cell) (msgReceived *tracet
 }
 
 type upgradeMessage struct {
-	_       tlb.Magic  `tlb:"#2508d66a"`
+	_       tlb.Magic  `tlb:"#2508d66a"` //nolint:revive // This field should stay uninitialized
 	QueryID uint64     `tlb:"## 64"`
 	NewData *cell.Cell `tlb:"^"`
 	NewCode *cell.Cell `tlb:"^"`

@@ -27,7 +27,7 @@ func NewSimpleJettonReceiverProvider(apiClient tracetracking.SignedAPIClient) *S
 type SimpleJettonReceiverInitData struct {
 	JettonClient   JettonClient `tlb:"."`
 	AmountChecker  tlb.Coins    `tlb:"."`
-	PayloadChecker *cell.Cell   `tlb:"^"`
+	PayloadChecker *cell.Cell   `tlb:"maybe ^"`
 }
 
 func (p *SimpleJettonReceiverProvider) Deploy(initData SimpleJettonReceiverInitData) (SimpleJettonReceiver, error) {
