@@ -55,7 +55,7 @@ type Counter struct {
 }
 
 type setCountMessage struct {
-	_       tlb.Magic `tlb:"#00000004"`
+	_       tlb.Magic `tlb:"#00000004"` //nolint:revive // This field should stay uninitialized
 	QueryID uint64    `tlb:"## 64"`
 	Value   uint32    `tlb:"## 32"`
 }

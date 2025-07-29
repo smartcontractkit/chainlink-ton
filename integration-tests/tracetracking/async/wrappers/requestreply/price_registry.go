@@ -53,7 +53,7 @@ type PriceRegistry struct {
 }
 
 type AddPriceItemMessage struct {
-	_       tlb.Magic        `tlb:"#00000003"`
+	_       tlb.Magic        `tlb:"#00000003"` //nolint:revive // This field should stay uninitialized
 	QueryID uint64           `tlb:"## 64"`
 	Key     uint8            `tlb:"## 8"`
 	Addr    *address.Address `tlb:"addr"`
