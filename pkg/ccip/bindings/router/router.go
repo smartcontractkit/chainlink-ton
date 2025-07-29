@@ -15,7 +15,7 @@ type Storage struct {
 
 type SetRamp struct {
 	_                 tlb.Magic        `tlb:"#10000001"`
-	DestChainSelector uint64           `tlb:"##64"`
+	DestChainSelector uint64           `tlb:"## 64"`
 	OnRamp            *address.Address `tlb:"addr"`
 }
 
@@ -23,8 +23,8 @@ type SetRamp struct {
 
 type CCIPSend struct {
 	_                 tlb.Magic                                    `tlb:"#00000001"`
-	QueryID           uint64                                       `tlb:"##64"`
-	DestChainSelector uint64                                       `tlb:"##64"`
+	QueryID           uint64                                       `tlb:"## 64"`
+	DestChainSelector uint64                                       `tlb:"## 64"`
 	Receiver          common.CrossChainAddress                     `tlb:"^"`
 	Data              cell.Cell                                    `tlb:"^"`
 	TokenAmounts      common.SnakeRef[plugin.Any2TVMTokenTransfer] `tlb:"^"`
@@ -34,7 +34,7 @@ type CCIPSend struct {
 
 type JettonTransferNotification struct {
 	_              tlb.Magic        `tlb:"#7362d09c"`
-	QueryId        uint64           `tlb:"##64"`
+	QueryId        uint64           `tlb:"## 64"`
 	Amount         tlb.Coins        `tlb:"^"`
 	Sender         *address.Address `tlb:"addr"`
 	ForwardPayload *cell.Cell       `tlb:"maybe ^"`

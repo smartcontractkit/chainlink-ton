@@ -75,7 +75,7 @@ var UpdateRouterDestOp = operations.NewOperation(
 	updateRouterDest,
 )
 
-func updateRouterDest(b operations.Bundle, deps TonDeps, in UpdateRouterDestInput) ([]*tlb.InternalMessage, error) {
+func updateRouterDest(b operations.Bundle, deps TonDeps, in UpdateRouterDestInput) ([][]byte, error) {
 	address := deps.CCIPOnChainState.TonChains[deps.TonChain.Selector].Router
 
 	input := router.SetRamp{
@@ -95,5 +95,5 @@ func updateRouterDest(b operations.Bundle, deps TonDeps, in UpdateRouterDestInpu
 			Body:    payload,
 		},
 	}
-	return msg, nil
+	return utils.Serialize(msg)
 }

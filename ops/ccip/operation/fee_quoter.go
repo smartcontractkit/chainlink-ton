@@ -74,17 +74,18 @@ type UpdateFeeQuoterDestChainConfigsOutput struct {
 }
 
 var UpdateFeeQuoterDestChainConfigsOp = operations.NewOperation(
-	"update-dest-chain-configs",
+	"update-fee-quoter-dest-chain-configs",
 	semver.MustParse("0.1.0"),
 	"Updates fee quoter's destination chain configs",
 	updateFeeQuoterDestChainConfigs,
 )
 
-func updateFeeQuoterDestChainConfigs(b operations.Bundle, deps TonDeps, in UpdateFeeQuoterDestChainConfigsInput) ([]*tlb.InternalMessage, error) {
+func updateFeeQuoterDestChainConfigs(b operations.Bundle, deps TonDeps, in UpdateFeeQuoterDestChainConfigsInput) ([][]byte, error) {
 	address := deps.CCIPOnChainState.TonChains[deps.TonChain.Selector].CCIPAddress
 
 	input := feequoter.UpdateDestChainConfigs{
-		Updates: common.SnakeData[feequoter.UpdateDestChainConfig](in),
+		Update: in[0], // TEMP: until contracts get updated
+		// Updates: common.SnakeData[feequoter.UpdateDestChainConfig](in),
 	}
 
 	payload, err := tlb.ToCell(input)
@@ -101,7 +102,7 @@ func updateFeeQuoterDestChainConfigs(b operations.Bundle, deps TonDeps, in Updat
 			Body:    payload,
 		},
 	}
-	return messages, nil
+	return utils.Serialize(messages)
 }
 
 // result = await fee-quoter.sendUpdateDestChainConfigs(deployer.getSender(), {

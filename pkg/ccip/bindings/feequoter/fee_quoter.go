@@ -20,15 +20,41 @@ type Storage struct {
 	DestChainConfigs             *cell.Dictionary    `tlb:"dict 64"`
 }
 
+type DestChainConfig struct {
+	IsEnabled                         bool   `tlb:"bool"`
+	MaxNumberOfTokensPerMsg           uint16 `tlb:"## 16"`
+	MaxDataBytes                      uint32 `tlb:"## 32"`
+	MaxPerMsgGasLimit                 uint32 `tlb:"## 32"`
+	DestGasOverhead                   uint32 `tlb:"## 32"`
+	DestGasPerPayloadByteBase         uint8  `tlb:"## 8"`
+	DestGasPerPayloadByteHigh         uint8  `tlb:"## 8"`
+	DestGasPerPayloadByteThreshold    uint16 `tlb:"## 16"`
+	DestDataAvailabilityOverheadGas   uint32 `tlb:"## 32"`
+	DestGasPerDataAvailabilityByte    uint16 `tlb:"## 16"`
+	DestDataAvailabilityMultiplierBps uint16 `tlb:"## 16"`
+	ChainFamilySelector               uint32 `tlb:"## 32"`
+	EnforceOutOfOrder                 bool   `tlb:"bool"`
+	DefaultTokenFeeUsdCents           uint16 `tlb:"## 16"`
+	DefaultTokenDestGasOverhead       uint32 `tlb:"## 32"`
+	DefaultTxGasLimit                 uint32 `tlb:"## 32"`
+	GasMultiplierWeiPerEth            uint64 `tlb:"## 64"`
+	GasPriceStalenessThreshold        uint32 `tlb:"## 32"`
+	NetworkFeeUsdCents                uint32 `tlb:"## 32"`
+}
+
 // Methods
 
+type UpdatePrices struct{}
+type UpdateFeeTokens struct{}
+type UpdateTokenTransferFeeConfigs struct{}
+
 type UpdateDestChainConfig struct {
-	DestinationChainSelector uint64                   `tlb:"## 64"`
-	Router                   common.CrossChainAddress `tlb:"."`
-	AllowListEnabled         bool                     `tlb:"bool"`
+	DestinationChainSelector uint64          `tlb:"## 64"`
+	DestChainConfig          DestChainConfig `tlb:"."`
 }
 
 type UpdateDestChainConfigs struct {
-	_       tlb.Magic                               `tlb:"#10000004"`
-	Updates common.SnakeData[UpdateDestChainConfig] `tlb:"^"`
+	_      tlb.Magic             `tlb:"#20000004"`
+	Update UpdateDestChainConfig `tlb:"."`
+	// Updates common.SnakeData[UpdateDestChainConfig] `tlb:"^"`
 }

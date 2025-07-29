@@ -76,13 +76,13 @@ type UpdateOnRampDestChainConfigsOutput struct {
 }
 
 var UpdateOnRampDestChainConfigsOp = operations.NewOperation(
-	"update-dest-chain-configs",
+	"update-onramp-dest-chain-configs",
 	semver.MustParse("0.1.0"),
 	"Updates onramp's destination chain configs",
 	updateOnRampDestChainConfigs,
 )
 
-func updateOnRampDestChainConfigs(b operations.Bundle, deps TonDeps, in UpdateOnRampDestChainConfigsInput) ([]*tlb.InternalMessage, error) {
+func updateOnRampDestChainConfigs(b operations.Bundle, deps TonDeps, in UpdateOnRampDestChainConfigsInput) ([][]byte, error) {
 	address := deps.CCIPOnChainState.TonChains[deps.TonChain.Selector].CCIPAddress
 
 	input := onramp.UpdateDestChainConfigs{
@@ -103,16 +103,5 @@ func updateOnRampDestChainConfigs(b operations.Bundle, deps TonDeps, in UpdateOn
 			Body:    payload,
 		},
 	}
-	return messages, nil
+	return utils.Serialize(messages)
 }
-
-// result = await onRamp.sendUpdateDestChainConfigs(deployer.getSender(), {
-//   value: toNano('1'),
-//   destChainConfigs: [
-//     {
-//       destChainSelector: CHAINSEL_EVM_TEST_90000001,
-//       router: Buffer.alloc(64),
-//       allowlistEnabled: false,
-//     },
-//   ],
-// })
