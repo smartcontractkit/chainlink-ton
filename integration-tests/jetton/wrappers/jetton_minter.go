@@ -102,10 +102,6 @@ type mintMessage struct {
 	MasterMsg   jettonInternalTransfer `tlb:"^"`
 }
 
-func (m mintMessage) OpCode() uint64 {
-	return JettonMinterMint
-}
-
 func (m JettonMinter) SendMint(tonAmount tlb.Coins, destination *address.Address, tonAmountInJettonMessage tlb.Coins, jettonAmount tlb.Coins, from *address.Address, responseAddress *address.Address, forwardTonAmount tlb.Coins, forwardPayload ForwardPayload) (msgReceived *tracetracking.ReceivedMessage, err error) {
 	queryID := rand.Uint64()
 	forwardPayload = NewForwardPayload(cell.BeginCell().ToSlice())
@@ -135,10 +131,6 @@ type changeAdminMessage struct {
 	NewAdmin *address.Address `tlb:"addr"`
 }
 
-func (m changeAdminMessage) OpCode() uint64 {
-	return JettonMinterChangeAdmin
-}
-
 func (m JettonMinter) SendChangeAdmin(newAdmin *address.Address) (msgReceived *tracetracking.ReceivedMessage, err error) {
 	queryID := rand.Uint64()
 	msgReceived, err = m.Contract.CallWaitRecursively(changeAdminMessage{
@@ -153,18 +145,6 @@ type claimAdminMessage struct {
 	QueryID uint64    `tlb:"## 64"`
 }
 
-func (m claimAdminMessage) OpCode() uint64 {
-	return JettonMinterClaimAdmin
-}
-
-func (m claimAdminMessage) StoreArgs(b *cell.Builder) error {
-	err := b.StoreUInt(m.QueryID, 64)
-	if err != nil {
-		return fmt.Errorf("failed to store queryID: %w", err)
-	}
-	return nil
-}
-
 func (m JettonMinter) SendClaimAdmin() (msgReceived *tracetracking.ReceivedMessage, err error) {
 	queryID := rand.Uint64()
 	msgReceived, err = m.Contract.CallWaitRecursively(claimAdminMessage{QueryID: queryID}, tlb.MustFromTON("0.1"))
@@ -174,10 +154,6 @@ func (m JettonMinter) SendClaimAdmin() (msgReceived *tracetracking.ReceivedMessa
 type dropAdminMessage struct {
 	_       tlb.Magic `tlb:"#7431f221"`
 	QueryID uint64    `tlb:"## 64"`
-}
-
-func (m dropAdminMessage) OpCode() uint64 {
-	return JettonMinterDropAdmin
 }
 
 func (m JettonMinter) SendDropAdmin() (msgReceived *tracetracking.ReceivedMessage, err error) {
@@ -194,10 +170,6 @@ type changeContentMessage struct {
 	Content *cell.Cell `tlb:"^"`
 }
 
-func (m changeContentMessage) OpCode() uint64 {
-	return JettonMinterChangeMetadataURL
-}
-
 func (m JettonMinter) SendChangeContent(content *cell.Cell) (msgReceived *tracetracking.ReceivedMessage, err error) {
 	queryID := rand.Uint64()
 	msgReceived, err = m.Contract.CallWaitRecursively(changeContentMessage{
@@ -212,26 +184,6 @@ type upgradeMessage struct {
 	QueryID uint64     `tlb:"## 64"`
 	NewData *cell.Cell `tlb:"^"`
 	NewCode *cell.Cell `tlb:"^"`
-}
-
-func (m upgradeMessage) OpCode() uint64 {
-	return JettonMinterUpgrade
-}
-
-func (m upgradeMessage) StoreArgs(b *cell.Builder) error {
-	err := b.StoreUInt(m.QueryID, 64)
-	if err != nil {
-		return fmt.Errorf("failed to store queryID: %w", err)
-	}
-	err = b.StoreRef(m.NewData)
-	if err != nil {
-		return fmt.Errorf("failed to store newData: %w", err)
-	}
-	err = b.StoreRef(m.NewCode)
-	if err != nil {
-		return fmt.Errorf("failed to store newCode: %w", err)
-	}
-	return nil
 }
 
 func (m JettonMinter) SendUpgrade(newData *cell.Cell, newCode *cell.Cell) (msgReceived *tracetracking.ReceivedMessage, err error) {

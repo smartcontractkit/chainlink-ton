@@ -48,7 +48,3 @@ type jettonInternalTransfer struct {
 	ForwardTonAmount tlb.Coins        `tlb:"."`
 	ForwardPayload   *cell.Cell       `tlb:"."`
 }
-
-func (jettonInternalTransfer) OpCode() uint64 {
-	return 0x178d4519
-}

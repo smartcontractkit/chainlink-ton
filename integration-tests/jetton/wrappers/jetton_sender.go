@@ -68,10 +68,6 @@ type sendJettonsFastMessage struct {
 	Destination *address.Address `tlb:"addr"`
 }
 
-func (m sendJettonsFastMessage) OpCode() uint64 {
-	return 0x6984f9bb
-}
-
 func (s JettonSender) SendJettonsFast(amount tlb.Coins, destination *address.Address) (msgReceived *tracetracking.ReceivedMessage, err error) {
 	queryID := rand.Uint64()
 	msgReceived, err = s.Contract.CallWaitRecursively(sendJettonsFastMessage{
@@ -91,10 +87,6 @@ type sendJettonsExtendedMessage struct {
 	CustomPayload    *cell.Cell       `tlb:"^"`
 	ForwardTonAmount tlb.Coins        `tlb:"."`
 	ForwardPayload   *cell.Cell       `tlb:"^"`
-}
-
-func (m sendJettonsExtendedMessage) OpCode() uint64 {
-	return 0xe815f1d0
 }
 
 func (s JettonSender) SendJettonsExtended(
