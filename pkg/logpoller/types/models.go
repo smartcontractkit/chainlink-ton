@@ -18,13 +18,30 @@ import (
 // similar to the Solana implementation pattern.
 
 type Filter struct {
-	ID            int64
-	Name          string
-	Address       address.Address
-	EventName     string
-	EventTopic    uint32 // topic identifier of a event log
-	StartingSeqNo uint32 // set starting seqno when registering the filter
-	Retention     time.Duration
+	// ID is a unique identifier for the filter.
+	ID int64
+	
+	// Name is a human-readable name for the filter, used for identification purposes.
+	Name string
+	
+	// Address specifies the target address for which logs are being filtered.
+	Address address.Address
+	
+	// EventName is the name of the event to filter logs for.
+	EventName string
+	
+	// EventTopic is a topic identifier for the event log. It is used to match specific
+	// events within the logs emitted by the target address.
+	EventTopic uint32
+	
+	// StartingSeqNo defines the starting sequence number for log polling. This is
+	// used to resume log filtering from a specific point in the event stream.
+	StartingSeqNo uint32
+	
+	// Retention specifies the duration for which the logs should be retained.
+	// Logs older than this duration may be purged to save storage.
+	Retention time.Duration
+	
 	// TODO: add more fields for production (IsDeleted, IsBackfilled, MaxLogsKept, etc.)
 }
 
