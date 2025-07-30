@@ -27,7 +27,7 @@ func NewJettonWalletProvider(apiClient tracetracking.SignedAPIClient) *JettonWal
 }
 
 type JettonWalletInitData struct {
-	Status              uint8            `tlb:"## 8"`
+	Status              uint8            `tlb:"## 4"`
 	Balance             tlb.Coins        `tlb:"."`
 	OwnerAddress        *address.Address `tlb:"addr"`
 	JettonMasterAddress *address.Address `tlb:"addr"`
@@ -53,7 +53,7 @@ func (p *JettonWalletProvider) Deploy(initData JettonWalletInitData, workChain .
 }
 
 func (p *JettonWalletProvider) OpenFromInit(OwnerAddress,
-	JettonMasterAddress *address.Address, workChain ...int8) (JettonWallet, error) {
+	JettonMasterAddress *address.Address) (JettonWallet, error) {
 	compiledContract, err := wrappers.ParseCompiledContract(JettonWalletContractPath)
 	if err != nil {
 		return JettonWallet{}, fmt.Errorf("failed to compile contract: %w", err)
@@ -68,7 +68,7 @@ func (p *JettonWalletProvider) OpenFromInit(OwnerAddress,
 	if err != nil {
 		return JettonWallet{}, fmt.Errorf("failed to convert init data to cell: %w", err)
 	}
-	contract, err := wrappers.Open(&p.apiClient, compiledContract, initDataCell, workChain...)
+	contract, err := wrappers.Open(&p.apiClient, compiledContract, initDataCell)
 	if err != nil {
 		return JettonWallet{}, err
 	}

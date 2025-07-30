@@ -229,7 +229,7 @@ func Deploy(client *tracetracking.SignedAPIClient, codeCell *cell.Cell, initData
 	return &Contract{addr, client}, nil
 }
 
-func Open(client *tracetracking.SignedAPIClient, codeCell *cell.Cell, initData *cell.Cell, workchain ...int8) (*Contract, error) {
+func Open(client *tracetracking.SignedAPIClient, codeCell *cell.Cell, initData *cell.Cell) (*Contract, error) {
 	state := &tlb.StateInit{
 		Data: initData,
 		Code: codeCell,
@@ -240,12 +240,7 @@ func Open(client *tracetracking.SignedAPIClient, codeCell *cell.Cell, initData *
 		return nil, err
 	}
 
-	wc := int8(0)
-	if len(workchain) > 0 {
-		wc = workchain[0]
-	}
-
-	addr := address.NewAddress(0, byte(wc), stateCell.Hash())
+	addr := address.NewAddress(0, byte(0), stateCell.Hash())
 
 	return &Contract{
 		Address: addr,
