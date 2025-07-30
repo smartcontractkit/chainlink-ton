@@ -7,10 +7,10 @@ require github.com/hashicorp/go-plugin v1.6.3
 require (
 	github.com/ethereum/go-ethereum v1.15.3
 	github.com/gagliardetto/solana-go v1.12.0
+	github.com/pelletier/go-toml/v2 v2.2.4
 	github.com/sigurn/crc16 v0.0.0-20211026045750-20ab5afb07e3
 	github.com/smartcontractkit/chain-selectors v1.0.62
 	github.com/smartcontractkit/chainlink-common v0.8.1-0.20250724040938-64b7160653cf
-	github.com/smartcontractkit/chainlink-framework/multinode v0.0.0-20250522110034-65c54665034a
 	github.com/stretchr/testify v1.10.0
 	github.com/xssnick/tonutils-go v1.13.0
 	golang.org/x/exp v0.0.0-20250711185948-6ae5c78190dc
@@ -81,7 +81,6 @@ require (
 	github.com/oasisprotocol/curve25519-voi v0.0.0-20230904125328-1f23a7beb09a // indirect
 	github.com/oklog/run v1.1.0 // indirect
 	github.com/pelletier/go-toml v1.9.5 // indirect
-	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/prometheus/client_golang v1.22.0 // indirect
