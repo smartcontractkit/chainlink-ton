@@ -52,8 +52,8 @@ func (p *JettonWalletProvider) Deploy(initData JettonWalletInitData, workChain .
 	}, nil
 }
 
-func (p *JettonWalletProvider) OpenFromInit(OwnerAddress,
-	JettonMasterAddress *address.Address) (JettonWallet, error) {
+func (p *JettonWalletProvider) OpenFromInit(ownerAddress,
+	jettonMasterAddress *address.Address) (JettonWallet, error) {
 	compiledContract, err := wrappers.ParseCompiledContract(JettonWalletContractPath)
 	if err != nil {
 		return JettonWallet{}, fmt.Errorf("failed to compile contract: %w", err)
@@ -61,8 +61,8 @@ func (p *JettonWalletProvider) OpenFromInit(OwnerAddress,
 	initData := JettonWalletInitData{
 		Status:              0,
 		Balance:             tlb.ZeroCoins,
-		OwnerAddress:        OwnerAddress,
-		JettonMasterAddress: JettonMasterAddress,
+		OwnerAddress:        ownerAddress,
+		JettonMasterAddress: jettonMasterAddress,
 	}
 	initDataCell, err := tlb.ToCell(initData)
 	if err != nil {
@@ -141,7 +141,6 @@ func (w JettonWallet) GetJettonBalance() (*tlb.Coins, error) {
 	}
 	coins := tlb.MustFromNano(amount, 18)
 	return &coins, nil
-
 }
 
 func (w JettonWallet) GetWalletStatus() (uint32, error) {

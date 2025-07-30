@@ -423,7 +423,7 @@ func TestJettonAll(t *testing.T) {
 		require.Zero(t, mintMsg.ExitCode, "Mint message should have exit code 0")
 		require.Len(t, mintMsg.OutgoingInternalReceivedMessages, 1, "Mint message should have 1 outgoing message")
 		msgToMinter = mintMsg.OutgoingInternalReceivedMessages[0]
-		require.Equal(t, jetton_wrappers.Error_NotOwner, msgToMinter.ExitCode, "Msg to minter should have")
+		require.Equal(t, jetton_wrappers.ErrorNotOwner, msgToMinter.ExitCode, "Msg to minter should have")
 
 		jettonData, err := setup.jettonMinter.GetJettonData()
 		require.NoError(t, err, "failed to get jetton data after admin change")
@@ -546,7 +546,7 @@ func TestJettonAll(t *testing.T) {
 		require.NoError(t, err, "failed to get onramp mock jetton wallet")
 
 		sendCallWithAmount := func(jettonAmount tlb.Coins) (tracetracking.OutgoingExternalMessages, error) {
-			msgReceived, err := setup.jettonSender.SendJettonsExtended(
+			msgReceived, err2 := setup.jettonSender.SendJettonsExtended(
 				tlb.MustFromTON("2"),
 				jettonAmount,
 				setup.onrampMock.Contract.Address,
@@ -554,6 +554,7 @@ func TestJettonAll(t *testing.T) {
 				forwardTonAmount,
 				customPayload,
 			)
+			require.NoError(t, err2, "failed to send jettons with custom payload")
 			t.Logf("JettonSender message received: \n%s\n", replaceAddresses(map[string]string{
 				setup.common.deployer.Wallet.Address().String():     "Deployer",
 				setup.jettonSender.Contract.Address.String():        "JettonSender",
@@ -562,7 +563,6 @@ func TestJettonAll(t *testing.T) {
 				setup.onrampMock.Contract.Address.String():          "OnrampMock",
 				onrampMockJettonWallet.Address().String():           "OnrampMockJettonWallet",
 			}, msgReceived.Dump()))
-			require.NoError(t, err, "failed to send jettons with custom payload")
 			require.NotEmpty(t, msgReceived.OutgoingInternalReceivedMessages, "Outgoing internal messages should not be empty")
 			msgToSender := msgReceived.OutgoingInternalReceivedMessages[0]
 			require.NotEmpty(t, msgToSender.OutgoingInternalReceivedMessages, "Outgoing internal messages should not be empty")
