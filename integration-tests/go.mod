@@ -5,7 +5,7 @@ go 1.24.2
 require (
 	github.com/hashicorp/consul/sdk v0.16.2
 	github.com/smartcontractkit/chain-selectors v1.0.62
-	github.com/smartcontractkit/chainlink-common v0.8.1-0.20250724040938-64b7160653cf
+	github.com/smartcontractkit/chainlink-common v0.8.1-0.20250730004800-27955557aca6
 	github.com/smartcontractkit/chainlink-deployments-framework v0.10.0
 	github.com/smartcontractkit/chainlink-testing-framework/framework v0.10.4
 	github.com/smartcontractkit/chainlink-ton v0.0.0
