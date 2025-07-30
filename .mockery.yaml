@@ -1,0 +1,12 @@
+dir: "{{ .InterfaceDir }}/mocks"
+mockname: "{{ .InterfaceName }}"
+outpkg: mocks
+filename: "{{ .InterfaceName | snakecase }}.go"
+fail-on-missing: true
+packages:
+  github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3:
+    config:
+      dir: "./mocks/ccipocr3"
+    interfaces:
+      SourceChainExtraDataCodec:
+      ChainSpecificAddressCodec:
