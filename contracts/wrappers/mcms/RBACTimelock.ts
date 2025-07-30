@@ -117,7 +117,6 @@ export type InMessage =
   | Cancel
   | ExecuteBatch
   | UpdateDelay
-  | UnblockFunctionSelector
   | BlockFunctionSelector
   | UnblockFunctionSelector
   | BypasserExecuteBatch
