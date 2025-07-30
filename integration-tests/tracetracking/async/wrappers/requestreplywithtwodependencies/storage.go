@@ -8,7 +8,6 @@ import (
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
-	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
@@ -27,25 +26,19 @@ func NewStorageProvider(apiClient tracetracking.SignedAPIClient) *StorageProvide
 }
 
 type StorageInitData struct {
-	ID uint32
+	ID uint32 `tlb:"## 32"`
 }
 
 func (p *StorageProvider) Deploy(initData StorageInitData) (Storage, error) {
-	// Deploy the contract
-	b := cell.BeginCell()
-	err := b.StoreUInt(0, 1)
+	initDataCell, err := tlb.ToCell(wrappers.LazyLoadingTactContractInitData(initData))
 	if err != nil {
-		return Storage{}, fmt.Errorf("failed to store init bit: %w", err)
-	}
-	err = b.StoreUInt(uint64(initData.ID), 32)
-	if err != nil {
-		return Storage{}, fmt.Errorf("failed to store ID: %w", err)
+		return Storage{}, fmt.Errorf("failed to serialize init data: %w", err)
 	}
 	compiledContract, err := wrappers.ParseCompiledContract(StorageContractPath)
 	if err != nil {
 		return Storage{}, fmt.Errorf("failed to compile contract: %w", err)
 	}
-	contract, err := wrappers.Deploy(&p.apiClient, compiledContract, b.EndCell(), tlb.MustFromTON("1"))
+	contract, err := wrappers.Deploy(&p.apiClient, compiledContract, initDataCell, tlb.MustFromTON("1"))
 	if err != nil {
 		return Storage{}, err
 	}
@@ -60,33 +53,19 @@ type Storage struct {
 }
 
 type getCapitalFromMessage struct {
-	queryID       uint64
-	PriceRegistry *address.Address
-	Key           uint8
-}
-
-func (m getCapitalFromMessage) OpCode() uint64 {
-	return 0x1
-}
-func (m getCapitalFromMessage) StoreArgs(b *cell.Builder) error {
-	err := b.StoreUInt(m.queryID, 64)
-	if err != nil {
-		return fmt.Errorf("failed to store queryID: %w", err)
-	}
-	err = b.StoreAddr(m.PriceRegistry)
-	if err != nil {
-		return fmt.Errorf("failed to store PriceRegistry address: %w", err)
-	}
-	err = b.StoreUInt(uint64(m.Key), 8)
-	if err != nil {
-		return fmt.Errorf("failed to store Key: %w", err)
-	}
-	return nil
+	_             tlb.Magic        `tlb:"#00000001"` //nolint:revive // This field should stay uninitialized
+	QueryID       uint64           `tlb:"## 64"`
+	PriceRegistry *address.Address `tlb:"addr"`
+	Key           uint8            `tlb:"## 8"`
 }
 
 func (s Storage) SendGetCapitalFrom(priceRegistry *address.Address, key uint8) (msgReceived *tracetracking.ReceivedMessage, err error) {
 	queryID := rand.Uint64()
-	msgReceived, err = s.Contract.CallWaitRecursively(getCapitalFromMessage{queryID, priceRegistry, key}, tlb.MustFromTON("0.5"))
+	msgReceived, err = s.Contract.CallWaitRecursively(getCapitalFromMessage{
+		QueryID:       queryID,
+		PriceRegistry: priceRegistry,
+		Key:           key,
+	}, tlb.MustFromTON("0.5"))
 	return msgReceived, err
 }
 

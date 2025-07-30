@@ -22,6 +22,7 @@ import {
 import { uint8ArrayToBigInt } from '../../../utils/Utils'
 import { KeyPair } from '@ton/crypto'
 import { assertLog } from './Logs'
+import { expectFailedTransaction, expectSuccessfulTransaction } from '../../Logs'
 
 describe('OCR3Base Tests', () => {
   let blockchain: Blockchain
@@ -83,14 +84,6 @@ describe('OCR3Base Tests', () => {
     transmitters: transmitters.map((t) => t.address),
     ...overrides,
   })
-
-  const expectSuccessfulTransaction = (result: any, from: Address, to: Address) => {
-    expect(result.transactions).toHaveTransaction({ from, to, success: true })
-  }
-
-  const expectFailedTransaction = (result: any, from: Address, to: Address, exitCode: number) => {
-    expect(result.transactions).toHaveTransaction({ from, to, exitCode, success: false })
-  }
 
   const setOCR3Config = async (config = {}) => {
     return await ocr3Base.sendSetOCR3Config(deployer.getSender(), createDefaultConfig(config))

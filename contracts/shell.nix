@@ -2,6 +2,7 @@
   stdenv,
   pkgs,
   lib,
+  jetton-contracts,
 }:
 pkgs.mkShell {
   buildInputs = with pkgs; [
@@ -21,4 +22,10 @@ pkgs.mkShell {
     git
     jq
   ];
+
+  shellHook = ''
+    export PATH_CONTRACTS_JETTON="${jetton-contracts}/lib/node_modules/jetton/build/"
+    
+    echo "Jetton contracts located here: $PATH_CONTRACTS_JETTON"
+  '';
 }

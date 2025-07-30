@@ -4,19 +4,21 @@ import "../lib/upgrades/type_and_version.tolk";
 import "./../lib/merkle_multi_proof/merkle_multi_proof.tolk"
 import "../deployable/types.tolk";
 import "../lib/utils.tolk";
+import "../lib/ocr/multi_ocr3_base";
+import "../lib/ocr/types";
 
 struct Storage {
     ownable: Ownable2Step;
     deployer: cell; // Deployable compiled code
     merkleRootCode: cell; // make sure to use a library cell offchain to save space
     feeQuoter: address;
+    ocr3Base: OCR3Base
 
     // static config
     chainSelector: uint64;
     // dynamic config
     permissionlessExecutionThresholdSeconds: uint32,
 
-    // TODO: embed ocr3 base state
     sourceChainConfigs: UMap<uint64, SourceChainConfig>;
 
     // This is the OCR sequence number, not to be confused with the CCIP message sequence number.
@@ -90,30 +92,38 @@ struct CommitReport {
 struct (0x00000001) Commit {
     queryId: uint64;
     // TODO: could just store as one slice since context is fixed size
-    reportContext: cell;
-    report: cell;
+    reportContext: ReportContext;
+    report: CommitReport;
     signatures: cell;
 }
 
 struct (0x00000002) Execute {
     queryId: uint64;
     // TODO: could just store as one slice since context is fixed size
-    reportContext: cell;
-    report: cell;
+    reportContext: ReportContext;
+    report: ExecutionReport;
 }
 
-type Msg = Commit | Execute;
+type Msg = Commit | Execute | OCR3Base_SetOCR3Config;
 
 fun onInternalMessage(in:InMessage) {
     val msg = lazy Msg.fromSlice(in.body);
     match (msg) {
         Commit => { commit(msg, in.senderAddress) }
         Execute => { _execute(msg, in.senderAddress) }
+        OCR3Base_SetOCR3Config => { _setOCR3Config(msg, in.senderAddress)}
         else => {
             // ignore empty messages, "wrong opcode" for others
             assert (in.body.isEmpty()) throw 0xFFFF
         }
     }
+}
+
+fun _setOCR3Config(msg: OCR3Base_SetOCR3Config, sender: address) {
+            var st = lazy Storage.load();
+            st.ownable.requireOwner(sender);
+            st.ocr3Base.setOcr3Config(msg);
+            st.store();
 }
 
 @pure @inline
@@ -125,14 +135,10 @@ fun getMerkleRootID(merkleRoot: uint256): builder {
 }
 
 fun commit(msg: Commit, sender: address) {
-    val st = lazy Storage.load();
-
-    // ocr3 base: validate signatures
-
-    // parse report
-    val report = CommitReport.fromCell(msg.report);
+    var st = lazy Storage.load();
 
     // TODO: verify RMN signatures on blessed roots
+    val report = msg.report;
 
     // update token/gas prices if any
     if (report.priceUpdates != null) {
@@ -140,7 +146,9 @@ fun commit(msg: Commit, sender: address) {
             bounce: true, // TODO:
             value: ton("0.05"), // TODO:
             dest: st.feeQuoter,
-            body: report.priceUpdates!.load(),
+            body: UpdatePrices{
+                updates: report.priceUpdates!.load()
+            },
         });
         updatePricesMsg.send(SEND_MODE_REGULAR);
     }
@@ -191,6 +199,15 @@ fun commit(msg: Commit, sender: address) {
         initMsg.send(SEND_MODE_REGULAR);
     }
 
+    // Verifies signatures and emits Transmitted event
+    st.ocr3Base.transmit(
+        sender,
+        OCR_PLUGIN_TYPE_COMMIT,
+        msg.reportContext,
+        report.toCell(),
+        msg.signatures
+    );
+
     emit(CCIP_COMMIT_REPORT_ACCEPTED_TOPIC, CommitReportAccepted {
         priceUpdates: report.priceUpdates,
         blessedMerkleRoots: report.blessedMerkleRoots,
@@ -199,15 +216,13 @@ fun commit(msg: Commit, sender: address) {
 }
 
 fun _execute(msg: Execute, sender: address) {
-    val st = lazy Storage.load();
+    var st = lazy Storage.load();
 
     // ocr3 base: validate execute report
 
     // TODO: manual execution flag
     // TODO: check if chain was cursed by RMNRemote
-
-    // parse report
-    val report = ExecutionReport.fromCell(msg.report);
+    val report = msg.report;
 
     var messages = Iterator<Any2TVMRampMessage>.new(report.messages);
 
@@ -279,6 +294,14 @@ fun _execute(msg: Execute, sender: address) {
     // executeMsg.send(SEND_MODE_REGULAR);
 
     // TODO: how do we handle incrementing the nonce? since execution is async this might take a while
+
+    st.ocr3Base.transmit(
+        sender,
+        OCR_PLUGIN_TYPE_EXECUTE,
+        msg.reportContext,
+        msg.report.toCell(),
+        beginCell().endCell(),
+    );
 }
 
 // TODO: handle signals from MerkleRoot (release tokens, execute)

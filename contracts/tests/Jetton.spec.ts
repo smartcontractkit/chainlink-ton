@@ -7,9 +7,12 @@ import { sha256 } from '@ton/crypto'
 import { resolve } from 'path'
 import { readFileSync } from 'fs'
 import { execSync } from 'child_process'
+import { env } from 'process'
 
 const ONCHAIN_CONTENT_PREFIX = 0x00
 const OFFCHAIN_CONTENT_PREFIX = 0x01
+
+const PATH_CONTRACTS_JETTON = env.PATH_CONTRACTS_JETTON
 
 const jettonDataURI = 'smartcontract.com'
 
@@ -462,10 +465,7 @@ function findGitRoot(): string {
 }
 
 async function JettonMinterCode(): Promise<Cell> {
-  const compiledPath = resolve(
-    findGitRoot(),
-    'result/lib/node_modules/jetton/build/JettonMinter.compiled.json',
-  )
+  const compiledPath = `${PATH_CONTRACTS_JETTON}/JettonMinter.compiled.json`
   const compiled = JSON.parse(readFileSync(compiledPath, 'utf8'))
   const hex = compiled.hex
   if (!hex) {
@@ -478,10 +478,7 @@ async function JettonMinterCode(): Promise<Cell> {
 }
 
 async function JettonWalletCode(): Promise<Cell> {
-  const compiledPath = resolve(
-    findGitRoot(),
-    'result/lib/node_modules/jetton/build/JettonWallet.compiled.json',
-  )
+  const compiledPath = `${PATH_CONTRACTS_JETTON}/JettonWallet.compiled.json`
   const compiled = JSON.parse(readFileSync(compiledPath, 'utf8'))
   const hex = compiled.hex
   if (!hex) {

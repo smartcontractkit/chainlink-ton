@@ -1,18 +1,17 @@
 import { Blockchain, BlockchainTransaction, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { toNano, Address, Cell, Dictionary, Message, beginCell } from '@ton/core'
 import { compile } from '@ton/blueprint'
-import { Router, RouterStorage } from '../wrappers/ccip/Router'
-import { OnRamp, OnRampStorage } from '../wrappers/ccip/OnRamp'
-import { OffRamp, OffRampStorage } from '../wrappers/ccip/OffRamp'
+import { Router, RouterStorage } from '../../wrappers/ccip/Router'
+import { OnRamp, OnRampStorage } from '../../wrappers/ccip/OnRamp'
 import {
   createTimestampedPriceValue,
   FeeQuoter,
   FeeQuoterStorage,
   TimestampedPrice,
-} from '../wrappers/ccip/FeeQuoter'
-import { testLog, getExternals } from './Logs'
+} from '../../wrappers/ccip/FeeQuoter'
+import { testLog, getExternals } from '../Logs'
 import '@ton/test-utils'
-import { ZERO_ADDRESS } from '../utils/Utils'
+import { ZERO_ADDRESS } from '../../utils/Utils'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_TON = 13879075125137744094n
@@ -118,7 +117,6 @@ describe('Router', () => {
   let router: SandboxContract<Router>
   let feeQuoter: SandboxContract<FeeQuoter>
   let onRamp: SandboxContract<OnRamp>
-  let offRamp: SandboxContract<OffRamp>
 
   beforeAll(async () => {
     blockchain = await Blockchain.create()
@@ -134,7 +132,7 @@ describe('Router', () => {
     _libs.set(BigInt(`0x${merkleRootCodeRaw.hash().toString('hex')}`), merkleRootCodeRaw)
     const libs = beginCell().storeDictDirect(_libs).endCell()
     blockchain.libs = libs
-
+    // Mock UpdatePrices Message handler
     let routerCode = await compile('Router')
     let data: RouterStorage = {
       ownable: {
@@ -265,38 +263,7 @@ describe('Router', () => {
         success: true,
       })
     }
-    // setup offramp
-    {
-      let code = await compile('OffRamp')
-
-      // Use a library reference
-      let libPrep = beginCell().storeUint(2, 8).storeBuffer(merkleRootCodeRaw.hash()).endCell()
-      let merkleRootCode = new Cell({ exotic: true, bits: libPrep.bits, refs: libPrep.refs })
-
-      let data: OffRampStorage = {
-        ownable: {
-          owner: deployer.address,
-        },
-        deployerCode: deployerCode,
-        merkleRootCode,
-        feeQuoter: feeQuoter.address,
-        chainSelector: CHAINSEL_TON,
-        permissionlessExecutionThresholdSeconds: 60,
-        latestPriceSequenceNumber: 0n,
-      }
-
-      // TODO: use deployable to make deterministic?
-      offRamp = blockchain.openContract(OffRamp.createFromConfig(data, code))
-
-      let result = await offRamp.sendDeploy(deployer.getSender(), toNano('1'))
-      expect(result.transactions).toHaveTransaction({
-        from: deployer.address,
-        to: offRamp.address,
-        deploy: true,
-        success: true,
-      })
-    }
-  }, 60_000) // setup can take a while, since we deploy contracts
+  })
 
   it('onramp', async () => {
     // Configure onRamp on router
@@ -366,12 +333,5 @@ describe('Router', () => {
         sender: deployer.address,
       },
     })
-  })
-
-  it('offramp', async () => {
-    // configure oracle set
-    // generate a report
-    // call commit
-    // call exec
   })
 })
