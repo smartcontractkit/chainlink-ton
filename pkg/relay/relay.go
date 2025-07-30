@@ -2,18 +2,16 @@ package relay
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"fmt"
 	"math/big"
+
+	"github.com/xssnick/tonutils-go/tlb"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 	commontypes "github.com/smartcontractkit/chainlink-common/pkg/types"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/core"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/cal/chainrw"
-	"github.com/smartcontractkit/chainlink-ton/pkg/config"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/txm"
@@ -25,7 +23,7 @@ type TxManager interface {
 	services.Service
 
 	Enqueue(request txm.Request) error
-	GetTransactionStatus(ctx context.Context, lt uint64) (commontypes.TransactionStatus, tvm.ExitCode, error)
+	GetTransactionStatus(ctx context.Context, lt uint64) (commontypes.TransactionStatus, tvm.ExitCode, tlb.Coins, error)
 	GetClient() tracetracking.SignedAPIClient
 	InflightCount() (int, int)
 }
@@ -33,26 +31,38 @@ type TxManager interface {
 var _ commontypes.Relayer = &Relayer{}
 
 type Relayer struct {
+	commontypes.UnimplementedRelayer
 	services.StateMachine
-	lggr   logger.Logger
-	chain  Chain
-	stopCh services.StopChan
+	lggr       logger.Logger
+	chain      Chain
+	tonService Service
+	stopCh     services.StopChan
 }
 
-func NewRelayer(lggr logger.Logger, chain Chain, _ core.CapabilitiesRegistry) *Relayer {
+func (r *Relayer) GetChainInfo(ctx context.Context) (commontypes.ChainInfo, error) {
+	return r.chain.GetChainInfo(ctx)
+}
+
+func (r *Relayer) TON() (commontypes.TONService, error) {
+	return &r.tonService, nil
+}
+
+func (r *Relayer) NewCCIPProvider(ctx context.Context, rargs commontypes.RelayArgs) (commontypes.CCIPProvider, error) {
+	// TODO(NONEVM-1460): implement
+	return nil, errors.New("unimplemented")
+}
+
+func NewRelayer(lggr logger.Logger, chain Chain, tonService Service, _ core.CapabilitiesRegistry) *Relayer {
 	return &Relayer{
-		lggr:   logger.Named(lggr, "Relayer"),
-		chain:  chain,
-		stopCh: make(services.StopChan),
+		lggr:       logger.Named(lggr, "Relayer"),
+		chain:      chain,
+		tonService: tonService,
+		stopCh:     make(services.StopChan),
 	}
 }
 
 func (r *Relayer) Name() string {
 	return r.lggr.Name()
-}
-
-func (r *Relayer) EVM() (commontypes.EVMService, error) {
-	return nil, errors.New("unimplemented")
 }
 
 // Start starts the relayer respecting the context provided.
@@ -101,24 +111,6 @@ func (r *Relayer) Transact(ctx context.Context, from, to string, amount *big.Int
 
 func (r *Relayer) Replay(ctx context.Context, fromBlock string, args map[string]any) error {
 	return r.chain.Replay(ctx, fromBlock, args)
-}
-
-func (r *Relayer) NewContractWriter(_ context.Context, config []byte) (commontypes.ContractWriter, error) {
-	cwCfg := chainrw.ChainWriterConfig{}
-	if err := json.Unmarshal(config, &cwCfg); err != nil {
-		return nil, fmt.Errorf("failed to unmarshall chain writer config: %w", err)
-	}
-
-	return chainrw.NewTONChainWriterService(r.lggr, *r.chain.MultiClient(), r.chain.TxManager(), r.chain.FeeEstimator(), cwCfg)
-}
-
-func (r *Relayer) NewContractReader(_ context.Context, chainReaderConfig []byte) (commontypes.ContractReader, error) {
-	crCfg := config.ContractReader{}
-	if err := json.Unmarshal(chainReaderConfig, &crCfg); err != nil {
-		return nil, fmt.Errorf("failed to unmarshall chain reader config: %w", err)
-	}
-
-	return chainrw.NewContractReaderService(r.lggr, crCfg, r.chain.LogPoller())
 }
 
 func (r *Relayer) NewConfigProvider(ctx context.Context, args commontypes.RelayArgs) (commontypes.ConfigProvider, error) {

@@ -1,4 +1,4 @@
-import "../../../../lib/access/ownable_2step.tolk";
+import "../../../../../lib/access/ownable_2step.tolk";
 
 struct StorageV1 {
     id: uint32;
