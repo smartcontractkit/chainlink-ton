@@ -956,10 +956,10 @@ fun Timelock<T>.onInternalMessage(mutate self, msgSender: address, msgValue: coi
         else => {
             var rbac = self.hookTrait__AccessControl();
 
-            val msgHandeled = 0
+            val msgHandled = 0
                 || rbac.onInternalMessage(msgSender, msgValue, msgBody);
 
-            if (!msgHandeled) {
+            if (!msgHandled) {
                 // If the message was not handled, throw an error
                 throw ERROR_WRONG_OP;
             }

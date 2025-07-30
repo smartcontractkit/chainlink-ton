@@ -105,7 +105,7 @@ export const builder = {
       /// Creates a new `AccessControl_RenounceRole` message.
       renounceRole: (msg: RenounceRole): Cell => {
         return beginCell()
-          .storeUint(opcodes.in.RevokeRole, 32)
+          .storeUint(opcodes.in.RenounceRole, 32)
           .storeUint(msg.queryId, 64)
           .storeUint(msg.role, 256)
           .storeAddress(msg.callerConfirmation)

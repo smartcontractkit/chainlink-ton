@@ -601,7 +601,7 @@ fun AccessControl<T>.get_getRoleMemberFirst(self, role: int): address {
 
 /// @dev getter to export downstream
 @inline
-fun AccessControl<T>.get_getRoleMemberNext(self, role: int, pivot: slice): address {
+fun AccessControl<T>.get_getRoleMemberNext(self, role: int, pivot: address): address {
    return self.getRoleMemberNext(role, pivot)
 }
 
