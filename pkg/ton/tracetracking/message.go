@@ -175,7 +175,7 @@ func describeBody(body *cell.Cell) string {
 	if err == nil {
 		return fmt.Sprintf("stringSnake: %x", strSnake)
 	}
-	return fmt.Sprintf("body: %s", body.DumpBits())
+	return "body: %s" + body.DumpBits()
 }
 
 func describeEmitBody(body *cell.Cell) string {
@@ -191,7 +191,7 @@ func describeEmitBody(body *cell.Cell) string {
 	if err == nil {
 		return fmt.Sprintf("opcode: %x", opcode)
 	}
-	return fmt.Sprintf("body: %s", body.DumpBits())
+	return "body: %s" + body.DumpBits()
 }
 
 // OutgoingExternalMessages represents external messages sent by a contract,
