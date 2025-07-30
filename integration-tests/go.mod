@@ -6,7 +6,7 @@ require (
 	github.com/ethereum/go-ethereum v1.15.7
 	github.com/hashicorp/consul/sdk v0.16.2
 	github.com/smartcontractkit/chain-selectors v1.0.62
-	github.com/smartcontractkit/chainlink-common v0.8.1-0.20250724173916-a78e01aa7d37
+	github.com/smartcontractkit/chainlink-common v0.8.1-0.20250730004800-27955557aca6
 	github.com/smartcontractkit/chainlink-deployments-framework v0.17.3
 	github.com/smartcontractkit/chainlink-testing-framework/framework v0.10.4
 	github.com/smartcontractkit/chainlink-ton v0.0.0

@@ -7,13 +7,15 @@ import (
 	"math/rand"
 	"testing"
 
-	chainsel "github.com/smartcontractkit/chain-selectors"
-	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
-	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/address"
+
+	chainsel "github.com/smartcontractkit/chain-selectors"
+	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
+
+	mocks "github.com/smartcontractkit/chainlink-ton/mocks/ccipocr3"
 )
 
 func randomTONExecuteReport(t *testing.T, sourceChainSelector uint64) ccipocr3.ExecutePluginReport {

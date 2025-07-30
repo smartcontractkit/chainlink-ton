@@ -10,7 +10,7 @@ require (
 	github.com/pelletier/go-toml/v2 v2.2.4
 	github.com/sigurn/crc16 v0.0.0-20211026045750-20ab5afb07e3
 	github.com/smartcontractkit/chain-selectors v1.0.62
-	github.com/smartcontractkit/chainlink-common v0.8.1-0.20250724040938-64b7160653cf
+	github.com/smartcontractkit/chainlink-common v0.8.1-0.20250730004800-27955557aca6
 	github.com/stretchr/testify v1.10.0
 	github.com/xssnick/tonutils-go v1.13.0
 	golang.org/x/exp v0.0.0-20250711185948-6ae5c78190dc
