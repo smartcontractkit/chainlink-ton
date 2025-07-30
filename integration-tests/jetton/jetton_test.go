@@ -460,11 +460,7 @@ func TestJettonAll(t *testing.T) {
 	t.Run("TestJettonSendFastExistingWallet", func(t *testing.T) {
 		setup := setupJettonSender(t)
 		t.Logf("Deploying JettonMinter contract\n")
-		receiverJettonWallet, err := jetton_wrappers.NewJettonWalletProvider(setup.common.receiver).Deploy(jetton_wrappers.JettonWalletInitData{
-			Balance:             tlb.ZeroCoins,
-			OwnerAddress:        setup.common.receiver.Wallet.Address(),
-			JettonMasterAddress: setup.common.jettonMinter.Contract.Address,
-		})
+		receiverJettonWallet, err := jetton_wrappers.NewJettonWalletProvider(setup.common.receiver).Deploy(setup.common.receiver.Wallet.Address(), setup.common.jettonMinter.Contract.Address)
 		require.NoError(t, err, "failed to deploy JettonWallet contract")
 		t.Logf("JettonWallet contract deployed at %s\n", receiverJettonWallet.Contract.Address.String())
 
@@ -670,10 +666,7 @@ func TestJettonAll(t *testing.T) {
 		setup := setupJettonWallet(t)
 		t.Logf("Deploying JettonWallet contract\n")
 
-		deployerJettonWallet, err := jetton_wrappers.NewJettonWalletProvider(setup.common.deployer).Deploy(jetton_wrappers.JettonWalletInitData{
-			OwnerAddress:        setup.common.deployer.Wallet.WalletAddress(),
-			JettonMasterAddress: setup.common.jettonMinter.Contract.Address,
-		})
+		deployerJettonWallet, err := jetton_wrappers.NewJettonWalletProvider(setup.common.deployer).Deploy(setup.common.deployer.Wallet.WalletAddress(), setup.common.jettonMinter.Contract.Address)
 		require.NoError(t, err, "failed to open JettonWallet contract")
 
 		t.Logf("JettonWallet contract opened at %s\n", deployerJettonWallet.Contract.Address.String())
@@ -761,10 +754,7 @@ func TestJettonAll(t *testing.T) {
 	t.Run("TestJettonBurn", func(t *testing.T) {
 		setup := setupJettonWallet(t)
 		t.Logf("Deploying JettonWallet contract\n")
-		jettonWallet, err := jetton_wrappers.NewJettonWalletProvider(setup.common.deployer).Deploy(jetton_wrappers.JettonWalletInitData{
-			OwnerAddress:        setup.common.deployer.Wallet.Address(),
-			JettonMasterAddress: setup.common.jettonMinter.Contract.Address,
-		})
+		jettonWallet, err := jetton_wrappers.NewJettonWalletProvider(setup.common.deployer).Deploy(setup.common.deployer.Wallet.Address(), setup.common.jettonMinter.Contract.Address)
 		require.NoError(t, err, "failed to deploy JettonWallet contract")
 		t.Logf("JettonWallet contract deployed at %s\n", jettonWallet.Contract.Address.String())
 

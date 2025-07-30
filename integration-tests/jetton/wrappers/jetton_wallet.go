@@ -33,16 +33,22 @@ type JettonWalletInitData struct {
 	JettonMasterAddress *address.Address `tlb:"addr"`
 }
 
-func (p *JettonWalletProvider) Deploy(initData JettonWalletInitData, workChain ...int8) (JettonWallet, error) {
+func (p *JettonWalletProvider) Deploy(ownerAddress *address.Address, jettonMasterAddress *address.Address) (JettonWallet, error) {
 	compiledContract, err := wrappers.ParseCompiledContract(JettonWalletContractPath)
 	if err != nil {
 		return JettonWallet{}, fmt.Errorf("failed to compile contract: %w", err)
+	}
+	initData := JettonWalletInitData{
+		Status:              0,
+		Balance:             tlb.ZeroCoins,
+		OwnerAddress:        ownerAddress,
+		JettonMasterAddress: jettonMasterAddress,
 	}
 	initDataCell, err := tlb.ToCell(initData)
 	if err != nil {
 		return JettonWallet{}, fmt.Errorf("failed to convert init data to cell: %w", err)
 	}
-	contract, err := wrappers.Deploy(&p.apiClient, compiledContract, initDataCell, tlb.MustFromTON("1"), workChain...)
+	contract, err := wrappers.Deploy(&p.apiClient, compiledContract, initDataCell, tlb.MustFromTON("1"))
 	if err != nil {
 		return JettonWallet{}, err
 	}

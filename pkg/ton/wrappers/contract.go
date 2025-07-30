@@ -191,7 +191,7 @@ func (c tolkCompiledContract) codeCell() (*cell.Cell, error) {
 // TON to be sent to the contract upon deployment.
 // It returns the contract wrapper if the deployment is successful.
 // The function returns an error if the deployment fails.
-func Deploy(client *tracetracking.SignedAPIClient, codeCell *cell.Cell, initData *cell.Cell, amount tlb.Coins, workChain ...int8) (*Contract, error) {
+func Deploy(client *tracetracking.SignedAPIClient, codeCell *cell.Cell, initData *cell.Cell, amount tlb.Coins) (*Contract, error) {
 	// Create empty message body for deployment
 	msgBody := cell.BeginCell().EndCell()
 
@@ -202,7 +202,6 @@ func Deploy(client *tracetracking.SignedAPIClient, codeCell *cell.Cell, initData
 		msgBody,
 		codeCell,
 		initData,
-		workChain...,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("deployment failed: %w", err)
