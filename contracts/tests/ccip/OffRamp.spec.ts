@@ -1,5 +1,5 @@
 import { Blockchain, BlockchainTransaction, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { toNano, Address, Cell, Dictionary, Message, beginCell } from '@ton/core'
+import { toNano, Address, Cell, Dictionary, Message, beginCell, contractAddress } from '@ton/core'
 import { compile } from '@ton/blueprint'
 import { CommitReport, commitReportToCell, MerkleRoot, OffRampStorage, PriceUpdates } from '../../wrappers/ccip/OffRamp'
 import { OffRamp } from '../../wrappers/ccip/OffRamp'
@@ -9,19 +9,19 @@ import {
   FeeQuoterStorage,
   TimestampedPrice,
 } from '../../wrappers/ccip/FeeQuoter'
-import { testLog, getExternals, expectSuccessfulTransaction } from '../Logs'
+import { assertLog, expectSuccessfulTransaction } from '../Logs'
 import '@ton/test-utils'
 import { uint8ArrayToBigInt, ZERO_ADDRESS } from '../../utils/Utils'
 import { KeyPair } from '@ton/crypto'
 import { expectEqualsConfig, generateEd25519KeyPair } from '../libraries/ocr/Helpers'
 import {
-        createSignature,
-        hashReport,
+  createSignature,
+  hashReport,
   OCR3_PLUGIN_TYPE_COMMIT,
   OCR3_PLUGIN_TYPE_EXECUTE,
 } from '../../wrappers/libraries/ocr/MultiOCR3Base'
-import * as Logs from '../libraries/ocr/Logs'
-import { OCR3BaseLogTypes } from '../../wrappers/libraries/ocr/Logs'
+import * as OCR3Logs  from '../../wrappers/libraries/ocr/Logs'
+import * as CCIPLogs  from '../../wrappers/ccip/Logs'
 import { setupTestFeeQuoter } from './helpers/SetUp'
 
 import { OCR3Base, ReportContext, SignatureEd25519 } from '../../wrappers/libraries/ocr/MultiOCR3Base'
@@ -38,6 +38,11 @@ function generateSecureRandomString(length: number): string {
 const createSignatures = (signerList: KeyPair[], hash: Buffer<ArrayBufferLike>): SignatureEd25519[] => {
   return signerList.map((signer) => createSignature(signer, hash))
 }
+
+const getMerkleRootID = (root: bigint) => {
+  return beginCell().storeUint(1, 16).storeUint(root, 256)
+}
+
 
 describe('OffRamp', () => {
   let blockchain: Blockchain
@@ -62,6 +67,20 @@ describe('OffRamp', () => {
     transmitters: transmitters.map((t) => t.address),
     ...overrides,
   })
+
+  const merkleRootAddress = (root: MerkleRoot, owner: Address) => {
+    const data = beginCell()
+      .storeAddress(offRamp.address)
+      .storeBuilder(getMerkleRootID(root.merkleRoot))
+      .endCell()
+
+    const init = {
+      deployerCode,
+      data
+    }
+    const workchain = 0
+    contractAddress(workchain, init)
+  }
 
   beforeAll(async () => {
     blockchain = await Blockchain.create()
@@ -142,7 +161,6 @@ describe('OffRamp', () => {
     // blockchain and counter are ready to use
   })
 
-  /*
   it('should handle two OCR3 configs', async () => {
     const resultSetCommit = await offRamp.sendSetOCR3Config(
       deployer.getSender(),
@@ -150,10 +168,10 @@ describe('OffRamp', () => {
     )
     expectSuccessfulTransaction(resultSetCommit, deployer.address, offRamp.address)
 
-    Logs.assertLog(
+    assertLog(
       resultSetCommit.transactions,
       offRamp.address,
-      OCR3BaseLogTypes.OCR3BaseConfigSet,
+      OCR3Logs.LogTypes.OCR3BaseConfigSet,
       {
         ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
         configDigest,
@@ -168,10 +186,10 @@ describe('OffRamp', () => {
       createDefaultConfig({ ocrPluginType: OCR3_PLUGIN_TYPE_EXECUTE }),
     )
     expectSuccessfulTransaction(resultSetExecute, deployer.address, offRamp.address)
-    Logs.assertLog(
-      resultSetCommit.transactions,
+    assertLog(
+      resultSetExecute.transactions,
       offRamp.address,
-      OCR3BaseLogTypes.OCR3BaseConfigSet,
+      OCR3Logs.LogTypes.OCR3BaseConfigSet,
       {
         ocrPluginType: OCR3_PLUGIN_TYPE_EXECUTE,
         configDigest,
@@ -181,33 +199,13 @@ describe('OffRamp', () => {
       },
     )
   })
-  */
 
   it('Test commit with empty report', async () => {
-    const resultSetCommit = await offRamp.sendSetOCR3Config(
+    const resultSetConfig = await offRamp.sendSetOCR3Config(
       deployer.getSender(),
       createDefaultConfig(),
     )
-    expectSuccessfulTransaction(resultSetCommit, deployer.address, offRamp.address)
-
-    Logs.assertLog(
-      resultSetCommit.transactions,
-      offRamp.address,
-      OCR3BaseLogTypes.OCR3BaseConfigSet,
-      {
-        ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
-        configDigest,
-        signers: signersPublicKeys,
-        transmitters: transmitters.map((t) => t.address),
-        bigF: 1,
-      },
-    )
-
-    const resultSetExecute = await offRamp.sendSetOCR3Config(
-      deployer.getSender(),
-      createDefaultConfig({ ocrPluginType: OCR3_PLUGIN_TYPE_EXECUTE }),
-    )
-    expectSuccessfulTransaction(resultSetExecute, deployer.address, offRamp.address)
+    expectSuccessfulTransaction(resultSetConfig, deployer.address, offRamp.address)
 
     let reportContext: ReportContext = {configDigest, padding:0n, sequenceBytes: 0x01}
     let report: CommitReport
@@ -227,5 +225,19 @@ describe('OffRamp', () => {
       }
     )
     expectSuccessfulTransaction(resultCommit, transmitters[0].address, offRamp.address)
+
+    assertLog(
+      resultCommit.transactions,
+      offRamp.address,
+      CCIPLogs.LogTypes.CCIPCommitReportAccepted,
+      {
+        priceUpdates: undefined,
+        merkleRoots: []
+      }
+    )
+  })
+
+  it('Test commit with one message', async () => {
+    
   })
 })

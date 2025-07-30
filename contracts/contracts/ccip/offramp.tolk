@@ -60,8 +60,8 @@ struct ExecutionStateChanged {
     state: uint8;
 }
 
-// TODO: use sha256("CommitReportAccepted")
-const CCIP_COMMIT_REPORT_ACCEPTED_TOPIC: int = 0x99; // for easier indexing
+// crc32("CCIPCommitReportAccepted")
+const CCIP_COMMIT_REPORT_ACCEPTED_TOPIC: int = 1560977615;
 
 struct CommitReportAccepted {
     priceUpdates: Cell<PriceUpdates>?;

@@ -12,104 +12,11 @@ import {
 import { testLog, getExternals } from '../Logs'
 import '@ton/test-utils'
 import { ZERO_ADDRESS } from '../../utils/Utils'
+import { assertLog } from '../Logs'
+import { LogTypes } from '../../wrappers/ccip/Logs'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_TON = 13879075125137744094n
-
-type CCIPMessageSentParams = {
-  destChainSelector: bigint
-  sequenceNumber: bigint
-  message: {
-    header: {
-      messageId: bigint
-      destChainSelector: bigint
-      sourceChainSelector: bigint
-      sequenceNumber: bigint
-      nonce: bigint
-    }
-    sender: Address
-    receiver: Cell
-    data: Cell
-    extraArgs: Cell
-    tokenAmounts: Cell // TODO: further parse all the fields
-    feeToken: Address
-    feeTokenAmount: bigint
-    feeValueJuels: bigint
-  }
-}
-
-type DeepPartial<T> = {
-  [P in keyof T]?: DeepPartial<T[P]>
-}
-
-export const testLogMessageSent = (
-  message: Message,
-  from: Address,
-  match: DeepPartial<CCIPMessageSentParams>,
-) => {
-  return testLog(message, from, LogTypes.CCIPMessageSent, (x) => {
-    let bs = x.beginParse()
-
-    const destChainSelector = bs.loadUintBig(64)
-    const sequenceNumber = bs.loadUintBig(64)
-
-    bs = bs.loadRef().beginParse()
-
-    const header = {
-      messageId: bs.loadUintBig(256),
-      sourceChainSelector: bs.loadUintBig(64),
-      destChainSelector: bs.loadUintBig(64),
-      sequenceNumber: bs.loadUintBig(64),
-      nonce: bs.loadUintBig(64),
-    }
-    const sender = bs.loadAddress()
-
-    const body = bs.loadRef().beginParse()
-
-    const msg: CCIPMessageSentParams = {
-      destChainSelector,
-      sequenceNumber,
-      message: {
-        header,
-        sender,
-        receiver: body.loadRef(),
-        data: body.loadRef(),
-        extraArgs: body.loadRef(),
-        tokenAmounts: body.loadRef(),
-        feeToken: body.loadAddress(),
-        feeTokenAmount: body.loadUintBig(256),
-        feeValueJuels: bs.loadUintBig(96),
-      },
-    }
-
-    expect(msg).toMatchObject(match)
-    return true
-  })
-}
-
-enum LogTypes {
-  CCIPMessageSent = 0x99,
-}
-
-type LogMatch<T extends LogTypes> = T extends LogTypes.CCIPMessageSent
-  ? DeepPartial<CCIPMessageSentParams>
-  : number
-export const assertLog = <T extends LogTypes>(
-  transactions: BlockchainTransaction[],
-  from: Address,
-  type: T,
-  match: LogMatch<T>,
-) => {
-  getExternals(transactions).some((x) => {
-    switch (type) {
-      case LogTypes.CCIPMessageSent:
-        testLogMessageSent(x, from, match as DeepPartial<CCIPMessageSentParams>)
-        break
-      default:
-        fail('Unhandled log type')
-    }
-  })
-}
 
 describe('Router', () => {
   let blockchain: Blockchain
@@ -321,8 +228,6 @@ describe('Router', () => {
       deploy: false,
       success: true,
     })
-
-    console.log(getExternals(result.transactions))
 
     // assert CCIPMessageSent
     assertLog(result.transactions, onRamp.address, LogTypes.CCIPMessageSent, {

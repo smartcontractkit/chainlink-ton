@@ -3,10 +3,11 @@ import "./exit_codes.tolk";
 import "./../utils.tolk";
 
 
-//sha256("OCR3Base_ConfigSet")
-const OCR3BASE_CONFIG_SET_TOPIC: int = 0x252df30dc755a76605aaa7d3a9988e2a50c42f58fbb18d267e5455b1b05c3019;
-//sha256("OCR3Base_Transmitted")
-const OCR3BASE_TRANSMITTED: int = 0x5e5c7df897e863d72f9277ec7832d0794aebac23abe5cfbd11079f20fd96c851;
+//crc32("OCR3Base_ConfigSet")
+const OCR3BASE_CONFIG_SET_TOPIC: int = 114798884;
+
+//crc32("OCR3Base_Transmitted")
+const OCR3BASE_TRANSMITTED: int = 1724003192;
 
 /// @notice Event, triggers a new run of the offchain reporting protocol.
 /// @param ocrPluginType OCR plugin type for which the config was set.

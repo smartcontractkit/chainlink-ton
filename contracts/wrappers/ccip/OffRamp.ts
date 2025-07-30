@@ -14,7 +14,7 @@ import {
 import { Ownable2StepConfig } from '../libraries/access/Ownable2Step'
 import { OCR3Base, ReportContext, SignatureEd25519 } from '../libraries/ocr/MultiOCR3Base'
 
-import { asSnakeData } from '../../utils/Utils'
+import { asSnakeData, fromSnakeData } from '../../utils/Utils'
 
 export type OffRampStorage = {
   ownable: Ownable2StepConfig
@@ -50,7 +50,7 @@ export type CommitReport = {
 export type ExecutionReport = {
   sourceChainSelector: bigint
   messages: Any2TVMRampMessage[]
-  offchainTokenData: number[][]
+  offchainTokenData: bigint[][]
   proofs: bigint[]
   proofFlagBits: bigint
 }
@@ -67,10 +67,10 @@ export type Any2TVMRampMessage = {
 }
 
 export type MerkleRoot = {
-  sourceChainSelector: number
+  sourceChainSelector: bigint
   onRampAddress: CrossChainAddress,
-  minSeqNr: number,
-  maxSeqNr: number,
+  minSeqNr: bigint,
+  maxSeqNr: bigint,
   merkleRoot: bigint
 }
 
@@ -204,32 +204,75 @@ export class OffRamp extends OCR3Base {
   }
 }
 
-
-export function commitReportToCell(report: CommitReport): Cell {
-  let priceUpdates: Cell | undefined = undefined
-  if (report.priceUpdates != undefined) {
-    priceUpdates = beginCell()
-      .storeRef(asSnakeData(report.priceUpdates!.tokenPriceUpdates, (item) => 
+export function priceUpdatesToCell(priceUpdates: PriceUpdates): Cell {
+    return beginCell()
+      .storeRef(asSnakeData(priceUpdates.tokenPriceUpdates, (item) => 
         beginCell()
         .storeAddress(item.sourceToken)
         .storeUint(item.usdPerToken, 224)))
-      .storeRef(asSnakeData(report.priceUpdates!.gasPriceUpdates, (item) =>
+      .storeRef(asSnakeData(priceUpdates.gasPriceUpdates, (item) =>
         beginCell()
         .storeUint(item.destChainSelector, 64)
         .storeUint(item.executionGasPrice, 112)
         .storeUint(item.dataAvailabilityGasPrice, 112)))
       .endCell()
-  }
+}
 
-  return beginCell()
-    .storeMaybeRef(priceUpdates)
-    .storeRef(asSnakeData(report.merkleRoots, (item) => 
+export function priceUpdatesFromCell(data: Cell): PriceUpdates {
+  const cs = data.beginParse()
+
+  const tokenPriceUpdates: TokenPriceUpdate[] = fromSnakeData(cs.loadRef(), (x) => {
+    const sourceToken = x.loadAddress()
+    const usdPerToken = x.loadUintBig(224)
+    return {sourceToken, usdPerToken}
+  })
+
+  const gasPriceUpdates: GasPriceUpdate[] = fromSnakeData(cs.loadRef(), (x) => {
+    const destChainSelector = x.loadUintBig(64)
+    const executionGasPrice = x.loadUintBig(112)
+    const dataAvailabilityGasPrice = x.loadUintBig(112)
+    return {destChainSelector, executionGasPrice, dataAvailabilityGasPrice}
+  })
+
+  return {tokenPriceUpdates, gasPriceUpdates}
+}
+
+export function merkleRootsToCell(roots: MerkleRoot[]): Cell {
+  return asSnakeData(roots, (item) => 
       beginCell()
       .storeUint(item.sourceChainSelector, 64)
       .storeSlice(item.onRampAddress)
       .storeUint(item.minSeqNr, 64)
       .storeUint(item.maxSeqNr, 64)
-      .storeUint(item.merkleRoot, 256)))
+      .storeUint(item.merkleRoot, 256))
+}
+
+export function merkleRootsFromCell(data: Cell): MerkleRoot[] {
+  return fromSnakeData(data, (x) => {
+    const sourceChainSelector = x.loadUintBig(64)
+    const onRampAddress = x.loadRef().beginParse()
+    const minSeqNr = x.loadUintBig(64)
+    const maxSeqNr = x.loadUintBig(64)
+    const merkleRoot = x.loadUintBig(256)
+    return {
+      sourceChainSelector,
+      onRampAddress,
+      minSeqNr,
+      maxSeqNr,
+      merkleRoot
+    }
+  }) 
+}
+
+export function commitReportToCell(report: CommitReport): Cell {
+  let priceUpdates: Cell | undefined = undefined
+  if (report.priceUpdates != undefined) {
+    priceUpdates = priceUpdatesToCell(report.priceUpdates!)
+  }
+
+  return beginCell()
+    .storeMaybeRef(priceUpdates)
+    .storeRef(merkleRootsToCell(report.merkleRoots))
     .endCell()
 }
 
