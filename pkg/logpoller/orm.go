@@ -45,7 +45,37 @@ func (o *DSORM) HasFilter(ctx context.Context, name string) (bool, error) {
 }
 
 func (o *DSORM) InsertFilter(ctx context.Context, filter types.Filter) (id int64, err error) {
-	return 0, errors.New("Implement me")
+	args, err := newQueryArgs(o.chainID).
+		withField("name", filter.Name).
+		withRetention(filter.Retention).
+		withName(filter.Name).
+		withAddress(filter.Address).
+		withEventName(filter.EventName).
+		withEventSig(filter.EventTopic).
+		withStartingSeqNo(int64(filter.StartingSeqNo)).
+		toArgs()
+	if err != nil {
+		return 0, err
+	}
+
+	query := `
+    INSERT INTO ton.log_poller_filters
+        (chain_id, name, address, event_name, event_sig, starting_seqno, retention)
+        VALUES (:chain_id, :name, :address, :event_name, :event_sig, :starting_seqno, :retention)
+    ON CONFLICT (chain_id, name) WHERE NOT is_deleted DO UPDATE SET 
+                                                            event_name = EXCLUDED.event_name,
+                                                            starting_seqno = EXCLUDED.starting_seqno,
+                                                            retention = EXCLUDED.retention
+    RETURNING id;`
+
+	query, sqlArgs, err := o.ds.BindNamed(query, args)
+	if err != nil {
+		return 0, err
+	}
+	if err = o.ds.GetContext(ctx, &id, query, sqlArgs...); err != nil {
+		return 0, err
+	}
+	return id, nil
 }
 
 // GetFilterByID returns filter by ID
@@ -75,20 +105,56 @@ func (o *DSORM) SelectFilters(ctx context.Context) ([]types.Filter, error) {
 
 // InsertLogs is idempotent to support replays.
 func (o *DSORM) InsertLogs(ctx context.Context, logs []types.Log) error {
-	return errors.New("Implement me")
+	if err := o.validateLogs(logs); err != nil {
+		return err
+	}
+	return o.Transact(ctx, func(orm *DSORM) error {
+		return orm.insertLogsWithinTx(ctx, logs, orm.ds)
+	})
 }
 
 func (o *DSORM) insertLogsWithinTx(ctx context.Context, logs []types.Log, tx sqlutil.DataSource) error {
-	return errors.New("Implement me")
+	batchInsertSize := 4000
+	for i := 0; i < len(logs); i += batchInsertSize {
+		start, end := i, i+batchInsertSize
+		if end > len(logs) {
+			end = len(logs)
+		}
 
+		query := `INSERT INTO solana.logs
+					(filter_id, chain_id, block_hash, address, tx_hash, tx_lt, event_topic, data, created_at, expires_at, error)
+				VALUES
+					(:filter_id, :chain_id, :block_hash, :address, :tx_hash, :tx_lt, :event_topic, :data, NOW(), :expires_at, :error)
+				ON CONFLICT DO NOTHING`
+
+		res, err := tx.NamedExecContext(ctx, query, logs[start:end])
+		if err != nil {
+			if errors.Is(err, context.DeadlineExceeded) && batchInsertSize > 500 {
+				// In case of DB timeouts, try to insert again with a smaller batch upto a limit
+				batchInsertSize /= 2
+				i -= batchInsertSize // counteract +=batchInsertSize on next loop iteration
+				continue
+			}
+			return err
+		}
+		numRows, err := res.RowsAffected()
+		if err == nil {
+			if numRows != int64(len(logs)) {
+				// This probably just means we're trying to insert the same log twice, but could also be an indication
+				// of other constraint violations
+				o.lggr.Debugf("attempted to insert %d logs, but could only insert %d", len(logs), numRows)
+			}
+		}
+	}
+	return nil
 }
 
 func (o *DSORM) validateLogs(logs []types.Log) error {
-	return errors.New("Implement me")
+	return nil // TODO: implement validation logic
 }
 
 // SelectLogs finds the logs in a given block range.
-func (o *DSORM) SelectLogs(ctx context.Context, start, end int64, address *address.Address, eventSig types.EventSignature) ([]types.Log, error) {
+func (o *DSORM) SelectLogs(ctx context.Context, start, end int64, address *address.Address, eventTopic uint32) ([]types.Log, error) {
 	return nil, errors.New("Implement me")
 }
 
@@ -102,7 +168,6 @@ func (o *DSORM) GetLatestBlock(ctx context.Context) (int64, error) {
 
 func (o *DSORM) SelectSeqNums(ctx context.Context) (map[int64]int64, error) {
 	return nil, errors.New("Implement me")
-
 }
 
 func (o *DSORM) PruneLogsForFilter(ctx context.Context, filter types.Filter) (int64, error) {

@@ -257,11 +257,11 @@ func (lp *Service) Process(msgWithCtx types.MsgWithCtx) error {
 			FilterID: fid,
 			// TODO: we need custom type for to storing block, tx metadata
 			// SeqNo:      master.SeqNo,
-			TxHash:  msgWithCtx.TxHash,
-			TxLT:    msgWithCtx.LT,
-			Address: *msg.SrcAddr,
-			Topic:   topic,
-			Data:    msg.Body.ToBOC(),
+			TxHash:     msgWithCtx.TxHash,
+			TxLT:       msgWithCtx.LT,
+			Address:    msg.SrcAddr,
+			EventTopic: topic,
+			Data:       msg.Body.ToBOC(),
 		})
 	}
 	return nil
