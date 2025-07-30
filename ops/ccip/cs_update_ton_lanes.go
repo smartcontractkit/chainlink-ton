@@ -5,6 +5,7 @@ import (
 
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
+	"github.com/smartcontractkit/chainlink-ton/ops/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/ops/ccip/operation"
 	"github.com/smartcontractkit/chainlink-ton/ops/ccip/sequence"
 	"github.com/smartcontractkit/chainlink-ton/ops/ccip/utils"
@@ -13,23 +14,16 @@ import (
 	"github.com/xssnick/tonutils-go/ton/wallet"
 )
 
-type AddLaneCfg struct {
-	FromChainSelector uint64
-	ToChainSelector   uint64
-	FromFamily        string
-	ToFamily          string
-}
-
 type AddTonLanes struct{}
 
-var _ cldf.ChangeSetV2[AddLaneCfg] = AddTonLanes{}
+var _ cldf.ChangeSetV2[config.UpdateTonLanesConfig] = AddTonLanes{}
 
-func (cs AddTonLanes) VerifyPreconditions(_ cldf.Environment, _ AddLaneCfg) error {
+func (cs AddTonLanes) VerifyPreconditions(_ cldf.Environment, _ config.UpdateTonLanesConfig) error {
 	// TODO: Implement precondition checks for adding or updating a lane on Ton chain
 	return nil
 }
 
-func (cs AddTonLanes) Apply(env cldf.Environment, config AddLaneCfg) (cldf.ChangesetOutput, error) {
+func (cs AddTonLanes) Apply(env cldf.Environment, config config.UpdateTonLanesConfig) (cldf.ChangesetOutput, error) {
 	seqReports := make([]operations.Report[any, any], 0)
 	proposals := make([]mcms.TimelockProposal, 0)
 	// mcmsOperations := make([]mcmstypes.BatchOperation, 0)

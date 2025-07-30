@@ -11,8 +11,11 @@ require (
 	github.com/smartcontractkit/chainlink-ton v0.0.0
 	github.com/smartcontractkit/chainlink-ton/ops v0.0.0-00010101000000-000000000000
 	github.com/smartcontractkit/chainlink/deployment v0.0.0-20250728170612-b2c4e1a4648c
+	github.com/smartcontractkit/chainlink/v2 v2.0.0-20250728170612-b2c4e1a4648c
 	github.com/stretchr/testify v1.10.0
+	github.com/test-go/testify v1.1.4
 	github.com/xssnick/tonutils-go v1.13.0
+	go.uber.org/zap v1.27.0
 )
 
 // use local modules
@@ -376,7 +379,6 @@ require (
 	github.com/smartcontractkit/chainlink-testing-framework/parrot v0.6.2 // indirect
 	github.com/smartcontractkit/chainlink-testing-framework/seth v1.51.2 // indirect
 	github.com/smartcontractkit/chainlink-tron/relayer v0.0.11-0.20250701132001-f8be142155b6 // indirect
-	github.com/smartcontractkit/chainlink/v2 v2.0.0-20250728170612-b2c4e1a4648c // indirect
 	github.com/smartcontractkit/freeport v0.1.1 // indirect
 	github.com/smartcontractkit/grpc-proxy v0.0.0-20240830132753-a7e17fec5ab7 // indirect
 	github.com/smartcontractkit/libocr v0.0.0-20250707144819-babe0ec4e358 // indirect
@@ -444,7 +446,6 @@ require (
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/ratelimit v0.3.1 // indirect
-	go.uber.org/zap v1.27.0 // indirect
 	golang.org/x/arch v0.11.0 // indirect
 	golang.org/x/crypto v0.40.0 // indirect
 	golang.org/x/exp v0.0.0-20250711185948-6ae5c78190dc // indirect
