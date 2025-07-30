@@ -3,7 +3,6 @@ import "types.tolk";
 import "../lib/access/ownable_2step.tolk";
 import "../deployable/types.tolk";
 import "../lib/upgrades/type_and_version.tolk";
-import "utils.tolk";
 import "../lib/utils.tolk";
 
 const VAL_1E5:  uint256 = 100000;
@@ -171,6 +170,7 @@ fun updatePrices(mutate st: Storage, priceUpdates: PriceUpdates) {
             value: update.usdPerToken,
             timestamp
         })
+      //TODO: emit UsdPerTokenUpdated(update.sourceToken, update.usdPerToken, block.timestamp);
     }
 
     var iter2 = Iterator<GasPriceUpdate>.new(priceUpdates.gasPriceUpdates);
@@ -187,6 +187,8 @@ fun updatePrices(mutate st: Storage, priceUpdates: PriceUpdates) {
                 timestamp
             }.toCell();
             st.destChainConfigs.replace(update.destChainSelector, destChainConfig);
+
+          //TODO: emit UsdPerUnitGasUpdated(update.destChainSelector, update.usdPerUnitGas, block.timestamp);
         }
     }
 

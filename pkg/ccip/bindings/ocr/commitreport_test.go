@@ -1,0 +1,121 @@
+package ocr
+
+import (
+	"math/big"
+	"testing"
+
+	"github.com/stretchr/testify/require"
+	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/tvm/cell"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+)
+
+func TestCommitReport_EncodingAndDecoding(t *testing.T) {
+	addr, err := address.ParseAddr("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")
+	require.NoError(t, err)
+	tokenPriceSlice := []TokenPriceUpdate{
+		{
+			SourceToken: addr,
+			UsdPerToken: big.NewInt(1000000), // Example value
+		},
+		{
+			SourceToken: addr,
+			UsdPerToken: big.NewInt(1000000), // Example value
+		},
+		{
+			SourceToken: addr,
+			UsdPerToken: big.NewInt(1000000), // Example value
+		},
+		{
+			SourceToken: addr,
+			UsdPerToken: big.NewInt(1000000), // Example value
+		},
+		{
+			SourceToken: addr,
+			UsdPerToken: big.NewInt(1000000), // Example value
+		},
+	}
+	require.NoError(t, err)
+
+	gasPriceSlice := []GasPriceUpdate{
+		{
+			DestChainSelector: 1,
+			UsdPerUnitGas:     big.NewInt(2000000),
+		},
+		{
+			DestChainSelector: 2,
+			UsdPerUnitGas:     big.NewInt(2000000),
+		},
+		{
+			DestChainSelector: 3,
+			UsdPerUnitGas:     big.NewInt(2000000),
+		}, {
+			DestChainSelector: 4,
+			UsdPerUnitGas:     big.NewInt(2000000),
+		},
+		{
+			DestChainSelector: 5,
+			UsdPerUnitGas:     big.NewInt(2000000),
+		},
+	}
+	require.NoError(t, err)
+	onrampAddr := common.CrossChainAddress{0x01, 0x02, 0x03, 0x04, 0x05}
+	merkleRoots := []MerkleRoot{
+		{
+			SourceChainSelector: 1,
+			OnRampAddress:       onrampAddr,
+			MinSeqNr:            100,
+			MaxSeqNr:            200,
+			MerkleRoot:          make([]byte, 32),
+		},
+		{
+			SourceChainSelector: 1,
+			OnRampAddress:       onrampAddr,
+			MinSeqNr:            100,
+			MaxSeqNr:            200,
+			MerkleRoot:          make([]byte, 32),
+		},
+		{
+			SourceChainSelector: 1,
+			OnRampAddress:       onrampAddr,
+			MinSeqNr:            100,
+			MaxSeqNr:            200,
+			MerkleRoot:          make([]byte, 32),
+		},
+	}
+	require.NoError(t, err)
+
+	sigs := common.SnakeRef[common.SnakeBytes]{
+		make(common.SnakeBytes, 64),
+		make(common.SnakeBytes, 64),
+	}
+
+	commitReport := CommitReport{
+		PriceUpdates: PriceUpdates{
+			TokenPriceUpdates: tokenPriceSlice,
+			GasPriceUpdates:   gasPriceSlice,
+		},
+		MerkleRoot: MerkleRoots{
+			UnblessedMerkleRoots: merkleRoots,
+			BlessedMerkleRoots:   merkleRoots,
+		},
+		RMNSignatures: sigs,
+	}
+
+	// Encode to cell
+	c, err := tlb.ToCell(commitReport)
+	require.NoError(t, err)
+
+	rb := c.ToBOC()
+	newCell, err := cell.FromBOC(rb)
+	require.NoError(t, err)
+
+	// Decode from cell
+	var decoded CommitReport
+	err = tlb.LoadFromCell(&decoded, newCell.BeginParse())
+	require.NoError(t, err)
+	require.Equal(t, c.Hash(), newCell.Hash())
+	require.Equal(t, commitReport, decoded)
+}

@@ -2,7 +2,7 @@ import "types.tolk";
 import "../lib/access/ownable_2step.tolk";
 import "../lib/upgrades/type_and_version.tolk";
 import "../deployable/types.tolk";
-import "utils.tolk";
+import "../lib/utils.tolk";
 
 struct Storage {
     ownable: Ownable2Step;
@@ -49,9 +49,6 @@ fun onSetRamp(msg: SetRamp, sender: address) {
 
 fun onSend(msg: CCIPSend, sender: address) {
     ccipSend(msg, sender);
-
-    // Forward excesses
-    // self.forward(msg.sender, null, false, null);
 }
 
 fun onTransferNotification(msg: JettonTransferNotification, sender: address) {
@@ -74,7 +71,7 @@ fun onTransferNotification(msg: JettonTransferNotification, sender: address) {
     // self.forward(msg.sender, null, false, null);
 }
 
-fun ccipSend(msg: CCIPSend, caller: address) {
+fun ccipSend(msg: CCIPSend, sender: address) {
     val st = lazy Storage.load();
 
     // forward to onRamp
@@ -83,7 +80,7 @@ fun ccipSend(msg: CCIPSend, caller: address) {
         bounce: true,
         value: ton("0.1"), // TODO:
         dest: st.onRamp,
-        body: OnRampSend { msg: msg.toCell(), caller },
+        body: OnRampSend { msg: msg.toCell(), metadata: Metadata { sender } },
     });
     sendMsg.send(SEND_MODE_REGULAR);
 }

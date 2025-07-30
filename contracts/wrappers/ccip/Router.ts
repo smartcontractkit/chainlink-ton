@@ -91,7 +91,7 @@ export class Router implements Contract {
       value: bigint
       queryID?: number
       destChainSelector: bigint
-      receiver: Cell
+      receiver: Buffer
       data: Cell
       tokenAmounts: Cell
       feeToken: Address
@@ -105,7 +105,9 @@ export class Router implements Contract {
         .storeUint(Opcodes.ccipSend, 32)
         .storeUint(opts.queryID ?? 0, 64)
         .storeUint(opts.destChainSelector, 64)
-        .storeRef(opts.receiver)
+        // CrossChainAddress TODO: assert =< 64
+        .storeUint(opts.receiver.byteLength, 8)
+        .storeBuffer(opts.receiver, opts.receiver.byteLength)
         .storeRef(opts.data)
         .storeRef(opts.tokenAmounts) // TODO: pack inputs
         .storeAddress(opts.feeToken)

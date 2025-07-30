@@ -5,11 +5,13 @@ import {
   Contract,
   contractAddress,
   ContractProvider,
+  Dictionary,
   Sender,
   SendMode,
 } from '@ton/core'
 
 import { Ownable2StepConfig } from '../libraries/access/Ownable2Step'
+import { OCR3Base } from '../libraries/ocr/MultiOCR3Base'
 
 export type OffRampStorage = {
   ownable: Ownable2StepConfig
@@ -23,18 +25,28 @@ export type OffRampStorage = {
 
 export const Builder = {
   asStorage: (config: OffRampStorage): Cell => {
-    return beginCell()
-      .storeAddress(config.ownable.owner)
-      .storeMaybeBuilder(
-        config.ownable.pendingOwner ? beginCell().storeAddress(config.ownable.pendingOwner) : null,
-      )
-      .storeRef(config.deployerCode)
-      .storeRef(config.merkleRootCode)
-      .storeAddress(config.feeQuoter)
-      .storeUint(config.chainSelector, 64)
-      .storeUint(config.permissionlessExecutionThresholdSeconds, 32)
-      .storeUint(config.latestPriceSequenceNumber, 64)
-      .endCell()
+    return (
+      beginCell()
+        .storeAddress(config.ownable.owner)
+        .storeMaybeBuilder(
+          config.ownable.pendingOwner
+            ? beginCell().storeAddress(config.ownable.pendingOwner)
+            : null,
+        )
+        .storeRef(config.deployerCode)
+        .storeRef(config.merkleRootCode)
+        .storeAddress(config.feeQuoter)
+        // empty OCR3Base::
+        .storeUint(1, 8) //chainId
+        .storeBit(false)
+        .storeBit(false)
+        .storeUint(config.chainSelector, 64)
+        .storeUint(config.permissionlessExecutionThresholdSeconds, 32)
+        .storeDict(Dictionary.empty()) // sourceChainConfigs
+        .storeUint(64, 16) // keyLen
+        .storeUint(config.latestPriceSequenceNumber, 64)
+        .endCell()
+    )
   },
 }
 export abstract class Params {}
@@ -46,11 +58,13 @@ export abstract class Opcodes {
 
 export abstract class Errors {}
 
-export class OffRamp implements Contract {
+export class OffRamp extends OCR3Base {
   constructor(
     readonly address: Address,
     readonly init?: { code: Cell; data: Cell },
-  ) {}
+  ) {
+    super()
+  }
 
   static createFromAddress(address: Address) {
     return new OffRamp(address)
