@@ -5,6 +5,8 @@ import (
 	"sort"
 	"sync"
 
+	"github.com/xssnick/tonutils-go/tlb"
+
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 
@@ -109,23 +111,25 @@ func (s *TxStore) InflightCount() int {
 // - MsgStatus indicates the lifecycle state of the message.
 // - isSucceeded indicates whether the transaction trace execution succeeded.
 // - ExitCode contains the VM result code.
+// - Coins represents the Total Action Fees associated with the transaction.
 // - found tells whether the transaction was present in memory.
-func (s *TxStore) GetTxState(lt uint64) (tracetracking.MsgStatus, bool, tvm.ExitCode, bool) {
+func (s *TxStore) GetTxState(lt uint64) (tracetracking.MsgStatus, bool, tvm.ExitCode, tlb.Coins, bool) {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 
 	if _, exists := s.unconfirmedTxs[lt]; exists {
 		// Transaction is seen but not finalized
-		return tracetracking.Cascading, false, 0, true
+		return tracetracking.Cascading, false, 0, tlb.ZeroCoins, true
 	}
 
 	if tx, exists := s.finalizedTxs[lt]; exists {
 		// Transaction is finalized (success or failure is indicated separately)
-		return tracetracking.Finalized, tx.TraceSucceeded, tx.ExitCode, true
+		totalActionFees := tlb.MustFromNano(tx.ReceivedMessage.TotalActionFees, 9)
+		return tracetracking.Finalized, tx.TraceSucceeded, tx.ExitCode, totalActionFees, true
 	}
 
 	// Transaction not found in any store
-	return tracetracking.NotFound, false, 0, false
+	return tracetracking.NotFound, false, 0, tlb.ZeroCoins, false
 }
 
 type AccountStore struct {

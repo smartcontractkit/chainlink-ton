@@ -43,7 +43,6 @@ const getMerkleRootID = (root: bigint) => {
   return beginCell().storeUint(1, 16).storeUint(root, 256)
 }
 
-
 describe('OffRamp', () => {
   let blockchain: Blockchain
   let deployer: SandboxContract<TreasuryContract>

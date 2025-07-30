@@ -136,7 +136,12 @@ fun getMerkleRootID(merkleRoot: uint256): builder {
 fun commit(msg: Commit, sender: address) {
     var st = lazy Storage.load();
 
+<<<<<<< HEAD
     val report = msg.report.load();
+=======
+    // TODO: verify RMN signatures on blessed roots
+    val report = msg.report;
+>>>>>>> 173d057e009a9981247de582ad46a24da8e4e045
 
     // update token/gas prices if any
     if (report.priceUpdates != null) {

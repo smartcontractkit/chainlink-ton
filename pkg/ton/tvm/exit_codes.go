@@ -1,12 +1,14 @@
 package tvm
 
-import "fmt"
+import (
+	"fmt"
+)
 
 // This code is returned by smart contracts to indicate the reason for transaction failure or abnormal termination.
 // For a comprehensive and up-to-date list of exit codes, refer to:
 // - Tact documentation: https://docs.tact-lang.org/book/exit-codes/
 // - TON documentation:  https://docs.ton.org/v3/documentation/tvm/tvm-exit-codes
-type ExitCode int
+type ExitCode int32
 
 // ExitCode for the message that deploys a contract can be different depending on the contract implementation.
 // If the contract has an empty received message handler, and you are deploying it with an empty message, it will return ExitCodeSuccess.
