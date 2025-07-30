@@ -5,11 +5,13 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/txm"
-	ccipcommon "github.com/smartcontractkit/chainlink/v2/core/capabilities/ccip/common"
+	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/libocr/offchainreporting2plus/ocr3types"
 	ocrtypes "github.com/smartcontractkit/libocr/offchainreporting2plus/types"
-	"github.com/smartcontractkit/wsrpc/logger"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/txm"
+
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton/wallet"
@@ -25,7 +27,7 @@ type ToEd25519CalldataFunc func(
 	rawReportCtx [2][32]byte,
 	report ocr3types.ReportWithInfo[[]byte],
 	signatures [][96]byte,
-	codec ccipcommon.ExtraDataCodec,
+	codec ccipocr3.ExtraDataCodec,
 ) (contract string, method string, args any, err error)
 
 type RawReportContext3Func func(configDigest [32]byte, seqNr uint64) [2][32]byte
@@ -33,41 +35,31 @@ type RawReportContext3Func func(configDigest [32]byte, seqNr uint64) [2][32]byte
 var _ ocr3types.ContractTransmitter[[]byte] = &ccipTransmitter{}
 
 type ccipTransmitter struct {
-	txm                 *txm.Txm
-	fromWallet          *wallet.Wallet
+	txm                 txm.TxManager
 	offrampAddress      string
 	toEd25519CalldataFn ToEd25519CalldataFunc
 	rawReportContextFn  RawReportContext3Func
-	extraDataCodec      ccipcommon.ExtraDataCodec
+	extraDataCodec      ccipocr3.ExtraDataCodec
 	lggr                logger.Logger
 }
 
 func NewCCIPTransmitter(
-	txm *txm.Txm,
-	w *wallet.Wallet,
-	offramp string,
-	toEd25519CalldataFn ToEd25519CalldataFunc,
-	rawReportContextFn RawReportContext3Func,
-	codec ccipcommon.ExtraDataCodec,
+	txm txm.TxManager,
 	lggr logger.Logger,
 ) (ocr3types.ContractTransmitter[[]byte], error) {
-	if txm == nil || w == nil || fn == nil {
+	if txm == nil || lggr == nil {
 		return nil, errors.New("invalid transmitter args")
 	}
 
 	return &ccipTransmitter{
-		txm:                 txm,
-		fromWallet:          w,
-		offrampAddress:      offramp,
-		toEd25519CalldataFn: toEd25519CalldataFn,
-		rawReportContextFn:  rawReportContextFn,
-		extraDataCodec:      codec,
-		lggr:                lggr,
+		txm:  txm,
+		lggr: lggr,
 	}, nil
 }
 
 func (c *ccipTransmitter) FromAccount(context.Context) (ocrtypes.Account, error) {
-	return ocrtypes.Account(c.fromWallet.Address().StringRaw()), nil
+	w := c.txm.GetClient().Wallet
+	return ocrtypes.Account(w.Address().StringRaw()), nil
 }
 
 func (c *ccipTransmitter) Transmit(
@@ -83,20 +75,19 @@ func (c *ccipTransmitter) Transmit(
 
 	rawReportCtx := c.rawReportContextFn(configDigest, seqNr)
 
-	var signatures [][96]byte
-	for _, as := range sigs {
-		sig := as.Signature
-		if len(sig) != 96 {
-			return fmt.Errorf("invalid ed25519 signature length, expected 96, got %d", len(sig))
+	signatures := make([][96]byte, 0, len(sigs))
+	for _, sig := range sigs {
+		if len(sig.Signature) != 96 {
+			return fmt.Errorf("invalid ed25519 signature length, expected 96, got %d", len(sig.Signature))
 		}
-		var sigBytes [96]byte
-		copy(sigBytes[:], sig)
-		signatures = append(signatures, sigBytes)
+		var fixedSig [96]byte
+		copy(fixedSig[:], sig.Signature)
+		signatures = append(signatures, fixedSig)
 	}
 
-	contract, method, args, err := c.toEd25519CalldataFn(rawReportCtx, reportWithInfo, signatures, c.extraDataCodec)
+	_, method, args, err := c.toEd25519CalldataFn(rawReportCtx, reportWithInfo, signatures, c.extraDataCodec)
 	if err != nil {
-		return fmt.Errorf("failed to generate ed25519 call data: %w", err)
+		return fmt.Errorf("failed to generate call data: %w", err)
 	}
 
 	body, ok := args.(*cell.Cell)
@@ -104,15 +95,16 @@ func (c *ccipTransmitter) Transmit(
 		return fmt.Errorf("expected args to be *cell.Cell, got %T", args)
 	}
 
+	w := c.txm.GetClient().Wallet
 	request := txm.Request{
 		Mode:            wallet.PayGasSeparately,
-		FromWallet:      *c.fromWallet,
-		ContractAddress: *address.MustParseAddr(contract),
+		FromWallet:      w,
+		ContractAddress: *address.MustParseAddr(c.offrampAddress),
 		Body:            body,
 		Amount:          tlb.MustFromTON("0.05"),
 	}
 
-	c.lggr.Infow("Submitting transaction", "contract", contract, "method", method)
+	c.lggr.Infow("Submitting transaction", "address", c.offrampAddress, "method", method)
 
 	if err := c.txm.Enqueue(request); err != nil {
 		return fmt.Errorf("failed to submit transaction via txm: %w", err)
