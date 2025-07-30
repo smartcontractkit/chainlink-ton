@@ -101,7 +101,7 @@ type jettonInternalTransfer struct {
 	From             *address.Address `tlb:"addr"`
 	ResponseAddress  *address.Address `tlb:"addr"`
 	ForwardTonAmount tlb.Coins        `tlb:"."`
-	ForwardPayload   *cell.Cell       `tlb:"."`
+	ForwardPayload   *cell.Cell       `tlb:"either . ^"`
 }
 
 type mintMessage struct {
@@ -112,12 +112,10 @@ type mintMessage struct {
 	MasterMsg   jettonInternalTransfer `tlb:"^"`
 }
 
-func (m JettonMinter) SendMint(tonAmount tlb.Coins, destination *address.Address, tonAmountInJettonMessage tlb.Coins, jettonAmount tlb.Coins, from *address.Address, responseAddress *address.Address, forwardTonAmount tlb.Coins, forwardPayload ForwardPayload) (msgReceived *tracetracking.ReceivedMessage, err error) {
+func (m JettonMinter) SendMint(tonAmount tlb.Coins, destination *address.Address, tonAmountInJettonMessage tlb.Coins, jettonAmount tlb.Coins, from *address.Address, responseAddress *address.Address, forwardTonAmount tlb.Coins, forwardPayload *cell.Cell) (msgReceived *tracetracking.ReceivedMessage, err error) {
 	queryID := rand.Uint64()
-	forwardPayload = NewForwardPayload(cell.BeginCell().ToSlice())
-	forwardPayloadCell, err := forwardPayload.ToCell()
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert forward payload to cell: %w", err)
+	if forwardPayload == nil {
+		forwardPayload = cell.BeginCell().EndCell()
 	}
 	msgReceived, err = m.Contract.CallWaitRecursively(mintMessage{
 		QueryID:     queryID,
@@ -129,7 +127,7 @@ func (m JettonMinter) SendMint(tonAmount tlb.Coins, destination *address.Address
 			From:             from,
 			ResponseAddress:  responseAddress,
 			ForwardTonAmount: forwardTonAmount,
-			ForwardPayload:   forwardPayloadCell,
+			ForwardPayload:   forwardPayload,
 		},
 	}, tonAmount)
 	return msgReceived, err

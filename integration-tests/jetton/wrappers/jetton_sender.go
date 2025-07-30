@@ -72,7 +72,6 @@ func (s JettonSender) SendJettonsFast(amount tlb.Coins, destination *address.Add
 	return msgReceived, err
 }
 
-// TODO check jetton.transferpayload
 type sendJettonsExtendedMessage struct {
 	_                tlb.Magic        `tlb:"#e815f1d0"` //nolint:revive // This field should stay uninitialized
 	QueryID          uint64           `tlb:"## 64"`

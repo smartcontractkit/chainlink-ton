@@ -112,7 +112,7 @@ func TestJettonAll(t *testing.T) {
 			setup.deployer.Wallet.WalletAddress(),
 			setup.deployer.Wallet.WalletAddress(),
 			tlb.ZeroCoins,
-			jetton_wrappers.ForwardPayload{},
+			nil,
 		)
 		require.NoError(t, err, "failed to mint jettons")
 		t.Logf("Msg trace:\n%s\n", replaceAddresses(
@@ -176,7 +176,7 @@ func TestJettonAll(t *testing.T) {
 			setup.common.deployer.Wallet.WalletAddress(),
 			setup.common.deployer.Wallet.WalletAddress(),
 			tlb.ZeroCoins,
-			jetton_wrappers.ForwardPayload{},
+			nil,
 		)
 		require.NoError(t, err, "failed to mint additional jettons for onramp tests")
 
@@ -216,7 +216,7 @@ func TestJettonAll(t *testing.T) {
 			setup.common.deployer.Wallet.WalletAddress(),
 			setup.common.deployer.Wallet.WalletAddress(),
 			tlb.ZeroCoins,
-			jetton_wrappers.ForwardPayload{},
+			nil,
 		)
 		require.NoError(t, err, "failed to mint additional jettons for receiver tests")
 
@@ -244,7 +244,7 @@ func TestJettonAll(t *testing.T) {
 			setup.deployer.Wallet.WalletAddress(),
 			setup.deployer.Wallet.WalletAddress(),
 			tlb.ZeroCoins,
-			jetton_wrappers.ForwardPayload{},
+			nil,
 		)
 		require.NoError(t, err, "failed to mint jettons")
 
@@ -351,7 +351,7 @@ func TestJettonAll(t *testing.T) {
 			setup.deployer.Wallet.WalletAddress(),
 			setup.deployer.Wallet.WalletAddress(),
 			tlb.ZeroCoins,
-			jetton_wrappers.ForwardPayload{},
+			nil,
 		)
 		require.NoError(t, err, "failed to mint jettons")
 		t.Logf("Jetton minting message received: \n%s\n", replaceAddresses(map[string]string{
@@ -417,7 +417,7 @@ func TestJettonAll(t *testing.T) {
 			setup.deployer.Wallet.WalletAddress(),
 			setup.deployer.Wallet.WalletAddress(),
 			tlb.ZeroCoins,
-			jetton_wrappers.ForwardPayload{},
+			nil,
 		)
 		require.NoError(t, err, "failed to mint jettons after admin drop")
 		require.Zero(t, mintMsg.ExitCode, "Mint message should have exit code 0")
@@ -687,7 +687,7 @@ func TestJettonAll(t *testing.T) {
 			setup.common.deployer.Wallet.WalletAddress(),
 			nil,
 			fwdTonAmount,
-			jetton_wrappers.NewForwardPayload(cell.BeginCell().EndCell()),
+			nil,
 		)
 		require.NoError(t, err, "failed to transfer jettons")
 		receiverJettonWallet, err := setup.common.jettonClient.GetJettonWallet(t.Context(), recipient)
@@ -733,7 +733,7 @@ func TestJettonAll(t *testing.T) {
 			setup.common.deployer.Wallet.WalletAddress(),
 			nil,
 			fwdTonAmount,
-			jetton_wrappers.NewForwardPayload(cell.BeginCell().EndCell()),
+			nil,
 		)
 		require.NoError(t, err, "failed to transfer jettons")
 		receiverJettonWallet, err := setup.common.jettonClient.GetJettonWallet(t.Context(), recipient)
