@@ -108,9 +108,6 @@ const (
 )
 
 func (w JettonWallet) SendTransfer(tonAmount tlb.Coins, jettonAmount tlb.Coins, destination *address.Address, responseDestination *address.Address, customPayload *cell.Cell, forwardTonAmount tlb.Coins, forwardPayload *cell.Cell) (msgReceived *tracetracking.ReceivedMessage, err error) {
-	if forwardPayload == nil {
-		forwardPayload = cell.BeginCell().EndCell() // TODO Should work with nil too
-	}
 	queryID := rand.Uint64()
 	msgReceived, err = w.Contract.CallWaitRecursively(jetton.TransferPayload{
 		QueryID:             queryID,

@@ -114,9 +114,6 @@ type mintMessage struct {
 
 func (m JettonMinter) SendMint(tonAmount tlb.Coins, destination *address.Address, tonAmountInJettonMessage tlb.Coins, jettonAmount tlb.Coins, from *address.Address, responseAddress *address.Address, forwardTonAmount tlb.Coins, forwardPayload *cell.Cell) (msgReceived *tracetracking.ReceivedMessage, err error) {
 	queryID := rand.Uint64()
-	if forwardPayload == nil {
-		forwardPayload = cell.BeginCell().EndCell()
-	}
 	msgReceived, err = m.Contract.CallWaitRecursively(mintMessage{
 		QueryID:     queryID,
 		Destination: destination,
