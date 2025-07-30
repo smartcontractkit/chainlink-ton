@@ -43,7 +43,7 @@ type CCIPSend struct {
 	DestinationChainSelector uint64                        `tlb:"## 64"`
 	Receiver                 common.CrossChainAddress      `tlb:"."`
 	TokenAmounts             common.SnakeData[TokenAmount] `tlb:"^"`
-	ExtraArgs                *cell.Cell                    `tlb:"^"` // four bytes tag + GenericExtraArgsV2 or SVMExtraArgsV1
+	ExtraArgs                common.SnakeBytes             `tlb:"^"` // four bytes tag + BoC encoded GenericExtraArgsV2 or SVMExtraArgsV1 bytes
 }
 
 // DestChainConfig represents the configuration for a destination chain in the CCIP system.

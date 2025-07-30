@@ -55,6 +55,7 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 		FeeQuoter:     deployFeeQuoterReport.Output.Address,
 		FeeAggregator: in.CCIPConfig.OnRampParams.FeeAggregator,
 	}
+
 	deployOnRampReport, err := operations.ExecuteOperation(b, operation.DeployOnRampOp, deps, onrampInput)
 	if err != nil {
 		return output, err

@@ -19,17 +19,15 @@ type SetRamp struct {
 	OnRamp            *address.Address `tlb:"addr"`
 }
 
-// TODO check if CCIPSend and JettonTransferNotification are needed for CLD
-
 type CCIPSend struct {
 	_                 tlb.Magic                                 `tlb:"#00000001"`
 	QueryID           uint64                                    `tlb:"## 64"`
 	DestChainSelector uint64                                    `tlb:"## 64"`
 	Receiver          common.CrossChainAddress                  `tlb:"^"`
-	Data              cell.Cell                                 `tlb:"^"`
+	Data              common.SnakeBytes                         `tlb:"^"`
 	TokenAmounts      common.SnakeRef[ocr.Any2TVMTokenTransfer] `tlb:"^"`
 	FeeToken          *address.Address                          `tlb:"addr"`
-	ExtraArgs         *cell.Cell                                `tlb:"^"`
+	ExtraArgs         common.SnakeBytes                         `tlb:"^"` // four bytes tag + BoC encoded GenericExtraArgsV2 or SVMExtraArgsV1 bytes
 }
 
 type JettonTransferNotification struct {
