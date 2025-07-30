@@ -47,18 +47,18 @@ type Filter struct {
 
 // TODO: do we want to store the workchain and its seqno to be able to query the block directly?
 type Log struct {
-	ID       int64
-	FilterID int64
+	ID       int64  // Unique identifier for the log entry.
+	FilterID int64  // Identifier of the filter that matched this log.
 	// SeqNo      uint32 // currently ListTransactions does not return seqno, need to update with block polling
-	Address    address.Address
-	TxHash     []byte // Transaction hash for uniqueness
-	TxLT       uint64 // definitive LT
-	Topic      uint32
-	Data       []byte // raw BOC of the body cell
-	CreatedAt  time.Time
-	ReceivedAt time.Time
-	ExpiresAt  *time.Time
-	Error      *string
+	Address    address.Address // Address associated with the log entry.
+	TxHash     []byte // Transaction hash for uniqueness within the blockchain.
+	TxLT       uint64 // Logical time (LT) of the transaction, used for ordering and uniqueness.
+	Topic      uint32 // Topic identifier for categorizing the log entry.
+	Data       []byte // Raw BOC (Bag of Cells) of the body cell containing the log data.
+	CreatedAt  time.Time // Timestamp when the log entry was created.
+	ReceivedAt time.Time // Timestamp when the log entry was received by the system.
+	ExpiresAt  *time.Time // Optional expiration timestamp for the log entry.
+	Error      *string // Optional error message associated with the log entry.
 	// TODO: Add SeqNo when we have block information available
 	// TODO: add fields for replay and debugging (BlockHash, BlockNumber, BlockTimestamp, TxHash, etc.)
 }
