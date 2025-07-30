@@ -9,7 +9,7 @@ require (
 	github.com/gagliardetto/solana-go v1.12.0
 	github.com/sigurn/crc16 v0.0.0-20211026045750-20ab5afb07e3
 	github.com/smartcontractkit/chain-selectors v1.0.62
-	github.com/smartcontractkit/chainlink-common v0.8.1-0.20250724040938-64b7160653cf
+	github.com/smartcontractkit/chainlink-common v0.8.1-0.20250730004800-27955557aca6
 	github.com/smartcontractkit/chainlink-framework/multinode v0.0.0-20250522110034-65c54665034a
 	github.com/stretchr/testify v1.10.0
 	github.com/xssnick/tonutils-go v1.13.0
