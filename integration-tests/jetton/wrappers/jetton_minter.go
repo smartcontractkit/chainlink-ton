@@ -94,7 +94,7 @@ const (
 	JettonMinterExcesses          = 0xd53276db
 )
 
-type jettonInternalTransfer struct {
+type JettonInternalTransfer struct {
 	_                tlb.Magic        `tlb:"#178d4519"` //nolint:revive // This field should stay uninitialized
 	QueryID          uint64           `tlb:"## 64"`
 	Amount           tlb.Coins        `tlb:"."`
@@ -104,21 +104,21 @@ type jettonInternalTransfer struct {
 	ForwardPayload   *cell.Cell       `tlb:"either . ^"`
 }
 
-type mintMessage struct {
+type MintMessage struct {
 	_           tlb.Magic              `tlb:"#642b7d07"` //nolint:revive // This field should stay uninitialized
 	QueryID     uint64                 `tlb:"## 64"`
 	Destination *address.Address       `tlb:"addr"`
 	TonAmount   tlb.Coins              `tlb:"."`
-	MasterMsg   jettonInternalTransfer `tlb:"^"`
+	MasterMsg   JettonInternalTransfer `tlb:"^"`
 }
 
 func (m JettonMinter) SendMint(tonAmount tlb.Coins, destination *address.Address, tonAmountInJettonMessage tlb.Coins, jettonAmount tlb.Coins, from *address.Address, responseAddress *address.Address, forwardTonAmount tlb.Coins, forwardPayload *cell.Cell) (msgReceived *tracetracking.ReceivedMessage, err error) {
 	queryID := rand.Uint64()
-	msgReceived, err = m.Contract.CallWaitRecursively(mintMessage{
+	msgReceived, err = m.Contract.CallWaitRecursively(MintMessage{
 		QueryID:     queryID,
 		Destination: destination,
 		TonAmount:   tonAmountInJettonMessage,
-		MasterMsg: jettonInternalTransfer{
+		MasterMsg: JettonInternalTransfer{
 			QueryID:          queryID,
 			Amount:           jettonAmount,
 			From:             from,
@@ -130,7 +130,7 @@ func (m JettonMinter) SendMint(tonAmount tlb.Coins, destination *address.Address
 	return msgReceived, err
 }
 
-type changeAdminMessage struct {
+type ChangeAdminMessage struct {
 	_        tlb.Magic        `tlb:"#6501f354"` //nolint:revive // This field should stay uninitialized
 	QueryID  uint64           `tlb:"## 64"`
 	NewAdmin *address.Address `tlb:"addr"`
@@ -138,38 +138,38 @@ type changeAdminMessage struct {
 
 func (m JettonMinter) SendChangeAdmin(newAdmin *address.Address) (msgReceived *tracetracking.ReceivedMessage, err error) {
 	queryID := rand.Uint64()
-	msgReceived, err = m.Contract.CallWaitRecursively(changeAdminMessage{
+	msgReceived, err = m.Contract.CallWaitRecursively(ChangeAdminMessage{
 		QueryID:  queryID,
 		NewAdmin: newAdmin,
 	}, tlb.MustFromTON("0.1"))
 	return msgReceived, err
 }
 
-type claimAdminMessage struct {
+type ClaimAdminMessage struct {
 	_       tlb.Magic `tlb:"#fb88e119"` //nolint:revive // This field should stay uninitialized
 	QueryID uint64    `tlb:"## 64"`
 }
 
 func (m JettonMinter) SendClaimAdmin() (msgReceived *tracetracking.ReceivedMessage, err error) {
 	queryID := rand.Uint64()
-	msgReceived, err = m.Contract.CallWaitRecursively(claimAdminMessage{QueryID: queryID}, tlb.MustFromTON("0.1"))
+	msgReceived, err = m.Contract.CallWaitRecursively(ClaimAdminMessage{QueryID: queryID}, tlb.MustFromTON("0.1"))
 	return msgReceived, err
 }
 
-type dropAdminMessage struct {
+type DropAdminMessage struct {
 	_       tlb.Magic `tlb:"#7431f221"` //nolint:revive // This field should stay uninitialized
 	QueryID uint64    `tlb:"## 64"`
 }
 
 func (m JettonMinter) SendDropAdmin() (msgReceived *tracetracking.ReceivedMessage, err error) {
 	queryID := rand.Uint64()
-	msgReceived, err = m.Contract.CallWaitRecursively(dropAdminMessage{
+	msgReceived, err = m.Contract.CallWaitRecursively(DropAdminMessage{
 		QueryID: queryID,
 	}, tlb.MustFromTON("0.1"))
 	return msgReceived, err
 }
 
-type changeContentMessage struct {
+type ChangeContentMessage struct {
 	_       tlb.Magic  `tlb:"#cb862902"` //nolint:revive // This field should stay uninitialized
 	QueryID uint64     `tlb:"## 64"`
 	Content *cell.Cell `tlb:"^"`
@@ -177,14 +177,14 @@ type changeContentMessage struct {
 
 func (m JettonMinter) SendChangeContent(content *cell.Cell) (msgReceived *tracetracking.ReceivedMessage, err error) {
 	queryID := rand.Uint64()
-	msgReceived, err = m.Contract.CallWaitRecursively(changeContentMessage{
+	msgReceived, err = m.Contract.CallWaitRecursively(ChangeContentMessage{
 		QueryID: queryID,
 		Content: content,
 	}, tlb.MustFromTON("0.1"))
 	return msgReceived, err
 }
 
-type upgradeMessage struct {
+type UpgradeMessage struct {
 	_       tlb.Magic  `tlb:"#2508d66a"` //nolint:revive // This field should stay uninitialized
 	QueryID uint64     `tlb:"## 64"`
 	NewData *cell.Cell `tlb:"^"`
@@ -193,7 +193,7 @@ type upgradeMessage struct {
 
 func (m JettonMinter) SendUpgrade(newData *cell.Cell, newCode *cell.Cell) (msgReceived *tracetracking.ReceivedMessage, err error) {
 	queryID := rand.Uint64()
-	msgReceived, err = m.Contract.CallWaitRecursively(upgradeMessage{
+	msgReceived, err = m.Contract.CallWaitRecursively(UpgradeMessage{
 		QueryID: queryID,
 		NewData: newData,
 		NewCode: newCode,
