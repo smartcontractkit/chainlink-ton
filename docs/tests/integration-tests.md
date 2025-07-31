@@ -8,7 +8,7 @@ By default, the integration tests automatically spawn a temporary network using 
 
 ### Running a Persistent Node
 
-1. Follow the quickstart and setup instructions from the **[`mylocalton-docker` repository](https://www.google.com/search?q=%5Bhttps://github.com/neodix42/mylocalton-docker%5D\(https://github.com/neodix42/mylocalton-docker\))**. Additional guidance is also available in the **[Chainlink Testing Framework documentation](https://smartcontractkit.github.io/chainlink-testing-framework/framework/components/blockchains/ton.html)**.
+1. Follow the quickstart and setup instructions from the **[`mylocalton-docker` repository](https://github.com/neodix42/mylocalton-docker)**. Additional guidance is also available in the **[Chainlink Testing Framework documentation](https://smartcontractkit.github.io/chainlink-testing-framework/framework/components/blockchains/ton.html)**.
 
 2. From the `mylocalton-docker` directory, start the core network service by running:
 
