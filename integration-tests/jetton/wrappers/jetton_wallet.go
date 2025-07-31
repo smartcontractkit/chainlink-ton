@@ -2,27 +2,24 @@ package wrappers
 
 import (
 	"fmt"
-	"math/rand/v2"
 	"path"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
-	"github.com/xssnick/tonutils-go/ton/jetton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
 var JettonWalletContractPath = path.Join(PathContractsJetton, "JettonWallet.compiled.json")
 
 type JettonWalletProvider struct {
-	apiClient tracetracking.SignedAPIClient
+	JettonMinterAddress *address.Address
 }
 
-func NewJettonWalletProvider(apiClient tracetracking.SignedAPIClient) *JettonWalletProvider {
+func NewJettonWalletProvider(jettonMinterAddress *address.Address) *JettonWalletProvider {
 	return &JettonWalletProvider{
-		apiClient: apiClient,
+		JettonMinterAddress: jettonMinterAddress,
 	}
 }
 
@@ -33,64 +30,26 @@ type JettonWalletInitData struct {
 	JettonMasterAddress *address.Address `tlb:"addr"`
 }
 
-func (p *JettonWalletProvider) Deploy(ownerAddress *address.Address, jettonMasterAddress *address.Address) (JettonWallet, error) {
+func JettonWalletCode() (*cell.Cell, error) {
 	compiledContract, err := wrappers.ParseCompiledContract(JettonWalletContractPath)
 	if err != nil {
-		return JettonWallet{}, fmt.Errorf("failed to compile contract: %w", err)
+		return nil, fmt.Errorf("failed to compile contract: %w", err)
 	}
+	return compiledContract, nil
+}
+
+func (p *JettonWalletProvider) GetWalletInitCell(ownerAddress *address.Address) (*cell.Cell, error) {
 	initData := JettonWalletInitData{
 		Status:              0,
 		Balance:             tlb.ZeroCoins,
 		OwnerAddress:        ownerAddress,
-		JettonMasterAddress: jettonMasterAddress,
+		JettonMasterAddress: p.JettonMinterAddress,
 	}
 	initDataCell, err := tlb.ToCell(initData)
 	if err != nil {
-		return JettonWallet{}, fmt.Errorf("failed to convert init data to cell: %w", err)
+		return nil, fmt.Errorf("failed to convert init data to cell: %w", err)
 	}
-	contract, err := wrappers.Deploy(&p.apiClient, compiledContract, initDataCell, tlb.MustFromTON("1"))
-	if err != nil {
-		return JettonWallet{}, err
-	}
-
-	return JettonWallet{
-		Contract: *contract,
-	}, nil
-}
-
-func (p *JettonWalletProvider) OpenFromInit(ownerAddress,
-	jettonMasterAddress *address.Address) (JettonWallet, error) {
-	compiledContract, err := wrappers.ParseCompiledContract(JettonWalletContractPath)
-	if err != nil {
-		return JettonWallet{}, fmt.Errorf("failed to compile contract: %w", err)
-	}
-	initData := JettonWalletInitData{
-		Status:              0,
-		Balance:             tlb.ZeroCoins,
-		OwnerAddress:        ownerAddress,
-		JettonMasterAddress: jettonMasterAddress,
-	}
-	initDataCell, err := tlb.ToCell(initData)
-	if err != nil {
-		return JettonWallet{}, fmt.Errorf("failed to convert init data to cell: %w", err)
-	}
-	contract, err := wrappers.Open(&p.apiClient, compiledContract, initDataCell)
-	if err != nil {
-		return JettonWallet{}, err
-	}
-
-	return JettonWallet{
-		Contract: *contract,
-	}, nil
-}
-
-func (p *JettonWalletProvider) Open(jettonWalletAddress *address.Address) (JettonWallet, error) {
-	return JettonWallet{
-		Contract: wrappers.Contract{
-			Address: jettonWalletAddress,
-			Client:  &p.apiClient,
-		},
-	}, nil
+	return initDataCell, nil
 }
 
 type JettonWallet struct {
@@ -106,31 +65,6 @@ const (
 	JettonWalletBurn                 = 0x595f07bc
 	JettonWalletBurnNotification     = 0x7bdd97de
 )
-
-func (w JettonWallet) SendTransfer(tonAmount tlb.Coins, jettonAmount tlb.Coins, destination *address.Address, responseDestination *address.Address, customPayload *cell.Cell, forwardTonAmount tlb.Coins, forwardPayload *cell.Cell) (msgReceived *tracetracking.ReceivedMessage, err error) {
-	queryID := rand.Uint64()
-	msgReceived, err = w.Contract.CallWaitRecursively(jetton.TransferPayload{
-		QueryID:             queryID,
-		Amount:              jettonAmount,
-		Destination:         destination,
-		ResponseDestination: responseDestination,
-		CustomPayload:       customPayload,
-		ForwardTONAmount:    forwardTonAmount,
-		ForwardPayload:      forwardPayload,
-	}, tonAmount)
-	return msgReceived, err
-}
-
-func (w JettonWallet) SendBurn(jettonAmount tlb.Coins, responseDestination *address.Address, customPayload *cell.Cell) (msgReceived *tracetracking.ReceivedMessage, err error) {
-	queryID := rand.Uint64()
-	msgReceived, err = w.Contract.CallWaitRecursively(jetton.BurnPayload{
-		QueryID:             queryID,
-		Amount:              jettonAmount,
-		ResponseDestination: responseDestination,
-		CustomPayload:       customPayload,
-	}, tlb.MustFromTON("0.1"))
-	return msgReceived, err
-}
 
 // Getter methods
 func (w JettonWallet) GetJettonBalance() (*tlb.Coins, error) {

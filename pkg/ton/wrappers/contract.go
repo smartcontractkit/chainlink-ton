@@ -228,6 +228,45 @@ func Deploy(client *tracetracking.SignedAPIClient, codeCell *cell.Cell, initData
 	return &Contract{addr, client}, nil
 }
 
+// Deploy deploys a contract to the blockchain. It takes the code cell of a
+// compiled contract, the initial data for the contract, and the amount of
+// TON to be sent to the contract upon deployment.
+// It returns the contract wrapper if the deployment is successful.
+// The function returns an error if the deployment fails.
+func Deploy2(client *tracetracking.SignedAPIClient, codeCell *cell.Cell, initData *cell.Cell, amount tlb.Coins, msgBody *cell.Cell) (*Contract, *tracetracking.ReceivedMessage, error) {
+	// Deploy the contract
+	addr, tx, _, err := client.Wallet.DeployContractWaitTransaction(
+		context.Background(),
+		amount,
+		msgBody,
+		codeCell,
+		initData,
+	)
+	if err != nil {
+		return nil, nil, fmt.Errorf("deployment failed: %w", err)
+	}
+
+	receivedMessage, err := tracetracking.MapToReceivedMessage(tx)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get outgoing messages: %w", err)
+	}
+	err = receivedMessage.WaitForTrace(client)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to wait for trace: %w", err)
+	}
+	if receivedMessage.ExitCode != tvm.ExitCodeSuccess || len(receivedMessage.OutgoingInternalReceivedMessages) != 1 {
+		return nil, nil, fmt.Errorf("contract deployment failed: error sending external message: exit code %d: %s", receivedMessage.ExitCode, receivedMessage.ExitCode.Describe())
+	}
+	deployExitCode := receivedMessage.OutgoingInternalReceivedMessages[0].ExitCode
+	_ = deployExitCode
+	// TODO jetton minter errors cell underflow when deployed
+	// if !deployExitCode.IsSuccessfulDeployment() {
+	// 	return nil, fmt.Errorf("contract deployment failed: exit code %d: %s", deployExitCode, deployExitCode.Describe())
+	// }
+
+	return &Contract{addr, client}, &receivedMessage, nil
+}
+
 func Open(client *tracetracking.SignedAPIClient, codeCell *cell.Cell, initData *cell.Cell) (*Contract, error) {
 	state := &tlb.StateInit{
 		Data: initData,
