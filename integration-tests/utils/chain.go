@@ -3,7 +3,7 @@ package utils
 import (
 	"context"
 	"fmt"
-	"integration-tests/config"
+	"os"
 	"strconv"
 	"strings"
 	"testing"
@@ -177,7 +177,7 @@ func CreateAPIClient(t *testing.T, chainID uint64) *ton.APIClient {
 	var networkCfg string
 	var err error
 
-	if config.UseExistingNetwork {
+	if os.Getenv("USE_EXISTING_TON_NODE") == "true" {
 		networkCfg = getExistingNetworkConfig(t, chainID)
 	} else {
 		networkCfg = createNewNetwork(t, chainID)
