@@ -41,11 +41,25 @@ func LoadEventFromMsg[T any](msg *tlb.ExternalMessageOut) (T, error) {
 // While the topic space is large (248 bits), we have decided to use a 32-bit (4-byte) CRC32 checksum as the topic.
 // See hash.go for the CRC32 calculation.
 // https://github.com/ton-blockchain/intellij-ton/blob/2105f3cd39aafe164c9524079d6c73325e8f85e8/modules/tolk/testResources/org.ton.intellij.tolk/tolk-stdlib/common.tolk#L1093
-const EventTopicLength = 4 // 32 bits
-func ExtractEventTopicFromAddress(addr *address.Address) (uint32, error) {
-	data := addr.Data()
+const EventTopicLength = 4
+
+type ExtOutLogBucket struct {
+	Address *address.Address // source address that contains the encoded event topic.
+}
+
+func NewExtOutLogBucket(addr *address.Address) *ExtOutLogBucket {
+	return &ExtOutLogBucket{Address: addr}
+}
+
+func (b *ExtOutLogBucket) DecodeEventTopic() (uint32, error) {
+	if b.Address == nil {
+		return 0, errors.New("cannot decode from a nil address")
+	}
+
+	data := b.Address.Data()
+
 	if len(data) < EventTopicLength {
-		return 0, errors.New("address data is too short")
+		return 0, errors.New("address data is too short to contain an event topic")
 	}
 	startIndex := len(data) - EventTopicLength
 	return binary.BigEndian.Uint32(data[startIndex:]), nil

@@ -111,8 +111,10 @@ func Test_LogPoller(t *testing.T) {
 		const txPerBatch = 5
 		const msgPerTx = 2
 
-		// logpoller config
+		// safe block confirmations
 		const blockConfirmations = 10
+
+		// log collector config
 		const pageSize = 5
 
 		expectedEvents := batchCount * txPerBatch * msgPerTx

@@ -3,6 +3,8 @@ package event
 import (
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/xssnick/tonutils-go/address"
 )
 
@@ -72,7 +74,10 @@ func TestExtractEventTopicFromAddress(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			addr := tc.buildAddr()
-			topic, err := ExtractEventTopicFromAddress(addr)
+
+			bucket := NewExtOutLogBucket(addr)
+			topic, err := bucket.DecodeEventTopic()
+			require.NoError(t, err, "DecodeEventTopic should not return an error")
 
 			// Check for an unexpected error
 			if !tc.expectError && err != nil {

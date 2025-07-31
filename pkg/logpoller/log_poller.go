@@ -231,11 +231,13 @@ func (lp *Service) processMessages(msgs []types.MsgWithCtx) error {
 // 2. Finds matching filters for the source address and topic
 // 3. Saves logs for each matching filter
 func (lp *Service) Process(msg types.MsgWithCtx) error {
-	topic, err := event.ExtractEventTopicFromAddress(msg.Msg.DstAddr)
+	bucket := event.NewExtOutLogBucket(msg.Msg.DstAddr)
+	topic, err := bucket.DecodeEventTopic()
 	if err != nil {
-		return fmt.Errorf("ExtractEventTopicFromAddress: %w", err)
+		return fmt.Errorf("failed to decode event topic: %w", err)
 	}
 	lp.lggr.Debugw("Processing message", "src", msg.Msg.SrcAddr, "dst", msg.Msg.DstAddr, "topic", topic)
+
 	fIDs := lp.filters.MatchingFilters(*msg.Msg.SrcAddr, topic)
 	if len(fIDs) == 0 {
 		return nil // no filters matched, nothing to do
