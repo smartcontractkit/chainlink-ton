@@ -6,12 +6,13 @@ import (
 	"github.com/Masterminds/semver/v3"
 	chainsel "github.com/smartcontractkit/chain-selectors"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
-	"github.com/smartcontractkit/chainlink-ton/ops/ccip/config"
-	"github.com/smartcontractkit/chainlink-ton/ops/ccip/operation"
-	ton_fee_quoter "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink/deployment/ccip/changeset/v1_6"
 	tonstate "github.com/smartcontractkit/chainlink/deployment/ccip/shared/stateview/ton"
 	"github.com/xssnick/tonutils-go/address"
+
+	"github.com/smartcontractkit/chainlink-ton/ops/ccip/config"
+	"github.com/smartcontractkit/chainlink-ton/ops/ccip/operation"
+	ton_fee_quoter "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 )
 
 type UpdateTonLanesSeqInput struct {

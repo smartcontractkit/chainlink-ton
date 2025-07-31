@@ -8,16 +8,18 @@ import (
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
 
 	chain_selectors "github.com/smartcontractkit/chain-selectors"
-	ops "github.com/smartcontractkit/chainlink-ton/ops/ccip"
-	"github.com/smartcontractkit/chainlink-ton/ops/ccip/config"
 	"github.com/test-go/testify/require"
 
-	test_utils "github.com/smartcontractkit/chainlink-ton/integration-tests/utils"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
+	ops "github.com/smartcontractkit/chainlink-ton/ops/ccip"
+	"github.com/smartcontractkit/chainlink-ton/ops/ccip/config"
+
 	"github.com/smartcontractkit/chainlink/deployment/ccip/changeset/v1_6"
 	"github.com/smartcontractkit/chainlink/deployment/ccip/shared"
 	"github.com/smartcontractkit/chainlink/deployment/environment/memory"
 	"github.com/smartcontractkit/chainlink/v2/core/logger"
+
+	test_utils "github.com/smartcontractkit/chainlink-ton/integration-tests/utils"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"

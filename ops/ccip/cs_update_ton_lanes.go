@@ -5,13 +5,14 @@ import (
 
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
+	"github.com/smartcontractkit/chainlink/deployment/ccip/shared/stateview"
+	"github.com/smartcontractkit/mcms"
+	"github.com/xssnick/tonutils-go/ton/wallet"
+
 	"github.com/smartcontractkit/chainlink-ton/ops/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/ops/ccip/operation"
 	"github.com/smartcontractkit/chainlink-ton/ops/ccip/sequence"
 	"github.com/smartcontractkit/chainlink-ton/ops/ccip/utils"
-	"github.com/smartcontractkit/chainlink/deployment/ccip/shared/stateview"
-	"github.com/smartcontractkit/mcms"
-	"github.com/xssnick/tonutils-go/ton/wallet"
 )
 
 type AddTonLanes struct{}

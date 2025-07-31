@@ -5,10 +5,11 @@ import (
 
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
+	"github.com/smartcontractkit/mcms"
+
 	"github.com/smartcontractkit/chainlink-ton/ops/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/ops/ccip/operation"
 	"github.com/smartcontractkit/chainlink-ton/ops/ccip/sequence"
-	"github.com/smartcontractkit/mcms"
 
 	tonaddress "github.com/xssnick/tonutils-go/address"
 

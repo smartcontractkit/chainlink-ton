@@ -3,9 +3,10 @@ package sequence
 import (
 	"github.com/Masterminds/semver/v3"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
+	"github.com/xssnick/tonutils-go/address"
+
 	"github.com/smartcontractkit/chainlink-ton/ops/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/ops/ccip/operation"
-	"github.com/xssnick/tonutils-go/address"
 )
 
 type DeployCCIPSeqInput struct {
