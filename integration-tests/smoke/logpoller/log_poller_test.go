@@ -22,7 +22,6 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/event"
 )
 
 func sendBulkTestEventTxs(t *testing.T, client ton.APIClientWrapped, batchCount, txPerBatch, msgPerTx int) (*event_emitter.TestEventSource, []event_emitter.TestEventRes) {
@@ -63,7 +62,7 @@ func verifyLoadedEvents(msgs []*tlb.ExternalMessageOut, expectedCount int) error
 
 	// parse all events and track counters
 	for i, ext := range msgs {
-		event, err := event.LoadEventFromMsg[event_emitter.CountIncreased](ext)
+		event, err := test_utils.ParseEventFromMsg[event_emitter.CountIncreased](ext)
 		if err != nil {
 			return fmt.Errorf("failed to parse event #%d: %w", i, err)
 		}
@@ -338,7 +337,7 @@ func Test_LogPoller(t *testing.T) {
 
 			if len(logsA) != targetCounter {
 				for _, msg := range msgsA {
-					event, err := event.LoadEventFromMsg[event_emitter.CountIncreased](msg)
+					event, err := test_utils.ParseEventFromMsg[event_emitter.CountIncreased](msg)
 					require.NoError(t, err, "failed to parse event from log")
 					t.Logf("EmitterA Event Counter=%d", event.Value)
 				}
@@ -348,7 +347,7 @@ func Test_LogPoller(t *testing.T) {
 
 			if len(logsB) != targetCounter {
 				for _, msg := range msgsB {
-					event, err := event.LoadEventFromMsg[event_emitter.CountIncreased](msg)
+					event, err := test_utils.ParseEventFromMsg[event_emitter.CountIncreased](msg)
 					require.NoError(t, err, "failed to parse event from log")
 					t.Logf("EmitterB Event Counter=%d", event.Value)
 				}
@@ -394,7 +393,7 @@ func Test_LogPoller(t *testing.T) {
 					c, err := cell.FromBOC(log.Data)
 					require.NoError(t, err)
 					ext := &tlb.ExternalMessageOut{Body: c}
-					event, err := event.LoadEventFromMsg[event_emitter.CountIncreased](ext)
+					event, err := test_utils.ParseEventFromMsg[event_emitter.CountIncreased](ext)
 					require.NoError(t, err)
 
 					// check that the counter is within the expected range
@@ -430,7 +429,7 @@ func Test_LogPoller(t *testing.T) {
 					c, err := cell.FromBOC(log.Data)
 					require.NoError(t, err)
 					ext := &tlb.ExternalMessageOut{Body: c}
-					event, err := event.LoadEventFromMsg[event_emitter.CountIncreased](ext)
+					event, err := test_utils.ParseEventFromMsg[event_emitter.CountIncreased](ext)
 					require.NoError(t, err)
 
 					// check that the counter is within the expected range
@@ -463,7 +462,7 @@ func Test_LogPoller(t *testing.T) {
 					c, err := cell.FromBOC(log.Data)
 					require.NoError(t, err)
 					ext := &tlb.ExternalMessageOut{Body: c}
-					event, err := event.LoadEventFromMsg[event_emitter.CountIncreased](ext)
+					event, err := test_utils.ParseEventFromMsg[event_emitter.CountIncreased](ext)
 					require.NoError(t, err)
 
 					require.GreaterOrEqual(t, event.Value, uint32(1))
@@ -486,7 +485,7 @@ func Test_LogPoller(t *testing.T) {
 				t.Parallel()
 
 				parser := func(c *cell.Cell) (any, error) {
-					return event.LoadEventFromCell[event_emitter.CountIncreased](c)
+					return test_utils.ParseEventFromCell[event_emitter.CountIncreased](c)
 				}
 
 				res, err := lp.FilteredLogsWithParser(emitterB.ContractAddress(), event_emitter.CountIncreasedTopic, parser, nil)
@@ -520,7 +519,7 @@ func Test_LogPoller(t *testing.T) {
 				from, to := (1), (10)
 
 				parser := func(c *cell.Cell) (any, error) {
-					return event.LoadEventFromCell[event_emitter.CountIncreased](c)
+					return test_utils.ParseEventFromCell[event_emitter.CountIncreased](c)
 				}
 
 				filter := func(parsedEvent any) bool {
@@ -780,7 +779,7 @@ func Test_LogPoller(t *testing.T) {
 					c, err := cell.FromBOC(log.Data)
 					require.NoError(t, err)
 					ext := &tlb.ExternalMessageOut{Body: c}
-					event, err := event.LoadEventFromMsg[event_emitter.CountIncreased](ext)
+					event, err := test_utils.ParseEventFromMsg[event_emitter.CountIncreased](ext)
 					require.NoError(t, err)
 
 					require.GreaterOrEqual(t, event.Value, uint32(8))
@@ -839,7 +838,7 @@ func Test_LogPoller(t *testing.T) {
 					c, err := cell.FromBOC(log.Data)
 					require.NoError(t, err)
 					ext := &tlb.ExternalMessageOut{Body: c}
-					event, err := event.LoadEventFromMsg[event_emitter.CountIncreased](ext)
+					event, err := test_utils.ParseEventFromMsg[event_emitter.CountIncreased](ext)
 					require.NoError(t, err)
 
 					require.Equal(t, emitterB.GetID(), event.ID, "log should belong to emitterB")
