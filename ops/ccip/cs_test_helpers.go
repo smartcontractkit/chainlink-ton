@@ -10,6 +10,7 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton/wallet"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
 // TODO Consider move chainlink core AnyMsgSentEvent and CCIPSendReqConfig to CLDF?
@@ -18,7 +19,7 @@ type TonSendRequest struct {
 	QueryID   uint64
 	Receiver  []byte
 	Data      []byte
-	ExtraArgs []byte
+	ExtraArgs *cell.Cell
 	FeeToken  *address.Address
 	// TokenAmounts  common.SnakeRef[ocr.Any2TVMTokenTransfer]
 }

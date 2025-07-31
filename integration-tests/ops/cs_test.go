@@ -3,16 +3,16 @@ package ops
 import (
 	"math/big"
 	"testing"
-	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
 
 	chain_selectors "github.com/smartcontractkit/chain-selectors"
-	"github.com/smartcontractkit/chainlink-ton/ops/ccip"
+	ops "github.com/smartcontractkit/chainlink-ton/ops/ccip"
 	"github.com/smartcontractkit/chainlink-ton/ops/ccip/config"
 	"github.com/test-go/testify/require"
 
+	test_utils "github.com/smartcontractkit/chainlink-ton/integration-tests/utils"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink/deployment/ccip/changeset/v1_6"
 	"github.com/smartcontractkit/chainlink/deployment/ccip/shared"
@@ -20,6 +20,7 @@ import (
 	"github.com/smartcontractkit/chainlink/v2/core/logger"
 
 	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tlb"
 	"go.uber.org/zap/zapcore"
 
 	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
@@ -45,7 +46,8 @@ func TestDeploy(t *testing.T) {
 	deployer := env.BlockChains.TonChains()[chainSelector].Wallet
 	t.Log("Deployer: ", deployer)
 
-	time.Sleep(20 * time.Second) // Wait for node client connection to be ready
+	// memory environment doesn't block on funding so changesets can execute before the env is fully ready, manually call fund so we block here
+	test_utils.FundTonWallets(t, env.BlockChains.TonChains()[chainSelector].Client, []*address.Address{deployer.Address()}, []tlb.Coins{tlb.MustFromTON("1000")})
 
 	env, _, err := commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{
 		commonchangeset.Configure(ops.DeployCCIPContracts{}, ops.DeployCCIPContractsCfg{

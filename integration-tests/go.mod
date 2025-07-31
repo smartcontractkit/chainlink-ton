@@ -10,6 +10,7 @@ require (
 	github.com/smartcontractkit/chainlink-deployments-framework v0.17.3
 	github.com/smartcontractkit/chainlink-testing-framework/framework v0.10.4
 	github.com/smartcontractkit/chainlink-ton v0.0.0
+	github.com/smartcontractkit/chainlink-ton/integration-tests v0.0.0-00010101000000-000000000000
 	github.com/smartcontractkit/chainlink-ton/ops v0.0.0-00010101000000-000000000000
 	github.com/smartcontractkit/chainlink/deployment v0.0.0-20250731130414-bdd83cdded50
 	github.com/smartcontractkit/chainlink/v2 v2.0.0-20250731130414-bdd83cdded50
@@ -310,7 +311,6 @@ require (
 	github.com/oasisprotocol/curve25519-voi v0.0.0-20230904125328-1f23a7beb09a // indirect
 	github.com/oklog/run v1.1.0 // indirect
 	github.com/olekukonko/tablewriter v0.0.5 // indirect
-	github.com/onsi/ginkgo/v2 v2.22.1 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.1 // indirect
 	github.com/otiai10/copy v1.14.1 // indirect
