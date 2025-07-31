@@ -77,20 +77,19 @@ func NewCellQueryEngine(lggr logger.Logger) *CellQueryEngine {
 func (f *CellQueryEngine) ExtractCellPayload(logData []byte, logIndex int) ([]byte, error) {
 	parsedCell, err := cell.FromBOC(logData)
 	if err != nil {
-		f.lggr.Tracef("FAILED to parse BOC for log #%d: %v. Skipping", logIndex, err)
-		return nil, err
+		return nil, fmt.Errorf("could not parse BOC for log #%d: %w", logIndex, err)
 	}
+
 	// this returns the payload of the cell, after header and other metadata
 	_, cellPayload, err := parsedCell.BeginParse().RestBits()
 	if err != nil {
-		f.lggr.Tracef("FAILED to get cell payload for log #%d: %v. Skipping", logIndex, err)
-		return nil, err
+		return nil, fmt.Errorf("could not extract payload from cell for log #%d: %w", logIndex, err)
 	}
 
 	return cellPayload, nil
 }
 
-func (f *CellQueryEngine) PassesAllQueries(payload []byte, queries []CellQuery, logIndex int) bool {
+func (f *CellQueryEngine) PassesAllQueries(payload []byte, queries []CellQuery, logIndex int) (bool, error) {
 	for j, query := range queries {
 		f.lggr.Tracef("  Applying query #%d: Offset=%d, Op='%s', Value=%x",
 			j, query.Offset, query.Operator, query.Value)
@@ -98,14 +97,14 @@ func (f *CellQueryEngine) PassesAllQueries(payload []byte, queries []CellQuery, 
 		// check payload length
 		if uint(len(payload)) < query.Offset+uint(len(query.Value)) {
 			f.lggr.Tracef("    Query #%d FAILED: payload too short (len: %d)", j, len(payload))
-			return false
+			return false, nil
 		}
 
 		// extract and compare data slice
 		end := query.Offset + uint(len(query.Value))
 		if end > uint(len(payload)) {
 			f.lggr.Tracef("    Query #%d FAILED: offset + value length exceeds payload length", j)
-			return false
+			return false, nil
 		}
 
 		dataSlice := payload[query.Offset:end]
@@ -113,18 +112,17 @@ func (f *CellQueryEngine) PassesAllQueries(payload []byte, queries []CellQuery, 
 
 		match, err := f.compareBytes(dataSlice, query.Value, query.Operator)
 		if err != nil {
-			f.lggr.Errorf("Query comparison failed: %v", err)
-			return false
+			return false, fmt.Errorf("query #%d comparison failed for log #%d: %w", j, logIndex, err)
 		}
 
 		f.lggr.Tracef("    Query match: %t", match)
 
 		if !match {
 			f.lggr.Tracef("  Query #%d did not match. Skipping log #%d", j, logIndex)
-			return false
+			return false, nil
 		}
 	}
-	return true
+	return true, nil // all queries passed.
 }
 
 func (f *CellQueryEngine) compareBytes(dataSlice, queryValue []byte, operator Operator) (bool, error) {

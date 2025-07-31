@@ -1,6 +1,7 @@
 package logpoller
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -80,11 +81,16 @@ func (s *InMemoryStore) FilteredLogs(
 		// extract cell payload for filtering
 		cellPayload, err := s.cellQueryEngine.ExtractCellPayload(log.Data, i)
 		if err != nil {
-			continue // Error already logged
+			return QueryResult{}, fmt.Errorf("failed to parse log at index %d: %w", i, err)
 		}
 
 		// apply all cell filters
-		if s.cellQueryEngine.PassesAllQueries(cellPayload, filters, i) {
+		passes, err := s.cellQueryEngine.PassesAllQueries(cellPayload, filters, i)
+		if err != nil {
+			return QueryResult{}, fmt.Errorf("failed to apply filter to log at index %d: %w", i, err)
+		}
+
+		if passes {
 			matchingLogs = append(matchingLogs, log)
 		}
 	}
