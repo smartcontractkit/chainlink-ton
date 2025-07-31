@@ -27,7 +27,7 @@ type CCIPSend struct {
 	Data              common.SnakeBytes                         `tlb:"^"`
 	TokenAmounts      common.SnakeRef[ocr.Any2TVMTokenTransfer] `tlb:"^"`
 	FeeToken          *address.Address                          `tlb:"addr"`
-	ExtraArgs         common.SnakeBytes                         `tlb:"^"` // four bytes tag + BoC encoded GenericExtraArgsV2 or SVMExtraArgsV1 bytes
+	ExtraArgs         *cell.Cell                                `tlb:"^"`
 }
 
 type JettonTransferNotification struct {
