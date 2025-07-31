@@ -8,6 +8,7 @@ import (
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
@@ -38,7 +39,7 @@ func (p *StorageProvider) Deploy(initData StorageInitData) (Storage, error) {
 	if err != nil {
 		return Storage{}, fmt.Errorf("failed to compile contract: %w", err)
 	}
-	contract, err := wrappers.Deploy(&p.apiClient, compiledContract, initDataCell, tlb.MustFromTON("1"))
+	contract, _, err := wrappers.Deploy(&p.apiClient, compiledContract, initDataCell, tlb.MustFromTON("1"), cell.BeginCell().EndCell())
 	if err != nil {
 		return Storage{}, err
 	}

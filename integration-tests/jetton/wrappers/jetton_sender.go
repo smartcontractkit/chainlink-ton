@@ -41,7 +41,7 @@ func (p *JettonSenderProvider) Deploy(initData JettonSenderInitData) (*JettonSen
 	if err != nil {
 		return nil, fmt.Errorf("failed to compile contract: %w", err)
 	}
-	contract, err := wrappers.Deploy(&p.apiClient, compiledContract, initCell, tlb.MustFromTON("1"))
+	contract, _, err := wrappers.Deploy(&p.apiClient, compiledContract, initCell, tlb.MustFromTON("1"), cell.BeginCell().EndCell())
 	if err != nil {
 		return nil, err
 	}

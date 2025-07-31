@@ -5,6 +5,7 @@ import (
 	"math/rand/v2"
 
 	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	test_utils "integration-tests/utils"
 
@@ -40,7 +41,7 @@ func (p *CounterProvider) Deploy(initData CounterInitData) (Counter, error) {
 	if err != nil {
 		return Counter{}, fmt.Errorf("failed to serialize init data: %w", err)
 	}
-	contract, err := wrappers.Deploy(&p.apiClient, compiledContract, initDataCell, tlb.MustFromTON("1"))
+	contract, _, err := wrappers.Deploy(&p.apiClient, compiledContract, initDataCell, tlb.MustFromTON("1"), cell.BeginCell().EndCell())
 	if err != nil {
 		return Counter{}, err
 	}
