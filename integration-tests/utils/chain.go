@@ -109,6 +109,10 @@ func waitForAirdropCompletion(t *testing.T, client ton.APIClientWrapped, recipie
 						panic("account not found: " + addr.String())
 					} else {
 						t.Logf("Account %+v\n", acc)
+						if acc.State == nil {
+							t.Logf("Account state is nil for %s", addr.String())
+							continue
+						}
 					}
 					t.Logf("Expected min: %s", expectedMin.String())
 					t.Logf("Current balance: %s", acc.State.Balance.String())
