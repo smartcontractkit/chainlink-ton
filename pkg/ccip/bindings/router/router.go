@@ -15,13 +15,13 @@ type Storage struct {
 }
 
 type SetRamp struct {
-	_                 tlb.Magic        `tlb:"#10000001"`
+	_                 tlb.Magic        `tlb:"#10000001"` //nolint:revive Ignore opcode tag
 	DestChainSelector uint64           `tlb:"## 64"`
 	OnRamp            *address.Address `tlb:"addr"`
 }
 
 type CCIPSend struct {
-	_                 tlb.Magic                                 `tlb:"#00000001"`
+	_                 tlb.Magic                                 `tlb:"#00000001"` //nolint:revive Ignore opcode tag
 	QueryID           uint64                                    `tlb:"## 64"`
 	DestChainSelector uint64                                    `tlb:"## 64"`
 	Receiver          common.CrossChainAddress                  `tlb:"^"`
@@ -32,7 +32,7 @@ type CCIPSend struct {
 }
 
 type JettonTransferNotification struct {
-	_              tlb.Magic        `tlb:"#7362d09c"`
+	_              tlb.Magic        `tlb:"#7362d09c"` //nolint:revive Ignore opcode tag
 	QueryId        uint64           `tlb:"## 64"`
 	Amount         tlb.Coins        `tlb:"^"`
 	Sender         *address.Address `tlb:"addr"`

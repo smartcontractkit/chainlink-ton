@@ -72,7 +72,7 @@ type Storage struct {
 // Methods
 
 type SetDynamicConfig struct {
-	_ tlb.Magic `tlb:"#10000003"`
+	_ tlb.Magic `tlb:"#10000003"` //nolint:revive Ignore opcode tag
 	DynamicConfig
 }
 
@@ -84,7 +84,7 @@ type UpdateDestChainConfig struct {
 }
 
 type UpdateDestChainConfigs struct {
-	_       tlb.Magic                               `tlb:"#10000004"`
+	_       tlb.Magic                               `tlb:"#10000004"` //nolint:revive Ignore opcode tag
 	Updates common.SnakeData[UpdateDestChainConfig] `tlb:"^"`
 }
 
@@ -95,7 +95,7 @@ type UpdateAllowlist struct {
 }
 
 type UpdateAllowlists struct {
-	_       tlb.Magic                         `tlb:"#10000005"`
+	_       tlb.Magic                         `tlb:"#10000005"` //nolint:revive Ignore opcode tag
 	Updates common.SnakeData[UpdateAllowlist] `tlb:"^"`
 }
 
