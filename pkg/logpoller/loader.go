@@ -47,6 +47,7 @@ func NewLogCollector(
 	lggr logger.Logger,
 	pageSize uint32,
 ) *LogCollector {
+	// TODO(NONEVM-2188): add background worker pool initializaion here
 	return &LogCollector{
 		lggr:     logger.Sugared(lggr),
 		client:   client,

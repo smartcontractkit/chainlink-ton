@@ -60,13 +60,6 @@ type LogPoller interface {
 	FilteredLogsWithParser(ctx context.Context, address *address.Address, topic uint32, parser types.LogParser, filter types.LogFilter) ([]any, error)
 }
 
-type logCollector interface {
-	// BackfillForAddresses scans TON blocks between prevBlock and toBlock,
-	// extracting ExternalMessageOut entries from monitored addresses.
-	// TODO: solidify replay strategy for production use
-	BackfillForAddresses(ctx context.Context, addresses []*address.Address, prevBlock *ton.BlockIDExt, toBlock *ton.BlockIDExt) (msgs []types.MsgWithCtx, err error)
-}
-
 // Service is the main TON log polling service implementation.
 // It continuously polls the TON masterchain, discovers new blocks, and processes
 // external messages from registered filter addresses.
@@ -76,7 +69,7 @@ type Service struct {
 	lggr               logger.SugaredLogger // Logger instance
 	client             ton.APIClientWrapped // TON blockchain client
 	filters            *Filters             // Registry of active filters
-	loader             logCollector         // Block scanner implementation
+	loader             *LogCollector        // Block scanner implementation
 	store              *InMemoryStore       // Log storage (MVP: in-memory)
 	pollPeriod         time.Duration        // How often to poll for new blocks
 	lastProcessedSeqNo uint32               // Last processed masterchain sequence number
@@ -101,7 +94,7 @@ func NewLogPoller(
 	}
 	lp.loader = NewLogCollector(lp.client, lp.lggr, cfg.PageSize)
 	lp.Service, lp.eng = services.Config{
-		Name:  "Service",
+		Name:  "TONLogPoller",
 		Start: lp.start,
 	}.NewServiceEngine(lggr)
 	return lp
@@ -176,13 +169,11 @@ func (lp *Service) run(ctx context.Context) (err error) {
 	lp.lggr.Debugw("Processing messages for addresses", "addresses", addresses)
 
 	var prevBlock *ton.BlockIDExt
-
-	switch lastProcessedSeq {
-	case 0:
+	if lastProcessedSeq == 0 {
 		// for the first run, we don't have a previous block to reference
 		prevBlock = nil
 		lp.lggr.Debugw("First run detected, processing from genesis", "toSeq", toBlock.SeqNo)
-	default:
+	} else {
 		// get the prevBlock based on the last processed seqno
 		prevBlock, err = lp.client.LookupBlock(ctx, toBlock.Workchain, toBlock.Shard, lastProcessedSeq)
 		if err != nil {
