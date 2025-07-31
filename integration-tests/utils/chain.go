@@ -3,6 +3,7 @@ package utils
 import (
 	"context"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -21,7 +22,6 @@ import (
 	"github.com/xssnick/tonutils-go/liteclient"
 	"github.com/xssnick/tonutils-go/ton"
 
-	"github.com/smartcontractkit/chainlink-testing-framework/framework"
 	"github.com/smartcontractkit/chainlink-testing-framework/framework/components/blockchain"
 )
 
@@ -144,13 +144,51 @@ func StartTonChain(t *testing.T, nodeClient *ton.APIClient, chainID uint64, depl
 	return ton
 }
 
+// CreateAPIClient sets up a TON API client for integration tests.
+// It reads config.UseExistingNetwork to decide whether to create a new
+// ephemeral network or connect to a pre-existing one.
 func CreateAPIClient(t *testing.T, chainID uint64) *ton.APIClient {
 	t.Helper()
-	err := framework.DefaultNetwork(once)
+
+	var networkCfg string
+	var err error
+
+	if os.Getenv("USE_EXISTING_TON_NODE") == "true" {
+		networkCfg = getExistingNetworkConfig(t, chainID)
+	} else {
+		networkCfg = createNewNetwork(t, chainID)
+	}
+
+	cfg, err := liteclient.GetConfigFromUrl(t.Context(), networkCfg)
+	require.NoError(t, err, "failed to get config from URL: %s", networkCfg)
+
+	connectionPool := liteclient.NewConnectionPool()
+	err = connectionPool.AddConnectionsFromConfig(t.Context(), cfg)
 	require.NoError(t, err)
 
-	port := freeport.GetOne(t)
+	client := ton.NewAPIClient(connectionPool, ton.ProofCheckPolicyFast)
+	client.SetTrustedBlockFromConfig(cfg)
 
+	_, err = client.GetMasterchainInfo(t.Context())
+	require.NoError(t, err, "TON network not ready")
+
+	return client
+}
+
+// getExistingNetworkConfig returns the hardcoded configuration for a pre-existing network.
+func getExistingNetworkConfig(t *testing.T, chainID uint64) string {
+	t.Helper()
+	t.Logf("Using existing network for chain ID %d", chainID)
+	return "http://localhost:8000/localhost.global.config.json"
+}
+
+// createNewNetwork provisions a new, temporary TON network for the test's duration.
+// It handles port allocation and automatic container cleanup.
+func createNewNetwork(t *testing.T, chainID uint64) string {
+	t.Helper()
+	t.Logf("Creating new ephemeral network for chain ID %d", chainID)
+
+	port := freeport.GetOne(t)
 	bcInput := &blockchain.Input{
 		ChainID: strconv.FormatUint(chainID, 10),
 		Type:    "ton",
@@ -164,6 +202,7 @@ func CreateAPIClient(t *testing.T, chainID uint64) *ton.APIClient {
 	bcOut, err := blockchain.NewBlockchainNetwork(bcInput)
 	require.NoError(t, err, "failed to create blockchain network")
 
+	// The cleanup function ensures the temporary network is terminated after the test.
 	t.Cleanup(func() {
 		if bcOut.Container != nil && bcOut.Container.IsRunning() {
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -175,20 +214,5 @@ func CreateAPIClient(t *testing.T, chainID uint64) *ton.APIClient {
 		freeport.Return([]int{port})
 	})
 
-	networkCfg := fmt.Sprintf("http://%s/localhost.global.config.json", bcOut.Nodes[0].ExternalHTTPUrl)
-
-	cfg, err := liteclient.GetConfigFromUrl(t.Context(), networkCfg)
-	require.NoError(t, err, "failed to get config from URL: %w", networkCfg)
-
-	connectionPool := liteclient.NewConnectionPool()
-	err = connectionPool.AddConnectionsFromConfig(t.Context(), cfg)
-	require.NoError(t, err)
-
-	client := ton.NewAPIClient(connectionPool, ton.ProofCheckPolicyFast)
-	client.SetTrustedBlockFromConfig(cfg)
-
-	_, err = client.GetMasterchainInfo(t.Context())
-	require.NoError(t, err, "TON network not ready")
-
-	return client
+	return fmt.Sprintf("http://%s/localhost.global.config.json", bcOut.Nodes[0].ExternalHTTPUrl)
 }
