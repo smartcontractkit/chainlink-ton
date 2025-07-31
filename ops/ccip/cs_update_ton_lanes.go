@@ -24,61 +24,89 @@ func (cs AddTonLanes) VerifyPreconditions(_ cldf.Environment, _ config.UpdateTon
 }
 
 func (cs AddTonLanes) Apply(env cldf.Environment, config config.UpdateTonLanesConfig) (cldf.ChangesetOutput, error) {
-	seqReports := make([]operations.Report[any, any], 0)
-	proposals := make([]mcms.TimelockProposal, 0)
-	// mcmsOperations := make([]mcmstypes.BatchOperation, 0)
 
-	// TODO: This feels like a lot of boilerplate
-	selector := config.FromChainSelector
-	states, err := stateview.LoadOnchainState(env)
-	if err != nil {
-		return cldf.ChangesetOutput{}, fmt.Errorf("failed to load TON onchain state: %w", err)
-	}
-	// states, err := tonstate.LoadOnchainState(env)
+	var (
+		timeLockProposals []mcms.TimelockProposal
+		// mcmsOperations    []mcmstypes.BatchOperation
+	)
+
+	seqReports := make([]operations.Report[any, any], 0)
+
+	// // Add lane on EVM chains
+	// // TODO: applying a changeset within another changeset is an anti-pattern. Using it here until EVM is refactored into Operations
+	// evmUpdatesInput := config.ToEVMUpdateLanesConfig(cfg)
+	// out, err := v1_6.UpdateLanesLogic(env, cfg.EVMMCMSConfig, evmUpdatesInput)
 	// if err != nil {
 	// 	return cldf.ChangesetOutput{}, err
 	// }
-	// state := states.TonChains[selector]
+	// timeLockProposals = append(timeLockProposals, out.MCMSTimelockProposals...)
 
-	tonChains := env.BlockChains.TonChains()
-	chain := tonChains[selector]
-
-	// TODO: do we just have to keep setting this up??
-	deps := operation.TonDeps{
-		// AB:               ab, // ????
-		TonChain:         chain,
-		CCIPOnChainState: states,
-	}
-
-	// TODO:
-	input := sequence.UpdateTonLanesSeqInput{}
-
-	ccipSeqReport, err := operations.ExecuteSequence(env.OperationsBundle, sequence.UpdateTonLanesSequence, deps, input)
+	// Add lane on Aptos chains
+	// Execute UpdateAptosLanesSequence for each aptos chain
+	state, err := stateview.LoadOnchainState(env)
 	if err != nil {
-		return cldf.ChangesetOutput{}, fmt.Errorf("failed to apply lane updates: %w", err)
+		return cldf.ChangesetOutput{}, fmt.Errorf("failed to load Aptos onchain state: %w", err)
 	}
-	seqReports = append(seqReports, ccipSeqReport.ExecutionReports...)
 
-	internalMsgs, err := utils.Deserialize(ccipSeqReport.Output)
-	if err != nil {
-		return cldf.ChangesetOutput{}, fmt.Errorf("failed to deserialize lane updates: %w", err)
-	}
-	msgs := make([]*wallet.Message, len(internalMsgs))
-	for i, msg := range internalMsgs {
-		msgs[i] = &wallet.Message{
-			Mode:            wallet.PayGasSeparately, // TODO: wallet.IgnoreErrors ?
-			InternalMessage: msg,
+	updateInputsByTonChain := sequence.ToTonUpdateLanesConfig(state.TonChains, config)
+	fmt.Printf("%+v\n", updateInputsByTonChain)
+	for tonChainSel, sequenceInput := range updateInputsByTonChain {
+		tonChains := env.BlockChains.TonChains()
+		chain := tonChains[tonChainSel]
+
+		deps := operation.TonDeps{
+			TonChain:         chain,
+			CCIPOnChainState: state,
 		}
-	}
-	ctx := env.GetContext()
-	tx, blockID, err := chain.Wallet.SendManyWaitTransaction(ctx, msgs)
-	env.Logger.Infow("transaction sent", "blockID", blockID, "tx", tx)
-	if err != nil {
-		return cldf.ChangesetOutput{}, fmt.Errorf("failed to send lane updates: %w", err)
+		// Execute the sequence
+		updateSeqReport, err := operations.ExecuteSequence(env.OperationsBundle, sequence.UpdateTonLanesSequence, deps, sequenceInput)
+		if err != nil {
+			return cldf.ChangesetOutput{}, err
+		}
+		seqReports = append(seqReports, updateSeqReport.ExecutionReports...)
+		// mcmsOperations = append(mcmsOperations, updateSeqReport.Output)
+
+		// Generate MCMS proposals
+		// proposal, err := utils.GenerateProposal(
+		// 	env,
+		// 	state.TonChains[tonChainSel].MCMSAddress,
+		// 	deps.TonChain.Selector,
+		// 	mcmsOperations,
+		// 	"Update lanes on Ton chain",
+		// 	*cfg.TonMCMSConfig,
+		// )
+		// if err != nil {
+		// 	return cldf.ChangesetOutput{}, fmt.Errorf("failed to generate MCMS proposal for Ton chain %d: %w", tonChainSel, err)
+		// }
+		// timeLockProposals = append(timeLockProposals, *proposal)
+
+		ccipSeqReport, err := operations.ExecuteSequence(env.OperationsBundle, sequence.UpdateTonLanesSequence, deps, sequenceInput)
+		if err != nil {
+			return cldf.ChangesetOutput{}, fmt.Errorf("failed to apply lane updates: %w", err)
+		}
+		seqReports = append(seqReports, ccipSeqReport.ExecutionReports...)
+
+		internalMsgs, err := utils.Deserialize(ccipSeqReport.Output)
+		if err != nil {
+			return cldf.ChangesetOutput{}, fmt.Errorf("failed to deserialize lane updates: %w", err)
+		}
+		msgs := make([]*wallet.Message, len(internalMsgs))
+		for i, msg := range internalMsgs {
+			msgs[i] = &wallet.Message{
+				Mode:            wallet.PayGasSeparately, // TODO: wallet.IgnoreErrors ?
+				InternalMessage: msg,
+			}
+		}
+		ctx := env.GetContext()
+		tx, blockID, err := chain.Wallet.SendManyWaitTransaction(ctx, msgs)
+		env.Logger.Infow("transaction sent", "blockID", blockID, "tx", tx)
+		if err != nil {
+			return cldf.ChangesetOutput{}, fmt.Errorf("failed to send lane updates: %w", err)
+		}
 	}
 
 	return cldf.ChangesetOutput{
-		MCMSTimelockProposals: proposals,
+		MCMSTimelockProposals: timeLockProposals,
 		Reports:               seqReports,
 	}, nil
 }

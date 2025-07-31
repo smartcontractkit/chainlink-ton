@@ -10,6 +10,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
+	"github.com/smartcontractkit/chainlink/deployment/ccip/changeset/v1_6"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 )
@@ -70,7 +71,9 @@ func deployOnRamp(b operations.Bundle, deps TonDeps, in DeployOnRampInput) (Depl
 	return output, nil
 }
 
-type UpdateOnRampDestChainConfigsInput []onramp.UpdateDestChainConfig
+type UpdateOnRampDestChainConfigsInput struct {
+	Updates map[uint64]v1_6.OnRampDestinationUpdate
+}
 
 type UpdateOnRampDestChainConfigsOutput struct {
 }
@@ -85,8 +88,20 @@ var UpdateOnRampDestChainConfigsOp = operations.NewOperation(
 func updateOnRampDestChainConfigs(b operations.Bundle, deps TonDeps, in UpdateOnRampDestChainConfigsInput) ([][]byte, error) {
 	address := deps.CCIPOnChainState.TonChains[deps.TonChain.Selector].CCIPAddress
 
+	var configs []onramp.UpdateDestChainConfig
+
+	for selector, update := range in.Updates {
+		// TODO: TestRouter support
+		router := deps.CCIPOnChainState.TonChains[deps.TonChain.Selector].Router
+		configs = append(configs, onramp.UpdateDestChainConfig{
+			DestinationChainSelector: selector,
+			Router:                   &router,
+			AllowListEnabled:         update.AllowListEnabled,
+		})
+	}
+
 	input := onramp.UpdateDestChainConfigs{
-		Updates: common.SnakeData[onramp.UpdateDestChainConfig](in),
+		Updates: common.SnakeData[onramp.UpdateDestChainConfig](configs),
 	}
 
 	payload, err := tlb.ToCell(input)

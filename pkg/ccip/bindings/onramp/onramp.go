@@ -78,9 +78,9 @@ type SetDynamicConfig struct {
 
 type UpdateDestChainConfig struct {
 	// TODO: missing isEnabled?
-	DestinationChainSelector uint64                   `tlb:"## 64"`
-	Router                   common.CrossChainAddress `tlb:"."`
-	AllowListEnabled         bool                     `tlb:"bool"`
+	DestinationChainSelector uint64           `tlb:"## 64"`
+	Router                   *address.Address `tlb:"addr"`
+	AllowListEnabled         bool             `tlb:"bool"`
 }
 
 type UpdateDestChainConfigs struct {

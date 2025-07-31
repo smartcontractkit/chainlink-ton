@@ -11,6 +11,7 @@ import (
 	ton_fee_quoter "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink/deployment/ccip/changeset/v1_6"
 	tonstate "github.com/smartcontractkit/chainlink/deployment/ccip/shared/stateview/ton"
+	"github.com/xssnick/tonutils-go/address"
 )
 
 type UpdateTonLanesSeqInput struct {
@@ -76,7 +77,8 @@ func ToTonUpdateLanesConfig(tonChains map[uint64]tonstate.CCIPChainState, cfg co
 			if _, exists := updateInputsByTonChain[source.Selector]; !exists {
 				updateInputsByTonChain[source.Selector] = UpdateTonLanesSeqInput{}
 			}
-			setTonSourceUpdates(lane, updateInputsByTonChain, cfg.TestRouter)
+			onrampAddress := tonChains[source.Selector].CCIPAddress
+			setTonSourceUpdates(lane, updateInputsByTonChain, cfg.TestRouter, &onrampAddress)
 		}
 
 		// Process lanes with Ton as the destination chain
@@ -92,13 +94,14 @@ func ToTonUpdateLanesConfig(tonChains map[uint64]tonstate.CCIPChainState, cfg co
 	return updateInputsByTonChain
 }
 
-func setTonSourceUpdates(lane config.LaneConfig, updateInputsByTonChain map[uint64]UpdateTonLanesSeqInput, isTestRouter bool) {
+func setTonSourceUpdates(lane config.LaneConfig, updateInputsByTonChain map[uint64]UpdateTonLanesSeqInput, isTestRouter bool, onrampAddress *address.Address) {
 	source := lane.Source.(config.TonChainDefinition)
 	dest := lane.Dest.(config.EVMChainDefinition)
 	isEnabled := !lane.IsDisabled
 
 	// Setting the destination on the on ramp
 	input := updateInputsByTonChain[source.Selector]
+
 	if input.UpdateOnRampDestChainConfigs.Updates == nil {
 		input.UpdateOnRampDestChainConfigs.Updates = make(map[uint64]v1_6.OnRampDestinationUpdate)
 	}
@@ -135,7 +138,7 @@ func setTonSourceUpdates(lane config.LaneConfig, updateInputsByTonChain map[uint
 	// }
 	input.UpdateRouterDestConfig = operation.UpdateRouterDestInput{
 		DestChainSelector: dest.Selector,
-		OnRamp:            nil, // TODO:
+		OnRamp:            onrampAddress,
 	}
 
 	updateInputsByTonChain[source.Selector] = input

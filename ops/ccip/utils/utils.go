@@ -24,11 +24,11 @@ func Serialize(msgs []*tlb.InternalMessage) ([][]byte, error) {
 func Deserialize(raw [][]byte) ([]*tlb.InternalMessage, error) {
 	msgs := make([]*tlb.InternalMessage, len(raw))
 	for i, bytes := range raw {
-		msg, err := unpack[*tlb.InternalMessage](bytes)
+		msg, err := unpack[tlb.InternalMessage](bytes)
 		if err != nil {
 			return nil, err
 		}
-		msgs[i] = msg
+		msgs[i] = &msg
 	}
 	return msgs, nil
 }

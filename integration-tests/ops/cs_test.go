@@ -3,26 +3,22 @@ package ops
 import (
 	"math/big"
 	"testing"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
 
-	// cld_ops "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	chain_selectors "github.com/smartcontractkit/chain-selectors"
 	"github.com/smartcontractkit/chainlink-ton/ops/ccip"
 	"github.com/smartcontractkit/chainlink-ton/ops/ccip/config"
 	"github.com/test-go/testify/require"
 
-	// "github.com/smartcontractkit/chainlink-ton/ops/ccip/operation"
-	// "github.com/smartcontractkit/chainlink-ton/ops/ccip/sequence"
-	// "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink/deployment/ccip/changeset/v1_6"
 	"github.com/smartcontractkit/chainlink/deployment/ccip/shared"
 	"github.com/smartcontractkit/chainlink/deployment/environment/memory"
 	"github.com/smartcontractkit/chainlink/v2/core/logger"
 
-	// "github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/address"
 	"go.uber.org/zap/zapcore"
 
@@ -37,20 +33,23 @@ func TestDeploy(t *testing.T) {
 	// env := setupEnv(t)
 	lggr := logger.TestLogger(t)
 	env := memory.NewMemoryEnvironment(t, lggr, zapcore.InfoLevel, memory.MemoryEnvironmentConfig{
+		Chains:    1,
 		TonChains: 1,
 	})
 
 	// Get chain selectors
 	evmSelector := env.BlockChains.ListChainSelectors(chain.WithFamily(chain_selectors.FamilyEVM))[0]
-	aptosChainSelectors := env.BlockChains.ListChainSelectors(chain.WithFamily(chain_selectors.FamilyTon))
-	require.Len(t, aptosChainSelectors, 1, "Expected exactly 1 Ton chain")
-	chainSelector := aptosChainSelectors[0]
+	tonChainSelectors := env.BlockChains.ListChainSelectors(chain.WithFamily(chain_selectors.FamilyTon))
+	require.Len(t, tonChainSelectors, 1, "Expected exactly 1 Ton chain")
+	chainSelector := tonChainSelectors[0]
 	deployer := env.BlockChains.TonChains()[chainSelector].Wallet
 	t.Log("Deployer: ", deployer)
 
+	time.Sleep(20 * time.Second) // Wait for node client connection to be ready
+
 	env, _, err := commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{
 		commonchangeset.Configure(ops.DeployCCIPContracts{}, ops.DeployCCIPContractsCfg{
-			TonChainSelector: 0,
+			TonChainSelector: chainSelector,
 			Params: config.ChainContractParams{
 				FeeQuoterParams: config.FeeQuoterParams{
 					MaxFeeJuelsPerMsg:                    big.NewInt(1),
@@ -130,18 +129,5 @@ func TestDeploy(t *testing.T) {
 			TestRouter: false,
 		}),
 	})
-
-	// 	UpdateOnRampDestChainConfigs: operation.UpdateOnRampDestChainConfigsInput{
-	// 		{
-	// 			DestinationChainSelector: CHAINSEL_EVM_TEST_90000001,
-	// 			Router:                   common.CrossChainAddress(make([]byte, 64)),
-	// 			AllowListEnabled:         false,
-	// 		},
-	// 	},
-	// 	UpdateRouterDestConfig: operation.UpdateRouterDestInput{
-	// 		DestChainSelector: CHAINSEL_EVM_TEST_90000001,
-	// 		OnRamp:            deployReport.Output.OnRampAddress,
-	// 	},
-	// })
 	require.NoError(t, err, "failed to add lane")
 }
