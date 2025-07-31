@@ -18,7 +18,6 @@ struct Storage {
     ownable: Ownable2Step;
 
     // static config
-    router: address;
     chainSelector: uint64; // source chain selector
     // TODO: rmnRemote (only used to validate curse on getFee), nonceManager, tokenAdminRegistry
     // hmm, need to consider the design here.
@@ -35,7 +34,7 @@ struct Storage {
 }
 
 struct DestChainConfig {
-    router: CrossChainAddress;
+    router: address; // Local router address  that is allowed to send messages to the destination chain.
     sequenceNumber: uint64;
     allowlistEnabled: bool;
     allowedSenders: Map<bool>; // address -> bool
@@ -89,13 +88,15 @@ fun onInternalMessage(in: InMessage) {
 
 fun send(payload: OnRampSend, sender: address) {
     val st = lazy Storage.load();
-    // ccipSend must be forwarded from the router
-    assert(st.router == sender, ERROR_UNAUTHORIZED);
 
     val msg = payload.msg.load();
 
     // validate allowlist
     val destChainConfig = st.destChainConfigs.mustGet(msg.destChainSelector, ERROR_UNKNOWN_DEST_CHAIN_SELECTOR);
+
+    // ccipSend must be forwarded from the router
+    assert(destChainConfig.router == sender, ERROR_UNAUTHORIZED);
+
     if (destChainConfig.allowlistEnabled) {
         // TODO:
         val (allowed, exists) = destChainConfig.allowedSenders.get(sender);

@@ -162,7 +162,7 @@ struct (0x10000003) SetDynamicConfig {
 
 struct OnRampUpdateDestChainConfig {
     destChainSelector: uint64;
-    router: CrossChainAddress;
+    router: address;
     allowlistEnabled: bool;
 }
 

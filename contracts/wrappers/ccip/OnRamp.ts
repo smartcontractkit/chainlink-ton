@@ -16,7 +16,6 @@ import { asSnakeData } from '../../utils/Utils'
 
 export type OnRampStorage = {
   ownable: Ownable2StepConfig
-  router: Address
   chainSelector: bigint
   config: {
     feeQuoter: Address
@@ -27,7 +26,7 @@ export type OnRampStorage = {
 }
 
 export type DestChainConfig = {
-  router: Buffer
+  router: Address
   sequenceNumber: number
   allowlistEnabled: boolean
   allowedSenders: Dictionary<Address, boolean>
@@ -43,7 +42,6 @@ export const Builder = {
             ? beginCell().storeAddress(config.ownable.pendingOwner)
             : null,
         )
-        .storeAddress(config.router)
         .storeUint(config.chainSelector, 64)
         // Cell<DynamicConfig>
         .storeRef(
@@ -122,7 +120,7 @@ export class OnRamp implements Contract {
     via: Sender,
     opts: {
       value: bigint
-      destChainConfigs: { destChainSelector: bigint; router: Buffer; allowlistEnabled: boolean }[]
+      destChainConfigs: { destChainSelector: bigint; router: Address; allowlistEnabled: boolean }[]
     },
   ) {
     await provider.internal(via, {
@@ -134,9 +132,7 @@ export class OnRamp implements Contract {
           asSnakeData(opts.destChainConfigs, (config) =>
             new TonBuilder()
               .storeUint(config.destChainSelector, 64)
-              // CrossChainAddress TODO: assert =< 64
-              .storeUint(config.router.byteLength, 8)
-              .storeBuffer(config.router, config.router.byteLength)
+              .storeAddress(config.router)
               .storeBit(config.allowlistEnabled),
           ),
         )

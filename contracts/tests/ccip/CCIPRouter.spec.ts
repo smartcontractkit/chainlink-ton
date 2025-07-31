@@ -225,7 +225,6 @@ describe('Router', () => {
         ownable: {
           owner: deployer.address,
         },
-        router: router.address,
         chainSelector: CHAINSEL_TON,
         config: {
           feeQuoter: feeQuoter.address,
@@ -251,7 +250,7 @@ describe('Router', () => {
         destChainConfigs: [
           {
             destChainSelector: CHAINSEL_EVM_TEST_90000001,
-            router: Buffer.alloc(64),
+            router: router.address,
             allowlistEnabled: false,
           },
         ],
