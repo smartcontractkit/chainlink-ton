@@ -1,4 +1,4 @@
-package eventemitter
+package helper
 
 import (
 	"context"
@@ -6,16 +6,85 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"math/rand/v2"
 	"sync"
+	"testing"
 	"time"
 
-	"github.com/smartcontractkit/chainlink-common/pkg/logger"
-
+	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
+
+	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+
+	"integration-tests/smoke/logpoller/counter"
+	test_utils "integration-tests/utils"
 )
+
+func SendBulkTestEventTxs(t *testing.T, client ton.APIClientWrapped, batchCount, txPerBatch, msgPerTx int) (*TestEventSource, []TestEventRes) {
+	// event sending wallet
+	sender := test_utils.CreateRandomHighloadWallet(t, client)
+	test_utils.FundWallets(t, client, []*address.Address{sender.Address()}, []tlb.Coins{tlb.MustFromTON("1000")})
+	require.NotNil(t, sender)
+	// deploy event emitter counter contract
+	emitter, err := NewTestEventSource(t.Context(), client, sender, "emitter", rand.Uint32(), logger.Test(t))
+	require.NoError(t, err)
+	// bulk send events
+	txs, err := emitter.SendBulkTestEvents(t.Context(), batchCount, txPerBatch, msgPerTx)
+	require.NoError(t, err)
+
+	expectedCounter := uint32(batchCount * txPerBatch * msgPerTx) //nolint:gosec // test code
+
+	require.Eventually(t, func() bool {
+		master, err := client.CurrentMasterchainInfo(t.Context())
+		if err != nil {
+			return false
+		}
+		currentCounterRaw, err := counter.GetValue(t.Context(), client.WaitForBlock(master.SeqNo), master, emitter.ContractAddress())
+		if err != nil {
+			return false
+		}
+		currentCounter := uint32(currentCounterRaw.Uint64()) //nolint:gosec // test code
+		return currentCounter == expectedCounter
+	}, 30*time.Second, 2*time.Second, "Counter did not reach expected value within timeout")
+
+	t.Logf("On-chain counter reached expected value of %d.", expectedCounter)
+
+	time.Sleep(20 * time.Second)
+	return emitter, txs
+}
+
+func VerifyLoadedEvents(msgs []*tlb.ExternalMessageOut, expectedCount int) error {
+	seen := make(map[uint32]bool, expectedCount)
+
+	// parse all events and track counters
+	for i, ext := range msgs {
+		event, err := test_utils.ParseEventFromMsg[counter.CountIncreasedEvent](ext)
+		if err != nil {
+			return fmt.Errorf("failed to parse event #%d: %w", i, err)
+		}
+
+		// check for duplicates
+		if seen[event.Value] {
+			return fmt.Errorf("duplicate counter %d found at index %d", event.Value, i)
+		}
+		seen[event.Value] = true
+	}
+	// verify all expected counters are present (1 to expectedCount)
+	var missing []int
+	for i := 1; i <= expectedCount; i++ {
+		if !seen[uint32(i)] { //nolint:gosec // test code
+			missing = append(missing, i)
+		}
+	}
+	if len(missing) > 0 {
+		return fmt.Errorf("not all expected counters found, missing some from 1 to %v", missing)
+	}
+
+	return nil
+}
 
 type TestEventRes struct {
 	Tx       *tlb.Transaction
@@ -41,7 +110,7 @@ type TestEventSource struct {
 }
 
 func NewTestEventSource(ctx context.Context, client ton.APIClientWrapped, wallet *wallet.Wallet, name string, id uint32, lggr logger.Logger) (*TestEventSource, error) {
-	addr, err := DeployCounterContract(client, wallet, id)
+	addr, err := counter.DeployCounterContract(client, wallet, id)
 	if err != nil {
 		return nil, err
 	}
@@ -52,17 +121,17 @@ func NewTestEventSource(ctx context.Context, client ton.APIClientWrapped, wallet
 		return nil, err
 	}
 
-	resIDRaw, err := GetID(ctx, client, b, addr)
+	resIDRaw, err := counter.GetID(ctx, client, b, addr)
 	if err != nil {
 		return nil, err
 	}
-	resID := uint32(resIDRaw.Uint64()) //nolint:gosec
+	resID := uint32(resIDRaw.Uint64()) //nolint:gosec // test code
 
 	if id != resID {
 		return nil, fmt.Errorf("unexpected ID for %s: expected %d, got %d", name, id, resID)
 	}
 
-	initialCounter, err := GetValue(ctx, client, b, addr)
+	initialCounter, err := counter.GetValue(ctx, client, b, addr)
 	if err != nil {
 		return nil, err
 	}
@@ -214,7 +283,7 @@ func (e *TestEventSource) SendIncreaseCounterMsg(ctx context.Context) (*tlb.Tran
 			Bounce:      true,
 			DstAddr:     e.contractAddress,
 			Amount:      tlb.MustFromTON("0.1"),
-			Body:        IncreaseCountMsgBody(),
+			Body:        counter.IncreaseCountMsgBody(),
 		},
 	}
 
@@ -236,7 +305,7 @@ func (e *TestEventSource) sendManyIncreaseCountMsgs(ctx context.Context, count i
 				Bounce:      true,
 				DstAddr:     e.contractAddress,
 				Amount:      tlb.MustFromTON("0.1"),
-				Body:        IncreaseCountMsgBody(),
+				Body:        counter.IncreaseCountMsgBody(),
 			},
 		}
 		messages[i] = msg

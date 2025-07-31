@@ -1,4 +1,4 @@
-package eventemitter
+package counter
 
 import (
 	"context"
@@ -28,7 +28,7 @@ var (
 	CountIncreasedTopic uint32 = hash.CalcCRC32("CountIncreased")
 )
 
-type CountIncreased struct {
+type CountIncreasedEvent struct {
 	ID    uint32 `tlb:"## 32"`
 	Value uint32 `tlb:"## 32"`
 }
@@ -63,16 +63,16 @@ func DeployCounterContract(client ton.APIClientWrapped, wallet *wallet.Wallet, i
 
 func SetCountMsgBody(newCount uint32) *cell.Cell {
 	return cell.BeginCell().
-		MustStoreUInt(0x10000004, 32).    // SetCount op code
-		MustStoreUInt(rand.Uint64(), 64). //nolint:gosec // test queryId
+		MustStoreUInt(0x10000004, 32). // SetCount op code
+		MustStoreUInt(rand.Uint64(), 64).
 		MustStoreUInt(uint64(newCount), 32).
 		EndCell()
 }
 
 func IncreaseCountMsgBody() *cell.Cell {
 	return cell.BeginCell().
-		MustStoreUInt(0x10000005, 32).    // IncreaseCounter op code
-		MustStoreUInt(rand.Uint64(), 64). //nolint:gosec // test queryId
+		MustStoreUInt(0x10000005, 32). // IncreaseCounter op code
+		MustStoreUInt(rand.Uint64(), 64).
 		EndCell()
 }
 
