@@ -8,7 +8,7 @@ import (
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
 
 	chain_selectors "github.com/smartcontractkit/chain-selectors"
-	"github.com/test-go/testify/require"
+	"github.com/stretchr/testify/require"
 
 	ops "github.com/smartcontractkit/chainlink-ton/ops/ccip"
 	"github.com/smartcontractkit/chainlink-ton/ops/ccip/config"
@@ -29,7 +29,7 @@ import (
 	"github.com/smartcontractkit/chainlink/deployment/common/proposalutils"
 )
 
-const CHAINSEL_EVM_TEST_90000001 = 909606746561742123
+const ChainSelEVMTest90000001 = 909606746561742123
 
 func TestDeploy(t *testing.T) {
 	t.Parallel()
@@ -65,7 +65,7 @@ func TestDeploy(t *testing.T) {
 					// ...
 				},
 				OnRampParams: config.OnRampParams{
-					ChainSelector: CHAINSEL_EVM_TEST_90000001,
+					ChainSelector: ChainSelEVMTest90000001,
 					// TODO:
 					// AllowlistAdmin: &address.Address{},
 					FeeAggregator: deployer.WalletAddress(),

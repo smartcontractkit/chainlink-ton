@@ -549,5 +549,4 @@ func TestIntegration(t *testing.T) {
 
 		t.Logf("Test completed successfully\n")
 	})
-
 }
