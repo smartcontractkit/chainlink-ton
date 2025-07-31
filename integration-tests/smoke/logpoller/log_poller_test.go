@@ -25,7 +25,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/event"
 )
 
-func sendBulkTestEventTxs(t *testing.T, client ton.APIClientWrapped, batchCount, txPerBatch, msgPerTx int) (*event_emitter.TestEventSource, []event_emitter.EventResult) {
+func sendBulkTestEventTxs(t *testing.T, client ton.APIClientWrapped, batchCount, txPerBatch, msgPerTx int) (*event_emitter.TestEventSource, []event_emitter.TestEventRes) {
 	// event sending wallet
 	sender := test_utils.CreateRandomHighloadWallet(t, client)
 	test_utils.FundWallets(t, client, []*address.Address{sender.Address()}, []tlb.Coins{tlb.MustFromTON("1000")})
@@ -34,7 +34,7 @@ func sendBulkTestEventTxs(t *testing.T, client ton.APIClientWrapped, batchCount,
 	emitter, err := event_emitter.NewTestEventSource(t.Context(), client, sender, "emitter", rand.Uint32(), logger.Test(t))
 	require.NoError(t, err)
 	// bulk send events
-	txs, err := emitter.CreateBulkTestEvents(t.Context(), batchCount, txPerBatch, msgPerTx)
+	txs, err := emitter.SendBulkTestEvents(t.Context(), batchCount, txPerBatch, msgPerTx)
 	require.NoError(t, err)
 
 	expectedCounter := uint32(batchCount * txPerBatch * msgPerTx) //nolint:gosec // test code
@@ -140,7 +140,7 @@ func Test_LogPoller(t *testing.T) {
 
 		t.Run("loading entire block range at once", func(t *testing.T) {
 			t.Parallel()
-			loader := logpoller.NewLogCollector(client, logger.Test(t), pageSize, blockConfirmations)
+			loader := logpoller.NewLogCollector(client, logger.Test(t), pageSize)
 
 			msgs, berr := loader.BackfillForAddresses(
 				t.Context(),
@@ -160,7 +160,7 @@ func Test_LogPoller(t *testing.T) {
 			t.Parallel()
 			var allMsgs []*tlb.ExternalMessageOut
 
-			loader := logpoller.NewLogCollector(client, logger.Test(t), pageSize, blockConfirmations)
+			loader := logpoller.NewLogCollector(client, logger.Test(t), pageSize)
 
 			// iterate block by block from prevBlock to toBlock
 			currentBlock := prevBlock
@@ -208,18 +208,17 @@ func Test_LogPoller(t *testing.T) {
 		emitterB, err := event_emitter.NewTestEventSource(t.Context(), client, senderB, "emitterB", rand.Uint32(), logger.Test(t))
 		require.NoError(t, err)
 
-		const pollingInterval = 3 * time.Second
-		const blockConfirmations = 10
-		const pageSize = 5
-
 		const targetCounter = 20
+
+		cfg := logpoller.Config{
+			PollPeriod: 3 * time.Second,
+			PageSize:   5,
+		}
 
 		lp := logpoller.NewLogPoller(
 			logger.Test(t),
 			client,
-			pollingInterval,
-			pageSize,
-			blockConfirmations,
+			cfg,
 		)
 
 		// register filters
@@ -488,7 +487,7 @@ func Test_LogPoller(t *testing.T) {
 					return event.LoadEventFromCell[event_emitter.CountIncreased](c)
 				}
 
-				res, err := lp.FilteredParsedLogs(emitterB.ContractAddress(), event_emitter.CountIncreasedTopic, parser, nil)
+				res, err := lp.FilteredLogsWithParser(emitterB.ContractAddress(), event_emitter.CountIncreasedTopic, parser, nil)
 				require.NoError(t, err)
 
 				require.Len(t, res, targetCounter, "expected exactly %d logs for the emitter B", targetCounter)
@@ -530,7 +529,7 @@ func Test_LogPoller(t *testing.T) {
 					return evt.Value >= uint32(from) && evt.Value <= uint32(to) //nolint:gosec // test code
 				}
 
-				res, err := lp.FilteredParsedLogs(emitterB.ContractAddress(), event_emitter.CountIncreasedTopic, parser, filter)
+				res, err := lp.FilteredLogsWithParser(emitterB.ContractAddress(), event_emitter.CountIncreasedTopic, parser, filter)
 				require.NoError(t, err)
 
 				require.Len(t, res, to-from+1, "expected exactly 10 logs for the range 1-10")
@@ -901,10 +900,6 @@ func Test_LogPoller(t *testing.T) {
 				require.False(t, result.HasMore)
 			})
 		})
-	})
-
-	t.Run("Log Poller CCIP CAL Query Interface", func(t *testing.T) {
-		t.Skip("TODO: Implement")
 	})
 
 	t.Run("Log Poller Replay for a Contract", func(t *testing.T) {

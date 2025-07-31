@@ -56,8 +56,8 @@ func (s *InMemoryStore) GetLogs(evtSrcAddress string) []types.Log {
 	return out
 }
 
-// GetLogsByTopicWithFilter finds logs by address and topic, then applies cell-level filters.
-func (s *InMemoryStore) GetLogsByTopicWithFilter(
+// FilteredLogs finds logs by address and topic, then applies cell-level filters.
+func (s *InMemoryStore) FilteredLogs(
 	evtSrcAddress string,
 	topic uint32,
 	filters []CellQuery,
@@ -93,11 +93,11 @@ func (s *InMemoryStore) GetLogsByTopicWithFilter(
 	return s.cellQueryEngine.ApplyPagination(matchingLogs, options.Limit, options.Offset), nil
 }
 
-func (s *InMemoryStore) FilteredParsedLogs(
+func (s *InMemoryStore) FilteredLogsWithParser(
 	evtSrcAddress string,
 	topic uint32,
-	parser func(cell *cell.Cell) (any, error),
-	filter func(parsedEvent any) bool,
+	parser types.LogParser,
+	filter types.LogFilter,
 ) ([]any, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

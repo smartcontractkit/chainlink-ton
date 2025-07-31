@@ -7,7 +7,6 @@ import (
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
-	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
@@ -38,13 +37,27 @@ import (
 // LogPoller defines the interface for TON log polling service
 type LogPoller interface {
 	services.Service
-	Healthy() error
-	Start(context.Context) error
-	Ready() error
-	Close() error
 	RegisterFilter(ctx context.Context, flt types.Filter) error
 	UnregisterFilter(ctx context.Context, name string) error
-	FilteredLogs(evtSrcAddress *address.Address, topic uint32, queries []CellQuery, options QueryOptions) (QueryResult, error)
+	// TODO: expose more interface methods if needed
+
+	// FilteredLogs queries logs using direct byte-offset filtering on the raw cell data.
+	// This method is highly efficient as it can push filtering down to the database layer
+	// (e.g., using SQL SUBSTRING) before returning data to the application
+	//
+	// It is best suited for high-performance queries where the event's data layout is fixed
+	// However, this mechanism works best with fixed-size data layouts.
+	// It cannot reliably query data that appears after variable-sized fields (like snake
+	// data or other dynamic content), as the field's offset would be unpredictable.
+	FilteredLogs(ctx context.Context, address *address.Address, topic uint32, queries []CellQuery, options QueryOptions) (QueryResult, error)
+	// FilteredLogsWithParser queries logs using a flexible 'parse-then-filter' pattern.
+	// It streams all logs matching a given address and topic, applies the provided `LogParser`
+	// function to decode each log's data into a Go struct, and then applies the `LogFilter`
+	// function to the resulting struct.
+	//
+	// This approach is more robust and adaptable to changes in contract data layouts, as the
+	// filtering logic operates on strongly-typed fields rather than fixed byte offsets.
+	FilteredLogsWithParser(ctx context.Context, address *address.Address, topic uint32, parser types.LogParser, filter types.LogFilter) ([]any, error)
 }
 
 type logCollector interface {
@@ -74,22 +87,19 @@ type Service struct {
 func NewLogPoller(
 	lggr logger.Logger,
 	client ton.APIClientWrapped,
-	// TODO: replace with global TON relayer config
-	pollPeriod time.Duration,
-	pageSize uint32,
-	blockConfirmations uint32,
+	// TODO: use global TON relayer config
+	cfg Config,
 ) *Service {
 	store := NewInMemoryStore(lggr)
 	filters := newFilters()
 	lp := &Service{
-		lggr:               logger.Sugared(lggr),
-		client:             client,
-		filters:            filters,
-		store:              store,
-		pollPeriod:         pollPeriod,
-		blockConfirmations: blockConfirmations,
+		lggr:       logger.Sugared(lggr),
+		client:     client,
+		filters:    filters,
+		store:      store,
+		pollPeriod: cfg.PollPeriod,
 	}
-	lp.loader = NewLogCollector(lp.client, lp.lggr, pageSize, blockConfirmations)
+	lp.loader = NewLogCollector(lp.client, lp.lggr, cfg.PageSize)
 	lp.Service, lp.eng = services.Config{
 		Name:  "Service",
 		Start: lp.start,
@@ -220,14 +230,13 @@ func (lp *Service) processMessages(msgs []types.MsgWithCtx) error {
 // 1. Extracts event topic from destination address
 // 2. Finds matching filters for the source address and topic
 // 3. Saves logs for each matching filter
-func (lp *Service) Process(msgWithCtx types.MsgWithCtx) error {
-	msg := msgWithCtx.Msg
-	topic, err := event.ExtractEventTopicFromAddress(msg.DstAddr)
+func (lp *Service) Process(msg types.MsgWithCtx) error {
+	topic, err := event.ExtractEventTopicFromAddress(msg.Msg.DstAddr)
 	if err != nil {
 		return fmt.Errorf("ExtractEventTopicFromAddress: %w", err)
 	}
-	lp.lggr.Debugw("Processing message", "src", msg.SrcAddr, "dst", msg.DstAddr, "topic", topic)
-	fIDs := lp.filters.MatchingFilters(*msg.SrcAddr, topic)
+	lp.lggr.Debugw("Processing message", "src", msg.Msg.SrcAddr, "dst", msg.Msg.DstAddr, "topic", topic)
+	fIDs := lp.filters.MatchingFilters(*msg.Msg.SrcAddr, topic)
 	if len(fIDs) == 0 {
 		return nil // no filters matched, nothing to do
 	}
@@ -237,11 +246,11 @@ func (lp *Service) Process(msgWithCtx types.MsgWithCtx) error {
 			FilterID: fid,
 			// TODO: we need custom type for to storing block, tx metadata
 			// SeqNo:      master.SeqNo,
-			TxHash:  msgWithCtx.TxHash,
-			TxLT:    msgWithCtx.LT,
-			Address: *msg.SrcAddr,
+			TxHash:  msg.TxHash,
+			TxLT:    msg.LT,
+			Address: *msg.Msg.SrcAddr,
 			Topic:   topic,
-			Data:    msg.Body.ToBOC(),
+			Data:    msg.Msg.Body.ToBOC(),
 		})
 	}
 	return nil
@@ -283,7 +292,7 @@ func (lp *Service) FilteredLogs(
 	queries []CellQuery,
 	options QueryOptions,
 ) (QueryResult, error) {
-	return lp.store.GetLogsByTopicWithFilter(
+	return lp.store.FilteredLogs(
 		evtSrcAddress.String(),
 		topic,
 		queries,
@@ -291,13 +300,13 @@ func (lp *Service) FilteredLogs(
 	)
 }
 
-func (lp *Service) FilteredParsedLogs(
+func (lp *Service) FilteredLogsWithParser(
 	evtSrcAddress *address.Address,
 	topic uint32,
-	parser func(cell *cell.Cell) (any, error),
-	filter func(parsedEvent any) bool,
+	parser types.LogParser,
+	filter types.LogFilter,
 ) ([]any, error) {
-	return lp.store.FilteredParsedLogs(
+	return lp.store.FilteredLogsWithParser(
 		evtSrcAddress.String(),
 		topic,
 		parser,

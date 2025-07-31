@@ -36,10 +36,9 @@ import (
 //
 // TODO(NONEVM-2188): refactor as subengine, with background workers for production scalability
 type LogCollector struct {
-	lggr               logger.SugaredLogger // Logger for debugging and monitoring
-	client             ton.APIClientWrapped // TON blockchain client
-	pageSize           uint32               // Number of transactions to fetch per API call
-	blockConfirmations uint32               // Number of confirmations to wait before processing
+	lggr     logger.SugaredLogger // Logger for debugging and monitoring
+	client   ton.APIClientWrapped // TON blockchain client
+	pageSize uint32               // Number of transactions to fetch per API call
 }
 
 // NewLogCollector creates a new LogCollector instance for TON CCIP MVP
@@ -47,13 +46,11 @@ func NewLogCollector(
 	client ton.APIClientWrapped,
 	lggr logger.Logger,
 	pageSize uint32,
-	blockConfirmations uint32,
 ) *LogCollector {
 	return &LogCollector{
-		lggr:               logger.Sugared(lggr),
-		client:             client,
-		pageSize:           pageSize,
-		blockConfirmations: blockConfirmations,
+		lggr:     logger.Sugared(lggr),
+		client:   client,
+		pageSize: pageSize,
 	}
 }
 
@@ -207,9 +204,7 @@ func (lc *LogCollector) getTransactionBounds(ctx context.Context, addr *address.
 		startLT = 0
 	}
 	// Get the account state at toBlock to find the end boundary
-	// Wait for block confirmations before accessing account state
-	waitBlockNum := toBlock.SeqNo + lc.blockConfirmations
-	res, err := lc.client.WaitForBlock(waitBlockNum).GetAccount(ctx, toBlock, addr)
+	res, err := lc.client.WaitForBlock(toBlock.SeqNo).GetAccount(ctx, toBlock, addr)
 	if err != nil {
 		return 0, 0, nil, fmt.Errorf("failed to get account state for %s in block %d: %w", addr.String(), toBlock.SeqNo, err)
 	}

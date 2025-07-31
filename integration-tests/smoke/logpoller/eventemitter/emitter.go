@@ -17,7 +17,7 @@ import (
 	"github.com/xssnick/tonutils-go/ton/wallet"
 )
 
-type EventResult struct {
+type TestEventRes struct {
 	Tx       *tlb.Transaction
 	Block    *ton.BlockIDExt
 	BatchIdx int
@@ -81,6 +81,18 @@ func NewTestEventSource(ctx context.Context, client ton.APIClientWrapped, wallet
 	}, nil
 }
 
+func (e *TestEventSource) Name() string {
+	return e.name
+}
+
+func (e *TestEventSource) ContractAddress() *address.Address {
+	return e.contractAddress
+}
+
+func (e *TestEventSource) GetID() uint32 {
+	return e.id
+}
+
 func (e *TestEventSource) Start(ctx context.Context, interval time.Duration, targetCounter *big.Int) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -119,7 +131,7 @@ func (e *TestEventSource) eventLoop(ctx context.Context, interval time.Duration)
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
-	target := uint32(e.targetCounter.Uint64())
+	target := uint32(e.targetCounter.Uint64()) //nolint:gosec // target is controlled by the test
 
 	for {
 		select {
@@ -151,20 +163,8 @@ func (e *TestEventSource) eventLoop(ctx context.Context, interval time.Duration)
 	}
 }
 
-func (e *TestEventSource) Name() string {
-	return e.name
-}
-
-func (e *TestEventSource) ContractAddress() *address.Address {
-	return e.contractAddress
-}
-
-func (e *TestEventSource) GetID() uint32 {
-	return e.id
-}
-
-func (e *TestEventSource) CreateBulkTestEvents(ctx context.Context, batchCount, txPerBatch, msgPerTx int) ([]EventResult, error) {
-	var txs []EventResult
+func (e *TestEventSource) SendBulkTestEvents(ctx context.Context, batchCount, txPerBatch, msgPerTx int) ([]TestEventRes, error) {
+	var txs []TestEventRes
 	e.lggr.Debugf("=== Starting to send %d batches of %d transactions with %d messages each ===",
 		batchCount, txPerBatch, msgPerTx)
 
@@ -179,7 +179,7 @@ func (e *TestEventSource) CreateBulkTestEvents(ctx context.Context, batchCount, 
 				return nil, fmt.Errorf("failed to send tx %d in batch %d: %w", txIdx, batchIdx, err)
 			}
 
-			txResult := EventResult{
+			txResult := TestEventRes{
 				Tx:       tx,
 				Block:    block,
 				BatchIdx: batchIdx,
