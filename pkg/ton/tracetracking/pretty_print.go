@@ -17,7 +17,7 @@ func (m *SentMessage) Dump() string {
 	return "event?"
 }
 
-// Outputs a nicely indented string representation of the trace tree, with the exit codes, bouced tags and sender-receiver
+// Outputs a nicely indented string representation of the trace tree, with the exit codes, bounced tags and sender-receiver
 func (m *ReceivedMessage) Dump() string {
 	lines := dumpRec(m)
 	return strings.Join(lines, "\n")
