@@ -9,8 +9,8 @@ import (
 // ieeeTable is a pre-calculated table for the CRC32-IEEE polynomial
 var ieeeTable = crc32.MakeTable(crc32.IEEE)
 
-// CalculateSchemaCRC32 takes a schema string, cleans it, and calculates the CRC32-IEEE checksum, returning it as a uint32.
-func CalcCRC32(schema string) uint32 {
+// CRC32 takes a schema string, cleans it, and calculates the CRC32-IEEE checksum, returning it as a uint32.
+func CRC32(schema string) uint32 {
 	// normalize the input
 	cleanedSchema := strings.ReplaceAll(schema, "(", "")
 	cleanedSchema = strings.ReplaceAll(cleanedSchema, ")", "")

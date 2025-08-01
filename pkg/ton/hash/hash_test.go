@@ -28,7 +28,7 @@ func TestCalculateSchemaCRC32(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			actualOpcode := CalcCRC32(tc.inputSchema)
+			actualOpcode := CRC32(tc.inputSchema)
 
 			if actualOpcode != tc.expectedOpcode {
 				t.Errorf("for input '%s', expected opcode 0x%x, but got 0x%x",

@@ -21,6 +21,9 @@ import (
 
 	"integration-tests/smoke/logpoller/counter"
 	test_utils "integration-tests/utils"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
 func SendBulkTestEventTxs(t *testing.T, client ton.APIClientWrapped, batchCount, txPerBatch, msgPerTx int) (*TestEventSource, []TestEventRes) {
@@ -38,11 +41,11 @@ func SendBulkTestEventTxs(t *testing.T, client ton.APIClientWrapped, batchCount,
 	expectedCounter := uint32(batchCount * txPerBatch * msgPerTx) //nolint:gosec // test code
 
 	require.Eventually(t, func() bool {
-		master, err := client.CurrentMasterchainInfo(t.Context())
+		mb, err := client.CurrentMasterchainInfo(t.Context())
 		if err != nil {
 			return false
 		}
-		currentCounterRaw, err := counter.GetValue(t.Context(), client.WaitForBlock(master.SeqNo), master, emitter.ContractAddress())
+		currentCounterRaw, err := emitter.GetCounterValue(t.Context(), mb)
 		if err != nil {
 			return false
 		}
@@ -110,39 +113,41 @@ type TestEventSource struct {
 }
 
 func NewTestEventSource(ctx context.Context, client ton.APIClientWrapped, wallet *wallet.Wallet, name string, id uint32, lggr logger.Logger) (*TestEventSource, error) {
-	addr, err := counter.DeployCounterContract(client, wallet, id)
-	if err != nil {
-		return nil, err
+	codeCell, cerr := wrappers.ParseCompiledContract(counter.ArtifactPath)
+	if cerr != nil {
+		return nil, fmt.Errorf("failed to parse compiled contract: %w", cerr)
 	}
 
-	// verify the contract deployment
-	b, err := client.CurrentMasterchainInfo(ctx)
-	if err != nil {
-		return nil, err
+	// TODO: any context is not being used in contract helpers
+	sigClient := &tracetracking.SignedAPIClient{
+		Client: client,
+		Wallet: *wallet,
 	}
 
-	resIDRaw, err := counter.GetID(ctx, client, b, addr)
-	if err != nil {
-		return nil, err
-	}
-	resID := uint32(resIDRaw.Uint64()) //nolint:gosec // test code
+	data, err := tlb.ToCell(counter.Storage{
+		ID:    id,
+		Value: 0, // initial value as zero
+	})
 
-	if id != resID {
-		return nil, fmt.Errorf("unexpected ID for %s: expected %d, got %d", name, id, resID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create initial data cell: %w", err)
 	}
 
-	initialCounter, err := counter.GetValue(ctx, client, b, addr)
+	contract, err := wrappers.Deploy(
+		sigClient,
+		codeCell,
+		data,
+		tlb.MustFromTON("0.1"),
+	)
+
 	if err != nil {
-		return nil, err
-	}
-	if initialCounter.Cmp(big.NewInt(0)) != 0 {
-		return nil, fmt.Errorf("expected initial counter to be 0, got %s", initialCounter.String())
+		return nil, fmt.Errorf("failed to deploy contract: %w", err)
 	}
 
 	return &TestEventSource{
 		name:            name,
 		client:          client,
-		contractAddress: addr,
+		contractAddress: contract.Address,
 		id:              id,
 		wallet:          wallet,
 		lggr:            lggr,
@@ -275,7 +280,15 @@ func (e *TestEventSource) SendBulkTestEvents(ctx context.Context, batchCount, tx
 }
 
 func (e *TestEventSource) SendIncreaseCounterMsg(ctx context.Context) (*tlb.Transaction, *ton.BlockIDExt, error) {
-	e.lggr.Debugf("Sending increase counter message from %s", e.name)
+	body, err := tlb.ToCell(counter.IncreaseCountMsg{
+		OpCode:  counter.IncreaseCounterOpCode,
+		QueryID: rand.Uint64(), //nolint:gosec // test queryId
+	})
+
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create cell: %w", err)
+	}
+
 	msg := &wallet.Message{
 		Mode: 1,
 		InternalMessage: &tlb.InternalMessage{
@@ -283,7 +296,7 @@ func (e *TestEventSource) SendIncreaseCounterMsg(ctx context.Context) (*tlb.Tran
 			Bounce:      true,
 			DstAddr:     e.contractAddress,
 			Amount:      tlb.MustFromTON("0.1"),
-			Body:        counter.IncreaseCountMsgBody(),
+			Body:        body,
 		},
 	}
 
@@ -298,6 +311,14 @@ func (e *TestEventSource) SendIncreaseCounterMsg(ctx context.Context) (*tlb.Tran
 func (e *TestEventSource) sendManyIncreaseCountMsgs(ctx context.Context, count int) (*tlb.Transaction, *ton.BlockIDExt, error) {
 	messages := make([]*wallet.Message, count)
 	for i := 0; i < count; i++ {
+		body, err := tlb.ToCell(counter.IncreaseCountMsg{
+			OpCode:  counter.IncreaseCounterOpCode,
+			QueryID: rand.Uint64(), //nolint:gosec // test queryId
+		})
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to create cell: %w", err)
+		}
+
 		msg := &wallet.Message{
 			Mode: 1,
 			InternalMessage: &tlb.InternalMessage{
@@ -305,7 +326,7 @@ func (e *TestEventSource) sendManyIncreaseCountMsgs(ctx context.Context, count i
 				Bounce:      true,
 				DstAddr:     e.contractAddress,
 				Amount:      tlb.MustFromTON("0.1"),
-				Body:        counter.IncreaseCountMsgBody(),
+				Body:        body,
 			},
 		}
 		messages[i] = msg
@@ -317,4 +338,32 @@ func (e *TestEventSource) sendManyIncreaseCountMsgs(ctx context.Context, count i
 	}
 
 	return tx, block, nil
+}
+
+func (e *TestEventSource) GetCounterID(ctx context.Context, block *ton.BlockIDExt) (*big.Int, error) {
+	res, err := e.client.RunGetMethod(ctx, block, e.ContractAddress(), "id")
+	if err != nil {
+		return nil, fmt.Errorf("failed to run get method 'id': %w", err)
+	}
+
+	val, err := res.Int(0)
+	if err != nil {
+		return nil, fmt.Errorf("failed to extract id value: %w", err)
+	}
+
+	return val, nil
+}
+
+func (e *TestEventSource) GetCounterValue(ctx context.Context, block *ton.BlockIDExt) (*big.Int, error) {
+	res, err := e.client.RunGetMethod(ctx, block, e.ContractAddress(), "value")
+	if err != nil {
+		return nil, fmt.Errorf("failed to run get method 'value': %w", err)
+	}
+
+	val, err := res.Int(0)
+	if err != nil {
+		return nil, fmt.Errorf("failed to extract value value: %w", err)
+	}
+
+	return val, nil
 }
