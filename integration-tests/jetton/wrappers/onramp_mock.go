@@ -61,78 +61,38 @@ const (
 	OnrampMockForwardPayloadRequiredError = 101
 )
 
-// Event opcodes (these are typically used in logs/events)
-const (
-	OnrampMockInsufficientFeeEvent = "InsufficientFee"
-	OnrampMockAcceptedRequestEvent = "AcceptedRequest"
-)
-
 // OnrampMock receives jetton transfer notifications automatically
 // It doesn't have explicit send methods, but we can add helper methods
 // to parse events from transaction logs
 
 type InsufficientFeeEvent struct {
-	QueryID uint64
-	Sender  *address.Address
-}
-
-type AcceptedRequestEvent struct {
-	QueryID uint64
-	Sender  *address.Address
-	Payload *cell.Cell
+	QueryID uint64           `tlb:"## 64"`
+	Sender  *address.Address `tlb:"addr"`
 }
 
 // Helper methods to parse events from transaction logs
-func ParseInsufficientFeeEvent(cell *cell.Cell) (InsufficientFeeEvent, error) {
-	slice := cell.BeginParse()
-	queryID, err := slice.LoadUInt(64)
+func ParseInsufficientFeeEvent(cell *cell.Cell) (*InsufficientFeeEvent, error) {
+	event := &InsufficientFeeEvent{}
+	err := tlb.LoadFromCell(event, cell.BeginParse())
 	if err != nil {
-		return InsufficientFeeEvent{}, fmt.Errorf("failed to load queryID: %w", err)
+		return nil, fmt.Errorf("failed to load InsufficientFeeEvent: %w", err)
 	}
+	return event, nil
+}
 
-	sender, err := slice.LoadAddr()
-	if err != nil {
-		return InsufficientFeeEvent{}, fmt.Errorf("failed to load sender: %w", err)
-	}
-
-	return InsufficientFeeEvent{
-		QueryID: queryID,
-		Sender:  sender,
-	}, nil
+type AcceptedRequestEvent struct {
+	QueryID uint64           `tlb:"## 64"`
+	Sender  *address.Address `tlb:"addr"`
+	Payload *cell.Cell       `tlb:"^"`
 }
 
 // Helper method to parse events from transaction results
 // Note: This would typically be used when parsing transaction events/logs
-func ParseAcceptedRequestEvent(eventCell *cell.Cell) (AcceptedRequestEvent, error) {
-	slice := eventCell.BeginParse()
-	queryID, err := slice.LoadUInt(64)
+func ParseAcceptedRequestEvent(cell *cell.Cell) (*AcceptedRequestEvent, error) {
+	event := &AcceptedRequestEvent{}
+	err := tlb.LoadFromCell(event, cell.BeginParse())
 	if err != nil {
-		return AcceptedRequestEvent{}, fmt.Errorf("failed to load queryID: %w", err)
+		return nil, fmt.Errorf("failed to load AcceptedRequestEvent: %w", err)
 	}
-
-	sender, err := slice.LoadAddr()
-	if err != nil {
-		return AcceptedRequestEvent{}, fmt.Errorf("failed to load sender: %w", err)
-	}
-
-	// For now, we'll assume the payload is stored as a simple cell
-	// In a real implementation, the payload structure depends on the contract
-	if slice.BitsLeft() > 0 {
-		// Create a new cell with the remaining data
-		payloadBuilder := cell.BeginCell()
-		// Store the remaining slice content (this is a simplified approach)
-		payloadCell := payloadBuilder.EndCell()
-
-		return AcceptedRequestEvent{
-			QueryID: queryID,
-			Sender:  sender,
-			Payload: payloadCell,
-		}, nil
-	}
-
-	return AcceptedRequestEvent{
-		QueryID: queryID,
-		Sender:  sender,
-		Payload: nil,
-	}, nil
+	return event, nil
 }

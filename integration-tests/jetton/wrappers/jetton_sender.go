@@ -84,13 +84,13 @@ type sendJettonsExtendedMessage struct {
 
 func (s JettonSender) SendJettonsExtended(
 	tonAmount tlb.Coins,
+	queryID uint64,
 	jettonAmount tlb.Coins,
 	destination *address.Address,
 	customPayload *cell.Cell,
 	forwardTonAmount tlb.Coins,
 	forwardPayload *cell.Cell,
 ) (msgReceived *tracetracking.ReceivedMessage, err error) {
-	queryID := rand.Uint64()
 	msgReceived, err = s.Contract.CallWaitRecursively(sendJettonsExtendedMessage{
 		QueryID:          queryID,
 		Amount:           jettonAmount,

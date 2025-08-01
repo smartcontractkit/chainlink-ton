@@ -4,10 +4,6 @@ import "../../lib/jetton/messages.tolk"
 import "../../lib/jetton/utils.tolk"
 import "../../lib/utils.tolk"
 
-
-
-
-
 // OnrampMock contract in Tolk
 // Mock onramp that accepts jetton transfers if they meet the fee requirement
 const FEE = 5
@@ -52,13 +48,13 @@ fun OnrampMock.handleJettonTransferNotification(
 
     // Handle the jetton transfer
     if (msg.jettonAmount < FEE) {
-        emit(JETTON_TOPIC, InsufficientFee { queryId: msg.queryId, sender: sender });
+        emit(JETTON_TOPIC, InsufficientFee { queryId: msg.queryId, sender: msg.transferInitiator });
     } else {
         emit(
             JETTON_TOPIC,
             AcceptedRequest {
                 queryId: msg.queryId,
-                sender: sender,
+                sender: msg.transferInitiator,
                 payload: forwardPayloadCell!,
             }
         );

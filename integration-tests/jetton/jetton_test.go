@@ -544,6 +544,7 @@ func TestJettonAll(t *testing.T) {
 
 		msgJettonsExtended, err := setup.sender.SendJettonsExtended(
 			tonAmount,
+			rand.Uint64(),
 			jettonAmount,
 			receiver,
 			customPayload,
@@ -578,7 +579,7 @@ func TestJettonAll(t *testing.T) {
 
 		ccipRequest := "CALL step ON 0x AT evm"
 		buf := []byte(ccipRequest)
-		jettonTransferPayload := cell.BeginCell().MustStoreSlice(buf, uint(len(buf))).EndCell()
+		jettonTransferPayload := cell.BeginCell().MustStoreBinarySnake(buf).EndCell()
 
 		forwardTonAmount := tlb.MustFromTON("1")
 		customPayload := cell.BeginCell().MustStoreBoolBit(true).EndCell()
@@ -588,14 +589,16 @@ func TestJettonAll(t *testing.T) {
 		onrampMockJettonWallet, err := setup.common.jettonClient.GetJettonWallet(t.Context(), setup.onrampMock.Contract.Address)
 		require.NoError(t, err, "failed to get onramp mock jetton wallet")
 
-		sendCallWithAmount := func(jettonAmount tlb.Coins) (tracetracking.OutgoingExternalMessages, error) {
+		sendCallWithAmount := func(jettonAmount tlb.Coins) (tracetracking.OutgoingExternalMessages, uint64, error) {
+			queryID := rand.Uint64()
 			msgReceived, err2 := setup.jettonSender.SendJettonsExtended(
 				tlb.MustFromTON("2"),
+				queryID,
 				jettonAmount,
 				setup.onrampMock.Contract.Address,
-				jettonTransferPayload,
-				forwardTonAmount,
 				customPayload,
+				forwardTonAmount,
+				jettonTransferPayload,
 			)
 			require.NoError(t, err2, "failed to send jettons with custom payload")
 			t.Logf("JettonSender message received: \n%s\n", replaceAddresses(map[string]string{
@@ -628,24 +631,35 @@ func TestJettonAll(t *testing.T) {
 			require.Zero(t, onrampMockCall.ExitCode, "Onramp mock call should have exit code 0")
 			require.NotEmpty(t, onrampMockCall.OutgoingExternalMessages, "Outgoing external messages should not be empty")
 			eventLog := onrampMockCall.OutgoingExternalMessages[0]
-			return eventLog, nil
+			return eventLog, queryID, nil
 		}
 
 		insufficientJettonTransferAmount := tlb.MustFromNano(big.NewInt(1), 18)
 		sufficientJettonTransferAmount := tlb.MustFromNano(big.NewInt(5), 18)
 
-		insufficientFeeEventMessage, err := sendCallWithAmount(insufficientJettonTransferAmount)
+		insufficientFeeEventMessage, queryID, err := sendCallWithAmount(insufficientJettonTransferAmount)
 		require.NoError(t, err, "failed to send jettons with insufficient fee")
 		require.NotNil(t, insufficientFeeEventMessage, "Insufficient fee event message should not be nil")
+		insufficientFeeEvent, err := jetton_wrappers.ParseInsufficientFeeEvent(insufficientFeeEventMessage.Body)
+		require.NoError(t, err, "failed to parse insufficient fee event")
+		assert.True(t, setup.jettonSender.Contract.Address.Equals(insufficientFeeEvent.Sender), "Sender address should match")
+		assert.Equal(t, queryID, insufficientFeeEvent.QueryID, "Query ID should match")
 		receiverJettonWallet, err := setup.common.jettonClient.GetJettonWallet(t.Context(), setup.onrampMock.Contract.Address)
 		require.NoError(t, err, "failed to get receiver wallet")
 		jettonReceiverDataAfter, err := receiverJettonWallet.GetBalance(t.Context())
 		require.NoError(t, err, "failed to get receiver wallet balance")
 		assert.Equal(t, insufficientJettonTransferAmount.Nano().Uint64(), jettonReceiverDataAfter.Uint64(), "Receiver wallet balance should match insufficient jetton transfer amount")
 
-		acceptedRequestEventMessage, err := sendCallWithAmount(sufficientJettonTransferAmount)
+		acceptedRequestEventMessage, queryID, err := sendCallWithAmount(sufficientJettonTransferAmount)
 		require.NoError(t, err, "failed to send jettons with sufficient fee")
 		require.NotNil(t, acceptedRequestEventMessage, "Accepted request event message should not be nil")
+		acceptedRequestEvent, err := jetton_wrappers.ParseAcceptedRequestEvent(acceptedRequestEventMessage.Body)
+		require.NoError(t, err, "failed to parse accepted request event")
+		assert.True(t, setup.jettonSender.Contract.Address.Equals(acceptedRequestEvent.Sender), "Sender address should match")
+		assert.Equal(t, queryID, acceptedRequestEvent.QueryID, "Query ID should match")
+		_, payloadBuf, err := acceptedRequestEvent.Payload.BeginParse().RestBits()
+		require.NoError(t, err, "failed to parse payload")
+		assert.Equal(t, buf, payloadBuf, "Payload should match")
 		jettonReceiverDataAfter2, err := receiverJettonWallet.GetBalance(t.Context())
 		require.NoError(t, err, "failed to get receiver wallet balance after accepted request")
 		expectedJettonAmount, err := insufficientJettonTransferAmount.Add(&sufficientJettonTransferAmount)
@@ -674,6 +688,7 @@ func TestJettonAll(t *testing.T) {
 		jettonAmount := tlb.MustFromTON("0.5")
 		receivedMsg, err := setup.jettonSender.SendJettonsExtended(
 			tlb.MustFromTON("2"),
+			rand.Uint64(),
 			jettonAmount,
 			setup.simpleReceiver.Contract.Address,
 			cell.BeginCell().EndCell(),
