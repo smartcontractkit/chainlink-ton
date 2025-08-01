@@ -8,6 +8,7 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/jetton"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
@@ -25,9 +26,9 @@ func NewSimpleJettonReceiverProvider(apiClient tracetracking.SignedAPIClient) *S
 }
 
 type SimpleJettonReceiverInitData struct {
-	JettonClient   JettonClient `tlb:"."`
-	AmountChecker  tlb.Coins    `tlb:"."`
-	PayloadChecker *cell.Cell   `tlb:"maybe ^"`
+	JettonClient   jetton.Client `tlb:"."`
+	AmountChecker  tlb.Coins     `tlb:"."`
+	PayloadChecker *cell.Cell    `tlb:"maybe ^"`
 }
 
 func (p *SimpleJettonReceiverProvider) Deploy(initData SimpleJettonReceiverInitData) (SimpleJettonReceiver, error) {

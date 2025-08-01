@@ -1,4 +1,4 @@
-package wrappers
+package jetton
 
 import (
 	"fmt"
@@ -23,20 +23,20 @@ const (
 
 // JettonMinter opcodes
 const (
-	JettonMinterMint              = 0x642b7d07
-	JettonMinterBurnNotification  = 0x7bdd97de
-	JettonMinterChangeAdmin       = 0x6501f354
-	JettonMinterClaimAdmin        = 0xfb88e119
-	JettonMinterDropAdmin         = 0x7431f221
-	JettonMinterChangeMetadataURL = 0xcb862902
-	JettonMinterUpgrade           = 0x2508d66a
-	JettonMinterInternalTransfer  = 0x178d4519
-	JettonMinterExcesses          = 0xd53276db
+	OpcodeMinterMint              = 0x642b7d07
+	OpcodeMinterBurnNotification  = 0x7bdd97de
+	OpcodeMinterChangeAdmin       = 0x6501f354
+	OpcodeMinterClaimAdmin        = 0xfb88e119
+	OpcodeMinterDropAdmin         = 0x7431f221
+	OpcodeMinterChangeMetadataURL = 0xcb862902
+	OpcodeMinterUpgrade           = 0x2508d66a
+	OpcodeMinterInternalTransfer  = 0x178d4519
+	OpcodeMinterExcesses          = 0xd53276db
 )
 
-var JettonMinterContractPath = path.Join(PathContractsJetton, "JettonMinter.compiled.json")
+var MinterContractPath = path.Join(PathToContracts, "JettonMinter.compiled.json")
 
-type JettonMinterInitData struct {
+type MinterInitData struct {
 	TotalSupply   tlb.Coins        `tlb:"."`
 	Admin         *address.Address `tlb:"addr"`
 	TransferAdmin *address.Address `tlb:"addr"`
@@ -44,8 +44,8 @@ type JettonMinterInitData struct {
 	JettonContent *cell.Cell       `tlb:"^"`
 }
 
-func JettonMinterCode() (*cell.Cell, error) {
-	compiledContract, err := wrappers.ParseCompiledContract(JettonMinterContractPath)
+func MinterCode() (*cell.Cell, error) {
+	compiledContract, err := wrappers.ParseCompiledContract(MinterContractPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to compile contract: %w", err)
 	}
@@ -58,7 +58,7 @@ type TopUpMessage struct {
 	QueryID uint64    `tlb:"## 64"`
 }
 
-type JettonInternalTransferMessage struct {
+type InternalTransferMessage struct {
 	_                tlb.Magic        `tlb:"#178d4519"` //nolint:revive // This field should stay uninitialized
 	QueryID          uint64           `tlb:"## 64"`
 	Amount           tlb.Coins        `tlb:"."`
@@ -69,11 +69,11 @@ type JettonInternalTransferMessage struct {
 }
 
 type MintMessage struct {
-	_           tlb.Magic                     `tlb:"#642b7d07"` //nolint:revive // This field should stay uninitialized
-	QueryID     uint64                        `tlb:"## 64"`
-	Destination *address.Address              `tlb:"addr"`
-	TonAmount   tlb.Coins                     `tlb:"."`
-	MasterMsg   JettonInternalTransferMessage `tlb:"^"`
+	_           tlb.Magic               `tlb:"#642b7d07"` //nolint:revive // This field should stay uninitialized
+	QueryID     uint64                  `tlb:"## 64"`
+	Destination *address.Address        `tlb:"addr"`
+	TonAmount   tlb.Coins               `tlb:"."`
+	MasterMsg   InternalTransferMessage `tlb:"^"`
 }
 
 type ChangeAdminMessage struct {

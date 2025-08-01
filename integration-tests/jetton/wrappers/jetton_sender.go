@@ -27,8 +27,8 @@ func NewJettonSenderProvider(apiClient tracetracking.SignedAPIClient) *JettonSen
 }
 
 type JettonSenderInitData struct {
-	MasterAddress    *address.Address `tlb:"addr"`
-	JettonWalletCode *cell.Cell       `tlb:"^"`
+	MasterAddress *address.Address `tlb:"addr"`
+	WalletCode    *cell.Cell       `tlb:"^"`
 }
 
 func (p *JettonSenderProvider) Deploy(initData JettonSenderInitData) (*JettonSender, error) {

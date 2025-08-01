@@ -26,8 +26,8 @@ func NewOnrampMockProvider(apiClient tracetracking.SignedAPIClient) *OnrampMockP
 }
 
 type OnrampMockInitData struct {
-	MasterAddress    *address.Address `tlb:"addr"`
-	JettonWalletCode *cell.Cell       `tlb:"^"`
+	MasterAddress *address.Address `tlb:"addr"`
+	WalletCode    *cell.Cell       `tlb:"^"`
 }
 
 func (p *OnrampMockProvider) Deploy(initData OnrampMockInitData) (OnrampMock, error) {
