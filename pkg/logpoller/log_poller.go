@@ -21,12 +21,6 @@ import (
 // TON CCIP MVP. It monitors external message outputs from specified addresses and
 // applies filtering logic to support CCIP cross-chain message detection.
 //
-// MVP Implementation Features:
-// - Service: Main orchestrator that polls blocks and processes messages
-// - LogCollector: Handles block scanning and message extraction using account-based approach
-// - InMemoryStore: Temporary storage for filtered logs (MVP - will be replaced with DB)
-// - CellQueryEngine: Applies byte-level filters to TON cell data for precise CCIP message filtering
-//
 // The service monitors masterchain blocks, extracts ExternalMessageOut entries that match
 // registered filters. Each filter specifies an address and event topic, with optional
 // cell-level byte queries for precise filtering.
@@ -80,8 +74,7 @@ type Service struct {
 func NewLogPoller(
 	lggr logger.Logger,
 	client ton.APIClientWrapped,
-	// TODO: use global TON relayer config
-	cfg Config,
+	cfg Config, // TODO: use global relayer config
 ) *Service {
 	store := NewInMemoryStore(lggr)
 	filters := newFilters()

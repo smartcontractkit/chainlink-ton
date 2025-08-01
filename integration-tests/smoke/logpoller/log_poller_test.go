@@ -133,11 +133,7 @@ func Test_LogPoller(t *testing.T) {
 
 		const targetCounter = 20
 
-		cfg := logpoller.Config{
-			PollPeriod: 3 * time.Second,
-			PageSize:   5,
-		}
-
+		cfg := logpoller.DefaultConfigSet
 		lp := logpoller.NewLogPoller(
 			logger.Test(t),
 			client,

@@ -19,8 +19,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
-// TODO: gobindings below should be in contracts/bindings/go,... or pkg/bindings/examples? but it doens't need to be packaged
-// TODO: we should also consider separating go modules by production and test contracts
+// TODO: move contracts for testing and its gobindings
 
 var EventEmitterPath = test_utils.GetBuildDir("examples.counter.compiled.json")
 

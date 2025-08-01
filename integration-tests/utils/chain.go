@@ -169,7 +169,7 @@ func StartChain(t *testing.T, nodeClient *ton.APIClient, chainID uint64, deploye
 }
 
 // CreateAPIClient sets up a TON API client for integration tests.
-// It reads config.UseExistingNetwork to decide whether to create a new
+// It reads env::USE_EXISTING_TON_NODE to decide whether to create a new
 // ephemeral network or connect to a pre-existing one.
 func CreateAPIClient(t *testing.T, chainID uint64) *ton.APIClient {
 	t.Helper()
