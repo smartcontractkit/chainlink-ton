@@ -11,6 +11,16 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
+// JettonWallet opcodes
+const (
+	JettonWalletTransfer             = 0x0f8a7ea5
+	JettonWalletTransferNotification = 0x7362d09c
+	JettonWalletInternalTransfer     = 0x178d4519
+	JettonWalletExcesses             = 0xd53276db
+	JettonWalletBurn                 = 0x595f07bc
+	JettonWalletBurnNotification     = 0x7bdd97de
+)
+
 var JettonWalletContractPath = path.Join(PathContractsJetton, "JettonWallet.compiled.json")
 
 type JettonWalletProvider struct {
@@ -55,16 +65,6 @@ func (p *JettonWalletProvider) GetWalletInitCell(ownerAddress *address.Address) 
 type JettonWallet struct {
 	Contract wrappers.Contract
 }
-
-// JettonWallet opcodes
-const (
-	JettonWalletTransfer             = 0x0f8a7ea5
-	JettonWalletTransferNotification = 0x7362d09c
-	JettonWalletInternalTransfer     = 0x178d4519
-	JettonWalletExcesses             = 0xd53276db
-	JettonWalletBurn                 = 0x595f07bc
-	JettonWalletBurnNotification     = 0x7bdd97de
-)
 
 // Getter methods
 func (w JettonWallet) GetJettonBalance() (*tlb.Coins, error) {

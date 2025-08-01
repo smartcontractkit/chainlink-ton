@@ -21,6 +21,19 @@ const (
 	ErrorWrongWorkchain tvm.ExitCode = tvm.ExitCode(333)
 )
 
+// JettonMinter opcodes
+const (
+	JettonMinterMint              = 0x642b7d07
+	JettonMinterBurnNotification  = 0x7bdd97de
+	JettonMinterChangeAdmin       = 0x6501f354
+	JettonMinterClaimAdmin        = 0xfb88e119
+	JettonMinterDropAdmin         = 0x7431f221
+	JettonMinterChangeMetadataURL = 0xcb862902
+	JettonMinterUpgrade           = 0x2508d66a
+	JettonMinterInternalTransfer  = 0x178d4519
+	JettonMinterExcesses          = 0xd53276db
+)
+
 var JettonMinterContractPath = path.Join(PathContractsJetton, "JettonMinter.compiled.json")
 
 type JettonMinterInitData struct {
@@ -40,25 +53,12 @@ func JettonMinterCode() (*cell.Cell, error) {
 }
 
 // For funding the contract with TON
-type TopUp struct {
+type TopUpMessage struct {
 	_       tlb.Magic `tlb:"#d372158c"` //nolint:revive // This field should stay uninitialized
 	QueryID uint64    `tlb:"## 64"`
 }
 
-// JettonMinter opcodes
-const (
-	JettonMinterMint              = 0x642b7d07
-	JettonMinterBurnNotification  = 0x7bdd97de
-	JettonMinterChangeAdmin       = 0x6501f354
-	JettonMinterClaimAdmin        = 0xfb88e119
-	JettonMinterDropAdmin         = 0x7431f221
-	JettonMinterChangeMetadataURL = 0xcb862902
-	JettonMinterUpgrade           = 0x2508d66a
-	JettonMinterInternalTransfer  = 0x178d4519
-	JettonMinterExcesses          = 0xd53276db
-)
-
-type JettonInternalTransfer struct {
+type JettonInternalTransferMessage struct {
 	_                tlb.Magic        `tlb:"#178d4519"` //nolint:revive // This field should stay uninitialized
 	QueryID          uint64           `tlb:"## 64"`
 	Amount           tlb.Coins        `tlb:"."`
@@ -69,11 +69,11 @@ type JettonInternalTransfer struct {
 }
 
 type MintMessage struct {
-	_           tlb.Magic              `tlb:"#642b7d07"` //nolint:revive // This field should stay uninitialized
-	QueryID     uint64                 `tlb:"## 64"`
-	Destination *address.Address       `tlb:"addr"`
-	TonAmount   tlb.Coins              `tlb:"."`
-	MasterMsg   JettonInternalTransfer `tlb:"^"`
+	_           tlb.Magic                     `tlb:"#642b7d07"` //nolint:revive // This field should stay uninitialized
+	QueryID     uint64                        `tlb:"## 64"`
+	Destination *address.Address              `tlb:"addr"`
+	TonAmount   tlb.Coins                     `tlb:"."`
+	MasterMsg   JettonInternalTransferMessage `tlb:"^"`
 }
 
 type ChangeAdminMessage struct {

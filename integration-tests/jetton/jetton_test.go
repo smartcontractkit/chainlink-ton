@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math/big"
 	"math/rand/v2"
-	"os"
 	"slices"
 	"strings"
 	"testing"
@@ -26,11 +25,9 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
-var PathContractsJetton = os.Getenv("PATH_CONTRACTS_JETTON")
-
 // Helper function to load the actual JettonWallet code
 func loadJettonWalletCode() (*cell.Cell, error) {
-	jettonWalletPath := path.Join(PathContractsJetton, "JettonWallet.compiled.json")
+	jettonWalletPath := path.Join(jetton_wrappers.PathContractsJetton, "JettonWallet.compiled.json")
 	compiledContract, err := wrappers.ParseCompiledContract(jettonWalletPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse JettonWallet contract: %w", err)
@@ -104,7 +101,7 @@ func TestJettonAll(t *testing.T) {
 			QueryID:     queryID,
 			Destination: jettonSender.Contract.Address,
 			TonAmount:   tlb.MustFromTON("0.05"),
-			MasterMsg: jetton_wrappers.JettonInternalTransfer{
+			MasterMsg: jetton_wrappers.JettonInternalTransferMessage{
 				QueryID:          queryID,
 				Amount:           jettonMintingAmount,
 				From:             setup.deployer.Wallet.WalletAddress(),
@@ -172,7 +169,7 @@ func TestJettonAll(t *testing.T) {
 			QueryID:     queryID,
 			Destination: setup.sender.Contract.Address,
 			TonAmount:   tlb.MustFromTON("0.05"),
-			MasterMsg: jetton_wrappers.JettonInternalTransfer{
+			MasterMsg: jetton_wrappers.JettonInternalTransferMessage{
 				QueryID:          queryID,
 				Amount:           tlb.MustFromTON("1"),
 				From:             setup.common.deployer.Wallet.WalletAddress(),
@@ -216,7 +213,7 @@ func TestJettonAll(t *testing.T) {
 			QueryID:     queryID,
 			Destination: setup.sender.Contract.Address,
 			TonAmount:   tlb.MustFromTON("0.05"),
-			MasterMsg: jetton_wrappers.JettonInternalTransfer{
+			MasterMsg: jetton_wrappers.JettonInternalTransferMessage{
 				QueryID:          queryID,
 				Amount:           tlb.MustFromTON("1"),
 				From:             setup.common.deployer.Wallet.WalletAddress(),
@@ -248,7 +245,7 @@ func TestJettonAll(t *testing.T) {
 			QueryID:     queryID,
 			Destination: setup.deployer.Wallet.WalletAddress(),
 			TonAmount:   tlb.MustFromTON("0.05"),
-			MasterMsg: jetton_wrappers.JettonInternalTransfer{
+			MasterMsg: jetton_wrappers.JettonInternalTransferMessage{
 				QueryID:          queryID,
 				Amount:           jettonMintingAmount,
 				From:             setup.deployer.Wallet.WalletAddress(),
@@ -362,7 +359,7 @@ func TestJettonAll(t *testing.T) {
 			QueryID:     queryID,
 			Destination: recipient,
 			TonAmount:   tlb.MustFromTON("0.05"),
-			MasterMsg: jetton_wrappers.JettonInternalTransfer{
+			MasterMsg: jetton_wrappers.JettonInternalTransferMessage{
 				QueryID:          queryID,
 				Amount:           jettonAmount,
 				From:             setup.deployer.Wallet.WalletAddress(),
@@ -440,7 +437,7 @@ func TestJettonAll(t *testing.T) {
 			QueryID:     queryID,
 			Destination: setup.receiver.Wallet.Address(),
 			TonAmount:   tlb.MustFromTON("0.05"),
-			MasterMsg: jetton_wrappers.JettonInternalTransfer{
+			MasterMsg: jetton_wrappers.JettonInternalTransferMessage{
 				QueryID:          queryID,
 				Amount:           jettonMintingAmount,
 				From:             setup.deployer.Wallet.WalletAddress(),
@@ -495,7 +492,7 @@ func TestJettonAll(t *testing.T) {
 		require.NoError(t, err, "failed to deploy JettonWallet contract")
 		jettonWalletInitCell, err := jetton_wrappers.NewJettonWalletProvider(setup.common.jettonMinter.Address).GetWalletInitCell(setup.common.receiver.Wallet.Address())
 		require.NoError(t, err, "failed to get JettonWallet init cell")
-		msg, err := tlb.ToCell(jetton_wrappers.TopUp{QueryID: rand.Uint64()})
+		msg, err := tlb.ToCell(jetton_wrappers.TopUpMessage{QueryID: rand.Uint64()})
 		require.NoError(t, err, "failed to create top-up message")
 		receiverJettonWallet, deployMsg, err := wrappers.Deploy(&setup.common.receiver, jettonWalletCode, jettonWalletInitCell, tlb.MustFromTON("0.1"), msg)
 		require.NoError(t, err, "failed to deploy JettonWallet contract")
@@ -723,7 +720,7 @@ func TestJettonAll(t *testing.T) {
 		setup := setupJettonWallet(t)
 		t.Logf("Deploying JettonWallet contract\n")
 
-		msg, err := tlb.ToCell(jetton_wrappers.TopUp{QueryID: rand.Uint64()})
+		msg, err := tlb.ToCell(jetton_wrappers.TopUpMessage{QueryID: rand.Uint64()})
 		require.NoError(t, err, "failed to create top-up message")
 		jettonWalletCode, err := jetton_wrappers.JettonWalletCode()
 		require.NoError(t, err, "failed to deploy JettonWallet contract")
@@ -785,7 +782,7 @@ func TestJettonAll(t *testing.T) {
 		require.NoError(t, err, "failed to deploy JettonWallet contract")
 		jettonWalletInitCell, err := jetton_wrappers.NewJettonWalletProvider(setup.common.jettonMinter.Address).GetWalletInitCell(setup.common.deployer.Wallet.Address())
 		require.NoError(t, err, "failed to get JettonWallet init cell")
-		msg, err := tlb.ToCell(jetton_wrappers.TopUp{QueryID: rand.Uint64()})
+		msg, err := tlb.ToCell(jetton_wrappers.TopUpMessage{QueryID: rand.Uint64()})
 		require.NoError(t, err, "failed to create top-up message")
 		deployerJettonWallet, deployMsg, err := wrappers.Deploy(&setup.common.deployer, jettonWalletCode, jettonWalletInitCell, tlb.MustFromTON("0.1"), msg)
 		require.NoError(t, err, "failed to deploy JettonWallet contract")
@@ -842,7 +839,7 @@ func TestJettonAll(t *testing.T) {
 		require.NoError(t, err, "failed to deploy JettonWallet contract")
 		jettonWalletInitCell, err := jetton_wrappers.NewJettonWalletProvider(setup.common.jettonMinter.Address).GetWalletInitCell(setup.common.deployer.Wallet.Address())
 		require.NoError(t, err, "failed to get JettonWallet init cell")
-		msg, err := tlb.ToCell(jetton_wrappers.TopUp{QueryID: rand.Uint64()})
+		msg, err := tlb.ToCell(jetton_wrappers.TopUpMessage{QueryID: rand.Uint64()})
 		require.NoError(t, err, "failed to create top-up message")
 		jettonWallet, deployMsg, err := wrappers.Deploy(&setup.common.deployer, jettonWalletCode, jettonWalletInitCell, tlb.MustFromTON("0.1"), msg)
 		require.NoError(t, err, "failed to deploy JettonWallet contract")
@@ -889,7 +886,7 @@ func TestJettonAll(t *testing.T) {
 func DeployMinter(t *testing.T, deployer *tracetracking.SignedAPIClient, initData jetton_wrappers.JettonMinterInitData) *wrappers.Contract {
 	minterCode, err := jetton_wrappers.JettonMinterCode()
 	require.NoError(t, err, "failed to load JettonMinter code")
-	topUpMsg, err := tlb.ToCell(jetton_wrappers.TopUp{
+	topUpMsg, err := tlb.ToCell(jetton_wrappers.TopUpMessage{
 		QueryID: rand.Uint64(),
 	})
 	require.NoError(t, err, "failed to create TopUp message")
