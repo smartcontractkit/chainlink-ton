@@ -282,7 +282,7 @@ func (e *TestEventSource) SendBulkTestEvents(ctx context.Context, batchCount, tx
 func (e *TestEventSource) SendIncreaseCounterMsg(ctx context.Context) (*tlb.Transaction, *ton.BlockIDExt, error) {
 	body, err := tlb.ToCell(counter.IncreaseCountMsg{
 		OpCode:  counter.IncreaseCounterOpCode,
-		QueryID: rand.Uint64(), //nolint:gosec // test queryId
+		QueryID: rand.Uint64(),
 	})
 
 	if err != nil {
@@ -313,7 +313,7 @@ func (e *TestEventSource) sendManyIncreaseCountMsgs(ctx context.Context, count i
 	for i := 0; i < count; i++ {
 		body, err := tlb.ToCell(counter.IncreaseCountMsg{
 			OpCode:  counter.IncreaseCounterOpCode,
-			QueryID: rand.Uint64(), //nolint:gosec // test queryId
+			QueryID: rand.Uint64(),
 		})
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to create cell: %w", err)
