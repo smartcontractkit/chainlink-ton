@@ -24,7 +24,7 @@ import (
 	"github.com/smartcontractkit/chainlink-testing-framework/framework/components/blockchain"
 )
 
-func CreateRandomTonWallet(t *testing.T, client ton.APIClientWrapped, version wallet.VersionConfig, option wallet.Option) *wallet.Wallet {
+func CreateRandomWallet(t *testing.T, client ton.APIClientWrapped, version wallet.VersionConfig, option wallet.Option) *wallet.Wallet {
 	seed := wallet.NewSeed()
 	rw, err := wallet.FromSeed(client, seed, version)
 	require.NoError(t, err, "failed to generate random wallet: %w", err)
@@ -33,8 +33,29 @@ func CreateRandomTonWallet(t *testing.T, client ton.APIClientWrapped, version wa
 	return pw
 }
 
-func FundTonWallets(t *testing.T, client ton.APIClientWrapped, recipients []*address.Address, amounts []tlb.Coins) {
-	t.Logf("Funding %d wallets", len(recipients))
+func CreateRandomHighloadWallet(t *testing.T, client ton.APIClientWrapped) *wallet.Wallet {
+	seed := wallet.NewSeed()
+	w, err := wallet.FromSeed(client, seed, wallet.ConfigHighloadV3{
+		MessageTTL: 60 * 5,
+		MessageBuilder: func(ctx context.Context, subWalletId uint32) (id uint32, createdAt int64, err error) {
+			// Due to specific of externals emulation on liteserver,
+			// we need to take something less than or equals to block time, as message creation time,
+			// otherwise external message will be rejected, because time will be > than emulation time
+			// hope it will be fixed in the next LS versions
+			createdAt = time.Now().Unix() - 30
+
+			// example query id which will allow you to send 1 tx per second
+			// but you better to implement your own iterator in database, then you can send unlimited
+			// but make sure id is less than 1 << 23, when it is higher start from 0 again
+			return uint32(createdAt % (1 << 23)), createdAt, nil //nolint:gosec // test wallet
+		},
+	})
+	require.NoError(t, err, "failed to generate random wallet: %w", err)
+	return w
+}
+
+func FundWallets(t *testing.T, client ton.APIClientWrapped, recipients []*address.Address, amounts []tlb.Coins) {
+	t.Logf("╭ Funding %d wallets", len(recipients))
 	walletVersion := wallet.HighloadV2Verified //nolint:staticcheck // only option in mylocalton-docker
 	rawHlWallet, err := wallet.FromSeed(client, strings.Fields(blockchain.DefaultTonHlWalletMnemonic), walletVersion)
 	require.NoError(t, err, "failed to create highload wallet")
@@ -61,7 +82,7 @@ func FundTonWallets(t *testing.T, client ton.APIClientWrapped, recipients []*add
 
 	err = waitForAirdropCompletion(t, client, recipients, amounts, 60*time.Second, false)
 	require.NoError(t, err, "airdrop completion verification failed")
-	t.Logf("%d wallets funded", len(recipients))
+	t.Logf("╰ %d wallets funded", len(recipients))
 }
 
 func waitForAirdropCompletion(t *testing.T, client ton.APIClientWrapped, recipients []*address.Address, expectedAmounts []tlb.Coins, timeout time.Duration, verbose bool) error {
@@ -74,7 +95,13 @@ func waitForAirdropCompletion(t *testing.T, client ton.APIClientWrapped, recipie
 	require.NoError(t, err, "failed to get current block")
 	for _, addr := range recipients {
 		if acc, err := client.GetAccount(ctx, currentBlock, addr); err == nil {
-			initialBalances[addr.String()] = acc.State.Balance
+			if acc.State != nil {
+				t.Logf("Account state for %s: %v", addr.String(), acc.State)
+				t.Log("Initial balance for", addr.String(), "is", acc.State.Balance.String())
+				initialBalances[addr.String()] = acc.State.Balance
+			} else {
+				initialBalances[addr.String()] = tlb.ZeroCoins
+			}
 		} else {
 			initialBalances[addr.String()] = tlb.ZeroCoins // the account might not exist yet
 		}
@@ -102,7 +129,7 @@ func waitForAirdropCompletion(t *testing.T, client ton.APIClientWrapped, recipie
 					if err != nil {
 						continue
 					}
-					if acc.State.Balance.Nano().Cmp(expectedMin.Nano()) >= 0 {
+					if acc.State != nil && acc.State.Balance.Nano().Cmp(expectedMin.Nano()) >= 0 {
 						if verbose {
 							t.Logf("%s balance is sufficient: %s >= %s", addr.String(), acc.State.Balance.String(), expectedMin.String())
 						}
@@ -130,7 +157,7 @@ func waitForAirdropCompletion(t *testing.T, client ton.APIClientWrapped, recipie
 	}
 }
 
-func StartTonChain(t *testing.T, nodeClient *ton.APIClient, chainID uint64, deployerWallet *wallet.Wallet) cldf_ton.Chain {
+func StartChain(t *testing.T, nodeClient *ton.APIClient, chainID uint64, deployerWallet *wallet.Wallet) cldf_ton.Chain {
 	t.Helper()
 	ton := cldf_ton.Chain{
 		ChainMetadata: cldf_ton.ChainMetadata{Selector: chainID},
@@ -142,7 +169,7 @@ func StartTonChain(t *testing.T, nodeClient *ton.APIClient, chainID uint64, depl
 }
 
 // CreateAPIClient sets up a TON API client for integration tests.
-// It reads config.UseExistingNetwork to decide whether to create a new
+// It reads env::USE_EXISTING_TON_NODE to decide whether to create a new
 // ephemeral network or connect to a pre-existing one.
 func CreateAPIClient(t *testing.T, chainID uint64) *ton.APIClient {
 	t.Helper()
