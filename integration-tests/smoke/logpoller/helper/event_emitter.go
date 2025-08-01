@@ -64,7 +64,8 @@ func VerifyLoadedEvents(msgs []*tlb.ExternalMessageOut, expectedCount int) error
 
 	// parse all events and track counters
 	for i, ext := range msgs {
-		event, err := test_utils.ParseEventFromMsg[counter.CountIncreasedEvent](ext)
+		var event counter.CountIncreasedEvent
+		err := tlb.LoadFromCell(&event, ext.Body.BeginParse())
 		if err != nil {
 			return fmt.Errorf("failed to parse event #%d: %w", i, err)
 		}
