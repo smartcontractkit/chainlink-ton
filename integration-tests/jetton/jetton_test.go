@@ -26,11 +26,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
-const (
-	OnchainContentPrefix  = 0x00
-	OffchainContentPrefix = 0x01
-)
-
 var PathContractsJetton = os.Getenv("PATH_CONTRACTS_JETTON")
 
 // Helper function to load the actual JettonWallet code
