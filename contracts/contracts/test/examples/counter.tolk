@@ -83,6 +83,6 @@ get fun value(): int {
 
 /// Gets the current type and version of the contract.
 get fun typeAndVersion(): (slice, slice) {
-    return TypeAndVersion { typeStr: "com.chainlink.ton.examples.counter", versionStr: "1.0.0" }
+    return TypeAndVersion { typeStr: "com.chainlink.ton.examples.Counter", versionStr: "1.0.0" }
         .typeAndVersion();
 }
