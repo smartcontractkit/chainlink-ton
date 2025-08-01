@@ -59,12 +59,13 @@ type LogPoller interface {
 // external messages from registered filter addresses.
 type Service struct {
 	services.Service
-	eng                *services.Engine     // Service engine for lifecycle management
+	eng *services.Engine // Service engine for lifecycle management
+
 	lggr               logger.SugaredLogger // Logger instance
 	client             ton.APIClientWrapped // TON blockchain client
-	filters            *Filters             // Registry of active filters
-	loader             *LogCollector        // Block scanner implementation
-	store              *InMemoryStore       // Log storage (MVP: in-memory)
+	filters            Filters              // Registry of active filters
+	loader             EventLoader          // Block scanner implementation
+	store              LogStore             // Log storage (MVP: in-memory)
 	pollPeriod         time.Duration        // How often to poll for new blocks
 	lastProcessedSeqNo uint32               // Last processed masterchain sequence number
 	blockConfirmations uint32               // Number of confirmations to wait before processing
@@ -77,7 +78,7 @@ func NewLogPoller(
 	cfg Config, // TODO: use global relayer config
 ) *Service {
 	store := NewInMemoryStore(lggr)
-	filters := newFilters()
+	filters := NewFilters()
 	lp := &Service{
 		lggr:       logger.Sugared(lggr),
 		client:     client,
@@ -256,13 +257,13 @@ func (lp *Service) getLastProcessedSeqNo() (uint32, error) {
 }
 
 // RegisterFilter adds a new filter to monitor specific address/topic combinations
-func (lp *Service) RegisterFilter(ctx context.Context, flt types.Filter) {
-	lp.filters.RegisterFilter(ctx, flt)
+func (lp *Service) RegisterFilter(ctx context.Context, flt types.Filter) error {
+	return lp.filters.RegisterFilter(ctx, flt)
 }
 
 // UnregisterFilter removes a filter by name
-func (lp *Service) UnregisterFilter(ctx context.Context, name string) {
-	lp.filters.UnregisterFilter(ctx, name)
+func (lp *Service) UnregisterFilter(ctx context.Context, name string) error {
+	return lp.filters.UnregisterFilter(ctx, name)
 }
 
 // GetLogs retrieves all logs for a specific event source address
@@ -273,6 +274,7 @@ func (lp *Service) GetLogs(evtSrcAddress *address.Address) []types.Log {
 // FilteredLogs retrieves logs filtered by address, topic, and additional cell-level queries.
 // This allows for precise filtering based on the internal structure of TON cell data.
 func (lp *Service) FilteredLogs(
+	_ context.Context,
 	evtSrcAddress *address.Address,
 	topic uint32,
 	queries []CellQuery,
@@ -287,6 +289,7 @@ func (lp *Service) FilteredLogs(
 }
 
 func (lp *Service) FilteredLogsWithParser(
+	_ context.Context,
 	evtSrcAddress *address.Address,
 	topic uint32,
 	parser types.LogParser,

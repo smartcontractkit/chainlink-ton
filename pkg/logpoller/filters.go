@@ -9,46 +9,73 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
 )
 
-type Filters struct {
-	mu               sync.RWMutex
-	filtersByName    map[string]types.Filter
-	filtersByAddress map[string]map[uint32]struct{}
+// Filters defines an interface for storing and retrieving log filter specifications.
+type Filters interface {
+	RegisterFilter(ctx context.Context, flt types.Filter) error         // RegisterFilter adds a new filter or overwrites an existing one with the same name.
+	UnregisterFilter(ctx context.Context, name string) error            // UnregisterFilter removes a filter by its unique name.
+	GetDistinctAddresses() []*address.Address                           // GetDistinctAddresses returns a slice of unique addresses that are being monitored.
+	MatchingFilters(contractAddr address.Address, topic uint32) []int64 // MatchingFilters returns all filter IDs that match a given contract address and event topic.
 }
 
-func newFilters() *Filters {
-	return &Filters{
+// inMemoryFilters is an in-memory implementation of the Filters interface.
+type inMemoryFilters struct {
+	mu               sync.RWMutex
+	filtersByName    map[string]types.Filter        // filtersByName maps a filter's unique name to its definition.
+	filtersByAddress map[string]map[uint32]struct{} // filtersByAddress maps a contract address string to a set of its watched event topics.
+}
+
+var _ Filters = (*inMemoryFilters)(nil)
+
+// NewFilters creates a new in-memory implementation of the Filters interface.
+// TODO(NONEVM-2187): implement ORM and remove in-memory store
+func NewFilters() Filters {
+	return &inMemoryFilters{
 		filtersByName:    make(map[string]types.Filter),
 		filtersByAddress: make(map[string]map[uint32]struct{}),
 	}
 }
 
-func (f *Filters) RegisterFilter(_ context.Context, flt types.Filter) {
+// RegisterFilter adds a filter to the in-memory store.
+func (f *inMemoryFilters) RegisterFilter(_ context.Context, flt types.Filter) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+
 	f.filtersByName[flt.Name] = flt
+
 	a := flt.Address.String()
 	if f.filtersByAddress[a] == nil {
 		f.filtersByAddress[a] = make(map[uint32]struct{})
 	}
 	f.filtersByAddress[a][flt.EventTopic] = struct{}{}
+
+	return nil
 }
 
-func (f *Filters) UnregisterFilter(_ context.Context, name string) {
+// UnregisterFilter removes a filter from the in-memory store.
+func (f *inMemoryFilters) UnregisterFilter(_ context.Context, name string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+
 	flt, ok := f.filtersByName[name]
 	if !ok {
-		return
+		return nil
 	}
+
 	delete(f.filtersByName, name)
+
 	a := flt.Address.String()
-	delete(f.filtersByAddress[a], flt.EventTopic)
-	if len(f.filtersByAddress[a]) == 0 {
-		delete(f.filtersByAddress, a)
+	if byTopic, exists := f.filtersByAddress[a]; exists {
+		delete(byTopic, flt.EventTopic)
+		if len(byTopic) == 0 {
+			delete(f.filtersByAddress, a)
+		}
 	}
+
+	return nil
 }
 
-func (f *Filters) GetDistinctAddresses() []*address.Address {
+// GetDistinctAddresses returns all unique contract addresses being tracked.
+func (f *inMemoryFilters) GetDistinctAddresses() []*address.Address {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 	out := make([]*address.Address, 0, len(f.filtersByAddress))
@@ -59,11 +86,11 @@ func (f *Filters) GetDistinctAddresses() []*address.Address {
 	return out
 }
 
-// For a given (contractAddr, topic), return all FilterIDs that match.
-func (f *Filters) MatchingFilters(contractAddr address.Address, topic uint32) []int64 {
+// MatchingFilters finds all filter IDs that correspond to a given address and topic.
+func (f *inMemoryFilters) MatchingFilters(contractAddr address.Address, topic uint32) []int64 {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
-	var out []int64
+
 	byTopic, ok := f.filtersByAddress[contractAddr.String()]
 	if !ok {
 		return nil
@@ -71,7 +98,8 @@ func (f *Filters) MatchingFilters(contractAddr address.Address, topic uint32) []
 	if _, watched := byTopic[topic]; !watched {
 		return nil
 	}
-	// collect all IDs whose Filter.Address/topic match
+
+	var out []int64
 	for _, flt := range f.filtersByName {
 		if flt.Address.Equals(&contractAddr) && flt.EventTopic == topic {
 			out = append(out, flt.ID)

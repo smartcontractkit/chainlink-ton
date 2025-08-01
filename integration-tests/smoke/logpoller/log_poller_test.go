@@ -302,7 +302,7 @@ func Test_LogPoller(t *testing.T) {
 
 				options := logpoller.QueryOptions{} // Default options (no sorting, no pagination)
 
-				result, err := lp.FilteredLogs(emitterA.ContractAddress(), counter.CountIncreasedEventTopic, queries, options)
+				result, err := lp.FilteredLogs(t.Context(), emitterA.ContractAddress(), counter.CountIncreasedEventTopic, queries, options)
 				require.NoError(t, err)
 
 				require.Len(t, result.Logs, 5, "expected exactly 5 logs for the range 6-10")
@@ -338,7 +338,7 @@ func Test_LogPoller(t *testing.T) {
 
 				options := logpoller.QueryOptions{} // Default options
 
-				result, err := lp.FilteredLogs(emitterB.ContractAddress(), counter.CountIncreasedEventTopic, queries, options)
+				result, err := lp.FilteredLogs(t.Context(), emitterB.ContractAddress(), counter.CountIncreasedEventTopic, queries, options)
 				require.NoError(t, err)
 
 				require.Len(t, result.Logs, 3, "expected exactly 3 logs for the range 1-3")
@@ -370,7 +370,7 @@ func Test_LogPoller(t *testing.T) {
 
 				options := logpoller.QueryOptions{} // Default options
 
-				result, err := lp.FilteredLogs(emitterB.ContractAddress(), counter.CountIncreasedEventTopic, queries, options)
+				result, err := lp.FilteredLogs(t.Context(), emitterB.ContractAddress(), counter.CountIncreasedEventTopic, queries, options)
 				require.NoError(t, err)
 
 				require.Len(t, result.Logs, targetCounter, "expected exactly %d logs for the emitter B", targetCounter)
@@ -406,7 +406,7 @@ func Test_LogPoller(t *testing.T) {
 					return test_utils.ParseEventFromCell[counter.CountIncreasedEvent](c)
 				}
 
-				res, err := lp.FilteredLogsWithParser(emitterB.ContractAddress(), counter.CountIncreasedEventTopic, parser, nil)
+				res, err := lp.FilteredLogsWithParser(t.Context(), emitterB.ContractAddress(), counter.CountIncreasedEventTopic, parser, nil)
 				require.NoError(t, err)
 
 				require.Len(t, res, targetCounter, "expected exactly %d logs for the emitter B", targetCounter)
@@ -448,7 +448,7 @@ func Test_LogPoller(t *testing.T) {
 					return evt.Value >= uint32(from) && evt.Value <= uint32(to) //nolint:gosec // test code
 				}
 
-				res, err := lp.FilteredLogsWithParser(emitterB.ContractAddress(), counter.CountIncreasedEventTopic, parser, filter)
+				res, err := lp.FilteredLogsWithParser(t.Context(), emitterB.ContractAddress(), counter.CountIncreasedEventTopic, parser, filter)
 				require.NoError(t, err)
 
 				require.Len(t, res, to-from+1, "expected exactly 10 logs for the range 1-10")
@@ -484,7 +484,7 @@ func Test_LogPoller(t *testing.T) {
 					},
 				}
 
-				result, err := lp.FilteredLogs(
+				result, err := lp.FilteredLogs(t.Context(),
 					emitterA.ContractAddress(),
 					counter.CountIncreasedEventTopic,
 					[]logpoller.CellQuery{}, // No cell filters
@@ -510,7 +510,7 @@ func Test_LogPoller(t *testing.T) {
 					},
 				}
 
-				result, err := lp.FilteredLogs(
+				result, err := lp.FilteredLogs(t.Context(),
 					emitterA.ContractAddress(),
 					counter.CountIncreasedEventTopic,
 					[]logpoller.CellQuery{},
@@ -538,7 +538,7 @@ func Test_LogPoller(t *testing.T) {
 					Limit: pageSize,
 				}
 
-				result, err := lp.FilteredLogs(
+				result, err := lp.FilteredLogs(t.Context(),
 					emitterA.ContractAddress(),
 					counter.CountIncreasedEventTopic,
 					[]logpoller.CellQuery{},
@@ -567,7 +567,7 @@ func Test_LogPoller(t *testing.T) {
 					Offset: offset,
 				}
 
-				result, err := lp.FilteredLogs(
+				result, err := lp.FilteredLogs(t.Context(),
 					emitterA.ContractAddress(),
 					counter.CountIncreasedEventTopic,
 					[]logpoller.CellQuery{},
@@ -584,7 +584,7 @@ func Test_LogPoller(t *testing.T) {
 					Limit: offset + pageSize,
 				}
 
-				firstPageResult, err := lp.FilteredLogs(
+				firstPageResult, err := lp.FilteredLogs(t.Context(),
 					emitterA.ContractAddress(),
 					counter.CountIncreasedEventTopic,
 					[]logpoller.CellQuery{},
@@ -617,7 +617,7 @@ func Test_LogPoller(t *testing.T) {
 						Offset: offset,
 					}
 
-					result, err := lp.FilteredLogs(
+					result, err := lp.FilteredLogs(t.Context(),
 						emitterA.ContractAddress(),
 						counter.CountIncreasedEventTopic,
 						[]logpoller.CellQuery{},
@@ -683,7 +683,7 @@ func Test_LogPoller(t *testing.T) {
 					Offset: 1, // Skip the first (newest) result
 				}
 
-				result, err := lp.FilteredLogs(
+				result, err := lp.FilteredLogs(t.Context(),
 					emitterA.ContractAddress(),
 					counter.CountIncreasedEventTopic,
 					cellQueries,
@@ -729,7 +729,7 @@ func Test_LogPoller(t *testing.T) {
 						Offset: offset,
 					}
 
-					result, err := lp.FilteredLogs(
+					result, err := lp.FilteredLogs(t.Context(),
 						emitterB.ContractAddress(),
 						counter.CountIncreasedEventTopic,
 						[]logpoller.CellQuery{},
@@ -785,7 +785,7 @@ func Test_LogPoller(t *testing.T) {
 					Offset: 0,
 				}
 
-				result, err := lp.FilteredLogs(
+				result, err := lp.FilteredLogs(t.Context(),
 					emitterA.ContractAddress(),
 					counter.CountIncreasedEventTopic,
 					cellQueries,
@@ -808,7 +808,7 @@ func Test_LogPoller(t *testing.T) {
 					Offset: targetCounter + 10, // Way beyond available data
 				}
 
-				result, err := lp.FilteredLogs(
+				result, err := lp.FilteredLogs(t.Context(),
 					emitterA.ContractAddress(),
 					counter.CountIncreasedEventTopic,
 					[]logpoller.CellQuery{},

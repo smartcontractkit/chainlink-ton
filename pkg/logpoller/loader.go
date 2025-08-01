@@ -30,6 +30,13 @@ import (
 // its own transaction chain with logical time (LT) ordering, allowing efficient
 // range-based scanning between blocks.
 
+// TODO: might not be the best name..
+type EventLoader interface {
+	BackfillForAddresses(ctx context.Context, addresses []*address.Address, prevBlock, toBlock *ton.BlockIDExt) ([]types.MsgWithCtx, error)
+}
+
+var _ EventLoader = (*LogCollector)(nil)
+
 // LogCollector handles scanning TON blockchain for external messages from specific addresses.
 // This is a simplified implementation for TON CCIP MVP that will be refactored into
 // a proper subengine with background workers for production use.

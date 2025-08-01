@@ -12,6 +12,15 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
 )
 
+type LogStore interface {
+	SaveLog(log types.Log)
+	GetLogs(address string) []types.Log
+	FilteredLogs(address string, topic uint32, queries []CellQuery, options QueryOptions) (QueryResult, error)
+	FilteredLogsWithParser(address string, topic uint32, parser types.LogParser, filter types.LogFilter) ([]any, error)
+}
+
+var _ LogStore = (*InMemoryStore)(nil)
+
 // InMemoryStore is a temporary in-memory implementation for TON CCIP MVP.
 // This provides basic log storage and querying capabilities without database persistence.
 // For production use, this should be replaced with proper database-backed storage.
