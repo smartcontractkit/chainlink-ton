@@ -190,7 +190,25 @@ func (c tolkCompiledContract) codeCell() (*cell.Cell, error) {
 // compiled contract, the initial data for the contract, and the amount of
 // TON to be sent to the contract upon deployment.
 // It returns the contract wrapper if the deployment is successful.
-// The function returns an error if the deployment fails.
+// The function does not check the exit code of the deployment transaction as
+// the exit code depends on the contract implementation. This is left to the
+// caller. Example:
+//
+// ```
+//
+// msg, err := tlb.ToCell(jetton_wrappers.TopUpMessage{QueryID: rand.Uint64()})
+//
+// require.NoError(t, err, "failed to create top-up message")
+//
+// receiverJettonWallet, deployMsg, err := wrappers.Deploy(&setup.common.receiver, jettonWalletCode, jettonWalletInitCell, tlb.MustFromTON("0.1"),
+// //msg)
+// require.NoError(t, err, "failed to deploy JettonWallet contract")
+//
+// deployExitCode := deployMsg.OutgoingInternalReceivedMessages[0].ExitCode
+//
+// require.Zero(t, deployExitCode, "contract deployment failed: exit code %d: %s", deployExitCode, deployExitCode.Describe())
+//
+// ```
 func Deploy(client *tracetracking.SignedAPIClient, codeCell *cell.Cell, initData *cell.Cell, amount tlb.Coins, msgBody *cell.Cell) (*Contract, *tracetracking.ReceivedMessage, error) {
 	// Deploy the contract
 	addr, tx, _, err := client.Wallet.DeployContractWaitTransaction(
@@ -215,12 +233,6 @@ func Deploy(client *tracetracking.SignedAPIClient, codeCell *cell.Cell, initData
 	if receivedMessage.ExitCode != tvm.ExitCodeSuccess || len(receivedMessage.OutgoingInternalReceivedMessages) != 1 {
 		return nil, nil, fmt.Errorf("contract deployment failed: error sending external message: exit code %d: %s", receivedMessage.ExitCode, receivedMessage.ExitCode.Describe())
 	}
-	deployExitCode := receivedMessage.OutgoingInternalReceivedMessages[0].ExitCode
-	_ = deployExitCode
-	// TODO jetton minter errors cell underflow when deployed
-	// if !deployExitCode.IsSuccessfulDeployment() {
-	// 	return nil, fmt.Errorf("contract deployment failed: exit code %d: %s", deployExitCode, deployExitCode.Describe())
-	// }
 
 	return &Contract{addr, client}, &receivedMessage, nil
 }

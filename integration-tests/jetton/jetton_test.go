@@ -490,7 +490,6 @@ func TestJettonAll(t *testing.T) {
 	t.Run("TestJettonSendFastExistingWallet", func(t *testing.T) {
 		setup := setupJettonSender(t)
 		t.Logf("Deploying JettonMinter contract\n")
-		// receiverJettonWallet, err := jetton_wrappers.NewWalletProvider(setup.common.receiver).Deploy(setup.common.receiver.Wallet.Address(), setup.common.jettonMinter.Address)
 		jettonWalletCode, err := jetton_wrappers.WalletCode()
 		require.NoError(t, err, "failed to deploy JettonWallet contract")
 		jettonWalletInitCell, err := jetton_wrappers.NewWalletProvider(setup.common.jettonMinter.Address).GetWalletInitCell(setup.common.receiver.Wallet.Address())
