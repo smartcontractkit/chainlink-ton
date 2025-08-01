@@ -1,6 +1,42 @@
 package types
 
-import "github.com/xssnick/tonutils-go/tvm/cell"
+import (
+	"database/sql/driver"
+	"fmt"
+
+	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tvm/cell"
+)
+
+// Address is a wrapper for tonutils-go's address.Address to implement database/sql interfaces.
+type Address struct {
+	*address.Address
+}
+
+// Scan implements the sql.Scanner interface for Address.
+// It converts a byte slice from the database into an Address.
+func (a *Address) Scan(src interface{}) error {
+	srcB, ok := src.([]byte)
+	if !ok {
+		return fmt.Errorf("can't scan %T into Address", src)
+	}
+	if len(srcB) == 0 {
+		a.Address = nil
+		return nil
+	}
+	parsed := address.MustParseAddr(string(srcB))
+	a.Address = parsed
+	return nil
+}
+
+// Value implements the driver.Valuer interface for Address.
+// It converts an Address into a byte slice for database storage.
+func (a Address) Value() (driver.Value, error) {
+	if a.Address == nil {
+		return nil, nil
+	}
+	return []byte(a.Address.String()), nil
+}
 
 // LogParser is a function type responsible for parsing the raw log data (a TVM Cell)
 // into a specific, strongly-typed Go struct.
