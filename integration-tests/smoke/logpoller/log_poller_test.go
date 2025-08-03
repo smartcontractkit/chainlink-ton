@@ -35,8 +35,9 @@ func Test_LogPoller(t *testing.T) {
 		const txPerBatch = 5
 		const msgPerTx = 2
 
-		// safe block confirmations
-		const blockConfirmations = 10
+		// block buffer(lastTx contains original msg and we should discover extOutMsg)
+		// TODO: realistically how many more blocks to be processed from the original tx? depends on network load?
+		const blockBuffer = 10
 
 		// log collector config
 		const pageSize = 5
@@ -54,11 +55,11 @@ func Test_LogPoller(t *testing.T) {
 		)
 		require.NoError(t, err)
 
-		toBlock, err := client.WaitForBlock(lastTx.Block.SeqNo+blockConfirmations).LookupBlock(
+		toBlock, err := client.WaitForBlock(lastTx.Block.SeqNo+blockBuffer).LookupBlock(
 			t.Context(),
 			address.MasterchainID,
 			lastTx.Block.Shard,
-			lastTx.Block.SeqNo+blockConfirmations, // inclusive upper bound + pad
+			lastTx.Block.SeqNo+blockBuffer, // inclusive upper bound + buffer
 		)
 		require.NoError(t, err)
 

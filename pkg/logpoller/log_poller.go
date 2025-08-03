@@ -65,10 +65,9 @@ type Service struct {
 	client             ton.APIClientWrapped // TON blockchain client
 	filters            Filters              // Registry of active filters
 	loader             EventLoader          // Block scanner implementation
-	store              LogStore             // Log storage (MVP: in-memory)
+	store              LogStore             // Log storage (MVP: in-memory, to be replaced with ORM)
 	pollPeriod         time.Duration        // How often to poll for new blocks
 	lastProcessedSeqNo uint32               // Last processed masterchain sequence number
-	blockConfirmations uint32               // Number of confirmations to wait before processing
 }
 
 // NewLogPoller creates a new TON log polling service instance
@@ -106,10 +105,9 @@ func (lp *Service) start(ctx context.Context) error {
 }
 
 // run executes a single polling iteration:
-// 1. Gets current masterchain head
-// 2. Calculates safe-to-process block (with confirmations)
-// 3. Processes new blocks since last processed sequence number
-// 4. Updates last processed sequence number
+// 1. Gets the current masterchain head
+// 2. Processes new blocks since the last processed sequence number
+// 3. Updates the last processed sequence number
 func (lp *Service) run(ctx context.Context) (err error) {
 	defer func() {
 		if rec := recover(); rec != nil {
@@ -124,35 +122,18 @@ func (lp *Service) run(ctx context.Context) (err error) {
 	// TODO: load filter from persistent store
 	// TODO: implement backfill logic(if there is filters marked for backfill)
 
-	// get the current masterchain head
-	currentMaster, err := lp.client.CurrentMasterchainInfo(ctx)
+	// get the current masterchain head, which is the block we'll process up to
+	toBlock, err := lp.client.CurrentMasterchainInfo(ctx)
 	if err != nil {
 		return err
 	}
 
-	// calculate the latest block we can safely process with confirmations
-	safeToProcessSeq := currentMaster.SeqNo - lp.blockConfirmations
-
-	// if safe to process is behind last processed, we need to wait for more blocks
-	if safeToProcessSeq < lastProcessedSeq {
-		blocksLeft := lastProcessedSeq - safeToProcessSeq
-		lp.lggr.Debugw("waiting for more blocks to process",
+	// if we've already processed this block, wait for the next one
+	if toBlock.SeqNo <= lastProcessedSeq {
+		lp.lggr.Debugw("no new blocks to process",
 			"lastProcessed", lastProcessedSeq,
-			"safeToProcess", safeToProcessSeq,
-			"blocksLeft", blocksLeft)
+			"currentMaster", toBlock.SeqNo)
 		return nil
-	}
-
-	// if we already processed everything we can safely process, skip
-	if safeToProcessSeq == lastProcessedSeq {
-		lp.lggr.Debugw("skipping already processed safe seq", "seq", safeToProcessSeq)
-		return nil
-	}
-
-	// get the actual block to process (the safe one)
-	toBlock, err := lp.client.LookupBlock(ctx, currentMaster.Workchain, currentMaster.Shard, safeToProcessSeq)
-	if err != nil {
-		return fmt.Errorf("LookupBlock for safe seq %d: %w", safeToProcessSeq, err)
 	}
 
 	// load the addresses from filters that we're interested in
@@ -167,10 +148,10 @@ func (lp *Service) run(ctx context.Context) (err error) {
 		prevBlock = nil
 		lp.lggr.Debugw("First run detected, processing from genesis", "toSeq", toBlock.SeqNo)
 	} else {
-		// get the prevBlock based on the last processed seqno
+		// get the prevBlock based on the last processed sequence number
 		prevBlock, err = lp.client.LookupBlock(ctx, toBlock.Workchain, toBlock.Shard, lastProcessedSeq)
 		if err != nil {
-			return fmt.Errorf("LookupBlock: %w", err)
+			return fmt.Errorf("LookupBlock for previous seqno %d: %w", lastProcessedSeq, err)
 		}
 	}
 
@@ -179,14 +160,14 @@ func (lp *Service) run(ctx context.Context) (err error) {
 		return fmt.Errorf("processBlocksRange: %w", err)
 	}
 
-	// save the last processed seqno
+	// save the last processed sequence number
 	lp.lastProcessedSeqNo = toBlock.SeqNo
 	return nil
 }
 
 // processBlocksRange handles scanning a range of blocks for external messages
 // from the specified addresses. It delegates to the LogCollector for the actual
-// block scanning and then processes the returned messages.
+// block scanning and then processes the returned messages
 func (lp *Service) processBlocksRange(ctx context.Context, addresses []*address.Address, prevBlock *ton.BlockIDExt, toBlock *ton.BlockIDExt) error {
 	msgs, err := lp.loader.BackfillForAddresses(ctx, addresses, prevBlock, toBlock)
 	if err != nil {
@@ -287,6 +268,7 @@ func (lp *Service) FilteredLogs(
 	)
 }
 
+// FilteredLogsWithParser queries logs using a flexible 'parse-then-filter' pattern
 func (lp *Service) FilteredLogsWithParser(
 	_ context.Context,
 	evtSrcAddress *address.Address,
