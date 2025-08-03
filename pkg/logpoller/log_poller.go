@@ -160,7 +160,6 @@ func (lp *Service) run(ctx context.Context) (err error) {
 	if len(addresses) == 0 {
 		return nil
 	}
-	lp.lggr.Debugw("Processing messages for addresses", "addresses", addresses)
 
 	var prevBlock *ton.BlockIDExt
 	if lastProcessedSeq == 0 {
@@ -221,7 +220,7 @@ func (lp *Service) Process(msg types.MsgWithCtx) error {
 	if err != nil {
 		return fmt.Errorf("failed to decode event topic: %w", err)
 	}
-	lp.lggr.Debugw("Processing message", "src", msg.Msg.SrcAddr, "dst", msg.Msg.DstAddr, "topic", topic)
+	lp.lggr.Tracef("Processing message", "src", msg.Msg.SrcAddr, "dst", msg.Msg.DstAddr, "topic", topic)
 
 	fIDs := lp.filters.MatchingFilters(*msg.Msg.SrcAddr, topic)
 	if len(fIDs) == 0 {

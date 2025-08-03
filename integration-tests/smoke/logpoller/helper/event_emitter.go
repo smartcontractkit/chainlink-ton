@@ -2,7 +2,6 @@ package helper
 
 import (
 	"context"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/big"
@@ -52,8 +51,6 @@ func SendBulkTestEventTxs(t *testing.T, client ton.APIClientWrapped, batchCount,
 		currentCounter := uint32(currentCounterRaw.Uint64()) //nolint:gosec // test code
 		return currentCounter == expectedCounter
 	}, 30*time.Second, 2*time.Second, "Counter did not reach expected value within timeout")
-
-	t.Logf("On-chain counter reached expected value of %d.", expectedCounter)
 
 	time.Sleep(20 * time.Second)
 	return emitter, txs
@@ -211,7 +208,6 @@ func (e *TestEventSource) eventLoop(ctx context.Context, interval time.Duration)
 	for {
 		select {
 		case <-ctx.Done():
-			e.lggr.Debugf("Context cancelled for %s", e.name)
 			close(e.done)
 			return
 		case <-ticker.C:
@@ -220,7 +216,6 @@ func (e *TestEventSource) eventLoop(ctx context.Context, interval time.Duration)
 			e.mu.RUnlock()
 
 			if sent >= target {
-				e.lggr.Debugf("Target count of %d reached for %s, stopping.", target, e.name)
 				close(e.done)
 				return
 			}
@@ -240,15 +235,12 @@ func (e *TestEventSource) eventLoop(ctx context.Context, interval time.Duration)
 
 func (e *TestEventSource) SendBulkTestEvents(ctx context.Context, batchCount, txPerBatch, msgPerTx int) ([]TestEventRes, error) {
 	var txs []TestEventRes
-	e.lggr.Debugf("=== Starting to send %d batches of %d transactions with %d messages each ===",
-		batchCount, txPerBatch, msgPerTx)
 
 	// Send transactions in batches with block waits
 	for batchIdx := 0; batchIdx < batchCount; batchIdx++ {
 		// Send multiple transactions in this batch
 		for txIdx := 0; txIdx < txPerBatch; txIdx++ {
 			// Send transaction with multiple messages
-			e.lggr.Debugf("╭ Sending multiple increase counter messages from %s", e.name)
 			tx, block, err := e.sendManyIncreaseCountMsgs(ctx, msgPerTx)
 			if err != nil {
 				return nil, fmt.Errorf("failed to send tx %d in batch %d: %w", txIdx, batchIdx, err)
@@ -261,9 +253,6 @@ func (e *TestEventSource) SendBulkTestEvents(ctx context.Context, batchCount, tx
 				TxIdx:    txIdx,
 			}
 			txs = append(txs, txResult)
-
-			e.lggr.Debugf("╰ Sent: Batch=%d, Tx=%d, Messages=%d, LT=%d, Hash=%s, BlockSeq=%d",
-				batchIdx, txIdx, msgPerTx, tx.LT, hex.EncodeToString(tx.Hash), block.SeqNo)
 		}
 
 		// delay between batches to try to get different blocks

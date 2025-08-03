@@ -110,7 +110,7 @@ func (lc *LogCollector) fetchMessagesForAddress(ctx context.Context, addr *addre
 	if err != nil {
 		return nil, err
 	}
-	lc.lggr.Debugw("Scanning transaction range",
+	lc.lggr.Tracef("Scanning transaction range",
 		"Block range", fmt.Sprintf("(%d, %d]", func() uint32 {
 			if prevBlock != nil {
 				return prevBlock.SeqNo

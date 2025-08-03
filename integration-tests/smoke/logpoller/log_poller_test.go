@@ -210,8 +210,6 @@ func Test_LogPoller(t *testing.T) {
 			logsA := lp.GetLogs(emitterA.ContractAddress())
 			logsB := lp.GetLogs(emitterB.ContractAddress())
 
-			t.Logf("Log poller has %d logs for emitter A, %d logs for emitter B", len(logsA), len(logsB))
-
 			// Convert logs to messages for emitterA
 			var msgsA []*tlb.ExternalMessageOut
 			for _, log := range logsA {
@@ -278,7 +276,7 @@ func Test_LogPoller(t *testing.T) {
 
 			// If log count and content are correct for both, the test condition is met
 			return true
-		}, 180*time.Second, 3*time.Second, "log poller did not ingest all events correctly in time")
+		}, 180*time.Second, 5*time.Second, "log poller did not ingest all events correctly in time")
 
 		t.Run("Cell Query Tests", func(t *testing.T) {
 			// the log poller service itself provides a simple query interface(w/o full DSL support)
@@ -319,7 +317,6 @@ func Test_LogPoller(t *testing.T) {
 					// check that the counter is within the expected range
 					require.Greater(t, event.Value, uint32(5))
 					require.LessOrEqual(t, event.Value, uint32(10))
-					t.Logf("Verified filtered event with counter: %d", event.Value)
 				}
 			})
 
@@ -355,7 +352,6 @@ func Test_LogPoller(t *testing.T) {
 					// check that the counter is within the expected range
 					require.GreaterOrEqual(t, event.Value, uint32(1))
 					require.LessOrEqual(t, event.Value, uint32(3))
-					t.Logf("Verified filtered event with counter: %d", event.Value)
 				}
 			})
 
@@ -510,7 +506,6 @@ func Test_LogPoller(t *testing.T) {
 					require.LessOrEqual(t, result.Logs[i-1].TxLT, result.Logs[i].TxLT,
 						"logs should be sorted by TxLT in ascending order at index %d", i)
 				}
-				t.Logf("Verified %d logs in ascending TxLT order", len(result.Logs))
 			})
 
 			t.Run("Sort by TxLT descending", func(t *testing.T) {
@@ -536,7 +531,6 @@ func Test_LogPoller(t *testing.T) {
 					require.GreaterOrEqual(t, result.Logs[i-1].TxLT, result.Logs[i].TxLT,
 						"logs should be sorted by TxLT in descending order at index %d", i)
 				}
-				t.Logf("Verified %d logs in descending TxLT order", len(result.Logs))
 			})
 
 			t.Run("Pagination with limit", func(t *testing.T) {
@@ -560,9 +554,6 @@ func Test_LogPoller(t *testing.T) {
 				require.Len(t, result.Logs, pageSize)
 				require.True(t, result.HasMore, "should have more results")
 				require.Equal(t, targetCounter, result.Total)
-
-				t.Logf("First page: got %d logs, HasMore=%t, Total=%d",
-					len(result.Logs), result.HasMore, result.Total)
 			})
 
 			t.Run("Pagination with offset", func(t *testing.T) {
@@ -609,8 +600,6 @@ func Test_LogPoller(t *testing.T) {
 					require.Equal(t, firstPageResult.Logs[offset+i].TxLT, result.Logs[i].TxLT,
 						"offset page should match the correct slice of first page at index %d", i)
 				}
-
-				t.Logf("Offset page verification passed: offset=%d, pageSize=%d", offset, pageSize)
 			})
 
 			t.Run("Complete pagination test", func(t *testing.T) {
@@ -643,9 +632,6 @@ func Test_LogPoller(t *testing.T) {
 
 					allLogs = append(allLogs, result.Logs...)
 					pageCount++
-
-					t.Logf("Page %d: got %d logs, HasMore=%t", pageCount, len(result.Logs), result.HasMore)
-
 					if !result.HasMore {
 						break
 					}
@@ -666,8 +652,6 @@ func Test_LogPoller(t *testing.T) {
 					require.LessOrEqual(t, allLogs[i-1].TxLT, allLogs[i].TxLT,
 						"combined pages should maintain sort order at index %d", i)
 				}
-
-				t.Logf("Complete pagination test passed: %d pages, %d total logs", pageCount, len(allLogs))
 			})
 
 			t.Run("Sorting + filtering + pagination", func(t *testing.T) {
@@ -721,8 +705,6 @@ func Test_LogPoller(t *testing.T) {
 					require.GreaterOrEqual(t, result.Logs[i-1].TxLT, result.Logs[i].TxLT,
 						"filtered results should be sorted in descending TxLT order at index %d", i)
 				}
-
-				t.Logf("Combined filtering + sorting + pagination test passed")
 			})
 
 			t.Run("Cross-emitter pagination test", func(t *testing.T) {
@@ -751,7 +733,6 @@ func Test_LogPoller(t *testing.T) {
 
 					if len(result.Logs) > 0 {
 						emitterBPages = append(emitterBPages, result.Logs)
-						t.Logf("EmitterB page %d: got %d logs", len(emitterBPages), len(result.Logs))
 					}
 				}
 
@@ -773,8 +754,6 @@ func Test_LogPoller(t *testing.T) {
 
 					require.Equal(t, emitterB.GetID(), event.ID, "log should belong to emitterB")
 				}
-
-				t.Logf("Cross-emitter pagination test passed: %d pages, %d logs", len(emitterBPages), len(allEmitterBLogs))
 			})
 
 			t.Run("Edge case: empty results pagination", func(t *testing.T) {

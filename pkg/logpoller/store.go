@@ -76,9 +76,6 @@ func (s *InMemoryStore) FilteredLogs(
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.lggr.Debugf("GetLogsByTopicWithFilter called. Total logs: %d, Address: %s, Topic: %d",
-		len(s.logs), evtSrcAddress, topic)
-
 	var matchingLogs []types.Log
 
 	for i, log := range s.logs {
