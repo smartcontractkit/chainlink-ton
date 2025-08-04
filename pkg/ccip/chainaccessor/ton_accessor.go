@@ -11,21 +11,21 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/relay"
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
 )
 
 type TONAccessor struct {
 	lggr      logger.Logger
-	client    *ton.APIClient   // for liteclient queries for contract state
-	logPoller *relay.LogPoller // for stored event logs
+	client    ton.APIClientWrapped
+	logPoller logpoller.LogPoller
 }
 
 var _ ccipocr3.ChainAccessor = (*TONAccessor)(nil)
 
 func NewTONAccessor(
 	lggr logger.Logger,
-	client *ton.APIClient, // TODO: or ton.APIClientWrapped, based on the chain implementation
-	logPoller *relay.LogPoller,
+	client ton.APIClientWrapped,
+	logPoller logpoller.LogPoller,
 	addrCodec ccipocr3.AddressCodec,
 ) (ccipocr3.ChainAccessor, error) {
 	// TODO: validate state of client and logPoller (should be initialized in NewChain)
