@@ -10,7 +10,7 @@ import (
 
 	jetton_testing_wrappers "integration-tests/jetton/wrappers"
 
-	jetton_wrappers "github.com/smartcontractkit/chainlink-ton/pkg/jetton"
+	jetton_wrappers "github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton"
 
 	"integration-tests/tracetracking/testutils"
 	"path"
