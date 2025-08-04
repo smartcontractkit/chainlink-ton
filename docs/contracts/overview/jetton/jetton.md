@@ -1,5 +1,7 @@
 # Jettons - TON Tokens
 
+Jettons is the TON standard for Fungible Tokens.
+
 ## Basic workflow
 
 ![Flow diagram](./simple-transfer.png)
@@ -34,9 +36,19 @@ sequenceDiagram
     end
 ```
 
-## Onramp Mock
+## Usage
 
-Implements a mock of an Onramp implementation that receives the instruction as the forwardPayload and operates if it covers the fee.
+The [func implementation of Jettons](https://github.com/ton-blockchain/jetton-contract/tree/3d24b419f2ce49c09abf6b8703998187fe358ec9/contracts) is made available throguh nix. `#contracts` nix shell compiles the minter and wallet contracts and exposes the build directory through the environment variable `PATH_CONTRACTS_JETTON`.
+
+```bash
+$ nix develop .#contracts -c ls -lca $PATH_CONTRACTS_JETTON
+Jetton contracts located here: /nix/store/s3rsxlqskan6ripf2sii9njrzv1mhbxz-contracts-jetton-func-1.2.0/lib/node_modules/jetton/build/
+total 16
+dr-xr-xr-x  6 root wheel  192 Jul  8 14:47 .
+dr-xr-xr-x 15 root wheel  480 Jul  8 14:47 ..
+-r--r--r--  1 root wheel 2386 Jul  8 14:47 JettonMinter.compiled.json
+-r--r--r--  1 root wheel 1834 Jul  8 14:47 JettonWallet.compiled.json
+```
 
 ## Docs
 
