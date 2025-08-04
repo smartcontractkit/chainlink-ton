@@ -13,30 +13,30 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
-var JettonSenderContractPath = bindings.GetBuildDir("examples.jetton.JettonSender.compiled.json")
+var SenderContractPath = bindings.GetBuildDir("examples.jetton.Sender.compiled.json")
 
-type JettonSenderProvider struct {
+type SenderProvider struct {
 	apiClient tracetracking.SignedAPIClient
 }
 
-func NewJettonSenderProvider(apiClient tracetracking.SignedAPIClient) *JettonSenderProvider {
-	return &JettonSenderProvider{
+func NewSenderProvider(apiClient tracetracking.SignedAPIClient) *SenderProvider {
+	return &SenderProvider{
 		apiClient: apiClient,
 	}
 }
 
-type JettonSenderInitData struct {
+type SenderInitData struct {
 	MasterAddress *address.Address `tlb:"addr"`
 	WalletCode    *cell.Cell       `tlb:"^"`
 }
 
-func (p *JettonSenderProvider) Deploy(initData JettonSenderInitData) (*JettonSender, error) {
+func (p *SenderProvider) Deploy(initData SenderInitData) (*Sender, error) {
 	initCell, err := tlb.ToCell(initData)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert init data to cell: %w", err)
 	}
 
-	compiledContract, err := wrappers.ParseCompiledContract(JettonSenderContractPath)
+	compiledContract, err := wrappers.ParseCompiledContract(SenderContractPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to compile contract: %w", err)
 	}
@@ -45,12 +45,12 @@ func (p *JettonSenderProvider) Deploy(initData JettonSenderInitData) (*JettonSen
 		return nil, err
 	}
 
-	return &JettonSender{
+	return &Sender{
 		Contract: *contract,
 	}, nil
 }
 
-type JettonSender struct {
+type Sender struct {
 	Contract wrappers.Contract
 }
 
@@ -61,7 +61,7 @@ type sendJettonsFastMessage struct {
 	Destination *address.Address `tlb:"addr"`
 }
 
-func (s JettonSender) SendJettonsFast(amount tlb.Coins, destination *address.Address) (msgReceived *tracetracking.ReceivedMessage, err error) {
+func (s Sender) SendJettonsFast(amount tlb.Coins, destination *address.Address) (msgReceived *tracetracking.ReceivedMessage, err error) {
 	queryID := rand.Uint64()
 	msgReceived, err = s.Contract.CallWaitRecursively(sendJettonsFastMessage{
 		QueryID:     queryID,
@@ -81,7 +81,7 @@ type sendJettonsExtendedMessage struct {
 	ForwardPayload   *cell.Cell       `tlb:"^"`
 }
 
-func (s JettonSender) SendJettonsExtended(
+func (s Sender) SendJettonsExtended(
 	tonAmount tlb.Coins,
 	queryID uint64,
 	jettonAmount tlb.Coins,
