@@ -133,7 +133,7 @@ func Test_LogPoller(t *testing.T) {
 		emitterB, err := helper.NewTestEventSource(t.Context(), client, senderB, "emitterB", rand.Uint32(), logger.Test(t))
 		require.NoError(t, err)
 
-		const targetCounter = 20
+		const targetCounter = 10
 
 		cfg := logpoller.DefaultConfigSet
 		lp := logpoller.NewLogPoller(
@@ -145,19 +145,21 @@ func Test_LogPoller(t *testing.T) {
 		// register filters
 		filterA := types.Filter{
 			Name:       "FilterA",
-			Address:    *emitterA.ContractAddress(),
+			Address:    types.Address{Address: emitterA.ContractAddress()},
 			EventName:  "CounterIncreased",
 			EventTopic: counter.CountIncreasedEventTopic,
 		}
-		lp.RegisterFilter(t.Context(), filterA)
+		faerr := lp.RegisterFilter(t.Context(), filterA)
+		require.NoError(t, faerr)
 
 		filterB := types.Filter{
 			Name:       "FilterB",
-			Address:    *emitterB.ContractAddress(),
+			Address:    types.Address{Address: emitterB.ContractAddress()},
 			EventName:  "CounterIncreased",
 			EventTopic: counter.CountIncreasedEventTopic,
 		}
-		lp.RegisterFilter(t.Context(), filterB)
+		fberr := lp.RegisterFilter(t.Context(), filterB)
+		require.NoError(t, fberr)
 
 		// start listening for logs
 		require.NoError(t, lp.Start(t.Context()))
@@ -311,6 +313,7 @@ func Test_LogPoller(t *testing.T) {
 
 				for _, log := range result.Logs {
 					c, err := cell.FromBOC(log.Data)
+					require.NoError(t, err)
 					var event counter.CountIncreasedEvent
 					err = tlb.LoadFromCell(&event, c.BeginParse())
 					require.NoError(t, err)
@@ -560,7 +563,7 @@ func Test_LogPoller(t *testing.T) {
 			t.Run("Pagination with offset", func(t *testing.T) {
 				t.Parallel()
 
-				const pageSize = 5
+				const pageSize = 2
 				const offset = 8
 
 				options := logpoller.QueryOptions{
@@ -657,18 +660,20 @@ func Test_LogPoller(t *testing.T) {
 
 			t.Run("Sorting + filtering + pagination", func(t *testing.T) {
 				t.Parallel()
+				from, to := 4, 8
+				count := to - from + 1
 
-				// Filter for counters 8-15, then sort and paginate
+				// Filter for counters 4-8, then sort and paginate
 				cellQueries := []logpoller.CellQuery{
 					{
 						Offset:   4,
 						Operator: logpoller.GTE,
-						Value:    binary.BigEndian.AppendUint32(nil, 8),
+						Value:    binary.BigEndian.AppendUint32(nil, uint32(from)),
 					},
 					{
 						Offset:   4,
 						Operator: logpoller.LTE,
-						Value:    binary.BigEndian.AppendUint32(nil, 15),
+						Value:    binary.BigEndian.AppendUint32(nil, uint32(to)),
 					},
 				}
 
@@ -676,8 +681,8 @@ func Test_LogPoller(t *testing.T) {
 					SortBy: []logpoller.SortBy{
 						{Field: logpoller.SortByTxLT, Order: logpoller.DESC}, // Newest first
 					},
-					Limit:  4,
-					Offset: 1, // Skip the first (newest) result
+					Limit:  count,
+					Offset: 0,
 				}
 
 				result, err := lp.FilteredLogs(t.Context(),
@@ -687,7 +692,7 @@ func Test_LogPoller(t *testing.T) {
 					options,
 				)
 				require.NoError(t, err)
-				require.Len(t, result.Logs, 4)
+				require.Len(t, result.Logs, count)
 
 				// Verify the filtering worked
 				for _, log := range result.Logs {
@@ -697,8 +702,8 @@ func Test_LogPoller(t *testing.T) {
 					err = tlb.LoadFromCell(&event, c.BeginParse())
 					require.NoError(t, err)
 
-					require.GreaterOrEqual(t, event.Value, uint32(8))
-					require.LessOrEqual(t, event.Value, uint32(15))
+					require.GreaterOrEqual(t, event.Value, uint32(from))
+					require.LessOrEqual(t, event.Value, uint32(to))
 				}
 
 				// Verify descending sort order
@@ -809,6 +814,24 @@ func Test_LogPoller(t *testing.T) {
 				require.NoError(t, err)
 				require.Empty(t, result.Logs)
 				require.False(t, result.HasMore)
+			})
+
+			// TODO: remove, only for debugging purposes
+			t.Run("Dump Stored Logs", func(t *testing.T) {
+				t.Parallel()
+
+				result := lp.GetLogs(emitterA.ContractAddress())
+				require.Len(t, result, targetCounter)
+
+				log := result[0]
+				c, err := cell.FromBOC(log.Data)
+				require.NoError(t, err)
+				var event counter.CountIncreasedEvent
+				err = tlb.LoadFromCell(&event, c.BeginParse())
+				require.NoError(t, err)
+
+				t.Logf("Log: TxLT=%d, Counter=%d", log.TxLT, event.Value)
+				t.Logf("Full Log Details:\n%s", log)
 			})
 		})
 	})

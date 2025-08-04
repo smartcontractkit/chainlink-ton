@@ -44,8 +44,7 @@ func (s *InMemoryStore) SaveLog(log types.Log) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	now := time.Now().UTC()
-	log.ReceivedAt = now
-	if log.ExpiresAt == nil && log.ReceivedAt != (time.Time{}) {
+	if log.ExpiresAt == nil {
 		// TODO: use configurable retention period
 		// TODO: there is no expiration logic in memory store currently
 		exp := now.Add(24 * time.Hour)
@@ -54,6 +53,7 @@ func (s *InMemoryStore) SaveLog(log types.Log) {
 	s.logs = append(s.logs, log)
 }
 
+// TODO: remove, test purpose only
 func (s *InMemoryStore) GetLogs(evtSrcAddress string) []types.Log {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -80,7 +80,7 @@ func (s *InMemoryStore) FilteredLogs(
 
 	for i, log := range s.logs {
 		// match by address and topic (would be indexed query in DB)
-		if log.Topic != topic || log.Address.String() != evtSrcAddress {
+		if log.EventTopic != topic || log.Address.String() != evtSrcAddress {
 			continue
 		}
 
@@ -116,7 +116,7 @@ func (s *InMemoryStore) FilteredLogsWithParser(
 
 	results := make([]any, 0, len(s.logs))
 	for i, log := range s.logs {
-		if log.Topic != topic || log.Address.String() != evtSrcAddress {
+		if log.EventTopic != topic || log.Address.String() != evtSrcAddress {
 			continue
 		}
 

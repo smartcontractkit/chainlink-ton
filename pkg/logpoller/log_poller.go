@@ -64,7 +64,7 @@ type Service struct {
 	lggr               logger.SugaredLogger // Logger instance
 	client             ton.APIClientWrapped // TON blockchain client
 	filters            Filters              // Registry of active filters
-	loader             EventLoader          // Block scanner implementation
+	loader             MessageLoader        // Block scanner implementation
 	store              LogStore             // Log storage (MVP: in-memory, to be replaced with ORM)
 	pollPeriod         time.Duration        // How often to poll for new blocks
 	lastProcessedSeqNo uint32               // Last processed masterchain sequence number
@@ -94,7 +94,7 @@ func NewLogPoller(
 }
 
 // start initializes the log polling service and begins the polling loop
-func (lp *Service) start(ctx context.Context) error {
+func (lp *Service) start(_ context.Context) error {
 	lp.lggr.Infof("starting logpoller")
 	lp.eng.GoTick(services.NewTicker(lp.pollPeriod), func(ctx context.Context) {
 		if err := lp.run(ctx); err != nil {
@@ -182,7 +182,7 @@ func (lp *Service) processBlocksRange(ctx context.Context, addresses []*address.
 }
 
 // processMessages iterates through external messages and processes each one
-func (lp *Service) processMessages(msgs []types.MsgWithCtx) error {
+func (lp *Service) processMessages(msgs []types.ExternalMsgWithBlockInfo) error {
 	for _, msg := range msgs {
 		if err := lp.Process(msg); err != nil {
 			return err
@@ -195,7 +195,7 @@ func (lp *Service) processMessages(msgs []types.MsgWithCtx) error {
 // 1. Extracts event topic from destination address
 // 2. Finds matching filters for the source address and topic
 // 3. Saves logs for each matching filter
-func (lp *Service) Process(msg types.MsgWithCtx) error {
+func (lp *Service) Process(msg types.ExternalMsgWithBlockInfo) error {
 	bucket := event.NewExtOutLogBucket(msg.Msg.DstAddr)
 	topic, err := bucket.DecodeEventTopic()
 	if err != nil {
@@ -210,14 +210,24 @@ func (lp *Service) Process(msg types.MsgWithCtx) error {
 
 	for _, fid := range fIDs {
 		lp.store.SaveLog(types.Log{
-			FilterID: fid,
-			// TODO: we need custom type for to storing block, tx metadata
-			// SeqNo:      master.SeqNo,
-			TxHash:  msg.TxHash,
-			TxLT:    msg.LT,
-			Address: *msg.Msg.SrcAddr,
-			Topic:   topic,
+			FilterID:   fid,
+			EventTopic: topic,
+
+			Address: types.Address{Address: msg.Msg.SrcAddr},
 			Data:    msg.Msg.Body.ToBOC(),
+
+			TxHash:      msg.Tx.Hash,
+			TxLT:        msg.Tx.LT,
+			TxTimestamp: time.Unix(int64(msg.Tx.Now), 0).UTC(),
+
+			ShardBlockSeqno:     msg.ShardBlock.SeqNo,
+			ShardBlockWorkchain: msg.ShardBlock.Workchain,
+			ShardBlockShard:     msg.ShardBlock.Shard,
+
+			MasterBlockSeqno: msg.MasterBlock.SeqNo,
+
+			CreatedAt: time.Now().UTC(),
+			// TODO: ChainID:        lp.orm.ChainID(),
 		})
 	}
 	return nil
