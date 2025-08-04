@@ -1,12 +1,11 @@
-import "@stdlib/lisp-lists"
+import "@stdlib/lisp-lists";
 import "types.tolk";
 import "../lib/access/ownable_2step.tolk";
 import "../lib/upgrades/type_and_version.tolk";
 import "../lib/utils.tolk";
 import "@stdlib/tvm-dicts";
 
-// TODO: use crc32("CCIPMessageSent")
-const CCIP_MESSAGE_SENT_TOPIC: int = 0x99; // for easier indexing
+const CCIP_MESSAGE_SENT_TOPIC: int = 0xa45d293c; // crc32("CCIPMessageSent")
 
 struct CCIPMessageSent {
     destChainSelector: uint64; // NOTE: both these values are already part of message, is it even important to have?

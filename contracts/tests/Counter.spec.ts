@@ -13,7 +13,7 @@ describe('Counter', () => {
   beforeEach(async () => {
     blockchain = await Blockchain.create()
 
-    code = await compile('Counter')
+    code = await compile('examples.counter')
 
     counter = blockchain.openContract(Counter.createFromConfig({ id: 1337, value: 13 }, code))
 

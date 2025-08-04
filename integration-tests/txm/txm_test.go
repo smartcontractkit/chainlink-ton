@@ -35,14 +35,14 @@ func TestTxmLocal(t *testing.T) {
 	require.NotNil(t, nodeClient)
 	logger.Debugw("Started MyLocalTON")
 
-	wallet := test_utils.CreateRandomTonWallet(t, nodeClient, config.WalletVersion, wallet.WithWorkchain(0))
+	wallet := test_utils.CreateRandomWallet(t, nodeClient, config.WalletVersion, wallet.WithWorkchain(0))
 	require.NotNil(t, wallet)
 	logger.Debugw("Created TON Wallet")
 
-	tonChain := test_utils.StartTonChain(t, nodeClient, chainsel.TON_LOCALNET.Selector, wallet)
+	tonChain := test_utils.StartChain(t, nodeClient, chainsel.TON_LOCALNET.Selector, wallet)
 	require.NotNil(t, tonChain)
 
-	test_utils.FundTonWallets(t, nodeClient, []*address.Address{wallet.Address()}, []tlb.Coins{tlb.MustFromTON("1000")})
+	test_utils.FundWallets(t, nodeClient, []*address.Address{wallet.Address()}, []tlb.Coins{tlb.MustFromTON("1000")})
 
 	keystore := relayer_utils.NewTestKeystore(t)
 	keystore.AddKey(wallet.PrivateKey())
