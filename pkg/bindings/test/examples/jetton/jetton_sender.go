@@ -13,7 +13,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
-var SenderContractPath = bindings.GetBuildDir("examples.jetton.Sender.compiled.json")
+var SenderContractPath = bindings.GetBuildDir("examples.jetton.JettonSender.compiled.json")
 
 type SenderProvider struct {
 	apiClient tracetracking.SignedAPIClient
