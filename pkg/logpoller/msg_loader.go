@@ -15,7 +15,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
 )
 
-// TODO: might not be the best name..
 type MessageLoader interface {
 	BackfillForAddresses(ctx context.Context, addresses []*address.Address, prevBlock, toBlock *ton.BlockIDExt) ([]types.ExternalMsgWithBlockInfo, error)
 }
