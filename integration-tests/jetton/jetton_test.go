@@ -626,8 +626,8 @@ func TestJettonAll(t *testing.T) {
 			return eventLog, queryID, nil
 		}
 
-		insufficientJettonTransferAmount := tlb.MustFromNano(big.NewInt(1), 18)
-		sufficientJettonTransferAmount := tlb.MustFromNano(big.NewInt(5), 18)
+		insufficientJettonTransferAmount := tlb.MustFromNano(big.NewInt(1), 9)
+		sufficientJettonTransferAmount := tlb.MustFromNano(big.NewInt(5), 9)
 
 		insufficientFeeEventMessage, queryID, err := sendCallWithAmount(insufficientJettonTransferAmount)
 		require.NoError(t, err, "failed to send jettons with insufficient fee")

@@ -66,7 +66,7 @@ func (r SimpleJettonReceiver) GetAmountChecker() (*tlb.Coins, error) {
 	if err != nil {
 		return nil, err
 	}
-	coins := tlb.MustFromNano(amount, 18)
+	coins := tlb.MustFromNano(amount, 9)
 	return &coins, nil
 }
 
