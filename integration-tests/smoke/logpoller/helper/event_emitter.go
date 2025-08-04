@@ -16,6 +16,7 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
@@ -133,11 +134,12 @@ func NewTestEventSource(ctx context.Context, client ton.APIClientWrapped, wallet
 		return nil, fmt.Errorf("failed to create initial data cell: %w", err)
 	}
 
-	contract, err := wrappers.Deploy(
+	contract, _, err := wrappers.Deploy(
 		sigClient,
 		codeCell,
 		data,
 		tlb.MustFromTON("0.1"),
+		cell.BeginCell().EndCell(),
 	)
 
 	if err != nil {
