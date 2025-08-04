@@ -1,19 +1,18 @@
-package wrappers
+package jetton
 
 import (
 	"fmt"
-
-	test_utils "integration-tests/utils"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
-var OnrampMockContractPath = test_utils.GetBuildDir("examples.jetton.OnrampMock.compiled.json")
+var OnrampMockContractPath = bindings.GetBuildDir("examples.jetton.OnrampMock.compiled.json")
 
 type OnrampMockProvider struct {
 	apiClient tracetracking.SignedAPIClient

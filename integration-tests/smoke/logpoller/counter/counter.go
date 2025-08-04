@@ -1,14 +1,13 @@
 package counter
 
 import (
-	test_utils "integration-tests/utils"
-
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/hash"
 )
 
 // TODO: move to proper location
 var (
-	ArtifactPath = test_utils.GetBuildDir("examples.counter.compiled.json")
+	ArtifactPath = bindings.GetBuildDir("examples.counter.compiled.json")
 
 	SetCountOpCode        uint32 = 0x10000004
 	IncreaseCounterOpCode uint32 = 0x10000005

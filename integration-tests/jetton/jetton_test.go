@@ -4,16 +4,12 @@ import (
 	"fmt"
 	"math/big"
 	"math/rand/v2"
+	"path"
 	"slices"
 	"strings"
 	"testing"
 
-	jetton_testing_wrappers "integration-tests/jetton/wrappers"
-
-	jetton_wrappers "github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton"
-
 	"integration-tests/tracetracking/testutils"
-	"path"
 
 	chainsel "github.com/smartcontractkit/chain-selectors"
 	"github.com/stretchr/testify/assert"
@@ -24,6 +20,8 @@ import (
 	"github.com/xssnick/tonutils-go/ton/nft"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
+	jetton_wrappers "github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton"
+	jetton_testing_wrappers "github.com/smartcontractkit/chainlink-ton/pkg/bindings/test/examples/jetton"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )

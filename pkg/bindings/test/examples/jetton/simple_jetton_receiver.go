@@ -1,19 +1,18 @@
-package wrappers
+package jetton
 
 import (
 	"fmt"
 
-	test_utils "integration-tests/utils"
-
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
-var SimpleJettonReceiverContractPath = test_utils.GetBuildDir("examples.jetton.SimpleJettonReceiver.compiled.json")
+var SimpleJettonReceiverContractPath = bindings.GetBuildDir("examples.jetton.SimpleJettonReceiver.compiled.json")
 
 type SimpleJettonReceiverProvider struct {
 	apiClient tracetracking.SignedAPIClient

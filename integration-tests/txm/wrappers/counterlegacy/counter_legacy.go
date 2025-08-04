@@ -5,17 +5,16 @@ import (
 	"fmt"
 	"math/big"
 
-	test_utils "integration-tests/utils"
-
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
-var CounterContractPath = test_utils.GetBuildDir("CounterLegacy/tact_CounterLegacy.pkg")
+var CounterContractPath = bindings.GetBuildDir("CounterLegacy/tact_CounterLegacy.pkg")
 
 type CounterConfig struct {
 	ID    *big.Int

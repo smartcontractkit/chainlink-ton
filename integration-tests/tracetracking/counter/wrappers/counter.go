@@ -7,13 +7,12 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
-	test_utils "integration-tests/utils"
-
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
-var CounterContractPath = test_utils.GetBuildDir("examples.counter.compiled.json")
+var CounterContractPath = bindings.GetBuildDir("examples.counter.compiled.json")
 
 //nolint:revive // test purpose
 type CounterProvider struct {
