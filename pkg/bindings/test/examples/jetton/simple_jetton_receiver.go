@@ -50,12 +50,11 @@ func (p *SimpleJettonReceiverProvider) Deploy(initData SimpleJettonReceiverInitD
 	}, nil
 }
 
+// SimpleJettonReceiver automatically receives jetton transfer notifications
+// It validates the amount and optionally the payload against stored checkers
 type SimpleJettonReceiver struct {
 	Contract wrappers.Contract
 }
-
-// SimpleJettonReceiver automatically receives jetton transfer notifications
-// It validates the amount and optionally the payload against stored checkers
 
 // Getter methods
 func (r SimpleJettonReceiver) GetAmountChecker() (*tlb.Coins, error) {
