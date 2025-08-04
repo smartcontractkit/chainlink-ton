@@ -35,7 +35,7 @@ func (a Address) Value() (driver.Value, error) {
 	if a.Address == nil {
 		return nil, nil
 	}
-	return []byte(a.Address.String()), nil
+	return []byte(a.String()), nil
 }
 
 // LogParser is a function type responsible for parsing the raw log data (a TVM Cell)

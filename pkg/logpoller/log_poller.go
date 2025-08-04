@@ -201,7 +201,7 @@ func (lp *Service) Process(msg types.ExternalMsgWithBlockInfo) error {
 	if err != nil {
 		return fmt.Errorf("failed to decode event topic: %w", err)
 	}
-	lp.lggr.Tracef("Processing message", "src", msg.Msg.SrcAddr, "dst", msg.Msg.DstAddr, "topic", topic)
+	lp.lggr.Trace("Processing message", "src", msg.Msg.SrcAddr, "dst", msg.Msg.DstAddr, "topic", topic)
 
 	fIDs := lp.filters.MatchingFilters(*msg.Msg.SrcAddr, topic)
 	if len(fIDs) == 0 {
