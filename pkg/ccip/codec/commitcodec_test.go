@@ -7,10 +7,11 @@ import (
 	"math/rand"
 	"testing"
 
-	cciptypes "github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/address"
+
+	cciptypes "github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 )
 
 var randomBlessedCommitReport = func() cciptypes.CommitPluginReport {

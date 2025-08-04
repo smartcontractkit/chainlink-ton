@@ -13,7 +13,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
-var CounterContractPath = test_utils.GetBuildDir("Counter.compiled.json")
+var CounterContractPath = test_utils.GetBuildDir("examples.counter.compiled.json")
 
 //nolint:revive // test purpose
 type CounterProvider struct {
