@@ -216,8 +216,8 @@ func Test_LogPoller(t *testing.T) {
 			// Convert logs to messages for emitterA
 			var msgsA []*tlb.ExternalMessageOut
 			for _, log := range logsA {
-				c, err := cell.FromBOC(log.Data)
-				if err != nil {
+				c, cberr := cell.FromBOC(log.Data)
+				if cberr != nil {
 					t.Logf("Failed to parse log data for emitterA, will retry: %v", err)
 					return false
 				}
@@ -230,8 +230,8 @@ func Test_LogPoller(t *testing.T) {
 			// Convert logs to messages for emitterB
 			var msgsB []*tlb.ExternalMessageOut
 			for _, log := range logsB {
-				c, err := cell.FromBOC(log.Data)
-				if err != nil {
+				c, cberr := cell.FromBOC(log.Data)
+				if cberr != nil {
 					t.Logf("Failed to parse log data for emitterB, will retry: %v", err)
 					return false
 				}
