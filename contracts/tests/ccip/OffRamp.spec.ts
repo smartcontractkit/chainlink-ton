@@ -1,7 +1,7 @@
 import { Blockchain, BlockchainTransaction, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { toNano, Address, Cell, Dictionary, Message, beginCell, contractAddress } from '@ton/core'
 import { compile } from '@ton/blueprint'
-import { CommitReport, commitReportToCell, MerkleRoot, OffRampStorage, PriceUpdates } from '../../wrappers/ccip/OffRamp'
+import { Any2TVMRampMessage, CommitReport, commitReportToCell, MerkleRoot, OffRampStorage, PriceUpdates, RampMessageHeader } from '../../wrappers/ccip/OffRamp'
 import { OffRamp } from '../../wrappers/ccip/OffRamp'
 import {
   createTimestampedPriceValue,
@@ -12,8 +12,8 @@ import {
 import { assertLog, expectSuccessfulTransaction } from '../Logs'
 import '@ton/test-utils'
 import { uint8ArrayToBigInt, ZERO_ADDRESS } from '../../utils/Utils'
-import { KeyPair } from '@ton/crypto'
-import { expectEqualsConfig, generateEd25519KeyPair } from '../libraries/ocr/Helpers'
+import { KeyPair, sha256_sync } from '@ton/crypto'
+import { expectEqualsConfig, generateEd25519KeyPair, generateMockTonAddress, generateRandomAddresses, generateRandomMockAddresses } from '../libraries/ocr/Helpers'
 import {
   createSignature,
   hashReport,
@@ -25,9 +25,12 @@ import * as CCIPLogs  from '../../wrappers/ccip/Logs'
 import { setupTestFeeQuoter } from './helpers/SetUp'
 
 import { OCR3Base, ReportContext, SignatureEd25519 } from '../../wrappers/libraries/ocr/MultiOCR3Base'
+import { MerkleHelper } from '../libraries/merkle_proof/helpers/MerkleMultiProofHelper'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_TON = 13879075125137744094n
+const EVM_SENDER_ADDRESS_TEST = 0x1a5FdBc891c5D4E6aD68064Ae45D43146D4F9f3an
+const EVM_ONRAMP_ADDRESS_TEST = 0x111111c891c5D4E6aD68064Ae45D43146D4F9f3an
 
 function generateSecureRandomString(length: number): string {
   const array = new Uint8Array(length)
@@ -41,6 +44,10 @@ const createSignatures = (signerList: KeyPair[], hash: Buffer<ArrayBufferLike>):
 
 const getMerkleRootID = (root: bigint) => {
   return beginCell().storeUint(1, 16).storeUint(root, 256)
+}
+
+export function generateMessageId(message: Any2TVMRampMessage, metadataHash:bigint) {
+
 }
 
 describe('OffRamp', () => {
@@ -69,8 +76,8 @@ describe('OffRamp', () => {
 
   const merkleRootAddress = (root: MerkleRoot, owner: Address) => {
     const data = beginCell()
-      .storeAddress(offRamp.address)
-      .storeBuilder(getMerkleRootID(root.merkleRoot))
+      .storeAddress(offRamp.address) //owner
+      .storeBuilder(getMerkleRootID(root.merkleRoot)) //id
       .endCell()
 
     const init = {
@@ -78,7 +85,7 @@ describe('OffRamp', () => {
       data
     }
     const workchain = 0
-    contractAddress(workchain, init)
+    return contractAddress(workchain, init)
   }
 
   beforeAll(async () => {
@@ -236,7 +243,34 @@ describe('OffRamp', () => {
     )
   })
 
-  it('Test commit with one message', async () => {
-    
+  it('Test commit with one merkle root for one empty message', async () => {
+    const rampMessageHeader: RampMessageHeader = {
+      messageId: 1n,
+      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+      destChainSelector: CHAINSEL_TON,
+      sequenceNumber: 1n,
+      nonce: 1n
+    }
+
+    const message: Any2TVMRampMessage = {
+      header: rampMessageHeader,
+      sender: beginCell().storeUint(EVM_SENDER_ADDRESS_TEST, 160).asSlice(),
+      data: beginCell().endCell(),
+      receiver: generateMockTonAddress(),
+      tokenAmounts: beginCell().endCell(), // vec<Any2TONTokenTransfer>
+    }
+
+    const rootBytes = merkleHelper.hashLeafData()
+
+    const root: MerkleRoot = {
+      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+      onRampAddress: beginCell().storeUint(EVM_ONRAMP_ADDRESS_TEST, 120).asSlice(),
+      minSeqNr: 1n,
+      maxSeqNr: 1n,
+      merkleRoot: rootBytes
+
+    }
+
+    const report: CommitReport
   })
 })

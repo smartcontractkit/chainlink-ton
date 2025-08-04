@@ -42,7 +42,7 @@ struct Any2TVMRampMessage {
     sender: Cell<CrossChainAddress>;
     data: cell;
     receiver: address;
-    gasLimit: coins;
+    //gasLimit: coins;
     tokenAmounts: cell; // vec<Any2TONTokenTransfer>
     // maybe mark these amounts as slice remaining then parse them by hand to avoid requiring this to be a map<> at send time?
 }

@@ -51,19 +51,27 @@ export type ExecutionReport = {
   sourceChainSelector: bigint
   messages: Any2TVMRampMessage[]
   offchainTokenData: bigint[][]
-  proofs: bigint[]
-  proofFlagBits: bigint
+  proofs: bigint[] //256[]
+  proofFlagBits: bigint //256
 }
 
 export type CrossChainAddress = Slice
 
+export type RampMessageHeader = {
+  messageId: bigint, //256
+  sourceChainSelector: bigint, //64
+  destChainSelector: bigint, //64
+  sequenceNumber: bigint, //64
+  nonce: bigint, //64
+}
 
 export type Any2TVMRampMessage = {
-  sourcePoolAddress: CrossChainAddress
-  destPoolAddress: Address
-  destGasAmount: number
-  extraData: Cell
-  amount: bigint
+  header: RampMessageHeader,
+  sender: CrossChainAddress,
+  data: Cell,
+  receiver: Address,
+  //gasLimit: coins , does not make sense here
+  tokenAmounts?: Cell, // vec<Any2TONTokenTransfer>
 }
 
 export type MerkleRoot = {

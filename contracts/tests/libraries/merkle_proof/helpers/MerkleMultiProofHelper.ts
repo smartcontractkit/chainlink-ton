@@ -1,5 +1,5 @@
 import { uint8ArrayToBigInt, bigIntToUint8Array } from '../../../../utils/Utils'
-import { beginCell } from '@ton/core'
+import { beginCell, Cell } from '@ton/core'
 
 // Internal domain separator for Merkle internal nodes, represented as a 256-bit BigInt (0x01)
 const INTERNAL_DOMAIN_SEPARATOR_BIGINT =
@@ -161,3 +161,4 @@ export class MerkleHelper {
     return uint8ArrayToBigInt(hash(combinedBytes))
   }
 }
+
