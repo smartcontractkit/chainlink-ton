@@ -30,25 +30,18 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/config"
 	"github.com/smartcontractkit/chainlink-ton/pkg/fees"
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
 	tonconfig "github.com/smartcontractkit/chainlink-ton/pkg/ton/config"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/txm"
 )
-
-type LogPoller interface {
-	Start(context.Context) error
-	Ready() error
-	Close() error
-	// TODO(NONEVM-1460): add remaining functions
-}
 
 type Chain interface {
 	commontypes.ChainService
 
 	ID() string
 	TxManager() TxManager
-	LogPoller() LogPoller
-
+	LogPoller() logpoller.LogPoller
 	GetClient(ctx context.Context) (*ton.APIClient, error)
 }
 
@@ -75,7 +68,7 @@ type chain struct {
 	ds   sqlutil.DataSource
 
 	txm *txm.Txm
-	lp  LogPoller
+	lp  logpoller.LogPoller
 
 	clientCache map[int]*cachedClient
 	cacheMu     sync.RWMutex
@@ -256,7 +249,7 @@ func (c *chain) FeeEstimator() fees.Estimator {
 	return nil
 }
 
-func (c *chain) LogPoller() LogPoller {
+func (c *chain) LogPoller() logpoller.LogPoller {
 	return c.lp
 }
 

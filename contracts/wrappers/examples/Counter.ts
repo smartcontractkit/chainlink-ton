@@ -21,6 +21,12 @@ export function counterConfigToCell(config: CounterConfig): Cell {
 
 export const Opcodes = {
   OP_SET_COUNT: 0x00000004,
+  OP_INCREASE_COUNT: 0x10000005,
+}
+
+export const EventTopics = {
+  COUNT_SET_TOPIC: 0x1947b328, // crc32("CountSet")
+  COUNT_INCREASED_TOPIC: 0x1947b328, // crc32("CountIncreased")
 }
 
 export class Counter implements Contract, TypeAndVersion {
@@ -67,6 +73,25 @@ export class Counter implements Contract, TypeAndVersion {
         .storeUint(Opcodes.OP_SET_COUNT, 32)
         .storeUint(opts.queryId ?? 0, 64)
         .storeUint(opts.newCount, 32)
+        .endCell(),
+    })
+  }
+
+  async sendIncreaseCount(
+    provider: ContractProvider,
+    via: Sender,
+    opts: {
+      value: bigint
+      queryId?: number
+      newCount: number
+    },
+  ): Promise<void> {
+    await provider.internal(via, {
+      value: opts.value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: beginCell()
+        .storeUint(Opcodes.OP_SET_COUNT, 32)
+        .storeUint(opts.queryId ?? 0, 64)
         .endCell(),
     })
   }
