@@ -74,6 +74,17 @@ func (lc *LogCollector) BackfillForAddresses(ctx context.Context, addresses []*a
 	var allMsgs []types.ExternalMsgWithBlockInfo
 	var mu sync.Mutex
 	var wg sync.WaitGroup
+
+	lc.lggr.Debugf("scanning block range %s for %d contracts : ",
+		fmt.Sprintf("(%d, %d]", func() uint32 {
+			if prevBlock != nil {
+				return prevBlock.SeqNo
+			}
+			return 0
+		}(), toBlock.SeqNo),
+		len(addresses),
+	)
+
 	for _, addr := range addresses {
 		wg.Add(1)
 		go func(addr *address.Address) {
@@ -110,16 +121,6 @@ func (lc *LogCollector) fetchMessagesForAddress(ctx context.Context, addr *addre
 	if err != nil {
 		return nil, err
 	}
-	lc.lggr.Debugw("Scanning transaction range",
-		"Block range", fmt.Sprintf("(%d, %d]", func() uint32 {
-			if prevBlock != nil {
-				return prevBlock.SeqNo
-			}
-			return 0
-		}(), toBlock.SeqNo),
-		"LT range", fmt.Sprintf("(%d, %d]", startLT, endLT),
-		"address", addr.String(),
-	)
 
 	if startLT >= endLT {
 		lc.lggr.Trace("No transactions to process", "address", addr.String(), "startLT", startLT, "endLT", endLT)
@@ -200,7 +201,6 @@ func (lc *LogCollector) getTransactionBounds(ctx context.Context, addr *address.
 	switch {
 	case prevBlock == nil:
 		startLT = 0
-		lc.lggr.Debugw("fresh start", "address", addr.String(), "toSeq", toBlock.SeqNo)
 	case prevBlock.SeqNo > 0:
 		accPrev, accErr := lc.client.GetAccount(ctx, prevBlock, addr)
 		if accErr != nil {

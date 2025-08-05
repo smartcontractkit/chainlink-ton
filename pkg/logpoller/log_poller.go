@@ -160,7 +160,6 @@ func (lp *Service) getMasterchainBlockRange(ctx context.Context) (*blockRange, e
 
 	// if we've already processed this block, wait for the next one
 	if toBlock.SeqNo <= lastProcessedBlock {
-		lp.lggr.Debugw("no new blocks to process", "lastProcessed", lastProcessedBlock, "currentMaster", toBlock.SeqNo)
 		return nil, nil
 	}
 

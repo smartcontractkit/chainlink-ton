@@ -160,6 +160,13 @@ func Test_LogPoller(t *testing.T) {
 		fberr := lp.RegisterFilter(t.Context(), filterB)
 		require.NoError(t, fberr)
 
+		hasFilterA := lp.HasFilter(t.Context(), filterA.Name)
+		require.True(t, hasFilterA)
+		hasFilterB := lp.HasFilter(t.Context(), filterB.Name)
+		require.True(t, hasFilterB)
+		hasFilterC := lp.HasFilter(t.Context(), "tons of fun")
+		require.False(t, hasFilterC)
+
 		// start listening for logs
 		require.NoError(t, lp.Start(t.Context()))
 		defer func() {
