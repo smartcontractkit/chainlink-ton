@@ -55,7 +55,7 @@ type Sender struct {
 }
 
 type sendJettonsFastMessage struct {
-	_           tlb.Magic        `tlb:"#6984f9bb"` //nolint:revive // This field should stay uninitialized
+	_           tlb.Magic        `tlb:"#4C169F42"` //nolint:revive // This field should stay uninitialized
 	QueryID     uint64           `tlb:"## 64"`
 	Amount      tlb.Coins        `tlb:"."`
 	Destination *address.Address `tlb:"addr"`
@@ -72,7 +72,7 @@ func (s Sender) SendJettonsFast(amount tlb.Coins, destination *address.Address) 
 }
 
 type sendJettonsExtendedMessage struct {
-	_                tlb.Magic        `tlb:"#e815f1d0"` //nolint:revive // This field should stay uninitialized
+	_                tlb.Magic        `tlb:"#7FDA8110"` //nolint:revive // This field should stay uninitialized
 	QueryID          uint64           `tlb:"## 64"`
 	Amount           tlb.Coins        `tlb:"."`
 	Destination      *address.Address `tlb:"addr"`

@@ -9,14 +9,16 @@ struct JettonSender {
 }
 
 // Send jettons fast message (basic transfer)
-struct (0x6984f9bb) SendJettonsFast {
+// 0x4C169F42 == crc32('SendJettonsFast')
+struct (0x4C169F42) SendJettonsFast {
     queryId: uint64
     amount: coins
     destination: address
 }
 
 // Send jettons extended message (with additional parameters)
-struct (0xe815f1d0) SendJettonsExtended {
+// 0x7FDA8110 == crc32('SendJettonsExtended')
+struct (0x7FDA8110) SendJettonsExtended {
     queryId: uint64
     amount: coins
     destination: address
