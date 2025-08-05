@@ -12,7 +12,6 @@ import * as counter from '../../wrappers/examples/Counter'
 import * as ownable2step from '../../wrappers/libraries/access/Ownable2Step'
 
 import { crc32 } from 'zlib'
-import { time } from 'console'
 
 describe('MCMS - RBACTimelockCancelTest', () => {
   let blockchain: Blockchain
@@ -74,6 +73,14 @@ describe('MCMS - RBACTimelockCancelTest', () => {
 
   beforeEach(async () => {
     blockchain = await Blockchain.create()
+    blockchain.now = 1
+    // Verbosity = 'none' | 'vm_logs' | 'vm_logs_location' | 'vm_logs_gas' | 'vm_logs_full' | 'vm_logs_verbose';
+    blockchain.verbosity = {
+      print: true,
+      blockchainLogs: false,
+      vmLogs: 'none',
+      debugLogs: true,
+    }
 
     // Set up accounts
     acc = {
@@ -253,15 +260,7 @@ describe('MCMS - RBACTimelockCancelTest', () => {
     }
 
     // Wait for delay
-    /* TODO Setting .now breaks execution. Temporarily using sleep instead
-    const now = new Date()
-    console.log('Now is', now)
-    blockchain.now = now.getTime() + MIN_DELAY + 1
-    console.log('Now is', blockchain.now)
-    */
-
-    // sleep for 1 second
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    blockchain.now = blockchain.now!! + MIN_DELAY + 1
 
     // Execute operation
     {
