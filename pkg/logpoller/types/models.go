@@ -71,7 +71,7 @@ func (l Log) String() string {
 	return sb.String()
 }
 
-type TxWithBlockInfo struct {
+type IndexedTx struct {
 	Tx *tlb.Transaction
 	// TODO(NONEVM-2194): store block metadata
 	// ShardBlock     *ton.BlockIDExt
@@ -79,7 +79,7 @@ type TxWithBlockInfo struct {
 	// BlockTimestamp time.Time
 }
 
-type ExternalMsgWithBlockInfo struct {
-	TxWithBlockInfo
+type IndexedMsg struct {
+	IndexedTx
 	Msg *tlb.ExternalMessageOut
 }

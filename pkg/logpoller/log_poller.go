@@ -206,7 +206,7 @@ func (lp *Service) processBlockRange(ctx context.Context, addresses []*address.A
 }
 
 // processMessages iterates through external messages and processes each one
-func (lp *Service) processMessages(msgs []types.ExternalMsgWithBlockInfo) error {
+func (lp *Service) processMessages(msgs []types.IndexedMsg) error {
 	for _, msg := range msgs {
 		if err := lp.Process(msg); err != nil {
 			return err
@@ -219,7 +219,7 @@ func (lp *Service) processMessages(msgs []types.ExternalMsgWithBlockInfo) error 
 // 1. Extracts event topic from destination address
 // 2. Finds matching filters for the source address and topic
 // 3. Saves logs for each matching filter
-func (lp *Service) Process(msg types.ExternalMsgWithBlockInfo) error {
+func (lp *Service) Process(msg types.IndexedMsg) error {
 	bucket := event.NewExtOutLogBucket(msg.Msg.DstAddr)
 	topic, err := bucket.DecodeEventTopic()
 	if err != nil {

@@ -36,7 +36,7 @@ import (
 //
 
 type MessageLoader interface {
-	BackfillForAddresses(ctx context.Context, addresses []*address.Address, prevBlock, toBlock *ton.BlockIDExt) ([]types.ExternalMsgWithBlockInfo, error)
+	BackfillForAddresses(ctx context.Context, addresses []*address.Address, prevBlock, toBlock *ton.BlockIDExt) ([]types.IndexedMsg, error)
 }
 
 var _ MessageLoader = (*LogCollector)(nil)
@@ -70,8 +70,8 @@ func NewLogCollector(
 // Production version will use background worker pools for better resource management.
 //
 // TODO(NONEVM-2188): refactor to use background workers for scale in production
-func (lc *LogCollector) BackfillForAddresses(ctx context.Context, addresses []*address.Address, prevBlock *ton.BlockIDExt, toBlock *ton.BlockIDExt) ([]types.ExternalMsgWithBlockInfo, error) {
-	var allMsgs []types.ExternalMsgWithBlockInfo
+func (lc *LogCollector) BackfillForAddresses(ctx context.Context, addresses []*address.Address, prevBlock *ton.BlockIDExt, toBlock *ton.BlockIDExt) ([]types.IndexedMsg, error) {
+	var allMsgs []types.IndexedMsg
 	var mu sync.Mutex
 	var wg sync.WaitGroup
 
@@ -113,7 +113,7 @@ func (lc *LogCollector) BackfillForAddresses(ctx context.Context, addresses []*a
 //
 // Note: Block range (prevBlock, toBlock] is exclusive of prevBlock, inclusive of toBlock
 // TODO: stream messages back to log poller to avoid memory overhead in production
-func (lc *LogCollector) fetchMessagesForAddress(ctx context.Context, addr *address.Address, prevBlock *ton.BlockIDExt, toBlock *ton.BlockIDExt) ([]types.ExternalMsgWithBlockInfo, error) {
+func (lc *LogCollector) fetchMessagesForAddress(ctx context.Context, addr *address.Address, prevBlock *ton.BlockIDExt, toBlock *ton.BlockIDExt) ([]types.IndexedMsg, error) {
 	if prevBlock != nil && prevBlock.SeqNo >= toBlock.SeqNo {
 		return nil, fmt.Errorf("prevBlock %d is not before toBlock %d", prevBlock.SeqNo, toBlock.SeqNo)
 	}
@@ -127,7 +127,7 @@ func (lc *LogCollector) fetchMessagesForAddress(ctx context.Context, addr *addre
 		return nil, nil
 	}
 
-	var msgsWithCtx []types.ExternalMsgWithBlockInfo
+	var msgsWithCtx []types.IndexedMsg
 	curLT, curHash := endLT, endHash
 
 	for {
@@ -157,9 +157,9 @@ func (lc *LogCollector) fetchMessagesForAddress(ctx context.Context, addr *addre
 				ext := msg.AsExternalOut()
 				if ext.Body != nil {
 					// TODO: stream back to log poller.Process
-					event := types.ExternalMsgWithBlockInfo{
+					event := types.IndexedMsg{
 						// TODO(NONEVM-2194): populate block metadata
-						TxWithBlockInfo: types.TxWithBlockInfo{
+						IndexedTx: types.IndexedTx{
 							Tx: tx,
 						},
 						Msg: ext,
