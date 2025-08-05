@@ -88,7 +88,6 @@ func (lc *LogCollector) BackfillForAddresses(ctx context.Context, addresses []*a
 	if err != nil {
 		return nil, err
 	}
-	lc.lggr.Tracef("Discovered shards to scan across master blocks", "master_block_count", len(shardsToScanByMaster))
 
 	return lc.scanShardsForMessages(ctx, shardsToScanByMaster, monitoredAddresses)
 }
@@ -139,9 +138,9 @@ func (lc *LogCollector) scanShardsForMessages(ctx context.Context, shardsByMaste
 
 	// scan all discovered shard blocks concurrently for relevant transactions.
 	for master, shards := range shardsByMaster {
-		lc.lggr.Tracef("Scanning shards for master block", "master_seqno", master.SeqNo, "shard_count", len(shards))
+		lc.lggr.Trace("Scanning shards for master block", "master_seqno", master.SeqNo, "shard_count", len(shards))
 		for _, shard := range shards {
-			lc.lggr.Tracef("Scanning shard", "shard_workchain", shard.Workchain, "shard_id", shard.Shard, "seqno", shard.SeqNo)
+			lc.lggr.Trace("Scanning shard", "shard_workchain", shard.Workchain, "shard_id", shard.Shard, "seqno", shard.SeqNo)
 			wg.Add(1)
 			go func(masterBlock, shardBlock *ton.BlockIDExt) {
 				defer wg.Done()
@@ -160,7 +159,7 @@ func (lc *LogCollector) scanShardsForMessages(ctx context.Context, shardsByMaste
 	}
 	wg.Wait()
 
-	lc.lggr.Tracef("Finished scanning all shards.", "total_txs_found", len(allFoundTxs))
+	lc.lggr.Tracef("finished scanning all shards. total_txs_found: %d", len(allFoundTxs))
 
 	var finalMessages []types.ExternalMsgWithBlockInfo
 	// iterate through all found transactions and extract the external outbound messages.
