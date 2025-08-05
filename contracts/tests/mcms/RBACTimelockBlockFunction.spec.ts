@@ -551,11 +551,11 @@ describe('MCMS - RBACTimelockBlockFunctionTest', () => {
         salt: EMPTY_SALT,
       }
 
-      // TODO: this is returning an exit code 2
-      // const operationID = await bind.timelock.getHashOperationBatch(operationBatch)
+      // TODO: this is returning an exit code 2 @krebernisak
+      const operationID = await bind.timelock.getHashOperationBatch(operationBatch)
 
-      const offchainId = rbactl.builder.data.operationBatch.encode(operationBatch).hash()
-      const operationID = BigInt('0x' + offchainId.toString('hex'))
+      //   const offchainId = rbactl.builder.data.operationBatch.encode(operationBatch).hash()
+      //   const operationID = BigInt('0x' + offchainId.toString('hex'))
 
       expect(await bind.timelock.isOperation(operationID)).toBe(true)
     }
