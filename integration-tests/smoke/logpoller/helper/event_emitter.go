@@ -52,7 +52,6 @@ func SendBulkTestEventTxs(t *testing.T, client ton.APIClientWrapped, batchCount,
 		return currentCounter == expectedCounter
 	}, 30*time.Second, 2*time.Second, "Counter did not reach expected value within timeout")
 
-	time.Sleep(20 * time.Second)
 	return emitter, txs
 }
 
@@ -108,6 +107,8 @@ type TestEventSource struct {
 	mu      sync.RWMutex
 	running bool
 	done    chan struct{}
+
+	err error
 }
 
 func NewTestEventSource(ctx context.Context, client ton.APIClientWrapped, wallet *wallet.Wallet, name string, id uint32, lggr logger.Logger) (*TestEventSource, error) {
@@ -176,21 +177,35 @@ func (e *TestEventSource) Start(ctx context.Context, interval time.Duration, tar
 	e.targetCounter = targetCounter
 	e.done = make(chan struct{})
 	e.running = true
+	e.err = nil
 
 	go e.eventLoop(ctx, interval)
 	return nil
 }
 
-func (e *TestEventSource) Stop() {
+func (e *TestEventSource) Stop() error {
+	e.mu.Lock()
+	if !e.running {
+		e.mu.Unlock()
+		return nil
+	}
+	e.mu.Unlock()
+
+	// wait for the event loop
+	<-e.done
+
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	if !e.running {
-		return
-	}
-
-	<-e.done
 	e.running = false
+	// return error if any
+	return e.err
+}
+
+func (e *TestEventSource) Err() error {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	return e.err
 }
 
 func (e *TestEventSource) IsRunning() bool {
@@ -200,15 +215,19 @@ func (e *TestEventSource) IsRunning() bool {
 }
 
 func (e *TestEventSource) eventLoop(ctx context.Context, interval time.Duration) {
+	defer close(e.done)
+
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
-	target := uint32(e.targetCounter.Uint64()) //nolint:gosec // target is controlled by the test
+	target := uint32(e.targetCounter.Uint64())
 
 	for {
 		select {
 		case <-ctx.Done():
-			close(e.done)
+			e.mu.Lock()
+			e.err = ctx.Err()
+			e.mu.Unlock()
 			return
 		case <-ticker.C:
 			e.mu.RLock()
@@ -216,15 +235,19 @@ func (e *TestEventSource) eventLoop(ctx context.Context, interval time.Duration)
 			e.mu.RUnlock()
 
 			if sent >= target {
-				close(e.done)
+				// target reached, this is a clean shutdown.
 				return
 			}
 
-			// Send message outside the lock
 			if _, _, err := e.SendIncreaseCounterMsg(ctx); err != nil {
-				e.lggr.Debugf("ERROR sending message from %s: %v", e.name, err)
+				if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+					e.lggr.Errorf("Could not send message from %s due to context cancellation: %v", e.name, err)
+					e.mu.Lock()
+					e.err = fmt.Errorf("unrecoverable error in event loop: %w", err)
+					e.mu.Unlock()
+					return
+				}
 			} else {
-				// Only lock when updating the counter
 				e.mu.Lock()
 				e.sentCounter++
 				e.mu.Unlock()
@@ -323,8 +346,7 @@ func (e *TestEventSource) sendManyIncreaseCountMsgs(ctx context.Context, count i
 	}
 	tx, block, err := e.wallet.SendManyWaitTransaction(ctx, messages)
 	if err != nil {
-		e.lggr.Debugf("Failed to send multiple messages: %v", err)
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("failed to send multiple messages: %w", err)
 	}
 
 	return tx, block, nil

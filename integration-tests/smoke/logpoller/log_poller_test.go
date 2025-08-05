@@ -193,7 +193,7 @@ func Test_LogPoller(t *testing.T) {
 			}
 
 			if counterA.Uint64() < uint64(targetCounter) {
-				t.Logf("Waiting for on-chain counter A... have %d, want %d", counterA.Uint64(), targetCounter)
+				t.Logf("Waiting for on-chain counter A... %d/%d", counterA.Uint64(), targetCounter)
 				return false
 			}
 
@@ -205,7 +205,7 @@ func Test_LogPoller(t *testing.T) {
 			}
 
 			if counterB.Uint64() < uint64(targetCounter) {
-				t.Logf("Waiting for on-chain counter B... have %d, want %d", counterB.Uint64(), targetCounter)
+				t.Logf("Waiting for on-chain counter B... %d/%d", counterB.Uint64(), targetCounter)
 				return false
 			}
 
@@ -814,24 +814,6 @@ func Test_LogPoller(t *testing.T) {
 				require.NoError(t, err)
 				require.Empty(t, result.Logs)
 				require.False(t, result.HasMore)
-			})
-
-			// TODO: remove, only for debugging purposes
-			t.Run("Dump Stored Logs", func(t *testing.T) {
-				t.Parallel()
-
-				result := lp.GetLogs(emitterA.ContractAddress())
-				require.Len(t, result, targetCounter)
-
-				log := result[0]
-				c, err := cell.FromBOC(log.Data)
-				require.NoError(t, err)
-				var event counter.CountIncreasedEvent
-				err = tlb.LoadFromCell(&event, c.BeginParse())
-				require.NoError(t, err)
-
-				t.Logf("Log: TxLT=%d, Counter=%d", log.TxLT, event.Value)
-				t.Logf("Full Log Details:\n%s", log)
 			})
 		})
 	})

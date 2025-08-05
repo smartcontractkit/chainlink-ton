@@ -130,11 +130,10 @@ func (lp *Service) run(ctx context.Context) (err error) {
 
 	// if we've already processed this block, wait for the next one
 	if toBlock.SeqNo <= lastProcessedSeq {
-		lp.lggr.Debugw("no new blocks to process",
-			"lastProcessed", lastProcessedSeq,
-			"currentMaster", toBlock.SeqNo)
+		lp.lggr.Debugw("no new blocks to process", "lastProcessed", lastProcessedSeq, "currentMaster", toBlock.SeqNo)
 		return nil
 	}
+	lp.lggr.Debugf("new block found, processing range (%d, %d]", lastProcessedSeq, toBlock.SeqNo)
 
 	// load the addresses from filters that we're interested in
 	addresses := lp.filters.GetDistinctAddresses()
@@ -155,6 +154,7 @@ func (lp *Service) run(ctx context.Context) (err error) {
 		}
 	}
 
+	// TODO: can we log estimated catchup time?
 	err = lp.processBlocksRange(ctx, addresses, prevBlock, toBlock)
 	if err != nil {
 		return fmt.Errorf("processBlocksRange: %w", err)
