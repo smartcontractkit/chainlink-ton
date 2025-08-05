@@ -2,6 +2,8 @@
   stdenv,
   pkgs,
   lib,
+  chainlink-ton,
+  jetton-contracts,
 }:
 pkgs.mkShell {
   buildInputs = with pkgs;
@@ -28,12 +30,23 @@ pkgs.mkShell {
       kubernetes-helm
       yq-go # for manipulating golangci-lint config
     ]
+    ++ [
+      # Chainlink TON packages
+      chainlink-ton
+      jetton-contracts
+    ]
     ++ lib.optionals stdenv.hostPlatform.isDarwin [
       libiconv
     ];
   shellHook = ''
+    # Export jetton contracts path
+    export PATH_CONTRACTS_JETTON="${jetton-contracts}/lib/node_modules/jetton/build/"
+    
     # use upstream golangci-lint config from core Chainlink repository, overriding the local prefixes
     alias golint="golangci-lint run --config <(curl -sSL https://raw.githubusercontent.com/smartcontractkit/chainlink/develop/.golangci.yml | yq e '.formatters.settings.goimports.local-prefixes = [\"github.com/smartcontractkit/chainlink-ton\"]' -) --path-mode \"abs\""
+    echo ""
+    echo "Jetton contracts located here: $PATH_CONTRACTS_JETTON"
+    echo "Chainlink TON binary available as: chainlink-ton"
     echo ""
     echo "You can lint your code with:"
     echo "    cd pkg && golint ./..."
