@@ -39,7 +39,8 @@ func (p *OnrampMockProvider) Deploy(initData OnrampMockInitData) (OnrampMock, er
 	if err != nil {
 		return OnrampMock{}, fmt.Errorf("failed to compile contract: %w", err)
 	}
-	contract, _, err := wrappers.Deploy(&p.apiClient, compiledContract, initCell, tlb.MustFromTON("1"), cell.BeginCell().EndCell())
+	body := cell.BeginCell().EndCell()
+	contract, _, err := wrappers.Deploy(&p.apiClient, compiledContract, initCell, tlb.MustFromTON("1"), body)
 	if err != nil {
 		return OnrampMock{}, err
 	}
