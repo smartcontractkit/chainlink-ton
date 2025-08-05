@@ -10,12 +10,13 @@ import (
 )
 
 type Storage struct {
-	Ownable common.Ownable2Step `tlb:"^"`
+	Ownable common.Ownable2Step `tlb:"."`
 	OnRamp  *address.Address    `tlb:"addr"`
 }
 
 type SetRamp struct {
 	_                 tlb.Magic        `tlb:"#10000001"` //nolint:revive // Ignore opcode tag
+	QueryID           uint64           `tlb:"## 64"`
 	DestChainSelector uint64           `tlb:"## 64"`
 	OnRamp            *address.Address `tlb:"addr"`
 }

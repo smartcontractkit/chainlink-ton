@@ -57,6 +57,7 @@ func deployOnRamp(b operations.Bundle, deps TonDeps, in DeployOnRampInput) (Depl
 			AllowListAdmin: deps.TonChain.WalletAddress,
 		},
 		DestChainConfigs: nil,
+		KeyLen:           64,
 	}
 	initData, err := tlb.ToCell(storage)
 	if err != nil {
@@ -67,6 +68,7 @@ func deployOnRamp(b operations.Bundle, deps TonDeps, in DeployOnRampInput) (Depl
 	if err != nil {
 		return output, fmt.Errorf("failed to deploy onramp contract: %w", err)
 	}
+	b.Logger.Infow("Deployed OnRamp", "addr", contract.Address)
 
 	output.Address = contract.Address
 	return output, nil
@@ -113,7 +115,7 @@ func updateOnRampDestChainConfigs(b operations.Bundle, deps TonDeps, in UpdateOn
 	messages := []*tlb.InternalMessage{
 		{
 			Bounce: true,
-			// Amount:      amount,
+			Amount: tlb.MustFromTON("1"),
 			// TODO: need to add more addresses to deployments state, CCIPAddress should be OnRamp
 			DstAddr: &address,
 			Body:    payload,

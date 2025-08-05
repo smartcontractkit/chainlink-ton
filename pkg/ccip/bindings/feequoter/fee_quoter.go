@@ -11,13 +11,14 @@ import (
 )
 
 type Storage struct {
-	Ownable                      common.Ownable2Step `tlb:"^"`
+	Ownable                      common.Ownable2Step `tlb:"."`
 	MaxFeeJuelsPerMsg            *big.Int            `tlb:"## 96"`
 	LinkToken                    *address.Address    `tlb:"addr"`
 	TokenPriceStalenessThreshold uint64              `tlb:"## 64"`
 	UsdPerToken                  *cell.Dictionary    `tlb:"dict 267"`
 	PremiumMultiplierWeiPerEth   *cell.Dictionary    `tlb:"dict 267"`
 	DestChainConfigs             *cell.Dictionary    `tlb:"dict 64"`
+	KeyLen                       uint16              `tlb:"## 16"`
 }
 
 type DestChainConfig struct {

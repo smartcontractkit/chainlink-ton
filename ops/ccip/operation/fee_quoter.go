@@ -52,6 +52,10 @@ func deployFeeQuoter(b operations.Bundle, deps TonDeps, in DeployFeeQuoterInput)
 		MaxFeeJuelsPerMsg:            in.Params.MaxFeeJuelsPerMsg,
 		LinkToken:                    in.LinkAddr,
 		TokenPriceStalenessThreshold: in.Params.TokenPriceStalenessThreshold,
+		UsdPerToken:                  nil,
+		PremiumMultiplierWeiPerEth:   nil,
+		DestChainConfigs:             nil,
+		KeyLen:                       64,
 	}
 	initData, err := tlb.ToCell(storage)
 	if err != nil {
@@ -64,6 +68,7 @@ func deployFeeQuoter(b operations.Bundle, deps TonDeps, in DeployFeeQuoterInput)
 	if err != nil {
 		return output, fmt.Errorf("failed to deploy fee quoter contract: %w", err)
 	}
+	b.Logger.Infow("Deployed FeeQuoter", "addr", contract.Address)
 
 	output.Address = contract.Address
 	return output, nil
@@ -82,6 +87,7 @@ var UpdateFeeQuoterDestChainConfigsOp = operations.NewOperation(
 )
 
 func updateFeeQuoterDestChainConfigs(b operations.Bundle, deps TonDeps, in UpdateFeeQuoterDestChainConfigsInput) ([][]byte, error) {
+	// TODO: needs to be FeeQuoter, not OnRamp
 	address := deps.CCIPOnChainState.TonChains[deps.TonChain.Selector].CCIPAddress
 
 	input := feequoter.UpdateDestChainConfigs{
@@ -97,7 +103,7 @@ func updateFeeQuoterDestChainConfigs(b operations.Bundle, deps TonDeps, in Updat
 	messages := []*tlb.InternalMessage{
 		{
 			Bounce: true,
-			// Amount:      amount,
+			Amount: tlb.MustFromTON("1"),
 			// TODO: need to add more addresses to deployments state, CCIPAddress should be FeeQuoter
 			DstAddr: &address,
 			Body:    payload,

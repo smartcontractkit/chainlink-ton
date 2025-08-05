@@ -15,6 +15,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink/deployment/ccip/changeset/v1_6"
 	"github.com/smartcontractkit/chainlink/deployment/ccip/shared"
+	"github.com/smartcontractkit/chainlink/deployment/ccip/shared/stateview"
 	"github.com/smartcontractkit/chainlink/deployment/environment/memory"
 	"github.com/smartcontractkit/chainlink/v2/core/logger"
 
@@ -45,11 +46,12 @@ func TestDeploy(t *testing.T) {
 	tonChainSelectors := env.BlockChains.ListChainSelectors(chain.WithFamily(chain_selectors.FamilyTon))
 	require.Len(t, tonChainSelectors, 1, "Expected exactly 1 Ton chain")
 	chainSelector := tonChainSelectors[0]
-	deployer := env.BlockChains.TonChains()[chainSelector].Wallet
+	tonChain := env.BlockChains.TonChains()[chainSelector]
+	deployer := tonChain.Wallet
 	t.Log("Deployer: ", deployer)
 
 	// memory environment doesn't block on funding so changesets can execute before the env is fully ready, manually call fund so we block here
-	test_utils.FundTonWallets(t, env.BlockChains.TonChains()[chainSelector].Client, []*address.Address{deployer.Address()}, []tlb.Coins{tlb.MustFromTON("1000")})
+	test_utils.FundWallets(t, env.BlockChains.TonChains()[chainSelector].Client, []*address.Address{deployer.Address()}, []tlb.Coins{tlb.MustFromTON("1000")})
 
 	env, _, err := commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{
 		commonchangeset.Configure(ops.DeployCCIPContracts{}, ops.DeployCCIPContractsCfg{
@@ -134,4 +136,12 @@ func TestDeploy(t *testing.T) {
 		}),
 	})
 	require.NoError(t, err, "failed to add lane")
+
+	state, err := stateview.LoadOnchainState(env)
+	require.NoError(t, err)
+	addr := state.TonChains[chainSelector].CCIPAddress
+	ctx := t.Context()
+	block, err := tonChain.Client.CurrentMasterchainInfo(ctx)
+	require.NoError(t, err)
+	tonChain.Client.RunGetMethod(ctx, block, &addr, "")
 }

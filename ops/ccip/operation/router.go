@@ -56,6 +56,7 @@ func deployRouter(b operations.Bundle, deps TonDeps, in DeployRouterInput) (Depl
 	if err != nil {
 		return output, fmt.Errorf("failed to deploy router contract: %w", err)
 	}
+	b.Logger.Infow("Deployed Router", "addr", contract.Address)
 
 	output.Address = contract.Address
 	return output, nil
@@ -92,6 +93,7 @@ func updateRouterDest(b operations.Bundle, deps TonDeps, in UpdateRouterDestInpu
 	msg := []*tlb.InternalMessage{
 		{
 			Bounce:  true,
+			Amount:  tlb.MustFromTON("1"),
 			DstAddr: &address,
 			Body:    payload,
 		},

@@ -152,22 +152,23 @@ func unpackArrayWithRefChaining[T any](root *cell.Cell) ([]T, error) {
 // Elements are stored directly in the cell's bits. If an element does not fit, a new cell is started.
 // Cells are linked via references for arrays that span multiple cells.
 func packArrayWithStaticType[T any](array []T) (*cell.Cell, error) {
+	cells := []*cell.Builder{}
 	builder := cell.BeginCell()
-	cells := []*cell.Builder{builder}
 
 	for i, v := range array {
 		c, err := tlb.ToCell(v)
 		if err != nil {
 			return nil, fmt.Errorf("failed to serialize element %d: %w", i, err)
 		}
-		if c.BitsSize() > builder.BitsLeft() {
-			builder = cell.BeginCell()
+		if c.BitsSize() > builder.BitsLeft() || builder.RefsLeft() <= 1 {
 			cells = append(cells, builder)
+			builder = cell.BeginCell()
 		}
 		if err := builder.StoreBuilder(c.ToBuilder()); err != nil {
 			return nil, fmt.Errorf("failed to store element %d: %w", i, err)
 		}
 	}
+	cells = append(cells, builder)
 
 	// Link cells in reverse order
 	var next *cell.Cell
@@ -228,11 +229,8 @@ func packByteArrayToCell(data []byte) (*cell.Cell, error) {
 			return nil, fmt.Errorf("bytesFit %d overflows int", bytesFit)
 		}
 
-		writeLen := remainingBytes
-		if int(bytesFit) < remainingBytes {
-			// current cell is smaller than remaining data, write as much as fits in the current cell
-			writeLen = int(bytesFit)
-		}
+		// current cell is smaller than remaining data, write as much as fits in the current cell
+		writeLen := min(int(bytesFit), remainingBytes)
 
 		// sanity check for writeLen before int conversion
 		if writeLen < 0 {
