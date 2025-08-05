@@ -4,6 +4,11 @@ outpkg: mocks
 filename: "{{ .InterfaceName | snakecase }}.go"
 fail-on-missing: true
 packages:
+  github.com/xssnick/tonutils-go/ton:
+    config:
+      dir: ./mocks/tonutils-go/ton
+    interfaces:
+      APIClientWrapped:
   github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3:
     config:
       dir: "./mocks/ccipocr3"

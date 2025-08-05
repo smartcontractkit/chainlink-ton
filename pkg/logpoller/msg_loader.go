@@ -99,8 +99,7 @@ func (lc *LogCollector) findAllShardsInRange(ctx context.Context, fromBlock, toM
 	for seqno := fromBlock.SeqNo + 1; seqno <= toMaster.SeqNo; seqno++ {
 		masterBlock, err := lc.client.LookupBlock(ctx, address.MasterchainID, toMaster.Shard, seqno)
 		if err != nil {
-			lc.lggr.Warnw("Failed to lookup master block, skipping", "seqno", seqno, "err", err)
-			continue
+			return nil, fmt.Errorf("failed to lookup master block %d: %w", seqno, err)
 		}
 
 		shards, err := lc.client.GetBlockShardsInfo(ctx, masterBlock)
@@ -136,6 +135,9 @@ func (lc *LogCollector) scanShardsForMessages(ctx context.Context, shardsByMaste
 	var mu sync.Mutex
 	var wg sync.WaitGroup
 
+	// Channel to receive errors from goroutines. Buffered to prevent blocking.
+	errChan := make(chan error, len(shardsByMaster)*2) // Buffer size can be generous
+
 	// scan all discovered shard blocks concurrently for relevant transactions.
 	for master, shards := range shardsByMaster {
 		lc.lggr.Trace("Scanning shards for master block", "master_seqno", master.SeqNo, "shard_count", len(shards))
@@ -144,9 +146,9 @@ func (lc *LogCollector) scanShardsForMessages(ctx context.Context, shardsByMaste
 			wg.Add(1)
 			go func(masterBlock, shardBlock *ton.BlockIDExt) {
 				defer wg.Done()
-				txs, err := lc.fetchTransactionsInBlock(ctx, masterBlock, shardBlock, monitoredAddresses) // calc: ShardNumPerMaster
+				txs, err := lc.fetchTransactionsInBlock(ctx, masterBlock, shardBlock, monitoredAddresses)
 				if err != nil {
-					lc.lggr.Errorw("Failed to fetch all transactions from shard block", "shard", getShardID(shardBlock), "seqno", shardBlock.SeqNo, "err", err)
+					errChan <- fmt.Errorf("failed to fetch transactions from shard block %s: %w", getShardID(shardBlock), err)
 					return
 				}
 				if len(txs) > 0 {
@@ -158,6 +160,14 @@ func (lc *LogCollector) scanShardsForMessages(ctx context.Context, shardsByMaste
 		}
 	}
 	wg.Wait()
+	close(errChan) // Close the channel after all goroutines are done.
+
+	// Check if any errors were sent to the channel.
+	if err := <-errChan; err != nil {
+		// If there was an error, return it immediately.
+		// This will be the first error that occurred.
+		return nil, err
+	}
 
 	lc.lggr.Tracef("finished scanning all shards. total_txs_found: %d", len(allFoundTxs))
 
@@ -186,7 +196,6 @@ func (lc *LogCollector) scanShardsForMessages(ctx context.Context, shardsByMaste
 	}
 	return finalMessages, nil
 }
-
 func (lc *LogCollector) fetchTransactionsInBlock(ctx context.Context, masterBlock, shardBlock *ton.BlockIDExt, monitoredAddresses map[string]struct{}) ([]types.TxWithBlockInfo, error) {
 	var transactions []types.TxWithBlockInfo
 	var mu sync.Mutex
@@ -212,7 +221,7 @@ func (lc *LogCollector) fetchTransactionsInBlock(ctx context.Context, masterBloc
 
 		var wg sync.WaitGroup
 		for _, info := range txInfos {
-			// TODO(NONEVM-2188): if there is 1000 transactions in a shard block, this will spawn 1000 goroutines.
+			// TODO(NONEVM-2188): if there are 1000 transactions in a shard block, this will spawn 1000 goroutines.
 			// TODO(NONEVM-2188): we need to use a fixed-size worker pool to avoid rate limit
 			wg.Add(1)
 			go func(info ton.TransactionShortInfo) {
@@ -252,7 +261,7 @@ func (lc *LogCollector) fetchTransactionsInBlock(ctx context.Context, masterBloc
 // to find all blocks that are newer than the sequence numbers in `shardLastSeqno`.
 func (lc *LogCollector) getNotSeenShards(ctx context.Context, shard *ton.BlockIDExt, shardLastSeqno map[string]uint32) ([]*ton.BlockIDExt, error) {
 	// this is the recursion's base case: stop if we've reached a shard block we have already processed.
-	if no, ok := shardLastSeqno[getShardID(shard)]; ok && no >= shard.SeqNo {
+	if seqNo, ok := shardLastSeqno[getShardID(shard)]; ok && seqNo >= shard.SeqNo {
 		return nil, nil
 	}
 

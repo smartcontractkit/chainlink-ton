@@ -76,7 +76,7 @@ func NewLogPoller(
 	client ton.APIClientWrapped,
 	cfg Config, // TODO: use global relayer config
 ) *Service {
-	store := NewInMemoryStore(lggr) // TODO: replace with ORM, orm will be injected with db connection
+	store := NewInMemoryStore(lggr) // TODO: replace with ORM, inject with db connection
 	filters := NewFilters()
 	lp := &Service{
 		lggr:       logger.Sugared(lggr),
