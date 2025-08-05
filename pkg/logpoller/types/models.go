@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/xssnick/tonutils-go/tlb"
-	"github.com/xssnick/tonutils-go/ton"
 )
 
 // TON CCIP MVP Types
@@ -73,10 +72,11 @@ func (l Log) String() string {
 }
 
 type TxWithBlockInfo struct {
-	Tx             *tlb.Transaction
-	ShardBlock     *ton.BlockIDExt
-	MasterBlock    *ton.BlockIDExt
-	BlockTimestamp time.Time
+	Tx *tlb.Transaction
+	// TODO(NONEVM-2194): store block metadata
+	// ShardBlock     *ton.BlockIDExt
+	// MasterBlock    *ton.BlockIDExt
+	// BlockTimestamp time.Time
 }
 
 type ExternalMsgWithBlockInfo struct {

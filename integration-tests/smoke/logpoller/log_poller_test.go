@@ -36,7 +36,6 @@ func Test_LogPoller(t *testing.T) {
 		const msgPerTx = 2
 
 		// block buffer(lastTx contains original msg and we should discover extOutMsg)
-		// TODO: realistically how many more blocks to be processed from the original tx? depends on network load?
 		const blockBuffer = 10
 
 		// log collector config
