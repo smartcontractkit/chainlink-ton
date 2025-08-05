@@ -13,6 +13,7 @@ import (
 type Filters interface {
 	RegisterFilter(ctx context.Context, flt types.Filter) error         // RegisterFilter adds a new filter or overwrites an existing one with the same name.
 	UnregisterFilter(ctx context.Context, name string) error            // UnregisterFilter removes a filter by its unique name.
+	HasFilter(ctx context.Context, name string) bool                    // HasFilter checks if a filter with the given name exists.
 	GetDistinctAddresses() []*address.Address                           // GetDistinctAddresses returns a slice of unique addresses that are being monitored.
 	MatchingFilters(contractAddr address.Address, topic uint32) []int64 // MatchingFilters returns all filter IDs that match a given contract address and event topic.
 }
@@ -72,6 +73,13 @@ func (f *inMemoryFilters) UnregisterFilter(_ context.Context, name string) error
 	}
 
 	return nil
+}
+
+func (f *inMemoryFilters) HasFilter(_ context.Context, name string) bool {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+	_, exists := f.filtersByName[name]
+	return exists
 }
 
 // GetDistinctAddresses returns all unique contract addresses being tracked.

@@ -33,7 +33,7 @@ type LogPoller interface {
 	services.Service
 	RegisterFilter(ctx context.Context, flt types.Filter) error
 	UnregisterFilter(ctx context.Context, name string) error
-	// TODO: expose more interface methods like HasFilter
+	HasFilter(ctx context.Context, name string) bool
 
 	// FilteredLogs queries logs using direct byte-offset filtering on the raw cell data.
 	// This method is highly efficient as it can push filtering down to the database layer
@@ -280,6 +280,11 @@ func (lp *Service) RegisterFilter(ctx context.Context, flt types.Filter) error {
 // UnregisterFilter removes a filter by name
 func (lp *Service) UnregisterFilter(ctx context.Context, name string) error {
 	return lp.filters.UnregisterFilter(ctx, name)
+}
+
+// HasFilter checks if a filter with the given name exists
+func (lp *Service) HasFilter(ctx context.Context, name string) bool {
+	return lp.filters.HasFilter(ctx, name)
 }
 
 // FilteredLogs retrieves logs filtered by address, topic, and additional cell-level queries.
