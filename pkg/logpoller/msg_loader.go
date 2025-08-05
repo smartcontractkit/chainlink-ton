@@ -213,6 +213,8 @@ func (lc *LogCollector) fetchTransactionsInBlock(ctx context.Context, masterBloc
 
 		var wg sync.WaitGroup
 		for _, info := range txInfos {
+			// TODO(NONEVM-2188): if there is 1000 transactions in a shard block, this will spawn 1000 goroutines.
+			// TODO(NONEVM-2188): we need to use a fixed-size worker pool to avoid rate limit
 			wg.Add(1)
 			go func(info ton.TransactionShortInfo) {
 				defer wg.Done()

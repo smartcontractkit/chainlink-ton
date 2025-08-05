@@ -181,44 +181,63 @@ func Test_LogPoller(t *testing.T) {
 			// Check both emitters' on-chain counters
 			master, err := client.CurrentMasterchainInfo(t.Context())
 			if err != nil {
-				t.Logf("Failed to get masterchain info, retrying: %v", err)
+				t.Logf("failed to get masterchain info, retrying: %v", err)
 				return false
 			}
 
 			// Check emitterA
 			counterA, err := emitterA.GetCounterValue(t.Context(), master)
 			if err != nil {
-				t.Logf("Failed to get on-chain counter for emitterA, retrying: %v", err)
+				t.Logf("failed to get on-chain counter for emitterA, retrying: %v", err)
 				return false
 			}
 
 			if counterA.Uint64() < uint64(targetCounter) {
-				t.Logf("Waiting for on-chain counter A... %d/%d", counterA.Uint64(), targetCounter)
+				t.Logf("waiting for counter A to be updated: %d/%d", counterA.Uint64(), targetCounter)
 				return false
 			}
 
 			// Check emitterB
 			counterB, err := emitterB.GetCounterValue(t.Context(), master)
 			if err != nil {
-				t.Logf("Failed to get on-chain counter for emitterB, retrying: %v", err)
+				t.Logf("failed to get on-chain counter for emitterB, retrying: %v", err)
 				return false
 			}
 
 			if counterB.Uint64() < uint64(targetCounter) {
-				t.Logf("Waiting for on-chain counter B... %d/%d", counterB.Uint64(), targetCounter)
+				t.Logf("waiting for counter B to be updated: %d/%d", counterB.Uint64(), targetCounter)
 				return false
 			}
 
-			// Check log poller has ingested events from both
-			logsA := lp.GetLogs(emitterA.ContractAddress())
-			logsB := lp.GetLogs(emitterB.ContractAddress())
+			// get all logs
+			queries := []logpoller.CellQuery{
+				{
+					Offset:   4,
+					Operator: logpoller.GT,
+					Value:    binary.BigEndian.AppendUint32(nil, 0),
+				},
+				{
+					Offset:   4,
+					Operator: logpoller.LTE,
+					Value:    binary.BigEndian.AppendUint32(nil, targetCounter),
+				},
+			}
+
+			options := logpoller.QueryOptions{} // Default options (no sorting, no pagination)
+
+			resA, err := lp.FilteredLogs(t.Context(), emitterA.ContractAddress(), counter.CountIncreasedEventTopic, queries, options)
+			require.NoError(t, err) // query should not fail
+			resB, err := lp.FilteredLogs(t.Context(), emitterB.ContractAddress(), counter.CountIncreasedEventTopic, queries, options)
+			require.NoError(t, err) // query should not fail
+
+			t.Logf("emitterA logs count: %d, emitterB logs count: %d", len(resA.Logs), len(resB.Logs))
 
 			// Convert logs to messages for emitterA
 			var msgsA []*tlb.ExternalMessageOut
-			for _, log := range logsA {
+			for _, log := range resA.Logs {
 				c, cberr := cell.FromBOC(log.Data)
 				if cberr != nil {
-					t.Logf("Failed to parse log data for emitterA, will retry: %v", err)
+					t.Logf("failed to parse log data for emitterA, will retry: %v", err)
 					return false
 				}
 				ext := &tlb.ExternalMessageOut{
@@ -229,10 +248,10 @@ func Test_LogPoller(t *testing.T) {
 
 			// Convert logs to messages for emitterB
 			var msgsB []*tlb.ExternalMessageOut
-			for _, log := range logsB {
+			for _, log := range resB.Logs {
 				c, cberr := cell.FromBOC(log.Data)
 				if cberr != nil {
-					t.Logf("Failed to parse log data for emitterB, will retry: %v", err)
+					t.Logf("failed to parse log data for emitterB, will retry: %v", err)
 					return false
 				}
 				ext := &tlb.ExternalMessageOut{
@@ -244,36 +263,36 @@ func Test_LogPoller(t *testing.T) {
 			// Verify the content of the logs for emitterA (no duplicates, all counters present)
 			verrA := helper.VerifyLoadedEvents(msgsA, targetCounter)
 			if verrA != nil {
-				t.Logf("Log verification failed for emitterA, will retry: %v", verrA)
+				t.Logf("log verification failed for emitterA, will retry: %v", verrA)
 				return false
 			}
 
 			// Verify the content of the logs for emitterB (no duplicates, all counters present)
 			verrB := helper.VerifyLoadedEvents(msgsB, targetCounter)
 			if verrB != nil {
-				t.Logf("Log verification failed for emitterB, will retry: %v", verrB)
+				t.Logf("log verification failed for emitterB, will retry: %v", verrB)
 				return false
 			}
 
-			if len(logsA) != targetCounter {
+			if len(resA.Logs) != targetCounter {
 				for _, msg := range msgsA {
 					var event counter.CountIncreasedEvent
 					err = tlb.LoadFromCell(&event, msg.Body.BeginParse())
 					require.NoError(t, err)
-					t.Logf("EmitterA Event Counter=%d", event.Value)
+					t.Logf("emitterA Event Counter=%d", event.Value)
 				}
-				t.Logf("Waiting for logs A... have %d, want %d", len(logsA), targetCounter)
+				t.Logf("waiting for logs A... have %d, want %d", len(resA.Logs), targetCounter)
 				return false // Not enough logs yet, Eventually will retry.
 			}
 
-			if len(logsB) != targetCounter {
+			if len(resB.Logs) != targetCounter {
 				for _, msg := range msgsB {
 					var event counter.CountIncreasedEvent
 					err = tlb.LoadFromCell(&event, msg.Body.BeginParse())
 					require.NoError(t, err)
-					t.Logf("EmitterB Event Counter=%d", event.Value)
+					t.Logf("emitterB Event Counter=%d", event.Value)
 				}
-				t.Logf("Waiting for logs B... have %d, want %d", len(logsB), targetCounter)
+				t.Logf("waiting for logs B... have %d, want %d", len(resB.Logs), targetCounter)
 				return false // Not enough logs yet, Eventually will retry.
 			}
 

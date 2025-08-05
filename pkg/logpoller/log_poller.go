@@ -33,7 +33,7 @@ type LogPoller interface {
 	services.Service
 	RegisterFilter(ctx context.Context, flt types.Filter) error
 	UnregisterFilter(ctx context.Context, name string) error
-	// TODO: expose more interface methods if needed
+	// TODO: expose more interface methods like HasFilter
 
 	// FilteredLogs queries logs using direct byte-offset filtering on the raw cell data.
 	// This method is highly efficient as it can push filtering down to the database layer
@@ -76,7 +76,7 @@ func NewLogPoller(
 	client ton.APIClientWrapped,
 	cfg Config, // TODO: use global relayer config
 ) *Service {
-	store := NewInMemoryStore(lggr)
+	store := NewInMemoryStore(lggr) // TODO: replace with ORM, orm will be injected with db connection
 	filters := NewFilters()
 	lp := &Service{
 		lggr:       logger.Sugared(lggr),
@@ -216,7 +216,7 @@ func (lp *Service) Process(msg types.ExternalMsgWithBlockInfo) error {
 			Address: types.Address{Address: msg.Msg.SrcAddr},
 			Data:    msg.Msg.Body.ToBOC(),
 
-			TxHash:      msg.Tx.Hash,
+			TxHash:      types.TxHash(msg.Tx.Hash),
 			TxLT:        msg.Tx.LT,
 			TxTimestamp: time.Unix(int64(msg.Tx.Now), 0).UTC(),
 
@@ -254,11 +254,6 @@ func (lp *Service) RegisterFilter(ctx context.Context, flt types.Filter) error {
 // UnregisterFilter removes a filter by name
 func (lp *Service) UnregisterFilter(ctx context.Context, name string) error {
 	return lp.filters.UnregisterFilter(ctx, name)
-}
-
-// GetLogs retrieves all logs for a specific event source address
-func (lp *Service) GetLogs(evtSrcAddress *address.Address) []types.Log {
-	return lp.store.GetLogs(evtSrcAddress.String())
 }
 
 // FilteredLogs retrieves logs filtered by address, topic, and additional cell-level queries.

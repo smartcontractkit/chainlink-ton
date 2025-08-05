@@ -14,7 +14,6 @@ import (
 
 type LogStore interface {
 	SaveLog(log types.Log)
-	GetLogs(address string) []types.Log
 	FilteredLogs(address string, topic uint32, queries []CellQuery, options QueryOptions) (QueryResult, error)
 	FilteredLogsWithParser(address string, topic uint32, parser types.LogParser, filter types.LogFilter) ([]any, error)
 }
@@ -51,19 +50,6 @@ func (s *InMemoryStore) SaveLog(log types.Log) {
 		log.ExpiresAt = &exp
 	}
 	s.logs = append(s.logs, log)
-}
-
-// TODO: remove, test purpose only
-func (s *InMemoryStore) GetLogs(evtSrcAddress string) []types.Log {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	var out []types.Log
-	for _, log := range s.logs {
-		if log.Address.String() == evtSrcAddress {
-			out = append(out, log)
-		}
-	}
-	return out
 }
 
 // FilteredLogs finds logs by address and topic, then applies cell-level filters.

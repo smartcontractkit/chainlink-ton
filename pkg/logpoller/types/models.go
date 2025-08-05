@@ -37,7 +37,7 @@ type Log struct {
 	EventTopic uint32 // Topic identifier for categorizing the log entry.
 	Data       []byte // Raw BOC (Bag of Cells) of the body cell containing the log data(message body).
 
-	TxHash      []byte    // Transaction hash for uniqueness within the blockchain.
+	TxHash      TxHash    // Transaction hash for uniqueness within the blockchain.
 	TxLT        uint64    // Logical time (LT) of the transaction, used for ordering and uniqueness.
 	TxTimestamp time.Time // Timestamp of the transaction that generated the log.
 
@@ -59,7 +59,7 @@ func (l Log) String() string {
 	sb.WriteString(fmt.Sprintf("Log ID: %d\n", l.ID))
 	sb.WriteString(fmt.Sprintf("  Filter ID:    %d\n", l.FilterID))
 	sb.WriteString(fmt.Sprintf("  Address:      %s\n", l.Address))
-	sb.WriteString(fmt.Sprintf("  Tx Hash:      %s\n", hex.EncodeToString(l.TxHash)))
+	sb.WriteString(fmt.Sprintf("  Tx Hash:      %s\n", hex.EncodeToString(l.TxHash[:])))
 	sb.WriteString(fmt.Sprintf("  Tx LT:        %d\n", l.TxLT))
 	sb.WriteString(fmt.Sprintf("  Tx Timestamp: %s\n", l.TxTimestamp.Format(time.RFC3339)))
 	sb.WriteString(fmt.Sprintf("  Event Topic:  %d\n", l.EventTopic))

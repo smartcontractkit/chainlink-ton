@@ -8,6 +8,8 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
+type TxHash [32]byte
+
 // Address is a wrapper for tonutils-go's address.Address to implement database/sql interfaces.
 type Address struct {
 	*address.Address
