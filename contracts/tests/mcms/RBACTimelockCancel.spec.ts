@@ -52,8 +52,7 @@ describe('MCMS - RBACTimelockCancelTest', () => {
     counter: SandboxContract<counter.ContractClient>
   }
 
-  const MIN_DELAY = 0
-  // const MIN_DELAY = 24 * 60 * 60 * 7
+  const MIN_DELAY = 24 * 60 * 60 * 7
   const DONE_TIMESTAMP = 1
 
   const NO_PREDECESSOR = 0n
