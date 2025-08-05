@@ -67,7 +67,13 @@ type Service struct {
 	loader             MessageLoader        // Block scanner implementation
 	store              LogStore             // Log storage (MVP: in-memory, to be replaced with ORM)
 	pollPeriod         time.Duration        // How often to poll for new blocks
-	lastProcessedSeqNo uint32               // Last processed masterchain sequence number
+	lastProcessedBlock uint32               // Last processed masterchain sequence number
+}
+
+// blockRange represents a range of blocks to process
+type blockRange struct {
+	prev *ton.BlockIDExt // previous block (nil for genesis)
+	to   *ton.BlockIDExt // target block to process up to
 }
 
 // NewLogPoller creates a new TON log polling service instance
@@ -115,60 +121,79 @@ func (lp *Service) run(ctx context.Context) (err error) {
 		}
 	}()
 
-	lastProcessedSeq, err := lp.getLastProcessedSeqNo()
-	if err != nil {
-		return fmt.Errorf("LoadLastSeq: %w", err)
-	}
-	// TODO: load filter from persistent store
-	// TODO: implement backfill logic(if there is filters marked for backfill)
-
-	// get the current masterchain head, which is the block we'll process up to
-	toBlock, err := lp.client.CurrentMasterchainInfo(ctx)
+	blockRange, err := lp.getMasterchainBlockRange(ctx)
 	if err != nil {
 		return err
 	}
-
-	// if we've already processed this block, wait for the next one
-	if toBlock.SeqNo <= lastProcessedSeq {
-		lp.lggr.Debugw("no new blocks to process", "lastProcessed", lastProcessedSeq, "currentMaster", toBlock.SeqNo)
+	if blockRange == nil {
+		// no new blocks to process
 		return nil
 	}
-	lp.lggr.Debugf("new block found, processing range (%d, %d]", lastProcessedSeq, toBlock.SeqNo)
 
-	// load the addresses from filters that we're interested in
+	// TODO: load filter from persistent store
+	// TODO: implement backfill logic(if there is filters marked for backfill)
 	addresses := lp.filters.GetDistinctAddresses()
 	if len(addresses) == 0 {
 		return nil
 	}
 
-	var prevBlock *ton.BlockIDExt
-	if lastProcessedSeq == 0 {
-		// for the first run, we don't have a previous block to reference
-		prevBlock = nil
-		lp.lggr.Debugw("First run detected, processing from genesis", "toSeq", toBlock.SeqNo)
-	} else {
-		// get the prevBlock based on the last processed sequence number
-		prevBlock, err = lp.client.LookupBlock(ctx, toBlock.Workchain, toBlock.Shard, lastProcessedSeq)
-		if err != nil {
-			return fmt.Errorf("LookupBlock for previous seqno %d: %w", lastProcessedSeq, err)
-		}
+	if err := lp.processBlockRange(ctx, addresses, blockRange.prev, blockRange.to); err != nil {
+		return fmt.Errorf("processBlockRange: %w", err)
 	}
 
-	// TODO: can we log estimated catchup time?
-	err = lp.processBlocksRange(ctx, addresses, prevBlock, toBlock)
-	if err != nil {
-		return fmt.Errorf("processBlocksRange: %w", err)
-	}
-
-	// save the last processed sequence number
-	lp.lastProcessedSeqNo = toBlock.SeqNo
+	lp.lastProcessedBlock = blockRange.to.SeqNo
 	return nil
 }
 
-// processBlocksRange handles scanning a range of blocks for external messages
+// getMasterchainBlockRange calculates the range of blocks that need to be processed.
+// Returns nil if there are no new blocks to process.
+func (lp *Service) getMasterchainBlockRange(ctx context.Context) (*blockRange, error) {
+	lastProcessedBlock, err := lp.getLastProcessedBlock()
+	if err != nil {
+		return nil, fmt.Errorf("LoadLastSeq: %w", err)
+	}
+
+	toBlock, err := lp.client.CurrentMasterchainInfo(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// if we've already processed this block, wait for the next one
+	if toBlock.SeqNo <= lastProcessedBlock {
+		lp.lggr.Debugw("no new blocks to process", "lastProcessed", lastProcessedBlock, "currentMaster", toBlock.SeqNo)
+		return nil, nil
+	}
+
+	lp.lggr.Debugf("new block found, processing range (%d, %d]", lastProcessedBlock, toBlock.SeqNo)
+
+	prevBlock, err := lp.resolvePreviousBlock(ctx, lastProcessedBlock, toBlock)
+	if err != nil {
+		return nil, err
+	}
+
+	return &blockRange{prev: prevBlock, to: toBlock}, nil
+}
+
+// resolvePreviousBlock determines the previous block reference based on the last processed sequence number
+func (lp *Service) resolvePreviousBlock(ctx context.Context, lastProcessedBlock uint32, toBlock *ton.BlockIDExt) (*ton.BlockIDExt, error) {
+	if lastProcessedBlock == 0 {
+		// TODO: we shouldn't process from genesis, but rather have a pointer for starting point
+		lp.lggr.Debugw("First run detected, processing from genesis", "toSeq", toBlock.SeqNo)
+		return nil, nil
+	}
+
+	// get the prevBlock based on the last processed sequence number
+	prevBlock, err := lp.client.LookupBlock(ctx, toBlock.Workchain, toBlock.Shard, lastProcessedBlock)
+	if err != nil {
+		return nil, fmt.Errorf("LookupBlock for previous seqno %d: %w", lastProcessedBlock, err)
+	}
+	return prevBlock, nil
+}
+
+// processBlockRange handles scanning a range of blocks for external messages
 // from the specified addresses. It delegates to the LogCollector for the actual
 // block scanning and then processes the returned messages
-func (lp *Service) processBlocksRange(ctx context.Context, addresses []*address.Address, prevBlock *ton.BlockIDExt, toBlock *ton.BlockIDExt) error {
+func (lp *Service) processBlockRange(ctx context.Context, addresses []*address.Address, prevBlock *ton.BlockIDExt, toBlock *ton.BlockIDExt) error {
 	msgs, err := lp.loader.BackfillForAddresses(ctx, addresses, prevBlock, toBlock)
 	if err != nil {
 		return fmt.Errorf("BackfillForAddresses: %w", err)
@@ -234,10 +259,10 @@ func (lp *Service) Process(msg types.ExternalMsgWithBlockInfo) error {
 	return nil
 }
 
-// getLastProcessedSeqNo retrieves the last processed masterchain sequence number.
+// getLastProcessedBlock retrieves the last processed masterchain sequence number.
 // Currently uses in-memory storage; will be replaced with database persistence.
-func (lp *Service) getLastProcessedSeqNo() (uint32, error) {
-	lastProcessed := lp.lastProcessedSeqNo
+func (lp *Service) getLastProcessedBlock() (uint32, error) {
+	lastProcessed := lp.lastProcessedBlock
 	if lastProcessed > 0 {
 		return lastProcessed, nil
 	}
