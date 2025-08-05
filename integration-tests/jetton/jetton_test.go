@@ -632,8 +632,10 @@ func TestJettonAll(t *testing.T) {
 		insufficientFeeEventMessage, queryID, err := sendCallWithAmount(insufficientJettonTransferAmount)
 		require.NoError(t, err, "failed to send jettons with insufficient fee")
 		require.NotNil(t, insufficientFeeEventMessage, "Insufficient fee event message should not be nil")
-		insufficientFeeEvent, err := jetton_testing_wrappers.ParseInsufficientFeeEvent(insufficientFeeEventMessage.Body)
-		require.NoError(t, err, "failed to parse insufficient fee event")
+
+		insufficientFeeEvent := &jetton_testing_wrappers.InsufficientFeeEvent{}
+		err = tlb.LoadFromCell(insufficientFeeEvent, insufficientFeeEventMessage.Body.BeginParse())
+		require.NoError(t, err, "failed to load InsufficientFeeEvent: ", err)
 		assert.True(t, setup.Sender.Contract.Address.Equals(insufficientFeeEvent.Sender), "Sender address should match")
 		assert.Equal(t, queryID, insufficientFeeEvent.QueryID, "Query ID should match")
 		receiverJettonWallet, err := setup.common.jettonClient.GetJettonWallet(t.Context(), setup.onrampMock.Contract.Address)

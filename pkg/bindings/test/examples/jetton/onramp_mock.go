@@ -69,16 +69,6 @@ type InsufficientFeeEvent struct {
 	Sender  *address.Address `tlb:"addr"`
 }
 
-// Helper methods to parse events from transaction logs
-func ParseInsufficientFeeEvent(cell *cell.Cell) (*InsufficientFeeEvent, error) {
-	event := &InsufficientFeeEvent{}
-	err := tlb.LoadFromCell(event, cell.BeginParse())
-	if err != nil {
-		return nil, fmt.Errorf("failed to load InsufficientFeeEvent: %w", err)
-	}
-	return event, nil
-}
-
 type AcceptedRequestEvent struct {
 	QueryID uint64           `tlb:"## 64"`
 	Sender  *address.Address `tlb:"addr"`
