@@ -247,12 +247,11 @@ func (lp *Service) Process(msg types.IndexedMsg) error {
 			TxLT:        msg.Tx.LT,
 			TxTimestamp: time.Unix(int64(msg.Tx.Now), 0).UTC(),
 
-			// TODO(NONEVM-2194): store block metadata
-			// ShardBlockSeqno:     msg.ShardBlock.SeqNo,
-			// ShardBlockWorkchain: msg.ShardBlock.Workchain,
-			// ShardBlockShard:     msg.ShardBlock.Shard,
+			ShardBlockSeqno:     msg.ShardBlock.SeqNo,
+			ShardBlockWorkchain: msg.ShardBlock.Workchain,
+			ShardBlockShard:     msg.ShardBlock.Shard,
 
-			// MasterBlockSeqno: msg.MasterBlock.SeqNo,
+			MasterBlockSeqno: msg.MasterBlock.SeqNo,
 
 			CreatedAt: time.Now().UTC(),
 			// TODO: ChainID:        lp.orm.ChainID(),
