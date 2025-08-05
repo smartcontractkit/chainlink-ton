@@ -64,7 +64,7 @@ func Test_LogPoller(t *testing.T) {
 
 		t.Run("loading entire block range at once", func(t *testing.T) {
 			t.Parallel()
-			loader := logpoller.NewLogCollector(client, logger.Test(t), pageSize)
+			loader := logpoller.NewMessageLoader(client, logger.Test(t), pageSize)
 
 			msgs, berr := loader.BackfillForAddresses(
 				t.Context(),
@@ -84,7 +84,7 @@ func Test_LogPoller(t *testing.T) {
 			t.Parallel()
 			var allMsgs []*tlb.ExternalMessageOut
 
-			loader := logpoller.NewLogCollector(client, logger.Test(t), pageSize)
+			loader := logpoller.NewMessageLoader(client, logger.Test(t), pageSize)
 
 			// iterate block by block from prevBlock to toBlock
 			currentBlock := prevBlock

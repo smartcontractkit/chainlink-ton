@@ -91,7 +91,7 @@ func NewLogPoller(
 		store:      store,
 		pollPeriod: cfg.PollPeriod,
 	}
-	lp.loader = NewLogCollector(lp.client, lp.lggr, cfg.PageSize)
+	lp.loader = NewMessageLoader(lp.client, lp.lggr, cfg.PageSize)
 	lp.Service, lp.eng = services.Config{
 		Name:  "TONLogPoller",
 		Start: lp.start,
