@@ -38,7 +38,21 @@ sequenceDiagram
 
 ## Usage
 
-The [func implementation of Jettons](https://github.com/ton-blockchain/jetton-contract/tree/3d24b419f2ce49c09abf6b8703998187fe358ec9/contracts) is made available throguh nix. `#contracts` nix shell compiles the minter and wallet contracts and exposes the build directory through the environment variable `PATH_CONTRACTS_JETTON`.
+The [func implementation of Jettons](https://github.com/ton-blockchain/jetton-contract/tree/3d24b419f2ce49c09abf6b8703998187fe358ec9/contracts) is made available throguh nix.
+The minter and wallet contracts can be built by running
+
+```bash
+nix build .#contracts-jetton-func
+```
+
+appending `--print-out-paths` at the end displays the directory where they can be located.
+
+```bash
+$ nix build .#contracts-jetton-func --print-out-paths
+/nix/store/s3rsxlqskan6ripf2sii9njrzv1mhbxz-contracts-jetton-func-1.2.0
+```
+
+Furthermore, the `#contracts` nix shell compiles and exposes the build directory through the environment variable `PATH_CONTRACTS_JETTON`.
 
 ```bash
 $ nix develop .#contracts -c ls -lca $PATH_CONTRACTS_JETTON
