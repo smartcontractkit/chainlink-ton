@@ -172,8 +172,10 @@ func Test_LogPoller(t *testing.T) {
 		err = emitterB.Start(t.Context(), 1*time.Second, big.NewInt(targetCounter))
 		require.NoError(t, err)
 		defer func() {
-			emitterA.Stop()
-			emitterB.Stop()
+			err := emitterA.Stop()
+			require.NoError(t, err)
+			err = emitterB.Stop()
+			require.NoError(t, err)
 		}()
 
 		require.Eventually(t, func() bool {

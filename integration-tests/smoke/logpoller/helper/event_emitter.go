@@ -220,7 +220,7 @@ func (e *TestEventSource) eventLoop(ctx context.Context, interval time.Duration)
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
-	target := uint32(e.targetCounter.Uint64())
+	target := uint32(e.targetCounter.Uint64()) //nolint:gosec // test code
 
 	for {
 		select {
