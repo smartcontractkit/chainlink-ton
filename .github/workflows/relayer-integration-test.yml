@@ -9,6 +9,11 @@ on:
 permissions:
   contents: read
 
+env:
+  # TODO: find a way to avoid hardcoding these paths
+  STANDARD_TEST_DIRS: "./smoke/... ./txm/... ./utils/..."
+  TRACETRACKING_TEST_DIRS: "./tracetracking/..."
+
 jobs:
   integration-test:
     name: Build & Integration Test - ${{ matrix.test-suite }}
@@ -19,10 +24,8 @@ jobs:
         include:
           - test-suite: "standard"
             timeout: "30m"
-            packages: "$(nix develop -c go list ./... | grep -v './tracetracking')"
           - test-suite: "tracetracking"
             timeout: "60m"
-            packages: "./tracetracking/..."
     steps:
       - name: Check out code
         uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
@@ -45,10 +48,9 @@ jobs:
           pushd integration-tests
           
           if [ "${{ matrix.test-suite }}" = "standard" ]; then
-            # get all test packages except tracetracking
-            packages=$(nix develop -c go list ./... | grep -v "./tracetracking")
-            nix develop -c go test -v -count=1 -p=1 -timeout ${{ matrix.timeout }} $packages
+            echo "Running standard tests: ${{ env.STANDARD_TEST_DIRS }}"
+            nix develop -c go test -v -count=1 -p=1 -timeout ${{ matrix.timeout }} ${{ env.STANDARD_TEST_DIRS }}
           else
-            # run tracetracking tests
-            nix develop -c go test -v -count=1 -p=1 -timeout ${{ matrix.timeout }} ${{ matrix.packages }}
+            echo "Running tracetracking tests: ${{ env.TRACETRACKING_TEST_DIRS }}"
+            nix develop -c go test -v -count=1 -p=1 -timeout ${{ matrix.timeout }} ${{ env.TRACETRACKING_TEST_DIRS }}
           fi
