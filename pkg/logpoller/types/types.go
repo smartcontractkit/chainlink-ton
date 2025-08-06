@@ -26,7 +26,10 @@ func (a *Address) Scan(src interface{}) error {
 		a.Address = nil
 		return nil
 	}
-	parsed := address.MustParseAddr(string(srcB))
+	parsed, err := address.ParseAddr(string(srcB))
+	if err != nil {
+		return fmt.Errorf("failed to parse address from %s: %w", string(srcB), err)
+	}
 	a.Address = parsed
 	return nil
 }

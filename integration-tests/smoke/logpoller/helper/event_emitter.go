@@ -247,6 +247,11 @@ func (e *TestEventSource) eventLoop(ctx context.Context, interval time.Duration)
 					e.mu.Unlock()
 					return
 				}
+				e.lggr.Errorf("Failed to send message from %s: %v", e.name, err)
+				e.mu.Lock()
+				e.err = fmt.Errorf("failed to send message: %w", err)
+				e.mu.Unlock()
+				return
 			} else {
 				e.mu.Lock()
 				e.sentCounter++

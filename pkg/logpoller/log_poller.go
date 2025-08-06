@@ -132,7 +132,10 @@ func (lp *Service) run(ctx context.Context) (err error) {
 
 	// TODO: load filter from persistent store
 	// TODO: implement backfill logic(if there is filters marked for backfill)
-	addresses := lp.filters.GetDistinctAddresses()
+	addresses, err := lp.filters.GetDistinctAddresses()
+	if err != nil {
+		return err
+	}
 	if len(addresses) == 0 {
 		return nil
 	}

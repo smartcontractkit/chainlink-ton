@@ -2,6 +2,7 @@ package logpoller
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"github.com/xssnick/tonutils-go/address"
@@ -14,7 +15,7 @@ type Filters interface {
 	RegisterFilter(ctx context.Context, flt types.Filter) error         // RegisterFilter adds a new filter or overwrites an existing one with the same name.
 	UnregisterFilter(ctx context.Context, name string) error            // UnregisterFilter removes a filter by its unique name.
 	HasFilter(ctx context.Context, name string) bool                    // HasFilter checks if a filter with the given name exists.
-	GetDistinctAddresses() []*address.Address                           // GetDistinctAddresses returns a slice of unique addresses that are being monitored.
+	GetDistinctAddresses() ([]*address.Address, error)                  // GetDistinctAddresses returns a slice of unique addresses that are being monitored.
 	MatchingFilters(contractAddr address.Address, topic uint32) []int64 // MatchingFilters returns all filter IDs that match a given contract address and event topic.
 }
 
@@ -83,15 +84,18 @@ func (f *inMemoryFilters) HasFilter(_ context.Context, name string) bool {
 }
 
 // GetDistinctAddresses returns all unique contract addresses being tracked.
-func (f *inMemoryFilters) GetDistinctAddresses() []*address.Address {
+func (f *inMemoryFilters) GetDistinctAddresses() ([]*address.Address, error) {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 	out := make([]*address.Address, 0, len(f.filtersByAddress))
 	for a := range f.filtersByAddress {
-		addr := address.MustParseAddr(a)
+		addr, err := address.ParseAddr(a)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse address from %s: %w", a, err)
+		}
 		out = append(out, addr)
 	}
-	return out
+	return out, nil
 }
 
 // MatchingFilters finds all filter IDs that correspond to a given address and topic.
