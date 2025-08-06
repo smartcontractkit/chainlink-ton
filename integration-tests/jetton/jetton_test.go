@@ -465,10 +465,12 @@ func TestJettonAll(t *testing.T) {
 		setup := setupSender(t)
 		receiver := address.MustParseAddr("UQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJKZ")
 		jettonAmount := tlb.MustFromTON("12")
-		msgReceived, err := setup.sender.SendJettonsFast(
-			jettonAmount,
-			receiver,
-		)
+		queryID := rand.Uint64()
+		msgReceived, err := setup.sender.Contract.CallWaitRecursively(jetton_testing_wrappers.SendJettonsFastMessage{
+			QueryID:     queryID,
+			Amount:      jettonAmount,
+			Destination: receiver,
+		}, tlb.MustFromTON("0.1"))
 		require.NoError(t, err, "failed to send jettons in basic mode")
 		t.Log("Jettons sent successfully")
 		t.Logf("Sender message received: \n%s\n", replaceAddresses(map[string]string{
@@ -504,10 +506,12 @@ func TestJettonAll(t *testing.T) {
 		t.Logf("JettonWallet contract deployed at %s\n", receiverJettonWallet.Address.String())
 
 		jettonAmount := tlb.MustFromTON("12")
-		msgReceived, err := setup.sender.SendJettonsFast(
-			jettonAmount,
-			setup.common.receiver.Wallet.Address(),
-		)
+		queryID := rand.Uint64()
+		msgReceived, err := setup.sender.Contract.CallWaitRecursively(jetton_testing_wrappers.SendJettonsFastMessage{
+			QueryID:     queryID,
+			Amount:      jettonAmount,
+			Destination: setup.common.receiver.Wallet.Address(),
+		}, tlb.MustFromTON("0.1"))
 		require.NoError(t, err, "failed to send jettons in basic mode")
 		t.Log("Jettons sent successfully")
 		t.Logf("Sender message received: \n%s\n", replaceAddresses(map[string]string{
@@ -534,15 +538,15 @@ func TestJettonAll(t *testing.T) {
 		customPayload := createStringCell(t, "custom_payload")
 		forwardPayload := createStringCell(t, "forward_payload")
 
-		msgJettonsExtended, err := setup.sender.SendJettonsExtended(
-			tonAmount,
-			rand.Uint64(),
-			jettonAmount,
-			receiver,
-			customPayload,
-			forwardTonAmount,
-			forwardPayload,
-		)
+		queryID := rand.Uint64()
+		msgJettonsExtended, err := setup.sender.Contract.CallWaitRecursively(jetton_testing_wrappers.SendJettonsExtendedMessage{
+			QueryID:          queryID,
+			Amount:           jettonAmount,
+			Destination:      receiver,
+			CustomPayload:    customPayload,
+			ForwardTonAmount: forwardTonAmount,
+			ForwardPayload:   forwardPayload,
+		}, tonAmount)
 		require.NoError(t, err, "failed to send jettons in basic mode")
 		t.Logf("Sent jettons extended:\n%s\n", replaceAddresses(map[string]string{
 			setup.common.deployer.Wallet.Address().String(): "Deployer",
@@ -583,15 +587,14 @@ func TestJettonAll(t *testing.T) {
 
 		sendCallWithAmount := func(jettonAmount tlb.Coins) (tracetracking.OutgoingExternalMessages, uint64, error) {
 			queryID := rand.Uint64()
-			msgReceived, err2 := setup.Sender.SendJettonsExtended(
-				tlb.MustFromTON("2"),
-				queryID,
-				jettonAmount,
-				setup.onrampMock.Contract.Address,
-				customPayload,
-				forwardTonAmount,
-				jettonTransferPayload,
-			)
+			msgReceived, err2 := setup.Sender.Contract.CallWaitRecursively(jetton_testing_wrappers.SendJettonsExtendedMessage{
+				QueryID:          queryID,
+				Amount:           jettonAmount,
+				Destination:      setup.onrampMock.Contract.Address,
+				CustomPayload:    customPayload,
+				ForwardTonAmount: forwardTonAmount,
+				ForwardPayload:   jettonTransferPayload,
+			}, tlb.MustFromTON("2"))
 			require.NoError(t, err2, "failed to send jettons with custom payload")
 			t.Logf("Sender message received: \n%s\n", replaceAddresses(map[string]string{
 				setup.common.deployer.Wallet.Address().String(): "Deployer",
@@ -680,15 +683,15 @@ func TestJettonAll(t *testing.T) {
 		t.Logf("Testing sending jettons to receiver\n")
 		expectedPayload := createStringCell(t, "expected_payload")
 		jettonAmount := tlb.MustFromTON("0.5")
-		receivedMsg, err := setup.Sender.SendJettonsExtended(
-			tlb.MustFromTON("2"),
-			rand.Uint64(),
-			jettonAmount,
-			setup.simpleReceiver.Contract.Address,
-			cell.BeginCell().EndCell(),
-			tlb.MustFromTON("0.01"),
-			expectedPayload,
-		)
+		queryID := rand.Uint64()
+		receivedMsg, err := setup.Sender.Contract.CallWaitRecursively(jetton_testing_wrappers.SendJettonsExtendedMessage{
+			QueryID:          queryID,
+			Amount:           jettonAmount,
+			Destination:      setup.simpleReceiver.Contract.Address,
+			CustomPayload:    cell.BeginCell().EndCell(),
+			ForwardTonAmount: tlb.MustFromTON("0.01"),
+			ForwardPayload:   expectedPayload,
+		}, tlb.MustFromTON("2"))
 		require.NoError(t, err, "failed to send jettons to receiver")
 		SenderWallet, err := setup.common.jettonClient.GetJettonWallet(t.Context(), setup.Sender.Contract.Address)
 		require.NoError(t, err, "failed to get jetton sender wallet")

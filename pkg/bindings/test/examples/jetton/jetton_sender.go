@@ -2,7 +2,6 @@ package jetton
 
 import (
 	"fmt"
-	"math/rand/v2"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
@@ -55,24 +54,14 @@ type Sender struct {
 	Contract wrappers.Contract
 }
 
-type sendJettonsFastMessage struct {
+type SendJettonsFastMessage struct {
 	_           tlb.Magic        `tlb:"#4C169F42"` //nolint:revive // This field should stay uninitialized
 	QueryID     uint64           `tlb:"## 64"`
 	Amount      tlb.Coins        `tlb:"."`
 	Destination *address.Address `tlb:"addr"`
 }
 
-func (s Sender) SendJettonsFast(amount tlb.Coins, destination *address.Address) (msgReceived *tracetracking.ReceivedMessage, err error) {
-	queryID := rand.Uint64()
-	msgReceived, err = s.Contract.CallWaitRecursively(sendJettonsFastMessage{
-		QueryID:     queryID,
-		Amount:      amount,
-		Destination: destination,
-	}, tlb.MustFromTON("0.1"))
-	return msgReceived, err
-}
-
-type sendJettonsExtendedMessage struct {
+type SendJettonsExtendedMessage struct {
 	_                tlb.Magic        `tlb:"#7FDA8110"` //nolint:revive // This field should stay uninitialized
 	QueryID          uint64           `tlb:"## 64"`
 	Amount           tlb.Coins        `tlb:"."`
@@ -80,24 +69,4 @@ type sendJettonsExtendedMessage struct {
 	CustomPayload    *cell.Cell       `tlb:"^"`
 	ForwardTonAmount tlb.Coins        `tlb:"."`
 	ForwardPayload   *cell.Cell       `tlb:"^"`
-}
-
-func (s Sender) SendJettonsExtended(
-	tonAmount tlb.Coins,
-	queryID uint64,
-	jettonAmount tlb.Coins,
-	destination *address.Address,
-	customPayload *cell.Cell,
-	forwardTonAmount tlb.Coins,
-	forwardPayload *cell.Cell,
-) (msgReceived *tracetracking.ReceivedMessage, err error) {
-	msgReceived, err = s.Contract.CallWaitRecursively(sendJettonsExtendedMessage{
-		QueryID:          queryID,
-		Amount:           jettonAmount,
-		Destination:      destination,
-		CustomPayload:    customPayload,
-		ForwardTonAmount: forwardTonAmount,
-		ForwardPayload:   forwardPayload,
-	}, tonAmount)
-	return msgReceived, err
 }
