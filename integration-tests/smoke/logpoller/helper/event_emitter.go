@@ -20,11 +20,13 @@ import (
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
-	"integration-tests/smoke/logpoller/counter"
 	test_utils "integration-tests/utils"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/examples/counter"
 )
 
 func SendBulkTestEventTxs(t *testing.T, client ton.APIClientWrapped, batchCount, txPerBatch, msgPerTx int) (*TestEventSource, []TestEventRes) {
@@ -65,7 +67,7 @@ func VerifyLoadedEvents(msgs []*tlb.ExternalMessageOut, expectedCount int) error
 
 	// parse all events and track counters
 	for i, ext := range msgs {
-		event, err := test_utils.ParseEventFromMsg[counter.CountIncreasedEvent](ext)
+		event, err := test_utils.ParseEventFromMsg[counter.CountIncreased](ext)
 		if err != nil {
 			return fmt.Errorf("failed to parse event #%d: %w", i, err)
 		}
@@ -114,7 +116,7 @@ type TestEventSource struct {
 }
 
 func NewTestEventSource(ctx context.Context, client ton.APIClientWrapped, wallet *wallet.Wallet, name string, id uint32, lggr logger.Logger) (*TestEventSource, error) {
-	codeCell, cerr := wrappers.ParseCompiledContract(counter.ArtifactPath)
+	codeCell, cerr := wrappers.ParseCompiledContract(test_utils.GetBuildDir("examples.Counter.compiled.json"))
 	if cerr != nil {
 		return nil, fmt.Errorf("failed to parse compiled contract: %w", cerr)
 	}
@@ -125,9 +127,13 @@ func NewTestEventSource(ctx context.Context, client ton.APIClientWrapped, wallet
 		Wallet: *wallet,
 	}
 
-	data, err := tlb.ToCell(counter.Storage{
+	data, err := tlb.ToCell(counter.ContractData{
 		ID:    id,
 		Value: 0, // initial value as zero
+		Ownable: common.Ownable2Step{
+			Owner:        wallet.WalletAddress(),
+			PendingOwner: nil,
+		},
 	})
 
 	if err != nil {
@@ -282,8 +288,7 @@ func (e *TestEventSource) SendBulkTestEvents(ctx context.Context, batchCount, tx
 }
 
 func (e *TestEventSource) SendIncreaseCounterMsg(ctx context.Context) (*tlb.Transaction, *ton.BlockIDExt, error) {
-	body, err := tlb.ToCell(counter.IncreaseCountMsg{
-		OpCode:  counter.IncreaseCounterOpCode,
+	body, err := tlb.ToCell(counter.IncreaseCount{
 		QueryID: rand.Uint64(),
 	})
 
@@ -313,8 +318,7 @@ func (e *TestEventSource) SendIncreaseCounterMsg(ctx context.Context) (*tlb.Tran
 func (e *TestEventSource) sendManyIncreaseCountMsgs(ctx context.Context, count int) (*tlb.Transaction, *ton.BlockIDExt, error) {
 	messages := make([]*wallet.Message, count)
 	for i := 0; i < count; i++ {
-		body, err := tlb.ToCell(counter.IncreaseCountMsg{
-			OpCode:  counter.IncreaseCounterOpCode,
+		body, err := tlb.ToCell(counter.IncreaseCount{
 			QueryID: rand.Uint64(),
 		})
 		if err != nil {

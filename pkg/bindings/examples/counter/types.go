@@ -7,9 +7,9 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
-	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/hash"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
@@ -28,35 +28,25 @@ type SetCount struct {
 	NewCount uint32    `tlb:"## 32"`
 }
 
-func (m SetCount) OpCode() uint32 {
-	return 0x00000004
-}
-
-// TODO: should be replaced with tlb tags and tlb.ToCell, only here as tracetracking util requirement (for now)
-func (m SetCount) StoreArgs(b *cell.Builder) error {
-	c, err := tlb.ToCell(m)
-	if err != nil {
-		return fmt.Errorf("failed to convert SetCount to cell: %w", err)
-	}
-
-	// TODO: fix HACK - standardise go bindings and tlb serialization/deserialization
-	s := c.BeginParse()
-	_, _ = s.LoadUInt(32) // skip serializing opcode as tracetracking pkg will add (duplicate) it
-
-	if err := b.StoreBuilder(s.ToBuilder()); err != nil {
-		return fmt.Errorf("failed to store SetCount args: %w", err)
-	}
-	return nil
-}
-
 // Message to increase the counter value.
 type IncreaseCount struct {
 	_       tlb.Magic `tlb:"#10000005"` //nolint:revive // opcode magic
 	QueryID uint64    `tlb:"## 64"`
 }
 
-func (m IncreaseCount) OpCode() uint32 {
-	return 0x10000005
+// Events
+
+var TopicCountSet uint32 = hash.CRC32("CountSet")
+var TopicCountIncreased uint32 = hash.CRC32("CountIncreased")
+
+type CountSet struct {
+	ID    uint32 `tlb:"## 32"`
+	Value uint32 `tlb:"## 32"`
+}
+
+type CountIncreased struct {
+	ID    uint32 `tlb:"## 32"`
+	Value uint32 `tlb:"## 32"`
 }
 
 // Getters
