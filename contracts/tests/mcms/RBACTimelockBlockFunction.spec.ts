@@ -1,7 +1,7 @@
 import '@ton/test-utils'
 
 import { toNano, beginCell, Cell } from '@ton/core'
-import { BaseTestSetup, TestCode } from './BaseTest.spec'
+import { BaseTestSetup, TestCode } from './BaseTest'
 
 import * as rbactl from '../../wrappers/mcms/RBACTimelock'
 import * as counter from '../../wrappers/examples/Counter'
