@@ -289,11 +289,7 @@ describe('MCMS - RBACTimelockCancelTest', () => {
       predecessor: NO_PREDECESSOR,
       salt: EMPTY_SALT,
     }
-    // TODO: this is returning an exit code 2 @krebernisak
     const operationID = await bind.timelock.getHashOperationBatch(operationBatch)
-
-    // const offchainId = rbactl.builder.data.operationBatch.encode(operationBatch).hash()
-    // const operationID = BigInt('0x' + offchainId.toString('hex'))
 
     // Try to cancel finished operation (should fail)
     {
@@ -356,11 +352,7 @@ describe('MCMS - RBACTimelockCancelTest', () => {
       predecessor: NO_PREDECESSOR,
       salt: EMPTY_SALT,
     }
-    // TODO: this is returning an exit code 2 @krebernisak
     const operationID = await bind.timelock.getHashOperationBatch(operationBatch)
-
-    // const offchainId = rbactl.builder.data.operationBatch.encode(operationBatch).hash()
-    // const operationID = BigInt('0x' + offchainId.toString('hex'))
 
     // Verify operation exists
     expect(await bind.timelock.isOperation(operationID)).toBe(true)
