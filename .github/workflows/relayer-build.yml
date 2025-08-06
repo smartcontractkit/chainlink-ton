@@ -22,18 +22,8 @@ jobs:
       - name: Run build
         run: nix develop -c go build -v ./...
 
-      - name: Run tests
+      - name: Run unit tests
         run: nix develop -c go test -v -count=1 -p=1 -timeout 30m ./...
-
-      - name: Run build contracts for integration tests
-        run: |
-          pushd contracts
-          nix develop .#contracts -c yarn && yarn build
-
-      - name: Run integration tests
-        run: |
-          pushd integration-tests
-          nix develop -c go test -v -count=1 -p=1 -timeout 30m ./...
 
   build-pkgs:
     name: Build and package (Nix and Docker)

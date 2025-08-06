@@ -1,0 +1,33 @@
+name: TON - Relayer Integration Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  integration-test:
+    name: Build & Integration Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@02a151ada4993995686f9ed4f1be7cfbb229e56f # v31
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+
+      - name: Build contracts for integration tests
+        run: |
+          pushd contracts
+          nix develop .#contracts -c yarn && yarn build
+
+      - name: Run build
+        run: nix develop -c go build -v ./...
+
+      - name: Run integration tests
+        run: |
+          pushd integration-tests
+          nix develop -c go test -v -count=1 -p=1 -timeout 30m ./...
