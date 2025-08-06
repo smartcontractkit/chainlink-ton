@@ -43,7 +43,7 @@ struct Any2TVMRampMessage {
     data: cell;
     receiver: address;
     //gasLimit: coins;
-    tokenAmounts: cell; // vec<Any2TONTokenTransfer>
+    tokenAmounts: cell?; // vec<Any2TVMTokenTransfer>
     // maybe mark these amounts as slice remaining then parse them by hand to avoid requiring this to be a map<> at send time?
 }
 
@@ -84,14 +84,14 @@ fun Any2TVMRampMessage.generateMessageId(self, metadataHash: uint256): uint256 {
             .storeUint(self.header.messageId, 256)
             .storeAddress(self.receiver)
             .storeUint(self.header.sequenceNumber, 64)
-            .storeCoins(self.gasLimit)
+            //.storeCoins(self.gasLimit)
             .storeUint(self.header.nonce, 64)
             .endCell()
         )
         // message
         .storeRef(self.sender)
         .storeRef(self.data)
-        .storeRef(self.tokenAmounts)
+        .storeMaybeRef(self.tokenAmounts)
         .endCell()
         .hash()
 }

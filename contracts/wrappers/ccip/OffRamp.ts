@@ -23,7 +23,16 @@ export type OffRampStorage = {
   feeQuoter: Address
   chainSelector: bigint
   permissionlessExecutionThresholdSeconds: number
+  sourceChainConfigs?: { [key: bigint]: SourceChainConfig }
   latestPriceSequenceNumber: bigint
+}
+
+export type SourceChainConfig =  {
+  router: Address,
+  isEnabled: boolean,
+  minSeqNr: bigint,
+  isRMNVerificationDisabled: boolean,
+  onRamp: CrossChainAddress
 }
 
 export type TokenPriceUpdate = {
@@ -82,8 +91,26 @@ export type MerkleRoot = {
   merkleRoot: bigint
 }
 
+export const sourceChainConfigToCell = (config: SourceChainConfig) => {
+  return beginCell()
+  .storeAddress(config.router)
+  .storeBit(config.isEnabled)
+  .storeUint(config.minSeqNr,64)
+  .storeBit(config.isRMNVerificationDisabled)
+  .storeSlice(config.onRamp)
+  .endCell()
+}
+
 export const Builder = {
   asStorage: (config: OffRampStorage): Cell => {
+
+    const sourceChainConfigs= Dictionary.empty() 
+    if (config.sourceChainConfigs) {
+      for (const [keyStr, config] of Object.entries(sourceChainConfigs)) {
+        const sourceChainSelector = BigInt(keyStr); // Convert string back to bigint
+        sourceChainConfigs.set(sourceChainSelector, sourceChainConfigToCell(config))
+      }
+    }
     return (
       beginCell()
         .storeAddress(config.ownable.owner)
@@ -101,7 +128,7 @@ export const Builder = {
         .storeBit(false)
         .storeUint(config.chainSelector, 64)
         .storeUint(config.permissionlessExecutionThresholdSeconds, 32)
-        .storeDict(Dictionary.empty()) // sourceChainConfigs
+        .storeDict(sourceChainConfigs)
         .storeUint(64, 16) // keyLen
         .storeUint(config.latestPriceSequenceNumber, 64)
         .endCell()

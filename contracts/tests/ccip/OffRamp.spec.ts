@@ -31,6 +31,8 @@ const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_TON = 13879075125137744094n
 const EVM_SENDER_ADDRESS_TEST = 0x1a5FdBc891c5D4E6aD68064Ae45D43146D4F9f3an
 const EVM_ONRAMP_ADDRESS_TEST = 0x111111c891c5D4E6aD68064Ae45D43146D4F9f3an
+const LEAF_DOMAIN_SEPARATOR = beginCell().storeUint(0, 256).asSlice();
+
 
 function generateSecureRandomString(length: number): string {
   const array = new Uint8Array(length)
@@ -46,8 +48,37 @@ const getMerkleRootID = (root: bigint) => {
   return beginCell().storeUint(1, 16).storeUint(root, 256)
 }
 
-export function generateMessageId(message: Any2TVMRampMessage, metadataHash:bigint) {
+const getMetadataHash = (sourceChainSelector: bigint) => {
+  return beginCell()
+    .storeUint(uint8ArrayToBigInt(sha256_sync("Any2TVMMessageHashV1")), 256)
+    .storeUint(sourceChainSelector, 64)
+    .storeUint(CHAINSEL_TON, 64)
+    .storeSlice(beginCell().storeUint(EVM_SENDER_ADDRESS_TEST, 160).asSlice())
+    .endCell()
+    .hash()
 
+}
+
+export function generateMessageId(message: Any2TVMRampMessage, metadataHash:bigint) {
+  return beginCell()
+    .storeSlice(LEAF_DOMAIN_SEPARATOR)
+    .storeUint(metadataHash, 256)
+    //header
+    .storeRef(
+      beginCell()
+      .storeUint(message.header.messageId, 256)
+      .storeAddress(message.receiver)
+      .storeUint(message.header.sequenceNumber, 64)
+      //.storeCoins(message.gasLimit)
+      .storeUint(message.header.nonce, 64)
+      .endCell()
+    )
+    //message
+    .storeRef(message.sender.asCell())
+    .storeRef(message.data)
+    .storeMaybeRef(message.tokenAmounts)
+    .endCell()
+    .hash()
 }
 
 describe('OffRamp', () => {
@@ -63,6 +94,7 @@ describe('OffRamp', () => {
 
   // Helper functions
   const configDigest: bigint = 0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcden
+
   const createDefaultConfig = (overrides = {}) => ({
     value: toNano('100'),
     configDigest,
@@ -260,17 +292,62 @@ describe('OffRamp', () => {
       tokenAmounts: beginCell().endCell(), // vec<Any2TONTokenTransfer>
     }
 
-    const rootBytes = merkleHelper.hashLeafData()
+    const metadataHash = uint8ArrayToBigInt(getMetadataHash(CHAINSEL_EVM_TEST_90000001))
+    const rootBytes = uint8ArrayToBigInt(generateMessageId(message, metadataHash))
 
     const root: MerkleRoot = {
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
-      onRampAddress: beginCell().storeUint(EVM_ONRAMP_ADDRESS_TEST, 120).asSlice(),
+      onRampAddress: beginCell().storeUint(EVM_ONRAMP_ADDRESS_TEST, 160).asSlice(),
       minSeqNr: 1n,
       maxSeqNr: 1n,
       merkleRoot: rootBytes
 
     }
 
-    const report: CommitReport
+    const report: CommitReport = {
+      merkleRoots: [root]
+    }
+    const reportContext: ReportContext = {configDigest, padding:0n, sequenceBytes: 0x01}
+
+    const signatures = createSignatures([signers[0],signers[1]], hashReport(commitReportToCell(report), reportContext))
+
+    const resultSetCommit = await offRamp.sendSetOCR3Config(
+      deployer.getSender(),
+      createDefaultConfig(),
+    )
+    expectSuccessfulTransaction(resultSetCommit, deployer.address, offRamp.address)
+
+    assertLog(
+      resultSetCommit.transactions,
+      offRamp.address,
+      OCR3Logs.LogTypes.OCR3BaseConfigSet,
+      {
+        ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
+        configDigest,
+        signers: signersPublicKeys,
+        transmitters: transmitters.map((t) => t.address),
+        bigF: 1,
+      },
+    )
+    const resultCommitReport = await offRamp.sendCommit(
+      transmitters[0].getSender(),
+      {
+        value: toNano("0.5"),
+        reportContext: reportContext,
+        report: report,
+        signatures: signatures,
+      }
+    )
+    expectSuccessfulTransaction(resultCommitReport, transmitters[0].address, offRamp.address)
+
+    assertLog(
+      resultCommitReport.transactions,
+      offRamp.address,
+      CCIPLogs.LogTypes.CCIPCommitReportAccepted,
+      {
+        priceUpdates: undefined,
+        merkleRoots: [root]
+      }
+    )
   })
 })
