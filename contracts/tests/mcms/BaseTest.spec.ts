@@ -70,9 +70,10 @@ export class BaseTestSetup {
   }
 
   /**
-   * Helper function that turns a single RBACTimelock.Call into a singleton Cell
+   * Helper function that turns a single RBACTimelock.Call into a vector of calls.
    */
   static singletonCalls(call: rbactl.Call): Cell {
+    // TODO: this should be an array of calls: vec<Call>
     return rbactl.builder.data.call.encode(call)
   }
 
