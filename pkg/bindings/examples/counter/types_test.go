@@ -6,7 +6,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/xssnick/tonutils-go/tlb"
-	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
 func TestSetCount_TlbEncodingDecoding(t *testing.T) {
@@ -19,13 +18,6 @@ func TestSetCount_TlbEncodingDecoding(t *testing.T) {
 	c, err := tlb.ToCell(original)
 	require.NoError(t, err, "tlb.ToCell encoding failed")
 	require.Equal(t, "128[0000000400000000075BCD150000002A]", c.Dump())
-
-	c1 := cell.BeginCell()
-	err = original.StoreArgs(c1)
-	require.NoError(t, err)
-	// Notice: serializing with StoreArgs skips the opcode as the tracetracking package will add (duplicate) it
-	// TODO: fix HACK - standardise go bindings and tlb serialization/deserialization
-	require.Equal(t, "96[00000000075BCD150000002A]", c1.EndCell().Dump())
 
 	// Decode from cell
 	var decoded SetCount
