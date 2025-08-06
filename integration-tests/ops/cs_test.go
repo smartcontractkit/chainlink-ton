@@ -14,7 +14,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/ops/ccip/config"
 
 	"github.com/smartcontractkit/chainlink/deployment/ccip/changeset/v1_6"
-	"github.com/smartcontractkit/chainlink/deployment/ccip/shared"
 	"github.com/smartcontractkit/chainlink/deployment/ccip/shared/stateview"
 	"github.com/smartcontractkit/chainlink/deployment/environment/memory"
 	"github.com/smartcontractkit/chainlink/v2/core/logger"
@@ -53,28 +52,8 @@ func TestDeploy(t *testing.T) {
 	// memory environment doesn't block on funding so changesets can execute before the env is fully ready, manually call fund so we block here
 	test_utils.FundWallets(t, env.BlockChains.TonChains()[chainSelector].Client, []*address.Address{deployer.Address()}, []tlb.Coins{tlb.MustFromTON("1000")})
 
-	env, _, err := commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{
-		commonchangeset.Configure(ops.DeployCCIPContracts{}, ops.DeployCCIPContractsCfg{
-			TonChainSelector: chainSelector,
-			Params: config.ChainContractParams{
-				FeeQuoterParams: config.FeeQuoterParams{
-					MaxFeeJuelsPerMsg:                    big.NewInt(1),
-					TokenPriceStalenessThreshold:         0,
-					FeeTokens:                            []*address.Address{},
-					PremiumMultiplierWeiPerEthByFeeToken: map[shared.TokenSymbol]uint64{},
-				},
-				OffRampParams: config.OffRampParams{
-					// ...
-				},
-				OnRampParams: config.OnRampParams{
-					ChainSelector: ChainSelEVMTest90000001,
-					// TODO:
-					// AllowlistAdmin: &address.Address{},
-					FeeAggregator: deployer.WalletAddress(),
-				},
-			},
-		}),
-	})
+	cs := ops.DeployChainContractsToTonCS(t, env, chainSelector)
+	env, _, err := commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{cs})
 	require.NoError(t, err, "failed to deploy ccip")
 
 	env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{
@@ -139,7 +118,7 @@ func TestDeploy(t *testing.T) {
 
 	state, err := stateview.LoadOnchainState(env)
 	require.NoError(t, err)
-	addr := state.TonChains[chainSelector].CCIPAddress
+	addr := state.TonChains[chainSelector].OnRamp
 	ctx := t.Context()
 	block, err := tonChain.Client.CurrentMasterchainInfo(ctx)
 	require.NoError(t, err)

@@ -78,7 +78,7 @@ func ToTonUpdateLanesConfig(tonChains map[uint64]tonstate.CCIPChainState, cfg co
 			if _, exists := updateInputsByTonChain[source.Selector]; !exists {
 				updateInputsByTonChain[source.Selector] = UpdateTonLanesSeqInput{}
 			}
-			onrampAddress := tonChains[source.Selector].CCIPAddress
+			onrampAddress := tonChains[source.Selector].OnRamp
 			setTonSourceUpdates(lane, updateInputsByTonChain, cfg.TestRouter, &onrampAddress)
 		}
 

@@ -88,7 +88,7 @@ var UpdateFeeQuoterDestChainConfigsOp = operations.NewOperation(
 
 func updateFeeQuoterDestChainConfigs(b operations.Bundle, deps TonDeps, in UpdateFeeQuoterDestChainConfigsInput) ([][]byte, error) {
 	// TODO: needs to be FeeQuoter, not OnRamp
-	address := deps.CCIPOnChainState.TonChains[deps.TonChain.Selector].CCIPAddress
+	address := deps.CCIPOnChainState.TonChains[deps.TonChain.Selector].FeeQuoter
 
 	input := feequoter.UpdateDestChainConfigs{
 		Update: in[0], // TEMP: until contracts get updated

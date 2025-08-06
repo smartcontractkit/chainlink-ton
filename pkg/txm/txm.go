@@ -289,7 +289,7 @@ func (t *Txm) checkUnconfirmed() {
 			tx := unconfirmedTx.Tx
 			receivedMessage := tx.ReceivedMessage
 
-			err := receivedMessage.WaitForTrace(&t.Client)
+			err := receivedMessage.WaitForTrace(t.Client.Client)
 			if err != nil {
 				t.Logger.Errorw("failed to wait for trace", "LT", unconfirmedTx.LT, "error", err)
 				continue

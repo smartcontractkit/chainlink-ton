@@ -2,17 +2,56 @@ package ops
 
 import (
 	"fmt"
+	"math/big"
+	"testing"
 
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
-	"github.com/smartcontractkit/chainlink/deployment/ccip/changeset/testhelpers"
+	"github.com/smartcontractkit/chainlink/deployment/ccip/shared"
+	client "github.com/smartcontractkit/chainlink/deployment/ccip/shared/client"
 	"github.com/smartcontractkit/chainlink/deployment/ccip/shared/stateview"
+	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton/wallet"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
+	"github.com/smartcontractkit/chainlink-ton/ops/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 )
+
+const ChainSelEVMTest90000001 = 909606746561742123
+
+func DeployChainContractsToTonCS(t *testing.T, env cldf.Environment, chainSelector uint64) commonchangeset.ConfiguredChangeSet {
+	tonChain := env.BlockChains.TonChains()[chainSelector]
+	deployer := tonChain.Wallet
+
+	return commonchangeset.Configure(DeployCCIPContracts{}, DeployCCIPContractsCfg{
+		TonChainSelector: chainSelector,
+		Params: config.ChainContractParams{
+			FeeQuoterParams: config.FeeQuoterParams{
+				MaxFeeJuelsPerMsg:                    big.NewInt(1),
+				TokenPriceStalenessThreshold:         0,
+				FeeTokens:                            []*address.Address{},
+				PremiumMultiplierWeiPerEthByFeeToken: map[shared.TokenSymbol]uint64{},
+			},
+			OffRampParams: config.OffRampParams{
+				// ...
+			},
+			OnRampParams: config.OnRampParams{
+				ChainSelector: ChainSelEVMTest90000001,
+				// TODO:
+				// AllowlistAdmin: &address.Address{},
+				FeeAggregator: deployer.WalletAddress(),
+			},
+		},
+	})
+}
+
+func AddLaneTONChangesets(env *cldf.Environment, from, to uint64, fromFamily, toFamily string) commonchangeset.ConfiguredChangeSet {
+	panic("unimplemented")
+	laneConfig := config.UpdateTonLanesConfig{}
+	return commonchangeset.Configure(AddTonLanes{}, laneConfig)
+}
 
 // TODO Consider move chainlink core AnyMsgSentEvent and CCIPSendReqConfig to CLDF?
 
@@ -29,7 +68,7 @@ type TonSendRequest struct {
 func SendTonRequest(
 	e cldf.Environment,
 	state stateview.CCIPOnChainState,
-	cfg *testhelpers.CCIPSendReqConfig) (*testhelpers.AnyMsgSentEvent, error) {
+	cfg *client.CCIPSendReqConfig) (*client.AnyMsgSentEvent, error) {
 	senderWallet := e.BlockChains.TonChains()[cfg.SourceChain].Wallet
 	senderAddr := e.BlockChains.TonChains()[cfg.SourceChain].WalletAddress
 
@@ -73,7 +112,7 @@ func SendTonRequest(
 	// TODO get CCIPSent event from onramp ?
 	//ccipMessageSentEvent := onramp.CCIPMessageSent{}
 
-	return &testhelpers.AnyMsgSentEvent{
+	return &client.AnyMsgSentEvent{
 		// TODO add more fields if needed:
 		//SequenceNumber: ccipMessageSentEvent.SequenceNumber,
 	}, nil

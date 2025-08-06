@@ -89,7 +89,7 @@ var UpdateOnRampDestChainConfigsOp = operations.NewOperation(
 )
 
 func updateOnRampDestChainConfigs(b operations.Bundle, deps TonDeps, in UpdateOnRampDestChainConfigsInput) ([][]byte, error) {
-	address := deps.CCIPOnChainState.TonChains[deps.TonChain.Selector].CCIPAddress
+	address := deps.CCIPOnChainState.TonChains[deps.TonChain.Selector].OnRamp
 
 	var configs []onramp.UpdateDestChainConfig
 

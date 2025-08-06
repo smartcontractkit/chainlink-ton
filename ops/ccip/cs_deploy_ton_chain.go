@@ -93,9 +93,9 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 	address = tonaddress.MustParseAddr("UQCk4967vNM_V46Dn8I0x-gB_QE2KkdW1GQ7mWz1DtYGLEd8")
 	state.ReceiverAddress = *address
 
-	state.CCIPAddress = *ccipSeqReport.Output.OnRampAddress
+	state.OnRamp = *ccipSeqReport.Output.OnRampAddress
 	state.Router = *ccipSeqReport.Output.RouterAddress
-	// TODO: state.FeeQuoter = *ccipSeqReport.Output.FeeQuoterAddress
+	state.FeeQuoter = *ccipSeqReport.Output.FeeQuoterAddress
 
 	// TODO: generate MCMS proposal/execute
 
