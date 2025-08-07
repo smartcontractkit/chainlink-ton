@@ -52,6 +52,11 @@ type TokenTransferFeeConfig struct {
 	DestBytesOverhead uint32 `tlb:"## 32"`
 }
 
+type TimestampedPrice struct {
+	Value     *big.Int `tlb:"## 224"`
+	Timestamp uint64   `tlb:## 64`
+}
+
 // Methods
 
 type UpdatePrices struct{}

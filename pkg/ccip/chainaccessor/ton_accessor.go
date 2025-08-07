@@ -2,15 +2,22 @@ package chainaccessor
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
+	"fmt"
 	"time"
 
+	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 
+	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
 )
 
@@ -18,6 +25,8 @@ type TONAccessor struct {
 	lggr      logger.Logger
 	client    ton.APIClientWrapped
 	logPoller logpoller.LogPoller
+	bindings  map[string]*address.Address
+	addrCodec codec.AddressCodec
 }
 
 var _ ccipocr3.ChainAccessor = (*TONAccessor)(nil)
@@ -26,13 +35,15 @@ func NewTONAccessor(
 	lggr logger.Logger,
 	client ton.APIClientWrapped,
 	logPoller logpoller.LogPoller,
-	addrCodec ccipocr3.AddressCodec,
+	addrCodec ccipocr3.AddressCodec, // TODO: why is this a param rather than up to the Accessor to construct?
 ) (ccipocr3.ChainAccessor, error) {
 	// TODO: validate state of client and logPoller (should be initialized in NewChain)
 	return &TONAccessor{
 		lggr:      lggr,
 		client:    client,
 		logPoller: logPoller,
+		bindings:  make(map[string]*address.Address),
+		addrCodec: codec.AddressCodec{},
 	}, nil
 }
 
@@ -53,8 +64,12 @@ func (a *TONAccessor) GetChainFeeComponents(ctx context.Context) (ccipocr3.Chain
 }
 
 func (a *TONAccessor) Sync(ctx context.Context, contractName string, contractAddress ccipocr3.UnknownAddress) error {
-	// TODO(NONEVM-2364) implement me
-	return errors.New("not implemented")
+	addr, err := address.ParseAddr(base64.RawURLEncoding.EncodeToString(contractAddress))
+	if err != nil {
+		return fmt.Errorf("invalid address: %w", err)
+	}
+	a.bindings[contractName] = addr
+	return nil
 }
 
 // TON as source chain methods
@@ -73,12 +88,43 @@ func (a *TONAccessor) GetExpectedNextSequenceNumber(ctx context.Context, dest cc
 	return 0, errors.New("not implemented")
 }
 
-func (a *TONAccessor) GetTokenPriceUSD(ctx context.Context, address ccipocr3.UnknownAddress) (ccipocr3.TimestampedUnixBig, error) {
-	// TODO(NONEVM-2364) implement me
-	return ccipocr3.TimestampedUnixBig{}, errors.New("not implemented")
+func (a *TONAccessor) GetTokenPriceUSD(ctx context.Context, rawTokenAddress ccipocr3.UnknownAddress) (ccipocr3.TimestampedUnixBig, error) {
+	// TODO: use addrCodec
+	tokenAddress, err := address.ParseAddr(base64.RawURLEncoding.EncodeToString(rawTokenAddress))
+	if err != nil {
+		return ccipocr3.TimestampedUnixBig{}, fmt.Errorf("invalid address: %w", err)
+	}
+
+	addr, ok := a.bindings[consts.ContractNameFeeQuoter]
+	if !ok {
+		return ccipocr3.TimestampedUnixBig{}, errors.New("FeeQuoter not bound")
+	}
+
+	block, err := a.client.CurrentMasterchainInfo(ctx)
+	if err != nil {
+		return ccipocr3.TimestampedUnixBig{}, fmt.Errorf("failed to get current block: %w", err)
+	}
+
+	result, err := a.client.RunGetMethod(ctx, block, addr, "tokenPrice", tokenAddress)
+	if err != nil {
+		return ccipocr3.TimestampedUnixBig{}, err
+	}
+	raw, err := result.Cell(0)
+	if err != nil {
+		return ccipocr3.TimestampedUnixBig{}, err
+	}
+	var timestampedPrice feequoter.TimestampedPrice
+	if err := tlb.LoadFromCell(&timestampedPrice, raw.BeginParse()); err != nil {
+		return ccipocr3.TimestampedUnixBig{}, err
+	}
+	return ccipocr3.TimestampedUnixBig{
+		Value:     timestampedPrice.Value,
+		Timestamp: uint32(timestampedPrice.Timestamp), // TODO: u64 -> u32?
+	}, errors.New("not implemented")
 }
 
 func (a *TONAccessor) GetFeeQuoterDestChainConfig(ctx context.Context, dest ccipocr3.ChainSelector) (ccipocr3.FeeQuoterDestChainConfig, error) {
+	// consts.ContractNameFeeQuoter
 	// TODO(NONEVM-2364) implement me
 	return ccipocr3.FeeQuoterDestChainConfig{}, errors.New("not implemented")
 }

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
 
 	chain_selectors "github.com/smartcontractkit/chain-selectors"
@@ -20,6 +21,8 @@ import (
 
 	test_utils "github.com/smartcontractkit/chainlink-ton/integration-tests/utils"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/chainaccessor"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
@@ -56,6 +59,11 @@ func TestDeploy(t *testing.T) {
 	env, _, err := commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{cs})
 	require.NoError(t, err, "failed to deploy ccip")
 
+	// TODO: LINK placeholder address
+	tonTokenAddr, err := address.ParseRawAddr("0:0000000000000000000000000000000000000000000000000000000000000000")
+	require.NoError(t, err)
+	// TODO: verify this is the same as address.NewNoneAddress()
+
 	env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{
 		commonchangeset.Configure(ops.AddTonLanes{}, config.UpdateTonLanesConfig{
 			EVMMCMSConfig: &proposalutils.TimelockConfig{},
@@ -67,9 +75,11 @@ func TestDeploy(t *testing.T) {
 							RMNVerificationDisabled: true,
 							AllowListEnabled:        false,
 						},
-						Selector:    chainSelector,
-						GasPrice:    big.NewInt(1e17),
-						TokenPrices: map[*address.Address]*big.Int{}, // TODO: TON price
+						Selector: chainSelector,
+						GasPrice: big.NewInt(1e17),
+						TokenPrices: map[*address.Address]*big.Int{
+							tonTokenAddr: big.NewInt(99),
+						},
 						FeeQuoterDestChainConfig: feequoter.DestChainConfig{ // minimal valid config
 							IsEnabled:                         true,
 							MaxNumberOfTokensPerMsg:           0,
@@ -118,9 +128,23 @@ func TestDeploy(t *testing.T) {
 
 	state, err := stateview.LoadOnchainState(env)
 	require.NoError(t, err)
-	addr := state.TonChains[chainSelector].OnRamp
-	ctx := t.Context()
-	block, err := tonChain.Client.CurrentMasterchainInfo(ctx)
+
+	accessor, err := chainaccessor.NewTONAccessor(lggr, tonChain.Client, nil, nil)
 	require.NoError(t, err)
-	tonChain.Client.RunGetMethod(ctx, block, &addr, "")
+
+	ctx := t.Context()
+	feeQuoterAddr := state.TonChains[chainSelector].FeeQuoter
+	addrCodec := codec.AddressCodec{}
+	// TODO: Simplify with https://github.com/xssnick/tonutils-go/pull/346
+	rawFeeQuoterAddr, err := addrCodec.AddressStringToBytes(feeQuoterAddr.String())
+	require.NoError(t, err)
+
+	err = accessor.Sync(ctx, consts.ContractNameFeeQuoter, rawFeeQuoterAddr)
+	require.NoError(t, err)
+
+	rawLinkQuoterAddr, err := addrCodec.AddressStringToBytes(tonTokenAddr.String())
+	require.NoError(t, err)
+	timestampedPrice, err := accessor.GetTokenPriceUSD(ctx, rawLinkQuoterAddr)
+	require.NoError(t, err)
+	require.Equal(t, timestampedPrice.Value, big.NewInt(99))
 }
