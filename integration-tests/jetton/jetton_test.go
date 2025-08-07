@@ -650,8 +650,11 @@ func TestJettonAll(t *testing.T) {
 		acceptedRequestEventMessage, queryID, err := sendCallWithAmount(sufficientJettonTransferAmount)
 		require.NoError(t, err, "failed to send jettons with sufficient fee")
 		require.NotNil(t, acceptedRequestEventMessage, "Accepted request event message should not be nil")
-		acceptedRequestEvent, err := jetton_testing_wrappers.ParseAcceptedRequestEvent(acceptedRequestEventMessage.Body)
+
+		acceptedRequestEvent := &jetton_testing_wrappers.AcceptedRequestEvent{}
+		err = tlb.LoadFromCell(acceptedRequestEvent, acceptedRequestEventMessage.Body.BeginParse())
 		require.NoError(t, err, "failed to parse accepted request event")
+
 		assert.True(t, setup.Sender.Contract.Address.Equals(acceptedRequestEvent.Sender), "Sender address should match")
 		assert.Equal(t, queryID, acceptedRequestEvent.QueryID, "Query ID should match")
 		_, payloadBuf, err := acceptedRequestEvent.Payload.BeginParse().RestBits()
