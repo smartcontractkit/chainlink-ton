@@ -82,13 +82,7 @@ func (cs AddTonLanes) Apply(env cldf.Environment, config config.UpdateTonLanesCo
 		// }
 		// timeLockProposals = append(timeLockProposals, *proposal)
 
-		ccipSeqReport, err := operations.ExecuteSequence(env.OperationsBundle, sequence.UpdateTonLanesSequence, deps, sequenceInput)
-		if err != nil {
-			return cldf.ChangesetOutput{}, fmt.Errorf("failed to apply lane updates: %w", err)
-		}
-		seqReports = append(seqReports, ccipSeqReport.ExecutionReports...)
-
-		internalMsgs, err := utils.Deserialize(ccipSeqReport.Output)
+		internalMsgs, err := utils.Deserialize(updateSeqReport.Output)
 		if err != nil {
 			return cldf.ChangesetOutput{}, fmt.Errorf("failed to deserialize lane updates: %w", err)
 		}
