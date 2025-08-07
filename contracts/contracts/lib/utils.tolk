@@ -207,6 +207,8 @@ fun UMap<K, V>.get(self, key: K): (V?, bool) {
 fun UMap<K, V>.mustGet(self, key: K, errorCode: int): V {
     val (maybeValue, exists) = self.value.uDictGet(self.keyLen, key);
     assert(exists, errorCode);
+    var value =maybeValue!;
+
     return V.fromSlice(maybeValue!);
 }
 

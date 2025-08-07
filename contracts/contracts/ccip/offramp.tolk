@@ -12,7 +12,7 @@ struct Storage {
     deployer: cell; // Deployable compiled code
     merkleRootCode: cell; // make sure to use a library cell offchain to save space
     feeQuoter: address;
-    ocr3Base: OCR3Base
+    ocr3Base: Cell<OCR3Base>
 
     // static config
     chainSelector: uint64;
@@ -26,7 +26,7 @@ struct Storage {
 }
 
 struct SourceChainConfig {
-    router: address;
+    router: CrossChainAddress;
     isEnabled: bool;
     minSeqNr: uint64;
     isRMNVerificationDisabled: bool;
@@ -101,7 +101,13 @@ struct (0x00000002) Execute {
     report: ExecutionReport;
 }
 
-type Msg = Commit | Execute | OCR3Base_SetOCR3Config;
+struct (0x00000003) UpdateSourceChainConfig {
+    queryId: uint64;
+    sourceChainSelector: uint64;
+    config: SourceChainConfig
+}
+
+type Msg = Commit | Execute | UpdateSourceChainConfig | OCR3Base_SetOCR3Config;
 
 fun onInternalMessage(in:InMessage) {
     val msg = lazy Msg.fromSlice(in.body);
@@ -111,6 +117,7 @@ fun onInternalMessage(in:InMessage) {
         }
         Execute => { _execute(msg, in.senderAddress) }
         OCR3Base_SetOCR3Config => { _setOCR3Config(msg, in.senderAddress)}
+        UpdateSourceChainConfig => {_updateSourceChainConfig(msg, in.senderAddress)}
         else => {
             // ignore empty messages, "wrong opcode" for others
             assert (in.body.isEmpty()) throw 0xFFFF
@@ -121,7 +128,11 @@ fun onInternalMessage(in:InMessage) {
 fun _setOCR3Config(msg: OCR3Base_SetOCR3Config, sender: address) {
             var st = lazy Storage.load();
             st.ownable.requireOwner(sender);
-            st.ocr3Base.setOcr3Config(msg);
+
+            var ocr3Base = st.ocr3Base.load();
+            ocr3Base.setOcr3Config(msg);
+
+            st.ocr3Base = ocr3Base.toCell();
             st.store();
 }
 
@@ -134,7 +145,7 @@ fun getMerkleRootID(merkleRoot: uint256): builder {
 }
 
 fun commit(msg: Commit, sender: address) {
-    var st = lazy Storage.load();
+    var st = Storage.load();
 
     val report = msg.report.load();
 
@@ -160,6 +171,7 @@ fun commit(msg: Commit, sender: address) {
         // validate lane not cursed
 
         val sourceChainConfig = st.sourceChainConfigs.mustGet(root.sourceChainSelector, ERROR_SOURCE_CHAIN_NOT_ENABLED);
+
         assert(sourceChainConfig.isEnabled,ERROR_SOURCE_CHAIN_NOT_ENABLED);
 
         // validate against sourceChainConfig etc
@@ -170,6 +182,7 @@ fun commit(msg: Commit, sender: address) {
             bounce: true, // TODO: could bounce if root already exists
             value: ton("0.1"), // TODO:
             dest: {
+                workchain: 0,
                 stateInit: {
                     code: st.deployer,
                     data: Deployable {
@@ -193,11 +206,12 @@ fun commit(msg: Commit, sender: address) {
                 }
             },
         });
+
         initMsg.send(SEND_MODE_REGULAR);
     }
 
     // Verifies signatures and emits Transmitted event
-    st.ocr3Base.transmit(
+    st.ocr3Base.load().transmit(
         sender,
         OCR_PLUGIN_TYPE_COMMIT,
         msg.reportContext,
@@ -208,7 +222,7 @@ fun commit(msg: Commit, sender: address) {
     emit(CCIP_COMMIT_REPORT_ACCEPTED_TOPIC, CommitReportAccepted {
         priceUpdates: report.priceUpdates,
         merkleRoots: report.merkleRoots,
-    })
+    });
 }
 
 fun _execute(msg: Execute, sender: address) {
@@ -291,13 +305,21 @@ fun _execute(msg: Execute, sender: address) {
 
     // TODO: how do we handle incrementing the nonce? since execution is async this might take a while
 
-    st.ocr3Base.transmit(
+    st.ocr3Base.load().transmit(
         sender,
         OCR_PLUGIN_TYPE_EXECUTE,
         msg.reportContext,
         msg.report.toCell(),
         beginCell().endCell(),
     );
+}
+
+//todo: should be chainConfigs and take an array
+fun _updateSourceChainConfig(msg: UpdateSourceChainConfig, sender: address) {
+    var st = lazy Storage.load();
+    st.ownable.requireOwner(sender);
+    st.sourceChainConfigs.set(msg.sourceChainSelector, msg.config);
+    st.store();
 }
 
 // TODO: handle signals from MerkleRoot (release tokens, execute)

@@ -1,7 +1,7 @@
 import { Blockchain, BlockchainTransaction, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { toNano, Address, Cell, Dictionary, Message, beginCell, contractAddress } from '@ton/core'
+import { toNano, Address, Cell, Dictionary, Message, beginCell, contractAddress, StateInit } from '@ton/core'
 import { compile } from '@ton/blueprint'
-import { Any2TVMRampMessage, CommitReport, commitReportToCell, MerkleRoot, OffRampStorage, PriceUpdates, RampMessageHeader } from '../../wrappers/ccip/OffRamp'
+import { Any2TVMRampMessage, CommitReport, commitReportToCell, MerkleRoot, OffRampStorage, PriceUpdates, RampMessageHeader, SourceChainConfig } from '../../wrappers/ccip/OffRamp'
 import { OffRamp } from '../../wrappers/ccip/OffRamp'
 import {
   createTimestampedPriceValue,
@@ -11,7 +11,7 @@ import {
 } from '../../wrappers/ccip/FeeQuoter'
 import { assertLog, expectSuccessfulTransaction } from '../Logs'
 import '@ton/test-utils'
-import { uint8ArrayToBigInt, ZERO_ADDRESS } from '../../utils/Utils'
+import { bigIntToUint8Array, uint8ArrayToBigInt, ZERO_ADDRESS } from '../../utils/Utils'
 import { KeyPair, sha256_sync } from '@ton/crypto'
 import { expectEqualsConfig, generateEd25519KeyPair, generateMockTonAddress, generateRandomAddresses, generateRandomMockAddresses } from '../libraries/ocr/Helpers'
 import {
@@ -31,6 +31,7 @@ const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_TON = 13879075125137744094n
 const EVM_SENDER_ADDRESS_TEST = 0x1a5FdBc891c5D4E6aD68064Ae45D43146D4F9f3an
 const EVM_ONRAMP_ADDRESS_TEST = 0x111111c891c5D4E6aD68064Ae45D43146D4F9f3an
+const EVM_ROUTER_ADDRESS_TEST = 0x0BF3dE8c5D3e8A2B34D2BEeB17ABfCeBaf363A59n
 const LEAF_DOMAIN_SEPARATOR = beginCell().storeUint(0, 256).asSlice();
 
 
@@ -74,7 +75,8 @@ export function generateMessageId(message: Any2TVMRampMessage, metadataHash:bigi
       .endCell()
     )
     //message
-    .storeRef(message.sender.asCell())
+    .storeUint(message.sender.byteLength, 8)
+    .storeBuffer(message.sender, message.sender.byteLength)
     .storeRef(message.data)
     .storeMaybeRef(message.tokenAmounts)
     .endCell()
@@ -95,7 +97,7 @@ describe('OffRamp', () => {
   // Helper functions
   const configDigest: bigint = 0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcden
 
-  const createDefaultConfig = (overrides = {}) => ({
+  const createDefaultOCRConfig = (overrides = {}) => ({
     value: toNano('100'),
     configDigest,
     ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
@@ -106,16 +108,21 @@ describe('OffRamp', () => {
     ...overrides,
   })
 
-  const merkleRootAddress = (root: MerkleRoot, owner: Address) => {
+  const merkleRootAddress = (root: MerkleRoot) => {
     const data = beginCell()
       .storeAddress(offRamp.address) //owner
-      .storeBuilder(getMerkleRootID(root.merkleRoot)) //id
+      .storeUint(1, 16)//id
+      .storeUint(root.merkleRoot, 256)
       .endCell()
 
-    const init = {
-      deployerCode,
+    const init: StateInit = {
+      code: deployerCode,
       data
     }
+    console.log(deployerCode)
+    console.log(data)
+    console.log(init)
+
     const workchain = 0
     return contractAddress(workchain, init)
   }
@@ -170,6 +177,7 @@ describe('OffRamp', () => {
       let libPrep = beginCell().storeUint(2, 8).storeBuffer(merkleRootCodeRaw.hash()).endCell()
       let merkleRootCode = new Cell({ exotic: true, bits: libPrep.bits, refs: libPrep.refs })
 
+
       let data: OffRampStorage = {
         ownable: {
           owner: deployer.address,
@@ -202,7 +210,7 @@ describe('OffRamp', () => {
   it('should handle two OCR3 configs', async () => {
     const resultSetCommit = await offRamp.sendSetOCR3Config(
       deployer.getSender(),
-      createDefaultConfig(),
+      createDefaultOCRConfig(),
     )
     expectSuccessfulTransaction(resultSetCommit, deployer.address, offRamp.address)
 
@@ -221,7 +229,7 @@ describe('OffRamp', () => {
 
     const resultSetExecute = await offRamp.sendSetOCR3Config(
       deployer.getSender(),
-      createDefaultConfig({ ocrPluginType: OCR3_PLUGIN_TYPE_EXECUTE }),
+      createDefaultOCRConfig({ ocrPluginType: OCR3_PLUGIN_TYPE_EXECUTE }),
     )
     expectSuccessfulTransaction(resultSetExecute, deployer.address, offRamp.address)
     assertLog(
@@ -241,7 +249,7 @@ describe('OffRamp', () => {
   it('Test commit with empty report', async () => {
     const resultSetConfig = await offRamp.sendSetOCR3Config(
       deployer.getSender(),
-      createDefaultConfig(),
+      createDefaultOCRConfig(),
     )
     expectSuccessfulTransaction(resultSetConfig, deployer.address, offRamp.address)
 
@@ -286,10 +294,9 @@ describe('OffRamp', () => {
 
     const message: Any2TVMRampMessage = {
       header: rampMessageHeader,
-      sender: beginCell().storeUint(EVM_SENDER_ADDRESS_TEST, 160).asSlice(),
+      sender: Buffer.from(bigIntToUint8Array(EVM_SENDER_ADDRESS_TEST)),
       data: beginCell().endCell(),
       receiver: generateMockTonAddress(),
-      tokenAmounts: beginCell().endCell(), // vec<Any2TONTokenTransfer>
     }
 
     const metadataHash = uint8ArrayToBigInt(getMetadataHash(CHAINSEL_EVM_TEST_90000001))
@@ -297,7 +304,7 @@ describe('OffRamp', () => {
 
     const root: MerkleRoot = {
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
-      onRampAddress: beginCell().storeUint(EVM_ONRAMP_ADDRESS_TEST, 160).asSlice(),
+      onRampAddress: Buffer.from(bigIntToUint8Array(EVM_ONRAMP_ADDRESS_TEST)),
       minSeqNr: 1n,
       maxSeqNr: 1n,
       merkleRoot: rootBytes
@@ -313,7 +320,7 @@ describe('OffRamp', () => {
 
     const resultSetCommit = await offRamp.sendSetOCR3Config(
       deployer.getSender(),
-      createDefaultConfig(),
+      createDefaultOCRConfig(),
     )
     expectSuccessfulTransaction(resultSetCommit, deployer.address, offRamp.address)
 
@@ -329,6 +336,25 @@ describe('OffRamp', () => {
         bigF: 1,
       },
     )
+      const sourceChainConfig: SourceChainConfig = {
+          router: Buffer.from(bigIntToUint8Array(EVM_ROUTER_ADDRESS_TEST)),
+          isEnabled: true,
+          minSeqNr: 1n,
+          isRMNVerificationDisabled: false,
+          onRamp: Buffer.from(bigIntToUint8Array(EVM_ONRAMP_ADDRESS_TEST))
+      }
+
+    const resultUpdateSourceChainConfig = await offRamp.sendUpdateSourceChainConfig(
+      deployer.getSender(),
+      {
+        value: toNano("0.5"),
+        sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+        config: sourceChainConfig
+      }
+    )
+
+    expectSuccessfulTransaction(resultUpdateSourceChainConfig, deployer.address, offRamp.address)
+
     const resultCommitReport = await offRamp.sendCommit(
       transmitters[0].getSender(),
       {
@@ -349,5 +375,14 @@ describe('OffRamp', () => {
         merkleRoots: [root]
       }
     )
+
+    
+    expect(resultCommitReport.transactions).toHaveTransaction({
+      from: offRamp.address,
+      //to: merkleRootAddress(root), TODO: calculate merkleRoot address correctly this is not working
+      deploy: true,
+      success: true
+    })
+
   })
 })
