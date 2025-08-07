@@ -1,4 +1,4 @@
-package ton
+package state
 
 import (
 	"errors"

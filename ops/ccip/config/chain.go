@@ -9,8 +9,8 @@ import (
 
 	evm_fee_quoter "github.com/smartcontractkit/chainlink-ccip/chains/evm/gobindings/generated/v1_6_0/fee_quoter"
 	"github.com/smartcontractkit/chainlink/deployment/ccip/changeset/v1_6"
-	tonstate "github.com/smartcontractkit/chainlink/deployment/ccip/shared/stateview/ton"
 
+	tonstate "github.com/smartcontractkit/chainlink-ton/ops/state"
 	ton_fee_quoter "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 )
 

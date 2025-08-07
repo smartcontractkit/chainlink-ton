@@ -6,8 +6,8 @@ import (
 	"github.com/Masterminds/semver/v3"
 	chainsel "github.com/smartcontractkit/chain-selectors"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
+	tonstate "github.com/smartcontractkit/chainlink-ton/ops/state"
 	"github.com/smartcontractkit/chainlink/deployment/ccip/changeset/v1_6"
-	tonstate "github.com/smartcontractkit/chainlink/deployment/ccip/shared/stateview/ton"
 	"github.com/xssnick/tonutils-go/address"
 
 	"github.com/smartcontractkit/chainlink-ton/ops/ccip/config"

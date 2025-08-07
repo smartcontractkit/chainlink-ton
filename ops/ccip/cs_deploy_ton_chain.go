@@ -10,11 +10,11 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/ops/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/ops/ccip/operation"
 	"github.com/smartcontractkit/chainlink-ton/ops/ccip/sequence"
+	tonstate "github.com/smartcontractkit/chainlink-ton/ops/state"
 
 	tonaddress "github.com/xssnick/tonutils-go/address"
 
 	"github.com/smartcontractkit/chainlink/deployment/ccip/shared/stateview"
-	tonstate "github.com/smartcontractkit/chainlink/deployment/ccip/shared/stateview/ton"
 )
 
 type DeployCCIPContractsCfg struct {
