@@ -215,7 +215,7 @@ func (lp *Service) Process(msg types.IndexedMsg) error {
 			EventTopic: topic,
 
 			Address: msg.Msg.SrcAddr,
-			Data:    msg.Msg.Body.ToBOC(),
+			Data:    msg.Msg.Body,
 
 			TxHash:      types.TxHash(msg.Tx.Hash),
 			TxLT:        msg.Tx.LT,

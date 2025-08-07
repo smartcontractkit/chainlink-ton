@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/xssnick/tonutils-go/tvm/cell"
-
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
@@ -29,21 +27,6 @@ func NewCellQueryEngine(lggr logger.Logger) *CellQueryEngine {
 	return &CellQueryEngine{
 		lggr: logger.Sugared(lggr),
 	}
-}
-
-func (f *CellQueryEngine) ExtractCellPayload(logData []byte, logIndex int) ([]byte, error) {
-	parsedCell, err := cell.FromBOC(logData)
-	if err != nil {
-		return nil, fmt.Errorf("could not parse BOC for log #%d: %w", logIndex, err)
-	}
-
-	// this returns the payload of the cell, after header and other metadata
-	_, cellPayload, err := parsedCell.BeginParse().RestBits()
-	if err != nil {
-		return nil, fmt.Errorf("could not extract payload from cell for log #%d: %w", logIndex, err)
-	}
-
-	return cellPayload, nil
 }
 
 func (f *CellQueryEngine) PassesAllQueries(payload []byte, queries []cellquery.CellQuery, logIndex int) (bool, error) {

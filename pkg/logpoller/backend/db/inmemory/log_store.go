@@ -5,8 +5,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/xssnick/tonutils-go/tvm/cell"
-
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
@@ -66,10 +64,9 @@ func (s *inMemoryStore) FilteredLogs(
 			continue
 		}
 
-		// extract cell payload for filtering
-		cellPayload, err := s.cellQueryEngine.ExtractCellPayload(log.Data, i)
+		_, cellPayload, err := log.Data.BeginParse().RestBits()
 		if err != nil {
-			return cellquery.QueryResult{}, fmt.Errorf("failed to parse log at index %d: %w", i, err)
+			return cellquery.QueryResult{}, fmt.Errorf("could not extract payload from cell for log #%d: %w", i, err)
 		}
 
 		// apply all cell filters
@@ -102,13 +99,7 @@ func (s *inMemoryStore) FilteredLogsWithParser(
 			continue
 		}
 
-		c, err := cell.FromBOC(log.Data)
-		if err != nil {
-			s.lggr.Warnw("Failed to decode log data from BoC", "index", i, "err", err)
-			continue
-		}
-
-		parsedEvent, err := parser(c)
+		parsedEvent, err := parser(log.Data)
 		if err != nil {
 			s.lggr.Warnw("Parser failed to process log data", "index", i, "err", err)
 			continue

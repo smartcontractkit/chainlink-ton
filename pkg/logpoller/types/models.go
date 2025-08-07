@@ -8,6 +8,7 @@ import (
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
 // TON CCIP MVP Types
@@ -34,8 +35,8 @@ type Log struct {
 	ChainID string           // ChainID of the blockchain where the log was generated.
 	Address *address.Address // Source contract address associated with the log entry.
 
-	EventTopic uint32 // Topic identifier for categorizing the log entry.
-	Data       []byte // Raw BOC (Bag of Cells) of the body cell containing the log data(message body).
+	EventTopic uint32     // Topic identifier for categorizing the log entry.
+	Data       *cell.Cell // Parsed Raw BOC (Bag of Cells) of the event msg body containing the log data(message body).
 
 	TxHash      TxHash    // Transaction hash for uniqueness within the blockchain.
 	TxLT        uint64    // Logical time (LT) of the transaction, used for ordering and uniqueness.
@@ -63,7 +64,11 @@ func (l Log) String() string {
 	sb.WriteString(fmt.Sprintf("  Tx LT:        %d\n", l.TxLT))
 	sb.WriteString(fmt.Sprintf("  Tx Timestamp: %s\n", l.TxTimestamp.Format(time.RFC3339)))
 	sb.WriteString(fmt.Sprintf("  Event Topic:  %d\n", l.EventTopic))
-	sb.WriteString(fmt.Sprintf("  Data (BOC):   %s\n", hex.EncodeToString(l.Data)))
+	if l.Data != nil {
+		sb.WriteString(fmt.Sprintf("  Data (BOC):   %s\n", hex.EncodeToString(l.Data.ToBOC())))
+	} else {
+		sb.WriteString("  Data (BOC):   <nil>\n")
+	}
 	sb.WriteString(fmt.Sprintf("  Created At:   %s\n", l.CreatedAt.Format(time.RFC3339)))
 	sb.WriteString(fmt.Sprintf("  Shard Block:  (Workchain: %d, Shard: %d, Seqno: %d)\n", l.ShardBlockWorkchain, l.ShardBlockShard, l.ShardBlockSeqno))
 	sb.WriteString(fmt.Sprintf("  Master Block: (Seqno: %d)\n", l.MasterBlockSeqno))

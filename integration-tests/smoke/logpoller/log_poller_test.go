@@ -254,13 +254,8 @@ func Test_LogPoller(t *testing.T) {
 			// Convert logs to messages for emitterA
 			var msgsA []*tlb.ExternalMessageOut
 			for _, log := range resA.Logs {
-				c, cberr := cell.FromBOC(log.Data)
-				if cberr != nil {
-					t.Logf("failed to parse log data for emitterA, will retry: %v", err)
-					return false
-				}
 				ext := &tlb.ExternalMessageOut{
-					Body: c,
+					Body: log.Data,
 				}
 				msgsA = append(msgsA, ext)
 			}
@@ -268,13 +263,8 @@ func Test_LogPoller(t *testing.T) {
 			// Convert logs to messages for emitterB
 			var msgsB []*tlb.ExternalMessageOut
 			for _, log := range resB.Logs {
-				c, cberr := cell.FromBOC(log.Data)
-				if cberr != nil {
-					t.Logf("failed to parse log data for emitterB, will retry: %v", err)
-					return false
-				}
 				ext := &tlb.ExternalMessageOut{
-					Body: c,
+					Body: log.Data,
 				}
 				msgsB = append(msgsB, ext)
 			}
@@ -350,10 +340,9 @@ func Test_LogPoller(t *testing.T) {
 				require.Len(t, result.Logs, 5, "expected exactly 5 logs for the range 6-10")
 
 				for _, log := range result.Logs {
-					c, err := cell.FromBOC(log.Data)
 					require.NoError(t, err)
 					var event counter.CountIncreasedEvent
-					err = tlb.LoadFromCell(&event, c.BeginParse())
+					err = tlb.LoadFromCell(&event, log.Data.BeginParse())
 					require.NoError(t, err)
 
 					// check that the counter is within the expected range
@@ -385,10 +374,8 @@ func Test_LogPoller(t *testing.T) {
 				require.Len(t, result.Logs, 3, "expected exactly 3 logs for the range 1-3")
 
 				for _, log := range result.Logs {
-					c, err := cell.FromBOC(log.Data)
-					require.NoError(t, err)
 					var event counter.CountIncreasedEvent
-					err = tlb.LoadFromCell(&event, c.BeginParse())
+					err = tlb.LoadFromCell(&event, log.Data.BeginParse())
 					require.NoError(t, err)
 
 					// check that the counter is within the expected range
@@ -417,10 +404,8 @@ func Test_LogPoller(t *testing.T) {
 
 				seen := make(map[uint32]bool, targetCounter)
 				for _, log := range result.Logs {
-					c, err := cell.FromBOC(log.Data)
-					require.NoError(t, err)
 					var event counter.CountIncreasedEvent
-					err = tlb.LoadFromCell(&event, c.BeginParse())
+					err = tlb.LoadFromCell(&event, log.Data.BeginParse())
 					require.NoError(t, err)
 
 					require.GreaterOrEqual(t, event.Value, uint32(1))
@@ -734,10 +719,8 @@ func Test_LogPoller(t *testing.T) {
 
 				// Verify the filtering worked
 				for _, log := range result.Logs {
-					c, err := cell.FromBOC(log.Data)
-					require.NoError(t, err)
 					var event counter.CountIncreasedEvent
-					err = tlb.LoadFromCell(&event, c.BeginParse())
+					err = tlb.LoadFromCell(&event, log.Data.BeginParse())
 					require.NoError(t, err)
 
 					require.GreaterOrEqual(t, event.Value, uint32(from))
@@ -790,10 +773,8 @@ func Test_LogPoller(t *testing.T) {
 
 				// Verify each log belongs to emitterB by checking the ID in cell data
 				for _, log := range allEmitterBLogs {
-					c, err := cell.FromBOC(log.Data)
-					require.NoError(t, err)
 					var event counter.CountIncreasedEvent
-					err = tlb.LoadFromCell(&event, c.BeginParse())
+					err = tlb.LoadFromCell(&event, log.Data.BeginParse())
 					require.NoError(t, err)
 
 					require.Equal(t, emitterB.GetID(), event.ID, "log should belong to emitterB")
