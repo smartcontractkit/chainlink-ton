@@ -614,13 +614,13 @@ func Test_LogPoller(t *testing.T) {
 					Limit: offset + pageSize,
 				}
 
-				firstPageResult, err := lp.FilteredLogs(t.Context(),
+				firstPageResult, frerr := lp.FilteredLogs(t.Context(),
 					emitterA.ContractAddress(),
 					counter.CountIncreasedEventTopic,
 					[]cellquery.CellQuery{},
 					firstPageOptions,
 				)
-				require.NoError(t, err)
+				require.NoError(t, frerr)
 
 				// Verify offset page starts where expected
 				for i := 0; i < pageSize; i++ {
