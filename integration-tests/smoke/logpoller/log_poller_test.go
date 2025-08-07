@@ -21,8 +21,8 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
+	inmemorystore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/db/inmemory"
 	accountmsgloader "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/loader/account"
-	inmemorystore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/store/inmemory"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types/cellquery"
 )
