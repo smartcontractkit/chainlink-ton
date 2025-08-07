@@ -1,4 +1,4 @@
-package inmemorystore
+package inmemory
 
 import (
 	"context"

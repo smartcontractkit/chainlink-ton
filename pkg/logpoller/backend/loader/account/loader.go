@@ -1,4 +1,4 @@
-package accountmsgloader
+package account
 
 import (
 	"context"

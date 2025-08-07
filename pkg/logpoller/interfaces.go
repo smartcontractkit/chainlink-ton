@@ -36,11 +36,16 @@ type MessageLoader interface {
 
 // FilterStore defines an interface for storing and retrieving log filter specifications.
 type FilterStore interface {
-	RegisterFilter(ctx context.Context, flt types.Filter) error         // RegisterFilter adds a new filter or overwrites an existing one with the same name.
-	UnregisterFilter(ctx context.Context, name string) error            // UnregisterFilter removes a filter by its unique name.
-	HasFilter(ctx context.Context, name string) bool                    // HasFilter checks if a filter with the given name exists.
-	GetDistinctAddresses() ([]*address.Address, error)                  // GetDistinctAddresses returns a slice of unique addresses that are being monitored.
-	MatchingFilters(contractAddr address.Address, topic uint32) []int64 // MatchingFilters returns all filter IDs that match a given contract address and event topic.
+	// RegisterFilter adds a new filter or overwrites an existing one with the same name.
+	RegisterFilter(ctx context.Context, flt types.Filter) error
+	// UnregisterFilter removes a filter by its unique name.
+	UnregisterFilter(ctx context.Context, name string) error
+	// HasFilter checks if a filter with the given name exists.
+	HasFilter(ctx context.Context, name string) bool
+	// GetDistinctAddresses returns a slice of unique addresses that are being monitored.
+	GetDistinctAddresses() ([]*address.Address, error)
+	// MatchingFilters returns all filter IDs that match a given contract address and event topic.
+	MatchingFilters(contractAddr address.Address, topic uint32) []int64
 }
 
 // LogStore defines the interface for storing and retrieving logs.
