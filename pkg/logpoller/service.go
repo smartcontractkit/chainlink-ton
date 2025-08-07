@@ -214,7 +214,7 @@ func (lp *Service) Process(msg types.IndexedMsg) error {
 			FilterID:   fid,
 			EventTopic: topic,
 
-			Address: types.Address{Address: msg.Msg.SrcAddr},
+			Address: msg.Msg.SrcAddr,
 			Data:    msg.Msg.Body.ToBOC(),
 
 			TxHash:      types.TxHash(msg.Tx.Hash),

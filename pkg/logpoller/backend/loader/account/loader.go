@@ -101,7 +101,6 @@ func (lc *accountMsgLoader) fetchMessagesForAddress(ctx context.Context, addr *a
 	}
 	startLT, endLT, endHash, err := lc.getTransactionBounds(ctx, addr, prevBlock, toBlock)
 	if err != nil {
-
 		return nil, err
 	}
 

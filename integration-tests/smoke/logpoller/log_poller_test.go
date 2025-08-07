@@ -155,7 +155,7 @@ func Test_LogPoller(t *testing.T) {
 		// register filters
 		filterA := types.Filter{
 			Name:       "FilterA",
-			Address:    types.Address{Address: emitterA.ContractAddress()},
+			Address:    emitterA.ContractAddress(),
 			EventName:  "CounterIncreased",
 			EventTopic: counter.CountIncreasedEventTopic,
 		}
@@ -164,7 +164,7 @@ func Test_LogPoller(t *testing.T) {
 
 		filterB := types.Filter{
 			Name:       "FilterB",
-			Address:    types.Address{Address: emitterB.ContractAddress()},
+			Address:    emitterB.ContractAddress(),
 			EventName:  "CounterIncreased",
 			EventTopic: counter.CountIncreasedEventTopic,
 		}

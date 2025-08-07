@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 )
 
@@ -16,13 +17,13 @@ import (
 // easier debugging, block data, and other production features as needed.
 
 type Filter struct {
-	ID            int64         // ID is a unique identifier for the filter.
-	Name          string        // Name is a human-readable name for the filter, used for identification purposes.
-	Address       Address       // Address specifies the target address for which logs are being filtered.
-	EventName     string        // EventName is the name of the event to filter logs for.
-	EventTopic    uint32        // EventTopic is a topic identifier for the event log.
-	StartingSeqNo uint32        // StartingSeqNo defines the starting sequence number for log polling.
-	Retention     time.Duration // Retention specifies the duration for which the logs should be retained.
+	ID            int64            // ID is a unique identifier for the filter.
+	Name          string           // Name is a human-readable name for the filter, used for identification purposes.
+	Address       *address.Address // specifies the source address for which logs are being filtered.
+	EventName     string           // EventName is the name of the event to filter logs for.
+	EventTopic    uint32           // EventTopic is a topic identifier for the event log.
+	StartingSeqNo uint32           // StartingSeqNo defines the starting sequence number for log polling.
+	Retention     time.Duration    // Retention specifies the duration for which the logs should be retained.
 	// TODO: add more fields for production (IsDeleted, IsBackfilled, MaxLogsKept, etc.)
 }
 
@@ -30,8 +31,8 @@ type Log struct {
 	ID       int64 // Unique identifier for the log entry.
 	FilterID int64 // Identifier of the filter that matched this log.
 
-	ChainID string  // ChainID of the blockchain where the log was generated.
-	Address Address // Source contract address associated with the log entry.
+	ChainID string           // ChainID of the blockchain where the log was generated.
+	Address *address.Address // Source contract address associated with the log entry.
 
 	EventTopic uint32 // Topic identifier for categorizing the log entry.
 	Data       []byte // Raw BOC (Bag of Cells) of the body cell containing the log data(message body).

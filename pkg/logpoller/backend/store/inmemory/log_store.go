@@ -14,28 +14,28 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types/cellquery"
 )
 
-var _ logpoller.LogStore = (*InMemoryStore)(nil)
+var _ logpoller.LogStore = (*inMemoryStore)(nil)
 
-// InMemoryStore is a temporary in-memory implementation for TON CCIP MVP.
+// inMemoryStore is a temporary in-memory implementation for TON CCIP MVP.
 // This provides basic log storage and querying capabilities without database persistence.
 // For production use, this should be replaced with proper database-backed storage.
 //
 // TODO(NONEVM-2187): implement ORM using a database for persistence in production
-type InMemoryStore struct {
+type inMemoryStore struct {
 	lggr            logger.SugaredLogger
 	cellQueryEngine *CellQueryEngine
 	mu              sync.Mutex
 	logs            []types.Log
 }
 
-func NewLogStore(lggr logger.Logger) *InMemoryStore {
-	return &InMemoryStore{
+func NewLogStore(lggr logger.Logger) *inMemoryStore {
+	return &inMemoryStore{
 		lggr:            logger.Sugared(lggr),
 		cellQueryEngine: NewCellQueryEngine(lggr),
 	}
 }
 
-func (s *InMemoryStore) SaveLog(log types.Log) {
+func (s *inMemoryStore) SaveLog(log types.Log) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	now := time.Now().UTC()
@@ -49,7 +49,7 @@ func (s *InMemoryStore) SaveLog(log types.Log) {
 }
 
 // FilteredLogs finds logs by address and topic, then applies cell-level filters.
-func (s *InMemoryStore) FilteredLogs(
+func (s *inMemoryStore) FilteredLogs(
 	evtSrcAddress string,
 	topic uint32,
 	filters []cellquery.CellQuery,
@@ -87,7 +87,7 @@ func (s *InMemoryStore) FilteredLogs(
 	return s.cellQueryEngine.ApplyPagination(matchingLogs, options.Limit, options.Offset), nil
 }
 
-func (s *InMemoryStore) FilteredLogsWithParser(
+func (s *inMemoryStore) FilteredLogsWithParser(
 	evtSrcAddress string,
 	topic uint32,
 	parser types.LogParser,
