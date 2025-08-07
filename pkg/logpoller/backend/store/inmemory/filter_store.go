@@ -1,4 +1,4 @@
-package logpoller
+package inmemory
 
 import (
 	"context"
@@ -7,17 +7,9 @@ import (
 
 	"github.com/xssnick/tonutils-go/address"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
 )
-
-// FilterStore defines an interface for storing and retrieving log filter specifications.
-type FilterStore interface {
-	RegisterFilter(ctx context.Context, flt types.Filter) error         // RegisterFilter adds a new filter or overwrites an existing one with the same name.
-	UnregisterFilter(ctx context.Context, name string) error            // UnregisterFilter removes a filter by its unique name.
-	HasFilter(ctx context.Context, name string) bool                    // HasFilter checks if a filter with the given name exists.
-	GetDistinctAddresses() ([]*address.Address, error)                  // GetDistinctAddresses returns a slice of unique addresses that are being monitored.
-	MatchingFilters(contractAddr address.Address, topic uint32) []int64 // MatchingFilters returns all filter IDs that match a given contract address and event topic.
-}
 
 // inMemoryFilters is an in-memory implementation of the Filters interface.
 type inMemoryFilters struct {
@@ -26,11 +18,11 @@ type inMemoryFilters struct {
 	filtersByAddress map[string]map[uint32]struct{} // filtersByAddress maps a contract address string to a set of its watched event topics.
 }
 
-var _ FilterStore = (*inMemoryFilters)(nil)
+var _ logpoller.FilterStore = (*inMemoryFilters)(nil)
 
-// NewInMemoryFilterStore creates a new in-memory implementation of the Filters interface.
+// NewFilterStore creates a new in-memory implementation of the Filters interface.
 // TODO(NONEVM-2187): implement ORM and remove in-memory store
-func NewInMemoryFilterStore() FilterStore {
+func NewFilterStore() logpoller.FilterStore {
 	return &inMemoryFilters{
 		filtersByName:    make(map[string]types.Filter),
 		filtersByAddress: make(map[string]map[uint32]struct{}),

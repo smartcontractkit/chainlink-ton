@@ -21,14 +21,17 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
+	accountmsgloader "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/loader/account"
+	inmemorystore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/store/inmemory"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types/cellquery"
 )
 
 func Test_LogPoller(t *testing.T) {
 	client := test_utils.CreateAPIClient(t, chainsel.TON_LOCALNET.Selector).WithRetry()
 	require.NotNil(t, client)
 
-	t.Run("log poller:log collector event ingestion", func(t *testing.T) {
+	t.Run("log poller:accountmsgloader event ingestion", func(t *testing.T) {
 		t.Parallel()
 		// test event source config
 		const batchCount = 3
@@ -64,7 +67,7 @@ func Test_LogPoller(t *testing.T) {
 
 		t.Run("loading entire block range at once", func(t *testing.T) {
 			t.Parallel()
-			loader := logpoller.NewMessageLoader(client, logger.Test(t), pageSize)
+			loader := accountmsgloader.NewMsgLoader(client, logger.Test(t), pageSize)
 
 			msgs, berr := loader.BackfillForAddresses(
 				t.Context(),
@@ -84,7 +87,7 @@ func Test_LogPoller(t *testing.T) {
 			t.Parallel()
 			var allMsgs []*tlb.ExternalMessageOut
 
-			loader := logpoller.NewMessageLoader(client, logger.Test(t), pageSize)
+			loader := accountmsgloader.NewMsgLoader(client, logger.Test(t), pageSize)
 
 			// iterate block by block from prevBlock to toBlock
 			currentBlock := prevBlock
@@ -135,10 +138,18 @@ func Test_LogPoller(t *testing.T) {
 		const targetCounter = 10
 
 		cfg := logpoller.DefaultConfigSet
+		// DI
+		logStore := inmemorystore.NewLogStore(logger.Test(t))
+		filterStore := inmemorystore.NewFilterStore()
+		loader := accountmsgloader.NewMsgLoader(client, logger.Test(t), cfg.PageSize)
+
 		lp := logpoller.NewLogPoller(
 			logger.Test(t),
 			client,
 			cfg,
+			logStore,
+			filterStore,
+			loader,
 		)
 
 		// register filters
@@ -218,20 +229,20 @@ func Test_LogPoller(t *testing.T) {
 			}
 
 			// get all logs
-			queries := []logpoller.CellQuery{
+			queries := []cellquery.CellQuery{
 				{
 					Offset:   4,
-					Operator: logpoller.GT,
+					Operator: cellquery.GT,
 					Value:    binary.BigEndian.AppendUint32(nil, 0),
 				},
 				{
 					Offset:   4,
-					Operator: logpoller.LTE,
+					Operator: cellquery.LTE,
 					Value:    binary.BigEndian.AppendUint32(nil, targetCounter),
 				},
 			}
 
-			options := logpoller.QueryOptions{} // Default options (no sorting, no pagination)
+			options := cellquery.QueryOptions{} // Default options (no sorting, no pagination)
 
 			resA, err := lp.FilteredLogs(t.Context(), emitterA.ContractAddress(), counter.CountIncreasedEventTopic, queries, options)
 			require.NoError(t, err) // query should not fail
@@ -318,20 +329,20 @@ func Test_LogPoller(t *testing.T) {
 			// TODO: with SQL we might need to implement a more efficient way to query logs.
 			t.Run("Cell Query, events from emitter A", func(t *testing.T) {
 				t.Parallel()
-				queries := []logpoller.CellQuery{
+				queries := []cellquery.CellQuery{
 					{
 						Offset:   4,
-						Operator: logpoller.GT,
+						Operator: cellquery.GT,
 						Value:    binary.BigEndian.AppendUint32(nil, 5),
 					},
 					{
 						Offset:   4,
-						Operator: logpoller.LTE,
+						Operator: cellquery.LTE,
 						Value:    binary.BigEndian.AppendUint32(nil, 10),
 					},
 				}
 
-				options := logpoller.QueryOptions{} // Default options (no sorting, no pagination)
+				options := cellquery.QueryOptions{} // Default options (no sorting, no pagination)
 
 				result, err := lp.FilteredLogs(t.Context(), emitterA.ContractAddress(), counter.CountIncreasedEventTopic, queries, options)
 				require.NoError(t, err)
@@ -353,20 +364,20 @@ func Test_LogPoller(t *testing.T) {
 
 			t.Run("Log Poller Query With Cell Filter, events from emitter B", func(t *testing.T) {
 				t.Parallel()
-				queries := []logpoller.CellQuery{
+				queries := []cellquery.CellQuery{
 					{
 						Offset:   4,
-						Operator: logpoller.GTE,
+						Operator: cellquery.GTE,
 						Value:    binary.BigEndian.AppendUint32(nil, 1),
 					},
 					{
 						Offset:   4,
-						Operator: logpoller.LTE,
+						Operator: cellquery.LTE,
 						Value:    binary.BigEndian.AppendUint32(nil, 3),
 					},
 				}
 
-				options := logpoller.QueryOptions{} // Default options
+				options := cellquery.QueryOptions{} // Default options
 
 				result, err := lp.FilteredLogs(t.Context(), emitterB.ContractAddress(), counter.CountIncreasedEventTopic, queries, options)
 				require.NoError(t, err)
@@ -389,15 +400,15 @@ func Test_LogPoller(t *testing.T) {
 			t.Run("Log Poller Query With Cell Query, all events from emitter B", func(t *testing.T) {
 				t.Parallel()
 				// the CounterIncreased event data layout is [ID (4 bytes), Counter (4 bytes)].
-				queries := []logpoller.CellQuery{
+				queries := []cellquery.CellQuery{
 					{
 						Offset:   0,
-						Operator: logpoller.EQ,
+						Operator: cellquery.EQ,
 						Value:    binary.BigEndian.AppendUint32(nil, emitterB.GetID()), // compare ID
 					},
 				}
 
-				options := logpoller.QueryOptions{} // Default options
+				options := cellquery.QueryOptions{} // Default options
 
 				result, err := lp.FilteredLogs(t.Context(), emitterB.ContractAddress(), counter.CountIncreasedEventTopic, queries, options)
 				require.NoError(t, err)
@@ -517,16 +528,16 @@ func Test_LogPoller(t *testing.T) {
 			t.Run("Sort by TxLT ascending", func(t *testing.T) {
 				t.Parallel()
 
-				options := logpoller.QueryOptions{
-					SortBy: []logpoller.SortBy{
-						{Field: logpoller.SortByTxLT, Order: logpoller.ASC},
+				options := cellquery.QueryOptions{
+					SortBy: []cellquery.SortBy{
+						{Field: cellquery.SortByTxLT, Order: cellquery.ASC},
 					},
 				}
 
 				result, err := lp.FilteredLogs(t.Context(),
 					emitterA.ContractAddress(),
 					counter.CountIncreasedEventTopic,
-					[]logpoller.CellQuery{}, // No cell filters
+					[]cellquery.CellQuery{}, // No cell filters
 					options,
 				)
 				require.NoError(t, err)
@@ -542,16 +553,16 @@ func Test_LogPoller(t *testing.T) {
 			t.Run("Sort by TxLT descending", func(t *testing.T) {
 				t.Parallel()
 
-				options := logpoller.QueryOptions{
-					SortBy: []logpoller.SortBy{
-						{Field: logpoller.SortByTxLT, Order: logpoller.DESC},
+				options := cellquery.QueryOptions{
+					SortBy: []cellquery.SortBy{
+						{Field: cellquery.SortByTxLT, Order: cellquery.DESC},
 					},
 				}
 
 				result, err := lp.FilteredLogs(t.Context(),
 					emitterA.ContractAddress(),
 					counter.CountIncreasedEventTopic,
-					[]logpoller.CellQuery{},
+					[]cellquery.CellQuery{},
 					options,
 				)
 				require.NoError(t, err)
@@ -568,9 +579,9 @@ func Test_LogPoller(t *testing.T) {
 				t.Parallel()
 
 				const pageSize = 7
-				options := logpoller.QueryOptions{
-					SortBy: []logpoller.SortBy{
-						{Field: logpoller.SortByTxLT, Order: logpoller.ASC},
+				options := cellquery.QueryOptions{
+					SortBy: []cellquery.SortBy{
+						{Field: cellquery.SortByTxLT, Order: cellquery.ASC},
 					},
 					Limit: pageSize,
 				}
@@ -578,7 +589,7 @@ func Test_LogPoller(t *testing.T) {
 				result, err := lp.FilteredLogs(t.Context(),
 					emitterA.ContractAddress(),
 					counter.CountIncreasedEventTopic,
-					[]logpoller.CellQuery{},
+					[]cellquery.CellQuery{},
 					options,
 				)
 				require.NoError(t, err)
@@ -593,9 +604,9 @@ func Test_LogPoller(t *testing.T) {
 				const pageSize = 2
 				const offset = 8
 
-				options := logpoller.QueryOptions{
-					SortBy: []logpoller.SortBy{
-						{Field: logpoller.SortByTxLT, Order: logpoller.ASC},
+				options := cellquery.QueryOptions{
+					SortBy: []cellquery.SortBy{
+						{Field: cellquery.SortByTxLT, Order: cellquery.ASC},
 					},
 					Limit:  pageSize,
 					Offset: offset,
@@ -604,16 +615,16 @@ func Test_LogPoller(t *testing.T) {
 				result, err := lp.FilteredLogs(t.Context(),
 					emitterA.ContractAddress(),
 					counter.CountIncreasedEventTopic,
-					[]logpoller.CellQuery{},
+					[]cellquery.CellQuery{},
 					options,
 				)
 				require.NoError(t, err)
 				require.Len(t, result.Logs, pageSize)
 
 				// Get first page for comparison
-				firstPageOptions := logpoller.QueryOptions{
-					SortBy: []logpoller.SortBy{
-						{Field: logpoller.SortByTxLT, Order: logpoller.ASC},
+				firstPageOptions := cellquery.QueryOptions{
+					SortBy: []cellquery.SortBy{
+						{Field: cellquery.SortByTxLT, Order: cellquery.ASC},
 					},
 					Limit: offset + pageSize,
 				}
@@ -621,7 +632,7 @@ func Test_LogPoller(t *testing.T) {
 				firstPageResult, err := lp.FilteredLogs(t.Context(),
 					emitterA.ContractAddress(),
 					counter.CountIncreasedEventTopic,
-					[]logpoller.CellQuery{},
+					[]cellquery.CellQuery{},
 					firstPageOptions,
 				)
 				require.NoError(t, err)
@@ -641,9 +652,9 @@ func Test_LogPoller(t *testing.T) {
 				var pageCount int
 
 				for offset := 0; ; offset += pageSize {
-					options := logpoller.QueryOptions{
-						SortBy: []logpoller.SortBy{
-							{Field: logpoller.SortByTxLT, Order: logpoller.ASC},
+					options := cellquery.QueryOptions{
+						SortBy: []cellquery.SortBy{
+							{Field: cellquery.SortByTxLT, Order: cellquery.ASC},
 						},
 						Limit:  pageSize,
 						Offset: offset,
@@ -652,7 +663,7 @@ func Test_LogPoller(t *testing.T) {
 					result, err := lp.FilteredLogs(t.Context(),
 						emitterA.ContractAddress(),
 						counter.CountIncreasedEventTopic,
-						[]logpoller.CellQuery{},
+						[]cellquery.CellQuery{},
 						options,
 					)
 					require.NoError(t, err)
@@ -691,22 +702,22 @@ func Test_LogPoller(t *testing.T) {
 				count := to - from + 1
 
 				// Filter for counters 4-8, then sort and paginate
-				cellQueries := []logpoller.CellQuery{
+				cellQueries := []cellquery.CellQuery{
 					{
 						Offset:   4,
-						Operator: logpoller.GTE,
+						Operator: cellquery.GTE,
 						Value:    binary.BigEndian.AppendUint32(nil, uint32(from)),
 					},
 					{
 						Offset:   4,
-						Operator: logpoller.LTE,
+						Operator: cellquery.LTE,
 						Value:    binary.BigEndian.AppendUint32(nil, uint32(to)),
 					},
 				}
 
-				options := logpoller.QueryOptions{
-					SortBy: []logpoller.SortBy{
-						{Field: logpoller.SortByTxLT, Order: logpoller.DESC}, // Newest first
+				options := cellquery.QueryOptions{
+					SortBy: []cellquery.SortBy{
+						{Field: cellquery.SortByTxLT, Order: cellquery.DESC}, // Newest first
 					},
 					Limit:  count,
 					Offset: 0,
@@ -748,9 +759,9 @@ func Test_LogPoller(t *testing.T) {
 				var emitterBPages [][]types.Log
 
 				for offset := 0; offset < targetCounter; offset += pageSize {
-					options := logpoller.QueryOptions{
-						SortBy: []logpoller.SortBy{
-							{Field: logpoller.SortByTxLT, Order: logpoller.ASC},
+					options := cellquery.QueryOptions{
+						SortBy: []cellquery.SortBy{
+							{Field: cellquery.SortByTxLT, Order: cellquery.ASC},
 						},
 						Limit:  pageSize,
 						Offset: offset,
@@ -759,7 +770,7 @@ func Test_LogPoller(t *testing.T) {
 					result, err := lp.FilteredLogs(t.Context(),
 						emitterB.ContractAddress(),
 						counter.CountIncreasedEventTopic,
-						[]logpoller.CellQuery{},
+						[]cellquery.CellQuery{},
 						options,
 					)
 					require.NoError(t, err)
@@ -793,17 +804,17 @@ func Test_LogPoller(t *testing.T) {
 				t.Parallel()
 
 				// Filter for impossible range
-				cellQueries := []logpoller.CellQuery{
+				cellQueries := []cellquery.CellQuery{
 					{
 						Offset:   4,
-						Operator: logpoller.GT,
+						Operator: cellquery.GT,
 						Value:    binary.BigEndian.AppendUint32(nil, 100), // No events should match
 					},
 				}
 
-				options := logpoller.QueryOptions{
-					SortBy: []logpoller.SortBy{
-						{Field: logpoller.SortByTxLT, Order: logpoller.ASC},
+				options := cellquery.QueryOptions{
+					SortBy: []cellquery.SortBy{
+						{Field: cellquery.SortByTxLT, Order: cellquery.ASC},
 					},
 					Limit:  10,
 					Offset: 0,
@@ -824,9 +835,9 @@ func Test_LogPoller(t *testing.T) {
 			t.Run("Edge case: offset beyond total", func(t *testing.T) {
 				t.Parallel()
 
-				options := logpoller.QueryOptions{
-					SortBy: []logpoller.SortBy{
-						{Field: logpoller.SortByTxLT, Order: logpoller.ASC},
+				options := cellquery.QueryOptions{
+					SortBy: []cellquery.SortBy{
+						{Field: cellquery.SortByTxLT, Order: cellquery.ASC},
 					},
 					Limit:  5,
 					Offset: targetCounter + 10, // Way beyond available data
@@ -835,7 +846,7 @@ func Test_LogPoller(t *testing.T) {
 				result, err := lp.FilteredLogs(t.Context(),
 					emitterA.ContractAddress(),
 					counter.CountIncreasedEventTopic,
-					[]logpoller.CellQuery{},
+					[]cellquery.CellQuery{},
 					options,
 				)
 				require.NoError(t, err)

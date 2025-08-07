@@ -1,4 +1,4 @@
-package logpoller
+package account
 
 import (
 	"context"
@@ -13,22 +13,11 @@ import (
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
 )
 
-// MessageLoader defines the interface for loading external messages from the TON blockchain.
-// It provides functionality to scan blockchain data and extract relevant messages from
-// specified addresses within a given block range.
-type MessageLoader interface {
-	// BackfillForAddresses scans the TON blockchain for external messages from specified
-	// source addresses within a given block range.
-	//
-	// This method retrieves all external messages (ExternalMessageOut) that were emitted
-	// by the provided source addresses between prevBlock (exclusive) and toBlock (inclusive).
-	BackfillForAddresses(ctx context.Context, srcAddrs []*address.Address, prevBlock, toBlock *ton.BlockIDExt) ([]types.IndexedMsg, error)
-}
-
-var _ MessageLoader = (*accountMsgLoader)(nil)
+var _ logpoller.MessageLoader = (*accountMsgLoader)(nil)
 
 // TODO(NONEVM-2194): replace with a block-scanning loader
 // TODO(NONEVM-2188): refactor as subengine, with background workers for production scalability
@@ -38,8 +27,8 @@ type accountMsgLoader struct {
 	pageSize uint32               // Number of transactions to fetch per API call
 }
 
-// NewAccountMsgLoader creates a new MessageLoader instance for TON CCIP MVP
-func NewAccountMsgLoader(
+// NewMsgLoader creates a new MessageLoader instance
+func NewMsgLoader(
 	client ton.APIClientWrapped,
 	lggr logger.Logger,
 	pageSize uint32,

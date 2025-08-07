@@ -1,4 +1,4 @@
-package logpoller
+package inmemory
 
 import (
 	"fmt"
@@ -9,16 +9,12 @@ import (
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types/cellquery"
 )
 
-type LogStore interface {
-	SaveLog(log types.Log)
-	FilteredLogs(address string, topic uint32, queries []CellQuery, options QueryOptions) (QueryResult, error)
-	FilteredLogsWithParser(address string, topic uint32, parser types.LogParser, filter types.LogFilter) ([]any, error)
-}
-
-var _ LogStore = (*InMemoryStore)(nil)
+var _ logpoller.LogStore = (*InMemoryStore)(nil)
 
 // InMemoryStore is a temporary in-memory implementation for TON CCIP MVP.
 // This provides basic log storage and querying capabilities without database persistence.
@@ -32,7 +28,7 @@ type InMemoryStore struct {
 	logs            []types.Log
 }
 
-func NewInMemoryStore(lggr logger.Logger) *InMemoryStore {
+func NewLogStore(lggr logger.Logger) *InMemoryStore {
 	return &InMemoryStore{
 		lggr:            logger.Sugared(lggr),
 		cellQueryEngine: NewCellQueryEngine(lggr),
@@ -56,9 +52,9 @@ func (s *InMemoryStore) SaveLog(log types.Log) {
 func (s *InMemoryStore) FilteredLogs(
 	evtSrcAddress string,
 	topic uint32,
-	filters []CellQuery,
-	options QueryOptions,
-) (QueryResult, error) {
+	filters []cellquery.CellQuery,
+	options cellquery.QueryOptions,
+) (cellquery.QueryResult, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -73,13 +69,13 @@ func (s *InMemoryStore) FilteredLogs(
 		// extract cell payload for filtering
 		cellPayload, err := s.cellQueryEngine.ExtractCellPayload(log.Data, i)
 		if err != nil {
-			return QueryResult{}, fmt.Errorf("failed to parse log at index %d: %w", i, err)
+			return cellquery.QueryResult{}, fmt.Errorf("failed to parse log at index %d: %w", i, err)
 		}
 
 		// apply all cell filters
 		passes, err := s.cellQueryEngine.PassesAllQueries(cellPayload, filters, i)
 		if err != nil {
-			return QueryResult{}, fmt.Errorf("failed to apply filter to log at index %d: %w", i, err)
+			return cellquery.QueryResult{}, fmt.Errorf("failed to apply filter to log at index %d: %w", i, err)
 		}
 
 		if passes {

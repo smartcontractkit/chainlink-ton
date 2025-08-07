@@ -12,47 +12,19 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types/cellquery"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/event"
 )
 
-// TON LogPoller Service - CCIP MVP Implementation
+// TON LogPoller Service
 //
-// This package implements a log polling service for TON blockchain as part of the
-// TON CCIP MVP. It monitors external message outputs from specified addresses and
-// applies filtering logic to support CCIP cross-chain message detection.
+// This package implements a log polling service for TON blockchain.
+// It monitors external message outputs from specified addresses and
+// applies filtering logic to support cross-chain message detection.
 //
 // The service monitors masterchain blocks, extracts ExternalMessageOut entries that match
 // registered filters. Each filter specifies an address and event topic, with optional
 // cell-level byte queries for precise filtering.
-//
-// This MVP provides the foundation for TON CCIP functionality and will be enhanced
-// with database persistence, advanced querying, and production-grade scalability features.
-
-// LogPoller defines the interface for TON log polling service
-type LogPoller interface {
-	services.Service
-	RegisterFilter(ctx context.Context, flt types.Filter) error
-	UnregisterFilter(ctx context.Context, name string) error
-	HasFilter(ctx context.Context, name string) bool
-
-	// FilteredLogs queries logs using direct byte-offset filtering on the raw cell data.
-	// This method is highly efficient as it can push filtering down to the database layer
-	// (e.g., using SQL SUBSTRING) before returning data to the application
-	//
-	// It is best suited for high-performance queries where the event's data layout is fixed
-	// However, this mechanism works best with fixed-size data layouts.
-	// It cannot reliably query data that appears after variable-sized fields (like snake
-	// data or other dynamic content), as the field's offset would be unpredictable.
-	FilteredLogs(ctx context.Context, address *address.Address, topic uint32, queries []CellQuery, options QueryOptions) (QueryResult, error)
-	// FilteredLogsWithParser queries logs using a flexible 'parse-then-filter' pattern.
-	// It streams all logs matching a given address and topic, applies the provided `LogParser`
-	// function to decode each log's data into a Go struct, and then applies the `LogFilter`
-	// function to the resulting struct.
-	//
-	// This approach is more robust and adaptable to changes in contract data layouts, as the
-	// filtering logic operates on strongly-typed fields rather than fixed byte offsets.
-	FilteredLogsWithParser(ctx context.Context, address *address.Address, topic uint32, parser types.LogParser, filter types.LogFilter) ([]any, error)
-}
 
 // Service is the main TON log polling service implementation.
 // It continuously polls the TON masterchain, discovers new blocks, and processes
@@ -81,17 +53,19 @@ func NewLogPoller(
 	lggr logger.Logger,
 	client ton.APIClientWrapped,
 	cfg Config, // TODO: use global relayer config
+	store LogStore,
+	filters FilterStore,
+	loader MessageLoader,
 ) *Service {
-	store := NewInMemoryStore(lggr) // TODO: replace with ORM, inject with db connection
-	filters := NewInMemoryFilterStore()
 	lp := &Service{
 		lggr:       logger.Sugared(lggr),
 		client:     client,
-		filters:    filters,
-		store:      store,
 		pollPeriod: cfg.PollPeriod,
+
+		filters: filters,
+		loader:  loader,
+		store:   store,
 	}
-	lp.loader = NewAccountMsgLoader(lp.client, lp.lggr, cfg.PageSize)
 	lp.Service, lp.eng = services.Config{
 		Name:  "TONLogPoller",
 		Start: lp.start,
@@ -295,9 +269,9 @@ func (lp *Service) FilteredLogs(
 	_ context.Context,
 	evtSrcAddress *address.Address,
 	topic uint32,
-	queries []CellQuery,
-	options QueryOptions,
-) (QueryResult, error) {
+	queries []cellquery.CellQuery,
+	options cellquery.QueryOptions,
+) (cellquery.QueryResult, error) {
 	return lp.store.FilteredLogs(
 		evtSrcAddress.String(),
 		topic,
