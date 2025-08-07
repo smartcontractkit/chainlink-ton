@@ -61,7 +61,7 @@ describe('MCMS - RBACTimelockGetters', () => {
 
   describe('isOperationPending', () => {
     it('should return false if not an operation', async () => {
-      const nonOperation = 12345n // TODO rewrite as bytes ot non-op
+      const nonOperation = 12345n
       const isOperationPending = await baseTest.bind.timelock.isOperationPending(nonOperation)
       expect(isOperationPending).toBe(false)
     })
@@ -170,7 +170,7 @@ describe('MCMS - RBACTimelockGetters', () => {
       )
 
       // Warp to exactly the delay time
-      baseTest.warpTime(BaseTestSetup.MIN_DELAY) // TODO + 1?
+      baseTest.warpTime(BaseTestSetup.MIN_DELAY)
 
       const operationBatch: rbactl.OperationBatch = {
         calls,
@@ -184,7 +184,6 @@ describe('MCMS - RBACTimelockGetters', () => {
     })
 
     it('should return true if after the delayed execution time', async () => {
-      // TODO I dont fully get the difference with the test above
       const call = baseTest.createIncrementCall()
       const calls = BaseTestSetup.singletonCalls(call)
 
@@ -416,10 +415,8 @@ describe('MCMS - RBACTimelockGetters', () => {
       }
       const operationID = await baseTest.bind.timelock.getHashOperationBatch(operationBatch)
 
-      // TODO Should we warp time here so we are sure the timestamp is correct?
-
       const operationTimestamp = await baseTest.bind.timelock.getTimestamp(operationID)
-      expect(operationTimestamp).toBe(BigInt(scheduleTime + BaseTestSetup.MIN_DELAY)) // TODO or maybe a range?
+      expect(operationTimestamp).toBe(BigInt(scheduleTime + BaseTestSetup.MIN_DELAY))
     })
 
     it('should return DONE_TIMESTAMP if operation has been executed', async () => {
