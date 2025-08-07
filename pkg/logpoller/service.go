@@ -285,8 +285,8 @@ func (lp *Service) FilteredLogsWithParser(
 	_ context.Context,
 	evtSrcAddress *address.Address,
 	topic uint32,
-	parser types.LogParser,
-	filter types.LogFilter,
+	parser LogParser,
+	filter LogFilter,
 ) ([]any, error) {
 	return lp.store.FilteredLogsWithParser(
 		evtSrcAddress.String(),

@@ -5,12 +5,36 @@ import (
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types/cellquery"
 )
+
+// LogParser is a function type responsible for parsing the raw log data (a TVM Cell)
+// into a specific, strongly-typed Go struct.
+//
+// The parser takes a *cell.Cell, which represents the root cell of the log's message body,
+// and should return the parsed event as an `any` type.
+//
+// If the cell cannot be parsed into the target struct (e.g., due to a malformed
+// payload or a type mismatch), the function should return a non-nil error. The
+// LogPoller will then skip that log and continue to the next one.
+type LogParser func(c *cell.Cell) (any, error)
+
+// LogFilter is a function type that is applied to a successfully parsed log event.
+// It acts as a predicate to determine if the event should be included in the
+// final query result set.
+//
+// The filter receives the parsed event (as an `any` type) returned by a LogParser.
+// The implementation must first perform a type assertion to convert the `any` interface
+// back to the expected concrete struct type.
+//
+// It should return `true` if the event matches the desired criteria and should be
+// included in the results, or `false` to discard it.
+type LogFilter func(parsedEvent any) bool
 
 // LogPoller defines the public interface for the TON log polling service.
 type LogPoller interface {
@@ -19,7 +43,7 @@ type LogPoller interface {
 	UnregisterFilter(ctx context.Context, name string) error
 	HasFilter(ctx context.Context, name string) bool
 	FilteredLogs(ctx context.Context, address *address.Address, topic uint32, queries []cellquery.CellQuery, options cellquery.QueryOptions) (cellquery.QueryResult, error)
-	FilteredLogsWithParser(ctx context.Context, address *address.Address, topic uint32, parser types.LogParser, filter types.LogFilter) ([]any, error)
+	FilteredLogsWithParser(ctx context.Context, address *address.Address, topic uint32, parser LogParser, filter LogFilter) ([]any, error)
 }
 
 // MessageLoader defines the interface for loading external messages from the TON blockchain.
@@ -52,5 +76,5 @@ type FilterStore interface {
 type LogStore interface {
 	SaveLog(log types.Log)
 	FilteredLogs(address string, topic uint32, queries []cellquery.CellQuery, options cellquery.QueryOptions) (cellquery.QueryResult, error)
-	FilteredLogsWithParser(address string, topic uint32, parser types.LogParser, filter types.LogFilter) ([]any, error)
+	FilteredLogsWithParser(address string, topic uint32, parser LogParser, filter LogFilter) ([]any, error)
 }

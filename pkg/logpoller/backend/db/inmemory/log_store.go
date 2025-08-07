@@ -87,8 +87,8 @@ func (s *inMemoryStore) FilteredLogs(
 func (s *inMemoryStore) FilteredLogsWithParser(
 	evtSrcAddress string,
 	topic uint32,
-	parser types.LogParser,
-	filter types.LogFilter,
+	parser logpoller.LogParser,
+	filter logpoller.LogFilter,
 ) ([]any, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
