@@ -10,6 +10,7 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
@@ -104,8 +105,9 @@ func (a *TONAccessor) GetTokenPriceUSD(ctx context.Context, rawTokenAddress ccip
 	if err != nil {
 		return ccipocr3.TimestampedUnixBig{}, fmt.Errorf("failed to get current block: %w", err)
 	}
-
-	result, err := a.client.RunGetMethod(ctx, block, addr, "tokenPrice", tokenAddress)
+	// TODO: RunGetMethod isn't happy with address inputs, convert to a slice first
+	tokenAddressSlice := cell.BeginCell().MustStoreAddr(tokenAddress).EndCell().BeginParse()
+	result, err := a.client.RunGetMethod(ctx, block, addr, "tokenPrice", tokenAddressSlice)
 	if err != nil {
 		return ccipocr3.TimestampedUnixBig{}, err
 	}
@@ -120,7 +122,7 @@ func (a *TONAccessor) GetTokenPriceUSD(ctx context.Context, rawTokenAddress ccip
 	return ccipocr3.TimestampedUnixBig{
 		Value:     timestampedPrice.Value,
 		Timestamp: uint32(timestampedPrice.Timestamp), // TODO: u64 -> u32?
-	}, errors.New("not implemented")
+	}, nil
 }
 
 func (a *TONAccessor) GetFeeQuoterDestChainConfig(ctx context.Context, dest ccipocr3.ChainSelector) (ccipocr3.FeeQuoterDestChainConfig, error) {
