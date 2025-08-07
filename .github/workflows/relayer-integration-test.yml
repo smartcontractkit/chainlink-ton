@@ -9,23 +9,16 @@ on:
 permissions:
   contents: read
 
-env:
-  # TODO: find a way to avoid hardcoding these paths
-  STANDARD_TEST_DIRS: "./smoke/... ./txm/... ./utils/..."
-  TRACETRACKING_TEST_DIRS: "./tracetracking/..."
-
 jobs:
   integration-test:
     name: Build & Integration Test - ${{ matrix.test-suite }}
     runs-on: ubuntu-latest
     strategy:
+      # run both suites even if one fails
+      fail-fast: false
       matrix:
         test-suite: ["standard", "tracetracking"]
-        include:
-          - test-suite: "standard"
-            timeout: "30m"
-          - test-suite: "tracetracking"
-            timeout: "60m"
+
     steps:
       - name: Check out code
         uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
@@ -44,13 +37,13 @@ jobs:
         run: nix develop -c go build -v ./...
 
       - name: Run integration tests
+        id: tests
         run: |
           pushd integration-tests
-          
-          if [ "${{ matrix.test-suite }}" = "standard" ]; then
-            echo "Running standard tests: ${{ env.STANDARD_TEST_DIRS }}"
-            nix develop -c go test -v -count=1 -p=1 -timeout ${{ matrix.timeout }} ${{ env.STANDARD_TEST_DIRS }}
+
+          if [ "${{ matrix.test-suite }}" = "tracetracking" ]; then
+            nix develop -c go test -v -count=1 -p=5 -timeout 15m ./tracetracking/...
           else
-            echo "Running tracetracking tests: ${{ env.TRACETRACKING_TEST_DIRS }}"
-            nix develop -c go test -v -count=1 -p=1 -timeout ${{ matrix.timeout }} ${{ env.TRACETRACKING_TEST_DIRS }}
+            OTHER_TESTS=$(find . -mindepth 1 -maxdepth 1 -type d | grep -v './tracetracking' | sed 's|$|/...|' | tr '\n' ' ')
+            nix develop -c go test -v -count=1 -p=5 -timeout 20m $OTHER_TESTS
           fi
