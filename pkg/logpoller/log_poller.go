@@ -1,18 +1,17 @@
 package logpoller
 
 import (
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/event"
 	"context"
 	"fmt"
 	"time"
 
 	"github.com/xssnick/tonutils-go/address"
-	"github.com/xssnick/tonutils-go/ton"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
-	"github.com/smartcontractkit/chainlink-common/pkg/services"
-
+	"github.com/xssnick/tonutils-go/ton"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/event"
+	"github.com/smartcontractkit/chainlink-common/pkg/services"
 )
 
 // TON LogPoller Service - CCIP MVP Implementation
