@@ -10,8 +10,8 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
 )
 
-// Filters defines an interface for storing and retrieving log filter specifications.
-type Filters interface {
+// FilterStore defines an interface for storing and retrieving log filter specifications.
+type FilterStore interface {
 	RegisterFilter(ctx context.Context, flt types.Filter) error         // RegisterFilter adds a new filter or overwrites an existing one with the same name.
 	UnregisterFilter(ctx context.Context, name string) error            // UnregisterFilter removes a filter by its unique name.
 	HasFilter(ctx context.Context, name string) bool                    // HasFilter checks if a filter with the given name exists.
@@ -26,11 +26,11 @@ type inMemoryFilters struct {
 	filtersByAddress map[string]map[uint32]struct{} // filtersByAddress maps a contract address string to a set of its watched event topics.
 }
 
-var _ Filters = (*inMemoryFilters)(nil)
+var _ FilterStore = (*inMemoryFilters)(nil)
 
-// NewFilters creates a new in-memory implementation of the Filters interface.
+// NewInMemoryFilterStore creates a new in-memory implementation of the Filters interface.
 // TODO(NONEVM-2187): implement ORM and remove in-memory store
-func NewFilters() Filters {
+func NewInMemoryFilterStore() FilterStore {
 	return &inMemoryFilters{
 		filtersByName:    make(map[string]types.Filter),
 		filtersByAddress: make(map[string]map[uint32]struct{}),

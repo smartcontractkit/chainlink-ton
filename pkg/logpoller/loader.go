@@ -9,54 +9,43 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
 )
 
-// TON LogCollector - CCIP MVP Implementation
-//
-// This LogCollector implements transaction scanning and external message extraction
-// for the TON CCIP MVP. It uses account-based transaction scanning with the
-// ListTransactions API to fetch transaction history for monitored addresses.
-//
-// Current MVP approach:
-// - Account-based scanning using ListTransactions (reduces liteclient calls)
-// - Concurrent processing per address for better performance
-// - In-memory message aggregation (will be optimized for production)
-//
-// The collector handles TON's unique transaction model where each account maintains
-// its own transaction chain with logical time (LT) ordering, allowing efficient
-// range-based scanning between blocks.
-
-// LogCollector handles scanning TON blockchain for external messages from specific addresses.
-// This is a simplified implementation for TON CCIP MVP that will be refactored into
-// a proper subengine with background workers for production use.
-//
-
+// MessageLoader defines the interface for loading external messages from the TON blockchain.
+// It provides functionality to scan blockchain data and extract relevant messages from
+// specified addresses within a given block range.
 type MessageLoader interface {
-	BackfillForAddresses(ctx context.Context, addresses []*address.Address, prevBlock, toBlock *ton.BlockIDExt) ([]types.IndexedMsg, error)
+	// BackfillForAddresses scans the TON blockchain for external messages from specified
+	// source addresses within a given block range.
+	//
+	// This method retrieves all external messages (ExternalMessageOut) that were emitted
+	// by the provided source addresses between prevBlock (exclusive) and toBlock (inclusive).
+	BackfillForAddresses(ctx context.Context, srcAddrs []*address.Address, prevBlock, toBlock *ton.BlockIDExt) ([]types.IndexedMsg, error)
 }
 
-var _ MessageLoader = (*AccountMsgLoader)(nil)
+var _ MessageLoader = (*accountMsgLoader)(nil)
 
 // TODO(NONEVM-2194): replace with a block-scanning loader
 // TODO(NONEVM-2188): refactor as subengine, with background workers for production scalability
-type AccountMsgLoader struct {
+type accountMsgLoader struct {
 	lggr     logger.SugaredLogger // Logger for debugging and monitoring
 	client   ton.APIClientWrapped // TON blockchain client
 	pageSize uint32               // Number of transactions to fetch per API call
 }
 
-// NewMessageLoader creates a new MessageLoader instance for TON CCIP MVP
-func NewMessageLoader(
+// NewAccountMsgLoader creates a new MessageLoader instance for TON CCIP MVP
+func NewAccountMsgLoader(
 	client ton.APIClientWrapped,
 	lggr logger.Logger,
 	pageSize uint32,
-) *AccountMsgLoader {
+) *accountMsgLoader {
 	// TODO(NONEVM-2188): add background worker pool initializaion here
-	return &AccountMsgLoader{
+	return &accountMsgLoader{
 		lggr:     logger.Sugared(lggr),
 		client:   client,
 		pageSize: pageSize,
@@ -71,36 +60,39 @@ func NewMessageLoader(
 // Production version will use background worker pools for better resource management.
 //
 // TODO(NONEVM-2188): refactor to use background workers for scale in production
-func (lc *AccountMsgLoader) BackfillForAddresses(ctx context.Context, addresses []*address.Address, prevBlock *ton.BlockIDExt, toBlock *ton.BlockIDExt) ([]types.IndexedMsg, error) {
+func (lc *accountMsgLoader) BackfillForAddresses(ctx context.Context, srcAddrs []*address.Address, prevBlock *ton.BlockIDExt, toBlock *ton.BlockIDExt) ([]types.IndexedMsg, error) {
 	var allMsgs []types.IndexedMsg
 	var mu sync.Mutex
-	var wg sync.WaitGroup
 
-	lc.lggr.Debugf("scanning block range %s for %d contracts : ",
-		fmt.Sprintf("(%d, %d]", func() uint32 {
-			if prevBlock != nil {
-				return prevBlock.SeqNo
-			}
-			return 0
-		}(), toBlock.SeqNo),
-		len(addresses),
-	)
+	eg, egCtx := errgroup.WithContext(ctx)
 
-	for _, addr := range addresses {
-		wg.Add(1)
-		go func(addr *address.Address) {
-			defer wg.Done()
-			msgs, err := lc.fetchMessagesForAddress(ctx, addr, prevBlock, toBlock)
+	lc.lggr.Debugf("scanning block range (%d, %d] for %d contracts", func() uint32 {
+		if prevBlock != nil {
+			return prevBlock.SeqNo
+		}
+		return 0
+	}(), toBlock.SeqNo, len(srcAddrs))
+
+	for _, addr := range srcAddrs {
+		currAddr := addr
+		eg.Go(func() error {
+			msgs, err := lc.fetchMessagesForAddress(egCtx, currAddr, prevBlock, toBlock)
 			if err != nil {
-				lc.lggr.Errorw("failed to fetch messages", "addr", addr.String(), "err", err)
-				return
+				return fmt.Errorf("failed to fetch for %s: %w", currAddr.String(), err)
 			}
-			mu.Lock()
-			allMsgs = append(allMsgs, msgs...)
-			mu.Unlock()
-		}(addr)
+			if len(msgs) > 0 {
+				mu.Lock()
+				allMsgs = append(allMsgs, msgs...)
+				mu.Unlock()
+			}
+			return nil
+		})
 	}
-	wg.Wait()
+
+	if err := eg.Wait(); err != nil {
+		return nil, err
+	}
+
 	return allMsgs, nil
 }
 
@@ -114,12 +106,13 @@ func (lc *AccountMsgLoader) BackfillForAddresses(ctx context.Context, addresses 
 //
 // Note: Block range (prevBlock, toBlock] is exclusive of prevBlock, inclusive of toBlock
 // TODO: stream messages back to log poller to avoid memory overhead in production
-func (lc *AccountMsgLoader) fetchMessagesForAddress(ctx context.Context, addr *address.Address, prevBlock *ton.BlockIDExt, toBlock *ton.BlockIDExt) ([]types.IndexedMsg, error) {
+func (lc *accountMsgLoader) fetchMessagesForAddress(ctx context.Context, addr *address.Address, prevBlock *ton.BlockIDExt, toBlock *ton.BlockIDExt) ([]types.IndexedMsg, error) {
 	if prevBlock != nil && prevBlock.SeqNo >= toBlock.SeqNo {
 		return nil, fmt.Errorf("prevBlock %d is not before toBlock %d", prevBlock.SeqNo, toBlock.SeqNo)
 	}
 	startLT, endLT, endHash, err := lc.getTransactionBounds(ctx, addr, prevBlock, toBlock)
 	if err != nil {
+
 		return nil, err
 	}
 
@@ -137,7 +130,7 @@ func (lc *AccountMsgLoader) fetchMessagesForAddress(ctx context.Context, addr *a
 			// no more transactions to process
 			break
 		} else if err != nil {
-			return nil, fmt.Errorf("ListTransactions: %w", err)
+			return nil, fmt.Errorf("failed to list transactions for %s: %w", addr.String(), err)
 		}
 
 		// filter and process messages within the current batch.
@@ -198,7 +191,7 @@ func (lc *AccountMsgLoader) fetchMessagesForAddress(ctx context.Context, addr *a
 //
 // prevBlock: Block where the address was last seen(already processed)
 // toBlock: Block where the scan ends
-func (lc *AccountMsgLoader) getTransactionBounds(ctx context.Context, addr *address.Address, prevBlock *ton.BlockIDExt, toBlock *ton.BlockIDExt) (startLT, endLT uint64, endHash []byte, err error) {
+func (lc *accountMsgLoader) getTransactionBounds(ctx context.Context, addr *address.Address, prevBlock *ton.BlockIDExt, toBlock *ton.BlockIDExt) (startLT, endLT uint64, endHash []byte, err error) {
 	switch {
 	case prevBlock == nil:
 		startLT = 0

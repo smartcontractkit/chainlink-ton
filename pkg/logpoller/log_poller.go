@@ -63,7 +63,7 @@ type Service struct {
 
 	lggr               logger.SugaredLogger // Logger instance
 	client             ton.APIClientWrapped // TON blockchain client
-	filters            Filters              // Registry of active filters
+	filters            FilterStore          // Registry of active filters
 	loader             MessageLoader        // Block scanner implementation
 	store              LogStore             // Log storage (MVP: in-memory, to be replaced with ORM)
 	pollPeriod         time.Duration        // How often to poll for new blocks
@@ -83,7 +83,7 @@ func NewLogPoller(
 	cfg Config, // TODO: use global relayer config
 ) *Service {
 	store := NewInMemoryStore(lggr) // TODO: replace with ORM, inject with db connection
-	filters := NewFilters()
+	filters := NewInMemoryFilterStore()
 	lp := &Service{
 		lggr:       logger.Sugared(lggr),
 		client:     client,
@@ -91,7 +91,7 @@ func NewLogPoller(
 		store:      store,
 		pollPeriod: cfg.PollPeriod,
 	}
-	lp.loader = NewMessageLoader(lp.client, lp.lggr, cfg.PageSize)
+	lp.loader = NewAccountMsgLoader(lp.client, lp.lggr, cfg.PageSize)
 	lp.Service, lp.eng = services.Config{
 		Name:  "TONLogPoller",
 		Start: lp.start,
@@ -123,7 +123,7 @@ func (lp *Service) run(ctx context.Context) (err error) {
 
 	blockRange, err := lp.getMasterchainBlockRange(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get masterchain block range: %w", err)
 	}
 	if blockRange == nil {
 		// no new blocks to process
@@ -134,14 +134,14 @@ func (lp *Service) run(ctx context.Context) (err error) {
 	// TODO: implement backfill logic(if there is filters marked for backfill)
 	addresses, err := lp.filters.GetDistinctAddresses()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get distinct addresses: %w", err)
 	}
 	if len(addresses) == 0 {
 		return nil
 	}
 
 	if err := lp.processBlockRange(ctx, addresses, blockRange.prev, blockRange.to); err != nil {
-		return fmt.Errorf("processBlockRange: %w", err)
+		return fmt.Errorf("failed to process block range: %w", err)
 	}
 
 	lp.lastProcessedBlock = blockRange.to.SeqNo
@@ -153,12 +153,12 @@ func (lp *Service) run(ctx context.Context) (err error) {
 func (lp *Service) getMasterchainBlockRange(ctx context.Context) (*blockRange, error) {
 	lastProcessedBlock, err := lp.getLastProcessedBlock()
 	if err != nil {
-		return nil, fmt.Errorf("LoadLastSeq: %w", err)
+		return nil, fmt.Errorf("failed to get last processed block: %w", err)
 	}
 
 	toBlock, err := lp.client.CurrentMasterchainInfo(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get current masterchain info: %w", err)
 	}
 
 	// if we've already processed this block, wait for the next one
@@ -170,7 +170,7 @@ func (lp *Service) getMasterchainBlockRange(ctx context.Context) (*blockRange, e
 
 	prevBlock, err := lp.resolvePreviousBlock(ctx, lastProcessedBlock, toBlock)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to resolve previous block: %w", err)
 	}
 
 	return &blockRange{prev: prevBlock, to: toBlock}, nil
@@ -198,11 +198,11 @@ func (lp *Service) resolvePreviousBlock(ctx context.Context, lastProcessedBlock 
 func (lp *Service) processBlockRange(ctx context.Context, addresses []*address.Address, prevBlock *ton.BlockIDExt, toBlock *ton.BlockIDExt) error {
 	msgs, err := lp.loader.BackfillForAddresses(ctx, addresses, prevBlock, toBlock)
 	if err != nil {
-		return fmt.Errorf("BackfillForAddresses: %w", err)
+		return fmt.Errorf("failed to backfill messages: %w", err)
 	}
 
 	if err := lp.processMessages(msgs); err != nil {
-		return fmt.Errorf("processMessages: %w", err)
+		return fmt.Errorf("failed to process messages: %w", err)
 	}
 
 	return nil
@@ -212,7 +212,7 @@ func (lp *Service) processBlockRange(ctx context.Context, addresses []*address.A
 func (lp *Service) processMessages(msgs []types.IndexedMsg) error {
 	for _, msg := range msgs {
 		if err := lp.Process(msg); err != nil {
-			return err
+			return fmt.Errorf("failed to process message: %w", err)
 		}
 	}
 	return nil
