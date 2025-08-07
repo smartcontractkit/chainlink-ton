@@ -1,8 +1,8 @@
 import { Address, Cell, Message } from '@ton/core'
 import { BlockchainTransaction } from '@ton/sandbox'
-import * as CCIPLogs from "../wrappers/ccip/Logs"
-import * as OCR3Logs from "../wrappers/libraries/ocr/Logs"
-import { fromSnakeData } from "../utils/Utils"
+import * as CCIPLogs from '../wrappers/ccip/Logs'
+import * as OCR3Logs from '../wrappers/libraries/ocr/Logs'
+import { fromSnakeData } from '../utils/Utils'
 import { merkleRootsFromCell, priceUpdatesFromCell } from '../wrappers/ccip/OffRamp'
 
 // https://github.com/ton-blockchain/liquid-staking-contract/blob/1f4e9badbed52a4cf80cc58e4bb36ed375c6c8e7/utils.ts#L269-L294
@@ -50,17 +50,20 @@ type DeepPartial<T> = {
 
 const LogTypes = {
   ...CCIPLogs.LogTypes,
-  ...OCR3Logs.LogTypes
+  ...OCR3Logs.LogTypes,
 }
 
-type LogTypes = typeof LogTypes[keyof typeof LogTypes]
+type LogTypes = (typeof LogTypes)[keyof typeof LogTypes]
 
-type LogMatch<T extends LogTypes> = 
-  T extends CCIPLogs.LogTypes.CCIPMessageSent ? DeepPartial<CCIPLogs.CCIPMessageSent>:
-  T extends CCIPLogs.LogTypes.CCIPCommitReportAccepted ? DeepPartial<CCIPLogs.CCIPCommitReportAccepted>:
-  T extends OCR3Logs.LogTypes.OCR3BaseConfigSet ? OCR3Logs.OCR3BaseConfigSet:
-  T extends OCR3Logs.LogTypes.OCR3BaseTransmitted ? DeepPartial<OCR3Logs.OCR3BaseTransmitted>:
-  number
+type LogMatch<T extends LogTypes> = T extends CCIPLogs.LogTypes.CCIPMessageSent
+  ? DeepPartial<CCIPLogs.CCIPMessageSent>
+  : T extends CCIPLogs.LogTypes.CCIPCommitReportAccepted
+    ? DeepPartial<CCIPLogs.CCIPCommitReportAccepted>
+    : T extends OCR3Logs.LogTypes.OCR3BaseConfigSet
+      ? OCR3Logs.OCR3BaseConfigSet
+      : T extends OCR3Logs.LogTypes.OCR3BaseTransmitted
+        ? DeepPartial<OCR3Logs.OCR3BaseTransmitted>
+        : number
 
 export const assertLog = <T extends LogTypes>(
   transactions: BlockchainTransaction[],
@@ -70,13 +73,16 @@ export const assertLog = <T extends LogTypes>(
 ) => {
   getExternals(transactions).some((x) => {
     switch (type) {
-
       case CCIPLogs.LogTypes.CCIPMessageSent:
         testLogCCIPMessageSent(x, from, match as DeepPartial<CCIPLogs.CCIPMessageSent>)
         break
 
       case CCIPLogs.LogTypes.CCIPCommitReportAccepted:
-        testLogCCIPCommitReportAccepted(x, from, match as DeepPartial<CCIPLogs.CCIPCommitReportAccepted>)
+        testLogCCIPCommitReportAccepted(
+          x,
+          from,
+          match as DeepPartial<CCIPLogs.CCIPCommitReportAccepted>,
+        )
         break
 
       case OCR3Logs.LogTypes.OCR3BaseConfigSet:
@@ -95,19 +101,24 @@ export const assertLog = <T extends LogTypes>(
 
 //TODO: Move the definition for the matcher passed to testLog to wrappers ccip/Logs and ocr/Logs
 
-function testLogCCIPCommitReportAccepted(message: Message, from: Address, match: DeepPartial<CCIPLogs.CCIPCommitReportAccepted>) {
+function testLogCCIPCommitReportAccepted(
+  message: Message,
+  from: Address,
+  match: DeepPartial<CCIPLogs.CCIPCommitReportAccepted>,
+) {
   return testLog(message, from, LogTypes.CCIPCommitReportAccepted, (x) => {
     let bs = x.beginParse()
-    
+
     const priceUpdatesCell = bs.loadMaybeRef()
     const merkleRootsCell = bs.loadRef()
 
-    const priceUpdates = priceUpdatesCell != undefined ? priceUpdatesFromCell(priceUpdatesCell): undefined
+    const priceUpdates =
+      priceUpdatesCell != undefined ? priceUpdatesFromCell(priceUpdatesCell) : undefined
     const merkleRoots = merkleRootsFromCell(merkleRootsCell)
 
     const reportAccepted: CCIPLogs.CCIPCommitReportAccepted = {
       priceUpdates,
-      merkleRoots
+      merkleRoots,
     }
     expect(reportAccepted).toMatchObject(match)
     return true
@@ -199,4 +210,3 @@ export const testTransmittedLogMessage = (
     return true
   })
 }
-

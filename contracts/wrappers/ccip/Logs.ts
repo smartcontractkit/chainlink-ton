@@ -7,7 +7,7 @@ export const CCIP_MESSAGE_SENT_TOPIC = crc32('CCIPMessageSent')
 
 export enum LogTypes {
   CCIPMessageSent = CCIP_COMMIT_REPORT_ACCEPTED_TOPIC,
-  CCIPCommitReportAccepted = CCIP_MESSAGE_SENT_TOPIC
+  CCIPCommitReportAccepted = CCIP_MESSAGE_SENT_TOPIC,
 }
 
 export type CCIPMessageSent = {
@@ -33,6 +33,6 @@ export type CCIPMessageSent = {
 }
 
 export type CCIPCommitReportAccepted = {
-  priceUpdates?: PriceUpdates,
+  priceUpdates?: PriceUpdates
   merkleRoots: MerkleRoot[]
 }

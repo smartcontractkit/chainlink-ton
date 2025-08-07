@@ -554,15 +554,10 @@ describe('OCR3Base Tests', () => {
 
     expectSuccessfulTransaction(resultWithNewSigners, transmitters[0].address, ocr3Base.address)
 
-    assertLog(
-      resultWithNewSigners.transactions,
-      ocr3Base.address,
-      LogTypes.OCR3BaseTransmitted,
-      {
-        ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
-        configDigest,
-        sequenceNumber: sequenceBytes,
-      },
-    )
+    assertLog(resultWithNewSigners.transactions, ocr3Base.address, LogTypes.OCR3BaseTransmitted, {
+      ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
+      configDigest,
+      sequenceNumber: sequenceBytes,
+    })
   })
 })

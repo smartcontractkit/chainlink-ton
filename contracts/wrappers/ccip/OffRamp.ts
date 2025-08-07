@@ -26,11 +26,11 @@ export type OffRampStorage = {
   latestPriceSequenceNumber: bigint
 }
 
-export type SourceChainConfig =  {
-  router: CrossChainAddress,
-  isEnabled: boolean,
-  minSeqNr: bigint,
-  isRMNVerificationDisabled: boolean,
+export type SourceChainConfig = {
+  router: CrossChainAddress
+  isEnabled: boolean
+  minSeqNr: bigint
+  isRMNVerificationDisabled: boolean
   onRamp: CrossChainAddress
 }
 
@@ -51,8 +51,8 @@ export type PriceUpdates = {
 }
 
 export type CommitReport = {
-  priceUpdates?: PriceUpdates 
-  merkleRoots: MerkleRoot[] 
+  priceUpdates?: PriceUpdates
+  merkleRoots: MerkleRoot[]
 }
 
 export type ExecutionReport = {
@@ -66,31 +66,29 @@ export type ExecutionReport = {
 export type CrossChainAddress = Buffer
 
 export type RampMessageHeader = {
-  messageId: bigint, //256
-  sourceChainSelector: bigint, //64
-  destChainSelector: bigint, //64
-  sequenceNumber: bigint, //64
-  nonce: bigint, //64
+  messageId: bigint //256
+  sourceChainSelector: bigint //64
+  destChainSelector: bigint //64
+  sequenceNumber: bigint //64
+  nonce: bigint //64
 }
 
 export type Any2TVMRampMessage = {
-  header: RampMessageHeader,
-  sender: CrossChainAddress,
-  data: Cell,
-  receiver: Address,
+  header: RampMessageHeader
+  sender: CrossChainAddress
+  data: Cell
+  receiver: Address
   //gasLimit: coins , does not make sense here
-  tokenAmounts?: Cell, // vec<Any2TONTokenTransfer>
+  tokenAmounts?: Cell // vec<Any2TONTokenTransfer>
 }
 
 export type MerkleRoot = {
   sourceChainSelector: bigint
-  onRampAddress: CrossChainAddress,
-  minSeqNr: bigint,
-  maxSeqNr: bigint,
+  onRampAddress: CrossChainAddress
+  minSeqNr: bigint
+  maxSeqNr: bigint
   merkleRoot: bigint
 }
-
-
 
 export const Builder = {
   asStorage: (config: OffRampStorage): Cell => {
@@ -106,11 +104,12 @@ export const Builder = {
         .storeRef(config.merkleRootCode)
         .storeAddress(config.feeQuoter)
         // empty OCR3Base::
-        .storeRef(beginCell()
-          .storeUint(1, 8) //chainId
-          .storeBit(false)
-          .storeBit(false)
-          .endCell()
+        .storeRef(
+          beginCell()
+            .storeUint(1, 8) //chainId
+            .storeBit(false)
+            .storeBit(false)
+            .endCell(),
         )
         .storeUint(config.chainSelector, 64)
         .storeUint(config.permissionlessExecutionThresholdSeconds, 32)
@@ -186,11 +185,11 @@ export class OffRamp extends OCR3Base {
         .storeUint(opts.reportContext.padding, 192) //should be zero
         .storeUint(opts.reportContext.sequenceBytes, 64)
         .storeRef(commitReportToCell(opts.report))
-        .storeRef(asSnakeData(opts.signatures, (item) =>
-            beginCell()
-            .storeUint(item.r, 256)
-            .storeUint(item.s, 256)
-            .storeUint(item.signer, 256)))
+        .storeRef(
+          asSnakeData(opts.signatures, (item) =>
+            beginCell().storeUint(item.r, 256).storeUint(item.s, 256).storeUint(item.signer, 256),
+          ),
+        )
         .endCell(),
     })
   }
@@ -216,11 +215,11 @@ export class OffRamp extends OCR3Base {
         .storeUint(opts.reportContext.padding, 192) //should be zero
         .storeUint(opts.reportContext.sequenceBytes, 64)
         .storeRef(ExecutionReportToCell(opts.report))
-        .storeRef(asSnakeData(opts.signatures, (item) =>
-            beginCell()
-            .storeUint(item.r, 256)
-            .storeUint(item.s, 256)
-            .storeUint(item.signer, 256)))
+        .storeRef(
+          asSnakeData(opts.signatures, (item) =>
+            beginCell().storeUint(item.r, 256).storeUint(item.s, 256).storeUint(item.signer, 256),
+          ),
+        )
         .endCell(),
     })
   }
@@ -239,27 +238,31 @@ export class OffRamp extends OCR3Base {
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: beginCell()
-      .storeUint(Opcodes.updateSourceChainConfig, 32)
+        .storeUint(Opcodes.updateSourceChainConfig, 32)
         .storeUint(opts.queryID ?? 0, 64)
-      .storeUint(opts.sourceChainSelector, 64)
-      .storeBuilder(sourceChainConfigToBuilder(opts.config))
-      .endCell(),
+        .storeUint(opts.sourceChainSelector, 64)
+        .storeBuilder(sourceChainConfigToBuilder(opts.config))
+        .endCell(),
     })
   }
 }
 
 export function priceUpdatesToCell(priceUpdates: PriceUpdates): Cell {
-    return beginCell()
-      .storeRef(asSnakeData(priceUpdates.tokenPriceUpdates, (item) => 
+  return beginCell()
+    .storeRef(
+      asSnakeData(priceUpdates.tokenPriceUpdates, (item) =>
+        beginCell().storeAddress(item.sourceToken).storeUint(item.usdPerToken, 224),
+      ),
+    )
+    .storeRef(
+      asSnakeData(priceUpdates.gasPriceUpdates, (item) =>
         beginCell()
-        .storeAddress(item.sourceToken)
-        .storeUint(item.usdPerToken, 224)))
-      .storeRef(asSnakeData(priceUpdates.gasPriceUpdates, (item) =>
-        beginCell()
-        .storeUint(item.destChainSelector, 64)
-        .storeUint(item.executionGasPrice, 112)
-        .storeUint(item.dataAvailabilityGasPrice, 112)))
-      .endCell()
+          .storeUint(item.destChainSelector, 64)
+          .storeUint(item.executionGasPrice, 112)
+          .storeUint(item.dataAvailabilityGasPrice, 112),
+      ),
+    )
+    .endCell()
 }
 
 export function priceUpdatesFromCell(data: Cell): PriceUpdates {
@@ -268,28 +271,29 @@ export function priceUpdatesFromCell(data: Cell): PriceUpdates {
   const tokenPriceUpdates: TokenPriceUpdate[] = fromSnakeData(cs.loadRef(), (x) => {
     const sourceToken = x.loadAddress()
     const usdPerToken = x.loadUintBig(224)
-    return {sourceToken, usdPerToken}
+    return { sourceToken, usdPerToken }
   })
 
   const gasPriceUpdates: GasPriceUpdate[] = fromSnakeData(cs.loadRef(), (x) => {
     const destChainSelector = x.loadUintBig(64)
     const executionGasPrice = x.loadUintBig(112)
     const dataAvailabilityGasPrice = x.loadUintBig(112)
-    return {destChainSelector, executionGasPrice, dataAvailabilityGasPrice}
+    return { destChainSelector, executionGasPrice, dataAvailabilityGasPrice }
   })
 
-  return {tokenPriceUpdates, gasPriceUpdates}
+  return { tokenPriceUpdates, gasPriceUpdates }
 }
 
 export function merkleRootsToCell(roots: MerkleRoot[]): Cell {
-  return asSnakeData(roots, (item) => 
-      beginCell()
+  return asSnakeData(roots, (item) =>
+    beginCell()
       .storeUint(item.sourceChainSelector, 64)
       .storeUint(item.onRampAddress.byteLength, 8)
       .storeBuffer(item.onRampAddress, item.onRampAddress.byteLength)
       .storeUint(item.minSeqNr, 64)
       .storeUint(item.maxSeqNr, 64)
-      .storeUint(item.merkleRoot, 256))
+      .storeUint(item.merkleRoot, 256),
+  )
 }
 
 export function merkleRootsFromCell(data: Cell): MerkleRoot[] {
@@ -305,11 +309,10 @@ export function merkleRootsFromCell(data: Cell): MerkleRoot[] {
       onRampAddress,
       minSeqNr,
       maxSeqNr,
-      merkleRoot
+      merkleRoot,
     }
-  }) 
+  })
 }
-
 
 export function commitReportToCell(report: CommitReport): Cell {
   let priceUpdates: Cell | undefined = undefined
@@ -325,16 +328,15 @@ export function commitReportToCell(report: CommitReport): Cell {
 
 export const sourceChainConfigToBuilder = (config: SourceChainConfig) => {
   return beginCell()
-
-  .storeUint(config.router.byteLength, 8)
-  .storeBuffer(config.router, config.router.byteLength)
-  .storeBit(config.isEnabled)
-  .storeUint(config.minSeqNr,64)
-  .storeBit(config.isRMNVerificationDisabled)
-  .storeUint(config.onRamp.byteLength, 8)
-  .storeBuffer(config.onRamp, config.onRamp.byteLength)
+    .storeUint(config.router.byteLength, 8)
+    .storeBuffer(config.router, config.router.byteLength)
+    .storeBit(config.isEnabled)
+    .storeUint(config.minSeqNr, 64)
+    .storeBit(config.isRMNVerificationDisabled)
+    .storeUint(config.onRamp.byteLength, 8)
+    .storeBuffer(config.onRamp, config.onRamp.byteLength)
 }
 
-function ExecutionReportToCell(report: ExecutionReport): Cell | import("@ton/core").Builder {
-    throw new Error('Function not implemented.')
+function ExecutionReportToCell(report: ExecutionReport): Cell | import('@ton/core').Builder {
+  throw new Error('Function not implemented.')
 }

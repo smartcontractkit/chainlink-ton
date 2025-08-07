@@ -161,4 +161,3 @@ export class MerkleHelper {
     return uint8ArrayToBigInt(hash(combinedBytes))
   }
 }
-
