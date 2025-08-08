@@ -38,7 +38,11 @@
       # Output a set of dev environments (shells)
       devShells =
         {
-          default = pkgs.callPackage ./shell.nix {inherit pkgs;};
+          default = pkgs.callPackage ./shell.nix {
+            inherit pkgs;
+            chainlink-ton = chainlink-ton;
+            jetton-contracts = contracts.packages.contracts-jetton-func;
+          };
           # Development shell for dependency analyzer
           dependency-analyzer = pkgs.callPackage ./tools/dependency_analyzer/shell.nix {inherit pkgs;};
         }

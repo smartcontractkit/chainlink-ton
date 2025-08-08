@@ -15,12 +15,15 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
-	"integration-tests/smoke/logpoller/counter"
 	test_utils "integration-tests/utils"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/examples/counter"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
@@ -60,7 +63,7 @@ func VerifyLoadedEvents(msgs []*tlb.ExternalMessageOut, expectedCount int) error
 
 	// parse all events and track counters
 	for i, ext := range msgs {
-		var event counter.CountIncreasedEvent
+		var event counter.CountIncreased
 		err := tlb.LoadFromCell(&event, ext.Body.BeginParse())
 		if err != nil {
 			return fmt.Errorf("failed to parse event #%d: %w", i, err)
@@ -112,7 +115,7 @@ type TestEventSource struct {
 }
 
 func NewTestEventSource(client ton.APIClientWrapped, wallet *wallet.Wallet, name string, id uint32, lggr logger.Logger) (*TestEventSource, error) {
-	codeCell, cerr := wrappers.ParseCompiledContract(counter.ArtifactPath)
+	codeCell, cerr := wrappers.ParseCompiledContract(bindings.GetBuildDir("examples.Counter.compiled.json"))
 	if cerr != nil {
 		return nil, fmt.Errorf("failed to parse compiled contract: %w", cerr)
 	}
@@ -123,20 +126,25 @@ func NewTestEventSource(client ton.APIClientWrapped, wallet *wallet.Wallet, name
 		Wallet: *wallet,
 	}
 
-	data, err := tlb.ToCell(counter.Storage{
+	data, err := tlb.ToCell(counter.ContractData{
 		ID:    id,
 		Value: 0, // initial value as zero
+		Ownable: common.Ownable2Step{
+			Owner:        wallet.WalletAddress(),
+			PendingOwner: nil,
+		},
 	})
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to create initial data cell: %w", err)
 	}
 
-	contract, err := wrappers.Deploy(
+	contract, _, err := wrappers.Deploy(
 		sigClient,
 		codeCell,
 		data,
 		tlb.MustFromTON("0.1"),
+		cell.BeginCell().EndCell(),
 	)
 
 	if err != nil {
@@ -297,8 +305,7 @@ func (e *TestEventSource) SendBulkTestEvents(ctx context.Context, batchCount, tx
 }
 
 func (e *TestEventSource) SendIncreaseCounterMsg(ctx context.Context) (*tlb.Transaction, *ton.BlockIDExt, error) {
-	body, err := tlb.ToCell(counter.IncreaseCountMsg{
-		OpCode:  counter.IncreaseCounterOpCode,
+	body, err := tlb.ToCell(counter.IncreaseCount{
 		QueryID: rand.Uint64(),
 	})
 
@@ -328,8 +335,7 @@ func (e *TestEventSource) SendIncreaseCounterMsg(ctx context.Context) (*tlb.Tran
 func (e *TestEventSource) sendManyIncreaseCountMsgs(ctx context.Context, count int) (*tlb.Transaction, *ton.BlockIDExt, error) {
 	messages := make([]*wallet.Message, count)
 	for i := 0; i < count; i++ {
-		body, err := tlb.ToCell(counter.IncreaseCountMsg{
-			OpCode:  counter.IncreaseCounterOpCode,
+		body, err := tlb.ToCell(counter.IncreaseCount{
 			QueryID: rand.Uint64(),
 		})
 		if err != nil {

@@ -11,7 +11,12 @@ struct Ownable2Step {
 }
 ```
 
-#### Message Handlers
+Example:
+
+```tact
+    receive(msg: SetCount) {
+        // Use the requireOwner() function from the Ownable2Step trait to only allow the owner to send this message.
+        self.requireOwner();
 
 The module exposes a single message handler, `onInternalMessage`, which processes the following messages.
 
@@ -61,7 +66,6 @@ The following exit codes can be thrown by this module's operations:
 | 1001 | `ERROR_CANNOT_TRANSFER_TO_SELF`   | The proposed new owner is the same as the current owner.                     |
 | 1002 | `ERROR_MUST_BE_PROPOSED_OWNER`    | The sender of `AcceptOwnership` is not the pending owner.                      |
 
-
 ## Overview
 
 This struct implements basic contract ownership, including a 2-step ownership transfer process.
@@ -84,21 +88,22 @@ To integrate this module, you embed the Ownable2Step struct into your contract's
 First, define your contract's storage struct and include Ownable2Step as a field. It's also common practice to have helper functions for loading and saving state.
 
 ``` tolk
-import "./../lib/access/ownable_2step.tolk";
+import "../lib/access/ownable_2step.tolk";
 
-struct OwnableCounter {
+struct Counter {
     id: uint64;
-    count: uint32;
+    value: uint32;
+
     ownable: Ownable2Step; // Embed the module's struct
 }
 
 // Helper to load contract data using auto-deserialization
-fun loadData(): OwnableCounter {
-    return OwnableCounter.fromCell(contract.getData());
+fun loadData(): Counter {
+    return Counter.fromCell(contract.getData());
 }
 
 // Helper to save contract data using auto-serialization
-fun saveData(data: OwnableCounter) {
+fun saveData(data: Counter) {
     contract.setData(data.toCell());
 }
 ```
@@ -113,7 +118,7 @@ struct (0x00000001) SetCount { /* ... */ }
 type IncomingMessage = SetCount;
 
 fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: slice) {
-    if (msgBody.isEnd()) { // Ignore all empty messages
+    if (msgBody.isEndOfBits() && msgBody.isEndOfRefs()) { // Ignore all empty messages
         return;
     }
 
@@ -135,8 +140,7 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
 }
 ```
 
-##### Protect Your Message Handlers
-For your contract's own messages that require owner-only access, you must manually parse the sender's address and call the requireOwner function.
+## Interface
 
 Continuing the onInternalMessage function from the previous step:
 
@@ -163,20 +167,24 @@ Continuing the onInternalMessage function from the previous step:
 }
 ```
 
-##### Expose Getters (Optional)
-You can provide convenient top-level getters on your contract that retrieve data from the Ownable2Step module.
+## Exit codes
+
+The following exit codes could be thrown from these operations:
 
 ``` tolk
-get owner(): address {
+get fun owner(): address {
     var storage = loadData();
     // Delegate the call to the module's getter
     return storage.ownable.get_owner();
 }
 
-get counter(): uint32 {
+get fun counter(): uint32 {
     var storage = loadData();
     return storage.count;
 }
 ```
 
 
+## Diagram
+
+![Ownable2Step flow diagram](./ownable_2step.drawio.svg)

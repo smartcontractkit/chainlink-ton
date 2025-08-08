@@ -4,16 +4,16 @@ import (
 	"fmt"
 	"math/rand/v2"
 
-	test_utils "integration-tests/utils"
-
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
-var DbContractPath = test_utils.GetBuildDir("examples.async-communication.two-phase-commit.DB/tact_DB.pkg")
+var DbContractPath = bindings.GetBuildDir("examples.async-communication.two-phase-commit.DB/tact_DB.pkg")
 
 type DBProvider struct {
 	apiClient tracetracking.SignedAPIClient
@@ -38,7 +38,9 @@ func (p *DBProvider) Deploy(initData DBInitData) (DB, error) {
 	if err != nil {
 		return DB{}, fmt.Errorf("failed to compile contract: %w", err)
 	}
-	contract, err := wrappers.Deploy(&p.apiClient, compiledContract, initDataCell, tlb.MustFromTON("1"))
+	body := cell.BeginCell().EndCell()
+	contract, _, err := wrappers.Deploy(&p.apiClient, compiledContract, initDataCell, tlb.MustFromTON("1"), body)
+
 	if err != nil {
 		return DB{}, err
 	}
