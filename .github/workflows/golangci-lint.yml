@@ -47,8 +47,7 @@ jobs:
           cd ${{ matrix.dir }}
           nix develop -c golangci-lint run ./... \
             --config ../.golangci.yml \
-            --out-format checkstyle \
-            > "../${{ env.REPORT_PATH }}" 2>&1
+            --output.checkstyle.path="../${{ env.REPORT_PATH }}"
 
       - name: Print lint report on failure
         if: failure()
