@@ -5,6 +5,7 @@ import (
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
@@ -54,15 +55,58 @@ type TokenTransferFeeConfig struct {
 
 type TimestampedPrice struct {
 	Value     *big.Int `tlb:"## 224"`
-	Timestamp uint64   `tlb:## 64`
+	Timestamp uint64   `tlb:"## 64"`
+}
+
+// TODO: we can't parse ton.ExecutionResult via tlb, implement as a tlb feature upstream
+func (p *TimestampedPrice) FromResult(result *ton.ExecutionResult) error {
+	value, err := result.Int(0)
+	if err != nil {
+		return err
+	}
+	timestamp, err := result.Int(1)
+	if err != nil {
+		return err
+	}
+
+	*p = TimestampedPrice{
+		Value:     value,
+		Timestamp: timestamp.Uint64(),
+	}
+	return nil
+}
+
+type TokenPriceUpdate struct {
+	SourceToken *address.Address `tlb:"addr"`
+	UsdPerToken *big.Int         `tlb:"## 224"`
+}
+
+type GasPriceUpdate struct {
+	DestChainSelector        uint64   `tlb:"## 64"`
+	ExecutionGasPrice        *big.Int `tlb:"## 112"`
+	DataAvailabilityGasPrice *big.Int `tlb:"## 112"`
+}
+
+type FeeToken struct {
+	PremiumMultiplierWeiPerEth uint64 `tlb:"## 64"`
 }
 
 // Methods
 
-type UpdatePrices struct{}
-type UpdateFeeTokens struct{}
+type UpdatePrices struct {
+	_           tlb.Magic                          `tlb:"#20000001"` //nolint:revive // Ignore opcode tag
+	TokenPrices common.SnakeData[TokenPriceUpdate] `tlb:"^"`
+	GasPrices   common.SnakeData[GasPriceUpdate]   `tlb:"^"`
+}
+
+type UpdateFeeTokens struct {
+	_      tlb.Magic                          `tlb:"#20000002"` //nolint:revive // Ignore opcode tag
+	Add    bool                               // TODO
+	Remove common.SnakeData[*address.Address] `tlb:"^"`
+}
 
 type UpdateTokenTransferFeeConfig struct {
+	_      tlb.Magic `tlb:"#20000003"` //nolint:revive // Ignore opcode tag
 	Add    map[*address.Address]TokenTransferFeeConfig
 	Remove []*address.Address `tlb:"addr"`
 }

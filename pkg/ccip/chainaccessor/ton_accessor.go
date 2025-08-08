@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/xssnick/tonutils-go/address"
-	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
@@ -36,7 +35,7 @@ func NewTONAccessor(
 	lggr logger.Logger,
 	client ton.APIClientWrapped,
 	logPoller logpoller.LogPoller,
-	addrCodec ccipocr3.AddressCodec, // TODO: why is this a param rather than up to the Accessor to construct?
+	addrCodec ccipocr3.AddressCodec,
 ) (ccipocr3.ChainAccessor, error) {
 	// TODO: validate state of client and logPoller (should be initialized in NewChain)
 	return &TONAccessor{
@@ -44,7 +43,7 @@ func NewTONAccessor(
 		client:    client,
 		logPoller: logPoller,
 		bindings:  make(map[string]*address.Address),
-		addrCodec: codec.AddressCodec{},
+		addrCodec: codec.AddressCodec{}, // TODO: AddressCodec doesn't match the ccipocr3.AddressCodec interface
 	}, nil
 }
 
@@ -90,35 +89,34 @@ func (a *TONAccessor) GetExpectedNextSequenceNumber(ctx context.Context, dest cc
 }
 
 func (a *TONAccessor) GetTokenPriceUSD(ctx context.Context, rawTokenAddress ccipocr3.UnknownAddress) (ccipocr3.TimestampedUnixBig, error) {
-	// TODO: use addrCodec
-	tokenAddress, err := address.ParseAddr(base64.RawURLEncoding.EncodeToString(rawTokenAddress))
-	if err != nil {
-		return ccipocr3.TimestampedUnixBig{}, fmt.Errorf("invalid address: %w", err)
-	}
-
 	addr, ok := a.bindings[consts.ContractNameFeeQuoter]
 	if !ok {
 		return ccipocr3.TimestampedUnixBig{}, errors.New("FeeQuoter not bound")
 	}
 
+	// TODO: addrCodec doesn't help us here since we want a TON address type, not bytes/string
+	tokenAddress, err := address.ParseAddr(base64.RawURLEncoding.EncodeToString(rawTokenAddress))
+	if err != nil {
+		return ccipocr3.TimestampedUnixBig{}, fmt.Errorf("invalid address: %w", err)
+	}
+	// TODO: RunGetMethod isn't happy with address inputs, convert to a slice first
+	tokenAddressSlice := cell.BeginCell().MustStoreAddr(tokenAddress).EndCell().BeginParse()
+
 	block, err := a.client.CurrentMasterchainInfo(ctx)
 	if err != nil {
 		return ccipocr3.TimestampedUnixBig{}, fmt.Errorf("failed to get current block: %w", err)
 	}
-	// TODO: RunGetMethod isn't happy with address inputs, convert to a slice first
-	tokenAddressSlice := cell.BeginCell().MustStoreAddr(tokenAddress).EndCell().BeginParse()
 	result, err := a.client.RunGetMethod(ctx, block, addr, "tokenPrice", tokenAddressSlice)
 	if err != nil {
 		return ccipocr3.TimestampedUnixBig{}, err
 	}
-	raw, err := result.Cell(0)
+
+	var timestampedPrice feequoter.TimestampedPrice
+	err = timestampedPrice.FromResult(result)
 	if err != nil {
 		return ccipocr3.TimestampedUnixBig{}, err
 	}
-	var timestampedPrice feequoter.TimestampedPrice
-	if err := tlb.LoadFromCell(&timestampedPrice, raw.BeginParse()); err != nil {
-		return ccipocr3.TimestampedUnixBig{}, err
-	}
+
 	return ccipocr3.TimestampedUnixBig{
 		Value:     timestampedPrice.Value,
 		Timestamp: uint32(timestampedPrice.Timestamp), // TODO: u64 -> u32?

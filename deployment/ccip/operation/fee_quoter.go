@@ -2,6 +2,7 @@ package operation
 
 import (
 	"fmt"
+	"math/big"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
@@ -87,8 +88,7 @@ var UpdateFeeQuoterDestChainConfigsOp = operations.NewOperation(
 )
 
 func updateFeeQuoterDestChainConfigs(b operations.Bundle, deps TonDeps, in UpdateFeeQuoterDestChainConfigsInput) ([][]byte, error) {
-	// TODO: needs to be FeeQuoter, not OnRamp
-	addr := deps.CCIPOnChainState[deps.TonChain.Selector].FeeQuoter
+	address := deps.CCIPOnChainState[deps.TonChain.Selector].FeeQuoter
 
 	input := feequoter.UpdateDestChainConfigs{
 		Update: in[0], // TEMP: until contracts get updated
@@ -102,23 +102,65 @@ func updateFeeQuoterDestChainConfigs(b operations.Bundle, deps TonDeps, in Updat
 
 	messages := []*tlb.InternalMessage{
 		{
-			Bounce: true,
-			Amount: tlb.MustFromTON("1"),
-			// TODO: need to add more addresses to deployments state, CCIPAddress should be FeeQuoter
-			DstAddr: &addr,
+			Bounce:  true,
+			Amount:  tlb.MustFromTON("1"),
+			DstAddr: &address,
 			Body:    payload,
 		},
 	}
 	return utils.Serialize(messages)
 }
 
-// result = await fee-quoter.sendUpdateDestChainConfigs(deployer.getSender(), {
-//   value: toNano('1'),
-//   destChainConfigs: [
-//     {
-//       destChainSelector: CHAINSEL_EVM_TEST_90000001,
-//       router: Buffer.alloc(64),
-//       allowlistEnabled: false,
-//     },
-//   ],
-// })
+// UpdateFeeQuoterPricesInput contains configuration for updating FeeQuoter price configs
+type UpdateFeeQuoterPricesInput struct {
+	TokenPrices map[string]*big.Int // token address (string) -> price
+	GasPrices   map[uint64]*big.Int // dest chain -> gas price
+}
+
+// UpdateFeeQuoterPricesOp operation to update FeeQuoter prices
+var UpdateFeeQuoterPricesOp = operations.NewOperation(
+	"update-fee-quoter-prices-op",
+	semver.MustParse("0.1.0"),
+	"Updates FeeQuoter token and gas prices",
+	updateFeeQuoterPrices,
+)
+
+func updateFeeQuoterPrices(b operations.Bundle, deps TonDeps, in UpdateFeeQuoterPricesInput) ([][]byte, error) {
+	feeQuoterAddress := deps.CCIPOnChainState[deps.TonChain.Selector].FeeQuoter
+
+	var tokenPrices []feequoter.TokenPriceUpdate
+	var gasPrices []feequoter.GasPriceUpdate
+
+	for token, value := range in.TokenPrices {
+		tokenAddress, err := address.ParseAddr(token)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse token address: %w", err)
+		}
+		tokenPrices = append(tokenPrices, feequoter.TokenPriceUpdate{
+			SourceToken: tokenAddress,
+			UsdPerToken: value,
+		})
+	}
+	// TODO: need to split the u224 into two values
+	// for chainSelector, update := range in.GasPrices {
+	// }
+
+	input := feequoter.UpdatePrices{
+		TokenPrices: common.SnakeData[feequoter.TokenPriceUpdate](tokenPrices),
+		GasPrices:   common.SnakeData[feequoter.GasPriceUpdate](gasPrices),
+	}
+
+	payload, err := tlb.ToCell(input)
+	if err != nil {
+		return nil, err
+	}
+	messages := []*tlb.InternalMessage{
+		{
+			Bounce:  true,
+			Amount:  tlb.MustFromTON("1"),
+			DstAddr: &feeQuoterAddress,
+			Body:    payload,
+		},
+	}
+	return utils.Serialize(messages)
+}

@@ -11,7 +11,7 @@ require (
 	github.com/smartcontractkit/chainlink-testing-framework/framework v0.10.4
 	github.com/smartcontractkit/chainlink-ton v0.0.0
 	github.com/smartcontractkit/chainlink-ton/integration-tests v0.0.0-00010101000000-000000000000
-	github.com/smartcontractkit/chainlink-ton/ops v0.0.0-00010101000000-000000000000
+	github.com/smartcontractkit/chainlink-ton/deployment v0.0.0-00010101000000-000000000000
 	github.com/smartcontractkit/chainlink/deployment v0.0.0-20250731130414-bdd83cdded50
 	github.com/smartcontractkit/chainlink/v2 v2.0.0-20250731130414-bdd83cdded50
 	github.com/stretchr/testify v1.10.0
@@ -23,7 +23,7 @@ require (
 replace (
 	github.com/smartcontractkit/chainlink-ton => ../
 	github.com/smartcontractkit/chainlink-ton/integration-tests => .
-	github.com/smartcontractkit/chainlink-ton/ops => ../ops
+	github.com/smartcontractkit/chainlink-ton/deployment => ../deployment
 )
 
 replace github.com/fbsobreira/gotron-sdk => github.com/smartcontractkit/chainlink-tron/relayer/gotron-sdk v0.0.5-0.20250422175525-b7575d96bd4d

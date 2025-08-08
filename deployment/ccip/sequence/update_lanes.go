@@ -2,6 +2,7 @@ package sequence
 
 import (
 	"fmt"
+	"math/big"
 
 	"github.com/Masterminds/semver/v3"
 	chainsel "github.com/smartcontractkit/chain-selectors"
@@ -17,8 +18,8 @@ import (
 
 type UpdateTonLanesSeqInput struct {
 	UpdateFeeQuoterDestChainConfigs operation.UpdateFeeQuoterDestChainConfigsInput
-	// UpdateFeeQuoterPricesConfig operation.UpdateFeeQuoterPricesInput
-	UpdateOnRampDestChainConfigs operation.UpdateOnRampDestChainConfigsInput
+	UpdateFeeQuoterPricesConfig     operation.UpdateFeeQuoterPricesInput
+	UpdateOnRampDestChainConfigs    operation.UpdateOnRampDestChainConfigsInput
 	// UpdateOffRampSourcesConfig  operation.UpdateOffRampSourcesInput
 	UpdateRouterDestConfig operation.UpdateRouterDestInput
 }
@@ -37,7 +38,7 @@ func updateLanes(b operations.Bundle, deps operation.TonDeps, in UpdateTonLanesS
 	b.Logger.Info("Updating destination configs on FeeQuoter")
 	feeQuoterReport, err := operations.ExecuteOperation(b, operation.UpdateFeeQuoterDestChainConfigsOp, deps, in.UpdateFeeQuoterDestChainConfigs)
 	if err != nil {
-		return nil, fmt.Errorf("failed to update onramp destinations: %w", err)
+		return nil, fmt.Errorf("failed to update feequoter destinations: %w", err)
 	}
 	txs = append(txs, feeQuoterReport.Output...)
 
@@ -54,6 +55,12 @@ func updateLanes(b operations.Bundle, deps operation.TonDeps, in UpdateTonLanesS
 	// add ccip owner to offramp allowlist
 
 	// update fee quoter with gas prices
+	b.Logger.Info("Updating prices on FeeQuoter")
+	updatePricesReport, err := operations.ExecuteOperation(b, operation.UpdateFeeQuoterPricesOp, deps, in.UpdateFeeQuoterPricesConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update feequoter prices: %w", err)
+	}
+	txs = append(txs, updatePricesReport.Output...)
 
 	// update router with destination onramp versions
 	b.Logger.Info("Updating Router")
@@ -113,18 +120,18 @@ func setTonSourceUpdates(lane config.LaneConfig, updateInputsByTonChain map[uint
 	}
 
 	// Setting gas prices updates
-	// if input.UpdateFeeQuoterPricesConfig.GasPrices == nil {
-	// 	input.UpdateFeeQuoterPricesConfig.GasPrices = make(map[uint64]*big.Int)
-	// }
-	// input.UpdateFeeQuoterPricesConfig.GasPrices[dest.Selector] = dest.GasPrice
+	if input.UpdateFeeQuoterPricesConfig.GasPrices == nil {
+		input.UpdateFeeQuoterPricesConfig.GasPrices = make(map[uint64]*big.Int)
+	}
+	input.UpdateFeeQuoterPricesConfig.GasPrices[dest.Selector] = dest.GasPrice
 
 	// Setting token prices updates
-	// if input.UpdateFeeQuoterPricesConfig.TokenPrices == nil {
-	// 	input.UpdateFeeQuoterPricesConfig.TokenPrices = make(map[string]*big.Int)
-	// }
-	// for tokenAddr, price := range source.TokenPrices {
-	// 	input.UpdateFeeQuoterPricesConfig.TokenPrices[tokenAddr.StringLong()] = price
-	// }
+	if input.UpdateFeeQuoterPricesConfig.TokenPrices == nil {
+		input.UpdateFeeQuoterPricesConfig.TokenPrices = make(map[string]*big.Int)
+	}
+	for tokenAddr, price := range source.TokenPrices {
+		input.UpdateFeeQuoterPricesConfig.TokenPrices[tokenAddr.String()] = price
+	}
 
 	// Setting the fee quoter destination on the source chain
 	input.UpdateFeeQuoterDestChainConfigs = append(input.UpdateFeeQuoterDestChainConfigs, ton_fee_quoter.UpdateDestChainConfig{

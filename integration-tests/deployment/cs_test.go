@@ -129,12 +129,13 @@ func TestDeploy(t *testing.T) {
 	state, err := stateview.LoadOnchainState(env)
 	require.NoError(t, err)
 
+	addrCodec := codec.AddressCodec{}
+
 	accessor, err := chainaccessor.NewTONAccessor(lggr, tonChain.Client, nil, nil)
 	require.NoError(t, err)
 
 	ctx := t.Context()
 	feeQuoterAddr := state.TonChains[chainSelector].FeeQuoter
-	addrCodec := codec.AddressCodec{}
 	// TODO: Simplify with https://github.com/xssnick/tonutils-go/pull/346
 	rawFeeQuoterAddr, err := addrCodec.AddressStringToBytes(feeQuoterAddr.String())
 	require.NoError(t, err)
