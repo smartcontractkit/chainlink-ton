@@ -21,22 +21,6 @@ describe('MCMS - RBACTimelockBlockFunctionTest', () => {
     await baseTest.setupAll('test-cancel')
   })
 
-  function createCallWithSelector(selector: number): rbactl.Call {
-    return {
-      target: baseTest.bind.counter.address,
-      value: 0n,
-      data: beginCell().storeUint(selector, 32).endCell(),
-    }
-  }
-
-  function createCallWithData(data: Cell): rbactl.Call {
-    return {
-      target: baseTest.bind.counter.address,
-      value: 0n,
-      data: data,
-    }
-  }
-
   it('should fail if not admin tries to block function selector', async () => {
     // Try to block with proposer role (should fail)
     const body = rbactl.builder.message.blockFunctionSelector.encode({
@@ -166,7 +150,11 @@ describe('MCMS - RBACTimelockBlockFunctionTest', () => {
 
     // Make sure that zero selector cannot be scheduled
     {
-      const call = createCallWithSelector(zeroSelector)
+      const call = {
+        target: baseTest.bind.counter.address,
+        value: 0n,
+        data: beginCell().storeUint(zeroSelector, 32).endCell(), // zero function selector
+      }
       const calls = BaseTestSetup.singletonCalls(call)
 
       const scheduleBody = rbactl.builder.message.scheduleBatch.encode({
@@ -193,8 +181,11 @@ describe('MCMS - RBACTimelockBlockFunctionTest', () => {
 
     // Make sure that zero selector plus another zero cannot be scheduled
     {
-      const data = beginCell().storeUint(zeroSelector, 32).storeUint(0, 8).endCell()
-      const call = createCallWithData(data)
+      const call = {
+        target: baseTest.bind.counter.address,
+        value: 0n,
+        data: beginCell().storeUint(zeroSelector, 32).storeUint(0, 8).endCell(),
+      }
       const calls = BaseTestSetup.singletonCalls(call)
 
       const scheduleBody = rbactl.builder.message.scheduleBatch.encode({
@@ -221,8 +212,11 @@ describe('MCMS - RBACTimelockBlockFunctionTest', () => {
 
     // Make sure that empty call *can* be scheduled
     {
-      const data = beginCell().endCell() // empty data
-      const call = createCallWithData(data)
+      const call = {
+        target: baseTest.bind.counter.address,
+        value: 0n,
+        data: beginCell().endCell(), // empty data
+      }
       const calls = BaseTestSetup.singletonCalls(call)
 
       const scheduleBody = rbactl.builder.message.scheduleBatch.encode({
@@ -248,8 +242,11 @@ describe('MCMS - RBACTimelockBlockFunctionTest', () => {
 
     // Make sure that three zero bytes can be scheduled
     {
-      const data = beginCell().storeUint(0x000000, 24).endCell() // 3 zero bytes
-      const call = createCallWithData(data)
+      const call = {
+        target: baseTest.bind.counter.address,
+        value: 0n,
+        data: beginCell().storeUint(0x000000, 24).endCell(), // 3 zero bytes
+      }
       const calls = BaseTestSetup.singletonCalls(call)
 
       const scheduleBody = rbactl.builder.message.scheduleBatch.encode({
