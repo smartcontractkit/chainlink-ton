@@ -29,29 +29,22 @@ type Filter struct {
 }
 
 type Log struct {
-	ID       int64 // Unique identifier for the log entry.
-	FilterID int64 // Identifier of the filter that matched this log.
-
-	ChainID string           // ChainID of the blockchain where the log was generated.
-	Address *address.Address // Source contract address associated with the log entry.
-
-	EventTopic uint32     // Topic identifier for categorizing the log entry.
-	Data       *cell.Cell // Parsed Raw BOC (Bag of Cells) of the event msg body containing the log data(message body).
-
-	TxHash      TxHash    // Transaction hash for uniqueness within the blockchain.
-	TxLT        uint64    // Logical time (LT) of the transaction, used for ordering and uniqueness.
-	TxTimestamp time.Time // Timestamp of the transaction that generated the log.
-
-	ShardBlockWorkchain int32 // Shard block metadata
-	ShardBlockShard     int64
-	ShardBlockSeqno     uint32
-
-	MasterBlockSeqno uint32 // Master block sequence number
-
-	CreatedAt time.Time  // Timestamp when the log entry was created.
-	ExpiresAt *time.Time // Optional expiration timestamp for the log entry.
-
-	Error *string // Optional error message associated with the log entry.
+	ID                  int64            // Unique identifier for the log entry.
+	FilterID            int64            // Identifier of the filter that matched this log.
+	ChainID             string           // ChainID of the blockchain where the log was generated.
+	Address             *address.Address // Source contract address associated with the log entry.
+	EventTopic          uint32           // Topic identifier for categorizing the log entry.
+	Data                *cell.Cell       // Event msg body containing the log data.
+	TxHash              TxHash           // Transaction hash for uniqueness within the blockchain.
+	TxLT                uint64           // Logical time (LT) of the transaction, used for ordering and uniqueness.
+	TxTimestamp         time.Time        // Timestamp of the transaction that generated the log.
+	ShardBlockWorkchain int32            // Shard block metadata - workchain
+	ShardBlockShard     int64            // Shard block metadata - shard ID
+	ShardBlockSeqno     uint32           // Shard block metadata - sequence number
+	MasterBlockSeqno    uint32           // Masterchain block sequence number
+	CreatedAt           time.Time        // Timestamp when the log entry was created.
+	ExpiresAt           *time.Time       // Optional expiration timestamp for the log entry.
+	Error               *string          // Optional error message associated with the log entry.
 }
 
 func (l Log) String() string {

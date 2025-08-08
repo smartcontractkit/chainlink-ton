@@ -1,6 +1,7 @@
 package smoke
 
 import (
+	"context"
 	"encoding/binary"
 	"fmt"
 	"math/big"
@@ -129,13 +130,15 @@ func Test_LogPoller(t *testing.T) {
 		test_utils.FundWallets(t, client, []*address.Address{senderA.Address(), senderB.Address()}, []tlb.Coins{tlb.MustFromTON("1000"), tlb.MustFromTON("1000")})
 		require.NotNil(t, senderA)
 
-		emitterA, err := helper.NewTestEventSource(t.Context(), client, senderA, "emitterA", rand.Uint32(), logger.Test(t))
+		emitterA, err := helper.NewTestEventSource(client, senderA, "emitterA", rand.Uint32(), logger.Test(t))
 		require.NoError(t, err)
 
-		emitterB, err := helper.NewTestEventSource(t.Context(), client, senderB, "emitterB", rand.Uint32(), logger.Test(t))
+		emitterB, err := helper.NewTestEventSource(client, senderB, "emitterB", rand.Uint32(), logger.Test(t))
 		require.NoError(t, err)
 
 		const targetCounter = 10
+		const interval = 1 * time.Second
+		const timeout = 60 * time.Second
 
 		cfg := logpoller.DefaultConfigSet
 		// DI
@@ -185,14 +188,16 @@ func Test_LogPoller(t *testing.T) {
 		}()
 
 		// start event emission loops, which will stop itself once the target is reached
-		err = emitterA.Start(t.Context(), 1*time.Second, big.NewInt(targetCounter))
+		evctx, cancel := context.WithTimeout(context.Background(), timeout) // 10 counter each, should be enough
+		defer cancel()
+		err = emitterA.Start(evctx, interval, big.NewInt(targetCounter))
 		require.NoError(t, err)
-		err = emitterB.Start(t.Context(), 1*time.Second, big.NewInt(targetCounter))
+		err = emitterB.Start(evctx, interval, big.NewInt(targetCounter))
 		require.NoError(t, err)
 		defer func() {
-			esrr := emitterA.Stop()
+			esrr := emitterA.Wait()
 			require.NoError(t, esrr)
-			esrr2 := emitterB.Stop()
+			esrr2 := emitterB.Wait()
 			require.NoError(t, esrr2)
 		}()
 
@@ -307,7 +312,7 @@ func Test_LogPoller(t *testing.T) {
 
 			// If log count and content are correct for both, the test condition is met
 			return true
-		}, 180*time.Second, 5*time.Second, "log poller did not ingest all events correctly in time")
+		}, 120*time.Second, 5*time.Second, "log poller did not ingest all events correctly in time")
 
 		t.Run("Cell Query Tests", func(t *testing.T) {
 			// the log poller service itself provides a simple query interface(w/o full DSL support)

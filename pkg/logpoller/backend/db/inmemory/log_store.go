@@ -26,7 +26,7 @@ type inMemoryStore struct {
 	logs            []types.Log
 }
 
-func NewLogStore(lggr logger.Logger) *inMemoryStore {
+func NewLogStore(lggr logger.Logger) logpoller.LogStore {
 	return &inMemoryStore{
 		lggr:            logger.Sugared(lggr),
 		cellQueryEngine: NewCellQueryEngine(lggr),

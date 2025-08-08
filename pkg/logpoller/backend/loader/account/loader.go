@@ -32,7 +32,7 @@ func NewMsgLoader(
 	client ton.APIClientWrapped,
 	lggr logger.Logger,
 	pageSize uint32,
-) *accountMsgLoader {
+) logpoller.MessageLoader {
 	// TODO(NONEVM-2188): add background worker pool initializaion here
 	return &accountMsgLoader{
 		lggr:     logger.Sugared(lggr),
