@@ -26,13 +26,23 @@ describe('MCMS - RBACTimelockScheduleBatchTest', () => {
   function CreateCallBatch() {
     // TODO the original test creates a vec of 2 calls
     // let callVec: rbactl.Call[] = []
-    // callVec.push(baseTest.createIncrementCall())
-    // callVec.push(baseTest.createSetNumberCall())
-    // const calls = encodeBatch(callVec)
+    // callVec.push({
+    //   target: baseTest.bind.counter.address,
+    //   value: 0n,
+    //   data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
+    // })
+    // callVec.push({
+    //   target: baseTest.bind.counter.address,
+    //   value: 0n,
+    //   data: counter.builder.message.increaseCount.encode({ queryId: 2n }),
+    // })
+    // return encodeBatch(callVec)
 
-    const calls = BaseTestSetup.singletonCalls(baseTest.createIncrementCall())
-
-    return calls
+    return BaseTestSetup.singletonCalls({
+      target: baseTest.bind.counter.address,
+      value: 0n,
+      data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
+    })
   }
 
   it('should fail if non-proposer tries to schedule batch', async () => {
@@ -167,7 +177,11 @@ describe('MCMS - RBACTimelockScheduleTest', () => {
   })
 
   it('should fail if non-proposer tries to schedule', async () => {
-    const call = baseTest.createIncrementCall()
+    const call = {
+      target: baseTest.bind.counter.address,
+      value: 0n,
+      data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
+    }
     const calls = BaseTestSetup.singletonCalls(call)
 
     const scheduleBody = rbactl.builder.message.scheduleBatch.encode({
@@ -207,7 +221,11 @@ describe('MCMS - RBACTimelockScheduleTest', () => {
     )
 
     // Try to schedule the blocked function
-    const call = baseTest.createIncrementCall()
+    const call = {
+      target: baseTest.bind.counter.address,
+      value: 0n,
+      data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
+    }
     const calls = BaseTestSetup.singletonCalls(call)
 
     const scheduleBody = rbactl.builder.message.scheduleBatch.encode({
@@ -233,7 +251,11 @@ describe('MCMS - RBACTimelockScheduleTest', () => {
   })
 
   it('should fail if operation already scheduled', async () => {
-    const call = baseTest.createIncrementCall()
+    const call = {
+      target: baseTest.bind.counter.address,
+      value: 0n,
+      data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
+    }
     const calls = BaseTestSetup.singletonCalls(call)
 
     const scheduleBody = rbactl.builder.message.scheduleBatch.encode({
@@ -273,7 +295,11 @@ describe('MCMS - RBACTimelockScheduleTest', () => {
   })
 
   it('should fail if delay is less than minimum delay', async () => {
-    const call = baseTest.createIncrementCall()
+    const call = {
+      target: baseTest.bind.counter.address,
+      value: 0n,
+      data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
+    }
     const calls = BaseTestSetup.singletonCalls(call)
 
     const scheduleBody = rbactl.builder.message.scheduleBatch.encode({
@@ -307,7 +333,11 @@ describe('MCMS - RBACTimelockScheduleTest', () => {
   })
 
   async function scheduleOperation(scheduler: SandboxContract<TreasuryContract>) {
-    const call = baseTest.createIncrementCall()
+    const call = {
+      target: baseTest.bind.counter.address,
+      value: 0n,
+      data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
+    }
     const calls = BaseTestSetup.singletonCalls(call)
 
     const scheduleBody = rbactl.builder.message.scheduleBatch.encode({
