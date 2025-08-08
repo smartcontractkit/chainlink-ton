@@ -84,8 +84,23 @@ func (a *TONAccessor) LatestMessageTo(ctx context.Context, dest ccipocr3.ChainSe
 }
 
 func (a *TONAccessor) GetExpectedNextSequenceNumber(ctx context.Context, dest ccipocr3.ChainSelector) (ccipocr3.SeqNum, error) {
-	// TODO(NONEVM-2364) implement me
-	return 0, errors.New("not implemented")
+	addr, ok := a.bindings[consts.ContractNameOnRamp]
+	if !ok {
+		return 0, errors.New("OnRamp not bound")
+	}
+	block, err := a.client.CurrentMasterchainInfo(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get current block: %w", err)
+	}
+	result, err := a.client.RunGetMethod(ctx, block, addr, "tokenPrice", dest)
+	if err != nil {
+		return 0, err
+	}
+	value, err := result.Int(0)
+	if err != nil {
+		return 0, err
+	}
+	return ccipocr3.SeqNum(value.Uint64()), nil
 }
 
 func (a *TONAccessor) GetTokenPriceUSD(ctx context.Context, rawTokenAddress ccipocr3.UnknownAddress) (ccipocr3.TimestampedUnixBig, error) {
