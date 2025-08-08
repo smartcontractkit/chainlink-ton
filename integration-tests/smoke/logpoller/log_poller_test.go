@@ -202,34 +202,27 @@ func Test_LogPoller(t *testing.T) {
 		}()
 
 		require.Eventually(t, func() bool {
-			// Check both emitters' on-chain counters
-			master, masterErr := client.CurrentMasterchainInfo(t.Context())
-			if masterErr != nil {
-				t.Logf("failed to get masterchain info, retrying: %v", masterErr)
-				return false
-			}
-
 			// Check emitterA
-			counterA, counterAErr := emitterA.GetCounterValue(t.Context(), master)
-			if counterAErr != nil {
-				t.Logf("failed to get on-chain counter for emitterA, retrying: %v", counterAErr)
+			counterA, caerr := counter.GetValue(t.Context(), client, emitterA.ContractAddress())
+			if caerr != nil {
+				t.Logf("failed to get on-chain counter for emitterA, retrying: %v", caerr)
 				return false
 			}
 
-			if counterA.Uint64() < uint64(targetCounter) {
-				t.Logf("waiting for counter A to be updated: %d/%d", counterA.Uint64(), targetCounter)
+			if counterA < targetCounter {
+				t.Logf("waiting for counter A to be updated: %d/%d", counterA, targetCounter)
 				return false
 			}
 
 			// Check emitterB
-			counterB, counterBErr := emitterB.GetCounterValue(t.Context(), master)
-			if counterBErr != nil {
-				t.Logf("failed to get on-chain counter for emitterB, retrying: %v", counterBErr)
+			counterB, cberr := counter.GetValue(t.Context(), client, emitterB.ContractAddress())
+			if cberr != nil {
+				t.Logf("failed to get on-chain counter for emitterB, retrying: %v", cberr)
 				return false
 			}
 
-			if counterB.Uint64() < uint64(targetCounter) {
-				t.Logf("waiting for counter B to be updated: %d/%d", counterB.Uint64(), targetCounter)
+			if counterB < targetCounter {
+				t.Logf("waiting for counter B to be updated: %d/%d", counterB, targetCounter)
 				return false
 			}
 

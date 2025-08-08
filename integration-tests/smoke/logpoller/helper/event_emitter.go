@@ -43,15 +43,10 @@ func SendBulkTestEventTxs(t *testing.T, client ton.APIClientWrapped, batchCount,
 	expectedCounter := uint32(batchCount * txPerBatch * msgPerTx) //nolint:gosec // test code
 
 	require.Eventually(t, func() bool {
-		mb, err := client.CurrentMasterchainInfo(t.Context())
+		currentCounter, err := counter.GetValue(t.Context(), client, emitter.ContractAddress())
 		if err != nil {
 			return false
 		}
-		currentCounterRaw, err := emitter.GetCounterValue(t.Context(), mb)
-		if err != nil {
-			return false
-		}
-		currentCounter := uint32(currentCounterRaw.Uint64()) //nolint:gosec // test code
 		return currentCounter == expectedCounter
 	}, 30*time.Second, 2*time.Second, "Counter did not reach expected value within timeout")
 
@@ -270,7 +265,6 @@ func (e *TestEventSource) eventLoop(ctx context.Context, interval time.Duration)
 
 func (e *TestEventSource) SendBulkTestEvents(ctx context.Context, batchCount, txPerBatch, msgPerTx int) ([]TestEventRes, error) {
 	var txs []TestEventRes
-
 	// Send transactions in batches with block waits
 	for batchIdx := 0; batchIdx < batchCount; batchIdx++ {
 		// Send multiple transactions in this batch
@@ -360,32 +354,4 @@ func (e *TestEventSource) sendManyIncreaseCountMsgs(ctx context.Context, count i
 	}
 
 	return tx, block, nil
-}
-
-func (e *TestEventSource) GetCounterID(ctx context.Context, block *ton.BlockIDExt) (*big.Int, error) {
-	res, err := e.client.RunGetMethod(ctx, block, e.ContractAddress(), "id")
-	if err != nil {
-		return nil, fmt.Errorf("failed to run get method 'id': %w", err)
-	}
-
-	val, err := res.Int(0)
-	if err != nil {
-		return nil, fmt.Errorf("failed to extract id value: %w", err)
-	}
-
-	return val, nil
-}
-
-func (e *TestEventSource) GetCounterValue(ctx context.Context, block *ton.BlockIDExt) (*big.Int, error) {
-	res, err := e.client.RunGetMethod(ctx, block, e.ContractAddress(), "value")
-	if err != nil {
-		return nil, fmt.Errorf("failed to run get method 'value': %w", err)
-	}
-
-	val, err := res.Int(0)
-	if err != nil {
-		return nil, fmt.Errorf("failed to extract value value: %w", err)
-	}
-
-	return val, nil
 }
