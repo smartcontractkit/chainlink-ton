@@ -6,6 +6,7 @@ import * as rbactl from '../../wrappers/mcms/RBACTimelock'
 
 import { BaseTestSetup, TestCode } from './BaseTest'
 import { SandboxContract, TreasuryContract } from '@ton/sandbox'
+import * as counter from '../../wrappers/examples/Counter'
 
 describe('MCMS - RBACTimelockCancelTest', () => {
   let baseTest: BaseTestSetup
@@ -42,7 +43,11 @@ describe('MCMS - RBACTimelockCancelTest', () => {
   })
 
   it('should not be able to cancel finished operation', async () => {
-    const call = baseTest.createIncrementCall()
+    const call = {
+      target: baseTest.bind.counter.address,
+      value: 0n,
+      data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
+    }
     const calls = BaseTestSetup.singletonCalls(call)
 
     // Schedule operation
@@ -131,7 +136,11 @@ describe('MCMS - RBACTimelockCancelTest', () => {
   })
 
   async function cancelOperation(canceller: SandboxContract<TreasuryContract>) {
-    const call = baseTest.createIncrementCall()
+    const call = {
+      target: baseTest.bind.counter.address,
+      value: 0n,
+      data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
+    }
     const calls = BaseTestSetup.singletonCalls(call)
 
     // Schedule operation

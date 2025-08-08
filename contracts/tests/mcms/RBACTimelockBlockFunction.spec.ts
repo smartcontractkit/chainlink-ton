@@ -61,7 +61,11 @@ describe('MCMS - RBACTimelockBlockFunctionTest', () => {
   it('should block function selector', async () => {
     // Schedule operation should succeed first
     {
-      const call = baseTest.createIncrementCall()
+      const call = {
+        target: baseTest.bind.counter.address,
+        value: 0n,
+        data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
+      }
       const calls = BaseTestSetup.singletonCalls(call)
 
       const scheduleBody = rbactl.builder.message.scheduleBatch.encode({
@@ -107,7 +111,11 @@ describe('MCMS - RBACTimelockBlockFunctionTest', () => {
 
     // Make sure blocked function cannot be scheduled
     {
-      const call = baseTest.createIncrementCall()
+      const call = {
+        target: baseTest.bind.counter.address,
+        value: 0n,
+        data: counter.builder.message.increaseCount.encode({ queryId: 2n }),
+      }
       const calls = BaseTestSetup.singletonCalls(call)
 
       const scheduleBody = rbactl.builder.message.scheduleBatch.encode({
@@ -289,7 +297,11 @@ describe('MCMS - RBACTimelockBlockFunctionTest', () => {
 
     // Try schedule blocked function and expect it to revert
     {
-      const call = baseTest.createIncrementCall()
+      const call = {
+        target: baseTest.bind.counter.address,
+        value: 0n,
+        data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
+      }
       const calls = BaseTestSetup.singletonCalls(call)
 
       const scheduleBody = rbactl.builder.message.scheduleBatch.encode({
@@ -336,7 +348,11 @@ describe('MCMS - RBACTimelockBlockFunctionTest', () => {
 
     // Make sure unblocked function can be scheduled
     {
-      const call = baseTest.createIncrementCall()
+      const call = {
+        target: baseTest.bind.counter.address,
+        value: 0n,
+        data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
+      }
       const calls = BaseTestSetup.singletonCalls(call)
 
       const scheduleBody = rbactl.builder.message.scheduleBatch.encode({

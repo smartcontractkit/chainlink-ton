@@ -50,14 +50,12 @@ export class BaseTestSetup {
   code: TestCode
   acc: TestAccounts
   bind: TestContracts
-  lastQueryId: bigint
 
   constructor() {
     this.blockchain = null as any
     this.code = null as any
     this.acc = null as any
     this.bind = null as any
-    this.lastQueryId = 0n
   }
 
   static async compileContracts(): Promise<TestCode> {
@@ -78,37 +76,10 @@ export class BaseTestSetup {
   }
 
   /**
-   * Create an increment call for the counter contract
-   */
-  createIncrementCall(): rbactl.Call {
-    const rando = this.lastQueryId++
-    return {
-      target: this.bind.counter.address,
-      value: 0n,
-      data: counter.builder.message.increaseCount.encode({ queryId: rando }),
-    }
-  }
-
-  /**
    * Create a call with a specific selector
    */
-  createCallWithSelector(selector: number): rbactl.Call {
-    return {
-      target: this.bind.counter.address,
-      value: 0n,
-      data: beginCell().storeUint(selector, 32).endCell(),
-    }
-  }
-
-  /**
-   * Create a call with specific data
-   */
-  createCallWithData(data: Cell): rbactl.Call {
-    return {
-      target: this.bind.counter.address,
-      value: 0n,
-      data: data,
-    }
+  encodeCallWithSelector(selector: number): Cell {
+    return beginCell().storeUint(selector, 32).endCell()
   }
 
   /**
