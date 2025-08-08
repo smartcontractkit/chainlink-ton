@@ -1,7 +1,6 @@
 package tracetracking
 
 import (
-	"context"
 	"math/big"
 	"math/rand/v2"
 	"testing"
@@ -12,15 +11,20 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"integration-tests/tracetracking/async/wrappers/requestreply"
 	"integration-tests/tracetracking/async/wrappers/requestreplywithtwodependencies"
 	"integration-tests/tracetracking/async/wrappers/twomsgchain"
 	"integration-tests/tracetracking/async/wrappers/twophasecommit"
-	counter "integration-tests/tracetracking/counter/wrappers"
+
 	"integration-tests/tracetracking/testutils"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/examples/counter"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
 func TestIntegration(t *testing.T) {
@@ -34,7 +38,7 @@ func TestIntegration(t *testing.T) {
 		t.Logf("\n\n\n\n\n\nTestStarted\n==========================\n")
 		transfer, err := alice.Wallet.BuildTransfer(bob.Wallet.WalletAddress(), tlb.FromNanoTON(transferAmount), false, "deposit")
 		require.NoError(t, err, "failed to build transfer: %w", err)
-		externalMessageReceived, _, err := alice.SendWaitTransaction(context.TODO(), *bob.Wallet.WalletAddress(), transfer)
+		externalMessageReceived, _, err := alice.SendWaitTransaction(t.Context(), *bob.Wallet.WalletAddress(), transfer)
 		require.NoError(t, err, "failed to send transaction: %w", err)
 		t.Logf("\n==========================\nreceivedMessage: %+v\n==========================\n", externalMessageReceived)
 		rerr := externalMessageReceived.WaitForTrace(&bob)
@@ -57,22 +61,44 @@ func TestIntegration(t *testing.T) {
 		t.Logf("\n\n\n\n\n\nTest Setup\n==========================\n")
 
 		t.Logf("Deploying Counter contract\n")
-		counter, err := counter.NewCounterProvider(alice).Deploy(counter.CounterInitData{ID: (rand.Uint32()), Value: 100})
+		data := counter.ContractData{
+			ID:    rand.Uint32(),
+			Value: 100,
+			Ownable: common.Ownable2Step{
+				Owner:        alice.Wallet.WalletAddress(),
+				PendingOwner: nil,
+			},
+		}
+		dataCell, err := tlb.ToCell(data)
+		require.NoError(t, err)
+
+		path := bindings.GetBuildDir("examples.Counter.compiled.json")
+		code, err := wrappers.ParseCompiledContract(path)
+		require.NoError(t, err)
+
+		body := cell.BeginCell().EndCell()
+		counterContract, _, err := wrappers.Deploy(&alice, code, dataCell, tlb.MustFromTON("0.05"), body)
 		require.NoError(t, err, "failed to deploy Counter contract: %w", err)
-		t.Logf("Counter contract deployed at %s\n", counter.Contract.Address.String())
+
+		t.Logf("Counter contract deployed at %s\n", counterContract.Address.String())
 
 		t.Logf("\n\n\n\n\n\nTest Started\n==========================\n")
 
 		t.Logf("Checking initial value\n")
-		result, err := counter.GetValue()
+		result, err := counter.GetValue(t.Context(), alice.Client, counterContract.Address)
 		require.NoError(t, err, "failed to get initial value: %w", err)
 		expectedValue := uint32(100)
 		require.Equal(t, expectedValue, result, "Expected initial value %d, got %d", expectedValue, result)
 		t.Logf("Initial value: %d\n", result)
 
 		t.Logf("Sending SetCount request\n")
-		msgReceived, err := counter.SendSetCount(1)
+		msg := counter.SetCount{
+			QueryID:  rand.Uint64(),
+			NewCount: 1,
+		}
+		msgReceived, err := counterContract.CallWaitRecursively(msg, tlb.MustFromTON("0.5"))
 		require.NoError(t, err, "failed to send SetCount request: %w", err)
+
 		require.Equal(t, tvm.ExitCodeSuccess, msgReceived.ExitCode, "Expected exit code 0, got %d", msgReceived.ExitCode)
 		outgoingCount := len(msgReceived.OutgoingInternalReceivedMessages)
 		require.Equal(t, 1, outgoingCount, "Expected 1 outgoing internal received message, got %d", outgoingCount)
@@ -82,7 +108,7 @@ func TestIntegration(t *testing.T) {
 		t.Logf("SetCount request sent\n")
 
 		t.Logf("Checking result\n")
-		result, err = counter.GetValue()
+		result, err = counter.GetValue(t.Context(), alice.Client, counterContract.Address)
 		require.NoError(t, err, "failed to get value: %w", err)
 		expectedValue = uint32(1)
 		require.Equal(t, expectedValue, result, "Expected value %d, got %d", expectedValue, result)

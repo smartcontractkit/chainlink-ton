@@ -20,6 +20,7 @@ export const setupTestFeeQuoter = async (
   let data: FeeQuoterStorage = {
     ownable: {
       owner: deployer.address,
+      pendingOwner: null,
     },
     maxFeeJuelsPerMsg: 1000000n,
     linkToken: ZERO_ADDRESS,

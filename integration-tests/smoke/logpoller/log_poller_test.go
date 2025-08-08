@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"integration-tests/smoke/logpoller/counter"
 	helper "integration-tests/smoke/logpoller/helper"
 	test_utils "integration-tests/utils"
 
@@ -21,6 +20,8 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/examples/counter"
 )
 
 func Test_LogPoller(t *testing.T) {
@@ -145,7 +146,7 @@ func Test_LogPoller(t *testing.T) {
 			Name:       "FilterA",
 			Address:    *emitterA.ContractAddress(),
 			EventName:  "CounterIncreased",
-			EventTopic: counter.CountIncreasedEventTopic,
+			EventTopic: counter.TopicCountIncreased,
 		}
 		lp.RegisterFilter(t.Context(), filterA)
 
@@ -153,7 +154,7 @@ func Test_LogPoller(t *testing.T) {
 			Name:       "FilterB",
 			Address:    *emitterB.ContractAddress(),
 			EventName:  "CounterIncreased",
-			EventTopic: counter.CountIncreasedEventTopic,
+			EventTopic: counter.TopicCountIncreased,
 		}
 		lp.RegisterFilter(t.Context(), filterB)
 
@@ -255,7 +256,7 @@ func Test_LogPoller(t *testing.T) {
 
 			if len(logsA) != targetCounter {
 				for _, msg := range msgsA {
-					event, err := test_utils.ParseEventFromMsg[counter.CountIncreasedEvent](msg)
+					event, err := test_utils.ParseEventFromMsg[counter.CountIncreased](msg)
 					require.NoError(t, err, "failed to parse event from log")
 					t.Logf("EmitterA Event Counter=%d", event.Value)
 				}
@@ -265,7 +266,7 @@ func Test_LogPoller(t *testing.T) {
 
 			if len(logsB) != targetCounter {
 				for _, msg := range msgsB {
-					event, err := test_utils.ParseEventFromMsg[counter.CountIncreasedEvent](msg)
+					event, err := test_utils.ParseEventFromMsg[counter.CountIncreased](msg)
 					require.NoError(t, err, "failed to parse event from log")
 					t.Logf("EmitterB Event Counter=%d", event.Value)
 				}
@@ -302,7 +303,7 @@ func Test_LogPoller(t *testing.T) {
 
 				options := logpoller.QueryOptions{} // Default options (no sorting, no pagination)
 
-				result, err := lp.FilteredLogs(emitterA.ContractAddress(), counter.CountIncreasedEventTopic, queries, options)
+				result, err := lp.FilteredLogs(emitterA.ContractAddress(), counter.TopicCountIncreased, queries, options)
 				require.NoError(t, err)
 
 				require.Len(t, result.Logs, 5, "expected exactly 5 logs for the range 6-10")
@@ -311,7 +312,7 @@ func Test_LogPoller(t *testing.T) {
 					c, err := cell.FromBOC(log.Data)
 					require.NoError(t, err)
 					ext := &tlb.ExternalMessageOut{Body: c}
-					event, err := test_utils.ParseEventFromMsg[counter.CountIncreasedEvent](ext)
+					event, err := test_utils.ParseEventFromMsg[counter.CountIncreased](ext)
 					require.NoError(t, err)
 
 					// check that the counter is within the expected range
@@ -338,7 +339,7 @@ func Test_LogPoller(t *testing.T) {
 
 				options := logpoller.QueryOptions{} // Default options
 
-				result, err := lp.FilteredLogs(emitterB.ContractAddress(), counter.CountIncreasedEventTopic, queries, options)
+				result, err := lp.FilteredLogs(emitterB.ContractAddress(), counter.TopicCountIncreased, queries, options)
 				require.NoError(t, err)
 
 				require.Len(t, result.Logs, 3, "expected exactly 3 logs for the range 1-3")
@@ -347,7 +348,7 @@ func Test_LogPoller(t *testing.T) {
 					c, err := cell.FromBOC(log.Data)
 					require.NoError(t, err)
 					ext := &tlb.ExternalMessageOut{Body: c}
-					event, err := test_utils.ParseEventFromMsg[counter.CountIncreasedEvent](ext)
+					event, err := test_utils.ParseEventFromMsg[counter.CountIncreased](ext)
 					require.NoError(t, err)
 
 					// check that the counter is within the expected range
@@ -370,7 +371,7 @@ func Test_LogPoller(t *testing.T) {
 
 				options := logpoller.QueryOptions{} // Default options
 
-				result, err := lp.FilteredLogs(emitterB.ContractAddress(), counter.CountIncreasedEventTopic, queries, options)
+				result, err := lp.FilteredLogs(emitterB.ContractAddress(), counter.TopicCountIncreased, queries, options)
 				require.NoError(t, err)
 
 				require.Len(t, result.Logs, targetCounter, "expected exactly %d logs for the emitter B", targetCounter)
@@ -380,7 +381,7 @@ func Test_LogPoller(t *testing.T) {
 					c, err := cell.FromBOC(log.Data)
 					require.NoError(t, err)
 					ext := &tlb.ExternalMessageOut{Body: c}
-					event, err := test_utils.ParseEventFromMsg[counter.CountIncreasedEvent](ext)
+					event, err := test_utils.ParseEventFromMsg[counter.CountIncreased](ext)
 					require.NoError(t, err)
 
 					require.GreaterOrEqual(t, event.Value, uint32(1))
@@ -403,18 +404,18 @@ func Test_LogPoller(t *testing.T) {
 				t.Parallel()
 
 				parser := func(c *cell.Cell) (any, error) {
-					return test_utils.ParseEventFromCell[counter.CountIncreasedEvent](c)
+					return test_utils.ParseEventFromCell[counter.CountIncreased](c)
 				}
 
-				res, err := lp.FilteredLogsWithParser(emitterB.ContractAddress(), counter.CountIncreasedEventTopic, parser, nil)
+				res, err := lp.FilteredLogsWithParser(emitterB.ContractAddress(), counter.TopicCountIncreased, parser, nil)
 				require.NoError(t, err)
 
 				require.Len(t, res, targetCounter, "expected exactly %d logs for the emitter B", targetCounter)
 
 				seen := make(map[uint32]bool, targetCounter)
 				for i, item := range res {
-					require.IsType(t, counter.CountIncreasedEvent{}, item, "item at index %d has wrong type", i)
-					ev := item.(counter.CountIncreasedEvent)
+					require.IsType(t, counter.CountIncreased{}, item, "item at index %d has wrong type", i)
+					ev := item.(counter.CountIncreased)
 
 					require.GreaterOrEqual(t, ev.Value, uint32(1))
 					require.LessOrEqual(t, ev.Value, uint32(targetCounter))
@@ -437,25 +438,25 @@ func Test_LogPoller(t *testing.T) {
 				from, to := (1), (10)
 
 				parser := func(c *cell.Cell) (any, error) {
-					return test_utils.ParseEventFromCell[counter.CountIncreasedEvent](c)
+					return test_utils.ParseEventFromCell[counter.CountIncreased](c)
 				}
 
 				filter := func(parsedEvent any) bool {
-					evt, ok := parsedEvent.(counter.CountIncreasedEvent)
+					evt, ok := parsedEvent.(counter.CountIncreased)
 					if !ok {
 						return false
 					}
 					return evt.Value >= uint32(from) && evt.Value <= uint32(to) //nolint:gosec // test code
 				}
 
-				res, err := lp.FilteredLogsWithParser(emitterB.ContractAddress(), counter.CountIncreasedEventTopic, parser, filter)
+				res, err := lp.FilteredLogsWithParser(emitterB.ContractAddress(), counter.TopicCountIncreased, parser, filter)
 				require.NoError(t, err)
 
 				require.Len(t, res, to-from+1, "expected exactly 10 logs for the range 1-10")
 				seen := make(map[uint32]bool, to-from+1)
 				for i, item := range res {
-					require.IsType(t, counter.CountIncreasedEvent{}, item, "item at index %d has wrong type", i)
-					ev := item.(counter.CountIncreasedEvent)
+					require.IsType(t, counter.CountIncreased{}, item, "item at index %d has wrong type", i)
+					ev := item.(counter.CountIncreased)
 
 					require.GreaterOrEqual(t, ev.Value, uint32(from)) //nolint:gosec // test code
 					require.LessOrEqual(t, ev.Value, uint32(to))      //nolint:gosec // test code
@@ -486,7 +487,7 @@ func Test_LogPoller(t *testing.T) {
 
 				result, err := lp.FilteredLogs(
 					emitterA.ContractAddress(),
-					counter.CountIncreasedEventTopic,
+					counter.TopicCountIncreased,
 					[]logpoller.CellQuery{}, // No cell filters
 					options,
 				)
@@ -512,7 +513,7 @@ func Test_LogPoller(t *testing.T) {
 
 				result, err := lp.FilteredLogs(
 					emitterA.ContractAddress(),
-					counter.CountIncreasedEventTopic,
+					counter.TopicCountIncreased,
 					[]logpoller.CellQuery{},
 					options,
 				)
@@ -540,7 +541,7 @@ func Test_LogPoller(t *testing.T) {
 
 				result, err := lp.FilteredLogs(
 					emitterA.ContractAddress(),
-					counter.CountIncreasedEventTopic,
+					counter.TopicCountIncreased,
 					[]logpoller.CellQuery{},
 					options,
 				)
@@ -569,7 +570,7 @@ func Test_LogPoller(t *testing.T) {
 
 				result, err := lp.FilteredLogs(
 					emitterA.ContractAddress(),
-					counter.CountIncreasedEventTopic,
+					counter.TopicCountIncreased,
 					[]logpoller.CellQuery{},
 					options,
 				)
@@ -586,7 +587,7 @@ func Test_LogPoller(t *testing.T) {
 
 				firstPageResult, err := lp.FilteredLogs(
 					emitterA.ContractAddress(),
-					counter.CountIncreasedEventTopic,
+					counter.TopicCountIncreased,
 					[]logpoller.CellQuery{},
 					firstPageOptions,
 				)
@@ -619,7 +620,7 @@ func Test_LogPoller(t *testing.T) {
 
 					result, err := lp.FilteredLogs(
 						emitterA.ContractAddress(),
-						counter.CountIncreasedEventTopic,
+						counter.TopicCountIncreased,
 						[]logpoller.CellQuery{},
 						options,
 					)
@@ -685,7 +686,7 @@ func Test_LogPoller(t *testing.T) {
 
 				result, err := lp.FilteredLogs(
 					emitterA.ContractAddress(),
-					counter.CountIncreasedEventTopic,
+					counter.TopicCountIncreased,
 					cellQueries,
 					options,
 				)
@@ -697,7 +698,7 @@ func Test_LogPoller(t *testing.T) {
 					c, err := cell.FromBOC(log.Data)
 					require.NoError(t, err)
 					ext := &tlb.ExternalMessageOut{Body: c}
-					event, err := test_utils.ParseEventFromMsg[counter.CountIncreasedEvent](ext)
+					event, err := test_utils.ParseEventFromMsg[counter.CountIncreased](ext)
 					require.NoError(t, err)
 
 					require.GreaterOrEqual(t, event.Value, uint32(8))
@@ -731,7 +732,7 @@ func Test_LogPoller(t *testing.T) {
 
 					result, err := lp.FilteredLogs(
 						emitterB.ContractAddress(),
-						counter.CountIncreasedEventTopic,
+						counter.TopicCountIncreased,
 						[]logpoller.CellQuery{},
 						options,
 					)
@@ -756,7 +757,7 @@ func Test_LogPoller(t *testing.T) {
 					c, err := cell.FromBOC(log.Data)
 					require.NoError(t, err)
 					ext := &tlb.ExternalMessageOut{Body: c}
-					event, err := test_utils.ParseEventFromMsg[counter.CountIncreasedEvent](ext)
+					event, err := test_utils.ParseEventFromMsg[counter.CountIncreased](ext)
 					require.NoError(t, err)
 
 					require.Equal(t, emitterB.GetID(), event.ID, "log should belong to emitterB")
@@ -787,7 +788,7 @@ func Test_LogPoller(t *testing.T) {
 
 				result, err := lp.FilteredLogs(
 					emitterA.ContractAddress(),
-					counter.CountIncreasedEventTopic,
+					counter.TopicCountIncreased,
 					cellQueries,
 					options,
 				)
@@ -810,7 +811,7 @@ func Test_LogPoller(t *testing.T) {
 
 				result, err := lp.FilteredLogs(
 					emitterA.ContractAddress(),
-					counter.CountIncreasedEventTopic,
+					counter.TopicCountIncreased,
 					[]logpoller.CellQuery{},
 					options,
 				)

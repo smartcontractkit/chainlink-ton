@@ -6,7 +6,7 @@
 
   # source yarn.lock at the root of the repo
   yarnLock = ../yarn.lock;
-  
+
   # Define packages first
   packages = rec {
     # Official TON Jetton contract in FunC
@@ -38,7 +38,7 @@
       yarnOfflineCache = pkgs.fetchYarnDeps {
         inherit yarnLock;
         # pin the vendor hash (update using 'pkgs.lib.fakeHash')
-        hash = "sha256-tt8pcvp8NlRRUmjpq2f02DE401BipkmRzhOu8zBl/8s=";
+        hash = "sha256-+F8aqI6hS1A3ykS0O+ELLIwNbRe3Z+zQANjmh1PnudI=";
       };
 
       # postPatch script to copy root yarn.lock to the current build directory (and make it writeable)
@@ -70,7 +70,10 @@
 in {
   # Output a set of specifc shells
   devShells = {
-    contracts = pkgs.callPackage ./shell.nix {inherit pkgs; jetton-contracts = packages.contracts-jetton-func;};
+    contracts = pkgs.callPackage ./shell.nix {
+      inherit pkgs;
+      jetton-contracts = packages.contracts-jetton-func;
+    };
   };
 
   # Output a set of specifc packages
