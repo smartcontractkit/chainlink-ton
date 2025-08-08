@@ -96,6 +96,9 @@ describe('MCMS - RBACTimelockCancelTest', () => {
         to: baseTest.bind.timelock.address,
         success: true,
       })
+
+      // Verify counter was incremented
+      expect(await baseTest.bind.counter.getValue()).toEqual(1)
     }
 
     // Get operation ID
