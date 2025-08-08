@@ -126,7 +126,7 @@ func waitForAirdropCompletion(t *testing.T, client ton.APIClientWrapped, recipie
 						continue
 					}
 					acc, err := client.GetAccount(ctx, block, addr)
-					if err != nil {
+					if err != nil || !acc.IsActive {
 						continue
 					}
 					if acc.State != nil && acc.State.Balance.Nano().Cmp(expectedMin.Nano()) >= 0 {

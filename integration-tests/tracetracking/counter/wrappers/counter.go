@@ -5,14 +5,14 @@ import (
 	"math/rand/v2"
 
 	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 
-	test_utils "integration-tests/utils"
-
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
-var CounterContractPath = test_utils.GetBuildDir("examples.counter.compiled.json")
+var CounterContractPath = bindings.GetBuildDir("examples.counter.compiled.json")
 
 //nolint:revive // test purpose
 type CounterProvider struct {
@@ -40,7 +40,8 @@ func (p *CounterProvider) Deploy(initData CounterInitData) (Counter, error) {
 	if err != nil {
 		return Counter{}, fmt.Errorf("failed to serialize init data: %w", err)
 	}
-	contract, err := wrappers.Deploy(&p.apiClient, compiledContract, initDataCell, tlb.MustFromTON("1"))
+	body := cell.BeginCell().EndCell()
+	contract, _, err := wrappers.Deploy(&p.apiClient, compiledContract, initDataCell, tlb.MustFromTON("1"), body)
 	if err != nil {
 		return Counter{}, err
 	}
