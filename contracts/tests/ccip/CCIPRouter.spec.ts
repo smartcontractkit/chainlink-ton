@@ -137,6 +137,7 @@ describe('Router', () => {
     let data: RouterStorage = {
       ownable: {
         owner: deployer.address,
+        pendingOwner: null,
       },
       onRamp: ZERO_ADDRESS,
     }
@@ -149,6 +150,7 @@ describe('Router', () => {
       let data: FeeQuoterStorage = {
         ownable: {
           owner: deployer.address,
+          pendingOwner: null,
         },
         maxFeeJuelsPerMsg: 1000000n,
         linkToken: ZERO_ADDRESS,
@@ -224,6 +226,7 @@ describe('Router', () => {
       let data: OnRampStorage = {
         ownable: {
           owner: deployer.address,
+          pendingOwner: null,
         },
         router: router.address,
         chainSelector: CHAINSEL_TON,

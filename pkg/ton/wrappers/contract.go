@@ -95,7 +95,7 @@ func Uint64From(res *ton.ExecutionResult, err error) (uint64, error) {
 
 func Uint32From(res *ton.ExecutionResult, err error) (uint32, error) {
 	if err != nil {
-		return 0, fmt.Errorf("failed to run get message: %w", err)
+		return 0, fmt.Errorf("failed to run get method: %w", err)
 	}
 
 	val, err := res.Int(0)
@@ -212,7 +212,7 @@ func (c tolkCompiledContract) codeCell() (*cell.Cell, error) {
 func Deploy(client *tracetracking.SignedAPIClient, codeCell *cell.Cell, initData *cell.Cell, amount tlb.Coins, msgBody *cell.Cell) (*Contract, *tracetracking.ReceivedMessage, error) {
 	// Deploy the contract
 	addr, tx, _, err := client.Wallet.DeployContractWaitTransaction(
-		context.Background(),
+		context.Background(), // TODO: use context from args
 		amount,
 		msgBody,
 		codeCell,
