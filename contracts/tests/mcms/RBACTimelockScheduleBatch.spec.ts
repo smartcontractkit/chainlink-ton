@@ -28,19 +28,19 @@ describe('MCMS - RBACTimelockScheduleBatchTest', () => {
     // let callVec: rbactl.Call[] = []
     // callVec.push({
     //   target: baseTest.bind.counter.address,
-    //   value: 0n,
+    //   value: toNano('0.05'),
     //   data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
     // })
     // callVec.push({
     //   target: baseTest.bind.counter.address,
-    //   value: 0n,
+    //   value: toNano('0.05'),
     //   data: counter.builder.message.increaseCount.encode({ queryId: 2n }),
     // })
     // return encodeBatch(callVec)
 
     return BaseTestSetup.singletonCalls({
       target: baseTest.bind.counter.address,
-      value: 0n,
+      value: toNano('0.05'),
       data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
     })
   }
@@ -179,7 +179,7 @@ describe('MCMS - RBACTimelockScheduleTest', () => {
   it('should fail if non-proposer tries to schedule', async () => {
     const call = {
       target: baseTest.bind.counter.address,
-      value: 0n,
+      value: toNano('0.05'),
       data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
     }
     const calls = BaseTestSetup.singletonCalls(call)
@@ -223,7 +223,7 @@ describe('MCMS - RBACTimelockScheduleTest', () => {
     // Try to schedule the blocked function
     const call = {
       target: baseTest.bind.counter.address,
-      value: 0n,
+      value: toNano('0.05'),
       data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
     }
     const calls = BaseTestSetup.singletonCalls(call)
@@ -253,7 +253,7 @@ describe('MCMS - RBACTimelockScheduleTest', () => {
   it('should fail if operation already scheduled', async () => {
     const call = {
       target: baseTest.bind.counter.address,
-      value: 0n,
+      value: toNano('0.05'),
       data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
     }
     const calls = BaseTestSetup.singletonCalls(call)
@@ -297,7 +297,7 @@ describe('MCMS - RBACTimelockScheduleTest', () => {
   it('should fail if delay is less than minimum delay', async () => {
     const call = {
       target: baseTest.bind.counter.address,
-      value: 0n,
+      value: toNano('0.05'),
       data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
     }
     const calls = BaseTestSetup.singletonCalls(call)
@@ -335,7 +335,7 @@ describe('MCMS - RBACTimelockScheduleTest', () => {
   async function scheduleOperation(scheduler: SandboxContract<TreasuryContract>) {
     const call = {
       target: baseTest.bind.counter.address,
-      value: 0n,
+      value: toNano('0.05'),
       data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
     }
     const calls = BaseTestSetup.singletonCalls(call)

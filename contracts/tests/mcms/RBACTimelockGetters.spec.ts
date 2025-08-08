@@ -31,7 +31,7 @@ describe('MCMS - RBACTimelockGetters', () => {
     it('should return true if an operation', async () => {
       const call = {
         target: baseTest.bind.counter.address,
-        value: 0n,
+        value: toNano('0.05'),
         data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
       }
       const calls = BaseTestSetup.singletonCalls(call)
@@ -73,7 +73,7 @@ describe('MCMS - RBACTimelockGetters', () => {
     it('should return true if scheduled operation not yet executed', async () => {
       const call = {
         target: baseTest.bind.counter.address,
-        value: 0n,
+        value: toNano('0.05'),
         data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
       }
       const calls = BaseTestSetup.singletonCalls(call)
@@ -107,7 +107,7 @@ describe('MCMS - RBACTimelockGetters', () => {
     it('should return false if operation has been executed', async () => {
       const call = {
         target: baseTest.bind.counter.address,
-        value: 0n,
+        value: toNano('0.05'),
         data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
       }
       const calls = BaseTestSetup.singletonCalls(call)
@@ -165,7 +165,7 @@ describe('MCMS - RBACTimelockGetters', () => {
     it('should return true if on the delayed execution time', async () => {
       const call = {
         target: baseTest.bind.counter.address,
-        value: 0n,
+        value: toNano('0.05'),
         data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
       }
       const calls = BaseTestSetup.singletonCalls(call)
@@ -202,7 +202,7 @@ describe('MCMS - RBACTimelockGetters', () => {
     it('should return true if after the delayed execution time', async () => {
       const call = {
         target: baseTest.bind.counter.address,
-        value: 0n,
+        value: toNano('0.05'),
         data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
       }
       const calls = BaseTestSetup.singletonCalls(call)
@@ -239,7 +239,7 @@ describe('MCMS - RBACTimelockGetters', () => {
     it('should return false if before the delayed execution time', async () => {
       const call = {
         target: baseTest.bind.counter.address,
-        value: 0n,
+        value: toNano('0.05'),
         data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
       }
       const calls = BaseTestSetup.singletonCalls(call)
@@ -276,7 +276,7 @@ describe('MCMS - RBACTimelockGetters', () => {
     it('should return false if operation has been executed', async () => {
       const call = {
         target: baseTest.bind.counter.address,
-        value: 0n,
+        value: toNano('0.05'),
         data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
       }
       const calls = BaseTestSetup.singletonCalls(call)
@@ -334,7 +334,7 @@ describe('MCMS - RBACTimelockGetters', () => {
     it('should return false if the operation has not been executed', async () => {
       const call = {
         target: baseTest.bind.counter.address,
-        value: 0n,
+        value: toNano('0.05'),
         data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
       }
       const calls = BaseTestSetup.singletonCalls(call)
@@ -368,7 +368,7 @@ describe('MCMS - RBACTimelockGetters', () => {
     it('should return true if operation has been executed', async () => {
       const call = {
         target: baseTest.bind.counter.address,
-        value: 0n,
+        value: toNano('0.05'),
         data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
       }
       const calls = BaseTestSetup.singletonCalls(call)
@@ -426,7 +426,7 @@ describe('MCMS - RBACTimelockGetters', () => {
     it('should return the correct timestamp if the operation has not been executed', async () => {
       const call = {
         target: baseTest.bind.counter.address,
-        value: 0n,
+        value: toNano('0.05'),
         data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
       }
       const calls = BaseTestSetup.singletonCalls(call)
@@ -462,7 +462,7 @@ describe('MCMS - RBACTimelockGetters', () => {
     it('should return DONE_TIMESTAMP if operation has been executed', async () => {
       const call = {
         target: baseTest.bind.counter.address,
-        value: 0n,
+        value: toNano('0.05'),
         data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
       }
       const calls = BaseTestSetup.singletonCalls(call)
@@ -506,7 +506,7 @@ describe('MCMS - RBACTimelockGetters', () => {
       const operationID = await baseTest.bind.timelock.getHashOperationBatch(operationBatch)
 
       const operationTimestamp = await baseTest.bind.timelock.getTimestamp(operationID)
-      expect(operationTimestamp).toBe(BigInt(BaseTestSetup.DONE_TIMESTAMP))
+      expect(operationTimestamp).toBe(BaseTestSetup.DONE_TIMESTAMP)
     })
   })
 })

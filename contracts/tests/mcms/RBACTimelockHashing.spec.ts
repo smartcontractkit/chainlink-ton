@@ -27,19 +27,19 @@ describe('MCMS - RBACTimelockHashingTest', () => {
     // let callVec: rbactl.Call[] = []
     // callVec.push({
     //   target: baseTest.bind.counter.address,
-    //   value: 0n,
+    //   value: toNano('0.05'),
     //   data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
     // })
     // callVec.push({
     //   target: baseTest.bind.counter.address,
-    //   value: 0n,
+    //   value: toNano('0.05'),
     //   data: counter.builder.message.increaseCount.encode({ queryId: 2n }),
     // })
     // const calls = encodeBatch(callVec)
 
     const calls = BaseTestSetup.singletonCalls({
       target: baseTest.bind.counter.address,
-      value: 0n,
+      value: toNano('0.05'),
       data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
     })
 
