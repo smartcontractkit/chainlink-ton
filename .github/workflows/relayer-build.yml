@@ -25,6 +25,9 @@ jobs:
       - name: Run build
         run: nix develop -c go build -v ./...
 
+      - name: Run unit tests
+        run: nix develop -c go test -v -count=1 -p=1 -timeout 30m ./...
+
   build-pkgs:
     name: Build and package (Nix and Docker)
     runs-on: ubuntu-latest
