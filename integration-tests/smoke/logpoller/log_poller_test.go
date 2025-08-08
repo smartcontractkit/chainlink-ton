@@ -24,10 +24,12 @@ import (
 )
 
 func Test_LogPoller(t *testing.T) {
+
 	client := test_utils.CreateAPIClient(t, chainsel.TON_LOCALNET.Selector).WithRetry()
 	require.NotNil(t, client)
 
 	t.Run("log poller:log collector event ingestion", func(t *testing.T) {
+
 		t.Parallel()
 		// test event source config
 		const batchCount = 3
