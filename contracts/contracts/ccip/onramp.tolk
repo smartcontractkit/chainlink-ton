@@ -188,7 +188,7 @@ get fun isChainSupported(destChainSelector: uint64): bool {
 get fun expectedNextSequenceNumber(destChainSelector: uint64): uint64 {
     val st = lazy Storage.load();
     val config = st.destChainConfigs.mustGet(destChainSelector,ERROR_UNKNOWN_DEST_CHAIN_SELECTOR);
-    return config.sequenceNumber;
+    return config.sequenceNumber + 1;
 }
 
 // TODO: getFee forwarding? users should just call the fee quoter
