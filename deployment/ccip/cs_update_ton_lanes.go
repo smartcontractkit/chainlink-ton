@@ -5,14 +5,14 @@ import (
 
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
-	"github.com/smartcontractkit/chainlink/deployment/ccip/shared/stateview"
+	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/mcms"
 	"github.com/xssnick/tonutils-go/ton/wallet"
 
-	"github.com/smartcontractkit/chainlink-ton/ops/ccip/config"
-	"github.com/smartcontractkit/chainlink-ton/ops/ccip/operation"
-	"github.com/smartcontractkit/chainlink-ton/ops/ccip/sequence"
-	"github.com/smartcontractkit/chainlink-ton/ops/ccip/utils"
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/utils"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 )
 
@@ -43,14 +43,14 @@ func (cs AddTonLanes) Apply(env cldf.Environment, config config.UpdateTonLanesCo
 	// }
 	// timeLockProposals = append(timeLockProposals, out.MCMSTimelockProposals...)
 
-	// Add lane on Aptos chains
-	// Execute UpdateAptosLanesSequence for each aptos chain
-	state, err := stateview.LoadOnchainState(env)
+	// Add lane on TON chains
+	// Execute UpdateTonLanesSequence for each ton chain
+	s, err := state.LoadOnchainState(env)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to load Aptos onchain state: %w", err)
 	}
 
-	updateInputsByTonChain := sequence.ToTonUpdateLanesConfig(state.TonChains, config)
+	updateInputsByTonChain := sequence.ToTonUpdateLanesConfig(s, config)
 	fmt.Printf("%+v\n", updateInputsByTonChain)
 	for tonChainSel, sequenceInput := range updateInputsByTonChain {
 		tonChains := env.BlockChains.TonChains()
@@ -58,7 +58,7 @@ func (cs AddTonLanes) Apply(env cldf.Environment, config config.UpdateTonLanesCo
 
 		deps := operation.TonDeps{
 			TonChain:         chain,
-			CCIPOnChainState: state,
+			CCIPOnChainState: s,
 		}
 		// Execute the sequence
 		updateSeqReport, err := operations.ExecuteSequence(env.OperationsBundle, sequence.UpdateTonLanesSequence, deps, sequenceInput)

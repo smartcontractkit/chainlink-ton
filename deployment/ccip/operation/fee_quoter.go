@@ -8,8 +8,8 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 
-	"github.com/smartcontractkit/chainlink-ton/ops/ccip/config"
-	"github.com/smartcontractkit/chainlink-ton/ops/ccip/utils"
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/utils"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
@@ -88,7 +88,7 @@ var UpdateFeeQuoterDestChainConfigsOp = operations.NewOperation(
 
 func updateFeeQuoterDestChainConfigs(b operations.Bundle, deps TonDeps, in UpdateFeeQuoterDestChainConfigsInput) ([][]byte, error) {
 	// TODO: needs to be FeeQuoter, not OnRamp
-	address := deps.CCIPOnChainState.TonChains[deps.TonChain.Selector].FeeQuoter
+	addr := deps.CCIPOnChainState[deps.TonChain.Selector].FeeQuoter
 
 	input := feequoter.UpdateDestChainConfigs{
 		Update: in[0], // TEMP: until contracts get updated
@@ -105,7 +105,7 @@ func updateFeeQuoterDestChainConfigs(b operations.Bundle, deps TonDeps, in Updat
 			Bounce: true,
 			Amount: tlb.MustFromTON("1"),
 			// TODO: need to add more addresses to deployments state, CCIPAddress should be FeeQuoter
-			DstAddr: &address,
+			DstAddr: &addr,
 			Body:    payload,
 		},
 	}

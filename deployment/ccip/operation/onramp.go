@@ -9,7 +9,7 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 
-	"github.com/smartcontractkit/chainlink-ton/ops/ccip/utils"
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/utils"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
@@ -89,13 +89,13 @@ var UpdateOnRampDestChainConfigsOp = operations.NewOperation(
 )
 
 func updateOnRampDestChainConfigs(b operations.Bundle, deps TonDeps, in UpdateOnRampDestChainConfigsInput) ([][]byte, error) {
-	address := deps.CCIPOnChainState.TonChains[deps.TonChain.Selector].OnRamp
+	addr := deps.CCIPOnChainState[deps.TonChain.Selector].OnRamp
 
 	var configs []onramp.UpdateDestChainConfig
 
 	for selector, update := range in.Updates {
 		// TODO: TestRouter support
-		router := deps.CCIPOnChainState.TonChains[deps.TonChain.Selector].Router
+		router := deps.CCIPOnChainState[deps.TonChain.Selector].Router
 		configs = append(configs, onramp.UpdateDestChainConfig{
 			DestinationChainSelector: selector,
 			Router:                   &router,
@@ -117,7 +117,7 @@ func updateOnRampDestChainConfigs(b operations.Bundle, deps TonDeps, in UpdateOn
 			Bounce: true,
 			Amount: tlb.MustFromTON("1"),
 			// TODO: need to add more addresses to deployments state, CCIPAddress should be OnRamp
-			DstAddr: &address,
+			DstAddr: &addr,
 			Body:    payload,
 		},
 	}

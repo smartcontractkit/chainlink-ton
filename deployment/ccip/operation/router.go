@@ -8,7 +8,7 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 
-	"github.com/smartcontractkit/chainlink-ton/ops/ccip/utils"
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/utils"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
@@ -78,7 +78,7 @@ var UpdateRouterDestOp = operations.NewOperation(
 )
 
 func updateRouterDest(b operations.Bundle, deps TonDeps, in UpdateRouterDestInput) ([][]byte, error) {
-	address := deps.CCIPOnChainState.TonChains[deps.TonChain.Selector].Router
+	addr := deps.CCIPOnChainState[deps.TonChain.Selector].Router
 
 	input := router.SetRamp{
 		DestChainSelector: in.DestChainSelector,
@@ -94,7 +94,7 @@ func updateRouterDest(b operations.Bundle, deps TonDeps, in UpdateRouterDestInpu
 		{
 			Bounce:  true,
 			Amount:  tlb.MustFromTON("1"),
-			DstAddr: &address,
+			DstAddr: &addr,
 			Body:    payload,
 		},
 	}

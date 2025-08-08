@@ -1,4 +1,4 @@
-package ops
+package deployment
 
 import (
 	"math/big"
@@ -11,8 +11,8 @@ import (
 	chain_selectors "github.com/smartcontractkit/chain-selectors"
 	"github.com/stretchr/testify/require"
 
-	ops "github.com/smartcontractkit/chainlink-ton/ops/ccip"
-	"github.com/smartcontractkit/chainlink-ton/ops/ccip/config"
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip"
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 
 	"github.com/smartcontractkit/chainlink/deployment/ccip/changeset/v1_6"
 	"github.com/smartcontractkit/chainlink/deployment/ccip/shared/stateview"

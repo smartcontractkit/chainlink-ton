@@ -7,14 +7,12 @@ import (
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/smartcontractkit/mcms"
 
-	"github.com/smartcontractkit/chainlink-ton/ops/ccip/config"
-	"github.com/smartcontractkit/chainlink-ton/ops/ccip/operation"
-	"github.com/smartcontractkit/chainlink-ton/ops/ccip/sequence"
-	tonstate "github.com/smartcontractkit/chainlink-ton/ops/state"
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
+	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 
 	tonaddress "github.com/xssnick/tonutils-go/address"
-
-	"github.com/smartcontractkit/chainlink/deployment/ccip/shared/stateview"
 )
 
 type DeployCCIPContractsCfg struct {
@@ -50,7 +48,7 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 	seqReports := make([]operations.Report[any, any], 0)
 	proposals := make([]mcms.TimelockProposal, 0)
 
-	states, err := stateview.LoadOnchainState(env)
+	states, err := state.LoadOnchainState(env)
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to load TON onchain state: %w", err)
 	}
@@ -58,7 +56,7 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 	// if err != nil {
 	// 	return cldf.ChangesetOutput{}, err
 	// }
-	state := states.TonChains[selector]
+	s := states[selector]
 
 	tonChains := env.BlockChains.TonChains()
 	chain := tonChains[selector]
@@ -87,20 +85,20 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 
 	// Placeholders
 	address := tonaddress.MustParseAddr("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")
-	state.OffRamp = *address
+	s.OffRamp = *address
 	address = tonaddress.MustParseAddr("EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8")
-	state.LinkTokenAddress = *address
+	s.LinkTokenAddress = *address
 	address = tonaddress.MustParseAddr("UQCk4967vNM_V46Dn8I0x-gB_QE2KkdW1GQ7mWz1DtYGLEd8")
-	state.ReceiverAddress = *address
+	s.ReceiverAddress = *address
 
-	state.OnRamp = *ccipSeqReport.Output.OnRampAddress
-	state.Router = *ccipSeqReport.Output.RouterAddress
-	state.FeeQuoter = *ccipSeqReport.Output.FeeQuoterAddress
+	s.OnRamp = *ccipSeqReport.Output.OnRampAddress
+	s.Router = *ccipSeqReport.Output.RouterAddress
+	s.FeeQuoter = *ccipSeqReport.Output.FeeQuoterAddress
 
 	// TODO: generate MCMS proposal/execute
 
 	// Save state
-	err = tonstate.SaveOnchainState(selector, state, env)
+	err = state.SaveOnchainState(selector, s, env)
 	if err != nil {
 		return cldf.ChangesetOutput{}, err
 	}
