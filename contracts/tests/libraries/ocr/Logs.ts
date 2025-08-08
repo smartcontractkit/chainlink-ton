@@ -25,7 +25,7 @@ export const testConfigSetLogMessage = (
     expect(configDigest).toEqual(match.configDigest)
     expect(signers.sort()).toEqual(match.signers.sort())
     for (let i = 0; i < transmitters.length; i++) {
-      expect(transmitters[i].toString()).toEqual(match.transmitters![i].toString())
+      expect(transmitters[i]).toEqualAddress(match.transmitters![i])
     }
     expect(bigF).toEqual(match.bigF)
     return true

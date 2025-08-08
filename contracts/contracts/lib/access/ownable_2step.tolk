@@ -136,4 +136,3 @@ fun Ownable2Step.get_owner(self): address {
 fun Ownable2Step.get_pendingOwner(self): address? {
     return self.pendingOwner;
 }
-

@@ -5,6 +5,12 @@ const ERROR_WRONG_OP = 0xffff;
 const ERROR_INVALID_DATA = 0x77;
 const ERROR_BITMAP_OUT_OF_BOUNDS = 0x78;
 
+// Returns the global ID of the current blockchain (chain ID).
+fun globalId(): int {
+    // Notice: configParam(19)! will be available (non-null)
+    return blockchain.configParam(19)!.beginParse().loadInt(32);
+}
+
 @inline
 fun emit<T>(topic: int, body: T) {
     val emitMsg = createExternalLogMessage({

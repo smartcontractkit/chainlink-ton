@@ -1,6 +1,5 @@
 import "../utils.tolk"
 
-
 // --- Errror Codes ---
 
 const ERROR_INVALID_PROOF_LEAVES_CANNOT_BE_EMPTY: int = 1001;

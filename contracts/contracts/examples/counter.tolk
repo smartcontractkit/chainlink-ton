@@ -1,6 +1,9 @@
+tolk 1.0
+
 import "@stdlib/common.tolk"
-import "../../lib/upgrades/type_and_version.tolk"
-import "../../lib/utils.tolk"
+import "../lib/upgrades/type_and_version.tolk"
+import "../lib/utils.tolk"
+import "../lib/access/ownable_2step.tolk"
 
 /// Counter contract + event emission (Tolk example)
 /// Message to set the counter value.
@@ -33,6 +36,8 @@ struct CountIncreased {
 struct Storage {
     id: uint32
     value: uint32
+
+    ownable: Ownable2Step
 }
 
 fun Storage.load(): Storage {
@@ -51,6 +56,7 @@ fun onInternalMessage(in: InMessage) {
         SetCount => {
             /// Instructs the contract to set the counter.
             var st = lazy Storage.load();
+            st.ownable.requireOwner(in.senderAddress);
             st.value = msg.newCount;
             st.store();
             emit<CountSet>(COUNT_SET_TOPIC, { id: st.id, value: st.value });
@@ -58,31 +64,45 @@ fun onInternalMessage(in: InMessage) {
         IncreaseCount => {
             /// Instructs the contract to increase the counter.
             var st = lazy Storage.load();
+            st.ownable.requireOwner(in.senderAddress);
             st.value = st.value + 1;
             st.store();
             emit<CountIncreased>(COUNT_INCREASED_TOPIC, { id: st.id, value: st.value });
         }
         else => {
-            // ignore empty messages, "wrong opcode" for others
-            assert (in.body.isEmpty()) throw 0xFFFF;
+            var st = lazy Storage.load();
+            val msgHandled = 0
+                || st.ownable.onInternalMessage(in.senderAddress, in.body);
+            st.store();
+
+            if (!msgHandled) {
+                // If the message was not handled
+                // ignore empty messages, "wrong opcode" for others
+                assert (in.body.isEmpty()) throw ERROR_WRONG_OP;
+            }
         }
     }
 }
 
+get fun owner(): address {
+    val s = lazy Storage.load();
+    return s.ownable.get_owner();
+}
+
 /// Gets the current id of the contract.
 get fun id(): int {
-    val storage = Storage.load();
-    return storage.id;
+    val s = lazy Storage.load();
+    return s.id;
 }
 
 /// Gets the current counter value.
 get fun value(): int {
-    val storage = Storage.load();
-    return storage.value;
+    val s = lazy Storage.load();
+    return s.value;
 }
 
 /// Gets the current type and version of the contract.
 get fun typeAndVersion(): (slice, slice) {
-    return TypeAndVersion { typeStr: "com.chainlink.ton.examples.Counter", versionStr: "1.0.0" }
+    return TypeAndVersion { typeStr: "com.chainlink.ton.examples.Counter", versionStr: "1.1.0" }
         .typeAndVersion();
 }

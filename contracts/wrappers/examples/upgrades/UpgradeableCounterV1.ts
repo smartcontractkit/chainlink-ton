@@ -11,22 +11,18 @@ import {
 import { Upgradeable } from '../../libraries/upgrades/Upgradeable'
 import { compile } from '@ton/blueprint'
 import { TypeAndVersion } from '../../libraries/TypeAndVersion'
-import {
-  Ownable2Step,
-  Ownable2StepConfig,
-  storeOwnable2StepConfig,
-} from '../../libraries/access/Ownable2Step'
+import * as ownable2step from '../../libraries/access/Ownable2Step'
 
 export type CounterConfig = {
   id: number
   value: number
-  ownable: Ownable2StepConfig
+  ownable: ownable2step.Data
 }
 
 export function counterConfigToCell(config: CounterConfig): Cell {
   const builder = beginCell().storeUint(config.id, 32).storeUint(config.value, 32)
 
-  storeOwnable2StepConfig(builder, config.ownable)
+  ownable2step.storeOwnable2StepConfig(builder, config.ownable)
   return builder.endCell()
 }
 
@@ -37,7 +33,7 @@ export const Opcodes = {
 export class UpgradeableCounterV1 implements TypeAndVersion, Upgradeable {
   private typeAndVersion: TypeAndVersion
   private upgradeable: Upgradeable
-  private ownable: Ownable2Step
+  private ownable: ownable2step.ContractClient
 
   constructor(
     readonly address: Address,
@@ -45,7 +41,7 @@ export class UpgradeableCounterV1 implements TypeAndVersion, Upgradeable {
   ) {
     this.typeAndVersion = new TypeAndVersion()
     this.upgradeable = new Upgradeable()
-    this.ownable = new Ownable2Step()
+    this.ownable = new ownable2step.ContractClient(address)
   }
 
   static createFromAddress(address: Address) {
@@ -134,26 +130,22 @@ export class UpgradeableCounterV1 implements TypeAndVersion, Upgradeable {
     return result.stack.readAddressOpt()
   }
 
+  // TODO: remove this, no need to proxy ownership methods, just use the ownable2step client directly
   async sendTransferOwnership(
-    provider: ContractProvider,
+    p: ContractProvider,
     via: Sender,
-    opts: {
-      value: bigint
-      queryId?: number
-      newOwner: Address
-    },
+    value: bigint = 0n,
+    body: ownable2step.TransferOwnership,
   ) {
-    await this.ownable.sendTransferOwnership(provider, via, opts)
+    return this.ownable.sendTransferOwnership(p, via, value, body)
   }
 
   async sendAcceptOwnership(
-    provider: ContractProvider,
+    p: ContractProvider,
     via: Sender,
-    opts: {
-      value: bigint
-      queryId?: number
-    },
+    value: bigint = 0n,
+    body: ownable2step.AcceptOwnership,
   ) {
-    await this.ownable.sendAcceptOwnership(provider, via, opts)
+    return this.ownable.sendAcceptOwnership(p, via, value, body)
   }
 }
