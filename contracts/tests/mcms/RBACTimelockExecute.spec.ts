@@ -122,8 +122,6 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
         executeMsg,
       )
 
-      console.log('Bypasser execute result:', result.events)
-
       expect(result.transactions).toHaveTransaction({
         from: baseTest.acc.bypasserOne.address,
         to: baseTest.bind.timelock.address,
