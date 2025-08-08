@@ -36,7 +36,7 @@ type Service struct {
 	lggr               logger.SugaredLogger // Logger instance
 	client             ton.APIClientWrapped // TON blockchain client
 	filters            FilterStore          // Registry of active filters
-	loader             MessageLoader        // Block scanner implementation
+	loader             MessageLoader        // Message loader (MVP: account-based, to be replaced with block-scan)
 	store              LogStore             // Log storage (MVP: in-memory, to be replaced with ORM)
 	pollPeriod         time.Duration        // How often to poll for new blocks
 	lastProcessedBlock uint32               // Last processed masterchain sequence number
