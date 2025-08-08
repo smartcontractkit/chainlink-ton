@@ -1,4 +1,4 @@
-name: TON - Relayer Integration Tests
+name: TON - Chain Component Integration Tests
 
 on:
   push:
@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   integration-test:
-    name: Build & Integration Test - ${{ matrix.test-suite }}
+    name: Integration Test - ${{ matrix.test-suite }}
     runs-on: ubuntu-latest
     strategy:
       # run both suites even if one fails
