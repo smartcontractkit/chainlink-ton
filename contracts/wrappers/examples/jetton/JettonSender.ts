@@ -9,6 +9,7 @@ import {
   SendMode,
 } from '@ton/core'
 import { JettonClientConfig, jettonClientConfigToCell, JettonOpcodes } from './types'
+import { crc32 } from 'zlib'
 
 export type JettonSenderConfig = {
   jettonClient: JettonClientConfig
@@ -19,8 +20,8 @@ export function jettonSenderConfigToCell(config: JettonSenderConfig): Cell {
 }
 
 export const SenderOpcodes = {
-  SEND_JETTONS_FAST: JettonOpcodes.SEND_JETTONS_FAST,
-  SEND_JETTONS_EXTENDED: JettonOpcodes.SEND_JETTONS_EXTENDED,
+  SEND_JETTONS_FAST: crc32('SendJettonsFast'),
+  SEND_JETTONS_EXTENDED: crc32('SendJettonsExtended'),
 }
 
 export type SendJettonsFastMessage = {
