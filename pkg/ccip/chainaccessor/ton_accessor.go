@@ -2,15 +2,19 @@ package chainaccessor
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
+	"fmt"
 	"time"
 
+	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
 )
 
@@ -18,6 +22,8 @@ type TONAccessor struct {
 	lggr      logger.Logger
 	client    ton.APIClientWrapped
 	logPoller logpoller.Service
+	bindings  map[string]*address.Address
+	addrCodec codec.AddressCodec
 }
 
 var _ ccipocr3.ChainAccessor = (*TONAccessor)(nil)
@@ -33,6 +39,8 @@ func NewTONAccessor(
 		lggr:      lggr,
 		client:    client,
 		logPoller: logPoller,
+		bindings:  make(map[string]*address.Address),
+		addrCodec: codec.AddressCodec{}, // TODO: AddressCodec doesn't match the ccipocr3.AddressCodec interface
 	}, nil
 }
 
@@ -53,8 +61,12 @@ func (a *TONAccessor) GetChainFeeComponents(ctx context.Context) (ccipocr3.Chain
 }
 
 func (a *TONAccessor) Sync(ctx context.Context, contractName string, contractAddress ccipocr3.UnknownAddress) error {
-	// TODO(NONEVM-2364) implement me
-	return errors.New("not implemented")
+	addr, err := address.ParseAddr(base64.RawURLEncoding.EncodeToString(contractAddress))
+	if err != nil {
+		return fmt.Errorf("invalid address: %w", err)
+	}
+	a.bindings[contractName] = addr
+	return nil
 }
 
 // TON as source chain methods
