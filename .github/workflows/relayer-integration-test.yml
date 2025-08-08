@@ -17,7 +17,7 @@ jobs:
       # run both suites even if one fails
       fail-fast: false
       matrix:
-        test-suite: ["standard", "tracetracking"]
+        test-suite: ["short", "all"]
 
     steps:
       - name: Check out code
@@ -28,22 +28,22 @@ jobs:
         with:
           nix_path: nixpkgs=channel:nixos-unstable
 
+      # TODO: Contract packages should be made an explicit dependency inside a shell
+      # where we run tests that depend on these packages.
       - name: Build contracts for integration tests
         run: |
           pushd contracts
           nix develop .#contracts -c yarn && yarn build
 
-      - name: Run build
-        run: nix develop -c go build -v ./...
-
       - name: Run integration tests
         id: tests
         run: |
           pushd integration-tests
-
-          if [ "${{ matrix.test-suite }}" = "tracetracking" ]; then
-            nix develop -c go test -v -count=1 -p=5 -timeout 15m ./tracetracking/...
+          if [ "${{ matrix.test-suite }}" = "short" ]; then
+            echo "Running short tests (skipping long-running ones)..."
+            nix develop -c go test -v -short -count=1 -p=1 -timeout 15m ./...
           else
-            OTHER_TESTS=$(find . -mindepth 1 -maxdepth 1 -type d | grep -v './tracetracking' | sed 's|$|/...|' | tr '\n' ' ')
-            nix develop -c go test -v -count=1 -p=5 -timeout 20m $OTHER_TESTS
+            # TODO: run conditionally(build tags)
+            echo "Running all tests..."
+            nix develop -c go test -v -count=1 -p=1 -timeout 30m ./...
           fi
