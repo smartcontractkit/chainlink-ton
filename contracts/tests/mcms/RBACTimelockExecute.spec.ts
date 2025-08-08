@@ -129,7 +129,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       })
 
       // Verify counter was incremented
-      expect(await baseTest.bind.counter.getValue()).toEqual(1)
+      expect(await baseTest.bind.counter.getValue()).toEqual(1) // TODO this should be newCount when setcount is added in the TODO above
     })
 
     it('should allow admin to execute batch operations', async () => {
@@ -159,7 +159,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       })
 
       // Verify counter was incremented
-      expect(await baseTest.bind.counter.getValue()).toEqual(1)
+      expect(await baseTest.bind.counter.getValue()).toEqual(1) // TODO this should be newCount when setcount is added in the TODO above
     })
   })
 
