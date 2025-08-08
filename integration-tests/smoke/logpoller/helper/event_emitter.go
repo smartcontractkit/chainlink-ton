@@ -22,6 +22,7 @@ import (
 
 	test_utils "integration-tests/utils"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
@@ -116,7 +117,7 @@ type TestEventSource struct {
 }
 
 func NewTestEventSource(ctx context.Context, client ton.APIClientWrapped, wallet *wallet.Wallet, name string, id uint32, lggr logger.Logger) (*TestEventSource, error) {
-	codeCell, cerr := wrappers.ParseCompiledContract(test_utils.GetBuildDir("examples.Counter.compiled.json"))
+	codeCell, cerr := wrappers.ParseCompiledContract(bindings.GetBuildDir("examples.Counter.compiled.json"))
 	if cerr != nil {
 		return nil, fmt.Errorf("failed to parse compiled contract: %w", cerr)
 	}

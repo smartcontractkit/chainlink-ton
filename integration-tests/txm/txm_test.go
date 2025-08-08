@@ -12,6 +12,7 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/loop"
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	relayer_utils "github.com/smartcontractkit/chainlink-ton/pkg/relay/testutils"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/config"
@@ -78,7 +79,7 @@ func runTxmTest(t *testing.T, logger logger.Logger, config txm.Config, tonChain 
 	dataCell, err := tlb.ToCell(data)
 	require.NoError(t, err)
 
-	path := test_utils.GetBuildDir("examples.Counter.compiled.json")
+	path := bindings.GetBuildDir("examples.Counter.compiled.json")
 	code, err := wrappers.ParseCompiledContract(path)
 	require.NoError(t, err)
 

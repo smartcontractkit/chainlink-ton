@@ -76,7 +76,7 @@ export const opcodes = {
 const ERROR_INVALID_ROLE = 89
 
 export const errors = {
-  UnouthorizedAccount: 90,
+  UnauthorizedAccount: 90,
   BadConfirmation: 91,
 }
 

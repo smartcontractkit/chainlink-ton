@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"integration-tests/tracetracking/async/wrappers/requestreply"
 	"integration-tests/tracetracking/async/wrappers/requestreplywithtwodependencies"
@@ -19,12 +20,11 @@ import (
 
 	"integration-tests/tracetracking/testutils"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/examples/counter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
-
-	test_utils "integration-tests/utils"
 )
 
 func TestIntegration(t *testing.T) {
@@ -72,11 +72,12 @@ func TestIntegration(t *testing.T) {
 		dataCell, err := tlb.ToCell(data)
 		require.NoError(t, err)
 
-		path := test_utils.GetBuildDir("examples.Counter.compiled.json")
+		path := bindings.GetBuildDir("examples.Counter.compiled.json")
 		code, err := wrappers.ParseCompiledContract(path)
 		require.NoError(t, err)
 
-		counterContract, err := wrappers.Deploy(&alice, code, dataCell, tlb.MustFromTON("0.05"))
+		body := cell.BeginCell().EndCell()
+		counterContract, _, err := wrappers.Deploy(&alice, code, dataCell, tlb.MustFromTON("0.05"), body)
 		require.NoError(t, err, "failed to deploy Counter contract: %w", err)
 
 		t.Logf("Counter contract deployed at %s\n", counterContract.Address.String())

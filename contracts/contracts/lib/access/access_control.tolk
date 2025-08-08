@@ -214,7 +214,7 @@ struct AccessControl_Hooks<T> {
 
 const DEFAULT_ADMIN_ROLE = 0x00;
 
-const ERROR_ACCESS_CONTROL_UNOTHORIZED_ACCOUNT = 90;
+const ERROR_ACCESS_CONTROL_UNAUTHORIZED_ACCOUNT = 90;
 const ERROR_ACCESS_CONTROL_BAD_CONFIRMATION = 91;
 
 // --- Constants - storage ---
@@ -275,7 +275,7 @@ fun AccessControl<T>.requireRoleSender(self, role: int, msgFull: cell): void {
 ///
 fun AccessControl<T>.requireRole(self, role: int, account: address): void {
     if (!self.hasRole(role, account)) {
-        throw(ERROR_ACCESS_CONTROL_UNOTHORIZED_ACCOUNT); // TODO: attach error arguments
+        throw(ERROR_ACCESS_CONTROL_UNAUTHORIZED_ACCOUNT); // TODO: attach error arguments
     }
 }
 

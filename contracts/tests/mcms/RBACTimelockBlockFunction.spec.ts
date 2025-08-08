@@ -38,7 +38,7 @@ describe('MCMS - RBACTimelockBlockFunctionTest', () => {
       from: baseTest.acc.proposerOne.address,
       to: baseTest.bind.timelock.address,
       success: false,
-      exitCode: errors.UnouthorizedAccount,
+      exitCode: errors.UnauthorizedAccount,
     })
   })
 
