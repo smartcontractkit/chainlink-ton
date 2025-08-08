@@ -24,15 +24,12 @@ describe('MCMS - RBACTimelockReceivable', () => {
   it('should be able to receive TON', async () => {
     const contractBefore = await baseTest.blockchain.getContract(baseTest.bind.timelock.address)
     const balanceBefore = await contractBefore.account.account?.storage.balance!
-    console.log('Balance before:', balanceBefore.coins)
 
     const topUpBody = rbactl.builder.message.topUp.encode({
       queryId: 1n,
     })
 
     const transferAmount = toNano('0.5')
-
-    console.log('Transfer amount:', transferAmount)
 
     const result = await baseTest.bind.timelock.sendInternal(
       baseTest.acc.admin.getSender(),
@@ -46,7 +43,6 @@ describe('MCMS - RBACTimelockReceivable', () => {
       success: true,
     })
 
-    console.log('Transaction result:', result.transactions)
     expect(result.transactions.length).toEqual(2)
     const transferTransaction = result.transactions[1]
     expect(transferTransaction).toBeDefined()
