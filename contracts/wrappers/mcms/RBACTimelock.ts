@@ -168,6 +168,18 @@ export type ExecuteData = {
   msgToSend: Cell
 }
 
+// Events
+
+export type Timelock_CallScheduled = {
+  queryId: number
+  id: bigint
+  index: number
+  call: Cell
+  predecessor: bigint
+  salt: bigint
+  delay: number
+}
+
 export const opcodes = {
   in: {
     Init: crc32('Timelock_Init'),
@@ -373,6 +385,35 @@ export const builder = {
         }
       },
     } as CellCodec<BypasserExecuteBatch>,
+  },
+  event: {
+    callScheduled: {
+      encode: (event: Timelock_CallScheduled): Cell => {
+        return beginCell()
+          .storeUint(opcodes.out.CallScheduled, 32)
+          .storeUint(event.queryId, 64)
+          .storeUint(event.id, 256)
+          .storeUint(event.index, 64)
+          .storeRef(event.call)
+          .storeUint(event.predecessor, 256)
+          .storeUint(event.salt, 256)
+          .storeUint(event.delay, 64)
+          .endCell()
+      },
+      decode: (cell: Cell): Timelock_CallScheduled => {
+        const s = cell.beginParse()
+        s.skip(32) // skip opcode
+        return {
+          queryId: s.loadUint(64),
+          id: s.loadUintBig(256),
+          index: s.loadUint(64),
+          call: s.loadRef(),
+          predecessor: s.loadUintBig(256),
+          salt: s.loadUintBig(256),
+          delay: s.loadUint(64),
+        }
+      },
+    } as CellCodec<Timelock_CallScheduled>,
   },
   data: {
     contractData: {
