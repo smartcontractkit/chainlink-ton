@@ -180,6 +180,44 @@ export type Timelock_CallScheduled = {
   delay: number
 }
 
+export type Timelock_CallExecuted = {
+  queryId: number
+  id: bigint
+  index: number
+  target: Address
+  value: bigint
+  data: Cell
+}
+
+export type Timelock_BypasserCallExecuted = {
+  queryId: number
+  index: number
+  target: Address
+  value: bigint
+  data: Cell
+}
+
+export type Timelock_Canceled = {
+  queryId: number
+  id: bigint
+}
+
+export type Timelock_MinDelayChange = {
+  queryId: number
+  oldDelay: number
+  newDelay: number
+}
+
+export type Timelock_FunctionSelectorBlocked = {
+  queryId: number
+  selector: number
+}
+
+export type Timelock_FunctionSelectorUnblocked = {
+  queryId: number
+  selector: number
+}
+
 export const opcodes = {
   in: {
     Init: crc32('Timelock_Init'),
@@ -414,6 +452,124 @@ export const builder = {
         }
       },
     } as CellCodec<Timelock_CallScheduled>,
+    callExecuted: {
+      encode: (event: Timelock_CallExecuted): Cell => {
+        return beginCell()
+          .storeUint(opcodes.out.CallExecuted, 32)
+          .storeUint(event.queryId, 64)
+          .storeUint(event.id, 256)
+          .storeUint(event.index, 64)
+          .storeAddress(event.target)
+          .storeCoins(event.value)
+          .storeRef(event.data)
+          .endCell()
+      },
+      decode: (cell: Cell): Timelock_CallExecuted => {
+        const s = cell.beginParse()
+        s.skip(32) // skip opcode
+        return {
+          queryId: s.loadUint(64),
+          id: s.loadUintBig(256),
+          index: s.loadUint(64),
+          target: s.loadAddress(),
+          value: s.loadCoins(),
+          data: s.loadRef(),
+        }
+      },
+    } as CellCodec<Timelock_CallExecuted>,
+    bypasserCallExecuted: {
+      encode: (event: Timelock_BypasserCallExecuted): Cell => {
+        return beginCell()
+          .storeUint(opcodes.out.BypasserCallExecuted, 32)
+          .storeUint(event.queryId, 64)
+          .storeUint(event.index, 64)
+          .storeAddress(event.target)
+          .storeCoins(event.value)
+          .storeRef(event.data)
+          .endCell()
+      },
+      decode: (cell: Cell): Timelock_BypasserCallExecuted => {
+        const s = cell.beginParse()
+        s.skip(32) // skip opcode
+        return {
+          queryId: s.loadUint(64),
+          index: s.loadUint(64),
+          target: s.loadAddress(),
+          value: s.loadCoins(),
+          data: s.loadRef(),
+        }
+      },
+    } as CellCodec<Timelock_BypasserCallExecuted>,
+    canceled: {
+      encode: (event: Timelock_Canceled): Cell => {
+        return beginCell()
+          .storeUint(opcodes.out.Canceled, 32)
+          .storeUint(event.queryId, 64)
+          .storeUint(event.id, 256)
+          .endCell()
+      },
+      decode: (cell: Cell): Timelock_Canceled => {
+        const s = cell.beginParse()
+        s.skip(32) // skip opcode
+        return {
+          queryId: s.loadUint(64),
+          id: s.loadUintBig(256),
+        }
+      },
+    } as CellCodec<Timelock_Canceled>,
+    minDelayChange: {
+      encode: (event: Timelock_MinDelayChange): Cell => {
+        return beginCell()
+          .storeUint(opcodes.out.MinDelayChange, 32)
+          .storeUint(event.queryId, 64)
+          .storeUint(event.oldDelay, 64)
+          .storeUint(event.newDelay, 64)
+          .endCell()
+      },
+      decode: (cell: Cell): Timelock_MinDelayChange => {
+        const s = cell.beginParse()
+        s.skip(32) // skip opcode
+        return {
+          queryId: s.loadUint(64),
+          oldDelay: s.loadUint(64),
+          newDelay: s.loadUint(64),
+        }
+      },
+    } as CellCodec<Timelock_MinDelayChange>,
+    functionSelectorBlocked: {
+      encode: (event: Timelock_FunctionSelectorBlocked): Cell => {
+        return beginCell()
+          .storeUint(opcodes.out.FunctionSelectorBlocked, 32)
+          .storeUint(event.queryId, 64)
+          .storeUint(event.selector, 32)
+          .endCell()
+      },
+      decode: (cell: Cell): Timelock_FunctionSelectorBlocked => {
+        const s = cell.beginParse()
+        s.skip(32) // skip opcode
+        return {
+          queryId: s.loadUint(64),
+          selector: s.loadUint(32),
+        }
+      },
+    } as CellCodec<Timelock_FunctionSelectorBlocked>,
+    functionSelectorUnblocked: {
+      encode: (event: Timelock_FunctionSelectorUnblocked): Cell => {
+        return beginCell()
+          .storeUint(opcodes.out.FunctionSelectorUnblocked, 32)
+          .storeUint(event.queryId, 64)
+          .storeUint(event.selector, 32)
+          .endCell()
+      },
+      decode: (cell: Cell): Timelock_FunctionSelectorUnblocked => {
+        const s = cell.beginParse()
+        s.skip(32) // skip opcode
+        return {
+          queryId: s.loadUint(64),
+          selector: s.loadUint(32),
+        }
+      },
+    } as CellCodec<Timelock_FunctionSelectorUnblocked>,
   },
   data: {
     contractData: {
