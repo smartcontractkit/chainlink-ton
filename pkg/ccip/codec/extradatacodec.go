@@ -65,7 +65,7 @@ func (d ExtraDataDecoder) DecodeExtraArgsToMap(extraArgs ccipocr3.Bytes) (map[st
 		val = reflect.ValueOf(tlbArgs)
 		typ = reflect.TypeOf(tlbArgs)
 	} else {
-		return nil, fmt.Errorf("unknown extra args tag: %x", extraArgs[:4])
+		return nil, fmt.Errorf("unknown extra args tag: %x", tag)
 	}
 
 	for i := 0; i < val.NumField(); i++ {
