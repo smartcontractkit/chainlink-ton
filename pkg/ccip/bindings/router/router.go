@@ -1,12 +1,12 @@
 package router
 
 import (
+	"math/big"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
-
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
 )
 
 type Storage struct {
@@ -21,15 +21,21 @@ type SetRamp struct {
 	OnRamp            *address.Address `tlb:"addr"`
 }
 
+// TokenAmount is a structure that holds the amount and token address for a CCIP transaction.
+type TokenAmount struct {
+	Amount *big.Int        `tlb:"## 256"`
+	Token  address.Address `tlb:"addr"`
+}
+
 type CCIPSend struct {
-	_                 tlb.Magic                                 `tlb:"#00000001"` //nolint:revive // Ignore opcode tag
-	QueryID           uint64                                    `tlb:"## 64"`
-	DestChainSelector uint64                                    `tlb:"## 64"`
-	Receiver          common.CrossChainAddress                  `tlb:"^"`
-	Data              common.SnakeBytes                         `tlb:"^"`
-	TokenAmounts      common.SnakeRef[ocr.Any2TVMTokenTransfer] `tlb:"^"`
-	FeeToken          *address.Address                          `tlb:"addr"`
-	ExtraArgs         *cell.Cell                                `tlb:"^"`
+	_                 tlb.Magic                    `tlb:"#00000001"` //nolint:revive // Ignore opcode tag
+	QueryID           uint64                       `tlb:"## 64"`
+	DestChainSelector uint64                       `tlb:"## 64"`
+	Receiver          common.CrossChainAddress     `tlb:"^"`
+	Data              common.SnakeBytes            `tlb:"^"`
+	TokenAmounts      common.SnakeRef[TokenAmount] `tlb:"^"`
+	FeeToken          *address.Address             `tlb:"addr"`
+	ExtraArgs         *cell.Cell                   `tlb:"^"`
 }
 
 type JettonTransferNotification struct {

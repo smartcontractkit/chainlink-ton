@@ -3,6 +3,7 @@ package onramp
 import (
 	"math/big"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
@@ -11,9 +12,9 @@ import (
 )
 
 type CCIPMessageSent struct {
-	DestChainSelector uint64   `tlb:"## 64"`
-	SequenceNumber    uint64   `tlb:"## 64"`
-	Message           CCIPSend `tlb:"^"`
+	DestChainSelector uint64          `tlb:"## 64"`
+	SequenceNumber    uint64          `tlb:"## 64"`
+	Message           router.CCIPSend `tlb:"^"`
 }
 
 // GenericExtraArgsV2 represents generic extra arguments for transactions.
@@ -29,21 +30,6 @@ type SVMExtraArgsV1 struct {
 	AllowOutOfOrderExecution bool                               `tlb:"bool"`
 	TokenReceiver            []byte                             `tlb:"bits 256"`
 	Accounts                 common.SnakeRef[common.SnakeBytes] `tlb:"^"`
-}
-
-// TokenAmount is a structure that holds the amount and token address for a CCIP transaction.
-type TokenAmount struct {
-	Amount *big.Int        `tlb:"## 256"`
-	Token  address.Address `tlb:"addr"`
-}
-
-// CCIPSend represents a CCIP message to be sent.
-type CCIPSend struct {
-	QueryID                  uint64                        `tlb:"## 64"`
-	DestinationChainSelector uint64                        `tlb:"## 64"`
-	Receiver                 common.CrossChainAddress      `tlb:"."`
-	TokenAmounts             common.SnakeData[TokenAmount] `tlb:"^"`
-	ExtraArgs                *cell.Cell                    `tlb:"^"`
 }
 
 // DestChainConfig represents the configuration for a destination chain in the CCIP system.
