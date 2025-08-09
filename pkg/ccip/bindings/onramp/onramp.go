@@ -3,7 +3,9 @@ package onramp
 import (
 	"math/big"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
 	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
@@ -17,12 +19,14 @@ type CCIPMessageSent struct {
 
 // GenericExtraArgsV2 represents generic extra arguments for transactions.
 type GenericExtraArgsV2 struct {
-	GasLimit                 *big.Int `tlb:"## 256"`
-	AllowOutOfOrderExecution bool     `tlb:"bool"`
+	Tag                      tlb.Magic `tlb:"#181dcf10"` //nolint:revive // Ignore opcode tag // hex encoded bytes4(keccak256("CCIP EVMExtraArgsV2")), can be verified with hexutil.MustDecode("0x181dcf10")
+	GasLimit                 *big.Int  `tlb:"## 256"`
+	AllowOutOfOrderExecution bool      `tlb:"bool"`
 }
 
 // SVMExtraArgsV1 represents extra arguments for SVM transactions.
 type SVMExtraArgsV1 struct {
+	Tag                      tlb.Magic                          `tlb:"#1f3b3aba"` //nolint:revive // Ignore opcode tag // hex encoded bytes4(keccak256("CCIP SVMExtraArgsV1")), can be verified with hexutil.MustDecode("0x1f3b3aba")
 	ComputeUnits             uint32                             `tlb:"## 32"`
 	AccountIsWritableBitmap  uint64                             `tlb:"## 64"`
 	AllowOutOfOrderExecution bool                               `tlb:"bool"`
@@ -36,13 +40,15 @@ type TokenAmount struct {
 	Token  address.Address `tlb:"addr"`
 }
 
-// CCIPSend represents a CCIP message to be sent.
 type CCIPSend struct {
-	QueryID                  uint64                        `tlb:"## 64"`
-	DestinationChainSelector uint64                        `tlb:"## 64"`
-	Receiver                 common.CrossChainAddress      `tlb:"."`
-	TokenAmounts             common.SnakeData[TokenAmount] `tlb:"^"`
-	ExtraArgs                *cell.Cell                    `tlb:"^"` // four bytes tag + GenericExtraArgsV2 or SVMExtraArgsV1
+	_                 tlb.Magic                                 `tlb:"#00000001"` //nolint:revive // Ignore opcode tag
+	QueryID           uint64                                    `tlb:"## 64"`
+	DestChainSelector uint64                                    `tlb:"## 64"`
+	Receiver          common.CrossChainAddress                  `tlb:"^"`
+	Data              common.SnakeBytes                         `tlb:"^"`
+	TokenAmounts      common.SnakeRef[ocr.Any2TVMTokenTransfer] `tlb:"^"`
+	FeeToken          *address.Address                          `tlb:"addr"`
+	ExtraArgs         *cell.Cell                                `tlb:"^"`
 }
 
 // DestChainConfig represents the configuration for a destination chain in the CCIP system.

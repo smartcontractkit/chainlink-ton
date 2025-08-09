@@ -1,6 +1,7 @@
 package codec
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"reflect"
@@ -38,34 +39,32 @@ func (d ExtraDataDecoder) DecodeExtraArgsToMap(extraArgs ccipocr3.Bytes) (map[st
 	var val reflect.Value
 	var typ reflect.Type
 	outputMap := make(map[string]any)
-	switch string(extraArgs[:4]) {
-	case string(evmExtraArgsV2Tag):
-		var args onramp.GenericExtraArgsV2
-		c, err := cell.FromBOC(extraArgs[4:])
-		if err != nil {
-			return outputMap, fmt.Errorf("decode BOC: %w", err)
-		}
+	c, err := cell.FromBOC(extraArgs)
+	if err != nil {
+		return outputMap, fmt.Errorf("failed to decode BOC: %w", err)
+	}
+	tag, err := c.BeginParse().LoadSlice(32)
+	if err != nil {
+		return outputMap, fmt.Errorf("failed to load tag from cell: %w", err)
+	}
 
+	if bytes.Equal(tag, evmExtraArgsV2Tag) {
+		var args onramp.GenericExtraArgsV2
 		if err = tlb.LoadFromCell(&args, c.BeginParse()); err != nil {
 			return nil, fmt.Errorf("failed to tlb load extra args from cell: %w", err)
 		}
 
 		val = reflect.ValueOf(args)
 		typ = reflect.TypeOf(args)
-	case string(svmExtraArgsV1Tag):
+	} else if bytes.Equal(tag, svmExtraArgsV1Tag) {
 		var tlbArgs onramp.SVMExtraArgsV1
-		c, err := cell.FromBOC(extraArgs[4:])
-		if err != nil {
-			return outputMap, fmt.Errorf("decode BOC: %w", err)
-		}
-
 		if err = tlb.LoadFromCell(&tlbArgs, c.BeginParse()); err != nil {
 			return nil, fmt.Errorf("failed to tlb load extra args from cell: %w", err)
 		}
 
 		val = reflect.ValueOf(tlbArgs)
 		typ = reflect.TypeOf(tlbArgs)
-	default:
+	} else {
 		return nil, fmt.Errorf("unknown extra args tag: %x", extraArgs[:4])
 	}
 
