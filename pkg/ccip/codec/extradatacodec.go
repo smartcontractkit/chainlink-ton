@@ -1,7 +1,6 @@
 package codec
 
 import (
-	"bytes"
 	"encoding/binary"
 	"fmt"
 	"reflect"
@@ -48,23 +47,24 @@ func (d ExtraDataDecoder) DecodeExtraArgsToMap(extraArgs ccipocr3.Bytes) (map[st
 		return outputMap, fmt.Errorf("failed to load tag from cell: %w", err)
 	}
 
-	if bytes.Equal(tag, evmExtraArgsV2Tag) {
+	switch hexutil.Encode(tag) {
+	case hexutil.Encode(evmExtraArgsV2Tag):
 		var args onramp.GenericExtraArgsV2
 		if err = tlb.LoadFromCell(&args, c.BeginParse()); err != nil {
 			return nil, fmt.Errorf("failed to tlb load extra args from cell: %w", err)
 		}
-
 		val = reflect.ValueOf(args)
 		typ = reflect.TypeOf(args)
-	} else if bytes.Equal(tag, svmExtraArgsV1Tag) {
+
+	case hexutil.Encode(svmExtraArgsV1Tag):
 		var tlbArgs onramp.SVMExtraArgsV1
 		if err = tlb.LoadFromCell(&tlbArgs, c.BeginParse()); err != nil {
 			return nil, fmt.Errorf("failed to tlb load extra args from cell: %w", err)
 		}
-
 		val = reflect.ValueOf(tlbArgs)
 		typ = reflect.TypeOf(tlbArgs)
-	} else {
+
+	default:
 		return nil, fmt.Errorf("unknown extra args tag: %x", tag)
 	}
 
