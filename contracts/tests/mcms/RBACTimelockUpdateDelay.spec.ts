@@ -46,6 +46,27 @@ describe('MCMS - RBACTimelockUpdateDelayTest', () => {
       success: true,
     })
 
+    // TBD Timelock docs says it emits Timelock_MinDelayChange but it is replying it instead of emiting
+    // // Check for Timelock_MinDelayChange event
+    // const externalsFromTimelock = result.externals.filter((e) => {
+    //   return e.info.src.equals(baseTest.bind.timelock.address)
+    // })
+
+    // expect(externalsFromTimelock).toHaveLength(1)
+
+    // const delayChangeExternal = externalsFromTimelock[0]
+    // expect(delayChangeExternal.info.dest?.value.toString(16)).toEqual(
+    //   rbactl.opcodes.out.MinDelayChange.toString(16),
+    // )
+
+    // const opcode = delayChangeExternal.body.beginParse().preloadUint(32)
+    // const delayChangeEvent = rbactl.builder.event.minDelayChange.decode(delayChangeExternal.body)
+
+    // expect(opcode.toString(16)).toEqual(rbactl.opcodes.out.MinDelayChange.toString(16))
+    // expect(delayChangeEvent.queryId).toEqual(1)
+    // expect(delayChangeEvent.oldDelay).toEqual(BaseTestSetup.MIN_DELAY)
+    // expect(delayChangeEvent.newDelay).toEqual(newDelay)
+
     // Verify the delay was updated
     const minDelay = await baseTest.bind.timelock.getMinDelay()
     expect(minDelay).toBe(BigInt(newDelay))

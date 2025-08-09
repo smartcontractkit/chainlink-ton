@@ -127,6 +127,30 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
         success: true,
       })
 
+      // Check for Timelock_BypasserCallExecuted events
+      const externalsFromTimelock = result.externals.filter((e) => {
+        return e.info.src.equals(baseTest.bind.timelock.address)
+      })
+
+      expect(externalsFromTimelock).toHaveLength(1) // One call in the batch
+
+      const bypasserExecutedExternal = externalsFromTimelock[0]
+      expect(bypasserExecutedExternal.info.dest?.value.toString(16)).toEqual(
+        rbactl.opcodes.out.BypasserCallExecuted.toString(16),
+      )
+
+      const opcode = bypasserExecutedExternal.body.beginParse().preloadUint(32)
+      const bypasserExecutedEvent = rbactl.builder.event.bypasserCallExecuted.decode(
+        bypasserExecutedExternal.body,
+      )
+
+      expect(opcode.toString(16)).toEqual(rbactl.opcodes.out.BypasserCallExecuted.toString(16))
+      expect(bypasserExecutedEvent.queryId).toEqual(1)
+      expect(bypasserExecutedEvent.index).toEqual(0)
+      expect(bypasserExecutedEvent.target.equals(baseTest.bind.counter.address)).toBeTruthy()
+      expect(bypasserExecutedEvent.value).toEqual(toNano('0.05'))
+      expect(bypasserExecutedEvent.data.equals(incrementCall.data)).toBeTruthy()
+
       // Verify counter was incremented
       expect(await baseTest.bind.counter.getValue()).toEqual(1) // TODO this should be newCount when setcount is added in the TODO above
     })
@@ -156,6 +180,30 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
         to: baseTest.bind.timelock.address,
         success: true,
       })
+
+      // Check for Timelock_BypasserCallExecuted events
+      const externalsFromTimelock = result.externals.filter((e) => {
+        return e.info.src.equals(baseTest.bind.timelock.address)
+      })
+
+      expect(externalsFromTimelock).toHaveLength(1) // One call in the batch
+
+      const bypasserExecutedExternal = externalsFromTimelock[0]
+      expect(bypasserExecutedExternal.info.dest?.value.toString(16)).toEqual(
+        rbactl.opcodes.out.BypasserCallExecuted.toString(16),
+      )
+
+      const opcode = bypasserExecutedExternal.body.beginParse().preloadUint(32)
+      const bypasserExecutedEvent = rbactl.builder.event.bypasserCallExecuted.decode(
+        bypasserExecutedExternal.body,
+      )
+
+      expect(opcode.toString(16)).toEqual(rbactl.opcodes.out.BypasserCallExecuted.toString(16))
+      expect(bypasserExecutedEvent.queryId).toEqual(1)
+      expect(bypasserExecutedEvent.index).toEqual(0)
+      expect(bypasserExecutedEvent.target.equals(baseTest.bind.counter.address)).toBeTruthy()
+      expect(bypasserExecutedEvent.value).toEqual(toNano('0.05'))
+      expect(bypasserExecutedEvent.data.equals(incrementCall.data)).toBeTruthy()
 
       // Verify counter was incremented
       expect(await baseTest.bind.counter.getValue()).toEqual(1) // TODO this should be newCount when setcount is added in the TODO above
@@ -436,6 +484,28 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
         success: true,
       })
 
+      // Check for Timelock_CallExecuted events
+      const externalsFromTimelock = result.externals.filter((e) => {
+        return e.info.src.equals(baseTest.bind.timelock.address)
+      })
+
+      expect(externalsFromTimelock).toHaveLength(1) // One call in the batch
+
+      const callExecutedExternal = externalsFromTimelock[0]
+      expect(callExecutedExternal.info.dest?.value.toString(16)).toEqual(
+        rbactl.opcodes.out.CallExecuted.toString(16),
+      )
+
+      const opcode = callExecutedExternal.body.beginParse().preloadUint(32)
+      const callExecutedEvent = rbactl.builder.event.callExecuted.decode(callExecutedExternal.body)
+
+      expect(opcode.toString(16)).toEqual(rbactl.opcodes.out.CallExecuted.toString(16))
+      expect(callExecutedEvent.queryId).toEqual(2)
+      expect(callExecutedEvent.index).toEqual(0)
+      expect(callExecutedEvent.target.equals(baseTest.bind.counter.address)).toBeTruthy()
+      expect(callExecutedEvent.value).toEqual(toNano('0.05'))
+      expect(callExecutedEvent.data.equals(setCountCall.data)).toBeTruthy()
+
       // Verify operation was marked as done
       const operationBatch: rbactl.OperationBatch = {
         calls,
@@ -443,6 +513,9 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
         salt: BaseTestSetup.EMPTY_SALT,
       }
       const operationId = await baseTest.bind.timelock.getHashOperationBatch(operationBatch)
+
+      // Verify the operation ID in the event matches
+      expect(callExecutedEvent.id).toEqual(operationId)
       const timestamp = await baseTest.bind.timelock.getTimestamp(operationId)
       expect(timestamp).toEqual(BaseTestSetup.DONE_TIMESTAMP)
 
