@@ -1,13 +1,14 @@
 import '@ton/test-utils'
 
-import { Address, toNano } from '@ton/core'
+import { Address, Cell, ExternalAddress, toNano } from '@ton/core'
 
 import * as rbactl from '../../wrappers/mcms/RBACTimelock'
 import * as ac from '../../wrappers/lib/access/AccessControl'
 import * as counter from '../../wrappers/examples/Counter'
 
 import { BaseTestSetup, TestCode } from './BaseTest'
-import { SandboxContract, TreasuryContract } from '@ton/sandbox'
+import { EventMessageSent, SandboxContract, TreasuryContract } from '@ton/sandbox'
+import { crc32 } from 'zlib'
 
 describe('MCMS - RBACTimelockScheduleBatchTest', () => {
   let baseTest: BaseTestSetup
@@ -23,30 +24,29 @@ describe('MCMS - RBACTimelockScheduleBatchTest', () => {
     await baseTest.setupAll('test-schedule-batch')
   })
 
-  function CreateCallBatch() {
+  function CreateCallBatch(): [Cell[], Cell] {
     // TODO the original test creates a vec of 2 calls
-    // let callVec: rbactl.Call[] = []
-    // callVec.push({
-    //   target: baseTest.bind.counter.address,
-    //   value: toNano('0.05'),
-    //   data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
-    // })
+    let callVec: rbactl.Call[] = []
+    callVec.push({
+      target: baseTest.bind.counter.address,
+      value: toNano('0.05'),
+      data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
+    })
     // callVec.push({
     //   target: baseTest.bind.counter.address,
     //   value: toNano('0.05'),
     //   data: counter.builder.message.increaseCount.encode({ queryId: 2n }),
     // })
-    // return encodeBatch(callVec)
+    // return callVec, encodeBatch(callVec)
 
-    return BaseTestSetup.singletonCalls({
-      target: baseTest.bind.counter.address,
-      value: toNano('0.05'),
-      data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
-    })
+    return [
+      callVec.map((call) => rbactl.builder.data.call.encode(call)),
+      BaseTestSetup.singletonCalls(callVec[0]),
+    ]
   }
 
   it('should fail if non-proposer tries to schedule batch', async () => {
-    const calls = CreateCallBatch()
+    const [callVec, calls] = CreateCallBatch()
 
     const scheduleBody = rbactl.builder.message.scheduleBatch.encode({
       queryId: 1n,
@@ -85,7 +85,7 @@ describe('MCMS - RBACTimelockScheduleBatchTest', () => {
     )
 
     // Try to schedule a batch with the blocked function
-    const calls = CreateCallBatch()
+    const [callVec, calls] = CreateCallBatch()
 
     const scheduleBody = rbactl.builder.message.scheduleBatch.encode({
       queryId: 1n,
@@ -118,7 +118,7 @@ describe('MCMS - RBACTimelockScheduleBatchTest', () => {
   })
 
   async function scheduleBatchedOperation(scheduler: SandboxContract<TreasuryContract>) {
-    const calls = CreateCallBatch()
+    const [callVec, calls] = CreateCallBatch()
 
     // Get operation ID before scheduling
     const operationBatch: rbactl.OperationBatch = {
@@ -151,6 +151,31 @@ describe('MCMS - RBACTimelockScheduleBatchTest', () => {
       to: baseTest.bind.timelock.address,
       success: true,
     })
+
+    const externalsFromTimelock = result.externals.filter((e) => {
+      return e.info.src.equals(baseTest.bind.timelock.address)
+    })
+
+    expect(externalsFromTimelock).toHaveLength(callVec.length)
+
+    for (let i = 0; i < callVec.length; i++) {
+      const call = callVec[i]
+      expect(result.externals[i].info.dest?.value.toString(16)).toEqual(
+        rbactl.opcodes.out.CallScheduled.toString(16),
+      )
+
+      const opcode = result.externals[i].body.beginParse().preloadUint(32)
+      const callScheduled = rbactl.builder.event.callScheduled.decode(result.externals[i].body)
+
+      expect(opcode.toString(16)).toEqual(rbactl.opcodes.out.CallScheduled.toString(16))
+      expect(callScheduled.queryId).toEqual(1)
+      expect(callScheduled.id).toEqual(batchedOperationID)
+      expect(callScheduled.index).toEqual(i)
+      expect(callScheduled.call.equals(call)).toBeTruthy()
+      expect(callScheduled.predecessor).toEqual(BaseTestSetup.NO_PREDECESSOR)
+      expect(callScheduled.salt).toEqual(BaseTestSetup.EMPTY_SALT)
+      expect(callScheduled.delay).toEqual(BaseTestSetup.MIN_DELAY)
+    }
 
     // Verify operation now exists
     expect(await baseTest.bind.timelock.isOperation(batchedOperationID)).toBe(true)
