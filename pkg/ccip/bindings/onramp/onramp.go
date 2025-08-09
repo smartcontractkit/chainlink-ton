@@ -4,7 +4,6 @@ import (
 	"math/big"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
@@ -39,15 +38,13 @@ type TokenAmount struct {
 	Token  address.Address `tlb:"addr"`
 }
 
+// CCIPSend represents a CCIP message to be sent.
 type CCIPSend struct {
-	_                 tlb.Magic                                 `tlb:"#00000001"` //nolint:revive // Ignore opcode tag
-	QueryID           uint64                                    `tlb:"## 64"`
-	DestChainSelector uint64                                    `tlb:"## 64"`
-	Receiver          common.CrossChainAddress                  `tlb:"^"`
-	Data              common.SnakeBytes                         `tlb:"^"`
-	TokenAmounts      common.SnakeRef[ocr.Any2TVMTokenTransfer] `tlb:"^"`
-	FeeToken          *address.Address                          `tlb:"addr"`
-	ExtraArgs         *cell.Cell                                `tlb:"^"`
+	QueryID                  uint64                        `tlb:"## 64"`
+	DestinationChainSelector uint64                        `tlb:"## 64"`
+	Receiver                 common.CrossChainAddress      `tlb:"."`
+	TokenAmounts             common.SnakeData[TokenAmount] `tlb:"^"`
+	ExtraArgs                *cell.Cell                    `tlb:"^"` // four bytes tag + GenericExtraArgsV2 or SVMExtraArgsV1
 }
 
 // DestChainConfig represents the configuration for a destination chain in the CCIP system.
