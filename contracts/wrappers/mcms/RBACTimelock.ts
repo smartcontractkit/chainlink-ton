@@ -170,7 +170,7 @@ export type ExecuteData = {
 
 // Events
 
-export type Timelock_CallScheduled = {
+export type CallScheduled = {
   queryId: number
   id: bigint
   index: number
@@ -180,7 +180,7 @@ export type Timelock_CallScheduled = {
   delay: number
 }
 
-export type Timelock_CallExecuted = {
+export type CallExecuted = {
   queryId: number
   id: bigint
   index: number
@@ -189,7 +189,7 @@ export type Timelock_CallExecuted = {
   data: Cell
 }
 
-export type Timelock_BypasserCallExecuted = {
+export type BypasserCallExecuted = {
   queryId: number
   index: number
   target: Address
@@ -197,23 +197,23 @@ export type Timelock_BypasserCallExecuted = {
   data: Cell
 }
 
-export type Timelock_Canceled = {
+export type Canceled = {
   queryId: number
   id: bigint
 }
 
-export type Timelock_MinDelayChange = {
+export type MinDelayChange = {
   queryId: number
   oldDelay: number
   newDelay: number
 }
 
-export type Timelock_FunctionSelectorBlocked = {
+export type FunctionSelectorBlocked = {
   queryId: number
   selector: number
 }
 
-export type Timelock_FunctionSelectorUnblocked = {
+export type FunctionSelectorUnblocked = {
   queryId: number
   selector: number
 }
@@ -426,7 +426,7 @@ export const builder = {
   },
   event: {
     callScheduled: {
-      encode: (event: Timelock_CallScheduled): Cell => {
+      encode: (event: CallScheduled): Cell => {
         return beginCell()
           .storeUint(opcodes.out.CallScheduled, 32)
           .storeUint(event.queryId, 64)
@@ -438,7 +438,7 @@ export const builder = {
           .storeUint(event.delay, 64)
           .endCell()
       },
-      decode: (cell: Cell): Timelock_CallScheduled => {
+      decode: (cell: Cell): CallScheduled => {
         const s = cell.beginParse()
         s.skip(32) // skip opcode
         return {
@@ -451,9 +451,9 @@ export const builder = {
           delay: s.loadUint(64),
         }
       },
-    } as CellCodec<Timelock_CallScheduled>,
+    } as CellCodec<CallScheduled>,
     callExecuted: {
-      encode: (event: Timelock_CallExecuted): Cell => {
+      encode: (event: CallExecuted): Cell => {
         return beginCell()
           .storeUint(opcodes.out.CallExecuted, 32)
           .storeUint(event.queryId, 64)
@@ -464,7 +464,7 @@ export const builder = {
           .storeRef(event.data)
           .endCell()
       },
-      decode: (cell: Cell): Timelock_CallExecuted => {
+      decode: (cell: Cell): CallExecuted => {
         const s = cell.beginParse()
         s.skip(32) // skip opcode
         return {
@@ -476,9 +476,9 @@ export const builder = {
           data: s.loadRef(),
         }
       },
-    } as CellCodec<Timelock_CallExecuted>,
+    } as CellCodec<CallExecuted>,
     bypasserCallExecuted: {
-      encode: (event: Timelock_BypasserCallExecuted): Cell => {
+      encode: (event: BypasserCallExecuted): Cell => {
         return beginCell()
           .storeUint(opcodes.out.BypasserCallExecuted, 32)
           .storeUint(event.queryId, 64)
@@ -488,7 +488,7 @@ export const builder = {
           .storeRef(event.data)
           .endCell()
       },
-      decode: (cell: Cell): Timelock_BypasserCallExecuted => {
+      decode: (cell: Cell): BypasserCallExecuted => {
         const s = cell.beginParse()
         s.skip(32) // skip opcode
         return {
@@ -499,16 +499,16 @@ export const builder = {
           data: s.loadRef(),
         }
       },
-    } as CellCodec<Timelock_BypasserCallExecuted>,
+    } as CellCodec<BypasserCallExecuted>,
     canceled: {
-      encode: (event: Timelock_Canceled): Cell => {
+      encode: (event: Canceled): Cell => {
         return beginCell()
           .storeUint(opcodes.out.Canceled, 32)
           .storeUint(event.queryId, 64)
           .storeUint(event.id, 256)
           .endCell()
       },
-      decode: (cell: Cell): Timelock_Canceled => {
+      decode: (cell: Cell): Canceled => {
         const s = cell.beginParse()
         s.skip(32) // skip opcode
         return {
@@ -516,9 +516,9 @@ export const builder = {
           id: s.loadUintBig(256),
         }
       },
-    } as CellCodec<Timelock_Canceled>,
+    } as CellCodec<Canceled>,
     minDelayChange: {
-      encode: (event: Timelock_MinDelayChange): Cell => {
+      encode: (event: MinDelayChange): Cell => {
         return beginCell()
           .storeUint(opcodes.out.MinDelayChange, 32)
           .storeUint(event.queryId, 64)
@@ -526,7 +526,7 @@ export const builder = {
           .storeUint(event.newDelay, 64)
           .endCell()
       },
-      decode: (cell: Cell): Timelock_MinDelayChange => {
+      decode: (cell: Cell): MinDelayChange => {
         const s = cell.beginParse()
         s.skip(32) // skip opcode
         return {
@@ -535,16 +535,16 @@ export const builder = {
           newDelay: s.loadUint(64),
         }
       },
-    } as CellCodec<Timelock_MinDelayChange>,
+    } as CellCodec<MinDelayChange>,
     functionSelectorBlocked: {
-      encode: (event: Timelock_FunctionSelectorBlocked): Cell => {
+      encode: (event: FunctionSelectorBlocked): Cell => {
         return beginCell()
           .storeUint(opcodes.out.FunctionSelectorBlocked, 32)
           .storeUint(event.queryId, 64)
           .storeUint(event.selector, 32)
           .endCell()
       },
-      decode: (cell: Cell): Timelock_FunctionSelectorBlocked => {
+      decode: (cell: Cell): FunctionSelectorBlocked => {
         const s = cell.beginParse()
         s.skip(32) // skip opcode
         return {
@@ -552,16 +552,16 @@ export const builder = {
           selector: s.loadUint(32),
         }
       },
-    } as CellCodec<Timelock_FunctionSelectorBlocked>,
+    } as CellCodec<FunctionSelectorBlocked>,
     functionSelectorUnblocked: {
-      encode: (event: Timelock_FunctionSelectorUnblocked): Cell => {
+      encode: (event: FunctionSelectorUnblocked): Cell => {
         return beginCell()
           .storeUint(opcodes.out.FunctionSelectorUnblocked, 32)
           .storeUint(event.queryId, 64)
           .storeUint(event.selector, 32)
           .endCell()
       },
-      decode: (cell: Cell): Timelock_FunctionSelectorUnblocked => {
+      decode: (cell: Cell): FunctionSelectorUnblocked => {
         const s = cell.beginParse()
         s.skip(32) // skip opcode
         return {
@@ -569,7 +569,7 @@ export const builder = {
           selector: s.loadUint(32),
         }
       },
-    } as CellCodec<Timelock_FunctionSelectorUnblocked>,
+    } as CellCodec<FunctionSelectorUnblocked>,
   },
   data: {
     contractData: {
