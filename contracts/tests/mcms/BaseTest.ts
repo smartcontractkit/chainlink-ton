@@ -4,6 +4,8 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Address, Cell, Dictionary, toNano, beginCell } from '@ton/core'
 import { compile } from '@ton/blueprint'
 
+import { asSnakeData } from '../../utils'
+
 import * as mcms from '../../wrappers/mcms/MCMS'
 import * as rbactl from '../../wrappers/mcms/RBACTimelock'
 import * as callproxy from '../../wrappers/mcms/CallProxy'
@@ -71,8 +73,8 @@ export class BaseTestSetup {
    * Helper function that turns a single RBACTimelock.Call into a vector of calls.
    */
   static singletonCalls(call: rbactl.Call): Cell {
-    // TODO: this should be an array of calls: vec<Call>
-    return rbactl.builder.data.call.encode(call)
+    const calls = [call]
+    return asSnakeData<rbactl.Call>(calls, (c) => rbactl.builder.data.call.encode(c).asBuilder())
   }
 
   /**

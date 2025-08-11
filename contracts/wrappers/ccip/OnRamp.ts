@@ -12,7 +12,7 @@ import {
 } from '@ton/core'
 
 import * as ownable2step from '../libraries/access/Ownable2Step'
-import { asSnakeData } from '../../utils/Utils'
+import { asSnakeData } from '../../utils'
 
 export type OnRampStorage = {
   ownable: ownable2step.Data
