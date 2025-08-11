@@ -27,7 +27,7 @@ import {
   FeeQuoterStorage,
   TimestampedPrice,
 } from '../../wrappers/ccip/FeeQuoter'
-import { assertLog, expectSuccessfulTransaction } from '../Logs'
+import { assertLog, expectFailedTransaction, expectSuccessfulTransaction } from '../Logs'
 import '@ton/test-utils'
 import { KeyPair, sha256_sync } from '@ton/crypto'
 import '@ton/test-utils'
@@ -50,7 +50,6 @@ import * as CCIPLogs from '../../wrappers/ccip/Logs'
 import { setupTestFeeQuoter } from './helpers/SetUp'
 
 import {
-  OCR3Base,
   ReportContext,
   SignatureEd25519,
 } from '../../wrappers/libraries/ocr/MultiOCR3Base'
@@ -61,6 +60,7 @@ const EVM_SENDER_ADDRESS_TEST = 0x1a5fdbc891c5d4e6ad68064ae45d43146d4f9f3an
 const EVM_ONRAMP_ADDRESS_TEST = 0x111111c891c5d4e6ad68064ae45d43146d4f9f3an
 const EVM_ROUTER_ADDRESS_TEST = 0x0bf3de8c5d3e8a2b34d2beeb17abfcebaf363a59n
 const LEAF_DOMAIN_SEPARATOR = beginCell().storeUint(0, 256).asSlice()
+const ERROR_SOURCE_CHAIN_NOT_ENABLED = 266;
 
 function generateSecureRandomString(length: number): string {
   const array = new Uint8Array(length)
@@ -401,5 +401,74 @@ describe('OffRamp', () => {
       deploy: true,
       success: true,
     })
+  })
+
+  it("Test commit report fails if source chain is not enabled", async () => {
+    const rampMessageHeader: RampMessageHeader = {
+      messageId: 1n,
+      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+      destChainSelector: CHAINSEL_TON,
+      sequenceNumber: 1n,
+      nonce: 1n,
+    }
+    const message: Any2TVMRampMessage = {
+      header: rampMessageHeader,
+      sender: Buffer.from(bigIntToUint8Array(EVM_SENDER_ADDRESS_TEST)),
+      data: beginCell().endCell(),
+      receiver: generateMockTonAddress(),
+    }
+    const metadataHash = uint8ArrayToBigInt(getMetadataHash(CHAINSEL_EVM_TEST_90000001))
+    const rootBytes = uint8ArrayToBigInt(generateMessageId(message, metadataHash))
+    const root: MerkleRoot = {
+      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+      onRampAddress: Buffer.from(bigIntToUint8Array(EVM_ONRAMP_ADDRESS_TEST)),
+      minSeqNr: 1n,
+      maxSeqNr: 1n,
+      merkleRoot: rootBytes,
+    }
+    const report: CommitReport = {
+      merkleRoots: [root],
+    }
+    const reportContext: ReportContext = { configDigest, padding: 0n, sequenceBytes: 0x01 }
+    const signatures = createSignatures(
+      [signers[0], signers[1]],
+      hashReport(commitReportToCell(report), reportContext),
+    )
+    const resultSetCommit = await offRamp.sendSetOCR3Config(
+      deployer.getSender(),
+      createDefaultOCRConfig(),
+    )
+    expectSuccessfulTransaction(resultSetCommit, deployer.address, offRamp.address)
+    assertLog(resultSetCommit.transactions, offRamp.address, OCR3Logs.LogTypes.OCR3BaseConfigSet, {
+      ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
+      configDigest,
+      signers: signersPublicKeys,
+      transmitters: transmitters.map((t) => t.address),
+      bigF: 1,
+    })
+    // Update source chain config to be disabled
+    const sourceChainConfigDisabled: SourceChainConfig = {
+      router: Buffer.from(bigIntToUint8Array(EVM_ROUTER_ADDRESS_TEST)),
+      isEnabled: false,
+      minSeqNr: 1n,
+      isRMNVerificationDisabled: false,
+      onRamp: Buffer.from(bigIntToUint8Array(EVM_ONRAMP_ADDRESS_TEST)),
+    }
+    const resultUpdateSourceChainConfig = await offRamp.sendUpdateSourceChainConfig(
+      deployer.getSender(),
+      {
+        value: toNano('0.5'),
+        sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+        config: sourceChainConfigDisabled,
+      },
+    )
+    expectSuccessfulTransaction(resultUpdateSourceChainConfig, deployer.address, offRamp.address)
+    const resultCommitReport = await offRamp.sendCommit(transmitters[0].getSender(), {
+      value: toNano('0.5'),
+      reportContext: reportContext,
+      report: report,
+      signatures: signatures,
+    })
+    expectFailedTransaction(resultCommitReport, transmitters[0].address, offRamp.address, ERROR_SOURCE_CHAIN_NOT_ENABLED)
   })
 })
