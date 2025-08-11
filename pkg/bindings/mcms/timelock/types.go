@@ -8,6 +8,7 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/access/rbac"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 )
 
 // --- Messages - incoming ---
@@ -32,10 +33,10 @@ type Init struct {
 	Admin address.Address `tlb:"addr"`
 
 	// Collection of addresses to be granted proposer, executor, canceller and bypasser roles.
-	Proposers  []address.Address `tlb:"^"`
-	Executors  []address.Address `tlb:"^"`
-	Cancellers []address.Address `tlb:"^"`
-	Bypassers  []address.Address `tlb:"^"`
+	Proposers  common.SnakeData[address.Address] `tlb:"^"`
+	Executors  common.SnakeData[address.Address] `tlb:"^"`
+	Cancellers common.SnakeData[address.Address] `tlb:"^"`
+	Bypassers  common.SnakeData[address.Address] `tlb:"^"`
 }
 
 // @dev Top up contract with TON coins.
@@ -59,10 +60,10 @@ type ScheduleBatch struct {
 	// Query ID of the change owner request.
 	QueryID uint64 `tlb:"## 64"`
 
-	Calls       []Call   `tlb:"^"`      // Array of calls to be scheduled // vec<Timelock_Call>
-	Predecessor *big.Int `tlb:"## 256"` // Predecessor operation ID
-	Salt        *big.Int `tlb:"## 256"` // Salt used to derive the operation ID
-	Delay       uint64   `tlb:"## 64"`  // Delay in seconds before the operation can be executed
+	Calls       common.SnakeData[Call] `tlb:"^"`      // Array of calls to be scheduled // vec<Timelock_Call>
+	Predecessor *big.Int               `tlb:"## 256"` // Predecessor operation ID
+	Salt        *big.Int               `tlb:"## 256"` // Salt used to derive the operation ID
+	Delay       uint64                 `tlb:"## 64"`  // Delay in seconds before the operation can be executed
 }
 
 // @dev Cancel an operation.
@@ -91,9 +92,9 @@ type ExecuteBatch struct {
 	// Query ID of the change owner request.
 	QueryID uint64 `tlb:"## 64"`
 
-	Calls       []Call   `tlb:"^"`      // Array of calls to be scheduled // vec<Timelock_Call>
-	Predecessor *big.Int `tlb:"## 256"` // Predecessor operation ID
-	Salt        *big.Int `tlb:"## 256"` // Salt used to derive the operation ID
+	Calls       common.SnakeData[Call] `tlb:"^"`      // Array of calls to be scheduled // vec<Timelock_Call>
+	Predecessor *big.Int               `tlb:"## 256"` // Predecessor operation ID
+	Salt        *big.Int               `tlb:"## 256"` // Salt used to derive the operation ID
 }
 
 // @dev Changes the minimum timelock duration for future operations.
@@ -158,7 +159,7 @@ type BypasserExecuteBatch struct {
 	QueryID uint64 `tlb:"## 64"`
 
 	// Array of calls to be scheduled
-	Calls []Call `tlb:"^"` // vec<Timelock_Call>
+	Calls common.SnakeData[Call] `tlb:"^"` // vec<Timelock_Call>
 }
 
 // --- Messages - outgoing ---
@@ -275,7 +276,7 @@ type Call struct {
 // @dev Batch of transactions represented as a operation, which can be scheduled and executed.
 type OperationBatch struct {
 	// Array of calls to be scheduled
-	Calls []Call `tlb:"^"` // vec<Timelock_Call>
+	Calls common.SnakeData[Call] `tlb:"^"` // vec<Timelock_Call>
 	// Predecessor operation ID
 	Predecessor *big.Int `tlb:"## 256"`
 	// Salt used to derive the operation ID

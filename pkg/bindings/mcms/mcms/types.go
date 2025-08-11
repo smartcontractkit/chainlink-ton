@@ -6,6 +6,10 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
+
+	// TODO: these shoud be outside pkg/ccip/
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
 )
 
 // --- Messages - incoming ---
@@ -41,9 +45,9 @@ type SetRoot struct {
 	Root       *big.Int `tlb:"## 256"` // The new expiring root.
 	ValidUntil uint32   `tlb:"## 32"`  // The time by which the root is valid.
 
-	Metadata      RootMetadata `tlb:"."` // The metadata about the root, which is stored as one of the leaves.
-	MetadataProof *cell.Cell   `tlb:"^"` // The MerkleProof of inclusion of the metadata in the Merkle tree. // vec<uint256>
-	Signatures    *cell.Cell   `tlb:"^"` // The ECDSA signatures on (root, validUntil). // vec<Signature>
+	Metadata      RootMetadata                           `tlb:"."` // The metadata about the root, which is stored as one of the leaves.
+	MetadataProof common.SnakeData[Proof]                `tlb:"^"` // The MerkleProof of inclusion of the metadata in the Merkle tree. // vec<uint256>
+	Signatures    common.SnakeData[ocr.SignatureEd25519] `tlb:"^"` // The ECDSA signatures on (root, validUntil). // vec<Signature>
 }
 
 // @notice Execute the received op after verifying the proof of its inclusion in the
@@ -65,8 +69,8 @@ type Execute struct {
 	// Query ID of the change owner request.
 	QueryID uint64 `tlb:"## 64"`
 
-	Op    Op         `tlb:"^"` // The op to be executed. // Cell<Op>
-	Proof *cell.Cell `tlb:"^"` // The MerkleProof for the op's inclusion in the MerkleTree // vec<uint256>
+	Op    Op                      `tlb:"^"` // The op to be executed. // Cell<Op>
+	Proof common.SnakeData[Proof] `tlb:"^"` // The MerkleProof for the op's inclusion in the MerkleTree // vec<uint256>
 }
 
 // @notice sets a new data.config. If clearRoot is true, then it also invalidates
@@ -91,11 +95,11 @@ type SetConfig struct {
 	// Query ID of the change owner request.
 	QueryID uint64 `tlb:"## 64"`
 
-	SignerAddresses *cell.Cell `tlb:"^"` // vec<address>
-	SignerGroups    *cell.Cell `tlb:"^"` // vec<uint8>
-	GroupQuorums    *cell.Cell `tlb:"^"` // map<uint8, uint8> (indexed, iterable backwards)
-	GroupParents    *cell.Cell `tlb:"^"` // map<uint8, uint8> (indexed, iterable backwards)
-	ClearRoot       bool       `tlb:"bool"`
+	SignerAddresses common.SnakeData[address.Address] `tlb:"^"` // vec<address>
+	SignerGroups    common.SnakeData[uint8]           `tlb:"^"` // vec<uint8>
+	GroupQuorums    *cell.Cell                        `tlb:"^"` // map<uint8, uint8> (indexed, iterable backwards)
+	GroupParents    *cell.Cell                        `tlb:"^"` // map<uint8, uint8> (indexed, iterable backwards)
+	ClearRoot       bool                              `tlb:"bool"`
 }
 
 // --- Messages - outgoing ---
@@ -137,6 +141,10 @@ type OpExecuted struct {
 }
 
 // -- Data structures ---
+
+type Proof struct {
+	Value *big.Int `tlb:"## 256"` // The value of the struct
+}
 
 // Signing groups are arranged in a tree. Each group is an interior node and has its own quorum.
 // Signers are the leaves of the tree. A signer/leaf node is successful iff it furnishes a valid
@@ -238,6 +246,16 @@ type Op struct {
 }
 
 // --- Constants ---
+
+// Should be used as the first 32 bytes of the pre-image of the leaf that holds a
+// op. This value is for domain separation of the different values stored in the
+// Merkle tree.
+// const MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP = stringSha256_32("MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP")
+
+// Should be used as the first 32 bytes of the pre-image of the leaf that holds the
+// root metadata. This value is for domain separation of the different values stored in the
+// Merkle tree.
+// const MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA = stringSha256_32("MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA")
 
 const (
 	// Thrown when number of signers is 0 or greater than MAX_NUM_SIGNERS.
