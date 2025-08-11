@@ -97,8 +97,7 @@ fun send(payload: OnRampSend, sender: address) {
     assert(destChainConfig.router == sender, ERROR_UNAUTHORIZED);
 
     if (destChainConfig.allowlistEnabled) {
-        // TODO:
-        val (allowed, exists) = destChainConfig.allowedSenders.get(sender);
+        val (allowed, exists) = destChainConfig.allowedSenders.get(payload.metadata.sender);
         assert(exists && allowed!, ERROR_SENDER_NOT_ALLOWED);
     }
 
