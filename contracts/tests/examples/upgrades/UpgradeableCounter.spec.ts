@@ -35,7 +35,7 @@ async function setUpTest(i: number): Promise<{
       {
         id: 0,
         value: i,
-        ownable: { owner: owner.address, pendingOwner: undefined },
+        ownable: { owner: owner.address, pendingOwner: null },
       },
       codeV1,
     ),
@@ -230,11 +230,14 @@ describe('UpgradeableCounter', () => {
     expect(initialOwner.equals(owner.address)).toBe(true)
 
     // Transfer ownership
-    const transferResult = await upgradeableCounter.sendTransferOwnership(owner.getSender(), {
-      value: toNano('0.05'),
-      queryId: Math.floor(Math.random() * 10000),
-      newOwner: newOwner.address,
-    })
+    const transferResult = await upgradeableCounter.sendTransferOwnership(
+      owner.getSender(),
+      toNano('0.05'),
+      {
+        queryId: BigInt(Math.floor(Math.random() * 10000)),
+        newOwner: newOwner.address,
+      },
+    )
 
     expect(transferResult.transactions).toHaveTransaction({
       from: owner.address,
@@ -247,10 +250,13 @@ describe('UpgradeableCounter', () => {
     expect(pendingOwner?.equals(newOwner.address)).toBe(true)
 
     // Accept ownership from new owner
-    const acceptResult = await upgradeableCounter.sendAcceptOwnership(newOwner.getSender(), {
-      value: toNano('0.05'),
-      queryId: Math.floor(Math.random() * 10000),
-    })
+    const acceptResult = await upgradeableCounter.sendAcceptOwnership(
+      newOwner.getSender(),
+      toNano('0.05'),
+      {
+        queryId: BigInt(Math.floor(Math.random() * 10000)),
+      },
+    )
 
     expect(acceptResult.transactions).toHaveTransaction({
       from: newOwner.address,

@@ -9,10 +9,10 @@ import {
   SendMode,
 } from '@ton/core'
 
-import { Ownable2StepConfig } from '../libraries/access/Ownable2Step'
+import * as ownable2step from '../libraries/access/Ownable2Step'
 
 export type RouterStorage = {
-  ownable: Ownable2StepConfig
+  ownable: ownable2step.Data
 
   onRamp: Address
 }

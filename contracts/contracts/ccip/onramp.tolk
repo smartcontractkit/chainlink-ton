@@ -1,11 +1,10 @@
-import "@stdlib/lisp-lists"
+import "@stdlib/lisp-lists";
 import "types.tolk";
 import "../lib/access/ownable_2step.tolk";
 import "../lib/upgrades/type_and_version.tolk";
 import "../lib/utils.tolk";
 import "@stdlib/tvm-dicts";
 
-// crc32("CCIPMessageSent")
 const CCIP_MESSAGE_SENT_TOPIC: int = stringCrc32("CCIPMessageSent"); 
 
 struct CCIPMessageSent {

@@ -1,5 +1,6 @@
 import "@stdlib/common.tolk"
 import "../../lib/jetton/jetton_client.tolk"
+import "../../lib/jetton/messages.tolk"
 
 // JettonSender contract in Tolk
 // Allows sending jettons to other addresses
@@ -8,14 +9,16 @@ struct JettonSender {
 }
 
 // Send jettons fast message (basic transfer)
-struct (0x6984f9bb) SendJettonsFast {
+// 0x4C169F42 == crc32('SendJettonsFast')
+struct (0x4C169F42) SendJettonsFast {
     queryId: uint64
     amount: coins
     destination: address
 }
 
 // Send jettons extended message (with additional parameters)
-struct (0xe815f1d0) SendJettonsExtended {
+// 0x7FDA8110 == crc32('SendJettonsExtended')
+struct (0x7FDA8110) SendJettonsExtended {
     queryId: uint64
     amount: coins
     destination: address
@@ -24,7 +27,7 @@ struct (0xe815f1d0) SendJettonsExtended {
     forwardPayload: cell
 }
 
-type IncomingMessage = SendJettonsFast | SendJettonsExtended
+type IncomingMessage = SendJettonsFast | SendJettonsExtended | ReturnExcessesBack
 
 fun JettonSender.load(): JettonSender {
     return JettonSender.fromCell(contract.getData());
@@ -76,6 +79,10 @@ fun onInternalMessage(in: InMessage) {
         }
         SendJettonsExtended => {
             this.sendJettonsExtended(msg);
+        }
+        ReturnExcessesBack => {
+            // Accept excess ton
+            return;
         }
     }
 }

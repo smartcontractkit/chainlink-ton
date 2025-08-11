@@ -1,6 +1,7 @@
 import "@stdlib/common.tolk"
 import "../../lib/jetton/jetton_client.tolk"
 import "../../lib/jetton/messages.tolk"
+import "../../lib/utils"
 
 // SimpleJettonReceiver contract in Tolk
 // Simple receiver that just tracks amounts and payloads
@@ -23,12 +24,7 @@ fun SimpleJettonReceiver.store(self) {
 type IncomingMessage = TransferNotificationForRecipient
 
 fun onInternalMessage(in: InMessage) {
-    if (in.body.isEmpty()) {
-        // ignore all empty messages
-        return;
-    }
-
-    val msg = IncomingMessage.fromSlice(in.body);
+    val msg = lazy IncomingMessage.fromSlice(in.body);
 
     var this = SimpleJettonReceiver.load();
 
@@ -36,10 +32,14 @@ fun onInternalMessage(in: InMessage) {
         TransferNotificationForRecipient => {
             this.handleJettonTransferNotification(msg, in.senderAddress);
         }
+        else => {
+            // ignore empty messages, "wrong opcode" for others  
+            assert (in.body.isEmpty()) throw 0xFFFF;
+        }
     }
 }
 
-fun JettonReceiver.handleJettonTransferNotification(
+fun SimpleJettonReceiver.handleJettonTransferNotification(
     mutate self,
     msg: TransferNotificationForRecipient,
     sender: address,
@@ -50,6 +50,7 @@ fun JettonReceiver.handleJettonTransferNotification(
     // Handle the jetton transfer - simple implementation just updates trackers
     self.amountChecker += msg.jettonAmount;
     self.payloadChecker = loadMaybeForwardPayloadAsCell(msg.forwardPayload);
+    self.store();
 }
 
 get fun amountChecker(): coins {

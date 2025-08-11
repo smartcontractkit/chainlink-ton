@@ -29,8 +29,9 @@ import {
 } from '../../wrappers/ccip/FeeQuoter'
 import { assertLog, expectSuccessfulTransaction } from '../Logs'
 import '@ton/test-utils'
-import { bigIntToUint8Array, uint8ArrayToBigInt, ZERO_ADDRESS } from '../../utils/Utils'
 import { KeyPair, sha256_sync } from '@ton/crypto'
+import '@ton/test-utils'
+import { bigIntToUint8Array, uint8ArrayToBigInt, ZERO_ADDRESS } from '../../utils'
 import {
   expectEqualsConfig,
   generateEd25519KeyPair,
@@ -53,7 +54,6 @@ import {
   ReportContext,
   SignatureEd25519,
 } from '../../wrappers/libraries/ocr/MultiOCR3Base'
-import { MerkleHelper } from '../libraries/merkle_proof/helpers/MerkleMultiProofHelper'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_TON = 13879075125137744094n
@@ -211,6 +211,7 @@ describe('OffRamp', () => {
       let data: OffRampStorage = {
         ownable: {
           owner: deployer.address,
+          pendingOwner: null,
         },
         deployerCode: deployerCode,
         merkleRootCode,
@@ -242,7 +243,11 @@ describe('OffRamp', () => {
       deployer.getSender(),
       createDefaultOCRConfig(),
     )
-    expectSuccessfulTransaction(resultSetCommit, deployer.address, offRamp.address)
+    expect(resultSetCommit.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: offRamp.address,
+      success: true,
+    })
 
     assertLog(resultSetCommit.transactions, offRamp.address, OCR3Logs.LogTypes.OCR3BaseConfigSet, {
       ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,

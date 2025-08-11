@@ -1,8 +1,15 @@
 import "@stdlib/tvm-dicts.tolk";
 import "@stdlib/lisp-lists"
 
+const ERROR_WRONG_OP = 0xffff;
 const ERROR_INVALID_DATA = 0x77;
 const ERROR_BITMAP_OUT_OF_BOUNDS = 0x78;
+
+// Returns the global ID of the current blockchain (chain ID).
+fun globalId(): int {
+    // Notice: configParam(19)! will be available (non-null)
+    return blockchain.configParam(19)!.beginParse().loadInt(32);
+}
 
 @inline
 fun emit<T>(topic: int, body: T) {
@@ -145,9 +152,10 @@ fun Map<V>.keysDestructs(mutate self): tuple? {
     return list;
 }
 
+// Notice: currently not available in tolk 1.0/stdlib
 @pure
 fun dict.sDictGetNext(self, keyLen: int, pivot: slice): (slice?, slice?, bool)
-    asm(pivot self keyLen -> 1 0 2) "DICTGETNEXT" "NULLSWAPIFNOT2"
+    asm(pivot self keyLen -> 1 0 2) "DICTGETNEXT" "NULLSWAPIFNOT2";
 
 @inline @pure
 fun Map<V>.min(self): (address?, V?, bool) {

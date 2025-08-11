@@ -19,10 +19,9 @@ import {
   generateEd25519KeyPair,
   expectEqualsConfig,
 } from './Helpers'
-import { uint8ArrayToBigInt } from '../../../utils/Utils'
+import { uint8ArrayToBigInt } from '../../../utils'
 import { KeyPair } from '@ton/crypto'
 import { assertLog } from '../../Logs'
-import { expectFailedTransaction, expectSuccessfulTransaction } from '../../Logs'
 
 describe('OCR3Base Tests', () => {
   let blockchain: Blockchain
@@ -116,7 +115,11 @@ describe('OCR3Base Tests', () => {
 
   it('Test SetOCR3Config with signers', async () => {
     const result = await setOCR3Config()
-    expectSuccessfulTransaction(result, deployer.address, ocr3Base.address)
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: ocr3Base.address,
+      success: true,
+    })
 
     const config = await ocr3Base.getOCR3Config(OCR3_PLUGIN_TYPE_COMMIT)
     const expectedConfig = {
@@ -145,7 +148,11 @@ describe('OCR3Base Tests', () => {
     const result = await setOCR3Config({
       transmitters: transmitters.slice(0, 2).map((t) => t.address),
     })
-    expectSuccessfulTransaction(result, deployer.address, ocr3Base.address)
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: ocr3Base.address,
+      success: true,
+    })
 
     const newSigners: bigint[] = []
     for (let i = 0; i < 4; i++) {
@@ -157,7 +164,11 @@ describe('OCR3Base Tests', () => {
       signers: newSigners,
       transmitters: transmitters.slice(2, 4).map((t) => t.address),
     })
-    expectSuccessfulTransaction(updateConfigResult, deployer.address, ocr3Base.address)
+    expect(updateConfigResult.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: ocr3Base.address,
+      success: true,
+    })
 
     const newConfig = await ocr3Base.getOCR3Config(OCR3_PLUGIN_TYPE_COMMIT)
     const expectedConfig = {
@@ -224,12 +235,12 @@ describe('OCR3Base Tests', () => {
       ocrPluginType: 999,
       transmitters: [transmitters[0].address],
     })
-    expectFailedTransaction(
-      result,
-      deployer.address,
-      ocr3Base.address,
-      ExitCodes.ERROR_NON_EXISTENT_OCR_PLUGIN_TYPE,
-    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: ocr3Base.address,
+      exitCode: ExitCodes.ERROR_NON_EXISTENT_OCR_PLUGIN_TYPE,
+    })
   })
 
   it('SetOCR3Config Fails when bigF is zero', async () => {
@@ -237,34 +248,34 @@ describe('OCR3Base Tests', () => {
       bigF: 0,
       transmitters: [transmitters[0].address],
     })
-    expectFailedTransaction(
-      result,
-      deployer.address,
-      ocr3Base.address,
-      ExitCodes.ERROR_BIG_F_MUST_BE_POSITIVE,
-    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: ocr3Base.address,
+      exitCode: ExitCodes.ERROR_BIG_F_MUST_BE_POSITIVE,
+    })
   })
 
   it('SetOCR3Config Fails when transmitters length is more than MAX_NUM_ORACLES', async () => {
     const result = await setOCR3Config({
       transmitters: generateRandomMockAddresses(256),
     })
-    expectFailedTransaction(
-      result,
-      deployer.address,
-      ocr3Base.address,
-      ExitCodes.ERROR_TOO_MANY_TRANSMITTERS,
-    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: ocr3Base.address,
+      exitCode: ExitCodes.ERROR_TOO_MANY_TRANSMITTERS,
+    })
   }, 20000)
 
   it('SetOCR3Config Fails when transmitters is empty', async () => {
     const result = await setOCR3Config({ transmitters: [] })
-    expectFailedTransaction(
-      result,
-      deployer.address,
-      ocr3Base.address,
-      ExitCodes.ERROR_NO_TRANSMITTERS,
-    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: ocr3Base.address,
+      exitCode: ExitCodes.ERROR_NO_TRANSMITTERS,
+    })
   })
 
   it('SetOCR3Config Fails when signers length is more than MAX_NUM_ORACLES', async () => {
@@ -272,12 +283,12 @@ describe('OCR3Base Tests', () => {
       signers: generateRandomMockSigners(256),
       transmitters: [transmitters[0].address],
     })
-    expectFailedTransaction(
-      result,
-      deployer.address,
-      ocr3Base.address,
-      ExitCodes.ERROR_TOO_MANY_SIGNERS,
-    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: ocr3Base.address,
+      exitCode: ExitCodes.ERROR_TOO_MANY_SIGNERS,
+    })
   }, 20000)
 
   it('SetOCR3Config Fails when signers is empty', async () => {
@@ -285,7 +296,12 @@ describe('OCR3Base Tests', () => {
       signers: [],
       transmitters: [transmitters[0].address],
     })
-    expectFailedTransaction(result, deployer.address, ocr3Base.address, ExitCodes.ERROR_NO_SIGNERS)
+
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: ocr3Base.address,
+      exitCode: ExitCodes.ERROR_NO_SIGNERS,
+    })
   })
 
   it('SetOCR3Config Fails when signers.length <= 3 * bigF', async () => {
@@ -293,23 +309,23 @@ describe('OCR3Base Tests', () => {
       signers: signersPublicKeys.slice(0, 3),
       transmitters: [transmitters[0].address],
     })
-    expectFailedTransaction(
-      result,
-      deployer.address,
-      ocr3Base.address,
-      ExitCodes.ERROR_BIG_F_TOO_HIGH,
-    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: ocr3Base.address,
+      exitCode: ExitCodes.ERROR_BIG_F_TOO_HIGH,
+    })
   })
 
   it('SetOCR3Config Fails when signers length is less than transmitters length', async () => {
     const manyTransmitters = await generateRandomAddresses(5)
     const result = await setOCR3Config({ transmitters: manyTransmitters })
-    expectFailedTransaction(
-      result,
-      deployer.address,
-      ocr3Base.address,
-      ExitCodes.ERROR_TOO_MANY_TRANSMITTERS,
-    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: ocr3Base.address,
+      exitCode: ExitCodes.ERROR_TOO_MANY_TRANSMITTERS,
+    })
   })
 
   it('SetOCR3Config Fails when there are repeated signers', async () => {
@@ -322,41 +338,45 @@ describe('OCR3Base Tests', () => {
       ],
       transmitters: [transmitters[0].address],
     })
-    expectFailedTransaction(
-      result,
-      deployer.address,
-      ocr3Base.address,
-      ExitCodes.ERROR_REPEATED_SIGNERS,
-    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: ocr3Base.address,
+      exitCode: ExitCodes.ERROR_REPEATED_SIGNERS,
+    })
   })
 
   it('SetOCR3Config Fails when there are repeated transmitters', async () => {
     const result = await setOCR3Config({
       transmitters: [transmitters[0].address, transmitters[0].address],
     })
-    expectFailedTransaction(
-      result,
-      deployer.address,
-      ocr3Base.address,
-      ExitCodes.ERROR_REPEATED_TRANSMITTERS,
-    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: ocr3Base.address,
+      exitCode: ExitCodes.ERROR_REPEATED_TRANSMITTERS,
+    })
   })
 
   it('SetOCR3Config Fails when trying to change isSignatureVerificationEnabled after initial set', async () => {
     await setOCR3Config()
 
     const result = await setOCR3Config({ isSignatureVerificationEnabled: false })
-    expectFailedTransaction(
-      result,
-      deployer.address,
-      ocr3Base.address,
-      ExitCodes.ERROR_STATIC_CONFIG_CANNOT_BE_CHANGED,
-    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: ocr3Base.address,
+      exitCode: ExitCodes.ERROR_STATIC_CONFIG_CANNOT_BE_CHANGED,
+    })
   })
 
   it('Test Transmit function works with authorized transmitter', async () => {
     const result = await setupAndTransmit()
-    expectSuccessfulTransaction(result, transmitters[0].address, ocr3Base.address)
+    expect(result.transactions).toHaveTransaction({
+      from: transmitters[0].address,
+      to: ocr3Base.address,
+      success: true,
+    })
 
     assertLog(result.transactions, ocr3Base.address, LogTypes.OCR3BaseTransmitted, {
       ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
@@ -379,12 +399,11 @@ describe('OCR3Base Tests', () => {
       signatures,
     })
 
-    expectFailedTransaction(
-      result,
-      transmitters[2].address,
-      ocr3Base.address,
-      ExitCodes.ERROR_UNAUTHORIZED_TRANSMITTER,
-    )
+    expect(result.transactions).toHaveTransaction({
+      from: transmitters[2].address,
+      to: ocr3Base.address,
+      exitCode: ExitCodes.ERROR_UNAUTHORIZED_TRANSMITTER,
+    })
   })
 
   it('Transmit fails with signatures from unauthorized signers', async () => {
@@ -402,12 +421,11 @@ describe('OCR3Base Tests', () => {
       signatures: [validSignature, unauthorizedSignature],
     })
 
-    expectFailedTransaction(
-      result,
-      transmitters[0].address,
-      ocr3Base.address,
-      ExitCodes.ERROR_UNAUTHORIZED_SIGNER,
-    )
+    expect(result.transactions).toHaveTransaction({
+      from: transmitters[0].address,
+      to: ocr3Base.address,
+      exitCode: ExitCodes.ERROR_UNAUTHORIZED_SIGNER,
+    })
   })
 
   it('Transmit fails with repeated signatures', async () => {
@@ -422,12 +440,11 @@ describe('OCR3Base Tests', () => {
       signatures: [sig, sig], // Repeated
     })
 
-    expectFailedTransaction(
-      result,
-      transmitters[0].address,
-      ocr3Base.address,
-      ExitCodes.ERROR_NON_UNIQUE_SIGNATURES,
-    )
+    expect(result.transactions).toHaveTransaction({
+      from: transmitters[0].address,
+      to: ocr3Base.address,
+      exitCode: ExitCodes.ERROR_NON_UNIQUE_SIGNATURES,
+    })
   })
 
   it('Transmit fails with mismatched configDigest', async () => {
@@ -455,12 +472,11 @@ describe('OCR3Base Tests', () => {
       signatures,
     })
 
-    expectFailedTransaction(
-      result,
-      transmitters[0].address,
-      ocr3Base.address,
-      ExitCodes.ERROR_CONFIG_DIGEST_MISMATCH,
-    )
+    expect(result.transactions).toHaveTransaction({
+      from: transmitters[0].address,
+      to: ocr3Base.address,
+      exitCode: ExitCodes.ERROR_CONFIG_DIGEST_MISMATCH,
+    })
   })
 
   it('Transmit fails with non existent OCR plugin type', async () => {
@@ -475,12 +491,11 @@ describe('OCR3Base Tests', () => {
       signatures,
     })
 
-    expectFailedTransaction(
-      result,
-      transmitters[0].address,
-      ocr3Base.address,
-      ExitCodes.ERROR_NON_EXISTENT_OCR_PLUGIN_TYPE,
-    )
+    expect(result.transactions).toHaveTransaction({
+      from: transmitters[0].address,
+      to: ocr3Base.address,
+      exitCode: ExitCodes.ERROR_NON_EXISTENT_OCR_PLUGIN_TYPE,
+    })
   })
 
   it('Transmit fails when signatures.length is not bigF + 1', async () => {
@@ -495,12 +510,11 @@ describe('OCR3Base Tests', () => {
       signatures: [onlyOneSig], // Needs 2 (bigF+1)
     })
 
-    expectFailedTransaction(
-      result,
-      transmitters[0].address,
-      ocr3Base.address,
-      ExitCodes.ERROR_WRONG_NUMBER_OF_SIGNATURES,
-    )
+    expect(result.transactions).toHaveTransaction({
+      from: transmitters[0].address,
+      to: ocr3Base.address,
+      exitCode: ExitCodes.ERROR_WRONG_NUMBER_OF_SIGNATURES,
+    })
   })
 
   it('Old signers cannot transmit after config update', async () => {
@@ -532,12 +546,11 @@ describe('OCR3Base Tests', () => {
       signatures: oldSignatures,
     })
 
-    expectFailedTransaction(
-      resultWithOldSigners,
-      transmitters[0].address,
-      ocr3Base.address,
-      ExitCodes.ERROR_UNAUTHORIZED_SIGNER,
-    )
+    expect(resultWithOldSigners.transactions).toHaveTransaction({
+      from: transmitters[0].address,
+      to: ocr3Base.address,
+      exitCode: ExitCodes.ERROR_UNAUTHORIZED_SIGNER,
+    })
 
     // New signers should be able to sign
     const newSignatures = [
@@ -552,7 +565,11 @@ describe('OCR3Base Tests', () => {
       signatures: newSignatures,
     })
 
-    expectSuccessfulTransaction(resultWithNewSigners, transmitters[0].address, ocr3Base.address)
+    expect(resultWithNewSigners.transactions).toHaveTransaction({
+      from: transmitters[0].address,
+      to: ocr3Base.address,
+      success: true,
+    })
 
     assertLog(resultWithNewSigners.transactions, ocr3Base.address, LogTypes.OCR3BaseTransmitted, {
       ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,

@@ -4,16 +4,16 @@ import (
 	"fmt"
 	"math/rand/v2"
 
-	test_utils "integration-tests/utils"
-
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
-var PriceRegistryContractPath = test_utils.GetBuildDir("examples.async-communication.request-reply.PriceRegistry/tact_PriceRegistry.pkg")
+var PriceRegistryContractPath = bindings.GetBuildDir("examples.async-communication.request-reply.PriceRegistry/tact_PriceRegistry.pkg")
 
 type PriceRegistryProvider struct {
 	apiClient tracetracking.SignedAPIClient
@@ -38,7 +38,8 @@ func (p *PriceRegistryProvider) Deploy(initData PriceRegistryInitData) (PriceReg
 	if err != nil {
 		return PriceRegistry{}, fmt.Errorf("failed to compile contract: %w", err)
 	}
-	contract, err := wrappers.Deploy(&p.apiClient, compiledContract, initDataCell, tlb.MustFromTON("1"))
+	body := cell.BeginCell().EndCell()
+	contract, _, err := wrappers.Deploy(&p.apiClient, compiledContract, initDataCell, tlb.MustFromTON("1"), body)
 	if err != nil {
 		return PriceRegistry{}, err
 	}
@@ -53,7 +54,7 @@ type PriceRegistry struct {
 }
 
 type AddPriceItemMessage struct {
-	_       tlb.Magic        `tlb:"#00000003"` //nolint:revive // This field should stay uninitialized
+	_       tlb.Magic        `tlb:"#00000003"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID uint64           `tlb:"## 64"`
 	Key     uint8            `tlb:"## 8"`
 	Addr    *address.Address `tlb:"addr"`

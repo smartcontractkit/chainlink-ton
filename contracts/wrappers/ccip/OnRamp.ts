@@ -11,11 +11,11 @@ import {
   SendMode,
 } from '@ton/core'
 
-import { Ownable2StepConfig } from '../libraries/access/Ownable2Step'
-import { asSnakeData } from '../../utils/Utils'
+import * as ownable2step from '../libraries/access/Ownable2Step'
+import { asSnakeData } from '../../utils'
 
 export type OnRampStorage = {
-  ownable: Ownable2StepConfig
+  ownable: ownable2step.Data
   router: Address
   chainSelector: bigint
   config: {

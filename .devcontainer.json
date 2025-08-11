@@ -14,8 +14,12 @@
         "kamadorueda.alejandra",
         // Tact language support for VS Code
         "tonstudio.vscode-tact",
+        // Tolk language support for VS Code
+        "ton-core.tolk-vscode",
         // Go language support for VS Code
-        "golang.go"
+        "golang.go",
+        // Draw.io diagram support for VS Code
+        "hediet.vscode-drawio"
       ]
     }
   },

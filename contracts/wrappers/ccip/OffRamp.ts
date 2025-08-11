@@ -11,13 +11,12 @@ import {
   Slice,
 } from '@ton/core'
 
-import { Ownable2StepConfig } from '../libraries/access/Ownable2Step'
 import { OCR3Base, ReportContext, SignatureEd25519 } from '../libraries/ocr/MultiOCR3Base'
-
-import { asSnakeData, fromSnakeData, bigIntToUint8Array } from '../../utils/Utils'
+import { asSnakeData, fromSnakeData, bigIntToUint8Array } from '../../utils/types'
+import * as ownable2step from '../libraries/access/Ownable2Step'
 
 export type OffRampStorage = {
-  ownable: Ownable2StepConfig
+  ownable: ownable2step.Data
   deployerCode: Cell
   merkleRootCode: Cell
   feeQuoter: Address
