@@ -67,7 +67,7 @@ describe('MCMS - RBACTimelockScheduleBatchTest', () => {
       from: baseTest.acc.executorOne.address,
       to: baseTest.bind.timelock.address,
       success: false,
-      exitCode: ac.errors.UnauthorizedAccount,
+      exitCode: ac.Errors.UnauthorizedAccount,
     })
   })
 
@@ -105,7 +105,7 @@ describe('MCMS - RBACTimelockScheduleBatchTest', () => {
       from: baseTest.acc.proposerOne.address,
       to: baseTest.bind.timelock.address,
       success: false,
-      exitCode: 101, // ERROR_SELECTOR_IS_BLOCKED // TODO import from RBACTimelock
+      exitCode: rbactl.Errors.SelectorIsBlocked,
     })
   })
 
@@ -203,7 +203,7 @@ describe('MCMS - RBACTimelockScheduleTest', () => {
       from: baseTest.acc.executorOne.address,
       to: baseTest.bind.timelock.address,
       success: false,
-      exitCode: ac.errors.UnauthorizedAccount,
+      exitCode: ac.Errors.UnauthorizedAccount,
     })
   })
 
@@ -246,7 +246,7 @@ describe('MCMS - RBACTimelockScheduleTest', () => {
       from: baseTest.acc.proposerOne.address,
       to: baseTest.bind.timelock.address,
       success: false,
-      exitCode: 101, // ERROR_SELECTOR_IS_BLOCKED // TODO import from RBACTimelock
+      exitCode: rbactl.Errors.SelectorIsBlocked,
     })
   })
 
@@ -290,7 +290,7 @@ describe('MCMS - RBACTimelockScheduleTest', () => {
       from: baseTest.acc.proposerOne.address,
       to: baseTest.bind.timelock.address,
       success: false,
-      exitCode: 105, // ERROR_OPERATION_ALREADY_SCHEDULED // TODO import from RBACTimelock
+      exitCode: rbactl.Errors.OperationAlreadyScheduled,
     })
   })
 
@@ -307,7 +307,7 @@ describe('MCMS - RBACTimelockScheduleTest', () => {
       calls,
       predecessor: BaseTestSetup.NO_PREDECESSOR,
       salt: BaseTestSetup.EMPTY_SALT,
-      delay: BaseTestSetup.MIN_DELAY - 1, // Less than minimum delay
+      delay: BaseTestSetup.MIN_DELAY - 1n, // Less than minimum delay
     })
 
     const result = await baseTest.bind.timelock.sendInternal(
@@ -320,7 +320,7 @@ describe('MCMS - RBACTimelockScheduleTest', () => {
       from: baseTest.acc.proposerOne.address,
       to: baseTest.bind.timelock.address,
       success: false,
-      exitCode: 106, // ERROR_INSUFFICIENT_DELAY // TODO import from RBACTimelock
+      exitCode: rbactl.Errors.InsufficientDelay,
     })
   })
 

@@ -54,7 +54,7 @@ type Inventory struct {
 }
 
 type AddItemMessage struct {
-	_         tlb.Magic        `tlb:"#00000002"` //nolint:revive // This field should stay uninitialized
+	_         tlb.Magic        `tlb:"#00000002"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID   uint64           `tlb:"## 64"`
 	Key       uint8            `tlb:"## 8"`
 	PriceAddr *address.Address `tlb:"addr"`
