@@ -26,7 +26,7 @@ type TONAccessor struct {
 	client    ton.APIClientWrapped
 	logPoller logpoller.LogPoller
 	bindings  map[string]*address.Address
-	addrCodec codec.AddressCodec
+	addrCodec ccipocr3.ChainSpecificAddressCodec
 }
 
 var _ ccipocr3.ChainAccessor = (*TONAccessor)(nil)
@@ -42,7 +42,7 @@ func NewTONAccessor(
 		client:    client,
 		logPoller: logPoller,
 		bindings:  make(map[string]*address.Address),
-		addrCodec: codec.AddressCodec{}, // TODO: AddressCodec doesn't match the ccipocr3.AddressCodec interface
+		addrCodec: codec.AddressCodec{},
 	}, nil
 }
 
