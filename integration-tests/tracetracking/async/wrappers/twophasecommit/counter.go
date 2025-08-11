@@ -55,7 +55,7 @@ type Counter struct {
 }
 
 type sendAckMessage struct {
-	_       tlb.Magic `tlb:"#00000003"` //nolint:revive // This field should stay uninitialized
+	_       tlb.Magic `tlb:"#00000003"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID uint64    `tlb:"## 64"`
 }
 
