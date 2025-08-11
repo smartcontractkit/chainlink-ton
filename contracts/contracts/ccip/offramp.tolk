@@ -61,7 +61,7 @@ struct ExecutionStateChanged {
 }
 
 // crc32("CCIPCommitReportAccepted")
-const CCIP_COMMIT_REPORT_ACCEPTED_TOPIC: int = 1560977615;
+const CCIP_COMMIT_REPORT_ACCEPTED_TOPIC: int = stringCrc32("CCIPCommitReportAccepted");
 
 struct CommitReportAccepted {
     priceUpdates: Cell<PriceUpdates>?;

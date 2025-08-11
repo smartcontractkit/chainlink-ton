@@ -6,7 +6,7 @@ import "../lib/utils.tolk";
 import "@stdlib/tvm-dicts";
 
 // crc32("CCIPMessageSent")
-const CCIP_MESSAGE_SENT_TOPIC: int = 2757568828; 
+const CCIP_MESSAGE_SENT_TOPIC: int = stringCrc32("CCIPMessageSent"); 
 
 struct CCIPMessageSent {
     destChainSelector: uint64; // NOTE: both these values are already part of message, is it even important to have?
