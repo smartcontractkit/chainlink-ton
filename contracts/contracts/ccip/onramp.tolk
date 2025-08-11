@@ -33,7 +33,7 @@ struct Storage {
 }
 
 struct DestChainConfig {
-    router: address; // Local router address  that is allowed to send messages to the destination chain.
+    router: address; // Local router address that is allowed to send messages to the destination chain.
     sequenceNumber: uint64;
     allowlistEnabled: bool;
     allowedSenders: Map<bool>; // address -> bool
