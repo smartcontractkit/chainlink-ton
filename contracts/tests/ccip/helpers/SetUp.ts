@@ -1,5 +1,5 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { ZERO_ADDRESS } from '../../../utils/Utils'
+import { ZERO_ADDRESS } from '../../../utils'
 import {
   createTimestampedPriceValue,
   FeeQuoter,

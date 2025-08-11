@@ -12,7 +12,7 @@ import {
 } from '../../wrappers/ccip/FeeQuoter'
 import { testLog, getExternals, expectSuccessfulTransaction } from '../Logs'
 import '@ton/test-utils'
-import { uint8ArrayToBigInt, ZERO_ADDRESS } from '../../utils/Utils'
+import { uint8ArrayToBigInt, ZERO_ADDRESS } from '../../utils'
 import { KeyPair } from '@ton/crypto'
 import { expectEqualsConfig, generateEd25519KeyPair } from '../libraries/ocr/Helpers'
 import {
