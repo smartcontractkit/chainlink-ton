@@ -35,7 +35,6 @@ func NewTONAccessor(
 	lggr logger.Logger,
 	client ton.APIClientWrapped,
 	logPoller logpoller.LogPoller,
-	addrCodec ccipocr3.AddressCodec,
 ) (ccipocr3.ChainAccessor, error) {
 	// TODO: validate state of client and logPoller (should be initialized in NewChain)
 	return &TONAccessor{

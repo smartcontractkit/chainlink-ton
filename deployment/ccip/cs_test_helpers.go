@@ -233,7 +233,6 @@ func SendTonRequest(
 		},
 	}
 
-	// TODO need to run test once dependency is fixed
 	ttConn := tracetracking.NewSignedAPIClient(clientConn, *senderWallet)
 	receivedMsg, blockID, err := ttConn.SendWaitTransaction(e.GetContext(), routerAddr, walletMsg)
 	if err != nil {
@@ -246,11 +245,18 @@ func SendTonRequest(
 		return nil, fmt.Errorf("failed to wait for trace: %w", err)
 	}
 
-	// TODO get CCIPSent event from onramp ?
-	//ccipMessageSentEvent := onramp.CCIPMessageSent{}
+	// TODO: log poller
+	//ca, er := chainaccessor.NewTONAccessor(e.Logger, clientConn, nil)
+	//if er != nil {
+	//	return nil, fmt.Errorf("failed to create TON accessor: %w", er)
+	//}
+
+	//number, err := ca.GetExpectedNextSequenceNumber(e.GetContext(), cciptypes.ChainSelector(cfg.DestChain))
+	//if err != nil {
+	//	return nil, err
+	//}
 
 	return &client.AnyMsgSentEvent{
-		// TODO add more fields if needed:
-		//SequenceNumber: ccipMessageSentEvent.SequenceNumber,
+		//SequenceNumber: uint64(number),
 	}, nil
 }

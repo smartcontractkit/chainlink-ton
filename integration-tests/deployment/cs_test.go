@@ -131,7 +131,7 @@ func TestDeploy(t *testing.T) {
 
 	addrCodec := codec.AddressCodec{}
 
-	accessor, err := chainaccessor.NewTONAccessor(lggr, tonChain.Client, nil, nil)
+	accessor, err := chainaccessor.NewTONAccessor(lggr, tonChain.Client, nil)
 	require.NoError(t, err)
 
 	ctx := t.Context()
