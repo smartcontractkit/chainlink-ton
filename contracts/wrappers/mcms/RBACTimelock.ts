@@ -48,7 +48,7 @@ export type ScheduleBatch = {
   // Salt used to derive the operation ID
   salt: bigint
   // Delay in seconds before the operation can be executed
-  delay: number
+  delay: bigint
 }
 
 // @dev Cancel an operation.
@@ -127,7 +127,7 @@ export type ContractData = {
   id: number // uint32
 
   // Minimum delay for operations in seconds
-  minDelay: number
+  minDelay: bigint
   // Map of operation id to timestamp
   timestamps?: Dictionary<Buffer, Buffer>
 
@@ -256,8 +256,7 @@ export const builder = {
           calls: s.loadRef(),
           predecessor: s.loadUintBig(256),
           salt: s.loadUintBig(256),
-          delay: -1, // TODO: decode delay properly (number vs bigint mismatch)
-          // delay: s.loadUintBig(64),
+          delay: s.loadUintBig(64),
         }
       },
     } as CellCodec<ScheduleBatch>,

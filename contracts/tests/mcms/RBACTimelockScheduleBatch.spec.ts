@@ -307,7 +307,7 @@ describe('MCMS - RBACTimelockScheduleTest', () => {
       calls,
       predecessor: BaseTestSetup.NO_PREDECESSOR,
       salt: BaseTestSetup.EMPTY_SALT,
-      delay: BaseTestSetup.MIN_DELAY - 1, // Less than minimum delay
+      delay: BaseTestSetup.MIN_DELAY - 1n, // Less than minimum delay
     })
 
     const result = await baseTest.bind.timelock.sendInternal(

@@ -41,7 +41,7 @@ export interface TestContracts {
 }
 
 export class BaseTestSetup {
-  static readonly MIN_DELAY = 24 * 60 * 60 * 7
+  static readonly MIN_DELAY = 24n * 60n * 60n * 7n
   static readonly DONE_TIMESTAMP = 1
   static readonly NO_PREDECESSOR = 0n
   static readonly EMPTY_SALT = 0n
