@@ -1,6 +1,6 @@
 import '@ton/test-utils'
 
-import { toNano } from '@ton/core'
+import { Address, toNano } from '@ton/core'
 
 import * as rbactl from '../../wrappers/mcms/RBACTimelock'
 import * as ac from '../../wrappers/lib/access/AccessControl'
@@ -46,26 +46,25 @@ describe('MCMS - RBACTimelockUpdateDelayTest', () => {
       success: true,
     })
 
-    // TBD Timelock docs says it emits Timelock_MinDelayChange but it is replying it instead of emiting
-    // // Check for Timelock_MinDelayChange event
-    // const externalsFromTimelock = result.externals.filter((e) => {
-    //   return e.info.src.equals(baseTest.bind.timelock.address)
-    // })
+    // Check for MinDelayChange confirmation
+    const delayChangedTx = result.transactions.filter((t) => {
+      const src = t.inMessage?.info.src! as Address
+      return src && src.equals(baseTest.bind.timelock.address)
+    })
 
-    // expect(externalsFromTimelock).toHaveLength(1)
+    expect(delayChangedTx).toHaveLength(1)
+    expect(delayChangedTx[0].inMessage).toBeDefined()
 
-    // const delayChangeExternal = externalsFromTimelock[0]
-    // expect(delayChangeExternal.info.dest?.value.toString(16)).toEqual(
-    //   rbactl.opcodes.out.MinDelayChange.toString(16),
-    // )
+    const delayChangedMsg = delayChangedTx[0].inMessage!
+    const opcode = delayChangedMsg.body.beginParse().preloadUint(32)
+    const delayChangedConfirmation = rbactl.builder.event.minDelayChange.decode(
+      delayChangedMsg.body,
+    )
 
-    // const opcode = delayChangeExternal.body.beginParse().preloadUint(32)
-    // const delayChangeEvent = rbactl.builder.event.minDelayChange.decode(delayChangeExternal.body)
-
-    // expect(opcode.toString(16)).toEqual(rbactl.opcodes.out.MinDelayChange.toString(16))
-    // expect(delayChangeEvent.queryId).toEqual(1)
-    // expect(delayChangeEvent.oldDelay).toEqual(BaseTestSetup.MIN_DELAY)
-    // expect(delayChangeEvent.newDelay).toEqual(newDelay)
+    expect(opcode.toString(16)).toEqual(rbactl.opcodes.out.MinDelayChange.toString(16))
+    expect(delayChangedConfirmation.queryId).toEqual(1)
+    expect(delayChangedConfirmation.oldDelay).toEqual(BaseTestSetup.MIN_DELAY)
+    expect(delayChangedConfirmation.newDelay).toEqual(newDelay)
 
     // Verify the delay was updated
     const minDelay = await baseTest.bind.timelock.getMinDelay()

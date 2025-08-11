@@ -197,25 +197,22 @@ describe('MCMS - RBACTimelockCancelTest', () => {
       success: true,
     })
 
-    // TBD Timelock docs says it emits Timelock_Canceled but it is replying it instead of emiting
-    // Check for Timelock_Canceled event
-    // const externalsFromTimelock = cancelResult.externals.filter((e) => {
-    //   return e.info.src.equals(baseTest.bind.timelock.address)
-    // })
+    // Check for Canceled confirmation
+    const cancelTx = cancelResult.transactions.filter((t) => {
+      const src = t.inMessage?.info.src! as Address
+      return src && src.equals(baseTest.bind.timelock.address)
+    })
 
-    // expect(externalsFromTimelock).toHaveLength(1)
+    expect(cancelTx).toHaveLength(1)
+    expect(cancelTx[0].inMessage).toBeDefined()
 
-    // const canceledExternal = externalsFromTimelock[0]
-    // expect(canceledExternal.info.dest?.value.toString(16)).toEqual(
-    //   rbactl.opcodes.out.Canceled.toString(16),
-    // )
+    const cancelMsg = cancelTx[0].inMessage!
+    const opcode = cancelMsg.body.beginParse().preloadUint(32)
+    const canceledConfirmation = rbactl.builder.event.canceled.decode(cancelMsg.body)
 
-    // const opcode = canceledExternal.body.beginParse().preloadUint(32)
-    // const canceledEvent = rbactl.builder.event.canceled.decode(canceledExternal.body)
-
-    // expect(opcode.toString(16)).toEqual(rbactl.opcodes.out.Canceled.toString(16))
-    // expect(canceledEvent.queryId).toEqual(1)
-    // expect(canceledEvent.id).toEqual(operationId)
+    expect(opcode.toString(16)).toEqual(rbactl.opcodes.out.Canceled.toString(16))
+    expect(canceledConfirmation.queryId).toEqual(1)
+    expect(canceledConfirmation.id).toEqual(operationId)
 
     // Verify operation no longer exists
     expect(await baseTest.bind.timelock.isOperation(operationId)).toBe(false)

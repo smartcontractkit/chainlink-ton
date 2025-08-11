@@ -1,6 +1,6 @@
 import '@ton/test-utils'
 
-import { toNano, beginCell, Cell } from '@ton/core'
+import { toNano, beginCell, Cell, Address } from '@ton/core'
 import { BaseTestSetup, TestCode } from './BaseTest'
 
 import * as rbactl from '../../wrappers/mcms/RBACTimelock'
@@ -361,27 +361,24 @@ describe('MCMS - RBACTimelockBlockFunctionTest', () => {
         success: true,
       })
 
-      // TBD Timelock docs says it emits Timelock_FunctionSelectorUnblocked but it is replying it instead of emiting
-      // Check for Timelock_FunctionSelectorUnblocked event
-      // const externalsFromTimelock = result.externals.filter((e) => {
-      //   return e.info.src.equals(baseTest.bind.timelock.address)
-      // })
+      // Check for FunctionSelectorUnblocked confirmation
+      const functionSelectorUnblockedTx = result.transactions.filter((t) => {
+        const src = t.inMessage?.info.src! as Address
+        return src && src.equals(baseTest.bind.timelock.address)
+      })
 
-      // expect(externalsFromTimelock).toHaveLength(1)
+      expect(functionSelectorUnblockedTx).toHaveLength(1)
+      expect(functionSelectorUnblockedTx[0].inMessage).toBeDefined()
 
-      // const unblockedExternal = externalsFromTimelock[0]
-      // expect(unblockedExternal.info.dest?.value.toString(16)).toEqual(
-      //   rbactl.opcodes.out.FunctionSelectorUnblocked.toString(16),
-      // )
+      const functionSelectorUnblockedMsg = functionSelectorUnblockedTx[0].inMessage!
+      const opcode = functionSelectorUnblockedMsg.body.beginParse().preloadUint(32)
+      const unblockedEvent = rbactl.builder.event.functionSelectorUnblocked.decode(
+        functionSelectorUnblockedMsg.body,
+      )
 
-      // const opcode = unblockedExternal.body.beginParse().preloadUint(32)
-      // const unblockedEvent = rbactl.builder.event.functionSelectorUnblocked.decode(
-      //   unblockedExternal.body,
-      // )
-
-      // expect(opcode.toString(16)).toEqual(rbactl.opcodes.out.FunctionSelectorUnblocked.toString(16))
-      // expect(unblockedEvent.queryId).toEqual(1)
-      // expect(unblockedEvent.selector).toEqual(counter.opcodes.in.IncreaseCount)
+      expect(opcode.toString(16)).toEqual(rbactl.opcodes.out.FunctionSelectorUnblocked.toString(16))
+      expect(unblockedEvent.queryId).toEqual(1)
+      expect(unblockedEvent.selector).toEqual(counter.opcodes.in.IncreaseCount)
     }
 
     // Make sure unblocked function can be scheduled
