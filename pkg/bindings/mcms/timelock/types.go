@@ -252,14 +252,14 @@ type Data struct {
 	// Minimum delay for operations in seconds
 	MinDelay uint64 `tlb:"## 64"`
 	// Map of operation id to timestamp
-	Timestamps map[uint64]uint64 `tlb:"dict"`
+	Timestamps *cell.Dictionary `tlb:"dict 64"` // map<uint64, uint64>
 
 	// Number of fn selectors blocked by the contract.
 	BlockedFnSelectorsLen uint32 `tlb:"## 32"`
 	// Map of blocked function selectors.
-	BlockedFnSelectors map[uint32]bool `tlb:"dict"`
+	BlockedFnSelectors *cell.Dictionary `tlb:"dict 32"` // map<uint32, bool>
 
-	// TODO: import as rbac.Data bindings from pkg/bindings/lib/access/rbac
+	// AccessControl trait data
 	RBAC rbac.Data `tlb:"^"`
 }
 

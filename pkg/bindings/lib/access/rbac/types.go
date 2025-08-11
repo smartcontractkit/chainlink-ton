@@ -5,6 +5,7 @@ import (
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
 // --- Messages - incoming ---
@@ -123,7 +124,7 @@ type RoleAdminChanged struct {
 // AccessControl data struct, auto-serialized to/from cell.
 type Data struct {
 	// Roles mapping
-	Roles map[uint32]RoleData `tlb:"dict"`
+	Roles *cell.Dictionary `tlb:"dict 32"` // map<uint32, RoleData>
 }
 
 // Internal storage struct for role data
@@ -135,7 +136,7 @@ type RoleData struct {
 	// Number of members in the role
 	MembersLen uint64 `tlb:"## 64"`
 	// Members of the role, indexed by their address hash.
-	HasRole map[*address.Address]bool `tlb:"dict"` // map<address, slice>
+	HasRole *cell.Dictionary `tlb:"dict 267"` // map<address, slice>
 }
 
 // --- Constants ---

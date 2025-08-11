@@ -95,10 +95,10 @@ type SetConfig struct {
 	// Query ID of the change owner request.
 	QueryID uint64 `tlb:"## 64"`
 
-	SignerAddresses common.SnakeData[address.Address] `tlb:"^"` // vec<address>
-	SignerGroups    common.SnakeData[uint8]           `tlb:"^"` // vec<uint8>
-	GroupQuorums    *cell.Cell                        `tlb:"^"` // map<uint8, uint8> (indexed, iterable backwards)
-	GroupParents    *cell.Cell                        `tlb:"^"` // map<uint8, uint8> (indexed, iterable backwards)
+	SignerAddresses common.SnakeData[address.Address] `tlb:"^"`      // vec<address>
+	SignerGroups    common.SnakeData[uint8]           `tlb:"^"`      // vec<uint8>
+	GroupQuorums    *cell.Dictionary                  `tlb:"dict 8"` // map<uint8, uint8> (indexed, iterable backwards)
+	GroupParents    *cell.Dictionary                  `tlb:"dict 8"` // map<uint8, uint8> (indexed, iterable backwards)
 	ClearRoot       bool                              `tlb:"bool"`
 }
 
@@ -196,17 +196,17 @@ type Proof struct {
 //	  {addr: address(D), index: 4, group: 2}, {addr: address(B), index: 5, group: 1},
 //	]
 type Config struct {
-	Signers *cell.Cell `tlb:"^"` // map<uint8, Signer> - (indexed)
+	Signers *cell.Dictionary `tlb:"dict 8"` // map<uint8, Signer> - (indexed)
 	/// groupQuorums[i] stores the quorum for the i-th signer group. Any group with
 	/// groupQuorums[i] = 0 is considered disabled. The i-th group is successful if
 	/// it is enabled and at least groupQuorums[i] of its children are successful.
-	GroupQuorums *cell.Cell `tlb:"^"` // map<uint8, uint8> (indexed, iterable backwards)
+	GroupQuorums *cell.Dictionary `tlb:"dict 8"` // map<uint8, uint8> (indexed, iterable backwards)
 	/// groupParents[i] stores the parent group of the i-th signer group. We ensure that the
 	/// groups form a tree structure (where the root/0-th signer group points to itself as
 	/// parent) by enforcing
 	/// - (i != 0) implies (groupParents[i] < i)
 	/// - groupParents[0] == 0
-	GroupParents *cell.Cell `tlb:"^"` // map<uint8, uint8> (indexed, iterable backwards)
+	GroupParents *cell.Dictionary `tlb:"dict 8"` // map<uint8, uint8> (indexed, iterable backwards)
 }
 
 // @notice Each root also authenticates metadata about itself (stored as one of the leaves)
