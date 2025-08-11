@@ -17,7 +17,7 @@ type Data struct {
 // Each role has a mapping of accounts that have been granted that role,
 // and an admin role that can manage that role.
 type RoleData struct {
-	adminRole *big.Int `tlb:"## 256"`
+	AdminRole *big.Int `tlb:"## 256"`
 	// Number of members in the role
 	MembersLen uint64 `tlb:"## 64"`
 	// Members of the role, indexed by their address hash.

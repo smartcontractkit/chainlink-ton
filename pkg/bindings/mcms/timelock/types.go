@@ -163,7 +163,83 @@ type BypasserExecuteBatch struct {
 
 // --- Messages - outgoing ---
 
-// TODO!
+// @dev Emitted when a call is scheduled as part of operation `id`.
+type CallScheduled struct {
+	_ tlb.Magic `tlb:"#c55fca54"` //nolint:revive // opcode magic
+	// Query ID of the change owner request.
+	QueryID uint64 `tlb:"## 64"`
+
+	ID          *big.Int `tlb:"## 256"` // ID of the operation that was scheduled.
+	Index       uint64   `tlb:"## 64"`  // Index of the call in the operation
+	Call        Call     `tlb:"^"`      // Call to be executed as part of the operation.
+	Predecessor *big.Int `tlb:"## 256"` // Predecessor operation ID
+	Salt        *big.Int `tlb:"## 256"` // Salt used to derive the operation ID
+	Delay       uint64   `tlb:"## 64"`  // Delay in seconds before the operation can be executed
+}
+
+// @dev Emitted when a call is performed as part of operation `id`.
+type CallExecuted struct {
+	_ tlb.Magic `tlb:"#49ea5d0e"` //nolint:revive // opcode magic
+	// Query ID of the change owner request.
+	QueryID uint64 `tlb:"## 64"`
+
+	ID     *big.Int        `tlb:"## 256"` // ID of the operation that was executed.
+	Index  uint64          `tlb:"## 64"`  // Index of the call in the operation
+	Target address.Address `tlb:"addr"`   // Address of the target contract to call.
+	Value  tlb.Coins       `tlb:"## 256"` // Value in TONs to send with the call.
+	Data   *cell.Cell      `tlb:"^"`      // Data to send with the call - message body.
+}
+
+// @dev Emitted when a call is performed via bypasser.
+type BypasserCallExecuted struct {
+	_ tlb.Magic `tlb:"#9c7f3010"` //nolint:revive // opcode magic
+	// Query ID of the change owner request.
+	QueryID uint64 `tlb:"## 64"`
+
+	Index  uint64          `tlb:"## 64"`  // Index of the call in the operation
+	Target address.Address `tlb:"addr"`   // Address of the target contract to call.
+	Value  tlb.Coins       `tlb:"## 256"` // Value in TONs to send with the call.
+	Data   *cell.Cell      `tlb:"^"`      // Data to send with the call - message body.
+}
+
+// @dev Emitted when operation `id` is cancelled.
+type Cancelled struct {
+	_ tlb.Magic `tlb:"#580e80f2"` //nolint:revive // opcode magic
+	// Query ID of the change owner request.
+	QueryID uint64 `tlb:"## 64"`
+
+	ID *big.Int `tlb:"## 256"` // ID of the operation that was cancelled.
+}
+
+// @dev Emitted when the minimum delay for future operations is modified.
+type MinDelayChange struct {
+	_ tlb.Magic `tlb:"#904b14e0"` //nolint:revive // opcode magic
+	// Query ID of the change owner request.
+	QueryID uint64 `tlb:"## 64"`
+
+	OldDuration uint64 `tlb:"## 64"` // Duration of the old minimum delay in seconds.
+	NewDuration uint64 `tlb:"## 64"` // Duration of the new minimum delay in seconds.
+}
+
+// @dev Emitted when a function selector is blocked.
+type FunctionSelectorBlocked struct {
+	_ tlb.Magic `tlb:"#9c4d6d94"` //nolint:revive // opcode magic
+	// Query ID of the change owner request.
+	QueryID uint64 `tlb:"## 64"`
+
+	// Function selector that was blocked.
+	Selector uint32 `tlb:"## 32"`
+}
+
+// @dev Emitted when a function selector is unblocked.
+type FunctionSelectorUnblocked struct {
+	_ tlb.Magic `tlb:"#f410a31b"` //nolint:revive // opcode magic
+	// Query ID of the change owner request.
+	QueryID uint64 `tlb:"## 64"`
+
+	// Function selector that was unblocked.
+	Selector uint32 `tlb:"## 32"`
+}
 
 // --- Data (storage & structures) ---
 
@@ -183,7 +259,7 @@ type Data struct {
 	BlockedFnSelectors map[uint32]bool `tlb:"dict"`
 
 	// TODO: import as rbac.Data bindings from pkg/bindings/lib/access/rbac
-	rbac rbac.Data `tlb:"^"`
+	RBAC rbac.Data `tlb:"^"`
 }
 
 // @dev Represents a single call
@@ -208,12 +284,15 @@ type OperationBatch struct {
 
 // --- Constants ---
 
-// / Timestamp value used to mark an operation as done
-const DONE_TIMESTAMP = 1
+const (
+	// Timestamp value used to mark an operation as done
+	DoneTimestamp = 1
 
-const ERROR_SELECTOR_IS_BLOCKED = 101
-const ERROR_OPERATION_NOT_READY = 102
-const ERROR_OPERATION_MISSING_DEPENDENCY = 103
-const ERROR_OPERATION_CAN_NOT_BE_CANCELLED = 104
-const ERROR_OPERATION_ALREADY_SCHEDULED = 105
-const ERROR_INSUFFICIENT_DELAY = 106
+	// Error codes
+	ErrorSelectorIsBlocked          = 101
+	ErrorOperationNotReady          = 102
+	ErrorOperationMissingDependency = 103
+	ErrorOperationCannotBeCancelled = 104
+	ErrorOperationAlreadyScheduled  = 105
+	ErrorInsufficientDelay          = 106
+)
