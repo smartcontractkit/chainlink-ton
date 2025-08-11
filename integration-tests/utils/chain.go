@@ -217,6 +217,10 @@ func createNewNetwork(t *testing.T, chainID uint64) string {
 		ChainID: strconv.FormatUint(chainID, 10),
 		Type:    "ton",
 		Port:    strconv.Itoa(port),
+		// Note(@jadepark-dev): Due to mylocalton-docker 3.5 update, file server(for fetching config) service has been separated.
+		// https://github.com/neodix42/mylocalton-docker/pkgs/container/mylocalton-docker/versions
+		// This is older version(3.4) hash, ideally we should have automatic PR that watch releases, updates version, and run CI tests
+		Image: "ghcr.io/neodix42/mylocalton-docker@sha256:b4a8dc4bdd01a9bb5ebbe817ef764b9a21f2769b660b31733f7477b203d342ce",
 		CustomEnv: map[string]string{
 			"VERSION_CAPABILITIES":        "11",
 			"NEXT_BLOCK_GENERATION_DELAY": "0.5",
