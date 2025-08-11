@@ -54,8 +54,22 @@ func (a *TONAccessor) GetContractAddress(contractName string) ([]byte, error) {
 }
 
 func (a *TONAccessor) GetAllConfigLegacySnapshot(ctx context.Context) (ccipocr3.ChainConfigSnapshot, error) {
-	// TODO(NONEVM-2364) implement me
-	return ccipocr3.ChainConfigSnapshot{}, errors.New("not implemented")
+	// fetch offramp first to get router addr and so on
+	// TODO: call Sync in between? we don't want to trust addresses permanently before consensus though
+	// problem is, we want to agree on addresses/config in stages so things don't get invalidated
+	// for now: implement skipping due to no bindings https://github.com/smartcontractkit/chainlink-ccip/blob/a8dbbdbf14a07593de2f0dbe608f8b64d893a6bd/pkg/contractreader/extended.go#L226-L231
+
+	return ccipocr3.ChainConfigSnapshot{
+		Offramp:   ccipocr3.OfframpConfig{},
+		FeeQuoter: ccipocr3.FeeQuoterConfig{},
+		OnRamp:    ccipocr3.OnRampConfig{},
+		Router: ccipocr3.RouterConfig{
+			WrappedNativeAddress: ccipocr3.Bytes{}, // there is no wrapped native on TON so we handle 0x0
+		},
+		RMNProxy:  ccipocr3.RMNProxyConfig{},
+		RMNRemote: ccipocr3.RMNRemoteConfig{},
+		CurseInfo: ccipocr3.CurseInfo{},
+	}, errors.New("not implemented")
 }
 
 func (a *TONAccessor) GetChainFeeComponents(ctx context.Context) (ccipocr3.ChainFeeComponents, error) {

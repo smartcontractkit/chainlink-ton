@@ -403,8 +403,8 @@ get fun tokenTransferFeeConfig() {}
 
 get fun destChainConfig() {}
 
-get fun staticConfig() {
-    // maxFeeJuelsPerMsg, linkToken, tokenPriceStalenessThreshold
+get fun staticConfig(): (uint96, address, uint64) {
+    return (maxFeeJuelsPerMsg, linkToken, tokenPriceStalenessThreshold);
 }
 
 get fun typeAndVersion(): (slice, slice) {
