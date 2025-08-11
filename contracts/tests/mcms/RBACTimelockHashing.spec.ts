@@ -1,12 +1,11 @@
 import '@ton/test-utils'
 
-import { Address, toNano } from '@ton/core'
+import { asSnakeData } from '../../utils'
 
 import * as rbactl from '../../wrappers/mcms/RBACTimelock'
 import * as counter from '../../wrappers/examples/Counter'
 
 import { BaseTestSetup, TestCode } from './BaseTest'
-import { SandboxContract, TreasuryContract } from '@ton/sandbox'
 
 describe('MCMS - RBACTimelockHashingTest', () => {
   let baseTest: BaseTestSetup
@@ -23,25 +22,21 @@ describe('MCMS - RBACTimelockHashingTest', () => {
   })
 
   it('should hash batch operation correctly', async () => {
-    // TODO the original test creates a vec of 2 calls
-    // let callVec: rbactl.Call[] = []
-    // callVec.push({
-    //   target: baseTest.bind.counter.address,
-    //   value: 0n,
-    //   data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
-    // })
-    // callVec.push({
-    //   target: baseTest.bind.counter.address,
-    //   value: 0n,
-    //   data: counter.builder.message.increaseCount.encode({ queryId: 2n }),
-    // })
-    // const calls = encodeBatch(callVec)
-
-    const calls = BaseTestSetup.singletonCalls({
-      target: baseTest.bind.counter.address,
-      value: 0n,
-      data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
-    })
+    const calls = asSnakeData<rbactl.Call>(
+      [
+        {
+          target: baseTest.bind.counter.address,
+          value: 0n,
+          data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
+        },
+        {
+          target: baseTest.bind.counter.address,
+          value: 0n,
+          data: counter.builder.message.increaseCount.encode({ queryId: 2n }),
+        },
+      ],
+      (c) => rbactl.builder.data.call.encode(c).asBuilder(),
+    )
 
     // Schedule operation
     const scheduleBody = rbactl.builder.message.scheduleBatch.encode({

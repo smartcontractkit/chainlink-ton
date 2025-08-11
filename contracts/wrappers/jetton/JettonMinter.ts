@@ -11,7 +11,7 @@ import {
   toNano,
 } from '@ton/core'
 import { JettonOpcodes } from '../examples/jetton/types'
-import { ZERO_ADDRESS } from '../../utils/Utils'
+import { ZERO_ADDRESS } from '../../utils'
 
 export type JettonMinterContent = {
   uri: string

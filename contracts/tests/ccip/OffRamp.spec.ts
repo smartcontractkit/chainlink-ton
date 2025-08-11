@@ -10,9 +10,8 @@ import {
   FeeQuoterStorage,
   TimestampedPrice,
 } from '../../wrappers/ccip/FeeQuoter'
-import { testLog, getExternals, expectSuccessfulTransaction } from '../Logs'
 import '@ton/test-utils'
-import { uint8ArrayToBigInt, ZERO_ADDRESS } from '../../utils/Utils'
+import { uint8ArrayToBigInt, ZERO_ADDRESS } from '../../utils'
 import { KeyPair } from '@ton/crypto'
 import { expectEqualsConfig, generateEd25519KeyPair } from '../libraries/ocr/Helpers'
 import {
@@ -141,7 +140,11 @@ describe('OffRamp', () => {
       deployer.getSender(),
       createDefaultConfig(),
     )
-    expectSuccessfulTransaction(resultSetCommit, deployer.address, offRamp.address)
+    expect(resultSetCommit.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: offRamp.address,
+      success: true,
+    })
 
     Logs.assertLog(
       resultSetCommit.transactions,
@@ -160,7 +163,11 @@ describe('OffRamp', () => {
       deployer.getSender(),
       createDefaultConfig({ ocrPluginType: OCR3_PLUGIN_TYPE_EXECUTE }),
     )
-    expectSuccessfulTransaction(resultSetExecute, deployer.address, offRamp.address)
+    expect(resultSetExecute.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: offRamp.address,
+      success: true,
+    })
     Logs.assertLog(
       resultSetCommit.transactions,
       offRamp.address,

@@ -1,5 +1,5 @@
 import { Address } from '@ton/core'
-import { hashSync } from '../../../utils/Utils'
+import { hashSync } from '../../../utils'
 
 export const OCR3BASE_CONFIG_SET_TOPIC = hashSync('OCR3Base_ConfigSet')
 export const OCR3BASE_TRANSMITTED_TOPIC = hashSync('OCR3Base_Transmitted')
