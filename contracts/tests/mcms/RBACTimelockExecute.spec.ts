@@ -8,6 +8,7 @@ import * as ac from '../../wrappers/lib/access/AccessControl'
 
 import { BaseTestSetup, TestCode } from './BaseTest'
 import { SandboxContract, TreasuryContract } from '@ton/sandbox'
+import { asSnakeData } from '../../utils'
 
 describe('MCMS - RBACTimelockExecuteTest', () => {
   let baseTest: BaseTestSetup
@@ -35,6 +36,18 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
     counterTwo = baseTest.blockchain.openContract(
       counter.ContractClient.newFrom(counterTwoData, code.counter),
     )
+    // const body = counter.builder.message.topUp.encode({ queryId: 1n }) // TODO use TopUp after it is implemented
+    const body = beginCell().endCell()
+    const result = await counterTwo.sendInternal(
+      baseTest.acc.deployer.getSender(),
+      toNano('0.05'),
+      body,
+    )
+    expect(result.transactions).toHaveTransaction({
+      from: baseTest.acc.deployer.address,
+      to: counterTwo.address,
+      success: true,
+    })
   })
 
   describe('Bypasser Execute Batch Tests', () => {
@@ -108,7 +121,9 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
         }),
       }
 
-      const calls = BaseTestSetup.singletonCalls(incrementCall) // TODO This should include setCountCall as well
+      const calls = asSnakeData<rbactl.Call>([incrementCall, setCountCall], (c) =>
+        rbactl.builder.data.call.encode(c).asBuilder(),
+      )
 
       const executeMsg = rbactl.builder.message.bypasserExecuteBatch.encode({
         queryId: 1n,
@@ -127,18 +142,43 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
         success: true,
       })
 
+      expect(result.transactions).toHaveTransaction({
+        from: baseTest.bind.timelock.address,
+        to: baseTest.bind.counter.address,
+        success: true,
+        op: counter.opcodes.in.IncreaseCount,
+      })
+
+      expect(result.transactions).toHaveTransaction({
+        from: baseTest.bind.timelock.address,
+        to: counterTwo.address,
+        success: true,
+        op: counter.opcodes.in.SetCount,
+      })
+
       // Verify counter was incremented
-      expect(await baseTest.bind.counter.getValue()).toEqual(1) // TODO this should be newCount when setcount is added in the TODO above
+      expect(await baseTest.bind.counter.getValue()).toEqual(1)
+      expect(await counterTwo.getValue()).toEqual(10)
     })
 
     it('should allow admin to execute batch operations', async () => {
-      // TODO this test is missing from the original suite
       const incrementCall: rbactl.Call = {
         target: baseTest.bind.counter.address,
         value: toNano('0.05'),
         data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
       }
-      const calls = BaseTestSetup.singletonCalls(incrementCall)
+      const setCountCall: rbactl.Call = {
+        target: counterTwo.address,
+        value: toNano('0.05'),
+        data: counter.builder.message.setCount.encode({
+          queryId: 1n,
+          newCount: 10,
+        }),
+      }
+
+      const calls = asSnakeData<rbactl.Call>([incrementCall, setCountCall], (c) =>
+        rbactl.builder.data.call.encode(c).asBuilder(),
+      )
 
       const body = rbactl.builder.message.bypasserExecuteBatch.encode({
         queryId: 1n,
@@ -157,8 +197,23 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
         success: true,
       })
 
+      expect(result.transactions).toHaveTransaction({
+        from: baseTest.bind.timelock.address,
+        to: baseTest.bind.counter.address,
+        success: true,
+        op: counter.opcodes.in.IncreaseCount,
+      })
+
+      expect(result.transactions).toHaveTransaction({
+        from: baseTest.bind.timelock.address,
+        to: counterTwo.address,
+        success: true,
+        op: counter.opcodes.in.SetCount,
+      })
+
       // Verify counter was incremented
-      expect(await baseTest.bind.counter.getValue()).toEqual(1) // TODO this should be newCount when setcount is added in the TODO above
+      expect(await baseTest.bind.counter.getValue()).toEqual(1)
+      expect(await counterTwo.getValue()).toEqual(10)
     })
   })
 
