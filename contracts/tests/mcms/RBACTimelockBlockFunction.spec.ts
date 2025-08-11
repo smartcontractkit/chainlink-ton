@@ -5,7 +5,7 @@ import { BaseTestSetup, TestCode } from './BaseTest'
 
 import * as rbactl from '../../wrappers/mcms/RBACTimelock'
 import * as counter from '../../wrappers/examples/Counter'
-import { errors } from '../../wrappers/lib/access/AccessControl'
+import * as ac from '../../wrappers/lib/access/AccessControl'
 
 describe('MCMS - RBACTimelockBlockFunctionTest', () => {
   let baseTest: BaseTestSetup
@@ -38,7 +38,7 @@ describe('MCMS - RBACTimelockBlockFunctionTest', () => {
       from: baseTest.acc.proposerOne.address,
       to: baseTest.bind.timelock.address,
       success: false,
-      exitCode: errors.UnauthorizedAccount,
+      exitCode: ac.Errors.UnauthorizedAccount,
     })
   })
 
