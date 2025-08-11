@@ -3,38 +3,56 @@ package chainaccessor
 import (
 	"context"
 	"encoding/base64"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"time"
 
 	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
 
+	cciptypes "github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
+
+	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"
+	"github.com/smartcontractkit/chainlink-ccip/pkg/logutil"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types/cellquery"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/hash"
 )
 
 type TONAccessor struct {
-	lggr      logger.Logger
-	client    ton.APIClientWrapped
-	logPoller logpoller.Service
-	bindings  map[string]*address.Address
-	addrCodec codec.AddressCodec
+	lggr          logger.Logger
+	chainSelector cciptypes.ChainSelector
+	client        ton.APIClientWrapped
+	logPoller     logpoller.Service
+	bindings      map[string]*address.Address
+	addrCodec     codec.AddressCodec
 }
 
 var _ ccipocr3.ChainAccessor = (*TONAccessor)(nil)
 
 func NewTONAccessor(
 	lggr logger.Logger,
+	chainSelector cciptypes.ChainSelector,
 	client ton.APIClientWrapped,
 	logPoller logpoller.Service,
 	addrCodec ccipocr3.AddressCodec,
 ) (ccipocr3.ChainAccessor, error) {
 	// TODO: validate state of client and logPoller (should be initialized in NewChain)
+	if client == nil {
+		return nil, errors.New("client cannot be nil")
+	}
+	if logPoller == nil {
+		return nil, errors.New("logPoller cannot be nil")
+	}
 	return &TONAccessor{
 		lggr:      lggr,
 		client:    client,
@@ -71,8 +89,77 @@ func (a *TONAccessor) Sync(ctx context.Context, contractName string, contractAdd
 
 // TON as source chain methods
 func (a *TONAccessor) MsgsBetweenSeqNums(ctx context.Context, dest ccipocr3.ChainSelector, seqNumRange ccipocr3.SeqNumRange) ([]ccipocr3.Message, error) {
+	lggr := logutil.WithContextValues(ctx, a.lggr)
+	queries := []cellquery.CellQuery{
+		{
+			Offset:   0,
+			Operator: cellquery.EQ,
+			Value:    binary.BigEndian.AppendUint64(nil, uint64(dest)),
+		},
+		{
+			Offset:   8,
+			Operator: cellquery.GTE,
+			Value:    binary.BigEndian.AppendUint64(nil, uint64(seqNumRange.Start())),
+		},
+		{
+			Offset:   8,
+			Operator: cellquery.LTE,
+			Value:    binary.BigEndian.AppendUint64(nil, uint64(seqNumRange.End())),
+		},
+	}
+
+	options := cellquery.QueryOptions{
+		SortBy: []cellquery.SortBy{
+			{Field: cellquery.SortByTxLT, Order: cellquery.ASC},
+		},
+		Limit: int(seqNumRange.End() - seqNumRange.Start() + 1),
+	}
+
+	// TODO: get contract address
+	addr, ok := a.bindings[consts.ContractNameOnRamp]
+	if !ok {
+		return nil, errors.New("OnRamp not bound")
+	}
+
+	res, err := a.logPoller.FilteredLogs(ctx, addr, hash.CRC32("CCIPMessageSent"), queries, options)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch logs: %w", err)
+	}
+	lggr.Infow("queried messages between sequence numbers",
+		"numMsgs", len(res.Logs),
+		"sourceChainSelector", a.chainSelector,
+		"seqNumRange", seqNumRange.String(),
+	)
+
+	msgs := make([]cciptypes.Message, 0)
+	for _, item := range res.Logs {
+		var log onramp.CCIPMessageSent
+		if err := tlb.LoadFromCell(&log, item.Data.BeginParse()); err != nil {
+			return nil, fmt.Errorf("failed to parse CCIPMessageSent: %w", err)
+		}
+
+		// TODO: convert TON-specific event(or msg) to generic ccip type
+		// msg, err := toGenericEvent(&log, addr)
+		// if err != nil {
+		// 	lggr.Errorw("failed to convert event", "err", err, "log", log)
+		// 	continue
+		// }
+
+		// // TODO: validate event
+		// if err := chainaccessor.ValidateSendRequestedEvent(msg, a.chainSelector, destChainSelector, seqNumRange); err != nil {
+		// 	lggr.Errorw("validate send requested event", "err", err, "message", msg)
+		// 	continue
+		// }
+
+		// msg.Message.Header.OnRamp = onRampAddress
+		// msgs = append(msgs, msg.Message)
+	}
+
 	// TODO(NONEVM-2364) implement me
-	return nil, errors.New("not implemented")
+	// TODO: validate event
+	// TODO: replace header
+	// TODO: return msgs
+	return msgs, nil
 }
 
 func (a *TONAccessor) LatestMessageTo(ctx context.Context, dest ccipocr3.ChainSelector) (ccipocr3.SeqNum, error) {
