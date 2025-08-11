@@ -2,7 +2,7 @@ tolk 1.0
 
 // --- Storage ---
 
-/// CallProxy contract storage, auto-serialized to/from cells.
+/// CallProxy contract storage, auto-serialized to/from cell.
 struct CallProxy_Data {
     /// ID allows multiple independent instances, since contract address depends on initial state.
     id: uint32;
