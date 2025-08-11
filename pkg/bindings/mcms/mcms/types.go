@@ -236,3 +236,80 @@ type Op struct {
 	Value    tlb.Coins        `tlb:"."`      // The value to be sent with the operation. // coins
 	Data     *cell.Cell       `tlb:"^"`      // The data to be sent with the operation. // body
 }
+
+// --- Constants ---
+
+const (
+	// Thrown when number of signers is 0 or greater than MAX_NUM_SIGNERS.
+	ErrorOutOfBoundsNumSigners = 100
+
+	// Thrown when signerAddresses and signerGroups have different lengths.
+	ErrorSignerGroupsLengthMismatch = 101
+
+	// Thrown when number of some signer's group is greater than (NUM_GROUPS-1).
+	ErrorOutOfBoundsGroup = 102
+
+	// Thrown when the group tree isn't well-formed.
+	ErrorGroupTreeNotWellFormed = 103
+
+	// Thrown when the quorum of some group is larger than the number of signers in it.
+	ErrorOutOfBoundsGroupQuorum = 104
+
+	// Thrown when a disabled group contains a signer.
+	ErrorSignerInDisabledGroup = 105
+
+	// Thrown when the signers' addresses are not a strictly increasing monotone sequence.
+	// Prevents signers from including more than one signature.
+	ErrorSignersAddressesMustBeStrictlyIncreasing = 106
+
+	// Thrown when the signature corresponds to invalid signer.
+	ErrorInvalidSigner = 107
+
+	// Thrown when there is no sufficient set of valid signatures provided to make the
+	// root group successful.
+	ErrorInsufficientSigners = 108
+
+	// Thrown when attempt to set metadata or execute op for another chain.
+	ErrorWrongChainID = 109
+
+	// Thrown when the multiSig address in metadata or op is
+	// incompatible with the address of this contract.
+	ErrorWrongMultiSig = 110
+
+	// Thrown when the preOpCount <= postOpCount invariant is violated.
+	ErrorWrongPostOpCount = 111
+
+	// Thrown when attempting to set a new root while there are still pending ops
+	// from the previous root without explicitly overriding it.
+	ErrorPendingOps = 112
+
+	// Thrown when preOpCount in metadata is incompatible with the current opCount.
+	ErrorWrongPreOpCount = 113
+
+	// Thrown when the provided merkle proof cannot be verified.
+	ErrorProofCannotBeVerified = 114
+
+	// Thrown when attempt to execute an op after
+	// data.expiringRootAndOpCount.validUntil has passed.
+	ErrorRootExpired = 115
+
+	// Thrown when attempt to bypass the enforced ops' order in the merkle tree or
+	// re-execute an op.
+	ErrorWrongNonce = 116
+
+	// Thrown when attempting to execute an op even though opCount equals
+	// metadata.postOpCount.
+	ErrorPostOpCountReached = 117
+
+	// Thrown when the underlying call in _execute() reverts.
+	ErrorCallReverted = 118
+
+	// Thrown when attempt to set past validUntil for the root.
+	ErrorValidUntilHasAlreadyPassed = 119
+
+	// Thrown when setRoot() is called before setting a config.
+	ErrorMissingConfig = 120
+
+	// Thrown when attempt to set the same (root, validUntil) in setRoot().
+	ErrorSignedHashAlreadySeen = 121
+)
