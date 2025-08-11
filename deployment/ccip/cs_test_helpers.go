@@ -10,6 +10,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ccip/chains/evm/gobindings/generated/v1_6_0/fee_quoter"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink/deployment/ccip/changeset/v1_6"
 	"github.com/smartcontractkit/chainlink/deployment/ccip/shared"
 	"github.com/smartcontractkit/chainlink/deployment/ccip/shared/client"
@@ -200,6 +201,7 @@ func SendTonRequest(
 	cfg *client.CCIPSendReqConfig) (*client.AnyMsgSentEvent, error) {
 	senderWallet := e.BlockChains.TonChains()[cfg.SourceChain].Wallet
 	senderAddr := e.BlockChains.TonChains()[cfg.SourceChain].WalletAddress
+	clientConn := e.BlockChains.TonChains()[cfg.SourceChain].Client
 
 	e.Logger.Infof("(Ton) Sending CCIP request from chain selector %d to chain selector %d using sender %s",
 		cfg.SourceChain, cfg.DestChain, senderAddr.String())
@@ -231,11 +233,17 @@ func SendTonRequest(
 		},
 	}
 
-	ctx := e.GetContext()
-	tx, blockID, err := senderWallet.SendWaitTransaction(ctx, walletMsg)
-	e.Logger.Infow("transaction sent", "blockID", blockID, "tx", tx)
+	// TODO need to run test once dependency is fixed
+	ttConn := tracetracking.NewSignedAPIClient(clientConn, *senderWallet)
+	receivedMsg, blockID, err := ttConn.SendWaitTransaction(e.GetContext(), routerAddr, walletMsg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send transaction: %w", err)
+	}
+
+	e.Logger.Infow("transaction sent", "blockID", blockID, "receivedMsg", receivedMsg)
+	err = receivedMsg.WaitForTrace(clientConn)
+	if err != nil {
+		return nil, fmt.Errorf("failed to wait for trace: %w", err)
 	}
 
 	// TODO get CCIPSent event from onramp ?
