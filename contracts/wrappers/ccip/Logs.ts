@@ -6,8 +6,8 @@ export const CCIP_COMMIT_REPORT_ACCEPTED_TOPIC = crc32('CCIPCommitReportAccepted
 export const CCIP_MESSAGE_SENT_TOPIC = crc32('CCIPMessageSent')
 
 export enum LogTypes {
-  CCIPMessageSent = CCIP_COMMIT_REPORT_ACCEPTED_TOPIC,
-  CCIPCommitReportAccepted = CCIP_MESSAGE_SENT_TOPIC,
+  CCIPMessageSent = CCIP_MESSAGE_SENT_TOPIC,
+  CCIPCommitReportAccepted = CCIP_COMMIT_REPORT_ACCEPTED_TOPIC,
 }
 
 export type CCIPMessageSent = {
