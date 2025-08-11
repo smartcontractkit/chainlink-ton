@@ -46,11 +46,7 @@ func Test_decodeExtraArgs(t *testing.T) {
 
 		output, err := extraDataDecoder.DecodeExtraArgsToMap(c.ToBOC())
 		require.NoError(t, err)
-		require.Len(t, output, 6)
-
-		// Don't need to check tag, as it is already checked in DecodeExtraArgsToMap
-		_, exist := output["Tag"]
-		require.True(t, exist)
+		require.Len(t, output, 5)
 
 		gasLimit, exist := output["ComputeUnits"]
 		require.True(t, exist)
@@ -76,11 +72,7 @@ func Test_decodeExtraArgs(t *testing.T) {
 
 		output, err := extraDataDecoder.DecodeExtraArgsToMap(c.ToBOC())
 		require.NoError(t, err)
-		require.Len(t, output, 3)
-
-		// Don't need to check tag, as it is already checked in DecodeExtraArgsToMap
-		_, exist := output["Tag"]
-		require.True(t, exist)
+		require.Len(t, output, 2)
 
 		gasLimit, exist := output["GasLimit"]
 		require.True(t, exist)

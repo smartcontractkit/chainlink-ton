@@ -70,6 +70,9 @@ func (d ExtraDataDecoder) DecodeExtraArgsToMap(extraArgs ccipocr3.Bytes) (map[st
 
 	for i := 0; i < val.NumField(); i++ {
 		field := typ.Field(i)
+		if !field.IsExported() {
+			continue
+		}
 		fieldValue := val.Field(i).Interface()
 		outputMap[field.Name] = fieldValue
 	}
