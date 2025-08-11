@@ -48,7 +48,7 @@ export type ScheduleBatch = {
   // Salt used to derive the operation ID
   salt: bigint
   // Delay in seconds before the operation can be executed
-  delay: number
+  delay: bigint
 }
 
 // @dev Cancel an operation.
@@ -127,7 +127,7 @@ export type ContractData = {
   id: number // uint32
 
   // Minimum delay for operations in seconds
-  minDelay: number
+  minDelay: bigint
   // Map of operation id to timestamp
   timestamps?: Dictionary<Buffer, Buffer>
 
@@ -256,8 +256,7 @@ export const builder = {
           calls: s.loadRef(),
           predecessor: s.loadUintBig(256),
           salt: s.loadUintBig(256),
-          delay: -1, // TODO: decode delay properly (number vs bigint mismatch)
-          // delay: s.loadUintBig(64),
+          delay: s.loadUintBig(64),
         }
       },
     } as CellCodec<ScheduleBatch>,
@@ -442,26 +441,16 @@ export const roles = {
   bypasser: sha256_32('BYPASSER_ROLE'), // 544836961n
 }
 
+// Timestamp value used to mark an operation as done
 export const DONE_TIMESTAMP = 1
 
-export abstract class Errors {
-  static zero_input = 81
-  static invalid_caller = 82
-  static insufficient_gas = 83
-  static wrong_workchain = 85
-  static wrong_address = 86
-  static invalid_amount = 87
-  static invalid_call = 88
-  static invalid_role = 89
-  static invalid_delay = 90
-  static operation_exists = 91
-  static operation_not_exists = 92
-  static invalid_operation_state = 93
-  static invalid_predecessor_state = 94
-  static account_exists = 95
-  static account_not_exists = 96
-  static predecessor_not_exists = 97
-  static wrong_op = 0xffff
+export enum Errors {
+  SelectorIsBlocked = 101,
+  OperationNotReady = 102,
+  OperationMissingDependency = 103,
+  OperationCanNotBeCancelled = 104,
+  OperationAlreadyScheduled = 105,
+  InsufficientDelay = 106,
 }
 
 export class ContractClient implements Contract {

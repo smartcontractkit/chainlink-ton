@@ -23,14 +23,14 @@ type ContractData struct {
 
 // Message to set the counter value.
 type SetCount struct {
-	_        tlb.Magic `tlb:"#00000004"` //nolint:revive // opcode magic
+	_        tlb.Magic `tlb:"#00000004"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID  uint64    `tlb:"## 64"`
 	NewCount uint32    `tlb:"## 32"`
 }
 
 // Message to increase the counter value.
 type IncreaseCount struct {
-	_       tlb.Magic `tlb:"#10000005"` //nolint:revive // opcode magic
+	_       tlb.Magic `tlb:"#10000005"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID uint64    `tlb:"## 64"`
 }
 

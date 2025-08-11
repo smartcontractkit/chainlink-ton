@@ -191,7 +191,7 @@ struct MCMS<T> {
     hooks: MCMS_Hooks<T>? = null;
 }
 
-/// MCMS contract storage, auto-serialized to/from cells.
+/// MCMS contract storage, auto-serialized to/from cell.
 struct MCMS_Data {
     /// ID allows multiple independent instances, since contract address depends on initial state.
     id: uint32;

@@ -57,7 +57,7 @@ describe('MCMS - IntegrationTest', () => {
   const VETO_COUNT = 22 + 7
   const VETO_QUORUM = (VETO_COUNT - 1) / 3 + 1
 
-  const MIN_DELAY = 24 * 60 * 60
+  const MIN_DELAY = 24n * 60n * 60n
 
   const signerAddresses: Address[] = []
   const signerPrivateKeys: bigint[] = []

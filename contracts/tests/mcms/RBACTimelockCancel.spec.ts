@@ -74,7 +74,7 @@ describe('MCMS - RBACTimelockCancelTest', () => {
     }
 
     // Wait for delay
-    baseTest.warpTime(BaseTestSetup.MIN_DELAY + 1)
+    baseTest.warpTime(Number(BaseTestSetup.MIN_DELAY + 1n))
 
     // Execute operation
     {
