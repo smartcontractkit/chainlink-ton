@@ -63,7 +63,7 @@ describe('MCMS - RBACTimelockUpdateDelayTest', () => {
 
     expect(opcode.toString(16)).toEqual(rbactl.opcodes.out.MinDelayChange.toString(16))
     expect(delayChangedConfirmation.queryId).toEqual(1)
-    expect(delayChangedConfirmation.oldDelay).toEqual(BaseTestSetup.MIN_DELAY)
+    expect(delayChangedConfirmation.oldDelay).toEqual(Number(BaseTestSetup.MIN_DELAY))
     expect(delayChangedConfirmation.newDelay).toEqual(newDelay)
 
     // Verify the delay was updated

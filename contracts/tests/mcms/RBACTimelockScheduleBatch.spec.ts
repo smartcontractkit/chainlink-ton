@@ -174,7 +174,7 @@ describe('MCMS - RBACTimelockScheduleBatchTest', () => {
       expect(callScheduled.call.equals(call)).toBeTruthy()
       expect(callScheduled.predecessor).toEqual(BaseTestSetup.NO_PREDECESSOR)
       expect(callScheduled.salt).toEqual(BaseTestSetup.EMPTY_SALT)
-      expect(callScheduled.delay).toEqual(BaseTestSetup.MIN_DELAY)
+      expect(callScheduled.delay).toEqual(Number(BaseTestSetup.MIN_DELAY))
     }
 
     // Verify operation now exists
