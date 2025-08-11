@@ -186,7 +186,7 @@ type CallExecuted struct {
 	ID     *big.Int        `tlb:"## 256"` // ID of the operation that was executed.
 	Index  uint64          `tlb:"## 64"`  // Index of the call in the operation
 	Target address.Address `tlb:"addr"`   // Address of the target contract to call.
-	Value  tlb.Coins       `tlb:"## 256"` // Value in TONs to send with the call.
+	Value  tlb.Coins       `tlb:"."`      // Value in TONs to send with the call.
 	Data   *cell.Cell      `tlb:"^"`      // Data to send with the call - message body.
 }
 
@@ -196,10 +196,10 @@ type BypasserCallExecuted struct {
 	// Query ID of the change owner request.
 	QueryID uint64 `tlb:"## 64"`
 
-	Index  uint64          `tlb:"## 64"`  // Index of the call in the operation
-	Target address.Address `tlb:"addr"`   // Address of the target contract to call.
-	Value  tlb.Coins       `tlb:"## 256"` // Value in TONs to send with the call.
-	Data   *cell.Cell      `tlb:"^"`      // Data to send with the call - message body.
+	Index  uint64          `tlb:"## 64"` // Index of the call in the operation
+	Target address.Address `tlb:"addr"`  // Address of the target contract to call.
+	Value  tlb.Coins       `tlb:"."`     // Value in TONs to send with the call.
+	Data   *cell.Cell      `tlb:"^"`     // Data to send with the call - message body.
 }
 
 // @dev Emitted when operation `id` is cancelled.
