@@ -81,7 +81,7 @@ describe('RBACTimelock', () => {
   })
 
   it('should deploy', async () => {
-    const body = rbactl.builder.message.topUp.encode({ queryId: 1n })
+    const body = rbactl.builder.message.in.topUp.encode({ queryId: 1n })
     // Acts as a deploy
     const result = await timelock.sendInternal(deployer.getSender(), toNano('0.05'), body)
 
@@ -114,7 +114,7 @@ describe('RBACTimelock', () => {
   })
 
   it('successfully parsed AccessControll opcode', async () => {
-    const body = ac.builder.message.grantRole.encode({
+    const body = ac.builder.message.in.grantRole.encode({
       queryId: 1n,
       role: rbactl.roles.proposer,
       account: other.address,
@@ -143,7 +143,7 @@ describe('RBACTimelock', () => {
   })
 
   it('successful update account - add admin account', async () => {
-    const body = ac.builder.message.grantRole.encode({
+    const body = ac.builder.message.in.grantRole.encode({
       queryId: 1n,
       role: rbactl.roles.admin,
       account: other.address,
@@ -161,7 +161,7 @@ describe('RBACTimelock', () => {
   })
 
   it('successful update account - add proposer account', async () => {
-    const body = ac.builder.message.grantRole.encode({
+    const body = ac.builder.message.in.grantRole.encode({
       queryId: 1n,
       role: rbactl.roles.proposer,
       account: other.address,
@@ -179,7 +179,7 @@ describe('RBACTimelock', () => {
   })
 
   it('successful update account - add canceller account', async () => {
-    const body = ac.builder.message.grantRole.encode({
+    const body = ac.builder.message.in.grantRole.encode({
       queryId: 1n,
       role: rbactl.roles.canceller,
       account: other.address,
@@ -197,7 +197,7 @@ describe('RBACTimelock', () => {
   })
 
   it('successful update account - add executor account', async () => {
-    const body = ac.builder.message.grantRole.encode({
+    const body = ac.builder.message.in.grantRole.encode({
       queryId: 1n,
       role: rbactl.roles.executor,
       account: other.address,
@@ -215,7 +215,7 @@ describe('RBACTimelock', () => {
   })
 
   it('successful update account - remove admin account', async () => {
-    const bodyInit = ac.builder.message.grantRole.encode({
+    const bodyInit = ac.builder.message.in.grantRole.encode({
       queryId: 1n,
       role: rbactl.roles.admin,
       account: deployer.address,
@@ -223,7 +223,7 @@ describe('RBACTimelock', () => {
     await timelock.sendInternal(deployer.getSender(), toNano('0.05'), bodyInit)
     expect(await acContract.getHasRole(rbactl.roles.admin, deployer.address)).toEqual(true)
 
-    const body = ac.builder.message.revokeRole.encode({
+    const body = ac.builder.message.in.revokeRole.encode({
       queryId: 1n,
       role: rbactl.roles.admin,
       account: deployer.address,
@@ -241,7 +241,7 @@ describe('RBACTimelock', () => {
   })
 
   it('successful update account - remove proposer account', async () => {
-    const bodyInit = ac.builder.message.grantRole.encode({
+    const bodyInit = ac.builder.message.in.grantRole.encode({
       queryId: 1n,
       role: rbactl.roles.proposer,
       account: deployer.address,
@@ -249,7 +249,7 @@ describe('RBACTimelock', () => {
     await timelock.sendInternal(deployer.getSender(), toNano('0.05'), bodyInit)
     expect(await acContract.getHasRole(rbactl.roles.proposer, deployer.address)).toEqual(true)
 
-    const body = ac.builder.message.revokeRole.encode({
+    const body = ac.builder.message.in.revokeRole.encode({
       queryId: 1n,
       role: rbactl.roles.proposer,
       account: deployer.address,
@@ -267,7 +267,7 @@ describe('RBACTimelock', () => {
   })
 
   it('successful update account - remove canceller account', async () => {
-    const bodyInit = ac.builder.message.grantRole.encode({
+    const bodyInit = ac.builder.message.in.grantRole.encode({
       queryId: 1n,
       role: rbactl.roles.canceller,
       account: deployer.address,
@@ -275,7 +275,7 @@ describe('RBACTimelock', () => {
     await timelock.sendInternal(deployer.getSender(), toNano('0.05'), bodyInit)
     expect(await acContract.getHasRole(rbactl.roles.canceller, deployer.address)).toEqual(true)
 
-    const body = ac.builder.message.revokeRole.encode({
+    const body = ac.builder.message.in.revokeRole.encode({
       queryId: 1n,
       role: rbactl.roles.canceller,
       account: deployer.address,
@@ -293,7 +293,7 @@ describe('RBACTimelock', () => {
   })
 
   it('successful update account - remove executor account', async () => {
-    const bodyInit = ac.builder.message.grantRole.encode({
+    const bodyInit = ac.builder.message.in.grantRole.encode({
       queryId: 1n,
       role: rbactl.roles.executor,
       account: deployer.address,
@@ -301,7 +301,7 @@ describe('RBACTimelock', () => {
     await timelock.sendInternal(deployer.getSender(), toNano('0.05'), bodyInit)
     expect(await acContract.getHasRole(rbactl.roles.executor, deployer.address)).toEqual(true)
 
-    const body = ac.builder.message.revokeRole.encode({
+    const body = ac.builder.message.in.revokeRole.encode({
       queryId: 1n,
       role: rbactl.roles.executor,
       account: deployer.address,
@@ -319,7 +319,7 @@ describe('RBACTimelock', () => {
   })
 
   it('invalid sender for update accounts: wrong_op', async () => {
-    const bodyInit = ac.builder.message.grantRole.encode({
+    const bodyInit = ac.builder.message.in.grantRole.encode({
       queryId: 1n,
       role: rbactl.roles.admin,
       account: other.address,
@@ -338,7 +338,7 @@ describe('RBACTimelock', () => {
   it('successful update delay', async () => {
     const delay = 100
 
-    const bodyInit = rbactl.builder.message.updateDelay.encode({ queryId: 1n, newDelay: delay })
+    const bodyInit = rbactl.builder.message.in.updateDelay.encode({ queryId: 1n, newDelay: delay })
     const result = await timelock.sendInternal(deployer.getSender(), toNano('0.05'), bodyInit)
 
     expect(result.transactions).toHaveTransaction({
@@ -352,7 +352,7 @@ describe('RBACTimelock', () => {
   })
 
   it('invalid sender for update delay: wrong_op', async () => {
-    const bodyInit = rbactl.builder.message.updateDelay.encode({ queryId: 1n, newDelay: 100 })
+    const bodyInit = rbactl.builder.message.in.updateDelay.encode({ queryId: 1n, newDelay: 100 })
     const result = await timelock.sendInternal(other.getSender(), toNano('0.05'), bodyInit)
 
     expect(result.transactions).toHaveTransaction({

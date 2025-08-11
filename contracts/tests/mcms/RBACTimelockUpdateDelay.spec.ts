@@ -57,7 +57,7 @@ describe('MCMS - RBACTimelockUpdateDelayTest', () => {
 
     const delayChangedMsg = delayChangedTx[0].inMessage!
     const opcode = delayChangedMsg.body.beginParse().preloadUint(32)
-    const delayChangedConfirmation = rbactl.builder.event.minDelayChange.decode(
+    const delayChangedConfirmation = rbactl.builder.message.out.minDelayChange.decode(
       delayChangedMsg.body,
     )
 
@@ -72,7 +72,7 @@ describe('MCMS - RBACTimelockUpdateDelayTest', () => {
   })
 
   async function updateTimelockDelay(sender: SandboxContract<TreasuryContract>) {
-    const body = rbactl.builder.message.updateDelay.encode({
+    const body = rbactl.builder.message.in.updateDelay.encode({
       queryId: 1n,
       newDelay,
     })

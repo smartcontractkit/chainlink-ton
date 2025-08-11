@@ -28,23 +28,23 @@ describe('MCMS - RBACTimelockHashingTest', () => {
     // callVec.push({
     //   target: baseTest.bind.counter.address,
     //   value: toNano('0.05'),
-    //   data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
+    //   data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
     // })
     // callVec.push({
     //   target: baseTest.bind.counter.address,
     //   value: toNano('0.05'),
-    //   data: counter.builder.message.increaseCount.encode({ queryId: 2n }),
+    //   data: counter.builder.message.in.increaseCount.encode({ queryId: 2n }),
     // })
     // const calls = encodeBatch(callVec)
 
     const calls = BaseTestSetup.singletonCalls({
       target: baseTest.bind.counter.address,
       value: toNano('0.05'),
-      data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
+      data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
     })
 
     // Schedule operation
-    const scheduleBody = rbactl.builder.message.scheduleBatch.encode({
+    const scheduleBody = rbactl.builder.message.in.scheduleBatch.encode({
       queryId: 1n,
       calls,
       predecessor: BaseTestSetup.NO_PREDECESSOR,
