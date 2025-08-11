@@ -6,20 +6,21 @@ import (
 	"time"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+	"github.com/xssnick/tonutils-go/address"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types/cellquery"
 )
 
-var _ logpoller.LogStore = (*inMemoryStore)(nil)
+var _ logpoller.LogStore = (*inMemoryLogStore)(nil)
 
-// inMemoryStore is a temporary in-memory implementation for TON CCIP MVP.
+// inMemoryLogStore is a temporary in-memory implementation for TON CCIP MVP.
 // This provides basic log storage and querying capabilities without database persistence.
 // For production use, this should be replaced with proper database-backed storage.
 //
 // TODO(NONEVM-2187): implement ORM using a database for persistence in production
-type inMemoryStore struct {
+type inMemoryLogStore struct {
 	lggr            logger.SugaredLogger
 	cellQueryEngine *CellQueryEngine
 	mu              sync.Mutex
@@ -27,13 +28,13 @@ type inMemoryStore struct {
 }
 
 func NewLogStore(lggr logger.Logger) logpoller.LogStore {
-	return &inMemoryStore{
+	return &inMemoryLogStore{
 		lggr:            logger.Sugared(lggr),
 		cellQueryEngine: NewCellQueryEngine(lggr),
 	}
 }
 
-func (s *inMemoryStore) SaveLog(log types.Log) {
+func (s *inMemoryLogStore) SaveLog(log types.Log) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	now := time.Now().UTC()
@@ -47,8 +48,8 @@ func (s *inMemoryStore) SaveLog(log types.Log) {
 }
 
 // FilteredLogs finds logs by address and topic, then applies cell-level filters.
-func (s *inMemoryStore) FilteredLogs(
-	evtSrcAddress string,
+func (s *inMemoryLogStore) FilteredLogs(
+	evtSrcAddress *address.Address,
 	topic uint32,
 	filters []cellquery.CellQuery,
 	options cellquery.QueryOptions,
@@ -60,7 +61,7 @@ func (s *inMemoryStore) FilteredLogs(
 
 	for i, log := range s.logs {
 		// match by address and topic (would be indexed query in DB)
-		if log.EventTopic != topic || log.Address.String() != evtSrcAddress {
+		if log.EventTopic != topic || !log.Address.Equals(evtSrcAddress) {
 			continue
 		}
 
@@ -84,8 +85,8 @@ func (s *inMemoryStore) FilteredLogs(
 	return s.cellQueryEngine.ApplyPagination(matchingLogs, options.Limit, options.Offset), nil
 }
 
-func (s *inMemoryStore) FilteredLogsWithParser(
-	evtSrcAddress string,
+func (s *inMemoryLogStore) FilteredLogsWithParser(
+	evtSrcAddress *address.Address,
 	topic uint32,
 	parser logpoller.LogParser,
 	filter logpoller.LogFilter,
@@ -95,7 +96,7 @@ func (s *inMemoryStore) FilteredLogsWithParser(
 
 	results := make([]any, 0, len(s.logs))
 	for i, log := range s.logs {
-		if log.EventTopic != topic || log.Address.String() != evtSrcAddress {
+		if log.EventTopic != topic || !log.Address.Equals(evtSrcAddress) {
 			continue
 		}
 

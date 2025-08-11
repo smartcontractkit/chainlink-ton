@@ -36,8 +36,8 @@ type LogParser func(c *cell.Cell) (any, error)
 // included in the results, or `false` to discard it.
 type LogFilter func(parsedEvent any) bool
 
-// LogPoller defines the public interface for the TON log polling service.
-type LogPoller interface {
+// Service defines the public interface for the TON log polling service.
+type Service interface {
 	services.Service
 	RegisterFilter(ctx context.Context, flt types.Filter) error
 	UnregisterFilter(ctx context.Context, name string) error
@@ -75,6 +75,6 @@ type FilterStore interface {
 // LogStore defines the interface for storing and retrieving logs.
 type LogStore interface {
 	SaveLog(log types.Log)
-	FilteredLogs(address string, topic uint32, queries []cellquery.CellQuery, options cellquery.QueryOptions) (cellquery.QueryResult, error)
-	FilteredLogsWithParser(address string, topic uint32, parser LogParser, filter LogFilter) ([]any, error)
+	FilteredLogs(evtSrcAddress *address.Address, topic uint32, queries []cellquery.CellQuery, options cellquery.QueryOptions) (cellquery.QueryResult, error)
+	FilteredLogsWithParser(evtSrcAddress *address.Address, topic uint32, parser LogParser, filter LogFilter) ([]any, error)
 }

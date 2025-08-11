@@ -41,7 +41,7 @@ type Chain interface {
 
 	ID() string
 	TxManager() TxManager
-	LogPoller() logpoller.LogPoller
+	LogPoller() logpoller.Service
 	GetClient(ctx context.Context) (*ton.APIClient, error)
 }
 
@@ -68,7 +68,7 @@ type chain struct {
 	ds   sqlutil.DataSource
 
 	txm *txm.Txm
-	lp  logpoller.LogPoller
+	lp  logpoller.Service
 
 	clientCache map[int]*cachedClient
 	cacheMu     sync.RWMutex
@@ -249,7 +249,7 @@ func (c *chain) FeeEstimator() fees.Estimator {
 	return nil
 }
 
-func (c *chain) LogPoller() logpoller.LogPoller {
+func (c *chain) LogPoller() logpoller.Service {
 	return c.lp
 }
 

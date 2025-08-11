@@ -23,7 +23,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/examples/counter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
 	inmemorystore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/db/inmemory"
-	accountmsgloader "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/loader/account"
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/loader/account"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types/cellquery"
 )
@@ -68,7 +68,7 @@ func Test_LogPoller(t *testing.T) {
 
 		t.Run("loading entire block range at once", func(t *testing.T) {
 			t.Parallel()
-			loader := accountmsgloader.NewMsgLoader(client, logger.Test(t), pageSize)
+			loader := account.NewMsgLoader(client, logger.Test(t), pageSize)
 
 			msgs, berr := loader.BackfillForAddresses(
 				t.Context(),
@@ -88,7 +88,7 @@ func Test_LogPoller(t *testing.T) {
 			t.Parallel()
 			var allMsgs []*tlb.ExternalMessageOut
 
-			loader := accountmsgloader.NewMsgLoader(client, logger.Test(t), pageSize)
+			loader := account.NewMsgLoader(client, logger.Test(t), pageSize)
 
 			// iterate block by block from prevBlock to toBlock
 			currentBlock := prevBlock
@@ -144,15 +144,18 @@ func Test_LogPoller(t *testing.T) {
 		// DI
 		logStore := inmemorystore.NewLogStore(logger.Test(t))
 		filterStore := inmemorystore.NewFilterStore()
-		loader := accountmsgloader.NewMsgLoader(client, logger.Test(t), cfg.PageSize)
+		loader := account.NewMsgLoader(client, logger.Test(t), cfg.PageSize)
 
-		lp := logpoller.NewLogPoller(
+		opts := &logpoller.ServiceOptions{
+			Client:        client,
+			Config:        cfg,
+			Store:         logStore,
+			Filters:       filterStore,
+			MessageLoader: loader,
+		}
+		lp := logpoller.NewService(
 			logger.Test(t),
-			client,
-			cfg,
-			logStore,
-			filterStore,
-			loader,
+			opts,
 		)
 
 		// register filters

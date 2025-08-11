@@ -26,45 +26,32 @@ import (
 // registered filters. Each filter specifies an address and event topic, with optional
 // cell-level byte queries for precise filtering.
 
-// Service is the main TON log polling service implementation.
+// service is the main TON log polling service implementation.
 // It continuously polls the TON masterchain, discovers new blocks, and processes
 // external messages from registered filter addresses.
-type Service struct {
+type service struct {
 	services.Service
 	eng *services.Engine // Service engine for lifecycle management
 
-	lggr               logger.SugaredLogger // Logger instance
-	client             ton.APIClientWrapped // TON blockchain client
-	filters            FilterStore          // Registry of active filters
-	loader             MessageLoader        // Message loader (MVP: account-based, to be replaced with block-scan)
-	store              LogStore             // Log storage (MVP: in-memory, to be replaced with ORM)
-	pollPeriod         time.Duration        // How often to poll for new blocks
-	lastProcessedBlock uint32               // Last processed masterchain sequence number
+	lggr    logger.SugaredLogger // Logger instance
+	client  ton.APIClientWrapped // TON blockchain client
+	filters FilterStore          // Registry of active filters
+	loader  MessageLoader        // Message loader (MVP: account-based, to be replaced with block-scan)
+	store   LogStore             // Log storage (MVP: in-memory, to be replaced with ORM)
+
+	pollPeriod         time.Duration // How often to poll for new blocks
+	lastProcessedBlock uint32        // Last processed masterchain sequence number
 }
 
-// blockRange represents a range of blocks to process
-type blockRange struct {
-	prev *ton.BlockIDExt // previous block (nil for genesis)
-	to   *ton.BlockIDExt // target block to process up to
-}
-
-// NewLogPoller creates a new TON log polling service instance
-func NewLogPoller(
-	lggr logger.Logger,
-	client ton.APIClientWrapped,
-	cfg Config, // TODO: use global relayer config
-	store LogStore,
-	filters FilterStore,
-	loader MessageLoader,
-) *Service {
-	lp := &Service{
+// NewService creates a new TON log polling service instance
+func NewService(lggr logger.Logger, opts *ServiceOptions) Service {
+	lp := &service{
 		lggr:       logger.Sugared(lggr),
-		client:     client,
-		pollPeriod: cfg.PollPeriod,
-
-		filters: filters,
-		loader:  loader,
-		store:   store,
+		client:     opts.Client,
+		filters:    opts.Filters,
+		loader:     opts.MessageLoader,
+		store:      opts.Store,
+		pollPeriod: opts.Config.PollPeriod,
 	}
 	lp.Service, lp.eng = services.Config{
 		Name:  "TONLogPoller",
@@ -74,7 +61,7 @@ func NewLogPoller(
 }
 
 // start initializes the log polling service and begins the polling loop
-func (lp *Service) start(_ context.Context) error {
+func (lp *service) start(_ context.Context) error {
 	lp.lggr.Infof("starting logpoller")
 	lp.eng.GoTick(services.NewTicker(lp.pollPeriod), func(ctx context.Context) {
 		if err := lp.run(ctx); err != nil {
@@ -88,7 +75,7 @@ func (lp *Service) start(_ context.Context) error {
 // 1. Gets the current masterchain head
 // 2. Processes new blocks since the last processed sequence number
 // 3. Updates the last processed sequence number
-func (lp *Service) run(ctx context.Context) (err error) {
+func (lp *service) run(ctx context.Context) (err error) {
 	defer func() {
 		if rec := recover(); rec != nil {
 			err = fmt.Errorf("panic recovered: %v", rec)
@@ -114,17 +101,17 @@ func (lp *Service) run(ctx context.Context) (err error) {
 		return nil
 	}
 
-	if err := lp.processBlockRange(ctx, addresses, blockRange.prev, blockRange.to); err != nil {
+	if err := lp.processBlockRange(ctx, addresses, blockRange.Prev, blockRange.To); err != nil {
 		return fmt.Errorf("failed to process block range: %w", err)
 	}
 
-	lp.lastProcessedBlock = blockRange.to.SeqNo
+	lp.lastProcessedBlock = blockRange.To.SeqNo
 	return nil
 }
 
 // getMasterchainBlockRange calculates the range of blocks that need to be processed.
 // Returns nil if there are no new blocks to process.
-func (lp *Service) getMasterchainBlockRange(ctx context.Context) (*blockRange, error) {
+func (lp *service) getMasterchainBlockRange(ctx context.Context) (*types.BlockRange, error) {
 	lastProcessedBlock, err := lp.getLastProcessedBlock()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get last processed block: %w", err)
@@ -147,11 +134,11 @@ func (lp *Service) getMasterchainBlockRange(ctx context.Context) (*blockRange, e
 		return nil, fmt.Errorf("failed to resolve previous block: %w", err)
 	}
 
-	return &blockRange{prev: prevBlock, to: toBlock}, nil
+	return &types.BlockRange{Prev: prevBlock, To: toBlock}, nil
 }
 
 // resolvePreviousBlock determines the previous block reference based on the last processed sequence number
-func (lp *Service) resolvePreviousBlock(ctx context.Context, lastProcessedBlock uint32, toBlock *ton.BlockIDExt) (*ton.BlockIDExt, error) {
+func (lp *service) resolvePreviousBlock(ctx context.Context, lastProcessedBlock uint32, toBlock *ton.BlockIDExt) (*ton.BlockIDExt, error) {
 	if lastProcessedBlock == 0 {
 		// TODO: we shouldn't process from genesis, but rather have a pointer for starting point
 		lp.lggr.Debugw("First run detected, processing from genesis", "toSeq", toBlock.SeqNo)
@@ -169,7 +156,7 @@ func (lp *Service) resolvePreviousBlock(ctx context.Context, lastProcessedBlock 
 // processBlockRange handles scanning a range of blocks for external messages
 // from the specified addresses. It delegates to the LogCollector for the actual
 // block scanning and then processes the returned messages
-func (lp *Service) processBlockRange(ctx context.Context, addresses []*address.Address, prevBlock *ton.BlockIDExt, toBlock *ton.BlockIDExt) error {
+func (lp *service) processBlockRange(ctx context.Context, addresses []*address.Address, prevBlock *ton.BlockIDExt, toBlock *ton.BlockIDExt) error {
 	msgs, err := lp.loader.BackfillForAddresses(ctx, addresses, prevBlock, toBlock)
 	if err != nil {
 		return fmt.Errorf("failed to backfill messages: %w", err)
@@ -183,7 +170,7 @@ func (lp *Service) processBlockRange(ctx context.Context, addresses []*address.A
 }
 
 // processMessages iterates through external messages and processes each one
-func (lp *Service) processMessages(msgs []types.IndexedMsg) error {
+func (lp *service) processMessages(msgs []types.IndexedMsg) error {
 	for _, msg := range msgs {
 		if err := lp.Process(msg); err != nil {
 			return fmt.Errorf("failed to process message: %w", err)
@@ -196,7 +183,7 @@ func (lp *Service) processMessages(msgs []types.IndexedMsg) error {
 // 1. Extracts event topic from destination address
 // 2. Finds matching filters for the source address and topic
 // 3. Saves logs for each matching filter
-func (lp *Service) Process(msg types.IndexedMsg) error {
+func (lp *service) Process(msg types.IndexedMsg) error {
 	bucket := event.NewExtOutLogBucket(msg.Msg.DstAddr)
 	topic, err := bucket.DecodeEventTopic()
 	if err != nil {
@@ -237,7 +224,7 @@ func (lp *Service) Process(msg types.IndexedMsg) error {
 
 // getLastProcessedBlock retrieves the last processed masterchain sequence number.
 // Currently uses in-memory storage; will be replaced with database persistence.
-func (lp *Service) getLastProcessedBlock() (uint32, error) {
+func (lp *service) getLastProcessedBlock() (uint32, error) {
 	lastProcessed := lp.lastProcessedBlock
 	if lastProcessed > 0 {
 		return lastProcessed, nil
@@ -249,23 +236,23 @@ func (lp *Service) getLastProcessedBlock() (uint32, error) {
 }
 
 // RegisterFilter adds a new filter to monitor specific address/topic combinations
-func (lp *Service) RegisterFilter(ctx context.Context, flt types.Filter) error {
+func (lp *service) RegisterFilter(ctx context.Context, flt types.Filter) error {
 	return lp.filters.RegisterFilter(ctx, flt)
 }
 
 // UnregisterFilter removes a filter by name
-func (lp *Service) UnregisterFilter(ctx context.Context, name string) error {
+func (lp *service) UnregisterFilter(ctx context.Context, name string) error {
 	return lp.filters.UnregisterFilter(ctx, name)
 }
 
 // HasFilter checks if a filter with the given name exists
-func (lp *Service) HasFilter(ctx context.Context, name string) bool {
+func (lp *service) HasFilter(ctx context.Context, name string) bool {
 	return lp.filters.HasFilter(ctx, name)
 }
 
 // FilteredLogs retrieves logs filtered by address, topic, and additional cell-level queries.
 // This allows for precise filtering based on the internal structure of TON cell data.
-func (lp *Service) FilteredLogs(
+func (lp *service) FilteredLogs(
 	_ context.Context,
 	evtSrcAddress *address.Address,
 	topic uint32,
@@ -273,7 +260,7 @@ func (lp *Service) FilteredLogs(
 	options cellquery.QueryOptions,
 ) (cellquery.QueryResult, error) {
 	return lp.store.FilteredLogs(
-		evtSrcAddress.String(),
+		evtSrcAddress,
 		topic,
 		queries,
 		options,
@@ -281,7 +268,7 @@ func (lp *Service) FilteredLogs(
 }
 
 // FilteredLogsWithParser queries logs using a flexible 'parse-then-filter' pattern
-func (lp *Service) FilteredLogsWithParser(
+func (lp *service) FilteredLogsWithParser(
 	_ context.Context,
 	evtSrcAddress *address.Address,
 	topic uint32,
@@ -289,7 +276,7 @@ func (lp *Service) FilteredLogsWithParser(
 	filter LogFilter,
 ) ([]any, error) {
 	return lp.store.FilteredLogsWithParser(
-		evtSrcAddress.String(),
+		evtSrcAddress,
 		topic,
 		parser,
 		filter,

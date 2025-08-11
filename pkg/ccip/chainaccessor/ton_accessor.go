@@ -17,7 +17,7 @@ import (
 type TONAccessor struct {
 	lggr      logger.Logger
 	client    ton.APIClientWrapped
-	logPoller logpoller.LogPoller
+	logPoller logpoller.Service
 }
 
 var _ ccipocr3.ChainAccessor = (*TONAccessor)(nil)
@@ -25,7 +25,7 @@ var _ ccipocr3.ChainAccessor = (*TONAccessor)(nil)
 func NewTONAccessor(
 	lggr logger.Logger,
 	client ton.APIClientWrapped,
-	logPoller logpoller.LogPoller,
+	logPoller logpoller.Service,
 	addrCodec ccipocr3.AddressCodec,
 ) (ccipocr3.ChainAccessor, error) {
 	// TODO: validate state of client and logPoller (should be initialized in NewChain)
