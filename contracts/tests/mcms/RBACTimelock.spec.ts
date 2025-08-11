@@ -333,7 +333,7 @@ describe('RBACTimelock', () => {
       to: timelock.address,
       success: false,
       op: ac.opcodes.in.GrantRole,
-      exitCode: ac.errors.UnauthorizedAccount,
+      exitCode: ac.Errors.UnauthorizedAccount,
     })
   })
 
@@ -362,7 +362,7 @@ describe('RBACTimelock', () => {
       to: timelock.address,
       success: false,
       op: rbactl.opcodes.in.UpdateDelay,
-      exitCode: ac.errors.UnauthorizedAccount,
+      exitCode: ac.Errors.UnauthorizedAccount,
     })
   })
 

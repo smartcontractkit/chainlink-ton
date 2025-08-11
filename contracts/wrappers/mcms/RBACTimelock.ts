@@ -442,26 +442,16 @@ export const roles = {
   bypasser: sha256_32('BYPASSER_ROLE'), // 544836961n
 }
 
+// Timestamp value used to mark an operation as done
 export const DONE_TIMESTAMP = 1
 
-export abstract class Errors {
-  static zero_input = 81
-  static invalid_caller = 82
-  static insufficient_gas = 83
-  static wrong_workchain = 85
-  static wrong_address = 86
-  static invalid_amount = 87
-  static invalid_call = 88
-  static invalid_role = 89
-  static invalid_delay = 90
-  static operation_exists = 91
-  static operation_not_exists = 92
-  static invalid_operation_state = 93
-  static invalid_predecessor_state = 94
-  static account_exists = 95
-  static account_not_exists = 96
-  static predecessor_not_exists = 97
-  static wrong_op = 0xffff
+export enum Errors {
+  SelectorIsBlocked = 101,
+  OperationNotReady = 102,
+  OperationMissingDependency = 103,
+  OperationCanNotBeCancelled = 104,
+  OperationAlreadyScheduled = 105,
+  InsufficientDelay = 106,
 }
 
 export class ContractClient implements Contract {

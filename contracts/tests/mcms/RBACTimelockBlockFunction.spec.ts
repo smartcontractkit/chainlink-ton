@@ -120,7 +120,7 @@ describe('MCMS - RBACTimelockBlockFunctionTest', () => {
         from: baseTest.acc.proposerOne.address,
         to: baseTest.bind.timelock.address,
         success: false,
-        exitCode: 101, // ERROR_SELECTOR_IS_BLOCKED // TODO import from RBACTimelock
+        exitCode: rbactl.Errors.SelectorIsBlocked,
       })
     }
   })
@@ -175,7 +175,7 @@ describe('MCMS - RBACTimelockBlockFunctionTest', () => {
         from: baseTest.acc.proposerOne.address,
         to: baseTest.bind.timelock.address,
         success: false,
-        exitCode: 101, // ERROR_SELECTOR_IS_BLOCKED // TODO import from RBACTimelock
+        exitCode: rbactl.Errors.SelectorIsBlocked,
       })
     }
 
@@ -206,7 +206,7 @@ describe('MCMS - RBACTimelockBlockFunctionTest', () => {
         from: baseTest.acc.proposerOne.address,
         to: baseTest.bind.timelock.address,
         success: false,
-        exitCode: 101, // ERROR_SELECTOR_IS_BLOCKED // TODO import from RBACTimelock
+        exitCode: rbactl.Errors.SelectorIsBlocked,
       })
     }
 
@@ -319,7 +319,7 @@ describe('MCMS - RBACTimelockBlockFunctionTest', () => {
         from: baseTest.acc.proposerOne.address,
         to: baseTest.bind.timelock.address,
         success: false,
-        exitCode: 101, // ERROR_SELECTOR_IS_BLOCKED // TODO import from RBACTimelock
+        exitCode: rbactl.Errors.SelectorIsBlocked,
       })
     }
 

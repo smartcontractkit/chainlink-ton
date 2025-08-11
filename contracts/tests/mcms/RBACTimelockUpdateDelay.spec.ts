@@ -32,7 +32,7 @@ describe('MCMS - RBACTimelockUpdateDelayTest', () => {
       from: baseTest.acc.proposerOne.address,
       to: baseTest.bind.timelock.address,
       success: false,
-      exitCode: ac.errors.UnauthorizedAccount,
+      exitCode: ac.Errors.UnauthorizedAccount,
     })
   })
 
