@@ -78,7 +78,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       })
     })
 
-    // TODO: Timelock doesn't handle reverts yet, and we do not know if it will
+    // TODO: Catch bounced messages on errors
     it.skip('should fail if one target reverts (invalid call)', async () => {
       // Create a call with invalid data that will cause failure
       const invalidCall: rbactl.Call = {
@@ -219,7 +219,6 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
 
   describe('Regular Execute Batch Tests', () => {
     it('should fail if non-executor tries to execute batch', async () => {
-      // TODO What is test_cannotBeExecutedByNonExecutorIfRestrictionsSet
       const calls = BaseTestSetup.singletonCalls({
         target: baseTest.bind.counter.address,
         value: toNano('0.05'),
