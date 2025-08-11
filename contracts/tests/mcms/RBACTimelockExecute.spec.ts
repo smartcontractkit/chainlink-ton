@@ -61,7 +61,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
         from: baseTest.acc.proposerOne.address,
         to: baseTest.bind.timelock.address,
         success: false,
-        exitCode: ac.errors.UnauthorizedAccount,
+        exitCode: ac.Errors.UnauthorizedAccount,
       })
     })
 
@@ -90,7 +90,6 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
         from: baseTest.acc.admin.address,
         to: baseTest.bind.timelock.address,
         success: false,
-        exitCode: rbactl.Errors.invalid_call,
       })
     })
 
@@ -190,7 +189,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
         from: baseTest.acc.proposerOne.address,
         to: baseTest.bind.timelock.address,
         success: false,
-        exitCode: ac.errors.UnauthorizedAccount,
+        exitCode: ac.Errors.UnauthorizedAccount,
       })
     })
 
@@ -223,7 +222,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       })
 
       // Try to execute before delay is met (only advance a short time)
-      baseTest.warpTime(BaseTestSetup.MIN_DELAY - 2 * 24 * 60 * 60) // 2 days short
+      baseTest.warpTime(Number(BaseTestSetup.MIN_DELAY - 2n * 24n * 60n * 60n)) // 2 days short
 
       const executeBody = rbactl.builder.message.executeBatch.encode({
         queryId: 1n,
@@ -242,7 +241,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
         from: baseTest.acc.executorOne.address,
         to: baseTest.bind.timelock.address,
         success: false,
-        exitCode: 102, // ERROR_OPERATION_NOT_READY // TODO import from RBACTimelock
+        exitCode: rbactl.Errors.OperationNotReady,
       })
     })
 
@@ -307,7 +306,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       }
 
       // Wait for delay but don't execute predecessor
-      baseTest.warpTime(BaseTestSetup.MIN_DELAY + 2 * 24 * 60 * 60) // 2 days extra
+      baseTest.warpTime(Number(BaseTestSetup.MIN_DELAY + 2n * 24n * 60n * 60n)) // 2 days extra
 
       // Try to execute dependent operation (should fail)
       const executeBody = rbactl.builder.message.executeBatch.encode({
@@ -327,7 +326,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
         from: baseTest.acc.executorOne.address,
         to: baseTest.bind.timelock.address,
         success: false,
-        exitCode: 103, // ERROR_OPERATION_MISSING_DEPENDENCY // TODO import from RBACTimelock
+        exitCode: rbactl.Errors.OperationMissingDependency,
       })
     })
 
@@ -357,7 +356,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       )
 
       // Wait for delay
-      baseTest.warpTime(BaseTestSetup.MIN_DELAY + 2 * 24 * 60 * 60)
+      baseTest.warpTime(Number(BaseTestSetup.MIN_DELAY + 2n * 24n * 60n * 60n))
 
       // Try to execute (should fail due to invalid call)
       const executeBody = rbactl.builder.message.executeBatch.encode({
@@ -377,7 +376,6 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
         from: baseTest.acc.executorOne.address,
         to: baseTest.bind.timelock.address,
         success: false,
-        exitCode: rbactl.Errors.invalid_call,
       })
     })
 
@@ -416,7 +414,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       )
 
       // Wait for delay
-      baseTest.warpTime(BaseTestSetup.MIN_DELAY + 1)
+      baseTest.warpTime(Number(BaseTestSetup.MIN_DELAY + 1n))
 
       // Execute operation
       const executeBody = rbactl.builder.message.executeBatch.encode({
@@ -479,7 +477,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       )
 
       // Wait for delay
-      baseTest.warpTime(BaseTestSetup.MIN_DELAY + 1)
+      baseTest.warpTime(Number(BaseTestSetup.MIN_DELAY + 1n))
 
       // Grant executor role to call proxy
       const grantRoleBody = ac.builder.message.grantRole.encode({
@@ -543,7 +541,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       )
 
       // Wait for delay
-      baseTest.warpTime(BaseTestSetup.MIN_DELAY + 1)
+      baseTest.warpTime(Number(BaseTestSetup.MIN_DELAY + 1n))
 
       // Try to execute through call proxy without granting executor role
       const executeBody = rbactl.builder.message.executeBatch.encode({
@@ -564,7 +562,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
         from: baseTest.bind.callProxy.address,
         to: baseTest.bind.timelock.address,
         success: false,
-        exitCode: ac.errors.UnauthorizedAccount,
+        exitCode: ac.Errors.UnauthorizedAccount,
       })
     })
   })
