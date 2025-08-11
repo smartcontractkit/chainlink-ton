@@ -123,8 +123,8 @@ struct (0x89277f4b) MCMS_SetConfig {
 
     signerAddresses: cell, // vec<address>
     signerGroups: cell,    // vec<uint8>
-    groupQuorums: cell,    // map<uint8, uint8> (indexed, iterable backwards)
-    groupParents: cell,    // map<uint8, uint8> (indexed, iterable backwards)
+    groupQuorums: dict,    // map<uint8, uint8> (indexed, iterable backwards)
+    groupParents: dict,    // map<uint8, uint8> (indexed, iterable backwards)
     clearRoot: bool,
 }
 

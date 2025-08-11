@@ -1,8 +1,10 @@
 import '@ton/test-utils'
 
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { Address, Cell, Dictionary, toNano } from '@ton/core'
+import { Address, beginCell, Cell, Dictionary, toNano } from '@ton/core'
 import { compile } from '@ton/blueprint'
+
+import { asSnakeData, ZERO_ADDRESS } from '../../utils'
 
 import * as mcms from '../../wrappers/mcms/MCMS'
 import * as rbactl from '../../wrappers/mcms/RBACTimelock'
@@ -12,6 +14,7 @@ import * as counter from '../../wrappers/examples/Counter'
 import * as ownable2step from '../../wrappers/libraries/access/Ownable2Step'
 
 import { crc32 } from 'zlib'
+import { loadMap } from '../../utils/dict'
 
 describe('MCMS - IntegrationTest', () => {
   let blockchain: Blockchain
@@ -200,13 +203,9 @@ describe('MCMS - IntegrationTest', () => {
     // Deploy Timelock contract
     {
       const body = rbactl.builder.message.in.topUp.encode({ queryId: 1n })
-      const result = await bind.timelock.sendInternal(
-        acc.deployer.getSender(),
-        toNano('0.05'),
-        body,
-      )
+      const r = await bind.timelock.sendInternal(acc.deployer.getSender(), toNano('0.05'), body)
 
-      expect(result.transactions).toHaveTransaction({
+      expect(r.transactions).toHaveTransaction({
         from: acc.deployer.address,
         to: bind.timelock.address,
         deploy: true,
@@ -220,20 +219,116 @@ describe('MCMS - IntegrationTest', () => {
     // Deploy MCMS contracts
     {
       const body = mcms.builder.message.in.topUp.encode({ queryId: 1n })
-      const result = await bind.mcmsPropose.sendInternal(
-        acc.deployer.getSender(),
-        toNano('0.05'),
-        body,
-      )
+      const r = await bind.mcmsPropose.sendInternal(acc.deployer.getSender(), toNano('0.05'), body)
 
-      expect(result.transactions).toHaveTransaction({
+      expect(r.transactions).toHaveTransaction({
         from: acc.deployer.address,
         to: bind.mcmsPropose.address,
         deploy: true,
         success: true,
       })
 
-      // TODO: setConfig
+      // Set config
+      const rSetConfig = await bind.mcmsPropose.sendInternal(
+        acc.deployer.getSender(),
+        toNano('0.05'),
+        mcms.builder.message.in.setConfig.encode({
+          queryId: 1n,
+          signerAddresses: asSnakeData<Address>(proposerAddresses(), (v) =>
+            beginCell().storeAddress(v),
+          ),
+          signerGroups: asSnakeData<number>(Array(PROPOSE_COUNT).fill(0), (v) =>
+            beginCell().storeUint(v, 8),
+          ),
+          groupQuorums: loadMap(
+            Dictionary.Keys.Uint(8),
+            Dictionary.Values.Uint(8),
+            // TODO: replace with ..
+            // new Map(Array.from({ length: MCMS_NUM_GROUPS }, (_, i) => [i, 0])).set(0, PROPOSE_QUORUM),
+            new Map([
+              [0, PROPOSE_QUORUM],
+              [1, 0],
+              [2, 0],
+              [3, 0],
+              [4, 0],
+              [5, 0],
+              [6, 0],
+              [7, 0],
+              [8, 0],
+              [9, 0],
+              [10, 0],
+              [11, 0],
+              [12, 0],
+              [13, 0],
+              [14, 0],
+              [15, 0],
+              [16, 0],
+              [17, 0],
+              [18, 0],
+              [19, 0],
+              [20, 0],
+              [21, 0],
+              [22, 0],
+              [23, 0],
+              [24, 0],
+              [25, 0],
+              [26, 0],
+              [27, 0],
+              [28, 0],
+              [29, 0],
+              [30, 0],
+              [31, 0],
+            ]),
+          ), // size: MCMS_NUM_GROUPS
+          groupParents: loadMap(
+            Dictionary.Keys.Uint(8),
+            Dictionary.Values.Uint(8),
+            // TODO: replace with ..
+            // new Map(Array.from({ length: MCMS_NUM_GROUPS }, (_, i) => [i, 0]))
+            new Map([
+              [0, 0],
+              [1, 0],
+              [2, 0],
+              [3, 0],
+              [4, 0],
+              [5, 0],
+              [6, 0],
+              [7, 0],
+              [8, 0],
+              [9, 0],
+              [10, 0],
+              [11, 0],
+              [12, 0],
+              [13, 0],
+              [14, 0],
+              [15, 0],
+              [16, 0],
+              [17, 0],
+              [18, 0],
+              [19, 0],
+              [20, 0],
+              [21, 0],
+              [22, 0],
+              [23, 0],
+              [24, 0],
+              [25, 0],
+              [26, 0],
+              [27, 0],
+              [28, 0],
+              [29, 0],
+              [30, 0],
+              [31, 0],
+            ]),
+          ), // size: MCMS_NUM_GROUPS
+          clearRoot: false,
+        }),
+      )
+
+      expect(rSetConfig.transactions).toHaveTransaction({
+        from: acc.deployer.address,
+        to: bind.mcmsPropose.address,
+        success: true,
+      })
 
       // Transfer ownership to Timelock
       const addr = bind.mcmsPropose.address
@@ -253,6 +348,108 @@ describe('MCMS - IntegrationTest', () => {
         from: acc.deployer.address,
         to: bind.mcmsVeto.address,
         deploy: true,
+        success: true,
+      })
+
+      // Set config
+      const rSetConfig = await bind.mcmsPropose.sendInternal(
+        acc.deployer.getSender(),
+        toNano('0.05'),
+        mcms.builder.message.in.setConfig.encode({
+          queryId: 1n,
+          signerAddresses: asSnakeData<Address>(proposerAddresses(), (v) =>
+            beginCell().storeAddress(v),
+          ),
+          signerGroups: asSnakeData<number>(Array(VETO_COUNT).fill(0), (v) =>
+            beginCell().storeUint(v, 8),
+          ),
+          groupQuorums: loadMap(
+            Dictionary.Keys.Uint(8),
+            Dictionary.Values.Uint(8),
+            // TODO: replace with ..
+            // new Map(Array.from({ length: MCMS_NUM_GROUPS }, (_, i) => [i, 0])).set(0, VETO_QUORUM),
+            new Map([
+              [0, VETO_QUORUM],
+              [1, 0],
+              [2, 0],
+              [3, 0],
+              [4, 0],
+              [5, 0],
+              [6, 0],
+              [7, 0],
+              [8, 0],
+              [9, 0],
+              [10, 0],
+              [11, 0],
+              [12, 0],
+              [13, 0],
+              [14, 0],
+              [15, 0],
+              [16, 0],
+              [17, 0],
+              [18, 0],
+              [19, 0],
+              [20, 0],
+              [21, 0],
+              [22, 0],
+              [23, 0],
+              [24, 0],
+              [25, 0],
+              [26, 0],
+              [27, 0],
+              [28, 0],
+              [29, 0],
+              [30, 0],
+              [31, 0],
+            ]),
+          ), // size: MCMS_NUM_GROUPS
+          groupParents: loadMap(
+            Dictionary.Keys.Uint(8),
+            Dictionary.Values.Uint(8),
+            // TODO: replace with ..
+            // new Map(Array.from({ length: MCMS_NUM_GROUPS }, (_, i) => [i, 0])),
+            new Map([
+              [0, 0],
+              [1, 0],
+              [2, 0],
+              [3, 0],
+              [4, 0],
+              [5, 0],
+              [6, 0],
+              [7, 0],
+              [8, 0],
+              [9, 0],
+              [10, 0],
+              [11, 0],
+              [12, 0],
+              [13, 0],
+              [14, 0],
+              [15, 0],
+              [16, 0],
+              [17, 0],
+              [18, 0],
+              [19, 0],
+              [20, 0],
+              [21, 0],
+              [22, 0],
+              [23, 0],
+              [24, 0],
+              [25, 0],
+              [26, 0],
+              [27, 0],
+              [28, 0],
+              [29, 0],
+              [30, 0],
+              [31, 0],
+            ]),
+          ), // size: MCMS_NUM_GROUPS
+          clearRoot: false,
+        }),
+      )
+
+      expect(rSetConfig.transactions).toHaveTransaction({
+        from: acc.deployer.address,
+        to: bind.mcmsPropose.address,
         success: true,
       })
 
@@ -358,6 +555,22 @@ describe('MCMS - IntegrationTest', () => {
     })
 
     expect(await ownable.getOwner()).toEqual(bind.timelock.address)
+  }
+
+  const proposerAddresses = (): Address[] => {
+    const addresses: Address[] = []
+    for (let i = 0; i < PROPOSE_COUNT; i++) {
+      addresses.push(ZERO_ADDRESS) // TODO: replace with actual addresses
+    }
+    return addresses
+  }
+
+  const vetoAddresses = (): Address[] => {
+    const addresses: Address[] = []
+    for (let i = 0; i < VETO_COUNT; i++) {
+      addresses.push(ZERO_ADDRESS) // TODO: replace with actual addresses
+    }
+    return addresses
   }
 
   it('should execute chainOfActions', async () => {
