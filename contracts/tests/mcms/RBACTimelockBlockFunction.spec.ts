@@ -92,24 +92,24 @@ describe('MCMS - RBACTimelockBlockFunctionTest', () => {
         success: true,
       })
 
-      // Check for Timelock_FunctionSelectorBlocked event
-      // const externalsFromTimelock = result.externals.filter((e) => {
-      //   return e.info.src.equals(baseTest.bind.timelock.address)
-      // })
+      // Check for FunctionSelectorBlocked confirmation
+      const functionSelectorBlockedTx = result.transactions.filter((t) => {
+        const src = t.inMessage?.info.src! as Address
+        return src && src.equals(baseTest.bind.timelock.address)
+      })
 
-      // expect(externalsFromTimelock).toHaveLength(1)
+      expect(functionSelectorBlockedTx).toHaveLength(1)
+      expect(functionSelectorBlockedTx[0].inMessage).toBeDefined()
 
-      // const blockedExternal = externalsFromTimelock[0]
-      // expect(blockedExternal.info.dest?.value.toString(16)).toEqual(
-      //   rbactl.opcodes.out.FunctionSelectorBlocked.toString(16),
-      // )
+      const functionSelectorBlockedMsg = functionSelectorBlockedTx[0].inMessage!
+      const opcode = functionSelectorBlockedMsg.body.beginParse().preloadUint(32)
+      const blockedConfirmation = rbactl.builder.message.out.functionSelectorBlocked.decode(
+        functionSelectorBlockedMsg.body,
+      )
 
-      // const opcode = blockedExternal.body.beginParse().preloadUint(32)
-      // const blockedEvent = rbactl.builder.message.out.functionSelectorBlocked.decode(blockedExternal.body)
-
-      // expect(opcode.toString(16)).toEqual(rbactl.opcodes.out.FunctionSelectorBlocked.toString(16))
-      // expect(blockedEvent.queryId).toEqual(1)
-      // expect(blockedEvent.selector).toEqual(counter.opcodes.in.IncreaseCount)
+      expect(opcode.toString(16)).toEqual(rbactl.opcodes.out.FunctionSelectorBlocked.toString(16))
+      expect(blockedConfirmation.queryId).toEqual(1)
+      expect(blockedConfirmation.selector).toEqual(counter.opcodes.in.IncreaseCount)
     }
 
     // Make sure blocked function cannot be scheduled
@@ -372,13 +372,13 @@ describe('MCMS - RBACTimelockBlockFunctionTest', () => {
 
       const functionSelectorUnblockedMsg = functionSelectorUnblockedTx[0].inMessage!
       const opcode = functionSelectorUnblockedMsg.body.beginParse().preloadUint(32)
-      const unblockedEvent = rbactl.builder.message.out.functionSelectorUnblocked.decode(
+      const unblockedConfirmation = rbactl.builder.message.out.functionSelectorUnblocked.decode(
         functionSelectorUnblockedMsg.body,
       )
 
       expect(opcode.toString(16)).toEqual(rbactl.opcodes.out.FunctionSelectorUnblocked.toString(16))
-      expect(unblockedEvent.queryId).toEqual(1)
-      expect(unblockedEvent.selector).toEqual(counter.opcodes.in.IncreaseCount)
+      expect(unblockedConfirmation.queryId).toEqual(1)
+      expect(unblockedConfirmation.selector).toEqual(counter.opcodes.in.IncreaseCount)
     }
 
     // Make sure unblocked function can be scheduled
