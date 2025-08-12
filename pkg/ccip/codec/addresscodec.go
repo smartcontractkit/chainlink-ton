@@ -5,40 +5,45 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	"github.com/sigurn/crc16"
 	"github.com/xssnick/tonutils-go/address"
 )
 
 type AddressCodec struct{}
 
-func (a AddressCodec) AddressBytesToString(addr []byte) (string, error) {
-	decoded := base64.RawURLEncoding.EncodeToString(addr)
-	// verify that the TON address string is valid
-	tonAddr, err := address.ParseAddr(decoded)
-	if err != nil {
-		return "", fmt.Errorf("failed to decode TVM address bytes: %w", err)
-	}
+// For the sake of comparison and storage, home chain and other registries should use the raw format of the address
+// `4 byte workchain (int32) + 32 byte data`
+//
+// For correctness *address.Address should always be compared using .Equals() since user-friendly addresses can represent
+// the same address with different flags.
+type RawAddr [36]byte
 
-	return tonAddr.String(), nil
+func FromAddr(addr *address.Address) (rawAddress RawAddr) {
+	binary.BigEndian.PutUint32(rawAddress[0:], uint32(addr.Workchain()))
+	copy(rawAddress[4:], addr.Data())
+	return rawAddress
 }
 
-func (a AddressCodec) AddressStringToBytes(addr string) ([]byte, error) {
-	// underneath implementation of TON address is base64 Raw URL encoding, reference: tonutils-go/address ParseAddr function
-	decodeString, err := base64.RawURLEncoding.DecodeString(addr)
+func (a AddressCodec) AddressBytesToString(bytes []byte) (string, error) {
+	if len(bytes) != 36 {
+		return "", fmt.Errorf("invalid address length: expected 36 bytes, got %d", len(bytes))
+	}
+	var rawAddr RawAddr
+	copy(rawAddr[:], bytes[:])
+	workchain := binary.BigEndian.Uint32(rawAddr[0:4])
+
+	addr := address.NewAddress(0, byte(workchain), rawAddr[4:])
+	return addr.String(), nil
+}
+
+func (a AddressCodec) AddressStringToBytes(addrString string) ([]byte, error) {
+	// ParseAddr is for parsing base64 encoded std address strings, any other address format will fail
+	addr, err := address.ParseAddr(addrString)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode TVM address bytes: %w", err)
+		return nil, fmt.Errorf("failed to decode TVM address: %w", err)
 	}
 
-	if len(decodeString) != 36 {
-		return nil, fmt.Errorf("invalid address length: expected 36 bytes, got %d", len(decodeString))
-	}
-
-	checksum := decodeString[len(decodeString)-2:]
-	if crc16.Checksum(decodeString[:len(decodeString)-2], crc16.MakeTable(crc16.CRC16_XMODEM)) != binary.BigEndian.Uint16(checksum) {
-		return nil, fmt.Errorf("invalid checksum for address: %s", addr)
-	}
-
-	return decodeString, nil
+	rawAddr := FromAddr(addr)
+	return rawAddr[:], nil
 }
 
 func (a AddressCodec) OracleIDAsAddressBytes(oracleID uint8) ([]byte, error) {

@@ -14,14 +14,14 @@ func TestTONAddress(t *testing.T) {
 	addr, err := address.ParseAddr("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")
 	require.NoError(t, err)
 
-	validDecodedString, err := base64.RawURLEncoding.DecodeString("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")
-	require.NoError(t, err)
+	validAddressBytes := make([]byte, 36)
+	binary.BigEndian.PutUint32(validAddressBytes[0:4], uint32(addr.Workchain()))
+	copy(validAddressBytes[4:], addr.Data())
 
 	invalidChecksum := make([]byte, 0)
-	invalidChecksum = append(invalidChecksum, validDecodedString[:34]...)
+	invalidChecksum = append(invalidChecksum, validAddressBytes[:34]...)
 	invalidChecksum = append(invalidChecksum, 0x00, 0x00)
-	invalidDecodedString := base64.RawURLEncoding.EncodeToString(invalidChecksum)
-
+	addressWithInvalidChecksum := base64.RawURLEncoding.EncodeToString(invalidChecksum)
 	tests := []struct {
 		name        string
 		in          string
@@ -31,18 +31,18 @@ func TestTONAddress(t *testing.T) {
 		{
 			"hand crafted",
 			addr.String(),
-			validDecodedString,
+			validAddressBytes,
 			nil,
 		},
 		{
 			name:        "invalid base64",
 			in:          "!!!notbase64!!!",
-			expectedErr: errors.New("failed to decode TVM address bytes: illegal base64 data at input byte 0"),
+			expectedErr: errors.New("failed to decode TVM address: illegal base64 data at input byte 0"),
 		},
 		{
 			name:        "invalid checksum",
-			in:          invalidDecodedString,
-			expectedErr: errors.New("invalid checksum for address: EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74pwAA"),
+			in:          addressWithInvalidChecksum,
+			expectedErr: errors.New("failed to decode TVM address: invalid address"),
 		},
 	}
 
