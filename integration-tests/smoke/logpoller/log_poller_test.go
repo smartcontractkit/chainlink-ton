@@ -389,8 +389,8 @@ func Test_LogPoller(t *testing.T) {
 
 				// call GetTransaction to fetch the transaction and verify the proof.
 				// The API client must have proof checking enabled for this to work.
-				tx, err := client.GetTransaction(ctx, logEntry.Block, logEntry.Address, logEntry.TxLT)
-				require.NoError(t, err, "Transaction verification failed for lt %d", logEntry.TxLT)
+				tx, terr := client.GetTransaction(ctx, logEntry.Block, logEntry.Address, logEntry.TxLT)
+				require.NoError(t, terr, "Transaction verification failed for lt %d", logEntry.TxLT)
 
 				// final check: ensure the hash of the fetched transaction matches the hash from the log.
 				require.True(t, bytes.Equal(tx.Hash, logEntry.TxHash[:]), "Transaction hash mismatch: log hash %x, chain hash %x", logEntry.TxHash, tx.Hash)

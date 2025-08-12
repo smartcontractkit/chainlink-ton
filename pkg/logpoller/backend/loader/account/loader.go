@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"sync"
 
 	"github.com/xssnick/tonutils-go/address"
@@ -193,6 +194,14 @@ func (l *accountTxLoader) getTransactionBounds(ctx context.Context, addr *addres
 // ListTransactions - returns list of transactions before (including) passed lt and hash, the oldest one is first in result slice
 // Transactions will be verified to match final tx hash, which should be taken from proved account state, then it is safe.
 func (l *accountTxLoader) listTransactionsWithBlock(ctx context.Context, addr *address.Address, limit uint32, lt uint64, txHash []byte) ([]*tlb.Transaction, []*ton.BlockIDExt, error) {
+	// unlikely to have overflow, but just for safety
+	if limit > math.MaxInt32 {
+		return nil, nil, fmt.Errorf("limit %d exceeds maximum int32 value", limit)
+	}
+	if lt > math.MaxInt64 {
+		return nil, nil, fmt.Errorf("logical time %d exceeds maximum int64 value", lt)
+	}
+
 	var resp tl.Serializable
 	err := l.client.Client().QueryLiteserver(ctx, ton.GetTransactions{
 		Limit: int32(limit),
