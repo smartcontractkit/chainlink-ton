@@ -319,9 +319,7 @@ export function commitReportToBuilder(report: CommitReport): import('@ton/core')
     priceUpdates = priceUpdatesToCell(report.priceUpdates!)
   }
 
-  return beginCell()
-    .storeMaybeRef(priceUpdates)
-    .storeRef(merkleRootsToCell(report.merkleRoots))
+  return beginCell().storeMaybeRef(priceUpdates).storeRef(merkleRootsToCell(report.merkleRoots))
 }
 
 export const sourceChainConfigToBuilder = (config: SourceChainConfig) => {
