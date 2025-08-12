@@ -32,12 +32,12 @@ func (a AddressCodec) AddressBytesToString(bytes []byte) (string, error) {
 	workchain := binary.BigEndian.Uint32(rawAddr[0:4])
 
 	addr := address.NewAddress(0, byte(workchain), rawAddr[4:])
-	return addr.String(), nil
+	return addr.StringRaw(), nil
 }
 
 func (a AddressCodec) AddressStringToBytes(addrString string) ([]byte, error) {
-	// ParseAddr is for parsing base64 encoded std address strings, any other address format will fail
-	addr, err := address.ParseAddr(addrString)
+	// ParseRawAddr currently only works for hex encoded std address strings, any other address format will fail
+	addr, err := address.ParseRawAddr(addrString)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode TVM address: %w", err)
 	}

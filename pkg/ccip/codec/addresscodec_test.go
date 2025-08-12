@@ -22,6 +22,9 @@ func TestTONAddress(t *testing.T) {
 	invalidChecksum = append(invalidChecksum, validAddressBytes[:34]...)
 	invalidChecksum = append(invalidChecksum, 0x00, 0x00)
 	addressWithInvalidChecksum := base64.RawURLEncoding.EncodeToString(invalidChecksum)
+
+	extAddr := address.NewAddressExt(0, 256, addr.Data())
+
 	tests := []struct {
 		name        string
 		in          string
@@ -30,19 +33,24 @@ func TestTONAddress(t *testing.T) {
 	}{
 		{
 			"hand crafted",
-			addr.String(),
+			addr.StringRaw(),
 			validAddressBytes,
 			nil,
 		},
 		{
 			name:        "invalid base64",
 			in:          "!!!notbase64!!!",
-			expectedErr: errors.New("failed to decode TVM address: illegal base64 data at input byte 0"),
+			expectedErr: errors.New("failed to decode TVM address: invalid address format"),
 		},
 		{
 			name:        "invalid checksum",
 			in:          addressWithInvalidChecksum,
-			expectedErr: errors.New("failed to decode TVM address: invalid address"),
+			expectedErr: errors.New("failed to decode TVM address: invalid address format"),
+		},
+		{
+			name:        "ext address not supported",
+			in:          extAddr.String(),
+			expectedErr: errors.New("failed to decode TVM address: incorrect address data length"),
 		},
 	}
 
