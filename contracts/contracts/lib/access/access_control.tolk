@@ -174,7 +174,7 @@ struct AccessControl<T> {
     data: AccessControl_Data;
 
     /// Runtime hooks (extensions)
-    context: T?,
+    context: T?;
     hooks: AccessControl_Hooks<T>?;
 }
 

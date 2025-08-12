@@ -469,10 +469,12 @@ describe('MCMS - IntegrationTest', () => {
   }
 
   const _signerKeyPairs = async (): Promise<KeyPair[]> => {
-    const res: KeyPair[] = []
-    for (let i = 0; i < PROPOSE_COUNT + VETO_COUNT; i++) {
-      res.push(await generateEd25519KeyPair())
-    }
+    const res = await Promise.all(
+      Array.from(
+        { length: PROPOSE_COUNT + VETO_COUNT },
+        async (_, i) => await generateEd25519KeyPair(),
+      ),
+    )
 
     // Sort result by public key (strictly increasing)
     res.sort((a, b) => {
@@ -485,19 +487,11 @@ describe('MCMS - IntegrationTest', () => {
   }
 
   const proposerKeyPairs = (): KeyPair[] => {
-    const res: KeyPair[] = []
-    for (let i = 0; i < PROPOSE_COUNT; i++) {
-      res.push(signerKeyPairs[i])
-    }
-    return res
+    return Array.from({ length: PROPOSE_COUNT }, (_, i) => signerKeyPairs[i])
   }
 
   const vetoKeyPairs = (): KeyPair[] => {
-    const res: KeyPair[] = []
-    for (let i = 0; i < VETO_COUNT; i++) {
-      res.push(signerKeyPairs[PROPOSE_COUNT + i])
-    }
-    return res
+    return Array.from({ length: VETO_COUNT }, (_, i) => signerKeyPairs[PROPOSE_COUNT + i])
   }
 
   it('should execute chainOfActions', async () => {
