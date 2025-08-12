@@ -379,8 +379,6 @@ func TestByteComparison(t *testing.T) {
 	}
 }
 
-// Additional comprehensive test cases that actually use mockLogStore
-
 func TestMockLogStore_SaveAndRetrieve(t *testing.T) {
 	store := &mockLogStore{}
 	addr, err := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")
