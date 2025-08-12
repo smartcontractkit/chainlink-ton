@@ -20,10 +20,6 @@ import (
 // This package implements a log polling service for TON blockchain.
 // It monitors external message outputs from specified addresses and
 // applies filtering logic to support cross-chain message detection.
-//
-// The service monitors masterchain blocks, extracts ExternalMessageOut entries that match
-// registered filters. Each filter specifies an address and event topic, with optional
-// cell-level byte queries for precise filtering.
 
 // service is the main TON log polling service implementation.
 // It continuously polls the TON masterchain, discovers new blocks, and processes

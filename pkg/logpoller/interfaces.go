@@ -55,8 +55,13 @@ type LogStore interface {
 	GetLogs(srcAddr *address.Address, topic uint32) ([]types.Log, error)
 }
 
-// LogQuery defines the interface for querying logs with different filtering strategies.
-type LogQuery[T any] interface {
-	WithRawByteFilter(ctx context.Context, address *address.Address, topic uint32, filters []query.ByteFilter, options query.Options) (query.Result[T], error)
-	WithTypedFilter(ctx context.Context, address *address.Address, topic uint32, filter func(T) bool, options query.Options) (query.Result[T], error)
+// QueryBuilder defines the interface for constructing and executing log queries.
+type QueryBuilder[T any] interface {
+	WithSrcAddress(address *address.Address) QueryBuilder[T]
+	WithTopic(topic uint32) QueryBuilder[T]
+	WithByteFilter(filter query.ByteFilter) QueryBuilder[T]
+	WithByteFilters(filters []query.ByteFilter) QueryBuilder[T]
+	WithTypedFilter(filter func(T) bool) QueryBuilder[T]
+	WithOptions(options query.Options) QueryBuilder[T]
+	Execute(ctx context.Context) (query.Result[T], error)
 }

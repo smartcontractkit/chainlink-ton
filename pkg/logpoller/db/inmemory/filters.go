@@ -11,14 +11,14 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
 )
 
+var _ logpoller.FilterStore = (*inMemoryFilters)(nil)
+
 // inMemoryFilters is an in-memory implementation of the Filters interface.
 type inMemoryFilters struct {
 	mu               sync.RWMutex
 	filtersByName    map[string]types.Filter        // filtersByName maps a filter's unique name to its definition.
 	filtersByAddress map[string]map[uint32]struct{} // filtersByAddress maps a contract address string to a set of its watched event topics.
 }
-
-var _ logpoller.FilterStore = (*inMemoryFilters)(nil)
 
 // NewFilterStore creates a new in-memory implementation of the Filters interface.
 // TODO(NONEVM-2187): implement ORM and remove in-memory store

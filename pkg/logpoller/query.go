@@ -2,6 +2,7 @@ package logpoller
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 
@@ -12,106 +13,161 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types/query"
 )
 
-var _ LogQuery[any] = (*logQuery[any])(nil)
+var _ QueryBuilder[any] = (*queryBuilder[any])(nil)
 
-// logQuery provides typed access to log data with different querying strategies.
-// It automatically handles parsing for the specified event type T.
-type logQuery[T any] struct {
-	store LogStore
+// queryBuilder provides a fluent interface for constructing log queries with two-phase filtering.
+// Phase 1: byte-level filtering at the storage layer
+// Phase 2: Strongly-typed filtering on parsed events in the application layer
+type queryBuilder[T any] struct {
+	store       LogStore
+	address     *address.Address
+	topic       uint32
+	byteFilters []query.ByteFilter
+	typedFilter func(T) bool
+	options     query.Options
 }
 
-// NewLogQuery creates a new query instance for a specific event type.
-// Parsing is handled automatically based on the type T.
-func NewLogQuery[T any](store LogStore) LogQuery[T] {
-	return &logQuery[T]{
-		store: store,
+// NewQuery creates a new query builder for a specific event type.
+func NewQuery[T any](store LogStore) QueryBuilder[T] {
+	return &queryBuilder[T]{
+		store:       store,
+		byteFilters: make([]query.ByteFilter, 0),
+		options:     query.Options{},
 	}
 }
 
-// query.WithRawByteFilter performs byte-level filtering to raw log data
-func (q *logQuery[T]) WithRawByteFilter(
-	_ context.Context,
-	address *address.Address,
-	topic uint32,
-	filters []query.ByteFilter,
-	options query.Options,
-) (query.Result[T], error) {
-	// Get raw logs from store
-	logs, err := q.store.GetLogs(address, topic)
+// WithSrcAddress sets the source address for the query.
+func (b *queryBuilder[T]) WithSrcAddress(address *address.Address) QueryBuilder[T] {
+	b.address = address
+	return b
+}
+
+// WithTopic sets the event topic for the query.
+// TODO: support both event topic from ExtMsgOut and opcode from internal message
+func (b *queryBuilder[T]) WithTopic(topic uint32) QueryBuilder[T] {
+	b.topic = topic
+	return b
+}
+
+// WithByteFilter adds a raw byte-level filter
+func (b *queryBuilder[T]) WithByteFilter(filter query.ByteFilter) QueryBuilder[T] {
+	b.byteFilters = append(b.byteFilters, filter)
+	return b
+}
+
+// WithByteFilters adds multiple raw byte-level filters
+func (b *queryBuilder[T]) WithByteFilters(filters []query.ByteFilter) QueryBuilder[T] {
+	b.byteFilters = append(b.byteFilters, filters...)
+	return b
+}
+
+// WithTypedFilter sets a strongly-typed in-memory filter
+func (b *queryBuilder[T]) WithTypedFilter(filter func(T) bool) QueryBuilder[T] {
+	b.typedFilter = filter
+	return b
+}
+
+// WithOptions sets pagination and sorting options.
+func (b *queryBuilder[T]) WithOptions(options query.Options) QueryBuilder[T] {
+	b.options = options
+	return b
+}
+
+// Execute runs the constructed query with two-phase filtering.
+func (b *queryBuilder[T]) Execute(_ context.Context) (query.Result[T], error) {
+	if b.address == nil {
+		return query.Result[T]{}, errors.New("address is required")
+	}
+
+	// Get all logs from store first
+	logs, err := b.store.GetLogs(b.address, b.topic)
 	if err != nil {
 		return query.Result[T]{}, fmt.Errorf("failed to get logs from store: %w", err)
 	}
 
-	// Apply byte-level filtering
+	var preFilteredLogs []types.Log
+	if len(b.byteFilters) > 0 {
+		// TODO: prefilter in ORM layer
+		for _, log := range logs {
+			if b.passesAllByteFilters(log) {
+				preFilteredLogs = append(preFilteredLogs, log)
+			}
+		}
+	} else {
+		preFilteredLogs = logs
+	}
+
+	var filteredEvents []T
 	var filteredLogs []types.Log
-	for _, log := range logs {
-		if q.passesAllFilters(log, filters) {
+	for _, log := range preFilteredLogs {
+		var event T
+		parseErr := tlb.LoadFromCell(&event, log.Data.BeginParse())
+		if parseErr != nil {
+			return query.Result[T]{}, fmt.Errorf("failed to parse log cell: %w", parseErr)
+		}
+
+		// Apply typed filter if specified
+		if b.typedFilter == nil || b.typedFilter(event) {
+			filteredEvents = append(filteredEvents, event)
 			filteredLogs = append(filteredLogs, log)
 		}
 	}
 
 	// Apply sorting if specified
-	if len(options.SortBy) > 0 {
-		q.applySorting(filteredLogs, options.SortBy)
+	if len(b.options.SortBy) > 0 {
+		b.applySorting(filteredLogs, filteredEvents)
 	}
 
 	// Apply pagination
-	start := 0
-	totalCount := len(filteredLogs)
+	start, end := b.calculatePagination(len(filteredEvents))
 
-	if options.Offset > 0 {
-		start = options.Offset
-		if start > totalCount {
-			start = totalCount
-		}
+	if start >= len(filteredEvents) {
+		return query.Result[T]{
+			Logs:    []types.Log{},
+			Events:  []T{},
+			HasMore: false,
+			Total:   len(filteredEvents),
+			Offset:  b.options.Offset,
+			Limit:   b.options.Limit,
+		}, nil
 	}
 
-	end := totalCount
-	if options.Limit > 0 && start+options.Limit < totalCount {
-		end = start + options.Limit
-	}
+	pagedEvents := filteredEvents[start:end]
+	pagedLogs := filteredLogs[start:end]
 
-	// Get the paged logs
-	var pagedLogs []types.Log
-	if start < totalCount {
-		pagedLogs = filteredLogs[start:end]
-	}
-
-	result := query.Result[T]{
+	return query.Result[T]{
 		Logs:    pagedLogs,
-		Events:  []T{}, // No parsing for raw byte filter
-		HasMore: end < totalCount,
-		Total:   totalCount,
-		Offset:  options.Offset,
-		Limit:   options.Limit,
-	}
-
-	return result, nil
+		Events:  pagedEvents,
+		HasMore: end < len(filteredEvents),
+		Total:   len(filteredEvents),
+		Offset:  b.options.Offset,
+		Limit:   b.options.Limit,
+	}, nil
 }
 
-// passesAllFilters checks if a log passes all byte-level filters
-func (q *logQuery[T]) passesAllFilters(log types.Log, filters []query.ByteFilter) bool {
-	if len(filters) == 0 {
-		return true // no filters means all logs pass
+// passesAllByteFilters checks if a log passes all byte-level filters
+func (b *queryBuilder[T]) passesAllByteFilters(log types.Log) bool {
+	if len(b.byteFilters) == 0 {
+		return true
 	}
 
 	// Extract cell payload as bytes for byte-level filtering
 	_, cellPayload, err := log.Data.BeginParse().RestBits()
 	if err != nil {
-		return false // if we can't extract payload, filter fails
+		return false
 	}
 
 	// Check each filter
-	for _, filter := range filters {
-		if !q.passesFilter(cellPayload, filter) {
+	for _, filter := range b.byteFilters {
+		if !b.passesByteFilter(cellPayload, filter) {
 			return false
 		}
 	}
 	return true
 }
 
-// passesFilter checks if payload passes a single byte filter
-func (q *logQuery[T]) passesFilter(payload []byte, filter query.ByteFilter) bool {
+// passesByteFilter checks if payload passes a single byte filter
+func (b *queryBuilder[T]) passesByteFilter(payload []byte, filter query.ByteFilter) bool {
 	// Check payload length
 	if uint(len(payload)) < filter.Offset+uint(len(filter.Value)) {
 		return false
@@ -144,20 +200,32 @@ func (q *logQuery[T]) passesFilter(payload []byte, filter query.ByteFilter) bool
 	}
 }
 
-// applySorting sorts logs according to the specified criteria
-func (q *logQuery[T]) applySorting(logs []types.Log, sortBy []query.SortBy) {
-	if len(sortBy) == 0 {
+// applySorting sorts logs and events according to the specified criteria
+func (b *queryBuilder[T]) applySorting(logs []types.Log, events []T) {
+	if len(b.options.SortBy) == 0 {
 		return
 	}
 
-	sort.Slice(logs, func(i, j int) bool {
-		for _, sortCriteria := range sortBy {
+	// Create index pairs to maintain log-event correspondence during sorting
+	type indexPair struct {
+		log   types.Log
+		event T
+		index int
+	}
+
+	pairs := make([]indexPair, len(logs))
+	for i := range logs {
+		pairs[i] = indexPair{log: logs[i], event: events[i], index: i}
+	}
+
+	sort.Slice(pairs, func(i, j int) bool {
+		for _, sortCriteria := range b.options.SortBy {
 			var cmp int
 
 			if sortCriteria.Field == query.SortByTxLT {
-				if logs[i].TxLT < logs[j].TxLT {
+				if pairs[i].log.TxLT < pairs[j].log.TxLT {
 					cmp = -1
-				} else if logs[i].TxLT > logs[j].TxLT {
+				} else if pairs[i].log.TxLT > pairs[j].log.TxLT {
 					cmp = 1
 				}
 			}
@@ -171,114 +239,34 @@ func (q *logQuery[T]) applySorting(logs []types.Log, sortBy []query.SortBy) {
 		}
 		return false
 	})
+
+	// Update the original slices with sorted data
+	for i, pair := range pairs {
+		logs[i] = pair.log
+		events[i] = pair.event
+	}
 }
 
-// WithTypedFilter performs typed filtering after parsing all logs.
-// This is more flexible but less efficient as it requires parsing all logs first.
-// Use this for complex filtering logic that operates on parsed event fields.
-func (q *logQuery[T]) WithTypedFilter(
-	ctx context.Context,
-	address *address.Address,
-	topic uint32,
-	filter func(T) bool,
-	options query.Options,
-) (query.Result[T], error) {
-	// Get raw logs from store
-	logs, err := q.store.GetLogs(address, topic)
-	if err != nil {
-		return query.Result[T]{}, fmt.Errorf("failed to get logs from store: %w", err)
-	}
+// calculatePagination calculates start and end indices for pagination
+func (b *queryBuilder[T]) calculatePagination(totalCount int) (start, end int) {
+	start = 0
+	end = totalCount
 
-	// Parse all logs and apply typed filter
-	var filteredEvents []T
-	var filteredLogs []types.Log
-	for _, log := range logs {
-		var event T
-		parseErr := tlb.LoadFromCell(&event, log.Data.BeginParse())
-		if parseErr != nil {
-			return query.Result[T]{}, fmt.Errorf("failed to parse log cell: %w", parseErr)
-		}
-
-		if filter == nil || filter(event) {
-			filteredEvents = append(filteredEvents, event)
-			filteredLogs = append(filteredLogs, log)
+	if b.options.Offset > 0 {
+		start = b.options.Offset
+		if start > totalCount {
+			start = totalCount
 		}
 	}
 
-	// Apply sorting if specified
-	if len(options.SortBy) > 0 {
-		// Create a copy of events that we'll rearrange to match the sorted logs
-		originalEvents := make([]T, len(filteredEvents))
-		copy(originalEvents, filteredEvents)
-
-		// Create index mapping before sorting
-		indexMap := make(map[types.Log]int)
-		for i, log := range filteredLogs {
-			indexMap[log] = i
-		}
-
-		// Sort the logs using the existing method
-		q.applySorting(filteredLogs, options.SortBy)
-
-		// Reorder events to match the sorted logs
-		for i, sortedLog := range filteredLogs {
-			if originalIdx, exists := indexMap[sortedLog]; exists {
-				filteredEvents[i] = originalEvents[originalIdx]
-			}
-		}
-	}
-
-	// Apply pagination to filtered results
-	start := 0
-	end := len(filteredEvents)
-
-	if options.Offset > 0 {
-		start = options.Offset
-		if start > len(filteredEvents) {
-			start = len(filteredEvents)
-		}
-	}
-
-	if options.Limit > 0 {
-		limit := options.Limit
+	if b.options.Limit > 0 {
+		limit := b.options.Limit
 		if start+limit < end {
 			end = start + limit
 		}
 	}
 
-	if start >= len(filteredEvents) {
-		return query.Result[T]{
-			Logs:    []types.Log{},
-			Events:  []T{},
-			HasMore: false,
-			Total:   len(filteredEvents),
-			Offset:  options.Offset,
-			Limit:   options.Limit,
-		}, nil
-	}
-
-	pagedEvents := filteredEvents[start:end]
-	pagedLogs := make([]types.Log, 0)
-	if start < len(filteredLogs) {
-		endLogs := end
-		if endLogs > len(filteredLogs) {
-			endLogs = len(filteredLogs)
-		}
-		pagedLogs = filteredLogs[start:endLogs]
-	}
-
-	hasMore := end < len(filteredEvents)
-
-	result := query.Result[T]{
-		Logs:    pagedLogs,
-		Events:  pagedEvents,
-		HasMore: hasMore,
-		Total:   len(filteredEvents),
-		Offset:  options.Offset,
-		Limit:   options.Limit,
-	}
-
-	return result, nil
+	return start, end
 }
 
 // Helper functions for byte comparison
