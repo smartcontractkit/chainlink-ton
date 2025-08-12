@@ -4,6 +4,7 @@ import (
 	"math/big"
 
 	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
@@ -17,12 +18,14 @@ type CCIPMessageSent struct {
 
 // GenericExtraArgsV2 represents generic extra arguments for transactions.
 type GenericExtraArgsV2 struct {
-	GasLimit                 *big.Int `tlb:"## 256"`
-	AllowOutOfOrderExecution bool     `tlb:"bool"`
+	_                        tlb.Magic `tlb:"#181dcf10"` //nolint:revive // Ignore opcode tag // hex encoded bytes4(keccak256("CCIP EVMExtraArgsV2")), can be verified with hexutil.MustDecode("0x181dcf10")
+	GasLimit                 *big.Int  `tlb:"## 256"`
+	AllowOutOfOrderExecution bool      `tlb:"bool"`
 }
 
 // SVMExtraArgsV1 represents extra arguments for SVM transactions.
 type SVMExtraArgsV1 struct {
+	_                        tlb.Magic                          `tlb:"#1f3b3aba"` //nolint:revive // Ignore opcode tag // hex encoded bytes4(keccak256("CCIP SVMExtraArgsV1")), can be verified with hexutil.MustDecode("0x1f3b3aba")
 	ComputeUnits             uint32                             `tlb:"## 32"`
 	AccountIsWritableBitmap  uint64                             `tlb:"## 64"`
 	AllowOutOfOrderExecution bool                               `tlb:"bool"`
