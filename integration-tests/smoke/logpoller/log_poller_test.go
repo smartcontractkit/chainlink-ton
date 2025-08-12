@@ -146,6 +146,8 @@ func Test_LogPoller(t *testing.T) {
 		})
 	})
 
+	// TODO: internal message indexing and testing
+
 	t.Run("Logpoller live event ingestion", func(t *testing.T) {
 		t.Parallel()
 		senderA := test_utils.CreateRandomHighloadWallet(t, client)
@@ -185,19 +187,19 @@ func Test_LogPoller(t *testing.T) {
 
 		// register filters
 		filterA := types.Filter{
-			Name:      "FilterA",
-			Address:   emitterA.ContractAddress(),
-			EventName: "CounterIncreased",
-			EventSig:  counter.TopicCountIncreased,
+			Name:     "FilterA",
+			Address:  emitterA.ContractAddress(),
+			MsgType:  tlb.MsgTypeExternalOut,
+			EventSig: counter.TopicCountIncreased,
 		}
 		faerr := lp.RegisterFilter(t.Context(), filterA)
 		require.NoError(t, faerr)
 
 		filterB := types.Filter{
-			Name:      "FilterB",
-			Address:   emitterB.ContractAddress(),
-			EventName: "CounterIncreased",
-			EventSig:  counter.TopicCountIncreased,
+			Name:     "FilterB",
+			Address:  emitterB.ContractAddress(),
+			MsgType:  tlb.MsgTypeExternalOut,
+			EventSig: counter.TopicCountIncreased,
 		}
 		fberr := lp.RegisterFilter(t.Context(), filterB)
 		require.NoError(t, fberr)
@@ -276,7 +278,7 @@ func Test_LogPoller(t *testing.T) {
 			// Use the new unified query interface
 			resA, resAErr := logpoller.NewQuery[counter.CountIncreased](lp.GetStore()).
 				WithSrcAddress(emitterA.ContractAddress()).
-				WithTopic(counter.TopicCountIncreased).
+				WithEventSig(counter.TopicCountIncreased).
 				WithByteFilter(filters[0]).
 				WithByteFilter(filters[1]).
 				WithOptions(options).
@@ -285,7 +287,7 @@ func Test_LogPoller(t *testing.T) {
 
 			resB, resBErr := logpoller.NewQuery[counter.CountIncreased](lp.GetStore()).
 				WithSrcAddress(emitterB.ContractAddress()).
-				WithTopic(counter.TopicCountIncreased).
+				WithEventSig(counter.TopicCountIncreased).
 				WithByteFilter(filters[0]).
 				WithByteFilter(filters[1]).
 				WithOptions(options).
@@ -374,7 +376,7 @@ func Test_LogPoller(t *testing.T) {
 			}
 			result, qerr := logpoller.NewQuery[counter.CountIncreased](lp.GetStore()).
 				WithSrcAddress(emitterA.ContractAddress()).
-				WithTopic(counter.TopicCountIncreased).
+				WithEventSig(counter.TopicCountIncreased).
 				WithByteFilter(filters[0]).
 				WithByteFilter(filters[1]).
 				WithOptions(options).
@@ -422,7 +424,7 @@ func Test_LogPoller(t *testing.T) {
 
 				result, queryErr := logpoller.NewQuery[counter.CountIncreased](lp.GetStore()).
 					WithSrcAddress(emitterA.ContractAddress()).
-					WithTopic(counter.TopicCountIncreased).
+					WithEventSig(counter.TopicCountIncreased).
 					WithByteFilter(filters[0]).
 					WithByteFilter(filters[1]).
 					WithOptions(options).
@@ -461,7 +463,7 @@ func Test_LogPoller(t *testing.T) {
 
 				result, queryErr := logpoller.NewQuery[counter.CountIncreased](lp.GetStore()).
 					WithSrcAddress(emitterB.ContractAddress()).
-					WithTopic(counter.TopicCountIncreased).
+					WithEventSig(counter.TopicCountIncreased).
 					WithByteFilter(filters[0]).
 					WithByteFilter(filters[1]).
 					WithOptions(options).
@@ -494,7 +496,7 @@ func Test_LogPoller(t *testing.T) {
 
 				result, queryErr := logpoller.NewQuery[counter.CountIncreased](lp.GetStore()).
 					WithSrcAddress(emitterB.ContractAddress()).
-					WithTopic(counter.TopicCountIncreased).
+					WithEventSig(counter.TopicCountIncreased).
 					WithByteFilter(filter).
 					WithOptions(options).
 					Execute(t.Context())
@@ -529,7 +531,7 @@ func Test_LogPoller(t *testing.T) {
 
 				result, queryErr := logpoller.NewQuery[counter.CountIncreased](lp.GetStore()).
 					WithSrcAddress(emitterB.ContractAddress()).
-					WithTopic(counter.TopicCountIncreased).
+					WithEventSig(counter.TopicCountIncreased).
 					WithOptions(query.Options{}).
 					Execute(t.Context())
 				require.NoError(t, queryErr)
@@ -564,7 +566,7 @@ func Test_LogPoller(t *testing.T) {
 
 				result, queryErr := logpoller.NewQuery[counter.CountIncreased](lp.GetStore()).
 					WithSrcAddress(emitterB.ContractAddress()).
-					WithTopic(counter.TopicCountIncreased).
+					WithEventSig(counter.TopicCountIncreased).
 					WithTypedFilter(filter).
 					WithOptions(query.Options{}).
 					Execute(t.Context())
@@ -591,7 +593,7 @@ func Test_LogPoller(t *testing.T) {
 
 				result, queryErr := logpoller.NewQuery[counter.CountIncreased](lp.GetStore()).
 					WithSrcAddress(emitterB.ContractAddress()).
-					WithTopic(counter.TopicCountIncreased).
+					WithEventSig(counter.TopicCountIncreased).
 					WithTypedFilter(filter).
 					WithOptions(query.Options{}).
 					Execute(t.Context())
@@ -629,7 +631,7 @@ func Test_LogPoller(t *testing.T) {
 
 				result, queryErr := logpoller.NewQuery[counter.CountIncreased](lp.GetStore()).
 					WithSrcAddress(emitterA.ContractAddress()).
-					WithTopic(counter.TopicCountIncreased).
+					WithEventSig(counter.TopicCountIncreased).
 					WithOptions(options).
 					Execute(t.Context())
 				require.NoError(t, queryErr)
@@ -653,7 +655,7 @@ func Test_LogPoller(t *testing.T) {
 
 				result, queryErr := logpoller.NewQuery[counter.CountIncreased](lp.GetStore()).
 					WithSrcAddress(emitterA.ContractAddress()).
-					WithTopic(counter.TopicCountIncreased).
+					WithEventSig(counter.TopicCountIncreased).
 					WithOptions(options).
 					Execute(t.Context())
 				require.NoError(t, queryErr)
@@ -679,7 +681,7 @@ func Test_LogPoller(t *testing.T) {
 
 				result, queryErr := logpoller.NewQuery[counter.CountIncreased](lp.GetStore()).
 					WithSrcAddress(emitterA.ContractAddress()).
-					WithTopic(counter.TopicCountIncreased).
+					WithEventSig(counter.TopicCountIncreased).
 					WithOptions(options).
 					Execute(t.Context())
 				require.NoError(t, queryErr)
@@ -704,7 +706,7 @@ func Test_LogPoller(t *testing.T) {
 
 				result, queryErr := logpoller.NewQuery[counter.CountIncreased](lp.GetStore()).
 					WithSrcAddress(emitterA.ContractAddress()).
-					WithTopic(counter.TopicCountIncreased).
+					WithEventSig(counter.TopicCountIncreased).
 					WithOptions(options).
 					Execute(t.Context())
 				require.NoError(t, queryErr)
@@ -720,7 +722,7 @@ func Test_LogPoller(t *testing.T) {
 
 				firstPageResult, frerr := logpoller.NewQuery[counter.CountIncreased](lp.GetStore()).
 					WithSrcAddress(emitterA.ContractAddress()).
-					WithTopic(counter.TopicCountIncreased).
+					WithEventSig(counter.TopicCountIncreased).
 					WithOptions(firstPageOptions).
 					Execute(t.Context())
 				require.NoError(t, frerr)
@@ -750,7 +752,7 @@ func Test_LogPoller(t *testing.T) {
 
 					result, queryErr := logpoller.NewQuery[counter.CountIncreased](lp.GetStore()).
 						WithSrcAddress(emitterA.ContractAddress()).
-						WithTopic(counter.TopicCountIncreased).
+						WithEventSig(counter.TopicCountIncreased).
 						WithOptions(options).
 						Execute(t.Context())
 					require.NoError(t, queryErr)
@@ -812,7 +814,7 @@ func Test_LogPoller(t *testing.T) {
 
 				result, queryErr := logpoller.NewQuery[counter.CountIncreased](lp.GetStore()).
 					WithSrcAddress(emitterA.ContractAddress()).
-					WithTopic(counter.TopicCountIncreased).
+					WithEventSig(counter.TopicCountIncreased).
 					WithByteFilter(filters[0]).
 					WithByteFilter(filters[1]).
 					WithOptions(options).
@@ -855,7 +857,7 @@ func Test_LogPoller(t *testing.T) {
 
 					result, queryErr := logpoller.NewQuery[counter.CountIncreased](lp.GetStore()).
 						WithSrcAddress(emitterB.ContractAddress()).
-						WithTopic(counter.TopicCountIncreased).
+						WithEventSig(counter.TopicCountIncreased).
 						WithOptions(options).
 						Execute(t.Context())
 					require.NoError(t, queryErr)
@@ -903,7 +905,7 @@ func Test_LogPoller(t *testing.T) {
 
 				result, queryErr := logpoller.NewQuery[counter.CountIncreased](lp.GetStore()).
 					WithSrcAddress(emitterA.ContractAddress()).
-					WithTopic(counter.TopicCountIncreased).
+					WithEventSig(counter.TopicCountIncreased).
 					WithByteFilter(filter).
 					WithOptions(options).
 					Execute(t.Context())
@@ -926,7 +928,7 @@ func Test_LogPoller(t *testing.T) {
 
 				result, queryErr := logpoller.NewQuery[counter.CountIncreased](lp.GetStore()).
 					WithSrcAddress(emitterA.ContractAddress()).
-					WithTopic(counter.TopicCountIncreased).
+					WithEventSig(counter.TopicCountIncreased).
 					WithOptions(options).
 					Execute(t.Context())
 				require.NoError(t, queryErr)

@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tlb"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 
@@ -30,8 +31,8 @@ type FilterStore interface {
 	HasFilter(ctx context.Context, name string) (bool, error)
 	// GetDistinctAddresses returns a slice of unique addresses that are being monitored.
 	GetDistinctAddresses() ([]*address.Address, error)
-	// MatchingFilters returns all filter IDs that match a given contract address and event topic.
-	MatchingFilters(contractAddr address.Address, topic uint32) ([]int64, error)
+	// GetFiltersForAddressAndMsgType returns filters for a specific address and message type.
+	GetFiltersForAddressAndMsgType(ctx context.Context, addr address.Address, msgType tlb.MsgType) ([]types.Filter, error)
 }
 
 // TxLoader defines the interface for loading transactions from the TON blockchain.
@@ -46,9 +47,9 @@ type Indexer interface {
 // LogStore defines the interface for storing and retrieving logs.
 type LogStore interface {
 	SaveLog(log types.Log)
-	// GetLogs retrieves raw logs for a given address and topic without any parsing or filtering.
+	// GetLogs retrieves raw logs for a given address and event signature without any parsing or filtering.
 	// This is a simple method that returns the raw cell data for further processing.
-	GetLogs(srcAddr *address.Address, topic uint32) ([]types.Log, error)
+	GetLogs(srcAddr *address.Address, sig uint32) ([]types.Log, error)
 }
 
 // QueryBuilder defines the interface for constructing and executing log queries.
@@ -57,8 +58,8 @@ type QueryBuilder[T any] interface {
 	// WithSrcAddress sets the source contract address to filter logs by(required)
 	WithSrcAddress(address *address.Address) QueryBuilder[T]
 
-	// WithTopic sets the event topic (signature) to filter logs by (required)
-	WithTopic(topic uint32) QueryBuilder[T]
+	// WithEventSig sets the event sig(topic or opcode) to filter logs by (required)
+	WithEventSig(sig uint32) QueryBuilder[T]
 
 	// WithByteFilter adds a single byte-level filter to the query.
 	// Byte filters allow filtering based on raw byte comparisons at specific offsets

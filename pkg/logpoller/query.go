@@ -21,7 +21,7 @@ var _ QueryBuilder[any] = (*queryBuilder[any])(nil)
 type queryBuilder[T any] struct {
 	store       LogStore
 	address     *address.Address
-	topic       uint32
+	eventSig    uint32
 	byteFilters []query.ByteFilter
 	typedFilter func(T) bool
 	options     query.Options
@@ -42,10 +42,10 @@ func (b *queryBuilder[T]) WithSrcAddress(address *address.Address) QueryBuilder[
 	return b
 }
 
-// WithTopic sets the event topic for the query.
-// TODO: support both event topic from ExtMsgOut and opcode from internal message
-func (b *queryBuilder[T]) WithTopic(topic uint32) QueryBuilder[T] {
-	b.topic = topic
+// WithEventSig sets the event signature for the query.
+// TODO: support both event signature from ExtMsgOut and opcode from internal message
+func (b *queryBuilder[T]) WithEventSig(sig uint32) QueryBuilder[T] {
+	b.eventSig = sig
 	return b
 }
 
@@ -79,12 +79,12 @@ func (b *queryBuilder[T]) Execute(_ context.Context) (query.Result[T], error) {
 		return query.Result[T]{}, errors.New("address is required")
 	}
 
-	if b.topic == 0 {
-		return query.Result[T]{}, errors.New("topic is required")
+	if b.eventSig == 0 {
+		return query.Result[T]{}, errors.New("event signature is required")
 	}
 
 	// Get all logs from store first
-	logs, err := b.store.GetLogs(b.address, b.topic)
+	logs, err := b.store.GetLogs(b.address, b.eventSig)
 	if err != nil {
 		return query.Result[T]{}, fmt.Errorf("failed to get logs from store: %w", err)
 	}

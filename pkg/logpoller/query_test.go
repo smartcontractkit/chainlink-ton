@@ -22,10 +22,10 @@ func (m *mockLogStore) SaveLog(log types.Log) {
 	m.logs = append(m.logs, log)
 }
 
-func (m *mockLogStore) GetLogs(srcAddr *address.Address, topic uint32) ([]types.Log, error) {
+func (m *mockLogStore) GetLogs(srcAddr *address.Address, sig uint32) ([]types.Log, error) {
 	var result []types.Log
 	for _, log := range m.logs {
-		if log.EventSig == topic && log.Address.Equals(srcAddr) {
+		if log.EventSig == sig && log.Address.Equals(srcAddr) {
 			result = append(result, log)
 		}
 	}
@@ -47,7 +47,7 @@ func createInvalidCell(t *testing.T) *cell.Cell {
 }
 
 // Helper function to create a test log with TLB-encoded TestEvent
-func createTestLog(t *testing.T, addr *address.Address, topic uint32, value uint64) types.Log {
+func createTestLog(t *testing.T, addr *address.Address, sig uint32, value uint64) types.Log {
 	// Create a TLB-encoded TestEvent
 	event := TestEvent{Value: value}
 	cell, err := tlb.ToCell(event)
@@ -55,7 +55,7 @@ func createTestLog(t *testing.T, addr *address.Address, topic uint32, value uint
 
 	return types.Log{
 		Address:  addr,
-		EventSig: topic,
+		EventSig: sig,
 		Data:     cell,
 		TxLT:     value * 100, // Use predictable TxLT for sorting tests
 	}
@@ -69,7 +69,7 @@ func TestQueryBuilder_BasicFlow(t *testing.T) {
 
 	builder := NewQuery[TestEvent](store).
 		WithSrcAddress(addr).
-		WithTopic(123).
+		WithEventSig(123).
 		WithOptions(query.Options{Limit: 10})
 
 	b, ok := builder.(*queryBuilder[TestEvent])
@@ -77,7 +77,7 @@ func TestQueryBuilder_BasicFlow(t *testing.T) {
 
 	// Verify builder state
 	require.Equal(t, addr, b.address)
-	require.Equal(t, uint32(123), b.topic)
+	require.Equal(t, uint32(123), b.eventSig)
 	require.Equal(t, 10, b.options.Limit)
 	require.Empty(t, b.byteFilters)
 	require.Nil(t, b.typedFilter)
@@ -101,7 +101,7 @@ func TestQueryBuilder_WithFilters(t *testing.T) {
 
 	builder := NewQuery[TestEvent](store).
 		WithSrcAddress(addr).
-		WithTopic(123).
+		WithEventSig(123).
 		WithByteFilter(byteFilter).
 		WithTypedFilter(typedFilter)
 
@@ -118,7 +118,7 @@ func TestQueryBuilder_RequiredAddress(t *testing.T) {
 	store := &mockLogStore{}
 
 	builder := NewQuery[TestEvent](store).
-		WithTopic(123)
+		WithEventSig(123)
 
 	// Should fail without address
 	_, err := builder.Execute(context.Background())
@@ -126,19 +126,19 @@ func TestQueryBuilder_RequiredAddress(t *testing.T) {
 	require.Contains(t, err.Error(), "address is required")
 }
 
-func TestQueryBuilder_RequiredTopic(t *testing.T) {
+func TestQueryBuilder_RequiredSig(t *testing.T) {
 	store := &mockLogStore{}
 	addr, err := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")
 	require.NoError(t, err)
 
 	builder := NewQuery[TestEvent](store).
 		WithSrcAddress(addr)
-		// Missing WithTopic call - topic should default to 0
+		// Missing Withsig call - sig should default to 0
 
-	// Should fail without topic
+	// Should fail without sig
 	_, err = builder.Execute(context.Background())
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "topic is required")
+	require.Contains(t, err.Error(), "sig is required")
 }
 
 func TestQueryBuilder_Execute_BasicQuery(t *testing.T) {
@@ -152,7 +152,7 @@ func TestQueryBuilder_Execute_BasicQuery(t *testing.T) {
 
 	builder := NewQuery[TestEvent](store).
 		WithSrcAddress(addr).
-		WithTopic(123)
+		WithEventSig(123)
 
 	result, err := builder.Execute(context.Background())
 	require.NoError(t, err)
@@ -176,7 +176,7 @@ func TestQueryBuilder_Execute_WithTypedFilter(t *testing.T) {
 
 	builder := NewQuery[TestEvent](store).
 		WithSrcAddress(addr).
-		WithTopic(123).
+		WithEventSig(123).
 		WithTypedFilter(func(event TestEvent) bool {
 			return event.Value > 10
 		})
@@ -208,7 +208,7 @@ func TestQueryBuilder_Execute_WithByteFilter(t *testing.T) {
 
 	builder := NewQuery[TestEvent](store).
 		WithSrcAddress(addr).
-		WithTopic(123).
+		WithEventSig(123).
 		WithByteFilter(byteFilter)
 
 	result, err := builder.Execute(context.Background())
@@ -230,7 +230,7 @@ func TestQueryBuilder_Execute_WithPagination(t *testing.T) {
 	// Test with limit
 	builder := NewQuery[TestEvent](store).
 		WithSrcAddress(addr).
-		WithTopic(123).
+		WithEventSig(123).
 		WithOptions(query.Options{Limit: 3})
 
 	result, err := builder.Execute(context.Background())
@@ -243,7 +243,7 @@ func TestQueryBuilder_Execute_WithPagination(t *testing.T) {
 	// Test with offset
 	builder = NewQuery[TestEvent](store).
 		WithSrcAddress(addr).
-		WithTopic(123).
+		WithEventSig(123).
 		WithOptions(query.Options{Offset: 5, Limit: 3})
 
 	result, err = builder.Execute(context.Background())
@@ -259,12 +259,12 @@ func TestQueryBuilder_Execute_NoMatches(t *testing.T) {
 	addr, err := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")
 	require.NoError(t, err)
 
-	// Add logs for a different topic
+	// Add logs for a different sig
 	store.SaveLog(createTestLog(t, addr, 456, 42))
 
 	builder := NewQuery[TestEvent](store).
 		WithSrcAddress(addr).
-		WithTopic(123) // Different topic
+		WithEventSig(123) // Different sig
 
 	result, err := builder.Execute(context.Background())
 	require.NoError(t, err)
@@ -288,7 +288,7 @@ func TestQueryBuilder_Execute_DifferentAddresses(t *testing.T) {
 	// Query for addr1 only
 	builder := NewQuery[TestEvent](store).
 		WithSrcAddress(addr1).
-		WithTopic(123)
+		WithEventSig(123)
 
 	result, err := builder.Execute(context.Background())
 	require.NoError(t, err)
@@ -316,7 +316,7 @@ func TestQueryBuilder_Execute_CombinedFilters(t *testing.T) {
 
 	builder := NewQuery[TestEvent](store).
 		WithSrcAddress(addr).
-		WithTopic(123).
+		WithEventSig(123).
 		WithByteFilter(byteFilter).
 		WithTypedFilter(func(event TestEvent) bool {
 			return event.Value > 10
@@ -345,7 +345,7 @@ func TestQueryBuilder_Execute_InvalidCellData(t *testing.T) {
 
 	builder := NewQuery[TestEvent](store).
 		WithSrcAddress(addr).
-		WithTopic(123)
+		WithEventSig(123)
 
 	// Should return error when trying to parse invalid cell
 	_, err = builder.Execute(context.Background())
@@ -393,7 +393,7 @@ func TestMockLogStore_SaveAndRetrieve(t *testing.T) {
 	store.SaveLog(log2)
 	store.SaveLog(log3)
 
-	// Test retrieving logs by topic
+	// Test retrieving logs by sig
 	logs123, err := store.GetLogs(addr, 123)
 	require.NoError(t, err)
 	require.Len(t, logs123, 2)
@@ -402,7 +402,7 @@ func TestMockLogStore_SaveAndRetrieve(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, logs456, 1)
 
-	// Test retrieving logs for non-existent topic
+	// Test retrieving logs for non-existent sig
 	logsNone, err := store.GetLogs(addr, 999)
 	require.NoError(t, err)
 	require.Empty(t, logsNone)
@@ -415,7 +415,7 @@ func TestMockLogStore_DifferentAddresses(t *testing.T) {
 	addr2, err := address.ParseAddr("EQCD39VS5jcptHL8vMjEXrzGaRcCVYto7HUn4bpAOg8xqB2N")
 	require.NoError(t, err)
 
-	// Save logs for different addresses with same topic
+	// Save logs for different addresses with same sig
 	log1 := createTestLog(t, addr1, 123, 42)
 	log2 := createTestLog(t, addr2, 123, 24)
 
@@ -447,7 +447,7 @@ func TestQueryBuilder_ExecuteWithLargeDataset(t *testing.T) {
 	// Test basic query returns all data
 	builder := NewQuery[TestEvent](store).
 		WithSrcAddress(addr).
-		WithTopic(123)
+		WithEventSig(123)
 
 	result, err := builder.Execute(context.Background())
 	require.NoError(t, err)
@@ -470,7 +470,7 @@ func TestQueryBuilder_ExecuteWithComplexFiltering(t *testing.T) {
 	// Test typed filter: values > 20 and < 40
 	builder := NewQuery[TestEvent](store).
 		WithSrcAddress(addr).
-		WithTopic(123).
+		WithEventSig(123).
 		WithTypedFilter(func(event TestEvent) bool {
 			return event.Value > 20 && event.Value < 40
 		})
@@ -500,7 +500,7 @@ func TestQueryBuilder_ExecuteWithPaginationAndFiltering(t *testing.T) {
 	// Filter for values >= 6 with pagination
 	builder := NewQuery[TestEvent](store).
 		WithSrcAddress(addr).
-		WithTopic(123).
+		WithEventSig(123).
 		WithTypedFilter(func(event TestEvent) bool {
 			return event.Value >= 6
 		}).
@@ -540,7 +540,7 @@ func TestQueryBuilder_ExecuteMultipleByteFilters(t *testing.T) {
 
 	builder := NewQuery[TestEvent](store).
 		WithSrcAddress(addr).
-		WithTopic(123).
+		WithEventSig(123).
 		WithByteFilter(filter1).
 		WithByteFilter(filter2)
 
@@ -558,7 +558,7 @@ func TestQueryBuilder_ExecuteEmptyStore(t *testing.T) {
 
 	builder := NewQuery[TestEvent](store).
 		WithSrcAddress(addr).
-		WithTopic(123)
+		WithEventSig(123)
 
 	result, err := builder.Execute(context.Background())
 	require.NoError(t, err)
@@ -568,29 +568,29 @@ func TestQueryBuilder_ExecuteEmptyStore(t *testing.T) {
 	require.False(t, result.HasMore)
 }
 
-func TestQueryBuilder_ExecuteWithMixedTopics(t *testing.T) {
+func TestQueryBuilder_ExecuteWithMixedSigs(t *testing.T) {
 	store := &mockLogStore{}
 	addr, err := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")
 	require.NoError(t, err)
 
-	// Add logs with different topics
+	// Add logs with different sigs
 	for i := 0; i < 5; i++ {
 		store.SaveLog(createTestLog(t, addr, 123, uint64(i)))    //nolint:gosec // test code
 		store.SaveLog(createTestLog(t, addr, 456, uint64(i+10))) //nolint:gosec // test code
 		store.SaveLog(createTestLog(t, addr, 789, uint64(i+20))) //nolint:gosec // test code
 	}
 
-	// Query for specific topic
+	// Query for specific sig
 	builder := NewQuery[TestEvent](store).
 		WithSrcAddress(addr).
-		WithTopic(456)
+		WithEventSig(456)
 
 	result, err := builder.Execute(context.Background())
 	require.NoError(t, err)
 	require.Len(t, result.Events, 5)
 	require.Equal(t, 5, result.Total)
 
-	// Verify all events have values from the correct topic (10-14)
+	// Verify all events have values from the correct sig (10-14)
 	for i, event := range result.Events {
 		require.Equal(t, uint64(i+10), event.Value) //nolint:gosec // test code
 	}

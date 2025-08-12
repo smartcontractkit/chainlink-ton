@@ -43,13 +43,8 @@ func NewTxLoader(
 	}
 }
 
-// LoadMessagesForAddresses scans TON blockchain for external messages from specified addresses
-// between prevBlock and toBlock. This MVP implementation uses concurrent goroutines
-// per address for improved performance.
-//
-// For TON CCIP MVP, this provides sufficient throughput while keeping implementation simple.
-// Production version will use background worker pools for better resource management.
-//
+// LoadTxsForAddresses scans TON blockchain for transactions from specified addresses
+// between prevBlock(exclusive) and toBlock(inclusive)
 // TODO(NONEVM-2188): refactor to use background workers for scale in production
 func (l *accountTxLoader) LoadTxsForAddresses(ctx context.Context, blockRange *types.BlockRange, srcAddrs []*address.Address) ([]types.TxWithBlock, error) {
 	var allTxs []types.TxWithBlock
@@ -87,16 +82,16 @@ func (l *accountTxLoader) LoadTxsForAddresses(ctx context.Context, blockRange *t
 	return allTxs, nil
 }
 
-// fetchTxsForAddress retrieves external messages for a specific address within a block range.
+// fetchTxsForAddress retrieves transactions for a specific address within a block range.
 // Uses TON's account-based transaction model with logical time (LT) bounds for efficient scanning.
 //
 // The method:
 // 1. Determines LT bounds using account states at prevBlock and toBlock
-// 2. Uses ListTransactions to paginate through the account's transaction history
-// 3. Filters for ExternalMessageOut entries within the specified range
+// 2. Uses listTransactionsWithBlock to paginate through the account's transaction history
+// 3. Returns loaded transactions back to service layer
 //
 // Note: Block range (prevBlock, toBlock] is exclusive of prevBlock, inclusive of toBlock
-// TODO: stream messages back to log poller to avoid memory overhead in production
+// TODO: stream tx back to log poller to avoid memory overhead in production
 func (l *accountTxLoader) fetchTxsForAddress(ctx context.Context, addr *address.Address, blockRange *types.BlockRange) ([]types.TxWithBlock, error) {
 	if blockRange.Prev != nil && blockRange.Prev.SeqNo >= blockRange.To.SeqNo {
 		return nil, fmt.Errorf("prevBlock %d is not before toBlock %d", blockRange.Prev.SeqNo, blockRange.To.SeqNo)
@@ -123,11 +118,15 @@ func (l *accountTxLoader) fetchTxsForAddress(ctx context.Context, addr *address.
 			return nil, fmt.Errorf("failed to list transactions for %s: %w", addr.String(), err)
 		}
 
-		// filter and process messages within the current batch.
 		// The batch is sorted from oldest to newest.
 		for i, tx := range batch {
-			if tx.LT <= startLT || tx.IO.Out == nil {
+			if tx.LT <= startLT {
 				// no need to process older transactions, they are already handled.
+				continue
+			}
+
+			if tx.IO.Out == nil {
+				// no need to process transactions without output messages
 				continue
 			}
 
@@ -189,8 +188,10 @@ func (l *accountTxLoader) getTransactionBounds(ctx context.Context, addr *addres
 	return startLT, res.LastTxLT, res.LastTxHash, nil
 }
 
-// ListTransactionsWithBlock is a custom version of ListTransactions that also returns the block IDs.
+// ListTransactionsWithBlock is a custom version of ListTransactions that also returns the shard block IDs.
 // It returns a list of transactions, a list of corresponding block IDs, and an error if one occurs.
+// ListTransactions - returns list of transactions before (including) passed lt and hash, the oldest one is first in result slice
+// Transactions will be verified to match final tx hash, which should be taken from proved account state, then it is safe.
 func (l *accountTxLoader) listTransactionsWithBlock(ctx context.Context, addr *address.Address, limit uint32, lt uint64, txHash []byte) ([]*tlb.Transaction, []*ton.BlockIDExt, error) {
 	var resp tl.Serializable
 	err := l.client.Client().QueryLiteserver(ctx, ton.GetTransactions{

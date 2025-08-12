@@ -1,6 +1,7 @@
 package indexer
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -28,7 +29,7 @@ func NewIndexer(lggr logger.Logger, filters logpoller.FilterStore) logpoller.Ind
 	}
 }
 
-// IndexTransactions iterates through external messages and processes each one
+// IndexTransactions iterates through transactions and processes each one
 func (ixr *indexer) IndexTransactions(txs []types.TxWithBlock) ([]types.Log, error) {
 	var allLogs []types.Log
 
@@ -47,84 +48,98 @@ func (ixr *indexer) IndexTransactions(txs []types.TxWithBlock) ([]types.Log, err
 	return allLogs, nil
 }
 
-// Process handles a single external message:
-// 1. Extracts event topic from destination address
-// 2. Finds matching filters for the source address and topic
-// 3. return indexed logs for each matching filter
+// getSrcAddr inspects the inner message type to reliably get the source address.
+func (ixr *indexer) getSrcAddr(msg *tlb.Message) *address.Address {
+	switch m := msg.Msg.(type) {
+	case *tlb.ExternalMessageOut:
+		return m.SrcAddr
+	case *tlb.InternalMessage:
+		return m.SrcAddr
+	default:
+		return nil
+	}
+}
+
+// indexTx handles a single transaction
 func (ixr *indexer) indexTx(tx types.TxWithBlock) ([]types.Log, error) {
-	var txLogs []types.Log
+	var allLogs []types.Log
 
 	msgs, _ := tx.Tx.IO.Out.ToSlice()
 	for _, msg := range msgs {
-		var newLogs []types.Log
-		var err error
-
-		switch msg.MsgType {
-		case tlb.MsgTypeExternalOut:
-			// non-critical errors are returned within the logs themselves.
-			// a non-nil 'err' here would be a critical, unexpected error.
-			newLogs, err = ixr.indexExtMsgOut(msg.AsExternalOut(), tx)
-		case tlb.MsgTypeInternal:
-			newLogs, err = ixr.indexInternalMsg(msg.AsInternal(), tx)
-		case tlb.MsgTypeExternalIn:
-			continue // not supported
-		default:
-			continue // not supported
+		srcAddr := ixr.getSrcAddr(&msg)
+		if srcAddr == nil {
+			continue
 		}
 
+		// get filters registered for this source address and message type
+		filtersForAddr, err := ixr.filters.GetFiltersForAddressAndMsgType(context.Background(), *srcAddr, msg.MsgType)
 		if err != nil {
-			// a critical error occurred. Stop processing this transaction's messages.
-			return nil, fmt.Errorf("failed to process message: %w", err)
+			ixr.lggr.Errorw("Failed to get filters for address and message type", "addr", srcAddr.String(), "msgType", msg.MsgType, "err", err)
+			continue
 		}
 
-		if len(newLogs) > 0 {
-			txLogs = append(txLogs, newLogs...)
+		if len(filtersForAddr) == 0 {
+			continue
+		}
+
+		for _, filter := range filtersForAddr {
+			var log *types.Log
+			var err error
+
+			switch msg.MsgType {
+			case tlb.MsgTypeExternalOut:
+				log, err = ixr.indexExtMsgOut(msg.AsExternalOut(), filter, tx)
+			case tlb.MsgTypeInternal:
+				log, err = ixr.indexInternalMsg(msg.AsInternal(), filter, tx)
+			case tlb.MsgTypeExternalIn:
+				continue // not supported
+			}
+
+			if err != nil {
+				ixr.lggr.Warnw("Failed to process message with filter", "filterName", filter.Name, "err", err)
+				continue
+			}
+
+			if log != nil {
+				allLogs = append(allLogs, *log)
+			}
 		}
 	}
-
-	return txLogs, nil
+	return allLogs, nil
 }
 
 // indexExtMsgOut creates logs for an external out message.
-func (ixr *indexer) indexExtMsgOut(msg *tlb.ExternalMessageOut, tx types.TxWithBlock) ([]types.Log, error) {
+func (ixr *indexer) indexExtMsgOut(msg *tlb.ExternalMessageOut, filter types.Filter, tx types.TxWithBlock) (*types.Log, error) {
 	bucket := event.NewExtOutLogBucket(msg.DstAddr)
+	// for ExtMsgOut we use topic for event sig
 	topic, err := bucket.DecodeEventTopic()
 	if err != nil {
 		// indexing issue, don't panic
 		errLog := ixr.newErrorLog(msg.SrcAddr, msg.Body, tx, fmt.Errorf("failed to decode event topic: %w", err))
-		return []types.Log{errLog}, nil
+		return &errLog, nil
 	}
 
-	fIDs, err := ixr.filters.MatchingFilters(*msg.SrcAddr, topic)
-	if err != nil {
-		// can be a timeout or connection issue
-		return nil, fmt.Errorf("failed to get matching filters: %w", err)
-	}
-	if len(fIDs) == 0 {
-		return nil, nil // no filters matched, nothing to do
+	if topic != filter.EventSig {
+		return nil, nil // topic doesn't match this filter's criteria.
 	}
 
-	// there can be multiple filters matching, need to produce corresponding number of logs
-	logs := make([]types.Log, 0, len(fIDs))
-	for _, fid := range fIDs {
-		log := types.Log{
-			FilterID:    fid,
-			EventSig:    topic,
-			Address:     msg.SrcAddr,
-			Data:        msg.Body,
-			TxHash:      types.TxHash(tx.Tx.Hash),
-			TxLT:        tx.Tx.LT,
-			TxTimestamp: time.Unix(int64(tx.Tx.Now), 0).UTC(),
-			Block:       tx.Block,
-		}
-		logs = append(logs, log)
+	log := types.Log{
+		FilterID:    filter.ID,
+		EventSig:    topic,
+		Address:     msg.SrcAddr,
+		Data:        msg.Body,
+		TxHash:      types.TxHash(tx.Tx.Hash),
+		TxLT:        tx.Tx.LT,
+		TxTimestamp: time.Unix(int64(tx.Tx.Now), 0).UTC(),
+		Block:       tx.Block,
 	}
-	return logs, nil
+	return &log, nil
 }
 
-func (ixr *indexer) indexInternalMsg(msg *tlb.InternalMessage, tx types.TxWithBlock) ([]types.Log, error) {
-	_ = msg // TODO: implement internal message processing
-	_ = tx  // TODO: implement internal message processing
+func (ixr *indexer) indexInternalMsg(msg *tlb.InternalMessage, filter types.Filter, tx types.TxWithBlock) (*types.Log, error) {
+	_ = msg    // TODO: implement internal message processing
+	_ = filter // TODO: implement internal message processing
+	_ = tx     // TODO: implement internal message processing
 	return nil, nil
 }
 

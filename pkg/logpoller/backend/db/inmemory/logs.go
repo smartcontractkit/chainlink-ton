@@ -31,15 +31,15 @@ func (s *inMemoryLogs) SaveLog(log types.Log) {
 	s.logs = append(s.logs, log)
 }
 
-// GetLogs retrieves raw logs for a given address and topic without any parsing or filtering.
-// This method returns the raw logs for further processing by higher-level components(LogQuery).
-func (s *inMemoryLogs) GetLogs(srcAddr *address.Address, topic uint32) ([]types.Log, error) {
+// GetLogs retrieves raw logs for a given address and event signature without any parsing or filtering.
+// This method returns the raw logs for further processing by higher-level components(QueryBuilder).
+func (s *inMemoryLogs) GetLogs(srcAddr *address.Address, sig uint32) ([]types.Log, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	var res []types.Log
 	for _, log := range s.logs {
-		if log.EventSig == topic && log.Address.Equals(srcAddr) {
+		if log.EventSig == sig && log.Address.Equals(srcAddr) {
 			res = append(res, log)
 		}
 	}

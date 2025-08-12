@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tlb"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
@@ -17,7 +18,7 @@ var _ logpoller.FilterStore = (*inMemoryFilters)(nil)
 type inMemoryFilters struct {
 	mu               sync.RWMutex
 	filtersByName    map[string]types.Filter        // filtersByName maps a filter's unique name to its definition.
-	filtersByAddress map[string]map[uint32]struct{} // filtersByAddress maps a contract address string to a set of its watched event topics.
+	filtersByAddress map[string]map[uint32]struct{} // filtersByAddress maps a contract address string to a set of its watched event signature.
 }
 
 // NewFilterStore creates a new in-memory implementation of the Filters interface.
@@ -58,9 +59,9 @@ func (f *inMemoryFilters) UnregisterFilter(_ context.Context, name string) error
 	delete(f.filtersByName, name)
 
 	a := flt.Address.String()
-	if byTopic, exists := f.filtersByAddress[a]; exists {
-		delete(byTopic, flt.EventSig)
-		if len(byTopic) == 0 {
+	if bySig, exists := f.filtersByAddress[a]; exists {
+		delete(bySig, flt.EventSig)
+		if len(bySig) == 0 {
 			delete(f.filtersByAddress, a)
 		}
 	}
@@ -90,23 +91,29 @@ func (f *inMemoryFilters) GetDistinctAddresses() ([]*address.Address, error) {
 	return out, nil
 }
 
-// MatchingFilters finds all filter IDs that correspond to a given address and topic.
-func (f *inMemoryFilters) MatchingFilters(contractAddr address.Address, topic uint32) ([]int64, error) {
+// GetFiltersForAddress returns all filters registered for a given address.
+func (f *inMemoryFilters) GetFiltersForAddress(_ context.Context, addr address.Address) ([]types.Filter, error) {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 
-	byTopic, ok := f.filtersByAddress[contractAddr.String()]
-	if !ok {
-		return nil, nil
-	}
-	if _, watched := byTopic[topic]; !watched {
-		return nil, nil
-	}
-
-	var out []int64
+	var out []types.Filter
 	for _, flt := range f.filtersByName {
-		if flt.Address.Equals(&contractAddr) && flt.EventSig == topic {
-			out = append(out, flt.ID)
+		if flt.Address.Equals(&addr) {
+			out = append(out, flt)
+		}
+	}
+	return out, nil
+}
+
+// GetFiltersForAddressAndMsgType returns filters for a specific address and message type.
+func (f *inMemoryFilters) GetFiltersForAddressAndMsgType(_ context.Context, addr address.Address, msgType tlb.MsgType) ([]types.Filter, error) {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+
+	var out []types.Filter
+	for _, flt := range f.filtersByName {
+		if flt.Address.Equals(&addr) && flt.MsgType == msgType {
+			out = append(out, flt)
 		}
 	}
 	return out, nil

@@ -162,10 +162,7 @@ func (lp *service) resolvePreviousBlock(ctx context.Context, lastProcessedBlockS
 	return prevBlock, nil
 }
 
-// processBlockRange handles scanning a range of blocks for external messages
-// from the specified addresses. It delegates to the LogCollector for the actual
-// block scanning and then processes the returned messages
-// processBlockRange loads transactions, indexes them into logs, and saves the logs.
+// processBlockRange handles scanning a range of blocks for transactions
 func (lp *service) processBlockRange(ctx context.Context, blockRange *types.BlockRange, addresses []*address.Address) error {
 	// 1. Load raw transactions with blocks from the blockchain
 	txs, err := lp.loader.LoadTxsForAddresses(ctx, blockRange, addresses)
@@ -177,7 +174,7 @@ func (lp *service) processBlockRange(ctx context.Context, blockRange *types.Bloc
 	}
 	lp.lggr.Debugw("loaded transactions from chain", "count", len(txs))
 
-	// 2. Index the raw transactions into structured logs
+	// 2. Index the raw transactions into structured logs(covers ExtMsgOut and InternalMsg)
 	logs, err := lp.indexer.IndexTransactions(txs)
 	if err != nil {
 		return fmt.Errorf("failed to index transactions: %w", err)
@@ -201,7 +198,7 @@ func (lp *service) processBlockRange(ctx context.Context, blockRange *types.Bloc
 	return nil
 }
 
-// RegisterFilter adds a new filter to monitor specific address/topic combinations
+// RegisterFilter adds a new filter to monitor specific address/event signature combinations
 func (lp *service) RegisterFilter(ctx context.Context, flt types.Filter) error {
 	return lp.filters.RegisterFilter(ctx, flt)
 }
