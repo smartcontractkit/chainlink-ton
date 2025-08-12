@@ -13,7 +13,7 @@ import { compile } from '@ton/blueprint'
 import {
   Any2TVMRampMessage,
   CommitReport,
-  commitReportToCell,
+  commitReportToBuilder,
   MerkleRoot,
   OffRampStorage,
   PriceUpdates,
@@ -283,7 +283,7 @@ describe('OffRamp', () => {
 
     const signatures = createSignatures(
       [signers[0], signers[1]],
-      hashReport(commitReportToCell(report), reportContext),
+      hashReport(commitReportToBuilder(report).endCell(), reportContext),
     )
 
     const resultCommit = await offRamp.sendCommit(transmitters[0].getSender(), {
@@ -339,7 +339,7 @@ describe('OffRamp', () => {
 
     const signatures = createSignatures(
       [signers[0], signers[1]],
-      hashReport(commitReportToCell(report), reportContext),
+      hashReport(commitReportToBuilder(report).endCell(), reportContext),
     )
 
     const resultSetCommit = await offRamp.sendSetOCR3Config(
@@ -429,7 +429,7 @@ describe('OffRamp', () => {
     const reportContext: ReportContext = { configDigest, padding: 0n, sequenceBytes: 0x01 }
     const signatures = createSignatures(
       [signers[0], signers[1]],
-      hashReport(commitReportToCell(report), reportContext),
+      hashReport(commitReportToBuilder(report).endCell(), reportContext),
     )
     const resultSetCommit = await offRamp.sendSetOCR3Config(
       deployer.getSender(),

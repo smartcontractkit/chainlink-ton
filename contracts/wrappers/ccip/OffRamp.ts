@@ -183,7 +183,7 @@ export class OffRamp extends OCR3Base {
         .storeUint(opts.reportContext.configDigest, 256)
         .storeUint(opts.reportContext.padding, 192) //should be zero
         .storeUint(opts.reportContext.sequenceBytes, 64)
-        .storeRef(commitReportToCell(opts.report))
+        .storeBuilder(commitReportToBuilder(opts.report))
         .storeRef(
           asSnakeData(opts.signatures, (item) =>
             beginCell().storeUint(item.r, 256).storeUint(item.s, 256).storeUint(item.signer, 256),
@@ -313,7 +313,7 @@ export function merkleRootsFromCell(data: Cell): MerkleRoot[] {
   })
 }
 
-export function commitReportToCell(report: CommitReport): Cell {
+export function commitReportToBuilder(report: CommitReport): import('@ton/core').Builder {
   let priceUpdates: Cell | undefined = undefined
   if (report.priceUpdates != undefined) {
     priceUpdates = priceUpdatesToCell(report.priceUpdates!)
@@ -322,7 +322,6 @@ export function commitReportToCell(report: CommitReport): Cell {
   return beginCell()
     .storeMaybeRef(priceUpdates)
     .storeRef(merkleRootsToCell(report.merkleRoots))
-    .endCell()
 }
 
 export const sourceChainConfigToBuilder = (config: SourceChainConfig) => {

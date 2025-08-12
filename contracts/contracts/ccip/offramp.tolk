@@ -90,7 +90,7 @@ struct (0x00000001) Commit {
     queryId: uint64;
     // TODO: could just store as one slice since context is fixed size
     reportContext: ReportContext;
-    report: Cell<CommitReport>;
+    report: CommitReport;
     signatures: cell; //vec<SignatureEd25519>
 }
 
@@ -147,7 +147,7 @@ fun getMerkleRootID(merkleRoot: uint256): builder {
 fun commit(msg: Commit, sender: address) {
     var st = Storage.load();
 
-    val report = msg.report.load();
+    val report = msg.report;
 
     // update token/gas prices if any
     if (report.priceUpdates != null) {
