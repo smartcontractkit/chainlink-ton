@@ -69,6 +69,7 @@ describe('MCMS - IntegrationTest', () => {
 
   beforeEach(async () => {
     blockchain = await Blockchain.create()
+    blockchain.now = Math.floor(Date.now() / 1000) // set to current unix timestamp
 
     // Set up accounts
     acc = {
@@ -504,6 +505,81 @@ describe('MCMS - IntegrationTest', () => {
     expect(memberAddr).not.toBeNull()
     expect(memberAddr!).toEqualAddress(acc.deployer.address) // default admin role
 
+    let proposePredecessor = 0n
+
+    // increment twice through regular flow
+    const calls = asSnakeData<rbactl.Call>(
+      [
+        {
+          target: bind.counter.address,
+          value: toNano('0.05'),
+          data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
+        },
+        {
+          target: bind.counter.address,
+          value: toNano('0.05'),
+          data: counter.builder.message.increaseCount.encode({ queryId: 2n }),
+        },
+      ],
+      (c) => rbactl.builder.data.call.encode(c).asBuilder(),
+    )
+
+    const operationBatch: rbactl.OperationBatch = {
+      calls,
+      predecessor: proposePredecessor,
+      salt: 0n,
+    }
+    const callsHash = await bind.timelock.getHashOperationBatch(operationBatch)
+
+    const ops: mcms.Op[] = [
+      {
+        chainId: -239n, // TODO: blockchain global chain ID (will need to be signed int)
+        multiSig: bind.mcmsPropose.address,
+        nonce: 0n,
+        to: bind.timelock.address,
+        value: toNano('0.05'),
+        data: rbactl.builder.message.scheduleBatch.encode({
+          queryId: 1n,
+          calls,
+          predecessor: proposePredecessor,
+          salt: 0n,
+          delay: MIN_DELAY,
+        }),
+      },
+    ]
+
     // TODO: https://github.com/smartcontractkit/ccip-owner-contracts/blob/main/test/IntegrationTest.t.sol
+    // TODO: compute MerkleRoot and setRoot
+
+    {
+      const r = await bind.mcmsPropose.sendInternal(
+        acc.deployer.getSender(),
+        toNano('0.10'),
+        mcms.builder.message.setRoot.encode({
+          queryId: 1n,
+          root: 0n, // TODO: compute MerkleRoot
+          validUntil: BigInt(blockchain.now || 0) + 2n * 60n * 60n, // block.timestamp + 2 hours
+          metadata: {
+            chainId: -239n, // TODO: blockchain global chain ID (will need to be signed int)
+            multiSig: bind.mcmsPropose.address,
+            preOpCount: 0n,
+            postOpCount: 1n,
+            overridePreviousRoot: false,
+          },
+          metadataProof: beginCell().endCell(), // TODO vec<uint256>
+          signatures: beginCell().endCell(), // TODO  vec<Signature>
+        }),
+      )
+
+      expect(r.transactions).toHaveTransaction({
+        from: acc.deployer.address,
+        to: bind.mcmsPropose.address,
+        // success: true,
+        exitCode: mcms.Error.PROOF_CANNOT_BE_VERIFIED, // TODO: add proof and signatures
+      })
+
+      // TODO:
+      // s_proposeMultiSig.execute(ops[0], opProofs[0]);
+    }
   })
 })

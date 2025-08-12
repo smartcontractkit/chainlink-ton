@@ -287,8 +287,8 @@ export type ExpiringRootAndOpCount = {
 export type RootMetadata = {
   // chainId and multiSig uniquely identify a ManyChainMultiSig contract instance that the
   // root is destined for.
-  // uint256 since it is unclear if we can represent chainId as uint64. There is a proposal (
-  // https://ethereum-magicians.org/t/eip-2294-explicit-bound-to-chain-id/11090) to
+  // int256 since it is unclear if we can represent chainId as uint64 (and TON introduces negative chain IDs).
+  // There is a proposal (https://ethereum-magicians.org/t/eip-2294-explicit-bound-to-chain-id/11090) to
   // bound chainid to 64 bits, but it is still unresolved.
   chainId: bigint
   multiSig: Address
@@ -321,7 +321,7 @@ export type Signature = {
 /// is greater than 64 bytes to prevent collisions with internal nodes in the Merkle tree. See
 /// openzeppelin-contracts/contracts/utils/cryptography/MerkleProof.sol:15 for details.
 export type Op = {
-  // The chain ID for which this operation is intended (uint256)
+  // The chain ID for which this operation is intended (int256 as TON introduces negative chain IDs).
   chainId: bigint
   // The address of the multiSig contract
   multiSig: Address
@@ -346,6 +346,28 @@ export const opcodes = {
     NewRoot: crc32('MCMS_NewRoot'),
     ConfigSet: crc32('MCMS_ConfigSet'),
     OpExecuted: crc32('MCMS_OpExecuted'),
+  },
+}
+
+const rootMetadata: CellCodec<RootMetadata> = {
+  encode: (data: RootMetadata): Cell => {
+    return beginCell()
+      .storeInt(data.chainId, 256)
+      .storeAddress(data.multiSig)
+      .storeUint(data.preOpCount, 40)
+      .storeUint(data.postOpCount, 40)
+      .storeBit(data.overridePreviousRoot)
+      .endCell()
+  },
+  decode: (cell: Cell): RootMetadata => {
+    const s = cell.beginParse()
+    return {
+      chainId: s.loadIntBig(256),
+      multiSig: s.loadAddress(),
+      preOpCount: s.loadUintBig(40),
+      postOpCount: s.loadUintBig(40),
+      overridePreviousRoot: s.loadBoolean(),
+    }
   },
 }
 
@@ -377,7 +399,7 @@ export const builder = {
               .storeUint(msg.queryId, 64)
               .storeUint(msg.root, 256)
               .storeUint(msg.validUntil, 32)
-              // .storeSlice(msg.metadata) // TODO: encode metadata properly
+              .storeBuilder(rootMetadata.encode(msg.metadata).asBuilder())
               .storeRef(msg.metadataProof)
               .storeRef(msg.signatures)
               .endCell()
@@ -483,28 +505,6 @@ export const builder = {
       },
     }
 
-    const rootMetadata: CellCodec<RootMetadata> = {
-      encode: (data: RootMetadata): Cell => {
-        return beginCell()
-          .storeUint(data.chainId, 256)
-          .storeAddress(data.multiSig)
-          .storeUint(data.preOpCount, 40)
-          .storeUint(data.postOpCount, 40)
-          .storeBit(data.overridePreviousRoot)
-          .endCell()
-      },
-      decode: (cell: Cell): RootMetadata => {
-        const s = cell.beginParse()
-        return {
-          chainId: s.loadUintBig(256),
-          multiSig: s.loadAddress(),
-          preOpCount: s.loadUintBig(40),
-          postOpCount: s.loadUintBig(40),
-          overridePreviousRoot: s.loadBoolean(),
-        }
-      },
-    }
-
     const expiringRootAndOpCount: CellCodec<ExpiringRootAndOpCount> = {
       encode: (data: ExpiringRootAndOpCount): Cell => {
         return beginCell()
@@ -527,7 +527,7 @@ export const builder = {
     const op: CellCodec<Op> = {
       encode: (op: Op): Cell => {
         return beginCell()
-          .storeUint(op.chainId, 256)
+          .storeInt(op.chainId, 256)
           .storeAddress(op.multiSig)
           .storeUint(op.nonce, 40)
           .storeAddress(op.to)
@@ -538,7 +538,7 @@ export const builder = {
       decode: (cell: Cell): Op => {
         const s = cell.beginParse()
         return {
-          chainId: s.loadUintBig(256),
+          chainId: s.loadIntBig(256),
           multiSig: s.loadAddress(),
           nonce: s.loadUintBig(40),
           to: s.loadAddress(),
@@ -619,7 +619,7 @@ export const builder = {
         }
 
         const rootMetadata = {
-          chainId: s.loadUintBig(256),
+          chainId: s.loadIntBig(256),
           multiSig: s.loadAddress(),
           preOpCount: s.loadUintBig(40),
           postOpCount: s.loadUintBig(40),

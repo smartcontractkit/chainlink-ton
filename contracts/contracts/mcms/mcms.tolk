@@ -425,10 +425,10 @@ struct ExpiringRootAndOpCount {
 struct RootMetadata {
     /// chainId and multiSig uniquely identify a ManyChainMultiSig contract instance that the
     /// root is destined for.
-    /// uint256 since it is unclear if we can represent chainId as uint64. There is a proposal (
-    /// https://ethereum-magicians.org/t/eip-2294-explicit-bound-to-chain-id/11090) to
+    /// int256 since it is unclear if we can represent chainId as uint64 (and TON introduces negative chain IDs).
+    /// There is a proposal (https://ethereum-magicians.org/t/eip-2294-explicit-bound-to-chain-id/11090) to
     /// bound chainid to 64 bits, but it is still unresolved.
-    chainId: uint256;
+    chainId: int256;
     multiSig: address;
     // opCount before adding this root
     preOpCount: uint40;
@@ -459,7 +459,7 @@ struct Signature {
 /// is greater than 64 bytes to prevent collisions with internal nodes in the Merkle tree. See
 /// openzeppelin-contracts/contracts/utils/cryptography/MerkleProof.sol:15 for details.
 struct Op {
-    chainId: uint256;
+    chainId: int256;
     multiSig: address;
     nonce: uint40;
     to: address;
@@ -647,7 +647,7 @@ fun MCMS<T>.setRoot(
         }
 
         // Check if right environment via chainId
-        if (globalId() as uint256 != metadata.chainId) {
+        if (globalId() as int256 != metadata.chainId) {
             throw ERROR_WRONG_CHAIN_ID;
         }
 
@@ -730,7 +730,7 @@ fun MCMS<T>.execute(
     }
 
     // Check if right environment via chainId
-    if (op.chainId != globalId() as uint256) {
+    if (op.chainId != globalId() as int256) {
         throw ERROR_WRONG_CHAIN_ID;
     }
 
@@ -958,7 +958,7 @@ fun MCMS<T>.setConfig(
             opCount: opCount
         };
         self.data.rootMetadata = RootMetadata{
-            chainId: globalId() as uint256,
+            chainId: globalId() as int256,
             multiSig: contract.getAddress(),
             preOpCount: opCount,
             postOpCount: opCount,

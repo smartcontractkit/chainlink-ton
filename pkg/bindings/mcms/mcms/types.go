@@ -218,8 +218,8 @@ type Config struct {
 type RootMetadata struct {
 	// chainId and multiSig uniquely identify a ManyChainMultiSig contract instance that the
 	// root is destined for.
-	// uint256 since it is unclear if we can represent chainId as uint64. There is a proposal (
-	// https://ethereum-magicians.org/t/eip-2294-explicit-bound-to-chain-id/11090) to
+	// int256 since it is unclear if we can represent chainId as uint64 (and TON introduces negative chain IDs).
+	// There is a proposal (https://ethereum-magicians.org/t/eip-2294-explicit-bound-to-chain-id/11090) to
 	// bound chainid to 64 bits, but it is still unresolved.
 	ChainID  *big.Int        `tlb:"## 256"`
 	MultiSig address.Address `tlb:"addr"`
