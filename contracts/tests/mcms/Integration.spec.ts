@@ -2,9 +2,12 @@ import '@ton/test-utils'
 
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Address, beginCell, Cell, Dictionary, toNano } from '@ton/core'
+import { KeyPair } from '@ton/crypto'
 import { compile } from '@ton/blueprint'
 
-import { asSnakeData, ZERO_ADDRESS } from '../../utils'
+import { asSnakeData, uint8ArrayToBigInt } from '../../utils'
+import { loadMap } from '../../utils/dict'
+import { generateEd25519KeyPair } from '../libraries/ocr/Helpers'
 
 import * as mcms from '../../wrappers/mcms/MCMS'
 import * as rbactl from '../../wrappers/mcms/RBACTimelock'
@@ -14,7 +17,6 @@ import * as counter from '../../wrappers/examples/Counter'
 import * as ownable2step from '../../wrappers/libraries/access/Ownable2Step'
 
 import { crc32 } from 'zlib'
-import { loadMap } from '../../utils/dict'
 import { sign } from 'crypto'
 
 describe('MCMS - IntegrationTest', () => {
@@ -63,8 +65,7 @@ describe('MCMS - IntegrationTest', () => {
 
   const MIN_DELAY = 24n * 60n * 60n
 
-  let signerAddresses: Address[] = []
-  let signerPrivateKeys: bigint[] = []
+  let signerKeyPairs: KeyPair[] = []
 
   beforeEach(async () => {
     blockchain = await Blockchain.create()
@@ -85,8 +86,8 @@ describe('MCMS - IntegrationTest', () => {
       counter: null as any,
     }
 
-    // TODO: set up signer addresses and private keys
-    signerAddresses = _signerAddresses()
+    // Generate signer key pairs
+    signerKeyPairs = await _signerKeyPairs()
 
     // Set up MCMS contracts
     {
@@ -235,11 +236,12 @@ describe('MCMS - IntegrationTest', () => {
       // Set config
       const rSetConfig = await bind.mcmsPropose.sendInternal(
         acc.deployer.getSender(),
-        toNano('0.05'),
+        toNano('0.2'),
         mcms.builder.message.in.setConfig.encode({
           queryId: 1n,
-          signerAddresses: asSnakeData<Address>(proposerAddresses(), (v) =>
-            beginCell().storeAddress(v),
+          signerKeys: asSnakeData<bigint>(
+            proposerKeyPairs().map((v) => uint8ArrayToBigInt(v.publicKey)),
+            (v) => beginCell().storeUint(v, 256),
           ),
           signerGroups: asSnakeData<number>(Array(PROPOSE_COUNT).fill(0), (v) =>
             beginCell().storeUint(v, 8),
@@ -291,11 +293,12 @@ describe('MCMS - IntegrationTest', () => {
       // Set config
       const rSetConfig = await bind.mcmsVeto.sendInternal(
         acc.deployer.getSender(),
-        toNano('0.05'),
+        toNano('0.2'),
         mcms.builder.message.in.setConfig.encode({
           queryId: 1n,
-          signerAddresses: asSnakeData<Address>(vetoAddresses(), (v) =>
-            beginCell().storeAddress(v),
+          signerKeys: asSnakeData<bigint>(
+            vetoKeyPairs().map((v) => uint8ArrayToBigInt(v.publicKey)),
+            (v) => beginCell().storeUint(v, 256),
           ),
           signerGroups: asSnakeData<number>(Array(VETO_COUNT).fill(0), (v) =>
             beginCell().storeUint(v, 8),
@@ -344,11 +347,12 @@ describe('MCMS - IntegrationTest', () => {
       // Set config
       const rSetConfig = await bind.mcmsBypass.sendInternal(
         acc.deployer.getSender(),
-        toNano('0.05'),
+        toNano('0.2'),
         mcms.builder.message.setConfig.encode({
           queryId: 1n,
-          signerAddresses: asSnakeData<Address>(proposerAddresses(), (v) =>
-            beginCell().storeAddress(v),
+          signerKeys: asSnakeData<bigint>(
+            signerKeyPairs.map((v) => uint8ArrayToBigInt(v.publicKey)),
+            (v) => beginCell().storeUint(v, 256),
           ),
           signerGroups: asSnakeData<number>(
             Array(PROPOSE_COUNT + VETO_COUNT)
@@ -425,7 +429,7 @@ describe('MCMS - IntegrationTest', () => {
           .getOwner(),
       ).toEqual(bind.timelock.address)
     }
-  })
+  }, 20_000) // setup can take a while, since we deploy and set up many contracts
 
   const transferOwnershipToTimelock = async (
     ownable: SandboxContract<ownable2step.ContractClient>,
@@ -463,26 +467,34 @@ describe('MCMS - IntegrationTest', () => {
     expect(await ownable.getOwner()).toEqual(bind.timelock.address)
   }
 
-  const _signerAddresses = (): Address[] => {
-    const res: Address[] = []
+  const _signerKeyPairs = async (): Promise<KeyPair[]> => {
+    const res: KeyPair[] = []
     for (let i = 0; i < PROPOSE_COUNT + VETO_COUNT; i++) {
-      res.push(ZERO_ADDRESS) // TODO: replace with actual addresses
+      res.push(await generateEd25519KeyPair())
     }
+
+    // Sort result by public key (strictly increasing)
+    res.sort((a, b) => {
+      const aKey = uint8ArrayToBigInt(a.publicKey)
+      const bKey = uint8ArrayToBigInt(b.publicKey)
+      return aKey < bKey ? -1 : aKey > bKey ? 1 : 0
+    })
+
     return res
   }
 
-  const proposerAddresses = (): Address[] => {
-    const res: Address[] = []
+  const proposerKeyPairs = (): KeyPair[] => {
+    const res: KeyPair[] = []
     for (let i = 0; i < PROPOSE_COUNT; i++) {
-      res.push(signerAddresses[i])
+      res.push(signerKeyPairs[i])
     }
     return res
   }
 
-  const vetoAddresses = (): Address[] => {
-    const res: Address[] = []
+  const vetoKeyPairs = (): KeyPair[] => {
+    const res: KeyPair[] = []
     for (let i = 0; i < VETO_COUNT; i++) {
-      res.push(signerAddresses[PROPOSE_COUNT + i])
+      res.push(signerKeyPairs[PROPOSE_COUNT + i])
     }
     return res
   }

@@ -53,8 +53,8 @@ export type SetConfig = {
   // Query ID of the change owner request.
   queryId: bigint
 
-  // List of signer addresses.
-  signerAddresses: Cell // vec<address>
+  // List of signer public keys.
+  signerKeys: Cell // vec<uint256>
   // List of signer groups.
   signerGroups: Cell // vec<uint8>
   // List of group quorums.
@@ -75,8 +75,8 @@ export type ContractData = {
 
   /// Ownable trait data
   ownable: ownable2step.Data
-  /// Map where entry exists if the address is a signer
-  signers: Dictionary<Address, Buffer> // map<address, Signer>
+  /// Map where entry exists if the public key is a signer
+  signers: Dictionary<bigint, Buffer> // map<uint256, Signer>
   /// The current configuration of the contract
   config: Config
 
@@ -111,7 +111,7 @@ export enum Error {
   /// @notice Thrown when number of signers is 0 or greater than MAX_NUM_SIGNERS.
   OUT_OF_BOUNDS_NUM_SIGNERS = 100,
 
-  /// @notice Thrown when signerAddresses and signerGroups have different lengths.
+  /// @notice Thrown when signerKeys and signerGroups have different lengths.
   SIGNER_GROUPS_LENGTH_MISMATCH = 101,
 
   /// @notice Thrown when number of some signer's group is greater than (NUM_GROUPS-1).
@@ -126,9 +126,9 @@ export enum Error {
   /// @notice Thrown when a disabled group contains a signer.
   SIGNER_IN_DISABLED_GROUP = 105,
 
-  /// @notice Thrown when the signers' addresses are not a strictly increasing monotone sequence.
+  /// @notice Thrown when the signers' public keys are not a strictly increasing monotone sequence.
   /// Prevents signers from including more than one signature.
-  SIGNERS_ADDRESSES_MUST_BE_STRICTLY_INCREASING = 106,
+  SIGNERS_KEYS_MUST_BE_STRICTLY_INCREASING = 106,
 
   /// @notice Thrown when the signature corresponds to invalid signer.
   INVALID_SIGNER = 107,
@@ -422,7 +422,7 @@ export const builder = {
           return beginCell()
             .storeUint(opcodes.in.SetConfig, 32)
             .storeUint(msg.queryId, 64)
-            .storeRef(msg.signerAddresses)
+            .storeRef(msg.signerKeys)
             .storeRef(msg.signerGroups)
             .storeDict(msg.groupQuorums)
             .storeDict(msg.groupParents)
@@ -434,7 +434,7 @@ export const builder = {
           s.skip(32) // skip opcode
           return {
             queryId: s.loadUintBig(64),
-            signerAddresses: s.loadRef(),
+            signerKeys: s.loadRef(),
             signerGroups: s.loadRef(),
             groupQuorums: Dictionary.load(
               Dictionary.Keys.Uint(8),
@@ -578,7 +578,11 @@ export const builder = {
         return beginCell()
           .storeUint(data.id, 32)
           .storeBuilder(ownable)
-          .storeDict(data.signers, Dictionary.Keys.Address(), Dictionary.Values.Buffer(LEN_SIGNER))
+          .storeDict(
+            data.signers,
+            Dictionary.Keys.BigUint(256),
+            Dictionary.Values.Buffer(LEN_SIGNER),
+          )
           .storeRef(config.encode(data.config))
           .storeDict(data.seenSignedHashes, Dictionary.Keys.BigUint(256), Dictionary.Values.Bool())
           .storeBuilder(expiringRootAndOpCount.encode(data.expiringRootAndOpCount).asBuilder())
@@ -595,7 +599,7 @@ export const builder = {
         }
 
         const signers = Dictionary.load(
-          Dictionary.Keys.Address(),
+          Dictionary.Keys.BigUint(256),
           Dictionary.Values.Buffer(LEN_SIGNER),
           s.loadRef(),
         )
@@ -643,7 +647,7 @@ export const builder = {
         },
         signers: Dictionary.empty(
           // no signers
-          Dictionary.Keys.Address(),
+          Dictionary.Keys.BigUint(256),
           Dictionary.Values.Buffer(LEN_SIGNER),
         ),
         config: {
