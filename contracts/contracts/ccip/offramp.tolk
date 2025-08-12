@@ -182,7 +182,6 @@ fun commit(msg: Commit, sender: address) {
             bounce: true, // TODO: could bounce if root already exists
             value: ton("0.1"), // TODO:
             dest: {
-                workchain: 0,
                 stateInit: {
                     code: st.deployer,
                     data: Deployable {
