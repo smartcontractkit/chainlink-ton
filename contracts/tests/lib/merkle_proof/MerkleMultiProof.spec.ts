@@ -9,7 +9,7 @@ import { sha256_sync } from '@ton/crypto'
 import '@ton/test-utils'
 import { MerkleHelper, HashFunction } from './helpers/MerkleMultiProofHelper'
 import { compile } from '@ton/blueprint'
-import { listAsSnake } from './helpers/Utils'
+import { asSnakeDataUint } from '../../../utils'
 
 describe('MerkleMultiProofTests', () => {
   let blockchain: Blockchain
@@ -52,7 +52,7 @@ describe('MerkleMultiProofTests', () => {
   })
 
   it('Single leaf should be returned as root', async () => {
-    let leaves = listAsSnake([1337n])
+    let leaves = asSnakeDataUint([1337n], 256)
     let result = await calculator.sendMerkleRoot(
       deployer.getSender(),
       toNano('0.5'),
@@ -126,8 +126,8 @@ describe('MerkleMultiProofTests', () => {
     const result = await calculator.sendMerkleRoot(
       deployer.getSender(),
       toNano('10000'),
-      listAsSnake(leaves),
-      listAsSnake(proofs),
+      asSnakeDataUint(leaves, 256),
+      asSnakeDataUint(proofs, 256),
       flagsUint256,
     )
     expect(result.transactions).toHaveTransaction({
@@ -154,7 +154,7 @@ describe('MerkleMultiProofTests', () => {
     const result = await calculator.sendMerkleRoot(
       deployer.getSender(),
       toNano('100000'),
-      listAsSnake(hashedLeaves),
+      asSnakeDataUint(hashedLeaves, 256),
       Cell.EMPTY,
       flagsUint128,
     )
