@@ -49,10 +49,7 @@ import * as OCR3Logs from '../../wrappers/libraries/ocr/Logs'
 import * as CCIPLogs from '../../wrappers/ccip/Logs'
 import { setupTestFeeQuoter } from './helpers/SetUp'
 
-import {
-  ReportContext,
-  SignatureEd25519,
-} from '../../wrappers/libraries/ocr/MultiOCR3Base'
+import { ReportContext, SignatureEd25519 } from '../../wrappers/libraries/ocr/MultiOCR3Base'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_TON = 13879075125137744094n
@@ -60,7 +57,7 @@ const EVM_SENDER_ADDRESS_TEST = 0x1a5fdbc891c5d4e6ad68064ae45d43146d4f9f3an
 const EVM_ONRAMP_ADDRESS_TEST = 0x111111c891c5d4e6ad68064ae45d43146d4f9f3an
 const EVM_ROUTER_ADDRESS_TEST = 0x0bf3de8c5d3e8a2b34d2beeb17abfcebaf363a59n
 const LEAF_DOMAIN_SEPARATOR = beginCell().storeUint(0, 256).asSlice()
-const ERROR_SOURCE_CHAIN_NOT_ENABLED = 266;
+const ERROR_SOURCE_CHAIN_NOT_ENABLED = 266
 
 function generateSecureRandomString(length: number): string {
   const array = new Uint8Array(length)
@@ -403,7 +400,7 @@ describe('OffRamp', () => {
     })
   })
 
-  it("Test commit report fails if source chain is not enabled", async () => {
+  it('Test commit report fails if source chain is not enabled', async () => {
     const rampMessageHeader: RampMessageHeader = {
       messageId: 1n,
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
@@ -469,6 +466,11 @@ describe('OffRamp', () => {
       report: report,
       signatures: signatures,
     })
-    expectFailedTransaction(resultCommitReport, transmitters[0].address, offRamp.address, ERROR_SOURCE_CHAIN_NOT_ENABLED)
+    expectFailedTransaction(
+      resultCommitReport,
+      transmitters[0].address,
+      offRamp.address,
+      ERROR_SOURCE_CHAIN_NOT_ENABLED,
+    )
   })
 })
