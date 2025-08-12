@@ -4,6 +4,8 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Address, Cell, Dictionary, toNano, beginCell } from '@ton/core'
 import { compile } from '@ton/blueprint'
 
+import { asSnakeData } from '../../utils'
+
 import * as mcms from '../../wrappers/mcms/MCMS'
 import * as rbactl from '../../wrappers/mcms/RBACTimelock'
 import * as callproxy from '../../wrappers/mcms/CallProxy'
@@ -41,8 +43,8 @@ export interface TestContracts {
 }
 
 export class BaseTestSetup {
-  static readonly MIN_DELAY = 24 * 60 * 60 * 7
-  static readonly DONE_TIMESTAMP = 1
+  static readonly MIN_DELAY = 24n * 60n * 60n * 7n
+  static readonly DONE_TIMESTAMP = 1n
   static readonly NO_PREDECESSOR = 0n
   static readonly EMPTY_SALT = 0n
 
@@ -71,8 +73,8 @@ export class BaseTestSetup {
    * Helper function that turns a single RBACTimelock.Call into a vector of calls.
    */
   static singletonCalls(call: rbactl.Call): Cell {
-    // TODO: this should be an array of calls: vec<Call>
-    return rbactl.builder.data.call.encode(call)
+    const calls = [call]
+    return asSnakeData<rbactl.Call>(calls, (c) => rbactl.builder.data.call.encode(c).asBuilder())
   }
 
   /**
@@ -188,9 +190,9 @@ export class BaseTestSetup {
   /**
    * Setup the call proxy contract
    */
-  async setupCallProxyContract(): Promise<void> {
+  async setupCallProxyContract(testId: string): Promise<void> {
     const data = {
-      id: crc32('mcms.call-proxy.test-integration'),
+      id: crc32(`mcms.call-proxy.${testId}`),
       target: this.bind.timelock.address,
     }
     this.bind.callProxy = this.blockchain.openContract(
@@ -201,9 +203,9 @@ export class BaseTestSetup {
   /**
    * Setup the counter contract
    */
-  async setupCounterContract(): Promise<void> {
+  async setupCounterContract(testId: string): Promise<void> {
     const data = {
-      id: crc32('mcms.counter.test-integration'),
+      id: crc32(`mcms.counter.${testId}`),
       value: 0,
       ownable: {
         owner: this.bind.timelock.address,
@@ -219,7 +221,7 @@ export class BaseTestSetup {
    * Deploy the timelock contract and verify deployment
    */
   async deployTimelockContract(): Promise<void> {
-    const body = rbactl.builder.message.topUp.encode({ queryId: 1n })
+    const body = rbactl.builder.message.in.topUp.encode({ queryId: 1n })
     const result = await this.bind.timelock.sendInternal(
       this.acc.deployer.getSender(),
       toNano('0.05'),
@@ -237,15 +239,29 @@ export class BaseTestSetup {
     expect(await this.bind.ac.getRoleAdmin(rbactl.roles.admin)).toEqual(rbactl.roles.admin)
   }
 
+  // TODO
+  // deployCallProxyContract() {
+  //   const body = callproxy.builder.message.in.topUp.encode({ queryId: 1n })
+  //   return this.bind.callProxy.sendInternal(this.acc.deployer.getSender(), toNano('0.05'), body)
+  // }
+
+  deployCounterContract() {
+    // const body = counter.builder.message.in.topUp.encode({ queryId: 1n }) // TODO use TopUp after it is implemented
+    const body = beginCell().endCell()
+    return this.bind.counter.sendInternal(this.acc.deployer.getSender(), toNano('0.05'), body)
+  }
+
   /**
    * Complete setup for all contracts - convenience method that combines all setup steps
    */
   async setupAll(testId: string): Promise<void> {
     await this.initializeBlockchain()
     await this.setupTimelockContract(testId)
-    await this.setupCallProxyContract()
-    await this.setupCounterContract()
     await this.deployTimelockContract()
+    await this.setupCallProxyContract(testId)
+    // await this.deployCallProxyContract()
+    await this.setupCounterContract(testId)
+    await this.deployCounterContract()
   }
 
   /**

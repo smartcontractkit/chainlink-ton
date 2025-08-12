@@ -1,17 +1,22 @@
 import '@ton/test-utils'
 
-import { Address, toNano } from '@ton/core'
+import { Address, Cell, ExternalAddress, toNano } from '@ton/core'
+
+import { asSnakeData } from '../../utils'
 
 import * as rbactl from '../../wrappers/mcms/RBACTimelock'
 import * as ac from '../../wrappers/lib/access/AccessControl'
 import * as counter from '../../wrappers/examples/Counter'
 
 import { BaseTestSetup, TestCode } from './BaseTest'
-import { SandboxContract, TreasuryContract } from '@ton/sandbox'
+import { EventMessageSent, SandboxContract, TreasuryContract } from '@ton/sandbox'
+import { crc32 } from 'zlib'
 
 describe('MCMS - RBACTimelockScheduleBatchTest', () => {
   let baseTest: BaseTestSetup
   let code: TestCode
+
+  let calls: Cell
 
   beforeAll(async () => {
     code = await BaseTestSetup.compileContracts()
@@ -21,34 +26,48 @@ describe('MCMS - RBACTimelockScheduleBatchTest', () => {
     baseTest = new BaseTestSetup()
     baseTest.code = code
     await baseTest.setupAll('test-schedule-batch')
+
+    calls = asSnakeData<rbactl.Call>(
+      [
+        {
+          target: baseTest.bind.counter.address,
+          value: 0n,
+          data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
+        },
+        {
+          target: baseTest.bind.counter.address,
+          value: 0n,
+          data: counter.builder.message.in.increaseCount.encode({ queryId: 2n }),
+        },
+      ],
+      (c) => rbactl.builder.data.call.encode(c).asBuilder(),
+    )
   })
 
-  function CreateCallBatch() {
-    // TODO the original test creates a vec of 2 calls
-    // let callVec: rbactl.Call[] = []
-    // callVec.push({
-    //   target: baseTest.bind.counter.address,
-    //   value: 0n,
-    //   data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
-    // })
-    // callVec.push({
-    //   target: baseTest.bind.counter.address,
-    //   value: 0n,
-    //   data: counter.builder.message.increaseCount.encode({ queryId: 2n }),
-    // })
-    // return encodeBatch(callVec)
+  function CreateCallBatch(): [Cell[], Cell] {
+    let calls: rbactl.Call[] = [
+      {
+        target: baseTest.bind.counter.address,
+        value: toNano('0.05'),
+        data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
+      },
+      {
+        target: baseTest.bind.counter.address,
+        value: toNano('0.05'),
+        data: counter.builder.message.in.increaseCount.encode({ queryId: 2n }),
+      },
+    ]
 
-    return BaseTestSetup.singletonCalls({
-      target: baseTest.bind.counter.address,
-      value: 0n,
-      data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
-    })
+    return [
+      calls.map((call) => rbactl.builder.data.call.encode(call)),
+      asSnakeData<rbactl.Call>(calls, (c) => rbactl.builder.data.call.encode(c).asBuilder()),
+    ]
   }
 
   it('should fail if non-proposer tries to schedule batch', async () => {
-    const calls = CreateCallBatch()
+    const [callVec, calls] = CreateCallBatch()
 
-    const scheduleBody = rbactl.builder.message.scheduleBatch.encode({
+    const scheduleBody = rbactl.builder.message.in.scheduleBatch.encode({
       queryId: 1n,
       calls,
       predecessor: BaseTestSetup.NO_PREDECESSOR,
@@ -67,13 +86,13 @@ describe('MCMS - RBACTimelockScheduleBatchTest', () => {
       from: baseTest.acc.executorOne.address,
       to: baseTest.bind.timelock.address,
       success: false,
-      exitCode: ac.errors.UnauthorizedAccount,
+      exitCode: ac.Errors.UnauthorizedAccount,
     })
   })
 
   it('should fail if batch contains blocked function', async () => {
     // Block the increment function selector
-    const blockBody = rbactl.builder.message.blockFunctionSelector.encode({
+    const blockBody = rbactl.builder.message.in.blockFunctionSelector.encode({
       queryId: 1n,
       selector: counter.opcodes.in.IncreaseCount,
     })
@@ -85,9 +104,9 @@ describe('MCMS - RBACTimelockScheduleBatchTest', () => {
     )
 
     // Try to schedule a batch with the blocked function
-    const calls = CreateCallBatch()
+    const [callVec, calls] = CreateCallBatch()
 
-    const scheduleBody = rbactl.builder.message.scheduleBatch.encode({
+    const scheduleBody = rbactl.builder.message.in.scheduleBatch.encode({
       queryId: 1n,
       calls,
       predecessor: BaseTestSetup.NO_PREDECESSOR,
@@ -105,7 +124,7 @@ describe('MCMS - RBACTimelockScheduleBatchTest', () => {
       from: baseTest.acc.proposerOne.address,
       to: baseTest.bind.timelock.address,
       success: false,
-      exitCode: 101, // ERROR_SELECTOR_IS_BLOCKED // TODO import from RBACTimelock
+      exitCode: rbactl.Errors.SelectorIsBlocked,
     })
   })
 
@@ -118,7 +137,7 @@ describe('MCMS - RBACTimelockScheduleBatchTest', () => {
   })
 
   async function scheduleBatchedOperation(scheduler: SandboxContract<TreasuryContract>) {
-    const calls = CreateCallBatch()
+    const [callVec, calls] = CreateCallBatch()
 
     // Get operation ID before scheduling
     const operationBatch: rbactl.OperationBatch = {
@@ -132,7 +151,7 @@ describe('MCMS - RBACTimelockScheduleBatchTest', () => {
     expect(await baseTest.bind.timelock.isOperation(batchedOperationID)).toBe(false)
 
     // Schedule the batch operation
-    const scheduleBody = rbactl.builder.message.scheduleBatch.encode({
+    const scheduleBody = rbactl.builder.message.in.scheduleBatch.encode({
       queryId: 1n,
       calls,
       predecessor: BaseTestSetup.NO_PREDECESSOR,
@@ -151,6 +170,33 @@ describe('MCMS - RBACTimelockScheduleBatchTest', () => {
       to: baseTest.bind.timelock.address,
       success: true,
     })
+
+    const externalsFromTimelock = result.externals.filter((e) => {
+      return e.info.src.equals(baseTest.bind.timelock.address)
+    })
+
+    expect(externalsFromTimelock).toHaveLength(callVec.length)
+
+    for (let i = 0; i < callVec.length; i++) {
+      const call = callVec[i]
+      expect(result.externals[i].info.dest?.value.toString(16)).toEqual(
+        rbactl.opcodes.out.CallScheduled.toString(16),
+      )
+
+      const opcode = result.externals[i].body.beginParse().preloadUint(32)
+      const callScheduled = rbactl.builder.message.out.callScheduled.decode(
+        result.externals[i].body,
+      )
+
+      expect(opcode.toString(16)).toEqual(rbactl.opcodes.out.CallScheduled.toString(16))
+      expect(callScheduled.queryId).toEqual(1)
+      expect(callScheduled.id).toEqual(batchedOperationID)
+      expect(callScheduled.index).toEqual(i)
+      expect(callScheduled.call.equals(call)).toBeTruthy()
+      expect(callScheduled.predecessor).toEqual(BaseTestSetup.NO_PREDECESSOR)
+      expect(callScheduled.salt).toEqual(BaseTestSetup.EMPTY_SALT)
+      expect(callScheduled.delay).toEqual(Number(BaseTestSetup.MIN_DELAY))
+    }
 
     // Verify operation now exists
     expect(await baseTest.bind.timelock.isOperation(batchedOperationID)).toBe(true)
@@ -179,12 +225,12 @@ describe('MCMS - RBACTimelockScheduleTest', () => {
   it('should fail if non-proposer tries to schedule', async () => {
     const call = {
       target: baseTest.bind.counter.address,
-      value: 0n,
-      data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
+      value: toNano('0.05'),
+      data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
     }
     const calls = BaseTestSetup.singletonCalls(call)
 
-    const scheduleBody = rbactl.builder.message.scheduleBatch.encode({
+    const scheduleBody = rbactl.builder.message.in.scheduleBatch.encode({
       queryId: 1n,
       calls,
       predecessor: BaseTestSetup.NO_PREDECESSOR,
@@ -203,13 +249,13 @@ describe('MCMS - RBACTimelockScheduleTest', () => {
       from: baseTest.acc.executorOne.address,
       to: baseTest.bind.timelock.address,
       success: false,
-      exitCode: ac.errors.UnauthorizedAccount,
+      exitCode: ac.Errors.UnauthorizedAccount,
     })
   })
 
   it('should fail if scheduling a blocked function', async () => {
     // Block the increment function selector
-    const blockBody = rbactl.builder.message.blockFunctionSelector.encode({
+    const blockBody = rbactl.builder.message.in.blockFunctionSelector.encode({
       queryId: 1n,
       selector: counter.opcodes.in.IncreaseCount,
     })
@@ -223,12 +269,12 @@ describe('MCMS - RBACTimelockScheduleTest', () => {
     // Try to schedule the blocked function
     const call = {
       target: baseTest.bind.counter.address,
-      value: 0n,
-      data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
+      value: toNano('0.05'),
+      data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
     }
     const calls = BaseTestSetup.singletonCalls(call)
 
-    const scheduleBody = rbactl.builder.message.scheduleBatch.encode({
+    const scheduleBody = rbactl.builder.message.in.scheduleBatch.encode({
       queryId: 1n,
       calls,
       predecessor: BaseTestSetup.NO_PREDECESSOR,
@@ -246,19 +292,19 @@ describe('MCMS - RBACTimelockScheduleTest', () => {
       from: baseTest.acc.proposerOne.address,
       to: baseTest.bind.timelock.address,
       success: false,
-      exitCode: 101, // ERROR_SELECTOR_IS_BLOCKED // TODO import from RBACTimelock
+      exitCode: rbactl.Errors.SelectorIsBlocked,
     })
   })
 
   it('should fail if operation already scheduled', async () => {
     const call = {
       target: baseTest.bind.counter.address,
-      value: 0n,
-      data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
+      value: toNano('0.05'),
+      data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
     }
     const calls = BaseTestSetup.singletonCalls(call)
 
-    const scheduleBody = rbactl.builder.message.scheduleBatch.encode({
+    const scheduleBody = rbactl.builder.message.in.scheduleBatch.encode({
       queryId: 1n,
       calls,
       predecessor: BaseTestSetup.NO_PREDECESSOR,
@@ -290,24 +336,24 @@ describe('MCMS - RBACTimelockScheduleTest', () => {
       from: baseTest.acc.proposerOne.address,
       to: baseTest.bind.timelock.address,
       success: false,
-      exitCode: 105, // ERROR_OPERATION_ALREADY_SCHEDULED // TODO import from RBACTimelock
+      exitCode: rbactl.Errors.OperationAlreadyScheduled,
     })
   })
 
   it('should fail if delay is less than minimum delay', async () => {
     const call = {
       target: baseTest.bind.counter.address,
-      value: 0n,
-      data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
+      value: toNano('0.05'),
+      data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
     }
     const calls = BaseTestSetup.singletonCalls(call)
 
-    const scheduleBody = rbactl.builder.message.scheduleBatch.encode({
+    const scheduleBody = rbactl.builder.message.in.scheduleBatch.encode({
       queryId: 1n,
       calls,
       predecessor: BaseTestSetup.NO_PREDECESSOR,
       salt: BaseTestSetup.EMPTY_SALT,
-      delay: BaseTestSetup.MIN_DELAY - 1, // Less than minimum delay
+      delay: BaseTestSetup.MIN_DELAY - 1n, // Less than minimum delay
     })
 
     const result = await baseTest.bind.timelock.sendInternal(
@@ -320,7 +366,7 @@ describe('MCMS - RBACTimelockScheduleTest', () => {
       from: baseTest.acc.proposerOne.address,
       to: baseTest.bind.timelock.address,
       success: false,
-      exitCode: 106, // ERROR_INSUFFICIENT_DELAY // TODO import from RBACTimelock
+      exitCode: rbactl.Errors.InsufficientDelay,
     })
   })
 
@@ -335,12 +381,12 @@ describe('MCMS - RBACTimelockScheduleTest', () => {
   async function scheduleOperation(scheduler: SandboxContract<TreasuryContract>) {
     const call = {
       target: baseTest.bind.counter.address,
-      value: 0n,
-      data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
+      value: toNano('0.05'),
+      data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
     }
     const calls = BaseTestSetup.singletonCalls(call)
 
-    const scheduleBody = rbactl.builder.message.scheduleBatch.encode({
+    const scheduleBody = rbactl.builder.message.in.scheduleBatch.encode({
       queryId: 1n,
       calls,
       predecessor: BaseTestSetup.NO_PREDECESSOR,

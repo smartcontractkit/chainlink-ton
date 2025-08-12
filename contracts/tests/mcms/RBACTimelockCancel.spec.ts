@@ -24,7 +24,7 @@ describe('MCMS - RBACTimelockCancelTest', () => {
 
   it('should fail if non-canceller tries to cancel', async () => {
     // Try to cancel with executor role (should fail)
-    const body = rbactl.builder.message.cancel.encode({
+    const body = rbactl.builder.message.in.cancel.encode({
       queryId: 1n,
       id: BaseTestSetup.EMPTY_SALT,
     })
@@ -45,14 +45,14 @@ describe('MCMS - RBACTimelockCancelTest', () => {
   it('should not be able to cancel finished operation', async () => {
     const call = {
       target: baseTest.bind.counter.address,
-      value: 0n,
-      data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
+      value: toNano('0.05'),
+      data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
     }
     const calls = BaseTestSetup.singletonCalls(call)
 
     // Schedule operation
     {
-      const scheduleBody = rbactl.builder.message.scheduleBatch.encode({
+      const scheduleBody = rbactl.builder.message.in.scheduleBatch.encode({
         queryId: 1n,
         calls,
         predecessor: BaseTestSetup.NO_PREDECESSOR,
@@ -74,11 +74,11 @@ describe('MCMS - RBACTimelockCancelTest', () => {
     }
 
     // Wait for delay
-    baseTest.warpTime(BaseTestSetup.MIN_DELAY + 1)
+    baseTest.warpTime(Number(BaseTestSetup.MIN_DELAY + 1n))
 
     // Execute operation
     {
-      const executeBody = rbactl.builder.message.executeBatch.encode({
+      const executeBody = rbactl.builder.message.in.executeBatch.encode({
         queryId: 1n,
         calls,
         predecessor: BaseTestSetup.NO_PREDECESSOR,
@@ -96,6 +96,9 @@ describe('MCMS - RBACTimelockCancelTest', () => {
         to: baseTest.bind.timelock.address,
         success: true,
       })
+
+      // Verify counter was incremented
+      expect(await baseTest.bind.counter.getValue()).toEqual(1)
     }
 
     // Get operation ID
@@ -108,7 +111,7 @@ describe('MCMS - RBACTimelockCancelTest', () => {
 
     // Try to cancel finished operation (should fail)
     {
-      const cancelBody = rbactl.builder.message.cancel.encode({
+      const cancelBody = rbactl.builder.message.in.cancel.encode({
         queryId: 1n,
         id: operationID,
       })
@@ -138,13 +141,13 @@ describe('MCMS - RBACTimelockCancelTest', () => {
   async function cancelOperation(canceller: SandboxContract<TreasuryContract>) {
     const call = {
       target: baseTest.bind.counter.address,
-      value: 0n,
-      data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
+      value: toNano('0.05'),
+      data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
     }
     const calls = BaseTestSetup.singletonCalls(call)
 
     // Schedule operation
-    const scheduleBody = rbactl.builder.message.scheduleBatch.encode({
+    const scheduleBody = rbactl.builder.message.in.scheduleBatch.encode({
       queryId: 1n,
       calls,
       predecessor: BaseTestSetup.NO_PREDECESSOR,
@@ -177,7 +180,7 @@ describe('MCMS - RBACTimelockCancelTest', () => {
     expect(await baseTest.bind.timelock.isOperation(operationId)).toBe(true)
 
     // Cancel operation
-    const cancelBody = rbactl.builder.message.cancel.encode({
+    const cancelBody = rbactl.builder.message.in.cancel.encode({
       queryId: 1n,
       id: operationId,
     })
@@ -193,6 +196,23 @@ describe('MCMS - RBACTimelockCancelTest', () => {
       to: baseTest.bind.timelock.address,
       success: true,
     })
+
+    // Check for Canceled confirmation
+    const cancelTx = cancelResult.transactions.filter((t) => {
+      const src = t.inMessage?.info.src! as Address
+      return src && src.equals(baseTest.bind.timelock.address)
+    })
+
+    expect(cancelTx).toHaveLength(1)
+    expect(cancelTx[0].inMessage).toBeDefined()
+
+    const cancelMsg = cancelTx[0].inMessage!
+    const opcode = cancelMsg.body.beginParse().preloadUint(32)
+    const canceledConfirmation = rbactl.builder.message.out.canceled.decode(cancelMsg.body)
+
+    expect(opcode.toString(16)).toEqual(rbactl.opcodes.out.Canceled.toString(16))
+    expect(canceledConfirmation.queryId).toEqual(1)
+    expect(canceledConfirmation.id).toEqual(operationId)
 
     // Verify operation no longer exists
     expect(await baseTest.bind.timelock.isOperation(operationId)).toBe(false)

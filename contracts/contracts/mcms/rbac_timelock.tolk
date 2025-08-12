@@ -319,7 +319,7 @@ struct Timelock<T> {
     hooks: Timelock_Hooks<T>? = null;
 }
 
-/// RBACTimelock contract storage, auto-serialized to/from cells.
+/// RBACTimelock contract storage, auto-serialized to/from cell.
 struct Timelock_Data {
     /// ID allows multiple independent instances, since contract address depends on initial state.
     id: uint32;

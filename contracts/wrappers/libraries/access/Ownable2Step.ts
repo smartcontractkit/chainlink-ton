@@ -41,37 +41,39 @@ export type Data = {
 
 export const builder = {
   message: {
-    // Creates a new `TransferOwnership` message.
-    transferOwnership: {
-      encode: (msg: TransferOwnership): Cell => {
-        return beginCell() // break line
-          .storeUint(opcodes.in.TransferOwnership, 32)
-          .storeUint(msg.queryId, 64)
-          .storeAddress(msg.newOwner)
-          .endCell()
+    in: {
+      // Creates a new `TransferOwnership` message.
+      transferOwnership: {
+        encode: (msg: TransferOwnership): Cell => {
+          return beginCell() // break line
+            .storeUint(opcodes.in.TransferOwnership, 32)
+            .storeUint(msg.queryId, 64)
+            .storeAddress(msg.newOwner)
+            .endCell()
+        },
+        decode: (cell: Cell): TransferOwnership => {
+          const s = cell.beginParse()
+          s.skip(32) // skip opcode
+          return {
+            queryId: s.loadUintBig(64),
+            newOwner: s.loadAddress(),
+          }
+        },
       },
-      decode: (cell: Cell): TransferOwnership => {
-        const s = cell.beginParse()
-        s.skip(32) // skip opcode
-        return {
-          queryId: s.loadUintBig(64),
-          newOwner: s.loadAddress(),
-        }
-      },
-    },
-    acceptOwnership: {
-      encode: (msg: AcceptOwnership): Cell => {
-        return beginCell() // break line
-          .storeUint(opcodes.in.AcceptOwnership, 32)
-          .storeUint(msg.queryId, 64)
-          .endCell()
-      },
-      decode: (cell: Cell): AcceptOwnership => {
-        const s = cell.beginParse()
-        s.skip(32) // skip opcode
-        return {
-          queryId: s.loadUintBig(64),
-        }
+      acceptOwnership: {
+        encode: (msg: AcceptOwnership): Cell => {
+          return beginCell() // break line
+            .storeUint(opcodes.in.AcceptOwnership, 32)
+            .storeUint(msg.queryId, 64)
+            .endCell()
+        },
+        decode: (cell: Cell): AcceptOwnership => {
+          const s = cell.beginParse()
+          s.skip(32) // skip opcode
+          return {
+            queryId: s.loadUintBig(64),
+          }
+        },
       },
     },
   },
@@ -138,7 +140,7 @@ export class ContractClient implements Contract {
     value: bigint = 0n,
     body: TransferOwnership,
   ) {
-    return this.sendInternal(p, via, value, builder.message.transferOwnership.encode(body))
+    return this.sendInternal(p, via, value, builder.message.in.transferOwnership.encode(body))
   }
 
   async sendAcceptOwnership(
@@ -147,7 +149,7 @@ export class ContractClient implements Contract {
     value: bigint = 0n,
     body: AcceptOwnership,
   ) {
-    return this.sendInternal(p, via, value, builder.message.acceptOwnership.encode(body))
+    return this.sendInternal(p, via, value, builder.message.in.acceptOwnership.encode(body))
   }
 
   async getOwner(provider: ContractProvider): Promise<Address> {

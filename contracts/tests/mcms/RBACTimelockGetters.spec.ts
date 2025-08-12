@@ -1,12 +1,11 @@
 import '@ton/test-utils'
 
-import { Address, toNano } from '@ton/core'
+import { toNano } from '@ton/core'
 
 import * as rbactl from '../../wrappers/mcms/RBACTimelock'
 import * as counter from '../../wrappers/examples/Counter'
 
 import { BaseTestSetup, TestCode } from './BaseTest'
-import { SandboxContract, TreasuryContract } from '@ton/sandbox'
 
 describe('MCMS - RBACTimelockGetters', () => {
   let baseTest: BaseTestSetup
@@ -32,13 +31,13 @@ describe('MCMS - RBACTimelockGetters', () => {
     it('should return true if an operation', async () => {
       const call = {
         target: baseTest.bind.counter.address,
-        value: 0n,
-        data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
+        value: toNano('0.05'),
+        data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
       }
       const calls = BaseTestSetup.singletonCalls(call)
 
       // Schedule operation
-      const scheduleBody = rbactl.builder.message.scheduleBatch.encode({
+      const scheduleBody = rbactl.builder.message.in.scheduleBatch.encode({
         queryId: 1n,
         calls,
         predecessor: BaseTestSetup.NO_PREDECESSOR,
@@ -74,13 +73,13 @@ describe('MCMS - RBACTimelockGetters', () => {
     it('should return true if scheduled operation not yet executed', async () => {
       const call = {
         target: baseTest.bind.counter.address,
-        value: 0n,
-        data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
+        value: toNano('0.05'),
+        data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
       }
       const calls = BaseTestSetup.singletonCalls(call)
 
       // Schedule operation
-      const scheduleBody = rbactl.builder.message.scheduleBatch.encode({
+      const scheduleBody = rbactl.builder.message.in.scheduleBatch.encode({
         queryId: 1n,
         calls,
         predecessor: BaseTestSetup.NO_PREDECESSOR,
@@ -108,13 +107,13 @@ describe('MCMS - RBACTimelockGetters', () => {
     it('should return false if operation has been executed', async () => {
       const call = {
         target: baseTest.bind.counter.address,
-        value: 0n,
-        data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
+        value: toNano('0.05'),
+        data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
       }
       const calls = BaseTestSetup.singletonCalls(call)
 
       // Schedule operation
-      const scheduleBody = rbactl.builder.message.scheduleBatch.encode({
+      const scheduleBody = rbactl.builder.message.in.scheduleBatch.encode({
         queryId: 1n,
         calls,
         predecessor: BaseTestSetup.NO_PREDECESSOR,
@@ -129,9 +128,9 @@ describe('MCMS - RBACTimelockGetters', () => {
       )
 
       // Wait for delay and execute
-      baseTest.warpTime(BaseTestSetup.MIN_DELAY)
+      baseTest.warpTime(Number(BaseTestSetup.MIN_DELAY))
 
-      const executeBody = rbactl.builder.message.executeBatch.encode({
+      const executeBody = rbactl.builder.message.in.executeBatch.encode({
         queryId: 1n,
         calls,
         predecessor: BaseTestSetup.NO_PREDECESSOR,
@@ -166,13 +165,13 @@ describe('MCMS - RBACTimelockGetters', () => {
     it('should return true if on the delayed execution time', async () => {
       const call = {
         target: baseTest.bind.counter.address,
-        value: 0n,
-        data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
+        value: toNano('0.05'),
+        data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
       }
       const calls = BaseTestSetup.singletonCalls(call)
 
       // Schedule operation
-      const scheduleBody = rbactl.builder.message.scheduleBatch.encode({
+      const scheduleBody = rbactl.builder.message.in.scheduleBatch.encode({
         queryId: 1n,
         calls,
         predecessor: BaseTestSetup.NO_PREDECESSOR,
@@ -187,7 +186,7 @@ describe('MCMS - RBACTimelockGetters', () => {
       )
 
       // Warp to exactly the delay time
-      baseTest.warpTime(BaseTestSetup.MIN_DELAY)
+      baseTest.warpTime(Number(BaseTestSetup.MIN_DELAY))
 
       const operationBatch: rbactl.OperationBatch = {
         calls,
@@ -203,13 +202,13 @@ describe('MCMS - RBACTimelockGetters', () => {
     it('should return true if after the delayed execution time', async () => {
       const call = {
         target: baseTest.bind.counter.address,
-        value: 0n,
-        data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
+        value: toNano('0.05'),
+        data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
       }
       const calls = BaseTestSetup.singletonCalls(call)
 
       // Schedule operation
-      const scheduleBody = rbactl.builder.message.scheduleBatch.encode({
+      const scheduleBody = rbactl.builder.message.in.scheduleBatch.encode({
         queryId: 1n,
         calls,
         predecessor: BaseTestSetup.NO_PREDECESSOR,
@@ -224,7 +223,7 @@ describe('MCMS - RBACTimelockGetters', () => {
       )
 
       // Warp past the delay time (1 day extra)
-      baseTest.warpTime(BaseTestSetup.MIN_DELAY + 24 * 60 * 60)
+      baseTest.warpTime(Number(BaseTestSetup.MIN_DELAY + 24n * 60n * 60n))
 
       const operationBatch: rbactl.OperationBatch = {
         calls,
@@ -240,13 +239,13 @@ describe('MCMS - RBACTimelockGetters', () => {
     it('should return false if before the delayed execution time', async () => {
       const call = {
         target: baseTest.bind.counter.address,
-        value: 0n,
-        data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
+        value: toNano('0.05'),
+        data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
       }
       const calls = BaseTestSetup.singletonCalls(call)
 
       // Schedule operation
-      const scheduleBody = rbactl.builder.message.scheduleBatch.encode({
+      const scheduleBody = rbactl.builder.message.in.scheduleBatch.encode({
         queryId: 1n,
         calls,
         predecessor: BaseTestSetup.NO_PREDECESSOR,
@@ -261,7 +260,7 @@ describe('MCMS - RBACTimelockGetters', () => {
       )
 
       // Warp to before the delay time (1 day before)
-      baseTest.warpTime(BaseTestSetup.MIN_DELAY - 24 * 60 * 60)
+      baseTest.warpTime(Number(BaseTestSetup.MIN_DELAY - 24n * 60n * 60n))
 
       const operationBatch: rbactl.OperationBatch = {
         calls,
@@ -277,13 +276,13 @@ describe('MCMS - RBACTimelockGetters', () => {
     it('should return false if operation has been executed', async () => {
       const call = {
         target: baseTest.bind.counter.address,
-        value: 0n,
-        data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
+        value: toNano('0.05'),
+        data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
       }
       const calls = BaseTestSetup.singletonCalls(call)
 
       // Schedule operation
-      const scheduleBody = rbactl.builder.message.scheduleBatch.encode({
+      const scheduleBody = rbactl.builder.message.in.scheduleBatch.encode({
         queryId: 1n,
         calls,
         predecessor: BaseTestSetup.NO_PREDECESSOR,
@@ -298,9 +297,9 @@ describe('MCMS - RBACTimelockGetters', () => {
       )
 
       // Wait for delay and execute
-      baseTest.warpTime(BaseTestSetup.MIN_DELAY)
+      baseTest.warpTime(Number(BaseTestSetup.MIN_DELAY))
 
-      const executeBody = rbactl.builder.message.executeBatch.encode({
+      const executeBody = rbactl.builder.message.in.executeBatch.encode({
         queryId: 1n,
         calls,
         predecessor: BaseTestSetup.NO_PREDECESSOR,
@@ -335,13 +334,13 @@ describe('MCMS - RBACTimelockGetters', () => {
     it('should return false if the operation has not been executed', async () => {
       const call = {
         target: baseTest.bind.counter.address,
-        value: 0n,
-        data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
+        value: toNano('0.05'),
+        data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
       }
       const calls = BaseTestSetup.singletonCalls(call)
 
       // Schedule operation
-      const scheduleBody = rbactl.builder.message.scheduleBatch.encode({
+      const scheduleBody = rbactl.builder.message.in.scheduleBatch.encode({
         queryId: 1n,
         calls,
         predecessor: BaseTestSetup.NO_PREDECESSOR,
@@ -369,13 +368,13 @@ describe('MCMS - RBACTimelockGetters', () => {
     it('should return true if operation has been executed', async () => {
       const call = {
         target: baseTest.bind.counter.address,
-        value: 0n,
-        data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
+        value: toNano('0.05'),
+        data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
       }
       const calls = BaseTestSetup.singletonCalls(call)
 
       // Schedule operation
-      const scheduleBody = rbactl.builder.message.scheduleBatch.encode({
+      const scheduleBody = rbactl.builder.message.in.scheduleBatch.encode({
         queryId: 1n,
         calls,
         predecessor: BaseTestSetup.NO_PREDECESSOR,
@@ -390,9 +389,9 @@ describe('MCMS - RBACTimelockGetters', () => {
       )
 
       // Wait for delay and execute
-      baseTest.warpTime(BaseTestSetup.MIN_DELAY)
+      baseTest.warpTime(Number(BaseTestSetup.MIN_DELAY))
 
-      const executeBody = rbactl.builder.message.executeBatch.encode({
+      const executeBody = rbactl.builder.message.in.executeBatch.encode({
         queryId: 1n,
         calls,
         predecessor: BaseTestSetup.NO_PREDECESSOR,
@@ -427,15 +426,15 @@ describe('MCMS - RBACTimelockGetters', () => {
     it('should return the correct timestamp if the operation has not been executed', async () => {
       const call = {
         target: baseTest.bind.counter.address,
-        value: 0n,
-        data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
+        value: toNano('0.05'),
+        data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
       }
       const calls = BaseTestSetup.singletonCalls(call)
 
       const scheduleTime = baseTest.blockchain.now!!
 
       // Schedule operation
-      const scheduleBody = rbactl.builder.message.scheduleBatch.encode({
+      const scheduleBody = rbactl.builder.message.in.scheduleBatch.encode({
         queryId: 1n,
         calls,
         predecessor: BaseTestSetup.NO_PREDECESSOR,
@@ -457,19 +456,19 @@ describe('MCMS - RBACTimelockGetters', () => {
       const operationID = await baseTest.bind.timelock.getHashOperationBatch(operationBatch)
 
       const operationTimestamp = await baseTest.bind.timelock.getTimestamp(operationID)
-      expect(operationTimestamp).toBe(BigInt(scheduleTime + BaseTestSetup.MIN_DELAY))
+      expect(operationTimestamp).toBe(BigInt(scheduleTime) + BaseTestSetup.MIN_DELAY)
     })
 
     it('should return DONE_TIMESTAMP if operation has been executed', async () => {
       const call = {
         target: baseTest.bind.counter.address,
-        value: 0n,
-        data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
+        value: toNano('0.05'),
+        data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
       }
       const calls = BaseTestSetup.singletonCalls(call)
 
       // Schedule operation
-      const scheduleBody = rbactl.builder.message.scheduleBatch.encode({
+      const scheduleBody = rbactl.builder.message.in.scheduleBatch.encode({
         queryId: 1n,
         calls,
         predecessor: BaseTestSetup.NO_PREDECESSOR,
@@ -484,9 +483,9 @@ describe('MCMS - RBACTimelockGetters', () => {
       )
 
       // Wait for delay and execute
-      baseTest.warpTime(BaseTestSetup.MIN_DELAY)
+      baseTest.warpTime(Number(BaseTestSetup.MIN_DELAY))
 
-      const executeBody = rbactl.builder.message.executeBatch.encode({
+      const executeBody = rbactl.builder.message.in.executeBatch.encode({
         queryId: 1n,
         calls,
         predecessor: BaseTestSetup.NO_PREDECESSOR,
@@ -507,7 +506,7 @@ describe('MCMS - RBACTimelockGetters', () => {
       const operationID = await baseTest.bind.timelock.getHashOperationBatch(operationBatch)
 
       const operationTimestamp = await baseTest.bind.timelock.getTimestamp(operationID)
-      expect(operationTimestamp).toBe(BigInt(BaseTestSetup.DONE_TIMESTAMP))
+      expect(operationTimestamp).toBe(BaseTestSetup.DONE_TIMESTAMP)
     })
   })
 })

@@ -5,7 +5,7 @@ import {
   OCR3BaseTransmitted,
 } from '../../../wrappers/libraries/ocr/Logs'
 import { testLog, getExternals } from '../../Logs'
-import { fromSnakeData } from '../../../utils/Utils'
+import { fromSnakeData } from '../../../utils'
 import { BlockchainTransaction } from '@ton/sandbox'
 
 export const testConfigSetLogMessage = (
