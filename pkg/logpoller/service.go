@@ -12,7 +12,6 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/event"
 )
 
 // TON LogPoller Service
@@ -31,7 +30,8 @@ type service struct {
 	lggr    logger.SugaredLogger // Logger instance
 	client  ton.APIClientWrapped // TON blockchain client
 	filters FilterStore          // Registry of active filters
-	loader  MessageLoader        // Message loader (MVP: account-based, to be replaced with block-scan)
+	loader  TxLoader             // Transaction loader returning loaded txs
+	indexer Indexer              // Transaction indexer returning indexed logs
 	store   LogStore             // Log storage (MVP: in-memory, to be replaced with ORM)
 
 	pollPeriod         time.Duration // How often to poll for new blocks
@@ -44,7 +44,8 @@ func NewService(lggr logger.Logger, opts *ServiceOptions) Service {
 		lggr:       logger.Sugared(lggr),
 		client:     opts.Client,
 		filters:    opts.Filters,
-		loader:     opts.MessageLoader,
+		loader:     opts.Loader,
+		indexer:    opts.Indexer,
 		store:      opts.Store,
 		pollPeriod: opts.Config.PollPeriod,
 	}
@@ -57,7 +58,7 @@ func NewService(lggr logger.Logger, opts *ServiceOptions) Service {
 
 // start initializes the log polling service and begins the polling loop
 func (lp *service) start(_ context.Context) error {
-	lp.lggr.Infof("starting logpoller")
+	lp.lggr.Infof("starting TON logpoller")
 	lp.eng.GoTick(services.NewTicker(lp.pollPeriod), func(ctx context.Context) {
 		if err := lp.run(ctx); err != nil {
 			lp.lggr.Errorw("iteration failed", "err", err)
@@ -96,7 +97,7 @@ func (lp *service) run(ctx context.Context) (err error) {
 		return nil
 	}
 
-	if err := lp.processBlockRange(ctx, addresses, blockRange.Prev, blockRange.To); err != nil {
+	if err := lp.processBlockRange(ctx, blockRange, addresses); err != nil {
 		return fmt.Errorf("failed to process block range: %w", err)
 	}
 
@@ -132,90 +133,6 @@ func (lp *service) getMasterchainBlockRange(ctx context.Context) (*types.BlockRa
 	return &types.BlockRange{Prev: prevBlock, To: toBlock}, nil
 }
 
-// resolvePreviousBlock determines the previous block reference based on the last processed sequence number
-func (lp *service) resolvePreviousBlock(ctx context.Context, lastProcessedBlock uint32, toBlock *ton.BlockIDExt) (*ton.BlockIDExt, error) {
-	if lastProcessedBlock == 0 {
-		// TODO: we shouldn't process from genesis, but rather have a pointer for starting point
-		lp.lggr.Debugw("First run detected, processing from genesis", "toSeq", toBlock.SeqNo)
-		return nil, nil
-	}
-
-	// get the prevBlock based on the last processed sequence number
-	prevBlock, err := lp.client.LookupBlock(ctx, toBlock.Workchain, toBlock.Shard, lastProcessedBlock)
-	if err != nil {
-		return nil, fmt.Errorf("LookupBlock for previous seqno %d: %w", lastProcessedBlock, err)
-	}
-	return prevBlock, nil
-}
-
-// processBlockRange handles scanning a range of blocks for external messages
-// from the specified addresses. It delegates to the LogCollector for the actual
-// block scanning and then processes the returned messages
-func (lp *service) processBlockRange(ctx context.Context, addresses []*address.Address, prevBlock *ton.BlockIDExt, toBlock *ton.BlockIDExt) error {
-	msgs, err := lp.loader.LoadMessagesForAddresses(ctx, addresses, prevBlock, toBlock)
-	if err != nil {
-		return fmt.Errorf("failed to backfill messages: %w", err)
-	}
-
-	if err := lp.processMessages(msgs); err != nil {
-		return fmt.Errorf("failed to process messages: %w", err)
-	}
-
-	return nil
-}
-
-// processMessages iterates through external messages and processes each one
-func (lp *service) processMessages(msgs []types.IndexedMsg) error {
-	for _, msg := range msgs {
-		if err := lp.Process(msg); err != nil {
-			return fmt.Errorf("failed to process message: %w", err)
-		}
-	}
-	return nil
-}
-
-// Process handles a single external message:
-// 1. Extracts event topic from destination address
-// 2. Finds matching filters for the source address and topic
-// 3. Saves logs for each matching filter
-func (lp *service) Process(msg types.IndexedMsg) error {
-	bucket := event.NewExtOutLogBucket(msg.Msg.DstAddr)
-	topic, err := bucket.DecodeEventTopic()
-	if err != nil {
-		return fmt.Errorf("failed to decode event topic: %w", err)
-	}
-	lp.lggr.Trace("Processing message", "src", msg.Msg.SrcAddr, "dst", msg.Msg.DstAddr, "topic", topic)
-
-	fIDs := lp.filters.MatchingFilters(*msg.Msg.SrcAddr, topic)
-	if len(fIDs) == 0 {
-		return nil // no filters matched, nothing to do
-	}
-
-	for _, fid := range fIDs {
-		lp.store.SaveLog(types.Log{
-			FilterID: fid,
-			EventSig: topic,
-
-			Address: msg.Msg.SrcAddr,
-			Data:    msg.Msg.Body,
-
-			TxHash:      types.TxHash(msg.Tx.Hash),
-			TxLT:        msg.Tx.LT,
-			TxTimestamp: time.Unix(int64(msg.Tx.Now), 0).UTC(),
-
-			// TODO(NONEVM-2194): store block metadata
-			// ShardBlockSeqno:     msg.ShardBlock.SeqNo,
-			// ShardBlockWorkchain: msg.ShardBlock.Workchain,
-			// ShardBlockShard:     msg.ShardBlock.Shard,
-
-			// MasterBlockSeqno: msg.MasterBlock.SeqNo,
-
-			// TODO: ChainID:        lp.orm.ChainID(),
-		})
-	}
-	return nil
-}
-
 // getLastProcessedBlock retrieves the last processed masterchain sequence number.
 // Currently uses in-memory storage; will be replaced with database persistence.
 func (lp *service) getLastProcessedBlock() (uint32, error) {
@@ -229,6 +146,61 @@ func (lp *service) getLastProcessedBlock() (uint32, error) {
 	return lastProcessed, nil
 }
 
+// resolvePreviousBlock determines the previous block reference based on the last processed sequence number
+func (lp *service) resolvePreviousBlock(ctx context.Context, lastProcessedBlockSeqNo uint32, toBlock *ton.BlockIDExt) (*ton.BlockIDExt, error) {
+	if lastProcessedBlockSeqNo == 0 {
+		// TODO: we shouldn't process from genesis, but rather have a pointer for starting point
+		lp.lggr.Debugw("First run detected, processing from genesis", "toSeq", toBlock.SeqNo)
+		return nil, nil
+	}
+
+	// get the prevBlock based on the last processed sequence number
+	prevBlock, err := lp.client.LookupBlock(ctx, toBlock.Workchain, toBlock.Shard, lastProcessedBlockSeqNo)
+	if err != nil {
+		return nil, fmt.Errorf("LookupBlock for previous seqno %d: %w", lastProcessedBlockSeqNo, err)
+	}
+	return prevBlock, nil
+}
+
+// processBlockRange handles scanning a range of blocks for external messages
+// from the specified addresses. It delegates to the LogCollector for the actual
+// block scanning and then processes the returned messages
+// processBlockRange loads transactions, indexes them into logs, and saves the logs.
+func (lp *service) processBlockRange(ctx context.Context, blockRange *types.BlockRange, addresses []*address.Address) error {
+	// 1. Load raw transactions with blocks from the blockchain
+	txs, err := lp.loader.LoadTxsForAddresses(ctx, blockRange, addresses)
+	if err != nil {
+		return fmt.Errorf("failed to load transactions: %w", err)
+	}
+	if len(txs) == 0 {
+		return nil
+	}
+	lp.lggr.Debugw("loaded transactions from chain", "count", len(txs))
+
+	// 2. Index the raw transactions into structured logs
+	logs, err := lp.indexer.IndexTransactions(txs)
+	if err != nil {
+		return fmt.Errorf("failed to index transactions: %w", err)
+	}
+	if len(logs) == 0 {
+		return nil
+	}
+	lp.lggr.Debugw("indexed transactions into logs", "count", len(logs))
+
+	// 3. Save the logs to the store
+	for _, log := range logs {
+		if log.Error != nil {
+			// TODO: how do we deal with failed logs? store with error field or discard?
+			lp.lggr.Errorw("failed to save log", "log", log, "error", log.Error)
+			continue
+		}
+		lp.store.SaveLog(log)
+	}
+	lp.lggr.Infow("successfully saved new logs to store", "count", len(logs))
+
+	return nil
+}
+
 // RegisterFilter adds a new filter to monitor specific address/topic combinations
 func (lp *service) RegisterFilter(ctx context.Context, flt types.Filter) error {
 	return lp.filters.RegisterFilter(ctx, flt)
@@ -240,7 +212,7 @@ func (lp *service) UnregisterFilter(ctx context.Context, name string) error {
 }
 
 // HasFilter checks if a filter with the given name exists
-func (lp *service) HasFilter(ctx context.Context, name string) bool {
+func (lp *service) HasFilter(ctx context.Context, name string) (bool, error) {
 	return lp.filters.HasFilter(ctx, name)
 }
 

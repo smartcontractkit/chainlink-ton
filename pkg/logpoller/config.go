@@ -17,9 +17,10 @@ var DefaultConfigSet = Config{
 }
 
 type ServiceOptions struct {
-	Config        Config // TODO: use global relayer config
-	Client        ton.APIClientWrapped
-	Filters       FilterStore
-	MessageLoader MessageLoader
-	Store         LogStore
+	Config  Config // TODO: use global relayer config
+	Client  ton.APIClientWrapped
+	Filters FilterStore
+	Loader  TxLoader
+	Indexer Indexer
+	Store   LogStore
 }

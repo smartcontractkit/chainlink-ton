@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/xssnick/tonutils-go/address"
-	"github.com/xssnick/tonutils-go/ton"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 
@@ -17,20 +16,8 @@ type Service interface {
 	services.Service
 	RegisterFilter(ctx context.Context, flt types.Filter) error
 	UnregisterFilter(ctx context.Context, name string) error
-	HasFilter(ctx context.Context, name string) bool
+	HasFilter(ctx context.Context, name string) (bool, error)
 	GetStore() LogStore
-}
-
-// MessageLoader defines the interface for loading external messages from the TON blockchain.
-// It provides functionality to scan blockchain data and extract relevant messages from
-// specified addresses within a given block range.
-type MessageLoader interface {
-	// LoadMessagesForAddresses scans the TON blockchain for external messages from specified
-	// source addresses within a given block range.
-	//
-	// This method retrieves all external messages (ExternalMessageOut) that were emitted
-	// by the provided source addresses between prevBlock (exclusive) and toBlock (inclusive).
-	LoadMessagesForAddresses(ctx context.Context, srcAddrs []*address.Address, prevBlock, toBlock *ton.BlockIDExt) ([]types.IndexedMsg, error)
 }
 
 // FilterStore defines an interface for storing and retrieving log filter specifications.
@@ -40,11 +27,20 @@ type FilterStore interface {
 	// UnregisterFilter removes a filter by its unique name.
 	UnregisterFilter(ctx context.Context, name string) error
 	// HasFilter checks if a filter with the given name exists.
-	HasFilter(ctx context.Context, name string) bool
+	HasFilter(ctx context.Context, name string) (bool, error)
 	// GetDistinctAddresses returns a slice of unique addresses that are being monitored.
 	GetDistinctAddresses() ([]*address.Address, error)
 	// MatchingFilters returns all filter IDs that match a given contract address and event topic.
-	MatchingFilters(contractAddr address.Address, topic uint32) []int64
+	MatchingFilters(contractAddr address.Address, topic uint32) ([]int64, error)
+}
+
+// TxLoader defines the interface for loading transactions from the TON blockchain.
+type TxLoader interface {
+	LoadTxsForAddresses(ctx context.Context, blockRange *types.BlockRange, srcAddrs []*address.Address) ([]types.TxWithBlock, error)
+}
+
+type Indexer interface {
+	IndexTransactions(txs []types.TxWithBlock) ([]types.Log, error)
 }
 
 // LogStore defines the interface for storing and retrieving logs.

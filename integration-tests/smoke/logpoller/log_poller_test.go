@@ -1,6 +1,7 @@
 package smoke
 
 import (
+	"bytes"
 	"context"
 	"encoding/binary"
 	"math/big"
@@ -20,8 +21,9 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/examples/counter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
-	inmemorystore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/db/inmemory"
-	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/loader/account"
+	inmemorystore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/db/inmemory"
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/indexer"
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/loader/account"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types/query"
 )
@@ -64,20 +66,32 @@ func Test_LogPoller(t *testing.T) {
 		)
 		require.NoError(t, err)
 
+		blockRange := &types.BlockRange{
+			Prev: prevBlock,
+			To:   toBlock,
+		}
+
 		t.Run("loading entire block range at once", func(t *testing.T) {
 			t.Parallel()
-			loader := account.NewMsgLoader(client, logger.Test(t), pageSize)
+			loader := account.NewTxLoader(client, logger.Test(t), pageSize)
 
-			msgs, berr := loader.LoadMessagesForAddresses(
+			txs, berr := loader.LoadTxsForAddresses(
 				t.Context(),
+				blockRange,
 				[]*address.Address{emitter.ContractAddress()},
-				prevBlock,
-				toBlock,
 			)
 			require.NoError(t, berr)
-			exts := make([]*tlb.ExternalMessageOut, 0, len(msgs))
-			for _, msg := range msgs {
-				exts = append(exts, msg.Msg)
+			exts := make([]*tlb.ExternalMessageOut, 0, len(txs))
+			for _, tx := range txs {
+				msgs, _ := tx.Tx.IO.Out.ToSlice()
+				for _, msg := range msgs {
+					// test contract only emits ExternalMessageOut
+					if msg.MsgType == tlb.MsgTypeExternalOut {
+						if extOut := msg.AsExternalOut(); extOut != nil {
+							exts = append(exts, extOut)
+						}
+					}
+				}
 			}
 			require.NoError(t, helper.VerifyLoadedEvents(exts, expectedEvents))
 		})
@@ -86,7 +100,7 @@ func Test_LogPoller(t *testing.T) {
 			t.Parallel()
 			var allMsgs []*tlb.ExternalMessageOut
 
-			loader := account.NewMsgLoader(client, logger.Test(t), pageSize)
+			loader := account.NewTxLoader(client, logger.Test(t), pageSize)
 
 			// iterate block by block from prevBlock to toBlock
 			currentBlock := prevBlock
@@ -99,19 +113,30 @@ func Test_LogPoller(t *testing.T) {
 				)
 				require.NoError(t, nberr)
 
-				msgs, berr := loader.LoadMessagesForAddresses(
+				// Create a block range for just this single block
+				iterRange := &types.BlockRange{
+					Prev: currentBlock,
+					To:   nextBlock,
+				}
+
+				loadedTxs, berr := loader.LoadTxsForAddresses(
 					t.Context(),
+					iterRange,
 					[]*address.Address{emitter.ContractAddress()},
-					currentBlock, // from current block (exclusive)
-					nextBlock,    // to next block (inclusive)
 				)
 				require.NoError(t, berr)
 
-				exts := make([]*tlb.ExternalMessageOut, 0, len(msgs))
-				for _, msg := range msgs {
-					exts = append(exts, msg.Msg)
+				// Extract messages from the loaded transactions
+				for _, tx := range loadedTxs {
+					msgs, _ := tx.Tx.IO.Out.ToSlice()
+					for _, msg := range msgs {
+						if msg.MsgType == tlb.MsgTypeExternalOut {
+							if extOut := msg.AsExternalOut(); extOut != nil {
+								allMsgs = append(allMsgs, extOut)
+							}
+						}
+					}
 				}
-				allMsgs = append(allMsgs, exts...)
 				currentBlock = nextBlock // update for next iteration
 			}
 
@@ -142,14 +167,16 @@ func Test_LogPoller(t *testing.T) {
 		// DI
 		logStore := inmemorystore.NewLogStore()
 		filterStore := inmemorystore.NewFilterStore()
-		loader := account.NewMsgLoader(client, logger.Test(t), cfg.PageSize)
+		loader := account.NewTxLoader(client, logger.Test(t), cfg.PageSize)
+		indexer := indexer.NewIndexer(logger.Test(t), filterStore)
 
 		opts := &logpoller.ServiceOptions{
-			Client:        client,
-			Config:        cfg,
-			Store:         logStore,
-			Filters:       filterStore,
-			MessageLoader: loader,
+			Config:  cfg,
+			Client:  client,
+			Filters: filterStore,
+			Loader:  loader,
+			Indexer: indexer,
+			Store:   logStore,
 		}
 		lp := logpoller.NewService(
 			logger.Test(t),
@@ -175,11 +202,14 @@ func Test_LogPoller(t *testing.T) {
 		fberr := lp.RegisterFilter(t.Context(), filterB)
 		require.NoError(t, fberr)
 
-		hasFilterA := lp.HasFilter(t.Context(), filterA.Name)
+		hasFilterA, aerr := lp.HasFilter(t.Context(), filterA.Name)
+		require.NoError(t, aerr)
 		require.True(t, hasFilterA)
-		hasFilterB := lp.HasFilter(t.Context(), filterB.Name)
+		hasFilterB, berr := lp.HasFilter(t.Context(), filterB.Name)
+		require.NoError(t, berr)
 		require.True(t, hasFilterB)
-		hasFilterC := lp.HasFilter(t.Context(), "tons of fun")
+		hasFilterC, cerr := lp.HasFilter(t.Context(), "tons of fun")
+		require.NoError(t, cerr)
 		require.False(t, hasFilterC)
 
 		// start listening for logs
@@ -322,7 +352,50 @@ func Test_LogPoller(t *testing.T) {
 			return true
 		}, 120*time.Second, 5*time.Second, "log poller did not ingest all events correctly in time")
 
-		t.Run("Cell Query Tests", func(t *testing.T) {
+		t.Run("Stored Block validation", func(t *testing.T) {
+			// get all logs
+			filters := []query.ByteFilter{
+				{
+					Offset:   4,
+					Operator: query.GT,
+					Value:    binary.BigEndian.AppendUint32(nil, 0),
+				},
+				{
+					Offset:   4,
+					Operator: query.LTE,
+					Value:    binary.BigEndian.AppendUint32(nil, targetCounter),
+				},
+			}
+
+			options := query.Options{
+				SortBy: []query.SortBy{
+					{Field: query.SortByTxLT, Order: query.ASC},
+				},
+			}
+			result, qerr := logpoller.NewQuery[counter.CountIncreased](lp.GetStore()).
+				WithSrcAddress(emitterA.ContractAddress()).
+				WithTopic(counter.TopicCountIncreased).
+				WithByteFilter(filters[0]).
+				WithByteFilter(filters[1]).
+				WithOptions(options).
+				Execute(t.Context())
+			require.NoError(t, qerr)
+
+			for _, logEntry := range result.Logs {
+				ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+				defer cancel()
+
+				// call GetTransaction to fetch the transaction and verify the proof.
+				// The API client must have proof checking enabled for this to work.
+				tx, err := client.GetTransaction(ctx, logEntry.Block, logEntry.Address, logEntry.TxLT)
+				require.NoError(t, err, "Transaction verification failed for lt %d", logEntry.TxLT)
+
+				// final check: ensure the hash of the fetched transaction matches the hash from the log.
+				require.True(t, bytes.Equal(tx.Hash, logEntry.TxHash[:]), "Transaction hash mismatch: log hash %x, chain hash %x", logEntry.TxHash, tx.Hash)
+			}
+		})
+
+		t.Run("Query Tests", func(t *testing.T) {
 			// the log poller service itself provides a simple query interface(w/o full DSL support)
 			// define filters to find logs where the counter is between 5 and 10.
 			// the CounterIncreased event data layout is [ID (4 bytes), Counter (4 bytes)].
@@ -369,7 +442,7 @@ func Test_LogPoller(t *testing.T) {
 				}
 			})
 
-			t.Run("Log Poller Query With Cell Filter, events from emitter B", func(t *testing.T) {
+			t.Run("Log Poller Query With ByteFilter, events from emitter B", func(t *testing.T) {
 				t.Parallel()
 				filters := []query.ByteFilter{
 					{
@@ -408,7 +481,7 @@ func Test_LogPoller(t *testing.T) {
 				}
 			})
 
-			t.Run("Log Poller Query With Cell Query, all events from emitter B", func(t *testing.T) {
+			t.Run("Log Poller Query With ByteFilter, all events from emitter B", func(t *testing.T) {
 				t.Parallel()
 				// the CounterIncreased event data layout is [ID (4 bytes), Counter (4 bytes)].
 				filter := query.ByteFilter{

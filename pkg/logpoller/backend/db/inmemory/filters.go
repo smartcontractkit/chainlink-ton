@@ -68,11 +68,11 @@ func (f *inMemoryFilters) UnregisterFilter(_ context.Context, name string) error
 	return nil
 }
 
-func (f *inMemoryFilters) HasFilter(_ context.Context, name string) bool {
+func (f *inMemoryFilters) HasFilter(_ context.Context, name string) (bool, error) {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 	_, exists := f.filtersByName[name]
-	return exists
+	return exists, nil
 }
 
 // GetDistinctAddresses returns all unique contract addresses being tracked.
@@ -91,16 +91,16 @@ func (f *inMemoryFilters) GetDistinctAddresses() ([]*address.Address, error) {
 }
 
 // MatchingFilters finds all filter IDs that correspond to a given address and topic.
-func (f *inMemoryFilters) MatchingFilters(contractAddr address.Address, topic uint32) []int64 {
+func (f *inMemoryFilters) MatchingFilters(contractAddr address.Address, topic uint32) ([]int64, error) {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 
 	byTopic, ok := f.filtersByAddress[contractAddr.String()]
 	if !ok {
-		return nil
+		return nil, nil
 	}
 	if _, watched := byTopic[topic]; !watched {
-		return nil
+		return nil, nil
 	}
 
 	var out []int64
@@ -109,5 +109,5 @@ func (f *inMemoryFilters) MatchingFilters(contractAddr address.Address, topic ui
 			out = append(out, flt.ID)
 		}
 	}
-	return out
+	return out, nil
 }
