@@ -41,7 +41,7 @@ func NewMsgLoader(
 	}
 }
 
-// BackfillForAddresses scans TON blockchain for external messages from specified addresses
+// LoadMsgsFromSrcAddrs scans TON blockchain for external messages from specified addresses
 // between prevBlock and toBlock. This MVP implementation uses concurrent goroutines
 // per address for improved performance.
 //
@@ -49,7 +49,7 @@ func NewMsgLoader(
 // Production version will use background worker pools for better resource management.
 //
 // TODO(NONEVM-2188): refactor to use background workers for scale in production
-func (lc *accountMsgLoader) BackfillForAddresses(ctx context.Context, srcAddrs []*address.Address, prevBlock *ton.BlockIDExt, toBlock *ton.BlockIDExt) ([]types.IndexedMsg, error) {
+func (lc *accountMsgLoader) LoadMsgsFromSrcAddrs(ctx context.Context, srcAddrs []*address.Address, prevBlock *ton.BlockIDExt, toBlock *ton.BlockIDExt) ([]types.IndexedMsg, error) {
 	var allMsgs []types.IndexedMsg
 	var mu sync.Mutex
 

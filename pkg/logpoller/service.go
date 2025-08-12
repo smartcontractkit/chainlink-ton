@@ -12,7 +12,6 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
-	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types/cellquery"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/event"
 )
 
@@ -157,7 +156,7 @@ func (lp *service) resolvePreviousBlock(ctx context.Context, lastProcessedBlock 
 // from the specified addresses. It delegates to the LogCollector for the actual
 // block scanning and then processes the returned messages
 func (lp *service) processBlockRange(ctx context.Context, addresses []*address.Address, prevBlock *ton.BlockIDExt, toBlock *ton.BlockIDExt) error {
-	msgs, err := lp.loader.BackfillForAddresses(ctx, addresses, prevBlock, toBlock)
+	msgs, err := lp.loader.LoadMsgsFromSrcAddrs(ctx, addresses, prevBlock, toBlock)
 	if err != nil {
 		return fmt.Errorf("failed to backfill messages: %w", err)
 	}
@@ -198,8 +197,8 @@ func (lp *service) Process(msg types.IndexedMsg) error {
 
 	for _, fid := range fIDs {
 		lp.store.SaveLog(types.Log{
-			FilterID:   fid,
-			EventTopic: topic,
+			FilterID: fid,
+			EventSig: topic,
 
 			Address: msg.Msg.SrcAddr,
 			Data:    msg.Msg.Body,
@@ -215,7 +214,6 @@ func (lp *service) Process(msg types.IndexedMsg) error {
 
 			// MasterBlockSeqno: msg.MasterBlock.SeqNo,
 
-			CreatedAt: time.Now().UTC(),
 			// TODO: ChainID:        lp.orm.ChainID(),
 		})
 	}
@@ -250,19 +248,7 @@ func (lp *service) HasFilter(ctx context.Context, name string) bool {
 	return lp.filters.HasFilter(ctx, name)
 }
 
-// FilteredLogs retrieves logs filtered by address, topic, and additional cell-level queries.
-// This allows for precise filtering based on the internal structure of TON cell data.
-func (lp *service) FilteredLogs(
-	_ context.Context,
-	evtSrcAddress *address.Address,
-	topic uint32,
-	queries []cellquery.CellQuery,
-	options cellquery.QueryOptions,
-) (cellquery.QueryResult, error) {
-	return lp.store.FilteredLogs(
-		evtSrcAddress,
-		topic,
-		queries,
-		options,
-	)
+// GetStore exposes the underlying log store for direct access
+func (lp *service) GetStore() LogStore {
+	return lp.store
 }

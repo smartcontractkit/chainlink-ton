@@ -40,7 +40,7 @@ func (f *inMemoryFilters) RegisterFilter(_ context.Context, flt types.Filter) er
 	if f.filtersByAddress[a] == nil {
 		f.filtersByAddress[a] = make(map[uint32]struct{})
 	}
-	f.filtersByAddress[a][flt.EventTopic] = struct{}{}
+	f.filtersByAddress[a][flt.EventSig] = struct{}{}
 
 	return nil
 }
@@ -59,7 +59,7 @@ func (f *inMemoryFilters) UnregisterFilter(_ context.Context, name string) error
 
 	a := flt.Address.String()
 	if byTopic, exists := f.filtersByAddress[a]; exists {
-		delete(byTopic, flt.EventTopic)
+		delete(byTopic, flt.EventSig)
 		if len(byTopic) == 0 {
 			delete(f.filtersByAddress, a)
 		}
@@ -105,7 +105,7 @@ func (f *inMemoryFilters) MatchingFilters(contractAddr address.Address, topic ui
 
 	var out []int64
 	for _, flt := range f.filtersByName {
-		if flt.Address.Equals(&contractAddr) && flt.EventTopic == topic {
+		if flt.Address.Equals(&contractAddr) && flt.EventSig == topic {
 			out = append(out, flt.ID)
 		}
 	}

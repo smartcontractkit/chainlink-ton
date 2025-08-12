@@ -9,7 +9,7 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
-	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types/cellquery"
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types/query"
 )
 
 // Service defines the public interface for the TON log polling service.
@@ -18,19 +18,19 @@ type Service interface {
 	RegisterFilter(ctx context.Context, flt types.Filter) error
 	UnregisterFilter(ctx context.Context, name string) error
 	HasFilter(ctx context.Context, name string) bool
-	FilteredLogs(ctx context.Context, address *address.Address, topic uint32, queries []cellquery.CellQuery, options cellquery.QueryOptions) (cellquery.QueryResult, error)
+	GetStore() LogStore
 }
 
 // MessageLoader defines the interface for loading external messages from the TON blockchain.
 // It provides functionality to scan blockchain data and extract relevant messages from
 // specified addresses within a given block range.
 type MessageLoader interface {
-	// BackfillForAddresses scans the TON blockchain for external messages from specified
+	// LoadMsgsFromSrcAddrs scans the TON blockchain for external messages from specified
 	// source addresses within a given block range.
 	//
 	// This method retrieves all external messages (ExternalMessageOut) that were emitted
 	// by the provided source addresses between prevBlock (exclusive) and toBlock (inclusive).
-	BackfillForAddresses(ctx context.Context, srcAddrs []*address.Address, prevBlock, toBlock *ton.BlockIDExt) ([]types.IndexedMsg, error)
+	LoadMsgsFromSrcAddrs(ctx context.Context, srcAddrs []*address.Address, prevBlock, toBlock *ton.BlockIDExt) ([]types.IndexedMsg, error)
 }
 
 // FilterStore defines an interface for storing and retrieving log filter specifications.
@@ -50,8 +50,13 @@ type FilterStore interface {
 // LogStore defines the interface for storing and retrieving logs.
 type LogStore interface {
 	SaveLog(log types.Log)
-	FilteredLogs(evtSrcAddress *address.Address, topic uint32, queries []cellquery.CellQuery, options cellquery.QueryOptions) (cellquery.QueryResult, error)
 	// GetLogs retrieves raw logs for a given address and topic without any parsing or filtering.
 	// This is a simple method that returns the raw cell data for further processing.
-	GetLogs(evtSrcAddress *address.Address, topic uint32) ([]types.Log, error)
+	GetLogs(srcAddr *address.Address, topic uint32) ([]types.Log, error)
+}
+
+// LogQuery defines the interface for querying logs with different filtering strategies.
+type LogQuery[T any] interface {
+	WithRawByteFilter(ctx context.Context, address *address.Address, topic uint32, filters []query.ByteFilter, options query.Options) (query.Result[T], error)
+	WithTypedFilter(ctx context.Context, address *address.Address, topic uint32, filter func(T) bool, options query.Options) (query.Result[T], error)
 }
