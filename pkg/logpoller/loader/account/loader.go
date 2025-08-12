@@ -41,7 +41,7 @@ func NewMsgLoader(
 	}
 }
 
-// LoadMsgsFromSrcAddrs scans TON blockchain for external messages from specified addresses
+// LoadMessagesForAddresses scans TON blockchain for external messages from specified addresses
 // between prevBlock and toBlock. This MVP implementation uses concurrent goroutines
 // per address for improved performance.
 //
@@ -49,13 +49,13 @@ func NewMsgLoader(
 // Production version will use background worker pools for better resource management.
 //
 // TODO(NONEVM-2188): refactor to use background workers for scale in production
-func (lc *accountMsgLoader) LoadMsgsFromSrcAddrs(ctx context.Context, srcAddrs []*address.Address, prevBlock *ton.BlockIDExt, toBlock *ton.BlockIDExt) ([]types.IndexedMsg, error) {
+func (l *accountMsgLoader) LoadMessagesForAddresses(ctx context.Context, srcAddrs []*address.Address, prevBlock *ton.BlockIDExt, toBlock *ton.BlockIDExt) ([]types.IndexedMsg, error) {
 	var allMsgs []types.IndexedMsg
 	var mu sync.Mutex
 
 	eg, egCtx := errgroup.WithContext(ctx)
 
-	lc.lggr.Debugf("scanning block range (%d, %d] for %d contracts", func() uint32 {
+	l.lggr.Debugf("scanning block range (%d, %d] for %d contracts", func() uint32 {
 		if prevBlock != nil {
 			return prevBlock.SeqNo
 		}
@@ -65,7 +65,7 @@ func (lc *accountMsgLoader) LoadMsgsFromSrcAddrs(ctx context.Context, srcAddrs [
 	for _, addr := range srcAddrs {
 		currAddr := addr
 		eg.Go(func() error {
-			msgs, err := lc.fetchMessagesForAddress(egCtx, currAddr, prevBlock, toBlock)
+			msgs, err := l.fetchMessagesForAddress(egCtx, currAddr, prevBlock, toBlock)
 			if err != nil {
 				return fmt.Errorf("failed to fetch for %s: %w", currAddr.String(), err)
 			}
@@ -95,17 +95,17 @@ func (lc *accountMsgLoader) LoadMsgsFromSrcAddrs(ctx context.Context, srcAddrs [
 //
 // Note: Block range (prevBlock, toBlock] is exclusive of prevBlock, inclusive of toBlock
 // TODO: stream messages back to log poller to avoid memory overhead in production
-func (lc *accountMsgLoader) fetchMessagesForAddress(ctx context.Context, addr *address.Address, prevBlock *ton.BlockIDExt, toBlock *ton.BlockIDExt) ([]types.IndexedMsg, error) {
+func (l *accountMsgLoader) fetchMessagesForAddress(ctx context.Context, addr *address.Address, prevBlock *ton.BlockIDExt, toBlock *ton.BlockIDExt) ([]types.IndexedMsg, error) {
 	if prevBlock != nil && prevBlock.SeqNo >= toBlock.SeqNo {
 		return nil, fmt.Errorf("prevBlock %d is not before toBlock %d", prevBlock.SeqNo, toBlock.SeqNo)
 	}
-	startLT, endLT, endHash, err := lc.getTransactionBounds(ctx, addr, prevBlock, toBlock)
+	startLT, endLT, endHash, err := l.getTransactionBounds(ctx, addr, prevBlock, toBlock)
 	if err != nil {
 		return nil, err
 	}
 
 	if startLT >= endLT {
-		lc.lggr.Trace("No transactions to process", "address", addr.String(), "startLT", startLT, "endLT", endLT)
+		l.lggr.Trace("No transactions to process", "address", addr.String(), "startLT", startLT, "endLT", endLT)
 		return nil, nil
 	}
 
@@ -113,7 +113,7 @@ func (lc *accountMsgLoader) fetchMessagesForAddress(ctx context.Context, addr *a
 	curLT, curHash := endLT, endHash
 
 	for {
-		batch, err := lc.client.ListTransactions(ctx, addr, lc.pageSize, curLT, curHash)
+		batch, err := l.client.ListTransactions(ctx, addr, l.pageSize, curLT, curHash)
 		if errors.Is(err, ton.ErrNoTransactionsWereFound) || len(batch) == 0 {
 			// no more transactions to process
 			break
@@ -179,12 +179,12 @@ func (lc *accountMsgLoader) fetchMessagesForAddress(ctx context.Context, addr *a
 //
 // prevBlock: Block where the address was last seen(already processed)
 // toBlock: Block where the scan ends
-func (lc *accountMsgLoader) getTransactionBounds(ctx context.Context, addr *address.Address, prevBlock *ton.BlockIDExt, toBlock *ton.BlockIDExt) (startLT, endLT uint64, endHash []byte, err error) {
+func (l *accountMsgLoader) getTransactionBounds(ctx context.Context, addr *address.Address, prevBlock *ton.BlockIDExt, toBlock *ton.BlockIDExt) (startLT, endLT uint64, endHash []byte, err error) {
 	switch {
 	case prevBlock == nil:
 		startLT = 0
 	case prevBlock.SeqNo > 0:
-		accPrev, accErr := lc.client.GetAccount(ctx, prevBlock, addr)
+		accPrev, accErr := l.client.GetAccount(ctx, prevBlock, addr)
 		if accErr != nil {
 			startLT = 0 // account didn't exist before this range
 		} else {
@@ -194,7 +194,7 @@ func (lc *accountMsgLoader) getTransactionBounds(ctx context.Context, addr *addr
 		startLT = 0
 	}
 	// Get the account state at toBlock to find the end boundary
-	res, err := lc.client.WaitForBlock(toBlock.SeqNo).GetAccount(ctx, toBlock, addr)
+	res, err := l.client.WaitForBlock(toBlock.SeqNo).GetAccount(ctx, toBlock, addr)
 	if err != nil {
 		return 0, 0, nil, fmt.Errorf("failed to get account state for %s in block %d: %w", addr.String(), toBlock.SeqNo, err)
 	}

@@ -68,7 +68,7 @@ func Test_LogPoller(t *testing.T) {
 			t.Parallel()
 			loader := account.NewMsgLoader(client, logger.Test(t), pageSize)
 
-			msgs, berr := loader.LoadMsgsFromSrcAddrs(
+			msgs, berr := loader.LoadMessagesForAddresses(
 				t.Context(),
 				[]*address.Address{emitter.ContractAddress()},
 				prevBlock,
@@ -99,7 +99,7 @@ func Test_LogPoller(t *testing.T) {
 				)
 				require.NoError(t, nberr)
 
-				msgs, berr := loader.LoadMsgsFromSrcAddrs(
+				msgs, berr := loader.LoadMessagesForAddresses(
 					t.Context(),
 					[]*address.Address{emitter.ContractAddress()},
 					currentBlock, // from current block (exclusive)
@@ -247,7 +247,8 @@ func Test_LogPoller(t *testing.T) {
 			resA, resAErr := logpoller.NewQuery[counter.CountIncreased](lp.GetStore()).
 				WithSrcAddress(emitterA.ContractAddress()).
 				WithTopic(counter.TopicCountIncreased).
-				WithByteFilters(filters).
+				WithByteFilter(filters[0]).
+				WithByteFilter(filters[1]).
 				WithOptions(options).
 				Execute(t.Context())
 			require.NoError(t, resAErr) // query should not fail
@@ -255,7 +256,8 @@ func Test_LogPoller(t *testing.T) {
 			resB, resBErr := logpoller.NewQuery[counter.CountIncreased](lp.GetStore()).
 				WithSrcAddress(emitterB.ContractAddress()).
 				WithTopic(counter.TopicCountIncreased).
-				WithByteFilters(filters).
+				WithByteFilter(filters[0]).
+				WithByteFilter(filters[1]).
 				WithOptions(options).
 				Execute(t.Context())
 			require.NoError(t, resBErr) // query should not fail
@@ -348,7 +350,8 @@ func Test_LogPoller(t *testing.T) {
 				result, queryErr := logpoller.NewQuery[counter.CountIncreased](lp.GetStore()).
 					WithSrcAddress(emitterA.ContractAddress()).
 					WithTopic(counter.TopicCountIncreased).
-					WithByteFilters(filters).
+					WithByteFilter(filters[0]).
+					WithByteFilter(filters[1]).
 					WithOptions(options).
 					Execute(t.Context())
 				require.NoError(t, queryErr)
@@ -386,7 +389,8 @@ func Test_LogPoller(t *testing.T) {
 				result, queryErr := logpoller.NewQuery[counter.CountIncreased](lp.GetStore()).
 					WithSrcAddress(emitterB.ContractAddress()).
 					WithTopic(counter.TopicCountIncreased).
-					WithByteFilters(filters).
+					WithByteFilter(filters[0]).
+					WithByteFilter(filters[1]).
 					WithOptions(options).
 					Execute(t.Context())
 				require.NoError(t, queryErr)
@@ -736,7 +740,8 @@ func Test_LogPoller(t *testing.T) {
 				result, queryErr := logpoller.NewQuery[counter.CountIncreased](lp.GetStore()).
 					WithSrcAddress(emitterA.ContractAddress()).
 					WithTopic(counter.TopicCountIncreased).
-					WithByteFilters(filters).
+					WithByteFilter(filters[0]).
+					WithByteFilter(filters[1]).
 					WithOptions(options).
 					Execute(t.Context())
 				require.NoError(t, queryErr)

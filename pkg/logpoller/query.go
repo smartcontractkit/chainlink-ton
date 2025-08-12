@@ -79,6 +79,10 @@ func (b *queryBuilder[T]) Execute(_ context.Context) (query.Result[T], error) {
 		return query.Result[T]{}, errors.New("address is required")
 	}
 
+	if b.topic == 0 {
+		return query.Result[T]{}, errors.New("topic is required")
+	}
+
 	// Get all logs from store first
 	logs, err := b.store.GetLogs(b.address, b.topic)
 	if err != nil {

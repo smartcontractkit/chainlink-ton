@@ -126,6 +126,21 @@ func TestQueryBuilder_RequiredAddress(t *testing.T) {
 	require.Contains(t, err.Error(), "address is required")
 }
 
+func TestQueryBuilder_RequiredTopic(t *testing.T) {
+	store := &mockLogStore{}
+	addr, err := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")
+	require.NoError(t, err)
+
+	builder := NewQuery[TestEvent](store).
+		WithSrcAddress(addr)
+		// Missing WithTopic call - topic should default to 0
+
+	// Should fail without topic
+	_, err = builder.Execute(context.Background())
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "topic is required")
+}
+
 func TestQueryBuilder_Execute_BasicQuery(t *testing.T) {
 	store := &mockLogStore{}
 	addr, err := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")

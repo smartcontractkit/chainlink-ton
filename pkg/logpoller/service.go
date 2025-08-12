@@ -152,7 +152,7 @@ func (lp *service) resolvePreviousBlock(ctx context.Context, lastProcessedBlock 
 // from the specified addresses. It delegates to the LogCollector for the actual
 // block scanning and then processes the returned messages
 func (lp *service) processBlockRange(ctx context.Context, addresses []*address.Address, prevBlock *ton.BlockIDExt, toBlock *ton.BlockIDExt) error {
-	msgs, err := lp.loader.LoadMsgsFromSrcAddrs(ctx, addresses, prevBlock, toBlock)
+	msgs, err := lp.loader.LoadMessagesForAddresses(ctx, addresses, prevBlock, toBlock)
 	if err != nil {
 		return fmt.Errorf("failed to backfill messages: %w", err)
 	}
