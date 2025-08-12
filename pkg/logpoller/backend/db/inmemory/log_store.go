@@ -85,33 +85,18 @@ func (s *inMemoryLogStore) FilteredLogs(
 	return s.cellQueryEngine.ApplyPagination(matchingLogs, options.Limit, options.Offset), nil
 }
 
-func (s *inMemoryLogStore) FilteredLogsWithParser(
-	evtSrcAddress *address.Address,
-	topic uint32,
-	parser logpoller.LogParser,
-	filter logpoller.LogFilter,
-) ([]any, error) {
+// GetLogs retrieves raw logs for a given address and topic without any parsing or filtering.
+// This method returns the raw logs for further processing by higher-level components.
+func (s *inMemoryLogStore) GetLogs(evtSrcAddress *address.Address, topic uint32) ([]types.Log, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	results := make([]any, 0, len(s.logs))
-	for i, log := range s.logs {
-		if log.EventTopic != topic || !log.Address.Equals(evtSrcAddress) {
-			continue
+	var res []types.Log
+	for _, log := range s.logs {
+		if log.EventTopic == topic && log.Address.Equals(evtSrcAddress) {
+			res = append(res, log)
 		}
-
-		parsedEvent, err := parser(log.Data)
-		if err != nil {
-			s.lggr.Warnw("Parser failed to process log data", "index", i, "err", err)
-			continue
-		}
-
-		if filter != nil && !filter(parsedEvent) {
-			continue
-		}
-
-		results = append(results, parsedEvent)
 	}
 
-	return results, nil
+	return res, nil
 }

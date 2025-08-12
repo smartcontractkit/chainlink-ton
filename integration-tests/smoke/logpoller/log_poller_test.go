@@ -3,7 +3,6 @@ package smoke
 import (
 	"context"
 	"encoding/binary"
-	"fmt"
 	"math/big"
 	"math/rand/v2"
 	"testing"
@@ -16,7 +15,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
-	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
@@ -428,25 +426,13 @@ func Test_LogPoller(t *testing.T) {
 			t.Run("Log Poller query with parser pattern, all events from emitter B", func(t *testing.T) {
 				t.Parallel()
 
-				parser := func(c *cell.Cell) (any, error) {
-					var event counter.CountIncreased
-					parseErr := tlb.LoadFromCell(&event, c.BeginParse())
-					if parseErr != nil {
-						return nil, fmt.Errorf("failed to parse event from cell: %w", parseErr)
-					}
-					return event, nil
-				}
-
-				res, queryErr := lp.FilteredLogsWithParser(t.Context(), emitterB.ContractAddress(), counter.TopicCountIncreased, parser, nil)
+				res, queryErr := logpoller.NewQuery[counter.CountIncreased](lp).All(t.Context(), emitterB.ContractAddress(), counter.TopicCountIncreased)
 				require.NoError(t, queryErr)
 
 				require.Len(t, res, targetCounter, "expected exactly %d logs for the emitter B", targetCounter)
 
 				seen := make(map[uint32]bool, targetCounter)
-				for i, item := range res {
-					require.IsType(t, counter.CountIncreased{}, item, "item at index %d has wrong type", i)
-					ev := item.(counter.CountIncreased)
-
+				for _, ev := range res {
 					require.GreaterOrEqual(t, ev.Value, uint32(1))
 					require.LessOrEqual(t, ev.Value, uint32(targetCounter))
 
@@ -463,36 +449,42 @@ func Test_LogPoller(t *testing.T) {
 				}
 			})
 
+			t.Run("Log Poller query with filter, events with odd values from emitter B", func(t *testing.T) {
+				t.Parallel()
+
+				// Filter for events where the counter value is odd
+				filter := func(event counter.CountIncreased) bool {
+					return event.Value%2 == 1 // odd numbers
+				}
+
+				res, queryErr := logpoller.NewQuery[counter.CountIncreased](lp).WithFilter(t.Context(), emitterB.ContractAddress(), counter.TopicCountIncreased, filter)
+				require.NoError(t, queryErr)
+
+				expectedOddCount := 5 // From 1-10, odd numbers are: 1, 3, 5, 7, 9
+				require.Len(t, res, expectedOddCount, "expected exactly %d odd-valued logs", expectedOddCount)
+
+				// Verify all returned events have odd values
+				for _, ev := range res {
+					require.Equal(t, uint32(1), ev.Value%2, "all returned events should have odd values, got %d", ev.Value)
+					require.GreaterOrEqual(t, ev.Value, uint32(1))
+					require.LessOrEqual(t, ev.Value, uint32(targetCounter))
+				}
+			})
+
 			t.Run("Log Poller query with parser pattern with filter, events between 1 to 10 from emitter B", func(t *testing.T) {
 				t.Parallel()
 				from, to := (1), (10)
 
-				parser := func(c *cell.Cell) (any, error) {
-					var event counter.CountIncreased
-					parseErr := tlb.LoadFromCell(&event, c.BeginParse())
-					if parseErr != nil {
-						return nil, fmt.Errorf("failed to parse event from cell: %w", parseErr)
-					}
-					return event, nil
+				filter := func(event counter.CountIncreased) bool {
+					return event.Value >= uint32(from) && event.Value <= uint32(to) //nolint:gosec // test code
 				}
 
-				filter := func(parsedEvent any) bool {
-					evt, ok := parsedEvent.(counter.CountIncreased)
-					if !ok {
-						return false
-					}
-					return evt.Value >= uint32(from) && evt.Value <= uint32(to) //nolint:gosec // test code
-				}
-
-				res, queryErr := lp.FilteredLogsWithParser(t.Context(), emitterB.ContractAddress(), counter.TopicCountIncreased, parser, filter)
+				res, queryErr := logpoller.NewQuery[counter.CountIncreased](lp).WithFilter(t.Context(), emitterB.ContractAddress(), counter.TopicCountIncreased, filter)
 				require.NoError(t, queryErr)
 
 				require.Len(t, res, to-from+1, "expected exactly 10 logs for the range 1-10")
 				seen := make(map[uint32]bool, to-from+1)
-				for i, item := range res {
-					require.IsType(t, counter.CountIncreased{}, item, "item at index %d has wrong type", i)
-					ev := item.(counter.CountIncreased)
-
+				for _, ev := range res {
 					require.GreaterOrEqual(t, ev.Value, uint32(from)) //nolint:gosec // test code
 					require.LessOrEqual(t, ev.Value, uint32(to))      //nolint:gosec // test code
 

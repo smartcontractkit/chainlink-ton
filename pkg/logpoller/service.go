@@ -266,19 +266,3 @@ func (lp *service) FilteredLogs(
 		options,
 	)
 }
-
-// FilteredLogsWithParser queries logs using a flexible 'parse-then-filter' pattern
-func (lp *service) FilteredLogsWithParser(
-	_ context.Context,
-	evtSrcAddress *address.Address,
-	topic uint32,
-	parser LogParser,
-	filter LogFilter,
-) ([]any, error) {
-	return lp.store.FilteredLogsWithParser(
-		evtSrcAddress,
-		topic,
-		parser,
-		filter,
-	)
-}
