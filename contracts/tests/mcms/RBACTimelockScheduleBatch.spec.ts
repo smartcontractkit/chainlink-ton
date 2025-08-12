@@ -2,6 +2,8 @@ import '@ton/test-utils'
 
 import { Address, Cell, ExternalAddress, toNano } from '@ton/core'
 
+import { asSnakeData } from '../../utils'
+
 import * as rbactl from '../../wrappers/mcms/RBACTimelock'
 import * as ac from '../../wrappers/lib/access/AccessControl'
 import * as counter from '../../wrappers/examples/Counter'
@@ -14,6 +16,8 @@ describe('MCMS - RBACTimelockScheduleBatchTest', () => {
   let baseTest: BaseTestSetup
   let code: TestCode
 
+  let calls: Cell
+
   beforeAll(async () => {
     code = await BaseTestSetup.compileContracts()
   })
@@ -22,26 +26,41 @@ describe('MCMS - RBACTimelockScheduleBatchTest', () => {
     baseTest = new BaseTestSetup()
     baseTest.code = code
     await baseTest.setupAll('test-schedule-batch')
+
+    calls = asSnakeData<rbactl.Call>(
+      [
+        {
+          target: baseTest.bind.counter.address,
+          value: 0n,
+          data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
+        },
+        {
+          target: baseTest.bind.counter.address,
+          value: 0n,
+          data: counter.builder.message.in.increaseCount.encode({ queryId: 2n }),
+        },
+      ],
+      (c) => rbactl.builder.data.call.encode(c).asBuilder(),
+    )
   })
 
   function CreateCallBatch(): [Cell[], Cell] {
-    // TODO the original test creates a vec of 2 calls
-    let callVec: rbactl.Call[] = []
-    callVec.push({
-      target: baseTest.bind.counter.address,
-      value: toNano('0.05'),
-      data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
-    })
-    // callVec.push({
-    //   target: baseTest.bind.counter.address,
-    //   value: toNano('0.05'),
-    //   data: counter.builder.message.in.increaseCount.encode({ queryId: 2n }),
-    // })
-    // return callVec, encodeBatch(callVec)
+    let calls: rbactl.Call[] = [
+      {
+        target: baseTest.bind.counter.address,
+        value: toNano('0.05'),
+        data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
+      },
+      {
+        target: baseTest.bind.counter.address,
+        value: toNano('0.05'),
+        data: counter.builder.message.in.increaseCount.encode({ queryId: 2n }),
+      },
+    ]
 
     return [
-      callVec.map((call) => rbactl.builder.data.call.encode(call)),
-      BaseTestSetup.singletonCalls(callVec[0]),
+      calls.map((call) => rbactl.builder.data.call.encode(call)),
+      asSnakeData<rbactl.Call>(calls, (c) => rbactl.builder.data.call.encode(c).asBuilder()),
     ]
   }
 

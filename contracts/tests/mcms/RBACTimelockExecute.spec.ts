@@ -8,6 +8,7 @@ import * as ac from '../../wrappers/lib/access/AccessControl'
 
 import { BaseTestSetup, TestCode } from './BaseTest'
 import { SandboxContract, TreasuryContract } from '@ton/sandbox'
+import { asSnakeData } from '../../utils'
 
 describe('MCMS - RBACTimelockExecuteTest', () => {
   let baseTest: BaseTestSetup
@@ -35,6 +36,18 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
     counterTwo = baseTest.blockchain.openContract(
       counter.ContractClient.newFrom(counterTwoData, code.counter),
     )
+    // const body = counter.builder.message.topUp.encode({ queryId: 1n }) // TODO use TopUp after it is implemented
+    const body = beginCell().endCell()
+    const result = await counterTwo.sendInternal(
+      baseTest.acc.deployer.getSender(),
+      toNano('0.05'),
+      body,
+    )
+    expect(result.transactions).toHaveTransaction({
+      from: baseTest.acc.deployer.address,
+      to: counterTwo.address,
+      success: true,
+    })
   })
 
   describe('Bypasser Execute Batch Tests', () => {
@@ -65,7 +78,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       })
     })
 
-    // TODO: Timelock doesn't handle reverts yet, and we do not know if it will
+    // TODO: Catch bounced messages on errors
     it.skip('should fail if one target reverts (invalid call)', async () => {
       // Create a call with invalid data that will cause failure
       const invalidCall: rbactl.Call = {
@@ -94,35 +107,47 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
     })
 
     it('should allow bypasser to execute batch operations', async () => {
-      const incrementCall: rbactl.Call = {
-        target: baseTest.bind.counter.address,
-        value: toNano('0.05'),
-        data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
-      }
-      const setCountCall: rbactl.Call = {
-        target: counterTwo.address,
-        value: toNano('0.05'),
-        data: counter.builder.message.in.setCount.encode({
-          queryId: 1n,
-          newCount: 10,
-        }),
-      }
+      await shouldAllowToExecuteBatchOperation(baseTest.acc.bypasserOne)
+    })
 
-      const calls = BaseTestSetup.singletonCalls(incrementCall) // TODO This should include setCountCall as well
+    it('should allow admin to execute batch operations', async () => {
+      await shouldAllowToExecuteBatchOperation(baseTest.acc.admin)
+    })
 
+    async function shouldAllowToExecuteBatchOperation(signer: SandboxContract<TreasuryContract>) {
+      const calls = [
+        {
+          // Increment counter
+          target: baseTest.bind.counter.address,
+          value: toNano('0.05'),
+          data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
+        },
+        {
+          // Set counterTwo
+          target: counterTwo.address,
+          value: toNano('0.05'),
+          data: counter.builder.message.in.setCount.encode({
+            queryId: 1n,
+            newCount: 10,
+          }),
+        },
+      ]
+      const encodedCalls = asSnakeData<rbactl.Call>(calls, (c) =>
+        rbactl.builder.data.call.encode(c).asBuilder(),
+      )
       const executeMsg = rbactl.builder.message.in.bypasserExecuteBatch.encode({
         queryId: 1n,
-        calls,
+        calls: encodedCalls,
       })
 
       const result = await baseTest.bind.timelock.sendInternal(
-        baseTest.acc.bypasserOne.getSender(),
+        signer.getSender(),
         toNano('1'),
         executeMsg,
       )
 
       expect(result.transactions).toHaveTransaction({
-        from: baseTest.acc.bypasserOne.address,
+        from: signer.address,
         to: baseTest.bind.timelock.address,
         success: true,
       })
@@ -132,87 +157,52 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
         return e.info.src.equals(baseTest.bind.timelock.address)
       })
 
-      expect(externalsFromTimelock).toHaveLength(1) // One call in the batch
+      expect(externalsFromTimelock).toHaveLength(calls.length)
 
-      const bypasserExecutedExternal = externalsFromTimelock[0]
-      expect(bypasserExecutedExternal.info.dest?.value.toString(16)).toEqual(
-        rbactl.opcodes.out.BypasserCallExecuted.toString(16),
-      )
+      for (const [index, bypasserExecutedExternal] of externalsFromTimelock.entries()) {
+        expect(bypasserExecutedExternal.info.dest?.value.toString(16)).toEqual(
+          rbactl.opcodes.out.BypasserCallExecuted.toString(16),
+        )
 
-      const opcode = bypasserExecutedExternal.body.beginParse().preloadUint(32)
-      const bypasserExecutedEvent = rbactl.builder.message.out.bypasserCallExecuted.decode(
-        bypasserExecutedExternal.body,
-      )
+        const opcode = bypasserExecutedExternal.body.beginParse().preloadUint(32)
+        const bypasserExecutedEvent = rbactl.builder.message.out.bypasserCallExecuted.decode(
+          bypasserExecutedExternal.body,
+        )
 
-      expect(opcode.toString(16)).toEqual(rbactl.opcodes.out.BypasserCallExecuted.toString(16))
-      expect(bypasserExecutedEvent.queryId).toEqual(1)
-      expect(bypasserExecutedEvent.index).toEqual(0)
-      expect(bypasserExecutedEvent.target.equals(baseTest.bind.counter.address)).toBeTruthy()
-      expect(bypasserExecutedEvent.value).toEqual(toNano('0.05'))
-      expect(bypasserExecutedEvent.data.equals(incrementCall.data)).toBeTruthy()
-
-      // Verify counter was incremented
-      expect(await baseTest.bind.counter.getValue()).toEqual(1) // TODO this should be newCount when setcount is added in the TODO above
-    })
-
-    it('should allow admin to execute batch operations', async () => {
-      // TODO this test is missing from the original suite
-      const incrementCall: rbactl.Call = {
-        target: baseTest.bind.counter.address,
-        value: toNano('0.05'),
-        data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
+        expect(opcode.toString(16)).toEqual(rbactl.opcodes.out.BypasserCallExecuted.toString(16))
+        expect(bypasserExecutedEvent.queryId).toEqual(1)
+        expect(bypasserExecutedEvent.index).toEqual(index)
+        expect(
+          bypasserExecutedEvent.target.equals(
+            [baseTest.bind.counter.address, counterTwo.address][index],
+          ),
+        ).toBeTruthy()
+        expect(bypasserExecutedEvent.value).toEqual(toNano('0.05'))
+        expect(bypasserExecutedEvent.data.equals(calls[index].data)).toBeTruthy()
       }
-      const calls = BaseTestSetup.singletonCalls(incrementCall)
-
-      const body = rbactl.builder.message.in.bypasserExecuteBatch.encode({
-        queryId: 1n,
-        calls,
-      })
-
-      const result = await baseTest.bind.timelock.sendInternal(
-        baseTest.acc.admin.getSender(),
-        toNano('1'),
-        body,
-      )
-
-      expect(result.transactions).toHaveTransaction({
-        from: baseTest.acc.admin.address,
-        to: baseTest.bind.timelock.address,
-        success: true,
-      })
-
-      // Check for Timelock_BypasserCallExecuted events
-      const externalsFromTimelock = result.externals.filter((e) => {
-        return e.info.src.equals(baseTest.bind.timelock.address)
-      })
-
-      expect(externalsFromTimelock).toHaveLength(1) // One call in the batch
-
-      const bypasserExecutedExternal = externalsFromTimelock[0]
-      expect(bypasserExecutedExternal.info.dest?.value.toString(16)).toEqual(
-        rbactl.opcodes.out.BypasserCallExecuted.toString(16),
-      )
-
-      const opcode = bypasserExecutedExternal.body.beginParse().preloadUint(32)
-      const bypasserExecutedEvent = rbactl.builder.message.out.bypasserCallExecuted.decode(
-        bypasserExecutedExternal.body,
-      )
-
-      expect(opcode.toString(16)).toEqual(rbactl.opcodes.out.BypasserCallExecuted.toString(16))
-      expect(bypasserExecutedEvent.queryId).toEqual(1)
-      expect(bypasserExecutedEvent.index).toEqual(0)
-      expect(bypasserExecutedEvent.target.equals(baseTest.bind.counter.address)).toBeTruthy()
-      expect(bypasserExecutedEvent.value).toEqual(toNano('0.05'))
-      expect(bypasserExecutedEvent.data.equals(incrementCall.data)).toBeTruthy()
 
       // Verify counter was incremented
-      expect(await baseTest.bind.counter.getValue()).toEqual(1) // TODO this should be newCount when setcount is added in the TODO above
-    })
+      expect(result.transactions).toHaveTransaction({
+        from: baseTest.bind.timelock.address,
+        to: baseTest.bind.counter.address,
+        success: true,
+        op: counter.opcodes.in.IncreaseCount,
+      })
+      expect(await baseTest.bind.counter.getValue()).toEqual(1)
+
+      // Verify counterTwo was set
+      expect(result.transactions).toHaveTransaction({
+        from: baseTest.bind.timelock.address,
+        to: counterTwo.address,
+        success: true,
+        op: counter.opcodes.in.SetCount,
+      })
+      expect(await counterTwo.getValue()).toEqual(10)
+    }
   })
 
   describe('Regular Execute Batch Tests', () => {
     it('should fail if non-executor tries to execute batch', async () => {
-      // TODO What is test_cannotBeExecutedByNonExecutorIfRestrictionsSet
       const calls = BaseTestSetup.singletonCalls({
         target: baseTest.bind.counter.address,
         value: toNano('0.05'),

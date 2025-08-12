@@ -11,7 +11,7 @@ import {
 } from '@ton/core'
 import { crc32 } from 'zlib'
 import { CellCodec, sha256_32 } from '../utils'
-import { ZERO_ADDRESS } from '../../utils/Utils'
+import { ZERO_ADDRESS } from '../../utils'
 import * as ownable2step from '../libraries/access/Ownable2Step'
 
 // @dev Top up contract with TON coins.

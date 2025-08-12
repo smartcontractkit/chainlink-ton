@@ -6,6 +6,7 @@ import '@ton/test-utils'
 import * as rbactl from '../../wrappers/mcms/RBACTimelock'
 import * as ac from '../../wrappers/lib/access/AccessControl'
 import { crc32 } from 'zlib'
+import { asSnakeData } from '../../utils'
 
 describe('RBACTimelock', () => {
   let code: Cell
@@ -371,12 +372,15 @@ describe('RBACTimelock', () => {
     const targetAccount = deployer.address
     const msgToSend = beginCell().endCell()
 
-    const op = {
-      calls: rbactl.builder.data.call.encode({
+    const calls = [
+      {
         target: targetAccount,
         value: tonValue,
         data: msgToSend,
-      }), // TODO: this should be an array of calls: vec<Call>
+      },
+    ]
+    const op = {
+      calls: asSnakeData<rbactl.Call>(calls, (c) => rbactl.builder.data.call.encode(c).asBuilder()),
       predecessor: predecessor,
       salt: salt,
     }
