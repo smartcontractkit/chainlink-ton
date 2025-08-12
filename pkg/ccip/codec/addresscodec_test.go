@@ -33,24 +33,24 @@ func TestTONAddress(t *testing.T) {
 	}{
 		{
 			"hand crafted",
-			addr.StringRaw(),
+			addr.String(),
 			validAddressBytes,
 			nil,
 		},
 		{
 			name:        "invalid base64",
 			in:          "!!!notbase64!!!",
-			expectedErr: errors.New("failed to decode TVM address: invalid address format"),
+			expectedErr: errors.New("failed to decode TVM address: illegal base64 data at input byte 0"),
 		},
 		{
 			name:        "invalid checksum",
 			in:          addressWithInvalidChecksum,
-			expectedErr: errors.New("failed to decode TVM address: invalid address format"),
+			expectedErr: errors.New("failed to decode TVM address: invalid address"),
 		},
 		{
 			name:        "ext address not supported",
 			in:          extAddr.String(),
-			expectedErr: errors.New("failed to decode TVM address: incorrect address data length"),
+			expectedErr: errors.New("failed to decode TVM address: illegal base64 data at input byte 3"),
 		},
 	}
 

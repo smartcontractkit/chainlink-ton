@@ -2,7 +2,6 @@ package codec
 
 import (
 	"context"
-	"encoding/base64"
 	"math/big"
 	"math/rand"
 	"testing"
@@ -34,21 +33,19 @@ func randomTONExecuteReport(t *testing.T, sourceChainSelector uint64) ccipocr3.E
 			require.NoError(t, err)
 			extraData := []byte{0x12, 0x34}
 
-			addrBytes, err := base64.RawURLEncoding.DecodeString(addr.String())
+			receiverAddr, err := ac.AddressStringToBytes(addr.String())
 			require.NoError(t, err)
+
 			tokenAmounts := make([]ccipocr3.RampTokenAmount, numTokensPerMsg)
 			for z := 0; z < numTokensPerMsg; z++ {
 				tokenAmounts[z] = ccipocr3.RampTokenAmount{
 					SourcePoolAddress: ccipocr3.UnknownAddress(addr.String()),
-					DestTokenAddress:  addrBytes, // pad to 36 bytes
+					DestTokenAddress:  receiverAddr[:],
 					ExtraData:         extraData,
 					Amount:            ccipocr3.NewBigInt(big.NewInt(rand.Int63())),
 					DestExecData:      []byte{0, 0, 0, 0},
 				}
 			}
-
-			receiverAddr, err := ac.AddressStringToBytes(addr.String())
-			require.NoError(t, err)
 
 			reportMessages[j] = ccipocr3.Message{
 				Header: ccipocr3.RampMessageHeader{
