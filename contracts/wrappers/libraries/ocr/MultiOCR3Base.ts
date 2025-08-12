@@ -9,10 +9,10 @@ import {
   SendMode,
 } from '@ton/core'
 import { KeyPair, sign } from '@ton/crypto'
-import { bigIntToUint8Array, hashSync, uint8ArrayToBigInt } from '../../../utils'
+import { bigIntToUint8Array, hashSync, uint8ArrayToBigInt } from '../../../src/utils'
 
 import { crc32 } from 'zlib'
-import { asSnakeData, fromSnakeData } from '../../../utils'
+import { asSnakeData, fromSnakeData } from '../../../src/utils'
 
 export const OCR3_PLUGIN_TYPE_COMMIT = 0x0000
 export const OCR3_PLUGIN_TYPE_EXECUTE = 0x0001

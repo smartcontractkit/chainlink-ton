@@ -9,7 +9,7 @@ import { sha256_sync } from '@ton/crypto'
 import '@ton/test-utils'
 import { MerkleHelper, HashFunction } from './helpers/MerkleMultiProofHelper'
 import { compile } from '@ton/blueprint'
-import { asSnakeDataUint } from '../../../utils'
+import { asSnakeDataUint } from '../../../src/utils'
 
 describe('MerkleMultiProofTests', () => {
   let blockchain: Blockchain
