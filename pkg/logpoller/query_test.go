@@ -138,7 +138,7 @@ func TestQueryBuilder_RequiredSig(t *testing.T) {
 	// Should fail without sig
 	_, err = builder.Execute(context.Background())
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "sig is required")
+	require.Contains(t, err.Error(), "event signature is required")
 }
 
 func TestQueryBuilder_Execute_BasicQuery(t *testing.T) {
