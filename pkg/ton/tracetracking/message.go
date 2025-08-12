@@ -72,7 +72,7 @@ type ReceivedMessage struct {
 	TotalActionFees                  *big.Int           // Fees charged to the sender for sending messages. This + the fwdFee of each outgoing msg forms the total charged in the action phase.
 	GasFee                           *big.Int           // Fees charged to the receiver for processing the message.
 	MagicFee                         *big.Int           // Unknown origin fee
-	Bounced                          bool               // Indicates if the transaction was bounced
+	EmittedBouncedMessage            bool               // Indicates if the transaction was bounced
 	Success                          bool               // Indicates if the transaction was successful
 	ExitCode                         tvm.ExitCode       // Exit code of the transaction execution
 	OutgoingInternalSentMessages     []*SentMessage     // Internal messages sent as a result of this message
@@ -214,7 +214,7 @@ func MapToReceivedMessage(txOnReceived *tlb.Transaction) (ReceivedMessage, error
 		StorageFeeCharged:                big.NewInt(0),
 		GasFee:                           big.NewInt(0),
 		MagicFee:                         big.NewInt(0).Sub(newVar, importFee),
-		Bounced:                          false,
+		EmittedBouncedMessage:            false,
 		Success:                          false,
 		ExitCode:                         0,
 		TotalActionFees:                  big.NewInt(0),
@@ -251,7 +251,7 @@ func MapToReceivedMessage(txOnReceived *tlb.Transaction) (ReceivedMessage, error
 			if _, ok = dsc.BouncePhase.Phase.(tlb.BouncePhaseOk); ok {
 				// transaction was bounced, and coins were returned to sender
 				// this can happen mostly on custom contracts
-				res.Bounced = true
+				res.EmittedBouncedMessage = true
 			}
 		}
 		computePhase, ok := dsc.ComputePhase.Phase.(tlb.ComputePhaseVM)

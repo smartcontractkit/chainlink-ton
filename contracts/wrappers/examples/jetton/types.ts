@@ -30,10 +30,6 @@ export const JettonOpcodes = {
   CHANGE_METADATA_URL: 0xcb862902,
   UPGRADE: 0x2508d66a,
   // TOP_UP: 0x8,
-
-  // Custom contract opcodes
-  SEND_JETTONS_FAST: 0x6984f9bb,
-  SEND_JETTONS_EXTENDED: 0xe815f1d0,
 }
 
 export const ErrorCodes = {

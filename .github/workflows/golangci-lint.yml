@@ -47,11 +47,17 @@ jobs:
           cd ${{ matrix.dir }}
           nix develop -c golangci-lint run ./... \
             --config ../.golangci.yml \
-            --output.checkstyle.path="../${{ env.REPORT_PATH }}"
+            --output.checkstyle.path="${{ env.REPORT_PATH }}"
 
       - name: Print lint report on failure
         if: failure()
-        run: cat "${{ env.REPORT_PATH }}"
+        run: |
+          if [ -f "${{ env.REPORT_PATH }}" ]; then
+            cat "${{ env.REPORT_PATH }}"
+          else
+            echo "No report file found at: ${{ env.REPORT_PATH }}"
+            ls -la "$(dirname "${{ env.REPORT_PATH }}")"
+          fi
 
       - name: Upload lint report
         if: always()

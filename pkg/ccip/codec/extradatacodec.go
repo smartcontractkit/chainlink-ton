@@ -6,9 +6,10 @@ import (
 	"reflect"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
+
+	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 )
@@ -37,39 +38,41 @@ func (d ExtraDataDecoder) DecodeExtraArgsToMap(extraArgs ccipocr3.Bytes) (map[st
 	var val reflect.Value
 	var typ reflect.Type
 	outputMap := make(map[string]any)
-	switch string(extraArgs[:4]) {
-	case string(evmExtraArgsV2Tag):
-		var args onramp.GenericExtraArgsV2
-		c, err := cell.FromBOC(extraArgs[4:])
-		if err != nil {
-			return outputMap, fmt.Errorf("decode BOC: %w", err)
-		}
+	c, err := cell.FromBOC(extraArgs)
+	if err != nil {
+		return outputMap, fmt.Errorf("failed to decode BOC: %w", err)
+	}
+	tag, err := c.BeginParse().LoadSlice(32)
+	if err != nil {
+		return outputMap, fmt.Errorf("failed to load tag from cell: %w", err)
+	}
 
+	switch hexutil.Encode(tag) {
+	case hexutil.Encode(evmExtraArgsV2Tag):
+		var args onramp.GenericExtraArgsV2
 		if err = tlb.LoadFromCell(&args, c.BeginParse()); err != nil {
 			return nil, fmt.Errorf("failed to tlb load extra args from cell: %w", err)
 		}
-
 		val = reflect.ValueOf(args)
 		typ = reflect.TypeOf(args)
-	case string(svmExtraArgsV1Tag):
-		var tlbArgs onramp.SVMExtraArgsV1
-		c, err := cell.FromBOC(extraArgs[4:])
-		if err != nil {
-			return outputMap, fmt.Errorf("decode BOC: %w", err)
-		}
 
+	case hexutil.Encode(svmExtraArgsV1Tag):
+		var tlbArgs onramp.SVMExtraArgsV1
 		if err = tlb.LoadFromCell(&tlbArgs, c.BeginParse()); err != nil {
 			return nil, fmt.Errorf("failed to tlb load extra args from cell: %w", err)
 		}
-
 		val = reflect.ValueOf(tlbArgs)
 		typ = reflect.TypeOf(tlbArgs)
+
 	default:
-		return nil, fmt.Errorf("unknown extra args tag: %x", extraArgs[:4])
+		return nil, fmt.Errorf("unknown extra args tag: %x", tag)
 	}
 
 	for i := 0; i < val.NumField(); i++ {
 		field := typ.Field(i)
+		if !field.IsExported() {
+			continue
+		}
 		fieldValue := val.Field(i).Interface()
 		outputMap[field.Name] = fieldValue
 	}

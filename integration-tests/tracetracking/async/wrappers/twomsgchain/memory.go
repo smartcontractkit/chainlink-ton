@@ -4,15 +4,15 @@ import (
 	"fmt"
 	"math/rand/v2"
 
-	test_utils "integration-tests/utils"
-
 	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
-var MemoryContractPath = test_utils.GetBuildDir("examples.async-communication.two-msg-chain.Memory/tact_Memory.pkg")
+var MemoryContractPath = bindings.GetBuildDir("examples.async-communication.two-msg-chain.Memory/tact_Memory.pkg")
 
 type MemoryProvider struct {
 	apiClient tracetracking.SignedAPIClient
@@ -26,7 +26,7 @@ func NewMemoryProvider(apiClient tracetracking.SignedAPIClient) *MemoryProvider 
 
 type MemoryInitData struct {
 	ID uint32    `tlb:"## 32"`
-	_  tlb.Magic `tlb:"#00000000"` //nolint:revive // This field should stay uninitialized
+	_  tlb.Magic `tlb:"#00000000"` //nolint:revive // (opcode) should stay uninitialized
 }
 
 func (p *MemoryProvider) Deploy(initData MemoryInitData) (Memory, error) {
@@ -38,7 +38,8 @@ func (p *MemoryProvider) Deploy(initData MemoryInitData) (Memory, error) {
 	if err != nil {
 		return Memory{}, fmt.Errorf("failed to compile contract: %w", err)
 	}
-	contract, err := wrappers.Deploy(&p.apiClient, compiledContract, initDataCell, tlb.MustFromTON("1"))
+	body := cell.BeginCell().EndCell()
+	contract, _, err := wrappers.Deploy(&p.apiClient, compiledContract, initDataCell, tlb.MustFromTON("1"), body)
 	if err != nil {
 		return Memory{}, err
 	}
@@ -53,7 +54,7 @@ type Memory struct {
 }
 
 type setValueMessage struct {
-	_       tlb.Magic `tlb:"#00000001"` //nolint:revive // This field should stay uninitialized
+	_       tlb.Magic `tlb:"#00000001"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID uint64    `tlb:"## 64"`
 	Value   uint32    `tlb:"## 32"`
 }

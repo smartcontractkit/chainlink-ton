@@ -4,16 +4,16 @@ import (
 	"fmt"
 	"math/rand/v2"
 
-	test_utils "integration-tests/utils"
-
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
-var StorageContractPath = test_utils.GetBuildDir("examples.async-communication.request-reply.Storage/tact_Storage.pkg")
+var StorageContractPath = bindings.GetBuildDir("examples.async-communication.request-reply.Storage/tact_Storage.pkg")
 
 type StorageProvider struct {
 	apiClient tracetracking.SignedAPIClient
@@ -38,7 +38,8 @@ func (p *StorageProvider) Deploy(initData StorageInitData) (Storage, error) {
 	if err != nil {
 		return Storage{}, fmt.Errorf("failed to compile contract: %w", err)
 	}
-	contract, err := wrappers.Deploy(&p.apiClient, compiledContract, initDataCell, tlb.MustFromTON("1"))
+	body := cell.BeginCell().EndCell()
+	contract, _, err := wrappers.Deploy(&p.apiClient, compiledContract, initDataCell, tlb.MustFromTON("1"), body)
 	if err != nil {
 		return Storage{}, err
 	}
@@ -53,7 +54,7 @@ type Storage struct {
 }
 
 type getPriceFromMessage struct {
-	_             tlb.Magic        `tlb:"#00000001"` //nolint:revive // This field should stay uninitialized
+	_             tlb.Magic        `tlb:"#00000001"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID       uint64           `tlb:"## 64"`
 	PriceRegistry *address.Address `tlb:"addr"`
 	Key           uint8            `tlb:"## 8"`
