@@ -299,7 +299,7 @@ export function merkleRootsFromCell(data: Cell): MerkleRoot[] {
   return fromSnakeData(data, (x) => {
     const sourceChainSelector = x.loadUintBig(64)
     const onRampAddressLength = x.loadUint(8)
-    const onRampAddress = Buffer.from(bigIntToUint8Array(x.loadUintBig(onRampAddressLength)))
+    const onRampAddress = Buffer.from(bigIntToUint8Array(x.loadUintBig(onRampAddressLength * 8)))
     const minSeqNr = x.loadUintBig(64)
     const maxSeqNr = x.loadUintBig(64)
     const merkleRoot = x.loadUintBig(256)
