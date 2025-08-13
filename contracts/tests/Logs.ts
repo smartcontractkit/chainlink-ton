@@ -2,7 +2,7 @@ import { Address, Cell, Message } from '@ton/core'
 import { BlockchainTransaction } from '@ton/sandbox'
 import * as CCIPLogs from '../wrappers/ccip/Logs'
 import * as OCR3Logs from '../wrappers/libraries/ocr/Logs'
-import { fromSnakeData } from '../utils/types'
+import { fromSnakeData } from '../src/utils/types'
 import { merkleRootsFromCell, priceUpdatesFromCell } from '../wrappers/ccip/OffRamp'
 
 // https://github.com/ton-blockchain/liquid-staking-contract/blob/1f4e9badbed52a4cf80cc58e4bb36ed375c6c8e7/utils.ts#L269-L294
