@@ -303,7 +303,6 @@ func (c *chain) GetClient(ctx context.Context) (*ton.APIClient, error) {
 			continue
 		}
 
-		c.lggr.Debugw("Created to ton ConnectionPool")
 		client := ton.NewAPIClient(connectionPool, ton.ProofCheckPolicyFast)
 		client.SetTrustedBlockFromConfig(tonCfg)
 
