@@ -65,7 +65,7 @@ func deployFeeQuoter(b operations.Bundle, deps TonDeps, in DeployFeeQuoterInput)
 
 	// TODO: handle setting FeeTokens and PremiumMultiplierWeiPerEthByFeeToken
 
-	contract, err := wrappers.Deploy(&conn, codeCell, initData, tlb.MustFromTON("1"))
+	contract, _, err := wrappers.Deploy(&conn, codeCell, initData, tlb.MustFromTON("1"), nil)
 	if err != nil {
 		return output, fmt.Errorf("failed to deploy fee quoter contract: %w", err)
 	}

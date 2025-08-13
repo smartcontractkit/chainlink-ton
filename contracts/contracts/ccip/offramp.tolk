@@ -332,7 +332,7 @@ fun setDynamicConfig() {
 }
 
 get fun dynamicConfig() {
-    
+    // TODO: combine get staticConfig and dynamicConfig into get config
 }
 
 get fun sourceChainConfig() {}

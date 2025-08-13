@@ -302,8 +302,6 @@ github.com/smartcontractkit/chain-selectors v1.0.62 h1:KWLEyKQXHxGGHIlUfLrzjYldl
 github.com/smartcontractkit/chain-selectors v1.0.62/go.mod h1:xsKM0aN3YGcQKTPRPDDtPx2l4mlTN1Djmg0VVXV40b8=
 github.com/smartcontractkit/chainlink-ccip v0.1.1-solana h1:ICWYnxVdoh0ds3CPNml7K4L0xt3Jn1cFnOHcLH9q0Z0=
 github.com/smartcontractkit/chainlink-ccip v0.1.1-solana/go.mod h1:zPpo78Fv3zQE3WVZFEqRiRNER9QHaCzl+HNeTSaS0kE=
-github.com/smartcontractkit/chainlink-common v0.8.1-0.20250730004800-27955557aca6 h1:WKtRf5u/nbu+w0GkxMonAjqa3HiDBuui2S34mvVh0aw=
-github.com/smartcontractkit/chainlink-common v0.8.1-0.20250730004800-27955557aca6/go.mod h1:xH03NoXErykyFI7yyRWDhz0UPWxrCEoAgA3hs1xvWhA=
 github.com/smartcontractkit/chainlink-common v0.8.1-0.20250806223732-5ce6071775dd h1:dUnO0izEtwfHsGwwjLRfsagYgEg3RfPl4/sHu0+F8V8=
 github.com/smartcontractkit/chainlink-common v0.8.1-0.20250806223732-5ce6071775dd/go.mod h1:P0w6jbcIioJ22DGYftIlM4PmhzB5AgzA1205v3yymQI=
 github.com/smartcontractkit/chainlink-common/pkg/chipingress v0.0.1 h1:ca2z5OXgnbBPQRxpwXwBLJsUA1+cAp5ncfW4Ssvd6eY=
@@ -573,8 +571,7 @@ google.golang.org/grpc v1.23.0/go.mod h1:Y5yQAOtifL1yxbo5wqy6BxZv8vAUGQwXBOALyac
 google.golang.org/grpc v1.25.1/go.mod h1:c3i+UQWmh7LiEpx4sFZnkU36qjEYZ0imhYfXVyQciAY=
 google.golang.org/grpc v1.27.0/go.mod h1:qbnxyOmOxrQa7FizSgH+ReBfzJrCY1pSN7KXBS8abTk=
 google.golang.org/grpc v1.36.1/go.mod h1:qjiiYl8FncCW8feJPdyg3v6XW24KsRHe+dy9BAGRRjU=
-google.golang.org/grpc v1.72.1 h1:HR03wO6eyZ7lknl75XlxABNVLLFc2PAb6mHlYh756mA=
-google.golang.org/grpc v1.72.1/go.mod h1:wH5Aktxcg25y1I3w7H69nHfXdOG3UiadoBtjh3izSDM=
+google.golang.org/grpc v1.73.0 h1:VIWSmpI2MegBtTuFt5/JWy2oXxtjJ/e89Z70ImfD2ok=
 google.golang.org/grpc v1.73.0/go.mod h1:50sbHOUqWoCQGI8V2HQLJM0B+LMlIUjNSZmow7EVBQc=
 google.golang.org/protobuf v0.0.0-20200109180630-ec00e32a8dfd/go.mod h1:DFci5gLYBciE7Vtevhsrf46CRTquxDuWsQurQQe4oz8=
 google.golang.org/protobuf v0.0.0-20200221191635-4d8936d0db64/go.mod h1:kwYJMbMJ01Woi6D6+Kah6886xMZcty6N08ah7+eCXa0=

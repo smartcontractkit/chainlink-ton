@@ -2,29 +2,22 @@ package chainaccessor
 
 import (
 	"context"
-	"errors"
-	"fmt"
-	"math/big"
 
 	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/ton"
 )
 
-// TEMP: waiting on https://github.com/xssnick/tonutils-go/pull/346
 func addrToBytes(addr *address.Address) []byte {
-	codec := codec.AddressCodec{}
-	raw, err := codec.AddressStringToBytes(addr.String())
-	if err != nil {
-		panic(err) // address.Address is always valid
-	}
-	return raw
+	rawAddr := codec.ToRawAddr(addr)
+	return rawAddr[:]
 }
 
 // TODO: commit/exec latest ocr config
-
-// TODO: optimize implementation by providing queries that return both static+dynamic together
 
 func (a *TONAccessor) getOffRampStaticConfig(ctx context.Context) (ccipocr3.OffRampStaticChainConfig, error) {
 	return ccipocr3.OffRampStaticChainConfig{
@@ -40,147 +33,77 @@ func (a *TONAccessor) getOffRampDynamicConfig(ctx context.Context) (ccipocr3.Off
 	return ccipocr3.OffRampDynamicChainConfig{
 		FeeQuoter:                               []byte{},
 		PermissionLessExecutionThresholdSeconds: 0,
-		IsRMNVerificationDisabled:               false,
+		IsRMNVerificationDisabled:               true,
 		MessageInterceptor:                      []byte{},
 	}, nil
 }
 
-func (a *TONAccessor) getRMNRemoteConfig(ctx context.Context) (ccipocr3.RMNRemoteConfig, error) {
-	return ccipocr3.RMNRemoteConfig{
-		DigestHeader:    ccipocr3.RMNDigestHeader{},
-		VersionedConfig: ccipocr3.VersionedConfig{},
-	}, nil
-}
-
-func (a *TONAccessor) getFeeQuoterStaticConfig(ctx context.Context) (ccipocr3.FeeQuoterStaticConfig, error) {
-	addr, ok := a.bindings[consts.ContractNameFeeQuoter]
-	if !ok {
-		return ccipocr3.FeeQuoterStaticConfig{}, errors.New("FeeQuoter not bound")
-	}
-	block, err := a.client.CurrentMasterchainInfo(ctx)
-	if err != nil {
-		return ccipocr3.FeeQuoterStaticConfig{}, fmt.Errorf("failed to get current block: %w", err)
+func (a *TONAccessor) getFeeQuoterStaticConfig(ctx context.Context, block *ton.BlockIDExt) (ccipocr3.FeeQuoterStaticConfig, error) {
+	addr, exists := a.bindings[consts.ContractNameFeeQuoter]
+	if !exists {
+		return ccipocr3.FeeQuoterStaticConfig{}, ErrNoBindings
 	}
 	result, err := a.client.RunGetMethod(ctx, block, addr, "staticConfig")
 	if err != nil {
 		return ccipocr3.FeeQuoterStaticConfig{}, err
 	}
-	// Parse results
-	maxFeeJuelsPerMsg, err := result.Int(0)
-	if err != nil {
-		return ccipocr3.FeeQuoterStaticConfig{}, err
-	}
-	linkTokenAddressSlice, err := result.Slice(1)
-	if err != nil {
-		return ccipocr3.FeeQuoterStaticConfig{}, err
-	}
-	linkTokenAddress, err := linkTokenAddressSlice.LoadAddr()
-	if err != nil {
-		return ccipocr3.FeeQuoterStaticConfig{}, err
-	}
-	tokenPriceStalenessThreshold, err := result.Int(2)
-	if err != nil {
+	var cfg feequoter.StaticConfig
+	if err := cfg.FromResult(result); err != nil {
 		return ccipocr3.FeeQuoterStaticConfig{}, err
 	}
 	return ccipocr3.FeeQuoterStaticConfig{
-		MaxFeeJuelsPerMsg:  ccipocr3.NewBigInt(maxFeeJuelsPerMsg),
-		LinkToken:          addrToBytes(linkTokenAddress),
-		StalenessThreshold: uint32(tokenPriceStalenessThreshold.Uint64()),
+		MaxFeeJuelsPerMsg:  ccipocr3.NewBigInt(cfg.MaxFeeJuelsPerMsg),
+		LinkToken:          addrToBytes(cfg.LinkToken),
+		StalenessThreshold: cfg.StalenessThreshold,
 	}, nil
 }
 
-func (a *TONAccessor) getOnRampDynamicConfig(ctx context.Context) (ccipocr3.OnRampDynamicConfig, error) {
-	addr, ok := a.bindings[consts.ContractNameOnRamp]
-	if !ok {
-		return ccipocr3.OnRampDynamicConfig{}, errors.New("OnRamp not bound")
-	}
-	block, err := a.client.CurrentMasterchainInfo(ctx)
-	if err != nil {
-		return ccipocr3.OnRampDynamicConfig{}, fmt.Errorf("failed to get current block: %w", err)
+func (a *TONAccessor) getOnRampDynamicConfig(ctx context.Context, block *ton.BlockIDExt) (ccipocr3.OnRampDynamicConfig, error) {
+	addr, exists := a.bindings[consts.ContractNameOnRamp]
+	if !exists {
+		return ccipocr3.OnRampDynamicConfig{}, ErrNoBindings
 	}
 	result, err := a.client.RunGetMethod(ctx, block, addr, "dynamicConfig")
 	if err != nil {
 		return ccipocr3.OnRampDynamicConfig{}, err
 	}
-	// Parse results
-	feeQuoterAddressSlice, err := result.Slice(0)
-	if err != nil {
+	var cfg onramp.DynamicConfig
+	if err := cfg.FromResult(result); err != nil {
 		return ccipocr3.OnRampDynamicConfig{}, err
 	}
-	feeQuoterAddress, err := feeQuoterAddressSlice.LoadAddr()
-	if err != nil {
-		return ccipocr3.OnRampDynamicConfig{}, err
-	}
-	feeAggregatorAddressSlice, err := result.Slice(1)
-	if err != nil {
-		return ccipocr3.OnRampDynamicConfig{}, err
-	}
-	feeAggregatorAddress, err := feeAggregatorAddressSlice.LoadAddr()
-	if err != nil {
-		return ccipocr3.OnRampDynamicConfig{}, err
-	}
-	allowlistAdminAddressSlice, err := result.Slice(2)
-	if err != nil {
-		return ccipocr3.OnRampDynamicConfig{}, err
-	}
-	allowlistAdminAddress, err := allowlistAdminAddressSlice.LoadAddr()
-	if err != nil {
-		return ccipocr3.OnRampDynamicConfig{}, err
-	}
-	// TODO: convert addresses to byte slices
 	return ccipocr3.OnRampDynamicConfig{
-		FeeQuoter:              addrToBytes(feeQuoterAddress),
+		FeeQuoter:              addrToBytes(cfg.FeeQuoter),
 		ReentrancyGuardEntered: false,
 		MessageInterceptor:     []byte{}, // TODO: unimplemented on TON?
-		FeeAggregator:          addrToBytes(feeAggregatorAddress),
-		AllowListAdmin:         addrToBytes(allowlistAdminAddress),
+		FeeAggregator:          addrToBytes(cfg.FeeAggregator),
+		AllowListAdmin:         addrToBytes(cfg.AllowListAdmin),
 	}, nil
 }
 
-func (a *TONAccessor) getOnRampDestChainConfig(ctx context.Context, dest ccipocr3.ChainSelector) (ccipocr3.OnRampDestChainConfig, error) {
-	addr, ok := a.bindings[consts.ContractNameOnRamp]
-	if !ok {
-		return ccipocr3.OnRampDestChainConfig{}, errors.New("OnRamp not bound")
-	}
-	block, err := a.client.CurrentMasterchainInfo(ctx)
-	if err != nil {
-		return ccipocr3.OnRampDestChainConfig{}, fmt.Errorf("failed to get current block: %w", err)
+func (a *TONAccessor) getOnRampDestChainConfig(ctx context.Context, block *ton.BlockIDExt, dest ccipocr3.ChainSelector) (ccipocr3.OnRampDestChainConfig, error) {
+	addr, exists := a.bindings[consts.ContractNameOnRamp]
+	if !exists {
+		return ccipocr3.OnRampDestChainConfig{}, ErrNoBindings
 	}
 	result, err := a.client.RunGetMethod(ctx, block, addr, "destChainConfig", dest)
 	if err != nil {
 		return ccipocr3.OnRampDestChainConfig{}, err
 	}
-	routerAddressSlice, err := result.Slice(0)
-	if err != nil {
+	var cfg onramp.DestChainConfig
+	if err := cfg.FromResult(result); err != nil {
 		return ccipocr3.OnRampDestChainConfig{}, err
 	}
-	routerAddress, err := routerAddressSlice.LoadAddr()
-	if err != nil {
-		return ccipocr3.OnRampDestChainConfig{}, err
-	}
-	seqNum, err := result.Int(1)
-	if err != nil {
-		return ccipocr3.OnRampDestChainConfig{}, err
-	}
-	allowlistEnabledInt, err := result.Int(2)
-	if err != nil {
-		return ccipocr3.OnRampDestChainConfig{}, err
-	}
-	allowlistEnabled := allowlistEnabledInt.Cmp(big.NewInt(1)) == 0
-	// skip parsing allowedSenders
 	return ccipocr3.OnRampDestChainConfig{
-		SequenceNumber:   seqNum.Uint64(),
-		AllowListEnabled: allowlistEnabled,
-		Router:           addrToBytes(routerAddress),
+		SequenceNumber:   cfg.SequenceNumber,
+		AllowListEnabled: cfg.AllowListEnabled,
+		Router:           addrToBytes(cfg.Router),
 	}, nil
 }
 
-func (a *TONAccessor) getRouterConfig(_ context.Context) (ccipocr3.RouterConfig, error) {
-	// TODO: confirm address.NewAddressNone == zero address if fully written out (0:00000..)
-	return ccipocr3.RouterConfig{
-		// Similar to Aptos, TON has no wrapped native, so we treat zero address as the native fee token
-		WrappedNativeAddress: addrToBytes(address.NewAddressNone()),
+func (a *TONAccessor) getCurseInfo(_ context.Context, _ *ton.BlockIDExt) (ccipocr3.CurseInfo, error) {
+	return ccipocr3.CurseInfo{
+		CursedSourceChains: map[ccipocr3.ChainSelector]bool{},
+		CursedDestination:  false,
+		GlobalCurse:        false,
 	}, nil
 }
-
-// curseinfo (empty for now)

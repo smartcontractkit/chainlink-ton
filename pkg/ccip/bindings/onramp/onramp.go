@@ -6,6 +6,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
@@ -42,11 +43,71 @@ type DestChainConfig struct {
 	AllowedSender    *cell.Dictionary `tlb:"dict 267"` // it's not documented anywhere, but the address in cell uses 267 bits
 }
 
+func (c *DestChainConfig) FromResult(result *ton.ExecutionResult) error {
+	routerAddressSlice, err := result.Slice(0)
+	if err != nil {
+		return err
+	}
+	routerAddress, err := routerAddressSlice.LoadAddr()
+	if err != nil {
+		return err
+	}
+	seqNum, err := result.Int(1)
+	if err != nil {
+		return err
+	}
+	allowlistEnabledInt, err := result.Int(2)
+	if err != nil {
+		return err
+	}
+	allowlistEnabled := allowlistEnabledInt.Cmp(big.NewInt(1)) == 0
+	*c = DestChainConfig{
+		Router:           routerAddress,
+		SequenceNumber:   seqNum.Uint64(),
+		AllowListEnabled: allowlistEnabled,
+		// skip parsing allowedSenders
+	}
+	return nil
+}
+
 // DynamicConfig holds the dynamic configuration for the CCIP system, including fee quoter, fee aggregator, and allow list admin.
 type DynamicConfig struct {
 	FeeQuoter      *address.Address `tlb:"addr"`
 	FeeAggregator  *address.Address `tlb:"addr"`
 	AllowListAdmin *address.Address `tlb:"addr"`
+}
+
+func (c *DynamicConfig) FromResult(result *ton.ExecutionResult) error {
+	feeQuoterAddressSlice, err := result.Slice(0)
+	if err != nil {
+		return err
+	}
+	feeQuoterAddress, err := feeQuoterAddressSlice.LoadAddr()
+	if err != nil {
+		return err
+	}
+	feeAggregatorAddressSlice, err := result.Slice(1)
+	if err != nil {
+		return err
+	}
+	feeAggregatorAddress, err := feeAggregatorAddressSlice.LoadAddr()
+	if err != nil {
+		return err
+	}
+	allowlistAdminAddressSlice, err := result.Slice(2)
+	if err != nil {
+		return err
+	}
+	allowlistAdminAddress, err := allowlistAdminAddressSlice.LoadAddr()
+	if err != nil {
+		return err
+	}
+	*c = DynamicConfig{
+		FeeQuoter:      feeQuoterAddress,
+		FeeAggregator:  feeAggregatorAddress,
+		AllowListAdmin: allowlistAdminAddress,
+	}
+	return nil
 }
 
 // Storage represents the storage structure for the CCIP onramp contract.

@@ -22,6 +22,12 @@ pkgs.mkShell {
       # TS/Node set of tools for changesets
       nodejs_24
       (yarn.override {nodejs = nodejs_24;})
+      (pnpm.override {nodejs = nodejs_24;})
+      nodePackages.typescript
+      nodePackages.typescript-language-server
+      nodePackages.npm
+      # Required dependency for @ledgerhq/hw-transport-node-hid -> usb
+      nodePackages.node-gyp
 
       # Extra tools
       git

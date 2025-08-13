@@ -44,6 +44,109 @@ type DestChainConfig struct {
 	NetworkFeeUsdCents                uint32 `tlb:"## 32"`
 }
 
+func (c *DestChainConfig) FromResult(result *ton.ExecutionResult) error {
+	isEnabledInt, err := result.Int(0)
+	if err != nil {
+		return err
+	}
+	isEnabled := isEnabledInt.Cmp(big.NewInt(1)) == 0
+	maxNumberOfTokensPerMsg, err := result.Int(1)
+	if err != nil {
+		return err
+	}
+	maxDataBytes, err := result.Int(2)
+	if err != nil {
+		return err
+	}
+	maxPerMsgGasLimit, err := result.Int(3)
+	if err != nil {
+		return err
+	}
+	destGasOverhead, err := result.Int(4)
+	if err != nil {
+		return err
+	}
+	destGasPerPayloadByteBase, err := result.Int(5)
+	if err != nil {
+		return err
+	}
+	destGasPerPayloadByteHigh, err := result.Int(6)
+	if err != nil {
+		return err
+	}
+	destGasPerPayloadByteThreshold, err := result.Int(7)
+	if err != nil {
+		return err
+	}
+	destDataAvailabilityOverheadGas, err := result.Int(8)
+	if err != nil {
+		return err
+	}
+	destGasPerDataAvailabilityByte, err := result.Int(9)
+	if err != nil {
+		return err
+	}
+	destDataAvailabilityMultiplierBps, err := result.Int(10)
+	if err != nil {
+		return err
+	}
+	chainFamilySelector, err := result.Int(11)
+	if err != nil {
+		return err
+	}
+	enforceOutOfOrderInt, err := result.Int(12)
+	if err != nil {
+		return err
+	}
+	enforceOutOfOrder := enforceOutOfOrderInt.Cmp(big.NewInt(1)) == 0
+	defaultTokenFeeUsdCents, err := result.Int(13)
+	if err != nil {
+		return err
+	}
+	defaultTokenDestGasOverhead, err := result.Int(14)
+	if err != nil {
+		return err
+	}
+	defaultTxGasLimit, err := result.Int(15)
+	if err != nil {
+		return err
+	}
+	gasMultiplierWeiPerEth, err := result.Int(16)
+	if err != nil {
+		return err
+	}
+	gasPriceStalenessThreshold, err := result.Int(17)
+	if err != nil {
+		return err
+	}
+	networkFeeUsdCents, err := result.Int(18)
+	if err != nil {
+		return err
+	}
+	*c = DestChainConfig{
+		IsEnabled:                         isEnabled,
+		MaxNumberOfTokensPerMsg:           uint16(maxNumberOfTokensPerMsg.Uint64()),
+		MaxDataBytes:                      uint32(maxDataBytes.Uint64()),
+		MaxPerMsgGasLimit:                 uint32(maxPerMsgGasLimit.Uint64()),
+		DestGasOverhead:                   uint32(destGasOverhead.Uint64()),
+		DestGasPerPayloadByteBase:         uint8(destGasPerPayloadByteBase.Uint64()),
+		DestGasPerPayloadByteHigh:         uint8(destGasPerPayloadByteHigh.Uint64()),
+		DestGasPerPayloadByteThreshold:    uint16(destGasPerPayloadByteThreshold.Uint64()),
+		DestDataAvailabilityOverheadGas:   uint32(destDataAvailabilityOverheadGas.Uint64()),
+		DestGasPerDataAvailabilityByte:    uint16(destGasPerDataAvailabilityByte.Uint64()),
+		DestDataAvailabilityMultiplierBps: uint16(destDataAvailabilityMultiplierBps.Uint64()),
+		ChainFamilySelector:               uint32(chainFamilySelector.Uint64()),
+		EnforceOutOfOrder:                 enforceOutOfOrder,
+		DefaultTokenFeeUsdCents:           uint16(defaultTokenFeeUsdCents.Uint64()),
+		DefaultTokenDestGasOverhead:       uint32(defaultTokenDestGasOverhead.Uint64()),
+		DefaultTxGasLimit:                 uint32(defaultTxGasLimit.Uint64()),
+		GasMultiplierWeiPerEth:            gasMultiplierWeiPerEth.Uint64(),
+		GasPriceStalenessThreshold:        uint32(gasPriceStalenessThreshold.Uint64()),
+		NetworkFeeUsdCents:                uint32(networkFeeUsdCents.Uint64()),
+	}
+	return nil
+}
+
 type TokenTransferFeeConfig struct {
 	IsEnabled         bool   `tlb:"bool"`
 	MinFeeUsdCents    uint32 `tlb:"## 32"`
@@ -89,6 +192,37 @@ type GasPriceUpdate struct {
 
 type FeeToken struct {
 	PremiumMultiplierWeiPerEth uint64 `tlb:"## 64"`
+}
+
+type StaticConfig struct {
+	MaxFeeJuelsPerMsg  *big.Int
+	LinkToken          *address.Address
+	StalenessThreshold uint32
+}
+
+func (c *StaticConfig) FromResult(result *ton.ExecutionResult) error {
+	maxFeeJuelsPerMsg, err := result.Int(0)
+	if err != nil {
+		return err
+	}
+	linkTokenAddressSlice, err := result.Slice(1)
+	if err != nil {
+		return err
+	}
+	linkTokenAddress, err := linkTokenAddressSlice.LoadAddr()
+	if err != nil {
+		return err
+	}
+	tokenPriceStalenessThreshold, err := result.Int(2)
+	if err != nil {
+		return err
+	}
+	*c = StaticConfig{
+		MaxFeeJuelsPerMsg:  maxFeeJuelsPerMsg,
+		LinkToken:          linkTokenAddress,
+		StalenessThreshold: uint32(tokenPriceStalenessThreshold.Uint64()),
+	}
+	return nil
 }
 
 // Methods

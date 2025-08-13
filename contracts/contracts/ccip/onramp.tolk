@@ -143,7 +143,9 @@ fun onMessageValidated(payload: MessageValidated<Metadata>, sender: address) {
             sourceChainSelector: st.chainSelector,
             destChainSelector: msg.destChainSelector,
             sequenceNumber: seqNr,
-            nonce: 0, // TODO:
+            // Only bump nonce for messages that specify allowOutOfOrderExecution == false. Otherwise, we may block ordered
+            // message nonces, which is not what we want.
+            nonce: 0,
         },
         sender: metadata.sender,
         body: TVM2AnyRampMessageBody {
@@ -156,6 +158,11 @@ fun onMessageValidated(payload: MessageValidated<Metadata>, sender: address) {
         }.toCell(),
         feeValueJuels: 0, // TODO:
     };
+
+    // TODO: support for ordered execution
+    // rampMessage.header.nonce = isOutOfOrderExecution
+    //   ? 0
+    //   : nonceManager.getIncrementedOutboundNonce(destChainSelector, metadata.sender);
 
     // Metadata hash preimage to ensure global uniqueness, ensuring 2 identical messages sent to 2 different lanes
     // will have a distinct hash.

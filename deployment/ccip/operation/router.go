@@ -52,7 +52,7 @@ func deployRouter(b operations.Bundle, deps TonDeps, in DeployRouterInput) (Depl
 		return output, fmt.Errorf("failed to pack initData: %w", err)
 	}
 
-	contract, err := wrappers.Deploy(&conn, codeCell, initData, tlb.MustFromTON("1"))
+	contract, _, err := wrappers.Deploy(&conn, codeCell, initData, tlb.MustFromTON("1"), nil)
 	if err != nil {
 		return output, fmt.Errorf("failed to deploy router contract: %w", err)
 	}

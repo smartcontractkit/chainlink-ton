@@ -8,7 +8,6 @@ import (
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
-	"github.com/smartcontractkit/chainlink/deployment/ccip/changeset/v1_6"
 	"github.com/smartcontractkit/chainlink/deployment/ccip/shared/stateview"
 	"github.com/smartcontractkit/mcms"
 	"github.com/xssnick/tonutils-go/ton/wallet"
@@ -75,11 +74,11 @@ func (cs AddTonLanes) VerifyPreconditions(env cldf.Environment, cfg config.Updat
 
 	// This EVM specific changeset will be called from within this TON changeset, hence, we're verifying it here
 	// TODO: this is an anti-pattern, change this once EVM changesets are refactored as Operations
-	evmUpdateCfg := config.ToEVMUpdateLanesConfig(cfg)
-	err = v1_6.UpdateLanesPrecondition(env, evmUpdateCfg)
-	if err != nil {
-		return err
-	}
+	// evmUpdateCfg := config.ToEVMUpdateLanesConfig(cfg)
+	// err = v1_6.UpdateLanesPrecondition(env, evmUpdateCfg)
+	// if err != nil {
+	// 	return err
+	// }
 	return nil
 }
 
@@ -92,14 +91,14 @@ func (cs AddTonLanes) Apply(env cldf.Environment, cfg config.UpdateTonLanesConfi
 
 	seqReports := make([]operations.Report[any, any], 0)
 
-	// // Add lane on EVM chains
-	// // TODO: applying a changeset within another changeset is an anti-pattern. Using it here until EVM is refactored into Operations
-	evmUpdatesInput := config.ToEVMUpdateLanesConfig(cfg)
-	out, err := v1_6.UpdateLanesLogic(env, cfg.EVMMCMSConfig, evmUpdatesInput)
-	if err != nil {
-		return cldf.ChangesetOutput{}, err
-	}
-	timeLockProposals = append(timeLockProposals, out.MCMSTimelockProposals...)
+	// Add lane on EVM chains
+	// TODO: applying a changeset within another changeset is an anti-pattern. Using it here until EVM is refactored into Operations
+	// evmUpdatesInput := config.ToEVMUpdateLanesConfig(cfg)
+	// out, err := v1_6.UpdateLanesLogic(env, cfg.EVMMCMSConfig, evmUpdatesInput)
+	// if err != nil {
+	// 	return cldf.ChangesetOutput{}, err
+	// }
+	// timeLockProposals = append(timeLockProposals, out.MCMSTimelockProposals...)
 
 	// Add lane on TON chains
 	// Execute UpdateTonLanesSequence for each ton chain

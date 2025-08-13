@@ -1,11 +1,13 @@
 package deployment
 
 import (
+	"fmt"
 	"math/big"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"
+	"github.com/smartcontractkit/chainlink-ccip/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
 
 	chain_selectors "github.com/smartcontractkit/chain-selectors"
@@ -53,7 +55,7 @@ func TestDeploy(t *testing.T) {
 	t.Log("Deployer: ", deployer)
 
 	// memory environment doesn't block on funding so changesets can execute before the env is fully ready, manually call fund so we block here
-	test_utils.FundWallets(t, env.BlockChains.TonChains()[chainSelector].Client, []*address.Address{deployer.Address()}, []tlb.Coins{tlb.MustFromTON("1000")})
+	test_utils.FundWallets(t, tonChain.Client, []*address.Address{deployer.Address()}, []tlb.Coins{tlb.MustFromTON("1000")})
 
 	cs := ops.DeployChainContractsToTonCS(t, env, chainSelector)
 	env, _, err := commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{cs})
@@ -136,16 +138,29 @@ func TestDeploy(t *testing.T) {
 
 	ctx := t.Context()
 	feeQuoterAddr := state.TonChains[chainSelector].FeeQuoter
-	// TODO: Simplify with https://github.com/xssnick/tonutils-go/pull/346
 	rawFeeQuoterAddr, err := addrCodec.AddressStringToBytes(feeQuoterAddr.String())
+	require.NoError(t, err)
+	rawLinkQuoterAddr, err := addrCodec.AddressStringToBytes(tonTokenAddr.String())
 	require.NoError(t, err)
 
 	err = accessor.Sync(ctx, consts.ContractNameFeeQuoter, rawFeeQuoterAddr)
 	require.NoError(t, err)
 
-	rawLinkQuoterAddr, err := addrCodec.AddressStringToBytes(tonTokenAddr.String())
-	require.NoError(t, err)
-	timestampedPrice, err := accessor.GetTokenPriceUSD(ctx, rawLinkQuoterAddr)
-	require.NoError(t, err)
-	require.Equal(t, timestampedPrice.Value, big.NewInt(99))
+	t.Run("GetTokenPriceUSD", func(t *testing.T) {
+		timestampedPrice, err := accessor.GetTokenPriceUSD(ctx, rawLinkQuoterAddr)
+		require.NoError(t, err)
+		require.Equal(t, timestampedPrice.Value, big.NewInt(99))
+	})
+
+	t.Run("GetConfig", func(t *testing.T) {
+		config, err := accessor.GetAllConfigLegacySnapshot(ctx)
+		require.NoError(t, err)
+		fmt.Printf("%+v\n", config)
+	})
+
+	t.Run("GetFeeQuoterDestChainConfig", func(t *testing.T) {
+		config, err := accessor.GetFeeQuoterDestChainConfig(ctx, ccipocr3.ChainSelector(ChainSelEVMTest90000001))
+		require.NoError(t, err)
+		fmt.Printf("%+v\n", config)
+	})
 }
