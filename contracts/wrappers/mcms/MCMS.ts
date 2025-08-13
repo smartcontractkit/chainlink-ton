@@ -351,102 +351,104 @@ export const opcodes = {
 
 export const builder = {
   message: {
-    // Creates a new `MCMS_TopUp` message.
-    topUp: {
-      encode: (msg: TopUp): Cell => {
-        return beginCell() // break line
-          .storeUint(opcodes.in.TopUp, 32)
-          .storeUint(msg.queryId, 64)
-          .endCell()
-      },
-      decode: (cell: Cell): TopUp => {
-        const s = cell.beginParse()
-        s.skip(32) // skip opcode
-        return {
-          queryId: s.loadUintBig(64),
-        }
-      },
-    },
-    // Creates a new `MCMS_SetRoot` message.
-    setRoot: {
-      encode: (msg: SetRoot): Cell => {
-        return (
-          beginCell()
-            .storeUint(opcodes.in.SetRoot, 32)
+    in: {
+      // Creates a new `MCMS_TopUp` message.
+      topUp: {
+        encode: (msg: TopUp): Cell => {
+          return beginCell() // break line
+            .storeUint(opcodes.in.TopUp, 32)
             .storeUint(msg.queryId, 64)
-            .storeUint(msg.root, 256)
-            .storeUint(msg.validUntil, 32)
-            // .storeSlice(msg.metadata) // TODO: encode metadata properly
-            .storeRef(msg.metadataProof)
-            .storeRef(msg.signatures)
             .endCell()
-        )
+        },
+        decode: (cell: Cell): TopUp => {
+          const s = cell.beginParse()
+          s.skip(32) // skip opcode
+          return {
+            queryId: s.loadUintBig(64),
+          }
+        },
       },
-      decode: (cell: Cell): SetRoot => {
-        const s = cell.beginParse()
-        s.skip(32) // skip opcode
-        return {
-          queryId: s.loadUintBig(64),
-          root: s.loadUintBig(256),
-          validUntil: s.loadUintBig(32),
-          metadata: s.loadRef().beginParse() as unknown as RootMetadata, // TODO: decode metadata properly
-          metadataProof: s.loadRef(),
-          signatures: s.loadRef(),
-        }
+      // Creates a new `MCMS_SetRoot` message.
+      setRoot: {
+        encode: (msg: SetRoot): Cell => {
+          return (
+            beginCell()
+              .storeUint(opcodes.in.SetRoot, 32)
+              .storeUint(msg.queryId, 64)
+              .storeUint(msg.root, 256)
+              .storeUint(msg.validUntil, 32)
+              // .storeSlice(msg.metadata) // TODO: encode metadata properly
+              .storeRef(msg.metadataProof)
+              .storeRef(msg.signatures)
+              .endCell()
+          )
+        },
+        decode: (cell: Cell): SetRoot => {
+          const s = cell.beginParse()
+          s.skip(32) // skip opcode
+          return {
+            queryId: s.loadUintBig(64),
+            root: s.loadUintBig(256),
+            validUntil: s.loadUintBig(32),
+            metadata: s.loadRef().beginParse() as unknown as RootMetadata, // TODO: decode metadata properly
+            metadataProof: s.loadRef(),
+            signatures: s.loadRef(),
+          }
+        },
       },
-    },
-    // Creates a new `MCMS_Execute` message.
-    execute: {
-      encode: (msg: Execute): Cell => {
-        return beginCell()
-          .storeUint(opcodes.in.Execute, 32)
-          .storeUint(msg.queryId, 64)
-          .storeRef(msg.op)
-          .storeRef(msg.proof)
-          .endCell()
+      // Creates a new `MCMS_Execute` message.
+      execute: {
+        encode: (msg: Execute): Cell => {
+          return beginCell()
+            .storeUint(opcodes.in.Execute, 32)
+            .storeUint(msg.queryId, 64)
+            .storeRef(msg.op)
+            .storeRef(msg.proof)
+            .endCell()
+        },
+        decode: (cell: Cell): Execute => {
+          const s = cell.beginParse()
+          s.skip(32) // skip opcode
+          return {
+            queryId: s.loadUintBig(64),
+            op: s.loadRef(),
+            proof: s.loadRef(),
+          }
+        },
       },
-      decode: (cell: Cell): Execute => {
-        const s = cell.beginParse()
-        s.skip(32) // skip opcode
-        return {
-          queryId: s.loadUintBig(64),
-          op: s.loadRef(),
-          proof: s.loadRef(),
-        }
-      },
-    },
-    // Creates a new `MCMS_SetConfig` message.
-    setConfig: {
-      encode: (msg: SetConfig): Cell => {
-        return beginCell()
-          .storeUint(opcodes.in.SetConfig, 32)
-          .storeUint(msg.queryId, 64)
-          .storeRef(msg.signerAddresses)
-          .storeRef(msg.signerGroups)
-          .storeDict(msg.groupQuorums)
-          .storeDict(msg.groupParents)
-          .storeBit(msg.clearRoot)
-          .endCell()
-      },
-      decode: (cell: Cell): SetConfig => {
-        const s = cell.beginParse()
-        s.skip(32) // skip opcode
-        return {
-          queryId: s.loadUintBig(64),
-          signerAddresses: s.loadRef(),
-          signerGroups: s.loadRef(),
-          groupQuorums: Dictionary.load(
-            Dictionary.Keys.Uint(8),
-            Dictionary.Values.Uint(8),
-            s.loadRef(),
-          ),
-          groupParents: Dictionary.load(
-            Dictionary.Keys.Uint(8),
-            Dictionary.Values.Uint(8),
-            s.loadRef(),
-          ),
-          clearRoot: s.loadBoolean(), // boolean
-        }
+      // Creates a new `MCMS_SetConfig` message.
+      setConfig: {
+        encode: (msg: SetConfig): Cell => {
+          return beginCell()
+            .storeUint(opcodes.in.SetConfig, 32)
+            .storeUint(msg.queryId, 64)
+            .storeRef(msg.signerAddresses)
+            .storeRef(msg.signerGroups)
+            .storeDict(msg.groupQuorums)
+            .storeDict(msg.groupParents)
+            .storeBit(msg.clearRoot)
+            .endCell()
+        },
+        decode: (cell: Cell): SetConfig => {
+          const s = cell.beginParse()
+          s.skip(32) // skip opcode
+          return {
+            queryId: s.loadUintBig(64),
+            signerAddresses: s.loadRef(),
+            signerGroups: s.loadRef(),
+            groupQuorums: Dictionary.load(
+              Dictionary.Keys.Uint(8),
+              Dictionary.Values.Uint(8),
+              s.loadRef(),
+            ),
+            groupParents: Dictionary.load(
+              Dictionary.Keys.Uint(8),
+              Dictionary.Values.Uint(8),
+              s.loadRef(),
+            ),
+            clearRoot: s.loadBoolean(), // boolean
+          }
+        },
       },
     },
   },
@@ -717,19 +719,19 @@ export class ContractClient implements Contract {
   }
 
   async sendTopUp(p: ContractProvider, via: Sender, value: bigint = 0n, body: TopUp) {
-    return this.sendInternal(p, via, value, builder.message.topUp.encode(body))
+    return this.sendInternal(p, via, value, builder.message.in.topUp.encode(body))
   }
 
   async sendSetRoot(p: ContractProvider, via: Sender, value: bigint = 0n, body: SetRoot) {
-    return this.sendInternal(p, via, value, builder.message.setRoot.encode(body))
+    return this.sendInternal(p, via, value, builder.message.in.setRoot.encode(body))
   }
 
   async sendExecute(p: ContractProvider, via: Sender, value: bigint = 0n, body: Execute) {
-    return this.sendInternal(p, via, value, builder.message.execute.encode(body))
+    return this.sendInternal(p, via, value, builder.message.in.execute.encode(body))
   }
 
   async sendSetConfig(p: ContractProvider, via: Sender, value: bigint = 0n, body: SetConfig) {
-    return this.sendInternal(p, via, value, builder.message.setConfig.encode(body))
+    return this.sendInternal(p, via, value, builder.message.in.setConfig.encode(body))
   }
 
   // --- Getters ---
