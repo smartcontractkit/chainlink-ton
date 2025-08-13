@@ -628,6 +628,8 @@ describe('MCMS - IntegrationTest', () => {
 
       expect(await bind.counter.getValue()).toEqual(2)
 
+      proposePredecessor = callsHash
+
       // TODO: https://github.com/smartcontractkit/ccip-owner-contracts/blob/main/test/IntegrationTest.t.sol
       //
       // again, increment twice through regular flow

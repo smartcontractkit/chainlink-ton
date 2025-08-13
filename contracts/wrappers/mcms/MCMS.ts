@@ -308,11 +308,11 @@ export type RootMetadata = {
 export type Signature = {
   // Notice: no `v: uint8;` field, as public key recovery is not supported.
 
-  r: bigint // bytes32
-  s: bigint // bytes32
+  r: bigint // uint256
+  s: bigint // uint256
 
   // Instead of v attach the signer (public key hash)
-  signer: bigint // bytes32
+  signer: bigint // uint256
 }
 
 /// @notice an op to be executed by the ManyChainMultiSig contract

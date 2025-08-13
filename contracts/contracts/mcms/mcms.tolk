@@ -446,8 +446,8 @@ struct RootMetadata {
 struct Signature {
     // Notice: no `v: uint8;` field, as public key recovery is not supported.
 
-    r: bytes32;
-    s: bytes32;
+    r: uint256;
+    s: uint256;
 
     // Instead of v attach the signer (public key hash)
     signer: uint256;
@@ -535,7 +535,7 @@ fun MCMS<T>.setRoot(
         var groupVoteCounts = createEmptyDict(); // number of votes per group, map<uint8, uint8> (indexed)
         while (!ss.empty()) {
             var s = ss.next();
-            val valid = isSignatureValid(signedHash, ss.toCell().beginParse(), s.signer);
+            val valid = isSignatureValid(signedHash, s.toCell().beginParse(), s.signer);
             if (!valid) {
                 throw ERROR_INVALID_SIGNER;
             }
@@ -805,13 +805,13 @@ fun MCMS<T>.setConfig(
 
     // Validate input lengths
     var signerKeyIterator = Iterator<uint256>.new(signerKeys);
-    val numSigners = signerKeyIterator.size(256);
+    val numSigners = signerKeyIterator.size(32); // notice size in bytes
     if (numSigners == 0 || numSigners > MAX_NUM_SIGNERS) {
         throw ERROR_OUT_OF_BOUNDS_NUM_SIGNERS;
     }
 
     var signerGroupIterator = Iterator<uint8>.new(signerGroups);
-    if (numSigners != signerGroupIterator.size(8)) {
+    if (numSigners != signerGroupIterator.size(1)) { // notice size in bytes
         throw ERROR_SIGNER_GROUPS_LENGTH_MISMATCH;
     }
 
