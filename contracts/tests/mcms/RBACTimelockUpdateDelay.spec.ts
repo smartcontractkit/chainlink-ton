@@ -2,8 +2,8 @@ import '@ton/test-utils'
 
 import { Address, toNano } from '@ton/core'
 
-import * as rbactl from '../../wrappers/mcms/RBACTimelock'
-import * as ac from '../../wrappers/lib/access/AccessControl'
+import { rbactl } from '../../wrappers/mcms'
+import { ac } from '../../wrappers/lib/access'
 
 import { BaseTestSetup, TestCode } from './BaseTest'
 import { SandboxContract, TreasuryContract } from '@ton/sandbox'

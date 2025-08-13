@@ -2,10 +2,10 @@ import '@ton/test-utils'
 
 import { Address, Cell, ExternalAddress, toNano } from '@ton/core'
 
-import { asSnakeData } from '../../utils'
+import { asSnakeData } from '../../src/utils'
 
-import * as rbactl from '../../wrappers/mcms/RBACTimelock'
-import * as ac from '../../wrappers/lib/access/AccessControl'
+import { rbactl } from '../../wrappers/mcms'
+import { ac } from '../../wrappers/lib/access'
 import * as counter from '../../wrappers/examples/Counter'
 
 import { BaseTestSetup, TestCode } from './BaseTest'

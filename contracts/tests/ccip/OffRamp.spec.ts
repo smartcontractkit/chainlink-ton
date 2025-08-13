@@ -11,7 +11,7 @@ import {
   TimestampedPrice,
 } from '../../wrappers/ccip/FeeQuoter'
 import '@ton/test-utils'
-import { uint8ArrayToBigInt, ZERO_ADDRESS } from '../../utils'
+import { uint8ArrayToBigInt, ZERO_ADDRESS } from '../../src/utils'
 import { KeyPair } from '@ton/crypto'
 import { expectEqualsConfig, generateEd25519KeyPair } from '../libraries/ocr/Helpers'
 import {
