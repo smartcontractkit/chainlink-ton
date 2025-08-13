@@ -450,7 +450,7 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
 
     // Verify root metadata shows override flag
     const rootMetadata = await baseTest.bind.mcms.getRootMetadata()
-    expect(rootMetadata.chainId).toBe(MCMSBaseTestSetup.TEST_CHAIN_ID)
+    expect(rootMetadata.chainId).toBe(-239n) // TODO: blockchain global chain ID (will need to be signed int)
     expect(rootMetadata.multiSig).toEqualAddress(baseTest.bind.mcms.address)
     expect(rootMetadata.overridePreviousRoot).toBe(true)
 
