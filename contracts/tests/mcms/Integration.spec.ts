@@ -148,8 +148,8 @@ describe('MCMS - IntegrationTest', () => {
               rbactl.roles.executor,
               {
                 adminRole: rbactl.roles.admin, // default admin role
-                membersLen: 1n, // one member (deployer)
-                hasRole: ac.builder.data.hasRoleDict([bind.mcmsPropose.address]), // TODO: Call proxy address
+                membersLen: 0n, // no members yet
+                hasRole: ac.builder.data.hasRoleDict([]), // Call proxy address will be added later
               },
             ],
             [
@@ -410,6 +410,23 @@ describe('MCMS - IntegrationTest', () => {
       })
 
       expect(await bind.callProxy.getTarget()).toEqualAddress(bind.timelock.address)
+
+      // Allow CallProxy to execute
+      const r1 = await bind.ac.sendInternal(
+        acc.deployer.getSender(),
+        toNano('0.05'),
+        ac.builder.message.in.grantRole.encode({
+          queryId: 1n,
+          role: rbactl.roles.executor,
+          account: bind.callProxy.address,
+        }),
+      )
+
+      expect(r1.transactions).toHaveTransaction({
+        from: acc.deployer.address,
+        to: bind.ac.address,
+        success: true,
+      })
     }
 
     // Deploy Counter contract
@@ -601,8 +618,8 @@ describe('MCMS - IntegrationTest', () => {
       )
 
       expect(r2.transactions).toHaveTransaction({
-        from: acc.deployer.address,
-        to: bind.callProxy.address,
+        from: bind.callProxy.address,
+        to: bind.timelock.address,
         success: false,
         exitCode: rbactl.Errors.OperationNotReady,
       })
@@ -611,7 +628,7 @@ describe('MCMS - IntegrationTest', () => {
 
       const r3 = await bind.callProxy.sendInternal(
         acc.deployer.getSender(),
-        toNano('0.10'),
+        toNano('0.80'), // TODO: notice the gas value required to pass is higher b/c reserveToncoinsOnBalance (check)
         rbactl.builder.message.in.executeBatch.encode({
           queryId: 2n,
           predecessor: proposePredecessor,
@@ -623,6 +640,18 @@ describe('MCMS - IntegrationTest', () => {
       expect(r3.transactions).toHaveTransaction({
         from: acc.deployer.address,
         to: bind.callProxy.address,
+        success: true,
+      })
+
+      expect(r3.transactions).toHaveTransaction({
+        from: bind.callProxy.address,
+        to: bind.timelock.address,
+        success: true,
+      })
+
+      expect(r3.transactions).toHaveTransaction({
+        from: bind.timelock.address,
+        to: bind.counter.address,
         success: true,
       })
 

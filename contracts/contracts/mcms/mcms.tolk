@@ -605,95 +605,95 @@ fun MCMS<T>.setRoot(
                     group = parent;
                 }
             }
-
-            // the group at the root of the tree (with index 0) determines whether the vote passed,
-            // we cannot proceed if it isn't configured with a valid (non-zero) quorum
-            var rootQuorum: uint8;
-            {
-                var (_rootQuorum, exists) = config.groupQuorums.uDictGet(8, 0);
-                if (!exists) {
-                    throw ERROR_MISSING_CONFIG;
-                }
-                rootQuorum = _rootQuorum!.loadUint(8);
-                if (rootQuorum == 0) {
-                    throw ERROR_MISSING_CONFIG;
-                }
-            }
-
-            // did the root group reach its quorum?
-            var (_rootVotes, exists) = groupVoteCounts.uDictGet(8, 0);
-            if (!exists || _rootVotes!.loadUint(8) < rootQuorum) {
-                throw ERROR_INSUFFICIENT_SIGNERS;
-            }
         }
 
-        if (validUntil < blockchain.now()) {
-            throw ERROR_VALID_UNTIL_HAS_ALREADY_PASSED;
-        }
-
+        // the group at the root of the tree (with index 0) determines whether the vote passed,
+        // we cannot proceed if it isn't configured with a valid (non-zero) quorum
+        var rootQuorum: uint8;
         {
-            // verify metadataProof
-            // Notice: we use the standard sha256 hash function to hash the leaf.
-            val hashedLeaf =
-                beginCell()
-                    .storeUint(MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA, 256)
-                    .storeSlice(metadata.toCell().beginParse())
-                    .endCell()
-                    .hash();
-            // "../lib/crypto/merkle_proof.tolk"
-            if (!verify(metadataProof, root, hashedLeaf)) {
-                throw ERROR_PROOF_CANNOT_BE_VERIFIED;
+            var (_rootQuorum, exists) = config.groupQuorums.uDictGet(8, 0);
+            if (!exists) {
+                throw ERROR_MISSING_CONFIG;
+            }
+            rootQuorum = _rootQuorum!.loadUint(8);
+            if (rootQuorum == 0) {
+                throw ERROR_MISSING_CONFIG;
             }
         }
 
-        // Check if right environment via chainId
-        if (globalId() as int256 != metadata.chainId) {
-            throw ERROR_WRONG_CHAIN_ID;
+        // did the root group reach its quorum?
+        var (_rootVotes, exists) = groupVoteCounts.uDictGet(8, 0);
+        if (!exists || _rootVotes!.loadUint(8) < rootQuorum) {
+            throw ERROR_INSUFFICIENT_SIGNERS;
         }
-
-        if (contract.getAddress() != metadata.multiSig) {
-            throw ERROR_WRONG_MULTI_SIG;
-        }
-
-        val opCount: uint40 = self.data.expiringRootAndOpCount.opCount;
-
-        // don't allow a new root to be set if there are still outstanding ops that have not been
-        // executed, unless overridePreviousRoot is set
-        //
-        // Unpack the root metadata from the contract data
-        val rootMetadata = lazy RootMetadata.fromCell(self.data.rootMetadata);
-        if (opCount != rootMetadata.postOpCount && !metadata.overridePreviousRoot) {
-            throw ERROR_PENDING_OPS;
-        }
-
-        // the signers are responsible for tracking opCount offchain and ensuring that
-        // preOpCount equals to opCount
-        if (opCount != metadata.preOpCount) {
-            throw ERROR_WRONG_PRE_OP_COUNT;
-        }
-
-        if (metadata.preOpCount > metadata.postOpCount) {
-            throw ERROR_WRONG_POST_OP_COUNT;
-        }
-
-        // done with validation, persist in in contract state
-        self.data.seenSignedHashes.uDictSet(256, signedHash, createEmptySlice());
-        self.data.expiringRootAndOpCount = ExpiringRootAndOpCount{
-            root: root,
-            validUntil: validUntil,
-            opCount: metadata.preOpCount
-        };
-        self.data.rootMetadata = metadata.toCell();
-
-        // Send a message to the sender to notify about the change
-        val reply = createMessage({
-            bounce: false,
-            value: 0,
-            dest: sender,
-            body: MCMS_NewRoot{queryId, root, validUntil, metadata}
-        });
-        reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
     }
+
+    if (validUntil < blockchain.now()) {
+        throw ERROR_VALID_UNTIL_HAS_ALREADY_PASSED;
+    }
+
+    {
+        // verify metadataProof
+        // Notice: we use the standard sha256 hash function to hash the leaf.
+        val hashedLeaf =
+            beginCell()
+                .storeUint(MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA, 256)
+                .storeSlice(metadata.toCell().beginParse())
+                .endCell()
+                .hash();
+        // "../lib/crypto/merkle_proof.tolk"
+        if (!verify(metadataProof, root, hashedLeaf)) {
+            throw ERROR_PROOF_CANNOT_BE_VERIFIED;
+        }
+    }
+
+    // Check if right environment via chainId
+    if (globalId() as int256 != metadata.chainId) {
+        throw ERROR_WRONG_CHAIN_ID;
+    }
+
+    if (contract.getAddress() != metadata.multiSig) {
+        throw ERROR_WRONG_MULTI_SIG;
+    }
+
+    val opCount: uint40 = self.data.expiringRootAndOpCount.opCount;
+
+    // don't allow a new root to be set if there are still outstanding ops that have not been
+    // executed, unless overridePreviousRoot is set
+    //
+    // Unpack the root metadata from the contract data
+    val rootMetadata = lazy RootMetadata.fromCell(self.data.rootMetadata);
+    if (opCount != rootMetadata.postOpCount && !metadata.overridePreviousRoot) {
+        throw ERROR_PENDING_OPS;
+    }
+
+    // the signers are responsible for tracking opCount offchain and ensuring that
+    // preOpCount equals to opCount
+    if (opCount != metadata.preOpCount) {
+        throw ERROR_WRONG_PRE_OP_COUNT;
+    }
+
+    if (metadata.preOpCount > metadata.postOpCount) {
+        throw ERROR_WRONG_POST_OP_COUNT;
+    }
+
+    // done with validation, persist in in contract state
+    self.data.seenSignedHashes.uDictSet(256, signedHash, createEmptySlice());
+    self.data.expiringRootAndOpCount = ExpiringRootAndOpCount{
+        root: root,
+        validUntil: validUntil,
+        opCount: metadata.preOpCount
+    };
+    self.data.rootMetadata = metadata.toCell();
+
+    // Send a message to the sender to notify about the change
+    val reply = createMessage({
+        bounce: false,
+        value: 0,
+        dest: sender,
+        body: MCMS_NewRoot{queryId, root, validUntil, metadata}
+    });
+    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 /// @notice Execute the received op after verifying the proof of its inclusion in the
@@ -751,7 +751,7 @@ fun MCMS<T>.execute(
     val hashedLeaf =
         beginCell()
             .storeUint(MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP, 256)
-            .storeSlice(op.toCell().beginParse())
+            .storeRef(op.toCell())
             .endCell()
             .hash();
     // "../lib/crypto/merkle_proof.tolk"
