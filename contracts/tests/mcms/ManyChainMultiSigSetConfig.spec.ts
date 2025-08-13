@@ -6,7 +6,7 @@ import * as ac from '../../wrappers/lib/access/AccessControl'
 import * as mcms from '../../wrappers/mcms/MCMS'
 
 import { MCMSBaseTestSetup, MCMSTestCode } from './ManyChainMultiSigBaseTest'
-import { asSnakeData } from '../../utils/Utils'
+import { asSnakeData } from '../../src/utils'
 
 describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
   let baseTest: MCMSBaseTestSetup
@@ -26,9 +26,9 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
     // Try to call setConfig from non-owner address (should fail)
     const setConfigBody = mcms.builder.message.setConfig.encode({
       queryId: 1n,
-      signerAddresses: asSnakeData<Address>(
-        baseTest.testSigners.map((s) => s.address),
-        (a) => beginCell().storeAddress(a),
+      signerKeys: asSnakeData<bigint>(
+        baseTest.testSigners.map((s) => BigInt('0x' + s.keyPair.publicKey.toString('hex'))),
+        (a) => beginCell().storeUint(a, 256),
       ),
       signerGroups: asSnakeData<number>(
         baseTest.testSigners.map((s) => s.group),
