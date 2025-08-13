@@ -524,6 +524,24 @@ export const builder = {
         }
       },
     }
+    // Creates a new `Signer` data cell
+    const signer: CellCodec<Signer> = {
+      encode: (signer: Signer): Cell => {
+        return beginCell()
+          .storeAddress(signer.address)
+          .storeUint(signer.index, 8)
+          .storeUint(signer.group, 8)
+          .endCell()
+      },
+      decode: (cell: Cell): Signer => {
+        const s = cell.beginParse()
+        return {
+          address: s.loadAddress(),
+          index: s.loadUint(8),
+          group: s.loadUint(8),
+        }
+      },
+    }
 
     // Creates a new `MCMS_Op` data cell
     const op: CellCodec<Op> = {
@@ -697,6 +715,7 @@ export const builder = {
       signature,
       contractData,
       contractDataEmpty,
+      signer,
     }
   })(),
 }
