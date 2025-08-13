@@ -312,7 +312,7 @@ export type Signature = {
   s: bigint // bytes32
 
   // Instead of v attach the signer (public key hash)
-  signer: Address
+  signer: bigint // bytes32
 }
 
 /// @notice an op to be executed by the ManyChainMultiSig contract
@@ -552,7 +552,7 @@ export const builder = {
         return beginCell()
           .storeUint(data.r, 256)
           .storeUint(data.s, 256)
-          .storeAddress(data.signer)
+          .storeUint(data.signer, 256)
           .endCell()
       },
       decode: (cell: Cell): Signature => {
@@ -560,7 +560,7 @@ export const builder = {
         return {
           r: s.loadUintBig(256),
           s: s.loadUintBig(256),
-          signer: s.loadAddress(),
+          signer: s.loadUintBig(256),
         }
       },
     }

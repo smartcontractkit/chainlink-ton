@@ -46,8 +46,16 @@ export type SignatureEd25519 = {
   signer: bigint
 }
 
-export function createSignature(signer: KeyPair, data: Buffer<ArrayBufferLike>): SignatureEd25519 {
-  const signature = sign(data, signer.secretKey)
+export type Signer = {
+  publicKey: Uint8Array // 32 bytes
+  sign: (data: Buffer<ArrayBufferLike>) => Buffer
+}
+
+export function createSignatureWith(
+  signer: Signer,
+  data: Buffer<ArrayBufferLike>,
+): SignatureEd25519 {
+  const signature = signer.sign(data)
 
   const r = uint8ArrayToBigInt(signature.subarray(0, 32))
   const s = uint8ArrayToBigInt(signature.subarray(32, 64))
@@ -58,6 +66,14 @@ export function createSignature(signer: KeyPair, data: Buffer<ArrayBufferLike>):
     s,
     signer: signerPublicKey,
   }
+}
+
+export function createSignature(key: KeyPair, data: Buffer<ArrayBufferLike>): SignatureEd25519 {
+  const signer = {
+    publicKey: key.publicKey,
+    sign: (data: Buffer<ArrayBufferLike>) => sign(data, key.secretKey),
+  }
+  return createSignatureWith(signer, data)
 }
 
 export function newOCR3BaseExampleContractCell(chainId: number, contractId: number): Cell {
