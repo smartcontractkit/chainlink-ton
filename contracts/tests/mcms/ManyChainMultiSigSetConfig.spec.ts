@@ -41,7 +41,7 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
 
     const result = await baseTest.bind.mcms.sendInternal(
       baseTest.acc.externalCaller.getSender(),
-      toNano('0.05'),
+      toNano('1'),
       setConfigBody,
     )
 
@@ -49,7 +49,7 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
       from: baseTest.acc.externalCaller.address,
       to: baseTest.bind.mcms.address,
       success: false,
-      exitCode: ac.Errors.UnauthorizedAccount,
+      exitCode: 132, // ERROR_ONLY_CALLABLE_BY_OWNER(ownable_2step) // TBD: This should be exposed by some binding.
     })
   })
 

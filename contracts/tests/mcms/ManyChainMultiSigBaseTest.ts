@@ -331,7 +331,7 @@ export class MCMSBaseTestSetup {
 
     const result = await this.bind.mcms.sendInternal(
       this.acc.multisigOwner.getSender(),
-      toNano('0.05'),
+      toNano('1'),
       setConfigBody,
     )
 
