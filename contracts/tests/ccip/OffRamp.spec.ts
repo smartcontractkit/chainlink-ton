@@ -592,7 +592,5 @@ describe('OffRamp', () => {
       deploy: true,
       success: true,
     })
-
-
   })
 })
