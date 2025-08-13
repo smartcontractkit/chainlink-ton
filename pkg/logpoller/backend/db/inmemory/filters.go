@@ -92,13 +92,13 @@ func (f *inMemoryFilters) GetDistinctAddresses() ([]*address.Address, error) {
 }
 
 // GetFiltersForAddress returns all filters registered for a given address.
-func (f *inMemoryFilters) GetFiltersForAddress(_ context.Context, addr address.Address) ([]types.Filter, error) {
+func (f *inMemoryFilters) GetFiltersForAddress(_ context.Context, addr *address.Address) ([]types.Filter, error) {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 
 	var out []types.Filter
 	for _, flt := range f.filtersByName {
-		if flt.Address.Equals(&addr) {
+		if flt.Address.Equals(addr) {
 			out = append(out, flt)
 		}
 	}
@@ -106,13 +106,13 @@ func (f *inMemoryFilters) GetFiltersForAddress(_ context.Context, addr address.A
 }
 
 // GetFiltersForAddressAndMsgType returns filters for a specific address and message type.
-func (f *inMemoryFilters) GetFiltersForAddressAndMsgType(_ context.Context, addr address.Address, msgType tlb.MsgType) ([]types.Filter, error) {
+func (f *inMemoryFilters) GetFiltersForAddressAndMsgType(_ context.Context, addr *address.Address, msgType tlb.MsgType) ([]types.Filter, error) {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 
 	var out []types.Filter
 	for _, flt := range f.filtersByName {
-		if flt.Address.Equals(&addr) && flt.MsgType == msgType {
+		if flt.Address.Equals(addr) && flt.MsgType == msgType {
 			out = append(out, flt)
 		}
 	}

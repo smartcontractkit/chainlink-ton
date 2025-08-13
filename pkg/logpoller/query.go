@@ -105,7 +105,7 @@ func (b *queryBuilder[T]) Execute(_ context.Context) (query.Result[T], error) {
 	var filteredLogs []types.Log
 	for _, log := range preFilteredLogs {
 		var event T
-		parseErr := tlb.LoadFromCell(&event, log.Data.BeginParse())
+		parseErr := tlb.LoadFromCell(&event, log.Data.BeginParse(), true) // skip magic all the time
 		if parseErr != nil {
 			return query.Result[T]{}, fmt.Errorf("failed to parse log cell: %w", parseErr)
 		}

@@ -32,7 +32,7 @@ type FilterStore interface {
 	// GetDistinctAddresses returns a slice of unique addresses that are being monitored.
 	GetDistinctAddresses() ([]*address.Address, error)
 	// GetFiltersForAddressAndMsgType returns filters for a specific address and message type.
-	GetFiltersForAddressAndMsgType(ctx context.Context, addr address.Address, msgType tlb.MsgType) ([]types.Filter, error)
+	GetFiltersForAddressAndMsgType(ctx context.Context, addr *address.Address, msgType tlb.MsgType) ([]types.Filter, error)
 }
 
 // TxLoader defines the interface for loading transactions from the TON blockchain.
@@ -40,7 +40,7 @@ type TxLoader interface {
 	LoadTxsForAddresses(ctx context.Context, blockRange *types.BlockRange, srcAddrs []*address.Address) ([]types.TxWithBlock, error)
 }
 
-type Indexer interface {
+type TxIndexer interface {
 	IndexTransactions(txs []types.TxWithBlock) ([]types.Log, error)
 }
 

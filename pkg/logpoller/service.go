@@ -31,7 +31,7 @@ type service struct {
 	client  ton.APIClientWrapped // TON blockchain client
 	filters FilterStore          // Registry of active filters
 	loader  TxLoader             // Transaction loader returning loaded txs
-	indexer Indexer              // Transaction indexer returning indexed logs
+	indexer TxIndexer            // Transaction indexer returning indexed logs
 	store   LogStore             // Log storage (MVP: in-memory, to be replaced with ORM)
 
 	pollPeriod         time.Duration // How often to poll for new blocks
@@ -44,8 +44,8 @@ func NewService(lggr logger.Logger, opts *ServiceOptions) Service {
 		lggr:       logger.Sugared(lggr),
 		client:     opts.Client,
 		filters:    opts.Filters,
-		loader:     opts.Loader,
-		indexer:    opts.Indexer,
+		loader:     opts.TxLoader,
+		indexer:    opts.TxIndexer,
 		store:      opts.Store,
 		pollPeriod: opts.Config.PollPeriod,
 	}
@@ -194,6 +194,9 @@ func (lp *service) processBlockRange(ctx context.Context, blockRange *types.Bloc
 		lp.store.SaveLog(log)
 	}
 	lp.lggr.Infow("successfully saved new logs to store", "count", len(logs))
+	for _, l := range logs {
+		lp.lggr.Debugf("saved log: %s", l.String())
+	}
 
 	return nil
 }

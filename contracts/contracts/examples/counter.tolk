@@ -33,10 +33,21 @@ struct CountIncreased {
     value: uint32
 }
 
+/// Reply back to sender when the counter is set
+struct (0xf3a02426) CountSetMsg {
+    id: uint32
+    value: uint32
+}
+
+/// Reply back to sender when the counter is increased
+struct (0x41c92746) CountIncreasedMsg {
+    id: uint32
+    value: uint32
+}
+
 struct Storage {
     id: uint32
     value: uint32
-
     ownable: Ownable2Step
 }
 
@@ -59,7 +70,18 @@ fun onInternalMessage(in: InMessage) {
             st.ownable.requireOwner(in.senderAddress);
             st.value = msg.newCount;
             st.store();
+
+            // emit ExtMsgOut
             emit<CountSet>(COUNT_SET_TOPIC, { id: st.id, value: st.value });
+
+            // reply back to sender
+            val reply = createMessage({
+                bounce: false,
+                value: 0,
+                dest: in.senderAddress,
+                body: CountSetMsg { id: st.id, value: st.value },
+            });
+            reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
         }
         IncreaseCount => {
             /// Instructs the contract to increase the counter.
@@ -67,7 +89,18 @@ fun onInternalMessage(in: InMessage) {
             st.ownable.requireOwner(in.senderAddress);
             st.value = st.value + 1;
             st.store();
+
+            // emit ExtMsgOut
             emit<CountIncreased>(COUNT_INCREASED_TOPIC, { id: st.id, value: st.value });
+
+            // reply back to sender
+            val reply = createMessage({
+                bounce: false,
+                value: 0,
+                dest: in.senderAddress,
+                body: CountIncreasedMsg { id: st.id, value: st.value },
+            });
+            reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
         }
         else => {
             var st = lazy Storage.load();

@@ -49,6 +49,20 @@ type CountIncreased struct {
 	Value uint32 `tlb:"## 32"`
 }
 
+// Reply message to sender when the counter is set.
+type CountSetMsg struct {
+	_     tlb.Magic `tlb:"#0xf3a02426"` //nolint:revive // (opcode) should stay uninitialized
+	ID    uint32    `tlb:"## 32"`
+	Value uint32    `tlb:"## 32"`
+}
+
+// Reply message to sender when the counter is increased.
+type CountIncreasedMsg struct {
+	_     tlb.Magic `tlb:"#0x41c92746"` //nolint:revive // (opcode) should stay uninitialized
+	ID    uint32    `tlb:"## 32"`
+	Value uint32    `tlb:"## 32"`
+}
+
 // Getters
 
 func GetValue(ctx context.Context, api ton.APIClientWrapped, addr *address.Address) (uint32, error) {

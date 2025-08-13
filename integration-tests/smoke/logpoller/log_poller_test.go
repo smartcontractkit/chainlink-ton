@@ -32,7 +32,7 @@ func Test_LogPoller(t *testing.T) {
 	client := test_utils.CreateAPIClient(t, chainsel.TON_LOCALNET.Selector).WithRetry()
 	require.NotNil(t, client)
 
-	t.Run("log poller:accountmsgloader event ingestion", func(t *testing.T) {
+	t.Run("log poller:Loader event ingestion", func(t *testing.T) {
 		t.Parallel()
 		// test event source config
 		const batchCount = 3
@@ -93,7 +93,7 @@ func Test_LogPoller(t *testing.T) {
 					}
 				}
 			}
-			require.NoError(t, helper.VerifyLoadedEvents(exts, expectedEvents))
+			require.NoError(t, helper.VerifyLoadedCountIncreasedEvents(exts, expectedEvents))
 		})
 
 		t.Run("loading block by block", func(t *testing.T) {
@@ -141,12 +141,10 @@ func Test_LogPoller(t *testing.T) {
 			}
 
 			// verify if we loaded all expected events, without duplicates
-			err = helper.VerifyLoadedEvents(allMsgs, batchCount*txPerBatch*msgPerTx)
+			err = helper.VerifyLoadedCountIncreasedEvents(allMsgs, batchCount*txPerBatch*msgPerTx)
 			require.NoError(t, err)
 		})
 	})
-
-	// TODO: internal message indexing and testing
 
 	t.Run("Logpoller live event ingestion", func(t *testing.T) {
 		t.Parallel()
@@ -173,12 +171,12 @@ func Test_LogPoller(t *testing.T) {
 		indexer := indexer.NewIndexer(logger.Test(t), filterStore)
 
 		opts := &logpoller.ServiceOptions{
-			Config:  cfg,
-			Client:  client,
-			Filters: filterStore,
-			Loader:  loader,
-			Indexer: indexer,
-			Store:   logStore,
+			Config:    cfg,
+			Client:    client,
+			Filters:   filterStore,
+			TxLoader:  loader,
+			TxIndexer: indexer,
+			Store:     logStore,
 		}
 		lp := logpoller.NewService(
 			logger.Test(t),
@@ -190,7 +188,7 @@ func Test_LogPoller(t *testing.T) {
 			Name:     "FilterA",
 			Address:  emitterA.ContractAddress(),
 			MsgType:  tlb.MsgTypeExternalOut,
-			EventSig: counter.TopicCountIncreased,
+			EventSig: counter.TopicCountIncreased, // event topic
 		}
 		faerr := lp.RegisterFilter(t.Context(), filterA)
 		require.NoError(t, faerr)
@@ -199,10 +197,20 @@ func Test_LogPoller(t *testing.T) {
 			Name:     "FilterB",
 			Address:  emitterB.ContractAddress(),
 			MsgType:  tlb.MsgTypeExternalOut,
-			EventSig: counter.TopicCountIncreased,
+			EventSig: counter.TopicCountIncreased, // event topic
 		}
 		fberr := lp.RegisterFilter(t.Context(), filterB)
 		require.NoError(t, fberr)
+
+		// register filter for internal message
+		filterC := types.Filter{
+			Name:     "FilterC",
+			Address:  emitterA.ContractAddress(),
+			MsgType:  tlb.MsgTypeInternal,
+			EventSig: 0x41c92746, // opcode
+		}
+		fcerr := lp.RegisterFilter(t.Context(), filterC)
+		require.NoError(t, fcerr)
 
 		hasFilterA, aerr := lp.HasFilter(t.Context(), filterA.Name)
 		require.NoError(t, aerr)
@@ -210,9 +218,13 @@ func Test_LogPoller(t *testing.T) {
 		hasFilterB, berr := lp.HasFilter(t.Context(), filterB.Name)
 		require.NoError(t, berr)
 		require.True(t, hasFilterB)
-		hasFilterC, cerr := lp.HasFilter(t.Context(), "tons of fun")
+		hasFilterC, cerr := lp.HasFilter(t.Context(), filterC.Name)
 		require.NoError(t, cerr)
-		require.False(t, hasFilterC)
+		require.True(t, hasFilterC)
+
+		hasFilterD, derr := lp.HasFilter(t.Context(), "tons of fun")
+		require.NoError(t, derr)
+		require.False(t, hasFilterD)
 
 		// start listening for logs
 		require.NoError(t, lp.Start(t.Context()))
@@ -275,7 +287,6 @@ func Test_LogPoller(t *testing.T) {
 
 			options := query.Options{} // Default options (no sorting, no pagination)
 
-			// Use the new unified query interface
 			resA, resAErr := logpoller.NewQuery[counter.CountIncreased](lp.GetStore()).
 				WithSrcAddress(emitterA.ContractAddress()).
 				WithEventSig(counter.TopicCountIncreased).
@@ -315,14 +326,14 @@ func Test_LogPoller(t *testing.T) {
 			}
 
 			// Verify the content of the logs for emitterA (no duplicates, all counters present)
-			verrA := helper.VerifyLoadedEvents(msgsA, targetCounter)
+			verrA := helper.VerifyLoadedCountIncreasedEvents(msgsA, targetCounter)
 			if verrA != nil {
 				t.Logf("log verification failed for emitterA, will retry: %v", verrA)
 				return false
 			}
 
 			// Verify the content of the logs for emitterB (no duplicates, all counters present)
-			verrB := helper.VerifyLoadedEvents(msgsB, targetCounter)
+			verrB := helper.VerifyLoadedCountIncreasedEvents(msgsB, targetCounter)
 			if verrB != nil {
 				t.Logf("log verification failed for emitterB, will retry: %v", verrB)
 				return false
@@ -348,6 +359,30 @@ func Test_LogPoller(t *testing.T) {
 				}
 				t.Logf("waiting for logs B... have %d, want %d", len(resB.Logs), targetCounter)
 				return false // Not enough logs yet, Eventually will retry.
+			}
+
+			// verify stored internal messages
+			replyLogsRes, rlerr := logpoller.NewQuery[counter.CountIncreasedMsg](lp.GetStore()).
+				WithSrcAddress(emitterA.ContractAddress()).
+				WithEventSig(0x41c92746). //TODO: how can we get opcode directly from binding?
+				WithByteFilter(filters[0]).
+				WithByteFilter(filters[1]).
+				WithOptions(options).
+				Execute(t.Context())
+			require.NoError(t, rlerr) // query should not fail
+
+			if len(replyLogsRes.Logs) != targetCounter {
+				for _, log := range replyLogsRes.Logs {
+					t.Logf("emitterA Reply Log: %s", log.String())
+
+					var event counter.CountIncreasedMsg
+					err = tlb.LoadFromCell(&event, log.Data.BeginParse(), true)
+					require.NoError(t, err)
+
+					t.Logf("emitterA Reply Event Counter=%d", event.Value)
+				}
+				t.Logf("waiting for internal messages to be indexed... have %d, want %d", len(replyLogsRes.Logs), targetCounter)
+				return false
 			}
 
 			// If log count and content are correct for both, the test condition is met
