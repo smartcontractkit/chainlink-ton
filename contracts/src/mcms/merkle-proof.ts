@@ -48,8 +48,9 @@ export function computeProofForLeaf(data: bigint[], index: number): bigint[] {
     throw new Error('Invalid proof request: data length must be even')
   }
 
-  const proof: bigint[] = new Array(proofLen(data.length))
+  const _proofLen = proofLen(data.length)
 
+  const proof: bigint[] = []
   while (data.length > 1) {
     if ((index & 0x1) === 1) {
       proof.push(data[index - 1])
@@ -59,6 +60,11 @@ export function computeProofForLeaf(data: bigint[], index: number): bigint[] {
     index = Math.floor(index / 2)
     data = hashLevel(data)
   }
+
+  if (proof.length !== _proofLen) {
+    throw new Error(`Invalid proof length: expected ${_proofLen}, got ${proof.length}`)
+  }
+
   return proof
 }
 
@@ -111,8 +117,8 @@ export function leafOpPreimage(op: mcms.Op): Cell {
     .endCell()
 }
 
-export function proofLen(opsLen: number): number {
-  return Math.ceil(Math.log2(opsLen + 1))
+export function proofLen(leavesLen: number): number {
+  return Math.ceil(Math.log2(leavesLen))
 }
 
 export function getLeafIndexOfOp(opIndex: number): number {
@@ -134,10 +140,12 @@ export function constructAnsSignRootAndProof(
   return { root, metadataProof, signatures }
 }
 
-// Placeholder for computeRoot and fillSignatures
 export function computeRoot(leaves: bigint[]): bigint {
-  // Implement Merkle root computation
-  throw new Error('Not implemented')
+  let currentLayer = leaves
+  while (currentLayer.length > 1) {
+    currentLayer = hashLevel(currentLayer)
+  }
+  return currentLayer[0]
 }
 
 function fillSignatures(root: bigint, validUntil: bigint, signers: ocr.Signer[]): mcms.Signature[] {

@@ -633,5 +633,5 @@ describe('MCMS - IntegrationTest', () => {
       // again, increment twice through regular flow
       //
     }
-  })
+  }, 10_000) // test can take a while
 })
