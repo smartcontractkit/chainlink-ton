@@ -199,7 +199,7 @@ describe('MCMS - IntegrationTest', () => {
 
     // Deploy Timelock contract
     {
-      const body = rbactl.builder.message.topUp.encode({ queryId: 1n })
+      const body = rbactl.builder.message.in.topUp.encode({ queryId: 1n })
       const result = await bind.timelock.sendInternal(
         acc.deployer.getSender(),
         toNano('0.05'),
@@ -219,7 +219,7 @@ describe('MCMS - IntegrationTest', () => {
 
     // Deploy MCMS contracts
     {
-      const body = mcms.builder.message.topUp.encode({ queryId: 1n })
+      const body = mcms.builder.message.in.topUp.encode({ queryId: 1n })
       const result = await bind.mcmsPropose.sendInternal(
         acc.deployer.getSender(),
         toNano('0.05'),
@@ -242,7 +242,7 @@ describe('MCMS - IntegrationTest', () => {
     }
 
     {
-      const body = mcms.builder.message.topUp.encode({ queryId: 1n })
+      const body = mcms.builder.message.in.topUp.encode({ queryId: 1n })
       const result = await bind.mcmsVeto.sendInternal(
         acc.deployer.getSender(),
         toNano('0.05'),
@@ -263,7 +263,7 @@ describe('MCMS - IntegrationTest', () => {
     }
 
     {
-      const body = mcms.builder.message.topUp.encode({ queryId: 1n })
+      const body = mcms.builder.message.in.topUp.encode({ queryId: 1n })
       const result = await bind.mcmsBypass.sendInternal(
         acc.deployer.getSender(),
         toNano('0.05'),
@@ -285,7 +285,7 @@ describe('MCMS - IntegrationTest', () => {
 
     // Deploy CallProxy contract
     {
-      const body = mcms.builder.message.topUp.encode({ queryId: 1n })
+      const body = mcms.builder.message.in.topUp.encode({ queryId: 1n })
       const result = await bind.callProxy.sendInternal(
         acc.deployer.getSender(),
         toNano('0.05'),
@@ -330,7 +330,7 @@ describe('MCMS - IntegrationTest', () => {
     await ownable.sendInternal(
       acc.deployer.getSender(),
       toNano('0.05'),
-      ownable2step.builder.message.transferOwnership.encode({
+      ownable2step.builder.message.in.transferOwnership.encode({
         queryId: 1n,
         newOwner: bind.timelock.address,
       }),
@@ -340,13 +340,13 @@ describe('MCMS - IntegrationTest', () => {
     const result = await bind.timelock.sendInternal(
       acc.deployer.getSender(),
       toNano('0.10'),
-      rbactl.builder.message.bypasserExecuteBatch.encode({
+      rbactl.builder.message.in.bypasserExecuteBatch.encode({
         queryId: 1n,
         // Notice: single call encoded as calls
         calls: rbactl.builder.data.call.encode({
           target: ownable.address,
           value: toNano('0.05'),
-          data: ownable2step.builder.message.acceptOwnership.encode({ queryId: 1n }),
+          data: ownable2step.builder.message.in.acceptOwnership.encode({ queryId: 1n }),
         }),
       }),
     )

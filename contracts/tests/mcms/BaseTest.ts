@@ -221,7 +221,7 @@ export class BaseTestSetup {
    * Deploy the timelock contract and verify deployment
    */
   async deployTimelockContract(): Promise<void> {
-    const body = rbactl.builder.message.topUp.encode({ queryId: 1n })
+    const body = rbactl.builder.message.in.topUp.encode({ queryId: 1n })
     const result = await this.bind.timelock.sendInternal(
       this.acc.deployer.getSender(),
       toNano('0.05'),
@@ -241,12 +241,12 @@ export class BaseTestSetup {
 
   // TODO
   // deployCallProxyContract() {
-  //   const body = callproxy.builder.message.topUp.encode({ queryId: 1n })
+  //   const body = callproxy.builder.message.in.topUp.encode({ queryId: 1n })
   //   return this.bind.callProxy.sendInternal(this.acc.deployer.getSender(), toNano('0.05'), body)
   // }
 
   deployCounterContract() {
-    // const body = counter.builder.message.topUp.encode({ queryId: 1n }) // TODO use TopUp after it is implemented
+    // const body = counter.builder.message.in.topUp.encode({ queryId: 1n }) // TODO use TopUp after it is implemented
     const body = beginCell().endCell()
     return this.bind.counter.sendInternal(this.acc.deployer.getSender(), toNano('0.05'), body)
   }
