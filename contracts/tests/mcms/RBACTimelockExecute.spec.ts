@@ -8,7 +8,7 @@ import * as ac from '../../wrappers/lib/access/AccessControl'
 
 import { BaseTestSetup, TestCode } from './BaseTest'
 import { SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { asSnakeData } from '../../utils'
+import { asSnakeData } from '../../src/utils'
 
 describe('MCMS - RBACTimelockExecuteTest', () => {
   let baseTest: BaseTestSetup

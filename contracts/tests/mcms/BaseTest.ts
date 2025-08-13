@@ -4,12 +4,12 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Address, Cell, Dictionary, toNano, beginCell } from '@ton/core'
 import { compile } from '@ton/blueprint'
 
-import { asSnakeData } from '../../utils'
+import { asSnakeData } from '../../src/utils'
 
-import * as mcms from '../../wrappers/mcms/MCMS'
-import * as rbactl from '../../wrappers/mcms/RBACTimelock'
-import * as callproxy from '../../wrappers/mcms/CallProxy'
-import * as ac from '../../wrappers/lib/access/AccessControl'
+import { mcms } from '../../wrappers/mcms'
+import { rbactl } from '../../wrappers/mcms'
+import { callproxy } from '../../wrappers/mcms'
+import { ac } from '../../wrappers/lib/access'
 import * as counter from '../../wrappers/examples/Counter'
 import * as ownable2step from '../../wrappers/libraries/access/Ownable2Step'
 

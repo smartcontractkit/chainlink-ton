@@ -9,10 +9,10 @@ import {
   SendMode,
 } from '@ton/core'
 import { KeyPair, sign } from '@ton/crypto'
-import { bigIntToUint8Array, hashSync, uint8ArrayToBigInt } from '../../../utils'
+import { bigIntToUint8Array, hashSync, uint8ArrayToBigInt } from '../../../src/utils'
 
 import { crc32 } from 'zlib'
-import { asSnakeData, fromSnakeData } from '../../../utils'
+import { asSnakeData, fromSnakeData } from '../../../src/utils'
 
 export const OCR3_PLUGIN_TYPE_COMMIT = 0x0000
 export const OCR3_PLUGIN_TYPE_EXECUTE = 0x0001
@@ -46,8 +46,16 @@ export type SignatureEd25519 = {
   signer: bigint
 }
 
-export function createSignature(signer: KeyPair, data: Buffer<ArrayBufferLike>): SignatureEd25519 {
-  const signature = sign(data, signer.secretKey)
+export type Signer = {
+  publicKey: Uint8Array // 32 bytes
+  sign: (data: Buffer<ArrayBufferLike>) => Buffer
+}
+
+export function createSignatureWith(
+  signer: Signer,
+  data: Buffer<ArrayBufferLike>,
+): SignatureEd25519 {
+  const signature = signer.sign(data)
 
   const r = uint8ArrayToBigInt(signature.subarray(0, 32))
   const s = uint8ArrayToBigInt(signature.subarray(32, 64))
@@ -58,6 +66,14 @@ export function createSignature(signer: KeyPair, data: Buffer<ArrayBufferLike>):
     s,
     signer: signerPublicKey,
   }
+}
+
+export function createSignature(key: KeyPair, data: Buffer<ArrayBufferLike>): SignatureEd25519 {
+  const signer = {
+    publicKey: key.publicKey,
+    sign: (data: Buffer<ArrayBufferLike>) => sign(data, key.secretKey),
+  }
+  return createSignatureWith(signer, data)
 }
 
 export function newOCR3BaseExampleContractCell(chainId: number, contractId: number): Cell {

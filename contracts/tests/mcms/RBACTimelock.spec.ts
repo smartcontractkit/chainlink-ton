@@ -3,10 +3,10 @@ import { Cell, beginCell, toNano } from '@ton/core'
 import { compile } from '@ton/blueprint'
 import '@ton/test-utils'
 
-import * as rbactl from '../../wrappers/mcms/RBACTimelock'
-import * as ac from '../../wrappers/lib/access/AccessControl'
+import { rbactl } from '../../wrappers/mcms'
+import { ac } from '../../wrappers/lib/access'
 import { crc32 } from 'zlib'
-import { asSnakeData } from '../../utils'
+import { asSnakeData } from '../../src/utils'
 
 describe('RBACTimelock', () => {
   let code: Cell

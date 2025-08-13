@@ -29,9 +29,9 @@ import {
 } from '../../wrappers/ccip/FeeQuoter'
 import { assertLog, expectFailedTransaction, expectSuccessfulTransaction } from '../Logs'
 import '@ton/test-utils'
+import { bigIntToUint8Array, uint8ArrayToBigInt, ZERO_ADDRESS } from '../../src/utils'
 import { KeyPair, sha256_sync } from '@ton/crypto'
-import '@ton/test-utils'
-import { bigIntToUint8Array, uint8ArrayToBigInt, ZERO_ADDRESS } from '../../utils'
+
 import {
   expectEqualsConfig,
   generateEd25519KeyPair,

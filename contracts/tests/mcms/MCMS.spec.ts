@@ -4,7 +4,7 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Cell, Dictionary, toNano } from '@ton/core'
 import { compile } from '@ton/blueprint'
 
-import * as mcms from '../../wrappers/mcms/MCMS'
+import { mcms } from '../../wrappers/mcms'
 import { crc32 } from 'zlib'
 
 describe('MCMS', () => {

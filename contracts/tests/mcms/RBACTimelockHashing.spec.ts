@@ -1,8 +1,8 @@
 import '@ton/test-utils'
 
-import { asSnakeData } from '../../utils'
+import { asSnakeData } from '../../src/utils'
 
-import * as rbactl from '../../wrappers/mcms/RBACTimelock'
+import { rbactl } from '../../wrappers/mcms'
 import * as counter from '../../wrappers/examples/Counter'
 
 import { BaseTestSetup, TestCode } from './BaseTest'
