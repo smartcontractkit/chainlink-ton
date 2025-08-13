@@ -40,7 +40,7 @@ func randomTONExecuteReport(t *testing.T, sourceChainSelector uint64) ccipocr3.E
 			for z := 0; z < numTokensPerMsg; z++ {
 				tokenAmounts[z] = ccipocr3.RampTokenAmount{
 					SourcePoolAddress: ccipocr3.UnknownAddress(addr.String()),
-					DestTokenAddress:  receiverAddr[:],
+					DestTokenAddress:  receiverAddr,
 					ExtraData:         extraData,
 					Amount:            ccipocr3.NewBigInt(big.NewInt(rand.Int63())),
 					DestExecData:      []byte{0, 0, 0, 0},

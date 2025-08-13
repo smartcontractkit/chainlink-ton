@@ -32,7 +32,7 @@ func (a AddressCodec) AddressBytesToString(bytes []byte) (string, error) {
 		return "", fmt.Errorf("invalid address length: expected 36 bytes, got %d", len(bytes))
 	}
 	var rawAddr RawAddr
-	copy(rawAddr[:], bytes[:])
+	copy(rawAddr[:], bytes)
 	workchain := binary.BigEndian.Uint32(rawAddr[0:4])
 
 	addr := address.NewAddress(0, byte(workchain), rawAddr[4:])
