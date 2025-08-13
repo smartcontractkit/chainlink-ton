@@ -25,7 +25,7 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
 
   it('should fail if non-owner tries to set config', async () => {
     // Try to call setConfig from non-owner address (should fail)
-    const setConfigBody = mcms.builder.message.setConfig.encode({
+    const setConfigBody = mcms.builder.message.in.setConfig.encode({
       queryId: 1n,
       signerKeys: asSnakeData<bigint>(
         baseTest.testSigners.map((s) => BigInt('0x' + s.keyPair.publicKey.toString('hex'))),
@@ -66,7 +66,7 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
       (g) => beginCell().storeUint(g, 8),
     )
 
-    const setConfigBody = mcms.builder.message.setConfig.encode({
+    const setConfigBody = mcms.builder.message.in.setConfig.encode({
       queryId: 1n,
       signerKeys: emptySignerKeys,
       signerGroups: emptySignerGroups,
@@ -103,7 +103,7 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
       (g) => beginCell().storeUint(g, 8),
     )
 
-    const setConfigBody = mcms.builder.message.setConfig.encode({
+    const setConfigBody = mcms.builder.message.in.setConfig.encode({
       queryId: 1n,
       signerKeys,
       signerGroups,
@@ -140,7 +140,7 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
       (g) => beginCell().storeUint(g, 8),
     )
 
-    const setConfigBody = mcms.builder.message.setConfig.encode({
+    const setConfigBody = mcms.builder.message.in.setConfig.encode({
       queryId: 1n,
       signerKeys,
       signerGroups,
@@ -177,7 +177,7 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
       }
     }
 
-    const setConfigBody = mcms.builder.message.setConfig.encode({
+    const setConfigBody = mcms.builder.message.in.setConfig.encode({
       queryId: 1n,
       signerKeys: asSnakeData<bigint>(
         baseTest.testSigners.map((s) => BigInt('0x' + s.keyPair.publicKey.toString('hex'))),
@@ -220,7 +220,7 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
       }
     }
 
-    const setConfigBody = mcms.builder.message.setConfig.encode({
+    const setConfigBody = mcms.builder.message.in.setConfig.encode({
       queryId: 1n,
       signerKeys: asSnakeData<bigint>(
         baseTest.testSigners.map((s) => BigInt('0x' + s.keyPair.publicKey.toString('hex'))),
@@ -263,7 +263,7 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
       }
     }
 
-    const setConfigBody = mcms.builder.message.setConfig.encode({
+    const setConfigBody = mcms.builder.message.in.setConfig.encode({
       queryId: 1n,
       signerKeys: asSnakeData<bigint>(
         baseTest.testSigners.map((s) => BigInt('0x' + s.keyPair.publicKey.toString('hex'))),
@@ -297,7 +297,7 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
     const disabledGroupSigners = [...baseTest.testSigners]
     disabledGroupSigners[1].group = mcms.NUM_GROUPS - 1 // Last group should be disabled
 
-    const setConfigBody = mcms.builder.message.setConfig.encode({
+    const setConfigBody = mcms.builder.message.in.setConfig.encode({
       queryId: 1n,
       signerKeys: asSnakeData<bigint>(
         baseTest.testSigners.map((s) => BigInt('0x' + s.keyPair.publicKey.toString('hex'))),
@@ -331,7 +331,7 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
     const signer = baseTest.testSigners.slice(0, 4)
     const shorterSignerGroup = baseTest.testSigners.slice(0, 3)
 
-    const setConfigBody = mcms.builder.message.setConfig.encode({
+    const setConfigBody = mcms.builder.message.in.setConfig.encode({
       queryId: 1n,
       signerKeys: asSnakeData<bigint>(
         signer.map((s) => BigInt('0x' + s.keyPair.publicKey.toString('hex'))),
@@ -361,7 +361,7 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
   })
 
   it('should successfully set config without clearing root', async () => {
-    const setConfigBody = mcms.builder.message.setConfig.encode({
+    const setConfigBody = mcms.builder.message.in.setConfig.encode({
       queryId: 1n,
       signerKeys: asSnakeData<bigint>(
         baseTest.testSigners.map((s) => BigInt('0x' + s.keyPair.publicKey.toString('hex'))),
@@ -410,7 +410,7 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
   })
 
   it('should successfully set config and clear root', async () => {
-    const setConfigBody = mcms.builder.message.setConfig.encode({
+    const setConfigBody = mcms.builder.message.in.setConfig.encode({
       queryId: 1n,
       signerKeys: asSnakeData<bigint>(
         baseTest.testSigners.map((s) => BigInt('0x' + s.keyPair.publicKey.toString('hex'))),

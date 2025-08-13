@@ -289,7 +289,7 @@ export class MCMSBaseTestSetup {
    * Deploy the MCMS contract and verify deployment
    */
   async deployMCMSContract(): Promise<void> {
-    const body = mcms.builder.message.topUp.encode({ queryId: 1n })
+    const body = mcms.builder.message.in.topUp.encode({ queryId: 1n })
     const result = await this.bind.mcms.sendInternal(
       this.acc.deployer.getSender(),
       toNano('0.05'),
@@ -320,7 +320,7 @@ export class MCMSBaseTestSetup {
       (g) => beginCell().storeUint(g, 8),
     )
 
-    const setConfigBody = mcms.builder.message.setConfig.encode({
+    const setConfigBody = mcms.builder.message.in.setConfig.encode({
       queryId: 1n,
       signerKeys,
       signerGroups,
