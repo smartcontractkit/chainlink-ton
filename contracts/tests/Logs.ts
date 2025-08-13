@@ -65,7 +65,6 @@ type LogMatch<T extends CombinedLogTypes> = T extends CCIPLogs.LogTypes.CCIPMess
         ? DeepPartial<OCR3Logs.OCR3BaseTransmitted>
         : number
 
-
 export const assertLog = <T extends CombinedLogTypes>(
   transactions: BlockchainTransaction[],
   from: Address,
@@ -88,16 +87,19 @@ export const assertLog = <T extends CombinedLogTypes>(
         return testConfigSetLogMessage(x, from, match as OCR3Logs.OCR3BaseConfigSet)
 
       case OCR3Logs.LogTypes.OCR3BaseTransmitted:
-        return testTransmittedLogMessage(x, from, match as DeepPartial<OCR3Logs.OCR3BaseTransmitted>)
+        return testTransmittedLogMessage(
+          x,
+          from,
+          match as DeepPartial<OCR3Logs.OCR3BaseTransmitted>,
+        )
 
       default:
         throw new Error('Unhandled log type')
     }
   })
 
-  expect(matched).toBe(true) 
+  expect(matched).toBe(true)
 }
-
 
 //TODO: Move the definition for the matcher passed to testLog to wrappers ccip/Logs and ocr/Logs
 
