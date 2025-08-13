@@ -4,13 +4,14 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Address, Cell, Dictionary, toNano, beginCell } from '@ton/core'
 import { compile } from '@ton/blueprint'
 import { randomBytes } from 'crypto'
-import { sign } from '@ton/crypto'
+import { KeyPair, sign } from '@ton/crypto'
 
 import * as mcms from '../../wrappers/mcms/MCMS'
 import * as ownable2step from '../../wrappers/libraries/access/Ownable2Step'
 
 import { crc32 } from 'zlib'
-import { asSnakeData } from '../../utils/Utils'
+import { asSnakeData, uint8ArrayToBigInt } from '../../src/utils'
+import { generateEd25519KeyPair } from '../libraries/ocr/Helpers'
 
 export interface MCMSTestCode {
   mcms: Cell
@@ -30,7 +31,7 @@ export interface MCMSTestContracts {
 
 export interface TestSigner {
   address: Address
-  privateKey: Buffer
+  keyPair: KeyPair
   treasury: SandboxContract<TreasuryContract>
   index: number
   group: number
@@ -91,21 +92,31 @@ export class MCMSBaseTestSetup {
   /**
    * Generate deterministic test signers with private keys
    */
-  generateTestSigners(): TestSigner[] {
+  async generateTestSigners(): Promise<TestSigner[]> {
     const signers: TestSigner[] = []
 
-    for (let i = 0; i < MCMSBaseTestSetup.SIGNERS_NUM; i++) {
-      // Generate deterministic private key for testing
-      const privateKey = Buffer.alloc(32)
-      privateKey.writeUInt32BE(i + 1, 28) // Use index as seed for deterministic keys
+    let keyPairs = await Promise.all(
+      Array.from(
+        { length: MCMSBaseTestSetup.SIGNERS_NUM },
+        async (_, i) => await generateEd25519KeyPair(),
+      ),
+    )
 
+    // Sort result by public key (strictly increasing)
+    keyPairs.sort((a, b) => {
+      const aKey = uint8ArrayToBigInt(a.publicKey)
+      const bKey = uint8ArrayToBigInt(b.publicKey)
+      return aKey < bKey ? -1 : aKey > bKey ? 1 : 0
+    })
+
+    for (let i = 0; i < MCMSBaseTestSetup.SIGNERS_NUM; i++) {
       // This is a simplified approach - in real tests you might want to use actual key generation
       const address = this.acc.signers[i].address
       const group = (i % MCMSBaseTestSetup.NUM_SUBGROUPS) + 1 // Plus one because we don't want signers in root group
 
       signers.push({
         address,
-        privateKey,
+        keyPair: keyPairs[i],
         treasury: this.acc.signers[i],
         index: i,
         group,
@@ -149,9 +160,9 @@ export class MCMSBaseTestSetup {
   /**
    * Setup test configuration (groups, quorums, signers)
    */
-  setupTestConfiguration(): void {
+  async setupTestConfiguration(): Promise<void> {
     // Generate test signers
-    this.testSigners = this.generateTestSigners()
+    this.testSigners = await this.generateTestSigners()
 
     // Assign the required quorum in each group
     this.testGroupQuorums.set(0, MCMSBaseTestSetup.GROUP0_QUORUM)
@@ -232,8 +243,8 @@ export class MCMSBaseTestSetup {
         owner: this.acc.multisigOwner.address,
         pendingOwner: null,
       },
-      signers: Dictionary.empty<Address, Buffer>(
-        Dictionary.Keys.Address(),
+      signers: Dictionary.empty<bigint, Buffer>(
+        Dictionary.Keys.BigUint(256),
         Dictionary.Values.Buffer(mcms.LEN_SIGNER),
       ),
       config: {
@@ -298,9 +309,9 @@ export class MCMSBaseTestSetup {
    */
   async setInitialConfiguration(): Promise<void> {
     // Build signer addresses cell
-    const signerAddresses = asSnakeData<Address>(
-      this.testSigners.map((s) => s.address),
-      (a) => beginCell().storeAddress(a),
+    const signerKeys = asSnakeData<bigint>(
+      this.testSigners.map((s) => BigInt('0x' + s.keyPair.publicKey.toString('hex'))),
+      (a) => beginCell().storeUint(a, 256),
     )
 
     // Build signer groups cell
@@ -311,7 +322,7 @@ export class MCMSBaseTestSetup {
 
     const setConfigBody = mcms.builder.message.setConfig.encode({
       queryId: 1n,
-      signerAddresses,
+      signerKeys,
       signerGroups,
       groupQuorums: this.testConfig.groupQuorums,
       groupParents: this.testConfig.groupParents,
@@ -336,7 +347,7 @@ export class MCMSBaseTestSetup {
    */
   async setupAll(testId: string): Promise<void> {
     await this.initializeBlockchain()
-    this.setupTestConfiguration()
+    await this.setupTestConfiguration()
     await this.setupMCMSContract(testId)
     await this.deployMCMSContract()
     await this.setInitialConfiguration()
@@ -396,10 +407,14 @@ export class MCMSBaseTestSetup {
     for (const signer of this.testSigners) {
       // In a real implementation, you'd use proper ECDSA signing here
       // For now, we'll create mock signatures
+      const publicKeyHash: bigint /* bytes32 */ = BigInt(
+        '0x' + signer.keyPair.publicKey.toString('hex'),
+      )
+
       const signature: mcms.Signature = {
         r: BigInt('0x' + messageHash.toString('hex').slice(0, 64)),
         s: BigInt('0x' + messageHash.toString('hex').slice(0, 64)),
-        signer: signer.address,
+        signer: publicKeyHash,
       }
       signatures.push(signature)
     }
