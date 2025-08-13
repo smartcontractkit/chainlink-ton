@@ -30,11 +30,11 @@ func NewIndexer(lggr logger.Logger, filters logpoller.FilterStore) logpoller.TxI
 }
 
 // IndexTransactions iterates through transactions and processes each one
-func (ixr *indexer) IndexTransactions(txs []types.TxWithBlock) ([]types.Log, error) {
+func (ixr *indexer) IndexTransactions(ctx context.Context, txs []types.TxWithBlock) ([]types.Log, error) {
 	var allLogs []types.Log
 
 	for _, tx := range txs {
-		logs, err := ixr.indexTx(tx)
+		logs, err := ixr.indexTx(ctx, tx)
 		if err != nil {
 			// TODO: error handling strategy
 			ixr.lggr.Errorw("Critical failure indexing transaction, skipping", "tx_hash", tx.Tx.Hash, "err", err)
@@ -49,7 +49,7 @@ func (ixr *indexer) IndexTransactions(txs []types.TxWithBlock) ([]types.Log, err
 }
 
 // indexTx handles a single transaction
-func (ixr *indexer) indexTx(tx types.TxWithBlock) ([]types.Log, error) {
+func (ixr *indexer) indexTx(ctx context.Context, tx types.TxWithBlock) ([]types.Log, error) {
 	var allLogs []types.Log
 
 	msgs, _ := tx.Tx.IO.Out.ToSlice()
@@ -57,7 +57,7 @@ func (ixr *indexer) indexTx(tx types.TxWithBlock) ([]types.Log, error) {
 		srcAddr := msg.Msg.SenderAddr()
 
 		// get filters registered for this source address and message type
-		filtersForAddr, err := ixr.filters.GetFiltersForAddressAndMsgType(context.Background(), srcAddr, msg.MsgType)
+		filtersForAddr, err := ixr.filters.GetFiltersForAddressAndMsgType(ctx, srcAddr, msg.MsgType)
 		if err != nil {
 			ixr.lggr.Errorw("Failed to get filters for address and message type", "addr", srcAddr.String(), "msgType", msg.MsgType, "err", err)
 			continue

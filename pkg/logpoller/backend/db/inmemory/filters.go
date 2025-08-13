@@ -77,7 +77,7 @@ func (f *inMemoryFilters) HasFilter(_ context.Context, name string) (bool, error
 }
 
 // GetDistinctAddresses returns all unique contract addresses being tracked.
-func (f *inMemoryFilters) GetDistinctAddresses() ([]*address.Address, error) {
+func (f *inMemoryFilters) GetDistinctAddresses(_ context.Context) ([]*address.Address, error) {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 	out := make([]*address.Address, 0, len(f.filtersByAddress))

@@ -89,7 +89,7 @@ func (lp *service) run(ctx context.Context) (err error) {
 
 	// TODO: load filter from persistent store
 	// TODO: implement backfill logic(if there is filters marked for backfill)
-	addresses, err := lp.filters.GetDistinctAddresses()
+	addresses, err := lp.filters.GetDistinctAddresses(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get distinct addresses: %w", err)
 	}
@@ -175,7 +175,7 @@ func (lp *service) processBlockRange(ctx context.Context, blockRange *types.Bloc
 	lp.lggr.Debugw("loaded transactions from chain", "count", len(txs))
 
 	// 2. Index the raw transactions into structured logs(covers ExtMsgOut and InternalMsg)
-	logs, err := lp.indexer.IndexTransactions(txs)
+	logs, err := lp.indexer.IndexTransactions(ctx, txs)
 	if err != nil {
 		return fmt.Errorf("failed to index transactions: %w", err)
 	}
@@ -193,11 +193,6 @@ func (lp *service) processBlockRange(ctx context.Context, blockRange *types.Bloc
 		}
 		lp.store.SaveLog(log)
 	}
-	lp.lggr.Infow("successfully saved new logs to store", "count", len(logs))
-	for _, l := range logs {
-		lp.lggr.Debugf("saved log: %s", l.String())
-	}
-
 	return nil
 }
 

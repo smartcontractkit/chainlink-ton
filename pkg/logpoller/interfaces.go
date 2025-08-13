@@ -30,7 +30,7 @@ type FilterStore interface {
 	// HasFilter checks if a filter with the given name exists.
 	HasFilter(ctx context.Context, name string) (bool, error)
 	// GetDistinctAddresses returns a slice of unique addresses that are being monitored.
-	GetDistinctAddresses() ([]*address.Address, error)
+	GetDistinctAddresses(ctx context.Context) ([]*address.Address, error)
 	// GetFiltersForAddressAndMsgType returns filters for a specific address and message type.
 	GetFiltersForAddressAndMsgType(ctx context.Context, addr *address.Address, msgType tlb.MsgType) ([]types.Filter, error)
 }
@@ -41,7 +41,7 @@ type TxLoader interface {
 }
 
 type TxIndexer interface {
-	IndexTransactions(txs []types.TxWithBlock) ([]types.Log, error)
+	IndexTransactions(ctx context.Context, txs []types.TxWithBlock) ([]types.Log, error)
 }
 
 // LogStore defines the interface for storing and retrieving logs.
