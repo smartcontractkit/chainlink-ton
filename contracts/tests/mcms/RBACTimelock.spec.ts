@@ -6,7 +6,7 @@ import '@ton/test-utils'
 import { rbactl } from '../../wrappers/mcms'
 import { ac } from '../../wrappers/lib/access'
 import { crc32 } from 'zlib'
-import { asSnakeData } from '../../utils'
+import { asSnakeData } from '../../src/utils'
 
 describe('RBACTimelock', () => {
   let code: Cell

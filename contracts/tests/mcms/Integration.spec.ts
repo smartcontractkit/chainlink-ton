@@ -349,7 +349,7 @@ describe('MCMS - IntegrationTest', () => {
       const rSetConfig = await bind.mcmsBypass.sendInternal(
         acc.deployer.getSender(),
         toNano('0.2'),
-        mcms.builder.message.setConfig.encode({
+        mcms.builder.message.in.setConfig.encode({
           queryId: 1n,
           signerKeys: asSnakeData<bigint>(
             signerKeyPairs.map((v) => uint8ArrayToBigInt(v.publicKey)),
@@ -507,12 +507,12 @@ describe('MCMS - IntegrationTest', () => {
         {
           target: bind.counter.address,
           value: toNano('0.05'),
-          data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
+          data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
         },
         {
           target: bind.counter.address,
           value: toNano('0.05'),
-          data: counter.builder.message.increaseCount.encode({ queryId: 2n }),
+          data: counter.builder.message.in.increaseCount.encode({ queryId: 2n }),
         },
       ],
       (c) => rbactl.builder.data.call.encode(c).asBuilder(),
@@ -544,7 +544,7 @@ describe('MCMS - IntegrationTest', () => {
         nonce: 0n,
         to: bind.timelock.address,
         value: toNano('0.05'),
-        data: rbactl.builder.message.scheduleBatch.encode({
+        data: rbactl.builder.message.in.scheduleBatch.encode({
           queryId: 1n,
           calls,
           predecessor: proposePredecessor,
@@ -559,7 +559,7 @@ describe('MCMS - IntegrationTest', () => {
       const r = await bind.mcmsPropose.sendInternal(
         acc.deployer.getSender(),
         toNano('0.10'),
-        mcms.builder.message.setRoot.encode(setRoot),
+        mcms.builder.message.in.setRoot.encode(setRoot),
       )
 
       expect(r.transactions).toHaveTransaction({
@@ -574,7 +574,7 @@ describe('MCMS - IntegrationTest', () => {
       const r1 = await bind.mcmsPropose.sendInternal(
         acc.deployer.getSender(),
         toNano('0.10'),
-        mcms.builder.message.execute.encode({
+        mcms.builder.message.in.execute.encode({
           queryId: 1n,
           op: mcms.builder.data.op.encode(ops[0]),
           proof: asSnakeData<bigint>(opProofs[0], encodeProof),
@@ -592,7 +592,7 @@ describe('MCMS - IntegrationTest', () => {
       const r2 = await bind.callProxy.sendInternal(
         acc.deployer.getSender(),
         toNano('0.10'),
-        rbactl.builder.message.executeBatch.encode({
+        rbactl.builder.message.in.executeBatch.encode({
           queryId: 1n,
           predecessor: proposePredecessor,
           salt: 0n,
@@ -612,7 +612,7 @@ describe('MCMS - IntegrationTest', () => {
       const r3 = await bind.callProxy.sendInternal(
         acc.deployer.getSender(),
         toNano('0.10'),
-        rbactl.builder.message.executeBatch.encode({
+        rbactl.builder.message.in.executeBatch.encode({
           queryId: 2n,
           predecessor: proposePredecessor,
           salt: 0n,

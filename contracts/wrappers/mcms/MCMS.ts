@@ -393,17 +393,15 @@ export const builder = {
       // Creates a new `MCMS_SetRoot` message.
       setRoot: {
         encode: (msg: SetRoot): Cell => {
-          return (
-            beginCell()
-              .storeUint(opcodes.in.SetRoot, 32)
-              .storeUint(msg.queryId, 64)
-              .storeUint(msg.root, 256)
-              .storeUint(msg.validUntil, 32)
-              .storeBuilder(rootMetadata.encode(msg.metadata).asBuilder())
-              .storeRef(msg.metadataProof)
-              .storeRef(msg.signatures)
-              .endCell()
-          )
+          return beginCell()
+            .storeUint(opcodes.in.SetRoot, 32)
+            .storeUint(msg.queryId, 64)
+            .storeUint(msg.root, 256)
+            .storeUint(msg.validUntil, 32)
+            .storeBuilder(rootMetadata.encode(msg.metadata).asBuilder())
+            .storeRef(msg.metadataProof)
+            .storeRef(msg.signatures)
+            .endCell()
         },
         decode: (cell: Cell): SetRoot => {
           const s = cell.beginParse()
