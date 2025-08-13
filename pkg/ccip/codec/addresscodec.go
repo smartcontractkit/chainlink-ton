@@ -21,7 +21,7 @@ type RawAddr [36]byte
 
 // ToRawAddr converts an address.Address to a RawAddr.
 func ToRawAddr(addr *address.Address) (rawAddress RawAddr) {
-	binary.BigEndian.PutUint32(rawAddress[0:], uint32(addr.Workchain()))
+	binary.BigEndian.PutUint32(rawAddress[0:], uint32(addr.Workchain())) //nolint:gosec // G115
 	copy(rawAddress[4:], addr.Data())
 	return rawAddress
 }

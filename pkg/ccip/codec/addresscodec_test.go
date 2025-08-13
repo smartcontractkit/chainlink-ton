@@ -4,7 +4,6 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"errors"
-	"math"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -16,9 +15,7 @@ func TestTONAddress(t *testing.T) {
 	require.NoError(t, err)
 
 	validAddressBytes := make([]byte, 36)
-	workchain := addr.Workchain()
-	require.Less(t, workchain, uint(math.MaxInt)) // overflow check
-	binary.BigEndian.PutUint32(validAddressBytes[0:4], uint32(workchain))
+	binary.BigEndian.PutUint32(validAddressBytes[0:4], uint32(addr.Workchain())) //nolint:gosec // G115
 	copy(validAddressBytes[4:], addr.Data())
 
 	invalidChecksum := make([]byte, 0)
