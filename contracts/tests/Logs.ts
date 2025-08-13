@@ -48,14 +48,14 @@ type DeepPartial<T> = {
   [P in keyof T]?: DeepPartial<T[P]>
 }
 
-const LogTypes = {
+const CombinedLogTypes = {
   ...CCIPLogs.LogTypes,
   ...OCR3Logs.LogTypes,
 }
 
-type LogTypes = (typeof LogTypes)[keyof typeof LogTypes]
+type CombinedLogTypes = (typeof CombinedLogTypes)[keyof typeof CombinedLogTypes]
 
-type LogMatch<T extends LogTypes> = T extends CCIPLogs.LogTypes.CCIPMessageSent
+type LogMatch<T extends CombinedLogTypes> = T extends CCIPLogs.LogTypes.CCIPMessageSent
   ? DeepPartial<CCIPLogs.CCIPMessageSent>
   : T extends CCIPLogs.LogTypes.CCIPCommitReportAccepted
     ? DeepPartial<CCIPLogs.CCIPCommitReportAccepted>
@@ -65,39 +65,39 @@ type LogMatch<T extends LogTypes> = T extends CCIPLogs.LogTypes.CCIPMessageSent
         ? DeepPartial<OCR3Logs.OCR3BaseTransmitted>
         : number
 
-export const assertLog = <T extends LogTypes>(
+
+export const assertLog = <T extends CombinedLogTypes>(
   transactions: BlockchainTransaction[],
   from: Address,
   type: T,
   match: LogMatch<T>,
 ) => {
-  getExternals(transactions).some((x) => {
+  const matched = getExternals(transactions).some((x) => {
     switch (type) {
       case CCIPLogs.LogTypes.CCIPMessageSent:
-        testLogCCIPMessageSent(x, from, match as DeepPartial<CCIPLogs.CCIPMessageSent>)
-        break
+        return testLogCCIPMessageSent(x, from, match as DeepPartial<CCIPLogs.CCIPMessageSent>)
 
       case CCIPLogs.LogTypes.CCIPCommitReportAccepted:
-        testLogCCIPCommitReportAccepted(
+        return testLogCCIPCommitReportAccepted(
           x,
           from,
           match as DeepPartial<CCIPLogs.CCIPCommitReportAccepted>,
         )
-        break
 
       case OCR3Logs.LogTypes.OCR3BaseConfigSet:
-        testConfigSetLogMessage(x, from, match as OCR3Logs.OCR3BaseConfigSet)
-        break
+        return testConfigSetLogMessage(x, from, match as OCR3Logs.OCR3BaseConfigSet)
 
       case OCR3Logs.LogTypes.OCR3BaseTransmitted:
-        testTransmittedLogMessage(x, from, match as DeepPartial<OCR3Logs.OCR3BaseTransmitted>)
-        break
+        return testTransmittedLogMessage(x, from, match as DeepPartial<OCR3Logs.OCR3BaseTransmitted>)
 
       default:
-        fail('Unhandled log type')
+        throw new Error('Unhandled log type')
     }
   })
+
+  expect(matched).toBe(true) 
 }
+
 
 //TODO: Move the definition for the matcher passed to testLog to wrappers ccip/Logs and ocr/Logs
 
@@ -106,7 +106,7 @@ function testLogCCIPCommitReportAccepted(
   from: Address,
   match: DeepPartial<CCIPLogs.CCIPCommitReportAccepted>,
 ) {
-  return testLog(message, from, LogTypes.CCIPCommitReportAccepted, (x) => {
+  return testLog(message, from, CombinedLogTypes.CCIPCommitReportAccepted, (x) => {
     let bs = x.beginParse()
 
     const priceUpdatesCell = bs.loadMaybeRef()
@@ -130,7 +130,7 @@ export const testLogCCIPMessageSent = (
   from: Address,
   match: DeepPartial<CCIPLogs.CCIPMessageSent>,
 ) => {
-  return testLog(message, from, LogTypes.CCIPMessageSent, (x) => {
+  return testLog(message, from, CombinedLogTypes.CCIPMessageSent, (x) => {
     let bs = x.beginParse()
 
     const destChainSelector = bs.loadUintBig(64)
@@ -175,7 +175,7 @@ export const testConfigSetLogMessage = (
   from: Address,
   match: OCR3Logs.OCR3BaseConfigSet,
 ) => {
-  return testLog(message, from, LogTypes.OCR3BaseConfigSet, (x) => {
+  return testLog(message, from, CombinedLogTypes.OCR3BaseConfigSet, (x) => {
     const cs = x.beginParse()
     const ocrPluginType = cs.loadUint(16)
     const configDigest = cs.loadUintBig(256)
@@ -199,7 +199,7 @@ export const testTransmittedLogMessage = (
   from: Address,
   match: Partial<OCR3Logs.OCR3BaseTransmitted>,
 ) => {
-  return testLog(message, from, LogTypes.OCR3BaseTransmitted, (x) => {
+  return testLog(message, from, CombinedLogTypes.OCR3BaseTransmitted, (x) => {
     const cs = x.beginParse()
     const msg = {
       ocrPluginType: cs.loadUint(16),
