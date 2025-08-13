@@ -95,16 +95,17 @@ func newChain(ctx context.Context, cfg *config.TOMLConfig, loopKs loop.Keystore,
 		return nil, errors.New("no TON account available")
 	}
 
-	_, err = strconv.ParseInt(cfg.ChainID, 10, 8)
+	_, err = strconv.ParseInt(cfg.ChainID, 10, 16)
 	if err != nil {
 		return nil, fmt.Errorf("invalid chain ID %s: could not parse as an integer: %w", cfg.ChainID, err)
 	}
 
 	ch := &chain{
-		id:   cfg.ChainID,
-		cfg:  cfg,
-		lggr: logger.Named(lggr, "Chain"),
-		ds:   ds,
+		id:          cfg.ChainID,
+		cfg:         cfg,
+		lggr:        logger.Named(lggr, "Chain"),
+		ds:          ds,
+		clientCache: make(map[int]*cachedClient),
 	}
 
 	tonClient, err := ch.GetClient(ctx)
@@ -288,7 +289,7 @@ func (c *chain) GetClient(ctx context.Context) (*ton.APIClient, error) {
 
 		// Build new client
 		configURL := node.URL.String()
-		tonCfg, err := liteclient.GetConfigFromUrl(ctx, configURL)
+		tonCfg, err := liteclient.GetConfigFromUrl(ctx, fmt.Sprintf("http://%v/localhost.global.config.json", configURL))
 		if err != nil {
 			c.lggr.Warnw("failed to fetch TON config", "name", node.Name, "ton-url", node.URL, "err", err)
 			continue
@@ -302,6 +303,7 @@ func (c *chain) GetClient(ctx context.Context) (*ton.APIClient, error) {
 			continue
 		}
 
+		c.lggr.Debugw("Created to ton ConnectionPool")
 		client := ton.NewAPIClient(connectionPool, ton.ProofCheckPolicyFast)
 		client.SetTrustedBlockFromConfig(tonCfg)
 
