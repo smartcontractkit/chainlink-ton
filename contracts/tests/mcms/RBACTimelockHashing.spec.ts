@@ -1,8 +1,8 @@
 import '@ton/test-utils'
 
-import { asSnakeData } from '../../utils'
+import { asSnakeData } from '../../src/utils'
 
-import * as rbactl from '../../wrappers/mcms/RBACTimelock'
+import { rbactl } from '../../wrappers/mcms'
 import * as counter from '../../wrappers/examples/Counter'
 
 import { BaseTestSetup, TestCode } from './BaseTest'
@@ -27,19 +27,19 @@ describe('MCMS - RBACTimelockHashingTest', () => {
         {
           target: baseTest.bind.counter.address,
           value: 0n,
-          data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
+          data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
         },
         {
           target: baseTest.bind.counter.address,
           value: 0n,
-          data: counter.builder.message.increaseCount.encode({ queryId: 2n }),
+          data: counter.builder.message.in.increaseCount.encode({ queryId: 2n }),
         },
       ],
       (c) => rbactl.builder.data.call.encode(c).asBuilder(),
     )
 
     // Schedule operation
-    const scheduleBody = rbactl.builder.message.scheduleBatch.encode({
+    const scheduleBody = rbactl.builder.message.in.scheduleBatch.encode({
       queryId: 1n,
       calls,
       predecessor: BaseTestSetup.NO_PREDECESSOR,

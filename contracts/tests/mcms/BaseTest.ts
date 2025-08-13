@@ -4,12 +4,12 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Address, Cell, Dictionary, toNano, beginCell } from '@ton/core'
 import { compile } from '@ton/blueprint'
 
-import { asSnakeData } from '../../utils'
+import { asSnakeData } from '../../src/utils'
 
-import * as mcms from '../../wrappers/mcms/MCMS'
-import * as rbactl from '../../wrappers/mcms/RBACTimelock'
-import * as callproxy from '../../wrappers/mcms/CallProxy'
-import * as ac from '../../wrappers/lib/access/AccessControl'
+import { mcms } from '../../wrappers/mcms'
+import { rbactl } from '../../wrappers/mcms'
+import { callproxy } from '../../wrappers/mcms'
+import { ac } from '../../wrappers/lib/access'
 import * as counter from '../../wrappers/examples/Counter'
 import * as ownable2step from '../../wrappers/libraries/access/Ownable2Step'
 
@@ -221,7 +221,7 @@ export class BaseTestSetup {
    * Deploy the timelock contract and verify deployment
    */
   async deployTimelockContract(): Promise<void> {
-    const body = rbactl.builder.message.topUp.encode({ queryId: 1n })
+    const body = rbactl.builder.message.in.topUp.encode({ queryId: 1n })
     const result = await this.bind.timelock.sendInternal(
       this.acc.deployer.getSender(),
       toNano('0.05'),
@@ -241,12 +241,12 @@ export class BaseTestSetup {
 
   // TODO
   // deployCallProxyContract() {
-  //   const body = callproxy.builder.message.topUp.encode({ queryId: 1n })
+  //   const body = callproxy.builder.message.in.topUp.encode({ queryId: 1n })
   //   return this.bind.callProxy.sendInternal(this.acc.deployer.getSender(), toNano('0.05'), body)
   // }
 
   deployCounterContract() {
-    // const body = counter.builder.message.topUp.encode({ queryId: 1n }) // TODO use TopUp after it is implemented
+    // const body = counter.builder.message.in.topUp.encode({ queryId: 1n }) // TODO use TopUp after it is implemented
     const body = beginCell().endCell()
     return this.bind.counter.sendInternal(this.acc.deployer.getSender(), toNano('0.05'), body)
   }

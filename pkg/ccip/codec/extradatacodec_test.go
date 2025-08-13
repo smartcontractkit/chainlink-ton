@@ -29,7 +29,7 @@ func Test_decodeExtraArgs(t *testing.T) {
 
 	t.Run("decode extra args into map svm", func(t *testing.T) {
 		destGasAmount := uint32(10000)
-		bitmap := uint64(0)
+		bitmap := uint64(5)
 		extraArgs := onramp.SVMExtraArgsV1{
 			ComputeUnits:             destGasAmount,
 			AccountIsWritableBitmap:  bitmap,
@@ -44,7 +44,7 @@ func Test_decodeExtraArgs(t *testing.T) {
 		c, err := tlb.ToCell(extraArgs)
 		require.NoError(t, err)
 
-		output, err := extraDataDecoder.DecodeExtraArgsToMap(append(svmExtraArgsV1Tag, c.ToBOC()...))
+		output, err := extraDataDecoder.DecodeExtraArgsToMap(c.ToBOC())
 		require.NoError(t, err)
 		require.Len(t, output, 5)
 
@@ -70,7 +70,7 @@ func Test_decodeExtraArgs(t *testing.T) {
 		c, err := tlb.ToCell(extraArgs)
 		require.NoError(t, err)
 
-		output, err := extraDataDecoder.DecodeExtraArgsToMap(append(evmExtraArgsV2Tag, c.ToBOC()...))
+		output, err := extraDataDecoder.DecodeExtraArgsToMap(c.ToBOC())
 		require.NoError(t, err)
 		require.Len(t, output, 2)
 

@@ -76,7 +76,7 @@ type Execute struct {
 // @notice sets a new data.config. If clearRoot is true, then it also invalidates
 // data.expiringRootAndOpCount.root.
 //
-// @param signerAddresses holds the addresses of the active signers. The addresses must be in
+// @param signerKeys holds the public keys of the active signers. The keys must be in
 // ascending order.
 // @param signerGroups maps each signer to its group
 // @param groupQuorums holds the required number of valid signatures in each group.
@@ -95,11 +95,11 @@ type SetConfig struct {
 	// Query ID of the change owner request.
 	QueryID uint64 `tlb:"## 64"`
 
-	SignerAddresses common.SnakeData[address.Address] `tlb:"^"`      // vec<address>
-	SignerGroups    common.SnakeData[uint8]           `tlb:"^"`      // vec<uint8>
-	GroupQuorums    *cell.Dictionary                  `tlb:"dict 8"` // map<uint8, uint8> (indexed, iterable backwards)
-	GroupParents    *cell.Dictionary                  `tlb:"dict 8"` // map<uint8, uint8> (indexed, iterable backwards)
-	ClearRoot       bool                              `tlb:"bool"`
+	SignerKeys   common.SnakeData[*big.Int] `tlb:"^"`      // vec<uint256>
+	SignerGroups common.SnakeData[uint8]    `tlb:"^"`      // vec<uint8>
+	GroupQuorums *cell.Dictionary           `tlb:"dict 8"` // map<uint8, uint8> (indexed, iterable backwards)
+	GroupParents *cell.Dictionary           `tlb:"dict 8"` // map<uint8, uint8> (indexed, iterable backwards)
+	ClearRoot    bool                       `tlb:"bool"`
 }
 
 // --- Messages - outgoing ---
@@ -218,8 +218,8 @@ type Config struct {
 type RootMetadata struct {
 	// chainId and multiSig uniquely identify a ManyChainMultiSig contract instance that the
 	// root is destined for.
-	// uint256 since it is unclear if we can represent chainId as uint64. There is a proposal (
-	// https://ethereum-magicians.org/t/eip-2294-explicit-bound-to-chain-id/11090) to
+	// int256 since it is unclear if we can represent chainId as uint64 (and TON introduces negative chain IDs).
+	// There is a proposal (https://ethereum-magicians.org/t/eip-2294-explicit-bound-to-chain-id/11090) to
 	// bound chainid to 64 bits, but it is still unresolved.
 	ChainID  *big.Int        `tlb:"## 256"`
 	MultiSig address.Address `tlb:"addr"`
@@ -261,7 +261,7 @@ const (
 	// Thrown when number of signers is 0 or greater than MAX_NUM_SIGNERS.
 	ErrorOutOfBoundsNumSigners = 100
 
-	// Thrown when signerAddresses and signerGroups have different lengths.
+	// Thrown when signerKeys and signerGroups have different lengths.
 	ErrorSignerGroupsLengthMismatch = 101
 
 	// Thrown when number of some signer's group is greater than (NUM_GROUPS-1).
@@ -276,9 +276,9 @@ const (
 	// Thrown when a disabled group contains a signer.
 	ErrorSignerInDisabledGroup = 105
 
-	// Thrown when the signers' addresses are not a strictly increasing monotone sequence.
+	// Thrown when the signers' public keys are not a strictly increasing monotone sequence.
 	// Prevents signers from including more than one signature.
-	ErrorSignersAddressesMustBeStrictlyIncreasing = 106
+	ErrorSignersKeysMustBeStrictlyIncreasing = 106
 
 	// Thrown when the signature corresponds to invalid signer.
 	ErrorInvalidSigner = 107

@@ -8,7 +8,7 @@ import * as ac from '../../wrappers/lib/access/AccessControl'
 
 import { BaseTestSetup, TestCode } from './BaseTest'
 import { SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { asSnakeData } from '../../utils'
+import { asSnakeData } from '../../src/utils'
 
 describe('MCMS - RBACTimelockExecuteTest', () => {
   let baseTest: BaseTestSetup
@@ -55,10 +55,10 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       const calls = BaseTestSetup.singletonCalls({
         target: baseTest.bind.counter.address,
         value: toNano('0.05'),
-        data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
+        data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
       })
 
-      const body = rbactl.builder.message.bypasserExecuteBatch.encode({
+      const body = rbactl.builder.message.in.bypasserExecuteBatch.encode({
         queryId: 1n,
         calls,
       })
@@ -88,7 +88,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       }
       const calls = BaseTestSetup.singletonCalls(invalidCall)
 
-      const body = rbactl.builder.message.bypasserExecuteBatch.encode({
+      const body = rbactl.builder.message.in.bypasserExecuteBatch.encode({
         queryId: 1n,
         calls,
       })
@@ -107,114 +107,98 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
     })
 
     it('should allow bypasser to execute batch operations', async () => {
-      const incrementCall: rbactl.Call = {
-        target: baseTest.bind.counter.address,
-        value: toNano('0.05'),
-        data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
-      }
-      const setCountCall: rbactl.Call = {
-        target: counterTwo.address,
-        value: toNano('0.05'),
-        data: counter.builder.message.setCount.encode({
-          queryId: 1n,
-          newCount: 10,
-        }),
-      }
+      await shouldAllowToExecuteBatchOperation(baseTest.acc.bypasserOne)
+    })
 
-      const calls = asSnakeData<rbactl.Call>([incrementCall, setCountCall], (c) =>
+    it('should allow admin to execute batch operations', async () => {
+      await shouldAllowToExecuteBatchOperation(baseTest.acc.admin)
+    })
+
+    async function shouldAllowToExecuteBatchOperation(signer: SandboxContract<TreasuryContract>) {
+      const calls = [
+        {
+          // Increment counter
+          target: baseTest.bind.counter.address,
+          value: toNano('0.05'),
+          data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
+        },
+        {
+          // Set counterTwo
+          target: counterTwo.address,
+          value: toNano('0.05'),
+          data: counter.builder.message.in.setCount.encode({
+            queryId: 1n,
+            newCount: 10,
+          }),
+        },
+      ]
+      const encodedCalls = asSnakeData<rbactl.Call>(calls, (c) =>
         rbactl.builder.data.call.encode(c).asBuilder(),
       )
-
-      const executeMsg = rbactl.builder.message.bypasserExecuteBatch.encode({
+      const executeMsg = rbactl.builder.message.in.bypasserExecuteBatch.encode({
         queryId: 1n,
-        calls,
+        calls: encodedCalls,
       })
 
       const result = await baseTest.bind.timelock.sendInternal(
-        baseTest.acc.bypasserOne.getSender(),
+        signer.getSender(),
         toNano('1'),
         executeMsg,
       )
 
       expect(result.transactions).toHaveTransaction({
-        from: baseTest.acc.bypasserOne.address,
+        from: signer.address,
         to: baseTest.bind.timelock.address,
         success: true,
       })
 
+      // Check for Timelock_BypasserCallExecuted events
+      const externalsFromTimelock = result.externals.filter((e) => {
+        return e.info.src.equals(baseTest.bind.timelock.address)
+      })
+
+      expect(externalsFromTimelock).toHaveLength(calls.length)
+
+      for (const [index, bypasserExecutedExternal] of externalsFromTimelock.entries()) {
+        expect(bypasserExecutedExternal.info.dest?.value.toString(16)).toEqual(
+          rbactl.opcodes.out.BypasserCallExecuted.toString(16),
+        )
+
+        const opcode = bypasserExecutedExternal.body.beginParse().preloadUint(32)
+        const bypasserExecutedEvent = rbactl.builder.message.out.bypasserCallExecuted.decode(
+          bypasserExecutedExternal.body,
+        )
+
+        expect(opcode.toString(16)).toEqual(rbactl.opcodes.out.BypasserCallExecuted.toString(16))
+        expect(bypasserExecutedEvent.queryId).toEqual(1)
+        expect(bypasserExecutedEvent.index).toEqual(index)
+        expect(
+          bypasserExecutedEvent.target.equals(
+            [baseTest.bind.counter.address, counterTwo.address][index],
+          ),
+        ).toBeTruthy()
+        expect(bypasserExecutedEvent.value).toEqual(toNano('0.05'))
+        expect(bypasserExecutedEvent.data.equals(calls[index].data)).toBeTruthy()
+      }
+
+      // Verify counter was incremented
       expect(result.transactions).toHaveTransaction({
         from: baseTest.bind.timelock.address,
         to: baseTest.bind.counter.address,
         success: true,
         op: counter.opcodes.in.IncreaseCount,
       })
+      expect(await baseTest.bind.counter.getValue()).toEqual(1)
 
+      // Verify counterTwo was set
       expect(result.transactions).toHaveTransaction({
         from: baseTest.bind.timelock.address,
         to: counterTwo.address,
         success: true,
         op: counter.opcodes.in.SetCount,
       })
-
-      // Verify counter was incremented
-      expect(await baseTest.bind.counter.getValue()).toEqual(1)
       expect(await counterTwo.getValue()).toEqual(10)
-    })
-
-    it('should allow admin to execute batch operations', async () => {
-      const incrementCall: rbactl.Call = {
-        target: baseTest.bind.counter.address,
-        value: toNano('0.05'),
-        data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
-      }
-      const setCountCall: rbactl.Call = {
-        target: counterTwo.address,
-        value: toNano('0.05'),
-        data: counter.builder.message.setCount.encode({
-          queryId: 1n,
-          newCount: 10,
-        }),
-      }
-
-      const calls = asSnakeData<rbactl.Call>([incrementCall, setCountCall], (c) =>
-        rbactl.builder.data.call.encode(c).asBuilder(),
-      )
-
-      const body = rbactl.builder.message.bypasserExecuteBatch.encode({
-        queryId: 1n,
-        calls,
-      })
-
-      const result = await baseTest.bind.timelock.sendInternal(
-        baseTest.acc.admin.getSender(),
-        toNano('1'),
-        body,
-      )
-
-      expect(result.transactions).toHaveTransaction({
-        from: baseTest.acc.admin.address,
-        to: baseTest.bind.timelock.address,
-        success: true,
-      })
-
-      expect(result.transactions).toHaveTransaction({
-        from: baseTest.bind.timelock.address,
-        to: baseTest.bind.counter.address,
-        success: true,
-        op: counter.opcodes.in.IncreaseCount,
-      })
-
-      expect(result.transactions).toHaveTransaction({
-        from: baseTest.bind.timelock.address,
-        to: counterTwo.address,
-        success: true,
-        op: counter.opcodes.in.SetCount,
-      })
-
-      // Verify counter was incremented
-      expect(await baseTest.bind.counter.getValue()).toEqual(1)
-      expect(await counterTwo.getValue()).toEqual(10)
-    })
+    }
   })
 
   describe('Regular Execute Batch Tests', () => {
@@ -222,10 +206,10 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       const calls = BaseTestSetup.singletonCalls({
         target: baseTest.bind.counter.address,
         value: toNano('0.05'),
-        data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
+        data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
       })
 
-      const body = rbactl.builder.message.executeBatch.encode({
+      const body = rbactl.builder.message.in.executeBatch.encode({
         queryId: 1n,
         calls,
         predecessor: BaseTestSetup.NO_PREDECESSOR,
@@ -251,11 +235,11 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       const calls = BaseTestSetup.singletonCalls({
         target: baseTest.bind.counter.address,
         value: toNano('0.05'),
-        data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
+        data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
       })
 
       // Schedule operation
-      const scheduleBody = rbactl.builder.message.scheduleBatch.encode({
+      const scheduleBody = rbactl.builder.message.in.scheduleBatch.encode({
         queryId: 1n,
         calls,
         predecessor: BaseTestSetup.NO_PREDECESSOR,
@@ -278,7 +262,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       // Try to execute before delay is met (only advance a short time)
       baseTest.warpTime(Number(BaseTestSetup.MIN_DELAY - 2n * 24n * 60n * 60n)) // 2 days short
 
-      const executeBody = rbactl.builder.message.executeBatch.encode({
+      const executeBody = rbactl.builder.message.in.executeBatch.encode({
         queryId: 1n,
         calls,
         predecessor: BaseTestSetup.NO_PREDECESSOR,
@@ -303,13 +287,13 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       const predecessorCall: rbactl.Call = {
         target: baseTest.bind.counter.address,
         value: toNano('0.05'),
-        data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
+        data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
       }
       const predecessorCalls = BaseTestSetup.singletonCalls(predecessorCall)
 
       {
         // Schedule predecessor operation
-        const scheduleCall = rbactl.builder.message.scheduleBatch.encode({
+        const scheduleCall = rbactl.builder.message.in.scheduleBatch.encode({
           queryId: 1n,
           calls: predecessorCalls,
           predecessor: BaseTestSetup.NO_PREDECESSOR,
@@ -336,7 +320,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       const dependentCall: rbactl.Call = {
         target: baseTest.bind.counter.address,
         value: toNano('0.05'),
-        data: counter.builder.message.setCount.encode({
+        data: counter.builder.message.in.setCount.encode({
           queryId: 2n,
           newCount: 5,
         }),
@@ -344,7 +328,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       const dependentCalls = BaseTestSetup.singletonCalls(dependentCall)
 
       {
-        const scheduleBody = rbactl.builder.message.scheduleBatch.encode({
+        const scheduleBody = rbactl.builder.message.in.scheduleBatch.encode({
           queryId: 2n,
           calls: dependentCalls,
           predecessor: predecessorId,
@@ -363,7 +347,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       baseTest.warpTime(Number(BaseTestSetup.MIN_DELAY + 2n * 24n * 60n * 60n)) // 2 days extra
 
       // Try to execute dependent operation (should fail)
-      const executeBody = rbactl.builder.message.executeBatch.encode({
+      const executeBody = rbactl.builder.message.in.executeBatch.encode({
         queryId: 3n,
         calls: dependentCalls,
         predecessor: predecessorId,
@@ -395,7 +379,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       const calls = BaseTestSetup.singletonCalls(invalidCall)
 
       // Schedule operation
-      const scheduleBody = rbactl.builder.message.scheduleBatch.encode({
+      const scheduleBody = rbactl.builder.message.in.scheduleBatch.encode({
         queryId: 1n,
         calls,
         predecessor: BaseTestSetup.NO_PREDECESSOR,
@@ -413,7 +397,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       baseTest.warpTime(Number(BaseTestSetup.MIN_DELAY + 2n * 24n * 60n * 60n))
 
       // Try to execute (should fail due to invalid call)
-      const executeBody = rbactl.builder.message.executeBatch.encode({
+      const executeBody = rbactl.builder.message.in.executeBatch.encode({
         queryId: 2n,
         calls,
         predecessor: BaseTestSetup.NO_PREDECESSOR,
@@ -445,7 +429,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       const setCountCall: rbactl.Call = {
         target: baseTest.bind.counter.address,
         value: toNano('0.05'),
-        data: counter.builder.message.setCount.encode({
+        data: counter.builder.message.in.setCount.encode({
           queryId: 1n,
           newCount: 10,
         }),
@@ -453,7 +437,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       const calls = BaseTestSetup.singletonCalls(setCountCall)
 
       // Schedule operation
-      const scheduleBody = rbactl.builder.message.scheduleBatch.encode({
+      const scheduleBody = rbactl.builder.message.in.scheduleBatch.encode({
         queryId: 1n,
         calls,
         predecessor: BaseTestSetup.NO_PREDECESSOR,
@@ -471,7 +455,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       baseTest.warpTime(Number(BaseTestSetup.MIN_DELAY + 1n))
 
       // Execute operation
-      const executeBody = rbactl.builder.message.executeBatch.encode({
+      const executeBody = rbactl.builder.message.in.executeBatch.encode({
         queryId: 2n,
         calls,
         predecessor: BaseTestSetup.NO_PREDECESSOR,
@@ -490,6 +474,30 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
         success: true,
       })
 
+      // Check for Timelock_CallExecuted events
+      const externalsFromTimelock = result.externals.filter((e) => {
+        return e.info.src.equals(baseTest.bind.timelock.address)
+      })
+
+      expect(externalsFromTimelock).toHaveLength(1) // One call in the batch
+
+      const callExecutedExternal = externalsFromTimelock[0]
+      expect(callExecutedExternal.info.dest?.value.toString(16)).toEqual(
+        rbactl.opcodes.out.CallExecuted.toString(16),
+      )
+
+      const opcode = callExecutedExternal.body.beginParse().preloadUint(32)
+      const callExecutedEvent = rbactl.builder.message.out.callExecuted.decode(
+        callExecutedExternal.body,
+      )
+
+      expect(opcode.toString(16)).toEqual(rbactl.opcodes.out.CallExecuted.toString(16))
+      expect(callExecutedEvent.queryId).toEqual(2)
+      expect(callExecutedEvent.index).toEqual(0)
+      expect(callExecutedEvent.target.equals(baseTest.bind.counter.address)).toBeTruthy()
+      expect(callExecutedEvent.value).toEqual(toNano('0.05'))
+      expect(callExecutedEvent.data.equals(setCountCall.data)).toBeTruthy()
+
       // Verify operation was marked as done
       const operationBatch: rbactl.OperationBatch = {
         calls,
@@ -497,6 +505,9 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
         salt: BaseTestSetup.EMPTY_SALT,
       }
       const operationId = await baseTest.bind.timelock.getHashOperationBatch(operationBatch)
+
+      // Verify the operation ID in the event matches
+      expect(callExecutedEvent.id).toEqual(operationId)
       const timestamp = await baseTest.bind.timelock.getTimestamp(operationId)
       expect(timestamp).toEqual(BaseTestSetup.DONE_TIMESTAMP)
 
@@ -511,12 +522,12 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       const incrementCall: rbactl.Call = {
         target: baseTest.bind.counter.address,
         value: toNano('0.05'),
-        data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
+        data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
       }
       const calls = BaseTestSetup.singletonCalls(incrementCall)
 
       // Schedule operation
-      const scheduleBody = rbactl.builder.message.scheduleBatch.encode({
+      const scheduleBody = rbactl.builder.message.in.scheduleBatch.encode({
         queryId: 1n,
         calls,
         predecessor: BaseTestSetup.NO_PREDECESSOR,
@@ -534,7 +545,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       baseTest.warpTime(Number(BaseTestSetup.MIN_DELAY + 1n))
 
       // Grant executor role to call proxy
-      const grantRoleBody = ac.builder.message.grantRole.encode({
+      const grantRoleBody = ac.builder.message.in.grantRole.encode({
         queryId: 1n,
         role: rbactl.roles.executor,
         account: baseTest.bind.callProxy.address,
@@ -547,7 +558,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       )
 
       // Execute through call proxy using external caller
-      const executeBody = rbactl.builder.message.executeBatch.encode({
+      const executeBody = rbactl.builder.message.in.executeBatch.encode({
         queryId: 2n,
         calls,
         predecessor: BaseTestSetup.NO_PREDECESSOR,
@@ -575,12 +586,12 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       const incrementCall: rbactl.Call = {
         target: baseTest.bind.counter.address,
         value: toNano('0.05'),
-        data: counter.builder.message.increaseCount.encode({ queryId: 1n }),
+        data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
       }
       const calls = BaseTestSetup.singletonCalls(incrementCall)
 
       // Schedule operation
-      const scheduleBody = rbactl.builder.message.scheduleBatch.encode({
+      const scheduleBody = rbactl.builder.message.in.scheduleBatch.encode({
         queryId: 1n,
         calls,
         predecessor: BaseTestSetup.NO_PREDECESSOR,
@@ -598,7 +609,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       baseTest.warpTime(Number(BaseTestSetup.MIN_DELAY + 1n))
 
       // Try to execute through call proxy without granting executor role
-      const executeBody = rbactl.builder.message.executeBatch.encode({
+      const executeBody = rbactl.builder.message.in.executeBatch.encode({
         queryId: 2n,
         calls,
         predecessor: BaseTestSetup.NO_PREDECESSOR,

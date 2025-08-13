@@ -19,7 +19,7 @@ import {
   generateEd25519KeyPair,
   expectEqualsConfig,
 } from './Helpers'
-import { uint8ArrayToBigInt } from '../../../utils'
+import { uint8ArrayToBigInt } from '../../../src/utils'
 import { KeyPair } from '@ton/crypto'
 import { assertLog } from '../../Logs'
 

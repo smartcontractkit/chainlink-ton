@@ -1,9 +1,9 @@
 import '@ton/test-utils'
 
-import { toNano } from '@ton/core'
+import { Address, toNano } from '@ton/core'
 
-import * as rbactl from '../../wrappers/mcms/RBACTimelock'
-import * as ac from '../../wrappers/lib/access/AccessControl'
+import { rbactl } from '../../wrappers/mcms'
+import { ac } from '../../wrappers/lib/access'
 
 import { BaseTestSetup, TestCode } from './BaseTest'
 import { SandboxContract, TreasuryContract } from '@ton/sandbox'
@@ -46,13 +46,33 @@ describe('MCMS - RBACTimelockUpdateDelayTest', () => {
       success: true,
     })
 
+    // Check for MinDelayChange confirmation
+    const delayChangedTx = result.transactions.filter((t) => {
+      const src = t.inMessage?.info.src! as Address
+      return src && src.equals(baseTest.bind.timelock.address)
+    })
+
+    expect(delayChangedTx).toHaveLength(1)
+    expect(delayChangedTx[0].inMessage).toBeDefined()
+
+    const delayChangedMsg = delayChangedTx[0].inMessage!
+    const opcode = delayChangedMsg.body.beginParse().preloadUint(32)
+    const delayChangedConfirmation = rbactl.builder.message.out.minDelayChange.decode(
+      delayChangedMsg.body,
+    )
+
+    expect(opcode.toString(16)).toEqual(rbactl.opcodes.out.MinDelayChange.toString(16))
+    expect(delayChangedConfirmation.queryId).toEqual(1)
+    expect(delayChangedConfirmation.oldDelay).toEqual(Number(BaseTestSetup.MIN_DELAY))
+    expect(delayChangedConfirmation.newDelay).toEqual(newDelay)
+
     // Verify the delay was updated
     const minDelay = await baseTest.bind.timelock.getMinDelay()
     expect(minDelay).toBe(BigInt(newDelay))
   })
 
   async function updateTimelockDelay(sender: SandboxContract<TreasuryContract>) {
-    const body = rbactl.builder.message.updateDelay.encode({
+    const body = rbactl.builder.message.in.updateDelay.encode({
       queryId: 1n,
       newDelay,
     })

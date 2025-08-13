@@ -12,7 +12,7 @@ import {
 } from '@ton/core'
 
 import { OCR3Base, ReportContext, SignatureEd25519 } from '../libraries/ocr/MultiOCR3Base'
-import { asSnakeData, fromSnakeData, bigIntToUint8Array } from '../../utils/types'
+import { asSnakeData, fromSnakeData, bigIntToUint8Array } from '../../src/utils/types'
 import * as ownable2step from '../libraries/access/Ownable2Step'
 
 export type OffRampStorage = {

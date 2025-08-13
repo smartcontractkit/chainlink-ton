@@ -10,9 +10,10 @@ import {
   TimestampedPrice,
 } from '../../wrappers/ccip/FeeQuoter'
 import '@ton/test-utils'
-import { ZERO_ADDRESS } from '../../utils/types'
 import { assertLog } from '../Logs'
 import { LogTypes } from '../../wrappers/ccip/Logs'
+import { ZERO_ADDRESS } from '../../src/utils'
+
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_TON = 13879075125137744094n
 
