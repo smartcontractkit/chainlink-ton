@@ -33,7 +33,7 @@ func (a AddressCodec) AddressBytesToString(bytes []byte) (string, error) {
 	}
 	var rawAddr RawAddr
 	copy(rawAddr[:], bytes)
-	workchain := binary.BigEndian.Uint32(rawAddr[0:4])
+	workchain := int32(binary.BigEndian.Uint32(rawAddr[0:4]))
 
 	addr := address.NewAddress(0, byte(workchain), rawAddr[4:])
 	return addr.String(), nil
