@@ -107,7 +107,7 @@ export function leafMetadataPreimage(rootMetadata: mcms.RootMetadata): Cell {
 export function leafOpPreimage(op: mcms.Op): Cell {
   return beginCell()
     .storeUint(mcms.MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP, 256)
-    .storeBuilder(mcms.builder.data.op.encode(op).asBuilder())
+    .storeRef(mcms.builder.data.op.encode(op)) // Doesn't fit in root cell
     .endCell()
 }
 

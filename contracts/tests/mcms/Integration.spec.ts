@@ -2,7 +2,7 @@ import '@ton/test-utils'
 
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Address, beginCell, Cell, Dictionary, toNano } from '@ton/core'
-import { KeyPair } from '@ton/crypto'
+import { KeyPair, sign } from '@ton/crypto'
 import { compile } from '@ton/blueprint'
 
 import { asSnakeData, uint8ArrayToBigInt } from '../../src/utils'
@@ -17,7 +17,7 @@ import * as counter from '../../wrappers/examples/Counter'
 import * as ownable2step from '../../wrappers/libraries/access/Ownable2Step'
 
 import { crc32 } from 'zlib'
-import { sign } from 'crypto'
+import { merkleProof } from '../../src/mcms'
 
 describe('MCMS - IntegrationTest', () => {
   let blockchain: Blockchain
@@ -525,6 +525,18 @@ describe('MCMS - IntegrationTest', () => {
     }
     const callsHash = await bind.timelock.getHashOperationBatch(operationBatch)
 
+    const signers = proposerKeyPairs().map((v) => ({
+      publicKey: v.publicKey,
+      sign: (data: Buffer<ArrayBufferLike>) => sign(data, v.secretKey),
+    }))
+    const validUntil = BigInt(blockchain.now || 0) + 2n * 60n * 60n // block.timestamp + 2 hours
+    const metadata = {
+      chainId: -239n, // TODO: blockchain global chain ID (will need to be signed int)
+      multiSig: bind.mcmsPropose.address,
+      preOpCount: 0n,
+      postOpCount: 1n,
+      overridePreviousRoot: false,
+    }
     const ops: mcms.Op[] = [
       {
         chainId: -239n, // TODO: blockchain global chain ID (will need to be signed int)
@@ -541,39 +553,85 @@ describe('MCMS - IntegrationTest', () => {
         }),
       },
     ]
-
-    // TODO: https://github.com/smartcontractkit/ccip-owner-contracts/blob/main/test/IntegrationTest.t.sol
-    // TODO: compute MerkleRoot and setRoot
+    const [setRoot, opProofs] = merkleProof.build(signers, validUntil, metadata, ops)
 
     {
       const r = await bind.mcmsPropose.sendInternal(
         acc.deployer.getSender(),
         toNano('0.10'),
-        mcms.builder.message.setRoot.encode({
-          queryId: 1n,
-          root: 0n, // TODO: compute MerkleRoot
-          validUntil: BigInt(blockchain.now || 0) + 2n * 60n * 60n, // block.timestamp + 2 hours
-          metadata: {
-            chainId: -239n, // TODO: blockchain global chain ID (will need to be signed int)
-            multiSig: bind.mcmsPropose.address,
-            preOpCount: 0n,
-            postOpCount: 1n,
-            overridePreviousRoot: false,
-          },
-          metadataProof: beginCell().endCell(), // TODO vec<uint256>
-          signatures: beginCell().endCell(), // TODO  vec<Signature>
-        }),
+        mcms.builder.message.setRoot.encode(setRoot),
       )
 
       expect(r.transactions).toHaveTransaction({
         from: acc.deployer.address,
         to: bind.mcmsPropose.address,
-        // success: true,
-        exitCode: mcms.Error.PROOF_CANNOT_BE_VERIFIED, // TODO: add proof and signatures
+        success: true,
       })
 
-      // TODO:
-      // s_proposeMultiSig.execute(ops[0], opProofs[0]);
+      // TODO: move this encoding internally to lib
+      const encodeProof = (v) => beginCell().storeUint(v, 256)
+
+      const r1 = await bind.mcmsPropose.sendInternal(
+        acc.deployer.getSender(),
+        toNano('0.10'),
+        mcms.builder.message.execute.encode({
+          queryId: 1n,
+          op: mcms.builder.data.op.encode(ops[0]),
+          proof: asSnakeData<bigint>(opProofs[0], encodeProof),
+        }),
+      )
+
+      expect(r1.transactions).toHaveTransaction({
+        from: acc.deployer.address,
+        to: bind.mcmsPropose.address,
+        success: true,
+      })
+
+      // fails if minDelay hasn't elapsed
+
+      const r2 = await bind.callProxy.sendInternal(
+        acc.deployer.getSender(),
+        toNano('0.10'),
+        rbactl.builder.message.executeBatch.encode({
+          queryId: 1n,
+          predecessor: proposePredecessor,
+          salt: 0n,
+          calls,
+        }),
+      )
+
+      expect(r2.transactions).toHaveTransaction({
+        from: acc.deployer.address,
+        to: bind.callProxy.address,
+        success: false,
+        exitCode: rbactl.Errors.OperationNotReady,
+      })
+
+      blockchain.now = blockchain.now! + Number(MIN_DELAY)
+
+      const r3 = await bind.callProxy.sendInternal(
+        acc.deployer.getSender(),
+        toNano('0.10'),
+        rbactl.builder.message.executeBatch.encode({
+          queryId: 2n,
+          predecessor: proposePredecessor,
+          salt: 0n,
+          calls,
+        }),
+      )
+
+      expect(r3.transactions).toHaveTransaction({
+        from: acc.deployer.address,
+        to: bind.callProxy.address,
+        success: true,
+      })
+
+      expect(await bind.counter.getValue()).toEqual(2)
+
+      // TODO: https://github.com/smartcontractkit/ccip-owner-contracts/blob/main/test/IntegrationTest.t.sol
+      //
+      // again, increment twice through regular flow
+      //
     }
   })
 })
