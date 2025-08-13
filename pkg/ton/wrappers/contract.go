@@ -39,7 +39,7 @@ func (c *Contract) CallWait(message any, amount tlb.Coins) (*tracetracking.Recei
 
 // Calls a writer message on the contract and waits for it to be received.
 // It waits for all the trace (outgoing messages) to be received.
-// Use CallWait to wait onlyfor this first message.
+// Use CallWait to wait only for this first message.
 func (c *Contract) CallWaitRecursively(message any, amount tlb.Coins) (*tracetracking.ReceivedMessage, error) {
 	sentMessage, err := c.CallWait(message, amount)
 	if err != nil {
@@ -95,7 +95,7 @@ func Uint64From(res *ton.ExecutionResult, err error) (uint64, error) {
 
 func Uint32From(res *ton.ExecutionResult, err error) (uint32, error) {
 	if err != nil {
-		return 0, fmt.Errorf("failed to run get message: %w", err)
+		return 0, fmt.Errorf("failed to run get method: %w", err)
 	}
 
 	val, err := res.Int(0)
@@ -142,9 +142,7 @@ type tactCompiledContract struct {
 }
 
 type tolkCompiledContract struct {
-	Hash       string `json:"hash"`
-	HashBase64 string `json:"hashBase64"`
-	Hex        string `json:"hex"`
+	Hex string `json:"hex"`
 }
 
 func (c tactCompiledContract) codeCell() (*cell.Cell, error) {
@@ -193,40 +191,70 @@ func (c tolkCompiledContract) codeCell() (*cell.Cell, error) {
 // compiled contract, the initial data for the contract, and the amount of
 // TON to be sent to the contract upon deployment.
 // It returns the contract wrapper if the deployment is successful.
-// The function returns an error if the deployment fails.
-func Deploy(client *tracetracking.SignedAPIClient, codeCell *cell.Cell, initData *cell.Cell, amount tlb.Coins) (*Contract, error) {
-	// Create empty message body for deployment
-	msgBody := cell.BeginCell().EndCell()
-
+// The function does not check the exit code of the deployment transaction as
+// the exit code depends on the contract implementation. This is left to the
+// caller. Example:
+//
+// ```
+//
+// msg, err := tlb.ToCell(jetton_wrappers.TopUpMessage{QueryID: rand.Uint64()})
+//
+// require.NoError(t, err, "failed to create top-up message")
+//
+// receiverJettonWallet, deployMsg, err := wrappers.Deploy(&setup.common.receiver, jettonWalletCode, jettonWalletInitCell, tlb.MustFromTON("0.1"),
+// //msg)
+// require.NoError(t, err, "failed to deploy JettonWallet contract")
+//
+// deployExitCode := deployMsg.OutgoingInternalReceivedMessages[0].ExitCode
+//
+// require.Zero(t, deployExitCode, "contract deployment failed: exit code %d: %s", deployExitCode, deployExitCode.Describe())
+//
+// ```
+func Deploy(client *tracetracking.SignedAPIClient, codeCell *cell.Cell, initData *cell.Cell, amount tlb.Coins, msgBody *cell.Cell) (*Contract, *tracetracking.ReceivedMessage, error) {
 	// Deploy the contract
 	addr, tx, _, err := client.Wallet.DeployContractWaitTransaction(
-		context.Background(),
+		context.Background(), // TODO: use context from args
 		amount,
 		msgBody,
 		codeCell,
 		initData,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("deployment failed: %w", err)
+		return nil, nil, fmt.Errorf("deployment failed: %w", err)
 	}
 
 	receivedMessage, err := tracetracking.MapToReceivedMessage(tx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get outgoing messages: %w", err)
+		return nil, nil, fmt.Errorf("failed to get outgoing messages: %w", err)
 	}
 	err = receivedMessage.WaitForTrace(client.Client)
 	if err != nil {
-		return nil, fmt.Errorf("failed to wait for trace: %w", err)
+		return nil, nil, fmt.Errorf("failed to wait for trace: %w", err)
 	}
 	if receivedMessage.ExitCode != tvm.ExitCodeSuccess || len(receivedMessage.OutgoingInternalReceivedMessages) != 1 {
-		return nil, fmt.Errorf("contract deployment failed: error sending external message: exit code %d: %s", receivedMessage.ExitCode, receivedMessage.ExitCode.Describe())
-	}
-	deployExitCode := receivedMessage.OutgoingInternalReceivedMessages[0].ExitCode
-	if !deployExitCode.IsSuccessfulDeployment() {
-		return nil, fmt.Errorf("contract deployment failed: exit code %d: %s", deployExitCode, deployExitCode.Describe())
+		return nil, nil, fmt.Errorf("contract deployment failed: error sending external message: exit code %d: %s", receivedMessage.ExitCode, receivedMessage.ExitCode.Describe())
 	}
 
-	return &Contract{addr, client}, nil
+	return &Contract{addr, client}, &receivedMessage, nil
+}
+
+func Open(client *tracetracking.SignedAPIClient, codeCell *cell.Cell, initData *cell.Cell) (*Contract, error) {
+	state := &tlb.StateInit{
+		Data: initData,
+		Code: codeCell,
+	}
+
+	stateCell, err := tlb.ToCell(state)
+	if err != nil {
+		return nil, err
+	}
+
+	addr := address.NewAddress(0, byte(0), stateCell.Hash())
+
+	return &Contract{
+		Address: addr,
+		Client:  client,
+	}, nil
 }
 
 func ParseCompiledContract(path string) (*cell.Cell, error) {

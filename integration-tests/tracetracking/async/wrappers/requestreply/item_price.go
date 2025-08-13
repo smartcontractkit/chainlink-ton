@@ -3,15 +3,15 @@ package requestreply
 import (
 	"fmt"
 
-	test_utils "integration-tests/utils"
-
 	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
-var ItemPriceContractPath = test_utils.GetBuildDir("examples.async-communication.request-reply.ItemPrice/tact_ItemPrice.pkg")
+var ItemPriceContractPath = bindings.GetBuildDir("examples.async-communication.request-reply.ItemPrice/tact_ItemPrice.pkg")
 
 type ItemPriceProvider struct {
 	apiClient tracetracking.SignedAPIClient
@@ -37,7 +37,8 @@ func (p *ItemPriceProvider) Deploy(initData ItemPriceInitData) (ItemPrice, error
 	if err != nil {
 		return ItemPrice{}, fmt.Errorf("failed to compile contract: %w", err)
 	}
-	contract, err := wrappers.Deploy(&p.apiClient, compiledContract, initDataCell, tlb.MustFromTON("1"))
+	body := cell.BeginCell().EndCell()
+	contract, _, err := wrappers.Deploy(&p.apiClient, compiledContract, initDataCell, tlb.MustFromTON("1"), body)
 	if err != nil {
 		return ItemPrice{}, err
 	}

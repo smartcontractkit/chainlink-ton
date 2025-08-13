@@ -11,7 +11,7 @@ import {
 } from '../../wrappers/ccip/FeeQuoter'
 import { testLog, getExternals } from '../Logs'
 import '@ton/test-utils'
-import { ZERO_ADDRESS } from '../../utils/Utils'
+import { ZERO_ADDRESS } from '../../utils'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_TON = 13879075125137744094n
@@ -137,6 +137,7 @@ describe('Router', () => {
     let data: RouterStorage = {
       ownable: {
         owner: deployer.address,
+        pendingOwner: null,
       },
       onRamp: ZERO_ADDRESS,
     }
@@ -149,6 +150,7 @@ describe('Router', () => {
       let data: FeeQuoterStorage = {
         ownable: {
           owner: deployer.address,
+          pendingOwner: null,
         },
         maxFeeJuelsPerMsg: 1000000n,
         linkToken: ZERO_ADDRESS,
@@ -224,6 +226,7 @@ describe('Router', () => {
       let data: OnRampStorage = {
         ownable: {
           owner: deployer.address,
+          pendingOwner: null,
         },
         chainSelector: CHAINSEL_TON,
         config: {

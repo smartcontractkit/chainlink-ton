@@ -161,7 +161,7 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
 **Implement required getters:**
 
 ```tolk
-get typeAndVersion(): (slice, slice) {
+get fun typeAndVersion(): (slice, slice) {
     val storage = loadData();
     val this = UpgradeableCounter{
         versionStr: "1.0.0",
