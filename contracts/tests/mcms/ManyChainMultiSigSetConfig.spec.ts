@@ -388,7 +388,7 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
       success: true,
     })
 
-    // Verify a ConfigSet event was emitted
+    // Verify a ConfigSet confirmation was replied
     expect(result.transactions).toHaveTransaction({
       from: baseTest.bind.mcms.address,
       op: mcms.opcodes.out.ConfigSet,
@@ -437,7 +437,7 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
       success: true,
     })
 
-    // Verify a ConfigSet event was emitted
+    // Verify a ConfigSet confirmation was replied
     expect(result.transactions).toHaveTransaction({
       from: baseTest.bind.mcms.address,
       op: mcms.opcodes.out.ConfigSet,
