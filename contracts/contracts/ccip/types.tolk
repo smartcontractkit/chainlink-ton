@@ -311,9 +311,6 @@ struct TokenBalance {
     failed: bool; // if marked as failed, a retry will allow re-sending these
 }
 
-struct (0x10000010) ExecuteReport {
-}
-
 // Errors
 
 const ERROR_UNKNOWN_DEST_CHAIN_SELECTOR: int = 256;

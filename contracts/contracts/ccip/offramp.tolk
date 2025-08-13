@@ -107,6 +107,12 @@ struct (0x00000003) UpdateSourceChainConfig {
     config: SourceChainConfig
 }
 
+struct (0x00000004) ExecuteValidated {
+    messages: cell; // vec<Any2TVMRampMessage>
+    proofs: cell;
+    proofFlagBits: uint256;
+}
+
 type Msg = Commit | Execute | UpdateSourceChainConfig | OCR3Base_SetOCR3Config;
 
 fun onInternalMessage(in:InMessage) {
@@ -118,6 +124,39 @@ fun onInternalMessage(in:InMessage) {
         Execute => { _execute(msg, in.senderAddress) }
         OCR3Base_SetOCR3Config => { _setOCR3Config(msg, in.senderAddress)}
         UpdateSourceChainConfig => {_updateSourceChainConfig(msg, in.senderAddress)}
+        ExecuteValidated => {
+            val st = Storage.load();
+            val root = merkleRoot(
+                Iterator<Any2TVMRampMessage>.new(report.messages),
+                Iterator<uint256>.new(report.proofs),
+                msg.proofFlagBits
+            );
+
+            val initCode =  st.deployer;
+            val initData = Deployable {
+              owner: contract.getAddress(),
+              id: getMerkleRootID(root.merkleRoot),
+            }.toCell();
+
+            var stateInit = begin_cell()
+              .storeUint(0, 1) // split_depth:(Maybe (## 5))
+              .storeUint(0, 1) // special:(Maybe TickTock)
+              .storeUint(1, 1) // (Maybe ^Cell)
+              .storeUint(1, 1) // (Maybe ^Cell)
+              .storeUint(0, 1) // (HashmapE 256 SimpleLib)
+              .store_ref(initCode)
+              .store_ref(initData)
+              .end_cell();
+ 
+            var expectedAddress = begin_cell() 
+                .storeUint(2, 2) // addr_std$10
+                .storeUint(0, 1) // anycast:(Maybe Anycast)
+                .storeUint(0, 8) // workchain_id:int8
+                .storeUint(stateInit.hash(), 256) // address:bits256
+                .end_cell() as address;
+            }
+
+            assert(expectedAddress == in.senderAddress);
         else => {
             // ignore empty messages, "wrong opcode" for others
             assert (in.body.isEmpty()) throw 0xFFFF
@@ -227,17 +266,16 @@ fun commit(msg: Commit, sender: address) {
 
 fun _execute(msg: Execute, sender: address) {
     var st = lazy Storage.load();
-
-    // ocr3 base: validate execute report
-
     // TODO: manual execution flag
     // TODO: check if chain was cursed by RMNRemote
+
     val report = msg.report;
 
     var messages = Iterator<Any2TVMRampMessage>.new(report.messages);
 
-    // TODO: if messages.empty() throw EMPTY_REPORT
-    // if report.messages.len != offchainTokenData.len throw UNEXPECTED_TOKEN_DATA
+    assert(!messages.empty(), ERROR_EMPTY_REPORT);
+
+    // TODO: assert(report.messages.len == offchainTokenData.len, throw UNEXPECTED_TOKEN_DATA)
     // ^- perhaps easier to validate by checking if offchainTokenData iter is still empty after the while loop
 
     val sourceChainConfig = st.sourceChainConfigs.mustGet(report.sourceChainSelector, ERROR_SOURCE_CHAIN_NOT_ENABLED);
@@ -278,30 +316,36 @@ fun _execute(msg: Execute, sender: address) {
     // calculate merkle root
     var leavesIterator = TupleIterator<uint256>.new(hashedLeaves);
     var proofsIterator = Iterator<uint256>.new(report.proofs);
+
+    // without batching the root should just be the messageId each time
     val root = merkleRoot(
         leavesIterator,
         proofsIterator,
         report.proofFlagBits,
     );
 
+
     // send message to MerkleRoot (execute)
-    // val executeMsg = createMessage({
-    //     bounce: true, // TODO: will bounce if root doesn't exist -> throw RootNotCommitted
-    //     value: ton("0.1"), // TODO:
-    //     dest: {
-    //         stateInit: {
-    //             code: st.deployer,
-    //             data: Deployable {
-    //                 owner: contract.getAddress(),
-    //                 id: getMerkleRootID(root.merkleRoot),
-    //             }.toCell(),
-    //         },
-    //         // TODO: toShard so it's collocated with offramp
-    //     },
-    //     // TODO:
-    //     // body: Execute { },
-    // });
-    // executeMsg.send(SEND_MODE_REGULAR);
+     val executeMsg = createMessage({
+         bounce: true, // TODO: will bounce if root doesn't exist -> throw RootNotCommitted
+         value: ton("0.1"), // TODO:
+         dest: {
+             stateInit: {
+                 code: st.deployer,
+                 data: Deployable {
+                     owner: contract.getAddress(),
+                     id: getMerkleRootID(root.merkleRoot),
+                 }.toCell(),
+             },
+             // TODO: toShard so it's collocated with offramp
+         },
+         
+         body: Execute {
+            messages: report.messages,
+            offChainTokenData: report.offChainTokenData,
+         },
+     });
+     executeMsg.send(SEND_MODE_REGULAR);
 
     // TODO: how do we handle incrementing the nonce? since execution is async this might take a while
 
