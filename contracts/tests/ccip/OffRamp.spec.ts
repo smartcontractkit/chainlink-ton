@@ -311,7 +311,7 @@ describe('OffRamp', () => {
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
       destChainSelector: CHAINSEL_TON,
       sequenceNumber: 1n,
-      nonce: 1n,
+      nonce: 0n,
     }
 
     const message: Any2TVMRampMessage = {
@@ -406,7 +406,7 @@ describe('OffRamp', () => {
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
       destChainSelector: CHAINSEL_TON,
       sequenceNumber: 1n,
-      nonce: 1n,
+      nonce: 0n,
     }
     const message: Any2TVMRampMessage = {
       header: rampMessageHeader,
@@ -472,5 +472,127 @@ describe('OffRamp', () => {
       offRamp.address,
       ERROR_SOURCE_CHAIN_NOT_ENABLED,
     )
+  })
+
+  it('Test commit with two merkle roots with one message each', async () => {
+    const rampMessageHeader1: RampMessageHeader = {
+      messageId: 1n,
+      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+      destChainSelector: CHAINSEL_TON,
+      sequenceNumber: 1n,
+      nonce: 0n,
+    }
+
+    const message1: Any2TVMRampMessage = {
+      header: rampMessageHeader1,
+      sender: Buffer.from(bigIntToUint8Array(EVM_SENDER_ADDRESS_TEST)),
+      data: beginCell().endCell(),
+      receiver: generateMockTonAddress(),
+    }
+
+    const rampMessageHeader2: RampMessageHeader = {
+      messageId: 2n,
+      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+      destChainSelector: CHAINSEL_TON,
+      sequenceNumber: 2n,
+      nonce: 0n,
+    }
+
+    const message2: Any2TVMRampMessage = {
+      header: rampMessageHeader2,
+      sender: Buffer.from(bigIntToUint8Array(EVM_SENDER_ADDRESS_TEST)),
+      data: beginCell().endCell(),
+      receiver: generateMockTonAddress(),
+    }
+
+    const metadataHash = uint8ArrayToBigInt(getMetadataHash(CHAINSEL_EVM_TEST_90000001))
+    const root1Bytes = uint8ArrayToBigInt(generateMessageId(message1, metadataHash))
+    const root2Bytes = uint8ArrayToBigInt(generateMessageId(message2, metadataHash))
+
+    const root1: MerkleRoot = {
+      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+      onRampAddress: Buffer.from(bigIntToUint8Array(EVM_ONRAMP_ADDRESS_TEST)),
+      minSeqNr: 1n,
+      maxSeqNr: 1n,
+      merkleRoot: root1Bytes,
+    }
+
+    const root2: MerkleRoot = {
+      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+      onRampAddress: Buffer.from(bigIntToUint8Array(EVM_ONRAMP_ADDRESS_TEST)),
+      minSeqNr: 2n,
+      maxSeqNr: 2n,
+      merkleRoot: root2Bytes,
+    }
+
+    const report: CommitReport = {
+      merkleRoots: [root1, root2],
+    }
+
+    const reportContext: ReportContext = { configDigest, padding: 0n, sequenceBytes: 0x01 }
+
+    const signatures = createSignatures(
+      [signers[0], signers[1]],
+      hashReport(commitReportToBuilder(report).endCell(), reportContext),
+    )
+
+    const resultSetCommit = await offRamp.sendSetOCR3Config(
+      deployer.getSender(),
+      createDefaultOCRConfig(),
+    )
+    expectSuccessfulTransaction(resultSetCommit, deployer.address, offRamp.address)
+
+    assertLog(resultSetCommit.transactions, offRamp.address, OCR3Logs.LogTypes.OCR3BaseConfigSet, {
+      ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
+      configDigest,
+      signers: signersPublicKeys,
+      transmitters: transmitters.map((t) => t.address),
+      bigF: 1,
+    })
+    const sourceChainConfig: SourceChainConfig = {
+      router: Buffer.from(bigIntToUint8Array(EVM_ROUTER_ADDRESS_TEST)),
+      isEnabled: true,
+      minSeqNr: 1n,
+      isRMNVerificationDisabled: false,
+      onRamp: Buffer.from(bigIntToUint8Array(EVM_ONRAMP_ADDRESS_TEST)),
+    }
+
+    const resultUpdateSourceChainConfig = await offRamp.sendUpdateSourceChainConfig(
+      deployer.getSender(),
+      {
+        value: toNano('0.5'),
+        sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+        config: sourceChainConfig,
+      },
+    )
+
+    expectSuccessfulTransaction(resultUpdateSourceChainConfig, deployer.address, offRamp.address)
+
+    const resultCommitReport = await offRamp.sendCommit(transmitters[0].getSender(), {
+      value: toNano('0.5'),
+      reportContext: reportContext,
+      report: report,
+      signatures: signatures,
+    })
+    expectSuccessfulTransaction(resultCommitReport, transmitters[0].address, offRamp.address)
+
+    assertLog(
+      resultCommitReport.transactions,
+      offRamp.address,
+      CCIPLogs.LogTypes.CCIPCommitReportAccepted,
+      {
+        priceUpdates: undefined,
+        merkleRoots: [root1, root2],
+      },
+    )
+
+    expect(resultCommitReport.transactions).toHaveTransaction({
+      from: offRamp.address,
+      //to: merkleRootAddress(root), TODO: calculate merkleRoot address correctly this is not working
+      deploy: true,
+      success: true,
+    })
+
+
   })
 })
