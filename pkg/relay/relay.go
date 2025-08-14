@@ -12,6 +12,7 @@ import (
 	commontypes "github.com/smartcontractkit/chainlink-common/pkg/types"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/core"
 
+	provider "github.com/smartcontractkit/chainlink-ton/pkg/ccip/provider"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/txm"
@@ -48,8 +49,7 @@ func (r *Relayer) TON() (commontypes.TONService, error) {
 }
 
 func (r *Relayer) NewCCIPProvider(ctx context.Context, rargs commontypes.RelayArgs) (commontypes.CCIPProvider, error) {
-	// TODO(NONEVM-1460): implement
-	return nil, errors.New("unimplemented")
+	return provider.NewCCIPProvider(r.lggr, r.chain.TxManager())
 }
 
 func NewRelayer(lggr logger.Logger, chain Chain, tonService Service, _ core.CapabilitiesRegistry) *Relayer {
