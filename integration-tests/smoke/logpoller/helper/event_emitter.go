@@ -165,6 +165,10 @@ func (e *TestEventSource) ContractAddress() *address.Address {
 	return e.contractAddress
 }
 
+func (e *TestEventSource) Wallet() *address.Address {
+	return e.wallet.WalletAddress()
+}
+
 func (e *TestEventSource) GetID() uint32 {
 	return e.id
 }
