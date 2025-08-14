@@ -289,6 +289,9 @@ func (c *chain) GetClient(ctx context.Context) (*ton.APIClient, error) {
 
 		// Build new client
 		configURL := node.URL.String()
+
+		// TODO this only works for localnet, need to handle for testnet/mainnet
+		// create an extra URL for liteclient config url
 		tonCfg, err := liteclient.GetConfigFromUrl(ctx, fmt.Sprintf("http://%v/localhost.global.config.json", configURL))
 		if err != nil {
 			c.lggr.Warnw("failed to fetch TON config", "name", node.Name, "ton-url", node.URL, "err", err)
