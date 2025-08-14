@@ -30,7 +30,7 @@ type TONAccessor struct {
 	client        ton.APIClientWrapped
 	logPoller     logpoller.LogPoller
 	bindings      map[string]*address.Address
-	bindingsMu    sync.RWMutex // TODO:
+	bindingsMu    sync.RWMutex
 	addrCodec     ccipocr3.ChainSpecificAddressCodec
 }
 
@@ -57,8 +57,13 @@ func NewTONAccessor(
 
 // Common Accessor methods
 func (a *TONAccessor) GetContractAddress(contractName string) ([]byte, error) {
-	// TODO(NONEVM-2364) implement me
-	return nil, errors.New("not implemented")
+	a.bindingsMu.RLock()
+	defer a.bindingsMu.Unlock()
+	addr, exists := a.bindings[contractName]
+	if !exists {
+		return nil, ErrNoBindings
+	}
+	return addrToBytes(addr), nil
 }
 
 func (a *TONAccessor) GetAllConfigsLegacy(ctx context.Context, destChainSelector ccipocr3.ChainSelector, sourceChainSelectors []ccipocr3.ChainSelector) (ccipocr3.ChainConfigSnapshot, map[ccipocr3.ChainSelector]ccipocr3.SourceChainConfig, error) {
@@ -80,13 +85,14 @@ func (a *TONAccessor) GetAllConfigsLegacy(ctx context.Context, destChainSelector
 		sourceChainConfigs = make(map[ccipocr3.ChainSelector]ccipocr3.SourceChainConfig, len(sourceChainSelectors))
 
 		// OffRamp
-		offrampDynamicConfig, err := a.getOffRampDynamicConfig(ctx)
-		if err != ErrNoBindings && err != nil {
-			return ccipocr3.ChainConfigSnapshot{}, nil, fmt.Errorf("failed to get current offramp dynamic config: %w", err)
-		}
-		offrampStaticConfig, err := a.getOffRampStaticConfig(ctx)
+		offrampStaticConfig, err := a.getOffRampStaticConfig(ctx, block)
 		if err != ErrNoBindings && err != nil {
 			return ccipocr3.ChainConfigSnapshot{}, nil, fmt.Errorf("failed to get current offramp static config: %w", err)
+		}
+		// TODO: assert offrampStaticConfig.ChainSelector == destChainSelector as a quick sanity check
+		offrampDynamicConfig, err := a.getOffRampDynamicConfig(ctx, block)
+		if err != ErrNoBindings && err != nil {
+			return ccipocr3.ChainConfigSnapshot{}, nil, fmt.Errorf("failed to get current offramp dynamic config: %w", err)
 		}
 		config.Offramp = ccipocr3.OfframpConfig{
 			// TODO: read OCR config from contract
@@ -106,6 +112,7 @@ func (a *TONAccessor) GetAllConfigsLegacy(ctx context.Context, destChainSelector
 		}
 
 		// RMN
+		// TODO: RMNProxy should be an implementation detail hidden behind chainAccessor
 		config.RMNProxy = ccipocr3.RMNProxyConfig{
 			// TODO: point at a rmnremote address/router/offramp to allow fetching curseinfo
 		}
@@ -149,7 +156,6 @@ func (a *TONAccessor) GetAllConfigsLegacy(ctx context.Context, destChainSelector
 		// we'll return an empty map
 		sourceChainConfigs = make(map[ccipocr3.ChainSelector]ccipocr3.SourceChainConfig, 0)
 	}
-
 	return config, sourceChainConfigs, nil
 }
 
@@ -167,6 +173,8 @@ func (a *TONAccessor) Sync(ctx context.Context, contractName string, contractAdd
 	if err != nil {
 		return fmt.Errorf("invalid address: %w", err)
 	}
+	a.bindingsMu.Lock()
+	defer a.bindingsMu.Unlock()
 	a.bindings[contractName] = addr
 	return nil
 }
@@ -182,10 +190,20 @@ func (a *TONAccessor) LatestMessageTo(ctx context.Context, dest ccipocr3.ChainSe
 	return 0, errors.New("not implemented")
 }
 
-func (a *TONAccessor) GetExpectedNextSequenceNumber(ctx context.Context, dest ccipocr3.ChainSelector) (ccipocr3.SeqNum, error) {
-	addr, exists := a.bindings[consts.ContractNameOnRamp]
+func (a *TONAccessor) getBinding(contractName string) (*address.Address, error) {
+	a.bindingsMu.RLock()
+	defer a.bindingsMu.Unlock()
+	addr, exists := a.bindings[contractName]
 	if !exists {
-		return 0, ErrNoBindings
+		return nil, ErrNoBindings
+	}
+	return addr, nil
+}
+
+func (a *TONAccessor) GetExpectedNextSequenceNumber(ctx context.Context, dest ccipocr3.ChainSelector) (ccipocr3.SeqNum, error) {
+	addr, err := a.getBinding(consts.ContractNameOnRamp)
+	if err != nil {
+		return 0, err
 	}
 	block, err := a.client.CurrentMasterchainInfo(ctx)
 	if err != nil {
@@ -203,9 +221,9 @@ func (a *TONAccessor) GetExpectedNextSequenceNumber(ctx context.Context, dest cc
 }
 
 func (a *TONAccessor) GetTokenPriceUSD(ctx context.Context, rawTokenAddress ccipocr3.UnknownAddress) (ccipocr3.TimestampedUnixBig, error) {
-	addr, exists := a.bindings[consts.ContractNameFeeQuoter]
-	if !exists {
-		return ccipocr3.TimestampedUnixBig{}, ErrNoBindings
+	addr, err := a.getBinding(consts.ContractNameFeeQuoter)
+	if err != nil {
+		return ccipocr3.TimestampedUnixBig{}, err
 	}
 
 	tokenAddress, err := address.ParseAddr(base64.RawURLEncoding.EncodeToString(rawTokenAddress))
@@ -235,9 +253,9 @@ func (a *TONAccessor) GetTokenPriceUSD(ctx context.Context, rawTokenAddress ccip
 }
 
 func (a *TONAccessor) GetFeeQuoterDestChainConfig(ctx context.Context, dest ccipocr3.ChainSelector) (ccipocr3.FeeQuoterDestChainConfig, error) {
-	addr, exists := a.bindings[consts.ContractNameFeeQuoter]
-	if !exists {
-		return ccipocr3.FeeQuoterDestChainConfig{}, ErrNoBindings
+	addr, err := a.getBinding(consts.ContractNameFeeQuoter)
+	if err != nil {
+		return ccipocr3.FeeQuoterDestChainConfig{}, err
 	}
 	block, err := a.client.CurrentMasterchainInfo(ctx)
 	if err != nil {

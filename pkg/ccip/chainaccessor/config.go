@@ -17,9 +17,7 @@ func addrToBytes(addr *address.Address) []byte {
 	return rawAddr[:]
 }
 
-// TODO: commit/exec latest ocr config
-
-func (a *TONAccessor) getOffRampStaticConfig(ctx context.Context) (ccipocr3.OffRampStaticChainConfig, error) {
+func (a *TONAccessor) getOffRampStaticConfig(ctx context.Context, block *ton.BlockIDExt) (ccipocr3.OffRampStaticChainConfig, error) {
 	return ccipocr3.OffRampStaticChainConfig{
 		ChainSelector:        0,
 		GasForCallExactCheck: 0,
@@ -29,7 +27,7 @@ func (a *TONAccessor) getOffRampStaticConfig(ctx context.Context) (ccipocr3.OffR
 	}, nil
 }
 
-func (a *TONAccessor) getOffRampDynamicConfig(ctx context.Context) (ccipocr3.OffRampDynamicChainConfig, error) {
+func (a *TONAccessor) getOffRampDynamicConfig(ctx context.Context, block *ton.BlockIDExt) (ccipocr3.OffRampDynamicChainConfig, error) {
 	return ccipocr3.OffRampDynamicChainConfig{
 		FeeQuoter:                               []byte{},
 		PermissionLessExecutionThresholdSeconds: 0,
@@ -39,9 +37,9 @@ func (a *TONAccessor) getOffRampDynamicConfig(ctx context.Context) (ccipocr3.Off
 }
 
 func (a *TONAccessor) getFeeQuoterStaticConfig(ctx context.Context, block *ton.BlockIDExt) (ccipocr3.FeeQuoterStaticConfig, error) {
-	addr, exists := a.bindings[consts.ContractNameFeeQuoter]
-	if !exists {
-		return ccipocr3.FeeQuoterStaticConfig{}, ErrNoBindings
+	addr, err := a.getBinding(consts.ContractNameFeeQuoter)
+	if err != nil {
+		return ccipocr3.FeeQuoterStaticConfig{}, err
 	}
 	result, err := a.client.RunGetMethod(ctx, block, addr, "staticConfig")
 	if err != nil {
@@ -59,9 +57,9 @@ func (a *TONAccessor) getFeeQuoterStaticConfig(ctx context.Context, block *ton.B
 }
 
 func (a *TONAccessor) getOnRampDynamicConfig(ctx context.Context, block *ton.BlockIDExt) (ccipocr3.OnRampDynamicConfig, error) {
-	addr, exists := a.bindings[consts.ContractNameOnRamp]
-	if !exists {
-		return ccipocr3.OnRampDynamicConfig{}, ErrNoBindings
+	addr, err := a.getBinding(consts.ContractNameOnRamp)
+	if err != nil {
+		return ccipocr3.OnRampDynamicConfig{}, err
 	}
 	result, err := a.client.RunGetMethod(ctx, block, addr, "dynamicConfig")
 	if err != nil {
@@ -81,9 +79,9 @@ func (a *TONAccessor) getOnRampDynamicConfig(ctx context.Context, block *ton.Blo
 }
 
 func (a *TONAccessor) getOnRampDestChainConfig(ctx context.Context, block *ton.BlockIDExt, dest ccipocr3.ChainSelector) (ccipocr3.OnRampDestChainConfig, error) {
-	addr, exists := a.bindings[consts.ContractNameOnRamp]
-	if !exists {
-		return ccipocr3.OnRampDestChainConfig{}, ErrNoBindings
+	addr, err := a.getBinding(consts.ContractNameOnRamp)
+	if err != nil {
+		return ccipocr3.OnRampDestChainConfig{}, err
 	}
 	result, err := a.client.RunGetMethod(ctx, block, addr, "destChainConfig", dest)
 	if err != nil {
