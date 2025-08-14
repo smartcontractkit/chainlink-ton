@@ -79,7 +79,7 @@ func TestQueryBuilder_BasicFlow(t *testing.T) {
 	require.Equal(t, addr, b.address)
 	require.Equal(t, uint32(123), b.eventSig)
 	require.Equal(t, 10, b.options.Limit)
-	require.Empty(t, b.byteFilters)
+	require.Empty(t, b.cellFilters)
 	require.Nil(t, b.typedFilter)
 }
 
@@ -87,9 +87,8 @@ func TestQueryBuilder_WithFilters(t *testing.T) {
 	store := &mockLogStore{}
 	addr, err := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")
 	require.NoError(t, err)
-
-	// Test with byte filter
-	byteFilter := query.ByteFilter{
+	// Test with cell filter
+	filter := query.CellFilter{
 		Offset:   0,
 		Operator: query.GT,
 		Value:    []byte{0, 0, 0, 5},
@@ -102,15 +101,15 @@ func TestQueryBuilder_WithFilters(t *testing.T) {
 	builder := NewQuery[TestEvent](store).
 		WithSrcAddress(addr).
 		WithEventSig(123).
-		WithByteFilter(byteFilter).
+		WithCellFilter(filter).
 		WithTypedFilter(typedFilter)
 
 	b, ok := builder.(*queryBuilder[TestEvent])
 	require.True(t, ok, "type assertion to *queryBuilder[TestEvent] failed")
 
 	// Verify filters are set
-	require.Len(t, b.byteFilters, 1)
-	require.Equal(t, byteFilter, b.byteFilters[0])
+	require.Len(t, b.cellFilters, 1)
+	require.Equal(t, filter, b.cellFilters[0])
 	require.NotNil(t, b.typedFilter)
 }
 
@@ -189,7 +188,7 @@ func TestQueryBuilder_Execute_WithTypedFilter(t *testing.T) {
 	require.Equal(t, 2, result.Total)
 }
 
-func TestQueryBuilder_Execute_WithByteFilter(t *testing.T) {
+func TestQueryBuilder_Execute_WithCellFilter(t *testing.T) {
 	store := &mockLogStore{}
 	addr, err := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")
 	require.NoError(t, err)
@@ -200,7 +199,7 @@ func TestQueryBuilder_Execute_WithByteFilter(t *testing.T) {
 	store.SaveLog(createTestLog(t, addr, 123, 255)) // 255 in 8 bytes: [0,0,0,0,0,0,0,255]
 
 	// Filter for values greater than 10 (comparing last byte)
-	byteFilter := query.ByteFilter{
+	filter := query.CellFilter{
 		Offset:   7, // Last byte of the 64-bit value
 		Operator: query.GT,
 		Value:    []byte{10},
@@ -209,7 +208,7 @@ func TestQueryBuilder_Execute_WithByteFilter(t *testing.T) {
 	builder := NewQuery[TestEvent](store).
 		WithSrcAddress(addr).
 		WithEventSig(123).
-		WithByteFilter(byteFilter)
+		WithCellFilter(filter)
 
 	result, err := builder.Execute(context.Background())
 	require.NoError(t, err)
@@ -309,7 +308,7 @@ func TestQueryBuilder_Execute_CombinedFilters(t *testing.T) {
 	store.SaveLog(createTestLog(t, addr, 123, 25)) // Passes both filters
 
 	// Byte filter for values > 4 and typed filter for values > 10
-	byteFilter := query.ByteFilter{
+	filter := query.CellFilter{
 		Offset:   7, // Last byte
 		Operator: query.GT,
 		Value:    []byte{4},
@@ -318,7 +317,7 @@ func TestQueryBuilder_Execute_CombinedFilters(t *testing.T) {
 	builder := NewQuery[TestEvent](store).
 		WithSrcAddress(addr).
 		WithEventSig(123).
-		WithByteFilter(byteFilter).
+		WithCellFilter(filter).
 		WithTypedFilter(func(event TestEvent) bool {
 			return event.Value > 10
 		})
@@ -517,7 +516,7 @@ func TestQueryBuilder_ExecuteWithPaginationAndFiltering(t *testing.T) {
 	require.Equal(t, 1, result.Offset)
 }
 
-func TestQueryBuilder_ExecuteMultipleByteFilters(t *testing.T) {
+func TestQueryBuilder_ExecuteMultipleCellFilters(t *testing.T) {
 	store := &mockLogStore{}
 	addr, err := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")
 	require.NoError(t, err)
@@ -529,12 +528,12 @@ func TestQueryBuilder_ExecuteMultipleByteFilters(t *testing.T) {
 	}
 
 	// Multiple byte filters: value > 150 AND value < 450
-	filter1 := query.ByteFilter{
+	filter1 := query.CellFilter{
 		Offset:   6, // Check higher bytes
 		Operator: query.GT,
 		Value:    []byte{0, 150}, // > 150
 	}
-	filter2 := query.ByteFilter{
+	filter2 := query.CellFilter{
 		Offset:   6,
 		Operator: query.LT,
 		Value:    []byte{1, 194}, // < 450
@@ -543,8 +542,8 @@ func TestQueryBuilder_ExecuteMultipleByteFilters(t *testing.T) {
 	builder := NewQuery[TestEvent](store).
 		WithSrcAddress(addr).
 		WithEventSig(123).
-		WithByteFilter(filter1).
-		WithByteFilter(filter2)
+		WithCellFilter(filter1).
+		WithCellFilter(filter2)
 
 	result, err := builder.Execute(context.Background())
 	require.NoError(t, err)

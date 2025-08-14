@@ -63,10 +63,10 @@ type QueryBuilder[T any] interface {
 	// This identifies the specific type of event/message to look for in the logs.
 	WithEventSig(sig uint32) QueryBuilder[T]
 
-	// WithByteFilter adds a single byte-level filter to the query.
-	// Byte filters allow filtering based on raw byte comparisons at specific offsets
-	// in the log data. Multiple byte filters can be added and they are combined with AND logic.
-	WithByteFilter(filter query.ByteFilter) QueryBuilder[T]
+	// WithCellFilter adds a single byte-level filter to the query.
+	// Cell filters allow filtering based on raw byte comparisons at specific offsets
+	// in the log data. Multiple cell filters can be added and they are combined with AND logic.
+	WithCellFilter(filter query.CellFilter) QueryBuilder[T]
 
 	// WithTypedFilter adds a high-level filter function that operates on parsed event objects.
 	// The filter function receives a parsed event of type T and returns true if the event

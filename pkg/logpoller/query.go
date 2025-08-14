@@ -16,13 +16,13 @@ import (
 var _ QueryBuilder[any] = (*queryBuilder[any])(nil)
 
 // queryBuilder provides a fluent interface for constructing log queries with two-phase filtering.
-// Phase 1: byte-level filtering at the storage layer
+// Phase 1: stored cell-level filtering at the storage layer
 // Phase 2: Strongly-typed filtering on parsed events in the application layer
 type queryBuilder[T any] struct {
 	store       LogStore
 	address     *address.Address
 	eventSig    uint32
-	byteFilters []query.ByteFilter
+	cellFilters []query.CellFilter
 	typedFilter func(T) bool
 	options     query.Options
 }
@@ -31,7 +31,7 @@ type queryBuilder[T any] struct {
 func NewQuery[T any](store LogStore) QueryBuilder[T] {
 	return &queryBuilder[T]{
 		store:       store,
-		byteFilters: make([]query.ByteFilter, 0),
+		cellFilters: make([]query.CellFilter, 0),
 		options:     query.Options{},
 	}
 }
@@ -49,15 +49,9 @@ func (b *queryBuilder[T]) WithEventSig(sig uint32) QueryBuilder[T] {
 	return b
 }
 
-// WithByteFilter adds a raw byte-level filter
-func (b *queryBuilder[T]) WithByteFilter(filter query.ByteFilter) QueryBuilder[T] {
-	b.byteFilters = append(b.byteFilters, filter)
-	return b
-}
-
-// WithByteFilters adds multiple raw byte-level filters
-func (b *queryBuilder[T]) WithByteFilters(filters []query.ByteFilter) QueryBuilder[T] {
-	b.byteFilters = append(b.byteFilters, filters...)
+// WithCellFilter adds a raw cell-level filter
+func (b *queryBuilder[T]) WithCellFilter(filter query.CellFilter) QueryBuilder[T] {
+	b.cellFilters = append(b.cellFilters, filter)
 	return b
 }
 
@@ -105,10 +99,10 @@ func (b *queryBuilder[T]) Execute(_ context.Context) (query.Result[T], error) {
 	}
 
 	var preFilteredLogs []types.Log
-	if len(b.byteFilters) > 0 {
+	if len(b.cellFilters) > 0 {
 		// TODO: prefilter in ORM layer
 		for _, log := range logs {
-			if b.passesAllByteFilters(log) {
+			if b.passesAllCellFilters(log) {
 				preFilteredLogs = append(preFilteredLogs, log)
 			}
 		}
@@ -164,9 +158,9 @@ func (b *queryBuilder[T]) Execute(_ context.Context) (query.Result[T], error) {
 	}, nil
 }
 
-// passesAllByteFilters checks if a log passes all byte-level filters
-func (b *queryBuilder[T]) passesAllByteFilters(log types.Log) bool {
-	if len(b.byteFilters) == 0 {
+// passesAllCellFilters checks if a log passes all byte-level filters
+func (b *queryBuilder[T]) passesAllCellFilters(log types.Log) bool {
+	if len(b.cellFilters) == 0 {
 		return true
 	}
 
@@ -177,16 +171,16 @@ func (b *queryBuilder[T]) passesAllByteFilters(log types.Log) bool {
 	}
 
 	// Check each filter
-	for _, filter := range b.byteFilters {
-		if !b.passesByteFilter(cellPayload, filter) {
+	for _, filter := range b.cellFilters {
+		if !b.passesCellFilter(cellPayload, filter) {
 			return false
 		}
 	}
 	return true
 }
 
-// passesByteFilter checks if payload passes a single byte filter
-func (b *queryBuilder[T]) passesByteFilter(payload []byte, filter query.ByteFilter) bool {
+// passesCellFilter checks if payload passes a single byte filter
+func (b *queryBuilder[T]) passesCellFilter(payload []byte, filter query.CellFilter) bool {
 	// Check payload length
 	if uint(len(payload)) < filter.Offset+uint(len(filter.Value)) {
 		return false
