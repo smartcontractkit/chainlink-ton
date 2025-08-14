@@ -31,34 +31,11 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
     )
 
     // Execute all operations up to the post-op count limit to simulate setOpCount // TODO this could be hidden behind some helper. It is not the focus of this test
-    const targetOpCount = baseTest.initialTestRootMetadata.postOpCount
-
-    for (let i = 0; i < Number(targetOpCount) && i < baseTest.testOps.length; i++) {
-      const proof = baseTest.getProofForOp(i)
-      const proofCell = asSnakeData<bigint>(proof, (v) => beginCell().storeUint(v, 256))
-
-      const executeBody = mcms.builder.message.in.execute.encode({
-        queryId: BigInt(i + 1),
-        op: mcms.builder.data.op.encode(baseTest.testOps[i]),
-        proof: proofCell,
-      })
-
-      const result = await baseTest.bind.mcms.sendInternal(
-        baseTest.acc.deployer.getSender(),
-        toNano('1'),
-        executeBody,
-      )
-
-      expect(result.transactions).toHaveTransaction({
-        from: baseTest.acc.deployer.address,
-        to: baseTest.bind.mcms.address,
-        success: true,
-      })
-    }
+    await baseTest.advanceOpcodeTo(MCMSBaseSetRootAndExecuteTestSetup.OPS_NUM)
 
     // Verify we've reached the post-op count
     const currentOpCount = await baseTest.bind.mcms.getOpCount()
-    expect(currentOpCount).toEqual(targetOpCount)
+    expect(Number(currentOpCount)).toEqual(MCMSBaseSetRootAndExecuteTestSetup.OPS_NUM)
 
     // Now try to execute one more operation - should fail with PostOpCountReached
     // Use any operation and proof - they won't even be checked
@@ -328,28 +305,7 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
   // TODO mcms doesn't handle bounced messages yet
   it('should revert on failed op', async () => {
     // Execute operations up to the reverting op index
-    for (let i = 0; i < MCMSBaseSetRootAndExecuteTestSetup.REVERTING_OP_INDEX; i++) {
-      const proof = baseTest.opProofs[i]
-      const proofCell = asSnakeData<bigint>(proof, (v) => beginCell().storeUint(v, 256))
-
-      const executeBody = mcms.builder.message.in.execute.encode({
-        queryId: BigInt(i + 1),
-        op: mcms.builder.data.op.encode(baseTest.testOps[i]),
-        proof: proofCell,
-      })
-
-      const result = await baseTest.bind.mcms.sendInternal(
-        baseTest.acc.deployer.getSender(),
-        toNano('1'),
-        executeBody,
-      )
-
-      expect(result.transactions).toHaveTransaction({
-        from: baseTest.acc.deployer.address,
-        to: baseTest.bind.mcms.address,
-        success: true,
-      })
-    }
+    await baseTest.advanceOpcodeTo(MCMSBaseSetRootAndExecuteTestSetup.REVERTING_OP_INDEX)
 
     // Verify we're at the correct op count
     const currentOpCount = await baseTest.bind.mcms.getOpCount()
@@ -386,34 +342,11 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
 
   it('should handle value operations correctly - insufficient balance', async () => {
     // Execute operations up to the value operation index
-    const valueOpIndex = MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX
-
-    for (let i = 0; i < valueOpIndex; i++) {
-      const proof = baseTest.getProofForOp(i)
-      const proofCell = asSnakeData<bigint>(proof, (v) => beginCell().storeUint(v, 256))
-
-      const executeBody = mcms.builder.message.in.execute.encode({
-        queryId: BigInt(i + 1),
-        op: mcms.builder.data.op.encode(baseTest.testOps[i]),
-        proof: proofCell,
-      })
-
-      const result = await baseTest.bind.mcms.sendInternal(
-        baseTest.acc.deployer.getSender(),
-        toNano('1'),
-        executeBody,
-      )
-
-      expect(result.transactions).toHaveTransaction({
-        from: baseTest.acc.deployer.address,
-        to: baseTest.bind.mcms.address,
-        success: true,
-      })
-    }
+    await baseTest.advanceOpcodeTo(MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX)
 
     // Verify we're at the correct op count
     const currentOpCount = await baseTest.bind.mcms.getOpCount()
-    expect(currentOpCount).toEqual(BigInt(valueOpIndex))
+    expect(currentOpCount).toEqual(BigInt(MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX))
 
     // Check that MCMS contract has minimal balance initially
     const mcmsContract = await baseTest.blockchain.getContract(baseTest.bind.mcms.address)
@@ -421,12 +354,14 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
     expect(initialBalance).toBeLessThanOrEqual(toNano('2')) // Should be very low (just deployment funds)
 
     // Try to execute value operation without sufficient balance
-    const proof = baseTest.getProofForOp(valueOpIndex)
+    const proof = baseTest.getProofForOp(MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX)
     const proofCell = asSnakeData<bigint>(proof, (v) => beginCell().storeUint(v, 256))
 
     const executeBody = mcms.builder.message.in.execute.encode({
-      queryId: BigInt(valueOpIndex + 1),
-      op: mcms.builder.data.op.encode(baseTest.testOps[valueOpIndex]),
+      queryId: BigInt(MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX + 1),
+      op: mcms.builder.data.op.encode(
+        baseTest.testOps[MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX],
+      ),
       proof: proofCell,
     })
 
@@ -447,42 +382,22 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
 
   it('should handle value operations correctly - with sufficient balance', async () => {
     // Execute operations up to the value operation index
-    const valueOpIndex = MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX
-
-    for (let i = 0; i < valueOpIndex; i++) {
-      const proof = baseTest.opProofs[i]
-      const proofCell = asSnakeData<bigint>(proof, (v) => beginCell().storeUint(v, 256))
-
-      const executeBody = mcms.builder.message.in.execute.encode({
-        queryId: BigInt(i + 1),
-        op: mcms.builder.data.op.encode(baseTest.testOps[i]),
-        proof: proofCell,
-      })
-
-      const result = await baseTest.bind.mcms.sendInternal(
-        baseTest.acc.deployer.getSender(),
-        toNano('1'),
-        executeBody,
-      )
-      expect(result.transactions).toHaveTransaction({
-        from: baseTest.acc.deployer.address,
-        to: baseTest.bind.mcms.address,
-        success: true,
-      })
-    }
+    await baseTest.advanceOpcodeTo(MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX)
 
     // Get the target address balance before executing the value operation
-    const valueOp = baseTest.testOps[valueOpIndex]
+    const valueOp = baseTest.testOps[MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX]
     const targetContractBefore = await baseTest.blockchain.getContract(valueOp.to)
     const targetBalanceBefore = targetContractBefore.balance
 
     // Execute the value operation
-    const proof = baseTest.getProofForOp(valueOpIndex)
+    const proof = baseTest.getProofForOp(MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX)
     const proofCell = asSnakeData<bigint>(proof, (v) => beginCell().storeUint(v, 256))
 
     const executeBody = mcms.builder.message.in.execute.encode({
-      queryId: BigInt(valueOpIndex + 1),
-      op: mcms.builder.data.op.encode(baseTest.testOps[valueOpIndex]),
+      queryId: BigInt(MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX + 1),
+      op: mcms.builder.data.op.encode(
+        baseTest.testOps[MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX],
+      ),
       proof: proofCell,
     })
 
