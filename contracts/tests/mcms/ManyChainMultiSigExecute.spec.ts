@@ -3,6 +3,7 @@ import '@ton/test-utils'
 import { MCMSBaseSetRootAndExecuteTestSetup, MCMSTestCode } from './ManyChainMultiSigBaseTest'
 import * as mcms from '../../wrappers/mcms/MCMS'
 import { asSnakeData } from '../../src/utils'
+import { ERROR_UNAUTHORIZED_SIGNER } from '../../wrappers/libraries/ocr/ExitCodes'
 
 describe('MCMS - ManyChainMultiSigExecuteTest', () => {
   let baseTest: MCMSBaseSetRootAndExecuteTestSetup
@@ -324,13 +325,10 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
     expect(opCount2).toEqual(baseTest.testOps[1].nonce + 1n)
   })
 
-  // NOTE: This test is skipped because we don't have a Receiver contract that can revert
-  it.skip('should revert on failed op', async () => {
+  // TODO mcms doesn't handle bounced messages yet
+  it('should revert on failed op', async () => {
     // Execute operations up to the reverting op index
-    // This simulates setOpCount(REVERTING_OP_INDEX) in the original test
-    const revertingOpIndex = MCMSBaseSetRootAndExecuteTestSetup.REVERTING_OP_INDEX
-
-    for (let i = 0; i < revertingOpIndex; i++) {
+    for (let i = 0; i < MCMSBaseSetRootAndExecuteTestSetup.REVERTING_OP_INDEX; i++) {
       const proof = baseTest.opProofs[i]
       const proofCell = asSnakeData<bigint>(proof, (v) => beginCell().storeUint(v, 256))
 
@@ -355,15 +353,17 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
 
     // Verify we're at the correct op count
     const currentOpCount = await baseTest.bind.mcms.getOpCount()
-    expect(currentOpCount).toEqual(BigInt(revertingOpIndex))
+    expect(currentOpCount).toEqual(BigInt(MCMSBaseSetRootAndExecuteTestSetup.REVERTING_OP_INDEX))
 
     // Now try to execute the reverting operation
-    const proof = baseTest.getProofForOp(revertingOpIndex)
+    const proof = baseTest.getProofForOp(MCMSBaseSetRootAndExecuteTestSetup.REVERTING_OP_INDEX)
     const proofCell = asSnakeData<bigint>(proof, (v) => beginCell().storeUint(v, 256))
 
     const executeBody = mcms.builder.message.in.execute.encode({
-      queryId: BigInt(revertingOpIndex + 1),
-      op: mcms.builder.data.op.encode(baseTest.testOps[revertingOpIndex]),
+      queryId: BigInt(MCMSBaseSetRootAndExecuteTestSetup.REVERTING_OP_INDEX + 1),
+      op: mcms.builder.data.op.encode(
+        baseTest.testOps[MCMSBaseSetRootAndExecuteTestSetup.REVERTING_OP_INDEX],
+      ),
       proof: proofCell,
     })
 
@@ -373,15 +373,15 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
       executeBody,
     )
 
-    // The operation should fail because it's designed to revert
-    // The exact error code will depend on how the reverting operation is structured
+    // This is the failure of the counter
     expect(result.transactions).toHaveTransaction({
-      from: baseTest.acc.deployer.address,
-      to: baseTest.bind.mcms.address,
+      from: baseTest.bind.mcms.address,
+      to: baseTest.bind.counter.address,
       success: false,
-      // Note: The exact error code depends on the specific reverting operation implementation
-      // In the original Solidity test, this checks for CallReverted with the expected return data
+      exitCode: 0xffff, // Unknown opcode
     })
+
+    // TODO check emit or reply with the failed error
   })
 
   it('should handle value operations correctly - insufficient balance', async () => {

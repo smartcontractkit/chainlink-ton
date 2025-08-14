@@ -41,13 +41,13 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
     })
 
     const result = await baseTest.bind.mcms.sendInternal(
-      baseTest.acc.externalCaller.getSender(),
+      baseTest.acc.counter.getSender(),
       toNano('1'),
       setConfigBody,
     )
 
     expect(result.transactions).toHaveTransaction({
-      from: baseTest.acc.externalCaller.address,
+      from: baseTest.acc.counter.address,
       to: baseTest.bind.mcms.address,
       success: false,
       exitCode: 132, // ERROR_ONLY_CALLABLE_BY_OWNER(ownable_2step) // TODO: This should be exposed by some binding.
