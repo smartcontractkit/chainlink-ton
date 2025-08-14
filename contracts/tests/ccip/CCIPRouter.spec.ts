@@ -11,7 +11,7 @@ import {
 } from '../../wrappers/ccip/FeeQuoter'
 import { testLog, getExternals } from '../Logs'
 import '@ton/test-utils'
-import { ZERO_ADDRESS } from '../../utils'
+import { ZERO_ADDRESS } from '../../src/utils'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_TON = 13879075125137744094n
