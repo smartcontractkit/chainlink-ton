@@ -1,11 +1,7 @@
-import { toNano, beginCell, Cell } from '@ton/core'
-import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
+import { toNano, beginCell } from '@ton/core'
 import '@ton/test-utils'
-import { compile } from '@ton/blueprint'
 import { MCMSBaseSetRootAndExecuteTestSetup, MCMSTestCode } from './ManyChainMultiSigBaseTest'
-import { merkleProof } from '../../src/mcms'
 import * as mcms from '../../wrappers/mcms/MCMS'
-import { sign } from '@ton/crypto/dist/primitives/nacl'
 import { asSnakeData } from '../../src/utils'
 
 describe('MCMS - ManyChainMultiSigExecuteTest', () => {
@@ -20,12 +16,10 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
     baseTest = new MCMSBaseSetRootAndExecuteTestSetup()
     baseTest.code = code
     await baseTest.setupForSetRootAndExecute('test-execute')
-
-    // Set an initial root (equivalent to setup() in Solidity)
     await baseTest.setInitialRoot()
   })
 
-  it.skip('should revert when post-op count reached', async () => {
+  it('should revert when post-op count reached', async () => {
     // Execute all operations up to the post-op count limit to simulate setOpCount
     const targetOpCount = baseTest.initialTestRootMetadata.postOpCount
 
@@ -81,7 +75,7 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
     })
   })
 
-  it.skip('should revert on bad proof', async () => {
+  it('should revert on bad proof', async () => {
     // Modify the first op by incrementing value
     const modifiedOp = { ...baseTest.testOps[0] }
     modifiedOp.value = modifiedOp.value + 1n
@@ -132,7 +126,7 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
     })
   })
 
-  it.skip('should revert on bad op data', async () => {
+  it('should revert on bad op data', async () => {
     // Create a dummy proof (5 elements as in original test)
     const dummyProof = asSnakeData<bigint>([1n, 2n, 3n, 4n, 5n], (v) =>
       beginCell().storeUint(v, 256),
@@ -230,7 +224,7 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
     })
   })
 
-  it.skip('should execute ops in order', async () => {
+  it('should execute ops in order', async () => {
     // Execute first operation
     const proof1 = baseTest.getProofForOp(0)
     const proofCell1 = asSnakeData<bigint>(proof1, (v) => beginCell().storeUint(v, 256))
@@ -321,6 +315,7 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
     expect(opCount2).toEqual(baseTest.testOps[1].nonce + 1n)
   })
 
+  // NOTE: This test is skipped because we don't have a Receiver contract that can revert
   it.skip('should revert on failed op', async () => {
     // Execute operations up to the reverting op index
     // This simulates setOpCount(REVERTING_OP_INDEX) in the original test
@@ -380,6 +375,7 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
     })
   })
 
+  // NOTE: This test is skipped because our beforeEach block funds the contract with 2 TON,
   it.skip('should handle value operations correctly - insufficient balance', async () => {
     // Execute operations up to the value operation index
     const valueOpIndex = MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX
@@ -442,16 +438,7 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
   })
 
   it('should handle value operations correctly - with sufficient balance', async () => {
-    // Send funds to the MCMS contract FIRST, before executing any operations
-    // We need enough for all operations: 7 operations * 0.1 TON each = 0.7 TON + extra for fees
-    const topUpBody = mcms.builder.message.in.topUp.encode({ queryId: 100n })
-    await baseTest.bind.mcms.sendInternal(
-      baseTest.acc.deployer.getSender(),
-      toNano('2'), // Send 2 TON to cover all operations + fees
-      topUpBody,
-    )
-
-    // Now execute operations up to the value operation index
+    // Execute operations up to the value operation index
     const valueOpIndex = MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX
 
     for (let i = 0; i < valueOpIndex; i++) {
