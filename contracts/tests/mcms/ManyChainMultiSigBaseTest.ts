@@ -9,6 +9,7 @@ import { KeyPair, sign } from '@ton/crypto'
 import * as mcms from '../../wrappers/mcms/MCMS'
 import * as ownable2step from '../../wrappers/libraries/access/Ownable2Step'
 import { merkleProof } from '../../src/mcms'
+import * as counter from '../../wrappers/examples/Counter'
 
 import { crc32 } from 'zlib'
 import { asSnakeData, uint8ArrayToBigInt } from '../../src/utils'
@@ -385,14 +386,16 @@ export class MCMSBaseTestSetup {
   createTestOps(count: number): mcms.Op[] {
     const ops: mcms.Op[] = []
     for (let i = 0; i < count; i++) {
-      ops.push(
-        this.createTestOp(
-          BigInt(i),
-          this.acc.externalCaller.address,
-          toNano('0.10'),
-          beginCell().storeUint(i, 32).endCell(),
-        ),
-      )
+      const value =
+        i == MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX ? toNano('10') : toNano('0.10')
+      const op =
+        i == MCMSBaseSetRootAndExecuteTestSetup.REVERTING_OP_INDEX
+          ? beginCell().storeUint(0xffffffff, 32).endCell()
+          : counter.builder.message.in.setCount.encode({
+              queryId: BigInt(i + 1),
+              newCount: i,
+            })
+      ops.push(this.createTestOp(BigInt(i), this.acc.externalCaller.address, value, op))
     }
     return ops
   }
