@@ -54,7 +54,7 @@ func TestTONAddress(t *testing.T) {
 		},
 	}
 
-	codec := AddressCodec{}
+	codec := addressCodec{}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			actual, err := codec.AddressStringToBytes(test.in)
@@ -69,7 +69,7 @@ func TestTONAddress(t *testing.T) {
 }
 
 func TestAddressCodec_OracleIDAsAddressBytes(t *testing.T) {
-	codec := AddressCodec{}
+	codec := addressCodec{}
 
 	testCases := []struct {
 		name     string

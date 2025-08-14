@@ -5,10 +5,11 @@ import (
 	"encoding/binary"
 	"fmt"
 
+	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 	"github.com/xssnick/tonutils-go/address"
 )
 
-type AddressCodec struct{}
+type addressCodec struct{}
 
 // For the sake of comparison and storage, home chain and other registries should use the raw format of the address
 // `4 byte workchain (int32) + 32 byte data`
@@ -26,8 +27,12 @@ func ToRawAddr(addr *address.Address) (rawAddress RawAddr) {
 	return rawAddress
 }
 
+func NewAddressCodec() ccipocr3.ChainSpecificAddressCodec {
+	return addressCodec{}
+}
+
 // AddressBytesToString converts a byte slice representing a TON address into its string representation, only supporting standard TON addresses.
-func (a AddressCodec) AddressBytesToString(bytes []byte) (string, error) {
+func (a addressCodec) AddressBytesToString(bytes []byte) (string, error) {
 	if len(bytes) != 36 {
 		return "", fmt.Errorf("invalid address length: expected 36 bytes, got %d", len(bytes))
 	}
@@ -40,7 +45,7 @@ func (a AddressCodec) AddressBytesToString(bytes []byte) (string, error) {
 }
 
 // AddressStringToBytes converts a string representation of a TON address into its byte representation.
-func (a AddressCodec) AddressStringToBytes(addrString string) ([]byte, error) {
+func (a addressCodec) AddressStringToBytes(addrString string) ([]byte, error) {
 	// ParseAddr currently only works for base64 encoded std address strings, any other address format will fail
 	addr, err := address.ParseAddr(addrString)
 	if err != nil {
@@ -52,7 +57,7 @@ func (a AddressCodec) AddressStringToBytes(addrString string) ([]byte, error) {
 }
 
 // OracleIDAsAddressBytes converts an oracle ID (uint8) into a byte slice representing a TON address.
-func (a AddressCodec) OracleIDAsAddressBytes(oracleID uint8) ([]byte, error) {
+func (a addressCodec) OracleIDAsAddressBytes(oracleID uint8) ([]byte, error) {
 	addr := make([]byte, 32)
 	// write oracleID into addr in big endian
 	binary.BigEndian.PutUint32(addr, uint32(oracleID))
@@ -66,7 +71,7 @@ func (a AddressCodec) OracleIDAsAddressBytes(oracleID uint8) ([]byte, error) {
 }
 
 // TransmitterBytesToString converts a byte slice representing a transmitter account into its string representation.
-func (a AddressCodec) TransmitterBytesToString(addr []byte) (string, error) {
+func (a addressCodec) TransmitterBytesToString(addr []byte) (string, error) {
 	// Transmitter accounts are addresses
 	return a.AddressBytesToString(addr)
 }

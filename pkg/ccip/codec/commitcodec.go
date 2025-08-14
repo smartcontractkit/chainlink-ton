@@ -19,13 +19,13 @@ import (
 // CommitPluginCodecV1 is a codec for encoding and decoding commit plugin reports.
 // Compatible with:
 // - "OffRamp 1.6.0-dev"
-type CommitPluginCodecV1 struct{}
+type commitPluginCodecV1 struct{}
 
-func NewCommitPluginCodecV1() *CommitPluginCodecV1 {
-	return &CommitPluginCodecV1{}
+func NewCommitPluginCodecV1() cciptypes.CommitPluginCodec {
+	return &commitPluginCodecV1{}
 }
 
-func (cr *CommitPluginCodecV1) Encode(ctx context.Context, report cciptypes.CommitPluginReport) ([]byte, error) {
+func (cr *commitPluginCodecV1) Encode(ctx context.Context, report cciptypes.CommitPluginReport) ([]byte, error) {
 	tpuSlice := make([]ocr.TokenPriceUpdate, len(report.PriceUpdates.TokenPriceUpdates))
 	for i, tpu := range report.PriceUpdates.TokenPriceUpdates {
 		addr, err := address.ParseAddr(string(tpu.TokenID))
@@ -104,7 +104,7 @@ func (cr *CommitPluginCodecV1) Encode(ctx context.Context, report cciptypes.Comm
 	return c.ToBOC(), nil
 }
 
-func (cr *CommitPluginCodecV1) Decode(ctx context.Context, bytes []byte) (cciptypes.CommitPluginReport, error) {
+func (cr *commitPluginCodecV1) Decode(ctx context.Context, bytes []byte) (cciptypes.CommitPluginReport, error) {
 	c, err := cell.FromBOC(bytes)
 	if err != nil {
 		return cciptypes.CommitPluginReport{}, fmt.Errorf("cannot decode BOC: %w", err)

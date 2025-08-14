@@ -23,7 +23,7 @@ func randomTONExecuteReport(t *testing.T, sourceChainSelector uint64) ccipocr3.E
 	const msgsPerReport = 2
 	const numTokensPerMsg = 2
 
-	ac := AddressCodec{}
+	ac := NewAddressCodec()
 
 	chainReports := make([]ccipocr3.ExecutePluginReportSingleChain, numChainReports)
 	for i := 0; i < numChainReports; i++ {

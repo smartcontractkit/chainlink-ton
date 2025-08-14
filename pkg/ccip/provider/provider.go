@@ -39,15 +39,15 @@ func NewCCIPProvider(lggr logger.Logger, chainSelector ccipocr3.ChainSelector, c
 		return nil, fmt.Errorf("failed to create a CCIP ContractTransmitter: %w", err)
 	}
 
-	codec := ccipocr3.Codec{
-		ChainSpecificAddressCodec: &codec.AddressCodec{},
-		CommitPluginCodec:         &codec.CommitPluginCodecV1{},
-		ExecutePluginCodec:        &codec.ExecutePluginCodecV1{},
-		TokenDataEncoder:          nil, // TODO(NONEVM-1460): implement
-		SourceChainExtraDataCodec: &codec.ExtraDataDecoder{},
+	c := ccipocr3.Codec{
+		ChainSpecificAddressCodec: codec.NewAddressCodec(),
+		CommitPluginCodec:         codec.NewCommitPluginCodecV1(),
+		ExecutePluginCodec:        codec.NewExecutePluginCodecV1(nil), // TODO extraDataCodec map can't be empty
+		TokenDataEncoder:          codec.NewTokenDataEncoder(),
+		SourceChainExtraDataCodec: codec.NewExtraDataDecoder(),
 	}
 
-	ca, err := chainaccessor.NewTONAccessor(lggr, chainSelector, client, logPoller, codec.ChainSpecificAddressCodec)
+	ca, err := chainaccessor.NewTONAccessor(lggr, chainSelector, client, logPoller, c.ChainSpecificAddressCodec)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create TON Accessor: %w", err)
 	}
@@ -56,7 +56,7 @@ func NewCCIPProvider(lggr logger.Logger, chainSelector ccipocr3.ChainSelector, c
 		lggr:  logger.Named(lggr, CCIPProviderName),
 		ct:    ct,
 		ca:    ca,
-		codec: codec,
+		codec: c,
 	}, nil
 }
 

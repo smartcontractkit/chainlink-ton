@@ -26,11 +26,15 @@ var (
 	evmExtraArgsV2Tag = hexutil.MustDecode("0x181dcf10")
 )
 
-// ExtraDataDecoder is a helper struct for decoding extra data
-type ExtraDataDecoder struct{}
+type extraDataDecoder struct{}
+
+// NewExtraDataDecoder creates a new ExtraDataDecoder
+func NewExtraDataDecoder() ccipocr3.SourceChainExtraDataCodec {
+	return &extraDataDecoder{}
+}
 
 // DecodeExtraArgsToMap is a helper function for converting Borsh encoded extra args bytes into map[string]any
-func (d ExtraDataDecoder) DecodeExtraArgsToMap(extraArgs ccipocr3.Bytes) (map[string]any, error) {
+func (d extraDataDecoder) DecodeExtraArgsToMap(extraArgs ccipocr3.Bytes) (map[string]any, error) {
 	if len(extraArgs) < 4 {
 		return nil, fmt.Errorf("extra args too short: %d, should be at least 4 (i.e the extraArgs tag)", len(extraArgs))
 	}
@@ -81,11 +85,11 @@ func (d ExtraDataDecoder) DecodeExtraArgsToMap(extraArgs ccipocr3.Bytes) (map[st
 }
 
 // DecodeDestExecDataToMap is a helper function for converting dest exec data bytes into map[string]any
-func (d ExtraDataDecoder) DecodeDestExecDataToMap(destExecData ccipocr3.Bytes) (map[string]any, error) {
+func (d extraDataDecoder) DecodeDestExecDataToMap(destExecData ccipocr3.Bytes) (map[string]any, error) {
 	return map[string]any{
 		tvmDestExecDataKey: binary.BigEndian.Uint32(destExecData),
 	}, nil
 }
 
 // Ensure ExtraDataDecoder implements the SourceChainExtraDataCodec interface
-var _ ccipocr3.SourceChainExtraDataCodec = &ExtraDataDecoder{}
+var _ ccipocr3.SourceChainExtraDataCodec = &extraDataDecoder{}
