@@ -142,7 +142,7 @@ func (lp *service) getLastProcessedBlock() (uint32, error) {
 	}
 
 	// TODO: get the latest processed seqno from log table
-	// TODO: implement lookbackwindow configuration and fallback logic if needed
+	// TODO: implement lookbackwindow configuration and fallback
 	return lastProcessed, nil
 }
 

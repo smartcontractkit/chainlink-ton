@@ -97,8 +97,9 @@ func (l *accountTxLoader) fetchTxsForAddress(ctx context.Context, addr *address.
 	if blockRange.Prev != nil && blockRange.Prev.SeqNo >= blockRange.To.SeqNo {
 		return nil, fmt.Errorf("prevBlock %d is not before toBlock %d", blockRange.Prev.SeqNo, blockRange.To.SeqNo)
 	}
-	startLT, endLT, endHash, err := l.getTransactionBounds(ctx, addr, blockRange.Prev, blockRange.To)
+	startLT, endLT, endHash, err := l.getTransactionBounds(ctx, addr, blockRange)
 	if err != nil {
+		l.lggr.Errorf("failed to get transaction bounds for %s: %w", addr.String(), err)
 		return nil, err
 	}
 
@@ -166,12 +167,13 @@ func (l *accountTxLoader) fetchTxsForAddress(ctx context.Context, addr *address.
 //
 // prevBlock: Block where the address was last seen(already processed)
 // toBlock: Block where the scan ends
-func (l *accountTxLoader) getTransactionBounds(ctx context.Context, addr *address.Address, prevBlock *ton.BlockIDExt, toBlock *ton.BlockIDExt) (startLT, endLT uint64, endHash []byte, err error) {
+func (l *accountTxLoader) getTransactionBounds(ctx context.Context, addr *address.Address, blockRange *types.BlockRange) (startLT, endLT uint64, endHash []byte, err error) {
 	switch {
-	case prevBlock == nil:
+	case blockRange.Prev == nil:
 		startLT = 0
-	case prevBlock.SeqNo > 0:
-		accPrev, accErr := l.client.GetAccount(ctx, prevBlock, addr)
+	case blockRange.Prev.SeqNo > 0:
+		l.lggr.Debugf("is this the case block: %d", blockRange.Prev.SeqNo)
+		accPrev, accErr := l.client.GetAccount(ctx, blockRange.Prev, addr)
 		if accErr != nil {
 			startLT = 0 // account didn't exist before this range
 		} else {
@@ -180,12 +182,14 @@ func (l *accountTxLoader) getTransactionBounds(ctx context.Context, addr *addres
 	default:
 		startLT = 0
 	}
-	// Get the account state at toBlock to find the end boundary
-	res, err := l.client.WaitForBlock(toBlock.SeqNo).GetAccount(ctx, toBlock, addr)
-	if err != nil {
-		return 0, 0, nil, fmt.Errorf("failed to get account state for %s in block %d: %w", addr.String(), toBlock.SeqNo, err)
-	}
+	l.lggr.Debugf("current block: %d", blockRange.To.SeqNo)
+	l.lggr.Debugf("current block: %+v", blockRange.To)
 
+	// Get the account state at toBlock to find the end boundary
+	res, err := l.client.WaitForBlock(blockRange.To.SeqNo).GetAccount(ctx, blockRange.To, addr)
+	if err != nil {
+		return 0, 0, nil, fmt.Errorf("failed to get account state for %s in block %d: %w", addr.String(), blockRange.To.SeqNo, err)
+	}
 	return startLT, res.LastTxLT, res.LastTxHash, nil
 }
 

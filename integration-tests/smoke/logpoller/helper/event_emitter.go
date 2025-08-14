@@ -53,13 +53,13 @@ func SendBulkTestEventTxs(t *testing.T, client ton.APIClientWrapped, batchCount,
 	return emitter, txs
 }
 
-func VerifyLoadedCountIncreasedEvents(msgs []*tlb.ExternalMessageOut, expectedCount int) error {
+func VerifyAllCountLogs(indexedCells []*cell.Cell, expectedCount int) error {
 	seen := make(map[uint32]bool, expectedCount)
 
 	// parse all events and track counters
-	for i, ext := range msgs {
+	for i, cell := range indexedCells {
 		var event counter.CountIncreased
-		err := tlb.LoadFromCell(&event, ext.Body.BeginParse(), true)
+		err := tlb.LoadFromCell(&event, cell.BeginParse(), true)
 		if err != nil {
 			return fmt.Errorf("failed to parse event #%d: %w", i, err)
 		}

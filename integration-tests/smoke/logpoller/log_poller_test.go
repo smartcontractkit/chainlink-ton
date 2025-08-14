@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
@@ -81,24 +82,24 @@ func Test_LogPoller(t *testing.T) {
 				[]*address.Address{emitter.ContractAddress()},
 			)
 			require.NoError(t, berr)
-			exts := make([]*tlb.ExternalMessageOut, 0, len(txs))
+			indexedCells := make([]*cell.Cell, 0, len(txs))
 			for _, tx := range txs {
 				msgs, _ := tx.Tx.IO.Out.ToSlice()
 				for _, msg := range msgs {
 					// test contract only emits ExternalMessageOut
 					if msg.MsgType == tlb.MsgTypeExternalOut {
 						if extOut := msg.AsExternalOut(); extOut != nil {
-							exts = append(exts, extOut)
+							indexedCells = append(indexedCells, extOut.Payload())
 						}
 					}
 				}
 			}
-			require.NoError(t, helper.VerifyLoadedCountIncreasedEvents(exts, expectedEvents))
+			require.NoError(t, helper.VerifyAllCountLogs(indexedCells, expectedEvents))
 		})
 
 		t.Run("loading block by block", func(t *testing.T) {
 			t.Parallel()
-			var allMsgs []*tlb.ExternalMessageOut
+			var allLoadedLogCells []*cell.Cell
 
 			loader := account.NewTxLoader(client, logger.Test(t), pageSize)
 
@@ -132,7 +133,7 @@ func Test_LogPoller(t *testing.T) {
 					for _, msg := range msgs {
 						if msg.MsgType == tlb.MsgTypeExternalOut {
 							if extOut := msg.AsExternalOut(); extOut != nil {
-								allMsgs = append(allMsgs, extOut)
+								allLoadedLogCells = append(allLoadedLogCells, extOut.Payload())
 							}
 						}
 					}
@@ -141,7 +142,7 @@ func Test_LogPoller(t *testing.T) {
 			}
 
 			// verify if we loaded all expected events, without duplicates
-			err = helper.VerifyLoadedCountIncreasedEvents(allMsgs, batchCount*txPerBatch*msgPerTx)
+			err = helper.VerifyAllCountLogs(allLoadedLogCells, batchCount*txPerBatch*msgPerTx)
 			require.NoError(t, err)
 		})
 	})
@@ -308,41 +309,35 @@ func Test_LogPoller(t *testing.T) {
 			t.Logf("emitterA logs count: %d, emitterB logs count: %d", len(resA.Logs), len(resB.Logs))
 
 			// Convert logs to messages for emitterA
-			var msgsA []*tlb.ExternalMessageOut
+			var indexedLogsA []*cell.Cell
 			for _, log := range resA.Logs {
-				ext := &tlb.ExternalMessageOut{
-					Body: log.Data,
-				}
-				msgsA = append(msgsA, ext)
+				indexedLogsA = append(indexedLogsA, log.Data)
 			}
 
 			// Convert logs to messages for emitterB
-			var msgsB []*tlb.ExternalMessageOut
+			var indexedLogsB []*cell.Cell
 			for _, log := range resB.Logs {
-				ext := &tlb.ExternalMessageOut{
-					Body: log.Data,
-				}
-				msgsB = append(msgsB, ext)
+				indexedLogsB = append(indexedLogsB, log.Data)
 			}
 
 			// Verify the content of the logs for emitterA (no duplicates, all counters present)
-			verrA := helper.VerifyLoadedCountIncreasedEvents(msgsA, targetCounter)
+			verrA := helper.VerifyAllCountLogs(indexedLogsA, targetCounter)
 			if verrA != nil {
 				t.Logf("log verification failed for emitterA, will retry: %v", verrA)
 				return false
 			}
 
 			// Verify the content of the logs for emitterB (no duplicates, all counters present)
-			verrB := helper.VerifyLoadedCountIncreasedEvents(msgsB, targetCounter)
+			verrB := helper.VerifyAllCountLogs(indexedLogsB, targetCounter)
 			if verrB != nil {
 				t.Logf("log verification failed for emitterB, will retry: %v", verrB)
 				return false
 			}
 
 			if len(resA.Logs) != targetCounter {
-				for _, msg := range msgsA {
+				for _, data := range indexedLogsA {
 					var event counter.CountIncreased
-					err = tlb.LoadFromCell(&event, msg.Body.BeginParse())
+					err = tlb.LoadFromCell(&event, data.BeginParse())
 					require.NoError(t, err)
 					t.Logf("emitterA Event Counter=%d", event.Value)
 				}
@@ -351,9 +346,9 @@ func Test_LogPoller(t *testing.T) {
 			}
 
 			if len(resB.Logs) != targetCounter {
-				for _, msg := range msgsB {
+				for _, data := range indexedLogsB {
 					var event counter.CountIncreased
-					err = tlb.LoadFromCell(&event, msg.Body.BeginParse())
+					err = tlb.LoadFromCell(&event, data.BeginParse())
 					require.NoError(t, err)
 					t.Logf("emitterB Event Counter=%d", event.Value)
 				}
@@ -370,6 +365,17 @@ func Test_LogPoller(t *testing.T) {
 				WithOptions(options).
 				Execute(t.Context())
 			require.NoError(t, rlerr) // query should not fail
+
+			var indexedLogsFromInternalMsgs []*cell.Cell
+			for _, log := range replyLogsRes.Logs {
+				indexedLogsFromInternalMsgs = append(indexedLogsFromInternalMsgs, log.Data)
+			}
+
+			verifyInternalLogsErr := helper.VerifyAllCountLogs(indexedLogsFromInternalMsgs, targetCounter)
+			if verifyInternalLogsErr != nil {
+				t.Logf("log verification failed for emitterB, will retry: %v", verifyInternalLogsErr)
+				return false
+			}
 
 			if len(replyLogsRes.Logs) != targetCounter {
 				for _, log := range replyLogsRes.Logs {
