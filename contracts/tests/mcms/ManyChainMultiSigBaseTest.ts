@@ -50,7 +50,7 @@ export class MCMSBaseTestSetup {
   static readonly GROUP1_PARENT = 0
   static readonly GROUP2_PARENT = 0
   static readonly GROUP3_PARENT = 0
-  static readonly TEST_CHAIN_ID = 2n
+  static readonly TEST_CHAIN_ID = -239n // TODO: blockchain global chain ID (will need to be signed int)
   static readonly TEST_VALID_UNTIL = 1000000
 
   blockchain: Blockchain
@@ -138,6 +138,10 @@ export class MCMSBaseTestSetup {
       vmLogs: 'none',
       debugLogs: true,
     }
+
+    // Set blockchain to use our test chain ID
+    // Note: TON Sandbox doesn't directly support setting chain ID
+    // but the MCMS contract should use the chain ID from the metadata
 
     // Set up accounts
     const signers: SandboxContract<TreasuryContract>[] = []
@@ -393,36 +397,6 @@ export class MCMSBaseTestSetup {
   }
 
   /**
-   * Sign a root and validUntil combination with the test signers
-   * This is a simplified version - in full implementation you'd need proper ECDSA signing
-   */
-  async signRootAndValidUntil(root: bigint, validUntil: bigint): Promise<mcms.Signature[]> {
-    const signatures: mcms.Signature[] = []
-
-    // Create the message to sign (root, validUntil)
-    const messageToSign = beginCell().storeUint(root, 256).storeUint(validUntil, 32).endCell()
-
-    const messageHash = messageToSign.hash()
-
-    for (const signer of this.testSigners) {
-      // In a real implementation, you'd use proper ECDSA signing here
-      // For now, we'll create mock signatures
-      const publicKeyHash: bigint /* bytes32 */ = BigInt(
-        '0x' + signer.keyPair.publicKey.toString('hex'),
-      )
-
-      const signature: mcms.Signature = {
-        r: BigInt('0x' + messageHash.toString('hex').slice(0, 64)),
-        s: BigInt('0x' + messageHash.toString('hex').slice(0, 64)),
-        signer: publicKeyHash,
-      }
-      signatures.push(signature)
-    }
-
-    return signatures
-  }
-
-  /**
    * Create test root metadata
    */
   createTestRootMetadata(
@@ -447,21 +421,26 @@ export class MCMSBaseTestSetup {
     if (leaves.length === 0) return 0n
     if (leaves.length === 1) return BigInt('0x' + leaves[0].hash().toString('hex'))
 
-    // Simplified: just hash all leaves together
-    let combined = beginCell()
-    for (const leaf of leaves) {
-      combined = combined.storeRef(leaf)
+    // Build a simple binary tree by pairing leaves and hashing them
+    let currentLevel = leaves.map((leaf) => leaf.hash())
+
+    while (currentLevel.length > 1) {
+      const nextLevel: Buffer[] = []
+
+      for (let i = 0; i < currentLevel.length; i += 2) {
+        const left = currentLevel[i]
+        const right = i + 1 < currentLevel.length ? currentLevel[i + 1] : left
+
+        // Hash the pair
+        const combined = beginCell().storeBuffer(left).storeBuffer(right).endCell()
+
+        nextLevel.push(combined.hash())
+      }
+
+      currentLevel = nextLevel
     }
 
-    return BigInt('0x' + combined.endCell().hash().toString('hex'))
-  }
-
-  /**
-   * Create Merkle proof for a leaf (simplified implementation)
-   */
-  createMerkleProof(leaves: Cell[], leafIndex: number): Cell[] {
-    // Simplified implementation - in real use, you'd compute proper Merkle proofs
-    return [beginCell().storeUint(leafIndex, 32).endCell()]
+    return BigInt('0x' + currentLevel[0].toString('hex'))
   }
 }
 
@@ -470,9 +449,6 @@ export class MCMSBaseSetRootAndExecuteTestSetup extends MCMSBaseTestSetup {
   // Test operations and Merkle tree data
   testOps: mcms.Op[]
   initialTestRootMetadata: mcms.RootMetadata
-  testInitialRoot: bigint
-  metadataProof: Cell[]
-  signatures: mcms.Signature[]
 
   static readonly OPS_NUM = 7
   static readonly REVERTING_OP_INDEX = 5
@@ -480,16 +456,10 @@ export class MCMSBaseSetRootAndExecuteTestSetup extends MCMSBaseTestSetup {
   static readonly LEAVES_NUM = 8
   static readonly ROOT_METADATA_LEAF_INDEX = 0
 
-  testLeavesInTree: Cell[]
-
   constructor() {
     super()
     this.testOps = []
     this.initialTestRootMetadata = null as any
-    this.testInitialRoot = 0n
-    this.metadataProof = []
-    this.signatures = []
-    this.testLeavesInTree = []
   }
 
   /**
@@ -507,54 +477,6 @@ export class MCMSBaseSetRootAndExecuteTestSetup extends MCMSBaseTestSetup {
 
     // Create test operations
     this.testOps = this.createTestOps(MCMSBaseSetRootAndExecuteTestSetup.OPS_NUM)
-
-    // Create test leaves (ops + metadata)
-    this.testLeavesInTree = this.constructLeaves(this.testOps, this.initialTestRootMetadata)
-
-    // Compute root
-    this.testInitialRoot = this.computeRoot(this.testLeavesInTree)
-
-    // Create metadata proof
-    this.metadataProof = this.createMerkleProof(
-      this.testLeavesInTree,
-      MCMSBaseSetRootAndExecuteTestSetup.ROOT_METADATA_LEAF_INDEX,
-    )
-
-    // Sign the root
-    this.signatures = await this.signRootAndValidUntil(
-      this.testInitialRoot,
-      BigInt(MCMSBaseTestSetup.TEST_VALID_UNTIL),
-    )
-  }
-
-  /**
-   * Construct leaves for the Merkle tree from ops and metadata
-   */
-  constructLeaves(ops: mcms.Op[], metadata: mcms.RootMetadata): Cell[] {
-    const leaves: Cell[] = []
-
-    // Add metadata as first leaf
-    const metadataLeaf = beginCell()
-      .storeUint(mcms.MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA, 32)
-      .storeRef(mcms.builder.data.rootMetadata.encode(metadata))
-      .endCell()
-    leaves.push(metadataLeaf)
-
-    // Add ops as leaves
-    for (const op of ops) {
-      const opLeaf = beginCell()
-        .storeUint(mcms.MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP, 32)
-        .storeRef(mcms.builder.data.op.encode(op))
-        .endCell()
-      leaves.push(opLeaf)
-    }
-
-    // Pad to required number of leaves
-    while (leaves.length < MCMSBaseSetRootAndExecuteTestSetup.LEAVES_NUM) {
-      leaves.push(beginCell().endCell())
-    }
-
-    return leaves
   }
 
   /**

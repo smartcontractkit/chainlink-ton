@@ -50,7 +50,7 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
       from: baseTest.acc.externalCaller.address,
       to: baseTest.bind.mcms.address,
       success: false,
-      exitCode: 132, // ERROR_ONLY_CALLABLE_BY_OWNER(ownable_2step) // TBD: This should be exposed by some binding.
+      exitCode: 132, // ERROR_ONLY_CALLABLE_BY_OWNER(ownable_2step) // TODO: This should be exposed by some binding.
     })
   })
 
