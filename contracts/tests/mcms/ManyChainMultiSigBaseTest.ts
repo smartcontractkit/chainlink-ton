@@ -1,13 +1,14 @@
 import '@ton/test-utils'
 
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { Address, Cell, Dictionary, toNano, beginCell } from '@ton/core'
+import { Address, Cell, Dictionary, toNano, beginCell, fromNano } from '@ton/core'
 import { compile } from '@ton/blueprint'
 import { randomBytes } from 'crypto'
 import { KeyPair, sign } from '@ton/crypto'
 
 import * as mcms from '../../wrappers/mcms/MCMS'
 import * as ownable2step from '../../wrappers/libraries/access/Ownable2Step'
+import { merkleProof } from '../../src/mcms'
 
 import { crc32 } from 'zlib'
 import { asSnakeData, uint8ArrayToBigInt } from '../../src/utils'
@@ -388,7 +389,7 @@ export class MCMSBaseTestSetup {
         this.createTestOp(
           BigInt(i),
           this.acc.externalCaller.address,
-          toNano('0.1'),
+          toNano('0.10'),
           beginCell().storeUint(i, 32).endCell(),
         ),
       )
@@ -449,6 +450,7 @@ export class MCMSBaseSetRootAndExecuteTestSetup extends MCMSBaseTestSetup {
   // Test operations and Merkle tree data
   testOps: mcms.Op[]
   initialTestRootMetadata: mcms.RootMetadata
+  opProofs: bigint[][] // Proofs for each operation
 
   static readonly OPS_NUM = 7
   static readonly REVERTING_OP_INDEX = 5
@@ -460,6 +462,7 @@ export class MCMSBaseSetRootAndExecuteTestSetup extends MCMSBaseTestSetup {
     super()
     this.testOps = []
     this.initialTestRootMetadata = null as any
+    this.opProofs = []
   }
 
   /**
@@ -484,5 +487,49 @@ export class MCMSBaseSetRootAndExecuteTestSetup extends MCMSBaseTestSetup {
    */
   getLeafIndexOfOp(opIndex: number): number {
     return MCMSBaseSetRootAndExecuteTestSetup.ROOT_METADATA_LEAF_INDEX + 1 + opIndex
+  }
+
+  /**
+   * Set the initial root using merkle proof helper
+   */
+  async setInitialRoot(): Promise<void> {
+    const signers = this.testSigners.map((s) => ({
+      publicKey: s.keyPair.publicKey,
+      sign: (data: Buffer<ArrayBufferLike>) => sign(data, s.keyPair.secretKey),
+    }))
+
+    const [setRoot, opProofs] = merkleProof.build(
+      signers,
+      BigInt(MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL),
+      this.initialTestRootMetadata,
+      this.testOps,
+    )
+
+    // Store the operation proofs for later use in execute tests
+    this.opProofs = opProofs
+
+    const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot)
+
+    const result = await this.bind.mcms.sendInternal(
+      this.acc.deployer.getSender(),
+      toNano('0.05'),
+      setRootBody,
+    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: this.acc.deployer.address,
+      to: this.bind.mcms.address,
+      success: true,
+    })
+  }
+
+  /**
+   * Get proof for a specific operation index
+   */
+  getProofForOp(opIndex: number): bigint[] {
+    if (this.opProofs.length === 0) {
+      throw new Error('opProofs not initialized. Call setInitialRoot() first.')
+    }
+    return this.opProofs[opIndex]
   }
 }
