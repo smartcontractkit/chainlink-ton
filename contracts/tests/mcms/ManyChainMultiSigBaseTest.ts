@@ -17,18 +17,19 @@ import { generateEd25519KeyPair } from '../libraries/ocr/Helpers'
 
 export interface MCMSTestCode {
   mcms: Cell
+  counter: Cell
 }
 
 export interface MCMSTestAccounts {
   deployer: SandboxContract<TreasuryContract>
   multisigOwner: SandboxContract<TreasuryContract>
-  externalCaller: SandboxContract<TreasuryContract>
   // 9 signers with their private keys
   signers: SandboxContract<TreasuryContract>[]
 }
 
 export interface MCMSTestContracts {
   mcms: SandboxContract<mcms.ContractClient>
+  counter: SandboxContract<counter.ContractClient>
 }
 
 export interface TestSigner {
@@ -88,6 +89,7 @@ export class MCMSBaseTestSetup {
   static async compileContracts(): Promise<MCMSTestCode> {
     return {
       mcms: await compile('mcms.MCMS'),
+      counter: await compile('examples.Counter'),
     }
   }
 
@@ -154,12 +156,12 @@ export class MCMSBaseTestSetup {
     this.acc = {
       deployer: await this.blockchain.treasury('deployer'),
       multisigOwner: await this.blockchain.treasury('multisigOwner'),
-      externalCaller: await this.blockchain.treasury('externalCaller'),
       signers,
     }
 
     this.bind = {
       mcms: null as any,
+      counter: null as any,
     }
   }
 
@@ -310,6 +312,39 @@ export class MCMSBaseTestSetup {
     })
   }
 
+  async setupCounterContract(testId: string): Promise<void> {
+    const data = {
+      id: crc32(`mcms.counter.${testId}`),
+      value: 0,
+      ownable: {
+        owner: this.bind.mcms.address,
+        pendingOwner: null,
+      },
+    }
+    this.bind.counter = this.blockchain.openContract(
+      counter.ContractClient.newFrom(data, this.code.counter),
+    )
+  }
+
+  /**
+   * Deploy the Counter contract and verify deployment
+   */
+  async deployCounterContract(): Promise<void> {
+    const body = beginCell().endCell() // TODO should import counter.builder.message.in.topUp.encode({ queryId: 1n })
+    const result = await this.bind.counter.sendInternal(
+      this.acc.deployer.getSender(),
+      toNano('2'),
+      body,
+    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: this.acc.deployer.address,
+      to: this.bind.counter.address,
+      deploy: true,
+      success: true,
+    })
+  }
+
   /**
    * Set the initial configuration on the MCMS contract
    */
@@ -356,6 +391,8 @@ export class MCMSBaseTestSetup {
     await this.setupTestConfiguration()
     await this.setupMCMSContract(testId)
     await this.deployMCMSContract()
+    await this.setupCounterContract(testId)
+    await this.deployCounterContract()
     await this.setInitialConfiguration()
   }
 
@@ -364,20 +401,6 @@ export class MCMSBaseTestSetup {
    */
   warpTime(period: number) {
     this.blockchain.now = this.blockchain.now!! + period
-  }
-
-  /**
-   * Create a test operation
-   */
-  createTestOp(nonce: bigint, to: Address, value: bigint, data: Cell): mcms.Op {
-    return {
-      chainId: MCMSBaseTestSetup.TEST_CHAIN_ID,
-      multiSig: this.bind.mcms.address,
-      nonce,
-      to,
-      value,
-      data,
-    }
   }
 
   /**
@@ -395,7 +418,14 @@ export class MCMSBaseTestSetup {
               queryId: BigInt(i + 1),
               newCount: i,
             })
-      ops.push(this.createTestOp(BigInt(i), this.acc.externalCaller.address, value, op))
+      ops.push({
+        chainId: MCMSBaseTestSetup.TEST_CHAIN_ID,
+        multiSig: this.bind.mcms.address,
+        nonce: BigInt(i),
+        to: this.bind.counter.address,
+        value,
+        data: op,
+      })
     }
     return ops
   }
