@@ -12,7 +12,7 @@ type Config struct {
 }
 
 var DefaultConfigSet = Config{
-	PollPeriod: 3 * time.Second,
+	PollPeriod: 5 * time.Second,
 	PageSize:   100,
 }
 
