@@ -99,8 +99,7 @@ func (l *accountTxLoader) fetchTxsForAddress(ctx context.Context, addr *address.
 	}
 	startLT, endLT, endHash, err := l.getTransactionBounds(ctx, addr, blockRange)
 	if err != nil {
-		l.lggr.Errorf("failed to get transaction bounds for %s: %w", addr.String(), err)
-		return nil, err
+		return nil, fmt.Errorf("failed to get transaction bounds for %s: %w", addr.String(), err)
 	}
 
 	if startLT >= endLT {

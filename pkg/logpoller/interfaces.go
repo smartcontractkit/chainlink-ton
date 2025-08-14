@@ -55,10 +55,12 @@ type LogStore interface {
 // QueryBuilder defines the interface for constructing and executing log queries.
 // The generic type T represents the expected event(msg) structure that logs will be parsed into.
 type QueryBuilder[T any] interface {
-	// WithSrcAddress sets the source contract address to filter logs by(required)
+	// WithSrcAddress sets the source contract address to filter logs by (required).
+	// This specifies which contract's logs to search through.
 	WithSrcAddress(address *address.Address) QueryBuilder[T]
 
-	// WithEventSig sets the event sig(topic or opcode) to filter logs by (required)
+	// WithEventSig sets the event signature (topic or opcode) to filter logs by (required).
+	// This identifies the specific type of event/message to look for in the logs.
 	WithEventSig(sig uint32) QueryBuilder[T]
 
 	// WithByteFilter adds a single byte-level filter to the query.
@@ -68,12 +70,19 @@ type QueryBuilder[T any] interface {
 
 	// WithTypedFilter adds a high-level filter function that operates on parsed event objects.
 	// The filter function receives a parsed event of type T and returns true if the event
-	// should be included in the results
+	// should be included in the results.
 	WithTypedFilter(filter func(T) bool) QueryBuilder[T]
 
-	// WithOptions sets query execution options such as pagination (limit/offset).
-	WithOptions(options query.Options) QueryBuilder[T]
+	// WithLimit sets the maximum number of results to return.
+	WithLimit(limit int) QueryBuilder[T]
+
+	// WithOffset sets the number of results to skip from the beginning.
+	WithOffset(offset int) QueryBuilder[T]
+
+	// WithSort specifies how the results should be ordered.
+	WithSort(field query.SortField, order query.SortOrder) QueryBuilder[T]
 
 	// Execute runs the constructed query and returns the results.
+	// All the configured filters, sorting, and pagination options are applied.
 	Execute(ctx context.Context) (query.Result[T], error)
 }

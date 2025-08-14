@@ -70,7 +70,7 @@ func TestQueryBuilder_BasicFlow(t *testing.T) {
 	builder := NewQuery[TestEvent](store).
 		WithSrcAddress(addr).
 		WithEventSig(123).
-		WithOptions(query.Options{Limit: 10})
+		WithLimit(10)
 
 	b, ok := builder.(*queryBuilder[TestEvent])
 	require.True(t, ok, "type assertion to *queryBuilder[TestEvent] failed")
@@ -231,7 +231,7 @@ func TestQueryBuilder_Execute_WithPagination(t *testing.T) {
 	builder := NewQuery[TestEvent](store).
 		WithSrcAddress(addr).
 		WithEventSig(123).
-		WithOptions(query.Options{Limit: 3})
+		WithLimit(3)
 
 	result, err := builder.Execute(context.Background())
 	require.NoError(t, err)
@@ -244,7 +244,8 @@ func TestQueryBuilder_Execute_WithPagination(t *testing.T) {
 	builder = NewQuery[TestEvent](store).
 		WithSrcAddress(addr).
 		WithEventSig(123).
-		WithOptions(query.Options{Offset: 5, Limit: 3})
+		WithOffset(5).
+		WithLimit(3)
 
 	result, err = builder.Execute(context.Background())
 	require.NoError(t, err)
@@ -504,7 +505,8 @@ func TestQueryBuilder_ExecuteWithPaginationAndFiltering(t *testing.T) {
 		WithTypedFilter(func(event TestEvent) bool {
 			return event.Value >= 6
 		}).
-		WithOptions(query.Options{Limit: 3, Offset: 1})
+		WithLimit(3).
+		WithOffset(1)
 
 	result, err := builder.Execute(context.Background())
 	require.NoError(t, err)

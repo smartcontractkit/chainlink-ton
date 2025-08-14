@@ -67,9 +67,24 @@ func (b *queryBuilder[T]) WithTypedFilter(filter func(T) bool) QueryBuilder[T] {
 	return b
 }
 
-// WithOptions sets pagination and sorting options.
-func (b *queryBuilder[T]) WithOptions(options query.Options) QueryBuilder[T] {
-	b.options = options
+// WithLimit sets the maximum number of results to return.
+func (b *queryBuilder[T]) WithLimit(limit int) QueryBuilder[T] {
+	b.options.Limit = limit
+	return b
+}
+
+// WithOffset sets the number of results to skip.
+func (b *queryBuilder[T]) WithOffset(offset int) QueryBuilder[T] {
+	b.options.Offset = offset
+	return b
+}
+
+// WithSort adds sorting criteria to the query.
+func (b *queryBuilder[T]) WithSort(field query.SortField, order query.SortOrder) QueryBuilder[T] {
+	b.options.SortBy = append(b.options.SortBy, query.SortBy{
+		Field: field,
+		Order: order,
+	})
 	return b
 }
 
