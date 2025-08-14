@@ -1,4 +1,5 @@
 import "types.tolk";
+import "offramp.tolk";
 import "../lib/upgrades/type_and_version.tolk";
 import "../deployable/types.tolk";
 import "../lib/utils.tolk";
@@ -26,12 +27,23 @@ fun MerkleRoot_Storage.store(self) {
     return contract.setData(self.toCell());
 }
 
-type Msg = ExecuteReport;
+struct (0x10000010) Execute {
+    messages: cell,
+    proofs: cell,
+    proofFlagBits: uint256,
+    offChainTokenData: cell,
+}
+
+type Msg = Execute;
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy Msg.fromSlice(in.body);
     match (msg) {
-        ExecuteReport => {}
+        Execute => {
+            // If we receive this message from the OffRamp then the proof has already been validated.
+            onExecute(msg, in.senderAddress);
+            
+        }
         else => {
             // ignore empty messages, "wrong opcode" for others
             assert (in.body.isEmpty()) throw 0xFFFF
@@ -39,23 +51,41 @@ fun onInternalMessage(in: InMessage) {
     }
 }
 
-// fun onExecute() { // TODO: rename to something like process
-    // validate we trust the onramp (is owner)
+fun onExecute(msg: Execute, sender: address) {
+    val st = MerkleRoot_Storage.load();
+    assert(sender == st.owner, ERROR_NOT_OWNER);
+
+    // TODO if no tokenTransfers
+    _execute(msg.messages, msg.proofs, msg.proofFlagBits, sender)
+
+    //TODO else  
     // validate execution state == untouched
-    //
     // if initial
     //  allocate storage space for the execution report
     // TODO: should we fan out CommitReport into individual executions?
     // 
     // if in progress
-    // 
     // if tokenAmounts > 0 && state == initial
     // set state = token transfer
     // send message to offramp to ask to release tokens
     // else if no tokenTransfers
     // set state = execution
-    // call execute
-// }
+}
+
+fun _execute(mesages: cell, proofs: cell, proofFlagBits: uint256, offRamp: address) {
+    var msg = createMessage(
+        {
+            bounce: true,
+            value: ton("0.1"),
+            dest: offRamp,
+            body: ExecuteValidated {
+                messages: mesages,
+                proofs: proofs,
+                proofFlagBits: proofFlagBits,
+            }
+        }
+    )
+}
 
 // TODO: should we wait for all transfers to either complete or fail before we allow retry?
 
