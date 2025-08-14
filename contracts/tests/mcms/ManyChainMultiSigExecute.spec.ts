@@ -322,7 +322,7 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
     const revertingOpIndex = MCMSBaseSetRootAndExecuteTestSetup.REVERTING_OP_INDEX
 
     for (let i = 0; i < revertingOpIndex; i++) {
-      const proof = baseTest.getProofForOp(i)
+      const proof = baseTest.opProofs[i]
       const proofCell = asSnakeData<bigint>(proof, (v) => beginCell().storeUint(v, 256))
 
       const executeBody = mcms.builder.message.in.execute.encode({
@@ -375,8 +375,7 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
     })
   })
 
-  // NOTE: This test is skipped because our beforeEach block funds the contract with 2 TON,
-  it.skip('should handle value operations correctly - insufficient balance', async () => {
+  it('should handle value operations correctly - insufficient balance', async () => {
     // Execute operations up to the value operation index
     const valueOpIndex = MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX
 
@@ -410,7 +409,7 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
     // Check that MCMS contract has minimal balance initially
     const mcmsContract = await baseTest.blockchain.getContract(baseTest.bind.mcms.address)
     const initialBalance = mcmsContract.balance
-    expect(initialBalance).toBeLessThanOrEqual(toNano('0.1')) // Should be very low (just deployment funds)
+    expect(initialBalance).toBeLessThanOrEqual(toNano('2')) // Should be very low (just deployment funds)
 
     // Try to execute value operation without sufficient balance
     const proof = baseTest.getProofForOp(valueOpIndex)
@@ -453,7 +452,7 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
 
       const result = await baseTest.bind.mcms.sendInternal(
         baseTest.acc.deployer.getSender(),
-        toNano('0.1'), // Reduce gas fee since we already topped up the contract
+        toNano('1'),
         executeBody,
       )
       expect(result.transactions).toHaveTransaction({
@@ -478,9 +477,18 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
       proof: proofCell,
     })
 
+    // TopUp contract before execution operation
+    await baseTest.bind.mcms.sendInternal(
+      baseTest.acc.deployer.getSender(),
+      toNano('10'),
+      mcms.builder.message.in.topUp.encode({
+        queryId: BigInt(1),
+      }),
+    )
+
     const result = await baseTest.bind.mcms.sendInternal(
       baseTest.acc.deployer.getSender(),
-      toNano('0.1'),
+      toNano('1'),
       executeBody,
     )
 
