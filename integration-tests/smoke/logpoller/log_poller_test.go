@@ -478,8 +478,8 @@ func Test_LogPoller(t *testing.T) {
 					MustStoreAddr(emitterA.Wallet()).
 					EndCell()
 				testSlice := testCell.BeginParse()
-				senderBytes, err := testSlice.LoadSlice(267) // Load exactly 267 bits
-				require.NoError(t, err)
+				senderBytes, sberr := testSlice.LoadSlice(267) // Load exactly 267 bits
+				require.NoError(t, sberr)
 
 				filter := query.CellFilter{
 					Offset:   8,
