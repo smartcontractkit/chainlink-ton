@@ -474,14 +474,10 @@ func Test_LogPoller(t *testing.T) {
 
 			t.Run("Query by Sender Address", func(t *testing.T) {
 				t.Parallel()
-				testBuilder := cell.BeginCell()
-				err := testBuilder.StoreAddr(emitterA.Wallet())
-				require.NoError(t, err)
-
-				// Get the encoded address bytes
-				testCell := testBuilder.EndCell()
+				testCell := cell.BeginCell().
+					MustStoreAddr(emitterA.Wallet()).
+					EndCell()
 				testSlice := testCell.BeginParse()
-
 				senderBytes, err := testSlice.LoadSlice(267) // Load exactly 267 bits
 				require.NoError(t, err)
 
