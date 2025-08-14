@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/xssnick/tonutils-go/address"
-	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
@@ -24,7 +23,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
-	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types/cellquery"
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types/query"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/hash"
 )
 
@@ -90,30 +89,6 @@ func (a *TONAccessor) Sync(ctx context.Context, contractName string, contractAdd
 // TON as source chain methods
 func (a *TONAccessor) MsgsBetweenSeqNums(ctx context.Context, dest ccipocr3.ChainSelector, seqNumRange ccipocr3.SeqNumRange) ([]ccipocr3.Message, error) {
 	lggr := logutil.WithContextValues(ctx, a.lggr)
-	queries := []cellquery.CellQuery{
-		{
-			Offset:   0,
-			Operator: cellquery.EQ,
-			Value:    binary.BigEndian.AppendUint64(nil, uint64(dest)),
-		},
-		{
-			Offset:   8,
-			Operator: cellquery.GTE,
-			Value:    binary.BigEndian.AppendUint64(nil, uint64(seqNumRange.Start())),
-		},
-		{
-			Offset:   8,
-			Operator: cellquery.LTE,
-			Value:    binary.BigEndian.AppendUint64(nil, uint64(seqNumRange.End())),
-		},
-	}
-
-	options := cellquery.QueryOptions{
-		SortBy: []cellquery.SortBy{
-			{Field: cellquery.SortByTxLT, Order: cellquery.ASC},
-		},
-		Limit: int(seqNumRange.End() - seqNumRange.Start() + 1),
-	}
 
 	// TODO: get contract address
 	addr, ok := a.bindings[consts.ContractNameOnRamp]
@@ -121,23 +96,45 @@ func (a *TONAccessor) MsgsBetweenSeqNums(ctx context.Context, dest ccipocr3.Chai
 		return nil, errors.New("OnRamp not bound")
 	}
 
-	res, err := a.logPoller.FilteredLogs(ctx, addr, hash.CRC32("CCIPMessageSent"), queries, options)
+	// Create byte filters for querying CCIPMessageSent events
+	destFilter := query.ByteFilter{
+		Offset:   0,
+		Operator: query.EQ,
+		Value:    binary.BigEndian.AppendUint64(nil, uint64(dest)),
+	}
+
+	startFilter := query.ByteFilter{
+		Offset:   8,
+		Operator: query.GTE,
+		Value:    binary.BigEndian.AppendUint64(nil, uint64(seqNumRange.Start())),
+	}
+
+	endFilter := query.ByteFilter{
+		Offset:   8,
+		Operator: query.LTE,
+		Value:    binary.BigEndian.AppendUint64(nil, uint64(seqNumRange.End())),
+	}
+
+	res, err := logpoller.NewQuery[onramp.CCIPMessageSent](a.logPoller.GetStore()).
+		WithSrcAddress(addr).
+		WithEventSig(hash.CRC32("CCIPMessageSent")).
+		WithByteFilter(destFilter).
+		WithByteFilter(startFilter).
+		WithByteFilter(endFilter).
+		WithSort(query.SortByTxLT, query.ASC).
+		WithLimit(int(seqNumRange.End() - seqNumRange.Start() + 1)). //nolint:gosec // conversion is safe in this context
+		Execute(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch logs: %w", err)
 	}
 	lggr.Infow("queried messages between sequence numbers",
-		"numMsgs", len(res.Logs),
+		"numMsgs", len(res.Events),
 		"sourceChainSelector", a.chainSelector,
 		"seqNumRange", seqNumRange.String(),
 	)
 
 	msgs := make([]cciptypes.Message, 0)
-	for _, item := range res.Logs {
-		var log onramp.CCIPMessageSent
-		if err := tlb.LoadFromCell(&log, item.Data.BeginParse()); err != nil {
-			return nil, fmt.Errorf("failed to parse CCIPMessageSent: %w", err)
-		}
-
+	for _, log := range res.Events {
 		// TODO: convert TON-specific event(or msg) to generic ccip type
 		// msg, err := toGenericEvent(&log, addr)
 		// if err != nil {
@@ -153,6 +150,9 @@ func (a *TONAccessor) MsgsBetweenSeqNums(ctx context.Context, dest ccipocr3.Chai
 
 		// msg.Message.Header.OnRamp = onRampAddress
 		// msgs = append(msgs, msg.Message)
+
+		// For now, just log that we found an event
+		_ = log // prevent unused variable error
 	}
 
 	// TODO(NONEVM-2364) implement me
