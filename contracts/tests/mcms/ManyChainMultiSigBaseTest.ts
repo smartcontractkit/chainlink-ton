@@ -297,7 +297,7 @@ export class MCMSBaseTestSetup {
     const body = mcms.builder.message.in.topUp.encode({ queryId: 1n })
     const result = await this.bind.mcms.sendInternal(
       this.acc.deployer.getSender(),
-      toNano('0.05'),
+      toNano('2'),
       body,
     )
 
