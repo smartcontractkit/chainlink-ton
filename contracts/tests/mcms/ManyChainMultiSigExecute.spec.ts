@@ -20,7 +20,16 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
   })
 
   it('should revert when post-op count reached', async () => {
-    // Execute all operations up to the post-op count limit to simulate setOpCount
+    // Fund for value op
+    await baseTest.bind.mcms.sendInternal(
+      baseTest.acc.deployer.getSender(),
+      toNano('10'),
+      mcms.builder.message.in.topUp.encode({
+        queryId: BigInt(1),
+      }),
+    )
+
+    // Execute all operations up to the post-op count limit to simulate setOpCount // TODO this could be hidden behind some helper. It is not the focus of this test
     const targetOpCount = baseTest.initialTestRootMetadata.postOpCount
 
     for (let i = 0; i < Number(targetOpCount) && i < baseTest.testOps.length; i++) {
