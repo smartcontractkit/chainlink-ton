@@ -2,7 +2,7 @@ import '@ton/test-utils'
 
 import { toNano } from '@ton/core'
 
-import * as rbactl from '../../wrappers/mcms/RBACTimelock'
+import { rbactl } from '../../wrappers/mcms'
 import * as counter from '../../wrappers/examples/Counter'
 
 import { BaseTestSetup, TestCode } from './BaseTest'

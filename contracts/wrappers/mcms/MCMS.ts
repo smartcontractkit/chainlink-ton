@@ -11,7 +11,7 @@ import {
 } from '@ton/core'
 import { crc32 } from 'zlib'
 import { CellCodec, sha256_32 } from '../utils'
-import { ZERO_ADDRESS } from '../../utils'
+import { ZERO_ADDRESS } from '../../src/utils'
 import * as ownable2step from '../libraries/access/Ownable2Step'
 
 // @dev Top up contract with TON coins.
@@ -53,8 +53,8 @@ export type SetConfig = {
   // Query ID of the change owner request.
   queryId: bigint
 
-  // List of signer addresses.
-  signerAddresses: Cell // vec<address>
+  // List of signer public keys.
+  signerKeys: Cell // vec<uint256>
   // List of signer groups.
   signerGroups: Cell // vec<uint8>
   // List of group quorums.
@@ -75,8 +75,8 @@ export type ContractData = {
 
   /// Ownable trait data
   ownable: ownable2step.Data
-  /// Map where entry exists if the address is a signer
-  signers: Dictionary<Address, Buffer> // map<address, Signer>
+  /// Map where entry exists if the public key is a signer
+  signers: Dictionary<bigint, Buffer> // map<uint256, Signer>
   /// The current configuration of the contract
   config: Config
 
@@ -111,7 +111,7 @@ export enum Error {
   /// @notice Thrown when number of signers is 0 or greater than MAX_NUM_SIGNERS.
   OUT_OF_BOUNDS_NUM_SIGNERS = 100,
 
-  /// @notice Thrown when signerAddresses and signerGroups have different lengths.
+  /// @notice Thrown when signerKeys and signerGroups have different lengths.
   SIGNER_GROUPS_LENGTH_MISMATCH = 101,
 
   /// @notice Thrown when number of some signer's group is greater than (NUM_GROUPS-1).
@@ -126,9 +126,9 @@ export enum Error {
   /// @notice Thrown when a disabled group contains a signer.
   SIGNER_IN_DISABLED_GROUP = 105,
 
-  /// @notice Thrown when the signers' addresses are not a strictly increasing monotone sequence.
+  /// @notice Thrown when the signers' public keys are not a strictly increasing monotone sequence.
   /// Prevents signers from including more than one signature.
-  SIGNERS_ADDRESSES_MUST_BE_STRICTLY_INCREASING = 106,
+  SIGNERS_KEYS_MUST_BE_STRICTLY_INCREASING = 106,
 
   /// @notice Thrown when the signature corresponds to invalid signer.
   INVALID_SIGNER = 107,
@@ -287,8 +287,8 @@ export type ExpiringRootAndOpCount = {
 export type RootMetadata = {
   // chainId and multiSig uniquely identify a ManyChainMultiSig contract instance that the
   // root is destined for.
-  // uint256 since it is unclear if we can represent chainId as uint64. There is a proposal (
-  // https://ethereum-magicians.org/t/eip-2294-explicit-bound-to-chain-id/11090) to
+  // int256 since it is unclear if we can represent chainId as uint64 (and TON introduces negative chain IDs).
+  // There is a proposal (https://ethereum-magicians.org/t/eip-2294-explicit-bound-to-chain-id/11090) to
   // bound chainid to 64 bits, but it is still unresolved.
   chainId: bigint
   multiSig: Address
@@ -308,11 +308,11 @@ export type RootMetadata = {
 export type Signature = {
   // Notice: no `v: uint8;` field, as public key recovery is not supported.
 
-  r: bigint // bytes32
-  s: bigint // bytes32
+  r: bigint // uint256
+  s: bigint // uint256
 
   // Instead of v attach the signer (public key hash)
-  signer: Address
+  signer: bigint // uint256
 }
 
 /// @notice an op to be executed by the ManyChainMultiSig contract
@@ -321,7 +321,7 @@ export type Signature = {
 /// is greater than 64 bytes to prevent collisions with internal nodes in the Merkle tree. See
 /// openzeppelin-contracts/contracts/utils/cryptography/MerkleProof.sol:15 for details.
 export type Op = {
-  // The chain ID for which this operation is intended (uint256)
+  // The chain ID for which this operation is intended (int256 as TON introduces negative chain IDs).
   chainId: bigint
   // The address of the multiSig contract
   multiSig: Address
@@ -349,6 +349,28 @@ export const opcodes = {
   },
 }
 
+const rootMetadata: CellCodec<RootMetadata> = {
+  encode: (data: RootMetadata): Cell => {
+    return beginCell()
+      .storeInt(data.chainId, 256)
+      .storeAddress(data.multiSig)
+      .storeUint(data.preOpCount, 40)
+      .storeUint(data.postOpCount, 40)
+      .storeBit(data.overridePreviousRoot)
+      .endCell()
+  },
+  decode: (cell: Cell): RootMetadata => {
+    const s = cell.beginParse()
+    return {
+      chainId: s.loadIntBig(256),
+      multiSig: s.loadAddress(),
+      preOpCount: s.loadUintBig(40),
+      postOpCount: s.loadUintBig(40),
+      overridePreviousRoot: s.loadBoolean(),
+    }
+  },
+}
+
 export const builder = {
   message: {
     in: {
@@ -371,17 +393,15 @@ export const builder = {
       // Creates a new `MCMS_SetRoot` message.
       setRoot: {
         encode: (msg: SetRoot): Cell => {
-          return (
-            beginCell()
-              .storeUint(opcodes.in.SetRoot, 32)
-              .storeUint(msg.queryId, 64)
-              .storeUint(msg.root, 256)
-              .storeUint(msg.validUntil, 32)
-              // .storeSlice(msg.metadata) // TODO: encode metadata properly
-              .storeRef(msg.metadataProof)
-              .storeRef(msg.signatures)
-              .endCell()
-          )
+          return beginCell()
+            .storeUint(opcodes.in.SetRoot, 32)
+            .storeUint(msg.queryId, 64)
+            .storeUint(msg.root, 256)
+            .storeUint(msg.validUntil, 32)
+            .storeBuilder(rootMetadata.encode(msg.metadata).asBuilder())
+            .storeRef(msg.metadataProof)
+            .storeRef(msg.signatures)
+            .endCell()
         },
         decode: (cell: Cell): SetRoot => {
           const s = cell.beginParse()
@@ -422,7 +442,7 @@ export const builder = {
           return beginCell()
             .storeUint(opcodes.in.SetConfig, 32)
             .storeUint(msg.queryId, 64)
-            .storeRef(msg.signerAddresses)
+            .storeRef(msg.signerKeys)
             .storeRef(msg.signerGroups)
             .storeDict(msg.groupQuorums)
             .storeDict(msg.groupParents)
@@ -434,7 +454,7 @@ export const builder = {
           s.skip(32) // skip opcode
           return {
             queryId: s.loadUintBig(64),
-            signerAddresses: s.loadRef(),
+            signerKeys: s.loadRef(),
             signerGroups: s.loadRef(),
             groupQuorums: Dictionary.load(
               Dictionary.Keys.Uint(8),
@@ -483,28 +503,6 @@ export const builder = {
       },
     }
 
-    const rootMetadata: CellCodec<RootMetadata> = {
-      encode: (data: RootMetadata): Cell => {
-        return beginCell()
-          .storeUint(data.chainId, 256)
-          .storeAddress(data.multiSig)
-          .storeUint(data.preOpCount, 40)
-          .storeUint(data.postOpCount, 40)
-          .storeBit(data.overridePreviousRoot)
-          .endCell()
-      },
-      decode: (cell: Cell): RootMetadata => {
-        const s = cell.beginParse()
-        return {
-          chainId: s.loadUintBig(256),
-          multiSig: s.loadAddress(),
-          preOpCount: s.loadUintBig(40),
-          postOpCount: s.loadUintBig(40),
-          overridePreviousRoot: s.loadBoolean(),
-        }
-      },
-    }
-
     const expiringRootAndOpCount: CellCodec<ExpiringRootAndOpCount> = {
       encode: (data: ExpiringRootAndOpCount): Cell => {
         return beginCell()
@@ -527,7 +525,7 @@ export const builder = {
     const op: CellCodec<Op> = {
       encode: (op: Op): Cell => {
         return beginCell()
-          .storeUint(op.chainId, 256)
+          .storeInt(op.chainId, 256)
           .storeAddress(op.multiSig)
           .storeUint(op.nonce, 40)
           .storeAddress(op.to)
@@ -538,7 +536,7 @@ export const builder = {
       decode: (cell: Cell): Op => {
         const s = cell.beginParse()
         return {
-          chainId: s.loadUintBig(256),
+          chainId: s.loadIntBig(256),
           multiSig: s.loadAddress(),
           nonce: s.loadUintBig(40),
           to: s.loadAddress(),
@@ -552,7 +550,7 @@ export const builder = {
         return beginCell()
           .storeUint(data.r, 256)
           .storeUint(data.s, 256)
-          .storeAddress(data.signer)
+          .storeUint(data.signer, 256)
           .endCell()
       },
       decode: (cell: Cell): Signature => {
@@ -560,7 +558,7 @@ export const builder = {
         return {
           r: s.loadUintBig(256),
           s: s.loadUintBig(256),
-          signer: s.loadAddress(),
+          signer: s.loadUintBig(256),
         }
       },
     }
@@ -578,7 +576,11 @@ export const builder = {
         return beginCell()
           .storeUint(data.id, 32)
           .storeBuilder(ownable)
-          .storeDict(data.signers, Dictionary.Keys.Address(), Dictionary.Values.Buffer(LEN_SIGNER))
+          .storeDict(
+            data.signers,
+            Dictionary.Keys.BigUint(256),
+            Dictionary.Values.Buffer(LEN_SIGNER),
+          )
           .storeRef(config.encode(data.config))
           .storeDict(data.seenSignedHashes, Dictionary.Keys.BigUint(256), Dictionary.Values.Bool())
           .storeBuilder(expiringRootAndOpCount.encode(data.expiringRootAndOpCount).asBuilder())
@@ -595,7 +597,7 @@ export const builder = {
         }
 
         const signers = Dictionary.load(
-          Dictionary.Keys.Address(),
+          Dictionary.Keys.BigUint(256),
           Dictionary.Values.Buffer(LEN_SIGNER),
           s.loadRef(),
         )
@@ -615,7 +617,7 @@ export const builder = {
         }
 
         const rootMetadata = {
-          chainId: s.loadUintBig(256),
+          chainId: s.loadIntBig(256),
           multiSig: s.loadAddress(),
           preOpCount: s.loadUintBig(40),
           postOpCount: s.loadUintBig(40),
@@ -643,7 +645,7 @@ export const builder = {
         },
         signers: Dictionary.empty(
           // no signers
-          Dictionary.Keys.Address(),
+          Dictionary.Keys.BigUint(256),
           Dictionary.Values.Buffer(LEN_SIGNER),
         ),
         config: {
