@@ -304,10 +304,13 @@ github.com/smartcontractkit/chainlink-ccip v0.1.1-solana h1:ICWYnxVdoh0ds3CPNml7
 github.com/smartcontractkit/chainlink-ccip v0.1.1-solana/go.mod h1:zPpo78Fv3zQE3WVZFEqRiRNER9QHaCzl+HNeTSaS0kE=
 github.com/smartcontractkit/chainlink-common v0.8.1-0.20250806223732-5ce6071775dd h1:dUnO0izEtwfHsGwwjLRfsagYgEg3RfPl4/sHu0+F8V8=
 github.com/smartcontractkit/chainlink-common v0.8.1-0.20250806223732-5ce6071775dd/go.mod h1:P0w6jbcIioJ22DGYftIlM4PmhzB5AgzA1205v3yymQI=
+github.com/smartcontractkit/chainlink-common v0.9.1-0.20250813153002-a1a613c0f2a8 h1:WiVXfD/JYxAgTzakhETobIdVqcYLZtdycsZ7v3U8/sc=
+github.com/smartcontractkit/chainlink-common v0.9.1-0.20250813153002-a1a613c0f2a8/go.mod h1:OYfK10oQCJVQEdBmA2J1FC9gq+bp9497LcD88T0q+lw=
 github.com/smartcontractkit/chainlink-common/pkg/chipingress v0.0.1 h1:ca2z5OXgnbBPQRxpwXwBLJsUA1+cAp5ncfW4Ssvd6eY=
 github.com/smartcontractkit/chainlink-common/pkg/chipingress v0.0.1/go.mod h1:NZv/qKYGFRnkjOYBouajnDfFoZ+WDa6H2KNmSf1dnKc=
 github.com/smartcontractkit/chainlink-common/pkg/values v0.0.0-20250718143957-41236f9ef8b4 h1:hPKEslzkVA2HUuqwGc6w594EWYnJFp5jXmAoBu3VryE=
 github.com/smartcontractkit/chainlink-common/pkg/values v0.0.0-20250718143957-41236f9ef8b4/go.mod h1:U1UAbPhy6D7Qz0wHKGPoQO+dpR0hsYjgUz8xwRrmKwI=
+github.com/smartcontractkit/chainlink-common/pkg/values v0.0.0-20250806152407-159881c7589c/go.mod h1:U1UAbPhy6D7Qz0wHKGPoQO+dpR0hsYjgUz8xwRrmKwI=
 github.com/smartcontractkit/freeport v0.1.1 h1:B5fhEtmgomdIhw03uPVbVTP6oPv27fBhZsoZZMSIS8I=
 github.com/smartcontractkit/freeport v0.1.1/go.mod h1:T4zH9R8R8lVWKfU7tUvYz2o2jMv1OpGCdpY2j2QZXzU=
 github.com/smartcontractkit/grpc-proxy v0.0.0-20240830132753-a7e17fec5ab7 h1:12ijqMM9tvYVEm+nR826WsrNi6zCKpwBhuApq127wHs=

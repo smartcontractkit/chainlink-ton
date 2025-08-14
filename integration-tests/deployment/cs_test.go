@@ -7,7 +7,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"
-	"github.com/smartcontractkit/chainlink-ccip/pkg/types/ccipocr3"
+	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
 
 	chain_selectors "github.com/smartcontractkit/chain-selectors"
@@ -133,7 +133,7 @@ func TestDeploy(t *testing.T) {
 
 	addrCodec := codec.AddressCodec{}
 
-	accessor, err := chainaccessor.NewTONAccessor(lggr, tonChain.Client, nil)
+	accessor, err := chainaccessor.NewTONAccessor(lggr, ccipocr3.ChainSelector(chainSelector), tonChain.Client, nil, addrCodec)
 	require.NoError(t, err)
 
 	ctx := t.Context()
@@ -153,7 +153,7 @@ func TestDeploy(t *testing.T) {
 	})
 
 	t.Run("GetConfig", func(t *testing.T) {
-		config, err := accessor.GetAllConfigLegacySnapshot(ctx)
+		config, _, err := accessor.GetAllConfigsLegacy(ctx, ccipocr3.ChainSelector(chainSelector), []ccipocr3.ChainSelector{ChainSelEVMTest90000001})
 		require.NoError(t, err)
 		fmt.Printf("%+v\n", config)
 	})

@@ -19,36 +19,39 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
 )
 
 var ErrNoBindings = errors.New("no bindings found")
 
 type TONAccessor struct {
-	lggr       logger.Logger
-	client     ton.APIClientWrapped
-	logPoller  logpoller.LogPoller
-	bindings   map[string]*address.Address
-	bindingsMu sync.RWMutex // TODO:
-	addrCodec  ccipocr3.ChainSpecificAddressCodec
+	lggr          logger.Logger
+	chainSelector ccipocr3.ChainSelector
+	client        ton.APIClientWrapped
+	logPoller     logpoller.LogPoller
+	bindings      map[string]*address.Address
+	bindingsMu    sync.RWMutex // TODO:
+	addrCodec     ccipocr3.ChainSpecificAddressCodec
 }
 
 var _ ccipocr3.ChainAccessor = (*TONAccessor)(nil)
 
 func NewTONAccessor(
 	lggr logger.Logger,
+	chainSelector ccipocr3.ChainSelector,
 	client ton.APIClientWrapped,
 	logPoller logpoller.LogPoller,
+	addrCodec ccipocr3.ChainSpecificAddressCodec,
 ) (ccipocr3.ChainAccessor, error) {
 	// TODO: validate state of client and logPoller (should be initialized in NewChain)
 	return &TONAccessor{
-		lggr:       lggr,
-		client:     client,
-		logPoller:  logPoller,
-		bindings:   make(map[string]*address.Address),
-		bindingsMu: sync.RWMutex{},
-		addrCodec:  codec.AddressCodec{},
+		lggr:          lggr,
+		chainSelector: chainSelector,
+		client:        client,
+		logPoller:     logPoller,
+		bindings:      make(map[string]*address.Address),
+		bindingsMu:    sync.RWMutex{},
+		addrCodec:     addrCodec,
 	}, nil
 }
 
@@ -58,74 +61,96 @@ func (a *TONAccessor) GetContractAddress(contractName string) ([]byte, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (a *TONAccessor) GetAllConfigLegacySnapshot(ctx context.Context) (ccipocr3.ChainConfigSnapshot, error) {
+func (a *TONAccessor) GetAllConfigsLegacy(ctx context.Context, destChainSelector ccipocr3.ChainSelector, sourceChainSelectors []ccipocr3.ChainSelector) (ccipocr3.ChainConfigSnapshot, map[ccipocr3.ChainSelector]ccipocr3.SourceChainConfig, error) {
 	// Match old behaviour: if a contract isn't bound, we return an empty value so the nodes can achieve consensus on partial config
 	// https://github.com/smartcontractkit/chainlink-ccip/blob/a8dbbdbf14a07593de2f0dbe608f8b64d893a6bd/pkg/contractreader/extended.go#L226-L231
 
 	// TODO: pass in addresses we fetched so subsequent fetches don't fail (offramp->feeQuoter etc)
 
+	var config ccipocr3.ChainConfigSnapshot
+	var sourceChainConfigs map[ccipocr3.ChainSelector]ccipocr3.SourceChainConfig
+
 	block, err := a.client.CurrentMasterchainInfo(ctx)
 	if err != ErrNoBindings && err != nil {
-		return ccipocr3.ChainConfigSnapshot{}, fmt.Errorf("failed to get current block: %w", err)
+		return ccipocr3.ChainConfigSnapshot{}, nil, fmt.Errorf("failed to get current block: %w", err)
 	}
 
-	offrampDynamicConfig, err := a.getOffRampDynamicConfig(ctx)
-	if err != ErrNoBindings && err != nil {
-		return ccipocr3.ChainConfigSnapshot{}, fmt.Errorf("failed to get current offramp dynamic config: %w", err)
-	}
+	if a.chainSelector == destChainSelector {
+		// we're fetching config on the destination chain (offramp + fee quoter static config + RMN)
+		sourceChainConfigs = make(map[ccipocr3.ChainSelector]ccipocr3.SourceChainConfig, len(sourceChainSelectors))
 
-	offrampStaticConfig, err := a.getOffRampStaticConfig(ctx)
-	if err != ErrNoBindings && err != nil {
-		return ccipocr3.ChainConfigSnapshot{}, fmt.Errorf("failed to get current offramp static config: %w", err)
-	}
-
-	feeQuoterStaticConfig, err := a.getFeeQuoterStaticConfig(ctx, block)
-	if err != ErrNoBindings && err != nil {
-		return ccipocr3.ChainConfigSnapshot{}, fmt.Errorf("failed to get current feequoter static config: %w", err)
-	}
-
-	onRampDynamicConfig, err := a.getOnRampDynamicConfig(ctx, block)
-	if err != ErrNoBindings && err != nil {
-		return ccipocr3.ChainConfigSnapshot{}, fmt.Errorf("failed to get current onramp dynamic config: %w", err)
-	}
-
-	curseInfo, err := a.getCurseInfo(ctx, block)
-	if err != ErrNoBindings && err != nil {
-		return ccipocr3.ChainConfigSnapshot{}, fmt.Errorf("failed to get curse info: %w", err)
-	}
-	// a.getOnRampDestChainConfig(ctx, block, dest)
-
-	return ccipocr3.ChainConfigSnapshot{
-		Offramp: ccipocr3.OfframpConfig{
+		// OffRamp
+		offrampDynamicConfig, err := a.getOffRampDynamicConfig(ctx)
+		if err != ErrNoBindings && err != nil {
+			return ccipocr3.ChainConfigSnapshot{}, nil, fmt.Errorf("failed to get current offramp dynamic config: %w", err)
+		}
+		offrampStaticConfig, err := a.getOffRampStaticConfig(ctx)
+		if err != ErrNoBindings && err != nil {
+			return ccipocr3.ChainConfigSnapshot{}, nil, fmt.Errorf("failed to get current offramp static config: %w", err)
+		}
+		config.Offramp = ccipocr3.OfframpConfig{
 			// TODO: read OCR config from contract
 			CommitLatestOCRConfig: ccipocr3.OCRConfigResponse{},
 			ExecLatestOCRConfig:   ccipocr3.OCRConfigResponse{},
 			StaticConfig:          offrampStaticConfig,
 			DynamicConfig:         offrampDynamicConfig,
-		},
-		FeeQuoter: ccipocr3.FeeQuoterConfig{
+		}
+
+		// FeeQuoter
+		feeQuoterStaticConfig, err := a.getFeeQuoterStaticConfig(ctx, block)
+		if err != ErrNoBindings && err != nil {
+			return ccipocr3.ChainConfigSnapshot{}, nil, fmt.Errorf("failed to get current feequoter static config: %w", err)
+		}
+		config.FeeQuoter = ccipocr3.FeeQuoterConfig{
 			StaticConfig: feeQuoterStaticConfig,
-		},
-		OnRamp: ccipocr3.OnRampConfig{
-			DynamicConfig: ccipocr3.GetOnRampDynamicConfigResponse{
-				DynamicConfig: onRampDynamicConfig,
-			},
-			// TODO:
-			DestChainConfig: ccipocr3.OnRampDestChainConfig{},
-		},
-		Router: ccipocr3.RouterConfig{
+		}
+
+		// RMN
+		config.RMNProxy = ccipocr3.RMNProxyConfig{
+			// TODO: point at a rmnremote address/router/offramp to allow fetching curseinfo
+		}
+		config.RMNRemote = ccipocr3.RMNRemoteConfig{
+			// We don't support RMN so return an empty config
+		}
+
+		// CurseInfo
+		curseInfo, err := a.getCurseInfo(ctx, block)
+		if err != ErrNoBindings && err != nil {
+			return ccipocr3.ChainConfigSnapshot{}, nil, fmt.Errorf("failed to get curse info: %w", err)
+		}
+		config.CurseInfo = curseInfo
+
+		// TODO: process sourceChainSelectors
+	} else {
+		// we're fetching config on the source chain (onramp + router config)
+
+		// OnRamp
+		onRampDynamicConfig, err := a.getOnRampDynamicConfig(ctx, block)
+		if err != ErrNoBindings && err != nil {
+			return ccipocr3.ChainConfigSnapshot{}, nil, fmt.Errorf("failed to get current onramp dynamic config: %w", err)
+		}
+		onRampDestChainConfig, err := a.getOnRampDestChainConfig(ctx, block, destChainSelector)
+		if err != ErrNoBindings && err != nil {
+			return ccipocr3.ChainConfigSnapshot{}, nil, fmt.Errorf("failed to get current onramp dest chain config: %w", err)
+		}
+		config.OnRamp = ccipocr3.OnRampConfig{
+			DynamicConfig:   ccipocr3.GetOnRampDynamicConfigResponse{DynamicConfig: onRampDynamicConfig},
+			DestChainConfig: onRampDestChainConfig,
+		}
+
+		// Router
+		config.Router = ccipocr3.RouterConfig{
 			// TODO: confirm address.NewAddressNone == zero address if fully written out (0:00000..)
 			// Similar to Aptos, TON has no wrapped native, so we treat zero address as the native fee token
 			WrappedNativeAddress: addrToBytes(address.NewAddressNone()),
-		},
-		RMNProxy: ccipocr3.RMNProxyConfig{
-			// TODO: point at a rmnremote address/router/offramp to allow fetching curseinfo
-		},
-		RMNRemote: ccipocr3.RMNRemoteConfig{
-			// We don't support RMN so return an empty config
-		},
-		CurseInfo: curseInfo,
-	}, nil
+		}
+
+		// sourceChainConfigs represents sources on the *destination chain* contract, since this is the source chain
+		// we'll return an empty map
+		sourceChainConfigs = make(map[ccipocr3.ChainSelector]ccipocr3.SourceChainConfig, 0)
+	}
+
+	return config, sourceChainConfigs, nil
 }
 
 func (a *TONAccessor) GetChainFeeComponents(ctx context.Context) (ccipocr3.ChainFeeComponents, error) {
@@ -279,9 +304,4 @@ func (a *TONAccessor) GetChainFeePriceUpdate(ctx context.Context, selectors []cc
 func (a *TONAccessor) GetLatestPriceSeqNr(ctx context.Context) (uint64, error) {
 	// TODO(NONEVM-2365) implement me
 	return 0, errors.New("not implemented")
-}
-
-func (a *TONAccessor) GetRMNCurseInfo(ctx context.Context) (ccipocr3.CurseInfo, error) {
-	// TODO(NONEVM-2365) implement me
-	return ccipocr3.CurseInfo{}, errors.New("not implemented")
 }
