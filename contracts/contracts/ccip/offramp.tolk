@@ -335,9 +335,13 @@ get fun dynamicConfig() {
     // TODO: combine get staticConfig and dynamicConfig into get config
 }
 
-get fun sourceChainConfig() {}
+get fun sourceChainConfig(sourceChainSelector: uint64): SourceChainConfig {
+    val st = lazy Storage.load();
+    return st.sourceChainConfigs.mustGet(sourceChainSelector,ERROR_SOURCE_CHAIN_NOT_ENABLED);
+}
 
 get fun allSourceChainConfigs(): tuple {
+    // TODO:
     return createEmptyTuple()
 }
 
