@@ -97,19 +97,19 @@ func (a *TONAccessor) MsgsBetweenSeqNums(ctx context.Context, dest ccipocr3.Chai
 	}
 
 	// Create byte filters for querying CCIPMessageSent events
-	destFilter := query.ByteFilter{
+	destFilter := query.CellFilter{
 		Offset:   0,
 		Operator: query.EQ,
 		Value:    binary.BigEndian.AppendUint64(nil, uint64(dest)),
 	}
 
-	startFilter := query.ByteFilter{
+	startFilter := query.CellFilter{
 		Offset:   8,
 		Operator: query.GTE,
 		Value:    binary.BigEndian.AppendUint64(nil, uint64(seqNumRange.Start())),
 	}
 
-	endFilter := query.ByteFilter{
+	endFilter := query.CellFilter{
 		Offset:   8,
 		Operator: query.LTE,
 		Value:    binary.BigEndian.AppendUint64(nil, uint64(seqNumRange.End())),
@@ -118,9 +118,9 @@ func (a *TONAccessor) MsgsBetweenSeqNums(ctx context.Context, dest ccipocr3.Chai
 	res, err := logpoller.NewQuery[onramp.CCIPMessageSent](a.logPoller.GetStore()).
 		WithSrcAddress(addr).
 		WithEventSig(hash.CRC32("CCIPMessageSent")).
-		WithByteFilter(destFilter).
-		WithByteFilter(startFilter).
-		WithByteFilter(endFilter).
+		WithCellFilter(destFilter).
+		WithCellFilter(startFilter).
+		WithCellFilter(endFilter).
 		WithSort(query.SortByTxLT, query.ASC).
 		WithLimit(int(seqNumRange.End() - seqNumRange.Start() + 1)). //nolint:gosec // conversion is safe in this context
 		Execute(ctx)
