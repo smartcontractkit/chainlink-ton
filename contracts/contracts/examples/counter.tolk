@@ -25,24 +25,28 @@ const COUNT_INCREASED_TOPIC = 0x1947b328 // crc32("CountIncreased")
 struct CountSet {
     id: uint32
     value: uint32
+    sender: address
 }
 
 /// Event emitted when the counter is increased
 struct CountIncreased {
     id: uint32
     value: uint32
+    sender: address
 }
 
 /// Reply back to sender when the counter is set
 struct (0xf3a02426) CountSetMsg {
     id: uint32
     value: uint32
+    sender: address
 }
 
 /// Reply back to sender when the counter is increased
 struct (0x41c92746) CountIncreasedMsg {
     id: uint32
     value: uint32
+    sender: address
 }
 
 struct Storage {
@@ -72,14 +76,18 @@ fun onInternalMessage(in: InMessage) {
             st.store();
 
             // emit ExtMsgOut
-            emit<CountSet>(COUNT_SET_TOPIC, { id: st.id, value: st.value });
+            emit<CountSet>(COUNT_SET_TOPIC, { id: st.id, value: st.value, sender: in.senderAddress });
 
             // reply back to sender
             val reply = createMessage({
                 bounce: false,
                 value: 0,
                 dest: in.senderAddress,
-                body: CountSetMsg { id: st.id, value: st.value },
+                body: CountSetMsg {
+                    id: st.id,
+                    value: st.value,
+                    sender: in.senderAddress,
+                },
             });
             reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
         }
@@ -91,14 +99,25 @@ fun onInternalMessage(in: InMessage) {
             st.store();
 
             // emit ExtMsgOut
-            emit<CountIncreased>(COUNT_INCREASED_TOPIC, { id: st.id, value: st.value });
+            emit<CountIncreased>(
+                COUNT_INCREASED_TOPIC,
+                {
+                    id: st.id,
+                    value: st.value,
+                    sender: in.senderAddress,
+                }
+            );
 
             // reply back to sender
             val reply = createMessage({
                 bounce: false,
                 value: 0,
                 dest: in.senderAddress,
-                body: CountIncreasedMsg { id: st.id, value: st.value },
+                body: CountIncreasedMsg {
+                    id: st.id,
+                    value: st.value,
+                    sender: in.senderAddress,
+                },
             });
             reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
         }

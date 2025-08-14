@@ -472,6 +472,45 @@ func Test_LogPoller(t *testing.T) {
 				}
 			})
 
+			t.Run("Query by Sender Address", func(t *testing.T) {
+				t.Parallel()
+				testBuilder := cell.BeginCell()
+				err := testBuilder.StoreAddr(emitterA.Wallet())
+				require.NoError(t, err)
+
+				// Get the encoded address bytes
+				testCell := testBuilder.EndCell()
+				testSlice := testCell.BeginParse()
+
+				senderBytes, err := testSlice.LoadSlice(267) // Load exactly 267 bits
+				require.NoError(t, err)
+
+				filter := query.CellFilter{
+					Offset:   8,
+					Operator: query.EQ,
+					Value:    senderBytes,
+				}
+
+				result, queryErr := logpoller.NewQuery[counter.CountIncreased](lp.GetStore()).
+					WithSrcAddress(emitterA.ContractAddress()).
+					WithEventSig(counter.TopicCountIncreased).
+					WithCellFilter(filter).
+					Execute(t.Context())
+				require.NoError(t, queryErr)
+
+				require.Len(t, result.Logs, targetCounter)
+
+				// Parse events from logs to verify data
+				for _, log := range result.Logs {
+					var event counter.CountIncreased
+					lerr := tlb.LoadFromCell(&event, log.Data.BeginParse())
+					require.NoError(t, lerr)
+					// check that the counter is within the expected range
+					require.GreaterOrEqual(t, event.Value, uint32(1))
+					require.LessOrEqual(t, event.Value, uint32(targetCounter))
+				}
+			})
+
 			t.Run("Log Poller Query With CellFilter, events from emitter B", func(t *testing.T) {
 				t.Parallel()
 				filters := []query.CellFilter{
