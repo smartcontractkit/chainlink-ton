@@ -172,7 +172,6 @@ func (l *accountTxLoader) getTransactionBounds(ctx context.Context, addr *addres
 	case blockRange.Prev == nil:
 		startLT = 0
 	case blockRange.Prev.SeqNo > 0:
-		l.lggr.Debugf("is this the case block: %d", blockRange.Prev.SeqNo)
 		accPrev, accErr := l.client.GetAccount(ctx, blockRange.Prev, addr)
 		if accErr != nil {
 			startLT = 0 // account didn't exist before this range
@@ -182,8 +181,6 @@ func (l *accountTxLoader) getTransactionBounds(ctx context.Context, addr *addres
 	default:
 		startLT = 0
 	}
-	l.lggr.Debugf("current block: %d", blockRange.To.SeqNo)
-	l.lggr.Debugf("current block: %+v", blockRange.To)
 
 	// Get the account state at toBlock to find the end boundary
 	res, err := l.client.WaitForBlock(blockRange.To.SeqNo).GetAccount(ctx, blockRange.To, addr)
