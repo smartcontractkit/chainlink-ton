@@ -191,7 +191,7 @@ func (a *TONAccessor) GetExpectedNextSequenceNumber(ctx context.Context, dest cc
 	if err != nil {
 		return 0, fmt.Errorf("failed to get current block: %w", err)
 	}
-	result, err := a.client.RunGetMethod(ctx, block, addr, "tokenPrice", dest)
+	result, err := a.client.RunGetMethod(ctx, block, addr, "expectedNextSequenceNumber", dest)
 	if err != nil {
 		return 0, err
 	}
