@@ -125,6 +125,13 @@ fun onInternalMessage(in:InMessage) {
         OCR3Base_SetOCR3Config => { _setOCR3Config(msg, in.senderAddress)}
         UpdateSourceChainConfig => {_updateSourceChainConfig(msg, in.senderAddress)}
         ExecuteValidated => {
+            // How do we check that the message comes from a real commited MerkleRoot?
+
+            // We don't store the addresses of the MerkleRoot contracts,
+            // we need to check the proof again and validate that the root contract was deployed by the OffRamp.
+            // Maybe we could pass the root around and just check that it was deployed by the OffRamp...
+
+            // What if an attacker deploys a MerkleRoot contract with the storage layout so that it impersonates a real MerkleRoot?
             val st = Storage.load();
             val root = merkleRoot(
                 Iterator<Any2TVMRampMessage>.new(report.messages),
@@ -138,25 +145,26 @@ fun onInternalMessage(in:InMessage) {
               id: getMerkleRootID(root.merkleRoot),
             }.toCell();
 
+            //https://docs.ton.org/v3/documentation/smart-contracts/func/cookbook#how-to-build-a-stateinit-cell
             var stateInit = begin_cell()
               .storeUint(0, 1) // split_depth:(Maybe (## 5))
               .storeUint(0, 1) // special:(Maybe TickTock)
               .storeUint(1, 1) // (Maybe ^Cell)
               .storeUint(1, 1) // (Maybe ^Cell)
               .storeUint(0, 1) // (HashmapE 256 SimpleLib)
-              .store_ref(initCode)
-              .store_ref(initData)
-              .end_cell();
+              .storeRef(initCode)
+              .storeRef(initData)
+              .endCell();
  
-            var expectedAddress = begin_cell() 
+            var expectedAddress = beginCell() 
                 .storeUint(2, 2) // addr_std$10
                 .storeUint(0, 1) // anycast:(Maybe Anycast)
                 .storeUint(0, 8) // workchain_id:int8
                 .storeUint(stateInit.hash(), 256) // address:bits256
-                .end_cell() as address;
-            }
+                .endCell() as address;
 
             assert(expectedAddress == in.senderAddress);
+        }
         else => {
             // ignore empty messages, "wrong opcode" for others
             assert (in.body.isEmpty()) throw 0xFFFF

@@ -1,4 +1,5 @@
 import "types.tolk";
+import "offramp.tolk";
 import "../lib/upgrades/type_and_version.tolk";
 import "../deployable/types.tolk";
 import "../lib/utils.tolk";
@@ -39,6 +40,7 @@ fun onInternalMessage(in: InMessage) {
     val msg = lazy Msg.fromSlice(in.body);
     match (msg) {
         Execute => {
+            // If we receive this message from the OffRamp then the proof has already been validated.
             onExecute(msg, in.senderAddress);
             
         }
@@ -54,7 +56,7 @@ fun onExecute(msg: Execute, sender: address) {
     assert(sender == st.owner, ERROR_NOT_OWNER);
 
     // TODO if no tokenTransfers
-    _execute(msg.messages, sender)
+    _execute(msg.messages, msg.proofs, msg.proofFlagBits, sender)
 
     //TODO else  
     // validate execution state == untouched
