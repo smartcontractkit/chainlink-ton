@@ -95,7 +95,7 @@ struct (0x9b9ce96a) MCMS_Execute {
     queryId: uint64;
 
     /// The op to be executed.
-    op: Cell<Op>, // Notice: split out as cell to avoid size limits
+    op: Cell<Op>; // Notice: split out as cell to avoid size limits
     /// The MerkleProof for the op's inclusion in the MerkleTree
     proof: cell; // vec<uint256>,
 }
@@ -103,7 +103,7 @@ struct (0x9b9ce96a) MCMS_Execute {
 /// @notice sets a new data.config. If clearRoot is true, then it also invalidates
 /// data.expiringRootAndOpCount.root.
 ///
-/// @param signerAddresses holds the addresses of the active signers. The addresses must be in
+/// @param signerKeys holds the public keys of the active signers. The keys must be in
 /// ascending order.
 /// @param signerGroups maps each signer to its group
 /// @param groupQuorums holds the required number of valid signatures in each group.
@@ -121,11 +121,11 @@ struct (0x89277f4b) MCMS_SetConfig {
     /// Query ID of the change owner request.
     queryId: uint64;
 
-    signerAddresses: cell, // vec<address>
-    signerGroups: cell,    // vec<uint8>
-    groupQuorums: cell,    // map<uint8, uint8> (indexed, iterable backwards)
-    groupParents: cell,    // map<uint8, uint8> (indexed, iterable backwards)
-    clearRoot: bool,
+    signerKeys: cell;   // vec<uint256> (public keys)
+    signerGroups: cell; // vec<uint8>
+    groupQuorums: dict; // map<uint8, uint8> (indexed, iterable backwards)
+    groupParents: dict; // map<uint8, uint8> (indexed, iterable backwards)
+    clearRoot: bool;
 }
 
 /// @dev Union of all incoming messages.
@@ -187,11 +187,11 @@ struct MCMS<T> {
     data: MCMS_Data;
 
     /// Runtime hooks (extensions)
-    context: T? = null,
+    context: T? = null;
     hooks: MCMS_Hooks<T>? = null;
 }
 
-/// MCMS contract storage, auto-serialized to/from cells.
+/// MCMS contract storage, auto-serialized to/from cell.
 struct MCMS_Data {
     /// ID allows multiple independent instances, since contract address depends on initial state.
     id: uint32;
@@ -199,9 +199,9 @@ struct MCMS_Data {
     /// Ownable trait data
     ownable: Ownable2Step;
 
-    /// signers is used to easily validate the existence of the signer by its address. We still
+    /// signers is used to easily validate the existence of the signer by its public key. We still
     /// have signers stored in config in order to easily deactivate them when a new config is set.
-    signers: dict; // map<address, Signer> - exists if the address is a signer
+    signers: dict; // map<uint256, Signer> - exists if the public key is a signer
 
     /// The current configuration of the contract
     config: Cell<Config>; // Notice: split out as cell to avoid size limits
@@ -253,7 +253,7 @@ const MAX_NUM_SIGNERS = 200;
 
 /// @notice Thrown when number of signers is 0 or greater than MAX_NUM_SIGNERS.
 const ERROR_OUT_OF_BOUNDS_NUM_SIGNERS = 100;
-/// @notice Thrown when signerAddresses and signerGroups have different lengths.
+/// @notice Thrown when signerKeys and signerGroups have different lengths.
 const ERROR_SIGNER_GROUPS_LENGTH_MISMATCH = 101;
 
 /// @notice Thrown when number of some signer's group is greater than (NUM_GROUPS-1).
@@ -268,9 +268,9 @@ const ERROR_OUT_OF_BOUNDS_GROUP_QUORUM = 104;
 /// @notice Thrown when a disabled group contains a signer.
 const ERROR_SIGNER_IN_DISABLED_GROUP = 105;
 
-/// @notice Thrown when the signers' addresses are not a strictly increasing monotone sequence.
+/// @notice Thrown when the signers' public keys are not a strictly increasing monotone sequence.
 /// Prevents signers from including more than one signature.
-const ERROR_SIGNERS_ADDRESSES_MUST_BE_STRICTLY_INCREASING = 106;
+const ERROR_SIGNERS_KEYS_MUST_BE_STRICTLY_INCREASING = 106;
 
 /// @notice Thrown when the signature corresponds to invalid signer.
 const ERROR_INVALID_SIGNER = 107;
@@ -329,8 +329,8 @@ const ERROR_SIGNED_HASH_ALREADY_SEEN = 121;
 
 // Signer information
 struct Signer {
-    /// The address of the signer.
-    address: address;
+    /// The public key of the signer.
+    key: uint256;
     /// The index of the signer in data.config.signers
     index: uint8;
     /// 0 <= group < NUM_GROUPS. Each signer can only be in one group.
@@ -425,10 +425,10 @@ struct ExpiringRootAndOpCount {
 struct RootMetadata {
     /// chainId and multiSig uniquely identify a ManyChainMultiSig contract instance that the
     /// root is destined for.
-    /// uint256 since it is unclear if we can represent chainId as uint64. There is a proposal (
-    /// https://ethereum-magicians.org/t/eip-2294-explicit-bound-to-chain-id/11090) to
+    /// int256 since it is unclear if we can represent chainId as uint64 (and TON introduces negative chain IDs).
+    /// There is a proposal (https://ethereum-magicians.org/t/eip-2294-explicit-bound-to-chain-id/11090) to
     /// bound chainid to 64 bits, but it is still unresolved.
-    chainId: uint256;
+    chainId: int256;
     multiSig: address;
     // opCount before adding this root
     preOpCount: uint40;
@@ -446,11 +446,11 @@ struct RootMetadata {
 struct Signature {
     // Notice: no `v: uint8;` field, as public key recovery is not supported.
 
-    r: bytes32;
-    s: bytes32;
+    r: uint256;
+    s: uint256;
 
     // Instead of v attach the signer (public key hash)
-    signer: address;
+    signer: uint256;
 }
 
 /// @notice an op to be executed by the ManyChainMultiSig contract
@@ -459,7 +459,7 @@ struct Signature {
 /// is greater than 64 bytes to prevent collisions with internal nodes in the Merkle tree. See
 /// openzeppelin-contracts/contracts/utils/cryptography/MerkleProof.sol:15 for details.
 struct Op {
-    chainId: uint256;
+    chainId: int256;
     multiSig: address;
     nonce: uint40;
     to: address;
@@ -530,35 +530,32 @@ fun MCMS<T>.setRoot(
     {
         var i = 0;
         var signer: Signer;
-        var prevAddress = createAddressNone(); // start with an empty address
+        var prevSigner: uint256 = 0; // start with zero key
         var ss = Iterator<Signature>.new(signatures);
         var groupVoteCounts = createEmptyDict(); // number of votes per group, map<uint8, uint8> (indexed)
         while (!ss.empty()) {
             var s = ss.next();
-            val (_, signerHash) = s.signer.getWorkchainAndHash();
-            // TODO: replace signerHash with s.signer as uint256 publicKey
-            val valid = isSignatureValid(signedHash, ss.toCell().beginParse(), signerHash);
+            val valid = isSignatureValid(signedHash, s.toCell().beginParse(), s.signer);
             if (!valid) {
                 throw ERROR_INVALID_SIGNER;
             }
 
             // the off-chain system is required to sort the signatures by the
-            // signer address in an increasing order
-            val (_, prevSignerHash) = prevAddress.getWorkchainAndHash();
-            if (prevSignerHash >= signerHash) {
-                throw ERROR_SIGNERS_ADDRESSES_MUST_BE_STRICTLY_INCREASING;
+            // signer key in an increasing order
+            if (prevSigner >= s.signer) {
+                throw ERROR_SIGNERS_KEYS_MUST_BE_STRICTLY_INCREASING;
             }
-            prevAddress = s.signer;
+            prevSigner = s.signer;
 
             {
-                val (_signer, exists) = self.data.signers.sDictGet(ADDR_KEY_LEN, s.signer as slice);
+                val (_signer, exists) = self.data.signers.uDictGet(256, s.signer);
                 if (!exists) {
                     throw ERROR_INVALID_SIGNER;
                 }
                 signer = Signer.fromSlice(_signer!);
             }
 
-            if (signer.address != s.signer) {
+            if (signer.key != s.signer) {
                 throw ERROR_INVALID_SIGNER;
             }
 
@@ -608,95 +605,95 @@ fun MCMS<T>.setRoot(
                     group = parent;
                 }
             }
-
-            // the group at the root of the tree (with index 0) determines whether the vote passed,
-            // we cannot proceed if it isn't configured with a valid (non-zero) quorum
-            var rootQuorum: uint8;
-            {
-                var (_rootQuorum, exists) = config.groupQuorums.uDictGet(8, 0);
-                if (!exists) {
-                    throw ERROR_MISSING_CONFIG;
-                }
-                rootQuorum = _rootQuorum!.loadUint(8);
-                if (rootQuorum == 0) {
-                    throw ERROR_MISSING_CONFIG;
-                }
-            }
-
-            // did the root group reach its quorum?
-            var (_rootVotes, exists) = groupVoteCounts.uDictGet(8, 0);
-            if (!exists || _rootVotes!.loadUint(8) < rootQuorum) {
-                throw ERROR_INSUFFICIENT_SIGNERS;
-            }
         }
 
-        if (validUntil < blockchain.now()) {
-            throw ERROR_VALID_UNTIL_HAS_ALREADY_PASSED;
-        }
-
+        // the group at the root of the tree (with index 0) determines whether the vote passed,
+        // we cannot proceed if it isn't configured with a valid (non-zero) quorum
+        var rootQuorum: uint8;
         {
-            // verify metadataProof
-            // Notice: we use the standard sha256 hash function to hash the leaf.
-            val hashedLeaf =
-                beginCell()
-                    .storeUint(MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA, 256)
-                    .storeSlice(metadata.toCell().beginParse())
-                    .endCell()
-                    .hash();
-            // "../lib/crypto/merkle_proof.tolk"
-            if (!verify(metadataProof, root, hashedLeaf)) {
-                throw ERROR_PROOF_CANNOT_BE_VERIFIED;
+            var (_rootQuorum, exists) = config.groupQuorums.uDictGet(8, 0);
+            if (!exists) {
+                throw ERROR_MISSING_CONFIG;
+            }
+            rootQuorum = _rootQuorum!.loadUint(8);
+            if (rootQuorum == 0) {
+                throw ERROR_MISSING_CONFIG;
             }
         }
 
-        // Check if right environment via chainId
-        if (globalId() as uint256 != metadata.chainId) {
-            throw ERROR_WRONG_CHAIN_ID;
+        // did the root group reach its quorum?
+        var (_rootVotes, exists) = groupVoteCounts.uDictGet(8, 0);
+        if (!exists || _rootVotes!.loadUint(8) < rootQuorum) {
+            throw ERROR_INSUFFICIENT_SIGNERS;
         }
-
-        if (contract.getAddress() != metadata.multiSig) {
-            throw ERROR_WRONG_MULTI_SIG;
-        }
-
-        val opCount: uint40 = self.data.expiringRootAndOpCount.opCount;
-
-        // don't allow a new root to be set if there are still outstanding ops that have not been
-        // executed, unless overridePreviousRoot is set
-        //
-        // Unpack the root metadata from the contract data
-        val rootMetadata = lazy RootMetadata.fromCell(self.data.rootMetadata);
-        if (opCount != rootMetadata.postOpCount && !metadata.overridePreviousRoot) {
-            throw ERROR_PENDING_OPS;
-        }
-
-        // the signers are responsible for tracking opCount offchain and ensuring that
-        // preOpCount equals to opCount
-        if (opCount != metadata.preOpCount) {
-            throw ERROR_WRONG_PRE_OP_COUNT;
-        }
-
-        if (metadata.preOpCount > metadata.postOpCount) {
-            throw ERROR_WRONG_POST_OP_COUNT;
-        }
-
-        // done with validation, persist in in contract state
-        self.data.seenSignedHashes.uDictSet(256, signedHash, createEmptySlice());
-        self.data.expiringRootAndOpCount = ExpiringRootAndOpCount{
-            root: root,
-            validUntil: validUntil,
-            opCount: metadata.preOpCount
-        };
-        self.data.rootMetadata = metadata.toCell();
-
-        // Send a message to the sender to notify about the change
-        val reply = createMessage({
-            bounce: false,
-            value: 0,
-            dest: sender,
-            body: MCMS_NewRoot{queryId, root, validUntil, metadata}
-        });
-        reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
     }
+
+    if (validUntil < blockchain.now()) {
+        throw ERROR_VALID_UNTIL_HAS_ALREADY_PASSED;
+    }
+
+    {
+        // verify metadataProof
+        // Notice: we use the standard sha256 hash function to hash the leaf.
+        val hashedLeaf =
+            beginCell()
+                .storeUint(MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA, 256)
+                .storeSlice(metadata.toCell().beginParse())
+                .endCell()
+                .hash();
+        // "../lib/crypto/merkle_proof.tolk"
+        if (!verify(metadataProof, root, hashedLeaf)) {
+            throw ERROR_PROOF_CANNOT_BE_VERIFIED;
+        }
+    }
+
+    // Check if right environment via chainId
+    if (globalId() as int256 != metadata.chainId) {
+        throw ERROR_WRONG_CHAIN_ID;
+    }
+
+    if (contract.getAddress() != metadata.multiSig) {
+        throw ERROR_WRONG_MULTI_SIG;
+    }
+
+    val opCount: uint40 = self.data.expiringRootAndOpCount.opCount;
+
+    // don't allow a new root to be set if there are still outstanding ops that have not been
+    // executed, unless overridePreviousRoot is set
+    //
+    // Unpack the root metadata from the contract data
+    val rootMetadata = lazy RootMetadata.fromCell(self.data.rootMetadata);
+    if (opCount != rootMetadata.postOpCount && !metadata.overridePreviousRoot) {
+        throw ERROR_PENDING_OPS;
+    }
+
+    // the signers are responsible for tracking opCount offchain and ensuring that
+    // preOpCount equals to opCount
+    if (opCount != metadata.preOpCount) {
+        throw ERROR_WRONG_PRE_OP_COUNT;
+    }
+
+    if (metadata.preOpCount > metadata.postOpCount) {
+        throw ERROR_WRONG_POST_OP_COUNT;
+    }
+
+    // done with validation, persist in in contract state
+    self.data.seenSignedHashes.uDictSet(256, signedHash, createEmptySlice());
+    self.data.expiringRootAndOpCount = ExpiringRootAndOpCount{
+        root: root,
+        validUntil: validUntil,
+        opCount: metadata.preOpCount
+    };
+    self.data.rootMetadata = metadata.toCell();
+
+    // Send a message to the sender to notify about the change
+    val reply = createMessage({
+        bounce: false,
+        value: 0,
+        dest: sender,
+        body: MCMS_NewRoot{queryId, root, validUntil, metadata}
+    });
+    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 /// @notice Execute the received op after verifying the proof of its inclusion in the
@@ -733,7 +730,7 @@ fun MCMS<T>.execute(
     }
 
     // Check if right environment via chainId
-    if (op.chainId != globalId() as uint256) {
+    if (op.chainId != globalId() as int256) {
         throw ERROR_WRONG_CHAIN_ID;
     }
 
@@ -754,7 +751,7 @@ fun MCMS<T>.execute(
     val hashedLeaf =
         beginCell()
             .storeUint(MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP, 256)
-            .storeSlice(op.toCell().beginParse())
+            .storeRef(op.toCell())
             .endCell()
             .hash();
     // "../lib/crypto/merkle_proof.tolk"
@@ -780,7 +777,7 @@ fun MCMS<T>.execute(
 /// @notice sets a new data.config. If clearRoot is true, then it also invalidates
 /// data.expiringRootAndOpCount.root.
 ///
-/// @param signerAddresses holds the addresses of the active signers. The addresses must be in
+/// @param signerKeys holds the public keys of the active signers. The keys must be in
 /// ascending order.
 /// @param signerGroups maps each signer to its group
 /// @param groupQuorums holds the required number of valid signatures in each group.
@@ -798,23 +795,23 @@ fun MCMS<T>.setConfig(
     mutate self,
     sender: address,
     queryId: uint64,
-    signerAddresses: cell, // vec<address>
-    signerGroups: cell,    // vec<uint8>
-    groupQuorums: dict,    // map<uint8, uint8> (indexed, iterable backwards)
-    groupParents: dict,    // map<uint8, uint8> (indexed, iterable backwards)
+    signerKeys: cell,   // vec<uint256> (public keys)
+    signerGroups: cell, // vec<uint8>
+    groupQuorums: dict, // map<uint8, uint8> (indexed, iterable backwards)
+    groupParents: dict, // map<uint8, uint8> (indexed, iterable backwards)
     clearRoot: bool,
 ) {
     self.data.ownable.requireOwner(sender);
 
     // Validate input lengths
-    var signerAddrIterator = Iterator<address>.new(signerAddresses);
-    val numSigners = signerAddrIterator.size(ADDR_KEY_LEN);
+    var signerKeyIterator = Iterator<uint256>.new(signerKeys);
+    val numSigners = signerKeyIterator.size(32); // notice size in bytes
     if (numSigners == 0 || numSigners > MAX_NUM_SIGNERS) {
         throw ERROR_OUT_OF_BOUNDS_NUM_SIGNERS;
     }
 
     var signerGroupIterator = Iterator<uint8>.new(signerGroups);
-    if (numSigners != signerGroupIterator.size(8)) {
+    if (numSigners != signerGroupIterator.size(1)) { // notice size in bytes
         throw ERROR_SIGNER_GROUPS_LENGTH_MISMATCH;
     }
 
@@ -917,7 +914,7 @@ fun MCMS<T>.setConfig(
     while (exists) {
         val s = lazy Signer.fromSlice(oldSigner!);
         // Remove any old signer addresses
-        self.data.signers.sDictDelete(ADDR_KEY_LEN, s.address as slice);
+        self.data.signers.uDictDelete(256, s.key);
         (_index, oldSigner, exists) = config.signers.uDictDeleteFirstAndGet(8);
     }
     config.signers = createEmptyDict(); // reset signers
@@ -928,23 +925,21 @@ fun MCMS<T>.setConfig(
     // add new signers' addresses, we require that the signers' list be a strictly monotone
     // increasing sequence
     var i = 0;
-    var prevSigner = createAddressNone(); // start with an empty address
+    var prevSigner: uint256 = 0; // start with a zero key
     // Reset the signers group iterator
     signerGroupIterator = Iterator<uint8>.new(signerGroups);
-    while (!signerAddrIterator.empty()) {
-        var addr = signerAddrIterator.next();
-        val (_, prevSignerHash) = prevSigner.getWorkchainAndHash();
-        val (_, addrHash) = addr.getWorkchainAndHash();
-        if (prevSignerHash >= addrHash) {
-            throw ERROR_SIGNERS_ADDRESSES_MUST_BE_STRICTLY_INCREASING;
+    while (!signerKeyIterator.empty()) {
+        var key = signerKeyIterator.next();
+        if (prevSigner >= key) {
+            throw ERROR_SIGNERS_KEYS_MUST_BE_STRICTLY_INCREASING;
         }
 
         val group = signerGroupIterator.next();
-        var signer = Signer{address: addr, index: i as uint8, group: group}.toCell().beginParse();
-        self.data.signers.sDictSet(ADDR_KEY_LEN, addr as slice, signer);
+        var signer = Signer{key, index: i as uint8, group: group}.toCell().beginParse();
+        self.data.signers.uDictSet(256, key, signer);
         config.signers.uDictSet(8, i, signer);
 
-        prevSigner = addr;
+        prevSigner = key;
 
         // Increment i for the next signer
         i += 1;
@@ -963,7 +958,7 @@ fun MCMS<T>.setConfig(
             opCount: opCount
         };
         self.data.rootMetadata = RootMetadata{
-            chainId: globalId() as uint256,
+            chainId: globalId() as int256,
             multiSig: contract.getAddress(),
             preOpCount: opCount,
             postOpCount: opCount,
@@ -1041,7 +1036,7 @@ fun MCMS<T>.onInternalMessage(mutate self, msgSender: address, msgValue: coins, 
                 Iterator<uint256>.new(msg.proof));
         }
         MCMS_SetConfig => {
-            self.setConfig(msgSender, msg.queryId, msg.signerAddresses, msg.signerGroups,
+            self.setConfig(msgSender, msg.queryId, msg.signerKeys, msg.signerGroups,
                 msg.groupQuorums, msg.groupParents, msg.clearRoot);
         }
         else => {

@@ -48,38 +48,40 @@ export type ContractData = {
 
 export const builder = {
   message: {
-    // Creates a new `SetCount` message.
-    setCount: {
-      encode: (msg: SetCount): Cell => {
-        return beginCell() // break line
-          .storeUint(opcodes.in.SetCount, 32)
-          .storeUint(msg.queryId, 64)
-          .storeUint(msg.newCount, 32)
-          .endCell()
+    in: {
+      // Creates a new `SetCount` message.
+      setCount: {
+        encode: (msg: SetCount): Cell => {
+          return beginCell() // break line
+            .storeUint(opcodes.in.SetCount, 32)
+            .storeUint(msg.queryId, 64)
+            .storeUint(msg.newCount, 32)
+            .endCell()
+        },
+        decode: (cell: Cell): SetCount => {
+          const s = cell.beginParse()
+          s.skip(32) // skip opcode
+          return {
+            queryId: s.loadUintBig(64),
+            newCount: s.loadUint(32),
+          }
+        },
       },
-      decode: (cell: Cell): SetCount => {
-        const s = cell.beginParse()
-        s.skip(32) // skip opcode
-        return {
-          queryId: s.loadUintBig(64),
-          newCount: s.loadUint(32),
-        }
-      },
-    },
-    // Creates a new `IncreaseCount` message.
-    increaseCount: {
-      encode: (msg: IncreaseCount): Cell => {
-        return beginCell()
-          .storeUint(opcodes.in.IncreaseCount, 32)
-          .storeUint(msg.queryId, 64)
-          .endCell()
-      },
-      decode: (cell: Cell): IncreaseCount => {
-        const s = cell.beginParse()
-        s.skip(32) // skip opcode
-        return {
-          queryId: s.loadUintBig(64),
-        }
+      // Creates a new `IncreaseCount` message.
+      increaseCount: {
+        encode: (msg: IncreaseCount): Cell => {
+          return beginCell()
+            .storeUint(opcodes.in.IncreaseCount, 32)
+            .storeUint(msg.queryId, 64)
+            .endCell()
+        },
+        decode: (cell: Cell): IncreaseCount => {
+          const s = cell.beginParse()
+          s.skip(32) // skip opcode
+          return {
+            queryId: s.loadUintBig(64),
+          }
+        },
       },
     },
   },
@@ -154,7 +156,7 @@ export class ContractClient implements Contract, TypeAndVersion {
   }
 
   async sendSetCount(p: ContractProvider, via: Sender, value: bigint = 0n, body: SetCount) {
-    return this.sendInternal(p, via, value, builder.message.setCount.encode(body))
+    return this.sendInternal(p, via, value, builder.message.in.setCount.encode(body))
   }
 
   async sendIncreaseCount(

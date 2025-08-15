@@ -1,4 +1,4 @@
-import { uint8ArrayToBigInt, bigIntToUint8Array } from '../../../../utils/Utils'
+import { uint8ArrayToBigInt, bigIntToUint8Array } from '../../../../src/utils'
 import { beginCell } from '@ton/core'
 
 // Internal domain separator for Merkle internal nodes, represented as a 256-bit BigInt (0x01)

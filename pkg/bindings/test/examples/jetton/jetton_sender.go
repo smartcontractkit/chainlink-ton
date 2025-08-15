@@ -55,14 +55,14 @@ type Sender struct {
 }
 
 type SendJettonsFastMessage struct {
-	_           tlb.Magic        `tlb:"#4C169F42"` //nolint:revive // This field should stay uninitialized
+	_           tlb.Magic        `tlb:"#4C169F42"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID     uint64           `tlb:"## 64"`
 	Amount      tlb.Coins        `tlb:"."`
 	Destination *address.Address `tlb:"addr"`
 }
 
 type SendJettonsExtendedMessage struct {
-	_                tlb.Magic        `tlb:"#7FDA8110"` //nolint:revive // This field should stay uninitialized
+	_                tlb.Magic        `tlb:"#7FDA8110"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID          uint64           `tlb:"## 64"`
 	Amount           tlb.Coins        `tlb:"."`
 	Destination      *address.Address `tlb:"addr"`

@@ -66,6 +66,10 @@ export function fromSnakeData<T>(data: Cell, readerFn: (cs: Slice) => T): T[] {
   return array
 }
 
+export function asSnakeDataUint(data: bigint[] | number[], bits: number): Cell {
+  return asSnakeData(data, (item: bigint | number) => new Builder().storeUint(item, bits))
+}
+
 export function isEmpty(slice: Slice): boolean {
   const remainingBits = slice.remainingBits
   const remainingRefs = slice.remainingRefs

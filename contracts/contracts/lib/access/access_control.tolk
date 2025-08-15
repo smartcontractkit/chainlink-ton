@@ -174,11 +174,11 @@ struct AccessControl<T> {
     data: AccessControl_Data;
 
     /// Runtime hooks (extensions)
-    context: T?,
+    context: T?;
     hooks: AccessControl_Hooks<T>?;
 }
 
-/// AccessControl data struct, auto-serialized to/from cells.
+/// AccessControl data struct, auto-serialized to/from cell.
 struct AccessControl_Data {
     roles: dict; // map<int, AccessControl_RoleData>
 }

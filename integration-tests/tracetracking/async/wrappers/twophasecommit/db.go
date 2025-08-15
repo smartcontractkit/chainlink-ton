@@ -55,7 +55,7 @@ type DB struct {
 }
 
 type beginTransactionMessage struct {
-	_       tlb.Magic `tlb:"#00000001"` //nolint:revive // This field should stay uninitialized
+	_       tlb.Magic `tlb:"#00000001"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID uint64    `tlb:"## 64"`
 }
 
@@ -67,7 +67,7 @@ func (s DB) SendBeginTransaction(queryID uint64) (msgReceived *tracetracking.Rec
 }
 
 type setValueMessage struct {
-	_       tlb.Magic        `tlb:"#00000002"` //nolint:revive // This field should stay uninitialized
+	_       tlb.Magic        `tlb:"#00000002"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID uint64           `tlb:"## 64"`
 	Counter *address.Address `tlb:"addr"`
 	Value   uint32           `tlb:"## 32"`
@@ -84,7 +84,7 @@ func (s DB) SendSetValue(counterAddr *address.Address, value uint32) (msgReceive
 }
 
 type commitMessage struct {
-	_       tlb.Magic `tlb:"#00000005"` //nolint:revive // This field should stay uninitialized
+	_       tlb.Magic `tlb:"#00000005"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID uint64    `tlb:"## 64"`
 }
 

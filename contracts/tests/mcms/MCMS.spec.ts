@@ -4,7 +4,7 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Cell, Dictionary, toNano } from '@ton/core'
 import { compile } from '@ton/blueprint'
 
-import * as mcms from '../../wrappers/mcms/MCMS'
+import { mcms } from '../../wrappers/mcms'
 import { crc32 } from 'zlib'
 
 describe('MCMS', () => {
@@ -67,7 +67,7 @@ describe('MCMS', () => {
 
   it('should deploy', async () => {
     // Check that MCMS contract is deployed
-    const body = mcms.builder.message.topUp.encode({ queryId: 1n })
+    const body = mcms.builder.message.in.topUp.encode({ queryId: 1n })
     const result = await bind.mcms.sendInternal(acc.deployer.getSender(), toNano('0.05'), body)
 
     expect(result.transactions).toHaveTransaction({

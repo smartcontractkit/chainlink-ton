@@ -17,7 +17,7 @@ import {
   ReportContext,
   SignatureEd25519,
 } from '../../libraries/ocr/MultiOCR3Base'
-import { asSnakeData } from '../../../utils/Utils'
+import { asSnakeData } from '../../../src/utils'
 
 export function ocr3BaseExampleStorage(): Cell {
   //using dummy chainId 1 and a radom id for unique addresses
