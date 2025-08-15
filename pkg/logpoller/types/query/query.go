@@ -53,7 +53,7 @@ const (
 // Result provides a unified return type for all query methods.
 // It contains parsed logs with pagination metadata.
 type Result[T any] struct {
-	Logs    []types.ParsedLog[T]
+	Logs    []types.TypedLog[T]
 	HasMore bool
 	Total   int
 	Offset  int

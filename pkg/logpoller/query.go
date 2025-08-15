@@ -110,7 +110,7 @@ func (b *queryBuilder[T]) Execute(_ context.Context) (query.Result[T], error) {
 		preFilteredLogs = logs
 	}
 
-	var filteredParsedLogs []types.ParsedLog[T]
+	var filteredParsedLogs []types.TypedLog[T]
 	for _, log := range preFilteredLogs {
 		var event T
 		parseErr := tlb.LoadFromCell(&event, log.Data.BeginParse(), true) // skip magic all the time
@@ -120,9 +120,9 @@ func (b *queryBuilder[T]) Execute(_ context.Context) (query.Result[T], error) {
 
 		// Apply typed filter if specified
 		if b.typedFilter == nil || b.typedFilter(event) {
-			filteredParsedLogs = append(filteredParsedLogs, types.ParsedLog[T]{
-				Log:        log,
-				ParsedData: event,
+			filteredParsedLogs = append(filteredParsedLogs, types.TypedLog[T]{
+				Log:       log,
+				TypedData: event,
 			})
 		}
 	}
@@ -137,7 +137,7 @@ func (b *queryBuilder[T]) Execute(_ context.Context) (query.Result[T], error) {
 
 	if start >= len(filteredParsedLogs) {
 		return query.Result[T]{
-			Logs:    []types.ParsedLog[T]{},
+			Logs:    []types.TypedLog[T]{},
 			HasMore: false,
 			Total:   len(filteredParsedLogs),
 			Offset:  b.options.Offset,
@@ -212,7 +212,7 @@ func (b *queryBuilder[T]) passesCellFilter(payload []byte, filter query.CellFilt
 }
 
 // applySorting sorts parsed logs according to the specified criteria
-func (b *queryBuilder[T]) applySorting(parsedLogs []types.ParsedLog[T]) {
+func (b *queryBuilder[T]) applySorting(parsedLogs []types.TypedLog[T]) {
 	if len(b.options.SortBy) == 0 {
 		return
 	}
@@ -222,9 +222,9 @@ func (b *queryBuilder[T]) applySorting(parsedLogs []types.ParsedLog[T]) {
 			var cmp int
 
 			if sortCriteria.Field == query.SortByTxLT {
-				if parsedLogs[i].Log.TxLT < parsedLogs[j].Log.TxLT {
+				if parsedLogs[i].TxLT < parsedLogs[j].TxLT {
 					cmp = -1
-				} else if parsedLogs[i].Log.TxLT > parsedLogs[j].Log.TxLT {
+				} else if parsedLogs[i].TxLT > parsedLogs[j].TxLT {
 					cmp = 1
 				}
 			}

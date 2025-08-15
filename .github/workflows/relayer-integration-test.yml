@@ -1,0 +1,49 @@
+name: TON - Chain Component Integration Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  integration-test:
+    name: Integration Test - ${{ matrix.test-suite }}
+    runs-on: ubuntu-latest
+    strategy:
+      # run both suites even if one fails
+      fail-fast: false
+      matrix:
+        test-suite: ["short", "all"]
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@02a151ada4993995686f9ed4f1be7cfbb229e56f # v31
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+
+      # TODO: Contract packages should be made an explicit dependency inside a shell
+      # where we run tests that depend on these packages.
+      - name: Build contracts for integration tests
+        run: |
+          pushd contracts
+          nix develop .#contracts -c yarn && yarn build
+
+      - name: Run integration tests
+        id: tests
+        run: |
+          pushd integration-tests
+          if [ "${{ matrix.test-suite }}" = "short" ]; then
+            echo "Running short tests (skipping long-running ones)..."
+            nix develop -c go test -v -short -count=1 -p=1 -timeout 15m ./...
+          else
+            # TODO: run conditionally(build tags)
+            echo "Running all tests..."
+            nix develop -c go test -v -count=1 -p=1 -timeout 30m ./...
+          fi

@@ -51,10 +51,10 @@ type Log struct {
 	Error            error            // Optional error associated with the log entry.
 }
 
-// ParsedLog represents a log entry with its parsed data.
-type ParsedLog[T any] struct {
+// TypedLog represents a log entry with its parsed data.
+type TypedLog[T any] struct {
 	Log
-	ParsedData T // Parsed event data from the log's cell data(on query execution)
+	TypedData T // Parsed event data from the log's cell data(on query execution)
 }
 
 func (l Log) String() string {

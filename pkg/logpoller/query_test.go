@@ -156,7 +156,7 @@ func TestQueryBuilder_Execute_BasicQuery(t *testing.T) {
 	result, err := builder.Execute(context.Background())
 	require.NoError(t, err)
 	require.Len(t, result.Logs, 1)
-	require.Equal(t, uint64(42), result.Logs[0].ParsedData.Value)
+	require.Equal(t, uint64(42), result.Logs[0].TypedData.Value)
 	require.Equal(t, 1, result.Total)
 	require.False(t, result.HasMore)
 }
@@ -182,8 +182,8 @@ func TestQueryBuilder_Execute_WithTypedFilter(t *testing.T) {
 	result, err := builder.Execute(context.Background())
 	require.NoError(t, err)
 	require.Len(t, result.Logs, 2)
-	require.Equal(t, uint64(15), result.Logs[0].ParsedData.Value)
-	require.Equal(t, uint64(25), result.Logs[1].ParsedData.Value)
+	require.Equal(t, uint64(15), result.Logs[0].TypedData.Value)
+	require.Equal(t, uint64(25), result.Logs[1].TypedData.Value)
 	require.Equal(t, 2, result.Total)
 }
 
@@ -291,7 +291,7 @@ func TestQueryBuilder_Execute_DifferentAddresses(t *testing.T) {
 	result, err := builder.Execute(context.Background())
 	require.NoError(t, err)
 	require.Len(t, result.Logs, 1)
-	require.Equal(t, uint64(42), result.Logs[0].ParsedData.Value)
+	require.Equal(t, uint64(42), result.Logs[0].TypedData.Value)
 }
 
 func TestQueryBuilder_Execute_CombinedFilters(t *testing.T) {
@@ -481,7 +481,7 @@ func TestQueryBuilder_ExecuteWithComplexFiltering(t *testing.T) {
 	// Verify the values
 	expectedValues := []uint64{25, 30, 35}
 	for i, log := range result.Logs {
-		require.Equal(t, expectedValues[i], log.ParsedData.Value)
+		require.Equal(t, expectedValues[i], log.TypedData.Value)
 	}
 }
 
@@ -590,6 +590,6 @@ func TestQueryBuilder_ExecuteWithMixedSigs(t *testing.T) {
 
 	// Verify all logs have values from the correct sig (10-14)
 	for i, log := range result.Logs {
-		require.Equal(t, uint64(i+10), log.ParsedData.Value) //nolint:gosec // test code
+		require.Equal(t, uint64(i+10), log.TypedData.Value) //nolint:gosec // test code
 	}
 }
