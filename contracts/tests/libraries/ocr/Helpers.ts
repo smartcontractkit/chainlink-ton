@@ -13,7 +13,7 @@ async function generateRandomTonAddress() {
   return address
 }
 
-function generateMockTonAddress(): Address {
+export function generateMockTonAddress(): Address {
   const workchain = 0 // Commonly used workchain ID
   const hashPart = crypto.randomBytes(32).toString('hex') // 32-byte hash in hex
   const rawAddress = `${workchain}:${hashPart}`
