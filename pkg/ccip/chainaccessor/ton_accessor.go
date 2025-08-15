@@ -131,13 +131,10 @@ func (a *TONAccessor) MsgsBetweenSeqNums(ctx context.Context, dest ccipocr3.Chai
 
 	msgs := make([]cciptypes.Message, 0)
 	for _, log := range res.Logs {
-		rawOnrampAddr := codec.ToRawAddr(onrampAddr)
 		// convert event to generic CCIP event
 		event, err := ToGenericSendRequestedEvent(
 			&log.ParsedData, // this is already parsed during query
 			a.chainSelector,
-			cciptypes.UnknownAddress(rawOnrampAddr[:]),
-			string(log.TxHash[:]), // TODO: add LT?
 		)
 		if err != nil {
 			a.lggr.Errorw("failed to convert event", "err", err, "log", log)
@@ -150,6 +147,7 @@ func (a *TONAccessor) MsgsBetweenSeqNums(ctx context.Context, dest ccipocr3.Chai
 			continue
 		}
 		event.Message.Header.OnRamp = ccipocr3.UnknownAddress(log.ParsedData.Message.Receiver)
+		event.Message.Header.TxHash = string(log.TxHash[:]) // TODO: add LT?
 		msgs = append(msgs, event.Message)
 	}
 
@@ -191,8 +189,10 @@ func (a *TONAccessor) LatestMessageTo(ctx context.Context, dest ccipocr3.ChainSe
 		WithSrcAddress(onrampAddr).
 		WithEventSig(hash.CRC32("CCIPMessageSent")).
 		WithCellFilter(destFilter).
-		WithSort(query.SortByTxLT, query.DESC). // find the last one
-		WithLimit(1).                           //only the last one
+		// find the last one
+		WithSort(query.SortByTxLT, query.DESC).
+		//only the last one
+		WithLimit(1).
 		Execute(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("failed to query onRamp logs: %w", err)
@@ -203,21 +203,17 @@ func (a *TONAccessor) LatestMessageTo(ctx context.Context, dest ccipocr3.ChainSe
 		"sourceChainSelector", a.chainSelector,
 	)
 	if len(res.Logs) > 1 {
-		return 0, fmt.Errorf("more than one message found for the latest message query")
+		return 0, fmt.Errorf("more than one message found for the latest message query, found: %d", len(res.Logs))
 	}
 	if len(res.Logs) == 0 {
 		return 0, nil
 	}
 
 	lastLog := res.Logs[0]
-
-	rawOnrampAddr := codec.ToRawAddr(onrampAddr)
 	// convert event to generic CCIP event
 	event, err := ToGenericSendRequestedEvent(
 		&lastLog.ParsedData,
 		a.chainSelector,
-		cciptypes.UnknownAddress(rawOnrampAddr[:]),
-		string(lastLog.TxHash[:]), // TODO: add LT?
 	)
 	if err != nil {
 		return 0, fmt.Errorf("failed to convert event: %w", err)
