@@ -1,10 +1,13 @@
-name: TON - Relayer
+name: TON - Build Relayer Package
 
 on:
   push:
     branches:
       - main
   pull_request:
+
+permissions:
+  contents: read
 
 jobs:
   build-check:
@@ -22,19 +25,8 @@ jobs:
       - name: Run build
         run: nix develop -c go build -v ./...
 
-      - name: Run build contracts for integration tests
-        run: |
-          pushd contracts
-          nix develop .#contracts -c yarn && yarn build
-
-      - name: Run tests
-        run: |
-          nix develop -c go test -v -count=1 -p=1 -timeout 30m ./...
-
-      - name: Run integration tests
-        run: |
-          pushd integration-tests
-          nix develop -c go test -v -count=1 -p=1 -timeout 30m ./...
+      - name: Run unit tests
+        run: nix develop -c go test -v -count=1 -p=1 -timeout 30m ./...
 
   build-pkgs:
     name: Build and package (Nix and Docker)

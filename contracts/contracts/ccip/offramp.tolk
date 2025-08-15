@@ -12,7 +12,7 @@ struct Storage {
     deployer: cell; // Deployable compiled code
     merkleRootCode: cell; // make sure to use a library cell offchain to save space
     feeQuoter: address;
-    ocr3Base: OCR3Base
+    ocr3Base: Cell<OCR3Base>
 
     // static config
     chainSelector: uint64;
@@ -26,7 +26,7 @@ struct Storage {
 }
 
 struct SourceChainConfig {
-    router: address;
+    router: CrossChainAddress;
     isEnabled: bool;
     minSeqNr: uint64;
     isRMNVerificationDisabled: bool;
@@ -60,13 +60,12 @@ struct ExecutionStateChanged {
     state: uint8;
 }
 
-// TODO: use sha256("CommitReportAccepted")
-const CCIP_COMMIT_REPORT_ACCEPTED_TOPIC: int = 0x99; // for easier indexing
+// crc32("CCIPCommitReportAccepted")
+const CCIP_COMMIT_REPORT_ACCEPTED_TOPIC: int = stringCrc32("CCIPCommitReportAccepted");
 
 struct CommitReportAccepted {
     priceUpdates: Cell<PriceUpdates>?;
-    blessedMerkleRoots: cell;
-    unblessedMerkleRoots: cell;
+    merkleRoots: cell // vec<MerkleRoots>
 }
 
 struct SkippedReportExecution {
@@ -84,9 +83,7 @@ struct ExecutionReport {
 // Matches the EVM struct
 struct CommitReport {
     priceUpdates: Cell<PriceUpdates>?; // Price updates for the fee_quoter
-    blessedMerkleRoots: cell; // vec<MerkleRoot> Merkle roots that have been blessed by RMN
-    unblessedMerkleRoots: cell; // vec<MerkleRoot> Merkle roots that don't require RMN blessing
-    rmnSignatures: cell; //vec<bytes32>  The signatures for the blessed merkle roots
+    merkleRoots: cell; // vec<MerkleRoot> Merkle roots 
 }
 
 struct (0x00000001) Commit {
@@ -94,7 +91,7 @@ struct (0x00000001) Commit {
     // TODO: could just store as one slice since context is fixed size
     reportContext: ReportContext;
     report: CommitReport;
-    signatures: cell;
+    signatures: cell; //vec<SignatureEd25519>
 }
 
 struct (0x00000002) Execute {
@@ -104,14 +101,23 @@ struct (0x00000002) Execute {
     report: ExecutionReport;
 }
 
-type Msg = Commit | Execute | OCR3Base_SetOCR3Config;
+struct (0x00000003) UpdateSourceChainConfig {
+    queryId: uint64;
+    sourceChainSelector: uint64;
+    config: SourceChainConfig
+}
+
+type Msg = Commit | Execute | UpdateSourceChainConfig | OCR3Base_SetOCR3Config;
 
 fun onInternalMessage(in:InMessage) {
     val msg = lazy Msg.fromSlice(in.body);
     match (msg) {
-        Commit => { commit(msg, in.senderAddress) }
+        Commit => { 
+            commit(msg, in.senderAddress) 
+        }
         Execute => { _execute(msg, in.senderAddress) }
         OCR3Base_SetOCR3Config => { _setOCR3Config(msg, in.senderAddress)}
+        UpdateSourceChainConfig => {_updateSourceChainConfig(msg, in.senderAddress)}
         else => {
             // ignore empty messages, "wrong opcode" for others
             assert (in.body.isEmpty()) throw 0xFFFF
@@ -122,7 +128,11 @@ fun onInternalMessage(in:InMessage) {
 fun _setOCR3Config(msg: OCR3Base_SetOCR3Config, sender: address) {
             var st = lazy Storage.load();
             st.ownable.requireOwner(sender);
-            st.ocr3Base.setOcr3Config(msg);
+
+            var ocr3Base = st.ocr3Base.load();
+            ocr3Base.setOcr3Config(msg);
+
+            st.ocr3Base = ocr3Base.toCell();
             st.store();
 }
 
@@ -135,9 +145,8 @@ fun getMerkleRootID(merkleRoot: uint256): builder {
 }
 
 fun commit(msg: Commit, sender: address) {
-    var st = lazy Storage.load();
+    var st = Storage.load();
 
-    // TODO: verify RMN signatures on blessed roots
     val report = msg.report;
 
     // update token/gas prices if any
@@ -154,8 +163,7 @@ fun commit(msg: Commit, sender: address) {
     }
 
     // TODO: assert cells are well-formed
-    var roots = Iterator<MerkleRoot>.new(report.unblessedMerkleRoots);
-    // TODO: also iterate over blessed roots
+    var roots = Iterator<MerkleRoot>.new(report.merkleRoots);
 
     while (!roots.empty()) {
         val root = roots.next();
@@ -163,6 +171,7 @@ fun commit(msg: Commit, sender: address) {
         // validate lane not cursed
 
         val sourceChainConfig = st.sourceChainConfigs.mustGet(root.sourceChainSelector, ERROR_SOURCE_CHAIN_NOT_ENABLED);
+
         assert(sourceChainConfig.isEnabled,ERROR_SOURCE_CHAIN_NOT_ENABLED);
 
         // validate against sourceChainConfig etc
@@ -196,11 +205,12 @@ fun commit(msg: Commit, sender: address) {
                 }
             },
         });
+
         initMsg.send(SEND_MODE_REGULAR);
     }
 
     // Verifies signatures and emits Transmitted event
-    st.ocr3Base.transmit(
+    st.ocr3Base.load().transmit(
         sender,
         OCR_PLUGIN_TYPE_COMMIT,
         msg.reportContext,
@@ -210,9 +220,8 @@ fun commit(msg: Commit, sender: address) {
 
     emit(CCIP_COMMIT_REPORT_ACCEPTED_TOPIC, CommitReportAccepted {
         priceUpdates: report.priceUpdates,
-        blessedMerkleRoots: report.blessedMerkleRoots,
-        unblessedMerkleRoots: report.unblessedMerkleRoots,
-    })
+        merkleRoots: report.merkleRoots,
+    });
 }
 
 fun _execute(msg: Execute, sender: address) {
@@ -295,13 +304,21 @@ fun _execute(msg: Execute, sender: address) {
 
     // TODO: how do we handle incrementing the nonce? since execution is async this might take a while
 
-    st.ocr3Base.transmit(
+    st.ocr3Base.load().transmit(
         sender,
         OCR_PLUGIN_TYPE_EXECUTE,
         msg.reportContext,
         msg.report.toCell(),
         beginCell().endCell(),
     );
+}
+
+//todo: should be chainConfigs and take an array
+fun _updateSourceChainConfig(msg: UpdateSourceChainConfig, sender: address) {
+    var st = lazy Storage.load();
+    st.ownable.requireOwner(sender);
+    st.sourceChainConfigs.set(msg.sourceChainSelector, msg.config);
+    st.store();
 }
 
 // TODO: handle signals from MerkleRoot (release tokens, execute)

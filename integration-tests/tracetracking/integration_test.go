@@ -28,6 +28,10 @@ import (
 )
 
 func TestIntegration(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping long-running test in short mode")
+	}
+
 	var initialAmount = big.NewInt(1_000_000_000_000)
 	accs := testutils.SetUpTest(t, chainsel.TON_LOCALNET.Selector, initialAmount, 2)
 	t.Run("TestDepositFees", func(t *testing.T) {
