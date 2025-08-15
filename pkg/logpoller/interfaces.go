@@ -1,0 +1,95 @@
+package logpoller
+
+import (
+	"context"
+
+	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tlb"
+
+	"github.com/smartcontractkit/chainlink-common/pkg/services"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types/query"
+)
+
+// Service defines the public interface for the TON log polling service.
+type Service interface {
+	services.Service
+	RegisterFilter(ctx context.Context, flt types.Filter) error
+	UnregisterFilter(ctx context.Context, name string) error
+	HasFilter(ctx context.Context, name string) (bool, error)
+	GetStore() LogStore
+}
+
+// FilterStore defines an interface for storing and retrieving log filter specifications.
+type FilterStore interface {
+	// RegisterFilter adds a new filter or overwrites an existing one with the same name.
+	RegisterFilter(ctx context.Context, flt types.Filter) error
+	// UnregisterFilter removes a filter by its unique name.
+	UnregisterFilter(ctx context.Context, name string) error
+	// HasFilter checks if a filter with the given name exists.
+	HasFilter(ctx context.Context, name string) (bool, error)
+	// GetDistinctAddresses returns a slice of unique addresses that are being monitored.
+	GetDistinctAddresses(ctx context.Context) ([]*address.Address, error)
+	// GetFiltersForAddressAndMsgType returns filters for a specific address and message type.
+	GetFiltersForAddressAndMsgType(ctx context.Context, addr *address.Address, msgType tlb.MsgType) ([]types.Filter, error)
+}
+
+// TxLoader defines the interface for loading transactions from the TON blockchain.
+type TxLoader interface {
+	// LoadTxsForAddresses retrieves all transactions from the specified source addresses
+	// within the given block range (prevBlock, toBlock] - exclusive of prevBlock, inclusive of toBlock.
+	LoadTxsForAddresses(ctx context.Context, blockRange *types.BlockRange, srcAddrs []*address.Address) ([]types.TxWithBlock, error)
+}
+
+// TxIndexer defines the interface for processing TON blockchain transactions and extracting logs.
+type TxIndexer interface {
+	// It processes transactions by examining their messages, applying registered filters, and extracting
+	// relevant event data. The indexer handles different message types (internal, external out) and
+	// extracts event signatures (opcodes for internal messages, topics for external out messages)
+	// along with the message body data to create structured log entries.
+	IndexTransactions(ctx context.Context, txs []types.TxWithBlock) ([]types.Log, error)
+}
+
+// LogStore defines the interface for storing and retrieving logs.
+type LogStore interface {
+	SaveLog(log types.Log)
+	// GetLogs retrieves raw logs for a given address and event signature without any parsing or filtering.
+	// This is a simple method that returns the raw cell data for further processing.
+	GetLogs(srcAddr *address.Address, sig uint32) ([]types.Log, error)
+}
+
+// QueryBuilder defines the interface for constructing and executing log queries.
+// The generic type T represents the expected event(msg) structure that logs will be parsed into.
+type QueryBuilder[T any] interface {
+	// WithSrcAddress sets the source contract address to filter logs by (required).
+	// This specifies which contract's logs to search through.
+	WithSrcAddress(address *address.Address) QueryBuilder[T]
+
+	// WithEventSig sets the event signature (topic or opcode) to filter logs by (required).
+	// This identifies the specific type of event/message to look for in the logs.
+	WithEventSig(sig uint32) QueryBuilder[T]
+
+	// WithCellFilter adds a single byte-level filter to the query.
+	// Cell filters allow filtering based on raw byte comparisons at specific offsets
+	// in the log data. Multiple cell filters can be added and they are combined with AND logic.
+	WithCellFilter(filter query.CellFilter) QueryBuilder[T]
+
+	// WithTypedFilter adds a high-level filter function that operates on parsed event objects.
+	// The filter function receives a parsed event of type T and returns true if the event
+	// should be included in the results.
+	WithTypedFilter(filter func(T) bool) QueryBuilder[T]
+
+	// WithLimit sets the maximum number of results to return.
+	WithLimit(limit int) QueryBuilder[T]
+
+	// WithOffset sets the number of results to skip from the beginning.
+	WithOffset(offset int) QueryBuilder[T]
+
+	// WithSort specifies how the results should be ordered.
+	WithSort(field query.SortField, order query.SortOrder) QueryBuilder[T]
+
+	// Execute runs the constructed query and returns the results.
+	// All the configured filters, sorting, and pagination options are applied.
+	Execute(ctx context.Context) (query.Result[T], error)
+}

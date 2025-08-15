@@ -1,26 +1,79 @@
 package types
 
-import "github.com/xssnick/tonutils-go/tvm/cell"
+import (
+	"encoding/hex"
+	"fmt"
+	"strings"
+	"time"
 
-// LogParser is a function type responsible for parsing the raw log data (a TVM Cell)
-// into a specific, strongly-typed Go struct.
-//
-// The parser takes a *cell.Cell, which represents the root cell of the log's message body,
-// and should return the parsed event as an `any` type.
-//
-// If the cell cannot be parsed into the target struct (e.g., due to a malformed
-// payload or a type mismatch), the function should return a non-nil error. The
-// LogPoller will then skip that log and continue to the next one.
-type LogParser func(c *cell.Cell) (any, error)
+	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/ton"
+	"github.com/xssnick/tonutils-go/tvm/cell"
+)
 
-// LogFilter is a function type that is applied to a successfully parsed log event.
-// It acts as a predicate to determine if the event should be included in the
-// final query result set.
-//
-// The filter receives the parsed event (as an `any` type) returned by a LogParser.
-// The implementation must first perform a type assertion to convert the `any` interface
-// back to the expected concrete struct type.
-//
-// It should return `true` if the event matches the desired criteria and should be
-// included in the results, or `false` to discard it.
-type LogFilter func(parsedEvent any) bool
+type TxHash [32]byte
+
+// BlockRange represents a range of blocks to process
+type BlockRange struct {
+	Prev *ton.BlockIDExt // previous block (nil for genesis)
+	To   *ton.BlockIDExt // target block to process up to
+}
+
+// internal types for indexing
+type TxWithBlock struct {
+	Tx    *tlb.Transaction
+	Block *ton.BlockIDExt
+}
+
+// internal types for processing, DB schema should be separated
+type Filter struct {
+	ID            int64            // ID is a unique identifier for the filter.
+	Name          string           // Name is a human-readable name for the filter, used for identification purposes.
+	Address       *address.Address // specifies the source address for which logs are being filtered.
+	MsgType       tlb.MsgType      // Message type to determine how to index
+	EventSig      uint32           // EventSig is a identifier for the event log(topic in external out messages, opcode in internal messages).
+	StartingSeqNo uint32           // StartingSeqNo defines the starting sequence number for log polling.
+}
+
+type Log struct {
+	ID               int64            // Unique identifier for the log entry.
+	FilterID         int64            // Identifier of the filter that matched this log.
+	ChainID          string           // ChainID of the blockchain where the log was generated.
+	Address          *address.Address // Source contract address associated with the log entry.
+	EventSig         uint32           // EventSig is a identifier for the event log(topic in external out messages, opcode in internal messages).
+	Data             *cell.Cell       // Event msg body containing the log data.
+	TxHash           TxHash           // Transaction hash for uniqueness within the blockchain.
+	TxLT             uint64           // Logical time (LT) of the transaction, used for ordering and uniqueness.
+	TxTimestamp      time.Time        // Timestamp of the transaction that generated the log.
+	Block            *ton.BlockIDExt  // Shard block metadata
+	MasterBlockSeqno uint32           // Masterchain block sequence number
+	Error            error            // Optional error associated with the log entry.
+}
+
+// TypedLog represents a log entry with its parsed data.
+type TypedLog[T any] struct {
+	Log
+	TypedData T // Parsed event data from the log's cell data(on query execution)
+}
+
+func (l Log) String() string {
+	var sb strings.Builder
+
+	sb.WriteString(fmt.Sprintf("  Filter ID:    %d\n", l.FilterID))
+	sb.WriteString(fmt.Sprintf("  Address:      %s\n", l.Address))
+	sb.WriteString(fmt.Sprintf("  Tx Hash:      %s\n", hex.EncodeToString(l.TxHash[:])))
+	sb.WriteString(fmt.Sprintf("  Tx LT:        %d\n", l.TxLT))
+	sb.WriteString(fmt.Sprintf("  Tx Timestamp: %s\n", l.TxTimestamp.Format(time.RFC3339)))
+	sb.WriteString(fmt.Sprintf("  Event Sig:  %d\n", l.EventSig))
+	if l.Data != nil {
+		sb.WriteString(fmt.Sprintf("  Data (BOC):   %s\n", hex.EncodeToString(l.Data.ToBOC())))
+	} else {
+		sb.WriteString("  Data (BOC):   <nil>\n")
+	}
+	sb.WriteString(fmt.Sprintf("  Shard Block:  (Workchain: %d, Shard: %d, Seqno: %d)\n", l.Block.Workchain, l.Block.Shard, l.Block.SeqNo))
+	sb.WriteString(fmt.Sprintf("  Master Block: (Seqno: %d)\n", l.MasterBlockSeqno))
+	sb.WriteString(fmt.Sprintf("  Chain ID:     %s\n", l.ChainID))
+
+	return sb.String()
+}

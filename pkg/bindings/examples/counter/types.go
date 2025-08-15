@@ -40,13 +40,31 @@ var TopicCountSet uint32 = hash.CRC32("CountSet")
 var TopicCountIncreased uint32 = hash.CRC32("CountIncreased")
 
 type CountSet struct {
-	ID    uint32 `tlb:"## 32"`
-	Value uint32 `tlb:"## 32"`
+	ID     uint32          `tlb:"## 32"`
+	Value  uint32          `tlb:"## 32"`
+	Sender address.Address `tlb:"addr"`
 }
 
 type CountIncreased struct {
-	ID    uint32 `tlb:"## 32"`
-	Value uint32 `tlb:"## 32"`
+	ID     uint32          `tlb:"## 32"`
+	Value  uint32          `tlb:"## 32"`
+	Sender address.Address `tlb:"addr"`
+}
+
+// Reply message to sender when the counter is set.
+type CountSetMsg struct {
+	_      tlb.Magic       `tlb:"#0xf3a02426"` //nolint:revive // (opcode) should stay uninitialized
+	ID     uint32          `tlb:"## 32"`
+	Value  uint32          `tlb:"## 32"`
+	Sender address.Address `tlb:"addr"`
+}
+
+// Reply message to sender when the counter is increased.
+type CountIncreasedMsg struct {
+	_      tlb.Magic       `tlb:"#0x41c92746"` //nolint:revive // (opcode) should stay uninitialized
+	ID     uint32          `tlb:"## 32"`
+	Value  uint32          `tlb:"## 32"`
+	Sender address.Address `tlb:"addr"`
 }
 
 // Getters

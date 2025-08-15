@@ -14,6 +14,7 @@ require (
 	github.com/stretchr/testify v1.10.0
 	github.com/xssnick/tonutils-go v1.13.0
 	golang.org/x/exp v0.0.0-20250711185948-6ae5c78190dc
+	golang.org/x/sync v0.16.0
 )
 
 require (

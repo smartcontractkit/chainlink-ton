@@ -2,7 +2,6 @@ package helper
 
 import (
 	"context"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/big"
@@ -23,11 +22,10 @@ import (
 	test_utils "integration-tests/utils"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/examples/counter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
-
-	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/examples/counter"
 )
 
 func SendBulkTestEventTxs(t *testing.T, client ton.APIClientWrapped, batchCount, txPerBatch, msgPerTx int) (*TestEventSource, []TestEventRes) {
@@ -36,7 +34,7 @@ func SendBulkTestEventTxs(t *testing.T, client ton.APIClientWrapped, batchCount,
 	test_utils.FundWallets(t, client, []*address.Address{sender.Address()}, []tlb.Coins{tlb.MustFromTON("1000")})
 	require.NotNil(t, sender)
 	// deploy event emitter counter contract
-	emitter, err := NewTestEventSource(t.Context(), client, sender, "emitter", rand.Uint32(), logger.Test(t))
+	emitter, err := NewTestEventSource(client, sender, "emitter", rand.Uint32(), logger.Test(t))
 	require.NoError(t, err)
 	// bulk send events
 	txs, err := emitter.SendBulkTestEvents(t.Context(), batchCount, txPerBatch, msgPerTx)
@@ -45,30 +43,23 @@ func SendBulkTestEventTxs(t *testing.T, client ton.APIClientWrapped, batchCount,
 	expectedCounter := uint32(batchCount * txPerBatch * msgPerTx) //nolint:gosec // test code
 
 	require.Eventually(t, func() bool {
-		mb, err := client.CurrentMasterchainInfo(t.Context())
+		currentCounter, err := counter.GetValue(t.Context(), client, emitter.ContractAddress())
 		if err != nil {
 			return false
 		}
-		currentCounterRaw, err := emitter.GetCounterValue(t.Context(), mb)
-		if err != nil {
-			return false
-		}
-		currentCounter := uint32(currentCounterRaw.Uint64()) //nolint:gosec // test code
 		return currentCounter == expectedCounter
 	}, 30*time.Second, 2*time.Second, "Counter did not reach expected value within timeout")
 
-	t.Logf("On-chain counter reached expected value of %d.", expectedCounter)
-
-	time.Sleep(20 * time.Second)
 	return emitter, txs
 }
 
-func VerifyLoadedEvents(msgs []*tlb.ExternalMessageOut, expectedCount int) error {
+func VerifyAllCountLogs(indexedCells []*cell.Cell, expectedCount int) error {
 	seen := make(map[uint32]bool, expectedCount)
 
 	// parse all events and track counters
-	for i, ext := range msgs {
-		event, err := test_utils.ParseEventFromMsg[counter.CountIncreased](ext)
+	for i, cell := range indexedCells {
+		var event counter.CountIncreased
+		err := tlb.LoadFromCell(&event, cell.BeginParse(), true)
 		if err != nil {
 			return fmt.Errorf("failed to parse event #%d: %w", i, err)
 		}
@@ -114,9 +105,11 @@ type TestEventSource struct {
 	mu      sync.RWMutex
 	running bool
 	done    chan struct{}
+
+	err error
 }
 
-func NewTestEventSource(ctx context.Context, client ton.APIClientWrapped, wallet *wallet.Wallet, name string, id uint32, lggr logger.Logger) (*TestEventSource, error) {
+func NewTestEventSource(client ton.APIClientWrapped, wallet *wallet.Wallet, name string, id uint32, lggr logger.Logger) (*TestEventSource, error) {
 	codeCell, cerr := wrappers.ParseCompiledContract(bindings.GetBuildDir("examples.Counter.compiled.json"))
 	if cerr != nil {
 		return nil, fmt.Errorf("failed to parse compiled contract: %w", cerr)
@@ -172,6 +165,10 @@ func (e *TestEventSource) ContractAddress() *address.Address {
 	return e.contractAddress
 }
 
+func (e *TestEventSource) Wallet() *address.Address {
+	return e.wallet.WalletAddress()
+}
+
 func (e *TestEventSource) GetID() uint32 {
 	return e.id
 }
@@ -187,21 +184,34 @@ func (e *TestEventSource) Start(ctx context.Context, interval time.Duration, tar
 	e.targetCounter = targetCounter
 	e.done = make(chan struct{})
 	e.running = true
+	e.err = nil
 
 	go e.eventLoop(ctx, interval)
 	return nil
 }
 
-func (e *TestEventSource) Stop() {
+func (e *TestEventSource) Wait() error {
+	e.mu.Lock()
+	if !e.running {
+		e.mu.Unlock()
+		return nil
+	}
+	e.mu.Unlock()
+
+	// wait for the event loop
+	<-e.done
+
 	e.mu.Lock()
 	defer e.mu.Unlock()
-
-	if !e.running {
-		return
-	}
-
-	<-e.done
 	e.running = false
+	// return error if any
+	return e.err
+}
+
+func (e *TestEventSource) Err() error {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	return e.err
 }
 
 func (e *TestEventSource) IsRunning() bool {
@@ -211,16 +221,19 @@ func (e *TestEventSource) IsRunning() bool {
 }
 
 func (e *TestEventSource) eventLoop(ctx context.Context, interval time.Duration) {
+	defer close(e.done)
+
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
-	target := uint32(e.targetCounter.Uint64()) //nolint:gosec // target is controlled by the test
+	target := uint32(e.targetCounter.Uint64()) //nolint:gosec // test code
 
 	for {
 		select {
 		case <-ctx.Done():
-			e.lggr.Debugf("Context cancelled for %s", e.name)
-			close(e.done)
+			e.mu.Lock()
+			e.err = ctx.Err()
+			e.mu.Unlock()
 			return
 		case <-ticker.C:
 			e.mu.RLock()
@@ -228,16 +241,24 @@ func (e *TestEventSource) eventLoop(ctx context.Context, interval time.Duration)
 			e.mu.RUnlock()
 
 			if sent >= target {
-				e.lggr.Debugf("Target count of %d reached for %s, stopping.", target, e.name)
-				close(e.done)
+				// target reached, this is a clean shutdown.
 				return
 			}
 
-			// Send message outside the lock
 			if _, _, err := e.SendIncreaseCounterMsg(ctx); err != nil {
-				e.lggr.Debugf("ERROR sending message from %s: %v", e.name, err)
+				if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+					e.lggr.Errorf("Could not send message from %s due to context cancellation: %v", e.name, err)
+					e.mu.Lock()
+					e.err = fmt.Errorf("unrecoverable error in event loop: %w", err)
+					e.mu.Unlock()
+					return
+				}
+				e.lggr.Errorf("Failed to send message from %s: %v", e.name, err)
+				e.mu.Lock()
+				e.err = fmt.Errorf("failed to send message: %w", err)
+				e.mu.Unlock()
+				return
 			} else {
-				// Only lock when updating the counter
 				e.mu.Lock()
 				e.sentCounter++
 				e.mu.Unlock()
@@ -248,15 +269,11 @@ func (e *TestEventSource) eventLoop(ctx context.Context, interval time.Duration)
 
 func (e *TestEventSource) SendBulkTestEvents(ctx context.Context, batchCount, txPerBatch, msgPerTx int) ([]TestEventRes, error) {
 	var txs []TestEventRes
-	e.lggr.Debugf("=== Starting to send %d batches of %d transactions with %d messages each ===",
-		batchCount, txPerBatch, msgPerTx)
-
 	// Send transactions in batches with block waits
 	for batchIdx := 0; batchIdx < batchCount; batchIdx++ {
 		// Send multiple transactions in this batch
 		for txIdx := 0; txIdx < txPerBatch; txIdx++ {
 			// Send transaction with multiple messages
-			e.lggr.Debugf("╭ Sending multiple increase counter messages from %s", e.name)
 			tx, block, err := e.sendManyIncreaseCountMsgs(ctx, msgPerTx)
 			if err != nil {
 				return nil, fmt.Errorf("failed to send tx %d in batch %d: %w", txIdx, batchIdx, err)
@@ -269,9 +286,6 @@ func (e *TestEventSource) SendBulkTestEvents(ctx context.Context, batchCount, tx
 				TxIdx:    txIdx,
 			}
 			txs = append(txs, txResult)
-
-			e.lggr.Debugf("╰ Sent: Batch=%d, Tx=%d, Messages=%d, LT=%d, Hash=%s, BlockSeq=%d",
-				batchIdx, txIdx, msgPerTx, tx.LT, hex.EncodeToString(tx.Hash), block.SeqNo)
 		}
 
 		// delay between batches to try to get different blocks
@@ -340,37 +354,8 @@ func (e *TestEventSource) sendManyIncreaseCountMsgs(ctx context.Context, count i
 	}
 	tx, block, err := e.wallet.SendManyWaitTransaction(ctx, messages)
 	if err != nil {
-		e.lggr.Debugf("Failed to send multiple messages: %v", err)
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("failed to send multiple messages: %w", err)
 	}
 
 	return tx, block, nil
-}
-
-func (e *TestEventSource) GetCounterID(ctx context.Context, block *ton.BlockIDExt) (*big.Int, error) {
-	res, err := e.client.RunGetMethod(ctx, block, e.ContractAddress(), "id")
-	if err != nil {
-		return nil, fmt.Errorf("failed to run get method 'id': %w", err)
-	}
-
-	val, err := res.Int(0)
-	if err != nil {
-		return nil, fmt.Errorf("failed to extract id value: %w", err)
-	}
-
-	return val, nil
-}
-
-func (e *TestEventSource) GetCounterValue(ctx context.Context, block *ton.BlockIDExt) (*big.Int, error) {
-	res, err := e.client.RunGetMethod(ctx, block, e.ContractAddress(), "value")
-	if err != nil {
-		return nil, fmt.Errorf("failed to run get method 'value': %w", err)
-	}
-
-	val, err := res.Int(0)
-	if err != nil {
-		return nil, fmt.Errorf("failed to extract value value: %w", err)
-	}
-
-	return val, nil
 }
