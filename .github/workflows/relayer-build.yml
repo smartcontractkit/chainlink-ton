@@ -48,3 +48,40 @@ jobs:
 
       - name: Run build - Docker (via Docker builder)
         run: nix develop -c ./scripts/build/make-docker.sh --docker-builder
+
+  detect-tracetracking-changes:
+    name: Detect changes on tracetracking package
+    runs-on: ubuntu-latest
+    outputs:
+      tracetracking: ${{ steps.filter.outputs.tracetracking }}
+    steps:
+      - name: Checkout the repo
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - id: filter
+        uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3.0.2
+        with:
+          filters: |
+            tracetracking:
+              - 'pkg/ton/tracetracking/**'
+              - 'integration-tests/tracetracking/**'
+
+  tracetracking-tests:
+    name: Run tracetracking integration tests
+    needs: detect-tracetracking-changes
+    runs-on: ubuntu-latest
+    if: needs.detect-tracetracking-changes.outputs.tracetracking == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@02a151ada4993995686f9ed4f1be7cfbb229e56f # v31
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+      - name: Build contracts
+        run: |
+          pushd contracts
+          nix develop .#contracts -c yarn && yarn build
+      - name: Run tracetracking tests
+        run: |
+          pushd integration-tests
+          nix develop -c go test -v -count=1 -p=1 -timeout 30m -tags=tracetracking ./tracetracking

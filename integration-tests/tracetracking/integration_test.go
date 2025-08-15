@@ -1,3 +1,6 @@
+//go:build tracetracking
+// +build tracetracking
+
 package tracetracking
 
 import (
