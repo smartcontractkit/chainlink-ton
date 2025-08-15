@@ -76,7 +76,7 @@ func (a *TONAccessor) GetAllConfigsLegacy(ctx context.Context, destChainSelector
 	var sourceChainConfigs map[ccipocr3.ChainSelector]ccipocr3.SourceChainConfig
 
 	block, err := a.client.CurrentMasterchainInfo(ctx)
-	if err != ErrNoBindings && err != nil {
+	if !errors.Is(err, ErrNoBindings) && err != nil {
 		return ccipocr3.ChainConfigSnapshot{}, nil, fmt.Errorf("failed to get current block: %w", err)
 	}
 
@@ -86,12 +86,12 @@ func (a *TONAccessor) GetAllConfigsLegacy(ctx context.Context, destChainSelector
 
 		// OffRamp
 		offrampStaticConfig, err := a.getOffRampStaticConfig(ctx, block)
-		if err != ErrNoBindings && err != nil {
+		if !errors.Is(err, ErrNoBindings) && err != nil {
 			return ccipocr3.ChainConfigSnapshot{}, nil, fmt.Errorf("failed to get current offramp static config: %w", err)
 		}
 		// TODO: assert offrampStaticConfig.ChainSelector == destChainSelector as a quick sanity check
 		offrampDynamicConfig, err := a.getOffRampDynamicConfig(ctx, block)
-		if err != ErrNoBindings && err != nil {
+		if !errors.Is(err, ErrNoBindings) && err != nil {
 			return ccipocr3.ChainConfigSnapshot{}, nil, fmt.Errorf("failed to get current offramp dynamic config: %w", err)
 		}
 		config.Offramp = ccipocr3.OfframpConfig{
@@ -104,7 +104,7 @@ func (a *TONAccessor) GetAllConfigsLegacy(ctx context.Context, destChainSelector
 
 		// FeeQuoter
 		feeQuoterStaticConfig, err := a.getFeeQuoterStaticConfig(ctx, block)
-		if err != ErrNoBindings && err != nil {
+		if !errors.Is(err, ErrNoBindings) && err != nil {
 			return ccipocr3.ChainConfigSnapshot{}, nil, fmt.Errorf("failed to get current feequoter static config: %w", err)
 		}
 		config.FeeQuoter = ccipocr3.FeeQuoterConfig{
@@ -122,7 +122,7 @@ func (a *TONAccessor) GetAllConfigsLegacy(ctx context.Context, destChainSelector
 
 		// CurseInfo
 		curseInfo, err := a.getCurseInfo(ctx, block)
-		if err != ErrNoBindings && err != nil {
+		if !errors.Is(err, ErrNoBindings) && err != nil {
 			return ccipocr3.ChainConfigSnapshot{}, nil, fmt.Errorf("failed to get curse info: %w", err)
 		}
 		config.CurseInfo = curseInfo
@@ -133,11 +133,11 @@ func (a *TONAccessor) GetAllConfigsLegacy(ctx context.Context, destChainSelector
 
 		// OnRamp
 		onRampDynamicConfig, err := a.getOnRampDynamicConfig(ctx, block)
-		if err != ErrNoBindings && err != nil {
+		if !errors.Is(err, ErrNoBindings) && err != nil {
 			return ccipocr3.ChainConfigSnapshot{}, nil, fmt.Errorf("failed to get current onramp dynamic config: %w", err)
 		}
 		onRampDestChainConfig, err := a.getOnRampDestChainConfig(ctx, block, destChainSelector)
-		if err != ErrNoBindings && err != nil {
+		if !errors.Is(err, ErrNoBindings) && err != nil {
 			return ccipocr3.ChainConfigSnapshot{}, nil, fmt.Errorf("failed to get current onramp dest chain config: %w", err)
 		}
 		config.OnRamp = ccipocr3.OnRampConfig{
@@ -247,8 +247,9 @@ func (a *TONAccessor) GetTokenPriceUSD(ctx context.Context, rawTokenAddress ccip
 		return ccipocr3.TimestampedUnixBig{}, err
 	}
 	return ccipocr3.TimestampedUnixBig{
-		Value:     timestampedPrice.Value,
-		Timestamp: uint32(timestampedPrice.Timestamp), // TODO: u64 -> u32?
+		Value: timestampedPrice.Value,
+		// TODO: u64 -> u32? should we fix the onchain type?
+		Timestamp: uint32(timestampedPrice.Timestamp), //nolint:gosec // G115
 	}, nil
 }
 

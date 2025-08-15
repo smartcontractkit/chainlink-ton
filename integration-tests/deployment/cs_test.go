@@ -13,7 +13,7 @@ import (
 	chain_selectors "github.com/smartcontractkit/chain-selectors"
 	"github.com/stretchr/testify/require"
 
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip"
+	ops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 
 	"github.com/smartcontractkit/chainlink/deployment/ccip/changeset/v1_6"

@@ -125,24 +125,24 @@ func (c *DestChainConfig) FromResult(result *ton.ExecutionResult) error {
 	}
 	*c = DestChainConfig{
 		IsEnabled:                         isEnabled,
-		MaxNumberOfTokensPerMsg:           uint16(maxNumberOfTokensPerMsg.Uint64()),
-		MaxDataBytes:                      uint32(maxDataBytes.Uint64()),
-		MaxPerMsgGasLimit:                 uint32(maxPerMsgGasLimit.Uint64()),
-		DestGasOverhead:                   uint32(destGasOverhead.Uint64()),
-		DestGasPerPayloadByteBase:         uint8(destGasPerPayloadByteBase.Uint64()),
-		DestGasPerPayloadByteHigh:         uint8(destGasPerPayloadByteHigh.Uint64()),
-		DestGasPerPayloadByteThreshold:    uint16(destGasPerPayloadByteThreshold.Uint64()),
-		DestDataAvailabilityOverheadGas:   uint32(destDataAvailabilityOverheadGas.Uint64()),
-		DestGasPerDataAvailabilityByte:    uint16(destGasPerDataAvailabilityByte.Uint64()),
-		DestDataAvailabilityMultiplierBps: uint16(destDataAvailabilityMultiplierBps.Uint64()),
-		ChainFamilySelector:               uint32(chainFamilySelector.Uint64()),
+		MaxNumberOfTokensPerMsg:           uint16(maxNumberOfTokensPerMsg.Uint64()),           //nolint:gosec // G115
+		MaxDataBytes:                      uint32(maxDataBytes.Uint64()),                      //nolint:gosec // G115
+		MaxPerMsgGasLimit:                 uint32(maxPerMsgGasLimit.Uint64()),                 //nolint:gosec // G115
+		DestGasOverhead:                   uint32(destGasOverhead.Uint64()),                   //nolint:gosec // G115
+		DestGasPerPayloadByteBase:         uint8(destGasPerPayloadByteBase.Uint64()),          //nolint:gosec // G115
+		DestGasPerPayloadByteHigh:         uint8(destGasPerPayloadByteHigh.Uint64()),          //nolint:gosec // G115
+		DestGasPerPayloadByteThreshold:    uint16(destGasPerPayloadByteThreshold.Uint64()),    //nolint:gosec // G115
+		DestDataAvailabilityOverheadGas:   uint32(destDataAvailabilityOverheadGas.Uint64()),   //nolint:gosec // G115
+		DestGasPerDataAvailabilityByte:    uint16(destGasPerDataAvailabilityByte.Uint64()),    //nolint:gosec // G115
+		DestDataAvailabilityMultiplierBps: uint16(destDataAvailabilityMultiplierBps.Uint64()), //nolint:gosec // G115
+		ChainFamilySelector:               uint32(chainFamilySelector.Uint64()),               //nolint:gosec // G115
 		EnforceOutOfOrder:                 enforceOutOfOrder,
-		DefaultTokenFeeUsdCents:           uint16(defaultTokenFeeUsdCents.Uint64()),
-		DefaultTokenDestGasOverhead:       uint32(defaultTokenDestGasOverhead.Uint64()),
-		DefaultTxGasLimit:                 uint32(defaultTxGasLimit.Uint64()),
+		DefaultTokenFeeUsdCents:           uint16(defaultTokenFeeUsdCents.Uint64()),     //nolint:gosec // G115
+		DefaultTokenDestGasOverhead:       uint32(defaultTokenDestGasOverhead.Uint64()), //nolint:gosec // G115
+		DefaultTxGasLimit:                 uint32(defaultTxGasLimit.Uint64()),           //nolint:gosec // G115
 		GasMultiplierWeiPerEth:            gasMultiplierWeiPerEth.Uint64(),
-		GasPriceStalenessThreshold:        uint32(gasPriceStalenessThreshold.Uint64()),
-		NetworkFeeUsdCents:                uint32(networkFeeUsdCents.Uint64()),
+		GasPriceStalenessThreshold:        uint32(gasPriceStalenessThreshold.Uint64()), //nolint:gosec // G115
+		NetworkFeeUsdCents:                uint32(networkFeeUsdCents.Uint64()),         //nolint:gosec // G115
 	}
 	return nil
 }
@@ -220,7 +220,7 @@ func (c *StaticConfig) FromResult(result *ton.ExecutionResult) error {
 	*c = StaticConfig{
 		MaxFeeJuelsPerMsg:  maxFeeJuelsPerMsg,
 		LinkToken:          linkTokenAddress,
-		StalenessThreshold: uint32(tokenPriceStalenessThreshold.Uint64()),
+		StalenessThreshold: uint32(tokenPriceStalenessThreshold.Uint64()), //nolint:gosec // G115
 	}
 	return nil
 }

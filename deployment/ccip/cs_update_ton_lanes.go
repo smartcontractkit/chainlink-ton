@@ -7,9 +7,10 @@ import (
 	chainsel "github.com/smartcontractkit/chain-selectors"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
-	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/mcms"
 	"github.com/xssnick/tonutils-go/ton/wallet"
+
+	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
