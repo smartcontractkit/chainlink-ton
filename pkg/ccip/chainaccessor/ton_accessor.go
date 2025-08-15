@@ -2,36 +2,39 @@ package chainaccessor
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
 
-	"github.com/smartcontractkit/chainlink-ccip/pkg/chainaccessor"
-	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 	cciptypes "github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
 
+	"github.com/smartcontractkit/chainlink-ccip/pkg/chainaccessor"
+	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"
+
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types/query"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/hash"
 )
 
+var ErrNoBindings = errors.New("no bindings found")
+
 type TONAccessor struct {
 	lggr          logger.Logger
-	chainSelector cciptypes.ChainSelector
+	chainSelector ccipocr3.ChainSelector
 	client        ton.APIClientWrapped
 	logPoller     logpoller.Service
 	bindings      map[string]*address.Address
-	addrCodec     codec.AddressCodec
+	bindingsMu    sync.RWMutex
+	addrCodec     ccipocr3.ChainSpecificAddressCodec
 }
 
 var _ ccipocr3.ChainAccessor = (*TONAccessor)(nil)
@@ -41,7 +44,7 @@ func NewTONAccessor(
 	chainSelector cciptypes.ChainSelector,
 	client ton.APIClientWrapped,
 	logPoller logpoller.Service,
-	addrCodec ccipocr3.AddressCodec,
+	addrCodec ccipocr3.ChainSpecificAddressCodec,
 ) (ccipocr3.ChainAccessor, error) {
 	// TODO: validate state of client and logPoller (should be initialized in NewChain)
 	if client == nil {
@@ -51,11 +54,13 @@ func NewTONAccessor(
 		return nil, errors.New("logPoller cannot be nil")
 	}
 	return &TONAccessor{
-		lggr:      lggr,
-		client:    client,
-		logPoller: logPoller,
-		bindings:  make(map[string]*address.Address),
-		addrCodec: codec.AddressCodec{}, // TODO: AddressCodec doesn't match the ccipocr3.AddressCodec interface
+		lggr:          lggr,
+		chainSelector: chainSelector,
+		client:        client,
+		logPoller:     logPoller,
+		bindings:      make(map[string]*address.Address),
+		bindingsMu:    sync.RWMutex{},
+		addrCodec:     addrCodec,
 	}, nil
 }
 
@@ -76,50 +81,61 @@ func (a *TONAccessor) GetChainFeeComponents(ctx context.Context) (ccipocr3.Chain
 }
 
 func (a *TONAccessor) Sync(ctx context.Context, contractName string, contractAddress ccipocr3.UnknownAddress) error {
-	addr, err := address.ParseAddr(base64.RawURLEncoding.EncodeToString(contractAddress))
+	strAddr, err := a.addrCodec.AddressBytesToString(contractAddress)
 	if err != nil {
 		return fmt.Errorf("invalid address: %w", err)
 	}
+	addr, err := address.ParseAddr(strAddr)
+	if err != nil {
+		return fmt.Errorf("invalid address: %w", err)
+	}
+	a.bindingsMu.Lock()
+	defer a.bindingsMu.Unlock()
 	a.bindings[contractName] = addr
 	return nil
 }
 
+func (a *TONAccessor) getBinding(contractName string) (*address.Address, error) {
+	a.bindingsMu.RLock()
+	defer a.bindingsMu.RUnlock()
+	addr, exists := a.bindings[contractName]
+	if !exists {
+		return nil, ErrNoBindings
+	}
+	return addr, nil
+}
+
 // TON as source chain methods
 func (a *TONAccessor) MsgsBetweenSeqNums(ctx context.Context, dest ccipocr3.ChainSelector, seqNumRange ccipocr3.SeqNumRange) ([]ccipocr3.Message, error) {
-	// TODO: get contract address properly
-	onrampAddr, ok := a.bindings[consts.ContractNameOnRamp]
-	if !ok {
-		return nil, errors.New("OnRamp not bound")
+	// get onramp address
+	onrampAddr, err := a.getBinding(consts.ContractNameOnRamp)
+	if err != nil {
+		return nil, fmt.Errorf("OnRamp not bound: %w", err)
 	}
 
-	// Create byte filters for querying CCIPMessageSent events
-	destFilter := query.CellFilter{
-		Offset:   0,
-		Operator: query.EQ,
-		Value:    binary.BigEndian.AppendUint64(nil, uint64(dest)),
-	}
-
-	startFilter := query.CellFilter{
-		Offset:   8,
-		Operator: query.GTE,
-		Value:    binary.BigEndian.AppendUint64(nil, uint64(seqNumRange.Start())),
-	}
-
-	endFilter := query.CellFilter{
-		Offset:   8,
-		Operator: query.LTE,
-		Value:    binary.BigEndian.AppendUint64(nil, uint64(seqNumRange.End())),
-	}
-
+	// query TON logs
 	res, err := logpoller.NewQuery[onramp.CCIPMessageSent](a.logPoller.GetStore()).
 		WithSrcAddress(onrampAddr).
 		WithEventSig(hash.CRC32("CCIPMessageSent")).
-		WithCellFilter(destFilter).
-		WithCellFilter(startFilter).
-		WithCellFilter(endFilter).
+		WithCellFilter(query.CellFilter{
+			Offset:   0,
+			Operator: query.EQ,
+			Value:    binary.BigEndian.AppendUint64(nil, uint64(dest)),
+		}).
+		WithCellFilter(query.CellFilter{
+			Offset:   8,
+			Operator: query.GTE,
+			Value:    binary.BigEndian.AppendUint64(nil, uint64(seqNumRange.Start())),
+		}).
+		WithCellFilter(query.CellFilter{
+			Offset:   8,
+			Operator: query.LTE,
+			Value:    binary.BigEndian.AppendUint64(nil, uint64(seqNumRange.End())),
+		}).
 		WithSort(query.SortByTxLT, query.ASC).
 		WithLimit(int(seqNumRange.End() - seqNumRange.Start() + 1)). //nolint:gosec // conversion is safe in this context
 		Execute(ctx)
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to query onRamp logs: %w", err)
 	}
@@ -156,14 +172,13 @@ func (a *TONAccessor) MsgsBetweenSeqNums(ctx context.Context, dest ccipocr3.Chai
 		msgsWithoutDataField[i] = msg.CopyWithoutData()
 	}
 
-	// copied from default accessor
 	a.lggr.Debugw("decoded messages between sequence numbers",
 		"msgsWithoutDataField", msgsWithoutDataField,
 		"sourceChainSelector", a.chainSelector,
 		"seqNumRange", seqNumRange.String(),
 	)
 	a.lggr.Infow("decoded message IDs between sequence numbers",
-		// TODO: slicelib internal
+		// TODO: copied from default accessor, slicelib internal
 		// "seqNum.MsgID", slicelib.Map(msgsWithoutDataField, func(m cciptypes.Message) string {
 		// 	return fmt.Sprintf("%d.%d", m.Header.SequenceNumber, m.Header.MessageID)
 		// }),
@@ -174,26 +189,24 @@ func (a *TONAccessor) MsgsBetweenSeqNums(ctx context.Context, dest ccipocr3.Chai
 }
 
 func (a *TONAccessor) LatestMessageTo(ctx context.Context, dest ccipocr3.ChainSelector) (ccipocr3.SeqNum, error) {
-	// TODO: get contract address properly
-	onrampAddr, ok := a.bindings[consts.ContractNameOnRamp]
-	if !ok {
-		return 0, errors.New("OnRamp not bound")
+	// get onramp address
+	onrampAddr, err := a.getBinding(consts.ContractNameOnRamp)
+	if err != nil {
+		return 0, fmt.Errorf("OnRamp not bound: %w", err)
 	}
 
-	destFilter := query.CellFilter{
-		Offset:   0,
-		Operator: query.EQ,
-		Value:    binary.BigEndian.AppendUint64(nil, uint64(dest)),
-	}
 	res, err := logpoller.NewQuery[onramp.CCIPMessageSent](a.logPoller.GetStore()).
 		WithSrcAddress(onrampAddr).
 		WithEventSig(hash.CRC32("CCIPMessageSent")).
-		WithCellFilter(destFilter).
-		// find the last one
-		WithSort(query.SortByTxLT, query.DESC).
-		//only the last one
-		WithLimit(1).
+		WithCellFilter(query.CellFilter{
+			Offset:   0,
+			Operator: query.EQ,
+			Value:    binary.BigEndian.AppendUint64(nil, uint64(dest)),
+		}).
+		WithSort(query.SortByTxLT, query.DESC). // sort by transaction LT old to new
+		WithLimit(1).                           // only get the last one
 		Execute(ctx)
+
 	if err != nil {
 		return 0, fmt.Errorf("failed to query onRamp logs: %w", err)
 	}
@@ -209,10 +222,9 @@ func (a *TONAccessor) LatestMessageTo(ctx context.Context, dest ccipocr3.ChainSe
 		return 0, nil
 	}
 
-	lastLog := res.Logs[0]
 	// convert event to generic CCIP event
 	event, err := ToGenericSendRequestedEvent(
-		&lastLog.ParsedData,
+		&res.Logs[0].ParsedData,
 		a.chainSelector,
 	)
 	if err != nil {
