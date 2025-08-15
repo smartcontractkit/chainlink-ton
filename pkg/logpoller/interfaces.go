@@ -37,10 +37,17 @@ type FilterStore interface {
 
 // TxLoader defines the interface for loading transactions from the TON blockchain.
 type TxLoader interface {
+	// LoadTxsForAddresses retrieves all transactions from the specified source addresses
+	// within the given block range (prevBlock, toBlock] - exclusive of prevBlock, inclusive of toBlock.
 	LoadTxsForAddresses(ctx context.Context, blockRange *types.BlockRange, srcAddrs []*address.Address) ([]types.TxWithBlock, error)
 }
 
+// TxIndexer defines the interface for processing TON blockchain transactions and extracting logs.
 type TxIndexer interface {
+	// It processes transactions by examining their messages, applying registered filters, and extracting
+	// relevant event data. The indexer handles different message types (internal, external out) and
+	// extracts event signatures (opcodes for internal messages, topics for external out messages)
+	// along with the message body data to create structured log entries.
 	IndexTransactions(ctx context.Context, txs []types.TxWithBlock) ([]types.Log, error)
 }
 

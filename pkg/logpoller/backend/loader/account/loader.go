@@ -203,6 +203,8 @@ func (l *accountTxLoader) listTransactionsWithBlock(ctx context.Context, addr *a
 	}
 
 	var resp tl.Serializable
+	// Query TON blockchain for transactions. Note: API returns transactions in NEW to OLD order
+	// (newest transaction first, oldest last in the response)
 	err := l.client.Client().QueryLiteserver(ctx, ton.GetTransactions{
 		Limit: int32(limit),
 		AccID: &ton.AccountID{
@@ -230,6 +232,17 @@ func (l *accountTxLoader) listTransactionsWithBlock(ctx context.Context, addr *a
 		resTxs := make([]*tlb.Transaction, len(txList))
 		resBlocks := make([]*ton.BlockIDExt, len(txList))
 
+		// Process transactions in reverse order to validate chain integrity as we walk backwards (NEWEST -> OLDEST)
+		// he txHash parameter is what we're expecting to find, while tx.Hash is what we actually got.
+		//
+		// Chain validation pattern:
+		// TX100: compare txHash (parameter - cursor from fetchTxsForAddress) with tx.Hash
+		// TX99:  compare tx.PrevTxHash (from TX100) with tx.Hash
+		// TX98:  compare tx.PrevTxHash (from TX99) with tx.Hash
+		//
+		// We don't use tx.PrevTxHash directly for the first iteration because there's no previous
+		// transaction we've processed yet - we need the txHash parameter from our cursor.
+		// After the first iteration, txHash gets updated to tx.PrevTxHash for the next comparison.
 		for i := 0; i < len(txList); i++ {
 			loader := txList[i].BeginParse()
 
@@ -240,9 +253,11 @@ func (l *accountTxLoader) listTransactionsWithBlock(ctx context.Context, addr *a
 			}
 			tx.Hash = txList[i].Hash()
 
+			// validate chain integrity: ensure the hash we expected matches what we got
 			if !bytes.Equal(txHash, tx.Hash) {
 				return nil, nil, fmt.Errorf("incorrect transaction hash %s, not matches prev tx hash %s", tx.Hash, txHash)
 			}
+			// update txHash for next iteration's validation
 			txHash = tx.PrevTxHash
 
 			reversedIdx := (len(txList) - 1) - i
