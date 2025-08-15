@@ -111,10 +111,30 @@ func updateFeeQuoterDestChainConfigs(b operations.Bundle, deps TonDeps, in Updat
 	return utils.Serialize(messages)
 }
 
+type GasPrice struct {
+	ExecutionGasPrice        *big.Int // int112
+	DataAvailabilityGasPrice *big.Int // int112
+}
+
+// copied from chainlink-ccip chainfee package
+func FromPackedGasFee(packedFee *big.Int) GasPrice {
+	ones112 := big.NewInt(0)
+	for i := range 112 {
+		ones112 = ones112.SetBit(ones112, i, 1)
+	}
+
+	execFee := new(big.Int).And(packedFee, ones112)
+	daFee := new(big.Int).Rsh(packedFee, 112)
+	return GasPrice{
+		ExecutionGasPrice:        execFee,
+		DataAvailabilityGasPrice: daFee,
+	}
+}
+
 // UpdateFeeQuoterPricesInput contains configuration for updating FeeQuoter price configs
 type UpdateFeeQuoterPricesInput struct {
 	TokenPrices map[string]*big.Int // token address (string) -> price
-	GasPrices   map[uint64]*big.Int // dest chain -> gas price
+	GasPrices   map[uint64]GasPrice // dest chain -> gas price
 }
 
 // UpdateFeeQuoterPricesOp operation to update FeeQuoter prices
@@ -141,9 +161,13 @@ func updateFeeQuoterPrices(b operations.Bundle, deps TonDeps, in UpdateFeeQuoter
 			UsdPerToken: value,
 		})
 	}
-	// TODO: need to split the u224 into two values
-	// for chainSelector, update := range in.GasPrices {
-	// }
+	for chainSelector, update := range in.GasPrices {
+		gasPrices = append(gasPrices, feequoter.GasPriceUpdate{
+			DestChainSelector:        chainSelector,
+			ExecutionGasPrice:        update.ExecutionGasPrice,
+			DataAvailabilityGasPrice: update.DataAvailabilityGasPrice,
+		})
+	}
 
 	input := feequoter.UpdatePrices{
 		TokenPrices: common.SnakeData[feequoter.TokenPriceUpdate](tokenPrices),

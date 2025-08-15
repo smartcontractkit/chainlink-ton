@@ -114,9 +114,8 @@ func updateOnRampDestChainConfigs(b operations.Bundle, deps TonDeps, in UpdateOn
 
 	messages := []*tlb.InternalMessage{
 		{
-			Bounce: true,
-			Amount: tlb.MustFromTON("1"),
-			// TODO: need to add more addresses to deployments state, CCIPAddress should be OnRamp
+			Bounce:  true,
+			Amount:  tlb.MustFromTON("1"),
 			DstAddr: &addr,
 			Body:    payload,
 		},

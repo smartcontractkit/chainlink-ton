@@ -52,10 +52,6 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to load TON onchain state: %w", err)
 	}
-	// states, err := tonstate.LoadOnchainState(env)
-	// if err != nil {
-	// 	return cldf.ChangesetOutput{}, err
-	// }
 	s := states[selector]
 
 	tonChains := env.BlockChains.TonChains()

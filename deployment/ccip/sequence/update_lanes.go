@@ -122,9 +122,9 @@ func setTonSourceUpdates(lane config.LaneConfig, updateInputsByTonChain map[uint
 
 	// Setting gas prices updates
 	if input.UpdateFeeQuoterPricesConfig.GasPrices == nil {
-		input.UpdateFeeQuoterPricesConfig.GasPrices = make(map[uint64]*big.Int)
+		input.UpdateFeeQuoterPricesConfig.GasPrices = make(map[uint64]operation.GasPrice)
 	}
-	input.UpdateFeeQuoterPricesConfig.GasPrices[dest.Selector] = dest.GasPrice
+	input.UpdateFeeQuoterPricesConfig.GasPrices[dest.Selector] = operation.FromPackedGasFee(dest.GasPrice)
 
 	// Setting token prices updates
 	if input.UpdateFeeQuoterPricesConfig.TokenPrices == nil {
