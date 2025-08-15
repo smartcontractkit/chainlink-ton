@@ -49,7 +49,7 @@ func (c *DestChainConfig) FromResult(result *ton.ExecutionResult) error {
 	if err != nil {
 		return err
 	}
-	isEnabled := isEnabledInt.Cmp(big.NewInt(1)) == 0
+	isEnabled := isEnabledInt.Cmp(big.NewInt(-1)) == 0
 	maxNumberOfTokensPerMsg, err := result.Int(1)
 	if err != nil {
 		return err
@@ -98,7 +98,7 @@ func (c *DestChainConfig) FromResult(result *ton.ExecutionResult) error {
 	if err != nil {
 		return err
 	}
-	enforceOutOfOrder := enforceOutOfOrderInt.Cmp(big.NewInt(1)) == 0
+	enforceOutOfOrder := enforceOutOfOrderInt.Cmp(big.NewInt(-1)) == 0
 	defaultTokenFeeUsdCents, err := result.Int(13)
 	if err != nil {
 		return err

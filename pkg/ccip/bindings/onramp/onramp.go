@@ -61,7 +61,7 @@ func (c *DestChainConfig) FromResult(result *ton.ExecutionResult) error {
 	if err != nil {
 		return err
 	}
-	allowlistEnabled := allowlistEnabledInt.Cmp(big.NewInt(1)) == 0
+	allowlistEnabled := allowlistEnabledInt.Cmp(big.NewInt(-1)) == 0
 	*c = DestChainConfig{
 		Router:           routerAddress,
 		SequenceNumber:   seqNum.Uint64(),
