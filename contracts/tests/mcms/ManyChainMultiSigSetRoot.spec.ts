@@ -117,8 +117,9 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
       })
     })
 
-    // TODO: Fails because current opcount is 0 and cannot be set to -1. Advance opcount first
-    it.skip('should revert on incorrect preOpCount - opCount > preOpCount', async () => {
+    it('should revert on incorrect preOpCount - opCount > preOpCount', async () => {
+      await baseTest.setInitialRoot()
+      await baseTest.advanceOpcodeTo(1)
       const corruptedRootMetadata = { ...baseTest.initialTestRootMetadata }
       corruptedRootMetadata.overridePreviousRoot = true
       corruptedRootMetadata.preOpCount = (await baseTest.bind.mcms.getOpCount()) - 1n
@@ -150,30 +151,14 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
       })
     })
 
-    it.skip('should revert on incorrect postOpCount', async () => {
-      // First set a valid root
-      {
-        const signers = baseTest.testSigners.map((s) => ({
-          publicKey: s.keyPair.publicKey,
-          sign: (data: Buffer<ArrayBufferLike>) => sign(data, s.keyPair.secretKey),
-        }))
-
-        const [setRoot, opProofs] = merkleProof.build(
-          signers,
-          BigInt(MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL),
-          baseTest.initialTestRootMetadata,
-          baseTest.testOps,
-        )
-        const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot)
-
-        await baseTest.bind.mcms.sendInternal(
-          baseTest.acc.deployer.getSender(),
-          toNano('0.05'),
-          setRootBody,
-        )
-      }
-
-      // TODO execute ops to advance opcount
+    it('should revert on incorrect postOpCount', async () => {
+      await baseTest.setInitialRoot()
+      await baseTest.bind.mcms.sendInternal(
+        baseTest.acc.deployer.getSender(),
+        toNano('10'),
+        mcms.builder.message.in.topUp.encode({ queryId: 1n }),
+      )
+      await baseTest.advanceOpcodeTo(MCMSBaseSetRootAndExecuteTestSetup.OPS_NUM)
 
       // Now try to set another root with incorrect postOpCount
       const corruptedRootMetadata = { ...baseTest.initialTestRootMetadata }
@@ -375,33 +360,17 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
   describe('SetOverrideRootTest', () => {
     beforeEach(async () => {
       // Set an initial root before each test
-      const signers = baseTest.testSigners.map((s) => ({
-        publicKey: s.keyPair.publicKey,
-        sign: (data: Buffer<ArrayBufferLike>) => sign(data, s.keyPair.secretKey),
-      }))
-
-      const [setRoot, opProofs] = merkleProof.build(
-        signers,
-        BigInt(MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL),
-        baseTest.initialTestRootMetadata,
-        baseTest.testOps,
-      )
-      const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot)
-
+      await baseTest.setInitialRoot()
       const result = await baseTest.bind.mcms.sendInternal(
         baseTest.acc.deployer.getSender(),
-        toNano('0.05'),
-        setRootBody,
+        toNano('10'),
+        mcms.builder.message.in.topUp.encode({ queryId: 1n }),
       )
-
       expect(result.transactions).toHaveTransaction({
         from: baseTest.acc.deployer.address,
         to: baseTest.bind.mcms.address,
         success: true,
       })
-
-      const opCount = await baseTest.bind.mcms.getOpCount()
-      expect(opCount).toBe(0n)
     })
 
     it('should successfully override root', async () => {
@@ -439,12 +408,10 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
       expect(opCount).toBe(baseTest.initialTestRootMetadata.preOpCount)
     })
 
-    // TODO: Fails because we must really execute them instead of trying to fake it.
-    it.skip('should successfully set root after clearing', async () => {
-      // "Execute" all ops except one by simulating advancement of opCount
+    it('should successfully set root after clearing', async () => {
+      // Execute all ops except one
       const targetOpCount = baseTest.initialTestRootMetadata.postOpCount - 1n
-      // Note: In real scenario, this would be done by actually executing ops
-      // For testing purposes, we simulate the state
+      await baseTest.advanceOpcodeTo(Number(targetOpCount))
 
       // Set config with clearRoot = true
       const setConfigBody = mcms.builder.message.in.setConfig.encode({
@@ -462,11 +429,19 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         clearRoot: true,
       })
 
-      await baseTest.bind.mcms.sendInternal(
-        baseTest.acc.multisigOwner.getSender(),
-        toNano('0.05'),
-        setConfigBody,
-      )
+      {
+        const result = await baseTest.bind.mcms.sendInternal(
+          baseTest.acc.multisigOwner.getSender(),
+          toNano('1'),
+          setConfigBody,
+        )
+
+        expect(result.transactions).toHaveTransaction({
+          from: baseTest.acc.multisigOwner.address,
+          to: baseTest.bind.mcms.address,
+          success: true,
+        })
+      }
 
       // Create new root metadata with correct preOpCount
       const newRootMetadata = { ...baseTest.initialTestRootMetadata }
@@ -587,16 +562,17 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
       })
     })
 
-    it.skip('should succeed when no override after everything executed', async () => {
+    it('should succeed when no override after everything executed', async () => {
       const rootMetadata = await baseTest.bind.mcms.getRootMetadata()
       expect(rootMetadata.postOpCount).toBeGreaterThan(0n)
 
       const newRootMetadata = { ...baseTest.initialTestRootMetadata }
       newRootMetadata.overridePreviousRoot = false
       newRootMetadata.preOpCount = baseTest.initialTestRootMetadata.postOpCount
-      newRootMetadata.postOpCount = newRootMetadata.preOpCount + 10n
+      newRootMetadata.postOpCount =
+        newRootMetadata.preOpCount + BigInt(MCMSBaseSetRootAndExecuteTestSetup.OPS_NUM)
 
-      // TODO: Execute ops
+      await baseTest.advanceOpcodeTo(MCMSBaseSetRootAndExecuteTestSetup.OPS_NUM)
 
       const signers = baseTest.testSigners.map((s) => ({
         publicKey: s.keyPair.publicKey,
