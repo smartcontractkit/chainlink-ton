@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/xssnick/tonutils-go/address"
-	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
 )
@@ -59,7 +58,7 @@ func (c *SignedAPIClient) SendAndWaitForTrace(ctx context.Context, dstAddr addre
 	if err != nil {
 		return nil, fmt.Errorf("failed to SendWaitTransaction: %w", err)
 	}
-	err = sentMessage.WaitForTrace(c)
+	err = sentMessage.WaitForTrace(c.Client)
 	if err != nil {
 		return nil, fmt.Errorf("failed to wait for trace: %w", err)
 	}
@@ -77,16 +76,4 @@ func (c *SignedAPIClient) SendAndWaitForTrace(ctx context.Context, dstAddr addre
 	}
 
 	return sentMessage, nil
-}
-
-// SubscribeToTransactions returns a channel with all incoming transactions for
-// the given address that came after lt (Lamport Time). It will work
-// retroactively, so it will return all transactions that are already in the
-// blockchain and all new ones.
-func (c *SignedAPIClient) SubscribeToTransactions(address address.Address, lt uint64) chan *tlb.Transaction {
-	transactionsReceived := make(chan *tlb.Transaction)
-
-	// it is a blocking call, so we start it asynchronously
-	go c.Client.SubscribeOnTransactions(context.Background(), &address, lt, transactionsReceived)
-	return transactionsReceived
 }

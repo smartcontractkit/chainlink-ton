@@ -167,19 +167,13 @@ func TestStorage(t *testing.T) {
 			Owner: dummyAddr,
 		},
 		ChainSelector: 42,
-		Config: common.SnakeData[DynamicConfig]{
-			{
-				FeeAggregator:  dummyAddr,
-				FeeQuoter:      dummyAddr,
-				AllowListAdmin: dummyAddr,
-			},
-			{
-				FeeAggregator:  dummyAddr,
-				FeeQuoter:      dummyAddr,
-				AllowListAdmin: dummyAddr,
-			},
+		Config: DynamicConfig{
+			FeeAggregator:  dummyAddr,
+			FeeQuoter:      dummyAddr,
+			AllowListAdmin: dummyAddr,
 		},
 		DestChainConfigs: destConfigMap,
+		KeyLen:           64,
 	}
 
 	c, err = tlb.ToCell(s)
@@ -189,12 +183,7 @@ func TestStorage(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, s.Ownable.Owner, decoded.Ownable.Owner)
 	require.Equal(t, s.ChainSelector, decoded.ChainSelector)
-	require.Len(t, s.Config, len(decoded.Config))
-	for i := range s.Config {
-		require.Equal(t, s.Config[i].FeeAggregator, decoded.Config[i].FeeAggregator)
-		require.Equal(t, s.Config[i].FeeQuoter, decoded.Config[i].FeeQuoter)
-		require.Equal(t, s.Config[i].AllowListAdmin, decoded.Config[i].AllowListAdmin)
-	}
+	require.Equal(t, s.Config, decoded.Config)
 	require.NotNil(t, decoded.DestChainConfigs)
 	destConfigDecodedMap, err := decoded.DestChainConfigs.LoadAll()
 	require.NoError(t, err)

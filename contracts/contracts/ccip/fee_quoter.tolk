@@ -401,10 +401,14 @@ get fun tokenTransferFeeConfig() {}
 
 // TODO: processMessageArgs(), processPoolReturnData()?
 
-get fun destChainConfig() {}
+get fun destChainConfig(destChainSelector: uint64): DestChainConfig {
+    val st = lazy Storage.load();
+    return st.destChainConfigs.mustGet(destChainSelector, ERROR_DEST_CHAIN_NOT_ENABLED);
+}
 
-get fun staticConfig() {
-    // maxFeeJuelsPerMsg, linkToken, tokenPriceStalenessThreshold
+get fun staticConfig(): (uint96, address, uint64) {
+    val st = lazy Storage.load();
+    return (st.maxFeeJuelsPerMsg, st.linkToken, st.tokenPriceStalenessThreshold);
 }
 
 get fun typeAndVersion(): (slice, slice) {

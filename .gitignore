@@ -42,3 +42,5 @@ golangci-lint-*-report.xml
 
 # Golangci-lint config(We use a upstream config from core, see getting-started.md)
 .golangci.yml
+
+_vendor/

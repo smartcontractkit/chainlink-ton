@@ -40,7 +40,7 @@ type RampMessageHeader struct {
 
 // Any2TVMTokenTransfer represents a token transfer within a ramp message.
 type Any2TVMTokenTransfer struct {
-	SourcePoolAddress common.CrossChainAddress `tlb:"."`
+	SourcePoolAddress common.CrossChainAddress `tlb:"^"`
 	DestPoolAddress   *address.Address         `tlb:"addr"`
 	DestGasAmount     uint32                   `tlb:"## 32"`
 	ExtraData         *cell.Cell               `tlb:"^"`

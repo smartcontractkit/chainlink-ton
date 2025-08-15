@@ -10,8 +10,12 @@ import (
 	commontypes "github.com/smartcontractkit/chainlink-common/pkg/types"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/libocr/offchainreporting2plus/ocr3types"
+	"github.com/xssnick/tonutils-go/ton"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/chainaccessor"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/ocr"
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
 	"github.com/smartcontractkit/chainlink-ton/pkg/txm"
 )
 
@@ -20,26 +24,40 @@ var _ commontypes.CCIPProvider = &Provider{}
 const CCIPProviderName = "TONCCIPProvider"
 
 type Provider struct {
-	lggr logger.Logger
-	ca   ccipocr3.ChainAccessor
-	ct   ocr3types.ContractTransmitter[[]byte]
+	lggr  logger.Logger
+	ca    ccipocr3.ChainAccessor
+	ct    ocr3types.ContractTransmitter[[]byte]
+	codec ccipocr3.Codec
 
 	wg sync.WaitGroup
 	services.StateMachine
 }
 
-func NewCCIPProvider(lggr logger.Logger, txm txm.TxManager) (*Provider, error) {
+func NewCCIPProvider(lggr logger.Logger, chainSelector ccipocr3.ChainSelector, client ton.APIClientWrapped, txm txm.TxManager, logPoller logpoller.LogPoller) (*Provider, error) {
 	ct, err := ocr.NewCCIPTransmitter(txm, lggr)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create a CCIP ContractTransmitter %w", err)
+		return nil, fmt.Errorf("failed to create a CCIP ContractTransmitter: %w", err)
 	}
 
-	cp := &Provider{
-		lggr: logger.Named(lggr, CCIPProviderName),
-		ct:   ct,
+	c := ccipocr3.Codec{
+		ChainSpecificAddressCodec: codec.NewAddressCodec(),
+		CommitPluginCodec:         codec.NewCommitPluginCodecV1(),
+		ExecutePluginCodec:        codec.NewExecutePluginCodecV1(nil), // TODO extraDataCodec map can't be empty
+		TokenDataEncoder:          codec.NewTokenDataEncoder(),
+		SourceChainExtraDataCodec: codec.NewExtraDataDecoder(),
 	}
 
-	return cp, nil
+	ca, err := chainaccessor.NewTONAccessor(lggr, chainSelector, client, logPoller, c.ChainSpecificAddressCodec)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create TON Accessor: %w", err)
+	}
+
+	return &Provider{
+		lggr:  logger.Named(lggr, CCIPProviderName),
+		ct:    ct,
+		ca:    ca,
+		codec: c,
+	}, nil
 }
 
 func (cp *Provider) Name() string {
@@ -77,6 +95,5 @@ func (cp *Provider) ContractTransmitter() ocr3types.ContractTransmitter[[]byte] 
 }
 
 func (cp *Provider) Codec() ccipocr3.Codec {
-	// TODO(NONEVM-1460): implement
-	return ccipocr3.Codec{}
+	return cp.codec
 }

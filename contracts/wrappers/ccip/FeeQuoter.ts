@@ -82,7 +82,7 @@ export function destChainConfigToBuilder(config: DestChainConfig): TonBuilder {
     .storeUint(config.destGasPerPayloadByteThreshold, 16)
     .storeUint(config.destDataAvailabilityOverheadGas, 32)
     .storeUint(config.destGasPerDataAvailabilityByte, 16)
-    .storeUint(config.destDataAvailabilityMultiplierBps, 32)
+    .storeUint(config.destDataAvailabilityMultiplierBps, 16)
     .storeUint(config.chainFamilySelector, 32)
     .storeBit(config.enforceOutOfOrder)
     .storeUint(config.defaultTokenFeeUsdCents, 16)
