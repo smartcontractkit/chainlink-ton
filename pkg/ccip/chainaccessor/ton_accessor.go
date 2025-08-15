@@ -65,9 +65,9 @@ func (a *TONAccessor) GetContractAddress(contractName string) ([]byte, error) {
 	return nil, errors.New("not implemented")
 }
 
-func (a *TONAccessor) GetAllConfigLegacySnapshot(ctx context.Context) (ccipocr3.ChainConfigSnapshot, error) {
+func (a *TONAccessor) GetAllConfigsLegacy(ctx context.Context, chainSelector ccipocr3.ChainSelector, srcChains []ccipocr3.ChainSelector) (ccipocr3.ChainConfigSnapshot, map[ccipocr3.ChainSelector]ccipocr3.SourceChainConfig, error) {
 	// TODO(NONEVM-2364) implement me
-	return ccipocr3.ChainConfigSnapshot{}, errors.New("not implemented")
+	return ccipocr3.ChainConfigSnapshot{}, nil, errors.New("not implemented")
 }
 
 func (a *TONAccessor) GetChainFeeComponents(ctx context.Context) (ccipocr3.ChainFeeComponents, error) {
@@ -159,8 +159,8 @@ func (a *TONAccessor) MsgsBetweenSeqNums(ctx context.Context, dest ccipocr3.Chai
 			SequenceNumber:    cciptypes.SeqNum(event.SequenceNumber),
 			Message:           msg,
 		}
-		if err := chainaccessor.ValidateSendRequestedEvent(msg, a.chainSelector, dest, seqNumRange); err != nil {
-			lggr.Errorw("validate send requested event", "err", err, "message", msg)
+		if err := chainaccessor.ValidateSendRequestedEvent(genericEvent, a.chainSelector, dest, seqNumRange); err != nil {
+			a.lggr.Errorw("validate send requested event", "err", err, "message", msg)
 			continue
 		}
 
