@@ -2,7 +2,7 @@ import { Address, Message, toNano } from '@ton/core'
 import { mnemonicNew, mnemonicToPrivateKey } from '@ton/crypto'
 import { WalletContractV4 } from '@ton/ton'
 import crypto from 'crypto'
-import { uint8ArrayToBigInt } from '../../../utils'
+import { uint8ArrayToBigInt } from '../../../src/utils'
 import { OCR3_PLUGIN_TYPE_COMMIT, OCR3Config } from '../../../wrappers/libraries/ocr/MultiOCR3Base'
 import { BlockchainTransaction } from '@ton/sandbox'
 async function generateRandomTonAddress() {
@@ -13,7 +13,7 @@ async function generateRandomTonAddress() {
   return address
 }
 
-function generateMockTonAddress(): Address {
+export function generateMockTonAddress(): Address {
   const workchain = 0 // Commonly used workchain ID
   const hashPart = crypto.randomBytes(32).toString('hex') // 32-byte hash in hex
   const rawAddress = `${workchain}:${hashPart}`

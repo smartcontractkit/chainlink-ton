@@ -10,7 +10,7 @@ import {
   hashReport,
 } from '../../../wrappers/libraries/ocr/MultiOCR3Base'
 import * as ExitCodes from '../../../wrappers/libraries/ocr/ExitCodes'
-import { OCR3BaseLogTypes } from '../../../wrappers/libraries/ocr/Logs'
+import { LogTypes as LogTypes } from '../../../wrappers/libraries/ocr/Logs'
 import { OCR3BaseExample } from '../../../wrappers/examples/ocr/OCR3Base'
 import {
   generateRandomAddresses,
@@ -19,9 +19,9 @@ import {
   generateEd25519KeyPair,
   expectEqualsConfig,
 } from './Helpers'
-import { uint8ArrayToBigInt } from '../../../utils'
+import { uint8ArrayToBigInt } from '../../../src/utils'
 import { KeyPair } from '@ton/crypto'
-import { assertLog } from './Logs'
+import { assertLog } from '../../Logs'
 
 describe('OCR3Base Tests', () => {
   let blockchain: Blockchain
@@ -135,7 +135,7 @@ describe('OCR3Base Tests', () => {
 
     expectEqualsConfig(config, expectedConfig)
 
-    assertLog(result.transactions, ocr3Base.address, OCR3BaseLogTypes.OCR3BaseConfigSet, {
+    assertLog(result.transactions, ocr3Base.address, LogTypes.OCR3BaseConfigSet, {
       ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
       configDigest,
       signers: signersPublicKeys,
@@ -378,7 +378,7 @@ describe('OCR3Base Tests', () => {
       success: true,
     })
 
-    assertLog(result.transactions, ocr3Base.address, OCR3BaseLogTypes.OCR3BaseTransmitted, {
+    assertLog(result.transactions, ocr3Base.address, LogTypes.OCR3BaseTransmitted, {
       ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
       configDigest,
       sequenceNumber: sequenceBytes,
@@ -571,15 +571,10 @@ describe('OCR3Base Tests', () => {
       success: true,
     })
 
-    assertLog(
-      resultWithNewSigners.transactions,
-      ocr3Base.address,
-      OCR3BaseLogTypes.OCR3BaseTransmitted,
-      {
-        ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
-        configDigest,
-        sequenceNumber: sequenceBytes,
-      },
-    )
+    assertLog(resultWithNewSigners.transactions, ocr3Base.address, LogTypes.OCR3BaseTransmitted, {
+      ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
+      configDigest,
+      sequenceNumber: sequenceBytes,
+    })
   })
 })

@@ -135,10 +135,15 @@ func (e *ExecutePluginCodecV1) Encode(ctx context.Context, report ccipocr3.Execu
 				}
 			}
 
-			gasLimit, err := tlb.FromNano(gasLimitBigInt, 0)
-			if err != nil {
-				return nil, fmt.Errorf("convert gas limit to TON cell: %w", err)
+			// gas limit can be nil, which means no limit
+			var gasLimit tlb.Coins
+			if gasLimitBigInt != nil {
+				gasLimit, err = tlb.FromNano(gasLimitBigInt, 0)
+				if err != nil {
+					return nil, fmt.Errorf("convert gas limit to TON cell: %w", err)
+				}
 			}
+
 			rampMsg := ocr.Any2TVMRampMessage{
 				Header:       header,
 				Sender:       common.CrossChainAddress(msg.Sender),
