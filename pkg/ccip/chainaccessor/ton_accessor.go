@@ -149,7 +149,7 @@ func (a *TONAccessor) MsgsBetweenSeqNums(ctx context.Context, dest ccipocr3.Chai
 	for _, log := range res.Logs {
 		// convert event to generic CCIP event
 		event, err := ToGenericSendRequestedEvent(
-			&log.ParsedData, // this is already parsed during query
+			&log.TypedData, // this is already parsed during query
 			a.chainSelector,
 		)
 		if err != nil {
@@ -162,7 +162,7 @@ func (a *TONAccessor) MsgsBetweenSeqNums(ctx context.Context, dest ccipocr3.Chai
 			a.lggr.Errorw("validate send requested event", "err", err, "message", event)
 			continue
 		}
-		event.Message.Header.OnRamp = ccipocr3.UnknownAddress(log.ParsedData.Message.Receiver)
+		event.Message.Header.OnRamp = ccipocr3.UnknownAddress(log.TypedData.Message.Receiver)
 		event.Message.Header.TxHash = string(log.TxHash[:]) // TODO: add LT?
 		msgs = append(msgs, event.Message)
 	}
@@ -224,7 +224,7 @@ func (a *TONAccessor) LatestMessageTo(ctx context.Context, dest ccipocr3.ChainSe
 
 	// convert event to generic CCIP event
 	event, err := ToGenericSendRequestedEvent(
-		&res.Logs[0].ParsedData,
+		&res.Logs[0].TypedData,
 		a.chainSelector,
 	)
 	if err != nil {
