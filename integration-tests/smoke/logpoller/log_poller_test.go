@@ -592,17 +592,17 @@ func Test_LogPoller(t *testing.T) {
 					Execute(t.Context())
 				require.NoError(t, queryErr)
 
-				require.Len(t, result.Events, targetCounter, "expected exactly %d logs for the emitter B", targetCounter)
+				require.Len(t, result.Logs, targetCounter, "expected exactly %d logs for the emitter B", targetCounter)
 
 				seen := make(map[uint32]bool, targetCounter)
-				for _, ev := range result.Events {
-					require.GreaterOrEqual(t, ev.Value, uint32(1))
-					require.LessOrEqual(t, ev.Value, uint32(targetCounter))
+				for _, log := range result.Logs {
+					require.GreaterOrEqual(t, log.TypedData.Value, uint32(1))
+					require.LessOrEqual(t, log.TypedData.Value, uint32(targetCounter))
 
-					if seen[ev.Value] {
-						t.Fatalf("duplicate counter %d found", ev.Value)
+					if seen[log.TypedData.Value] {
+						t.Fatalf("duplicate counter %d found", log.TypedData.Value)
 					}
-					seen[ev.Value] = true
+					seen[log.TypedData.Value] = true
 				}
 
 				for i := 1; i <= int(targetCounter); i++ {
@@ -628,13 +628,13 @@ func Test_LogPoller(t *testing.T) {
 				require.NoError(t, queryErr)
 
 				expectedOddCount := 5 // From 1-10, odd numbers are: 1, 3, 5, 7, 9
-				require.Len(t, result.Events, expectedOddCount, "expected exactly %d odd-valued logs", expectedOddCount)
+				require.Len(t, result.Logs, expectedOddCount, "expected exactly %d odd-valued logs", expectedOddCount)
 
-				// Verify all returned events have odd values
-				for _, ev := range result.Events {
-					require.Equal(t, uint32(1), ev.Value%2, "all returned events should have odd values, got %d", ev.Value)
-					require.GreaterOrEqual(t, ev.Value, uint32(1))
-					require.LessOrEqual(t, ev.Value, uint32(targetCounter))
+				// Verify all returned logs have odd values
+				for _, log := range result.Logs {
+					require.Equal(t, uint32(1), log.TypedData.Value%2, "all returned logs should have odd values, got %d", log.TypedData.Value)
+					require.GreaterOrEqual(t, log.TypedData.Value, uint32(1))
+					require.LessOrEqual(t, log.TypedData.Value, uint32(targetCounter))
 				}
 			})
 
@@ -653,16 +653,16 @@ func Test_LogPoller(t *testing.T) {
 					Execute(t.Context())
 				require.NoError(t, queryErr)
 
-				require.Len(t, result.Events, to-from+1, "expected exactly 10 logs for the range 1-10")
+				require.Len(t, result.Logs, to-from+1, "expected exactly 10 logs for the range 1-10")
 				seen := make(map[uint32]bool, to-from+1)
-				for _, ev := range result.Events {
-					require.GreaterOrEqual(t, ev.Value, uint32(from)) //nolint:gosec // test code
-					require.LessOrEqual(t, ev.Value, uint32(to))      //nolint:gosec // test code
+				for _, log := range result.Logs {
+					require.GreaterOrEqual(t, log.TypedData.Value, uint32(from)) //nolint:gosec // test code
+					require.LessOrEqual(t, log.TypedData.Value, uint32(to))      //nolint:gosec // test code
 
-					if seen[ev.Value] {
-						t.Fatalf("duplicate counter %d found", ev.Value)
+					if seen[log.TypedData.Value] {
+						t.Fatalf("duplicate counter %d found", log.TypedData.Value)
 					}
-					seen[ev.Value] = true
+					seen[log.TypedData.Value] = true
 				}
 
 				for i := 1; i <= to; i++ {
@@ -758,7 +758,7 @@ func Test_LogPoller(t *testing.T) {
 				t.Parallel()
 
 				const pageSize = 6
-				var allLogs []types.Log
+				var allLogs []types.TypedLog[counter.CountIncreased]
 				var pageCount int
 
 				for offset := 0; ; offset += pageSize {
@@ -852,7 +852,7 @@ func Test_LogPoller(t *testing.T) {
 
 				// Test pagination with emitterB events
 				const pageSize = 4
-				var emitterBPages [][]types.Log
+				var emitterBPages [][]types.TypedLog[counter.CountIncreased]
 
 				for offset := 0; offset < targetCounter; offset += pageSize {
 					result, queryErr := logpoller.NewQuery[counter.CountIncreased](lp.GetStore()).
@@ -870,7 +870,7 @@ func Test_LogPoller(t *testing.T) {
 				}
 
 				// Flatten all pages
-				var allEmitterBLogs []types.Log
+				var allEmitterBLogs []types.TypedLog[counter.CountIncreased]
 				for _, page := range emitterBPages {
 					allEmitterBLogs = append(allEmitterBLogs, page...)
 				}

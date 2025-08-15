@@ -110,8 +110,7 @@ func (b *queryBuilder[T]) Execute(_ context.Context) (query.Result[T], error) {
 		preFilteredLogs = logs
 	}
 
-	var filteredEvents []T
-	var filteredLogs []types.Log
+	var filteredParsedLogs []types.TypedLog[T]
 	for _, log := range preFilteredLogs {
 		var event T
 		parseErr := tlb.LoadFromCell(&event, log.Data.BeginParse(), true) // skip magic all the time
@@ -121,38 +120,37 @@ func (b *queryBuilder[T]) Execute(_ context.Context) (query.Result[T], error) {
 
 		// Apply typed filter if specified
 		if b.typedFilter == nil || b.typedFilter(event) {
-			filteredEvents = append(filteredEvents, event)
-			filteredLogs = append(filteredLogs, log)
+			filteredParsedLogs = append(filteredParsedLogs, types.TypedLog[T]{
+				Log:       log,
+				TypedData: event,
+			})
 		}
 	}
 
 	// Apply sorting if specified
 	if len(b.options.SortBy) > 0 {
-		b.applySorting(filteredLogs, filteredEvents)
+		b.applySorting(filteredParsedLogs)
 	}
 
 	// Apply pagination
-	start, end := b.calculatePagination(len(filteredEvents))
+	start, end := b.calculatePagination(len(filteredParsedLogs))
 
-	if start >= len(filteredEvents) {
+	if start >= len(filteredParsedLogs) {
 		return query.Result[T]{
-			Logs:    []types.Log{},
-			Events:  []T{},
+			Logs:    []types.TypedLog[T]{},
 			HasMore: false,
-			Total:   len(filteredEvents),
+			Total:   len(filteredParsedLogs),
 			Offset:  b.options.Offset,
 			Limit:   b.options.Limit,
 		}, nil
 	}
 
-	pagedEvents := filteredEvents[start:end]
-	pagedLogs := filteredLogs[start:end]
+	pagedParsedLogs := filteredParsedLogs[start:end]
 
 	return query.Result[T]{
-		Logs:    pagedLogs,
-		Events:  pagedEvents,
-		HasMore: end < len(filteredEvents),
-		Total:   len(filteredEvents),
+		Logs:    pagedParsedLogs,
+		HasMore: end < len(filteredParsedLogs),
+		Total:   len(filteredParsedLogs),
 		Offset:  b.options.Offset,
 		Limit:   b.options.Limit,
 	}, nil
@@ -213,32 +211,20 @@ func (b *queryBuilder[T]) passesCellFilter(payload []byte, filter query.CellFilt
 	}
 }
 
-// applySorting sorts logs and events according to the specified criteria
-func (b *queryBuilder[T]) applySorting(logs []types.Log, events []T) {
+// applySorting sorts parsed logs according to the specified criteria
+func (b *queryBuilder[T]) applySorting(parsedLogs []types.TypedLog[T]) {
 	if len(b.options.SortBy) == 0 {
 		return
 	}
 
-	// Create index pairs to maintain log-event correspondence during sorting
-	type indexPair struct {
-		log   types.Log
-		event T
-		index int
-	}
-
-	pairs := make([]indexPair, len(logs))
-	for i := range logs {
-		pairs[i] = indexPair{log: logs[i], event: events[i], index: i}
-	}
-
-	sort.Slice(pairs, func(i, j int) bool {
+	sort.Slice(parsedLogs, func(i, j int) bool {
 		for _, sortCriteria := range b.options.SortBy {
 			var cmp int
 
 			if sortCriteria.Field == query.SortByTxLT {
-				if pairs[i].log.TxLT < pairs[j].log.TxLT {
+				if parsedLogs[i].TxLT < parsedLogs[j].TxLT {
 					cmp = -1
-				} else if pairs[i].log.TxLT > pairs[j].log.TxLT {
+				} else if parsedLogs[i].TxLT > parsedLogs[j].TxLT {
 					cmp = 1
 				}
 			}
@@ -252,12 +238,6 @@ func (b *queryBuilder[T]) applySorting(logs []types.Log, events []T) {
 		}
 		return false
 	})
-
-	// Update the original slices with sorted data
-	for i, pair := range pairs {
-		logs[i] = pair.log
-		events[i] = pair.event
-	}
 }
 
 // calculatePagination calculates start and end indices for pagination

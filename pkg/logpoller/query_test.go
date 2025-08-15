@@ -155,9 +155,8 @@ func TestQueryBuilder_Execute_BasicQuery(t *testing.T) {
 
 	result, err := builder.Execute(context.Background())
 	require.NoError(t, err)
-	require.Len(t, result.Events, 1)
 	require.Len(t, result.Logs, 1)
-	require.Equal(t, uint64(42), result.Events[0].Value)
+	require.Equal(t, uint64(42), result.Logs[0].TypedData.Value)
 	require.Equal(t, 1, result.Total)
 	require.False(t, result.HasMore)
 }
@@ -182,9 +181,9 @@ func TestQueryBuilder_Execute_WithTypedFilter(t *testing.T) {
 
 	result, err := builder.Execute(context.Background())
 	require.NoError(t, err)
-	require.Len(t, result.Events, 2)
-	require.Equal(t, uint64(15), result.Events[0].Value)
-	require.Equal(t, uint64(25), result.Events[1].Value)
+	require.Len(t, result.Logs, 2)
+	require.Equal(t, uint64(15), result.Logs[0].TypedData.Value)
+	require.Equal(t, uint64(25), result.Logs[1].TypedData.Value)
 	require.Equal(t, 2, result.Total)
 }
 
@@ -212,7 +211,7 @@ func TestQueryBuilder_Execute_WithCellFilter(t *testing.T) {
 
 	result, err := builder.Execute(context.Background())
 	require.NoError(t, err)
-	require.Len(t, result.Events, 2) // Should match 15 and 255
+	require.Len(t, result.Logs, 2) // Should match 15 and 255
 	require.Equal(t, 2, result.Total)
 }
 
@@ -234,7 +233,7 @@ func TestQueryBuilder_Execute_WithPagination(t *testing.T) {
 
 	result, err := builder.Execute(context.Background())
 	require.NoError(t, err)
-	require.Len(t, result.Events, 3)
+	require.Len(t, result.Logs, 3)
 	require.Equal(t, 10, result.Total)
 	require.True(t, result.HasMore)
 	require.Equal(t, 3, result.Limit)
@@ -248,7 +247,7 @@ func TestQueryBuilder_Execute_WithPagination(t *testing.T) {
 
 	result, err = builder.Execute(context.Background())
 	require.NoError(t, err)
-	require.Len(t, result.Events, 3)
+	require.Len(t, result.Logs, 3)
 	require.Equal(t, 10, result.Total)
 	require.True(t, result.HasMore)
 	require.Equal(t, 5, result.Offset)
@@ -268,7 +267,6 @@ func TestQueryBuilder_Execute_NoMatches(t *testing.T) {
 
 	result, err := builder.Execute(context.Background())
 	require.NoError(t, err)
-	require.Empty(t, result.Events)
 	require.Empty(t, result.Logs)
 	require.Equal(t, 0, result.Total)
 	require.False(t, result.HasMore)
@@ -292,8 +290,8 @@ func TestQueryBuilder_Execute_DifferentAddresses(t *testing.T) {
 
 	result, err := builder.Execute(context.Background())
 	require.NoError(t, err)
-	require.Len(t, result.Events, 1)
-	require.Equal(t, uint64(42), result.Events[0].Value)
+	require.Len(t, result.Logs, 1)
+	require.Equal(t, uint64(42), result.Logs[0].TypedData.Value)
 }
 
 func TestQueryBuilder_Execute_CombinedFilters(t *testing.T) {
@@ -324,7 +322,7 @@ func TestQueryBuilder_Execute_CombinedFilters(t *testing.T) {
 
 	result, err := builder.Execute(context.Background())
 	require.NoError(t, err)
-	require.Len(t, result.Events, 2) // Only 15 and 25 should pass
+	require.Len(t, result.Logs, 2) // Only 15 and 25 should pass
 	require.Equal(t, 2, result.Total)
 }
 
@@ -451,7 +449,7 @@ func TestQueryBuilder_ExecuteWithLargeDataset(t *testing.T) {
 
 	result, err := builder.Execute(context.Background())
 	require.NoError(t, err)
-	require.Len(t, result.Events, 100)
+	require.Len(t, result.Logs, 100)
 	require.Equal(t, 100, result.Total)
 	require.False(t, result.HasMore)
 }
@@ -477,13 +475,13 @@ func TestQueryBuilder_ExecuteWithComplexFiltering(t *testing.T) {
 
 	result, err := builder.Execute(context.Background())
 	require.NoError(t, err)
-	require.Len(t, result.Events, 3) // 25, 30, 35
+	require.Len(t, result.Logs, 3) // 25, 30, 35
 	require.Equal(t, 3, result.Total)
 
 	// Verify the values
 	expectedValues := []uint64{25, 30, 35}
-	for i, event := range result.Events {
-		require.Equal(t, expectedValues[i], event.Value)
+	for i, log := range result.Logs {
+		require.Equal(t, expectedValues[i], log.TypedData.Value)
 	}
 }
 
@@ -509,7 +507,7 @@ func TestQueryBuilder_ExecuteWithPaginationAndFiltering(t *testing.T) {
 
 	result, err := builder.Execute(context.Background())
 	require.NoError(t, err)
-	require.Len(t, result.Events, 3)
+	require.Len(t, result.Logs, 3)
 	require.Equal(t, 7, result.Total) // Values: 6,8,10,12,14,16,18
 	require.True(t, result.HasMore)
 	require.Equal(t, 3, result.Limit)
@@ -548,7 +546,7 @@ func TestQueryBuilder_ExecuteMultipleCellFilters(t *testing.T) {
 	result, err := builder.Execute(context.Background())
 	require.NoError(t, err)
 	// Should match 200, 300, 400 (between 150 and 450)
-	require.Len(t, result.Events, 3)
+	require.Len(t, result.Logs, 3)
 	require.Equal(t, 3, result.Total)
 }
 
@@ -563,7 +561,6 @@ func TestQueryBuilder_ExecuteEmptyStore(t *testing.T) {
 
 	result, err := builder.Execute(context.Background())
 	require.NoError(t, err)
-	require.Empty(t, result.Events)
 	require.Empty(t, result.Logs)
 	require.Equal(t, 0, result.Total)
 	require.False(t, result.HasMore)
@@ -588,11 +585,11 @@ func TestQueryBuilder_ExecuteWithMixedSigs(t *testing.T) {
 
 	result, err := builder.Execute(context.Background())
 	require.NoError(t, err)
-	require.Len(t, result.Events, 5)
+	require.Len(t, result.Logs, 5)
 	require.Equal(t, 5, result.Total)
 
-	// Verify all events have values from the correct sig (10-14)
-	for i, event := range result.Events {
-		require.Equal(t, uint64(i+10), event.Value) //nolint:gosec // test code
+	// Verify all logs have values from the correct sig (10-14)
+	for i, log := range result.Logs {
+		require.Equal(t, uint64(i+10), log.TypedData.Value) //nolint:gosec // test code
 	}
 }
