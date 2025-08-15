@@ -15,9 +15,9 @@ import (
 
 	ops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
+	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 
 	"github.com/smartcontractkit/chainlink/deployment/ccip/changeset/v1_6"
-	"github.com/smartcontractkit/chainlink/deployment/ccip/shared/stateview"
 	"github.com/smartcontractkit/chainlink/deployment/environment/memory"
 	"github.com/smartcontractkit/chainlink/v2/core/logger"
 
@@ -128,16 +128,16 @@ func TestDeploy(t *testing.T) {
 	})
 	require.NoError(t, err, "failed to add lane")
 
-	state, err := stateview.LoadOnchainState(env)
+	state, err := tonstate.LoadOnchainState(env)
 	require.NoError(t, err)
 
-	addrCodec := codec.AddressCodec{}
+	addrCodec := codec.NewAddressCodec()
 
 	accessor, err := chainaccessor.NewTONAccessor(lggr, ccipocr3.ChainSelector(chainSelector), tonChain.Client, nil, addrCodec)
 	require.NoError(t, err)
 
 	ctx := t.Context()
-	feeQuoterAddr := state.TonChains[chainSelector].FeeQuoter
+	feeQuoterAddr := state[chainSelector].FeeQuoter
 	rawFeeQuoterAddr, err := addrCodec.AddressStringToBytes(feeQuoterAddr.String())
 	require.NoError(t, err)
 	rawLinkQuoterAddr, err := addrCodec.AddressStringToBytes(tonTokenAddr.String())
