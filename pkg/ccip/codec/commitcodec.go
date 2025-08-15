@@ -21,6 +21,8 @@ import (
 // - "OffRamp 1.6.0-dev"
 type commitPluginCodecV1 struct{}
 
+var _ cciptypes.CommitPluginCodec = &commitPluginCodecV1{}
+
 func NewCommitPluginCodecV1() cciptypes.CommitPluginCodec {
 	return &commitPluginCodecV1{}
 }

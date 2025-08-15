@@ -27,6 +27,8 @@ type executePluginCodecV1 struct {
 	extraDataCodec ccipocr3.ExtraDataCodec
 }
 
+var _ ccipocr3.ExecutePluginCodec = &executePluginCodecV1{}
+
 func NewExecutePluginCodecV1(extraDataCodec ccipocr3.ExtraDataCodec) ccipocr3.ExecutePluginCodec {
 	return &executePluginCodecV1{
 		addressCodec:   NewAddressCodec(),

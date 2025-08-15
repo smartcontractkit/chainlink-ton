@@ -28,6 +28,8 @@ var (
 
 type extraDataDecoder struct{}
 
+var _ ccipocr3.SourceChainExtraDataCodec = &extraDataDecoder{}
+
 // NewExtraDataDecoder creates a new ExtraDataDecoder
 func NewExtraDataDecoder() ccipocr3.SourceChainExtraDataCodec {
 	return &extraDataDecoder{}

@@ -11,6 +11,8 @@ import (
 
 type addressCodec struct{}
 
+var _ ccipocr3.ChainSpecificAddressCodec = &addressCodec{}
+
 // For the sake of comparison and storage, home chain and other registries should use the raw format of the address
 // `4 byte workchain (int32) + 32 byte data`
 //
