@@ -1,7 +1,7 @@
 {
   "name": "@chainlink/contracts-ton",
   "private": true,
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Chainlink TON smart contracts",
   "author": "Chainlink Labs",
   "license": "BUSL-1.1",
