@@ -15,7 +15,7 @@ require (
 	github.com/smartcontractkit/chainlink-aptos v0.0.0-20250813133852-d9ea5366a215
 	github.com/smartcontractkit/chainlink-ccip v0.1.1-solana.0.20250814153237-9a6c5a35e950
 	github.com/smartcontractkit/chainlink-deployments-framework v0.23.0
-	github.com/smartcontractkit/chainlink-ton v0.0.0
+	github.com/smartcontractkit/chainlink-ton v0.0.0-20250815183520-4cec2d6f80b9
 	github.com/smartcontractkit/chainlink/deployment v0.0.0-20250815005857-7e8d0fe020a8
 	github.com/smartcontractkit/chainlink/v2 v2.23.2-por-beta.1.0.20250815005857-7e8d0fe020a8
 	github.com/smartcontractkit/mcms v0.21.1
