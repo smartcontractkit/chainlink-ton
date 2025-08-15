@@ -86,7 +86,6 @@ func (a *TONAccessor) Sync(ctx context.Context, contractName string, contractAdd
 
 // TON as source chain methods
 func (a *TONAccessor) MsgsBetweenSeqNums(ctx context.Context, dest ccipocr3.ChainSelector, seqNumRange ccipocr3.SeqNumRange) ([]ccipocr3.Message, error) {
-
 	// TODO: get contract address
 	onrampAddr, ok := a.bindings[consts.ContractNameOnRamp]
 	if !ok {
