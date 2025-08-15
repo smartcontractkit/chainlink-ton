@@ -58,7 +58,7 @@ func NewTONAccessor(
 // Common Accessor methods
 func (a *TONAccessor) GetContractAddress(contractName string) ([]byte, error) {
 	a.bindingsMu.RLock()
-	defer a.bindingsMu.Unlock()
+	defer a.bindingsMu.RUnlock()
 	addr, exists := a.bindings[contractName]
 	if !exists {
 		return nil, ErrNoBindings
@@ -192,7 +192,7 @@ func (a *TONAccessor) LatestMessageTo(ctx context.Context, dest ccipocr3.ChainSe
 
 func (a *TONAccessor) getBinding(contractName string) (*address.Address, error) {
 	a.bindingsMu.RLock()
-	defer a.bindingsMu.Unlock()
+	defer a.bindingsMu.RUnlock()
 	addr, exists := a.bindings[contractName]
 	if !exists {
 		return nil, ErrNoBindings
