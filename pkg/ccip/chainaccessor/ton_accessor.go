@@ -86,7 +86,7 @@ func (a *TONAccessor) Sync(ctx context.Context, contractName string, contractAdd
 
 // TON as source chain methods
 func (a *TONAccessor) MsgsBetweenSeqNums(ctx context.Context, dest ccipocr3.ChainSelector, seqNumRange ccipocr3.SeqNumRange) ([]ccipocr3.Message, error) {
-	// TODO: get contract address
+	// TODO: get contract address properly
 	onrampAddr, ok := a.bindings[consts.ContractNameOnRamp]
 	if !ok {
 		return nil, errors.New("OnRamp not bound")
@@ -121,61 +121,114 @@ func (a *TONAccessor) MsgsBetweenSeqNums(ctx context.Context, dest ccipocr3.Chai
 		WithLimit(int(seqNumRange.End() - seqNumRange.Start() + 1)). //nolint:gosec // conversion is safe in this context
 		Execute(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch logs: %w", err)
+		return nil, fmt.Errorf("failed to query onRamp logs: %w", err)
 	}
 	a.lggr.Infow("queried messages between sequence numbers",
-		"numMsgs", len(res.Events),
+		"numMsgs", len(res.Logs),
 		"sourceChainSelector", a.chainSelector,
 		"seqNumRange", seqNumRange.String(),
 	)
 
 	msgs := make([]cciptypes.Message, 0)
-	for i, event := range res.Events {
-
-		// Get the corresponding log entry
-		log := res.Logs[i]
-
-		// convert event to generic CCIP message
+	for _, log := range res.Logs {
 		rawOnrampAddr := codec.ToRawAddr(onrampAddr)
-		msg, err := ToGenericCCIPMessage(
-			&event.Message,
+		// convert event to generic CCIP event
+		event, err := ToGenericSendRequestedEvent(
+			&log.ParsedData, // this is already parsed during query
 			a.chainSelector,
-			cciptypes.ChainSelector(event.DestChainSelector),
-			cciptypes.SeqNum(event.SequenceNumber),
 			cciptypes.UnknownAddress(rawOnrampAddr[:]),
-			string(log.TxHash[:]), // TODO: add LT
-			a.addrCodec,
+			string(log.TxHash[:]), // TODO: add LT?
 		)
 		if err != nil {
-			a.lggr.Errorw("failed to convert event", "err", err, "event", event, "log", log)
+			a.lggr.Errorw("failed to convert event", "err", err, "log", log)
 			continue
 		}
 
 		// validate event
-		// TODO: fix msg type source
-		genericEvent := &chainaccessor.SendRequestedEvent{
-			DestChainSelector: cciptypes.ChainSelector(event.DestChainSelector),
-			SequenceNumber:    cciptypes.SeqNum(event.SequenceNumber),
-			Message:           msg,
-		}
-		if err := chainaccessor.ValidateSendRequestedEvent(genericEvent, a.chainSelector, dest, seqNumRange); err != nil {
-			a.lggr.Errorw("validate send requested event", "err", err, "message", msg)
+		if err := chainaccessor.ValidateSendRequestedEvent(event, a.chainSelector, dest, seqNumRange); err != nil {
+			a.lggr.Errorw("validate send requested event", "err", err, "message", event)
 			continue
 		}
-
-		msgs = append(msgs, msg)
+		event.Message.Header.OnRamp = ccipocr3.UnknownAddress(log.ParsedData.Message.Receiver)
+		msgs = append(msgs, event.Message)
 	}
 
-	// TODO(NONEVM-2364) implement me
-	// TODO: validate event
-	// TODO: replace header
-	// TODO: return msgs
+	msgsWithoutDataField := make([]cciptypes.Message, len(msgs))
+	for i, msg := range msgs {
+		msgsWithoutDataField[i] = msg.CopyWithoutData()
+	}
+
+	// copied from default accessor
+	a.lggr.Debugw("decoded messages between sequence numbers",
+		"msgsWithoutDataField", msgsWithoutDataField,
+		"sourceChainSelector", a.chainSelector,
+		"seqNumRange", seqNumRange.String(),
+	)
+	a.lggr.Infow("decoded message IDs between sequence numbers",
+		// TODO: slicelib internal
+		// "seqNum.MsgID", slicelib.Map(msgsWithoutDataField, func(m cciptypes.Message) string {
+		// 	return fmt.Sprintf("%d.%d", m.Header.SequenceNumber, m.Header.MessageID)
+		// }),
+		"sourceChainSelector", a.chainSelector,
+		"seqNumRange", seqNumRange.String(),
+	)
 	return msgs, nil
 }
 
 func (a *TONAccessor) LatestMessageTo(ctx context.Context, dest ccipocr3.ChainSelector) (ccipocr3.SeqNum, error) {
-	// TODO(NONEVM-2364) implement me
-	return 0, errors.New("not implemented")
+	// TODO: get contract address properly
+	onrampAddr, ok := a.bindings[consts.ContractNameOnRamp]
+	if !ok {
+		return 0, errors.New("OnRamp not bound")
+	}
+
+	destFilter := query.CellFilter{
+		Offset:   0,
+		Operator: query.EQ,
+		Value:    binary.BigEndian.AppendUint64(nil, uint64(dest)),
+	}
+	res, err := logpoller.NewQuery[onramp.CCIPMessageSent](a.logPoller.GetStore()).
+		WithSrcAddress(onrampAddr).
+		WithEventSig(hash.CRC32("CCIPMessageSent")).
+		WithCellFilter(destFilter).
+		WithSort(query.SortByTxLT, query.DESC). // find the last one
+		WithLimit(1).                           //only the last one
+		Execute(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("failed to query onRamp logs: %w", err)
+	}
+
+	a.lggr.Debugw("queried latest message from source",
+		"numMsgs", len(res.Logs),
+		"sourceChainSelector", a.chainSelector,
+	)
+	if len(res.Logs) > 1 {
+		return 0, fmt.Errorf("more than one message found for the latest message query")
+	}
+	if len(res.Logs) == 0 {
+		return 0, nil
+	}
+
+	lastLog := res.Logs[0]
+
+	rawOnrampAddr := codec.ToRawAddr(onrampAddr)
+	// convert event to generic CCIP event
+	event, err := ToGenericSendRequestedEvent(
+		&lastLog.ParsedData,
+		a.chainSelector,
+		cciptypes.UnknownAddress(rawOnrampAddr[:]),
+		string(lastLog.TxHash[:]), // TODO: add LT?
+	)
+	if err != nil {
+		return 0, fmt.Errorf("failed to convert event: %w", err)
+	}
+	// validate event
+	if err := chainaccessor.ValidateSendRequestedEvent(event, a.chainSelector, dest, cciptypes.NewSeqNumRange(event.Message.Header.SequenceNumber, event.Message.Header.SequenceNumber)); err != nil {
+		a.lggr.Errorw("validate send requested event", "err", err, "message", event)
+		return 0, fmt.Errorf("message invalid msg %v: %w", event, err)
+	}
+
+	return event.SequenceNumber, nil
 }
 
 func (a *TONAccessor) GetExpectedNextSequenceNumber(ctx context.Context, dest ccipocr3.ChainSelector) (ccipocr3.SeqNum, error) {
