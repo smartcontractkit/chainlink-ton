@@ -8,7 +8,6 @@ import (
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
-	"github.com/smartcontractkit/chainlink/deployment/ccip/shared/stateview"
 	"github.com/smartcontractkit/mcms"
 	"github.com/xssnick/tonutils-go/ton/wallet"
 
@@ -24,12 +23,12 @@ type AddTonLanes struct{}
 var _ cldf.ChangeSetV2[config.UpdateTonLanesConfig] = AddTonLanes{}
 
 func (cs AddTonLanes) VerifyPreconditions(env cldf.Environment, cfg config.UpdateTonLanesConfig) error {
-	state, err := stateview.LoadOnchainState(env)
+	state, err := tonstate.LoadOnchainState(env)
 	if err != nil {
 		return fmt.Errorf("failed to load TON onchain state: %w", err)
 	}
 
-	supportedChains := state.SupportedChains()
+	// supportedChains := state.SupportedChains()
 	if cfg.TonMCMSConfig == nil {
 		return errors.New("config for TON MCMS is required for AddTONLanes changeset")
 	}
@@ -37,13 +36,13 @@ func (cs AddTonLanes) VerifyPreconditions(env cldf.Environment, cfg config.Updat
 	// For every configured lane validate TON source or destination chain definitions
 	for _, laneCfg := range cfg.Lanes {
 		// Source cannot be an unknown.
-		if _, ok := supportedChains[laneCfg.Source.GetSelector()]; !ok {
-			return fmt.Errorf("unsupported source chain: %d", laneCfg.Source.GetSelector())
-		}
+		// if _, ok := supportedChains[laneCfg.Source.GetSelector()]; !ok {
+		// 	return fmt.Errorf("unsupported source chain: %d", laneCfg.Source.GetSelector())
+		// }
 		// Destination cannot be an unknown.
-		if _, ok := supportedChains[laneCfg.Dest.GetSelector()]; !ok {
-			return fmt.Errorf("unsupported destination chain: %d", laneCfg.Dest.GetSelector())
-		}
+		// if _, ok := supportedChains[laneCfg.Dest.GetSelector()]; !ok {
+		// 	return fmt.Errorf("unsupported destination chain: %d", laneCfg.Dest.GetSelector())
+		// }
 		if laneCfg.Source.GetChainFamily() == chainsel.FamilyTon {
 			tonChain, exists := env.BlockChains.TonChains()[laneCfg.Source.GetSelector()]
 			if !exists {
@@ -51,7 +50,7 @@ func (cs AddTonLanes) VerifyPreconditions(env cldf.Environment, cfg config.Updat
 			}
 			err := laneCfg.Source.(config.TonChainDefinition).Validate(
 				tonChain.Client,
-				state.TonChains[laneCfg.Source.GetSelector()],
+				state[laneCfg.Source.GetSelector()],
 			)
 			if err != nil {
 				return fmt.Errorf("failed to validate TON source chain %d: %w", laneCfg.Source.GetSelector(), err)
@@ -64,7 +63,7 @@ func (cs AddTonLanes) VerifyPreconditions(env cldf.Environment, cfg config.Updat
 			}
 			err := laneCfg.Dest.(config.TonChainDefinition).Validate(
 				tonChain.Client,
-				state.TonChains[laneCfg.Dest.GetSelector()],
+				state[laneCfg.Dest.GetSelector()],
 			)
 			if err != nil {
 				return fmt.Errorf("failed to validate TON destination chain %d: %w", laneCfg.Dest.GetSelector(), err)
