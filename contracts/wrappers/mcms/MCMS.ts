@@ -185,12 +185,12 @@ export enum Error {
 // --- Data structures ---
 
 // Length of serialized signer structure in bytes.
-export const LEN_SIGNER = 267 + 8 + 8
+export const LEN_SIGNER = 256 + 8 + 8
 
 // Signer information
 export type Signer = {
-  // The address of the signer.
-  address: Address
+  // The public key of the signer.
+  key: bigint // uint256;
   // The index of the signer in data.config.signers
   index: number // 0 <= index < MAX_NUM_SIGNERS
   // 0 <= group < NUM_GROUPS. Each signer can only be in one group.

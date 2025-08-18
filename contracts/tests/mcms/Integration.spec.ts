@@ -18,7 +18,6 @@ import * as ownable2step from '../../wrappers/libraries/access/Ownable2Step'
 
 import { crc32 } from 'zlib'
 import { merkleProof } from '../../src/mcms'
-import { assert } from 'console'
 
 describe('MCMS - IntegrationTest', () => {
   let blockchain: Blockchain
