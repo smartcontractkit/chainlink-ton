@@ -527,6 +527,20 @@ fun MCMS<T>.setRoot(
     // Upack config from the contract data
     var config = Config.fromCell(self.data.config);
 
+    // the group at the root of the tree (with index 0) determines whether the vote passed,
+    // we cannot proceed if it isn't configured with a valid (non-zero) quorum
+    var rootQuorum: uint8;
+    {
+        var (_rootQuorum, exists) = config.groupQuorums.uDictGet(8, 0);
+        if (!exists) {
+            throw ERROR_MISSING_CONFIG;
+        }
+        rootQuorum = _rootQuorum!.loadUint(8);
+        if (rootQuorum == 0) {
+            throw ERROR_MISSING_CONFIG;
+        }
+    }
+
     {
         var i = 0;
         var signer: Signer;
@@ -604,20 +618,6 @@ fun MCMS<T>.setRoot(
 
                     group = parent;
                 }
-            }
-        }
-
-        // the group at the root of the tree (with index 0) determines whether the vote passed,
-        // we cannot proceed if it isn't configured with a valid (non-zero) quorum
-        var rootQuorum: uint8;
-        {
-            var (_rootQuorum, exists) = config.groupQuorums.uDictGet(8, 0);
-            if (!exists) {
-                throw ERROR_MISSING_CONFIG;
-            }
-            rootQuorum = _rootQuorum!.loadUint(8);
-            if (rootQuorum == 0) {
-                throw ERROR_MISSING_CONFIG;
             }
         }
 
