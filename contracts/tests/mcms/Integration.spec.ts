@@ -18,6 +18,7 @@ import * as ownable2step from '../../wrappers/libraries/access/Ownable2Step'
 
 import { crc32 } from 'zlib'
 import { merkleProof } from '../../src/mcms'
+import { assert } from 'console'
 
 describe('MCMS - IntegrationTest', () => {
   let blockchain: Blockchain
@@ -1100,7 +1101,168 @@ describe('MCMS - IntegrationTest', () => {
       //
       // decrease quorum for vetoers & proposers
       //
-      // TODO: https://github.com/smartcontractkit/ccip-owner-contracts/blob/main/test/IntegrationTest.t.sol
+
+      calls = asSnakeData<rbactl.Call>(
+        [
+          {
+            target: bind.mcmsPropose.address,
+            value: toNano('0.2'),
+            data: mcms.builder.message.in.setConfig.encode({
+              queryId: 1n,
+              signerKeys: asSnakeData<bigint>(
+                proposerKeyPairs().map((v) => uint8ArrayToBigInt(v.publicKey)),
+                (v) => beginCell().storeUint(v, 256),
+              ),
+              signerGroups: asSnakeData<number>(Array(PROPOSE_COUNT).fill(0), (v) =>
+                beginCell().storeUint(v, 8),
+              ),
+              groupQuorums: loadMap(
+                Dictionary.Keys.Uint(8),
+                Dictionary.Values.Uint(8),
+                new Map(Array.from({ length: MCMS_NUM_GROUPS }, (_, i) => [i, 0])).set(
+                  0,
+                  PROPOSE_QUORUM - 1,
+                ),
+              ),
+              groupParents: loadMap(
+                Dictionary.Keys.Uint(8),
+                Dictionary.Values.Uint(8),
+                new Map(Array.from({ length: MCMS_NUM_GROUPS }, (_, i) => [i, 0])),
+              ),
+              clearRoot: false,
+            }),
+          },
+          {
+            target: bind.mcmsVeto.address,
+            value: toNano('0.2'),
+            data: mcms.builder.message.in.setConfig.encode({
+              queryId: 1n,
+              signerKeys: asSnakeData<bigint>(
+                vetoKeyPairs().map((v) => uint8ArrayToBigInt(v.publicKey)),
+                (v) => beginCell().storeUint(v, 256),
+              ),
+              signerGroups: asSnakeData<number>(Array(VETO_COUNT).fill(0), (v) =>
+                beginCell().storeUint(v, 8),
+              ),
+              groupQuorums: loadMap(
+                Dictionary.Keys.Uint(8),
+                Dictionary.Values.Uint(8),
+                new Map(Array.from({ length: MCMS_NUM_GROUPS }, (_, i) => [i, 0])).set(
+                  0,
+                  VETO_QUORUM - 1,
+                ),
+              ),
+              groupParents: loadMap(
+                Dictionary.Keys.Uint(8),
+                Dictionary.Values.Uint(8),
+                new Map(Array.from({ length: MCMS_NUM_GROUPS }, (_, i) => [i, 0])),
+              ),
+              clearRoot: false,
+            }),
+          },
+        ],
+        (c) => rbactl.builder.data.call.encode(c).asBuilder(),
+      )
+
+      const operationBatch: rbactl.OperationBatch = {
+        calls,
+        predecessor: proposePredecessor,
+        salt: 0n,
+      }
+      callsHash = await bind.timelock.getHashOperationBatch(operationBatch)
+
+      const signers = proposerKeyPairs().map((v) => ({
+        publicKey: v.publicKey,
+        sign: (data: Buffer<ArrayBufferLike>) => sign(data, v.secretKey),
+      }))
+      const validUntil = BigInt(blockchain.now || 0) + 2n * 60n * 60n // block.timestamp + 2 hours
+      const metadata = {
+        chainId: -239n, // TODO: blockchain global chain ID (will need to be signed int)
+        multiSig: bind.mcmsPropose.address,
+        preOpCount: 3n,
+        postOpCount: 4n,
+        overridePreviousRoot: false,
+      }
+      const ops: mcms.Op[] = [
+        {
+          chainId: -239n, // TODO: blockchain global chain ID (will need to be signed int)
+          multiSig: bind.mcmsPropose.address,
+          nonce: 3n,
+          to: bind.timelock.address,
+          value: toNano('0.05'),
+          data: rbactl.builder.message.in.scheduleBatch.encode({
+            queryId: 1n,
+            calls,
+            predecessor: proposePredecessor,
+            salt: 0n,
+            delay: MIN_DELAY,
+          }),
+        },
+      ]
+
+      const [setRoot, opProofs] = merkleProof.build(signers, validUntil, metadata, ops)
+
+      const r = await bind.mcmsPropose.sendInternal(
+        acc.deployer.getSender(),
+        toNano('0.10'),
+        mcms.builder.message.in.setRoot.encode(setRoot),
+      )
+
+      expect(r.transactions).toHaveTransaction({
+        from: acc.deployer.address,
+        to: bind.mcmsPropose.address,
+        success: true,
+      })
+
+      // TODO: move this encoding internally to lib
+      const encodeProof = (v) => beginCell().storeUint(v, 256)
+
+      const r1 = await bind.mcmsPropose.sendInternal(
+        acc.deployer.getSender(),
+        toNano('0.10'),
+        mcms.builder.message.in.execute.encode({
+          queryId: 1n,
+          op: mcms.builder.data.op.encode(ops[0]),
+          proof: asSnakeData<bigint>(opProofs[0], encodeProof),
+        }),
+      )
+
+      expect(r1.transactions).toHaveTransaction({
+        from: acc.deployer.address,
+        to: bind.mcmsPropose.address,
+        success: true,
+      })
+
+      blockchain.now = blockchain.now! + Number(MIN_DELAY)
+
+      const r2 = await bind.callProxy.sendInternal(
+        acc.deployer.getSender(),
+        toNano('0.80'), // TODO: notice the gas value required to pass is higher b/c reserveToncoinsOnBalance (check)
+        rbactl.builder.message.in.executeBatch.encode({
+          queryId: 2n,
+          predecessor: proposePredecessor,
+          salt: 0n,
+          calls,
+        }),
+      )
+
+      expect(r2.transactions).toHaveTransaction({
+        from: acc.deployer.address,
+        to: bind.callProxy.address,
+        success: true,
+      })
+
+      expect(r2.transactions).toHaveTransaction({
+        from: bind.callProxy.address,
+        to: bind.timelock.address,
+        success: true,
+      })
+
+      // TODO: fix config reading/verification
+      // expect((await bind.mcmsPropose.getConfig()).groupQuorums.get(0)).toEqual(PROPOSE_QUORUM - 1)
+      // expect((await bind.mcmsVeto.getConfig()).groupQuorums.get(0)).toEqual(VETO_QUORUM - 1)
     }
+
+    proposePredecessor = callsHash
   }, 20_000) // test can take a while
 })
