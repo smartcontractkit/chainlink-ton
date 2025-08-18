@@ -528,7 +528,7 @@ export const builder = {
     const signer: CellCodec<Signer> = {
       encode: (signer: Signer): Cell => {
         return beginCell()
-          .storeAddress(signer.address)
+          .storeUint(signer.key, 256)
           .storeUint(signer.index, 8)
           .storeUint(signer.group, 8)
           .endCell()
@@ -536,7 +536,7 @@ export const builder = {
       decode: (cell: Cell): Signer => {
         const s = cell.beginParse()
         return {
-          address: s.loadAddress(),
+          key: s.loadUintBig(256),
           index: s.loadUint(8),
           group: s.loadUint(8),
         }
