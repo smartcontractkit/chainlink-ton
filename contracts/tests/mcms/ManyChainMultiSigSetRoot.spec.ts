@@ -1,8 +1,12 @@
-import { toNano, beginCell, Cell } from '@ton/core'
+import { toNano, beginCell, Cell, Address, Dictionary } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import '@ton/test-utils'
 import { compile } from '@ton/blueprint'
-import { MCMSBaseSetRootAndExecuteTestSetup, MCMSTestCode } from './ManyChainMultiSigBaseTest'
+import {
+  MCMSBaseSetRootAndExecuteTestSetup,
+  MCMSTestCode,
+  TestSigner,
+} from './ManyChainMultiSigBaseTest'
 import { merkleProof } from '../../src/mcms'
 import * as mcms from '../../wrappers/mcms/MCMS'
 import { sign } from '@ton/crypto/dist/primitives/nacl'
@@ -758,49 +762,99 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
   })
 
   describe('SetRootVerifySignaturesTest', () => {
-    // it('should revert on insufficient signatures for group quorum', async () => {
-    //   const signersNum = 9
-    //   // expect(signersNum).toBeGreaterThanOrEqual(baseTest.SIGNERS_NUM) // TODO why can't I access it?
-    //   // Create a configuration with stricter quorum requirements
-    //   const stricterGroupQuorums = new Map(baseTest.testGroupQuorums)
-    //   stricterGroupQuorums.set(0, 3) // Increase root group quorum
-    //   stricterGroupQuorums.set(1, 3) // Increase subgroup quorums
-    //   stricterGroupQuorums.set(2, 2)
-    //   stricterGroupQuorums.set(3, 1)
-    //   // Reorganize signers into groups with insufficient signatures
-    //   const signerGroups: number[] = []
-    //   const signers = baseTest.testSigners.slice(0, signersNum).map((s) => ({
-    //     publicKey: s.keyPair.publicKey,
-    //     sign: (data: Buffer<ArrayBufferLike>) => sign(data, s.keyPair.secretKey),
-    //   })) // Use 9 signers
-    //   // Assign 3 signers to each group (1, 2, 3)
-    //   for (let i = 0; i < signersNum; i++) {
-    //     signerGroups.push(Math.floor(i / 3) + 1)
-    //   }
-    //   // we send 1 signatures from group 2, 2 from group 1, and 3 from group 3
-    //   const numSignatures =
-    //     stricterGroupQuorums.get(1)! - 1 + stricterGroupQuorums.get(2)! - 1 + signersNum / 3
-    //   // Create insufficient signatures (not enough for quorum)
-    //   const insufficientSigners = signers.slice(0, numSignatures)
-    //   const [setRoot, opProofs] = merkleProof.build(
-    //     insufficientSigners,
-    //     BigInt(MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL),
-    //     baseTest.initialTestRootMetadata,
-    //     baseTest.testOps,
-    //   )
-    //   const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot)
-    //   const result = await baseTest.bind.mcms.sendInternal(
-    //     baseTest.acc.deployer.getSender(),
-    //     toNano('0.05'),
-    //     setRootBody,
-    //   )
-    //   expect(result.transactions).toHaveTransaction({
-    //     from: baseTest.acc.deployer.address,
-    //     to: baseTest.bind.mcms.address,
-    //     success: false,
-    //     exitCode: mcms.Error.INSUFFICIENT_SIGNERS,
-    //   })
-    // })
+    it('should revert on insufficient signatures for group quorum', async () => {
+      const signersNum = 9
+      // expect(signersNum).toBeGreaterThanOrEqual(baseTest.SIGNERS_NUM) // TODO why can't I access it?
+      // Create a configuration with stricter quorum requirements
+      const stricterGroupQuorums = Dictionary.empty<number, number>(
+        Dictionary.Keys.Uint(8),
+        Dictionary.Values.Uint(8),
+      )
+      stricterGroupQuorums.set(0, 3) // Increase root group quorum to 3
+      stricterGroupQuorums.set(1, 3) // Group 1 needs 3 signatures
+      stricterGroupQuorums.set(2, 2) // Group 2 needs 2 signatures
+      stricterGroupQuorums.set(3, 1) // Group 3 needs 1 signature
+
+      // we assign 3 signers in each group, 0,1,2 in group 1, 3,4,5 in group 2, and
+      // 6, 7, 8 in group 3.
+      const signerGroups: number[] = []
+      const signers: TestSigner[] = []
+      for (let i = 0; i < signersNum; i++) {
+        signers.push(baseTest.testSigners[i])
+        const groupNum = Math.floor(i / 3) + 1
+        signers[i].group = groupNum // Update the signer's group assignment
+        signerGroups.push(groupNum)
+      }
+
+      // set the new partition of signers to groups
+      {
+        const setConfigBody = mcms.builder.message.in.setConfig.encode({
+          queryId: 1n,
+          signerKeys: asSnakeData<bigint>(
+            signers.map((s) => BigInt('0x' + s.keyPair.publicKey.toString('hex'))),
+            (a) => beginCell().storeUint(a, 256),
+          ),
+          signerGroups: asSnakeData<number>(signerGroups, (g) => beginCell().storeUint(g, 8)),
+          groupQuorums: stricterGroupQuorums,
+          groupParents: baseTest.testGroupParents,
+          clearRoot: false,
+        })
+        const result = await baseTest.bind.mcms.sendInternal(
+          baseTest.acc.multisigOwner.getSender(),
+          toNano('1'),
+          setConfigBody,
+        )
+        expect(result.transactions).toHaveTransaction({
+          from: baseTest.acc.multisigOwner.address,
+          to: baseTest.bind.mcms.address,
+          success: true,
+        })
+      }
+
+      // Create insufficient signatures (not enough for quorum)
+      // With the new config:
+      // - Group 1 needs 3 signatures but we'll provide only 2 (signers 0,1 - missing signer 2)
+      // - Group 2 needs 2 signatures but we'll provide only 1 (signer 3 - missing signers 4,5)
+      // - Group 3 needs 1 signature and we'll provide 3 (signers 6,7,8 - more than needed)
+      // Root group needs 3 successful subgroups but only group 3 will be successful
+      const insufficientSigners: TestSigner[] = [
+        // 2 signatures from signers in group 1
+        signers[0],
+        signers[1],
+        // skip s_signatures[2]
+        // 1 signature from signers in group 2
+        signers[3],
+        // skip s_signatures[4]
+        // skip s_signatures[5]
+        // 3 signatures from signers in group 3
+        signers[6],
+        signers[7],
+        signers[8],
+      ]
+
+      const [setRoot, opProofs] = merkleProof.build(
+        insufficientSigners.map((s) => ({
+          publicKey: s.keyPair.publicKey,
+          sign: (data: Buffer<ArrayBufferLike>) => sign(data, s.keyPair.secretKey),
+        })),
+        BigInt(MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL),
+        baseTest.initialTestRootMetadata,
+        baseTest.testOps,
+      )
+      const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot)
+      const result = await baseTest.bind.mcms.sendInternal(
+        baseTest.acc.deployer.getSender(),
+        toNano('1'),
+        setRootBody,
+      )
+      expect(result.transactions).toHaveTransaction({
+        from: baseTest.acc.deployer.address,
+        to: baseTest.bind.mcms.address,
+        success: false,
+        exitCode: mcms.Error.INSUFFICIENT_SIGNERS,
+      })
+    })
+
     it('should revert on no signatures', async () => {
       const [setRoot, opProofs] = merkleProof.build(
         [],
