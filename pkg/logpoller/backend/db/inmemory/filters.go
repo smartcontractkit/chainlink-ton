@@ -31,7 +31,7 @@ func NewFilterStore() logpoller.FilterStore {
 }
 
 // RegisterFilter adds a filter to the in-memory store.
-func (f *inMemoryFilters) RegisterFilter(_ context.Context, flt types.Filter) error {
+func (f *inMemoryFilters) RegisterFilter(_ context.Context, flt types.Filter) (int64, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
@@ -43,7 +43,9 @@ func (f *inMemoryFilters) RegisterFilter(_ context.Context, flt types.Filter) er
 	}
 	f.filtersByAddress[a][flt.EventSig] = struct{}{}
 
-	return nil
+	// a simple counter-based ID for inmemory
+	// This is not as robust as the DB implementation but sufficient for testing
+	return int64(len(f.filtersByName)), nil
 }
 
 // UnregisterFilter removes a filter from the in-memory store.

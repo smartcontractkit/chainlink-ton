@@ -15,7 +15,7 @@ import (
 // Service defines the public interface for the TON log polling service.
 type Service interface {
 	services.Service
-	RegisterFilter(ctx context.Context, flt types.Filter) error
+	RegisterFilter(ctx context.Context, flt types.Filter) (int64, error)
 	UnregisterFilter(ctx context.Context, name string) error
 	HasFilter(ctx context.Context, name string) (bool, error)
 	GetStore() LogStore
@@ -24,7 +24,8 @@ type Service interface {
 // FilterStore defines an interface for storing and retrieving log filter specifications.
 type FilterStore interface {
 	// RegisterFilter adds a new filter or overwrites an existing one with the same name.
-	RegisterFilter(ctx context.Context, flt types.Filter) error
+	// Returns the ID of the created filter.
+	RegisterFilter(ctx context.Context, flt types.Filter) (int64, error)
 	// UnregisterFilter removes a filter by its unique name.
 	UnregisterFilter(ctx context.Context, name string) error
 	// HasFilter checks if a filter with the given name exists.

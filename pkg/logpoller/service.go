@@ -197,7 +197,7 @@ func (lp *service) processBlockRange(ctx context.Context, blockRange *types.Bloc
 }
 
 // RegisterFilter adds a new filter to monitor specific address/event signature combinations
-func (lp *service) RegisterFilter(ctx context.Context, flt types.Filter) error {
+func (lp *service) RegisterFilter(ctx context.Context, flt types.Filter) (int64, error) {
 	return lp.filters.RegisterFilter(ctx, flt)
 }
 
