@@ -313,52 +313,56 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
       })
     })
 
-    // it('should revert when no config is set', async () => {
-    //   // Create a fresh MCMS instance without setting config
-    //   const freshBaseTest = new MCMSBaseSetRootAndExecuteTestSetup()
-    //   {
-    //     freshBaseTest.code = code
-    //     await freshBaseTest.initializeBlockchain()
-    //     await freshBaseTest.setupTestConfiguration()
-    //     await freshBaseTest.setupMCMSContract('test-no-config')
-    //     await freshBaseTest.deployMCMSContract()
-    //     // Don't call setInitialConfiguration()
+    it('should revert when no config is set', async () => {
+      // Create a fresh MCMS instance without setting config
+      baseTest = new MCMSBaseSetRootAndExecuteTestSetup()
+      {
+        baseTest.code = code
+        await baseTest.initializeBlockchain()
+        await baseTest.setupTestConfiguration()
+        await baseTest.setupMCMSContract('test-no-config')
+        await baseTest.deployMCMSContract()
+        await baseTest.setupCounterContract('test-no-config')
+        await baseTest.deployCounterContract()
+        // Don't call setInitialConfiguration()
 
-    //     // Create test root metadata
-    //     freshBaseTest.initialTestRootMetadata = freshBaseTest.createTestRootMetadata(
-    //       0n,
-    //       BigInt(MCMSBaseSetRootAndExecuteTestSetup.OPS_NUM),
-    //       false,
-    //     )
+        // Create test root metadata
+        baseTest.initialTestRootMetadata = baseTest.createTestRootMetadata(
+          0n,
+          BigInt(MCMSBaseSetRootAndExecuteTestSetup.OPS_NUM),
+          false,
+        )
 
-    //     // Create test operations
-    //     freshBaseTest.testOps = freshBaseTest.createTestOps(
-    //       MCMSBaseSetRootAndExecuteTestSetup.OPS_NUM,
-    //     )
-    //   }
+        // Create test operations
+        baseTest.testOps = baseTest.createTestOps(MCMSBaseSetRootAndExecuteTestSetup.OPS_NUM)
+      }
 
-    //   const signers = baseTest.testSigners.map((s) => ({
-    //   publicKey: s.keyPair.publicKey,
-    //   sign: (data: Buffer<ArrayBufferLike>) => sign(data, s.keyPair.secretKey),
-    // }))
+      const signers = baseTest.testSigners.map((s) => ({
+        publicKey: s.keyPair.publicKey,
+        sign: (data: Buffer<ArrayBufferLike>) => sign(data, s.keyPair.secretKey),
+      }))
 
-    // const [setRoot, opProofs] = merkleProof.build(signers,   BigInt(MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL),
-    //    freshBaseTest.initialTestRootMetadata, baseTest.testOps)
-    // const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot)
+      const [setRoot, opProofs] = merkleProof.build(
+        signers,
+        BigInt(MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL),
+        baseTest.initialTestRootMetadata,
+        baseTest.testOps,
+      )
+      const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot)
 
-    // const result = await baseTest.bind.mcms.sendInternal(
-    //   baseTest.acc.deployer.getSender(),
-    //   toNano('0.05'),
-    //   setRootBody,
-    // )
+      const result = await baseTest.bind.mcms.sendInternal(
+        baseTest.acc.deployer.getSender(),
+        toNano('0.05'),
+        setRootBody,
+      )
 
-    //   expect(result.transactions).toHaveTransaction({
-    //     from: freshBaseTest.acc.deployer.address,
-    //     to: freshBaseTest.bind.mcms.address,
-    //     success: false,
-    //     exitCode: mcms.Error.MISSING_CONFIG,
-    //   })
-    // })
+      expect(result.transactions).toHaveTransaction({
+        from: baseTest.acc.deployer.address,
+        to: baseTest.bind.mcms.address,
+        success: false,
+        exitCode: mcms.Error.MISSING_CONFIG,
+      })
+    })
   })
 
   describe('SetOverrideRootTest', () => {
