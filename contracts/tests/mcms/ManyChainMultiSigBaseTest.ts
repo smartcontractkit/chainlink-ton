@@ -198,12 +198,12 @@ export class MCMSBaseTestSetup {
     // Create the config
     const signers = Dictionary.empty<number, Buffer>(
       Dictionary.Keys.Uint(8),
-      Dictionary.Values.Buffer(mcms.LEN_SIGNER),
+      Dictionary.Values.Buffer(mcms.LEN_SIGNER_BYTES),
     )
     for (let i = 0; i < this.testSigners.length; i++) {
       const signer = this.testSigners[i]
       const signerData = mcms.builder.data.signer.encode({
-        address: signer.address,
+        key: BigInt('0x' + signer.keyPair.publicKey.toString('hex')),
         index: signer.index,
         group: signer.group,
       })
@@ -253,12 +253,12 @@ export class MCMSBaseTestSetup {
       },
       signers: Dictionary.empty<bigint, Buffer>(
         Dictionary.Keys.BigUint(256),
-        Dictionary.Values.Buffer(mcms.LEN_SIGNER),
+        Dictionary.Values.Buffer(mcms.LEN_SIGNER_BYTES),
       ),
       config: {
         signers: Dictionary.empty<number, Buffer>(
           Dictionary.Keys.Uint(8),
-          Dictionary.Values.Buffer(mcms.LEN_SIGNER),
+          Dictionary.Values.Buffer(mcms.LEN_SIGNER_BYTES),
         ),
         groupQuorums: Dictionary.empty<number, number>(
           Dictionary.Keys.Uint(8),
