@@ -185,7 +185,7 @@ export enum Error {
 // --- Data structures ---
 
 // Length of serialized signer structure in bytes.
-export const LEN_SIGNER = 256 + 8 + 8
+export const LEN_SIGNER_BYTES = (256 + 8 + 8) / 8
 
 // Signer information
 export type Signer = {
@@ -456,12 +456,12 @@ export const builder = {
             queryId: s.loadUintBig(64),
             signerKeys: s.loadRef(),
             signerGroups: s.loadRef(),
-            groupQuorums: Dictionary.load(
+            groupQuorums: Dictionary.loadDirect(
               Dictionary.Keys.Uint(8),
               Dictionary.Values.Uint(8),
               s.loadRef(),
             ),
-            groupParents: Dictionary.load(
+            groupParents: Dictionary.loadDirect(
               Dictionary.Keys.Uint(8),
               Dictionary.Values.Uint(8),
               s.loadRef(),
@@ -476,7 +476,11 @@ export const builder = {
     const config: CellCodec<Config> = {
       encode: (data: Config): Cell => {
         return beginCell()
-          .storeDict(data.signers, Dictionary.Keys.Uint(8), Dictionary.Values.Buffer(LEN_SIGNER))
+          .storeDict(
+            data.signers,
+            Dictionary.Keys.Uint(8),
+            Dictionary.Values.Buffer(LEN_SIGNER_BYTES),
+          )
           .storeDict(data.groupQuorums, Dictionary.Keys.Uint(8), Dictionary.Values.Uint(8))
           .storeDict(data.groupParents, Dictionary.Keys.Uint(8), Dictionary.Values.Uint(8))
           .endCell()
@@ -484,17 +488,17 @@ export const builder = {
       decode: (cell: Cell): Config => {
         const s = cell.beginParse()
         return {
-          signers: Dictionary.load(
+          signers: Dictionary.loadDirect(
             Dictionary.Keys.Uint(8),
-            Dictionary.Values.Buffer(LEN_SIGNER),
+            Dictionary.Values.Buffer(LEN_SIGNER_BYTES),
             s.loadRef(),
           ),
-          groupQuorums: Dictionary.load(
+          groupQuorums: Dictionary.loadDirect(
             Dictionary.Keys.Uint(8),
             Dictionary.Values.Uint(8),
             s.loadRef(),
           ),
-          groupParents: Dictionary.load(
+          groupParents: Dictionary.loadDirect(
             Dictionary.Keys.Uint(8),
             Dictionary.Values.Uint(8),
             s.loadRef(),
@@ -579,7 +583,7 @@ export const builder = {
           .storeDict(
             data.signers,
             Dictionary.Keys.BigUint(256),
-            Dictionary.Values.Buffer(LEN_SIGNER),
+            Dictionary.Values.Buffer(LEN_SIGNER_BYTES),
           )
           .storeRef(config.encode(data.config))
           .storeDict(data.seenSignedHashes, Dictionary.Keys.BigUint(256), Dictionary.Values.Bool())
@@ -596,15 +600,15 @@ export const builder = {
           pendingOwner: s.loadAddress(),
         }
 
-        const signers = Dictionary.load(
+        const signers = Dictionary.loadDirect(
           Dictionary.Keys.BigUint(256),
-          Dictionary.Values.Buffer(LEN_SIGNER),
+          Dictionary.Values.Buffer(LEN_SIGNER_BYTES),
           s.loadRef(),
         )
 
         const _config = config.decode(s.loadRef())
 
-        const seenSignedHashes = Dictionary.load(
+        const seenSignedHashes = Dictionary.loadDirect(
           Dictionary.Keys.BigUint(256),
           Dictionary.Values.Bool(),
           s.loadRef(),
@@ -646,13 +650,13 @@ export const builder = {
         signers: Dictionary.empty(
           // no signers
           Dictionary.Keys.BigUint(256),
-          Dictionary.Values.Buffer(LEN_SIGNER),
+          Dictionary.Values.Buffer(LEN_SIGNER_BYTES),
         ),
         config: {
           signers: Dictionary.empty(
             // no signers
             Dictionary.Keys.Uint(8),
-            Dictionary.Values.Buffer(LEN_SIGNER),
+            Dictionary.Values.Buffer(LEN_SIGNER_BYTES),
           ),
           groupQuorums: Dictionary.empty(
             // no group quorums
@@ -746,23 +750,26 @@ export class ContractClient implements Contract {
   }
 
   async getConfig(p: ContractProvider): Promise<Config> {
-    return p.get('getConfig', []).then((r) => ({
-      signers: Dictionary.load(
-        Dictionary.Keys.Uint(8),
-        Dictionary.Values.Buffer(LEN_SIGNER),
-        r.stack.readCell(),
-      ),
-      groupQuorums: Dictionary.load(
-        Dictionary.Keys.Uint(8),
-        Dictionary.Values.Uint(8),
-        r.stack.readCell(),
-      ),
-      groupParents: Dictionary.load(
-        Dictionary.Keys.Uint(8),
-        Dictionary.Values.Uint(8),
-        r.stack.readCell(),
-      ),
-    }))
+    return p.get('getConfig', []).then((r) => {
+      console.log(r.stack)
+      return {
+        signers: Dictionary.loadDirect(
+          Dictionary.Keys.Uint(8),
+          Dictionary.Values.Buffer(LEN_SIGNER_BYTES),
+          r.stack.readCell(),
+        ),
+        groupQuorums: Dictionary.loadDirect(
+          Dictionary.Keys.Uint(8),
+          Dictionary.Values.Uint(8),
+          r.stack.readCell(),
+        ),
+        groupParents: Dictionary.loadDirect(
+          Dictionary.Keys.Uint(8),
+          Dictionary.Values.Uint(8),
+          r.stack.readCell(),
+        ),
+      }
+    })
   }
 
   async getOpCount(p: ContractProvider): Promise<bigint> {

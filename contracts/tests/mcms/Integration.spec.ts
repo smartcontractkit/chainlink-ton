@@ -1257,9 +1257,8 @@ describe('MCMS - IntegrationTest', () => {
         success: true,
       })
 
-      // TODO: fix config reading/verification
-      // expect((await bind.mcmsPropose.getConfig()).groupQuorums.get(0)).toEqual(PROPOSE_QUORUM - 1)
-      // expect((await bind.mcmsVeto.getConfig()).groupQuorums.get(0)).toEqual(VETO_QUORUM - 1)
+      expect((await bind.mcmsPropose.getConfig()).groupQuorums.get(0)).toEqual(PROPOSE_QUORUM - 1)
+      expect((await bind.mcmsVeto.getConfig()).groupQuorums.get(0)).toEqual(VETO_QUORUM - 1)
     }
 
     proposePredecessor = callsHash
