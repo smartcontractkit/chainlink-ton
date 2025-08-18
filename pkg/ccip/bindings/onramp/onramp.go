@@ -3,20 +3,19 @@ package onramp
 import (
 	"math/big"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
-
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 )
 
 type CCIPMessageSent struct {
-	DestChainSelector uint64          `tlb:"## 64"`
-	SequenceNumber    uint64          `tlb:"## 64"`
-	Message           router.CCIPSend `tlb:"^"`
+	DestChainSelector uint64                 `tlb:"## 64"`
+	SequenceNumber    uint64                 `tlb:"## 64"`
+	Message           ocr.Any2TVMRampMessage `tlb:"^"`
 }
 
 // GenericExtraArgsV2 represents generic extra arguments for transactions.
