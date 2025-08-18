@@ -931,6 +931,7 @@ describe('MCMS - IntegrationTest', () => {
         predecessor: proposePredecessor,
         salt: 0n,
       }
+      callsHash = await bind.timelock.getHashOperationBatch(operationBatch)
 
       const signers = proposerKeyPairs().map((v) => ({
         publicKey: v.publicKey,
@@ -1013,48 +1014,87 @@ describe('MCMS - IntegrationTest', () => {
       })
 
       blockchain.now = blockchain.now! + Number(MIN_DELAY) / 4
+
+      {
+        const signers = vetoKeyPairs().map((v) => ({
+          publicKey: v.publicKey,
+          sign: (data: Buffer<ArrayBufferLike>) => sign(data, v.secretKey),
+        }))
+        const validUntil = BigInt(blockchain.now || 0) + 2n * 60n * 60n // block.timestamp + 2 hours
+        const metadata = {
+          chainId: -239n, // TODO: blockchain global chain ID (will need to be signed int)
+          multiSig: bind.mcmsVeto.address,
+          preOpCount: 0n,
+          postOpCount: 1n,
+          overridePreviousRoot: false,
+        }
+        const ops: mcms.Op[] = [
+          {
+            chainId: -239n, // TODO: blockchain global chain ID (will need to be signed int)
+            multiSig: bind.mcmsVeto.address,
+            nonce: 0n,
+            to: bind.timelock.address,
+            value: toNano('0.05'),
+            data: rbactl.builder.message.in.cancel.encode({ queryId: 1n, id: callsHash }),
+          },
+        ]
+
+        const [setRoot, opProofs] = merkleProof.build(signers, validUntil, metadata, ops)
+
+        const r = await bind.mcmsVeto.sendInternal(
+          acc.deployer.getSender(),
+          toNano('0.10'),
+          mcms.builder.message.in.setRoot.encode(setRoot),
+        )
+
+        expect(r.transactions).toHaveTransaction({
+          from: acc.deployer.address,
+          to: bind.mcmsVeto.address,
+          success: true,
+        })
+
+        // TODO: move this encoding internally to lib
+        const encodeProof = (v) => beginCell().storeUint(v, 256)
+
+        const r1 = await bind.mcmsVeto.sendInternal(
+          acc.deployer.getSender(),
+          toNano('0.10'),
+          mcms.builder.message.in.execute.encode({
+            queryId: 1n,
+            op: mcms.builder.data.op.encode(ops[0]),
+            proof: asSnakeData<bigint>(opProofs[0], encodeProof),
+          }),
+        )
+
+        expect(r1.transactions).toHaveTransaction({
+          from: acc.deployer.address,
+          to: bind.mcmsVeto.address,
+          success: true,
+        })
+
+        // TODO: verify emit Cancelled(callsHash);
+
+        blockchain.now = blockchain.now! + Number(MIN_DELAY)
+
+        const r2 = await bind.callProxy.sendInternal(
+          acc.deployer.getSender(),
+          toNano('0.10'),
+          rbactl.builder.message.in.executeBatch.encode({
+            queryId: 1n,
+            predecessor: proposePredecessor,
+            salt: 0n,
+            calls,
+          }),
+        )
+
+        expect(r2.transactions).toHaveTransaction({
+          from: bind.callProxy.address,
+          to: bind.timelock.address,
+          success: false,
+          exitCode: rbactl.Errors.OperationNotReady,
+        })
+      }
     }
-
-    //     // veto bad proposal!
-    //     ops = new ManyChainMultiSig.Op[](1);
-    //     ops[0] = ManyChainMultiSig.Op({
-    //         chainId: block.chainid,
-    //         multiSig: address(s_vetoMultiSig),
-    //         nonce: 0,
-    //         to: address(s_timelock),
-    //         value: 0,
-    //         data: abi.encodeWithSelector(RBACTimelock.cancel.selector, callsHash)
-    //     });
-
-    //     (setRootArgs, opProofs) = s_merkleHelper.build(
-    //         vetoPrivateKeys(),
-    //         uint32(block.timestamp + 2 hours),
-    //         ManyChainMultiSig.RootMetadata({
-    //             chainId: block.chainid,
-    //             multiSig: address(s_vetoMultiSig),
-    //             preOpCount: 0,
-    //             postOpCount: 1,
-    //             overridePreviousRoot: false
-    //         }),
-    //         ops
-    //     );
-
-    //     s_vetoMultiSig.setRoot(
-    //         setRootArgs.root,
-    //         setRootArgs.validUntil,
-    //         setRootArgs.metadata,
-    //         setRootArgs.metadataProof,
-    //         setRootArgs.signatures
-    //     );
-    //     vm.expectEmit(true, true, true, true);
-    //     emit Cancelled(callsHash);
-    //     s_vetoMultiSig.execute(ops[0], opProofs[0]);
-
-    //     vm.warp(block.timestamp + MIN_DELAY);
-
-    //     vm.expectRevert("RBACTimelock: operation is not ready");
-    //     IExecuteBatch(address(s_callProxy)).executeBatch(calls, proposePredecessor, bytes32(0));
-    // }
 
     {
       //
