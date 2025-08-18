@@ -85,6 +85,7 @@ fun _execute(mesages: cell, proofs: cell, proofFlagBits: uint256, offRamp: addre
             }
         }
     )
+    msg.send(SEND_MODE_REGULAR);
 }
 
 // TODO: should we wait for all transfers to either complete or fail before we allow retry?

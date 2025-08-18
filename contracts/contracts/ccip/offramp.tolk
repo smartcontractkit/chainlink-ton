@@ -131,8 +131,9 @@ fun onInternalMessage(in:InMessage) {
             // we need to check the proof again and validate that the root contract was deployed by the OffRamp.
             // Maybe we could pass the root around and just check that it was deployed by the OffRamp...
 
-            // What if an attacker deploys a MerkleRoot contract with the storage layout so that it impersonates a real MerkleRoot?
             val st = Storage.load();
+            //TODO: Validate that the sender is an owned MerkleRoot contract
+            /*
             val root = merkleRoot(
                 Iterator<Any2TVMRampMessage>.new(report.messages),
                 Iterator<uint256>.new(report.proofs),
@@ -164,6 +165,10 @@ fun onInternalMessage(in:InMessage) {
                 .endCell() as address;
 
             assert(expectedAddress == in.senderAddress);
+            */
+
+            // send message to receiver
+            debug.print(42);
         }
         else => {
             // ignore empty messages, "wrong opcode" for others
@@ -192,7 +197,7 @@ fun getMerkleRootID(merkleRoot: uint256): builder {
 }
 
 fun commit(msg: Commit, sender: address) {
-    var st = Storage.load();
+    var st = lazy Storage.load();
 
     val report = msg.report;
 

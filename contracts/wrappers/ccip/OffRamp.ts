@@ -334,5 +334,33 @@ export const sourceChainConfigToBuilder = (config: SourceChainConfig) => {
 }
 
 function ExecutionReportToCell(report: ExecutionReport): Cell | import('@ton/core').Builder {
-  throw new Error('Function not implemented.')
+  return beginCell()
+    .storeUint(report.sourceChainSelector, 64)
+    .storeRef(asSnakeData(report.messages, (message) => {
+      return Any2TVMMessageToBuilder(message)
+    }))
+    .storeRef(beginCell().endCell()) //TODO: offchainTokenData
+    .storeRef(asSnakeData(report.proofs, (proof) => {
+      return beginCell().storeUint(proof, 256)
+    }))
+    .storeUint(report.proofFlagBits, 256)
+    .endCell()
+}
+
+function Any2TVMMessageToBuilder(message: Any2TVMRampMessage) {
+  return beginCell()
+    .storeBuilder(RampMessageHeaderToBuidler(message.header))
+    .storeBuffer(message.sender, message.sender.byteLength)
+    .storeRef(message.data)
+    .storeAddress(message.receiver)
+    .storeMaybeRef(message.tokenAmounts)
+}
+
+function RampMessageHeaderToBuidler(header: RampMessageHeader) {
+  return beginCell()
+    .storeUint(header.messageId, 256)
+    .storeUint(header.sourceChainSelector, 64)
+    .storeUint(header.destChainSelector, 64)
+    .storeUint(header.sequenceNumber, 64)
+    .storeUint(header.nonce, 64)
 }
