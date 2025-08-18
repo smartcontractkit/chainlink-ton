@@ -220,6 +220,23 @@ describe('MCMS - IntegrationTest', () => {
 
       expect(await bind.ac.getHasRole(rbactl.roles.admin, acc.deployer.address)).toEqual(true)
       expect(await bind.ac.getRoleAdmin(rbactl.roles.admin)).toEqual(rbactl.roles.admin) // default admin role
+
+      // Add Timelock as ADMIN of self
+      const r1 = await bind.ac.sendInternal(
+        acc.deployer.getSender(),
+        toNano('0.05'),
+        ac.builder.message.in.grantRole.encode({
+          queryId: 1n,
+          role: rbactl.roles.admin,
+          account: bind.timelock.address,
+        }),
+      )
+
+      expect(r1.transactions).toHaveTransaction({
+        from: acc.deployer.address,
+        to: bind.ac.address,
+        success: true,
+      })
     }
 
     // Set up (deploy, configure) MCMS contracts and transfer ownership to Timelock
@@ -773,6 +790,104 @@ describe('MCMS - IntegrationTest', () => {
       })
 
       expect(await bind.counter.getValue()).toEqual(4)
+    }
+
+    proposePredecessor = callsHash
+
+    {
+      //
+      // halve minDelay from bypasser
+      //
+      const newDelay = Math.floor(Number(MIN_DELAY / 2n))
+      calls = asSnakeData<rbactl.Call>(
+        [
+          {
+            target: bind.timelock.address,
+            value: toNano('0.05'),
+            data: rbactl.builder.message.in.updateDelay.encode({ queryId: 1n, newDelay }),
+          },
+        ],
+        (c) => rbactl.builder.data.call.encode(c).asBuilder(),
+      )
+
+      const operationBatch: rbactl.OperationBatch = {
+        calls,
+        predecessor: proposePredecessor,
+        salt: 0n,
+      }
+      callsHash = await bind.timelock.getHashOperationBatch(operationBatch)
+
+      const signers = signerKeyPairs.map((v) => ({
+        publicKey: v.publicKey,
+        sign: (data: Buffer<ArrayBufferLike>) => sign(data, v.secretKey),
+      }))
+      const validUntil = BigInt(blockchain.now || 0) + 2n * 60n * 60n // block.timestamp + 2 hours
+      const metadata = {
+        chainId: -239n, // TODO: blockchain global chain ID (will need to be signed int)
+        multiSig: bind.mcmsBypass.address,
+        preOpCount: 0n,
+        postOpCount: 1n,
+        overridePreviousRoot: false,
+      }
+      const ops: mcms.Op[] = [
+        {
+          chainId: -239n, // TODO: blockchain global chain ID (will need to be signed int)
+          multiSig: bind.mcmsBypass.address,
+          nonce: 0n,
+          to: bind.timelock.address,
+          value: toNano('0.05'),
+          data: rbactl.builder.message.in.bypasserExecuteBatch.encode({ queryId: 1n, calls }),
+        },
+      ]
+
+      const [setRoot, opProofs] = merkleProof.build(signers, validUntil, metadata, ops)
+
+      const r = await bind.mcmsBypass.sendInternal(
+        acc.deployer.getSender(),
+        toNano('0.20'),
+        mcms.builder.message.in.setRoot.encode(setRoot),
+      )
+
+      expect(r.transactions).toHaveTransaction({
+        from: acc.deployer.address,
+        to: bind.mcmsBypass.address,
+        success: true,
+      })
+
+      // TODO: move this encoding internally to lib
+      const encodeProof = (v) => beginCell().storeUint(v, 256)
+
+      const r1 = await bind.mcmsBypass.sendInternal(
+        acc.deployer.getSender(),
+        toNano('0.10'),
+        mcms.builder.message.in.execute.encode({
+          queryId: 1n,
+          op: mcms.builder.data.op.encode(ops[0]),
+          proof: asSnakeData<bigint>(opProofs[0], encodeProof),
+        }),
+      )
+
+      expect(r1.transactions).toHaveTransaction({
+        from: acc.deployer.address,
+        to: bind.mcmsBypass.address,
+        success: true,
+      })
+
+      expect(r1.transactions).toHaveTransaction({
+        from: bind.mcmsBypass.address,
+        to: bind.timelock.address,
+        success: true,
+        op: rbactl.opcodes.in.BypasserExecuteBatch,
+      })
+
+      expect(r1.transactions).toHaveTransaction({
+        from: bind.timelock.address,
+        to: bind.timelock.address,
+        success: true,
+        op: rbactl.opcodes.in.UpdateDelay,
+      })
+
+      expect(await bind.timelock.getMinDelay()).toEqual(BigInt(newDelay))
     }
 
     {
