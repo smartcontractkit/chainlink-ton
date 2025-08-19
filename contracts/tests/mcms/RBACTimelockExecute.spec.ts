@@ -516,8 +516,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
     }
   })
 
-  // TODO test Callproxy first')
-  describe.skip('Call Proxy Execute Tests', () => {
+  describe('Call Proxy Execute Tests', () => {
     it('should execute through valid call proxy', async () => {
       const incrementCall: rbactl.Call = {
         target: baseTest.bind.counter.address,
@@ -545,17 +544,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       baseTest.warpTime(Number(BaseTestSetup.MIN_DELAY + 1n))
 
       // Grant executor role to call proxy
-      const grantRoleBody = ac.builder.message.in.grantRole.encode({
-        queryId: 1n,
-        role: rbactl.roles.executor,
-        account: baseTest.bind.callProxy.address,
-      })
-
-      await baseTest.bind.ac.sendInternal(
-        baseTest.acc.admin.getSender(),
-        toNano('0.05'),
-        grantRoleBody,
-      )
+      await baseTest.grantCallProxyExecutorRole()
 
       // Execute through call proxy using external caller
       const executeBody = rbactl.builder.message.in.executeBatch.encode({

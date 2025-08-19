@@ -238,6 +238,25 @@ export class BaseTestSetup {
   }
 
   /**
+   * Deploy the callProxy contract and verify deployment
+   */
+  async deployCallProxyContract() {
+    const body = beginCell().endCell()
+    const result = await this.bind.callProxy.sendInternal(
+      this.acc.deployer.getSender(),
+      toNano('0.05'),
+      body,
+    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: this.acc.deployer.address,
+      to: this.bind.counter.address,
+      deploy: true,
+      success: true,
+    })
+  }
+
+  /**
    * Deploy the counter contract and verify deployment
    */
   async deployCounterContract() {
@@ -258,6 +277,27 @@ export class BaseTestSetup {
   }
 
   /**
+   * Grant the call proxy executor role to the call proxy contract
+   */
+  async grantCallProxyExecutorRole() {
+    const body = ac.builder.message.in.grantRole.encode({
+      queryId: 1n,
+      role: rbactl.roles.executor,
+      account: this.bind.callProxy.address,
+    })
+    const result = await this.bind.timelock.sendInternal(
+      this.acc.admin.getSender(),
+      toNano('0.05'),
+      body,
+    )
+    expect(result.transactions).toHaveTransaction({
+      from: this.acc.admin.address,
+      to: this.bind.timelock.address,
+      success: true,
+    })
+  }
+
+  /**
    * Complete setup for all contracts - convenience method that combines all setup steps
    */
   async setupAll(testId: string): Promise<void> {
@@ -265,6 +305,7 @@ export class BaseTestSetup {
     await this.setupTimelockContract(testId)
     await this.deployTimelockContract()
     await this.setupCallProxyContract(testId)
+    await this.deployCallProxyContract()
     await this.setupCounterContract(testId)
     await this.deployCounterContract()
   }
