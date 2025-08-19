@@ -24,7 +24,7 @@ func SetupTestDB(t *testing.T) (sqlutil.DataSource, func()) {
 	ds := sqlutil.WrapDataSource(db, logger.Test(t))
 	cleanup := func() {
 		db.Close()
-		err := pg.Stop()
+		err := pg.Stop() // this cleans up the content as well
 		require.NoError(t, err)
 	}
 
@@ -83,6 +83,7 @@ func createFiltersTable(ctx context.Context, ds sqlutil.DataSource) error {
 
 // createLogsTable creates the logs table
 func createLogsTable(ctx context.Context, ds sqlutil.DataSource) error {
+	// TODO: create index on data field for byte-level filter(how long do we need to support?)
 	query := `
 		CREATE TABLE IF NOT EXISTS ton.log_poller_logs (
 			id BIGSERIAL PRIMARY KEY,
