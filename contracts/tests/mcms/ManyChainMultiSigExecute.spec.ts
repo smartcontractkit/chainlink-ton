@@ -26,7 +26,7 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
       baseTest.acc.deployer.getSender(),
       toNano('10'),
       mcms.builder.message.in.topUp.encode({
-        queryId: BigInt(1),
+        queryId: 1n,
       }),
     )
 
@@ -406,7 +406,7 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
       baseTest.acc.deployer.getSender(),
       toNano('10'),
       mcms.builder.message.in.topUp.encode({
-        queryId: BigInt(1),
+        queryId: 1n,
       }),
     )
 
