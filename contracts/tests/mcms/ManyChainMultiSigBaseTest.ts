@@ -35,7 +35,7 @@ export type MCMSTestContracts = {
 export type TestSigner = {
   address: Address
   keyPair: KeyPair
-  treasury: SandboxContract<TreasuryContract>
+  wallet: SandboxContract<TreasuryContract>
   index: number
   group: number
 }
@@ -121,7 +121,7 @@ export class MCMSBaseTestSetup {
       signers.push({
         address,
         keyPair: keyPairs[i],
-        treasury: this.acc.signers[i],
+        wallet: this.acc.signers[i],
         index: i,
         group,
       })

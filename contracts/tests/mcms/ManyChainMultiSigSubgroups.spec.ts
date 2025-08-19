@@ -72,7 +72,7 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
         testSigners.push({
           address,
           keyPair: keyPairs[i],
-          treasury: treasury,
+          wallet: treasury,
           index: i,
           group: 0, // Will be set per test
         })
