@@ -237,16 +237,24 @@ export class BaseTestSetup {
     expect(await this.bind.ac.getRoleAdmin(rbactl.roles.admin)).toEqual(rbactl.roles.admin)
   }
 
-  // TODO
-  // deployCallProxyContract() {
-  //   const body = callproxy.builder.message.in.topUp.encode({ queryId: 1n })
-  //   return this.bind.callProxy.sendInternal(this.acc.deployer.getSender(), toNano('0.05'), body)
-  // }
-
-  deployCounterContract() {
+  /**
+   * Deploy the counter contract and verify deployment
+   */
+  async deployCounterContract() {
     // const body = counter.builder.message.in.topUp.encode({ queryId: 1n }) // TODO use TopUp after it is implemented
     const body = beginCell().endCell()
-    return this.bind.counter.sendInternal(this.acc.deployer.getSender(), toNano('0.05'), body)
+    const result = await this.bind.counter.sendInternal(
+      this.acc.deployer.getSender(),
+      toNano('0.05'),
+      body,
+    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: this.acc.deployer.address,
+      to: this.bind.counter.address,
+      deploy: true,
+      success: true,
+    })
   }
 
   /**
@@ -257,7 +265,6 @@ export class BaseTestSetup {
     await this.setupTimelockContract(testId)
     await this.deployTimelockContract()
     await this.setupCallProxyContract(testId)
-    // await this.deployCallProxyContract()
     await this.setupCounterContract(testId)
     await this.deployCounterContract()
   }
