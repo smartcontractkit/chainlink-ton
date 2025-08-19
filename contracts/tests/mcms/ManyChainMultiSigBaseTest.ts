@@ -534,13 +534,10 @@ export class MCMSBaseSetRootAndExecuteTestSetup extends MCMSBaseTestSetup {
 
   async advanceOpcodeTo(index: number) {
     for (let i = 0; i < index; i++) {
-      const proof = this.opProofs[i]
-      const proofCell = asSnakeData<bigint>(proof, (v) => beginCell().storeUint(v, 256))
-
       const executeBody = mcms.builder.message.in.execute.encode({
         queryId: BigInt(i + 1),
         op: mcms.builder.data.op.encode(this.testOps[i]),
-        proof: proofCell,
+        proof: this.opProofs[i],
       })
 
       const result = await this.bind.mcms.sendInternal(

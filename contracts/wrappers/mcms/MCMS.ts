@@ -47,7 +47,7 @@ export type Execute = {
   // The operation to be executed, stored as a Cell to avoid size limits.
   op: Cell // Cell<Op>
   // The Merkle proof for the op's inclusion in the Merkle tree.
-  proof: Cell // vec<uint256>
+  proof: bigint[] // vec<uint256>
 }
 
 // @dev Sets the configuration for the contract.
@@ -425,7 +425,7 @@ export const builder = {
             .storeUint(opcodes.in.Execute, 32)
             .storeUint(msg.queryId, 64)
             .storeRef(msg.op)
-            .storeRef(msg.proof)
+            .storeRef(asSnakeData<bigint>(msg.proof, (v) => beginCell().storeUint(v, 256)))
             .endCell()
         },
         decode: (cell: Cell): Execute => {
@@ -434,7 +434,7 @@ export const builder = {
           return {
             queryId: s.loadUintBig(64),
             op: s.loadRef(),
-            proof: s.loadRef(),
+            proof: fromSnakeData(s.loadRef(), (a) => a.loadUintBig(256)),
           }
         },
       },

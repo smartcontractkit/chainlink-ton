@@ -567,16 +567,13 @@ describe('MCMS - IntegrationTest', () => {
         success: true,
       })
 
-      // TODO: move this encoding internally to lib
-      const encodeProof = (v) => beginCell().storeUint(v, 256)
-
       const r1 = await bind.mcmsPropose.sendInternal(
         acc.deployer.getSender(),
         toNano('0.10'),
         mcms.builder.message.in.execute.encode({
           queryId: 1n,
           op: mcms.builder.data.op.encode(ops[0]),
-          proof: asSnakeData<bigint>(opProofs[0], encodeProof),
+          proof: opProofs[0],
         }),
       )
 
@@ -689,16 +686,13 @@ describe('MCMS - IntegrationTest', () => {
         success: true,
       })
 
-      // TODO: move this encoding internally to lib
-      const encodeProof = (v) => beginCell().storeUint(v, 256)
-
       const r1 = await bind.mcmsPropose.sendInternal(
         acc.deployer.getSender(),
         toNano('0.10'),
         mcms.builder.message.in.execute.encode({
           queryId: 1n,
           op: mcms.builder.data.op.encode(ops[0]),
-          proof: asSnakeData<bigint>(opProofs[0], encodeProof),
+          proof: opProofs[0],
         }),
       )
 
@@ -817,16 +811,13 @@ describe('MCMS - IntegrationTest', () => {
         success: true,
       })
 
-      // TODO: move this encoding internally to lib
-      const encodeProof = (v) => beginCell().storeUint(v, 256)
-
       const r1 = await bind.mcmsBypass.sendInternal(
         acc.deployer.getSender(),
         toNano('0.10'),
         mcms.builder.message.in.execute.encode({
           queryId: 1n,
           op: mcms.builder.data.op.encode(ops[0]),
-          proof: asSnakeData<bigint>(opProofs[0], encodeProof),
+          proof: opProofs[0],
         }),
       )
 
@@ -939,16 +930,13 @@ describe('MCMS - IntegrationTest', () => {
         success: true,
       })
 
-      // TODO: move this encoding internally to lib
-      const encodeProof = (v) => beginCell().storeUint(v, 256)
-
       const r1 = await bind.mcmsPropose.sendInternal(
         acc.deployer.getSender(),
         toNano('0.10'),
         mcms.builder.message.in.execute.encode({
           queryId: 1n,
           op: mcms.builder.data.op.encode(ops[0]),
-          proof: asSnakeData<bigint>(opProofs[0], encodeProof),
+          proof: opProofs[0],
         }),
       )
 
@@ -1016,16 +1004,13 @@ describe('MCMS - IntegrationTest', () => {
           success: true,
         })
 
-        // TODO: move this encoding internally to lib
-        const encodeProof = (v) => beginCell().storeUint(v, 256)
-
         const r1 = await bind.mcmsVeto.sendInternal(
           acc.deployer.getSender(),
           toNano('0.10'),
           mcms.builder.message.in.execute.encode({
             queryId: 1n,
             op: mcms.builder.data.op.encode(ops[0]),
-            proof: asSnakeData<bigint>(opProofs[0], encodeProof),
+            proof: opProofs[0],
           }),
         )
 
@@ -1150,16 +1135,13 @@ describe('MCMS - IntegrationTest', () => {
         success: true,
       })
 
-      // TODO: move this encoding internally to lib
-      const encodeProof = (v) => beginCell().storeUint(v, 256)
-
       const r1 = await bind.mcmsPropose.sendInternal(
         acc.deployer.getSender(),
         toNano('0.10'),
         mcms.builder.message.in.execute.encode({
           queryId: 1n,
           op: mcms.builder.data.op.encode(ops[0]),
-          proof: asSnakeData<bigint>(opProofs[0], encodeProof),
+          proof: opProofs[0],
         }),
       )
 

@@ -40,12 +40,11 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
     // Now try to execute one more operation - should fail with PostOpCountReached
     // Use any operation and proof - they won't even be checked
     const fakeOp = baseTest.testOps[0]
-    const fakeProof = asSnakeData<bigint>([], (v) => beginCell().storeUint(v, 256))
 
     const executeBody = mcms.builder.message.in.execute.encode({
       queryId: 999n,
       op: mcms.builder.data.op.encode(fakeOp),
-      proof: fakeProof,
+      proof: [], // fakeProof
     })
 
     const result = await baseTest.bind.mcms.sendInternal(
@@ -68,12 +67,10 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
     modifiedOp.value = modifiedOp.value + 1n
 
     // Try with empty proof first
-    const emptyProof = asSnakeData<bigint>([], (v) => beginCell().storeUint(v, 256))
-
     const executeBody1 = mcms.builder.message.in.execute.encode({
       queryId: 1n,
       op: mcms.builder.data.op.encode(modifiedOp),
-      proof: emptyProof,
+      proof: [], // emptyProof
     })
 
     const result1 = await baseTest.bind.mcms.sendInternal(
@@ -91,12 +88,11 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
 
     // Send a proof for the original op before the modification - should still fail
     const originalProof = baseTest.getProofForOp(0)
-    const proofCell = asSnakeData<bigint>(originalProof, (v) => beginCell().storeUint(v, 256))
 
     const executeBody2 = mcms.builder.message.in.execute.encode({
       queryId: 2n,
       op: mcms.builder.data.op.encode(modifiedOp),
-      proof: proofCell,
+      proof: originalProof,
     })
 
     const result2 = await baseTest.bind.mcms.sendInternal(
@@ -115,9 +111,7 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
 
   it('should revert on bad op data', async () => {
     // Create a dummy proof (5 elements as in original test)
-    const dummyProof = asSnakeData<bigint>([1n, 2n, 3n, 4n, 5n], (v) =>
-      beginCell().storeUint(v, 256),
-    )
+    const dummyProof = [1n, 2n, 3n, 4n, 5n]
 
     // Test 1: Wrong chain ID
     const wrongChainIdOp = { ...baseTest.testOps[0] }
@@ -214,12 +208,11 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
   it('should execute ops in order', async () => {
     // Execute first operation
     const proof1 = baseTest.getProofForOp(0)
-    const proofCell1 = asSnakeData<bigint>(proof1, (v) => beginCell().storeUint(v, 256))
 
     const executeBody1 = mcms.builder.message.in.execute.encode({
       queryId: 1n,
       op: mcms.builder.data.op.encode(baseTest.testOps[0]),
-      proof: proofCell1,
+      proof: proof1,
     })
 
     const result1 = await baseTest.bind.mcms.sendInternal(
@@ -254,12 +247,11 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
 
     // Try to execute the third op instead of the second - should fail with WrongNonce
     const proof3 = baseTest.getProofForOp(2)
-    const proofCell3 = asSnakeData<bigint>(proof3, (v) => beginCell().storeUint(v, 256))
 
     const executeBody3 = mcms.builder.message.in.execute.encode({
       queryId: 3n,
       op: mcms.builder.data.op.encode(baseTest.testOps[2]),
-      proof: proofCell3,
+      proof: proof3,
     })
 
     const result3Early = await baseTest.bind.mcms.sendInternal(
@@ -277,12 +269,11 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
 
     // Execute the second op correctly
     const proof2 = baseTest.getProofForOp(1)
-    const proofCell2 = asSnakeData<bigint>(proof2, (v) => beginCell().storeUint(v, 256))
 
     const executeBody2 = mcms.builder.message.in.execute.encode({
       queryId: 2n,
       op: mcms.builder.data.op.encode(baseTest.testOps[1]),
-      proof: proofCell2,
+      proof: proof2,
     })
 
     const result2 = await baseTest.bind.mcms.sendInternal(
@@ -313,14 +304,13 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
 
     // Now try to execute the reverting operation
     const proof = baseTest.getProofForOp(MCMSBaseSetRootAndExecuteTestSetup.REVERTING_OP_INDEX)
-    const proofCell = asSnakeData<bigint>(proof, (v) => beginCell().storeUint(v, 256))
 
     const executeBody = mcms.builder.message.in.execute.encode({
       queryId: BigInt(MCMSBaseSetRootAndExecuteTestSetup.REVERTING_OP_INDEX + 1),
       op: mcms.builder.data.op.encode(
         baseTest.testOps[MCMSBaseSetRootAndExecuteTestSetup.REVERTING_OP_INDEX],
       ),
-      proof: proofCell,
+      proof,
     })
 
     const result = await baseTest.bind.mcms.sendInternal(
@@ -355,14 +345,13 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
 
     // Try to execute value operation without sufficient balance
     const proof = baseTest.getProofForOp(MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX)
-    const proofCell = asSnakeData<bigint>(proof, (v) => beginCell().storeUint(v, 256))
 
     const executeBody = mcms.builder.message.in.execute.encode({
       queryId: BigInt(MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX + 1),
       op: mcms.builder.data.op.encode(
         baseTest.testOps[MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX],
       ),
-      proof: proofCell,
+      proof,
     })
 
     const result = await baseTest.bind.mcms.sendInternal(
@@ -391,14 +380,13 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
 
     // Execute the value operation
     const proof = baseTest.getProofForOp(MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX)
-    const proofCell = asSnakeData<bigint>(proof, (v) => beginCell().storeUint(v, 256))
 
     const executeBody = mcms.builder.message.in.execute.encode({
       queryId: BigInt(MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX + 1),
       op: mcms.builder.data.op.encode(
         baseTest.testOps[MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX],
       ),
-      proof: proofCell,
+      proof,
     })
 
     // TopUp contract before execution operation
