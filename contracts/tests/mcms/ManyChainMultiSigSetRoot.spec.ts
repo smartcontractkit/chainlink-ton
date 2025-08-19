@@ -728,7 +728,6 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
       const corruptedMetadata = { ...baseTest.initialTestRootMetadata }
       corruptedMetadata.chainId = corruptedMetadata.chainId + 1n
       // Note: We also need to set the blockchain chainId to match for the chainId validation
-      baseTest.blockchain.now = 1 // Reset time if needed // TODO do we need this?
 
       const signers = baseTest.testSigners.map((s) => ({
         publicKey: s.keyPair.publicKey,
