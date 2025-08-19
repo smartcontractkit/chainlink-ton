@@ -1,0 +1,307 @@
+
+name: Intern4All Sandbox
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  handle-intern-request:
+    if: github.event.comment.body != null && startsWith(github.event.comment.body, 'intern pls do ')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+      id-token: write  # Required for GCP authentication
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4.2.2
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract task from comment
+        id: extract-task
+        run: |
+          COMMENT_BODY="${{ github.event.comment.body }}"
+          TASK=$(echo "$COMMENT_BODY" | sed 's/^intern pls do //')
+          echo "task=$TASK" >> $GITHUB_OUTPUT
+          echo "Extracted task: $TASK"
+
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v2.1.2
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+          create_credentials_file: true
+          export_environment_variables: true
+        env:
+          # Ensure credentials are created outside the git repository
+          GOOGLE_APPLICATION_CREDENTIALS_FILE_PATH: /tmp/gcp-credentials.json
+
+      - name: Set up Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2.1.0
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4.0.3
+        with:
+          node-version: '22'
+
+      - name: Install Claude Code
+        run: |
+          npm install -g @anthropic-ai/claude-code
+          echo "Claude Code installed successfully"
+
+      - name: Install GitHub CLI
+        run: |
+          type -p curl >/dev/null || (sudo apt update && sudo apt install curl -y)
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | \
+            sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+          sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | \
+            sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+          sudo apt update
+          sudo apt install gh -y
+
+      - name: Configure environment for Claude Code
+        run: |
+          echo "CLAUDE_CODE_USE_VERTEX=1" >> $GITHUB_ENV
+          echo "CLOUD_ML_REGION=us-east5" >> $GITHUB_ENV
+          echo "ANTHROPIC_VERTEX_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}" >> $GITHUB_ENV
+          echo "DISABLE_PROMPT_CACHING=1" >> $GITHUB_ENV
+          echo "DISABLE_TELEMETRY=1" >> $GITHUB_ENV
+          echo "DISABLE_ERROR_REPORTING=1" >> $GITHUB_ENV
+          echo "DISABLE_BUG_COMMAND=1" >> $GITHUB_ENV
+          echo "CI=true" >> $GITHUB_ENV
+          echo "TERM=dumb" >> $GITHUB_ENV
+          echo "NO_COLOR=1" >> $GITHUB_ENV
+          echo "FORCE_COLOR=0" >> $GITHUB_ENV
+          echo "DEBIAN_FRONTEND=noninteractive" >> $GITHUB_ENV
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "intern4all[bot]"
+          git config --global user.email "intern4all[bot]@users.noreply.github.com"
+
+      - name: Run Claude Code with task
+        id: claude
+        run: |
+          mkdir -p demo
+          cat > demo/sanity-check.md << 'SANITY_EOF'
+          # Sanity Check File
+
+          This file was created by the GitHub Actions workflow to verify file creation works.
+
+          **Created at:** $(date)
+          **Workflow Run:** ${{ github.run_id }}
+          **Repository:** ${{ github.repository }}
+          **Branch:** ${{ github.ref_name }}
+
+          ## Random Content
+          - Random number: $RANDOM
+          - Timestamp: $(date +%s)
+          - Working directory: $(pwd)
+
+          This file should be detected by git and committed if the workflow is working correctly.
+          SANITY_EOF
+          
+          echo "Sanity check file created. Contents:"
+          cat demo/sanity-check.md
+          echo "Befor Claude"
+          echo "Current working directory:"
+          pwd
+          echo ""
+          echo "Repository root contents:"
+          ls -la
+          echo ""
+          echo "Demo folder contents:"
+          ls -la demo/ || echo "Demo folder not found or empty"
+          echo ""
+          echo "Git status before cleanup:"
+          git status --porcelain
+          TASK="${{ steps.extract-task.outputs.task }}"
+          ISSUE_NUMBER="${{ github.event.issue.number }}"
+          ISSUE_TITLE="${{ github.event.issue.title }}"
+          COMMENTER="${{ github.event.comment.user.login }}"
+          
+          # Create temp directory outside git repository for sensitive files
+          TEMP_DIR="/tmp/claude-$$"
+          mkdir -p "$TEMP_DIR"
+          
+          # Create a comprehensive prompt for Claude Code in temp directory
+          cat > "$TEMP_DIR/claude_prompt.md" << EOF
+          # Task Request from GitHub Issue #${ISSUE_NUMBER}
+          
+          **Issue Title:** ${ISSUE_TITLE}
+          **Requested by:** @${COMMENTER}
+          **Task:** ${TASK}
+          
+          Please implement the requested task. This is part of an automated workflow where:
+          1. You should make the necessary code changes to fulfill the task
+          2. The changes will be committed to a feature branch
+          3. A pull request will be created for review
+          
+          Context:
+          - This is the intern4all-sandbox repository
+          - You have full access to read and modify files as needed
+          - Please ensure your changes are well-documented and follow best practices
+          - Include appropriate tests if applicable
+          
+          Please proceed with implementing: ${TASK}
+          EOF
+          
+          echo "Generated prompt in temp directory:"
+          cat "$TEMP_DIR/claude_prompt.md"
+          
+          # Run Claude Code with the prompt from temp directory
+          claude --dangerously-skip-permissions -p "$(cat "$TEMP_DIR/claude_prompt.md")" --output-format stream-json --verbose || {
+            echo "Claude Code execution failed, but continuing with workflow"
+            echo "claude_success=false" >> $GITHUB_OUTPUT
+            # Cleanup temp directory
+            rm -rf "$TEMP_DIR"
+            exit 0
+          }
+          
+          echo "claude_success=true" >> $GITHUB_OUTPUT
+          
+          # Cleanup temp directory
+          rm -rf "$TEMP_DIR"
+
+          echo "After Claude"
+          cat /home/runner/work/intern4all-sandbox/demo/hello-world.md || echo "hello-world.md not found"
+          
+          # Create sanity check file with random content for debugging
+          echo "Creating sanity check file..."
+          
+          echo "Current working directory:"
+          pwd
+          echo ""
+          echo "Repository root contents:"
+          ls -la
+          echo ""
+          echo "Demo folder contents:"
+          ls -la demo/ || echo "Demo folder not found or empty"
+          echo ""
+          echo "Git status after sanity check:"
+          git status --porcelain
+
+      - name: Check for changes
+        id: changes
+        run: |
+          # Remove any sensitive files that might have been created
+          find . -name "gha-creds-*.json" -delete || true
+          find . -name "*-credentials.json" -delete || true
+          find . -name "claude_prompt.md" -delete || true
+          
+          # Check for both modified files and untracked files
+          MODIFIED_FILES=$(git diff --name-only)
+          UNTRACKED_FILES=$(git ls-files --others --exclude-standard)
+          
+          echo "Modified files: $MODIFIED_FILES"
+          echo "Untracked files: $UNTRACKED_FILES"
+          
+          if [ -z "$MODIFIED_FILES" ] && [ -z "$UNTRACKED_FILES" ]; then
+            echo "No changes were made by Claude Code"
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          else
+            echo "Changes detected"
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          
+            # Show what files have changed (for debugging)
+            echo "Files that changed:"
+            git status --porcelain
+          fi
+
+      - name: Stage changes for PR
+        if: steps.changes.outputs.has_changes == 'true'
+        run: |
+          # Add all files (including untracked ones) to staging area
+          git add .
+          
+          echo "Files staged for commit:"
+          git status --porcelain
+
+      - name: Create Pull Request
+        if: steps.changes.outputs.has_changes == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: "intern/issue-${{ github.event.issue.number }}-${{ github.run_id }}"
+          title: "Implement task from issue #${{ github.event.issue.number }}: ${{ steps.extract-task.outputs.task }}"
+          body: |
+            ## 🤖 Automated Task Implementation
+            
+            This PR was automatically created by the intern4all bot to implement a task requested in issue #${{ github.event.issue.number }}.
+            
+            **Task requested:** ${{ steps.extract-task.outputs.task }}
+            **Requested by:** @${{ github.event.comment.user.login }}
+            
+            ### Changes Made
+            The intern4all bot used Claude Code to analyze the task and implement the necessary changes.
+            
+            ### Review Notes
+            - Please review all changes carefully before merging
+            - The requester (@${{ github.event.comment.user.login }}) has been assigned as a reviewer
+            - Consider testing the implementation before merging
+            
+            Closes #${{ github.event.issue.number }}
+          assignees: ${{ github.event.comment.user.login }}
+          reviewers: ${{ github.event.comment.user.login }}
+          commit-message: |
+            feat: implement task from issue #${{ github.event.issue.number }}
+            
+            Task: ${{ steps.extract-task.outputs.task }}
+            Automated changes made by intern4all bot
+            Requested by @${{ github.event.comment.user.login }}
+          author: "intern4all[bot] <intern4all[bot]@users.noreply.github.com>"
+          committer: "intern4all[bot] <intern4all[bot]@users.noreply.github.com>"
+
+
+      - name: Comment on issue with results
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ISSUE_NUMBER="${{ github.event.issue.number }}"
+          TASK="${{ steps.extract-task.outputs.task }}"
+          COMMENTER="${{ github.event.comment.user.login }}"
+          HAS_CHANGES="${{ steps.changes.outputs.has_changes }}"
+          CLAUDE_SUCCESS="${{ steps.claude.outputs.claude_success }}"
+          
+          if [ "$HAS_CHANGES" = "true" ]; then
+            COMMENT=$(printf "%s\n\n%s\n\n%s\n\n%s\n\n%s\n%s\n%s\n%s\n\n%s" \
+              "## ✅ Task Implementation Completed" \
+              "Hi @${COMMENTER}! I've successfully implemented your requested task." \
+              "**Task:** ${TASK}" \
+              "🔗 **Pull Request:** I've created a PR with the implementation. You've been assigned as both assignee and reviewer." \
+              "📝 **Next Steps:**" \
+              "1. Review the changes in the PR" \
+              "2. Test the implementation if needed" \
+              "3. Merge when you're satisfied with the results" \
+              "Thanks for using the intern4all! 🤖")
+          elif [ "$CLAUDE_SUCCESS" = "false" ]; then
+            COMMENT=$(printf "%s\n\n%s\n\n%s\n\n%s\n%s\n%s\n%s\n\n%s" \
+              "## ❌ Task Implementation Failed" \
+              "Hi @${COMMENTER}! I encountered an issue while trying to implement your task." \
+              "**Task:** ${TASK}" \
+              "The Claude Code execution failed. This could be due to:" \
+              "- The task being unclear or too complex" \
+              "- Technical limitations" \
+              "- Service availability issues" \
+              "Please try rephrasing your request or breaking it down into smaller tasks.")
+          else
+            COMMENT=$(printf "%s\n\n%s\n\n%s\n\n%s\n%s\n%s\n%s\n\n%s" \
+              "## ℹ️ No Changes Required" \
+              "Hi @${COMMENTER}! I processed your task but didn't find any changes that needed to be made." \
+              "**Task:** ${TASK}" \
+              "This could mean:" \
+              "- The requested functionality already exists" \
+              "- The task was informational rather than implementational" \
+              "- The task requires manual intervention" \
+              "If you expected changes, please clarify your request and try again.")
+          fi
+          
+          GH_PAGER="" GH_PROMPT_DISABLED=1 gh issue comment "$ISSUE_NUMBER" --body "$COMMENT"
