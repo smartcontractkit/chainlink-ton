@@ -11,6 +11,12 @@ import {
 import { crc32 } from 'zlib'
 import { CellCodec } from '../../utils'
 
+export enum Errors {
+  OnlyCallableByOwner = 132,
+  CannotTransferToSelf = 1001,
+  MustBeProposedOwner = 1002,
+}
+
 // @dev Message sent by the owner to transfer ownership of a contract.
 export type TransferOwnership = {
   // Query ID of the change owner request.

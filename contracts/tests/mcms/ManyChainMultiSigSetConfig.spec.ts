@@ -3,6 +3,7 @@ import '@ton/test-utils'
 import { toNano } from '@ton/core'
 
 import * as mcms from '../../wrappers/mcms/MCMS'
+import * as ownable2Step from '../../wrappers/libraries/access/Ownable2Step'
 
 import { MCMSBaseTestSetup, MCMSTestCode, TestSigner } from './ManyChainMultiSigBaseTest'
 import { uint8ArrayToBigInt } from '../../src/utils'
@@ -42,7 +43,7 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
       from: baseTest.acc.deployer.address,
       to: baseTest.bind.mcms.address,
       success: false,
-      exitCode: 132, // ERROR_ONLY_CALLABLE_BY_OWNER(ownable_2step) // TODO: This should be exposed by some binding.
+      exitCode: ownable2Step.Errors.OnlyCallableByOwner,
     })
   })
 
