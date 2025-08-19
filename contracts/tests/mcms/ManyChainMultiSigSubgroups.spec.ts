@@ -354,7 +354,7 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
 
     if (!allSignersNeeded) {
       // Can remove at least one signature and setRoot still works
-      let success = true
+      let success = false
       for (let i = 0; i < signers.length; i++) {
         const reducedSigners = removeIndex(signers, i)
         const [nonce, newState] = await randomBetween(randomState, 0, 2 ** 32)
@@ -399,6 +399,7 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
           }
         }
       }
+      expect(success).toBeTruthy()
     }
 
     // Test setRoot with override
