@@ -201,7 +201,6 @@ export class OffRamp extends OCR3Base {
       queryID?: number
       reportContext: ReportContext
       report: ExecutionReport
-      signatures: SignatureEd25519[]
     },
   ) {
     await provider.internal(via, {
@@ -213,12 +212,7 @@ export class OffRamp extends OCR3Base {
         .storeUint(opts.reportContext.configDigest, 256)
         .storeUint(opts.reportContext.padding, 192) //should be zero
         .storeUint(opts.reportContext.sequenceBytes, 64)
-        .storeRef(ExecutionReportToCell(opts.report))
-        .storeRef(
-          asSnakeData(opts.signatures, (item) =>
-            beginCell().storeUint(item.r, 256).storeUint(item.s, 256).storeUint(item.signer, 256),
-          ),
-        )
+        .storeBuilder(ExecutionReportToBuilder(opts.report))
         .endCell(),
     })
   }
@@ -333,7 +327,7 @@ export const sourceChainConfigToBuilder = (config: SourceChainConfig) => {
     .storeBuffer(config.onRamp, config.onRamp.byteLength)
 }
 
-function ExecutionReportToCell(report: ExecutionReport): Cell | import('@ton/core').Builder {
+function ExecutionReportToBuilder(report: ExecutionReport) {
   return beginCell()
     .storeUint(report.sourceChainSelector, 64)
     .storeRef(asSnakeData(report.messages, (message) => {
@@ -344,12 +338,11 @@ function ExecutionReportToCell(report: ExecutionReport): Cell | import('@ton/cor
       return beginCell().storeUint(proof, 256)
     }))
     .storeUint(report.proofFlagBits, 256)
-    .endCell()
 }
 
 function Any2TVMMessageToBuilder(message: Any2TVMRampMessage) {
   return beginCell()
-    .storeRef(RampMessageHeaderToBuidler(message.header))
+    .storeBuilder(RampMessageHeaderToBuidler(message.header))
     .storeRef(beginCell().storeBuffer(message.sender, message.sender.byteLength))
     .storeRef(message.data)
     .storeAddress(message.receiver)

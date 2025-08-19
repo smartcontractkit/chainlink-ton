@@ -30,15 +30,19 @@ fun MerkleRoot_Storage.store(self) {
 type Msg = ValidateExecute;
 
 fun onInternalMessage(in: InMessage) {
+    debug.print(423);
     val msg = lazy Msg.fromSlice(in.body);
+    debug.print(422);
     match (msg) {
         ValidateExecute => {
+            debug.print(421);
             // If we receive this message from the OffRamp then the proof has already been validated.
             onExecute(msg, in.senderAddress);
             
         }
         else => {
             // ignore empty messages, "wrong opcode" for others
+            debug.print(4222);
             assert (in.body.isEmpty()) throw 0xFFFF
         }
     }

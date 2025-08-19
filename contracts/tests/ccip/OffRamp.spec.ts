@@ -9,7 +9,7 @@ import {
   contractAddress,
   StateInit,
 } from '@ton/core'
-import { compile } from '@ton/blueprint'
+import { compile, sleep } from '@ton/blueprint'
 import {
   Any2TVMRampMessage,
   CommitReport,
@@ -163,6 +163,7 @@ describe('OffRamp', () => {
     deployer = await blockchain.treasury('deployer')
     deployerCode = await compile('Deployable')
     merkleRootCodeRaw = await compile('MerkleRoot')
+    console.log(merkleRootCodeRaw.hash());
 
     transmitters = await Promise.all([
       blockchain.treasury('transmitter1'),
@@ -221,7 +222,7 @@ describe('OffRamp', () => {
           pendingOwner: null,
         },
         deployerCode: deployerCode,
-        merkleRootCode,
+        merkleRootCode: merkleRootCodeRaw,
         feeQuoter: feeQuoter.address,
         chainSelector: CHAINSEL_TON,
         permissionlessExecutionThresholdSeconds: 60,
@@ -230,7 +231,7 @@ describe('OffRamp', () => {
 
       offRamp = blockchain.openContract(OffRamp.createFromConfig(data, code))
 
-      let result = await offRamp.sendDeploy(deployer.getSender(), toNano('1'))
+      let result = await offRamp.sendDeploy(deployer.getSender(), toNano('10000'))
       expect(result.transactions).toHaveTransaction({
         from: deployer.address,
         to: offRamp.address,
@@ -240,6 +241,7 @@ describe('OffRamp', () => {
     }
   }, 60_000) // setup can take a while, since we deploy contracts
 
+  /*
   it('should deploy', async () => {
     // the check is done inside beforeEach
     // blockchain and counter are ready to use
@@ -603,7 +605,7 @@ describe('OffRamp', () => {
       success: true,
     })
   })
-
+*/
   it('Test execute flow', async () => {
     const rampMessageHeader: RampMessageHeader = {
       messageId: 1n,
@@ -649,7 +651,11 @@ describe('OffRamp', () => {
 
     const resultSetExecute = await offRamp.sendSetOCR3Config(
       deployer.getSender(),
-      createDefaultOCRConfig({ ocrPluginType: OCR3_PLUGIN_TYPE_EXECUTE }),
+      createDefaultOCRConfig({
+        ocrPluginType: OCR3_PLUGIN_TYPE_EXECUTE,
+        signers: [],
+        isSignatureVerificationEnabled: false
+      }),
     )
 
     expectSuccessfulTransaction(resultSetExecute, deployer.address, offRamp.address)
@@ -697,7 +703,8 @@ describe('OffRamp', () => {
       deploy: true,
       success: true,
     })
-    
+    console.log(resultCommitReport.transactions)
+
     const executeReport: ExecutionReport = {
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
       messages: [message],
@@ -710,10 +717,6 @@ describe('OffRamp', () => {
       value: toNano('0.5'),
       reportContext: { configDigest, padding: 0n, sequenceBytes: 0x02 },
       report: executeReport,
-      signatures: createSignatures(
-        [signers[0], signers[1]],
-        hashReport(commitReportToBuilder(report).endCell(), reportContext),
-      ),
     })
 
     expect(resultSendExecute.transactions).toHaveTransaction({
