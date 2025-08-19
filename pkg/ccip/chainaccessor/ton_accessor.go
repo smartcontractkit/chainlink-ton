@@ -57,11 +57,9 @@ func NewTONAccessor(
 
 // Common Accessor methods
 func (a *TONAccessor) GetContractAddress(contractName string) ([]byte, error) {
-	a.bindingsMu.RLock()
-	defer a.bindingsMu.RUnlock()
-	addr, exists := a.bindings[contractName]
-	if !exists {
-		return nil, ErrNoBindings
+	addr, err := a.getBinding(contractName)
+	if err != nil {
+		return nil, err
 	}
 	return addrToBytes(addr), nil
 }
