@@ -50,6 +50,12 @@ describe('CallProxy', () => {
     })
   })
 
+  it('Should compute crc32 opcodes', async () => {
+    // In opcodes
+    expect(callProxy.opcodes.in.TopUp).toBe(0x3b3d63b8)
+  })
+
+
   it('should deploy and set target correctly', async () => {
     // Verify the contract deployed successfully
     expect(bind.callProxy.address).toBeDefined()

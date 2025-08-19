@@ -21,6 +21,9 @@ import { merkleProof } from '../../src/mcms'
 describe('MCMS - IntegrationTest', () => {
   let blockchain: Blockchain
 
+  // TODO: blockchain global chain ID (will need to be signed int)
+  let chainId = -239n
+
   var code: {
     mcms: Cell
     timelock: Cell
@@ -530,7 +533,7 @@ describe('MCMS - IntegrationTest', () => {
       }))
       const validUntil = BigInt(blockchain.now || 0) + 2n * 60n * 60n // block.timestamp + 2 hours
       const metadata = {
-        chainId: -239n, // TODO: blockchain global chain ID (will need to be signed int)
+        chainId,
         multiSig: bind.mcmsPropose.address,
         preOpCount: 0n,
         postOpCount: 1n,
@@ -538,7 +541,7 @@ describe('MCMS - IntegrationTest', () => {
       }
       const ops: mcms.Op[] = [
         {
-          chainId: -239n, // TODO: blockchain global chain ID (will need to be signed int)
+          chainId,
           multiSig: bind.mcmsPropose.address,
           nonce: 0n,
           to: bind.timelock.address,
@@ -648,7 +651,7 @@ describe('MCMS - IntegrationTest', () => {
       }))
       const validUntil = BigInt(blockchain.now || 0) + 2n * 60n * 60n // block.timestamp + 2 hours
       const metadata = {
-        chainId: -239n, // TODO: blockchain global chain ID (will need to be signed int)
+        chainId,
         multiSig: bind.mcmsPropose.address,
         preOpCount: 1n,
         postOpCount: 2n,
@@ -656,7 +659,7 @@ describe('MCMS - IntegrationTest', () => {
       }
       const ops: mcms.Op[] = [
         {
-          chainId: -239n, // TODO: blockchain global chain ID (will need to be signed int)
+          chainId,
           multiSig: bind.mcmsPropose.address,
           nonce: 1n,
           to: bind.timelock.address,
@@ -779,7 +782,7 @@ describe('MCMS - IntegrationTest', () => {
       }))
       const validUntil = BigInt(blockchain.now || 0) + 2n * 60n * 60n // block.timestamp + 2 hours
       const metadata = {
-        chainId: -239n, // TODO: blockchain global chain ID (will need to be signed int)
+        chainId,
         multiSig: bind.mcmsBypass.address,
         preOpCount: 0n,
         postOpCount: 1n,
@@ -787,7 +790,7 @@ describe('MCMS - IntegrationTest', () => {
       }
       const ops: mcms.Op[] = [
         {
-          chainId: -239n, // TODO: blockchain global chain ID (will need to be signed int)
+          chainId,
           multiSig: bind.mcmsBypass.address,
           nonce: 0n,
           to: bind.timelock.address,
@@ -892,7 +895,7 @@ describe('MCMS - IntegrationTest', () => {
       }))
       const validUntil = BigInt(blockchain.now || 0) + 2n * 60n * 60n // block.timestamp + 2 hours
       const metadata = {
-        chainId: -239n, // TODO: blockchain global chain ID (will need to be signed int)
+        chainId,
         multiSig: bind.mcmsPropose.address,
         preOpCount: 2n,
         postOpCount: 3n,
@@ -900,7 +903,7 @@ describe('MCMS - IntegrationTest', () => {
       }
       const ops: mcms.Op[] = [
         {
-          chainId: -239n, // TODO: blockchain global chain ID (will need to be signed int)
+          chainId,
           multiSig: bind.mcmsPropose.address,
           nonce: 2n,
           to: bind.timelock.address,
@@ -972,7 +975,7 @@ describe('MCMS - IntegrationTest', () => {
         }))
         const validUntil = BigInt(blockchain.now || 0) + 2n * 60n * 60n // block.timestamp + 2 hours
         const metadata = {
-          chainId: -239n, // TODO: blockchain global chain ID (will need to be signed int)
+          chainId,
           multiSig: bind.mcmsVeto.address,
           preOpCount: 0n,
           postOpCount: 1n,
@@ -980,7 +983,7 @@ describe('MCMS - IntegrationTest', () => {
         }
         const ops: mcms.Op[] = [
           {
-            chainId: -239n, // TODO: blockchain global chain ID (will need to be signed int)
+            chainId,
             multiSig: bind.mcmsVeto.address,
             nonce: 0n,
             to: bind.timelock.address,
@@ -1097,7 +1100,7 @@ describe('MCMS - IntegrationTest', () => {
       }))
       const validUntil = BigInt(blockchain.now || 0) + 2n * 60n * 60n // block.timestamp + 2 hours
       const metadata = {
-        chainId: -239n, // TODO: blockchain global chain ID (will need to be signed int)
+        chainId,
         multiSig: bind.mcmsPropose.address,
         preOpCount: 3n,
         postOpCount: 4n,
@@ -1105,7 +1108,7 @@ describe('MCMS - IntegrationTest', () => {
       }
       const ops: mcms.Op[] = [
         {
-          chainId: -239n, // TODO: blockchain global chain ID (will need to be signed int)
+          chainId,
           multiSig: bind.mcmsPropose.address,
           nonce: 3n,
           to: bind.timelock.address,

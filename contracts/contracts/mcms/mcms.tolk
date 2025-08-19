@@ -464,7 +464,7 @@ struct Op {
     nonce: uint40;
     to: address;
     value: coins;
-    data: cell;  // body of the operation
+    data: cell; // body of the operation
 }
 
 // --- Methods ---
@@ -504,7 +504,7 @@ fun MCMS<T>.setRoot(
     validUntil: uint32,
     metadata: RootMetadata,
     metadataProof: Iterator<uint256>,
-    signatures: cell,     // vec<Signature>
+    signatures: cell // vec<Signature>
 ) {
     /// Construct the message that should be signed by the signers.
     val signedHash = beginCell()
