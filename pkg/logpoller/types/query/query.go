@@ -1,22 +1,22 @@
 package query
 
-import "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
+import (
+	"bytes"
 
-// Options specifies pagination and sorting for log queries.
-type Options struct {
-	Limit  int
-	Offset int
-	SortBy []SortBy
-}
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
+)
 
-// SortBy defines sorting criteria for query results.
-type SortBy struct {
-	Field SortField
-	Order SortOrder
-}
+// Operator defines comparison operators for byte-level filtering.
+type Operator string
 
-// SortField defines the available fields for sorting.
-type SortField string
+const (
+	EQ  Operator = "="
+	NEQ Operator = "!="
+	GT  Operator = ">"
+	GTE Operator = ">="
+	LT  Operator = "<"
+	LTE Operator = "<="
+)
 
 // SortOrder defines the sort direction.
 type SortOrder string
@@ -24,7 +24,12 @@ type SortOrder string
 const (
 	ASC  SortOrder = "ASC"
 	DESC SortOrder = "DESC"
+)
 
+// SortField defines the available fields for sorting.
+type SortField string
+
+const (
 	SortByTxLT SortField = "tx_lt"
 )
 
@@ -38,17 +43,47 @@ type CellFilter struct {
 	Value    []byte   // expected value for comparison
 }
 
-// Operator defines comparison operators for byte-level filtering.
-type Operator string
+// Matches checks if payload matches a single byte filter
+func (f *CellFilter) Matches(payload []byte) bool {
+	// check if we have enough bytes
+	end := f.Offset + uint(len(f.Value))
+	if end > uint(len(payload)) {
+		return false
+	}
 
-const (
-	EQ  Operator = "="
-	NEQ Operator = "!="
-	GT  Operator = ">"
-	GTE Operator = ">="
-	LT  Operator = "<"
-	LTE Operator = "<="
-)
+	dataSlice := payload[f.Offset:end]
+
+	// apply comparison operator
+	switch f.Operator {
+	case EQ:
+		return bytes.Equal(dataSlice, f.Value)
+	case NEQ:
+		return !bytes.Equal(dataSlice, f.Value)
+	case GT:
+		return bytes.Compare(dataSlice, f.Value) > 0
+	case GTE:
+		return bytes.Compare(dataSlice, f.Value) >= 0
+	case LT:
+		return bytes.Compare(dataSlice, f.Value) < 0
+	case LTE:
+		return bytes.Compare(dataSlice, f.Value) <= 0
+	default:
+		return false
+	}
+}
+
+// SortBy defines sorting criteria for query results.
+type SortBy struct {
+	Field SortField
+	Order SortOrder
+}
+
+// Options specifies pagination and sorting for log queries.
+type Options struct {
+	Limit  int
+	Offset int
+	SortBy []SortBy
+}
 
 // Result provides a unified return type for all query methods.
 // It contains parsed logs with pagination metadata.

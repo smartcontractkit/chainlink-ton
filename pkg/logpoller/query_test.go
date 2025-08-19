@@ -1,7 +1,6 @@
 package logpoller
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -62,14 +61,10 @@ func createTestLog(t *testing.T, addr *address.Address, sig uint32, value uint64
 }
 
 func TestQueryBuilder_BasicFlow(t *testing.T) {
-	store := &mockLogStore{}
-
 	addr, err := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")
 	require.NoError(t, err)
 
-	builder := NewQuery[TestEvent](store).
-		WithSrcAddress(addr).
-		WithEventSig(123).
+	builder := NewQuery[TestEvent](addr, 123).
 		WithLimit(10)
 
 	b, ok := builder.(*queryBuilder[TestEvent])
@@ -84,7 +79,6 @@ func TestQueryBuilder_BasicFlow(t *testing.T) {
 }
 
 func TestQueryBuilder_WithFilters(t *testing.T) {
-	store := &mockLogStore{}
 	addr, err := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")
 	require.NoError(t, err)
 	// Test with cell filter
@@ -98,9 +92,7 @@ func TestQueryBuilder_WithFilters(t *testing.T) {
 		return event.Value > 10
 	}
 
-	builder := NewQuery[TestEvent](store).
-		WithSrcAddress(addr).
-		WithEventSig(123).
+	builder := NewQuery[TestEvent](addr, 123).
 		WithCellFilter(filter).
 		WithTypedFilter(typedFilter)
 
@@ -114,28 +106,24 @@ func TestQueryBuilder_WithFilters(t *testing.T) {
 }
 
 func TestQueryBuilder_RequiredAddress(t *testing.T) {
-	store := &mockLogStore{}
-
-	builder := NewQuery[TestEvent](store).
-		WithEventSig(123)
-
+	builder := NewQuery[TestEvent](nil, 123)
 	// Should fail without address
-	_, err := builder.Execute(context.Background())
+	store := &mockLogStore{}
+	_, err := builder.Execute(t.Context(), store)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "address is required")
 }
 
 func TestQueryBuilder_RequiredSig(t *testing.T) {
-	store := &mockLogStore{}
 	addr, err := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")
 	require.NoError(t, err)
 
-	builder := NewQuery[TestEvent](store).
-		WithSrcAddress(addr)
-		// Missing Withsig call - sig should default to 0
+	builder := NewQuery[TestEvent](addr, 0)
+	// Missing Withsig call - sig should default to 0
 
 	// Should fail without sig
-	_, err = builder.Execute(context.Background())
+	store := &mockLogStore{}
+	_, err = builder.Execute(t.Context(), store)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "event signature is required")
 }
@@ -149,11 +137,7 @@ func TestQueryBuilder_Execute_BasicQuery(t *testing.T) {
 	testLog := createTestLog(t, addr, 123, 42) // Value = 42
 	store.SaveLog(testLog)
 
-	builder := NewQuery[TestEvent](store).
-		WithSrcAddress(addr).
-		WithEventSig(123)
-
-	result, err := builder.Execute(context.Background())
+	result, err := NewQuery[TestEvent](addr, 123).Execute(t.Context(), store)
 	require.NoError(t, err)
 	require.Len(t, result.Logs, 1)
 	require.Equal(t, uint64(42), result.Logs[0].TypedData.Value)
@@ -172,14 +156,12 @@ func TestQueryBuilder_Execute_WithTypedFilter(t *testing.T) {
 	store.SaveLog(createTestLog(t, addr, 123, 25)) // Should pass
 	store.SaveLog(createTestLog(t, addr, 123, 3))  // Should be filtered out
 
-	builder := NewQuery[TestEvent](store).
-		WithSrcAddress(addr).
-		WithEventSig(123).
+	builder := NewQuery[TestEvent](addr, 123).
 		WithTypedFilter(func(event TestEvent) bool {
 			return event.Value > 10
 		})
 
-	result, err := builder.Execute(context.Background())
+	result, err := builder.Execute(t.Context(), store)
 	require.NoError(t, err)
 	require.Len(t, result.Logs, 2)
 	require.Equal(t, uint64(15), result.Logs[0].TypedData.Value)
@@ -204,12 +186,10 @@ func TestQueryBuilder_Execute_WithCellFilter(t *testing.T) {
 		Value:    []byte{10},
 	}
 
-	builder := NewQuery[TestEvent](store).
-		WithSrcAddress(addr).
-		WithEventSig(123).
+	builder := NewQuery[TestEvent](addr, 123).
 		WithCellFilter(filter)
 
-	result, err := builder.Execute(context.Background())
+	result, err := builder.Execute(t.Context(), store)
 	require.NoError(t, err)
 	require.Len(t, result.Logs, 2) // Should match 15 and 255
 	require.Equal(t, 2, result.Total)
@@ -226,12 +206,10 @@ func TestQueryBuilder_Execute_WithPagination(t *testing.T) {
 	}
 
 	// Test with limit
-	builder := NewQuery[TestEvent](store).
-		WithSrcAddress(addr).
-		WithEventSig(123).
+	builder := NewQuery[TestEvent](addr, 123).
 		WithLimit(3)
 
-	result, err := builder.Execute(context.Background())
+	result, err := builder.Execute(t.Context(), store)
 	require.NoError(t, err)
 	require.Len(t, result.Logs, 3)
 	require.Equal(t, 10, result.Total)
@@ -239,13 +217,11 @@ func TestQueryBuilder_Execute_WithPagination(t *testing.T) {
 	require.Equal(t, 3, result.Limit)
 
 	// Test with offset
-	builder = NewQuery[TestEvent](store).
-		WithSrcAddress(addr).
-		WithEventSig(123).
+	builder = NewQuery[TestEvent](addr, 123).
 		WithOffset(5).
 		WithLimit(3)
 
-	result, err = builder.Execute(context.Background())
+	result, err = builder.Execute(t.Context(), store)
 	require.NoError(t, err)
 	require.Len(t, result.Logs, 3)
 	require.Equal(t, 10, result.Total)
@@ -261,11 +237,9 @@ func TestQueryBuilder_Execute_NoMatches(t *testing.T) {
 	// Add logs for a different sig
 	store.SaveLog(createTestLog(t, addr, 456, 42))
 
-	builder := NewQuery[TestEvent](store).
-		WithSrcAddress(addr).
-		WithEventSig(123) // Different sig
+	builder := NewQuery[TestEvent](addr, 123) // Different sig
 
-	result, err := builder.Execute(context.Background())
+	result, err := builder.Execute(t.Context(), store)
 	require.NoError(t, err)
 	require.Empty(t, result.Logs)
 	require.Equal(t, 0, result.Total)
@@ -284,11 +258,9 @@ func TestQueryBuilder_Execute_DifferentAddresses(t *testing.T) {
 	store.SaveLog(createTestLog(t, addr2, 123, 24))
 
 	// Query for addr1 only
-	builder := NewQuery[TestEvent](store).
-		WithSrcAddress(addr1).
-		WithEventSig(123)
+	builder := NewQuery[TestEvent](addr1, 123)
 
-	result, err := builder.Execute(context.Background())
+	result, err := builder.Execute(t.Context(), store)
 	require.NoError(t, err)
 	require.Len(t, result.Logs, 1)
 	require.Equal(t, uint64(42), result.Logs[0].TypedData.Value)
@@ -312,15 +284,13 @@ func TestQueryBuilder_Execute_CombinedFilters(t *testing.T) {
 		Value:    []byte{4},
 	}
 
-	builder := NewQuery[TestEvent](store).
-		WithSrcAddress(addr).
-		WithEventSig(123).
+	builder := NewQuery[TestEvent](addr, 123).
 		WithCellFilter(filter).
 		WithTypedFilter(func(event TestEvent) bool {
 			return event.Value > 10
 		})
 
-	result, err := builder.Execute(context.Background())
+	result, err := builder.Execute(t.Context(), store)
 	require.NoError(t, err)
 	require.Len(t, result.Logs, 2) // Only 15 and 25 should pass
 	require.Equal(t, 2, result.Total)
@@ -341,38 +311,87 @@ func TestQueryBuilder_Execute_InvalidCellData(t *testing.T) {
 	}
 	store.SaveLog(invalidLog)
 
-	builder := NewQuery[TestEvent](store).
-		WithSrcAddress(addr).
-		WithEventSig(123)
+	builder := NewQuery[TestEvent](addr, 123)
 
 	// Should return error when trying to parse invalid cell
-	_, err = builder.Execute(context.Background())
+	_, err = builder.Execute(t.Context(), store)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "failed to parse log cell")
 }
 
-func TestByteComparison(t *testing.T) {
+func TestCellFilterMatches(t *testing.T) {
 	tests := []struct {
 		name     string
-		a, b     []byte
+		filter   query.CellFilter
+		payload  []byte
 		expected bool
 	}{
-		{"equal bytes", []byte{1, 2, 3}, []byte{1, 2, 3}, true},
-		{"different bytes", []byte{1, 2, 3}, []byte{1, 2, 4}, false},
-		{"greater bytes", []byte{1, 2, 4}, []byte{1, 2, 3}, true},
-		{"less bytes", []byte{1, 2, 2}, []byte{1, 2, 3}, true},
+		{
+			name: "equal bytes - match",
+			filter: query.CellFilter{
+				Offset:   0,
+				Operator: query.EQ,
+				Value:    []byte{1, 2, 3},
+			},
+			payload:  []byte{1, 2, 3, 4, 5},
+			expected: true,
+		},
+		{
+			name: "equal bytes - no match",
+			filter: query.CellFilter{
+				Offset:   0,
+				Operator: query.EQ,
+				Value:    []byte{1, 2, 3},
+			},
+			payload:  []byte{1, 2, 4, 5, 6},
+			expected: false,
+		},
+		{
+			name: "greater than - match",
+			filter: query.CellFilter{
+				Offset:   0,
+				Operator: query.GT,
+				Value:    []byte{1, 2, 3},
+			},
+			payload:  []byte{1, 2, 4, 5, 6},
+			expected: true,
+		},
+		{
+			name: "less than - match",
+			filter: query.CellFilter{
+				Offset:   0,
+				Operator: query.LT,
+				Value:    []byte{1, 2, 3},
+			},
+			payload:  []byte{1, 2, 2, 5, 6},
+			expected: true,
+		},
+		{
+			name: "offset filtering",
+			filter: query.CellFilter{
+				Offset:   2,
+				Operator: query.EQ,
+				Value:    []byte{3, 4},
+			},
+			payload:  []byte{1, 2, 3, 4, 5},
+			expected: true,
+		},
+		{
+			name: "payload too short",
+			filter: query.CellFilter{
+				Offset:   10,
+				Operator: query.EQ,
+				Value:    []byte{1, 2, 3},
+			},
+			payload:  []byte{1, 2, 3},
+			expected: false,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			switch tt.name {
-			case "equal bytes", "different bytes":
-				require.Equal(t, tt.expected, bytesEqual(tt.a, tt.b))
-			case "greater bytes":
-				require.Equal(t, tt.expected, bytesGreater(tt.a, tt.b))
-			case "less bytes":
-				require.Equal(t, tt.expected, bytesLess(tt.a, tt.b))
-			}
+			result := tt.filter.Matches(tt.payload)
+			require.Equal(t, tt.expected, result)
 		})
 	}
 }
@@ -443,11 +462,9 @@ func TestQueryBuilder_ExecuteWithLargeDataset(t *testing.T) {
 	}
 
 	// Test basic query returns all data
-	builder := NewQuery[TestEvent](store).
-		WithSrcAddress(addr).
-		WithEventSig(123)
+	builder := NewQuery[TestEvent](addr, 123)
 
-	result, err := builder.Execute(context.Background())
+	result, err := builder.Execute(t.Context(), store)
 	require.NoError(t, err)
 	require.Len(t, result.Logs, 100)
 	require.Equal(t, 100, result.Total)
@@ -466,14 +483,12 @@ func TestQueryBuilder_ExecuteWithComplexFiltering(t *testing.T) {
 	}
 
 	// Test typed filter: values > 20 and < 40
-	builder := NewQuery[TestEvent](store).
-		WithSrcAddress(addr).
-		WithEventSig(123).
+	builder := NewQuery[TestEvent](addr, 123).
 		WithTypedFilter(func(event TestEvent) bool {
 			return event.Value > 20 && event.Value < 40
 		})
 
-	result, err := builder.Execute(context.Background())
+	result, err := builder.Execute(t.Context(), store)
 	require.NoError(t, err)
 	require.Len(t, result.Logs, 3) // 25, 30, 35
 	require.Equal(t, 3, result.Total)
@@ -496,16 +511,14 @@ func TestQueryBuilder_ExecuteWithPaginationAndFiltering(t *testing.T) {
 	}
 
 	// Filter for values >= 6 with pagination
-	builder := NewQuery[TestEvent](store).
-		WithSrcAddress(addr).
-		WithEventSig(123).
+	builder := NewQuery[TestEvent](addr, 123).
 		WithTypedFilter(func(event TestEvent) bool {
 			return event.Value >= 6
 		}).
 		WithLimit(3).
 		WithOffset(1)
 
-	result, err := builder.Execute(context.Background())
+	result, err := builder.Execute(t.Context(), store)
 	require.NoError(t, err)
 	require.Len(t, result.Logs, 3)
 	require.Equal(t, 7, result.Total) // Values: 6,8,10,12,14,16,18
@@ -537,13 +550,11 @@ func TestQueryBuilder_ExecuteMultipleCellFilters(t *testing.T) {
 		Value:    []byte{1, 194}, // < 450
 	}
 
-	builder := NewQuery[TestEvent](store).
-		WithSrcAddress(addr).
-		WithEventSig(123).
+	builder := NewQuery[TestEvent](addr, 123).
 		WithCellFilter(filter1).
 		WithCellFilter(filter2)
 
-	result, err := builder.Execute(context.Background())
+	result, err := builder.Execute(t.Context(), store)
 	require.NoError(t, err)
 	// Should match 200, 300, 400 (between 150 and 450)
 	require.Len(t, result.Logs, 3)
@@ -555,11 +566,9 @@ func TestQueryBuilder_ExecuteEmptyStore(t *testing.T) {
 	addr, err := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")
 	require.NoError(t, err)
 
-	builder := NewQuery[TestEvent](store).
-		WithSrcAddress(addr).
-		WithEventSig(123)
+	builder := NewQuery[TestEvent](addr, 123)
 
-	result, err := builder.Execute(context.Background())
+	result, err := builder.Execute(t.Context(), store)
 	require.NoError(t, err)
 	require.Empty(t, result.Logs)
 	require.Equal(t, 0, result.Total)
@@ -579,11 +588,9 @@ func TestQueryBuilder_ExecuteWithMixedSigs(t *testing.T) {
 	}
 
 	// Query for specific sig
-	builder := NewQuery[TestEvent](store).
-		WithSrcAddress(addr).
-		WithEventSig(456)
+	builder := NewQuery[TestEvent](addr, 456)
 
-	result, err := builder.Execute(context.Background())
+	result, err := builder.Execute(t.Context(), store)
 	require.NoError(t, err)
 	require.Len(t, result.Logs, 5)
 	require.Equal(t, 5, result.Total)

@@ -117,9 +117,7 @@ func (a *TONAccessor) MsgsBetweenSeqNums(ctx context.Context, dest ccipocr3.Chai
 	}
 
 	// query TON logs
-	res, err := logpoller.NewQuery[onramp.CCIPMessageSent](a.logPoller.GetStore()).
-		WithSrcAddress(onrampAddr).
-		WithEventSig(hash.CRC32("CCIPMessageSent")).
+	res, err := logpoller.NewQuery[onramp.CCIPMessageSent](onrampAddr, hash.CRC32("CCIPMessageSent")).
 		WithCellFilter(query.CellFilter{
 			Offset:   0,
 			Operator: query.EQ,
@@ -136,8 +134,8 @@ func (a *TONAccessor) MsgsBetweenSeqNums(ctx context.Context, dest ccipocr3.Chai
 			Value:    binary.BigEndian.AppendUint64(nil, uint64(seqNumRange.End())),
 		}).
 		WithSort(query.SortByTxLT, query.ASC).
-		WithLimit(int(seqNumRange.End() - seqNumRange.Start() + 1)). //nolint:gosec // conversion is safe in this context
-		Execute(ctx)
+		WithLimit(int(seqNumRange.End()-seqNumRange.Start()+1)). //nolint:gosec // conversion is safe in this context
+		Execute(ctx, a.logPoller.GetStore())
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to query onRamp logs: %w", err)
@@ -198,9 +196,7 @@ func (a *TONAccessor) LatestMessageTo(ctx context.Context, dest ccipocr3.ChainSe
 		return 0, fmt.Errorf("OnRamp not bound: %w", err)
 	}
 
-	res, err := logpoller.NewQuery[onramp.CCIPMessageSent](a.logPoller.GetStore()).
-		WithSrcAddress(onrampAddr).
-		WithEventSig(hash.CRC32("CCIPMessageSent")).
+	res, err := logpoller.NewQuery[onramp.CCIPMessageSent](onrampAddr, hash.CRC32("CCIPMessageSent")).
 		WithCellFilter(query.CellFilter{
 			Offset:   0,
 			Operator: query.EQ,
@@ -208,7 +204,7 @@ func (a *TONAccessor) LatestMessageTo(ctx context.Context, dest ccipocr3.ChainSe
 		}).
 		WithSort(query.SortByTxLT, query.DESC). // sort by transaction LT old to new
 		WithLimit(1).                           // only get the last one
-		Execute(ctx)
+		Execute(ctx, a.logPoller.GetStore())
 
 	if err != nil {
 		return 0, fmt.Errorf("failed to query onRamp logs: %w", err)

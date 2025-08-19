@@ -62,14 +62,6 @@ type LogStore interface {
 // QueryBuilder defines the interface for constructing and executing log queries.
 // The generic type T represents the expected event(msg) structure that logs will be parsed into.
 type QueryBuilder[T any] interface {
-	// WithSrcAddress sets the source contract address to filter logs by (required).
-	// This specifies which contract's logs to search through.
-	WithSrcAddress(address *address.Address) QueryBuilder[T]
-
-	// WithEventSig sets the event signature (topic or opcode) to filter logs by (required).
-	// This identifies the specific type of event/message to look for in the logs.
-	WithEventSig(sig uint32) QueryBuilder[T]
-
 	// WithCellFilter adds a single byte-level filter to the query.
 	// Cell filters allow filtering based on raw byte comparisons at specific offsets
 	// in the log data. Multiple cell filters can be added and they are combined with AND logic.
@@ -91,5 +83,5 @@ type QueryBuilder[T any] interface {
 
 	// Execute runs the constructed query and returns the results.
 	// All the configured filters, sorting, and pagination options are applied.
-	Execute(ctx context.Context) (query.Result[T], error)
+	Execute(ctx context.Context, store LogStore) (query.Result[T], error)
 }
