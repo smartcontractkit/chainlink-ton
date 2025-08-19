@@ -67,7 +67,7 @@ export class ContractClient implements Contract {
   // --- Getters ---
 
   async getID(p: ContractProvider): Promise<number> {
-    return p.get('getId', []).then((r) => r.stack.readNumber())
+    return p.get('getID', []).then((r) => r.stack.readNumber())
   }
 
   async getTarget(p: ContractProvider): Promise<Address> {
