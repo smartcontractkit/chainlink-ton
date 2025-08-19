@@ -30,8 +30,7 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
       }),
     )
 
-    // Execute all operations up to the post-op count limit to simulate setOpCount // TODO this could be hidden behind some helper. It is not the focus of this test
-    await baseTest.advanceOpcodeTo(MCMSBaseSetRootAndExecuteTestSetup.OPS_NUM)
+    await baseTest.executeOperationsUpTo(MCMSBaseSetRootAndExecuteTestSetup.OPS_NUM)
 
     // Verify we've reached the post-op count
     const currentOpCount = await baseTest.bind.mcms.getOpCount()
@@ -296,7 +295,7 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
   // TODO mcms doesn't handle bounced messages yet
   it('should revert on failed op', async () => {
     // Execute operations up to the reverting op index
-    await baseTest.advanceOpcodeTo(MCMSBaseSetRootAndExecuteTestSetup.REVERTING_OP_INDEX)
+    await baseTest.executeOperationsUpTo(MCMSBaseSetRootAndExecuteTestSetup.REVERTING_OP_INDEX)
 
     // Verify we're at the correct op count
     const currentOpCount = await baseTest.bind.mcms.getOpCount()
@@ -332,7 +331,7 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
 
   it('should handle value operations correctly - insufficient balance', async () => {
     // Execute operations up to the value operation index
-    await baseTest.advanceOpcodeTo(MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX)
+    await baseTest.executeOperationsUpTo(MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX)
 
     // Verify we're at the correct op count
     const currentOpCount = await baseTest.bind.mcms.getOpCount()
@@ -371,7 +370,7 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
 
   it('should handle value operations correctly - with sufficient balance', async () => {
     // Execute operations up to the value operation index
-    await baseTest.advanceOpcodeTo(MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX)
+    await baseTest.executeOperationsUpTo(MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX)
 
     // Get the target address balance before executing the value operation
     const valueOp = baseTest.testOps[MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX]

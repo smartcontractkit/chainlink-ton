@@ -532,7 +532,8 @@ export class MCMSBaseSetRootAndExecuteTestSetup extends MCMSBaseTestSetup {
     return this.opProofs[opIndex]
   }
 
-  async advanceOpcodeTo(index: number) {
+  // Execute all operations up to the post-op count limit to simulate setOpCount
+  async executeOperationsUpTo(index: number) {
     for (let i = 0; i < index; i++) {
       const executeBody = mcms.builder.message.in.execute.encode({
         queryId: BigInt(i + 1),

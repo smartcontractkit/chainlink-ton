@@ -121,7 +121,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
 
     it('should revert on incorrect preOpCount - opCount > preOpCount', async () => {
       await baseTest.setInitialRoot()
-      await baseTest.advanceOpcodeTo(1)
+      await baseTest.executeOperationsUpTo(1)
       const corruptedRootMetadata = { ...baseTest.initialTestRootMetadata }
       corruptedRootMetadata.overridePreviousRoot = true
       corruptedRootMetadata.preOpCount = (await baseTest.bind.mcms.getOpCount()) - 1n
@@ -160,7 +160,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         toNano('10'),
         mcms.builder.message.in.topUp.encode({ queryId: 1n }),
       )
-      await baseTest.advanceOpcodeTo(MCMSBaseSetRootAndExecuteTestSetup.OPS_NUM)
+      await baseTest.executeOperationsUpTo(MCMSBaseSetRootAndExecuteTestSetup.OPS_NUM)
 
       // Now try to set another root with incorrect postOpCount
       const corruptedRootMetadata = { ...baseTest.initialTestRootMetadata }
@@ -417,7 +417,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
     it('should successfully set root after clearing', async () => {
       // Execute all ops except one
       const targetOpCount = baseTest.initialTestRootMetadata.postOpCount - 1n
-      await baseTest.advanceOpcodeTo(Number(targetOpCount))
+      await baseTest.executeOperationsUpTo(Number(targetOpCount))
 
       // Set config with clearRoot = true
       const setConfigBody = mcms.builder.message.in.setConfig.encode({
@@ -572,7 +572,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
       newRootMetadata.postOpCount =
         newRootMetadata.preOpCount + BigInt(MCMSBaseSetRootAndExecuteTestSetup.OPS_NUM)
 
-      await baseTest.advanceOpcodeTo(MCMSBaseSetRootAndExecuteTestSetup.OPS_NUM)
+      await baseTest.executeOperationsUpTo(MCMSBaseSetRootAndExecuteTestSetup.OPS_NUM)
 
       const signers = baseTest.testSigners.map((s) => ({
         publicKey: s.keyPair.publicKey,
