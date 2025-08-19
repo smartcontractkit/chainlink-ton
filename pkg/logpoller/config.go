@@ -2,8 +2,6 @@ package logpoller
 
 import (
 	"time"
-
-	"github.com/xssnick/tonutils-go/ton"
 )
 
 type Config struct {
@@ -14,13 +12,4 @@ type Config struct {
 var DefaultConfigSet = Config{
 	PollPeriod: 5 * time.Second,
 	PageSize:   100,
-}
-
-type ServiceOptions struct {
-	Config    Config // TODO: use global relayer config
-	Client    ton.APIClientWrapped
-	Filters   FilterStore
-	TxLoader  TxLoader
-	TxIndexer TxIndexer
-	Store     LogStore
 }

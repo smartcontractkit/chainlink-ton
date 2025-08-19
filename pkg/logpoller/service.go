@@ -38,6 +38,15 @@ type service struct {
 	lastProcessedBlock uint32        // Last processed masterchain sequence number
 }
 
+type ServiceOptions struct {
+	Config    Config // TODO: use global relayer config
+	Client    ton.APIClientWrapped
+	Filters   FilterStore
+	TxLoader  TxLoader
+	TxIndexer TxIndexer
+	Store     LogStore
+}
+
 // NewService creates a new TON log polling service instance
 func NewService(lggr logger.Logger, opts *ServiceOptions) Service {
 	lp := &service{

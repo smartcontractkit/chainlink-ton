@@ -65,7 +65,6 @@ func ToGenericSendRequestedEvent(
 		// ExtraArgs:      tonEvent.Message.Body.ExtraArgs.ToBOC(),
 		// FeeToken:       ccipocr3.UnknownAddress(tonEvent.Message.Body.FeeToken.String()),
 		// FeeTokenAmount: ccipocr3.NewBigInt(tonEvent.Message.Body.FeeTokenAmount),
-		// FeeValueJuels:  ccip3.BigInt{}, // TODO: conversion
 		// TokenAmounts:   tokenAmounts, // TODO
 	}
 
