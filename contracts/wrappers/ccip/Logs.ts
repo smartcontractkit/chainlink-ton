@@ -11,8 +11,6 @@ export enum LogTypes {
 }
 
 export type CCIPMessageSent = {
-  destChainSelector: bigint
-  sequenceNumber: bigint
   message: {
     header: {
       messageId: bigint

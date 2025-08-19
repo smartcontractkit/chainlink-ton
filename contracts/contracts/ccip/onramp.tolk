@@ -8,9 +8,7 @@ import "@stdlib/tvm-dicts";
 const CCIP_MESSAGE_SENT_TOPIC: int = stringCrc32("CCIPMessageSent"); 
 
 struct CCIPMessageSent {
-    destChainSelector: uint64; // NOTE: both these values are already part of message, is it even important to have?
-    sequenceNumber: uint64;
-    message: Cell<TVM2AnyRampMessage>;
+    message: TVM2AnyRampMessage;
 }
 
 struct Storage {
@@ -176,11 +174,7 @@ fun onMessageValidated(payload: MessageValidated<Metadata>, sender: address) {
 
     rampMessage.header.messageId = rampMessage.generateMessageId(metadataHash);
     
-    emit(CCIP_MESSAGE_SENT_TOPIC, CCIPMessageSent {
-        destChainSelector: msg.destChainSelector,
-        sequenceNumber: seqNr,
-        message: rampMessage.toCell(),
-    });
+    emit(CCIP_MESSAGE_SENT_TOPIC, CCIPMessageSent { message: rampMessage });
 
     // TODO: notify user
 }
