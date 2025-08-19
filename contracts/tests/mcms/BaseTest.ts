@@ -15,14 +15,14 @@ import * as ownable2step from '../../wrappers/libraries/access/Ownable2Step'
 
 import { crc32 } from 'zlib'
 
-export interface TestCode {
+export type TestCode = {
   mcms: Cell
   timelock: Cell
   callProxy: Cell
   counter: Cell
 }
 
-export interface TestAccounts {
+export type TestAccounts = {
   deployer: SandboxContract<TreasuryContract>
   admin: SandboxContract<TreasuryContract>
   proposerOne: SandboxContract<TreasuryContract>
@@ -35,7 +35,7 @@ export interface TestAccounts {
   bypasserTwo: SandboxContract<TreasuryContract>
 }
 
-export interface TestContracts {
+export type TestContracts = {
   timelock: SandboxContract<rbactl.ContractClient>
   ac: SandboxContract<ac.ContractClient>
   callProxy: SandboxContract<callproxy.ContractClient>

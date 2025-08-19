@@ -15,24 +15,24 @@ import { crc32 } from 'zlib'
 import { asSnakeData, uint8ArrayToBigInt } from '../../src/utils'
 import { generateEd25519KeyPair } from '../libraries/ocr/Helpers'
 
-export interface MCMSTestCode {
+export type MCMSTestCode = {
   mcms: Cell
   counter: Cell
 }
 
-export interface MCMSTestAccounts {
+export type MCMSTestAccounts = {
   deployer: SandboxContract<TreasuryContract>
   multisigOwner: SandboxContract<TreasuryContract>
   // 9 signers with their private keys
   signers: SandboxContract<TreasuryContract>[]
 }
 
-export interface MCMSTestContracts {
+export type MCMSTestContracts = {
   mcms: SandboxContract<mcms.ContractClient>
   counter: SandboxContract<counter.ContractClient>
 }
 
-export interface TestSigner {
+export type TestSigner = {
   address: Address
   keyPair: KeyPair
   treasury: SandboxContract<TreasuryContract>
