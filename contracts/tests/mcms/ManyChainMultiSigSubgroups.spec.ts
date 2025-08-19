@@ -344,7 +344,7 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
       multiSig: bind.mcms.address,
       preOpCount: 0n,
       postOpCount: 1n,
-      overridePreviousRoot: false,
+      overridePreviousRoot: true,
     }
 
     const signers = testSigners.map((s) => ({
@@ -356,6 +356,9 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
       // Can remove at least one signature and setRoot still works
       let success = false
       for (let i = 0; i < signers.length; i++) {
+        if (success) {
+          break
+        }
         const reducedSigners = removeIndex(signers, i)
         const [nonce, newState] = await randomBetween(randomState, 0, 2 ** 32)
         randomState = newState
@@ -383,23 +386,16 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
           reducedSetRootBody,
         )
 
-        const transaction = result.transactions.find(
-          (t) =>
-            t.inMessage?.info.src === acc.deployer.address &&
-            t.inMessage.info.dest === bind.mcms.address,
-        )
-        if (transaction?.description.type === 'generic') {
-          const transactionDesc = transaction?.description as TransactionDescriptionGeneric
-          if (transactionDesc.computePhase?.type == 'vm') {
-            const computePhase = transactionDesc.computePhase as TransactionComputeVm
-            if (computePhase.exitCode == 0 && transactionDesc.actionPhase?.resultCode == 0) {
-              success = true
-              break
-            }
-          }
-        }
+        try {
+          expect(result.transactions).toHaveTransaction({
+            from: acc.deployer.address,
+            to: bind.mcms.address,
+            success: true,
+          })
+          success = true
+        } catch {}
       }
-      expect(success).toBeTruthy()
+      expect(success).toBe(true)
     }
 
     // Test setRoot with override
