@@ -294,11 +294,10 @@ export class MCMSBaseTestSetup {
    * Deploy the Counter contract and verify deployment
    */
   async deployCounterContract(): Promise<void> {
-    const body = beginCell().endCell() // TODO should import counter.builder.message.in.topUp.encode({ queryId: 1n })
     const result = await this.bind.counter.sendInternal(
       this.acc.deployer.getSender(),
       toNano('2'),
-      body,
+      counter.builder.message.in.topUp.encode({ queryId: 1n }),
     )
 
     expect(result.transactions).toHaveTransaction({

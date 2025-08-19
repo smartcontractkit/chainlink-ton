@@ -12,21 +12,25 @@ import { TypeAndVersion } from '../libraries/TypeAndVersion'
 import * as ownable2step from '../libraries/access/Ownable2Step'
 import { CellCodec } from '../utils'
 
+/// @dev Message to top up de balance.
+export type TopUp = {
+  queryId: bigint
+}
+
 /// @dev Message to set the counter value.
 export type SetCount = {
-  // Query ID of the change owner request.
   queryId: bigint
   newCount: number
 }
 
 /// Message to increase the counter value.
 export type IncreaseCount = {
-  // Query ID of the change owner request.
   queryId: bigint
 }
 
 export const opcodes = {
   in: {
+    TopUp: 0x00000001,
     SetCount: 0x00000004,
     IncreaseCount: 0x10000005,
   },
@@ -49,6 +53,19 @@ export type ContractData = {
 export const builder = {
   message: {
     in: {
+      // Creates a new `TopUp` message.
+      topUp: {
+        encode: (msg: TopUp): Cell => {
+          return beginCell().storeUint(opcodes.in.TopUp, 32).storeUint(msg.queryId, 64).endCell()
+        },
+        decode: (cell: Cell): TopUp => {
+          const s = cell.beginParse()
+          s.skip(32) // skip opcode
+          return {
+            queryId: s.loadUintBig(64),
+          }
+        },
+      },
       // Creates a new `SetCount` message.
       setCount: {
         encode: (msg: SetCount): Cell => {
@@ -151,8 +168,11 @@ export class ContractClient implements Contract, TypeAndVersion {
   }
 
   async sendDeploy(p: ContractProvider, via: Sender, value: bigint): Promise<void> {
-    const body = beginCell().endCell()
-    await this.sendInternal(p, via, value, body)
+    await this.sendTopUp(p, via, value, { queryId: 1n })
+  }
+
+  async sendTopUp(p: ContractProvider, via: Sender, value: bigint = 0n, body: TopUp) {
+    return this.sendInternal(p, via, value, builder.message.in.topUp.encode(body))
   }
 
   async sendSetCount(p: ContractProvider, via: Sender, value: bigint = 0n, body: SetCount) {

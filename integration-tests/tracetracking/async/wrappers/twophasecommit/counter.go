@@ -5,7 +5,6 @@ import (
 	"math/rand/v2"
 
 	"github.com/xssnick/tonutils-go/tlb"
-	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
@@ -30,6 +29,11 @@ type CounterInitData struct {
 	AutoAck bool   `tlb:"bool"`
 }
 
+type TopUp struct {
+	_       tlb.Magic `tlb:"#00000001"` //nolint:revive // (opcode) should stay uninitialized
+	queryID uint32    `tlb:"## 32"`
+}
+
 func (p *CounterProvider) Deploy(initData CounterInitData) (Counter, error) {
 	initDataCell, err := tlb.ToCell(wrappers.LazyLoadingTactContractInitData(initData))
 	if err != nil {
@@ -39,7 +43,12 @@ func (p *CounterProvider) Deploy(initData CounterInitData) (Counter, error) {
 	if err != nil {
 		return Counter{}, fmt.Errorf("failed to compile contract: %w", err)
 	}
-	body := cell.BeginCell().EndCell()
+	body, err := tlb.ToCell(TopUp{
+		queryID: 1,
+	})
+	if err != nil {
+		return Counter{}, fmt.Errorf("failed to serialize body: %w", err)
+	}
 	contract, _, err := wrappers.Deploy(&p.apiClient, compiledContract, initDataCell, tlb.MustFromTON("1"), body)
 	if err != nil {
 		return Counter{}, err

@@ -36,12 +36,10 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
     counterTwo = baseTest.blockchain.openContract(
       counter.ContractClient.newFrom(counterTwoData, code.counter),
     )
-    // const body = counter.builder.message.topUp.encode({ queryId: 1n }) // TODO use TopUp after it is implemented
-    const body = beginCell().endCell()
     const result = await counterTwo.sendInternal(
       baseTest.acc.deployer.getSender(),
       toNano('0.05'),
-      body,
+      counter.builder.message.in.topUp.encode({ queryId: 1n }),
     )
     expect(result.transactions).toHaveTransaction({
       from: baseTest.acc.deployer.address,

@@ -1,11 +1,16 @@
-tolk 1.0
-
 import "@stdlib/common.tolk"
+import "../lib/access/ownable_2step.tolk"
 import "../lib/upgrades/type_and_version.tolk"
 import "../lib/utils.tolk"
-import "../lib/access/ownable_2step.tolk"
+
+tolk 1.0
 
 /// Counter contract + event emission (Tolk example)
+/// Message to send TON to contract.
+struct (0x00000001) TopUp {
+    queryId: uint64 // Standard query_id field
+}
+
 /// Message to set the counter value.
 struct (0x00000004) SetCount {
     queryId: uint64 // Standard query_id field
@@ -63,11 +68,14 @@ fun Storage.store(self) {
     return contract.setData(self.toCell());
 }
 
-type Msg = SetCount | IncreaseCount
+type Msg = TopUp | SetCount | IncreaseCount
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy Msg.fromSlice(in.body); // 63 error code is thrown if the message opcode is unknown
     match (msg) {
+        TopUp => {
+            /// Instructs the contract to top up the balance.
+        }
         SetCount => {
             /// Instructs the contract to set the counter.
             var st = lazy Storage.load();
@@ -123,14 +131,11 @@ fun onInternalMessage(in: InMessage) {
         }
         else => {
             var st = lazy Storage.load();
-            val msgHandled = 0
-                || st.ownable.onInternalMessage(in.senderAddress, in.body);
+            val msgHandled = 0 || st.ownable.onInternalMessage(in.senderAddress, in.body);
             st.store();
 
             if (!msgHandled) {
-                // If the message was not handled
-                // ignore empty messages, "wrong opcode" for others
-                assert (in.body.isEmpty()) throw ERROR_WRONG_OP;
+                throw ERROR_WRONG_OP;
             }
         }
     }
@@ -155,6 +160,5 @@ get fun value(): int {
 
 /// Gets the current type and version of the contract.
 get fun typeAndVersion(): (slice, slice) {
-    return TypeAndVersion { typeStr: "com.chainlink.ton.examples.Counter", versionStr: "1.1.0" }
-        .typeAndVersion();
+    return TypeAndVersion { typeStr: "com.chainlink.ton.examples.Counter", versionStr: "1.1.0" }.typeAndVersion();
 }
