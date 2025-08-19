@@ -86,8 +86,8 @@ func (s *sqlFilterStore) GetFiltersForAddressAndMsgType(ctx context.Context, add
 }
 
 // convertToDbFilter converts an application Filter to a database DbFilter
-func (s *sqlFilterStore) convertToDbFilter(filter types.Filter) *orm.DbFilter {
-	return &orm.DbFilter{
+func (s *sqlFilterStore) convertToDbFilter(filter types.Filter) *orm.FilterModel {
+	return &orm.FilterModel{
 		Name:          filter.Name,
 		Address:       filter.Address.String(),
 		MsgType:       string(filter.MsgType),
@@ -97,7 +97,7 @@ func (s *sqlFilterStore) convertToDbFilter(filter types.Filter) *orm.DbFilter {
 }
 
 // convertFromDbFilter converts a DbFilter back to an application Filter
-func (s *sqlFilterStore) convertFromDbFilter(dbF orm.DbFilter) (types.Filter, error) {
+func (s *sqlFilterStore) convertFromDbFilter(dbF orm.FilterModel) (types.Filter, error) {
 	addr, err := address.ParseAddr(dbF.Address)
 	if err != nil {
 		return types.Filter{}, fmt.Errorf("failed to parse address %s: %w", dbF.Address, err)

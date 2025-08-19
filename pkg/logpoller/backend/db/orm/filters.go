@@ -6,8 +6,8 @@ import (
 	"time"
 )
 
-// DbFilter represents the 'ton_log_poller_filters' table schema.
-type DbFilter struct {
+// FilterModel represents the 'ton_log_poller_filters' table schema.
+type FilterModel struct {
 	ID            int64     `db:"id"`
 	ChainID       string    `db:"chain_id"`
 	Name          string    `db:"name"`
@@ -19,7 +19,7 @@ type DbFilter struct {
 }
 
 // CreateFilter inserts a new filter into the database and returns the generated ID
-func (o *DSORM) CreateFilter(ctx context.Context, filter *DbFilter) (int64, error) {
+func (o *DSORM) CreateFilter(ctx context.Context, filter *FilterModel) (int64, error) {
 	filter.ChainID = o.chainID
 
 	query := `
@@ -119,7 +119,7 @@ func (o *DSORM) GetDistinctFilterAddresses(ctx context.Context) ([]string, error
 }
 
 // GetFiltersByAddressAndMsgType returns DbFilter records for a specific address and message type
-func (o *DSORM) GetFiltersByAddressAndMsgType(ctx context.Context, address string, msgType string) ([]DbFilter, error) {
+func (o *DSORM) GetFiltersByAddressAndMsgType(ctx context.Context, address string, msgType string) ([]FilterModel, error) {
 	query := `
 		SELECT 
 			id, 
@@ -134,7 +134,7 @@ func (o *DSORM) GetFiltersByAddressAndMsgType(ctx context.Context, address strin
 		WHERE chain_id = $1 AND address = $2 AND msg_type = $3
 	`
 
-	var dbFilters []DbFilter
+	var dbFilters []FilterModel
 	err := o.ds.SelectContext(ctx, &dbFilters, query, o.chainID, address, msgType)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get filters for address %s and message type %s: %w", address, msgType, err)
