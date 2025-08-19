@@ -319,7 +319,7 @@ export class MCMSBaseTestSetup {
 
     const setConfigBody = mcms.builder.message.in.setConfig.encode({
       queryId: 1n,
-      signerKeys: this.testSigners.map((s) => BigInt('0x' + s.keyPair.publicKey.toString('hex'))),
+      signerKeys: this.testSigners.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey)),
       signerGroups: this.testSigners.map((s) => s.group),
       groupQuorums: this.testConfig.groupQuorums,
       groupParents: this.testConfig.groupParents,

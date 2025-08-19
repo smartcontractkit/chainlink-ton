@@ -8,6 +8,7 @@ import {
 import { merkleProof } from '../../src/mcms'
 import * as mcms from '../../wrappers/mcms/MCMS'
 import { sign } from '@ton/crypto/dist/primitives/nacl'
+import { uint8ArrayToBigInt } from '../../src/utils'
 
 describe('MCMS - ManyChainMultiSigSetRootTest', () => {
   let baseTest: MCMSBaseSetRootAndExecuteTestSetup
@@ -421,9 +422,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
       // Set config with clearRoot = true
       const setConfigBody = mcms.builder.message.in.setConfig.encode({
         queryId: 1n,
-        signerKeys: baseTest.testSigners.map((s) =>
-          BigInt('0x' + s.keyPair.publicKey.toString('hex')),
-        ),
+        signerKeys: baseTest.testSigners.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey)),
         signerGroups: baseTest.testSigners.map((s) => s.group),
         groupQuorums: baseTest.testGroupQuorums,
         groupParents: baseTest.testGroupParents,
@@ -784,7 +783,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
       {
         const setConfigBody = mcms.builder.message.in.setConfig.encode({
           queryId: 1n,
-          signerKeys: signers.map((s) => BigInt('0x' + s.keyPair.publicKey.toString('hex'))),
+          signerKeys: signers.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey)),
           signerGroups,
           groupQuorums: stricterGroupQuorums,
           groupParents: baseTest.testGroupParents,
