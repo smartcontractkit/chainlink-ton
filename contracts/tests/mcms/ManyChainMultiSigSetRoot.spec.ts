@@ -760,7 +760,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
   describe('SetRootVerifySignaturesTest', () => {
     it('should revert on insufficient signatures for group quorum', async () => {
       const signersNum = 9
-      // expect(signersNum).toBeGreaterThanOrEqual(baseTest.SIGNERS_NUM) // TODO why can't I access it?
+      expect(signersNum).toBeGreaterThanOrEqual(MCMSBaseSetRootAndExecuteTestSetup.SIGNERS_NUM)
       // Create a configuration with stricter quorum requirements
       const stricterGroupQuorums = new Map<number, number>()
       stricterGroupQuorums.set(0, 3) // Increase root group quorum to 3
