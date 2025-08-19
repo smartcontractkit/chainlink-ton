@@ -82,7 +82,6 @@ func (a *TONAccessor) GetAllConfigsLegacy(ctx context.Context, destChainSelector
 
 	if a.chainSelector == destChainSelector {
 		// we're fetching config on the destination chain (offramp + fee quoter static config + RMN)
-		sourceChainConfigs = make(map[ccipocr3.ChainSelector]ccipocr3.SourceChainConfig, len(sourceChainSelectors))
 
 		// OffRamp
 		offrampStaticConfig, err := a.getOffRampStaticConfig(ctx, block)
@@ -127,7 +126,10 @@ func (a *TONAccessor) GetAllConfigsLegacy(ctx context.Context, destChainSelector
 		}
 		config.CurseInfo = curseInfo
 
-		// TODO: process sourceChainSelectors
+		sourceChainConfigs, err = a.getOffRampSourceChainConfigs(ctx, block, sourceChainSelectors)
+		if !errors.Is(err, ErrNoBindings) && err != nil {
+			return ccipocr3.ChainConfigSnapshot{}, nil, fmt.Errorf("failed to get source chain configs: %w", err)
+		}
 	} else {
 		// we're fetching config on the source chain (onramp + router config)
 

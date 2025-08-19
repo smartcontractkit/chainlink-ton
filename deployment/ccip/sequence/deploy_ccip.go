@@ -50,6 +50,7 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 		return output, err
 	}
 	output.FeeQuoterAddress = deployFeeQuoterReport.Output.Address
+	// TODO: FeeTokens/PremiumMultiplierWeiPerEthByFeeToken params
 
 	onrampInput := operation.DeployOnRampInput{
 		ChainSelector: in.CCIPConfig.OnRampParams.ChainSelector,
@@ -62,6 +63,19 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 		return output, err
 	}
 	output.OnRampAddress = deployOnRampReport.Output.Address
+
+	offrampInput := operation.DeployOffRampInput{
+		ChainSelector:                           in.CCIPConfig.OffRampParams.ChainSelector,
+		FeeQuoter:                               deployFeeQuoterReport.Output.Address,
+		PermissionlessExecutionThresholdSeconds: in.CCIPConfig.OffRampParams.PermissionlessExecutionThreshold,
+	}
+	// TODO: the rest of OffRampParams (SourceChain config)
+
+	deployOffRampReport, err := operations.ExecuteOperation(b, operation.DeployOffRampOp, deps, offrampInput)
+	if err != nil {
+		return output, err
+	}
+	output.OffRampAddress = deployOffRampReport.Output.Address
 
 	return output, nil
 }

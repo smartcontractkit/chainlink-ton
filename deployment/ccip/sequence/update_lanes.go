@@ -21,8 +21,8 @@ type UpdateTonLanesSeqInput struct {
 	UpdateFeeQuoterDestChainConfigs operation.UpdateFeeQuoterDestChainConfigsInput
 	UpdateFeeQuoterPricesConfig     operation.UpdateFeeQuoterPricesInput
 	UpdateOnRampDestChainConfigs    operation.UpdateOnRampDestChainConfigsInput
-	// UpdateOffRampSourcesConfig  operation.UpdateOffRampSourcesInput
-	UpdateRouterDestConfig operation.UpdateRouterDestInput
+	UpdateOffRampSourcesConfig      operation.UpdateOffRampSourcesInput
+	UpdateRouterDestConfig          operation.UpdateRouterDestInput
 }
 
 var UpdateTonLanesSequence = operations.NewSequence(
@@ -52,6 +52,12 @@ func updateLanes(b operations.Bundle, deps operation.TonDeps, in UpdateTonLanesS
 	txs = append(txs, onRampReport.Output...)
 
 	// configure offramp sources
+	b.Logger.Info("Updating source configs on OffRamp")
+	offRampReport, err := operations.ExecuteOperation(b, operation.UpdateOffRampSourceChainConfigsOp, deps, in.UpdateOffRampSourcesConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update offramp sources: %w", err)
+	}
+	txs = append(txs, offRampReport.Output...)
 
 	// add ccip owner to offramp allowlist
 
@@ -154,22 +160,22 @@ func setTonSourceUpdates(lane config.LaneConfig, updateInputsByTonChain map[uint
 }
 
 func setTonDestinationUpdates(lane config.LaneConfig, updateInputsByTonChain map[uint64]UpdateTonLanesSeqInput, isTestRouter bool) {
-	// source := lane.Source.(config.EVMChainDefinition)
-	// dest := lane.Dest.(config.TonChainDefinition)
-	// isEnabled := !lane.IsDisabled
-	//
-	// // Setting off ramp updates
-	// input := updateInputsByTonChain[dest.Selector]
-	//
-	//	if input.UpdateOffRampSourcesConfig.Updates == nil {
-	//		input.UpdateOffRampSourcesConfig.Updates = make(map[uint64]v1_6.OffRampSourceUpdate)
-	//	}
-	//
-	//	input.UpdateOffRampSourcesConfig.Updates[source.Selector] = v1_6.OffRampSourceUpdate{
-	//		IsEnabled:                 isEnabled,
-	//		TestRouter:                isTestRouter,
-	//		IsRMNVerificationDisabled: source.RMNVerificationDisabled,
-	//	}
-	//
-	// updateInputsByTonChain[dest.Selector] = input
+	source := lane.Source.(config.EVMChainDefinition)
+	dest := lane.Dest.(config.TonChainDefinition)
+	isEnabled := !lane.IsDisabled
+
+	// Setting off ramp updates
+	input := updateInputsByTonChain[dest.Selector]
+
+	if input.UpdateOffRampSourcesConfig.Updates == nil {
+		input.UpdateOffRampSourcesConfig.Updates = make(map[uint64]v1_6.OffRampSourceUpdate)
+	}
+
+	input.UpdateOffRampSourcesConfig.Updates[source.Selector] = v1_6.OffRampSourceUpdate{
+		IsEnabled:                 isEnabled,
+		TestRouter:                isTestRouter,
+		IsRMNVerificationDisabled: source.RMNVerificationDisabled,
+	}
+
+	updateInputsByTonChain[dest.Selector] = input
 }

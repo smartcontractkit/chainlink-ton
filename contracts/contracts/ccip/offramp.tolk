@@ -357,9 +357,9 @@ get fun sourceChainConfig(sourceChainSelector: uint64): SourceChainConfig {
     return st.sourceChainConfigs.mustGet(sourceChainSelector,ERROR_SOURCE_CHAIN_NOT_ENABLED);
 }
 
-get fun allSourceChainConfigs(): tuple {
-    // TODO:
-    return createEmptyTuple()
+get fun allSourceChainConfigs(): cell {
+    val st = lazy Storage.load();
+    return st.sourceChainConfigs.value;
 }
 
 fun applySourceChainConfigUpdates() {}

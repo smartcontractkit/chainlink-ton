@@ -39,8 +39,9 @@ func DeployChainContractsToTonCS(t *testing.T, env cldf.Environment, chainSelect
 		TonChainSelector: chainSelector,
 		Params: config.ChainContractParams{
 			FeeQuoterParams: config.FeeQuoterParams{
-				MaxFeeJuelsPerMsg:                    big.NewInt(1),
-				TokenPriceStalenessThreshold:         0,
+				MaxFeeJuelsPerMsg:            big.NewInt(1),
+				TokenPriceStalenessThreshold: 0,
+				// TODO: remove feeTokens, premiumMultiplier and offramp source chains config from deploy? set it via add lane?
 				FeeTokens:                            []*address.Address{},
 				PremiumMultiplierWeiPerEthByFeeToken: map[shared.TokenSymbol]uint64{},
 			},
