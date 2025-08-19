@@ -15,7 +15,7 @@ import (
 type CCIPMessageSent struct {
 	DestChainSelector uint64                 `tlb:"## 64"`
 	SequenceNumber    uint64                 `tlb:"## 64"`
-	Message           ocr.Any2TVMRampMessage `tlb:"^"`
+	Message           ocr.TVM2AnyRampMessage `tlb:"^"`
 }
 
 // GenericExtraArgsV2 represents generic extra arguments for transactions.
