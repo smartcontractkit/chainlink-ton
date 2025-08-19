@@ -173,7 +173,7 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
 
       const result = await bind.mcms.sendInternal(
         acc.multisigOwner.getSender(),
-        toNano('1'),
+        toNano('0.5'),
         setConfigBody,
       )
       expect(result.transactions).toHaveTransaction({
@@ -220,7 +220,7 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
     const insufficientSetRootBody = mcms.builder.message.in.setRoot.encode(insufficientSetRoot)
     const insufficientResult = await bind.mcms.sendInternal(
       acc.deployer.getSender(),
-      toNano('1'),
+      toNano('0.5'),
       insufficientSetRootBody,
     )
 
@@ -316,7 +316,7 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
 
       const result = await bind.mcms.sendInternal(
         acc.multisigOwner.getSender(),
-        toNano('1'),
+        toNano('0.5'),
         setConfigBody,
       )
       expect(result.transactions).toHaveTransaction({
@@ -379,7 +379,7 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
         const reducedSetRootBody = mcms.builder.message.in.setRoot.encode(reducedSetRoot)
         const result = await bind.mcms.sendInternal(
           acc.deployer.getSender(),
-          toNano('1'),
+          toNano('0.5'),
           reducedSetRootBody,
         )
 
@@ -420,7 +420,7 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
     const overrideSetRootBody = mcms.builder.message.in.setRoot.encode(overrideSetRoot)
     const overrideResult = await bind.mcms.sendInternal(
       acc.deployer.getSender(),
-      toNano('1'),
+      toNano('0.5'),
       overrideSetRootBody,
     )
 
@@ -474,7 +474,7 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
 
     const malformedResult = await bind.mcms.sendInternal(
       acc.multisigOwner.getSender(),
-      toNano('1'),
+      toNano('0.5'),
       malformedSetConfigBody,
     )
 
@@ -509,7 +509,7 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
 
     const correctResult = await bind.mcms.sendInternal(
       acc.multisigOwner.getSender(),
-      toNano('1'),
+      toNano('0.5'),
       correctSetConfigBody,
     )
 
