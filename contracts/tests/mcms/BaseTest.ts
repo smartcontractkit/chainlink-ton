@@ -241,7 +241,7 @@ export class BaseTestSetup {
    * Deploy the callProxy contract and verify deployment
    */
   async deployCallProxyContract() {
-    const body = beginCell().endCell()
+    const body = beginCell().endCell() // TODO change for TopUp msg
     const result = await this.bind.callProxy.sendInternal(
       this.acc.deployer.getSender(),
       toNano('0.05'),
@@ -250,7 +250,7 @@ export class BaseTestSetup {
 
     expect(result.transactions).toHaveTransaction({
       from: this.acc.deployer.address,
-      to: this.bind.counter.address,
+      to: this.bind.callProxy.address,
       deploy: true,
       success: true,
     })
@@ -304,10 +304,10 @@ export class BaseTestSetup {
     await this.initializeBlockchain()
     await this.setupTimelockContract(testId)
     await this.deployTimelockContract()
-    await this.setupCallProxyContract(testId)
-    await this.deployCallProxyContract()
     await this.setupCounterContract(testId)
     await this.deployCounterContract()
+    await this.setupCallProxyContract(testId)
+    await this.deployCallProxyContract()
   }
 
   /**
