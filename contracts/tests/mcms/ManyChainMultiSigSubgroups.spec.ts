@@ -188,7 +188,7 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
       {
         chainId: MCMSBaseTestSetup.TEST_CHAIN_ID,
         multiSig: bind.mcms.address,
-        nonce: BigInt(1),
+        nonce: 1n,
         to: bind.mcms.address, // TODO bind.counter.address,
         value: toNano('0.1'),
         data: beginCell().storeUint(0xffffffff, 32).endCell(),
