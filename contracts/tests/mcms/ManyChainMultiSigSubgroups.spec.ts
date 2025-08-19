@@ -244,12 +244,14 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
   it('should test setConfig with fuzz configuration', async () => {
     // Generate random configuration
     let randomState = Buffer.alloc(32, 0)
-    for (let i = 0; i < 10; i++) {
-      randomState = await newFunction(randomState)
+    for (let i = 0; i < 100; i++) {
+      randomState = await test_setConfig_fuzz(randomState)
     }
   })
 
-  async function newFunction(randomState: Buffer<ArrayBuffer>): Promise<Buffer<ArrayBuffer>> {
+  async function test_setConfig_fuzz(
+    randomState: Buffer<ArrayBuffer>,
+  ): Promise<Buffer<ArrayBuffer>> {
     const groupChildrenCounts = new Array(MCMS_NUM_GROUPS).fill(0)
     const groupQuorums = Dictionary.empty<number, number>(
       Dictionary.Keys.Uint(8),
