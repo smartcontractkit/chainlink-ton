@@ -411,13 +411,23 @@ export class MCMSBaseTestSetup {
     for (let i = 0; i < count; i++) {
       const value =
         i == MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX ? toNano('10') : toNano('0.10')
-      const op =
-        i == MCMSBaseSetRootAndExecuteTestSetup.REVERTING_OP_INDEX
-          ? beginCell().storeUint(0xffffffff, 32).endCell()
-          : counter.builder.message.in.setCount.encode({
+      let op: Cell
+      {
+        switch (i) {
+          case MCMSBaseSetRootAndExecuteTestSetup.REVERTING_OP_INDEX:
+            op = beginCell().storeUint(0xffffffff, 32).endCell()
+            break
+          case MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX:
+            op = beginCell().endCell()
+            break
+          default:
+            op = counter.builder.message.in.setCount.encode({
               queryId: BigInt(i + 1),
               newCount: i,
             })
+            break
+        }
+      }
       ops.push({
         chainId: MCMSBaseTestSetup.TEST_CHAIN_ID,
         multiSig: this.bind.mcms.address,
