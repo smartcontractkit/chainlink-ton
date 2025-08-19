@@ -433,14 +433,10 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
     return randomState
   }
 
-  it.skip('should test setConfig for c4issue16 regression', async () => {
+  it('should test setConfig for c4issue16 regression', async () => {
     // Create signer groups - put one signer in last group
-    const signerGroups = new Array(NUM_SIGNERS).fill(0)
-    signerGroups[0] = MCMS_NUM_GROUPS - 1
-
-    // Update signer group assignments
     testSigners.forEach((signer, i) => {
-      signer.group = signerGroups[i]
+      signer.group = MCMS_NUM_GROUPS - 1
     })
 
     // Create malformed group configuration (causes parent index issues)
@@ -456,19 +452,20 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
     for (let i = 0; i < MCMS_NUM_GROUPS; i++) {
       groupQuorums.set(i, 1)
       // This creates invalid parent relationships
-      malformedGroupParents.set(i, (i + 1) % MCMS_NUM_GROUPS)
+      malformedGroupParents.set(i, i + 1)
     }
 
-    const signerKeys = asSnakeData<bigint>(
-      testSigners.map((s) => BigInt('0x' + s.keyPair.publicKey.toString('hex'))),
-      (a) => beginCell().storeUint(a, 256),
+    const signerGroupsData = asSnakeData<number>(
+      testSigners.map((s) => s.group),
+      (g) => beginCell().storeUint(g, 8),
     )
-    const signerGroupsData = asSnakeData<number>(signerGroups, (g) => beginCell().storeUint(g, 8))
-
     // Test malformed configuration should fail
     const malformedSetConfigBody = mcms.builder.message.in.setConfig.encode({
       queryId: 1n,
-      signerKeys,
+      signerKeys: asSnakeData<bigint>(
+        testSigners.map((s) => BigInt('0x' + s.keyPair.publicKey.toString('hex'))),
+        (a) => beginCell().storeUint(a, 256),
+      ),
       signerGroups: signerGroupsData,
       groupQuorums,
       groupParents: malformedGroupParents,
@@ -500,7 +497,10 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
 
     const correctSetConfigBody = mcms.builder.message.in.setConfig.encode({
       queryId: 2n,
-      signerKeys,
+      signerKeys: asSnakeData<bigint>(
+        testSigners.map((s) => BigInt('0x' + s.keyPair.publicKey.toString('hex'))),
+        (a) => beginCell().storeUint(a, 256),
+      ),
       signerGroups: signerGroupsData,
       groupQuorums,
       groupParents: correctGroupParents,

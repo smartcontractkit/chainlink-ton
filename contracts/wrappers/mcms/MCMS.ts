@@ -770,7 +770,6 @@ export class ContractClient implements Contract {
 
   async getConfig(p: ContractProvider): Promise<Config> {
     return p.get('getConfig', []).then((r) => {
-      console.log(r.stack)
       return {
         signers: Dictionary.loadDirect(
           Dictionary.Keys.Uint(8),
