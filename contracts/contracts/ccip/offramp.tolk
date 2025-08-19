@@ -107,13 +107,8 @@ struct (0x00000003) UpdateSourceChainConfig {
     config: SourceChainConfig
 }
 
-struct (0x00000004) ExecuteValidated {
-    messages: cell; // vec<Any2TVMRampMessage>
-    proofs: cell;
-    proofFlagBits: uint256;
-}
 
-type Msg = Commit | Execute | UpdateSourceChainConfig | OCR3Base_SetOCR3Config;
+type Msg = Commit | Execute | ExecuteValidated | UpdateSourceChainConfig | OCR3Base_SetOCR3Config;
 
 fun onInternalMessage(in:InMessage) {
     val msg = lazy Msg.fromSlice(in.body);
@@ -167,8 +162,28 @@ fun onInternalMessage(in:InMessage) {
             assert(expectedAddress == in.senderAddress);
             */
 
-            // send message to receiver
-            debug.print(42);
+            // No batching, so for now we assume the messages field is just a single message
+            val message = Any2TVMRampMessage.fromCell(msg.messages);
+
+            //TODO this should be done by the router
+            // route message to receiver
+            val ccipReceive: CcipReceive = {
+                message: {
+                    messageId: message.header.messageId,
+                    sourceChainSelector: message.header.sourceChainSelector,
+                    sender: message.sender,
+                    data: message.data
+                }
+            };
+
+            val messageForReceiver = createMessage({
+                bounce: true, // TODO:
+                value: ton("0.05"), // TODO: use gas limit
+                dest: message.receiver,
+                body: ccipReceive
+            });
+            messageForReceiver.send(SEND_MODE_REGULAR);
+
         }
         else => {
             // ignore empty messages, "wrong opcode" for others
@@ -346,15 +361,16 @@ fun _execute(msg: Execute, sender: address) {
                  code: st.deployer,
                  data: Deployable {
                      owner: contract.getAddress(),
-                     id: getMerkleRootID(root.merkleRoot),
+                     id: getMerkleRootID(root),
                  }.toCell(),
              },
              // TODO: toShard so it's collocated with offramp
          },
          
-         body: Execute {
+         body: ValidateExecute {
             messages: report.messages,
-            offChainTokenData: report.offChainTokenData,
+            proofs: report.proofs,
+            proofFlagBits: report.proofFlagBits
          },
      });
      executeMsg.send(SEND_MODE_REGULAR);

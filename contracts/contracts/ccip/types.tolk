@@ -47,6 +47,19 @@ struct Any2TVMRampMessage {
     // maybe mark these amounts as slice remaining then parse them by hand to avoid requiring this to be a map<> at send time?
 }
 
+struct Any2TVMMessage {
+    messageId: uint256,
+    sourceChainSelector: uint64,
+    sender: Cell<CrossChainAddress>,
+    data: cell
+}
+
+struct (0x00000030) CcipReceive {
+    message: Any2TVMMessage
+}
+
+
+
 struct Any2TVMTokenTransfer {
     sourcePoolAddress: Cell<CrossChainAddress>;
     destPoolAddress: address;
@@ -306,6 +319,22 @@ struct MerkleRoot_Storage {
     // if any amount has failed = true, allows re-executing and will only transfer remaining
 }
 
+//TODO: crc32('OffRamp_ValidateExecute')
+struct (0x10000010) ValidateExecute {
+    messages: cell,
+    proofs: cell,
+    proofFlagBits: uint256,
+    //TODO: token data
+}
+
+//TODO: crc32('OffRamp_ExecuteValidated')
+//Must be sent from an owned MerkleRoot contract
+struct (0x12000004) ExecuteValidated { 
+    messages: cell; // vec<Any2TVMRampMessage>
+    proofs: cell;
+    proofFlagBits: uint256;
+}
+
 struct TokenBalance {
     amount: coins;
     failed: bool; // if marked as failed, a retry will allow re-sending these
@@ -324,3 +353,4 @@ const ERROR_SOURCE_CHAIN_SELECTOR_MISMATCH = 263;
 const ERROR_TOKEN_NOT_SUPPORTED: int = 264;
 const ERROR_UNAUTHORIZED: int = 265;
 const ERROR_SOURCE_CHAIN_NOT_ENABLED: int = 266;
+const ERROR_EMPTY_REPORT:int = 267;

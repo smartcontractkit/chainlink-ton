@@ -1,5 +1,4 @@
 import "types.tolk";
-import "offramp.tolk";
 import "../lib/upgrades/type_and_version.tolk";
 import "../deployable/types.tolk";
 import "../lib/utils.tolk";
@@ -27,19 +26,13 @@ fun MerkleRoot_Storage.store(self) {
     return contract.setData(self.toCell());
 }
 
-struct (0x10000010) Execute {
-    messages: cell,
-    proofs: cell,
-    proofFlagBits: uint256,
-    offChainTokenData: cell,
-}
 
-type Msg = Execute;
+type Msg = ValidateExecute;
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy Msg.fromSlice(in.body);
     match (msg) {
-        Execute => {
+        ValidateExecute => {
             // If we receive this message from the OffRamp then the proof has already been validated.
             onExecute(msg, in.senderAddress);
             
@@ -51,12 +44,12 @@ fun onInternalMessage(in: InMessage) {
     }
 }
 
-fun onExecute(msg: Execute, sender: address) {
+fun onExecute(msg: ValidateExecute, sender: address) {
     val st = MerkleRoot_Storage.load();
     assert(sender == st.owner, ERROR_NOT_OWNER);
 
     // TODO if no tokenTransfers
-    _execute(msg.messages, msg.proofs, msg.proofFlagBits, sender)
+    _execute(msg.messages, msg.proofs, msg.proofFlagBits, sender);
 
     //TODO else  
     // validate execution state == untouched
@@ -84,7 +77,7 @@ fun _execute(mesages: cell, proofs: cell, proofFlagBits: uint256, offRamp: addre
                 proofFlagBits: proofFlagBits,
             }
         }
-    )
+    );
     msg.send(SEND_MODE_REGULAR);
 }
 

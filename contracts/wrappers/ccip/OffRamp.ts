@@ -349,8 +349,8 @@ function ExecutionReportToCell(report: ExecutionReport): Cell | import('@ton/cor
 
 function Any2TVMMessageToBuilder(message: Any2TVMRampMessage) {
   return beginCell()
-    .storeBuilder(RampMessageHeaderToBuidler(message.header))
-    .storeBuffer(message.sender, message.sender.byteLength)
+    .storeRef(RampMessageHeaderToBuidler(message.header))
+    .storeRef(beginCell().storeBuffer(message.sender, message.sender.byteLength))
     .storeRef(message.data)
     .storeAddress(message.receiver)
     .storeMaybeRef(message.tokenAmounts)

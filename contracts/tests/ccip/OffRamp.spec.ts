@@ -14,6 +14,7 @@ import {
   Any2TVMRampMessage,
   CommitReport,
   commitReportToBuilder,
+  ExecutionReport,
   MerkleRoot,
   OffRampStorage,
   PriceUpdates,
@@ -50,6 +51,7 @@ import * as CCIPLogs from '../../wrappers/ccip/Logs'
 import { setupTestFeeQuoter } from './helpers/SetUp'
 
 import { ReportContext, SignatureEd25519 } from '../../wrappers/libraries/ocr/MultiOCR3Base'
+import { ExampleReceiver } from '../../wrappers/ccip/Receiver'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_TON = 13879075125137744094n
@@ -116,6 +118,7 @@ describe('OffRamp', () => {
   let deployer: SandboxContract<TreasuryContract>
   let offRamp: SandboxContract<OffRamp>
   let feeQuoter: SandboxContract<FeeQuoter>
+  let receiver: SandboxContract<ExampleReceiver>
   let deployerCode: Cell
   let merkleRootCodeRaw: Cell
   let transmitters: SandboxContract<TreasuryContract>[]
@@ -186,6 +189,13 @@ describe('OffRamp', () => {
 
     // setup fee quoter
     feeQuoter = await setupTestFeeQuoter(deployer, blockchain)
+
+    // Deploy test receiver
+    {
+      let code = await compile('Receiver')
+      receiver = blockchain.openContract(ExampleReceiver.create(code))
+    }
+
   })
 
   beforeEach(async () => {
@@ -590,6 +600,125 @@ describe('OffRamp', () => {
       from: offRamp.address,
       //to: merkleRootAddress(root), TODO: calculate merkleRoot address correctly this is not working
       deploy: true,
+      success: true,
+    })
+  })
+
+  it('Test execute flow', async () => {
+    const rampMessageHeader: RampMessageHeader = {
+      messageId: 1n,
+      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+      destChainSelector: CHAINSEL_TON,
+      sequenceNumber: 1n,
+      nonce: 0n,
+    }
+
+    const message: Any2TVMRampMessage = {
+      header: rampMessageHeader,
+      sender: Buffer.from(bigIntToUint8Array(EVM_SENDER_ADDRESS_TEST)),
+      data: beginCell().endCell(),
+      receiver: receiver.address,
+    }
+
+    const metadataHash = uint8ArrayToBigInt(getMetadataHash(CHAINSEL_EVM_TEST_90000001))
+    const rootBytes = uint8ArrayToBigInt(generateMessageId(message, metadataHash))
+
+    const root: MerkleRoot = {
+      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+      onRampAddress: Buffer.from(bigIntToUint8Array(EVM_ONRAMP_ADDRESS_TEST)),
+      minSeqNr: 1n,
+      maxSeqNr: 1n,
+      merkleRoot: rootBytes,
+    }
+
+    const report: CommitReport = {
+      merkleRoots: [root],
+    }
+    const reportContext: ReportContext = { configDigest, padding: 0n, sequenceBytes: 0x01 }
+
+    const signatures = createSignatures(
+      [signers[0], signers[1]],
+      hashReport(commitReportToBuilder(report).endCell(), reportContext),
+    )
+
+    const resultSetCommitConfig = await offRamp.sendSetOCR3Config(
+      deployer.getSender(),
+      createDefaultOCRConfig(),
+    )
+    expectSuccessfulTransaction(resultSetCommitConfig, deployer.address, offRamp.address)
+
+    const resultSetExecute = await offRamp.sendSetOCR3Config(
+      deployer.getSender(),
+      createDefaultOCRConfig({ ocrPluginType: OCR3_PLUGIN_TYPE_EXECUTE }),
+    )
+
+    expectSuccessfulTransaction(resultSetExecute, deployer.address, offRamp.address)
+    
+    const sourceChainConfig: SourceChainConfig = {
+      router: Buffer.from(bigIntToUint8Array(EVM_ROUTER_ADDRESS_TEST)),
+      isEnabled: true,
+      minSeqNr: 1n,
+      isRMNVerificationDisabled: false,
+      onRamp: Buffer.from(bigIntToUint8Array(EVM_ONRAMP_ADDRESS_TEST)),
+    }
+
+    const resultUpdateSourceChainConfig = await offRamp.sendUpdateSourceChainConfig(
+      deployer.getSender(),
+      {
+        value: toNano('0.5'),
+        sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+        config: sourceChainConfig,
+      },
+    )
+
+    expectSuccessfulTransaction(resultUpdateSourceChainConfig, deployer.address, offRamp.address)
+
+    const resultCommitReport = await offRamp.sendCommit(transmitters[0].getSender(), {
+      value: toNano('0.5'),
+      reportContext: reportContext,
+      report: report,
+      signatures: signatures,
+    })
+    expectSuccessfulTransaction(resultCommitReport, transmitters[0].address, offRamp.address)
+
+    assertLog(
+      resultCommitReport.transactions,
+      offRamp.address,
+      CCIPLogs.LogTypes.CCIPCommitReportAccepted,
+      {
+        priceUpdates: undefined,
+        merkleRoots: [root],
+      },
+    )
+
+    expect(resultCommitReport.transactions).toHaveTransaction({
+      from: offRamp.address,
+      //to: merkleRootAddress(root), TODO: calculate merkleRoot address correctly this is not working
+      deploy: true,
+      success: true,
+    })
+    
+    const executeReport: ExecutionReport = {
+      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+      messages: [message],
+      offchainTokenData: [],
+      proofs: [],
+      proofFlagBits: 0n
+    }
+
+    const resultSendExecute = await offRamp.sendExecute(transmitters[0].getSender(), {
+      value: toNano('0.5'),
+      reportContext: { configDigest, padding: 0n, sequenceBytes: 0x02 },
+      report: executeReport,
+      signatures: createSignatures(
+        [signers[0], signers[1]],
+        hashReport(commitReportToBuilder(report).endCell(), reportContext),
+      ),
+    })
+
+    expect(resultSendExecute.transactions).toHaveTransaction({
+      from: offRamp.address,
+      to: receiver.address,
       success: true,
     })
   })
