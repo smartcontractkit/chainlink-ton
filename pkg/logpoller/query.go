@@ -46,19 +46,6 @@ func NewQuery[T any](srcAddress *address.Address, eventSig uint32) QueryBuilder[
 	}
 }
 
-// WithSrcAddress sets the source address for the query.
-func (b *queryBuilder[T]) WithSrcAddress(address *address.Address) QueryBuilder[T] {
-	b.address = address
-	return b
-}
-
-// WithEventSig sets the event signature for the query.
-// TODO: support both event signature from ExtMsgOut and opcode from internal message
-func (b *queryBuilder[T]) WithEventSig(sig uint32) QueryBuilder[T] {
-	b.eventSig = sig
-	return b
-}
-
 // WithCellFilter adds a raw cell-level filter
 func (b *queryBuilder[T]) WithCellFilter(filter query.CellFilter) QueryBuilder[T] {
 	b.cellFilters = append(b.cellFilters, filter)
