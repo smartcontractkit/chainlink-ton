@@ -13,7 +13,7 @@ import (
 )
 
 type CCIPMessageSent struct {
-	Message ocr.TVM2AnyRampMessage `tlb:"^"`
+	Message ocr.TVM2AnyRampMessage `tlb:"."` // inline, not reference - matches contract structure
 }
 
 // GenericExtraArgsV2 represents generic extra arguments for transactions.

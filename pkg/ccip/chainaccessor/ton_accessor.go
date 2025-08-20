@@ -201,17 +201,17 @@ func (a *TONAccessor) MsgsBetweenSeqNums(ctx context.Context, dest ccipocr3.Chai
 	// query TON logs
 	res, err := logpoller.NewQuery[onramp.CCIPMessageSent](onrampAddr, hash.CRC32("CCIPMessageSent")).
 		WithCellFilter(query.CellFilter{
-			Offset:   0,
+			Offset:   40, // DestChainSelector is at offset 40 in the referenced message cell
 			Operator: query.EQ,
 			Value:    binary.BigEndian.AppendUint64(nil, uint64(dest)),
 		}).
 		WithCellFilter(query.CellFilter{
-			Offset:   8,
+			Offset:   48, // SequenceNumber is at offset 48 in the referenced message cell
 			Operator: query.GTE,
 			Value:    binary.BigEndian.AppendUint64(nil, uint64(seqNumRange.Start())),
 		}).
 		WithCellFilter(query.CellFilter{
-			Offset:   8,
+			Offset:   48, // SequenceNumber is at offset 48 in the referenced message cell
 			Operator: query.LTE,
 			Value:    binary.BigEndian.AppendUint64(nil, uint64(seqNumRange.End())),
 		}).
@@ -280,9 +280,23 @@ func (a *TONAccessor) LatestMessageTo(ctx context.Context, dest ccipocr3.ChainSe
 		return 0, fmt.Errorf("OnRamp not bound: %w", err)
 	}
 
+	// 	CCIPMessageSent {
+	//   Message: TVM2AnyRampMessage (in reference cell) {
+	//     Header: RampMessageHeader {
+	//       MessageID: 256 bits
+	//       SourceChainSelector: 64 bits
+	//       DestChainSelector: 64 bits    <- This is what we want to filter on
+	//       SequenceNumber: 64 bits       <- This is what we want to filter on
+	//       Nonce: 64 bits
+	//     }
+	//     Sender: address
+	//     Body: TVM2AnyRampMessageBody (in reference)
+	//     FeeValueJuels: 96 bits
+	//   }
+	// }
 	res, err := logpoller.NewQuery[onramp.CCIPMessageSent](onrampAddr, hash.CRC32("CCIPMessageSent")).
 		WithCellFilter(query.CellFilter{
-			Offset:   0,
+			Offset:   40, // DestChainSelector is at offset 40 in the referenced message cell
 			Operator: query.EQ,
 			Value:    binary.BigEndian.AppendUint64(nil, uint64(dest)),
 		}).

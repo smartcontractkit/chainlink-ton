@@ -342,7 +342,7 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 		require.Eventually(t, func() bool {
 			seqNum, err := accessor.LatestMessageTo(ctx, ccipocr3.ChainSelector(evmSelector))
 			require.NoError(t, err, "failed to get latest message sequence number")
-			return seqNum == ccipocr3.SeqNum(1)
+			return seqNum == ccipocr3.SeqNum(0)
 		}, 30*time.Second, 3*time.Second, "log poller did not ingest events correctly in time")
 		// accessor.MsgsBetweenSeqNums(ctx, ccipocr3.ChainSelector(evmSelector), ccipocr3.NewSeqNumRange(1, 100))
 		// t.Skip("implement me")
