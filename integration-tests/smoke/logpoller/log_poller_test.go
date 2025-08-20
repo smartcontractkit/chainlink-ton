@@ -165,19 +165,15 @@ func Test_LogPoller(t *testing.T) {
 		const timeout = 60 * time.Second
 
 		cfg := logpoller.DefaultConfigSet
-		// DI
-		logStore := inmemorystore.NewLogStore()
-		filterStore := inmemorystore.NewFilterStore()
-		loader := account.NewTxLoader(client, logger.Test(t), cfg.PageSize)
-		indexer := indexer.NewIndexer(logger.Test(t), filterStore)
+		fs := inmemorystore.NewFilterStore()
 
 		opts := &logpoller.ServiceOptions{
 			Config:    cfg,
 			Client:    client,
-			Filters:   filterStore,
-			TxLoader:  loader,
-			TxIndexer: indexer,
-			Store:     logStore,
+			Filters:   fs,
+			TxLoader:  account.NewTxLoader(client, logger.Test(t), cfg.PageSize),
+			TxIndexer: indexer.NewIndexer(logger.Test(t), fs),
+			Store:     inmemorystore.NewLogStore(),
 		}
 		lp := logpoller.NewService(
 			logger.Test(t),
