@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
@@ -19,14 +20,18 @@ import (
 	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
+	"github.com/smartcontractkit/chainlink/deployment/ccip/changeset/v1_6"
 	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
+	"github.com/smartcontractkit/chainlink/deployment/common/proposalutils"
 	"github.com/smartcontractkit/chainlink/deployment/environment/memory"
 	"github.com/smartcontractkit/chainlink/v2/core/logger"
 
 	ops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 
 	tonCommon "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
@@ -74,11 +79,66 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 	require.NoError(t, err, "failed to deploy ccip")
 
 	// -- add lane using helper function
-	gasPrices := map[uint64]*big.Int{
-		evmSelector: big.NewInt(1e17),
-	}
-	addLaneCS := ops.AddLaneTONChangesets(&env, chainSelector, evmSelector, chain_selectors.FamilyTon, chain_selectors.FamilyEVM, gasPrices)
-	env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{addLaneCS})
+	env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{
+		commonchangeset.Configure(ops.AddTonLanes{}, config.UpdateTonLanesConfig{
+			EVMMCMSConfig: &proposalutils.TimelockConfig{},
+			TonMCMSConfig: &proposalutils.TimelockConfig{},
+			Lanes: []config.LaneConfig{
+				{
+					Source: config.TonChainDefinition{
+						ConnectionConfig: v1_6.ConnectionConfig{
+							RMNVerificationDisabled: true,
+							AllowListEnabled:        false,
+						},
+						Selector: chainSelector,
+						GasPrice: big.NewInt(1e17),
+						TokenPrices: map[*address.Address]*big.Int{
+							ops.TonTokenAddr: big.NewInt(99),
+						},
+						FeeQuoterDestChainConfig: feequoter.DestChainConfig{ // minimal valid config
+							IsEnabled:                         true,
+							MaxNumberOfTokensPerMsg:           0,
+							MaxDataBytes:                      100,
+							MaxPerMsgGasLimit:                 100,
+							DestGasOverhead:                   0,
+							DestGasPerPayloadByteBase:         0,
+							DestGasPerPayloadByteHigh:         0,
+							DestGasPerPayloadByteThreshold:    0,
+							DestDataAvailabilityOverheadGas:   0,
+							DestGasPerDataAvailabilityByte:    0,
+							DestDataAvailabilityMultiplierBps: 0,
+							ChainFamilySelector:               0,
+							EnforceOutOfOrder:                 false,
+							DefaultTokenFeeUsdCents:           0,
+							DefaultTokenDestGasOverhead:       0,
+							DefaultTxGasLimit:                 1,
+							GasMultiplierWeiPerEth:            0,
+							GasPriceStalenessThreshold:        0,
+							NetworkFeeUsdCents:                0,
+						},
+						TokenTransferFeeConfigs: map[uint64]feequoter.UpdateTokenTransferFeeConfig{
+							// TODO:
+						},
+					},
+					Dest: config.EVMChainDefinition{
+						ChainDefinition: v1_6.ChainDefinition{
+							Selector:                 evmSelector,
+							GasPrice:                 big.NewInt(1e17),
+							TokenPrices:              map[common.Address]*big.Int{},
+							FeeQuoterDestChainConfig: v1_6.DefaultFeeQuoterDestChainConfig(true),
+							ConnectionConfig: v1_6.ConnectionConfig{
+								RMNVerificationDisabled: true,
+								AllowListEnabled:        false,
+							},
+						},
+						OnRampVersion: []byte{1, 6, 1},
+					},
+					IsDisabled: false,
+				},
+			},
+			TestRouter: false,
+		}),
+	})
 	require.NoError(t, err, "failed to add lane")
 
 	state, err := tonstate.LoadOnchainState(env)
