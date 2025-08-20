@@ -9,7 +9,7 @@ import {
   SendMode,
 } from '@ton/core'
 import { KeyPair, sign } from '@ton/crypto'
-import { bigIntToUint8Array, hashSync, uint8ArrayToBigInt } from '../../../src/utils'
+import { uint8ArrayToBigInt } from '../../../src/utils'
 
 import { crc32 } from 'zlib'
 import { asSnakeData, fromSnakeData } from '../../../src/utils'

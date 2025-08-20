@@ -30,7 +30,7 @@ import {
 } from '../../wrappers/ccip/FeeQuoter'
 import { assertLog, expectFailedTransaction, expectSuccessfulTransaction } from '../Logs'
 import '@ton/test-utils'
-import { bigIntToUint8Array, uint8ArrayToBigInt, ZERO_ADDRESS } from '../../src/utils'
+import { bigIntToBuffer, uint8ArrayToBigInt } from '../../src/utils'
 import { KeyPair, sha256_sync } from '@ton/crypto'
 
 import {
@@ -52,12 +52,13 @@ import { setupTestFeeQuoter } from './helpers/SetUp'
 
 import { ReportContext, SignatureEd25519 } from '../../wrappers/libraries/ocr/MultiOCR3Base'
 import { ExampleReceiver } from '../../wrappers/ccip/Receiver'
+import { findTransactionRequired } from '@ton/test-utils'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_TON = 13879075125137744094n
 const EVM_SENDER_ADDRESS_TEST = 0x1a5fdbc891c5d4e6ad68064ae45d43146d4f9f3an
 const EVM_ONRAMP_ADDRESS_TEST = 0x111111c891c5d4e6ad68064ae45d43146d4f9f3an
-const EVM_ROUTER_ADDRESS_TEST = 0x0bf3de8c5d3e8a2b34d2beeb17abfcebaf363a59n
+const ROUTER_ADDRESS_TEST = generateMockTonAddress()
 const LEAF_DOMAIN_SEPARATOR = beginCell().storeUint(0, 256).asSlice()
 const ERROR_SOURCE_CHAIN_NOT_ENABLED = 266
 
@@ -79,17 +80,26 @@ const getMerkleRootID = (root: bigint) => {
 }
 
 const getMetadataHash = (sourceChainSelector: bigint) => {
-  return beginCell()
+    const hash = beginCell()
     .storeUint(uint8ArrayToBigInt(sha256_sync('Any2TVMMessageHashV1')), 256)
     .storeUint(sourceChainSelector, 64)
     .storeUint(CHAINSEL_TON, 64)
-    .storeSlice(beginCell().storeUint(EVM_SENDER_ADDRESS_TEST, 160).asSlice())
+    .storeRef(beginCell()
+      .storeUint(bigIntToBuffer(EVM_ONRAMP_ADDRESS_TEST).byteLength, 8)
+      .storeBuffer(
+        bigIntToBuffer(EVM_ONRAMP_ADDRESS_TEST),
+        bigIntToBuffer(EVM_ONRAMP_ADDRESS_TEST).byteLength
+      )
+      .endCell()
+    )
     .endCell()
     .hash()
+
+  return hash
 }
 
 export function generateMessageId(message: Any2TVMRampMessage, metadataHash: bigint) {
-  return (
+    return (
     beginCell()
       .storeSlice(LEAF_DOMAIN_SEPARATOR)
       .storeUint(metadataHash, 256)
@@ -101,11 +111,16 @@ export function generateMessageId(message: Any2TVMRampMessage, metadataHash: big
           .storeUint(message.header.sequenceNumber, 64)
           //.storeCoins(message.gasLimit)
           .storeUint(message.header.nonce, 64)
-          .endCell(),
+          .endCell()
       )
-      //message
-      .storeUint(message.sender.byteLength, 8)
-      .storeBuffer(message.sender, message.sender.byteLength)
+      //message sender
+      .storeRef(
+        beginCell()
+        .storeUint(message.sender.byteLength, 8)
+        .storeBuffer(message.sender, message.sender.byteLength)
+        .endCell()
+      )
+      //rest of the message
       .storeRef(message.data)
       .storeMaybeRef(message.tokenAmounts)
       .endCell()
@@ -150,9 +165,6 @@ describe('OffRamp', () => {
       code: deployerCode,
       data,
     }
-    console.log(deployerCode)
-    console.log(data)
-    console.log(init)
 
     const workchain = 0
     return contractAddress(workchain, init)
@@ -163,7 +175,6 @@ describe('OffRamp', () => {
     deployer = await blockchain.treasury('deployer')
     deployerCode = await compile('Deployable')
     merkleRootCodeRaw = await compile('MerkleRoot')
-    console.log(merkleRootCodeRaw.hash());
 
     transmitters = await Promise.all([
       blockchain.treasury('transmitter1'),
@@ -183,10 +194,12 @@ describe('OffRamp', () => {
 
     // Populate the emulator library code
     // https://docs.ton.org/v3/documentation/data-formats/tlb/library-cells#testing-in-the-blueprint
+    /*
     const _libs = Dictionary.empty(Dictionary.Keys.BigUint(256), Dictionary.Values.Cell())
     _libs.set(BigInt(`0x${merkleRootCodeRaw.hash().toString('hex')}`), merkleRootCodeRaw)
     const libs = beginCell().storeDictDirect(_libs).endCell()
     blockchain.libs = libs
+    */
 
     // setup fee quoter
     feeQuoter = await setupTestFeeQuoter(deployer, blockchain)
@@ -195,6 +208,13 @@ describe('OffRamp', () => {
     {
       let code = await compile('Receiver')
       receiver = blockchain.openContract(ExampleReceiver.create(code))
+      const result = await receiver.sendDeploy(deployer.getSender(), toNano("10"))
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: receiver.address,
+        deploy: true,
+        success: true
+      })
     }
 
   })
@@ -241,7 +261,6 @@ describe('OffRamp', () => {
     }
   }, 60_000) // setup can take a while, since we deploy contracts
 
-  /*
   it('should deploy', async () => {
     // the check is done inside beforeEach
     // blockchain and counter are ready to use
@@ -328,7 +347,7 @@ describe('OffRamp', () => {
 
     const message: Any2TVMRampMessage = {
       header: rampMessageHeader,
-      sender: Buffer.from(bigIntToUint8Array(EVM_SENDER_ADDRESS_TEST)),
+      sender: bigIntToBuffer(EVM_SENDER_ADDRESS_TEST),
       data: beginCell().endCell(),
       receiver: generateMockTonAddress(),
     }
@@ -338,7 +357,7 @@ describe('OffRamp', () => {
 
     const root: MerkleRoot = {
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
-      onRampAddress: Buffer.from(bigIntToUint8Array(EVM_ONRAMP_ADDRESS_TEST)),
+      onRampAddress: bigIntToBuffer(EVM_ONRAMP_ADDRESS_TEST),
       minSeqNr: 1n,
       maxSeqNr: 1n,
       merkleRoot: rootBytes,
@@ -368,11 +387,11 @@ describe('OffRamp', () => {
       bigF: 1,
     })
     const sourceChainConfig: SourceChainConfig = {
-      router: Buffer.from(bigIntToUint8Array(EVM_ROUTER_ADDRESS_TEST)),
+      router: ROUTER_ADDRESS_TEST,
       isEnabled: true,
       minSeqNr: 1n,
       isRMNVerificationDisabled: false,
-      onRamp: Buffer.from(bigIntToUint8Array(EVM_ONRAMP_ADDRESS_TEST)),
+      onRamp: bigIntToBuffer(EVM_ONRAMP_ADDRESS_TEST),
     }
 
     const resultUpdateSourceChainConfig = await offRamp.sendUpdateSourceChainConfig(
@@ -422,7 +441,7 @@ describe('OffRamp', () => {
     }
     const message: Any2TVMRampMessage = {
       header: rampMessageHeader,
-      sender: Buffer.from(bigIntToUint8Array(EVM_SENDER_ADDRESS_TEST)),
+      sender: bigIntToBuffer(EVM_SENDER_ADDRESS_TEST),
       data: beginCell().endCell(),
       receiver: generateMockTonAddress(),
     }
@@ -430,7 +449,7 @@ describe('OffRamp', () => {
     const rootBytes = uint8ArrayToBigInt(generateMessageId(message, metadataHash))
     const root: MerkleRoot = {
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
-      onRampAddress: Buffer.from(bigIntToUint8Array(EVM_ONRAMP_ADDRESS_TEST)),
+      onRampAddress: bigIntToBuffer(EVM_ONRAMP_ADDRESS_TEST),
       minSeqNr: 1n,
       maxSeqNr: 1n,
       merkleRoot: rootBytes,
@@ -457,11 +476,11 @@ describe('OffRamp', () => {
     })
     // Update source chain config to be disabled
     const sourceChainConfigDisabled: SourceChainConfig = {
-      router: Buffer.from(bigIntToUint8Array(EVM_ROUTER_ADDRESS_TEST)),
+      router: ROUTER_ADDRESS_TEST,
       isEnabled: false,
       minSeqNr: 1n,
       isRMNVerificationDisabled: false,
-      onRamp: Buffer.from(bigIntToUint8Array(EVM_ONRAMP_ADDRESS_TEST)),
+      onRamp: bigIntToBuffer(EVM_ONRAMP_ADDRESS_TEST),
     }
     const resultUpdateSourceChainConfig = await offRamp.sendUpdateSourceChainConfig(
       deployer.getSender(),
@@ -497,7 +516,7 @@ describe('OffRamp', () => {
 
     const message1: Any2TVMRampMessage = {
       header: rampMessageHeader1,
-      sender: Buffer.from(bigIntToUint8Array(EVM_SENDER_ADDRESS_TEST)),
+      sender: bigIntToBuffer(EVM_SENDER_ADDRESS_TEST),
       data: beginCell().endCell(),
       receiver: generateMockTonAddress(),
     }
@@ -512,7 +531,7 @@ describe('OffRamp', () => {
 
     const message2: Any2TVMRampMessage = {
       header: rampMessageHeader2,
-      sender: Buffer.from(bigIntToUint8Array(EVM_SENDER_ADDRESS_TEST)),
+      sender: bigIntToBuffer(EVM_SENDER_ADDRESS_TEST),
       data: beginCell().endCell(),
       receiver: generateMockTonAddress(),
     }
@@ -523,7 +542,7 @@ describe('OffRamp', () => {
 
     const root1: MerkleRoot = {
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
-      onRampAddress: Buffer.from(bigIntToUint8Array(EVM_ONRAMP_ADDRESS_TEST)),
+      onRampAddress: bigIntToBuffer(EVM_ONRAMP_ADDRESS_TEST),
       minSeqNr: 1n,
       maxSeqNr: 1n,
       merkleRoot: root1Bytes,
@@ -531,7 +550,7 @@ describe('OffRamp', () => {
 
     const root2: MerkleRoot = {
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
-      onRampAddress: Buffer.from(bigIntToUint8Array(EVM_ONRAMP_ADDRESS_TEST)),
+      onRampAddress: bigIntToBuffer(EVM_ONRAMP_ADDRESS_TEST),
       minSeqNr: 2n,
       maxSeqNr: 2n,
       merkleRoot: root2Bytes,
@@ -562,11 +581,11 @@ describe('OffRamp', () => {
       bigF: 1,
     })
     const sourceChainConfig: SourceChainConfig = {
-      router: Buffer.from(bigIntToUint8Array(EVM_ROUTER_ADDRESS_TEST)),
+      router: ROUTER_ADDRESS_TEST,
       isEnabled: true,
       minSeqNr: 1n,
       isRMNVerificationDisabled: false,
-      onRamp: Buffer.from(bigIntToUint8Array(EVM_ONRAMP_ADDRESS_TEST)),
+      onRamp: bigIntToBuffer(EVM_ONRAMP_ADDRESS_TEST),
     }
 
     const resultUpdateSourceChainConfig = await offRamp.sendUpdateSourceChainConfig(
@@ -605,7 +624,7 @@ describe('OffRamp', () => {
       success: true,
     })
   })
-*/
+
   it('Test execute flow', async () => {
     const rampMessageHeader: RampMessageHeader = {
       messageId: 1n,
@@ -617,7 +636,7 @@ describe('OffRamp', () => {
 
     const message: Any2TVMRampMessage = {
       header: rampMessageHeader,
-      sender: Buffer.from(bigIntToUint8Array(EVM_SENDER_ADDRESS_TEST)),
+      sender: bigIntToBuffer(EVM_SENDER_ADDRESS_TEST),
       data: beginCell().endCell(),
       receiver: receiver.address,
     }
@@ -625,9 +644,10 @@ describe('OffRamp', () => {
     const metadataHash = uint8ArrayToBigInt(getMetadataHash(CHAINSEL_EVM_TEST_90000001))
     const rootBytes = uint8ArrayToBigInt(generateMessageId(message, metadataHash))
 
+
     const root: MerkleRoot = {
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
-      onRampAddress: Buffer.from(bigIntToUint8Array(EVM_ONRAMP_ADDRESS_TEST)),
+      onRampAddress: bigIntToBuffer(EVM_ONRAMP_ADDRESS_TEST),
       minSeqNr: 1n,
       maxSeqNr: 1n,
       merkleRoot: rootBytes,
@@ -661,11 +681,11 @@ describe('OffRamp', () => {
     expectSuccessfulTransaction(resultSetExecute, deployer.address, offRamp.address)
     
     const sourceChainConfig: SourceChainConfig = {
-      router: Buffer.from(bigIntToUint8Array(EVM_ROUTER_ADDRESS_TEST)),
+      router: ROUTER_ADDRESS_TEST,
       isEnabled: true,
       minSeqNr: 1n,
       isRMNVerificationDisabled: false,
-      onRamp: Buffer.from(bigIntToUint8Array(EVM_ONRAMP_ADDRESS_TEST)),
+      onRamp: bigIntToBuffer(EVM_ONRAMP_ADDRESS_TEST),
     }
 
     const resultUpdateSourceChainConfig = await offRamp.sendUpdateSourceChainConfig(
@@ -678,6 +698,8 @@ describe('OffRamp', () => {
     )
 
     expectSuccessfulTransaction(resultUpdateSourceChainConfig, deployer.address, offRamp.address)
+
+    // Send the commit report
 
     const resultCommitReport = await offRamp.sendCommit(transmitters[0].getSender(), {
       value: toNano('0.5'),
@@ -703,8 +725,24 @@ describe('OffRamp', () => {
       deploy: true,
       success: true,
     })
-    console.log(resultCommitReport.transactions)
 
+    /*
+    const deployTx = findTransactionRequired(resultCommitReport.transactions, {
+      from: offRamp.address,
+      deploy: true,
+      success: true
+    })
+
+    const merkleRootAddress = deployTx.inMessage!.info.dest
+    const state =  (await blockchain.getContract(merkleRootAddress as Address)).accountState;
+    if (state?.type === 'active') {
+            console.log('code', state.state.code!.hash());
+            console.log('data', state.state.data);
+    }
+    */
+
+    // Send the execute report
+    
     const executeReport: ExecutionReport = {
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
       messages: [message],

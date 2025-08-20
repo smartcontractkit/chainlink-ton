@@ -5,15 +5,25 @@ export const ZERO_ADDRESS: Address = Address.parse(
   '0:0000000000000000000000000000000000000000000000000000000000000000',
 )
 
-// Converts a BigInt to a 32-byte (256-bit) Uint8Array, padding with leading zeros if necessary.
+export function bigIntToBuffer(value: bigint): Buffer {
+  let hex = value.toString(16);
+  if (hex.length % 2) hex = "0" + hex; // ensure even length
+  return Buffer.from(hex, "hex");
+}
+
+// Converts a BigInt to a Uint8Array.
 export function bigIntToUint8Array(value: bigint): Uint8Array {
-  // Convert BigInt to hexadecimal string, then pad to 64 characters (32 bytes)
-  const hex = value.toString(16).padStart(64, '0')
-  const bytes = new Uint8Array(32)
-  for (let i = 0; i < 32; i++) {
-    bytes[i] = parseInt(hex.substring(i * 2, i * 2 + 2), 16)
+  if (value < 0n) throw new RangeError('Only non-negative BigInt values are supported');
+  if (value === 0n) return new Uint8Array([0]);
+
+  let hex = value.toString(16);     // no "0x"
+  if (hex.length % 2) hex = '0' + hex; // ensure full bytes
+
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < bytes.length; i++) {
+    bytes[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16); // big-endian
   }
-  return bytes
+  return bytes;
 }
 
 // Converts a 32 byte array to bigint

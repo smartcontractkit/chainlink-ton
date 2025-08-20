@@ -88,7 +88,7 @@ const LEAF_DOMAIN_SEPARATOR: slice = stringHexToSlice("0000000000000000000000000
 
 fun Any2TVMRampMessage.generateMessageId(self, metadataHash: uint256): uint256 {
     // Loosely based on https://github.com/smartcontractkit/chainlink-ccip/blob/2d2ce6abb3f7626dbd3008e4232da4faa839feff/chains/evm/contracts/libraries/Internal.sol#L113-L134
-    return beginCell()
+        return beginCell()
         .storeSlice(LEAF_DOMAIN_SEPARATOR)
         .storeUint(metadataHash, 256)
         // header

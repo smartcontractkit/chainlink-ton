@@ -26,11 +26,11 @@ struct Storage {
 }
 
 struct SourceChainConfig {
-    router: CrossChainAddress;
+    router: address;
     isEnabled: bool;
     minSeqNr: uint64;
     isRMNVerificationDisabled: bool;
-    onRamp: CrossChainAddress;
+    onRamp: Cell<CrossChainAddress>;
 }
 
 fun Storage.load(): Storage {
@@ -117,7 +117,6 @@ fun onInternalMessage(in:InMessage) {
             commit(msg, in.senderAddress) 
         }
         Execute => {
-            debug.print(1);
             _execute(msg, in.senderAddress);
         }
         OCR3Base_SetOCR3Config => { _setOCR3Config(msg, in.senderAddress)}
@@ -292,10 +291,11 @@ fun commit(msg: Commit, sender: address) {
         priceUpdates: report.priceUpdates,
         merkleRoots: report.merkleRoots,
     });
+
 }
 
 fun _execute(msg: Execute, sender: address) {
-    var st = lazy Storage.load();
+    var st = Storage.load();
     // TODO: manual execution flag
     // TODO: check if chain was cursed by RMNRemote
 
@@ -318,17 +318,14 @@ fun _execute(msg: Execute, sender: address) {
         .storeUint(stringSha256("Any2TVMMessageHashV1"), 256)
         .storeUint(report.sourceChainSelector, 64)
         .storeUint(st.chainSelector, 64)
-        .storeSlice(sourceChainConfig.onRamp as slice)
+        .storeRef(sourceChainConfig.onRamp)
         .endCell()
         .hash();
-    debug.print(3);
 
     var hashedLeaves = createEmptyTuple();
     // TODO: is offchainTokenData not hashed?
     while (!messages.empty()) {
-        debug.print(311);
         val message = messages.next();
-        debug.print(31);
 
         // Commits do not verify the destChainSelector in the message since only the root is committed, so we
         // have to check it explicitly. This check is also important as we have assumed the metaDataHash above uses
@@ -342,15 +339,12 @@ fun _execute(msg: Execute, sender: address) {
 
         // Hashes the cell data + refs recursively
         val hash = message.generateMessageId(metadataHash);
-        debug.print(32);
         hashedLeaves.push(hash);
     }
 
     // calculate merkle root
     var leavesIterator = TupleIterator<uint256>.new(hashedLeaves);
-    debug.print(33);
     var proofsIterator = Iterator<uint256>.new(report.proofs);
-    debug.print(34);
 
     // without batching the root should just be the messageId each time
     val root = merkleRoot(
@@ -358,9 +352,6 @@ fun _execute(msg: Execute, sender: address) {
         proofsIterator,
         report.proofFlagBits,
     );
-    debug.print(4);
-
-
 
     // send message to MerkleRoot (execute)
      val executeMsg = createMessage({
@@ -384,7 +375,6 @@ fun _execute(msg: Execute, sender: address) {
          },
      });
      executeMsg.send(SEND_MODE_REGULAR);
-     debug.print(5);
 
     // TODO: how do we handle incrementing the nonce? since execution is async this might take a while
 
@@ -395,6 +385,7 @@ fun _execute(msg: Execute, sender: address) {
         msg.report.toCell(),
         beginCell().endCell(),
     );
+
 }
 
 //todo: should be chainConfigs and take an array

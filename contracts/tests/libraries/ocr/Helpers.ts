@@ -5,7 +5,7 @@ import crypto from 'crypto'
 import { uint8ArrayToBigInt } from '../../../src/utils'
 import { OCR3_PLUGIN_TYPE_COMMIT, OCR3Config } from '../../../wrappers/libraries/ocr/MultiOCR3Base'
 import { BlockchainTransaction } from '@ton/sandbox'
-async function generateRandomTonAddress() {
+export async function generateRandomTonAddress() {
   const mnemonics = await mnemonicNew()
   const keyPair = await mnemonicToPrivateKey(mnemonics)
   const wallet = WalletContractV4.create({ workchain: 0, publicKey: keyPair.publicKey })

@@ -26,7 +26,7 @@ export type OffRampStorage = {
 }
 
 export type SourceChainConfig = {
-  router: CrossChainAddress
+  router: Address
   isEnabled: boolean
   minSeqNr: bigint
   isRMNVerificationDisabled: boolean
@@ -318,13 +318,15 @@ export function commitReportToBuilder(report: CommitReport): import('@ton/core')
 
 export const sourceChainConfigToBuilder = (config: SourceChainConfig) => {
   return beginCell()
-    .storeUint(config.router.byteLength, 8)
-    .storeBuffer(config.router, config.router.byteLength)
+    .storeAddress(config.router)
     .storeBit(config.isEnabled)
     .storeUint(config.minSeqNr, 64)
     .storeBit(config.isRMNVerificationDisabled)
-    .storeUint(config.onRamp.byteLength, 8)
-    .storeBuffer(config.onRamp, config.onRamp.byteLength)
+    .storeRef(beginCell()
+      .storeUint(config.onRamp.byteLength, 8)
+      .storeBuffer(config.onRamp, config.onRamp.byteLength)
+      .endCell()
+    )
 }
 
 function ExecutionReportToBuilder(report: ExecutionReport) {
@@ -343,7 +345,11 @@ function ExecutionReportToBuilder(report: ExecutionReport) {
 function Any2TVMMessageToBuilder(message: Any2TVMRampMessage) {
   return beginCell()
     .storeBuilder(RampMessageHeaderToBuidler(message.header))
-    .storeRef(beginCell().storeBuffer(message.sender, message.sender.byteLength))
+    .storeRef(beginCell()
+      .storeUint(message.sender.byteLength, 8)
+      .storeBuffer(message.sender, message.sender.byteLength)
+      .endCell()
+    )
     .storeRef(message.data)
     .storeAddress(message.receiver)
     .storeMaybeRef(message.tokenAmounts)
