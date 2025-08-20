@@ -31,7 +31,7 @@ type CounterInitData struct {
 
 type TopUp struct {
 	_       tlb.Magic `tlb:"#00000001"` //nolint:revive // (opcode) should stay uninitialized
-	queryID uint32    `tlb:"## 32"`
+	QueryID uint64    `tlb:"## 64"`
 }
 
 func (p *CounterProvider) Deploy(initData CounterInitData) (Counter, error) {
@@ -44,7 +44,7 @@ func (p *CounterProvider) Deploy(initData CounterInitData) (Counter, error) {
 		return Counter{}, fmt.Errorf("failed to compile contract: %w", err)
 	}
 	body, err := tlb.ToCell(TopUp{
-		queryID: 1,
+		QueryID: 1,
 	})
 	if err != nil {
 		return Counter{}, fmt.Errorf("failed to serialize body: %w", err)
