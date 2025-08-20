@@ -169,10 +169,10 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 	require.NoError(t, aerr)
 
 	onRampAddr := state[chainSelector].OnRamp
+
+	// -- bind onramp in accessor
 	rawOnRampAddr, err := addrCodec.AddressStringToBytes(onRampAddr.String())
 	require.NoError(t, err)
-
-	// -- bind onramp
 	err = accessor.Sync(ctx, consts.ContractNameOnRamp, rawOnRampAddr)
 	require.NoError(t, err)
 
@@ -191,7 +191,7 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 		require.NoError(t, lp.Close())
 	}()
 
-	time.Sleep(10 * time.Second)
+	time.Sleep(30 * time.Second)
 	// -- send CCIP message
 	// _ = &client.CCIPSendReqConfig{
 	// 	SourceChain:  chainSelector,
@@ -206,6 +206,9 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 
 	// -- send CCIP message manually
 	routerAddr := state[chainSelector].Router
+
+	t.Log("Router address: ", routerAddr.String())
+	t.Log("OnRamp address: ", onRampAddr.String())
 
 	sendCCIPMessage(t, ctx, evmSelector, routerAddr, tonChain.Client, deployer)
 
@@ -222,7 +225,7 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 
 func sendCCIPMessage(t *testing.T, ctx context.Context, evmSelector uint64, routerAddr address.Address, client ton.APIClientWrapped, deployer *wallet.Wallet) {
 	extraArgs := onramp.GenericExtraArgsV2{
-		GasLimit:                 big.NewInt(5000),
+		GasLimit:                 big.NewInt(100),
 		AllowOutOfOrderExecution: false,
 	}
 
@@ -233,7 +236,7 @@ func sendCCIPMessage(t *testing.T, ctx context.Context, evmSelector uint64, rout
 		QueryID:           rand.Uint64(),
 		DestChainSelector: evmSelector,
 		Receiver:          tonCommon.CrossChainAddress("0x32Be343B94f860124dC4fEe278FDCBD38C102D88"),
-		Data:              make([]byte, 1000),
+		Data:              []byte("tons of fun"),
 		FeeToken:          ops.TonTokenAddr,
 		ExtraArgs:         extraArgsCell,
 	})
@@ -243,9 +246,9 @@ func sendCCIPMessage(t *testing.T, ctx context.Context, evmSelector uint64, rout
 		Mode: 1,
 		InternalMessage: &tlb.InternalMessage{
 			IHRDisabled: true,
-			Bounce:      true,
+			Bounce:      false,
 			DstAddr:     &routerAddr,
-			Amount:      tlb.MustFromTON("0.1"),
+			Amount:      tlb.MustFromTON("1.0"),
 			Body:        body,
 		},
 	}
@@ -255,6 +258,42 @@ func sendCCIPMessage(t *testing.T, ctx context.Context, evmSelector uint64, rout
 	require.NoError(t, err, "failed to send message")
 
 	t.Log("transaction sent", "blockID", blockID, "receivedMsg", rMsg)
+
+	// Log transaction fees for debugging
+	t.Logf("Transaction fees - Storage: %v, Gas: %v, Total Action: %v, Magic: %v",
+		rMsg.StorageFeeCharged, rMsg.GasFee, rMsg.TotalActionFees, rMsg.MagicFee)
+	t.Logf("Total execution fee: %v", rMsg.TotalTransactionExecutionFee())
+
+	// Check initial transaction exit code
+	t.Logf("Initial transaction exit code: %v", rMsg.ExitCode)
+	t.Logf("Initial transaction success: %v", rMsg.Success)
+	t.Logf("Initial transaction bounced: %v", rMsg.EmittedBouncedMessage)
+	require.Equal(t, int32(0), int32(rMsg.ExitCode), "initial transaction failed with exit code %v", rMsg.ExitCode)
+	require.True(t, rMsg.Success, "initial transaction was not successful")
+	require.False(t, rMsg.EmittedBouncedMessage, "initial transaction was bounced")
+
+	// Wait for complete trace and check for failures
 	err = rMsg.WaitForTrace(client)
 	require.NoError(t, err, "failed to wait for trace")
+
+	// Check outcome exit code (includes all outgoing messages)
+	outcomeExitCode := rMsg.OutcomeExitCode()
+	t.Logf("Outcome exit code (including all outgoing messages): %v", outcomeExitCode)
+	require.Equal(t, int32(0), int32(outcomeExitCode), "transaction trace failed with exit code %v", outcomeExitCode)
+
+	// Log details about outgoing messages
+	t.Logf("Number of outgoing internal messages: %d", len(rMsg.OutgoingInternalReceivedMessages))
+	for i, outMsg := range rMsg.OutgoingInternalReceivedMessages {
+		t.Logf("Outgoing message %d: exit code %v, success: %v, bounced: %v, status: %v",
+			i, outMsg.ExitCode, outMsg.Success, outMsg.EmittedBouncedMessage, outMsg.Status())
+		if outMsg.ExitCode != 0 {
+			t.Errorf("Outgoing message %d failed with exit code %v", i, outMsg.ExitCode)
+		}
+		if !outMsg.Success {
+			t.Errorf("Outgoing message %d was not successful", i)
+		}
+		if outMsg.EmittedBouncedMessage {
+			t.Errorf("Outgoing message %d was bounced", i)
+		}
+	}
 }

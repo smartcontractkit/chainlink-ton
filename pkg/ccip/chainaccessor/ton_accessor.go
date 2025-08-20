@@ -175,6 +175,7 @@ func (a *TONAccessor) GetChainFeeComponents(ctx context.Context) (ccipocr3.Chain
 }
 
 func (a *TONAccessor) Sync(ctx context.Context, contractName string, contractAddress ccipocr3.UnknownAddress) error {
+	// TODO: do we want to register logpoller filter for this contract as well?
 	strAddr, err := a.addrCodec.AddressBytesToString(contractAddress)
 	if err != nil {
 		return fmt.Errorf("invalid address: %w", err)
