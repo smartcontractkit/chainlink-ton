@@ -217,6 +217,9 @@ const DEFAULT_ADMIN_ROLE = 0x00;
 const ERROR_ACCESS_CONTROL_UNAUTHORIZED_ACCOUNT = 90;
 const ERROR_ACCESS_CONTROL_BAD_CONFIRMATION = 91;
 
+// TODO: do we make this configurable?
+const DEFAULT_MESSAGE_BUDGET_FEE = ton("0.05")
+
 // --- Constants - storage ---
 
 const LEN_ADDRESS = 267;  // '100' (std addr no anycast) + workchain 8 + hash LEN_ROLE
@@ -411,9 +414,39 @@ fun AccessControl<T>.grantRole(mutate self, queryId: uint64, sender: address, ro
 /// - the `sender` must have `role`'s admin role.
 ///
 /// Emits a {AccessControl_RoleRevoked} event if `role` was revoked.
-fun AccessControl<T>.revokeRole(mutate self, queryId: uint64, sender: address, role: int, account: address): bool {
+fun AccessControl<T>.revokeRole(mutate self, queryId: uint64, sender: address, role: int, account: address, returnExcess: bool): bool {
     self.requireRole(self.getRoleAdmin(role), sender);
-    return self._revokeRole(queryId, sender, role, account);
+    val success = self._revokeRole(queryId, sender, role, account);
+
+    if (!success) {
+        return false; // nothing to do, role was not updated
+    }
+
+    val body = AccessControl_RoleRevoked {queryId, role, account, sender};
+    // Create and send the message (notification) to the account that was updated
+    val notification = createMessage({
+        bounce: false,
+        value: DEFAULT_MESSAGE_BUDGET_FEE, // fixed compute budget
+        dest: account,
+        body
+    });
+    notification.send(SEND_MODE_IGNORE_ERRORS);
+
+    // Create and send the message (notification) to the sender
+    val reply = createMessage({
+        bounce: false,
+        value: returnExcess ? ton("0") : DEFAULT_MESSAGE_BUDGET_FEE, // return all, or fixed compute budget
+        dest: sender,
+        body
+    });
+
+    if (returnExcess) {
+        reply.send(SEND_MODE_IGNORE_ERRORS | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    } else {
+        reply.send(SEND_MODE_IGNORE_ERRORS);
+    }
+
+    return true;
 }
 
 /// @dev Revokes `role` from the calling account.
@@ -429,13 +462,13 @@ fun AccessControl<T>.revokeRole(mutate self, queryId: uint64, sender: address, r
 /// - the `sender` must be `callerConfirmation`.
 ///
 /// May emit a {AccessControl_RoleRevoked} event.
-fun AccessControl<T>.renounceRole(mutate self, queryId: uint64, sender: address, role: int, callerConfirmation: address): bool {
+fun AccessControl<T>.renounceRole(mutate self, queryId: uint64, sender: address, role: int, callerConfirmation: address, returnExcess: bool): bool {
     if (callerConfirmation != sender) {
         throw(ERROR_ACCESS_CONTROL_BAD_CONFIRMATION); // TODO: attach error arguments
     }
 
     // Renouncing a role is equivalent to revoking it from the caller
-    return self.revokeRole(queryId, sender, role, callerConfirmation);
+    return self.revokeRole(queryId, sender, role, callerConfirmation, returnExcess);
 }
 
 /// @dev Sets `adminRole` as `role`'s admin role.
@@ -530,17 +563,6 @@ fun AccessControl<T>._revokeRole(mutate self, queryId: uint64, sender: address, 
     // Save the updated role data
     self.data.roles.uDictSetRef(LEN_ROLE, role, d.toCell());
 
-    // Create and send the message (notification) to the account that was updated
-    val msg = createMessage({
-        bounce: false,
-        value: 0,
-        dest: account,
-        body: AccessControl_RoleRevoked {queryId, role, account, sender},
-    });
-    msg.send(SEND_MODE_IGNORE_ERRORS);
-
-    // TODO: return excess message value to the sender (sould this be done here or in the caller?)
-
     return true; // role revoked successfully
 }
 
@@ -615,6 +637,10 @@ fun AccessControl<T>.get_getRoleMembers(self, role: int): dict {
 
 @inline
 fun AccessControl<T>.onInternalMessage(mutate self, msgSender: address, _msgValue: coins, msgBody: slice) {
+    // We return excess to sender by default via message handling,
+    // but users can change this behavior by setting `returnExcess`
+    // to false using AccessControl methods directly.
+    val returnExcess = true;
     val sender = self.msgSender(msgSender, msgBody);
     val msg = lazy AccessControl_InMessage.fromSlice(msgBody);
     match (msg) {
@@ -622,10 +648,10 @@ fun AccessControl<T>.onInternalMessage(mutate self, msgSender: address, _msgValu
             self.grantRole(msg.queryId, sender, msg.role, msg.account);
         },
         AccessControl_RevokeRole => {
-            self.revokeRole(msg.queryId, sender, msg.role, msg.account);
+            self.revokeRole(msg.queryId, sender, msg.role, msg.account, returnExcess);
         },
         AccessControl_RenounceRole => {
-            self.renounceRole(msg.queryId, sender, msg.role, msg.callerConfirmation);
+            self.renounceRole(msg.queryId, sender, msg.role, msg.callerConfirmation, returnExcess);
         },
         else => {
             return 0; // unknown message, not handled
