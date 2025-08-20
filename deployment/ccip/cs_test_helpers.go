@@ -22,15 +22,10 @@ import (
 	"github.com/smartcontractkit/chainlink/v2/core/capabilities/ccip/ccipevm"
 	mcmstypes "github.com/smartcontractkit/mcms/types"
 	"github.com/xssnick/tonutils-go/address"
-	"github.com/xssnick/tonutils-go/tlb"
-	"github.com/xssnick/tonutils-go/ton/wallet"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
-
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 )
 
 const ChainSelEVMTest90000001 = 909606746561742123
@@ -211,52 +206,52 @@ func SendTonRequest(
 	e cldf.Environment,
 	state stateview.CCIPOnChainState,
 	cfg *client.CCIPSendReqConfig) (*client.AnyMsgSentEvent, error) {
-	senderWallet := e.BlockChains.TonChains()[cfg.SourceChain].Wallet
+	//senderWallet := e.BlockChains.TonChains()[cfg.SourceChain].Wallet
 	senderAddr := e.BlockChains.TonChains()[cfg.SourceChain].WalletAddress
 	clientConn := e.BlockChains.TonChains()[cfg.SourceChain].Client
 
 	e.Logger.Infof("(Ton) Sending CCIP request from chain selector %d to chain selector %d using sender %s",
 		cfg.SourceChain, cfg.DestChain, senderAddr.String())
 
-	msg := cfg.Message.(TonSendRequest)
-	routerAddr := state.TonChains[cfg.SourceChain].Router
+	//msg := cfg.Message.(TonSendRequest)
+	//routerAddr := state.TonChains[cfg.SourceChain].Router
 	onrampAddr := state.TonChains[cfg.SourceChain].OnRamp
 
 	// TODO Skipping token amounts setup for now, and in the future for supporting token transfers
-	ccipSend := router.CCIPSend{
-		QueryID:           msg.QueryID,
-		DestChainSelector: cfg.DestChain,
-		Receiver:          msg.Receiver,
-		Data:              msg.Data,
-		FeeToken:          msg.FeeToken,
-		ExtraArgs:         msg.ExtraArgs,
-	}
+	//ccipSend := router.CCIPSend{
+	//	QueryID:           msg.QueryID,
+	//	DestChainSelector: cfg.DestChain,
+	//	Receiver:          msg.Receiver,
+	//	Data:              msg.Data,
+	//	FeeToken:          msg.FeeToken,
+	//	ExtraArgs:         msg.ExtraArgs,
+	//}
+	//
+	//ccipSendCell, err := tlb.ToCell(ccipSend)
+	//if err != nil {
+	//	return nil, fmt.Errorf("failed to convert to cell: %w", err)
+	//}
 
-	ccipSendCell, err := tlb.ToCell(ccipSend)
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert to cell: %w", err)
-	}
-
-	walletMsg := &wallet.Message{
-		Mode: wallet.PayGasSeparately, // TODO: wallet.IgnoreErrors ?
-		InternalMessage: &tlb.InternalMessage{
-			Bounce:  true,
-			DstAddr: &routerAddr,
-			Body:    ccipSendCell,
-		},
-	}
-
-	ttConn := tracetracking.NewSignedAPIClient(clientConn, *senderWallet)
-	receivedMsg, blockID, err := ttConn.SendWaitTransaction(e.GetContext(), routerAddr, walletMsg)
-	if err != nil {
-		return nil, fmt.Errorf("failed to send transaction: %w", err)
-	}
-
-	e.Logger.Infow("transaction sent", "blockID", blockID, "receivedMsg", receivedMsg)
-	err = receivedMsg.WaitForTrace(clientConn)
-	if err != nil {
-		return nil, fmt.Errorf("failed to wait for trace: %w", err)
-	}
+	//walletMsg := &wallet.Message{
+	//	Mode: wallet.PayGasSeparately, // TODO: wallet.IgnoreErrors ?
+	//	InternalMessage: &tlb.InternalMessage{
+	//		Bounce:  true,
+	//		DstAddr: &routerAddr,
+	//		Body:    ccipSendCell,
+	//	},
+	//}
+	//
+	//ttConn := tracetracking.NewSignedAPIClient(clientConn, *senderWallet)
+	//receivedMsg, blockID, err := ttConn.SendWaitTransaction(e.GetContext(), routerAddr, walletMsg)
+	//if err != nil {
+	//	return nil, fmt.Errorf("failed to send transaction: %w", err)
+	//}
+	//
+	//e.Logger.Infow("transaction sent", "blockID", blockID, "receivedMsg", receivedMsg)
+	//err = receivedMsg.WaitForTrace(clientConn)
+	//if err != nil {
+	//	return nil, fmt.Errorf("failed to wait for trace: %w", err)
+	//}
 
 	ca, er := chainaccessor.NewTONAccessor(e.Logger, cciptypes.ChainSelector(cfg.SourceChain), clientConn, nil, codec.NewAddressCodec())
 	if er != nil {
