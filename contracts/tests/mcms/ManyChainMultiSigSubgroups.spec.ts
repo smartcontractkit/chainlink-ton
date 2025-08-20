@@ -1,22 +1,15 @@
-import {
-  toNano,
-  beginCell,
-  Address,
-  Dictionary,
-  TransactionDescriptionGeneric,
-  TransactionComputeVm,
-} from '@ton/core'
+import { toNano, beginCell } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import '@ton/test-utils'
-import { compile } from '@ton/blueprint'
 import { MCMSBaseTestSetup, MCMSTestCode, TestSigner } from './ManyChainMultiSigBaseTest'
 import { merkleProof } from '../../src/mcms'
 import * as mcms from '../../wrappers/mcms/MCMS'
-import { asSnakeData, uint8ArrayToBigInt } from '../../src/utils'
-import { KeyPair, keyPairFromSeed, sha256, sign } from '@ton/crypto'
-import { randomBytes } from 'crypto'
+import * as counter from '../../wrappers/examples/Counter'
+import { uint8ArrayToBigInt } from '../../src/utils'
+import { sha256, sign } from '@ton/crypto'
 import { ocr } from '../../wrappers/libraries/ocr'
 import { generateEd25519KeyPair } from '../libraries/ocr/Helpers'
+import { crc32 } from 'zlib'
 
 describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
   let blockchain: Blockchain
@@ -28,6 +21,7 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
   }
   let bind: {
     mcms: SandboxContract<mcms.ContractClient>
+    counter: SandboxContract<counter.ContractClient>
   }
 
   const MCMS_NUM_GROUPS = 32
@@ -72,22 +66,34 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
         testSigners.push({
           address,
           keyPair: keyPairs[i],
-          treasury: treasury,
+          wallet: treasury,
           index: i,
           group: 0, // Will be set per test
         })
       }
     }
 
+    const testId = crc32('mcms.manyChainMultiSigSubgroupTest')
+    const mcmsBind = blockchain.openContract(
+      mcms.ContractClient.newFrom(
+        mcms.builder.data.contractDataEmpty(testId, acc.multisigOwner.address),
+        code.mcms,
+      ),
+    )
     // Set up MCMS contract
     bind = {
-      mcms: blockchain.openContract(
-        mcms.ContractClient.newFrom(
-          mcms.builder.data.contractDataEmpty(
-            123456, // test ID
-            acc.multisigOwner.address,
-          ),
-          code.mcms,
+      mcms: mcmsBind,
+      counter: blockchain.openContract(
+        counter.ContractClient.newFrom(
+          {
+            id: testId,
+            value: 0,
+            ownable: {
+              owner: mcmsBind.address,
+              pendingOwner: null, // no pending owner
+            },
+          },
+          code.counter,
         ),
       ),
     }
@@ -135,14 +141,8 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
     })
 
     // form a chain of groups from the last group to the root
-    const groupQuorums = Dictionary.empty<number, number>(
-      Dictionary.Keys.Uint(8),
-      Dictionary.Values.Uint(8),
-    )
-    const groupParents = Dictionary.empty<number, number>(
-      Dictionary.Keys.Uint(8),
-      Dictionary.Values.Uint(8),
-    )
+    const groupQuorums = new Map<number, number>()
+    const groupParents = new Map<number, number>()
 
     for (let i = 0; i < MCMS_NUM_GROUPS; i++) {
       if (i !== 0) {
@@ -158,14 +158,8 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
     {
       const setConfigBody = mcms.builder.message.in.setConfig.encode({
         queryId: 1n,
-        signerKeys: asSnakeData<bigint>(
-          testSigners.map((s) => BigInt('0x' + s.keyPair.publicKey.toString('hex'))),
-          (a) => beginCell().storeUint(a, 256),
-        ),
-        signerGroups: asSnakeData<number>(
-          testSigners.map((s) => s.group),
-          (g) => beginCell().storeUint(g, 8),
-        ),
+        signerKeys: testSigners.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey)),
+        signerGroups: testSigners.map((s) => s.group),
         groupQuorums,
         groupParents,
         clearRoot: false,
@@ -189,7 +183,7 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
         chainId: MCMSBaseTestSetup.TEST_CHAIN_ID,
         multiSig: bind.mcms.address,
         nonce: 1n,
-        to: bind.mcms.address, // TODO bind.counter.address,
+        to: bind.counter.address,
         value: toNano('0.1'),
         data: beginCell().storeUint(0xffffffff, 32).endCell(),
       },
@@ -253,14 +247,8 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
     randomState: Buffer<ArrayBuffer>,
   ): Promise<Buffer<ArrayBuffer>> {
     const groupChildrenCounts = new Array(MCMS_NUM_GROUPS).fill(0)
-    const groupQuorums = Dictionary.empty<number, number>(
-      Dictionary.Keys.Uint(8),
-      Dictionary.Values.Uint(8),
-    )
-    const groupParents = Dictionary.empty<number, number>(
-      Dictionary.Keys.Uint(8),
-      Dictionary.Values.Uint(8),
-    )
+    const groupQuorums = new Map<number, number>()
+    const groupParents = new Map<number, number>()
 
     // Assign signers to random groups
     for (let i = 0; i < NUM_SIGNERS; i++) {
@@ -299,18 +287,12 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
 
     // Set configuration
     {
-      const signers = asSnakeData<bigint>(
-        testSigners.map((s) => BigInt('0x' + s.keyPair.publicKey.toString('hex'))),
-        (a) => beginCell().storeUint(a, 256),
-      )
+      const signers = testSigners.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey))
 
       const setConfigBody = mcms.builder.message.in.setConfig.encode({
         queryId: 1n,
         signerKeys: signers,
-        signerGroups: asSnakeData<number>(
-          testSigners.map((s) => s.group),
-          (g) => beginCell().storeUint(g, 8),
-        ),
+        signerGroups: testSigners.map((s) => s.group),
         groupQuorums,
         groupParents,
         clearRoot: false,
@@ -335,7 +317,7 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
         chainId: MCMSBaseTestSetup.TEST_CHAIN_ID,
         multiSig: bind.mcms.address,
         nonce: BigInt(nonce),
-        to: bind.mcms.address, // TODO bind.counter.address,
+        to: bind.counter.address,
         value: toNano('0.1'),
         data: beginCell().storeUint(0xffffffff, 32).endCell(),
       },
@@ -369,7 +351,7 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
             chainId: MCMSBaseTestSetup.TEST_CHAIN_ID,
             multiSig: bind.mcms.address,
             nonce: BigInt(nonce),
-            to: bind.mcms.address, // TODO bind.counter.address,
+            to: bind.counter.address,
             value: toNano('0.1'),
             data: beginCell().storeUint(0xffffffff, 32).endCell(),
           },
@@ -439,14 +421,8 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
     })
 
     // Create malformed group configuration (causes parent index issues)
-    const groupQuorums = Dictionary.empty<number, number>(
-      Dictionary.Keys.Uint(8),
-      Dictionary.Values.Uint(8),
-    )
-    const malformedGroupParents = Dictionary.empty<number, number>(
-      Dictionary.Keys.Uint(8),
-      Dictionary.Values.Uint(8),
-    )
+    const groupQuorums = new Map<number, number>()
+    const malformedGroupParents = new Map<number, number>()
 
     for (let i = 0; i < MCMS_NUM_GROUPS; i++) {
       groupQuorums.set(i, 1)
@@ -454,17 +430,11 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
       malformedGroupParents.set(i, i + 1)
     }
 
-    const signerGroupsData = asSnakeData<number>(
-      testSigners.map((s) => s.group),
-      (g) => beginCell().storeUint(g, 8),
-    )
+    const signerGroupsData = testSigners.map((s) => s.group)
     // Test malformed configuration should fail
     const malformedSetConfigBody = mcms.builder.message.in.setConfig.encode({
       queryId: 1n,
-      signerKeys: asSnakeData<bigint>(
-        testSigners.map((s) => BigInt('0x' + s.keyPair.publicKey.toString('hex'))),
-        (a) => beginCell().storeUint(a, 256),
-      ),
+      signerKeys: testSigners.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey)),
       signerGroups: signerGroupsData,
       groupQuorums,
       groupParents: malformedGroupParents,
@@ -485,10 +455,7 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
     })
 
     // Fix the group parent relationships
-    const correctGroupParents = Dictionary.empty<number, number>(
-      Dictionary.Keys.Uint(8),
-      Dictionary.Values.Uint(8),
-    )
+    const correctGroupParents = new Map<number, number>()
     correctGroupParents.set(0, 0) // Root parent is itself
     for (let i = 1; i < MCMS_NUM_GROUPS; i++) {
       correctGroupParents.set(i, i - 1) // Each group's parent is the previous one
@@ -496,10 +463,7 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
 
     const correctSetConfigBody = mcms.builder.message.in.setConfig.encode({
       queryId: 2n,
-      signerKeys: asSnakeData<bigint>(
-        testSigners.map((s) => BigInt('0x' + s.keyPair.publicKey.toString('hex'))),
-        (a) => beginCell().storeUint(a, 256),
-      ),
+      signerKeys: testSigners.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey)),
       signerGroups: signerGroupsData,
       groupQuorums,
       groupParents: correctGroupParents,

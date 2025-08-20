@@ -1,13 +1,12 @@
 import '@ton/test-utils'
 
-import { Address, toNano, Dictionary, beginCell } from '@ton/core'
-import * as ac from '../../wrappers/lib/access/AccessControl'
+import { toNano } from '@ton/core'
 
 import * as mcms from '../../wrappers/mcms/MCMS'
+import * as ownable2Step from '../../wrappers/libraries/access/Ownable2Step'
 
 import { MCMSBaseTestSetup, MCMSTestCode, TestSigner } from './ManyChainMultiSigBaseTest'
-import { asSnakeData } from '../../src/utils'
-import { KeyPair } from '@ton/crypto'
+import { uint8ArrayToBigInt } from '../../src/utils'
 
 describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
   let baseTest: MCMSBaseTestSetup
@@ -27,14 +26,8 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
     // Try to call setConfig from non-owner address (should fail)
     const setConfigBody = mcms.builder.message.in.setConfig.encode({
       queryId: 1n,
-      signerKeys: asSnakeData<bigint>(
-        baseTest.testSigners.map((s) => BigInt('0x' + s.keyPair.publicKey.toString('hex'))),
-        (a) => beginCell().storeUint(a, 256),
-      ),
-      signerGroups: asSnakeData<number>(
-        baseTest.testSigners.map((s) => s.group),
-        (g) => beginCell().storeUint(g, 8),
-      ),
+      signerKeys: baseTest.testSigners.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey)),
+      signerGroups: baseTest.testSigners.map((s) => s.group),
       groupQuorums: baseTest.testGroupQuorums,
       groupParents: baseTest.testGroupParents,
       clearRoot: false,
@@ -50,21 +43,15 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
       from: baseTest.acc.deployer.address,
       to: baseTest.bind.mcms.address,
       success: false,
-      exitCode: 132, // ERROR_ONLY_CALLABLE_BY_OWNER(ownable_2step) // TODO: This should be exposed by some binding.
+      exitCode: ownable2Step.Errors.OnlyCallableByOwner,
     })
   })
 
   it('should fail on invalid configuration - empty signers list', async () => {
     // Empty signers list should fail
     const emptySignerList: TestSigner[] = []
-    const emptySignerKeys = asSnakeData<bigint>(
-      emptySignerList.map((s) => BigInt('0x' + s.keyPair.publicKey.toString('hex'))),
-      (a) => beginCell().storeUint(a, 256),
-    )
-    const emptySignerGroups = asSnakeData<number>(
-      emptySignerList.map((s) => s.group),
-      (g) => beginCell().storeUint(g, 8),
-    )
+    const emptySignerKeys = emptySignerList.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey))
+    const emptySignerGroups = emptySignerList.map((s) => s.group)
 
     const setConfigBody = mcms.builder.message.in.setConfig.encode({
       queryId: 1n,
@@ -94,14 +81,8 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
 
     const duplicateSigners = [...baseTest.testSigners]
     duplicateSigners[1] = duplicateSigners[0] // Make addresses duplicate
-    const signerKeys = asSnakeData<bigint>(
-      duplicateSigners.map((s) => BigInt('0x' + s.keyPair.publicKey.toString('hex'))),
-      (a) => beginCell().storeUint(a, 256),
-    )
-    const signerGroups = asSnakeData<number>(
-      duplicateSigners.map((s) => s.group),
-      (g) => beginCell().storeUint(g, 8),
-    )
+    const signerKeys = duplicateSigners.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey))
+    const signerGroups = duplicateSigners.map((s) => s.group)
 
     const setConfigBody = mcms.builder.message.in.setConfig.encode({
       queryId: 1n,
@@ -131,14 +112,8 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
     const invalidGroupSigners = [...baseTest.testSigners]
     invalidGroupSigners[0].group = mcms.NUM_GROUPS + 1
 
-    const signerKeys = asSnakeData<bigint>(
-      invalidGroupSigners.map((s) => BigInt('0x' + s.keyPair.publicKey.toString('hex'))),
-      (a) => beginCell().storeUint(a, 256),
-    )
-    const signerGroups = asSnakeData<number>(
-      invalidGroupSigners.map((s) => s.group),
-      (g) => beginCell().storeUint(g, 8),
-    )
+    const signerKeys = invalidGroupSigners.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey))
+    const signerGroups = invalidGroupSigners.map((s) => s.group)
 
     const setConfigBody = mcms.builder.message.in.setConfig.encode({
       queryId: 1n,
@@ -165,10 +140,7 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
 
   it('should fail on invalid configuration - too large group quorum', async () => {
     // Set quorum larger than number of signers
-    const invalidGroupQuorums = Dictionary.empty<number, number>(
-      Dictionary.Keys.Uint(8),
-      Dictionary.Values.Uint(8),
-    )
+    const invalidGroupQuorums = new Map<number, number>()
     for (let i = 0; i < mcms.NUM_GROUPS; i++) {
       if (i === 0) {
         invalidGroupQuorums.set(i, MCMSBaseTestSetup.SIGNERS_NUM + 1) // Too large
@@ -179,14 +151,8 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
 
     const setConfigBody = mcms.builder.message.in.setConfig.encode({
       queryId: 1n,
-      signerKeys: asSnakeData<bigint>(
-        baseTest.testSigners.map((s) => BigInt('0x' + s.keyPair.publicKey.toString('hex'))),
-        (a) => beginCell().storeUint(a, 256),
-      ),
-      signerGroups: asSnakeData<number>(
-        baseTest.testSigners.map((s) => s.group),
-        (g) => beginCell().storeUint(g, 8),
-      ),
+      signerKeys: baseTest.testSigners.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey)),
+      signerGroups: baseTest.testSigners.map((s) => s.group),
       groupQuorums: invalidGroupQuorums,
       groupParents: baseTest.testGroupParents,
       clearRoot: false,
@@ -208,10 +174,7 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
 
   it('should fail on invalid configuration - malformed group tree (root not self-parent)', async () => {
     // Root group (0) should have itself as parent, not another group
-    const invalidGroupParents = Dictionary.empty<number, number>(
-      Dictionary.Keys.Uint(8),
-      Dictionary.Values.Uint(8),
-    )
+    const invalidGroupParents = new Map<number, number>()
     for (let i = 0; i < mcms.NUM_GROUPS; i++) {
       if (i === 0) {
         invalidGroupParents.set(i, 1) // Invalid: root should be self-parent (0)
@@ -222,14 +185,8 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
 
     const setConfigBody = mcms.builder.message.in.setConfig.encode({
       queryId: 1n,
-      signerKeys: asSnakeData<bigint>(
-        baseTest.testSigners.map((s) => BigInt('0x' + s.keyPair.publicKey.toString('hex'))),
-        (a) => beginCell().storeUint(a, 256),
-      ),
-      signerGroups: asSnakeData<number>(
-        baseTest.testSigners.map((s) => s.group),
-        (g) => beginCell().storeUint(g, 8),
-      ),
+      signerKeys: baseTest.testSigners.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey)),
+      signerGroups: baseTest.testSigners.map((s) => s.group),
       groupQuorums: baseTest.testGroupQuorums,
       groupParents: invalidGroupParents,
       clearRoot: false,
@@ -251,10 +208,7 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
 
   it('should fail on invalid configuration - malformed group tree (group self-parent)', async () => {
     // Non-root group should not have itself as parent
-    const invalidGroupParents = Dictionary.empty<number, number>(
-      Dictionary.Keys.Uint(8),
-      Dictionary.Values.Uint(8),
-    )
+    const invalidGroupParents = new Map<number, number>()
     for (let i = 0; i < mcms.NUM_GROUPS; i++) {
       if (i === 1) {
         invalidGroupParents.set(i, 1) // Invalid: group 1 has itself as parent
@@ -265,14 +219,8 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
 
     const setConfigBody = mcms.builder.message.in.setConfig.encode({
       queryId: 1n,
-      signerKeys: asSnakeData<bigint>(
-        baseTest.testSigners.map((s) => BigInt('0x' + s.keyPair.publicKey.toString('hex'))),
-        (a) => beginCell().storeUint(a, 256),
-      ),
-      signerGroups: asSnakeData<number>(
-        baseTest.testSigners.map((s) => s.group),
-        (g) => beginCell().storeUint(g, 8),
-      ),
+      signerKeys: baseTest.testSigners.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey)),
+      signerGroups: baseTest.testSigners.map((s) => s.group),
       groupQuorums: baseTest.testGroupQuorums,
       groupParents: invalidGroupParents,
       clearRoot: false,
@@ -299,14 +247,8 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
 
     const setConfigBody = mcms.builder.message.in.setConfig.encode({
       queryId: 1n,
-      signerKeys: asSnakeData<bigint>(
-        baseTest.testSigners.map((s) => BigInt('0x' + s.keyPair.publicKey.toString('hex'))),
-        (a) => beginCell().storeUint(a, 256),
-      ),
-      signerGroups: asSnakeData<number>(
-        disabledGroupSigners.map((s) => s.group),
-        (g) => beginCell().storeUint(g, 8),
-      ),
+      signerKeys: baseTest.testSigners.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey)),
+      signerGroups: disabledGroupSigners.map((s) => s.group),
       groupQuorums: baseTest.testGroupQuorums,
       groupParents: baseTest.testGroupParents,
       clearRoot: false,
@@ -333,14 +275,8 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
 
     const setConfigBody = mcms.builder.message.in.setConfig.encode({
       queryId: 1n,
-      signerKeys: asSnakeData<bigint>(
-        signer.map((s) => BigInt('0x' + s.keyPair.publicKey.toString('hex'))),
-        (a) => beginCell().storeUint(a, 256),
-      ),
-      signerGroups: asSnakeData<number>(
-        shorterSignerGroup.map((s) => s.group),
-        (g) => beginCell().storeUint(g, 8),
-      ),
+      signerKeys: signer.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey)),
+      signerGroups: shorterSignerGroup.map((s) => s.group),
       groupQuorums: baseTest.testGroupQuorums,
       groupParents: baseTest.testGroupParents,
       clearRoot: false,
@@ -363,14 +299,8 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
   it('should successfully set config without clearing root', async () => {
     const setConfigBody = mcms.builder.message.in.setConfig.encode({
       queryId: 1n,
-      signerKeys: asSnakeData<bigint>(
-        baseTest.testSigners.map((s) => BigInt('0x' + s.keyPair.publicKey.toString('hex'))),
-        (a) => beginCell().storeUint(a, 256),
-      ),
-      signerGroups: asSnakeData<number>(
-        baseTest.testSigners.map((s) => s.group),
-        (g) => beginCell().storeUint(g, 8),
-      ),
+      signerKeys: baseTest.testSigners.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey)),
+      signerGroups: baseTest.testSigners.map((s) => s.group),
       groupQuorums: baseTest.testGroupQuorums,
       groupParents: baseTest.testGroupParents,
       clearRoot: false,
@@ -412,14 +342,8 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
   it('should successfully set config and clear root', async () => {
     const setConfigBody = mcms.builder.message.in.setConfig.encode({
       queryId: 1n,
-      signerKeys: asSnakeData<bigint>(
-        baseTest.testSigners.map((s) => BigInt('0x' + s.keyPair.publicKey.toString('hex'))),
-        (a) => beginCell().storeUint(a, 256),
-      ),
-      signerGroups: asSnakeData<number>(
-        baseTest.testSigners.map((s) => s.group),
-        (g) => beginCell().storeUint(g, 8),
-      ),
+      signerKeys: baseTest.testSigners.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey)),
+      signerGroups: baseTest.testSigners.map((s) => s.group),
       groupQuorums: baseTest.testGroupQuorums,
       groupParents: baseTest.testGroupParents,
       clearRoot: true, // Clear the root

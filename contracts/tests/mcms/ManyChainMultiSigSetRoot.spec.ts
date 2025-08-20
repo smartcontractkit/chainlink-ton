@@ -1,7 +1,5 @@
-import { toNano, beginCell, Cell, Address, Dictionary } from '@ton/core'
-import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
+import { toNano, beginCell } from '@ton/core'
 import '@ton/test-utils'
-import { compile } from '@ton/blueprint'
 import {
   MCMSBaseSetRootAndExecuteTestSetup,
   MCMSTestCode,
@@ -10,7 +8,7 @@ import {
 import { merkleProof } from '../../src/mcms'
 import * as mcms from '../../wrappers/mcms/MCMS'
 import { sign } from '@ton/crypto/dist/primitives/nacl'
-import { asSnakeData } from '../../src/utils'
+import { uint8ArrayToBigInt } from '../../src/utils'
 
 describe('MCMS - ManyChainMultiSigSetRootTest', () => {
   let baseTest: MCMSBaseSetRootAndExecuteTestSetup
@@ -123,7 +121,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
 
     it('should revert on incorrect preOpCount - opCount > preOpCount', async () => {
       await baseTest.setInitialRoot()
-      await baseTest.advanceOpcodeTo(1)
+      await baseTest.executeOperationsUpTo(1)
       const corruptedRootMetadata = { ...baseTest.initialTestRootMetadata }
       corruptedRootMetadata.overridePreviousRoot = true
       corruptedRootMetadata.preOpCount = (await baseTest.bind.mcms.getOpCount()) - 1n
@@ -162,7 +160,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         toNano('10'),
         mcms.builder.message.in.topUp.encode({ queryId: 1n }),
       )
-      await baseTest.advanceOpcodeTo(MCMSBaseSetRootAndExecuteTestSetup.OPS_NUM)
+      await baseTest.executeOperationsUpTo(MCMSBaseSetRootAndExecuteTestSetup.OPS_NUM)
 
       // Now try to set another root with incorrect postOpCount
       const corruptedRootMetadata = { ...baseTest.initialTestRootMetadata }
@@ -419,19 +417,13 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
     it('should successfully set root after clearing', async () => {
       // Execute all ops except one
       const targetOpCount = baseTest.initialTestRootMetadata.postOpCount - 1n
-      await baseTest.advanceOpcodeTo(Number(targetOpCount))
+      await baseTest.executeOperationsUpTo(Number(targetOpCount))
 
       // Set config with clearRoot = true
       const setConfigBody = mcms.builder.message.in.setConfig.encode({
         queryId: 1n,
-        signerKeys: asSnakeData<bigint>(
-          baseTest.testSigners.map((s) => BigInt('0x' + s.keyPair.publicKey.toString('hex'))),
-          (a) => beginCell().storeUint(a, 256),
-        ),
-        signerGroups: asSnakeData<number>(
-          baseTest.testSigners.map((s) => s.group),
-          (g) => beginCell().storeUint(g, 8),
-        ),
+        signerKeys: baseTest.testSigners.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey)),
+        signerGroups: baseTest.testSigners.map((s) => s.group),
         groupQuorums: baseTest.testGroupQuorums,
         groupParents: baseTest.testGroupParents,
         clearRoot: true,
@@ -580,7 +572,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
       newRootMetadata.postOpCount =
         newRootMetadata.preOpCount + BigInt(MCMSBaseSetRootAndExecuteTestSetup.OPS_NUM)
 
-      await baseTest.advanceOpcodeTo(MCMSBaseSetRootAndExecuteTestSetup.OPS_NUM)
+      await baseTest.executeOperationsUpTo(MCMSBaseSetRootAndExecuteTestSetup.OPS_NUM)
 
       const signers = baseTest.testSigners.map((s) => ({
         publicKey: s.keyPair.publicKey,
@@ -736,7 +728,6 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
       const corruptedMetadata = { ...baseTest.initialTestRootMetadata }
       corruptedMetadata.chainId = corruptedMetadata.chainId + 1n
       // Note: We also need to set the blockchain chainId to match for the chainId validation
-      baseTest.blockchain.now = 1 // Reset time if needed // TODO do we need this?
 
       const signers = baseTest.testSigners.map((s) => ({
         publicKey: s.keyPair.publicKey,
@@ -768,12 +759,9 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
   describe('SetRootVerifySignaturesTest', () => {
     it('should revert on insufficient signatures for group quorum', async () => {
       const signersNum = 9
-      // expect(signersNum).toBeGreaterThanOrEqual(baseTest.SIGNERS_NUM) // TODO why can't I access it?
+      expect(signersNum).toBeGreaterThanOrEqual(MCMSBaseSetRootAndExecuteTestSetup.SIGNERS_NUM)
       // Create a configuration with stricter quorum requirements
-      const stricterGroupQuorums = Dictionary.empty<number, number>(
-        Dictionary.Keys.Uint(8),
-        Dictionary.Values.Uint(8),
-      )
+      const stricterGroupQuorums = new Map<number, number>()
       stricterGroupQuorums.set(0, 3) // Increase root group quorum to 3
       stricterGroupQuorums.set(1, 3) // Group 1 needs 3 signatures
       stricterGroupQuorums.set(2, 2) // Group 2 needs 2 signatures
@@ -794,11 +782,8 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
       {
         const setConfigBody = mcms.builder.message.in.setConfig.encode({
           queryId: 1n,
-          signerKeys: asSnakeData<bigint>(
-            signers.map((s) => BigInt('0x' + s.keyPair.publicKey.toString('hex'))),
-            (a) => beginCell().storeUint(a, 256),
-          ),
-          signerGroups: asSnakeData<number>(signerGroups, (g) => beginCell().storeUint(g, 8)),
+          signerKeys: signers.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey)),
+          signerGroups,
           groupQuorums: stricterGroupQuorums,
           groupParents: baseTest.testGroupParents,
           clearRoot: false,

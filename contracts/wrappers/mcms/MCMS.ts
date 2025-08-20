@@ -6,13 +6,15 @@ import {
   contractAddress,
   ContractProvider,
   Dictionary,
+  DictionaryKeyTypes,
   Sender,
   SendMode,
 } from '@ton/core'
 import { crc32 } from 'zlib'
 import { CellCodec, sha256_32 } from '../utils'
-import { ZERO_ADDRESS } from '../../src/utils'
+import { asSnakeData, fromSnakeData, ZERO_ADDRESS } from '../../src/utils'
 import * as ownable2step from '../libraries/access/Ownable2Step'
+import { loadDict, loadMap } from '../../src/utils/dict'
 
 // @dev Top up contract with TON coins.
 export type TopUp = {
@@ -45,7 +47,7 @@ export type Execute = {
   // The operation to be executed, stored as a Cell to avoid size limits.
   op: Cell // Cell<Op>
   // The Merkle proof for the op's inclusion in the Merkle tree.
-  proof: Cell // vec<uint256>
+  proof: bigint[] // vec<uint256>
 }
 
 // @dev Sets the configuration for the contract.
@@ -54,13 +56,13 @@ export type SetConfig = {
   queryId: bigint
 
   // List of signer public keys.
-  signerKeys: Cell // vec<uint256>
+  signerKeys: bigint[] // vec<uint256>
   // List of signer groups.
-  signerGroups: Cell // vec<uint8>
+  signerGroups: number[] // vec<uint8>
   // List of group quorums.
-  groupQuorums: Dictionary<number, number> // map<uint8, uint8> (indexed, iterable backwards)
+  groupQuorums: Map<number, number> // map<uint8, uint8> (indexed, iterable backwards)
   // List of group parents.
-  groupParents: Dictionary<number, number> // map<uint8, uint8> (indexed, iterable backwards)
+  groupParents: Map<number, number> // map<uint8, uint8> (indexed, iterable backwards)
   // Whether to clear the current root.
   clearRoot: boolean
 }
@@ -76,12 +78,12 @@ export type ContractData = {
   /// Ownable trait data
   ownable: ownable2step.Data
   /// Map where entry exists if the public key is a signer
-  signers: Dictionary<bigint, Buffer> // map<uint256, Signer>
+  signers: Map<bigint, Buffer> // map<uint256, Signer>
   /// The current configuration of the contract
   config: Config
 
   /// Remember signedHashes that this contract has seen. Each signedHash can only be set once.
-  seenSignedHashes: Dictionary<bigint, boolean> // map<uint256, bool>
+  seenSignedHashes: Map<bigint, boolean> // map<uint256, bool>
   /// The current expiring root and the number of ops in it.
   expiringRootAndOpCount: ExpiringRootAndOpCount
   /// The current metadata about the root.
@@ -247,17 +249,17 @@ export type Signer = {
 // Configuration structure for the contract
 export type Config = {
   // Map of signer indices to Signer objects (indexed)
-  signers: Dictionary<number, Buffer> // map<uint8, Signer> - (indexed)
+  signers: Map<number, Buffer> // map<uint8, Signer> - (indexed)
   // groupQuorums[i] stores the quorum for the i-th signer group. Any group with
   // groupQuorums[i] = 0 is considered disabled. The i-th group is successful if
   // it is enabled and at least groupQuorums[i] of its children are successful.
-  groupQuorums: Dictionary<number, number> // map<uint8, uint8> (indexed, iterable backwards)
+  groupQuorums: Map<number, number> // map<uint8, uint8> (indexed, iterable backwards)
   // groupParents[i] stores the parent group of the i-th signer group. We ensure that the
   // groups form a tree structure (where the root/0-th signer group points to itself as
   // parent) by enforcing:
   // - (i != 0) implies (groupParents[i] < i)
   // - groupParents[0] == 0
-  groupParents: Dictionary<number, number> // map<uint8, uint8> (indexed, iterable backwards)
+  groupParents: Map<number, number> // map<uint8, uint8> (indexed, iterable backwards)
 }
 
 /// MerkleRoots are a bit tricky since they reveal almost no information about the contents of
@@ -423,7 +425,7 @@ export const builder = {
             .storeUint(opcodes.in.Execute, 32)
             .storeUint(msg.queryId, 64)
             .storeRef(msg.op)
-            .storeRef(msg.proof)
+            .storeRef(asSnakeData<bigint>(msg.proof, (v) => beginCell().storeUint(v, 256)))
             .endCell()
         },
         decode: (cell: Cell): Execute => {
@@ -432,7 +434,7 @@ export const builder = {
           return {
             queryId: s.loadUintBig(64),
             op: s.loadRef(),
-            proof: s.loadRef(),
+            proof: fromSnakeData(s.loadRef(), (a) => a.loadUintBig(256)),
           }
         },
       },
@@ -442,10 +444,14 @@ export const builder = {
           return beginCell()
             .storeUint(opcodes.in.SetConfig, 32)
             .storeUint(msg.queryId, 64)
-            .storeRef(msg.signerKeys)
-            .storeRef(msg.signerGroups)
-            .storeDict(msg.groupQuorums)
-            .storeDict(msg.groupParents)
+            .storeRef(asSnakeData<bigint>(msg.signerKeys, (a) => beginCell().storeUint(a, 256)))
+            .storeRef(asSnakeData<number>(msg.signerGroups, (g) => beginCell().storeUint(g, 8)))
+            .storeDict(
+              loadMap(Dictionary.Keys.Uint(8), Dictionary.Values.Uint(8), msg.groupQuorums),
+            )
+            .storeDict(
+              loadMap(Dictionary.Keys.Uint(8), Dictionary.Values.Uint(8), msg.groupParents),
+            )
             .storeBit(msg.clearRoot)
             .endCell()
         },
@@ -454,19 +460,23 @@ export const builder = {
           s.skip(32) // skip opcode
           return {
             queryId: s.loadUintBig(64),
-            signerKeys: s.loadRef(),
-            signerGroups: s.loadRef(),
-            groupQuorums: Dictionary.loadDirect(
-              Dictionary.Keys.Uint(8),
-              Dictionary.Values.Uint(8),
-              s.loadRef(),
+            signerKeys: fromSnakeData<bigint>(s.loadRef(), (a) => a.loadUintBig(256)),
+            signerGroups: fromSnakeData<number>(s.loadRef(), (g) => g.loadUint(8)),
+            groupQuorums: loadDict(
+              Dictionary.loadDirect(
+                Dictionary.Keys.Uint(8),
+                Dictionary.Values.Uint(8),
+                s.loadRef(),
+              ),
             ),
-            groupParents: Dictionary.loadDirect(
-              Dictionary.Keys.Uint(8),
-              Dictionary.Values.Uint(8),
-              s.loadRef(),
+            groupParents: loadDict(
+              Dictionary.loadDirect(
+                Dictionary.Keys.Uint(8),
+                Dictionary.Values.Uint(8),
+                s.loadRef(),
+              ),
             ),
-            clearRoot: s.loadBoolean(), // boolean
+            clearRoot: s.loadBoolean(),
           }
         },
       },
@@ -475,33 +485,42 @@ export const builder = {
   data: (() => {
     const config: CellCodec<Config> = {
       encode: (data: Config): Cell => {
+        const signers = loadMap(
+          Dictionary.Keys.Uint(8),
+          Dictionary.Values.Buffer(LEN_SIGNER_BYTES),
+          data.signers,
+        )
+        const groupQuorums = loadMap(
+          Dictionary.Keys.Uint(8),
+          Dictionary.Values.Uint(8),
+          data.groupQuorums,
+        )
+        const groupParents = loadMap(
+          Dictionary.Keys.Uint(8),
+          Dictionary.Values.Uint(8),
+          data.groupParents,
+        )
         return beginCell()
-          .storeDict(
-            data.signers,
-            Dictionary.Keys.Uint(8),
-            Dictionary.Values.Buffer(LEN_SIGNER_BYTES),
-          )
-          .storeDict(data.groupQuorums, Dictionary.Keys.Uint(8), Dictionary.Values.Uint(8))
-          .storeDict(data.groupParents, Dictionary.Keys.Uint(8), Dictionary.Values.Uint(8))
+          .storeDict(signers, Dictionary.Keys.Uint(8), Dictionary.Values.Buffer(LEN_SIGNER_BYTES))
+          .storeDict(groupQuorums, Dictionary.Keys.Uint(8), Dictionary.Values.Uint(8))
+          .storeDict(groupParents, Dictionary.Keys.Uint(8), Dictionary.Values.Uint(8))
           .endCell()
       },
       decode: (cell: Cell): Config => {
         const s = cell.beginParse()
         return {
-          signers: Dictionary.loadDirect(
-            Dictionary.Keys.Uint(8),
-            Dictionary.Values.Buffer(LEN_SIGNER_BYTES),
-            s.loadRef(),
+          signers: loadDict(
+            Dictionary.loadDirect(
+              Dictionary.Keys.Uint(8),
+              Dictionary.Values.Buffer(LEN_SIGNER_BYTES),
+              s.loadRef(),
+            ),
           ),
-          groupQuorums: Dictionary.loadDirect(
-            Dictionary.Keys.Uint(8),
-            Dictionary.Values.Uint(8),
-            s.loadRef(),
+          groupQuorums: loadDict(
+            Dictionary.loadDirect(Dictionary.Keys.Uint(8), Dictionary.Values.Uint(8), s.loadRef()),
           ),
-          groupParents: Dictionary.loadDirect(
-            Dictionary.Keys.Uint(8),
-            Dictionary.Values.Uint(8),
-            s.loadRef(),
+          groupParents: loadDict(
+            Dictionary.loadDirect(Dictionary.Keys.Uint(8), Dictionary.Values.Uint(8), s.loadRef()),
           ),
         }
       },
@@ -591,20 +610,27 @@ export const builder = {
         let _pendingOwnerMaybe = data.ownable.pendingOwner
           ? beginCell().storeAddress(data.ownable.pendingOwner)
           : null
-        let ownable = beginCell()
-          .storeAddress(data.ownable.owner)
-          .storeMaybeBuilder(_pendingOwnerMaybe)
 
         return beginCell()
           .storeUint(data.id, 32)
-          .storeBuilder(ownable)
+          .storeBuilder(
+            beginCell().storeAddress(data.ownable.owner).storeMaybeBuilder(_pendingOwnerMaybe),
+          )
           .storeDict(
-            data.signers,
+            loadMap(
+              Dictionary.Keys.BigUint(256),
+              Dictionary.Values.Buffer(LEN_SIGNER_BYTES),
+              data.signers,
+            ),
             Dictionary.Keys.BigUint(256),
             Dictionary.Values.Buffer(LEN_SIGNER_BYTES),
           )
           .storeRef(config.encode(data.config))
-          .storeDict(data.seenSignedHashes, Dictionary.Keys.BigUint(256), Dictionary.Values.Bool())
+          .storeDict(
+            loadMap(Dictionary.Keys.BigUint(256), Dictionary.Values.Bool(), data.seenSignedHashes),
+            Dictionary.Keys.BigUint(256),
+            Dictionary.Values.Bool(),
+          )
           .storeBuilder(expiringRootAndOpCount.encode(data.expiringRootAndOpCount).asBuilder())
           .storeRef(rootMetadata.encode(data.rootMetadata))
           .endCell()
@@ -618,18 +644,22 @@ export const builder = {
           pendingOwner: s.loadAddress(),
         }
 
-        const signers = Dictionary.loadDirect(
-          Dictionary.Keys.BigUint(256),
-          Dictionary.Values.Buffer(LEN_SIGNER_BYTES),
-          s.loadRef(),
+        const signers = loadDict(
+          Dictionary.loadDirect(
+            Dictionary.Keys.BigUint(256),
+            Dictionary.Values.Buffer(LEN_SIGNER_BYTES),
+            s.loadRef(),
+          ),
         )
 
         const _config = config.decode(s.loadRef())
 
-        const seenSignedHashes = Dictionary.loadDirect(
-          Dictionary.Keys.BigUint(256),
-          Dictionary.Values.Bool(),
-          s.loadRef(),
+        const seenSignedHashes = loadDict(
+          Dictionary.loadDirect(
+            Dictionary.Keys.BigUint(256),
+            Dictionary.Values.Bool(),
+            s.loadRef(),
+          ),
         )
 
         const expiringRootAndOpCount = {
@@ -658,40 +688,20 @@ export const builder = {
       },
     }
 
-    const contractDataEmpty = (id: number, owner: Address) => {
+    const contractDataEmpty = (id: number, owner: Address): ContractData => {
       return {
         id, // unique ID for this instance
         ownable: {
           owner,
           pendingOwner: null, // no pending owner
         },
-        signers: Dictionary.empty(
-          // no signers
-          Dictionary.Keys.BigUint(256),
-          Dictionary.Values.Buffer(LEN_SIGNER_BYTES),
-        ),
+        signers: new Map<bigint, Buffer>(),
         config: {
-          signers: Dictionary.empty(
-            // no signers
-            Dictionary.Keys.Uint(8),
-            Dictionary.Values.Buffer(LEN_SIGNER_BYTES),
-          ),
-          groupQuorums: Dictionary.empty(
-            // no group quorums
-            Dictionary.Keys.Uint(8),
-            Dictionary.Values.Uint(8),
-          ),
-          groupParents: Dictionary.empty(
-            // no group parents
-            Dictionary.Keys.Uint(8),
-            Dictionary.Values.Uint(8),
-          ),
+          signers: new Map<number, Buffer>(),
+          groupQuorums: new Map<number, number>(),
+          groupParents: new Map<number, number>(),
         },
-        seenSignedHashes: Dictionary.empty(
-          // no seen signed hashes
-          Dictionary.Keys.BigUint(256),
-          Dictionary.Values.Bool(),
-        ),
+        seenSignedHashes: new Map<bigint, boolean>(),
         expiringRootAndOpCount: {
           root: 0n, // no root
           validUntil: 0n, // no validity
@@ -771,20 +781,26 @@ export class ContractClient implements Contract {
   async getConfig(p: ContractProvider): Promise<Config> {
     return p.get('getConfig', []).then((r) => {
       return {
-        signers: Dictionary.loadDirect(
-          Dictionary.Keys.Uint(8),
-          Dictionary.Values.Buffer(LEN_SIGNER_BYTES),
-          r.stack.readCell(),
+        signers: loadDict(
+          Dictionary.loadDirect(
+            Dictionary.Keys.Uint(8),
+            Dictionary.Values.Buffer(LEN_SIGNER_BYTES),
+            r.stack.readCell(),
+          ),
         ),
-        groupQuorums: Dictionary.loadDirect(
-          Dictionary.Keys.Uint(8),
-          Dictionary.Values.Uint(8),
-          r.stack.readCell(),
+        groupQuorums: loadDict(
+          Dictionary.loadDirect(
+            Dictionary.Keys.Uint(8),
+            Dictionary.Values.Uint(8),
+            r.stack.readCell(),
+          ),
         ),
-        groupParents: Dictionary.loadDirect(
-          Dictionary.Keys.Uint(8),
-          Dictionary.Values.Uint(8),
-          r.stack.readCell(),
+        groupParents: loadDict(
+          Dictionary.loadDirect(
+            Dictionary.Keys.Uint(8),
+            Dictionary.Values.Uint(8),
+            r.stack.readCell(),
+          ),
         ),
       }
     })

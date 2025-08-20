@@ -1,13 +1,11 @@
 import '@ton/test-utils'
 
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { Address, Cell, Dictionary, toNano, beginCell, fromNano } from '@ton/core'
+import { Address, Cell, toNano, beginCell } from '@ton/core'
 import { compile } from '@ton/blueprint'
-import { randomBytes } from 'crypto'
 import { KeyPair, sign } from '@ton/crypto'
 
 import * as mcms from '../../wrappers/mcms/MCMS'
-import * as ownable2step from '../../wrappers/libraries/access/Ownable2Step'
 import { merkleProof } from '../../src/mcms'
 import * as counter from '../../wrappers/examples/Counter'
 
@@ -15,27 +13,27 @@ import { crc32 } from 'zlib'
 import { asSnakeData, uint8ArrayToBigInt } from '../../src/utils'
 import { generateEd25519KeyPair } from '../libraries/ocr/Helpers'
 
-export interface MCMSTestCode {
+export type MCMSTestCode = {
   mcms: Cell
   counter: Cell
 }
 
-export interface MCMSTestAccounts {
+export type MCMSTestAccounts = {
   deployer: SandboxContract<TreasuryContract>
   multisigOwner: SandboxContract<TreasuryContract>
   // 9 signers with their private keys
   signers: SandboxContract<TreasuryContract>[]
 }
 
-export interface MCMSTestContracts {
+export type MCMSTestContracts = {
   mcms: SandboxContract<mcms.ContractClient>
   counter: SandboxContract<counter.ContractClient>
 }
 
-export interface TestSigner {
+export type TestSigner = {
   address: Address
   keyPair: KeyPair
-  treasury: SandboxContract<TreasuryContract>
+  wallet: SandboxContract<TreasuryContract>
   index: number
   group: number
 }
@@ -63,8 +61,8 @@ export class MCMSBaseTestSetup {
 
   // Test configuration
   testSigners: TestSigner[]
-  testGroupQuorums: Dictionary<number, number>
-  testGroupParents: Dictionary<number, number>
+  testGroupQuorums: Map<number, number>
+  testGroupParents: Map<number, number>
   signerGroups: number[]
   testConfig: mcms.Config
 
@@ -74,14 +72,8 @@ export class MCMSBaseTestSetup {
     this.acc = null as any
     this.bind = null as any
     this.testSigners = []
-    this.testGroupQuorums = Dictionary.empty<number, number>(
-      Dictionary.Keys.Uint(8),
-      Dictionary.Values.Uint(8),
-    )
-    this.testGroupParents = Dictionary.empty<number, number>(
-      Dictionary.Keys.Uint(8),
-      Dictionary.Values.Uint(8),
-    )
+    this.testGroupQuorums = new Map<number, number>()
+    this.testGroupParents = new Map<number, number>()
     this.signerGroups = []
     this.testConfig = null as any
   }
@@ -121,7 +113,7 @@ export class MCMSBaseTestSetup {
       signers.push({
         address,
         keyPair: keyPairs[i],
-        treasury: this.acc.signers[i],
+        wallet: this.acc.signers[i],
         index: i,
         group,
       })
@@ -196,10 +188,7 @@ export class MCMSBaseTestSetup {
     }
 
     // Create the config
-    const signers = Dictionary.empty<number, Buffer>(
-      Dictionary.Keys.Uint(8),
-      Dictionary.Values.Buffer(mcms.LEN_SIGNER_BYTES),
-    )
+    const signers = new Map<number, Buffer>()
     for (let i = 0; i < this.testSigners.length; i++) {
       const signer = this.testSigners[i]
       const signerData = mcms.builder.data.signer.encode({
@@ -210,20 +199,10 @@ export class MCMSBaseTestSetup {
       signers.set(i, signerData.toBoc())
     }
 
-    const groupQuorums = Dictionary.empty<number, number>(
-      Dictionary.Keys.Uint(8),
-      Dictionary.Values.Uint(8),
-    )
-    const groupParents = Dictionary.empty<number, number>(
-      Dictionary.Keys.Uint(8),
-      Dictionary.Values.Uint(8),
-    )
+    const groupQuorums = new Map<number, number>()
+    const groupParents = new Map<number, number>()
 
-    for (
-      let i = 0;
-      i < MCMSBaseTestSetup.MAX_NUM_GROUPS && i < this.testGroupQuorums.keys().length;
-      i++
-    ) {
+    for (let i = 0; i < MCMSBaseTestSetup.MAX_NUM_GROUPS && i < this.testGroupQuorums.size; i++) {
       const currentGroupQuorum = this.testGroupQuorums.get(i)
       if (currentGroupQuorum && currentGroupQuorum > 0) {
         groupQuorums.set(i, currentGroupQuorum)
@@ -251,28 +230,13 @@ export class MCMSBaseTestSetup {
         owner: this.acc.multisigOwner.address,
         pendingOwner: null,
       },
-      signers: Dictionary.empty<bigint, Buffer>(
-        Dictionary.Keys.BigUint(256),
-        Dictionary.Values.Buffer(mcms.LEN_SIGNER_BYTES),
-      ),
+      signers: new Map<bigint, Buffer>(),
       config: {
-        signers: Dictionary.empty<number, Buffer>(
-          Dictionary.Keys.Uint(8),
-          Dictionary.Values.Buffer(mcms.LEN_SIGNER_BYTES),
-        ),
-        groupQuorums: Dictionary.empty<number, number>(
-          Dictionary.Keys.Uint(8),
-          Dictionary.Values.Uint(8),
-        ),
-        groupParents: Dictionary.empty<number, number>(
-          Dictionary.Keys.Uint(8),
-          Dictionary.Values.Uint(8),
-        ),
+        signers: new Map<number, Buffer>(),
+        groupQuorums: new Map<number, number>(),
+        groupParents: new Map<number, number>(),
       },
-      seenSignedHashes: Dictionary.empty<bigint, boolean>(
-        Dictionary.Keys.BigInt(256),
-        Dictionary.Values.Bool(),
-      ),
+      seenSignedHashes: new Map<bigint, boolean>(),
       expiringRootAndOpCount: {
         root: 0n,
         validUntil: 0n,
@@ -350,21 +314,13 @@ export class MCMSBaseTestSetup {
    */
   async setInitialConfiguration(): Promise<void> {
     // Build signer addresses cell
-    const signerKeys = asSnakeData<bigint>(
-      this.testSigners.map((s) => BigInt('0x' + s.keyPair.publicKey.toString('hex'))),
-      (a) => beginCell().storeUint(a, 256),
-    )
 
     // Build signer groups cell
-    const signerGroups = asSnakeData<number>(
-      this.testSigners.map((s) => s.group),
-      (g) => beginCell().storeUint(g, 8),
-    )
 
     const setConfigBody = mcms.builder.message.in.setConfig.encode({
       queryId: 1n,
-      signerKeys,
-      signerGroups,
+      signerKeys: this.testSigners.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey)),
+      signerGroups: this.testSigners.map((s) => s.group),
       groupQuorums: this.testConfig.groupQuorums,
       groupParents: this.testConfig.groupParents,
       clearRoot: false,
@@ -576,15 +532,13 @@ export class MCMSBaseSetRootAndExecuteTestSetup extends MCMSBaseTestSetup {
     return this.opProofs[opIndex]
   }
 
-  async advanceOpcodeTo(index: number) {
+  // Execute all operations up to the post-op count limit to simulate setOpCount
+  async executeOperationsUpTo(index: number) {
     for (let i = 0; i < index; i++) {
-      const proof = this.opProofs[i]
-      const proofCell = asSnakeData<bigint>(proof, (v) => beginCell().storeUint(v, 256))
-
       const executeBody = mcms.builder.message.in.execute.encode({
         queryId: BigInt(i + 1),
         op: mcms.builder.data.op.encode(this.testOps[i]),
-        proof: proofCell,
+        proof: this.opProofs[i],
       })
 
       const result = await this.bind.mcms.sendInternal(

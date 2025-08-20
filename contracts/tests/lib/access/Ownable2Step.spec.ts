@@ -3,12 +3,8 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { toNano } from '@ton/core'
 import { compile } from '@ton/blueprint'
 
-import * as ownable2step from '../../../wrappers/libraries/access/Ownable2Step'
+import * as ownable2Step from '../../../wrappers/libraries/access/Ownable2Step'
 import * as counter from '../../../wrappers/examples/Counter'
-
-const ERROR_ONLY_CALLABLE_BY_OWNER = 132
-const ERROR_CANNOT_TRANSFER_TO_SELF = 1001
-const ERROR_MUST_BE_PROPOSED_OWNER = 1002
 
 describe('Ownable2Step Counter', () => {
   let blockchain: Blockchain
@@ -16,7 +12,7 @@ describe('Ownable2Step Counter', () => {
 
   let bind: {
     counter: SandboxContract<counter.ContractClient>
-    ownable: SandboxContract<ownable2step.ContractClient>
+    ownable: SandboxContract<ownable2Step.ContractClient>
   } = {
     counter: null as any,
     ownable: null as any,
@@ -37,7 +33,7 @@ describe('Ownable2Step Counter', () => {
     }
 
     bind.counter = blockchain.openContract(counter.ContractClient.newFrom(data, code))
-    bind.ownable = blockchain.openContract(ownable2step.ContractClient.newAt(bind.counter.address))
+    bind.ownable = blockchain.openContract(ownable2Step.ContractClient.newAt(bind.counter.address))
 
     const deployResult = await bind.counter.sendDeploy(deployer.getSender(), toNano('0.05'))
 
@@ -86,7 +82,7 @@ describe('Ownable2Step Counter', () => {
     expect(result.transactions).toHaveTransaction({
       from: other.address,
       to: bind.counter.address,
-      exitCode: ERROR_ONLY_CALLABLE_BY_OWNER,
+      exitCode: ownable2Step.Errors.OnlyCallableByOwner,
       success: false,
     })
 
@@ -127,7 +123,7 @@ describe('Ownable2Step Counter', () => {
     expect(resultSetCount.transactions).toHaveTransaction({
       from: other.address,
       to: bind.counter.address,
-      exitCode: ERROR_ONLY_CALLABLE_BY_OWNER,
+      exitCode: ownable2Step.Errors.OnlyCallableByOwner,
       success: false,
     })
 
@@ -197,7 +193,7 @@ describe('Ownable2Step Counter', () => {
     expect(resultSetCount.transactions).toHaveTransaction({
       from: owner.address,
       to: bind.counter.address,
-      exitCode: ERROR_ONLY_CALLABLE_BY_OWNER,
+      exitCode: ownable2Step.Errors.OnlyCallableByOwner,
       success: false,
     })
   })
@@ -210,7 +206,7 @@ describe('Ownable2Step Counter', () => {
     expect(result.transactions).toHaveTransaction({
       from: other.address,
       to: bind.counter.address,
-      exitCode: ERROR_MUST_BE_PROPOSED_OWNER,
+      exitCode: ownable2Step.Errors.MustBeProposedOwner,
       success: false,
     })
   })
@@ -231,7 +227,7 @@ describe('Ownable2Step Counter', () => {
     expect(result.transactions).toHaveTransaction({
       from: other.address,
       to: bind.counter.address,
-      exitCode: ERROR_MUST_BE_PROPOSED_OWNER,
+      exitCode: ownable2Step.Errors.MustBeProposedOwner,
       success: false,
     })
   })
@@ -245,7 +241,7 @@ describe('Ownable2Step Counter', () => {
     expect(result.transactions).toHaveTransaction({
       from: other.address,
       to: bind.ownable.address,
-      exitCode: ERROR_ONLY_CALLABLE_BY_OWNER,
+      exitCode: ownable2Step.Errors.OnlyCallableByOwner,
       success: false,
     })
   })
@@ -259,7 +255,7 @@ describe('Ownable2Step Counter', () => {
     expect(result.transactions).toHaveTransaction({
       from: owner.address,
       to: bind.ownable.address,
-      exitCode: ERROR_CANNOT_TRANSFER_TO_SELF,
+      exitCode: ownable2Step.Errors.CannotTransferToSelf,
       success: false,
     })
   })
