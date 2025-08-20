@@ -257,6 +257,12 @@ func SendTonRequest(
 		e.Logger.Error(int32(outcomeExitCode), "transaction trace failed with exit code %v", outcomeExitCode.Describe())
 	}
 
+	e.Logger.Infow("transaction sent", "blockID", blockID, "receivedMsg", receivedMsg)
+	err = receivedMsg.WaitForTrace(clientConn)
+	if err != nil {
+		return nil, fmt.Errorf("failed to wait for trace: %w", err)
+	}
+
 	// Log details about outgoing messages
 	e.Logger.Infof("Number of outgoing internal messages: %d", len(receivedMsg.OutgoingInternalReceivedMessages))
 	for i, outMsg := range receivedMsg.OutgoingInternalReceivedMessages {
@@ -271,12 +277,6 @@ func SendTonRequest(
 		if outMsg.EmittedBouncedMessage {
 			e.Logger.Errorf("Outgoing message %d was bounced", i)
 		}
-	}
-
-	e.Logger.Infow("transaction sent", "blockID", blockID, "receivedMsg", receivedMsg)
-	err = receivedMsg.WaitForTrace(clientConn)
-	if err != nil {
-		return nil, fmt.Errorf("failed to wait for trace: %w", err)
 	}
 
 	ca, er := chainaccessor.NewTONAccessor(e.Logger, cciptypes.ChainSelector(cfg.SourceChain), clientConn, nil, codec.NewAddressCodec())
