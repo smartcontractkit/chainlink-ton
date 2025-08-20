@@ -201,7 +201,6 @@ func (lp *service) processBlockRange(ctx context.Context, blockRange *types.Bloc
 			continue
 		}
 		lp.store.SaveLog(log)
-		lp.lggr.Debugw("saved log", "log", log)
 	}
 	return nil
 }

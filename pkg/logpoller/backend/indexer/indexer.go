@@ -58,7 +58,6 @@ func (ixr *indexer) indexTx(ctx context.Context, tx types.TxWithBlock) ([]types.
 
 		// get filters registered for this source address and message type
 		filtersForAddr, err := ixr.filters.GetFiltersForAddressAndMsgType(ctx, srcAddr, msg.MsgType)
-		ixr.lggr.Debugf("Processing message from %s", srcAddr.String(), "msgType", msg.MsgType)
 		if err != nil {
 			ixr.lggr.Errorw("Failed to get filters for address and message type", "addr", srcAddr.String(), "msgType", msg.MsgType, "err", err)
 			continue

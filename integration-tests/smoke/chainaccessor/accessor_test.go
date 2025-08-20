@@ -331,21 +331,33 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 			t.Logf("Direct feeTokens getter succeeded: %v", feeTokensResult)
 		}
 	})
-
-	// Wait for Router configuration to settle before sending CCIP message
-	t.Log("Waiting for Router configuration to settle...")
+	// TODO: use sendmanytx or highload wallet
 	time.Sleep(5 * time.Second)
 
-	sendCCIPMessage(t, ctx, evmSelector, routerAddr, tonChain.Client, deployer)
+	const lastSeqNo = 2
+	for seqNo := 0; seqNo <= lastSeqNo; seqNo++ {
+		t.Log("Sending CCIP message", seqNo)
+		sendCCIPMessage(t, ctx, evmSelector, routerAddr, tonChain.Client, deployer)
+		time.Sleep(2 * time.Second)
+	}
 
 	t.Run("query CCIP message via TonAccessor", func(t *testing.T) {
 		require.Eventually(t, func() bool {
 			seqNum, err := accessor.LatestMessageTo(ctx, ccipocr3.ChainSelector(evmSelector))
 			require.NoError(t, err, "failed to get latest message sequence number")
-			return seqNum == ccipocr3.SeqNum(0)
+			return seqNum == ccipocr3.SeqNum(lastSeqNo)
 		}, 30*time.Second, 3*time.Second, "log poller did not ingest events correctly in time")
-		// accessor.MsgsBetweenSeqNums(ctx, ccipocr3.ChainSelector(evmSelector), ccipocr3.NewSeqNumRange(1, 100))
-		// t.Skip("implement me")
+	})
+
+	t.Run("query CCIP message via TonAccessor", func(t *testing.T) {
+		require.Eventually(t, func() bool {
+			const msgCount = 2
+			const start = 1
+			const end = 2
+			msgs, err := accessor.MsgsBetweenSeqNums(ctx, ccipocr3.ChainSelector(evmSelector), ccipocr3.NewSeqNumRange(start, end))
+			require.NoError(t, err, "failed to get latest message sequence number")
+			return len(msgs) == msgCount && msgs[0].Header.SequenceNumber == ccipocr3.SeqNum(start) && msgs[1].Header.SequenceNumber == ccipocr3.SeqNum(end)
+		}, 30*time.Second, 3*time.Second, "log poller did not ingest events correctly in time")
 	})
 }
 
