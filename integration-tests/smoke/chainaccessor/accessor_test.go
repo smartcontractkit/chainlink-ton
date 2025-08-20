@@ -241,6 +241,43 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 	t.Log("=== DEBUGGING FEE QUOTER CONFIGURATION ===")
 	t.Log("Fee token being used: ", ops.TonTokenAddr.String())
 
+	// TODO: clean up, set fee token manually
+	feeTokenDict := cell.NewDict(267) // key size for address
+	feeToken := feequoter.FeeToken{PremiumMultiplierWeiPerEth: 1}
+	feeTokenCell, err := tlb.ToCell(feeToken)
+	require.NoError(t, err, "failed to encode FeeToken")
+
+	// Add the fee token to dictionary (address as key)
+	addressKeyCell := cell.BeginCell().MustStoreAddr(ops.TonTokenAddr).EndCell()
+	err = feeTokenDict.Set(addressKeyCell, feeTokenCell)
+	require.NoError(t, err, "failed to add fee token to dictionary")
+
+	updateFeeTokensMsg := feequoter.UpdateFeeTokens{
+		Add:    feeTokenDict,
+		Remove: tonCommon.SnakeData[*address.Address]{}, // Empty remove list
+	}
+
+	updateFeeTokensCell, err := tlb.ToCell(updateFeeTokensMsg)
+	require.NoError(t, err, "failed to encode UpdateFeeTokens message")
+
+	updateFeeTokensInternalMsg := &wallet.Message{
+		Mode: 1,
+		InternalMessage: &tlb.InternalMessage{
+			IHRDisabled: true,
+			Bounce:      false,
+			DstAddr:     &feeQuoterAddr,
+			Amount:      tlb.MustFromTON("0.01"),
+			Body:        updateFeeTokensCell,
+		},
+	}
+
+	ttConn := tracetracking.NewSignedAPIClient(tonChain.Client, *deployer)
+	updateFeeTokensResult, updateFeeTokensBlockID, err := ttConn.SendWaitTransaction(ctx, feeQuoterAddr, updateFeeTokensInternalMsg)
+	require.NoError(t, err, "failed to send UpdateFeeTokens transaction")
+
+	t.Logf("UpdateFeeTokens transaction sent successfully - Block: %d, ExitCode: %d",
+		updateFeeTokensBlockID.SeqNo, updateFeeTokensResult.ExitCode)
+
 	// Validate fee token configuration before sending CCIP message
 	t.Run("validate fee token configuration", func(t *testing.T) {
 		// Test GetTokenPriceUSD to verify fee token is configured
@@ -293,6 +330,10 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 		}
 	})
 
+	// Wait for Router configuration to settle before sending CCIP message
+	t.Log("Waiting for Router configuration to settle...")
+	time.Sleep(5 * time.Second)
+
 	sendCCIPMessage(t, ctx, evmSelector, routerAddr, tonChain.Client, deployer)
 
 	t.Run("query CCIP message via TonAccessor", func(t *testing.T) {
@@ -325,9 +366,9 @@ func sendCCIPMessage(t *testing.T, ctx context.Context, evmSelector uint64, rout
 		DestChainSelector: evmSelector,
 		Receiver:          tonCommon.CrossChainAddress(make([]byte, 20)),
 		Data:              tonCommon.SnakeBytes([]byte("tons of fun")),
-		// TokenAmounts:      tonCommon.SnakeRef[router.TokenAmount]{}, // Empty token amounts for no token transfers
-		FeeToken:  ops.TonTokenAddr,
-		ExtraArgs: extraArgsCell,
+		TokenAmounts:      tonCommon.SnakeRef[router.TokenAmount]{}, // Empty token amounts for no token transfers
+		FeeToken:          ops.TonTokenAddr,
+		ExtraArgs:         extraArgsCell,
 	})
 	require.NoError(t, err)
 
@@ -372,7 +413,7 @@ func sendCCIPMessage(t *testing.T, ctx context.Context, evmSelector uint64, rout
 	// Check outcome exit code (includes all outgoing messages)
 	outcomeExitCode := rMsg.OutcomeExitCode()
 	t.Logf("Outcome exit code (including all outgoing messages): %v", outcomeExitCode.Describe())
-	// require.Equal(t, int32(0), int32(outcomeExitCode), "transaction trace failed with exit code %v", outcomeExitCode)
+	require.Equal(t, int32(0), int32(outcomeExitCode), "transaction trace failed with exit code %v", outcomeExitCode)
 
 	// Enhanced trace validation with detailed logging
 	t.Log("=== TRACE VALIDATION ===")
