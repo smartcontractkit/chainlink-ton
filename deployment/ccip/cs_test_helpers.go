@@ -251,6 +251,28 @@ func SendTonRequest(
 		return nil, fmt.Errorf("failed to send transaction: %w", err)
 	}
 
+	outcomeExitCode := receivedMsg.OutcomeExitCode()
+
+	if outcomeExitCode != 0 {
+		e.Logger.Error(int32(outcomeExitCode), "transaction trace failed with exit code %v", outcomeExitCode.Describe())
+	}
+
+	// Log details about outgoing messages
+	e.Logger.Infof("Number of outgoing internal messages: %d", len(receivedMsg.OutgoingInternalReceivedMessages))
+	for i, outMsg := range receivedMsg.OutgoingInternalReceivedMessages {
+		e.Logger.Infof("Outgoing message %d: exit code %v, success: %v, bounced: %v, status: %v",
+			i, outMsg.ExitCode, outMsg.Success, outMsg.EmittedBouncedMessage, outMsg.Status())
+		if outMsg.ExitCode != 0 {
+			e.Logger.Errorf("Outgoing message %d failed with exit code %v", i, outMsg.ExitCode)
+		}
+		if !outMsg.Success {
+			e.Logger.Errorf("Outgoing message %d was not successful", i)
+		}
+		if outMsg.EmittedBouncedMessage {
+			e.Logger.Errorf("Outgoing message %d was bounced", i)
+		}
+	}
+
 	e.Logger.Infow("transaction sent", "blockID", blockID, "receivedMsg", receivedMsg)
 	err = receivedMsg.WaitForTrace(clientConn)
 	if err != nil {
