@@ -162,10 +162,11 @@ struct (0x10000003) SetDynamicConfig {
 
 struct OnRampUpdateDestChainConfig {
     destChainSelector: uint64;
-    router: CrossChainAddress;
+    router: address;
     allowlistEnabled: bool;
 }
 
+// TODO: make this direct snakedata by using RemainingBitsAndRefs? this way it's not cell->cell
 struct (0x10000004) OnRampUpdateDestChainConfigs {
     updates: cell; // vec<OrRampUpdateDestChainConfig>
 }
@@ -176,6 +177,7 @@ struct UpdateAllowlist {
     remove: cell; // vec<address>
 }
 
+// TODO: make this direct snakedata by using RemainingBitsAndRefs? this way it's not cell->cell
 struct (0x10000005) UpdateAllowlists {
     updates: cell; // vec<UpdateAllowlist>
 }
@@ -216,7 +218,7 @@ struct FeeQuoterDestChainConfig {
     destGasPerPayloadByteThreshold: uint16;
     destDataAvailabilityOverheadGas: uint32;
     destGasPerDataAvailabilityByte: uint16;
-    destDataAvailabilityMultiplierBps: uint32;
+    destDataAvailabilityMultiplierBps: uint16;
 
     chainFamilySelector: uint32; // 4 bytes
     enforceOutOfOrder: bool;

@@ -11,3 +11,13 @@ export const loadMap = <K extends DictionaryKeyTypes, V>(
   }
   return dict
 }
+
+export function loadDict<K extends DictionaryKeyTypes, V>(dict: Dictionary<K, V>): Map<K, V> {
+  const map: Map<K, V> = new Map()
+
+  for (const [key, value] of dict) {
+    map.set(key, value)
+  }
+
+  return map
+}

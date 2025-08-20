@@ -1,7 +1,7 @@
 import '@ton/test-utils'
 
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { Cell, Dictionary, toNano } from '@ton/core'
+import { Cell, toNano } from '@ton/core'
 import { compile } from '@ton/blueprint'
 
 import { mcms } from '../../wrappers/mcms'

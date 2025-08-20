@@ -40,9 +40,25 @@ type RampMessageHeader struct {
 
 // Any2TVMTokenTransfer represents a token transfer within a ramp message.
 type Any2TVMTokenTransfer struct {
-	SourcePoolAddress common.CrossChainAddress `tlb:"."`
+	SourcePoolAddress common.CrossChainAddress `tlb:"^"`
 	DestPoolAddress   *address.Address         `tlb:"addr"`
 	DestGasAmount     uint32                   `tlb:"## 32"`
 	ExtraData         *cell.Cell               `tlb:"^"`
 	Amount            *big.Int                 `tlb:"## 256"`
+}
+
+type TVM2AnyRampMessage struct {
+	Header        RampMessageHeader      `tlb:"."`
+	Sender        *address.Address       `tlb:"addr"`
+	Body          TVM2AnyRampMessageBody `tlb:"^"`
+	FeeValueJuels *big.Int               `tlb:"## 96"`
+}
+
+type TVM2AnyRampMessageBody struct {
+	Receiver       common.CrossChainAddress `tlb:"^"`
+	Data           common.SnakeBytes        `tlb:"^"`
+	ExtraArgs      *cell.Cell               `tlb:"^"` // TODO: common.SnakeRef[TVM2AnyTokenTransfer] once defined
+	TokenAmounts   *cell.Cell               `tlb:"^"`
+	FeeToken       *address.Address         `tlb:"addr"`
+	FeeTokenAmount *big.Int                 `tlb:"## 256"`
 }

@@ -8,16 +8,13 @@ import "@stdlib/tvm-dicts";
 const CCIP_MESSAGE_SENT_TOPIC: int = stringCrc32("CCIPMessageSent"); 
 
 struct CCIPMessageSent {
-    destChainSelector: uint64; // NOTE: both these values are already part of message, is it even important to have?
-    sequenceNumber: uint64;
-    message: Cell<TVM2AnyRampMessage>;
+    message: TVM2AnyRampMessage;
 }
 
 struct Storage {
     ownable: Ownable2Step;
 
     // static config
-    router: address;
     chainSelector: uint64; // source chain selector
     // TODO: rmnRemote (only used to validate curse on getFee), nonceManager, tokenAdminRegistry
     // hmm, need to consider the design here.
@@ -34,7 +31,7 @@ struct Storage {
 }
 
 struct DestChainConfig {
-    router: CrossChainAddress;
+    router: address; // Local router address that is allowed to send messages to the destination chain.
     sequenceNumber: uint64;
     allowlistEnabled: bool;
     allowedSenders: Map<bool>; // address -> bool
@@ -88,16 +85,17 @@ fun onInternalMessage(in: InMessage) {
 
 fun send(payload: OnRampSend, sender: address) {
     val st = lazy Storage.load();
-    // ccipSend must be forwarded from the router
-    assert(st.router == sender, ERROR_UNAUTHORIZED);
 
     val msg = payload.msg.load();
 
     // validate allowlist
     val destChainConfig = st.destChainConfigs.mustGet(msg.destChainSelector, ERROR_UNKNOWN_DEST_CHAIN_SELECTOR);
+
+    // ccipSend must be forwarded from the router
+    assert(destChainConfig.router == sender, ERROR_UNAUTHORIZED);
+
     if (destChainConfig.allowlistEnabled) {
-        // TODO:
-        val (allowed, exists) = destChainConfig.allowedSenders.get(sender);
+        val (allowed, exists) = destChainConfig.allowedSenders.get(payload.metadata.sender);
         assert(exists && allowed!, ERROR_SENDER_NOT_ALLOWED);
     }
 
@@ -143,7 +141,9 @@ fun onMessageValidated(payload: MessageValidated<Metadata>, sender: address) {
             sourceChainSelector: st.chainSelector,
             destChainSelector: msg.destChainSelector,
             sequenceNumber: seqNr,
-            nonce: 0, // TODO:
+            // Only bump nonce for messages that specify allowOutOfOrderExecution == false. Otherwise, we may block ordered
+            // message nonces, which is not what we want.
+            nonce: 0,
         },
         sender: metadata.sender,
         body: TVM2AnyRampMessageBody {
@@ -157,6 +157,11 @@ fun onMessageValidated(payload: MessageValidated<Metadata>, sender: address) {
         feeValueJuels: 0, // TODO:
     };
 
+    // TODO: support for ordered execution
+    // rampMessage.header.nonce = isOutOfOrderExecution
+    //   ? 0
+    //   : nonceManager.getIncrementedOutboundNonce(destChainSelector, metadata.sender);
+
     // Metadata hash preimage to ensure global uniqueness, ensuring 2 identical messages sent to 2 different lanes
     // will have a distinct hash.
     val metadataHash = beginCell()
@@ -169,11 +174,7 @@ fun onMessageValidated(payload: MessageValidated<Metadata>, sender: address) {
 
     rampMessage.header.messageId = rampMessage.generateMessageId(metadataHash);
     
-    emit(CCIP_MESSAGE_SENT_TOPIC, CCIPMessageSent {
-        destChainSelector: msg.destChainSelector,
-        sequenceNumber: seqNr,
-        message: rampMessage.toCell(),
-    });
+    emit(CCIP_MESSAGE_SENT_TOPIC, CCIPMessageSent { message: rampMessage });
 
     // TODO: notify user
 }
@@ -187,7 +188,7 @@ get fun isChainSupported(destChainSelector: uint64): bool {
 get fun expectedNextSequenceNumber(destChainSelector: uint64): uint64 {
     val st = lazy Storage.load();
     val config = st.destChainConfigs.mustGet(destChainSelector,ERROR_UNKNOWN_DEST_CHAIN_SELECTOR);
-    return config.sequenceNumber;
+    return config.sequenceNumber + 1;
 }
 
 // TODO: getFee forwarding? users should just call the fee quoter

@@ -1,12 +1,11 @@
 import '@ton/test-utils'
 
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { Address, beginCell, Cell, Dictionary, toNano } from '@ton/core'
+import { Address, beginCell, Cell, toNano } from '@ton/core'
 import { KeyPair, sign } from '@ton/crypto'
 import { compile } from '@ton/blueprint'
 
 import { asSnakeData, uint8ArrayToBigInt } from '../../src/utils'
-import { loadMap } from '../../src/utils/dict'
 import { generateEd25519KeyPair } from '../libraries/ocr/Helpers'
 
 import { mcms } from '../../wrappers/mcms'
@@ -257,26 +256,13 @@ describe('MCMS - IntegrationTest', () => {
         toNano('0.2'),
         mcms.builder.message.in.setConfig.encode({
           queryId: 1n,
-          signerKeys: asSnakeData<bigint>(
-            proposerKeyPairs().map((v) => uint8ArrayToBigInt(v.publicKey)),
-            (v) => beginCell().storeUint(v, 256),
+          signerKeys: proposerKeyPairs().map((v) => uint8ArrayToBigInt(v.publicKey)),
+          signerGroups: Array(PROPOSE_COUNT).fill(0),
+          groupQuorums: new Map(Array.from({ length: MCMS_NUM_GROUPS }, (_, i) => [i, 0])).set(
+            0,
+            PROPOSE_QUORUM,
           ),
-          signerGroups: asSnakeData<number>(Array(PROPOSE_COUNT).fill(0), (v) =>
-            beginCell().storeUint(v, 8),
-          ),
-          groupQuorums: loadMap(
-            Dictionary.Keys.Uint(8),
-            Dictionary.Values.Uint(8),
-            new Map(Array.from({ length: MCMS_NUM_GROUPS }, (_, i) => [i, 0])).set(
-              0,
-              PROPOSE_QUORUM,
-            ),
-          ),
-          groupParents: loadMap(
-            Dictionary.Keys.Uint(8),
-            Dictionary.Values.Uint(8),
-            new Map(Array.from({ length: MCMS_NUM_GROUPS }, (_, i) => [i, 0])),
-          ),
+          groupParents: new Map(Array.from({ length: MCMS_NUM_GROUPS }, (_, i) => [i, 0])),
           clearRoot: false,
         }),
       )
@@ -314,23 +300,14 @@ describe('MCMS - IntegrationTest', () => {
         toNano('0.2'),
         mcms.builder.message.in.setConfig.encode({
           queryId: 1n,
-          signerKeys: asSnakeData<bigint>(
-            vetoKeyPairs().map((v) => uint8ArrayToBigInt(v.publicKey)),
-            (v) => beginCell().storeUint(v, 256),
+          signerKeys: vetoKeyPairs().map((v) => uint8ArrayToBigInt(v.publicKey)),
+          signerGroups: Array(VETO_COUNT).fill(0),
+          groupQuorums: new Map(Array.from({ length: MCMS_NUM_GROUPS }, (_, i) => [i, 0])).set(
+            0,
+            VETO_QUORUM,
           ),
-          signerGroups: asSnakeData<number>(Array(VETO_COUNT).fill(0), (v) =>
-            beginCell().storeUint(v, 8),
-          ),
-          groupQuorums: loadMap(
-            Dictionary.Keys.Uint(8),
-            Dictionary.Values.Uint(8),
-            new Map(Array.from({ length: MCMS_NUM_GROUPS }, (_, i) => [i, 0])).set(0, VETO_QUORUM),
-          ),
-          groupParents: loadMap(
-            Dictionary.Keys.Uint(8),
-            Dictionary.Values.Uint(8),
-            new Map(Array.from({ length: MCMS_NUM_GROUPS }, (_, i) => [i, 0])),
-          ),
+
+          groupParents: new Map(Array.from({ length: MCMS_NUM_GROUPS }, (_, i) => [i, 0])),
           clearRoot: false,
         }),
       )
@@ -368,32 +345,18 @@ describe('MCMS - IntegrationTest', () => {
         toNano('0.2'),
         mcms.builder.message.in.setConfig.encode({
           queryId: 1n,
-          signerKeys: asSnakeData<bigint>(
-            signerKeyPairs.map((v) => uint8ArrayToBigInt(v.publicKey)),
-            (v) => beginCell().storeUint(v, 256),
-          ),
-          signerGroups: asSnakeData<number>(
-            Array(PROPOSE_COUNT + VETO_COUNT)
-              .fill(1, 0, PROPOSE_COUNT)
-              .fill(2, PROPOSE_COUNT, PROPOSE_COUNT + VETO_COUNT),
-            (v) => beginCell().storeUint(v, 8),
-          ),
-          groupQuorums: loadMap(
-            Dictionary.Keys.Uint(8),
-            Dictionary.Values.Uint(8),
-            new Map(Array.from({ length: MCMS_NUM_GROUPS }, (_, i) => [i, 0]))
-              .set(0, 2)
-              .set(1, PROPOSE_QUORUM)
-              .set(2, VETO_QUORUM),
-          ),
-          groupParents: loadMap(
-            Dictionary.Keys.Uint(8),
-            Dictionary.Values.Uint(8),
-            new Map(Array.from({ length: MCMS_NUM_GROUPS }, (_, i) => [i, 0]))
-              .set(0, 0)
-              .set(1, 0)
-              .set(2, 0),
-          ),
+          signerKeys: signerKeyPairs.map((v) => uint8ArrayToBigInt(v.publicKey)),
+          signerGroups: Array(PROPOSE_COUNT + VETO_COUNT)
+            .fill(1, 0, PROPOSE_COUNT)
+            .fill(2, PROPOSE_COUNT, PROPOSE_COUNT + VETO_COUNT),
+          groupQuorums: new Map(Array.from({ length: MCMS_NUM_GROUPS }, (_, i) => [i, 0]))
+            .set(0, 2)
+            .set(1, PROPOSE_QUORUM)
+            .set(2, VETO_QUORUM),
+          groupParents: new Map(Array.from({ length: MCMS_NUM_GROUPS }, (_, i) => [i, 0]))
+            .set(0, 0)
+            .set(1, 0)
+            .set(2, 0),
           clearRoot: false,
         }),
       )
@@ -604,16 +567,13 @@ describe('MCMS - IntegrationTest', () => {
         success: true,
       })
 
-      // TODO: move this encoding internally to lib
-      const encodeProof = (v) => beginCell().storeUint(v, 256)
-
       const r1 = await bind.mcmsPropose.sendInternal(
         acc.deployer.getSender(),
         toNano('0.10'),
         mcms.builder.message.in.execute.encode({
           queryId: 1n,
           op: mcms.builder.data.op.encode(ops[0]),
-          proof: asSnakeData<bigint>(opProofs[0], encodeProof),
+          proof: opProofs[0],
         }),
       )
 
@@ -726,16 +686,13 @@ describe('MCMS - IntegrationTest', () => {
         success: true,
       })
 
-      // TODO: move this encoding internally to lib
-      const encodeProof = (v) => beginCell().storeUint(v, 256)
-
       const r1 = await bind.mcmsPropose.sendInternal(
         acc.deployer.getSender(),
         toNano('0.10'),
         mcms.builder.message.in.execute.encode({
           queryId: 1n,
           op: mcms.builder.data.op.encode(ops[0]),
-          proof: asSnakeData<bigint>(opProofs[0], encodeProof),
+          proof: opProofs[0],
         }),
       )
 
@@ -854,16 +811,13 @@ describe('MCMS - IntegrationTest', () => {
         success: true,
       })
 
-      // TODO: move this encoding internally to lib
-      const encodeProof = (v) => beginCell().storeUint(v, 256)
-
       const r1 = await bind.mcmsBypass.sendInternal(
         acc.deployer.getSender(),
         toNano('0.10'),
         mcms.builder.message.in.execute.encode({
           queryId: 1n,
           op: mcms.builder.data.op.encode(ops[0]),
-          proof: asSnakeData<bigint>(opProofs[0], encodeProof),
+          proof: opProofs[0],
         }),
       )
 
@@ -976,16 +930,13 @@ describe('MCMS - IntegrationTest', () => {
         success: true,
       })
 
-      // TODO: move this encoding internally to lib
-      const encodeProof = (v) => beginCell().storeUint(v, 256)
-
       const r1 = await bind.mcmsPropose.sendInternal(
         acc.deployer.getSender(),
         toNano('0.10'),
         mcms.builder.message.in.execute.encode({
           queryId: 1n,
           op: mcms.builder.data.op.encode(ops[0]),
-          proof: asSnakeData<bigint>(opProofs[0], encodeProof),
+          proof: opProofs[0],
         }),
       )
 
@@ -1053,16 +1004,13 @@ describe('MCMS - IntegrationTest', () => {
           success: true,
         })
 
-        // TODO: move this encoding internally to lib
-        const encodeProof = (v) => beginCell().storeUint(v, 256)
-
         const r1 = await bind.mcmsVeto.sendInternal(
           acc.deployer.getSender(),
           toNano('0.10'),
           mcms.builder.message.in.execute.encode({
             queryId: 1n,
             op: mcms.builder.data.op.encode(ops[0]),
-            proof: asSnakeData<bigint>(opProofs[0], encodeProof),
+            proof: opProofs[0],
           }),
         )
 
@@ -1108,26 +1056,13 @@ describe('MCMS - IntegrationTest', () => {
             value: toNano('0.2'),
             data: mcms.builder.message.in.setConfig.encode({
               queryId: 1n,
-              signerKeys: asSnakeData<bigint>(
-                proposerKeyPairs().map((v) => uint8ArrayToBigInt(v.publicKey)),
-                (v) => beginCell().storeUint(v, 256),
+              signerKeys: proposerKeyPairs().map((v) => uint8ArrayToBigInt(v.publicKey)),
+              signerGroups: Array(PROPOSE_COUNT).fill(0),
+              groupQuorums: new Map(Array.from({ length: MCMS_NUM_GROUPS }, (_, i) => [i, 0])).set(
+                0,
+                PROPOSE_QUORUM - 1,
               ),
-              signerGroups: asSnakeData<number>(Array(PROPOSE_COUNT).fill(0), (v) =>
-                beginCell().storeUint(v, 8),
-              ),
-              groupQuorums: loadMap(
-                Dictionary.Keys.Uint(8),
-                Dictionary.Values.Uint(8),
-                new Map(Array.from({ length: MCMS_NUM_GROUPS }, (_, i) => [i, 0])).set(
-                  0,
-                  PROPOSE_QUORUM - 1,
-                ),
-              ),
-              groupParents: loadMap(
-                Dictionary.Keys.Uint(8),
-                Dictionary.Values.Uint(8),
-                new Map(Array.from({ length: MCMS_NUM_GROUPS }, (_, i) => [i, 0])),
-              ),
+              groupParents: new Map(Array.from({ length: MCMS_NUM_GROUPS }, (_, i) => [i, 0])),
               clearRoot: false,
             }),
           },
@@ -1136,26 +1071,13 @@ describe('MCMS - IntegrationTest', () => {
             value: toNano('0.2'),
             data: mcms.builder.message.in.setConfig.encode({
               queryId: 1n,
-              signerKeys: asSnakeData<bigint>(
-                vetoKeyPairs().map((v) => uint8ArrayToBigInt(v.publicKey)),
-                (v) => beginCell().storeUint(v, 256),
+              signerKeys: vetoKeyPairs().map((v) => uint8ArrayToBigInt(v.publicKey)),
+              signerGroups: Array(VETO_COUNT).fill(0),
+              groupQuorums: new Map(Array.from({ length: MCMS_NUM_GROUPS }, (_, i) => [i, 0])).set(
+                0,
+                VETO_QUORUM - 1,
               ),
-              signerGroups: asSnakeData<number>(Array(VETO_COUNT).fill(0), (v) =>
-                beginCell().storeUint(v, 8),
-              ),
-              groupQuorums: loadMap(
-                Dictionary.Keys.Uint(8),
-                Dictionary.Values.Uint(8),
-                new Map(Array.from({ length: MCMS_NUM_GROUPS }, (_, i) => [i, 0])).set(
-                  0,
-                  VETO_QUORUM - 1,
-                ),
-              ),
-              groupParents: loadMap(
-                Dictionary.Keys.Uint(8),
-                Dictionary.Values.Uint(8),
-                new Map(Array.from({ length: MCMS_NUM_GROUPS }, (_, i) => [i, 0])),
-              ),
+              groupParents: new Map(Array.from({ length: MCMS_NUM_GROUPS }, (_, i) => [i, 0])),
               clearRoot: false,
             }),
           },
@@ -1213,16 +1135,13 @@ describe('MCMS - IntegrationTest', () => {
         success: true,
       })
 
-      // TODO: move this encoding internally to lib
-      const encodeProof = (v) => beginCell().storeUint(v, 256)
-
       const r1 = await bind.mcmsPropose.sendInternal(
         acc.deployer.getSender(),
         toNano('0.10'),
         mcms.builder.message.in.execute.encode({
           queryId: 1n,
           op: mcms.builder.data.op.encode(ops[0]),
-          proof: asSnakeData<bigint>(opProofs[0], encodeProof),
+          proof: opProofs[0],
         }),
       )
 
