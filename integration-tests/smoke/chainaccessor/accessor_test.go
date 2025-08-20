@@ -1,9 +1,8 @@
 package smoke
 
 import (
-	"context"
+	"bytes"
 	"math/big"
-	"math/rand/v2"
 	"testing"
 	"time"
 
@@ -12,8 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
-	"github.com/xssnick/tonutils-go/ton"
-	"github.com/xssnick/tonutils-go/ton/wallet"
 	"go.uber.org/zap/zapcore"
 
 	chain_selectors "github.com/smartcontractkit/chain-selectors"
@@ -22,6 +19,8 @@ import (
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
 
 	"github.com/smartcontractkit/chainlink/deployment/ccip/changeset/v1_6"
+	"github.com/smartcontractkit/chainlink/deployment/ccip/shared/client"
+	"github.com/smartcontractkit/chainlink/deployment/ccip/shared/stateview"
 	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
 	"github.com/smartcontractkit/chainlink/deployment/common/proposalutils"
 	"github.com/smartcontractkit/chainlink/deployment/environment/memory"
@@ -30,11 +29,11 @@ import (
 	ops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
-
-	tonCommon "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
+
+	tonStateView "github.com/smartcontractkit/chainlink/deployment/ccip/shared/stateview/ton"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
@@ -44,7 +43,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/chainaccessor"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 
 	test_utils "github.com/smartcontractkit/chainlink-ton/integration-tests/utils"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/hash"
@@ -74,6 +72,7 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 	// memory environment doesn't block on funding so changesets can execute before the env is fully ready, manually call fund so we block here
 	test_utils.FundWallets(t, tonChain.Client, []*address.Address{deployer.Address()}, []tlb.Coins{tlb.MustFromTON("1000")})
 
+	// -- deploy contracts
 	cs := ops.DeployChainContractsToTonCS(t, env, chainSelector)
 	env, _, err := commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{cs})
 	require.NoError(t, err, "failed to deploy ccip")
@@ -140,6 +139,8 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 	})
 	require.NoError(t, err, "failed to add lane")
 
+	// TODO: probably missing configurations here
+
 	state, err := tonstate.LoadOnchainState(env)
 	require.NoError(t, err)
 
@@ -191,26 +192,48 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 		require.NoError(t, lp.Close())
 	}()
 
-	time.Sleep(30 * time.Second)
 	// -- send CCIP message
-	// _ = &client.CCIPSendReqConfig{
-	// 	SourceChain:  chainSelector,
-	// 	DestChain:    evmSelector,
-	// 	IsTestRouter: false,
-	// 	Sender:       nil,
-	// 	Message:      nil,
-	// 	MaxRetries:   3,
-	// }
-	// TODO: cannot use state[chainSelector] (map index expression of struct type "github.com/smartcontractkit/chainlink-ton/deployment/state".CCIPChainState) as stateview.CCIPOnChainState value in argument to ops.SendTonRequest
-	// ops.SendTonRequest(env, state[chainSelector], msgCfg)
+	// Create extraArgs similar to the commented sendCCIPMessage function
+	extraArgs := onramp.GenericExtraArgsV2{
+		GasLimit:                 big.NewInt(100),
+		AllowOutOfOrderExecution: false,
+	}
+	extraArgsCell, err := tlb.ToCell(extraArgs)
+	require.NoError(t, err)
+
+	// Create the CCIP send message using the pattern from the commented code
+	tonSendRequest := ops.TonSendRequest{
+		QueryID:   1,
+		Receiver:  bytes.Repeat([]byte{0xab}, 32), // 32-byte receiver address
+		Data:      []byte("test data"),
+		ExtraArgs: extraArgsCell,
+		FeeToken:  ops.TonTokenAddr, // Use TON token address like in commented code
+	}
+
+	msgCfg := &client.CCIPSendReqConfig{
+		SourceChain:  chainSelector,
+		DestChain:    evmSelector,
+		IsTestRouter: false,
+		Sender:       nil,            // For TON, sender is handled by the environment
+		Message:      tonSendRequest, // Populate with the CCIP message
+		MaxRetries:   3,
+	}
+
+	ccipState := stateview.CCIPOnChainState{
+		TonChains: map[uint64]tonStateView.CCIPChainState{
+			chainSelector: {
+				Router: state[chainSelector].Router,
+			},
+		},
+	}
+	_, err = ops.SendTonRequest(env, ccipState, msgCfg)
+	require.NoError(t, err)
 
 	// -- send CCIP message manually
 	routerAddr := state[chainSelector].Router
 
 	t.Log("Router address: ", routerAddr.String())
 	t.Log("OnRamp address: ", onRampAddr.String())
-
-	sendCCIPMessage(t, ctx, evmSelector, routerAddr, tonChain.Client, deployer)
 
 	t.Run("query CCIP message via TonAccessor", func(t *testing.T) {
 		require.Eventually(t, func() bool {
@@ -221,79 +244,4 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 		// accessor.MsgsBetweenSeqNums(ctx, ccipocr3.ChainSelector(evmSelector), ccipocr3.NewSeqNumRange(1, 100))
 		// t.Skip("implement me")
 	})
-}
-
-func sendCCIPMessage(t *testing.T, ctx context.Context, evmSelector uint64, routerAddr address.Address, client ton.APIClientWrapped, deployer *wallet.Wallet) {
-	extraArgs := onramp.GenericExtraArgsV2{
-		GasLimit:                 big.NewInt(100),
-		AllowOutOfOrderExecution: false,
-	}
-
-	extraArgsCell, err := tlb.ToCell(extraArgs)
-	require.NoError(t, err)
-
-	body, err := tlb.ToCell(router.CCIPSend{
-		QueryID:           rand.Uint64(),
-		DestChainSelector: evmSelector,
-		Receiver:          tonCommon.CrossChainAddress("0x32Be343B94f860124dC4fEe278FDCBD38C102D88"),
-		Data:              []byte("tons of fun"),
-		FeeToken:          ops.TonTokenAddr,
-		ExtraArgs:         extraArgsCell,
-	})
-	require.NoError(t, err)
-
-	msg := &wallet.Message{
-		Mode: 1,
-		InternalMessage: &tlb.InternalMessage{
-			IHRDisabled: true,
-			Bounce:      false,
-			DstAddr:     &routerAddr,
-			Amount:      tlb.MustFromTON("1.0"),
-			Body:        body,
-		},
-	}
-
-	ttConn := tracetracking.NewSignedAPIClient(client, *deployer)
-	rMsg, blockID, err := ttConn.SendWaitTransaction(ctx, routerAddr, msg)
-	require.NoError(t, err, "failed to send message")
-
-	t.Log("transaction sent", "blockID", blockID, "receivedMsg", rMsg)
-
-	// Log transaction fees for debugging
-	t.Logf("Transaction fees - Storage: %v, Gas: %v, Total Action: %v, Magic: %v",
-		rMsg.StorageFeeCharged, rMsg.GasFee, rMsg.TotalActionFees, rMsg.MagicFee)
-	t.Logf("Total execution fee: %v", rMsg.TotalTransactionExecutionFee())
-
-	// Check initial transaction exit code
-	t.Logf("Initial transaction exit code: %v", rMsg.ExitCode)
-	t.Logf("Initial transaction success: %v", rMsg.Success)
-	t.Logf("Initial transaction bounced: %v", rMsg.EmittedBouncedMessage)
-	require.Equal(t, int32(0), int32(rMsg.ExitCode), "initial transaction failed with exit code %v", rMsg.ExitCode)
-	require.True(t, rMsg.Success, "initial transaction was not successful")
-	require.False(t, rMsg.EmittedBouncedMessage, "initial transaction was bounced")
-
-	// Wait for complete trace and check for failures
-	err = rMsg.WaitForTrace(client)
-	require.NoError(t, err, "failed to wait for trace")
-
-	// Check outcome exit code (includes all outgoing messages)
-	outcomeExitCode := rMsg.OutcomeExitCode()
-	t.Logf("Outcome exit code (including all outgoing messages): %v", outcomeExitCode)
-	require.Equal(t, int32(0), int32(outcomeExitCode), "transaction trace failed with exit code %v", outcomeExitCode)
-
-	// Log details about outgoing messages
-	t.Logf("Number of outgoing internal messages: %d", len(rMsg.OutgoingInternalReceivedMessages))
-	for i, outMsg := range rMsg.OutgoingInternalReceivedMessages {
-		t.Logf("Outgoing message %d: exit code %v, success: %v, bounced: %v, status: %v",
-			i, outMsg.ExitCode, outMsg.Success, outMsg.EmittedBouncedMessage, outMsg.Status())
-		if outMsg.ExitCode != 0 {
-			t.Errorf("Outgoing message %d failed with exit code %v", i, outMsg.ExitCode)
-		}
-		if !outMsg.Success {
-			t.Errorf("Outgoing message %d was not successful", i)
-		}
-		if outMsg.EmittedBouncedMessage {
-			t.Errorf("Outgoing message %d was bounced", i)
-		}
-	}
 }
