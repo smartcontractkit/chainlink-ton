@@ -218,7 +218,7 @@ const ERROR_ACCESS_CONTROL_UNAUTHORIZED_ACCOUNT = 90;
 const ERROR_ACCESS_CONTROL_BAD_CONFIRMATION = 91;
 
 // TODO: do we make this configurable?
-const DEFAULT_MESSAGE_BUDGET_FEE = ton("0.05");
+const DEFAULT_MESSAGE_BUDGET_FEE = ton("0.01");
 
 // --- Constants - storage ---
 
@@ -402,7 +402,7 @@ fun AccessControl<T>.getRoleMembers(self, role: int): dict {
 /// Requirements:
 /// - the `sender` must have `role`'s admin role.
 ///
-/// Emits a {AccessControl_RoleGranted} event if `role` was granted.
+/// Sends a {AccessControl_RoleGranted} event (to: sender, account) if `role` was granted.
 fun AccessControl<T>.grantRole(
     mutate self,
     queryId: uint64,
@@ -412,15 +412,7 @@ fun AccessControl<T>.grantRole(
     returnExcess: bool
 ): bool {
     self.requireRole(self.getRoleAdmin(role), sender);
-    val success = self._grantRole(queryId, sender, role, account); // default implementation
-
-    if (!success) {
-        return false; // nothing to do, role was not updated
-    }
-
-    val body = AccessControl_RoleGranted {queryId, role, account, sender}.toCell();
-    self.sendOutgoingMessages(sender, account, body, DEFAULT_MESSAGE_BUDGET_FEE, returnExcess);
-    return true;
+    return self._grantRole(queryId, sender, role, account, returnExcess);
 }
 
 /// @dev Revokes `role` from `account`.
@@ -428,7 +420,7 @@ fun AccessControl<T>.grantRole(
 /// Requirements:
 /// - the `sender` must have `role`'s admin role.
 ///
-/// Emits a {AccessControl_RoleRevoked} event if `role` was revoked.
+/// Sends a {AccessControl_RoleRevoked} event (to: sender, account) if `role` was revoked.
 fun AccessControl<T>.revokeRole(
     mutate self,
     queryId: uint64,
@@ -438,15 +430,7 @@ fun AccessControl<T>.revokeRole(
     returnExcess: bool
 ): bool {
     self.requireRole(self.getRoleAdmin(role), sender);
-    val success = self._revokeRole(queryId, sender, role, account);
-
-    if (!success) {
-        return false; // nothing to do, role was not updated
-    }
-
-    val body = AccessControl_RoleRevoked {queryId, role, account, sender}.toCell();
-    self.sendOutgoingMessages(sender, account, body, DEFAULT_MESSAGE_BUDGET_FEE, returnExcess);
-    return true;
+    return self._revokeRole(queryId, sender, role, account, returnExcess);
 }
 
 /// @dev Revokes `role` from the calling account.
@@ -461,7 +445,7 @@ fun AccessControl<T>.revokeRole(
 ///
 /// - the `sender` must be `callerConfirmation`.
 ///
-/// May emit a {AccessControl_RoleRevoked} event.
+/// Sends a {AccessControl_RoleRevoked} event (to: sender, account) if `role` was revoked.
 fun AccessControl<T>.renounceRole(
     mutate self,
     queryId: uint64,
@@ -480,12 +464,10 @@ fun AccessControl<T>.renounceRole(
 
 /// @dev Sets `adminRole` as `role`'s admin role.
 ///
-/// Requirements:
+/// Internal function without access restriction.
 ///
-/// - None. Access restrictions should be added if a user is exposing this function.
-///
-/// Emits a {AccessControl_RoleAdminChanged} event.
-fun AccessControl<T>.setRoleAdmin(
+/// Sends a {AccessControl_RoleAdminChanged} reply to sender.
+fun AccessControl<T>._setRoleAdmin(
     mutate self,
     queryId: uint64,
     sender: address,
@@ -493,23 +475,6 @@ fun AccessControl<T>.setRoleAdmin(
     adminRole: int,
     returnExcess: bool
 ): void {
-    val previousAdminRole = self._setRoleAdmin(queryId, sender, role, adminRole);
-
-    // Create and send the message (reply) to the sender
-    val body = AccessControl_RoleAdminChanged{queryId, role, previousAdminRole, newAdminRole: adminRole}.toCell();
-    self.sendReply(sender, body, DEFAULT_MESSAGE_BUDGET_FEE, returnExcess);
-}
-
-/// @dev Sets `adminRole` as `role`'s admin role.
-///
-/// Internal function without access restriction, and no outgoing messages sent.
-fun AccessControl<T>._setRoleAdmin(
-    mutate self,
-    queryId: uint64,
-    sender: address,
-    role: int,
-    adminRole: int
-): uint256 {
     var d: AccessControl_RoleData = self.data.getRoleDataOrSetDefault(role);
     val previousAdminRole = d.adminRole;
     // Update the admin role for the role
@@ -518,13 +483,22 @@ fun AccessControl<T>._setRoleAdmin(
     // Save the updated role data
     self.data.roles.uDictSetRef(LEN_ROLE, role, d.toCell());
 
-    return previousAdminRole;
+    val body = AccessControl_RoleAdminChanged{queryId, role, previousAdminRole, newAdminRole: adminRole}.toCell();
+    self.sendReply(sender, body, DEFAULT_MESSAGE_BUDGET_FEE, returnExcess);
 }
 
 /// @dev Attempts to grant `role` to `account` and returns a boolean indicating if `role` was granted.
 ///
-/// Internal function without access restriction, and no outgoing messages sent.
-fun AccessControl<T>._grantRole(mutate self, queryId: uint64, sender: address, role: int, account: address): bool {
+/// Internal function without access restriction.
+/// Sends a {AccessControl_RoleGranted} event (to: sender, account) if `role` was granted.
+fun AccessControl<T>._grantRole(
+    mutate self,
+    queryId: uint64,
+    sender: address,
+    role: int,
+    account: address,
+    returnExcess: bool
+): bool {
     if (self.hooks != null && self.hooks.shouldGrantRole != null) {
         self.hooks.shouldGrantRole(self.context, queryId, role, account); // extension hook
     }
@@ -546,13 +520,24 @@ fun AccessControl<T>._grantRole(mutate self, queryId: uint64, sender: address, r
     // Save the updated role data
     self.data.roles.uDictSetRef(LEN_ROLE, role, d.toCell());
 
+    val body = AccessControl_RoleGranted{queryId, role, account, sender}.toCell();
+    self.sendOutgoingMessages(sender, account, body, DEFAULT_MESSAGE_BUDGET_FEE, returnExcess);
+
     return true; // role granted successfully
 }
 
 /// @dev Attempts to revoke `role` from `account` and returns a boolean indicating if `role` was revoked.
 ///
-/// Internal function without access restriction, and no outgoing messages sent.
-fun AccessControl<T>._revokeRole(mutate self, queryId: uint64, sender: address, role: int, account: address): bool {
+/// Internal function without access restriction.
+/// Sends a {AccessControl_RoleRevoked} event (to: sender, account) if `role` was revoked.
+fun AccessControl<T>._revokeRole(
+    mutate self,
+    queryId: uint64,
+    sender: address,
+    role: int,
+    account: address,
+    returnExcess: bool
+): bool {
     if (self.hooks != null && self.hooks.shouldRevokeRole != null) {
         self.hooks.shouldRevokeRole(self.context, queryId, role, account); // extension hook
     }
@@ -573,6 +558,9 @@ fun AccessControl<T>._revokeRole(mutate self, queryId: uint64, sender: address, 
 
     // Save the updated role data
     self.data.roles.uDictSetRef(LEN_ROLE, role, d.toCell());
+
+    val body = AccessControl_RoleRevoked{queryId, role, account, sender}.toCell();
+    self.sendOutgoingMessages(sender, account, body, DEFAULT_MESSAGE_BUDGET_FEE, returnExcess);
 
     return true; // role revoked successfully
 }
@@ -608,9 +596,12 @@ fun AccessControl<T>.sendOutgoingMessages(
     value: coins = DEFAULT_MESSAGE_BUDGET_FEE,
     returnExcess: bool = true
 ): void {
-    // Create and send the message (notification) to the account that was updated
-    val notification = createMessage({ bounce: false, value, dest: account, body });
-    notification.send(SEND_MODE_IGNORE_ERRORS);
+    // Skip notification if account == sender
+    if (account != sender) {
+        // Create and send the message (notification) to the account that was updated
+        val notification = createMessage({ bounce: false, value, dest: account, body });
+        notification.send(SEND_MODE_IGNORE_ERRORS);
+    }
 
     // Create and send the message (reply) to the sender
     self.sendReply(sender, body, value, returnExcess);
