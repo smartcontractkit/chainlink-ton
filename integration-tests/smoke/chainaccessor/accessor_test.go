@@ -56,6 +56,7 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 	lggr := logger.TestLogger(t)
 	ctx := t.Context()
 
+	// TODO: maybe just set contracts directly, no need for full env support here
 	env := memory.NewMemoryEnvironment(t, lggr, zapcore.InfoLevel, memory.MemoryEnvironmentConfig{
 		Chains:    1,
 		TonChains: 1,
@@ -78,6 +79,7 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 	env, _, err := commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{cs})
 	require.NoError(t, err, "failed to deploy ccip")
 
+	// TODO: maybe just set contracts directly, no need for full env support here
 	// -- add lane using helper function
 	env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{
 		commonchangeset.Configure(ops.AddTonLanes{}, config.UpdateTonLanesConfig{
