@@ -183,12 +183,23 @@ export class FeeQuoter implements Contract {
     via: Sender,
     opts: {
       value: bigint
-      gasPrices: { chainSelector: bigint; executionGasPrice: bigint; dataAvailabilityGasPrice: bigint }[]
+      gasPrices: {
+        chainSelector: bigint
+        executionGasPrice: bigint
+        dataAvailabilityGasPrice: bigint
+      }[]
       tokenPrices: { token: Address; price: bigint }[]
     },
   ) {
-    const tokenPrices = asSnakeData(opts.tokenPrices, (config) => new TonBuilder().storeAddress(config.token).storeInt(config.price, 224))
-    const gasPrices= asSnakeData(opts.gasPrices, (config) => new TonBuilder().storeInt(config.chainSelector, 64).storeInt(config.executionGasPrice, 112).storeInt(config.dataAvailabilityGasPrice, 112))
+    const tokenPrices = asSnakeData(opts.tokenPrices, (config) =>
+      new TonBuilder().storeAddress(config.token).storeInt(config.price, 224),
+    )
+    const gasPrices = asSnakeData(opts.gasPrices, (config) =>
+      new TonBuilder()
+        .storeInt(config.chainSelector, 64)
+        .storeInt(config.executionGasPrice, 112)
+        .storeInt(config.dataAvailabilityGasPrice, 112),
+    )
 
     return await provider.internal(via, {
       value: opts.value,

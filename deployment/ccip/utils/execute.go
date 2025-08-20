@@ -4,9 +4,10 @@ import (
 	"fmt"
 
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 )
 
 func ExecuteProposals(env cldf.Environment, client *ton.APIClient, sender *wallet.Wallet, output [][]byte) error {
