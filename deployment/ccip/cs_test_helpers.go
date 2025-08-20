@@ -8,7 +8,11 @@ import (
 
 	chainsel "github.com/smartcontractkit/chain-selectors"
 	"github.com/smartcontractkit/chainlink-ccip/chains/evm/gobindings/generated/v1_6_0/fee_quoter"
+	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"
+	cciptypes "github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/chainaccessor"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/smartcontractkit/chainlink/deployment/ccip/changeset/v1_6"
 	"github.com/smartcontractkit/chainlink/deployment/ccip/shared"
 	"github.com/smartcontractkit/chainlink/deployment/ccip/shared/client"
@@ -216,6 +220,7 @@ func SendTonRequest(
 
 	msg := cfg.Message.(TonSendRequest)
 	routerAddr := state.TonChains[cfg.SourceChain].Router
+	onrampAddr := state.TonChains[cfg.DestChain].CCIPAddress
 
 	// TODO Skipping token amounts setup for now, and in the future for supporting token transfers
 	ccipSend := router.CCIPSend{
@@ -253,18 +258,28 @@ func SendTonRequest(
 		return nil, fmt.Errorf("failed to wait for trace: %w", err)
 	}
 
-	// TODO: log poller
-	//ca, er := chainaccessor.NewTONAccessor(e.Logger, clientConn, nil)
-	//if er != nil {
-	//	return nil, fmt.Errorf("failed to create TON accessor: %w", er)
-	//}
+	ca, er := chainaccessor.NewTONAccessor(e.Logger, cciptypes.ChainSelector(cfg.SourceChain), clientConn, nil, codec.NewAddressCodec())
+	if er != nil {
+		return nil, fmt.Errorf("failed to create TON accessor: %w", er)
+	}
 
-	//number, err := ca.GetExpectedNextSequenceNumber(e.GetContext(), cciptypes.ChainSelector(cfg.DestChain))
-	//if err != nil {
-	//	return nil, err
-	//}
+	addrCodec := codec.NewAddressCodec()
+	onrampAddrBytes, err := addrCodec.AddressStringToBytes(onrampAddr.String())
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert onramp address to bytes: %w", err)
+	}
+
+	err = ca.Sync(e.GetContext(), consts.ContractNameOnRamp, onrampAddrBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	number, err := ca.GetExpectedNextSequenceNumber(e.GetContext(), cciptypes.ChainSelector(cfg.DestChain))
+	if err != nil {
+		return nil, err
+	}
 
 	return &client.AnyMsgSentEvent{
-		//SequenceNumber: uint64(number),
+		SequenceNumber: uint64(number),
 	}, nil
 }
