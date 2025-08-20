@@ -9,9 +9,6 @@ import (
 	"testing"
 	"time"
 
-	helper "integration-tests/smoke/logpoller/helper"
-	test_utils "integration-tests/utils"
-
 	chainsel "github.com/smartcontractkit/chain-selectors"
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/address"
@@ -19,6 +16,9 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+
+	helper "integration-tests/smoke/logpoller/helper"
+	test_utils "integration-tests/utils"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/examples/counter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
