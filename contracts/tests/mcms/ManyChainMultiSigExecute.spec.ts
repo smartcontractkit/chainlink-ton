@@ -383,9 +383,7 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
 
     const executeBody = mcms.builder.message.in.execute.encode({
       queryId: BigInt(MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX + 1),
-      op: mcms.builder.data.op.encode(
-        baseTest.testOps[MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX],
-      ),
+      op: mcms.builder.data.op.encode(valueOp),
       proof,
     })
 
@@ -409,6 +407,12 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
       from: baseTest.acc.deployer.address,
       to: baseTest.bind.mcms.address,
       success: true,
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: baseTest.bind.mcms.address,
+      to: valueOp.to,
+      success: true,
+      value: MCMSBaseSetRootAndExecuteTestSetup.VALUE_OPERATION_TON,
     })
 
     // Check that value was transferred to the target

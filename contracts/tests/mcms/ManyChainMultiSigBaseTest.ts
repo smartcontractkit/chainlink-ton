@@ -53,6 +53,7 @@ export class MCMSBaseTestSetup {
   static readonly GROUP3_PARENT = 0
   static readonly TEST_CHAIN_ID = -239n // TODO: blockchain global chain ID (will need to be signed int)
   static readonly TEST_VALID_UNTIL = 1000000
+  static readonly VALUE_OPERATION_TON = toNano('10')
 
   blockchain: Blockchain
   code: MCMSTestCode
@@ -365,7 +366,9 @@ export class MCMSBaseTestSetup {
     const ops: mcms.Op[] = []
     for (let i = 0; i < count; i++) {
       const value =
-        i == MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX ? toNano('10') : toNano('0.10')
+        i == MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX
+          ? MCMSBaseSetRootAndExecuteTestSetup.VALUE_OPERATION_TON
+          : toNano('0.10')
       let op: Cell
       {
         switch (i) {
@@ -373,7 +376,9 @@ export class MCMSBaseTestSetup {
             op = beginCell().storeUint(0xffffffff, 32).endCell()
             break
           case MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX:
-            op = beginCell().endCell()
+            op = counter.builder.message.in.topUp.encode({
+              queryId: BigInt(i + 1),
+            })
             break
           default:
             op = counter.builder.message.in.setCount.encode({
