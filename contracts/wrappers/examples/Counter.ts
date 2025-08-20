@@ -171,11 +171,11 @@ export class ContractClient implements Contract, TypeAndVersion {
     await this.sendTopUp(p, via, value, { queryId: 1n })
   }
 
-  async sendTopUp(p: ContractProvider, via: Sender, value: bigint = 0n, body: TopUp) {
+  async sendTopUp(p: ContractProvider, via: Sender, value: bigint, body: TopUp) {
     return this.sendInternal(p, via, value, builder.message.in.topUp.encode(body))
   }
 
-  async sendSetCount(p: ContractProvider, via: Sender, value: bigint = 0n, body: SetCount) {
+  async sendSetCount(p: ContractProvider, via: Sender, value: bigint, body: SetCount) {
     return this.sendInternal(p, via, value, builder.message.in.setCount.encode(body))
   }
 
