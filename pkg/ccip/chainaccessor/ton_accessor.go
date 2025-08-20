@@ -47,12 +47,12 @@ func NewTONAccessor(
 	logPoller logpoller.Service,
 	addrCodec ccipocr3.ChainSpecificAddressCodec,
 ) (ccipocr3.ChainAccessor, error) {
-	// TODO: validate state of client and logPoller (should be initialized in NewChain)
+	// TODO: check readiness
 	if client == nil {
-		return nil, errors.New("client cannot be nil")
+		return nil, errors.New("TON API client is not ready")
 	}
 	if logPoller == nil {
-		return nil, errors.New("logPoller cannot be nil")
+		return nil, errors.New("TON logPoller is not ready")
 	}
 	return &TONAccessor{
 		lggr:          lggr,
@@ -230,9 +230,8 @@ func (a *TONAccessor) MsgsBetweenSeqNums(ctx context.Context, dest ccipocr3.Chai
 	msgs := make([]ccipocr3.Message, 0)
 	for _, log := range res.Logs {
 		// convert event to generic CCIP event
-		event, err := ToGenericSendRequestedEvent(
-			&log.TypedData, // this is already parsed during query
-			a.chainSelector,
+		event, err := a.convertCCIPMessageSent(
+			&log.TypedData,
 		)
 		if err != nil {
 			a.lggr.Errorw("failed to convert event", "err", err, "log", log)
@@ -259,11 +258,14 @@ func (a *TONAccessor) MsgsBetweenSeqNums(ctx context.Context, dest ccipocr3.Chai
 		"sourceChainSelector", a.chainSelector,
 		"seqNumRange", seqNumRange.String(),
 	)
+	// Create message ID strings for logging
+	msgIDs := make([]string, len(msgsWithoutDataField))
+	for i, m := range msgsWithoutDataField {
+		msgIDs[i] = fmt.Sprintf("%d.%d", m.Header.SequenceNumber, m.Header.MessageID)
+	}
+
 	a.lggr.Infow("decoded message IDs between sequence numbers",
-		// TODO: copied from default accessor, slicelib internal
-		// "seqNum.MsgID", slicelib.Map(msgsWithoutDataField, func(m ccipocr3.Message) string {
-		// 	return fmt.Sprintf("%d.%d", m.Header.SequenceNumber, m.Header.MessageID)
-		// }),
+		"seqNum.MsgID", msgIDs,
 		"sourceChainSelector", a.chainSelector,
 		"seqNumRange", seqNumRange.String(),
 	)
@@ -303,9 +305,8 @@ func (a *TONAccessor) LatestMessageTo(ctx context.Context, dest ccipocr3.ChainSe
 	}
 
 	// convert event to generic CCIP event
-	event, err := ToGenericSendRequestedEvent(
+	event, err := a.convertCCIPMessageSent(
 		&res.Logs[0].TypedData,
-		a.chainSelector,
 	)
 	if err != nil {
 		return 0, fmt.Errorf("failed to convert event: %w", err)
