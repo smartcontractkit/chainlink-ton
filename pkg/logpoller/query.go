@@ -1,170 +1,236 @@
 package logpoller
 
 import (
-	"bytes"
+	"context"
+	"errors"
 	"fmt"
 	"sort"
 
-	"github.com/xssnick/tonutils-go/tvm/cell"
-
-	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tlb"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types/query"
 )
 
-// CellQueryEngine provides direct byte-level queries for TON cell (BOC) data.
-// This implementation is specifically for CCIP TON accessor and does NOT support
-// full DSL (Domain Specific Language) capabilities - only direct byte comparisons
-// at specified offsets within the cell payload.
-//
-// TODO: with SQL we might need to implement a more efficient way to query logs
-// TODO: (NONEVM-2187) - investigate optimizations for large-scale log querying
+var _ QueryBuilder[any] = (*queryBuilder[any])(nil)
 
-type Operator string
-
-const (
-	EQ  Operator = "="
-	NEQ Operator = "!="
-	GT  Operator = ">"
-	GTE Operator = ">="
-	LT  Operator = "<"
-	LTE Operator = "<="
-)
-
-type CellQuery struct {
-	Offset   uint     // offset is the byte offset within the log's Data field to start the comparison.
-	Operator Operator // operator is the comparison operator to use.
-	Value    []byte   // value is the byte slice to compare against. The length of the slice determines how many bytes are read from the Data field starting at the offset.
+// queryBuilder provides a fluent interface for constructing log queries with two-phase filtering.
+// Phase 1: stored cell-level filtering at the storage layer
+// Phase 2: Strongly-typed filtering on parsed events in the application layer
+type queryBuilder[T any] struct {
+	store       LogStore
+	address     *address.Address
+	eventSig    uint32
+	cellFilters []query.CellFilter
+	typedFilter func(T) bool
+	options     query.Options
 }
 
-type SortField string
-type SortOrder string
-
-const (
-	SortByTxLT SortField = "tx_lt"
-
-	ASC  SortOrder = "ASC"
-	DESC SortOrder = "DESC"
-)
-
-type SortBy struct {
-	Field SortField
-	Order SortOrder
-}
-
-type QueryOptions struct {
-	Limit  int
-	Offset int
-	SortBy []SortBy
-}
-
-type QueryResult struct {
-	Logs    []types.Log
-	HasMore bool
-	Total   int
-}
-
-type CellQueryEngine struct {
-	lggr logger.SugaredLogger
-}
-
-func NewCellQueryEngine(lggr logger.Logger) *CellQueryEngine {
-	return &CellQueryEngine{
-		lggr: logger.Sugared(lggr),
+// NewQuery creates a new query builder for a specific event type.
+func NewQuery[T any](store LogStore) QueryBuilder[T] {
+	return &queryBuilder[T]{
+		store:       store,
+		cellFilters: make([]query.CellFilter, 0),
+		options:     query.Options{},
 	}
 }
 
-func (f *CellQueryEngine) ExtractCellPayload(logData []byte, logIndex int) ([]byte, error) {
-	parsedCell, err := cell.FromBOC(logData)
+// WithSrcAddress sets the source address for the query.
+func (b *queryBuilder[T]) WithSrcAddress(address *address.Address) QueryBuilder[T] {
+	b.address = address
+	return b
+}
+
+// WithEventSig sets the event signature for the query.
+// TODO: support both event signature from ExtMsgOut and opcode from internal message
+func (b *queryBuilder[T]) WithEventSig(sig uint32) QueryBuilder[T] {
+	b.eventSig = sig
+	return b
+}
+
+// WithCellFilter adds a raw cell-level filter
+func (b *queryBuilder[T]) WithCellFilter(filter query.CellFilter) QueryBuilder[T] {
+	b.cellFilters = append(b.cellFilters, filter)
+	return b
+}
+
+// WithTypedFilter sets a strongly-typed in-memory filter
+func (b *queryBuilder[T]) WithTypedFilter(filter func(T) bool) QueryBuilder[T] {
+	b.typedFilter = filter
+	return b
+}
+
+// WithLimit sets the maximum number of results to return.
+func (b *queryBuilder[T]) WithLimit(limit int) QueryBuilder[T] {
+	b.options.Limit = limit
+	return b
+}
+
+// WithOffset sets the number of results to skip.
+func (b *queryBuilder[T]) WithOffset(offset int) QueryBuilder[T] {
+	b.options.Offset = offset
+	return b
+}
+
+// WithSort adds sorting criteria to the query.
+func (b *queryBuilder[T]) WithSort(field query.SortField, order query.SortOrder) QueryBuilder[T] {
+	b.options.SortBy = append(b.options.SortBy, query.SortBy{
+		Field: field,
+		Order: order,
+	})
+	return b
+}
+
+// Execute runs the constructed query with two-phase filtering.
+func (b *queryBuilder[T]) Execute(_ context.Context) (query.Result[T], error) {
+	if b.address == nil {
+		return query.Result[T]{}, errors.New("address is required")
+	}
+
+	if b.eventSig == 0 {
+		return query.Result[T]{}, errors.New("event signature is required")
+	}
+
+	// Get all logs from store first
+	logs, err := b.store.GetLogs(b.address, b.eventSig)
 	if err != nil {
-		return nil, fmt.Errorf("could not parse BOC for log #%d: %w", logIndex, err)
+		return query.Result[T]{}, fmt.Errorf("failed to get logs from store: %w", err)
 	}
 
-	// this returns the payload of the cell, after header and other metadata
-	_, cellPayload, err := parsedCell.BeginParse().RestBits()
+	var preFilteredLogs []types.Log
+	if len(b.cellFilters) > 0 {
+		// TODO: prefilter in ORM layer
+		for _, log := range logs {
+			if b.passesAllCellFilters(log) {
+				preFilteredLogs = append(preFilteredLogs, log)
+			}
+		}
+	} else {
+		preFilteredLogs = logs
+	}
+
+	var filteredParsedLogs []types.TypedLog[T]
+	for _, log := range preFilteredLogs {
+		var event T
+		parseErr := tlb.LoadFromCell(&event, log.Data.BeginParse(), true) // skip magic all the time
+		if parseErr != nil {
+			return query.Result[T]{}, fmt.Errorf("failed to parse log cell: %w", parseErr)
+		}
+
+		// Apply typed filter if specified
+		if b.typedFilter == nil || b.typedFilter(event) {
+			filteredParsedLogs = append(filteredParsedLogs, types.TypedLog[T]{
+				Log:       log,
+				TypedData: event,
+			})
+		}
+	}
+
+	// Apply sorting if specified
+	if len(b.options.SortBy) > 0 {
+		b.applySorting(filteredParsedLogs)
+	}
+
+	// Apply pagination
+	start, end := b.calculatePagination(len(filteredParsedLogs))
+
+	if start >= len(filteredParsedLogs) {
+		return query.Result[T]{
+			Logs:    []types.TypedLog[T]{},
+			HasMore: false,
+			Total:   len(filteredParsedLogs),
+			Offset:  b.options.Offset,
+			Limit:   b.options.Limit,
+		}, nil
+	}
+
+	pagedParsedLogs := filteredParsedLogs[start:end]
+
+	return query.Result[T]{
+		Logs:    pagedParsedLogs,
+		HasMore: end < len(filteredParsedLogs),
+		Total:   len(filteredParsedLogs),
+		Offset:  b.options.Offset,
+		Limit:   b.options.Limit,
+	}, nil
+}
+
+// passesAllCellFilters checks if a log passes all byte-level filters
+func (b *queryBuilder[T]) passesAllCellFilters(log types.Log) bool {
+	if len(b.cellFilters) == 0 {
+		return true
+	}
+
+	// Extract cell payload as bytes for byte-level filtering
+	_, cellPayload, err := log.Data.BeginParse().RestBits()
 	if err != nil {
-		return nil, fmt.Errorf("could not extract payload from cell for log #%d: %w", logIndex, err)
+		return false
 	}
 
-	return cellPayload, nil
-}
-
-func (f *CellQueryEngine) PassesAllQueries(payload []byte, queries []CellQuery, logIndex int) (bool, error) {
-	for j, query := range queries {
-		f.lggr.Tracef("  Applying query #%d: Offset=%d, Op='%s', Value=%x",
-			j, query.Offset, query.Operator, query.Value)
-
-		// check payload length
-		if uint(len(payload)) < query.Offset+uint(len(query.Value)) {
-			f.lggr.Tracef("    Query #%d FAILED: payload too short (len: %d)", j, len(payload))
-			return false, nil
-		}
-
-		// extract and compare data slice
-		end := query.Offset + uint(len(query.Value))
-		if end > uint(len(payload)) {
-			f.lggr.Tracef("    Query #%d FAILED: offset + value length exceeds payload length", j)
-			return false, nil
-		}
-
-		dataSlice := payload[query.Offset:end]
-		f.lggr.Tracef("    Extracted dataSlice: %x", dataSlice)
-
-		match, err := f.compareBytes(dataSlice, query.Value, query.Operator)
-		if err != nil {
-			return false, fmt.Errorf("query #%d comparison failed for log #%d: %w", j, logIndex, err)
-		}
-
-		f.lggr.Tracef("    Query match: %t", match)
-
-		if !match {
-			f.lggr.Tracef("  Query #%d did not match. Skipping log #%d", j, logIndex)
-			return false, nil
+	// Check each filter
+	for _, filter := range b.cellFilters {
+		if !b.passesCellFilter(cellPayload, filter) {
+			return false
 		}
 	}
-	return true, nil // all queries passed.
+	return true
 }
 
-func (f *CellQueryEngine) compareBytes(dataSlice, queryValue []byte, operator Operator) (bool, error) {
-	comparison := bytes.Compare(dataSlice, queryValue)
+// passesCellFilter checks if payload passes a single byte filter
+func (b *queryBuilder[T]) passesCellFilter(payload []byte, filter query.CellFilter) bool {
+	// Check payload length
+	if uint(len(payload)) < filter.Offset+uint(len(filter.Value)) {
+		return false
+	}
 
-	switch operator {
-	case EQ:
-		return comparison == 0, nil
-	case NEQ:
-		return comparison != 0, nil
-	case GT:
-		return comparison > 0, nil
-	case GTE:
-		return comparison >= 0, nil
-	case LT:
-		return comparison < 0, nil
-	case LTE:
-		return comparison <= 0, nil
+	// Extract data slice
+	end := filter.Offset + uint(len(filter.Value))
+	if end > uint(len(payload)) {
+		return false
+	}
+
+	dataSlice := payload[filter.Offset:end]
+
+	// Apply comparison operator
+	switch filter.Operator {
+	case query.EQ:
+		return bytesEqual(dataSlice, filter.Value)
+	case query.NEQ:
+		return !bytesEqual(dataSlice, filter.Value)
+	case query.GT:
+		return bytesGreater(dataSlice, filter.Value)
+	case query.GTE:
+		return bytesGreater(dataSlice, filter.Value) || bytesEqual(dataSlice, filter.Value)
+	case query.LT:
+		return bytesLess(dataSlice, filter.Value)
+	case query.LTE:
+		return bytesLess(dataSlice, filter.Value) || bytesEqual(dataSlice, filter.Value)
 	default:
-		return false, fmt.Errorf("unsupported operator: %s", operator)
+		return false
 	}
 }
 
-func (f *CellQueryEngine) ApplySorting(logs []types.Log, sortBy []SortBy) {
-	if len(sortBy) == 0 {
+// applySorting sorts parsed logs according to the specified criteria
+func (b *queryBuilder[T]) applySorting(parsedLogs []types.TypedLog[T]) {
+	if len(b.options.SortBy) == 0 {
 		return
 	}
 
-	sort.Slice(logs, func(i, j int) bool {
-		for _, sortCriteria := range sortBy {
+	sort.Slice(parsedLogs, func(i, j int) bool {
+		for _, sortCriteria := range b.options.SortBy {
 			var cmp int
 
-			if sortCriteria.Field == SortByTxLT {
-				if logs[i].TxLT < logs[j].TxLT {
+			if sortCriteria.Field == query.SortByTxLT {
+				if parsedLogs[i].TxLT < parsedLogs[j].TxLT {
 					cmp = -1
-				} else if logs[i].TxLT > logs[j].TxLT {
+				} else if parsedLogs[i].TxLT > parsedLogs[j].TxLT {
 					cmp = 1
 				}
 			}
 
 			if cmp != 0 {
-				if sortCriteria.Order == DESC {
+				if sortCriteria.Order == query.DESC {
 					return cmp > 0
 				}
 				return cmp < 0
@@ -174,27 +240,69 @@ func (f *CellQueryEngine) ApplySorting(logs []types.Log, sortBy []SortBy) {
 	})
 }
 
-func (f *CellQueryEngine) ApplyPagination(logs []types.Log, limit, offset int) QueryResult {
-	totalCount := len(logs)
+// calculatePagination calculates start and end indices for pagination
+func (b *queryBuilder[T]) calculatePagination(totalCount int) (start, end int) {
+	start = 0
+	end = totalCount
 
-	if offset >= totalCount {
-		return QueryResult{
-			Logs:    []types.Log{},
-			HasMore: false,
-			Total:   totalCount,
+	if b.options.Offset > 0 {
+		start = b.options.Offset
+		if start > totalCount {
+			start = totalCount
 		}
 	}
 
-	start := offset
-	end := totalCount
-
-	if limit > 0 && start+limit < totalCount {
-		end = start + limit
+	if b.options.Limit > 0 {
+		limit := b.options.Limit
+		if start+limit < end {
+			end = start + limit
+		}
 	}
 
-	return QueryResult{
-		Logs:    logs[start:end],
-		HasMore: end < totalCount,
-		Total:   totalCount,
+	return start, end
+}
+
+// Helper functions for byte comparison
+func bytesEqual(a, b []byte) bool {
+	if len(a) != len(b) {
+		return false
 	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func bytesGreater(a, b []byte) bool {
+	minLen := len(a)
+	if len(b) < minLen {
+		minLen = len(b)
+	}
+
+	for i := 0; i < minLen; i++ {
+		if a[i] > b[i] {
+			return true
+		} else if a[i] < b[i] {
+			return false
+		}
+	}
+	return len(a) > len(b)
+}
+
+func bytesLess(a, b []byte) bool {
+	minLen := len(a)
+	if len(b) < minLen {
+		minLen = len(b)
+	}
+
+	for i := 0; i < minLen; i++ {
+		if a[i] < b[i] {
+			return true
+		} else if a[i] > b[i] {
+			return false
+		}
+	}
+	return len(a) < len(b)
 }

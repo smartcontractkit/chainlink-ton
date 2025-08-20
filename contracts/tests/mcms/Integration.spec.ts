@@ -220,6 +220,23 @@ describe('MCMS - IntegrationTest', () => {
 
       expect(await bind.ac.getHasRole(rbactl.roles.admin, acc.deployer.address)).toEqual(true)
       expect(await bind.ac.getRoleAdmin(rbactl.roles.admin)).toEqual(rbactl.roles.admin) // default admin role
+
+      // Add Timelock as ADMIN of self
+      const r1 = await bind.ac.sendInternal(
+        acc.deployer.getSender(),
+        toNano('0.05'),
+        ac.builder.message.in.grantRole.encode({
+          queryId: 1n,
+          role: rbactl.roles.admin,
+          account: bind.timelock.address,
+        }),
+      )
+
+      expect(r1.transactions).toHaveTransaction({
+        from: acc.deployer.address,
+        to: bind.ac.address,
+        success: true,
+      })
     }
 
     // Set up (deploy, configure) MCMS contracts and transfer ownership to Timelock
@@ -516,63 +533,65 @@ describe('MCMS - IntegrationTest', () => {
     expect(memberAddr).not.toBeNull()
     expect(memberAddr!).toEqualAddress(acc.deployer.address) // default admin role
 
+    let calls: Cell // vec<rbactl.Call>
+    let callsHash: bigint
     let proposePredecessor = 0n
 
     // increment twice through regular flow
-    const calls = asSnakeData<rbactl.Call>(
-      [
-        {
-          target: bind.counter.address,
-          value: toNano('0.05'),
-          data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
-        },
-        {
-          target: bind.counter.address,
-          value: toNano('0.05'),
-          data: counter.builder.message.in.increaseCount.encode({ queryId: 2n }),
-        },
-      ],
-      (c) => rbactl.builder.data.call.encode(c).asBuilder(),
-    )
+    {
+      calls = asSnakeData<rbactl.Call>(
+        [
+          {
+            target: bind.counter.address,
+            value: toNano('0.05'),
+            data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
+          },
+          {
+            target: bind.counter.address,
+            value: toNano('0.05'),
+            data: counter.builder.message.in.increaseCount.encode({ queryId: 2n }),
+          },
+        ],
+        (c) => rbactl.builder.data.call.encode(c).asBuilder(),
+      )
 
-    const operationBatch: rbactl.OperationBatch = {
-      calls,
-      predecessor: proposePredecessor,
-      salt: 0n,
-    }
-    const callsHash = await bind.timelock.getHashOperationBatch(operationBatch)
+      const operationBatch: rbactl.OperationBatch = {
+        calls,
+        predecessor: proposePredecessor,
+        salt: 0n,
+      }
+      callsHash = await bind.timelock.getHashOperationBatch(operationBatch)
 
-    const signers = proposerKeyPairs().map((v) => ({
-      publicKey: v.publicKey,
-      sign: (data: Buffer<ArrayBufferLike>) => sign(data, v.secretKey),
-    }))
-    const validUntil = BigInt(blockchain.now || 0) + 2n * 60n * 60n // block.timestamp + 2 hours
-    const metadata = {
-      chainId: -239n, // TODO: blockchain global chain ID (will need to be signed int)
-      multiSig: bind.mcmsPropose.address,
-      preOpCount: 0n,
-      postOpCount: 1n,
-      overridePreviousRoot: false,
-    }
-    const ops: mcms.Op[] = [
-      {
+      const signers = proposerKeyPairs().map((v) => ({
+        publicKey: v.publicKey,
+        sign: (data: Buffer<ArrayBufferLike>) => sign(data, v.secretKey),
+      }))
+      const validUntil = BigInt(blockchain.now || 0) + 2n * 60n * 60n // block.timestamp + 2 hours
+      const metadata = {
         chainId: -239n, // TODO: blockchain global chain ID (will need to be signed int)
         multiSig: bind.mcmsPropose.address,
-        nonce: 0n,
-        to: bind.timelock.address,
-        value: toNano('0.05'),
-        data: rbactl.builder.message.in.scheduleBatch.encode({
-          queryId: 1n,
-          calls,
-          predecessor: proposePredecessor,
-          salt: 0n,
-          delay: MIN_DELAY,
-        }),
-      },
-    ]
-    const [setRoot, opProofs] = merkleProof.build(signers, validUntil, metadata, ops)
+        preOpCount: 0n,
+        postOpCount: 1n,
+        overridePreviousRoot: false,
+      }
+      const ops: mcms.Op[] = [
+        {
+          chainId: -239n, // TODO: blockchain global chain ID (will need to be signed int)
+          multiSig: bind.mcmsPropose.address,
+          nonce: 0n,
+          to: bind.timelock.address,
+          value: toNano('0.05'),
+          data: rbactl.builder.message.in.scheduleBatch.encode({
+            queryId: 1n,
+            calls,
+            predecessor: proposePredecessor,
+            salt: 0n,
+            delay: MIN_DELAY,
+          }),
+        },
+      ]
+      const [setRoot, opProofs] = merkleProof.build(signers, validUntil, metadata, ops)
 
-    {
       const r = await bind.mcmsPropose.sendInternal(
         acc.deployer.getSender(),
         toNano('0.10'),
@@ -656,13 +675,592 @@ describe('MCMS - IntegrationTest', () => {
       })
 
       expect(await bind.counter.getValue()).toEqual(2)
-
-      proposePredecessor = callsHash
-
-      // TODO: https://github.com/smartcontractkit/ccip-owner-contracts/blob/main/test/IntegrationTest.t.sol
-      //
-      // again, increment twice through regular flow
-      //
     }
-  }, 10_000) // test can take a while
+
+    proposePredecessor = callsHash
+
+    //
+    // again, increment twice through regular flow
+    //
+    {
+      const signers = proposerKeyPairs().map((v) => ({
+        publicKey: v.publicKey,
+        sign: (data: Buffer<ArrayBufferLike>) => sign(data, v.secretKey),
+      }))
+      const validUntil = BigInt(blockchain.now || 0) + 2n * 60n * 60n // block.timestamp + 2 hours
+      const metadata = {
+        chainId: -239n, // TODO: blockchain global chain ID (will need to be signed int)
+        multiSig: bind.mcmsPropose.address,
+        preOpCount: 1n,
+        postOpCount: 2n,
+        overridePreviousRoot: false,
+      }
+      const ops: mcms.Op[] = [
+        {
+          chainId: -239n, // TODO: blockchain global chain ID (will need to be signed int)
+          multiSig: bind.mcmsPropose.address,
+          nonce: 1n,
+          to: bind.timelock.address,
+          value: toNano('0.05'),
+          data: rbactl.builder.message.in.scheduleBatch.encode({
+            queryId: 1n,
+            calls,
+            predecessor: proposePredecessor,
+            salt: 0n,
+            delay: MIN_DELAY,
+          }),
+        },
+      ]
+
+      const [setRoot, opProofs] = merkleProof.build(signers, validUntil, metadata, ops)
+
+      const r = await bind.mcmsPropose.sendInternal(
+        acc.deployer.getSender(),
+        toNano('0.10'),
+        mcms.builder.message.in.setRoot.encode(setRoot),
+      )
+
+      expect(r.transactions).toHaveTransaction({
+        from: acc.deployer.address,
+        to: bind.mcmsPropose.address,
+        success: true,
+      })
+
+      // TODO: move this encoding internally to lib
+      const encodeProof = (v) => beginCell().storeUint(v, 256)
+
+      const r1 = await bind.mcmsPropose.sendInternal(
+        acc.deployer.getSender(),
+        toNano('0.10'),
+        mcms.builder.message.in.execute.encode({
+          queryId: 1n,
+          op: mcms.builder.data.op.encode(ops[0]),
+          proof: asSnakeData<bigint>(opProofs[0], encodeProof),
+        }),
+      )
+
+      expect(r1.transactions).toHaveTransaction({
+        from: acc.deployer.address,
+        to: bind.mcmsPropose.address,
+        success: true,
+      })
+
+      blockchain.now = blockchain.now! + Number(MIN_DELAY)
+
+      // fails if predecessor isn't right
+      const r2 = await bind.callProxy.sendInternal(
+        acc.deployer.getSender(),
+        toNano('0.80'), // TODO: notice the gas value required to pass is higher b/c reserveToncoinsOnBalance (check)
+        rbactl.builder.message.in.executeBatch.encode({
+          queryId: 2n,
+          predecessor: proposePredecessor + 1n, // wrong predecessor
+          salt: 0n,
+          calls,
+        }),
+      )
+
+      expect(r2.transactions).toHaveTransaction({
+        from: acc.deployer.address,
+        to: bind.callProxy.address,
+        success: true,
+      })
+
+      expect(r2.transactions).toHaveTransaction({
+        from: bind.callProxy.address,
+        to: bind.timelock.address,
+        exitCode: rbactl.Errors.OperationNotReady,
+      })
+
+      // succeeds once we use right predecessor
+      const r3 = await bind.callProxy.sendInternal(
+        acc.deployer.getSender(),
+        toNano('0.80'), // TODO: notice the gas value required to pass is higher b/c reserveToncoinsOnBalance (check)
+        rbactl.builder.message.in.executeBatch.encode({
+          queryId: 3n,
+          predecessor: proposePredecessor,
+          salt: 0n,
+          calls,
+        }),
+      )
+
+      expect(r3.transactions).toHaveTransaction({
+        from: bind.callProxy.address,
+        to: bind.timelock.address,
+        success: true,
+      })
+
+      expect(await bind.counter.getValue()).toEqual(4)
+    }
+
+    proposePredecessor = callsHash
+
+    {
+      //
+      // halve minDelay from bypasser
+      //
+      const newDelay = Math.floor(Number(MIN_DELAY / 2n))
+      calls = asSnakeData<rbactl.Call>(
+        [
+          {
+            target: bind.timelock.address,
+            value: toNano('0.05'),
+            data: rbactl.builder.message.in.updateDelay.encode({ queryId: 1n, newDelay }),
+          },
+        ],
+        (c) => rbactl.builder.data.call.encode(c).asBuilder(),
+      )
+
+      const operationBatch: rbactl.OperationBatch = {
+        calls,
+        predecessor: proposePredecessor,
+        salt: 0n,
+      }
+      callsHash = await bind.timelock.getHashOperationBatch(operationBatch)
+
+      const signers = signerKeyPairs.map((v) => ({
+        publicKey: v.publicKey,
+        sign: (data: Buffer<ArrayBufferLike>) => sign(data, v.secretKey),
+      }))
+      const validUntil = BigInt(blockchain.now || 0) + 2n * 60n * 60n // block.timestamp + 2 hours
+      const metadata = {
+        chainId: -239n, // TODO: blockchain global chain ID (will need to be signed int)
+        multiSig: bind.mcmsBypass.address,
+        preOpCount: 0n,
+        postOpCount: 1n,
+        overridePreviousRoot: false,
+      }
+      const ops: mcms.Op[] = [
+        {
+          chainId: -239n, // TODO: blockchain global chain ID (will need to be signed int)
+          multiSig: bind.mcmsBypass.address,
+          nonce: 0n,
+          to: bind.timelock.address,
+          value: toNano('0.05'),
+          data: rbactl.builder.message.in.bypasserExecuteBatch.encode({ queryId: 1n, calls }),
+        },
+      ]
+
+      const [setRoot, opProofs] = merkleProof.build(signers, validUntil, metadata, ops)
+
+      const r = await bind.mcmsBypass.sendInternal(
+        acc.deployer.getSender(),
+        toNano('0.20'),
+        mcms.builder.message.in.setRoot.encode(setRoot),
+      )
+
+      expect(r.transactions).toHaveTransaction({
+        from: acc.deployer.address,
+        to: bind.mcmsBypass.address,
+        success: true,
+      })
+
+      // TODO: move this encoding internally to lib
+      const encodeProof = (v) => beginCell().storeUint(v, 256)
+
+      const r1 = await bind.mcmsBypass.sendInternal(
+        acc.deployer.getSender(),
+        toNano('0.10'),
+        mcms.builder.message.in.execute.encode({
+          queryId: 1n,
+          op: mcms.builder.data.op.encode(ops[0]),
+          proof: asSnakeData<bigint>(opProofs[0], encodeProof),
+        }),
+      )
+
+      expect(r1.transactions).toHaveTransaction({
+        from: acc.deployer.address,
+        to: bind.mcmsBypass.address,
+        success: true,
+      })
+
+      expect(r1.transactions).toHaveTransaction({
+        from: bind.mcmsBypass.address,
+        to: bind.timelock.address,
+        success: true,
+        op: rbactl.opcodes.in.BypasserExecuteBatch,
+      })
+
+      expect(r1.transactions).toHaveTransaction({
+        from: bind.timelock.address,
+        to: bind.timelock.address,
+        success: true,
+        op: rbactl.opcodes.in.UpdateDelay,
+      })
+
+      expect(await bind.timelock.getMinDelay()).toEqual(BigInt(newDelay))
+    }
+
+    {
+      //
+      // propose a malicious timelock owner, who is then vetoed
+      //
+      const evil = Address.parse('UQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJKZ')
+
+      {
+        // Notice: we need to add funds or test fails with 'Not enough Toncoin'
+        const body = mcms.builder.message.in.topUp.encode({ queryId: 1n })
+        const r = await bind.mcmsPropose.sendInternal(
+          acc.deployer.getSender(),
+          toNano('1.00'),
+          body,
+        )
+        expect(r.transactions).toHaveTransaction({
+          from: acc.deployer.address,
+          to: bind.mcmsPropose.address,
+          success: true,
+        })
+      }
+
+      calls = asSnakeData<rbactl.Call>(
+        [
+          {
+            target: bind.timelock.address,
+            value: toNano('0.05'),
+            data: ac.builder.message.in.grantRole.encode({
+              queryId: 1n,
+              role: rbactl.roles.admin,
+              account: evil,
+            }),
+          },
+        ],
+        (c) => rbactl.builder.data.call.encode(c).asBuilder(),
+      )
+
+      const operationBatch: rbactl.OperationBatch = {
+        calls,
+        predecessor: proposePredecessor,
+        salt: 0n,
+      }
+      callsHash = await bind.timelock.getHashOperationBatch(operationBatch)
+
+      const signers = proposerKeyPairs().map((v) => ({
+        publicKey: v.publicKey,
+        sign: (data: Buffer<ArrayBufferLike>) => sign(data, v.secretKey),
+      }))
+      const validUntil = BigInt(blockchain.now || 0) + 2n * 60n * 60n // block.timestamp + 2 hours
+      const metadata = {
+        chainId: -239n, // TODO: blockchain global chain ID (will need to be signed int)
+        multiSig: bind.mcmsPropose.address,
+        preOpCount: 2n,
+        postOpCount: 3n,
+        overridePreviousRoot: false,
+      }
+      const ops: mcms.Op[] = [
+        {
+          chainId: -239n, // TODO: blockchain global chain ID (will need to be signed int)
+          multiSig: bind.mcmsPropose.address,
+          nonce: 2n,
+          to: bind.timelock.address,
+          value: toNano('0.05'),
+          data: rbactl.builder.message.in.scheduleBatch.encode({
+            queryId: 1n,
+            calls,
+            predecessor: proposePredecessor,
+            salt: 0n,
+            delay: MIN_DELAY,
+          }),
+        },
+      ]
+
+      const [setRoot, opProofs] = merkleProof.build(signers, validUntil, metadata, ops)
+
+      const r = await bind.mcmsPropose.sendInternal(
+        acc.deployer.getSender(),
+        toNano('0.20'),
+        mcms.builder.message.in.setRoot.encode(setRoot),
+      )
+
+      expect(r.transactions).toHaveTransaction({
+        from: acc.deployer.address,
+        to: bind.mcmsPropose.address,
+        success: true,
+      })
+
+      // TODO: move this encoding internally to lib
+      const encodeProof = (v) => beginCell().storeUint(v, 256)
+
+      const r1 = await bind.mcmsPropose.sendInternal(
+        acc.deployer.getSender(),
+        toNano('0.10'),
+        mcms.builder.message.in.execute.encode({
+          queryId: 1n,
+          op: mcms.builder.data.op.encode(ops[0]),
+          proof: asSnakeData<bigint>(opProofs[0], encodeProof),
+        }),
+      )
+
+      expect(r1.transactions).toHaveTransaction({
+        from: acc.deployer.address,
+        to: bind.mcmsPropose.address,
+        success: true,
+      })
+
+      const r2 = await bind.callProxy.sendInternal(
+        acc.deployer.getSender(),
+        toNano('0.10'),
+        rbactl.builder.message.in.executeBatch.encode({
+          queryId: 1n,
+          predecessor: proposePredecessor,
+          salt: 0n,
+          calls,
+        }),
+      )
+
+      expect(r2.transactions).toHaveTransaction({
+        from: bind.callProxy.address,
+        to: bind.timelock.address,
+        success: false,
+        exitCode: rbactl.Errors.OperationNotReady,
+      })
+
+      blockchain.now = blockchain.now! + Number(MIN_DELAY) / 4
+
+      {
+        const signers = vetoKeyPairs().map((v) => ({
+          publicKey: v.publicKey,
+          sign: (data: Buffer<ArrayBufferLike>) => sign(data, v.secretKey),
+        }))
+        const validUntil = BigInt(blockchain.now || 0) + 2n * 60n * 60n // block.timestamp + 2 hours
+        const metadata = {
+          chainId: -239n, // TODO: blockchain global chain ID (will need to be signed int)
+          multiSig: bind.mcmsVeto.address,
+          preOpCount: 0n,
+          postOpCount: 1n,
+          overridePreviousRoot: false,
+        }
+        const ops: mcms.Op[] = [
+          {
+            chainId: -239n, // TODO: blockchain global chain ID (will need to be signed int)
+            multiSig: bind.mcmsVeto.address,
+            nonce: 0n,
+            to: bind.timelock.address,
+            value: toNano('0.05'),
+            data: rbactl.builder.message.in.cancel.encode({ queryId: 1n, id: callsHash }),
+          },
+        ]
+
+        const [setRoot, opProofs] = merkleProof.build(signers, validUntil, metadata, ops)
+
+        const r = await bind.mcmsVeto.sendInternal(
+          acc.deployer.getSender(),
+          toNano('0.10'),
+          mcms.builder.message.in.setRoot.encode(setRoot),
+        )
+
+        expect(r.transactions).toHaveTransaction({
+          from: acc.deployer.address,
+          to: bind.mcmsVeto.address,
+          success: true,
+        })
+
+        // TODO: move this encoding internally to lib
+        const encodeProof = (v) => beginCell().storeUint(v, 256)
+
+        const r1 = await bind.mcmsVeto.sendInternal(
+          acc.deployer.getSender(),
+          toNano('0.10'),
+          mcms.builder.message.in.execute.encode({
+            queryId: 1n,
+            op: mcms.builder.data.op.encode(ops[0]),
+            proof: asSnakeData<bigint>(opProofs[0], encodeProof),
+          }),
+        )
+
+        expect(r1.transactions).toHaveTransaction({
+          from: acc.deployer.address,
+          to: bind.mcmsVeto.address,
+          success: true,
+        })
+
+        // TODO: verify emit Cancelled(callsHash);
+
+        blockchain.now = blockchain.now! + Number(MIN_DELAY)
+
+        const r2 = await bind.callProxy.sendInternal(
+          acc.deployer.getSender(),
+          toNano('0.10'),
+          rbactl.builder.message.in.executeBatch.encode({
+            queryId: 1n,
+            predecessor: proposePredecessor,
+            salt: 0n,
+            calls,
+          }),
+        )
+
+        expect(r2.transactions).toHaveTransaction({
+          from: bind.callProxy.address,
+          to: bind.timelock.address,
+          success: false,
+          exitCode: rbactl.Errors.OperationNotReady,
+        })
+      }
+    }
+
+    {
+      //
+      // decrease quorum for vetoers & proposers
+      //
+
+      calls = asSnakeData<rbactl.Call>(
+        [
+          {
+            target: bind.mcmsPropose.address,
+            value: toNano('0.2'),
+            data: mcms.builder.message.in.setConfig.encode({
+              queryId: 1n,
+              signerKeys: asSnakeData<bigint>(
+                proposerKeyPairs().map((v) => uint8ArrayToBigInt(v.publicKey)),
+                (v) => beginCell().storeUint(v, 256),
+              ),
+              signerGroups: asSnakeData<number>(Array(PROPOSE_COUNT).fill(0), (v) =>
+                beginCell().storeUint(v, 8),
+              ),
+              groupQuorums: loadMap(
+                Dictionary.Keys.Uint(8),
+                Dictionary.Values.Uint(8),
+                new Map(Array.from({ length: MCMS_NUM_GROUPS }, (_, i) => [i, 0])).set(
+                  0,
+                  PROPOSE_QUORUM - 1,
+                ),
+              ),
+              groupParents: loadMap(
+                Dictionary.Keys.Uint(8),
+                Dictionary.Values.Uint(8),
+                new Map(Array.from({ length: MCMS_NUM_GROUPS }, (_, i) => [i, 0])),
+              ),
+              clearRoot: false,
+            }),
+          },
+          {
+            target: bind.mcmsVeto.address,
+            value: toNano('0.2'),
+            data: mcms.builder.message.in.setConfig.encode({
+              queryId: 1n,
+              signerKeys: asSnakeData<bigint>(
+                vetoKeyPairs().map((v) => uint8ArrayToBigInt(v.publicKey)),
+                (v) => beginCell().storeUint(v, 256),
+              ),
+              signerGroups: asSnakeData<number>(Array(VETO_COUNT).fill(0), (v) =>
+                beginCell().storeUint(v, 8),
+              ),
+              groupQuorums: loadMap(
+                Dictionary.Keys.Uint(8),
+                Dictionary.Values.Uint(8),
+                new Map(Array.from({ length: MCMS_NUM_GROUPS }, (_, i) => [i, 0])).set(
+                  0,
+                  VETO_QUORUM - 1,
+                ),
+              ),
+              groupParents: loadMap(
+                Dictionary.Keys.Uint(8),
+                Dictionary.Values.Uint(8),
+                new Map(Array.from({ length: MCMS_NUM_GROUPS }, (_, i) => [i, 0])),
+              ),
+              clearRoot: false,
+            }),
+          },
+        ],
+        (c) => rbactl.builder.data.call.encode(c).asBuilder(),
+      )
+
+      const operationBatch: rbactl.OperationBatch = {
+        calls,
+        predecessor: proposePredecessor,
+        salt: 0n,
+      }
+      callsHash = await bind.timelock.getHashOperationBatch(operationBatch)
+
+      const signers = proposerKeyPairs().map((v) => ({
+        publicKey: v.publicKey,
+        sign: (data: Buffer<ArrayBufferLike>) => sign(data, v.secretKey),
+      }))
+      const validUntil = BigInt(blockchain.now || 0) + 2n * 60n * 60n // block.timestamp + 2 hours
+      const metadata = {
+        chainId: -239n, // TODO: blockchain global chain ID (will need to be signed int)
+        multiSig: bind.mcmsPropose.address,
+        preOpCount: 3n,
+        postOpCount: 4n,
+        overridePreviousRoot: false,
+      }
+      const ops: mcms.Op[] = [
+        {
+          chainId: -239n, // TODO: blockchain global chain ID (will need to be signed int)
+          multiSig: bind.mcmsPropose.address,
+          nonce: 3n,
+          to: bind.timelock.address,
+          value: toNano('0.05'),
+          data: rbactl.builder.message.in.scheduleBatch.encode({
+            queryId: 1n,
+            calls,
+            predecessor: proposePredecessor,
+            salt: 0n,
+            delay: MIN_DELAY,
+          }),
+        },
+      ]
+
+      const [setRoot, opProofs] = merkleProof.build(signers, validUntil, metadata, ops)
+
+      const r = await bind.mcmsPropose.sendInternal(
+        acc.deployer.getSender(),
+        toNano('0.10'),
+        mcms.builder.message.in.setRoot.encode(setRoot),
+      )
+
+      expect(r.transactions).toHaveTransaction({
+        from: acc.deployer.address,
+        to: bind.mcmsPropose.address,
+        success: true,
+      })
+
+      // TODO: move this encoding internally to lib
+      const encodeProof = (v) => beginCell().storeUint(v, 256)
+
+      const r1 = await bind.mcmsPropose.sendInternal(
+        acc.deployer.getSender(),
+        toNano('0.10'),
+        mcms.builder.message.in.execute.encode({
+          queryId: 1n,
+          op: mcms.builder.data.op.encode(ops[0]),
+          proof: asSnakeData<bigint>(opProofs[0], encodeProof),
+        }),
+      )
+
+      expect(r1.transactions).toHaveTransaction({
+        from: acc.deployer.address,
+        to: bind.mcmsPropose.address,
+        success: true,
+      })
+
+      blockchain.now = blockchain.now! + Number(MIN_DELAY)
+
+      const r2 = await bind.callProxy.sendInternal(
+        acc.deployer.getSender(),
+        toNano('0.80'), // TODO: notice the gas value required to pass is higher b/c reserveToncoinsOnBalance (check)
+        rbactl.builder.message.in.executeBatch.encode({
+          queryId: 2n,
+          predecessor: proposePredecessor,
+          salt: 0n,
+          calls,
+        }),
+      )
+
+      expect(r2.transactions).toHaveTransaction({
+        from: acc.deployer.address,
+        to: bind.callProxy.address,
+        success: true,
+      })
+
+      expect(r2.transactions).toHaveTransaction({
+        from: bind.callProxy.address,
+        to: bind.timelock.address,
+        success: true,
+      })
+
+      expect((await bind.mcmsPropose.getConfig()).groupQuorums.get(0)).toEqual(PROPOSE_QUORUM - 1)
+      expect((await bind.mcmsVeto.getConfig()).groupQuorums.get(0)).toEqual(VETO_QUORUM - 1)
+    }
+
+    proposePredecessor = callsHash
+  }, 20_000) // test can take a while
 })

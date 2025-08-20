@@ -28,7 +28,7 @@ type TONAccessor struct {
 	lggr          logger.Logger
 	chainSelector ccipocr3.ChainSelector
 	client        ton.APIClientWrapped
-	logPoller     logpoller.LogPoller
+	logPoller     logpoller.Service
 	bindings      map[string]*address.Address
 	bindingsMu    sync.RWMutex
 	addrCodec     ccipocr3.ChainSpecificAddressCodec
@@ -40,7 +40,7 @@ func NewTONAccessor(
 	lggr logger.Logger,
 	chainSelector ccipocr3.ChainSelector,
 	client ton.APIClientWrapped,
-	logPoller logpoller.LogPoller,
+	logPoller logpoller.Service,
 	addrCodec ccipocr3.ChainSpecificAddressCodec,
 ) (ccipocr3.ChainAccessor, error) {
 	// TODO: validate state of client and logPoller (should be initialized in NewChain)
