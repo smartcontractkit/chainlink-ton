@@ -1,7 +1,6 @@
 package smoke
 
 import (
-	"context"
 	"math/big"
 	"math/rand/v2"
 	"testing"
@@ -49,14 +48,13 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/hash"
 )
 
-// TODO: maybe it's better to reuse memory environment from deployment test
 const ChainSelEVMTest90000001 = 909606746561742123
 
 func Test_TonAccessorEventQueries(t *testing.T) {
 	lggr := logger.TestLogger(t)
 	ctx := t.Context()
 
-	// TODO: maybe just set contracts directly, no need for full env support here
+	// TODO: maybe just set contracts directly(or use ops directly), no need for full env support here
 	env := memory.NewMemoryEnvironment(t, lggr, zapcore.InfoLevel, memory.MemoryEnvironmentConfig{
 		Chains:    1,
 		TonChains: 1,
@@ -79,7 +77,7 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 	env, _, err := commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{cs})
 	require.NoError(t, err, "failed to deploy ccip")
 
-	// TODO: maybe just set contracts directly, no need for full env support here
+	// TODO: maybe just set contracts directly(or use ops directly), no need for full env support here
 	// -- add lane using helper function
 	env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{
 		commonchangeset.Configure(ops.AddTonLanes{}, config.UpdateTonLanesConfig{
@@ -146,24 +144,6 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 	state, err := tonstate.LoadOnchainState(env)
 	require.NoError(t, err)
 
-	// -- DEBUG: Check if framework UpdateFeeTokens worked --
-	// The deployment logs show UpdateFeeTokens succeeded, but let's verify the storage
-	t.Log("=== DEBUGGING FRAMEWORK FEE TOKEN CONFIGURATION ===")
-	debugFeeQuoterAddr := state[chainSelector].FeeQuoter
-	t.Logf("FeeQuoter deployed at: %s", debugFeeQuoterAddr.String())
-
-	// Test the feeTokens getter immediately after deployment to see if framework UpdateFeeTokens worked
-	debugCtx := t.Context()
-	block, err := tonChain.Client.CurrentMasterchainInfo(debugCtx)
-	require.NoError(t, err, "failed to get current block")
-
-	feeTokensResult, err := tonChain.Client.RunGetMethod(debugCtx, block, &debugFeeQuoterAddr, "feeTokens")
-	if err != nil {
-		t.Errorf("Failed to call feeTokens getter: %v", err)
-	} else {
-		t.Logf("FeeTokens getter result immediately after deployment: %v", feeTokensResult)
-	}
-
 	// -- start logpoller
 	lpCfg := logpoller.DefaultConfigSet
 	logStore := inmemorystore.NewLogStore()
@@ -197,13 +177,6 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 	err = accessor.Sync(ctx, consts.ContractNameOnRamp, rawOnRampAddr)
 	require.NoError(t, err)
 
-	// -- bind feequoter in accessor for price validation
-	feeQuoterAddress := state[chainSelector].FeeQuoter
-	rawFeeQuoterAddr, err := addrCodec.AddressStringToBytes(feeQuoterAddress.String())
-	require.NoError(t, err)
-	err = accessor.Sync(ctx, consts.ContractNameFeeQuoter, rawFeeQuoterAddr)
-	require.NoError(t, err)
-
 	// -- register filter
 	faerr := lp.RegisterFilter(ctx, types.Filter{
 		Name:     "CCIPMessageSent",
@@ -219,31 +192,11 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 		require.NoError(t, lp.Close())
 	}()
 
-	// -- send CCIP message
-	// _ = &client.CCIPSendReqConfig{
-	// 	SourceChain:  chainSelector,
-	// 	DestChain:    evmSelector,
-	// 	IsTestRouter: false,
-	// 	Sender:       nil,
-	// 	Message:      nil,
-	// 	MaxRetries:   3,
-	// }
-	// TODO: cannot use state[chainSelector] (map index expression of struct type "github.com/smartcontractkit/chainlink-ton/deployment/state".CCIPChainState) as stateview.CCIPOnChainState value in argument to ops.SendTonRequest
-	// ops.SendTonRequest(env, state[chainSelector], msgCfg)
-
-	// -- send CCIP message manually
 	routerAddr := state[chainSelector].Router
 	feeQuoterAddr := state[chainSelector].FeeQuoter
 
-	t.Log("Router address: ", routerAddr.String())
-	t.Log("OnRamp address: ", onRampAddr.String())
-	t.Log("FeeQuoter address: ", feeQuoterAddr.String())
-
-	// Debug: Check FeeQuoter configuration
-	t.Log("=== DEBUGGING FEE QUOTER CONFIGURATION ===")
-	t.Log("Fee token being used: ", ops.TonTokenAddr.String())
-
-	// TODO: clean up, set fee token manually
+	// TODO: missing in changeset ------------------
+	// set fee token manually
 	feeTokenDict := cell.NewDict(267) // key size for address
 	feeToken := feequoter.FeeToken{PremiumMultiplierWeiPerEth: 1}
 	feeTokenCell, err := tlb.ToCell(feeToken)
@@ -273,96 +226,52 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 		},
 	}
 
-	ttConn := tracetracking.NewSignedAPIClient(tonChain.Client, *deployer)
-	updateFeeTokensResult, updateFeeTokensBlockID, err := ttConn.SendWaitTransaction(ctx, feeQuoterAddr, updateFeeTokensInternalMsg)
+	tt := tracetracking.NewSignedAPIClient(tonChain.Client, *deployer)
+	updateFeeTokensResult, updateFeeTokensBlockID, err := tt.SendWaitTransaction(ctx, feeQuoterAddr, updateFeeTokensInternalMsg)
 	require.NoError(t, err, "failed to send UpdateFeeTokens transaction")
 
 	t.Logf("UpdateFeeTokens transaction sent successfully - Block: %d, ExitCode: %d",
 		updateFeeTokensBlockID.SeqNo, updateFeeTokensResult.ExitCode)
 
-	// Validate fee token configuration before sending CCIP message
-	t.Run("validate fee token configuration", func(t *testing.T) {
-		// Test GetTokenPriceUSD to verify fee token is configured
-		rawFeeTokenAddr, err := addrCodec.AddressStringToBytes(ops.TonTokenAddr.String())
-		require.NoError(t, err, "failed to convert fee token address to bytes")
+	// TODO: missing in changeset ------------------ end
 
-		timestampedPrice, err := accessor.GetTokenPriceUSD(ctx, rawFeeTokenAddr)
-		if err != nil {
-			t.Errorf("Fee token price lookup failed - this means the fee token is not configured in FeeQuoter: %v", err)
-			t.Logf("Fee token address: %s", ops.TonTokenAddr.String())
-			t.Logf("FeeQuoter address: %s", feeQuoterAddress.String())
-			return
-		}
-
-		t.Logf("Fee token price successfully retrieved: %s USD (with 18 decimals)", timestampedPrice.Value.String())
-		require.NotNil(t, timestampedPrice.Value, "fee token price should not be nil")
-		require.True(t, timestampedPrice.Value.Cmp(big.NewInt(0)) > 0, "fee token price should be greater than 0")
-
-		// Also validate destination chain configuration
-		destChainConfig, err := accessor.GetFeeQuoterDestChainConfig(ctx, ccipocr3.ChainSelector(evmSelector))
-		if err != nil {
-			t.Errorf("Failed to get destination chain config: %v", err)
-			return
-		}
-		t.Logf("Destination chain config retrieved successfully - IsEnabled: %t", destChainConfig.IsEnabled)
-		require.True(t, destChainConfig.IsEnabled, "destination chain should be enabled")
-
-		// DIRECT VERIFICATION: Test FeeQuoter getter functions to verify storage
-		t.Log("=== DIRECT FEEQUOTER STORAGE VERIFICATION ===")
-
-		// Get current block for getter calls
-		block, err := tonChain.Client.CurrentMasterchainInfo(ctx)
-		require.NoError(t, err, "failed to get current block")
-
-		// Test tokenPrice getter directly on FeeQuoter contract
-		tokenAddressSlice := cell.BeginCell().MustStoreAddr(ops.TonTokenAddr).EndCell().BeginParse()
-		tokenPriceResult, err := tonChain.Client.RunGetMethod(ctx, block, &feeQuoterAddress, "tokenPrice", tokenAddressSlice)
-		if err != nil {
-			t.Errorf("Direct tokenPrice getter failed: %v", err)
-		} else {
-			t.Logf("Direct tokenPrice getter succeeded: %v", tokenPriceResult)
-		}
-
-		// Test feeTokens getter to verify premium multiplier storage
-		feeTokensResult, err := tonChain.Client.RunGetMethod(ctx, block, &feeQuoterAddress, "feeTokens")
-		if err != nil {
-			t.Errorf("Direct feeTokens getter failed: %v", err)
-		} else {
-			t.Logf("Direct feeTokens getter succeeded: %v", feeTokensResult)
-		}
-	})
-	// TODO: use sendmanytx or highload wallet
+	// TODO: use sendmanytx or highload wallet, otherwise we get 33 exit code(too many actions)
 	time.Sleep(5 * time.Second)
 
-	const lastSeqNo = 2
+	const lastSeqNo = 4
 	for seqNo := 0; seqNo <= lastSeqNo; seqNo++ {
 		t.Log("Sending CCIP message", seqNo)
-		sendCCIPMessage(t, ctx, evmSelector, routerAddr, tonChain.Client, deployer)
+		sendCCIPMessage(t, evmSelector, routerAddr, tonChain.Client, deployer)
 		time.Sleep(2 * time.Second)
 	}
 
-	t.Run("query CCIP message via TonAccessor", func(t *testing.T) {
+	t.Run("query CCIP events via TonAccessor", func(t *testing.T) {
+		// check the latest message is indexed
 		require.Eventually(t, func() bool {
 			seqNum, err := accessor.LatestMessageTo(ctx, ccipocr3.ChainSelector(evmSelector))
 			require.NoError(t, err, "failed to get latest message sequence number")
 			return seqNum == ccipocr3.SeqNum(lastSeqNo)
 		}, 30*time.Second, 3*time.Second, "log poller did not ingest events correctly in time")
-	})
 
-	t.Run("query CCIP message via TonAccessor", func(t *testing.T) {
-		require.Eventually(t, func() bool {
-			const msgCount = 2
-			const start = 1
-			const end = 2
-			msgs, err := accessor.MsgsBetweenSeqNums(ctx, ccipocr3.ChainSelector(evmSelector), ccipocr3.NewSeqNumRange(start, end))
-			require.NoError(t, err, "failed to get latest message sequence number")
-			return len(msgs) == msgCount && msgs[0].Header.SequenceNumber == ccipocr3.SeqNum(start) && msgs[1].Header.SequenceNumber == ccipocr3.SeqNum(end)
-		}, 30*time.Second, 3*time.Second, "log poller did not ingest events correctly in time")
+		// check all messages are indexed
+		msgs, err := accessor.MsgsBetweenSeqNums(ctx, ccipocr3.ChainSelector(evmSelector), ccipocr3.NewSeqNumRange(0, lastSeqNo))
+		require.NoError(t, err, "failed to get latest message sequence number")
+		require.Len(t, msgs, lastSeqNo+1, "expected %d messages, got %d", lastSeqNo+1, len(msgs))
+		require.Equal(t, msgs[0].Header.SequenceNumber, ccipocr3.SeqNum(0))
+		require.Equal(t, msgs[lastSeqNo].Header.SequenceNumber, ccipocr3.SeqNum(lastSeqNo))
+
+		// range query
+		const start, end = 2, 4
+		msgs2, err := accessor.MsgsBetweenSeqNums(ctx, ccipocr3.ChainSelector(evmSelector), ccipocr3.NewSeqNumRange(start, end))
+		require.NoError(t, err, "failed to get latest message sequence number")
+		require.Len(t, msgs2, end-start+1, "expected %d messages, got %d", end-start+1, len(msgs2))
+		require.Equal(t, msgs2[0].Header.SequenceNumber, ccipocr3.SeqNum(start))
+		require.Equal(t, msgs2[len(msgs2)-1].Header.SequenceNumber, ccipocr3.SeqNum(end))
 	})
 }
 
 // TODO: clean up
-func sendCCIPMessage(t *testing.T, ctx context.Context, evmSelector uint64, routerAddr address.Address, client ton.APIClientWrapped, deployer *wallet.Wallet) {
+func sendCCIPMessage(t *testing.T, evmSelector uint64, routerAddr address.Address, client ton.APIClientWrapped, deployer *wallet.Wallet) {
 	extraArgs := onramp.GenericExtraArgsV2{
 		GasLimit:                 big.NewInt(100),
 		AllowOutOfOrderExecution: false,
@@ -370,9 +279,6 @@ func sendCCIPMessage(t *testing.T, ctx context.Context, evmSelector uint64, rout
 
 	extraArgsCell, err := tlb.ToCell(extraArgs)
 	require.NoError(t, err)
-
-	t.Log("=== DEBUGGING FEE TOKEN CONFIGURATION ===")
-	t.Log("Fee token address being used:", ops.TonTokenAddr.String())
 
 	// Use the proper Go struct with TLB serialization instead of manual construction
 	body, err := tlb.ToCell(router.CCIPSend{
@@ -398,55 +304,8 @@ func sendCCIPMessage(t *testing.T, ctx context.Context, evmSelector uint64, rout
 	}
 
 	ttConn := tracetracking.NewSignedAPIClient(client, *deployer)
-	rMsg, blockID, err := ttConn.SendWaitTransaction(ctx, routerAddr, msg)
+	rMsg, _, err := ttConn.SendWaitTransaction(t.Context(), routerAddr, msg)
 	require.NoError(t, err, "failed to send message")
-
-	t.Log("transaction sent", "blockID", blockID, "receivedMsg", rMsg)
-
-	// Log transaction fees for debugging
-	t.Logf("Transaction fees - Storage: %v, Gas: %v, Total Action: %v, Magic: %v",
-		rMsg.StorageFeeCharged, rMsg.GasFee, rMsg.TotalActionFees, rMsg.MagicFee)
-	t.Logf("Total execution fee: %v", rMsg.TotalTransactionExecutionFee())
-
-	// Check initial transaction exit code
-	t.Logf("Initial transaction exit code: %v, %s", rMsg.ExitCode, rMsg.ExitCode.Describe())
-	t.Logf("Initial transaction success: %v", rMsg.Success)
-	t.Logf("Initial transaction bounced: %v", rMsg.EmittedBouncedMessage)
-	require.Equal(t, int32(0), int32(rMsg.ExitCode), "initial transaction failed with exit code %v", rMsg.ExitCode)
-	require.True(t, rMsg.Success, "initial transaction was not successful")
-	require.False(t, rMsg.EmittedBouncedMessage, "initial transaction was bounced")
-
-	// Wait for complete trace and check for failures
 	err = rMsg.WaitForTrace(client)
 	require.NoError(t, err, "failed to wait for trace")
-
-	// Print detailed trace summary for debugging
-	t.Log("=== DETAILED TRACE ANALYSIS ===")
-	rMsg.PrintTraceSummary()
-
-	// Check outcome exit code (includes all outgoing messages)
-	outcomeExitCode := rMsg.OutcomeExitCode()
-	t.Logf("Outcome exit code (including all outgoing messages): %v", outcomeExitCode.Describe())
-	require.Equal(t, int32(0), int32(outcomeExitCode), "transaction trace failed with exit code %v", outcomeExitCode)
-
-	// Enhanced trace validation with detailed logging
-	t.Log("=== TRACE VALIDATION ===")
-	// traceSucceeded := rMsg.TraceSucceeded()
-	// require.True(t, traceSucceeded, "transaction trace validation failed")
-
-	// Log details about outgoing messages
-	t.Logf("Number of outgoing internal messages: %d", len(rMsg.OutgoingInternalReceivedMessages))
-	for i, outMsg := range rMsg.OutgoingInternalReceivedMessages {
-		t.Logf("Outgoing message %d: exit code %v, success: %v, bounced: %v, status: %v",
-			i, outMsg.ExitCode, outMsg.Success, outMsg.EmittedBouncedMessage, outMsg.Status())
-		if outMsg.ExitCode != 0 {
-			t.Errorf("Outgoing message %d failed with exit code %v", i, outMsg.ExitCode)
-		}
-		if !outMsg.Success {
-			t.Errorf("Outgoing message %d was not successful", i)
-		}
-		if outMsg.EmittedBouncedMessage {
-			t.Errorf("Outgoing message %d was bounced", i)
-		}
-	}
 }

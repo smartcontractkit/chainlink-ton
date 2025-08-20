@@ -33,9 +33,11 @@ type TONAccessor struct {
 	chainSelector ccipocr3.ChainSelector
 	client        ton.APIClientWrapped
 	logPoller     logpoller.Service
-	bindings      map[string]*address.Address
-	bindingsMu    sync.RWMutex
-	addrCodec     ccipocr3.ChainSpecificAddressCodec
+	// Note: we might need to update this in the future to map[string][]address.Address
+	// to support multi-bind addresses for the price aggregator contract: smartcontractkit/chainlink-ccip@main/pkg/contractreader/extended.go#L77-L79
+	bindings   map[string]*address.Address
+	bindingsMu sync.RWMutex
+	addrCodec  ccipocr3.ChainSpecificAddressCodec
 }
 
 var _ ccipocr3.ChainAccessor = (*TONAccessor)(nil)
@@ -198,6 +200,21 @@ func (a *TONAccessor) MsgsBetweenSeqNums(ctx context.Context, dest ccipocr3.Chai
 		return nil, fmt.Errorf("OnRamp not bound: %w", err)
 	}
 
+	// 	CCIPMessageSent {
+	//   Message: TVM2AnyRampMessage (in reference cell) {
+	//     Header: RampMessageHeader {
+	//       MessageID: 256 bits
+	//       SourceChainSelector: 64 bits
+	//       DestChainSelector: 64 bits    <- offset: 40
+	//       SequenceNumber: 64 bits       <- offset: 48
+	//       Nonce: 64 bits
+	//     }
+	//     Sender: address
+	//     Body: TVM2AnyRampMessageBody (in reference)
+	//     FeeValueJuels: 96 bits
+	//   }
+	// }
+
 	// query TON logs
 	res, err := logpoller.NewQuery[onramp.CCIPMessageSent](onrampAddr, hash.CRC32("CCIPMessageSent")).
 		WithCellFilter(query.CellFilter{
@@ -259,12 +276,12 @@ func (a *TONAccessor) MsgsBetweenSeqNums(ctx context.Context, dest ccipocr3.Chai
 		"sourceChainSelector", a.chainSelector,
 		"seqNumRange", seqNumRange.String(),
 	)
+
 	// Create message ID strings for logging
 	msgIDs := make([]string, len(msgsWithoutDataField))
 	for i, m := range msgsWithoutDataField {
 		msgIDs[i] = fmt.Sprintf("%d.%d", m.Header.SequenceNumber, m.Header.MessageID)
 	}
-
 	a.lggr.Infow("decoded message IDs between sequence numbers",
 		"seqNum.MsgID", msgIDs,
 		"sourceChainSelector", a.chainSelector,
@@ -280,20 +297,6 @@ func (a *TONAccessor) LatestMessageTo(ctx context.Context, dest ccipocr3.ChainSe
 		return 0, fmt.Errorf("OnRamp not bound: %w", err)
 	}
 
-	// 	CCIPMessageSent {
-	//   Message: TVM2AnyRampMessage (in reference cell) {
-	//     Header: RampMessageHeader {
-	//       MessageID: 256 bits
-	//       SourceChainSelector: 64 bits
-	//       DestChainSelector: 64 bits    <- This is what we want to filter on
-	//       SequenceNumber: 64 bits       <- This is what we want to filter on
-	//       Nonce: 64 bits
-	//     }
-	//     Sender: address
-	//     Body: TVM2AnyRampMessageBody (in reference)
-	//     FeeValueJuels: 96 bits
-	//   }
-	// }
 	res, err := logpoller.NewQuery[onramp.CCIPMessageSent](onrampAddr, hash.CRC32("CCIPMessageSent")).
 		WithCellFilter(query.CellFilter{
 			Offset:   40, // DestChainSelector is at offset 40 in the referenced message cell
