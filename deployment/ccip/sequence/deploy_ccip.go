@@ -18,6 +18,7 @@ type DeployCCIPSeqOutput struct {
 	FeeQuoterAddress *address.Address
 	OnRampAddress    *address.Address
 	OffRampAddress   *address.Address
+	Transactions     [][]byte
 }
 
 var DeployCCIPSequence = operations.NewSequence(
@@ -29,6 +30,8 @@ var DeployCCIPSequence = operations.NewSequence(
 
 // TODO: make idempotent by only deploying if address not yet set?
 func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCCIPSeqInput) (DeployCCIPSeqOutput, error) {
+	// TODO: don't directly execute deployments, instead return them as txs
+
 	// Initialize the output
 	output := DeployCCIPSeqOutput{}
 
@@ -50,7 +53,6 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 		return output, err
 	}
 	output.FeeQuoterAddress = deployFeeQuoterReport.Output.Address
-	// TODO: FeeTokens/PremiumMultiplierWeiPerEthByFeeToken params
 
 	onrampInput := operation.DeployOnRampInput{
 		ChainSelector: in.CCIPConfig.OnRampParams.ChainSelector,

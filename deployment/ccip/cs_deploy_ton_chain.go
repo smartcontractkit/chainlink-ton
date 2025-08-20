@@ -10,6 +10,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/utils"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 
 	tonaddress "github.com/xssnick/tonutils-go/address"
@@ -91,7 +92,25 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 	s.Router = *ccipSeqReport.Output.RouterAddress
 	s.FeeQuoter = *ccipSeqReport.Output.FeeQuoterAddress
 
-	// TODO: generate MCMS proposal/execute
+	// Execute post-deployment config
+	var txs [][]byte
+
+	// feeQuoter.updateFeeTokens
+	feeTokens := make(map[string]operation.FeeTokenConfig, len(config.Params.FeeQuoterParams.FeeTokens))
+	for _, config := range config.Params.FeeQuoterParams.FeeTokens {
+		feeTokens[config.Address.String()] = operation.FeeTokenConfig{PremiumMultiplierWeiPerEth: config.PremiumMultiplierWeiPerEth}
+	}
+	updateFeeTokensInput := operation.UpdateFeeQuoterFeeTokensInput{
+		FeeTokens: map[string]operation.FeeTokenConfig{},
+	}
+	updateFeeTokensReport, err := operations.ExecuteOperation(env.OperationsBundle, operation.UpdateFeeQuoterFeeTokensOp, deps, updateFeeTokensInput)
+	txs = append(txs, updateFeeTokensReport.Output...)
+
+	if err := utils.ExecuteProposals(env, chain.Client, chain.Wallet, ccipSeqReport.Output.Transactions); err != nil {
+		return cldf.ChangesetOutput{}, err
+	}
+
+	// TODO: generate MCMS proposal or execute
 
 	// Save state
 	err = state.SaveOnchainState(selector, s, env)

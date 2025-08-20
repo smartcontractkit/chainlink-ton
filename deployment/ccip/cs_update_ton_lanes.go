@@ -8,7 +8,6 @@ import (
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/smartcontractkit/mcms"
-	"github.com/xssnick/tonutils-go/ton/wallet"
 
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 
@@ -16,7 +15,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/utils"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 )
 
 type AddTonLanes struct{}
@@ -139,35 +137,8 @@ func (cs AddTonLanes) Apply(env cldf.Environment, cfg config.UpdateTonLanesConfi
 		// }
 		// timeLockProposals = append(timeLockProposals, *proposal)
 
-		internalMsgs, err := utils.Deserialize(updateSeqReport.Output)
-		if err != nil {
-			return cldf.ChangesetOutput{}, fmt.Errorf("failed to deserialize lane updates: %w", err)
-		}
-		msgs := make([]*wallet.Message, len(internalMsgs))
-		for i, msg := range internalMsgs {
-			msgs[i] = &wallet.Message{
-				Mode:            wallet.PayGasSeparately, // TODO: wallet.IgnoreErrors ?
-				InternalMessage: msg,
-			}
-		}
-		ctx := env.GetContext()
-		env.Logger.Infow("Sending msgs", "msgs", msgs)
-		tx, blockID, err := chain.Wallet.SendManyWaitTransaction(ctx, msgs)
-		env.Logger.Infow("transaction sent", "blockID", blockID, "tx", tx)
-		if err != nil {
-			return cldf.ChangesetOutput{}, fmt.Errorf("failed to send lane updates: %w", err)
-		}
-		msg, err := tracetracking.MapToReceivedMessage(tx)
-		if err != nil {
-			return cldf.ChangesetOutput{}, fmt.Errorf("failed to get outgoing messages: %w", err)
-		}
-		err = msg.WaitForTrace(chain.Client)
-		if err != nil {
-			return cldf.ChangesetOutput{}, fmt.Errorf("failed to wait for trace: %w", err)
-		}
-		for _, msg := range msg.OutgoingInternalReceivedMessages {
-			// check external messages for all marked as Success
-			env.Logger.Infow("ReceivedMessage", "msg", msg)
+		if err := utils.ExecuteProposals(env, chain.Client, chain.Wallet, updateSeqReport.Output); err != nil {
+			return cldf.ChangesetOutput{}, err
 		}
 	}
 

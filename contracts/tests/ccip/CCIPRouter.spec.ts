@@ -68,11 +68,6 @@ describe('Router', () => {
         ),
         destChainConfigs: Dictionary.empty(Dictionary.Keys.BigUint(64)),
       }
-      // HACK: pre-insert token data
-      data.usdPerToken.set(ZERO_ADDRESS, {
-        value: 123n,
-        timestamp: BigInt(Date.now()),
-      } as TimestampedPrice)
       feeQuoter = blockchain.openContract(FeeQuoter.createFromConfig(data, code))
 
       let result = await feeQuoter.sendDeploy(deployer.getSender(), toNano('1'))
@@ -80,6 +75,16 @@ describe('Router', () => {
         from: deployer.address,
         to: feeQuoter.address,
         deploy: true,
+        success: true,
+      })
+
+      result = await feeQuoter.sendUpdatePrices(deployer.getSender(), {
+        value: toNano('1'),
+        gasPrices: [],
+        tokenPrices: [{ token: ZERO_ADDRESS, price: 123n }],
+      })
+      expect(result.transactions).toHaveTransaction({
+        to: feeQuoter.address,
         success: true,
       })
 

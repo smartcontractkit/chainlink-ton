@@ -8,6 +8,7 @@ import (
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/utils"
@@ -105,6 +106,64 @@ func updateFeeQuoterDestChainConfigs(b operations.Bundle, deps TonDeps, in Updat
 			Bounce:  true,
 			Amount:  tlb.MustFromTON("1"),
 			DstAddr: &address,
+			Body:    payload,
+		},
+	}
+	return utils.Serialize(messages)
+}
+
+type FeeTokenConfig struct {
+	PremiumMultiplierWeiPerEth uint64
+}
+
+// UpdateFeeQuoterFeeTokensInput contains configuration for updating FeeQuoter fee tokens
+type UpdateFeeQuoterFeeTokensInput struct {
+	FeeTokens map[string]FeeTokenConfig // token address (string) -> { premium multiplier }
+}
+
+// UpdateFeeQuoterPricesOp operation to update FeeQuoter prices
+var UpdateFeeQuoterFeeTokensOp = operations.NewOperation(
+	"update-fee-quoter-fee-tokens-op",
+	semver.MustParse("0.1.0"),
+	"Updates FeeQuoter fee tokens",
+	updateFeeQuoterFeeTokens,
+)
+
+func updateFeeQuoterFeeTokens(b operations.Bundle, deps TonDeps, in UpdateFeeQuoterFeeTokensInput) ([][]byte, error) {
+	feeQuoterAddress := deps.CCIPOnChainState[deps.TonChain.Selector].FeeQuoter
+
+	configs := cell.NewDict(267)
+	for token, update := range in.FeeTokens {
+		tokenAddress, err := address.ParseAddr(token)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse token address: %w", err)
+		}
+		key := cell.BeginCell().MustStoreAddr(tokenAddress).EndCell()
+		value, err := tlb.ToCell(feequoter.FeeToken{
+			PremiumMultiplierWeiPerEth: update.PremiumMultiplierWeiPerEth,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to construct fee token update: %w", err)
+		}
+		if err := configs.Set(key, value); err != nil {
+			return nil, fmt.Errorf("failed to construct fee token update: %w", err)
+		}
+
+	}
+	input := feequoter.UpdateFeeTokens{
+		Add:    configs,
+		Remove: nil,
+	}
+
+	payload, err := tlb.ToCell(input)
+	if err != nil {
+		return nil, err
+	}
+	messages := []*tlb.InternalMessage{
+		{
+			Bounce:  true,
+			Amount:  tlb.MustFromTON("1"),
+			DstAddr: &feeQuoterAddress,
 			Body:    payload,
 		},
 	}

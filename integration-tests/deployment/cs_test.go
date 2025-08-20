@@ -1,7 +1,6 @@
 package deployment
 
 import (
-	"fmt"
 	"math/big"
 	"testing"
 
@@ -52,7 +51,7 @@ func TestDeploy(t *testing.T) {
 	chainSelector := tonChainSelectors[0]
 	tonChain := env.BlockChains.TonChains()[chainSelector]
 	deployer := tonChain.Wallet
-	t.Log("Deployer: ", deployer)
+	t.Log("Deployer: ", deployer.Address().String())
 
 	// memory environment doesn't block on funding so changesets can execute before the env is fully ready, manually call fund so we block here
 	test_utils.FundWallets(t, tonChain.Client, []*address.Address{deployer.Address()}, []tlb.Coins{tlb.MustFromTON("1000")})
@@ -61,10 +60,8 @@ func TestDeploy(t *testing.T) {
 	env, _, err := commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{cs})
 	require.NoError(t, err, "failed to deploy ccip")
 
-	// TODO: LINK placeholder address
-	tonTokenAddr, err := address.ParseRawAddr("0:0000000000000000000000000000000000000000000000000000000000000000")
-	require.NoError(t, err)
-	// TODO: verify this is the same as address.NewNoneAddress()
+	// TODO: LINK token deployment
+	linkAddr := ops.TonTokenAddr
 
 	env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{
 		commonchangeset.Configure(ops.AddTonLanes{}, config.UpdateTonLanesConfig{
@@ -80,7 +77,7 @@ func TestDeploy(t *testing.T) {
 						Selector: chainSelector,
 						GasPrice: big.NewInt(1e17),
 						TokenPrices: map[*address.Address]*big.Int{
-							tonTokenAddr: big.NewInt(99),
+							ops.TonTokenAddr: big.NewInt(99),
 						},
 						FeeQuoterDestChainConfig: feequoter.DestChainConfig{ // minimal valid config
 							IsEnabled:                         true,
@@ -131,36 +128,79 @@ func TestDeploy(t *testing.T) {
 	state, err := tonstate.LoadOnchainState(env)
 	require.NoError(t, err)
 
+	// -- TON Accessor tests
+
 	addrCodec := codec.NewAddressCodec()
 
 	accessor, err := chainaccessor.NewTONAccessor(lggr, ccipocr3.ChainSelector(chainSelector), tonChain.Client, nil, addrCodec)
 	require.NoError(t, err)
 
 	ctx := t.Context()
+	onRampAddr := state[chainSelector].OnRamp
+	rawOnRampAddr, err := addrCodec.AddressStringToBytes(onRampAddr.String())
+	require.NoError(t, err)
 	feeQuoterAddr := state[chainSelector].FeeQuoter
 	rawFeeQuoterAddr, err := addrCodec.AddressStringToBytes(feeQuoterAddr.String())
 	require.NoError(t, err)
-	rawLinkQuoterAddr, err := addrCodec.AddressStringToBytes(tonTokenAddr.String())
+	rawLinkAddr, err := addrCodec.AddressStringToBytes(linkAddr.String())
 	require.NoError(t, err)
 
+	err = accessor.Sync(ctx, consts.ContractNameOnRamp, rawOnRampAddr)
+	require.NoError(t, err)
 	err = accessor.Sync(ctx, consts.ContractNameFeeQuoter, rawFeeQuoterAddr)
 	require.NoError(t, err)
-
-	t.Run("GetTokenPriceUSD", func(t *testing.T) {
-		timestampedPrice, err := accessor.GetTokenPriceUSD(ctx, rawLinkQuoterAddr)
-		require.NoError(t, err)
-		require.Equal(t, timestampedPrice.Value, big.NewInt(99))
-	})
 
 	t.Run("GetConfig", func(t *testing.T) {
 		config, _, err := accessor.GetAllConfigsLegacy(ctx, ccipocr3.ChainSelector(chainSelector), []ccipocr3.ChainSelector{ChainSelEVMTest90000001})
 		require.NoError(t, err)
-		fmt.Printf("%+v\n", config)
+		require.Equal(t, ccipocr3.OnRampConfig{
+			DynamicConfig: ccipocr3.GetOnRampDynamicConfigResponse{
+				DynamicConfig: ccipocr3.OnRampDynamicConfig{},
+			},
+			DestChainConfig: ccipocr3.OnRampDestChainConfig{
+				SequenceNumber:   0,
+				AllowListEnabled: false,
+				Router:           nil,
+			},
+		}, config.OnRamp)
+	})
+
+	t.Run("GetExpectedNextSequenceNumber", func(t *testing.T) {
+		seqNum, err := accessor.GetExpectedNextSequenceNumber(ctx, ChainSelEVMTest90000001)
+		require.NoError(t, err)
+		require.Equal(t, ccipocr3.SeqNum(1), seqNum)
+	})
+
+	t.Run("GetTokenPriceUSD", func(t *testing.T) {
+		timestampedPrice, err := accessor.GetTokenPriceUSD(ctx, rawLinkAddr)
+		require.NoError(t, err)
+		require.Equal(t, big.NewInt(99), timestampedPrice.Value)
 	})
 
 	t.Run("GetFeeQuoterDestChainConfig", func(t *testing.T) {
 		config, err := accessor.GetFeeQuoterDestChainConfig(ctx, ccipocr3.ChainSelector(ChainSelEVMTest90000001))
 		require.NoError(t, err)
-		fmt.Printf("%+v\n", config)
+		// v1_6.DefaultFeeQuoterDestChainConfig()
+		require.Equal(t, ccipocr3.FeeQuoterDestChainConfig{
+			IsEnabled:                         true,
+			MaxNumberOfTokensPerMsg:           10,
+			MaxDataBytes:                      30_000,
+			MaxPerMsgGasLimit:                 3_000_000,
+			DestGasOverhead:                   300_000,
+			DestGasPerPayloadByteBase:         16,
+			DestGasPerPayloadByteHigh:         40,
+			DestGasPerPayloadByteThreshold:    3000,
+			DestDataAvailabilityOverheadGas:   100,
+			DestGasPerDataAvailabilityByte:    16,
+			DestDataAvailabilityMultiplierBps: 1,
+			ChainFamilySelector:               [4]byte{0x28, 0x12, 0xd5, 0x2c},
+			EnforceOutOfOrder:                 false,
+			DefaultTokenFeeUSDCents:           25,
+			DefaultTokenDestGasOverhead:       90_000,
+			DefaultTxGasLimit:                 200_000,
+			GasMultiplierWeiPerEth:            11e17,
+			GasPriceStalenessThreshold:        0,
+			NetworkFeeUSDCents:                10,
+		}, config)
 	})
 }

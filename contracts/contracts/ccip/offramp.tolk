@@ -357,7 +357,7 @@ get fun sourceChainConfig(sourceChainSelector: uint64): SourceChainConfig {
     return st.sourceChainConfigs.mustGet(sourceChainSelector,ERROR_SOURCE_CHAIN_NOT_ENABLED);
 }
 
-get fun allSourceChainConfigs(): cell {
+get fun allSourceChainConfigs(): dict {
     val st = lazy Storage.load();
     return st.sourceChainConfigs.value;
 }

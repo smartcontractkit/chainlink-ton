@@ -209,7 +209,7 @@ func (a *TONAccessor) GetExpectedNextSequenceNumber(ctx context.Context, dest cc
 	if err != nil {
 		return 0, fmt.Errorf("failed to get current block: %w", err)
 	}
-	result, err := a.client.RunGetMethod(ctx, block, addr, "expectedNextSequenceNumber", dest)
+	result, err := a.client.RunGetMethod(ctx, block, addr, "expectedNextSequenceNumber", uint64(dest))
 	if err != nil {
 		return 0, err
 	}

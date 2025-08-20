@@ -191,8 +191,6 @@ fun updatePrices(mutate st: Storage, priceUpdates: PriceUpdates) {
           //TODO: emit UsdPerUnitGasUpdated(update.destChainSelector, update.usdPerUnitGas, block.timestamp);
         }
     }
-
-    st.store();
 }
 
 // apply_premium_multiplier_wei_per_eth_updates??

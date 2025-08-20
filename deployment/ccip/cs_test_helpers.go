@@ -31,6 +31,9 @@ import (
 
 const ChainSelEVMTest90000001 = 909606746561742123
 
+// TODO: use address.NewNoneAddress() instead?
+var TonTokenAddr = address.MustParseRawAddr("0:0000000000000000000000000000000000000000000000000000000000000000")
+
 func DeployChainContractsToTonCS(t *testing.T, env cldf.Environment, chainSelector uint64) commonchangeset.ConfiguredChangeSet {
 	tonChain := env.BlockChains.TonChains()[chainSelector]
 	deployer := tonChain.Wallet
@@ -41,9 +44,12 @@ func DeployChainContractsToTonCS(t *testing.T, env cldf.Environment, chainSelect
 			FeeQuoterParams: config.FeeQuoterParams{
 				MaxFeeJuelsPerMsg:            big.NewInt(1),
 				TokenPriceStalenessThreshold: 0,
-				// TODO: remove feeTokens, premiumMultiplier and offramp source chains config from deploy? set it via add lane?
-				FeeTokens:                            []*address.Address{},
-				PremiumMultiplierWeiPerEthByFeeToken: map[shared.TokenSymbol]uint64{},
+				FeeTokens: map[shared.TokenSymbol]config.FeeToken{
+					"TON": {
+						Address:                    TonTokenAddr,
+						PremiumMultiplierWeiPerEth: 1,
+					},
+				},
 			},
 			OffRampParams: config.OffRampParams{
 				// ...

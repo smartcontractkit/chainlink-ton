@@ -52,8 +52,8 @@ func deployOffRamp(b operations.Bundle, deps TonDeps, in DeployOffRampInput) (De
 			Owner:        deps.TonChain.WalletAddress,
 			PendingOwner: nil,
 		},
-		Deployer:       nil,
-		MerkleRootCode: nil,
+		Deployer:       cell.BeginCell().EndCell(),
+		MerkleRootCode: cell.BeginCell().EndCell(),
 		// empty OCR3Base
 		OCR3Base: cell.BeginCell().
 			MustStoreUInt(0, 8).
@@ -98,6 +98,11 @@ var UpdateOffRampSourceChainConfigsOp = operations.NewOperation(
 
 func updateOffRampSourceChainConfigs(b operations.Bundle, deps TonDeps, in UpdateOffRampSourcesInput) ([][]byte, error) {
 	addr := deps.CCIPOnChainState[deps.TonChain.Selector].OffRamp
+
+	if len(in.Updates) == 0 {
+		b.Logger.Infow("Skipping offramp.updateSourceChainConfigs, no updates", "chainSelector", deps.TonChain.Selector)
+		return nil, nil
+	}
 
 	var configs []offramp.UpdateSourceChainConfig
 

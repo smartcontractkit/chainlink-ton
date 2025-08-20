@@ -31,19 +31,23 @@ func (c ChainContractParams) Validate() error {
 	return nil
 }
 
+type FeeToken struct {
+	Address                    *address.Address
+	PremiumMultiplierWeiPerEth uint64
+}
+
 type FeeQuoterParams struct {
-	MaxFeeJuelsPerMsg                    *big.Int
-	TokenPriceStalenessThreshold         uint64
-	FeeTokens                            []*address.Address
-	PremiumMultiplierWeiPerEthByFeeToken map[shared.TokenSymbol]uint64
+	MaxFeeJuelsPerMsg            *big.Int
+	TokenPriceStalenessThreshold uint64
+	FeeTokens                    map[shared.TokenSymbol]FeeToken
 }
 
 func (f FeeQuoterParams) Validate() error {
 	if f.TokenPriceStalenessThreshold == 0 {
 		return errors.New("TokenPriceStalenessThreshold can't be 0")
 	}
-	if len(f.PremiumMultiplierWeiPerEthByFeeToken) == 0 {
-		return errors.New("PremiumMultiplierWeiPerEthByFeeToken is nil or empty, at least one token must be configured")
+	if len(f.FeeTokens) == 0 {
+		return errors.New("FeeTokens is nil or empty, at least one token must be configured")
 	}
 	if f.MaxFeeJuelsPerMsg == nil {
 		return errors.New("MaxFeeJuelsPerMsg is nil, it must be set")
@@ -55,9 +59,10 @@ type OffRampParams struct {
 	ChainSelector                    uint64
 	PermissionlessExecutionThreshold uint32
 	IsRMNVerificationDisabled        []bool
-	SourceChainSelectors             []uint64
-	SourceChainIsEnabled             []bool
-	SourceChainsOnRamp               [][]byte
+	// TODO: remove SourceChain params, this should all be part of AddLane?
+	SourceChainSelectors []uint64
+	SourceChainIsEnabled []bool
+	SourceChainsOnRamp   [][]byte
 }
 
 func (o OffRampParams) Validate() error {

@@ -235,7 +235,7 @@ type UpdatePrices struct {
 
 type UpdateFeeTokens struct {
 	_      tlb.Magic                          `tlb:"#20000002"` //nolint:revive // Ignore opcode tag
-	Add    bool                               // TODO
+	Add    *cell.Dictionary                   `tlb:"dict 267"`
 	Remove common.SnakeData[*address.Address] `tlb:"^"`
 }
 
