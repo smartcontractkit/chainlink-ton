@@ -218,7 +218,7 @@ const ERROR_ACCESS_CONTROL_UNAUTHORIZED_ACCOUNT = 90;
 const ERROR_ACCESS_CONTROL_BAD_CONFIRMATION = 91;
 
 // TODO: do we make this configurable?
-const DEFAULT_MESSAGE_BUDGET_FEE = ton("0.05")
+const DEFAULT_MESSAGE_BUDGET_FEE = ton("0.05");
 
 // --- Constants - storage ---
 
@@ -405,7 +405,15 @@ fun AccessControl<T>.getRoleMembers(self, role: int): dict {
 /// Emits a {AccessControl_RoleGranted} event if `role` was granted.
 fun AccessControl<T>.grantRole(mutate self, queryId: uint64, sender: address, role: int, account: address): bool {
     self.requireRole(self.getRoleAdmin(role), sender);
-    return self._grantRole(queryId, sender, role, account); // default implementation
+    val success = self._grantRole(queryId, sender, role, account); // default implementation
+
+    if (!success) {
+        return false; // nothing to do, role was not updated
+    }
+
+    val body = AccessControl_RoleGranted {queryId, role, account, sender}.toCell();
+    self.sendOutgoingMessages(sender, account, body, DEFAULT_MESSAGE_BUDGET_FEE, returnExcess);
+    return true;
 }
 
 /// @dev Revokes `role` from `account`.
@@ -422,30 +430,8 @@ fun AccessControl<T>.revokeRole(mutate self, queryId: uint64, sender: address, r
         return false; // nothing to do, role was not updated
     }
 
-    val body = AccessControl_RoleRevoked {queryId, role, account, sender};
-    // Create and send the message (notification) to the account that was updated
-    val notification = createMessage({
-        bounce: false,
-        value: DEFAULT_MESSAGE_BUDGET_FEE, // fixed compute budget
-        dest: account,
-        body
-    });
-    notification.send(SEND_MODE_IGNORE_ERRORS);
-
-    // Create and send the message (notification) to the sender
-    val reply = createMessage({
-        bounce: false,
-        value: returnExcess ? ton("0") : DEFAULT_MESSAGE_BUDGET_FEE, // return all, or fixed compute budget
-        dest: sender,
-        body
-    });
-
-    if (returnExcess) {
-        reply.send(SEND_MODE_IGNORE_ERRORS | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
-    } else {
-        reply.send(SEND_MODE_IGNORE_ERRORS);
-    }
-
+    val body = AccessControl_RoleRevoked {queryId, role, account, sender}.toCell();
+    self.sendOutgoingMessages(sender, account, body, DEFAULT_MESSAGE_BUDGET_FEE, returnExcess);
     return true;
 }
 
@@ -522,17 +508,6 @@ fun AccessControl<T>._grantRole(mutate self, queryId: uint64, sender: address, r
     // Save the updated role data
     self.data.roles.uDictSetRef(LEN_ROLE, role, d.toCell());
 
-    // Create and send the message (notification) to the account that was updated
-    val msg = createMessage({
-        bounce: false,
-        value: 0,
-        dest: account,
-        body: AccessControl_RoleGranted {queryId, role, account, sender},
-    });
-    msg.send(SEND_MODE_IGNORE_ERRORS);
-
-    // TODO: return excess message value to the sender (sould this be done here or in the caller?)
-
     return true; // role granted successfully
 }
 
@@ -585,6 +560,30 @@ fun AccessControl_Data.getRoleDataOrSetDefault(mutate self, role: int): AccessCo
     };
     self.roles.uDictSetRef(LEN_ROLE, role, _data.toCell());
     return _data;
+}
+
+/// @dev Sends outgoing messages (notifications and replies) to the specified accounts.
+fun AccessControl<T>.sendOutgoingMessages(
+    self,
+    sender: address,
+    account: address,
+    body: cell,
+    value: coins = DEFAULT_MESSAGE_BUDGET_FEE,
+    returnExcess: bool = true
+): void {
+    // Create and send the message (notification) to the account that was updated
+    val notification = createMessage({ bounce: false, value, dest: account, body });
+    notification.send(SEND_MODE_IGNORE_ERRORS);
+
+    // Create and send the message (reply) to the sender
+    value = returnExcess ? ton("0") : DEFAULT_MESSAGE_BUDGET_FEE; // return all, or fixed compute budget
+    val reply = createMessage({bounce: false, value, dest: sender, body });
+
+    if (returnExcess) {
+        reply.send(SEND_MODE_IGNORE_ERRORS | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    } else {
+        reply.send(SEND_MODE_IGNORE_ERRORS);
+    }
 }
 
 // --- Getters ---
