@@ -220,7 +220,7 @@ func SendTonRequest(
 
 	msg := cfg.Message.(TonSendRequest)
 	routerAddr := state.TonChains[cfg.SourceChain].Router
-	onrampAddr := state.TonChains[cfg.DestChain].CCIPAddress
+	onrampAddr := state.TonChains[cfg.SourceChain].OnRamp
 
 	// TODO Skipping token amounts setup for now, and in the future for supporting token transfers
 	ccipSend := router.CCIPSend{
