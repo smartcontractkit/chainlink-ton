@@ -406,7 +406,7 @@ fun AccessControl<T>.grantRole(
     sender: address,
     role: int,
     account: address,
-    returnExcess: bool
+    returnExcess: bool = false
 ): bool {
     self.requireRole(self.getRoleAdmin(role), sender);
     return self._grantRole(queryId, sender, role, account, returnExcess);
@@ -424,7 +424,7 @@ fun AccessControl<T>.revokeRole(
     sender: address,
     role: int,
     account: address,
-    returnExcess: bool
+    returnExcess: bool = false
 ): bool {
     self.requireRole(self.getRoleAdmin(role), sender);
     return self._revokeRole(queryId, sender, role, account, returnExcess);
@@ -449,7 +449,7 @@ fun AccessControl<T>.renounceRole(
     sender: address,
     role: int,
     callerConfirmation: address,
-    returnExcess: bool
+    returnExcess: bool = false
 ): bool {
     if (callerConfirmation != sender) {
         throw(ERROR_ACCESS_CONTROL_BAD_CONFIRMATION); // TODO: attach error arguments
@@ -470,7 +470,7 @@ fun AccessControl<T>._setRoleAdmin(
     sender: address,
     role: int,
     adminRole: int,
-    returnExcess: bool
+    returnExcess: bool = false
 ): void {
     var d: AccessControl_RoleData = self.data.getRoleDataOrSetDefault(role);
     val previousAdminRole = d.adminRole;
@@ -494,7 +494,7 @@ fun AccessControl<T>._grantRole(
     sender: address,
     role: int,
     account: address,
-    returnExcess: bool
+    returnExcess: bool = false
 ): bool {
     if (self.hooks != null && self.hooks.shouldGrantRole != null) {
         self.hooks.shouldGrantRole(self.context, queryId, role, account); // extension hook
@@ -534,7 +534,7 @@ fun AccessControl<T>._revokeRole(
     sender: address,
     role: int,
     account: address,
-    returnExcess: bool
+    returnExcess: bool = false
 ): bool {
     if (self.hooks != null && self.hooks.shouldRevokeRole != null) {
         self.hooks.shouldRevokeRole(self.context, queryId, role, account); // extension hook
