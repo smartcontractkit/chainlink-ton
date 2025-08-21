@@ -26,6 +26,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 )
 
@@ -217,13 +218,13 @@ func SendTonRequest(
 	msg := cfg.Message.(TonSendRequest)
 	routerAddr := state.TonChains[cfg.SourceChain].Router
 
-	// TODO Skipping token amounts setup for now, and in the future for supporting token transfers
 	ccipSend := router.CCIPSend{
 		QueryID:           msg.QueryID,
 		DestChainSelector: cfg.DestChain,
 		Receiver:          msg.Receiver,
 		Data:              msg.Data,
 		FeeToken:          msg.FeeToken,
+		TokenAmounts:      common.SnakeRef[router.TokenAmount]{}, // Empty token amounts for no token transfers
 		ExtraArgs:         msg.ExtraArgs,
 	}
 
@@ -235,9 +236,11 @@ func SendTonRequest(
 	walletMsg := &wallet.Message{
 		Mode: wallet.PayGasSeparately, // TODO: wallet.IgnoreErrors ?
 		InternalMessage: &tlb.InternalMessage{
-			Bounce:  true,
-			DstAddr: &routerAddr,
-			Body:    ccipSendCell,
+			IHRDisabled: true,
+			Bounce:      false,
+			DstAddr:     &routerAddr,
+			Amount:      tlb.MustFromTON("1.0"), // TODO:
+			Body:        ccipSendCell,
 		},
 	}
 
