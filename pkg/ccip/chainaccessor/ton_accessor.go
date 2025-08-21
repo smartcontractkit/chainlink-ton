@@ -49,13 +49,7 @@ func NewTONAccessor(
 	logPoller logpoller.Service,
 	addrCodec ccipocr3.ChainSpecificAddressCodec,
 ) (ccipocr3.ChainAccessor, error) {
-	// TODO: check readiness
-	if client == nil {
-		return nil, errors.New("TON API client is not ready")
-	}
-	if logPoller == nil {
-		return nil, errors.New("TON logPoller is not ready")
-	}
+	// TODO: check readiness in CCIPProvider
 	return &TONAccessor{
 		lggr:          lggr,
 		chainSelector: chainSelector,
