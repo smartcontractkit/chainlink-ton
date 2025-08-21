@@ -79,23 +79,13 @@ func NewChain(cfg *config.TOMLConfig, opts ChainOpts) (Chain, error) {
 		return nil, fmt.Errorf("cannot create new chain with ID %s: chain is disabled", cfg.ChainID)
 	}
 
-	return newChain(context.Background(), cfg, opts.KeyStore, opts.Logger, opts.DS)
+	return newChain(cfg, opts.KeyStore, opts.Logger, opts.DS)
 }
 
-func newChain(ctx context.Context, cfg *config.TOMLConfig, loopKs loop.Keystore, lggr logger.Logger, ds sqlutil.DataSource) (*chain, error) {
+func newChain(cfg *config.TOMLConfig, loopKs loop.Keystore, lggr logger.Logger, ds sqlutil.DataSource) (*chain, error) {
 	lggr = logger.With(lggr, "chainID", cfg.ChainID)
 
-	// TEMP: fetch the first account in the store to use for transmissions to avoid having to specify it in TOML
-	accounts, err := loopKs.Accounts(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch accounts from keystore: %w", err)
-	}
-
-	if len(accounts) == 0 {
-		return nil, errors.New("no TON account available")
-	}
-
-	_, err = strconv.ParseInt(cfg.ChainID, 10, 16)
+	_, err := strconv.ParseInt(cfg.ChainID, 10, 16)
 	if err != nil {
 		return nil, fmt.Errorf("invalid chain ID %s: could not parse as an integer: %w", cfg.ChainID, err)
 	}
@@ -108,23 +98,24 @@ func newChain(ctx context.Context, cfg *config.TOMLConfig, loopKs loop.Keystore,
 		clientCache: make(map[int]*cachedClient),
 	}
 
-	tonClient, err := ch.GetClient(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create TON client for chain ID %s: %w", cfg.ChainID, err)
-	}
-
-	signerWallet, err := ch.GetSignerWallet(ctx, tonClient, loopKs, 0)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get signer wallet for chain ID %s: %w", cfg.ChainID, err)
-	}
-
-	apiClient := tracetracking.SignedAPIClient{
-		Client: tonClient,
-		Wallet: *signerWallet,
-	}
-
 	txmCfg := txm.DefaultConfigSet
-	ch.txm = txm.New(lggr, loopKs, apiClient, txmCfg)
+	ch.txm = txm.New(lggr, loopKs, func(ctx context.Context) (tracetracking.SignedAPIClient, error) {
+		tonClient, err := ch.GetClient(ctx)
+		if err != nil {
+			return tracetracking.SignedAPIClient{}, fmt.Errorf("failed to create TON client for chain ID %s: %w", cfg.ChainID, err)
+		}
+
+		signerWallet, err := ch.GetSignerWallet(ctx, tonClient, loopKs, 0)
+		if err != nil {
+			return tracetracking.SignedAPIClient{}, fmt.Errorf("failed to get signer wallet for chain ID %s: %w", cfg.ChainID, err)
+		}
+
+		apiClient := tracetracking.SignedAPIClient{
+			Client: tonClient,
+			Wallet: *signerWallet,
+		}
+		return apiClient, nil
+	}, txmCfg)
 
 	// TODO: Setup accounts balance monitor
 
