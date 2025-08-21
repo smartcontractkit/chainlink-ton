@@ -60,28 +60,38 @@ type LogStore interface {
 }
 
 // QueryBuilder defines the interface for constructing and executing log queries.
-// The generic type T represents the expected event(msg) structure that logs will be parsed into.
+// The generic type T represents the expected event structure that logs will be parsed into.
 type QueryBuilder[T any] interface {
-	// WithCellFilter adds a single byte-level filter to the query.
-	// Cell filters allow filtering based on raw byte comparisons at specific offsets
-	// in the log data. Multiple cell filters can be added and they are combined with AND logic.
-	WithCellFilter(filter query.CellFilter) QueryBuilder[T]
+	// --- Byte-Level Filtering ---
+	// Methods for filtering logs based on raw byte patterns before parsing.
 
-	// WithTypedFilter adds a high-level filter function that operates on parsed event objects.
-	// The filter function receives a parsed event of type T and returns true if the event
-	// should be included in the results.
-	WithTypedFilter(filter func(T) bool) QueryBuilder[T]
+	// SkipBytes advances the internal byte cursor, ignoring a specified number of bytes.
+	SkipBytes(bytes uint) QueryBuilder[T]
 
-	// WithLimit sets the maximum number of results to return.
-	WithLimit(limit int) QueryBuilder[T]
+	// FilterBytes applies conditions to the next `sizeInBytes` at the current cursor position,
+	// then advances the cursor.
+	FilterBytes(sizeInBytes uint, conditions ...query.Condition) QueryBuilder[T]
 
-	// WithOffset sets the number of results to skip from the beginning.
-	WithOffset(offset int) QueryBuilder[T]
+	// --- Typed Filtering ---
+	// Method for filtering logs after they have been parsed into the generic type T.
 
-	// WithSort specifies how the results should be ordered.
-	WithSort(field query.SortField, order query.SortOrder) QueryBuilder[T]
+	// FilterTyped adds a high-level filter function that operates on the parsed event data.
+	FilterTyped(filter func(T) bool) QueryBuilder[T]
+
+	// --- Query Options ---
+	// Methods for controlling pagination and sorting of the final result set.
+
+	// Limit sets the maximum number of results to return.
+	Limit(limit int) QueryBuilder[T]
+
+	// Offset sets the number of results to skip from the beginning.
+	Offset(offset int) QueryBuilder[T]
+
+	// OrderBy specifies the sorting order for the results.
+	OrderBy(field query.SortField, order query.SortOrder) QueryBuilder[T]
+
+	// --- Execution ---
 
 	// Execute runs the constructed query and returns the results.
-	// All the configured filters, sorting, and pagination options are applied.
 	Execute(ctx context.Context, store LogStore) (query.Result[T], error)
 }

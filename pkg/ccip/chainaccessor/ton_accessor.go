@@ -211,23 +211,14 @@ func (a *TONAccessor) MsgsBetweenSeqNums(ctx context.Context, dest ccipocr3.Chai
 
 	// query TON logs
 	res, err := logpoller.NewQuery[onramp.CCIPMessageSent](onrampAddr, hash.CRC32("CCIPMessageSent")).
-		WithCellFilter(query.CellFilter{
-			Offset:   40, // DestChainSelector is at offset 40 in the referenced message cell
-			Operator: query.EQ,
-			Value:    binary.BigEndian.AppendUint64(nil, uint64(dest)),
-		}).
-		WithCellFilter(query.CellFilter{
-			Offset:   48, // SequenceNumber is at offset 48 in the referenced message cell
-			Operator: query.GTE,
-			Value:    binary.BigEndian.AppendUint64(nil, uint64(seqNumRange.Start())),
-		}).
-		WithCellFilter(query.CellFilter{
-			Offset:   48, // SequenceNumber is at offset 48 in the referenced message cell
-			Operator: query.LTE,
-			Value:    binary.BigEndian.AppendUint64(nil, uint64(seqNumRange.End())),
-		}).
-		WithSort(query.SortByTxLT, query.ASC).
-		WithLimit(int(seqNumRange.End()-seqNumRange.Start()+1)). //nolint:gosec // conversion is safe in this context
+		SkipBytes(40). // Skip to DestChainSelector
+		FilterBytes(8, query.EQ(binary.BigEndian.AppendUint64(nil, uint64(dest)))).
+		FilterBytes(8,
+			query.GTE(binary.BigEndian.AppendUint64(nil, uint64(seqNumRange.Start()))),
+			query.LTE(binary.BigEndian.AppendUint64(nil, uint64(seqNumRange.End()))),
+		).
+		OrderBy(query.SortByTxLT, query.ASC).
+		Limit(int(seqNumRange.End()-seqNumRange.Start()+1)). //nolint:gosec // conversion is safe in this context
 		Execute(ctx, a.logPoller.GetStore())
 
 	if err != nil {
@@ -292,13 +283,10 @@ func (a *TONAccessor) LatestMessageTo(ctx context.Context, dest ccipocr3.ChainSe
 	}
 
 	res, err := logpoller.NewQuery[onramp.CCIPMessageSent](onrampAddr, hash.CRC32("CCIPMessageSent")).
-		WithCellFilter(query.CellFilter{
-			Offset:   40, // DestChainSelector is at offset 40 in the referenced message cell
-			Operator: query.EQ,
-			Value:    binary.BigEndian.AppendUint64(nil, uint64(dest)),
-		}).
-		WithSort(query.SortByTxLT, query.DESC). // sort by transaction LT old to new
-		WithLimit(1).                           // only get the last one
+		SkipBytes(40). // Skip to DestChainSelector
+		FilterBytes(8, query.EQ(binary.BigEndian.AppendUint64(nil, uint64(dest)))).
+		OrderBy(query.SortByTxLT, query.DESC). // sort by transaction LT old to new
+		Limit(1).                              // only get the last one
 		Execute(ctx, a.logPoller.GetStore())
 
 	if err != nil {

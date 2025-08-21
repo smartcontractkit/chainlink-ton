@@ -1,6 +1,9 @@
 package logpoller
 
 import (
+	"bytes"
+	"context"
+	"encoding/binary"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -65,7 +68,7 @@ func TestQueryBuilder_BasicFlow(t *testing.T) {
 	require.NoError(t, err)
 
 	builder := NewQuery[TestEvent](addr, 123).
-		WithLimit(10)
+		Limit(10)
 
 	b, ok := builder.(*queryBuilder[TestEvent])
 	require.True(t, ok, "type assertion to *queryBuilder[TestEvent] failed")
@@ -74,34 +77,33 @@ func TestQueryBuilder_BasicFlow(t *testing.T) {
 	require.Equal(t, addr, b.address)
 	require.Equal(t, uint32(123), b.eventSig)
 	require.Equal(t, 10, b.options.Limit)
-	require.Empty(t, b.cellFilters)
+	require.Empty(t, b.byteFilters)
 	require.Nil(t, b.typedFilter)
 }
 
 func TestQueryBuilder_WithFilters(t *testing.T) {
 	addr, err := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")
 	require.NoError(t, err)
-	// Test with cell filter
-	filter := query.CellFilter{
-		Offset:   0,
-		Operator: query.GT,
-		Value:    []byte{0, 0, 0, 5},
-	}
 
+	valBytes := make([]byte, 8)
+	binary.BigEndian.PutUint64(valBytes, 5)
+
+	// Test with byte filter
 	typedFilter := func(event TestEvent) bool {
 		return event.Value > 10
 	}
 
 	builder := NewQuery[TestEvent](addr, 123).
-		WithCellFilter(filter).
-		WithTypedFilter(typedFilter)
+		FilterBytes(8, query.GT(valBytes)).
+		FilterTyped(typedFilter)
 
 	b, ok := builder.(*queryBuilder[TestEvent])
 	require.True(t, ok, "type assertion to *queryBuilder[TestEvent] failed")
 
 	// Verify filters are set
-	require.Len(t, b.cellFilters, 1)
-	require.Equal(t, filter, b.cellFilters[0])
+	require.Len(t, b.byteFilters, 1)
+	require.Equal(t, uint(0), b.byteFilters[0].Offset)
+	require.Equal(t, uint(8), b.byteFilters[0].Size)
 	require.NotNil(t, b.typedFilter)
 }
 
@@ -157,7 +159,7 @@ func TestQueryBuilder_Execute_WithTypedFilter(t *testing.T) {
 	store.SaveLog(createTestLog(t, addr, 123, 3))  // Should be filtered out
 
 	builder := NewQuery[TestEvent](addr, 123).
-		WithTypedFilter(func(event TestEvent) bool {
+		FilterTyped(func(event TestEvent) bool {
 			return event.Value > 10
 		})
 
@@ -169,25 +171,22 @@ func TestQueryBuilder_Execute_WithTypedFilter(t *testing.T) {
 	require.Equal(t, 2, result.Total)
 }
 
-func TestQueryBuilder_Execute_WithCellFilter(t *testing.T) {
+func TestQueryBuilder_Execute_WithByteFilter(t *testing.T) {
 	store := &mockLogStore{}
 	addr, err := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")
 	require.NoError(t, err)
 
 	// Create test logs with different values
-	store.SaveLog(createTestLog(t, addr, 123, 5))   // 5 in 8 bytes: [0,0,0,0,0,0,0,5]
-	store.SaveLog(createTestLog(t, addr, 123, 15))  // 15 in 8 bytes: [0,0,0,0,0,0,0,15]
-	store.SaveLog(createTestLog(t, addr, 123, 255)) // 255 in 8 bytes: [0,0,0,0,0,0,0,255]
+	store.SaveLog(createTestLog(t, addr, 123, 5))
+	store.SaveLog(createTestLog(t, addr, 123, 15))
+	store.SaveLog(createTestLog(t, addr, 123, 255))
 
-	// Filter for values greater than 10 (comparing last byte)
-	filter := query.CellFilter{
-		Offset:   7, // Last byte of the 64-bit value
-		Operator: query.GT,
-		Value:    []byte{10},
-	}
+	// Filter for values greater than 10
+	valBytes := make([]byte, 8)
+	binary.BigEndian.PutUint64(valBytes, 10)
 
 	builder := NewQuery[TestEvent](addr, 123).
-		WithCellFilter(filter)
+		FilterBytes(8, query.GT(valBytes))
 
 	result, err := builder.Execute(t.Context(), store)
 	require.NoError(t, err)
@@ -207,7 +206,7 @@ func TestQueryBuilder_Execute_WithPagination(t *testing.T) {
 
 	// Test with limit
 	builder := NewQuery[TestEvent](addr, 123).
-		WithLimit(3)
+		Limit(3)
 
 	result, err := builder.Execute(t.Context(), store)
 	require.NoError(t, err)
@@ -218,8 +217,8 @@ func TestQueryBuilder_Execute_WithPagination(t *testing.T) {
 
 	// Test with offset
 	builder = NewQuery[TestEvent](addr, 123).
-		WithOffset(5).
-		WithLimit(3)
+		Offset(5).
+		Limit(3)
 
 	result, err = builder.Execute(t.Context(), store)
 	require.NoError(t, err)
@@ -277,16 +276,13 @@ func TestQueryBuilder_Execute_CombinedFilters(t *testing.T) {
 	store.SaveLog(createTestLog(t, addr, 123, 8))  // Fails typed filter (< 10)
 	store.SaveLog(createTestLog(t, addr, 123, 25)) // Passes both filters
 
-	// Byte filter for values > 4 and typed filter for values > 10
-	filter := query.CellFilter{
-		Offset:   7, // Last byte
-		Operator: query.GT,
-		Value:    []byte{4},
-	}
+	// Byte filter for values > 4
+	valBytes := make([]byte, 8)
+	binary.BigEndian.PutUint64(valBytes, 4)
 
 	builder := NewQuery[TestEvent](addr, 123).
-		WithCellFilter(filter).
-		WithTypedFilter(func(event TestEvent) bool {
+		FilterBytes(8, query.GT(valBytes)).
+		FilterTyped(func(event TestEvent) bool {
 			return event.Value > 10
 		})
 
@@ -319,110 +315,112 @@ func TestQueryBuilder_Execute_InvalidCellData(t *testing.T) {
 	require.Contains(t, err.Error(), "failed to parse log cell")
 }
 
-func TestCellFilterMatches(t *testing.T) {
-	tests := []struct {
-		name     string
-		filter   query.CellFilter
-		payload  []byte
-		expected bool
-	}{
-		{
-			name: "equal bytes - match",
-			filter: query.CellFilter{
-				Offset:   0,
-				Operator: query.EQ,
-				Value:    []byte{1, 2, 3},
-			},
-			payload:  []byte{1, 2, 3, 4, 5},
-			expected: true,
-		},
-		{
-			name: "equal bytes - no match",
-			filter: query.CellFilter{
-				Offset:   0,
-				Operator: query.EQ,
-				Value:    []byte{1, 2, 3},
-			},
-			payload:  []byte{1, 2, 4, 5, 6},
-			expected: false,
-		},
-		{
-			name: "greater than - match",
-			filter: query.CellFilter{
-				Offset:   0,
-				Operator: query.GT,
-				Value:    []byte{1, 2, 3},
-			},
-			payload:  []byte{1, 2, 4, 5, 6},
-			expected: true,
-		},
-		{
-			name: "less than - match",
-			filter: query.CellFilter{
-				Offset:   0,
-				Operator: query.LT,
-				Value:    []byte{1, 2, 3},
-			},
-			payload:  []byte{1, 2, 2, 5, 6},
-			expected: true,
-		},
-		{
-			name: "offset filtering",
-			filter: query.CellFilter{
-				Offset:   2,
-				Operator: query.EQ,
-				Value:    []byte{3, 4},
-			},
-			payload:  []byte{1, 2, 3, 4, 5},
-			expected: true,
-		},
-		{
-			name: "payload too short",
-			filter: query.CellFilter{
-				Offset:   10,
-				Operator: query.EQ,
-				Value:    []byte{1, 2, 3},
-			},
-			payload:  []byte{1, 2, 3},
-			expected: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := tt.filter.Matches(tt.payload)
-			require.Equal(t, tt.expected, result)
-		})
-	}
-}
-
-func TestMockLogStore_SaveAndRetrieve(t *testing.T) {
+func TestQueryBuilder_Execute_WithSorting(t *testing.T) {
 	store := &mockLogStore{}
 	addr, err := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")
 	require.NoError(t, err)
 
-	// Test saving logs
-	log1 := createTestLog(t, addr, 123, 42)
-	log2 := createTestLog(t, addr, 456, 24)
-	log3 := createTestLog(t, addr, 123, 84)
+	// Create test logs with different values, which also affects TxLT
+	store.SaveLog(createTestLog(t, addr, 123, 20)) // TxLT = 2000
+	store.SaveLog(createTestLog(t, addr, 123, 10)) // TxLT = 1000
+	store.SaveLog(createTestLog(t, addr, 123, 30)) // TxLT = 3000
+
+	// Sort by TxLT descending
+	builder := NewQuery[TestEvent](addr, 123).
+		OrderBy(query.SortByTxLT, query.DESC)
+
+	result, err := builder.Execute(t.Context(), store)
+	require.NoError(t, err)
+	require.Len(t, result.Logs, 3)
+	require.Equal(t, uint64(30), result.Logs[0].TypedData.Value) // Highest TxLT first
+	require.Equal(t, uint64(20), result.Logs[1].TypedData.Value)
+	require.Equal(t, uint64(10), result.Logs[2].TypedData.Value) // Lowest TxLT last
+
+	// Sort by TxLT ascending
+	builder = NewQuery[TestEvent](addr, 123).
+		OrderBy(query.SortByTxLT, query.ASC)
+
+	result, err = builder.Execute(t.Context(), store)
+	require.NoError(t, err)
+	require.Len(t, result.Logs, 3)
+	require.Equal(t, uint64(10), result.Logs[0].TypedData.Value) // Lowest TxLT first
+	require.Equal(t, uint64(20), result.Logs[1].TypedData.Value)
+	require.Equal(t, uint64(30), result.Logs[2].TypedData.Value) // Highest TxLT last
+}
+
+func TestQueryBuilder_Execute_CursorLogic(t *testing.T) {
+	// This test validates the cursor logic of SkipBytes and FilterBytes
+	type ComplexEvent struct {
+		A uint32 `tlb:"## 32"`
+		B uint64 `tlb:"## 64"`
+		C uint32 `tlb:"## 32"`
+	}
+	event := ComplexEvent{A: 1, B: 100, C: 2}
+	cell, err := tlb.ToCell(event)
+	require.NoError(t, err)
+
+	store := &mockLogStore{}
+	addr, err := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")
+	require.NoError(t, err)
+
+	log := types.Log{
+		Address:  addr,
+		EventSig: 123,
+		Data:     cell,
+	}
+	store.SaveLog(log)
+
+	// Filter on field B (uint64) which is after field A (uint32)
+	valBytes := make([]byte, 8)
+	binary.BigEndian.PutUint64(valBytes, 99)
+
+	builder := NewQuery[ComplexEvent](addr, 123).
+		SkipBytes(4). // Skip field A (32 bits = 4 bytes)
+		FilterBytes(8, query.GT(valBytes))
+
+	result, err := builder.Execute(context.Background(), store)
+	require.NoError(t, err)
+	require.Len(t, result.Logs, 1)
+	require.Equal(t, uint64(100), result.Logs[0].TypedData.B)
+}
+
+func TestMockLogStore_SaveAndRetrieve(t *testing.T) {
+	store := &mockLogStore{}
+	addr1, err := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")
+	require.NoError(t, err)
+	addr2, err := address.ParseAddr("EQCD39VS5jcptHL8vMjEXrzGaRcCVYto7HUn4bpAOg8xqB2N")
+	require.NoError(t, err)
+
+	log1 := createTestLog(t, addr1, 123, 1)
+	log2 := createTestLog(t, addr1, 456, 2)
+	log3 := createTestLog(t, addr2, 123, 3)
 
 	store.SaveLog(log1)
 	store.SaveLog(log2)
 	store.SaveLog(log3)
 
-	// Test retrieving logs by sig
-	logs123, err := store.GetLogs(addr, 123)
+	// Retrieve logs for addr1, sig 123
+	logs, err := store.GetLogs(addr1, 123)
 	require.NoError(t, err)
-	require.Len(t, logs123, 2)
+	require.Len(t, logs, 1)
+	require.True(t, bytes.Equal(log1.Data.Hash(), logs[0].Data.Hash()))
 
-	logs456, err := store.GetLogs(addr, 456)
+	// Retrieve logs for addr1, sig 456
+	logs, err = store.GetLogs(addr1, 456)
 	require.NoError(t, err)
-	require.Len(t, logs456, 1)
+	require.Len(t, logs, 1)
+	require.True(t, bytes.Equal(log2.Data.Hash(), logs[0].Data.Hash()))
 
-	// Test retrieving logs for non-existent sig
-	logsNone, err := store.GetLogs(addr, 999)
+	// Retrieve logs for addr2, sig 123
+	logs, err = store.GetLogs(addr2, 123)
 	require.NoError(t, err)
-	require.Empty(t, logsNone)
+	require.Len(t, logs, 1)
+	require.True(t, bytes.Equal(log3.Data.Hash(), logs[0].Data.Hash()))
+
+	// No logs for non-existent sig
+	logs, err = store.GetLogs(addr1, 999)
+	require.NoError(t, err)
+	require.Empty(t, logs)
 }
 
 func TestMockLogStore_DifferentAddresses(t *testing.T) {
@@ -484,7 +482,7 @@ func TestQueryBuilder_ExecuteWithComplexFiltering(t *testing.T) {
 
 	// Test typed filter: values > 20 and < 40
 	builder := NewQuery[TestEvent](addr, 123).
-		WithTypedFilter(func(event TestEvent) bool {
+		FilterTyped(func(event TestEvent) bool {
 			return event.Value > 20 && event.Value < 40
 		})
 
@@ -512,11 +510,11 @@ func TestQueryBuilder_ExecuteWithPaginationAndFiltering(t *testing.T) {
 
 	// Filter for values >= 6 with pagination
 	builder := NewQuery[TestEvent](addr, 123).
-		WithTypedFilter(func(event TestEvent) bool {
+		FilterTyped(func(event TestEvent) bool {
 			return event.Value >= 6
 		}).
-		WithLimit(3).
-		WithOffset(1)
+		Limit(3).
+		Offset(1)
 
 	result, err := builder.Execute(t.Context(), store)
 	require.NoError(t, err)
@@ -527,7 +525,7 @@ func TestQueryBuilder_ExecuteWithPaginationAndFiltering(t *testing.T) {
 	require.Equal(t, 1, result.Offset)
 }
 
-func TestQueryBuilder_ExecuteMultipleCellFilters(t *testing.T) {
+func TestQueryBuilder_ExecuteMultipleByteFilters(t *testing.T) {
 	store := &mockLogStore{}
 	addr, err := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")
 	require.NoError(t, err)
@@ -539,20 +537,14 @@ func TestQueryBuilder_ExecuteMultipleCellFilters(t *testing.T) {
 	}
 
 	// Multiple byte filters: value > 150 AND value < 450
-	filter1 := query.CellFilter{
-		Offset:   6, // Check higher bytes
-		Operator: query.GT,
-		Value:    []byte{0, 150}, // > 150
-	}
-	filter2 := query.CellFilter{
-		Offset:   6,
-		Operator: query.LT,
-		Value:    []byte{1, 194}, // < 450
-	}
+	gtBytes := make([]byte, 8)
+	binary.BigEndian.PutUint64(gtBytes, 150)
+
+	ltBytes := make([]byte, 8)
+	binary.BigEndian.PutUint64(ltBytes, 450)
 
 	builder := NewQuery[TestEvent](addr, 123).
-		WithCellFilter(filter1).
-		WithCellFilter(filter2)
+		FilterBytes(8, query.GT(gtBytes), query.LT(ltBytes))
 
 	result, err := builder.Execute(t.Context(), store)
 	require.NoError(t, err)

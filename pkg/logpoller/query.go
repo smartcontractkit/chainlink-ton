@@ -21,14 +21,15 @@ var _ QueryBuilder[any] = (*queryBuilder[any])(nil)
 type queryBuilder[T any] struct {
 	address     *address.Address
 	eventSig    uint32
-	cellFilters []query.CellFilter
+	byteFilters []query.ByteFilter
+	byteCursor  uint
 	typedFilter func(T) bool
 	options     query.Options
 }
 
 // NewQuery creates a new query builder for constructing log queries with two-phase filtering.
 // It initializes a query builder for a specific event type T with the given source address and event signature.
-
+//
 // Parameters:
 //   - srcAddress: The source contract address to filter logs by (required).
 //     This specifies which contract's logs to search through.
@@ -41,37 +42,49 @@ func NewQuery[T any](srcAddress *address.Address, eventSig uint32) QueryBuilder[
 	return &queryBuilder[T]{
 		address:     srcAddress,
 		eventSig:    eventSig,
-		cellFilters: make([]query.CellFilter, 0),
+		byteFilters: make([]query.ByteFilter, 0),
 		options:     query.Options{},
 	}
 }
 
-// WithCellFilter adds a raw cell-level filter
-func (b *queryBuilder[T]) WithCellFilter(filter query.CellFilter) QueryBuilder[T] {
-	b.cellFilters = append(b.cellFilters, filter)
+// SkipBytes advances the internal byte cursor, ignoring a specified number of bytes.
+func (b *queryBuilder[T]) SkipBytes(bytes uint) QueryBuilder[T] {
+	b.byteCursor += bytes
 	return b
 }
 
-// WithTypedFilter sets a strongly-typed in-memory filter
-func (b *queryBuilder[T]) WithTypedFilter(filter func(T) bool) QueryBuilder[T] {
+// FilterBytes applies conditions to the next `sizeInBytes` at the current cursor position,
+// then advances the cursor.
+func (b *queryBuilder[T]) FilterBytes(sizeInBytes uint, conditions ...query.Condition) QueryBuilder[T] {
+	b.byteFilters = append(b.byteFilters, query.ByteFilter{
+		Offset:     b.byteCursor,
+		Size:       sizeInBytes,
+		Conditions: conditions,
+	})
+	b.byteCursor += sizeInBytes
+	return b
+}
+
+// FilterTyped adds a high-level filter function that operates on the parsed event data.
+func (b *queryBuilder[T]) FilterTyped(filter func(T) bool) QueryBuilder[T] {
 	b.typedFilter = filter
 	return b
 }
 
-// WithLimit sets the maximum number of results to return.
-func (b *queryBuilder[T]) WithLimit(limit int) QueryBuilder[T] {
+// Limit sets the maximum number of results to return.
+func (b *queryBuilder[T]) Limit(limit int) QueryBuilder[T] {
 	b.options.Limit = limit
 	return b
 }
 
-// WithOffset sets the number of results to skip.
-func (b *queryBuilder[T]) WithOffset(offset int) QueryBuilder[T] {
+// Offset sets the number of results to skip from the beginning.
+func (b *queryBuilder[T]) Offset(offset int) QueryBuilder[T] {
 	b.options.Offset = offset
 	return b
 }
 
-// WithSort adds sorting criteria to the query.
-func (b *queryBuilder[T]) WithSort(field query.SortField, order query.SortOrder) QueryBuilder[T] {
+// OrderBy specifies the sorting order for the results.
+func (b *queryBuilder[T]) OrderBy(field query.SortField, order query.SortOrder) QueryBuilder[T] {
 	b.options.SortBy = append(b.options.SortBy, query.SortBy{
 		Field: field,
 		Order: order,
@@ -97,9 +110,9 @@ func (b *queryBuilder[T]) Execute(_ context.Context, store LogStore) (query.Resu
 
 	// TODO: prefilter in ORM layer
 	var preFilteredLogs []types.Log
-	if len(b.cellFilters) > 0 {
+	if len(b.byteFilters) > 0 {
 		for _, log := range logs {
-			if b.passesAllCellFilters(log) {
+			if b.passesAllByteFilters(log) {
 				preFilteredLogs = append(preFilteredLogs, log)
 			}
 		}
@@ -155,9 +168,9 @@ func (b *queryBuilder[T]) Execute(_ context.Context, store LogStore) (query.Resu
 	}, nil
 }
 
-// passesAllCellFilters checks if a log passes all byte-level filters
-func (b *queryBuilder[T]) passesAllCellFilters(log types.Log) bool {
-	if len(b.cellFilters) == 0 {
+// passesAllByteFilters checks if a log passes all byte-level filters
+func (b *queryBuilder[T]) passesAllByteFilters(log types.Log) bool {
+	if len(b.byteFilters) == 0 {
 		return true
 	}
 
@@ -167,8 +180,8 @@ func (b *queryBuilder[T]) passesAllCellFilters(log types.Log) bool {
 		return false
 	}
 
-	// check each filter using the CellFilter.Matches method
-	for _, filter := range b.cellFilters {
+	// check each filter using the ByteFilter.Matches method
+	for _, filter := range b.byteFilters {
 		if !filter.Matches(cellPayload) {
 			return false
 		}
