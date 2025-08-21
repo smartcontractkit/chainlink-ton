@@ -14,7 +14,6 @@ import (
 	"go.uber.org/zap/zapcore"
 
 	chain_selectors "github.com/smartcontractkit/chain-selectors"
-	chainsel "github.com/smartcontractkit/chain-selectors"
 	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
@@ -80,7 +79,7 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 		evmSelector:   big.NewInt(1e17),
 		chainSelector: big.NewInt(1e17), // Add TON chain gas price
 	}
-	laneCS := ops.AddLaneTONChangesets(&env, chainSelector, evmSelector, chainsel.FamilyTon, chainsel.FamilyEVM, gasPrices)
+	laneCS := ops.AddLaneTONChangesets(&env, chainSelector, evmSelector, chain_selectors.FamilyTon, chain_selectors.FamilyEVM, gasPrices)
 	env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{laneCS})
 	require.NoError(t, err, "failed to add lane")
 
