@@ -140,9 +140,10 @@ describe('OffRamp', () => {
   let signers: KeyPair[]
   let signersPublicKeys: bigint[]
 
-  // Helper functions
+  // Constants and configuration
   const configDigest: bigint = 0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcden
 
+  // Helper functions for configuration
   const createDefaultOCRConfig = (overrides = {}) => ({
     value: toNano('100'),
     configDigest,
@@ -153,6 +154,95 @@ describe('OffRamp', () => {
     transmitters: transmitters.map((t) => t.address),
     ...overrides,
   })
+
+  const createDefaultSourceChainConfig = (overrides = {}) => ({
+    router: ROUTER_ADDRESS_TEST,
+    isEnabled: true,
+    minSeqNr: 1n,
+    isRMNVerificationDisabled: false,
+    onRamp: bigIntToBuffer(EVM_ONRAMP_ADDRESS_TEST),
+    ...overrides,
+  })
+
+  // Helper functions for test data creation
+  const createTestMessage = (sequenceNumber = 1n, messageId = 1n, receiverAddress = generateMockTonAddress()) => {
+    const header: RampMessageHeader = {
+      messageId,
+      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+      destChainSelector: CHAINSEL_TON,
+      sequenceNumber,
+      nonce: 0n,
+    }
+
+    return {
+      header,
+      sender: bigIntToBuffer(EVM_SENDER_ADDRESS_TEST),
+      data: beginCell().endCell(),
+      receiver: receiverAddress,
+    }
+  }
+
+  const createMerkleRoot = (minSeqNr: bigint, maxSeqNr: bigint, merkleRootBytes: bigint) => ({
+    sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+    onRampAddress: bigIntToBuffer(EVM_ONRAMP_ADDRESS_TEST),
+    minSeqNr,
+    maxSeqNr,
+    merkleRoot: merkleRootBytes,
+  })
+
+  // Helper functions for setup operations
+  const setupOCRConfig = async (ocrPluginType = OCR3_PLUGIN_TYPE_COMMIT, overrides: any = {}) => {
+    const result = await offRamp.sendSetOCR3Config(
+      deployer.getSender(),
+      createDefaultOCRConfig({ ocrPluginType, ...overrides })
+    )
+    expectSuccessfulTransaction(result, deployer.address, offRamp.address)
+    
+    assertLog(result.transactions, offRamp.address, OCR3Logs.LogTypes.OCR3BaseConfigSet, {
+      ocrPluginType,
+      configDigest,
+      signers: overrides.signers ?? signersPublicKeys,
+      transmitters: transmitters.map((t) => t.address),
+      bigF: 1,
+    })
+    
+    return result
+  }
+
+  const setupSourceChainConfig = async (isEnabled = true, overrides = {}) => {
+    const config = createDefaultSourceChainConfig({ isEnabled, ...overrides })
+    const result = await offRamp.sendUpdateSourceChainConfig(deployer.getSender(), {
+      value: toNano('0.5'),
+      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+      config,
+    })
+    expectSuccessfulTransaction(result, deployer.address, offRamp.address)
+    return result
+  }
+
+  const commitReport = async (merkleRoots: MerkleRoot[], sequenceBytes = 0x01) => {
+    const report: CommitReport = { merkleRoots }
+    const reportContext: ReportContext = { configDigest, padding: 0n, sequenceBytes }
+    const signatures = createSignatures(
+      [signers[0], signers[1]],
+      hashReport(commitReportToBuilder(report).endCell(), reportContext)
+    )
+
+    const result = await offRamp.sendCommit(transmitters[0].getSender(), {
+      value: toNano('0.5'),
+      reportContext,
+      report,
+      signatures,
+    })
+    expectSuccessfulTransaction(result, transmitters[0].address, offRamp.address)
+
+    assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.CCIPCommitReportAccepted, {
+      priceUpdates: undefined,
+      merkleRoots,
+    })
+
+    return result
+  }
 
   const merkleRootAddress = (root: MerkleRoot) => {
     const data = beginCell()
@@ -194,12 +284,10 @@ describe('OffRamp', () => {
 
     // Populate the emulator library code
     // https://docs.ton.org/v3/documentation/data-formats/tlb/library-cells#testing-in-the-blueprint
-    /*
     const _libs = Dictionary.empty(Dictionary.Keys.BigUint(256), Dictionary.Values.Cell())
     _libs.set(BigInt(`0x${merkleRootCodeRaw.hash().toString('hex')}`), merkleRootCodeRaw)
     const libs = beginCell().storeDictDirect(_libs).endCell()
     blockchain.libs = libs
-    */
 
     // setup fee quoter
     feeQuoter = await setupTestFeeQuoter(deployer, blockchain)
@@ -242,7 +330,7 @@ describe('OffRamp', () => {
           pendingOwner: null,
         },
         deployerCode: deployerCode,
-        merkleRootCode: merkleRootCodeRaw,
+        merkleRootCode: merkleRootCode,
         feeQuoter: feeQuoter.address,
         chainSelector: CHAINSEL_TON,
         permissionlessExecutionThresholdSeconds: 60,
@@ -267,163 +355,27 @@ describe('OffRamp', () => {
   })
 
   it('should handle two OCR3 configs', async () => {
-    const resultSetCommit = await offRamp.sendSetOCR3Config(
-      deployer.getSender(),
-      createDefaultOCRConfig(),
-    )
-    expect(resultSetCommit.transactions).toHaveTransaction({
-      from: deployer.address,
-      to: offRamp.address,
-      success: true,
-    })
-
-    assertLog(resultSetCommit.transactions, offRamp.address, OCR3Logs.LogTypes.OCR3BaseConfigSet, {
-      ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
-      configDigest,
-      signers: signersPublicKeys,
-      transmitters: transmitters.map((t) => t.address),
-      bigF: 1,
-    })
-
-    const resultSetExecute = await offRamp.sendSetOCR3Config(
-      deployer.getSender(),
-      createDefaultOCRConfig({ ocrPluginType: OCR3_PLUGIN_TYPE_EXECUTE }),
-    )
-    expectSuccessfulTransaction(resultSetExecute, deployer.address, offRamp.address)
-    assertLog(resultSetExecute.transactions, offRamp.address, OCR3Logs.LogTypes.OCR3BaseConfigSet, {
-      ocrPluginType: OCR3_PLUGIN_TYPE_EXECUTE,
-      configDigest,
-      signers: signersPublicKeys,
-      transmitters: transmitters.map((t) => t.address),
-      bigF: 1,
-    })
+    await setupOCRConfig(OCR3_PLUGIN_TYPE_COMMIT)
+    await setupOCRConfig(OCR3_PLUGIN_TYPE_EXECUTE)
   })
 
   it('Test commit with empty report', async () => {
-    const resultSetConfig = await offRamp.sendSetOCR3Config(
-      deployer.getSender(),
-      createDefaultOCRConfig(),
-    )
-    expectSuccessfulTransaction(resultSetConfig, deployer.address, offRamp.address)
-
-    let reportContext: ReportContext = { configDigest, padding: 0n, sequenceBytes: 0x01 }
-    let report: CommitReport
-    report = {
-      merkleRoots: [],
-    }
-
-    const signatures = createSignatures(
-      [signers[0], signers[1]],
-      hashReport(commitReportToBuilder(report).endCell(), reportContext),
-    )
-
-    const resultCommit = await offRamp.sendCommit(transmitters[0].getSender(), {
-      value: toNano('10'),
-      reportContext: reportContext,
-      report: report,
-      signatures: signatures,
-    })
-    expectSuccessfulTransaction(resultCommit, transmitters[0].address, offRamp.address)
-
-    assertLog(
-      resultCommit.transactions,
-      offRamp.address,
-      CCIPLogs.LogTypes.CCIPCommitReportAccepted,
-      {
-        priceUpdates: undefined,
-        merkleRoots: [],
-      },
-    )
+    await setupOCRConfig()
+    await commitReport([])
   })
 
   it('Test commit with one merkle root for one empty message', async () => {
-    const rampMessageHeader: RampMessageHeader = {
-      messageId: 1n,
-      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
-      destChainSelector: CHAINSEL_TON,
-      sequenceNumber: 1n,
-      nonce: 0n,
-    }
-
-    const message: Any2TVMRampMessage = {
-      header: rampMessageHeader,
-      sender: bigIntToBuffer(EVM_SENDER_ADDRESS_TEST),
-      data: beginCell().endCell(),
-      receiver: generateMockTonAddress(),
-    }
-
+    const message = createTestMessage()
     const metadataHash = uint8ArrayToBigInt(getMetadataHash(CHAINSEL_EVM_TEST_90000001))
     const rootBytes = uint8ArrayToBigInt(generateMessageId(message, metadataHash))
+    const root = createMerkleRoot(1n, 1n, rootBytes)
 
-    const root: MerkleRoot = {
-      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
-      onRampAddress: bigIntToBuffer(EVM_ONRAMP_ADDRESS_TEST),
-      minSeqNr: 1n,
-      maxSeqNr: 1n,
-      merkleRoot: rootBytes,
-    }
+    await setupOCRConfig()
+    await setupSourceChainConfig()
 
-    const report: CommitReport = {
-      merkleRoots: [root],
-    }
-    const reportContext: ReportContext = { configDigest, padding: 0n, sequenceBytes: 0x01 }
+    const result = await commitReport([root])
 
-    const signatures = createSignatures(
-      [signers[0], signers[1]],
-      hashReport(commitReportToBuilder(report).endCell(), reportContext),
-    )
-
-    const resultSetCommit = await offRamp.sendSetOCR3Config(
-      deployer.getSender(),
-      createDefaultOCRConfig(),
-    )
-    expectSuccessfulTransaction(resultSetCommit, deployer.address, offRamp.address)
-
-    assertLog(resultSetCommit.transactions, offRamp.address, OCR3Logs.LogTypes.OCR3BaseConfigSet, {
-      ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
-      configDigest,
-      signers: signersPublicKeys,
-      transmitters: transmitters.map((t) => t.address),
-      bigF: 1,
-    })
-    const sourceChainConfig: SourceChainConfig = {
-      router: ROUTER_ADDRESS_TEST,
-      isEnabled: true,
-      minSeqNr: 1n,
-      isRMNVerificationDisabled: false,
-      onRamp: bigIntToBuffer(EVM_ONRAMP_ADDRESS_TEST),
-    }
-
-    const resultUpdateSourceChainConfig = await offRamp.sendUpdateSourceChainConfig(
-      deployer.getSender(),
-      {
-        value: toNano('0.5'),
-        sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
-        config: sourceChainConfig,
-      },
-    )
-
-    expectSuccessfulTransaction(resultUpdateSourceChainConfig, deployer.address, offRamp.address)
-
-    const resultCommitReport = await offRamp.sendCommit(transmitters[0].getSender(), {
-      value: toNano('0.5'),
-      reportContext: reportContext,
-      report: report,
-      signatures: signatures,
-    })
-    expectSuccessfulTransaction(resultCommitReport, transmitters[0].address, offRamp.address)
-
-    assertLog(
-      resultCommitReport.transactions,
-      offRamp.address,
-      CCIPLogs.LogTypes.CCIPCommitReportAccepted,
-      {
-        priceUpdates: undefined,
-        merkleRoots: [root],
-      },
-    )
-
-    expect(resultCommitReport.transactions).toHaveTransaction({
+    expect(result.transactions).toHaveTransaction({
       from: offRamp.address,
       //to: merkleRootAddress(root), TODO: calculate merkleRoot address correctly this is not working
       deploy: true,
@@ -432,192 +384,48 @@ describe('OffRamp', () => {
   })
 
   it('Test commit report fails if source chain is not enabled', async () => {
-    const rampMessageHeader: RampMessageHeader = {
-      messageId: 1n,
-      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
-      destChainSelector: CHAINSEL_TON,
-      sequenceNumber: 1n,
-      nonce: 0n,
-    }
-    const message: Any2TVMRampMessage = {
-      header: rampMessageHeader,
-      sender: bigIntToBuffer(EVM_SENDER_ADDRESS_TEST),
-      data: beginCell().endCell(),
-      receiver: generateMockTonAddress(),
-    }
+    const message = createTestMessage()
     const metadataHash = uint8ArrayToBigInt(getMetadataHash(CHAINSEL_EVM_TEST_90000001))
     const rootBytes = uint8ArrayToBigInt(generateMessageId(message, metadataHash))
-    const root: MerkleRoot = {
-      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
-      onRampAddress: bigIntToBuffer(EVM_ONRAMP_ADDRESS_TEST),
-      minSeqNr: 1n,
-      maxSeqNr: 1n,
-      merkleRoot: rootBytes,
-    }
-    const report: CommitReport = {
-      merkleRoots: [root],
-    }
+    const root = createMerkleRoot(1n, 1n, rootBytes)
+
+    await setupOCRConfig()
+    await setupSourceChainConfig(false) // disabled source chain
+
+    const report: CommitReport = { merkleRoots: [root] }
     const reportContext: ReportContext = { configDigest, padding: 0n, sequenceBytes: 0x01 }
     const signatures = createSignatures(
       [signers[0], signers[1]],
-      hashReport(commitReportToBuilder(report).endCell(), reportContext),
+      hashReport(commitReportToBuilder(report).endCell(), reportContext)
     )
-    const resultSetCommit = await offRamp.sendSetOCR3Config(
-      deployer.getSender(),
-      createDefaultOCRConfig(),
-    )
-    expectSuccessfulTransaction(resultSetCommit, deployer.address, offRamp.address)
-    assertLog(resultSetCommit.transactions, offRamp.address, OCR3Logs.LogTypes.OCR3BaseConfigSet, {
-      ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
-      configDigest,
-      signers: signersPublicKeys,
-      transmitters: transmitters.map((t) => t.address),
-      bigF: 1,
-    })
-    // Update source chain config to be disabled
-    const sourceChainConfigDisabled: SourceChainConfig = {
-      router: ROUTER_ADDRESS_TEST,
-      isEnabled: false,
-      minSeqNr: 1n,
-      isRMNVerificationDisabled: false,
-      onRamp: bigIntToBuffer(EVM_ONRAMP_ADDRESS_TEST),
-    }
-    const resultUpdateSourceChainConfig = await offRamp.sendUpdateSourceChainConfig(
-      deployer.getSender(),
-      {
-        value: toNano('0.5'),
-        sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
-        config: sourceChainConfigDisabled,
-      },
-    )
-    expectSuccessfulTransaction(resultUpdateSourceChainConfig, deployer.address, offRamp.address)
-    const resultCommitReport = await offRamp.sendCommit(transmitters[0].getSender(), {
+
+    const result = await offRamp.sendCommit(transmitters[0].getSender(), {
       value: toNano('0.5'),
-      reportContext: reportContext,
-      report: report,
-      signatures: signatures,
+      reportContext,
+      report,
+      signatures,
     })
-    expectFailedTransaction(
-      resultCommitReport,
-      transmitters[0].address,
-      offRamp.address,
-      ERROR_SOURCE_CHAIN_NOT_ENABLED,
-    )
+    
+    expectFailedTransaction(result, transmitters[0].address, offRamp.address, ERROR_SOURCE_CHAIN_NOT_ENABLED)
   })
 
   it('Test commit with two merkle roots with one message each', async () => {
-    const rampMessageHeader1: RampMessageHeader = {
-      messageId: 1n,
-      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
-      destChainSelector: CHAINSEL_TON,
-      sequenceNumber: 1n,
-      nonce: 0n,
-    }
-
-    const message1: Any2TVMRampMessage = {
-      header: rampMessageHeader1,
-      sender: bigIntToBuffer(EVM_SENDER_ADDRESS_TEST),
-      data: beginCell().endCell(),
-      receiver: generateMockTonAddress(),
-    }
-
-    const rampMessageHeader2: RampMessageHeader = {
-      messageId: 2n,
-      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
-      destChainSelector: CHAINSEL_TON,
-      sequenceNumber: 2n,
-      nonce: 0n,
-    }
-
-    const message2: Any2TVMRampMessage = {
-      header: rampMessageHeader2,
-      sender: bigIntToBuffer(EVM_SENDER_ADDRESS_TEST),
-      data: beginCell().endCell(),
-      receiver: generateMockTonAddress(),
-    }
+    const message1 = createTestMessage(1n, 1n)
+    const message2 = createTestMessage(2n, 2n)
 
     const metadataHash = uint8ArrayToBigInt(getMetadataHash(CHAINSEL_EVM_TEST_90000001))
     const root1Bytes = uint8ArrayToBigInt(generateMessageId(message1, metadataHash))
     const root2Bytes = uint8ArrayToBigInt(generateMessageId(message2, metadataHash))
 
-    const root1: MerkleRoot = {
-      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
-      onRampAddress: bigIntToBuffer(EVM_ONRAMP_ADDRESS_TEST),
-      minSeqNr: 1n,
-      maxSeqNr: 1n,
-      merkleRoot: root1Bytes,
-    }
+    const root1 = createMerkleRoot(1n, 1n, root1Bytes)
+    const root2 = createMerkleRoot(2n, 2n, root2Bytes)
 
-    const root2: MerkleRoot = {
-      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
-      onRampAddress: bigIntToBuffer(EVM_ONRAMP_ADDRESS_TEST),
-      minSeqNr: 2n,
-      maxSeqNr: 2n,
-      merkleRoot: root2Bytes,
-    }
+    await setupOCRConfig()
+    await setupSourceChainConfig()
 
-    const report: CommitReport = {
-      merkleRoots: [root1, root2],
-    }
+    const result = await commitReport([root1, root2])
 
-    const reportContext: ReportContext = { configDigest, padding: 0n, sequenceBytes: 0x01 }
-
-    const signatures = createSignatures(
-      [signers[0], signers[1]],
-      hashReport(commitReportToBuilder(report).endCell(), reportContext),
-    )
-
-    const resultSetCommit = await offRamp.sendSetOCR3Config(
-      deployer.getSender(),
-      createDefaultOCRConfig(),
-    )
-    expectSuccessfulTransaction(resultSetCommit, deployer.address, offRamp.address)
-
-    assertLog(resultSetCommit.transactions, offRamp.address, OCR3Logs.LogTypes.OCR3BaseConfigSet, {
-      ocrPluginType: OCR3_PLUGIN_TYPE_COMMIT,
-      configDigest,
-      signers: signersPublicKeys,
-      transmitters: transmitters.map((t) => t.address),
-      bigF: 1,
-    })
-    const sourceChainConfig: SourceChainConfig = {
-      router: ROUTER_ADDRESS_TEST,
-      isEnabled: true,
-      minSeqNr: 1n,
-      isRMNVerificationDisabled: false,
-      onRamp: bigIntToBuffer(EVM_ONRAMP_ADDRESS_TEST),
-    }
-
-    const resultUpdateSourceChainConfig = await offRamp.sendUpdateSourceChainConfig(
-      deployer.getSender(),
-      {
-        value: toNano('0.5'),
-        sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
-        config: sourceChainConfig,
-      },
-    )
-
-    expectSuccessfulTransaction(resultUpdateSourceChainConfig, deployer.address, offRamp.address)
-
-    const resultCommitReport = await offRamp.sendCommit(transmitters[0].getSender(), {
-      value: toNano('0.5'),
-      reportContext: reportContext,
-      report: report,
-      signatures: signatures,
-    })
-    expectSuccessfulTransaction(resultCommitReport, transmitters[0].address, offRamp.address)
-
-    assertLog(
-      resultCommitReport.transactions,
-      offRamp.address,
-      CCIPLogs.LogTypes.CCIPCommitReportAccepted,
-      {
-        priceUpdates: undefined,
-        merkleRoots: [root1, root2],
-      },
-    )
-
-    expect(resultCommitReport.transactions).toHaveTransaction({
+    expect(result.transactions).toHaveTransaction({
       from: offRamp.address,
       //to: merkleRootAddress(root), TODO: calculate merkleRoot address correctly this is not working
       deploy: true,
@@ -626,100 +434,23 @@ describe('OffRamp', () => {
   })
 
   it('Test execute flow', async () => {
-    const rampMessageHeader: RampMessageHeader = {
-      messageId: 1n,
-      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
-      destChainSelector: CHAINSEL_TON,
-      sequenceNumber: 1n,
-      nonce: 0n,
-    }
-
-    const message: Any2TVMRampMessage = {
-      header: rampMessageHeader,
-      sender: bigIntToBuffer(EVM_SENDER_ADDRESS_TEST),
-      data: beginCell().endCell(),
-      receiver: receiver.address,
-    }
-
+    const message = createTestMessage(1n, 1n, receiver.address)
     const metadataHash = uint8ArrayToBigInt(getMetadataHash(CHAINSEL_EVM_TEST_90000001))
     const rootBytes = uint8ArrayToBigInt(generateMessageId(message, metadataHash))
+    const root = createMerkleRoot(1n, 1n, rootBytes)
 
-
-    const root: MerkleRoot = {
-      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
-      onRampAddress: bigIntToBuffer(EVM_ONRAMP_ADDRESS_TEST),
-      minSeqNr: 1n,
-      maxSeqNr: 1n,
-      merkleRoot: rootBytes,
-    }
-
-    const report: CommitReport = {
-      merkleRoots: [root],
-    }
-    const reportContext: ReportContext = { configDigest, padding: 0n, sequenceBytes: 0x01 }
-
-    const signatures = createSignatures(
-      [signers[0], signers[1]],
-      hashReport(commitReportToBuilder(report).endCell(), reportContext),
-    )
-
-    const resultSetCommitConfig = await offRamp.sendSetOCR3Config(
-      deployer.getSender(),
-      createDefaultOCRConfig(),
-    )
-    expectSuccessfulTransaction(resultSetCommitConfig, deployer.address, offRamp.address)
-
-    const resultSetExecute = await offRamp.sendSetOCR3Config(
-      deployer.getSender(),
-      createDefaultOCRConfig({
-        ocrPluginType: OCR3_PLUGIN_TYPE_EXECUTE,
-        signers: [],
-        isSignatureVerificationEnabled: false
-      }),
-    )
-
-    expectSuccessfulTransaction(resultSetExecute, deployer.address, offRamp.address)
-    
-    const sourceChainConfig: SourceChainConfig = {
-      router: ROUTER_ADDRESS_TEST,
-      isEnabled: true,
-      minSeqNr: 1n,
-      isRMNVerificationDisabled: false,
-      onRamp: bigIntToBuffer(EVM_ONRAMP_ADDRESS_TEST),
-    }
-
-    const resultUpdateSourceChainConfig = await offRamp.sendUpdateSourceChainConfig(
-      deployer.getSender(),
-      {
-        value: toNano('0.5'),
-        sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
-        config: sourceChainConfig,
-      },
-    )
-
-    expectSuccessfulTransaction(resultUpdateSourceChainConfig, deployer.address, offRamp.address)
+    // Setup configurations
+    await setupOCRConfig(OCR3_PLUGIN_TYPE_COMMIT)
+    await setupOCRConfig(OCR3_PLUGIN_TYPE_EXECUTE, {
+      signers: [],
+      isSignatureVerificationEnabled: false
+    })
+    await setupSourceChainConfig()
 
     // Send the commit report
+    const commitResult = await commitReport([root])
 
-    const resultCommitReport = await offRamp.sendCommit(transmitters[0].getSender(), {
-      value: toNano('0.5'),
-      reportContext: reportContext,
-      report: report,
-      signatures: signatures,
-    })
-    expectSuccessfulTransaction(resultCommitReport, transmitters[0].address, offRamp.address)
-
-    assertLog(
-      resultCommitReport.transactions,
-      offRamp.address,
-      CCIPLogs.LogTypes.CCIPCommitReportAccepted,
-      {
-        priceUpdates: undefined,
-        merkleRoots: [root],
-      },
-    )
-
-    expect(resultCommitReport.transactions).toHaveTransaction({
+    expect(commitResult.transactions).toHaveTransaction({
       from: offRamp.address,
       //to: merkleRootAddress(root), TODO: calculate merkleRoot address correctly this is not working
       deploy: true,
@@ -727,14 +458,14 @@ describe('OffRamp', () => {
     })
 
     /*
-    const deployTx = findTransactionRequired(resultCommitReport.transactions, {
+    const deployTx = findTransactionRequired(commitResult.transactions, {
       from: offRamp.address,
       deploy: true,
       success: true
     })
 
     const merkleRootAddress = deployTx.inMessage!.info.dest
-    const state =  (await blockchain.getContract(merkleRootAddress as Address)).accountState;
+    const state = (await blockchain.getContract(merkleRootAddress as Address)).accountState;
     if (state?.type === 'active') {
             console.log('code', state.state.code!.hash());
             console.log('data', state.state.data);
@@ -742,7 +473,6 @@ describe('OffRamp', () => {
     */
 
     // Send the execute report
-    
     const executeReport: ExecutionReport = {
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
       messages: [message],
@@ -751,16 +481,115 @@ describe('OffRamp', () => {
       proofFlagBits: 0n
     }
 
-    const resultSendExecute = await offRamp.sendExecute(transmitters[0].getSender(), {
+    const executeResult = await offRamp.sendExecute(transmitters[0].getSender(), {
       value: toNano('0.5'),
       reportContext: { configDigest, padding: 0n, sequenceBytes: 0x02 },
       report: executeReport,
     })
 
-    expect(resultSendExecute.transactions).toHaveTransaction({
+    expect(executeResult.transactions).toHaveTransaction({
       from: offRamp.address,
       to: receiver.address,
       success: true,
+    })
+  })
+
+  it('Test execute fails when root was not committed', async () => {
+    const message = createTestMessage(1n, 1n, receiver.address)
+
+    // Setup configurations but don't commit any report
+    await setupOCRConfig(OCR3_PLUGIN_TYPE_COMMIT)
+    await setupOCRConfig(OCR3_PLUGIN_TYPE_EXECUTE, {
+      signers: [],
+      isSignatureVerificationEnabled: false
+    })
+    await setupSourceChainConfig()
+
+    // Try to execute without committing
+    const executeReport: ExecutionReport = {
+      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+      messages: [message],
+      offchainTokenData: [],
+      proofs: [],
+      proofFlagBits: 0n
+    }
+
+    const executeResult = await offRamp.sendExecute(transmitters[0].getSender(), {
+      value: toNano('0.5'),
+      reportContext: { configDigest, padding: 0n, sequenceBytes: 0x02 },
+      report: executeReport,
+    })
+
+    // For now, let's check what actually happens in the execution
+    // We expect the execution might succeed but the message processing should fail
+    expect(executeResult.transactions).toHaveTransaction({
+      from: transmitters[0].address,
+      to: offRamp.address,
+      success: true, // The execute call itself succeeds
+    })
+
+    expect(executeResult.transactions).toHaveTransaction({
+      from: offRamp.address,
+      success: false,
+    })
+    
+    // Check that no message was sent to the receiver (message processing failed)
+    expect(executeResult.transactions).not.toHaveTransaction({
+      from: offRamp.address,
+      to: receiver.address,
+    })
+  })
+
+  it('Test execute fails when different root was committed', async () => {
+    const message = createTestMessage(1n, 1n, receiver.address)
+    const differentMessage = createTestMessage(2n, 2n, receiver.address)
+    
+    const metadataHash = uint8ArrayToBigInt(getMetadataHash(CHAINSEL_EVM_TEST_90000001))
+    const differentRootBytes = uint8ArrayToBigInt(generateMessageId(differentMessage, metadataHash))
+    const differentRoot = createMerkleRoot(2n, 2n, differentRootBytes)
+
+    // Setup configurations
+    await setupOCRConfig(OCR3_PLUGIN_TYPE_COMMIT)
+    await setupOCRConfig(OCR3_PLUGIN_TYPE_EXECUTE, {
+      signers: [],
+      isSignatureVerificationEnabled: false
+    })
+    await setupSourceChainConfig()
+
+    // Commit a different merkle root than what we'll try to execute
+    await commitReport([differentRoot])
+
+    // Try to execute with the original message (not the one in the committed root)
+    const executeReport: ExecutionReport = {
+      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+      messages: [message],
+      offchainTokenData: [],
+      proofs: [],
+      proofFlagBits: 0n
+    }
+
+    const executeResult = await offRamp.sendExecute(transmitters[0].getSender(), {
+      value: toNano('0.5'),
+      reportContext: { configDigest, padding: 0n, sequenceBytes: 0x02 },
+      report: executeReport,
+    })
+
+    // The execute call itself might succeed, but message processing should fail
+    expect(executeResult.transactions).toHaveTransaction({
+      from: transmitters[0].address,
+      to: offRamp.address,
+      success: true, // The execute call itself succeeds
+    })
+
+    expect(executeResult.transactions).toHaveTransaction({
+      from: offRamp.address,
+      success: false,
+    })
+    
+    // Check that no message was sent to the receiver (message verification failed)
+    expect(executeResult.transactions).not.toHaveTransaction({
+      from: offRamp.address,
+      to: receiver.address,
     })
   })
 })
