@@ -544,36 +544,33 @@ fun Timelock<T>.init(
 
     var rbac = self.hookTrait__AccessControl();
 
-    // Do not return excess during initialization
-    val returnExcess = false;
+    rbac._setRoleAdmin(queryId, sender, ADMIN_ROLE, ADMIN_ROLE);
+    rbac._setRoleAdmin(queryId, sender, PROPOSER_ROLE, ADMIN_ROLE);
+    rbac._setRoleAdmin(queryId, sender, EXECUTOR_ROLE, ADMIN_ROLE);
+    rbac._setRoleAdmin(queryId, sender, CANCELLER_ROLE, ADMIN_ROLE);
+    rbac._setRoleAdmin(queryId, sender, BYPASSER_ROLE, ADMIN_ROLE);
 
-    rbac._setRoleAdmin(queryId, sender, ADMIN_ROLE, ADMIN_ROLE, returnExcess);
-    rbac._setRoleAdmin(queryId, sender, PROPOSER_ROLE, ADMIN_ROLE, returnExcess);
-    rbac._setRoleAdmin(queryId, sender, EXECUTOR_ROLE, ADMIN_ROLE, returnExcess);
-    rbac._setRoleAdmin(queryId, sender, CANCELLER_ROLE, ADMIN_ROLE, returnExcess);
-    rbac._setRoleAdmin(queryId, sender, BYPASSER_ROLE, ADMIN_ROLE, returnExcess);
-
-    rbac._grantRole(queryId, sender, ADMIN_ROLE, admin, returnExcess);
+    rbac._grantRole(queryId, sender, ADMIN_ROLE, admin);
 
     // Grant roles to proposers, executors, cancellers and bypassers
     var pp = Iterator<address>.new(proposers);
     while (!pp.empty()) {
-        rbac._grantRole(queryId, sender, PROPOSER_ROLE, pp.next(), returnExcess);
+        rbac._grantRole(queryId, sender, PROPOSER_ROLE, pp.next());
     }
 
     var ee = Iterator<address>.new(executors);
     while (!ee.empty()) {
-        rbac._grantRole(queryId, sender, EXECUTOR_ROLE, ee.next(), returnExcess);
+        rbac._grantRole(queryId, sender, EXECUTOR_ROLE, ee.next());
     }
 
     var cc = Iterator<address>.new(cancellers);
     while (!cc.empty()) {
-        rbac._grantRole(queryId, sender, CANCELLER_ROLE, cc.next(), returnExcess);
+        rbac._grantRole(queryId, sender, CANCELLER_ROLE, cc.next());
     }
 
     var bb = Iterator<address>.new(bypassers);
     while (!bb.empty()) {
-        rbac._grantRole(queryId, sender, BYPASSER_ROLE, bb.next(), returnExcess);
+        rbac._grantRole(queryId, sender, BYPASSER_ROLE, bb.next());
     }
 
     self.data.minDelay = minDelay;
