@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
-	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 	"go.uber.org/zap/zapcore"
@@ -20,6 +19,10 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
 	"github.com/smartcontractkit/chainlink/deployment/ccip/changeset/v1_6"
+
+	"github.com/smartcontractkit/chainlink/deployment/ccip/shared/client"
+	"github.com/smartcontractkit/chainlink/deployment/ccip/shared/stateview"
+	tonStateView "github.com/smartcontractkit/chainlink/deployment/ccip/shared/stateview/ton"
 	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
 	"github.com/smartcontractkit/chainlink/deployment/common/proposalutils"
 	"github.com/smartcontractkit/chainlink/deployment/environment/memory"
@@ -28,11 +31,11 @@ import (
 	ops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 
 	tonCommon "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
@@ -42,7 +45,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/chainaccessor"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 
 	test_utils "github.com/smartcontractkit/chainlink-ton/integration-tests/utils"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/hash"
@@ -192,7 +194,6 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 		require.NoError(t, lp.Close())
 	}()
 
-	routerAddr := state[chainSelector].Router
 	feeQuoterAddr := state[chainSelector].FeeQuoter
 
 	// TODO: missing in changeset ------------------
@@ -238,10 +239,43 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 	// TODO: use sendmanytx or highload wallet, otherwise we get 33 exit code(too many actions)
 	time.Sleep(5 * time.Second)
 
-	const lastSeqNo = 4
-	for seqNo := 0; seqNo <= lastSeqNo; seqNo++ {
+	const maxSeqNo = 4
+	for seqNo := 0; seqNo <= maxSeqNo; seqNo++ {
 		t.Log("Sending CCIP message", seqNo)
-		sendCCIPMessage(t, evmSelector, routerAddr, tonChain.Client, deployer)
+		extraArgs := onramp.GenericExtraArgsV2{
+			GasLimit:                 big.NewInt(100),
+			AllowOutOfOrderExecution: false,
+		}
+
+		extraArgsCell, err := tlb.ToCell(extraArgs)
+		require.NoError(t, err)
+		tonSendRequest := ops.TonSendRequest{
+			QueryID:   rand.Uint64(),
+			Receiver:  tonCommon.CrossChainAddress(make([]byte, 20)),
+			Data:      tonCommon.SnakeBytes([]byte("tons of fun")),
+			ExtraArgs: extraArgsCell,
+			FeeToken:  ops.TonTokenAddr,
+		}
+
+		msgCfg := &client.CCIPSendReqConfig{
+			SourceChain:  chainSelector,
+			DestChain:    evmSelector,
+			IsTestRouter: false,
+			Sender:       nil,            // For TON, sender is handled by the environment
+			Message:      tonSendRequest, // Populate with the CCIP message
+			MaxRetries:   3,
+		}
+
+		// TODO: send helper args are coupled with core memory environment, can we tidy this?
+		ccipState := stateview.CCIPOnChainState{
+			TonChains: map[uint64]tonStateView.CCIPChainState{
+				chainSelector: {
+					Router: state[chainSelector].Router,
+				},
+			},
+		}
+		_, err = ops.SendTonRequest(env, ccipState, msgCfg)
+		require.NoError(t, err, "failed to send CCIP message")
 		time.Sleep(2 * time.Second)
 	}
 
@@ -250,15 +284,15 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 		require.Eventually(t, func() bool {
 			seqNum, err := accessor.LatestMessageTo(ctx, ccipocr3.ChainSelector(evmSelector))
 			require.NoError(t, err, "failed to get latest message sequence number")
-			return seqNum == ccipocr3.SeqNum(lastSeqNo)
+			return seqNum == ccipocr3.SeqNum(maxSeqNo)
 		}, 30*time.Second, 3*time.Second, "log poller did not ingest events correctly in time")
 
 		// check all messages are indexed
-		msgs, err := accessor.MsgsBetweenSeqNums(ctx, ccipocr3.ChainSelector(evmSelector), ccipocr3.NewSeqNumRange(0, lastSeqNo))
+		msgs, err := accessor.MsgsBetweenSeqNums(ctx, ccipocr3.ChainSelector(evmSelector), ccipocr3.NewSeqNumRange(0, maxSeqNo))
 		require.NoError(t, err, "failed to get latest message sequence number")
-		require.Len(t, msgs, lastSeqNo+1, "expected %d messages, got %d", lastSeqNo+1, len(msgs))
+		require.Len(t, msgs, maxSeqNo+1, "expected %d messages, got %d", maxSeqNo+1, len(msgs))
 		require.Equal(t, msgs[0].Header.SequenceNumber, ccipocr3.SeqNum(0))
-		require.Equal(t, msgs[lastSeqNo].Header.SequenceNumber, ccipocr3.SeqNum(lastSeqNo))
+		require.Equal(t, msgs[maxSeqNo].Header.SequenceNumber, ccipocr3.SeqNum(maxSeqNo))
 
 		// range query
 		const start, end = 2, 4
@@ -268,44 +302,4 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 		require.Equal(t, msgs2[0].Header.SequenceNumber, ccipocr3.SeqNum(start))
 		require.Equal(t, msgs2[len(msgs2)-1].Header.SequenceNumber, ccipocr3.SeqNum(end))
 	})
-}
-
-// TODO: clean up
-func sendCCIPMessage(t *testing.T, evmSelector uint64, routerAddr address.Address, client ton.APIClientWrapped, deployer *wallet.Wallet) {
-	extraArgs := onramp.GenericExtraArgsV2{
-		GasLimit:                 big.NewInt(100),
-		AllowOutOfOrderExecution: false,
-	}
-
-	extraArgsCell, err := tlb.ToCell(extraArgs)
-	require.NoError(t, err)
-
-	// Use the proper Go struct with TLB serialization instead of manual construction
-	body, err := tlb.ToCell(router.CCIPSend{
-		QueryID:           rand.Uint64(),
-		DestChainSelector: evmSelector,
-		Receiver:          tonCommon.CrossChainAddress(make([]byte, 20)),
-		Data:              tonCommon.SnakeBytes([]byte("tons of fun")),
-		TokenAmounts:      tonCommon.SnakeRef[router.TokenAmount]{}, // Empty token amounts for no token transfers
-		FeeToken:          ops.TonTokenAddr,
-		ExtraArgs:         extraArgsCell,
-	})
-	require.NoError(t, err)
-
-	msg := &wallet.Message{
-		Mode: 1,
-		InternalMessage: &tlb.InternalMessage{
-			IHRDisabled: true,
-			Bounce:      false,
-			DstAddr:     &routerAddr,
-			Amount:      tlb.MustFromTON("1.0"),
-			Body:        body,
-		},
-	}
-
-	ttConn := tracetracking.NewSignedAPIClient(client, *deployer)
-	rMsg, _, err := ttConn.SendWaitTransaction(t.Context(), routerAddr, msg)
-	require.NoError(t, err, "failed to send message")
-	err = rMsg.WaitForTrace(client)
-	require.NoError(t, err, "failed to wait for trace")
 }
