@@ -129,22 +129,51 @@ fun onInternalMessage(in:InMessage) {
             // Maybe we could pass the root around and just check that it was deployed by the OffRamp...
 
             val st = Storage.load();
-            //TODO: Validate that the sender is an owned MerkleRoot contract
+
             /*
+            val metadataHash = beginCell()
+                .storeUint(stringSha256("Any2TVMMessageHashV1"), 256)
+                .storeUint(report.sourceChainSelector, 64)
+                .storeUint(st.chainSelector, 64)
+                .storeRef(sourceChainConfig.onRamp)
+                .endCell()
+                .hash();
+
+            var hashedLeaves = createEmptyTuple();
+            // TODO: is offchainTokenData not hashed?
+            while (!messages.empty()) {
+                val message = messages.next();
+
+                // Commits do not verify the destChainSelector in the message since only the root is committed, so we
+                // have to check it explicitly. This check is also important as we have assumed the metaDataHash above uses
+                // the i_chainSelector as the destChainSelector.
+                assert(message.header.destChainSelector == st.chainSelector, ERROR_INVALID_MESSAGE_DEST_CHAIN_SELECTOR);
+
+                // If the message source chain selector does not match the report's source chain selector and the root has not
+                // been committed for the report source chain selector this will be caught by the root verification.
+                // This acts as an extra check to ensure the message source chain selector matches the report's source chain.
+                assert(message.header.sourceChainSelector == report.sourceChainSelector, ERROR_SOURCE_CHAIN_SELECTOR_MISMATCH);
+
+                // Hashes the cell data + refs recursively
+                val hash = message.generateMessageId(metadataHash);
+                hashedLeaves.push(hash);
+            }
+
+            //TODO: Validate that the sender is an owned MerkleRoot contract
             val root = merkleRoot(
-                Iterator<Any2TVMRampMessage>.new(report.messages),
-                Iterator<uint256>.new(report.proofs),
+                TupleIterator<uint256>.new(hashedLeaves);,
+                Iterator<uint256>.new(msg.proofs),
                 msg.proofFlagBits
             );
 
             val initCode =  st.deployer;
             val initData = Deployable {
               owner: contract.getAddress(),
-              id: getMerkleRootID(root.merkleRoot),
+              id: getMerkleRootID(root),
             }.toCell();
 
             //https://docs.ton.org/v3/documentation/smart-contracts/func/cookbook#how-to-build-a-stateinit-cell
-            var stateInit = begin_cell()
+            var stateInit = beginCell()
               .storeUint(0, 1) // split_depth:(Maybe (## 5))
               .storeUint(0, 1) // special:(Maybe TickTock)
               .storeUint(1, 1) // (Maybe ^Cell)
@@ -159,9 +188,9 @@ fun onInternalMessage(in:InMessage) {
                 .storeUint(0, 1) // anycast:(Maybe Anycast)
                 .storeUint(0, 8) // workchain_id:int8
                 .storeUint(stateInit.hash(), 256) // address:bits256
-                .endCell() as address;
+                .endCell().beginParse() as address;
 
-            assert(expectedAddress == in.senderAddress);
+            assert(expectedAddress == in.senderAddress) throw 0x1000;
             */
 
             // No batching, so for now we assume the messages field is just a single message
@@ -371,7 +400,8 @@ fun _execute(msg: Execute, sender: address) {
          body: ValidateExecute {
             messages: report.messages,
             proofs: report.proofs,
-            proofFlagBits: report.proofFlagBits
+            proofFlagBits: report.proofFlagBits,
+            metadataHash: metadataHash,
          },
      });
      executeMsg.send(SEND_MODE_REGULAR);

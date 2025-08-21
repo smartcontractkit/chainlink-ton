@@ -7,6 +7,7 @@ import "deployable/types.tolk";
 fun onInternalMessage(in: InMessage) {
     val st = Deployable<RemainingBitsAndRefs>.load();
     assert(in.senderAddress == st.owner) throw ERROR_NOT_OWNER;
+
     val payload = Initialize.fromSlice(in.body);
 
     contract.setCodePostponed(payload.stateInit.code);

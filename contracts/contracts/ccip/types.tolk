@@ -324,6 +324,7 @@ struct (0x10000010) ValidateExecute {
     messages: cell,
     proofs: cell,
     proofFlagBits: uint256,
+    metadataHash: uint256,
     //TODO: token data
 }
 
@@ -333,6 +334,7 @@ struct (0x12000004) ExecuteValidated {
     messages: cell; // vec<Any2TVMRampMessage>
     proofs: cell;
     proofFlagBits: uint256;
+    metadataHash: uint256;
 }
 
 struct TokenBalance {

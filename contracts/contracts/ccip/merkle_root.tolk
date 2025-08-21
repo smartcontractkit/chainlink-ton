@@ -49,7 +49,7 @@ fun onExecute(msg: ValidateExecute, sender: address) {
     assert(sender == st.owner, ERROR_NOT_OWNER);
 
     // TODO if no tokenTransfers
-    _execute(msg.messages, msg.proofs, msg.proofFlagBits, sender);
+    _execute(msg.messages, msg.proofs, msg.proofFlagBits, msg.metadataHash, sender);
 
     //TODO else  
     // validate execution state == untouched
@@ -65,7 +65,7 @@ fun onExecute(msg: ValidateExecute, sender: address) {
     // set state = execution
 }
 
-fun _execute(mesages: cell, proofs: cell, proofFlagBits: uint256, offRamp: address) {
+fun _execute(mesages: cell, proofs: cell, proofFlagBits: uint256, metadataHash: uint256, offRamp: address) {
     var msg = createMessage(
         {
             bounce: true,
@@ -75,6 +75,7 @@ fun _execute(mesages: cell, proofs: cell, proofFlagBits: uint256, offRamp: addre
                 messages: mesages,
                 proofs: proofs,
                 proofFlagBits: proofFlagBits,
+                metadataHash: metadataHash
             }
         }
     );
