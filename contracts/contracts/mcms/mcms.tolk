@@ -230,7 +230,7 @@ fun MCMS_Data.storeAsContractData(self) {
 
 /// @dev Hook extensions exposed by the MCMS contract.
 struct MCMS_Hooks<T> {
-    /// Hook to get the identifier of an operation containing a batch of transactions.
+    /// Hook to inject custom execution logic.
     execute: ((T?, address, coins, cell) -> void)?;
 }
 

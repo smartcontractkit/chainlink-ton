@@ -12,11 +12,16 @@ const ERROR_BITMAP_OUT_OF_BOUNDS = 0x78;
 /// the full excess value.
 const DEFAULT_MESSAGE_BUDGET_FEE = ton("0.01");
 
-// Returns the global ID of the current blockchain (chain ID).
+/// Returns the global ID of the current blockchain (chain ID).
 fun globalId(): int {
     // Notice: configParam(19)! will be available (non-null)
     return blockchain.configParam(19)!.beginParse().loadInt(32);
 }
+
+/// Computes the Keccak-256 hash of the given data.
+@pure
+fun keccak256(data: slice): uint256
+    asm "1 PUSHINT HASHEXT_KECCAK256";
 
 @inline
 fun emit<T>(topic: int, body: T) {
