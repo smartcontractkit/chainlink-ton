@@ -28,7 +28,7 @@ func (a *TONAccessor) convertCCIPMessageSent(
 		Sender:         ccipocr3.UnknownAddress(tonEvent.Message.Sender.String()),
 		Data:           ccipocr3.Bytes(tonEvent.Message.Body.Data),
 		Receiver:       ccipocr3.UnknownAddress(tonEvent.Message.Body.Receiver),
-		ExtraArgs:      tonEvent.Message.Body.ExtraArgs.ToBOC(),
+		ExtraArgs:      ccipocr3.Bytes(tonEvent.Message.Body.ExtraArgs.ToBOC()),
 		FeeToken:       ccipocr3.UnknownAddress(tonEvent.Message.Body.FeeToken.String()),
 		FeeTokenAmount: ccipocr3.NewBigInt(tonEvent.Message.Body.FeeTokenAmount),
 		// TokenAmounts:   tokenAmounts, // TODO: enable token transfer
