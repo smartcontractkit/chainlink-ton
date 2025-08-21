@@ -199,11 +199,12 @@ func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Messag
 	var receivedMessage *tracetracking.ReceivedMessage
 	var err error
 
+	// TODO: fix shadowed error
 	for attempt := uint(1); attempt <= t.Config.MaxSendRetryAttempts; attempt++ {
-		client, err := t.Client.Get(ctx)
-		if err == nil {
-			receivedMessage, _, err = client.SendWaitTransaction(ctx, tx.To, msg)
-			if err == nil {
+		client, cerr := t.Client.Get(ctx)
+		if cerr == nil {
+			_, _, rmerr := client.SendWaitTransaction(ctx, tx.To, msg)
+			if rmerr == nil {
 				t.Logger.Infow("transaction broadcasted", "to", tx.To.String(), "amount", tx.Amount.Nano().String())
 				break
 			}
