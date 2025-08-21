@@ -86,6 +86,7 @@ func AddLaneTONChangesets(env *cldf.Environment, from, to uint64, fromFamily, to
 					RMNVerificationDisabled: true,
 				},
 				Selector: from,
+				GasPrice: gasPrices[from],
 			},
 		}
 	case chainsel.FamilyTon:
@@ -95,6 +96,34 @@ func AddLaneTONChangesets(env *cldf.Environment, from, to uint64, fromFamily, to
 				AllowListEnabled:        false,
 			},
 			Selector: from,
+			GasPrice: gasPrices[from],
+			TokenPrices: map[*address.Address]*big.Int{
+				tonTokenAddr: big.NewInt(99),
+			},
+			FeeQuoterDestChainConfig: feequoter.DestChainConfig{ // minimal valid config
+				IsEnabled:                         true,
+				MaxNumberOfTokensPerMsg:           0,
+				MaxDataBytes:                      100,
+				MaxPerMsgGasLimit:                 100,
+				DestGasOverhead:                   0,
+				DestGasPerPayloadByteBase:         0,
+				DestGasPerPayloadByteHigh:         0,
+				DestGasPerPayloadByteThreshold:    0,
+				DestDataAvailabilityOverheadGas:   0,
+				DestGasPerDataAvailabilityByte:    0,
+				DestDataAvailabilityMultiplierBps: 0,
+				ChainFamilySelector:               0,
+				EnforceOutOfOrder:                 false,
+				DefaultTokenFeeUsdCents:           0,
+				DefaultTokenDestGasOverhead:       0,
+				DefaultTxGasLimit:                 1,
+				GasMultiplierWeiPerEth:            0,
+				GasPriceStalenessThreshold:        0,
+				NetworkFeeUsdCents:                0,
+			},
+			TokenTransferFeeConfigs: map[uint64]feequoter.UpdateTokenTransferFeeConfig{
+				// TODO:
+			},
 		}
 	default:
 		env.Logger.Fatalf("Unsupported source chain family: %v", fromFamily)
@@ -131,15 +160,15 @@ func AddLaneTONChangesets(env *cldf.Environment, from, to uint64, fromFamily, to
 					NetworkFeeUSDCents:                10,
 				},
 			},
-			OnRampVersion: []byte{1, 6, 0},
+			OnRampVersion: []byte{1, 6, 1},
 		}
 	case chainsel.FamilyTon:
-		src = config.TonChainDefinition{
+		dest = config.TonChainDefinition{
 			ConnectionConfig: v1_6.ConnectionConfig{
 				RMNVerificationDisabled: true,
 				AllowListEnabled:        false,
 			},
-			Selector: from,
+			Selector: to,
 			GasPrice: big.NewInt(1e17),
 			TokenPrices: map[*address.Address]*big.Int{
 				tonTokenAddr: big.NewInt(99),
@@ -175,6 +204,7 @@ func AddLaneTONChangesets(env *cldf.Environment, from, to uint64, fromFamily, to
 	}
 
 	laneConfig := config.UpdateTonLanesConfig{
+		EVMMCMSConfig: &proposalutils.TimelockConfig{},
 		TonMCMSConfig: &proposalutils.TimelockConfig{
 			MinDelay:     time.Second,
 			MCMSAction:   mcmstypes.TimelockActionSchedule,
@@ -248,6 +278,10 @@ func SendTonRequest(
 	receivedMsg, blockID, err := ttConn.SendWaitTransaction(e.GetContext(), routerAddr, walletMsg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send transaction: %w", err)
+	}
+
+	if receivedMsg.ExitCode != 0 {
+		return nil, fmt.Errorf("transaction failed: with exitcode %d: %s", receivedMsg.ExitCode, receivedMsg.ExitCode.Describe())
 	}
 
 	e.Logger.Infow("transaction sent", "blockID", blockID, "receivedMsg", receivedMsg)

@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
@@ -15,21 +14,19 @@ import (
 	"go.uber.org/zap/zapcore"
 
 	chain_selectors "github.com/smartcontractkit/chain-selectors"
+	chainsel "github.com/smartcontractkit/chain-selectors"
 	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
-	"github.com/smartcontractkit/chainlink/deployment/ccip/changeset/v1_6"
 
 	"github.com/smartcontractkit/chainlink/deployment/ccip/shared/client"
 	"github.com/smartcontractkit/chainlink/deployment/ccip/shared/stateview"
 	tonStateView "github.com/smartcontractkit/chainlink/deployment/ccip/shared/stateview/ton"
 	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
-	"github.com/smartcontractkit/chainlink/deployment/common/proposalutils"
 	"github.com/smartcontractkit/chainlink/deployment/environment/memory"
 	"github.com/smartcontractkit/chainlink/v2/core/logger"
 
 	ops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 
@@ -56,20 +53,19 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 	lggr := logger.TestLogger(t)
 	ctx := t.Context()
 
-	// TODO: maybe just set contracts directly(or use ops directly), no need for full env support here
+	// create memory env to reuse changesets
 	env := memory.NewMemoryEnvironment(t, lggr, zapcore.InfoLevel, memory.MemoryEnvironmentConfig{
 		Chains:    1,
 		TonChains: 1,
 	})
 
-	// Get chain selectors
+	// get chain selectors
 	evmSelector := env.BlockChains.ListChainSelectors(chain.WithFamily(chain_selectors.FamilyEVM))[0]
 	tonChainSelectors := env.BlockChains.ListChainSelectors(chain.WithFamily(chain_selectors.FamilyTon))
 	require.Len(t, tonChainSelectors, 1, "Expected exactly 1 Ton chain")
 	chainSelector := tonChainSelectors[0]
 	tonChain := env.BlockChains.TonChains()[chainSelector]
 	deployer := tonChain.Wallet
-	t.Log("Deployer: ", deployer.Address().String())
 
 	// memory environment doesn't block on funding so changesets can execute before the env is fully ready, manually call fund so we block here
 	test_utils.FundWallets(t, tonChain.Client, []*address.Address{deployer.Address()}, []tlb.Coins{tlb.MustFromTON("1000")})
@@ -79,68 +75,13 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 	env, _, err := commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{cs})
 	require.NoError(t, err, "failed to deploy ccip")
 
-	// TODO: maybe just set contracts directly(or use ops directly), no need for full env support here
 	// -- add lane using helper function
-	env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{
-		commonchangeset.Configure(ops.AddTonLanes{}, config.UpdateTonLanesConfig{
-			EVMMCMSConfig: &proposalutils.TimelockConfig{},
-			TonMCMSConfig: &proposalutils.TimelockConfig{},
-			Lanes: []config.LaneConfig{
-				{
-					Source: config.TonChainDefinition{
-						ConnectionConfig: v1_6.ConnectionConfig{
-							RMNVerificationDisabled: true,
-							AllowListEnabled:        false,
-						},
-						Selector: chainSelector,
-						GasPrice: big.NewInt(1e17),
-						TokenPrices: map[*address.Address]*big.Int{
-							ops.TonTokenAddr: big.NewInt(99),
-						},
-						FeeQuoterDestChainConfig: feequoter.DestChainConfig{ // minimal valid config
-							IsEnabled:                         true,
-							MaxNumberOfTokensPerMsg:           0,
-							MaxDataBytes:                      100,
-							MaxPerMsgGasLimit:                 100,
-							DestGasOverhead:                   0,
-							DestGasPerPayloadByteBase:         0,
-							DestGasPerPayloadByteHigh:         0,
-							DestGasPerPayloadByteThreshold:    0,
-							DestDataAvailabilityOverheadGas:   0,
-							DestGasPerDataAvailabilityByte:    0,
-							DestDataAvailabilityMultiplierBps: 0,
-							ChainFamilySelector:               0,
-							EnforceOutOfOrder:                 false,
-							DefaultTokenFeeUsdCents:           0,
-							DefaultTokenDestGasOverhead:       0,
-							DefaultTxGasLimit:                 1,
-							GasMultiplierWeiPerEth:            0,
-							GasPriceStalenessThreshold:        0,
-							NetworkFeeUsdCents:                0,
-						},
-						TokenTransferFeeConfigs: map[uint64]feequoter.UpdateTokenTransferFeeConfig{
-							// TODO:
-						},
-					},
-					Dest: config.EVMChainDefinition{
-						ChainDefinition: v1_6.ChainDefinition{
-							Selector:                 evmSelector,
-							GasPrice:                 big.NewInt(1e17),
-							TokenPrices:              map[common.Address]*big.Int{},
-							FeeQuoterDestChainConfig: v1_6.DefaultFeeQuoterDestChainConfig(true),
-							ConnectionConfig: v1_6.ConnectionConfig{
-								RMNVerificationDisabled: true,
-								AllowListEnabled:        false,
-							},
-						},
-						OnRampVersion: []byte{1, 6, 1},
-					},
-					IsDisabled: false,
-				},
-			},
-			TestRouter: false,
-		}),
-	})
+	gasPrices := map[uint64]*big.Int{
+		evmSelector:   big.NewInt(1e17),
+		chainSelector: big.NewInt(1e17), // Add TON chain gas price
+	}
+	laneCS := ops.AddLaneTONChangesets(&env, chainSelector, evmSelector, chainsel.FamilyTon, chainsel.FamilyEVM, gasPrices)
+	env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{laneCS})
 	require.NoError(t, err, "failed to add lane")
 
 	state, err := tonstate.LoadOnchainState(env)
@@ -196,8 +137,7 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 
 	feeQuoterAddr := state[chainSelector].FeeQuoter
 
-	// TODO: missing in changeset ------------------
-	// set fee token manually
+	// -- set fee token manually
 	feeTokenDict := cell.NewDict(267) // key size for address
 	feeToken := feequoter.FeeToken{PremiumMultiplierWeiPerEth: 1}
 	feeTokenCell, err := tlb.ToCell(feeToken)
@@ -233,8 +173,6 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 
 	t.Logf("UpdateFeeTokens transaction sent successfully - Block: %d, ExitCode: %d",
 		updateFeeTokensBlockID.SeqNo, updateFeeTokensResult.ExitCode)
-
-	// TODO: missing in changeset ------------------ end
 
 	// TODO: use sendmanytx or highload wallet, otherwise we get 33 exit code(too many actions)
 	time.Sleep(5 * time.Second)
