@@ -114,7 +114,25 @@ describe('RBACTimelock', () => {
     expect(await acContract.getHasRole(rbactl.roles.bypasser, deployer.address)).toEqual(true)
   })
 
+  const deployTopUpTimelock = async () => {
+    const r = await timelock.sendInternal(
+      deployer.getSender(),
+      toNano('0.1'),
+      rbactl.builder.message.in.topUp.encode({ queryId: 1n }),
+    )
+
+    expect(r.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: timelock.address,
+      deploy: true,
+      success: true,
+      op: rbactl.opcodes.in.TopUp,
+    })
+  }
+
   it('successfully parsed AccessControll opcode', async () => {
+    await deployTopUpTimelock()
+
     const body = ac.builder.message.in.grantRole.encode({
       queryId: 1n,
       role: rbactl.roles.proposer,
@@ -144,14 +162,16 @@ describe('RBACTimelock', () => {
   })
 
   it('successful update account - add admin account', async () => {
+    await deployTopUpTimelock()
+
     const body = ac.builder.message.in.grantRole.encode({
       queryId: 1n,
       role: rbactl.roles.admin,
       account: other.address,
     })
-    const result = await timelock.sendInternal(deployer.getSender(), toNano('0.05'), body)
+    const r1 = await timelock.sendInternal(deployer.getSender(), toNano('0.05'), body)
 
-    expect(result.transactions).toHaveTransaction({
+    expect(r1.transactions).toHaveTransaction({
       from: deployer.address,
       to: timelock.address,
       success: true,
@@ -162,14 +182,16 @@ describe('RBACTimelock', () => {
   })
 
   it('successful update account - add proposer account', async () => {
+    await deployTopUpTimelock()
+
     const body = ac.builder.message.in.grantRole.encode({
       queryId: 1n,
       role: rbactl.roles.proposer,
       account: other.address,
     })
-    const result = await timelock.sendInternal(deployer.getSender(), toNano('0.05'), body)
+    const r1 = await timelock.sendInternal(deployer.getSender(), toNano('0.05'), body)
 
-    expect(result.transactions).toHaveTransaction({
+    expect(r1.transactions).toHaveTransaction({
       from: deployer.address,
       to: timelock.address,
       success: true,
@@ -180,14 +202,16 @@ describe('RBACTimelock', () => {
   })
 
   it('successful update account - add canceller account', async () => {
+    await deployTopUpTimelock()
+
     const body = ac.builder.message.in.grantRole.encode({
       queryId: 1n,
       role: rbactl.roles.canceller,
       account: other.address,
     })
-    const result = await timelock.sendInternal(deployer.getSender(), toNano('0.05'), body)
+    const r1 = await timelock.sendInternal(deployer.getSender(), toNano('0.05'), body)
 
-    expect(result.transactions).toHaveTransaction({
+    expect(r1.transactions).toHaveTransaction({
       from: deployer.address,
       to: timelock.address,
       success: true,
@@ -198,14 +222,16 @@ describe('RBACTimelock', () => {
   })
 
   it('successful update account - add executor account', async () => {
+    await deployTopUpTimelock()
+
     const body = ac.builder.message.in.grantRole.encode({
       queryId: 1n,
       role: rbactl.roles.executor,
       account: other.address,
     })
-    const result = await timelock.sendInternal(deployer.getSender(), toNano('0.05'), body)
+    const r1 = await timelock.sendInternal(deployer.getSender(), toNano('0.05'), body)
 
-    expect(result.transactions).toHaveTransaction({
+    expect(r1.transactions).toHaveTransaction({
       from: deployer.address,
       to: timelock.address,
       success: true,

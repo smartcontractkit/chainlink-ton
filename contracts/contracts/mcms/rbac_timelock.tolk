@@ -540,14 +540,14 @@ fun Timelock<T>.init(
     }
 
     self.data.minDelay = minDelay;
+
     // Send a message to the sender to notify about the change
-    val reply = createMessage({
+    createMessage({
         bounce: false,
-        value: 0, // TODO: how to pay for this message fee? or do we emit?
+        value: ton("0.01"), // send small value as gas budget, keep the rest
         dest: sender,
         body: Timelock_MinDelayChange{queryId, oldDuration: 0, newDuration: minDelay}
-    });
-    reply.send(SEND_MODE_REGULAR); // pay the message fee from the value, keep the rest
+    }).send(SEND_MODE_REGULAR);
 }
 
 /// @dev Schedule an operation containing a batch of transactions.
@@ -626,7 +626,7 @@ fun Timelock<T>.cancel(mutate self, sender: address, queryId: uint64, id: uint25
         dest: sender,
         body: Timelock_Canceled{queryId, id}
     });
-    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 /// @dev Execute an (ready) operation containing a batch of transactions.
@@ -681,13 +681,12 @@ fun Timelock<T>.executeBatch(
 /// @dev Execute an operation's call.
 fun Timelock<T>.execute(self, call: Timelock_Call): void {
     // TODO: notice, we can not require success before continuing with the next call (async execution model)
-    val msg = createMessage({
+    createMessage({
         bounce: true, // TODO: how to handle bounced messages (errors)?
         value: call.value,
         dest: call.target,
         body: call.data
-    });
-    msg.send(SEND_MODE_PAY_FEES_SEPARATELY);
+    }).send(SEND_MODE_PAY_FEES_SEPARATELY);
 }
 
 /// @dev Hook before execution of an operation's calls.
@@ -703,7 +702,6 @@ fun Timelock<T>.beforeCall(self, id: uint256, predecessor: uint256): void {
 fun Timelock<T>.afterCall(mutate self, id: uint256): void {
     assert(self.isOperationReady(id)) throw ERROR_OPERATION_NOT_READY;
 
-    // TODO: optimize, this should be static constant
     val value = beginCell().storeUint(DONE_TIMESTAMP, 64).endCell().beginParse();
     self.data.timestamps.uDictSet(256, id, value); // Mark the operation as done
 }
@@ -721,7 +719,7 @@ fun Timelock<T>.updateDelay(mutate self, sender: address, queryId: uint64, newDe
     rbac.requireRole(ADMIN_ROLE, sender);
 
     // Send a message to the sender to notify about the change
-    val reply = createMessage({
+    createMessage({
         bounce: false,
         value: 0,
         dest: sender,
@@ -730,8 +728,8 @@ fun Timelock<T>.updateDelay(mutate self, sender: address, queryId: uint64, newDe
             oldDuration: self.data.minDelay,
             newDuration: newDelay
         }
-    });
-    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    }).send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+
     // Update the minimum delay
     self.data.minDelay = newDelay;
 }
@@ -755,14 +753,12 @@ fun Timelock<T>.blockFunctionSelector(mutate self, sender: address, queryId: uin
     if (updated) {
         self.data.blockedFnSelectorsLen += 1;
 
-        // Send a message to the sender to notify about the change
-        val reply = createMessage({
+        createMessage({
             bounce: false,
             value: 0,
             dest: sender,
             body: Timelock_FunctionSelectorBlocked{queryId, selector}
-        });
-        reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+        }).send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 
         return true;
     }
@@ -791,7 +787,7 @@ fun Timelock<T>.unblockFunctionSelector(mutate self, sender: address, queryId: u
             dest: sender,
             body: Timelock_FunctionSelectorUnblocked{queryId, selector}
         });
-        reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+        reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 
         return true;
     }

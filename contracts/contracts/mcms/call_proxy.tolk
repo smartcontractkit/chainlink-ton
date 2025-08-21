@@ -26,13 +26,12 @@ fun onInternalMessage(in: InMessage) {
     val target = CallProxy_Data.fromContractData().target;
 
     // Proxy a message to the target
-    val reply = createMessage({
+    createMessage({
         bounce: false,
         value: 0,
         dest: target,
         body: in.body
-    });
-    reply.send(SEND_MODE_IGNORE_ERRORS | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    }).send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 // --- Getters ---

@@ -601,7 +601,7 @@ fun AccessControl<T>.sendNotification<B>(
     if (account != sender) {
         // Create and send the message (notification) to the account that was updated
         createMessage({ bounce: false, value, dest: account, body })
-            .send(SEND_MODE_IGNORE_ERRORS);
+            .send(SEND_MODE_REGULAR);
     }
 }
 
@@ -619,8 +619,8 @@ fun AccessControl<T>.sendReply<B>(
 
     createMessage({bounce: false, value, dest: sender, body })
         .send(returnExcess
-            ? SEND_MODE_IGNORE_ERRORS | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE
-            : SEND_MODE_IGNORE_ERRORS);
+            ? SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE
+            : SEND_MODE_REGULAR);
 }
 
 // --- Getters ---
