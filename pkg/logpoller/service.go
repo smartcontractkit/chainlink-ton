@@ -31,7 +31,7 @@ type service struct {
 	client  ton.APIClientWrapped // TON blockchain client
 	filters FilterStore          // Registry of active filters
 	loader  TxLoader             // Transaction loader returning loaded txs
-	parser  TxParser             // Transaction indexer returning indexed logs
+	parser  TxParser             // Transaction parser returning logs
 	store   LogStore             // Log storage (MVP: in-memory, to be replaced with ORM)
 
 	pollPeriod         time.Duration // How often to poll for new blocks
