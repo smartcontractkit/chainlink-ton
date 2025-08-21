@@ -57,8 +57,12 @@ func NewCCIPTransmitter(
 	}, nil
 }
 
-func (c *ccipTransmitter) FromAccount(context.Context) (ocrtypes.Account, error) {
-	w := c.txm.GetClient().Wallet
+func (c *ccipTransmitter) FromAccount(ctx context.Context) (ocrtypes.Account, error) {
+	client, err := c.txm.GetClient(ctx)
+	if err != nil {
+		return "", fmt.Errorf("failed to get client: %w", err)
+	}
+	w := client.Wallet
 	return ocrtypes.Account(w.Address().StringRaw()), nil
 }
 
@@ -95,7 +99,11 @@ func (c *ccipTransmitter) Transmit(
 		return fmt.Errorf("expected args to be *cell.Cell, got %T", args)
 	}
 
-	w := c.txm.GetClient().Wallet
+	client, err := c.txm.GetClient(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get client: %w", err)
+	}
+	w := client.Wallet
 	request := txm.Request{
 		Mode:            wallet.PayGasSeparately,
 		FromWallet:      w,
