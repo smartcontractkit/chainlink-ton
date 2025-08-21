@@ -42,13 +42,13 @@ type TxLoader interface {
 	LoadTxsForAddresses(ctx context.Context, blockRange *types.BlockRange, srcAddrs []*address.Address) ([]types.TxWithBlock, error)
 }
 
-// TxIndexer defines the interface for processing TON blockchain transactions and extracting logs.
-type TxIndexer interface {
+// TxParser defines the interface for parsing raw blockchain transactions into structured logs.
+type TxParser interface {
 	// It processes transactions by examining their messages, applying registered filters, and extracting
-	// relevant event data. The indexer handles different message types (internal, external out) and
+	// relevant event data. The parser handles different message types (internal, external out) and
 	// extracts event signatures (opcodes for internal messages, topics for external out messages)
 	// along with the message body data to create structured log entries.
-	IndexTransactions(ctx context.Context, txs []types.TxWithBlock) ([]types.Log, error)
+	ParseTransactions(ctx context.Context, txs []types.TxWithBlock) ([]types.Log, error)
 }
 
 // LogStore defines the interface for storing and retrieving logs.

@@ -23,8 +23,8 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/examples/counter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
 	inmemorystore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/db/inmemory"
-	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/indexer"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/loader/account"
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/txparser"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types/query"
 )
@@ -168,12 +168,12 @@ func Test_LogPoller(t *testing.T) {
 		fs := inmemorystore.NewFilterStore()
 
 		opts := &logpoller.ServiceOptions{
-			Config:    cfg,
-			Client:    client,
-			Filters:   fs,
-			TxLoader:  account.NewTxLoader(client, logger.Test(t), cfg.PageSize),
-			TxIndexer: indexer.NewIndexer(logger.Test(t), fs),
-			Store:     inmemorystore.NewLogStore(),
+			Config:   cfg,
+			Client:   client,
+			Filters:  fs,
+			TxLoader: account.NewTxLoader(client, logger.Test(t), cfg.PageSize),
+			TxParser: txparser.NewTxParser(logger.Test(t), fs),
+			Store:    inmemorystore.NewLogStore(),
 		}
 		lp := logpoller.NewService(
 			logger.Test(t),

@@ -36,8 +36,8 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
 	inmemorystore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/db/inmemory"
-	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/indexer"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/loader/account"
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/txparser"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/chainaccessor"
@@ -88,18 +88,14 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 
 	// -- start logpoller
 	lpCfg := logpoller.DefaultConfigSet
-	logStore := inmemorystore.NewLogStore()
 	filterStore := inmemorystore.NewFilterStore()
-	loader := account.NewTxLoader(tonChain.Client, lggr, lpCfg.PageSize)
-	indexer := indexer.NewIndexer(lggr, filterStore)
-
 	opts := &logpoller.ServiceOptions{
-		Config:    lpCfg,
-		Client:    tonChain.Client,
-		Filters:   filterStore,
-		TxLoader:  loader,
-		TxIndexer: indexer,
-		Store:     logStore,
+		Config:   lpCfg,
+		Client:   tonChain.Client,
+		Filters:  filterStore,
+		TxLoader: account.NewTxLoader(tonChain.Client, lggr, lpCfg.PageSize),
+		TxParser: txparser.NewTxParser(lggr, filterStore),
+		Store:    inmemorystore.NewLogStore(),
 	}
 	lp := logpoller.NewService(
 		lggr,
