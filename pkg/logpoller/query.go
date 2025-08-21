@@ -110,7 +110,9 @@ func (b *queryBuilder[T]) Execute(_ context.Context, store LogStore) (query.Resu
 	var filteredParsedLogs []types.TypedLog[T]
 	for _, log := range preFilteredLogs {
 		var event T
-		parseErr := tlb.LoadFromCell(&event, log.Data.BeginParse(), true) // skip magic all the time
+		// always skip magic(opcode in msg) when parsing log cells, we only store message body
+		const skipMagic = true
+		parseErr := tlb.LoadFromCell(&event, log.Data.BeginParse(), skipMagic)
 		if parseErr != nil {
 			return query.Result[T]{}, fmt.Errorf("failed to parse log cell: %w", parseErr)
 		}
