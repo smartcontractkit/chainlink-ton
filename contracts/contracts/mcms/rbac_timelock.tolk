@@ -227,14 +227,37 @@ type Timelock_InMessage = Timelock_Init
     | Timelock_UnblockFunctionSelector
     | Timelock_BypasserExecuteBatch;
 
+/// @dev Union of all outgoing messages.
+type Timelock_OutMessage = Timelock_BatchScheduled
+    | Timelock_CallScheduled
+    | Timelock_BatchExecuted
+    | Timelock_CallExecuted
+    | Timelock_BypasserBatchExecuted
+    | Timelock_BypasserCallExecuted
+    | Timelock_Canceled
+    | Timelock_MinDelayChange
+    | Timelock_FunctionSelectorBlocked
+    | Timelock_FunctionSelectorUnblocked
+
 // --- Messages - outgoing ---
+
+/// @dev Sent back to sender after a batch is scheduled.
+struct (0xdf65b59e) Timelock_BatchScheduled {
+    /// Query ID of the change owner request.
+    queryId: uint64;
+
+    /// ID of the batch that was scheduled.
+    id: uint256;
+    /// Delay in seconds before the operation can be executed
+    delay: uint64;
+}
 
 /// @dev Emitted when a call is scheduled as part of operation `id`.
 struct (0xc55fca54) Timelock_CallScheduled {
     /// Query ID of the change owner request.
     queryId: uint64;
 
-    /// ID of the operation that was scheduled.
+    /// ID of the batch for the operation that was scheduled.
     id: uint256;
     index: uint64;
     /// Call to be executed as part of the operation.
@@ -245,12 +268,21 @@ struct (0xc55fca54) Timelock_CallScheduled {
     delay: uint64;
 }
 
+/// @dev Sent back to sender after a batch is executed.
+struct (0xa941ea1a) Timelock_BatchExecuted {
+    /// Query ID of the change owner request.
+    queryId: uint64;
+
+    /// ID of the batch that was executed.
+    id: uint256;
+}
+
 /// @dev Emitted when a call is performed as part of operation `id`.
 struct (0x49ea5d0e) Timelock_CallExecuted {
     /// Query ID of the change owner request.
     queryId: uint64;
 
-    /// ID of the operation that was executed.
+    /// ID of the batch for the operation that was executed.
     id: uint256;
     index: uint64;
     target: address;
@@ -258,12 +290,18 @@ struct (0x49ea5d0e) Timelock_CallExecuted {
     data: cell;
 }
 
+/// @dev Sent back to sender after a batch is executed via bypasser escape hatch.
+struct (0x539b4214) Timelock_BypasserBatchExecuted {
+    /// Query ID of the change owner request.
+    queryId: uint64;
+}
+
 /// @dev Emitted when a call is performed via bypasser.
 struct (0x9c7f3010) Timelock_BypasserCallExecuted {
     /// Query ID of the change owner request.
     queryId: uint64;
 
-    /// 
+    /// Index of the call in the batch.
     index: uint64;
     target: address;
     value: coins;
@@ -541,10 +579,10 @@ fun Timelock<T>.init(
 
     self.data.minDelay = minDelay;
 
-    // Send a message to the sender to notify about the change
+    // Reply back to sender
     createMessage({
         bounce: false,
-        value: ton("0.01"), // send small value as gas budget, keep the rest
+        value: DEFAULT_MESSAGE_BUDGET_FEE, // send small value as gas budget, keep the rest
         dest: sender,
         body: Timelock_MinDelayChange{queryId, oldDuration: 0, newDuration: minDelay}
     }).send(SEND_MODE_REGULAR);
@@ -593,8 +631,13 @@ fun Timelock<T>.scheduleBatch(
         index += 1;
     }
 
-    // TODO: reply to sender once for the whole batch (+ return extra funds if any)
-    // Send a message to the sender to notify about the change (e.g., Timelock_BatchScheduled)
+    // Reply back to sender
+    createMessage({
+        bounce: false,
+        value: DEFAULT_MESSAGE_BUDGET_FEE, // send small value as gas budget, keep the rest
+        dest: sender,
+        body: Timelock_BatchScheduled{queryId, id, delay}
+    }).send(SEND_MODE_REGULAR);
 }
 
 /// @dev Schedule an operation that becomes valid after a given delay.
@@ -619,14 +662,13 @@ fun Timelock<T>.cancel(mutate self, sender: address, queryId: uint64, id: uint25
     // Remove the timestamp for the operation
     self.data.timestamps.uDictDelete(256, id);
 
-    // Send a message to the sender to notify about the change
-    val reply = createMessage({
+    // Reply back to sender
+    createMessage({
         bounce: false,
         value: 0,
         dest: sender,
         body: Timelock_Canceled{queryId, id}
-    });
-    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    }).send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 /// @dev Execute an (ready) operation containing a batch of transactions.
@@ -674,8 +716,13 @@ fun Timelock<T>.executeBatch(
 
     self.afterCall(id);
 
-    // TODO: reply to sender once for the whole batch (+ return extra funds if any)
-    // Send a message to the sender to notify about the change (e.g., Timelock_BatchExecuted)
+    // Reply back to sender
+    createMessage({
+        bounce: false,
+        value: DEFAULT_MESSAGE_BUDGET_FEE, // send small value as gas budget, keep the rest
+        dest: sender,
+        body: Timelock_BatchExecuted{queryId, id}
+    }).send(SEND_MODE_REGULAR);
 }
 
 /// @dev Execute an operation's call.
@@ -780,14 +827,13 @@ fun Timelock<T>.unblockFunctionSelector(mutate self, sender: address, queryId: u
     if (updated) {
         self.data.blockedFnSelectorsLen -= 1;
 
-        // Send a message to the sender to notify about the change
-        val reply = createMessage({
+        // Reply to sender
+        createMessage({
             bounce: false,
             value: 0,
             dest: sender,
             body: Timelock_FunctionSelectorUnblocked{queryId, selector}
-        });
-        reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+        }).send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 
         return true;
     }
@@ -828,8 +874,13 @@ fun Timelock<T>.bypasserExecuteBatch(
         index += 1;
     }
 
-    // TODO: reply to sender once for the whole batch (+ return extra funds if any)
-    // Send a message to the sender to notify about the change (e.g., Timelock_BypasserBatchExecuted)
+    // Reply back to sender
+    createMessage({
+        bounce: false,
+        value: DEFAULT_MESSAGE_BUDGET_FEE, // send small value as gas budget, keep the rest
+        dest: sender,
+        body: Timelock_BypasserBatchExecuted{queryId}
+    }).send(SEND_MODE_REGULAR);
 }
 
 /// @dev Returns the number of blocked function selectors.

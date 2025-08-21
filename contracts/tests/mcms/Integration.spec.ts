@@ -606,7 +606,7 @@ describe('MCMS - IntegrationTest', () => {
 
       const r3 = await bind.callProxy.sendInternal(
         acc.deployer.getSender(),
-        toNano('0.80'), // TODO: notice the gas value required to pass is higher b/c reserveToncoinsOnBalance (check)
+        toNano('1'), // TODO: notice the gas value required to pass is higher b/c reserveToncoinsOnBalance (check)
         rbactl.builder.message.in.executeBatch.encode({
           queryId: 2n,
           predecessor: proposePredecessor,

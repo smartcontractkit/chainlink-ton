@@ -763,13 +763,13 @@ fun MCMS<T>.execute(
 
     self._execute(op.to, op.value, op.data);
 
-    // Reply to sender op was executed, return excess
+    // Reply back to sender
     createMessage({
         bounce: false,
-        value: 0,
+        value: DEFAULT_MESSAGE_BUDGET_FEE, // send small value as gas budget, keep the rest
         dest: sender,
         body: MCMS_OpExecuted{queryId, nonce: op.nonce, to: op.to, data: op.data, value: op.value}
-    }).send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    }).send(SEND_MODE_REGULAR);
 }
 
 /// @notice sets a new data.config. If clearRoot is true, then it also invalidates

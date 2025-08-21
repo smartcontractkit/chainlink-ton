@@ -5,6 +5,13 @@ const ERROR_WRONG_OP = 0xffff;
 const ERROR_INVALID_DATA = 0x77;
 const ERROR_BITMAP_OUT_OF_BOUNDS = 0x78;
 
+/// TODO: is this enough? do we make this configurable?
+///
+/// The default message budget fee for messages (replies, notifications),
+/// for which the value is not explicitly set, and we're not sending
+/// the full excess value.
+const DEFAULT_MESSAGE_BUDGET_FEE = ton("0.01");
+
 // Returns the global ID of the current blockchain (chain ID).
 fun globalId(): int {
     // Notice: configParam(19)! will be available (non-null)

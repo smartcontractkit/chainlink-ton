@@ -231,8 +231,11 @@ export const opcodes = {
     BypasserExecuteBatch: crc32('Timelock_BypasserExecuteBatch'),
   },
   out: {
+    BatchScheduled: crc32('Timelock_BatchScheduled'),
     CallScheduled: crc32('Timelock_CallScheduled'),
+    BatchExecuted: crc32('Timelock_BatchExecuted'),
     CallExecuted: crc32('Timelock_CallExecuted'),
+    BypasserBatchExecuted: crc32('Timelock_BypasserBatchExecuted'),
     BypasserCallExecuted: crc32('Timelock_BypasserCallExecuted'),
     Canceled: crc32('Timelock_Canceled'),
     MinDelayChange: crc32('Timelock_MinDelayChange'),

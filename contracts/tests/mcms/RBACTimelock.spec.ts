@@ -72,8 +72,11 @@ describe('RBACTimelock', () => {
     expect(rbactl.opcodes.in.BypasserExecuteBatch).toBe(0xbb0e9f7d)
 
     // Out opcodes
+    expect(rbactl.opcodes.out.BatchScheduled).toBe(0xdf65b59e)
     expect(rbactl.opcodes.out.CallScheduled).toBe(0xc55fca54)
+    expect(rbactl.opcodes.out.BatchExecuted).toBe(0xa941ea1a)
     expect(rbactl.opcodes.out.CallExecuted).toBe(0x49ea5d0e)
+    expect(rbactl.opcodes.out.BypasserBatchExecuted).toBe(0x539b4214)
     expect(rbactl.opcodes.out.BypasserCallExecuted).toBe(0x9c7f3010)
     expect(rbactl.opcodes.out.Canceled).toBe(0x580e80f2)
     expect(rbactl.opcodes.out.MinDelayChange).toBe(0x904b14e0)
@@ -169,9 +172,9 @@ describe('RBACTimelock', () => {
       role: rbactl.roles.admin,
       account: other.address,
     })
-    const r1 = await timelock.sendInternal(deployer.getSender(), toNano('0.05'), body)
+    const r = await timelock.sendInternal(deployer.getSender(), toNano('0.05'), body)
 
-    expect(r1.transactions).toHaveTransaction({
+    expect(r.transactions).toHaveTransaction({
       from: deployer.address,
       to: timelock.address,
       success: true,
@@ -189,9 +192,9 @@ describe('RBACTimelock', () => {
       role: rbactl.roles.proposer,
       account: other.address,
     })
-    const r1 = await timelock.sendInternal(deployer.getSender(), toNano('0.05'), body)
+    const r = await timelock.sendInternal(deployer.getSender(), toNano('0.05'), body)
 
-    expect(r1.transactions).toHaveTransaction({
+    expect(r.transactions).toHaveTransaction({
       from: deployer.address,
       to: timelock.address,
       success: true,
@@ -209,9 +212,9 @@ describe('RBACTimelock', () => {
       role: rbactl.roles.canceller,
       account: other.address,
     })
-    const r1 = await timelock.sendInternal(deployer.getSender(), toNano('0.05'), body)
+    const r = await timelock.sendInternal(deployer.getSender(), toNano('0.05'), body)
 
-    expect(r1.transactions).toHaveTransaction({
+    expect(r.transactions).toHaveTransaction({
       from: deployer.address,
       to: timelock.address,
       success: true,
@@ -229,9 +232,9 @@ describe('RBACTimelock', () => {
       role: rbactl.roles.executor,
       account: other.address,
     })
-    const r1 = await timelock.sendInternal(deployer.getSender(), toNano('0.05'), body)
+    const r = await timelock.sendInternal(deployer.getSender(), toNano('0.05'), body)
 
-    expect(r1.transactions).toHaveTransaction({
+    expect(r.transactions).toHaveTransaction({
       from: deployer.address,
       to: timelock.address,
       success: true,

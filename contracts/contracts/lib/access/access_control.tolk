@@ -217,9 +217,6 @@ const DEFAULT_ADMIN_ROLE = 0x00;
 const ERROR_ACCESS_CONTROL_UNAUTHORIZED_ACCOUNT = 90;
 const ERROR_ACCESS_CONTROL_BAD_CONFIRMATION = 91;
 
-// TODO: do we make this configurable?
-const DEFAULT_MESSAGE_BUDGET_FEE = ton("0.01");
-
 // --- Constants - storage ---
 
 const LEN_ADDRESS = 267;  // '100' (std addr no anycast) + workchain 8 + hash LEN_ROLE
