@@ -425,13 +425,12 @@ const TOPIC_BYPASSER_CALL_EXECUTED = stringCrc32("Timelock_BypasserCallExecuted"
 const TOPIC_CALL_SCHEDULED = stringCrc32("Timelock_CallScheduled");
 const TOPIC_CALL_EXECUTED = stringCrc32("Timelock_CallExecuted");
 
-/// TODO: use keccak256 hash function to match Ethereum implementation
 /// Notice: role constants are kept as original Ethereum implementation (keccak256)
-const ADMIN_ROLE = stringSha256_32("ADMIN_ROLE");
-const PROPOSER_ROLE = stringSha256_32("PROPOSER_ROLE");
-const CANCELLER_ROLE = stringSha256_32("CANCELLER_ROLE");
-const EXECUTOR_ROLE = stringSha256_32("EXECUTOR_ROLE");
-const BYPASSER_ROLE = stringSha256_32("BYPASSER_ROLE");
+const ADMIN_ROLE = 0xa49807205ce4d355092ef5a8a18f56e8913cf4a201fbe287825b095693c21775;     // keecak256('ADMIN_ROLE')
+const PROPOSER_ROLE = 0xb09aa5aeb3702cfd50b6b62bc4532604938f21248a27a1d5ca736082b6819cc1;  // keecak256('PROPOSER_ROLE')
+const CANCELLER_ROLE = 0xfd643c72710c63c0180259aba6b2d05451e3591a24e58b62239378085726f783; // keecak256('CANCELLER_ROLE')
+const EXECUTOR_ROLE = 0xd8aa0f3194971a2a116679f7c2090f6939c8d4e01a2a8d7e41d55e5351469e63;  // keecak256('EXECUTOR_ROLE')
+const BYPASSER_ROLE = 0xa1b2b8005de234c4b8ce8cd0be058239056e0d54f6097825b5117101469d5a8d;  // keecak256('BYPASSER_ROLE')
 
 /// Timestamp value used to mark an operation as done
 const DONE_TIMESTAMP = 1;
