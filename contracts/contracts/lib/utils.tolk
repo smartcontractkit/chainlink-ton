@@ -298,6 +298,19 @@ fun UMap<K, V>.keysDestructs(mutate self): tuple? {
     return list;
 }
 
+//Returns a lisp-list with the keys of the map
+@inline
+fun UMap<K, V>.keys(self): tuple? {
+    var list: tuple? = null;
+    var (key: int?, _value: slice?, found: bool) = self.min();
+    while (found) {
+            var value = key! as K;
+            list = listPrepend(value, list);
+        (key, _value, found) = self.value.next(key);
+    };
+    return list;
+}
+
 
 struct TupleIterator<T> {
     pos: int = 0;
@@ -350,4 +363,14 @@ fun Bitmap256.set(mutate self, index: int): void {
 fun Bitmap256.has(self, index: int): bool {
     assert(index >= 0 && index < 256, ERROR_BITMAP_OUT_OF_BOUNDS);
     return (self.bits & (1 << index)) != 0;
+}
+
+/// @notice Send a message to a contract
+@inline
+fun sendMessage<T>(dest: address, body: T) {
+    val msg = createInternalMessage({
+        dest,
+        body
+    });
+    msg.send(SEND_MODE_REGULAR);
 }
