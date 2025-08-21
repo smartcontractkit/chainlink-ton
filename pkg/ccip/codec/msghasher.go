@@ -27,7 +27,6 @@ func NewMessageHasherV1(lg logger.Logger, extraDataCodec ccipocr3.ExtraDataCodec
 }
 
 func (m messageHasherV1) Hash(ctx context.Context, msg ccipocr3.Message) (ccipocr3.Bytes32, error) {
-
 	tokenAmounts := make([]ocr.Any2TVMTokenTransfer, 0, len(msg.TokenAmounts))
 	for _, tokenAmount := range msg.TokenAmounts {
 		if tokenAmount.Amount.IsEmpty() {
