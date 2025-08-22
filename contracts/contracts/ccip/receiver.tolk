@@ -1,14 +1,23 @@
 import "types";
+import "../lib/utils";
 
-struct (0x00000040) Hello {}
+//crc32('Receiver_CCIPMessageReceived')
+const RECEIVED_MESSAGE = 0xc5a40ab3;
 
-type Msg = CcipReceive | Hello;
+struct CCIPMessageReceived {
+    message: Any2TVMMessage
+}
+
+type Msg = CCIPReceive;
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy Msg.fromSlice(in.body);
     match (msg) {
-        CcipReceive => {debug.printString("received ccip message")}
-        Hello => {debug.printString("hello")}
+        CCIPReceive => {
+            emit(RECEIVED_MESSAGE, CCIPMessageReceived{
+                message: msg.message,
+            });
+        }
         else => {
             // ignore empty messages, "wrong opcode" for others
             assert (in.body.isEmpty()) throw 0xFFFF

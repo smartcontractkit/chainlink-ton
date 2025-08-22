@@ -492,6 +492,15 @@ describe('OffRamp', () => {
       to: receiver.address,
       success: true,
     })
+
+    assertLog(executeResult.transactions, receiver.address, CCIPLogs.LogTypes.ReceiverCCIPMessageReceived, {
+      message: {
+        messageId: message.header.messageId,
+        sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+        sender: message.sender,
+        data: message.data
+      }
+    })
   })
 
   it('Test execute fails when root was not committed', async () => {
