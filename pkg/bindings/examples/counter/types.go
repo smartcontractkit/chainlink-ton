@@ -21,6 +21,12 @@ type ContractData struct {
 	Ownable common.Ownable2Step `tlb:"."`
 }
 
+// Message to top up counter value.
+type TopUp struct {
+	_       tlb.Magic `tlb:"#00000001"` //nolint:revive // (opcode) should stay uninitialized
+	QueryID uint64    `tlb:"## 64"`
+}
+
 // Message to set the counter value.
 type SetCount struct {
 	_        tlb.Magic `tlb:"#00000004"` //nolint:revive // (opcode) should stay uninitialized

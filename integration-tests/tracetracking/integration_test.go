@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
-	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"integration-tests/tracetracking/async/wrappers/requestreply"
 	"integration-tests/tracetracking/async/wrappers/requestreplywithtwodependencies"
@@ -80,7 +79,10 @@ func TestIntegration(t *testing.T) {
 		code, err := wrappers.ParseCompiledContract(path)
 		require.NoError(t, err)
 
-		body := cell.BeginCell().EndCell()
+		body, err := tlb.ToCell(counter.TopUp{
+			QueryID: rand.Uint64(),
+		})
+		require.NoError(t, err)
 		counterContract, _, err := wrappers.Deploy(&alice, code, dataCell, tlb.MustFromTON("0.05"), body)
 		require.NoError(t, err, "failed to deploy Counter contract: %w", err)
 

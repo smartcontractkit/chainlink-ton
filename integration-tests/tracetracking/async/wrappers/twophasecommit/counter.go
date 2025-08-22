@@ -29,12 +29,6 @@ type CounterInitData struct {
 	AutoAck bool   `tlb:"bool"`
 }
 
-// TODO [NONEVM-2461] Unify Tact and Tolk counter implementations and merge bindings.
-type TopUp struct {
-	_       tlb.Magic `tlb:"#00000001"` //nolint:revive // (opcode) should stay uninitialized
-	QueryID uint64    `tlb:"## 64"`
-}
-
 func (p *CounterProvider) Deploy(initData CounterInitData) (Counter, error) {
 	initDataCell, err := tlb.ToCell(wrappers.LazyLoadingTactContractInitData(initData))
 	if err != nil {
@@ -44,13 +38,7 @@ func (p *CounterProvider) Deploy(initData CounterInitData) (Counter, error) {
 	if err != nil {
 		return Counter{}, fmt.Errorf("failed to compile contract: %w", err)
 	}
-	body, err := tlb.ToCell(TopUp{
-		QueryID: 1,
-	})
-	if err != nil {
-		return Counter{}, fmt.Errorf("failed to serialize body: %w", err)
-	}
-	contract, _, err := wrappers.Deploy(&p.apiClient, compiledContract, initDataCell, tlb.MustFromTON("1"), body)
+	contract, _, err := wrappers.Deploy(&p.apiClient, compiledContract, initDataCell, tlb.MustFromTON("1"), nil)
 	if err != nil {
 		return Counter{}, err
 	}

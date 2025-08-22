@@ -8,6 +8,24 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 )
 
+func TestTopUp_TlbEncodingDecoding(t *testing.T) {
+	original := TopUp{
+		QueryID: 123456789,
+	}
+
+	// Encode to cell
+	c, err := tlb.ToCell(original)
+	require.NoError(t, err, "tlb.ToCell encoding failed")
+	require.Equal(t, "96[0000000100000000075BCD15]", c.Dump())
+
+	// Decode from cell
+	var decoded TopUp
+	err = tlb.LoadFromCell(&decoded, c.BeginParse())
+	require.NoError(t, err, "tlb.LoadFromCell decoding failed")
+
+	require.Equal(t, original.QueryID, decoded.QueryID, "QueryID mismatch after decoding")
+}
+
 func TestSetCount_TlbEncodingDecoding(t *testing.T) {
 	original := SetCount{
 		QueryID:  123456789,
