@@ -171,7 +171,6 @@ func (a *TONAccessor) GetChainFeeComponents(ctx context.Context) (ccipocr3.Chain
 }
 
 func (a *TONAccessor) Sync(ctx context.Context, contractName string, contractAddress ccipocr3.UnknownAddress) error {
-	// TODO: do we want to register logpoller filter for this contract as well?
 	strAddr, err := a.addrCodec.AddressBytesToString(contractAddress)
 	if err != nil {
 		return fmt.Errorf("invalid address: %w", err)
@@ -180,9 +179,17 @@ func (a *TONAccessor) Sync(ctx context.Context, contractName string, contractAdd
 	if err != nil {
 		return fmt.Errorf("invalid address: %w", err)
 	}
+
+	if err := a.bindContractEvent(ctx, contractName, addr); err != nil {
+		return fmt.Errorf("failed to bind contract event: %w", err)
+	}
+	// If the same address exists -> no-op
+	// If the address is changed -> updates the address, overwrites the existing one
+	// If the contract not bound -> binds to the new address
 	a.bindingsMu.Lock()
 	defer a.bindingsMu.Unlock()
 	a.bindings[contractName] = addr
+
 	return nil
 }
 
@@ -194,23 +201,12 @@ func (a *TONAccessor) MsgsBetweenSeqNums(ctx context.Context, dest ccipocr3.Chai
 		return nil, fmt.Errorf("OnRamp not bound: %w", err)
 	}
 
-	// 	CCIPMessageSent {
-	//   Message: TVM2AnyRampMessage (in reference cell) {
-	//     Header: RampMessageHeader {
-	//       MessageID: 256 bits
-	//       SourceChainSelector: 64 bits
-	//       DestChainSelector: 64 bits    <- offset: 40
-	//       SequenceNumber: 64 bits       <- offset: 48
-	//       Nonce: 64 bits
-	//     }
-	//     Sender: address
-	//     Body: TVM2AnyRampMessageBody (in reference)
-	//     FeeValueJuels: 96 bits
-	//   }
-	// }
+	// TODO: do we want to check filter here?
+	// TODO: is filter not registered yet? Sync() is not called? - return error or just ignore?
+	// TODO: or we don't check if filter exists at all, then query will return nothing
 
 	// query TON logs
-	res, err := logpoller.NewQuery[onramp.CCIPMessageSent](onrampAddr, hash.CRC32("CCIPMessageSent")).
+	res, err := logpoller.NewQuery[onramp.CCIPMessageSent](onrampAddr, hash.CRC32(consts.EventNameCCIPMessageSent)).
 		SkipBytes(40). // Skip to DestChainSelector
 		FilterBytes(8, query.EQ(binary.BigEndian.AppendUint64(nil, uint64(dest)))).
 		FilterBytes(8,
@@ -282,7 +278,7 @@ func (a *TONAccessor) LatestMessageTo(ctx context.Context, dest ccipocr3.ChainSe
 		return 0, fmt.Errorf("OnRamp not bound: %w", err)
 	}
 
-	res, err := logpoller.NewQuery[onramp.CCIPMessageSent](onrampAddr, hash.CRC32("CCIPMessageSent")).
+	res, err := logpoller.NewQuery[onramp.CCIPMessageSent](onrampAddr, hash.CRC32(consts.EventNameCCIPMessageSent)).
 		SkipBytes(40). // Skip to DestChainSelector
 		FilterBytes(8, query.EQ(binary.BigEndian.AppendUint64(nil, uint64(dest)))).
 		OrderBy(query.SortByTxLT, query.DESC). // sort by transaction LT old to new

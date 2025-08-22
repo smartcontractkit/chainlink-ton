@@ -38,12 +38,10 @@ import (
 	inmemorystore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/db/inmemory"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/loader/account"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/txparser"
-	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/chainaccessor"
 
 	test_utils "github.com/smartcontractkit/chainlink-ton/integration-tests/utils"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/hash"
 )
 
 const ChainSelEVMTest90000001 = 909606746561742123
@@ -109,20 +107,11 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 
 	onRampAddr := state[chainSelector].OnRamp
 
-	// -- bind onramp in accessor
+	// -- bind onramp in accessor, event filter will be registered in Sync()
 	rawOnRampAddr, err := addrCodec.AddressStringToBytes(onRampAddr.String())
 	require.NoError(t, err)
 	err = accessor.Sync(ctx, consts.ContractNameOnRamp, rawOnRampAddr)
 	require.NoError(t, err)
-
-	// -- register filter
-	faerr := lp.RegisterFilter(ctx, types.Filter{
-		Name:     "CCIPMessageSent",
-		Address:  &onRampAddr,
-		MsgType:  tlb.MsgTypeExternalOut,
-		EventSig: hash.CRC32("CCIPMessageSent"),
-	})
-	require.NoError(t, faerr)
 
 	// start listening for logs
 	require.NoError(t, lp.Start(ctx))
