@@ -14,6 +14,7 @@ import {
 import { OCR3Base, ReportContext, SignatureEd25519 } from '../libraries/ocr/MultiOCR3Base'
 import { asSnakeData, fromSnakeData, bigIntToUint8Array } from '../../src/utils/types'
 import * as ownable2step from '../libraries/access/Ownable2Step'
+import { crc32 } from 'zlib'
 
 export type OffRampStorage = {
   ownable: ownable2step.Data
@@ -81,6 +82,13 @@ export type Any2TVMRampMessage = {
   tokenAmounts?: Cell // vec<Any2TONTokenTransfer>
 }
 
+export type Any2TVMMessage = {
+  messageId: bigint,
+  sourceChainSelector: bigint,
+  sender: CrossChainAddress,
+  data: Cell
+}
+
 export type MerkleRoot = {
   sourceChainSelector: bigint
   onRampAddress: CrossChainAddress
@@ -88,6 +96,8 @@ export type MerkleRoot = {
   maxSeqNr: bigint
   merkleRoot: bigint
 }
+
+//TODO: Refactor these with the CellCodec<T> pattern 
 
 export const Builder = {
   asStorage: (config: OffRampStorage): Cell => {
@@ -121,10 +131,10 @@ export const Builder = {
 }
 export abstract class Params {}
 
-export abstract class Opcodes {
-  static commit = 0x00000001
-  static execute = 0x00000002
-  static updateSourceChainConfig = 0x00000003
+export const Opcodes = {
+  commit: crc32('OffRamp_Commit'),
+  execute: crc32('OffRamp_Execute'),
+  updateSourceChainConfig: crc32('OffRamp_UpdateSourceChainConfig'),
 }
 
 export abstract class Errors {}
@@ -239,6 +249,7 @@ export class OffRamp extends OCR3Base {
     })
   }
 }
+
 
 export function priceUpdatesToCell(priceUpdates: PriceUpdates): Cell {
   return beginCell()

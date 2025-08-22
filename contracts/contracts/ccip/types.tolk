@@ -54,11 +54,6 @@ struct Any2TVMMessage {
     data: cell
 }
 
-struct (0x00000030) CcipReceive {
-    message: Any2TVMMessage
-}
-
-
 
 struct Any2TVMTokenTransfer {
     sourcePoolAddress: Cell<CrossChainAddress>;
@@ -319,8 +314,8 @@ struct MerkleRoot_Storage {
     // if any amount has failed = true, allows re-executing and will only transfer remaining
 }
 
-//TODO: crc32('MerkleRoot_Validate')
-struct (0x10000010) MerkleRoot_Validate {
+//crc32('MerkleRoot_Validate')
+struct (0x38ede91) MerkleRoot_Validate {
     messages: cell,
     proofs: cell,
     proofFlagBits: uint256,
@@ -328,13 +323,18 @@ struct (0x10000010) MerkleRoot_Validate {
     //TODO: token data
 }
 
-//TODO: crc32('OffRamp_DispatchValidated')
 //Must be sent from an owned MerkleRoot contract
-struct (0x12000004) DispatchValidated { 
+//crc32('OffRamp_DispatchValidated')
+struct (0x58cfcb02) OffRamp_DispatchValidated { 
     messages: cell; // vec<Any2TVMRampMessage>
     proofs: cell;
     proofFlagBits: uint256;
     metadataHash: uint256;
+}
+
+//crc32('Receiver_CCIPReceive')
+struct (0xb3126df1) CCIPReceive {
+    message: Any2TVMMessage
 }
 
 struct TokenBalance {

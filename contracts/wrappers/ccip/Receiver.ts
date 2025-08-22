@@ -19,5 +19,6 @@ export class ExampleReceiver implements Contract{
       body: beginCell().endCell(),
     })
   }
-
 }
+
+

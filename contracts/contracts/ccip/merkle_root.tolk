@@ -73,7 +73,7 @@ fun _execute(mesages: cell, proofs: cell, proofFlagBits: uint256, metadataHash: 
             bounce: true,
             value: ton("0.1"),
             dest: offRamp,
-            body: DispatchValidated {
+            body: OffRamp_DispatchValidated {
                 messages: mesages,
                 proofs: proofs,
                 proofFlagBits: proofFlagBits,

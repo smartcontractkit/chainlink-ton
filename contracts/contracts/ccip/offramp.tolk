@@ -60,7 +60,6 @@ struct ExecutionStateChanged {
     state: uint8;
 }
 
-// crc32("CCIPCommitReportAccepted")
 const CCIP_COMMIT_REPORT_ACCEPTED_TOPIC: int = stringCrc32("CCIPCommitReportAccepted");
 
 struct CommitReportAccepted {
@@ -86,7 +85,8 @@ struct CommitReport {
     merkleRoots: cell; // vec<MerkleRoot> Merkle roots 
 }
 
-struct (0x00000001) Commit {
+//crc32('OffRamp_Commit')
+struct (0x9d431905) OffRamp_Commit {
     queryId: uint64;
     // TODO: could just store as one slice since context is fixed size
     reportContext: ReportContext;
@@ -94,36 +94,35 @@ struct (0x00000001) Commit {
     signatures: cell; //vec<SignatureEd25519>
 }
 
-struct (0x00000002) Execute {
+//crc32('OffRamp_Execute')
+struct (0x27bdac33) OffRamp_Execute {
     queryId: uint64;
     // TODO: could just store as one slice since context is fixed size
     reportContext: ReportContext;
     report: ExecutionReport;
 }
 
-struct (0x00000003) UpdateSourceChainConfig {
+//crc32('OffRamp_UpdateSourceChainConfig')
+struct (0xb98c95e3) OffRamp_UpdateSourceChainConfig {
     queryId: uint64;
     sourceChainSelector: uint64;
     config: SourceChainConfig
 }
 
-
-type Msg = Commit | Execute | DispatchValidated | UpdateSourceChainConfig | OCR3Base_SetOCR3Config;
-
-
+type Msg = OffRamp_Commit | OffRamp_Execute | OffRamp_DispatchValidated | OffRamp_UpdateSourceChainConfig | OCR3Base_SetOCR3Config;
 
 fun onInternalMessage(in:InMessage) {
     val msg = lazy Msg.fromSlice(in.body);
     match (msg) {
-        Commit => { 
+        OffRamp_Commit => { 
             commit(msg, in.senderAddress) 
         }
-        Execute => {
+        OffRamp_Execute => {
             _execute(msg, in.senderAddress);
         }
         OCR3Base_SetOCR3Config => { _setOCR3Config(msg, in.senderAddress)}
-        UpdateSourceChainConfig => {_updateSourceChainConfig(msg, in.senderAddress)}
-        DispatchValidated => { _dispatchValidated(msg, in.senderAddress)} 
+        OffRamp_UpdateSourceChainConfig => {_updateSourceChainConfig(msg, in.senderAddress)}
+        OffRamp_DispatchValidated => { _dispatchValidated(msg, in.senderAddress)} 
         else => {
             // ignore empty messages, "wrong opcode" for others
             assert (in.body.isEmpty()) throw 0xFFFF
@@ -138,10 +137,8 @@ fun onInternalMessage(in:InMessage) {
 // NOTE: this assumes router has a well known, static address. So two stage deployment: put up router, then compile the addr into contracts
 // (or init contract state with that router addr? probably what solana does)
 
-
-
-//TODO: This function should probably just relay the message to the router instead
-fun _dispatchValidated(msg: DispatchValidated, sender: address) {
+//TODO: This function should relay to the router or shuold
+fun _dispatchValidated(msg: OffRamp_DispatchValidated, sender: address) {
             val st = Storage.load();
 
             /*
@@ -191,7 +188,7 @@ fun _dispatchValidated(msg: DispatchValidated, sender: address) {
             val message = Any2TVMRampMessage.fromCell(msg.messages);
 
             // dispatch message to receiver
-            val ccipReceive: CcipReceive = {
+            val ccipReceive: CCIPReceive = {
                 message: {
                     messageId: message.header.messageId,
                     sourceChainSelector: message.header.sourceChainSelector,
@@ -228,7 +225,7 @@ fun getMerkleRootID(merkleRoot: uint256): builder {
         .storeUint(merkleRoot, 256);
 }
 
-fun commit(msg: Commit, sender: address) {
+fun commit(msg: OffRamp_Commit, sender: address) {
     var st = lazy Storage.load();
 
     val report = msg.report;
@@ -309,7 +306,7 @@ fun commit(msg: Commit, sender: address) {
 
 }
 
-fun _execute(msg: Execute, sender: address) {
+fun _execute(msg: OffRamp_Execute, sender: address) {
     var st = Storage.load();
 
     // TODO: manual execution flag
@@ -401,7 +398,7 @@ fun _execute(msg: Execute, sender: address) {
 }
 
 //todo: maybe it should be chainConfigs and take an array
-fun _updateSourceChainConfig(msg: UpdateSourceChainConfig, sender: address) {
+fun _updateSourceChainConfig(msg: OffRamp_UpdateSourceChainConfig, sender: address) {
     var st = lazy Storage.load();
     st.ownable.requireOwner(sender);
     st.sourceChainConfigs.set(msg.sourceChainSelector, msg.config);
