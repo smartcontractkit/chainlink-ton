@@ -108,7 +108,9 @@ struct (0x00000003) UpdateSourceChainConfig {
 }
 
 
-type Msg = Commit | Execute | ExecuteValidated | UpdateSourceChainConfig | OCR3Base_SetOCR3Config;
+type Msg = Commit | Execute | DispatchValidated | UpdateSourceChainConfig | OCR3Base_SetOCR3Config;
+
+
 
 fun onInternalMessage(in:InMessage) {
     val msg = lazy Msg.fromSlice(in.body);
@@ -121,50 +123,38 @@ fun onInternalMessage(in:InMessage) {
         }
         OCR3Base_SetOCR3Config => { _setOCR3Config(msg, in.senderAddress)}
         UpdateSourceChainConfig => {_updateSourceChainConfig(msg, in.senderAddress)}
-        ExecuteValidated => {
-            // How do we check that the message comes from a real commited MerkleRoot?
+        DispatchValidated => { _dispatchValidated(msg, in.senderAddress)} 
+        else => {
+            // ignore empty messages, "wrong opcode" for others
+            assert (in.body.isEmpty()) throw 0xFFFF
+        }
+    }
+}
 
-            // We don't store the addresses of the MerkleRoot contracts,
-            // we need to check the proof again and validate that the root contract was deployed by the OffRamp.
-            // Maybe we could pass the root around and just check that it was deployed by the OffRamp...
+// TODO: handle signals from MerkleRoot for releaseTokens
+// maybe send these and MerkleRoot_Execute straight to router
 
+// the payload would need the id & chainSelector so we can calculate/validate offrampAddress & that the merkle root is allowed to send for that ID
+// NOTE: this assumes router has a well known, static address. So two stage deployment: put up router, then compile the addr into contracts
+// (or init contract state with that router addr? probably what solana does)
+
+
+
+//TODO: This function should probably just relay the message to the router instead
+fun _dispatchValidated(msg: DispatchValidated, sender: address) {
             val st = Storage.load();
 
             /*
-            val metadataHash = beginCell()
-                .storeUint(stringSha256("Any2TVMMessageHashV1"), 256)
-                .storeUint(report.sourceChainSelector, 64)
-                .storeUint(st.chainSelector, 64)
-                .storeRef(sourceChainConfig.onRamp)
-                .endCell()
-                .hash();
+            // TODO: Check that the message comes from a real commited MerkleRoot
 
-            var hashedLeaves = createEmptyTuple();
-            // TODO: is offchainTokenData not hashed?
-            while (!messages.empty()) {
-                val message = messages.next();
+            // we don't store the addresses of the MerkleRoot contracts so we check the proof again and validate that the root contract was deployed by the OffRamp.
 
-                // Commits do not verify the destChainSelector in the message since only the root is committed, so we
-                // have to check it explicitly. This check is also important as we have assumed the metaDataHash above uses
-                // the i_chainSelector as the destChainSelector.
-                assert(message.header.destChainSelector == st.chainSelector, ERROR_INVALID_MESSAGE_DEST_CHAIN_SELECTOR);
+            // TODO: Maybe we could pass the root around and just check that it was deployed by the OffRamp...
 
-                // If the message source chain selector does not match the report's source chain selector and the root has not
-                // been committed for the report source chain selector this will be caught by the root verification.
-                // This acts as an extra check to ensure the message source chain selector matches the report's source chain.
-                assert(message.header.sourceChainSelector == report.sourceChainSelector, ERROR_SOURCE_CHAIN_SELECTOR_MISMATCH);
+            // Here we assume just one message because we don't batch.
+            // TODO: I am thinking it might be better to just remove all support for batching from on-chain, it can be easily added back later
 
-                // Hashes the cell data + refs recursively
-                val hash = message.generateMessageId(metadataHash);
-                hashedLeaves.push(hash);
-            }
-
-            //TODO: Validate that the sender is an owned MerkleRoot contract
-            val root = merkleRoot(
-                TupleIterator<uint256>.new(hashedLeaves);,
-                Iterator<uint256>.new(msg.proofs),
-                msg.proofFlagBits
-            );
+            val root = message.generateMessageId(msg.metadataHash);
 
             val initCode =  st.deployer;
             val initData = Deployable {
@@ -172,7 +162,7 @@ fun onInternalMessage(in:InMessage) {
               id: getMerkleRootID(root),
             }.toCell();
 
-            //https://docs.ton.org/v3/documentation/smart-contracts/func/cookbook#how-to-build-a-stateinit-cell
+            //Build the expected address https://docs.ton.org/v3/documentation/smart-contracts/func/cookbook#how-to-build-a-stateinit-cell
             var stateInit = beginCell()
               .storeUint(0, 1) // split_depth:(Maybe (## 5))
               .storeUint(0, 1) // special:(Maybe TickTock)
@@ -193,11 +183,14 @@ fun onInternalMessage(in:InMessage) {
             assert(expectedAddress == in.senderAddress) throw 0x1000;
             */
 
-            // No batching, so for now we assume the messages field is just a single message
+            // No batching, we assume the messages field is just a single message
+
+            // It might be better to just remove all support for batching from on-chain (no merkleProof lib
+            // and just one message instead of vec<messages>on the report), it can be easily added back later.
+
             val message = Any2TVMRampMessage.fromCell(msg.messages);
 
-            //TODO this should be done by the router
-            // route message to receiver
+            // dispatch message to receiver
             val ccipReceive: CcipReceive = {
                 message: {
                     messageId: message.header.messageId,
@@ -209,29 +202,22 @@ fun onInternalMessage(in:InMessage) {
 
             val messageForReceiver = createMessage({
                 bounce: true, // TODO:
-                value: ton("0.05"), // TODO: use gas limit
+                value: ton("0.05"), // TODO: use the gas limit from the message
                 dest: message.receiver,
                 body: ccipReceive
             });
             messageForReceiver.send(SEND_MODE_REGULAR);
-
-        }
-        else => {
-            // ignore empty messages, "wrong opcode" for others
-            assert (in.body.isEmpty()) throw 0xFFFF
-        }
-    }
 }
 
 fun _setOCR3Config(msg: OCR3Base_SetOCR3Config, sender: address) {
-            var st = lazy Storage.load();
-            st.ownable.requireOwner(sender);
+        var st = lazy Storage.load();
+        st.ownable.requireOwner(sender);
 
-            var ocr3Base = st.ocr3Base.load();
-            ocr3Base.setOcr3Config(msg);
+        var ocr3Base = st.ocr3Base.load();
+        ocr3Base.setOcr3Config(msg);
 
-            st.ocr3Base = ocr3Base.toCell();
-            st.store();
+        st.ocr3Base = ocr3Base.toCell();
+        st.store();
 }
 
 @pure @inline
@@ -325,6 +311,7 @@ fun commit(msg: Commit, sender: address) {
 
 fun _execute(msg: Execute, sender: address) {
     var st = Storage.load();
+
     // TODO: manual execution flag
     // TODO: check if chain was cursed by RMNRemote
 
@@ -333,29 +320,24 @@ fun _execute(msg: Execute, sender: address) {
 
     assert(!messages.empty(), ERROR_EMPTY_REPORT);
 
-    // TODO: assert(report.messages.len == offchainTokenData.len, throw UNEXPECTED_TOKEN_DATA)
+    // TODO: assert(report.messages.len == offchainTokenData.len, throw UNEXPECTED_TOKEN_DATA) (
     // ^- perhaps easier to validate by checking if offchainTokenData iter is still empty after the while loop
 
     val sourceChainConfig = st.sourceChainConfigs.mustGet(report.sourceChainSelector, ERROR_SOURCE_CHAIN_NOT_ENABLED);
-    assert(sourceChainConfig.isEnabled,ERROR_SOURCE_CHAIN_NOT_ENABLED);
+    assert(sourceChainConfig.isEnabled, ERROR_SOURCE_CHAIN_NOT_ENABLED);
 
     // We do this hash here instead of in _verify to avoid two separate loops over the same data. Hashing all of the
     // message fields ensures that the message being executed is correct and not tampered with. Including the known
     // OnRamp ensures that the message originates from the correct OnRamp version. We know the sourceChainSelector
     // and destChainSelector are correct because we revert below when they are not.
-    val metadataHash = beginCell()
-        .storeUint(stringSha256("Any2TVMMessageHashV1"), 256)
-        .storeUint(report.sourceChainSelector, 64)
-        .storeUint(st.chainSelector, 64)
-        .storeRef(sourceChainConfig.onRamp)
-        .endCell()
-        .hash();
+    val metadataHash = metadataHash(report.sourceChainSelector, st.chainSelector, sourceChainConfig.onRamp);
 
     var hashedLeaves = createEmptyTuple();
     // TODO: is offchainTokenData not hashed?
+
+    //TODO: Should we just assume no batching and get rid of this loop? the code would be simpler
     while (!messages.empty()) {
         val message = messages.next();
-
         // Commits do not verify the destChainSelector in the message since only the root is committed, so we
         // have to check it explicitly. This check is also important as we have assumed the metaDataHash above uses
         // the i_chainSelector as the destChainSelector.
@@ -397,7 +379,7 @@ fun _execute(msg: Execute, sender: address) {
              // TODO: toShard so it's collocated with offramp
          },
          
-         body: ValidateExecute {
+         body: MerkleRoot_Validate {
             messages: report.messages,
             proofs: report.proofs,
             proofFlagBits: report.proofFlagBits,
@@ -418,7 +400,7 @@ fun _execute(msg: Execute, sender: address) {
 
 }
 
-//todo: should be chainConfigs and take an array
+//todo: maybe it should be chainConfigs and take an array
 fun _updateSourceChainConfig(msg: UpdateSourceChainConfig, sender: address) {
     var st = lazy Storage.load();
     st.ownable.requireOwner(sender);
@@ -426,11 +408,16 @@ fun _updateSourceChainConfig(msg: UpdateSourceChainConfig, sender: address) {
     st.store();
 }
 
-// TODO: handle signals from MerkleRoot (release tokens, execute)
-// maybe send these straight to router if router can validate address == deployable(offrampAddress, MerkleRoot, id)
-// the payload would need the id & chainSelector so we can calculate/validate offrampAddress & that the merkle root is allowed to send for that ID
-// NOTE: this assumes router has a well known, static address. So two stage deployment: put up router, then compile the addr into contracts
-// (or init contract state with that router addr? probably what solana does)
+
+fun metadataHash(sourceChainSelector: uint64, destChainSelector: uint64, onRamp: cell) {
+    return beginCell()
+        .storeUint(stringSha256("Any2TVMMessageHashV1"), 256)
+        .storeUint(sourceChainSelector, 64)
+        .storeUint(destChainSelector, 64)
+        .storeRef(onRamp)
+        .endCell()
+        .hash();
+}
 
 // get fun executionState() {
 //     // TODO: node will need to directly look at MerkleRoot subcontracts

@@ -27,14 +27,14 @@ fun MerkleRoot_Storage.store(self) {
 }
 
 
-type Msg = ValidateExecute;
+type Msg = MerkleRoot_Validate;
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy Msg.fromSlice(in.body);
     match (msg) {
-        ValidateExecute => {
-            // If we receive this message from the OffRamp then the proof has already been validated.
-            onExecute(msg, in.senderAddress);
+        MerkleRoot_Validate => {
+            // If we receive this message from the OffRamp then the merkle proof has already been validated.
+            _validateAndExecute(msg, in.senderAddress);
             
         }
         else => {
@@ -44,14 +44,16 @@ fun onInternalMessage(in: InMessage) {
     }
 }
 
-fun onExecute(msg: ValidateExecute, sender: address) {
+//TODO: We are not keeping track of the execution state right now, we just relay the message to confirm that the merkle proof is valid
+
+fun _validateAndExecute(msg: MerkleRoot_Validate, sender: address) {
     val st = MerkleRoot_Storage.load();
     assert(sender == st.owner, ERROR_NOT_OWNER);
 
     // TODO if no tokenTransfers
     _execute(msg.messages, msg.proofs, msg.proofFlagBits, msg.metadataHash, sender);
 
-    //TODO else  
+    // if tokenTransfers 
     // validate execution state == untouched
     // if initial
     //  allocate storage space for the execution report
@@ -71,7 +73,7 @@ fun _execute(mesages: cell, proofs: cell, proofFlagBits: uint256, metadataHash: 
             bounce: true,
             value: ton("0.1"),
             dest: offRamp,
-            body: ExecuteValidated {
+            body: DispatchValidated {
                 messages: mesages,
                 proofs: proofs,
                 proofFlagBits: proofFlagBits,
