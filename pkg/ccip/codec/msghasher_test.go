@@ -157,8 +157,8 @@ func TestMessageHasherV1_ErrorCases(t *testing.T) {
 }
 
 func TestMessageHasherV1_CrossLanguageCompatibility(t *testing.T) {
-	// There's mismatch between contract type and gobinding for Any2TVMTokenTransfer, need to fix it before running this test
-	t.Skip("Skipping test for now, as it offramp contract is not yet finished")
+	// Right now the hash from ts and gobinding Any2TVMRamp message generates different msg hash. Need to fix it before running this test
+	t.Skip("Skipping test for now")
 	ctx := context.Background()
 	mockExtraDataCodec := new(mocks.SourceChainExtraDataCodec)
 	edc := ccipocr3.ExtraDataCodec(map[string]ccipocr3.SourceChainExtraDataCodec{
