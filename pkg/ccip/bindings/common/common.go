@@ -1,4 +1,4 @@
-package common
+package common //nolint:revive // var-naming: avoid meaningless package names
 
 import (
 	"errors"
