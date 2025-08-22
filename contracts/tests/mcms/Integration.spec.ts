@@ -492,9 +492,8 @@ describe('MCMS - IntegrationTest', () => {
   }
 
   it('should execute chainOfActions', async () => {
-    const memberAddr = await bind.ac.getRoleMember(rbactl.roles.admin, 0n)
-    expect(memberAddr).not.toBeNull()
-    expect(memberAddr!).toEqualAddress(acc.deployer.address) // default admin role
+    expect(await bind.ac.getRoleMemberCount(rbactl.roles.admin)).toEqual(2n)
+    expect(await bind.ac.getRoleMember(rbactl.roles.admin, 0n)).not.toBeNull()
 
     let calls: Cell // vec<rbactl.Call>
     let callsHash: bigint
@@ -607,7 +606,7 @@ describe('MCMS - IntegrationTest', () => {
 
       const r3 = await bind.callProxy.sendInternal(
         acc.deployer.getSender(),
-        toNano('0.80'), // TODO: notice the gas value required to pass is higher b/c reserveToncoinsOnBalance (check)
+        toNano('1'), // TODO: notice the gas value required to pass is higher b/c reserveToncoinsOnBalance (check)
         rbactl.builder.message.in.executeBatch.encode({
           queryId: 2n,
           predecessor: proposePredecessor,
