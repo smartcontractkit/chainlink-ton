@@ -30,6 +30,13 @@ fun CallProxy_Data.fromContractData() {
     return CallProxy_Data.fromCell(contract.getData());
 }
 
+// --- Constants ---
+
+const RENT_MAX_TON: int = ton("0.1");
+
+const ERROR_CONTRACT_MAX_FUNDED = 101;
+const ERROR_VALUE_OUT_OF_BOUNDS = 102;
+
 // --- Message handlers ---
 
 /// @notice a contract which acts as a forwarder that forwards the input from
@@ -38,11 +45,20 @@ fun onInternalMessage(in: InMessage) {
     val msg = lazy CallProxy_InMessage.fromSlice(in.body);
     match (msg) {
         CallProxy_TopUp => {
-            // Top up the contract balance, no action needed, return early - no need to update storage
-            // TODO: should there be a limit here?
+            // Top up the contract balance
+            // Notice: we put a simple static limit on max rent this contract can hold
             //  - funds are only needed for rent
             //  - funds can't be withdrawn once deposited
-            // TODO: should we use reserveToncoinsOnBalance during proxying vs. handling specific TopUp message?
+
+            val current = contract.getOriginalBalance() - in.valueCoins;
+            if (current > RENT_MAX_TON) {
+                throw(ERROR_CONTRACT_MAX_FUNDED)
+            }
+
+            if (in.valueCoins > RENT_MAX_TON) {
+                throw(ERROR_VALUE_OUT_OF_BOUNDS)
+            }
+
             return;
         }
         else => {
@@ -50,13 +66,12 @@ fun onInternalMessage(in: InMessage) {
             val data = lazy CallProxy_Data.fromCell(contract.getData());
 
             // Proxy a message to the target
-            val msg = createMessage({
+            createMessage({
                 bounce: false,
                 value: 0,
                 dest: data.target,
                 body: in.body
-            });
-            msg.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+            }).send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
         }
     }
 }

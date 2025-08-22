@@ -33,6 +33,11 @@ export const opcodes = {
   out: {},
 }
 
+export enum Errors {
+  ContractMaxFunded = 101,
+  ValueOutOfBounds = 102,
+}
+
 export const builder = {
   message: {
     in: {
