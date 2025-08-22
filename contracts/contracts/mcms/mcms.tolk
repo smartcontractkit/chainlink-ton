@@ -230,7 +230,7 @@ fun MCMS_Data.storeAsContractData(self) {
 
 /// @dev Hook extensions exposed by the MCMS contract.
 struct MCMS_Hooks<T> {
-    /// Hook to get the identifier of an operation containing a batch of transactions.
+    /// Hook to inject custom execution logic.
     execute: ((T?, address, coins, cell) -> void)?;
 }
 
@@ -686,14 +686,13 @@ fun MCMS<T>.setRoot(
     };
     self.data.rootMetadata = metadata.toCell();
 
-    // Send a message to the sender to notify about the change
-    val reply = createMessage({
+    // Reply to sender new root was set, return excess
+    createMessage({
         bounce: false,
         value: 0,
         dest: sender,
         body: MCMS_NewRoot{queryId, root, validUntil, metadata}
-    });
-    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    }).send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 /// @notice Execute the received op after verifying the proof of its inclusion in the
@@ -764,14 +763,13 @@ fun MCMS<T>.execute(
 
     self._execute(op.to, op.value, op.data);
 
-    // Send a message to the sender to notify about the change
-    val reply = createMessage({
+    // Reply back to sender
+    createMessage({
         bounce: false,
-        value: 0,
+        value: DEFAULT_MESSAGE_BUDGET_FEE, // send small value as gas budget, keep the rest
         dest: sender,
         body: MCMS_OpExecuted{queryId, nonce: op.nonce, to: op.to, data: op.data, value: op.value}
-    });
-    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    }).send(SEND_MODE_REGULAR);
 }
 
 /// @notice sets a new data.config. If clearRoot is true, then it also invalidates
@@ -966,8 +964,8 @@ fun MCMS<T>.setConfig(
         }.toCell();
     }
 
-    // Emit config set event
-    val reply = createMessage({
+    // Reply to sender config is set, return excess
+    createMessage({
         bounce: false,
         value: 0,
         dest: sender,
@@ -976,8 +974,7 @@ fun MCMS<T>.setConfig(
             config: Config.fromCell(self.data.config),
             isRootCleared: clearRoot
         }
-    });
-    reply.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    }).send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 /// @notice Execute an op's call. Performs a raw message send that can bounce on errors.
@@ -986,14 +983,13 @@ fun MCMS<T>._execute(self, target: address, value: coins, data: cell): void {
         return self.hooks.execute(self.context, target, value, data); // extension hook
     }
 
-    // Create a message to the target with the provided value and data
-    val msg = createMessage({
+    // Send a message to the target with the provided value and data
+    createMessage({
         bounce: true, // TODO: how to handle bounced messages (errors)?
         value: value,
         dest: target,
         body: data
-    });
-    msg.send(SEND_MODE_PAY_FEES_SEPARATELY);
+    }).send(SEND_MODE_PAY_FEES_SEPARATELY);
 }
 
 /// Returns the current configuration of the contract
