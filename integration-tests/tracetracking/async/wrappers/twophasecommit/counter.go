@@ -29,6 +29,7 @@ type CounterInitData struct {
 	AutoAck bool   `tlb:"bool"`
 }
 
+// TODO [NONEVM-2461] Unify Tact and Tolk counter implementations and merge bindings.
 type TopUp struct {
 	_       tlb.Magic `tlb:"#00000001"` //nolint:revive // (opcode) should stay uninitialized
 	QueryID uint64    `tlb:"## 64"`
