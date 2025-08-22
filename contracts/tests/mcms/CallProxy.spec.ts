@@ -39,7 +39,7 @@ describe('CallProxy', () => {
     const deployResult = await bind.callProxy.sendInternal(
       deployer.getSender(),
       toNano('0.05'),
-      beginCell().endCell(), // Empty body for deployment
+      callProxy.builder.message.in.topUp.encode({ queryId: 1n }), // TopUp message to deploy
     )
 
     expect(deployResult.transactions).toHaveTransaction({
@@ -48,6 +48,11 @@ describe('CallProxy', () => {
       deploy: true,
       success: true,
     })
+  })
+
+  it('Should compute crc32 opcodes', async () => {
+    // In opcodes
+    expect(callProxy.opcodes.in.TopUp).toBe(0x3b3d63b8)
   })
 
   it('should deploy and set target correctly', async () => {
@@ -61,6 +66,56 @@ describe('CallProxy', () => {
     // Verify the ID was set correctly
     const id = await bind.callProxy.getID()
     expect(id).toBe(MOCK_TARGET_ID)
+  })
+
+  it('should limit excess top-up', async () => {
+    const r = await bind.callProxy.sendInternal(
+      deployer.getSender(),
+      toNano('100.05'),
+      callProxy.builder.message.in.topUp.encode({ queryId: 1n }),
+    )
+
+    expect(r.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: bind.callProxy.address,
+      exitCode: callProxy.Errors.ValueOutOfBounds,
+    })
+
+    const r1 = await bind.callProxy.sendInternal(
+      deployer.getSender(),
+      toNano('0.05'),
+      callProxy.builder.message.in.topUp.encode({ queryId: 1n }),
+    )
+
+    expect(r1.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: bind.callProxy.address,
+      success: true,
+    })
+
+    const r2 = await bind.callProxy.sendInternal(
+      deployer.getSender(),
+      toNano('0.08'),
+      callProxy.builder.message.in.topUp.encode({ queryId: 1n }),
+    )
+
+    expect(r2.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: bind.callProxy.address,
+      success: true,
+    })
+
+    const r3 = await bind.callProxy.sendInternal(
+      deployer.getSender(),
+      toNano('0.08'),
+      callProxy.builder.message.in.topUp.encode({ queryId: 1n }),
+    )
+
+    expect(r3.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: bind.callProxy.address,
+      exitCode: callProxy.Errors.ContractMaxFunded,
+    })
   })
 
   it('should forward messages to target', async () => {

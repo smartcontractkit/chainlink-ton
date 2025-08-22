@@ -11,6 +11,8 @@ import {
 } from '@ton/core'
 import { crc32 } from 'zlib'
 import { CellCodec, sha256_32 } from '../utils'
+import { keccak256 } from '@ethersproject/keccak256'
+import { uint8ArrayToBigInt } from '../../src/utils'
 
 // @dev Initializes the contract
 export type Init = {
@@ -231,8 +233,11 @@ export const opcodes = {
     BypasserExecuteBatch: crc32('Timelock_BypasserExecuteBatch'),
   },
   out: {
+    BatchScheduled: crc32('Timelock_BatchScheduled'),
     CallScheduled: crc32('Timelock_CallScheduled'),
+    BatchExecuted: crc32('Timelock_BatchExecuted'),
     CallExecuted: crc32('Timelock_CallExecuted'),
+    BypasserBatchExecuted: crc32('Timelock_BypasserBatchExecuted'),
     BypasserCallExecuted: crc32('Timelock_BypasserCallExecuted'),
     Canceled: crc32('Timelock_Canceled'),
     MinDelayChange: crc32('Timelock_MinDelayChange'),
@@ -630,13 +635,25 @@ export const builder = {
   },
 }
 
-// TODO: keccak256 should be used as a default (compatibility with EVM contracts)
+// Compute the role ID for a given role name as keccak256(<role>)
+export const computeRoleID = (role: string): bigint => {
+  const hash = keccak256(new Uint8Array(Buffer.from(role)))
+  const bytes = Buffer.from(hash.slice(2), 'hex')
+  return uint8ArrayToBigInt(bytes)
+}
+
+// Notice: uses keccak256 (compatibility with EVM contracts)
 export const roles = {
-  admin: sha256_32('ADMIN_ROLE'), // 2112602974n
-  proposer: sha256_32('PROPOSER_ROLE'), // 2908596091n
-  canceller: sha256_32('CANCELLER_ROLE'), // 973072761n
-  executor: sha256_32('EXECUTOR_ROLE'), // 2599814779n
-  bypasser: sha256_32('BYPASSER_ROLE'), // 544836961n
+  // 0xa49807205ce4d355092ef5a8a18f56e8913cf4a201fbe287825b095693c21775
+  admin: computeRoleID('ADMIN_ROLE'),
+  // 0xb09aa5aeb3702cfd50b6b62bc4532604938f21248a27a1d5ca736082b6819cc1
+  proposer: computeRoleID('PROPOSER_ROLE'),
+  // 0xfd643c72710c63c0180259aba6b2d05451e3591a24e58b62239378085726f783
+  canceller: computeRoleID('CANCELLER_ROLE'),
+  // 0xd8aa0f3194971a2a116679f7c2090f6939c8d4e01a2a8d7e41d55e5351469e63
+  executor: computeRoleID('EXECUTOR_ROLE'),
+  // 0xa1b2b8005de234c4b8ce8cd0be058239056e0d54f6097825b5117101469d5a8d
+  bypasser: computeRoleID('BYPASSER_ROLE'),
 }
 
 // Timestamp value used to mark an operation as done
