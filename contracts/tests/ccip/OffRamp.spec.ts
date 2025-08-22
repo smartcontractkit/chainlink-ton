@@ -80,17 +80,18 @@ const getMerkleRootID = (root: bigint) => {
 }
 
 const getMetadataHash = (sourceChainSelector: bigint) => {
-    const hash = beginCell()
+  const hash = beginCell()
     .storeUint(uint8ArrayToBigInt(sha256_sync('Any2TVMMessageHashV1')), 256)
     .storeUint(sourceChainSelector, 64)
     .storeUint(CHAINSEL_TON, 64)
-    .storeRef(beginCell()
-      .storeUint(bigIntToBuffer(EVM_ONRAMP_ADDRESS_TEST).byteLength, 8)
-      .storeBuffer(
-        bigIntToBuffer(EVM_ONRAMP_ADDRESS_TEST),
-        bigIntToBuffer(EVM_ONRAMP_ADDRESS_TEST).byteLength
-      )
-      .endCell()
+    .storeRef(
+      beginCell()
+        .storeUint(bigIntToBuffer(EVM_ONRAMP_ADDRESS_TEST).byteLength, 8)
+        .storeBuffer(
+          bigIntToBuffer(EVM_ONRAMP_ADDRESS_TEST),
+          bigIntToBuffer(EVM_ONRAMP_ADDRESS_TEST).byteLength,
+        )
+        .endCell(),
     )
     .endCell()
     .hash()
@@ -99,7 +100,7 @@ const getMetadataHash = (sourceChainSelector: bigint) => {
 }
 
 export function generateMessageId(message: Any2TVMRampMessage, metadataHash: bigint) {
-    return (
+  return (
     beginCell()
       .storeSlice(LEAF_DOMAIN_SEPARATOR)
       .storeUint(metadataHash, 256)
@@ -111,14 +112,14 @@ export function generateMessageId(message: Any2TVMRampMessage, metadataHash: big
           .storeUint(message.header.sequenceNumber, 64)
           //.storeCoins(message.gasLimit)
           .storeUint(message.header.nonce, 64)
-          .endCell()
+          .endCell(),
       )
       //message sender
       .storeRef(
         beginCell()
-        .storeUint(message.sender.byteLength, 8)
-        .storeBuffer(message.sender, message.sender.byteLength)
-        .endCell()
+          .storeUint(message.sender.byteLength, 8)
+          .storeBuffer(message.sender, message.sender.byteLength)
+          .endCell(),
       )
       //rest of the message
       .storeRef(message.data)
@@ -165,7 +166,11 @@ describe('OffRamp', () => {
   })
 
   // Helper functions for test data creation
-  const createTestMessage = (sequenceNumber = 1n, messageId = 1n, receiverAddress = generateMockTonAddress()) => {
+  const createTestMessage = (
+    sequenceNumber = 1n,
+    messageId = 1n,
+    receiverAddress = generateMockTonAddress(),
+  ) => {
     const header: RampMessageHeader = {
       messageId,
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
@@ -194,10 +199,10 @@ describe('OffRamp', () => {
   const setupOCRConfig = async (ocrPluginType = OCR3_PLUGIN_TYPE_COMMIT, overrides: any = {}) => {
     const result = await offRamp.sendSetOCR3Config(
       deployer.getSender(),
-      createDefaultOCRConfig({ ocrPluginType, ...overrides })
+      createDefaultOCRConfig({ ocrPluginType, ...overrides }),
     )
     expectSuccessfulTransaction(result, deployer.address, offRamp.address)
-    
+
     assertLog(result.transactions, offRamp.address, OCR3Logs.LogTypes.OCR3BaseConfigSet, {
       ocrPluginType,
       configDigest,
@@ -205,7 +210,7 @@ describe('OffRamp', () => {
       transmitters: transmitters.map((t) => t.address),
       bigF: 1,
     })
-    
+
     return result
   }
 
@@ -225,7 +230,7 @@ describe('OffRamp', () => {
     const reportContext: ReportContext = { configDigest, padding: 0n, sequenceBytes }
     const signatures = createSignatures(
       [signers[0], signers[1]],
-      hashReport(commitReportToBuilder(report).endCell(), reportContext)
+      hashReport(commitReportToBuilder(report).endCell(), reportContext),
     )
 
     const result = await offRamp.sendCommit(transmitters[0].getSender(), {
@@ -296,15 +301,14 @@ describe('OffRamp', () => {
     {
       let code = await compile('Receiver')
       receiver = blockchain.openContract(ExampleReceiver.create(code))
-      const result = await receiver.sendDeploy(deployer.getSender(), toNano("10"))
+      const result = await receiver.sendDeploy(deployer.getSender(), toNano('10'))
       expect(result.transactions).toHaveTransaction({
         from: deployer.address,
         to: receiver.address,
         deploy: true,
-        success: true
+        success: true,
       })
     }
-
   })
 
   beforeEach(async () => {
@@ -396,7 +400,7 @@ describe('OffRamp', () => {
     const reportContext: ReportContext = { configDigest, padding: 0n, sequenceBytes: 0x01 }
     const signatures = createSignatures(
       [signers[0], signers[1]],
-      hashReport(commitReportToBuilder(report).endCell(), reportContext)
+      hashReport(commitReportToBuilder(report).endCell(), reportContext),
     )
 
     const result = await offRamp.sendCommit(transmitters[0].getSender(), {
@@ -405,8 +409,13 @@ describe('OffRamp', () => {
       report,
       signatures,
     })
-    
-    expectFailedTransaction(result, transmitters[0].address, offRamp.address, ERROR_SOURCE_CHAIN_NOT_ENABLED)
+
+    expectFailedTransaction(
+      result,
+      transmitters[0].address,
+      offRamp.address,
+      ERROR_SOURCE_CHAIN_NOT_ENABLED,
+    )
   })
 
   it('Test commit with two merkle roots with one message each', async () => {
@@ -443,7 +452,7 @@ describe('OffRamp', () => {
     await setupOCRConfig(OCR3_PLUGIN_TYPE_COMMIT)
     await setupOCRConfig(OCR3_PLUGIN_TYPE_EXECUTE, {
       signers: [],
-      isSignatureVerificationEnabled: false
+      isSignatureVerificationEnabled: false,
     })
     await setupSourceChainConfig()
 
@@ -478,7 +487,7 @@ describe('OffRamp', () => {
       messages: [message],
       offchainTokenData: [],
       proofs: [],
-      proofFlagBits: 0n
+      proofFlagBits: 0n,
     }
 
     const executeResult = await offRamp.sendExecute(transmitters[0].getSender(), {
@@ -493,14 +502,19 @@ describe('OffRamp', () => {
       success: true,
     })
 
-    assertLog(executeResult.transactions, receiver.address, CCIPLogs.LogTypes.ReceiverCCIPMessageReceived, {
-      message: {
-        messageId: message.header.messageId,
-        sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
-        sender: message.sender,
-        data: message.data
-      }
-    })
+    assertLog(
+      executeResult.transactions,
+      receiver.address,
+      CCIPLogs.LogTypes.ReceiverCCIPMessageReceived,
+      {
+        message: {
+          messageId: message.header.messageId,
+          sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+          sender: message.sender,
+          data: message.data,
+        },
+      },
+    )
   })
 
   it('Test execute fails when root was not committed', async () => {
@@ -510,7 +524,7 @@ describe('OffRamp', () => {
     await setupOCRConfig(OCR3_PLUGIN_TYPE_COMMIT)
     await setupOCRConfig(OCR3_PLUGIN_TYPE_EXECUTE, {
       signers: [],
-      isSignatureVerificationEnabled: false
+      isSignatureVerificationEnabled: false,
     })
     await setupSourceChainConfig()
 
@@ -520,7 +534,7 @@ describe('OffRamp', () => {
       messages: [message],
       offchainTokenData: [],
       proofs: [],
-      proofFlagBits: 0n
+      proofFlagBits: 0n,
     }
 
     const executeResult = await offRamp.sendExecute(transmitters[0].getSender(), {
@@ -541,7 +555,7 @@ describe('OffRamp', () => {
       from: offRamp.address,
       success: false,
     })
-    
+
     // Check that no message was sent to the receiver (message processing failed)
     expect(executeResult.transactions).not.toHaveTransaction({
       from: offRamp.address,
@@ -552,7 +566,7 @@ describe('OffRamp', () => {
   it('Test execute fails when different root was committed', async () => {
     const message = createTestMessage(1n, 1n, receiver.address)
     const differentMessage = createTestMessage(2n, 2n, receiver.address)
-    
+
     const metadataHash = uint8ArrayToBigInt(getMetadataHash(CHAINSEL_EVM_TEST_90000001))
     const differentRootBytes = uint8ArrayToBigInt(generateMessageId(differentMessage, metadataHash))
     const differentRoot = createMerkleRoot(2n, 2n, differentRootBytes)
@@ -561,7 +575,7 @@ describe('OffRamp', () => {
     await setupOCRConfig(OCR3_PLUGIN_TYPE_COMMIT)
     await setupOCRConfig(OCR3_PLUGIN_TYPE_EXECUTE, {
       signers: [],
-      isSignatureVerificationEnabled: false
+      isSignatureVerificationEnabled: false,
     })
     await setupSourceChainConfig()
 
@@ -574,7 +588,7 @@ describe('OffRamp', () => {
       messages: [message],
       offchainTokenData: [],
       proofs: [],
-      proofFlagBits: 0n
+      proofFlagBits: 0n,
     }
 
     const executeResult = await offRamp.sendExecute(transmitters[0].getSender(), {
@@ -594,7 +608,7 @@ describe('OffRamp', () => {
       from: offRamp.address,
       success: false,
     })
-    
+
     // Check that no message was sent to the receiver (message verification failed)
     expect(executeResult.transactions).not.toHaveTransaction({
       from: offRamp.address,

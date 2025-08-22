@@ -1,14 +1,23 @@
-import { Address, beginCell, Cell, Contract, contractAddress, ContractProvider, Sender, SendMode } from "@ton/core"
+import {
+  Address,
+  beginCell,
+  Cell,
+  Contract,
+  contractAddress,
+  ContractProvider,
+  Sender,
+  SendMode,
+} from '@ton/core'
 
-export class ExampleReceiver implements Contract{
+export class ExampleReceiver implements Contract {
   constructor(
     readonly address: Address,
     readonly init?: { code: Cell; data: Cell },
-  )  {}
+  ) {}
 
   static create(code: Cell, workchain = 0) {
     const data = beginCell().endCell()
-    const init = {code, data}
+    const init = { code, data }
     return new ExampleReceiver(contractAddress(workchain, init), init)
   }
 
@@ -20,5 +29,3 @@ export class ExampleReceiver implements Contract{
     })
   }
 }
-
-

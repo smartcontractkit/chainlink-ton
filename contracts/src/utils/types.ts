@@ -6,24 +6,24 @@ export const ZERO_ADDRESS: Address = Address.parse(
 )
 
 export function bigIntToBuffer(value: bigint): Buffer {
-  let hex = value.toString(16);
-  if (hex.length % 2) hex = "0" + hex; // ensure even length
-  return Buffer.from(hex, "hex");
+  let hex = value.toString(16)
+  if (hex.length % 2) hex = '0' + hex // ensure even length
+  return Buffer.from(hex, 'hex')
 }
 
 // Converts a BigInt to a Uint8Array.
 export function bigIntToUint8Array(value: bigint): Uint8Array {
-  if (value < 0n) throw new RangeError('Only non-negative BigInt values are supported');
-  if (value === 0n) return new Uint8Array([0]);
+  if (value < 0n) throw new RangeError('Only non-negative BigInt values are supported')
+  if (value === 0n) return new Uint8Array([0])
 
-  let hex = value.toString(16);     // no "0x"
-  if (hex.length % 2) hex = '0' + hex; // ensure full bytes
+  let hex = value.toString(16) // no "0x"
+  if (hex.length % 2) hex = '0' + hex // ensure full bytes
 
-  const bytes = new Uint8Array(hex.length / 2);
+  const bytes = new Uint8Array(hex.length / 2)
   for (let i = 0; i < bytes.length; i++) {
-    bytes[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16); // big-endian
+    bytes[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16) // big-endian
   }
-  return bytes;
+  return bytes
 }
 
 // Converts a 32 byte array to bigint

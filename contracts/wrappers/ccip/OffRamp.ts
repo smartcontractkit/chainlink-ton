@@ -83,9 +83,9 @@ export type Any2TVMRampMessage = {
 }
 
 export type Any2TVMMessage = {
-  messageId: bigint,
-  sourceChainSelector: bigint,
-  sender: CrossChainAddress,
+  messageId: bigint
+  sourceChainSelector: bigint
+  sender: CrossChainAddress
   data: Cell
 }
 
@@ -97,7 +97,7 @@ export type MerkleRoot = {
   merkleRoot: bigint
 }
 
-//TODO: Refactor these with the CellCodec<T> pattern 
+//TODO: Refactor these with the CellCodec<T> pattern
 
 export const Builder = {
   asStorage: (config: OffRampStorage): Cell => {
@@ -250,7 +250,6 @@ export class OffRamp extends OCR3Base {
   }
 }
 
-
 export function priceUpdatesToCell(priceUpdates: PriceUpdates): Cell {
   return beginCell()
     .storeRef(
@@ -333,33 +332,39 @@ export const sourceChainConfigToBuilder = (config: SourceChainConfig) => {
     .storeBit(config.isEnabled)
     .storeUint(config.minSeqNr, 64)
     .storeBit(config.isRMNVerificationDisabled)
-    .storeRef(beginCell()
-      .storeUint(config.onRamp.byteLength, 8)
-      .storeBuffer(config.onRamp, config.onRamp.byteLength)
-      .endCell()
+    .storeRef(
+      beginCell()
+        .storeUint(config.onRamp.byteLength, 8)
+        .storeBuffer(config.onRamp, config.onRamp.byteLength)
+        .endCell(),
     )
 }
 
 function ExecutionReportToBuilder(report: ExecutionReport) {
   return beginCell()
     .storeUint(report.sourceChainSelector, 64)
-    .storeRef(asSnakeData(report.messages, (message) => {
-      return Any2TVMMessageToBuilder(message)
-    }))
+    .storeRef(
+      asSnakeData(report.messages, (message) => {
+        return Any2TVMMessageToBuilder(message)
+      }),
+    )
     .storeRef(beginCell().endCell()) //TODO: offchainTokenData
-    .storeRef(asSnakeData(report.proofs, (proof) => {
-      return beginCell().storeUint(proof, 256)
-    }))
+    .storeRef(
+      asSnakeData(report.proofs, (proof) => {
+        return beginCell().storeUint(proof, 256)
+      }),
+    )
     .storeUint(report.proofFlagBits, 256)
 }
 
 function Any2TVMMessageToBuilder(message: Any2TVMRampMessage) {
   return beginCell()
     .storeBuilder(RampMessageHeaderToBuidler(message.header))
-    .storeRef(beginCell()
-      .storeUint(message.sender.byteLength, 8)
-      .storeBuffer(message.sender, message.sender.byteLength)
-      .endCell()
+    .storeRef(
+      beginCell()
+        .storeUint(message.sender.byteLength, 8)
+        .storeBuffer(message.sender, message.sender.byteLength)
+        .endCell(),
     )
     .storeRef(message.data)
     .storeAddress(message.receiver)

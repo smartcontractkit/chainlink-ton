@@ -9,7 +9,7 @@ export const RECEIVER_CCIP_MESSAGE_RECEIVED = crc32('Receiver_CCIPMessageReceive
 export enum LogTypes {
   CCIPMessageSent = CCIP_MESSAGE_SENT_TOPIC,
   CCIPCommitReportAccepted = CCIP_COMMIT_REPORT_ACCEPTED_TOPIC,
-  ReceiverCCIPMessageReceived = RECEIVER_CCIP_MESSAGE_RECEIVED
+  ReceiverCCIPMessageReceived = RECEIVER_CCIP_MESSAGE_RECEIVED,
 }
 
 export type CCIPMessageSent = {
