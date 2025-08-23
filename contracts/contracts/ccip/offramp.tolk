@@ -272,7 +272,7 @@ fun commit(msg: OffRamp_Commit, sender: address) {
                 },
                 // TODO: toShard so it's collocated with offramp
             },
-            body: Initialize {
+            body: Deployable_Initialize {
                 stateInit: {
                     code: st.merkleRootCode,
                     data: MerkleRoot_Storage {

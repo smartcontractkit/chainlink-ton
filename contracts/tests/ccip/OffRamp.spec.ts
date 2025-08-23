@@ -61,6 +61,7 @@ const EVM_ONRAMP_ADDRESS_TEST = 0x111111c891c5d4e6ad68064ae45d43146d4f9f3an
 const ROUTER_ADDRESS_TEST = generateMockTonAddress()
 const LEAF_DOMAIN_SEPARATOR = beginCell().storeUint(0, 256).asSlice()
 const ERROR_SOURCE_CHAIN_NOT_ENABLED = 266
+const ERROR_STATE_IS_NOT_UNTOUCHED = 0x7878
 
 function generateSecureRandomString(length: number): string {
   const array = new Uint8Array(length)
@@ -613,6 +614,66 @@ describe('OffRamp', () => {
     expect(executeResult.transactions).not.toHaveTransaction({
       from: offRamp.address,
       to: receiver.address,
+    })
+  })
+
+  it('Test execute fails when same message is sent twice', async () => {
+    const message = createTestMessage(1n, 1n, receiver.address)
+    const metadataHash = uint8ArrayToBigInt(getMetadataHash(CHAINSEL_EVM_TEST_90000001))
+    const rootBytes = uint8ArrayToBigInt(generateMessageId(message, metadataHash))
+    const root = createMerkleRoot(1n, 1n, rootBytes)
+
+    // Setup configurations
+    await setupOCRConfig(OCR3_PLUGIN_TYPE_COMMIT)
+    await setupOCRConfig(OCR3_PLUGIN_TYPE_EXECUTE, {
+      signers: [],
+      isSignatureVerificationEnabled: false,
+    })
+    await setupSourceChainConfig()
+
+    // Send the commit report
+    await commitReport([root])
+
+    // Create the execute report
+    const executeReport: ExecutionReport = {
+      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+      messages: [message],
+      offchainTokenData: [],
+      proofs: [],
+      proofFlagBits: 0n,
+    }
+
+    // First execution should succeed
+    const firstExecuteResult = await offRamp.sendExecute(transmitters[0].getSender(), {
+      value: toNano('0.5'),
+      reportContext: { configDigest, padding: 0n, sequenceBytes: 0x02 },
+      report: executeReport,
+    })
+
+    expect(firstExecuteResult.transactions).toHaveTransaction({
+      from: offRamp.address,
+      to: receiver.address,
+      success: true,
+    })
+
+    // Second execution with the same report should fail
+    const secondExecuteResult = await offRamp.sendExecute(transmitters[0].getSender(), {
+      value: toNano('0.5'),
+      reportContext: { configDigest, padding: 0n, sequenceBytes: 0x02 },
+      report: executeReport,
+    })
+
+    // The execute call itself should succeed but the message processing should fail
+    expect(secondExecuteResult.transactions).toHaveTransaction({
+      from: transmitters[0].address,
+      to: offRamp.address,
+      success: true,
+    })
+
+    // There should be a failed transaction with the specific error code (during message processing)
+    expect(secondExecuteResult.transactions).toHaveTransaction({
+      exitCode: ERROR_STATE_IS_NOT_UNTOUCHED,
+      success: false,
     })
   })
 })

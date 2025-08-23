@@ -18,6 +18,8 @@ const EXECUTION_STATE_SUCCESS: uint8 = 2;
 const EXECUTION_STATE_FAILURE: uint8 = 3;
 // TODO: we need to fit additional states: TOKEN_TRANSFER | EXECUTE
 
+const ERROR_STATE_IS_NOT_UNTOUCHED: uint32 = 0x7878;
+
 fun MerkleRoot_Storage.load(): MerkleRoot_Storage {
     return MerkleRoot_Storage.fromCell(contract.getData());
 }
@@ -50,6 +52,7 @@ fun _validateAndExecute(msg: MerkleRoot_Validate, sender: address) {
     val st = MerkleRoot_Storage.load();
     assert(sender == st.owner, ERROR_NOT_OWNER);
 
+    assert(st.state == EXECUTION_STATE_UNTOUCHED, ERROR_STATE_IS_NOT_UNTOUCHED);
     // TODO if no tokenTransfers
     _execute(msg.messages, msg.proofs, msg.proofFlagBits, msg.metadataHash, sender);
 
@@ -68,6 +71,9 @@ fun _validateAndExecute(msg: MerkleRoot_Validate, sender: address) {
 }
 
 fun _execute(mesages: cell, proofs: cell, proofFlagBits: uint256, metadataHash: uint256, offRamp: address) {
+    var st = MerkleRoot_Storage.load();
+    st.state = STATE_SUCCESS;
+    st.store();
     var msg = createMessage(
         {
             bounce: true,
