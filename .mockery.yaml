@@ -1,5 +1,6 @@
 dir: '{{ .InterfaceDir }}/mocks'
 structname: '{{ .InterfaceName }}'
+filename: "{{ .InterfaceName | snakecase }}.go"
 pkgname: mocks
 packages:
   github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3:
