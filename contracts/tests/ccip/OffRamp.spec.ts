@@ -60,8 +60,13 @@ const EVM_SENDER_ADDRESS_TEST = 0x1a5fdbc891c5d4e6ad68064ae45d43146d4f9f3an
 const EVM_ONRAMP_ADDRESS_TEST = 0x111111c891c5d4e6ad68064ae45d43146d4f9f3an
 const ROUTER_ADDRESS_TEST = generateMockTonAddress()
 const LEAF_DOMAIN_SEPARATOR = beginCell().storeUint(0, 256).asSlice()
+
+// Error codes from the contract
 const ERROR_SOURCE_CHAIN_NOT_ENABLED = 266
 const ERROR_STATE_IS_NOT_UNTOUCHED = 0x7878
+const ERROR_EMPTY_REPORT = 267
+const ERROR_INVALID_MESSAGE_DEST_CHAIN_SELECTOR = 262
+const ERROR_SOURCE_CHAIN_SELECTOR_MISMATCH = 263
 
 function generateSecureRandomString(length: number): string {
   const array = new Uint8Array(length)
@@ -674,6 +679,244 @@ describe('OffRamp', () => {
     expect(secondExecuteResult.transactions).toHaveTransaction({
       exitCode: ERROR_STATE_IS_NOT_UNTOUCHED,
       success: false,
+    })
+  })
+
+  it('Test execute fails with empty report', async () => {
+    // Setup configurations
+    await setupOCRConfig(OCR3_PLUGIN_TYPE_COMMIT)
+    await setupOCRConfig(OCR3_PLUGIN_TYPE_EXECUTE, {
+      signers: [],
+      isSignatureVerificationEnabled: false,
+    })
+    await setupSourceChainConfig()
+
+    // Try to execute with empty messages array
+    const executeReport: ExecutionReport = {
+      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+      messages: [],
+      offchainTokenData: [],
+      proofs: [],
+      proofFlagBits: 0n,
+    }
+
+    const executeResult = await offRamp.sendExecute(transmitters[0].getSender(), {
+      value: toNano('0.5'),
+      reportContext: { configDigest, padding: 0n, sequenceBytes: 0x02 },
+      report: executeReport,
+    })
+
+    expectFailedTransaction(
+      executeResult,
+      transmitters[0].address,
+      offRamp.address,
+      ERROR_EMPTY_REPORT,
+    )
+  })
+
+  it('Test execute fails when message destChainSelector is wrong', async () => {
+    // Create message with wrong destination chain selector
+    const wrongDestMessage = createTestMessage(1n, 1n, receiver.address)
+    wrongDestMessage.header.destChainSelector = 999999n // Wrong chain selector
+
+    const metadataHash = uint8ArrayToBigInt(getMetadataHash(CHAINSEL_EVM_TEST_90000001))
+    const rootBytes = uint8ArrayToBigInt(generateMessageId(wrongDestMessage, metadataHash))
+    const root = createMerkleRoot(1n, 1n, rootBytes)
+
+    // Setup configurations
+    await setupOCRConfig(OCR3_PLUGIN_TYPE_COMMIT)
+    await setupOCRConfig(OCR3_PLUGIN_TYPE_EXECUTE, {
+      signers: [],
+      isSignatureVerificationEnabled: false,
+    })
+    await setupSourceChainConfig()
+
+    // Commit the report first
+    await commitReport([root])
+
+    const executeReport: ExecutionReport = {
+      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+      messages: [wrongDestMessage],
+      offchainTokenData: [],
+      proofs: [],
+      proofFlagBits: 0n,
+    }
+
+    const executeResult = await offRamp.sendExecute(transmitters[0].getSender(), {
+      value: toNano('0.5'),
+      reportContext: { configDigest, padding: 0n, sequenceBytes: 0x02 },
+      report: executeReport,
+    })
+
+    expectFailedTransaction(
+      executeResult,
+      transmitters[0].address,
+      offRamp.address,
+      ERROR_INVALID_MESSAGE_DEST_CHAIN_SELECTOR,
+    )
+  })
+
+  it('Test execute fails when message sourceChainSelector mismatches report', async () => {
+    // Create message with wrong source chain selector
+    const wrongSourceMessage = createTestMessage(1n, 1n, receiver.address)
+    wrongSourceMessage.header.sourceChainSelector = 888888n // Different from report
+
+    const metadataHash = uint8ArrayToBigInt(getMetadataHash(CHAINSEL_EVM_TEST_90000001))
+    const rootBytes = uint8ArrayToBigInt(generateMessageId(wrongSourceMessage, metadataHash))
+    const root = createMerkleRoot(1n, 1n, rootBytes)
+
+    // Setup configurations
+    await setupOCRConfig(OCR3_PLUGIN_TYPE_COMMIT)
+    await setupOCRConfig(OCR3_PLUGIN_TYPE_EXECUTE, {
+      signers: [],
+      isSignatureVerificationEnabled: false,
+    })
+    await setupSourceChainConfig()
+
+    // Commit the report first
+    await commitReport([root])
+
+    const executeReport: ExecutionReport = {
+      sourceChainSelector: CHAINSEL_EVM_TEST_90000001, // Report says EVM chain
+      messages: [wrongSourceMessage], // But message says different chain
+      offchainTokenData: [],
+      proofs: [],
+      proofFlagBits: 0n,
+    }
+
+    const executeResult = await offRamp.sendExecute(transmitters[0].getSender(), {
+      value: toNano('0.5'),
+      reportContext: { configDigest, padding: 0n, sequenceBytes: 0x02 },
+      report: executeReport,
+    })
+
+    expectFailedTransaction(
+      executeResult,
+      transmitters[0].address,
+      offRamp.address,
+      ERROR_SOURCE_CHAIN_SELECTOR_MISMATCH,
+    )
+  })
+
+  it('Test execute fails when source chain is disabled', async () => {
+    const message = createTestMessage(1n, 1n, receiver.address)
+    const metadataHash = uint8ArrayToBigInt(getMetadataHash(CHAINSEL_EVM_TEST_90000001))
+    const rootBytes = uint8ArrayToBigInt(generateMessageId(message, metadataHash))
+    const root = createMerkleRoot(1n, 1n, rootBytes)
+
+    // Setup configurations
+    await setupOCRConfig(OCR3_PLUGIN_TYPE_COMMIT)
+    await setupOCRConfig(OCR3_PLUGIN_TYPE_EXECUTE, {
+      signers: [],
+      isSignatureVerificationEnabled: false,
+    })
+    // Setup source chain as disabled
+    await setupSourceChainConfig(false)
+
+    // Commit the report first (this should work since we haven't disabled the chain yet)
+    await setupSourceChainConfig(true) // Enable for commit
+    await commitReport([root])
+    await setupSourceChainConfig(false) // Disable for execute
+
+    const executeReport: ExecutionReport = {
+      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+      messages: [message],
+      offchainTokenData: [],
+      proofs: [],
+      proofFlagBits: 0n,
+    }
+
+    const executeResult = await offRamp.sendExecute(transmitters[0].getSender(), {
+      value: toNano('0.5'),
+      reportContext: { configDigest, padding: 0n, sequenceBytes: 0x02 },
+      report: executeReport,
+    })
+
+    expectFailedTransaction(
+      executeResult,
+      transmitters[0].address,
+      offRamp.address,
+      ERROR_SOURCE_CHAIN_NOT_ENABLED,
+    )
+  })
+
+  it('Test execute fails when source chain config does not exist', async () => {
+    const unknownChainSelector = 777777n
+    const message = createTestMessage(1n, 1n, receiver.address)
+    message.header.sourceChainSelector = unknownChainSelector
+
+    // Setup configurations but don't setup source chain config for the unknown chain
+    await setupOCRConfig(OCR3_PLUGIN_TYPE_COMMIT)
+    await setupOCRConfig(OCR3_PLUGIN_TYPE_EXECUTE, {
+      signers: [],
+      isSignatureVerificationEnabled: false,
+    })
+
+    const executeReport: ExecutionReport = {
+      sourceChainSelector: unknownChainSelector,
+      messages: [message],
+      offchainTokenData: [],
+      proofs: [],
+      proofFlagBits: 0n,
+    }
+
+    const executeResult = await offRamp.sendExecute(transmitters[0].getSender(), {
+      value: toNano('0.5'),
+      reportContext: { configDigest, padding: 0n, sequenceBytes: 0x02 },
+      report: executeReport,
+    })
+
+    expectFailedTransaction(
+      executeResult,
+      transmitters[0].address,
+      offRamp.address,
+      ERROR_SOURCE_CHAIN_NOT_ENABLED,
+    )
+  })
+
+  it('Test execute succeeds with valid message and proof', async () => {
+    const message = createTestMessage(1n, 1n, receiver.address)
+    const metadataHash = uint8ArrayToBigInt(getMetadataHash(CHAINSEL_EVM_TEST_90000001))
+    const rootBytes = uint8ArrayToBigInt(generateMessageId(message, metadataHash))
+    const root = createMerkleRoot(1n, 1n, rootBytes)
+
+    // Setup configurations
+    await setupOCRConfig(OCR3_PLUGIN_TYPE_COMMIT)
+    await setupOCRConfig(OCR3_PLUGIN_TYPE_EXECUTE, {
+      signers: [],
+      isSignatureVerificationEnabled: false,
+    })
+    await setupSourceChainConfig()
+
+    // Commit the report first
+    await commitReport([root])
+
+    const executeReport: ExecutionReport = {
+      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+      messages: [message],
+      offchainTokenData: [],
+      proofs: [],
+      proofFlagBits: 0n,
+    }
+
+    const executeResult = await offRamp.sendExecute(transmitters[0].getSender(), {
+      value: toNano('0.5'),
+      reportContext: { configDigest, padding: 0n, sequenceBytes: 0x02 },
+      report: executeReport,
+    })
+
+    // The execute call should succeed
+    expect(executeResult.transactions).toHaveTransaction({
+      from: transmitters[0].address,
+      to: offRamp.address,
+      success: true,
+    })
+
+    // Message should be successfully processed to the receiver
+    expect(executeResult.transactions).toHaveTransaction({
+      from: offRamp.address,
+      to: receiver.address,
+      success: true,
     })
   })
 })
