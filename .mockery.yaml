@@ -1,5 +1,5 @@
-dir: '{{ .InterfaceDir }}/mocks'
-structname: '{{ .InterfaceName }}'
+dir: "{{ .InterfaceDir }}/mocks"
+structname: "{{ .InterfaceName }}"
 filename: "{{ .InterfaceName | snakecase }}.go"
 pkgname: mocks
 packages:
