@@ -144,11 +144,6 @@ export const testLogCCIPMessageSent = (
   return testLog(message, from, CombinedLogTypes.CCIPMessageSent, (x) => {
     let bs = x.beginParse()
 
-    const destChainSelector = bs.loadUintBig(64)
-    const sequenceNumber = bs.loadUintBig(64)
-
-    bs = bs.loadRef().beginParse()
-
     const header = {
       messageId: bs.loadUintBig(256),
       sourceChainSelector: bs.loadUintBig(64),
@@ -161,8 +156,6 @@ export const testLogCCIPMessageSent = (
     const body = bs.loadRef().beginParse()
 
     const msg: CCIPLogs.CCIPMessageSent = {
-      destChainSelector,
-      sequenceNumber,
       message: {
         header,
         sender,
@@ -245,3 +238,4 @@ export const testLogReceiverCCIPMessageReceived = (
     return true
   })
 }
+

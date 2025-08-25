@@ -8,7 +8,14 @@ import {
   Sender,
   SendMode,
 } from '@ton/core'
+import { crc32 } from 'zlib'
 import { CellCodec } from '../utils'
+
+// @dev Top up contract with TON coins.
+export type TopUp = {
+  // Query ID of the change owner request.
+  queryId: bigint
+}
 
 // CallProxy contract storage
 export type ContractData = {
@@ -19,7 +26,39 @@ export type ContractData = {
   target: Address
 }
 
+export const opcodes = {
+  in: {
+    TopUp: crc32('CallProxy_TopUp'),
+  },
+  out: {},
+}
+
+export enum Errors {
+  ContractMaxFunded = 101,
+  ValueOutOfBounds = 102,
+}
+
 export const builder = {
+  message: {
+    in: {
+      // Creates a new `CallProxy_TopUp` message.
+      topUp: {
+        encode: (msg: TopUp): Cell => {
+          return beginCell() // break line
+            .storeUint(opcodes.in.TopUp, 32)
+            .storeUint(msg.queryId, 64)
+            .endCell()
+        },
+        decode: (cell: Cell): TopUp => {
+          const s = cell.beginParse()
+          s.skip(32) // skip opcode
+          return {
+            queryId: s.loadUintBig(64),
+          }
+        },
+      },
+    },
+  },
   data: (() => {
     // Creates a new `CallProxy_Data` contract data cell
     const contractData: CellCodec<ContractData> = {
@@ -67,7 +106,7 @@ export class ContractClient implements Contract {
   // --- Getters ---
 
   async getID(p: ContractProvider): Promise<number> {
-    return p.get('getId', []).then((r) => r.stack.readNumber())
+    return p.get('getID', []).then((r) => r.stack.readNumber())
   }
 
   async getTarget(p: ContractProvider): Promise<Address> {

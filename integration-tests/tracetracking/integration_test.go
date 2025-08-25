@@ -28,6 +28,10 @@ import (
 )
 
 func TestIntegration(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping long-running test in short mode")
+	}
+
 	var initialAmount = big.NewInt(1_000_000_000_000)
 	accs := testutils.SetUpTest(t, chainsel.TON_LOCALNET.Selector, initialAmount, 2)
 	t.Run("TestDepositFees", func(t *testing.T) {
@@ -41,7 +45,7 @@ func TestIntegration(t *testing.T) {
 		externalMessageReceived, _, err := alice.SendWaitTransaction(t.Context(), *bob.Wallet.WalletAddress(), transfer)
 		require.NoError(t, err, "failed to send transaction: %w", err)
 		t.Logf("\n==========================\nreceivedMessage: %+v\n==========================\n", externalMessageReceived)
-		rerr := externalMessageReceived.WaitForTrace(&bob)
+		rerr := externalMessageReceived.WaitForTrace(bob.Client)
 		require.NoError(t, rerr, "failed to wait for trace: %w", rerr)
 		t.Logf("Transaction finalized\n")
 		t.Logf("\n==========================\nFinalized msg: %+v\n==========================\n", externalMessageReceived)

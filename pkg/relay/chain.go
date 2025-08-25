@@ -41,7 +41,7 @@ type Chain interface {
 
 	ID() string
 	TxManager() TxManager
-	LogPoller() logpoller.LogPoller
+	LogPoller() logpoller.Service
 	GetClient(ctx context.Context) (*ton.APIClient, error)
 }
 
@@ -68,7 +68,7 @@ type chain struct {
 	ds   sqlutil.DataSource
 
 	txm *txm.Txm
-	lp  logpoller.LogPoller
+	lp  logpoller.Service
 
 	clientCache map[int]*cachedClient
 	cacheMu     sync.RWMutex
@@ -95,16 +95,17 @@ func newChain(ctx context.Context, cfg *config.TOMLConfig, loopKs loop.Keystore,
 		return nil, errors.New("no TON account available")
 	}
 
-	_, err = strconv.ParseInt(cfg.ChainID, 10, 8)
+	_, err = strconv.ParseInt(cfg.ChainID, 10, 16)
 	if err != nil {
 		return nil, fmt.Errorf("invalid chain ID %s: could not parse as an integer: %w", cfg.ChainID, err)
 	}
 
 	ch := &chain{
-		id:   cfg.ChainID,
-		cfg:  cfg,
-		lggr: logger.Named(lggr, "Chain"),
-		ds:   ds,
+		id:          cfg.ChainID,
+		cfg:         cfg,
+		lggr:        logger.Named(lggr, "Chain"),
+		ds:          ds,
+		clientCache: make(map[int]*cachedClient),
 	}
 
 	tonClient, err := ch.GetClient(ctx)
@@ -249,7 +250,7 @@ func (c *chain) FeeEstimator() fees.Estimator {
 	return nil
 }
 
-func (c *chain) LogPoller() logpoller.LogPoller {
+func (c *chain) LogPoller() logpoller.Service {
 	return c.lp
 }
 
@@ -288,7 +289,10 @@ func (c *chain) GetClient(ctx context.Context) (*ton.APIClient, error) {
 
 		// Build new client
 		configURL := node.URL.String()
-		tonCfg, err := liteclient.GetConfigFromUrl(ctx, configURL)
+
+		// TODO this only works for localnet, need to handle for testnet/mainnet
+		// create an extra URL for liteclient config url
+		tonCfg, err := liteclient.GetConfigFromUrl(ctx, fmt.Sprintf("http://%v/localhost.global.config.json", configURL))
 		if err != nil {
 			c.lggr.Warnw("failed to fetch TON config", "name", node.Name, "ton-url", node.URL, "err", err)
 			continue

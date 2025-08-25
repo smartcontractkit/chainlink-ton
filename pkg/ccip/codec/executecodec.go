@@ -22,19 +22,21 @@ import (
 // ExecutePluginCodecV1 is a codec for encoding and decoding execute plugin reports.
 // Compatible with:
 // - "OffRamp 1.6.0-dev"
-type ExecutePluginCodecV1 struct {
-	addressCodec   AddressCodec
+type executePluginCodecV1 struct {
+	addressCodec   ccipocr3.ChainSpecificAddressCodec
 	extraDataCodec ccipocr3.ExtraDataCodec
 }
 
-func NewExecutePluginCodecV1(extraDataCodec ccipocr3.ExtraDataCodec) *ExecutePluginCodecV1 {
-	return &ExecutePluginCodecV1{
-		addressCodec:   AddressCodec{},
+var _ ccipocr3.ExecutePluginCodec = &executePluginCodecV1{}
+
+func NewExecutePluginCodecV1(extraDataCodec ccipocr3.ExtraDataCodec) ccipocr3.ExecutePluginCodec {
+	return &executePluginCodecV1{
+		addressCodec:   NewAddressCodec(),
 		extraDataCodec: extraDataCodec,
 	}
 }
 
-func (e *ExecutePluginCodecV1) Encode(ctx context.Context, report ccipocr3.ExecutePluginReport) ([]byte, error) {
+func (e *executePluginCodecV1) Encode(ctx context.Context, report ccipocr3.ExecutePluginReport) ([]byte, error) {
 	// support single report and single message for now
 	if len(report.ChainReports) == 0 {
 		// OCR3 runs in a constant loop and will produce empty reports, so we need to handle this case
@@ -189,7 +191,7 @@ func (e *ExecutePluginCodecV1) Encode(ctx context.Context, report ccipocr3.Execu
 	return chainedReports.ToBOC(), nil
 }
 
-func (e *ExecutePluginCodecV1) Decode(ctx context.Context, data []byte) (ccipocr3.ExecutePluginReport, error) {
+func (e *executePluginCodecV1) Decode(ctx context.Context, data []byte) (ccipocr3.ExecutePluginReport, error) {
 	c, err := cell.FromBOC(data)
 	if err != nil {
 		return ccipocr3.ExecutePluginReport{}, fmt.Errorf("decode BOC: %w", err)

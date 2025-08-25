@@ -3,13 +3,17 @@ package relay
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math/big"
+	"strconv"
 
 	"github.com/xssnick/tonutils-go/tlb"
 
+	chain_selectors "github.com/smartcontractkit/chain-selectors"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 	commontypes "github.com/smartcontractkit/chainlink-common/pkg/types"
+	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/core"
 
 	provider "github.com/smartcontractkit/chainlink-ton/pkg/ccip/provider"
@@ -38,18 +42,6 @@ type Relayer struct {
 	chain      Chain
 	tonService Service
 	stopCh     services.StopChan
-}
-
-func (r *Relayer) GetChainInfo(ctx context.Context) (commontypes.ChainInfo, error) {
-	return r.chain.GetChainInfo(ctx)
-}
-
-func (r *Relayer) TON() (commontypes.TONService, error) {
-	return &r.tonService, nil
-}
-
-func (r *Relayer) NewCCIPProvider(ctx context.Context, rargs commontypes.RelayArgs) (commontypes.CCIPProvider, error) {
-	return provider.NewCCIPProvider(r.lggr, r.chain.TxManager())
 }
 
 func NewRelayer(lggr logger.Logger, chain Chain, tonService Service, _ core.CapabilitiesRegistry) *Relayer {
@@ -97,6 +89,10 @@ func (r *Relayer) LatestHead(ctx context.Context) (commontypes.Head, error) {
 	return r.chain.LatestHead(ctx)
 }
 
+func (r *Relayer) GetChainInfo(ctx context.Context) (commontypes.ChainInfo, error) {
+	return r.chain.GetChainInfo(ctx)
+}
+
 func (r *Relayer) GetChainStatus(ctx context.Context) (commontypes.ChainStatus, error) {
 	return r.chain.GetChainStatus(ctx)
 }
@@ -113,44 +109,25 @@ func (r *Relayer) Replay(ctx context.Context, fromBlock string, args map[string]
 	return r.chain.Replay(ctx, fromBlock, args)
 }
 
-func (r *Relayer) NewConfigProvider(ctx context.Context, args commontypes.RelayArgs) (commontypes.ConfigProvider, error) {
-	// TODO(NONEVM-1460): implement
-	return nil, nil
+func (r *Relayer) TON() (commontypes.TONService, error) {
+	return &r.tonService, nil
 }
 
-func (r *Relayer) NewMedianProvider(ctx context.Context, rargs commontypes.RelayArgs, pargs commontypes.PluginArgs) (commontypes.MedianProvider, error) {
-	// TODO(NONEVM-1460): implement
-	return nil, nil
-}
+func (r *Relayer) NewCCIPProvider(ctx context.Context, rargs commontypes.RelayArgs) (commontypes.CCIPProvider, error) {
+	// TODO: store chainSelector within Chain
+	chainID, err := strconv.ParseInt(r.chain.ID(), 10, 16)
+	if err != nil {
+		return nil, fmt.Errorf("invalid chain ID %s: could not parse as an integer: %w", r.chain.ID(), err)
+	}
+	chainSelector, ok := chain_selectors.TonChainIdToChainSelector()[int32(chainID)]
+	if !ok {
+		return nil, fmt.Errorf("invalid chain ID %d: could not find chain selector: %w", chainID, err)
+	}
 
-func (r *Relayer) NewFunctionsProvider(ctx context.Context, rargs commontypes.RelayArgs, pargs commontypes.PluginArgs) (commontypes.FunctionsProvider, error) {
-	return nil, errors.New("functions are not supported for TON")
-}
-
-func (r *Relayer) NewAutomationProvider(ctx context.Context, rargs commontypes.RelayArgs, pargs commontypes.PluginArgs) (commontypes.AutomationProvider, error) {
-	return nil, errors.New("automation is not supported for TON")
-}
-
-func (r *Relayer) NewMercuryProvider(ctx context.Context, rargs commontypes.RelayArgs, pargs commontypes.PluginArgs) (commontypes.MercuryProvider, error) {
-	return nil, errors.New("mercury is not supported for TON")
-}
-
-func (r *Relayer) NewLLOProvider(ctx context.Context, rargs commontypes.RelayArgs, pargs commontypes.PluginArgs) (commontypes.LLOProvider, error) {
-	return nil, errors.New("data streams is not supported for TON")
-}
-
-func (r *Relayer) NewCCIPCommitProvider(ctx context.Context, rargs commontypes.RelayArgs, pargs commontypes.PluginArgs) (commontypes.CCIPCommitProvider, error) {
-	return nil, errors.New("ccip.commit is not supported for TON")
-}
-
-func (r *Relayer) NewCCIPExecProvider(ctx context.Context, rargs commontypes.RelayArgs, pargs commontypes.PluginArgs) (commontypes.CCIPExecProvider, error) {
-	return nil, errors.New("ccip.exec is not supported for TON")
-}
-
-func (r *Relayer) NewPluginProvider(ctx context.Context, rargs commontypes.RelayArgs, pargs commontypes.PluginArgs) (commontypes.PluginProvider, error) {
-	return nil, errors.New("plugin provider is not supported for TON")
-}
-
-func (r *Relayer) NewOCR3CapabilityProvider(ctx context.Context, rargs commontypes.RelayArgs, pargs commontypes.PluginArgs) (commontypes.OCR3CapabilityProvider, error) {
-	return nil, errors.New("ocr3 capability provider is not supported for TON")
+	// TODO: pass GetClient through? So we don't pin provider to a single client
+	client, err := r.chain.GetClient(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch TON client: %w", err)
+	}
+	return provider.NewCCIPProvider(r.lggr, ccipocr3.ChainSelector(chainSelector), client, r.chain.TxManager(), r.chain.LogPoller())
 }

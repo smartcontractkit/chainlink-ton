@@ -60,6 +60,7 @@ struct ExecutionStateChanged {
     state: uint8;
 }
 
+// crc32("CCIPCommitReportAccepted")
 const CCIP_COMMIT_REPORT_ACCEPTED_TOPIC: int = stringCrc32("CCIPCommitReportAccepted");
 
 struct CommitReportAccepted {
@@ -120,9 +121,15 @@ fun onInternalMessage(in:InMessage) {
         OffRamp_Execute => {
             _execute(msg, in.senderAddress);
         }
-        OCR3Base_SetOCR3Config => { _setOCR3Config(msg, in.senderAddress)}
-        OffRamp_UpdateSourceChainConfig => {_updateSourceChainConfig(msg, in.senderAddress)}
-        OffRamp_DispatchValidated => { _dispatchValidated(msg, in.senderAddress)} 
+        OCR3Base_SetOCR3Config => { 
+            _setOCR3Config(msg, in.senderAddress)
+        }
+        OffRamp_UpdateSourceChainConfig => {
+            _updateSourceChainConfig(msg, in.senderAddress)
+        }
+        OffRamp_DispatchValidated => {
+            _dispatchValidated(msg, in.senderAddress)
+        } 
         else => {
             // ignore empty messages, "wrong opcode" for others
             assert (in.body.isEmpty()) throw 0xFFFF
@@ -405,7 +412,6 @@ fun _updateSourceChainConfig(msg: OffRamp_UpdateSourceChainConfig, sender: addre
     st.store();
 }
 
-
 fun metadataHash(sourceChainSelector: uint64, destChainSelector: uint64, onRamp: cell) {
     return beginCell()
         .storeUint(stringSha256("Any2TVMMessageHashV1"), 256)
@@ -438,13 +444,17 @@ fun setDynamicConfig() {
 }
 
 get fun dynamicConfig() {
-    
+    // TODO: combine get staticConfig and dynamicConfig into get config
 }
 
-get fun sourceChainConfig() {}
+get fun sourceChainConfig(sourceChainSelector: uint64): SourceChainConfig {
+    val st = lazy Storage.load();
+    return st.sourceChainConfigs.mustGet(sourceChainSelector,ERROR_SOURCE_CHAIN_NOT_ENABLED);
+}
 
-get fun allSourceChainConfigs(): tuple {
-    return createEmptyTuple()
+get fun allSourceChainConfigs(): dict {
+    val st = lazy Storage.load();
+    return st.sourceChainConfigs.value;
 }
 
 fun applySourceChainConfigUpdates() {}

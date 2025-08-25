@@ -82,7 +82,7 @@ export function destChainConfigToBuilder(config: DestChainConfig): TonBuilder {
     .storeUint(config.destGasPerPayloadByteThreshold, 16)
     .storeUint(config.destDataAvailabilityOverheadGas, 32)
     .storeUint(config.destGasPerDataAvailabilityByte, 16)
-    .storeUint(config.destDataAvailabilityMultiplierBps, 32)
+    .storeUint(config.destDataAvailabilityMultiplierBps, 16)
     .storeUint(config.chainFamilySelector, 32)
     .storeBit(config.enforceOutOfOrder)
     .storeUint(config.defaultTokenFeeUsdCents, 16)
@@ -118,6 +118,7 @@ export const Builder = {
 export abstract class Params {}
 
 export abstract class Opcodes {
+  static updatePrices = 0x20000001
   static updateFeeTokens = 0x20000002
   static updateTransferFeeConfigs = 0x20000003
   static updateDestChainConfig = 0x20000004
@@ -173,6 +174,40 @@ export class FeeQuoter implements Contract {
         .storeUint(Opcodes.updateDestChainConfig, 32)
         .storeUint(opts.destChainSelector, 64)
         .storeBuilder(destChainConfigToBuilder(opts.config))
+        .endCell(),
+    })
+  }
+
+  async sendUpdatePrices(
+    provider: ContractProvider,
+    via: Sender,
+    opts: {
+      value: bigint
+      gasPrices: {
+        chainSelector: bigint
+        executionGasPrice: bigint
+        dataAvailabilityGasPrice: bigint
+      }[]
+      tokenPrices: { token: Address; price: bigint }[]
+    },
+  ) {
+    const tokenPrices = asSnakeData(opts.tokenPrices, (config) =>
+      new TonBuilder().storeAddress(config.token).storeInt(config.price, 224),
+    )
+    const gasPrices = asSnakeData(opts.gasPrices, (config) =>
+      new TonBuilder()
+        .storeInt(config.chainSelector, 64)
+        .storeInt(config.executionGasPrice, 112)
+        .storeInt(config.dataAvailabilityGasPrice, 112),
+    )
+
+    return await provider.internal(via, {
+      value: opts.value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: beginCell()
+        .storeUint(Opcodes.updatePrices, 32)
+        .storeRef(tokenPrices)
+        .storeRef(gasPrices)
         .endCell(),
     })
   }

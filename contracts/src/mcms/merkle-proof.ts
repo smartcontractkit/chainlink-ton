@@ -1,4 +1,6 @@
 import { beginCell, Cell } from '@ton/core'
+import { keccak256 } from '@ethersproject/keccak256'
+
 import { asSnakeData, uint8ArrayToBigInt } from '../utils'
 
 import { ocr } from '../../wrappers/libraries/ocr'
@@ -82,9 +84,16 @@ export function hashPair(a: bigint, b: bigint): bigint {
 }
 
 // Hashes an internal Merkle node by concatenating two 256-bit BigInts and hashing.
+// Notice: uses keccak256 to match Ethereum (+tooling) implementation
 export function hashInternalNode(left: bigint, right: bigint): bigint {
-  const data = beginCell().storeUint(left, 256).storeUint(right, 256).endCell()
-  return uint8ArrayToBigInt(data.hash())
+  const data = beginCell()
+    .storeUint(left, 256)
+    .storeUint(right, 256)
+    .endCell()
+    .asSlice()
+    .loadBuffer(32 * 2)
+  const bytes = Buffer.from(keccak256(data).slice(2), 'hex')
+  return uint8ArrayToBigInt(bytes)
 }
 
 export function constructLeaves(ops: mcms.Op[], rootMetadata: mcms.RootMetadata): bigint[] {

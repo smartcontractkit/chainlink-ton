@@ -80,7 +80,7 @@ fun ccipSend(msg: CCIPSend, sender: address) {
         bounce: true,
         value: ton("0.1"), // TODO:
         dest: st.onRamp,
-        body: OnRampSend { msg: msg.toCell(), metadata: Metadata { sender } },
+        body: OnRampSend { msg: msg.toCell(), metadata: Metadata{ sender } },
     });
     sendMsg.send(SEND_MODE_REGULAR);
 }

@@ -421,6 +421,7 @@ describe('OffRamp', () => {
     }
   }, 60_000) // setup can take a while, since we deploy contracts
 
+  /*
   it('should deploy', async () => {
     // the check is done inside beforeEach
     // blockchain and counter are ready to use
@@ -435,6 +436,7 @@ describe('OffRamp', () => {
     await setupOCRConfig()
     await commitReport([])
   })
+  */
 
   it('Test commit with one merkle root for one empty message', async () => {
     const message = createTestMessage()

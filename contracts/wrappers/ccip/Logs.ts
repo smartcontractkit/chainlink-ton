@@ -13,13 +13,11 @@ export enum LogTypes {
 }
 
 export type CCIPMessageSent = {
-  destChainSelector: bigint
-  sequenceNumber: bigint
   message: {
     header: {
       messageId: bigint
-      destChainSelector: bigint
       sourceChainSelector: bigint
+      destChainSelector: bigint
       sequenceNumber: bigint
       nonce: bigint
     }
@@ -42,3 +40,4 @@ export type CCIPCommitReportAccepted = {
 export type ReceiverCCIPMessageReceived = {
   message: Any2TVMMessage
 }
+

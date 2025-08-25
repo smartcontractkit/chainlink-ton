@@ -1,28 +1,26 @@
 import '@ton/test-utils'
 
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { Address, Cell, Dictionary, toNano, beginCell } from '@ton/core'
+import { Cell, toNano, beginCell } from '@ton/core'
 import { compile } from '@ton/blueprint'
 
 import { asSnakeData } from '../../src/utils'
 
-import { mcms } from '../../wrappers/mcms'
 import { rbactl } from '../../wrappers/mcms'
 import { callproxy } from '../../wrappers/mcms'
 import { ac } from '../../wrappers/lib/access'
 import * as counter from '../../wrappers/examples/Counter'
-import * as ownable2step from '../../wrappers/libraries/access/Ownable2Step'
 
 import { crc32 } from 'zlib'
 
-export interface TestCode {
+export type TestCode = {
   mcms: Cell
   timelock: Cell
   callProxy: Cell
   counter: Cell
 }
 
-export interface TestAccounts {
+export type TestAccounts = {
   deployer: SandboxContract<TreasuryContract>
   admin: SandboxContract<TreasuryContract>
   proposerOne: SandboxContract<TreasuryContract>
@@ -35,7 +33,7 @@ export interface TestAccounts {
   bypasserTwo: SandboxContract<TreasuryContract>
 }
 
-export interface TestContracts {
+export type TestContracts = {
   timelock: SandboxContract<rbactl.ContractClient>
   ac: SandboxContract<ac.ContractClient>
   callProxy: SandboxContract<callproxy.ContractClient>
@@ -239,16 +237,64 @@ export class BaseTestSetup {
     expect(await this.bind.ac.getRoleAdmin(rbactl.roles.admin)).toEqual(rbactl.roles.admin)
   }
 
-  // TODO
-  // deployCallProxyContract() {
-  //   const body = callproxy.builder.message.in.topUp.encode({ queryId: 1n })
-  //   return this.bind.callProxy.sendInternal(this.acc.deployer.getSender(), toNano('0.05'), body)
-  // }
+  /**
+   * Deploy the callProxy contract and verify deployment
+   */
+  async deployCallProxyContract() {
+    const body = beginCell().endCell() // TODO change for TopUp msg
+    const result = await this.bind.callProxy.sendInternal(
+      this.acc.deployer.getSender(),
+      toNano('0.05'),
+      body,
+    )
 
-  deployCounterContract() {
+    expect(result.transactions).toHaveTransaction({
+      from: this.acc.deployer.address,
+      to: this.bind.callProxy.address,
+      deploy: true,
+      success: true,
+    })
+  }
+
+  /**
+   * Deploy the counter contract and verify deployment
+   */
+  async deployCounterContract() {
     // const body = counter.builder.message.in.topUp.encode({ queryId: 1n }) // TODO use TopUp after it is implemented
     const body = beginCell().endCell()
-    return this.bind.counter.sendInternal(this.acc.deployer.getSender(), toNano('0.05'), body)
+    const result = await this.bind.counter.sendInternal(
+      this.acc.deployer.getSender(),
+      toNano('0.05'),
+      body,
+    )
+
+    expect(result.transactions).toHaveTransaction({
+      from: this.acc.deployer.address,
+      to: this.bind.counter.address,
+      deploy: true,
+      success: true,
+    })
+  }
+
+  /**
+   * Grant the call proxy executor role to the call proxy contract
+   */
+  async grantCallProxyExecutorRole() {
+    const body = ac.builder.message.in.grantRole.encode({
+      queryId: 1n,
+      role: rbactl.roles.executor,
+      account: this.bind.callProxy.address,
+    })
+    const result = await this.bind.timelock.sendInternal(
+      this.acc.admin.getSender(),
+      toNano('0.05'),
+      body,
+    )
+    expect(result.transactions).toHaveTransaction({
+      from: this.acc.admin.address,
+      to: this.bind.timelock.address,
+      success: true,
+    })
   }
 
   /**
@@ -258,10 +304,10 @@ export class BaseTestSetup {
     await this.initializeBlockchain()
     await this.setupTimelockContract(testId)
     await this.deployTimelockContract()
-    await this.setupCallProxyContract(testId)
-    // await this.deployCallProxyContract()
     await this.setupCounterContract(testId)
     await this.deployCounterContract()
+    await this.setupCallProxyContract(testId)
+    await this.deployCallProxyContract()
   }
 
   /**
