@@ -144,7 +144,7 @@ fun onInternalMessage(in:InMessage) {
 // NOTE: this assumes router has a well known, static address. So two stage deployment: put up router, then compile the addr into contracts
 // (or init contract state with that router addr? probably what solana does)
 
-//TODO: This function should relay to the router or shuold
+//TODO: This function should relay to the router or the message should be received directly by the router
 fun _dispatchValidated(msg: OffRamp_DispatchValidated, sender: address) {
             val st = Storage.load();
 
