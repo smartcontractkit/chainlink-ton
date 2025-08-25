@@ -40,4 +40,3 @@ export type CCIPCommitReportAccepted = {
 export type ReceiverCCIPMessageReceived = {
   message: Any2TVMMessage
 }
-

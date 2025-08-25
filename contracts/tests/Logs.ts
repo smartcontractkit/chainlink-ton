@@ -238,4 +238,3 @@ export const testLogReceiverCCIPMessageReceived = (
     return true
   })
 }
-
