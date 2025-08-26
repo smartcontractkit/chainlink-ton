@@ -49,7 +49,6 @@ func NewTONAccessor(
 	logPoller logpoller.Service,
 	addrCodec ccipocr3.ChainSpecificAddressCodec,
 ) (ccipocr3.ChainAccessor, error) {
-	// TODO: check readiness in CCIPProvider
 	return &TONAccessor{
 		lggr:          lggr,
 		chainSelector: chainSelector,
@@ -218,7 +217,7 @@ func (a *TONAccessor) MsgsBetweenSeqNums(ctx context.Context, dest ccipocr3.Chai
 	if err != nil {
 		return nil, fmt.Errorf("failed to query onRamp logs: %w", err)
 	}
-	a.lggr.Infow("queried messages between sequence numbers",
+	a.lggr.Infow("TONAccessor: queried MsgsBetweenSeqNums",
 		"numMsgs", len(res.Logs),
 		"sourceChainSelector", a.chainSelector,
 		"seqNumRange", seqNumRange.String(),
@@ -238,28 +237,6 @@ func (a *TONAccessor) MsgsBetweenSeqNums(ctx context.Context, dest ccipocr3.Chai
 		event.Message.Header.TxHash = string(log.TxHash[:]) // TODO: add LT?
 		msgs = append(msgs, event.Message)
 	}
-
-	msgsWithoutDataField := make([]ccipocr3.Message, len(msgs))
-	for i, msg := range msgs {
-		msgsWithoutDataField[i] = msg.CopyWithoutData()
-	}
-
-	a.lggr.Debugw("decoded messages between sequence numbers",
-		"msgsWithoutDataField", msgsWithoutDataField,
-		"sourceChainSelector", a.chainSelector,
-		"seqNumRange", seqNumRange.String(),
-	)
-
-	// Create message ID strings for logging
-	msgIDs := make([]string, len(msgsWithoutDataField))
-	for i, m := range msgsWithoutDataField {
-		msgIDs[i] = fmt.Sprintf("%d.%d", m.Header.SequenceNumber, m.Header.MessageID)
-	}
-	a.lggr.Infow("decoded message IDs between sequence numbers",
-		"seqNum.MsgID", msgIDs,
-		"sourceChainSelector", a.chainSelector,
-		"seqNumRange", seqNumRange.String(),
-	)
 	return msgs, nil
 }
 
@@ -283,10 +260,11 @@ func (a *TONAccessor) LatestMessageTo(ctx context.Context, dest ccipocr3.ChainSe
 		return 0, fmt.Errorf("failed to query onRamp logs: %w", err)
 	}
 
-	a.lggr.Debugw("queried latest message from source",
+	a.lggr.Infow("TONAccessor: LatestMessageTo",
 		"numMsgs", len(res.Logs),
 		"sourceChainSelector", a.chainSelector,
 	)
+
 	if len(res.Logs) > 1 {
 		return 0, fmt.Errorf("more than one message found for the latest message query, found: %d", len(res.Logs))
 	}
