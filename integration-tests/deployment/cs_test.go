@@ -83,29 +83,9 @@ func TestDeploy(t *testing.T) {
 						TokenPrices: map[*address.Address]*big.Int{
 							ops.TonTokenAddr: big.NewInt(99),
 						},
-						FeeQuoterDestChainConfig: feequoter.DestChainConfig{ // minimal valid config
-							IsEnabled:                         true,
-							MaxNumberOfTokensPerMsg:           0,
-							MaxDataBytes:                      100,
-							MaxPerMsgGasLimit:                 100,
-							DestGasOverhead:                   0,
-							DestGasPerPayloadByteBase:         0,
-							DestGasPerPayloadByteHigh:         0,
-							DestGasPerPayloadByteThreshold:    0,
-							DestDataAvailabilityOverheadGas:   0,
-							DestGasPerDataAvailabilityByte:    0,
-							DestDataAvailabilityMultiplierBps: 0,
-							ChainFamilySelector:               0,
-							EnforceOutOfOrder:                 false,
-							DefaultTokenFeeUsdCents:           0,
-							DefaultTokenDestGasOverhead:       0,
-							DefaultTxGasLimit:                 1,
-							GasMultiplierWeiPerEth:            0,
-							GasPriceStalenessThreshold:        0,
-							NetworkFeeUsdCents:                0,
-						},
-						TokenTransferFeeConfigs: map[uint64]feequoter.UpdateTokenTransferFeeConfig{
-							// TODO:
+						FeeQuoterDestChainConfig: ops.DefaultTONFeeQuoterDestChainConfig(true, evmSelector),
+						TokenTransferFeeConfigs:  map[uint64]feequoter.UpdateTokenTransferFeeConfig{
+							// TODO: populate when token transfer enabled
 						},
 					},
 					Dest: config.EVMChainDefinition{
@@ -133,9 +113,6 @@ func TestDeploy(t *testing.T) {
 	require.NoError(t, err)
 
 	// -- TON Accessor tests
-
-	addrCodec := codec.NewAddressCodec()
-
 	lpCfg := logpoller.DefaultConfigSet
 	filterStore := inmemorystore.NewFilterStore()
 	opts := &logpoller.ServiceOptions{
@@ -147,6 +124,7 @@ func TestDeploy(t *testing.T) {
 		Store:    inmemorystore.NewLogStore(),
 	}
 	lp := logpoller.NewService(lggr, opts)
+	addrCodec := codec.NewAddressCodec()
 	accessor, err := chainaccessor.NewTONAccessor(lggr, ccipocr3.ChainSelector(chainSelector), tonChain.Client, lp, addrCodec)
 	require.NoError(t, err)
 

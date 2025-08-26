@@ -1,6 +1,8 @@
 package ops
 
 import (
+	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"math/big"
 	"testing"
@@ -33,6 +35,42 @@ const ChainSelEVMTest90000001 = 909606746561742123
 
 // TODO: use address.NewNoneAddress() instead?
 var TonTokenAddr = address.MustParseRawAddr("0:0000000000000000000000000000000000000000000000000000000000000000")
+
+// DefaultFeeQuoterDestChainConfig returns a default fee quoter config for TON CCIP testing
+func DefaultFeeQuoterDestChainConfig(configEnabled bool, destChainSelector ...uint64) feequoter.DestChainConfig {
+	familySelector, _ := hex.DecodeString(v1_6.TVMFamilySelector)
+	if len(destChainSelector) > 0 {
+		destFamily, _ := chainsel.GetSelectorFamily(destChainSelector[0])
+		switch destFamily {
+		case chainsel.FamilyEVM:
+			familySelector, _ = hex.DecodeString(v1_6.EVMFamilySelector)
+		case chainsel.FamilySolana:
+			familySelector, _ = hex.DecodeString(v1_6.SVMFamilySelector)
+		case chainsel.FamilyAptos:
+			familySelector, _ = hex.DecodeString(v1_6.AptosFamilySelector)
+		}
+	}
+	return feequoter.DestChainConfig{
+		IsEnabled:                       configEnabled,
+		MaxNumberOfTokensPerMsg:         0,
+		MaxDataBytes:                    100,
+		MaxPerMsgGasLimit:               100,
+		DestGasOverhead:                 0,
+		DestGasPerPayloadByteBase:       0,
+		DestGasPerPayloadByteHigh:       0,
+		DestGasPerPayloadByteThreshold:  0,
+		DestDataAvailabilityOverheadGas: 0,
+		DestGasPerDataAvailabilityByte:  0,
+		ChainFamilySelector:             binary.BigEndian.Uint32(familySelector),
+		EnforceOutOfOrder:               false,
+		DefaultTokenFeeUsdCents:         0,
+		DefaultTokenDestGasOverhead:     0,
+		DefaultTxGasLimit:               1,
+		GasMultiplierWeiPerEth:          0,
+		GasPriceStalenessThreshold:      0,
+		NetworkFeeUsdCents:              0,
+	}
+}
 
 func DeployChainContractsToTonCS(t *testing.T, env cldf.Environment, chainSelector uint64) commonchangeset.ConfiguredChangeSet {
 	tonChain := env.BlockChains.TonChains()[chainSelector]
@@ -99,28 +137,8 @@ func AddLaneTONChangesets(env *cldf.Environment, from, to uint64, fromFamily, to
 			TokenPrices: map[*address.Address]*big.Int{
 				tonTokenAddr: big.NewInt(99),
 			},
-			FeeQuoterDestChainConfig: feequoter.DestChainConfig{ // minimal valid config
-				IsEnabled:                         true,
-				MaxNumberOfTokensPerMsg:           0,
-				MaxDataBytes:                      100,
-				MaxPerMsgGasLimit:                 100,
-				DestGasOverhead:                   0,
-				DestGasPerPayloadByteBase:         0,
-				DestGasPerPayloadByteHigh:         0,
-				DestGasPerPayloadByteThreshold:    0,
-				DestDataAvailabilityOverheadGas:   0,
-				DestGasPerDataAvailabilityByte:    0,
-				DestDataAvailabilityMultiplierBps: 0,
-				ChainFamilySelector:               0,
-				EnforceOutOfOrder:                 false,
-				DefaultTokenFeeUsdCents:           0,
-				DefaultTokenDestGasOverhead:       0,
-				DefaultTxGasLimit:                 1,
-				GasMultiplierWeiPerEth:            0,
-				GasPriceStalenessThreshold:        0,
-				NetworkFeeUsdCents:                0,
-			},
-			TokenTransferFeeConfigs: map[uint64]feequoter.UpdateTokenTransferFeeConfig{
+			FeeQuoterDestChainConfig: DefaultFeeQuoterDestChainConfig(true, to),
+			TokenTransferFeeConfigs:  map[uint64]feequoter.UpdateTokenTransferFeeConfig{
 				// TODO:
 			},
 		}
@@ -172,28 +190,8 @@ func AddLaneTONChangesets(env *cldf.Environment, from, to uint64, fromFamily, to
 			TokenPrices: map[*address.Address]*big.Int{
 				tonTokenAddr: big.NewInt(99),
 			},
-			FeeQuoterDestChainConfig: feequoter.DestChainConfig{ // minimal valid config
-				IsEnabled:                         true,
-				MaxNumberOfTokensPerMsg:           0,
-				MaxDataBytes:                      100,
-				MaxPerMsgGasLimit:                 100,
-				DestGasOverhead:                   0,
-				DestGasPerPayloadByteBase:         0,
-				DestGasPerPayloadByteHigh:         0,
-				DestGasPerPayloadByteThreshold:    0,
-				DestDataAvailabilityOverheadGas:   0,
-				DestGasPerDataAvailabilityByte:    0,
-				DestDataAvailabilityMultiplierBps: 0,
-				ChainFamilySelector:               0,
-				EnforceOutOfOrder:                 false,
-				DefaultTokenFeeUsdCents:           0,
-				DefaultTokenDestGasOverhead:       0,
-				DefaultTxGasLimit:                 1,
-				GasMultiplierWeiPerEth:            0,
-				GasPriceStalenessThreshold:        0,
-				NetworkFeeUsdCents:                0,
-			},
-			TokenTransferFeeConfigs: map[uint64]feequoter.UpdateTokenTransferFeeConfig{
+			FeeQuoterDestChainConfig: DefaultFeeQuoterDestChainConfig(true, to),
+			TokenTransferFeeConfigs:  map[uint64]feequoter.UpdateTokenTransferFeeConfig{
 				// TODO:
 			},
 		}
