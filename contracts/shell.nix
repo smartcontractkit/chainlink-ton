@@ -23,9 +23,9 @@ pkgs.mkShell {
     jq
   ];
 
+  PATH_CONTRACTS_JETTON = "${jetton-contracts}/lib/node_modules/jetton/build/";
+
   shellHook = ''
-    export PATH_CONTRACTS_JETTON="${jetton-contracts}/lib/node_modules/jetton/build/"
-    
     echo "Jetton contracts located here: $PATH_CONTRACTS_JETTON"
   '';
 }
