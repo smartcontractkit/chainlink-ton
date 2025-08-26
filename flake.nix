@@ -31,7 +31,12 @@
       chainlink-ton = pkgs.callPackage ./cmd/chainlink-ton commonArgs;
       # Resolve sub-modules
       contracts = pkgs.callPackage ./contracts commonArgs;
-      integration-tests = pkgs.callPackage ./integration-tests commonArgs;
+      integration-tests = pkgs.callPackage ./integration-tests {
+        inherit pkgs;
+        inherit rev;
+        inherit chainlink-ton;
+        jetton-contracts = contracts.packages.contracts-jetton-func;
+      };
       # Resolve tools
       dependency-analyzer = pkgs.callPackage ./tools/dependency_analyzer commonArgs;
     in rec {
