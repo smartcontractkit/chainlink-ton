@@ -30,10 +30,11 @@ import {
 } from '../../wrappers/libraries/ocr/MultiOCR3Base'
 import * as OCR3Logs from '../../wrappers/libraries/ocr/Logs'
 import * as CCIPLogs from '../../wrappers/ccip/Logs'
+import * as ReceiverLogs from '../../wrappers/examples/ccip/Logs'
 import { setupTestFeeQuoter } from './helpers/SetUp'
 
 import { ReportContext, SignatureEd25519 } from '../../wrappers/libraries/ocr/MultiOCR3Base'
-import { ExampleReceiver } from '../../wrappers/ccip/Receiver'
+import { ExampleReceiver } from '../../wrappers/examples/ccip/Receiver'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_TON = 13879075125137744094n
@@ -710,7 +711,7 @@ describe('OffRamp', () => {
     assertLog(
       result.transactions,
       receiver.address,
-      CCIPLogs.LogTypes.ReceiverCCIPMessageReceived,
+      ReceiverLogs.LogTypes.ReceiverCCIPMessageReceived,
       {
         message: {
           messageId: message.header.messageId,

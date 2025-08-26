@@ -2,6 +2,7 @@ import { Address, beginCell, Cell, Message } from '@ton/core'
 import { BlockchainTransaction } from '@ton/sandbox'
 import * as CCIPLogs from '../wrappers/ccip/Logs'
 import * as OCR3Logs from '../wrappers/libraries/ocr/Logs'
+import * as ReceiverLogs from '../wrappers/examples/ccip/Logs'
 import { fromSnakeData } from '../src/utils/types'
 import { merkleRootsFromCell, priceUpdatesFromCell } from '../wrappers/ccip/OffRamp'
 
@@ -51,6 +52,7 @@ type DeepPartial<T> = {
 const CombinedLogTypes = {
   ...CCIPLogs.LogTypes,
   ...OCR3Logs.LogTypes,
+  ...ReceiverLogs.LogTypes,
 }
 
 type CombinedLogTypes = (typeof CombinedLogTypes)[keyof typeof CombinedLogTypes]
@@ -59,8 +61,8 @@ type LogMatch<T extends CombinedLogTypes> = T extends CCIPLogs.LogTypes.CCIPMess
   ? DeepPartial<CCIPLogs.CCIPMessageSent>
   : T extends CCIPLogs.LogTypes.CCIPCommitReportAccepted
     ? DeepPartial<CCIPLogs.CCIPCommitReportAccepted>
-    : T extends CCIPLogs.LogTypes.ReceiverCCIPMessageReceived
-      ? CCIPLogs.ReceiverCCIPMessageReceived
+    : T extends ReceiverLogs.LogTypes.ReceiverCCIPMessageReceived
+      ? ReceiverLogs.ReceiverCCIPMessageReceived
       : T extends OCR3Logs.LogTypes.OCR3BaseConfigSet
         ? OCR3Logs.OCR3BaseConfigSet
         : T extends OCR3Logs.LogTypes.OCR3BaseTransmitted
@@ -85,11 +87,11 @@ export const assertLog = <T extends CombinedLogTypes>(
           match as DeepPartial<CCIPLogs.CCIPCommitReportAccepted>,
         )
 
-      case CCIPLogs.LogTypes.ReceiverCCIPMessageReceived:
+      case ReceiverLogs.LogTypes.ReceiverCCIPMessageReceived:
         return testLogReceiverCCIPMessageReceived(
           x,
           from,
-          match as CCIPLogs.ReceiverCCIPMessageReceived,
+          match as ReceiverLogs.ReceiverCCIPMessageReceived,
         )
 
       case OCR3Logs.LogTypes.OCR3BaseConfigSet:
@@ -218,7 +220,7 @@ export const testTransmittedLogMessage = (
 export const testLogReceiverCCIPMessageReceived = (
   message: Message,
   from: Address,
-  expected: CCIPLogs.ReceiverCCIPMessageReceived,
+  expected: ReceiverLogs.ReceiverCCIPMessageReceived,
 ) => {
   return testLog(message, from, CombinedLogTypes.ReceiverCCIPMessageReceived, (x) => {
     const msg = expected.message
