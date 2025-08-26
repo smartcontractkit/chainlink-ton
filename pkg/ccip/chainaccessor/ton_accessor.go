@@ -201,12 +201,10 @@ func (a *TONAccessor) MsgsBetweenSeqNums(ctx context.Context, dest ccipocr3.Chai
 		return nil, fmt.Errorf("OnRamp not bound: %w", err)
 	}
 
-	// TODO: do we want to check filter here?
-	// TODO: is filter not registered yet? Sync() is not called? - return error or just ignore?
-	// TODO: or we don't check if filter exists at all, then query will return nothing
-
 	// query TON logs
-	res, err := logpoller.NewQuery[onramp.CCIPMessageSent](onrampAddr, hash.CRC32(consts.EventNameCCIPMessageSent)).
+	res, err := logpoller.NewQuery[onramp.CCIPMessageSent]().
+		WithSource(onrampAddr).
+		WithEventSig(hash.CRC32(consts.EventNameCCIPMessageSent)).
 		SkipBytes(40). // Skip to DestChainSelector
 		FilterBytes(8, query.EQ(binary.BigEndian.AppendUint64(nil, uint64(dest)))).
 		FilterBytes(8,
@@ -278,7 +276,9 @@ func (a *TONAccessor) LatestMessageTo(ctx context.Context, dest ccipocr3.ChainSe
 		return 0, fmt.Errorf("OnRamp not bound: %w", err)
 	}
 
-	res, err := logpoller.NewQuery[onramp.CCIPMessageSent](onrampAddr, hash.CRC32(consts.EventNameCCIPMessageSent)).
+	res, err := logpoller.NewQuery[onramp.CCIPMessageSent]().
+		WithSource(onrampAddr).
+		WithEventSig(hash.CRC32(consts.EventNameCCIPMessageSent)).
 		SkipBytes(40). // Skip to DestChainSelector
 		FilterBytes(8, query.EQ(binary.BigEndian.AppendUint64(nil, uint64(dest)))).
 		OrderBy(query.SortByTxLT, query.DESC). // sort by transaction LT old to new

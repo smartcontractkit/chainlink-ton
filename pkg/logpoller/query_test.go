@@ -67,7 +67,9 @@ func TestQueryBuilder_BasicFlow(t *testing.T) {
 	addr, err := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")
 	require.NoError(t, err)
 
-	builder := NewQuery[TestEvent](addr, 123).
+	builder := NewQuery[TestEvent]().
+		WithSource(addr).
+		WithEventSig(123).
 		Limit(10)
 
 	b, ok := builder.(*queryBuilder[TestEvent])
@@ -93,7 +95,9 @@ func TestQueryBuilder_WithFilters(t *testing.T) {
 		return event.Value > 10
 	}
 
-	builder := NewQuery[TestEvent](addr, 123).
+	builder := NewQuery[TestEvent]().
+		WithSource(addr).
+		WithEventSig(123).
 		FilterBytes(8, query.GT(valBytes)).
 		FilterTyped(typedFilter)
 
@@ -108,7 +112,9 @@ func TestQueryBuilder_WithFilters(t *testing.T) {
 }
 
 func TestQueryBuilder_RequiredAddress(t *testing.T) {
-	builder := NewQuery[TestEvent](nil, 123)
+	builder := NewQuery[TestEvent]().
+		WithEventSig(123)
+
 	// Should fail without address
 	store := &mockLogStore{}
 	_, err := builder.Execute(t.Context(), store)
@@ -120,8 +126,9 @@ func TestQueryBuilder_RequiredSig(t *testing.T) {
 	addr, err := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")
 	require.NoError(t, err)
 
-	builder := NewQuery[TestEvent](addr, 0)
-	// Missing Withsig call - sig should default to 0
+	builder := NewQuery[TestEvent]().
+		WithSource(addr).
+		WithEventSig(0)
 
 	// Should fail without sig
 	store := &mockLogStore{}
@@ -139,7 +146,10 @@ func TestQueryBuilder_Execute_BasicQuery(t *testing.T) {
 	testLog := createTestLog(t, addr, 123, 42) // Value = 42
 	store.SaveLog(testLog)
 
-	result, err := NewQuery[TestEvent](addr, 123).Execute(t.Context(), store)
+	result, err := NewQuery[TestEvent]().
+		WithSource(addr).
+		WithEventSig(123).
+		Execute(t.Context(), store)
 	require.NoError(t, err)
 	require.Len(t, result.Logs, 1)
 	require.Equal(t, uint64(42), result.Logs[0].TypedData.Value)
@@ -158,7 +168,9 @@ func TestQueryBuilder_Execute_WithTypedFilter(t *testing.T) {
 	store.SaveLog(createTestLog(t, addr, 123, 25)) // Should pass
 	store.SaveLog(createTestLog(t, addr, 123, 3))  // Should be filtered out
 
-	builder := NewQuery[TestEvent](addr, 123).
+	builder := NewQuery[TestEvent]().
+		WithSource(addr).
+		WithEventSig(123).
 		FilterTyped(func(event TestEvent) bool {
 			return event.Value > 10
 		})
@@ -185,7 +197,9 @@ func TestQueryBuilder_Execute_WithByteFilter(t *testing.T) {
 	valBytes := make([]byte, 8)
 	binary.BigEndian.PutUint64(valBytes, 10)
 
-	builder := NewQuery[TestEvent](addr, 123).
+	builder := NewQuery[TestEvent]().
+		WithSource(addr).
+		WithEventSig(123).
 		FilterBytes(8, query.GT(valBytes))
 
 	result, err := builder.Execute(t.Context(), store)
@@ -205,7 +219,9 @@ func TestQueryBuilder_Execute_WithPagination(t *testing.T) {
 	}
 
 	// Test with limit
-	builder := NewQuery[TestEvent](addr, 123).
+	builder := NewQuery[TestEvent]().
+		WithSource(addr).
+		WithEventSig(123).
 		Limit(3)
 
 	result, err := builder.Execute(t.Context(), store)
@@ -216,7 +232,9 @@ func TestQueryBuilder_Execute_WithPagination(t *testing.T) {
 	require.Equal(t, 3, result.Limit)
 
 	// Test with offset
-	builder = NewQuery[TestEvent](addr, 123).
+	builder = NewQuery[TestEvent]().
+		WithSource(addr).
+		WithEventSig(123).
 		Offset(5).
 		Limit(3)
 
@@ -236,7 +254,9 @@ func TestQueryBuilder_Execute_NoMatches(t *testing.T) {
 	// Add logs for a different sig
 	store.SaveLog(createTestLog(t, addr, 456, 42))
 
-	builder := NewQuery[TestEvent](addr, 123) // Different sig
+	builder := NewQuery[TestEvent]().
+		WithSource(addr).
+		WithEventSig(123) // Different sig
 
 	result, err := builder.Execute(t.Context(), store)
 	require.NoError(t, err)
@@ -257,7 +277,9 @@ func TestQueryBuilder_Execute_DifferentAddresses(t *testing.T) {
 	store.SaveLog(createTestLog(t, addr2, 123, 24))
 
 	// Query for addr1 only
-	builder := NewQuery[TestEvent](addr1, 123)
+	builder := NewQuery[TestEvent]().
+		WithSource(addr1).
+		WithEventSig(123)
 
 	result, err := builder.Execute(t.Context(), store)
 	require.NoError(t, err)
@@ -280,7 +302,9 @@ func TestQueryBuilder_Execute_CombinedFilters(t *testing.T) {
 	valBytes := make([]byte, 8)
 	binary.BigEndian.PutUint64(valBytes, 4)
 
-	builder := NewQuery[TestEvent](addr, 123).
+	builder := NewQuery[TestEvent]().
+		WithSource(addr).
+		WithEventSig(123).
 		FilterBytes(8, query.GT(valBytes)).
 		FilterTyped(func(event TestEvent) bool {
 			return event.Value > 10
@@ -307,7 +331,9 @@ func TestQueryBuilder_Execute_InvalidCellData(t *testing.T) {
 	}
 	store.SaveLog(invalidLog)
 
-	builder := NewQuery[TestEvent](addr, 123)
+	builder := NewQuery[TestEvent]().
+		WithSource(addr).
+		WithEventSig(123)
 
 	// Should return error when trying to parse invalid cell
 	_, err = builder.Execute(t.Context(), store)
@@ -326,7 +352,9 @@ func TestQueryBuilder_Execute_WithSorting(t *testing.T) {
 	store.SaveLog(createTestLog(t, addr, 123, 30)) // TxLT = 3000
 
 	// Sort by TxLT descending
-	builder := NewQuery[TestEvent](addr, 123).
+	builder := NewQuery[TestEvent]().
+		WithSource(addr).
+		WithEventSig(123).
 		OrderBy(query.SortByTxLT, query.DESC)
 
 	result, err := builder.Execute(t.Context(), store)
@@ -337,7 +365,9 @@ func TestQueryBuilder_Execute_WithSorting(t *testing.T) {
 	require.Equal(t, uint64(10), result.Logs[2].TypedData.Value) // Lowest TxLT last
 
 	// Sort by TxLT ascending
-	builder = NewQuery[TestEvent](addr, 123).
+	builder = NewQuery[TestEvent]().
+		WithSource(addr).
+		WithEventSig(123).
 		OrderBy(query.SortByTxLT, query.ASC)
 
 	result, err = builder.Execute(t.Context(), store)
@@ -374,7 +404,9 @@ func TestQueryBuilder_Execute_CursorLogic(t *testing.T) {
 	valBytes := make([]byte, 8)
 	binary.BigEndian.PutUint64(valBytes, 99)
 
-	builder := NewQuery[ComplexEvent](addr, 123).
+	builder := NewQuery[ComplexEvent]().
+		WithSource(addr).
+		WithEventSig(123).
 		SkipBytes(4). // Skip field A (32 bits = 4 bytes)
 		FilterBytes(8, query.GT(valBytes))
 
@@ -460,7 +492,9 @@ func TestQueryBuilder_ExecuteWithLargeDataset(t *testing.T) {
 	}
 
 	// Test basic query returns all data
-	builder := NewQuery[TestEvent](addr, 123)
+	builder := NewQuery[TestEvent]().
+		WithSource(addr).
+		WithEventSig(123)
 
 	result, err := builder.Execute(t.Context(), store)
 	require.NoError(t, err)
@@ -481,7 +515,9 @@ func TestQueryBuilder_ExecuteWithComplexFiltering(t *testing.T) {
 	}
 
 	// Test typed filter: values > 20 and < 40
-	builder := NewQuery[TestEvent](addr, 123).
+	builder := NewQuery[TestEvent]().
+		WithSource(addr).
+		WithEventSig(123).
 		FilterTyped(func(event TestEvent) bool {
 			return event.Value > 20 && event.Value < 40
 		})
@@ -509,7 +545,9 @@ func TestQueryBuilder_ExecuteWithPaginationAndFiltering(t *testing.T) {
 	}
 
 	// Filter for values >= 6 with pagination
-	builder := NewQuery[TestEvent](addr, 123).
+	builder := NewQuery[TestEvent]().
+		WithSource(addr).
+		WithEventSig(123).
 		FilterTyped(func(event TestEvent) bool {
 			return event.Value >= 6
 		}).
@@ -543,7 +581,9 @@ func TestQueryBuilder_ExecuteMultipleByteFilters(t *testing.T) {
 	ltBytes := make([]byte, 8)
 	binary.BigEndian.PutUint64(ltBytes, 450)
 
-	builder := NewQuery[TestEvent](addr, 123).
+	builder := NewQuery[TestEvent]().
+		WithSource(addr).
+		WithEventSig(123).
 		FilterBytes(8, query.GT(gtBytes), query.LT(ltBytes))
 
 	result, err := builder.Execute(t.Context(), store)
@@ -558,7 +598,9 @@ func TestQueryBuilder_ExecuteEmptyStore(t *testing.T) {
 	addr, err := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")
 	require.NoError(t, err)
 
-	builder := NewQuery[TestEvent](addr, 123)
+	builder := NewQuery[TestEvent]().
+		WithSource(addr).
+		WithEventSig(123)
 
 	result, err := builder.Execute(t.Context(), store)
 	require.NoError(t, err)
@@ -580,7 +622,9 @@ func TestQueryBuilder_ExecuteWithMixedSigs(t *testing.T) {
 	}
 
 	// Query for specific sig
-	builder := NewQuery[TestEvent](addr, 456)
+	builder := NewQuery[TestEvent]().
+		WithSource(addr).
+		WithEventSig(456)
 
 	result, err := builder.Execute(t.Context(), store)
 	require.NoError(t, err)

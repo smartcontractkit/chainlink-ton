@@ -62,6 +62,12 @@ type LogStore interface {
 // QueryBuilder defines the interface for constructing and executing log queries.
 // The generic type T represents the expected event structure that logs will be parsed into.
 type QueryBuilder[T any] interface {
+	// WithSource sets the TON contract address to filter logs by.
+	WithSource(addr *address.Address) QueryBuilder[T]
+
+	// WithEventSig sets the event signature (topic or opcode) to filter logs by.
+	WithEventSig(sig uint32) QueryBuilder[T]
+
 	// --- Byte-Level Filtering ---
 	// Methods for filtering logs based on raw byte patterns before parsing.
 

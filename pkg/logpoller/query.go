@@ -38,13 +38,23 @@ type queryBuilder[T any] struct {
 //
 // Returns a QueryBuilder[T] that can be further configured with additional filters,
 // sorting, and pagination options before execution.
-func NewQuery[T any](srcAddress *address.Address, eventSig uint32) QueryBuilder[T] {
+func NewQuery[T any]() QueryBuilder[T] {
 	return &queryBuilder[T]{
-		address:     srcAddress,
-		eventSig:    eventSig,
 		byteFilters: make([]query.ByteFilter, 0),
 		options:     query.Options{},
 	}
+}
+
+// WithSource sets the TON contract address to filter logs by.
+func (b *queryBuilder[T]) WithSource(addr *address.Address) QueryBuilder[T] {
+	b.address = addr
+	return b
+}
+
+// WithEventSig sets the event signature (topic or opcode) to filter logs by.
+func (b *queryBuilder[T]) WithEventSig(sig uint32) QueryBuilder[T] {
+	b.eventSig = sig
+	return b
 }
 
 // SkipBytes advances the internal byte cursor, ignoring a specified number of bytes.

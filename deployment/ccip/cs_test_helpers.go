@@ -26,7 +26,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 )
 
@@ -254,7 +253,7 @@ func SendTonRequest(
 		Receiver:          msg.Receiver,
 		Data:              msg.Data,
 		FeeToken:          msg.FeeToken,
-		TokenAmounts:      common.SnakeRef[router.TokenAmount]{}, // Empty token amounts for no token transfers
+		TokenAmounts:      nil, // TODO: add token amounts when token transfer enabled
 		ExtraArgs:         msg.ExtraArgs,
 	}
 

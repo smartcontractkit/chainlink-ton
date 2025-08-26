@@ -269,7 +269,9 @@ func Test_LogPoller(t *testing.T) {
 			}
 
 			// get all logs
-			resA, resAErr := logpoller.NewQuery[counter.CountIncreased](emitterA.ContractAddress(), counter.TopicCountIncreased).
+			resA, resAErr := logpoller.NewQuery[counter.CountIncreased]().
+				WithSource(emitterA.ContractAddress()).
+				WithEventSig(counter.TopicCountIncreased).
 				SkipBytes(4). // skip ID field to reach Counter field
 				FilterBytes(4,
 					query.GT(binary.BigEndian.AppendUint32(nil, 0)),
@@ -278,7 +280,9 @@ func Test_LogPoller(t *testing.T) {
 				Execute(t.Context(), lp.GetStore())
 			require.NoError(t, resAErr) // query should not fail
 
-			resB, resBErr := logpoller.NewQuery[counter.CountIncreased](emitterB.ContractAddress(), counter.TopicCountIncreased).
+			resB, resBErr := logpoller.NewQuery[counter.CountIncreased]().
+				WithSource(emitterB.ContractAddress()).
+				WithEventSig(counter.TopicCountIncreased).
 				SkipBytes(4). // skip ID field to reach Counter field
 				FilterBytes(4,
 					query.GT(binary.BigEndian.AppendUint32(nil, 0)),
@@ -338,9 +342,11 @@ func Test_LogPoller(t *testing.T) {
 			}
 
 			// verify stored internal messages
-			replyLogsRes, rlerr := logpoller.NewQuery[counter.CountIncreasedMsg](emitterA.ContractAddress(), 0x41c92746). //TODO: how can we get opcode directly from binding?
-																	SkipBytes(4). // skip ID field to reach Counter field
-																	FilterBytes(4,
+			replyLogsRes, rlerr := logpoller.NewQuery[counter.CountIncreasedMsg]().
+				WithSource(emitterA.ContractAddress()).
+				WithEventSig(0x41c92746). //TODO: how can we get opcode directly from binding?
+				SkipBytes(4).             // skip ID field to reach Counter field
+				FilterBytes(4,
 					query.GT(binary.BigEndian.AppendUint32(nil, 0)),
 					query.LTE(binary.BigEndian.AppendUint32(nil, targetCounter)),
 				).
@@ -378,7 +384,9 @@ func Test_LogPoller(t *testing.T) {
 
 		t.Run("Stored Block validation", func(t *testing.T) {
 			// get all logs
-			result, qerr := logpoller.NewQuery[counter.CountIncreased](emitterA.ContractAddress(), counter.TopicCountIncreased).
+			result, qerr := logpoller.NewQuery[counter.CountIncreased]().
+				WithSource(emitterA.ContractAddress()).
+				WithEventSig(counter.TopicCountIncreased).
 				SkipBytes(4). // skip ID field to reach Counter field
 				FilterBytes(4,
 					query.GT(binary.BigEndian.AppendUint32(nil, 0)),
@@ -412,7 +420,9 @@ func Test_LogPoller(t *testing.T) {
 			// TODO: with SQL we might need to implement a more efficient way to query logs.
 			t.Run("Cell Query, events from emitter A", func(t *testing.T) {
 				t.Parallel()
-				result, queryErr := logpoller.NewQuery[counter.CountIncreased](emitterA.ContractAddress(), counter.TopicCountIncreased).
+				result, queryErr := logpoller.NewQuery[counter.CountIncreased]().
+					WithSource(emitterA.ContractAddress()).
+					WithEventSig(counter.TopicCountIncreased).
 					SkipBytes(4). // skip ID field to reach Counter field
 					FilterBytes(4,
 						query.GT(binary.BigEndian.AppendUint32(nil, 5)),
@@ -443,7 +453,9 @@ func Test_LogPoller(t *testing.T) {
 				senderBytes, sberr := testSlice.LoadSlice(267) // Load exactly 267 bits
 				require.NoError(t, sberr)
 
-				result, queryErr := logpoller.NewQuery[counter.CountIncreased](emitterA.ContractAddress(), counter.TopicCountIncreased).
+				result, queryErr := logpoller.NewQuery[counter.CountIncreased]().
+					WithSource(emitterA.ContractAddress()).
+					WithEventSig(counter.TopicCountIncreased).
 					SkipBytes(8). // skip to sender address field
 					FilterBytes(uint(len(senderBytes)), query.EQ(senderBytes)).
 					Execute(t.Context(), lp.GetStore())
@@ -464,7 +476,9 @@ func Test_LogPoller(t *testing.T) {
 
 			t.Run("Log Poller Query With CellFilter, events from emitter B", func(t *testing.T) {
 				t.Parallel()
-				result, queryErr := logpoller.NewQuery[counter.CountIncreased](emitterB.ContractAddress(), counter.TopicCountIncreased).
+				result, queryErr := logpoller.NewQuery[counter.CountIncreased]().
+					WithSource(emitterB.ContractAddress()).
+					WithEventSig(counter.TopicCountIncreased).
 					SkipBytes(4). // skip ID field to reach Counter field
 					FilterBytes(4,
 						query.GTE(binary.BigEndian.AppendUint32(nil, 1)),
@@ -489,7 +503,9 @@ func Test_LogPoller(t *testing.T) {
 			t.Run("Log Poller Query With CellFilter, all events from emitter B", func(t *testing.T) {
 				t.Parallel()
 				// the CounterIncreased event data layout is [ID (4 bytes), Counter (4 bytes)].
-				result, queryErr := logpoller.NewQuery[counter.CountIncreased](emitterB.ContractAddress(), counter.TopicCountIncreased).
+				result, queryErr := logpoller.NewQuery[counter.CountIncreased]().
+					WithSource(emitterB.ContractAddress()).
+					WithEventSig(counter.TopicCountIncreased).
 					FilterBytes(4, query.EQ(binary.BigEndian.AppendUint32(nil, emitterB.GetID()))). // compare ID at offset 0
 					Execute(t.Context(), lp.GetStore())
 				require.NoError(t, queryErr)
@@ -521,7 +537,9 @@ func Test_LogPoller(t *testing.T) {
 			t.Run("Log Poller query with parser pattern, all events from emitter B", func(t *testing.T) {
 				t.Parallel()
 
-				result, queryErr := logpoller.NewQuery[counter.CountIncreased](emitterB.ContractAddress(), counter.TopicCountIncreased).
+				result, queryErr := logpoller.NewQuery[counter.CountIncreased]().
+					WithSource(emitterB.ContractAddress()).
+					WithEventSig(counter.TopicCountIncreased).
 					Execute(t.Context(), lp.GetStore())
 				require.NoError(t, queryErr)
 
@@ -553,7 +571,9 @@ func Test_LogPoller(t *testing.T) {
 					return event.Value%2 == 1 // odd numbers
 				}
 
-				result, queryErr := logpoller.NewQuery[counter.CountIncreased](emitterB.ContractAddress(), counter.TopicCountIncreased).
+				result, queryErr := logpoller.NewQuery[counter.CountIncreased]().
+					WithSource(emitterB.ContractAddress()).
+					WithEventSig(counter.TopicCountIncreased).
 					FilterTyped(filter).
 					Execute(t.Context(), lp.GetStore())
 				require.NoError(t, queryErr)
@@ -577,7 +597,9 @@ func Test_LogPoller(t *testing.T) {
 					return event.Value >= uint32(from) && event.Value <= uint32(to) //nolint:gosec // test code
 				}
 
-				result, queryErr := logpoller.NewQuery[counter.CountIncreased](emitterB.ContractAddress(), counter.TopicCountIncreased).
+				result, queryErr := logpoller.NewQuery[counter.CountIncreased]().
+					WithSource(emitterB.ContractAddress()).
+					WithEventSig(counter.TopicCountIncreased).
 					FilterTyped(filter).
 					Execute(t.Context(), lp.GetStore())
 				require.NoError(t, queryErr)
@@ -606,7 +628,9 @@ func Test_LogPoller(t *testing.T) {
 			t.Run("Sort by TxLT ascending", func(t *testing.T) {
 				t.Parallel()
 
-				result, queryErr := logpoller.NewQuery[counter.CountIncreased](emitterA.ContractAddress(), counter.TopicCountIncreased).
+				result, queryErr := logpoller.NewQuery[counter.CountIncreased]().
+					WithSource(emitterA.ContractAddress()).
+					WithEventSig(counter.TopicCountIncreased).
 					OrderBy(query.SortByTxLT, query.ASC).
 					Execute(t.Context(), lp.GetStore())
 				require.NoError(t, queryErr)
@@ -622,7 +646,9 @@ func Test_LogPoller(t *testing.T) {
 			t.Run("Sort by TxLT descending", func(t *testing.T) {
 				t.Parallel()
 
-				result, queryErr := logpoller.NewQuery[counter.CountIncreased](emitterA.ContractAddress(), counter.TopicCountIncreased).
+				result, queryErr := logpoller.NewQuery[counter.CountIncreased]().
+					WithSource(emitterA.ContractAddress()).
+					WithEventSig(counter.TopicCountIncreased).
 					OrderBy(query.SortByTxLT, query.DESC).
 					Execute(t.Context(), lp.GetStore())
 				require.NoError(t, queryErr)
@@ -638,7 +664,9 @@ func Test_LogPoller(t *testing.T) {
 			t.Run("Pagination with limit", func(t *testing.T) {
 				t.Parallel()
 				const pageSize = 7
-				result, queryErr := logpoller.NewQuery[counter.CountIncreased](emitterA.ContractAddress(), counter.TopicCountIncreased).
+				result, queryErr := logpoller.NewQuery[counter.CountIncreased]().
+					WithSource(emitterA.ContractAddress()).
+					WithEventSig(counter.TopicCountIncreased).
 					OrderBy(query.SortByTxLT, query.ASC).
 					Limit(7).
 					Execute(t.Context(), lp.GetStore())
@@ -652,7 +680,9 @@ func Test_LogPoller(t *testing.T) {
 				t.Parallel()
 				const pageSize = 2
 				const offset = 8
-				result, queryErr := logpoller.NewQuery[counter.CountIncreased](emitterA.ContractAddress(), counter.TopicCountIncreased).
+				result, queryErr := logpoller.NewQuery[counter.CountIncreased]().
+					WithSource(emitterA.ContractAddress()).
+					WithEventSig(counter.TopicCountIncreased).
 					OrderBy(query.SortByTxLT, query.ASC).
 					Offset(offset).
 					Limit(pageSize).
@@ -660,7 +690,9 @@ func Test_LogPoller(t *testing.T) {
 				require.NoError(t, queryErr)
 				require.Len(t, result.Logs, pageSize)
 
-				firstPageResult, frerr := logpoller.NewQuery[counter.CountIncreased](emitterA.ContractAddress(), counter.TopicCountIncreased).
+				firstPageResult, frerr := logpoller.NewQuery[counter.CountIncreased]().
+					WithSource(emitterA.ContractAddress()).
+					WithEventSig(counter.TopicCountIncreased).
 					OrderBy(query.SortByTxLT, query.ASC).
 					Limit(offset+pageSize). // get first page for comparison
 					Execute(t.Context(), lp.GetStore())
@@ -681,7 +713,9 @@ func Test_LogPoller(t *testing.T) {
 				var pageCount int
 
 				for offset := 0; ; offset += pageSize {
-					result, queryErr := logpoller.NewQuery[counter.CountIncreased](emitterA.ContractAddress(), counter.TopicCountIncreased).
+					result, queryErr := logpoller.NewQuery[counter.CountIncreased]().
+						WithSource(emitterA.ContractAddress()).
+						WithEventSig(counter.TopicCountIncreased).
 						OrderBy(query.SortByTxLT, query.ASC).
 						Offset(offset).
 						Limit(pageSize).
@@ -722,7 +756,9 @@ func Test_LogPoller(t *testing.T) {
 				count := to - from + 1
 
 				// Filter for counters 4-8, then sort and paginate
-				result, queryErr := logpoller.NewQuery[counter.CountIncreased](emitterA.ContractAddress(), counter.TopicCountIncreased).
+				result, queryErr := logpoller.NewQuery[counter.CountIncreased]().
+					WithSource(emitterA.ContractAddress()).
+					WithEventSig(counter.TopicCountIncreased).
 					SkipBytes(4). // skip ID field to reach Counter field
 					FilterBytes(4,
 						query.GTE(binary.BigEndian.AppendUint32(nil, uint32(from))),
@@ -760,7 +796,9 @@ func Test_LogPoller(t *testing.T) {
 				var emitterBPages [][]types.TypedLog[counter.CountIncreased]
 
 				for offset := 0; offset < targetCounter; offset += pageSize {
-					result, queryErr := logpoller.NewQuery[counter.CountIncreased](emitterB.ContractAddress(), counter.TopicCountIncreased).
+					result, queryErr := logpoller.NewQuery[counter.CountIncreased]().
+						WithSource(emitterB.ContractAddress()).
+						WithEventSig(counter.TopicCountIncreased).
 						OrderBy(query.SortByTxLT, query.ASC).
 						Offset(offset).
 						Limit(pageSize).
@@ -793,7 +831,9 @@ func Test_LogPoller(t *testing.T) {
 			t.Run("Edge case: empty results pagination", func(t *testing.T) {
 				t.Parallel()
 				// filter for impossible range
-				result, queryErr := logpoller.NewQuery[counter.CountIncreased](emitterA.ContractAddress(), counter.TopicCountIncreased).
+				result, queryErr := logpoller.NewQuery[counter.CountIncreased]().
+					WithSource(emitterA.ContractAddress()).
+					WithEventSig(counter.TopicCountIncreased).
 					SkipBytes(4).                                                      // skip ID field to reach Counter field
 					FilterBytes(4, query.GT(binary.BigEndian.AppendUint32(nil, 100))). // No events should match
 					OrderBy(query.SortByTxLT, query.ASC).
@@ -808,7 +848,9 @@ func Test_LogPoller(t *testing.T) {
 
 			t.Run("Edge case: offset beyond total", func(t *testing.T) {
 				t.Parallel()
-				result, queryErr := logpoller.NewQuery[counter.CountIncreased](emitterA.ContractAddress(), counter.TopicCountIncreased).
+				result, queryErr := logpoller.NewQuery[counter.CountIncreased]().
+					WithSource(emitterA.ContractAddress()).
+					WithEventSig(counter.TopicCountIncreased).
 					OrderBy(query.SortByTxLT, query.ASC).
 					Offset(targetCounter+10). // Way beyond available data
 					Limit(5).
