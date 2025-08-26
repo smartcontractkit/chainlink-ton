@@ -35,6 +35,7 @@
         inherit pkgs;
         inherit rev;
         inherit chainlink-ton;
+        # TODO: why the pkg rename here?
         jetton-contracts = contracts.packages.contracts-jetton-func;
       };
       # Resolve tools

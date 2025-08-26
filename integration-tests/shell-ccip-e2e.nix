@@ -2,13 +2,14 @@
   stdenv,
   pkgs,
   lib,
+  # Local dependencies
   chainlink-ton,
   jetton-contracts,
 }: let
   # import the default shell to reuse its buildInputs
   defaultShellBuildInputs =
     (pkgs.callPackage ../shell.nix {
-      inherit stdenv pkgs lib chainlink-ton jetton-contracts;
+      inherit stdenv pkgs lib;
     })
     .buildInputs;
 in
@@ -21,7 +22,11 @@ in
         docker
         postgresql
         coreutils
-      ]);
+      ])
+      ++ [
+        chainlink-ton
+        jetton-contracts
+      ];
 
     shellHook = ''
       export PG_CONTAINER_NAME=cl_pg
