@@ -5,8 +5,7 @@ import { Address, beginCell, Cell, toNano } from '@ton/core'
 import { KeyPair, sign } from '@ton/crypto'
 import { compile } from '@ton/blueprint'
 
-import { asSnakeData, uint8ArrayToBigInt } from '../../src/utils'
-import { generateEd25519KeyPair } from '../libraries/ocr/Helpers'
+import { generateEd25519KeyPair, asSnakeData, uint8ArrayToBigInt } from '../../src/utils'
 
 import { mcms } from '../../wrappers/mcms'
 import { rbactl } from '../../wrappers/mcms'
