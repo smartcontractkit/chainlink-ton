@@ -21,7 +21,7 @@ in
       defaultShellBuildInputs
       ++ (with pkgs; [
         docker
-        postgresql_14
+        postgresql
         coreutils
       ])
       ++ [
