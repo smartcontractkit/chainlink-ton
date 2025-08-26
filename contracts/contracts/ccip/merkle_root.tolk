@@ -29,10 +29,10 @@ fun MerkleRoot_Storage.store(self) {
 }
 
 
-type Msg = MerkleRoot_Validate;
+type MerkleRoot_InMessage = MerkleRoot_Validate;
 
 fun onInternalMessage(in: InMessage) {
-    val msg = lazy Msg.fromSlice(in.body);
+    val msg = lazy MerkleRoot_InMessage.fromSlice(in.body);
     match (msg) {
         MerkleRoot_Validate => {
             // If we receive this message from the OffRamp then the merkle proof has already been validated.

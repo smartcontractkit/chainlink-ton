@@ -8,6 +8,7 @@ import "../lib/ocr/multi_ocr3_base";
 import "../lib/ocr/types";
 
 struct Storage {
+    id: uint32;
     ownable: Ownable2Step;
     deployer: cell; // Deployable compiled code
     merkleRootCode: cell; // make sure to use a library cell offchain to save space
@@ -16,6 +17,7 @@ struct Storage {
 
     // static config
     chainSelector: uint64;
+
     // dynamic config
     permissionlessExecutionThresholdSeconds: uint32,
 
@@ -60,7 +62,6 @@ struct ExecutionStateChanged {
     state: uint8;
 }
 
-// crc32("CCIPCommitReportAccepted")
 const CCIP_COMMIT_REPORT_ACCEPTED_TOPIC: int = stringCrc32("CCIPCommitReportAccepted");
 
 struct CommitReportAccepted {
@@ -110,10 +111,10 @@ struct (0xb98c95e3) OffRamp_UpdateSourceChainConfig {
     config: SourceChainConfig
 }
 
-type Msg = OffRamp_Commit | OffRamp_Execute | OffRamp_DispatchValidated | OffRamp_UpdateSourceChainConfig | OCR3Base_SetOCR3Config;
+type OffRamp_InMessage = OffRamp_Commit | OffRamp_Execute | OffRamp_DispatchValidated | OffRamp_UpdateSourceChainConfig | OCR3Base_SetOCR3Config;
 
 fun onInternalMessage(in:InMessage) {
-    val msg = lazy Msg.fromSlice(in.body);
+    val msg = lazy OffRamp_InMessage.fromSlice(in.body);
     match (msg) {
         OffRamp_Commit => { 
             commit(msg, in.senderAddress) 
@@ -160,31 +161,15 @@ fun _dispatchValidated(msg: OffRamp_DispatchValidated, sender: address) {
 
             val root = message.generateMessageId(msg.metadataHash);
 
-            val initCode =  st.deployer;
-            val initData = Deployable {
-              owner: contract.getAddress(),
-              id: getMerkleRootID(root),
-            }.toCell();
-
-            //Build the expected address https://docs.ton.org/v3/documentation/smart-contracts/func/cookbook#how-to-build-a-stateinit-cell
-            var stateInit = beginCell()
-              .storeUint(0, 1) // split_depth:(Maybe (## 5))
-              .storeUint(0, 1) // special:(Maybe TickTock)
-              .storeUint(1, 1) // (Maybe ^Cell)
-              .storeUint(1, 1) // (Maybe ^Cell)
-              .storeUint(0, 1) // (HashmapE 256 SimpleLib)
-              .storeRef(initCode)
-              .storeRef(initData)
-              .endCell();
- 
-            var expectedAddress = beginCell() 
-                .storeUint(2, 2) // addr_std$10
-                .storeUint(0, 1) // anycast:(Maybe Anycast)
-                .storeUint(0, 8) // workchain_id:int8
-                .storeUint(stateInit.hash(), 256) // address:bits256
-                .endCell().beginParse() as address;
-
-            assert(expectedAddress == in.senderAddress) throw 0x1000;
+            val expectedAddress = AutoDeployAddress {
+                stateInit: ContractState{
+                    code: st.deployer,
+                    data: Deployable {
+                        owner: contract.getAddress(),
+                        id: getMerkleRootID(root.merkleRoot),
+                    },
+            }
+            expectedAddress.addressMatches(sender);
             */
 
             // No batching, we assume the messages field is just a single message

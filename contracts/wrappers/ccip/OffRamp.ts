@@ -17,6 +17,7 @@ import * as ownable2step from '../libraries/access/Ownable2Step'
 import { crc32 } from 'zlib'
 
 export type OffRampStorage = {
+  id: bigint
   ownable: ownable2step.Data
   deployerCode: Cell
   merkleRootCode: Cell
@@ -103,6 +104,7 @@ export const Builder = {
   asStorage: (config: OffRampStorage): Cell => {
     return (
       beginCell()
+        .storeUint(config.id, 32)
         .storeAddress(config.ownable.owner)
         .storeMaybeBuilder(
           config.ownable.pendingOwner

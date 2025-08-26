@@ -1,15 +1,6 @@
-import { Blockchain, BlockchainTransaction, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import {
-  toNano,
-  Address,
-  Cell,
-  Dictionary,
-  Message,
-  beginCell,
-  contractAddress,
-  StateInit,
-} from '@ton/core'
-import { compile, sleep } from '@ton/blueprint'
+import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
+import { toNano, Cell, Dictionary, beginCell, contractAddress, StateInit } from '@ton/core'
+import { compile } from '@ton/blueprint'
 import {
   Any2TVMRampMessage,
   CommitReport,
@@ -17,29 +8,20 @@ import {
   ExecutionReport,
   MerkleRoot,
   OffRampStorage,
-  PriceUpdates,
   RampMessageHeader,
-  SourceChainConfig,
 } from '../../wrappers/ccip/OffRamp'
 import { OffRamp } from '../../wrappers/ccip/OffRamp'
-import {
-  createTimestampedPriceValue,
-  FeeQuoter,
-  FeeQuoterStorage,
-  TimestampedPrice,
-} from '../../wrappers/ccip/FeeQuoter'
+import { FeeQuoter } from '../../wrappers/ccip/FeeQuoter'
 import { assertLog, expectFailedTransaction, expectSuccessfulTransaction } from '../Logs'
 import '@ton/test-utils'
-import { bigIntToBuffer, uint8ArrayToBigInt } from '../../src/utils'
-import { KeyPair, sha256_sync } from '@ton/crypto'
-
 import {
-  expectEqualsConfig,
+  bigIntToBuffer,
   generateEd25519KeyPair,
   generateMockTonAddress,
-  generateRandomAddresses,
-  generateRandomMockAddresses,
-} from '../libraries/ocr/Helpers'
+  uint8ArrayToBigInt,
+} from '../../src/utils'
+import { KeyPair, sha256_sync } from '@ton/crypto'
+
 import {
   createSignature,
   hashReport,
@@ -52,7 +34,6 @@ import { setupTestFeeQuoter } from './helpers/SetUp'
 
 import { ReportContext, SignatureEd25519 } from '../../wrappers/libraries/ocr/MultiOCR3Base'
 import { ExampleReceiver } from '../../wrappers/ccip/Receiver'
-import { findTransactionRequired } from '@ton/test-utils'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_TON = 13879075125137744094n
@@ -68,10 +49,8 @@ const ERROR_EMPTY_REPORT = 267
 const ERROR_INVALID_MESSAGE_DEST_CHAIN_SELECTOR = 262
 const ERROR_SOURCE_CHAIN_SELECTOR_MISMATCH = 263
 
-function generateSecureRandomString(length: number): string {
-  const array = new Uint8Array(length)
-  crypto.getRandomValues(array)
-  return Array.from(array, (byte) => ('0' + (byte % 36).toString(36)).slice(-1)).join('')
+function generateSecureRandomId(): bigint {
+  return BigInt(Math.floor(Math.random() * 0x100000000)); // 2^32
 }
 
 const createSignatures = (
@@ -380,14 +359,6 @@ describe('OffRamp', () => {
   })
 
   beforeEach(async () => {
-    // Using a different deployer changes the value of owner
-    // and gets us a contract with a different address every time
-    const generateRandomDeployer = () => {
-      const name = `deployer-${generateSecureRandomString(8)}`
-      return blockchain.treasury(name)
-    }
-
-    deployer = await generateRandomDeployer()
     // setup offramp
     {
       let code = await compile('OffRamp')
@@ -397,6 +368,7 @@ describe('OffRamp', () => {
       let merkleRootCode = new Cell({ exotic: true, bits: libPrep.bits, refs: libPrep.refs })
 
       let data: OffRampStorage = {
+        id: generateSecureRandomId(),
         ownable: {
           owner: deployer.address,
           pendingOwner: null,

@@ -325,8 +325,8 @@ struct MerkleRoot_Storage {
 
 //crc32('MerkleRoot_Validate')
 struct (0x38ede91) MerkleRoot_Validate {
-    messages: cell,
-    proofs: cell,
+    messages: cell, //vec<Any2TVMRampMessage>
+    proofs: cell, //vec<uint256>
     proofFlagBits: uint256,
     metadataHash: uint256,
     //TODO: token data
