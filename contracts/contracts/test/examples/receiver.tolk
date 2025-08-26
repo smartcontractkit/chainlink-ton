@@ -1,5 +1,5 @@
-import "types";
-import "../lib/utils";
+import "../../ccip/types";
+import "../../lib/utils";
 
 //crc32('Receiver_CCIPMessageReceived')
 const RECEIVED_MESSAGE = 0xc5a40ab3;
