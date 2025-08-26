@@ -169,6 +169,18 @@ func (a *TONAccessor) GetChainFeeComponents(ctx context.Context) (ccipocr3.Chain
 	return ccipocr3.ChainFeeComponents{}, errors.New("not implemented")
 }
 
+// Matching CCIP Plugins - default accessor w/ CR behavior
+// CCIP contract discovery follows the same two-phase approach for TON:
+// 1. Initial binding: Offramp address registered at startup (chainlink-ccip/pkg/reader/ccip.go:113-118)
+// 2. Dynamic discovery: Onramp addresses discovered from offramp.SourceChainConfig (ccip.go:644-656)
+//
+// Key implementation difference:
+// - Default Accessor: Wraps ContractReader(CR) - delegates to CR's Bind() for event registration
+//   - Sync() calls contractReader.Bind() which registers event filters in EVM/SOL CR
+//
+// - TON Accessor: Bypasses CR entirely - implements ChainAccessor interface directly
+//   - Sync() directly calls bindContractEvent() to register event filters with TON logPoller
+//   - Both expose same Sync() interface to CCIPChainReader
 func (a *TONAccessor) Sync(ctx context.Context, contractName string, contractAddress ccipocr3.UnknownAddress) error {
 	strAddr, err := a.addrCodec.AddressBytesToString(contractAddress)
 	if err != nil {
@@ -182,9 +194,6 @@ func (a *TONAccessor) Sync(ctx context.Context, contractName string, contractAdd
 	if err := a.bindContractEvent(ctx, contractName, addr); err != nil {
 		return fmt.Errorf("failed to bind contract event: %w", err)
 	}
-	// If the same address exists -> no-op
-	// If the address is changed -> updates the address, overwrites the existing one
-	// If the contract not bound -> binds to the new address
 	a.bindingsMu.Lock()
 	defer a.bindingsMu.Unlock()
 	a.bindings[contractName] = addr

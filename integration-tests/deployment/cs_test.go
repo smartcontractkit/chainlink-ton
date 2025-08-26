@@ -24,6 +24,10 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/chainaccessor"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
+	inmemorystore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/db/inmemory"
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/loader/account"
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/txparser"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
@@ -132,7 +136,18 @@ func TestDeploy(t *testing.T) {
 
 	addrCodec := codec.NewAddressCodec()
 
-	accessor, err := chainaccessor.NewTONAccessor(lggr, ccipocr3.ChainSelector(chainSelector), tonChain.Client, nil, addrCodec)
+	lpCfg := logpoller.DefaultConfigSet
+	filterStore := inmemorystore.NewFilterStore()
+	opts := &logpoller.ServiceOptions{
+		Config:   lpCfg,
+		Client:   tonChain.Client,
+		Filters:  filterStore,
+		TxLoader: account.NewTxLoader(tonChain.Client, lggr, lpCfg.PageSize),
+		TxParser: txparser.NewTxParser(lggr, filterStore),
+		Store:    inmemorystore.NewLogStore(),
+	}
+	lp := logpoller.NewService(lggr, opts)
+	accessor, err := chainaccessor.NewTONAccessor(lggr, ccipocr3.ChainSelector(chainSelector), tonChain.Client, lp, addrCodec)
 	require.NoError(t, err)
 
 	ctx := t.Context()
