@@ -334,7 +334,12 @@ fun _execute(msg: OffRamp_Execute, sender: address) {
     // message fields ensures that the message being executed is correct and not tampered with. Including the known
     // OnRamp ensures that the message originates from the correct OnRamp version. We know the sourceChainSelector
     // and destChainSelector are correct because we revert below when they are not.
-    val metadataHash = metadataHash(report.sourceChainSelector, st.chainSelector, sourceChainConfig.onRamp);
+    //val metadataHash = metadataHash(report.sourceChainSelector, st.chainSelector, sourceChainConfig.onRamp);
+    val metadataHash = MessageMetadata{
+        sourceChainSelector: report.sourceChainSelector,
+        destChainSelector: st.chainSelector,
+        onRamp: sourceChainConfig.onRamp.toCell(),
+    }.toCell().hash();
 
     var hashedLeaves = createEmptyTuple();
     // TODO: is offchainTokenData not hashed?
@@ -412,16 +417,6 @@ fun _updateSourceChainConfig(msg: OffRamp_UpdateSourceChainConfig, sender: addre
     st.store();
 }
 
-fun metadataHash(sourceChainSelector: uint64, destChainSelector: uint64, onRamp: CrossChainAddress) {
-    val hash = beginCell()
-        .storeUint(stringSha256("Any2TVMMessageHashV1"), 256)
-        .storeUint(sourceChainSelector, 64)
-        .storeUint(destChainSelector, 64)
-        .storeRef(onRamp.toCell())
-        .endCell()
-        .hash();
-    return hash;
-}
 
 // get fun executionState() {
 //     // TODO: node will need to directly look at MerkleRoot subcontracts

@@ -297,6 +297,13 @@ struct Metadata {
     // TODO: metadata { value, tokenAmounts }
 }
 
+struct MessageMetadata {
+    header: uint256 = stringSha256("Any2TVMMessageHashV1");
+    sourceChainSelector: uint64;
+    destChainSelector: uint64;
+    onRamp :Cell<CrossChainAddress>;
+}
+
 struct (0x00000003) MessageValidated<C> {
     msg: Cell<CCIPSend>;
     metadata: Cell<C>,
