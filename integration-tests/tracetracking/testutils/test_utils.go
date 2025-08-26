@@ -7,8 +7,7 @@ import (
 	"math/big"
 	"testing"
 
-	testutils "integration-tests/utils"
-
+	testutils "github.com/smartcontractkit/chainlink-ton/integration-tests/utils"
 	"github.com/stretchr/testify/require"
 
 	"github.com/xssnick/tonutils-go/address"

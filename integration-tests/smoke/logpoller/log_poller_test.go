@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	helper "integration-tests/smoke/logpoller/helper"
-	test_utils "integration-tests/utils"
+	helper "github.com/smartcontractkit/chainlink-ton/integration-tests/smoke/logpoller/helper"
+	test_utils "github.com/smartcontractkit/chainlink-ton/integration-tests/utils"
 
 	chainsel "github.com/smartcontractkit/chain-selectors"
 	"github.com/stretchr/testify/require"

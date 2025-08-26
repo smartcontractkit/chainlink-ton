@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"integration-tests/tracetracking/testutils"
+	"github.com/smartcontractkit/chainlink-ton/integration-tests/tracetracking/testutils"
 
 	chainsel "github.com/smartcontractkit/chain-selectors"
 	"github.com/stretchr/testify/assert"
