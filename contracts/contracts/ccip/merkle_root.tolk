@@ -54,7 +54,7 @@ fun _validateAndExecute(msg: MerkleRoot_Validate, sender: address) {
 
     assert(st.state == EXECUTION_STATE_UNTOUCHED, ERROR_STATE_IS_NOT_UNTOUCHED);
     // TODO if no tokenTransfers
-    _execute(msg.messages, msg.proofs, msg.proofFlagBits, msg.metadataHash, sender);
+    _execute(st, msg.messages, msg.proofs, msg.proofFlagBits, msg.metadataHash, sender);
 
     // if tokenTransfers 
     // validate execution state == untouched
@@ -70,8 +70,7 @@ fun _validateAndExecute(msg: MerkleRoot_Validate, sender: address) {
     // set state = execution
 }
 
-fun _execute(mesages: cell, proofs: cell, proofFlagBits: uint256, metadataHash: uint256, offRamp: address) {
-    var st = MerkleRoot_Storage.load();
+fun _execute(st: MerkleRoot_Storage, mesages: cell, proofs: cell, proofFlagBits: uint256, metadataHash: uint256, offRamp: address) {
     st.state = STATE_SUCCESS;
     st.store();
     var msg = createMessage(
