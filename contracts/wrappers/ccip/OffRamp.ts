@@ -332,12 +332,8 @@ export const sourceChainConfigToBuilder = (config: SourceChainConfig) => {
     .storeBit(config.isEnabled)
     .storeUint(config.minSeqNr, 64)
     .storeBit(config.isRMNVerificationDisabled)
-    .storeRef(
-      beginCell()
         .storeUint(config.onRamp.byteLength, 8)
         .storeBuffer(config.onRamp, config.onRamp.byteLength)
-        .endCell(),
-    )
 }
 
 function ExecutionReportToBuilder(report: ExecutionReport) {

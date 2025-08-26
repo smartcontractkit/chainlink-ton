@@ -30,7 +30,7 @@ struct SourceChainConfig {
     isEnabled: bool;
     minSeqNr: uint64;
     isRMNVerificationDisabled: bool;
-    onRamp: Cell<CrossChainAddress>;
+    onRamp: CrossChainAddress;
 }
 
 fun Storage.load(): Storage {
@@ -412,14 +412,15 @@ fun _updateSourceChainConfig(msg: OffRamp_UpdateSourceChainConfig, sender: addre
     st.store();
 }
 
-fun metadataHash(sourceChainSelector: uint64, destChainSelector: uint64, onRamp: cell) {
-    return beginCell()
+fun metadataHash(sourceChainSelector: uint64, destChainSelector: uint64, onRamp: CrossChainAddress) {
+    val hash = beginCell()
         .storeUint(stringSha256("Any2TVMMessageHashV1"), 256)
         .storeUint(sourceChainSelector, 64)
         .storeUint(destChainSelector, 64)
-        .storeRef(onRamp)
+        .storeRef(onRamp.toCell())
         .endCell()
         .hash();
+    return hash;
 }
 
 // get fun executionState() {
