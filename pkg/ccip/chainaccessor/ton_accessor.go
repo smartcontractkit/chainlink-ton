@@ -227,13 +227,7 @@ func (a *TONAccessor) MsgsBetweenSeqNums(ctx context.Context, dest ccipocr3.Chai
 	msgs := make([]ccipocr3.Message, 0)
 	for _, log := range res.Logs {
 		// convert event to generic CCIP event
-		event, err := a.convertCCIPMessageSent(
-			&log.TypedData,
-		)
-		if err != nil {
-			a.lggr.Errorw("failed to convert event", "err", err, "log", log)
-			continue
-		}
+		event := a.convertCCIPMessageSent(&log.TypedData)
 
 		// validate event
 		if err := chainaccessor.ValidateSendRequestedEvent(event, a.chainSelector, dest, seqNumRange); err != nil {
@@ -301,12 +295,8 @@ func (a *TONAccessor) LatestMessageTo(ctx context.Context, dest ccipocr3.ChainSe
 	}
 
 	// convert event to generic CCIP event
-	event, err := a.convertCCIPMessageSent(
-		&res.Logs[0].TypedData,
-	)
-	if err != nil {
-		return 0, fmt.Errorf("failed to convert event: %w", err)
-	}
+	event := a.convertCCIPMessageSent(&res.Logs[0].TypedData)
+
 	// validate event
 	if err := chainaccessor.ValidateSendRequestedEvent(event, a.chainSelector, dest, ccipocr3.NewSeqNumRange(event.Message.Header.SequenceNumber, event.Message.Header.SequenceNumber)); err != nil {
 		a.lggr.Errorw("validate send requested event", "err", err, "message", event)

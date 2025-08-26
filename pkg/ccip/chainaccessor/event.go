@@ -2,7 +2,6 @@ package chainaccessor
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/xssnick/tonutils-go/address"
@@ -76,15 +75,9 @@ func (a *TONAccessor) registerFilterIfNotExists(ctx context.Context, eventName s
 // convertCCIPMessageSent converts a TON-specific CCIPMessageSent event to a generic
 // chainaccessor.SendRequestedEvent. This function is idempotent and performs a
 // one-to-one mapping of event fields from the TON format to the standard CCIP format.
-// Returns an error if the source chain selector is zero or if conversion fails.
 func (a *TONAccessor) convertCCIPMessageSent(
 	tonEvent *onramp.CCIPMessageSent,
-) (*chainaccessor.SendRequestedEvent, error) {
-	// TODO: do we want to validate input, or created output?
-	if a.chainSelector == 0 {
-		return nil, errors.New("source chain selector cannot be zero")
-	}
-
+) *chainaccessor.SendRequestedEvent {
 	msg := ccipocr3.Message{
 		Header: ccipocr3.RampMessageHeader{
 			MessageID:           ccipocr3.Bytes32(tonEvent.Message.Header.MessageID),
@@ -106,5 +99,5 @@ func (a *TONAccessor) convertCCIPMessageSent(
 		SequenceNumber:    msg.Header.SequenceNumber,
 		Message:           msg,
 	}
-	return genericEvent, nil
+	return genericEvent
 }
