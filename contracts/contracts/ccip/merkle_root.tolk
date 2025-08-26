@@ -76,7 +76,7 @@ fun _execute(st: MerkleRoot_Storage, mesages: cell, proofs: cell, proofFlagBits:
     var msg = createMessage(
         {
             bounce: true,
-            value: ton("0.1"),
+            value: ton("0"),
             dest: offRamp,
             body: OffRamp_DispatchValidated {
                 messages: mesages,
@@ -86,7 +86,7 @@ fun _execute(st: MerkleRoot_Storage, mesages: cell, proofs: cell, proofFlagBits:
             }
         }
     );
-    msg.send(SEND_MODE_REGULAR);
+    msg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 // TODO: should we wait for all transfers to either complete or fail before we allow retry?
