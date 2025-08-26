@@ -7,6 +7,7 @@
   jetton-contracts,
 }: let
   # import the default shell to reuse its buildInputs
+  # TODO: this is not importing but resolving. We could compose the shells better to avoid duplicated callPackage calls.
   defaultShellBuildInputs =
     (pkgs.callPackage ../shell.nix {
       inherit stdenv pkgs lib;
