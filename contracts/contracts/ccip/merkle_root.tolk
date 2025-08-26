@@ -73,7 +73,7 @@ fun _validateAndExecute(msg: MerkleRoot_Validate, sender: address) {
 fun _execute(st: MerkleRoot_Storage, mesages: cell, proofs: cell, proofFlagBits: uint256, metadataHash: uint256, offRamp: address) {
     st.state = STATE_SUCCESS;
     st.store();
-    var msg = createMessage(
+    createMessage(
         {
             bounce: true,
             value: ton("0"),
@@ -85,8 +85,7 @@ fun _execute(st: MerkleRoot_Storage, mesages: cell, proofs: cell, proofFlagBits:
                 metadataHash: metadataHash
             }
         }
-    );
-    msg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    ).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 // TODO: should we wait for all transfers to either complete or fail before we allow retry?
