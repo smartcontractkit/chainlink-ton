@@ -56,7 +56,7 @@ func deployRouter(b operations.Bundle, deps TonDeps, in DeployRouterInput) (Depl
 	if err != nil {
 		return output, fmt.Errorf("failed to deploy router contract: %w", err)
 	}
-	b.Logger.Infow("Deployed Router", "addr", contract.Address)
+	b.Logger.Infow("Deployed Router", "addr", contract.Address, "deployer wallet addr", deps.TonChain.WalletAddress.String())
 
 	output.Address = contract.Address
 	return output, nil
