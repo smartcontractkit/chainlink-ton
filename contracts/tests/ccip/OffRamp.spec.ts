@@ -50,7 +50,7 @@ const ERROR_INVALID_MESSAGE_DEST_CHAIN_SELECTOR = 262
 const ERROR_SOURCE_CHAIN_SELECTOR_MISMATCH = 263
 
 function generateSecureRandomId(): bigint {
-  return BigInt(Math.floor(Math.random() * 0x100000000)); // 2^32
+  return BigInt(Math.floor(Math.random() * 0x100000000)) // 2^32
 }
 
 const createSignatures = (
