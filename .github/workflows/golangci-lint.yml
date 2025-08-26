@@ -48,6 +48,7 @@ jobs:
           nix develop -c golangci-lint run ./... \
             --config ../.golangci.yml \
             --output.checkstyle.path="${{ env.REPORT_PATH }}"
+            --only-new-issues
 
       - name: Print lint report on failure
         if: failure()
