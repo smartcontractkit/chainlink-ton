@@ -39,7 +39,7 @@ type service struct {
 }
 
 type ServiceOptions struct {
-	Config   Config // TODO: use global relayer config
+	Config   Config
 	Client   ton.APIClientWrapped
 	Filters  FilterStore
 	TxLoader TxLoader
