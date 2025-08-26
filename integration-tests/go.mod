@@ -1,4 +1,4 @@
-module integration-tests
+module github.com/smartcontractkit/chainlink-ton/integration-tests
 
 go 1.24.4
 
@@ -12,7 +12,6 @@ require (
 	github.com/smartcontractkit/chainlink-testing-framework/framework v0.10.12
 	github.com/smartcontractkit/chainlink-ton v0.0.0
 	github.com/smartcontractkit/chainlink-ton/deployment v0.0.0-20250815210156-5f161c0b7380
-	github.com/smartcontractkit/chainlink-ton/integration-tests v0.0.0-00010101000000-000000000000
 	github.com/smartcontractkit/chainlink/deployment v0.0.0-20250815210725-a8797a246179
 	github.com/smartcontractkit/chainlink/v2 v2.23.2-por-beta.1.0.20250815210725-a8797a246179
 	github.com/stretchr/testify v1.10.0
