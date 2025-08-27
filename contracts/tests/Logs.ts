@@ -61,12 +61,12 @@ type LogMatch<T extends CombinedLogTypes> = T extends CCIPLogs.LogTypes.CCIPMess
   ? DeepPartial<CCIPLogs.CCIPMessageSent>
   : T extends CCIPLogs.LogTypes.CCIPCommitReportAccepted
     ? DeepPartial<CCIPLogs.CCIPCommitReportAccepted>
-    : T extends ReceiverLogs.LogTypes.ReceiverCCIPMessageReceived
-      ? ReceiverLogs.ReceiverCCIPMessageReceived
-      : T extends OCR3Logs.LogTypes.OCR3BaseConfigSet
-        ? OCR3Logs.OCR3BaseConfigSet
-        : T extends OCR3Logs.LogTypes.OCR3BaseTransmitted
-          ? DeepPartial<OCR3Logs.OCR3BaseTransmitted>
+    : T extends OCR3Logs.LogTypes.OCR3BaseConfigSet
+      ? OCR3Logs.OCR3BaseConfigSet
+      : T extends OCR3Logs.LogTypes.OCR3BaseTransmitted
+        ? DeepPartial<OCR3Logs.OCR3BaseTransmitted>
+        : T extends ReceiverLogs.LogTypes.ReceiverCCIPMessageReceived
+          ? ReceiverLogs.ReceiverCCIPMessageReceived
           : number
 
 export const assertLog = <T extends CombinedLogTypes>(
