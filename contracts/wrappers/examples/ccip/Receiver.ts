@@ -15,8 +15,8 @@ export class ExampleReceiver implements Contract {
     readonly init?: { code: Cell; data: Cell },
   ) {}
 
-  static create(code: Cell, workchain = 0) {
-    const data = beginCell().endCell()
+  static create(code: Cell, offRampAddress: Address, workchain = 0) {
+    const data = beginCell().storeAddress(offRampAddress).endCell()
     const init = { code, data }
     return new ExampleReceiver(contractAddress(workchain, init), init)
   }

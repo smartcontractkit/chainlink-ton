@@ -345,19 +345,6 @@ describe('OffRamp', () => {
 
     // setup fee quoter
     feeQuoter = await setupTestFeeQuoter(deployer, blockchain)
-
-    // Deploy test receiver
-    {
-      let code = await compile('Receiver')
-      receiver = blockchain.openContract(ExampleReceiver.create(code))
-      const result = await receiver.sendDeploy(deployer.getSender(), toNano('10'))
-      expect(result.transactions).toHaveTransaction({
-        from: deployer.address,
-        to: receiver.address,
-        deploy: true,
-        success: true,
-      })
-    }
   })
 
   beforeEach(async () => {
@@ -389,6 +376,19 @@ describe('OffRamp', () => {
       expect(result.transactions).toHaveTransaction({
         from: deployer.address,
         to: offRamp.address,
+        deploy: true,
+        success: true,
+      })
+    }
+
+    // Deploy test receiver
+    {
+      let code = await compile('Receiver')
+      receiver = blockchain.openContract(ExampleReceiver.create(code, offRamp.address))
+      const result = await receiver.sendDeploy(deployer.getSender(), toNano('10'))
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: receiver.address,
         deploy: true,
         success: true,
       })
