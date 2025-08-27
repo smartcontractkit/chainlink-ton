@@ -23,6 +23,10 @@ import (
 // Supports OnRamp and OffRamp contract types with their respective event filters.
 // Returns an error if filter registration fails.
 func (a *TONAccessor) bindContractEvent(ctx context.Context, contractName string, address *address.Address) error {
+	if a.logPoller == nil {
+		// hack for now
+		return nil
+	}
 	var eventNames []string
 
 	switch contractName {
