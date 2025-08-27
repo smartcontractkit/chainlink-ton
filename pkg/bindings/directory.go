@@ -1,6 +1,7 @@
 package bindings
 
 import (
+	"context"
 	"fmt"
 	"os/exec"
 	"path"
@@ -11,7 +12,7 @@ func GetRepoRootDir() string {
 	// use git rev-parse --show-toplevel
 	// to get the root directory of the git repository
 
-	res := exec.Command("git", "rev-parse", "--show-toplevel")
+	res := exec.CommandContext(context.TODO(), "git", "rev-parse", "--show-toplevel")
 	stdout, err := res.Output()
 	if err != nil {
 		panic(fmt.Sprintf("failed to get repo root dir: %s", err))

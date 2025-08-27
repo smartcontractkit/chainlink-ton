@@ -1,22 +1,103 @@
 package query
 
-import "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
+import (
+	"bytes"
 
-// Options specifies pagination and sorting for log queries.
-type Options struct {
-	Limit  int
-	Offset int
-	SortBy []SortBy
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
+)
+
+// operator defines comparison operators for byte-level filtering.
+type operator int
+
+const (
+	opEQ operator = iota
+	opNEQ
+	opGT
+	opGTE
+	opLT
+	opLTE
+)
+
+// Condition represents a single comparison to be applied to a slice of bytes.
+// It is created via helper functions like EQ, GT, etc.
+type Condition struct {
+	Operator operator
+	Value    []byte
 }
 
-// SortBy defines sorting criteria for query results.
-type SortBy struct {
-	Field SortField
-	Order SortOrder
+// EQ creates a condition for an equality check (==).
+func EQ(val []byte) Condition {
+	return Condition{Operator: opEQ, Value: val}
 }
 
-// SortField defines the available fields for sorting.
-type SortField string
+// NEQ creates a condition for a non-equality check (!=).
+func NEQ(val []byte) Condition {
+	return Condition{Operator: opNEQ, Value: val}
+}
+
+// GT creates a condition for a greater-than check (>).
+func GT(val []byte) Condition {
+	return Condition{Operator: opGT, Value: val}
+}
+
+// GTE creates a condition for a greater-than-or-equal check (>=).
+func GTE(val []byte) Condition {
+	return Condition{Operator: opGTE, Value: val}
+}
+
+// LT creates a condition for a less-than check (<).
+func LT(val []byte) Condition {
+	return Condition{Operator: opLT, Value: val}
+}
+
+// LTE creates a condition for a less-than-or-equal check (<=).
+func LTE(val []byte) Condition {
+	return Condition{Operator: opLTE, Value: val}
+}
+
+// ByteFilter defines a query for direct byte-level filtering on a log's cell data.
+// This is an internal struct created by the QueryBuilder.
+type ByteFilter struct {
+	Offset     uint // byte offset within the cell data (0-based)
+	Size       uint
+	Conditions []Condition
+}
+
+// Matches checks if payload matches a single byte filter
+func (f *ByteFilter) Matches(payload []byte) bool {
+	// check if we have enough bytes
+	end := f.Offset + f.Size
+	if end > uint(len(payload)) {
+		return false
+	}
+
+	dataSlice := payload[f.Offset:end]
+
+	for _, cond := range f.Conditions {
+		// apply comparison operator
+		var matches bool
+		switch cond.Operator {
+		case opEQ:
+			matches = bytes.Equal(dataSlice, cond.Value)
+		case opNEQ:
+			matches = !bytes.Equal(dataSlice, cond.Value)
+		case opGT:
+			matches = bytes.Compare(dataSlice, cond.Value) > 0
+		case opGTE:
+			matches = bytes.Compare(dataSlice, cond.Value) >= 0
+		case opLT:
+			matches = bytes.Compare(dataSlice, cond.Value) < 0
+		case opLTE:
+			matches = bytes.Compare(dataSlice, cond.Value) <= 0
+		default:
+			matches = false
+		}
+		if !matches {
+			return false
+		}
+	}
+	return true
+}
 
 // SortOrder defines the sort direction.
 type SortOrder string
@@ -24,31 +105,27 @@ type SortOrder string
 const (
 	ASC  SortOrder = "ASC"
 	DESC SortOrder = "DESC"
+)
 
+// SortField defines the available fields for sorting.
+type SortField string
+
+const (
 	SortByTxLT SortField = "tx_lt"
 )
 
-// TODO: bit-level filter feasibility check
-// CellFilter defines a query for direct byte-level filtering on a log's cell data.
-// This supports filtering on byte-aligned data structures commonly found in TON events,
-// such as 32-bit integers, TON addresses (36 bytes), and other structured data.
-type CellFilter struct {
-	Offset   uint     // byte offset within the cell data (0-based)
-	Operator Operator // comparison operator (e.g., "=", "!=", ">", "<")
-	Value    []byte   // expected value for comparison
+// SortBy defines sorting criteria for query results.
+type SortBy struct {
+	Field SortField
+	Order SortOrder
 }
 
-// Operator defines comparison operators for byte-level filtering.
-type Operator string
-
-const (
-	EQ  Operator = "="
-	NEQ Operator = "!="
-	GT  Operator = ">"
-	GTE Operator = ">="
-	LT  Operator = "<"
-	LTE Operator = "<="
-)
+// Options specifies pagination and sorting for log queries.
+type Options struct {
+	Limit  int
+	Offset int
+	SortBy []SortBy
+}
 
 // Result provides a unified return type for all query methods.
 // It contains parsed logs with pagination metadata.

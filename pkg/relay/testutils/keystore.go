@@ -3,6 +3,7 @@ package testutils
 import (
 	"context"
 	"crypto/ed25519"
+	"errors"
 	"testing"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/loop"
@@ -46,6 +47,10 @@ func (tk *TestKeystore) Sign(ctx context.Context, id string, hash []byte) ([]byt
 	}
 
 	return ed25519.Sign(privateKey, hash), nil
+}
+
+func (tk *TestKeystore) Decrypt(ctx context.Context, account string, encrypted []byte) (decrypted []byte, err error) {
+	return nil, errors.New("not implemented")
 }
 
 func (tk *TestKeystore) Accounts(ctx context.Context) ([]string, error) {

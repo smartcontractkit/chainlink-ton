@@ -32,7 +32,7 @@ type CCIPSend struct {
 	_                 tlb.Magic                    `tlb:"#00000001"` //nolint:revive // Ignore opcode tag
 	QueryID           uint64                       `tlb:"## 64"`
 	DestChainSelector uint64                       `tlb:"## 64"`
-	Receiver          common.CrossChainAddress     `tlb:"^"`
+	Receiver          common.CrossChainAddress     `tlb:"."`
 	Data              common.SnakeBytes            `tlb:"^"`
 	TokenAmounts      common.SnakeRef[TokenAmount] `tlb:"^"`
 	FeeToken          *address.Address             `tlb:"addr"`

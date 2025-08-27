@@ -17,11 +17,15 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 )
 
+// Note: This file contains contract configuration related methods for the TON accessor
+
+// addrToBytes converts a TON address to raw bytes format
 func addrToBytes(addr *address.Address) []byte {
 	rawAddr := codec.ToRawAddr(addr)
 	return rawAddr[:]
 }
 
+// getOffRampStaticConfig retrieves static configuration for the off-ramp contract
 func (a *TONAccessor) getOffRampStaticConfig(ctx context.Context, block *ton.BlockIDExt) (ccipocr3.OffRampStaticChainConfig, error) {
 	return ccipocr3.OffRampStaticChainConfig{
 		ChainSelector:        0,
@@ -32,6 +36,7 @@ func (a *TONAccessor) getOffRampStaticConfig(ctx context.Context, block *ton.Blo
 	}, nil
 }
 
+// getOffRampDynamicConfig retrieves dynamic configuration for the off-ramp contract
 func (a *TONAccessor) getOffRampDynamicConfig(ctx context.Context, block *ton.BlockIDExt) (ccipocr3.OffRampDynamicChainConfig, error) {
 	return ccipocr3.OffRampDynamicChainConfig{
 		FeeQuoter:                               []byte{},
@@ -41,6 +46,7 @@ func (a *TONAccessor) getOffRampDynamicConfig(ctx context.Context, block *ton.Bl
 	}, nil
 }
 
+// getOffRampSourceChainConfigs retrieves source chain configurations from the off-ramp contract
 func (a *TONAccessor) getOffRampSourceChainConfigs(ctx context.Context, block *ton.BlockIDExt, sourceChainSelectors []ccipocr3.ChainSelector) (map[ccipocr3.ChainSelector]ccipocr3.SourceChainConfig, error) {
 	addr, err := a.getBinding(consts.ContractNameOffRamp)
 	if err != nil {
@@ -81,6 +87,7 @@ func (a *TONAccessor) getOffRampSourceChainConfigs(ctx context.Context, block *t
 	return sourceChainConfigs, nil
 }
 
+// getFeeQuoterStaticConfig retrieves static configuration from the fee quoter contract
 func (a *TONAccessor) getFeeQuoterStaticConfig(ctx context.Context, block *ton.BlockIDExt) (ccipocr3.FeeQuoterStaticConfig, error) {
 	addr, err := a.getBinding(consts.ContractNameFeeQuoter)
 	if err != nil {
@@ -101,6 +108,7 @@ func (a *TONAccessor) getFeeQuoterStaticConfig(ctx context.Context, block *ton.B
 	}, nil
 }
 
+// getOnRampDynamicConfig retrieves dynamic configuration from the on-ramp contract
 func (a *TONAccessor) getOnRampDynamicConfig(ctx context.Context, block *ton.BlockIDExt) (ccipocr3.OnRampDynamicConfig, error) {
 	addr, err := a.getBinding(consts.ContractNameOnRamp)
 	if err != nil {
@@ -123,6 +131,7 @@ func (a *TONAccessor) getOnRampDynamicConfig(ctx context.Context, block *ton.Blo
 	}, nil
 }
 
+// getOnRampDestChainConfig retrieves destination chain configuration from the on-ramp contract
 func (a *TONAccessor) getOnRampDestChainConfig(ctx context.Context, block *ton.BlockIDExt, dest ccipocr3.ChainSelector) (ccipocr3.OnRampDestChainConfig, error) {
 	addr, err := a.getBinding(consts.ContractNameOnRamp)
 	if err != nil {
@@ -143,6 +152,7 @@ func (a *TONAccessor) getOnRampDestChainConfig(ctx context.Context, block *ton.B
 	}, nil
 }
 
+// getCurseInfo retrieves curse information for RMN verification
 func (a *TONAccessor) getCurseInfo(_ context.Context, _ *ton.BlockIDExt) (ccipocr3.CurseInfo, error) {
 	return ccipocr3.CurseInfo{
 		CursedSourceChains: map[ccipocr3.ChainSelector]bool{},

@@ -31,11 +31,20 @@ type service struct {
 	client  ton.APIClientWrapped // TON blockchain client
 	filters FilterStore          // Registry of active filters
 	loader  TxLoader             // Transaction loader returning loaded txs
-	indexer TxIndexer            // Transaction indexer returning indexed logs
+	parser  TxParser             // Transaction parser returning logs
 	store   LogStore             // Log storage (MVP: in-memory, to be replaced with ORM)
 
 	pollPeriod         time.Duration // How often to poll for new blocks
 	lastProcessedBlock uint32        // Last processed masterchain sequence number
+}
+
+type ServiceOptions struct {
+	Config   Config
+	Client   ton.APIClientWrapped
+	Filters  FilterStore
+	TxLoader TxLoader
+	TxParser TxParser
+	Store    LogStore
 }
 
 // NewService creates a new TON log polling service instance
@@ -45,7 +54,7 @@ func NewService(lggr logger.Logger, opts *ServiceOptions) Service {
 		client:     opts.Client,
 		filters:    opts.Filters,
 		loader:     opts.TxLoader,
-		indexer:    opts.TxIndexer,
+		parser:     opts.TxParser,
 		store:      opts.Store,
 		pollPeriod: opts.Config.PollPeriod,
 	}
@@ -175,7 +184,7 @@ func (lp *service) processBlockRange(ctx context.Context, blockRange *types.Bloc
 	lp.lggr.Debugw("loaded transactions from chain", "count", len(txs))
 
 	// 2. Index the raw transactions into structured logs(covers ExtMsgOut and InternalMsg)
-	logs, err := lp.indexer.IndexTransactions(ctx, txs)
+	logs, err := lp.parser.ParseTransactions(ctx, txs)
 	if err != nil {
 		return fmt.Errorf("failed to index transactions: %w", err)
 	}
@@ -192,6 +201,7 @@ func (lp *service) processBlockRange(ctx context.Context, blockRange *types.Bloc
 			continue
 		}
 		lp.store.SaveLog(log)
+		// lp.lggr.Debugw("saved log", "log", log.String())
 	}
 	return nil
 }
