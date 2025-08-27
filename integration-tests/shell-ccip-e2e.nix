@@ -29,6 +29,8 @@ in
         jetton-contracts
       ];
 
+    PATH_CONTRACTS_JETTON = "${jetton-contracts}/lib/node_modules/jetton/build/";
+
     shellHook = ''
       export PG_CONTAINER_NAME=cl_pg
       export PG_PORT=5432
