@@ -1,7 +1,6 @@
 package codec
 
 import (
-	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
@@ -59,18 +58,13 @@ func (a addressCodec) AddressStringToBytes(addrString string) ([]byte, error) {
 	return rawAddr[:], nil
 }
 
-// OracleIDAsAddressBytes converts an oracle ID (uint8) into a byte slice representing a TON address.
 func (a addressCodec) OracleIDAsAddressBytes(oracleID uint8) ([]byte, error) {
 	addr := make([]byte, 32)
 	// write oracleID into addr in big endian
 	binary.BigEndian.PutUint32(addr, uint32(oracleID))
 	tonAddr := address.NewAddress(0, 0, addr)
-	decodeString, err := base64.RawURLEncoding.DecodeString(tonAddr.String())
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode TVM address bytes: %w", err)
-	}
-
-	return decodeString, nil
+	rawAddr := ToRawAddr(tonAddr)
+	return rawAddr[:], nil
 }
 
 // TransmitterBytesToString converts a byte slice representing a transmitter account into its string representation.
