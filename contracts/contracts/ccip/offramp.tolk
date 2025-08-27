@@ -108,19 +108,19 @@ struct (0x27bdac33) OffRamp_Execute {
 struct (0xb98c95e3) OffRamp_UpdateSourceChainConfig {
     queryId: uint64;
     sourceChainSelector: uint64;
-    config: SourceChainConfig
+    config: SourceChainConfig;
 }
 
 type OffRamp_InMessage = OffRamp_Commit | OffRamp_Execute | OffRamp_DispatchValidated | OffRamp_UpdateSourceChainConfig | OCR3Base_SetOCR3Config;
 
 fun onInternalMessage(in:InMessage) {
     val msg = lazy OffRamp_InMessage.fromSlice(in.body);
-    match (msg) {
-        OffRamp_Commit => { 
-            commit(msg, in.senderAddress) 
+    match(msg) {
+        OffRamp_Commit => {
+            commit(msg, in.senderAddress)
         }
         OffRamp_Execute => {
-            _execute(msg, in.senderAddress);
+            _execute(msg, in.senderAddress)
         }
         OCR3Base_SetOCR3Config => { 
             _setOCR3Config(msg, in.senderAddress)
@@ -149,48 +149,38 @@ fun onInternalMessage(in:InMessage) {
 fun _dispatchValidated(msg: OffRamp_DispatchValidated, sender: address) {
             val st = Storage.load();
 
-            /*
-            // TODO: Check that the message comes from a real commited MerkleRoot
-
             // we don't store the addresses of the MerkleRoot contracts so we check the proof again and validate that the root contract was deployed by the OffRamp.
-
-            // TODO: Maybe we could pass the root around and just check that it was deployed by the OffRamp...
-
             // Here we assume just one message because we don't batch.
+
             // TODO: I am thinking it might be better to just remove all support for batching from on-chain, it can be easily added back later
+            val message = Any2TVMRampMessage.fromCell(msg.messages);
 
             val root = message.generateMessageId(msg.metadataHash);
 
-            val expectedAddress = AutoDeployAddress {
-                stateInit: ContractState{
+            val expectedAddress: AutoDeployAddress = {
+                stateInit: {
                     code: st.deployer,
                     data: Deployable {
                         owner: contract.getAddress(),
-                        id: getMerkleRootID(root.merkleRoot),
-                    },
-            }
-            expectedAddress.addressMatches(sender);
-            */
+                        id: getMerkleRootID(root),
+                    }.toCell()
+                }
+            };
 
-            // No batching, we assume the messages field is just a single message
-
-            // It might be better to just remove all support for batching from on-chain (no merkleProof lib
-            // and just one message instead of vec<messages>on the report), it can be easily added back later.
-
-            val message = Any2TVMRampMessage.fromCell(msg.messages);
+            assert(expectedAddress.addressMatches(sender)) throw ERROR_DISPATCH_NOT_FROM_MERKLE_ROOT;
 
             // dispatch message to receiver
             val ccipReceive: CCIPReceive = {
                 message: {
                     messageId: message.header.messageId,
                     sourceChainSelector: message.header.sourceChainSelector,
-                    sender: message.sender,
+                    sender: CrossChainAddress.fromCell(message.sender),
                     data: message.data
                 }
             };
 
             val messageForReceiver = createMessage({
-                bounce: true, // TODO:
+                bounce: true,
                 value: ton("0.05"), // TODO: use the gas limit from the message
                 dest: message.receiver,
                 body: ccipReceive
@@ -225,7 +215,7 @@ fun commit(msg: OffRamp_Commit, sender: address) {
     // update token/gas prices if any
     if (report.priceUpdates != null) {
         val updatePricesMsg = createMessage({
-            bounce: true, // TODO:
+            bounce: true,
             value: ton("0.05"), // TODO:
             dest: st.feeQuoter,
             body: UpdatePrices{
@@ -235,7 +225,6 @@ fun commit(msg: OffRamp_Commit, sender: address) {
         updatePricesMsg.send(SEND_MODE_REGULAR);
     }
 
-    // TODO: assert cells are well-formed
     var roots = Iterator<MerkleRoot>.new(report.merkleRoots);
 
     while (!roots.empty()) {
@@ -253,7 +242,7 @@ fun commit(msg: OffRamp_Commit, sender: address) {
         // initialize MerkleRoot subcontract
         val initMsg = createMessage({
             bounce: true, // TODO: could bounce if root already exists
-            value: ton("10"), // TODO:
+            value: ton("1"), // TODO:
             dest: {
                 stateInit: {
                     code: st.deployer,
@@ -311,6 +300,7 @@ fun _execute(msg: OffRamp_Execute, sender: address) {
 
     // TODO: assert(report.messages.len == offchainTokenData.len, throw UNEXPECTED_TOKEN_DATA) (
     // ^- perhaps easier to validate by checking if offchainTokenData iter is still empty after the while loop
+    // Not needed if we remove batching
 
     val sourceChainConfig = st.sourceChainConfigs.mustGet(report.sourceChainSelector, ERROR_SOURCE_CHAIN_NOT_ENABLED);
     assert(sourceChainConfig.isEnabled, ERROR_SOURCE_CHAIN_NOT_ENABLED);
@@ -347,11 +337,11 @@ fun _execute(msg: OffRamp_Execute, sender: address) {
         hashedLeaves.push(hash);
     }
 
-    // calculate merkle root
+    // calculate merkle root 
+    // without batching the root should just be the messageId each time
     var leavesIterator = TupleIterator<uint256>.new(hashedLeaves);
     var proofsIterator = Iterator<uint256>.new(report.proofs);
 
-    // without batching the root should just be the messageId each time
     val root = merkleRoot(
         leavesIterator,
         proofsIterator,

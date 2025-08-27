@@ -50,7 +50,7 @@ struct Any2TVMRampMessage {
 struct Any2TVMMessage {
     messageId: uint256,
     sourceChainSelector: uint64,
-    sender: Cell<CrossChainAddress>,
+    sender: CrossChainAddress,
     data: cell
 }
 
@@ -365,3 +365,4 @@ const ERROR_TOKEN_NOT_SUPPORTED: int = 264;
 const ERROR_UNAUTHORIZED: int = 265;
 const ERROR_SOURCE_CHAIN_NOT_ENABLED: int = 266;
 const ERROR_EMPTY_REPORT:int = 267;
+const ERROR_DISPATCH_NOT_FROM_MERKLE_ROOT: int = 268;

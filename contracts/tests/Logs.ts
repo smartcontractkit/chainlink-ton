@@ -227,12 +227,8 @@ export const testLogReceiverCCIPMessageReceived = (
     const expectedCell = beginCell()
       .storeUint(msg.messageId, 256)
       .storeUint(msg.sourceChainSelector, 64)
-      .storeRef(
-        beginCell()
-          .storeUint(msg.sender.byteLength, 8)
-          .storeBuffer(msg.sender, msg.sender.byteLength)
-          .endCell(),
-      )
+      .storeUint(msg.sender.byteLength, 8)
+      .storeBuffer(msg.sender, msg.sender.byteLength)
       .storeRef(msg.data)
       .endCell()
 

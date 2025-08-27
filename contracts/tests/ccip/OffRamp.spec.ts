@@ -3,6 +3,7 @@ import { toNano, Cell, Dictionary, beginCell, contractAddress, StateInit } from 
 import { compile } from '@ton/blueprint'
 import {
   Any2TVMRampMessage,
+  Any2TVMMessage,
   CommitReport,
   commitReportToBuilder,
   ExecutionReport,
@@ -49,6 +50,7 @@ const ERROR_STATE_IS_NOT_UNTOUCHED = 0x7878
 const ERROR_EMPTY_REPORT = 267
 const ERROR_INVALID_MESSAGE_DEST_CHAIN_SELECTOR = 262
 const ERROR_SOURCE_CHAIN_SELECTOR_MISMATCH = 263
+const ERROR_DISPATCH_NOT_FROM_MERKLE_ROOT = 268
 
 function generateSecureRandomId(): bigint {
   return BigInt(Math.floor(Math.random() * 0x100000000)) // 2^32
@@ -296,7 +298,6 @@ describe('OffRamp', () => {
     return { root, metadataHash, rootBytes }
   }
 
-  //TODO: calculate merkleRoot address offChain
   const merkleRootAddress = (root: MerkleRoot) => {
     const data = beginCell()
       .storeAddress(offRamp.address) //owner
@@ -394,7 +395,6 @@ describe('OffRamp', () => {
     }
   }, 60_000) // setup can take a while, since we deploy contracts
 
-  /*
   it('should deploy', async () => {
     // the check is done inside beforeEach
     // blockchain and counter are ready to use
@@ -409,7 +409,6 @@ describe('OffRamp', () => {
     await setupOCRConfig()
     await commitReport([])
   })
-  */
 
   it('Test commit with one merkle root for one empty message', async () => {
     const message = createTestMessage()
@@ -424,7 +423,7 @@ describe('OffRamp', () => {
 
     expect(result.transactions).toHaveTransaction({
       from: offRamp.address,
-      //to: merkleRootAddress(root), TODO: calculate merkleRoot address offChain
+      to: merkleRootAddress(root),
       deploy: true,
       success: true,
     })
@@ -479,7 +478,14 @@ describe('OffRamp', () => {
 
     expect(result.transactions).toHaveTransaction({
       from: offRamp.address,
-      //TODO: merkleRootAddress(root)
+      to: merkleRootAddress(root1),
+      deploy: true,
+      success: true,
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: offRamp.address,
+      to: merkleRootAddress(root2),
       deploy: true,
       success: true,
     })
@@ -721,5 +727,24 @@ describe('OffRamp', () => {
         },
       },
     )
+  })
+
+  it('Test cannot call dispatch directly', async () => {
+    const message = createTestMessage(1n, 1n, receiver.address)
+
+    const result = await offRamp.sendDispatchValidated(deployer.getSender(), {
+      value: toNano('0.5'),
+      messages: [message],
+      proofs: [],
+      proofFlagBits: 0n,
+      metadataHash: uint8ArrayToBigInt(getMetadataHash(CHAINSEL_EVM_TEST_90000001)),
+    })
+
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: offRamp.address,
+      success: false,
+      exitCode: ERROR_DISPATCH_NOT_FROM_MERKLE_ROOT,
+    })
   })
 })

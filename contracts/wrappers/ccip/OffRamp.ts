@@ -137,6 +137,7 @@ export const Opcodes = {
   commit: crc32('OffRamp_Commit'),
   execute: crc32('OffRamp_Execute'),
   updateSourceChainConfig: crc32('OffRamp_UpdateSourceChainConfig'),
+  dispatchValidated: crc32('OffRamp_DispatchValidated'),
 }
 
 export abstract class Errors {}
@@ -250,6 +251,35 @@ export class OffRamp extends OCR3Base {
         .endCell(),
     })
   }
+
+  //should throw if not called by an owned MerkleRoot contract
+  async sendDispatchValidated(
+    provider: ContractProvider,
+    via: Sender,
+    opts: {
+      value: bigint
+      messages: Any2TVMRampMessage[]
+      proofs: bigint[] //256[]
+      proofFlagBits: bigint //256
+      metadataHash: bigint //256
+    },
+  ) {
+    await provider.internal(via, {
+      value: opts.value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: beginCell()
+        .storeUint(Opcodes.dispatchValidated, 32)
+        .storeRef(
+          asSnakeData(opts.messages, (item) =>
+            beginCell().storeBuilder(Any2TVMRampMessageToBuilder(item)),
+          ),
+        )
+        .storeRef(asSnakeData(opts.proofs, (item) => beginCell().storeUint(item, 256)))
+        .storeUint(opts.proofFlagBits, 256)
+        .storeUint(opts.metadataHash, 256)
+        .endCell(),
+    })
+  }
 }
 
 export function priceUpdatesToCell(priceUpdates: PriceUpdates): Cell {
@@ -343,7 +373,7 @@ function ExecutionReportToBuilder(report: ExecutionReport) {
     .storeUint(report.sourceChainSelector, 64)
     .storeRef(
       asSnakeData(report.messages, (message) => {
-        return Any2TVMMessageToBuilder(message)
+        return Any2TVMRampMessageToBuilder(message)
       }),
     )
     .storeRef(beginCell().endCell()) //TODO: offchainTokenData
@@ -355,7 +385,7 @@ function ExecutionReportToBuilder(report: ExecutionReport) {
     .storeUint(report.proofFlagBits, 256)
 }
 
-function Any2TVMMessageToBuilder(message: Any2TVMRampMessage) {
+function Any2TVMRampMessageToBuilder(message: Any2TVMRampMessage) {
   return beginCell()
     .storeBuilder(RampMessageHeaderToBuidler(message.header))
     .storeRef(
