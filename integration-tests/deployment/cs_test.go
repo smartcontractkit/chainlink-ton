@@ -12,7 +12,7 @@ import (
 	chain_selectors "github.com/smartcontractkit/chain-selectors"
 	"github.com/stretchr/testify/require"
 
-	ops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
+	ton_ops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 
@@ -24,6 +24,10 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/chainaccessor"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
+	inmemorystore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/db/inmemory"
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/loader/account"
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/txparser"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
@@ -56,15 +60,15 @@ func TestDeploy(t *testing.T) {
 	// memory environment doesn't block on funding so changesets can execute before the env is fully ready, manually call fund so we block here
 	test_utils.FundWallets(t, tonChain.Client, []*address.Address{deployer.Address()}, []tlb.Coins{tlb.MustFromTON("1000")})
 
-	cs := ops.DeployChainContractsToTonCS(t, env, chainSelector)
+	cs := ton_ops.DeployChainContractsToTonCS(t, env, chainSelector)
 	env, _, err := commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{cs})
 	require.NoError(t, err, "failed to deploy ccip")
 
 	// TODO: LINK token deployment
-	linkAddr := ops.TonTokenAddr
+	linkAddr := ton_ops.TonTokenAddr
 
 	env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{
-		commonchangeset.Configure(ops.AddTonLanes{}, config.UpdateTonLanesConfig{
+		commonchangeset.Configure(ton_ops.AddTonLanes{}, config.UpdateTonLanesConfig{
 			EVMMCMSConfig: &proposalutils.TimelockConfig{},
 			TonMCMSConfig: &proposalutils.TimelockConfig{},
 			Lanes: []config.LaneConfig{
@@ -77,31 +81,11 @@ func TestDeploy(t *testing.T) {
 						Selector: chainSelector,
 						GasPrice: big.NewInt(1e17),
 						TokenPrices: map[*address.Address]*big.Int{
-							ops.TonTokenAddr: big.NewInt(99),
+							ton_ops.TonTokenAddr: big.NewInt(99),
 						},
-						FeeQuoterDestChainConfig: feequoter.DestChainConfig{ // minimal valid config
-							IsEnabled:                         true,
-							MaxNumberOfTokensPerMsg:           0,
-							MaxDataBytes:                      100,
-							MaxPerMsgGasLimit:                 100,
-							DestGasOverhead:                   0,
-							DestGasPerPayloadByteBase:         0,
-							DestGasPerPayloadByteHigh:         0,
-							DestGasPerPayloadByteThreshold:    0,
-							DestDataAvailabilityOverheadGas:   0,
-							DestGasPerDataAvailabilityByte:    0,
-							DestDataAvailabilityMultiplierBps: 0,
-							ChainFamilySelector:               0,
-							EnforceOutOfOrder:                 false,
-							DefaultTokenFeeUsdCents:           0,
-							DefaultTokenDestGasOverhead:       0,
-							DefaultTxGasLimit:                 1,
-							GasMultiplierWeiPerEth:            0,
-							GasPriceStalenessThreshold:        0,
-							NetworkFeeUsdCents:                0,
-						},
-						TokenTransferFeeConfigs: map[uint64]feequoter.UpdateTokenTransferFeeConfig{
-							// TODO:
+						FeeQuoterDestChainConfig: ton_ops.DefaultFeeQuoterDestChainConfig(true, evmSelector),
+						TokenTransferFeeConfigs:  map[uint64]feequoter.UpdateTokenTransferFeeConfig{
+							// TODO: populate when token transfer enabled
 						},
 					},
 					Dest: config.EVMChainDefinition{
@@ -129,10 +113,19 @@ func TestDeploy(t *testing.T) {
 	require.NoError(t, err)
 
 	// -- TON Accessor tests
-
+	lpCfg := logpoller.DefaultConfigSet
+	filterStore := inmemorystore.NewFilterStore()
+	opts := &logpoller.ServiceOptions{
+		Config:   lpCfg,
+		Client:   tonChain.Client,
+		Filters:  filterStore,
+		TxLoader: account.NewTxLoader(tonChain.Client, lggr, lpCfg.PageSize),
+		TxParser: txparser.NewTxParser(lggr, filterStore),
+		Store:    inmemorystore.NewLogStore(),
+	}
+	lp := logpoller.NewService(lggr, opts)
 	addrCodec := codec.NewAddressCodec()
-
-	accessor, err := chainaccessor.NewTONAccessor(lggr, ccipocr3.ChainSelector(chainSelector), tonChain.Client, nil, addrCodec)
+	accessor, err := chainaccessor.NewTONAccessor(lggr, ccipocr3.ChainSelector(chainSelector), tonChain.Client, lp, addrCodec)
 	require.NoError(t, err)
 
 	ctx := t.Context()

@@ -1,6 +1,8 @@
 package ops
 
 import (
+	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"math/big"
 	"testing"
@@ -36,6 +38,42 @@ const ChainSelEVMTest90000001 = 909606746561742123
 
 // TODO: use address.NewNoneAddress() instead?
 var TonTokenAddr = address.MustParseRawAddr("0:0000000000000000000000000000000000000000000000000000000000000000")
+
+// DefaultFeeQuoterDestChainConfig returns a default fee quoter config for TON CCIP testing
+func DefaultFeeQuoterDestChainConfig(configEnabled bool, destChainSelector ...uint64) feequoter.DestChainConfig {
+	familySelector, _ := hex.DecodeString(v1_6.TVMFamilySelector)
+	if len(destChainSelector) > 0 {
+		destFamily, _ := chainsel.GetSelectorFamily(destChainSelector[0])
+		switch destFamily {
+		case chainsel.FamilyEVM:
+			familySelector, _ = hex.DecodeString(v1_6.EVMFamilySelector)
+		case chainsel.FamilySolana:
+			familySelector, _ = hex.DecodeString(v1_6.SVMFamilySelector)
+		case chainsel.FamilyAptos:
+			familySelector, _ = hex.DecodeString(v1_6.AptosFamilySelector)
+		}
+	}
+	return feequoter.DestChainConfig{
+		IsEnabled:                       configEnabled,
+		MaxNumberOfTokensPerMsg:         0,
+		MaxDataBytes:                    100,
+		MaxPerMsgGasLimit:               100,
+		DestGasOverhead:                 0,
+		DestGasPerPayloadByteBase:       0,
+		DestGasPerPayloadByteHigh:       0,
+		DestGasPerPayloadByteThreshold:  0,
+		DestDataAvailabilityOverheadGas: 0,
+		DestGasPerDataAvailabilityByte:  0,
+		ChainFamilySelector:             binary.BigEndian.Uint32(familySelector),
+		EnforceOutOfOrder:               false,
+		DefaultTokenFeeUsdCents:         0,
+		DefaultTokenDestGasOverhead:     0,
+		DefaultTxGasLimit:               1,
+		GasMultiplierWeiPerEth:          0,
+		GasPriceStalenessThreshold:      0,
+		NetworkFeeUsdCents:              0,
+	}
+}
 
 func DeployChainContractsToTonCS(t *testing.T, env cldf.Environment, chainSelector uint64) commonchangeset.ConfiguredChangeSet {
 	tonChain := env.BlockChains.TonChains()[chainSelector]
@@ -88,6 +126,7 @@ func AddLaneTONChangesets(env *cldf.Environment, from, to uint64, fromFamily, to
 					RMNVerificationDisabled: true,
 				},
 				Selector: from,
+				GasPrice: gasPrices[from],
 			},
 		}
 	case chainsel.FamilyTon:
@@ -97,6 +136,14 @@ func AddLaneTONChangesets(env *cldf.Environment, from, to uint64, fromFamily, to
 				AllowListEnabled:        false,
 			},
 			Selector: from,
+			GasPrice: gasPrices[from],
+			TokenPrices: map[*address.Address]*big.Int{
+				tonTokenAddr: big.NewInt(99),
+			},
+			FeeQuoterDestChainConfig: DefaultFeeQuoterDestChainConfig(true, to),
+			TokenTransferFeeConfigs:  map[uint64]feequoter.UpdateTokenTransferFeeConfig{
+				// TODO:
+			},
 		}
 	default:
 		env.Logger.Fatalf("Unsupported source chain family: %v", fromFamily)
@@ -133,41 +180,21 @@ func AddLaneTONChangesets(env *cldf.Environment, from, to uint64, fromFamily, to
 					NetworkFeeUSDCents:                10,
 				},
 			},
-			OnRampVersion: []byte{1, 6, 0},
+			OnRampVersion: []byte{1, 6, 1},
 		}
 	case chainsel.FamilyTon:
-		src = config.TonChainDefinition{
+		dest = config.TonChainDefinition{
 			ConnectionConfig: v1_6.ConnectionConfig{
 				RMNVerificationDisabled: true,
 				AllowListEnabled:        false,
 			},
-			Selector: from,
+			Selector: to,
 			GasPrice: big.NewInt(1e17),
 			TokenPrices: map[*address.Address]*big.Int{
 				tonTokenAddr: big.NewInt(99),
 			},
-			FeeQuoterDestChainConfig: feequoter.DestChainConfig{ // minimal valid config
-				IsEnabled:                         true,
-				MaxNumberOfTokensPerMsg:           0,
-				MaxDataBytes:                      100,
-				MaxPerMsgGasLimit:                 100,
-				DestGasOverhead:                   0,
-				DestGasPerPayloadByteBase:         0,
-				DestGasPerPayloadByteHigh:         0,
-				DestGasPerPayloadByteThreshold:    0,
-				DestDataAvailabilityOverheadGas:   0,
-				DestGasPerDataAvailabilityByte:    0,
-				DestDataAvailabilityMultiplierBps: 0,
-				ChainFamilySelector:               0,
-				EnforceOutOfOrder:                 false,
-				DefaultTokenFeeUsdCents:           0,
-				DefaultTokenDestGasOverhead:       0,
-				DefaultTxGasLimit:                 1,
-				GasMultiplierWeiPerEth:            0,
-				GasPriceStalenessThreshold:        0,
-				NetworkFeeUsdCents:                0,
-			},
-			TokenTransferFeeConfigs: map[uint64]feequoter.UpdateTokenTransferFeeConfig{
+			FeeQuoterDestChainConfig: DefaultFeeQuoterDestChainConfig(true, to),
+			TokenTransferFeeConfigs:  map[uint64]feequoter.UpdateTokenTransferFeeConfig{
 				// TODO:
 			},
 		}
@@ -177,6 +204,7 @@ func AddLaneTONChangesets(env *cldf.Environment, from, to uint64, fromFamily, to
 	}
 
 	laneConfig := config.UpdateTonLanesConfig{
+		EVMMCMSConfig: &proposalutils.TimelockConfig{},
 		TonMCMSConfig: &proposalutils.TimelockConfig{
 			MinDelay:     time.Second,
 			MCMSAction:   mcmstypes.TimelockActionSchedule,
@@ -221,13 +249,13 @@ func SendTonRequest(
 	routerAddr := state.TonChains[cfg.SourceChain].Router
 	onrampAddr := state.TonChains[cfg.SourceChain].OnRamp
 
-	// TODO Skipping token amounts setup for now, and in the future for supporting token transfers
 	ccipSend := router.CCIPSend{
 		QueryID:           msg.QueryID,
 		DestChainSelector: cfg.DestChain,
 		Receiver:          msg.Receiver,
 		Data:              msg.Data,
 		FeeToken:          msg.FeeToken,
+		TokenAmounts:      nil, // TODO: add token amounts when token transfer enabled
 		ExtraArgs:         msg.ExtraArgs,
 	}
 
@@ -239,9 +267,11 @@ func SendTonRequest(
 	walletMsg := &wallet.Message{
 		Mode: wallet.PayGasSeparately, // TODO: wallet.IgnoreErrors ?
 		InternalMessage: &tlb.InternalMessage{
-			Bounce:  true,
-			DstAddr: &routerAddr,
-			Body:    ccipSendCell,
+			IHRDisabled: true,
+			Bounce:      false,
+			DstAddr:     &routerAddr,
+			Amount:      tlb.MustFromTON("1.0"), // TODO:
+			Body:        ccipSendCell,
 		},
 	}
 
@@ -251,10 +281,8 @@ func SendTonRequest(
 		return nil, fmt.Errorf("failed to send transaction: %w", err)
 	}
 
-	outcomeExitCode := receivedMsg.OutcomeExitCode()
-
-	if outcomeExitCode != 0 {
-		e.Logger.Error(int32(outcomeExitCode), "transaction trace failed with exit code %v", outcomeExitCode.Describe())
+	if receivedMsg.ExitCode != 0 {
+		return nil, fmt.Errorf("transaction failed: with exitcode %d: %s", receivedMsg.ExitCode, receivedMsg.ExitCode.Describe())
 	}
 
 	e.Logger.Infow("transaction sent", "blockID", blockID, "receivedMsg", receivedMsg)

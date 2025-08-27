@@ -1,4 +1,4 @@
-package indexer
+package txparser
 
 import (
 	"context"
@@ -15,29 +15,29 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/event"
 )
 
-var _ logpoller.TxIndexer = (*indexer)(nil)
+var _ logpoller.TxParser = (*txParser)(nil)
 
-type indexer struct {
+type txParser struct {
 	lggr    logger.SugaredLogger
 	filters logpoller.FilterStore
 }
 
-func NewIndexer(lggr logger.Logger, filters logpoller.FilterStore) logpoller.TxIndexer {
-	return &indexer{
+func NewTxParser(lggr logger.Logger, filters logpoller.FilterStore) logpoller.TxParser {
+	return &txParser{
 		lggr:    logger.Sugared(lggr),
 		filters: filters,
 	}
 }
 
-// IndexTransactions iterates through transactions and processes each one
-func (ixr *indexer) IndexTransactions(ctx context.Context, txs []types.TxWithBlock) ([]types.Log, error) {
+// ParseTransactions iterates through transactions and processes each one
+func (p *txParser) ParseTransactions(ctx context.Context, txs []types.TxWithBlock) ([]types.Log, error) {
 	var allLogs []types.Log
 
 	for _, tx := range txs {
-		logs, err := ixr.indexTx(ctx, tx)
+		logs, err := p.parseTx(ctx, tx)
 		if err != nil {
 			// TODO: error handling strategy
-			ixr.lggr.Errorw("Critical failure indexing transaction, skipping", "tx_hash", tx.Tx.Hash, "err", err)
+			p.lggr.Errorw("Critical failure while parsing transaction, skipping", "tx_hash", tx.Tx.Hash, "err", err)
 			continue
 		}
 		if len(logs) > 0 {
@@ -48,8 +48,8 @@ func (ixr *indexer) IndexTransactions(ctx context.Context, txs []types.TxWithBlo
 	return allLogs, nil
 }
 
-// indexTx handles a single transaction
-func (ixr *indexer) indexTx(ctx context.Context, tx types.TxWithBlock) ([]types.Log, error) {
+// parseTx handles a single transaction
+func (p *txParser) parseTx(ctx context.Context, tx types.TxWithBlock) ([]types.Log, error) {
 	var allLogs []types.Log
 
 	msgs, _ := tx.Tx.IO.Out.ToSlice()
@@ -57,9 +57,9 @@ func (ixr *indexer) indexTx(ctx context.Context, tx types.TxWithBlock) ([]types.
 		srcAddr := msg.Msg.SenderAddr()
 
 		// get filters registered for this source address and message type
-		filtersForAddr, err := ixr.filters.GetFiltersForAddressAndMsgType(ctx, srcAddr, msg.MsgType)
+		filtersForAddr, err := p.filters.GetFiltersForAddressAndMsgType(ctx, srcAddr, msg.MsgType)
 		if err != nil {
-			ixr.lggr.Errorw("Failed to get filters for address and message type", "addr", srcAddr.String(), "msgType", msg.MsgType, "err", err)
+			p.lggr.Errorw("Failed to get filters for address and message type", "addr", srcAddr.String(), "msgType", msg.MsgType, "err", err)
 			continue
 		}
 
@@ -74,15 +74,15 @@ func (ixr *indexer) indexTx(ctx context.Context, tx types.TxWithBlock) ([]types.
 
 			switch msg.MsgType {
 			case tlb.MsgTypeExternalOut:
-				eventSig, msgBody, err = ixr.parseExtMsgOut(msg.AsExternalOut(), filter)
+				eventSig, msgBody, err = p.parseExtMsgOut(msg.AsExternalOut(), filter)
 			case tlb.MsgTypeInternal:
-				eventSig, msgBody, err = ixr.parseInternalMsg(msg.AsInternal(), filter)
+				eventSig, msgBody, err = p.parseInternalMsg(msg.AsInternal(), filter)
 			case tlb.MsgTypeExternalIn:
 				continue // not supported
 			}
 
 			if err != nil {
-				ixr.lggr.Warnw("Failed to process message with filter", "filterName", filter.Name, "err", err)
+				p.lggr.Warnw("Failed to process message with filter", "filterName", filter.Name, "err", err)
 				continue
 			}
 
@@ -106,12 +106,12 @@ func (ixr *indexer) indexTx(ctx context.Context, tx types.TxWithBlock) ([]types.
 }
 
 // parseExtMsgOut returns body and event signature(topic) for an external out message.
-func (ixr *indexer) parseExtMsgOut(msg *tlb.ExternalMessageOut, filter types.Filter) (sig uint32, body *cell.Cell, err error) {
+func (p *txParser) parseExtMsgOut(msg *tlb.ExternalMessageOut, filter types.Filter) (sig uint32, body *cell.Cell, err error) {
 	// for ExtMsgOut we use topic for event sig
 	bucket := event.NewExtOutLogBucket(msg.DestAddr())
 	topic, err := bucket.DecodeEventTopic()
 	if err != nil {
-		// indexing issue, don't panic
+		// decoding issue, don't panic
 		return 0, nil, errors.New("failed to decode event topic")
 	}
 
@@ -124,14 +124,14 @@ func (ixr *indexer) parseExtMsgOut(msg *tlb.ExternalMessageOut, filter types.Fil
 
 // parseInternalMsg returns body and event signature(opcode) for an internal message.
 // this function extracts opcode, and return remaining body slice as a cell
-func (ixr *indexer) parseInternalMsg(msg *tlb.InternalMessage, filter types.Filter) (sig uint32, body *cell.Cell, err error) {
+func (p *txParser) parseInternalMsg(msg *tlb.InternalMessage, filter types.Filter) (sig uint32, body *cell.Cell, err error) {
 	payload := msg.Payload()
 	if payload == nil {
 		return 0, nil, nil // no payload
 	}
 
 	// extract opcode and remaining body in separate operations to avoid state mutation
-	opcode, remainingBody, err := ixr.extractOpcodeAndBody(payload)
+	opcode, remainingBody, err := p.extractOpcodeAndBody(payload)
 	if err != nil {
 		return 0, nil, fmt.Errorf("failed to extract opcode and body: %w", err)
 	}
@@ -144,7 +144,7 @@ func (ixr *indexer) parseInternalMsg(msg *tlb.InternalMessage, filter types.Filt
 }
 
 // extractOpcodeAndBody safely extracts the opcode and remaining body without mutating the original cell
-func (ixr *indexer) extractOpcodeAndBody(payload *cell.Cell) (opcode uint32, remainingBody *cell.Cell, err error) {
+func (p *txParser) extractOpcodeAndBody(payload *cell.Cell) (opcode uint32, remainingBody *cell.Cell, err error) {
 	// create a slice for reading without mutating the original
 	payloadSlice := payload.BeginParse()
 
