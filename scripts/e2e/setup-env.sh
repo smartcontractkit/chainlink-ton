@@ -187,12 +187,22 @@ log_info "Preparing Chainlink Core (dependencies, build, DB setup)..."
   go run github.com/jmank88/gomods@v0.1.5 tidy
 
   go mod download
-  if [ -f "./integration-tests/go.mod" ]; then
-    (cd "./integration-tests" && go mod download)
-  fi
-  go build -o ccip.test .
 
-  ./ccip.test local db preparetest
+  # Notice: this section is broken (re: pg_dump nondeterministic \unrestrict issue),
+  # and in a dependency hell to fix via go.mod updates
+  #
+  # The preparetest CMD will only work with this specific version currently
+  # TEMP: workaround issues with db schema pinning (https://github.com/smartcontractkit/capabilities/pull/234)
+  #
+  # if [ -f "./integration-tests/go.mod" ]; then
+  #   (cd "./integration-tests" && go mod download)
+  # fi
+  # go build -o ccip.test .
+  #
+  # ./ccip.test local db preparetest
+
+  go get github.com/smartcontractkit/chainlink/v2/core/store/cmd/preparetest@d2c56f4161f3431268cb52e717a77b7ea7dcef09
+  go run github.com/smartcontractkit/chainlink/v2/core/store/cmd/preparetest
 )
 
 log_info "=================================="
