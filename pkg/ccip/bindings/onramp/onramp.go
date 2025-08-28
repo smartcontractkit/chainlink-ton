@@ -1,6 +1,7 @@
 package onramp
 
 import (
+	"fmt"
 	"math/big"
 
 	"github.com/xssnick/tonutils-go/address"
@@ -42,6 +43,7 @@ type DestChainConfig struct {
 }
 
 func (c *DestChainConfig) FromResult(result *ton.ExecutionResult) error {
+	fmt.Printf("debugging destChainConfig: %+v\n", result.AsTuple())
 	routerAddressSlice, err := result.Slice(0)
 	if err != nil {
 		return err
