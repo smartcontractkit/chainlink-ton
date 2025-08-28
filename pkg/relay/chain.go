@@ -157,7 +157,7 @@ func (c *chain) Start(ctx context.Context) error {
 		var ms services.MultiStart
 
 		if err := ms.Start(ctx, c.txm); err != nil {
-
+			return err
 		}
 		if err := ms.Start(ctx, c.lp); err != nil {
 			return err
