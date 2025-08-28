@@ -101,12 +101,12 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 		feeTokens[config.Address.String()] = operation.FeeTokenConfig{PremiumMultiplierWeiPerEth: config.PremiumMultiplierWeiPerEth}
 	}
 	updateFeeTokensInput := operation.UpdateFeeQuoterFeeTokensInput{
-		FeeTokens: map[string]operation.FeeTokenConfig{},
+		FeeTokens: feeTokens,
 	}
 	updateFeeTokensReport, err := operations.ExecuteOperation(env.OperationsBundle, operation.UpdateFeeQuoterFeeTokensOp, deps, updateFeeTokensInput)
 	txs = append(txs, updateFeeTokensReport.Output...)
 
-	if err := utils.ExecuteProposals(env, chain.Client, chain.Wallet, ccipSeqReport.Output.Transactions); err != nil {
+	if err := utils.ExecuteProposals(env, chain.Client, chain.Wallet, txs); err != nil {
 		return cldf.ChangesetOutput{}, err
 	}
 
