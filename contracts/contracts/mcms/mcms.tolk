@@ -209,7 +209,7 @@ struct MCMS_Data {
     /// Remember signedHashes that this contract has seen. Each signedHash can only be set once.
     seenSignedHashes: dict; // map<uint256, bool>
     /// The current expiring root and the number of ops in it.
-    expiringRootAndOpCount: ExpiringRootAndOpCount;
+    expiringRootAndOpCount: ExpiringRootAndOpCount; // TODO: Error: contracts/mcms/mcms.tolk:195: error: struct `MCMS_Data` can exceed 1023 bits in serialization (estimated size: 687..1484 bits)
     /// The current metadata about the root.
     rootMetadata: Cell<RootMetadata>; // Notice: split out as cell to avoid size limits
 }
@@ -250,6 +250,8 @@ const MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA =
 
 const NUM_GROUPS = 32;
 const MAX_NUM_SIGNERS = 200;
+
+const DEFAULT_FINALIZATION_TIMEOUT = 60; // in seconds
 
 /// @notice Thrown when number of signers is 0 or greater than MAX_NUM_SIGNERS.
 const ERROR_OUT_OF_BOUNDS_NUM_SIGNERS = 100;
@@ -322,6 +324,9 @@ const ERROR_MISSING_CONFIG = 120;
 
 /// @notice Thrown when attempt to set the same (root, validUntil) in setRoot().
 const ERROR_SIGNED_HASH_ALREADY_SEEN = 121;
+
+/// @notice Thrown when the root has not been finalized yet (can't execute next op before finalization).
+const ERROR_ROOT_NOT_FINALIZED = 122;
 
 // --- Constants - storage ---
 
@@ -414,6 +419,20 @@ struct ExpiringRootAndOpCount {
     validUntil: uint32;
     /// each ManyChainMultiSig instance has it own independent opCount.
     opCount: uint40;
+
+    /// TON-specific additions below to support the async environment
+    ///
+    /// The time at which the root becomes valid [executionTime(opCount - 1) + opFinalizationTimeout].
+    /// At this time the previous executed operation is considered optimistically final and succesfull,
+    /// meaning no bounce was received and we can continue executing.
+    validAfter: uint32;
+    /// The timeout required to finalize the currently executing op
+    opFinalizationTimeout: uint32;
+    /// The address that the (pending) operation was sent to (and could bounce from).
+    opPendingReceiver: address;
+    /// The truncated body of the pending operation (256 bits from the original message),
+    /// stored as the next expected potential bounce, and verified in onBounceMessage handler.
+    opPendingBodyVal: uint256;
 }
 
 /// @notice Each root also authenticates metadata about itself (stored as one of the leaves)
@@ -504,7 +523,8 @@ fun MCMS<T>.setRoot(
     validUntil: uint32,
     metadata: RootMetadata,
     metadataProof: Iterator<uint256>,
-    signatures: cell // vec<Signature>
+    signatures: cell, // vec<Signature>
+    opFinalizationTimeout: uint32 = DEFAULT_FINALIZATION_TIMEOUT
 ) {
     /// Construct the message that should be signed by the signers.
     val signedHash = beginCell()
@@ -680,9 +700,14 @@ fun MCMS<T>.setRoot(
     // done with validation, persist in in contract state
     self.data.seenSignedHashes.uDictSet(256, signedHash, createEmptySlice());
     self.data.expiringRootAndOpCount = ExpiringRootAndOpCount{
-        root: root,
-        validUntil: validUntil,
-        opCount: metadata.preOpCount
+        root,
+        validUntil,
+        opCount: metadata.preOpCount,
+        // TON-specific additions below to support the async environment
+        validAfter: blockchain.now(), // immediate
+        opFinalizationTimeout,
+        opPendingReceiver: createAddressNone(),
+        opPendingBodyVal: 0,
     };
     self.data.rootMetadata = metadata.toCell();
 
@@ -741,6 +766,10 @@ fun MCMS<T>.execute(
         throw ERROR_ROOT_EXPIRED;
     }
 
+    if (blockchain.now() < currentExpiringRootAndOpCount.validAfter) {
+        throw ERROR_ROOT_NOT_FINALIZED;
+    }
+
     if (op.nonce != currentExpiringRootAndOpCount.opCount) {
         throw ERROR_WRONG_NONCE;
     }
@@ -760,6 +789,19 @@ fun MCMS<T>.execute(
 
     // increase the counter *before* execution to prevent reentrancy issues
     self.data.expiringRootAndOpCount.opCount = currentExpiringRootAndOpCount.opCount + 1;
+
+    // Notice: we set optimistic finalization of an async operation using a timeout
+    // Within that timeout executions are paused as we wait for the finalization signal
+    //
+    // To finalize an execution, one of two conditions must be met:
+    // 1. Finalization timeout expired (can continue)
+    // 2. Message bounced back         (can retry)
+    self.data.expiringRootAndOpCount.validAfter =
+        blockchain.now() + self.data.expiringRootAndOpCount.opFinalizationTimeout;
+
+    // Store the pending message info (checked onBouncedMessage)
+    self.data.expiringRootAndOpCount.opPendingReceiver = op.to;
+    self.data.expiringRootAndOpCount.opPendingBodyVal = extractBouncedBody(op.data.beginParse());
 
     self._execute(op.to, op.value, op.data);
 
@@ -953,7 +995,12 @@ fun MCMS<T>.setConfig(
         self.data.expiringRootAndOpCount = ExpiringRootAndOpCount{
             root: 0, // empty root
             validUntil: 0,
-            opCount: opCount
+            opCount: opCount,
+            // TON-specific additions below to support the async environment
+            validAfter: blockchain.now(), // immediate
+            opFinalizationTimeout: 0,
+            opPendingReceiver: createAddressNone(),
+            opPendingBodyVal: 0
         };
         self.data.rootMetadata = RootMetadata{
             chainId: globalId() as int256,
@@ -1024,6 +1071,7 @@ fun MCMS<T>.onInternalMessage(mutate self, msgSender: address, msgValue: coins, 
             return;
         }
         MCMS_SetRoot => {
+            // TODO: make opFinalizationTimeout configurable
             self.setRoot(msgSender, msg.queryId, msg.root, msg.validUntil, msg.metadata,
                 Iterator<uint256>.new(msg.metadataProof), msg.signatures);
         }
@@ -1047,13 +1095,58 @@ fun MCMS<T>.onInternalMessage(mutate self, msgSender: address, msgValue: coins, 
     }
 }
 
-// TODO: handle bounced messages
+fun onBouncedMessage(in: InMessageBounced) {
+    // Load the contract storage as MCMS and handle the bounced message
+    var mcms = MCMS<bool>.load();
+
+    // If the op was already finalized, we need to drop the bounce, and mark the root invalid.
+    //
+    // This is because subsequent operations might already be executed, and we're not at the
+    // right index in the op sequence to be able to retry the (current) op.
+    //
+    // This is why critical operation sequences need to be commited with a timeout
+    // which will allow enough time for them to be bounced and subsequently retried.
+    if (mcms.data.expiringRootAndOpCount.validAfter < blockchain.now()) {
+        // TODO: maybe we can also store and check opCount to see if subsequent ops were executed in the meantime
+        mcms.data.expiringRootAndOpCount.validUntil = blockchain.now(); // expire root immediately
+        mcms.data.storeAsContractData();
+        return;
+    }
+
+    // Check the bounced message against the stored pending operation
+    // If the received bounce does NOT equal expected, mark the root invalid.
+    val bouncedBodyVal = extractBouncedBody(in.bouncedBody.skipBouncedPrefix());
+    if (mcms.data.expiringRootAndOpCount.opPendingReceiver != in.senderAddress 
+        || mcms.data.expiringRootAndOpCount.opPendingBodyVal != bouncedBodyVal) {
+        // Mark root in error state (recover with new root + bypass)
+        mcms.data.expiringRootAndOpCount.validUntil = blockchain.now(); // expire root immediately
+        mcms.data.storeAsContractData();
+        return;
+    }
+
+    // TODO!
+    //
+    // Check for edge case where the root is updated before an execution from
+    // a previous root bounced back. We drop late bounces if we have a fresh root.
+    // val rootMetadata = lazy RootMetadata.fromCell(mcms.data.rootMetadata);
+    // if (rootMetadata.preOpCount == mcms.data.expiringRootAndOpCount.opCount) {
+    //     return;
+    // }
+
+    // If the received bounce equals expected, revert state (allow op retry)
+    mcms.data.expiringRootAndOpCount.opCount = mcms.data.expiringRootAndOpCount.opCount - 1;
+    mcms.data.expiringRootAndOpCount.validAfter = blockchain.now(); // can be retried immediately
+    mcms.data.expiringRootAndOpCount.opPendingReceiver = createAddressNone();
+    mcms.data.expiringRootAndOpCount.opPendingBodyVal = 0;
+    mcms.data.storeAsContractData();
+}
+
 fun onInternalMessage(in: InMessage) {
-    /// Load the contract storage as MCMS and handle the message
+    // Load the contract storage as MCMS and handle the message
     var mcms = MCMS<bool>.load();
     mcms.onInternalMessage(in.senderAddress, in.valueCoins, in.body);
 
-    /// Store the updated contract data
+    // Store the updated contract data
     mcms.data.storeAsContractData();
 }
 

@@ -18,6 +18,12 @@ fun globalId(): int {
     return blockchain.configParam(19)!.beginParse().loadInt(32);
 }
 
+/// Extracts the (potential) bounced body from the given slice (message body).
+fun extractBouncedBody(body: slice): uint256 {
+    val bits = body.remainingBitsCount();
+    return bits < 256 ? body.loadUint(bits) : body.loadUint(256);
+}
+
 /// Computes the Keccak-256 hash of the given data.
 @pure
 fun keccak256(data: slice): uint256

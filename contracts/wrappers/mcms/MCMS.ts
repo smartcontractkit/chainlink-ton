@@ -6,7 +6,6 @@ import {
   contractAddress,
   ContractProvider,
   Dictionary,
-  DictionaryKeyTypes,
   Sender,
   SendMode,
 } from '@ton/core'
@@ -278,6 +277,20 @@ export type ExpiringRootAndOpCount = {
   validUntil: bigint //uint32
   /// each ManyChainMultiSig instance has it own independent opCount.
   opCount: bigint // uint40
+
+  /// TON-specific additions below to support the async environment
+  ///
+  /// The time at which the root becomes valid [executionTime(opCount - 1) + opFinalizationTimeout].
+  /// At this time the previous executed operation is considered optimistically final and succesfull,
+  /// meaning no bounce was received and we can continue executing.
+  validAfter: bigint // uint32
+  /// The timeout required to finalize the currently executing op
+  opFinalizationTimeout: bigint // uint32
+  /// The address that the (pending) operation was sent to (and could bounce from).
+  opPendingReceiver: Address
+  /// The truncated body of the pending operation (256 bits from the original message),
+  /// stored as the next expected potential bounce, and verified in onBounceMessage handler.
+  opPendingBodyVal: bigint // uint256
 }
 
 /// @notice Each root also authenticates metadata about itself (stored as one of the leaves)
@@ -532,6 +545,10 @@ export const builder = {
           .storeUint(data.root, 256)
           .storeUint(data.validUntil, 32)
           .storeUint(data.opCount, 40)
+          .storeUint(data.validAfter, 32)
+          .storeUint(data.opFinalizationTimeout, 32)
+          .storeAddress(data.opPendingReceiver)
+          .storeUint(data.opPendingBodyVal, 256)
           .endCell()
       },
       decode: (cell: Cell): ExpiringRootAndOpCount => {
@@ -540,6 +557,10 @@ export const builder = {
           root: s.loadUintBig(256),
           validUntil: s.loadUintBig(32),
           opCount: s.loadUintBig(40),
+          validAfter: s.loadUintBig(32),
+          opFinalizationTimeout: s.loadUintBig(32),
+          opPendingReceiver: s.loadAddress(),
+          opPendingBodyVal: s.loadUintBig(256),
         }
       },
     }
@@ -666,6 +687,10 @@ export const builder = {
           root: s.loadUintBig(256),
           opCount: s.loadUintBig(40),
           validUntil: s.loadUintBig(32),
+          validAfter: s.loadUintBig(32),
+          opFinalizationTimeout: s.loadUintBig(32),
+          opPendingReceiver: s.loadAddress(),
+          opPendingBodyVal: s.loadUintBig(256),
         }
 
         const rootMetadata = {
@@ -706,6 +731,10 @@ export const builder = {
           root: 0n, // no root
           validUntil: 0n, // no validity
           opCount: 0n, // no ops
+          validAfter: 0n, // no valid after
+          opFinalizationTimeout: 0n, // no op finalization timeout
+          opPendingReceiver: ZERO_ADDRESS, // no op pending receiver
+          opPendingBodyVal: 0n, // no op pending body
         },
         rootMetadata: {
           chainId: 0n, // no chain ID

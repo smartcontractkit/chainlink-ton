@@ -240,6 +240,8 @@ export class MCMSBaseTestSetup {
         root: 0n,
         validUntil: 0n,
         opCount: 0n,
+        validAfter: 0n,
+        opFinalizationTimeout: 0n,
       },
       rootMetadata: {
         chainId: MCMSBaseTestSetup.TEST_CHAIN_ID,
