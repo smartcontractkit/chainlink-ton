@@ -93,6 +93,7 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 
 	// Save state
 	err = state.SaveOnchainState(selector, s, env)
+	deps.CCIPOnChainState[selector] = s
 	if err != nil {
 		return cldf.ChangesetOutput{}, err
 	}
