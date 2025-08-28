@@ -12,13 +12,14 @@ import (
 	"sync"
 	"time"
 
-	inmemorystore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/db/inmemory"
-	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/loader/account"
-	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/txparser"
 	"github.com/xssnick/tonutils-go/liteclient"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
 	"github.com/xssnick/tonutils-go/tvm/cell"
+
+	inmemorystore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/db/inmemory"
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/loader/account"
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/txparser"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/chains"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
@@ -252,9 +253,14 @@ func (c *chain) Transact(ctx context.Context, from, to string, amount *big.Int, 
 	return errors.ErrUnsupported
 }
 
-func (c *chain) Replay(ctx context.Context, fromBlock string, args map[string]any) error {
-	// TODO(NONEVM-1460): implement
-	return errors.ErrUnsupported
+func (c *chain) Replay(ctx context.Context, fromBlock string, _ map[string]any) error {
+	// TODO(2025-08-28@jadepark-dev): clean up, forcing replay for e2e now
+	fromBlockNum, err := strconv.ParseUint(fromBlock, 10, 32)
+	if err != nil {
+		return fmt.Errorf("invalid fromBlock: %w", err)
+	}
+	err = c.lp.Replay(ctx, uint32(fromBlockNum))
+	return err
 }
 
 func (c *chain) ID() string {

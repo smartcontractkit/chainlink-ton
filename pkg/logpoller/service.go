@@ -208,6 +208,7 @@ func (lp *service) processBlockRange(ctx context.Context, blockRange *types.Bloc
 
 // RegisterFilter adds a new filter to monitor specific address/event signature combinations
 func (lp *service) RegisterFilter(ctx context.Context, flt types.Filter) error {
+	lp.lggr.Infow("registering filter", "filter", flt)
 	return lp.filters.RegisterFilter(ctx, flt)
 }
 
@@ -224,4 +225,38 @@ func (lp *service) HasFilter(ctx context.Context, name string) (bool, error) {
 // GetStore exposes the underlying log store for direct access
 func (lp *service) GetStore() LogStore {
 	return lp.store
+}
+
+func (lp *service) Replay(ctx context.Context, fromBlock uint32) error {
+	// TODO(2025-08-28@jadepark-dev): clean up, forcing replay for e2e now
+
+	toBlock, err := lp.client.CurrentMasterchainInfo(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get current masterchain info: %w", err)
+	}
+
+	prevBlock, err := lp.client.LookupBlock(ctx, toBlock.Workchain, toBlock.Shard, fromBlock)
+	if err != nil {
+		return fmt.Errorf("LookupBlock for previous seqno %d: %w", fromBlock, err)
+	}
+
+	lp.lggr.Debugw("replaying logs", "fromBlock", fromBlock, "toBlock", toBlock)
+
+	blockRange := &types.BlockRange{Prev: prevBlock, To: toBlock}
+
+	// get addresses
+	addresses, err := lp.filters.GetDistinctAddresses(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get distinct addresses: %w", err)
+	}
+	if len(addresses) == 0 {
+		return nil
+	}
+
+	// process block range
+	if err := lp.processBlockRange(ctx, blockRange, addresses); err != nil {
+		return fmt.Errorf("failed to process block range: %w", err)
+	}
+
+	return nil
 }
