@@ -27,6 +27,7 @@ import (
 	mcmstypes "github.com/smartcontractkit/mcms/types"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
@@ -141,7 +142,7 @@ func AddLaneTONChangesets(env *cldf.Environment, from, to uint64, fromFamily, to
 				tonTokenAddr: big.NewInt(99),
 			},
 			FeeQuoterDestChainConfig: DefaultFeeQuoterDestChainConfig(true, to),
-			TokenTransferFeeConfigs:  map[uint64]feequoter.UpdateTokenTransferFeeConfig{
+			TokenTransferFeeConfigs: map[uint64]feequoter.UpdateTokenTransferFeeConfig{
 				// TODO:
 			},
 		}
@@ -194,7 +195,7 @@ func AddLaneTONChangesets(env *cldf.Environment, from, to uint64, fromFamily, to
 				tonTokenAddr: big.NewInt(99),
 			},
 			FeeQuoterDestChainConfig: DefaultFeeQuoterDestChainConfig(true, to),
-			TokenTransferFeeConfigs:  map[uint64]feequoter.UpdateTokenTransferFeeConfig{
+			TokenTransferFeeConfigs: map[uint64]feequoter.UpdateTokenTransferFeeConfig{
 				// TODO:
 			},
 		}
@@ -292,20 +293,22 @@ func SendTonRequest(
 	}
 
 	// Log details about outgoing messages
-	e.Logger.Infof("Number of outgoing internal messages: %d", len(receivedMsg.OutgoingInternalReceivedMessages))
-	for i, outMsg := range receivedMsg.OutgoingInternalReceivedMessages {
-		e.Logger.Infof("Outgoing message %d: exit code %v, success: %v, bounced: %v, status: %v",
-			i, outMsg.ExitCode, outMsg.Success, outMsg.EmittedBouncedMessage, outMsg.Status())
-		if outMsg.ExitCode != 0 {
-			e.Logger.Errorf("Outgoing message %d failed with exit code %v", i, outMsg.ExitCode)
-		}
-		if !outMsg.Success {
-			e.Logger.Errorf("Outgoing message %d was not successful", i)
-		}
-		if outMsg.EmittedBouncedMessage {
-			e.Logger.Errorf("Outgoing message %d was bounced", i)
-		}
-	}
+	//e.Logger.Infof("Number of outgoing internal messages: %d", len(receivedMsg.OutgoingInternalReceivedMessages))
+	//for i, outMsg := range receivedMsg.OutgoingInternalReceivedMessages {
+	//	e.Logger.Infof("Outgoing message %d: exit code %v, success: %v, bounced: %v, status: %v",
+	//		i, outMsg.ExitCode, outMsg.Success, outMsg.EmittedBouncedMessage, outMsg.Status())
+	//	if outMsg.ExitCode != 0 {
+	//		e.Logger.Errorf("Outgoing message %d failed with exit code %v", i, outMsg.ExitCode)
+	//	}
+	//	if !outMsg.Success {
+	//		e.Logger.Errorf("Outgoing message %d was not successful", i)
+	//	}
+	//	if outMsg.EmittedBouncedMessage {
+	//		e.Logger.Errorf("Outgoing message %d was bounced", i)
+	//	}
+	//}
+
+	waitForReceivedMsg(e, clientConn, receivedMsg)
 
 	ca, er := chainaccessor.NewTONAccessor(e.Logger, cciptypes.ChainSelector(cfg.SourceChain), clientConn, nil, codec.NewAddressCodec())
 	if er != nil {
@@ -331,4 +334,34 @@ func SendTonRequest(
 	return &client.AnyMsgSentEvent{
 		SequenceNumber: uint64(number),
 	}, nil
+}
+
+func waitForReceivedMsg(e cldf.Environment, clientConn *ton.APIClient, msg *tracetracking.ReceivedMessage) {
+	if msg == nil || len(msg.OutgoingInternalReceivedMessages) == 0 {
+		return
+	}
+
+	// Log details about outgoing messages
+	e.Logger.Infof("Recrusive wait for number of outgoing internal messages: %d", len(msg.OutgoingInternalReceivedMessages))
+	for i, outMsg := range msg.OutgoingInternalReceivedMessages {
+		e.Logger.Infof("Outgoing message %d: exit code %v, success: %v, bounced: %v, status: %v",
+			i, outMsg.ExitCode, outMsg.Success, outMsg.EmittedBouncedMessage, outMsg.Status())
+		if outMsg.ExitCode != 0 {
+			e.Logger.Errorf("Outgoing message %d failed with exit code %v", i, outMsg.ExitCode)
+		}
+		if !outMsg.Success {
+			e.Logger.Errorf("Outgoing message %d was not successful", i)
+		}
+		if outMsg.EmittedBouncedMessage {
+			e.Logger.Errorf("Outgoing message %d was bounced", i)
+		}
+
+		err := outMsg.WaitForTrace(clientConn)
+		if err != nil {
+			e.Logger.Errorf("failed to wait for trace: %v", err)
+		}
+
+		waitForReceivedMsg(e, clientConn, outMsg)
+	}
+	return
 }
