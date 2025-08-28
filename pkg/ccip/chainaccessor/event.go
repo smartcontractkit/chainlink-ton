@@ -67,6 +67,7 @@ func (a *TONAccessor) registerFilterIfNotExists(ctx context.Context, eventName s
 		Address:  address,
 		MsgType:  tlb.MsgTypeExternalOut,
 		EventSig: hash.CRC32(eventName),
+		// TODO: add starting signo
 	}
 
 	if err := a.logPoller.RegisterFilter(ctx, filter); err != nil {

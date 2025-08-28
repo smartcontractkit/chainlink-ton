@@ -209,7 +209,19 @@ func (lp *service) processBlockRange(ctx context.Context, blockRange *types.Bloc
 // RegisterFilter adds a new filter to monitor specific address/event signature combinations
 func (lp *service) RegisterFilter(ctx context.Context, flt types.Filter) error {
 	lp.lggr.Infow("registering filter", "filter", flt)
-	return lp.filters.RegisterFilter(ctx, flt)
+
+	// Register the filter first
+	if err := lp.filters.RegisterFilter(ctx, flt); err != nil {
+		return err
+	}
+
+	// TODO(2025-08-28@jadepark-dev): clean up, forcing replay for e2e now
+	lp.lggr.Infow("replaying logs for new filter", "filter", flt.Name, "fromBlock", flt.StartingSeqNo)
+	if err := lp.Replay(ctx, flt.StartingSeqNo); err != nil {
+		lp.lggr.Errorw("failed to replay logs for new filter", "filter", flt.Name, "error", err)
+	}
+
+	return nil
 }
 
 // UnregisterFilter removes a filter by name
@@ -234,15 +246,16 @@ func (lp *service) Replay(ctx context.Context, fromBlock uint32) error {
 	if err != nil {
 		return fmt.Errorf("failed to get current masterchain info: %w", err)
 	}
+	blockRange := &types.BlockRange{Prev: nil, To: toBlock}
+	if fromBlock != 0 {
+		prevBlock, err := lp.client.LookupBlock(ctx, toBlock.Workchain, toBlock.Shard, fromBlock)
+		if err != nil {
+			return fmt.Errorf("LookupBlock for previous seqno %d: %w", fromBlock, err)
+		}
 
-	prevBlock, err := lp.client.LookupBlock(ctx, toBlock.Workchain, toBlock.Shard, fromBlock)
-	if err != nil {
-		return fmt.Errorf("LookupBlock for previous seqno %d: %w", fromBlock, err)
+		blockRange.Prev = prevBlock
 	}
-
 	lp.lggr.Debugw("replaying logs", "fromBlock", fromBlock, "toBlock", toBlock)
-
-	blockRange := &types.BlockRange{Prev: prevBlock, To: toBlock}
 
 	// get addresses
 	addresses, err := lp.filters.GetDistinctAddresses(ctx)

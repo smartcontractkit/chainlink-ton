@@ -201,12 +201,12 @@ func (a *TONAccessor) Sync(ctx context.Context, contractName string, contractAdd
 		return fmt.Errorf("failed to bind contract event: %w", err)
 	}
 
-	a.lggr.Debugw("Accquiring lock", strAddr)
+	a.lggr.Debugw("Acquiring lock", "address", strAddr)
 	a.bindingsMu.Lock()
 	defer a.bindingsMu.Unlock()
 	a.bindings[contractName] = addr
 
-	a.lggr.Debugw("Sync", "contractName", contractName, "Address", addr)
+	a.lggr.Debugw("Sync", "contractName", contractName, "address", addr.String())
 	return nil
 }
 
