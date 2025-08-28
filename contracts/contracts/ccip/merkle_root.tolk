@@ -8,7 +8,8 @@ import "../lib/utils.tolk";
 const STATE_UNTOUCHED: uint8 = 0;
 const STATE_TOKEN_TRANSFER: uint8 = 1;
 const STATE_EXECUTE: uint8 = 2;
-const STATE_SUCCESS: uint8 = 3;
+const STATE_EXECUTE_FAILED: uint8 =3;
+const STATE_SUCCESS: uint8 = 4;
 
 // Execution state stores CCIP specfic information
 // These have to match the EVM states
@@ -29,7 +30,7 @@ fun MerkleRoot_Storage.store(self) {
 }
 
 
-type MerkleRoot_InMessage = MerkleRoot_Validate;
+type MerkleRoot_InMessage = MerkleRoot_Validate | MerkleRoot_CCIPReceiveBounced | CCIPReceiveConfirm;
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy MerkleRoot_InMessage.fromSlice(in.body);
@@ -37,7 +38,26 @@ fun onInternalMessage(in: InMessage) {
         MerkleRoot_Validate => {
             // If we receive this message from the OffRamp then the merkle proof has already been validated.
             _validateAndExecute(msg, in.senderAddress);
-            
+        }
+        CCIPReceiveConfirm => {
+            var st = MerkleRoot_Storage.load();
+            assert(in.senderAddress == st.receiver, ERROR_NOT_OWNER);
+            st.state = STATE_SUCCESS;
+            st.executionStates = EXECUTION_STATE_SUCCESS; 
+            val offRampReceiveConfirm = createMessage({
+                bounce: true,
+                value: ton("0"), //TODO
+                dest: st.owner,
+                body: msg
+            });
+            offRampReceiveConfirm.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+        }
+        MerkleRoot_CCIPReceiveBounced => {
+            var st = MerkleRoot_Storage.load();
+            assert(in.senderAddress = st.owner, ERROR_NOT_OWNER);
+            st.state = STATE_EXECUTE_FAILED;
+            st.executionState = EXECUTION_STATE_FAILURE;
+            st.store();
         }
         else => {
             // ignore empty messages, "wrong opcode" for others
@@ -49,14 +69,14 @@ fun onInternalMessage(in: InMessage) {
 //TODO: We are not keeping track of the execution state right now, we just relay the message to confirm that the merkle proof is valid
 
 fun _validateAndExecute(msg: MerkleRoot_Validate, sender: address) {
-    val st = MerkleRoot_Storage.load();
+    var st = MerkleRoot_Storage.load();
+
     assert(sender == st.owner, ERROR_NOT_OWNER);
-
     assert(st.state == EXECUTION_STATE_UNTOUCHED, ERROR_STATE_IS_NOT_UNTOUCHED);
-    // TODO if no tokenTransfers
-    _execute(st, msg.messages, msg.proofs, msg.proofFlagBits, msg.metadataHash, sender);
 
-    // if tokenTransfers 
+    st.executionStates = EXECUTION_STATE_IN_PROGRESS as uint256;
+
+    //TODO if tokenTransfers 
     // validate execution state == untouched
     // if initial
     //  allocate storage space for the execution report
@@ -67,17 +87,18 @@ fun _validateAndExecute(msg: MerkleRoot_Validate, sender: address) {
     // set state = token transfer
     // send message to offramp to ask to release tokens
     // else if no tokenTransfers
-    // set state = execution
+
+    _execute(st, msg.messages, msg.proofs, msg.proofFlagBits, msg.metadataHash);
 }
 
-fun _execute(st: MerkleRoot_Storage, mesages: cell, proofs: cell, proofFlagBits: uint256, metadataHash: uint256, offRamp: address) {
-    st.state = STATE_SUCCESS;
+fun _execute(st: MerkleRoot_Storage, mesages: cell, proofs: cell, proofFlagBits: uint256, metadataHash: uint256) {
+    st.state = STATE_EXECUTE;
     st.store();
     createMessage(
         {
             bounce: true,
-            value: ton("0"),
-            dest: offRamp,
+            value: ton("0.05"),
+            dest: st.owner,
             body: OffRamp_DispatchValidated {
                 messages: mesages,
                 proofs: proofs,
@@ -85,7 +106,7 @@ fun _execute(st: MerkleRoot_Storage, mesages: cell, proofs: cell, proofFlagBits:
                 metadataHash: metadataHash
             }
         }
-    ).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    ).send(SEND_MODE_REGULAR);
 }
 
 // TODO: should we wait for all transfers to either complete or fail before we allow retry?

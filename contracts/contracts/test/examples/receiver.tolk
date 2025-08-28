@@ -22,7 +22,19 @@ fun onInternalMessage(in: InMessage) {
     val msg = lazy Msg.fromSlice(in.body);
     match (msg) {
         CCIPReceive => {
+            // Standard for every receiver to implement:
+            // - Check CCIPReceive only comes from offRamp/ router
+            // - Send CCIPReceiveConfirm to msg.callback
             assert(in.senderAddress == Storage.load().offRamp) throw 0x7777;
+            val receiveConfirm = createMessage({
+                bounce: true,
+                value: ton("0.05"), //TODO how much do we need to send
+                dest: msg.callback,
+                body: CCIPReceiveConfirm {
+                    messageId: msg.message.messageId,
+            });
+            receiveConfirm.send(SEND_MODE_REGULAR);
+
             emit(RECEIVED_MESSAGE, CCIPMessageReceived{
                 message: msg.message,
             });
