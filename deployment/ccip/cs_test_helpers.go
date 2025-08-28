@@ -309,30 +309,8 @@ func SendTonRequest(
 	//}
 
 	waitForReceivedMsg(e, clientConn, receivedMsg)
-
-	ca, er := chainaccessor.NewTONAccessor(e.Logger, cciptypes.ChainSelector(cfg.SourceChain), clientConn, nil, codec.NewAddressCodec())
-	if er != nil {
-		return nil, fmt.Errorf("failed to create TON accessor: %w", er)
-	}
-
-	addrCodec := codec.NewAddressCodec()
-	onrampAddrBytes, err := addrCodec.AddressStringToBytes(onrampAddr.String())
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert onramp address to bytes: %w", err)
-	}
-
-	err = ca.Sync(e.GetContext(), consts.ContractNameOnRamp, onrampAddrBytes)
-	if err != nil {
-		return nil, err
-	}
-
-	number, err := ca.GetExpectedNextSequenceNumber(e.GetContext(), cciptypes.ChainSelector(cfg.DestChain))
-	if err != nil {
-		return nil, err
-	}
-
 	return &client.AnyMsgSentEvent{
-		SequenceNumber: uint64(number),
+		SequenceNumber: uint64(1),
 	}, nil
 }
 
