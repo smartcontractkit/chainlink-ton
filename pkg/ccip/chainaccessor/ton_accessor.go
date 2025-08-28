@@ -274,7 +274,7 @@ func (a *TONAccessor) LatestMessageTo(ctx context.Context, dest ccipocr3.ChainSe
 		SkipBytes(40). // Skip to DestChainSelector
 		FilterBytes(8, query.EQ(binary.BigEndian.AppendUint64(nil, uint64(dest)))).
 		OrderBy(query.SortByTxLT, query.DESC). // sort by transaction LT new to old
-		Limit(1).                              // only get the last one
+		Limit(1). // only get the last one
 		Execute(ctx, a.logPoller.GetStore())
 
 	if err != nil {
@@ -306,17 +306,14 @@ func (a *TONAccessor) LatestMessageTo(ctx context.Context, dest ccipocr3.ChainSe
 }
 
 func (a *TONAccessor) getBinding(contractName string) (*address.Address, error) {
-	a.lggr.Debugw("getBinding", "contractName", contractName)
 	a.bindingsMu.RLock()
 	defer a.bindingsMu.RUnlock()
 
-	a.lggr.Debugw("acquired lock", "contractName", contractName)
 	addr, exists := a.bindings[contractName]
 	if !exists {
 		return nil, ErrNoBindings
 	}
 
-	a.lggr.Debugw("finished getBinding", "addr", addr, "contractName", contractName)
 	return addr, nil
 }
 

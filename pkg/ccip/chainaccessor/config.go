@@ -133,19 +133,16 @@ func (a *TONAccessor) getOnRampDynamicConfig(ctx context.Context, block *ton.Blo
 
 // getOnRampDestChainConfig retrieves destination chain configuration from the on-ramp contract
 func (a *TONAccessor) getOnRampDestChainConfig(ctx context.Context, block *ton.BlockIDExt, dest ccipocr3.ChainSelector) (ccipocr3.OnRampDestChainConfig, error) {
-	a.lggr.Debugw("debugging destChainConfig before getBinding", "dest", dest, "")
 	addr, err := a.getBinding(consts.ContractNameOnRamp)
 	if err != nil {
 		return ccipocr3.OnRampDestChainConfig{}, err
 	}
 
-	a.lggr.Debugw("debugging destChainConfig before RunGetMethod", "addr", addr.String(), "dest", dest)
 	result, err := a.client.RunGetMethod(ctx, block, addr, "destChainConfig", uint64(dest))
 	if err != nil {
 		return ccipocr3.OnRampDestChainConfig{}, err
 	}
 	var cfg onramp.DestChainConfig
-	a.lggr.Debugw("debugging destChainConfig", "result", result.AsTuple(), "addr", addr.String(), "dest", dest)
 	if err := cfg.FromResult(result); err != nil {
 		a.lggr.Debugw("debugging destChainConfig, failed", "result", result)
 		return ccipocr3.OnRampDestChainConfig{}, err
