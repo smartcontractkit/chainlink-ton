@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/big"
@@ -254,8 +255,9 @@ func (a *TONAccessor) MsgsBetweenSeqNums(ctx context.Context, dest ccipocr3.Chai
 			continue
 		}
 		event.Message.Header.OnRamp = ccipocr3.UnknownAddress(onrampAddr.String())
-		event.Message.Header.TxHash = string(log.TxHash[:]) // TODO: add LT?
+		event.Message.Header.TxHash = hex.EncodeToString(log.TxHash[:])
 		msgs = append(msgs, event.Message)
+		a.lggr.Debugw("MsgsBetweenSeqNums: found message and appended it to the output", "seqNum", event.SequenceNumber, "txHash", event.Message.Header.TxHash, "destChainSelector", dest, "sourceChainSelector", a.chainSelector)
 	}
 	return msgs, nil
 }
@@ -274,7 +276,7 @@ func (a *TONAccessor) LatestMessageTo(ctx context.Context, dest ccipocr3.ChainSe
 		SkipBytes(40). // Skip to DestChainSelector
 		FilterBytes(8, query.EQ(binary.BigEndian.AppendUint64(nil, uint64(dest)))).
 		OrderBy(query.SortByTxLT, query.DESC). // sort by transaction LT new to old
-		Limit(1). // only get the last one
+		Limit(1).                              // only get the last one
 		Execute(ctx, a.logPoller.GetStore())
 
 	if err != nil {

@@ -130,7 +130,6 @@ fun onMessageValidated(payload: MessageValidated<Metadata>, sender: address) {
 
     // assign sequence number, we can't do this sooner since the message might fail validation/getFee
     var destChainConfig = st.destChainConfigs.mustGet(msg.destChainSelector, ERROR_UNKNOWN_DEST_CHAIN_SELECTOR);
-    val seqNr = destChainConfig.sequenceNumber;
     destChainConfig.sequenceNumber = destChainConfig.sequenceNumber + 1;
     st.destChainConfigs.set(msg.destChainSelector, destChainConfig);
     st.store();
@@ -140,7 +139,7 @@ fun onMessageValidated(payload: MessageValidated<Metadata>, sender: address) {
             messageId: 0, // populated after hashing
             sourceChainSelector: st.chainSelector,
             destChainSelector: msg.destChainSelector,
-            sequenceNumber: seqNr,
+            sequenceNumber: destChainConfig.sequenceNumber,
             // Only bump nonce for messages that specify allowOutOfOrderExecution == false. Otherwise, we may block ordered
             // message nonces, which is not what we want.
             nonce: 0,
