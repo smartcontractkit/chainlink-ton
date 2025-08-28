@@ -14,7 +14,6 @@ pkgs.mkShell {
     (yarn.override {nodejs = nodejs_24;})
     nodePackages.typescript
     nodePackages.typescript-language-server
-    nodePackages.npm
     # Required dependency for @ledgerhq/hw-transport-node-hid -> usb
     nodePackages.node-gyp
 
