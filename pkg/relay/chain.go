@@ -12,6 +12,9 @@ import (
 	"sync"
 	"time"
 
+	inmemorystore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/db/inmemory"
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/loader/account"
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/txparser"
 	"github.com/xssnick/tonutils-go/liteclient"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
@@ -126,6 +129,18 @@ func newChain(ctx context.Context, cfg *config.TOMLConfig, loopKs loop.Keystore,
 	txmCfg := txm.DefaultConfigSet
 	ch.txm = txm.New(lggr, loopKs, apiClient, txmCfg)
 
+	lgCfg := logpoller.DefaultConfigSet
+	fs := inmemorystore.NewFilterStore()
+	lgOpts := &logpoller.ServiceOptions{
+		Config:   lgCfg,
+		Client:   tonClient,
+		Filters:  fs,
+		TxLoader: account.NewTxLoader(tonClient, lggr, lgCfg.PageSize),
+		TxParser: txparser.NewTxParser(lggr, fs),
+		Store:    inmemorystore.NewLogStore(),
+	}
+
+	ch.lp = logpoller.NewService(lggr, lgOpts)
 	// TODO: Setup accounts balance monitor
 
 	return ch, nil
@@ -137,11 +152,16 @@ func (c *chain) Name() string {
 
 func (c *chain) Start(ctx context.Context) error {
 	return c.starter.StartOnce("Chain", func() error {
-		c.lggr.Debug("Starting")
-		c.lggr.Debug("Starting txm")
-
+		c.lggr.Debug("Starting txm and log poller")
 		var ms services.MultiStart
-		return ms.Start(ctx, c.txm)
+
+		if err := ms.Start(ctx, c.txm); err != nil {
+
+		}
+		if err := ms.Start(ctx, c.lp); err != nil {
+			return err
+		}
+		return nil
 	})
 }
 
@@ -149,7 +169,7 @@ func (c *chain) Close() error {
 	return c.starter.StopOnce("Chain", func() error {
 		c.lggr.Debug("Stopping")
 		c.lggr.Debug("Stopping txm")
-		return services.CloseAll(c.txm)
+		return services.CloseAll(c.txm, c.lp)
 	})
 }
 
