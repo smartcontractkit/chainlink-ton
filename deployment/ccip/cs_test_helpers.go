@@ -10,12 +10,8 @@ import (
 
 	chainsel "github.com/smartcontractkit/chain-selectors"
 	"github.com/smartcontractkit/chainlink-ccip/chains/evm/gobindings/generated/v1_6_0/fee_quoter"
-	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"
-	cciptypes "github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/chainaccessor"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink/deployment/ccip/changeset/v1_6"
 	"github.com/smartcontractkit/chainlink/deployment/ccip/shared"
@@ -142,7 +138,7 @@ func AddLaneTONChangesets(env *cldf.Environment, from, to uint64, fromFamily, to
 				tonTokenAddr: big.NewInt(99),
 			},
 			FeeQuoterDestChainConfig: DefaultFeeQuoterDestChainConfig(true, to),
-			TokenTransferFeeConfigs:  map[uint64]feequoter.UpdateTokenTransferFeeConfig{
+			TokenTransferFeeConfigs: map[uint64]feequoter.UpdateTokenTransferFeeConfig{
 				// TODO:
 			},
 		}
@@ -195,7 +191,7 @@ func AddLaneTONChangesets(env *cldf.Environment, from, to uint64, fromFamily, to
 				tonTokenAddr: big.NewInt(99),
 			},
 			FeeQuoterDestChainConfig: DefaultFeeQuoterDestChainConfig(true, to),
-			TokenTransferFeeConfigs:  map[uint64]feequoter.UpdateTokenTransferFeeConfig{
+			TokenTransferFeeConfigs: map[uint64]feequoter.UpdateTokenTransferFeeConfig{
 				// TODO:
 			},
 		}
@@ -248,7 +244,7 @@ func SendTonRequest(
 
 	msg := cfg.Message.(TonSendRequest)
 	routerAddr := state.TonChains[cfg.SourceChain].Router
-	onrampAddr := state.TonChains[cfg.SourceChain].OnRamp
+	//onrampAddr := state.TonChains[cfg.SourceChain].OnRamp
 
 	ccipSend := router.CCIPSend{
 		QueryID:           msg.QueryID,
