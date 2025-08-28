@@ -315,12 +315,9 @@ struct (0x00000003) MessageValidated<C> {
 struct MerkleRoot_Storage {
     owner: address;
     state: uint8;
-    report: Cell<MerkleRoot>;
-    states: uint256;          // modeled as a bytemap, so we can batch up to 32 executions
-    executionStates: uint256; // modeled as a bytemap, so we can batch up to 32 executions
-
-    tokenBalances: UMap<uint64, Map<TokenBalance>>; // seqNum -> tokenAddress -> (amount: coins, failed: bool)
-    // if any amount has failed = true, allows re-executing and will only transfer remaining
+    executionState: uint8; 
+    tokenBalance: TokenBalance;
+    receiver: address;
 }
 
 //crc32('MerkleRoot_Validate')
@@ -331,6 +328,8 @@ struct (0x38ede91) MerkleRoot_Validate {
     metadataHash: uint256,
     //TODO: token data
 }
+
+struct(0x13131313) MerkleRoot_CCIPReceiveBounced {}
 
 //Must be sent from an owned MerkleRoot contract
 //crc32('OffRamp_DispatchValidated')
@@ -343,12 +342,17 @@ struct (0x58cfcb02) OffRamp_DispatchValidated {
 
 //crc32('Receiver_CCIPReceive')
 struct (0xb3126df1) CCIPReceive {
-    message: Any2TVMMessage
+    callback: address; // where to send the CCIPReceiveConfirm
+    message: Any2TVMMessage;
+}
+
+struct (0x12121212) CCIPReceiveConfirm {
+    messageId: uint256
 }
 
 struct TokenBalance {
-    amount: coins;
-    failed: bool; // if marked as failed, a retry will allow re-sending these
+    amount: coins = 0;
+    failed: bool = false; // if marked as failed, a retry will allow re-sending these
 }
 
 // Errors
@@ -359,8 +363,8 @@ const ERROR_FEE_TOKEN_NOT_SUPPORTED: int = 258;
 const ERROR_STALE_GAS_PRICE: int = 259;
 const ERROR_INVALID_MSG_DATA: int = 260;
 const ERROR_SENDER_NOT_ALLOWED: int = 261;
-const ERROR_INVALID_MESSAGE_DEST_CHAIN_SELECTOR = 262;
-const ERROR_SOURCE_CHAIN_SELECTOR_MISMATCH = 263;
+const ERROR_INVALID_MESSAGE_DEST_CHAIN_SELECTOR: int = 262;
+const ERROR_SOURCE_CHAIN_SELECTOR_MISMATCH: int = 263;
 const ERROR_TOKEN_NOT_SUPPORTED: int = 264;
 const ERROR_UNAUTHORIZED: int = 265;
 const ERROR_SOURCE_CHAIN_NOT_ENABLED: int = 266;

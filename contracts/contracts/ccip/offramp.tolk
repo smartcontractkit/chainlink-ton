@@ -63,6 +63,7 @@ struct ExecutionStateChanged {
 }
 
 const CCIP_COMMIT_REPORT_ACCEPTED_TOPIC: int = stringCrc32("CCIPCommitReportAccepted");
+const CCIP_EXECUTION_STATE_CHANGED: int = stringCrc32("CCIPExecutionStateChanged");
 
 struct CommitReportAccepted {
     priceUpdates: Cell<PriceUpdates>?;
@@ -113,6 +114,8 @@ struct (0xb98c95e3) OffRamp_UpdateSourceChainConfig {
 
 type OffRamp_InMessage = OffRamp_Commit | OffRamp_Execute | OffRamp_DispatchValidated | OffRamp_UpdateSourceChainConfig | OCR3Base_SetOCR3Config;
 
+type OffRamp_BouncedMessage =  CCIPReceive;
+
 fun onInternalMessage(in:InMessage) {
     val msg = lazy OffRamp_InMessage.fromSlice(in.body);
     match(msg) {
@@ -137,6 +140,22 @@ fun onInternalMessage(in:InMessage) {
         }
     }
 }
+
+fun onBouncedMessage(in: InMessageBounced) {
+    in.bouncedBody.skipBouncedPrefix();
+    val msg = lazy OffRamp_BouncedMessage.fromSlice(in.bouncedBody);
+    match (msg) {
+        CCIPReceive => {
+            val receiveBounced = createMessage({
+                bounce: true,
+                value: ton("0.5"),
+                dest: msg.callback, //the MR address
+                body: MerkleRoot_CCIPReceiveBounced{}
+            });
+            receiveBounced.send(SEND_MODE_REGULAR);
+        }
+    }
+} 
 
 // TODO: handle signals from MerkleRoot for releaseTokens
 // maybe send these and MerkleRoot_Execute straight to router
@@ -171,12 +190,13 @@ fun _dispatchValidated(msg: OffRamp_DispatchValidated, sender: address) {
 
             // dispatch message to receiver
             val ccipReceive: CCIPReceive = {
+                callback: sender, // receiver should call back the MR directly
                 message: {
                     messageId: message.header.messageId,
                     sourceChainSelector: message.header.sourceChainSelector,
                     sender: CrossChainAddress.fromCell(message.sender),
                     data: message.data
-                }
+                },
             };
 
             val messageForReceiver = createMessage({
@@ -241,7 +261,7 @@ fun commit(msg: OffRamp_Commit, sender: address) {
 
         // initialize MerkleRoot subcontract
         val initMsg = createMessage({
-            bounce: true, // TODO: could bounce if root already exists
+            bounce: true, // TODO: could bounce if root already exists but i don't think we shuold handle it
             value: ton("1"), // TODO:
             dest: {
                 stateInit: {
@@ -259,10 +279,8 @@ fun commit(msg: OffRamp_Commit, sender: address) {
                     data: MerkleRoot_Storage {
                         owner: contract.getAddress(),
                         state: 0,
-                        report: root.toCell(),
-                        states: 0,
-                        executionStates: 0,
-                        tokenBalances: UMap<uint64, Map<TokenBalance>>.new(64),
+                        executionState: 0,
+                        tokenBalance: TokenBalance{},
                     }.toCell(),
                 }
             },
