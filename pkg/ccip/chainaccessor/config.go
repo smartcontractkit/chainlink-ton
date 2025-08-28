@@ -137,12 +137,14 @@ func (a *TONAccessor) getOnRampDestChainConfig(ctx context.Context, block *ton.B
 	if err != nil {
 		return ccipocr3.OnRampDestChainConfig{}, err
 	}
+
+	a.lggr.Debugw("debugging destChainConfig before RunGetMethod", "addr", addr.String(), "dest", dest)
 	result, err := a.client.RunGetMethod(ctx, block, addr, "destChainConfig", uint64(dest))
 	if err != nil {
 		return ccipocr3.OnRampDestChainConfig{}, err
 	}
 	var cfg onramp.DestChainConfig
-	a.lggr.Debugw("debugging destChainConfig", "result", result.AsTuple())
+	a.lggr.Debugw("debugging destChainConfig", "result", result.AsTuple(), "addr", addr.String(), "dest", dest)
 	if err := cfg.FromResult(result); err != nil {
 		return ccipocr3.OnRampDestChainConfig{}, err
 	}
