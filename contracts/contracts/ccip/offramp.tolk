@@ -21,7 +21,7 @@ struct Storage {
     // dynamic config
     permissionlessExecutionThresholdSeconds: uint32,
 
-    sourceChainConfigs: UMap<uint64, SourceChainConfig>;
+    sourceChainConfigs: map<uint64, SourceChainConfig>;
 
     // This is the OCR sequence number, not to be confused with the CCIP message sequence number.
     latestPriceSequenceNumber: uint64;
@@ -262,7 +262,7 @@ fun commit(msg: OffRamp_Commit, sender: address) {
                         report: root.toCell(),
                         states: 0,
                         executionStates: 0,
-                        tokenBalances: UMap<uint64, Map<TokenBalance>>.new(64),
+                        tokenBalances: createEmptyMap(),
                     }.toCell(),
                 }
             },
@@ -423,9 +423,9 @@ get fun sourceChainConfig(sourceChainSelector: uint64): SourceChainConfig {
     return st.sourceChainConfigs.mustGet(sourceChainSelector,ERROR_SOURCE_CHAIN_NOT_ENABLED);
 }
 
-get fun allSourceChainConfigs(): dict {
+get fun allSourceChainConfigs(): map<uint64, SourceChainConfig> {
     val st = lazy Storage.load();
-    return st.sourceChainConfigs.value;
+    return st.sourceChainConfigs;
 }
 
 fun applySourceChainConfigUpdates() {}

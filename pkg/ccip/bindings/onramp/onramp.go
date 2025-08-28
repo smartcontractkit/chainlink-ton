@@ -114,7 +114,6 @@ type Storage struct {
 	ChainSelector    uint64              `tlb:"## 64"`
 	Config           DynamicConfig       `tlb:"^"`
 	DestChainConfigs *cell.Dictionary    `tlb:"dict 64"`
-	KeyLen           uint16              `tlb:"## 16"`
 }
 
 // Methods

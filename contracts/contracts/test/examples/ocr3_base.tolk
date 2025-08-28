@@ -1,3 +1,4 @@
+import "@stdlib/lisp-lists";
 import "./../../lib/ocr/multi_ocr3_base.tolk";
 import "./../../lib/ocr/types.tolk";
 import "./../../lib/ocr/exit_codes.tolk";
@@ -68,7 +69,14 @@ get fun ocr3Signers(ocrPluginType: uint16): tuple? {
     val config = s.ocr3Base.getConfig(ocrPluginType);
     assert(config != null, ERROR_NON_EXISTENT_OCR_PLUGIN_TYPE);
     var d = config!.signers;
-    return d.keysDestructs(); 
+    var list: tuple? = null;
+    var entry = d.findFirst();
+    while (entry.isFound) {
+        var address = entry.getKey();
+        list = listPrepend(address, list);
+        entry = d.iterateNext(entry);
+    }
+    return list;
 }
 
 get fun ocr3Transmitters(ocrPluginType: uint16): tuple? {
@@ -76,6 +84,13 @@ get fun ocr3Transmitters(ocrPluginType: uint16): tuple? {
     val config = s.ocr3Base.getConfig(ocrPluginType);
     assert(config != null, ERROR_NON_EXISTENT_OCR_PLUGIN_TYPE);
     var d  = config!.transmitters;
-    return d.keysDestructs(); 
+    var list: tuple? = null;
+    var entry = d.findFirst();
+    while (entry.isFound) {
+        var address = entry.getKey();
+        list = listPrepend(address, list);
+        entry = d.iterateNext(entry);
+    }
+    return list;
 }
 

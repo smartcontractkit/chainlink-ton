@@ -265,7 +265,7 @@ struct FeeToken {
 }
 
 struct (0x20000002) UpdateFeeTokens {
-    add: Map<FeeToken>; // token -> config
+    add: map<address, FeeToken>; // token -> config
     remove: cell; // vector<address>
 }
 
@@ -274,11 +274,11 @@ struct (0x20000002) UpdateFeeTokens {
 
 struct (0x20000003) UpdateTokenTransferFeeConfigs {
     // TODO: would these be more efficient as snakedata (key, value)?
-    updates: UMap<uint64, UpdateTokenTransferFeeConfig>; // destChainSelector -> updates
+    updates: map<uint64, UpdateTokenTransferFeeConfig>; // destChainSelector -> updates
 }
 
 struct UpdateTokenTransferFeeConfig {
-    add: Map<TokenTransferFeeConfig>; // token address -> config
+    add: map<address, TokenTransferFeeConfig>; // token address -> config
     remove: cell; // vector<address>
 } 
 
@@ -319,7 +319,7 @@ struct MerkleRoot_Storage {
     states: uint256;          // modeled as a bytemap, so we can batch up to 32 executions
     executionStates: uint256; // modeled as a bytemap, so we can batch up to 32 executions
 
-    tokenBalances: UMap<uint64, Map<TokenBalance>>; // seqNum -> tokenAddress -> (amount: coins, failed: bool)
+    tokenBalances: map<uint64, map<address, TokenBalance>>; // seqNum -> tokenAddress -> (amount: coins, failed: bool)
     // if any amount has failed = true, allows re-executing and will only transfer remaining
 }
 

@@ -27,14 +27,14 @@ struct Storage {
     // dynamic config
     config: Cell<OnRampDynamicConfig>;
 
-    destChainConfigs: UMap<uint64, DestChainConfig>; // chainSelector -> DestChainConfig
+    destChainConfigs: map<uint64, DestChainConfig>; // chainSelector -> DestChainConfig
 }
 
 struct DestChainConfig {
     router: address; // Local router address that is allowed to send messages to the destination chain.
     sequenceNumber: uint64;
     allowlistEnabled: bool;
-    allowedSenders: Map<bool>; // address -> bool
+    allowedSenders: map<address, bool>;
 }
 // TODO: move allowlist into accounts
 // user calls wallet -> account contract -> router, account verifies dest chain and if
@@ -95,8 +95,8 @@ fun send(payload: OnRampSend, sender: address) {
     assert(destChainConfig.router == sender, ERROR_UNAUTHORIZED);
 
     if (destChainConfig.allowlistEnabled) {
-        val (allowed, exists) = destChainConfig.allowedSenders.get(payload.metadata.sender);
-        assert(exists && allowed!, ERROR_SENDER_NOT_ALLOWED);
+        val entry = destChainConfig.allowedSenders.get(payload.metadata.sender);
+        assert(entry.isFound && entry.loadValue(), ERROR_SENDER_NOT_ALLOWED);
     }
 
     // TODO: validate jetton amounts match msg.tokenAmounts
@@ -181,8 +181,8 @@ fun onMessageValidated(payload: MessageValidated<Metadata>, sender: address) {
 
 get fun isChainSupported(destChainSelector: uint64): bool {
     val st = lazy Storage.load();
-    val (_, exists) = st.destChainConfigs.get(destChainSelector);
-    return exists;
+    val entry = st.destChainConfigs.get(destChainSelector);
+    return entry.isFound;
 }
 
 get fun expectedNextSequenceNumber(destChainSelector: uint64): uint64 {
@@ -208,18 +208,18 @@ fun applyDestChainConfigUpdates(mutate st: Storage, updates: cell) {
     while (!iter.empty()) {
         val update = iter.next();
         // create or update entries
-        val (maybeConfig, exists) = st.destChainConfigs.get(update.destChainSelector);
-        if (exists) {
-            var config = maybeConfig!;
+        val entry = st.destChainConfigs.get(update.destChainSelector);
+        if (entry.isFound) {
+            var config = entry.loadValue();
             config.router = update.router;
             config.allowlistEnabled = update.allowlistEnabled;
-            st.destChainConfigs.replace(update.destChainSelector, config);
+            st.destChainConfigs.replaceAndGetPrevious(update.destChainSelector, config);
         } else {
             st.destChainConfigs.set(update.destChainSelector, DestChainConfig {
                 router: update.router,
                 sequenceNumber: 0,
                 allowlistEnabled: update.allowlistEnabled,
-                allowedSenders: Map<bool>.new(),
+                allowedSenders: createEmptyMap(),
             })
         }
     }
@@ -234,18 +234,18 @@ get fun destChainConfig(destChainSelector: uint64): DestChainConfig {
 get fun allowedSendersList(destChainSelector: uint64): tuple {
     val st = lazy Storage.load();
     val config = st.destChainConfigs.mustGet(destChainSelector,ERROR_UNKNOWN_DEST_CHAIN_SELECTOR);
-    var d = config.allowedSenders.value;
+    var allowedSenders = config.allowedSenders;
 
     var list: tuple? = null;
-    do {
-        var (key: slice?, _value: slice?, found: bool) = d.sDictDeleteFirstAndGet(ADDR_KEY_LEN);
-        if (found) {
-            // var (wc, addressHash) = (key! as address).getWorkchainAndHash();
-            // list = listPrepend([wc, addressHash], list);
-            var address = key! as address;
-            list = listPrepend(address, list);
-        }
-    } while (found);
+    var entry = allowedSenders.findFirst();
+    while (entry.isFound) {
+        // var (wc, addressHash) = (key! as address).getWorkchainAndHash();
+        // list = listPrepend([wc, addressHash], list);
+        var address = entry.getKey();
+        list = listPrepend(address, list);
+
+        entry = allowedSenders.iterateNext(entry);
+    }
 
     return list!;
 }

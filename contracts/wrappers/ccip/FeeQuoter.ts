@@ -108,9 +108,7 @@ export const Builder = {
         .storeUint(config.tokenPriceStalenessThreshold, 64)
         .storeDict(config.usdPerToken)
         .storeDict(config.premiumMultiplierWeiPerEth)
-        // UMap<> type
         .storeDict(config.destChainConfigs)
-        .storeUint(64, 16) // keyLen
         .endCell()
     )
   },

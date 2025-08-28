@@ -57,7 +57,6 @@ func deployOnRamp(b operations.Bundle, deps TonDeps, in DeployOnRampInput) (Depl
 			AllowListAdmin: deps.TonChain.WalletAddress,
 		},
 		DestChainConfigs: nil,
-		KeyLen:           64,
 	}
 	initData, err := tlb.ToCell(storage)
 	if err != nil {

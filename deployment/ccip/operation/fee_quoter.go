@@ -57,7 +57,6 @@ func deployFeeQuoter(b operations.Bundle, deps TonDeps, in DeployFeeQuoterInput)
 		UsdPerToken:                  nil,
 		PremiumMultiplierWeiPerEth:   nil,
 		DestChainConfigs:             nil,
-		KeyLen:                       64,
 	}
 	initData, err := tlb.ToCell(storage)
 	if err != nil {
