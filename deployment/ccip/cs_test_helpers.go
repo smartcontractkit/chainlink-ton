@@ -304,13 +304,13 @@ func SendTonRequest(
 	//	}
 	//}
 
-	waitForReceivedMsg(e, clientConn, receivedMsg)
+	waitForReceivedMsgRecursive(e, clientConn, receivedMsg)
 	return &client.AnyMsgSentEvent{
 		SequenceNumber: uint64(1),
 	}, nil
 }
 
-func waitForReceivedMsg(e cldf.Environment, clientConn *ton.APIClient, msg *tracetracking.ReceivedMessage) {
+func waitForReceivedMsgRecursive(e cldf.Environment, clientConn *ton.APIClient, msg *tracetracking.ReceivedMessage) {
 	if msg == nil || len(msg.OutgoingInternalReceivedMessages) == 0 {
 		return
 	}
@@ -335,7 +335,54 @@ func waitForReceivedMsg(e cldf.Environment, clientConn *ton.APIClient, msg *trac
 			e.Logger.Errorf("failed to wait for trace: %v", err)
 		}
 
-		waitForReceivedMsg(e, clientConn, outMsg)
+		waitForReceivedMsgRecursive(e, clientConn, outMsg)
 	}
 	return
+}
+
+func waitForReceivedMsgFlatten(e cldf.Environment, clientConn *ton.APIClient, msg *tracetracking.ReceivedMessage) {
+	if msg == nil {
+		return
+	}
+
+	// Collect all messages to process in a queue
+	var messagesToProcess []*tracetracking.ReceivedMessage
+	messagesToProcess = append(messagesToProcess, msg)
+
+	// Process messages iteratively
+	for len(messagesToProcess) > 0 {
+		// Get the first message from the queue
+		currentMsg := messagesToProcess[0]
+		messagesToProcess = messagesToProcess[1:]
+
+		if len(currentMsg.OutgoingInternalReceivedMessages) == 0 {
+			continue
+		}
+
+		e.Logger.Infof("Processing %d outgoing internal messages", len(currentMsg.OutgoingInternalReceivedMessages))
+
+		for i, outMsg := range currentMsg.OutgoingInternalReceivedMessages {
+			e.Logger.Infof("Outgoing message %d: exit code %v, success: %v, bounced: %v, status: %v",
+				i, outMsg.ExitCode, outMsg.Success, outMsg.EmittedBouncedMessage, outMsg.Status())
+
+			if outMsg.ExitCode != 0 {
+				e.Logger.Errorf("Outgoing message %d failed with exit code %v", i, outMsg.ExitCode)
+			}
+			if !outMsg.Success {
+				e.Logger.Errorf("Outgoing message %d was not successful", i)
+			}
+			if outMsg.EmittedBouncedMessage {
+				e.Logger.Errorf("Outgoing message %d was bounced", i)
+			}
+
+			err := outMsg.WaitForTrace(clientConn)
+			if err != nil {
+				e.Logger.Errorf("failed to wait for trace: %v", err)
+				continue
+			}
+
+			// Add this message to the queue for further processing
+			messagesToProcess = append(messagesToProcess, outMsg)
+		}
+	}
 }
