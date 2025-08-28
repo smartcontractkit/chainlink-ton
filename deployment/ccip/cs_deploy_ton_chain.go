@@ -81,9 +81,7 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 	// mcmsOperations = append(mcmsOperations, ccipSeqReport.Output.MCMSOperations...)
 
 	// Placeholders
-	address := tonaddress.MustParseAddr("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")
-	s.OffRamp = *address
-	address = tonaddress.MustParseAddr("EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8")
+	address := tonaddress.MustParseAddr("EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8")
 	s.LinkTokenAddress = *address
 	address = tonaddress.MustParseAddr("UQCk4967vNM_V46Dn8I0x-gB_QE2KkdW1GQ7mWz1DtYGLEd8")
 	s.ReceiverAddress = *address
@@ -91,6 +89,13 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 	s.OnRamp = *ccipSeqReport.Output.OnRampAddress
 	s.Router = *ccipSeqReport.Output.RouterAddress
 	s.FeeQuoter = *ccipSeqReport.Output.FeeQuoterAddress
+	s.OffRamp = *ccipSeqReport.Output.OffRampAddress
+
+	// Save state
+	err = state.SaveOnchainState(selector, s, env)
+	if err != nil {
+		return cldf.ChangesetOutput{}, err
+	}
 
 	env.Logger.Debugf("TON_E2E: Deployed CCIP contracts for TON chain %d: OnRamp %s, Router %s, FeeQuoter %s, OffRamp %s, LinkToken %s, Receiver %s", selector, s.OnRamp.String(), s.Router.String(), s.FeeQuoter.String(), s.OffRamp.String(), s.LinkTokenAddress.String(), s.ReceiverAddress.String())
 	// Execute post-deployment config
@@ -102,6 +107,7 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 		feeTokens[config.Address.String()] = operation.FeeTokenConfig{PremiumMultiplierWeiPerEth: config.PremiumMultiplierWeiPerEth}
 	}
 	updateFeeTokensInput := operation.UpdateFeeQuoterFeeTokensInput{
+		Lggr:      env.Logger,
 		FeeTokens: feeTokens,
 	}
 	updateFeeTokensReport, err := operations.ExecuteOperation(env.OperationsBundle, operation.UpdateFeeQuoterFeeTokensOp, deps, updateFeeTokensInput)
@@ -112,12 +118,6 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 	}
 
 	// TODO: generate MCMS proposal or execute
-
-	// Save state
-	err = state.SaveOnchainState(selector, s, env)
-	if err != nil {
-		return cldf.ChangesetOutput{}, err
-	}
 	return cldf.ChangesetOutput{
 		AddressBook:           ab,
 		MCMSTimelockProposals: proposals,

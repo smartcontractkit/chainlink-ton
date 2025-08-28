@@ -342,7 +342,7 @@ func waitForReceivedMsg(e cldf.Environment, clientConn *ton.APIClient, msg *trac
 	}
 
 	// Log details about outgoing messages
-	e.Logger.Infof("Recrusive wait for number of outgoing internal messages: %d", len(msg.OutgoingInternalReceivedMessages))
+	e.Logger.Infof("Recursive wait for number of outgoing internal messages: %d", len(msg.OutgoingInternalReceivedMessages))
 	for i, outMsg := range msg.OutgoingInternalReceivedMessages {
 		e.Logger.Infof("Outgoing message %d: exit code %v, success: %v, bounced: %v, status: %v",
 			i, outMsg.ExitCode, outMsg.Success, outMsg.EmittedBouncedMessage, outMsg.Status())
