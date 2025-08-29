@@ -64,7 +64,6 @@ func NewTONAccessor(
 
 // Common Accessor methods
 func (a *TONAccessor) GetContractAddress(contractName string) ([]byte, error) {
-	a.lggr.Debugw("GetContractAddress", "ContractName", contractName)
 	addr, err := a.getBinding(contractName)
 	if err != nil {
 		return nil, err
@@ -172,7 +171,6 @@ func (a *TONAccessor) GetAllConfigsLegacy(ctx context.Context, destChainSelector
 
 func (a *TONAccessor) GetChainFeeComponents(ctx context.Context) (ccipocr3.ChainFeeComponents, error) {
 	// TODO(NONEVM-2364) implement me
-	a.lggr.Debug("GetChainFeeComponents")
 	return ccipocr3.ChainFeeComponents{
 		ExecutionFee:        big.NewInt(1),
 		DataAvailabilityFee: big.NewInt(1),
@@ -205,18 +203,15 @@ func (a *TONAccessor) Sync(ctx context.Context, contractName string, contractAdd
 		return fmt.Errorf("failed to bind contract event: %w", err)
 	}
 
-	a.lggr.Debugw("Acquiring lock", "address", strAddr)
 	a.bindingsMu.Lock()
 	defer a.bindingsMu.Unlock()
 	a.bindings[contractName] = addr
 
-	a.lggr.Debugw("Sync", "contractName", contractName, "address", addr.String())
 	return nil
 }
 
 // TON as source chain methods
 func (a *TONAccessor) MsgsBetweenSeqNums(ctx context.Context, dest ccipocr3.ChainSelector, seqNumRange ccipocr3.SeqNumRange) ([]ccipocr3.Message, error) {
-	a.lggr.Debug("MsgsBetweenSeqNums")
 	// get onramp address
 	onrampAddr, err := a.getBinding(consts.ContractNameOnRamp)
 	if err != nil {
@@ -266,7 +261,6 @@ func (a *TONAccessor) MsgsBetweenSeqNums(ctx context.Context, dest ccipocr3.Chai
 }
 
 func (a *TONAccessor) LatestMessageTo(ctx context.Context, dest ccipocr3.ChainSelector) (ccipocr3.SeqNum, error) {
-	a.lggr.Debug("LatestMessageTo")
 	// get onramp address
 	onrampAddr, err := a.getBinding(consts.ContractNameOnRamp)
 	if err != nil {
@@ -323,7 +317,6 @@ func (a *TONAccessor) getBinding(contractName string) (*address.Address, error) 
 }
 
 func (a *TONAccessor) GetExpectedNextSequenceNumber(ctx context.Context, dest ccipocr3.ChainSelector) (ccipocr3.SeqNum, error) {
-	a.lggr.Debug("GetExpectedNextSequenceNumber")
 	addr, err := a.getBinding(consts.ContractNameOnRamp)
 	if err != nil {
 		return 0, err
@@ -344,7 +337,6 @@ func (a *TONAccessor) GetExpectedNextSequenceNumber(ctx context.Context, dest cc
 }
 
 func (a *TONAccessor) GetTokenPriceUSD(ctx context.Context, rawTokenAddress ccipocr3.UnknownAddress) (ccipocr3.TimestampedUnixBig, error) {
-	a.lggr.Debug("GetTokenPriceUSD")
 	addr, err := a.getBinding(consts.ContractNameFeeQuoter)
 	if err != nil {
 		return ccipocr3.TimestampedUnixBig{}, err
@@ -383,7 +375,6 @@ func (a *TONAccessor) GetTokenPriceUSD(ctx context.Context, rawTokenAddress ccip
 }
 
 func (a *TONAccessor) GetFeeQuoterDestChainConfig(ctx context.Context, dest ccipocr3.ChainSelector) (ccipocr3.FeeQuoterDestChainConfig, error) {
-	a.lggr.Debug("GetFeeQuoterDestChainConfig")
 	addr, err := a.getBinding(consts.ContractNameFeeQuoter)
 	if err != nil {
 		return ccipocr3.FeeQuoterDestChainConfig{}, err

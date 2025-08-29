@@ -208,8 +208,6 @@ func (lp *service) processBlockRange(ctx context.Context, blockRange *types.Bloc
 
 // RegisterFilter adds a new filter to monitor specific address/event signature combinations
 func (lp *service) RegisterFilter(ctx context.Context, flt types.Filter) error {
-	lp.lggr.Infow("registering filter", "filter", flt)
-
 	// Register the filter first
 	if err := lp.filters.RegisterFilter(ctx, flt); err != nil {
 		return err

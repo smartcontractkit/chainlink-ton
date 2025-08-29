@@ -69,7 +69,6 @@ func (l *accountTxLoader) LoadTxsForAddresses(ctx context.Context, blockRange *t
 			}
 			if len(txs) > 0 {
 				mu.Lock()
-				l.lggr.Debugw("Loaded", len(txs), "txs from ", currAddr.String())
 				allTxs = append(allTxs, txs...)
 				mu.Unlock()
 			}
