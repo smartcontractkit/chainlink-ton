@@ -257,7 +257,7 @@ func (a *TONAccessor) MsgsBetweenSeqNums(ctx context.Context, dest ccipocr3.Chai
 			continue
 		}
 		rawOnrampAddr := codec.ToRawAddr(onrampAddr)
-		event.Message.Header.OnRamp = ccipocr3.UnknownAddress(rawOnrampAddr)
+		event.Message.Header.OnRamp = rawOnrampAddr[:]
 		event.Message.Header.TxHash = hex.EncodeToString(log.TxHash[:])
 		msgs = append(msgs, event.Message)
 		a.lggr.Debugw("MsgsBetweenSeqNums: found message and appended it to the output", "seqNum", event.SequenceNumber, "txHash", event.Message.Header.TxHash, "destChainSelector", dest, "sourceChainSelector", a.chainSelector)
