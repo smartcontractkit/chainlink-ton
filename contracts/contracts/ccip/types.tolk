@@ -350,6 +350,29 @@ struct (0x12121212) CCIPReceiveConfirm {
     messageId: uint256
 }
 
+//crc32('MerkleRoot_Validate')
+struct (0x38ede91) MerkleRoot_Validate {
+    messages: cell, //vec<Any2TVMRampMessage>
+    proofs: cell, //vec<uint256>
+    proofFlagBits: uint256,
+    metadataHash: uint256,
+    //TODO: token data
+}
+
+//Must be sent from an owned MerkleRoot contract
+//crc32('OffRamp_DispatchValidated')
+struct (0x58cfcb02) OffRamp_DispatchValidated { 
+    messages: cell; // vec<Any2TVMRampMessage>
+    proofs: cell;
+    proofFlagBits: uint256;
+    metadataHash: uint256;
+}
+
+//crc32('Receiver_CCIPReceive')
+struct (0xb3126df1) CCIPReceive {
+    message: Any2TVMMessage
+}
+
 struct TokenBalance {
     amount: coins = 0;
     failed: bool = false; // if marked as failed, a retry will allow re-sending these

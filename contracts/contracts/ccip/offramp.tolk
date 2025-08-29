@@ -196,7 +196,7 @@ fun _dispatchValidated(msg: OffRamp_DispatchValidated, sender: address) {
                     sourceChainSelector: message.header.sourceChainSelector,
                     sender: CrossChainAddress.fromCell(message.sender),
                     data: message.data
-                },
+                }
             };
 
             val messageForReceiver = createMessage({
