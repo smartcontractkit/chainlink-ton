@@ -134,7 +134,7 @@ func AddLaneTONChangesets(env *cldf.Environment, from, to uint64, fromFamily, to
 				TonTokenAddr: big.NewInt(99),
 			},
 			FeeQuoterDestChainConfig: DefaultFeeQuoterDestChainConfig(true, to),
-			TokenTransferFeeConfigs: map[uint64]feequoter.UpdateTokenTransferFeeConfig{
+			TokenTransferFeeConfigs:  map[uint64]feequoter.UpdateTokenTransferFeeConfig{
 				// TODO:
 			},
 		}
@@ -187,7 +187,7 @@ func AddLaneTONChangesets(env *cldf.Environment, from, to uint64, fromFamily, to
 				TonTokenAddr: big.NewInt(99),
 			},
 			FeeQuoterDestChainConfig: DefaultFeeQuoterDestChainConfig(true, to),
-			TokenTransferFeeConfigs: map[uint64]feequoter.UpdateTokenTransferFeeConfig{
+			TokenTransferFeeConfigs:  map[uint64]feequoter.UpdateTokenTransferFeeConfig{
 				// TODO:
 			},
 		}
@@ -283,22 +283,6 @@ func SendTonRequest(
 	if err != nil {
 		return nil, fmt.Errorf("failed to wait for trace: %w", err)
 	}
-
-	// Log details about outgoing messages
-	//e.Logger.Infof("Number of outgoing internal messages: %d", len(receivedMsg.OutgoingInternalReceivedMessages))
-	//for i, outMsg := range receivedMsg.OutgoingInternalReceivedMessages {
-	//	e.Logger.Infof("Outgoing message %d: exit code %v, success: %v, bounced: %v, status: %v",
-	//		i, outMsg.ExitCode, outMsg.Success, outMsg.EmittedBouncedMessage, outMsg.Status())
-	//	if outMsg.ExitCode != 0 {
-	//		e.Logger.Errorf("Outgoing message %d failed with exit code %v", i, outMsg.ExitCode)
-	//	}
-	//	if !outMsg.Success {
-	//		e.Logger.Errorf("Outgoing message %d was not successful", i)
-	//	}
-	//	if outMsg.EmittedBouncedMessage {
-	//		e.Logger.Errorf("Outgoing message %d was bounced", i)
-	//	}
-	//}
 
 	waitForReceivedMsgRecursive(e, clientConn, receivedMsg)
 	return &client.AnyMsgSentEvent{

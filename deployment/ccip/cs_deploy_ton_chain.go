@@ -98,7 +98,6 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 		return cldf.ChangesetOutput{}, err
 	}
 
-	env.Logger.Debugf("TON_E2E: Deployed CCIP contracts for TON chain %d: OnRamp %s, Router %s, FeeQuoter %s, OffRamp %s, LinkToken %s, Receiver %s", selector, s.OnRamp.String(), s.Router.String(), s.FeeQuoter.String(), s.OffRamp.String(), s.LinkTokenAddress.String(), s.ReceiverAddress.String())
 	// Execute post-deployment config
 	var txs [][]byte
 
