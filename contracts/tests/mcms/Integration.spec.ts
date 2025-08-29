@@ -66,6 +66,9 @@ describe('MCMS - IntegrationTest', () => {
 
   const MIN_DELAY = 24n * 60n * 60n
 
+  // Notice: no finalization timeout between ops
+  const OP_FINALIZATION_TIMEOUT_ZERO = 0n
+
   let signerKeyPairs: KeyPair[] = []
 
   beforeEach(async () => {
@@ -554,7 +557,13 @@ describe('MCMS - IntegrationTest', () => {
           }),
         },
       ]
-      const [setRoot, opProofs] = merkleProof.build(signers, validUntil, metadata, ops)
+      const [setRoot, opProofs] = merkleProof.build(
+        signers,
+        validUntil,
+        metadata,
+        ops,
+        OP_FINALIZATION_TIMEOUT_ZERO,
+      )
 
       const r = await bind.mcmsPropose.sendInternal(
         acc.deployer.getSender(),
@@ -673,7 +682,13 @@ describe('MCMS - IntegrationTest', () => {
         },
       ]
 
-      const [setRoot, opProofs] = merkleProof.build(signers, validUntil, metadata, ops)
+      const [setRoot, opProofs] = merkleProof.build(
+        signers,
+        validUntil,
+        metadata,
+        ops,
+        OP_FINALIZATION_TIMEOUT_ZERO,
+      )
 
       const r = await bind.mcmsPropose.sendInternal(
         acc.deployer.getSender(),
@@ -798,7 +813,13 @@ describe('MCMS - IntegrationTest', () => {
         },
       ]
 
-      const [setRoot, opProofs] = merkleProof.build(signers, validUntil, metadata, ops)
+      const [setRoot, opProofs] = merkleProof.build(
+        signers,
+        validUntil,
+        metadata,
+        ops,
+        OP_FINALIZATION_TIMEOUT_ZERO,
+      )
 
       const r = await bind.mcmsBypass.sendInternal(
         acc.deployer.getSender(),
@@ -917,7 +938,13 @@ describe('MCMS - IntegrationTest', () => {
         },
       ]
 
-      const [setRoot, opProofs] = merkleProof.build(signers, validUntil, metadata, ops)
+      const [setRoot, opProofs] = merkleProof.build(
+        signers,
+        validUntil,
+        metadata,
+        ops,
+        OP_FINALIZATION_TIMEOUT_ZERO,
+      )
 
       const r = await bind.mcmsPropose.sendInternal(
         acc.deployer.getSender(),
@@ -991,7 +1018,13 @@ describe('MCMS - IntegrationTest', () => {
           },
         ]
 
-        const [setRoot, opProofs] = merkleProof.build(signers, validUntil, metadata, ops)
+        const [setRoot, opProofs] = merkleProof.build(
+          signers,
+          validUntil,
+          metadata,
+          ops,
+          OP_FINALIZATION_TIMEOUT_ZERO,
+        )
 
         const r = await bind.mcmsVeto.sendInternal(
           acc.deployer.getSender(),
@@ -1122,7 +1155,13 @@ describe('MCMS - IntegrationTest', () => {
         },
       ]
 
-      const [setRoot, opProofs] = merkleProof.build(signers, validUntil, metadata, ops)
+      const [setRoot, opProofs] = merkleProof.build(
+        signers,
+        validUntil,
+        metadata,
+        ops,
+        OP_FINALIZATION_TIMEOUT_ZERO,
+      )
 
       const r = await bind.mcmsPropose.sendInternal(
         acc.deployer.getSender(),
