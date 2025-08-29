@@ -110,10 +110,6 @@ func AddLaneTONChangesets(env *cldf.Environment, from, to uint64, fromFamily, to
 
 	var src, dest config.ChainDefinition
 	// TODO: LINK placeholder address
-	tonTokenAddr, err := address.ParseRawAddr("0:0000000000000000000000000000000000000000000000000000000000000000")
-	if err != nil {
-		env.Logger.Fatalf("Failed to parse TON token address: %v", err)
-	}
 
 	switch fromFamily {
 	case chainsel.FamilyEVM:
@@ -135,7 +131,7 @@ func AddLaneTONChangesets(env *cldf.Environment, from, to uint64, fromFamily, to
 			Selector: from,
 			GasPrice: gasPrices[from],
 			TokenPrices: map[*address.Address]*big.Int{
-				tonTokenAddr: big.NewInt(99),
+				TonTokenAddr: big.NewInt(99),
 			},
 			FeeQuoterDestChainConfig: DefaultFeeQuoterDestChainConfig(true, to),
 			TokenTransferFeeConfigs: map[uint64]feequoter.UpdateTokenTransferFeeConfig{

@@ -85,10 +85,9 @@ func (a *TONAccessor) convertCCIPMessageSent(
 	tonEvent *onramp.CCIPMessageSent,
 ) *chainaccessor.SendRequestedEvent {
 	// TODO use a non-empty address for e2e test before we resolve the chainlink-ccip chain accessor event validation check
-	tmpFeeTokenAddr := address.MustParseRawAddr("0:0000000000000000000000000000000000000000000000000000000000000001")
 	//senderAddr := codec.ToRawAddr(tonEvent.Message.Sender)
 	senderAddr := codec.ToRawAddr(tonEvent.Message.Sender)
-	feeTokenAddr := codec.ToRawAddr(tmpFeeTokenAddr)
+	feeTokenAddr := codec.ToRawAddr(tonEvent.Message.Body.FeeToken)
 	msg := ccipocr3.Message{
 		Header: ccipocr3.RampMessageHeader{
 			MessageID:           ccipocr3.Bytes32(tonEvent.Message.Header.MessageID),
