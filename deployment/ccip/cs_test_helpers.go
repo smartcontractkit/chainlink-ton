@@ -184,7 +184,7 @@ func AddLaneTONChangesets(env *cldf.Environment, from, to uint64, fromFamily, to
 			Selector: to,
 			GasPrice: big.NewInt(1e17),
 			TokenPrices: map[*address.Address]*big.Int{
-				tonTokenAddr: big.NewInt(99),
+				TonTokenAddr: big.NewInt(99),
 			},
 			FeeQuoterDestChainConfig: DefaultFeeQuoterDestChainConfig(true, to),
 			TokenTransferFeeConfigs: map[uint64]feequoter.UpdateTokenTransferFeeConfig{
