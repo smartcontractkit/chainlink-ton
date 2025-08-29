@@ -153,7 +153,7 @@ func (a *TONAccessor) GetAllConfigsLegacy(ctx context.Context, destChainSelector
 			DestChainConfig: onRampDestChainConfig,
 		}
 
-		var TonTokenAddr = address.MustParseRawAddr("0:0000000000000000000000000000000000000000000000000000000000000000")
+		var TonTokenAddr = address.MustParseRawAddr("0:0000000000000000000000000000000000000000000000000000000000000001")
 		// Router
 		config.Router = ccipocr3.RouterConfig{
 			// TODO: confirm address.NewAddressNone == zero address if fully written out (0:00000..)

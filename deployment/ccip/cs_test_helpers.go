@@ -34,7 +34,7 @@ import (
 const ChainSelEVMTest90000001 = 909606746561742123
 
 // TODO: use address.NewNoneAddress() instead?
-var TonTokenAddr = address.MustParseRawAddr("0:0000000000000000000000000000000000000000000000000000000000000000")
+var TonTokenAddr = address.MustParseRawAddr("0:0000000000000000000000000000000000000000000000000000000000000001")
 
 // DefaultFeeQuoterDestChainConfig returns a default fee quoter config for TON CCIP testing
 func DefaultFeeQuoterDestChainConfig(configEnabled bool, destChainSelector ...uint64) feequoter.DestChainConfig {
