@@ -22,6 +22,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types/query"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/hash"
@@ -255,7 +256,8 @@ func (a *TONAccessor) MsgsBetweenSeqNums(ctx context.Context, dest ccipocr3.Chai
 			a.lggr.Errorw("validate send requested event", "err", err, "message", event)
 			continue
 		}
-		event.Message.Header.OnRamp = ccipocr3.UnknownAddress(onrampAddr.String())
+		rawOnrampAddr := codec.ToRawAddr(onrampAddr)
+		event.Message.Header.OnRamp = ccipocr3.UnknownAddress(rawOnrampAddr)
 		event.Message.Header.TxHash = hex.EncodeToString(log.TxHash[:])
 		msgs = append(msgs, event.Message)
 		a.lggr.Debugw("MsgsBetweenSeqNums: found message and appended it to the output", "seqNum", event.SequenceNumber, "txHash", event.Message.Header.TxHash, "destChainSelector", dest, "sourceChainSelector", a.chainSelector)
