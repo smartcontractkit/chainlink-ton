@@ -44,3 +44,6 @@ golangci-lint-*-report.xml
 .golangci.yml
 
 _vendor/
+
+# Binary
+cmd/chainlink-ton/chainlink-ton
