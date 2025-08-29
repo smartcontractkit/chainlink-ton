@@ -9,8 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
-	"github.com/xssnick/tonutils-go/ton/wallet"
-	"github.com/xssnick/tonutils-go/tvm/cell"
 	"go.uber.org/zap/zapcore"
 
 	chain_selectors "github.com/smartcontractkit/chain-selectors"
@@ -26,10 +24,8 @@ import (
 
 	ops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 
 	tonCommon "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 
@@ -117,45 +113,6 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 	defer func() {
 		require.NoError(t, lp.Close())
 	}()
-
-	feeQuoterAddr := state[chainSelector].FeeQuoter
-
-	// -- set fee token manually
-	feeTokenDict := cell.NewDict(267) // key size for address
-	feeToken := feequoter.FeeToken{PremiumMultiplierWeiPerEth: 1}
-	feeTokenCell, err := tlb.ToCell(feeToken)
-	require.NoError(t, err, "failed to encode FeeToken")
-
-	// Add the fee token to dictionary (address as key)
-	addressKeyCell := cell.BeginCell().MustStoreAddr(ops.TonTokenAddr).EndCell()
-	err = feeTokenDict.Set(addressKeyCell, feeTokenCell)
-	require.NoError(t, err, "failed to add fee token to dictionary")
-
-	updateFeeTokensMsg := feequoter.UpdateFeeTokens{
-		Add:    feeTokenDict,
-		Remove: tonCommon.SnakeData[*address.Address]{}, // Empty remove list
-	}
-
-	updateFeeTokensCell, err := tlb.ToCell(updateFeeTokensMsg)
-	require.NoError(t, err, "failed to encode UpdateFeeTokens message")
-
-	updateFeeTokensInternalMsg := &wallet.Message{
-		Mode: 1,
-		InternalMessage: &tlb.InternalMessage{
-			IHRDisabled: true,
-			Bounce:      false,
-			DstAddr:     &feeQuoterAddr,
-			Amount:      tlb.MustFromTON("0.01"),
-			Body:        updateFeeTokensCell,
-		},
-	}
-
-	tt := tracetracking.NewSignedAPIClient(tonChain.Client, *deployer)
-	updateFeeTokensResult, updateFeeTokensBlockID, err := tt.SendWaitTransaction(ctx, feeQuoterAddr, updateFeeTokensInternalMsg)
-	require.NoError(t, err, "failed to send UpdateFeeTokens transaction")
-
-	t.Logf("UpdateFeeTokens transaction sent successfully - Block: %d, ExitCode: %d",
-		updateFeeTokensBlockID.SeqNo, updateFeeTokensResult.ExitCode)
 
 	// TODO: use sendmanytx or highload wallet, otherwise we get 33 exit code(too many actions)
 	time.Sleep(5 * time.Second)
