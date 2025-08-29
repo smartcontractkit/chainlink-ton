@@ -20,7 +20,6 @@ import (
 
 	"github.com/smartcontractkit/chainlink/deployment/ccip/shared/client"
 	"github.com/smartcontractkit/chainlink/deployment/ccip/shared/stateview"
-	tonStateView "github.com/smartcontractkit/chainlink/deployment/ccip/shared/stateview/ton"
 	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
 	"github.com/smartcontractkit/chainlink/deployment/environment/memory"
 	"github.com/smartcontractkit/chainlink/v2/core/logger"
@@ -190,7 +189,7 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 
 		// TODO: send helper args are coupled with core memory environment, can we tidy this?
 		ccipState := stateview.CCIPOnChainState{
-			TonChains: map[uint64]tonStateView.CCIPChainState{
+			TonChains: map[uint64]tonstate.CCIPChainState{
 				chainSelector: {
 					Router: state[chainSelector].Router,
 				},

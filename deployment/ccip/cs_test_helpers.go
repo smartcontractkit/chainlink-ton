@@ -355,7 +355,7 @@ func waitForReceivedMsgFlatten(e cldf.Environment, clientConn *ton.APIClient, ms
 			continue
 		}
 
-		e.Logger.Infof("Processing %d outgoing internal messages", len(currentMsg.OutgoingInternalReceivedMessages))
+		e.Logger.Infof("Flattening %d outgoing internal messages", len(currentMsg.OutgoingInternalReceivedMessages))
 
 		for i, outMsg := range currentMsg.OutgoingInternalReceivedMessages {
 			e.Logger.Infof("Outgoing message %d: exit code %v, success: %v, bounced: %v, status: %v",
