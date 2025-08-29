@@ -10,8 +10,7 @@ import { merkleProof } from '../../src/mcms'
 import * as counter from '../../wrappers/examples/Counter'
 
 import { crc32 } from 'zlib'
-import { asSnakeData, uint8ArrayToBigInt } from '../../src/utils'
-import { generateEd25519KeyPair } from '../libraries/ocr/Helpers'
+import { generateEd25519KeyPair, asSnakeData, uint8ArrayToBigInt } from '../../src/utils'
 
 export type MCMSTestCode = {
   mcms: Cell

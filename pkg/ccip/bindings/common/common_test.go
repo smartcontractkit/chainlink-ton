@@ -1,4 +1,4 @@
-package common
+package common //nolint:revive,nolintlint // TODO: update to meaningful package name
 
 import (
 	"fmt"

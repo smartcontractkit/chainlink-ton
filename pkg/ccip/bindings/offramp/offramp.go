@@ -32,7 +32,7 @@ type SourceChainConfig struct {
 // Methods
 
 type UpdateSourceChainConfig struct {
-	_                   tlb.Magic         `tlb:"#00000003"` //nolint:revive // Ignore opcode tag
+	_                   tlb.Magic         `tlb:"#b98c95e3"` //nolint:revive // Ignore opcode tag
 	SourceChainSelector uint64            `tlb:"## 64"`
 	Config              SourceChainConfig `tlb:"."`
 }

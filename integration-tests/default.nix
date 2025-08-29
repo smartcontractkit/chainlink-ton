@@ -1,17 +1,16 @@
 {
   pkgs,
   rev,
+  # Local dependencies
+  chainlink-ton,
+  jetton-contracts,
 }: let
-  # Import contracts to get jetton-contracts
-  contracts = pkgs.callPackage ../contracts {inherit pkgs rev;};
-  # Import chainlink-ton package
-  chainlink-ton = pkgs.callPackage ../cmd/chainlink-ton {inherit pkgs rev;};
 in {
   devShells = {
     ccip-e2e = pkgs.callPackage ./shell-ccip-e2e.nix {
       inherit pkgs;
-      chainlink-ton = chainlink-ton;
-      jetton-contracts = contracts.packages.contracts-jetton-func;
+      inherit chainlink-ton;
+      inherit jetton-contracts;
     };
     # Note: other integration test environments could go here
   };

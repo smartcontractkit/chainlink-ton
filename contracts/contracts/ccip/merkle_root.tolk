@@ -18,6 +18,8 @@ const EXECUTION_STATE_SUCCESS: uint8 = 2;
 const EXECUTION_STATE_FAILURE: uint8 = 3;
 // TODO: we need to fit additional states: TOKEN_TRANSFER | EXECUTE
 
+const ERROR_STATE_IS_NOT_UNTOUCHED: uint32 = 0x7878;
+
 fun MerkleRoot_Storage.load(): MerkleRoot_Storage {
     return MerkleRoot_Storage.fromCell(contract.getData());
 }
@@ -26,12 +28,17 @@ fun MerkleRoot_Storage.store(self) {
     return contract.setData(self.toCell());
 }
 
-type Msg = ExecuteReport;
+
+type MerkleRoot_InMessage = MerkleRoot_Validate;
 
 fun onInternalMessage(in: InMessage) {
-    val msg = lazy Msg.fromSlice(in.body);
+    val msg = lazy MerkleRoot_InMessage.fromSlice(in.body);
     match (msg) {
-        ExecuteReport => {}
+        MerkleRoot_Validate => {
+            // If we receive this message from the OffRamp then the merkle proof has already been validated.
+            _validateAndExecute(msg, in.senderAddress);
+            
+        }
         else => {
             // ignore empty messages, "wrong opcode" for others
             assert (in.body.isEmpty()) throw 0xFFFF
@@ -39,23 +46,47 @@ fun onInternalMessage(in: InMessage) {
     }
 }
 
-// fun onExecute() { // TODO: rename to something like process
-    // validate we trust the onramp (is owner)
+//TODO: We are not keeping track of the execution state right now, we just relay the message to confirm that the merkle proof is valid
+
+fun _validateAndExecute(msg: MerkleRoot_Validate, sender: address) {
+    val st = MerkleRoot_Storage.load();
+    assert(sender == st.owner, ERROR_NOT_OWNER);
+
+    assert(st.state == EXECUTION_STATE_UNTOUCHED, ERROR_STATE_IS_NOT_UNTOUCHED);
+    // TODO if no tokenTransfers
+    _execute(st, msg.messages, msg.proofs, msg.proofFlagBits, msg.metadataHash, sender);
+
+    // if tokenTransfers 
     // validate execution state == untouched
-    //
     // if initial
     //  allocate storage space for the execution report
     // TODO: should we fan out CommitReport into individual executions?
     // 
     // if in progress
-    // 
     // if tokenAmounts > 0 && state == initial
     // set state = token transfer
     // send message to offramp to ask to release tokens
     // else if no tokenTransfers
     // set state = execution
-    // call execute
-// }
+}
+
+fun _execute(st: MerkleRoot_Storage, mesages: cell, proofs: cell, proofFlagBits: uint256, metadataHash: uint256, offRamp: address) {
+    st.state = STATE_SUCCESS;
+    st.store();
+    createMessage(
+        {
+            bounce: true,
+            value: ton("0"),
+            dest: offRamp,
+            body: OffRamp_DispatchValidated {
+                messages: mesages,
+                proofs: proofs,
+                proofFlagBits: proofFlagBits,
+                metadataHash: metadataHash
+            }
+        }
+    ).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
 
 // TODO: should we wait for all transfers to either complete or fail before we allow retry?
 
