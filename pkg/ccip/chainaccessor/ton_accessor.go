@@ -193,7 +193,7 @@ func (a *TONAccessor) GetChainFeeComponents(ctx context.Context) (ccipocr3.Chain
 func (a *TONAccessor) Sync(ctx context.Context, contractName string, contractAddress ccipocr3.UnknownAddress) error {
 	strAddr, err := a.addrCodec.AddressBytesToString(contractAddress)
 	if err != nil {
-		return fmt.Errorf("invalid address: %w", err)
+		return fmt.Errorf("failed with addr codec decode: %w", err)
 	}
 	addr, err := address.ParseAddr(strAddr)
 	if err != nil {
