@@ -84,8 +84,6 @@ func (a *TONAccessor) registerFilterIfNotExists(ctx context.Context, eventName s
 func (a *TONAccessor) convertCCIPMessageSent(
 	tonEvent *onramp.CCIPMessageSent,
 ) *chainaccessor.SendRequestedEvent {
-	// TODO use a non-empty address for e2e test before we resolve the chainlink-ccip chain accessor event validation check
-	//senderAddr := codec.ToRawAddr(tonEvent.Message.Sender)
 	senderAddr := codec.ToRawAddr(tonEvent.Message.Sender)
 	feeTokenAddr := codec.ToRawAddr(tonEvent.Message.Body.FeeToken)
 	msg := ccipocr3.Message{
