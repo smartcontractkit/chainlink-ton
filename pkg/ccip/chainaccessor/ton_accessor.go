@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
@@ -408,22 +409,73 @@ func (a *TONAccessor) ExecutedMessages(ctx context.Context, ranges map[ccipocr3.
 }
 
 func (a *TONAccessor) NextSeqNum(ctx context.Context, sources []ccipocr3.ChainSelector) (seqNum map[ccipocr3.ChainSelector]ccipocr3.SeqNum, err error) {
+	// NOTE: currently unused by ChainAccessor
+
 	// TODO(NONEVM-2365) implement me
 	return nil, errors.New("not implemented")
 }
 
-func (a *TONAccessor) Nonces(ctx context.Context, addresses map[ccipocr3.ChainSelector][]ccipocr3.UnknownEncodedAddress) (map[ccipocr3.ChainSelector]map[string]uint64, error) {
-	// TODO(NONEVM-2365) implement me
-	// Return 0 nonces for all chains for now
-	return nil, errors.New("not implemented")
+func (a *TONAccessor) Nonces(ctx context.Context, query map[ccipocr3.ChainSelector][]ccipocr3.UnknownEncodedAddress) (map[ccipocr3.ChainSelector]map[string]uint64, error) {
+	// TON doesn't support out of order, so nonces will always be 0
+	nonces := make(map[ccipocr3.ChainSelector]map[string]uint64, len(query))
+	for chainSelector, addresses := range query {
+		for _, address := range addresses {
+			nonces[chainSelector][string(address)] = 0
+		}
+	}
+	return nonces, nil
 }
 
 func (a *TONAccessor) GetChainFeePriceUpdate(ctx context.Context, selectors []ccipocr3.ChainSelector) map[ccipocr3.ChainSelector]ccipocr3.TimestampedBig {
-	// TODO(NONEVM-2365) implement me
-	return nil
+	addr, err := a.getBinding(consts.ContractNameFeeQuoter)
+	if err != nil {
+		a.lggr.Errorw("failed to batch get chain fee price updates", "err", err)
+		return nil
+	}
+	block, err := a.client.CurrentMasterchainInfo(ctx)
+	if err != nil {
+		a.lggr.Errorw("failed to batch get current block", "err", err)
+		return nil
+	}
+	prices := make(map[ccipocr3.ChainSelector]ccipocr3.TimestampedBig, len(selectors))
+	for _, selector := range selectors {
+		result, err := a.client.RunGetMethod(ctx, block, addr, "destinationChainGasPrice", uint64(selector))
+		if err != nil {
+			a.lggr.Errorw("failed to batch get chain fee price updates", "err", err)
+			return nil
+		}
+		value, err := result.Cell(0)
+		if err != nil {
+			a.lggr.Errorw("failed to batch get chain fee price updates", "err", err)
+			return nil
+		}
+		// HACK: we read the value as Timestamped since the binary layout is compatible, so that we match TimestampedBig (two values packed together)
+		var update feequoter.TimestampedPrice
+		tlb.LoadFromCell(&update, value.BeginParse())
+		prices[selector] = ccipocr3.TimeStampedBigFromUnix(ccipocr3.TimestampedUnixBig{
+			Timestamp: uint32(update.Timestamp), // TODO: downcast?
+			Value:     update.Value,
+		})
+	}
+	return prices
 }
 
 func (a *TONAccessor) GetLatestPriceSeqNr(ctx context.Context) (uint64, error) {
-	// TODO(NONEVM-2365) implement me
-	return 0, errors.New("not implemented")
+	addr, err := a.getBinding(consts.ContractNameOffRamp)
+	if err != nil {
+		return 0, err
+	}
+	block, err := a.client.CurrentMasterchainInfo(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get current block: %w", err)
+	}
+	result, err := a.client.RunGetMethod(ctx, block, addr, "latestPriceSequenceNumber")
+	if err != nil {
+		return 0, err
+	}
+	value, err := result.Int(0)
+	if err != nil {
+		return 0, err
+	}
+	return value.Uint64(), nil
 }
