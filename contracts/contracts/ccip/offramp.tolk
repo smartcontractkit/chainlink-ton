@@ -401,8 +401,9 @@ fun _updateSourceChainConfig(msg: OffRamp_UpdateSourceChainConfig, sender: addre
 //     // TODO: node will need to directly look at MerkleRoot subcontracts
 // }
 
-get fun latestPriceSequenceNumber() {
-    
+get fun latestPriceSequenceNumber(): uint64 {
+    var st = lazy Storage.load();
+    return st.latestPriceSequenceNumber
 }
 
 get fun staticConfig() {

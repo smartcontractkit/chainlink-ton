@@ -371,8 +371,10 @@ get fun tokenPrices(tokens: tuple): tuple {
     return list!;
 }
 
-get fun destinationChainGasPrice(destChainSelector: uint64) {
-    
+get fun destinationChainGasPrice(destChainSelector: uint64): cell {
+    val st = lazy Storage.load();
+    val config = st.destChainConfigs.mustGet(destChainSelector, ERROR_UNKNOWN_DEST_CHAIN_SELECTOR);
+    return config.usdPerUnitGas
 }
 
 get fun tokenAndGasPrices(token: address, destChainSelector: uint64) {
