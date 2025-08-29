@@ -2,7 +2,6 @@ package chainaccessor
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
@@ -349,7 +348,12 @@ func (a *TONAccessor) GetTokenPriceUSD(ctx context.Context, rawTokenAddress ccip
 		return ccipocr3.TimestampedUnixBig{}, err
 	}
 
-	tokenAddress, err := address.ParseAddr(base64.RawURLEncoding.EncodeToString(rawTokenAddress))
+	addrStr, err := a.addrCodec.AddressBytesToString(rawTokenAddress)
+	if err != nil {
+		return ccipocr3.TimestampedUnixBig{}, fmt.Errorf("failed with addr codec decode: %w", err)
+	}
+
+	tokenAddress, err := address.ParseAddr(addrStr)
 	if err != nil {
 		return ccipocr3.TimestampedUnixBig{}, fmt.Errorf("invalid address: %w", err)
 	}
