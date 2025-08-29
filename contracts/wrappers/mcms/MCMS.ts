@@ -36,6 +36,8 @@ export type SetRoot = {
   metadataProof: Cell // vec<uint256>
   // The ECDSA signatures on (root, validUntil).
   signatures: Cell // vec<Signature>
+  /// The timeout required to finalize the currently executing op
+  opFinalizationTimeout: bigint // uint32
 }
 
 // @dev Executes an operation authenticated by the Merkle tree.
@@ -83,10 +85,8 @@ export type ContractData = {
 
   /// Remember signedHashes that this contract has seen. Each signedHash can only be set once.
   seenSignedHashes: Map<bigint, boolean> // map<uint256, bool>
-  /// The current expiring root and the number of ops in it.
-  expiringRootAndOpCount: ExpiringRootAndOpCount
-  /// The current metadata about the root.
-  rootMetadata: RootMetadata
+  /// The current RootMetadata and ExpiringRootAndOpCount wrapped in a cell bc size limits.
+  rootInfo: RootInfo
 }
 
 // --- Constants ---
@@ -181,6 +181,9 @@ export enum Error {
 
   /// @notice Thrown when attempt to set the same (root, validUntil) in setRoot().
   SIGNED_HASH_ALREADY_SEEN = 121,
+
+  /// @notice Thrown when the root has not been finalized yet (can't execute next op before finalization).
+  ERROR_ROOT_NOT_FINALIZED = 122,
 }
 
 // --- Data structures ---
@@ -261,6 +264,14 @@ export type Config = {
   groupParents: Map<number, number> // map<uint8, uint8> (indexed, iterable backwards)
 }
 
+/// Information about the current root, extracted into a separate struct (wrapped in a cell).
+export type RootInfo = {
+  /// The current expiring root and the number of ops in it.
+  expiringRootAndOpCount: ExpiringRootAndOpCount
+  /// The current metadata about the root.
+  rootMetadata: RootMetadata
+}
+
 /// MerkleRoots are a bit tricky since they reveal almost no information about the contents of
 /// the tree they authenticate. To mitigate this, we enforce that this contract can only execute
 /// ops from a single root at any given point in time. We further associate an expiry
@@ -277,9 +288,13 @@ export type ExpiringRootAndOpCount = {
   validUntil: bigint //uint32
   /// each ManyChainMultiSig instance has it own independent opCount.
   opCount: bigint // uint40
+  /// Information about the currently pending operation.
+  opPendingInfo: OpPendingInfo
+}
 
-  /// TON-specific additions below to support the async environment
-  ///
+/// Information about the currently pending operation.
+/// This is TON-specific additional data required to support reliable execution in the async environment.
+export type OpPendingInfo = {
   /// The time at which the root becomes valid [executionTime(opCount - 1) + opFinalizationTimeout].
   /// At this time the previous executed operation is considered optimistically final and succesfull,
   /// meaning no bounce was received and we can continue executing.
@@ -416,6 +431,7 @@ export const builder = {
             .storeBuilder(rootMetadata.encode(msg.metadata).asBuilder())
             .storeRef(msg.metadataProof)
             .storeRef(msg.signatures)
+            .storeUint(msg.opFinalizationTimeout, 32)
             .endCell()
         },
         decode: (cell: Cell): SetRoot => {
@@ -428,6 +444,7 @@ export const builder = {
             metadata: s.loadRef().beginParse() as unknown as RootMetadata, // TODO: decode metadata properly
             metadataProof: s.loadRef(),
             signatures: s.loadRef(),
+            opFinalizationTimeout: s.loadUintBig(32),
           }
         },
       },
@@ -539,16 +556,33 @@ export const builder = {
       },
     }
 
+    const opPendingInfo: CellCodec<OpPendingInfo> = {
+      encode: (data: OpPendingInfo): Cell => {
+        return beginCell()
+          .storeUint(data.validAfter, 32)
+          .storeUint(data.opFinalizationTimeout, 32)
+          .storeAddress(data.opPendingReceiver)
+          .storeUint(data.opPendingBodyVal, 256)
+          .endCell()
+      },
+      decode: (cell: Cell): OpPendingInfo => {
+        const s = cell.beginParse()
+        return {
+          validAfter: s.loadUintBig(32),
+          opFinalizationTimeout: s.loadUintBig(32),
+          opPendingReceiver: s.loadAddress(),
+          opPendingBodyVal: s.loadUintBig(256),
+        }
+      },
+    }
+
     const expiringRootAndOpCount: CellCodec<ExpiringRootAndOpCount> = {
       encode: (data: ExpiringRootAndOpCount): Cell => {
         return beginCell()
           .storeUint(data.root, 256)
           .storeUint(data.validUntil, 32)
           .storeUint(data.opCount, 40)
-          .storeUint(data.validAfter, 32)
-          .storeUint(data.opFinalizationTimeout, 32)
-          .storeAddress(data.opPendingReceiver)
-          .storeUint(data.opPendingBodyVal, 256)
+          .storeRef(opPendingInfo.encode(data.opPendingInfo))
           .endCell()
       },
       decode: (cell: Cell): ExpiringRootAndOpCount => {
@@ -557,13 +591,28 @@ export const builder = {
           root: s.loadUintBig(256),
           validUntil: s.loadUintBig(32),
           opCount: s.loadUintBig(40),
-          validAfter: s.loadUintBig(32),
-          opFinalizationTimeout: s.loadUintBig(32),
-          opPendingReceiver: s.loadAddress(),
-          opPendingBodyVal: s.loadUintBig(256),
+          opPendingInfo: opPendingInfo.decode(s.loadRef()),
         }
       },
     }
+
+    /// Information about the current root, extracted into a separate struct (wrapped in a cell).
+    const rootInfo: CellCodec<RootInfo> = {
+      encode: (data: RootInfo): Cell => {
+        return beginCell()
+          .storeBuilder(expiringRootAndOpCount.encode(data.expiringRootAndOpCount).asBuilder())
+          .storeBuilder(rootMetadata.encode(data.rootMetadata).asBuilder())
+          .endCell()
+      },
+      decode: (cell: Cell): RootInfo => {
+        const s = cell.beginParse()
+        return {
+          expiringRootAndOpCount: expiringRootAndOpCount.decode(s.asCell()),
+          rootMetadata: rootMetadata.decode(s.asCell()),
+        }
+      },
+    }
+
     // Creates a new `Signer` data cell
     const signer: CellCodec<Signer> = {
       encode: (signer: Signer): Cell => {
@@ -652,8 +701,7 @@ export const builder = {
             Dictionary.Keys.BigUint(256),
             Dictionary.Values.Bool(),
           )
-          .storeBuilder(expiringRootAndOpCount.encode(data.expiringRootAndOpCount).asBuilder())
-          .storeRef(rootMetadata.encode(data.rootMetadata))
+          .storeRef(rootInfo.encode(data.rootInfo))
           .endCell()
       },
       decode: (cell: Cell): ContractData => {
@@ -683,23 +731,7 @@ export const builder = {
           ),
         )
 
-        const expiringRootAndOpCount = {
-          root: s.loadUintBig(256),
-          opCount: s.loadUintBig(40),
-          validUntil: s.loadUintBig(32),
-          validAfter: s.loadUintBig(32),
-          opFinalizationTimeout: s.loadUintBig(32),
-          opPendingReceiver: s.loadAddress(),
-          opPendingBodyVal: s.loadUintBig(256),
-        }
-
-        const rootMetadata = {
-          chainId: s.loadIntBig(256),
-          multiSig: s.loadAddress(),
-          preOpCount: s.loadUintBig(40),
-          postOpCount: s.loadUintBig(40),
-          overridePreviousRoot: s.loadBoolean(),
-        }
+        const _rootInfo = rootInfo.decode(s.loadRef())
 
         return {
           id,
@@ -707,8 +739,7 @@ export const builder = {
           signers,
           config: _config,
           seenSignedHashes,
-          expiringRootAndOpCount,
-          rootMetadata,
+          rootInfo: _rootInfo,
         }
       },
     }
@@ -727,21 +758,25 @@ export const builder = {
           groupParents: new Map<number, number>(),
         },
         seenSignedHashes: new Map<bigint, boolean>(),
-        expiringRootAndOpCount: {
-          root: 0n, // no root
-          validUntil: 0n, // no validity
-          opCount: 0n, // no ops
-          validAfter: 0n, // no valid after
-          opFinalizationTimeout: 0n, // no op finalization timeout
-          opPendingReceiver: ZERO_ADDRESS, // no op pending receiver
-          opPendingBodyVal: 0n, // no op pending body
-        },
-        rootMetadata: {
-          chainId: 0n, // no chain ID
-          multiSig: ZERO_ADDRESS, // no multiSig
-          preOpCount: 0n, // no pre-op count
-          postOpCount: 0n, // no post-op count
-          overridePreviousRoot: false, // no override
+        rootInfo: {
+          expiringRootAndOpCount: {
+            root: 0n, // no root
+            validUntil: 0n, // no validity
+            opCount: 0n, // no ops
+            opPendingInfo: {
+              validAfter: 0n, // no valid after
+              opFinalizationTimeout: 0n, // no op finalization timeout
+              opPendingReceiver: ZERO_ADDRESS, // no op pending receiver
+              opPendingBodyVal: 0n, // no op pending body
+            },
+          },
+          rootMetadata: {
+            chainId: 0n, // no chain ID
+            multiSig: ZERO_ADDRESS, // no multiSig
+            preOpCount: 0n, // no pre-op count
+            postOpCount: 0n, // no post-op count
+            overridePreviousRoot: false, // no override
+          },
         },
       }
     }
@@ -749,6 +784,7 @@ export const builder = {
     return {
       config,
       rootMetadata,
+      opPendingInfo,
       expiringRootAndOpCount,
       op,
       signature,
@@ -775,11 +811,7 @@ export class ContractClient implements Contract {
   }
 
   async sendInternal(p: ContractProvider, via: Sender, value: bigint, body: Cell) {
-    await p.internal(via, {
-      value: value,
-      sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: body,
-    })
+    await p.internal(via, { value, sendMode: SendMode.PAY_GAS_SEPARATELY, body })
   }
 
   async sendTopUp(p: ContractProvider, via: Sender, value: bigint = 0n, body: TopUp) {

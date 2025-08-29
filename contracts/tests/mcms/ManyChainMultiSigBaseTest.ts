@@ -10,7 +10,12 @@ import { merkleProof } from '../../src/mcms'
 import * as counter from '../../wrappers/examples/Counter'
 
 import { crc32 } from 'zlib'
-import { generateEd25519KeyPair, asSnakeData, uint8ArrayToBigInt } from '../../src/utils'
+import {
+  generateEd25519KeyPair,
+  asSnakeData,
+  uint8ArrayToBigInt,
+  ZERO_ADDRESS,
+} from '../../src/utils'
 
 export type MCMSTestCode = {
   mcms: Cell
@@ -52,6 +57,8 @@ export class MCMSBaseTestSetup {
   static readonly GROUP3_PARENT = 0
   static readonly TEST_CHAIN_ID = -239n // TODO: blockchain global chain ID (will need to be signed int)
   static readonly TEST_VALID_UNTIL = 1000000
+
+  static readonly OP_FINALIZATION_TIMEOUT_ZERO = 0n
 
   blockchain: Blockchain
   code: MCMSTestCode
@@ -236,26 +243,32 @@ export class MCMSBaseTestSetup {
         groupParents: new Map<number, number>(),
       },
       seenSignedHashes: new Map<bigint, boolean>(),
-      expiringRootAndOpCount: {
-        root: 0n,
-        validUntil: 0n,
-        opCount: 0n,
-        validAfter: 0n,
-        opFinalizationTimeout: 0n,
-      },
-      rootMetadata: {
-        chainId: MCMSBaseTestSetup.TEST_CHAIN_ID,
-        multiSig: Address.parse('EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2'), // Will be updated after deployment
-        preOpCount: 0n,
-        postOpCount: 0n,
-        overridePreviousRoot: false,
+      rootInfo: {
+        expiringRootAndOpCount: {
+          root: 0n,
+          validUntil: 0n,
+          opCount: 0n,
+          opPendingInfo: {
+            validAfter: 0n,
+            opFinalizationTimeout: MCMSBaseTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
+            opPendingReceiver: ZERO_ADDRESS,
+            opPendingBodyVal: 0n,
+          },
+        },
+        rootMetadata: {
+          chainId: MCMSBaseTestSetup.TEST_CHAIN_ID,
+          multiSig: Address.parse('EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2'), // Will be updated after deployment
+          preOpCount: 0n,
+          postOpCount: 0n,
+          overridePreviousRoot: false,
+        },
       },
     }
 
     this.bind.mcms = this.blockchain.openContract(mcms.ContractClient.newFrom(data, this.code.mcms))
 
     // Update the multiSig address in rootMetadata
-    data.rootMetadata.multiSig = this.bind.mcms.address
+    data.rootInfo.rootMetadata.multiSig = this.bind.mcms.address
   }
 
   /**
@@ -363,7 +376,7 @@ export class MCMSBaseTestSetup {
   /**
    * Create multiple test operations
    */
-  createTestOps(count: number): mcms.Op[] {
+  createTestOps(count: number, includeRevertingOp: boolean = true, startNonce = 0): mcms.Op[] {
     const ops: mcms.Op[] = []
     for (let i = 0; i < count; i++) {
       const value =
@@ -372,7 +385,14 @@ export class MCMSBaseTestSetup {
       {
         switch (i) {
           case MCMSBaseSetRootAndExecuteTestSetup.REVERTING_OP_INDEX:
-            op = beginCell().storeUint(0xffffffff, 32).endCell()
+            if (includeRevertingOp) {
+              op = beginCell().storeUint(0xffffffff, 32).endCell()
+            } else {
+              op = counter.builder.message.in.setCount.encode({
+                queryId: BigInt(i + 1),
+                newCount: i,
+              })
+            }
             break
           case MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX:
             op = beginCell().endCell()
@@ -388,7 +408,7 @@ export class MCMSBaseTestSetup {
       ops.push({
         chainId: MCMSBaseTestSetup.TEST_CHAIN_ID,
         multiSig: this.bind.mcms.address,
-        nonce: BigInt(i),
+        nonce: BigInt(i + startNonce),
         to: this.bind.counter.address,
         value,
         data: op,
@@ -492,7 +512,9 @@ export class MCMSBaseSetRootAndExecuteTestSetup extends MCMSBaseTestSetup {
   /**
    * Set the initial root using merkle proof helper
    */
-  async setInitialRoot(): Promise<void> {
+  async setInitialRoot(rootMetadata = this.initialTestRootMetadata): Promise<void> {
+    this.initialTestRootMetadata = rootMetadata
+
     const signers = this.testSigners.map((s) => ({
       publicKey: s.keyPair.publicKey,
       sign: (data: Buffer<ArrayBufferLike>) => sign(data, s.keyPair.secretKey),
@@ -501,8 +523,9 @@ export class MCMSBaseSetRootAndExecuteTestSetup extends MCMSBaseTestSetup {
     const [setRoot, opProofs] = merkleProof.build(
       signers,
       BigInt(MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL),
-      this.initialTestRootMetadata,
+      rootMetadata,
       this.testOps,
+      MCMSBaseTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
     )
 
     // Store the operation proofs for later use in execute tests
@@ -536,6 +559,7 @@ export class MCMSBaseSetRootAndExecuteTestSetup extends MCMSBaseTestSetup {
   // Execute all operations up to the post-op count limit to simulate setOpCount
   async executeOperationsUpTo(index: number) {
     for (let i = 0; i < index; i++) {
+      console.log(`Executing operation ${i}`)
       const executeBody = mcms.builder.message.in.execute.encode({
         queryId: BigInt(i + 1),
         op: mcms.builder.data.op.encode(this.testOps[i]),

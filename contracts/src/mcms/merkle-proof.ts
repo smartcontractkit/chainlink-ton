@@ -15,6 +15,7 @@ export function build(
   validUntil: bigint,
   metadata: mcms.RootMetadata,
   ops: mcms.Op[],
+  opFinalizationTimeout: bigint,
 ): [mcms.SetRoot, OpProofs] {
   const leaves = constructLeaves(ops, metadata)
 
@@ -39,6 +40,7 @@ export function build(
       metadata,
       metadataProof: asSnakeData<bigint>(metadataProof, encodeProof),
       signatures: asSnakeData<mcms.Signature>(signatures, encodeSignature),
+      opFinalizationTimeout,
     },
     opProofs,
   ]
