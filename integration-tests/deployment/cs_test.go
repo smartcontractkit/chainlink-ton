@@ -20,7 +20,6 @@ import (
 	"github.com/smartcontractkit/chainlink/deployment/environment/memory"
 	"github.com/smartcontractkit/chainlink/v2/core/logger"
 
-	test_utils "github.com/smartcontractkit/chainlink-ton/integration-tests/utils"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/chainaccessor"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
@@ -30,7 +29,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/txparser"
 
 	"github.com/xssnick/tonutils-go/address"
-	"github.com/xssnick/tonutils-go/tlb"
 	"go.uber.org/zap/zapcore"
 
 	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
@@ -57,9 +55,6 @@ func TestDeploy(t *testing.T) {
 	deployer := tonChain.Wallet
 	t.Log("Deployer: ", deployer.Address().String())
 
-	// memory environment doesn't block on funding so changesets can execute before the env is fully ready, manually call fund so we block here
-	test_utils.FundWallets(t, tonChain.Client, []*address.Address{deployer.Address()}, []tlb.Coins{tlb.MustFromTON("1000")})
-
 	cs := ton_ops.DeployChainContractsToTonCS(t, env, chainSelector)
 	env, _, err := commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{cs})
 	require.NoError(t, err, "failed to deploy ccip")
@@ -84,7 +79,7 @@ func TestDeploy(t *testing.T) {
 							ton_ops.TonTokenAddr: big.NewInt(99),
 						},
 						FeeQuoterDestChainConfig: ton_ops.DefaultFeeQuoterDestChainConfig(true, evmSelector),
-						TokenTransferFeeConfigs:  map[uint64]feequoter.UpdateTokenTransferFeeConfig{
+						TokenTransferFeeConfigs: map[uint64]feequoter.UpdateTokenTransferFeeConfig{
 							// TODO: populate when token transfer enabled
 						},
 					},
