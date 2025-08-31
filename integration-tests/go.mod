@@ -12,8 +12,8 @@ require (
 	github.com/smartcontractkit/chainlink-common v0.9.4-0.20250828173926-fcae05ee4a0b
 	github.com/smartcontractkit/chainlink-deployments-framework v0.25.0
 	github.com/smartcontractkit/chainlink-testing-framework/framework v0.10.12
-	github.com/smartcontractkit/chainlink-ton v0.0.0-00010101000000-000000000000
-	github.com/smartcontractkit/chainlink-ton/deployment v0.0.0-00010101000000-000000000000
+	github.com/smartcontractkit/chainlink-ton v0.0.0-20250829201010-23f1c63ba3f1
+	github.com/smartcontractkit/chainlink-ton/deployment v0.0.0-20250829201010-23f1c63ba3f1
 	github.com/smartcontractkit/chainlink/deployment v0.0.0-20250831015441-42e63aeb318b
 	github.com/smartcontractkit/chainlink/v2 v2.26.0-debug-tracing.0.20250831015441-42e63aeb318b
 	github.com/stretchr/testify v1.10.0
