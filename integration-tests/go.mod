@@ -14,7 +14,7 @@ require (
 	github.com/smartcontractkit/chainlink-testing-framework/framework v0.10.12
 	github.com/smartcontractkit/chainlink-ton v0.0.0-20250829201010-23f1c63ba3f1
 	github.com/smartcontractkit/chainlink-ton/deployment v0.0.0-20250829201010-23f1c63ba3f1
-	github.com/smartcontractkit/chainlink/deployment v0.0.0-20250831015441-42e63aeb318b
+	github.com/smartcontractkit/chainlink/deployment v0.0.0-20250831041730-9b6914fe99ed
 	github.com/smartcontractkit/chainlink/v2 v2.26.0-debug-tracing.0.20250831015441-42e63aeb318b
 	github.com/stretchr/testify v1.10.0
 	github.com/xssnick/tonutils-go v1.14.0
