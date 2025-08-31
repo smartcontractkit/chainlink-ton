@@ -4,9 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 
 	"github.com/smartcontractkit/chainlink-ccip/pkg/chainaccessor"
 	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"

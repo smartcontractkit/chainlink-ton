@@ -159,10 +159,7 @@ func (c *chain) Start(ctx context.Context) error {
 		if err := ms.Start(ctx, c.txm); err != nil {
 			return err
 		}
-		if err := ms.Start(ctx, c.lp); err != nil {
-			return err
-		}
-		return nil
+		return ms.Start(ctx, c.lp)
 	})
 }
 

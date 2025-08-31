@@ -245,8 +245,9 @@ func (lp *service) Replay(ctx context.Context, fromBlock uint32) error {
 		return fmt.Errorf("failed to get current masterchain info: %w", err)
 	}
 	blockRange := &types.BlockRange{Prev: nil, To: toBlock}
+	var prevBlock *ton.BlockIDExt
 	if fromBlock != 0 {
-		prevBlock, err := lp.client.LookupBlock(ctx, toBlock.Workchain, toBlock.Shard, fromBlock)
+		prevBlock, err = lp.client.LookupBlock(ctx, toBlock.Workchain, toBlock.Shard, fromBlock)
 		if err != nil {
 			return fmt.Errorf("LookupBlock for previous seqno %d: %w", fromBlock, err)
 		}
