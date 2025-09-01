@@ -92,9 +92,13 @@ var UpdateFeeQuoterDestChainConfigsOp = operations.NewOperation(
 func updateFeeQuoterDestChainConfigs(b operations.Bundle, deps TonDeps, in UpdateFeeQuoterDestChainConfigsInput) ([][]byte, error) {
 	address := deps.CCIPOnChainState[deps.TonChain.Selector].FeeQuoter
 
+	// Skip if there's no updates
+	if len(in) == 0 {
+		return nil, nil
+	}
+
 	input := feequoter.UpdateDestChainConfigs{
-		Update: in[0], // TEMP: until contracts get updated
-		// Updates: common.SnakeData[feequoter.UpdateDestChainConfig](in),
+		Updates: common.SnakeData[feequoter.UpdateDestChainConfig](in),
 	}
 
 	payload, err := tlb.ToCell(input)
