@@ -3,6 +3,7 @@ package ops
 import (
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"math/big"
 	"testing"
@@ -11,6 +12,7 @@ import (
 	chainsel "github.com/smartcontractkit/chain-selectors"
 	"github.com/smartcontractkit/chainlink-ccip/chains/evm/gobindings/generated/v1_6_0/fee_quoter"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink/deployment/ccip/changeset/v1_6"
@@ -134,7 +136,7 @@ func AddLaneTONChangesets(env *cldf.Environment, from, to uint64, fromFamily, to
 				TonTokenAddr: big.NewInt(99),
 			},
 			FeeQuoterDestChainConfig: DefaultFeeQuoterDestChainConfig(true, to),
-			TokenTransferFeeConfigs:  map[uint64]feequoter.UpdateTokenTransferFeeConfig{
+			TokenTransferFeeConfigs: map[uint64]feequoter.UpdateTokenTransferFeeConfig{
 				// TODO:
 			},
 		}
@@ -187,7 +189,7 @@ func AddLaneTONChangesets(env *cldf.Environment, from, to uint64, fromFamily, to
 				TonTokenAddr: big.NewInt(99),
 			},
 			FeeQuoterDestChainConfig: DefaultFeeQuoterDestChainConfig(true, to),
-			TokenTransferFeeConfigs:  map[uint64]feequoter.UpdateTokenTransferFeeConfig{
+			TokenTransferFeeConfigs: map[uint64]feequoter.UpdateTokenTransferFeeConfig{
 				// TODO:
 			},
 		}
@@ -240,7 +242,6 @@ func SendTonRequest(
 
 	msg := cfg.Message.(TonSendRequest)
 	routerAddr := state.TonChains[cfg.SourceChain].Router
-	//onrampAddr := state.TonChains[cfg.SourceChain].OnRamp
 
 	ccipSend := router.CCIPSend{
 		QueryID:           msg.QueryID,
@@ -284,50 +285,26 @@ func SendTonRequest(
 		return nil, fmt.Errorf("failed to wait for trace: %w", err)
 	}
 
-	waitForReceivedMsgRecursive(e, clientConn, receivedMsg)
+	seqNum, err := waitForReceivedMsgFlatten(e, clientConn, receivedMsg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get seqNum from flattening received messages: %w", err)
+	}
+
 	return &client.AnyMsgSentEvent{
-		SequenceNumber: uint64(1),
+		SequenceNumber: seqNum,
 	}, nil
 }
 
-func waitForReceivedMsgRecursive(e cldf.Environment, clientConn *ton.APIClient, msg *tracetracking.ReceivedMessage) {
-	if msg == nil || len(msg.OutgoingInternalReceivedMessages) == 0 {
-		return
-	}
-
-	// Log details about outgoing messages
-	e.Logger.Infof("Recursively wait for number of outgoing internal messages: %d", len(msg.OutgoingInternalReceivedMessages))
-	for i, outMsg := range msg.OutgoingInternalReceivedMessages {
-		e.Logger.Infof("Outgoing message %d: exit code %v, success: %v, bounced: %v, status: %v",
-			i, outMsg.ExitCode, outMsg.Success, outMsg.EmittedBouncedMessage, outMsg.Status())
-		if outMsg.ExitCode != 0 {
-			e.Logger.Errorf("Outgoing message %d failed with exit code %v", i, outMsg.ExitCode)
-		}
-		if !outMsg.Success {
-			e.Logger.Errorf("Outgoing message %d was not successful", i)
-		}
-		if outMsg.EmittedBouncedMessage {
-			e.Logger.Errorf("Outgoing message %d was bounced", i)
-		}
-
-		err := outMsg.WaitForTrace(clientConn)
-		if err != nil {
-			e.Logger.Errorf("failed to wait for trace: %v", err)
-		}
-
-		waitForReceivedMsgRecursive(e, clientConn, outMsg)
-	}
-	return
-}
-
-func waitForReceivedMsgFlatten(e cldf.Environment, clientConn *ton.APIClient, msg *tracetracking.ReceivedMessage) {
+func waitForReceivedMsgFlatten(e cldf.Environment, clientConn *ton.APIClient, msg *tracetracking.ReceivedMessage) (uint64, error) {
 	if msg == nil {
-		return
+		return 0, errors.New("received message is nil")
 	}
 
 	// Collect all messages to process in a queue
 	var messagesToProcess []*tracetracking.ReceivedMessage
 	messagesToProcess = append(messagesToProcess, msg)
+
+	var lastMsg *tracetracking.ReceivedMessage
 
 	// Process messages iteratively
 	for len(messagesToProcess) > 0 {
@@ -363,6 +340,20 @@ func waitForReceivedMsgFlatten(e cldf.Environment, clientConn *ton.APIClient, ms
 
 			// Add this message to the queue for further processing
 			messagesToProcess = append(messagesToProcess, outMsg)
+			lastMsg = outMsg
 		}
 	}
+
+	if lastMsg == nil || len(lastMsg.OutgoingExternalMessages) == 0 {
+		return 0, errors.New("no received messages were processed")
+	}
+
+	var ccipResp onramp.CCIPMessageSent
+	err := tlb.LoadFromCell(&ccipResp, lastMsg.OutgoingExternalMessages[0].Body.BeginParse())
+	if err != nil {
+		e.Logger.Errorf("failed to parse CCIPMessageSent from cell: %v", err)
+		return 0, err
+	}
+
+	return ccipResp.Message.Header.SequenceNumber, nil
 }

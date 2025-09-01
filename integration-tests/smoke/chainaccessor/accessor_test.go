@@ -111,7 +111,7 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 	// TODO: use sendmanytx or highload wallet, otherwise we get 33 exit code(too many actions)
 	time.Sleep(5 * time.Second)
 
-	const maxSeqNo = 4
+	const maxSeqNo = 5
 	for seqNo := 0; seqNo <= maxSeqNo; seqNo++ {
 		t.Log("Sending CCIP message", seqNo)
 		extraArgs := onramp.GenericExtraArgsV2{
