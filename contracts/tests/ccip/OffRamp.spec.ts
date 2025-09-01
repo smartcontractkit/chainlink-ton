@@ -16,10 +16,11 @@ import { FeeQuoter } from '../../wrappers/ccip/FeeQuoter'
 import { assertLog, expectFailedTransaction, expectSuccessfulTransaction } from '../Logs'
 import '@ton/test-utils'
 import {
-    bigIntToBuffer, bigIntToUint8Array,
-    generateEd25519KeyPair,
-    generateMockTonAddress,
-    uint8ArrayToBigInt,
+  bigIntToBuffer,
+  bigIntToUint8Array,
+  generateEd25519KeyPair,
+  generateMockTonAddress,
+  uint8ArrayToBigInt,
 } from '../../src/utils'
 import { KeyPair, sha256_sync } from '@ton/crypto'
 
@@ -494,19 +495,19 @@ describe('OffRamp', () => {
   it('Test generateMessageId hash compatibility with Go', () => {
     // Create the exact same message as in Go test for cross-language compatibility
     const rampMessageHeader: RampMessageHeader = {
-        messageId: 1n,
-        sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
-        destChainSelector: CHAINSEL_TON,
-        sequenceNumber: 1n,
-        nonce: 0n,
+      messageId: 1n,
+      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+      destChainSelector: CHAINSEL_TON,
+      sequenceNumber: 1n,
+      nonce: 0n,
     }
 
     const message: Any2TVMRampMessage = {
-        header: rampMessageHeader,
-        sender: Buffer.from(bigIntToUint8Array(EVM_SENDER_ADDRESS_TEST)),
-        data: beginCell().endCell(),
-        receiver: Address.parse("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2"),
-        tokenAmounts: undefined,
+      header: rampMessageHeader,
+      sender: Buffer.from(bigIntToUint8Array(EVM_SENDER_ADDRESS_TEST)),
+      data: beginCell().endCell(),
+      receiver: Address.parse('EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2'),
+      tokenAmounts: undefined,
     }
 
     const metadataHash = uint8ArrayToBigInt(getMetadataHash(CHAINSEL_EVM_TEST_90000001))
