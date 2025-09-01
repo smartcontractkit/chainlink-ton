@@ -184,6 +184,9 @@ export enum Error {
 
   /// @notice Thrown when the root has not been finalized yet (can't execute next op before finalization).
   ERROR_ROOT_NOT_FINALIZED = 122,
+
+  /// @notice Thrown when the provided op.value is insufficient (min required value not met).
+  ERROR_INSUFFICIENT_VALUE = 123,
 }
 
 // --- Data structures ---
