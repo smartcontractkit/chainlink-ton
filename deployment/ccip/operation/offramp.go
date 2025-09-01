@@ -114,6 +114,10 @@ func updateOffRampSourceChainConfigs(b operations.Bundle, deps TonDeps, in Updat
 	var configs []offramp.UpdateSourceChainConfig
 
 	for selector, update := range in.Updates {
+		if update.OnRamp == nil {
+			return nil, fmt.Errorf("onramp.UpdateSourceChainConfigs: OnRamp address should not be nil")
+		}
+
 		router := deps.CCIPOnChainState[deps.TonChain.Selector].Router
 		configs = append(configs, offramp.UpdateSourceChainConfig{
 			SourceChainSelector: selector,
