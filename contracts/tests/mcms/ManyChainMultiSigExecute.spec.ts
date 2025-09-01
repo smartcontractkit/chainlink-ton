@@ -28,6 +28,21 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
       mcms.builder.message.in.topUp.encode({ queryId: 1n }),
     )
 
+    // Recreate test operations (skip reverting op for this test)
+    // Notice: needs setting new root with new metadata
+    const includeRevertingOp = false
+    baseTest.testOps = baseTest.createTestOps(
+      MCMSBaseSetRootAndExecuteTestSetup.OPS_NUM,
+      includeRevertingOp,
+    )
+    await baseTest.setInitialRoot(
+      baseTest.createTestRootMetadata(
+        0n,
+        BigInt(MCMSBaseSetRootAndExecuteTestSetup.OPS_NUM),
+        true, // override root
+      ),
+    )
+
     await baseTest.executeOperationsUpTo(MCMSBaseSetRootAndExecuteTestSetup.OPS_NUM)
 
     // Verify we've reached the post-op count
@@ -296,7 +311,7 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
     await baseTest.executeOperationsUpTo(MCMSBaseSetRootAndExecuteTestSetup.REVERTING_OP_INDEX)
 
     // Verify we're at the correct op count
-    const currentOpCount = await baseTest.bind.mcms.getOpCount()
+    let currentOpCount = await baseTest.bind.mcms.getOpCount()
     expect(currentOpCount).toEqual(BigInt(MCMSBaseSetRootAndExecuteTestSetup.REVERTING_OP_INDEX))
 
     // Now try to execute the reverting operation
@@ -325,9 +340,28 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
     })
 
     // TODO check emit or reply with the failed error
+
+    // Verify we're (back) at the correct op count, the error was handled and we can retry
+    currentOpCount = await baseTest.bind.mcms.getOpCount()
+    expect(currentOpCount).toEqual(BigInt(MCMSBaseSetRootAndExecuteTestSetup.REVERTING_OP_INDEX))
   })
 
   it('should handle value operations correctly - insufficient balance', async () => {
+    // Recreate test operations (skip reverting op for this test)
+    // Notice: needs setting new root with new metadata
+    const includeRevertingOp = false
+    baseTest.testOps = baseTest.createTestOps(
+      MCMSBaseSetRootAndExecuteTestSetup.OPS_NUM,
+      includeRevertingOp,
+    )
+    await baseTest.setInitialRoot(
+      baseTest.createTestRootMetadata(
+        0n,
+        BigInt(MCMSBaseSetRootAndExecuteTestSetup.OPS_NUM),
+        true, // override root
+      ),
+    )
+
     // Check that MCMS contract has minimal balance initially
     const mcmsContract = await baseTest.blockchain.getContract(baseTest.bind.mcms.address)
     expect(mcmsContract.balance).toBeLessThanOrEqual(toNano('2')) // Should be very low (just deployment funds)
@@ -370,6 +404,21 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
   })
 
   it('should handle value operations correctly - with sufficient balance', async () => {
+    // Recreate test operations (skip reverting op for this test)
+    // Notice: needs setting new root with new metadata
+    const includeRevertingOp = false
+    baseTest.testOps = baseTest.createTestOps(
+      MCMSBaseSetRootAndExecuteTestSetup.OPS_NUM,
+      includeRevertingOp,
+    )
+    await baseTest.setInitialRoot(
+      baseTest.createTestRootMetadata(
+        0n,
+        BigInt(MCMSBaseSetRootAndExecuteTestSetup.OPS_NUM),
+        true, // override root
+      ),
+    )
+
     // Execute operations up to the value operation index
     await baseTest.executeOperationsUpTo(MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX)
 
