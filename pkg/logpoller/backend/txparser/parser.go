@@ -2,8 +2,6 @@ package txparser
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"time"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
@@ -12,7 +10,6 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/event"
 )
 
 var _ logpoller.TxParser = (*txParser)(nil)
@@ -69,14 +66,14 @@ func (p *txParser) parseTx(ctx context.Context, tx types.TxWithBlock) ([]types.L
 
 		for _, filter := range filtersForAddr {
 			var eventSig uint32
-			var msgBody *cell.Cell
+			var body *cell.Cell
 			var err error
 
 			switch msg.MsgType {
 			case tlb.MsgTypeExternalOut:
-				eventSig, msgBody, err = p.parseExtMsgOut(msg.AsExternalOut(), filter)
+				eventSig, body, err = ParseExtMsgOut(msg.AsExternalOut(), filter.EventSig)
 			case tlb.MsgTypeInternal:
-				eventSig, msgBody, err = p.parseInternalMsg(msg.AsInternal(), filter)
+				eventSig, body, err = ParseInternalMsg(msg.AsInternal(), filter.EventSig)
 			case tlb.MsgTypeExternalIn:
 				continue // not supported
 			}
@@ -86,12 +83,12 @@ func (p *txParser) parseTx(ctx context.Context, tx types.TxWithBlock) ([]types.L
 				continue
 			}
 
-			if msgBody != nil && eventSig != 0 {
+			if body != nil && eventSig != 0 {
 				log := types.Log{
 					FilterID:    filter.ID,
 					EventSig:    eventSig,
 					Address:     srcAddr, // source address of the internal message
-					Data:        msgBody, // full message body as data
+					Data:        body,    // full message body as data
 					TxHash:      types.TxHash(tx.Tx.Hash),
 					TxLT:        tx.Tx.LT,
 					TxTimestamp: time.Unix(int64(tx.Tx.Now), 0).UTC(),
@@ -103,74 +100,4 @@ func (p *txParser) parseTx(ctx context.Context, tx types.TxWithBlock) ([]types.L
 		}
 	}
 	return allLogs, nil
-}
-
-// parseExtMsgOut returns body and event signature(topic) for an external out message.
-func (p *txParser) parseExtMsgOut(msg *tlb.ExternalMessageOut, filter types.Filter) (sig uint32, body *cell.Cell, err error) {
-	// for ExtMsgOut we use topic for event sig
-	bucket := event.NewExtOutLogBucket(msg.DestAddr())
-	topic, err := bucket.DecodeEventTopic()
-	if err != nil {
-		// decoding issue, don't panic
-		return 0, nil, errors.New("failed to decode event topic")
-	}
-
-	if topic != filter.EventSig {
-		return 0, nil, nil // topic doesn't match this filter's criteria.
-	}
-
-	return topic, msg.Payload(), nil
-}
-
-// parseInternalMsg returns body and event signature(opcode) for an internal message.
-// this function extracts opcode, and return remaining body slice as a cell
-func (p *txParser) parseInternalMsg(msg *tlb.InternalMessage, filter types.Filter) (sig uint32, body *cell.Cell, err error) {
-	payload := msg.Payload()
-	if payload == nil {
-		return 0, nil, nil // no payload
-	}
-
-	// extract opcode and remaining body in separate operations to avoid state mutation
-	opcode, remainingBody, err := p.extractOpcodeAndBody(payload)
-	if err != nil {
-		return 0, nil, fmt.Errorf("failed to extract opcode and body: %w", err)
-	}
-
-	if opcode != filter.EventSig {
-		return 0, nil, nil // opcode doesn't match this filter's criteria
-	}
-
-	return opcode, remainingBody, nil
-}
-
-// extractOpcodeAndBody safely extracts the opcode and remaining body without mutating the original cell
-func (p *txParser) extractOpcodeAndBody(payload *cell.Cell) (opcode uint32, remainingBody *cell.Cell, err error) {
-	// create a slice for reading without mutating the original
-	payloadSlice := payload.BeginParse()
-
-	// validate we have enough bits for opcode
-	if payloadSlice.BitsLeft() < 32 {
-		return 0, nil, fmt.Errorf("insufficient bits for opcode: %d bits available, 32 required", payloadSlice.BitsLeft())
-	}
-
-	// extract opcode (first 32 bits)
-	opcode64, err := payloadSlice.LoadUInt(32)
-	if err != nil {
-		return 0, nil, fmt.Errorf("failed to load opcode: %w", err)
-	}
-	opcode = uint32(opcode64) //nolint:gosec // LoadUInt(32) guarantees this fits in uint32
-
-	// create a new cell from the remaining data after opcode
-	if payloadSlice.BitsLeft() == 0 {
-		// no remaining bits, create empty cell
-		remainingBody = cell.BeginCell().EndCell()
-	} else {
-		// convert remaining data to cell
-		remainingBody, err = payloadSlice.ToCell()
-		if err != nil {
-			return 0, nil, fmt.Errorf("failed to convert remaining body to cell: %w", err)
-		}
-	}
-
-	return opcode, remainingBody, nil
 }
