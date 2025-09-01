@@ -1,6 +1,7 @@
 tolk 1.0
 
 import "@stdlib/tvm-dicts";
+import "@stdlib/gas-payments";
 
 import "../lib/utils";
 import "../lib/access/ownable_2step.tolk";
@@ -330,6 +331,9 @@ const ERROR_SIGNED_HASH_ALREADY_SEEN = 121;
 
 /// @notice Thrown when the root has not been finalized yet (can't execute next op before finalization).
 const ERROR_ROOT_NOT_FINALIZED = 122;
+
+/// @notice Thrown when the provided op.value is insufficient (min required value not met).
+const ERROR_INSUFFICIENT_VALUE = 123;
 
 // --- Constants - storage ---
 
@@ -796,6 +800,14 @@ fun MCMS<T>.execute(
         throw ERROR_WRONG_NONCE;
     }
 
+    // We enforce a minimum amount of TON op.value trying to ensure the receiver gets at least enough gas for
+    // fee validation + a bounce, and avoid out of gas errors in which cases a message will not bounce.
+    val workchain = contract.getAddress().getWorkchain();
+    val minValue = calculateGasFee(workchain, DEFAULT_MESSAGE_FWD_BUDGET_GAS_UNITS);
+    if (op.value < minValue) {
+        throw ERROR_INSUFFICIENT_VALUE;
+    }
+
     // verify that the op exists in the merkle tree
     // Notice: we use the standard sha256 hash function to hash the leaf.
     val hashedLeaf =
@@ -835,14 +847,12 @@ fun MCMS<T>.execute(
         rootMetadata
     }.toCell();
 
-    // TODO: should we enforce a minimum amount of TON op.value here,
-    // so the receiver at least has enough for gas fee validation + a bounce?
     self._execute(op.to, op.value, op.data);
 
     // Reply back to sender
     createMessage({
         bounce: false,
-        value: DEFAULT_MESSAGE_BUDGET_FEE, // send small value as gas budget, keep the rest
+        value: minValue, // send small value as gas budget, keep the rest
         dest: sender,
         body: MCMS_OpExecuted{queryId, nonce: op.nonce, to: op.to, data: op.data, value: op.value}
     }).send(SEND_MODE_REGULAR);
