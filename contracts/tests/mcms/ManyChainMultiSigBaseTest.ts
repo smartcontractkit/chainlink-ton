@@ -381,30 +381,31 @@ export class MCMSBaseTestSetup {
     for (let i = 0; i < count; i++) {
       const value =
         i == MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX ? toNano('10') : toNano('0.10')
-      let op: Cell
+
+      // default op
+      let op = counter.builder.message.in.setCount.encode({
+        queryId: BigInt(i + startNonce),
+        newCount: i + startNonce,
+      })
+
       {
         switch (i) {
           case MCMSBaseSetRootAndExecuteTestSetup.REVERTING_OP_INDEX:
             if (includeRevertingOp) {
               op = beginCell().storeUint(0xffffffff, 32).endCell()
             } else {
-              op = counter.builder.message.in.setCount.encode({
-                queryId: BigInt(i + 1),
-                newCount: i,
-              })
+              // use default op
             }
             break
           case MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX:
             op = beginCell().endCell()
             break
           default:
-            op = counter.builder.message.in.setCount.encode({
-              queryId: BigInt(i + 1),
-              newCount: i,
-            })
+            // use default op
             break
         }
       }
+
       ops.push({
         chainId: MCMSBaseTestSetup.TEST_CHAIN_ID,
         multiSig: this.bind.mcms.address,
@@ -414,6 +415,7 @@ export class MCMSBaseTestSetup {
         data: op,
       })
     }
+
     return ops
   }
 
@@ -576,7 +578,6 @@ export class MCMSBaseSetRootAndExecuteTestSetup extends MCMSBaseTestSetup {
   // Execute all operations up to the post-op count limit to simulate setOpCount
   async executeOperationsUpTo(index: number) {
     for (let i = 0; i < index; i++) {
-      console.log(`Executing operation ${i}`)
       const executeBody = mcms.builder.message.in.execute.encode({
         queryId: BigInt(i + 1),
         op: mcms.builder.data.op.encode(this.testOps[i]),

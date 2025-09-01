@@ -792,10 +792,6 @@ fun MCMS<T>.execute(
         throw ERROR_ROOT_NOT_FINALIZED;
     }
 
-    debug.printString("NONCE");
-    debug.print(op.nonce);
-    debug.print(currentExpiringRootAndOpCount.opCount);
-
     if (op.nonce != currentExpiringRootAndOpCount.opCount) {
         throw ERROR_WRONG_NONCE;
     }
@@ -1138,6 +1134,8 @@ fun MCMS<T>.onInternalMessage(mutate self, msgSender: address, msgValue: coins, 
             self.setConfig(msgSender, msg.queryId, msg.signerKeys, msg.signerGroups,
                 msg.groupQuorums, msg.groupParents, msg.clearRoot);
         }
+        // TODO: implement oracle error report handling for a category of errors which might occur during execution
+        // of an operation, but can't be caught on-chain (OOG errors, and downstream tx-trace errors).
         else => {
             val msgHandled = 0
                 || self.data.ownable.onInternalMessage(msgSender, msgBody);
@@ -1157,23 +1155,10 @@ fun onBouncedMessage(in: InMessageBounced) {
     var rootInfo = lazy RootInfo.fromCell(mcms.data.rootInfo);
     var opPendingInfo = lazy OpPendingInfo.fromCell(rootInfo.expiringRootAndOpCount.opPendingInfo);
 
-    // If the op was already finalized, we need to drop the bounce, and mark the root invalid.
-    //
-    // This is because subsequent operations might already be executed, and we're not at the
-    // right index in the op sequence to be able to retry the (current) op.
-    //
-    // This is why critical operation sequences need to be commited with a timeout
-    // which will allow enough time for them to be bounced and subsequently retried.
-    if (opPendingInfo.validAfter < blockchain.now()) {
-        // TODO: maybe we can also store and check opCount to see if subsequent ops were executed in the meantime
-        rootInfo.expiringRootAndOpCount.validUntil = blockchain.now(); // expire root immediately
-        mcms.data.rootInfo = rootInfo.toCell();
-        mcms.data.storeAsContractData();
-        return;
-    }
-
     // Check the bounced message against the stored pending operation
     // If the received bounce does NOT equal expected, mark the root invalid.
+    //
+    // Notice: on setRoot the OpPendingInfo is cleared, so a bounce from an old root will not match
     val bouncedBodyVal = extractBouncedBody(in.bouncedBody.skipBouncedPrefix());
     if (opPendingInfo.opPendingReceiver != in.senderAddress
         || opPendingInfo.opPendingBodyVal != bouncedBodyVal) {
@@ -1183,15 +1168,6 @@ fun onBouncedMessage(in: InMessageBounced) {
         mcms.data.storeAsContractData();
         return;
     }
-
-    // TODO!
-    //
-    // Check for edge case where the root is updated before an execution from
-    // a previous root bounced back. We drop late bounces if we have a fresh root.
-    // val rootMetadata = lazy RootMetadata.fromCell(mcms.data.rootMetadata);
-    // if (rootMetadata.preOpCount == mcms.data.expiringRootAndOpCount.opCount) {
-    //     return;
-    // }
 
     // If the received bounce equals expected, revert state (allow op retry)
     rootInfo.expiringRootAndOpCount.opCount = rootInfo.expiringRootAndOpCount.opCount - 1;
