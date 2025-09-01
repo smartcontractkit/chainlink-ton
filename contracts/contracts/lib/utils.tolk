@@ -12,6 +12,12 @@ const ERROR_BITMAP_OUT_OF_BOUNDS = 0x78;
 /// the full excess value.
 const DEFAULT_MESSAGE_BUDGET_FEE = ton("0.01");
 
+/// Maximum size of a bounced message
+///
+/// Notice: documentation for in.bouncedBody is off, as it states the bounced body
+/// will be 0xffffffff + 224 bits, but the actual size is 0xffffffff + 256 bits.
+const BOUNCE_MSG_SIZE_MAX = 256;
+
 /// Returns the global ID of the current blockchain (chain ID).
 fun globalId(): int {
     // Notice: configParam(19)! will be available (non-null)
@@ -20,8 +26,10 @@ fun globalId(): int {
 
 /// Extracts the (potential) bounced body from the given slice (message body).
 fun extractBouncedBody(body: slice): uint256 {
-    val bits = body.remainingBitsCount();
-    return bits < 256 ? body.loadUint(bits) : body.loadUint(256);
+    val remainingBits = body.remainingBitsCount();
+    return remainingBits < BOUNCE_MSG_SIZE_MAX
+        ? body.loadUint(remainingBits)
+        : body.loadUint(BOUNCE_MSG_SIZE_MAX);
 }
 
 /// Computes the Keccak-256 hash of the given data.

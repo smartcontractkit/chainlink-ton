@@ -835,6 +835,8 @@ fun MCMS<T>.execute(
         rootMetadata
     }.toCell();
 
+    // TODO: should we enforce a minimum amount of TON op.value here,
+    // so the receiver at least has enough for gas fee validation + a bounce?
     self._execute(op.to, op.value, op.data);
 
     // Reply back to sender
@@ -1069,7 +1071,7 @@ fun MCMS<T>._execute(self, target: address, value: coins, data: cell): void {
 
     // Send a message to the target with the provided value and data
     createMessage({
-        bounce: true, // TODO: how to handle bounced messages (errors)?
+        bounce: true,
         value: value,
         dest: target,
         body: data
@@ -1115,7 +1117,6 @@ fun MCMS<T>.onInternalMessage(mutate self, msgSender: address, msgValue: coins, 
             return;
         }
         MCMS_SetRoot => {
-            // TODO: make opFinalizationTimeout configurable
             self.setRoot(msgSender, msg.queryId, msg.root, msg.validUntil, msg.metadata,
                 Iterator<uint256>.new(msg.metadataProof), msg.signatures, msg.opFinalizationTimeout);
         }
@@ -1145,9 +1146,6 @@ fun onBouncedMessage(in: InMessageBounced) {
 
     var rootInfo = lazy RootInfo.fromCell(mcms.data.rootInfo);
     var opPendingInfo = lazy OpPendingInfo.fromCell(rootInfo.expiringRootAndOpCount.opPendingInfo);
-
-    debug.printString("BOUNCE");
-    debug.print(in.bouncedBody);
 
     // If the op was already finalized, we need to drop the bounce, and mark the root invalid.
     //
