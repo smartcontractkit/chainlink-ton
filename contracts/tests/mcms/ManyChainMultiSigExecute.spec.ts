@@ -2,7 +2,7 @@ import { toNano, beginCell } from '@ton/core'
 import '@ton/test-utils'
 import { MCMSBaseSetRootAndExecuteTestSetup, MCMSTestCode } from './ManyChainMultiSigBaseTest'
 import * as mcms from '../../wrappers/mcms/MCMS'
-import { asSnakeData } from '../../src/utils'
+import { asSnakeData, ZERO_ADDRESS } from '../../src/utils'
 import { ERROR_UNAUTHORIZED_SIGNER } from '../../wrappers/libraries/ocr/ExitCodes'
 
 describe('MCMS - ManyChainMultiSigExecuteTest', () => {
@@ -330,6 +330,13 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
     // Verify we're (back) at the correct op count, the error was handled and we can retry
     currentOpCount = await baseTest.bind.mcms.getOpCount()
     expect(currentOpCount).toEqual(BigInt(MCMSBaseSetRootAndExecuteTestSetup.REVERTING_OP_INDEX))
+
+    // Check OpPendingInfo is cleared after a bounce
+    const opPendingInfo = await baseTest.bind.mcms.getOpPendingInfo()
+    expect(opPendingInfo).toBeDefined()
+    expect(opPendingInfo.validAfter).toBeGreaterThan(0)
+    expect(opPendingInfo.opPendingReceiver).toEqualAddress(ZERO_ADDRESS)
+    expect(opPendingInfo.opPendingBodyVal).toEqual(0n)
   })
 
   it('should handle value operations correctly - insufficient balance', async () => {

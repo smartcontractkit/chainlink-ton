@@ -887,4 +887,15 @@ export class ContractClient implements Contract {
       }
     })
   }
+
+  async getOpPendingInfo(p: ContractProvider): Promise<OpPendingInfo> {
+    return p.get('getOpPendingInfo', []).then((r) => {
+      return {
+        validAfter: r.stack.readBigNumber(),
+        opFinalizationTimeout: r.stack.readBigNumber(),
+        opPendingReceiver: r.stack.readAddressOpt() || ZERO_ADDRESS,
+        opPendingBodyVal: r.stack.readBigNumber(),
+      }
+    })
+  }
 }
