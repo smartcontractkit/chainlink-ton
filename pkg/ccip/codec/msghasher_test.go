@@ -151,7 +151,7 @@ func TestMessageHasherV1_ErrorCases(t *testing.T) {
 
 		msg := randomTONMessage(t, 5009297550715157269)
 		_, err := hasher.Hash(ctx, msg)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to decode dest exec data")
 	})
 }
