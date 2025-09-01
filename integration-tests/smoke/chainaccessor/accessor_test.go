@@ -39,7 +39,6 @@ import (
 const ChainSelEVMTest90000001 = 909606746561742123
 
 func Test_TonAccessorEventQueries(t *testing.T) {
-	t.Skip("Skipping test, re-enable when ccip sender helper is fixed")
 	lggr := logger.TestLogger(t)
 	ctx := t.Context()
 
@@ -111,8 +110,8 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 	// TODO: use sendmanytx or highload wallet, otherwise we get 33 exit code(too many actions)
 	time.Sleep(5 * time.Second)
 
-	const maxSeqNo = 5
-	for seqNo := 0; seqNo <= maxSeqNo; seqNo++ {
+	const maxSeqNo = 4
+	for seqNo := 0; seqNo < maxSeqNo; seqNo++ {
 		t.Log("Sending CCIP message", seqNo)
 		extraArgs := onramp.GenericExtraArgsV2{
 			GasLimit:                 big.NewInt(100),
@@ -163,9 +162,9 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 		// check all messages are indexed
 		msgs, err := accessor.MsgsBetweenSeqNums(ctx, ccipocr3.ChainSelector(evmSelector), ccipocr3.NewSeqNumRange(0, maxSeqNo))
 		require.NoError(t, err, "failed to get latest message sequence number")
-		require.Len(t, msgs, maxSeqNo+1, "expected %d messages, got %d", maxSeqNo+1, len(msgs))
-		require.Equal(t, msgs[0].Header.SequenceNumber, ccipocr3.SeqNum(0))
-		require.Equal(t, msgs[maxSeqNo].Header.SequenceNumber, ccipocr3.SeqNum(maxSeqNo))
+		require.Len(t, msgs, maxSeqNo, "expected %d messages, got %d", maxSeqNo, len(msgs))
+		require.Equal(t, msgs[0].Header.SequenceNumber, ccipocr3.SeqNum(1))
+		require.Equal(t, msgs[maxSeqNo-1].Header.SequenceNumber, ccipocr3.SeqNum(maxSeqNo))
 
 		// range query
 		const start, end = 2, 4
