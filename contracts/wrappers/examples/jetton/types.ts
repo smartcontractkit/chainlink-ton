@@ -9,6 +9,14 @@ export function jettonClientConfigToCell(config: JettonClientConfig): Cell {
   return beginCell().storeAddress(config.masterAddress).storeRef(config.jettonWalletCode).endCell()
 }
 
+export function jettonClientConfigFromCell(cell: Cell): JettonClientConfig {
+  const r = cell.beginParse()
+  return {
+    masterAddress: r.loadAddress(),
+    jettonWalletCode: r.loadRef(),
+  }
+}
+
 export const JettonOpcodes = {
   // Jetton Wallet opcodes
   TRANSFER: 0x0f8a7ea5,

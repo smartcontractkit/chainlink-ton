@@ -4,7 +4,7 @@ tolk 1.0
 
 // The tag used to signal support for the pool v1 standard.
 // bytes4(keccak256("CCIP_POOL_V1"))
-const CCIP_POOL_V1 : bytes4 = 0xaff2afbf
+// const CCIP_POOL_V1 : bytes4 = 0xaff2afbf as bytes4 // TODO we don't know if we need this
 
 // The number of bytes in the return data for a pool v1 releaseOrMint call.
 // This should match the size of the ReleaseOrMintOutV1 struct.
@@ -16,7 +16,8 @@ const CCIP_POOL_V1_RET_BYTES : uint16 = 32
 const CCIP_LOCK_OR_BURN_V1_RET_BYTES : uint32 = 32
 
 struct Pool_LockOrBurnInV1 {
-    receiver: bytes //  The recipient of the tokens on the destination chain, abi encoded.
+    msg: Cell<CCIPSend>
+    receiver: slice //  The recipient of the tokens on the destination chain, abi encoded.
     remoteChainSelector: uint64 // ─╮ The chain ID of the destination chain.
     originalSender: address // ─────╯ The original sender of the tx on the source chain.
     amount: uint256 //  The amount of tokens to lock or burn, denominated in the source token's decimals.
@@ -24,17 +25,19 @@ struct Pool_LockOrBurnInV1 {
 }
 
 struct Pool_LockOrBurnOutV1 {
+    msg: Cell<CCIPSend>
     // The address of the destination token, abi encoded in the case of EVM chains.
     // This value is UNTRUSTED as any pool owner can return whatever value they want.
     destTokenAddress: CrossChainAddress
     // Optional pool data to be transferred to the destination chain. Be default this is capped at
     // CCIP_LOCK_OR_BURN_V1_RET_BYTES bytes. If more data is required, the TokenTransferFeeConfig.destBytesOverhead
     // has to be set for the specific token.
-    destPoolData: bytes
+    destPoolData: slice
 }
 
 struct Pool_ReleaseOrMintInV1 {
-    originalSender: bytes //            The original sender of the tx on the source chain.
+    msg: Cell<CCIPSend>
+    originalSender: slice //            The original sender of the tx on the source chain.
     remoteChainSelector: uint64 // ───╮ The chain ID of the source chain.
     receiver: address // ─────────────╯ The recipient of the tokens on the destination chain.
     sourceDenominatedAmount: uint256 // The amount of tokens to release or mint, denominated in the source token's decimals.
@@ -42,12 +45,13 @@ struct Pool_ReleaseOrMintInV1 {
     /// @dev WARNING: sourcePoolAddress should be checked prior to any processing of funds. Make sure it matches the
     /// expected pool address for the given remoteChainSelector.
     sourcePoolAddress: CrossChainAddress //         The address of the source pool, abi encoded in the case of EVM chains.
-    sourcePoolData: bytes //            The data received from the source pool to process the release or mint.
+    sourcePoolData: CrossChainAddress //            The data received from the source pool to process the release or mint.
     /// @dev WARNING: offchainTokenData is untrusted data.
-    offchainTokenData: bytes //         The offchain data to process the release or mint.
+    offchainTokenData: CrossChainAddress //         The offchain data to process the release or mint.
 }
 
 struct Pool_ReleaseOrMintOutV1 {
+    msg: Cell<CCIPSend>
     // The number of tokens released or minted on the destination chain, denominated in the local token's decimals.
     // This value is expected to be equal to the ReleaseOrMintInV1.amount in the case where the source and destination
     // chain have the same number of decimals.

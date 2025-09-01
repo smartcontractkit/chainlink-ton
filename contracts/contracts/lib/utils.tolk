@@ -150,6 +150,17 @@ fun Map<V>.has(self, key: address): bool {
     return exists;
 }
 
+@inline @pure
+fun Map<V>.keys(self): tuple? {
+    var list: tuple? = null;
+    var (address: int?, value: slice?, found: bool) = self.min();
+    while (found) {
+            list = listPrepend(address, list);
+        (address, value, found) = self.next(address);
+    };
+    return list;
+}
+
 //Returns a lisp-list with the keys of the map, destroys the dictionary in the process
 @inline
 fun Map<V>.keysDestructs(mutate self): tuple? {  
@@ -306,7 +317,7 @@ fun UMap<K, V>.keys(self): tuple? {
     while (found) {
             var value = key! as K;
             list = listPrepend(value, list);
-        (key, _value, found) = self.value.next(key);
+        (key, _value, found) = self.next(key);
     };
     return list;
 }
@@ -363,14 +374,4 @@ fun Bitmap256.set(mutate self, index: int): void {
 fun Bitmap256.has(self, index: int): bool {
     assert(index >= 0 && index < 256, ERROR_BITMAP_OUT_OF_BOUNDS);
     return (self.bits & (1 << index)) != 0;
-}
-
-/// @notice Send a message to a contract
-@inline
-fun sendMessage<T>(dest: address, body: T) {
-    val msg = createInternalMessage({
-        dest,
-        body
-    });
-    msg.send(SEND_MODE_REGULAR);
 }

@@ -133,6 +133,8 @@ struct (0x10000001) SetRamp {
     onRamp: address;
 }
 
+// TODO should separate CCIPSend msg (with opcode) from CCIPSend data
+
 struct (0x00000001) CCIPSend {
     queryId: uint64;
     destChainSelector: uint64;

@@ -1,5 +1,16 @@
-import "./token_pool"
+import "../lib/pools/token_pool"
+import "../lib/pools/pool"
+import "../lib/pools/ipool"
+import "../lib/pools/token_pool/external_messages"
+import "../lib/pools/token_pool/storage"
 import "../lib/access/ownable_2step"
+import "../lib/utils"
+import "../lib/jetton/jetton_client"
+
+import "./lock_release_token_pool/storage"
+import "./lock_release_token_pool/messages"
+import "./lock_release_token_pool/errors"
+import "./lock_release_token_pool/external_messages"
 
 tolk 1.0
 
@@ -11,111 +22,9 @@ tolk 1.0
 /// Because of lock/unlock requiring liquidity, this pool contract also has function to add and remove
 /// liquidity. This allows for proper bookkeeping for both user and liquidity provider balances.
 /// @dev One token per LockReleaseTokenPool.
-const ERROR_INSUFFICIENT_LIQUIDITY = 1001
-
-// --- Messages - incoming ---
-/// @notice Gets rebalancer address
-struct (0x1a2b3c4d) LockReleaseTokenPool_GetRebalancer {
-    queryId: uint64
-}
-
-/// @notice Sets the rebalancer address.
-/// @dev Address(0) can be used to disable the rebalancer.
-/// @dev Only callable by the owner.
-struct (0x2b3c4d5e) LockReleaseTokenPool_SetRebalancer {
-    queryId: uint64
-    rebalancer: address
-}
-
-/// @notice Adds liquidity to the pool. The tokens should be approved first.
-/// @param amount The amount of liquidity to provide.
-struct (0x3c4d5e6f) LockReleaseTokenPool_ProvideLiquidity {
-    queryId: uint64
-    amount: uint256
-}
-
-/// @notice Removed liquidity to the pool. The tokens will be sent to msg.sender.
-/// @param amount The amount of liquidity to remove.
-struct (0x4d5e6f70) LockReleaseTokenPool_WithdrawLiquidity {
-    queryId: uint64
-    amount: uint256
-}
-
-/// @notice Transfer liquidity from an older version of the pool to this pool.
-/// @param from The address of the old pool.
-/// @param amount The amount of liquidity to transfer. If uint256.max is passed, all liquidity will be transferred.
-struct (0x5e6f7081) LockReleaseTokenPool_TransferLiquidity {
-    queryId: uint64
-    from: address
-    amount: uint256
-}
-
-/// @dev Union of all incoming messages.
-type LockReleaseTokenPool_InMessage =
-    | LockReleaseTokenPool_GetRebalancer
-    | LockReleaseTokenPool_SetRebalancer
-    | LockReleaseTokenPool_ProvideLiquidity
-    | LockReleaseTokenPool_WithdrawLiquidity
-    | LockReleaseTokenPool_TransferLiquidity
-
-// --- Messages - outgoing ---
-/// @notice Response for GetRebalancer query
-struct (0xa1b2c3d4) LockReleaseTokenPool_GetRebalancerResponse {
-    queryId: uint64
-    rebalancer: address
-}
-
-/// @notice Confirmation for SetRebalancer operation
-struct (0xb2c3d4e5) LockReleaseTokenPool_SetRebalancerResponse {
-    queryId: uint64
-    error: 
-}
-
-/// @notice Confirmation for ProvideLiquidity operation
-struct (0xc3d4e5f6) LockReleaseTokenPool_ProvideLiquidityResponse {
-    queryId: uint64
-    error: 
-}
-
-/// @notice Confirmation for WithdrawLiquidity operation
-struct (0xd4e5f607) LockReleaseTokenPool_WithdrawLiquidityResponse {
-    queryId: uint64
-    error: 
-}
-
-/// @notice Confirmation for TransferLiquidity operation
-struct (0xe5f60718) LockReleaseTokenPool_TransferLiquidityResponse {
-    queryId: uint64
-    error: 
-}
-
-// Event
-struct RebalancerSet {
-    oldRebalancer: address
-    newRebalancer: address
-}
-
-// Event
-struct LiquidityAdded {
-    provider: address
-    amount: uint256
-}
-
-// Event
-struct LiquidityRemoved {
-    provider: address
-    amount: uint256
-}
-
-// Event
-struct LiquidityTransferred {
-    from: address
-    amount: uint256
-}
 
 struct LockReleaseTokenPool<T> {
     data: LockReleaseTokenPool_Data
-    tokenPool: TokenPool<LockReleaseTokenPool_Data>
     /// Runtime hooks (extensions)
     context: T? = null
     hooks: LockReleaseTokenPool_Hooks<T>? = null
@@ -125,36 +34,8 @@ struct LockReleaseTokenPool<T> {
 /// @dev Hook extensions exposed by the LockReleaseTokenPool contract.
 struct LockReleaseTokenPool_Hooks<T> {
     /// Hook for _releaseOrMint virtual function override
-    releaseOrMint: ((T?, address, uint256) -> void)?
-}
-
-/// @dev LockReleaseTokenPool contract struct with optional hooks for virtual functions
-struct LockReleaseTokenPool_Data {
-    /// @notice The address of the rebalancer.
-    s_rebalancer: address
-    tokenPool: TokenPool
-}
-
-/// Load from contract data using auto-serialization.
-@inline
-fun MCMS_Data.fromContractData() {
-    return MCMS_Data.fromCell(contract.getData());
-}
-
-/// Store as contract data into persistent storage using auto-serialization.
-@inline
-fun MCMS_Data.storeAsContractData(self) {
-    contract.setData(self.toCell());
-}
-
-// TODO: handle bounced messages
-fun onInternalMessage(in: InMessage) {
-    /// Load the contract storage as MCMS and handle the message
-    var lockReleaseTokenPool = LockReleaseTokenPool<bool>.load();
-    lockReleaseTokenPool.onInternalMessage(in.senderAddress, in.valueCoins, in.body);
-
-    /// Store the updated contract data
-    lockReleaseTokenPool.data.storeAsContractData();
+    releaseOrMint: ((LockReleaseTokenPool<T>, address, coins, Pool_ReleaseOrMintInV1) -> Pool_ReleaseOrMintOutV1)?
+    lockOrBurn: ((LockReleaseTokenPool<T>, address, coins, Pool_LockOrBurnInV1) -> Pool_LockOrBurnOutV1)?
 }
 
 // --- Methods ---
@@ -166,118 +47,228 @@ fun LockReleaseTokenPool<T>.load(context: T? = null, hooks: LockReleaseTokenPool
     // Return the LockReleaseTokenPool instance with loaded data and hooks
     return LockReleaseTokenPool<T> {
         data,
-        tokenPool: TokenPool<LockReleaseTokenPool_Data> {
-            data: data.tokenPoolData,
-            hooks: TokenPool_Hooks {
-                releaseOrMint: self._releaseOrMint
-            }
-        },
         context,
         hooks,
     };
 }
 
-// --- Message handlers ---
-/// @notice Handles incoming messages for LockReleaseTokenPool
-@inline
-fun LockReleaseTokenPool<T>.onInternalMessage(
-    mutate self,
-    msgSender: address,
-    msgValue: coins,
-    msgBody: slice,
-): bool {
-    // First try to handle LockReleaseTokenPool specific messages
-    try {
-        val msg = lazy LockReleaseTokenPool_InMessage.fromSlice(msgBody);
-        match (msg) {
-            LockReleaseTokenPool_GetRebalancer => self.handleGetRebalancer(msgSender),
-            LockReleaseTokenPool_SetRebalancer => self.handleSetRebalancer(msgSender),
-            LockReleaseTokenPool_ProvideLiquidity => self.handleProvideLiquidity(msgSender),
-            LockReleaseTokenPool_WithdrawLiquidity => self.handleWithdrawLiquidity(msgSender),
-            LockReleaseTokenPool_TransferLiquidity => self.handleTransferLiquidity(msgSender),
-        }
+fun LockReleaseTokenPool<T>.ownable(self): Ownable2Step {
+    return self.data.ownable;
+}
 
-        return true;
-    } catch {
-        // Try to handle TokenPool messages through delegation
-        return self.data.tokenPool.onInternalMessage(msgSender, msgValue, msgBody);
+fun LockReleaseTokenPool<T>.tokenPool(self): TokenPool<bool> {
+    return TokenPool<bool>{
+        data: self.data.tokenPoolData,
+        ownable: self.ownable(),
+        context: null,
+        hooks: TokenPool_Hooks<T> {
+            getRouter: null,
+            _parseRemoteDecimals: null,
+            getTokenDecimals: null,
+            encodeLocalDecimals: null,
+            calculateLocalAmount: null,
+            ipool: IPool_Hooks<T> {
+                lockOrBurn: self.lockOrBurn,
+                releaseOrMint: self.releaseOrMint,
+            },
+        }
+    };
+}
+
+// TODO: handle bounced messages
+fun onInternalMessage(in: InMessage) {
+    /// Load the contract storage as MCMS and handle the message
+    var lockReleaseTokenPool = LockReleaseTokenPool<bool>.load(null, LockReleaseTokenPool_Hooks<bool> {
+            releaseOrMint: LockReleaseTokenPool<bool>.releaseOrMint,
+            lockOrBurn: LockReleaseTokenPool<bool>.lockOrBurn,
+        }
+    );
+
+    if (lockReleaseTokenPool.tokenPool().onInternalMessage(in.senderAddress, in.valueCoins, in.body)) {
+        lockReleaseTokenPool.data.storeAsContractData();
+        return;
     }
+
+    lockReleaseTokenPool.onInternalMessage(in.senderAddress, in.valueCoins, in.body);
+}
+
+
+// --- Message handlers ---
+
+
+fun LockReleaseTokenPool<T>.onInternalMessage(mutate self, sender: address, msgValue: coins, msgBody: slice) {
+    var response: LockReleaseTokenPool_Response? = null;
+    val msg = lazy LockReleaseTokenPool_InMessage.fromSlice(msgBody);
+    match (msg) {
+        LockReleaseTokenPool_GetRebalancer => {
+            val rebalancer = self.handleGetRebalancer(sender);
+            response = LockReleaseTokenPool_GetRebalancerResponse {
+                queryId: msg.queryId,
+                rebalancer: self.getRebalancer(),
+            };
+        },
+        LockReleaseTokenPool_SetRebalancer => {
+            self.handleSetRebalancer(sender, msg.rebalancer);
+            response = LockReleaseTokenPool_SetRebalancerResponse {
+                queryId: msg.queryId,
+            };
+        },
+        // LockReleaseTokenPool_ProvideLiquidity => self.handleProvideLiquidity(sender),
+        // LockReleaseTokenPool_WithdrawLiquidity => self.handleWithdrawLiquidity(sender),
+        // LockReleaseTokenPool_TransferLiquidity => self.handleTransferLiquidity(sender),
+        else => {
+            return;
+        }
+    }
+
+    
+    createMessage({
+        bounce: false,
+        value: 0,
+        dest: sender,
+        body: response,
+    }).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    
+    /// Store the updated contract data
+    self.data.storeAsContractData()
 }
 
 // --- Internal functions ---
-/// @notice Hook-aware implementation of _releaseOrMint
-fun LockReleaseTokenPool<T>._releaseOrMint(mutate self, receiver: address, amount: uint256) {
-    if (self.hooks != null && self.hooks.releaseOrMint != null) {
-        return self.hooks.releaseOrMint(self.context, receiver, amount); // extension hook
-    }
 
-    // Default implementation - transfer tokens from pool to receiver
-    self.tokenPool.i_token.safeTransfer(receiver, amount);
+// ================================================================
+// │                        Lock or Burn                          │
+// ================================================================
+/// @notice Burn the token in the pool
+/// @dev The _validateLockOrBurn check is an essential security check
+fun LockReleaseTokenPool<T>.lockOrBurn(mutate self, sender: address, msgValue: coins, lockOrBurnIn: Pool_LockOrBurnInV1): Pool_LockOrBurnOutV1 {
+    if (self.hooks != null && self.hooks.lockOrBurn != null) {
+        self.hooks.lockOrBurn(null, sender, msgValue, lockOrBurnIn.amount);
+    } else {
+        self._lockOrBurn(null, sender, lockOrBurnIn.amount);
+    }
+}
+
+fun LockReleaseTokenPool<T>._lockOrBurn(mutate self, sender: address, msgValue: coins, lockOrBurnIn: Pool_LockOrBurnInV1): Pool_LockOrBurnOutV1 {
+    self.tokenPool()._validateLockOrBurn(sender, lockOrBurnIn);
+
+    val token = lazy self.tokenPool().data.i_token.load();
+    emit(TOKENPOOL_LOCKEDORBURNED_TOPIC, TokenPool_LockedOrBurned {
+        remoteChainSelector: lockOrBurnIn.remoteChainSelector,
+        token: token.masterAddress,
+        sender,
+        amount: lockOrBurnIn.amount,
+    });
+
+    return Pool_LockOrBurnOutV1 {
+        msg: lockOrBurnIn.msg,
+        destTokenAddress: self.tokenPool().getRemoteToken(lockOrBurnIn.remoteChainSelector),
+        destPoolData: self.tokenPool()._encodeLocalDecimals(),
+    };
+}
+
+// ================================================================
+// │                      Release or Mint                         │
+// ================================================================
+/// @notice Mint tokens from the pool to the recipient
+/// @dev The _validateReleaseOrMint check is an essential security check
+fun LockReleaseTokenPool<T>.releaseOrMint(mutate self, sender: address, msgValue: coins, releaseOrMintIn: Pool_ReleaseOrMintInV1): Pool_ReleaseOrMintOutV1 {
+    // Calculate the local amount
+    val localAmount: uint256 = self.tokenPool()._calculateLocalAmount(
+        releaseOrMintIn.sourceDenominatedAmount,
+        self.tokenPool()._parseRemoteDecimals(releaseOrMintIn.sourcePoolData),
+    );
+
+    self.tokenPool()._validateReleaseOrMint(releaseOrMintIn, localAmount);
+
+    val ccipSend = lazy releaseOrMintIn.msg.load();
+
+    // Mint to the receiver
+    _releaseOrMint(self, sender, ccipSend.queryId, releaseOrMintIn.receiver, localAmount);
+
+    // TODO this should be emitted when we receive the transfer receipt
+    val token = lazy self.tokenPool().data.i_token.load();
+    emit(TOKENPOOL_RELEASEDORMINTED_TOPIC, TokenPool_ReleasedOrMinted {
+        remoteChainSelector: releaseOrMintIn.remoteChainSelector,
+        token: token.masterAddress,
+        sender: sender,
+        recipient: releaseOrMintIn.receiver,
+        amount: localAmount,
+    });
+
+    return Pool_ReleaseOrMintOutV1{ msg: ccipSend, destinationAmount: localAmount };
+}
+/// @notice Hook-aware implementation of _releaseOrMint
+fun _releaseOrMint(_: bool?, tokenPoolData: TokenPool_Data, queryId: uint64, receiver: address, amount: uint256) {
+    tokenPoolData.i_token.load().sendSimple(
+        JettonMessageOptions {
+            bounce: true,
+            value: 0,
+        },    
+        SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE,
+        queryId,
+        amount as coins, // TODO this will probably break
+        receiver,
+        contract.getAddress(), // receive transfer confirmation and recover extra TON
+    );
 }
 
 fun LockReleaseTokenPool<T>.handleGetRebalancer(self, sender: address): address {
-    const;
-    response = LockReleaseTokenPool_GetRebalancerResponse {
-        queryId: request.queryId,
-        rebalancer: self.getRebalancer(),
-    };
-    sendMessage(sender, response);
+    return self.getRebalancer();
 }
 
 /// @notice Gets rebalancer, can be address(0) if none is configured.
 /// @return The current liquidity manager.
 fun LockReleaseTokenPool<T>.getRebalancer(self): address {
-    return self.s_rebalancer;
+    return self.data.s_rebalancer;
+}
+
+fun LockReleaseTokenPool<T>.handleSetRebalancer(mutate self, sender: address, rebalancer: address) {
+    return self.setRebalancer(sender, rebalancer);
 }
 
 /// @notice Sets the rebalancer address.
 /// @dev Address(0) can be used to disable the rebalancer.
 /// @dev Only callable by the owner.
-fun LockReleaseTokenPool<T>.setRebalancer(mutate self, sender: address, rebalancer: address): bool {
-    try {
-        self.tokenPool.ownable.requireOwner(sender);
-        val oldRebalancer: address = self.s_rebalancer;
+fun LockReleaseTokenPool<T>.setRebalancer(mutate self, sender: address, rebalancer: address) {
+    self.tokenPool().ownable.requireOwner(sender);
+    val oldRebalancer: address = self.data.s_rebalancer;
 
-        self.s_rebalancer = rebalancer;
+    self.data.s_rebalancer = rebalancer;
 
-        emit(RebalancerSet { oldRebalancer, newRebalancer: rebalancer });
-        return true;
-    } catch {
-        return false;
-    }
+    emit(LOCK_RELEASE_TOKEN_POOL_REBALANCER_SET_TOPIC, LockReleaseTokenPool_RebalancerSet{ oldRebalancer, newRebalancer: rebalancer });
 }
 
 /// @notice Adds liquidity to the pool. The tokens should be approved first.
 /// @param amount The amount of liquidity to provide.
-fun LockReleaseTokenPool<T>.provideLiquidity(mutate self, sender: address, amount: uint256): bool {
-    try {
-        if (self.data.s_rebalancer != sender) {
-            throw ERROR_UNAUTHORIZED;
-        }
+// fun LockReleaseTokenPool<T>.provideLiquidity(mutate self, sender: address, amount: uint256): bool {
+//     try {
+//         if (self.data.s_rebalancer != sender) {
+//             throw TokenPool_ERROR_UNAUTHORIZED;
+//         }
 
-        self.data.tokenPool.i_token.safeTransferFrom(sender, contract.getAddress(), amount);
-        emit(LiquidityAdded { provider: sender, amount });
-        return true;
-    } catch {
-        return false;
-    }
-}
+//         self.data.tokenPool.i_token.safeTransferFrom(sender, contract.getAddress(), amount);
+//         emit(LOCK_RELEASE_TOKEN_POOL_LIQUIDITY_ADDED_TOPIC, LiquidityAdded { provider: sender, amount });
+//         return true;
+//     } catch {
+//         return false;
+//     }
+// }
 
 /// @notice Removes liquidity to the pool
 /// @param amount The amount of liquidity to remove.
-fun LockReleaseTokenPool<T>.withdrawLiquidity(mutate self, sender: address, amount: uint256): bool {
-    try {
-        if (self.data.s_rebalancer != sender) {
-            throw ERROR_UNAUTHORIZED;
-        }
+// fun LockReleaseTokenPool<T>.withdrawLiquidity(mutate self, sender: address, amount: uint256): bool {
+//     try {
+//         if (self.data.s_rebalancer != sender) {
+//             throw TokenPool_ERROR_UNAUTHORIZED;
+//         }
 
-        self.data.tokenPool.i_token.safeTransfer(sender, amount);
-        emit(LiquidityRemoved { provider: sender, amount });
-        return true;
-    } catch {
-        return false;
-    }
-}
+//         self.data.tokenPool.i_token.safeTransfer(sender, amount);
+//         emit(LOCK_RELEASE_TOKEN_POOL_LIQUIDITY_REMOVED_TOPIC, LiquidityRemoved { provider: sender, amount });
+//         return true;
+//     } catch {
+//         return false;
+//     }
+// }
 
 /// @notice This function can be used to transfer liquidity from an older version of the pool to this pool. To do so
 /// this pool will have to be set as the rebalancer in the older version of the pool. This allows it to transfer the
@@ -290,24 +281,19 @@ fun LockReleaseTokenPool<T>.withdrawLiquidity(mutate self, sender: address, amou
 /// liquidity. Finally, the remaining liquidity can be transferred to the new pool using this function one more time.
 /// @param from The address of the old pool.
 /// @param amount The amount of liquidity to transfer. If uint256.max is passed, all liquidity will be transferred.
-fun LockReleaseTokenPool<T>.transferLiquidity(
-    mutate self,
-    sender: address,
-    from: address,
-    amount: uint256,
-): bool {
-    try {
-        self.data.tokenPool.ownable.requireOwner(sender);
-        var transferAmount = amount;
-        if (amount == type(uint256).max) {
-            transferAmount = self.data.tokenPool.i_token.balanceOf(from);
-        }
+// fun LockReleaseTokenPool<T>.transferLiquidity(
+//     mutate self,
+//     sender: address,
+//     from: address,
+//     amount: uint256,
+// ) {
+//     self.data.tokenPool.ownable().requireOwner(sender);
+//     var transferAmount = amount;
+//     if (amount == 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff) { // type(uint256).max
+//         transferAmount = self.data.tokenPool.i_token.balanceOf(from);
+//     }
 
-        LockReleaseTokenPool(from).withdrawLiquidity(sender, transferAmount);
+//     LockReleaseTokenPool(from).withdrawLiquidity(sender, transferAmount);
 
-        emit(LiquidityTransferred({ from, amount: transferAmount }));
-        return true;
-    } catch {
-        return false;
-    }
-}
+//     emit(LiquidityTransferred({ from, amount: transferAmount }));
+// }

@@ -1,0 +1,4 @@
+tolk 1.0
+
+const ERROR_INSUFFICIENT_LIQUIDITY = 1001
+
