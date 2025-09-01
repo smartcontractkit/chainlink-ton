@@ -4,7 +4,7 @@ import * as CCIPLogs from '../wrappers/ccip/Logs'
 import * as OCR3Logs from '../wrappers/libraries/ocr/Logs'
 import * as ReceiverLogs from '../wrappers/examples/ccip/Logs'
 import { fromSnakeData } from '../src/utils/types'
-import { merkleRootsFromCell, priceUpdatesFromCell } from '../wrappers/ccip/OffRamp'
+import { MerkleRoot, merkleRootFromSlice, priceUpdatesFromCell } from '../wrappers/ccip/OffRamp'
 
 // https://github.com/ton-blockchain/liquid-staking-contract/blob/1f4e9badbed52a4cf80cc58e4bb36ed375c6c8e7/utils.ts#L269-L294
 export const getExternals = (transactions: BlockchainTransaction[]) => {
@@ -122,16 +122,20 @@ function testLogCCIPCommitReportAccepted(
   return testLog(message, from, CombinedLogTypes.CCIPCommitReportAccepted, (x) => {
     let bs = x.beginParse()
 
+    const commitHasMerkleRoots = bs.loadBit()
+    let merkleRoot: MerkleRoot | undefined = undefined
+    if (commitHasMerkleRoots) {
+      merkleRoot = merkleRootFromSlice(bs)
+    }
+
     const priceUpdatesCell = bs.loadMaybeRef()
-    const merkleRootsCell = bs.loadRef()
 
     const priceUpdates =
       priceUpdatesCell != undefined ? priceUpdatesFromCell(priceUpdatesCell) : undefined
-    const merkleRoots = merkleRootsFromCell(merkleRootsCell)
 
     const reportAccepted: CCIPLogs.CCIPCommitReportAccepted = {
+      merkleRoot,
       priceUpdates,
-      merkleRoots,
     }
     expect(reportAccepted).toMatchObject(match)
     return true
