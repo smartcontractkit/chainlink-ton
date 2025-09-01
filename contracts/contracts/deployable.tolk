@@ -8,7 +8,9 @@ fun onInternalMessage(in: InMessage) {
     val st = Deployable<RemainingBitsAndRefs>.load();
     assert(in.senderAddress == st.owner) throw ERROR_NOT_OWNER;
 
-    val payload = Initialize.fromSlice(in.body);
+    val payload = Deployable_Initialize.fromSlice(in.body);
+
     contract.setCodePostponed(payload.stateInit.code);
     contract.setData(payload.stateInit.data);
+    //TODO: emit event
 }

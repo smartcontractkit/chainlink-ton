@@ -25,9 +25,7 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
     await baseTest.bind.mcms.sendInternal(
       baseTest.acc.deployer.getSender(),
       toNano('10'),
-      mcms.builder.message.in.topUp.encode({
-        queryId: 1n,
-      }),
+      mcms.builder.message.in.topUp.encode({ queryId: 1n }),
     )
 
     await baseTest.executeOperationsUpTo(MCMSBaseSetRootAndExecuteTestSetup.OPS_NUM)
@@ -330,6 +328,10 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
   })
 
   it('should handle value operations correctly - insufficient balance', async () => {
+    // Check that MCMS contract has minimal balance initially
+    const mcmsContract = await baseTest.blockchain.getContract(baseTest.bind.mcms.address)
+    expect(mcmsContract.balance).toBeLessThanOrEqual(toNano('2')) // Should be very low (just deployment funds)
+
     // Execute operations up to the value operation index
     await baseTest.executeOperationsUpTo(MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX)
 
@@ -337,10 +339,9 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
     const currentOpCount = await baseTest.bind.mcms.getOpCount()
     expect(currentOpCount).toEqual(BigInt(MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX))
 
-    // Check that MCMS contract has minimal balance initially
-    const mcmsContract = await baseTest.blockchain.getContract(baseTest.bind.mcms.address)
-    const initialBalance = mcmsContract.balance
-    expect(initialBalance).toBeLessThanOrEqual(toNano('2')) // Should be very low (just deployment funds)
+    // Check that MCMS contract still has balance left
+    // Notice: each operation adds 1 TON and executes using 0.10 TON
+    expect(mcmsContract.balance).toBeLessThanOrEqual(toNano('8')) // 2 + MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX
 
     // Try to execute value operation without sufficient balance
     const proof = baseTest.getProofForOp(MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX)

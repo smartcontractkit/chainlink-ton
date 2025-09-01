@@ -21,13 +21,13 @@ fun onInternalMessage(inMsgFull: cell, inMsgBody: slice) {
         return;
     }
 
-    val st = Deployable.load();
+    val st: deployable = Deployable.load();
     val sender: address = cs.loadAddress();
 
     assert(sender == st.owner) throw ERROR_NOT_OWNER;
 
     val payload = Initialize.fromCell(inMsgBody);
     inMsgBody.assertEnd();
-    contract.setData(payload.data);
     contract.setCodePostponed(payload.code);
+    contract.setData(payload.data);
 }

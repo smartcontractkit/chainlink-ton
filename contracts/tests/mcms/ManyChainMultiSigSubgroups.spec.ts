@@ -5,10 +5,9 @@ import { MCMSBaseTestSetup, MCMSTestCode, TestSigner } from './ManyChainMultiSig
 import { merkleProof } from '../../src/mcms'
 import * as mcms from '../../wrappers/mcms/MCMS'
 import * as counter from '../../wrappers/examples/Counter'
-import { uint8ArrayToBigInt } from '../../src/utils'
+import { generateEd25519KeyPair, uint8ArrayToBigInt } from '../../src/utils'
 import { sha256, sign } from '@ton/crypto'
 import { ocr } from '../../wrappers/libraries/ocr'
-import { generateEd25519KeyPair } from '../libraries/ocr/Helpers'
 import { crc32 } from 'zlib'
 
 describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {

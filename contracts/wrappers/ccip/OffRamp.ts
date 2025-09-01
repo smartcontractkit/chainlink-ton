@@ -14,8 +14,10 @@ import {
 import { OCR3Base, ReportContext, SignatureEd25519 } from '../libraries/ocr/MultiOCR3Base'
 import { asSnakeData, fromSnakeData, bigIntToUint8Array } from '../../src/utils/types'
 import * as ownable2step from '../libraries/access/Ownable2Step'
+import { crc32 } from 'zlib'
 
 export type OffRampStorage = {
+  id: bigint
   ownable: ownable2step.Data
   deployerCode: Cell
   merkleRootCode: Cell
@@ -26,7 +28,7 @@ export type OffRampStorage = {
 }
 
 export type SourceChainConfig = {
-  router: CrossChainAddress
+  router: Address
   isEnabled: boolean
   minSeqNr: bigint
   isRMNVerificationDisabled: boolean
@@ -81,6 +83,13 @@ export type Any2TVMRampMessage = {
   tokenAmounts?: Cell // vec<Any2TONTokenTransfer>
 }
 
+export type Any2TVMMessage = {
+  messageId: bigint
+  sourceChainSelector: bigint
+  sender: CrossChainAddress
+  data: Cell
+}
+
 export type MerkleRoot = {
   sourceChainSelector: bigint
   onRampAddress: CrossChainAddress
@@ -89,10 +98,13 @@ export type MerkleRoot = {
   merkleRoot: bigint
 }
 
+//TODO: Refactor these with the CellCodec<T> pattern
+
 export const Builder = {
   asStorage: (config: OffRampStorage): Cell => {
     return (
       beginCell()
+        .storeUint(config.id, 32)
         .storeAddress(config.ownable.owner)
         .storeMaybeBuilder(
           config.ownable.pendingOwner
@@ -121,10 +133,11 @@ export const Builder = {
 }
 export abstract class Params {}
 
-export abstract class Opcodes {
-  static commit = 0x00000001
-  static execute = 0x00000002
-  static updateSourceChainConfig = 0x00000003
+export const Opcodes = {
+  commit: crc32('OffRamp_Commit'),
+  execute: crc32('OffRamp_Execute'),
+  updateSourceChainConfig: crc32('OffRamp_UpdateSourceChainConfig'),
+  dispatchValidated: crc32('OffRamp_DispatchValidated'),
 }
 
 export abstract class Errors {}
@@ -201,7 +214,6 @@ export class OffRamp extends OCR3Base {
       queryID?: number
       reportContext: ReportContext
       report: ExecutionReport
-      signatures: SignatureEd25519[]
     },
   ) {
     await provider.internal(via, {
@@ -213,12 +225,7 @@ export class OffRamp extends OCR3Base {
         .storeUint(opts.reportContext.configDigest, 256)
         .storeUint(opts.reportContext.padding, 192) //should be zero
         .storeUint(opts.reportContext.sequenceBytes, 64)
-        .storeRef(ExecutionReportToCell(opts.report))
-        .storeRef(
-          asSnakeData(opts.signatures, (item) =>
-            beginCell().storeUint(item.r, 256).storeUint(item.s, 256).storeUint(item.signer, 256),
-          ),
-        )
+        .storeBuilder(ExecutionReportToBuilder(opts.report))
         .endCell(),
     })
   }
@@ -241,6 +248,35 @@ export class OffRamp extends OCR3Base {
         .storeUint(opts.queryID ?? 0, 64)
         .storeUint(opts.sourceChainSelector, 64)
         .storeBuilder(sourceChainConfigToBuilder(opts.config))
+        .endCell(),
+    })
+  }
+
+  //should throw if not called by an owned MerkleRoot contract
+  async sendDispatchValidated(
+    provider: ContractProvider,
+    via: Sender,
+    opts: {
+      value: bigint
+      messages: Any2TVMRampMessage[]
+      proofs: bigint[] //256[]
+      proofFlagBits: bigint //256
+      metadataHash: bigint //256
+    },
+  ) {
+    await provider.internal(via, {
+      value: opts.value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: beginCell()
+        .storeUint(Opcodes.dispatchValidated, 32)
+        .storeRef(
+          asSnakeData(opts.messages, (item) =>
+            beginCell().storeBuilder(Any2TVMRampMessageToBuilder(item)),
+          ),
+        )
+        .storeRef(asSnakeData(opts.proofs, (item) => beginCell().storeUint(item, 256)))
+        .storeUint(opts.proofFlagBits, 256)
+        .storeUint(opts.metadataHash, 256)
         .endCell(),
     })
   }
@@ -324,8 +360,7 @@ export function commitReportToBuilder(report: CommitReport): import('@ton/core')
 
 export const sourceChainConfigToBuilder = (config: SourceChainConfig) => {
   return beginCell()
-    .storeUint(config.router.byteLength, 8)
-    .storeBuffer(config.router, config.router.byteLength)
+    .storeAddress(config.router)
     .storeBit(config.isEnabled)
     .storeUint(config.minSeqNr, 64)
     .storeBit(config.isRMNVerificationDisabled)
@@ -333,6 +368,42 @@ export const sourceChainConfigToBuilder = (config: SourceChainConfig) => {
     .storeBuffer(config.onRamp, config.onRamp.byteLength)
 }
 
-function ExecutionReportToCell(report: ExecutionReport): Cell | import('@ton/core').Builder {
-  throw new Error('Function not implemented.')
+function ExecutionReportToBuilder(report: ExecutionReport) {
+  return beginCell()
+    .storeUint(report.sourceChainSelector, 64)
+    .storeRef(
+      asSnakeData(report.messages, (message) => {
+        return Any2TVMRampMessageToBuilder(message)
+      }),
+    )
+    .storeRef(beginCell().endCell()) //TODO: offchainTokenData
+    .storeRef(
+      asSnakeData(report.proofs, (proof) => {
+        return beginCell().storeUint(proof, 256)
+      }),
+    )
+    .storeUint(report.proofFlagBits, 256)
+}
+
+function Any2TVMRampMessageToBuilder(message: Any2TVMRampMessage) {
+  return beginCell()
+    .storeBuilder(RampMessageHeaderToBuidler(message.header))
+    .storeRef(
+      beginCell()
+        .storeUint(message.sender.byteLength, 8)
+        .storeBuffer(message.sender, message.sender.byteLength)
+        .endCell(),
+    )
+    .storeRef(message.data)
+    .storeAddress(message.receiver)
+    .storeMaybeRef(message.tokenAmounts)
+}
+
+function RampMessageHeaderToBuidler(header: RampMessageHeader) {
+  return beginCell()
+    .storeUint(header.messageId, 256)
+    .storeUint(header.sourceChainSelector, 64)
+    .storeUint(header.destChainSelector, 64)
+    .storeUint(header.sequenceNumber, 64)
+    .storeUint(header.nonce, 64)
 }

@@ -31,18 +31,20 @@
       chainlink-ton = pkgs.callPackage ./cmd/chainlink-ton commonArgs;
       # Resolve sub-modules
       contracts = pkgs.callPackage ./contracts commonArgs;
-      integration-tests = pkgs.callPackage ./integration-tests commonArgs;
+      integration-tests = pkgs.callPackage ./integration-tests {
+        inherit pkgs;
+        inherit rev;
+        inherit chainlink-ton;
+        # TODO: why the pkg rename here?
+        jetton-contracts = contracts.packages.contracts-jetton-func;
+      };
       # Resolve tools
       dependency-analyzer = pkgs.callPackage ./tools/dependency_analyzer commonArgs;
     in rec {
       # Output a set of dev environments (shells)
       devShells =
         {
-          default = pkgs.callPackage ./shell.nix {
-            inherit pkgs;
-            chainlink-ton = chainlink-ton;
-            jetton-contracts = contracts.packages.contracts-jetton-func;
-          };
+          default = pkgs.callPackage ./shell.nix {inherit pkgs;};
           # Development shell for dependency analyzer
           dependency-analyzer = pkgs.callPackage ./tools/dependency_analyzer/shell.nix {inherit pkgs;};
         }

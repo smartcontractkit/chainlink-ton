@@ -779,31 +779,29 @@ export class ContractClient implements Contract {
   }
 
   async getConfig(p: ContractProvider): Promise<Config> {
-    return p.get('getConfig', []).then((r) => {
-      return {
-        signers: loadDict(
-          Dictionary.loadDirect(
-            Dictionary.Keys.Uint(8),
-            Dictionary.Values.Buffer(LEN_SIGNER_BYTES),
-            r.stack.readCell(),
-          ),
+    return p.get('getConfig', []).then((r) => ({
+      signers: loadDict(
+        Dictionary.loadDirect(
+          Dictionary.Keys.Uint(8),
+          Dictionary.Values.Buffer(LEN_SIGNER_BYTES),
+          r.stack.readCell(),
         ),
-        groupQuorums: loadDict(
-          Dictionary.loadDirect(
-            Dictionary.Keys.Uint(8),
-            Dictionary.Values.Uint(8),
-            r.stack.readCell(),
-          ),
+      ),
+      groupQuorums: loadDict(
+        Dictionary.loadDirect(
+          Dictionary.Keys.Uint(8),
+          Dictionary.Values.Uint(8),
+          r.stack.readCell(),
         ),
-        groupParents: loadDict(
-          Dictionary.loadDirect(
-            Dictionary.Keys.Uint(8),
-            Dictionary.Values.Uint(8),
-            r.stack.readCell(),
-          ),
+      ),
+      groupParents: loadDict(
+        Dictionary.loadDirect(
+          Dictionary.Keys.Uint(8),
+          Dictionary.Values.Uint(8),
+          r.stack.readCell(),
         ),
-      }
-    })
+      ),
+    }))
   }
 
   async getOpCount(p: ContractProvider): Promise<bigint> {

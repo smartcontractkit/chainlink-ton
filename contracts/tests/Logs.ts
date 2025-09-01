@@ -1,7 +1,8 @@
-import { Address, Cell, Message } from '@ton/core'
+import { Address, beginCell, Cell, Message } from '@ton/core'
 import { BlockchainTransaction } from '@ton/sandbox'
 import * as CCIPLogs from '../wrappers/ccip/Logs'
 import * as OCR3Logs from '../wrappers/libraries/ocr/Logs'
+import * as ReceiverLogs from '../wrappers/examples/ccip/Logs'
 import { fromSnakeData } from '../src/utils/types'
 import { merkleRootsFromCell, priceUpdatesFromCell } from '../wrappers/ccip/OffRamp'
 
@@ -51,6 +52,7 @@ type DeepPartial<T> = {
 const CombinedLogTypes = {
   ...CCIPLogs.LogTypes,
   ...OCR3Logs.LogTypes,
+  ...ReceiverLogs.LogTypes,
 }
 
 type CombinedLogTypes = (typeof CombinedLogTypes)[keyof typeof CombinedLogTypes]
@@ -63,7 +65,9 @@ type LogMatch<T extends CombinedLogTypes> = T extends CCIPLogs.LogTypes.CCIPMess
       ? OCR3Logs.OCR3BaseConfigSet
       : T extends OCR3Logs.LogTypes.OCR3BaseTransmitted
         ? DeepPartial<OCR3Logs.OCR3BaseTransmitted>
-        : number
+        : T extends ReceiverLogs.LogTypes.ReceiverCCIPMessageReceived
+          ? ReceiverLogs.ReceiverCCIPMessageReceived
+          : number
 
 export const assertLog = <T extends CombinedLogTypes>(
   transactions: BlockchainTransaction[],
@@ -81,6 +85,13 @@ export const assertLog = <T extends CombinedLogTypes>(
           x,
           from,
           match as DeepPartial<CCIPLogs.CCIPCommitReportAccepted>,
+        )
+
+      case ReceiverLogs.LogTypes.ReceiverCCIPMessageReceived:
+        return testLogReceiverCCIPMessageReceived(
+          x,
+          from,
+          match as ReceiverLogs.ReceiverCCIPMessageReceived,
         )
 
       case OCR3Logs.LogTypes.OCR3BaseConfigSet:
@@ -202,6 +213,26 @@ export const testTransmittedLogMessage = (
       sequenceNumber: cs.loadUint(64),
     }
     expect(msg).toMatchObject(match)
+    return true
+  })
+}
+
+export const testLogReceiverCCIPMessageReceived = (
+  message: Message,
+  from: Address,
+  expected: ReceiverLogs.ReceiverCCIPMessageReceived,
+) => {
+  return testLog(message, from, CombinedLogTypes.ReceiverCCIPMessageReceived, (x) => {
+    const msg = expected.message
+    const expectedCell = beginCell()
+      .storeUint(msg.messageId, 256)
+      .storeUint(msg.sourceChainSelector, 64)
+      .storeUint(msg.sender.byteLength, 8)
+      .storeBuffer(msg.sender, msg.sender.byteLength)
+      .storeRef(msg.data)
+      .endCell()
+
+    expect(expectedCell).toEqual(x)
     return true
   })
 }

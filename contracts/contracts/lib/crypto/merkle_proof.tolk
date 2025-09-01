@@ -35,11 +35,12 @@ fun hashPair(a: uint256, b: uint256): uint256 {
     }
 }
 
-// TODO: use keccak256 hash function to match Ethereum (+tooling) implementation
+/// Notice: use keccak256 hash function to match Ethereum (+tooling) implementation
 fun hashInternalNode(a: uint256, b: uint256): uint256 {
     var data = beginCell()
         .storeUint(a, 256)
         .storeUint(b, 256)
-        .endCell();
-    return data.hash();
+        .endCell()
+        .beginParse();
+    return keccak256(data);
 }

@@ -47,6 +47,14 @@ struct Any2TVMRampMessage {
     // maybe mark these amounts as slice remaining then parse them by hand to avoid requiring this to be a map<> at send time?
 }
 
+struct Any2TVMMessage {
+    messageId: uint256,
+    sourceChainSelector: uint64,
+    sender: CrossChainAddress,
+    data: cell
+}
+
+
 struct Any2TVMTokenTransfer {
     sourcePoolAddress: Cell<CrossChainAddress>;
     destPoolAddress: address;
@@ -75,7 +83,7 @@ const LEAF_DOMAIN_SEPARATOR: slice = stringHexToSlice("0000000000000000000000000
 
 fun Any2TVMRampMessage.generateMessageId(self, metadataHash: uint256): uint256 {
     // Loosely based on https://github.com/smartcontractkit/chainlink-ccip/blob/2d2ce6abb3f7626dbd3008e4232da4faa839feff/chains/evm/contracts/libraries/Internal.sol#L113-L134
-    return beginCell()
+        return beginCell()
         .storeSlice(LEAF_DOMAIN_SEPARATOR)
         .storeUint(metadataHash, 256)
         // header
@@ -289,6 +297,13 @@ struct Metadata {
     // TODO: metadata { value, tokenAmounts }
 }
 
+struct MessageMetadata {
+    header: uint256 = stringSha256("Any2TVMMessageHashV1");
+    sourceChainSelector: uint64;
+    destChainSelector: uint64;
+    onRamp :Cell<CrossChainAddress>;
+}
+
 struct (0x00000003) MessageValidated<C> {
     msg: Cell<CCIPSend>;
     metadata: Cell<C>,
@@ -308,12 +323,32 @@ struct MerkleRoot_Storage {
     // if any amount has failed = true, allows re-executing and will only transfer remaining
 }
 
+//crc32('MerkleRoot_Validate')
+struct (0x38ede91) MerkleRoot_Validate {
+    messages: cell, //vec<Any2TVMRampMessage>
+    proofs: cell, //vec<uint256>
+    proofFlagBits: uint256,
+    metadataHash: uint256,
+    //TODO: token data
+}
+
+//Must be sent from an owned MerkleRoot contract
+//crc32('OffRamp_DispatchValidated')
+struct (0x58cfcb02) OffRamp_DispatchValidated { 
+    messages: cell; // vec<Any2TVMRampMessage>
+    proofs: cell;
+    proofFlagBits: uint256;
+    metadataHash: uint256;
+}
+
+//crc32('Receiver_CCIPReceive')
+struct (0xb3126df1) CCIPReceive {
+    message: Any2TVMMessage
+}
+
 struct TokenBalance {
     amount: coins;
     failed: bool; // if marked as failed, a retry will allow re-sending these
-}
-
-struct (0x10000010) ExecuteReport {
 }
 
 // Errors
@@ -329,3 +364,5 @@ const ERROR_SOURCE_CHAIN_SELECTOR_MISMATCH = 263;
 const ERROR_TOKEN_NOT_SUPPORTED: int = 264;
 const ERROR_UNAUTHORIZED: int = 265;
 const ERROR_SOURCE_CHAIN_NOT_ENABLED: int = 266;
+const ERROR_EMPTY_REPORT:int = 267;
+const ERROR_DISPATCH_NOT_FROM_MERKLE_ROOT: int = 268;

@@ -1,6 +1,6 @@
 import { Address, Cell } from '@ton/core'
 import { crc32 } from 'zlib'
-import { MerkleRoot, PriceUpdates } from './OffRamp'
+import { Any2TVMMessage, MerkleRoot, PriceUpdates } from './OffRamp'
 
 export const CCIP_COMMIT_REPORT_ACCEPTED_TOPIC = crc32('CCIPCommitReportAccepted')
 export const CCIP_MESSAGE_SENT_TOPIC = crc32('CCIPMessageSent')
@@ -14,8 +14,8 @@ export type CCIPMessageSent = {
   message: {
     header: {
       messageId: bigint
-      destChainSelector: bigint
       sourceChainSelector: bigint
+      destChainSelector: bigint
       sequenceNumber: bigint
       nonce: bigint
     }

@@ -12,16 +12,17 @@ import {
 import * as ExitCodes from '../../../wrappers/libraries/ocr/ExitCodes'
 import { LogTypes as LogTypes } from '../../../wrappers/libraries/ocr/Logs'
 import { OCR3BaseExample } from '../../../wrappers/examples/ocr/OCR3Base'
+
 import {
+  generateEd25519KeyPair,
   generateRandomAddresses,
   generateRandomMockAddresses,
   generateRandomMockSigners,
-  generateEd25519KeyPair,
-  expectEqualsConfig,
-} from './Helpers'
-import { uint8ArrayToBigInt } from '../../../src/utils'
+  uint8ArrayToBigInt,
+} from '../../../src/utils'
 import { KeyPair } from '@ton/crypto'
 import { assertLog } from '../../Logs'
+import { expectEqualsConfig } from './Helpers'
 
 describe('OCR3Base Tests', () => {
   let blockchain: Blockchain
