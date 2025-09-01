@@ -22,7 +22,7 @@ var randomBlessedCommitReport = func() cciptypes.CommitPluginReport {
 	}
 
 	return cciptypes.CommitPluginReport{
-		BlessedMerkleRoots: []cciptypes.MerkleRootChain{
+		UnblessedMerkleRoots: []cciptypes.MerkleRootChain{
 			{
 				OnRampAddress: make(cciptypes.UnknownAddress, 64),
 				ChainSel:      cciptypes.ChainSelector(rand.Uint64()),
@@ -32,8 +32,6 @@ var randomBlessedCommitReport = func() cciptypes.CommitPluginReport {
 				),
 				MerkleRoot: randomBytes32(),
 			},
-		},
-		UnblessedMerkleRoots: []cciptypes.MerkleRootChain{
 			{
 				OnRampAddress: make(cciptypes.UnknownAddress, 64),
 				ChainSel:      cciptypes.ChainSelector(rand.Uint64()),
@@ -56,9 +54,6 @@ var randomBlessedCommitReport = func() cciptypes.CommitPluginReport {
 				{GasPrice: cciptypes.NewBigInt(big.NewInt(rand.Int63())), ChainSel: cciptypes.ChainSelector(rand.Uint64())},
 				{GasPrice: cciptypes.NewBigInt(big.NewInt(rand.Int63())), ChainSel: cciptypes.ChainSelector(rand.Uint64())},
 			},
-		},
-		RMNSignatures: []cciptypes.RMNECDSASignature{
-			{R: randomBytes32(), S: randomBytes32()},
 		},
 	}
 }
@@ -95,15 +90,7 @@ func TestCommitPluginCodecV1(t *testing.T) {
 		{
 			name: "empty merkle root",
 			report: func(report cciptypes.CommitPluginReport) cciptypes.CommitPluginReport {
-				report.BlessedMerkleRoots[0].MerkleRoot = cciptypes.Bytes32{}
-				return report
-			},
-		},
-		{
-			name: "both blessed and unblessed merkle roots",
-			report: func(report cciptypes.CommitPluginReport) cciptypes.CommitPluginReport {
-				report.UnblessedMerkleRoots = []cciptypes.MerkleRootChain{
-					report.BlessedMerkleRoots[0]}
+				report.UnblessedMerkleRoots[0].MerkleRoot = cciptypes.Bytes32{}
 				return report
 			},
 		},

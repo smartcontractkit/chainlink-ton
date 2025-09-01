@@ -122,35 +122,11 @@ func (e *executePluginCodecV1) Encode(ctx context.Context, report ccipocr3.Execu
 				return nil, fmt.Errorf("invalid receiver address %s: %w", tonReceiverAddrStr, err)
 			}
 
-			// var gasLimitBigInt *big.Int
-			// var extraArgsDecodeMap map[string]any
-			// if len(msg.ExtraArgs) > 0 {
-			// 	extraArgsDecodeMap, err = e.extraDataCodec.DecodeExtraArgs(msg.ExtraArgs, chainReport.SourceChainSelector)
-			// 	if err != nil {
-			// 		return nil, fmt.Errorf("failed to decode extra args: %w", err)
-			// 	}
-
-			// 	gasLimitBigInt, err = parseExtraArgsMap(extraArgsDecodeMap)
-			// 	if err != nil {
-			// 		return nil, fmt.Errorf("parse extra args map to get gas limit: %w", err)
-			// 	}
-			// }
-
-			// gas limit can be nil, which means no limit
-			// var gasLimit tlb.Coins
-			// if gasLimitBigInt != nil {
-			// 	gasLimit, err = tlb.FromNano(gasLimitBigInt, 0)
-			// 	if err != nil {
-			// 		return nil, fmt.Errorf("convert gas limit to TON cell: %w", err)
-			// 	}
-			// }
-
 			rampMsg := ocr.Any2TVMRampMessage{
-				Header:   header,
-				Sender:   common.CrossChainAddress(msg.Sender),
-				Data:     common.SnakeBytes(msg.Data),
-				Receiver: tonReceiverAddr,
-				// GasLimit:     gasLimit, // TODO double check if this match with on-chain decimal. Note the offramp contract would not use this value base on current design.
+				Header:       header,
+				Sender:       common.CrossChainAddress(msg.Sender),
+				Data:         common.SnakeBytes(msg.Data),
+				Receiver:     tonReceiverAddr,
 				TokenAmounts: tokenAmounts,
 			}
 
@@ -246,7 +222,6 @@ func (e *executePluginCodecV1) Decode(ctx context.Context, data []byte) (ccipocr
 			}
 
 			extraArgs := onramp.GenericExtraArgsV2{
-				// GasLimit:                 msg.GasLimit.Nano(),
 				AllowOutOfOrderExecution: true,
 			}
 
