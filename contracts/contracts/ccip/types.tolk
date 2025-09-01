@@ -176,7 +176,7 @@ struct OnRampUpdateDestChainConfig {
 
 // TODO: make this direct snakedata by using RemainingBitsAndRefs? this way it's not cell->cell
 struct (0x10000004) OnRampUpdateDestChainConfigs {
-    updates: cell; // vec<OrRampUpdateDestChainConfig>
+    updates: cell; // vec<O;;rRampUpdateDestChainConfig>
 }
 
 struct UpdateAllowlist {
@@ -317,15 +317,13 @@ struct MerkleRoot_Storage {
     state: uint8;
     executionState: uint8; 
     tokenBalance: TokenBalance;
-    receiver: address;
+    message: Cell<Any2TVMRampMessage>? = null;
 }
 
 //crc32('MerkleRoot_Validate')
 struct (0x38ede91) MerkleRoot_Validate {
-    messages: cell, //vec<Any2TVMRampMessage>
-    proofs: cell, //vec<uint256>
-    proofFlagBits: uint256,
-    metadataHash: uint256,
+    message: Cell<Any2TVMRampMessage>,
+    root: uint256,
     //TODO: token data
 }
 
@@ -334,10 +332,13 @@ struct(0x13131313) MerkleRoot_CCIPReceiveBounced {}
 //Must be sent from an owned MerkleRoot contract
 //crc32('OffRamp_DispatchValidated')
 struct (0x58cfcb02) OffRamp_DispatchValidated { 
-    messages: cell; // vec<Any2TVMRampMessage>
-    proofs: cell;
-    proofFlagBits: uint256;
-    metadataHash: uint256;
+    message: Cell<Any2TVMRampMessage>;
+    root: uint256;
+}
+
+struct (0x14141414) OffRamp_NotifyInProgress {
+    message: Any2TVMRampMessage; // vec<Any2TVMRampMessage>
+    root: uint256;
 }
 
 //crc32('Receiver_CCIPReceive')
@@ -346,8 +347,15 @@ struct (0xb3126df1) CCIPReceive {
     message: Any2TVMMessage;
 }
 
-struct (0x12121212) CCIPReceiveConfirm {
-    messageId: uint256
+struct (0x12121212) MerkleRoot_CCIPReceiveConfirm {
+}
+
+struct (0x23232323) OffRamp_CCIPReceiveConfirm {
+    header: RampMessageHeader;
+}
+
+struct(0x32323232) OffRamp_CCIPReceiveFailed {
+    header: RampMessageHeader;
 }
 
 struct TokenBalance {

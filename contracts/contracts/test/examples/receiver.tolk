@@ -30,8 +30,7 @@ fun onInternalMessage(in: InMessage) {
                 bounce: true,
                 value: ton("0.05"), //TODO how much do we need to send
                 dest: msg.callback,
-                body: CCIPReceiveConfirm {
-                    messageId: msg.message.messageId,
+                body: MerkleRoot_CCIPReceiveConfirm {}
             });
             receiveConfirm.send(SEND_MODE_REGULAR);
 

@@ -35,6 +35,15 @@ struct SourceChainConfig {
     onRamp: CrossChainAddress;
 }
 
+const CCIP_EXECUTION_STATE_CHANGED_TOPIC: int = stringCrc32("CCIPExecutionStateChanged");
+struct ExecutionStateChanged {
+    sourceChainSelector: uint64,
+    sequenceNumber: uint64,
+    messageId: uint256,
+    state: uint8,
+    //returnData? probably not
+}
+
 fun Storage.load(): Storage {
     return Storage.fromCell(contract.getData());
 }
@@ -51,15 +60,6 @@ struct SkippedAlreadyExecuted {
 struct AlreadyAttempted {
     sourceChainSelector: uint64;
     sequenceNumber: uint64;
-}
-
-struct ExecutionStateChanged {
-    sourceChainSelector: uint64;
-    sequenceNumber: uint64;
-    // TODO: are these not the same?
-    messageId: uint256;
-    messageHash: uint256;
-    state: uint8;
 }
 
 const CCIP_COMMIT_REPORT_ACCEPTED_TOPIC: int = stringCrc32("CCIPCommitReportAccepted");
@@ -112,7 +112,7 @@ struct (0xb98c95e3) OffRamp_UpdateSourceChainConfig {
     config: SourceChainConfig;
 }
 
-type OffRamp_InMessage = OffRamp_Commit | OffRamp_Execute | OffRamp_DispatchValidated | OffRamp_UpdateSourceChainConfig | OCR3Base_SetOCR3Config;
+type OffRamp_InMessage = OffRamp_Commit | OffRamp_Execute | OffRamp_DispatchValidated | OffRamp_UpdateSourceChainConfig | OCR3Base_SetOCR3Config | OffRamp_CCIPReceiveConfirm | OffRamp_CCIPReceiveFailed;
 
 type OffRamp_BouncedMessage =  CCIPReceive;
 
@@ -134,6 +134,24 @@ fun onInternalMessage(in:InMessage) {
         OffRamp_DispatchValidated => {
             _dispatchValidated(msg, in.senderAddress)
         } 
+        OffRamp_CCIPReceiveConfirm => {
+            val messageHeader = msg.header;
+            emit(CCIP_EXECUTION_STATE_CHANGED_TOPIC, ExecutionStateChanged {
+                sourceChainSelector: messageHeader.sourceChainSelector,
+                sequenceNumber: messageHeader.sequenceNumber,
+                messageId: messageHeader.messageId,
+                state: 2 // succesful
+            });
+        }
+        OffRamp_CCIPReceiveFailed => {
+            val messageHeader = msg.header;
+            emit(CCIP_EXECUTION_STATE_CHANGED_TOPIC, ExecutionStateChanged {
+                sourceChainSelector: messageHeader.sourceChainSelector,
+                sequenceNumber: messageHeader.sequenceNumber,
+                messageId: messageHeader.messageId,
+                state: 3 // failed
+            });
+        }
         else => {
             // ignore empty messages, "wrong opcode" for others
             assert (in.body.isEmpty()) throw 0xFFFF
@@ -168,13 +186,10 @@ fun onBouncedMessage(in: InMessageBounced) {
 fun _dispatchValidated(msg: OffRamp_DispatchValidated, sender: address) {
             val st = Storage.load();
 
-            // we don't store the addresses of the MerkleRoot contracts so we check the proof again and validate that the root contract was deployed by the OffRamp.
-            // Here we assume just one message because we don't batch.
+            // Validate the message comes from an owned MerkleRoot contract
 
-            // TODO: I am thinking it might be better to just remove all support for batching from on-chain, it can be easily added back later
-            val message = Any2TVMRampMessage.fromCell(msg.messages);
-
-            val root = message.generateMessageId(msg.metadataHash);
+            val message = msg.message.load();
+            val root = msg.root;
 
             val expectedAddress: AutoDeployAddress = {
                 stateInit: {
@@ -185,7 +200,6 @@ fun _dispatchValidated(msg: OffRamp_DispatchValidated, sender: address) {
                     }.toCell()
                 }
             };
-
             assert(expectedAddress.addressMatches(sender)) throw ERROR_DISPATCH_NOT_FROM_MERKLE_ROOT;
 
             // dispatch message to receiver
@@ -238,7 +252,7 @@ fun commit(msg: OffRamp_Commit, sender: address) {
             bounce: true,
             value: ton("0.05"), // TODO:
             dest: st.feeQuoter,
-            body: UpdatePrices{
+            body: UpdatePrices {
                 updates: report.priceUpdates!.load()
             },
         });
@@ -280,7 +294,7 @@ fun commit(msg: OffRamp_Commit, sender: address) {
                         owner: contract.getAddress(),
                         state: 0,
                         executionState: 0,
-                        tokenBalance: TokenBalance{},
+                        tokenBalance: TokenBalance{}
                     }.toCell(),
                 }
             },
@@ -312,13 +326,6 @@ fun _execute(msg: OffRamp_Execute, sender: address) {
     // TODO: check if chain was cursed by RMNRemote
 
     val report = msg.report;
-    var messages = Iterator<Any2TVMRampMessage>.new(report.messages);
-
-    assert(!messages.empty(), ERROR_EMPTY_REPORT);
-
-    // TODO: assert(report.messages.len == offchainTokenData.len, throw UNEXPECTED_TOKEN_DATA) (
-    // ^- perhaps easier to validate by checking if offchainTokenData iter is still empty after the while loop
-    // Not needed if we remove batching
 
     val sourceChainConfig = st.sourceChainConfigs.mustGet(report.sourceChainSelector, ERROR_SOURCE_CHAIN_NOT_ENABLED);
     assert(sourceChainConfig.isEnabled, ERROR_SOURCE_CHAIN_NOT_ENABLED);
@@ -327,48 +334,31 @@ fun _execute(msg: OffRamp_Execute, sender: address) {
     // message fields ensures that the message being executed is correct and not tampered with. Including the known
     // OnRamp ensures that the message originates from the correct OnRamp version. We know the sourceChainSelector
     // and destChainSelector are correct because we revert below when they are not.
-    //val metadataHash = metadataHash(report.sourceChainSelector, st.chainSelector, sourceChainConfig.onRamp);
     val metadataHash = MessageMetadata{
         sourceChainSelector: report.sourceChainSelector,
         destChainSelector: st.chainSelector,
         onRamp: sourceChainConfig.onRamp.toCell(),
     }.toCell().hash();
 
-    var hashedLeaves = createEmptyTuple();
-    // TODO: is offchainTokenData not hashed?
 
-    //TODO: Should we just assume no batching and get rid of this loop? the code would be simpler
-    while (!messages.empty()) {
-        val message = messages.next();
-        // Commits do not verify the destChainSelector in the message since only the root is committed, so we
-        // have to check it explicitly. This check is also important as we have assumed the metaDataHash above uses
-        // the i_chainSelector as the destChainSelector.
-        assert(message.header.destChainSelector == st.chainSelector, ERROR_INVALID_MESSAGE_DEST_CHAIN_SELECTOR);
+    // no batching
+    val message = Any2TVMRampMessage.fromCell(report.messages);
 
-        // If the message source chain selector does not match the report's source chain selector and the root has not
-        // been committed for the report source chain selector this will be caught by the root verification.
-        // This acts as an extra check to ensure the message source chain selector matches the report's source chain.
-        assert(message.header.sourceChainSelector == report.sourceChainSelector, ERROR_SOURCE_CHAIN_SELECTOR_MISMATCH);
+    // Commits do not verify the destChainSelector in the message since only the root is committed, so we
+    // have to check it explicitly. This check is also important as we have assumed the metaDataHash above uses
+    // the i_chainSelector as the destChainSelector.
+    assert(message.header.destChainSelector == st.chainSelector, ERROR_INVALID_MESSAGE_DEST_CHAIN_SELECTOR);
 
-        // Hashes the cell data + refs recursively
-        val hash = message.generateMessageId(metadataHash);
-        hashedLeaves.push(hash);
-    }
+    // If the message source chain selector does not match the report's source chain selector and the root has not
+    // been committed for the report source chain selector this will be caught by the root verification.
+    // This acts as an extra check to ensure the message source chain selector matches the report's source chain.
+    assert(message.header.sourceChainSelector == report.sourceChainSelector, ERROR_SOURCE_CHAIN_SELECTOR_MISMATCH);
 
-    // calculate merkle root 
-    // without batching the root should just be the messageId each time
-    var leavesIterator = TupleIterator<uint256>.new(hashedLeaves);
-    var proofsIterator = Iterator<uint256>.new(report.proofs);
-
-    val root = merkleRoot(
-        leavesIterator,
-        proofsIterator,
-        report.proofFlagBits,
-    );
+    val root = message.generateMessageId(metadataHash);
 
     // send message to MerkleRoot (execute)
      val executeMsg = createMessage({
-         bounce: true, // TODO: will bounce if root doesn't exist -> throw RootNotCommitted
+         bounce: true,
          value: ton("0.1"), // TODO:
          dest: {
              stateInit: {
@@ -382,10 +372,8 @@ fun _execute(msg: OffRamp_Execute, sender: address) {
          },
          
          body: MerkleRoot_Validate {
-            messages: report.messages,
-            proofs: report.proofs,
-            proofFlagBits: report.proofFlagBits,
-            metadataHash: metadataHash,
+            message: report.messages as Cell<Any2TVMRampMessage>,
+            root: root,
          },
      });
      executeMsg.send(SEND_MODE_REGULAR);
@@ -402,7 +390,7 @@ fun _execute(msg: OffRamp_Execute, sender: address) {
 
 }
 
-//todo: maybe it should be chainConfigs and take an array
+//todo: maybe it should be chainConfigs and take an array?
 fun _updateSourceChainConfig(msg: OffRamp_UpdateSourceChainConfig, sender: address) {
     var st = lazy Storage.load();
     st.ownable.requireOwner(sender);

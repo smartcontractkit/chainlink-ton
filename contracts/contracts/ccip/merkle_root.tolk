@@ -19,7 +19,9 @@ const EXECUTION_STATE_SUCCESS: uint8 = 2;
 const EXECUTION_STATE_FAILURE: uint8 = 3;
 // TODO: we need to fit additional states: TOKEN_TRANSFER | EXECUTE
 
-const ERROR_STATE_IS_NOT_UNTOUCHED: uint32 = 0x7878;
+const ERROR_STATE_IS_NOT_UNTOUCHED = 300;
+const ERROR_CONFIRMING_NON_EXECUTED_MESSAGE = 301;
+const ERROR_FAILING_NON_EXECUTED_MESSAGE = 302;
 
 fun MerkleRoot_Storage.load(): MerkleRoot_Storage {
     return MerkleRoot_Storage.fromCell(contract.getData());
@@ -30,7 +32,7 @@ fun MerkleRoot_Storage.store(self) {
 }
 
 
-type MerkleRoot_InMessage = MerkleRoot_Validate | MerkleRoot_CCIPReceiveBounced | CCIPReceiveConfirm;
+type MerkleRoot_InMessage = MerkleRoot_Validate | MerkleRoot_CCIPReceiveBounced | MerkleRoot_CCIPReceiveConfirm;
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy MerkleRoot_InMessage.fromSlice(in.body);
@@ -39,11 +41,16 @@ fun onInternalMessage(in: InMessage) {
             // If we receive this message from the OffRamp then the merkle proof has already been validated.
             _validateAndExecute(msg, in.senderAddress);
         }
-        CCIPReceiveConfirm => {
+        MerkleRoot_CCIPReceiveConfirm => {
             var st = MerkleRoot_Storage.load();
-            assert(in.senderAddress == st.receiver, ERROR_NOT_OWNER);
+
+            assert(st.state == STATE_EXECUTE && st.message != null, ERROR_CONFIRMING_NON_EXECUTED_MESSAGE);
+            assert(in.senderAddress == st.message.load().receiver, ERROR_NOT_OWNER);
+
             st.state = STATE_SUCCESS;
-            st.executionStates = EXECUTION_STATE_SUCCESS; 
+            st.executionState = EXECUTION_STATE_SUCCESS; 
+            st.store();
+
             val offRampReceiveConfirm = createMessage({
                 bounce: true,
                 value: ton("0"), //TODO
@@ -54,7 +61,8 @@ fun onInternalMessage(in: InMessage) {
         }
         MerkleRoot_CCIPReceiveBounced => {
             var st = MerkleRoot_Storage.load();
-            assert(in.senderAddress = st.owner, ERROR_NOT_OWNER);
+            assert(in.senderAddress == st.owner, ERROR_NOT_OWNER);
+
             st.state = STATE_EXECUTE_FAILED;
             st.executionState = EXECUTION_STATE_FAILURE;
             st.store();
@@ -74,24 +82,31 @@ fun _validateAndExecute(msg: MerkleRoot_Validate, sender: address) {
     assert(sender == st.owner, ERROR_NOT_OWNER);
     assert(st.state == EXECUTION_STATE_UNTOUCHED, ERROR_STATE_IS_NOT_UNTOUCHED);
 
-    st.executionStates = EXECUTION_STATE_IN_PROGRESS as uint256;
+    st.executionState = EXECUTION_STATE_IN_PROGRESS;
 
-    //TODO if tokenTransfers 
-    // validate execution state == untouched
-    // if initial
-    //  allocate storage space for the execution report
-    // TODO: should we fan out CommitReport into individual executions?
-    // 
-    // if in progress
+    val message = msg.message.load();
+    st.message = message.toCell();
+    st.store();
+
+    //TODO 
     // if tokenAmounts > 0 && state == initial
+    // val notifyInProgress = createMessage({
+    //     bounce: true,
+    //     value: ton("0.05"),
+    //     dest: st.owner,
+    //     body: OffRamp_NotifyInProgress {
+    //         msg.messages, msg.proofs, msg.proofFlagBits, msg.metadataHash
+    //     }
+    // });
+    // notifyInProgress.send(SEND_MODE_REGULAR);
     // set state = token transfer
     // send message to offramp to ask to release tokens
-    // else if no tokenTransfers
 
-    _execute(st, msg.messages, msg.proofs, msg.proofFlagBits, msg.metadataHash);
+    // else if no tokenTransfers
+    _execute(st, message, msg.root);
 }
 
-fun _execute(st: MerkleRoot_Storage, mesages: cell, proofs: cell, proofFlagBits: uint256, metadataHash: uint256) {
+fun _execute(st: MerkleRoot_Storage, mesage: Any2TVMRampMessage, root: uint256) {
     st.state = STATE_EXECUTE;
     st.store();
     createMessage(
@@ -100,10 +115,8 @@ fun _execute(st: MerkleRoot_Storage, mesages: cell, proofs: cell, proofFlagBits:
             value: ton("0.05"),
             dest: st.owner,
             body: OffRamp_DispatchValidated {
-                messages: mesages,
-                proofs: proofs,
-                proofFlagBits: proofFlagBits,
-                metadataHash: metadataHash
+                message: mesage.toCell(),
+                root: root,
             }
         }
     ).send(SEND_MODE_REGULAR);
