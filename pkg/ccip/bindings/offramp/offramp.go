@@ -6,6 +6,7 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
 )
 
 type Storage struct {
@@ -35,4 +36,9 @@ type UpdateSourceChainConfig struct {
 	_                   tlb.Magic         `tlb:"#b98c95e3"` //nolint:revive // Ignore opcode tag
 	SourceChainSelector uint64            `tlb:"## 64"`
 	Config              SourceChainConfig `tlb:"."`
+}
+
+type CommitReportAccepted struct {
+	PriceUpdates ocr.PriceUpdates `tlb:"."`
+	MerkleRoots  ocr.MerkleRoot   `tlb:"."`
 }
