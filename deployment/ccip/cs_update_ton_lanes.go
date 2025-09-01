@@ -110,7 +110,6 @@ func (cs AddTonLanes) Apply(env cldf.Environment, cfg config.UpdateTonLanesConfi
 	for tonChainSel, sequenceInput := range updateInputsByTonChain {
 		tonChains := env.BlockChains.TonChains()
 		chain := tonChains[tonChainSel]
-
 		deps := operation.TonDeps{
 			TonChain:         chain,
 			CCIPOnChainState: s,

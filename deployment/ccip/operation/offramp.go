@@ -1,6 +1,7 @@
 package operation
 
 import (
+	"encoding/binary"
 	"fmt"
 
 	"github.com/Masterminds/semver/v3"
@@ -93,9 +94,6 @@ type UpdateOffRampSourcesInput struct {
 	Updates map[uint64]OffRampSourceUpdate
 }
 
-type UpdateOffRampSourcesOutput struct {
-}
-
 var UpdateOffRampSourceChainConfigsOp = operations.NewOperation(
 	"update-offramp-source-chain-configs",
 	semver.MustParse("0.1.0"),
@@ -136,6 +134,78 @@ func updateOffRampSourceChainConfigs(b operations.Bundle, deps TonDeps, in Updat
 	// input := offramp.UpdateSourceChainConfigs{
 	// 	Updates: common.SnakeData[offramp.UpdateSourceChainConfig](configs),
 	// }
+
+	payload, err := tlb.ToCell(input)
+	if err != nil {
+		return nil, err
+	}
+
+	messages := []*tlb.InternalMessage{
+		{
+			Bounce:  true,
+			Amount:  tlb.MustFromTON("1"),
+			DstAddr: &addr,
+			Body:    payload,
+		},
+	}
+	return utils.Serialize(messages)
+}
+
+// PluginType represents the type of CCIP plugin.
+type PluginType uint8
+
+const (
+	PluginTypeCCIPCommit PluginType = 0
+	PluginTypeCCIPExec   PluginType = 1
+)
+
+// NOTE: this maps to MultiOCR3BaseOCRConfigArgsAptos but it's an internal type on chainlink/deployment...
+type OCR3ConfigArgs struct {
+	ConfigDigest                   []byte
+	PluginType                     PluginType
+	F                              uint8
+	IsSignatureVerificationEnabled bool
+	Signers                        [][]byte
+	Transmitters                   [][]byte
+}
+
+var SetOCR3ConfigOp = operations.NewOperation(
+	"update-offramp-ocr3-config",
+	semver.MustParse("0.1.0"),
+	"Updates offramp's OCR3 config",
+	setOCR3Config,
+)
+
+func setOCR3Config(b operations.Bundle, deps TonDeps, in OCR3ConfigArgs) ([][]byte, error) {
+	addr := deps.CCIPOnChainState[deps.TonChain.Selector].OffRamp
+
+	var signers []offramp.Signer
+	for _, signer := range in.Signers {
+		if len(signer) != 32 {
+			return nil, fmt.Errorf("Invalid signer address, expected 32 bytes, got %d", len(signer))
+		}
+		signers = append(signers, offramp.Signer{Pubkey: signer})
+	}
+
+	var transmitters []offramp.Transmitter
+	for _, transmitter := range in.Transmitters {
+		if len(transmitter) != 36 {
+			return nil, fmt.Errorf("Invalid transmitter address, expected 36 bytes, got %d", len(transmitter))
+		}
+		workchain := int32(binary.BigEndian.Uint32(transmitter[0:4])) //nolint:gosec // G115
+		addr := address.NewAddress(0, byte(workchain), transmitter[4:])
+		transmitters = append(transmitters, offramp.Transmitter{Address: addr})
+	}
+
+	input := offramp.SetOCR3Config{
+		QueryID:                        0,
+		ConfigDigest:                   in.ConfigDigest,
+		PluginType:                     uint16(in.PluginType),
+		F:                              in.F,
+		IsSignatureVerificationEnabled: in.IsSignatureVerificationEnabled,
+		Signers:                        common.SnakeData[offramp.Signer](signers),
+		Transmitters:                   common.SnakeData[offramp.Transmitter](transmitters),
+	}
 
 	payload, err := tlb.ToCell(input)
 	if err != nil {

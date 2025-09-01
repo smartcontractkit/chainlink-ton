@@ -36,3 +36,22 @@ type UpdateSourceChainConfig struct {
 	SourceChainSelector uint64            `tlb:"## 64"`
 	Config              SourceChainConfig `tlb:"."`
 }
+
+type Signer struct {
+	Pubkey []byte `tlb:"bits 256"`
+}
+
+type Transmitter struct { // NOTE: using common.SnakeData[(*)address.Address] directly doesn't work
+	Address *address.Address `tlb:"addr"`
+}
+
+type SetOCR3Config struct {
+	_                              tlb.Magic                     `tlb:"#2b78359f"` //nolint:revive // Ignore opcode tag
+	QueryID                        uint64                        `tlb:"## 64"`
+	ConfigDigest                   []byte                        `tlb:"bits 256"`
+	PluginType                     uint16                        `tlb:"## 16"`
+	F                              uint8                         `tlb:"## 8"`
+	IsSignatureVerificationEnabled bool                          `tlb:"bool"`
+	Signers                        common.SnakeData[Signer]      `tlb:"^"`
+	Transmitters                   common.SnakeData[Transmitter] `tlb:"^"`
+}

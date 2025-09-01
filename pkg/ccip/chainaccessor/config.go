@@ -125,7 +125,7 @@ func (a *TONAccessor) getOnRampDynamicConfig(ctx context.Context, block *ton.Blo
 	return ccipocr3.OnRampDynamicConfig{
 		FeeQuoter:              addrToBytes(cfg.FeeQuoter),
 		ReentrancyGuardEntered: false,
-		MessageInterceptor:     []byte{}, // TODO: unimplemented on TON?
+		MessageInterceptor:     []byte{}, // unimplemented on TON
 		FeeAggregator:          addrToBytes(cfg.FeeAggregator),
 		AllowListAdmin:         addrToBytes(cfg.AllowListAdmin),
 	}, nil
