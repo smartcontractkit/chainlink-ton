@@ -502,6 +502,23 @@ export class MCMSBaseSetRootAndExecuteTestSetup extends MCMSBaseTestSetup {
     this.testOps = this.createTestOps(MCMSBaseSetRootAndExecuteTestSetup.OPS_NUM)
   }
 
+  // Recreate test operations (skip reverting op for this test setup)
+  async recreateTestOpsNoRevertingOp(): Promise<void> {
+    // Notice: needs setting new root with new metadata
+    const includeRevertingOp = false
+    this.testOps = this.createTestOps(
+      MCMSBaseSetRootAndExecuteTestSetup.OPS_NUM,
+      includeRevertingOp,
+    )
+    await this.setInitialRoot(
+      this.createTestRootMetadata(
+        0n,
+        BigInt(MCMSBaseSetRootAndExecuteTestSetup.OPS_NUM),
+        true, // override root
+      ),
+    )
+  }
+
   /**
    * Get the leaf index for a specific operation
    */

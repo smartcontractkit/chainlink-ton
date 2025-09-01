@@ -158,14 +158,9 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
     })
 
     it('should revert on incorrect postOpCount', async () => {
-      // Recreate test operations (skip reverting op for this test)
-      const includeRevertingOp = false
-      baseTest.testOps = baseTest.createTestOps(
-        MCMSBaseSetRootAndExecuteTestSetup.OPS_NUM,
-        includeRevertingOp,
-      )
+      await baseTest.recreateTestOpsNoRevertingOp()
 
-      await baseTest.setInitialRoot()
+      // await baseTest.setInitialRoot()
       await baseTest.bind.mcms.sendInternal(
         baseTest.acc.deployer.getSender(),
         toNano('10'),
@@ -433,20 +428,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
     })
 
     it('should successfully set root after clearing', async () => {
-      // Recreate test operations (skip reverting op for this test)
-      // Notice: needs setting new root with new metadata
-      const includeRevertingOp = false
-      baseTest.testOps = baseTest.createTestOps(
-        MCMSBaseSetRootAndExecuteTestSetup.OPS_NUM,
-        includeRevertingOp,
-      )
-      await baseTest.setInitialRoot(
-        baseTest.createTestRootMetadata(
-          0n,
-          BigInt(MCMSBaseSetRootAndExecuteTestSetup.OPS_NUM),
-          true, // override root
-        ),
-      )
+      await baseTest.recreateTestOpsNoRevertingOp()
 
       // Execute all ops except one
       const targetOpCount = baseTest.initialTestRootMetadata.postOpCount - 1n
@@ -600,20 +582,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
     })
 
     it('should succeed when no override after everything executed', async () => {
-      // Recreate test operations (skip reverting op for this test)
-      // Notice: needs setting new root with new metadata
-      const includeRevertingOp = false
-      baseTest.testOps = baseTest.createTestOps(
-        MCMSBaseSetRootAndExecuteTestSetup.OPS_NUM,
-        includeRevertingOp,
-      )
-      await baseTest.setInitialRoot(
-        baseTest.createTestRootMetadata(
-          0n,
-          BigInt(MCMSBaseSetRootAndExecuteTestSetup.OPS_NUM),
-          true, // override root
-        ),
-      )
+      await baseTest.recreateTestOpsNoRevertingOp()
 
       const rootMetadata = await baseTest.bind.mcms.getRootMetadata()
       expect(rootMetadata.postOpCount).toBeGreaterThan(0n)
