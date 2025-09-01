@@ -40,5 +40,5 @@ type UpdateSourceChainConfig struct {
 
 type CommitReportAccepted struct {
 	PriceUpdates ocr.PriceUpdates `tlb:"."`
-	MerkleRoots  ocr.MerkleRoot   `tlb:"."`
+	MerkleRoots  ocr.MerkleRoots  `tlb:"."`
 }
