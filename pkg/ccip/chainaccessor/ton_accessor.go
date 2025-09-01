@@ -399,12 +399,32 @@ func (a *TONAccessor) GetFeeQuoterDestChainConfig(ctx context.Context, dest ccip
 
 // TON as destination chain methods
 func (a *TONAccessor) CommitReportsGTETimestamp(ctx context.Context, ts time.Time, confidence primitives.ConfidenceLevel, limit int) ([]ccipocr3.CommitPluginReportWithMeta, error) {
-	// TODO(NONEVM-2365) implement me
+	// TODO: double the internal limit(why?)
+
+	// TODO: query consts.EventNameCommitReportAccepted event logs from consts.ContractNameOffRamp
+
+	// TODO: process commit reports
+
+	// TODO: return reports
 	return nil, errors.New("not implemented")
 }
 
 func (a *TONAccessor) ExecutedMessages(ctx context.Context, ranges map[ccipocr3.ChainSelector][]ccipocr3.SeqNumRange, confidence primitives.ConfidenceLevel) (map[ccipocr3.ChainSelector][]ccipocr3.SeqNum, error) {
-	// TODO(NONEVM-2365) implement me
+	// TODO: trim empty ranges from ranges
+	// TODO: this can be sanitized from the upper layer
+	nonEmptyRangesPerChain := make(map[ccipocr3.ChainSelector][]ccipocr3.SeqNumRange)
+	for chain, ranges := range ranges {
+		if len(ranges) > 0 {
+			nonEmptyRangesPerChain[chain] = ranges
+		}
+	}
+
+	// TODO: query executed messages from consts.ContractNameOffRamp
+
+	// TODO: for item in logs, parse ExecutionStateChangedEvent and validate event
+	// TODO: we'll need to have local validateExecutionStateChangedEvent?(not public atm)
+
+	// TODO: return executed sequence numbers
 	return nil, errors.New("not implemented")
 }
 
