@@ -111,7 +111,6 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 			Sender:       onrampAddr,
 			Data:         make([]byte, 1000),
 			Receiver:     addr,
-			GasLimit:     tlb.MustFromNano(big.NewInt(1000), 1),
 			TokenAmounts: tokenAmountsSlice,
 		},
 		{
@@ -125,7 +124,6 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 			Sender:       onrampAddr,
 			Data:         make([]byte, 1000),
 			Receiver:     addr,
-			GasLimit:     tlb.MustFromNano(big.NewInt(1000), 1),
 			TokenAmounts: tokenAmountsSlice,
 		},
 	}
