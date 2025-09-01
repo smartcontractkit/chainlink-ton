@@ -28,21 +28,7 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
       mcms.builder.message.in.topUp.encode({ queryId: 1n }),
     )
 
-    // Recreate test operations (skip reverting op for this test)
-    // Notice: needs setting new root with new metadata
-    const includeRevertingOp = false
-    baseTest.testOps = baseTest.createTestOps(
-      MCMSBaseSetRootAndExecuteTestSetup.OPS_NUM,
-      includeRevertingOp,
-    )
-    await baseTest.setInitialRoot(
-      baseTest.createTestRootMetadata(
-        0n,
-        BigInt(MCMSBaseSetRootAndExecuteTestSetup.OPS_NUM),
-        true, // override root
-      ),
-    )
-
+    await baseTest.recreateTestOpsNoRevertingOp()
     await baseTest.executeOperationsUpTo(MCMSBaseSetRootAndExecuteTestSetup.OPS_NUM)
 
     // Verify we've reached the post-op count
@@ -347,20 +333,7 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
   })
 
   it('should handle value operations correctly - insufficient balance', async () => {
-    // Recreate test operations (skip reverting op for this test)
-    // Notice: needs setting new root with new metadata
-    const includeRevertingOp = false
-    baseTest.testOps = baseTest.createTestOps(
-      MCMSBaseSetRootAndExecuteTestSetup.OPS_NUM,
-      includeRevertingOp,
-    )
-    await baseTest.setInitialRoot(
-      baseTest.createTestRootMetadata(
-        0n,
-        BigInt(MCMSBaseSetRootAndExecuteTestSetup.OPS_NUM),
-        true, // override root
-      ),
-    )
+    await baseTest.recreateTestOpsNoRevertingOp()
 
     // Check that MCMS contract has minimal balance initially
     const mcmsContract = await baseTest.blockchain.getContract(baseTest.bind.mcms.address)
@@ -404,20 +377,7 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
   })
 
   it('should handle value operations correctly - with sufficient balance', async () => {
-    // Recreate test operations (skip reverting op for this test)
-    // Notice: needs setting new root with new metadata
-    const includeRevertingOp = false
-    baseTest.testOps = baseTest.createTestOps(
-      MCMSBaseSetRootAndExecuteTestSetup.OPS_NUM,
-      includeRevertingOp,
-    )
-    await baseTest.setInitialRoot(
-      baseTest.createTestRootMetadata(
-        0n,
-        BigInt(MCMSBaseSetRootAndExecuteTestSetup.OPS_NUM),
-        true, // override root
-      ),
-    )
+    await baseTest.recreateTestOpsNoRevertingOp()
 
     // Execute operations up to the value operation index
     await baseTest.executeOperationsUpTo(MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX)

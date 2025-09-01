@@ -296,7 +296,7 @@ export type ExpiringRootAndOpCount = {
 /// This is TON-specific additional data required to support reliable execution in the async environment.
 export type OpPendingInfo = {
   /// The time at which the root becomes valid [executionTime(opCount - 1) + opFinalizationTimeout].
-  /// At this time the previous executed operation is considered optimistically final and succesfull,
+  /// At this time the previous executed operation is considered optimistically final and successful,
   /// meaning no bounce was received and we can continue executing.
   validAfter: bigint // uint32
   /// The timeout required to finalize the currently executing op
