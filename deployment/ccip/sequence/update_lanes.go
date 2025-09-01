@@ -168,14 +168,16 @@ func setTonDestinationUpdates(lane config.LaneConfig, updateInputsByTonChain map
 	input := updateInputsByTonChain[dest.Selector]
 
 	if input.UpdateOffRampSourcesConfig.Updates == nil {
-		input.UpdateOffRampSourcesConfig.Updates = make(map[uint64]v1_6.OffRampSourceUpdate)
+		input.UpdateOffRampSourcesConfig.Updates = make(map[uint64]operation.OffRampSourceUpdate)
 	}
 
-	input.UpdateOffRampSourcesConfig.Updates[source.Selector] = v1_6.OffRampSourceUpdate{
+	input.UpdateOffRampSourcesConfig.Updates[source.Selector] = operation.OffRampSourceUpdate{
 		IsEnabled:                 isEnabled,
 		TestRouter:                isTestRouter,
 		IsRMNVerificationDisabled: source.RMNVerificationDisabled,
+		OnRamp:                    source.OnRamp,
 	}
+	// TODO: assert OnRamp not empty
 
 	updateInputsByTonChain[dest.Selector] = input
 }
