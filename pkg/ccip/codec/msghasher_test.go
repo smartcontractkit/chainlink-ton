@@ -76,7 +76,7 @@ func TestMessageHasherV1_TON(t *testing.T) {
 		msg.TokenAmounts[0].Amount = ccipocr3.BigInt{}
 
 		_, err := hasher.Hash(ctx, msg)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "empty amount for token")
 	})
 
@@ -85,7 +85,7 @@ func TestMessageHasherV1_TON(t *testing.T) {
 		msg.TokenAmounts[0].Amount = ccipocr3.NewBigInt(big.NewInt(-100))
 
 		_, err := hasher.Hash(ctx, msg)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "negative amount for token")
 	})
 
@@ -94,7 +94,7 @@ func TestMessageHasherV1_TON(t *testing.T) {
 		msg.TokenAmounts[0].DestTokenAddress = []byte("short")
 
 		_, err := hasher.Hash(ctx, msg)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid destTokenAddress address")
 	})
 
@@ -103,7 +103,7 @@ func TestMessageHasherV1_TON(t *testing.T) {
 		msg.Receiver = []byte("invalid_address")
 
 		_, err := hasher.Hash(ctx, msg)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "error convert receiver address")
 	})
 
@@ -139,7 +139,7 @@ func TestMessageHasherV1_ErrorCases(t *testing.T) {
 
 		msg := randomTONMessage(t, 5009297550715157269)
 		_, err := hasher.Hash(ctx, msg)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to decode dest exec data")
 	})
 
