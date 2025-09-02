@@ -8,7 +8,7 @@ on:
 
 jobs:
   test:
-    name: Build & Unit Test
+    name: Contracts Unit Test
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
@@ -22,6 +22,6 @@ jobs:
       - name: Run tests
         run: |
           pushd contracts
-          nix develop .#contracts -c yarn && yarn test
+          nix develop .#contracts -c yarn test
 
 
