@@ -183,15 +183,15 @@ log_info "Preparing Chainlink Core (dependencies, build, DB setup)..."
   cd "$CHAINLINK_CORE_DIR"
   log_info "Active Go version: $(go version)"
 
-  go mod edit -replace="github.com/smartcontractkit/chainlink-ton=$ROOT_DIR"
-  go run github.com/jmank88/gomods@v0.1.5 tidy
-
   cd "./integration-tests"
   go build -o ccip.test .
 
   # ./ccip.test local db preparetest
   go get github.com/smartcontractkit/chainlink/v2/core/store/cmd/preparetest@d2c56f4161f3431268cb52e717a77b7ea7dcef09
   go run github.com/smartcontractkit/chainlink/v2/core/store/cmd/preparetest
+
+  go mod edit -replace="github.com/smartcontractkit/chainlink-ton=$ROOT_DIR"
+  go run github.com/jmank88/gomods@v0.1.5 tidy
 )
 
 log_info "=================================="
