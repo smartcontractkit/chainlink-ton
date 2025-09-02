@@ -190,21 +190,27 @@ func buildAny2TVMRampMessageHash(msg ocr.Any2TVMRampMessage) ([]byte, error) {
 	// storing header
 	topLevelBuilder.MustStoreRef(headerBuilder.EndCell())
 
+	// preparing sender, data and token refs
+	senderRefCell := cell.BeginCell().MustStoreSlice([]byte{uint8(len(msg.Sender))}, 8).
+		MustStoreSlice(msg.Sender, uint(len(msg.Sender))*8).EndCell()
+
+	// preparing
 	dataCell, err := msg.Data.ToCell()
 	if err != nil {
 		return nil, fmt.Errorf("pack msg data to cell: %w", err)
 	}
-
 	tokenCell, err := msg.TokenAmounts.ToCell()
 	if err != nil {
 		return nil, fmt.Errorf("pack token amounts to cell: %w", err)
 	}
 
-	topLevelBuilder.
-		MustStoreSlice([]byte{uint8(len(msg.Sender))}, 8).
-		MustStoreSlice(msg.Sender, uint(len(msg.Sender))*8).
-		MustStoreRef(dataCell).
-		MustStoreRef(tokenCell)
+	// storing sender, data and token refs
+	topLevelBuilder.MustStoreRef(senderRefCell)
+	topLevelBuilder.MustStoreRef(dataCell)
+	err = topLevelBuilder.StoreMaybeRef(tokenCell)
+	if err != nil {
+		return nil, fmt.Errorf("store maybe ref for tokenAmounts: %w", err)
+	}
 
 	return topLevelBuilder.EndCell().Hash(), nil
 }
