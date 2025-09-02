@@ -38,7 +38,7 @@ jobs:
           filters: |
             ton_changes:
               - 'contracts/**'
-              - '.github/workflows/contracts-build.yml'
+              - '.github/workflows/contracts-build-test.yml'
 
   build:
     name: Build and test contracts
