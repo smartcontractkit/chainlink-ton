@@ -23,8 +23,8 @@
 #   Implicitly uses CL_DATABASE_URL after setting it up.
 #
 # Notes:
-#   - This script modifies the go.mod file of the specified Chainlink Core directory
-#     to use the local Chainlink TON project and its submodules.
+#   - This script modifies go.mod files in the Chainlink Core directory to use local
+#     Chainlink TON project modules with relative paths.
 #   - This script updates the TON plugin gitRef in plugins.public.yaml to use the current commit.
 #   - Ensure that the blessed commit in .core_version matches with the Core repository git ref.
 
@@ -204,25 +204,45 @@ log_info "Current chainlink-ton commit: $CURRENT_TON_COMMIT"
     exit 1
   fi
 
-  # replace chainlink-ton dependency with local version at chainlink root
+  # replace chainlink-ton dependency with local version
   log_info "Replacing chainlink-ton dependencies with local version..."
   
   # list of chainlink-ton modules that needs to be replaced in core
-  declare -A CHAINLINK_TON_MODULES=(
+  declare -A TON_MODULES=(
     ["github.com/smartcontractkit/chainlink-ton"]="$ROOT_DIR"
     ["github.com/smartcontractkit/chainlink-ton/deployment"]="$ROOT_DIR/deployment"
     ["github.com/smartcontractkit/chainlink-ton/integration-tests"]="$ROOT_DIR/integration-tests"
   )
   
-  # replace all chainlink-ton modules with local versions
-  for module in "${!CHAINLINK_TON_MODULES[@]}"; do
-    local_path="${CHAINLINK_TON_MODULES[$module]}"
-    log_info "  Replacing $module -> $local_path"
-    go mod edit -replace="$module=$local_path"
+  # scan for go.mod files that use chainlink-ton
+  find "$CHAINLINK_CORE_DIR" -name "go.mod" -type f -print0 | while IFS= read -r -d '' gomod; do
+    dir=$(dirname "$gomod")
+    
+    # check if any chainlink-ton modules are used
+    needs_update=false
+    for mod in "${!TON_MODULES[@]}"; do
+      if grep -q "$mod" "$gomod"; then
+        needs_update=true
+        break
+      fi
+    done
+    
+    if [ "$needs_update" = true ]; then
+      log_info "  Updating ${dir#$CHAINLINK_CORE_DIR/}"
+      
+      pushd "$dir" > /dev/null
+      for mod in "${!TON_MODULES[@]}"; do
+        if grep -q "$mod" go.mod; then
+          log_info "    $mod -> ${TON_MODULES[$mod]}"
+          go mod edit -replace="$mod=${TON_MODULES[$mod]}"
+        fi
+      done
+      popd > /dev/null
+    fi
   done
   
   go run github.com/jmank88/gomods@v0.1.6 tidy
-  log_info "Go modules updated successfully"
+  log_info "Module replacements complete"
 
   cd "./integration-tests"
   go build -o ccip.test .
@@ -240,7 +260,7 @@ log_info "Please ensure CL_DATABASE_URL is exported in your environment before r
 log_info "export CL_DATABASE_URL=${CL_DATABASE_URL}"
 log_info "=================================="
 log_info "IMPORTANT: Please note this setup makes the following changes to chainlink core:"
-log_info "  1. Adds replace directives for all chainlink-ton modules to use local versions"
+log_info "  1. Replaces chainlink-ton module dependencies with local versions"
 log_info "  2. Updates TON plugin gitRef in plugins.public.yaml to: ${CURRENT_TON_COMMIT}"
 log_info "This will use your local chainlink-ton code and submodules in the core repo."
 log_info "=================================="
