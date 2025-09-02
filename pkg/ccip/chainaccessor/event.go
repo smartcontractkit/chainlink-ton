@@ -3,6 +3,7 @@ package chainaccessor
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
@@ -13,6 +14,8 @@ import (
 	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/hash"
@@ -105,4 +108,62 @@ func (a *TONAccessor) convertCCIPMessageSent(
 		Message:           msg,
 	}
 	return genericEvent
+}
+
+func (a *TONAccessor) validateCommitReportAcceptedEvent(
+	log types.TypedLog[offramp.CommitReportAccepted], gteTimestamp time.Time,
+) (*offramp.CommitReportAccepted, error) {
+	ev := &log.TypedData
+
+	if log.TxTimestamp.Unix() < gteTimestamp.Unix() {
+		return nil, fmt.Errorf("commit report accepted event timestamp is less than the minimum timestamp %v<%v",
+			log.TxTimestamp, gteTimestamp.Unix())
+	}
+
+	if err := a.validateMerkleRoot(ev.MerkleRoot); err != nil {
+		return nil, fmt.Errorf("merkle roots: %w", err)
+	}
+
+	// TODO: do we need to validate price updates?
+	// for _, tpus := range ev.PriceUpdates.TokenPriceUpdates {
+	// 	if tpus.SourceToken.IsZeroOrEmpty() {
+	// 		return nil, fmt.Errorf("invalid source token address: %s", tpus.SourceToken.String())
+	// 	}
+	// 	if tpus.UsdPerToken == nil || tpus.UsdPerToken.Cmp(big.NewInt(0)) <= 0 {
+	// 		return nil, fmt.Errorf("nil or non-positive usd per token")
+	// 	}
+	// }
+
+	// for _, gpus := range ev.PriceUpdates.GasPriceUpdates {
+	// 	if gpus.UsdPerUnitGas == nil || gpus.UsdPerUnitGas.Cmp(big.NewInt(0)) < 0 {
+	// 		return nil, fmt.Errorf("nil or negative usd per unit gas: %s", gpus.UsdPerUnitGas.String())
+	// 	}
+	// }
+
+	return ev, nil
+}
+
+// TON only has single Merkle root
+func (a *TONAccessor) validateMerkleRoot(merkleRoot ocr.MerkleRoot) error {
+	if merkleRoot.SourceChainSelector == 0 {
+		return fmt.Errorf("source chain is zero")
+	}
+	if merkleRoot.MinSeqNr == 0 {
+		return fmt.Errorf("minSeqNr is zero")
+	}
+	if merkleRoot.MaxSeqNr == 0 {
+		return fmt.Errorf("maxSeqNr is zero")
+	}
+	if merkleRoot.MinSeqNr > merkleRoot.MaxSeqNr {
+		return fmt.Errorf("minSeqNr is greater than maxSeqNr")
+	}
+	if len(merkleRoot.MerkleRoot) == 0 {
+		return fmt.Errorf("empty merkle root")
+	}
+	if len(merkleRoot.OnRampAddress) == 0 {
+		// TODO: better logging for address(currently it's raw byte)
+		return fmt.Errorf("invalid onramp address: %x", merkleRoot.OnRampAddress)
+	}
+
+	return nil
 }

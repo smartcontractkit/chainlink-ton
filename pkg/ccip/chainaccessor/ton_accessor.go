@@ -22,9 +22,11 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types/query"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/hash"
 )
@@ -213,13 +215,11 @@ func (a *TONAccessor) Sync(ctx context.Context, contractName string, contractAdd
 
 // TON as source chain methods
 func (a *TONAccessor) MsgsBetweenSeqNums(ctx context.Context, dest ccipocr3.ChainSelector, seqNumRange ccipocr3.SeqNumRange) ([]ccipocr3.Message, error) {
-	// get onramp address
 	onrampAddr, err := a.getBinding(consts.ContractNameOnRamp)
 	if err != nil {
 		return nil, fmt.Errorf("OnRamp not bound: %w", err)
 	}
 
-	// query TON logs
 	res, err := logpoller.NewQuery[onramp.CCIPMessageSent]().
 		WithSource(onrampAddr).
 		WithEventSig(hash.CRC32(consts.EventNameCCIPMessageSent)).
@@ -244,10 +244,8 @@ func (a *TONAccessor) MsgsBetweenSeqNums(ctx context.Context, dest ccipocr3.Chai
 
 	msgs := make([]ccipocr3.Message, 0)
 	for _, log := range res.Logs {
-		// convert event to generic CCIP event
 		event := a.convertCCIPMessageSent(&log.TypedData)
 
-		// validate event
 		if err := chainaccessor.ValidateSendRequestedEvent(event, a.chainSelector, dest, seqNumRange); err != nil {
 			a.lggr.Errorw("validate send requested event", "err", err, "message", event)
 			continue
@@ -262,7 +260,6 @@ func (a *TONAccessor) MsgsBetweenSeqNums(ctx context.Context, dest ccipocr3.Chai
 }
 
 func (a *TONAccessor) LatestMessageTo(ctx context.Context, dest ccipocr3.ChainSelector) (ccipocr3.SeqNum, error) {
-	// get onramp address
 	onrampAddr, err := a.getBinding(consts.ContractNameOnRamp)
 	if err != nil {
 		return 0, fmt.Errorf("OnRamp not bound: %w", err)
@@ -293,10 +290,8 @@ func (a *TONAccessor) LatestMessageTo(ctx context.Context, dest ccipocr3.ChainSe
 		return 0, nil
 	}
 
-	// convert event to generic CCIP event
 	event := a.convertCCIPMessageSent(&res.Logs[0].TypedData)
 
-	// validate event
 	if err := chainaccessor.ValidateSendRequestedEvent(event, a.chainSelector, dest, ccipocr3.NewSeqNumRange(event.Message.Header.SequenceNumber, event.Message.Header.SequenceNumber)); err != nil {
 		a.lggr.Errorw("validate send requested event", "err", err, "message", event)
 		return 0, fmt.Errorf("message invalid msg %v: %w", event, err)
@@ -416,14 +411,164 @@ func (a *TONAccessor) GetFeeQuoterDestChainConfig(ctx context.Context, dest ccip
 }
 
 // TON as destination chain methods
-func (a *TONAccessor) CommitReportsGTETimestamp(ctx context.Context, ts time.Time, confidence primitives.ConfidenceLevel, limit int) ([]ccipocr3.CommitPluginReportWithMeta, error) {
-	// TODO(NONEVM-2365) implement me
-	return nil, errors.New("not implemented")
+func (a *TONAccessor) CommitReportsGTETimestamp(
+	ctx context.Context,
+	ts time.Time,
+	confidence primitives.ConfidenceLevel,
+	limit int,
+) ([]ccipocr3.CommitPluginReportWithMeta, error) {
+	// double the internal limit for safe filtering
+	// TODO: remove, when we only query events with valid merkle root we don't need this
+	internalLimit := limit * 2
+
+	offrampAddr, err := a.getBinding(consts.ContractNameOffRamp)
+	if err != nil {
+		return nil, fmt.Errorf("OffRamp not bound: %w", err)
+	}
+
+	// TODO: query consts.EventNameCommitReportAccepted event logs from consts.ContractNameOffRamp
+	res, err := logpoller.NewQuery[offramp.CommitReportAccepted]().
+		WithSource(offrampAddr).
+		WithEventSig(hash.CRC32(consts.EventNameCommitReportAccepted)).
+		// TODO: filter merkle root only
+		FilterTimestamp(query.TimestampGTE(ts)).
+		OrderBy(query.SortByTxTimestamp, query.ASC).
+		Limit(internalLimit).
+		Execute(ctx, a.logPoller.GetStore())
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to query offramp logs: %w", err)
+	}
+
+	a.lggr.Debugw("queried commit reports", "numReports", len(res.Logs),
+		"destChain", a.chainSelector,
+		"ts", ts,
+		"limit", internalLimit,
+	)
+
+	// TODO: process commit reports
+	reports := a.processCommitReports(res.Logs, ts, limit)
+
+	// TODO: return reports
+	return reports, nil
 }
 
-func (a *TONAccessor) ExecutedMessages(ctx context.Context, ranges map[ccipocr3.ChainSelector][]ccipocr3.SeqNumRange, confidence primitives.ConfidenceLevel) (map[ccipocr3.ChainSelector][]ccipocr3.SeqNum, error) {
-	// TODO(NONEVM-2365) implement me
-	return nil, errors.New("not implemented")
+func (a *TONAccessor) processCommitReports(logs []types.TypedLog[offramp.CommitReportAccepted], ts time.Time, limit int) []ccipocr3.CommitPluginReportWithMeta {
+	var reports []ccipocr3.CommitPluginReportWithMeta
+	for _, log := range logs {
+		_ = log
+		ev, err := a.validateCommitReportAcceptedEvent(log, ts)
+		if err != nil {
+			continue
+		}
+		a.lggr.Debugw("processing commit report", "report", ev, "item", log)
+		// TODO: implement report processing
+
+		mr := ev.MerkleRoot
+		mrc := ccipocr3.MerkleRootChain{
+			ChainSel:      ccipocr3.ChainSelector(mr.SourceChainSelector),
+			OnRampAddress: ccipocr3.UnknownAddress(mr.OnRampAddress[:]),
+			SeqNumsRange: ccipocr3.NewSeqNumRange(
+				ccipocr3.SeqNum(mr.MinSeqNr),
+				ccipocr3.SeqNum(mr.MaxSeqNr),
+			),
+			MerkleRoot: ccipocr3.Bytes32(mr.MerkleRoot),
+		}
+		// TODO:	process price updates
+		// TODO:	parse block num
+
+		// TODO: construct reports
+		reports = append(reports, ccipocr3.CommitPluginReportWithMeta{
+			Report: ccipocr3.CommitPluginReport{
+				BlessedMerkleRoots:   []ccipocr3.MerkleRootChain{mrc},
+				UnblessedMerkleRoots: []ccipocr3.MerkleRootChain{},
+				PriceUpdates:         ccipocr3.PriceUpdates{},
+			},
+			Timestamp: log.TxTimestamp,
+			// BlockNum:  blockNum, // TODO: populate masterchain block seqno
+		})
+	}
+	a.lggr.Debugw("decoded commit reports", "reports", reports)
+
+	if len(reports) < limit {
+		return reports
+	}
+	return reports[:limit]
+}
+
+func (a *TONAccessor) ExecutedMessages(
+	ctx context.Context,
+	ranges map[ccipocr3.ChainSelector][]ccipocr3.SeqNumRange,
+	confidence primitives.ConfidenceLevel,
+) (map[ccipocr3.ChainSelector][]ccipocr3.SeqNum, error) {
+	// TODO: trim empty ranges from ranges
+	// TODO: this can be sanitized from the upper layer
+	nonEmptyRangesPerChain := make(map[ccipocr3.ChainSelector][]ccipocr3.SeqNumRange)
+	for chain, ranges := range ranges {
+		if len(ranges) > 0 {
+			nonEmptyRangesPerChain[chain] = ranges
+		}
+	}
+
+	// TODO: query executed messages from consts.ContractNameOffRamp
+	offrampAddr, err := a.getBinding(consts.ContractNameOffRamp)
+	if err != nil {
+		return nil, fmt.Errorf("OffRamp not bound: %w", err)
+	}
+	executed := make(map[ccipocr3.ChainSelector][]ccipocr3.SeqNum)
+
+	type ExecutionStateChangedEvent struct {
+		// TODO: TBD - from offramp or merkleroot?
+	}
+
+	// TODO: currently no support for OR condition, query individually
+	for _, ranges := range nonEmptyRangesPerChain {
+		for _, seqRange := range ranges {
+			_ = seqRange
+			// query for each chain/range combination
+			res, err := logpoller.NewQuery[ExecutionStateChangedEvent]().
+				WithSource(offrampAddr).
+				WithEventSig(hash.CRC32(consts.EventNameExecutionStateChanged)).
+				// TODO: event structure TBD
+				// SkipBytes(32). // Skip to SourceChainSelector field
+				// FilterBytes(8, query.EQ(binary.BigEndian.AppendUint64(nil, uint64(chainSelector)))).
+				// FilterBytes(8, // SequenceNumber field
+				// 	query.GTE(binary.BigEndian.AppendUint64(nil, uint64(seqRange.Start()))),
+				// 	query.LTE(binary.BigEndian.AppendUint64(nil, uint64(seqRange.End()))),
+				// ).
+				// FilterTyped(func(event ExecutionStateChangedEvent) bool {
+				// 	// const EXECUTION_STATE_UNTOUCHED: uint8 = 0;
+				// 	// const EXECUTION_STATE_IN_PROGRESS: uint8 = 1;
+				// 	// const EXECUTION_STATE_SUCCESS: uint8 = 2;
+				// 	// const EXECUTION_STATE_FAILURE: uint8 = 3;
+				// 	//   return event.State > 0 // only executed states
+				// }).
+				Execute(ctx, a.logPoller.GetStore())
+
+			if err != nil {
+				return nil, err
+			}
+
+			for _, log := range res.Logs {
+				_ = log
+				// TODO: build ExecutionStateChanged event
+				// TODO: validate event, skip on failure
+				// if err := validateExecutionStateChangedEvent(stateChange, nonEmptyRangesPerChain); err != nil {
+				// 	lggr.Errorw("validate execution state changed event",
+				// 	"err", err, "stateChange", stateChange)
+				// 	continue
+				// }
+				// TODO: append sequence number
+				// executed[chainSelector] = append(executed[chainSelector], log.TypedData.SequenceNumber)
+			}
+		}
+	}
+
+	// TODO: for item in logs, parse ExecutionStateChangedEvent and validate event
+	// TODO: we'll need to have local validateExecutionStateChangedEvent?(not public atm)
+
+	// TODO: return executed sequence numbers
+	return executed, nil
 }
 
 func (a *TONAccessor) NextSeqNum(ctx context.Context, sources []ccipocr3.ChainSelector) (seqNum map[ccipocr3.ChainSelector]ccipocr3.SeqNum, err error) {

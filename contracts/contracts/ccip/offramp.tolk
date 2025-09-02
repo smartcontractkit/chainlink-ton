@@ -65,8 +65,8 @@ struct ExecutionStateChanged {
 const CCIP_COMMIT_REPORT_ACCEPTED_TOPIC: int = stringCrc32("CCIPCommitReportAccepted");
 
 struct CommitReportAccepted {
+    merkleRoot: MerkleRoot? // vec<MerkleRoots>
     priceUpdates: Cell<PriceUpdates>?;
-    merkleRoots: cell // vec<MerkleRoots>
 }
 
 struct SkippedReportExecution {
@@ -226,7 +226,7 @@ fun commit(msg: OffRamp_Commit, sender: address) {
     }
 
     var roots = Iterator<MerkleRoot>.new(report.merkleRoots);
-
+    val priceUpdatesOnlyReport = roots.empty();
     while (!roots.empty()) {
         val root = roots.next();
 
@@ -280,9 +280,13 @@ fun commit(msg: OffRamp_Commit, sender: address) {
         msg.signatures
     );
 
+    var root: MerkleRoot? = null;
+    if (!priceUpdatesOnlyReport) {
+         root = MerkleRoot.fromCell(report.merkleRoots);
+    }
     emit(CCIP_COMMIT_REPORT_ACCEPTED_TOPIC, CommitReportAccepted {
+        merkleRoot: root,
         priceUpdates: report.priceUpdates,
-        merkleRoots: report.merkleRoots,
     });
 
 }

@@ -6,7 +6,13 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
 )
+
+type CommitReportAccepted struct {
+	MerkleRoot   ocr.MerkleRoot   `tlb:"maybe ."`
+	PriceUpdates ocr.PriceUpdates `tlb:"maybe ^"`
+}
 
 type Storage struct {
 	ID                                      uint32              `tlb:"## 32"`
