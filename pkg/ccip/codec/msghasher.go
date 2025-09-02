@@ -33,58 +33,61 @@ func NewMessageHasherV1(lg logger.Logger, extraDataCodec ccipocr3.ExtraDataCodec
 }
 
 func (m messageHasherV1) Hash(ctx context.Context, msg ccipocr3.Message) (ccipocr3.Bytes32, error) {
-	tokenAmounts := make([]ocr.Any2TVMTokenTransfer, 0, len(msg.TokenAmounts))
-	for _, tokenAmount := range msg.TokenAmounts {
-		if tokenAmount.Amount.IsEmpty() {
-			return [32]byte{}, fmt.Errorf("empty amount for token: %s", tokenAmount.DestTokenAddress)
+	var tokenAmounts []ocr.Any2TVMTokenTransfer
+	if len(msg.TokenAmounts) != 0 {
+		tokenAmounts = make([]ocr.Any2TVMTokenTransfer, 0, len(msg.TokenAmounts))
+		for _, tokenAmount := range msg.TokenAmounts {
+			if tokenAmount.Amount.IsEmpty() {
+				return [32]byte{}, fmt.Errorf("empty amount for token: %s", tokenAmount.DestTokenAddress)
+			}
+
+			if tokenAmount.Amount.Sign() < 0 {
+				return [32]byte{}, fmt.Errorf("negative amount for token: %s", tokenAmount.DestTokenAddress)
+			}
+
+			if len(tokenAmount.DestTokenAddress) != 36 {
+				return [32]byte{}, fmt.Errorf("invalid destTokenAddress address: %v", tokenAmount.DestTokenAddress)
+			}
+
+			destExecDataDecodedMap, err := m.extraDataCodec.DecodeTokenAmountDestExecData(tokenAmount.DestExecData, msg.Header.SourceChainSelector)
+			if err != nil {
+				return [32]byte{}, fmt.Errorf("failed to decode dest exec data: %w", err)
+			}
+
+			destGasAmount, err := extractDestGasAmountFromMap(destExecDataDecodedMap)
+			if err != nil {
+				return [32]byte{}, fmt.Errorf("extract dest gas amount: %w", err)
+			}
+
+			poolAddrCell := common.CrossChainAddress(tokenAmount.SourcePoolAddress)
+
+			extraData, err := tlb.ToCell(common.SnakeBytes(tokenAmount.ExtraData))
+			if err != nil {
+				return [32]byte{}, fmt.Errorf("pack extra data: %w", err)
+			}
+
+			if len(tokenAmount.DestTokenAddress) < 36 {
+				return [32]byte{}, fmt.Errorf("invalid dest token address length: %d", len(tokenAmount.DestTokenAddress))
+			}
+
+			destTokenAddrStr, err := m.addrCodec.AddressBytesToString(tokenAmount.DestTokenAddress)
+			if err != nil {
+				return [32]byte{}, err
+			}
+
+			DestPoolTonAddr, err := address.ParseAddr(destTokenAddrStr)
+			if err != nil {
+				return [32]byte{}, fmt.Errorf("invalid dest token address %s: %w", destTokenAddrStr, err)
+			}
+
+			tokenAmounts = append(tokenAmounts, ocr.Any2TVMTokenTransfer{
+				SourcePoolAddress: poolAddrCell,
+				ExtraData:         extraData,
+				DestPoolAddress:   DestPoolTonAddr,
+				Amount:            tokenAmount.Amount.Int,
+				DestGasAmount:     destGasAmount,
+			})
 		}
-
-		if tokenAmount.Amount.Sign() < 0 {
-			return [32]byte{}, fmt.Errorf("negative amount for token: %s", tokenAmount.DestTokenAddress)
-		}
-
-		if len(tokenAmount.DestTokenAddress) != 36 {
-			return [32]byte{}, fmt.Errorf("invalid destTokenAddress address: %v", tokenAmount.DestTokenAddress)
-		}
-
-		destExecDataDecodedMap, err := m.extraDataCodec.DecodeTokenAmountDestExecData(tokenAmount.DestExecData, msg.Header.SourceChainSelector)
-		if err != nil {
-			return [32]byte{}, fmt.Errorf("failed to decode dest exec data: %w", err)
-		}
-
-		destGasAmount, err := extractDestGasAmountFromMap(destExecDataDecodedMap)
-		if err != nil {
-			return [32]byte{}, fmt.Errorf("extract dest gas amount: %w", err)
-		}
-
-		poolAddrCell := common.CrossChainAddress(tokenAmount.SourcePoolAddress)
-
-		extraData, err := tlb.ToCell(common.SnakeBytes(tokenAmount.ExtraData))
-		if err != nil {
-			return [32]byte{}, fmt.Errorf("pack extra data: %w", err)
-		}
-
-		if len(tokenAmount.DestTokenAddress) < 36 {
-			return [32]byte{}, fmt.Errorf("invalid dest token address length: %d", len(tokenAmount.DestTokenAddress))
-		}
-
-		destTokenAddrStr, err := m.addrCodec.AddressBytesToString(tokenAmount.DestTokenAddress)
-		if err != nil {
-			return [32]byte{}, err
-		}
-
-		DestPoolTonAddr, err := address.ParseAddr(destTokenAddrStr)
-		if err != nil {
-			return [32]byte{}, fmt.Errorf("invalid dest token address %s: %w", destTokenAddrStr, err)
-		}
-
-		tokenAmounts = append(tokenAmounts, ocr.Any2TVMTokenTransfer{
-			SourcePoolAddress: poolAddrCell,
-			ExtraData:         extraData,
-			DestPoolAddress:   DestPoolTonAddr,
-			Amount:            tokenAmount.Amount.Int,
-			DestGasAmount:     destGasAmount,
-		})
 	}
 
 	header := ocr.RampMessageHeader{
@@ -175,10 +178,10 @@ func buildAny2TVMRampMessageHash(msg ocr.Any2TVMRampMessage) ([]byte, error) {
 		MustStoreSlice(stringSha256("Any2TVMMessageHashV1"), 256). // type hash
 		MustStoreUInt(msg.Header.SourceChainSelector, 64).
 		MustStoreUInt(msg.Header.DestChainSelector, 64).
-		MustStoreSlice([]byte{uint8(len(msg.Header.OnrampAddr))}, 8).
-		MustStoreSlice(msg.Header.OnrampAddr, uint(len(msg.Header.OnrampAddr))*8).EndCell()
-	hashString := hex.EncodeToString(metaDataHash.Hash())
-	fmt.Printf("Metadata hash: %v\n", hashString)
+		MustStoreRef(cell.BeginCell().
+			MustStoreSlice([]byte{uint8(len(msg.Header.OnrampAddr))}, 8).
+			MustStoreSlice(msg.Header.OnrampAddr, uint(len(msg.Header.OnrampAddr))*8).EndCell()).EndCell()
+
 	// storing metadata hash
 	topLevelBuilder.MustStoreSlice(metaDataHash.Hash(), 256)
 
@@ -200,11 +203,14 @@ func buildAny2TVMRampMessageHash(msg ocr.Any2TVMRampMessage) ([]byte, error) {
 		return nil, fmt.Errorf("pack msg data to cell: %w", err)
 	}
 
-	tokenCell, err := msg.TokenAmounts.ToCell()
-	if err != nil {
-		return nil, fmt.Errorf("pack token amounts to cell: %w", err)
+	var tokenCell *cell.Cell
+	if len(msg.TokenAmounts) != 0 {
+		tokenCell, err = msg.TokenAmounts.ToCell()
+		if err != nil {
+			return nil, fmt.Errorf("pack token amounts to cell: %w", err)
+		}
 	}
-
+	
 	topLevelBuilder.MustStoreRef(dataCell)
 	err = topLevelBuilder.StoreMaybeRef(tokenCell)
 	if err != nil {

@@ -185,6 +185,9 @@ func TestMessageHasherV1_CrossLanguageCompatibility(t *testing.T) {
 		evmSenderBytes, err := hex.DecodeString("1a5fdbc891c5d4e6ad68064ae45d43146d4f9f3a")
 		require.NoError(t, err)
 
+		evmOnrampBytes, err := hex.DecodeString("111111c891c5d4e6ad68064ae45d43146d4f9f3a")
+		require.NoError(t, err)
+
 		// Create messageID as 32-byte array with value 1 (matching TypeScript messageId: 1n)
 		var messageID [32]byte
 		binary.BigEndian.PutUint64(messageID[24:], 1) // This sets the last 8 bytes to 1
@@ -197,9 +200,9 @@ func TestMessageHasherV1_CrossLanguageCompatibility(t *testing.T) {
 				DestChainSelector:   ccipocr3.ChainSelector(13879075125137744094), // CHAINSEL_TON
 				SequenceNumber:      ccipocr3.SeqNum(1),
 				Nonce:               0,
-				OnRamp:              evmSenderBytes,
+				OnRamp:              evmOnrampBytes,
 			},
-			Sender:       ccipocr3.UnknownAddress(hex.EncodeToString(evmSenderBytes)),
+			Sender:       ccipocr3.UnknownAddress(evmSenderBytes),
 			Data:         []byte{}, // empty cell data
 			Receiver:     rawTonAddr[:],
 			TokenAmounts: nil, // no token amounts
@@ -213,14 +216,14 @@ func TestMessageHasherV1_CrossLanguageCompatibility(t *testing.T) {
 
 		// Run the TypeScript file to get this value:
 		// chainlink-ton/contracts/tests/ccip/OffRamp.spec.ts  "Test generateMessageId hash compatibility with Go"
-		expectedHashHex := "eb8aad87a4ec888a0c1527a51f778a7539cf5a4084159e3e928abb6ac909a183"
+		expectedHashHex := "f476aa20b1af16d42c5140a39a5cea8ec37ca8353aefadf46e9793daba3bfb94"
 		expectedHash, err := hex.DecodeString(expectedHashHex)
 		require.NoError(t, err)
 
 		var expectedHashArray [32]byte
 		copy(expectedHashArray[:], expectedHash)
 
-		assert.Equal(t, expectedHashArray, hash,
+		assert.Equal(t, ccipocr3.Bytes32(expectedHashArray), hash,
 			"Go message hasher should produce same hash as TypeScript generateMessageId")
 	})
 }
