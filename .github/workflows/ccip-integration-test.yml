@@ -11,7 +11,7 @@ permissions:
   actions: read
 
 env:
-  DOCKER_CACHE_KEY: ccip-e2e-images-v0
+  DOCKER_CACHE_KEY: ccip-e2e-images-v1
   DOCKER_CACHE_DIR: ${{ github.workspace }}/.cache
   DOCKER_CACHE_TAR_NAME: ccip-e2e-docker-images.tar
   # mylocalton docker image / CCIP E2E test database image

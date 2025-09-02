@@ -186,12 +186,12 @@ log_info "Preparing Chainlink Core (dependencies, build, DB setup)..."
   cd "./integration-tests"
   go build -o ccip.test .
 
-  # ./ccip.test local db preparetest
+  # reference: https://github.com/smartcontractkit/chainlink-ccip/blob/main/.github/workflows/ccip-integration-test.yml#L169-L221
   go get github.com/smartcontractkit/chainlink/v2/core/store/cmd/preparetest@d2c56f4161f3431268cb52e717a77b7ea7dcef09
   go run github.com/smartcontractkit/chainlink/v2/core/store/cmd/preparetest
 
   go mod edit -replace="github.com/smartcontractkit/chainlink-ton=$ROOT_DIR"
-  go run github.com/jmank88/gomods@v0.1.5 tidy
+  go run github.com/jmank88/gomods@v0.1.6 tidy
 )
 
 log_info "=================================="
