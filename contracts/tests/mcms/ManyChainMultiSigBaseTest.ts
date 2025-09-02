@@ -252,7 +252,7 @@ export class MCMSBaseTestSetup {
             validAfter: 0n,
             opFinalizationTimeout: MCMSBaseTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
             opPendingReceiver: ZERO_ADDRESS,
-            opPendingBodyVal: 0n,
+            opPendingBodyTruncated: 0n,
           },
         },
         rootMetadata: {

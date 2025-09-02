@@ -54,7 +54,7 @@ import "../utils.tolk";
 /// May send a {AccessControl_RoleGranted} message.
 ///
 struct (0x95cd540f) AccessControl_GrantRole {
-    /// Query ID of the change owner request.
+    /// Query ID of the change request.
     queryId: uint64;
 
     /// Role definition.
@@ -74,7 +74,7 @@ struct (0x95cd540f) AccessControl_GrantRole {
 /// May send a {AccessControl_RoleRevoked} message.
 ///
 struct (0x969b0db9) AccessControl_RevokeRole {
-    /// Query ID of the change owner request.
+    /// Query ID of the change request.
     queryId: uint64;
 
     /// Role definition.
@@ -99,7 +99,7 @@ struct (0x969b0db9) AccessControl_RevokeRole {
 /// May send a {AccessControl_RoleRevoked} message.
 ///
 struct (0x39452c46) AccessControl_RenounceRole {
-    /// Query ID of the change owner request.
+    /// Query ID of the change request.
     queryId: uint64;
 
     /// Role definition.
@@ -121,7 +121,7 @@ type AccessControl_InMessage = AccessControl_GrantRole
 /// Expected in cases where the role was granted using the internal {AccessControl-_grantRole}.
 ///
 struct (0xcf3ca837) AccessControl_RoleGranted {
-    /// Query ID of the change owner request.
+    /// Query ID of the change request.
     queryId: uint64;
 
     /// Role definition.
@@ -139,7 +139,7 @@ struct (0xcf3ca837) AccessControl_RoleGranted {
 /// - if using `renounceRole`, it is the role bearer (i.e. `account`)
 ///
 struct (0x990fe1c7) AccessControl_RoleRevoked {
-    /// Query ID of the change owner request.
+    /// Query ID of the change request.
     queryId: uint64;
 
     /// Role definition.
@@ -156,7 +156,7 @@ struct (0x990fe1c7) AccessControl_RoleRevoked {
 /// {AccessControl_RoleAdminChanged} not being sent to signal this.
 ///
 struct (0xbd7e8bce) AccessControl_RoleAdminChanged {
-    /// Query ID of the change owner request.
+    /// Query ID of the change request.
     queryId: uint64;
 
     /// Role definition.

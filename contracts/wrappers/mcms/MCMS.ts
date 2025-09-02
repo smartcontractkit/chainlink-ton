@@ -17,13 +17,13 @@ import { loadDict, loadMap } from '../../src/utils/dict'
 
 // @dev Top up contract with TON coins.
 export type TopUp = {
-  // Query ID of the change owner request.
+  // Query ID of the change request.
   queryId: bigint
 }
 
 // @dev Sets a new expiring root.
 export type SetRoot = {
-  // Query ID of the change owner request.
+  // Query ID of the change request.
   queryId: bigint
 
   // The new expiring root.
@@ -53,7 +53,7 @@ export type Execute = {
 
 // @dev Sets the configuration for the contract.
 export type SetConfig = {
-  // Query ID of the change owner request.
+  // Query ID of the change request.
   queryId: bigint
 
   // List of signer public keys.
@@ -308,7 +308,7 @@ export type OpPendingInfo = {
   opPendingReceiver: Address
   /// The truncated body of the pending operation (256 bits from the original message),
   /// stored as the next expected potential bounce, and verified in onBounceMessage handler.
-  opPendingBodyVal: bigint // uint256
+  opPendingBodyTruncated: bigint // uint256
 }
 
 /// @notice Each root also authenticates metadata about itself (stored as one of the leaves)
@@ -374,11 +374,13 @@ export const opcodes = {
     SetRoot: crc32('MCMS_SetRoot'),
     Execute: crc32('MCMS_Execute'),
     SetConfig: crc32('MCMS_SetConfig'),
+    SubmitErrorReport: crc32('MCMS_SubmitErrorReport'),
   },
   out: {
     NewRoot: crc32('MCMS_NewRoot'),
     ConfigSet: crc32('MCMS_ConfigSet'),
     OpExecuted: crc32('MCMS_OpExecuted'),
+    ErrorReportedSubmitted: crc32('MCMS_ErrorReportSubmitted'),
   },
 }
 
@@ -565,7 +567,7 @@ export const builder = {
           .storeUint(data.validAfter, 32)
           .storeUint(data.opFinalizationTimeout, 32)
           .storeAddress(data.opPendingReceiver)
-          .storeUint(data.opPendingBodyVal, 256)
+          .storeUint(data.opPendingBodyTruncated, 256)
           .endCell()
       },
       decode: (cell: Cell): OpPendingInfo => {
@@ -574,7 +576,7 @@ export const builder = {
           validAfter: s.loadUintBig(32),
           opFinalizationTimeout: s.loadUintBig(32),
           opPendingReceiver: s.loadAddress(),
-          opPendingBodyVal: s.loadUintBig(256),
+          opPendingBodyTruncated: s.loadUintBig(256),
         }
       },
     }
@@ -770,7 +772,7 @@ export const builder = {
               validAfter: 0n, // no valid after
               opFinalizationTimeout: 0n, // no op finalization timeout
               opPendingReceiver: ZERO_ADDRESS, // no op pending receiver
-              opPendingBodyVal: 0n, // no op pending body
+              opPendingBodyTruncated: 0n, // no op pending body
             },
           },
           rootMetadata: {
@@ -894,7 +896,7 @@ export class ContractClient implements Contract {
         validAfter: r.stack.readBigNumber(),
         opFinalizationTimeout: r.stack.readBigNumber(),
         opPendingReceiver: r.stack.readAddressOpt() || ZERO_ADDRESS,
-        opPendingBodyVal: r.stack.readBigNumber(),
+        opPendingBodyTruncated: r.stack.readBigNumber(),
       }
     })
   }
