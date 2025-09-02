@@ -458,16 +458,8 @@ func (a *TONAccessor) processCommitReports(logs []types.TypedLog[offramp.CommitR
 		}
 		a.lggr.Debugw("processing commit report", "report", ev, "item", log)
 
-		mr := ev.MerkleRoot
-		mrc := ccipocr3.MerkleRootChain{
-			ChainSel:      ccipocr3.ChainSelector(mr.SourceChainSelector),
-			OnRampAddress: ccipocr3.UnknownAddress(mr.OnRampAddress[:]),
-			SeqNumsRange: ccipocr3.NewSeqNumRange(
-				ccipocr3.SeqNum(mr.MinSeqNr),
-				ccipocr3.SeqNum(mr.MaxSeqNr),
-			),
-			MerkleRoot: ccipocr3.Bytes32(mr.MerkleRoot),
-		}
+		mrc := a.processMerkleRoot(ev.MerkleRoot)
+
 		priceUpdates, err := a.processPriceUpdates(ev.PriceUpdates)
 		if err != nil {
 			a.lggr.Errorw("failed to process price updates", "err", err, "priceUpdates", ev.PriceUpdates)
@@ -490,6 +482,18 @@ func (a *TONAccessor) processCommitReports(logs []types.TypedLog[offramp.CommitR
 		return reports
 	}
 	return reports[:limit]
+}
+
+func (a *TONAccessor) processMerkleRoot(mr ocr.MerkleRoot) ccipocr3.MerkleRootChain {
+	return ccipocr3.MerkleRootChain{
+		ChainSel:      ccipocr3.ChainSelector(mr.SourceChainSelector),
+		OnRampAddress: ccipocr3.UnknownAddress(mr.OnRampAddress[:]),
+		SeqNumsRange: ccipocr3.NewSeqNumRange(
+			ccipocr3.SeqNum(mr.MinSeqNr),
+			ccipocr3.SeqNum(mr.MaxSeqNr),
+		),
+		MerkleRoot: ccipocr3.Bytes32(mr.MerkleRoot),
+	}
 }
 
 func (a *TONAccessor) processPriceUpdates(priceUpdates ocr.PriceUpdates) (ccipocr3.PriceUpdates, error) {
