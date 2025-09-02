@@ -469,7 +469,10 @@ func (a *TONAccessor) GetChainFeePriceUpdate(ctx context.Context, selectors []cc
 		}
 		// HACK: we read the value as Timestamped since the binary layout is compatible, so that we match TimestampedBig (two values packed together)
 		var update feequoter.TimestampedPrice
-		tlb.LoadFromCell(&update, value.BeginParse())
+		if err := tlb.LoadFromCell(&update, value.BeginParse()); err != nil {
+			a.lggr.Errorw("failed to batch get chain fee price updates", "err", err)
+			return nil
+		}
 		prices[selector] = ccipocr3.TimeStampedBigFromUnix(ccipocr3.TimestampedUnixBig{
 			Timestamp: uint32(update.Timestamp), // TODO: downcast?
 			Value:     update.Value,
