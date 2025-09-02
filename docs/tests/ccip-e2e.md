@@ -72,6 +72,7 @@ setup-env.sh prepares the testing environment by:
 
 * Verifying your Chainlink core checkout matches the required version in `.core_version`
 * Starting a PostgreSQL container for test data
+* Updating the TON plugin gitRef in `plugins.public.yaml` to use the current chainlink-ton commit
 * Modifying Chainlink's `go.mod` to use your local chainlink-ton code
 * Building the test binary and preparing the database schema
 

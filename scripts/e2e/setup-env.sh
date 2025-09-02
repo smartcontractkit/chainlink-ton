@@ -7,11 +7,12 @@
 #   3. Tears down any existing PostgreSQL test database container.
 #   4. Starts a new PostgreSQL container for testing.
 #   5. Prepares the Chainlink Core repository by:
+#      - Updating the TON plugin gitRef in plugins.public.yaml with current commit.
 #      - Replacing the chainlink-ton dependency with the local version.
 #      - Tidying Go modules.
 #      - Downloading Go module dependencies.
 #      - Building the 'ccip.test' binary.
-#      - Preparing the test database schema using 'ccip.test local db preparetest'.
+#      - Preparing the test database schema using 'preparetest' cmd.
 #
 # Usage: ./scripts/e2e/setup-env.sh [-c|--core-dir <core_dir>]
 #
@@ -25,6 +26,7 @@
 # Notes:
 #   - This script modifies the go.mod file of the specified Chainlink Core directory
 #     to use the local Chainlink TON project.
+#   - This script updates the TON plugin gitRef in plugins.public.yaml to use the current commit.
 #   - Ensure that the blessed commit in .core_version matches with the Core repository git ref.
 
 set -euo pipefail
@@ -179,15 +181,33 @@ export CL_DATABASE_URL # this is needed for the ccip.test binary to connect to t
 
 # Core Setup
 log_info "Preparing Chainlink Core (dependencies, build, DB setup)..."
+
+# Get current chainlink-ton commit SHA for plugins.public.yaml update
+CURRENT_TON_COMMIT=$(cd "$ROOT_DIR" && git rev-parse HEAD)
+log_info "Current chainlink-ton commit: $CURRENT_TON_COMMIT"
+
 (
   cd "$CHAINLINK_CORE_DIR"
   log_info "Active Go version: $(go version)"
+
+  # update plugins.public.yaml with current chainlink-ton commit
+  PLUGINS_FILE="$CHAINLINK_CORE_DIR/plugins/plugins.public.yaml"
+  if [ -f "$PLUGINS_FILE" ]; then
+    log_info "Updating TON plugin gitRef in plugins.public.yaml..."
+    # use yq with diff/patch to preserve blank lines, https://github.com/mikefarah/yq/issues/515
+    yq eval '.plugins.ton[0].gitRef = "'"$CURRENT_TON_COMMIT"'"' "$PLUGINS_FILE" | diff -B "$PLUGINS_FILE" - | patch "$PLUGINS_FILE" -
+    log_info "Updated TON plugin gitRef to: $CURRENT_TON_COMMIT"
+  else
+    log_error "plugins.public.yaml not found at $PLUGINS_FILE"
+    log_error "This file is required for plugin configuration."
+    exit 1
+  fi
 
   cd "./integration-tests"
   go build -o ccip.test .
 
   # reference: https://github.com/smartcontractkit/chainlink-ccip/blob/main/.github/workflows/ccip-integration-test.yml#L169-L221
-  go get github.com/smartcontractkit/chainlink/v2/core/store/cmd/preparetest@d2c56f4161f3431268cb52e717a77b7ea7dcef09
+  go get github.com/smartcontractkit/chainlink/v2/core/store/cmd/preparetest@develop
   go run github.com/smartcontractkit/chainlink/v2/core/store/cmd/preparetest
 
   go mod edit -replace="github.com/smartcontractkit/chainlink-ton=$ROOT_DIR"
@@ -201,7 +221,8 @@ log_info "Root Directory used: $ROOT_DIR"
 log_info "Please ensure CL_DATABASE_URL is exported in your environment before running tests."
 log_info "export CL_DATABASE_URL=${CL_DATABASE_URL}"
 log_info "=================================="
-log_info "IMPORTANT: Please note this setup adds the following replace directive to chainlink core:"
-log_info "  replace github.com/smartcontractkit/chainlink-ton => ${ROOT_DIR}"
+log_info "IMPORTANT: Please note this setup makes the following changes to chainlink core:"
+log_info "  1. Adds replace directive: github.com/smartcontractkit/chainlink-ton => ${ROOT_DIR}"
+log_info "  2. Updates TON plugin gitRef in plugins.public.yaml to: ${CURRENT_TON_COMMIT}"
 log_info "This will use your local chainlink-ton code in the core repo."
 log_info "=================================="
