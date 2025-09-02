@@ -478,6 +478,7 @@ func (a *TONAccessor) processCommitReports(logs []types.TypedLog[offramp.CommitR
 	}
 	a.lggr.Debugw("decoded commit reports", "reports", reports)
 
+	// TODO: remove, when we only query events with valid merkle root we don't need this
 	if len(reports) < limit {
 		return reports
 	}
