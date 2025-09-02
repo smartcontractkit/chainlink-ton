@@ -7,12 +7,16 @@ import (
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
+	"github.com/smartcontractkit/chainlink-common/pkg/utils/hex"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
 )
+
+const LEAF_DOMAIN_SEPARATOR = "0x0000000000000000000000000000000000000000000000000000000000000000"
 
 type messageHasherV1 struct {
 	lggr           logger.Logger
@@ -88,6 +92,7 @@ func (m messageHasherV1) Hash(ctx context.Context, msg ccipocr3.Message) (ccipoc
 		DestChainSelector:   uint64(msg.Header.DestChainSelector),
 		SequenceNumber:      uint64(msg.Header.SequenceNumber),
 		Nonce:               msg.Header.Nonce,
+		OnrampAddr:          common.CrossChainAddress(msg.Header.OnRamp),
 	}
 
 	tonReceiverAddrStr, err := m.addrCodec.AddressBytesToString(msg.Receiver)
@@ -99,7 +104,7 @@ func (m messageHasherV1) Hash(ctx context.Context, msg ccipocr3.Message) (ccipoc
 	if err != nil {
 		return [32]byte{}, fmt.Errorf("invalid receiver address %s: %w", tonReceiverAddrStr, err)
 	}
-	
+
 	var gasLimitBigInt *big.Int
 	var extraArgsDecodeMap map[string]any
 	if len(msg.ExtraArgs) > 0 {
@@ -132,11 +137,73 @@ func (m messageHasherV1) Hash(ctx context.Context, msg ccipocr3.Message) (ccipoc
 		TokenAmounts: tokenAmounts,
 	}
 
-	rampCell, err := tlb.ToCell(rampMsg)
+	hash, err := buildAny2TVMRampMessageHash(rampMsg)
 	if err != nil {
-		return [32]byte{}, fmt.Errorf("pack ramp message to cell: %w", err)
+		return [32]byte{}, fmt.Errorf("build ramp message hash: %w", err)
+	}
+	return ccipocr3.Bytes32(hash), nil
+}
+
+func buildAny2TVMRampMessageHash(msg ocr.Any2TVMRampMessage) ([]byte, error) {
+	// use the reference from contracts/contracts/ccip/types.tolk generateMessageId()
+	/* Top level cell contains:
+	 * - LEAF_DOMAIN_SEPARATOR 256 bits
+	 * - MsgHash 256 bits
+	 * - Header (ref)
+		* - MessageID (256 bits)
+		* - Receiver (addr)
+		* - SequenceNumber (64 bits)
+		* - Nonce (64 bits)
+	 * - Sender (bytes with length prefix - crossChainAddress)
+	 * - Receiver (bytes with length prefix - crossChainAddress)
+	 * - Data (ref)
+	 * - TokenAmounts (ref)
+	*/
+
+	topLevelBuilder := cell.BeginCell()
+	// storing the domain separator
+	leafSeparatorBytes, err := hex.DecodeString(LEAF_DOMAIN_SEPARATOR)
+	if err != nil {
+		return nil, fmt.Errorf("decode leaf domain separator: %w", err)
+	}
+	topLevelBuilder.MustStoreSlice(leafSeparatorBytes, uint(len(leafSeparatorBytes)*8))
+
+	// preparing MsgHash
+	metadataHashBuilder := cell.BeginCell()
+	metadataHashBuilder.
+		MustStoreUInt(msg.Header.SourceChainSelector, 64).
+		MustStoreUInt(msg.Header.DestChainSelector, 64).
+		MustStoreSlice([]byte{uint8(len(msg.Header.OnrampAddr))}, 8).
+		MustStoreSlice(msg.Header.OnrampAddr, uint(len(msg.Header.OnrampAddr))*8)
+
+	// storing metadata hash
+	topLevelBuilder.MustStoreSlice(metadataHashBuilder.EndCell().Hash(), 256)
+
+	// preparing header
+	headerBuilder := cell.BeginCell()
+	headerBuilder.MustStoreSlice(msg.Header.MessageID, 256).
+		MustStoreAddr(msg.Receiver).
+		MustStoreUInt(msg.Header.SequenceNumber, 64).
+		MustStoreUInt(msg.Header.Nonce, 64)
+
+	// storing header
+	topLevelBuilder.MustStoreRef(headerBuilder.EndCell())
+
+	dataCell, err := msg.Data.ToCell()
+	if err != nil {
+		return nil, fmt.Errorf("pack msg data to cell: %w", err)
 	}
 
-	// TODO check if cell hash is enough or we should use a different hashing logic
-	return ccipocr3.Bytes32(rampCell.Hash()), nil
+	tokenCell, err := msg.TokenAmounts.ToCell()
+	if err != nil {
+		return nil, fmt.Errorf("pack token amounts to cell: %w", err)
+	}
+
+	topLevelBuilder.
+		MustStoreSlice([]byte{uint8(len(msg.Sender))}, 8).
+		MustStoreSlice(msg.Sender, uint(len(msg.Sender))*8).
+		MustStoreRef(dataCell).
+		MustStoreRef(tokenCell)
+
+	return topLevelBuilder.EndCell().Hash(), nil
 }

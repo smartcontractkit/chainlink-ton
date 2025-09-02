@@ -79,7 +79,7 @@ export type Any2TVMRampMessage = {
   sender: CrossChainAddress
   data: Cell
   receiver: Address
-  //gasLimit: coins , does not make sense here
+  // gasLimit: bigint ,
   tokenAmounts?: Cell // vec<Any2TONTokenTransfer>
 }
 

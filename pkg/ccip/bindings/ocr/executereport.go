@@ -31,11 +31,12 @@ type Any2TVMRampMessage struct {
 
 // RampMessageHeader contains metadata for a ramp message.
 type RampMessageHeader struct {
-	MessageID           []byte `tlb:"bits 256"`
-	SourceChainSelector uint64 `tlb:"## 64"`
-	DestChainSelector   uint64 `tlb:"## 64"`
-	SequenceNumber      uint64 `tlb:"## 64"`
-	Nonce               uint64 `tlb:"## 64"`
+	MessageID           []byte                   `tlb:"bits 256"`
+	SourceChainSelector uint64                   `tlb:"## 64"`
+	DestChainSelector   uint64                   `tlb:"## 64"`
+	SequenceNumber      uint64                   `tlb:"## 64"`
+	Nonce               uint64                   `tlb:"## 64"`
+	OnrampAddr          common.CrossChainAddress `tlb:"."`
 }
 
 // Any2TVMTokenTransfer represents a token transfer within a ramp message.

@@ -99,7 +99,7 @@ export function generateMessageId(message: Any2TVMRampMessage, metadataHash: big
           .storeUint(message.header.messageId, 256)
           .storeAddress(message.receiver)
           .storeUint(message.header.sequenceNumber, 64)
-          //.storeCoins(message.gasLimit)
+          // .storeCoins(message.gasLimit)
           .storeUint(message.header.nonce, 64)
           .endCell(),
       )
@@ -173,6 +173,7 @@ describe('OffRamp', () => {
       sender: bigIntToBuffer(EVM_SENDER_ADDRESS_TEST),
       data: beginCell().endCell(),
       receiver: receiverAddress,
+      // gasLimit: 10000000n,
     }
   }
 
@@ -507,6 +508,7 @@ describe('OffRamp', () => {
       sender: Buffer.from(bigIntToUint8Array(EVM_SENDER_ADDRESS_TEST)),
       data: beginCell().endCell(),
       receiver: Address.parse('EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2'),
+      // gasLimit: 10000000n,
       tokenAmounts: undefined,
     }
 

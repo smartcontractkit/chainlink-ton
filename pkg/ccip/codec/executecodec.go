@@ -111,6 +111,7 @@ func (e *executePluginCodecV1) Encode(ctx context.Context, report ccipocr3.Execu
 				DestChainSelector:   uint64(msg.Header.DestChainSelector),
 				SequenceNumber:      uint64(msg.Header.SequenceNumber),
 				Nonce:               msg.Header.Nonce,
+				OnrampAddr:          common.CrossChainAddress(msg.Header.OnRamp),
 			}
 
 			tonReceiverAddrStr, err := e.addressCodec.AddressBytesToString(msg.Receiver)

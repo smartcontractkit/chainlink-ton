@@ -176,15 +176,11 @@ func TestMessageHasherV1_CrossLanguageCompatibility(t *testing.T) {
 	hasher := NewMessageHasherV1(lg, edc)
 
 	t.Run("matches TypeScript generateMessageId", func(t *testing.T) {
-		ac := NewAddressCodec()
-
 		// Use exact same TON address from TypeScript test
 		tonAddr, err := address.ParseAddr("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")
 		require.NoError(t, err)
 
-		receiverAddrBytes, err := ac.AddressStringToBytes(tonAddr.String())
-		require.NoError(t, err)
-
+		rawTonAddr := ToRawAddr(tonAddr)
 		// EVM_SENDER_ADDRESS_TEST: 0x1a5fdbc891c5d4e6ad68064ae45d43146d4f9f3a
 		evmSenderBytes, err := hex.DecodeString("1a5fdbc891c5d4e6ad68064ae45d43146d4f9f3a")
 		require.NoError(t, err)
@@ -201,10 +197,11 @@ func TestMessageHasherV1_CrossLanguageCompatibility(t *testing.T) {
 				DestChainSelector:   ccipocr3.ChainSelector(13879075125137744094), // CHAINSEL_TON
 				SequenceNumber:      ccipocr3.SeqNum(1),
 				Nonce:               0,
+				OnRamp:              evmSenderBytes,
 			},
 			Sender:       ccipocr3.UnknownAddress(hex.EncodeToString(evmSenderBytes)),
 			Data:         []byte{}, // empty cell data
-			Receiver:     receiverAddrBytes,
+			Receiver:     rawTonAddr[:],
 			TokenAmounts: nil, // no token amounts
 		}
 
@@ -216,7 +213,7 @@ func TestMessageHasherV1_CrossLanguageCompatibility(t *testing.T) {
 
 		// Run the TypeScript file to get this value:
 		// chainlink-ton/contracts/tests/ccip/OffRamp.spec.ts  "Test generateMessageId hash compatibility with Go"
-		expectedHashHex := "8a2116dd0f926684493da54fb01944a248eba7f2dcf226252d83156fd9eb494d"
+		expectedHashHex := "eb8aad87a4ec888a0c1527a51f778a7539cf5a4084159e3e928abb6ac909a183"
 		expectedHash, err := hex.DecodeString(expectedHashHex)
 		require.NoError(t, err)
 
