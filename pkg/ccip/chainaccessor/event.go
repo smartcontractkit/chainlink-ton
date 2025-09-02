@@ -45,7 +45,7 @@ func (a *TONAccessor) bindContractEvent(ctx context.Context, contractName string
 	}
 
 	for _, eventName := range eventNames {
-		if err := a.registerFilterIfNotExists(ctx, eventName, address); err != nil {
+		if err := a.registerFilter(ctx, eventName, address); err != nil {
 			return fmt.Errorf("failed to register filter for event %s: %w", eventName, err)
 		}
 	}
@@ -53,21 +53,24 @@ func (a *TONAccessor) bindContractEvent(ctx context.Context, contractName string
 	return nil
 }
 
-// registerFilterIfNotExists registers a filter for the given event if it doesn't already exist.
-func (a *TONAccessor) registerFilterIfNotExists(ctx context.Context, eventName string, address *address.Address) error {
-	hasFilter, err := a.logPoller.HasFilter(ctx, eventName)
+// registerFilter registers a filter for the given event if it doesn't already exist.
+func (a *TONAccessor) registerFilter(ctx context.Context, name string, address *address.Address) error {
+	hasFilter, err := a.logPoller.HasFilter(ctx, name)
 	if err != nil {
 		return fmt.Errorf("failed to check for filter: %w", err)
 	}
+	// If filter exists, unregister it first to handle address changes
 	if hasFilter {
-		return nil
+		if err := a.logPoller.UnregisterFilter(ctx, name); err != nil {
+			return fmt.Errorf("failed to unregister logpoller filter: %w", err)
+		}
 	}
 
 	filter := types.Filter{
-		Name:     eventName,
+		Name:     name,
 		Address:  address,
 		MsgType:  tlb.MsgTypeExternalOut,
-		EventSig: hash.CRC32(eventName),
+		EventSig: hash.CRC32(name),
 		// TODO: add starting signo
 	}
 
