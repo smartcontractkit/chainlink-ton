@@ -92,7 +92,8 @@ func DeployChainContractsToTonCS(t *testing.T, env cldf.Environment, chainSelect
 				},
 			},
 			OffRampParams: config.OffRampParams{
-				// ...
+				ChainSelector:                    tonChain.Selector,
+				PermissionlessExecutionThreshold: 0,
 			},
 			OnRampParams: config.OnRampParams{
 				ChainSelector: ChainSelEVMTest90000001,
@@ -176,6 +177,8 @@ func AddLaneTONChangesets(env *cldf.Environment, from, to uint64, fromFamily, to
 				},
 			},
 			OnRampVersion: []byte{1, 6, 1},
+			// TODO: lookup OnRamp here and set it
+			// OnRamp: []byte{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 99},
 		}
 	case chainsel.FamilyTon:
 		dest = config.TonChainDefinition{
@@ -195,7 +198,7 @@ func AddLaneTONChangesets(env *cldf.Environment, from, to uint64, fromFamily, to
 		}
 
 	default:
-		env.Logger.Fatalf("Unsupported dstination chain family: %v", toFamily)
+		env.Logger.Fatalf("Unsupported destination chain family: %v", toFamily)
 	}
 
 	laneConfig := config.UpdateTonLanesConfig{

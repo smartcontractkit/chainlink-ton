@@ -177,7 +177,6 @@ func setTonDestinationUpdates(lane config.LaneConfig, updateInputsByTonChain map
 		IsRMNVerificationDisabled: source.RMNVerificationDisabled,
 		OnRamp:                    source.OnRamp,
 	}
-	// TODO: assert OnRamp not empty
 
 	updateInputsByTonChain[dest.Selector] = input
 }

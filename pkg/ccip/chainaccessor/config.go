@@ -52,11 +52,20 @@ func (a *TONAccessor) getOffRampSourceChainConfigs(ctx context.Context, block *t
 	if err != nil {
 		return nil, err
 	}
+
 	var sourceChainConfigs = make(map[ccipocr3.ChainSelector]ccipocr3.SourceChainConfig, len(sourceChainSelectors))
 	// TODO: check how much data we can return, if this can potentially be too big for a single RPC call
 	result, err := a.client.RunGetMethod(ctx, block, addr, "allSourceChainConfigs")
 	if err != nil {
 		return nil, err
+	}
+	isNil, err := result.IsNil(0)
+	if err != nil {
+		return nil, err
+	}
+	// if the dictionary is empty, we get back nil
+	if isNil {
+		return nil, nil
 	}
 	rawDict, err := result.Cell(0)
 	if err != nil {
@@ -73,7 +82,7 @@ func (a *TONAccessor) getOffRampSourceChainConfigs(ctx context.Context, block *t
 			return nil, err
 		}
 		var config offramp.SourceChainConfig
-		if err := tlb.LoadFromCell(config, entry); err != nil {
+		if err := tlb.LoadFromCell(&config, entry); err != nil {
 			return nil, err
 		}
 		sourceChainConfigs[selector] = ccipocr3.SourceChainConfig{
@@ -125,7 +134,7 @@ func (a *TONAccessor) getOnRampDynamicConfig(ctx context.Context, block *ton.Blo
 	return ccipocr3.OnRampDynamicConfig{
 		FeeQuoter:              addrToBytes(cfg.FeeQuoter),
 		ReentrancyGuardEntered: false,
-		MessageInterceptor:     []byte{}, // TODO: unimplemented on TON?
+		MessageInterceptor:     []byte{}, // unimplemented on TON
 		FeeAggregator:          addrToBytes(cfg.FeeAggregator),
 		AllowListAdmin:         addrToBytes(cfg.AllowListAdmin),
 	}, nil

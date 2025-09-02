@@ -14,6 +14,8 @@ import (
 
 	ton_ops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
+
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 
 	"github.com/smartcontractkit/chainlink/deployment/ccip/changeset/v1_6"
@@ -34,8 +36,6 @@ import (
 	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
 	"github.com/smartcontractkit/chainlink/deployment/common/proposalutils"
 )
-
-const ChainSelEVMTest90000001 = 909606746561742123
 
 func TestDeploy(t *testing.T) {
 	t.Parallel()
@@ -62,40 +62,43 @@ func TestDeploy(t *testing.T) {
 	// TODO: LINK token deployment
 	linkAddr := ton_ops.TonTokenAddr
 
+	tonDefinition := config.TonChainDefinition{
+		ConnectionConfig: v1_6.ConnectionConfig{
+			RMNVerificationDisabled: true,
+			AllowListEnabled:        false,
+		},
+		Selector: tonChain.Selector,
+		GasPrice: big.NewInt(1e17),
+		TokenPrices: map[*address.Address]*big.Int{
+			ton_ops.TonTokenAddr: big.NewInt(99),
+		},
+		FeeQuoterDestChainConfig: ton_ops.DefaultFeeQuoterDestChainConfig(true),
+		TokenTransferFeeConfigs:  map[uint64]feequoter.UpdateTokenTransferFeeConfig{},
+	}
+	evmDefinition := config.EVMChainDefinition{
+		ChainDefinition: v1_6.ChainDefinition{
+			Selector:                 evmSelector,
+			GasPrice:                 big.NewInt(1e17),
+			TokenPrices:              map[common.Address]*big.Int{},
+			FeeQuoterDestChainConfig: v1_6.DefaultFeeQuoterDestChainConfig(true),
+			ConnectionConfig: v1_6.ConnectionConfig{
+				RMNVerificationDisabled: true,
+				AllowListEnabled:        false,
+			},
+		},
+		OnRampVersion: []byte{1, 6, 1},
+		OnRamp:        []byte{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 99},
+	}
+
+	// TON->EVM
 	env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{
 		commonchangeset.Configure(ton_ops.AddTonLanes{}, config.UpdateTonLanesConfig{
 			EVMMCMSConfig: &proposalutils.TimelockConfig{},
 			TonMCMSConfig: &proposalutils.TimelockConfig{},
 			Lanes: []config.LaneConfig{
 				{
-					Source: config.TonChainDefinition{
-						ConnectionConfig: v1_6.ConnectionConfig{
-							RMNVerificationDisabled: true,
-							AllowListEnabled:        false,
-						},
-						Selector: chainSelector,
-						GasPrice: big.NewInt(1e17),
-						TokenPrices: map[*address.Address]*big.Int{
-							ton_ops.TonTokenAddr: big.NewInt(99),
-						},
-						FeeQuoterDestChainConfig: ton_ops.DefaultFeeQuoterDestChainConfig(true, evmSelector),
-						TokenTransferFeeConfigs:  map[uint64]feequoter.UpdateTokenTransferFeeConfig{
-							// TODO: populate when token transfer enabled
-						},
-					},
-					Dest: config.EVMChainDefinition{
-						ChainDefinition: v1_6.ChainDefinition{
-							Selector:                 evmSelector,
-							GasPrice:                 big.NewInt(1e17),
-							TokenPrices:              map[common.Address]*big.Int{},
-							FeeQuoterDestChainConfig: v1_6.DefaultFeeQuoterDestChainConfig(true),
-							ConnectionConfig: v1_6.ConnectionConfig{
-								RMNVerificationDisabled: true,
-								AllowListEnabled:        false,
-							},
-						},
-						OnRampVersion: []byte{1, 6, 1},
-					},
+					Source:     tonDefinition,
+					Dest:       evmDefinition,
 					IsDisabled: false,
 				},
 			},
@@ -103,6 +106,62 @@ func TestDeploy(t *testing.T) {
 		}),
 	})
 	require.NoError(t, err, "failed to add lane")
+
+	// EVM->TON
+	env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{
+		commonchangeset.Configure(ton_ops.AddTonLanes{}, config.UpdateTonLanesConfig{
+			EVMMCMSConfig: &proposalutils.TimelockConfig{},
+			TonMCMSConfig: &proposalutils.TimelockConfig{},
+			Lanes: []config.LaneConfig{
+				{
+					Source:     evmDefinition,
+					Dest:       tonDefinition,
+					IsDisabled: false,
+				},
+			},
+			TestRouter: false,
+		}),
+	})
+	require.NoError(t, err, "failed to add lane")
+
+	signers := [][]byte{
+		{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+		{2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2},
+		{3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3},
+		{4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4},
+	}
+	transmitters := [][]byte{
+		{0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+		{0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2},
+		{0, 0, 0, 0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3},
+		{0, 0, 0, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4},
+	}
+	env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{
+		commonchangeset.Configure(ton_ops.SetOCR3Config{}, ton_ops.SetOCR3OffRampConfig{
+			RemoteChainSels: []uint64{tonChain.Selector},
+			MCMS:            &proposalutils.TimelockConfig{},
+			Configs: map[operation.PluginType]operation.OCR3ConfigArgs{
+				operation.PluginTypeCCIPCommit: {
+					ConfigDigest: []byte{1, 2, 3, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+
+					PluginType:                     operation.PluginTypeCCIPCommit, // maybe map is redundant? make it an array
+					F:                              1,
+					IsSignatureVerificationEnabled: false,
+					Signers:                        signers,
+					Transmitters:                   transmitters,
+				},
+				operation.PluginTypeCCIPExec: {
+					ConfigDigest:                   []byte{1, 2, 3, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+					PluginType:                     operation.PluginTypeCCIPExec, // maybe map is redundant? make it an array
+					F:                              1,
+					IsSignatureVerificationEnabled: false,
+					Signers:                        signers,
+					Transmitters:                   transmitters,
+				},
+			},
+		}),
+	})
+	require.NoError(t, err, "failed to set ocr3 config")
 
 	state, err := tonstate.LoadOnchainState(env)
 	require.NoError(t, err)
@@ -124,8 +183,14 @@ func TestDeploy(t *testing.T) {
 	require.NoError(t, err)
 
 	ctx := t.Context()
+	routerAddr := state[chainSelector].Router
+	rawRouterAddr, err := addrCodec.AddressStringToBytes(routerAddr.String())
+	require.NoError(t, err)
 	onRampAddr := state[chainSelector].OnRamp
 	rawOnRampAddr, err := addrCodec.AddressStringToBytes(onRampAddr.String())
+	require.NoError(t, err)
+	offRampAddr := state[chainSelector].OffRamp
+	rawOffRampAddr, err := addrCodec.AddressStringToBytes(offRampAddr.String())
 	require.NoError(t, err)
 	feeQuoterAddr := state[chainSelector].FeeQuoter
 	rawFeeQuoterAddr, err := addrCodec.AddressStringToBytes(feeQuoterAddr.String())
@@ -135,11 +200,27 @@ func TestDeploy(t *testing.T) {
 
 	err = accessor.Sync(ctx, consts.ContractNameOnRamp, rawOnRampAddr)
 	require.NoError(t, err)
+	err = accessor.Sync(ctx, consts.ContractNameOffRamp, rawOffRampAddr)
+	require.NoError(t, err)
 	err = accessor.Sync(ctx, consts.ContractNameFeeQuoter, rawFeeQuoterAddr)
 	require.NoError(t, err)
 
 	t.Run("GetConfig", func(t *testing.T) {
-		config, _, err := accessor.GetAllConfigsLegacy(ctx, ccipocr3.ChainSelector(chainSelector), []ccipocr3.ChainSelector{ChainSelEVMTest90000001})
+		// destination
+		_, sourceChainConfigs, err := accessor.GetAllConfigsLegacy(ctx, ccipocr3.ChainSelector(chainSelector), []ccipocr3.ChainSelector{ccipocr3.ChainSelector(evmSelector)})
+		require.NoError(t, err)
+		require.Equal(t, map[ccipocr3.ChainSelector]ccipocr3.SourceChainConfig{
+			ccipocr3.ChainSelector(evmSelector): {
+				Router:                    rawRouterAddr,
+				IsEnabled:                 true,
+				IsRMNVerificationDisabled: true,
+				MinSeqNr:                  0,
+				OnRamp:                    evmDefinition.OnRamp,
+			},
+		}, sourceChainConfigs)
+
+		// source
+		config, _, err := accessor.GetAllConfigsLegacy(ctx, ccipocr3.ChainSelector(evmSelector), []ccipocr3.ChainSelector{ccipocr3.ChainSelector(chainSelector)})
 		require.NoError(t, err)
 		require.Equal(t, ccipocr3.OnRampConfig{
 			DynamicConfig: ccipocr3.GetOnRampDynamicConfigResponse{
@@ -154,7 +235,7 @@ func TestDeploy(t *testing.T) {
 	})
 
 	t.Run("GetExpectedNextSequenceNumber", func(t *testing.T) {
-		seqNum, err := accessor.GetExpectedNextSequenceNumber(ctx, ChainSelEVMTest90000001)
+		seqNum, err := accessor.GetExpectedNextSequenceNumber(ctx, ccipocr3.ChainSelector(evmSelector))
 		require.NoError(t, err)
 		require.Equal(t, ccipocr3.SeqNum(1), seqNum)
 	})
@@ -166,7 +247,7 @@ func TestDeploy(t *testing.T) {
 	})
 
 	t.Run("GetFeeQuoterDestChainConfig", func(t *testing.T) {
-		config, err := accessor.GetFeeQuoterDestChainConfig(ctx, ccipocr3.ChainSelector(ChainSelEVMTest90000001))
+		config, err := accessor.GetFeeQuoterDestChainConfig(ctx, ccipocr3.ChainSelector(evmSelector))
 		require.NoError(t, err)
 		// v1_6.DefaultFeeQuoterDestChainConfig()
 		require.Equal(t, ccipocr3.FeeQuoterDestChainConfig{

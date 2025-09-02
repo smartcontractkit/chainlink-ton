@@ -282,9 +282,13 @@ struct UpdateTokenTransferFeeConfig {
     remove: cell; // vector<address>
 } 
 
-struct (0x20000004) UpdateDestChainConfig {
+struct FeeQuoterUpdateDestChainConfig {
     destChainSelector: uint64;
     destChainConfig: FeeQuoterDestChainConfig;
+}
+
+struct (0x20000004) FeeQuoterUpdateDestChainConfigs {
+    updates: cell; // vec<FeeQuoterUpdateDestChainConfig>
 }
 
 struct (0x20000005) GetValidatedFee<C> {
