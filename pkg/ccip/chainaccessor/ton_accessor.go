@@ -71,6 +71,18 @@ func (a *TONAccessor) GetContractAddress(contractName string) ([]byte, error) {
 	return addrToBytes(addr), nil
 }
 
+func (a *TONAccessor) getBinding(contractName string) (*address.Address, error) {
+	a.bindingsMu.RLock()
+	defer a.bindingsMu.RUnlock()
+
+	addr, exists := a.bindings[contractName]
+	if !exists {
+		return nil, ErrNoBindings
+	}
+
+	return addr, nil
+}
+
 func (a *TONAccessor) GetAllConfigsLegacy(ctx context.Context, destChainSelector ccipocr3.ChainSelector, sourceChainSelectors []ccipocr3.ChainSelector) (ccipocr3.ChainConfigSnapshot, map[ccipocr3.ChainSelector]ccipocr3.SourceChainConfig, error) {
 	// Match old behaviour: if a contract isn't bound, we return an empty value so the nodes can achieve consensus on partial config
 	// https://github.com/smartcontractkit/chainlink-ccip/blob/a8dbbdbf14a07593de2f0dbe608f8b64d893a6bd/pkg/contractreader/extended.go#L226-L231
@@ -234,10 +246,8 @@ func (a *TONAccessor) MsgsBetweenSeqNums(ctx context.Context, dest ccipocr3.Chai
 
 	msgs := make([]ccipocr3.Message, 0)
 	for _, log := range res.Logs {
-		// convert event to generic CCIP event
 		event := a.convertCCIPMessageSent(&log.TypedData)
 
-		// validate event
 		if err := chainaccessor.ValidateSendRequestedEvent(event, a.chainSelector, dest, seqNumRange); err != nil {
 			a.lggr.Errorw("validate send requested event", "err", err, "message", event)
 			continue
@@ -250,7 +260,6 @@ func (a *TONAccessor) MsgsBetweenSeqNums(ctx context.Context, dest ccipocr3.Chai
 }
 
 func (a *TONAccessor) LatestMessageTo(ctx context.Context, dest ccipocr3.ChainSelector) (ccipocr3.SeqNum, error) {
-	// get onramp address
 	onrampAddr, err := a.getBinding(consts.ContractNameOnRamp)
 	if err != nil {
 		return 0, fmt.Errorf("OnRamp not bound: %w", err)
@@ -281,26 +290,14 @@ func (a *TONAccessor) LatestMessageTo(ctx context.Context, dest ccipocr3.ChainSe
 		return 0, nil
 	}
 
-	// convert event to generic CCIP event
 	event := a.convertCCIPMessageSent(&res.Logs[0].TypedData)
 
-	// validate event
 	if err := chainaccessor.ValidateSendRequestedEvent(event, a.chainSelector, dest, ccipocr3.NewSeqNumRange(event.Message.Header.SequenceNumber, event.Message.Header.SequenceNumber)); err != nil {
 		a.lggr.Errorw("validate send requested event", "err", err, "message", event)
 		return 0, fmt.Errorf("message invalid msg %v: %w", event, err)
 	}
 
 	return event.SequenceNumber, nil
-}
-
-func (a *TONAccessor) getBinding(contractName string) (*address.Address, error) {
-	a.bindingsMu.RLock()
-	defer a.bindingsMu.RUnlock()
-	addr, exists := a.bindings[contractName]
-	if !exists {
-		return nil, ErrNoBindings
-	}
-	return addr, nil
 }
 
 func (a *TONAccessor) GetExpectedNextSequenceNumber(ctx context.Context, dest ccipocr3.ChainSelector) (ccipocr3.SeqNum, error) {
@@ -415,6 +412,7 @@ func (a *TONAccessor) CommitReportsGTETimestamp(
 	res, err := logpoller.NewQuery[offramp.CommitReportAccepted]().
 		WithSource(offrampAddr).
 		WithEventSig(hash.CRC32(consts.EventNameCommitReportAccepted)).
+		// TODO: filter merkle root only
 		FilterTimestamp(query.TimestampGTE(ts)).
 		OrderBy(query.SortByTxTimestamp, query.ASC).
 		Limit(internalLimit).
