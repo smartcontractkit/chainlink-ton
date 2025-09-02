@@ -158,13 +158,12 @@ export class FeeQuoter implements Contract {
     })
   }
 
-  async sendUpdateDestChainConfig(
+  async sendUpdateDestChainConfigs(
     provider: ContractProvider,
     via: Sender,
     opts: {
       value: bigint
-      destChainSelector: bigint
-      config: DestChainConfig
+      destChainConfigs: { destChainSelector: bigint, config: DestChainConfig }[]
     },
   ) {
     await provider.internal(via, {
@@ -172,8 +171,13 @@ export class FeeQuoter implements Contract {
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: beginCell()
         .storeUint(Opcodes.updateDestChainConfig, 32)
-        .storeUint(opts.destChainSelector, 64)
-        .storeBuilder(destChainConfigToBuilder(opts.config))
+        .storeRef(
+          asSnakeData(opts.destChainConfigs, (update) =>
+            new TonBuilder()
+            .storeInt(update.destChainSelector, 64)
+            .storeBuilder( destChainConfigToBuilder(update.config))
+          ),
+        )
         .endCell(),
     })
   }

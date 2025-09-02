@@ -2,10 +2,11 @@ package chainaccessor
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"math/big"
 	"sync"
 	"time"
 
@@ -23,6 +24,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types/query"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/hash"
@@ -71,24 +73,12 @@ func (a *TONAccessor) GetContractAddress(contractName string) ([]byte, error) {
 	return addrToBytes(addr), nil
 }
 
-func (a *TONAccessor) getBinding(contractName string) (*address.Address, error) {
-	a.bindingsMu.RLock()
-	defer a.bindingsMu.RUnlock()
-
-	addr, exists := a.bindings[contractName]
-	if !exists {
-		return nil, ErrNoBindings
-	}
-
-	return addr, nil
-}
-
 func (a *TONAccessor) GetAllConfigsLegacy(ctx context.Context, destChainSelector ccipocr3.ChainSelector, sourceChainSelectors []ccipocr3.ChainSelector) (ccipocr3.ChainConfigSnapshot, map[ccipocr3.ChainSelector]ccipocr3.SourceChainConfig, error) {
 	// Match old behaviour: if a contract isn't bound, we return an empty value so the nodes can achieve consensus on partial config
 	// https://github.com/smartcontractkit/chainlink-ccip/blob/a8dbbdbf14a07593de2f0dbe608f8b64d893a6bd/pkg/contractreader/extended.go#L226-L231
 
 	// TODO: pass in addresses we fetched so subsequent fetches don't fail (offramp->feeQuoter etc)
-
+	a.lggr.Debug("GetAllConfigsLegacy")
 	var config ccipocr3.ChainConfigSnapshot
 	var sourceChainConfigs map[ccipocr3.ChainSelector]ccipocr3.SourceChainConfig
 
@@ -164,11 +154,14 @@ func (a *TONAccessor) GetAllConfigsLegacy(ctx context.Context, destChainSelector
 			DestChainConfig: onRampDestChainConfig,
 		}
 
+		// TODO use a non-empty address for e2e test before we resolve the chainlink-ccip chain accessor event validation check
+		// TODO move the cs_test_helper.go fee token address somewhere else so we can import here rather than redeclar
+		var TonTokenAddr = address.MustParseRawAddr("0:0000000000000000000000000000000000000000000000000000000000000001")
 		// Router
 		config.Router = ccipocr3.RouterConfig{
 			// TODO: confirm address.NewAddressNone == zero address if fully written out (0:00000..)
 			// Similar to Aptos, TON has no wrapped native, so we treat zero address as the native fee token
-			WrappedNativeAddress: addrToBytes(address.NewAddressNone()),
+			WrappedNativeAddress: addrToBytes(TonTokenAddr),
 		}
 
 		// sourceChainConfigs represents sources on the *destination chain* contract, since this is the source chain
@@ -180,7 +173,10 @@ func (a *TONAccessor) GetAllConfigsLegacy(ctx context.Context, destChainSelector
 
 func (a *TONAccessor) GetChainFeeComponents(ctx context.Context) (ccipocr3.ChainFeeComponents, error) {
 	// TODO(NONEVM-2364) implement me
-	return ccipocr3.ChainFeeComponents{}, errors.New("not implemented")
+	return ccipocr3.ChainFeeComponents{
+		ExecutionFee:        big.NewInt(1),
+		DataAvailabilityFee: big.NewInt(1),
+	}, nil
 }
 
 // Matching CCIP Plugins - default accessor w/ CR behavior
@@ -198,7 +194,7 @@ func (a *TONAccessor) GetChainFeeComponents(ctx context.Context) (ccipocr3.Chain
 func (a *TONAccessor) Sync(ctx context.Context, contractName string, contractAddress ccipocr3.UnknownAddress) error {
 	strAddr, err := a.addrCodec.AddressBytesToString(contractAddress)
 	if err != nil {
-		return fmt.Errorf("invalid address: %w", err)
+		return fmt.Errorf("failed with addr codec decode: %w", err)
 	}
 	addr, err := address.ParseAddr(strAddr)
 	if err != nil {
@@ -208,6 +204,7 @@ func (a *TONAccessor) Sync(ctx context.Context, contractName string, contractAdd
 	if err := a.bindContractEvent(ctx, contractName, addr); err != nil {
 		return fmt.Errorf("failed to bind contract event: %w", err)
 	}
+
 	a.bindingsMu.Lock()
 	defer a.bindingsMu.Unlock()
 	a.bindings[contractName] = addr
@@ -252,9 +249,11 @@ func (a *TONAccessor) MsgsBetweenSeqNums(ctx context.Context, dest ccipocr3.Chai
 			a.lggr.Errorw("validate send requested event", "err", err, "message", event)
 			continue
 		}
-		event.Message.Header.OnRamp = ccipocr3.UnknownAddress(onrampAddr.String())
-		event.Message.Header.TxHash = string(log.TxHash[:]) // TODO: add LT?
+		rawOnrampAddr := codec.ToRawAddr(onrampAddr)
+		event.Message.Header.OnRamp = rawOnrampAddr[:]
+		event.Message.Header.TxHash = hex.EncodeToString(log.TxHash[:])
 		msgs = append(msgs, event.Message)
+		a.lggr.Debugw("MsgsBetweenSeqNums: found message and appended it to the output", "seqNum", event.SequenceNumber, "txHash", event.Message.Header.TxHash, "destChainSelector", dest, "sourceChainSelector", a.chainSelector)
 	}
 	return msgs, nil
 }
@@ -300,6 +299,18 @@ func (a *TONAccessor) LatestMessageTo(ctx context.Context, dest ccipocr3.ChainSe
 	return event.SequenceNumber, nil
 }
 
+func (a *TONAccessor) getBinding(contractName string) (*address.Address, error) {
+	a.bindingsMu.RLock()
+	defer a.bindingsMu.RUnlock()
+
+	addr, exists := a.bindings[contractName]
+	if !exists {
+		return nil, ErrNoBindings
+	}
+
+	return addr, nil
+}
+
 func (a *TONAccessor) GetExpectedNextSequenceNumber(ctx context.Context, dest ccipocr3.ChainSelector) (ccipocr3.SeqNum, error) {
 	addr, err := a.getBinding(consts.ContractNameOnRamp)
 	if err != nil {
@@ -326,7 +337,12 @@ func (a *TONAccessor) GetTokenPriceUSD(ctx context.Context, rawTokenAddress ccip
 		return ccipocr3.TimestampedUnixBig{}, err
 	}
 
-	tokenAddress, err := address.ParseAddr(base64.RawURLEncoding.EncodeToString(rawTokenAddress))
+	addrStr, err := a.addrCodec.AddressBytesToString(rawTokenAddress)
+	if err != nil {
+		return ccipocr3.TimestampedUnixBig{}, fmt.Errorf("failed with addr codec decode: %w", err)
+	}
+
+	tokenAddress, err := address.ParseAddr(addrStr)
 	if err != nil {
 		return ccipocr3.TimestampedUnixBig{}, fmt.Errorf("invalid address: %w", err)
 	}
@@ -586,7 +602,10 @@ func (a *TONAccessor) GetChainFeePriceUpdate(ctx context.Context, selectors []cc
 		}
 		// HACK: we read the value as Timestamped since the binary layout is compatible, so that we match TimestampedBig (two values packed together)
 		var update feequoter.TimestampedPrice
-		tlb.LoadFromCell(&update, value.BeginParse())
+		if err := tlb.LoadFromCell(&update, value.BeginParse()); err != nil {
+			a.lggr.Errorw("failed to batch get chain fee price updates", "err", err)
+			return nil
+		}
 		prices[selector] = ccipocr3.TimeStampedBigFromUnix(ccipocr3.TimestampedUnixBig{
 			Timestamp: uint32(update.Timestamp), // TODO: downcast?
 			Value:     update.Value,

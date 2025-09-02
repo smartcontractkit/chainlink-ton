@@ -17,6 +17,10 @@ import (
 	"github.com/xssnick/tonutils-go/ton/wallet"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
+	inmemorystore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/db/inmemory"
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/loader/account"
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/txparser"
+
 	"github.com/smartcontractkit/chainlink-common/pkg/chains"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/loop"
@@ -126,6 +130,18 @@ func newChain(ctx context.Context, cfg *config.TOMLConfig, loopKs loop.Keystore,
 	txmCfg := txm.DefaultConfigSet
 	ch.txm = txm.New(lggr, loopKs, apiClient, txmCfg)
 
+	lgCfg := logpoller.DefaultConfigSet
+	fs := inmemorystore.NewFilterStore()
+	lgOpts := &logpoller.ServiceOptions{
+		Config:   lgCfg,
+		Client:   tonClient,
+		Filters:  fs,
+		TxLoader: account.NewTxLoader(tonClient, lggr, lgCfg.PageSize),
+		TxParser: txparser.NewTxParser(lggr, fs),
+		Store:    inmemorystore.NewLogStore(),
+	}
+
+	ch.lp = logpoller.NewService(lggr, lgOpts)
 	// TODO: Setup accounts balance monitor
 
 	return ch, nil
@@ -137,11 +153,13 @@ func (c *chain) Name() string {
 
 func (c *chain) Start(ctx context.Context) error {
 	return c.starter.StartOnce("Chain", func() error {
-		c.lggr.Debug("Starting")
-		c.lggr.Debug("Starting txm")
-
+		c.lggr.Debug("Starting txm and log poller")
 		var ms services.MultiStart
-		return ms.Start(ctx, c.txm)
+
+		if err := ms.Start(ctx, c.txm); err != nil {
+			return err
+		}
+		return ms.Start(ctx, c.lp)
 	})
 }
 
@@ -149,7 +167,7 @@ func (c *chain) Close() error {
 	return c.starter.StopOnce("Chain", func() error {
 		c.lggr.Debug("Stopping")
 		c.lggr.Debug("Stopping txm")
-		return services.CloseAll(c.txm)
+		return services.CloseAll(c.txm, c.lp)
 	})
 }
 
@@ -232,9 +250,14 @@ func (c *chain) Transact(ctx context.Context, from, to string, amount *big.Int, 
 	return errors.ErrUnsupported
 }
 
-func (c *chain) Replay(ctx context.Context, fromBlock string, args map[string]any) error {
-	// TODO(NONEVM-1460): implement
-	return errors.ErrUnsupported
+func (c *chain) Replay(ctx context.Context, fromBlock string, _ map[string]any) error {
+	// TODO(2025-08-28@jadepark-dev): clean up, forcing replay for e2e now
+	fromBlockNum, err := strconv.ParseUint(fromBlock, 10, 32)
+	if err != nil {
+		return fmt.Errorf("invalid fromBlock: %w", err)
+	}
+	err = c.lp.Replay(ctx, uint32(fromBlockNum))
+	return err
 }
 
 func (c *chain) ID() string {

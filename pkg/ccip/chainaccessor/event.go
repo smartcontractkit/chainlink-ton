@@ -7,6 +7,8 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
+
 	"github.com/smartcontractkit/chainlink-ccip/pkg/chainaccessor"
 	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
@@ -63,6 +65,7 @@ func (a *TONAccessor) registerFilterIfNotExists(ctx context.Context, eventName s
 		Address:  address,
 		MsgType:  tlb.MsgTypeExternalOut,
 		EventSig: hash.CRC32(eventName),
+		// TODO: add starting signo
 	}
 
 	if err := a.logPoller.RegisterFilter(ctx, filter); err != nil {
@@ -78,6 +81,8 @@ func (a *TONAccessor) registerFilterIfNotExists(ctx context.Context, eventName s
 func (a *TONAccessor) convertCCIPMessageSent(
 	tonEvent *onramp.CCIPMessageSent,
 ) *chainaccessor.SendRequestedEvent {
+	senderAddr := codec.ToRawAddr(tonEvent.Message.Sender)
+	feeTokenAddr := codec.ToRawAddr(tonEvent.Message.Body.FeeToken)
 	msg := ccipocr3.Message{
 		Header: ccipocr3.RampMessageHeader{
 			MessageID:           ccipocr3.Bytes32(tonEvent.Message.Header.MessageID),
@@ -86,11 +91,11 @@ func (a *TONAccessor) convertCCIPMessageSent(
 			SequenceNumber:      ccipocr3.SeqNum(tonEvent.Message.Header.SequenceNumber),
 			Nonce:               tonEvent.Message.Header.Nonce,
 		},
-		Sender:         ccipocr3.UnknownAddress(tonEvent.Message.Sender.String()),
+		Sender:         ccipocr3.UnknownAddress(senderAddr[:]),
 		Data:           ccipocr3.Bytes(tonEvent.Message.Body.Data),
 		Receiver:       ccipocr3.UnknownAddress(tonEvent.Message.Body.Receiver),
 		ExtraArgs:      ccipocr3.Bytes(tonEvent.Message.Body.ExtraArgs.ToBOC()),
-		FeeToken:       ccipocr3.UnknownAddress(tonEvent.Message.Body.FeeToken.String()),
+		FeeToken:       ccipocr3.UnknownAddress(feeTokenAddr[:]),
 		FeeTokenAmount: ccipocr3.NewBigInt(tonEvent.Message.Body.FeeTokenAmount),
 		// TokenAmounts:   tokenAmounts, // TODO: enable token transfer
 	}

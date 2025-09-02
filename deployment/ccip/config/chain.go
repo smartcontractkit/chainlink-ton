@@ -25,6 +25,7 @@ type ChainDefinition interface {
 // to it, we can convert to TON specific format
 type EVMChainDefinition struct {
 	v1_6.ChainDefinition
+	OnRamp        []byte
 	OnRampVersion []byte
 }
 

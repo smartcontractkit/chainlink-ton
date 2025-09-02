@@ -111,6 +111,7 @@ func (e *executePluginCodecV1) Encode(ctx context.Context, report ccipocr3.Execu
 				DestChainSelector:   uint64(msg.Header.DestChainSelector),
 				SequenceNumber:      uint64(msg.Header.SequenceNumber),
 				Nonce:               msg.Header.Nonce,
+				OnrampAddr:          common.CrossChainAddress(msg.Header.OnRamp),
 			}
 
 			tonReceiverAddrStr, err := e.addressCodec.AddressBytesToString(msg.Receiver)
@@ -312,7 +313,6 @@ func extractDestGasAmountFromMap(input map[string]any) (uint32, error) {
 	return 0, errors.New("invalid token message, dest gas amount not found in the DestExecDataDecoded map")
 }
 
-// Duplicate with ccipevm, consider moving to common package
 func parseExtraArgsMap(input map[string]any) (*big.Int, error) {
 	var outputGas *big.Int
 	for fieldName, fieldValue := range input {

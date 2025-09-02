@@ -1,8 +1,11 @@
 package codec
 
 import (
+	"crypto/ed25519"
+	crypto_rand "crypto/rand"
 	"encoding/base64"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"testing"
 
@@ -106,6 +109,55 @@ func TestAddressCodec_OracleIDAsAddressBytes(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, tc.expected, actual, "expected %x, got %x", tc.expected, actual)
 			require.Len(t, actual, 36)
+		})
+	}
+}
+
+func TestAddressCodec_TransmitterBytesToString(t *testing.T) {
+	codec := addressCodec{}
+
+	// Generate a real ed25519 key for testing
+	pubKey, _, err := ed25519.GenerateKey(crypto_rand.Reader)
+	require.NoError(t, err)
+
+	testCases := []struct {
+		name     string
+		input    []byte
+		expected string
+	}{
+		{
+			name:     "valid ed25519 public key",
+			input:    pubKey,
+			expected: hex.EncodeToString(pubKey),
+		},
+		{
+			name:     "32-byte key with mixed values",
+			input:    []byte{0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef},
+			expected: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+		},
+		{
+			name:     "all zeros",
+			input:    make([]byte, 32),
+			expected: "0000000000000000000000000000000000000000000000000000000000000000",
+		},
+		{
+			name:     "all ones",
+			input:    []byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
+			expected: "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+		},
+		{
+			name:     "empty input",
+			input:    []byte{},
+			expected: "",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actual, err := codec.TransmitterBytesToString(tc.input)
+
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, actual)
 		})
 	}
 }

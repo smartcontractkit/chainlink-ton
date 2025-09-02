@@ -58,7 +58,7 @@ struct DestChainConfig {
 type Msg = UpdatePrices
     | UpdateFeeTokens
     | UpdateTokenTransferFeeConfigs
-    | UpdateDestChainConfig
+    | FeeQuoterUpdateDestChainConfigs
     | GetValidatedFee<cell>; // marked as cell since we never attempt to load the metadata
 
 fun onInternalMessage(in: InMessage) {
@@ -82,10 +82,10 @@ fun onInternalMessage(in: InMessage) {
             updateTokenTransferFeeConfigs(mutate st, msg);
             st.store();
         }
-        UpdateDestChainConfig => {
+        FeeQuoterUpdateDestChainConfigs => {
             var st = lazy Storage.load();
             st.ownable.requireOwner(in.senderAddress);
-            updateDestChainConfig(mutate st, msg); // TODO: pass in st.destChainConfigs instead
+            updateDestChainConfigs(mutate st, msg.updates); // TODO: pass in st.destChainConfigs instead
             st.store();
         }
         GetValidatedFee<cell> => { getValidatedFee(msg, in.senderAddress) }
@@ -139,22 +139,28 @@ fun updateTokenTransferFeeConfigs(mutate st: Storage, msg: UpdateTokenTransferFe
 }
 
 // TODO: allow providing an array of these msgs to feeQuoter
-fun updateDestChainConfig(mutate st: Storage, msg: UpdateDestChainConfig) {
-    val (maybeDestChainConfig, exists) = st.destChainConfigs.get(msg.destChainSelector);
-    if (exists) {
-        var destChainConfig = maybeDestChainConfig!;
-        destChainConfig.config = msg.destChainConfig;
-        st.destChainConfigs.replace(msg.destChainSelector, destChainConfig);
-    } else {
-        st.destChainConfigs.set(msg.destChainSelector, DestChainConfig {
-            config: msg.destChainConfig,
-            usdPerUnitGas: GasPrice {
-                executionGasPrice: 0,
-                dataAvailabilityGasPrice: 0,
-                timestamp: 0,
-            }.toCell(),
-            tokenTransferFeeConfigs: Map<TokenTransferFeeConfig>.new()
-        })
+fun updateDestChainConfigs(mutate st: Storage, updates: cell) {
+    var iter = Iterator<FeeQuoterUpdateDestChainConfig>.new(updates);
+
+    while (!iter.empty()) {
+        val update = iter.next();
+        // create or update entries
+        val (maybeDestChainConfig, exists) = st.destChainConfigs.get(update.destChainSelector);
+        if (exists) {
+            var destChainConfig = maybeDestChainConfig!;
+            destChainConfig.config = update.destChainConfig;
+            st.destChainConfigs.replace(update.destChainSelector, destChainConfig);
+        } else {
+            st.destChainConfigs.set(update.destChainSelector, DestChainConfig {
+                config: update.destChainConfig,
+                usdPerUnitGas: GasPrice {
+                    executionGasPrice: 0,
+                    dataAvailabilityGasPrice: 0,
+                    timestamp: 0,
+                }.toCell(),
+                tokenTransferFeeConfigs: Map<TokenTransferFeeConfig>.new()
+            })
+        }
     }
 }
 

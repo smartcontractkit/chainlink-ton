@@ -3,6 +3,7 @@ package codec
 import (
 	"encoding/base64"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
@@ -74,6 +75,7 @@ func (a addressCodec) OracleIDAsAddressBytes(oracleID uint8) ([]byte, error) {
 
 // TransmitterBytesToString converts a byte slice representing a transmitter account into its string representation.
 func (a addressCodec) TransmitterBytesToString(addr []byte) (string, error) {
-	// Transmitter accounts are addresses
-	return a.AddressBytesToString(addr)
+	// Transmitter accounts are ed25519 public keys, and encoded as a hex string without
+	// a 0x prefix.
+	return hex.EncodeToString(addr), nil
 }

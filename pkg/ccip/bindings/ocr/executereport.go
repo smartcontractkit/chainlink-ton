@@ -26,16 +26,17 @@ type Any2TVMRampMessage struct {
 	Data         common.SnakeBytes                     `tlb:"^"`
 	Receiver     *address.Address                      `tlb:"addr"`
 	GasLimit     tlb.Coins                             `tlb:"."`
-	TokenAmounts common.SnakeRef[Any2TVMTokenTransfer] `tlb:"^"`
+	TokenAmounts common.SnakeRef[Any2TVMTokenTransfer] `tlb:"maybe ^"`
 }
 
 // RampMessageHeader contains metadata for a ramp message.
 type RampMessageHeader struct {
-	MessageID           []byte `tlb:"bits 256"`
-	SourceChainSelector uint64 `tlb:"## 64"`
-	DestChainSelector   uint64 `tlb:"## 64"`
-	SequenceNumber      uint64 `tlb:"## 64"`
-	Nonce               uint64 `tlb:"## 64"`
+	MessageID           []byte                   `tlb:"bits 256"`
+	SourceChainSelector uint64                   `tlb:"## 64"`
+	DestChainSelector   uint64                   `tlb:"## 64"`
+	SequenceNumber      uint64                   `tlb:"## 64"`
+	Nonce               uint64                   `tlb:"## 64"`
+	OnrampAddr          common.CrossChainAddress `tlb:"."`
 }
 
 // Any2TVMTokenTransfer represents a token transfer within a ramp message.
@@ -57,8 +58,8 @@ type TVM2AnyRampMessage struct {
 type TVM2AnyRampMessageBody struct {
 	Receiver       common.CrossChainAddress `tlb:"^"`
 	Data           common.SnakeBytes        `tlb:"^"`
-	ExtraArgs      *cell.Cell               `tlb:"^"` // TODO: common.SnakeRef[TVM2AnyTokenTransfer] once defined
-	TokenAmounts   *cell.Cell               `tlb:"^"`
+	ExtraArgs      *cell.Cell               `tlb:"^"`
+	TokenAmounts   *cell.Cell               `tlb:"^"` // TODO: common.SnakeRef[TVM2AnyTokenTransfer] once defined
 	FeeToken       *address.Address         `tlb:"addr"`
 	FeeTokenAmount *big.Int                 `tlb:"## 256"`
 }
