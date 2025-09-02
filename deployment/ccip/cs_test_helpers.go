@@ -177,7 +177,8 @@ func AddLaneTONChangesets(env *cldf.Environment, from, to uint64, fromFamily, to
 				},
 			},
 			OnRampVersion: []byte{1, 6, 1},
-			OnRamp:        []byte{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 99},
+			// TODO: lookup OnRamp here and set it
+			// OnRamp: []byte{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 99},
 		}
 	case chainsel.FamilyTon:
 		dest = config.TonChainDefinition{

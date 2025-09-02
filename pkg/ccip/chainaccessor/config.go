@@ -73,7 +73,7 @@ func (a *TONAccessor) getOffRampSourceChainConfigs(ctx context.Context, block *t
 			return nil, err
 		}
 		var config offramp.SourceChainConfig
-		if err := tlb.LoadFromCell(config, entry); err != nil {
+		if err := tlb.LoadFromCell(&config, entry); err != nil {
 			return nil, err
 		}
 		sourceChainConfigs[selector] = ccipocr3.SourceChainConfig{

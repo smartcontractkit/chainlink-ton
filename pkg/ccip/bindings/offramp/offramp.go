@@ -9,6 +9,7 @@ import (
 )
 
 type Storage struct {
+	ID                                      uint32              `tlb:"## 32"`
 	Ownable                                 common.Ownable2Step `tlb:"."`
 	Deployer                                *cell.Cell          `tlb:"^"`
 	MerkleRootCode                          *cell.Cell          `tlb:"^"`
@@ -26,13 +27,33 @@ type SourceChainConfig struct {
 	IsEnabled                 bool                     `tlb:"bool"`
 	MinSeqNr                  uint64                   `tlb:"## 64"`
 	IsRMNVerificationDisabled bool                     `tlb:"bool"`
-	OnRamp                    common.CrossChainAddress `tlb:"^"`
+	OnRamp                    common.CrossChainAddress `tlb:"."`
 }
+
+// func (c *SourceChainConfig) FromResult(result *ton.ExecutionResult) error {
+// 	routerAddressSlice, err := result.Slice(0)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	routerAddress, err := routerAddressSlice.LoadAddr()
+// 	if err != nil {
+// 		return err
+// 	}
+// 	*c = SourceChainConfig{
+// 		Router:                    routerAddress,
+// 		IsEnabled:                 isEnabled,
+// 		MinSeqNr:                  minSeqNr,
+// 		IsRMNVerificationDisabled: isRMNVerificationDisabled,
+// 		OnRamp: onRamp,
+// 	}
+// 	return nil
+// }
 
 // Methods
 
 type UpdateSourceChainConfig struct {
 	_                   tlb.Magic         `tlb:"#b98c95e3"` //nolint:revive // Ignore opcode tag
+	QueryID             uint64            `tlb:"## 64"`
 	SourceChainSelector uint64            `tlb:"## 64"`
 	Config              SourceChainConfig `tlb:"."`
 }

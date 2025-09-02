@@ -48,6 +48,7 @@ func deployOffRamp(b operations.Bundle, deps TonDeps, in DeployOffRampInput) (De
 	conn := tracetracking.NewSignedAPIClient(deps.TonChain.Client, *deps.TonChain.Wallet)
 
 	storage := offramp.Storage{
+		ID: 0,
 		Ownable: common.Ownable2Step{
 			Owner:        deps.TonChain.WalletAddress,
 			PendingOwner: nil,
@@ -105,7 +106,7 @@ func updateOffRampSourceChainConfigs(b operations.Bundle, deps TonDeps, in Updat
 	addr := deps.CCIPOnChainState[deps.TonChain.Selector].OffRamp
 
 	if len(in.Updates) == 0 {
-		b.Logger.Infow("Skipping offramp.updateSourceChainConfigs, no updates", "chainSelector", deps.TonChain.Selector)
+		// Nothing to update
 		return nil, nil
 	}
 

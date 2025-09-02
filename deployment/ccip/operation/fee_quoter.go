@@ -159,6 +159,11 @@ func updateFeeQuoterFeeTokens(b operations.Bundle, deps TonDeps, in UpdateFeeQuo
 
 	in.Lggr.Debugf("Updated FeeQuoter fee tokens: %v, address: %v", configs, feeQuoterAddress.String())
 
+	// skip if there's no updates
+	if len(in.FeeTokens) == 0 {
+		return nil, nil
+	}
+
 	input := feequoter.UpdateFeeTokens{
 		Add:    configs,
 		Remove: nil,
@@ -215,6 +220,11 @@ var UpdateFeeQuoterPricesOp = operations.NewOperation(
 
 func updateFeeQuoterPrices(b operations.Bundle, deps TonDeps, in UpdateFeeQuoterPricesInput) ([][]byte, error) {
 	feeQuoterAddress := deps.CCIPOnChainState[deps.TonChain.Selector].FeeQuoter
+
+	if len(in.TokenPrices) == 0 && len(in.GasPrices) == 0 {
+		// Nothing to update
+		return nil, nil
+	}
 
 	var tokenPrices []feequoter.TokenPriceUpdate
 	var gasPrices []feequoter.GasPriceUpdate
