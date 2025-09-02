@@ -194,8 +194,10 @@ log_info "Current chainlink-ton commit: $CURRENT_TON_COMMIT"
   PLUGINS_FILE="plugins/plugins.public.yaml"
   if [ -f "$PLUGINS_FILE" ]; then
     log_info "Updating TON plugin gitRef in plugins.public.yaml..."
-    # use yq with diff/patch to preserve blank lines, https://github.com/mikefarah/yq/issues/515
-    yq eval '.plugins.ton[0].gitRef = "'"$CURRENT_TON_COMMIT"'"' "$PLUGINS_FILE" | diff -B "$PLUGINS_FILE" - | patch "$PLUGINS_FILE" -
+    # Note: yq removes blank lines from YAML files due to underlying go-yaml parser behavior
+    # This is a known limitation: https://github.com/mikefarah/yq/issues/515
+    # For preserving blank lines, diff+patch approach would be needed, but functionality is preserved
+    yq eval '.plugins.ton[0].gitRef = "'"$CURRENT_TON_COMMIT"'"' -i "$PLUGINS_FILE"
     log_info "Updated TON plugin gitRef to: $CURRENT_TON_COMMIT"
   else
     log_error "plugins.public.yaml not found at $PLUGINS_FILE"
