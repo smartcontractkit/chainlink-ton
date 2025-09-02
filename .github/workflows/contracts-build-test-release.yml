@@ -1,4 +1,3 @@
-name: TON - Contracts
 
 permissions:
   contents: read
@@ -8,6 +7,16 @@ on:
     branches: [ main ]
   pull_request:
   workflow_dispatch:
+    inputs:
+      create_release:
+        description: "Publish a GitHub release on this manual run?"
+        type: boolean
+        default: false
+        required: false
+      sha:
+        description: "Commit SHA to build/release (optional)"
+        type: string
+        required: false
 
 jobs:
   changes:
@@ -33,7 +42,8 @@ jobs:
   build:
     name: Build and test contracts
     needs: [ changes ]
-    if: ${{ needs.changes.outputs.ton_changes == 'true' }}
+    # Run if changes are detected OR we're manually dispatching (for testing/release)
+    if: ${{ needs.changes.outputs.ton_changes == 'true' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
@@ -45,7 +55,7 @@ jobs:
         id: get_sha
         run: |
           set -euo pipefail
-          TARGET_SHA="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.sha || github.sha }}"
+          TARGET_SHA="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.sha != '' && github.event.inputs.sha || github.sha }}"
           FULL_SHA="$(git rev-parse "${TARGET_SHA}")"
           {
             echo "short_sha=${FULL_SHA:0:12}"
@@ -77,11 +87,9 @@ jobs:
           set -euo pipefail
           mkdir -p dist
           TAR_NAME="ton-contracts-build-${{ steps.get_sha.outputs.short_sha }}.tar.gz"
-          # Tar only the contents of contracts/build (keeps clean top-level inside archive)
           tar -C contracts -czf "dist/${TAR_NAME}" build
           echo "tar_path=dist/${TAR_NAME}" >> "$GITHUB_OUTPUT"
 
-      # Always upload artifact for PRs / debugging
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -90,9 +98,9 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      # Create a release ONLY for push to main
+      # Create a release on push to main OR when manually requested
       - name: Publish Release
-        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        if: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && github.event.inputs.create_release == 'true') }}
         uses: softprops/action-gh-release@c95fe1489396fe8a9eb87c0abf8aa5b2ef267fda # v2.2.1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -120,3 +128,4 @@ jobs:
 
       - name: Run build
         run: nix build -v .#contracts
+
