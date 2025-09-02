@@ -20,7 +20,7 @@ require (
 	github.com/smartcontractkit/chainlink/deployment v0.0.0-20250831041730-9b6914fe99ed
 	github.com/smartcontractkit/chainlink/v2 v2.26.0-debug-tracing.0.20250827140128-db51db1d1316
 	github.com/smartcontractkit/mcms v0.21.1
-	github.com/xssnick/tonutils-go v1.14.0
+	github.com/xssnick/tonutils-go v1.14.1
 )
 
 require github.com/gibson042/canonicaljson-go v1.0.3 // indirect
