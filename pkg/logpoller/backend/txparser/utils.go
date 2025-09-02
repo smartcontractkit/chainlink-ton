@@ -28,7 +28,7 @@ func ParseExtMsgOut(msg *tlb.ExternalMessageOut, eventSig uint32) (sig uint32, b
 }
 
 // ParseInternalMsg returns body and event signature(opcode) for an internal message.
-// this function extracts opcode, and return remaining body slice as a cell
+// this function extracts opcode, and returns remaining body slice as a cell
 func ParseInternalMsg(msg *tlb.InternalMessage, eventSig uint32) (sig uint32, body *cell.Cell, err error) {
 	payload := msg.Payload()
 	if payload == nil {
