@@ -191,7 +191,7 @@ log_info "Current chainlink-ton commit: $CURRENT_TON_COMMIT"
   log_info "Active Go version: $(go version)"
 
   # update plugins.public.yaml with current chainlink-ton commit
-  PLUGINS_FILE="$CHAINLINK_CORE_DIR/plugins/plugins.public.yaml"
+  PLUGINS_FILE="plugins/plugins.public.yaml"
   if [ -f "$PLUGINS_FILE" ]; then
     log_info "Updating TON plugin gitRef in plugins.public.yaml..."
     # use yq with diff/patch to preserve blank lines, https://github.com/mikefarah/yq/issues/515
