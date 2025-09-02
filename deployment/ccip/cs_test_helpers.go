@@ -215,7 +215,6 @@ func AddLaneTONChangesets(env *cldf.Environment, from, to uint64, fromFamily, to
 		},
 		TestRouter: false,
 	}
-	panic("testing deployment module panic")
 	return commonchangeset.Configure(AddTonLanes{}, laneConfig)
 }
 
