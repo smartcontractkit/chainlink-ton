@@ -301,7 +301,7 @@ func (a *TONAccessor) LatestMessageTo(ctx context.Context, dest ccipocr3.ChainSe
 		return 0, fmt.Errorf("message invalid msg %v: %w", event, err)
 	}
 
-	return ccipocr3.SeqNum(2000), nil
+	return event.SequenceNumber, nil
 }
 
 func (a *TONAccessor) getBinding(contractName string) (*address.Address, error) {

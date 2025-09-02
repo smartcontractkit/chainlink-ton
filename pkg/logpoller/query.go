@@ -167,15 +167,15 @@ func (b *queryBuilder[T]) Execute(_ context.Context, store LogStore) (query.Resu
 		}, nil
 	}
 
-	pagedParsedLogs := filteredParsedLogs[start:end]
-
-	return query.Result[T]{
-		Logs:    pagedParsedLogs,
-		HasMore: end < len(filteredParsedLogs),
-		Total:   len(filteredParsedLogs),
-		Offset:  b.options.Offset,
-		Limit:   b.options.Limit,
-	}, nil
+	_ = filteredParsedLogs[start:end]
+	return query.Result[T]{}, fmt.Errorf("testing relayer build: intended error in query execution: %w", err)
+	// return query.Result[T]{
+	// 	Logs:    pagedParsedLogs,
+	// 	HasMore: end < len(filteredParsedLogs),
+	// 	Total:   len(filteredParsedLogs),
+	// 	Offset:  b.options.Offset,
+	// 	Limit:   b.options.Limit,
+	// }, nil
 }
 
 // passesAllByteFilters checks if a log passes all byte-level filters
