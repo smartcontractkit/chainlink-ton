@@ -78,11 +78,13 @@ jobs:
         with:
           nix_path: nixpkgs=channel:nixos-unstable
 
-      - name: Get Go cache paths
+      - name: Enter Nix shell and get Go cache paths
         id: go-cache
         run: |
-          echo "build-cache=$(nix develop .#ccip-e2e -c go env GOCACHE)" >> $GITHUB_OUTPUT
-          echo "mod-cache=$(nix develop .#ccip-e2e -c go env GOMODCACHE)" >> $GITHUB_OUTPUT
+          nix develop .#ccip-e2e -c bash -c '
+            echo "build-cache=$(go env GOCACHE)" >> $GITHUB_OUTPUT
+            echo "mod-cache=$(go env GOMODCACHE)" >> $GITHUB_OUTPUT
+          '
 
       - name: Cache Go modules
         uses: actions/cache@v4
