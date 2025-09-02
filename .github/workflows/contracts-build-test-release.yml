@@ -1,4 +1,4 @@
-name: TON - Contracts - Build & Release
+name: TON - Contracts
 
 permissions:
   contents: read
@@ -28,10 +28,10 @@ jobs:
           filters: |
             ton_changes:
               - 'contracts/**'
-              - '.github/workflows/contracts-build.yml'
+              - '.github/workflows/contracts-build-test-release.yml'
 
   build:
-    name: Build contracts
+    name: Build and test contracts
     needs: [ changes ]
     if: ${{ needs.changes.outputs.ton_changes == 'true' }}
     runs-on: ubuntu-latest
