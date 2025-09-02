@@ -28,7 +28,7 @@ jobs:
           filters: |
             ton_changes:
               - 'contracts/**'
-              - '.github/workflows/ton-contracts-build.yml'
+              - '.github/workflows/contracts-build.yml'
 
   build:
     name: Build contracts
