@@ -17,7 +17,7 @@ env:
   # mylocalton docker image / CCIP E2E test database image
   DOCKER_IMAGES: >-
     ghcr.io/neodix42/mylocalton-docker:latest
-    postgres:14-alpine
+    postgres:16-alpine
 jobs:
   prepare-images:
     name: Prepare and Cache Docker Images
@@ -51,7 +51,7 @@ jobs:
       matrix:
         type:
           # Note: list of tests, add more tests here
-          - name: 'Barebone EVM > TON Messaging'
+          - name: 'TON CCIP Messaging Tests'
             cmd: 'cd integration-tests/smoke/ccip && go test ccip_ton_messaging_test.go -timeout 12m -test.parallel=2 -count=1 -json'
 
     name: ${{ matrix.type.name }}
@@ -91,8 +91,6 @@ jobs:
 
       - name: Setup Environment and Run Tests
         run: |
-          # TODO: remove this once we're public, fixes private repo access issues
-          git config --global url."https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/".insteadOf "https://github.com/"
           nix develop .#ccip-e2e -c scripts/e2e/setup-env.sh --core-dir "${GITHUB_WORKSPACE}/chainlink"
           nix develop .#ccip-e2e -c scripts/e2e/run-test.sh --core-dir "${GITHUB_WORKSPACE}/chainlink" --test-command "${{ matrix.type.cmd }}"
 

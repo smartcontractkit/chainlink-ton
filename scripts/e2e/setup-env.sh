@@ -154,7 +154,7 @@ docker run -d --name "$PG_CONTAINER_NAME" -p "$PG_PORT:$PG_PORT" \
   -e POSTGRES_PASSWORD="$PG_PASSWORD" \
   -e POSTGRES_DB="$PG_DB" \
   -e POSTGRES_HOST_AUTH_METHOD=trust \
-  postgres:14-alpine \
+  postgres:16-alpine \
   postgres \
   -c max_connections=1000 \
   -c shared_buffers=2GB \
@@ -189,7 +189,9 @@ log_info "Preparing Chainlink Core (dependencies, build, DB setup)..."
   cd "./integration-tests"
   go build -o ccip.test .
 
-  ./ccip.test local db preparetest
+  # ./ccip.test local db preparetest
+  go get github.com/smartcontractkit/chainlink/v2/core/store/cmd/preparetest@d2c56f4161f3431268cb52e717a77b7ea7dcef09
+  go run github.com/smartcontractkit/chainlink/v2/core/store/cmd/preparetest
 )
 
 log_info "=================================="
