@@ -81,10 +81,16 @@ jobs:
       - name: Enter Nix shell and get Go cache paths
         id: go-cache
         run: |
+          echo "=== Entering Nix shell ==="
           nix develop .#ccip-e2e -c bash -c '
+            echo "=== Inside Nix shell ==="
+            echo "GOCACHE: $(go env GOCACHE)"
+            echo "GOMODCACHE: $(go env GOMODCACHE)"
             echo "build-cache=$(go env GOCACHE)" >> $GITHUB_OUTPUT
             echo "mod-cache=$(go env GOMODCACHE)" >> $GITHUB_OUTPUT
+            echo "=== Paths written to GITHUB_OUTPUT ==="
           '
+          echo "=== Exited Nix shell ==="
 
       - name: Cache Go modules
         uses: actions/cache@v4
