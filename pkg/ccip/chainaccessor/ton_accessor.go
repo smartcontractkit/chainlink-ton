@@ -445,7 +445,11 @@ func (a *TONAccessor) CommitReportsGTETimestamp(
 	)
 
 	// TODO: process commit reports
-	reports := a.processCommitReports(res.Logs, ts, limit)
+	events := make([]offramp.CommitReportAccepted, 0, len(res.Logs))
+	for _, log := range res.Logs {
+		events = append(events, log.TypedData)
+	}
+	reports := a.processCommitReports(events, ts, limit)
 
 	// TODO: return reports
 	return reports, nil
@@ -454,6 +458,7 @@ func (a *TONAccessor) CommitReportsGTETimestamp(
 func (a *TONAccessor) processCommitReports(logs []offramp.CommitReportAccepted, ts time.Time, limit int) []ccipocr3.CommitPluginReportWithMeta {
 	var reports []ccipocr3.CommitPluginReportWithMeta
 	for _, log := range logs {
+		_ = log
 		// TODO: validate event
 		// ev, err := validateCommitReportAcceptedEvent(log, ts)
 		// if err != nil {
@@ -512,8 +517,9 @@ func (a *TONAccessor) ExecutedMessages(
 	}
 
 	// TODO: currently no support for OR condition, query individually
-	for chainSelector, ranges := range nonEmptyRangesPerChain {
+	for _, ranges := range nonEmptyRangesPerChain {
 		for _, seqRange := range ranges {
+			_ = seqRange
 			// query for each chain/range combination
 			res, err := logpoller.NewQuery[ExecutionStateChangedEvent]().
 				WithSource(offrampAddr).
@@ -539,6 +545,7 @@ func (a *TONAccessor) ExecutedMessages(
 			}
 
 			for _, log := range res.Logs {
+				_ = log
 				// TODO: build ExecutionStateChanged event
 				// TODO: validate event, skip on failure
 				// if err := validateExecutionStateChangedEvent(stateChange, nonEmptyRangesPerChain); err != nil {
