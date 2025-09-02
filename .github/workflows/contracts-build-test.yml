@@ -96,7 +96,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.get_sha.outputs.short_sha }}-ton-contracts-build
+          name: ton-contracts-build-${{ steps.get_sha.outputs.short_sha }}
           path: ${{ steps.package.outputs.tar_path }}
           if-no-files-found: error
           retention-days: 14
