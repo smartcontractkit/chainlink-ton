@@ -236,6 +236,7 @@ export class MCMSBaseTestSetup {
         owner: this.acc.multisigOwner.address,
         pendingOwner: null,
       },
+      oracle: ZERO_ADDRESS,
       signers: new Map<bigint, Buffer>(),
       config: {
         signers: new Map<number, Buffer>(),

@@ -6,6 +6,7 @@ import "@stdlib/gas-payments";
 import "../lib/utils";
 import "../lib/access/ownable_2step.tolk";
 import "../lib/crypto/merkle_proof.tolk";
+import "../lib/ocr/exit_codes"
 
 /// This is a multi-sig contract that supports signing many transactions (called "ops" in
 /// the context of this contract to prevent confusion with transactions on the underlying chain)
@@ -251,6 +252,9 @@ struct MCMS_Data {
     /// Ownable trait data
     ownable: Ownable2Step;
 
+    /// Address of the error oracle account, which can submit error reports.
+    oracle: address;
+
     /// signers is used to easily validate the existence of the signer by its public key. We still
     /// have signers stored in config in order to easily deactivate them when a new config is set.
     signers: dict; // map<uint256, Signer> - exists if the public key is a signer
@@ -382,6 +386,9 @@ const ERROR_ROOT_NOT_FINALIZED = 122;
 
 /// Thrown when the provided op.value is insufficient (min required value not met).
 const ERROR_INSUFFICIENT_VALUE = 123;
+
+/// Thrown when the error report sender is not the authorized oracle.
+const ERROR_UNAUTHORIZED_ORACLE = 124;
 
 // --- Constants - storage ---
 
@@ -1134,9 +1141,10 @@ fun MCMS<T>.submitErrorReport(
     errorTxHash: uint256,
     errorCode: uint32
 ) {
-    // TODO: check oracle access
-
-    var rootInfo = lazy RootInfo.fromCell(self.data.rootInfo);
+    // Only the oracle can submit error reports
+    if (sender != self.data.oracle) {
+        throw ERROR_UNAUTHORIZED_ORACLE;
+    }
 
     // Check if right environment via chainId
     if (op.chainId != globalId() as int256) {
@@ -1146,6 +1154,8 @@ fun MCMS<T>.submitErrorReport(
     if (op.multiSig != contract.getAddress()) {
         throw ERROR_WRONG_MULTI_SIG;
     }
+
+    var rootInfo = lazy RootInfo.fromCell(self.data.rootInfo);
 
     if (blockchain.now() > rootInfo.expiringRootAndOpCount.validUntil) {
         throw ERROR_ROOT_EXPIRED;
@@ -1264,6 +1274,7 @@ fun MCMS<T>.onInternalMessage(mutate self, msgSender: address, msgValue: coins, 
             self.submitErrorReport(msgSender, msg.queryId, Op.fromCell(msg.op),
                 Iterator<uint256>.new(msg.proof), msg.opTxHash, msg.errorTxHash, msg.errorCode);
         }
+        // TODO: only owner should be able to update the error oracle
         else => {
             val msgHandled = 0
                 || self.data.ownable.onInternalMessage(msgSender, msgBody);
