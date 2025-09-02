@@ -84,13 +84,16 @@ jobs:
           nix develop .#contracts -c  yarn test
           popd
 
+
       - name: Package build outputs
         id: package
         run: |
           set -euo pipefail
           mkdir -p dist
           TAR_NAME="ton-contracts-build-${{ steps.get_sha.outputs.short_sha }}.tar.gz"
-          tar -C contracts -czf "dist/${TAR_NAME}" build
+          tar -C contracts \
+              --exclude="build/examples.*" \
+              -czf "dist/${TAR_NAME}" build
           echo "tar_path=dist/${TAR_NAME}" >> "$GITHUB_OUTPUT"
 
       - name: Upload artifact
