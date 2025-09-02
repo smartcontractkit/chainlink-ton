@@ -2,12 +2,12 @@ package codec
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"math/big"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
-	"github.com/smartcontractkit/chainlink-common/pkg/utils/hex"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
@@ -16,7 +16,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
 )
 
-const LEAF_DOMAIN_SEPARATOR = "0x0000000000000000000000000000000000000000000000000000000000000000"
+const LEAF_DOMAIN_SEPARATOR = "0000000000000000000000000000000000000000000000000000000000000000"
 
 type messageHasherV1 struct {
 	lggr           logger.Logger
@@ -128,6 +128,7 @@ func (m messageHasherV1) Hash(ctx context.Context, msg ccipocr3.Message) (ccipoc
 		}
 	}
 
+	// not converting rampMsg to cell here, use as a parameter
 	rampMsg := ocr.Any2TVMRampMessage{
 		Header:       header,
 		Sender:       common.CrossChainAddress(msg.Sender),
