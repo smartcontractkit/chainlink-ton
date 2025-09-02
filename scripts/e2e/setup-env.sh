@@ -211,7 +211,7 @@ log_info "Current chainlink-ton commit: $CURRENT_TON_COMMIT"
   declare -A CHAINLINK_TON_MODULES=(
     ["github.com/smartcontractkit/chainlink-ton"]="$ROOT_DIR"
     ["github.com/smartcontractkit/chainlink-ton/deployment"]="$ROOT_DIR/deployment"
-    ["github.com/smartcontractkit/chainlink-ton/integration-tests/utils"]="$ROOT_DIR/integration-tests/utils"
+    ["github.com/smartcontractkit/chainlink-ton/integration-tests"]="$ROOT_DIR/integration-tests"
   )
   
   # replace all chainlink-ton modules with local versions
