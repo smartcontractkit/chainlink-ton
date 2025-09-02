@@ -22,6 +22,7 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
@@ -426,7 +427,6 @@ func (a *TONAccessor) CommitReportsGTETimestamp(
 		return nil, fmt.Errorf("OffRamp not bound: %w", err)
 	}
 
-	// TODO: query consts.EventNameCommitReportAccepted event logs from consts.ContractNameOffRamp
 	res, err := logpoller.NewQuery[offramp.CommitReportAccepted]().
 		WithSource(offrampAddr).
 		WithEventSig(hash.CRC32(consts.EventNameCommitReportAccepted)).
@@ -445,24 +445,18 @@ func (a *TONAccessor) CommitReportsGTETimestamp(
 		"ts", ts,
 		"limit", internalLimit,
 	)
-
-	// TODO: process commit reports
 	reports := a.processCommitReports(res.Logs, ts, limit)
-
-	// TODO: return reports
 	return reports, nil
 }
 
 func (a *TONAccessor) processCommitReports(logs []types.TypedLog[offramp.CommitReportAccepted], ts time.Time, limit int) []ccipocr3.CommitPluginReportWithMeta {
 	var reports []ccipocr3.CommitPluginReportWithMeta
 	for _, log := range logs {
-		_ = log
 		ev, err := a.validateCommitReportAcceptedEvent(log, ts)
 		if err != nil {
 			continue
 		}
 		a.lggr.Debugw("processing commit report", "report", ev, "item", log)
-		// TODO: implement report processing
 
 		mr := ev.MerkleRoot
 		mrc := ccipocr3.MerkleRootChain{
@@ -474,15 +468,17 @@ func (a *TONAccessor) processCommitReports(logs []types.TypedLog[offramp.CommitR
 			),
 			MerkleRoot: ccipocr3.Bytes32(mr.MerkleRoot),
 		}
-		// TODO:	process price updates
-		// TODO:	parse block num
+		priceUpdates, err := a.processPriceUpdates(ev.PriceUpdates)
+		if err != nil {
+			a.lggr.Errorw("failed to process price updates", "err", err, "priceUpdates", ev.PriceUpdates)
+			continue
+		}
 
-		// TODO: construct reports
 		reports = append(reports, ccipocr3.CommitPluginReportWithMeta{
 			Report: ccipocr3.CommitPluginReport{
 				BlessedMerkleRoots:   []ccipocr3.MerkleRootChain{mrc},
-				UnblessedMerkleRoots: []ccipocr3.MerkleRootChain{},
-				PriceUpdates:         ccipocr3.PriceUpdates{},
+				UnblessedMerkleRoots: []ccipocr3.MerkleRootChain{}, // empty
+				PriceUpdates:         priceUpdates,
 			},
 			Timestamp: log.TxTimestamp,
 			// BlockNum:  blockNum, // TODO: populate masterchain block seqno
@@ -494,6 +490,37 @@ func (a *TONAccessor) processCommitReports(logs []types.TypedLog[offramp.CommitR
 		return reports
 	}
 	return reports[:limit]
+}
+
+func (a *TONAccessor) processPriceUpdates(priceUpdates ocr.PriceUpdates) (ccipocr3.PriceUpdates, error) {
+	lggr := a.lggr
+	updates := ccipocr3.PriceUpdates{
+		TokenPriceUpdates: make([]ccipocr3.TokenPrice, 0),
+		GasPriceUpdates:   make([]ccipocr3.GasPriceChain, 0),
+	}
+
+	for _, tokenPriceUpdate := range priceUpdates.TokenPriceUpdates {
+		srcTokenAddr := codec.ToRawAddr(tokenPriceUpdate.SourceToken)
+		// TODO: verify codec behavior
+		sourceTokenAddrStr, err := a.addrCodec.AddressBytesToString(srcTokenAddr[:])
+		if err != nil {
+			lggr.Errorw("failed to convert source token address to string", "err", err)
+			return updates, err
+		}
+		updates.TokenPriceUpdates = append(updates.TokenPriceUpdates, ccipocr3.TokenPrice{
+			TokenID: ccipocr3.UnknownEncodedAddress(sourceTokenAddrStr),
+			Price:   ccipocr3.NewBigInt(tokenPriceUpdate.UsdPerToken),
+		})
+	}
+
+	for _, gasPriceUpdate := range priceUpdates.GasPriceUpdates {
+		updates.GasPriceUpdates = append(updates.GasPriceUpdates, ccipocr3.GasPriceChain{
+			ChainSel: ccipocr3.ChainSelector(gasPriceUpdate.DestChainSelector),
+			GasPrice: ccipocr3.NewBigInt(gasPriceUpdate.UsdPerUnitGas),
+		})
+	}
+
+	return updates, nil
 }
 
 func (a *TONAccessor) ExecutedMessages(
