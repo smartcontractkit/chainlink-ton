@@ -26,6 +26,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types/query"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/hash"
 )
@@ -417,6 +418,7 @@ func (a *TONAccessor) CommitReportsGTETimestamp(
 	limit int,
 ) ([]ccipocr3.CommitPluginReportWithMeta, error) {
 	// double the internal limit for safe filtering
+	// TODO: remove, when we only query events with valid merkle root we don't need this
 	internalLimit := limit * 2
 
 	offrampAddr, err := a.getBinding(consts.ContractNameOffRamp)
@@ -445,43 +447,46 @@ func (a *TONAccessor) CommitReportsGTETimestamp(
 	)
 
 	// TODO: process commit reports
-	events := make([]offramp.CommitReportAccepted, 0, len(res.Logs))
-	for _, log := range res.Logs {
-		events = append(events, log.TypedData)
-	}
-	reports := a.processCommitReports(events, ts, limit)
+	reports := a.processCommitReports(res.Logs, ts, limit)
 
 	// TODO: return reports
 	return reports, nil
 }
 
-func (a *TONAccessor) processCommitReports(logs []offramp.CommitReportAccepted, ts time.Time, limit int) []ccipocr3.CommitPluginReportWithMeta {
+func (a *TONAccessor) processCommitReports(logs []types.TypedLog[offramp.CommitReportAccepted], ts time.Time, limit int) []ccipocr3.CommitPluginReportWithMeta {
 	var reports []ccipocr3.CommitPluginReportWithMeta
 	for _, log := range logs {
 		_ = log
-		// TODO: validate event
-		// ev, err := validateCommitReportAcceptedEvent(log, ts)
-		// if err != nil {
-		// 	continue
-		// }
-		// a.lggr.Debugw("processing commit report", "report", ev, "item", log)
+		ev, err := a.validateCommitReportAcceptedEvent(log, ts)
+		if err != nil {
+			continue
+		}
+		a.lggr.Debugw("processing commit report", "report", ev, "item", log)
 		// TODO: implement report processing
 
-		// TODO:	check blessed roots
-		// TODO:	process price updtaes
+		mr := ev.MerkleRoot
+		mrc := ccipocr3.MerkleRootChain{
+			ChainSel:      ccipocr3.ChainSelector(mr.SourceChainSelector),
+			OnRampAddress: ccipocr3.UnknownAddress(mr.OnRampAddress[:]),
+			SeqNumsRange: ccipocr3.NewSeqNumRange(
+				ccipocr3.SeqNum(mr.MinSeqNr),
+				ccipocr3.SeqNum(mr.MaxSeqNr),
+			),
+			MerkleRoot: ccipocr3.Bytes32(mr.MerkleRoot),
+		}
+		// TODO:	process price updates
 		// TODO:	parse block num
 
 		// TODO: construct reports
-		// reports = append(reports, ccipocr3.CommitPluginReportWithMeta{
-		// 	Report: ccipocr3.CommitPluginReport{
-		// 		BlessedMerkleRoots:   blessedMerkleRoots,
-		// 		UnblessedMerkleRoots: unblessedMerkleRoots,
-		// 		PriceUpdates:         priceUpdates,
-		// 	},
-		// 	Timestamp: time.Unix(int64(item.Timestamp), 0),
-		// 	BlockNum:  blockNum,
-		// })
-		// reports = append(reports, ev)
+		reports = append(reports, ccipocr3.CommitPluginReportWithMeta{
+			Report: ccipocr3.CommitPluginReport{
+				BlessedMerkleRoots:   []ccipocr3.MerkleRootChain{mrc},
+				UnblessedMerkleRoots: []ccipocr3.MerkleRootChain{},
+				PriceUpdates:         ccipocr3.PriceUpdates{},
+			},
+			Timestamp: log.TxTimestamp,
+			// BlockNum:  blockNum, // TODO: populate masterchain block seqno
+		})
 	}
 	a.lggr.Debugw("decoded commit reports", "reports", reports)
 

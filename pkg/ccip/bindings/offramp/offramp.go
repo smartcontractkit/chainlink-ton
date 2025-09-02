@@ -10,8 +10,8 @@ import (
 )
 
 type CommitReportAccepted struct {
-	MerkleRoot   ocr.MerkleRoot   `tlb:"."`
-	PriceUpdates ocr.PriceUpdates `tlb:"."`
+	MerkleRoot   ocr.MerkleRoot   `tlb:"maybe ."`
+	PriceUpdates ocr.PriceUpdates `tlb:"maybe ^"`
 }
 
 type Storage struct {
