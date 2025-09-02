@@ -1,3 +1,5 @@
+name: TON - Contracts Build and Test
+
 permissions:
   contents: read
 
