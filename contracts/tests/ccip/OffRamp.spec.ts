@@ -513,7 +513,8 @@ describe('OffRamp', () => {
     }
 
     const metadataHash = uint8ArrayToBigInt(getMetadataHash(CHAINSEL_EVM_TEST_90000001))
-    const messageIdHash = generateMessageId(message, metadataHash)
+    console.log("Metadata hash:", metadataHash.toString(16).padStart(64, '0'))
+      const messageIdHash = generateMessageId(message, metadataHash)
     const messageId = uint8ArrayToBigInt(messageIdHash)
 
     // Log the hash for copying to Go test

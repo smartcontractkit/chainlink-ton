@@ -26,7 +26,7 @@ type Any2TVMRampMessage struct {
 	Data         common.SnakeBytes                     `tlb:"^"`
 	Receiver     *address.Address                      `tlb:"addr"`
 	GasLimit     tlb.Coins                             `tlb:"."`
-	TokenAmounts common.SnakeRef[Any2TVMTokenTransfer] `tlb:"^"`
+	TokenAmounts common.SnakeRef[Any2TVMTokenTransfer] `tlb:"maybe ^"`
 }
 
 // RampMessageHeader contains metadata for a ramp message.

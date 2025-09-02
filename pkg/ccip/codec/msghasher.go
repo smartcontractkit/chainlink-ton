@@ -2,6 +2,7 @@ package codec
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"math/big"
@@ -170,42 +171,40 @@ func buildAny2TVMRampMessageHash(msg ocr.Any2TVMRampMessage) ([]byte, error) {
 	topLevelBuilder.MustStoreSlice(leafSeparatorBytes, uint(len(leafSeparatorBytes)*8))
 
 	// preparing MsgHash
-	metadataHashBuilder := cell.BeginCell()
-	metadataHashBuilder.
+	metaDataHash := cell.BeginCell().
+		MustStoreSlice(stringSha256("Any2TVMMessageHashV1"), 256). // type hash
 		MustStoreUInt(msg.Header.SourceChainSelector, 64).
 		MustStoreUInt(msg.Header.DestChainSelector, 64).
 		MustStoreSlice([]byte{uint8(len(msg.Header.OnrampAddr))}, 8).
-		MustStoreSlice(msg.Header.OnrampAddr, uint(len(msg.Header.OnrampAddr))*8)
-
+		MustStoreSlice(msg.Header.OnrampAddr, uint(len(msg.Header.OnrampAddr))*8).EndCell()
+	hashString := hex.EncodeToString(metaDataHash.Hash())
+	fmt.Printf("Metadata hash: %v\n", hashString)
 	// storing metadata hash
-	topLevelBuilder.MustStoreSlice(metadataHashBuilder.EndCell().Hash(), 256)
-
-	// preparing header
-	headerBuilder := cell.BeginCell()
-	headerBuilder.MustStoreSlice(msg.Header.MessageID, 256).
-		MustStoreAddr(msg.Receiver).
-		MustStoreUInt(msg.Header.SequenceNumber, 64).
-		MustStoreUInt(msg.Header.Nonce, 64)
+	topLevelBuilder.MustStoreSlice(metaDataHash.Hash(), 256)
 
 	// storing header
-	topLevelBuilder.MustStoreRef(headerBuilder.EndCell())
+	topLevelBuilder.MustStoreRef(
+		cell.BeginCell().
+			MustStoreSlice(msg.Header.MessageID, 256).
+			MustStoreAddr(msg.Receiver).
+			MustStoreUInt(msg.Header.SequenceNumber, 64).
+			MustStoreUInt(msg.Header.Nonce, 64).EndCell())
 
-	// preparing sender, data and token refs
-	senderRefCell := cell.BeginCell().MustStoreSlice([]byte{uint8(len(msg.Sender))}, 8).
-		MustStoreSlice(msg.Sender, uint(len(msg.Sender))*8).EndCell()
+	// storing sender ref
+	topLevelBuilder.MustStoreRef(cell.BeginCell().MustStoreSlice([]byte{uint8(len(msg.Sender))}, 8).
+		MustStoreSlice(msg.Sender, uint(len(msg.Sender))*8).EndCell())
 
-	// preparing
+	// preparing data and token refs
 	dataCell, err := msg.Data.ToCell()
 	if err != nil {
 		return nil, fmt.Errorf("pack msg data to cell: %w", err)
 	}
+
 	tokenCell, err := msg.TokenAmounts.ToCell()
 	if err != nil {
 		return nil, fmt.Errorf("pack token amounts to cell: %w", err)
 	}
 
-	// storing sender, data and token refs
-	topLevelBuilder.MustStoreRef(senderRefCell)
 	topLevelBuilder.MustStoreRef(dataCell)
 	err = topLevelBuilder.StoreMaybeRef(tokenCell)
 	if err != nil {
@@ -213,4 +212,9 @@ func buildAny2TVMRampMessageHash(msg ocr.Any2TVMRampMessage) ([]byte, error) {
 	}
 
 	return topLevelBuilder.EndCell().Hash(), nil
+}
+
+func stringSha256(input string) []byte {
+	hash := sha256.Sum256([]byte(input))
+	return hash[:]
 }
