@@ -10,6 +10,7 @@ import {
   MerkleRoot,
   OffRampStorage,
   RampMessageHeader,
+  PriceUpdates,
 } from '../../wrappers/ccip/OffRamp'
 import { OffRamp } from '../../wrappers/ccip/OffRamp'
 import { FeeQuoter } from '../../wrappers/ccip/FeeQuoter'
@@ -224,8 +225,12 @@ describe('OffRamp', () => {
   }
 
   // Helper function to test commit report flow
-  const commitReport = async (merkleRoots: MerkleRoot[], sequenceBytes = 0x01) => {
-    const report: CommitReport = { merkleRoots }
+  const commitReport = async (
+    merkleRoots: MerkleRoot[],
+    sequenceBytes = 0x01,
+    priceUpdates: PriceUpdates | undefined = undefined,
+  ) => {
+    const report: CommitReport = { merkleRoots, priceUpdates }
     const reportContext: ReportContext = { configDigest, padding: 0n, sequenceBytes }
     const signatures = createSignatures(
       [signers[0], signers[1]],
@@ -241,8 +246,8 @@ describe('OffRamp', () => {
     expectSuccessfulTransaction(result, transmitters[0].address, offRamp.address)
 
     assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.CCIPCommitReportAccepted, {
-      priceUpdates: undefined,
-      merkleRoots,
+      merkleRoot: merkleRoots[0],
+      priceUpdates: priceUpdates,
     })
 
     return result
@@ -779,5 +784,26 @@ describe('OffRamp', () => {
       success: false,
       exitCode: ERROR_DISPATCH_NOT_FROM_MERKLE_ROOT,
     })
+  })
+
+  it('Can commit with no roots and only price updates', async () => {
+    await setupOCRConfig()
+    const sourceToken = generateMockTonAddress()
+    const priceUpdates: PriceUpdates = {
+      tokenPriceUpdates: [
+        {
+          sourceToken,
+          usdPerToken: 1n,
+        },
+      ],
+      gasPriceUpdates: [
+        {
+          destChainSelector: CHAINSEL_EVM_TEST_90000001,
+          executionGasPrice: 1n,
+          dataAvailabilityGasPrice: 1n,
+        },
+      ],
+    }
+    const result = await commitReport([], 0x01, priceUpdates)
   })
 })

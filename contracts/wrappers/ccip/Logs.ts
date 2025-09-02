@@ -31,6 +31,6 @@ export type CCIPMessageSent = {
 }
 
 export type CCIPCommitReportAccepted = {
+  merkleRoot?: MerkleRoot
   priceUpdates?: PriceUpdates
-  merkleRoots: MerkleRoot[]
 }

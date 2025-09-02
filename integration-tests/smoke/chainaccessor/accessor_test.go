@@ -174,4 +174,7 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 		require.Equal(t, msgs2[0].Header.SequenceNumber, ccipocr3.SeqNum(start))
 		require.Equal(t, msgs2[len(msgs2)-1].Header.SequenceNumber, ccipocr3.SeqNum(end))
 	})
+	t.Run("Test CCIP Offramp events", func(t *testing.T) {
+		t.Skip("Implement tests with proper report utils")
+	})
 }
