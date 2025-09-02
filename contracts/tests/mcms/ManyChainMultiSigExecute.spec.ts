@@ -336,7 +336,7 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
     expect(opPendingInfo).toBeDefined()
     expect(opPendingInfo.validAfter).toBeGreaterThan(0)
     expect(opPendingInfo.opPendingReceiver).toEqualAddress(ZERO_ADDRESS)
-    expect(opPendingInfo.opPendingBodyVal).toEqual(0n)
+    expect(opPendingInfo.opPendingBodyTruncated).toEqual(0n)
   })
 
   it('should handle value operations correctly - insufficient balance', async () => {

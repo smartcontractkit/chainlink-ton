@@ -18,7 +18,7 @@ import (
 // Contract might receive/hold TON as part of the maintenance process.
 type TopUp struct {
 	_ tlb.Magic `tlb:"#5f427bb3"` //nolint:revive // (opcode) should stay uninitialized
-	// Query ID of the change owner request.
+	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 }
 
@@ -39,7 +39,7 @@ type TopUp struct {
 type SetRoot struct {
 	_ tlb.Magic `tlb:"#e7fabde3"` //nolint:revive // (opcode) should stay uninitialized
 
-	// Query ID of the change owner request.
+	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
 	Root       *big.Int `tlb:"## 256"` // The new expiring root.
@@ -66,7 +66,7 @@ type SetRoot struct {
 // We expect callees to revert if they run out of gas.
 type Execute struct {
 	_ tlb.Magic `tlb:"#9b9ce96a"` //nolint:revive // (opcode) should stay uninitialized
-	// Query ID of the change owner request.
+	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
 	Op    Op                      `tlb:"^"` // The op to be executed. // Cell<Op>
@@ -92,7 +92,7 @@ type Execute struct {
 // some previous signers aren't trusted any more.
 type SetConfig struct {
 	_ tlb.Magic `tlb:"#89277f4b"` //nolint:revive // (opcode) should stay uninitialized
-	// Query ID of the change owner request.
+	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
 	SignerKeys   common.SnakeData[*big.Int] `tlb:"^"`      // vec<uint256>
@@ -108,7 +108,7 @@ type SetConfig struct {
 type NewRoot struct {
 	_ tlb.Magic `tlb:"#a6533a3d"` //nolint:revive // (opcode) should stay uninitialized
 
-	// Query ID of the change owner request.
+	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
 	Root       *big.Int     `tlb:"## 256"` // The new expiring root.
@@ -120,7 +120,7 @@ type NewRoot struct {
 type ConfigSet struct {
 	_ tlb.Magic `tlb:"#d80be574"` //nolint:revive // (opcode) should stay uninitialized
 
-	// Query ID of the change owner request.
+	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
 	Config        Config `tlb:"."`    // The new config.
@@ -131,7 +131,7 @@ type ConfigSet struct {
 type OpExecuted struct {
 	_ tlb.Magic `tlb:"#7cf37cbf"` //nolint:revive // (opcode) should stay uninitialized
 
-	// Query ID of the change owner request.
+	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
 	Nonce uint64           `tlb:"## 40"` // The nonce of the operation.
