@@ -78,11 +78,33 @@ jobs:
         with:
           nix_path: nixpkgs=channel:nixos-unstable
 
+      - name: Get Go cache paths
+        id: go-cache
+        run: |
+          echo "build-cache=$(nix develop .#ccip-e2e -c go env GOCACHE)" >> $GITHUB_OUTPUT
+          echo "mod-cache=$(nix develop .#ccip-e2e -c go env GOMODCACHE)" >> $GITHUB_OUTPUT
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ steps.go-cache.outputs.build-cache }}
+            ${{ steps.go-cache.outputs.mod-cache }}
+          key: go-${{ hashFiles('**/go.sum', 'chainlink/**/go.sum') }}
+
       - name: Read Chainlink Core Ref from .core_version
         id: read_core_ref
         run: echo "CORE_REF=$(cat ./scripts/.core_version | tr -d '[:space:]')" >> $GITHUB_OUTPUT
 
+      - name: Cache Chainlink Core repo
+        uses: actions/cache@v4
+        id: core-cache
+        with:
+          path: chainlink
+          key: core-${{ steps.read_core_ref.outputs.CORE_REF }}
+
       - name: Checkout Chainlink Core repo
+        if: steps.core-cache.outputs.cache-hit != 'true'
         uses: actions/checkout@v4
         with:
           repository: smartcontractkit/chainlink
