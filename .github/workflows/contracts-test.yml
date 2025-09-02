@@ -22,6 +22,6 @@ jobs:
       - name: Run tests
         run: |
           pushd contracts
-          nix develop .#contracts -c yarn test
+          nix develop .#contracts -c yarn && yarn test
 
 
