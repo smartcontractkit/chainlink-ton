@@ -33,8 +33,8 @@ type Provider struct {
 	services.StateMachine
 }
 
-func NewCCIPProvider(lggr logger.Logger, chainSelector ccipocr3.ChainSelector, client ton.APIClientWrapped, txm txm.TxManager, logPoller logpoller.Service) (*Provider, error) {
-	ct, err := ocr.NewCCIPTransmitter(txm, lggr)
+func NewCCIPProvider(lggr logger.Logger, chainSelector ccipocr3.ChainSelector, client ton.APIClientWrapped, txm txm.TxManager, logPoller logpoller.Service, offRampAddr string) (*Provider, error) {
+	ct, err := ocr.NewCCIPTransmitter(txm, lggr, offRampAddr, ocr.CommitCallData)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create a CCIP ContractTransmitter: %w", err)
 	}
