@@ -6,7 +6,6 @@ import "@stdlib/gas-payments";
 import "../lib/utils";
 import "../lib/access/ownable_2step.tolk";
 import "../lib/crypto/merkle_proof.tolk";
-import "../lib/ocr/exit_codes"
 
 /// This is a multi-sig contract that supports signing many transactions (called "ops" in
 /// the context of this contract to prevent confusion with transactions on the underlying chain)
@@ -156,13 +155,25 @@ struct (0x43ebc734) MCMS_SubmitErrorReport {
     errorCode: uint32;
 }
 
+/// Message sent by the owner to transfer the oracle role.
+struct (0xf275742f) MCMS_TransferOracleRole {
+    /// Query ID of the change request.
+    queryId: uint64;
+    /// The address of the new oracle.
+    newOracle: address;
+}
+
 /// @dev Union of all incoming messages.
 type MCMS_InMessage =
     | MCMS_TopUp
     | MCMS_SetRoot
     | MCMS_Execute
     | MCMS_SetConfig
-    | MCMS_SubmitErrorReport;
+    | MCMS_SubmitErrorReport
+    | MCMS_TransferOracleRole
+    // when mcms owns itself
+    | MCMS_ConfigSet
+    | MCMS_OracleRoleTransferred;
 
 // --- Messages - outgoing ---
 
@@ -226,12 +237,23 @@ struct (0x43ebc734) MCMS_ErrorReportSubmitted {
     matchesPendingOp: bool;
 }
 
+/// Event emitted by the contract when the oracle role is transferred.
+struct (0xff4176a3) MCMS_OracleRoleTransferred {
+    /// Query ID of the change request.
+    queryId: uint64;
+    /// The address of the old oracle.
+    oldOracle: address;
+    /// The address of the new oracle.
+    newOracle: address;
+}
+
 /// @dev Union of all outgoing messages.
 type MCMS_OutMessage =
     | MCMS_NewRoot
     | MCMS_ConfigSet
     | MCMS_OpExecuted
-    | MCMS_ErrorReportSubmitted;
+    | MCMS_ErrorReportSubmitted
+    | MCMS_OracleRoleTransferred;
 
 // --- Storage ---
 
@@ -1206,6 +1228,29 @@ fun MCMS<T>.submitErrorReport(
     reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
+/// Transfer the error oracle role - requires owner.
+///
+/// @see <MCMS_TransferOracleRole> for more information.
+fun MCMS<T>.transferOracleRole(
+    mutate self,
+    sender: address,
+    queryId: uint64,
+    newOracle: address
+) {
+    self.data.ownable.requireOwner(sender);
+
+    val oldOracle = self.data.oracle;
+    self.data.oracle = newOracle;
+
+    val reply = createMessage({
+        bounce: false,
+        value: 0,
+        dest: sender,
+        body: MCMS_OracleRoleTransferred{ queryId, oldOracle, newOracle }
+    });
+    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
 /// Execute an op's call. Performs a raw message send that can bounce on errors.
 fun MCMS<T>._execute(self, target: address, value: coins, data: cell): void {
     if (self.hooks != null && self.hooks.execute != null) {
@@ -1213,12 +1258,13 @@ fun MCMS<T>._execute(self, target: address, value: coins, data: cell): void {
     }
 
     // Send a message to the target with the provided value and data
-    createMessage({
+    val op = createMessage({
         bounce: true,
         value: value,
         dest: target,
         body: data
-    }).send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+    });
+    op.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Returns the current configuration of the contract
@@ -1238,7 +1284,7 @@ fun MCMS<T>.getRoot(self): (uint256, uint32) {
     return (rootInfo.expiringRootAndOpCount.root, rootInfo.expiringRootAndOpCount.validUntil);
 }
 
-// Returns the current pending operation information.
+/// Returns the current pending operation information.
 fun MCMS<T>.getOpPendingInfo(self): OpPendingInfo {
     val rootInfo = lazy RootInfo.fromCell(self.data.rootInfo);
     return OpPendingInfo.fromCell(rootInfo.expiringRootAndOpCount.opPendingInfo);
@@ -1247,6 +1293,11 @@ fun MCMS<T>.getOpPendingInfo(self): OpPendingInfo {
 /// Returns the current metadata about the root, which is stored as one of the leaves.
 fun MCMS<T>.getRootMetadata(self): RootMetadata {
     return RootInfo.fromCell(self.data.rootInfo).rootMetadata;
+}
+
+/// Returns the current oracle account, which can submit error reports.
+fun MCMS<T>.getOracle(self): address {
+    return self.data.oracle;
 }
 
 // --- Message handlers ---
@@ -1274,7 +1325,15 @@ fun MCMS<T>.onInternalMessage(mutate self, msgSender: address, msgValue: coins, 
             self.submitErrorReport(msgSender, msg.queryId, Op.fromCell(msg.op),
                 Iterator<uint256>.new(msg.proof), msg.opTxHash, msg.errorTxHash, msg.errorCode);
         }
-        // TODO: only owner should be able to update the error oracle
+        MCMS_TransferOracleRole => {
+            self.transferOracleRole(msgSender, msg.queryId, msg.newOracle);
+        }
+        MCMS_OracleRoleTransferred => {
+            // noop
+        }
+        MCMS_ConfigSet => {
+            // noop
+        }
         else => {
             val msgHandled = 0
                 || self.data.ownable.onInternalMessage(msgSender, msgBody);
@@ -1358,6 +1417,11 @@ get fun getOpPendingInfo(): OpPendingInfo {
 /// @see <MCMS<T>.getRootMetadata>
 get fun getRootMetadata(): RootMetadata {
     return MCMS<bool>.load().getRootMetadata();
+}
+
+/// @see <MCMS<T>.getOracle>
+get fun getOracle(): address {
+    return MCMS<bool>.load().getOracle();
 }
 
 // --- Getters - Ownable2Step ---

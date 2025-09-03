@@ -102,6 +102,34 @@ type SetConfig struct {
 	ClearRoot    bool                       `tlb:"bool"`
 }
 
+// Submit an oracle error report, which marks the current root as invalid.
+//
+// The error report is used for a category of errors which might occur during execution
+// of an operation, but can't be caught on-chain (OOG errors, and downstream tx-trace errors).
+//
+// @dev The error oracle can only report errors for the current non-expired root, to avoid reporting
+// stale errors for operations that are no longer valid.
+type SubmitErrorReport struct {
+	_ tlb.Magic `tlb:"#43ebc734"` //nolint:revive // (opcode) should stay uninitialized
+	// Query ID of the change request.
+	QueryID uint64 `tlb:"## 64"`
+
+	Op       Op                      `tlb:"^"`      // The operation which produced the error. // Cell<Op>
+	Proof    common.SnakeData[Proof] `tlb:"^"`      // The MerkleProof for the op's inclusion in the MerkleTree // vec<uint256>
+	OpTxHash *big.Int                `tlb:"## 256"` // The hash of the execute transaction.
+
+	ErrorTxHash *big.Int `tlb:"## 256"` // The hash of the transaction which errored (part of the tx trace).
+	ErrorCode   uint32   `tlb:"## 32"`  // The error code.
+}
+
+// Message sent by the owner to transfer the oracle role.
+type TransferOracleRole struct {
+	// Query ID of the change request.
+	QueryID uint64 `tlb:"## 64"`
+
+	NewOracle *address.Address `tlb:"addr"` // The address of the new oracle.
+}
+
 // --- Messages - outgoing ---
 
 // @notice Emitted when a new root is set.
