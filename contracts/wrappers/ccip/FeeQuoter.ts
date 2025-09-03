@@ -14,6 +14,7 @@ import {
 
 import * as ownable2step from '../libraries/access/Ownable2Step'
 import { asSnakeData } from '../../src/utils'
+import { loadMap, storeTolkUMap } from '../../src/utils/dict'
 
 export type FeeQuoterStorage = {
   ownable: ownable2step.Data
@@ -116,6 +117,20 @@ export const Builder = {
   },
 }
 export abstract class Params {}
+
+export type TokenTransferFeeConfig = {
+  isEnabled: boolean
+  minFeeUsdCents: number
+  maxFeeUsdCents: number
+  deciBps: number
+  destGasOverhead: number
+  destBytesOverhead: number
+}
+
+export type UpdateTokenTransferFeeConfig = {
+  add: Map<Address, TokenTransferFeeConfig> // token address -> config
+  // remove: cell, // vector<address> // TODO remove configs
+}
 
 export abstract class Opcodes {
   static updatePrices = 0x20000001
@@ -236,6 +251,44 @@ export class FeeQuoter implements Contract {
         .storeDict(add)
         .storeRef(remove)
         .endCell(),
+    })
+  }
+
+  async sendUpdateTransferFeeConfigs(
+    provider: ContractProvider,
+    via: Sender,
+    opts: {
+      value: bigint
+      configs: Map<bigint, UpdateTokenTransferFeeConfig>
+    },
+  ) {
+    // token -> premiumMultiplierWeiPerEth
+    const configs = Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Cell())
+    for (const [destChainSelector, updateTokenTransferFeeConfig] of opts.configs) {
+      let add = Dictionary.empty(Dictionary.Keys.Address(), Dictionary.Values.Cell())
+      let remove = Dictionary.empty(Dictionary.Keys.Address(), Dictionary.Values.Cell())
+      for (const [token, tokenTransferFeeConfig] of updateTokenTransferFeeConfig.add.entries()) {
+        const tokenTransferFeeConfigCell = beginCell()
+          .storeBit(tokenTransferFeeConfig.isEnabled)
+          .storeInt(tokenTransferFeeConfig.minFeeUsdCents, 32)
+          .storeInt(tokenTransferFeeConfig.maxFeeUsdCents, 32)
+          .storeInt(tokenTransferFeeConfig.deciBps, 16)
+          .storeInt(tokenTransferFeeConfig.destGasOverhead, 32)
+          .storeInt(tokenTransferFeeConfig.destBytesOverhead, 32)
+          .endCell()
+        add.set(token, tokenTransferFeeConfigCell)
+      }
+      var updateTokenTransferFeeConfigCell = beginCell().storeDict(add).storeDict(remove).endCell()
+      configs.set(destChainSelector, updateTokenTransferFeeConfigCell)
+    }
+
+    var msg = beginCell().storeUint(Opcodes.updateTransferFeeConfigs, 32)
+    msg = storeTolkUMap(msg, { keyLen: 64, dict: configs })
+
+    return await provider.internal(via, {
+      value: opts.value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: msg.endCell(),
     })
   }
 }

@@ -1,4 +1,13 @@
-import { Dictionary, DictionaryKeyTypes, DictionaryKey, DictionaryValue } from '@ton/core'
+import {
+  Dictionary,
+  DictionaryKeyTypes,
+  DictionaryKey,
+  DictionaryValue,
+  Cell,
+  beginCell,
+  Builder,
+} from '@ton/core'
+import { CellCodec } from '../../wrappers/utils'
 
 export const loadMap = <K extends DictionaryKeyTypes, V>(
   key: DictionaryKey<K>,
@@ -20,4 +29,16 @@ export function loadDict<K extends DictionaryKeyTypes, V>(dict: Dictionary<K, V>
   }
 
   return map
+}
+
+export type TolkUMap<K extends DictionaryKeyTypes, V> = {
+  keyLen: number
+  dict: Dictionary<K, V>
+}
+
+export function storeTolkUMap<K extends DictionaryKeyTypes, V>(
+  builder: Builder,
+  data: TolkUMap<K, V>,
+): Builder {
+  return builder.storeDict(data.dict).storeUint(data.keyLen, 16)
 }

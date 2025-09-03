@@ -77,8 +77,13 @@ fun onInternalMessage(in: InMessage) {
             st.store();
         }
         UpdateTokenTransferFeeConfigs => {
+            debug.printString("received UpdateTokenTransferFeeConfigs");
             var st = lazy Storage.load();
+            debug.printString("loaded storage");
             st.ownable.requireOwner(in.senderAddress);
+            debug.printString("validated owner");
+            debug.print(msg.updates);
+            debug.printString("calling updateTokenTransferFeeConfigs");
             updateTokenTransferFeeConfigs(mutate st, msg);
             st.store();
         }
@@ -112,6 +117,7 @@ fun updateFeeTokens(mutate st: Storage, msg: UpdateFeeTokens) {
 }
 
 fun updateTokenTransferFeeConfigs(mutate st: Storage, msg: UpdateTokenTransferFeeConfigs) {
+    debug.printString("called updateTokenTransferFeeConfigs");
     var (destChainSelector, update, exists) = msg.updates.min();
     while (exists) {
         val (maybeDestChainConfig, configExists) = st.destChainConfigs.get(destChainSelector!);

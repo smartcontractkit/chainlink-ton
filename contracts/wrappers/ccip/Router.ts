@@ -10,25 +10,17 @@ import {
 } from '@ton/core'
 
 import * as ownable2step from '../libraries/access/Ownable2Step'
+import { CellCodec } from '../utils'
+import config from '../../jest.config'
+import { Coins } from '@ton/sandbox/dist/config/config.tlb-gen'
+import { asSnakeData } from '../../src/utils'
 
-export type RouterStorage = {
+export type Storage = {
   ownable: ownable2step.Data
 
   onRamp: Address
 }
 
-export const Builder = {
-  /// Creates a new `AccessControl_GrantRole` message.
-  asStorage: (config: RouterStorage): Cell => {
-    return beginCell()
-      .storeAddress(config.ownable.owner)
-      .storeMaybeBuilder(
-        config.ownable.pendingOwner ? beginCell().storeAddress(config.ownable.pendingOwner) : null,
-      )
-      .storeAddress(config.onRamp)
-      .endCell()
-  },
-}
 export abstract class Params {}
 
 export abstract class Opcodes {
@@ -48,8 +40,8 @@ export class Router implements Contract {
     return new Router(address)
   }
 
-  static createFromConfig(config: RouterStorage, code: Cell, workchain = 0) {
-    const data = Builder.asStorage(config)
+  static createFromConfig(config: Storage, code: Cell, workchain = 0) {
+    const data = builder.data.contractData.encode(config)
     const init = { code, data }
     return new Router(contractAddress(workchain, init), init)
   }
@@ -87,32 +79,103 @@ export class Router implements Contract {
   async sendCcipSend(
     provider: ContractProvider,
     via: Sender,
-    opts: {
-      value: bigint
-      queryID?: number
-      destChainSelector: bigint
-      receiver: Buffer
-      data: Cell
-      tokenAmounts: Cell
-      feeToken: Address
-      extraArgs: Cell
-    },
+    opts: { value: string | bigint; body: CCIPSend },
   ) {
     await provider.internal(via, {
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: beginCell()
-        .storeUint(Opcodes.ccipSend, 32)
-        .storeUint(opts.queryID ?? 0, 64)
-        .storeUint(opts.destChainSelector, 64)
-        // CrossChainAddress TODO: assert =< 64
-        .storeUint(opts.receiver.byteLength, 8)
-        .storeBuffer(opts.receiver, opts.receiver.byteLength)
-        .storeRef(opts.data)
-        .storeRef(opts.tokenAmounts) // TODO: pack inputs
-        .storeAddress(opts.feeToken)
-        .storeRef(opts.extraArgs)
-        .endCell(),
+      body: builder.message.in.ccipSend.encode(opts.body),
     })
   }
+}
+
+export type TokenAmount = {
+  amount: bigint
+  token: Address
+}
+
+export type CCIPSend = {
+  queryID?: number
+  destChainSelector: bigint
+  receiver: Buffer
+  data: Cell
+  tokenAmounts: TokenAmount[]
+  feeToken: Address
+  extraArgs: Cell
+}
+
+const tokenAmountCodec: CellCodec<TokenAmount> = {
+  encode: (amount: TokenAmount) => {
+    return beginCell().storeCoins(amount.amount).storeAddress(amount.token).endCell()
+  },
+  decode: (cell: Cell): TokenAmount => {
+    const s = cell.beginParse()
+    return {
+      amount: s.loadCoins(),
+      token: s.loadAddress(),
+    }
+  },
+}
+
+export const builder = {
+  data: (() => {
+    const contractData: CellCodec<Storage> = {
+      encode: (config: Storage) => {
+        return beginCell()
+          .storeAddress(config.ownable.owner)
+          .storeMaybeBuilder(
+            config.ownable.pendingOwner
+              ? beginCell().storeAddress(config.ownable.pendingOwner)
+              : null,
+          )
+          .storeAddress(config.onRamp)
+          .endCell()
+      },
+
+      decode: (data: Cell): Storage => {
+        const s = data.beginParse()
+        return {
+          ownable: ownable2step.builder.data.traitData.decode(s.loadRef()),
+          onRamp: s.loadAddress(),
+        }
+      },
+    }
+
+    return {
+      contractData,
+    }
+  })(),
+  message: {
+    in: (() => {
+      const ccipSend: CellCodec<CCIPSend> = {
+        encode: (opts: CCIPSend) => {
+          return (
+            beginCell()
+              .storeUint(Opcodes.ccipSend, 32)
+              .storeUint(opts.queryID ?? 0, 64)
+              .storeUint(opts.destChainSelector, 64)
+              // CrossChainAddress TODO: assert =< 64
+              .storeUint(opts.receiver.byteLength, 8)
+              .storeBuffer(opts.receiver, opts.receiver.byteLength)
+              .storeRef(opts.data)
+              .storeRef(
+                asSnakeData(opts.tokenAmounts, (tokenAmount) =>
+                  tokenAmountCodec.encode(tokenAmount).asBuilder(),
+                ),
+              ) // TODO: pack inputs
+              .storeAddress(opts.feeToken)
+              .storeRef(opts.extraArgs)
+              .endCell()
+          )
+        },
+        decode: function (cell: Cell): CCIPSend {
+          throw new Error('Function not implemented.') // TODO
+        },
+      }
+
+      return {
+        ccipSend,
+      }
+    })(),
+  },
 }
