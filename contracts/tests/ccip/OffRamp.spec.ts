@@ -64,7 +64,8 @@ const createSignatures = (
 }
 
 const getMerkleRootID = (root: bigint) => {
-  return beginCell().storeUint(1, 16).storeUint(root, 256)
+  const cs = beginCell().storeUint(root, 256).asSlice()
+  return beginCell().storeUint(cs.loadUintBig(224), 224)
 }
 
 const getMetadataHash = (sourceChainSelector: bigint) => {
@@ -301,8 +302,7 @@ describe('OffRamp', () => {
   const merkleRootAddress = (root: MerkleRoot) => {
     const data = beginCell()
       .storeAddress(offRamp.address) //owner
-      .storeUint(1, 16) //id
-      .storeUint(root.merkleRoot, 256)
+      .storeBuilder(getMerkleRootID(root.merkleRoot))
       .endCell()
 
     const init: StateInit = {

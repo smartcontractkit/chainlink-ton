@@ -29,8 +29,10 @@ fun onInternalMessage(in: InMessage) {
             val receiveConfirm = createMessage({
                 bounce: true,
                 value: ton("0.05"), //TODO how much do we need to send
-                dest: msg.callback,
-                body: MerkleRoot_CCIPReceiveConfirm {}
+                dest: in.senderAddress,
+                body: OffRamp_CCIPReceiveConfirm {
+                    rootId: msg.rootId,
+                }
             });
             receiveConfirm.send(SEND_MODE_REGULAR);
 

@@ -45,27 +45,40 @@ fun onInternalMessage(in: InMessage) {
             var st = MerkleRoot_Storage.load();
 
             assert(st.state == STATE_EXECUTE && st.message != null, ERROR_CONFIRMING_NON_EXECUTED_MESSAGE);
-            assert(in.senderAddress == st.message.load().receiver, ERROR_NOT_OWNER);
+            assert(in.senderAddress == st.owner, ERROR_NOT_OWNER);
+
 
             st.state = STATE_SUCCESS;
-            st.executionState = EXECUTION_STATE_SUCCESS; 
             st.store();
 
-            val offRampReceiveConfirm = createMessage({
+            val messageHeader = st.message!.load().header;
+            val offRampNotifySuccess = createMessage({
                 bounce: true,
-                value: ton("0"), //TODO
+                value: ton("0"),
                 dest: st.owner,
-                body: msg
+                body: OffRamp_NotifySuccess {
+                    header: messageHeader,
+                },
             });
-            offRampReceiveConfirm.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+            offRampNotifySuccess.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
         }
         MerkleRoot_CCIPReceiveBounced => {
             var st = MerkleRoot_Storage.load();
             assert(in.senderAddress == st.owner, ERROR_NOT_OWNER);
 
             st.state = STATE_EXECUTE_FAILED;
-            st.executionState = EXECUTION_STATE_FAILURE;
             st.store();
+
+            val messageHeader = st.message!.load().header;
+            val offRampNotifyFailure = createMessage({
+                bounce: true,
+                value: ton("0"),
+                dest: st.owner,
+                body: OffRamp_NotifyFailure {
+                    header: messageHeader
+                },
+            });
+            offRampNotifyFailure.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
         }
         else => {
             // ignore empty messages, "wrong opcode" for others

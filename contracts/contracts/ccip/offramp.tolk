@@ -112,7 +112,7 @@ struct (0xb98c95e3) OffRamp_UpdateSourceChainConfig {
     config: SourceChainConfig;
 }
 
-type OffRamp_InMessage = OffRamp_Commit | OffRamp_Execute | OffRamp_DispatchValidated | OffRamp_UpdateSourceChainConfig | OCR3Base_SetOCR3Config | OffRamp_CCIPReceiveConfirm | OffRamp_CCIPReceiveFailed;
+type OffRamp_InMessage = OffRamp_Commit | OffRamp_Execute | OffRamp_DispatchValidated | OffRamp_UpdateSourceChainConfig | OCR3Base_SetOCR3Config | OffRamp_CCIPReceiveConfirm | OffRamp_NotifyFailure | OffRamp_NotifySuccess;
 
 type OffRamp_BouncedMessage =  CCIPReceive;
 
@@ -135,6 +135,24 @@ fun onInternalMessage(in:InMessage) {
             _dispatchValidated(msg, in.senderAddress)
         } 
         OffRamp_CCIPReceiveConfirm => {
+            val st = Storage.load();
+            val merkleRootReceiveConfirm = createMessage({
+                bounce: true,
+                value: ton("0.05"), //TODO how much do we need to send
+                dest: {
+                    stateInit: {
+                        code: st.deployer,
+                        data: Deployable {
+                            owner: contract.getAddress(),
+                            id: beginCell().storeUint(msg.rootId, 224),
+                        }.toCell(),
+                    }
+                },
+                body: MerkleRoot_CCIPReceiveConfirm {},
+            });
+            merkleRootReceiveConfirm.send(SEND_MODE_REGULAR);
+        }
+        OffRamp_NotifySuccess => {
             val messageHeader = msg.header;
             emit(CCIP_EXECUTION_STATE_CHANGED_TOPIC, ExecutionStateChanged {
                 sourceChainSelector: messageHeader.sourceChainSelector,
@@ -143,7 +161,7 @@ fun onInternalMessage(in:InMessage) {
                 state: 2 // succesful
             });
         }
-        OffRamp_CCIPReceiveFailed => {
+        OffRamp_NotifyFailure => {
             val messageHeader = msg.header;
             emit(CCIP_EXECUTION_STATE_CHANGED_TOPIC, ExecutionStateChanged {
                 sourceChainSelector: messageHeader.sourceChainSelector,
@@ -164,10 +182,19 @@ fun onBouncedMessage(in: InMessageBounced) {
     val msg = lazy OffRamp_BouncedMessage.fromSlice(in.bouncedBody);
     match (msg) {
         CCIPReceive => {
+            val st = Storage.load();
             val receiveBounced = createMessage({
                 bounce: true,
                 value: ton("0.5"),
-                dest: msg.callback, //the MR address
+                dest: {
+                    stateInit: { //the MR address
+                        code: st.deployer,
+                        data: Deployable {
+                            owner: contract.getAddress(),
+                            id: beginCell().storeUint(msg.rootId, 224),
+                        }.toCell(), 
+                    },
+                },
                 body: MerkleRoot_CCIPReceiveBounced{}
             });
             receiveBounced.send(SEND_MODE_REGULAR);
@@ -190,13 +217,14 @@ fun _dispatchValidated(msg: OffRamp_DispatchValidated, sender: address) {
 
             val message = msg.message.load();
             val root = msg.root;
+            val rootId = getMerkleRootID(root);
 
             val expectedAddress: AutoDeployAddress = {
                 stateInit: {
                     code: st.deployer,
                     data: Deployable {
                         owner: contract.getAddress(),
-                        id: getMerkleRootID(root),
+                        id: rootId,
                     }.toCell()
                 }
             };
@@ -204,7 +232,7 @@ fun _dispatchValidated(msg: OffRamp_DispatchValidated, sender: address) {
 
             // dispatch message to receiver
             val ccipReceive: CCIPReceive = {
-                callback: sender, // receiver should call back the MR directly
+                rootId: rootId.endCell().beginParse().loadUint(224), // receiver should call back the MR directly
                 message: {
                     messageId: message.header.messageId,
                     sourceChainSelector: message.header.sourceChainSelector,
@@ -235,10 +263,9 @@ fun _setOCR3Config(msg: OCR3Base_SetOCR3Config, sender: address) {
 
 @pure @inline
 fun getMerkleRootID(merkleRoot: uint256): builder {
+    var cs = beginCell().storeUint(merkleRoot, 256).endCell().beginParse();
     return beginCell() // id:u16 = 1 | merkleRoot:256
-        .storeUint(1, 16) // TODO: alias constant for MerkleRoot
-        // TODO: include sourceChainSelector
-        .storeUint(merkleRoot, 256);
+        .storeUint(cs.loadUint(224), 224);
 }
 
 fun commit(msg: OffRamp_Commit, sender: address) {
