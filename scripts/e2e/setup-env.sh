@@ -10,7 +10,6 @@
 #      - Updating the TON plugin gitRef in plugins.public.yaml with current commit.
 #      - Replacing all chainlink-ton module dependencies with local versions.
 #      - Tidying Go modules.
-#      - Building the 'ccip.test' binary.
 #      - Preparing the test database schema using 'preparetest' cmd.
 #
 # Usage: ./scripts/e2e/setup-env.sh [-c|--core-dir <core_dir>]
@@ -176,7 +175,7 @@ done
 
 CL_DATABASE_URL="postgresql://${PG_USER}:${PG_PASSWORD}@${PG_HOST}:${PG_PORT}/${PG_DB}?sslmode=disable"
 log_info "Test Database URL: $CL_DATABASE_URL "
-export CL_DATABASE_URL # this is needed for the ccip.test binary to connect to the database
+export CL_DATABASE_URL # this is needed for the test database connection
 
 # Core Setup
 log_info "Preparing Chainlink Core (dependencies, build, DB setup)..."
@@ -244,12 +243,8 @@ log_info "Current chainlink-ton commit: $CURRENT_TON_COMMIT"
   go run github.com/jmank88/gomods@v0.1.6 tidy
   log_info "Module replacements complete"
 
-  cd "./integration-tests"
-  go build -o ccip.test .
-
-  # reference: https://github.com/smartcontractkit/chainlink-ccip/blob/main/.github/workflows/ccip-integration-test.yml#L169-L221
-  go get github.com/smartcontractkit/chainlink/v2/core/store/cmd/preparetest@develop
-  go run github.com/smartcontractkit/chainlink/v2/core/store/cmd/preparetest
+  # prepare test database
+  go run ./core/store/cmd/preparetest
 )
 
 log_info "=================================="
