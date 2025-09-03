@@ -104,9 +104,9 @@ func (c *ccipTransmitter) Transmit(
 	return nil
 }
 
-// NewCommitCallData creates the call data for the OffRamp_Commit method
-func NewCommitCallData(
-	rawReportCtx []byte,
+// CommitCallData creates the call data for the OffRamp_Commit method
+var CommitCallData = func(
+	rawReportCtx [64]byte,
 	report ocr3types.ReportWithInfo[[]byte],
 	signatures [][96]byte,
 ) (*cell.Cell, error) {
@@ -133,7 +133,7 @@ func NewCommitCallData(
 
 	commit := offramp.Commit{
 		QueryID:          0,
-		ConfigDigest:     rawReportCtx,
+		ConfigDigest:     rawReportCtx[:],
 		CommitReport:     commitReport,
 		SignatureEd25519: sigs,
 	}
@@ -146,9 +146,9 @@ func NewCommitCallData(
 	return commitCell, nil
 }
 
-// NewExecuteCallData creates the call data for the OffRamp_Execute method
-func NewExecuteCallData(
-	rawReportCtx []byte,
+// ExecuteCallData creates the call data for the OffRamp_Execute method
+var ExecuteCallData = func(
+	rawReportCtx [64]byte,
 	report ocr3types.ReportWithInfo[[]byte],
 	signatures [][96]byte,
 ) (*cell.Cell, error) {
@@ -165,7 +165,7 @@ func NewExecuteCallData(
 
 	execute := offramp.Execute{
 		QueryID:       0,
-		ConfigDigest:  rawReportCtx,
+		ConfigDigest:  rawReportCtx[:],
 		ExecuteReport: executeReport,
 	}
 

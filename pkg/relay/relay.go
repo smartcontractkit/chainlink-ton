@@ -129,5 +129,7 @@ func (r *Relayer) NewCCIPProvider(ctx context.Context, rargs commontypes.RelayAr
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch TON client: %w", err)
 	}
-	return provider.NewCCIPProvider(r.lggr, ccipocr3.ChainSelector(chainSelector), client, r.chain.TxManager(), r.chain.LogPoller())
+
+	// TODO: check if rargs.ContractID is offramp address ?
+	return provider.NewCCIPProvider(r.lggr, ccipocr3.ChainSelector(chainSelector), client, r.chain.TxManager(), r.chain.LogPoller(), rargs.ContractID)
 }
