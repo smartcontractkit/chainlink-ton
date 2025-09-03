@@ -11,12 +11,6 @@ const STATE_EXECUTE: uint8 = 2;
 const STATE_EXECUTE_FAILED: uint8 =3;
 const STATE_SUCCESS: uint8 = 4;
 
-// Execution state stores CCIP specfic information
-// These have to match the EVM states
-const EXECUTION_STATE_UNTOUCHED: uint8 = 0;
-const EXECUTION_STATE_IN_PROGRESS: uint8 = 1;
-const EXECUTION_STATE_SUCCESS: uint8 = 2;
-const EXECUTION_STATE_FAILURE: uint8 = 3;
 // TODO: we need to fit additional states: TOKEN_TRANSFER | EXECUTE
 
 const ERROR_STATE_IS_NOT_UNTOUCHED = 300;
@@ -93,9 +87,7 @@ fun _validateAndExecute(msg: MerkleRoot_Validate, sender: address) {
     var st = MerkleRoot_Storage.load();
 
     assert(sender == st.owner, ERROR_NOT_OWNER);
-    assert(st.state == EXECUTION_STATE_UNTOUCHED, ERROR_STATE_IS_NOT_UNTOUCHED);
-
-    st.executionState = EXECUTION_STATE_IN_PROGRESS;
+    assert(st.state == STATE_UNTOUCHED, ERROR_STATE_IS_NOT_UNTOUCHED);
 
     val message = msg.message.load();
     st.message = message.toCell();

@@ -57,17 +57,29 @@ const CombinedLogTypes = {
 
 type CombinedLogTypes = (typeof CombinedLogTypes)[keyof typeof CombinedLogTypes]
 
-type LogMatch<T extends CombinedLogTypes> = T extends CCIPLogs.LogTypes.CCIPMessageSent
-  ? DeepPartial<CCIPLogs.CCIPMessageSent>
-  : T extends CCIPLogs.LogTypes.CCIPCommitReportAccepted
-    ? DeepPartial<CCIPLogs.CCIPCommitReportAccepted>
-    : T extends OCR3Logs.LogTypes.OCR3BaseConfigSet
-      ? OCR3Logs.OCR3BaseConfigSet
-      : T extends OCR3Logs.LogTypes.OCR3BaseTransmitted
-        ? DeepPartial<OCR3Logs.OCR3BaseTransmitted>
-        : T extends ReceiverLogs.LogTypes.ReceiverCCIPMessageReceived
-          ? ReceiverLogs.ReceiverCCIPMessageReceived
-          : number
+// LogMatch is a type that maps each log type to its corresponding log structure, wrapped in DeepPartial when necessary
+
+// prettier-ignore
+type LogMatch<T extends CombinedLogTypes> =
+  T extends CCIPLogs.LogTypes.CCIPMessageSent ?
+    DeepPartial<CCIPLogs.CCIPMessageSent>
+
+  : T extends CCIPLogs.LogTypes.CCIPCommitReportAccepted ?
+    DeepPartial<CCIPLogs.CCIPCommitReportAccepted>
+
+  : T extends CCIPLogs.LogTypes.CCIPExecutionStateChanged ?
+    DeepPartial<CCIPLogs.CCIPExecutionStateChanged>
+
+  : T extends OCR3Logs.LogTypes.OCR3BaseConfigSet ?
+    OCR3Logs.OCR3BaseConfigSet
+
+  : T extends OCR3Logs.LogTypes.OCR3BaseTransmitted ?
+    DeepPartial<OCR3Logs.OCR3BaseTransmitted>
+
+  : T extends ReceiverLogs.LogTypes.ReceiverCCIPMessageReceived ?
+    ReceiverLogs.ReceiverCCIPMessageReceived
+
+  : number
 
 export const assertLog = <T extends CombinedLogTypes>(
   transactions: BlockchainTransaction[],
@@ -85,6 +97,13 @@ export const assertLog = <T extends CombinedLogTypes>(
           x,
           from,
           match as DeepPartial<CCIPLogs.CCIPCommitReportAccepted>,
+        )
+
+      case CCIPLogs.LogTypes.CCIPExecutionStateChanged:
+        return testLogCCIPExecutionStateChanged(
+          x,
+          from,
+          match as DeepPartial<CCIPLogs.CCIPExecutionStateChanged>,
         )
 
       case ReceiverLogs.LogTypes.ReceiverCCIPMessageReceived:
@@ -133,8 +152,7 @@ function testLogCCIPCommitReportAccepted(
       priceUpdates,
       merkleRoots,
     }
-    expect(reportAccepted).toMatchObject(match)
-    return true
+    return matchesObject(reportAccepted, match)
   })
 }
 
@@ -171,8 +189,25 @@ export const testLogCCIPMessageSent = (
       },
     }
 
-    expect(msg).toMatchObject(match)
-    return true
+    return matchesObject(msg, match)
+  })
+}
+
+export const testLogCCIPExecutionStateChanged = (
+  message: Message,
+  from: Address,
+  match: DeepPartial<CCIPLogs.CCIPExecutionStateChanged>,
+) => {
+  return testLog(message, from, CombinedLogTypes.CCIPExecutionStateChanged, (x) => {
+    const cs = x.beginParse()
+    const msg = {
+      sourceChainSelector: cs.loadUintBig(64),
+      sequenceNumber: cs.loadUintBig(64),
+      messageId: cs.loadUintBig(256),
+      state: cs.loadUintBig(8),
+    }
+
+    return matchesObject(msg, match)
   })
 }
 
@@ -195,6 +230,7 @@ export const testConfigSetLogMessage = (
     for (let i = 0; i < transmitters.length; i++) {
       expect(transmitters[i].toString()).toEqual(match.transmitters![i].toString())
     }
+
     expect(bigF).toEqual(match.bigF)
     return true
   })
@@ -212,8 +248,8 @@ export const testTransmittedLogMessage = (
       configDigest: cs.loadUintBig(256),
       sequenceNumber: cs.loadUint(64),
     }
-    expect(msg).toMatchObject(match)
-    return true
+
+    return matchesObject(msg, match)
   })
 }
 
@@ -232,7 +268,24 @@ export const testLogReceiverCCIPMessageReceived = (
       .storeRef(msg.data)
       .endCell()
 
-    expect(expectedCell).toEqual(x)
-    return true
+    return equalsObjects(expectedCell, x)
   })
+}
+
+function matchesObject(obj, match) {
+  try {
+    expect(obj).toMatchObject(match)
+    return true
+  } catch {
+    return false
+  }
+}
+
+function equalsObjects(obj1: any, obj2: any): boolean {
+  try {
+    expect(obj1).toEqual(obj2)
+    return true
+  } catch {
+    return false
+  }
 }

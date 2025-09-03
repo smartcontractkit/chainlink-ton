@@ -44,6 +44,13 @@ struct ExecutionStateChanged {
     //returnData? probably not
 }
 
+// These have to match the EVM states
+const EXECUTION_STATE_UNTOUCHED: uint8 = 0;
+const EXECUTION_STATE_IN_PROGRESS: uint8 = 1;
+const EXECUTION_STATE_SUCCESS: uint8 = 2;
+const EXECUTION_STATE_FAILURE: uint8 = 3;
+
+
 fun Storage.load(): Storage {
     return Storage.fromCell(contract.getData());
 }
@@ -158,7 +165,7 @@ fun onInternalMessage(in:InMessage) {
                 sourceChainSelector: messageHeader.sourceChainSelector,
                 sequenceNumber: messageHeader.sequenceNumber,
                 messageId: messageHeader.messageId,
-                state: 2 // succesful
+                state: EXECUTION_STATE_SUCCESS
             });
         }
         OffRamp_NotifyFailure => {
@@ -167,7 +174,7 @@ fun onInternalMessage(in:InMessage) {
                 sourceChainSelector: messageHeader.sourceChainSelector,
                 sequenceNumber: messageHeader.sequenceNumber,
                 messageId: messageHeader.messageId,
-                state: 3 // failed
+                state: EXECUTION_STATE_FAILURE 
             });
         }
         else => {
@@ -248,6 +255,17 @@ fun _dispatchValidated(msg: OffRamp_DispatchValidated, sender: address) {
                 body: ccipReceive
             });
             messageForReceiver.send(SEND_MODE_REGULAR);
+
+            //TODO: It makes sense to emit this event from a separate message NotifyInProgress
+            // That message would be sent right before DispatchValidated if there are no token transfers 
+            // or along with the messages to the token pools if there are token transfers 
+            val header = message.header;
+            emit(CCIP_EXECUTION_STATE_CHANGED_TOPIC, ExecutionStateChanged {
+                sourceChainSelector: header.sourceChainSelector,
+                sequenceNumber: header.sequenceNumber,
+                messageId: header.messageId,
+                state: EXECUTION_STATE_IN_PROGRESS 
+            });
 }
 
 fun _setOCR3Config(msg: OCR3Base_SetOCR3Config, sender: address) {
