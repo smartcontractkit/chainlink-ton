@@ -112,7 +112,6 @@ export class LockReleaseTokenPoolSetup extends BaseTokenPoolTest {
     const topUpResult = await this.bind.lockReleaseTokenPool.sendTopUp(
       this.acc.deployer.getSender(),
       toNano('1'),
-      { queryId: 1n },
     )
   }
 
@@ -154,7 +153,6 @@ export class LockReleaseTokenPoolSetup extends BaseTokenPoolTest {
     const deployResult = await this.lockReleaseTokenPoolWithAllowList!.sendTopUp(
       this.acc.deployer.getSender(),
       toNano('0.05'),
-      { queryId: 1n },
     )
 
     expect(deployResult.transactions).toHaveTransaction({

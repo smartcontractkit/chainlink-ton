@@ -44,8 +44,10 @@ fun LockReleaseTokenPool.ownable(self): Ownable2Step {
 }
 
 fun LockReleaseTokenPool.tokenPool(self): TokenPool<LockReleaseTokenPool> {
+    val tokenPoolData = lazy self.data.tokenPoolData.load();
+
     return TokenPool<LockReleaseTokenPool>{
-        data: self.data.tokenPoolData.load(),
+        data: tokenPoolData,
         ownable: self.ownable(),
         context: null,
         hooks: TokenPool_Hooks<LockReleaseTokenPool> {
@@ -63,7 +65,10 @@ fun onInternalMessage(in: InMessage) {
     /// Load the contract storage as MCMS and handle the message
     var lockReleaseTokenPool = LockReleaseTokenPool.load();
 
-    if (lockReleaseTokenPool.tokenPool().onInternalMessage(in.senderAddress, in.valueCoins, in.body)) {
+    var tokenPool = lockReleaseTokenPool.tokenPool();
+
+    if (tokenPool.onInternalMessage(in.senderAddress, in.valueCoins, in.body)) {
+        lockReleaseTokenPool.data.tokenPoolData = tokenPool.data.toCell();
         lockReleaseTokenPool.data.storeAsContractData();
         return;
     }
@@ -81,27 +86,28 @@ fun LockReleaseTokenPool.onInternalMessage(mutate self, sender: address, msgValu
     match (msg) {
         Pool_LockOrBurnInV1 => {
             response = lockOrBurn(mutate self, sender, msgValue, msg);
-        },
+        }
         Pool_ReleaseOrMintInV1 => {
             response = releaseOrMint(mutate self, sender, msgValue, msg);
-        },
+        }
         LockReleaseTokenPool_GetRebalancer => {
             val rebalancer = self.handleGetRebalancer(sender);
             response = LockReleaseTokenPool_GetRebalancerResponse {
                 queryId: msg.queryId,
                 rebalancer: self.getRebalancer(),
             };
-        },
+        }
         LockReleaseTokenPool_SetRebalancer => {
             self.handleSetRebalancer(sender, msg.rebalancer);
             response = LockReleaseTokenPool_SetRebalancerResponse {
                 queryId: msg.queryId,
             };
-        },
+        }
         // LockReleaseTokenPool_ProvideLiquidity => self.handleProvideLiquidity(sender),
         // LockReleaseTokenPool_WithdrawLiquidity => self.handleWithdrawLiquidity(sender),
         // LockReleaseTokenPool_TransferLiquidity => self.handleTransferLiquidity(sender),
         else => {
+            // TODO assert (msgBody.isEmpty()) throw 0xFFFF
             return;
         }
     }
@@ -272,3 +278,8 @@ fun LockReleaseTokenPool.setRebalancer(mutate self, sender: address, rebalancer:
 
 //     emit(LiquidityTransferred({ from, amount: transferAmount }));
 // }
+
+get fun getRebalancer(): address {
+    val this = LockReleaseTokenPool.load();
+    return this.data.s_rebalancer;
+}

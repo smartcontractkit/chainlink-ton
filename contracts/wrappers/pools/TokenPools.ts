@@ -20,9 +20,6 @@ export type RemoteChainConfig = {
 }
 
 export type Data = {
-  /// Ownable trait data
-  ownable: ownable2step.Data
-
   /// The token managed by this pool
   token: JettonClientConfig
 
@@ -52,9 +49,9 @@ export const builder = {
   data: (() => {
     const contractData: CellCodec<Data> = {
       encode: (tokenPoolData: Data) => {
-        const allowListMap = new Map<Address, Address>()
+        const allowListMap = new Map<Address, boolean>()
         for (const [k, v] of tokenPoolData.allowList.entries()) {
-          allowListMap.set(k, v)
+          allowListMap.set(k, true)
         }
 
         const remoteChainConfigs = new Map<number, Cell>()
@@ -73,11 +70,10 @@ export const builder = {
         }
 
         return beginCell()
-          .storeRef(ownable2step.builder.data.traitData.encode(tokenPoolData.ownable))
           .storeRef(jettonClientConfigToCell(tokenPoolData.token))
           .storeUint(tokenPoolData.tokenDecimals, 8)
           .storeBit(tokenPoolData.allowListEnabled)
-          .storeDict(loadMap(Dictionary.Keys.Address(), Dictionary.Values.Address(), allowListMap))
+          .storeDict(loadMap(Dictionary.Keys.Address(), Dictionary.Values.Bool(), allowListMap))
           .storeAddress(tokenPoolData.router)
           .storeDict(
             loadMap(
@@ -98,7 +94,6 @@ export const builder = {
 
       decode: (data: Cell): Data => {
         const s = data.beginParse()
-        const ownable = ownable2step.builder.data.traitData.decode(s.loadRef())
         const token = jettonClientConfigFromCell(s.loadRef())
         const tokenDecimals = s.loadUint(8)
         const allowListEnabled = s.loadBit()
@@ -133,7 +128,6 @@ export const builder = {
         }
         const rateLimitAdmin = s.loadAddress()
         return {
-          ownable,
           token,
           tokenDecimals,
           allowListEnabled,
@@ -148,6 +142,11 @@ export const builder = {
     }
     const remoteChainConfig: CellCodec<RemoteChainConfig> = {
       encode: (config: RemoteChainConfig): Cell => {
+        const remotePools = new Map<bigint, bigint>()
+        for (const v of config.remotePools) {
+          remotePools.set(v, v)
+        }
+
         return beginCell()
           .storeBuilder(
             rateLimiter.builder.data.tokenBucket
@@ -164,7 +163,9 @@ export const builder = {
               .storeBuffer(config.remoteTokenAddress as Buffer)
               .endCell(),
           )
-          .storeRef(asSnakeData(config.remotePools, (p) => beginCell().storeUint(p, 256)))
+          .storeDict(
+            loadMap(Dictionary.Keys.BigUint(256), Dictionary.Values.BigUint(256), remotePools),
+          )
           .endCell()
       },
 
@@ -176,7 +177,14 @@ export const builder = {
         const remoteTokenAddress = remoteTokenAddressSlice.loadBuffer(
           remoteTokenAddressSlice.remainingBits / 8,
         )
-        const remotePools = fromSnakeData(s.loadRef(), (p) => p.loadUintBig(256))
+
+        const remotePoolsDict = loadDict(
+          s.loadDict(Dictionary.Keys.BigUint(256), Dictionary.Values.BigUint(256)),
+        )
+        const remotePools: bigint[] = []
+        for (const [k, _v] of remotePoolsDict.entries()) {
+          remotePools.push(k)
+        }
         return {
           outboundRateLimiterConfig,
           inboundRateLimiterConfig,

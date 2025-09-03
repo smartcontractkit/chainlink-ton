@@ -30,7 +30,6 @@ struct TokenPool_Data {
     /// This can be used to ensure only token-issuer specified addresses can move tokens.
     s_allowlist: Map<bool>
     /// @dev The address of the router
-    //  s_router:   IRouter
     s_router: address
     /// @dev A set of allowed chain selectors. We want the allowlist to be enumerable to
     /// be able to quickly determine (without parsing logs) who can access the pool.

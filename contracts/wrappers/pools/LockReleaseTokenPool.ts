@@ -26,11 +26,6 @@ import { tokenPool } from '.'
 
 // --- Message types following the .tolk patterns ---
 
-// @dev Top up contract with TON coins.
-export type TopUp = {
-  queryId: bigint
-}
-
 // @dev Gets rebalancer address
 export type GetRebalancer = {
   queryId: bigint
@@ -112,7 +107,6 @@ export type ReleaseOrMint = {
 
 // @dev Union of all input messages
 export type InMessage =
-  | TopUp
   | GetRebalancer
   | SetRebalancer
   | ProvideLiquidity
@@ -157,6 +151,9 @@ export type IsSupportedTokenResponse = {
 export type ContractData = {
   /// ID allows multiple independent instances
   id: number // uint32
+
+  /// Ownable trait data
+  ownable: ownable2step.Data
 
   /// The rebalancer address
   rebalancer: Address | null
@@ -232,15 +229,13 @@ export const builder = {
   message: {
     in: {
       topUp: {
-        encode: (msg: TopUp): Cell => {
-          return beginCell().storeUint(opcodes.in.TopUp, 32).storeUint(msg.queryId, 64).endCell()
+        encode: (): Cell => {
+          return beginCell().endCell()
         },
-        decode: (cell: Cell): TopUp => {
+        decode: (cell: Cell): null => {
           const s = cell.beginParse()
           s.skip(32) // skip opcode
-          return {
-            queryId: s.loadUintBig(64),
-          }
+          return null
         },
       },
 
@@ -425,6 +420,7 @@ export const builder = {
         // Simplified encoding - extend as needed
         return beginCell()
           .storeUint(data.id, 32)
+          .storeRef(ownable2step.builder.data.traitData.encode(data.ownable))
           .storeAddress(data.rebalancer)
           .storeRef(tokenPoolData)
           .endCell()
@@ -433,6 +429,7 @@ export const builder = {
         const s = cell.beginParse()
         return {
           id: s.loadUint(32),
+          ownable: ownable2step.builder.data.traitData.decode(s.loadRef()),
           rebalancer: s.loadMaybeAddress(),
           tokenPoolData: tokenPool.builder.data.contractData.decode(s.loadRef()),
         }
@@ -449,12 +446,12 @@ export const builder = {
     ): ContractData => {
       return {
         id,
+        ownable: {
+          owner,
+          pendingOwner: null,
+        },
         rebalancer: null,
         tokenPoolData: {
-          ownable: {
-            owner,
-            pendingOwner: null,
-          },
           token,
           tokenDecimals,
           router,
@@ -501,11 +498,11 @@ export class ContractClient implements Contract {
 
   // --- Send methods ---
   async sendDeploy(p: ContractProvider, via: Sender, value: bigint) {
-    return this.sendInternal(p, via, value, builder.message.in.topUp.encode({ queryId: 1n }))
+    return this.sendInternal(p, via, value, builder.message.in.topUp.encode())
   }
 
-  async sendTopUp(p: ContractProvider, via: Sender, value: bigint, body: TopUp) {
-    return this.sendInternal(p, via, value, builder.message.in.topUp.encode(body))
+  async sendTopUp(p: ContractProvider, via: Sender, value: bigint) {
+    return this.sendInternal(p, via, value, builder.message.in.topUp.encode())
   }
 
   async sendGetRebalancer(p: ContractProvider, via: Sender, value: bigint, body: GetRebalancer) {
