@@ -1,4 +1,4 @@
-module integration-tests
+module github.com/smartcontractkit/chainlink-ton/integration-tests
 
 go 1.24.5
 
@@ -8,15 +8,14 @@ require (
 	github.com/ethereum/go-ethereum v1.15.11
 	github.com/hashicorp/consul/sdk v0.16.2
 	github.com/smartcontractkit/chain-selectors v1.0.67
-	github.com/smartcontractkit/chainlink-ccip v0.1.1-solana.0.20250825135846-84f0d5167f8f
-	github.com/smartcontractkit/chainlink-common v0.9.4-0.20250827130112-75577ebd4ed4
+	github.com/smartcontractkit/chainlink-ccip v0.1.1-solana.0.20250827194531-48d824b94c91
+	github.com/smartcontractkit/chainlink-common v0.9.4-0.20250828173926-fcae05ee4a0b
 	github.com/smartcontractkit/chainlink-deployments-framework v0.25.0
 	github.com/smartcontractkit/chainlink-testing-framework/framework v0.10.12
-	github.com/smartcontractkit/chainlink-ton v0.0.0
-	github.com/smartcontractkit/chainlink-ton/deployment v0.0.0-00010101000000-000000000000
-	github.com/smartcontractkit/chainlink-ton/integration-tests v0.0.0-00010101000000-000000000000
-	github.com/smartcontractkit/chainlink/deployment v0.0.0-20250827140128-db51db1d1316
-	github.com/smartcontractkit/chainlink/v2 v2.26.0-debug-tracing.0.20250827140128-db51db1d1316
+	github.com/smartcontractkit/chainlink-ton v0.0.0-20250829201010-23f1c63ba3f1
+	github.com/smartcontractkit/chainlink-ton/deployment v0.0.0-20250829201010-23f1c63ba3f1
+	github.com/smartcontractkit/chainlink/deployment v0.0.0-20250831041730-9b6914fe99ed
+	github.com/smartcontractkit/chainlink/v2 v2.26.0-debug-tracing.0.20250831015441-42e63aeb318b
 	github.com/stretchr/testify v1.10.0
 	github.com/xssnick/tonutils-go v1.14.0
 	go.uber.org/zap v1.27.0
@@ -379,7 +378,7 @@ require (
 	github.com/smartcontractkit/chainlink-protos/rmn/v1.6/go v0.0.0-20250131130834-15e0d4cde2a6 // indirect
 	github.com/smartcontractkit/chainlink-protos/storage-service v0.3.0 // indirect
 	github.com/smartcontractkit/chainlink-protos/svr v1.1.0 // indirect
-	github.com/smartcontractkit/chainlink-protos/workflows/go v0.0.0-20250710151719-d98d7674da89 // indirect
+	github.com/smartcontractkit/chainlink-protos/workflows/go v0.0.0-20250822025801-598d3d86f873 // indirect
 	github.com/smartcontractkit/chainlink-solana v1.1.2-0.20250820135304-632bebc0e802 // indirect
 	github.com/smartcontractkit/chainlink-testing-framework/lib v1.54.4 // indirect
 	github.com/smartcontractkit/chainlink-testing-framework/parrot v0.6.2 // indirect

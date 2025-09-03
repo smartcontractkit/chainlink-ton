@@ -208,7 +208,18 @@ func (lp *service) processBlockRange(ctx context.Context, blockRange *types.Bloc
 
 // RegisterFilter adds a new filter to monitor specific address/event signature combinations
 func (lp *service) RegisterFilter(ctx context.Context, flt types.Filter) error {
-	return lp.filters.RegisterFilter(ctx, flt)
+	// Register the filter first
+	if err := lp.filters.RegisterFilter(ctx, flt); err != nil {
+		return err
+	}
+
+	// TODO(2025-08-28@jadepark-dev): clean up, forcing replay for e2e now
+	lp.lggr.Infow("replaying logs for new filter", "filter", flt.Name, "fromBlock", flt.StartingSeqNo)
+	if err := lp.Replay(ctx, flt.StartingSeqNo); err != nil {
+		lp.lggr.Errorw("failed to replay logs for new filter", "filter", flt.Name, "error", err)
+	}
+
+	return nil
 }
 
 // UnregisterFilter removes a filter by name
@@ -224,4 +235,40 @@ func (lp *service) HasFilter(ctx context.Context, name string) (bool, error) {
 // GetStore exposes the underlying log store for direct access
 func (lp *service) GetStore() LogStore {
 	return lp.store
+}
+
+func (lp *service) Replay(ctx context.Context, fromBlock uint32) error {
+	// TODO(2025-08-28@jadepark-dev): clean up, forcing replay for e2e now
+
+	toBlock, err := lp.client.CurrentMasterchainInfo(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get current masterchain info: %w", err)
+	}
+	blockRange := &types.BlockRange{Prev: nil, To: toBlock}
+	var prevBlock *ton.BlockIDExt
+	if fromBlock != 0 {
+		prevBlock, err = lp.client.LookupBlock(ctx, toBlock.Workchain, toBlock.Shard, fromBlock)
+		if err != nil {
+			return fmt.Errorf("LookupBlock for previous seqno %d: %w", fromBlock, err)
+		}
+
+		blockRange.Prev = prevBlock
+	}
+	lp.lggr.Debugw("replaying logs", "fromBlock", fromBlock, "toBlock", toBlock)
+
+	// get addresses
+	addresses, err := lp.filters.GetDistinctAddresses(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get distinct addresses: %w", err)
+	}
+	if len(addresses) == 0 {
+		return nil
+	}
+
+	// process block range
+	if err := lp.processBlockRange(ctx, blockRange, addresses); err != nil {
+		return fmt.Errorf("failed to process block range: %w", err)
+	}
+
+	return nil
 }

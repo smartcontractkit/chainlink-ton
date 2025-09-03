@@ -5,6 +5,7 @@ import (
 	"math/big"
 
 	"github.com/Masterminds/semver/v3"
+	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
@@ -118,6 +119,7 @@ type FeeTokenConfig struct {
 
 // UpdateFeeQuoterFeeTokensInput contains configuration for updating FeeQuoter fee tokens
 type UpdateFeeQuoterFeeTokensInput struct {
+	Lggr      logger.Logger
 	FeeTokens map[string]FeeTokenConfig // token address (string) -> { premium multiplier }
 }
 
@@ -150,6 +152,9 @@ func updateFeeQuoterFeeTokens(b operations.Bundle, deps TonDeps, in UpdateFeeQuo
 		}
 
 	}
+
+	in.Lggr.Debugf("Updated FeeQuoter fee tokens: %v, address: %v", configs, feeQuoterAddress.String())
+
 	input := feequoter.UpdateFeeTokens{
 		Add:    configs,
 		Remove: nil,

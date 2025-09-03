@@ -3,6 +3,7 @@ package ops
 import (
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"math/big"
 	"testing"
@@ -11,6 +12,9 @@ import (
 	chainsel "github.com/smartcontractkit/chain-selectors"
 	"github.com/smartcontractkit/chainlink-ccip/chains/evm/gobindings/generated/v1_6_0/fee_quoter"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink/deployment/ccip/changeset/v1_6"
 	"github.com/smartcontractkit/chainlink/deployment/ccip/shared"
 	"github.com/smartcontractkit/chainlink/deployment/ccip/shared/client"
@@ -21,20 +25,18 @@ import (
 	mcmstypes "github.com/smartcontractkit/mcms/types"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
-
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 )
 
 const ChainSelEVMTest90000001 = 909606746561742123
 
 // TODO: use address.NewNoneAddress() instead?
-var TonTokenAddr = address.MustParseRawAddr("0:0000000000000000000000000000000000000000000000000000000000000000")
+var TonTokenAddr = address.MustParseRawAddr("0:0000000000000000000000000000000000000000000000000000000000000001")
 
 // DefaultFeeQuoterDestChainConfig returns a default fee quoter config for TON CCIP testing
 func DefaultFeeQuoterDestChainConfig(configEnabled bool, destChainSelector ...uint64) feequoter.DestChainConfig {
@@ -110,10 +112,6 @@ func AddLaneTONChangesets(env *cldf.Environment, from, to uint64, fromFamily, to
 
 	var src, dest config.ChainDefinition
 	// TODO: LINK placeholder address
-	tonTokenAddr, err := address.ParseRawAddr("0:0000000000000000000000000000000000000000000000000000000000000000")
-	if err != nil {
-		env.Logger.Fatalf("Failed to parse TON token address: %v", err)
-	}
 
 	switch fromFamily {
 	case chainsel.FamilyEVM:
@@ -135,7 +133,7 @@ func AddLaneTONChangesets(env *cldf.Environment, from, to uint64, fromFamily, to
 			Selector: from,
 			GasPrice: gasPrices[from],
 			TokenPrices: map[*address.Address]*big.Int{
-				tonTokenAddr: big.NewInt(99),
+				TonTokenAddr: big.NewInt(99),
 			},
 			FeeQuoterDestChainConfig: DefaultFeeQuoterDestChainConfig(true, to),
 			TokenTransferFeeConfigs:  map[uint64]feequoter.UpdateTokenTransferFeeConfig{
@@ -188,7 +186,7 @@ func AddLaneTONChangesets(env *cldf.Environment, from, to uint64, fromFamily, to
 			Selector: to,
 			GasPrice: big.NewInt(1e17),
 			TokenPrices: map[*address.Address]*big.Int{
-				tonTokenAddr: big.NewInt(99),
+				TonTokenAddr: big.NewInt(99),
 			},
 			FeeQuoterDestChainConfig: DefaultFeeQuoterDestChainConfig(true, to),
 			TokenTransferFeeConfigs:  map[uint64]feequoter.UpdateTokenTransferFeeConfig{
@@ -287,18 +285,75 @@ func SendTonRequest(
 		return nil, fmt.Errorf("failed to wait for trace: %w", err)
 	}
 
-	// TODO: log poller
-	//ca, er := chainaccessor.NewTONAccessor(e.Logger, clientConn, nil)
-	//if er != nil {
-	//	return nil, fmt.Errorf("failed to create TON accessor: %w", er)
-	//}
-
-	//number, err := ca.GetExpectedNextSequenceNumber(e.GetContext(), cciptypes.ChainSelector(cfg.DestChain))
-	//if err != nil {
-	//	return nil, err
-	//}
+	seqNum, err := waitForReceivedMsgFlatten(e, clientConn, receivedMsg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get seqNum from flattening received messages: %w", err)
+	}
 
 	return &client.AnyMsgSentEvent{
-		//SequenceNumber: uint64(number),
+		SequenceNumber: seqNum,
 	}, nil
+}
+
+func waitForReceivedMsgFlatten(e cldf.Environment, clientConn *ton.APIClient, msg *tracetracking.ReceivedMessage) (uint64, error) {
+	if msg == nil {
+		return 0, errors.New("received message is nil")
+	}
+
+	// Collect all messages to process in a queue
+	var messagesToProcess []*tracetracking.ReceivedMessage
+	messagesToProcess = append(messagesToProcess, msg)
+
+	var lastMsg *tracetracking.ReceivedMessage
+
+	// Process messages iteratively
+	for len(messagesToProcess) > 0 {
+		// Get the first message from the queue
+		currentMsg := messagesToProcess[0]
+		messagesToProcess = messagesToProcess[1:]
+
+		if len(currentMsg.OutgoingInternalReceivedMessages) == 0 {
+			continue
+		}
+
+		e.Logger.Infof("Flattening %d outgoing internal messages", len(currentMsg.OutgoingInternalReceivedMessages))
+
+		for i, outMsg := range currentMsg.OutgoingInternalReceivedMessages {
+			e.Logger.Infof("Outgoing message %d: exit code %v, success: %v, bounced: %v, status: %v",
+				i, outMsg.ExitCode, outMsg.Success, outMsg.EmittedBouncedMessage, outMsg.Status())
+
+			if outMsg.ExitCode != 0 {
+				e.Logger.Errorf("Outgoing message %d failed with exit code %v", i, outMsg.ExitCode)
+			}
+			if !outMsg.Success {
+				e.Logger.Errorf("Outgoing message %d was not successful", i)
+			}
+			if outMsg.EmittedBouncedMessage {
+				e.Logger.Errorf("Outgoing message %d was bounced", i)
+			}
+
+			err := outMsg.WaitForTrace(clientConn)
+			if err != nil {
+				e.Logger.Errorf("failed to wait for trace: %v", err)
+				continue
+			}
+
+			// Add this message to the queue for further processing
+			messagesToProcess = append(messagesToProcess, outMsg)
+			lastMsg = outMsg
+		}
+	}
+
+	if lastMsg == nil || len(lastMsg.OutgoingExternalMessages) == 0 {
+		return 0, errors.New("no received messages were processed")
+	}
+
+	var ccipResp onramp.CCIPMessageSent
+	err := tlb.LoadFromCell(&ccipResp, lastMsg.OutgoingExternalMessages[0].Body.BeginParse())
+	if err != nil {
+		e.Logger.Errorf("failed to parse CCIPMessageSent from cell: %v", err)
+		return 0, err
+	}
+
+	return ccipResp.Message.Header.SequenceNumber, nil
 }

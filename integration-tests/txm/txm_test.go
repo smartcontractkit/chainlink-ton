@@ -6,7 +6,7 @@ import (
 
 	chainsel "github.com/smartcontractkit/chain-selectors"
 
-	test_utils "integration-tests/utils"
+	test_utils "github.com/smartcontractkit/chainlink-ton/integration-tests/utils"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/loop"

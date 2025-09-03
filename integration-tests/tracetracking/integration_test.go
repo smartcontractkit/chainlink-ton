@@ -13,12 +13,12 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
-	"integration-tests/tracetracking/async/wrappers/requestreply"
-	"integration-tests/tracetracking/async/wrappers/requestreplywithtwodependencies"
-	"integration-tests/tracetracking/async/wrappers/twomsgchain"
-	"integration-tests/tracetracking/async/wrappers/twophasecommit"
+	"github.com/smartcontractkit/chainlink-ton/integration-tests/tracetracking/async/wrappers/requestreply"
+	"github.com/smartcontractkit/chainlink-ton/integration-tests/tracetracking/async/wrappers/requestreplywithtwodependencies"
+	"github.com/smartcontractkit/chainlink-ton/integration-tests/tracetracking/async/wrappers/twomsgchain"
+	"github.com/smartcontractkit/chainlink-ton/integration-tests/tracetracking/async/wrappers/twophasecommit"
 
-	"integration-tests/tracetracking/testutils"
+	"github.com/smartcontractkit/chainlink-ton/integration-tests/tracetracking/testutils"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/examples/counter"

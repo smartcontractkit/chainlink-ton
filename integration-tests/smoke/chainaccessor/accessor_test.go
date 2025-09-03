@@ -7,10 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
-	"github.com/xssnick/tonutils-go/ton/wallet"
-	"github.com/xssnick/tonutils-go/tvm/cell"
 	"go.uber.org/zap/zapcore"
 
 	chain_selectors "github.com/smartcontractkit/chain-selectors"
@@ -20,17 +17,14 @@ import (
 
 	"github.com/smartcontractkit/chainlink/deployment/ccip/shared/client"
 	"github.com/smartcontractkit/chainlink/deployment/ccip/shared/stateview"
-	tonStateView "github.com/smartcontractkit/chainlink/deployment/ccip/shared/stateview/ton"
 	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
 	"github.com/smartcontractkit/chainlink/deployment/environment/memory"
 	"github.com/smartcontractkit/chainlink/v2/core/logger"
 
 	ops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 
 	tonCommon "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 
@@ -40,8 +34,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/txparser"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/chainaccessor"
-
-	test_utils "github.com/smartcontractkit/chainlink-ton/integration-tests/utils"
 )
 
 const ChainSelEVMTest90000001 = 909606746561742123
@@ -62,10 +54,6 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 	require.Len(t, tonChainSelectors, 1, "Expected exactly 1 Ton chain")
 	chainSelector := tonChainSelectors[0]
 	tonChain := env.BlockChains.TonChains()[chainSelector]
-	deployer := tonChain.Wallet
-
-	// memory environment doesn't block on funding so changesets can execute before the env is fully ready, manually call fund so we block here
-	test_utils.FundWallets(t, tonChain.Client, []*address.Address{deployer.Address()}, []tlb.Coins{tlb.MustFromTON("1000")})
 
 	// -- deploy contracts
 	cs := ops.DeployChainContractsToTonCS(t, env, chainSelector)
@@ -119,50 +107,11 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 		require.NoError(t, lp.Close())
 	}()
 
-	feeQuoterAddr := state[chainSelector].FeeQuoter
-
-	// -- set fee token manually
-	feeTokenDict := cell.NewDict(267) // key size for address
-	feeToken := feequoter.FeeToken{PremiumMultiplierWeiPerEth: 1}
-	feeTokenCell, err := tlb.ToCell(feeToken)
-	require.NoError(t, err, "failed to encode FeeToken")
-
-	// Add the fee token to dictionary (address as key)
-	addressKeyCell := cell.BeginCell().MustStoreAddr(ops.TonTokenAddr).EndCell()
-	err = feeTokenDict.Set(addressKeyCell, feeTokenCell)
-	require.NoError(t, err, "failed to add fee token to dictionary")
-
-	updateFeeTokensMsg := feequoter.UpdateFeeTokens{
-		Add:    feeTokenDict,
-		Remove: tonCommon.SnakeData[*address.Address]{}, // Empty remove list
-	}
-
-	updateFeeTokensCell, err := tlb.ToCell(updateFeeTokensMsg)
-	require.NoError(t, err, "failed to encode UpdateFeeTokens message")
-
-	updateFeeTokensInternalMsg := &wallet.Message{
-		Mode: 1,
-		InternalMessage: &tlb.InternalMessage{
-			IHRDisabled: true,
-			Bounce:      false,
-			DstAddr:     &feeQuoterAddr,
-			Amount:      tlb.MustFromTON("0.01"),
-			Body:        updateFeeTokensCell,
-		},
-	}
-
-	tt := tracetracking.NewSignedAPIClient(tonChain.Client, *deployer)
-	updateFeeTokensResult, updateFeeTokensBlockID, err := tt.SendWaitTransaction(ctx, feeQuoterAddr, updateFeeTokensInternalMsg)
-	require.NoError(t, err, "failed to send UpdateFeeTokens transaction")
-
-	t.Logf("UpdateFeeTokens transaction sent successfully - Block: %d, ExitCode: %d",
-		updateFeeTokensBlockID.SeqNo, updateFeeTokensResult.ExitCode)
-
 	// TODO: use sendmanytx or highload wallet, otherwise we get 33 exit code(too many actions)
 	time.Sleep(5 * time.Second)
 
 	const maxSeqNo = 4
-	for seqNo := 0; seqNo <= maxSeqNo; seqNo++ {
+	for seqNo := 0; seqNo < maxSeqNo; seqNo++ {
 		t.Log("Sending CCIP message", seqNo)
 		extraArgs := onramp.GenericExtraArgsV2{
 			GasLimit:                 big.NewInt(100),
@@ -190,9 +139,10 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 
 		// TODO: send helper args are coupled with core memory environment, can we tidy this?
 		ccipState := stateview.CCIPOnChainState{
-			TonChains: map[uint64]tonStateView.CCIPChainState{
+			TonChains: map[uint64]tonstate.CCIPChainState{
 				chainSelector: {
 					Router: state[chainSelector].Router,
+					OnRamp: state[chainSelector].OnRamp,
 				},
 			},
 		}
@@ -212,9 +162,9 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 		// check all messages are indexed
 		msgs, err := accessor.MsgsBetweenSeqNums(ctx, ccipocr3.ChainSelector(evmSelector), ccipocr3.NewSeqNumRange(0, maxSeqNo))
 		require.NoError(t, err, "failed to get latest message sequence number")
-		require.Len(t, msgs, maxSeqNo+1, "expected %d messages, got %d", maxSeqNo+1, len(msgs))
-		require.Equal(t, msgs[0].Header.SequenceNumber, ccipocr3.SeqNum(0))
-		require.Equal(t, msgs[maxSeqNo].Header.SequenceNumber, ccipocr3.SeqNum(maxSeqNo))
+		require.Len(t, msgs, maxSeqNo, "expected %d messages, got %d", maxSeqNo, len(msgs))
+		require.Equal(t, msgs[0].Header.SequenceNumber, ccipocr3.SeqNum(1))
+		require.Equal(t, msgs[maxSeqNo-1].Header.SequenceNumber, ccipocr3.SeqNum(maxSeqNo))
 
 		// range query
 		const start, end = 2, 4

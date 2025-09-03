@@ -137,7 +137,8 @@ func (a *TONAccessor) getOnRampDestChainConfig(ctx context.Context, block *ton.B
 	if err != nil {
 		return ccipocr3.OnRampDestChainConfig{}, err
 	}
-	result, err := a.client.RunGetMethod(ctx, block, addr, "destChainConfig", dest)
+
+	result, err := a.client.RunGetMethod(ctx, block, addr, "destChainConfig", uint64(dest))
 	if err != nil {
 		return ccipocr3.OnRampDestChainConfig{}, err
 	}
@@ -145,6 +146,7 @@ func (a *TONAccessor) getOnRampDestChainConfig(ctx context.Context, block *ton.B
 	if err := cfg.FromResult(result); err != nil {
 		return ccipocr3.OnRampDestChainConfig{}, err
 	}
+
 	return ccipocr3.OnRampDestChainConfig{
 		SequenceNumber:   cfg.SequenceNumber,
 		AllowListEnabled: cfg.AllowListEnabled,
