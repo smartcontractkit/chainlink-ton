@@ -227,7 +227,59 @@ describe('MCMS - ManyChainMultiSigExecuteErrorOracleTest', () => {
     })
   })
 
-  it('should fail to submit error report if not oracle', async () => {})
+  it('should fail to submit error report if not oracle', async () => {
+    await _setupOracleRole()
 
-  it('should fail to submit error report if op not part of the current root', async () => {})
+    // Submit an error report
+    const proof = baseTest.getProofForOp(0)
+    const txHash = 13n
+
+    const r = await baseTest.bind.mcms.sendInternal(
+      baseTest.acc.multisigOwner.getSender(), // not an oracle
+      toNano('1'),
+      mcms.builder.message.in.submitErrorReport.encode({
+        queryId: 1n,
+        op: mcms.builder.data.op.encode(baseTest.testOps[0]),
+        proof,
+        opTxHash: txHash,
+        errorTxHash: txHash,
+        errorCode: 1337,
+      }),
+    )
+
+    expect(r.transactions).toHaveTransaction({
+      from: baseTest.acc.multisigOwner.address,
+      to: baseTest.bind.mcms.address,
+      success: false,
+      exitCode: mcms.Error.ERROR_UNAUTHORIZED_ORACLE,
+    })
+  })
+
+  it('should fail to submit error report if op not part of the current root', async () => {
+    await _setupOracleRole()
+
+    // Submit an error report
+    const invalidProof = [0n, 1n, 2n, 3n]
+    const txHash = 13n
+
+    const r = await baseTest.bind.mcms.sendInternal(
+      acc.oracle.getSender(),
+      toNano('1'),
+      mcms.builder.message.in.submitErrorReport.encode({
+        queryId: 1n,
+        op: mcms.builder.data.op.encode(baseTest.testOps[0]),
+        proof: invalidProof,
+        opTxHash: txHash,
+        errorTxHash: txHash,
+        errorCode: 1337,
+      }),
+    )
+
+    expect(r.transactions).toHaveTransaction({
+      from: acc.oracle.address,
+      to: baseTest.bind.mcms.address,
+      success: false,
+      exitCode: mcms.Error.PROOF_CANNOT_BE_VERIFIED,
+    })
+  })
 })
