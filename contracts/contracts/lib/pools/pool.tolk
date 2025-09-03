@@ -15,16 +15,18 @@ const CCIP_POOL_V1_RET_BYTES : uint16 = 32
 // in the TokenTransferFeeConfig.destBytesOverhead if more data is required.
 const CCIP_LOCK_OR_BURN_V1_RET_BYTES : uint32 = 32
 
-struct Pool_LockOrBurnInV1 {
+//crc32('Pool_LockOrBurnInV1')
+struct (0x179B4A8C)Pool_LockOrBurnInV1 {
     msg: Cell<CCIPSend>
-    receiver: slice //  The recipient of the tokens on the destination chain, abi encoded.
+    receiver: CrossChainAddress //  The recipient of the tokens on the destination chain, abi encoded.
     remoteChainSelector: uint64 // ─╮ The chain ID of the destination chain.
     originalSender: address // ─────╯ The original sender of the tx on the source chain.
     amount: coins //  The amount of tokens to lock or burn, denominated in the source token's decimals.
     localToken: address //  The address on this chain of the token to lock or burn.
 }
 
-struct Pool_LockOrBurnOutV1 {
+//crc32('Pool_LockOrBurnOutV1')
+struct (0x56E7EB1A)Pool_LockOrBurnOutV1 {
     msg: Cell<CCIPSend>
     // The address of the destination token, abi encoded in the case of EVM chains.
     // This value is UNTRUSTED as any pool owner can return whatever value they want.
@@ -35,9 +37,10 @@ struct Pool_LockOrBurnOutV1 {
     destPoolData: slice
 }
 
-struct Pool_ReleaseOrMintInV1 {
+//crc32('Pool_ReleaseOrMintInV1')
+struct (0x1703AC0B)Pool_ReleaseOrMintInV1 {
     msg: Cell<CCIPSend>
-    originalSender: slice //            The original sender of the tx on the source chain.
+    originalSender: CrossChainAddress //            The original sender of the tx on the source chain.
     remoteChainSelector: uint64 // ───╮ The chain ID of the source chain.
     receiver: address // ─────────────╯ The recipient of the tokens on the destination chain.
     sourceDenominatedAmount: coins // The amount of tokens to release or mint, denominated in the source token's decimals.
@@ -50,7 +53,8 @@ struct Pool_ReleaseOrMintInV1 {
     offchainTokenData: CrossChainAddress //         The offchain data to process the release or mint.
 }
 
-struct Pool_ReleaseOrMintOutV1 {
+//crc32('Pool_ReleaseOrMintOutV1')
+struct (0x0D347F43)Pool_ReleaseOrMintOutV1 {
     msg: Cell<CCIPSend>
     // The number of tokens released or minted on the destination chain, denominated in the local token's decimals.
     // This value is expected to be equal to the ReleaseOrMintInV1.amount in the case where the source and destination

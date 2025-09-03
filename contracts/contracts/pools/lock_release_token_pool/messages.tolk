@@ -1,5 +1,8 @@
 tolk 1.0
 
+import "../../lib/pools/pool"
+import "../../lib/pools/ipool"
+
 // --- Messages - incoming ---
 /// @notice Gets rebalancer address
 struct (0x1a2b3c4d) LockReleaseTokenPool_GetRebalancer {
@@ -39,6 +42,8 @@ struct (0x5e6f7081) LockReleaseTokenPool_TransferLiquidity {
 
 /// @dev Union of all incoming messages.
 type LockReleaseTokenPool_InMessage =
+    | Pool_LockOrBurnInV1
+    | Pool_ReleaseOrMintInV1
     | LockReleaseTokenPool_GetRebalancer
     | LockReleaseTokenPool_SetRebalancer
     // | LockReleaseTokenPool_ProvideLiquidity
@@ -73,6 +78,8 @@ struct (0xe5f60718) LockReleaseTokenPool_TransferLiquidityResponse {
 }
 
 type LockReleaseTokenPool_Response =
+    | Pool_LockOrBurnOutV1
+    | Pool_ReleaseOrMintOutV1
     | LockReleaseTokenPool_GetRebalancerResponse
     | LockReleaseTokenPool_SetRebalancerResponse
     | LockReleaseTokenPool_ProvideLiquidityResponse

@@ -54,10 +54,6 @@ fun LockReleaseTokenPool.tokenPool(self): TokenPool<LockReleaseTokenPool> {
             getTokenDecimals: null,
             encodeLocalDecimals: null,
             calculateLocalAmount: null,
-            ipool: IPool_Hooks<LockReleaseTokenPool> {
-                lockOrBurn: lockOrBurn,
-                releaseOrMint: releaseOrMint,
-            },
         }
     };
 }
@@ -83,6 +79,12 @@ fun LockReleaseTokenPool.onInternalMessage(mutate self, sender: address, msgValu
     var response: LockReleaseTokenPool_Response? = null;
     val msg = lazy LockReleaseTokenPool_InMessage.fromSlice(msgBody);
     match (msg) {
+        Pool_LockOrBurnInV1 => {
+            response = lockOrBurn(mutate self, sender, msgValue, msg);
+        },
+        Pool_ReleaseOrMintInV1 => {
+            response = releaseOrMint(mutate self, sender, msgValue, msg);
+        },
         LockReleaseTokenPool_GetRebalancer => {
             val rebalancer = self.handleGetRebalancer(sender);
             response = LockReleaseTokenPool_GetRebalancerResponse {

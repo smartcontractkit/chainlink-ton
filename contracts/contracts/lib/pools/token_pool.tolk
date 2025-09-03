@@ -70,8 +70,6 @@ struct TokenPool_Hooks<T> {
     calculateLocalAmount: ((T?, coins, uint8) -> coins)?
 
     _parseRemoteDecimals: ((T?, slice) -> uint8)?
-
-    ipool: IPool_Hooks<T>,
 }
 
 // --- Methods ---
@@ -105,10 +103,6 @@ fun TokenPool<T>.onInternalMessage(
     msgValue: coins,
     msgBody: slice,
 ): bool {
-    if (self.ipool().onInternalMessage(sender, msgValue, msgBody)) {
-        return true;
-    }
-
     val msg = lazy TokenPool_InMessage.fromSlice(msgBody);
     var response: TokenPool_Response? = null;
 
@@ -461,10 +455,10 @@ fun TokenPool<T>._calculateLocalAmount(self, remoteAmount: coins, remoteDecimals
 /// @notice Gets the pool address on the remote chain.
 /// @param remoteChainSelector Remote chain selector.
 /// @dev To support non-evm chains, this value is encoded into bytes
-fun TokenPool<T>.getRemotePools(self, remoteChainSelector: int): tuple? {
+fun TokenPool<T>.getRemotePools(self, remoteChainSelector: int): UMap<uint256, uint256> {
     val (remoteChainConfig, ok) = self.data.s_remoteChainConfigs.get(remoteChainSelector);
     assert (remoteChainConfig != null) throw TokenPool_ERROR_NON_EXISTENT_CHAIN;
-    return remoteChainConfig.remotePools.values();
+    return remoteChainConfig.remotePools;
 }
 
 /// @notice Checks if the pool address is configured on the remote chain.
@@ -539,8 +533,8 @@ fun TokenPool<T>.isSupportedChain(self, remoteChainSelector: uint64): bool {
 
 /// @notice Get list of allowed chains
 /// @return list of chains.
-fun TokenPool<T>.getSupportedChains(self): tuple? {
-    return self.data.s_remoteChainSelectors.keys();
+fun TokenPool<T>.getSupportedChains(self): UMap<uint64, uint64> {
+    return self.data.s_remoteChainSelectors;
 }
 
 /// @notice Sets the permissions for a list of chains selectors. Actual senders for these chains
@@ -636,7 +630,7 @@ fun TokenPool<T>._consumeOutboundRateLimit(
     remoteChainSelector: uint64,
     amount: coins,
 ) {
-    val (config, ok) = self.data.s_remoteChainConfigs.get(remoteChainSelector);
+    var (config, ok) = self.data.s_remoteChainConfigs.get(remoteChainSelector);
     assert (config != null) throw 1000;
     val token = self.data.i_token.load();
     config.outboundRateLimiterConfig._consume(amount, token.masterAddress);
@@ -651,7 +645,7 @@ fun TokenPool<T>._consumeOutboundRateLimit(
 
 /// @notice Consumes inbound rate limiting capacity in this pool
 fun TokenPool<T>._consumeInboundRateLimit(mutate self, remoteChainSelector: uint64, amount: coins) {
-    val (config, ok) = self.data.s_remoteChainConfigs.get(remoteChainSelector);
+    var (config, ok) = self.data.s_remoteChainConfigs.get(remoteChainSelector);
     assert (config != null) throw 1000;
     val jetton = lazy self.data.i_token.load();
     config.inboundRateLimiterConfig._consume(amount, jetton.masterAddress);
@@ -809,8 +803,8 @@ fun TokenPool<T>.getAllowListEnabled(self): bool {
 
 /// @notice Gets the allowed addresses.
 /// @return The allowed addresses.
-fun TokenPool<T>.getAllowList(self): tuple? {
-    return (self.data.s_allowlist.keys());
+fun TokenPool<T>.getAllowList(self): Map<bool> {
+    return self.data.s_allowlist;
 }
 
 /// @notice Apply updates to the allow list.

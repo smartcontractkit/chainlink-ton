@@ -7,7 +7,7 @@ import "../../utils"
 struct ChainUpdate {
     remoteChainSelector: uint64 // Remote chain selector
     remotePoolAddresses: Iterator<CrossChainAddress> // address of the remote pool, ABI encoded in the case of a remote EVM chain.
-    remoteTokenAddress: slice // address of the remote token, ABI encoded in the case of a remote EVM chain.
+    remoteTokenAddress: CrossChainAddress // address of the remote token, ABI encoded in the case of a remote EVM chain.
     outboundRateLimiterConfig: RateLimiter_Config // Outbound rate limited config, meaning the rate limits for all of the onRamps for the given chain
     inboundRateLimiterConfig: RateLimiter_Config // Inbound rate limited config, meaning the rate limits for all of the offRamps for the given chain
 }
@@ -119,7 +119,7 @@ struct (0xddeeff10) TokenPool_AddRemotePool {
 struct (0xeeff0011) TokenPool_RemoveRemotePool {
     queryId: uint64
     remoteChainSelector: uint64
-    remotePoolAddress: slice
+    remotePoolAddress: CrossChainAddress
 }
 
 /// @notice Check if chain is supported
@@ -262,7 +262,7 @@ struct (0xa9aabbcc) TokenPool_GetTokenDecimalsResponse {
 /// @notice Response for GetRemotePools query
 struct (0xaabbccdd) TokenPool_GetRemotePoolsResponse {
     queryId: uint64
-    remotePools: tuple?
+    remotePools: UMap<uint256, uint256>
 }
 
 /// @notice Response for IsRemotePool query
@@ -274,7 +274,7 @@ struct (0xabbccdee) TokenPool_IsRemotePoolResponse {
 /// @notice Response for GetRemoteToken query
 struct (0xbccddeef) TokenPool_GetRemoteTokenResponse {
     queryId: uint64
-    remoteToken: slice
+    remoteToken: CrossChainAddress
 }
 
 /// @notice Response for AddRemotePool operation
@@ -298,7 +298,7 @@ struct (0xeeff0000) TokenPool_IsSupportedChainResponse {
 /// @notice Response for GetSupportedChains query
 struct (0xff000011) TokenPool_GetSupportedChainsResponse {
     queryId: uint64
-    supportedChains: tuple?
+    supportedChains: UMap<uint64, uint64>
 }
 
 /// @notice Response for ApplyChainUpdates operation
@@ -340,7 +340,7 @@ struct (0x04455667) TokenPool_GetAllowListEnabledResponse {
 /// @notice Response for GetAllowList query
 struct (0x05566778) TokenPool_GetAllowListResponse {
     queryId: uint64
-    allowList: tuple?
+    allowList: Map<bool>
 }
 
 /// @notice Response for ApplyAllowListUpdates operation
