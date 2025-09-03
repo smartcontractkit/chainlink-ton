@@ -92,8 +92,22 @@ export type SubmitErrorReport = {
   errorCode: number
 }
 
+/// Message sent by the owner to transfer the oracle role.
+export type TransferOracleRole = {
+  /// Query ID of the change request.
+  queryId: bigint
+  /// The address of the new oracle.
+  newOracle: Address
+}
+
 // @dev Union of all (input) messages.
-export type InMessage = TopUp | SetRoot | Execute | SetConfig | SubmitErrorReport
+export type InMessage =
+  | TopUp
+  | SetRoot
+  | Execute
+  | SetConfig
+  | SubmitErrorReport
+  | TransferOracleRole
 
 // MCMS contract storage
 export type ContractData = {
@@ -404,12 +418,14 @@ export const opcodes = {
     Execute: crc32('MCMS_Execute'),
     SetConfig: crc32('MCMS_SetConfig'),
     SubmitErrorReport: crc32('MCMS_SubmitErrorReport'),
+    TransferOracleRole: crc32('MCMS_TransferOracleRole'),
   },
   out: {
     NewRoot: crc32('MCMS_NewRoot'),
     ConfigSet: crc32('MCMS_ConfigSet'),
     OpExecuted: crc32('MCMS_OpExecuted'),
     ErrorReportedSubmitted: crc32('MCMS_ErrorReportSubmitted'),
+    OracleRoleTransferred: crc32('MCMS_OracleRoleTransferred'),
   },
 }
 
@@ -566,6 +582,23 @@ export const builder = {
             opTxHash: s.loadUintBig(256),
             errorTxHash: s.loadUintBig(256),
             errorCode: s.loadUint(32),
+          }
+        },
+      },
+      transferOracleRole: {
+        encode: (msg: TransferOracleRole): Cell => {
+          return beginCell()
+            .storeUint(opcodes.in.TransferOracleRole, 32)
+            .storeUint(msg.queryId, 64)
+            .storeAddress(msg.newOracle)
+            .endCell()
+        },
+        decode: (cell: Cell): TransferOracleRole => {
+          const s = cell.beginParse()
+          s.skip(32) // skip opcode
+          return {
+            queryId: s.loadUintBig(64),
+            newOracle: s.loadAddress(),
           }
         },
       },
@@ -766,43 +799,29 @@ export const builder = {
       },
       decode: (cell: Cell): ContractData => {
         const s = cell.beginParse()
-
-        const id = s.loadUint(32)
-        const ownable = {
-          owner: s.loadAddress(),
-          pendingOwner: s.loadAddress(),
-        }
-
-        const oracle = s.loadAddress()
-
-        const signers = loadDict(
-          Dictionary.loadDirect(
-            Dictionary.Keys.BigUint(256),
-            Dictionary.Values.Buffer(LEN_SIGNER_BYTES),
-            s.loadRef(),
-          ),
-        )
-
-        const _config = config.decode(s.loadRef())
-
-        const seenSignedHashes = loadDict(
-          Dictionary.loadDirect(
-            Dictionary.Keys.BigUint(256),
-            Dictionary.Values.Bool(),
-            s.loadRef(),
-          ),
-        )
-
-        const _rootInfo = rootInfo.decode(s.loadRef())
-
         return {
-          id,
-          ownable,
-          oracle,
-          signers,
-          config: _config,
-          seenSignedHashes,
-          rootInfo: _rootInfo,
+          id: s.loadUint(32),
+          ownable: {
+            owner: s.loadAddress(),
+            pendingOwner: s.loadAddress(),
+          },
+          oracle: s.loadAddress(),
+          signers: loadDict(
+            Dictionary.loadDirect(
+              Dictionary.Keys.BigUint(256),
+              Dictionary.Values.Buffer(LEN_SIGNER_BYTES),
+              s.loadRef(),
+            ),
+          ),
+          config: config.decode(s.loadRef()),
+          seenSignedHashes: loadDict(
+            Dictionary.loadDirect(
+              Dictionary.Keys.BigUint(256),
+              Dictionary.Values.Bool(),
+              s.loadRef(),
+            ),
+          ),
+          rootInfo: rootInfo.decode(s.loadRef()),
         }
       },
     }
