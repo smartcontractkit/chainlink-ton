@@ -956,6 +956,17 @@ export class ContractClient implements Contract {
     return p.get('getRoot', []).then((r) => [r.stack.readBigNumber(), r.stack.readBigNumber()])
   }
 
+  async getOpPendingInfo(p: ContractProvider): Promise<OpPendingInfo> {
+    return p.get('getOpPendingInfo', []).then((r) => {
+      return {
+        validAfter: r.stack.readBigNumber(),
+        opFinalizationTimeout: r.stack.readBigNumber(),
+        opPendingReceiver: r.stack.readAddressOpt() || ZERO_ADDRESS,
+        opPendingBodyTruncated: r.stack.readBigNumber(),
+      }
+    })
+  }
+
   async getRootMetadata(p: ContractProvider): Promise<RootMetadata> {
     return p.get('getRootMetadata', []).then((r) => {
       return {
@@ -968,14 +979,7 @@ export class ContractClient implements Contract {
     })
   }
 
-  async getOpPendingInfo(p: ContractProvider): Promise<OpPendingInfo> {
-    return p.get('getOpPendingInfo', []).then((r) => {
-      return {
-        validAfter: r.stack.readBigNumber(),
-        opFinalizationTimeout: r.stack.readBigNumber(),
-        opPendingReceiver: r.stack.readAddressOpt() || ZERO_ADDRESS,
-        opPendingBodyTruncated: r.stack.readBigNumber(),
-      }
-    })
+  async getOracle(p: ContractProvider): Promise<Address> {
+    return p.get('getOracle', []).then((r) => r.stack.readAddress())
   }
 }
