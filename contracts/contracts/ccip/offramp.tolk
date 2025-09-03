@@ -341,7 +341,7 @@ fun _execute(msg: OffRamp_Execute, sender: address) {
     }.toCell().hash();
 
 
-    // no batching
+    assert(!report.messages.beginParse().isEmpty(), ERROR_EMPTY_EXECUTION_REPORT);
     val message = Any2TVMRampMessage.fromCell(report.messages);
 
     // Commits do not verify the destChainSelector in the message since only the root is committed, so we
