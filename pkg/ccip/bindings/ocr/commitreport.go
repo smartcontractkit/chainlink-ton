@@ -17,7 +17,7 @@ type SignatureEd25519 struct {
 
 // CommitReport represents the top-level structure for a commit report.
 type CommitReport struct {
-	PriceUpdates PriceUpdates                 `tlb:"^"`
+	PriceUpdates *PriceUpdates                `tlb:"maybe ^"`
 	MerkleRoots  common.SnakeData[MerkleRoot] `tlb:"^"`
 }
 

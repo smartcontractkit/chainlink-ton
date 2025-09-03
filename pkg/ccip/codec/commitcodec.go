@@ -79,7 +79,7 @@ func (cr *commitPluginCodecV1) Encode(ctx context.Context, report cciptypes.Comm
 	}
 
 	cellReport := ocr.CommitReport{
-		PriceUpdates: ocr.PriceUpdates{
+		PriceUpdates: &ocr.PriceUpdates{
 			TokenPriceUpdates: tpuSlice,
 			GasPriceUpdates:   gpuSlice,
 		},

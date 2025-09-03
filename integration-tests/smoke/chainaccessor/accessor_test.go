@@ -1,6 +1,7 @@
 package smoke
 
 import (
+	"encoding/binary"
 	"fmt"
 	"math/big"
 	"math/rand/v2"
@@ -259,6 +260,7 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 	require.NoError(t, err, "failed to add EVM→TON lane")
 
 	// Configure OCR3 for commit and exec plugins
+	deployerAsTransmitter := codec.ToRawAddr(tonChain.WalletAddress)
 	env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{
 		commonchangeset.Configure(ops.SetOCR3Config{}, ops.SetOCR3OffRampConfig{
 			RemoteChainSels: []uint64{tonChain.Selector},
@@ -274,7 +276,7 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 						{2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2},
 					},
 					Transmitters: [][]byte{
-						{0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+						deployerAsTransmitter[:],
 						{0, 0, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2},
 					},
 				},
@@ -340,11 +342,15 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 			MerkleRoots:  []ocr.MerkleRoot{merkleRoot},
 		}
 
-		// Create config digest (512 bits for commit)
-		configDigest := make([]byte, 64) // 512 bits = 64 bytes
-		for i := range configDigest {
-			configDigest[i] = byte(i % 256)
-		}
+		// Use the same config digest as the OCR3 setup (32 bytes)
+		configDigest := []byte{1, 2, 3, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+
+		// Create report context (64 bytes): configDigest + 24 padding + 8 bytes seqNr
+		reportContext := make([]byte, 64)
+		copy(reportContext[:32], configDigest) // First 32: config digest
+		// Bytes 32-55 remain zero (padding)
+		seqNr := uint64(1)                                    // Sequence number
+		binary.BigEndian.PutUint64(reportContext[56:], seqNr) // Last 8: sequence number
 
 		// Create dummy signatures
 		subSig := make([]byte, 32)
@@ -368,7 +374,7 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 		// Create commit message
 		commitMsg := offramp.Commit{
 			QueryID:          rand.Uint64(),
-			ConfigDigest:     configDigest,
+			ConfigDigest:     reportContext, // Use full 64-byte report context
 			CommitReport:     commitReport,
 			SignatureEd25519: signatures,
 		}
