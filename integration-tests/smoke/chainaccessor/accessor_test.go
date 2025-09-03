@@ -406,9 +406,64 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 		// Wait for log poller to index the event
 		time.Sleep(5 * time.Second)
 
-		// TODO: Add event validation once OffRamp event filtering is implemented in accessor
-		// For now, just verify the transaction was successful
-		t.Log("Commit message sent successfully - event validation to be implemented")
+		// Debug: Print comprehensive message tracing details
+		t.Log("=== RECEIVED MESSAGE DETAILS ===")
+		t.Logf("Success: %v, ExitCode: %d", receivedMsg.Success, receivedMsg.ExitCode)
+		
+		if receivedMsg.InternalMsg != nil {
+			t.Logf("InternalMsg Source: %s", receivedMsg.InternalMsg.SrcAddr.String())
+			t.Logf("InternalMsg Dest: %s", receivedMsg.InternalMsg.DstAddr.String())
+			t.Logf("Amount: %s TON", tlb.FromNanoTON(receivedMsg.Amount).String())
+		} else {
+			t.Log("InternalMsg is nil")
+		}
+		
+		// Debug outgoing internal messages (contract-to-contract calls)
+		t.Logf("Outgoing Internal Sent Messages: %d", len(receivedMsg.OutgoingInternalSentMessages))
+		for i, msg := range receivedMsg.OutgoingInternalSentMessages {
+			if msg.InternalMsg != nil {
+				t.Logf("  Sent Message %d: %s -> %s, Amount: %s TON", 
+					i, msg.InternalMsg.SrcAddr.String(), msg.InternalMsg.DstAddr.String(), tlb.FromNanoTON(msg.Amount).String())
+			} else {
+				t.Logf("  Sent Message %d: InternalMsg is nil", i)
+			}
+		}
+		
+		t.Logf("Outgoing Internal Received Messages: %d", len(receivedMsg.OutgoingInternalReceivedMessages))
+		for i, msg := range receivedMsg.OutgoingInternalReceivedMessages {
+			t.Logf("  Received Message %d: Success=%v, ExitCode=%d", i, msg.Success, msg.ExitCode)
+			if msg.InternalMsg != nil {
+				t.Logf("    From: %s -> To: %s", msg.InternalMsg.SrcAddr.String(), msg.InternalMsg.DstAddr.String())
+			} else {
+				t.Log("    InternalMsg is nil")
+			}
+			t.Logf("    External Messages: %d", len(msg.OutgoingExternalMessages))
+			
+			for j, extMsg := range msg.OutgoingExternalMessages {
+				bodyBits := uint(0)
+				if extMsg.Body != nil {
+					bodyBits = extMsg.Body.BitsSize()
+				}
+				t.Logf("      External Message %d: LT=%d, CreatedAt=%d, Body bits=%d", 
+					j, extMsg.LT, extMsg.CreatedAt, bodyBits)
+			}
+		}
+		
+		t.Logf("OutgoingExternalMessages count: %d", len(receivedMsg.OutgoingExternalMessages))
+		for i, extMsg := range receivedMsg.OutgoingExternalMessages {
+			bodyBits := uint(0)
+			if extMsg.Body != nil {
+				bodyBits = extMsg.Body.BitsSize()
+			}
+			t.Logf("  External message %d: LT=%d, CreatedAt=%d, Body bits=%d", 
+				i, extMsg.LT, extMsg.CreatedAt, bodyBits)
+		}
+
+		// Extract CommitReportAccepted event from the transaction
+		err = extractCommitReportAcceptedEvent(t, receivedMsg, merkleRoot)
+		require.NoError(t, err, "failed to extract CommitReportAccepted event")
+
+		t.Log("Commit message sent successfully and CommitReportAccepted event extracted")
 	})
 }
 
@@ -460,5 +515,60 @@ func validateAllOutgoingMessages(t *testing.T, clientConn *ton.APIClient, msg *t
 		}
 	}
 
+	return nil
+}
+
+// extractCommitReportAcceptedEvent extracts and validates the CommitReportAccepted event from the transaction
+func extractCommitReportAcceptedEvent(t *testing.T, receivedMsg *tracetracking.ReceivedMessage, expectedMerkleRoot ocr.MerkleRoot) error {
+	if receivedMsg == nil {
+		return fmt.Errorf("received message is nil")
+	}
+
+	// Check if the transaction has outgoing external messages (events)
+	if len(receivedMsg.OutgoingExternalMessages) == 0 {
+		return fmt.Errorf("no outgoing external messages found - no events emitted")
+	}
+
+	t.Logf("Found %d outgoing external messages (events)", len(receivedMsg.OutgoingExternalMessages))
+
+	// Parse the first external message as a CommitReportAccepted event
+	eventBody := receivedMsg.OutgoingExternalMessages[0].Body
+	
+	var commitEvent offramp.CommitReportAccepted
+	err := tlb.LoadFromCell(&commitEvent, eventBody.BeginParse())
+	if err != nil {
+		return fmt.Errorf("failed to parse CommitReportAccepted event: %w", err)
+	}
+
+	t.Logf("Successfully parsed CommitReportAccepted event:")
+	
+	// Check if MerkleRoot is present
+	if commitEvent.MerkleRoot.SourceChainSelector == 0 {
+		t.Logf("  MerkleRoot: nil (price updates only)")
+	} else {
+		t.Logf("  MerkleRoot:")
+		t.Logf("    SourceChainSelector: %d", commitEvent.MerkleRoot.SourceChainSelector)
+		t.Logf("    MinSeqNr: %d", commitEvent.MerkleRoot.MinSeqNr)
+		t.Logf("    MaxSeqNr: %d", commitEvent.MerkleRoot.MaxSeqNr)
+		t.Logf("    MerkleRoot: %x", commitEvent.MerkleRoot.MerkleRoot[:8]) // First 8 bytes
+		
+		// Validate the merkle root matches what we sent
+		if commitEvent.MerkleRoot.SourceChainSelector != expectedMerkleRoot.SourceChainSelector {
+			return fmt.Errorf("merkle root source chain mismatch: got %d, expected %d", 
+				commitEvent.MerkleRoot.SourceChainSelector, expectedMerkleRoot.SourceChainSelector)
+		}
+		if commitEvent.MerkleRoot.MinSeqNr != expectedMerkleRoot.MinSeqNr {
+			return fmt.Errorf("merkle root MinSeqNr mismatch: got %d, expected %d", 
+				commitEvent.MerkleRoot.MinSeqNr, expectedMerkleRoot.MinSeqNr)
+		}
+		if commitEvent.MerkleRoot.MaxSeqNr != expectedMerkleRoot.MaxSeqNr {
+			return fmt.Errorf("merkle root MaxSeqNr mismatch: got %d, expected %d", 
+				commitEvent.MerkleRoot.MaxSeqNr, expectedMerkleRoot.MaxSeqNr)
+		}
+	}
+	
+	// Check PriceUpdates
+	t.Logf("  PriceUpdates: present=%v", commitEvent.PriceUpdates.TokenPriceUpdates != nil || commitEvent.PriceUpdates.GasPriceUpdates != nil)
+	
 	return nil
 }

@@ -1,11 +1,11 @@
-import "types.tolk";
-import "../lib/access/ownable_2step.tolk";
-import "../lib/upgrades/type_and_version.tolk";
+import "types.tolk"
+import "../deployable/types.tolk"
+import "../lib/access/ownable_2step.tolk"
 import "../lib/crypto/merkle_multi_proof.tolk"
-import "../deployable/types.tolk";
-import "../lib/utils.tolk";
-import "../lib/ocr/multi_ocr3_base";
-import "../lib/ocr/types";
+import "../lib/ocr/multi_ocr3_base"
+import "../lib/ocr/types"
+import "../lib/upgrades/type_and_version.tolk"
+import "../lib/utils.tolk"
 
 struct Storage {
     id: uint32;
@@ -140,11 +140,9 @@ fun onInternalMessage(in:InMessage) {
 
 // TODO: handle signals from MerkleRoot for releaseTokens
 // maybe send these and MerkleRoot_Execute straight to router
-
 // the payload would need the id & chainSelector so we can calculate/validate offrampAddress & that the merkle root is allowed to send for that ID
 // NOTE: this assumes router has a well known, static address. So two stage deployment: put up router, then compile the addr into contracts
 // (or init contract state with that router addr? probably what solana does)
-
 //TODO: This function should relay to the router or the message should be received directly by the router
 fun _dispatchValidated(msg: OffRamp_DispatchValidated, sender: address) {
             val st = Storage.load();
@@ -282,13 +280,12 @@ fun commit(msg: OffRamp_Commit, sender: address) {
 
     var root: MerkleRoot? = null;
     if (!priceUpdatesOnlyReport) {
-         root = MerkleRoot.fromCell(report.merkleRoots);
+        root = MerkleRoot.fromCell(report.merkleRoots);
     }
-    emit(CCIP_COMMIT_REPORT_ACCEPTED_TOPIC, CommitReportAccepted {
-        merkleRoot: root,
-        priceUpdates: report.priceUpdates,
-    });
-
+    emit(
+        CCIP_COMMIT_REPORT_ACCEPTED_TOPIC,
+        CommitReportAccepted { merkleRoot: root, priceUpdates: report.priceUpdates }
+    );
 }
 
 fun _execute(msg: OffRamp_Execute, sender: address) {
@@ -396,15 +393,12 @@ fun _updateSourceChainConfig(msg: OffRamp_UpdateSourceChainConfig, sender: addre
     st.store();
 }
 
-
 // get fun executionState() {
 //     // TODO: node will need to directly look at MerkleRoot subcontracts
 // }
-
 // get fun merkleRoot() {
 //     // TODO: node will need to directly look at MerkleRoot subcontracts
 // }
-
 get fun latestPriceSequenceNumber(): uint64 {
     var st = lazy Storage.load();
     return st.latestPriceSequenceNumber
@@ -413,7 +407,6 @@ get fun latestPriceSequenceNumber(): uint64 {
 get fun staticConfig() {
     // chainSelector, gasForCallExactCheck?, rmnRemote, nonceManager, tokenAdminRegistry
 }
-
 
 fun setDynamicConfig() {
     
