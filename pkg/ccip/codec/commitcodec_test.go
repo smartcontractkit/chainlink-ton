@@ -14,7 +14,7 @@ import (
 	cciptypes "github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 )
 
-var randomBlessedCommitReport = func() cciptypes.CommitPluginReport {
+func RandomCommitReport() cciptypes.CommitPluginReport {
 	// Generate a random TON address for testing
 	addr, err := address.ParseAddr("EQDtFpEwcFAEcRe5mLVh2N6C0x-_hJEM7W61_JLnSF74p4q2")
 	if err != nil {
@@ -120,7 +120,7 @@ func TestCommitPluginCodecV1(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			report := tc.report(randomBlessedCommitReport())
+			report := tc.report(RandomCommitReport())
 			commitCodec := NewCommitPluginCodecV1()
 			encodedReport, err := commitCodec.Encode(t.Context(), report)
 			if tc.expErr {
@@ -146,7 +146,7 @@ func BenchmarkCommitPluginCodecV1_Encode(b *testing.B) {
 	commitCodec := NewCommitPluginCodecV1()
 	ctx := context.Background()
 
-	rep := randomBlessedCommitReport()
+	rep := RandomCommitReport()
 	for i := 0; i < b.N; i++ {
 		_, err := commitCodec.Encode(ctx, rep)
 		require.NoError(b, err)
@@ -156,7 +156,7 @@ func BenchmarkCommitPluginCodecV1_Encode(b *testing.B) {
 func BenchmarkCommitPluginCodecV1_Decode(b *testing.B) {
 	commitCodec := NewCommitPluginCodecV1()
 	ctx := context.Background()
-	encodedReport, err := commitCodec.Encode(ctx, randomBlessedCommitReport())
+	encodedReport, err := commitCodec.Encode(ctx, RandomCommitReport())
 	require.NoError(b, err)
 
 	for i := 0; i < b.N; i++ {
@@ -169,7 +169,7 @@ func BenchmarkCommitPluginCodecV1_Encode_Decode(b *testing.B) {
 	commitCodec := NewCommitPluginCodecV1()
 	ctx := context.Background()
 
-	rep := randomBlessedCommitReport()
+	rep := RandomCommitReport()
 	for i := 0; i < b.N; i++ {
 		encodedReport, err := commitCodec.Encode(ctx, rep)
 		require.NoError(b, err)

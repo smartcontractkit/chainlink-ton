@@ -82,3 +82,18 @@ type SetOCR3Config struct {
 	Signers                        common.SnakeData[Signer]      `tlb:"^"`
 	Transmitters                   common.SnakeData[Transmitter] `tlb:"^"`
 }
+
+type Commit struct {
+	_                tlb.Magic                              `tlb:"#9d431905"` //nolint:revive // Ignore opcode tag
+	QueryID          uint64                                 `tlb:"## 64"`
+	ConfigDigest     []byte                                 `tlb:"bits 512"`
+	CommitReport     ocr.CommitReport                       `tlb:"."`
+	SignatureEd25519 common.SnakeData[ocr.SignatureEd25519] `tlb:"^"`
+}
+
+type Execute struct {
+	_             tlb.Magic         `tlb:"#27bdac33"` //nolint:revive // Ignore opcode tag
+	QueryID       uint64            `tlb:"## 64"`
+	ConfigDigest  []byte            `tlb:"bits 512"`
+	ExecuteReport ocr.ExecuteReport `tlb:"."`
+}

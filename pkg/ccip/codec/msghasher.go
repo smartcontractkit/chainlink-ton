@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"math/big"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
@@ -109,36 +108,39 @@ func (m messageHasherV1) Hash(ctx context.Context, msg ccipocr3.Message) (ccipoc
 		return [32]byte{}, fmt.Errorf("invalid receiver address %s: %w", tonReceiverAddrStr, err)
 	}
 
-	var gasLimitBigInt *big.Int
-	var extraArgsDecodeMap map[string]any
-	if len(msg.ExtraArgs) > 0 {
-		extraArgsDecodeMap, err = m.extraDataCodec.DecodeExtraArgs(msg.ExtraArgs, msg.Header.SourceChainSelector)
-		if err != nil {
-			return [32]byte{}, fmt.Errorf("failed to decode extra args: %w", err)
+	// TODO: Re-enable gas limit when supported on-chain
+	/*
+		var gasLimitBigInt *big.Int
+		var extraArgsDecodeMap map[string]any
+		if len(msg.ExtraArgs) > 0 {
+			extraArgsDecodeMap, err = m.extraDataCodec.DecodeExtraArgs(msg.ExtraArgs, msg.Header.SourceChainSelector)
+			if err != nil {
+				return [32]byte{}, fmt.Errorf("failed to decode extra args: %w", err)
+			}
+
+			gasLimitBigInt, err = parseExtraArgsMap(extraArgsDecodeMap)
+			if err != nil {
+				return [32]byte{}, fmt.Errorf("parse extra args map to get gas limit: %w", err)
+			}
 		}
 
-		gasLimitBigInt, err = parseExtraArgsMap(extraArgsDecodeMap)
-		if err != nil {
-			return [32]byte{}, fmt.Errorf("parse extra args map to get gas limit: %w", err)
+		// gas limit can be nil, which means no limit
+		var gasLimit tlb.Coins
+		if gasLimitBigInt != nil {
+			gasLimit, err = tlb.FromNano(gasLimitBigInt, 0)
+			if err != nil {
+				return [32]byte{}, fmt.Errorf("convert gas limit to TON cell: %w", err)
+			}
 		}
-	}
-
-	// gas limit can be nil, which means no limit
-	var gasLimit tlb.Coins
-	if gasLimitBigInt != nil {
-		gasLimit, err = tlb.FromNano(gasLimitBigInt, 0)
-		if err != nil {
-			return [32]byte{}, fmt.Errorf("convert gas limit to TON cell: %w", err)
-		}
-	}
+	*/
 
 	// not converting rampMsg to cell here, use as a parameter
 	rampMsg := ocr.Any2TVMRampMessage{
-		Header:       header,
-		Sender:       common.CrossChainAddress(msg.Sender),
-		Data:         common.SnakeBytes(msg.Data),
-		Receiver:     tonReceiverAddr,
-		GasLimit:     gasLimit,
+		Header:   header,
+		Sender:   common.CrossChainAddress(msg.Sender),
+		Data:     common.SnakeBytes(msg.Data),
+		Receiver: tonReceiverAddr,
+		//GasLimit:     gasLimit,
 		TokenAmounts: tokenAmounts,
 	}
 
@@ -210,7 +212,7 @@ func buildAny2TVMRampMessageHash(msg ocr.Any2TVMRampMessage) ([]byte, error) {
 			return nil, fmt.Errorf("pack token amounts to cell: %w", err)
 		}
 	}
-	
+
 	topLevelBuilder.MustStoreRef(dataCell)
 	err = topLevelBuilder.StoreMaybeRef(tokenCell)
 	if err != nil {
