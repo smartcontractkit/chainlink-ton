@@ -1,0 +1,153 @@
+import '@ton/test-utils'
+import { toNano } from '@ton/core'
+import { SandboxContract, TreasuryContract } from '@ton/sandbox'
+import { ZERO_ADDRESS } from '../../src/utils'
+import { MCMSBaseSetRootAndExecuteTestSetup, MCMSTestCode } from './ManyChainMultiSigBaseTest'
+
+import * as mcms from '../../wrappers/mcms/MCMS'
+import * as ownable2step from '../../wrappers/libraries/access/Ownable2Step'
+
+describe('MCMS - ManyChainMultiSigExecuteErrorOracleTest', () => {
+  let baseTest: MCMSBaseSetRootAndExecuteTestSetup
+  let code: MCMSTestCode
+
+  let acc: {
+    oracle: SandboxContract<TreasuryContract>
+  }
+
+  beforeAll(async () => {
+    code = await MCMSBaseSetRootAndExecuteTestSetup.compileContracts()
+  })
+
+  beforeEach(async () => {
+    baseTest = new MCMSBaseSetRootAndExecuteTestSetup()
+    baseTest.code = code
+    await baseTest.setupForSetRootAndExecute('test-execute')
+    await baseTest.setInitialRoot()
+    acc = { oracle: await baseTest.blockchain.treasury('oracle') }
+  })
+
+  it('should allow owner to transfer oracle role', async () => {
+    expect(await baseTest.bind.mcms.getOracle()).toEqualAddress(ZERO_ADDRESS)
+
+    const r = await baseTest.bind.mcms.sendInternal(
+      baseTest.acc.multisigOwner.getSender(),
+      toNano('1'),
+      mcms.builder.message.in.transferOracleRole.encode({
+        queryId: 1n,
+        newOracle: acc.oracle.address,
+      }),
+    )
+
+    expect(r.transactions).toHaveTransaction({
+      from: baseTest.acc.multisigOwner.address,
+      to: baseTest.bind.mcms.address,
+      success: true,
+    })
+
+    expect(await baseTest.bind.mcms.getOracle()).toEqualAddress(acc.oracle.address)
+  })
+
+  it('should fail to transfer oracle role if not owner', async () => {
+    expect(await baseTest.bind.mcms.getOracle()).toEqualAddress(ZERO_ADDRESS)
+
+    const r = await baseTest.bind.mcms.sendInternal(
+      baseTest.acc.deployer.getSender(),
+      toNano('1'),
+      mcms.builder.message.in.transferOracleRole.encode({
+        queryId: 1n,
+        newOracle: acc.oracle.address,
+      }),
+    )
+
+    expect(r.transactions).toHaveTransaction({
+      from: baseTest.acc.deployer.address,
+      to: baseTest.bind.mcms.address,
+      success: false,
+      exitCode: ownable2step.Errors.OnlyCallableByOwner,
+    })
+
+    expect(await baseTest.bind.mcms.getOracle()).toEqualAddress(ZERO_ADDRESS)
+  })
+
+  it('should allow oracle to submit an error report and expire root', async () => {
+    // Setup oracle role
+    const r = await baseTest.bind.mcms.sendInternal(
+      baseTest.acc.multisigOwner.getSender(),
+      toNano('1'),
+      mcms.builder.message.in.transferOracleRole.encode({
+        queryId: 1n,
+        newOracle: acc.oracle.address,
+      }),
+    )
+
+    expect(await baseTest.bind.mcms.getOracle()).toEqualAddress(acc.oracle.address)
+
+    // Execute first operation
+    const proof1 = baseTest.getProofForOp(0)
+
+    const execBody = mcms.builder.message.in.execute.encode({
+      queryId: 1n,
+      op: mcms.builder.data.op.encode(baseTest.testOps[0]),
+      proof: proof1,
+    })
+
+    const r1 = await baseTest.bind.mcms.sendInternal(
+      baseTest.acc.deployer.getSender(),
+      toNano('1'),
+      execBody,
+    )
+
+    expect(r1.transactions).toHaveTransaction({
+      from: baseTest.acc.deployer.address,
+      to: baseTest.bind.mcms.address,
+      success: true,
+    })
+
+    // Check that the op count was incremented
+    const opCount = await baseTest.bind.mcms.getOpCount()
+    expect(opCount).toEqual(baseTest.testOps[0].nonce + 1n)
+
+    // Submit an error report
+    const txHash = BigInt('0x' + r1.transactions[0].hash().toString('hex'))
+
+    const r2 = await baseTest.bind.mcms.sendInternal(
+      acc.oracle.getSender(),
+      toNano('1'),
+      mcms.builder.message.in.submitErrorReport.encode({
+        queryId: 1n,
+        op: mcms.builder.data.op.encode(baseTest.testOps[0]),
+        proof: proof1,
+        opTxHash: txHash,
+        errorTxHash: txHash,
+        errorCode: 1337,
+      }),
+    )
+
+    expect(r2.transactions).toHaveTransaction({
+      from: acc.oracle.address,
+      to: baseTest.bind.mcms.address,
+      success: true,
+    })
+
+    // Try to re-execute the same op - should fail with WrongNonce
+    const r3 = await baseTest.bind.mcms.sendInternal(
+      baseTest.acc.deployer.getSender(),
+      toNano('1'),
+      execBody,
+    )
+
+    expect(r3.transactions).toHaveTransaction({
+      from: baseTest.acc.deployer.address,
+      to: baseTest.bind.mcms.address,
+      success: false,
+      exitCode: mcms.Error.ROOT_EXPIRED,
+    })
+  })
+
+  it('should allow setRoot (new) after an error report was submitted', async () => {})
+
+  it('should fail to submit error report if not oracle', async () => {})
+
+  it('should fail to submit error report if op not part of the current root', async () => {})
+})

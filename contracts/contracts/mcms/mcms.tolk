@@ -138,7 +138,7 @@ struct (0x89277f4b) MCMS_SetConfig {
 ///
 /// @dev The error oracle can only report errors for the current non-expired root, to avoid reporting
 /// stale errors for operations that are no longer valid.
-struct (0x43ebc734) MCMS_SubmitErrorReport {
+struct (0x4b3af0b5) MCMS_SubmitErrorReport {
     /// Query ID of the change request.
     queryId: uint64;
 
@@ -217,7 +217,7 @@ struct (0x7cf37cbf) MCMS_OpExecuted {
 }
 
 /// Sent back to sender when an error report is successfully submitted.
-struct (0x43ebc734) MCMS_ErrorReportSubmitted {
+struct (0xbbc4deb4) MCMS_ErrorReportSubmitted {
     /// Query ID of the change request.
     queryId: uint64;
 
@@ -862,7 +862,7 @@ fun MCMS<T>.execute(
         throw ERROR_WRONG_MULTI_SIG;
     }
 
-    if (blockchain.now() > currentExpiringRootAndOpCount.validUntil) {
+    if (blockchain.now() >= currentExpiringRootAndOpCount.validUntil) {
         throw ERROR_ROOT_EXPIRED;
     }
 
