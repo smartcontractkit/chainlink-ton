@@ -244,12 +244,15 @@ fun commit(msg: OffRamp_Commit, sender: address) {
 
         // validate lane not cursed
 
-        val sourceChainConfig = st.sourceChainConfigs.mustGet(root.sourceChainSelector, ERROR_SOURCE_CHAIN_NOT_ENABLED);
+        var sourceChainConfig = st.sourceChainConfigs.mustGet(root.sourceChainSelector, ERROR_SOURCE_CHAIN_NOT_ENABLED);
 
-        assert(sourceChainConfig.isEnabled,ERROR_SOURCE_CHAIN_NOT_ENABLED);
+        assert(sourceChainConfig.isEnabled, ERROR_SOURCE_CHAIN_NOT_ENABLED);
 
         // validate against sourceChainConfig etc
+
         // increment seqNr
+        sourceChainConfig.minSeqNr += 1;
+        st.sourceChainConfigs.replace(root.sourceChainSelector, sourceChainConfig);
 
         // initialize MerkleRoot subcontract
         val initMsg = createMessage({
@@ -403,6 +406,7 @@ fun _execute(msg: OffRamp_Execute, sender: address) {
 fun _updateSourceChainConfig(msg: OffRamp_UpdateSourceChainConfig, sender: address) {
     var st = lazy Storage.load();
     st.ownable.requireOwner(sender);
+    msg.config.minSeqNr = 1; // TODO: properly set this: https://github.com/smartcontractkit/chainlink-aptos/blob/048fb2b7511134023f37155928a93b8489bd4a2b/contracts/ccip/ccip_offramp/sources/offramp.move#L979-L1001
     st.sourceChainConfigs.set(msg.sourceChainSelector, msg.config);
     st.store();
 }
