@@ -52,6 +52,12 @@ const ERROR_INVALID_MESSAGE_DEST_CHAIN_SELECTOR = 262
 const ERROR_SOURCE_CHAIN_SELECTOR_MISMATCH = 263
 const ERROR_DISPATCH_NOT_FROM_MERKLE_ROOT = 268
 
+// These have to match the EVM states
+const EXECUTION_STATE_IN_PROGRESS = 1n;
+const EXECUTION_STATE_SUCCESS = 2n;
+const EXECUTION_STATE_FAILURE = 3n;
+
+
 function generateSecureRandomId(): bigint {
   return BigInt(Math.floor(Math.random() * 0x100000000)) // 2^32
 }
@@ -764,7 +770,6 @@ describe('OffRamp', () => {
       success: false,
     })
 
-    /*
     assertLog(
       result.transactions,
       offRamp.address,
@@ -773,18 +778,29 @@ describe('OffRamp', () => {
         sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
         sequenceNumber: 1n,
         messageId: 1n,
-        state: 1n 
+        state: EXECUTION_STATE_IN_PROGRESS 
       }
     )
-    */
 
     assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.CCIPExecutionStateChanged, {
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
       sequenceNumber: 1n,
       messageId: 1n,
-      state: 3n,
+      state: EXECUTION_STATE_FAILURE,
     })
   })
 
-  it('Test receiver notifies success and offRamp emits ExecutionStateChanged: Success', async () => {})
+  it('Test receiver notifies success and offRamp emits ExecutionStateChanged: Success', async () => {
+    const message = createTestMessage(1n, 1n, receiver.address)
+    await setupAndCommitMessage(message)
+    const report = createExecuteReport([message])
+    const result = await executeReport(report)
+
+    assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.CCIPExecutionStateChanged, {
+      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+      sequenceNumber: 1n,
+      messageId: 1n,
+      state: EXECUTION_STATE_SUCCESS,
+    })
+  })
 })

@@ -45,7 +45,6 @@ struct ExecutionStateChanged {
 }
 
 // These have to match the EVM states
-const EXECUTION_STATE_UNTOUCHED: uint8 = 0;
 const EXECUTION_STATE_IN_PROGRESS: uint8 = 1;
 const EXECUTION_STATE_SUCCESS: uint8 = 2;
 const EXECUTION_STATE_FAILURE: uint8 = 3;
