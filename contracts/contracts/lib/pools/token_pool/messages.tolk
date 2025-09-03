@@ -20,8 +20,6 @@ type TokenPool_InMessage =
     | TokenPool_GetRouter
     | TokenPool_SetRouter
     // | TokenPool_SupportsInterface // TODO dont know if we even need this
-    | TokenPool_LockOrBurn
-    | TokenPool_ReleaseOrMint
     | TokenPool_GetTokenDecimals
     | TokenPool_GetRemotePools
     | TokenPool_IsRemotePool
@@ -264,7 +262,7 @@ struct (0xa9aabbcc) TokenPool_GetTokenDecimalsResponse {
 /// @notice Response for GetRemotePools query
 struct (0xaabbccdd) TokenPool_GetRemotePoolsResponse {
     queryId: uint64
-    remotePools: slice
+    remotePools: tuple?
 }
 
 /// @notice Response for IsRemotePool query
@@ -300,7 +298,7 @@ struct (0xeeff0000) TokenPool_IsSupportedChainResponse {
 /// @notice Response for GetSupportedChains query
 struct (0xff000011) TokenPool_GetSupportedChainsResponse {
     queryId: uint64
-    supportedChains: tuple
+    supportedChains: tuple?
 }
 
 /// @notice Response for ApplyChainUpdates operation
@@ -342,7 +340,7 @@ struct (0x04455667) TokenPool_GetAllowListEnabledResponse {
 /// @notice Response for GetAllowList query
 struct (0x05566778) TokenPool_GetAllowListResponse {
     queryId: uint64
-    allowList: tuple
+    allowList: tuple?
 }
 
 /// @notice Response for ApplyAllowListUpdates operation

@@ -4,6 +4,7 @@ import "./pool"
 tolk 1.0
 
 struct IPool<T> {
+    context: T
     hooks: IPool_Hooks<T>
 }
 
@@ -33,9 +34,9 @@ fun IPool<T>.onInternalMessage(
 
     match (msg) {
         Pool_LockOrBurnInV1 =>
-            response = self.hooks.lockOrBurn(null, sender, msgValue, msg),
+            response = self.hooks.lockOrBurn(self.context, sender, msgValue, msg),
         Pool_ReleaseOrMintInV1 =>
-            response = self.hooks.releaseOrMint(null, sender, msgValue, msg),
+            response = self.hooks.releaseOrMint(self.context, sender, msgValue, msg),
         else => return false
     }
 

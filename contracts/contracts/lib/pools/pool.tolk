@@ -20,7 +20,7 @@ struct Pool_LockOrBurnInV1 {
     receiver: slice //  The recipient of the tokens on the destination chain, abi encoded.
     remoteChainSelector: uint64 // ─╮ The chain ID of the destination chain.
     originalSender: address // ─────╯ The original sender of the tx on the source chain.
-    amount: uint256 //  The amount of tokens to lock or burn, denominated in the source token's decimals.
+    amount: coins //  The amount of tokens to lock or burn, denominated in the source token's decimals.
     localToken: address //  The address on this chain of the token to lock or burn.
 }
 
@@ -40,7 +40,7 @@ struct Pool_ReleaseOrMintInV1 {
     originalSender: slice //            The original sender of the tx on the source chain.
     remoteChainSelector: uint64 // ───╮ The chain ID of the source chain.
     receiver: address // ─────────────╯ The recipient of the tokens on the destination chain.
-    sourceDenominatedAmount: uint256 // The amount of tokens to release or mint, denominated in the source token's decimals.
+    sourceDenominatedAmount: coins // The amount of tokens to release or mint, denominated in the source token's decimals.
     localToken: address //              The address on this chain of the token to release or mint.
     /// @dev WARNING: sourcePoolAddress should be checked prior to any processing of funds. Make sure it matches the
     /// expected pool address for the given remoteChainSelector.
@@ -55,5 +55,5 @@ struct Pool_ReleaseOrMintOutV1 {
     // The number of tokens released or minted on the destination chain, denominated in the local token's decimals.
     // This value is expected to be equal to the ReleaseOrMintInV1.amount in the case where the source and destination
     // chain have the same number of decimals.
-    destinationAmount: uint256
+    destinationAmount: coins
 }

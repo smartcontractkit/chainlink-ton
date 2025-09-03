@@ -54,7 +54,7 @@ struct TokenPool<T> {
 
     /// Runtime hooks (extensions)
     context: T? = null
-    hooks: TokenPool_Hooks<T> = null
+    hooks: TokenPool_Hooks<T>
 }
 
 // --- Hooks struct (extensions) ---
@@ -67,7 +67,7 @@ struct TokenPool_Hooks<T> {
     /// Hook for _encodeLocalDecimals virtual function override
     encodeLocalDecimals: ((T?) -> slice)?
     /// Hook for _calculateLocalAmount virtual function override
-    calculateLocalAmount: ((T?, uint256, uint8) -> uint256)?
+    calculateLocalAmount: ((T?, coins, uint8) -> coins)?
 
     _parseRemoteDecimals: ((T?, slice) -> uint8)?
 
@@ -91,6 +91,7 @@ fun TokenPool<T>.load(dataCell: cell, ownable: Ownable2Step, ipool_hooks: IPool_
 
 fun TokenPool<T>.ipool(self): IPool<T> {
     return IPool<T> {
+        context: self.context!,
         hooks: self.hooks.ipool
     };
 }
@@ -173,20 +174,20 @@ fun TokenPool<T>.onInternalMessage(
             };
         }
         TokenPool_AddRemotePool => {
-            val success = self.addRemotePool(
+            self.addRemotePool(
                 sender,
                 msg.remoteChainSelector,
                 msg.remotePoolAddress
             );
-            response = TokenPool_AddRemotePoolResponse { queryId: msg.queryId, success };
+            response = TokenPool_AddRemotePoolResponse { queryId: msg.queryId, success: true }; // TODO do we expect to revert or should we try-catch and emit success: false?
         }
         TokenPool_RemoveRemotePool => {
-            val success = self.removeRemotePool(
+            self.removeRemotePool(
                 sender,
                 msg.remoteChainSelector,
                 msg.remotePoolAddress
             );
-            response = TokenPool_RemoveRemotePoolResponse { queryId: msg.queryId, success };
+            response = TokenPool_RemoveRemotePoolResponse { queryId: msg.queryId, success: true };
         }
         TokenPool_IsSupportedChain => {
             response = TokenPool_IsSupportedChainResponse {
@@ -201,12 +202,12 @@ fun TokenPool<T>.onInternalMessage(
             };
         }
         TokenPool_ApplyChainUpdates => {
-            val success = self.applyChainUpdates(sender, msg.chainUpdates);
-            response = TokenPool_ApplyChainUpdatesResponse { queryId: msg.queryId, success };
+            self.applyChainUpdates(sender, msg.chainUpdates);
+            response = TokenPool_ApplyChainUpdatesResponse { queryId: msg.queryId, success: true };
         }
         TokenPool_SetRateLimitAdmin => {
-            val success = self.setRateLimitAdmin(sender, msg.rateLimitAdmin);
-            response = TokenPool_SetRateLimitAdminResponse { queryId: msg.queryId, success };
+            self.setRateLimitAdmin(sender, msg.rateLimitAdmin);
+            response = TokenPool_SetRateLimitAdminResponse { queryId: msg.queryId, success: true };
         }
         TokenPool_GetRateLimitAdmin => {
             response = TokenPool_GetRateLimitAdminResponse {
@@ -239,10 +240,10 @@ fun TokenPool<T>.onInternalMessage(
             };
         }
         TokenPool_ApplyAllowListUpdates => {
-            val success = self.applyAllowListUpdates(sender, msg.removes, msg.adds);
+            self.applyAllowListUpdates(sender, msg.removes, msg.adds);
             response = TokenPool_ApplyAllowListUpdatesResponse {
                 queryId: msg.queryId,
-                success,
+                success: true,
             };
         }
         else => {
@@ -266,7 +267,7 @@ fun TokenPool<T>.onInternalMessage(
 /// @return router The pool's Router
 /// @notice Hook-aware implementation of getRouter  
 fun TokenPool<T>.getRouter(self): address {
-    if (self.hooks != null && self.hooks.getRouter != null) {
+    if (self.hooks.getRouter != null) {
         return self.hooks.getRouter(self.context); // extension hook
     }
 
@@ -354,7 +355,7 @@ fun TokenPool<T>._validateLockOrBurn(mutate self, sender: address, lockOrBurnIn:
 fun TokenPool<T>._validateReleaseOrMint(
     mutate self,
     releaseOrMintIn: Pool_ReleaseOrMintInV1,
-    localAmount: uint256,
+    localAmount: coins,
 ) {
     if (!self.isSupportedToken(releaseOrMintIn.localToken)) {
         throw (TokenPool_ERROR_INVALID_TOKEN);
@@ -383,7 +384,7 @@ fun TokenPool<T>._validateReleaseOrMint(
 /// @notice Gets the IERC20 token decimals on the local chain.
 /// @notice Hook-aware implementation of getTokenDecimals
 fun TokenPool<T>.getTokenDecimals(self): uint8 {
-    if (self.hooks != null && self.hooks.getTokenDecimals != null) {
+    if (self.hooks.getTokenDecimals != null) {
         return self.hooks.getTokenDecimals(self.context); // extension hook
     }
     return self.data.i_tokenDecimals;
@@ -391,7 +392,7 @@ fun TokenPool<T>.getTokenDecimals(self): uint8 {
 
 /// @notice Hook-aware implementation of _encodeLocalDecimals
 fun TokenPool<T>._encodeLocalDecimals(self): slice {
-    if (self.hooks != null && self.hooks.encodeLocalDecimals != null) {
+    if (self.hooks.encodeLocalDecimals != null) {
         return self.hooks.encodeLocalDecimals(self.context); // extension hook
     }
 
@@ -399,11 +400,11 @@ fun TokenPool<T>._encodeLocalDecimals(self): slice {
 }
 
 fun TokenPool<T>._parseRemoteDecimals(self, sourcePoolData: slice): uint8 {
-    if (self.hooks != null && self.hooks._parseRemoteDecimals != null) {
+    if (self.hooks._parseRemoteDecimals != null) {
         return self.hooks._parseRemoteDecimals(null, sourcePoolData);
     }
     // Fallback to the local token decimals if the source pool data is empty. This allows for backwards compatibility.
-    if (sourcePoolData.isEmpty() == 0) {
+    if (sourcePoolData.isEmpty()) {
         return self.data.i_tokenDecimals;
     }
     if (sourcePoolData.remainingBitsCount() != 32*8) {
@@ -425,8 +426,8 @@ fun TokenPool<T>._parseRemoteDecimals(self, sourcePoolData: slice): uint8 {
 /// wrongly configured, the token issuer could redeploy the pool with the correct decimals and manually re-execute the
 /// CCIP tx to fix the issue.
 /// @notice Hook-aware implementation of _calculateLocalAmount
-fun TokenPool<T>._calculateLocalAmount(self, remoteAmount: uint256, remoteDecimals: uint8): uint256 {
-    if (self.hooks != null && self.hooks.calculateLocalAmount != null) {
+fun TokenPool<T>._calculateLocalAmount(self, remoteAmount: coins, remoteDecimals: uint8): coins {
+    if (self.hooks.calculateLocalAmount != null) {
         return self.hooks.calculateLocalAmount(self.context, remoteAmount, remoteDecimals); // extension hook
     }
 
@@ -460,18 +461,10 @@ fun TokenPool<T>._calculateLocalAmount(self, remoteAmount: uint256, remoteDecima
 /// @notice Gets the pool address on the remote chain.
 /// @param remoteChainSelector Remote chain selector.
 /// @dev To support non-evm chains, this value is encoded into bytes
-fun TokenPool<T>.getRemotePools(self, remoteChainSelector: uint64): slice {
+fun TokenPool<T>.getRemotePools(self, remoteChainSelector: int): tuple? {
     val (remoteChainConfig, ok) = self.data.s_remoteChainConfigs.get(remoteChainSelector);
     assert (remoteChainConfig != null) throw TokenPool_ERROR_NON_EXISTENT_CHAIN;
-    val remotePoolHashes = Iterator<bytes32>.new(remoteChainConfig.remotePools);
-
-    var remotePools  = UMap<uint256, CrossChainAddress>.new(256);
-    var i: uint64 = 0;
-    while (!remotePoolHashes.empty()) {
-      remotePools.set(i, self.data.s_remotePoolAddresses.get(remotePoolHashes.next()));
-      i += 1;
-    }
-    return remotePools;
+    return remoteChainConfig.remotePools.values();
 }
 
 /// @notice Checks if the pool address is configured on the remote chain.
@@ -489,10 +482,10 @@ fun TokenPool<T>.isRemotePool(
 /// @notice Gets the token address on the remote chain.
 /// @param remoteChainSelector Remote chain selector.
 /// @dev To support non-evm chains, this value is encoded into bytes
-fun TokenPool<T>.getRemoteToken(self, remoteChainSelector: uint64): slice {
+fun TokenPool<T>.getRemoteToken(self, remoteChainSelector: uint64): CrossChainAddress {
     var (remoteChainConfig, ok) = self.data.s_remoteChainConfigs.get(remoteChainSelector);
     assert (remoteChainConfig != null) throw TokenPool_ERROR_NON_EXISTENT_CHAIN;
-    return remoteChainConfig.remoteTokenAddress;
+    return remoteChainConfig.remoteTokenAddress.load();
 }
 
 /// @notice Adds a remote pool for a given chain selector. This could be due to a pool being upgraded on the remote
@@ -546,7 +539,7 @@ fun TokenPool<T>.isSupportedChain(self, remoteChainSelector: uint64): bool {
 
 /// @notice Get list of allowed chains
 /// @return list of chains.
-fun TokenPool<T>.getSupportedChains(self): tuple {
+fun TokenPool<T>.getSupportedChains(self): tuple? {
     return self.data.s_remoteChainSelectors.keys();
 }
 
@@ -578,9 +571,9 @@ fun TokenPool<T>._setRemotePool(
     remoteChainSelector: uint64,
     remotePoolAddress: CrossChainAddress,
 ) {
-    if (remotePoolAddress == createAddressNone()) {
-        throw (TokenPool_ERROR_ZERO_ADDRESS_INVALID);
-    }
+    // if (remotePoolAddress == createAddressNone()) { // TODO define zero address for CrossChainAddress
+    //     throw (TokenPool_ERROR_ZERO_ADDRESS_INVALID);
+    // }
 
     val poolHash: uint256 = keccak256(remotePoolAddress);
 
@@ -641,7 +634,7 @@ fun TokenPool<T>.getRateLimitAdmin(self): address {
 fun TokenPool<T>._consumeOutboundRateLimit(
     mutate self,
     remoteChainSelector: uint64,
-    amount: uint256,
+    amount: coins,
 ) {
     val (config, ok) = self.data.s_remoteChainConfigs.get(remoteChainSelector);
     assert (config != null) throw 1000;
@@ -657,7 +650,7 @@ fun TokenPool<T>._consumeOutboundRateLimit(
 }
 
 /// @notice Consumes inbound rate limiting capacity in this pool
-fun TokenPool<T>._consumeInboundRateLimit(mutate self, remoteChainSelector: uint64, amount: uint256) {
+fun TokenPool<T>._consumeInboundRateLimit(mutate self, remoteChainSelector: uint64, amount: coins) {
     val (config, ok) = self.data.s_remoteChainConfigs.get(remoteChainSelector);
     assert (config != null) throw 1000;
     val jetton = lazy self.data.i_token.load();
@@ -816,7 +809,7 @@ fun TokenPool<T>.getAllowListEnabled(self): bool {
 
 /// @notice Gets the allowed addresses.
 /// @return The allowed addresses.
-fun TokenPool<T>.getAllowList(self): tuple {
+fun TokenPool<T>.getAllowList(self): tuple? {
     return (self.data.s_allowlist.keys());
 }
 
@@ -854,7 +847,7 @@ fun TokenPool<T>._applyAllowListUpdates(
     }
     while (!adds.empty()) {
         val toAdd: address = adds.next();
-        if (toAdd != createAddressNone() && self.data.s_allowlist.set(toAdd, true)) {
+        if (toAdd != createAddressNone() && self.data.s_allowlist.setIfNotExists(toAdd, true)) {
             emit(TOKENPOOL_ALLOWLISTADD_TOPIC, TokenPool_AllowListAdd { sender: toAdd });
         }
     }

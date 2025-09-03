@@ -122,7 +122,7 @@ fun TVM2AnyRampMessage.generateMessageId(self, metadataHash: uint256): uint256 {
 // Router
  
 struct TokenAmount {
-    amount: uint256;
+    amount: coins;
     token: address;
 }
 

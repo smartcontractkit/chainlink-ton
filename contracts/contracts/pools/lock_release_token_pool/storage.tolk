@@ -18,8 +18,8 @@ struct LockReleaseTokenPool_Data {
 
 /// Load from contract data using auto-serialization.
 @inline
-fun LockReleaseTokenPool_Data.fromContractData() {
-    LockReleaseTokenPool_Data.fromCell(contract.getData())
+fun LockReleaseTokenPool_Data.fromContractData(): LockReleaseTokenPool_Data {
+    return LockReleaseTokenPool_Data.fromCell(contract.getData())
 }
 
 /// Store as contract data into persistent storage using auto-serialization.

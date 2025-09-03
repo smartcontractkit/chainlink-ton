@@ -9,7 +9,7 @@ struct TokenPool_LockedOrBurned {
     remoteChainSelector: uint64
     token: address
     sender: address
-    amount: uint256
+    amount: coins
 }
 
 // TBD it is questionable that this types are in the common token pool while they are only used by their respective implementations
@@ -20,7 +20,7 @@ struct TokenPool_ReleasedOrMinted {
     token: address
     sender: address
     recipient: address
-    amount: uint256
+    amount: coins
 }
 //crc32("TokenPool_ChainAdded")
 const TOKENPOOL_CHAINADDED_TOPIC: int = stringCrc32("TokenPool_ChainAdded");
@@ -80,12 +80,12 @@ const TOKENPOOL_OUTBOUNDRATELIMITCONSUMED_TOPIC: int = stringCrc32("TokenPool_Ou
 struct TokenPool_OutboundRateLimitConsumed {
     remoteChainSelector: uint64
     token: address
-    amount: uint256
+    amount: coins
 }
 //crc32("TokenPool_InboundRateLimitConsumed")
 const TOKENPOOL_INBOUNDRATELIMITCONSUMED_TOPIC: int = stringCrc32("TokenPool_InboundRateLimitConsumed");
 struct TokenPool_InboundRateLimitConsumed {
     remoteChainSelector: uint64
     token: address
-    amount: uint256
+    amount: coins
 }

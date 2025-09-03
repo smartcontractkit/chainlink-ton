@@ -44,7 +44,7 @@ struct RateLimiter {
 /// @param tokenAddress The token to consume capacity for, use 0x0 to indicate aggregate value capacity.
 /// @dev Reverts when requestTokens exceeds bucket capacity or available tokens in the bucket.
 /// @dev emits removal of requestTokens if requestTokens is > 0.
-fun RateLimiter_TokenBucket._consume(mutate self, requestTokens: uint256, tokenAddress: address) {
+fun RateLimiter_TokenBucket._consume(mutate self, requestTokens: coins, tokenAddress: address) {
     // If there is no value to remove or rate limiting is turned off, skip this step to reduce gas usage.
     if (!self.isEnabled || requestTokens == 0) {
         return;
@@ -85,7 +85,7 @@ fun RateLimiter_TokenBucket._consume(mutate self, requestTokens: uint256, tokenA
 
 /// @notice Gets the token bucket with its values for the block it was requested at.
 /// @return The token bucket.
-fun RateLimiter_TokenBucket._currentTokenBucketState(self): RateLimiter_TokenBucket {
+fun RateLimiter_TokenBucket._currentTokenBucketState(mutate self): RateLimiter_TokenBucket {
     // We update the bucket to reflect the status at the exact time of the call. This means we might need to refill a
     // part of the bucket based on the time that has passed since the last update.
     self.tokens = _calculateRefill(
