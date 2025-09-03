@@ -27,6 +27,20 @@ struct Storage {
     latestPriceSequenceNumber: uint64;
 }
 
+struct Config {
+    // -- Static config
+    chainSelector: uint64
+    // gasForCallExactCheck
+    // rmnRemote
+    // nonceManager
+    // tokenAdminRegistry
+    // -- Dynamic config
+    feeQuoter: address
+    permissionlessExecutionThresholdSeconds: uint32
+    // isRMNVerificationDisabled
+    // messageInterceptor
+}
+
 struct SourceChainConfig {
     router: address;
     isEnabled: bool;
@@ -404,16 +418,22 @@ get fun latestPriceSequenceNumber(): uint64 {
     return st.latestPriceSequenceNumber
 }
 
-get fun staticConfig() {
-    // chainSelector, gasForCallExactCheck?, rmnRemote, nonceManager, tokenAdminRegistry
-}
-
 fun setDynamicConfig() {
     
 }
 
-get fun dynamicConfig() {
-    // TODO: combine get staticConfig and dynamicConfig into get config
+get fun ocr3Config(): OCR3Base {
+    var st = lazy Storage.load();
+    return st.ocr3Base.load();
+}
+
+get fun config(): Config {
+    val st = lazy Storage.load();
+    return {
+        chainSelector: st.chainSelector,
+        feeQuoter: st.feeQuoter,
+        permissionlessExecutionThresholdSeconds: st.permissionlessExecutionThresholdSeconds,
+    }
 }
 
 get fun sourceChainConfig(sourceChainSelector: uint64): SourceChainConfig {

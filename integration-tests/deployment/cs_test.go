@@ -136,22 +136,22 @@ func TestDeploy(t *testing.T) {
 		{0, 0, 0, 0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3},
 		{0, 0, 0, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4},
 	}
+	configDigest := [32]byte{1, 2, 3, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 	env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{
 		commonchangeset.Configure(ton_ops.SetOCR3Config{}, ton_ops.SetOCR3OffRampConfig{
 			RemoteChainSels: []uint64{tonChain.Selector},
 			MCMS:            &proposalutils.TimelockConfig{},
 			Configs: map[operation.PluginType]operation.OCR3ConfigArgs{
 				operation.PluginTypeCCIPCommit: {
-					ConfigDigest: []byte{1, 2, 3, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-
+					ConfigDigest:                   configDigest,
 					PluginType:                     operation.PluginTypeCCIPCommit, // maybe map is redundant? make it an array
 					F:                              1,
-					IsSignatureVerificationEnabled: false,
+					IsSignatureVerificationEnabled: true,
 					Signers:                        signers,
 					Transmitters:                   transmitters,
 				},
 				operation.PluginTypeCCIPExec: {
-					ConfigDigest:                   []byte{1, 2, 3, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+					ConfigDigest:                   [32]byte{1, 2, 3, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 					PluginType:                     operation.PluginTypeCCIPExec, // maybe map is redundant? make it an array
 					F:                              1,
 					IsSignatureVerificationEnabled: false,
@@ -197,6 +197,8 @@ func TestDeploy(t *testing.T) {
 	require.NoError(t, err)
 	rawLinkAddr, err := addrCodec.AddressStringToBytes(linkAddr.String())
 	require.NoError(t, err)
+	rawDeployerAddr, err := addrCodec.AddressStringToBytes(deployer.Address().String())
+	require.NoError(t, err)
 
 	err = accessor.Sync(ctx, consts.ContractNameOnRamp, rawOnRampAddr)
 	require.NoError(t, err)
@@ -207,8 +209,47 @@ func TestDeploy(t *testing.T) {
 
 	t.Run("GetConfig", func(t *testing.T) {
 		// destination
-		_, sourceChainConfigs, err := accessor.GetAllConfigsLegacy(ctx, ccipocr3.ChainSelector(chainSelector), []ccipocr3.ChainSelector{ccipocr3.ChainSelector(evmSelector)})
+		config, sourceChainConfigs, err := accessor.GetAllConfigsLegacy(ctx, ccipocr3.ChainSelector(chainSelector), []ccipocr3.ChainSelector{ccipocr3.ChainSelector(evmSelector)})
 		require.NoError(t, err)
+		require.Equal(t, ccipocr3.OfframpConfig{
+			CommitLatestOCRConfig: ccipocr3.OCRConfigResponse{
+				OCRConfig: ccipocr3.OCRConfig{
+					ConfigInfo: ccipocr3.ConfigInfo{
+						ConfigDigest:                   configDigest,
+						F:                              1,
+						N:                              4,
+						IsSignatureVerificationEnabled: true,
+					},
+					Signers:      signers,
+					Transmitters: transmitters,
+				},
+			},
+			ExecLatestOCRConfig: ccipocr3.OCRConfigResponse{
+				OCRConfig: ccipocr3.OCRConfig{
+					ConfigInfo: ccipocr3.ConfigInfo{
+						ConfigDigest:                   configDigest,
+						F:                              1,
+						N:                              0,
+						IsSignatureVerificationEnabled: false,
+					},
+					Signers:      nil,
+					Transmitters: transmitters,
+				},
+			},
+			StaticConfig: ccipocr3.OffRampStaticChainConfig{
+				ChainSelector:        ccipocr3.ChainSelector(tonChain.Selector),
+				GasForCallExactCheck: 0,
+				RmnRemote:            nil,
+				TokenAdminRegistry:   nil,
+				NonceManager:         nil,
+			},
+			DynamicConfig: ccipocr3.OffRampDynamicChainConfig{
+				FeeQuoter:                               rawFeeQuoterAddr,
+				PermissionLessExecutionThresholdSeconds: 0,
+				IsRMNVerificationDisabled:               true,
+				MessageInterceptor:                      nil,
+			},
+		}, config.Offramp)
 		require.Equal(t, map[ccipocr3.ChainSelector]ccipocr3.SourceChainConfig{
 			ccipocr3.ChainSelector(evmSelector): {
 				Router:                    rawRouterAddr,
@@ -220,11 +261,17 @@ func TestDeploy(t *testing.T) {
 		}, sourceChainConfigs)
 
 		// source
-		config, _, err := accessor.GetAllConfigsLegacy(ctx, ccipocr3.ChainSelector(evmSelector), []ccipocr3.ChainSelector{ccipocr3.ChainSelector(chainSelector)})
+		config, _, err = accessor.GetAllConfigsLegacy(ctx, ccipocr3.ChainSelector(evmSelector), []ccipocr3.ChainSelector{ccipocr3.ChainSelector(chainSelector)})
 		require.NoError(t, err)
 		require.Equal(t, ccipocr3.OnRampConfig{
 			DynamicConfig: ccipocr3.GetOnRampDynamicConfigResponse{
-				DynamicConfig: ccipocr3.OnRampDynamicConfig{},
+				DynamicConfig: ccipocr3.OnRampDynamicConfig{
+					FeeQuoter:              rawFeeQuoterAddr,
+					ReentrancyGuardEntered: false,
+					MessageInterceptor:     nil,
+					FeeAggregator:          rawDeployerAddr,
+					AllowListAdmin:         rawDeployerAddr,
+				},
 			},
 			DestChainConfig: ccipocr3.OnRampDestChainConfig{
 				SequenceNumber:   0,
