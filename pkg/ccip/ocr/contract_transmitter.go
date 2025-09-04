@@ -11,6 +11,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/smartcontractkit/libocr/offchainreporting2/types"
 	"github.com/smartcontractkit/libocr/offchainreporting2plus/ocr3types"
 	ocrtypes "github.com/smartcontractkit/libocr/offchainreporting2plus/types"
@@ -58,7 +59,8 @@ func NewCCIPTransmitter(
 
 func (c *ccipTransmitter) FromAccount(context.Context) (ocrtypes.Account, error) {
 	w := c.txm.GetClient().Wallet
-	return ocrtypes.Account(hex.EncodeToString(w.WalletAddress().Data())), nil
+	rawAddr := codec.ToRawAddr(w.WalletAddress())
+	return ocrtypes.Account(hex.EncodeToString(rawAddr[:])), nil
 }
 
 func (c *ccipTransmitter) Transmit(
@@ -72,7 +74,7 @@ func (c *ccipTransmitter) Transmit(
 		return errors.New("too many signatures, maximum is 32")
 	}
 
-	rawReportBytes := rawReportContext(configDigest, seqNr)
+	rawContextBytes := rawReportContext(configDigest, seqNr)
 	signatures := make([][96]byte, 0, len(sigs))
 	for _, sig := range sigs {
 		if len(sig.Signature) != 96 {
@@ -83,7 +85,7 @@ func (c *ccipTransmitter) Transmit(
 		signatures = append(signatures, fixedSig)
 	}
 
-	argsCell, err := c.toEd25519CalldataFn(rawReportBytes, reportWithInfo, signatures)
+	argsCell, err := c.toEd25519CalldataFn(rawContextBytes, reportWithInfo, signatures)
 	if err != nil {
 		return fmt.Errorf("failed to generate call data: %w", err)
 	}
@@ -97,7 +99,7 @@ func (c *ccipTransmitter) Transmit(
 		Amount:          tlb.MustFromTON("0.05"), // TODO what should this be, overhead + gasLimist? constant for now
 	}
 
-	c.lggr.Infow("Submitting transaction", "address", c.offrampAddress)
+	c.lggr.Infow("Submitting transaction", "address", c.offrampAddress, "request", request)
 	if err := c.txm.Enqueue(request); err != nil {
 		return fmt.Errorf("failed to submit transaction via txm: %w", err)
 	}
@@ -111,25 +113,19 @@ var CommitCallData = func(
 	report ocr3types.ReportWithInfo[[]byte],
 	signatures [][96]byte,
 ) (*cell.Cell, error) {
-	// deserialize boc encoded commit report into cell
 	reportCell, err := cell.FromBOC(report.Report)
 	if err != nil {
 		return nil, err
 	}
 
 	var commitReport ocr.CommitReport
-	if err = tlb.LoadFromCell(&report, reportCell.BeginParse()); err != nil {
+	if err = tlb.LoadFromCell(&commitReport, reportCell.BeginParse()); err != nil {
 		return nil, fmt.Errorf("cannot decode commit report from cell: %w", err)
 	}
 
-	// construct the signature arrya
 	sigs := make(common.SnakeData[ocr.SignatureEd25519], len(signatures))
 	for i, sig := range signatures {
-		sigs[i] = ocr.SignatureEd25519{
-			R:      sig[0:31],
-			S:      sig[32:63],
-			Signer: sig[64:],
-		}
+		sigs[i] = ocr.SignatureEd25519{Data: sig[:]}
 	}
 
 	commit := offramp.Commit{
@@ -153,14 +149,13 @@ var ExecuteCallData = func(
 	report ocr3types.ReportWithInfo[[]byte],
 	signatures [][96]byte,
 ) (*cell.Cell, error) {
-	// deserialize boc encoded execute report into cell
 	reportCell, err := cell.FromBOC(report.Report)
 	if err != nil {
 		return nil, err
 	}
 
 	var executeReport ocr.ExecuteReport
-	if err = tlb.LoadFromCell(&report, reportCell.BeginParse()); err != nil {
+	if err = tlb.LoadFromCell(&executeReport, reportCell.BeginParse()); err != nil {
 		return nil, fmt.Errorf("cannot decode commit report from cell: %w", err)
 	}
 

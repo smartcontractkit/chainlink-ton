@@ -10,9 +10,7 @@ import (
 
 // SignatureEd25519 represents a signature structure used in commit reports.
 type SignatureEd25519 struct {
-	R      []byte `tlb:"bits 256"`
-	S      []byte `tlb:"bits 256"`
-	Signer []byte `tlb:"bits 256"`
+	Data []byte `tlb:"bits 768"`
 }
 
 // CommitReport represents the top-level structure for a commit report.
