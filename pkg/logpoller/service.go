@@ -214,10 +214,13 @@ func (lp *service) RegisterFilter(ctx context.Context, flt types.Filter) error {
 	}
 
 	// TODO(2025-08-28@jadepark-dev): clean up, forcing replay for e2e now
-	lp.lggr.Infow("replaying logs for new filter", "filter", flt.Name, "fromBlock", flt.StartingSeqNo)
-	if err := lp.Replay(ctx, flt.StartingSeqNo); err != nil {
-		lp.lggr.Errorw("failed to replay logs for new filter", "filter", flt.Name, "error", err)
-	}
+	// Run replay in a separate goroutine to avoid blocking filter registration
+	go func() {
+		lp.lggr.Infow("replaying logs for new filter", "filter", flt.Name, "fromBlock", flt.StartingSeqNo)
+		if err := lp.Replay(ctx, flt.StartingSeqNo); err != nil {
+			lp.lggr.Errorw("failed to replay logs for new filter", "filter", flt.Name, "error", err)
+		}
+	}()
 
 	return nil
 }
