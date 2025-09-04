@@ -6,6 +6,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"
+	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
 
@@ -18,7 +19,6 @@ import (
 
 	"github.com/smartcontractkit/chainlink/deployment/ccip/changeset/v1_6"
 	"github.com/smartcontractkit/chainlink/deployment/environment/memory"
-	"github.com/smartcontractkit/chainlink/v2/core/logger"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/chainaccessor"
@@ -40,7 +40,8 @@ const ChainSelEVMTest90000001 = 909606746561742123
 func TestDeploy(t *testing.T) {
 	t.Parallel()
 	// env := setupEnv(t)
-	lggr := logger.TestLogger(t)
+	lggr, err := logger.New()
+	require.NoError(t, err)
 	env := memory.NewMemoryEnvironment(t, lggr, zapcore.InfoLevel, memory.MemoryEnvironmentConfig{
 		Chains:    1,
 		TonChains: 1,
@@ -56,7 +57,7 @@ func TestDeploy(t *testing.T) {
 	t.Log("Deployer: ", deployer.Address().String())
 
 	cs := ton_ops.DeployChainContractsToTonCS(t, env, chainSelector)
-	env, _, err := commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{cs})
+	env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{cs})
 	require.NoError(t, err, "failed to deploy ccip")
 
 	// TODO: LINK token deployment
