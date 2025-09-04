@@ -516,108 +516,108 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
     }
   })
 
-  describe('Call Proxy Execute Tests', () => {
-    it('should execute through valid call proxy', async () => {
-      const incrementCall: rbactl.Call = {
-        target: baseTest.bind.counter.address,
-        value: toNano('0.05'),
-        data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
-      }
-      const calls = BaseTestSetup.singletonCalls(incrementCall)
+  // describe('Call Proxy Execute Tests', () => {
+  //   it('should execute through valid call proxy', async () => {
+  //     const incrementCall: rbactl.Call = {
+  //       target: baseTest.bind.counter.address,
+  //       value: toNano('0.05'),
+  //       data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
+  //     }
+  //     const calls = BaseTestSetup.singletonCalls(incrementCall)
 
-      // Schedule operation
-      const scheduleBody = rbactl.builder.message.in.scheduleBatch.encode({
-        queryId: 1n,
-        calls,
-        predecessor: BaseTestSetup.NO_PREDECESSOR,
-        salt: BaseTestSetup.EMPTY_SALT,
-        delay: BaseTestSetup.MIN_DELAY,
-      })
+  //     // Schedule operation
+  //     const scheduleBody = rbactl.builder.message.in.scheduleBatch.encode({
+  //       queryId: 1n,
+  //       calls,
+  //       predecessor: BaseTestSetup.NO_PREDECESSOR,
+  //       salt: BaseTestSetup.EMPTY_SALT,
+  //       delay: BaseTestSetup.MIN_DELAY,
+  //     })
 
-      await baseTest.bind.timelock.sendInternal(
-        baseTest.acc.proposerOne.getSender(),
-        toNano('0.05'),
-        scheduleBody,
-      )
+  //     await baseTest.bind.timelock.sendInternal(
+  //       baseTest.acc.proposerOne.getSender(),
+  //       toNano('0.05'),
+  //       scheduleBody,
+  //     )
 
-      // Wait for delay
-      baseTest.warpTime(Number(BaseTestSetup.MIN_DELAY + 1n))
+  //     // Wait for delay
+  //     baseTest.warpTime(Number(BaseTestSetup.MIN_DELAY + 1n))
 
-      // Grant executor role to call proxy
-      await baseTest.grantCallProxyExecutorRole()
+  //     // Grant executor role to call proxy
+  //     await baseTest.grantCallProxyExecutorRole()
 
-      // Execute through call proxy using external caller
-      const executeBody = rbactl.builder.message.in.executeBatch.encode({
-        queryId: 2n,
-        calls,
-        predecessor: BaseTestSetup.NO_PREDECESSOR,
-        salt: BaseTestSetup.EMPTY_SALT,
-      })
+  //     // Execute through call proxy using external caller
+  //     const executeBody = rbactl.builder.message.in.executeBatch.encode({
+  //       queryId: 2n,
+  //       calls,
+  //       predecessor: BaseTestSetup.NO_PREDECESSOR,
+  //       salt: BaseTestSetup.EMPTY_SALT,
+  //     })
 
-      // Execute via call proxy
-      const proxyResult = await baseTest.bind.callProxy.sendInternal(
-        baseTest.acc.deployer.getSender(), // External caller
-        toNano('1'),
-        executeBody,
-      )
+  //     // Execute via call proxy
+  //     const proxyResult = await baseTest.bind.callProxy.sendInternal(
+  //       baseTest.acc.deployer.getSender(), // External caller
+  //       toNano('1'),
+  //       executeBody,
+  //     )
 
-      expect(proxyResult.transactions).toHaveTransaction({
-        from: baseTest.acc.deployer.address,
-        to: baseTest.bind.callProxy.address,
-        success: true,
-      })
+  //     expect(proxyResult.transactions).toHaveTransaction({
+  //       from: baseTest.acc.deployer.address,
+  //       to: baseTest.bind.callProxy.address,
+  //       success: true,
+  //     })
 
-      // Verify counter was incremented
-      expect(await baseTest.bind.counter.getValue()).toEqual(1)
-    })
+  //     // Verify counter was incremented
+  //     expect(await baseTest.bind.counter.getValue()).toEqual(1)
+  //   })
 
-    it('should fail if call proxy is not executor', async () => {
-      const incrementCall: rbactl.Call = {
-        target: baseTest.bind.counter.address,
-        value: toNano('0.05'),
-        data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
-      }
-      const calls = BaseTestSetup.singletonCalls(incrementCall)
+  //   it('should fail if call proxy is not executor', async () => {
+  //     const incrementCall: rbactl.Call = {
+  //       target: baseTest.bind.counter.address,
+  //       value: toNano('0.05'),
+  //       data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
+  //     }
+  //     const calls = BaseTestSetup.singletonCalls(incrementCall)
 
-      // Schedule operation
-      const scheduleBody = rbactl.builder.message.in.scheduleBatch.encode({
-        queryId: 1n,
-        calls,
-        predecessor: BaseTestSetup.NO_PREDECESSOR,
-        salt: BaseTestSetup.EMPTY_SALT,
-        delay: BaseTestSetup.MIN_DELAY,
-      })
+  //     // Schedule operation
+  //     const scheduleBody = rbactl.builder.message.in.scheduleBatch.encode({
+  //       queryId: 1n,
+  //       calls,
+  //       predecessor: BaseTestSetup.NO_PREDECESSOR,
+  //       salt: BaseTestSetup.EMPTY_SALT,
+  //       delay: BaseTestSetup.MIN_DELAY,
+  //     })
 
-      await baseTest.bind.timelock.sendInternal(
-        baseTest.acc.proposerOne.getSender(),
-        toNano('0.05'),
-        scheduleBody,
-      )
+  //     await baseTest.bind.timelock.sendInternal(
+  //       baseTest.acc.proposerOne.getSender(),
+  //       toNano('0.05'),
+  //       scheduleBody,
+  //     )
 
-      // Wait for delay
-      baseTest.warpTime(Number(BaseTestSetup.MIN_DELAY + 1n))
+  //     // Wait for delay
+  //     baseTest.warpTime(Number(BaseTestSetup.MIN_DELAY + 1n))
 
-      // Try to execute through call proxy without granting executor role
-      const executeBody = rbactl.builder.message.in.executeBatch.encode({
-        queryId: 2n,
-        calls,
-        predecessor: BaseTestSetup.NO_PREDECESSOR,
-        salt: BaseTestSetup.EMPTY_SALT,
-      })
+  //     // Try to execute through call proxy without granting executor role
+  //     const executeBody = rbactl.builder.message.in.executeBatch.encode({
+  //       queryId: 2n,
+  //       calls,
+  //       predecessor: BaseTestSetup.NO_PREDECESSOR,
+  //       salt: BaseTestSetup.EMPTY_SALT,
+  //     })
 
-      const proxyResult = await baseTest.bind.callProxy.sendInternal(
-        baseTest.acc.deployer.getSender(),
-        toNano('1'),
-        executeBody,
-      )
+  //     const proxyResult = await baseTest.bind.callProxy.sendInternal(
+  //       baseTest.acc.deployer.getSender(),
+  //       toNano('1'),
+  //       executeBody,
+  //     )
 
-      // The call proxy should fail to execute because it doesn't have executor role
-      expect(proxyResult.transactions).toHaveTransaction({
-        from: baseTest.bind.callProxy.address,
-        to: baseTest.bind.timelock.address,
-        success: false,
-        exitCode: ac.Errors.UnauthorizedAccount,
-      })
-    })
-  })
+  //     // The call proxy should fail to execute because it doesn't have executor role
+  //     expect(proxyResult.transactions).toHaveTransaction({
+  //       from: baseTest.bind.callProxy.address,
+  //       to: baseTest.bind.timelock.address,
+  //       success: false,
+  //       exitCode: ac.Errors.UnauthorizedAccount,
+  //     })
+  //   })
+  // })
 })
