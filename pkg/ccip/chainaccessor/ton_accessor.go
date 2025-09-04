@@ -485,7 +485,7 @@ func (a *TONAccessor) processCommitReports(logs []types.TypedLog[offramp.CommitR
 	return reports[:limit]
 }
 
-func (a *TONAccessor) processMerkleRoot(mr ocr.MerkleRoot) ccipocr3.MerkleRootChain {
+func (a *TONAccessor) processMerkleRoot(mr *ocr.MerkleRoot) ccipocr3.MerkleRootChain {
 	return ccipocr3.MerkleRootChain{
 		ChainSel:      ccipocr3.ChainSelector(mr.SourceChainSelector),
 		OnRampAddress: ccipocr3.UnknownAddress(mr.OnRampAddress[:]),
@@ -497,7 +497,7 @@ func (a *TONAccessor) processMerkleRoot(mr ocr.MerkleRoot) ccipocr3.MerkleRootCh
 	}
 }
 
-func (a *TONAccessor) processPriceUpdates(priceUpdates ocr.PriceUpdates) (ccipocr3.PriceUpdates, error) {
+func (a *TONAccessor) processPriceUpdates(priceUpdates *ocr.PriceUpdates) (ccipocr3.PriceUpdates, error) {
 	lggr := a.lggr
 	updates := ccipocr3.PriceUpdates{
 		TokenPriceUpdates: make([]ccipocr3.TokenPrice, 0),

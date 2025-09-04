@@ -88,7 +88,7 @@ func TestCommitReport_EncodingAndDecoding(t *testing.T) {
 	require.NoError(t, err)
 
 	commitReport := CommitReport{
-		PriceUpdates: PriceUpdates{
+		PriceUpdates: &PriceUpdates{
 			TokenPriceUpdates: tokenPriceSlice,
 			GasPriceUpdates:   gasPriceSlice,
 		},

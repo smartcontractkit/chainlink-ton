@@ -147,7 +147,7 @@ func (a *TONAccessor) validateCommitReportAcceptedEvent(
 }
 
 // TON only has single Merkle root
-func (a *TONAccessor) validateMerkleRoot(merkleRoot ocr.MerkleRoot) error {
+func (a *TONAccessor) validateMerkleRoot(merkleRoot *ocr.MerkleRoot) error {
 	if merkleRoot.SourceChainSelector == 0 {
 		return fmt.Errorf("source chain is zero")
 	}
