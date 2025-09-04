@@ -143,6 +143,7 @@ export const builder = {
 
     return {
       contractData,
+      tokenAmountCodec,
     }
   })(),
   message: {

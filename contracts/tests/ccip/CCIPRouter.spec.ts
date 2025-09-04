@@ -1,5 +1,14 @@
 import { Blockchain, BlockchainTransaction, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { toNano, Address, Cell, Dictionary, Message, beginCell } from '@ton/core'
+import {
+  toNano,
+  Address,
+  Cell,
+  Dictionary,
+  Message,
+  beginCell,
+  CommonMessageInfoInternal,
+  CommonMessageInfoExternalIn,
+} from '@ton/core'
 import { compile } from '@ton/blueprint'
 import * as rt from '../../wrappers/ccip/Router'
 import { OnRamp, OnRampStorage } from '../../wrappers/ccip/OnRamp'
@@ -12,7 +21,7 @@ import {
 import '@ton/test-utils'
 import { assertLog } from '../Logs'
 import { LogTypes } from '../../wrappers/ccip/Logs'
-import { ZERO_ADDRESS } from '../../src/utils'
+import { asSnakeData, dump, ZERO_ADDRESS } from '../../src/utils'
 import { JettonMinterCode, JettonWalletCode } from '../../wrappers/jetton/JettonCode'
 import { JettonMinter } from '../../wrappers/jetton/JettonMinter'
 import { JettonWallet, TransferMessage } from '../../wrappers/jetton/JettonWallet'
@@ -338,6 +347,8 @@ describe('Router', () => {
       deploy: false,
       success: true,
     })
+
+    console.log((await dump(jettonTransferResult.transactions)).join('\n'))
 
     // assert CCIPMessageSent
     assertLog(jettonTransferResult.transactions, onRamp.address, LogTypes.CCIPMessageSent, {
