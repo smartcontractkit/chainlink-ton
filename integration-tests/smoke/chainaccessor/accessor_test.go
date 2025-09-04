@@ -39,7 +39,6 @@ import (
 const ChainSelEVMTest90000001 = 909606746561742123
 
 func Test_TonAccessorEventQueries(t *testing.T) {
-	t.Skip()
 	lggr := logger.Test(t)
 	ctx := t.Context()
 
