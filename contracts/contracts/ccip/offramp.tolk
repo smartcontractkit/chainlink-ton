@@ -69,7 +69,6 @@ struct AlreadyAttempted {
 }
 
 const CCIP_COMMIT_REPORT_ACCEPTED_TOPIC: int = stringCrc32("CCIPCommitReportAccepted");
-const CCIP_EXECUTION_STATE_CHANGED: int = stringCrc32("CCIPExecutionStateChanged");
 
 struct CommitReportAccepted {
     priceUpdates: Cell<PriceUpdates>?;

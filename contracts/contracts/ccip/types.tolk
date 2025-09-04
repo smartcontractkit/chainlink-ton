@@ -327,9 +327,11 @@ struct (0x38ede91) MerkleRoot_Validate {
     //TODO: token data
 }
 
-struct (0x12121212) MerkleRoot_CCIPReceiveConfirm {}
+//crc32('MerkleRoot_CCIPReceiveConfirm')
+struct (0x81650c13) MerkleRoot_CCIPReceiveConfirm {}
 
-struct(0x13131313) MerkleRoot_CCIPReceiveBounced {}
+//crc32('MerkleRoot_CCIPReceiveBounced')
+struct(0x845e303f) MerkleRoot_CCIPReceiveBounced {}
 
 
 //Must be sent from an owned MerkleRoot contract
@@ -339,28 +341,29 @@ struct (0x58cfcb02) OffRamp_DispatchValidated {
     root: uint256;
 }
 
-
-
 //crc32('Receiver_CCIPReceive')
 struct (0xb3126df1) CCIPReceive {
     rootId: uint224; // to calculate where to send CCIPReceiveConfirm and CCIPReceiveFailed
     message: Any2TVMMessage;
 }
 
-struct (0x45454545) OffRamp_CCIPReceiveConfirm {
+//crc32('OffRamp_CCIPReceiveConfirm')
+struct (0x28f4166f) OffRamp_CCIPReceiveConfirm {
     rootId: uint224;
 }
 
-
+//crc32('OffRamp_NotifySuccess')
 struct (0x23232323) OffRamp_NotifySuccess {
     header: RampMessageHeader;
 }
 
-struct(0x32323232) OffRamp_NotifyFailure {
+//crc32('OffRamp_NotifyFailure')
+struct(0x177ebd03) OffRamp_NotifyFailure {
     header: RampMessageHeader;
 }
 
-struct (0x14141414) OffRamp_NotifyInProgress {
+//crc32('OffRamp_NotifyInProgress')
+struct (0xdc81855a) OffRamp_NotifyInProgress {
     message: Any2TVMRampMessage; // vec<Any2TVMRampMessage>
     root: uint256;
 }
