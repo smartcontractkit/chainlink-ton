@@ -55,6 +55,20 @@ type SourceChainConfig struct {
 // 	return nil
 // }
 
+type OCR3Config struct {
+	ConfigInfo   ConfigInfo       `tlb:"."`
+	Signers      *cell.Dictionary `tlb:"dict 256"`
+	KeyLen       uint16           `tlb:"## 16"`
+	Transmitters *cell.Dictionary `tlb:"dict 267"`
+}
+
+type ConfigInfo struct {
+	ConfigDigest                   []byte `tlb:"bits 256"`
+	F                              uint8  `tlb:"## 8"`
+	N                              uint8  `tlb:"## 8"`
+	IsSignatureVerificationEnabled bool   `tlb:"bool"`
+}
+
 // Methods
 
 type UpdateSourceChainConfig struct {

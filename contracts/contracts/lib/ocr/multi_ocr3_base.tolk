@@ -53,11 +53,11 @@ struct (0x2B78359F) OCR3Base_SetOCR3Config {
 
 struct OCR3Base {
 	chainId: uint8; //TODO :Is this even necessary?
-	commit: Cell<Config>?;
-	execute: Cell<Config>?;
+	commit: Cell<OCRConfig>?;
+	execute: Cell<OCRConfig>?;
 }
 
-fun OCR3Base.getConfig(self, ocrPluginType: uint16): Config? {
+fun OCR3Base.getConfig(self, ocrPluginType: uint16): OCRConfig? {
 	if (ocrPluginType == OCR_PLUGIN_TYPE_COMMIT) {
 		if (self.commit == null) {
 			return null;

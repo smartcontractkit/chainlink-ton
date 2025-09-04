@@ -106,7 +106,7 @@ func DeployChainContractsToTonCS(t *testing.T, env cldf.Environment, chainSelect
 }
 
 // TODO add TON token price into func parameters
-func AddLaneTONChangesets(env *cldf.Environment, from, to uint64, fromFamily, toFamily string, gasPrices map[uint64]*big.Int) commonchangeset.ConfiguredChangeSet {
+func AddLaneTONChangesets(env *cldf.Environment, state stateview.CCIPOnChainState, from, to uint64, fromFamily, toFamily string, gasPrices map[uint64]*big.Int) commonchangeset.ConfiguredChangeSet {
 	if fromFamily != chainsel.FamilyTon && toFamily != chainsel.FamilyTon {
 		env.Logger.Fatalf("AddLaneTONChangesets: expected at least one chain to be TON, got fromFamily=%s, toFamily=%s", fromFamily, toFamily)
 	}
@@ -116,6 +116,10 @@ func AddLaneTONChangesets(env *cldf.Environment, from, to uint64, fromFamily, to
 
 	switch fromFamily {
 	case chainsel.FamilyEVM:
+		onRamp, err := state.GetOnRampAddressBytes(from)
+		if err != nil {
+			env.Logger.Fatalf("No OnRamp address: %v", from)
+		}
 		src = config.EVMChainDefinition{
 			ChainDefinition: v1_6.ChainDefinition{
 				ConnectionConfig: v1_6.ConnectionConfig{
@@ -124,6 +128,7 @@ func AddLaneTONChangesets(env *cldf.Environment, from, to uint64, fromFamily, to
 				Selector: from,
 				GasPrice: gasPrices[from],
 			},
+			OnRamp: onRamp,
 		}
 	case chainsel.FamilyTon:
 		src = config.TonChainDefinition{
@@ -136,7 +141,7 @@ func AddLaneTONChangesets(env *cldf.Environment, from, to uint64, fromFamily, to
 			TokenPrices: map[*address.Address]*big.Int{
 				TonTokenAddr: big.NewInt(99),
 			},
-			FeeQuoterDestChainConfig: DefaultFeeQuoterDestChainConfig(true, to),
+			FeeQuoterDestChainConfig: DefaultFeeQuoterDestChainConfig(true),
 			TokenTransferFeeConfigs:  map[uint64]feequoter.UpdateTokenTransferFeeConfig{
 				// TODO:
 			},
@@ -177,8 +182,6 @@ func AddLaneTONChangesets(env *cldf.Environment, from, to uint64, fromFamily, to
 				},
 			},
 			OnRampVersion: []byte{1, 6, 1},
-			// TODO: lookup OnRamp here and set it
-			// OnRamp: []byte{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 99},
 		}
 	case chainsel.FamilyTon:
 		dest = config.TonChainDefinition{
@@ -191,7 +194,7 @@ func AddLaneTONChangesets(env *cldf.Environment, from, to uint64, fromFamily, to
 			TokenPrices: map[*address.Address]*big.Int{
 				TonTokenAddr: big.NewInt(99),
 			},
-			FeeQuoterDestChainConfig: DefaultFeeQuoterDestChainConfig(true, to),
+			FeeQuoterDestChainConfig: DefaultFeeQuoterDestChainConfig(true),
 			TokenTransferFeeConfigs:  map[uint64]feequoter.UpdateTokenTransferFeeConfig{
 				// TODO:
 			},

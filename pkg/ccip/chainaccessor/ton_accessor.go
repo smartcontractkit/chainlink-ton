@@ -93,22 +93,12 @@ func (a *TONAccessor) GetAllConfigsLegacy(ctx context.Context, destChainSelector
 		// we're fetching config on the destination chain (offramp + fee quoter static config + RMN)
 
 		// OffRamp
-		offrampStaticConfig, err := a.getOffRampStaticConfig(ctx, block)
+		offrampConfig, err := a.getOffRampConfig(ctx, block)
 		if !errors.Is(err, ErrNoBindings) && err != nil {
-			return ccipocr3.ChainConfigSnapshot{}, nil, fmt.Errorf("failed to get current offramp static config: %w", err)
+			return ccipocr3.ChainConfigSnapshot{}, nil, fmt.Errorf("failed to get current offramp config: %w", err)
 		}
 		// TODO: assert offrampStaticConfig.ChainSelector == destChainSelector as a quick sanity check
-		offrampDynamicConfig, err := a.getOffRampDynamicConfig(ctx, block)
-		if !errors.Is(err, ErrNoBindings) && err != nil {
-			return ccipocr3.ChainConfigSnapshot{}, nil, fmt.Errorf("failed to get current offramp dynamic config: %w", err)
-		}
-		config.Offramp = ccipocr3.OfframpConfig{
-			// TODO: read OCR config from contract
-			CommitLatestOCRConfig: ccipocr3.OCRConfigResponse{},
-			ExecLatestOCRConfig:   ccipocr3.OCRConfigResponse{},
-			StaticConfig:          offrampStaticConfig,
-			DynamicConfig:         offrampDynamicConfig,
-		}
+		config.Offramp = offrampConfig
 
 		// FeeQuoter
 		feeQuoterStaticConfig, err := a.getFeeQuoterStaticConfig(ctx, block)

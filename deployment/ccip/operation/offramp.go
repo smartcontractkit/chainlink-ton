@@ -106,6 +106,7 @@ func updateOffRampSourceChainConfigs(b operations.Bundle, deps TonDeps, in Updat
 	addr := deps.CCIPOnChainState[deps.TonChain.Selector].OffRamp
 
 	if len(in.Updates) == 0 {
+		b.Logger.Info("Skipping offramp.updateOffRampSourceChainConfigs, no updates")
 		// Nothing to update
 		return nil, nil
 	}
@@ -162,7 +163,7 @@ const (
 
 // NOTE: this maps to MultiOCR3BaseOCRConfigArgsAptos but it's an internal type on chainlink/deployment...
 type OCR3ConfigArgs struct {
-	ConfigDigest                   []byte
+	ConfigDigest                   [32]byte
 	PluginType                     PluginType
 	F                              uint8
 	IsSignatureVerificationEnabled bool
@@ -200,7 +201,7 @@ func setOCR3Config(b operations.Bundle, deps TonDeps, in OCR3ConfigArgs) ([][]by
 
 	input := offramp.SetOCR3Config{
 		QueryID:                        0,
-		ConfigDigest:                   in.ConfigDigest,
+		ConfigDigest:                   in.ConfigDigest[:],
 		PluginType:                     uint16(in.PluginType),
 		F:                              in.F,
 		IsSignatureVerificationEnabled: in.IsSignatureVerificationEnabled,
