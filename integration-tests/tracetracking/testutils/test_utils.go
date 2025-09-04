@@ -9,7 +9,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	testutils "github.com/smartcontractkit/chainlink-ton/integration-tests/utils"
+	testutils "github.com/smartcontractkit/chainlink-ton/deployment/utils"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
