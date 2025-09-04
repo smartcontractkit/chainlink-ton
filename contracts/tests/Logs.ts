@@ -45,7 +45,6 @@ export const expectFailedTransaction = (
   expect(result.transactions).toHaveTransaction({ from, to, exitCode, success: false })
 }
 
-
 type DeepPartial<T> = {
   [P in keyof T]?: DeepPartial<T[P]>
 }
@@ -69,7 +68,7 @@ type LogMatch<T extends CombinedLogType> = LogTypeMap[T]
 type Handler<T extends CombinedLogType> = (
   message: Message,
   from: Address,
-  match: LogTypeMap[T]
+  match: LogTypeMap[T],
 ) => boolean
 
 const handlers: { [K in CombinedLogType]: Handler<K> } = {
@@ -77,10 +76,18 @@ const handlers: { [K in CombinedLogType]: Handler<K> } = {
     testLogCCIPMessageSent(x, from, match as DeepPartial<CCIPLogs.CCIPMessageSent>),
 
   [CCIPLogs.LogTypes.CCIPCommitReportAccepted]: (x, from, match) =>
-    testLogCCIPCommitReportAccepted(x, from, match as DeepPartial<CCIPLogs.CCIPCommitReportAccepted>),
+    testLogCCIPCommitReportAccepted(
+      x,
+      from,
+      match as DeepPartial<CCIPLogs.CCIPCommitReportAccepted>,
+    ),
 
   [CCIPLogs.LogTypes.CCIPExecutionStateChanged]: (x, from, match) =>
-    testLogCCIPExecutionStateChanged(x, from, match as DeepPartial<CCIPLogs.CCIPExecutionStateChanged>),
+    testLogCCIPExecutionStateChanged(
+      x,
+      from,
+      match as DeepPartial<CCIPLogs.CCIPExecutionStateChanged>,
+    ),
 
   [ReceiverLogs.LogTypes.ReceiverCCIPMessageReceived]: (x, from, match) =>
     testLogReceiverCCIPMessageReceived(x, from, match as ReceiverLogs.ReceiverCCIPMessageReceived),
@@ -99,12 +106,9 @@ export const assertLog = <T extends CombinedLogType>(
   type: T,
   match: LogMatch<T>,
 ) => {
-  const matched = getExternals(transactions).some((x) =>
-    handlers[type](x, from, match)
-  )
+  const matched = getExternals(transactions).some((x) => handlers[type](x, from, match))
   expect(matched).toBe(true)
 }
-
 
 function testLogCCIPCommitReportAccepted(
   message: Message,
@@ -194,7 +198,9 @@ export const testConfigSetLogMessage = (
     const ocrPluginType = cs.loadUint(16)
     const configDigest = cs.loadUintBig(256)
     const signers = fromSnakeData(cs.loadRef(), (x) => x.loadUintBig(256)).sort()
-    const transmitters = fromSnakeData(cs.loadRef(), (x) => x.loadAddress()).map((x) => x.toString()).sort()
+    const transmitters = fromSnakeData(cs.loadRef(), (x) => x.loadAddress())
+      .map((x) => x.toString())
+      .sort()
     const bigF = cs.loadUint(8)
 
     const msg = {
