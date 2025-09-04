@@ -114,7 +114,6 @@ fun updateFeeTokens(mutate st: Storage, msg: UpdateFeeTokens) {
 fun updateTokenTransferFeeConfigs(mutate st: Storage, msg: UpdateTokenTransferFeeConfigs) {
     debug.printString("called updateTokenTransferFeeConfigs");
     var (destChainSelector, update, exists) = msg.updates.min();
-    debug.printString("entering loop");
     while (exists) {
         debug.printString("loop");
         val (maybeDestChainConfig, configExists) = st.destChainConfigs.get(destChainSelector!);

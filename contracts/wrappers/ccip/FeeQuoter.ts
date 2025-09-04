@@ -10,12 +10,14 @@ import {
   DictionaryValue,
   Sender,
   SendMode,
+  Builder,
+  Slice,
 } from '@ton/core'
 
 import * as ownable2step from '../libraries/access/Ownable2Step'
 import { CellCodec } from '../utils'
 import { asSnakeData, fromSnakeData } from '../../src/utils'
-import { loadMap, loadDict, storeTolkUMap } from '../../src/utils/dict'
+import { loadMap, loadDict, UMapToBuilder } from '../../src/utils/dict'
 
 export type FeeQuoterStorage = {
   ownable: ownable2step.Data
@@ -133,36 +135,19 @@ export const builder = {
       }
       const updateTokenTransferFeeConfigs: CellCodec<UpdateTokenTransferFeeConfigs> = {
         encode: (data: UpdateTokenTransferFeeConfigs): Cell => {
-          const configs = Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Cell())
+          const updatesDict = Dictionary.empty(
+            Dictionary.Keys.BigUint(64),
+            UpdateTokenTransferFeeConfigDictionaryValueType(),
+          )
           for (const [destChainSelector, updateTokenTransferFeeConfig] of data.updates) {
-            let add = Dictionary.empty(Dictionary.Keys.Address(), Dictionary.Values.Cell())
-            let remove = Cell.EMPTY // TODO
-            for (const [
-              token,
-              tokenTransferFeeConfig,
-            ] of updateTokenTransferFeeConfig.add.entries()) {
-              const tokenTransferFeeConfigCell = beginCell()
-                .storeBit(tokenTransferFeeConfig.isEnabled)
-                .storeInt(tokenTransferFeeConfig.minFeeUsdCents, 32)
-                .storeInt(tokenTransferFeeConfig.maxFeeUsdCents, 32)
-                .storeInt(tokenTransferFeeConfig.deciBps, 16)
-                .storeInt(tokenTransferFeeConfig.destGasOverhead, 32)
-                .storeInt(tokenTransferFeeConfig.destBytesOverhead, 32)
-                .endCell()
-
-              add.set(token, tokenTransferFeeConfigCell)
-            }
-            var updateTokenTransferFeeConfigCell = beginCell()
-              .storeDict(add)
-              .storeRef(remove)
-              .endCell()
-            configs.set(destChainSelector, updateTokenTransferFeeConfigCell)
+            updatesDict.set(destChainSelector, updateTokenTransferFeeConfig)
           }
 
-          var msg = beginCell().storeUint(Opcodes.updateTransferFeeConfigs, 32)
-          msg = storeTolkUMap(msg, { keyLen: 64, dict: configs })
-
-          return msg.endCell()
+          const updates = UMapToBuilder({ dict: updatesDict, keyLen: 64 })
+          return beginCell()
+            .storeUint(Opcodes.updateTransferFeeConfigs, 32)
+            .storeBuilder(updates)
+            .endCell()
         },
         decode: function (cell: Cell): UpdateTokenTransferFeeConfigs {
           throw new Error('Function not implemented.') // TODO implement if needed
@@ -480,6 +465,31 @@ export class FeeQuoter implements Contract {
   }
 }
 
+function encodeUpdateTokenTransferFeeConfig(
+  updateTokenTransferFeeConfig: UpdateTokenTransferFeeConfig,
+): Cell {
+  let add = Dictionary.empty(Dictionary.Keys.Address(), TokenTransferFeeConfigDictionaryValueType())
+  let remove = asSnakeData(updateTokenTransferFeeConfig.remove, (addr) =>
+    new TonBuilder().storeAddress(addr),
+  )
+  for (const [token, tokenTransferFeeConfig] of updateTokenTransferFeeConfig.add.entries()) {
+    add.set(token, tokenTransferFeeConfig)
+  }
+  var updateTokenTransferFeeConfigCell = beginCell().storeDict(add).storeRef(remove).endCell()
+  return updateTokenTransferFeeConfigCell
+}
+
+function encodeTokenTransferFeeConfig(tokenTransferFeeConfig: TokenTransferFeeConfig): Cell {
+  return beginCell()
+    .storeBit(tokenTransferFeeConfig.isEnabled)
+    .storeInt(tokenTransferFeeConfig.minFeeUsdCents, 32)
+    .storeInt(tokenTransferFeeConfig.maxFeeUsdCents, 32)
+    .storeInt(tokenTransferFeeConfig.deciBps, 16)
+    .storeInt(tokenTransferFeeConfig.destGasOverhead, 32)
+    .storeInt(tokenTransferFeeConfig.destBytesOverhead, 32)
+    .endCell()
+}
+
 function encodeGasPriceUpdate(gasPriceUpdate: GasPriceUpdate): TonBuilder {
   return new TonBuilder()
     .storeInt(gasPriceUpdate.chainSelector, 64)
@@ -489,4 +499,24 @@ function encodeGasPriceUpdate(gasPriceUpdate: GasPriceUpdate): TonBuilder {
 
 function encodeTokenPriceUpdate(tokenPriceUpdate: TokenPriceUpdate): TonBuilder {
   return new TonBuilder().storeAddress(tokenPriceUpdate.token).storeInt(tokenPriceUpdate.price, 224)
+}
+
+function UpdateTokenTransferFeeConfigDictionaryValueType(): DictionaryValue<UpdateTokenTransferFeeConfig> {
+  const serialize = (src: UpdateTokenTransferFeeConfig, builder: Builder): void => {
+    builder.storeBuilder(encodeUpdateTokenTransferFeeConfig(src).asBuilder())
+  }
+  const parse = (src: Slice): UpdateTokenTransferFeeConfig => {
+    throw new Error('Function not implemented.')
+  }
+  return { serialize, parse }
+}
+
+function TokenTransferFeeConfigDictionaryValueType(): DictionaryValue<TokenTransferFeeConfig> {
+  const serialize = (src: TokenTransferFeeConfig, builder: Builder): void => {
+    builder.storeBuilder(encodeTokenTransferFeeConfig(src).asBuilder())
+  }
+  const parse = (src: Slice): TokenTransferFeeConfig => {
+    throw new Error('Function not implemented.')
+  }
+  return { serialize, parse }
 }

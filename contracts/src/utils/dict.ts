@@ -36,9 +36,6 @@ export type TolkUMap<K extends DictionaryKeyTypes, V> = {
   dict: Dictionary<K, V>
 }
 
-export function storeTolkUMap<K extends DictionaryKeyTypes, V>(
-  builder: Builder,
-  data: TolkUMap<K, V>,
-): Builder {
-  return builder.storeDict(data.dict).storeUint(data.keyLen, 16)
+export function UMapToBuilder<K extends DictionaryKeyTypes, V>(data: TolkUMap<K, V>): Builder {
+  return new Builder().storeDict(data.dict).storeUint(data.keyLen, 16)
 }
