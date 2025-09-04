@@ -78,7 +78,7 @@ func TestDeploy(t *testing.T) {
 							ton_ops.TonTokenAddr: big.NewInt(99),
 						},
 						FeeQuoterDestChainConfig: ton_ops.DefaultFeeQuoterDestChainConfig(true, evmSelector),
-						TokenTransferFeeConfigs: map[uint64]feequoter.UpdateTokenTransferFeeConfig{
+						TokenTransferFeeConfigs:  map[uint64]feequoter.UpdateTokenTransferFeeConfig{
 							// TODO: populate when token transfer enabled
 						},
 					},

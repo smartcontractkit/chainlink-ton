@@ -10,13 +10,13 @@ replace github.com/smartcontractkit/chainlink-ton => ../
 
 require (
 	github.com/Masterminds/semver/v3 v3.4.0
-	github.com/ethereum/go-ethereum v1.15.11
+	github.com/ethereum/go-ethereum v1.16.2
 	github.com/rs/zerolog v1.33.0
 	github.com/smartcontractkit/chain-selectors v1.0.67
-	github.com/smartcontractkit/chainlink-ccip v0.1.1-solana.0.20250901212943-bf20fcaf2edd
+	github.com/smartcontractkit/chainlink-ccip v0.1.1-solana.0.20250903115155-a68d8c28ae1d
 	github.com/smartcontractkit/chainlink-common v0.9.5-0.20250904170026-2674110962ca
 	github.com/smartcontractkit/chainlink-deployments-framework v0.25.0
-	github.com/smartcontractkit/chainlink-ton v0.0.0-20250829201010-23f1c63ba3f1
+	github.com/smartcontractkit/chainlink-ton v0.0.0-20250904172855-40023151d8f6
 	github.com/smartcontractkit/chainlink/deployment v0.0.0-20250831041730-9b6914fe99ed
 	github.com/smartcontractkit/mcms v0.21.1
 	github.com/xssnick/tonutils-go v1.14.0
@@ -145,6 +145,7 @@ require (
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/dvsekhvalnov/jose2go v1.7.0 // indirect
 	github.com/ebitengine/purego v0.8.4 // indirect
+	github.com/emicklei/dot v1.6.2 // indirect
 	github.com/emicklei/go-restful/v3 v3.12.1 // indirect
 	github.com/esote/minmaxheap v1.0.0 // indirect
 	github.com/ethereum/c-kzg-4844/v2 v2.1.0 // indirect
@@ -156,6 +157,7 @@ require (
 	github.com/fatih/color v1.18.0 // indirect
 	github.com/fbsobreira/gotron-sdk v0.0.0-20250403083053-2943ce8c759b // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
+	github.com/ferranbt/fastssz v0.1.4 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.7.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.8 // indirect
@@ -280,6 +282,7 @@ require (
 	github.com/mattn/go-runewidth v0.0.16 // indirect
 	github.com/mfridman/interpolate v0.0.2 // indirect
 	github.com/miekg/dns v1.1.65 // indirect
+	github.com/minio/sha256-simd v1.0.1 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/go-testing-interface v1.14.1 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
@@ -357,8 +360,8 @@ require (
 	github.com/smartcontractkit/chainlink-ccip/chains/solana/gobindings v0.0.0-20250805210128-7f8a0f403c3a // indirect
 	github.com/smartcontractkit/chainlink-common/pkg/chipingress v0.0.1 // indirect
 	github.com/smartcontractkit/chainlink-data-streams v0.1.2 // indirect
-	github.com/smartcontractkit/chainlink-evm v0.3.2 // indirect
-	github.com/smartcontractkit/chainlink-evm/gethwrappers v0.0.0-20250808121824-2c3544aab8f3 // indirect
+	github.com/smartcontractkit/chainlink-evm v0.3.3-0.20250903140346-aacd485a7dea // indirect
+	github.com/smartcontractkit/chainlink-evm/gethwrappers v0.0.0-20250827130336-5922343458be // indirect
 	github.com/smartcontractkit/chainlink-feeds v0.1.2-0.20250227211209-7cd000095135 // indirect
 	github.com/smartcontractkit/chainlink-framework/capabilities v0.0.0-20250818175541-3389ac08a563 // indirect
 	github.com/smartcontractkit/chainlink-framework/chains v0.0.0-20250717121125-2350c82883e2 // indirect
@@ -379,7 +382,7 @@ require (
 	github.com/smartcontractkit/chainlink-testing-framework/seth v1.51.2 // indirect
 	github.com/smartcontractkit/chainlink-ton/integration-tests v0.0.0-20250829201010-23f1c63ba3f1 // indirect
 	github.com/smartcontractkit/chainlink-tron/relayer v0.0.11-0.20250815105909-75499abc4335 // indirect
-	github.com/smartcontractkit/chainlink/v2 v2.26.0-debug-tracing.0.20250827140128-db51db1d1316 // indirect
+	github.com/smartcontractkit/chainlink/v2 v2.26.0-debug-tracing.0.20250904175140-fcbddba92807 // indirect
 	github.com/smartcontractkit/freeport v0.1.3-0.20250716200817-cb5dfd0e369e // indirect
 	github.com/smartcontractkit/grpc-proxy v0.0.0-20240830132753-a7e17fec5ab7 // indirect
 	github.com/smartcontractkit/libocr v0.0.0-20250707144819-babe0ec4e358 // indirect
