@@ -94,70 +94,77 @@ describe('Router', () => {
       }
       feeQuoter = blockchain.openContract(FeeQuoter.createFromConfig(data, code))
 
-      let result = await feeQuoter.sendDeploy(deployer.getSender(), toNano('1'))
-      expect(result.transactions).toHaveTransaction({
-        from: deployer.address,
-        to: feeQuoter.address,
-        deploy: true,
-        success: true,
-      })
-
-      result = await feeQuoter.sendUpdatePrices(deployer.getSender(), {
-        value: toNano('1'),
-        msg: {
-          updates: {
-            gasPricesUpdates: [],
-            tokenPricesUpdates: [{ token: ZERO_ADDRESS, price: 123n }],
+      {
+        const result = await feeQuoter.sendDeploy(deployer.getSender(), toNano('1'))
+        expect(result.transactions).toHaveTransaction({
+          from: deployer.address,
+          to: feeQuoter.address,
+          deploy: true,
+          success: true,
+        })
+      }
+      {
+        const result = await feeQuoter.sendUpdatePrices(deployer.getSender(), {
+          value: toNano('1'),
+          msg: {
+            updates: {
+              gasPricesUpdates: [],
+              tokenPricesUpdates: [{ token: ZERO_ADDRESS, price: 123n }],
+            },
           },
-        },
-      })
-      expect(result.transactions).toHaveTransaction({
-        to: feeQuoter.address,
-        success: true,
-      })
+        })
+        expect(result.transactions).toHaveTransaction({
+          to: feeQuoter.address,
+          success: true,
+        })
+      }
 
       // add config for EVM destination
-      result = await feeQuoter.sendUpdateDestChainConfig(deployer.getSender(), {
-        value: toNano('1'),
-        msg: {
-          destChainSelector: CHAINSEL_EVM_TEST_90000001,
-          destChainConfig: {
-            // minimal valid config
-            isEnabled: true,
-            maxNumberOfTokensPerMsg: 0, // TODO:
-            maxDataBytes: 100,
-            maxPerMsgGasLimit: 100,
-            destGasOverhead: 0,
-            destGasPerPayloadByteBase: 0,
-            destGasPerPayloadByteHigh: 0,
-            destGasPerPayloadByteThreshold: 0,
-            destDataAvailabilityOverheadGas: 0,
-            destGasPerDataAvailabilityByte: 0,
-            destDataAvailabilityMultiplierBps: 0,
-            chainFamilySelector: 0,
-            enforceOutOfOrder: true,
-            defaultTokenFeeUsdCents: 0,
-            defaultTokenDestGasOverhead: 0,
-            defaultTxGasLimit: 1,
-            gasMultiplierWeiPerEth: 0n,
-            gasPriceStalenessThreshold: 0,
-            networkFeeUsdCents: 0,
+      {
+        const result = await feeQuoter.sendUpdateDestChainConfig(deployer.getSender(), {
+          value: toNano('1'),
+          msg: {
+            destChainSelector: CHAINSEL_EVM_TEST_90000001,
+            destChainConfig: {
+              // minimal valid config
+              isEnabled: true,
+              maxNumberOfTokensPerMsg: 0, // TODO:
+              maxDataBytes: 100,
+              maxPerMsgGasLimit: 100,
+              destGasOverhead: 0,
+              destGasPerPayloadByteBase: 0,
+              destGasPerPayloadByteHigh: 0,
+              destGasPerPayloadByteThreshold: 0,
+              destDataAvailabilityOverheadGas: 0,
+              destGasPerDataAvailabilityByte: 0,
+              destDataAvailabilityMultiplierBps: 0,
+              chainFamilySelector: 0,
+              enforceOutOfOrder: true,
+              defaultTokenFeeUsdCents: 0,
+              defaultTokenDestGasOverhead: 0,
+              defaultTxGasLimit: 1,
+              gasMultiplierWeiPerEth: 0n,
+              gasPriceStalenessThreshold: 0,
+              networkFeeUsdCents: 0,
+            },
           },
-        },
-      })
-      expect(result.transactions).toHaveTransaction({
-        to: feeQuoter.address,
-        success: true,
-      })
+        })
+        expect(result.transactions).toHaveTransaction({
+          to: feeQuoter.address,
+          success: true,
+        })
+      }
       // configure the feeToken
-      result = await feeQuoter.sendUpdateFeeTokens(deployer.getSender(), {
-        value: toNano('1'),
-        msg: { add: new Map([[ZERO_ADDRESS, { premiumMultiplierWeiPerEth: 1n }]]), remove: [] },
-      })
-      expect(result.transactions).toHaveTransaction({
-        to: feeQuoter.address,
-        success: true,
-      })
+      {
+        const result = await feeQuoter.sendUpdateFeeTokens(deployer.getSender(), {
+          value: toNano('1'),
+          msg: { add: new Map([[ZERO_ADDRESS, { premiumMultiplierWeiPerEth: 1n }]]), remove: [] },
+        })
+        expect(result.transactions).toHaveTransaction({
+          to: feeQuoter.address,
+          success: true,
+        })
+      }
       // TODO: call UpdatePrices so there's a price available and the timestamp isn't zero
     }
     // setup onramp
@@ -178,108 +185,115 @@ describe('Router', () => {
       }
       // TODO: use deployable to make deterministic?
       onRamp = blockchain.openContract(OnRamp.createFromConfig(data, code))
-
-      let result = await onRamp.sendDeploy(deployer.getSender(), toNano('1'))
-      expect(result.transactions).toHaveTransaction({
-        from: deployer.address,
-        to: onRamp.address,
-        deploy: true,
-        success: true,
-      })
+      {
+        const result = await onRamp.sendDeploy(deployer.getSender(), toNano('1'))
+        expect(result.transactions).toHaveTransaction({
+          from: deployer.address,
+          to: onRamp.address,
+          deploy: true,
+          success: true,
+        })
+      }
 
       // add config for EVM destination
-      result = await onRamp.sendUpdateDestChainConfigs(deployer.getSender(), {
-        value: toNano('1'),
-        destChainConfigs: [
-          {
-            destChainSelector: CHAINSEL_EVM_TEST_90000001,
-            router: router.address,
-            allowlistEnabled: false,
-          },
-        ],
-      })
-      expect(result.transactions).toHaveTransaction({
-        from: deployer.address,
-        to: onRamp.address,
-        deploy: false,
-        success: true,
-      })
+      {
+        const result = await onRamp.sendUpdateDestChainConfigs(deployer.getSender(), {
+          value: toNano('1'),
+          destChainConfigs: [
+            {
+              destChainSelector: CHAINSEL_EVM_TEST_90000001,
+              router: router.address,
+              allowlistEnabled: false,
+            },
+          ],
+        })
+        expect(result.transactions).toHaveTransaction({
+          from: deployer.address,
+          to: onRamp.address,
+          deploy: false,
+          success: true,
+        })
+      }
     }
   })
 
   it('onramp arbitrary message passing', async () => {
     // Configure onRamp on router
-    let result = await router.sendSetRamp(deployer.getSender(), {
-      value: toNano('1'),
-      queryID: 0,
-      destChainSelector: CHAINSEL_EVM_TEST_90000001,
-      onRamp: onRamp.address,
-    })
-    expect(result.transactions).toHaveTransaction({
-      from: deployer.address,
-      to: router.address,
-      success: true,
-    })
+    {
+      const result = await router.sendSetRamp(deployer.getSender(), {
+        value: toNano('1'),
+        queryID: 0,
+        destChainSelector: CHAINSEL_EVM_TEST_90000001,
+        onRamp: onRamp.address,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: router.address,
+        success: true,
+      })
+    }
 
     // router.ccipSend
-    result = await router.sendCcipSend(deployer.getSender(), {
-      value: toNano('1'),
-      body: {
-        queryID: 1,
-        destChainSelector: CHAINSEL_EVM_TEST_90000001,
-        receiver: Buffer.alloc(64),
-        data: Cell.EMPTY,
-        tokenAmounts: [],
-        feeToken: ZERO_ADDRESS,
-        extraArgs: Cell.EMPTY,
-      },
-    })
-
-    // we called the router
-    expect(result.transactions).toHaveTransaction({
-      from: deployer.address,
-      to: router.address,
-      deploy: false,
-      success: true,
-    })
-    // the router called the onRamp
-    expect(result.transactions).toHaveTransaction({
-      from: router.address,
-      to: onRamp.address,
-      deploy: false,
-      success: true,
-    })
-    // assert message went to feeQuoter
-    expect(result.transactions).toHaveTransaction({
-      from: onRamp.address,
-      to: feeQuoter.address,
-      deploy: false,
-      success: true,
-    })
-
-    // destChainConfig -> feeQuoter -> onRamp
-    expect(result.transactions).toHaveTransaction({
-      from: feeQuoter.address,
-      to: onRamp.address,
-      deploy: false,
-      success: true,
-    })
-
-    // assert CCIPMessageSent
-    assertLog(result.transactions, onRamp.address, LogTypes.CCIPMessageSent, {
-      message: {
-        header: {
+    {
+      const result = await router.sendCcipSend(deployer.getSender(), {
+        value: toNano('1'),
+        body: {
+          queryID: 1,
           destChainSelector: CHAINSEL_EVM_TEST_90000001,
+          receiver: Buffer.alloc(64),
+          data: Cell.EMPTY,
+          tokenAmounts: [],
+          feeToken: ZERO_ADDRESS,
+          extraArgs: Cell.EMPTY,
         },
-        sender: deployer.address,
-      },
-    })
+      })
+
+      // we called the router
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: router.address,
+        deploy: false,
+        success: true,
+      })
+      // the router called the onRamp
+      expect(result.transactions).toHaveTransaction({
+        from: router.address,
+        to: onRamp.address,
+        deploy: false,
+        success: true,
+      })
+      // assert message went to feeQuoter
+      expect(result.transactions).toHaveTransaction({
+        from: onRamp.address,
+        to: feeQuoter.address,
+        deploy: false,
+        success: true,
+      })
+
+      // destChainConfig -> feeQuoter -> onRamp
+      expect(result.transactions).toHaveTransaction({
+        from: feeQuoter.address,
+        to: onRamp.address,
+        deploy: false,
+        success: true,
+      })
+
+      // assert CCIPMessageSent
+      assertLog(result.transactions, onRamp.address, LogTypes.CCIPMessageSent, {
+        message: {
+          header: {
+            destChainSelector: CHAINSEL_EVM_TEST_90000001,
+          },
+          sender: deployer.address,
+        },
+      })
+    }
   })
 
   it('onramp token transfer - paid with TON', async () => {
     // Configure onRamp on router
     {
-      let result = await router.sendSetRamp(deployer.getSender(), {
+      const result = await router.sendSetRamp(deployer.getSender(), {
         value: toNano('1'),
         queryID: 0,
         destChainSelector: CHAINSEL_EVM_TEST_90000001,
@@ -318,55 +332,57 @@ describe('Router', () => {
       forwardPayload: ccipSend,
     }
 
-    // router.ccipSend
-    const jettonTransferResult = await senderJettonWallet.sendTransfer(sender.getSender(), {
-      value: toNano('2'),
-      message: transferMsg,
-    })
+    // ccip send over jetton transfer
+    {
+      const result = await senderJettonWallet.sendTransfer(sender.getSender(), {
+        value: toNano('2'),
+        message: transferMsg,
+      })
 
-    const routerJettonWallet = await userWallet(router.address)
+      const routerJettonWallet = await userWallet(router.address)
 
-    // we called the router
-    expect(jettonTransferResult.transactions).toHaveTransaction({
-      from: routerJettonWallet.address,
-      to: router.address,
-      deploy: false,
-      success: true,
-    })
-    // the router called the onRamp
-    expect(jettonTransferResult.transactions).toHaveTransaction({
-      from: router.address,
-      to: onRamp.address,
-      deploy: false,
-      success: true,
-    })
-    // assert message went to feeQuoter
-    expect(jettonTransferResult.transactions).toHaveTransaction({
-      from: onRamp.address,
-      to: feeQuoter.address,
-      deploy: false,
-      success: true,
-    })
+      // we called the router
+      expect(result.transactions).toHaveTransaction({
+        from: routerJettonWallet.address,
+        to: router.address,
+        deploy: false,
+        success: true,
+      })
+      // the router called the onRamp
+      expect(result.transactions).toHaveTransaction({
+        from: router.address,
+        to: onRamp.address,
+        deploy: false,
+        success: true,
+      })
+      // assert message went to feeQuoter
+      expect(result.transactions).toHaveTransaction({
+        from: onRamp.address,
+        to: feeQuoter.address,
+        deploy: false,
+        success: true,
+      })
 
-    // destChainConfig -> feeQuoter -> onRamp
-    expect(jettonTransferResult.transactions).toHaveTransaction({
-      from: feeQuoter.address,
-      to: onRamp.address,
-      deploy: false,
-      success: true,
-    })
+      // destChainConfig -> feeQuoter -> onRamp
+      expect(result.transactions).toHaveTransaction({
+        from: feeQuoter.address,
+        to: onRamp.address,
+        deploy: false,
+        success: true,
+      })
 
-    console.log((await dump(jettonTransferResult.transactions)).join('\n'))
+      console.log((await dump(result.transactions)).join('\n'))
 
-    // assert CCIPMessageSent
-    assertLog(jettonTransferResult.transactions, onRamp.address, LogTypes.CCIPMessageSent, {
-      message: {
-        header: {
-          destChainSelector: CHAINSEL_EVM_TEST_90000001,
+      // assert CCIPMessageSent
+      assertLog(result.transactions, onRamp.address, LogTypes.CCIPMessageSent, {
+        message: {
+          header: {
+            destChainSelector: CHAINSEL_EVM_TEST_90000001,
+          },
+          sender: deployer.address,
         },
-        sender: deployer.address,
-      },
-    })
+      })
+    }
   })
 })
 
