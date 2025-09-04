@@ -114,6 +114,15 @@ export type BypasserExecuteBatch = {
   calls: Cell // vec<Timelock_Call>
 }
 
+// Updates the executor role check (enabled/disabled) which guards the execution of operations.
+export type UpdateExecutorRoleCheck = {
+  // Query ID of the change request.
+  queryId: bigint
+
+  // Flag to enable/disable the executor role check (if disabled, anyone can execute)
+  enabled: boolean
+}
+
 // @dev Union of all (input) messages.
 export type InMessage =
   | Init
@@ -125,6 +134,7 @@ export type InMessage =
   | BlockFunctionSelector
   | UnblockFunctionSelector
   | BypasserExecuteBatch
+  | UpdateExecutorRoleCheck
 
 // RBACTimelock contract storage
 export type ContractData = {
@@ -438,6 +448,24 @@ export const builder = {
           }
         },
       } as CellCodec<BypasserExecuteBatch>,
+
+      updateExecutorRoleCheck: {
+        encode: (msg: UpdateExecutorRoleCheck): Cell => {
+          return beginCell()
+            .storeUint(opcodes.in.UpdateExecutorRoleCheck, 32)
+            .storeUint(msg.queryId, 64)
+            .storeBit(msg.enabled)
+            .endCell()
+        },
+        decode: (cell: Cell): UpdateExecutorRoleCheck => {
+          const s = cell.beginParse()
+          s.skip(32) // skip opcode
+          return {
+            queryId: s.loadUintBig(64),
+            enabled: s.loadBit(),
+          }
+        },
+      } as CellCodec<UpdateExecutorRoleCheck>,
     },
     out: {
       callScheduled: {
@@ -864,5 +892,9 @@ export class ContractClient implements Contract {
         },
       ])
       .then((r) => r.stack.readNumber())
+  }
+
+  async isExecutorRoleCheckEnabled(p: ContractProvider): Promise<boolean> {
+    return p.get('isExecutorRoleCheckEnabled', []).then((r) => r.stack.readBoolean())
   }
 }

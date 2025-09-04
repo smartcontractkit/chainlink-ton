@@ -227,7 +227,7 @@ struct (0xbb0e9f7d) Timelock_BypasserExecuteBatch {
 ///
 /// - the caller must have the 'admin' role.
 ///
-struct (0x34d98baa) Timelock_UpdateExecutorRoleCheck { // TODO: update opcode
+struct (0x34d98baa) Timelock_UpdateExecutorRoleCheck {
     /// Query ID of the change request.
     queryId: uint64;
 
@@ -370,7 +370,7 @@ struct (0xf410a31b) Timelock_FunctionSelectorUnblocked {
 }
 
 /// Sent back to sender after the executor role check is updated.
-struct (0xc6d451e2) Timelock_ExecutorRoleCheckUpdated { // TODO: update opcode
+struct (0xc6d451e2) Timelock_ExecutorRoleCheckUpdated {
     /// Query ID of the change request.
     queryId: uint64;
 
