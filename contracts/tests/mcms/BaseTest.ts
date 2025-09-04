@@ -7,7 +7,6 @@ import { compile } from '@ton/blueprint'
 import { asSnakeData } from '../../src/utils'
 
 import { rbactl } from '../../wrappers/mcms'
-import { callproxy } from '../../wrappers/mcms'
 import { ac } from '../../wrappers/lib/access'
 import * as counter from '../../wrappers/examples/Counter'
 
@@ -16,7 +15,6 @@ import { crc32 } from 'zlib'
 export type TestCode = {
   mcms: Cell
   timelock: Cell
-  callProxy: Cell
   counter: Cell
 }
 
@@ -36,7 +34,6 @@ export type TestAccounts = {
 export type TestContracts = {
   timelock: SandboxContract<rbactl.ContractClient>
   ac: SandboxContract<ac.ContractClient>
-  callProxy: SandboxContract<callproxy.ContractClient>
   counter: SandboxContract<counter.ContractClient>
 }
 
@@ -62,7 +59,6 @@ export class BaseTestSetup {
     return {
       mcms: await compile('mcms.MCMS'),
       timelock: await compile('mcms.RBACTimelock'),
-      callProxy: await compile('mcms.CallProxy'),
       counter: await compile('examples.Counter'),
     }
   }
@@ -112,7 +108,6 @@ export class BaseTestSetup {
     this.bind = {
       timelock: null as any,
       ac: null as any,
-      callProxy: null as any,
       counter: null as any,
     }
   }
@@ -176,6 +171,7 @@ export class BaseTestSetup {
     const data = {
       id: crc32(`mcms.timelock.${testId}`),
       minDelay: BaseTestSetup.MIN_DELAY,
+      executorRoleCheckEnabled: true,
       rbac: ac.builder.data.contractData.encode(rbacStorage).asCell(),
     }
 
@@ -183,19 +179,6 @@ export class BaseTestSetup {
       rbactl.ContractClient.newFrom(data, this.code.timelock),
     )
     this.bind.ac = this.blockchain.openContract(ac.ContractClient.newAt(this.bind.timelock.address))
-  }
-
-  /**
-   * Setup the call proxy contract
-   */
-  async setupCallProxyContract(testId: string): Promise<void> {
-    const data = {
-      id: crc32(`mcms.call-proxy.${testId}`),
-      target: this.bind.timelock.address,
-    }
-    this.bind.callProxy = this.blockchain.openContract(
-      callproxy.ContractClient.newFrom(data, this.code.callProxy),
-    )
   }
 
   /**
@@ -238,25 +221,6 @@ export class BaseTestSetup {
   }
 
   /**
-   * Deploy the callProxy contract and verify deployment
-   */
-  async deployCallProxyContract() {
-    const body = Cell.EMPTY
-    const result = await this.bind.callProxy.sendInternal(
-      this.acc.deployer.getSender(),
-      toNano('0.05'),
-      body,
-    )
-
-    expect(result.transactions).toHaveTransaction({
-      from: this.acc.deployer.address,
-      to: this.bind.callProxy.address,
-      deploy: true,
-      success: true,
-    })
-  }
-
-  /**
    * Deploy the counter contract and verify deployment
    */
   async deployCounterContract() {
@@ -277,27 +241,6 @@ export class BaseTestSetup {
   }
 
   /**
-   * Grant the call proxy executor role to the call proxy contract
-   */
-  async grantCallProxyExecutorRole() {
-    const body = ac.builder.message.in.grantRole.encode({
-      queryId: 1n,
-      role: rbactl.roles.executor,
-      account: this.bind.callProxy.address,
-    })
-    const result = await this.bind.timelock.sendInternal(
-      this.acc.admin.getSender(),
-      toNano('0.05'),
-      body.asCell(),
-    )
-    expect(result.transactions).toHaveTransaction({
-      from: this.acc.admin.address,
-      to: this.bind.timelock.address,
-      success: true,
-    })
-  }
-
-  /**
    * Complete setup for all contracts - convenience method that combines all setup steps
    */
   async setupAll(testId: string): Promise<void> {
@@ -306,8 +249,6 @@ export class BaseTestSetup {
     await this.deployTimelockContract()
     await this.setupCounterContract(testId)
     await this.deployCounterContract()
-    await this.setupCallProxyContract(testId)
-    await this.deployCallProxyContract()
   }
 
   /**
