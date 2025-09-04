@@ -45,100 +45,73 @@ export const expectFailedTransaction = (
   expect(result.transactions).toHaveTransaction({ from, to, exitCode, success: false })
 }
 
+
 type DeepPartial<T> = {
   [P in keyof T]?: DeepPartial<T[P]>
 }
 
-const CombinedLogTypes = {
-  ...CCIPLogs.LogTypes,
-  ...OCR3Logs.LogTypes,
-  ...ReceiverLogs.LogTypes,
+// map from log type → match payload type
+type LogTypeMap = {
+  [CCIPLogs.LogTypes.CCIPMessageSent]: DeepPartial<CCIPLogs.CCIPMessageSent>
+  [CCIPLogs.LogTypes.CCIPCommitReportAccepted]: DeepPartial<CCIPLogs.CCIPCommitReportAccepted>
+  [CCIPLogs.LogTypes.CCIPExecutionStateChanged]: DeepPartial<CCIPLogs.CCIPExecutionStateChanged>
+  [OCR3Logs.LogTypes.OCR3BaseConfigSet]: OCR3Logs.OCR3BaseConfigSet
+  [OCR3Logs.LogTypes.OCR3BaseTransmitted]: DeepPartial<OCR3Logs.OCR3BaseTransmitted>
+  [ReceiverLogs.LogTypes.ReceiverCCIPMessageReceived]: ReceiverLogs.ReceiverCCIPMessageReceived
 }
 
-type CombinedLogTypes = (typeof CombinedLogTypes)[keyof typeof CombinedLogTypes]
+// union of the keys of that map
+type CombinedLogType = keyof LogTypeMap
 
-// LogMatch is a type that maps each log type to its corresponding log structure, wrapped in DeepPartial when necessary
+type LogMatch<T extends CombinedLogType> = LogTypeMap[T]
 
-// prettier-ignore
-type LogMatch<T extends CombinedLogTypes> =
-  T extends CCIPLogs.LogTypes.CCIPMessageSent ?
-    DeepPartial<CCIPLogs.CCIPMessageSent>
+// Strongly-typed handler map
+type Handler<T extends CombinedLogType> = (
+  message: Message,
+  from: Address,
+  match: LogTypeMap[T]
+) => boolean
 
-  : T extends CCIPLogs.LogTypes.CCIPCommitReportAccepted ?
-    DeepPartial<CCIPLogs.CCIPCommitReportAccepted>
+const handlers: { [K in CombinedLogType]: Handler<K> } = {
+  [CCIPLogs.LogTypes.CCIPMessageSent]: (x, from, match) =>
+    testLogCCIPMessageSent(x, from, match as DeepPartial<CCIPLogs.CCIPMessageSent>),
 
-  : T extends CCIPLogs.LogTypes.CCIPExecutionStateChanged ?
-    DeepPartial<CCIPLogs.CCIPExecutionStateChanged>
+  [CCIPLogs.LogTypes.CCIPCommitReportAccepted]: (x, from, match) =>
+    testLogCCIPCommitReportAccepted(x, from, match as DeepPartial<CCIPLogs.CCIPCommitReportAccepted>),
 
-  : T extends OCR3Logs.LogTypes.OCR3BaseConfigSet ?
-    OCR3Logs.OCR3BaseConfigSet
+  [CCIPLogs.LogTypes.CCIPExecutionStateChanged]: (x, from, match) =>
+    testLogCCIPExecutionStateChanged(x, from, match as DeepPartial<CCIPLogs.CCIPExecutionStateChanged>),
 
-  : T extends OCR3Logs.LogTypes.OCR3BaseTransmitted ?
-    DeepPartial<OCR3Logs.OCR3BaseTransmitted>
+  [ReceiverLogs.LogTypes.ReceiverCCIPMessageReceived]: (x, from, match) =>
+    testLogReceiverCCIPMessageReceived(x, from, match as ReceiverLogs.ReceiverCCIPMessageReceived),
 
-  : T extends ReceiverLogs.LogTypes.ReceiverCCIPMessageReceived ?
-    ReceiverLogs.ReceiverCCIPMessageReceived
+  [OCR3Logs.LogTypes.OCR3BaseConfigSet]: (x, from, match) =>
+    testConfigSetLogMessage(x, from, match as OCR3Logs.OCR3BaseConfigSet),
 
-  : number
+  [OCR3Logs.LogTypes.OCR3BaseTransmitted]: (x, from, match) =>
+    testTransmittedLogMessage(x, from, match as Partial<OCR3Logs.OCR3BaseTransmitted>),
+}
 
-export const assertLog = <T extends CombinedLogTypes>(
+// assertLog delegates via the handler table
+export const assertLog = <T extends CombinedLogType>(
   transactions: BlockchainTransaction[],
   from: Address,
   type: T,
   match: LogMatch<T>,
 ) => {
-  const matched = getExternals(transactions).some((x) => {
-    switch (type) {
-      case CCIPLogs.LogTypes.CCIPMessageSent:
-        return testLogCCIPMessageSent(x, from, match as DeepPartial<CCIPLogs.CCIPMessageSent>)
-
-      case CCIPLogs.LogTypes.CCIPCommitReportAccepted:
-        return testLogCCIPCommitReportAccepted(
-          x,
-          from,
-          match as DeepPartial<CCIPLogs.CCIPCommitReportAccepted>,
-        )
-
-      case CCIPLogs.LogTypes.CCIPExecutionStateChanged:
-        return testLogCCIPExecutionStateChanged(
-          x,
-          from,
-          match as DeepPartial<CCIPLogs.CCIPExecutionStateChanged>,
-        )
-
-      case ReceiverLogs.LogTypes.ReceiverCCIPMessageReceived:
-        return testLogReceiverCCIPMessageReceived(
-          x,
-          from,
-          match as ReceiverLogs.ReceiverCCIPMessageReceived,
-        )
-
-      case OCR3Logs.LogTypes.OCR3BaseConfigSet:
-        return testConfigSetLogMessage(x, from, match as OCR3Logs.OCR3BaseConfigSet)
-
-      case OCR3Logs.LogTypes.OCR3BaseTransmitted:
-        return testTransmittedLogMessage(
-          x,
-          from,
-          match as DeepPartial<OCR3Logs.OCR3BaseTransmitted>,
-        )
-
-      default:
-        throw new Error('Unhandled log type')
-    }
-  })
-
+  const matched = getExternals(transactions).some((x) =>
+    handlers[type](x, from, match)
+  )
   expect(matched).toBe(true)
 }
 
-//TODO: Move the definition for the matcher passed to testLog to wrappers ccip/Logs and ocr/Logs
 
 function testLogCCIPCommitReportAccepted(
   message: Message,
   from: Address,
   match: DeepPartial<CCIPLogs.CCIPCommitReportAccepted>,
 ) {
-  return testLog(message, from, CombinedLogTypes.CCIPCommitReportAccepted, (x) => {
+  return testLog(message, from, CCIPLogs.LogTypes.CCIPCommitReportAccepted, (x) => {
     let bs = x.beginParse()
 
     const priceUpdatesCell = bs.loadMaybeRef()
@@ -161,7 +134,7 @@ export const testLogCCIPMessageSent = (
   from: Address,
   match: DeepPartial<CCIPLogs.CCIPMessageSent>,
 ) => {
-  return testLog(message, from, CombinedLogTypes.CCIPMessageSent, (x) => {
+  return testLog(message, from, CCIPLogs.LogTypes.CCIPMessageSent, (x) => {
     let bs = x.beginParse()
 
     const header = {
@@ -198,7 +171,7 @@ export const testLogCCIPExecutionStateChanged = (
   from: Address,
   match: DeepPartial<CCIPLogs.CCIPExecutionStateChanged>,
 ) => {
-  return testLog(message, from, CombinedLogTypes.CCIPExecutionStateChanged, (x) => {
+  return testLog(message, from, CCIPLogs.LogTypes.CCIPExecutionStateChanged, (x) => {
     const cs = x.beginParse()
     const msg = {
       sourceChainSelector: cs.loadUintBig(64),
@@ -216,22 +189,30 @@ export const testConfigSetLogMessage = (
   from: Address,
   match: OCR3Logs.OCR3BaseConfigSet,
 ) => {
-  return testLog(message, from, CombinedLogTypes.OCR3BaseConfigSet, (x) => {
+  return testLog(message, from, OCR3Logs.LogTypes.OCR3BaseConfigSet, (x) => {
     const cs = x.beginParse()
     const ocrPluginType = cs.loadUint(16)
     const configDigest = cs.loadUintBig(256)
-    const signers = fromSnakeData(cs.loadRef(), (x) => x.loadUintBig(256))
-    const transmitters = fromSnakeData(cs.loadRef(), (x) => x.loadAddress())
+    const signers = fromSnakeData(cs.loadRef(), (x) => x.loadUintBig(256)).sort()
+    const transmitters = fromSnakeData(cs.loadRef(), (x) => x.loadAddress()).map((x) => x.toString()).sort()
     const bigF = cs.loadUint(8)
 
-    expect(ocrPluginType).toEqual(match.ocrPluginType)
-    expect(configDigest).toEqual(match.configDigest)
-    expect(signers.sort()).toEqual(match.signers.sort())
-    for (let i = 0; i < transmitters.length; i++) {
-      expect(transmitters[i].toString()).toEqual(match.transmitters![i].toString())
+    const msg = {
+      ocrPluginType,
+      configDigest,
+      signers,
+      transmitters,
+      bigF,
+    }
+    const modifiedMatch = {
+      ocrPluginType: match.ocrPluginType,
+      configDigest: match.configDigest,
+      signers: match.signers.sort(),
+      transmitters: match.transmitters.map((x) => x.toString()).sort(),
+      bigF: match.bigF,
     }
 
-    expect(bigF).toEqual(match.bigF)
+    equalsObject(msg, modifiedMatch)
     return true
   })
 }
@@ -241,7 +222,7 @@ export const testTransmittedLogMessage = (
   from: Address,
   match: Partial<OCR3Logs.OCR3BaseTransmitted>,
 ) => {
-  return testLog(message, from, CombinedLogTypes.OCR3BaseTransmitted, (x) => {
+  return testLog(message, from, OCR3Logs.LogTypes.OCR3BaseTransmitted, (x) => {
     const cs = x.beginParse()
     const msg = {
       ocrPluginType: cs.loadUint(16),
@@ -258,7 +239,7 @@ export const testLogReceiverCCIPMessageReceived = (
   from: Address,
   expected: ReceiverLogs.ReceiverCCIPMessageReceived,
 ) => {
-  return testLog(message, from, CombinedLogTypes.ReceiverCCIPMessageReceived, (x) => {
+  return testLog(message, from, ReceiverLogs.LogTypes.ReceiverCCIPMessageReceived, (x) => {
     const msg = expected.message
     const expectedCell = beginCell()
       .storeUint(msg.messageId, 256)
@@ -268,7 +249,7 @@ export const testLogReceiverCCIPMessageReceived = (
       .storeRef(msg.data)
       .endCell()
 
-    return equalsObjects(expectedCell, x)
+    return equalsObject(expectedCell, x)
   })
 }
 
@@ -281,7 +262,7 @@ function matchesObject(obj, match) {
   }
 }
 
-function equalsObjects(obj1: any, obj2: any): boolean {
+function equalsObject(obj1: any, obj2: any): boolean {
   try {
     expect(obj1).toEqual(obj2)
     return true
