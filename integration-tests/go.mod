@@ -9,7 +9,7 @@ require (
 	github.com/hashicorp/consul/sdk v0.16.2
 	github.com/smartcontractkit/chain-selectors v1.0.67
 	github.com/smartcontractkit/chainlink-ccip v0.1.1-solana.0.20250901212943-bf20fcaf2edd
-	github.com/smartcontractkit/chainlink-common v0.9.5-0.20250903191916-73ccda81a848
+	github.com/smartcontractkit/chainlink-common v0.9.5-0.20250904170026-2674110962ca
 	github.com/smartcontractkit/chainlink-deployments-framework v0.25.0
 	github.com/smartcontractkit/chainlink-testing-framework/framework v0.10.12
 	github.com/smartcontractkit/chainlink-ton v0.0.0-20250901161206-788ef6dfae14
