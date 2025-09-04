@@ -19,12 +19,12 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
 
+	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink/deployment/ccip/shared/client"
 	"github.com/smartcontractkit/chainlink/deployment/ccip/shared/stateview"
 	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
 	"github.com/smartcontractkit/chainlink/deployment/common/proposalutils"
 	"github.com/smartcontractkit/chainlink/deployment/environment/memory"
-	"github.com/smartcontractkit/chainlink/v2/core/logger"
 
 	ops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
@@ -56,7 +56,8 @@ const ChainSelEVMTest90000001 = 909606746561742123
 
 func Test_TonAccessorEventQueries(t *testing.T) {
 	t.Skip()
-	lggr := logger.TestLogger(t)
+	lggr, err := logger.New()
+	require.NoError(t, err)
 	ctx := t.Context()
 
 	// create memory env to reuse changesets
@@ -74,7 +75,7 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 
 	// -- deploy contracts
 	cs := ops.DeployChainContractsToTonCS(t, env, chainSelector)
-	env, _, err := commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{cs})
+	env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{cs})
 	require.NoError(t, err, "failed to deploy ccip")
 
 	// -- add lane using helper function
@@ -82,7 +83,9 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 		evmSelector:   big.NewInt(1e17),
 		chainSelector: big.NewInt(1e17), // Add TON chain gas price
 	}
-	laneCS := ops.AddLaneTONChangesets(&env, chainSelector, evmSelector, chain_selectors.FamilyTon, chain_selectors.FamilyEVM, gasPrices)
+	states, err := stateview.LoadOnchainState(env)
+	require.NoError(t, err)
+	laneCS := ops.AddLaneTONChangesets(&env, states, chainSelector, evmSelector, chain_selectors.FamilyTon, chain_selectors.FamilyEVM, gasPrices)
 	env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{laneCS})
 	require.NoError(t, err, "failed to add lane")
 
@@ -194,7 +197,8 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 }
 
 func Test_TonAccessorCommitEventQueries(t *testing.T) {
-	lggr := logger.TestLogger(t)
+	lggr, err := logger.New()
+	require.NoError(t, err)
 	ctx := t.Context()
 
 	// create memory env to reuse changesets
@@ -212,7 +216,7 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 
 	// -- deploy contracts (OffRamp contract is sufficient for commit testing)
 	cs := ops.DeployChainContractsToTonCS(t, env, chainSelector)
-	env, _, err := commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{cs})
+	env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{cs})
 	require.NoError(t, err, "failed to deploy ccip")
 
 	// Follow cs_test.go pattern: configure lanes for proper OffRamp setup
@@ -272,7 +276,7 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 			MCMS:            &proposalutils.TimelockConfig{},
 			Configs: map[operation.PluginType]operation.OCR3ConfigArgs{
 				operation.PluginTypeCCIPCommit: {
-					ConfigDigest:                   configDigest,
+					ConfigDigest:                   [32]byte(configDigest),
 					PluginType:                     operation.PluginTypeCCIPCommit,
 					F:                              1,
 					IsSignatureVerificationEnabled: false,
