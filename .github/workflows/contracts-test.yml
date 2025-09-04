@@ -3,6 +3,9 @@ name: TON - Contracts - Test
 on:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   changes:
     name: Detect changes

@@ -85,7 +85,6 @@ jobs:
           TAR_NAME="ton-contracts-build-${{ steps.get_sha.outputs.short_sha }}.tar.gz"
           BUILD_DIR="${{ steps.nix_build.outputs.out_path }}/lib/node_modules/@chainlink/contracts-ton/build"
           test -d "${BUILD_DIR}" # hard fail if layout changes
-          # Tar the *contents* of build/ into the archive root
           tar -C "${BUILD_DIR}" \
               --exclude="examples.*" \
               -czf "dist/${TAR_NAME}" .
