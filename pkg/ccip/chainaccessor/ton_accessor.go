@@ -21,6 +21,7 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
@@ -625,10 +626,16 @@ func (a *TONAccessor) GetChainFeePriceUpdate(ctx context.Context, selectors []cc
 	prices := make(map[ccipocr3.ChainSelector]ccipocr3.TimestampedBig, len(selectors))
 	for _, selector := range selectors {
 		result, err := a.client.RunGetMethod(ctx, block, addr, "destinationChainGasPrice", uint64(selector))
+		// The plugin is built with EVM behaviour in mind: if a value doesn't exist the zero value is returned
+		if execError, ok := err.(ton.ContractExecError); ok && execError.Code == common.SourceChainNotEnabled {
+			prices[selector] = ccipocr3.TimestampedBig{}
+			continue
+		}
 		if err != nil {
 			a.lggr.Errorw("failed to batch get chain fee price updates", "err", err)
 			return nil
 		}
+
 		value, err := result.Cell(0)
 		if err != nil {
 			a.lggr.Errorw("failed to batch get chain fee price updates", "err", err)

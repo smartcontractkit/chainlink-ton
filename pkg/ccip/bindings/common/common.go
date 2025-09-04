@@ -10,6 +10,22 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
+const (
+	ErrUnknownDestChainSelector = iota + 256
+	DestChainNotEnabled
+	FeeTokenNotSupported
+	StaleGasPrice
+	InvalidMsgData
+	SenderNotAllowed
+	InvalidMessageDestChainSelector
+	SourceChainSelectorMismatch
+	TokenNotSupported
+	Unauthorized
+	SourceChainNotEnabled
+	EmptyReport
+	DispatchNotFromMerkleRoot
+)
+
 // Ownable2Step represents a two-step ownership structure, where an owner can set a pending owner.
 type Ownable2Step struct {
 	Owner        *address.Address `tlb:"addr"`

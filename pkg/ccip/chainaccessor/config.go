@@ -200,7 +200,9 @@ func (a *TONAccessor) getOffRampSourceChainConfigs(ctx context.Context, block *t
 	for _, selector := range sourceChainSelectors {
 		key := cell.BeginCell().MustStoreUInt(uint64(selector), 64).EndCell()
 		entry, err := dict.LoadValue(key)
+		// The plugin is built with EVM behaviour in mind: if a value doesn't exist the zero value is returned
 		if errors.Is(err, cell.ErrNoSuchKeyInDict) {
+			// TODO: should we still set to zero value?
 			continue
 		}
 		if err != nil {
