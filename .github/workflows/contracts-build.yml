@@ -41,9 +41,8 @@ jobs:
               - '.github/workflows/contracts-build.yml'
 
   build:
-    name: Build and test contracts
+    name: Build Nix pkg and publish tarball
     needs: [ changes ]
-    # Run if changes are detected OR we're manually dispatching (for testing/release)
     if: ${{ needs.changes.outputs.ton_changes == 'true' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     permissions:
@@ -70,22 +69,26 @@ jobs:
         with:
           nix_path: nixpkgs=channel:nixos-unstable
 
-      - name: Build (yarn)
+      - name: Build contracts (Nix) and capture out path
+        id: nix_build
         run: |
           set -euo pipefail
-          pushd contracts
-          nix develop .#contracts -c yarn && yarn build
-          popd
+          OUT_PATH="$(nix build --print-out-paths .#contracts)"
+          echo "out_path=${OUT_PATH}" >> "$GITHUB_OUTPUT"
+          echo "Nix out path: ${OUT_PATH}"
 
-      - name: Package build outputs
+      - name: Package from Nix build directory
         id: package
         run: |
           set -euo pipefail
           mkdir -p dist
           TAR_NAME="ton-contracts-build-${{ steps.get_sha.outputs.short_sha }}.tar.gz"
-          tar -C contracts \
-              --exclude="build/examples.*" \
-              -czf "dist/${TAR_NAME}" build
+          BUILD_DIR="${{ steps.nix_build.outputs.out_path }}/lib/node_modules/@chainlink/contracts-ton/build"
+          test -d "${BUILD_DIR}" # hard fail if layout changes
+          # Tar the *contents* of build/ into the archive root
+          tar -C "${BUILD_DIR}" \
+              --exclude="examples.*" \
+              -czf "dist/${TAR_NAME}" .
           echo "tar_path=dist/${TAR_NAME}" >> "$GITHUB_OUTPUT"
 
       - name: Upload artifact
@@ -96,7 +99,6 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      # Create a release on push to main OR when manually requested
       - name: Publish Release
         if: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && github.event.inputs.create_release == 'true') }}
         uses: softprops/action-gh-release@c95fe1489396fe8a9eb87c0abf8aa5b2ef267fda # v2.2.1
@@ -109,19 +111,4 @@ jobs:
           prerelease: false
           files: |
             ${{ steps.package.outputs.tar_path }}
-
-  build-nixpkg:
-    name: Build nix package
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out code
-        uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
-
-      - name: Install Nix
-        uses: cachix/install-nix-action@02a151ada4993995686f9ed4f1be7cfbb229e56f # v31
-        with:
-          nix_path: nixpkgs=channel:nixos-unstable
-
-      - name: Run build
-        run: nix build -v .#contracts
 
