@@ -40,8 +40,7 @@ const ChainSelEVMTest90000001 = 909606746561742123
 
 func Test_TonAccessorEventQueries(t *testing.T) {
 	t.Skip()
-	lggr, err := logger.New()
-	require.NoError(t, err)
+	lggr := logger.Test(t)
 	ctx := t.Context()
 
 	// create memory env to reuse changesets
@@ -59,7 +58,7 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 
 	// -- deploy contracts
 	cs := ops.DeployChainContractsToTonCS(t, env, chainSelector)
-	env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{cs})
+	env, _, err := commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{cs})
 	require.NoError(t, err, "failed to deploy ccip")
 
 	// -- add lane using helper function

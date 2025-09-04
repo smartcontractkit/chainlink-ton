@@ -39,9 +39,7 @@ const ChainSelEVMTest90000001 = 909606746561742123
 
 func TestDeploy(t *testing.T) {
 	t.Parallel()
-	// env := setupEnv(t)
-	lggr, err := logger.New()
-	require.NoError(t, err)
+	lggr := logger.Test(t)
 	env := memory.NewMemoryEnvironment(t, lggr, zapcore.InfoLevel, memory.MemoryEnvironmentConfig{
 		Chains:    1,
 		TonChains: 1,
@@ -57,7 +55,7 @@ func TestDeploy(t *testing.T) {
 	t.Log("Deployer: ", deployer.Address().String())
 
 	cs := ton_ops.DeployChainContractsToTonCS(t, env, chainSelector)
-	env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{cs})
+	env, _, err := commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{cs})
 	require.NoError(t, err, "failed to deploy ccip")
 
 	// TODO: LINK token deployment
@@ -80,7 +78,7 @@ func TestDeploy(t *testing.T) {
 							ton_ops.TonTokenAddr: big.NewInt(99),
 						},
 						FeeQuoterDestChainConfig: ton_ops.DefaultFeeQuoterDestChainConfig(true, evmSelector),
-						TokenTransferFeeConfigs:  map[uint64]feequoter.UpdateTokenTransferFeeConfig{
+						TokenTransferFeeConfigs: map[uint64]feequoter.UpdateTokenTransferFeeConfig{
 							// TODO: populate when token transfer enabled
 						},
 					},
