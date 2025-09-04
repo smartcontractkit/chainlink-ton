@@ -62,6 +62,16 @@ describe('Router', () => {
       onRamp: ZERO_ADDRESS,
     }
     router = blockchain.openContract(rt.Router.createFromConfig(data, routerCode))
+    // Deploy contract
+    {
+      const result = await router.sendInternal(deployer.getSender(), toNano('1'), Cell.EMPTY)
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: router.address,
+        deploy: true,
+        success: true,
+      })
+    }
 
     // setup fee quoter
     {
@@ -208,7 +218,6 @@ describe('Router', () => {
     expect(result.transactions).toHaveTransaction({
       from: deployer.address,
       to: router.address,
-      deploy: true, // TRUE the first time around
       success: true,
     })
 
@@ -279,7 +288,6 @@ describe('Router', () => {
       expect(result.transactions).toHaveTransaction({
         from: deployer.address,
         to: router.address,
-        deploy: true, // TRUE the first time around
         success: true,
       })
     }
