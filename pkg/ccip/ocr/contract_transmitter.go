@@ -3,6 +3,7 @@ package ocr
 import (
 	"context"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"fmt"
 
@@ -57,7 +58,7 @@ func NewCCIPTransmitter(
 
 func (c *ccipTransmitter) FromAccount(context.Context) (ocrtypes.Account, error) {
 	w := c.txm.GetClient().Wallet
-	return ocrtypes.Account(w.WalletAddress().String()), nil
+	return ocrtypes.Account(hex.EncodeToString(w.WalletAddress().Data())), nil
 }
 
 func (c *ccipTransmitter) Transmit(
