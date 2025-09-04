@@ -85,8 +85,12 @@ describe('Router', () => {
 
       result = await feeQuoter.sendUpdatePrices(deployer.getSender(), {
         value: toNano('1'),
-        gasPrices: [],
-        tokenPrices: [{ token: ZERO_ADDRESS, price: 123n }],
+        msg: {
+          updates: {
+            gasPricesUpdates: [],
+            tokenPricesUpdates: [{ token: ZERO_ADDRESS, price: 123n }],
+          },
+        },
       })
       expect(result.transactions).toHaveTransaction({
         to: feeQuoter.address,
@@ -96,28 +100,30 @@ describe('Router', () => {
       // add config for EVM destination
       result = await feeQuoter.sendUpdateDestChainConfig(deployer.getSender(), {
         value: toNano('1'),
-        destChainSelector: CHAINSEL_EVM_TEST_90000001,
-        config: {
-          // minimal valid config
-          isEnabled: true,
-          maxNumberOfTokensPerMsg: 0, // TODO:
-          maxDataBytes: 100,
-          maxPerMsgGasLimit: 100,
-          destGasOverhead: 0,
-          destGasPerPayloadByteBase: 0,
-          destGasPerPayloadByteHigh: 0,
-          destGasPerPayloadByteThreshold: 0,
-          destDataAvailabilityOverheadGas: 0,
-          destGasPerDataAvailabilityByte: 0,
-          destDataAvailabilityMultiplierBps: 0,
-          chainFamilySelector: 0,
-          enforceOutOfOrder: true,
-          defaultTokenFeeUsdCents: 0,
-          defaultTokenDestGasOverhead: 0,
-          defaultTxGasLimit: 1,
-          gasMultiplierWeiPerEth: 0n,
-          gasPriceStalenessThreshold: 0,
-          networkFeeUsdCents: 0,
+        msg: {
+          destChainSelector: CHAINSEL_EVM_TEST_90000001,
+          destChainConfig: {
+            // minimal valid config
+            isEnabled: true,
+            maxNumberOfTokensPerMsg: 0, // TODO:
+            maxDataBytes: 100,
+            maxPerMsgGasLimit: 100,
+            destGasOverhead: 0,
+            destGasPerPayloadByteBase: 0,
+            destGasPerPayloadByteHigh: 0,
+            destGasPerPayloadByteThreshold: 0,
+            destDataAvailabilityOverheadGas: 0,
+            destGasPerDataAvailabilityByte: 0,
+            destDataAvailabilityMultiplierBps: 0,
+            chainFamilySelector: 0,
+            enforceOutOfOrder: true,
+            defaultTokenFeeUsdCents: 0,
+            defaultTokenDestGasOverhead: 0,
+            defaultTxGasLimit: 1,
+            gasMultiplierWeiPerEth: 0n,
+            gasPriceStalenessThreshold: 0,
+            networkFeeUsdCents: 0,
+          },
         },
       })
       expect(result.transactions).toHaveTransaction({
@@ -127,8 +133,7 @@ describe('Router', () => {
       // configure the feeToken
       result = await feeQuoter.sendUpdateFeeTokens(deployer.getSender(), {
         value: toNano('1'),
-        add: [{ token: ZERO_ADDRESS, premiumMultiplier: 1n }],
-        remove: [],
+        msg: { add: new Map([[ZERO_ADDRESS, { premiumMultiplierWeiPerEth: 1n }]]), remove: [] },
       })
       expect(result.transactions).toHaveTransaction({
         to: feeQuoter.address,
@@ -183,7 +188,7 @@ describe('Router', () => {
     }
   })
 
-  it('onramp', async () => {
+  it('onramp arbitrary message passing', async () => {
     // Configure onRamp on router
     let result = await router.sendSetRamp(deployer.getSender(), {
       value: toNano('1'),
@@ -417,28 +422,31 @@ async function setupJetton(
   }
 
   {
-    const result = await feeQuoter.sendUpdateTransferFeeConfigs(deployer.getSender(), {
+    const result = await feeQuoter.sendUpdateTokenTransferFeeConfigs(deployer.getSender(), {
       value: toNano('1'),
-      configs: new Map([
-        [
-          CHAINSEL_EVM_TEST_90000001,
-          {
-            add: new Map([
-              [
-                jettonMinter.address,
-                {
-                  isEnabled: true,
-                  minFeeUsdCents: 1,
-                  maxFeeUsdCents: 100,
-                  deciBps: 0,
-                  destGasOverhead: 0,
-                  destBytesOverhead: 0,
-                },
-              ],
-            ]),
-          },
-        ],
-      ]),
+      msg: {
+        updates: new Map([
+          [
+            CHAINSEL_EVM_TEST_90000001,
+            {
+              add: new Map([
+                [
+                  jettonMinter.address,
+                  {
+                    isEnabled: true,
+                    minFeeUsdCents: 1,
+                    maxFeeUsdCents: 100,
+                    deciBps: 0,
+                    destGasOverhead: 0,
+                    destBytesOverhead: 0,
+                  },
+                ],
+              ]),
+              remove: [],
+            },
+          ],
+        ]),
+      },
     })
     expect(result.transactions).toHaveTransaction({
       from: deployer.address,

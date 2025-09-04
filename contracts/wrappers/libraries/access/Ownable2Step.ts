@@ -9,7 +9,7 @@ import {
   SendMode,
 } from '@ton/core'
 import { crc32 } from 'zlib'
-import { CellCodec } from '../../utils'
+import { CellCodec, CellLoader } from '../../utils'
 
 export enum Errors {
   OnlyCallableByOwner = 132,
@@ -85,7 +85,7 @@ export const builder = {
   },
   data: (() => {
     // Creates a new `Data` contract data cell
-    const traitData: CellCodec<Data> = {
+    const traitData: CellCodec<Data> & CellLoader<Data> = {
       encode: (data: Data): Cell => {
         let _pendingOwnerMaybe = data.pendingOwner
           ? beginCell().storeAddress(data.pendingOwner)
@@ -97,6 +97,14 @@ export const builder = {
         const s = cell.beginParse()
         const owner = s.loadAddress()
         const pendingOwner = s.loadMaybeAddress()
+        return {
+          owner,
+          pendingOwner,
+        }
+      },
+      load: (slice) => {
+        const owner = slice.loadAddress()
+        const pendingOwner = slice.loadMaybeAddress()
         return {
           owner,
           pendingOwner,
