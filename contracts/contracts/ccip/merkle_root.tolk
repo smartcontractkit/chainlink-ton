@@ -16,6 +16,7 @@ const STATE_SUCCESS: uint8 = 4;
 const ERROR_STATE_IS_NOT_UNTOUCHED = 300;
 const ERROR_CONFIRMING_NON_EXECUTED_MESSAGE = 301;
 const ERROR_FAILING_NON_EXECUTED_MESSAGE = 302;
+const ERROR_NOT_OWNER = 303;
 
 fun MerkleRoot_Storage.load(): MerkleRoot_Storage {
     return MerkleRoot_Storage.fromCell(contract.getData());
@@ -24,7 +25,6 @@ fun MerkleRoot_Storage.load(): MerkleRoot_Storage {
 fun MerkleRoot_Storage.store(self) {
     return contract.setData(self.toCell());
 }
-
 
 type MerkleRoot_InMessage = MerkleRoot_Validate | MerkleRoot_CCIPReceiveBounced | MerkleRoot_CCIPReceiveConfirm;
 
@@ -41,11 +41,14 @@ fun onInternalMessage(in: InMessage) {
             assert(st.state == STATE_EXECUTE && st.message != null, ERROR_CONFIRMING_NON_EXECUTED_MESSAGE);
             assert(in.senderAddress == st.owner, ERROR_NOT_OWNER);
 
+            val ccipMessage = msg.message!.load();
+
+            assert (msg.receiver == ccipMessage.receiver, ERROR_CONFIRM_FROM_INVALID_RECEIVER);
 
             st.state = STATE_SUCCESS;
             st.store();
 
-            val messageHeader = st.message!.load().header;
+            val messageHeader = ccipMessage!.load().header;
             val offRampNotifySuccess = createMessage({
                 bounce: true,
                 value: ton("0"),
@@ -59,6 +62,7 @@ fun onInternalMessage(in: InMessage) {
         MerkleRoot_CCIPReceiveBounced => {
             var st = MerkleRoot_Storage.load();
             assert(in.senderAddress == st.owner, ERROR_NOT_OWNER);
+            assert(msg.receiver == st.
 
             st.state = STATE_EXECUTE_FAILED;
             st.store();

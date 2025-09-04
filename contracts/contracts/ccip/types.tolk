@@ -313,6 +313,7 @@ struct (0x00000003) MessageValidated<C> {
 // OffRamp
 
 struct MerkleRoot_Storage {
+    root: uint256;
     owner: address;
     state: uint8;
     executionState: uint8; 
@@ -328,10 +329,14 @@ struct (0x38ede91) MerkleRoot_Validate {
 }
 
 //crc32('MerkleRoot_CCIPReceiveConfirm')
-struct (0x81650c13) MerkleRoot_CCIPReceiveConfirm {}
+struct (0x81650c13) MerkleRoot_CCIPReceiveConfirm {
+    receiver: address
+}
 
 //crc32('MerkleRoot_CCIPReceiveBounced')
-struct(0x845e303f) MerkleRoot_CCIPReceiveBounced {}
+struct(0x845e303f) MerkleRoot_CCIPReceiveBounced {
+    receiver: address
+}
 
 
 //Must be sent from an owned MerkleRoot contract
@@ -355,17 +360,19 @@ struct (0x28f4166f) OffRamp_CCIPReceiveConfirm {
 //crc32('OffRamp_NotifySuccess')
 struct (0x23232323) OffRamp_NotifySuccess {
     header: RampMessageHeader;
+    rootId: uint224;
 }
 
 //crc32('OffRamp_NotifyFailure')
 struct(0x177ebd03) OffRamp_NotifyFailure {
     header: RampMessageHeader;
+    rootId: uint224;
 }
 
 //crc32('OffRamp_NotifyInProgress')
 struct (0xdc81855a) OffRamp_NotifyInProgress {
     message: Any2TVMRampMessage; // vec<Any2TVMRampMessage>
-    root: uint256;
+    rootId: uint224;
 }
 
 struct TokenBalance {

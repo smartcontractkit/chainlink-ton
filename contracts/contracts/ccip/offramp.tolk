@@ -140,40 +140,13 @@ fun onInternalMessage(in:InMessage) {
             _dispatchValidated(msg, in.senderAddress)
         } 
         OffRamp_CCIPReceiveConfirm => {
-            val st = Storage.load();
-            val merkleRootReceiveConfirm = createMessage({
-                bounce: true,
-                value: ton("0.05"), //TODO how much do we need to send
-                dest: {
-                    stateInit: {
-                        code: st.deployer,
-                        data: Deployable {
-                            owner: contract.getAddress(),
-                            id: beginCell().storeUint(msg.rootId, 224),
-                        }.toCell(),
-                    }
-                },
-                body: MerkleRoot_CCIPReceiveConfirm {},
-            });
-            merkleRootReceiveConfirm.send(SEND_MODE_REGULAR);
+            _ccipReceiveConfirm(msg, in.senderAddress);
         }
         OffRamp_NotifySuccess => {
-            val messageHeader = msg.header;
-            emit(CCIP_EXECUTION_STATE_CHANGED_TOPIC, ExecutionStateChanged {
-                sourceChainSelector: messageHeader.sourceChainSelector,
-                sequenceNumber: messageHeader.sequenceNumber,
-                messageId: messageHeader.messageId,
-                state: EXECUTION_STATE_SUCCESS
-            });
+            _notifySuccess(msg, in.senderAddress);
         }
         OffRamp_NotifyFailure => {
-            val messageHeader = msg.header;
-            emit(CCIP_EXECUTION_STATE_CHANGED_TOPIC, ExecutionStateChanged {
-                sourceChainSelector: messageHeader.sourceChainSelector,
-                sequenceNumber: messageHeader.sequenceNumber,
-                messageId: messageHeader.messageId,
-                state: EXECUTION_STATE_FAILURE 
-            });
+            _notifyFailure(msg, in.senderAddress);
         }
         else => {
             // ignore empty messages, "wrong opcode" for others
@@ -187,25 +160,74 @@ fun onBouncedMessage(in: InMessageBounced) {
     val msg = lazy OffRamp_BouncedMessage.fromSlice(in.bouncedBody);
     match (msg) {
         CCIPReceive => {
-            val st = Storage.load();
-            val receiveBounced = createMessage({
-                bounce: true,
-                value: ton("0.5"),
-                dest: {
-                    stateInit: { //the MR address
-                        code: st.deployer,
-                        data: Deployable {
-                            owner: contract.getAddress(),
-                            id: beginCell().storeUint(msg.rootId, 224),
-                        }.toCell(), 
-                    },
-                },
-                body: MerkleRoot_CCIPReceiveBounced{}
-            });
-            receiveBounced.send(SEND_MODE_REGULAR);
+        _bouncedCCIPReceive(msg, in.senderAddress);
         }
     }
 } 
+
+fun _bouncedCCIPReceive(msg: CCIPReceive, sender: address) {
+    val st = Storage.load();
+    val receiveBounced = createMessage({
+        bounce: true,
+        value: ton("0.5"),
+        dest: {
+            stateInit: { //the MR address
+                code: st.deployer,
+                data: Deployable {
+                    owner: contract.getAddress(),
+                    id: beginCell().storeUint(msg.rootId, 224),
+                }.toCell(), 
+            },
+        },
+        body: MerkleRoot_CCIPReceiveBounced{
+            receiver: sender
+        }
+    });
+    receiveBounced.send(SEND_MODE_REGULAR);
+}
+
+fun _notifyFailure(msg: OffRamp_NotifyFailure, sender: address) {
+    //TODO should verify this comes from a MR contract
+    val messageHeader = msg.header;
+    emit(CCIP_EXECUTION_STATE_CHANGED_TOPIC, ExecutionStateChanged {
+        sourceChainSelector: messageHeader.sourceChainSelector,
+        sequenceNumber: messageHeader.sequenceNumber,
+        messageId: messageHeader.messageId,
+        state: EXECUTION_STATE_FAILURE 
+    });
+}
+
+fun _notifySuccess(msg: OffRamp_NotifySuccess, sender: address) {
+    //TODO should verify this comes from a MR contract
+    val messageHeader = msg.header;
+    emit(CCIP_EXECUTION_STATE_CHANGED_TOPIC, ExecutionStateChanged {
+        sourceChainSelector: messageHeader.sourceChainSelector,
+        sequenceNumber: messageHeader.sequenceNumber,
+        messageId: messageHeader.messageId,
+        state: EXECUTION_STATE_SUCCESS
+    });
+}
+
+fun _ccipReceiveConfirm(msg: OffRamp_CCIPReceiveConfirm, sender: address) {
+    val st = Storage.load();
+    val merkleRootReceiveConfirm = createMessage({
+        bounce: true,
+        value: ton("0.05"), //TODO how much do we need to send
+        dest: {
+            stateInit: {
+                code: st.deployer,
+                data: Deployable {
+                    owner: contract.getAddress(),
+                    id: beginCell().storeUint(msg.rootId, 224),
+                }.toCell(),
+            }
+        },
+        body: MerkleRoot_CCIPReceiveConfirm {
+            receiver: sender;
+        }, 
+    });
+    merkleRootReceiveConfirm.send(SEND_MODE_REGULAR);
+}
 
 // TODO: handle signals from MerkleRoot for releaseTokens
 // maybe send these and MerkleRoot_Execute straight to router
@@ -334,6 +356,7 @@ fun commit(msg: OffRamp_Commit, sender: address) {
                 stateInit: {
                     code: st.merkleRootCode,
                     data: MerkleRoot_Storage {
+                        root: root.merkleRoot,
                         owner: contract.getAddress(),
                         state: 0,
                         executionState: 0,
