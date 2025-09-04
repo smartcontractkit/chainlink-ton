@@ -1,4 +1,4 @@
-name: TON - Contracts Build and Test
+name: TON - Contracts - Build and Publish
 
 permissions:
   contents: read
@@ -38,7 +38,7 @@ jobs:
           filters: |
             ton_changes:
               - 'contracts/**'
-              - '.github/workflows/contracts-build-test.yml'
+              - '.github/workflows/contracts-build.yml'
 
   build:
     name: Build and test contracts
@@ -76,14 +76,6 @@ jobs:
           pushd contracts
           nix develop .#contracts -c yarn && yarn build
           popd
-
-      - name: Run tests
-        run: |
-          set -euo pipefail
-          pushd contracts
-          nix develop .#contracts -c  yarn test
-          popd
-
 
       - name: Package build outputs
         id: package
