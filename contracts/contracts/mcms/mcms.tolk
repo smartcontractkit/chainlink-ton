@@ -237,7 +237,7 @@ struct (0xbbc4deb4) MCMS_ErrorReportSubmitted {
     matchesPendingOp: bool;
 }
 
-/// Event emitted by the contract when the oracle role is transferred.
+/// Sent back to sender when the oracle role is transferred.
 struct (0xff4176a3) MCMS_OracleRoleTransferred {
     /// Query ID of the change request.
     queryId: uint64;
