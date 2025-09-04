@@ -546,108 +546,121 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
     }
   })
 
-  // describe('Call Proxy Execute Tests', () => {
-  //   it('should execute through valid call proxy', async () => {
-  //     const incrementCall: rbactl.Call = {
-  //       target: baseTest.bind.counter.address,
-  //       value: toNano('0.05'),
-  //       data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
-  //     }
-  //     const calls = BaseTestSetup.singletonCalls(incrementCall)
+  // Notice: no CallProxy on TON, we use the ExecutorRoleCheck flag
+  describe('~~Call Proxy~~/ExecutorRoleCheck Execute Tests', () => {
+    it('should execute by anybody if ExecutorRoleCheck flag is disabled', async () => {
+      const incrementCall: rbactl.Call = {
+        target: baseTest.bind.counter.address,
+        value: toNano('0.05'),
+        data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
+      }
+      const calls = BaseTestSetup.singletonCalls(incrementCall)
 
-  //     // Schedule operation
-  //     const scheduleBody = rbactl.builder.message.in.scheduleBatch.encode({
-  //       queryId: 1n,
-  //       calls,
-  //       predecessor: BaseTestSetup.NO_PREDECESSOR,
-  //       salt: BaseTestSetup.EMPTY_SALT,
-  //       delay: BaseTestSetup.MIN_DELAY,
-  //     })
+      // Schedule operation
+      const scheduleBody = rbactl.builder.message.in.scheduleBatch.encode({
+        queryId: 1n,
+        calls,
+        predecessor: BaseTestSetup.NO_PREDECESSOR,
+        salt: BaseTestSetup.EMPTY_SALT,
+        delay: BaseTestSetup.MIN_DELAY,
+      })
 
-  //     await baseTest.bind.timelock.sendInternal(
-  //       baseTest.acc.proposerOne.getSender(),
-  //       toNano('0.05'),
-  //       scheduleBody,
-  //     )
+      await baseTest.bind.timelock.sendInternal(
+        baseTest.acc.proposerOne.getSender(),
+        toNano('0.05'),
+        scheduleBody,
+      )
 
-  //     // Wait for delay
-  //     baseTest.warpTime(Number(BaseTestSetup.MIN_DELAY + 1n))
+      // Wait for delay
+      baseTest.warpTime(Number(BaseTestSetup.MIN_DELAY + 1n))
 
-  //     // Grant executor role to call proxy
-  //     await baseTest.grantCallProxyExecutorRole()
+      // Update ExecutorRoleCheck to disabled
+      expect(await baseTest.bind.timelock.isExecutorRoleCheckEnabled()).toBeTruthy()
 
-  //     // Execute through call proxy using external caller
-  //     const executeBody = rbactl.builder.message.in.executeBatch.encode({
-  //       queryId: 2n,
-  //       calls,
-  //       predecessor: BaseTestSetup.NO_PREDECESSOR,
-  //       salt: BaseTestSetup.EMPTY_SALT,
-  //     })
+      await baseTest.bind.timelock.sendInternal(
+        baseTest.acc.admin.getSender(),
+        toNano('0.05'),
+        rbactl.builder.message.in.updateExecutorRoleCheck.encode({
+          queryId: 2n,
+          enabled: false,
+        }),
+      )
 
-  //     // Execute via call proxy
-  //     const proxyResult = await baseTest.bind.callProxy.sendInternal(
-  //       baseTest.acc.deployer.getSender(), // External caller
-  //       toNano('1'),
-  //       executeBody,
-  //     )
+      expect(await baseTest.bind.timelock.isExecutorRoleCheckEnabled()).toBeFalsy()
 
-  //     expect(proxyResult.transactions).toHaveTransaction({
-  //       from: baseTest.acc.deployer.address,
-  //       to: baseTest.bind.callProxy.address,
-  //       success: true,
-  //     })
+      const executeBody = rbactl.builder.message.in.executeBatch.encode({
+        queryId: 2n,
+        calls,
+        predecessor: BaseTestSetup.NO_PREDECESSOR,
+        salt: BaseTestSetup.EMPTY_SALT,
+      })
 
-  //     // Verify counter was incremented
-  //     expect(await baseTest.bind.counter.getValue()).toEqual(1)
-  //   })
+      // Execute via an account without the executor role
+      const r = await baseTest.bind.timelock.sendInternal(
+        baseTest.acc.proposerOne.getSender(), // External caller
+        toNano('1'),
+        executeBody,
+      )
 
-  //   it('should fail if call proxy is not executor', async () => {
-  //     const incrementCall: rbactl.Call = {
-  //       target: baseTest.bind.counter.address,
-  //       value: toNano('0.05'),
-  //       data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
-  //     }
-  //     const calls = BaseTestSetup.singletonCalls(incrementCall)
+      expect(r.transactions).toHaveTransaction({
+        from: baseTest.acc.proposerOne.address,
+        to: baseTest.bind.timelock.address,
+        success: true,
+      })
 
-  //     // Schedule operation
-  //     const scheduleBody = rbactl.builder.message.in.scheduleBatch.encode({
-  //       queryId: 1n,
-  //       calls,
-  //       predecessor: BaseTestSetup.NO_PREDECESSOR,
-  //       salt: BaseTestSetup.EMPTY_SALT,
-  //       delay: BaseTestSetup.MIN_DELAY,
-  //     })
+      // Verify counter was incremented
+      expect(await baseTest.bind.counter.getValue()).toEqual(1)
+    })
 
-  //     await baseTest.bind.timelock.sendInternal(
-  //       baseTest.acc.proposerOne.getSender(),
-  //       toNano('0.05'),
-  //       scheduleBody,
-  //     )
+    it('should fail to execute by anybody if ExecutorRoleCheck flag is disabled', async () => {
+      const incrementCall: rbactl.Call = {
+        target: baseTest.bind.counter.address,
+        value: toNano('0.05'),
+        data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
+      }
+      const calls = BaseTestSetup.singletonCalls(incrementCall)
 
-  //     // Wait for delay
-  //     baseTest.warpTime(Number(BaseTestSetup.MIN_DELAY + 1n))
+      // Schedule operation
+      const scheduleBody = rbactl.builder.message.in.scheduleBatch.encode({
+        queryId: 1n,
+        calls,
+        predecessor: BaseTestSetup.NO_PREDECESSOR,
+        salt: BaseTestSetup.EMPTY_SALT,
+        delay: BaseTestSetup.MIN_DELAY,
+      })
 
-  //     // Try to execute through call proxy without granting executor role
-  //     const executeBody = rbactl.builder.message.in.executeBatch.encode({
-  //       queryId: 2n,
-  //       calls,
-  //       predecessor: BaseTestSetup.NO_PREDECESSOR,
-  //       salt: BaseTestSetup.EMPTY_SALT,
-  //     })
+      await baseTest.bind.timelock.sendInternal(
+        baseTest.acc.proposerOne.getSender(),
+        toNano('0.05'),
+        scheduleBody,
+      )
 
-  //     const proxyResult = await baseTest.bind.callProxy.sendInternal(
-  //       baseTest.acc.deployer.getSender(),
-  //       toNano('1'),
-  //       executeBody,
-  //     )
+      // Wait for delay
+      baseTest.warpTime(Number(BaseTestSetup.MIN_DELAY + 1n))
 
-  //     // The call proxy should fail to execute because it doesn't have executor role
-  //     expect(proxyResult.transactions).toHaveTransaction({
-  //       from: baseTest.bind.callProxy.address,
-  //       to: baseTest.bind.timelock.address,
-  //       success: false,
-  //       exitCode: ac.Errors.UnauthorizedAccount,
-  //     })
-  //   })
-  // })
+      // Try to execute without disabling ExecutorRoleCheck
+      expect(await baseTest.bind.timelock.isExecutorRoleCheckEnabled()).toBeTruthy()
+
+      const executeBody = rbactl.builder.message.in.executeBatch.encode({
+        queryId: 2n,
+        calls,
+        predecessor: BaseTestSetup.NO_PREDECESSOR,
+        salt: BaseTestSetup.EMPTY_SALT,
+      })
+
+      const r = await baseTest.bind.timelock.sendInternal(
+        baseTest.acc.proposerOne.getSender(),
+        toNano('1'),
+        executeBody,
+      )
+
+      // The sender should fail to execute because it doesn't have executor role
+      expect(r.transactions).toHaveTransaction({
+        from: baseTest.acc.proposerOne.address,
+        to: baseTest.bind.timelock.address,
+        success: false,
+        exitCode: ac.Errors.UnauthorizedAccount,
+      })
+    })
+  })
 })
