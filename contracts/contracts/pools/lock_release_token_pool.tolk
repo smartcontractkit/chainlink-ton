@@ -39,16 +39,12 @@ fun LockReleaseTokenPool.load(): LockReleaseTokenPool {
     };
 }
 
-fun LockReleaseTokenPool.ownable(self): Ownable2Step {
-    return self.data.ownable.load();
-}
-
 fun LockReleaseTokenPool.tokenPool(self): TokenPool<LockReleaseTokenPool> {
     val tokenPoolData = lazy self.data.tokenPoolData.load();
 
     return TokenPool<LockReleaseTokenPool>{
         data: tokenPoolData,
-        ownable: self.ownable(),
+        ownable: self.data.ownable,
         context: null,
         hooks: TokenPool_Hooks<LockReleaseTokenPool> {
             getRouter: null,
