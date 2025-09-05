@@ -27,7 +27,6 @@ import (
 	"github.com/smartcontractkit/chainlink/deployment/ccip/shared/stateview"
 	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
 	"github.com/smartcontractkit/chainlink/deployment/common/proposalutils"
-	"github.com/smartcontractkit/chainlink/v2/core/capabilities/ccip/ccipevm"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
