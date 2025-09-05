@@ -51,8 +51,7 @@ describe('RBACTimelock', () => {
 
     const data = {
       id: crc32('mcms.timelock.test-sandbox'), // unique ID for this instance
-      minDelay,
-      executorRoleCheckEnabled: true,
+      minDelay: minDelay,
       rbac: ac.builder.data.contractData.encode(rbacStorage),
     }
 
@@ -89,7 +88,6 @@ describe('RBACTimelock', () => {
     expect(rbactl.opcodes.in.BlockFunctionSelector).toBe(0x2637af77)
     expect(rbactl.opcodes.in.UnblockFunctionSelector).toBe(0x26f19f4e)
     expect(rbactl.opcodes.in.BypasserExecuteBatch).toBe(0xbb0e9f7d)
-    expect(rbactl.opcodes.in.UpdateExecutorRoleCheck).toBe(0x34d98baa)
 
     // Out opcodes
     expect(rbactl.opcodes.out.BatchScheduled).toBe(0xdf65b59e)
@@ -102,7 +100,6 @@ describe('RBACTimelock', () => {
     expect(rbactl.opcodes.out.MinDelayChange).toBe(0x904b14e0)
     expect(rbactl.opcodes.out.FunctionSelectorBlocked).toBe(0x9c4d6d94)
     expect(rbactl.opcodes.out.FunctionSelectorUnblocked).toBe(0xf410a31b)
-    expect(rbactl.opcodes.out.ExecutorRoleCheckUpdated).toBe(0xc6d451e2)
   })
 
   it('should deploy', async () => {

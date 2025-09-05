@@ -84,9 +84,6 @@ struct (0x4982fcfd) Timelock_Init {
     executors: cell;  // vec<address>
     cancellers: cell; // vec<address>
     bypassers: cell;  // vec<address>
-
-    /// Flag to enable/disable the executor role check (if disabled, anyone can execute)
-    executorRoleCheckEnabled: bool
 }
 
 /// @dev Top up contract with TON coins.
@@ -219,25 +216,8 @@ struct (0xbb0e9f7d) Timelock_BypasserExecuteBatch {
     calls: cell; // vec<Timelock_Call>
 }
 
-/// Updates the executor role check (enabled/disabled) which guards the execution of operations.
-///
-/// Replies with {Timelock_ExecutorRoleCheckUpdated} message.
-///
-/// Requirements:
-///
-/// - the caller must have the 'admin' role.
-///
-struct (0x34d98baa) Timelock_UpdateExecutorRoleCheck {
-    /// Query ID of the change request.
-    queryId: uint64;
-
-    /// Flag to enable/disable the executor role check (if disabled, anyone can execute)
-    enabled: bool;
-}
-
 /// @dev Union of all incoming messages.
-type Timelock_InMessage =
-    | Timelock_Init
+type Timelock_InMessage = Timelock_Init
     | Timelock_TopUp
     | Timelock_ScheduleBatch
     | Timelock_Cancel
@@ -245,12 +225,10 @@ type Timelock_InMessage =
     | Timelock_UpdateDelay
     | Timelock_BlockFunctionSelector
     | Timelock_UnblockFunctionSelector
-    | Timelock_BypasserExecuteBatch
-    | Timelock_UpdateExecutorRoleCheck;
+    | Timelock_BypasserExecuteBatch;
 
 /// @dev Union of all outgoing messages.
-type Timelock_OutMessage =
-    | Timelock_BatchScheduled
+type Timelock_OutMessage = Timelock_BatchScheduled
     | Timelock_CallScheduled
     | Timelock_BatchExecuted
     | Timelock_CallExecuted
@@ -260,7 +238,6 @@ type Timelock_OutMessage =
     | Timelock_MinDelayChange
     | Timelock_FunctionSelectorBlocked
     | Timelock_FunctionSelectorUnblocked
-    | Timelock_ExecutorRoleCheckUpdated;
 
 // --- Messages - outgoing ---
 
@@ -369,15 +346,6 @@ struct (0xf410a31b) Timelock_FunctionSelectorUnblocked {
     selector: uint32;
 }
 
-/// Sent back to sender after the executor role check is updated.
-struct (0xc6d451e2) Timelock_ExecutorRoleCheckUpdated {
-    /// Query ID of the change request.
-    queryId: uint64;
-
-    /// Flag to enable/disable the executor role check (if disabled, anyone can execute)
-    enabled: bool;
-}
-
 // --- Storage ---
 
 /// Timelock contract struct, host storage and runtime hooks (extensions).
@@ -403,9 +371,6 @@ struct Timelock_Data {
     blockedFnSelectorsLen: uint32;
     /// Map of blocked function selectors.
     blockedFnSelectors: dict; // map<uint32, slice>
-
-    /// Flag to enable/disable the executor role check (if disabled, anyone can execute)
-    executorRoleCheckEnabled: bool,
 
     /// AccessControl trait data
     rbac: Cell<AccessControl_Data>;
@@ -572,7 +537,6 @@ fun Timelock<T>.init(
     executors: cell,  // vec<address>
     cancellers: cell, // vec<address>
     bypassers: cell,  // vec<address>
-    executorRoleCheckEnabled: bool = true
 ): void {
     // TODO: add a check to secure contract initialization
     //   - check that the contract is not already initialized
@@ -610,7 +574,6 @@ fun Timelock<T>.init(
     }
 
     self.data.minDelay = minDelay;
-    self.data.executorRoleCheckEnabled = executorRoleCheckEnabled;
 
     // Reply back to sender
     createMessage({
@@ -723,9 +686,7 @@ fun Timelock<T>.executeBatch(
     predecessor: uint256,
     salt: uint256
 ): void {
-    if (self.data.executorRoleCheckEnabled) {
-        self.onlyRoleOrAdminRole(EXECUTOR_ROLE, sender);
-    }
+    self.onlyRoleOrAdminRole(EXECUTOR_ROLE, sender);
 
     val id = self.hashOperationBatch(OperationBatch{calls, predecessor, salt});
     self.beforeCall(id, predecessor);
@@ -751,25 +712,24 @@ fun Timelock<T>.executeBatch(
 
     self.afterCall(id);
 
-    val reply = createMessage({
+    // Reply back to sender
+    createMessage({
         bounce: false,
         value: DEFAULT_MESSAGE_BUDGET_FEE, // send small value as gas budget, keep the rest
         dest: sender,
         body: Timelock_BatchExecuted{queryId, id}
-    });
-    reply.send(SEND_MODE_REGULAR);
+    }).send(SEND_MODE_REGULAR);
 }
 
 /// @dev Execute an operation's call.
 fun Timelock<T>.execute(self, call: Timelock_Call): void {
     // TODO: notice, we can not require success before continuing with the next call (async execution model)
-    val op = createMessage({
+    createMessage({
         bounce: true, // TODO: how to handle bounced messages (errors)?
         value: call.value,
         dest: call.target,
         body: call.data
-    });
-    op.send(SEND_MODE_PAY_FEES_SEPARATELY);
+    }).send(SEND_MODE_PAY_FEES_SEPARATELY);
 }
 
 /// @dev Hook before execution of an operation's calls.
@@ -836,13 +796,12 @@ fun Timelock<T>.blockFunctionSelector(mutate self, sender: address, queryId: uin
     if (updated) {
         self.data.blockedFnSelectorsLen += 1;
 
-        val reply = createMessage({
+        createMessage({
             bounce: false,
             value: 0,
             dest: sender,
             body: Timelock_FunctionSelectorBlocked{queryId, selector}
-        });
-        reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+        }).send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 
         return true;
     }
@@ -864,13 +823,13 @@ fun Timelock<T>.unblockFunctionSelector(mutate self, sender: address, queryId: u
     if (updated) {
         self.data.blockedFnSelectorsLen -= 1;
 
-        val reply = createMessage({
+        // Reply to sender
+        createMessage({
             bounce: false,
             value: 0,
             dest: sender,
             body: Timelock_FunctionSelectorUnblocked{queryId, selector}
-        });
-        reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+        }).send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 
         return true;
     }
@@ -911,37 +870,18 @@ fun Timelock<T>.bypasserExecuteBatch(
         index += 1;
     }
 
-    val reply = createMessage({
+    // Reply back to sender
+    createMessage({
         bounce: false,
         value: DEFAULT_MESSAGE_BUDGET_FEE, // send small value as gas budget, keep the rest
         dest: sender,
         body: Timelock_BypasserBatchExecuted{queryId}
-    });
-    reply.send(SEND_MODE_REGULAR);
+    }).send(SEND_MODE_REGULAR);
 }
 
-/// Updates the executor role check (enabled/disabled) which guards the execution of operations.
-///
-/// @see <Timelock_UpdateExecutorRoleCheck> for more information.
-fun Timelock<T>.updateExecutorRoleCheck(mutate self, sender: address, queryId: uint64, enabled: bool ): void {
-    val rbac = self.hookTrait__AccessControl();
-    rbac.requireRole(ADMIN_ROLE, sender);
-
-    self.data.executorRoleCheckEnabled = enabled;
-
-    val reply = createMessage({
-        bounce: false,
-        value: 0,
-        dest: sender,
-        body: Timelock_ExecutorRoleCheckUpdated{queryId, enabled}
-    });
-    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
-}
-
-/// Returns whether the executor role check is enabled.
-/// @dev if the executor role check is disabled, anyone can execute (no executor role needed)
-fun Timelock<T>.isExecutorRoleCheckEnabled(self): bool {
-    return self.data.executorRoleCheckEnabled;
+/// @dev Returns the number of blocked function selectors.
+fun Timelock<T>.getBlockedFunctionSelectorCount(self): uint32 {
+    return self.data.blockedFnSelectorsLen;
 }
 
 /// @dev Returns the blocked function selector with the given index.
@@ -1023,12 +963,6 @@ fun Timelock<T>.checkFunctionSelectorNotBlocked(self, data: slice): void {
     }
 }
 
-/// @dev Returns the number of blocked function selectors.
-fun Timelock<T>.getBlockedFunctionSelectorCount(self): uint32 {
-    return self.data.blockedFnSelectorsLen;
-}
-
-
 // --- Message handlers ---
 
 @inline
@@ -1036,8 +970,7 @@ fun Timelock<T>.onInternalMessage(mutate self, msgSender: address, msgValue: coi
     val msg = lazy Timelock_InMessage.fromSlice(msgBody);
     match (msg) {
         Timelock_Init => {
-            self.init(msgSender, msg.queryId, msg.minDelay, msg.admin, msg.proposers, msg.executors,
-                msg.cancellers, msg.bypassers, msg.executorRoleCheckEnabled);
+            self.init(msgSender, msg.queryId, msg.minDelay, msg.admin, msg.proposers, msg.executors, msg.cancellers, msg.bypassers);
         }
         Timelock_TopUp => {
             // Top up the contract balance, no action needed, return early - no need to update storage
@@ -1063,9 +996,6 @@ fun Timelock<T>.onInternalMessage(mutate self, msgSender: address, msgValue: coi
         }
         Timelock_BypasserExecuteBatch => {
             self.bypasserExecuteBatch(msgSender, msg.queryId, msg.calls);
-        }
-        Timelock_UpdateExecutorRoleCheck => {
-            self.updateExecutorRoleCheck(msgSender, msg.queryId, msg.enabled);
         }
         else => {
             var rbac = self.hookTrait__AccessControl();
@@ -1156,11 +1086,6 @@ get fun getBlockedFunctionSelectorCount(): uint32 {
 /// @see <Timelock<T>.getBlockedFunctionSelectorAt>
 get fun getBlockedFunctionSelectorAt(index: uint32): uint32 {
     return Timelock<bool>.load().getBlockedFunctionSelectorAt(index);
-}
-
-/// @see <Timelock<T>.isExecutorRoleCheckEnabled>
-get fun isExecutorRoleCheckEnabled(): bool {
-    return Timelock<bool>.load().isExecutorRoleCheckEnabled();
 }
 
 // TODO: should we also expose <Timelock<T>._checkFunctionSelectorNotBlocked (not in EVM version)?

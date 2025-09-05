@@ -1,7 +1,7 @@
 import '@ton/test-utils'
 
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { Address, Cell, toNano } from '@ton/core'
+import { Address, beginCell, Cell, toNano } from '@ton/core'
 import { KeyPair, sign } from '@ton/crypto'
 import { compile } from '@ton/blueprint'
 
@@ -9,6 +9,7 @@ import { generateEd25519KeyPair, asSnakeData, uint8ArrayToBigInt } from '../../s
 
 import { mcms } from '../../wrappers/mcms'
 import { rbactl } from '../../wrappers/mcms'
+import { callproxy } from '../../wrappers/mcms'
 import { ac } from '../../wrappers/lib/access'
 import * as counter from '../../wrappers/examples/Counter'
 import * as ownable2step from '../../wrappers/libraries/access/Ownable2Step'
@@ -25,6 +26,7 @@ describe('MCMS - IntegrationTest', () => {
   var code: {
     mcms: Cell
     timelock: Cell
+    callProxy: Cell
     counter: Cell
   }
 
@@ -32,6 +34,7 @@ describe('MCMS - IntegrationTest', () => {
     code = {
       mcms: await compile('mcms.MCMS'),
       timelock: await compile('mcms.RBACTimelock'),
+      callProxy: await compile('mcms.CallProxy'),
       counter: await compile('examples.Counter'),
     }
   })
@@ -44,6 +47,7 @@ describe('MCMS - IntegrationTest', () => {
   var bind: {
     timelock: SandboxContract<rbactl.ContractClient>
     ac: SandboxContract<ac.ContractClient>
+    callProxy: SandboxContract<callproxy.ContractClient>
 
     mcmsPropose: SandboxContract<mcms.ContractClient>
     mcmsVeto: SandboxContract<mcms.ContractClient>
@@ -83,6 +87,7 @@ describe('MCMS - IntegrationTest', () => {
       mcmsPropose: null as any,
       mcmsVeto: null as any,
       mcmsBypass: null as any,
+      callProxy: null as any,
       counter: null as any,
     }
 
@@ -148,7 +153,7 @@ describe('MCMS - IntegrationTest', () => {
               {
                 adminRole: rbactl.roles.admin, // default admin role
                 membersLen: 0n, // no members yet
-                hasRole: ac.builder.data.hasRoleDict([]),
+                hasRole: ac.builder.data.hasRoleDict([]), // Call proxy address will be added later
               },
             ],
             [
@@ -174,12 +179,22 @@ describe('MCMS - IntegrationTest', () => {
       const data = {
         id: crc32('mcms.timelock.test-integration'), // unique ID for this instance
         minDelay: MIN_DELAY,
-        executorRoleCheckEnabled: true,
         rbac: ac.builder.data.contractData.encode(rbacStorage),
       }
 
       bind.timelock = blockchain.openContract(rbactl.ContractClient.newFrom(data, code.timelock))
       bind.ac = blockchain.openContract(ac.ContractClient.newAt(bind.timelock.address))
+    }
+
+    // Set up CallProxy contract
+    {
+      const data = {
+        id: crc32('mcms.call-proxy.test-integration'), // unique ID for this instance
+        target: bind.timelock.address,
+      }
+      bind.callProxy = blockchain.openContract(
+        callproxy.ContractClient.newFrom(data, code.callProxy),
+      )
     }
 
     // Set up Counter contract
@@ -363,6 +378,42 @@ describe('MCMS - IntegrationTest', () => {
       await transferOwnershipToTimelock(ownable)
     }
 
+    // Deploy CallProxy contract
+    {
+      const body = mcms.builder.message.in.topUp.encode({ queryId: 1n })
+      const result = await bind.callProxy.sendInternal(
+        acc.deployer.getSender(),
+        toNano('0.05'),
+        body,
+      )
+
+      expect(result.transactions).toHaveTransaction({
+        from: acc.deployer.address,
+        to: bind.callProxy.address,
+        deploy: true,
+        success: true,
+      })
+
+      expect(await bind.callProxy.getTarget()).toEqualAddress(bind.timelock.address)
+
+      // Allow CallProxy to execute
+      const r1 = await bind.ac.sendInternal(
+        acc.deployer.getSender(),
+        toNano('0.05'),
+        ac.builder.message.in.grantRole.encode({
+          queryId: 1n,
+          role: rbactl.roles.executor,
+          account: bind.callProxy.address,
+        }),
+      )
+
+      expect(r1.transactions).toHaveTransaction({
+        from: acc.deployer.address,
+        to: bind.ac.address,
+        success: true,
+      })
+    }
+
     // Deploy Counter contract
     {
       const result = await bind.counter.sendDeploy(acc.deployer.getSender(), toNano('0.05'))
@@ -544,7 +595,7 @@ describe('MCMS - IntegrationTest', () => {
 
       // fails if minDelay hasn't elapsed
 
-      const r2 = await bind.timelock.sendInternal(
+      const r2 = await bind.callProxy.sendInternal(
         acc.deployer.getSender(),
         toNano('0.10'),
         rbactl.builder.message.in.executeBatch.encode({
@@ -556,7 +607,7 @@ describe('MCMS - IntegrationTest', () => {
       )
 
       expect(r2.transactions).toHaveTransaction({
-        from: acc.deployer.address,
+        from: bind.callProxy.address,
         to: bind.timelock.address,
         success: false,
         exitCode: rbactl.Errors.OperationNotReady,
@@ -564,7 +615,7 @@ describe('MCMS - IntegrationTest', () => {
 
       blockchain.now = blockchain.now! + Number(MIN_DELAY)
 
-      const r3 = await bind.timelock.sendInternal(
+      const r3 = await bind.callProxy.sendInternal(
         acc.deployer.getSender(),
         toNano('1'), // TODO: notice the gas value required to pass is higher b/c reserveToncoinsOnBalance (check)
         rbactl.builder.message.in.executeBatch.encode({
@@ -577,6 +628,12 @@ describe('MCMS - IntegrationTest', () => {
 
       expect(r3.transactions).toHaveTransaction({
         from: acc.deployer.address,
+        to: bind.callProxy.address,
+        success: true,
+      })
+
+      expect(r3.transactions).toHaveTransaction({
+        from: bind.callProxy.address,
         to: bind.timelock.address,
         success: true,
       })
@@ -664,7 +721,7 @@ describe('MCMS - IntegrationTest', () => {
       blockchain.now = blockchain.now! + Number(MIN_DELAY)
 
       // fails if predecessor isn't right
-      const r2 = await bind.timelock.sendInternal(
+      const r2 = await bind.callProxy.sendInternal(
         acc.deployer.getSender(),
         toNano('0.80'), // TODO: notice the gas value required to pass is higher b/c reserveToncoinsOnBalance (check)
         rbactl.builder.message.in.executeBatch.encode({
@@ -674,14 +731,21 @@ describe('MCMS - IntegrationTest', () => {
           calls,
         }),
       )
+
       expect(r2.transactions).toHaveTransaction({
         from: acc.deployer.address,
+        to: bind.callProxy.address,
+        success: true,
+      })
+
+      expect(r2.transactions).toHaveTransaction({
+        from: bind.callProxy.address,
         to: bind.timelock.address,
         exitCode: rbactl.Errors.OperationNotReady,
       })
 
       // succeeds once we use right predecessor
-      const r3 = await bind.timelock.sendInternal(
+      const r3 = await bind.callProxy.sendInternal(
         acc.deployer.getSender(),
         toNano('0.80'), // TODO: notice the gas value required to pass is higher b/c reserveToncoinsOnBalance (check)
         rbactl.builder.message.in.executeBatch.encode({
@@ -693,7 +757,7 @@ describe('MCMS - IntegrationTest', () => {
       )
 
       expect(r3.transactions).toHaveTransaction({
-        from: acc.deployer.address,
+        from: bind.callProxy.address,
         to: bind.timelock.address,
         success: true,
       })
@@ -910,7 +974,7 @@ describe('MCMS - IntegrationTest', () => {
         success: true,
       })
 
-      const r2 = await bind.timelock.sendInternal(
+      const r2 = await bind.callProxy.sendInternal(
         acc.deployer.getSender(),
         toNano('0.10'),
         rbactl.builder.message.in.executeBatch.encode({
@@ -922,7 +986,7 @@ describe('MCMS - IntegrationTest', () => {
       )
 
       expect(r2.transactions).toHaveTransaction({
-        from: acc.deployer.address,
+        from: bind.callProxy.address,
         to: bind.timelock.address,
         success: false,
         exitCode: rbactl.Errors.OperationNotReady,
@@ -994,7 +1058,7 @@ describe('MCMS - IntegrationTest', () => {
 
         blockchain.now = blockchain.now! + Number(MIN_DELAY)
 
-        const r2 = await bind.timelock.sendInternal(
+        const r2 = await bind.callProxy.sendInternal(
           acc.deployer.getSender(),
           toNano('0.10'),
           rbactl.builder.message.in.executeBatch.encode({
@@ -1006,7 +1070,7 @@ describe('MCMS - IntegrationTest', () => {
         )
 
         expect(r2.transactions).toHaveTransaction({
-          from: acc.deployer.address,
+          from: bind.callProxy.address,
           to: bind.timelock.address,
           success: false,
           exitCode: rbactl.Errors.OperationNotReady,
@@ -1129,7 +1193,7 @@ describe('MCMS - IntegrationTest', () => {
 
       blockchain.now = blockchain.now! + Number(MIN_DELAY)
 
-      const r2 = await bind.timelock.sendInternal(
+      const r2 = await bind.callProxy.sendInternal(
         acc.deployer.getSender(),
         toNano('0.80'), // TODO: notice the gas value required to pass is higher b/c reserveToncoinsOnBalance (check)
         rbactl.builder.message.in.executeBatch.encode({
@@ -1142,6 +1206,12 @@ describe('MCMS - IntegrationTest', () => {
 
       expect(r2.transactions).toHaveTransaction({
         from: acc.deployer.address,
+        to: bind.callProxy.address,
+        success: true,
+      })
+
+      expect(r2.transactions).toHaveTransaction({
+        from: bind.callProxy.address,
         to: bind.timelock.address,
         success: true,
       })

@@ -516,9 +516,8 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
     }
   })
 
-  // Notice: no CallProxy on TON, we use the ExecutorRoleCheck flag
-  describe('~~Call Proxy~~/ExecutorRoleCheck Execute Tests', () => {
-    it('should execute by anybody if ExecutorRoleCheck flag is disabled', async () => {
+  describe('Call Proxy Execute Tests', () => {
+    it('should execute through valid call proxy', async () => {
       const incrementCall: rbactl.Call = {
         target: baseTest.bind.counter.address,
         value: toNano('0.05'),
@@ -544,20 +543,10 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       // Wait for delay
       baseTest.warpTime(Number(BaseTestSetup.MIN_DELAY + 1n))
 
-      // Update ExecutorRoleCheck to disabled
-      expect(await baseTest.bind.timelock.isExecutorRoleCheckEnabled()).toBeTruthy()
+      // Grant executor role to call proxy
+      await baseTest.grantCallProxyExecutorRole()
 
-      await baseTest.bind.timelock.sendInternal(
-        baseTest.acc.admin.getSender(),
-        toNano('0.05'),
-        rbactl.builder.message.in.updateExecutorRoleCheck.encode({
-          queryId: 2n,
-          enabled: false,
-        }),
-      )
-
-      expect(await baseTest.bind.timelock.isExecutorRoleCheckEnabled()).toBeFalsy()
-
+      // Execute through call proxy using external caller
       const executeBody = rbactl.builder.message.in.executeBatch.encode({
         queryId: 2n,
         calls,
@@ -565,16 +554,16 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
         salt: BaseTestSetup.EMPTY_SALT,
       })
 
-      // Execute via an account without the executor role
-      const r = await baseTest.bind.timelock.sendInternal(
-        baseTest.acc.proposerOne.getSender(), // External caller
+      // Execute via call proxy
+      const proxyResult = await baseTest.bind.callProxy.sendInternal(
+        baseTest.acc.deployer.getSender(), // External caller
         toNano('1'),
         executeBody,
       )
 
-      expect(r.transactions).toHaveTransaction({
-        from: baseTest.acc.proposerOne.address,
-        to: baseTest.bind.timelock.address,
+      expect(proxyResult.transactions).toHaveTransaction({
+        from: baseTest.acc.deployer.address,
+        to: baseTest.bind.callProxy.address,
         success: true,
       })
 
@@ -582,7 +571,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       expect(await baseTest.bind.counter.getValue()).toEqual(1)
     })
 
-    it('should fail to execute by anybody if ExecutorRoleCheck flag is disabled', async () => {
+    it('should fail if call proxy is not executor', async () => {
       const incrementCall: rbactl.Call = {
         target: baseTest.bind.counter.address,
         value: toNano('0.05'),
@@ -608,9 +597,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       // Wait for delay
       baseTest.warpTime(Number(BaseTestSetup.MIN_DELAY + 1n))
 
-      // Try to execute without disabling ExecutorRoleCheck
-      expect(await baseTest.bind.timelock.isExecutorRoleCheckEnabled()).toBeTruthy()
-
+      // Try to execute through call proxy without granting executor role
       const executeBody = rbactl.builder.message.in.executeBatch.encode({
         queryId: 2n,
         calls,
@@ -618,15 +605,15 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
         salt: BaseTestSetup.EMPTY_SALT,
       })
 
-      const r = await baseTest.bind.timelock.sendInternal(
-        baseTest.acc.proposerOne.getSender(),
+      const proxyResult = await baseTest.bind.callProxy.sendInternal(
+        baseTest.acc.deployer.getSender(),
         toNano('1'),
         executeBody,
       )
 
-      // The sender should fail to execute because it doesn't have executor role
-      expect(r.transactions).toHaveTransaction({
-        from: baseTest.acc.proposerOne.address,
+      // The call proxy should fail to execute because it doesn't have executor role
+      expect(proxyResult.transactions).toHaveTransaction({
+        from: baseTest.bind.callProxy.address,
         to: baseTest.bind.timelock.address,
         success: false,
         exitCode: ac.Errors.UnauthorizedAccount,

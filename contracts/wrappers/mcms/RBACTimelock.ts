@@ -30,9 +30,6 @@ export type Init = {
   executors: Cell // vec<address>
   cancellers: Cell // vec<address>
   bypassers: Cell // vec<address>
-
-  // Flag to enable/disable the executor role check (if disabled, anyone can execute)
-  executorRoleCheckEnabled: boolean
 }
 
 // @dev Top up contract with TON coins.
@@ -114,15 +111,6 @@ export type BypasserExecuteBatch = {
   calls: Cell // vec<Timelock_Call>
 }
 
-// Updates the executor role check (enabled/disabled) which guards the execution of operations.
-export type UpdateExecutorRoleCheck = {
-  // Query ID of the change request.
-  queryId: bigint
-
-  // Flag to enable/disable the executor role check (if disabled, anyone can execute)
-  enabled: boolean
-}
-
 // @dev Union of all (input) messages.
 export type InMessage =
   | Init
@@ -134,7 +122,6 @@ export type InMessage =
   | BlockFunctionSelector
   | UnblockFunctionSelector
   | BypasserExecuteBatch
-  | UpdateExecutorRoleCheck
 
 // RBACTimelock contract storage
 export type ContractData = {
@@ -150,9 +137,6 @@ export type ContractData = {
   blockedFnSelectorsLen?: number
   // Map of blocked function selectors.
   blockedFnSelectors?: Dictionary<number, Buffer>
-
-  // Flag to enable/disable the executor role check (if disabled, anyone can execute)
-  executorRoleCheckEnabled: boolean
 
   // AccessControl trait data
   rbac: Cell
@@ -247,7 +231,6 @@ export const opcodes = {
     BlockFunctionSelector: crc32('Timelock_BlockFunctionSelector'),
     UnblockFunctionSelector: crc32('Timelock_UnblockFunctionSelector'),
     BypasserExecuteBatch: crc32('Timelock_BypasserExecuteBatch'),
-    UpdateExecutorRoleCheck: crc32('Timelock_UpdateExecutorRoleCheck'),
   },
   out: {
     BatchScheduled: crc32('Timelock_BatchScheduled'),
@@ -260,7 +243,6 @@ export const opcodes = {
     MinDelayChange: crc32('Timelock_MinDelayChange'),
     FunctionSelectorBlocked: crc32('Timelock_FunctionSelectorBlocked'),
     FunctionSelectorUnblocked: crc32('Timelock_FunctionSelectorUnblocked'),
-    ExecutorRoleCheckUpdated: crc32('Timelock_ExecutorRoleCheckUpdated'),
   },
 }
 
@@ -277,7 +259,6 @@ export const builder = {
           .storeRef(msg.executors)
           .storeRef(msg.cancellers)
           .storeRef(msg.bypassers)
-          .storeBit(msg.executorRoleCheckEnabled)
           .endCell()
       },
       decode: (cell: Cell): Init => {
@@ -291,7 +272,6 @@ export const builder = {
           executors: s.loadRef(),
           cancellers: s.loadRef(),
           bypassers: s.loadRef(),
-          executorRoleCheckEnabled: s.loadBit(),
         }
       },
     } as CellCodec<Init>,
@@ -448,24 +428,6 @@ export const builder = {
           }
         },
       } as CellCodec<BypasserExecuteBatch>,
-
-      updateExecutorRoleCheck: {
-        encode: (msg: UpdateExecutorRoleCheck): Cell => {
-          return beginCell()
-            .storeUint(opcodes.in.UpdateExecutorRoleCheck, 32)
-            .storeUint(msg.queryId, 64)
-            .storeBit(msg.enabled)
-            .endCell()
-        },
-        decode: (cell: Cell): UpdateExecutorRoleCheck => {
-          const s = cell.beginParse()
-          s.skip(32) // skip opcode
-          return {
-            queryId: s.loadUintBig(64),
-            enabled: s.loadBit(),
-          }
-        },
-      } as CellCodec<UpdateExecutorRoleCheck>,
     },
     out: {
       callScheduled: {
@@ -627,7 +589,6 @@ export const builder = {
             data.blockedFnSelectors ||
               Dictionary.empty(Dictionary.Keys.Uint(32), Dictionary.Values.Buffer(0)),
           )
-          .storeBit(data.executorRoleCheckEnabled)
           .storeRef(data.rbac)
           .endCell()
       },
@@ -892,9 +853,5 @@ export class ContractClient implements Contract {
         },
       ])
       .then((r) => r.stack.readNumber())
-  }
-
-  async isExecutorRoleCheckEnabled(p: ContractProvider): Promise<boolean> {
-    return p.get('isExecutorRoleCheckEnabled', []).then((r) => r.stack.readBoolean())
   }
 }
