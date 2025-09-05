@@ -420,18 +420,22 @@ export const builder = {
         // Simplified encoding - extend as needed
         return beginCell()
           .storeUint(data.id, 32)
-          .storeRef(ownable2step.builder.data.traitData.encode(data.ownable))
+          .storeBuilder(ownable2step.builder.data.traitData.encode(data.ownable).asBuilder())
           .storeAddress(data.rebalancer)
           .storeRef(tokenPoolData)
           .endCell()
       },
       decode: (cell: Cell): ContractData => {
         const s = cell.beginParse()
+        const id = s.loadUint(32)
+        const ownable = ownable2step.builder.data.traitData.load(s)
+        const rebalancer = s.loadMaybeAddress()
+        const tokenPoolData = tokenPool.builder.data.contractData.decode(s.loadRef())
         return {
-          id: s.loadUint(32),
-          ownable: ownable2step.builder.data.traitData.decode(s.loadRef()),
-          rebalancer: s.loadMaybeAddress(),
-          tokenPoolData: tokenPool.builder.data.contractData.decode(s.loadRef()),
+          id,
+          ownable,
+          rebalancer,
+          tokenPoolData,
         }
       },
     }

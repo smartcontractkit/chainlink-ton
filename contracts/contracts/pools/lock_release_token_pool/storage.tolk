@@ -11,7 +11,7 @@ struct LockReleaseTokenPool_Data {
     s_rebalancer: address
     
     /// Ownable trait data
-    ownable: Cell<Ownable2Step>,
+    ownable: Ownable2Step,
 
     tokenPoolData: Cell<TokenPool_Data>
 }
