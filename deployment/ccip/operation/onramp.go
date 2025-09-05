@@ -20,6 +20,7 @@ type DeployOnRampInput struct {
 	ChainSelector uint64
 	FeeQuoter     *address.Address
 	FeeAggregator *address.Address
+	ContractPath  string
 }
 
 type DeployOnRampOutput struct {
@@ -37,8 +38,7 @@ func deployOnRamp(b operations.Bundle, deps TonDeps, in DeployOnRampInput) (Depl
 	output := DeployOnRampOutput{}
 
 	// TODO wrap the code cell creation somewhere
-	CounterContractPath := utils.GetBuildDir("OnRamp.compiled.json")
-	codeCell, err := wrappers.ParseCompiledContract(CounterContractPath)
+	codeCell, err := wrappers.ParseCompiledContract(in.ContractPath)
 	if err != nil {
 		return output, fmt.Errorf("failed to compile contract: %w", err)
 	}
