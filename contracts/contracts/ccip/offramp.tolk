@@ -125,7 +125,7 @@ fun onInternalMessage(in:InMessage) {
     val msg = lazy OffRamp_InMessage.fromSlice(in.body);
     match(msg) {
         OffRamp_Commit => {
-            commit(msg, in.senderAddress)
+            _commit(msg, in.senderAddress)
         }
         OffRamp_Execute => {
             _execute(msg, in.senderAddress)
@@ -298,14 +298,7 @@ fun _setOCR3Config(msg: OCR3Base_SetOCR3Config, sender: address) {
         st.store();
 }
 
-@pure @inline
-fun getMerkleRootID(merkleRoot: uint256): builder {
-    var cs = beginCell().storeUint(merkleRoot, 256).endCell().beginParse();
-    return beginCell() // id:u16 = 1 | merkleRoot:256
-        .storeUint(cs.loadUint(224), 224);
-}
-
-fun commit(msg: OffRamp_Commit, sender: address) {
+fun _commit(msg: OffRamp_Commit, sender: address) {
     var st = lazy Storage.load();
 
     val report = msg.report;
@@ -463,6 +456,13 @@ fun _updateSourceChainConfig(msg: OffRamp_UpdateSourceChainConfig, sender: addre
     st.store();
 }
 
+
+@pure @inline
+fun getMerkleRootID(merkleRoot: uint256): builder {
+    var cs = beginCell().storeUint(merkleRoot, 256).endCell().beginParse();
+    return beginCell() // id:u16 = 1 | merkleRoot:256
+        .storeUint(cs.loadUint(224), 224);
+}
 
 // get fun executionState() {
 //     // TODO: node will need to directly look at MerkleRoot subcontracts

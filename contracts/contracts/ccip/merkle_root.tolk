@@ -36,54 +36,10 @@ fun onInternalMessage(in: InMessage) {
             _validateAndExecute(msg, in.senderAddress);
         }
         MerkleRoot_CCIPReceiveConfirm => {
-            var st = MerkleRoot_Storage.load();
-
-            assert(st.state == STATE_EXECUTE && st.message != null, ERROR_UPDATING_STATE_OF_NON_EXECUTED_MESSAGE);
-            assert(in.senderAddress == st.owner, ERROR_NOT_OWNER);
-
-            val ccipMessage = st.message!.load();
-
-            assert (msg.receiver == ccipMessage.receiver, ERROR_NOTIFICATION_FROM_INVALID_RECEIVER);
-
-            st.state = STATE_SUCCESS;
-            st.store();
-
-            val messageHeader = ccipMessage.header;
-            val offRampNotifySuccess = createMessage({
-                bounce: true,
-                value: ton("0"),
-                dest: st.owner,
-                body: OffRamp_NotifySuccess {
-                    header: messageHeader,
-                    rootId: st.rootId
-                },
-            });
-            offRampNotifySuccess.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+            _ccipReceiveConfirm(msg, in.senderAddress);
         }
         MerkleRoot_CCIPReceiveBounced => {
-            var st = MerkleRoot_Storage.load();
-
-            assert(in.senderAddress == st.owner, ERROR_NOT_OWNER);
-            assert(st.state == STATE_EXECUTE && st.message != null, ERROR_UPDATING_STATE_OF_NON_EXECUTED_MESSAGE);
-
-            val ccipMessage = st.message!.load();
-
-            assert (msg.receiver == ccipMessage.receiver, ERROR_NOTIFICATION_FROM_INVALID_RECEIVER);
-
-            st.state = STATE_EXECUTE_FAILED;
-            st.store();
-
-            val messageHeader = ccipMessage.header;
-            val offRampNotifyFailure = createMessage({
-                bounce: true,
-                value: ton("0"),
-                dest: st.owner,
-                body: OffRamp_NotifyFailure {
-                    header: messageHeader,
-                    rootId: st.rootId,
-                },
-            });
-            offRampNotifyFailure.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+            _ccipReceiveBounced(msg, in.senderAddress);
         }
         else => {
             // ignore empty messages, "wrong opcode" for others
@@ -91,8 +47,58 @@ fun onInternalMessage(in: InMessage) {
         }
     }
 }
+fun _ccipReceiveBounced(msg: MerkleRoot_CCIPReceiveBounced, sender: address){
+    var st = MerkleRoot_Storage.load();
 
-//TODO: We are not keeping track of the execution state right now, we just relay the message to confirm that the merkle proof is valid
+    assert(sender == st.owner, ERROR_NOT_OWNER);
+    assert(st.state == STATE_EXECUTE && st.message != null, ERROR_UPDATING_STATE_OF_NON_EXECUTED_MESSAGE);
+
+    val ccipMessage = st.message!.load();
+
+    assert (msg.receiver == ccipMessage.receiver, ERROR_NOTIFICATION_FROM_INVALID_RECEIVER);
+
+    st.state = STATE_EXECUTE_FAILED;
+    st.store();
+
+    val messageHeader = ccipMessage.header;
+    val offRampNotifyFailure = createMessage({
+        bounce: true,
+        value: ton("0"),
+        dest: st.owner,
+        body: OffRamp_NotifyFailure {
+            header: messageHeader,
+            rootId: st.rootId,
+        },
+    });
+    offRampNotifyFailure.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+
+}
+
+fun _ccipReceiveConfirm(msg: MerkleRoot_CCIPReceiveConfirm, sender: address) {
+    var st = MerkleRoot_Storage.load();
+
+    assert(st.state == STATE_EXECUTE && st.message != null, ERROR_UPDATING_STATE_OF_NON_EXECUTED_MESSAGE);
+    assert(sender == st.owner, ERROR_NOT_OWNER);
+
+    val ccipMessage = st.message!.load();
+
+    assert (msg.receiver == ccipMessage.receiver, ERROR_NOTIFICATION_FROM_INVALID_RECEIVER);
+
+    st.state = STATE_SUCCESS;
+    st.store();
+
+    val messageHeader = ccipMessage.header;
+    val offRampNotifySuccess = createMessage({
+        bounce: true,
+        value: ton("0"),
+        dest: st.owner,
+        body: OffRamp_NotifySuccess {
+            header: messageHeader,
+            rootId: st.rootId
+        },
+    });
+    offRampNotifySuccess.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
 
 fun _validateAndExecute(msg: MerkleRoot_Validate, sender: address) {
     var st = MerkleRoot_Storage.load();
