@@ -40,6 +40,21 @@
       };
       # Resolve tools
       dependency-analyzer = pkgs.callPackage ./tools/dependency_analyzer commonArgs;
+
+      # Nix devex
+      lock-nix-tidy = pkgs.writeShellApplication {
+        name = "lock-nix-tidy";
+        runtimeInputs = [
+          pkgs.nix
+          pkgs.jq
+          pkgs.coreutils
+          pkgs.findutils
+          pkgs.gnugrep
+          pkgs.gawk
+          pkgs.gnused
+        ];
+        text = builtins.readFile ./scripts/lock-nix-tidy.sh;
+      };
     in rec {
       # Output a set of dev environments (shells)
       devShells =
@@ -59,6 +74,8 @@
           default = chainlink-ton;
           # Dependency analyzer
           dependency-analyzer = dependency-analyzer.packages.default;
+
+          inherit lock-nix-tidy;
         }
         // contracts.packages;
     });
