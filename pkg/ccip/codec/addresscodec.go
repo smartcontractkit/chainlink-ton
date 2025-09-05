@@ -58,6 +58,7 @@ func (a addressCodec) AddressStringToBytes(addrString string) ([]byte, error) {
 	return rawAddr[:], nil
 }
 
+// OracleIDAsAddressBytes converts an oracle ID (uint8) into a byte slice representing a TON address.
 func (a addressCodec) OracleIDAsAddressBytes(oracleID uint8) ([]byte, error) {
 	addr := make([]byte, 32)
 	// write oracleID into addr in big endian
