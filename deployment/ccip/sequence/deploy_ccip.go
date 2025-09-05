@@ -1,16 +1,28 @@
 package sequence
 
 import (
+	"fmt"
 	"github.com/Masterminds/semver/v3"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
-	"github.com/xssnick/tonutils-go/address"
-
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/utils"
+	"github.com/xssnick/tonutils-go/address"
+	"os"
+)
+
+const (
+	contractsGithubOrganization  = "smartcontractkit"
+	contractsGithubRepository    = "chainlink-ton"
+	contractsGithubReleasePrefix = "ton-contracts-build-"
+	contractsGithubAssetPrefix   = "ton-contracts-build-"
+	contractsFileNameSuffix      = ".compiled.json"
+	ContractsLocalVersion        = "local"
 )
 
 type DeployCCIPSeqInput struct {
-	CCIPConfig config.ChainContractParams
+	ContractsVersion string
+	CCIPConfig       config.ChainContractParams
 }
 
 type DeployCCIPSeqOutput struct {
@@ -35,8 +47,43 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 	// Initialize the output
 	output := DeployCCIPSeqOutput{}
 
+	// In order to run this locally we can use 'develop' version as assuming that that contracts will be there
+	if in.ContractsVersion != ContractsLocalVersion {
+		// Download contracts
+		downloadArtifactsInput := operation.DownloadArtifactsInput{
+			Organization:        contractsGithubOrganization,
+			Repository:          contractsGithubRepository,
+			Release:             contractsGithubReleasePrefix + in.ContractsVersion,
+			Asset:               contractsGithubAssetPrefix + in.ContractsVersion,
+			FilesSuffixToFilter: contractsFileNameSuffix,
+		}
+		downloadArtifactsOutput, err := operations.ExecuteOperation(b, operation.DownloadArtifactsOp, deps, downloadArtifactsInput)
+
+		if err != nil {
+			return output, err
+		}
+
+		if err := os.MkdirAll(utils.GetBuildDir(""), 0o755); err != nil {
+			return output, fmt.Errorf("failed to create dirs to store contracts: %w", err)
+		}
+
+		for _, a := range downloadArtifactsOutput.Output.Artifacts {
+			// Save the files in the corresponding location so that the deployment operations can find them
+			path := utils.GetBuildDir(a.Path)
+
+			if err := os.WriteFile(path, a.Data, 0o644); err != nil {
+				return output, fmt.Errorf("failed to contract to path %s: %w", path, err)
+			}
+
+			b.Logger.Infof("Saved contract artifact %s", path)
+		}
+	} else {
+		b.Logger.Infof("Not downloading contracts from Github. Using local version")
+	}
+
 	routerInput := operation.DeployRouterInput{
 		// chainSelector ?
+		ContractPath: utils.GetBuildDir("Router.compiled.json"),
 	}
 	deployRouterReport, err := operations.ExecuteOperation(b, operation.DeployRouterOp, deps, routerInput)
 	if err != nil {
@@ -45,8 +92,9 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 	output.RouterAddress = deployRouterReport.Output.Address
 
 	feeQuoterInput := operation.DeployFeeQuoterInput{
-		Params:   in.CCIPConfig.FeeQuoterParams,
-		LinkAddr: address.NewAddressNone(),
+		Params:       in.CCIPConfig.FeeQuoterParams,
+		LinkAddr:     address.NewAddressNone(),
+		ContractPath: utils.GetBuildDir("FeeQuoter.compiled.json"),
 	}
 	deployFeeQuoterReport, err := operations.ExecuteOperation(b, operation.DeployFeeQuoterOp, deps, feeQuoterInput)
 	if err != nil {
@@ -58,6 +106,7 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 		ChainSelector: in.CCIPConfig.OnRampParams.ChainSelector,
 		FeeQuoter:     deployFeeQuoterReport.Output.Address,
 		FeeAggregator: in.CCIPConfig.OnRampParams.FeeAggregator,
+		ContractPath:  utils.GetBuildDir("OnRamp.compiled.json"),
 	}
 
 	deployOnRampReport, err := operations.ExecuteOperation(b, operation.DeployOnRampOp, deps, onrampInput)
@@ -70,6 +119,7 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 		ChainSelector:                           in.CCIPConfig.OffRampParams.ChainSelector,
 		FeeQuoter:                               deployFeeQuoterReport.Output.Address,
 		PermissionlessExecutionThresholdSeconds: in.CCIPConfig.OffRampParams.PermissionlessExecutionThreshold,
+		ContractPath:                            utils.GetBuildDir("OffRamp.compiled.json"),
 	}
 	// TODO: the rest of OffRampParams (SourceChain config)
 

@@ -15,7 +15,9 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
-type DeployRouterInput struct{}
+type DeployRouterInput struct {
+	ContractPath string
+}
 
 type DeployRouterOutput struct {
 	Address *address.Address
@@ -32,8 +34,7 @@ func deployRouter(b operations.Bundle, deps TonDeps, in DeployRouterInput) (Depl
 	output := DeployRouterOutput{}
 
 	// TODO wrap the code cell creation somewhere
-	CounterContractPath := utils.GetBuildDir("Router.compiled.json")
-	codeCell, err := wrappers.ParseCompiledContract(CounterContractPath)
+	codeCell, err := wrappers.ParseCompiledContract(in.ContractPath)
 	if err != nil {
 		return output, fmt.Errorf("failed to compile contract: %w", err)
 	}
