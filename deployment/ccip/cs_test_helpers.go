@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
 	"math/big"
 	"testing"
 	"time"
@@ -101,6 +102,7 @@ func DeployChainContractsToTonCS(t *testing.T, env cldf.Environment, chainSelect
 				FeeAggregator: deployer.WalletAddress(),
 			},
 		},
+		ContractsVersion: sequence.ContractsLocalVersion,
 	})
 }
 
@@ -136,7 +138,7 @@ func AddLaneTONChangesets(env *cldf.Environment, from, to uint64, fromFamily, to
 				TonTokenAddr: big.NewInt(99),
 			},
 			FeeQuoterDestChainConfig: DefaultFeeQuoterDestChainConfig(true, to),
-			TokenTransferFeeConfigs:  map[uint64]feequoter.UpdateTokenTransferFeeConfig{
+			TokenTransferFeeConfigs: map[uint64]feequoter.UpdateTokenTransferFeeConfig{
 				// TODO:
 			},
 		}
@@ -189,7 +191,7 @@ func AddLaneTONChangesets(env *cldf.Environment, from, to uint64, fromFamily, to
 				TonTokenAddr: big.NewInt(99),
 			},
 			FeeQuoterDestChainConfig: DefaultFeeQuoterDestChainConfig(true, to),
-			TokenTransferFeeConfigs:  map[uint64]feequoter.UpdateTokenTransferFeeConfig{
+			TokenTransferFeeConfigs: map[uint64]feequoter.UpdateTokenTransferFeeConfig{
 				// TODO:
 			},
 		}
