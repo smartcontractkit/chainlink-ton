@@ -1,0 +1,62 @@
+name: End-to-end CCV Test (Testnets)
+
+on:
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: devenv
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  e2e-testnets:
+    permissions:
+      id-token: write
+      contents: read
+    runs-on: ubuntu24.04-16cores-64GB
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          fetch-depth: 0
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
+      - name: Install Just
+        uses: extractions/setup-just@e33e0265a09d6d736e2ee1e0eb685ef1de4669ff # v3
+        with:
+          just-version: '1.40.0'
+      - name: Set up Go
+        uses: actions/setup-go@v6 # v6
+        with:
+          cache: true
+          go-version-file: devenv/go.mod
+          cache-dependency-path: |
+            devenv/go.sum
+      - name: Download Go dependencies
+        run: |
+          go mod download
+      - name: Build Docker Images
+        run: just build-docker-dev-ci
+        env:
+          DOCKER_BUILDKIT: 1
+      - name: Run CCV environment
+        env:
+          ETH_FUJI_PRIVATE_KEY: ${{ secrets.ETH_FUJI_PRIVATE_KEY }}
+        run: |
+          case "${{ inputs.network }}" in
+            eth_fuji)
+              PRIVATE_KEY=$ETH_FUJI_PRIVATE_KEY
+              ;;
+            *)
+              echo "Unknown network: ${{ inputs.network }}"
+              exit 1
+              ;;
+          esac
+          cd cmd/ton && go install . && cd -
+          PRIVATE_KEY=${PRIVATE_KEY} ton env.toml,env-fuji-fantom.toml
+      - name: Run Soak Test
+        working-directory: devenv/tests/e2e
+        run: go test -timeout 2h -v -run TestSoak
