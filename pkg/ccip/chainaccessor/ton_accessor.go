@@ -628,7 +628,10 @@ func (a *TONAccessor) GetChainFeePriceUpdate(ctx context.Context, selectors []cc
 		result, err := a.client.RunGetMethod(ctx, block, addr, "destinationChainGasPrice", uint64(selector))
 		// The plugin is built with EVM behaviour in mind: if a value doesn't exist the zero value is returned
 		if execError, ok := err.(ton.ContractExecError); ok && execError.Code == common.ErrUnknownDestChainSelector {
-			prices[selector] = ccipocr3.TimestampedBig{}
+			prices[selector] = ccipocr3.TimestampedBig{
+				Timestamp: time.Time{},
+				Value:     ccipocr3.NewBigIntFromInt64(0),
+			}
 			continue
 		}
 		if err != nil {
