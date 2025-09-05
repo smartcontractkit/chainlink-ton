@@ -18,11 +18,11 @@ jobs:
     strategy:
       matrix:
         test: [
-          { name: "TestE2ELoad/clean", config: "env.toml" },
-          { name: "TestE2ELoad/rpc_latency", config: "env.toml" },
-          { name: "TestE2ELoad/gas", config: "env.toml" },
-          { name: "TestE2ELoad/reorgs", config: "env.toml,env-geth.toml" },
-          { name: "TestE2ELoad/services_chaos", config: "env.toml" },
+          { name: "TestE2ELoad/clean", config: "env.toml,env-ci.toml" },
+          { name: "TestE2ELoad/rpc_latency", config: "env.toml,env-ci.toml" },
+          { name: "TestE2ELoad/gas", config: "env.toml,env-ci.toml" },
+          { name: "TestE2ELoad/reorgs", config: "env.toml,env-ci.toml,env-geth.toml" },
+          { name: "TestE2ELoad/services_chaos", config: "env.toml,env-ci.toml" },
         ]
       fail-fast: false
     steps:

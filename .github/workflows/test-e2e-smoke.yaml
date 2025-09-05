@@ -51,7 +51,7 @@ jobs:
       - name: Run CCV environment
         run: |
           cd cmd/ton && go install . && cd -
-          ton u env.toml
+          ton u env.toml,env-ci.toml
       - name: Test Smoke
         working-directory: devenv/tests/e2e
         run: |

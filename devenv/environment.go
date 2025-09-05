@@ -46,14 +46,13 @@ func NewEnvironment() (*Cfg, error) {
 		}
 		return nil
 	})
-	// TODO: add roles to pull JD in your repository in Atlantis
-	//eg.Go(func() error {
-	//	_, err = jd.NewJD(in.JD)
-	//	if err != nil {
-	//		return fmt.Errorf("failed to create job distributor: %w", err)
-	//	}
-	//	return nil
-	//})
+	eg.Go(func() error {
+		_, err = jd.NewJD(in.JD)
+		if err != nil {
+			return fmt.Errorf("failed to create job distributor: %w", err)
+		}
+		return nil
+	})
 	if err := eg.Wait(); err != nil {
 		return nil, err
 	}

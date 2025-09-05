@@ -52,7 +52,7 @@ jobs:
               ;;
           esac
           cd cmd/ton && go install . && cd -
-          PRIVATE_KEY=${PRIVATE_KEY} ton env.toml,env-fuji-fantom.toml
+          PRIVATE_KEY=${PRIVATE_KEY} ton env.toml,env-ci.toml,env-fuji-fantom.toml
       - name: Run Soak Test
         working-directory: devenv/tests/e2e
         run: go test -timeout 2h -v -run TestSoak
