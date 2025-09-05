@@ -3,6 +3,7 @@ package deployment
 import (
 	"math/big"
 	"testing"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"
@@ -65,6 +66,7 @@ func TestDeploy(t *testing.T) {
 
 	// memory environment doesn't block on funding so changesets can execute before the env is fully ready, manually call fund so we block here
 	test_utils.FundWallets(t, tonChain.Client, []*address.Address{deployer.Address()}, []tlb.Coins{tlb.MustFromTON("1000")})
+	time.Sleep(5)
 
 	env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{
 		commonchangeset.Configure(ton_ops.AddTonLanes{}, config.UpdateTonLanesConfig{
