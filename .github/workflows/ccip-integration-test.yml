@@ -11,13 +11,13 @@ permissions:
   actions: read
 
 env:
-  DOCKER_CACHE_KEY: ccip-e2e-images-v0
+  DOCKER_CACHE_KEY: ccip-e2e-images-v1
   DOCKER_CACHE_DIR: ${{ github.workspace }}/.cache
   DOCKER_CACHE_TAR_NAME: ccip-e2e-docker-images.tar
   # mylocalton docker image / CCIP E2E test database image
   DOCKER_IMAGES: >-
     ghcr.io/neodix42/mylocalton-docker:latest
-    postgres:14-alpine
+    postgres:16-alpine
 jobs:
   prepare-images:
     name: Prepare and Cache Docker Images
@@ -51,14 +51,14 @@ jobs:
       matrix:
         type:
           # Note: list of tests, add more tests here
-          - name: 'Barebone EVM > TON Messaging'
+          - name: 'TON CCIP Messaging Tests'
             cmd: 'cd integration-tests/smoke/ccip && go test ccip_ton_messaging_test.go -timeout 12m -test.parallel=2 -count=1 -json'
 
     name: ${{ matrix.type.name }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
 
       - name: Restore cached docker images
         id: docker-cache-restore
@@ -78,11 +78,33 @@ jobs:
         with:
           nix_path: nixpkgs=channel:nixos-unstable
 
+      # cache Go build artifacts and modules to speed up subsequent runs
+      # key includes go.sum files from both chainlink-ton and chainlink core repos
+      # paths are standard Go cache locations on GitHub Actions runners
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            /home/runner/.cache/go-build
+            /home/runner/go/pkg/mod
+          key: go-${{ hashFiles('**/go.sum', 'chainlink/**/go.sum') }}
+
       - name: Read Chainlink Core Ref from .core_version
         id: read_core_ref
         run: echo "CORE_REF=$(cat ./scripts/.core_version | tr -d '[:space:]')" >> $GITHUB_OUTPUT
 
+      # cache the entire Chainlink Core repository to avoid re-cloning
+      # key is based on the exact commit SHA from .core_version file
+      # only checkout if cache miss occurs
+      - name: Cache Chainlink Core repo
+        uses: actions/cache@v4
+        id: core-cache
+        with:
+          path: chainlink
+          key: core-${{ steps.read_core_ref.outputs.CORE_REF }}
+
       - name: Checkout Chainlink Core repo
+        if: steps.core-cache.outputs.cache-hit != 'true'
         uses: actions/checkout@v4
         with:
           repository: smartcontractkit/chainlink
@@ -91,10 +113,16 @@ jobs:
 
       - name: Setup Environment and Run Tests
         run: |
-          # TODO: remove this once we're public, fixes private repo access issues
-          git config --global url."https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/".insteadOf "https://github.com/"
           nix develop .#ccip-e2e -c scripts/e2e/setup-env.sh --core-dir "${GITHUB_WORKSPACE}/chainlink"
           nix develop .#ccip-e2e -c scripts/e2e/run-test.sh --core-dir "${GITHUB_WORKSPACE}/chainlink" --test-command "${{ matrix.type.cmd }}"
+
+      - name: Upload e2e test logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ccip-test-logs-${{ matrix.type.name }}
+          path: chainlink/integration-tests/smoke/ccip/logs/
+          retention-days: 7
 
   integration-test-ccip:
     if: always()

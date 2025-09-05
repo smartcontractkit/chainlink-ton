@@ -18,6 +18,7 @@ import (
 
 type DeployCCIPContractsCfg struct {
 	TonChainSelector uint64
+	ContractsVersion string
 	Params           config.ChainContractParams
 }
 
@@ -71,7 +72,8 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 	ccipSeqInput := sequence.DeployCCIPSeqInput{
 		// MCMSAddress:      mcmsSeqReport.Output.MCMSAddress,
 		// LinkTokenAddress: linkTokenAddress,
-		CCIPConfig: config.Params,
+		CCIPConfig:       config.Params,
+		ContractsVersion: config.ContractsVersion,
 	}
 	ccipSeqReport, err := operations.ExecuteSequence(env.OperationsBundle, sequence.DeployCCIPSequence, deps, ccipSeqInput)
 	if err != nil {

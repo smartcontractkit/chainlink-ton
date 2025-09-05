@@ -14,7 +14,7 @@ require (
 	github.com/smartcontractkit/chainlink-ton/deployment v0.0.0-20250904183752-4ea5c19ee886
 	github.com/smartcontractkit/chainlink/deployment v0.0.0-20250905133554-bded0f7a3131
 	github.com/stretchr/testify v1.10.0
-	github.com/xssnick/tonutils-go v1.14.0
+	github.com/xssnick/tonutils-go v1.14.1
 	go.uber.org/zap v1.27.0
 )
 
