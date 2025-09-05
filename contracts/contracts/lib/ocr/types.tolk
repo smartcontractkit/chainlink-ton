@@ -70,9 +70,9 @@ struct ConfigInfo {
 }
 
 struct SignatureEd25519 {
+	signer: uint256
 	r: uint256;
 	s: uint256;
-	signer: uint256
 }
 
 struct ReportContext {

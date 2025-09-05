@@ -199,7 +199,7 @@ export class OffRamp extends OCR3Base {
         .storeBuilder(commitReportToBuilder(opts.report))
         .storeRef(
           asSnakeData(opts.signatures, (item) =>
-            beginCell().storeUint(item.r, 256).storeUint(item.s, 256).storeUint(item.signer, 256),
+            beginCell().storeUint(item.signer, 256).storeUint(item.r, 256).storeUint(item.s, 256),
           ),
         )
         .endCell(),
