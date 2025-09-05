@@ -4,13 +4,10 @@ import {
   CommonMessageInfoExternalIn,
   CommonMessageInfoExternalOut,
   CommonMessageInfoInternal,
-  ExternalAddress,
   Message,
 } from '@ton/core'
-import { Maybe } from '@ton/core/dist/utils/maybe'
-import { Blockchain, BlockchainTransaction } from '@ton/sandbox'
+import { BlockchainTransaction } from '@ton/sandbox'
 import { prettifyTransaction, PrettyTransaction } from '@ton/test-utils'
-import { assert } from 'console'
 
 /**
  * Exit code type - represents TVM exit codes
