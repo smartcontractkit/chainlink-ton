@@ -3,6 +3,7 @@ package devenv
 import (
 	"fmt"
 
+	"github.com/smartcontractkit/chainlink-ton/devenv/components"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/smartcontractkit/chainlink-testing-framework/framework"
@@ -13,10 +14,11 @@ import (
 )
 
 type Cfg struct {
-	TON         *TON                `toml:"ton" validate:"required"`
-	JD          *jd.Input           `toml:"jd"`
-	Blockchains []*blockchain.Input `toml:"blockchains"      validate:"required"`
-	NodeSets    []*ns.Input         `toml:"nodesets"         validate:"required"`
+	OnChainSettings *OnChainSettings    `toml:"onchain" validate:"required"`
+	JD              *jd.Input           `toml:"jd"`
+	TONBlockchain   *components.Input   `toml:"ton_blockchain"`
+	Blockchains     []*blockchain.Input `toml:"blockchains"      validate:"required"`
+	NodeSets        []*ns.Input         `toml:"nodesets"         validate:"required"`
 }
 
 // NewEnvironment creates a new datafeeds environment either locally in Docker or remotely in K8s.
@@ -30,15 +32,20 @@ func NewEnvironment() (*Cfg, error) {
 	}
 	track := NewTimeTracker(Plog)
 	eg := &errgroup.Group{}
-	for _, b := range in.Blockchains {
-		eg.Go(func() error {
-			_, err = blockchain.NewBlockchainNetwork(b)
-			if err != nil {
-				return fmt.Errorf("failed to create blockchain network: %w", err)
-			}
-			return nil
-		})
-	}
+	eg.Go(func() error {
+		_, err = components.NewTONNetwork(in.TONBlockchain)
+		if err != nil {
+			return fmt.Errorf("failed to create TON blockchain network: %w", err)
+		}
+		return nil
+	})
+	eg.Go(func() error {
+		_, err = blockchain.NewBlockchainNetwork(in.Blockchains[0])
+		if err != nil {
+			return fmt.Errorf("failed to create blockchain network: %w", err)
+		}
+		return nil
+	})
 	// TODO: add roles to pull JD in your repository in Atlantis
 	//eg.Go(func() error {
 	//	_, err = jd.NewJD(in.JD)

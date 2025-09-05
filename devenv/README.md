@@ -6,15 +6,6 @@
 
 </div>
 
-- [Components](#components)
-- [Prerequisites](#prerequisites)
-- [Environment](#run-the-environment-local-chains)
-    - [Local Environment](#run-the-environment-local-chains)
-    - [Testnet Environment](#run-the-environment-testnets)
-- [Developing](#creating-your-own-components)
-    - [Creating components](#creating-your-own-components)
-
-
 ## Install
 Every command should be run inside [Nix](https://github.com/DeterminateSystems/nix-installer) shell, please follow the [link](https://github.com/DeterminateSystems/nix-installer) and install it.
 
@@ -30,16 +21,58 @@ Enter `ton` shell and follow auto-completion hints
 ton sh
 ```
 
-## Run the environment (testnets) (WIP)
-Create `.envrc` and put the key there `export PRIVATE_KEY="..."` and select the network config
-```
-up env.toml,env-fuji-fantom.toml
-```
-TODO: add TON key for testnet here both to config and code
-
 ### Running tests
 Devenv include 2 types of tests: end-to-end system-level tests and services tests
 ```
 # run e2e smoke test, requires full environment to spin up first
 ton r && go test -v -run TestE2E ./...
+```
+
+### Running tests
+Devenv include 2 types of tests: end-to-end system-level tests and services tests
+
+#### Service Tests
+Go to `tests/services` directory and run
+```bash
+go test -v -run TestService
+```
+
+#### Smoke E2E Test
+Go to `tests/e2e` directory and run
+```bash
+go test -v -run TestE2ESmoke
+```
+
+#### Load/Chaos Tests
+Spin up the observability stack first
+```bash
+export LOKI_URL=http://localhost:3030/loki/api/v1/push
+ton obs u
+```
+
+Go to `tests/e2e` directory and run
+
+Clean load test
+```bash
+go test -v -run TestE2ELoad/clean
+```
+
+RPC latency test
+```bash
+go test -v -run TestE2ELoad/rpc_latency
+```
+
+Gas spikes
+```bash
+go test -v -run TestE2ELoad/gas
+```
+
+Reorgs (you need an env with Geth configured, `up env.toml,env-geth.toml`)
+```bash
+go test -v -run TestE2ELoad/reorgs
+```
+
+Services chaos
+```bash
+go test -v -run TestE2ELoad/services_chaos
 ```

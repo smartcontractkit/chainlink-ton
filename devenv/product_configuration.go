@@ -32,7 +32,7 @@ const (
 
 var Plog = log.Output(zerolog.ConsoleWriter{Out: os.Stderr}).Level(zerolog.DebugLevel).With().Fields(map[string]any{"component": "ton"}).Logger()
 
-type TON struct {
+type OnChainSettings struct {
 	CLNodesFundingETH   float64       `toml:"cl_nodes_funding_eth"`
 	CLNodesFundingLink  float64       `toml:"cl_nodes_funding_link"`
 	ChainFinalityDepth  int64         `toml:"chain_finality_depth"`
@@ -230,7 +230,7 @@ func DefaultProductConfiguration(in *Cfg, phase ConfigPhase) error {
        HttpUrl = '%s'
 `,
 			evmBlockchainID,
-			in.TON.ChainFinalityDepth,
+			in.OnChainSettings.ChainFinalityDepth,
 			evmBlockchain.InternalWSUrl,
 			evmBlockchain.InternalHTTPUrl,
 		) + `
@@ -296,12 +296,12 @@ func DefaultProductConfiguration(in *Cfg, phase ConfigPhase) error {
 				Str("ETHKey", addrSrc.Attributes.Address).
 				Msg("Node info")
 		}
-		evmClient, _, _, err := ETHClient(in.Blockchains[0].Out.Nodes[0].ExternalWSUrl, in.TON.GasSettings)
+		evmClient, _, _, err := ETHClient(in.Blockchains[0].Out.Nodes[0].ExternalWSUrl, in.OnChainSettings.GasSettings)
 		if err != nil {
 			return fmt.Errorf("could not create basic eth client: %w", err)
 		}
 		for _, addr := range ethKeyAddressesSrc {
-			if err := FundNodeEIP1559(evmClient, pkey, addr, in.TON.CLNodesFundingETH); err != nil {
+			if err := FundNodeEIP1559(evmClient, pkey, addr, in.OnChainSettings.CLNodesFundingETH); err != nil {
 				return fmt.Errorf("failed to fund CL nodes on dst chain: %w", err)
 			}
 		}
@@ -315,7 +315,7 @@ func DefaultProductConfiguration(in *Cfg, phase ConfigPhase) error {
 		}
 		Plog.Info().Any("Selectors", selectors).Msg("Deploying for chain selectors")
 		eg := &errgroup.Group{}
-		in.TON.AddressesMu = &sync.Mutex{}
+		in.OnChainSettings.AddressesMu = &sync.Mutex{}
 		for _, sel := range selectors {
 			eg.Go(func() error {
 				err = deployContractsForSelector(in, e, sel)

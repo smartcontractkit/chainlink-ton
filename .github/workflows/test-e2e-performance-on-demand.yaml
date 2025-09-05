@@ -36,7 +36,7 @@ jobs:
       - name: Configure AWS credentials using OIDC
         uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502 # v4.0.2
         with:
-          role-to-assume: ${{ secrets.CCV_IAM_ROLE }}
+          role-to-assume: ${{ secrets.TON_IAM_ROLE }}
           aws-region: us-east-1
       - name: Authenticate to ECR Public
         id: login-ecr-public

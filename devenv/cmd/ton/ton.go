@@ -14,7 +14,8 @@ import (
 )
 
 const (
-	LocalCCIPTONDashboard = "http://localhost:3000/d/f8a04cef-653f-46d3-86df-87c532300672/ccip-ton-soak-test?orgId=1&refresh=5s"
+	LocalWASPLoadDashboard = "http://localhost:3000/d/WASPLoadTests/wasp-load-test?orgId=1&from=1756927942705&to=1756928229431"
+	LocalCCIPTONDashboard  = "http://localhost:3000/d/f8a04cef-653f-46d3-86df-87c532300672/ccip-ton-soak-test?orgId=1&refresh=5s"
 )
 
 var rootCmd = &cobra.Command{
@@ -99,10 +100,11 @@ var obsUpCmd = &cobra.Command{
 		if remote {
 			return fmt.Errorf("remote mode: %v, local observability stack can only be used in 'local' mode", remote)
 		}
-		if err := framework.ObservabilityUpFull(); err != nil {
+		if err := framework.ObservabilityUp(); err != nil {
 			return fmt.Errorf("observability up failed: %w", err)
 		}
 		de.Plog.Info().Msgf("TON Dashboard: %s", LocalCCIPTONDashboard)
+		de.Plog.Info().Msgf("TON Load Test Dashboard: %s", LocalWASPLoadDashboard)
 		return nil
 	},
 }
@@ -128,10 +130,11 @@ var obsRestartCmd = &cobra.Command{
 		if err := framework.ObservabilityDown(); err != nil {
 			return fmt.Errorf("observability down failed: %w", err)
 		}
-		if err := framework.ObservabilityUpFull(); err != nil {
+		if err := framework.ObservabilityUp(); err != nil {
 			return fmt.Errorf("observability up failed: %w", err)
 		}
 		de.Plog.Info().Msgf("TON Dashboard: %s", LocalCCIPTONDashboard)
+		de.Plog.Info().Msgf("TON Load Test Dashboard: %s", LocalWASPLoadDashboard)
 		return nil
 	},
 }

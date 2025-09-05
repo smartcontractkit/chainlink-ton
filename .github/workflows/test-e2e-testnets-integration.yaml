@@ -1,4 +1,4 @@
-name: End-to-end CCV Test (Testnets)
+name: End-to-end TON Test (Testnets)
 
 on:
   workflow_dispatch:
@@ -38,10 +38,6 @@ jobs:
       - name: Download Go dependencies
         run: |
           go mod download
-      - name: Build Docker Images
-        run: just build-docker-dev-ci
-        env:
-          DOCKER_BUILDKIT: 1
       - name: Run CCV environment
         env:
           ETH_FUJI_PRIVATE_KEY: ${{ secrets.ETH_FUJI_PRIVATE_KEY }}

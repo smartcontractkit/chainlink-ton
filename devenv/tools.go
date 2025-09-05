@@ -3,6 +3,7 @@ package devenv
 import (
 	"context"
 	"crypto/ecdsa"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
@@ -15,6 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/rs/zerolog"
+	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 )
 
 /*
@@ -68,6 +70,10 @@ func (t *TimeTracker) Print() {
 		Str("Duration", total.String()).
 		Msg("Total environment boot up time")
 }
+
+/*
+This code should be provided by CLDF framework exposing methods on EVM Client
+*/
 
 const (
 	DefaultNativeTransferGasPrice = 21000
@@ -178,4 +184,16 @@ func FundNodeEIP1559(c *ethclient.Client, pkey, recipientAddress string, amountO
 	}
 	Plog.Info().Str("Wei", amountWei.String()).Msg("Funded with ETH")
 	return nil
+}
+
+func GetCLDFAddressesPerSelector(in *Cfg) ([][]datastore.AddressRef, error) {
+	addrs := make([][]datastore.AddressRef, 0)
+	for _, addr := range in.OnChainSettings.Addresses {
+		var refs []datastore.AddressRef
+		if err := json.Unmarshal([]byte(addr), &refs); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal addresses: %w", err)
+		}
+		addrs = append(addrs, refs)
+	}
+	return addrs, nil
 }
