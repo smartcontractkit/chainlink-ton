@@ -18,11 +18,11 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink/deployment/ccip/shared/client"
 	"github.com/smartcontractkit/chainlink/deployment/ccip/shared/stateview"
+	tonstate "github.com/smartcontractkit/chainlink/deployment/ccip/shared/stateview/ton"
 	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
 	"github.com/smartcontractkit/chainlink/deployment/environment/memory"
 
 	ops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
-	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 
 	tonCommon "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
@@ -93,7 +93,7 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 	accessor, aerr := chainaccessor.NewTONAccessor(lggr, ccipocr3.ChainSelector(chainSelector), tonChain.Client, lp, addrCodec)
 	require.NoError(t, aerr)
 
-	onRampAddr := state[chainSelector].OnRamp
+	onRampAddr := state[chainSelector].CCIPAddress
 
 	// -- bind onramp in accessor, event filter will be registered in Sync()
 	rawOnRampAddr, err := addrCodec.AddressStringToBytes(onRampAddr.String())
@@ -141,8 +141,8 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 		ccipState := stateview.CCIPOnChainState{
 			TonChains: map[uint64]tonstate.CCIPChainState{
 				chainSelector: {
-					Router: state[chainSelector].Router,
-					OnRamp: state[chainSelector].OnRamp,
+					Router:      state[chainSelector].Router,
+					CCIPAddress: state[chainSelector].CCIPAddress,
 				},
 			},
 		}
