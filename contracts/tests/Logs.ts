@@ -171,7 +171,22 @@ export const testLogCCIPMessageSent = (
       },
     }
 
-    expect(msg).toMatchObject(match)
+    // Check sender address using .equals() if specified in match
+    if (match.message?.sender && match.message.sender instanceof Address) {
+      if (!sender.equals(match.message.sender)) {
+        throw new Error(
+          `Sender address mismatch:\n` +
+            `  Expected: ${match.message.sender.toString()}\n` +
+            `  Received: ${sender.toString()}`,
+        )
+      }
+    }
+
+    // Check other fields using toMatchObject (excluding sender to avoid object comparison)
+    const { sender: _, ...messageWithoutSender } = msg.message
+    const { sender: __, ...matchWithoutSender } = match.message || {}
+
+    expect({ message: messageWithoutSender }).toMatchObject({ message: matchWithoutSender })
     return true
   })
 }
