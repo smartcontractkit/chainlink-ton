@@ -235,7 +235,7 @@ describe('Router', () => {
 
     // router.ccipSend
     {
-      const result = await router.sendCcipSend(deployer.getSender(), {
+      const result = await router.sendCcipSend(sender.getSender(), {
         value: toNano('1'),
         body: {
           queryID: 1,
@@ -250,7 +250,7 @@ describe('Router', () => {
 
       // we called the router
       expect(result.transactions).toHaveTransaction({
-        from: deployer.address,
+        from: sender.address,
         to: router.address,
         deploy: false,
         success: true,
@@ -284,7 +284,7 @@ describe('Router', () => {
           header: {
             destChainSelector: CHAINSEL_EVM_TEST_90000001,
           },
-          sender: deployer.address,
+          sender: sender.address,
         },
       })
     }
@@ -379,7 +379,7 @@ describe('Router', () => {
           header: {
             destChainSelector: CHAINSEL_EVM_TEST_90000001,
           },
-          sender: deployer.address,
+          sender: sender.address,
         },
       })
     }

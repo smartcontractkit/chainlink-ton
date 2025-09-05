@@ -298,3 +298,26 @@ export function formatAmount(amount: bigint, decimals: number = 9): string {
 
   return `${wholePart}.${fractionalPart.toString().padStart(decimals, '0').replace(/0+$/, '')}`
 }
+
+export function prettifyAddressesMap(transactions: BlockchainTransaction[]): Map<string, string> {
+  const map = new Map<string, string>()
+  for (const tx of transactions) {
+    if (!tx.inMessage) continue
+    const prettyTx = prettifyTransaction(tx)
+    if (
+      tx.inMessage.info.src != null &&
+      tx.inMessage.info.src != undefined &&
+      tx.inMessage.info.src instanceof Address
+    ) {
+      map.set(tx.inMessage.info.src.toRawString(), contractNameFromPrettyAddress(prettyTx.from)!)
+    }
+    if (
+      tx.inMessage.info.dest != null &&
+      tx.inMessage.info.dest != undefined &&
+      tx.inMessage.info.dest instanceof Address
+    ) {
+      map.set(tx.inMessage.info.dest.toRawString(), contractNameFromPrettyAddress(prettyTx.to)!)
+    }
+  }
+  return map
+}

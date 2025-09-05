@@ -5,6 +5,7 @@ import * as OCR3Logs from '../wrappers/libraries/ocr/Logs'
 import * as ReceiverLogs from '../wrappers/examples/ccip/Logs'
 import { fromSnakeData } from '../src/utils/types'
 import { merkleRootsFromCell, priceUpdatesFromCell } from '../wrappers/ccip/OffRamp'
+import { prettifyAddressesMap } from '../src/utils'
 
 // https://github.com/ton-blockchain/liquid-staking-contract/blob/1f4e9badbed52a4cf80cc58e4bb36ed375c6c8e7/utils.ts#L269-L294
 export const getExternals = (transactions: BlockchainTransaction[]) => {
@@ -75,10 +76,16 @@ export const assertLog = <T extends CombinedLogTypes>(
   type: T,
   match: LogMatch<T>,
 ) => {
+  const prettyAddressesMap = prettifyAddressesMap(transactions)
   const matched = getExternals(transactions).some((x) => {
     switch (type) {
       case CCIPLogs.LogTypes.CCIPMessageSent:
-        return testLogCCIPMessageSent(x, from, match as DeepPartial<CCIPLogs.CCIPMessageSent>)
+        return testLogCCIPMessageSent(
+          x,
+          from,
+          match as DeepPartial<CCIPLogs.CCIPMessageSent>,
+          prettyAddressesMap,
+        )
 
       case CCIPLogs.LogTypes.CCIPCommitReportAccepted:
         return testLogCCIPCommitReportAccepted(
@@ -142,6 +149,7 @@ export const testLogCCIPMessageSent = (
   message: Message,
   from: Address,
   match: DeepPartial<CCIPLogs.CCIPMessageSent>,
+  prettyAddressesMap: Map<string, string>,
 ) => {
   return testLog(message, from, CombinedLogTypes.CCIPMessageSent, (x) => {
     let bs = x.beginParse()
@@ -176,8 +184,8 @@ export const testLogCCIPMessageSent = (
       if (!sender.equals(match.message.sender)) {
         throw new Error(
           `Sender address mismatch:\n` +
-            `  Expected: ${match.message.sender.toString()}\n` +
-            `  Received: ${sender.toString()}`,
+            `  Expected: ${match.message.sender.toString()} (${prettyAddressesMap.get(match.message.sender.toRawString())})\n` +
+            `  Received: ${sender.toString()} (${prettyAddressesMap.get(sender.toRawString())})`,
         )
       }
     }
