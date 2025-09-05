@@ -9,6 +9,8 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
+	test_utils "github.com/smartcontractkit/chainlink-ton/deployment/utils"
+	"github.com/xssnick/tonutils-go/tlb"
 
 	chain_selectors "github.com/smartcontractkit/chain-selectors"
 	"github.com/stretchr/testify/require"
@@ -61,6 +63,9 @@ func TestDeploy(t *testing.T) {
 	// TODO: LINK token deployment
 	linkAddr := ton_ops.TonTokenAddr
 
+	// memory environment doesn't block on funding so changesets can execute before the env is fully ready, manually call fund so we block here
+	test_utils.FundWallets(t, tonChain.Client, []*address.Address{deployer.Address()}, []tlb.Coins{tlb.MustFromTON("1000")})
+
 	env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{
 		commonchangeset.Configure(ton_ops.AddTonLanes{}, config.UpdateTonLanesConfig{
 			EVMMCMSConfig: &proposalutils.TimelockConfig{},
@@ -78,7 +83,7 @@ func TestDeploy(t *testing.T) {
 							ton_ops.TonTokenAddr: big.NewInt(99),
 						},
 						FeeQuoterDestChainConfig: ton_ops.DefaultFeeQuoterDestChainConfig(true, evmSelector),
-						TokenTransferFeeConfigs:  map[uint64]feequoter.UpdateTokenTransferFeeConfig{
+						TokenTransferFeeConfigs: map[uint64]feequoter.UpdateTokenTransferFeeConfig{
 							// TODO: populate when token transfer enabled
 						},
 					},
