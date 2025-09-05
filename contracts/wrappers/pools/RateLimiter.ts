@@ -21,7 +21,7 @@ export type Data = {
 
 const loadTokenBucket = (slice: Slice): TokenBucket => {
   const tokens = slice.loadUintBig(128)
-  const lastUpdated = slice.loadUintBig(256)
+  const lastUpdated = slice.loadUintBig(32)
   const isEnabled = slice.loadBit()
   const capacity = slice.loadUintBig(128)
   const rate = slice.loadUintBig(128)

@@ -98,7 +98,7 @@ export const builder = {
         const tokenDecimals = s.loadUint(8)
         const allowListEnabled = s.loadBit()
         const allowListMap = loadDict(
-          s.loadDict(Dictionary.Keys.Address(), Dictionary.Values.Address()),
+          s.loadDict(Dictionary.Keys.Address(), Dictionary.Values.Bool()),
         )
         const allowList = new Set<Address>()
         for (const [k, v] of allowListMap.entries()) {

@@ -101,8 +101,6 @@ export class LockReleaseTokenPoolSetup extends BaseTokenPoolTest {
       toNano('1'),
     )
 
-    console.log('deployResult', deployResult.transactions)
-
     expect(deployResult.transactions).toHaveTransaction({
       from: this.acc.deployer.address,
       to: this.bind.lockReleaseTokenPool.address,

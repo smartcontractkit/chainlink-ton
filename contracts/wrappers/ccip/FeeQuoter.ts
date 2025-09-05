@@ -244,10 +244,7 @@ export const builder = {
     const contractData: CellCodec<FeeQuoterStorage> = {
       encode: (data: FeeQuoterStorage): Cell => {
         return beginCell()
-          .storeAddress(data.ownable.owner)
-          .storeMaybeBuilder(
-            data.ownable.pendingOwner ? beginCell().storeAddress(data.ownable.pendingOwner) : null,
-          )
+          .storeBuilder(ownable2step.builder.data.traitData.encode(data.ownable).asBuilder())
           .storeUint(data.maxFeeJuelsPerMsg, 96)
           .storeAddress(data.linkToken)
           .storeUint(data.tokenPriceStalenessThreshold, 64)
