@@ -6,19 +6,17 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	chain_selectors "github.com/smartcontractkit/chain-selectors"
 	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
-	test_utils "github.com/smartcontractkit/chainlink-ton/deployment/utils"
-	"github.com/xssnick/tonutils-go/tlb"
-
-	chain_selectors "github.com/smartcontractkit/chain-selectors"
-	"github.com/stretchr/testify/require"
-
 	ton_ops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
+	test_utils "github.com/smartcontractkit/chainlink-ton/deployment/utils"
+	"github.com/stretchr/testify/require"
+	"github.com/xssnick/tonutils-go/tlb"
 
 	"github.com/smartcontractkit/chainlink/deployment/ccip/changeset/v1_6"
 	"github.com/smartcontractkit/chainlink/deployment/environment/memory"
@@ -57,16 +55,16 @@ func TestDeploy(t *testing.T) {
 	deployer := tonChain.Wallet
 	t.Log("Deployer: ", deployer.Address().String())
 
+	// memory environment doesn't block on funding so changesets can execute before the env is fully ready, manually call fund so we block here
+	test_utils.FundWallets(t, tonChain.Client, []*address.Address{deployer.Address()}, []tlb.Coins{tlb.MustFromTON("1000")})
+	time.Sleep(5)
+
 	cs := ton_ops.DeployChainContractsToTonCS(t, env, chainSelector)
 	env, _, err := commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{cs})
 	require.NoError(t, err, "failed to deploy ccip")
 
 	// TODO: LINK token deployment
 	linkAddr := ton_ops.TonTokenAddr
-
-	// memory environment doesn't block on funding so changesets can execute before the env is fully ready, manually call fund so we block here
-	test_utils.FundWallets(t, tonChain.Client, []*address.Address{deployer.Address()}, []tlb.Coins{tlb.MustFromTON("1000")})
-	time.Sleep(5)
 
 	env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{
 		commonchangeset.Configure(ton_ops.AddTonLanes{}, config.UpdateTonLanesConfig{
