@@ -96,10 +96,6 @@ var obsUpCmd = &cobra.Command{
 	Aliases: []string{"u"},
 	Short:   "Spin up the observability stack",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		remote, _ := rootCmd.Flags().GetBool("remote")
-		if remote {
-			return fmt.Errorf("remote mode: %v, local observability stack can only be used in 'local' mode", remote)
-		}
 		if err := framework.ObservabilityUp(); err != nil {
 			return fmt.Errorf("observability up failed: %w", err)
 		}
@@ -114,10 +110,6 @@ var obsDownCmd = &cobra.Command{
 	Aliases: []string{"d"},
 	Short:   "Spin down the observability stack",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		remote, _ := rootCmd.Flags().GetBool("remote")
-		if remote {
-			return fmt.Errorf("remote mode: %v, local observability stack can only be used in 'local' mode", remote)
-		}
 		return framework.ObservabilityDown()
 	},
 }

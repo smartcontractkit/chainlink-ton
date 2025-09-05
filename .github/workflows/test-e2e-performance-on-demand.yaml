@@ -46,10 +46,6 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6 # v6
         with:
-          go-version-file: devenv/go.mod
-      - name: Set up Go
-        uses: actions/setup-go@v6 # v6
-        with:
           cache: true
           go-version-file: devenv/go.mod
           cache-dependency-path: |
