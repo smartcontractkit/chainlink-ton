@@ -313,7 +313,7 @@ struct (0x00000003) MessageValidated<C> {
 // OffRamp
 
 struct MerkleRoot_Storage {
-    root: uint256;
+    rootId: uint224;
     owner: address;
     state: uint8;
     executionState: uint8; 
@@ -323,8 +323,7 @@ struct MerkleRoot_Storage {
 
 //crc32('MerkleRoot_Validate')
 struct (0x38ede91) MerkleRoot_Validate {
-    message: Cell<Any2TVMRampMessage>,
-    root: uint256,
+    message: Any2TVMRampMessage,
     //TODO: token data
 }
 
@@ -343,7 +342,7 @@ struct(0x845e303f) MerkleRoot_CCIPReceiveBounced {
 //crc32('OffRamp_DispatchValidated')
 struct (0x58cfcb02) OffRamp_DispatchValidated { 
     message: Cell<Any2TVMRampMessage>;
-    root: uint256;
+    rootId: uint224;
 }
 
 //crc32('Receiver_CCIPReceive')

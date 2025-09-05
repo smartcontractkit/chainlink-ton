@@ -160,12 +160,12 @@ fun onBouncedMessage(in: InMessageBounced) {
     val msg = lazy OffRamp_BouncedMessage.fromSlice(in.bouncedBody);
     match (msg) {
         CCIPReceive => {
-        _bouncedCCIPReceive(msg, in.senderAddress);
+            _bouncedCCIPReceive(msg.rootId, in.senderAddress);
         }
     }
 } 
 
-fun _bouncedCCIPReceive(msg: CCIPReceive, sender: address) {
+fun _bouncedCCIPReceive(rootId: uint224, sender: address) {
     val st = Storage.load();
     val receiveBounced = createMessage({
         bounce: true,
@@ -175,7 +175,7 @@ fun _bouncedCCIPReceive(msg: CCIPReceive, sender: address) {
                 code: st.deployer,
                 data: Deployable {
                     owner: contract.getAddress(),
-                    id: beginCell().storeUint(msg.rootId, 224),
+                    id: beginCell().storeUint(rootId, 224),
                 }.toCell(), 
             },
         },
@@ -223,7 +223,7 @@ fun _ccipReceiveConfirm(msg: OffRamp_CCIPReceiveConfirm, sender: address) {
             }
         },
         body: MerkleRoot_CCIPReceiveConfirm {
-            receiver: sender;
+            receiver: sender,
         }, 
     });
     merkleRootReceiveConfirm.send(SEND_MODE_REGULAR);
@@ -243,15 +243,14 @@ fun _dispatchValidated(msg: OffRamp_DispatchValidated, sender: address) {
             // Validate the message comes from an owned MerkleRoot contract
 
             val message = msg.message.load();
-            val root = msg.root;
-            val rootId = getMerkleRootID(root);
+            val rootId = msg.rootId;
 
             val expectedAddress: AutoDeployAddress = {
                 stateInit: {
                     code: st.deployer,
                     data: Deployable {
                         owner: contract.getAddress(),
-                        id: rootId,
+                        id: beginCell().storeUint(rootId, 224),
                     }.toCell()
                 }
             };
@@ -259,7 +258,7 @@ fun _dispatchValidated(msg: OffRamp_DispatchValidated, sender: address) {
 
             // dispatch message to receiver
             val ccipReceive: CCIPReceive = {
-                rootId: rootId.endCell().beginParse().loadUint(224), // receiver should call back the MR directly
+                rootId: rootId, // receiver should call back the MR directly
                 message: {
                     messageId: message.header.messageId,
                     sourceChainSelector: message.header.sourceChainSelector,
@@ -338,6 +337,7 @@ fun commit(msg: OffRamp_Commit, sender: address) {
         // validate against sourceChainConfig etc
         // increment seqNr
 
+        val rootId = getMerkleRootID(root.merkleRoot);
         // initialize MerkleRoot subcontract
         val initMsg = createMessage({
             bounce: true, // TODO: could bounce if root already exists but i don't think we shuold handle it
@@ -347,7 +347,7 @@ fun commit(msg: OffRamp_Commit, sender: address) {
                     code: st.deployer,
                     data: Deployable {
                         owner: contract.getAddress(),
-                        id: getMerkleRootID(root.merkleRoot),
+                        id: rootId,
                     }.toCell(),
                 },
                 // TODO: toShard so it's collocated with offramp
@@ -356,7 +356,7 @@ fun commit(msg: OffRamp_Commit, sender: address) {
                 stateInit: {
                     code: st.merkleRootCode,
                     data: MerkleRoot_Storage {
-                        root: root.merkleRoot,
+                        rootId: rootId.endCell().beginParse().loadUint(224), 
                         owner: contract.getAddress(),
                         state: 0,
                         executionState: 0,
@@ -438,8 +438,7 @@ fun _execute(msg: OffRamp_Execute, sender: address) {
          },
          
          body: MerkleRoot_Validate {
-            message: report.messages as Cell<Any2TVMRampMessage>,
-            root: root,
+            message: Any2TVMRampMessage.fromCell(report.messages),
          },
      });
      executeMsg.send(SEND_MODE_REGULAR);
