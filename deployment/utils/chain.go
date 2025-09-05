@@ -234,7 +234,7 @@ func createNewNetwork(t *testing.T, chainID uint64) string {
 		ChainID: strconv.FormatUint(chainID, 10),
 		Type:    "ton",
 		Port:    strconv.Itoa(port),
-		Image:   "ghcr.io/neodix42/mylocalton-docker@v3.7",
+		Image:   "ghcr.io/neodix42/mylocalton-docker:v3.7",
 		CustomEnv: map[string]string{
 			"NEXT_BLOCK_GENERATION_DELAY":    "0.5",
 			"EMBEDDED_FILE_HTTP_SERVER":      "true",
