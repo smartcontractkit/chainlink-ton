@@ -41,7 +41,6 @@ describe('LockReleaseTokenPool - setRebalancer', () => {
       },
     )
 
-    console.log('setRebalancerResult', setRebalancerResult.transactions)
     // Verify transaction succeeded
     // expect(setRebalancerResult.transactions).toHaveTransaction({
     //   from: baseTest.acc.owner.address,

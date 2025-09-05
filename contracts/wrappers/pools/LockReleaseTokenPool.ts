@@ -420,8 +420,8 @@ export const builder = {
         // Simplified encoding - extend as needed
         return beginCell()
           .storeUint(data.id, 32)
-          .storeBuilder(ownable2step.builder.data.traitData.encode(data.ownable).asBuilder())
           .storeAddress(data.rebalancer)
+          .storeBuilder(ownable2step.builder.data.traitData.encode(data.ownable).asBuilder())
           .storeRef(tokenPoolData)
           .endCell()
       },
