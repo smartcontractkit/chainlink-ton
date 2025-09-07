@@ -11,16 +11,14 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
-	"github.com/stretchr/testify/require"
-	"github.com/xssnick/tonutils-go/tlb"
-
 	ton_ops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 	test_utils "github.com/smartcontractkit/chainlink-ton/deployment/utils"
-
 	"github.com/smartcontractkit/chainlink/deployment/ccip/changeset/v1_6"
 	"github.com/smartcontractkit/chainlink/deployment/environment/memory"
+	"github.com/stretchr/testify/require"
+	"github.com/xssnick/tonutils-go/tlb"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/chainaccessor"

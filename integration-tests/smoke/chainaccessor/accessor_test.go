@@ -6,7 +6,9 @@ import (
 	"testing"
 	"time"
 
+	test_utils "github.com/smartcontractkit/chainlink-ton/deployment/utils"
 	"github.com/stretchr/testify/require"
+	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"go.uber.org/zap/zapcore"
 
@@ -54,6 +56,11 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 	require.Len(t, tonChainSelectors, 1, "Expected exactly 1 Ton chain")
 	chainSelector := tonChainSelectors[0]
 	tonChain := env.BlockChains.TonChains()[chainSelector]
+	deployer := tonChain.Wallet
+
+	// memory environment doesn't block on funding so changesets can execute before the env is fully ready, manually call fund so we block here
+	test_utils.FundWallets(t, tonChain.Client, []*address.Address{deployer.Address()}, []tlb.Coins{tlb.MustFromTON("1000")})
+	time.Sleep(5 * time.Second)
 
 	// -- deploy contracts
 	cs := ops.DeployChainContractsToTonCS(t, env, chainSelector)
@@ -93,7 +100,7 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 	accessor, aerr := chainaccessor.NewTONAccessor(lggr, ccipocr3.ChainSelector(chainSelector), tonChain.Client, lp, addrCodec)
 	require.NoError(t, aerr)
 
-	onRampAddr := state[chainSelector].CCIPAddress
+	onRampAddr := state[chainSelector].OnRamp
 
 	// -- bind onramp in accessor, event filter will be registered in Sync()
 	rawOnRampAddr, err := addrCodec.AddressStringToBytes(onRampAddr.String())
@@ -141,8 +148,8 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 		ccipState := stateview.CCIPOnChainState{
 			TonChains: map[uint64]tonstate.CCIPChainState{
 				chainSelector: {
-					Router:      state[chainSelector].Router,
-					CCIPAddress: state[chainSelector].CCIPAddress,
+					Router: state[chainSelector].Router,
+					OnRamp: state[chainSelector].OnRamp,
 				},
 			},
 		}
