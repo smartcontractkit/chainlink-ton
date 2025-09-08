@@ -447,6 +447,10 @@ func (a *TONAccessor) processCommitReports(logs []types.TypedLog[offramp.CommitR
 		if err != nil {
 			continue
 		}
+		if ev.MerkleRoot == nil {
+			a.lggr.Debugw("skipping commit report with no merkle root", "report", ev)
+			continue
+		}
 		a.lggr.Debugw("processing commit report", "report", ev, "item", log)
 
 		mrc := a.processMerkleRoot(ev.MerkleRoot)
@@ -489,22 +493,14 @@ func (a *TONAccessor) processMerkleRoot(mr *ocr.MerkleRoot) ccipocr3.MerkleRootC
 }
 
 func (a *TONAccessor) processPriceUpdates(priceUpdates *ocr.PriceUpdates) (ccipocr3.PriceUpdates, error) {
-	lggr := a.lggr
 	updates := ccipocr3.PriceUpdates{
-		TokenPriceUpdates: make([]ccipocr3.TokenPrice, 0),
-		GasPriceUpdates:   make([]ccipocr3.GasPriceChain, 0),
+		TokenPriceUpdates: make([]ccipocr3.TokenPrice, 0, len(priceUpdates.TokenPriceUpdates)),
+		GasPriceUpdates:   make([]ccipocr3.GasPriceChain, 0, len(priceUpdates.GasPriceUpdates)),
 	}
 
 	for _, tokenPriceUpdate := range priceUpdates.TokenPriceUpdates {
-		srcTokenAddr := codec.ToRawAddr(tokenPriceUpdate.SourceToken)
-		// TODO: verify codec behavior
-		sourceTokenAddrStr, err := a.addrCodec.AddressBytesToString(srcTokenAddr[:])
-		if err != nil {
-			lggr.Errorw("failed to convert source token address to string", "err", err)
-			return updates, err
-		}
 		updates.TokenPriceUpdates = append(updates.TokenPriceUpdates, ccipocr3.TokenPrice{
-			TokenID: ccipocr3.UnknownEncodedAddress(sourceTokenAddrStr),
+			TokenID: ccipocr3.UnknownEncodedAddress(tokenPriceUpdate.SourceToken.String()),
 			Price:   ccipocr3.NewBigInt(tokenPriceUpdate.UsdPerToken),
 		})
 	}

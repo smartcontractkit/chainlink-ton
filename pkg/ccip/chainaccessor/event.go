@@ -123,8 +123,10 @@ func (a *TONAccessor) validateCommitReportAcceptedEvent(
 			log.TxTimestamp, gteTimestamp.Unix())
 	}
 
-	if err := a.validateMerkleRoot(ev.MerkleRoot); err != nil {
-		return nil, fmt.Errorf("merkle roots: %w", err)
+	if ev.MerkleRoot != nil {
+		if err := a.validateMerkleRoot(ev.MerkleRoot); err != nil {
+			return nil, fmt.Errorf("merkle roots: %w", err)
+		}
 	}
 
 	// TODO: do we need to validate price updates?
