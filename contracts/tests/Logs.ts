@@ -53,7 +53,7 @@ type DeepPartial<T> = {
 type LogTypeMap = {
   [CCIPLogs.LogTypes.CCIPMessageSent]: DeepPartial<CCIPLogs.CCIPMessageSent>
   [CCIPLogs.LogTypes.CCIPCommitReportAccepted]: DeepPartial<CCIPLogs.CCIPCommitReportAccepted>
-  [CCIPLogs.LogTypes.CCIPExecutionStateChanged]: DeepPartial<CCIPLogs.CCIPExecutionStateChanged>
+  [CCIPLogs.LogTypes.ExecutionStateChanged]: DeepPartial<CCIPLogs.ExecutionStateChanged>
   [OCR3Logs.LogTypes.OCR3BaseConfigSet]: OCR3Logs.OCR3BaseConfigSet
   [OCR3Logs.LogTypes.OCR3BaseTransmitted]: DeepPartial<OCR3Logs.OCR3BaseTransmitted>
   [ReceiverLogs.LogTypes.ReceiverCCIPMessageReceived]: ReceiverLogs.ReceiverCCIPMessageReceived
@@ -82,12 +82,8 @@ const handlers: { [K in CombinedLogType]: Handler<K> } = {
       match as DeepPartial<CCIPLogs.CCIPCommitReportAccepted>,
     ),
 
-  [CCIPLogs.LogTypes.CCIPExecutionStateChanged]: (x, from, match) =>
-    testLogCCIPExecutionStateChanged(
-      x,
-      from,
-      match as DeepPartial<CCIPLogs.CCIPExecutionStateChanged>,
-    ),
+  [CCIPLogs.LogTypes.ExecutionStateChanged]: (x, from, match) =>
+    testLogCCIPExecutionStateChanged(x, from, match as DeepPartial<CCIPLogs.ExecutionStateChanged>),
 
   [ReceiverLogs.LogTypes.ReceiverCCIPMessageReceived]: (x, from, match) =>
     testLogReceiverCCIPMessageReceived(x, from, match as ReceiverLogs.ReceiverCCIPMessageReceived),
@@ -173,9 +169,9 @@ export const testLogCCIPMessageSent = (
 export const testLogCCIPExecutionStateChanged = (
   message: Message,
   from: Address,
-  match: DeepPartial<CCIPLogs.CCIPExecutionStateChanged>,
+  match: DeepPartial<CCIPLogs.ExecutionStateChanged>,
 ) => {
-  return testLog(message, from, CCIPLogs.LogTypes.CCIPExecutionStateChanged, (x) => {
+  return testLog(message, from, CCIPLogs.LogTypes.ExecutionStateChanged, (x) => {
     const cs = x.beginParse()
     const msg = {
       sourceChainSelector: cs.loadUintBig(64),

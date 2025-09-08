@@ -35,7 +35,7 @@ struct SourceChainConfig {
     onRamp: CrossChainAddress;
 }
 
-const CCIP_EXECUTION_STATE_CHANGED_TOPIC: int = stringCrc32("CCIPExecutionStateChanged");
+const EXECUTION_STATE_CHANGED_TOPIC: int = stringCrc32("ExecutionStateChanged");
 struct ExecutionStateChanged {
     sourceChainSelector: uint64,
     sequenceNumber: uint64,
@@ -189,7 +189,7 @@ fun _bouncedCCIPReceive(rootId: uint224, sender: address) {
 fun _notifyFailure(msg: OffRamp_NotifyFailure, sender: address) {
     //TODO should verify this comes from a MR contract
     val messageHeader = msg.header;
-    emit(CCIP_EXECUTION_STATE_CHANGED_TOPIC, ExecutionStateChanged {
+    emit(EXECUTION_STATE_CHANGED_TOPIC, ExecutionStateChanged {
         sourceChainSelector: messageHeader.sourceChainSelector,
         sequenceNumber: messageHeader.sequenceNumber,
         messageId: messageHeader.messageId,
@@ -200,7 +200,7 @@ fun _notifyFailure(msg: OffRamp_NotifyFailure, sender: address) {
 fun _notifySuccess(msg: OffRamp_NotifySuccess, sender: address) {
     //TODO should verify this comes from a MR contract
     val messageHeader = msg.header;
-    emit(CCIP_EXECUTION_STATE_CHANGED_TOPIC, ExecutionStateChanged {
+    emit(EXECUTION_STATE_CHANGED_TOPIC, ExecutionStateChanged {
         sourceChainSelector: messageHeader.sourceChainSelector,
         sequenceNumber: messageHeader.sequenceNumber,
         messageId: messageHeader.messageId,
@@ -279,7 +279,7 @@ fun _dispatchValidated(msg: OffRamp_DispatchValidated, sender: address) {
             // That message would be sent right before DispatchValidated if there are no token transfers 
             // or along with the messages to the token pools if there are token transfers 
             val header = message.header;
-            emit(CCIP_EXECUTION_STATE_CHANGED_TOPIC, ExecutionStateChanged {
+            emit(EXECUTION_STATE_CHANGED_TOPIC, ExecutionStateChanged {
                 sourceChainSelector: header.sourceChainSelector,
                 sequenceNumber: header.sequenceNumber,
                 messageId: header.messageId,

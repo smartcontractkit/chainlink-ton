@@ -769,14 +769,14 @@ describe('OffRamp', () => {
       success: false,
     })
 
-    assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.CCIPExecutionStateChanged, {
+    assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
       sequenceNumber: 1n,
       messageId: 1n,
       state: EXECUTION_STATE_IN_PROGRESS,
     })
 
-    assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.CCIPExecutionStateChanged, {
+    assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
       sequenceNumber: 1n,
       messageId: 1n,
@@ -790,7 +790,7 @@ describe('OffRamp', () => {
     const report = createExecuteReport([message])
     const result = await executeReport(report)
 
-    assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.CCIPExecutionStateChanged, {
+    assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
       sequenceNumber: 1n,
       messageId: 1n,
