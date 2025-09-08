@@ -1,4 +1,4 @@
-name: TON - Relayer - Publish Docker Image
+name: TON - Relayer - Publish Docker Image PoC
 
 on:
   push:
