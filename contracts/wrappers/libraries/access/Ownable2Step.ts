@@ -19,7 +19,7 @@ export enum Errors {
 
 // @dev Message sent by the owner to transfer ownership of a contract.
 export type TransferOwnership = {
-  // Query ID of the change owner request.
+  // Query ID of the change request.
   queryId: bigint
   // New owner address.
   newOwner: Address
@@ -27,7 +27,7 @@ export type TransferOwnership = {
 
 /// Message sent by the pending owner to accept ownership of a contract.
 export type AcceptOwnership = {
-  // Query ID of the change owner request.
+  // Query ID of the change request.
   queryId: bigint
 }
 

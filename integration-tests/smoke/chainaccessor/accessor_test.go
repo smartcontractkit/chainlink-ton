@@ -10,21 +10,25 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
+	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"go.uber.org/zap/zapcore"
+
+	test_utils "github.com/smartcontractkit/chainlink-ton/deployment/utils"
 
 	chain_selectors "github.com/smartcontractkit/chain-selectors"
 	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
 
+	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink/deployment/ccip/shared/client"
 	"github.com/smartcontractkit/chainlink/deployment/ccip/shared/stateview"
+	tonstate "github.com/smartcontractkit/chainlink/deployment/ccip/shared/stateview/ton"
 	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
 	"github.com/smartcontractkit/chainlink/deployment/common/proposalutils"
 	"github.com/smartcontractkit/chainlink/deployment/environment/memory"
-	"github.com/smartcontractkit/chainlink/v2/core/logger"
 
 	ops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
@@ -55,8 +59,7 @@ import (
 const ChainSelEVMTest90000001 = 909606746561742123
 
 func Test_TonAccessorEventQueries(t *testing.T) {
-	t.Skip()
-	lggr := logger.TestLogger(t)
+	lggr := logger.Test(t)
 	ctx := t.Context()
 
 	// create memory env to reuse changesets
@@ -71,6 +74,11 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 	require.Len(t, tonChainSelectors, 1, "Expected exactly 1 Ton chain")
 	chainSelector := tonChainSelectors[0]
 	tonChain := env.BlockChains.TonChains()[chainSelector]
+	deployer := tonChain.Wallet
+
+	// memory environment doesn't block on funding so changesets can execute before the env is fully ready, manually call fund so we block here
+	test_utils.FundWallets(t, tonChain.Client, []*address.Address{deployer.Address()}, []tlb.Coins{tlb.MustFromTON("1000")})
+	time.Sleep(5 * time.Second)
 
 	// -- deploy contracts
 	cs := ops.DeployChainContractsToTonCS(t, env, chainSelector)

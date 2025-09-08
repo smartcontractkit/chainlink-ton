@@ -7,15 +7,15 @@ toolchain go1.24.6
 require github.com/hashicorp/go-plugin v1.6.3
 
 require (
-	github.com/ethereum/go-ethereum v1.15.11
+	github.com/ethereum/go-ethereum v1.16.2
 	github.com/gagliardetto/solana-go v1.13.0
 	github.com/pelletier/go-toml/v2 v2.2.4
 	github.com/smartcontractkit/chain-selectors v1.0.67
-	github.com/smartcontractkit/chainlink-ccip v0.1.1-solana.0.20250827194531-48d824b94c91
-	github.com/smartcontractkit/chainlink-common v0.9.5-0.20250904133043-17f17c8f8a30
+	github.com/smartcontractkit/chainlink-ccip v0.1.1-solana.0.20250903115155-a68d8c28ae1d
+	github.com/smartcontractkit/chainlink-common v0.9.5-0.20250904170026-2674110962ca
 	github.com/smartcontractkit/libocr v0.0.0-20250707144819-babe0ec4e358
 	github.com/stretchr/testify v1.10.0
-	github.com/xssnick/tonutils-go v1.14.0
+	github.com/xssnick/tonutils-go v1.14.1
 	golang.org/x/exp v0.0.0-20250711185948-6ae5c78190dc
 	golang.org/x/sync v0.16.0
 )
@@ -83,7 +83,7 @@ require (
 	github.com/pelletier/go-toml v1.9.5 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
-	github.com/prometheus/client_golang v1.22.0 // indirect
+	github.com/prometheus/client_golang v1.23.0 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/prometheus/common v0.65.0 // indirect
 	github.com/prometheus/procfs v0.16.1 // indirect

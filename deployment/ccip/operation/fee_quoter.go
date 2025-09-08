@@ -20,8 +20,9 @@ import (
 )
 
 type DeployFeeQuoterInput struct {
-	Params   config.FeeQuoterParams
-	LinkAddr *address.Address
+	Params       config.FeeQuoterParams
+	LinkAddr     *address.Address
+	ContractPath string
 }
 
 type DeployFeeQuoterOutput struct {
@@ -39,8 +40,7 @@ func deployFeeQuoter(b operations.Bundle, deps TonDeps, in DeployFeeQuoterInput)
 	output := DeployFeeQuoterOutput{}
 
 	// TODO wrap the code cell creation somewhere
-	CounterContractPath := utils.GetBuildDir("FeeQuoter.compiled.json")
-	codeCell, err := wrappers.ParseCompiledContract(CounterContractPath)
+	codeCell, err := wrappers.ParseCompiledContract(in.ContractPath)
 	if err != nil {
 		return output, fmt.Errorf("failed to compile contract: %w", err)
 	}

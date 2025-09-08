@@ -497,7 +497,7 @@
                                 <div style="display: inline-block; font-size: 12px; font-family: &quot;Helvetica&quot;; color: light-dark(#000000, #ededed); line-height: 1.2; pointer-events: all; white-space: nowrap; ">
                                     <div>
                                         <font>
-                                            /// Query ID of the change owner request.
+                                            /// Query ID of the change request.
                                         </font>
                                     </div>
                                     <div>
@@ -586,7 +586,7 @@
                         </div>
                     </foreignObject>
                     <text x="297" y="1071" fill="#000000" font-family="&quot;Helvetica&quot;" font-size="12px">
-                        /// Query ID of the change owner request....
+                        /// Query ID of the change request....
                     </text>
                 </switch>
             </g>
