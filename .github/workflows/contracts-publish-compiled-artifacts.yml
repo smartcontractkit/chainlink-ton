@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
     inputs:
       create_release:
-      description: "Publish a GitHub release on this manual run?"
+        description: "Publish a GitHub release on this manual run?"
         type: boolean
         default: false
         required: false
