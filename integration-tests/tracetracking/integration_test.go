@@ -1,8 +1,10 @@
 package tracetracking
 
 import (
+	"fmt"
 	"math/big"
 	"math/rand/v2"
+	"sync"
 	"testing"
 
 	chainsel "github.com/smartcontractkit/chain-selectors"
@@ -23,6 +25,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/examples/counter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
@@ -30,13 +33,38 @@ import (
 func TestIntegration(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping long-running test in short mode")
+		t.Parallel()
 	}
 
 	var initialAmount = big.NewInt(1_000_000_000_000)
-	accs := testutils.SetUpTest(t, chainsel.TON_LOCALNET.Selector, initialAmount, 2)
+	var accountCount uint = 13
+	accounts := testutils.SetUpTest(t, chainsel.TON_LOCALNET.Selector, initialAmount, accountCount)
+	var lastUsedAccountIndex uint
+	var accountsLock sync.Mutex
+
+	getAccount := func() tracetracking.SignedAPIClient {
+		accountsLock.Lock()
+		defer accountsLock.Unlock()
+		fmt.Println("getting account", lastUsedAccountIndex, "from", len(accounts))
+		require.Less(t, lastUsedAccountIndex, uint(len(accounts)), "Not enough pre-funded accounts for tests")
+		acc := accounts[lastUsedAccountIndex]
+		lastUsedAccountIndex += 1
+		return acc
+	}
+
+	var lastId uint32
+	var idLock sync.Mutex
+	getNextId := func() uint32 {
+		idLock.Lock()
+		defer idLock.Unlock()
+		lastId++
+		return lastId
+	}
+
 	t.Run("TestDepositFees", func(t *testing.T) {
-		alice := accs[0]
-		bob := accs[1]
+		t.Parallel()
+		alice := getAccount()
+		bob := getAccount()
 
 		var transferAmount = big.NewInt(100)
 		t.Logf("\n\n\n\n\n\nTestStarted\n==========================\n")
@@ -60,13 +88,14 @@ func TestIntegration(t *testing.T) {
 	})
 
 	t.Run("TestCounter", func(t *testing.T) {
-		alice := accs[0]
+		t.Parallel()
+		alice := getAccount()
 
 		t.Logf("\n\n\n\n\n\nTest Setup\n==========================\n")
 
 		t.Logf("Deploying Counter contract\n")
 		data := counter.ContractData{
-			ID:    rand.Uint32(),
+			ID:    getNextId(),
 			Value: 100,
 			Ownable: common.Ownable2Step{
 				Owner:        alice.Wallet.WalletAddress(),
@@ -122,7 +151,8 @@ func TestIntegration(t *testing.T) {
 	})
 
 	t.Run("TestRequestReply", func(t *testing.T) {
-		alice := accs[0]
+		t.Parallel()
+		alice := getAccount()
 
 		t.Logf("\n\n\n\n\n\nTest Setup\n==========================\n")
 
@@ -139,14 +169,14 @@ func TestIntegration(t *testing.T) {
 		t.Logf("Deploying ItemPrice contracts\n")
 		for index, name := range priceIndex {
 			t.Logf("Deploying ItemPrice %s", name)
-			itemPrice, err := requestreply.NewItemPriceProvider(alice).Deploy(requestreply.ItemPriceInitData{ID: (rand.Uint32()), Price: prices[name]})
+			itemPrice, err := requestreply.NewItemPriceProvider(alice).Deploy(requestreply.ItemPriceInitData{ID: (getNextId()), Price: prices[name]})
 			require.NoError(t, err, "failed to deploy ItemPrice contract: %w", err)
 			t.Logf("ItemPrice contract deployed at %s\n", itemPrice.Contract.Address.String())
 			itemAddresses[index] = itemPrice.Contract.Address
 		}
 
 		t.Logf("Deploying PriceRegistry contract with addresses %+v: \n", itemAddresses)
-		priceRegistry, err := requestreply.NewPriceRegistryProvider(alice).Deploy(requestreply.PriceRegistryInitData{ID: (rand.Uint32())})
+		priceRegistry, err := requestreply.NewPriceRegistryProvider(alice).Deploy(requestreply.PriceRegistryInitData{ID: (getNextId())})
 		require.NoError(t, err, "failed to deploy PriceRegistry contract: %w", err)
 		t.Logf("PriceRegistry contract deployed at %s\n", priceRegistry.Contract.Address.String())
 
@@ -158,7 +188,7 @@ func TestIntegration(t *testing.T) {
 		}
 
 		t.Logf("Deploying Storage contract\n")
-		storage, err := requestreply.NewStorageProvider(alice).Deploy(requestreply.StorageInitData{ID: (rand.Uint32())})
+		storage, err := requestreply.NewStorageProvider(alice).Deploy(requestreply.StorageInitData{ID: (getNextId())})
 		require.NoError(t, err, "failed to deploy Storage contract: %w", err)
 		t.Logf("Storage contract deployed at %s\n", storage.Contract.Address.String())
 
@@ -187,7 +217,8 @@ func TestIntegration(t *testing.T) {
 	}
 
 	t.Run("TestRequestReplyWithTwoDependencies", func(t *testing.T) {
-		alice := accs[0]
+		t.Parallel()
+		alice := getAccount()
 
 		t.Logf("\n\n\n\n\n\nTest Setup\n==========================\n")
 
@@ -208,12 +239,12 @@ func TestIntegration(t *testing.T) {
 		t.Logf("Deploying ItemPrice and ItemCount contracts\n")
 		for index, name := range priceIndex {
 			t.Logf("Deploying ItemPrice %s", name)
-			itemPrice, err := requestreplywithtwodependencies.NewItemPriceProvider(alice).Deploy(requestreplywithtwodependencies.ItemPriceInitData{ID: (rand.Uint32()), Price: prices[name]})
+			itemPrice, err := requestreplywithtwodependencies.NewItemPriceProvider(alice).Deploy(requestreplywithtwodependencies.ItemPriceInitData{ID: (getNextId()), Price: prices[name]})
 			require.NoError(t, err, "failed to deploy ItemPrice contract: %w", err)
 			t.Logf("ItemPrice contract deployed at %s\n", itemPrice.Contract.Address.String())
 
 			t.Logf("Deploying ItemCount %s", name)
-			itemCount, err := requestreplywithtwodependencies.NewItemCountProvider(alice).Deploy(requestreplywithtwodependencies.ItemCountInitData{ID: (rand.Uint32()), Count: quantity[name]})
+			itemCount, err := requestreplywithtwodependencies.NewItemCountProvider(alice).Deploy(requestreplywithtwodependencies.ItemCountInitData{ID: (getNextId()), Count: quantity[name]})
 			require.NoError(t, err, "failed to deploy ItemCount contract: %w", err)
 			t.Logf("ItemCount contract deployed at %s\n", itemCount.Contract.Address.String())
 
@@ -221,7 +252,7 @@ func TestIntegration(t *testing.T) {
 		}
 
 		t.Logf("Deploying Inventory contract with addresses %+v: \n", itemAddresses)
-		inventory, err := requestreplywithtwodependencies.NewInventoryProvider(alice).Deploy(requestreplywithtwodependencies.InventoryInitData{ID: (rand.Uint32())})
+		inventory, err := requestreplywithtwodependencies.NewInventoryProvider(alice).Deploy(requestreplywithtwodependencies.InventoryInitData{ID: (getNextId())})
 		require.NoError(t, err, "failed to deploy Inventory contract: %w", err)
 		t.Logf("Inventory contract deployed at %s\n", inventory.Contract.Address.String())
 
@@ -233,7 +264,7 @@ func TestIntegration(t *testing.T) {
 		}
 
 		t.Logf("Deploying Storage contract\n")
-		storage, err := requestreplywithtwodependencies.NewStorageProvider(alice).Deploy(requestreplywithtwodependencies.StorageInitData{ID: (rand.Uint32())})
+		storage, err := requestreplywithtwodependencies.NewStorageProvider(alice).Deploy(requestreplywithtwodependencies.StorageInitData{ID: (getNextId())})
 		require.NoError(t, err, "failed to deploy Storage contract: %w", err)
 		t.Logf("Storage contract deployed at %s\n", storage.Contract.Address.String())
 
@@ -257,11 +288,12 @@ func TestIntegration(t *testing.T) {
 	})
 
 	t.Run("TestMemoryContract", func(t *testing.T) {
-		alice := accs[0]
+		t.Parallel()
+		alice := getAccount()
 		const initValue = uint32(0)
 		t.Logf("\n\n\n\n\n\nTestStarted\n==========================\n")
 		t.Logf("Deploying memory contract with initial value %d\n", initValue)
-		memoryContract, err := twomsgchain.NewMemoryProvider(alice).Deploy(twomsgchain.MemoryInitData{ID: rand.Uint32()})
+		memoryContract, err := twomsgchain.NewMemoryProvider(alice).Deploy(twomsgchain.MemoryInitData{ID: getNextId()})
 		require.NoError(t, err, "failed to deploy memory contract: %w", err)
 		t.Logf("Memory contract deployed at %s\n", memoryContract.Contract.Address.String())
 		t.Logf("Checking if memory contract is deployed\n")
@@ -281,16 +313,17 @@ func TestIntegration(t *testing.T) {
 	})
 
 	t.Run("TestTwoMsgChain", func(t *testing.T) {
-		alice := accs[0]
+		t.Parallel()
+		alice := getAccount()
 		t.Logf("\n\n\n\n\n\nTestStarted\n==========================\n")
 		const initValue = uint32(0)
 		t.Logf("Deploying memory contract with initial value %d\n", initValue)
-		memoryContract, err := twomsgchain.NewMemoryProvider(alice).Deploy(twomsgchain.MemoryInitData{ID: (rand.Uint32())})
+		memoryContract, err := twomsgchain.NewMemoryProvider(alice).Deploy(twomsgchain.MemoryInitData{ID: (getNextId())})
 		require.NoError(t, err, "failed to deploy memory contract: %w", err)
 		t.Logf("Memory contract deployed at %s\n", memoryContract.Contract.Address.String())
 
 		t.Logf("Deploying storage contract with memory address %s\n", memoryContract.Contract.Address.String())
-		storageContract, err := twomsgchain.NewStorageProvider(alice).Deploy(twomsgchain.StorageInitData{ID: (rand.Uint32()), MemoryAddress: memoryContract.Contract.Address})
+		storageContract, err := twomsgchain.NewStorageProvider(alice).Deploy(twomsgchain.StorageInitData{ID: (getNextId()), MemoryAddress: memoryContract.Contract.Address})
 		require.NoError(t, err, "failed to deploy storage contract: %w", err)
 		t.Logf("Storage contract deployed at %s\n", storageContract.Contract.Address.String())
 
@@ -313,23 +346,24 @@ func TestIntegration(t *testing.T) {
 	})
 
 	t.Run("AutoAck", func(t *testing.T) {
-		alice := accs[0]
+		t.Parallel()
+		alice := getAccount()
 
 		t.Logf("\n\n\n\n\n\nTest Setup\n==========================\n")
 		const initValue = uint32(0)
 		counterProvider := twophasecommit.NewCounterProvider(alice)
 		t.Logf("Deploying counter A with initial value %d\n", initValue)
-		counterA, err := counterProvider.Deploy(twophasecommit.CounterInitData{ID: (rand.Uint32()), Value: initValue, AutoAck: true})
+		counterA, err := counterProvider.Deploy(twophasecommit.CounterInitData{ID: (getNextId()), Value: initValue, AutoAck: true})
 		require.NoError(t, err, "failed to deploy counter A contract: %w", err)
 		t.Logf("Counter A deployed at %s\n", counterA.Contract.Address.String())
 
 		t.Logf("Deploying counter B with initial value %d\n", initValue)
-		counterB, err := counterProvider.Deploy(twophasecommit.CounterInitData{ID: (rand.Uint32()), Value: initValue, AutoAck: true})
+		counterB, err := counterProvider.Deploy(twophasecommit.CounterInitData{ID: (getNextId()), Value: initValue, AutoAck: true})
 		require.NoError(t, err, "failed to deploy counter B contract: %w", err)
 		t.Logf("Counter B deployed at %s\n", counterB.Contract.Address.String())
 
 		t.Logf("Deploying DB contract\n")
-		dbContract, err := twophasecommit.NewDBProvider(alice).Deploy(twophasecommit.DBInitData{ID: (rand.Uint32())})
+		dbContract, err := twophasecommit.NewDBProvider(alice).Deploy(twophasecommit.DBInitData{ID: (getNextId())})
 		require.NoError(t, err, "failed to deploy DB contract: %w", err)
 		t.Logf("DB contract deployed at %s\n", dbContract.Contract.Address.String())
 
@@ -368,23 +402,24 @@ func TestIntegration(t *testing.T) {
 	})
 
 	t.Run("AcksBeforeCommit", func(t *testing.T) {
-		alice := accs[0]
+		t.Parallel()
+		alice := getAccount()
 
 		t.Logf("\n\n\n\n\n\nTest Setup\n==========================\n")
 		const initValue = uint32(0)
 		counterProvider := twophasecommit.NewCounterProvider(alice)
 		t.Logf("Deploying counter A with initial value %d\n", initValue)
-		counterA, err := counterProvider.Deploy(twophasecommit.CounterInitData{ID: (rand.Uint32()), Value: initValue, AutoAck: false})
+		counterA, err := counterProvider.Deploy(twophasecommit.CounterInitData{ID: (getNextId()), Value: initValue, AutoAck: false})
 		require.NoError(t, err, "failed to deploy counter A contract: %w", err)
 		t.Logf("Counter A deployed at %s\n", counterA.Contract.Address.String())
 
 		t.Logf("Deploying counter B with initial value %d\n", initValue)
-		counterB, err := counterProvider.Deploy(twophasecommit.CounterInitData{ID: (rand.Uint32()), Value: initValue, AutoAck: false})
+		counterB, err := counterProvider.Deploy(twophasecommit.CounterInitData{ID: (getNextId()), Value: initValue, AutoAck: false})
 		require.NoError(t, err, "failed to deploy counter A contract: %w", err)
 		t.Logf("Counter B deployed at %s\n", counterB.Contract.Address.String())
 
 		t.Logf("Deploying DB contract\n")
-		dbContract, err := twophasecommit.NewDBProvider(alice).Deploy(twophasecommit.DBInitData{ID: (rand.Uint32())})
+		dbContract, err := twophasecommit.NewDBProvider(alice).Deploy(twophasecommit.DBInitData{ID: (getNextId())})
 		require.NoError(t, err, "failed to deploy DB contract: %w", err)
 		t.Logf("DB contract deployed at %s\n", dbContract.Contract.Address.String())
 
@@ -439,23 +474,24 @@ func TestIntegration(t *testing.T) {
 	})
 
 	t.Run("AcksAfterCommit", func(t *testing.T) {
-		alice := accs[0]
+		t.Parallel()
+		alice := getAccount()
 
 		t.Logf("\n\n\n\n\n\nTest Setup\n==========================\n")
 		const initValue = uint32(0)
 		counterProvider := twophasecommit.NewCounterProvider(alice)
 		t.Logf("Deploying counter A with initial value %d\n", initValue)
-		counterA, err := counterProvider.Deploy(twophasecommit.CounterInitData{ID: (rand.Uint32()), Value: initValue, AutoAck: false})
+		counterA, err := counterProvider.Deploy(twophasecommit.CounterInitData{ID: (getNextId()), Value: initValue, AutoAck: false})
 		require.NoError(t, err, "failed to deploy counter A contract: %w", err)
 		t.Logf("Counter A deployed at %s\n", counterA.Contract.Address.String())
 
 		t.Logf("Deploying counter B with initial value %d\n", initValue)
-		counterB, err := counterProvider.Deploy(twophasecommit.CounterInitData{ID: (rand.Uint32()), Value: initValue, AutoAck: false})
+		counterB, err := counterProvider.Deploy(twophasecommit.CounterInitData{ID: (getNextId()), Value: initValue, AutoAck: false})
 		require.NoError(t, err, "failed to deploy counter A contract: %w", err)
 		t.Logf("Counter B deployed at %s\n", counterB.Contract.Address.String())
 
 		t.Logf("Deploying DB contract\n")
-		dbContract, err := twophasecommit.NewDBProvider(alice).Deploy(twophasecommit.DBInitData{ID: (rand.Uint32())})
+		dbContract, err := twophasecommit.NewDBProvider(alice).Deploy(twophasecommit.DBInitData{ID: (getNextId())})
 		require.NoError(t, err, "failed to deploy DB contract: %w", err)
 		t.Logf("DB contract deployed at %s\n", dbContract.Contract.Address.String())
 
@@ -510,23 +546,24 @@ func TestIntegration(t *testing.T) {
 	})
 
 	t.Run("OneAckAfterCommit", func(t *testing.T) {
-		alice := accs[0]
+		t.Parallel()
+		alice := getAccount()
 
 		t.Logf("\n\n\n\n\n\nTest Setup\n==========================\n")
 		const initValue = uint32(0)
 		counterProvider := twophasecommit.NewCounterProvider(alice)
 		t.Logf("Deploying counter A with initial value %d\n", initValue)
-		counterA, err := counterProvider.Deploy(twophasecommit.CounterInitData{ID: (rand.Uint32()), Value: initValue, AutoAck: false})
+		counterA, err := counterProvider.Deploy(twophasecommit.CounterInitData{ID: (getNextId()), Value: initValue, AutoAck: false})
 		require.NoError(t, err, "failed to deploy counter A contract: %w", err)
 		t.Logf("Counter A deployed at %s\n", counterA.Contract.Address.String())
 
 		t.Logf("Deploying counter B with initial value %d\n", initValue)
-		counterB, err := counterProvider.Deploy(twophasecommit.CounterInitData{ID: (rand.Uint32()), Value: initValue, AutoAck: false})
+		counterB, err := counterProvider.Deploy(twophasecommit.CounterInitData{ID: (getNextId()), Value: initValue, AutoAck: false})
 		require.NoError(t, err, "failed to deploy counter A contract: %w", err)
 		t.Logf("Counter B deployed at %s\n", counterB.Contract.Address.String())
 
 		t.Logf("Deploying DB contract\n")
-		dbContract, err := twophasecommit.NewDBProvider(alice).Deploy(twophasecommit.DBInitData{ID: (rand.Uint32())})
+		dbContract, err := twophasecommit.NewDBProvider(alice).Deploy(twophasecommit.DBInitData{ID: (getNextId())})
 		require.NoError(t, err, "failed to deploy DB contract: %w", err)
 		t.Logf("DB contract deployed at %s\n", dbContract.Contract.Address.String())
 
