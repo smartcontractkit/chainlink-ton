@@ -132,6 +132,7 @@ jobs:
           echo "🔎 Branch: $(git rev-parse --abbrev-ref HEAD)"
           echo "🔎 Dockerfile: plugins/chainlink.Dockerfile"
           echo "🔎 Build context: $(pwd)"
+          ls -sa
 
           docker buildx build \
             --secret id=GIT_AUTH_TOKEN \
