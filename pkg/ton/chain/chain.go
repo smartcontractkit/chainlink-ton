@@ -8,8 +8,8 @@ import (
 	"github.com/xssnick/tonutils-go/liteclient"
 )
 
-// GetConnectionPoolFromLiteserverURL parses a liteserver:// URL and creates a connection pool
-func GetConnectionPoolFromLiteserverURL(ctx context.Context, liteserverURL string) (*liteclient.ConnectionPool, error) {
+// CreateLiteserverConnectionPool parses a liteserver:// URL and creates a connection pool
+func CreateLiteserverConnectionPool(ctx context.Context, liteserverURL string) (*liteclient.ConnectionPool, error) {
 	publicKey, hostPort, err := parseLiteserverURL(liteserverURL)
 	if err != nil {
 		return nil, err

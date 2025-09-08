@@ -312,7 +312,7 @@ func (c *chain) GetClient(ctx context.Context) (*ton.APIClient, error) {
 
 		// Build new client, expected URL format: liteserver://publickey@host:port
 		liteServerURL := node.URL.String()
-		connectionPool, cerr := tonchain.GetConnectionPoolFromLiteserverURL(ctx, liteServerURL)
+		connectionPool, cerr := tonchain.CreateLiteserverConnectionPool(ctx, liteServerURL)
 		if cerr != nil {
 			c.lggr.Warnw("failed to get connection pool", "name", node.Name, "ton-url", node.URL, "err", cerr)
 			continue

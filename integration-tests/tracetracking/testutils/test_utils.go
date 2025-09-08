@@ -20,7 +20,8 @@ import (
 )
 
 func SetUpTest(t *testing.T, chainID uint64, initialAmount *big.Int, fundedAccountsCount uint) (accounts []tracetracking.SignedAPIClient) {
-	api := testutils.CreateAPIClient(t, chainID)
+	api, cerr := testutils.CreateTestAPIClient(t, chainID)
+	require.NoError(t, cerr)
 
 	accounts = make([]tracetracking.SignedAPIClient, fundedAccountsCount)
 
