@@ -865,4 +865,201 @@ func Test_LogPoller(t *testing.T) {
 	t.Run("Log Poller Replay for a Contract", func(t *testing.T) {
 		t.Skip("TODO: Implement")
 	})
+
+	t.Run("Lookback Window Discovery", func(t *testing.T) {
+		t.Run("Basic lookback discovery - all events within window", func(t *testing.T) {
+			t.Parallel()
+			// Test configuration
+			const targetCounter = 10
+			const interval = 2 * time.Second
+			expectedEvents := targetCounter
+
+			// Setup event emitter
+			sender := test_utils.CreateRandomHighloadWallet(t, client)
+			test_utils.FundWallets(t, client, []*address.Address{sender.Address()}, []tlb.Coins{tlb.MustFromTON("1000")})
+			emitter, err := helper.NewTestEventSource(client, sender, "lookbackTestEmitter", rand.Uint32(), logger.Test(t))
+			require.NoError(t, err)
+
+			// 1. Start emitting events over time (targetCounter events at 2-second intervals = 20 seconds total)
+			evctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+			defer cancel()
+			t.Logf("Starting to emit %d events at %v intervals...", expectedEvents, interval)
+			err = emitter.Start(evctx, interval, big.NewInt(int64(targetCounter)))
+			require.NoError(t, err)
+
+			// Wait for all events to be emitted
+			require.NoError(t, emitter.Wait())
+			t.Logf("Finished emitting events, now waiting 30 seconds before starting logpoller")
+
+			// 2. Wait 30 seconds after all events are done
+			time.Sleep(30 * time.Second)
+
+			// 3. Start logpoller with 3-minute lookback window (should capture all events)
+			cfg := logpoller.DefaultConfigSet
+			cfg.LogPollerStartingLookback = 10 * time.Minute // Lookback window longer than wait time
+			cfg.PollPeriod = 2 * time.Second                 // Faster polling for test
+
+			fs := inmemorystore.NewFilterStore()
+			opts := &logpoller.ServiceOptions{
+				Config:   cfg,
+				Client:   client,
+				Filters:  fs,
+				TxLoader: account.NewTxLoader(client, logger.Test(t), cfg.PageSize),
+				TxParser: txparser.NewTxParser(logger.Test(t), fs),
+				Store:    inmemorystore.NewLogStore(),
+			}
+			lp := logpoller.NewService(logger.Test(t), opts)
+
+			// Register filter for the emitted events
+			filter := types.Filter{
+				Name:     "LookbackTestFilter",
+				Address:  emitter.ContractAddress(),
+				MsgType:  tlb.MsgTypeExternalOut,
+				EventSig: counter.TopicCountIncreased,
+			}
+			require.NoError(t, lp.RegisterFilter(t.Context(), filter))
+
+			// Start the logpoller
+			require.NoError(t, lp.Start(t.Context()))
+			defer func() {
+				require.NoError(t, lp.Close())
+			}()
+
+			// 4. Verify all events were ingested via lookback discovery
+			require.Eventually(t, func() bool {
+				result, queryErr := logpoller.NewQuery[counter.CountIncreased]().
+					WithSource(emitter.ContractAddress()).
+					WithEventSig(counter.TopicCountIncreased).
+					Execute(t.Context(), lp.GetStore())
+				if queryErr != nil {
+					t.Logf("Query failed: %v", queryErr)
+					return false
+				}
+
+				actualEvents := len(result.Logs)
+				t.Logf("Lookback discovery progress: found %d/%d events", actualEvents, expectedEvents)
+
+				if actualEvents != expectedEvents {
+					return false
+				}
+
+				// Verify event content integrity
+				var indexedCells []*cell.Cell
+				for _, log := range result.Logs {
+					indexedCells = append(indexedCells, log.Data)
+				}
+
+				verifyErr := helper.VerifyAllCountLogs(indexedCells, expectedEvents)
+				if verifyErr != nil {
+					t.Logf("Event verification failed: %v", verifyErr)
+					return false
+				}
+
+				t.Logf("✓ Successfully discovered all %d events via lookback window", expectedEvents)
+				return true
+			}, 60*time.Second, 5*time.Second, "logpoller should discover all events within lookback window")
+		})
+
+		t.Run("Edge case - events outside lookback window", func(t *testing.T) {
+			t.Parallel()
+			// Test configuration
+			const targetCounter = 10
+			const interval = 3 * time.Second
+			expectedEvents := targetCounter
+
+			// Setup event emitter
+			sender := test_utils.CreateRandomHighloadWallet(t, client)
+			test_utils.FundWallets(t, client, []*address.Address{sender.Address()}, []tlb.Coins{tlb.MustFromTON("1000")})
+			emitter, err := helper.NewTestEventSource(client, sender, "lookbackEdgeTestEmitter", rand.Uint32(), logger.Test(t))
+			require.NoError(t, err)
+
+			// 1. Start emitting events over time (targetCounter events at 3-second intervals = 30 seconds total)
+			evctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+			defer cancel()
+			t.Logf("Starting to emit %d events at %v intervals (total duration ~30s)...", expectedEvents, interval)
+			err = emitter.Start(evctx, interval, big.NewInt(int64(targetCounter)))
+			require.NoError(t, err)
+
+			// Wait for all events to be emitted
+			require.NoError(t, emitter.Wait())
+			t.Logf("Finished emitting events, now waiting 15 seconds to age some events")
+
+			// 2. Wait 15 seconds after all events are done (some events will be 15-45 seconds old)
+			time.Sleep(15 * time.Second)
+
+			// 3. Start logpoller with 20-second lookback window (should miss early events)
+			// Events span: oldest=45s ago, newest=15s ago, lookback=20s → should find ~5-6 recent events
+			cfg := logpoller.DefaultConfigSet
+			cfg.LogPollerStartingLookback = 20 * time.Second // Should catch events from last 20s only
+			cfg.PollPeriod = 2 * time.Second                 // Faster polling for test
+			t.Logf("Lookback window: %v (should miss events older than 20s)", cfg.LogPollerStartingLookback)
+
+			fs := inmemorystore.NewFilterStore()
+			opts := &logpoller.ServiceOptions{
+				Config:   cfg,
+				Client:   client,
+				Filters:  fs,
+				TxLoader: account.NewTxLoader(client, logger.Test(t), cfg.PageSize),
+				TxParser: txparser.NewTxParser(logger.Test(t), fs),
+				Store:    inmemorystore.NewLogStore(),
+			}
+			lp := logpoller.NewService(logger.Test(t), opts)
+
+			// Register filter for the emitted events
+			filter := types.Filter{
+				Name:     "LookbackEdgeTestFilter",
+				Address:  emitter.ContractAddress(),
+				MsgType:  tlb.MsgTypeExternalOut,
+				EventSig: counter.TopicCountIncreased,
+			}
+			require.NoError(t, lp.RegisterFilter(t.Context(), filter))
+
+			// Start the logpoller
+			require.NoError(t, lp.Start(t.Context()))
+			defer func() {
+				require.NoError(t, lp.Close())
+			}()
+
+			// 4. Wait for lookback discovery to complete, then verify fewer events were found
+			time.Sleep(30 * time.Second) // Give logpoller time to complete lookback discovery
+
+			result, queryErr := logpoller.NewQuery[counter.CountIncreased]().
+				WithSource(emitter.ContractAddress()).
+				WithEventSig(counter.TopicCountIncreased).
+				Execute(t.Context(), lp.GetStore())
+			require.NoError(t, queryErr)
+
+			actualEvents := len(result.Logs)
+			t.Logf("Edge case result: found %d events (expected fewer than %d total)", actualEvents, expectedEvents)
+			t.Logf("Timeline: events emitted over 30s, waited 15s, lookback=%v", cfg.LogPollerStartingLookback)
+
+			// Verify that we found fewer events than expected (some were outside the lookback window)
+			// With 20s lookback and events aged 15-45s, we should find roughly the last 5-6 events
+			expectedMinEvents := 3 // At least some recent events
+			expectedMaxEvents := 7 // But not all 10 events
+
+			require.GreaterOrEqual(t, actualEvents, expectedMinEvents,
+				"should find at least some recent events within lookback window")
+			require.LessOrEqual(t, actualEvents, expectedMaxEvents,
+				"should not find all events due to lookback window limitation")
+
+			// Verify the content of found events is still valid
+			if actualEvents > 0 {
+				var indexedCells []*cell.Cell
+				for _, log := range result.Logs {
+					indexedCells = append(indexedCells, log.Data)
+				}
+
+				// Verify found events are valid (but don't expect all events)
+				for _, logCell := range indexedCells {
+					var event counter.CountIncreased
+					parseErr := tlb.LoadFromCell(&event, logCell.BeginParse())
+					require.NoError(t, parseErr, "found events should be parseable")
+				}
+
+				t.Logf("✓ Successfully demonstrated lookback window boundary: %d/%d events found",
+					actualEvents, expectedEvents)
+			}
+		})
+	})
 }

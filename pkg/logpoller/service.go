@@ -36,6 +36,8 @@ type service struct {
 
 	pollPeriod         time.Duration // How often to poll for new blocks
 	lastProcessedBlock uint32        // Last processed masterchain sequence number
+	startingLookback   time.Duration // How far back to look when starting up
+	blockTime          time.Duration // Expected block time for calculations
 }
 
 type ServiceOptions struct {
@@ -50,13 +52,15 @@ type ServiceOptions struct {
 // NewService creates a new TON log polling service instance
 func NewService(lggr logger.Logger, opts *ServiceOptions) Service {
 	lp := &service{
-		lggr:       logger.Sugared(lggr),
-		client:     opts.Client,
-		filters:    opts.Filters,
-		loader:     opts.TxLoader,
-		parser:     opts.TxParser,
-		store:      opts.Store,
-		pollPeriod: opts.Config.PollPeriod,
+		lggr:             logger.Sugared(lggr),
+		client:           opts.Client,
+		filters:          opts.Filters,
+		loader:           opts.TxLoader,
+		parser:           opts.TxParser,
+		store:            opts.Store,
+		pollPeriod:       opts.Config.PollPeriod,
+		startingLookback: opts.Config.LogPollerStartingLookback,
+		blockTime:        opts.Config.BlockTime,
 	}
 	lp.Service, lp.eng = services.Config{
 		Name:  "TONLogPoller",
@@ -117,7 +121,7 @@ func (lp *service) run(ctx context.Context) (err error) {
 // getMasterchainBlockRange calculates the range of blocks that need to be processed.
 // Returns nil if there are no new blocks to process.
 func (lp *service) getMasterchainBlockRange(ctx context.Context) (*types.BlockRange, error) {
-	lastProcessedBlock, err := lp.getLastProcessedBlock()
+	lastProcessedBlock, err := lp.getLastProcessedBlock(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get last processed block: %w", err)
 	}
@@ -143,15 +147,33 @@ func (lp *service) getMasterchainBlockRange(ctx context.Context) (*types.BlockRa
 }
 
 // getLastProcessedBlock retrieves the last processed masterchain sequence number.
-// Currently uses in-memory storage; will be replaced with database persistence.
-func (lp *service) getLastProcessedBlock() (uint32, error) {
+// If no previous block has been processed, it uses the lookback window to determine
+// an appropriate starting point to avoid missing recent events.
+func (lp *service) getLastProcessedBlock(ctx context.Context) (uint32, error) {
 	lastProcessed := lp.lastProcessedBlock
 	if lastProcessed > 0 {
 		return lastProcessed, nil
 	}
 
-	// TODO: get the latest processed seqno from log table
-	// TODO: implement lookbackwindow configuration and fallback
+	// TODO: get the latest processed seqno from log table when persistent storage is implemented
+	// If lastProcessed is 0, we're starting fresh - use lookback window to determine starting point
+
+	var lookbackSeqNo uint32
+	var err error
+	lookbackSeqNo, err = lp.computeLookbackWindow(ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	if lookbackSeqNo > lastProcessed {
+		lp.lggr.Infow("last processed seqno is older than lookback window, skipping ahead",
+			"lastProcessed", lastProcessed, "lookbackSeqNo", lookbackSeqNo)
+		return lookbackSeqNo, nil
+	}
+
+	lp.lggr.Infow("last processed seqno is still within lookback window, resuming at last processed seqno",
+		"lastProcessed", lastProcessed, "lookbackSeqNo", lookbackSeqNo)
+
 	return lastProcessed, nil
 }
 
@@ -214,10 +236,10 @@ func (lp *service) RegisterFilter(ctx context.Context, flt types.Filter) error {
 	}
 
 	// TODO(2025-08-28@jadepark-dev): clean up, forcing replay for e2e now
-	lp.lggr.Infow("replaying logs for new filter", "filter", flt.Name, "fromBlock", flt.StartingSeqNo)
-	if err := lp.Replay(ctx, flt.StartingSeqNo); err != nil {
-		lp.lggr.Errorw("failed to replay logs for new filter", "filter", flt.Name, "error", err)
-	}
+	// lp.lggr.Infow("replaying logs for new filter", "filter", flt.Name, "fromBlock", flt.StartingSeqNo)
+	// if err := lp.Replay(ctx, flt.StartingSeqNo); err != nil {
+	// 	lp.lggr.Errorw("failed to replay logs for new filter", "filter", flt.Name, "error", err)
+	// }
 
 	return nil
 }
@@ -235,6 +257,38 @@ func (lp *service) HasFilter(ctx context.Context, name string) (bool, error) {
 // GetStore exposes the underlying log store for direct access
 func (lp *service) GetStore() LogStore {
 	return lp.store
+}
+
+// computeLookbackWindow calculates the appropriate starting sequence number based on the configured lookback window.
+// This follows the same pattern as Solana logpoller but adapted for TON's sequence number system.
+func (lp *service) computeLookbackWindow(ctx context.Context) (uint32, error) {
+	currentBlock, err := lp.client.CurrentMasterchainInfo(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("error getting current masterchain info: %w", err)
+	}
+
+	if currentBlock.SeqNo == 0 {
+		return 0, fmt.Errorf("current masterchain seqno is 0 - waiting for next block to start processing")
+	}
+
+	lookback := lp.startingLookback
+
+	// Calculate how many blocks to go back based on time duration
+	// lookbackBlocks = lookback / blockTime
+	lookbackBlocks := uint32(lookback / lp.blockTime)
+
+	var lookbackSeqNo uint32
+	if currentBlock.SeqNo > lookbackBlocks {
+		lookbackSeqNo = currentBlock.SeqNo - lookbackBlocks
+	} else {
+		// If lookback would go before genesis, start from 0
+		lookbackSeqNo = 0
+	}
+
+	lp.lggr.Infof("Computed lookback window: current seqno %d, lookback seqno %d (going back %v, ~%d blocks)",
+		currentBlock.SeqNo, lookbackSeqNo, lookback, lookbackBlocks)
+
+	return lookbackSeqNo, nil
 }
 
 func (lp *service) Replay(ctx context.Context, fromBlock uint32) error {
