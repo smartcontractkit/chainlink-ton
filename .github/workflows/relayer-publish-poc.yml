@@ -18,16 +18,16 @@ jobs:
     env:
       DEFAULT_CORE_REF: develop
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    outputs:
-      date: ${{ steps.get-date.outputs.date }}
+    # outputs:
+    #   date: ${{ steps.**.outputs.** }}
     steps:
-      - name: Setup GitHub Token
-        id: setup-github-token
-        uses: smartcontractkit/.github/actions/setup-github-token@ef78fa97bf3c77de6563db1175422703e9e6674f # setup-github-token@0.2.1
-        with:
-          aws-role-arn: ${{ secrets.AWS_ROLE_ARN_GATI_READONLY }}
-          aws-lambda-url: ${{ secrets.AWS_ROLE_ARN_GATI_READONLY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+      # - name: Setup GitHub Token
+      #   id: setup-github-token
+      #   uses: smartcontractkit/.github/actions/setup-github-token@ef78fa97bf3c77de6563db1175422703e9e6674f # setup-github-token@0.2.1
+      #   with:
+      #     aws-role-arn: ${{ secrets.AWS_ROLE_ARN_GATI_READONLY }}
+      #     aws-lambda-url: ${{ secrets.AWS_ROLE_ARN_GATI_READONLY }}
+      #     aws-region: ${{ secrets.AWS_REGION }}
       - name: Read Chainlink Core Ref from .core_version
         id: read_core_ref
         run: echo "CORE_REF=$(cat ./scripts/.core_version | tr -d '[:space:]')" >> $GITHUB_OUTPUT
