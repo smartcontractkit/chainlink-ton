@@ -176,7 +176,7 @@ struct OnRampUpdateDestChainConfig {
 
 // TODO: make this direct snakedata by using RemainingBitsAndRefs? this way it's not cell->cell
 struct (0x10000004) OnRampUpdateDestChainConfigs {
-    updates: cell; // vec<O;;rRampUpdateDestChainConfig>
+    updates: cell; // vec<OffRampUpdateDestChainConfig>
 }
 
 struct UpdateAllowlist {
