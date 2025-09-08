@@ -865,5 +865,4 @@ func Test_LogPoller(t *testing.T) {
 	t.Run("Log Poller Replay for a Contract", func(t *testing.T) {
 		t.Skip("TODO: Implement")
 	})
-
 }
