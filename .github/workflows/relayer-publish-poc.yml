@@ -9,32 +9,94 @@ on:
   workflow_dispatch: # Manual trigger from GitHub UI
 
 jobs:
-  build-publish-docker:
-    name: Build & Publish Docker Image
-    if: ${{ github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'build-publish-docker') }}
+  build-core:
+    name: Run Core Build
+    runs-on: ubuntu-24.04
     permissions:
-      contents: read
       id-token: write
-    uses: smartcontractkit/.github/.github/workflows/reusable-docker-build-publish.yml@317784689643295083653d9c9d08d34d8e379a7f # 2025-05-13
-    with:
-      # Internal dev ECR, retention policy based on tag
-      aws-ecr-name: chainlink-plugins-dev
-      aws-region-ecr: us-west-2
-      aws-region-gati: us-west-2
-      dockerfile: scripts/build/Dockerfile.build.nix
-      docker-build-context: .
-      docker-build-args: |
-        CHAINLINK_USER=chainlink
-        COMMIT_SHA=${{ github.sha }}
-      docker-manifest-sign: true
-      docker-tag-custom-suffix: "-chainlink-ton"
-      git-sha: ${{ github.sha }}
-      github-event-name: ${{ github.event_name }}
-      github-ref-name: ${{ github.ref_name }}
-      github-ref-type: ${{ github.ref_type }}
-      github-workflow-repository: ${{ github.repository }}
-    secrets:
-      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID_STAGING }}
-      AWS_ROLE_PUBLISH_ARN: ${{ secrets.AWS_ROLE_PUBLISH_ARN_STAGING }}
-      AWS_ROLE_GATI_ARN: ${{ secrets.AWS_ROLE_ARN_GATI_READONLY }}
-      AWS_LAMBDA_GATI_URL: ${{ secrets.AWS_LAMBDA_URL_GATI }}
+      contents: read
+    env:
+      DEFAULT_CORE_REF: develop
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    outputs:
+      date: ${{ steps.get-date.outputs.date }}
+    steps:
+      - name: Setup GitHub Token
+        id: setup-github-token
+        uses: smartcontractkit/.github/actions/setup-github-token@ef78fa97bf3c77de6563db1175422703e9e6674f # setup-github-token@0.2.1
+        with:
+          aws-role-arn: ${{ secrets.AWS_ROLE_ARN_GATI_READONLY }}
+          aws-lambda-url: ${{ secrets.AWS_ROLE_ARN_GATI_READONLY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      - name: Read Chainlink Core Ref from .core_version
+        id: read_core_ref
+        run: echo "CORE_REF=$(cat ./scripts/.core_version | tr -d '[:space:]')" >> $GITHUB_OUTPUT
+
+      - name: Checkout Chainlink Core repo
+        id: checkout-core
+        uses: actions/checkout@v4
+        with:
+          repository: smartcontractkit/chainlink
+          ref: ${{ steps.read_core_ref.outputs.CORE_REF }}
+          path: chainlink
+ 
+      - name: Read go version from core .tool-versions
+        id: tool_versions
+        run: |
+          go_version=$(grep -E '^golang ' temp/chainlink/.tool-versions | cut -d' ' -f2)
+          echo "GO_VERSION=${go_version}" >> "${GITHUB_OUTPUT}"
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ steps.tool_versions.outputs.GO_VERSION }}
+
+      # TODO cache the chainlink image when we have a stable core ref
+      - name: Build chainlink image
+        id: build-core
+        env:
+          GIT_AUTH_TOKEN: ${{ steps.setup-github-token.outputs.access-token }}
+        run: |
+          cd temp/chainlink
+          echo "🔎 Building from commit: $(git rev-parse HEAD)"
+          echo "🔎 Commit message: $(git log -1 --pretty=%B)"
+          echo "🔎 Branch: $(git rev-parse --abbrev-ref HEAD)"
+          echo "🔎 Dockerfile: core/chainlink.Dockerfile"
+          echo "🔎 Build context: $(pwd)"
+          ls -lah
+
+          docker buildx build \
+            --secret id=GIT_AUTH_TOKEN \
+            --build-arg COMMIT_SHA=$(git rev-parse HEAD) \
+            -t local_chainlink \
+            -f core/chainlink.Dockerfile .
+
+  # build-publish-docker:
+  #   name: Build & Publish Docker Image
+  #   if: ${{ github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'build-publish-docker') }}
+  #   permissions:
+  #     contents: read
+  #     id-token: write
+  #   uses: smartcontractkit/.github/.github/workflows/reusable-docker-build-publish.yml@317784689643295083653d9c9d08d34d8e379a7f # 2025-05-13
+  #   with:
+  #     # Internal dev ECR, retention policy based on tag
+  #     aws-ecr-name: chainlink-plugins-dev
+  #     aws-region-ecr: us-west-2
+  #     aws-region-gati: us-west-2
+  #     dockerfile: scripts/build/Dockerfile.build.nix
+  #     docker-build-context: .
+  #     docker-build-args: |
+  #       CHAINLINK_USER=chainlink
+  #       COMMIT_SHA=${{ github.sha }}
+  #     docker-manifest-sign: true
+  #     docker-tag-custom-suffix: "-chainlink-ton"
+  #     git-sha: ${{ github.sha }}
+  #     github-event-name: ${{ github.event_name }}
+  #     github-ref-name: ${{ github.ref_name }}
+  #     github-ref-type: ${{ github.ref_type }}
+  #     github-workflow-repository: ${{ github.repository }}
+  #   secrets:
+  #     AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID_STAGING }}
+  #     AWS_ROLE_PUBLISH_ARN: ${{ secrets.AWS_ROLE_PUBLISH_ARN_STAGING }}
+  #     AWS_ROLE_GATI_ARN: ${{ secrets.AWS_ROLE_ARN_GATI_READONLY }}
+  #     AWS_LAMBDA_GATI_URL: ${{ secrets.AWS_LAMBDA_URL_GATI }}
