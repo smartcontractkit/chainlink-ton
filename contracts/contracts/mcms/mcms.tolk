@@ -1,12 +1,13 @@
 tolk 1.0
 
 import "@stdlib/tvm-dicts";
+import "@stdlib/gas-payments";
 
 import "../lib/utils";
 import "../lib/access/ownable_2step.tolk";
 import "../lib/crypto/merkle_proof.tolk";
 
-/// @notice This is a multi-sig contract that supports signing many transactions (called "ops" in
+/// This is a multi-sig contract that supports signing many transactions (called "ops" in
 /// the context of this contract to prevent confusion with transactions on the underlying chain)
 /// targeting many chains with a single set of signatures. Authorized ops along with some metadata
 /// are stored in a Merkle tree, which is generated offchain. Each op has an associated chain id,
@@ -34,15 +35,15 @@ import "../lib/crypto/merkle_proof.tolk";
 
 // --- Messages - incoming ---
 
-/// @dev Top up contract with TON coins.
-/// Contract might receive/hold TON as part of the maintenance process.
+/// Top up contract with TON coins.
 ///
+/// @dev Contract might receive/hold TON as part of the maintenance process.
 struct (0x5f427bb3) MCMS_TopUp {
-    /// Query ID of the change owner request.
+    /// Query ID of the change request.
     queryId: uint64;
 }
 
-/// @dev Sets a new expiring root.
+/// Sets a new expiring root.
 ///
 /// @param root is the new expiring root.
 /// @param validUntil is the time by which root is valid
@@ -57,7 +58,7 @@ struct (0x5f427bb3) MCMS_TopUp {
 /// @dev this method can be executed by anyone who has the root and valid signatures.
 /// as we validate the correctness of signatures, this imposes no risk.
 struct (0xe7fabde3) MCMS_SetRoot {
-    /// Query ID of the change owner request.
+    /// Query ID of the change request.
     queryId: uint64;
 
     /// The new expiring root.
@@ -71,16 +72,18 @@ struct (0xe7fabde3) MCMS_SetRoot {
     metadataProof: cell; // vec<uint256>;
     /// The ECDSA signatures on (root, validUntil).
     signatures: cell; // vec<Signature>
+    /// The timeout required to finalize the currently executing op
+    opFinalizationTimeout: uint32;
 }
 
-/// @notice Execute the received op after verifying the proof of its inclusion in the
+/// Execute the received op after verifying the proof of its inclusion in the
 /// current Merkle tree. The op should be the next op according to the order
-/// enforced by the merkle tree whose root is stored in data.expiringRootAndOpCount, i.e., the
-/// nonce of the op should be equal to data.expiringRootAndOpCount.opCount.
+/// enforced by the merkle tree whose root is stored in data.rootInfo.expiringRootAndOpCount, i.e., the
+/// nonce of the op should be equal to data.rootInfo.expiringRootAndOpCount.opCount.
 ///
 /// @param op is Op to be executed
 /// @param proof is the MerkleProof for the op's inclusion in the MerkleTree which its
-/// root is the data.expiringRootAndOpCount.root.
+/// root is the data.rootInfo.expiringRootAndOpCount.root.
 ///
 /// @dev ANYONE can call this function! That's intentional. Callers can only execute verified,
 /// ordered ops in the Merkle tree.
@@ -91,17 +94,17 @@ struct (0xe7fabde3) MCMS_SetRoot {
 /// @dev the gas limit of the call can be freely determined by the caller of this function.
 /// We expect callees to revert if they run out of gas.
 struct (0x9b9ce96a) MCMS_Execute {
-    /// Query ID of the change owner request.
+    /// Query ID of the change request.
     queryId: uint64;
 
     /// The op to be executed.
-    op: Cell<Op>; // Notice: split out as cell to avoid size limits
+    op: Cell<Op>; // @dev split out as cell to avoid size limits
     /// The MerkleProof for the op's inclusion in the MerkleTree
     proof: cell; // vec<uint256>,
 }
 
-/// @notice sets a new data.config. If clearRoot is true, then it also invalidates
-/// data.expiringRootAndOpCount.root.
+/// Sets a new data.config. If clearRoot is true, then it also invalidates
+/// data.rootInfo.expiringRootAndOpCount.root.
 ///
 /// @param signerKeys holds the public keys of the active signers. The keys must be in
 /// ascending order.
@@ -118,7 +121,7 @@ struct (0x9b9ce96a) MCMS_Execute {
 /// might be used when the current root was signed under a loser group configuration or when
 /// some previous signers aren't trusted any more.
 struct (0x89277f4b) MCMS_SetConfig {
-    /// Query ID of the change owner request.
+    /// Query ID of the change request.
     queryId: uint64;
 
     signerKeys: cell;   // vec<uint256> (public keys)
@@ -128,17 +131,55 @@ struct (0x89277f4b) MCMS_SetConfig {
     clearRoot: bool;
 }
 
+/// Submit an oracle error report, which marks the current root as invalid.
+///
+/// The error report is used for a category of errors which might occur during execution
+/// of an operation, but can't be caught on-chain (OOG errors, and downstream tx-trace errors).
+///
+/// @dev The error oracle can only report errors for the current non-expired root, to avoid reporting
+/// stale errors for operations that are no longer valid.
+struct (0x4b3af0b5) MCMS_SubmitErrorReport {
+    /// Query ID of the change request.
+    queryId: uint64;
+
+    /// The operation which produced the error.
+    op: Cell<Op>;
+    /// The MerkleProof for the op's inclusion in the MerkleTree
+    proof: cell; // vec<uint256>,
+    /// The hash of the execute transaction.
+    opTxHash: uint256;
+
+    /// The hash of the transaction which errored (part of the tx trace).
+    errorTxHash: uint256;
+    /// The error code.
+    errorCode: uint32;
+}
+
+/// Message sent by the owner to transfer the oracle role.
+struct (0xf275742f) MCMS_TransferOracleRole {
+    /// Query ID of the change request.
+    queryId: uint64;
+    /// The address of the new oracle.
+    newOracle: address;
+}
+
 /// @dev Union of all incoming messages.
-type MCMS_InMessage = MCMS_TopUp
+type MCMS_InMessage =
+    | MCMS_TopUp
     | MCMS_SetRoot
     | MCMS_Execute
-    | MCMS_SetConfig;
+    | MCMS_SetConfig
+    | MCMS_SubmitErrorReport
+    | MCMS_TransferOracleRole
+    // when mcms owns itself
+    | MCMS_ConfigSet
+    | MCMS_OracleRoleTransferred;
 
 // --- Messages - outgoing ---
 
-/// @notice Emitted when a new root is set.
+/// Sent back to sender when a new root is set.
 struct (0xa6533a3d) MCMS_NewRoot {
-    /// Query ID of the change owner request.
+    /// Query ID of the change request.
     queryId: uint64;
 
     /// The new expiring root.
@@ -149,9 +190,9 @@ struct (0xa6533a3d) MCMS_NewRoot {
     metadata: RootMetadata;
 }
 
-/// @notice Emitted when a new config is set.
+/// Sent back to sender when a new config is set.
 struct (0xd80be574) MCMS_ConfigSet {
-    /// Query ID of the change owner request.
+    /// Query ID of the change request.
     queryId: uint64;
 
     /// The new config.
@@ -160,9 +201,9 @@ struct (0xd80be574) MCMS_ConfigSet {
     isRootCleared: bool;
 }
 
-/// @notice Emitted when an op gets successfully executed.
+/// Sent back to sender when an op gets successfully executed.
 struct (0x7cf37cbf) MCMS_OpExecuted {
-    /// Query ID of the change owner request.
+    /// Query ID of the change request.
     queryId: uint64;
 
     /// The nonce of the operation.
@@ -175,10 +216,44 @@ struct (0x7cf37cbf) MCMS_OpExecuted {
     value: coins;
 }
 
+/// Sent back to sender when an error report is successfully submitted.
+struct (0xbbc4deb4) MCMS_ErrorReportSubmitted {
+    /// Query ID of the change request.
+    queryId: uint64;
+
+    /// The (merkle leaf) hash of the operation which produced the error.
+    opLeafHash: uint256;
+    /// The hash of the operation execute transaction.
+    opTxHash: uint256;
+
+    /// The hash of the transaction which errored.
+    errorTxHash: uint256;
+    /// The error code.
+    errorCode: uint32;
+
+    /// The current root which was invalidated.
+    root: Cell<uint256>;
+    /// Whether the operation that was pending was the one for which the error was reported.
+    matchesPendingOp: bool;
+}
+
+/// Sent back to sender when the oracle role is transferred.
+struct (0xff4176a3) MCMS_OracleRoleTransferred {
+    /// Query ID of the change request.
+    queryId: uint64;
+    /// The address of the old oracle.
+    oldOracle: address;
+    /// The address of the new oracle.
+    newOracle: address;
+}
+
 /// @dev Union of all outgoing messages.
-type MCMS_OutMessage = MCMS_NewRoot
+type MCMS_OutMessage =
+    | MCMS_NewRoot
     | MCMS_ConfigSet
-    | MCMS_OpExecuted;
+    | MCMS_OpExecuted
+    | MCMS_ErrorReportSubmitted
+    | MCMS_OracleRoleTransferred;
 
 // --- Storage ---
 
@@ -199,19 +274,21 @@ struct MCMS_Data {
     /// Ownable trait data
     ownable: Ownable2Step;
 
+    /// Address of the error oracle account, which can submit error reports.
+    oracle: address;
+
     /// signers is used to easily validate the existence of the signer by its public key. We still
     /// have signers stored in config in order to easily deactivate them when a new config is set.
     signers: dict; // map<uint256, Signer> - exists if the public key is a signer
 
     /// The current configuration of the contract
-    config: Cell<Config>; // Notice: split out as cell to avoid size limits
+    config: Cell<Config>; // @dev split out as cell to avoid size limits
 
     /// Remember signedHashes that this contract has seen. Each signedHash can only be set once.
     seenSignedHashes: dict; // map<uint256, bool>
-    /// The current expiring root and the number of ops in it.
-    expiringRootAndOpCount: ExpiringRootAndOpCount;
-    /// The current metadata about the root.
-    rootMetadata: Cell<RootMetadata>; // Notice: split out as cell to avoid size limits
+
+    /// The current RootMetadata and ExpiringRootAndOpCount wrapped in a cell bc size limits.
+    rootInfo: Cell<RootInfo>;
 }
 
 /// Load from contract data using auto-serialization.
@@ -251,77 +328,89 @@ const MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA =
 const NUM_GROUPS = 32;
 const MAX_NUM_SIGNERS = 200;
 
-/// @notice Thrown when number of signers is 0 or greater than MAX_NUM_SIGNERS.
+const DEFAULT_FINALIZATION_TIMEOUT = 60; // in seconds
+
+/// Thrown when number of signers is 0 or greater than MAX_NUM_SIGNERS.
 const ERROR_OUT_OF_BOUNDS_NUM_SIGNERS = 100;
-/// @notice Thrown when signerKeys and signerGroups have different lengths.
+
+/// Thrown when signerKeys and signerGroups have different lengths.
 const ERROR_SIGNER_GROUPS_LENGTH_MISMATCH = 101;
 
-/// @notice Thrown when number of some signer's group is greater than (NUM_GROUPS-1).
+/// Thrown when number of some signer's group is greater than (NUM_GROUPS-1).
 const ERROR_OUT_OF_BOUNDS_GROUP = 102;
 
-/// @notice Thrown when the group tree isn't well-formed.
+/// Thrown when the group tree isn't well-formed.
 const ERROR_GROUP_TREE_NOT_WELL_FORMED = 103;
 
-/// @notice Thrown when the quorum of some group is larger than the number of signers in it.
+/// Thrown when the quorum of some group is larger than the number of signers in it.
 const ERROR_OUT_OF_BOUNDS_GROUP_QUORUM = 104;
 
-/// @notice Thrown when a disabled group contains a signer.
+/// Thrown when a disabled group contains a signer.
 const ERROR_SIGNER_IN_DISABLED_GROUP = 105;
 
-/// @notice Thrown when the signers' public keys are not a strictly increasing monotone sequence.
+/// Thrown when the signers' public keys are not a strictly increasing monotone sequence.
 /// Prevents signers from including more than one signature.
 const ERROR_SIGNERS_KEYS_MUST_BE_STRICTLY_INCREASING = 106;
 
-/// @notice Thrown when the signature corresponds to invalid signer.
+/// Thrown when the signature corresponds to invalid signer.
 const ERROR_INVALID_SIGNER = 107;
 
-/// @notice Thrown when there is no sufficient set of valid signatures provided to make the
+/// Thrown when there is no sufficient set of valid signatures provided to make the
 /// root group successful.
 const ERROR_INSUFFICIENT_SIGNERS = 108;
 
-/// @notice Thrown when attempt to set metadata or execute op for another chain.
+/// Thrown when attempt to set metadata or execute op for another chain.
 const ERROR_WRONG_CHAIN_ID = 109;
 
-/// @notice Thrown when the multiSig address in metadata or op is
+/// Thrown when the multiSig address in metadata or op is
 /// incompatible with the address of this contract.
 const ERROR_WRONG_MULTI_SIG = 110;
 
-/// @notice Thrown when the preOpCount <= postOpCount invariant is violated.
+/// Thrown when the preOpCount <= postOpCount invariant is violated.
 const ERROR_WRONG_POST_OP_COUNT = 111;
 
-/// @notice Thrown when attempting to set a new root while there are still pending ops
+/// Thrown when attempting to set a new root while there are still pending ops
 /// from the previous root without explicitly overriding it.
 const ERROR_PENDING_OPS = 112;
 
-/// @notice Thrown when preOpCount in metadata is incompatible with the current opCount.
+/// Thrown when preOpCount in metadata is incompatible with the current opCount.
 const ERROR_WRONG_PRE_OP_COUNT = 113;
 
-/// @notice Thrown when the provided merkle proof cannot be verified.
+/// Thrown when the provided merkle proof cannot be verified.
 const ERROR_PROOF_CANNOT_BE_VERIFIED = 114;
 
-/// @notice Thrown when attempt to execute an op after
-/// data.expiringRootAndOpCount.validUntil has passed.
+/// Thrown when attempt to execute an op after
+/// data.rootInfo.expiringRootAndOpCount.validUntil has passed.
 const ERROR_ROOT_EXPIRED = 115;
 
-/// @notice Thrown when attempt to bypass the enforced ops' order in the merkle tree or
+/// Thrown when attempt to bypass the enforced ops' order in the merkle tree or
 /// re-execute an op.
 const ERROR_WRONG_NONCE = 116;
 
-/// @notice Thrown when attempting to execute an op even though opCount equals
+/// Thrown when attempting to execute an op even though opCount equals
 /// metadata.postOpCount.
 const ERROR_POST_OP_COUNT_REACHED = 117;
 
-/// @notice Thrown when the underlying call in _execute() reverts.
+/// Thrown when the underlying call in _execute() reverts.
 const ERROR_CALL_REVERTED = 118;
 
-/// @notice Thrown when attempt to set past validUntil for the root.
+/// Thrown when attempt to set past validUntil for the root.
 const ERROR_VALID_UNTIL_HAS_ALREADY_PASSED = 119;
 
-/// @notice Thrown when setRoot() is called before setting a config.
+/// Thrown when setRoot() is called before setting a config.
 const ERROR_MISSING_CONFIG = 120;
 
-/// @notice Thrown when attempt to set the same (root, validUntil) in setRoot().
+/// Thrown when attempt to set the same (root, validUntil) in setRoot().
 const ERROR_SIGNED_HASH_ALREADY_SEEN = 121;
+
+/// Thrown when the root has not been finalized yet (can't execute next op before finalization).
+const ERROR_ROOT_NOT_FINALIZED = 122;
+
+/// Thrown when the provided op.value is insufficient (min required value not met).
+const ERROR_INSUFFICIENT_VALUE = 123;
+
+/// Thrown when the error report sender is not the authorized oracle.
+const ERROR_UNAUTHORIZED_ORACLE = 124;
 
 // --- Constants - storage ---
 
@@ -398,6 +487,14 @@ struct Config {
     groupParents: dict; // map<uint8, uint8> (indexed, iterable backwards)
 }
 
+/// Information about the current root, extracted into a separate struct (wrapped in a cell).
+struct RootInfo {
+    /// The current expiring root and the number of ops in it.
+    expiringRootAndOpCount: ExpiringRootAndOpCount;
+    /// The current metadata about the root.
+    rootMetadata: RootMetadata;
+}
+
 /// MerkleRoots are a bit tricky since they reveal almost no information about the contents of
 /// the tree they authenticate. To mitigate this, we enforce that this contract can only execute
 /// ops from a single root at any given point in time. We further associate an expiry
@@ -414,9 +511,28 @@ struct ExpiringRootAndOpCount {
     validUntil: uint32;
     /// each ManyChainMultiSig instance has it own independent opCount.
     opCount: uint40;
+    /// Information about the currently pending operation.
+    opPendingInfo: Cell<OpPendingInfo>
 }
 
-/// @notice Each root also authenticates metadata about itself (stored as one of the leaves)
+/// Information about the currently pending operation.
+///
+/// @dev TON-specific additional data required to support reliable execution in the async environment.
+struct OpPendingInfo {
+    /// The time at which the root becomes valid [executionTime(opCount - 1) + opFinalizationTimeout].
+    /// At this time the previous executed operation is considered optimistically final and successful,
+    /// meaning no bounce was received and we can continue executing.
+    validAfter: uint32;
+    /// The timeout required to finalize the currently executing op
+    opFinalizationTimeout: uint32;
+    /// The address that the (pending) operation was sent to (and could bounce from).
+    opPendingReceiver: address;
+    /// The truncated body of the pending operation (256 bits from the original message),
+    /// stored as the next expected potential bounce, and verified in onBounceMessage handler.
+    opPendingBodyTruncated: uint256;
+}
+
+/// Each root also authenticates metadata about itself (stored as one of the leaves)
 /// which must be revealed when the root is set.
 ///
 /// @dev We need to be careful that abi.encode(MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA, RootMetadata)
@@ -444,8 +560,7 @@ struct RootMetadata {
 
 /// @dev An ECDSA signature.
 struct Signature {
-    // Notice: no `v: uint8;` field, as public key recovery is not supported.
-
+    // @dev no `v: uint8;` field, as public key recovery is not supported.
     r: uint256;
     s: uint256;
 
@@ -453,7 +568,7 @@ struct Signature {
     signer: uint256;
 }
 
-/// @notice an op to be executed by the ManyChainMultiSig contract
+/// An op to be executed by the ManyChainMultiSig contract
 ///
 /// @dev We need to be careful that abi.encode(LEAF_OP_DOMAIN_SEPARATOR, RootMetadata)
 /// is greater than 64 bytes to prevent collisions with internal nodes in the Merkle tree. See
@@ -482,7 +597,7 @@ fun MCMS<T>.load(context: T? = null, hooks: MCMS_Hooks<T>? = null): MCMS<T> {
     };
 }
 
-/// @notice setRoot Sets a new expiring root.
+/// setRoot Sets a new expiring root.
 ///
 /// @param root is the new expiring root.
 /// @param validUntil is the time by which root is valid
@@ -504,7 +619,8 @@ fun MCMS<T>.setRoot(
     validUntil: uint32,
     metadata: RootMetadata,
     metadataProof: Iterator<uint256>,
-    signatures: cell // vec<Signature>
+    signatures: cell, // vec<Signature>
+    opFinalizationTimeout: uint32 = DEFAULT_FINALIZATION_TIMEOUT
 ) {
     /// Construct the message that should be signed by the signers.
     val signedHash = beginCell()
@@ -573,7 +689,7 @@ fun MCMS<T>.setRoot(
                 throw ERROR_INVALID_SIGNER;
             }
 
-            // Notice: break/continue from loops are not supported yet in Tolk.
+            // @dev break/continue from loops are not supported yet in Tolk.
             // Instead, we use a flag to indicate whether we should break the loop.
             var _break = false;
             var group = signer.group;
@@ -634,7 +750,7 @@ fun MCMS<T>.setRoot(
 
     {
         // verify metadataProof
-        // Notice: we use the standard sha256 hash function to hash the leaf.
+        // @dev we use the standard sha256 hash function to hash the leaf.
         val hashedLeaf =
             beginCell()
                 .storeUint(MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA, 256)
@@ -656,14 +772,13 @@ fun MCMS<T>.setRoot(
         throw ERROR_WRONG_MULTI_SIG;
     }
 
-    val opCount: uint40 = self.data.expiringRootAndOpCount.opCount;
+    // Unpack the root info from the contract data
+    val rootInfo = lazy RootInfo.fromCell(self.data.rootInfo);
 
     // don't allow a new root to be set if there are still outstanding ops that have not been
     // executed, unless overridePreviousRoot is set
-    //
-    // Unpack the root metadata from the contract data
-    val rootMetadata = lazy RootMetadata.fromCell(self.data.rootMetadata);
-    if (opCount != rootMetadata.postOpCount && !metadata.overridePreviousRoot) {
+    val opCount: uint40 = rootInfo.expiringRootAndOpCount.opCount;
+    if (opCount != rootInfo.rootMetadata.postOpCount && !metadata.overridePreviousRoot) {
         throw ERROR_PENDING_OPS;
     }
 
@@ -679,30 +794,40 @@ fun MCMS<T>.setRoot(
 
     // done with validation, persist in in contract state
     self.data.seenSignedHashes.uDictSet(256, signedHash, createEmptySlice());
-    self.data.expiringRootAndOpCount = ExpiringRootAndOpCount{
-        root: root,
-        validUntil: validUntil,
-        opCount: metadata.preOpCount
-    };
-    self.data.rootMetadata = metadata.toCell();
+    self.data.rootInfo = RootInfo {
+        expiringRootAndOpCount: ExpiringRootAndOpCount{
+            root,
+            validUntil,
+            opCount: metadata.preOpCount,
+            // TON-specific additions below to support the async environment
+            opPendingInfo: OpPendingInfo{
+                validAfter: blockchain.now(), // immediate
+                opFinalizationTimeout,
+                opPendingReceiver: createAddressNone(),
+                opPendingBodyTruncated: 0,
+            }.toCell()
+        },
+        rootMetadata: metadata,
+    }.toCell();
 
     // Reply to sender new root was set, return excess
-    createMessage({
+    val reply = createMessage({
         bounce: false,
         value: 0,
         dest: sender,
         body: MCMS_NewRoot{queryId, root, validUntil, metadata}
-    }).send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    });
+    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-/// @notice Execute the received op after verifying the proof of its inclusion in the
+/// Execute the received op after verifying the proof of its inclusion in the
 /// current Merkle tree. The op should be the next op according to the order
-/// enforced by the merkle tree whose root is stored in data.expiringRootAndOpCount, i.e., the
-/// nonce of the op should be equal to data.expiringRootAndOpCount.opCount.
+/// enforced by the merkle tree whose root is stored in data.rootInfo.expiringRootAndOpCount, i.e., the
+/// nonce of the op should be equal to data.rootInfo.expiringRootAndOpCount.opCount.
 ///
 /// @param op is Op to be executed
 /// @param proof is the MerkleProof for the op's inclusion in the MerkleTree which its
-/// root is the data.expiringRootAndOpCount.root.
+/// root is the data.rootInfo.expiringRootAndOpCount.root.
 ///
 /// @dev ANYONE can call this function! That's intentional. Callers can only execute verified,
 /// ordered ops in the Merkle tree.
@@ -719,10 +844,10 @@ fun MCMS<T>.execute(
     op: Op,
     proof: Iterator<uint256>,
 ) {
-    val currentExpiringRootAndOpCount = self.data.expiringRootAndOpCount;
-
-    // Unpack the root metadata from the contract data
-    val rootMetadata = lazy RootMetadata.fromCell(self.data.rootMetadata);
+    // Unpack the root info from the contract data
+    val rootInfo = lazy RootInfo.fromCell(self.data.rootInfo);
+    val currentExpiringRootAndOpCount = rootInfo.expiringRootAndOpCount;
+    val rootMetadata = rootInfo.rootMetadata;
 
     if (rootMetadata.postOpCount <= currentExpiringRootAndOpCount.opCount) {
         throw ERROR_POST_OP_COUNT_REACHED;
@@ -737,16 +862,29 @@ fun MCMS<T>.execute(
         throw ERROR_WRONG_MULTI_SIG;
     }
 
-    if (blockchain.now() > currentExpiringRootAndOpCount.validUntil) {
+    if (blockchain.now() >= currentExpiringRootAndOpCount.validUntil) {
         throw ERROR_ROOT_EXPIRED;
+    }
+
+    val opPendingInfo = lazy OpPendingInfo.fromCell(currentExpiringRootAndOpCount.opPendingInfo);
+    if (blockchain.now() < opPendingInfo.validAfter) {
+        throw ERROR_ROOT_NOT_FINALIZED;
     }
 
     if (op.nonce != currentExpiringRootAndOpCount.opCount) {
         throw ERROR_WRONG_NONCE;
     }
 
+    // We enforce a minimum amount of TON op.value trying to ensure the receiver gets at least enough gas for
+    // fee validation + a bounce, and avoid out of gas errors in which cases a message will not bounce.
+    val workchain = contract.getAddress().getWorkchain();
+    val minValue = calculateGasFee(workchain, DEFAULT_MESSAGE_FWD_BUDGET_GAS_UNITS);
+    if (op.value < minValue) {
+        throw ERROR_INSUFFICIENT_VALUE;
+    }
+
     // verify that the op exists in the merkle tree
-    // Notice: we use the standard sha256 hash function to hash the leaf.
+    // @dev we use the standard sha256 hash function to hash the leaf.
     val hashedLeaf =
         beginCell()
             .storeUint(MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP, 256)
@@ -758,22 +896,46 @@ fun MCMS<T>.execute(
         throw ERROR_PROOF_CANNOT_BE_VERIFIED;
     }
 
-    // increase the counter *before* execution to prevent reentrancy issues
-    self.data.expiringRootAndOpCount.opCount = currentExpiringRootAndOpCount.opCount + 1;
+    // Update the state
+    self.data.rootInfo = RootInfo{
+        expiringRootAndOpCount: {
+            root: currentExpiringRootAndOpCount.root,
+            validUntil: currentExpiringRootAndOpCount.validUntil,
+            // increase the counter *before* execution to prevent reentrancy issues
+            opCount: currentExpiringRootAndOpCount.opCount + 1,
+            // TON-specific additions below to support the async environment
+            opPendingInfo: OpPendingInfo{
+                // @dev we set optimistic finalization of an async operation using a timeout
+                // Within that timeout executions are paused as we wait for the finalization signal
+                //
+                // To finalize an execution, one of two conditions must be met:
+                // 1. Finalization timeout expired                      [can continue]
+                // 2. Message bounced back                              [can retry]
+                // 3. Oracle reported an error (e.g., out-of-gas error) [root invalidated, can't retry]
+                validAfter: blockchain.now() + opPendingInfo.opFinalizationTimeout,
+                opFinalizationTimeout: opPendingInfo.opFinalizationTimeout,
+                // Store the pending message info (checked onBouncedMessage)
+                opPendingReceiver: op.to,
+                opPendingBodyTruncated: extractBouncedBody(op.data.beginParse())
+            }.toCell()
+        },
+        rootMetadata
+    }.toCell();
 
     self._execute(op.to, op.value, op.data);
 
     // Reply back to sender
-    createMessage({
+    val reply = createMessage({
         bounce: false,
-        value: DEFAULT_MESSAGE_BUDGET_FEE, // send small value as gas budget, keep the rest
+        value: minValue, // send small value as gas budget, keep the rest
         dest: sender,
         body: MCMS_OpExecuted{queryId, nonce: op.nonce, to: op.to, data: op.data, value: op.value}
-    }).send(SEND_MODE_REGULAR);
+    });
+    reply.send(SEND_MODE_REGULAR);
 }
 
-/// @notice sets a new data.config. If clearRoot is true, then it also invalidates
-/// data.expiringRootAndOpCount.root.
+/// setConfig sets a new data.config. If clearRoot is true, then it also invalidates
+/// data.rootInfo.expiringRootAndOpCount.root.
 ///
 /// @param signerKeys holds the public keys of the active signers. The keys must be in
 /// ascending order.
@@ -949,23 +1111,33 @@ fun MCMS<T>.setConfig(
     // Optionally clear root
     if (clearRoot) {
         // clearRoot is equivalent to overriding with a completely empty root
-        val opCount = self.data.expiringRootAndOpCount.opCount;
-        self.data.expiringRootAndOpCount = ExpiringRootAndOpCount{
-            root: 0, // empty root
-            validUntil: 0,
-            opCount: opCount
-        };
-        self.data.rootMetadata = RootMetadata{
-            chainId: globalId() as int256,
-            multiSig: contract.getAddress(),
-            preOpCount: opCount,
-            postOpCount: opCount,
-            overridePreviousRoot: true
+        val rootInfo = lazy RootInfo.fromCell(self.data.rootInfo);
+        val opCount = rootInfo.expiringRootAndOpCount.opCount;
+        self.data.rootInfo = RootInfo{
+            expiringRootAndOpCount: ExpiringRootAndOpCount{
+                root: 0, // empty root
+                validUntil: 0,
+                opCount,
+                // TON-specific additions below to support the async environment
+                opPendingInfo: OpPendingInfo{
+                    validAfter: blockchain.now(), // immediate
+                    opFinalizationTimeout: 0,
+                    opPendingReceiver: createAddressNone(),
+                    opPendingBodyTruncated: 0
+                }.toCell()
+            },
+            rootMetadata: RootMetadata{
+                chainId: globalId() as int256,
+                multiSig: contract.getAddress(),
+                preOpCount: opCount,
+                postOpCount: opCount,
+                overridePreviousRoot: true
+            }
         }.toCell();
     }
 
     // Reply to sender config is set, return excess
-    createMessage({
+    val reply = createMessage({
         bounce: false,
         value: 0,
         dest: sender,
@@ -974,22 +1146,125 @@ fun MCMS<T>.setConfig(
             config: Config.fromCell(self.data.config),
             isRootCleared: clearRoot
         }
-    }).send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    });
+    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
-/// @notice Execute an op's call. Performs a raw message send that can bounce on errors.
+/// Submit an oracle error report, which marks the current root as invalid.
+///
+/// @see <MCMS_SubmitErrorReport> for more information.
+fun MCMS<T>.submitErrorReport(
+    mutate self,
+    sender: address,
+    queryId: uint64,
+    op: Op,
+    proof: Iterator<uint256>,
+    opTxHash: uint256,
+    errorTxHash: uint256,
+    errorCode: uint32
+) {
+    // Only the oracle can submit error reports
+    if (sender != self.data.oracle) {
+        throw ERROR_UNAUTHORIZED_ORACLE;
+    }
+
+    // Check if right environment via chainId
+    if (op.chainId != globalId() as int256) {
+        throw ERROR_WRONG_CHAIN_ID;
+    }
+
+    if (op.multiSig != contract.getAddress()) {
+        throw ERROR_WRONG_MULTI_SIG;
+    }
+
+    var rootInfo = lazy RootInfo.fromCell(self.data.rootInfo);
+
+    if (blockchain.now() > rootInfo.expiringRootAndOpCount.validUntil) {
+        throw ERROR_ROOT_EXPIRED;
+    }
+
+    // verify that the op exists in the merkle tree
+    // @dev we use the standard sha256 hash function to hash the leaf.
+    val hashedLeaf =
+        beginCell()
+            .storeUint(MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP, 256)
+            .storeRef(op.toCell())
+            .endCell()
+            .hash();
+    // "../lib/crypto/merkle_proof.tolk"
+    if (!verify(proof, rootInfo.expiringRootAndOpCount.root, hashedLeaf)) {
+        throw ERROR_PROOF_CANNOT_BE_VERIFIED;
+    }
+
+    // Mark root in error state (recover with new root + bypass)
+    rootInfo.expiringRootAndOpCount.validUntil = blockchain.now(); // expire root immediately
+    self.data.rootInfo = rootInfo.toCell();
+
+    // Check the reported error against the stored pending operation
+    val opPendingInfo = lazy OpPendingInfo.fromCell(rootInfo.expiringRootAndOpCount.opPendingInfo);
+
+    val matchesPendingOp = opPendingInfo.opPendingReceiver == op.to
+        && opPendingInfo.opPendingBodyTruncated == extractBouncedBody(op.data.beginParse());
+
+    // Store the root in a separate cell (size limit)
+    val root = beginCell()
+        .storeUint(rootInfo.expiringRootAndOpCount.root, 256)
+        .endCell() as Cell<uint256>;
+
+    val reply = createMessage({
+        bounce: false,
+        value: 0,
+        dest: sender,
+        body: MCMS_ErrorReportSubmitted{
+            queryId,
+            opLeafHash: hashedLeaf,
+            opTxHash,
+            errorTxHash,
+            errorCode,
+            root,
+            matchesPendingOp,
+        }
+    });
+    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
+/// Transfer the error oracle role - requires owner.
+///
+/// @see <MCMS_TransferOracleRole> for more information.
+fun MCMS<T>.transferOracleRole(
+    mutate self,
+    sender: address,
+    queryId: uint64,
+    newOracle: address
+) {
+    self.data.ownable.requireOwner(sender);
+
+    val oldOracle = self.data.oracle;
+    self.data.oracle = newOracle;
+
+    val reply = createMessage({
+        bounce: false,
+        value: 0,
+        dest: sender,
+        body: MCMS_OracleRoleTransferred{ queryId, oldOracle, newOracle }
+    });
+    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
+/// Execute an op's call. Performs a raw message send that can bounce on errors.
 fun MCMS<T>._execute(self, target: address, value: coins, data: cell): void {
     if (self.hooks != null && self.hooks.execute != null) {
         return self.hooks.execute(self.context, target, value, data); // extension hook
     }
 
     // Send a message to the target with the provided value and data
-    createMessage({
-        bounce: true, // TODO: how to handle bounced messages (errors)?
+    val op = createMessage({
+        bounce: true,
         value: value,
         dest: target,
         body: data
-    }).send(SEND_MODE_PAY_FEES_SEPARATELY);
+    });
+    op.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 /// Returns the current configuration of the contract
@@ -999,18 +1274,30 @@ fun MCMS<T>.getConfig(self): Config {
 
 /// Returns the current op count, i.e., the number of ops in the current expiring root.
 fun MCMS<T>.getOpCount(self): uint40 {
-    return self.data.expiringRootAndOpCount.opCount;
+    val rootInfo = lazy RootInfo.fromCell(self.data.rootInfo);
+    return rootInfo.expiringRootAndOpCount.opCount;
 }
 
 /// Returns the current expiring root and its validUntil time.
 fun MCMS<T>.getRoot(self): (uint256, uint32) {
-    val expiringRootAndOpCount = self.data.expiringRootAndOpCount;
-    return (expiringRootAndOpCount.root, expiringRootAndOpCount.validUntil);
+    val rootInfo = lazy RootInfo.fromCell(self.data.rootInfo);
+    return (rootInfo.expiringRootAndOpCount.root, rootInfo.expiringRootAndOpCount.validUntil);
+}
+
+/// Returns the current pending operation information.
+fun MCMS<T>.getOpPendingInfo(self): OpPendingInfo {
+    val rootInfo = lazy RootInfo.fromCell(self.data.rootInfo);
+    return OpPendingInfo.fromCell(rootInfo.expiringRootAndOpCount.opPendingInfo);
 }
 
 /// Returns the current metadata about the root, which is stored as one of the leaves.
 fun MCMS<T>.getRootMetadata(self): RootMetadata {
-    return RootMetadata.fromCell(self.data.rootMetadata);
+    return RootInfo.fromCell(self.data.rootInfo).rootMetadata;
+}
+
+/// Returns the current oracle account, which can submit error reports.
+fun MCMS<T>.getOracle(self): address {
+    return self.data.oracle;
 }
 
 // --- Message handlers ---
@@ -1020,12 +1307,11 @@ fun MCMS<T>.onInternalMessage(mutate self, msgSender: address, msgValue: coins, 
     val msg = lazy MCMS_InMessage.fromSlice(msgBody);
     match (msg) {
         MCMS_TopUp => {
-            // Top up the contract balance, no action needed, return early - no need to update storage
-            return;
+            // Top up the contract balance, no action needed
         }
         MCMS_SetRoot => {
             self.setRoot(msgSender, msg.queryId, msg.root, msg.validUntil, msg.metadata,
-                Iterator<uint256>.new(msg.metadataProof), msg.signatures);
+                Iterator<uint256>.new(msg.metadataProof), msg.signatures, msg.opFinalizationTimeout);
         }
         MCMS_Execute => {
             self.execute(msgSender, msg.queryId, Op.fromCell(msg.op),
@@ -1035,25 +1321,70 @@ fun MCMS<T>.onInternalMessage(mutate self, msgSender: address, msgValue: coins, 
             self.setConfig(msgSender, msg.queryId, msg.signerKeys, msg.signerGroups,
                 msg.groupQuorums, msg.groupParents, msg.clearRoot);
         }
+        MCMS_SubmitErrorReport => {
+            self.submitErrorReport(msgSender, msg.queryId, Op.fromCell(msg.op),
+                Iterator<uint256>.new(msg.proof), msg.opTxHash, msg.errorTxHash, msg.errorCode);
+        }
+        MCMS_TransferOracleRole => {
+            self.transferOracleRole(msgSender, msg.queryId, msg.newOracle);
+        }
+        MCMS_OracleRoleTransferred => {
+            // noop
+        }
+        MCMS_ConfigSet => {
+            // noop
+        }
         else => {
             val msgHandled = 0
                 || self.data.ownable.onInternalMessage(msgSender, msgBody);
 
             if (!msgHandled) {
-                // If the message was not handled, throw an error
-                throw ERROR_WRONG_OP;
+                // If the message was not handled
+                // ignore empty messages, "wrong opcode" for others
+                assert (msgBody.isEmpty()) throw ERROR_WRONG_OP;
             }
         }
     }
 }
 
-// TODO: handle bounced messages
+fun onBouncedMessage(in: InMessageBounced) {
+    // Load the contract storage as MCMS and handle the bounced message
+    var mcms = MCMS<bool>.load();
+
+    var rootInfo = lazy RootInfo.fromCell(mcms.data.rootInfo);
+    var opPendingInfo = lazy OpPendingInfo.fromCell(rootInfo.expiringRootAndOpCount.opPendingInfo);
+
+    // Check the bounced message against the stored pending operation
+    // If the received bounce does NOT equal expected, mark the root invalid.
+    //
+    // @dev on setRoot the OpPendingInfo is cleared, so a bounce from an old root will not match
+    val bouncedBody = extractBouncedBody(in.bouncedBody.skipBouncedPrefix());
+    if (opPendingInfo.opPendingReceiver != in.senderAddress
+        || opPendingInfo.opPendingBodyTruncated != bouncedBody) {
+        // Mark root in error state (recover with new root + bypass)
+        rootInfo.expiringRootAndOpCount.validUntil = blockchain.now(); // expire root immediately
+        mcms.data.rootInfo = rootInfo.toCell();
+        mcms.data.storeAsContractData();
+        return;
+    }
+
+    // If the received bounce equals expected, revert state (allow op retry)
+    rootInfo.expiringRootAndOpCount.opCount = rootInfo.expiringRootAndOpCount.opCount - 1;
+    opPendingInfo.validAfter = blockchain.now(); // can be retried immediately
+    opPendingInfo.opPendingReceiver = createAddressNone();
+    opPendingInfo.opPendingBodyTruncated = 0;
+
+    rootInfo.expiringRootAndOpCount.opPendingInfo = opPendingInfo.toCell();
+    mcms.data.rootInfo = rootInfo.toCell();
+    mcms.data.storeAsContractData();
+}
+
 fun onInternalMessage(in: InMessage) {
-    /// Load the contract storage as MCMS and handle the message
+    // Load the contract storage as MCMS and handle the message
     var mcms = MCMS<bool>.load();
     mcms.onInternalMessage(in.senderAddress, in.valueCoins, in.body);
 
-    /// Store the updated contract data
+    // Store the updated contract data
     mcms.data.storeAsContractData();
 }
 
@@ -1078,9 +1409,19 @@ get fun getRoot(): (uint256, uint32) {
     return MCMS<bool>.load().getRoot();
 }
 
+/// @see <MCMS<T>.getOpPendingInfo>
+get fun getOpPendingInfo(): OpPendingInfo {
+    return MCMS<bool>.load().getOpPendingInfo();
+}
+
 /// @see <MCMS<T>.getRootMetadata>
 get fun getRootMetadata(): RootMetadata {
     return MCMS<bool>.load().getRootMetadata();
+}
+
+/// @see <MCMS<T>.getOracle>
+get fun getOracle(): address {
+    return MCMS<bool>.load().getOracle();
 }
 
 // --- Getters - Ownable2Step ---

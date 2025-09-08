@@ -13,7 +13,7 @@ import { CellCodec } from '../../utils'
 
 // @dev Grants `role` to `account`.
 export type GrantRole = {
-  /// Query ID of the change owner request.
+  /// Query ID of the change request.
   queryId: bigint
 
   /// Role of the account.
@@ -24,7 +24,7 @@ export type GrantRole = {
 
 // @dev Revokes `role` from `account`.
 export type RevokeRole = {
-  /// Query ID of the change owner request.
+  /// Query ID of the change request.
   queryId: bigint
 
   /// Role of the account.
@@ -35,7 +35,7 @@ export type RevokeRole = {
 
 // @dev Renounces `role` from calling account.
 export type RenounceRole = {
-  /// Query ID of the change owner request.
+  /// Query ID of the change request.
   queryId: bigint
 
   /// Role of the account.

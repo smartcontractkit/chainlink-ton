@@ -22,7 +22,7 @@ import (
 type GrantRole struct {
 	_ tlb.Magic `tlb:"#95cd540f"` //nolint:revive // (opcode) should stay uninitialized
 
-	// Query ID of the change owner request.
+	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
 	Role    *big.Int         `tlb:"## 256"` // Role definition.
@@ -41,7 +41,7 @@ type GrantRole struct {
 type RevokeRole struct {
 	_ tlb.Magic `tlb:"#969b0db9"` //nolint:revive // (opcode) should stay uninitialized
 
-	// Query ID of the change owner request.
+	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
 	Role    *big.Int         `tlb:"## 256"` // Role definition.
@@ -65,7 +65,7 @@ type RevokeRole struct {
 type RenounceRole struct {
 	_ tlb.Magic `tlb:"#39452c46"` //nolint:revive // (opcode) should stay uninitialized
 
-	// Query ID of the change owner request.
+	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
 	Role               *big.Int         `tlb:"## 256"` // Role definition.
@@ -81,7 +81,7 @@ type RenounceRole struct {
 type RoleGranted struct {
 	_ tlb.Magic `tlb:"#cf3ca837"` //nolint:revive // (opcode) should stay uninitialized
 
-	// Query ID of the change owner request.
+	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
 	Role    *big.Int         `tlb:"## 256"` // Role definition.
@@ -98,7 +98,7 @@ type RoleGranted struct {
 type RoleRevoked struct {
 	_ tlb.Magic `tlb:"#990fe1c7"` //nolint:revive // (opcode) should stay uninitialized
 
-	// Query ID of the change owner request.
+	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
 	Role    *big.Int         `tlb:"## 256"` // Role definition.
@@ -113,7 +113,7 @@ type RoleRevoked struct {
 type RoleAdminChanged struct {
 	_ tlb.Magic `tlb:"#bd7e8bce"` //nolint:revive // (opcode) should stay uninitialized
 
-	// Query ID of the change owner request.
+	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
 	Role              *big.Int `tlb:"## 256"` // Role definition.

@@ -18,7 +18,7 @@ import (
 // Contract might receive/hold TON as part of the maintenance process.
 type TopUp struct {
 	_ tlb.Magic `tlb:"#5f427bb3"` //nolint:revive // (opcode) should stay uninitialized
-	// Query ID of the change owner request.
+	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 }
 
@@ -39,7 +39,7 @@ type TopUp struct {
 type SetRoot struct {
 	_ tlb.Magic `tlb:"#e7fabde3"` //nolint:revive // (opcode) should stay uninitialized
 
-	// Query ID of the change owner request.
+	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
 	Root       *big.Int `tlb:"## 256"` // The new expiring root.
@@ -50,7 +50,7 @@ type SetRoot struct {
 	Signatures    common.SnakeData[ocr.SignatureEd25519] `tlb:"^"` // The ECDSA signatures on (root, validUntil). // vec<Signature>
 }
 
-// @notice Execute the received op after verifying the proof of its inclusion in the
+// Execute the received op after verifying the proof of its inclusion in the
 // current Merkle tree. The op should be the next op according to the order
 // enforced by the merkle tree whose root is stored in data.expiringRootAndOpCount, i.e., the
 // nonce of the op should be equal to data.expiringRootAndOpCount.opCount.
@@ -66,14 +66,14 @@ type SetRoot struct {
 // We expect callees to revert if they run out of gas.
 type Execute struct {
 	_ tlb.Magic `tlb:"#9b9ce96a"` //nolint:revive // (opcode) should stay uninitialized
-	// Query ID of the change owner request.
+	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
 	Op    Op                      `tlb:"^"` // The op to be executed. // Cell<Op>
 	Proof common.SnakeData[Proof] `tlb:"^"` // The MerkleProof for the op's inclusion in the MerkleTree // vec<uint256>
 }
 
-// @notice sets a new data.config. If clearRoot is true, then it also invalidates
+// Sets a new data.config. If clearRoot is true, then it also invalidates
 // data.expiringRootAndOpCount.root.
 //
 // @param signerKeys holds the public keys of the active signers. The keys must be in
@@ -92,23 +92,51 @@ type Execute struct {
 // some previous signers aren't trusted any more.
 type SetConfig struct {
 	_ tlb.Magic `tlb:"#89277f4b"` //nolint:revive // (opcode) should stay uninitialized
-	// Query ID of the change owner request.
+	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
-	SignerKeys   common.SnakeData[*big.Int] `tlb:"^"`      // vec<uint256>
-	SignerGroups common.SnakeData[uint8]    `tlb:"^"`      // vec<uint8>
-	GroupQuorums *cell.Dictionary           `tlb:"dict 8"` // map<uint8, uint8> (indexed, iterable backwards)
-	GroupParents *cell.Dictionary           `tlb:"dict 8"` // map<uint8, uint8> (indexed, iterable backwards)
-	ClearRoot    bool                       `tlb:"bool"`
+	SignerKeys   common.SnakeData[SignerKey] `tlb:"^"`      // vec<uint256>
+	SignerGroups common.SnakeData[uint8]     `tlb:"^"`      // vec<uint8>
+	GroupQuorums *cell.Dictionary            `tlb:"dict 8"` // map<uint8, uint8> (indexed, iterable backwards)
+	GroupParents *cell.Dictionary            `tlb:"dict 8"` // map<uint8, uint8> (indexed, iterable backwards)
+	ClearRoot    bool                        `tlb:"bool"`
+}
+
+// Submit an oracle error report, which marks the current root as invalid.
+//
+// The error report is used for a category of errors which might occur during execution
+// of an operation, but can't be caught on-chain (OOG errors, and downstream tx-trace errors).
+//
+// @dev The error oracle can only report errors for the current non-expired root, to avoid reporting
+// stale errors for operations that are no longer valid.
+type SubmitErrorReport struct {
+	_ tlb.Magic `tlb:"#43ebc734"` //nolint:revive // (opcode) should stay uninitialized
+	// Query ID of the change request.
+	QueryID uint64 `tlb:"## 64"`
+
+	Op       Op                      `tlb:"^"`      // The operation which produced the error. // Cell<Op>
+	Proof    common.SnakeData[Proof] `tlb:"^"`      // The MerkleProof for the op's inclusion in the MerkleTree // vec<uint256>
+	OpTxHash *big.Int                `tlb:"## 256"` // The hash of the execute transaction.
+
+	ErrorTxHash *big.Int `tlb:"## 256"` // The hash of the transaction which errored (part of the tx trace).
+	ErrorCode   uint32   `tlb:"## 32"`  // The error code.
+}
+
+// Message sent by the owner to transfer the oracle role.
+type TransferOracleRole struct {
+	// Query ID of the change request.
+	QueryID uint64 `tlb:"## 64"`
+
+	NewOracle *address.Address `tlb:"addr"` // The address of the new oracle.
 }
 
 // --- Messages - outgoing ---
 
-// @notice Emitted when a new root is set.
+// Sent back to sender when a new root is set.
 type NewRoot struct {
 	_ tlb.Magic `tlb:"#a6533a3d"` //nolint:revive // (opcode) should stay uninitialized
 
-	// Query ID of the change owner request.
+	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
 	Root       *big.Int     `tlb:"## 256"` // The new expiring root.
@@ -116,22 +144,22 @@ type NewRoot struct {
 	Metadata   RootMetadata `tlb:"."`      // The metadata about the root, which is stored as one of the leaves.
 }
 
-// @notice Emitted when a new config is set.
+// Sent back to sender when a new config is set.
 type ConfigSet struct {
 	_ tlb.Magic `tlb:"#d80be574"` //nolint:revive // (opcode) should stay uninitialized
 
-	// Query ID of the change owner request.
+	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
 	Config        Config `tlb:"."`    // The new config.
 	IsRootCleared bool   `tlb:"bool"` // Whether the root was cleared.
 }
 
-// @notice Emitted when an op gets successfully executed.
+// Sent back to sender when an op gets successfully executed.
 type OpExecuted struct {
 	_ tlb.Magic `tlb:"#7cf37cbf"` //nolint:revive // (opcode) should stay uninitialized
 
-	// Query ID of the change owner request.
+	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
 	Nonce uint64           `tlb:"## 40"` // The nonce of the operation.
@@ -140,9 +168,41 @@ type OpExecuted struct {
 	Value tlb.Coins        `tlb:"^"`     // The value to be sent with the operation. // coins
 }
 
+// Sent back to sender when an error report is successfully submitted.
+type ErrorReportSubmitted struct {
+	_ tlb.Magic `tlb:"#bbc4deb4"` //nolint:revive // (opcode) should stay uninitialized
+
+	// Query ID of the change request.
+	QueryID uint64 `tlb:"## 64"`
+
+	OpLeafHash *big.Int `tlb:"## 256"` // The (merkle leaf) hash of the operation which produced the error.
+	OpTxHash   *big.Int `tlb:"## 256"` // The hash of the operation execute transaction.
+
+	ErrorTxHash *big.Int `tlb:"## 256"` // The hash of the transaction which errored.
+	ErrorCode   uint32   `tlb:"## 32"`  // The error code.
+
+	Root             *cell.Cell `tlb:"^"`    // The current root which was invalidated. // Cell<uint256>
+	MatchesPendingOp bool       `tlb:"bool"` // Whether the operation that was pending was the one for which the error was reported.
+}
+
+// Sent back to sender when the oracle role is transferred.
+type OracleRoleTransferred struct {
+	_ tlb.Magic `tlb:"#ff4176a3"` //nolint:revive // (opcode) should stay uninitialized
+
+	// Query ID of the change request.
+	QueryID uint64 `tlb:"## 64"`
+
+	OldOracle *address.Address `tlb:"addr"` // The address of the old oracle.
+	NewOracle *address.Address `tlb:"addr"` // The address of the new oracle.
+}
+
 // -- Data structures ---
 
 type Proof struct {
+	Value *big.Int `tlb:"## 256"` // The value of the struct
+}
+
+type SignerKey struct {
 	Value *big.Int `tlb:"## 256"` // The value of the struct
 }
 
@@ -209,7 +269,7 @@ type Config struct {
 	GroupParents *cell.Dictionary `tlb:"dict 8"` // map<uint8, uint8> (indexed, iterable backwards)
 }
 
-// @notice Each root also authenticates metadata about itself (stored as one of the leaves)
+// Each root also authenticates metadata about itself (stored as one of the leaves)
 // which must be revealed when the root is set.
 //
 // @dev We need to be careful that abi.encode(MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA, RootMetadata)
@@ -235,7 +295,7 @@ type RootMetadata struct {
 	OverridePreviousRoot bool `tlb:"bool"`
 }
 
-// @notice an op to be executed by the ManyChainMultiSig contract
+// An op to be executed by the ManyChainMultiSig contract
 type Op struct {
 	ChainID  *big.Int         `tlb:"## 256"` // The chain ID of the operation.
 	MultiSig *address.Address `tlb:"addr"`   // The address of the multisig contract.
@@ -330,4 +390,13 @@ const (
 
 	// Thrown when attempt to set the same (root, validUntil) in setRoot().
 	ErrorSignedHashAlreadySeen = 121
+
+	/// Thrown when the root has not been finalized yet (can't execute next op before finalization).
+	ErrorRootNotFinalized = 122
+
+	/// Thrown when the provided op.value is insufficient (min required value not met).
+	ErrorInsufficientValue = 123
+
+	/// Thrown when the error report sender is not the authorized oracle.
+	ErrorUnauthorizedOracle = 124
 )

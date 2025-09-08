@@ -3,22 +3,24 @@ package deployment
 import (
 	"math/big"
 	"testing"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	chain_selectors "github.com/smartcontractkit/chain-selectors"
 	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"
+	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
-
-	chain_selectors "github.com/smartcontractkit/chain-selectors"
-	"github.com/stretchr/testify/require"
 
 	ton_ops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
+	test_utils "github.com/smartcontractkit/chainlink-ton/deployment/utils"
 
 	"github.com/smartcontractkit/chainlink/deployment/ccip/changeset/v1_6"
 	"github.com/smartcontractkit/chainlink/deployment/environment/memory"
-	"github.com/smartcontractkit/chainlink/v2/core/logger"
+	"github.com/stretchr/testify/require"
+	"github.com/xssnick/tonutils-go/tlb"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/chainaccessor"
@@ -39,8 +41,7 @@ const ChainSelEVMTest90000001 = 909606746561742123
 
 func TestDeploy(t *testing.T) {
 	t.Parallel()
-	// env := setupEnv(t)
-	lggr := logger.TestLogger(t)
+	lggr := logger.Test(t)
 	env := memory.NewMemoryEnvironment(t, lggr, zapcore.InfoLevel, memory.MemoryEnvironmentConfig{
 		Chains:    1,
 		TonChains: 1,
@@ -54,6 +55,10 @@ func TestDeploy(t *testing.T) {
 	tonChain := env.BlockChains.TonChains()[chainSelector]
 	deployer := tonChain.Wallet
 	t.Log("Deployer: ", deployer.Address().String())
+
+	// memory environment doesn't block on funding so changesets can execute before the env is fully ready, manually call fund so we block here
+	test_utils.FundWallets(t, tonChain.Client, []*address.Address{deployer.Address()}, []tlb.Coins{tlb.MustFromTON("1000")})
+	time.Sleep(5 * time.Second)
 
 	cs := ton_ops.DeployChainContractsToTonCS(t, env, chainSelector)
 	env, _, err := commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{cs})

@@ -113,7 +113,7 @@ func (r *Relayer) TON() (commontypes.TONService, error) {
 	return &r.tonService, nil
 }
 
-func (r *Relayer) NewCCIPProvider(ctx context.Context, rargs commontypes.RelayArgs) (commontypes.CCIPProvider, error) {
+func (r *Relayer) NewCCIPProvider(ctx context.Context, cargs commontypes.CCIPProviderArgs) (commontypes.CCIPProvider, error) {
 	// TODO: store chainSelector within Chain
 	chainID, err := strconv.ParseInt(r.chain.ID(), 10, 16)
 	if err != nil {
