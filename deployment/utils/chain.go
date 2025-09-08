@@ -11,6 +11,7 @@ import (
 
 	"github.com/hashicorp/consul/sdk/freeport"
 	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/liteclient"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton/wallet"
 
@@ -18,10 +19,11 @@ import (
 
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 
-	"github.com/xssnick/tonutils-go/liteclient"
 	"github.com/xssnick/tonutils-go/ton"
 
 	"github.com/smartcontractkit/chainlink-testing-framework/framework/components/blockchain"
+
+	tonchain "github.com/smartcontractkit/chainlink-ton/pkg/ton/chain"
 )
 
 func CreateRandomWallet(t *testing.T, client ton.APIClientWrapped, version wallet.VersionConfig, option wallet.Option) *wallet.Wallet {
@@ -172,36 +174,53 @@ func StartChain(t *testing.T, nodeClient *ton.APIClient, chainID uint64, deploye
 func CreateAPIClient(t *testing.T, chainID uint64) *ton.APIClient {
 	t.Helper()
 
-	var networkCfg string
-	var err error
+	var liteserverURL string
 
 	if os.Getenv("USE_EXISTING_TON_NODE") == "true" {
-		networkCfg = getExistingNetworkConfig(t, chainID)
+		liteserverURL = getExistingNetworkConnectionString(t, chainID)
 	} else {
-		networkCfg = createNewNetwork(t, chainID)
+		liteserverURL = createNewNetwork(t, chainID)
 	}
 
-	cfg, err := liteclient.GetConfigFromUrl(t.Context(), networkCfg)
-	require.NoError(t, err, "failed to get config from URL: %s", networkCfg)
-
-	connectionPool := liteclient.NewConnectionPool()
-	err = connectionPool.AddConnectionsFromConfig(t.Context(), cfg)
-	require.NoError(t, err)
+	connectionPool, cerr := tonchain.GetConnectionPoolFromLiteserverURL(t.Context(), liteserverURL)
+	if cerr != nil {
+		t.Logf("Failed to get connection pool: %v", cerr)
+	}
 
 	client := ton.NewAPIClient(connectionPool, ton.ProofCheckPolicyFast)
-	client.SetTrustedBlockFromConfig(cfg)
 
-	_, err = client.GetMasterchainInfo(t.Context())
-	require.NoError(t, err, "TON network not ready")
+	mb, merr := client.GetMasterchainInfo(t.Context())
+	require.NoError(t, merr, "TON network not ready")
+	client.SetTrustedBlock(mb)
 
 	return client
 }
 
-// getExistingNetworkConfig returns the hardcoded configuration for a pre-existing network.
-func getExistingNetworkConfig(t *testing.T, chainID uint64) string {
+// getExistingNetworkConnectionString returns the hardcoded configuration for a pre-existing network.
+func getExistingNetworkConnectionString(t *testing.T, chainID uint64) string {
 	t.Helper()
 	t.Logf("Using existing network for chain ID %d", chainID)
-	return "http://localhost:8000/localhost.global.config.json"
+
+	configURL := "http://localhost:8000/localhost.global.config.json"
+	config, err := liteclient.GetConfigFromUrl(t.Context(), configURL)
+	require.NoErrorf(t, err, "failed to fetch TON config from %s", configURL)
+	require.Len(t, config.Liteservers, 1)
+
+	ls := config.Liteservers[0]
+	ipStr := intToIP4(ls.IP)
+	publicKey := ls.ID.Key
+	port := ls.Port
+
+	return fmt.Sprintf("liteserver://%s@%s:%d", publicKey, ipStr, port)
+}
+
+// intToIP4 converts int64 IP to string format (matches tonutils-go implementation)
+func intToIP4(ipInt int64) string {
+	b0 := strconv.FormatInt((ipInt>>24)&0xff, 10)
+	b1 := strconv.FormatInt((ipInt>>16)&0xff, 10)
+	b2 := strconv.FormatInt((ipInt>>8)&0xff, 10)
+	b3 := strconv.FormatInt((ipInt & 0xff), 10)
+	return b0 + "." + b1 + "." + b2 + "." + b3
 }
 
 // createNewNetwork provisions a new, temporary TON network for the test's duration.
