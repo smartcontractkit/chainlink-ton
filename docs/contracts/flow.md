@@ -34,11 +34,15 @@ sequenceDiagram
     
     RJW ->> ORJW: Transfer { amount,<br>fwdPayload: ccipSend }
     ORJW ->> OR: TransferNotification {<br>sender, amount,<br>fwdPayload: ccipSend}
-    Note over OR: Assign msgId<br>Store ccipSend by msgId
+
+    Note over OR: Create msgId
+    create participant CS as CCIPSendStorage
+    OR ->> CS: deployCCIPSendStorage{initData{msgId}, initCCIPSend{msg: ccipSend}}
 
     box OnRamp
     participant ORJW as OnRamp's <br>Jetton A Wallet
     participant OR as OnRamp
+    participant CS as CCIPSendStorage
     end
 
     participant FQ as FeeQuoter
@@ -66,8 +70,10 @@ sequenceDiagram
     OR ->> TRC: GetTokenPoolInfo{msgId, ccipSend}
 
     alt Token not supported (contract not deployed)
-    TRC ->> OR: Bounced{GetTokenPoolInfo{msgId, ccipSend}}
-    Note over OR: get ccipSend from storage by<br>msgId Refund Jettons [...]
+    TRC ->> OR: Bounced{truncatedGetTokenPoolInfo{msgId}}
+    OR ->> CS: getInfo{msgId}
+    CS ->> OR: refund{ccipSend}
+    Note over OR: Refund Jettons
     else Supported Token
     TRC ->> OR: TokenPoolInfo{address}
 
@@ -84,7 +90,9 @@ sequenceDiagram
     note over OR: get ccipSend from<br>storage by msgId
     note over OR: assign seqNum
     note over OR: emit{ccipSend}
-    note over OR: remove ccipSend<br>from storage
+    OR ->> CS: destroy
+    destroy CS
+    CS ->> OR: TON remaining balance
     end
     end
     end
