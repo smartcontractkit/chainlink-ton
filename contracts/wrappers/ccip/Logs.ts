@@ -2,7 +2,7 @@ import { Address, Cell } from '@ton/core'
 import { crc32 } from 'zlib'
 import { Any2TVMMessage, MerkleRoot, PriceUpdates } from './OffRamp'
 
-export const CCIP_COMMIT_REPORT_ACCEPTED_TOPIC = crc32('CCIPCommitReportAccepted')
+export const CCIP_COMMIT_REPORT_ACCEPTED_TOPIC = crc32('CommitReportAccepted')
 export const CCIP_MESSAGE_SENT_TOPIC = crc32('CCIPMessageSent')
 
 export enum LogTypes {

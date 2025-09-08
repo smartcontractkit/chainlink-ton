@@ -76,7 +76,7 @@ struct ExecutionStateChanged {
     state: uint8;
 }
 
-const CCIP_COMMIT_REPORT_ACCEPTED_TOPIC: int = stringCrc32("CCIPCommitReportAccepted");
+const CCIP_COMMIT_REPORT_ACCEPTED_TOPIC: int = stringCrc32("CommitReportAccepted");
 
 struct CommitReportAccepted {
     merkleRoot: MerkleRoot? // vec<MerkleRoots>
