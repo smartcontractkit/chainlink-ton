@@ -2,6 +2,7 @@ package logpoller
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -158,10 +159,10 @@ func (lp *service) getLastProcessedBlock(currentBlock *ton.BlockIDExt) (uint32, 
 	// TODO: get the latest processed seqno from log table when persistent storage is implemented
 
 	if currentBlock.SeqNo == 0 {
-		return 0, fmt.Errorf("current masterchain seqno is 0 - waiting for next block to start processing")
+		return 0, errors.New("current masterchain seqno is 0 - waiting for next block to start processing")
 	}
 
-	lookbackSeqNo := computeLookbackSeqNo(currentBlock.SeqNo, lp.startingLookback, lp.blockTime)
+	lookbackSeqNo := computeLookbackWindow(currentBlock.SeqNo, lp.startingLookback, lp.blockTime)
 
 	if lookbackSeqNo > lastProcessed {
 		blocksToProcess := currentBlock.SeqNo - lookbackSeqNo
@@ -258,12 +259,14 @@ func (lp *service) GetStore() LogStore {
 	return lp.store
 }
 
-// computeLookbackSeqNo calculates the lookback sequence number
+// computeLookbackWindow calculates the lookback sequence number
 // based on the current sequence number, lookback duration, and block time.
-func computeLookbackSeqNo(currentSeqNo uint32, lookbackDuration time.Duration, blockTime time.Duration) uint32 {
+func computeLookbackWindow(currentSeqNo uint32, lookbackDuration time.Duration, blockTime time.Duration) uint32 {
 	// Calculate how many blocks to go back based on time duration
-	// lookbackBlocks = lookback / blockTime
-	lookbackBlocks := uint32(lookbackDuration / blockTime)
+	// Use ceiling division like Solana: ceil(lookback/blockTime) = (lookback-1)/blockTime + 1
+	// nolint:gosec
+	// G115: integer overflow conversion int64 -> uint32
+	lookbackBlocks := uint32(int64((lookbackDuration-1)/blockTime) + 1)
 
 	var lookbackSeqNo uint32
 	if currentSeqNo > lookbackBlocks {
