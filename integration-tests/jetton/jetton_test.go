@@ -55,10 +55,10 @@ func TestJettonAll(t *testing.T) {
 	}
 
 	var initialAmount = big.NewInt(1_000_000_000_000)
-	testCount := 13
-	accountCountPerTest := 2
-	accounts := testutils.SetUpTest(t, chainsel.TON_LOCALNET.Selector, initialAmount, uint(testCount*accountCountPerTest))
-	lastUsedAccountIndex := 0
+	var testCount uint = 13
+	var accountCountPerTest uint = 2
+	accounts := testutils.SetUpTest(t, chainsel.TON_LOCALNET.Selector, initialAmount, testCount*accountCountPerTest)
+	var lastUsedAccountIndex uint = 0
 	var lock sync.Mutex
 
 	setUpCommon := func(t *testing.T) commonSetup {
