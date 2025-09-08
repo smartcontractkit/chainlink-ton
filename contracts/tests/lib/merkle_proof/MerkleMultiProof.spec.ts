@@ -21,7 +21,7 @@ describe('MerkleMultiProofTests', () => {
   beforeEach(async () => {
     blockchain = await Blockchain.create()
 
-    let code = await compile('MerkleProof')
+    let code = await compile('examples.MerkleProof')
     let data: MerkleMultiProofCalculatorStorage = {
       id: 1,
       root: 0n, // Initial root, will be updated on deploy

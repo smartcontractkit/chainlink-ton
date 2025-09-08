@@ -383,7 +383,7 @@ describe('OffRamp', () => {
 
     // Deploy test receiver
     {
-      let code = await compile('Receiver')
+      let code = await compile('examples.receiver')
       receiver = blockchain.openContract(ExampleReceiver.create(code, offRamp.address))
       const result = await receiver.sendDeploy(deployer.getSender(), toNano('10'))
       expect(result.transactions).toHaveTransaction({
