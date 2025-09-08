@@ -62,41 +62,35 @@ jobs:
             echo "BASE_IMAGE=${{ env.CHAINLINK_PUBLIC_ECR_IMAGE }}:${{ steps.read_core_ref.outputs.CORE_REF }}" >> $GITHUB_OUTPUT
           fi
 
-      - name: Restore image-tar cache when CORE_REF is a SHA
-        if: steps.detect_core_ref_is_sha.outputs.is_sha == 'true'
-        id: restore-cache-images-sha
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.DOCKER_CACHE_DIR }}/${{ steps.read_core_ref.outputs.CORE_REF }}${{ env.DOCKER_CACHE_TAR_NAME_SUFFIX }}
-          key: ${{ env.DOCKER_CACHE_KEY_PREFIX }}-${{ steps.read_core_ref.outputs.CORE_REF }}
+      - name: Prepare cache dir
+        run: mkdir -p ${{ env.DOCKER_CACHE_DIR }}
 
-      - name: Restore image-tar cache when CORE_REF is not a SHA
-        if: steps.detect_core_ref_is_sha.outputs.is_sha == 'false'
-        id: restore-cache-images-not-sha
+      - name: Restore image-tar cache
+        id: restore-cache-images
         uses: actions/cache@v4
         with:
-          path: ${{ env.DOCKER_CACHE_DIR }}/${{ steps.read_core_ref.outputs.CORE_REF }}${{ env.DOCKER_CACHE_TAR_NAME_SUFFIX }}
+          path: ${{ env.DOCKER_CACHE_DIR }}/${{ steps.read_core_ref.outputs.CORE_REF }}-${{ env.DOCKER_CACHE_TAR_NAME_SUFFIX }}
           key: ${{ env.DOCKER_CACHE_KEY_PREFIX }}-${{ steps.read_core_ref.outputs.CORE_REF }}
 
       - name: Pull & save images on cache miss when CORE_REF is a SHA
-        if: steps.detect_core_ref_is_sha.outputs.is_sha == 'true' && steps.restore-cache-images-sha.outputs.cache-hit != 'true'
+        if: steps.detect_core_ref_is_sha.outputs.is_sha == 'true' && steps.restore-cache-images.outputs.cache-hit != 'true'
         run: |
           echo "Cache miss: pulling images"
           docker pull "${{ steps.determine-base-image.outputs.BASE_IMAGE }}"
 
           echo "Saving to tarball…"
           docker save ${{ steps.determine-base-image.outputs.BASE_IMAGE }} \
-            -o ${{ env.DOCKER_CACHE_DIR }}/${{ steps.read_core_ref.outputs.CORE_REF }}${{ env.DOCKER_CACHE_TAR_NAME_SUFFIX }}
+            -o ${{ env.DOCKER_CACHE_DIR }}/${{ steps.read_core_ref.outputs.CORE_REF }}-${{ env.DOCKER_CACHE_TAR_NAME_SUFFIX }}
         
       - name: Pull & save images on cache miss when CORE_REF is not a SHA
-        if: steps.detect_core_ref_is_sha.outputs.is_sha == 'false' && steps.restore-cache-images-sha.outputs.cache-hit != 'true'
+        if: steps.detect_core_ref_is_sha.outputs.is_sha == 'false' && steps.restore-cache-images.outputs.cache-hit != 'true'
         run: |
           echo "Cache miss: pulling images"
           docker pull "${{ steps.determine-base-image.outputs.BASE_IMAGE }}"
 
           echo "Saving to tarball…"
           docker save ${{ steps.determine-base-image.outputs.BASE_IMAGE }} \
-            -o ${{ env.DOCKER_CACHE_DIR }}/${{ steps.read_core_ref.outputs.CORE_REF }}${{ env.DOCKER_CACHE_TAR_NAME_SUFFIX }}
+            -o ${{ env.DOCKER_CACHE_DIR }}/${{ steps.read_core_ref.outputs.CORE_REF }}-${{ env.DOCKER_CACHE_TAR_NAME_SUFFIX }}
       
       # Only run chainlink core build if CORE_REF is a SHA
       - name: Checkout Chainlink Core repo
