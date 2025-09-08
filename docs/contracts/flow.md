@@ -67,19 +67,20 @@ sequenceDiagram
 
     alt Token not supported (contract not deployed)
     TRC ->> OR: Bounced{GetTokenPoolInfo{msgId, ccipSend}}
-    Note over OR: get ccipSend from msgId<br>Refund Jettons [...]
+    Note over OR: get ccipSend from storage by<br>msgId Refund Jettons [...]
     else Supported Token
 
-    OR ->> ORJW: TransferRequest { amount,<br>destination: TokenPoolA,<br>fwdPayload: {msgId,ccipSend} }
+    OR ->> ORJW: TransferRequest { amount,<br>destination: TokenPoolA,<br>fwdPayload: msgId }
     
-    ORJW ->> TPJW: Transfer { amount,<br>fwdPayload: ccipSend }
-    TPJW ->> TP: TransferNotification {<br>sender, amount,<br>fwdPayload: ccipSend }
+    ORJW ->> TPJW: Transfer { amount,<br>fwdPayload: msgId }
+    TPJW ->> TP: TransferNotification {<br>sender, amount,<br>fwdPayload: msgId }
     Note over TP: consume rate limit
     alt Rate limit error
     Note over TP: Refund Jettons [...]
 
     else Consumes rate limit
-    TP ->> OR: commitedLockOrBurn{ccipSend}
+    TP ->> OR: commitedLockOrBurn{msgId}
+    note over OR: get ccipSend from<br>storage by msgId
     note over OR: assign seqNum
     note over OR: emit{ccipSend}
     note over OR: remove ccipSend<br>from storage
