@@ -63,7 +63,7 @@ sequenceDiagram
 
     OR ->> R: lockTokens{tokenPoolAddr, ccipSend}
  
-    R ->> RJW: TransferRequest {<br>amount,<br>destination: Router,<br>responseDestination: Router,<br>fwdPayload: ccipSend }
+    R ->> RJW: TransferRequest { amount,<br>destination: TokenPoolA,<br>fwdPayload: ccipSend }
     
     RJW ->> TPJW: Transfer { amount,<br>fwdPayload: ccipSend }
     TPJW ->> TP: TransferNotification {<br>sender, amount,<br>fwdPayload: ccipSend }
