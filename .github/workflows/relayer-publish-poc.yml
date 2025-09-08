@@ -64,13 +64,13 @@ jobs:
       - name: Build chainlink image
         id: build-core
         env:
-          GIT_AUTH_TOKEN: ${{ steps.setup-github-token.outputs.access-token }}
+          GIT_AUTH_TOKEN: ${{ steps.set-token.outputs.access-token }}
         run: |
           cd temp/chainlink
           echo "🔎 Building from commit: $(git rev-parse HEAD)"
           echo "🔎 Commit message: $(git log -1 --pretty=%B)"
           echo "🔎 Branch: $(git rev-parse --abbrev-ref HEAD)"
-          echo "🔎 Dockerfile: core/chainlink.Dockerfile"
+          echo "🔎 Dockerfile: plugins/chainlink.Dockerfile"
           echo "🔎 Build context: $(pwd)"
           ls -lah
 
@@ -78,7 +78,7 @@ jobs:
             --secret id=GIT_AUTH_TOKEN \
             --build-arg COMMIT_SHA=$(git rev-parse HEAD) \
             -t local_chainlink \
-            -f core/chainlink.Dockerfile .
+            -f plugins/chainlink.Dockerfile .
 
   # build-publish-docker:
   #   name: Build & Publish Docker Image
