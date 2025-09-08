@@ -27,9 +27,6 @@ jobs:
     # outputs:
     #   date: ${{ steps.**.outputs.** }}
     steps:
-      - name: Prepare Cache Dir
-        run: mkdir -p ${{ env.DOCKER_CACHE_DIR }}
-
       - name: Setup GitHub token using GATI
         id: set-token
         uses: smartcontractkit/.github/actions/setup-github-token@setup-github-token/1.0.0
@@ -41,6 +38,9 @@ jobs:
 
       - name: Checkout chainlink-ton Repository
         uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
+
+      - name: Prepare Cache Dir
+        run: mkdir -p ${{ env.DOCKER_CACHE_DIR }}
 
       - name: Read Chainlink Core Ref from .core_version File
         id: read_core_ref
