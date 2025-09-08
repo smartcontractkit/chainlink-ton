@@ -16,7 +16,7 @@ import { uint8ArrayToBigInt } from '../../src/utils'
 
 // @dev Initializes the contract
 export type Init = {
-  // Query ID of the change owner request.
+  // Query ID of the change request.
   queryId: bigint
 
   // Minimum delay in seconds for future operations.
@@ -34,13 +34,13 @@ export type Init = {
 
 // @dev Top up contract with TON coins.
 export type TopUp = {
-  // Query ID of the change owner request.
+  // Query ID of the change request.
   queryId: bigint
 }
 
 // @dev Schedule an operation containing a batch of transactions.
 export type ScheduleBatch = {
-  // Query ID of the change owner request.
+  // Query ID of the change request.
   queryId: bigint
 
   // Array of calls to be scheduled
@@ -55,7 +55,7 @@ export type ScheduleBatch = {
 
 // @dev Cancel an operation.
 export type Cancel = {
-  // Query ID of the change owner request.
+  // Query ID of the change request.
   queryId: bigint
 
   // ID of the operation to cancel.
@@ -64,7 +64,7 @@ export type Cancel = {
 
 // @dev Execute an (ready) operation containing a batch of transactions.
 export type ExecuteBatch = {
-  // Query ID of the change owner request.
+  // Query ID of the change request.
   queryId: bigint
 
   // Array of calls to be scheduled
@@ -77,7 +77,7 @@ export type ExecuteBatch = {
 
 // @dev Changes the minimum timelock duration for future operations.
 export type UpdateDelay = {
-  // Query ID of the change owner request.
+  // Query ID of the change request.
   queryId: bigint
 
   // New minimum delay in seconds for future operations.
@@ -86,7 +86,7 @@ export type UpdateDelay = {
 
 // @dev Blocks a function selector from being used
 export type BlockFunctionSelector = {
-  // Query ID of the change owner request.
+  // Query ID of the change request.
   queryId: bigint
 
   // Function selector to block.
@@ -95,7 +95,7 @@ export type BlockFunctionSelector = {
 
 // @dev Unblocks a previously blocked function selector so it can be used again.
 export type UnblockFunctionSelector = {
-  /// Query ID of the change owner request.
+  /// Query ID of the change request.
   queryId: bigint
 
   /// Function selector to unblock.
@@ -104,7 +104,7 @@ export type UnblockFunctionSelector = {
 
 // @dev Directly execute a batch of transactions, bypassing any other checks.
 export type BypasserExecuteBatch = {
-  // Query ID of the change owner request.
+  // Query ID of the change request.
   queryId: bigint
 
   // Array of calls to be scheduled

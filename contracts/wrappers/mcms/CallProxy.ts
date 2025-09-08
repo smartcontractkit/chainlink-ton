@@ -13,7 +13,7 @@ import { CellCodec } from '../utils'
 
 // @dev Top up contract with TON coins.
 export type TopUp = {
-  // Query ID of the change owner request.
+  // Query ID of the change request.
   queryId: bigint
 }
 

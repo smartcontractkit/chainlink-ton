@@ -6,7 +6,6 @@ import {
   contractAddress,
   ContractProvider,
   Dictionary,
-  DictionaryKeyTypes,
   Sender,
   SendMode,
 } from '@ton/core'
@@ -18,13 +17,13 @@ import { loadDict, loadMap } from '../../src/utils/dict'
 
 // @dev Top up contract with TON coins.
 export type TopUp = {
-  // Query ID of the change owner request.
+  // Query ID of the change request.
   queryId: bigint
 }
 
 // @dev Sets a new expiring root.
 export type SetRoot = {
-  // Query ID of the change owner request.
+  // Query ID of the change request.
   queryId: bigint
 
   // The new expiring root.
@@ -37,6 +36,8 @@ export type SetRoot = {
   metadataProof: Cell // vec<uint256>
   // The ECDSA signatures on (root, validUntil).
   signatures: Cell // vec<Signature>
+  /// The timeout required to finalize the currently executing op
+  opFinalizationTimeout: bigint // uint32
 }
 
 // @dev Executes an operation authenticated by the Merkle tree.
@@ -52,7 +53,7 @@ export type Execute = {
 
 // @dev Sets the configuration for the contract.
 export type SetConfig = {
-  // Query ID of the change owner request.
+  // Query ID of the change request.
   queryId: bigint
 
   // List of signer public keys.
@@ -67,8 +68,46 @@ export type SetConfig = {
   clearRoot: boolean
 }
 
+/// Submit an oracle error report, which marks the current root as invalid.
+///
+/// The error report is used for a category of errors which might occur during execution
+/// of an operation, but can't be caught on-chain (OOG errors, and downstream tx-trace errors).
+///
+/// @dev The error oracle can only report errors for the current non-expired root, to avoid reporting
+/// stale errors for operations that are no longer valid.
+export type SubmitErrorReport = {
+  /// Query ID of the change request.
+  queryId: bigint
+
+  /// The operation which produced the error.
+  op: Cell // Cell<Op>
+  /// The MerkleProof for the op's inclusion in the MerkleTree
+  proof: bigint[] // vec<uint256>,
+  /// The hash of the execute transaction.
+  opTxHash: bigint
+
+  /// The hash of the transaction which errored (part of the tx trace).
+  errorTxHash: bigint
+  /// The error code.
+  errorCode: number
+}
+
+/// Message sent by the owner to transfer the oracle role.
+export type TransferOracleRole = {
+  /// Query ID of the change request.
+  queryId: bigint
+  /// The address of the new oracle.
+  newOracle: Address
+}
+
 // @dev Union of all (input) messages.
-export type InMessage = TopUp | SetRoot | Execute | SetConfig
+export type InMessage =
+  | TopUp
+  | SetRoot
+  | Execute
+  | SetConfig
+  | SubmitErrorReport
+  | TransferOracleRole
 
 // MCMS contract storage
 export type ContractData = {
@@ -77,6 +116,8 @@ export type ContractData = {
 
   /// Ownable trait data
   ownable: ownable2step.Data
+  /// Address of the error oracle account, which can submit error reports.
+  oracle: Address
   /// Map where entry exists if the public key is a signer
   signers: Map<bigint, Buffer> // map<uint256, Signer>
   /// The current configuration of the contract
@@ -84,10 +125,8 @@ export type ContractData = {
 
   /// Remember signedHashes that this contract has seen. Each signedHash can only be set once.
   seenSignedHashes: Map<bigint, boolean> // map<uint256, bool>
-  /// The current expiring root and the number of ops in it.
-  expiringRootAndOpCount: ExpiringRootAndOpCount
-  /// The current metadata about the root.
-  rootMetadata: RootMetadata
+  /// The current RootMetadata and ExpiringRootAndOpCount wrapped in a cell bc size limits.
+  rootInfo: RootInfo
 }
 
 // --- Constants ---
@@ -110,78 +149,87 @@ export const NUM_GROUPS = 32
 export const MAX_NUM_SIGNERS = 200
 
 export enum Error {
-  /// @notice Thrown when number of signers is 0 or greater than MAX_NUM_SIGNERS.
+  /// Thrown when number of signers is 0 or greater than MAX_NUM_SIGNERS.
   OUT_OF_BOUNDS_NUM_SIGNERS = 100,
 
-  /// @notice Thrown when signerKeys and signerGroups have different lengths.
+  /// Thrown when signerKeys and signerGroups have different lengths.
   SIGNER_GROUPS_LENGTH_MISMATCH = 101,
 
-  /// @notice Thrown when number of some signer's group is greater than (NUM_GROUPS-1).
+  /// Thrown when number of some signer's group is greater than (NUM_GROUPS-1).
   OUT_OF_BOUNDS_GROUP = 102,
 
-  /// @notice Thrown when the group tree isn't well-formed.
+  /// Thrown when the group tree isn't well-formed.
   GROUP_TREE_NOT_WELL_FORMED = 103,
 
-  /// @notice Thrown when the quorum of some group is larger than the number of signers in it.
+  /// Thrown when the quorum of some group is larger than the number of signers in it.
   OUT_OF_BOUNDS_GROUP_QUORUM = 104,
 
-  /// @notice Thrown when a disabled group contains a signer.
+  /// Thrown when a disabled group contains a signer.
   SIGNER_IN_DISABLED_GROUP = 105,
 
-  /// @notice Thrown when the signers' public keys are not a strictly increasing monotone sequence.
+  /// Thrown when the signers' public keys are not a strictly increasing monotone sequence.
   /// Prevents signers from including more than one signature.
   SIGNERS_KEYS_MUST_BE_STRICTLY_INCREASING = 106,
 
-  /// @notice Thrown when the signature corresponds to invalid signer.
+  /// Thrown when the signature corresponds to invalid signer.
   INVALID_SIGNER = 107,
 
-  /// @notice Thrown when there is no sufficient set of valid signatures provided to make the
+  /// Thrown when there is no sufficient set of valid signatures provided to make the
   /// root group successful.
   INSUFFICIENT_SIGNERS = 108,
 
-  /// @notice Thrown when attempt to set metadata or execute op for another chain.
+  /// Thrown when attempt to set metadata or execute op for another chain.
   WRONG_CHAIN_ID = 109,
 
-  /// @notice Thrown when the multiSig address in metadata or op is
+  /// Thrown when the multiSig address in metadata or op is
   /// incompatible with the address of this contract.
   WRONG_MULTI_SIG = 110,
 
-  /// @notice Thrown when the preOpCount <= postOpCount invariant is violated.
+  /// Thrown when the preOpCount <= postOpCount invariant is violated.
   WRONG_POST_OP_COUNT = 111,
 
-  /// @notice Thrown when attempting to set a new root while there are still pending ops
+  /// Thrown when attempting to set a new root while there are still pending ops
   /// from the previous root without explicitly overriding it.
   PENDING_OPS = 112,
 
-  /// @notice Thrown when preOpCount in metadata is incompatible with the current opCount.
+  /// Thrown when preOpCount in metadata is incompatible with the current opCount.
   WRONG_PRE_OP_COUNT = 113,
 
-  /// @notice Thrown when the provided merkle proof cannot be verified.
+  /// Thrown when the provided merkle proof cannot be verified.
   PROOF_CANNOT_BE_VERIFIED = 114,
 
-  /// @notice Thrown when attempt to execute an op after
+  /// Thrown when attempt to execute an op after
   /// s_expiringRootAndOpCount.validUntil has passed.
   ROOT_EXPIRED = 115,
 
-  /// @notice Thrown when attempt to bypass the enforced ops' order in the merkle tree or
+  /// Thrown when attempt to bypass the enforced ops' order in the merkle tree or
   /// re-execute an op.
   WRONG_NONCE = 116,
 
-  /// @notice Thrown when attempting to execute an op even though opCount equals
+  /// Thrown when attempting to execute an op even though opCount equals
   /// metadata.postOpCount.
   POST_OP_COUNT_REACHED = 117,
 
-  /// @notice Thrown when the underlying call in _execute() reverts.
+  /// Thrown when the underlying call in _execute() reverts.
   CALL_REVERTED = 118,
 
-  /// @notice Thrown when attempt to set past validUntil for the root.
+  /// Thrown when attempt to set past validUntil for the root.
   VALID_UNTIL_HAS_ALREADY_PASSED = 119,
 
-  /// @notice Thrown when setRoot() is called before setting a config.
+  /// Thrown when setRoot() is called before setting a config.
   MISSING_CONFIG = 120,
 
-  /// @notice Thrown when attempt to set the same (root, validUntil) in setRoot().
+  /// Thrown when attempt to set the same (root, validUntil) in setRoot().
   SIGNED_HASH_ALREADY_SEEN = 121,
+
+  /// Thrown when the root has not been finalized yet (can't execute next op before finalization).
+  ERROR_ROOT_NOT_FINALIZED = 122,
+
+  /// Thrown when the provided op.value is insufficient (min required value not met).
+  ERROR_INSUFFICIENT_VALUE = 123,
+
+  /// Thrown when the error report sender is not the authorized oracle.
+  ERROR_UNAUTHORIZED_ORACLE = 124,
 }
 
 // --- Data structures ---
@@ -262,6 +310,14 @@ export type Config = {
   groupParents: Map<number, number> // map<uint8, uint8> (indexed, iterable backwards)
 }
 
+/// Information about the current root, extracted into a separate struct (wrapped in a cell).
+export type RootInfo = {
+  /// The current expiring root and the number of ops in it.
+  expiringRootAndOpCount: ExpiringRootAndOpCount
+  /// The current metadata about the root.
+  rootMetadata: RootMetadata
+}
+
 /// MerkleRoots are a bit tricky since they reveal almost no information about the contents of
 /// the tree they authenticate. To mitigate this, we enforce that this contract can only execute
 /// ops from a single root at any given point in time. We further associate an expiry
@@ -278,9 +334,27 @@ export type ExpiringRootAndOpCount = {
   validUntil: bigint //uint32
   /// each ManyChainMultiSig instance has it own independent opCount.
   opCount: bigint // uint40
+  /// Information about the currently pending operation.
+  opPendingInfo: OpPendingInfo
 }
 
-/// @notice Each root also authenticates metadata about itself (stored as one of the leaves)
+/// Information about the currently pending operation.
+/// This is TON-specific additional data required to support reliable execution in the async environment.
+export type OpPendingInfo = {
+  /// The time at which the root becomes valid [executionTime(opCount - 1) + opFinalizationTimeout].
+  /// At this time the previous executed operation is considered optimistically final and successful,
+  /// meaning no bounce was received and we can continue executing.
+  validAfter: bigint // uint32
+  /// The timeout required to finalize the currently executing op
+  opFinalizationTimeout: bigint // uint32
+  /// The address that the (pending) operation was sent to (and could bounce from).
+  opPendingReceiver: Address
+  /// The truncated body of the pending operation (256 bits from the original message),
+  /// stored as the next expected potential bounce, and verified in onBounceMessage handler.
+  opPendingBodyTruncated: bigint // uint256
+}
+
+/// Each root also authenticates metadata about itself (stored as one of the leaves)
 /// which must be revealed when the root is set.
 ///
 /// @dev We need to be careful that abi.encode(MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA, RootMetadata)
@@ -317,7 +391,7 @@ export type Signature = {
   signer: bigint // uint256
 }
 
-/// @notice an op to be executed by the ManyChainMultiSig contract
+/// An op to be executed by the ManyChainMultiSig contract
 ///
 /// @dev We need to be careful that abi.encode(LEAF_OP_DOMAIN_SEPARATOR, RootMetadata)
 /// is greater than 64 bytes to prevent collisions with internal nodes in the Merkle tree. See
@@ -343,11 +417,15 @@ export const opcodes = {
     SetRoot: crc32('MCMS_SetRoot'),
     Execute: crc32('MCMS_Execute'),
     SetConfig: crc32('MCMS_SetConfig'),
+    SubmitErrorReport: crc32('MCMS_SubmitErrorReport'),
+    TransferOracleRole: crc32('MCMS_TransferOracleRole'),
   },
   out: {
     NewRoot: crc32('MCMS_NewRoot'),
     ConfigSet: crc32('MCMS_ConfigSet'),
     OpExecuted: crc32('MCMS_OpExecuted'),
+    ErrorReportedSubmitted: crc32('MCMS_ErrorReportSubmitted'),
+    OracleRoleTransferred: crc32('MCMS_OracleRoleTransferred'),
   },
 }
 
@@ -403,6 +481,7 @@ export const builder = {
             .storeBuilder(rootMetadata.encode(msg.metadata).asBuilder())
             .storeRef(msg.metadataProof)
             .storeRef(msg.signatures)
+            .storeUint(msg.opFinalizationTimeout, 32)
             .endCell()
         },
         decode: (cell: Cell): SetRoot => {
@@ -415,6 +494,7 @@ export const builder = {
             metadata: s.loadRef().beginParse() as unknown as RootMetadata, // TODO: decode metadata properly
             metadataProof: s.loadRef(),
             signatures: s.loadRef(),
+            opFinalizationTimeout: s.loadUintBig(32),
           }
         },
       },
@@ -480,6 +560,48 @@ export const builder = {
           }
         },
       },
+      submitErrorReport: {
+        encode: (msg: SubmitErrorReport): Cell => {
+          return beginCell()
+            .storeUint(opcodes.in.SubmitErrorReport, 32)
+            .storeUint(msg.queryId, 64)
+            .storeRef(msg.op)
+            .storeRef(asSnakeData<bigint>(msg.proof, (v) => beginCell().storeUint(v, 256)))
+            .storeUint(msg.opTxHash, 256)
+            .storeUint(msg.errorTxHash, 256)
+            .storeUint(msg.errorCode, 32)
+            .endCell()
+        },
+        decode: (cell: Cell): SubmitErrorReport => {
+          const s = cell.beginParse()
+          s.skip(32) // skip opcode
+          return {
+            queryId: s.loadUintBig(64),
+            op: s.loadRef(),
+            proof: fromSnakeData(s.loadRef(), (a) => a.loadUintBig(256)),
+            opTxHash: s.loadUintBig(256),
+            errorTxHash: s.loadUintBig(256),
+            errorCode: s.loadUint(32),
+          }
+        },
+      },
+      transferOracleRole: {
+        encode: (msg: TransferOracleRole): Cell => {
+          return beginCell()
+            .storeUint(opcodes.in.TransferOracleRole, 32)
+            .storeUint(msg.queryId, 64)
+            .storeAddress(msg.newOracle)
+            .endCell()
+        },
+        decode: (cell: Cell): TransferOracleRole => {
+          const s = cell.beginParse()
+          s.skip(32) // skip opcode
+          return {
+            queryId: s.loadUintBig(64),
+            newOracle: s.loadAddress(),
+          }
+        },
+      },
     },
   },
   data: (() => {
@@ -526,12 +648,33 @@ export const builder = {
       },
     }
 
+    const opPendingInfo: CellCodec<OpPendingInfo> = {
+      encode: (data: OpPendingInfo): Cell => {
+        return beginCell()
+          .storeUint(data.validAfter, 32)
+          .storeUint(data.opFinalizationTimeout, 32)
+          .storeAddress(data.opPendingReceiver)
+          .storeUint(data.opPendingBodyTruncated, 256)
+          .endCell()
+      },
+      decode: (cell: Cell): OpPendingInfo => {
+        const s = cell.beginParse()
+        return {
+          validAfter: s.loadUintBig(32),
+          opFinalizationTimeout: s.loadUintBig(32),
+          opPendingReceiver: s.loadAddress(),
+          opPendingBodyTruncated: s.loadUintBig(256),
+        }
+      },
+    }
+
     const expiringRootAndOpCount: CellCodec<ExpiringRootAndOpCount> = {
       encode: (data: ExpiringRootAndOpCount): Cell => {
         return beginCell()
           .storeUint(data.root, 256)
           .storeUint(data.validUntil, 32)
           .storeUint(data.opCount, 40)
+          .storeRef(opPendingInfo.encode(data.opPendingInfo))
           .endCell()
       },
       decode: (cell: Cell): ExpiringRootAndOpCount => {
@@ -540,9 +683,28 @@ export const builder = {
           root: s.loadUintBig(256),
           validUntil: s.loadUintBig(32),
           opCount: s.loadUintBig(40),
+          opPendingInfo: opPendingInfo.decode(s.loadRef()),
         }
       },
     }
+
+    /// Information about the current root, extracted into a separate struct (wrapped in a cell).
+    const rootInfo: CellCodec<RootInfo> = {
+      encode: (data: RootInfo): Cell => {
+        return beginCell()
+          .storeBuilder(expiringRootAndOpCount.encode(data.expiringRootAndOpCount).asBuilder())
+          .storeBuilder(rootMetadata.encode(data.rootMetadata).asBuilder())
+          .endCell()
+      },
+      decode: (cell: Cell): RootInfo => {
+        const s = cell.beginParse()
+        return {
+          expiringRootAndOpCount: expiringRootAndOpCount.decode(s.asCell()),
+          rootMetadata: rootMetadata.decode(s.asCell()),
+        }
+      },
+    }
+
     // Creates a new `Signer` data cell
     const signer: CellCodec<Signer> = {
       encode: (signer: Signer): Cell => {
@@ -616,6 +778,7 @@ export const builder = {
           .storeBuilder(
             beginCell().storeAddress(data.ownable.owner).storeMaybeBuilder(_pendingOwnerMaybe),
           )
+          .storeAddress(data.oracle)
           .storeDict(
             loadMap(
               Dictionary.Keys.BigUint(256),
@@ -631,59 +794,34 @@ export const builder = {
             Dictionary.Keys.BigUint(256),
             Dictionary.Values.Bool(),
           )
-          .storeBuilder(expiringRootAndOpCount.encode(data.expiringRootAndOpCount).asBuilder())
-          .storeRef(rootMetadata.encode(data.rootMetadata))
+          .storeRef(rootInfo.encode(data.rootInfo))
           .endCell()
       },
       decode: (cell: Cell): ContractData => {
         const s = cell.beginParse()
-
-        const id = s.loadUint(32)
-        const ownable = {
-          owner: s.loadAddress(),
-          pendingOwner: s.loadAddress(),
-        }
-
-        const signers = loadDict(
-          Dictionary.loadDirect(
-            Dictionary.Keys.BigUint(256),
-            Dictionary.Values.Buffer(LEN_SIGNER_BYTES),
-            s.loadRef(),
-          ),
-        )
-
-        const _config = config.decode(s.loadRef())
-
-        const seenSignedHashes = loadDict(
-          Dictionary.loadDirect(
-            Dictionary.Keys.BigUint(256),
-            Dictionary.Values.Bool(),
-            s.loadRef(),
-          ),
-        )
-
-        const expiringRootAndOpCount = {
-          root: s.loadUintBig(256),
-          opCount: s.loadUintBig(40),
-          validUntil: s.loadUintBig(32),
-        }
-
-        const rootMetadata = {
-          chainId: s.loadIntBig(256),
-          multiSig: s.loadAddress(),
-          preOpCount: s.loadUintBig(40),
-          postOpCount: s.loadUintBig(40),
-          overridePreviousRoot: s.loadBoolean(),
-        }
-
         return {
-          id,
-          ownable,
-          signers,
-          config: _config,
-          seenSignedHashes,
-          expiringRootAndOpCount,
-          rootMetadata,
+          id: s.loadUint(32),
+          ownable: {
+            owner: s.loadAddress(),
+            pendingOwner: s.loadAddress(),
+          },
+          oracle: s.loadAddress(),
+          signers: loadDict(
+            Dictionary.loadDirect(
+              Dictionary.Keys.BigUint(256),
+              Dictionary.Values.Buffer(LEN_SIGNER_BYTES),
+              s.loadRef(),
+            ),
+          ),
+          config: config.decode(s.loadRef()),
+          seenSignedHashes: loadDict(
+            Dictionary.loadDirect(
+              Dictionary.Keys.BigUint(256),
+              Dictionary.Values.Bool(),
+              s.loadRef(),
+            ),
+          ),
+          rootInfo: rootInfo.decode(s.loadRef()),
         }
       },
     }
@@ -695,6 +833,7 @@ export const builder = {
           owner,
           pendingOwner: null, // no pending owner
         },
+        oracle: ZERO_ADDRESS,
         signers: new Map<bigint, Buffer>(),
         config: {
           signers: new Map<number, Buffer>(),
@@ -702,17 +841,25 @@ export const builder = {
           groupParents: new Map<number, number>(),
         },
         seenSignedHashes: new Map<bigint, boolean>(),
-        expiringRootAndOpCount: {
-          root: 0n, // no root
-          validUntil: 0n, // no validity
-          opCount: 0n, // no ops
-        },
-        rootMetadata: {
-          chainId: 0n, // no chain ID
-          multiSig: ZERO_ADDRESS, // no multiSig
-          preOpCount: 0n, // no pre-op count
-          postOpCount: 0n, // no post-op count
-          overridePreviousRoot: false, // no override
+        rootInfo: {
+          expiringRootAndOpCount: {
+            root: 0n, // no root
+            validUntil: 0n, // no validity
+            opCount: 0n, // no ops
+            opPendingInfo: {
+              validAfter: 0n, // no valid after
+              opFinalizationTimeout: 0n, // no op finalization timeout
+              opPendingReceiver: ZERO_ADDRESS, // no op pending receiver
+              opPendingBodyTruncated: 0n, // no op pending body
+            },
+          },
+          rootMetadata: {
+            chainId: 0n, // no chain ID
+            multiSig: ZERO_ADDRESS, // no multiSig
+            preOpCount: 0n, // no pre-op count
+            postOpCount: 0n, // no post-op count
+            overridePreviousRoot: false, // no override
+          },
         },
       }
     }
@@ -720,6 +867,7 @@ export const builder = {
     return {
       config,
       rootMetadata,
+      opPendingInfo,
       expiringRootAndOpCount,
       op,
       signature,
@@ -746,11 +894,7 @@ export class ContractClient implements Contract {
   }
 
   async sendInternal(p: ContractProvider, via: Sender, value: bigint, body: Cell) {
-    await p.internal(via, {
-      value: value,
-      sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: body,
-    })
+    await p.internal(via, { value, sendMode: SendMode.PAY_GAS_SEPARATELY, body })
   }
 
   async sendTopUp(p: ContractProvider, via: Sender, value: bigint = 0n, body: TopUp) {
@@ -812,6 +956,17 @@ export class ContractClient implements Contract {
     return p.get('getRoot', []).then((r) => [r.stack.readBigNumber(), r.stack.readBigNumber()])
   }
 
+  async getOpPendingInfo(p: ContractProvider): Promise<OpPendingInfo> {
+    return p.get('getOpPendingInfo', []).then((r) => {
+      return {
+        validAfter: r.stack.readBigNumber(),
+        opFinalizationTimeout: r.stack.readBigNumber(),
+        opPendingReceiver: r.stack.readAddressOpt() || ZERO_ADDRESS,
+        opPendingBodyTruncated: r.stack.readBigNumber(),
+      }
+    })
+  }
+
   async getRootMetadata(p: ContractProvider): Promise<RootMetadata> {
     return p.get('getRootMetadata', []).then((r) => {
       return {
@@ -822,5 +977,9 @@ export class ContractClient implements Contract {
         overridePreviousRoot: r.stack.readBoolean(),
       }
     })
+  }
+
+  async getOracle(p: ContractProvider): Promise<Address> {
+    return p.get('getOracle', []).then((r) => r.stack.readAddress())
   }
 }

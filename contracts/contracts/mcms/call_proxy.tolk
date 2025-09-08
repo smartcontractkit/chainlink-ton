@@ -6,7 +6,7 @@ tolk 1.0
 /// Contract might receive/hold TON as part of the maintenance process.
 ///
 struct (0x3b3d63b8) CallProxy_TopUp {
-    /// Query ID of the change owner request.
+    /// Query ID of the change request.
     queryId: uint64;
 }
 

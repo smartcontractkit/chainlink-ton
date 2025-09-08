@@ -39,6 +39,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         BigInt(MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL),
         corruptedRootMetadata,
         baseTest.testOps,
+        MCMSBaseSetRootAndExecuteTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
       )
       const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot)
 
@@ -70,6 +71,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         BigInt(MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL),
         corruptedRootMetadata,
         baseTest.testOps,
+        MCMSBaseSetRootAndExecuteTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
       )
       const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot)
 
@@ -102,6 +104,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         BigInt(MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL),
         corruptedRootMetadata,
         baseTest.testOps,
+        MCMSBaseSetRootAndExecuteTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
       )
       const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot)
 
@@ -136,6 +139,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         BigInt(MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL),
         corruptedRootMetadata,
         baseTest.testOps,
+        MCMSBaseSetRootAndExecuteTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
       )
       const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot)
 
@@ -154,7 +158,9 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
     })
 
     it('should revert on incorrect postOpCount', async () => {
-      await baseTest.setInitialRoot()
+      await baseTest.recreateTestOpsNoRevertingOp()
+
+      // await baseTest.setInitialRoot()
       await baseTest.bind.mcms.sendInternal(
         baseTest.acc.deployer.getSender(),
         toNano('10'),
@@ -177,6 +183,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         BigInt(MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL),
         corruptedRootMetadata,
         baseTest.testOps,
+        MCMSBaseSetRootAndExecuteTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
       )
       const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot)
 
@@ -208,6 +215,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         BigInt(MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL),
         baseTest.initialTestRootMetadata,
         baseTest.testOps,
+        MCMSBaseSetRootAndExecuteTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
       )
       const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot)
 
@@ -241,6 +249,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
           BigInt(MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL),
           rootMetadata,
           baseTest.testOps,
+          MCMSBaseSetRootAndExecuteTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
         )
         const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot)
 
@@ -268,6 +277,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
           BigInt(MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL),
           rootMetadata,
           baseTest.testOps,
+          MCMSBaseSetRootAndExecuteTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
         )
         const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot)
 
@@ -295,6 +305,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         BigInt(MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL + 1),
         rootMetadata,
         baseTest.testOps,
+        MCMSBaseSetRootAndExecuteTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
       )
       const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot)
 
@@ -345,6 +356,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         BigInt(MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL),
         baseTest.initialTestRootMetadata,
         baseTest.testOps,
+        MCMSBaseSetRootAndExecuteTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
       )
       const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot)
 
@@ -394,6 +406,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         BigInt(MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL),
         overrideMetadata,
         baseTest.testOps,
+        MCMSBaseSetRootAndExecuteTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
       )
       const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot)
 
@@ -415,6 +428,8 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
     })
 
     it('should successfully set root after clearing', async () => {
+      await baseTest.recreateTestOpsNoRevertingOp()
+
       // Execute all ops except one
       const targetOpCount = baseTest.initialTestRootMetadata.postOpCount - 1n
       await baseTest.executeOperationsUpTo(Number(targetOpCount))
@@ -457,6 +472,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         BigInt(MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL),
         newRootMetadata,
         baseTest.testOps,
+        MCMSBaseSetRootAndExecuteTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
       )
       const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot)
 
@@ -487,6 +503,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         BigInt(MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL + 1),
         newRootMetadata,
         baseTest.testOps,
+        MCMSBaseSetRootAndExecuteTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
       ) // TODO: Original test doesn't add this 1, but this test fails with ERROR_SIGNED_HASH_ALREADY_SEEN if we don't. Thats probably a bug? Should the "override previous root" be used to calculate the hash? Or maybe it is a problem in the order of validations
       const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot)
 
@@ -521,6 +538,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
           BigInt(MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL),
           emptyRootMetadata,
           baseTest.testOps,
+          MCMSBaseSetRootAndExecuteTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
         )
         const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot)
 
@@ -546,6 +564,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         BigInt(MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL),
         newRootMetadata,
         baseTest.testOps,
+        MCMSBaseSetRootAndExecuteTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
       )
       const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot)
 
@@ -563,6 +582,8 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
     })
 
     it('should succeed when no override after everything executed', async () => {
+      await baseTest.recreateTestOpsNoRevertingOp()
+
       const rootMetadata = await baseTest.bind.mcms.getRootMetadata()
       expect(rootMetadata.postOpCount).toBeGreaterThan(0n)
 
@@ -584,6 +605,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         BigInt(MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL),
         newRootMetadata,
         baseTest.testOps,
+        MCMSBaseSetRootAndExecuteTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
       )
       const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot)
 
@@ -617,6 +639,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         BigInt(MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL),
         baseTest.initialTestRootMetadata,
         baseTest.testOps,
+        MCMSBaseSetRootAndExecuteTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
       )
       setRoot.metadata = corruptedMetadata
       const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot)
@@ -648,6 +671,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         BigInt(MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL),
         baseTest.initialTestRootMetadata,
         baseTest.testOps,
+        MCMSBaseSetRootAndExecuteTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
       )
       setRoot.metadata = corruptedMetadata
       const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot)
@@ -678,6 +702,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         BigInt(MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL),
         baseTest.initialTestRootMetadata,
         baseTest.testOps,
+        MCMSBaseSetRootAndExecuteTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
       )
       setRoot.metadata = corruptedMetadata
       const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot)
@@ -708,6 +733,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         BigInt(MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL),
         baseTest.initialTestRootMetadata,
         baseTest.testOps,
+        MCMSBaseSetRootAndExecuteTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
       )
       setRoot.metadata = corruptedMetadata
       const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot)
@@ -739,6 +765,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         BigInt(MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL),
         baseTest.initialTestRootMetadata,
         baseTest.testOps,
+        MCMSBaseSetRootAndExecuteTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
       )
       setRoot.metadata = corruptedMetadata
       const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot)
@@ -829,6 +856,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         BigInt(MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL),
         baseTest.initialTestRootMetadata,
         baseTest.testOps,
+        MCMSBaseSetRootAndExecuteTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
       )
       const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot)
       const result = await baseTest.bind.mcms.sendInternal(
@@ -850,6 +878,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         BigInt(MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL),
         baseTest.initialTestRootMetadata,
         baseTest.testOps,
+        MCMSBaseSetRootAndExecuteTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
       )
       const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot)
       const result = await baseTest.bind.mcms.sendInternal(
@@ -877,6 +906,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         BigInt(MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL),
         baseTest.initialTestRootMetadata,
         baseTest.testOps,
+        MCMSBaseSetRootAndExecuteTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
       )
       const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot)
       const result = await baseTest.bind.mcms.sendInternal(
@@ -899,12 +929,12 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         sign: (data: Buffer<ArrayBufferLike>) => sign(data, s.keyPair.secretKey),
       }))
       signers[0] = signers[1] // Repeat the first signer
-
       const [setRoot, opProofs] = merkleProof.build(
         signers,
         BigInt(MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL),
         baseTest.initialTestRootMetadata,
         baseTest.testOps,
+        MCMSBaseSetRootAndExecuteTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
       )
       const corruptOps = [...baseTest.testOps]
       corruptOps[0].data = beginCell().storeUint(0x2222222, 32).endCell()
@@ -913,6 +943,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         BigInt(MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL),
         baseTest.initialTestRootMetadata,
         corruptOps,
+        MCMSBaseSetRootAndExecuteTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
       )
       setRoot.root = corruptSetRoot.root
 
@@ -942,6 +973,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         BigInt(MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL),
         baseTest.initialTestRootMetadata,
         baseTest.testOps,
+        MCMSBaseSetRootAndExecuteTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
       )
       setRoot.validUntil = BigInt(MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL + 1)
 
