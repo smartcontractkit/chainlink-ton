@@ -77,6 +77,12 @@ jobs:
           path: ${{ env.DOCKER_CACHE_DIR }}/${{ steps.read_core_ref.outputs.CORE_REF }}-${{ env.DOCKER_CACHE_TAR_NAME_SUFFIX }}
           key: ${{ env.DOCKER_CACHE_KEY_PREFIX }}-${{ steps.read_core_ref.outputs.CORE_REF }}
   
+      - name: Load Docker Images From Cache
+        if: steps.restore-cache-images.outputs.cache-hit == 'true'
+        run: |
+          echo "Cache hit for key '${{ env.DOCKER_CACHE_KEY_PREFIX }}-${{ steps.read_core_ref.outputs.CORE_REF }}'. Loading images from tarball..."
+          docker load -i ${{ env.DOCKER_CACHE_DIR }}/${{ steps.read_core_ref.outputs.CORE_REF }}-${{ env.DOCKER_CACHE_TAR_NAME_SUFFIX }}
+
       - name: Debug
         id: debug-2
         run: |
