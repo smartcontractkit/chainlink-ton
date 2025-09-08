@@ -601,6 +601,7 @@ func (a *TONAccessor) Nonces(ctx context.Context, query map[ccipocr3.ChainSelect
 	// TON doesn't support out of order, so nonces will always be 0
 	nonces := make(map[ccipocr3.ChainSelector]map[string]uint64, len(query))
 	for chainSelector, addresses := range query {
+		nonces[chainSelector] = make(map[string]uint64, len(addresses))
 		for _, address := range addresses {
 			nonces[chainSelector][string(address)] = 0
 		}
