@@ -39,7 +39,7 @@ To make hash maintenance easy and reviewable, we keep all pinned hashes in small
 ```nix
 # pkgs/my-module/default.nix
 { pkgs, ... }: let
-    lock = pkgs.callPackage ./lock.nix {};
+    lock = pkgs.callPackage ./lock.nix {inherit pkgs;};
 in pkgs.buildGoModule {
   pname = "foo-service";
   version = "0.0.1";

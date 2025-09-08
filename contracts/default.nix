@@ -2,7 +2,7 @@
   pkgs,
   rev,
 }: let
-  lock = pkgs.callPackage ./lock.nix {};
+  lock = pkgs.callPackage ./lock.nix {inherit pkgs;};
 
   package-info = builtins.fromJSON (builtins.readFile ./package.json);
 
