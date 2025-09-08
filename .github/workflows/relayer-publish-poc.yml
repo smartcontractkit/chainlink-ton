@@ -36,7 +36,7 @@ jobs:
         with:
           aws-role-arn: ${{ secrets.AWS_ROLE_ARN_GATI_READONLY }}
           aws-lambda-url: ${{ secrets.AWS_LAMBDA_URL_GATI }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ vars.AWS_REGION }}
           aws-role-duration-seconds: "1800"
 
       - name: Checkout chainlink-ton Repository
@@ -60,7 +60,7 @@ jobs:
         id: determine-base-image
         run: |
           if [[ "${{ steps.detect_core_ref_is_sha.outputs.is_sha }}" == "true" ]]; then
-            echo "BASE_IMAGE=local_chainlink_${{ steps.read_core_ref.outputs.CORE_REF }}" >> $GITHUB_OUTPUT
+            echo "BASE_IMAGE=local_chainlink:${{ steps.read_core_ref.outputs.CORE_REF }}" >> $GITHUB_OUTPUT
           else
             echo "BASE_IMAGE=${{ env.CHAINLINK_PUBLIC_ECR_IMAGE }}:${{ steps.read_core_ref.outputs.CORE_REF }}" >> $GITHUB_OUTPUT
           fi
@@ -85,8 +85,8 @@ jobs:
       - name: Pull & Save Image on Cache Miss When Core Ref Is Not a SHA
         if: steps.detect_core_ref_is_sha.outputs.is_sha == 'false' && steps.restore-cache-images.outputs.cache-hit != 'true'
         run: |
-          echo "Cache miss: pulling images"
-          docker pull "${{ steps.determine-base-image.outputs.BASE_IMAGE }}"
+          echo "Cache Miss: Pulling chainlink core image from ${{ steps.determine-base-image.outputs.BASE_IMAGE }}"
+          docker pull ${{ steps.determine-base-image.outputs.BASE_IMAGE }}
 
           echo "Saving to tarball…"
           docker save ${{ steps.determine-base-image.outputs.BASE_IMAGE }} \
@@ -96,9 +96,11 @@ jobs:
         if: steps.detect_core_ref_is_sha.outputs.is_sha == 'true'
         id: check-if-image-is-available
         run: |
-          if docker image inspect ${{ steps.determine-base-image.outputs.BASE_IMAGE }}:latest > /dev/null 2>&1; then
+          if docker image inspect ${{ steps.determine-base-image.outputs.BASE_IMAGE }} > /dev/null 2>&1; then
+            echo "Cache Hit: Using existing image ${{ steps.determine-base-image.outputs.BASE_IMAGE }}"
             echo "exists=true" >> $GITHUB_OUTPUT
           else
+            echo "Cache Miss: ${{ steps.determine-base-image.outputs.BASE_IMAGE }} not found locally. Proceed with building locally step."
             echo "exists=false" >> $GITHUB_OUTPUT
           fi
 
@@ -118,12 +120,12 @@ jobs:
           GIT_AUTH_TOKEN: ${{ steps.set-token.outputs.access-token }}
         run: |
           cd temp/chainlink
+
           echo "🔎 Building from commit: $(git rev-parse HEAD)"
           echo "🔎 Commit message: $(git log -1 --pretty=%B)"
           echo "🔎 Branch: $(git rev-parse --abbrev-ref HEAD)"
           echo "🔎 Dockerfile: plugins/chainlink.Dockerfile"
           echo "🔎 Build context: $(pwd)"
-          ls -lah
 
           docker buildx build \
             --secret id=GIT_AUTH_TOKEN \
@@ -136,11 +138,11 @@ jobs:
         run: |
           docker images
 
-      - name: Save just built image in the cache
+      - name: Save the Core Image Just Built
         if: steps.detect_core_ref_is_sha.outputs.is_sha == 'true' && steps.check-if-image-is-available.outputs.exists == 'false'
         run: |
           echo "Saving to tarball…"
-          docker save ${{ steps.determine-base-image.outputs.BASE_IMAGE }}:latest \
+          docker save ${{ steps.determine-base-image.outputs.BASE_IMAGE }} \
             -o ${{ env.DOCKER_CACHE_DIR }}/${{ steps.read_core_ref.outputs.CORE_REF }}-${{ env.DOCKER_CACHE_TAR_NAME_SUFFIX }}
       
 
@@ -154,14 +156,14 @@ jobs:
   #   with:
   #     # Internal dev ECR, retention policy based on tag
   #     aws-ecr-name: chainlink-plugins-dev
-  #     aws-region-ecr: us-west-2
-  #     aws-region-gati: us-west-2
+  #     aws-region-ecr: ${{ vars.AWS_REGION }}
+  #     aws-region-gati: ${{ vars.AWS_REGION }}
   #     dockerfile: scripts/build/Dockerfile.build.nix
   #     docker-build-context: .
   #     docker-build-args: |
   #       CHAINLINK_USER=chainlink
   #       COMMIT_SHA=${{ github.sha }}
-  #       BASE_IMAGE=$${{  }}
+  #       BASE_IMAGE=$${{ steps.determine-base-image.outputs.BASE_IMAGE }}
   #     docker-manifest-sign: true
   #     docker-tag-custom-suffix: "-chainlink-ton"
   #     git-sha: ${{ github.sha }}
