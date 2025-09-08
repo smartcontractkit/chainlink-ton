@@ -41,7 +41,7 @@ describe('OCR3Base Tests', () => {
   const hashedReport = hashReport(report, { configDigest, padding: 0n, sequenceBytes })
 
   beforeAll(async () => {
-    code = await compile('OCR3Base')
+    code = await compile('examples.OCR3Base')
     blockchain = await Blockchain.create()
 
     deployer = await blockchain.treasury('deployer')

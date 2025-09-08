@@ -115,7 +115,13 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 	updateFeeTokensReport, err := operations.ExecuteOperation(env.OperationsBundle, operation.UpdateFeeQuoterFeeTokensOp, deps, updateFeeTokensInput)
 	txs = append(txs, updateFeeTokensReport.Output...)
 
-	if err := utils.ExecuteProposals(env, chain.Client, chain.Wallet, txs); err != nil {
+	if err != nil {
+		return cldf.ChangesetOutput{}, fmt.Errorf("failed to update fee quoter fee tokens: %w", err)
+	}
+
+	err = utils.ExecuteProposals(env, chain.Client, chain.Wallet, txs)
+
+	if err != nil {
 		return cldf.ChangesetOutput{}, err
 	}
 

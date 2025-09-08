@@ -8,17 +8,15 @@ import "../lib/utils.tolk";
 const STATE_UNTOUCHED: uint8 = 0;
 const STATE_TOKEN_TRANSFER: uint8 = 1;
 const STATE_EXECUTE: uint8 = 2;
-const STATE_SUCCESS: uint8 = 3;
+const STATE_EXECUTE_FAILED: uint8 = 3;
+const STATE_SUCCESS: uint8 = 4;
 
-// Execution state stores CCIP specfic information
-// These have to match the EVM states
-const EXECUTION_STATE_UNTOUCHED: uint8 = 0;
-const EXECUTION_STATE_IN_PROGRESS: uint8 = 1;
-const EXECUTION_STATE_SUCCESS: uint8 = 2;
-const EXECUTION_STATE_FAILURE: uint8 = 3;
 // TODO: we need to fit additional states: TOKEN_TRANSFER | EXECUTE
 
-const ERROR_STATE_IS_NOT_UNTOUCHED: uint32 = 0x7878;
+const ERROR_STATE_IS_NOT_UNTOUCHED = 300;
+const ERROR_UPDATING_STATE_OF_NON_EXECUTED_MESSAGE = 301;
+const ERROR_NOTIFICATION_FROM_INVALID_RECEIVER = 303;
+
 
 fun MerkleRoot_Storage.load(): MerkleRoot_Storage {
     return MerkleRoot_Storage.fromCell(contract.getData());
@@ -28,8 +26,7 @@ fun MerkleRoot_Storage.store(self) {
     return contract.setData(self.toCell());
 }
 
-
-type MerkleRoot_InMessage = MerkleRoot_Validate;
+type MerkleRoot_InMessage = MerkleRoot_Validate | MerkleRoot_CCIPReceiveBounced | MerkleRoot_CCIPReceiveConfirm;
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy MerkleRoot_InMessage.fromSlice(in.body);
@@ -37,7 +34,12 @@ fun onInternalMessage(in: InMessage) {
         MerkleRoot_Validate => {
             // If we receive this message from the OffRamp then the merkle proof has already been validated.
             _validateAndExecute(msg, in.senderAddress);
-            
+        }
+        MerkleRoot_CCIPReceiveConfirm => {
+            _ccipReceiveConfirm(msg, in.senderAddress);
+        }
+        MerkleRoot_CCIPReceiveBounced => {
+            _ccipReceiveBounced(msg, in.senderAddress);
         }
         else => {
             // ignore empty messages, "wrong opcode" for others
@@ -45,48 +47,104 @@ fun onInternalMessage(in: InMessage) {
         }
     }
 }
+fun _ccipReceiveBounced(msg: MerkleRoot_CCIPReceiveBounced, sender: address){
+    var st = MerkleRoot_Storage.load();
 
-//TODO: We are not keeping track of the execution state right now, we just relay the message to confirm that the merkle proof is valid
-
-fun _validateAndExecute(msg: MerkleRoot_Validate, sender: address) {
-    val st = MerkleRoot_Storage.load();
     assert(sender == st.owner, ERROR_NOT_OWNER);
+    assert(st.state == STATE_EXECUTE && st.message != null, ERROR_UPDATING_STATE_OF_NON_EXECUTED_MESSAGE);
 
-    assert(st.state == EXECUTION_STATE_UNTOUCHED, ERROR_STATE_IS_NOT_UNTOUCHED);
-    // TODO if no tokenTransfers
-    _execute(st, msg.messages, msg.proofs, msg.proofFlagBits, msg.metadataHash, sender);
+    val ccipMessage = st.message!.load();
 
-    // if tokenTransfers 
-    // validate execution state == untouched
-    // if initial
-    //  allocate storage space for the execution report
-    // TODO: should we fan out CommitReport into individual executions?
-    // 
-    // if in progress
-    // if tokenAmounts > 0 && state == initial
-    // set state = token transfer
-    // send message to offramp to ask to release tokens
-    // else if no tokenTransfers
-    // set state = execution
+    assert (msg.receiver == ccipMessage.receiver, ERROR_NOTIFICATION_FROM_INVALID_RECEIVER);
+
+    st.state = STATE_EXECUTE_FAILED;
+    st.store();
+
+    val messageHeader = ccipMessage.header;
+    val offRampNotifyFailure = createMessage({
+        bounce: true,
+        value: ton("0"),
+        dest: st.owner,
+        body: OffRamp_NotifyFailure {
+            header: messageHeader,
+            rootId: st.rootId,
+        },
+    });
+    offRampNotifyFailure.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+
 }
 
-fun _execute(st: MerkleRoot_Storage, mesages: cell, proofs: cell, proofFlagBits: uint256, metadataHash: uint256, offRamp: address) {
+fun _ccipReceiveConfirm(msg: MerkleRoot_CCIPReceiveConfirm, sender: address) {
+    var st = MerkleRoot_Storage.load();
+
+    assert(st.state == STATE_EXECUTE && st.message != null, ERROR_UPDATING_STATE_OF_NON_EXECUTED_MESSAGE);
+    assert(sender == st.owner, ERROR_NOT_OWNER);
+
+    val ccipMessage = st.message!.load();
+
+    assert (msg.receiver == ccipMessage.receiver, ERROR_NOTIFICATION_FROM_INVALID_RECEIVER);
+
     st.state = STATE_SUCCESS;
+    st.store();
+
+    val messageHeader = ccipMessage.header;
+    val offRampNotifySuccess = createMessage({
+        bounce: true,
+        value: ton("0"),
+        dest: st.owner,
+        body: OffRamp_NotifySuccess {
+            header: messageHeader,
+            rootId: st.rootId
+        },
+    });
+    offRampNotifySuccess.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
+fun _validateAndExecute(msg: MerkleRoot_Validate, sender: address) {
+    var st = MerkleRoot_Storage.load();
+
+    assert(sender == st.owner, ERROR_NOT_OWNER);
+    assert(st.state == STATE_UNTOUCHED, ERROR_STATE_IS_NOT_UNTOUCHED);
+
+    val ccipMessage = msg.message;
+
+    st.message = ccipMessage.toCell();
+    st.store();
+
+    //TODO 
+    // if tokenAmounts > 0 && state == initial
+    // val notifyInProgress = createMessage({
+    //     bounce: true,
+    //     value: ton("0.05"),
+    //     dest: st.owner,
+    //     body: OffRamp_NotifyInProgress {
+    //         st.messages, msg.proofs, msg.proofFlagBits, msg.metadataHash
+    //     }
+    // });
+    // notifyInProgress.send(SEND_MODE_REGULAR);
+    // set state = token transfer
+    // send message to offramp to ask to release tokens
+
+    // else if no tokenTransfers
+    _execute(st, ccipMessage);
+}
+
+fun _execute(st: MerkleRoot_Storage, mesage: Any2TVMRampMessage) {
+    st.state = STATE_EXECUTE;
     st.store();
     createMessage(
         {
             bounce: true,
-            value: ton("0"),
-            dest: offRamp,
+            value: ton("0.05"),
+            dest: st.owner,
             body: OffRamp_DispatchValidated {
-                messages: mesages,
-                proofs: proofs,
-                proofFlagBits: proofFlagBits,
-                metadataHash: metadataHash
+                message: mesage.toCell(),
+                rootId: st.rootId,
             }
         }
-    ).send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    ).send(SEND_MODE_REGULAR);
 }
+
 
 // TODO: should we wait for all transfers to either complete or fail before we allow retry?
 
