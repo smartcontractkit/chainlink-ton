@@ -71,17 +71,7 @@ jobs:
         with:
           path: ${{ env.DOCKER_CACHE_DIR }}/${{ steps.read_core_ref.outputs.CORE_REF }}-${{ env.DOCKER_CACHE_TAR_NAME_SUFFIX }}
           key: ${{ env.DOCKER_CACHE_KEY_PREFIX }}-${{ steps.read_core_ref.outputs.CORE_REF }}
-
-      - name: Pull & save images on cache miss when CORE_REF is a SHA
-        if: steps.detect_core_ref_is_sha.outputs.is_sha == 'true' && steps.restore-cache-images.outputs.cache-hit != 'true'
-        run: |
-          echo "Cache miss: pulling images"
-          docker pull "${{ steps.determine-base-image.outputs.BASE_IMAGE }}"
-
-          echo "Saving to tarball…"
-          docker save ${{ steps.determine-base-image.outputs.BASE_IMAGE }} \
-            -o ${{ env.DOCKER_CACHE_DIR }}/${{ steps.read_core_ref.outputs.CORE_REF }}-${{ env.DOCKER_CACHE_TAR_NAME_SUFFIX }}
-        
+  
       - name: Pull & save images on cache miss when CORE_REF is not a SHA
         if: steps.detect_core_ref_is_sha.outputs.is_sha == 'false' && steps.restore-cache-images.outputs.cache-hit != 'true'
         run: |
@@ -92,9 +82,19 @@ jobs:
           docker save ${{ steps.determine-base-image.outputs.BASE_IMAGE }} \
             -o ${{ env.DOCKER_CACHE_DIR }}/${{ steps.read_core_ref.outputs.CORE_REF }}-${{ env.DOCKER_CACHE_TAR_NAME_SUFFIX }}
       
-      # Only run chainlink core build if CORE_REF is a SHA
-      - name: Checkout Chainlink Core repo
+      - name: Check if base image exists locally when CORE_REF is a SHA
         if: steps.detect_core_ref_is_sha.outputs.is_sha == 'true'
+        id: check-if-image-is-available
+        run: |
+          if docker image inspect "${{ steps.determine-base-image.outputs.BASE_IMAGE }}" > /dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      # Only run chainlink core build if CORE_REF is a SHA and not available locally
+      - name: Checkout Chainlink Core repo
+        if: steps.detect_core_ref_is_sha.outputs.is_sha == 'true' && steps.check-if-image-is-available.outputs.exists == 'false'
         id: checkout-core
         uses: actions/checkout@v4
         with:
@@ -102,26 +102,33 @@ jobs:
           ref: ${{ steps.read_core_ref.outputs.CORE_REF }}
           path: temp/chainlink
 
-      # TODO cache the chainlink image when we have a stable core ref
-      # - name: Build chainlink image
-      #   if: steps.detect_core_ref_is_sha.outputs.is_sha == 'true'
-      #   id: build-core
-      #   env:
-      #     GIT_AUTH_TOKEN: ${{ steps.set-token.outputs.access-token }}
-      #   run: |
-      #     cd temp/chainlink
-      #     echo "🔎 Building from commit: $(git rev-parse HEAD)"
-      #     echo "🔎 Commit message: $(git log -1 --pretty=%B)"
-      #     echo "🔎 Branch: $(git rev-parse --abbrev-ref HEAD)"
-      #     echo "🔎 Dockerfile: plugins/chainlink.Dockerfile"
-      #     echo "🔎 Build context: $(pwd)"
-      #     ls -lah
+      - name: Build chainlink image
+        if: steps.detect_core_ref_is_sha.outputs.is_sha == 'true' && steps.check-if-image-is-available.outputs.exists == 'false'
+        id: build-core
+        env:
+          GIT_AUTH_TOKEN: ${{ steps.set-token.outputs.access-token }}
+        run: |
+          cd temp/chainlink
+          echo "🔎 Building from commit: $(git rev-parse HEAD)"
+          echo "🔎 Commit message: $(git log -1 --pretty=%B)"
+          echo "🔎 Branch: $(git rev-parse --abbrev-ref HEAD)"
+          echo "🔎 Dockerfile: plugins/chainlink.Dockerfile"
+          echo "🔎 Build context: $(pwd)"
+          ls -lah
 
-      #     docker buildx build \
-      #       --secret id=GIT_AUTH_TOKEN \
-      #       --build-arg COMMIT_SHA=$(git rev-parse HEAD) \
-      #       -t local_chainlink_${{ steps.read_core_ref.outputs.CORE_REF }} \
-      #       -f plugins/chainlink.Dockerfile .
+          docker buildx build \
+            --secret id=GIT_AUTH_TOKEN \
+            --build-arg COMMIT_SHA=$(git rev-parse HEAD) \
+            -t local_chainlink_${{ steps.read_core_ref.outputs.CORE_REF }} \
+            -f plugins/chainlink.Dockerfile .
+
+      - name: Save just built image in the cache
+        if: steps.detect_core_ref_is_sha.outputs.is_sha == 'true' && steps.check-if-image-is-available.outputs.exists == 'false'
+        run: |
+          echo "Saving to tarball…"
+          docker save ${{ steps.determine-base-image.outputs.BASE_IMAGE }} \
+            -o ${{ env.DOCKER_CACHE_DIR }}/${{ steps.read_core_ref.outputs.CORE_REF }}-${{ env.DOCKER_CACHE_TAR_NAME_SUFFIX }}
+      
 
   # build-publish-docker:
   #   name: Build & Publish Docker Image
