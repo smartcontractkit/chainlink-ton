@@ -96,7 +96,7 @@ jobs:
         if: steps.detect_core_ref_is_sha.outputs.is_sha == 'true'
         id: check-if-image-is-available
         run: |
-          if docker image inspect "${{ steps.determine-base-image.outputs.BASE_IMAGE }}":latest > /dev/null 2>&1; then
+          if docker image inspect ${{ steps.determine-base-image.outputs.BASE_IMAGE }}:latest > /dev/null 2>&1; then
             echo "exists=true" >> $GITHUB_OUTPUT
           else
             echo "exists=false" >> $GITHUB_OUTPUT
@@ -128,14 +128,19 @@ jobs:
           docker buildx build \
             --secret id=GIT_AUTH_TOKEN \
             --build-arg COMMIT_SHA=$(git rev-parse HEAD) \
-            -t local_chainlink_${{ steps.read_core_ref.outputs.CORE_REF }} \
+            -t ${{ steps.determine-base-image.outputs.BASE_IMAGE }} \
             -f plugins/chainlink.Dockerfile .
+
+      - name: Debug
+        id: debug-3
+        run: |
+          docker images
 
       - name: Save just built image in the cache
         if: steps.detect_core_ref_is_sha.outputs.is_sha == 'true' && steps.check-if-image-is-available.outputs.exists == 'false'
         run: |
           echo "Saving to tarball…"
-          docker save ${{ steps.determine-base-image.outputs.BASE_IMAGE }} \
+          docker save ${{ steps.determine-base-image.outputs.BASE_IMAGE }}:latest \
             -o ${{ env.DOCKER_CACHE_DIR }}/${{ steps.read_core_ref.outputs.CORE_REF }}-${{ env.DOCKER_CACHE_TAR_NAME_SUFFIX }}
       
 
