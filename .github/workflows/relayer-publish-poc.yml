@@ -38,7 +38,7 @@ jobs:
         with:
           repository: smartcontractkit/chainlink
           ref: ${{ steps.read_core_ref.outputs.CORE_REF }}
-          path: chainlink
+          path: temp/chainlink
  
       - name: Read go version from core .tool-versions
         id: tool_versions
