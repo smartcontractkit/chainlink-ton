@@ -257,5 +257,5 @@ func createNewNetwork(t *testing.T, chainID uint64) string {
 		freeport.Return([]int{port})
 	})
 
-	return fmt.Sprintf("http://%s/localhost.global.config.json", bcOut.Nodes[0].ExternalHTTPUrl)
+	return bcOut.Nodes[0].ExternalHTTPUrl
 }
