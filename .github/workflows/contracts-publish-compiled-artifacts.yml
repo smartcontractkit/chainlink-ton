@@ -7,8 +7,11 @@ permissions:
 
 on:
   push:
-    branches: [ main ]      create_release:
-        description: "Publish a GitHub release on this manual run?"
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      create_release:        description: "Publish a GitHub release on this manual run?"
         type: boolean
         default: false
         required: false
