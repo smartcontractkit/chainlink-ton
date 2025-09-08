@@ -37,7 +37,7 @@ sequenceDiagram
 
     Note over OR: Create msgId
     create participant CS as CCIPSendStorage
-    OR ->> CS: deployCCIPSendStorage{initData{msgId}, initCCIPSend{msg: ccipSend}}
+    OR ->> CS: deployCCIPSendStorage{<br>initData{msgId},<br>initCCIPSend{msg: ccipSend}}
 
     box OnRamp
     participant ORJW as OnRamp's <br>Jetton A Wallet
