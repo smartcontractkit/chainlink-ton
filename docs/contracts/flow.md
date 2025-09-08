@@ -21,6 +21,8 @@ sequenceDiagram
     participant RJW as Router's <br>Jetton A Wallet
     end
 
+    participant OR as OnRamp
+
     participant FQ as FeeQuoter
 
     box Token Registry<br>(not a contract but<br>a collection)
@@ -37,36 +39,41 @@ sequenceDiagram
     UJW ->> RJW: Transfer { amount,<br>fwdPayload: ccipSend }
     RJW ->> R: TransferNotification {<br>sender, amount,<br>fwdPayload: ccipSend}
     Note over R: Check enough TON for gas 
-    R ->> FQ: getValidatedFee{ccipSend}
+    R ->> OR: ccipSend
+
+    OR ->> FQ: getValidatedFee{ccipSend}
+
 
     alt not enough to cover fee
-    FQ ->> R: feeNotValidated{ccipSend}
-    Note over R: Refund Jettons [...]
+    FQ ->> OR: feeNotValidated{ccipSend}
+    Note over OR: Refund Jettons [...]
 
     else enough to cover for fee
-    FQ ->> R: feeValidated{ccipSend}
-    Note over R: Calculate TR Cell based<br>on Token Addres
+    FQ ->> OR: feeValidated{ccipSend}
+    Note over OR: Calculate TR Cell based<br>on Token Addres
 
-    R ->> TRC: GetTokenPoolInfo{ccipSend}
+    OR ->> TRC: GetTokenPoolInfo{ccipSend}
 
     alt Token not supported (contract not deployed)
-    TRC ->> R: Bounced{GetTokenPoolInfo{ccipSend}}
-    Note over R: TODO where do we store the<br>relevant info to refund the sender?
+    TRC ->> OR: Bounced{GetTokenPoolInfo{ccipSend}}
+    Note over OR: TODO where do we store the<br>relevant info to refund the sender?
     else Supported Token
-    TRC ->> R: TokenPoolInfo{tokenPoolAddress, ccipSend}
+
+    TRC ->> OR: TokenPoolInfo{tokenPoolAddress, ccipSend}
+
+    OR ->> R: lockTokens{tokenPoolAddr, ccipSend}
  
     R ->> RJW: TransferRequest {<br>amount,<br>destination: Router,<br>responseDestination: Router,<br>fwdPayload: ccipSend }
     
     RJW ->> TPJW: Transfer { amount,<br>fwdPayload: ccipSend }
     TPJW ->> TP: TransferNotification {<br>sender, amount,<br>fwdPayload: ccipSend }
-    participant OR as OnRamp
     Note over TP: consume rate limit
     alt Rate limit error
     Note over TP: Refund Jettons [...]
 
     else Consumes rate limit
-    TP ->> R: commitedLockOrBurn{ccipSend}
-    R ->> OR: send{ccipSend}
+    TP ->> OR: commitedLockOrBurn{ccipSend}
+    OR ->> OR: send{ccipSend}
     note over OR  : ...
     end
     end
