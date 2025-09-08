@@ -59,6 +59,7 @@ func (a addressCodec) AddressStringToBytes(addrString string) ([]byte, error) {
 }
 
 // OracleIDAsAddressBytes converts an oracle ID (uint8) into a byte slice representing a TON address.
+// This address is just used by libocr to make sure transmitters are unique, the addresses aren't used any other way.
 func (a addressCodec) OracleIDAsAddressBytes(oracleID uint8) ([]byte, error) {
 	addr := make([]byte, 32)
 	// write oracleID into addr in big endian
