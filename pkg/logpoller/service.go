@@ -237,10 +237,15 @@ func (lp *service) RegisterFilter(ctx context.Context, flt types.Filter) error {
 	}
 
 	// TODO(2025-08-28@jadepark-dev): clean up, forcing replay for e2e now
-	lp.lggr.Infow("replaying logs for new filter", "filter", flt.Name, "fromBlock", flt.StartingSeqNo)
-	if err := lp.Replay(ctx, flt.StartingSeqNo); err != nil {
-		lp.lggr.Errorw("failed to replay logs for new filter", "filter", flt.Name, "error", err)
-	}
+	// TODO: Replace with proper asynchronous backfill mechanism
+	// For now, run replay in background for e2e testing needs - replay will use lookback window for safety
+	go func() {
+		replayCtx := context.Background()
+		lp.lggr.Infow("starting background replay for new filter", "filter", flt.Name, "fromBlock", flt.StartingSeqNo)
+		if err := lp.Replay(replayCtx, flt.StartingSeqNo); err != nil {
+			lp.lggr.Errorw("background replay failed for new filter", "filter", flt.Name, "error", err)
+		}
+	}()
 
 	return nil
 }
@@ -281,11 +286,20 @@ func computeLookbackWindow(currentSeqNo uint32, lookbackDuration time.Duration, 
 
 func (lp *service) Replay(ctx context.Context, fromBlock uint32) error {
 	// TODO(2025-08-28@jadepark-dev): clean up, forcing replay for e2e now
+	// TODO: Replace with proper asynchronous backfill mechanism
 
 	toBlock, err := lp.client.CurrentMasterchainInfo(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get current masterchain info: %w", err)
 	}
+
+	// Use safe lookback window if fromBlock is 0 (avoid replaying entire chain)
+	if fromBlock == 0 {
+		fromBlock = computeLookbackWindow(toBlock.SeqNo, lp.startingLookback, lp.blockTime)
+		lp.lggr.Infow("Replay with no starting block specified, using lookback window",
+			"lookbackSeqNo", fromBlock, "lookbackDuration", lp.startingLookback)
+	}
+
 	blockRange := &types.BlockRange{Prev: nil, To: toBlock}
 	var prevBlock *ton.BlockIDExt
 	if fromBlock != 0 {
@@ -293,10 +307,11 @@ func (lp *service) Replay(ctx context.Context, fromBlock uint32) error {
 		if err != nil {
 			return fmt.Errorf("LookupBlock for previous seqno %d: %w", fromBlock, err)
 		}
-
 		blockRange.Prev = prevBlock
 	}
-	lp.lggr.Debugw("replaying logs", "fromBlock", fromBlock, "toBlock", toBlock)
+
+	lp.lggr.Debugw("replaying logs", "fromBlock", fromBlock, "toBlock", toBlock.SeqNo,
+		"blocksToProcess", toBlock.SeqNo-fromBlock)
 
 	// get addresses
 	addresses, err := lp.filters.GetDistinctAddresses(ctx)
