@@ -70,7 +70,7 @@ func TestJettonAll(t *testing.T) {
 			setup.deployer = accounts[lastUsedAccountIndex]
 			setup.receiver = accounts[lastUsedAccountIndex+1]
 			lastUsedAccountIndex += accountCountPerTest
-			require.Less(t, lastUsedAccountIndex, len(accounts), "Not enough pre-funded accounts for tests")
+			require.LessOrEqual(t, lastUsedAccountIndex, len(accounts), "Not enough pre-funded accounts for tests")
 		}
 		t.Logf("\n\n\n\n\n\nJetton Test Setup\n==========================\n")
 
