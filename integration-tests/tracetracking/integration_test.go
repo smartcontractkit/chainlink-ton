@@ -1,7 +1,6 @@
 package tracetracking
 
 import (
-	"fmt"
 	"math/big"
 	"math/rand/v2"
 	"sync"
@@ -33,7 +32,6 @@ import (
 func TestIntegration(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping long-running test in short mode")
-		t.Parallel()
 	}
 
 	var initialAmount = big.NewInt(1_000_000_000_000)
@@ -45,7 +43,6 @@ func TestIntegration(t *testing.T) {
 	getAccount := func() tracetracking.SignedAPIClient {
 		accountsLock.Lock()
 		defer accountsLock.Unlock()
-		fmt.Println("getting account", lastUsedAccountIndex, "from", len(accounts))
 		require.Less(t, lastUsedAccountIndex, uint(len(accounts)), "Not enough pre-funded accounts for tests")
 		acc := accounts[lastUsedAccountIndex]
 		lastUsedAccountIndex += 1
