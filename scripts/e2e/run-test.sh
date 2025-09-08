@@ -25,22 +25,13 @@
 
 set -euo pipefail
 
-# configuration & global variables
-ROOT_DIR=$(git rev-parse --show-toplevel)
-DEFAULT_CHAINLINK_CORE_DIR="${ROOT_DIR}/../chainlink"
-CORE_VERSION_FILE_PATH="${ROOT_DIR}/scripts/.core_version"
+# source shared library
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+source "${SCRIPT_DIR}/lib.sh"
 
 # configurable arguments
 ARG_CORE_DIR=""
 ARG_TEST_COMMAND=""
-
-log_info() {
-  echo "INFO: $1"
-}
-
-log_error() {
-  echo "ERROR: $1" >&2
-}
 
 print_usage_run() {
   echo "Usage: $0 --test-command <cmd> [-c|--core-dir <core_dir>]" >&2
@@ -71,57 +62,15 @@ if [ -z "$ARG_TEST_COMMAND" ]; then
   exit 1
 fi
 
+# --------------------------------------------------
+# main logic
+# --------------------------------------------------
+
 CHAINLINK_CORE_DIR=$(realpath "${ARG_CORE_DIR:-$DEFAULT_CHAINLINK_CORE_DIR}")
 
-log_info "Verifying Chainlink Core version..."
+validate_core_version "$CHAINLINK_CORE_DIR"
 
-# check core version file
-if [ ! -f "$CORE_VERSION_FILE_PATH" ]; then
-  log_error "Core version file not found: $CORE_VERSION_FILE_PATH"
-  exit 1
-fi
-
-# checked out core ref validation
-BLESSED_CORE_REF=$(tr -d '[:space:]' <"$CORE_VERSION_FILE_PATH")
-if [ -z "$BLESSED_CORE_REF" ]; then
-  log_error "Core version file is empty: $CORE_VERSION_FILE_PATH"
-  exit 1
-fi
-log_info "Expected Chainlink Core ref (from .core_version): $BLESSED_CORE_REF"
-
-if ! CURRENT_CORE_COMMIT=$(cd "$CHAINLINK_CORE_DIR" && git rev-parse HEAD); then
-  log_error "Failed to get current commit from Chainlink Core directory '$CHAINLINK_CORE_DIR'"
-  log_error "Ensure the directory exists and is a valid git repository with commits."
-  exit 1
-fi
-
-BLESSED_CORE_REF_COMMIT=$(cd "$CHAINLINK_CORE_DIR" && git rev-parse --verify "$BLESSED_CORE_REF^{commit}" 2>/dev/null)
-if [ -z "$BLESSED_CORE_REF_COMMIT" ]; then
-  log_error "Failed to resolve blessed Chainlink Core ref '$BLESSED_CORE_REF' to a commit in '$CHAINLINK_CORE_DIR'."
-  log_error "Ensure the ref exists and is fetched (e.g., run 'git fetch --all' in '$CHAINLINK_CORE_DIR')."
-  exit 1
-fi
-
-if [ "$CURRENT_CORE_COMMIT" != "$BLESSED_CORE_REF_COMMIT" ]; then
-  log_error "Chainlink Core version mismatch!"
-  log_error "  Current commit in '$CHAINLINK_CORE_DIR': $CURRENT_CORE_COMMIT"
-
-  # Find which branch contains this commit
-  CONTAINING_BRANCH=$(cd "$CHAINLINK_CORE_DIR" && git branch -r --contains "$BLESSED_CORE_REF_COMMIT" 2>/dev/null | head -1 | sed 's/.*origin\///' | xargs)
-
-  if [ -n "$CONTAINING_BRANCH" ]; then
-    log_error "  Expected commit: $BLESSED_CORE_REF_COMMIT (from branch: $CONTAINING_BRANCH)"
-    log_error "  This may be a specific stable commit, not the branch tip."
-    log_error "  Run: cd '$CHAINLINK_CORE_DIR' && git checkout $BLESSED_CORE_REF_COMMIT"
-    log_error "  Note: This will put you in detached HEAD state, which is expected for this pinned version."
-  else
-    log_error "  Expected commit: $BLESSED_CORE_REF_COMMIT (you may need to fetch first)"
-    log_error "  Run: cd '$CHAINLINK_CORE_DIR' && git fetch && git checkout $BLESSED_CORE_REF_COMMIT"
-  fi
-  exit 1
-else
-  log_info "Chainlink Core version matches. Current commit: $CURRENT_CORE_COMMIT"
-fi
+verify_plugin_config "$CHAINLINK_CORE_DIR"
 
 # test database URL availability validation
 if [ -z "${CL_DATABASE_URL:-}" ]; then

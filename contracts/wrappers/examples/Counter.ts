@@ -14,14 +14,14 @@ import { CellCodec } from '../utils'
 
 /// @dev Message to set the counter value.
 export type SetCount = {
-  // Query ID of the change owner request.
+  // Query ID of the change request.
   queryId: bigint
   newCount: number
 }
 
 /// Message to increase the counter value.
 export type IncreaseCount = {
-  // Query ID of the change owner request.
+  // Query ID of the change request.
   queryId: bigint
 }
 

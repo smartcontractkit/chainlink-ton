@@ -9,19 +9,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
+
 	chainsel "github.com/smartcontractkit/chain-selectors"
-	"github.com/smartcontractkit/chainlink-ccip/chains/evm/gobindings/generated/v1_6_0/fee_quoter"
-	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
-	"github.com/smartcontractkit/chainlink/deployment/ccip/changeset/v1_6"
-	"github.com/smartcontractkit/chainlink/deployment/ccip/shared"
-	"github.com/smartcontractkit/chainlink/deployment/ccip/shared/client"
-	"github.com/smartcontractkit/chainlink/deployment/ccip/shared/stateview"
-	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
-	"github.com/smartcontractkit/chainlink/deployment/common/proposalutils"
-	"github.com/smartcontractkit/chainlink/v2/core/capabilities/ccip/ccipevm"
 	mcmstypes "github.com/smartcontractkit/mcms/types"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
@@ -29,11 +19,30 @@ import (
 	"github.com/xssnick/tonutils-go/ton/wallet"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
+	"github.com/smartcontractkit/chainlink-ccip/chains/evm/gobindings/generated/v1_6_0/fee_quoter"
+	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
+	"github.com/smartcontractkit/chainlink/deployment/ccip/changeset/v1_6"
+	"github.com/smartcontractkit/chainlink/deployment/ccip/shared"
+	"github.com/smartcontractkit/chainlink/deployment/ccip/shared/client"
+	"github.com/smartcontractkit/chainlink/deployment/ccip/shared/stateview"
+	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
+	"github.com/smartcontractkit/chainlink/deployment/common/proposalutils"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
+
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 )
 
-const ChainSelEVMTest90000001 = 909606746561742123
+const (
+	ChainSelEVMTest90000001     = 909606746561742123
+	DestGasOverhead             = 300_000 // Commit and Exec costs
+	CalldataGasPerByteBase      = 16
+	CalldataGasPerByteHigh      = 40
+	CalldataGasPerByteThreshold = 3000
+)
 
 // TODO: use address.NewNoneAddress() instead?
 var TonTokenAddr = address.MustParseRawAddr("0:0000000000000000000000000000000000000000000000000000000000000001")
@@ -101,6 +110,7 @@ func DeployChainContractsToTonCS(t *testing.T, env cldf.Environment, chainSelect
 				FeeAggregator: deployer.WalletAddress(),
 			},
 		},
+		ContractsVersion: sequence.ContractsLocalVersion,
 	})
 }
 
@@ -136,7 +146,7 @@ func AddLaneTONChangesets(env *cldf.Environment, from, to uint64, fromFamily, to
 				TonTokenAddr: big.NewInt(99),
 			},
 			FeeQuoterDestChainConfig: DefaultFeeQuoterDestChainConfig(true, to),
-			TokenTransferFeeConfigs:  map[uint64]feequoter.UpdateTokenTransferFeeConfig{
+			TokenTransferFeeConfigs: map[uint64]feequoter.UpdateTokenTransferFeeConfig{
 				// TODO:
 			},
 		}
@@ -158,10 +168,10 @@ func AddLaneTONChangesets(env *cldf.Environment, from, to uint64, fromFamily, to
 					MaxNumberOfTokensPerMsg:           10,
 					MaxDataBytes:                      30_000,
 					MaxPerMsgGasLimit:                 3_000_000,
-					DestGasOverhead:                   ccipevm.DestGasOverhead,
-					DestGasPerPayloadByteBase:         ccipevm.CalldataGasPerByteBase,
-					DestGasPerPayloadByteHigh:         ccipevm.CalldataGasPerByteHigh,
-					DestGasPerPayloadByteThreshold:    ccipevm.CalldataGasPerByteThreshold,
+					DestGasOverhead:                   DestGasOverhead,
+					DestGasPerPayloadByteBase:         CalldataGasPerByteBase,
+					DestGasPerPayloadByteHigh:         CalldataGasPerByteHigh,
+					DestGasPerPayloadByteThreshold:    CalldataGasPerByteThreshold,
 					DestDataAvailabilityOverheadGas:   100,
 					DestGasPerDataAvailabilityByte:    16,
 					DestDataAvailabilityMultiplierBps: 1,
@@ -189,7 +199,7 @@ func AddLaneTONChangesets(env *cldf.Environment, from, to uint64, fromFamily, to
 				TonTokenAddr: big.NewInt(99),
 			},
 			FeeQuoterDestChainConfig: DefaultFeeQuoterDestChainConfig(true, to),
-			TokenTransferFeeConfigs:  map[uint64]feequoter.UpdateTokenTransferFeeConfig{
+			TokenTransferFeeConfigs: map[uint64]feequoter.UpdateTokenTransferFeeConfig{
 				// TODO:
 			},
 		}

@@ -70,7 +70,7 @@ import "../lib/access/access_control";
 /// - `bypassers`: accounts to be granted bypasser role
 ///
 struct (0x4982fcfd) Timelock_Init {
-    /// Query ID of the change owner request.
+    /// Query ID of the change request.
     queryId: uint64;
 
     /// Minimum delay in seconds for future operations.
@@ -90,7 +90,7 @@ struct (0x4982fcfd) Timelock_Init {
 /// Contract might receive/hold TON as part of the maintenance process.
 ///
 struct (0xfee62ba6) Timelock_TopUp {
-    /// Query ID of the change owner request.
+    /// Query ID of the change request.
     queryId: uint64;
 }
 
@@ -104,7 +104,7 @@ struct (0xfee62ba6) Timelock_TopUp {
 /// - all payloads must not start with a blocked function selector.
 ///
 struct (0x094718f4) Timelock_ScheduleBatch {
-    /// Query ID of the change owner request.
+    /// Query ID of the change request.
     queryId: uint64;
 
     // Array of calls to be scheduled
@@ -124,7 +124,7 @@ struct (0x094718f4) Timelock_ScheduleBatch {
 /// - the caller must have the 'canceller' or 'admin' role.
 ///
 struct (0xaf3bf1d0) Timelock_Cancel {
-    /// Query ID of the change owner request.
+    /// Query ID of the change request.
     queryId: uint64;
 
     /// ID of the operation to cancel.
@@ -140,7 +140,7 @@ struct (0xaf3bf1d0) Timelock_Cancel {
 /// - the caller must have the 'executor' or 'admin' role.
 ///
 struct (0x6e9Bf263) Timelock_ExecuteBatch {
-    /// Query ID of the change owner request.
+    /// Query ID of the change request.
     queryId: uint64;
 
     // Array of calls to be scheduled
@@ -160,7 +160,7 @@ struct (0x6e9Bf263) Timelock_ExecuteBatch {
 /// - the caller must have the 'admin' role.
 ///
 struct (0x7a57a45c) Timelock_UpdateDelay {
-    /// Query ID of the change owner request.
+    /// Query ID of the change request.
     queryId: uint64;
 
     /// New minimum delay in seconds for future operations.
@@ -179,7 +179,7 @@ struct (0x7a57a45c) Timelock_UpdateDelay {
 /// - the caller must have the 'admin' role.
 ///
 struct (0x2637af77) Timelock_BlockFunctionSelector {
-    /// Query ID of the change owner request.
+    /// Query ID of the change request.
     queryId: uint64;
 
     /// Function selector to block.
@@ -193,7 +193,7 @@ struct (0x2637af77) Timelock_BlockFunctionSelector {
 /// - the caller must have the 'admin' role.
 ///
 struct (0x26f19f4e) Timelock_UnblockFunctionSelector {
-    /// Query ID of the change owner request.
+    /// Query ID of the change request.
     queryId: uint64;
 
     /// Function selector to unblock.
@@ -209,7 +209,7 @@ struct (0x26f19f4e) Timelock_UnblockFunctionSelector {
 /// - the caller must have the 'bypasser' or 'admin' role.
 ///
 struct (0xbb0e9f7d) Timelock_BypasserExecuteBatch {
-    /// Query ID of the change owner request.
+    /// Query ID of the change request.
     queryId: uint64;
 
     /// Array of calls to be scheduled
@@ -243,7 +243,7 @@ type Timelock_OutMessage = Timelock_BatchScheduled
 
 /// @dev Sent back to sender after a batch is scheduled.
 struct (0xdf65b59e) Timelock_BatchScheduled {
-    /// Query ID of the change owner request.
+    /// Query ID of the change request.
     queryId: uint64;
 
     /// ID of the batch that was scheduled.
@@ -254,7 +254,7 @@ struct (0xdf65b59e) Timelock_BatchScheduled {
 
 /// @dev Emitted when a call is scheduled as part of operation `id`.
 struct (0xc55fca54) Timelock_CallScheduled {
-    /// Query ID of the change owner request.
+    /// Query ID of the change request.
     queryId: uint64;
 
     /// ID of the batch for the operation that was scheduled.
@@ -270,7 +270,7 @@ struct (0xc55fca54) Timelock_CallScheduled {
 
 /// @dev Sent back to sender after a batch is executed.
 struct (0xa941ea1a) Timelock_BatchExecuted {
-    /// Query ID of the change owner request.
+    /// Query ID of the change request.
     queryId: uint64;
 
     /// ID of the batch that was executed.
@@ -279,7 +279,7 @@ struct (0xa941ea1a) Timelock_BatchExecuted {
 
 /// @dev Emitted when a call is performed as part of operation `id`.
 struct (0x49ea5d0e) Timelock_CallExecuted {
-    /// Query ID of the change owner request.
+    /// Query ID of the change request.
     queryId: uint64;
 
     /// ID of the batch for the operation that was executed.
@@ -292,13 +292,13 @@ struct (0x49ea5d0e) Timelock_CallExecuted {
 
 /// @dev Sent back to sender after a batch is executed via bypasser escape hatch.
 struct (0x539b4214) Timelock_BypasserBatchExecuted {
-    /// Query ID of the change owner request.
+    /// Query ID of the change request.
     queryId: uint64;
 }
 
 /// @dev Emitted when a call is performed via bypasser.
 struct (0x9c7f3010) Timelock_BypasserCallExecuted {
-    /// Query ID of the change owner request.
+    /// Query ID of the change request.
     queryId: uint64;
 
     /// Index of the call in the batch.
@@ -310,7 +310,7 @@ struct (0x9c7f3010) Timelock_BypasserCallExecuted {
 
 /// @dev Emitted when operation `id` is cancelled.
 struct (0x580e80f2) Timelock_Canceled {
-    /// Query ID of the change owner request.
+    /// Query ID of the change request.
     queryId: uint64;
 
     /// ID of the cancelled operation.
@@ -319,7 +319,7 @@ struct (0x580e80f2) Timelock_Canceled {
 
 /// @dev Emitted when the minimum delay for future operations is modified.
 struct (0x904b14e0) Timelock_MinDelayChange {
-    /// Query ID of the change owner request.
+    /// Query ID of the change request.
     queryId: uint64;
 
     /// Duration of the old minimum delay in seconds.
@@ -330,7 +330,7 @@ struct (0x904b14e0) Timelock_MinDelayChange {
 
 /// @dev Emitted when a function selector is blocked.
 struct (0x9c4d6d94) Timelock_FunctionSelectorBlocked {
-    /// Query ID of the change owner request.
+    /// Query ID of the change request.
     queryId: uint64;
 
     /// Function selector that was blocked.
@@ -339,7 +339,7 @@ struct (0x9c4d6d94) Timelock_FunctionSelectorBlocked {
 
 /// @dev Emitted when a function selector is unblocked.
 struct (0xf410a31b) Timelock_FunctionSelectorUnblocked {
-    /// Query ID of the change owner request.
+    /// Query ID of the change request.
     queryId: uint64;
 
     /// Function selector that was unblocked.

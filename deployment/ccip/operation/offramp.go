@@ -21,6 +21,7 @@ type DeployOffRampInput struct {
 	ChainSelector                           uint64
 	FeeQuoter                               *address.Address
 	PermissionlessExecutionThresholdSeconds uint32
+	ContractPath                            string
 }
 
 // TODO: single deploy output
@@ -39,8 +40,7 @@ func deployOffRamp(b operations.Bundle, deps TonDeps, in DeployOffRampInput) (De
 	output := DeployOffRampOutput{}
 
 	// TODO wrap the code cell creation somewhere
-	CounterContractPath := utils.GetBuildDir("OffRamp.compiled.json")
-	codeCell, err := wrappers.ParseCompiledContract(CounterContractPath)
+	codeCell, err := wrappers.ParseCompiledContract(in.ContractPath)
 	if err != nil {
 		return output, fmt.Errorf("failed to compile contract: %w", err)
 	}
