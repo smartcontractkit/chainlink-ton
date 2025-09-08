@@ -9,14 +9,14 @@ on:
   workflow_dispatch: # Manual trigger from GitHub UI
 
 jobs:
-  build-core:
-    name: Run Core Build
+  build-or-get-core:
+    name: Build or Get Chainlink Core Base Image
     runs-on: ubuntu-24.04
     permissions:
       id-token: write
       contents: read
     env:
-      DEFAULT_CORE_REF: develop
+      CHAINLINK_PUBLIC_ECR_IMAGE: public.ecr.aws/chainlink/chainlink
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     # outputs:
     #   date: ${{ steps.**.outputs.** }}
@@ -30,38 +30,33 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
           aws-role-duration-seconds: "1800"
 
-      # - name: Setup GitHub Token
-      #   id: setup-github-token
-      #   uses: smartcontractkit/.github/actions/setup-github-token@ef78fa97bf3c77de6563db1175422703e9e6674f # setup-github-token@0.2.1
-      #   with:
-      #     aws-role-arn: ${{ secrets.AWS_ROLE_ARN_GATI_READONLY }}
-      #     aws-lambda-url: ${{ secrets.AWS_ROLE_ARN_GATI_READONLY }}
-      #     aws-region: ${{ secrets.AWS_REGION }}
       - name: Read Chainlink Core Ref from .core_version
         id: read_core_ref
         run: echo "CORE_REF=$(cat ./scripts/.core_version | tr -d '[:space:]')" >> $GITHUB_OUTPUT
 
+      - name: Detect if CORE_REF is a SHA
+        id: detect_core_ref_is_sha
+        run: |
+          REF="${{ steps.read_core_ref.outputs.CORE_REF }}"
+          if [[ "$REF" =~ ^[0-9a-fA-F]{7,40}$ ]]; then
+            echo "is_sha=true" >> $GITHUB_OUTPUT
+          else
+            echo "is_sha=false" >> $GITHUB_OUTPUT
+          fi
+      
+      # Only run chainlink core build if CORE_REF is a SHA
       - name: Checkout Chainlink Core repo
+        if: steps.detect_core_ref_is_sha.outputs.is_sha == 'true'
         id: checkout-core
         uses: actions/checkout@v4
         with:
           repository: smartcontractkit/chainlink
           ref: ${{ steps.read_core_ref.outputs.CORE_REF }}
           path: temp/chainlink
- 
-      - name: Read go version from core .tool-versions
-        id: tool_versions
-        run: |
-          go_version=$(grep -E '^golang ' temp/chainlink/.tool-versions | cut -d' ' -f2)
-          echo "GO_VERSION=${go_version}" >> "${GITHUB_OUTPUT}"
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ steps.tool_versions.outputs.GO_VERSION }}
 
       # TODO cache the chainlink image when we have a stable core ref
       - name: Build chainlink image
+        if: steps.detect_core_ref_is_sha.outputs.is_sha == 'true'
         id: build-core
         env:
           GIT_AUTH_TOKEN: ${{ steps.set-token.outputs.access-token }}
@@ -77,8 +72,17 @@ jobs:
           docker buildx build \
             --secret id=GIT_AUTH_TOKEN \
             --build-arg COMMIT_SHA=$(git rev-parse HEAD) \
-            -t local_chainlink \
+            -t local_chainlink_${{ steps.read_core_ref.outputs.CORE_REF }} \
             -f plugins/chainlink.Dockerfile .
+
+      - name: Determine Base Image
+        id: determine-base-image
+        run: |
+          if [[ "${{ steps.detect_core_ref_is_sha.outputs.is_sha }}" == "true" ]]; then
+            echo "BASE_IMAGE=local_chainlink_${{ steps.read_core_ref.outputs.CORE_REF }}" >> $GITHUB_OUTPUT
+          else
+            echo "BASE_IMAGE=${{ env.CHAINLINK_PUBLIC_ECR_IMAGE }}:" >> $GITHUB_OUTPUT
+          fi
 
   # build-publish-docker:
   #   name: Build & Publish Docker Image
@@ -97,6 +101,7 @@ jobs:
   #     docker-build-args: |
   #       CHAINLINK_USER=chainlink
   #       COMMIT_SHA=${{ github.sha }}
+  #       BASE_IMAGE=$${{  }}
   #     docker-manifest-sign: true
   #     docker-tag-custom-suffix: "-chainlink-ton"
   #     git-sha: ${{ github.sha }}
