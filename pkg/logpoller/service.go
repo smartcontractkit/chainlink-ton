@@ -180,8 +180,9 @@ func (lp *service) getLastProcessedBlock(currentBlock *ton.BlockIDExt) (uint32, 
 // resolvePreviousBlock determines the previous block reference based on the last processed sequence number
 func (lp *service) resolvePreviousBlock(ctx context.Context, lastProcessedBlockSeqNo uint32, toBlock *ton.BlockIDExt) (*ton.BlockIDExt, error) {
 	if lastProcessedBlockSeqNo == 0 {
-		// TODO: we shouldn't process from genesis, but rather have a pointer for starting point
-		lp.lggr.Debugw("First run detected, processing from genesis", "toSeq", toBlock.SeqNo)
+		// Start from genesis - this only happens when lookback window calculation
+		// determines the chain is shorter than the configured lookback duration(likely localnet)
+		lp.lggr.Debugw("Processing from genesis", "toSeq", toBlock.SeqNo)
 		return nil, nil
 	}
 
@@ -264,8 +265,7 @@ func (lp *service) GetStore() LogStore {
 func computeLookbackWindow(currentSeqNo uint32, lookbackDuration time.Duration, blockTime time.Duration) uint32 {
 	// Calculate how many blocks to go back based on time duration
 	// Use ceiling division like Solana: ceil(lookback/blockTime) = (lookback-1)/blockTime + 1
-	// nolint:gosec
-	// G115: integer overflow conversion int64 -> uint32
+	//nolint:gosec //G115: integer overflow conversion int64 -> uint32
 	lookbackBlocks := uint32(int64((lookbackDuration-1)/blockTime) + 1)
 
 	var lookbackSeqNo uint32
