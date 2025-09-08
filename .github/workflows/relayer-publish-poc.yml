@@ -24,8 +24,8 @@ jobs:
       DOCKER_CACHE_KEY_PREFIX: ccip-chainlink-core-cache-v1
       DOCKER_CACHE_DIR: ${{ github.workspace }}/.cache
       DOCKER_CACHE_TAR_NAME_SUFFIX: ccip-chainlink-core-cache.tar
-    # outputs:
-    #   date: ${{ steps.**.outputs.** }}
+    outputs:
+      base_image: ${{ steps.determine-base-image.outputs.BASE_IMAGE }}
     steps:
       - name: Setup GitHub token using GATI
         id: set-token
@@ -152,17 +152,25 @@ jobs:
           docker save ${{ steps.determine-base-image.outputs.BASE_IMAGE }} \
             -o ${{ env.DOCKER_CACHE_DIR }}/${{ steps.read_core_ref.outputs.CORE_REF }}-${{ env.DOCKER_CACHE_TAR_NAME_SUFFIX }}
       
+      - name: Setup GitHub token using GATI
+        id: set-token-2
+        uses: smartcontractkit/.github/actions/setup-github-token@setup-github-token/1.0.0
+        with:
+          aws-role-arn: ${{ secrets.AWS_ROLE_ARN_GATI_READONLY }}
+          aws-lambda-url: ${{ secrets.AWS_LAMBDA_URL_GATI }}
+          aws-region: ${{ vars.AWS_REGION }}
+          aws-role-duration-seconds: "1800"
 
   build-publish-docker:
     needs: build-or-get-core
     name: Build & Publish Docker Image
-    if: ${{ github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'build-publish-docker') }}
+    # Non-PR → run; PR → only if label present
+    if: ${{ github.event_name != 'pull_request' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'build-publish-docker')) }}
     permissions:
       contents: read
       id-token: write
     uses: smartcontractkit/.github/.github/workflows/reusable-docker-build-publish.yml@317784689643295083653d9c9d08d34d8e379a7f # 2025-05-13
     with:
-      # Internal dev ECR, retention policy based on tag
       aws-ecr-name: chainlink-plugins-dev
       aws-region-ecr: ${{ vars.AWS_REGION }}
       aws-region-gati: ${{ vars.AWS_REGION }}
@@ -171,7 +179,7 @@ jobs:
       docker-build-args: |
         CHAINLINK_USER=chainlink
         COMMIT_SHA=${{ github.sha }}
-        BASE_IMAGE=$${{ steps.determine-base-image.outputs.BASE_IMAGE }}
+        BASE_IMAGE=${{ needs.build-or-get-core.outputs.base_image }}
       docker-manifest-sign: true
       docker-tag-custom-suffix: "-chainlink-ton"
       git-sha: ${{ github.sha }}
