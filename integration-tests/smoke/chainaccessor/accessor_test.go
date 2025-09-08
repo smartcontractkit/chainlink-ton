@@ -6,11 +6,12 @@ import (
 	"testing"
 	"time"
 
-	test_utils "github.com/smartcontractkit/chainlink-ton/deployment/utils"
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"go.uber.org/zap/zapcore"
+
+	test_utils "github.com/smartcontractkit/chainlink-ton/deployment/utils"
 
 	chain_selectors "github.com/smartcontractkit/chain-selectors"
 	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"

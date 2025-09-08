@@ -11,10 +11,12 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
+
 	ton_ops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 	test_utils "github.com/smartcontractkit/chainlink-ton/deployment/utils"
+
 	"github.com/smartcontractkit/chainlink/deployment/ccip/changeset/v1_6"
 	"github.com/smartcontractkit/chainlink/deployment/environment/memory"
 	"github.com/stretchr/testify/require"
@@ -82,7 +84,7 @@ func TestDeploy(t *testing.T) {
 							ton_ops.TonTokenAddr: big.NewInt(99),
 						},
 						FeeQuoterDestChainConfig: ton_ops.DefaultFeeQuoterDestChainConfig(true, evmSelector),
-						TokenTransferFeeConfigs: map[uint64]feequoter.UpdateTokenTransferFeeConfig{
+						TokenTransferFeeConfigs:  map[uint64]feequoter.UpdateTokenTransferFeeConfig{
 							// TODO: populate when token transfer enabled
 						},
 					},
