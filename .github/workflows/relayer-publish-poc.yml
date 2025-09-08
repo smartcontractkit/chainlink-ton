@@ -98,11 +98,6 @@ jobs:
           docker save ${{ steps.determine-base-image.outputs.BASE_IMAGE }} \
             -o ${{ env.DOCKER_CACHE_DIR }}/${{ steps.read_core_ref.outputs.CORE_REF }}-${{ env.DOCKER_CACHE_TAR_NAME_SUFFIX }}
 
-      - name: Debug
-        id: debug-4
-        run: |
-          docker image inspect ${{ steps.determine-base-image.outputs.BASE_IMAGE }}
-
       - name: Check if Base Image Exists Locally When Core Ref Is a SHA
         if: steps.detect_core_ref_is_sha.outputs.is_sha == 'true'
         id: check-if-image-is-available
