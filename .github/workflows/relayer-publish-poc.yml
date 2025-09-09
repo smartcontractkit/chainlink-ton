@@ -144,17 +144,20 @@ jobs:
 
             if docker pull "${{ steps.determine-base-image.outputs.BASE_IMAGE }}"; then
               echo "Chainlink Core image ${{ steps.determine-base-image.outputs.BASE_IMAGE }} exist in the ECR. We can use it in the build step"
-              echo "Saving Chainlink Core image to tarball…"
-
-              docker save ${{ steps.determine-base-image.outputs.BASE_IMAGE }} \
-                -o ${{ env.DOCKER_CACHE_DIR }}/${{ steps.read_core_ref.outputs.CORE_REF }}-${{ env.DOCKER_CACHE_TAR_NAME_NON_SHA }}
-
               echo "exists=true" >> $GITHUB_OUTPUT
             else
               echo "Chainlink Core image ${{ steps.determine-base-image.outputs.BASE_IMAGE }} does not exist in the ECR. We need to built it."
               echo "exists=false" >> $GITHUB_OUTPUT
             fi
           fi
+
+      - name: Save the Core Image That we just pull to cache
+        if: steps.detect_core_ref_is_sha.outputs.is_sha == 'true' && steps.restore-cache-images-sha.outputs.cache-hit != 'true' && steps.check-if-image-is-available.outputs.exists == 'true'
+        run: |
+          echo "Saving "${{ steps.determine-base-image.outputs.BASE_IMAGE }}" to tarball…"
+          docker save ${{ steps.determine-base-image.outputs.BASE_IMAGE }} \
+            -o ${{ env.DOCKER_CACHE_DIR }}/${{ steps.read_core_ref.outputs.CORE_REF }}-${{ env.DOCKER_CACHE_TAR_NAME_NON_SHA }}
+
 
       # - name: Checkout Chainlink Core repo
       #   if: steps.detect_core_ref_is_sha.outputs.is_sha == 'true' && steps.check-if-image-is-available.outputs.exists == 'false'
