@@ -455,10 +455,13 @@ func (a *TONAccessor) processCommitReports(logs []types.TypedLog[offramp.CommitR
 
 		mrc := a.processMerkleRoot(ev.MerkleRoot)
 
-		priceUpdates, err := a.processPriceUpdates(ev.PriceUpdates)
-		if err != nil {
-			a.lggr.Errorw("failed to process price updates", "err", err, "priceUpdates", ev.PriceUpdates)
-			continue
+		var priceUpdates ccipocr3.PriceUpdates
+		if ev.PriceUpdates != nil {
+			priceUpdates, err = a.processPriceUpdates(ev.PriceUpdates)
+			if err != nil {
+				a.lggr.Errorw("failed to process price updates", "err", err, "priceUpdates", ev.PriceUpdates)
+				continue
+			}
 		}
 
 		reports = append(reports, ccipocr3.CommitPluginReportWithMeta{
