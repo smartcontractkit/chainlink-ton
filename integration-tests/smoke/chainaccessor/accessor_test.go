@@ -192,16 +192,79 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 
 func Test_TonAccessorCommitEventQueries(t *testing.T) {
 	// BOC data from "Test commit with one merkle root for one empty message"
-	merkleRootOnlyBocBytes, err := hex.DecodeString("b5ee9c7241010101005000009b864fc942230e42958a088888e448e2ea7356b40325722ea18a36a7cf9d00000000000000008000000000000000df513addb30a7c281b29b5e33872a05e3a408c74829bdc220e4a83397ba303eaa06e51f72f")
+	merkleRootOnlyBocHex := "b5ee9c7241010101005000009b864fc942230e42958a088888e448e2ea7356b40325722ea18a36a7cf9d00000000000000008000000000000000df513addb30a7c281b29b5e33872a05e3a408c74829bdc220e4a83397ba303eaa06e51f72f"
+	merkleRootOnlyBocBytes, err := hex.DecodeString(merkleRootOnlyBocHex)
 	require.NoError(t, err, "failed to decode hex string")
 	merkleRootOnlyCell, err := cell.FromBOC(merkleRootOnlyBocBytes)
 	require.NoError(t, err, "failed to parse BOC from hex")
 
 	// BOC data from "Can commit with no roots and only price updates"
-	priceOnlyBocBytes, err := hex.DecodeString("b5ee9c7241010401006e000101600102000203007b80186c5b823fab63015c89fcbba3a5f7da0f33a4d86ab8550295cefee69c53a674a00000000000000000000000000000000000000000000000000000003000480c9f9284461c852b00000000000000000000000000010000000000000000000000000001e97333c0")
+	priceOnlyBocHex := "b5ee9c7241010401006e000101600102000203007b80186c5b823fab63015c89fcbba3a5f7da0f33a4d86ab8550295cefee69c53a674a00000000000000000000000000000000000000000000000000000003000480c9f9284461c852b00000000000000000000000000010000000000000000000000000001e97333c0"
+	priceOnlyBocBytes, err := hex.DecodeString(priceOnlyBocHex)
 	require.NoError(t, err, "failed to decode hex string")
 	priceOnlyCell, err := cell.FromBOC(priceOnlyBocBytes)
 	require.NoError(t, err, "failed to parse BOC from hex")
+
+	// BOC data from "Can commit with both merkle root and price updates"
+	bothBocHex := "b5ee9c724101040100bb00019b864fc942230e42958a088888e448e2ea7356b40325722ea18a36a7cf9d000000000000000080000000000000009cb293328e30ade20be171db6e64f9c523767f882382cef1764b29b8aac8a773600102000203007b8017722f7ada93dc8cab8b5b89e26588a305fff7f3106a514264f3f7c458c9bd5f400000000000000000000000000000000000000000000000000000003000480c9f9284461c852b00000000000000000000000000010000000000000000000000000001ec76defc"
+	bothBocBytes, err := hex.DecodeString(bothBocHex)
+	require.NoError(t, err, "failed to decode hex string")
+	bothCell, err := cell.FromBOC(bothBocBytes)
+	require.NoError(t, err, "failed to parse BOC from hex")
+
+	t.Run("Analyze BOC structure - MerkleRoot detection", func(t *testing.T) {
+		// Let's examine the actual cell data to understand the 'maybe' encoding pattern
+		t.Logf("=== MerkleRoot Only BOC Analysis ===")
+		merkleParser := merkleRootOnlyCell.BeginParse()
+		t.Logf("BOC Hex: %s", merkleRootOnlyBocHex)
+		t.Logf("Cell bits remaining: %d", merkleParser.BitsLeft())
+
+		// Read first bit to check 'maybe' for MerkleRoot
+		if merkleParser.BitsLeft() > 0 {
+			firstBit := merkleParser.MustLoadBoolBit()
+			t.Logf("First bit (MerkleRoot maybe): %t", firstBit)
+
+			if firstBit {
+				t.Log("MerkleRoot is present")
+			} else {
+				t.Log("MerkleRoot is absent")
+			}
+		}
+
+		t.Logf("=== Price Updates Only BOC Analysis ===")
+		priceParser := priceOnlyCell.BeginParse()
+		t.Logf("BOC Hex: %s", priceOnlyBocHex)
+		t.Logf("Cell bits remaining: %d", priceParser.BitsLeft())
+
+		// Read first bit to check 'maybe' for MerkleRoot
+		if priceParser.BitsLeft() > 0 {
+			firstBit := priceParser.MustLoadBoolBit()
+			t.Logf("First bit (MerkleRoot maybe): %t", firstBit)
+
+			if firstBit {
+				t.Log("MerkleRoot is present")
+			} else {
+				t.Log("MerkleRoot is absent")
+			}
+		}
+
+		t.Logf("=== Both MerkleRoot AND PriceUpdates BOC Analysis ===")
+		bothParser := bothCell.BeginParse()
+		t.Logf("BOC Hex: %s", bothBocHex)
+		t.Logf("Cell bits remaining: %d", bothParser.BitsLeft())
+
+		// Read first bit to check 'maybe' for MerkleRoot
+		if bothParser.BitsLeft() > 0 {
+			firstBit := bothParser.MustLoadBoolBit()
+			t.Logf("First bit (MerkleRoot maybe): %t", firstBit)
+
+			if firstBit {
+				t.Log("MerkleRoot is present")
+			} else {
+				t.Log("MerkleRoot is absent")
+			}
+		}
+	})
 
 	t.Run("Test BOC decoding - Merkle Root only", func(t *testing.T) {
 		// Decode using Go bindings
@@ -274,7 +337,185 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 		t.Log("BOC decoding test (PriceUpdates only) passed!")
 	})
 
-	t.Run("Ton Accessor - CommitReportsGTETimestamp", func(t *testing.T) {
+	t.Run("Test BOC decoding - Both MerkleRoot and PriceUpdates", func(t *testing.T) {
+		// Decode using Go bindings
+		var commitReportAccepted offramp.CommitReportAccepted
+		err = tlb.LoadFromCell(&commitReportAccepted, bothCell.BeginParse())
+		require.NoError(t, err, "failed to decode CommitReportAccepted from BOC")
+
+		// Validate the decoded data
+		t.Logf("Successfully decoded CommitReportAccepted with both MerkleRoot and PriceUpdates:")
+
+		// Validate MerkleRoot is present
+		require.NotNil(t, commitReportAccepted.MerkleRoot, "MerkleRoot should be present")
+		t.Logf("  MerkleRoot:")
+		t.Logf("    SourceChainSelector: %d", commitReportAccepted.MerkleRoot.SourceChainSelector)
+		t.Logf("    MinSeqNr: %d", commitReportAccepted.MerkleRoot.MinSeqNr)
+		t.Logf("    MaxSeqNr: %d", commitReportAccepted.MerkleRoot.MaxSeqNr)
+		t.Logf("    OnRampAddress: %x", commitReportAccepted.MerkleRoot.OnRampAddress)
+		t.Logf("    MerkleRoot: %x", commitReportAccepted.MerkleRoot.MerkleRoot)
+
+		// Validate expected values from the TypeScript test
+		require.Equal(t, uint64(909606746561742123), commitReportAccepted.MerkleRoot.SourceChainSelector, "Source chain selector should match EVM test chain")
+		require.Equal(t, uint64(1), commitReportAccepted.MerkleRoot.MinSeqNr, "MinSeqNr should be 1")
+		require.Equal(t, uint64(1), commitReportAccepted.MerkleRoot.MaxSeqNr, "MaxSeqNr should be 1")
+
+		// Validate PriceUpdates are present
+		require.NotNil(t, commitReportAccepted.PriceUpdates, "PriceUpdates should be present")
+		t.Logf("  PriceUpdates:")
+
+		// Validate TokenPriceUpdates
+		require.NotNil(t, commitReportAccepted.PriceUpdates.TokenPriceUpdates, "TokenPriceUpdates should not be nil")
+		require.Len(t, commitReportAccepted.PriceUpdates.TokenPriceUpdates, 1, "Should have exactly 1 token price update")
+
+		tokenUpdate := commitReportAccepted.PriceUpdates.TokenPriceUpdates[0]
+		t.Logf("    TokenPriceUpdate[0]:")
+		t.Logf("      SourceToken: %s", tokenUpdate.SourceToken.String())
+		t.Logf("      UsdPerToken: %s", tokenUpdate.UsdPerToken.String())
+
+		// Validate expected values from the TypeScript test
+		require.Equal(t, big.NewInt(1), tokenUpdate.UsdPerToken, "UsdPerToken should be 1")
+
+		// Validate GasPriceUpdates
+		require.NotNil(t, commitReportAccepted.PriceUpdates.GasPriceUpdates, "GasPriceUpdates should not be nil")
+		require.Len(t, commitReportAccepted.PriceUpdates.GasPriceUpdates, 1, "Should have exactly 1 gas price update")
+
+		gasUpdate := commitReportAccepted.PriceUpdates.GasPriceUpdates[0]
+		t.Logf("    GasPriceUpdate[0]:")
+		t.Logf("      DestChainSelector: %d", gasUpdate.DestChainSelector)
+		t.Logf("      UsdPerUnitGas: %s", gasUpdate.UsdPerUnitGas.String())
+
+		// Validate expected values from the TypeScript test
+		require.Equal(t, uint64(909606746561742123), gasUpdate.DestChainSelector, "DestChainSelector should match EVM test chain")
+
+		t.Log("BOC decoding test (Both MerkleRoot and PriceUpdates) passed!")
+	})
+
+	t.Run("Ton Accessor - CommitReportsGTETimestamp - MerkleRoot filtering with mixed reports and limit", func(t *testing.T) {
+		lpCfg := logpoller.DefaultConfigSet
+		filterStore := inmemorystore.NewFilterStore()
+		opts := &logpoller.ServiceOptions{
+			Config:   lpCfg,
+			Client:   nil,
+			Filters:  filterStore,
+			TxLoader: nil,
+			TxParser: nil,
+			Store:    inmemorystore.NewLogStore(),
+		}
+
+		lp := logpoller.NewService(
+			logger.Test(t),
+			opts,
+		)
+
+		mockOffRampAddr := "EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF"
+
+		// Set timestamp before saving the logs
+		baseTimestamp := time.Now()
+		queryTimestamp := baseTimestamp.Add(-1 * time.Minute)
+
+		// Save MIXED logs in chronological order to test filtering and limit functionality
+		t.Log("Saving mixed commit reports...")
+
+		// 1. MerkleRoot-only log (should be included)
+		lp.GetStore().SaveLog(types.Log{
+			Address:     address.MustParseAddr(mockOffRampAddr),
+			EventSig:    hash.CRC32(consts.EventNameCommitReportAccepted),
+			Data:        merkleRootOnlyCell,
+			TxTimestamp: baseTimestamp.Add(1 * time.Second),
+		})
+
+		// 2. PriceUpdates-only log (should be filtered OUT)
+		lp.GetStore().SaveLog(types.Log{
+			Address:     address.MustParseAddr(mockOffRampAddr),
+			EventSig:    hash.CRC32(consts.EventNameCommitReportAccepted),
+			Data:        priceOnlyCell,
+			TxTimestamp: baseTimestamp.Add(2 * time.Second),
+		})
+
+		// 3. Both MerkleRoot AND PriceUpdates (should be included)
+		lp.GetStore().SaveLog(types.Log{
+			Address:     address.MustParseAddr(mockOffRampAddr),
+			EventSig:    hash.CRC32(consts.EventNameCommitReportAccepted),
+			Data:        bothCell,
+			TxTimestamp: baseTimestamp.Add(3 * time.Second),
+		})
+
+		// 4. Another PriceUpdates-only log (should be filtered OUT)
+		lp.GetStore().SaveLog(types.Log{
+			Address:     address.MustParseAddr(mockOffRampAddr),
+			EventSig:    hash.CRC32(consts.EventNameCommitReportAccepted),
+			Data:        priceOnlyCell,
+			TxTimestamp: baseTimestamp.Add(4 * time.Second),
+		})
+
+		// 5. Another MerkleRoot-only log (should be included)
+		lp.GetStore().SaveLog(types.Log{
+			Address:     address.MustParseAddr(mockOffRampAddr),
+			EventSig:    hash.CRC32(consts.EventNameCommitReportAccepted),
+			Data:        merkleRootOnlyCell,
+			TxTimestamp: baseTimestamp.Add(5 * time.Second),
+		})
+
+		t.Logf("Saved 5 logs total: 3 with MerkleRoot (should be included), 2 PriceUpdates-only (should be filtered out)")
+
+		// Setup accessor
+		addrCodec := codec.NewAddressCodec()
+		accessor, aerr := chainaccessor.NewTONAccessor(logger.Test(t), ccipocr3.ChainSelector(13879075125137744094), nil, lp, addrCodec)
+		require.NoError(t, aerr)
+
+		rawMockOffRampAddr, err := addrCodec.AddressStringToBytes(mockOffRampAddr)
+		require.NoError(t, err)
+		err = accessor.Sync(t.Context(), consts.ContractNameOffRamp, rawMockOffRampAddr)
+		require.NoError(t, err)
+
+		// Test 1: Query with high limit - should return all 3 MerkleRoot reports
+		t.Log("=== Test 1: Query with high limit (10) ===")
+		reports, err := accessor.CommitReportsGTETimestamp(t.Context(), queryTimestamp, primitives.Finalized, 10)
+		require.NoError(t, err, "failed to get commit reports")
+
+		// Should return exactly 3 reports (the ones with MerkleRoot), filtering out 2 PriceUpdates-only logs
+		require.Len(t, reports, 3, "Should return exactly 3 reports with MerkleRoot, filtering out PriceUpdates-only logs")
+
+		// Validate all returned reports have MerkleRoot
+		for i, report := range reports {
+			t.Logf("Report %d: timestamp=%v, merkleRoots=%d", i+1, report.Timestamp, len(report.Report.BlessedMerkleRoots))
+			require.Greater(t, len(report.Report.BlessedMerkleRoots), 0, "Report %d should have at least 1 blessed merkle root", i+1)
+		}
+
+		// Test 2: Query with limit=2 - should return only first 2 MerkleRoot reports
+		t.Log("=== Test 2: Query with limit=2 ===")
+		limitedReports, err := accessor.CommitReportsGTETimestamp(t.Context(), queryTimestamp, primitives.Finalized, 2)
+		require.NoError(t, err, "failed to get limited commit reports")
+
+		// Should return exactly 2 reports due to limit, and all should have MerkleRoot
+		require.Len(t, limitedReports, 2, "Should return exactly 2 reports due to limit=2")
+
+		// Validate the limited reports are the first 2 chronologically (with MerkleRoot)
+		for i, report := range limitedReports {
+			t.Logf("Limited Report %d: timestamp=%v, merkleRoots=%d", i+1, report.Timestamp, len(report.Report.BlessedMerkleRoots))
+			require.Greater(t, len(report.Report.BlessedMerkleRoots), 0, "Limited report %d should have at least 1 blessed merkle root", i+1)
+		}
+
+		// Test 3: Query with limit=1 - should return only the first MerkleRoot report
+		t.Log("=== Test 3: Query with limit=1 ===")
+		singleReport, err := accessor.CommitReportsGTETimestamp(t.Context(), queryTimestamp, primitives.Finalized, 1)
+		require.NoError(t, err, "failed to get single commit report")
+
+		require.Len(t, singleReport, 1, "Should return exactly 1 report due to limit=1")
+		require.Greater(t, len(singleReport[0].Report.BlessedMerkleRoots), 0, "Single report should have at least 1 blessed merkle root")
+
+		// Validate chronological ordering (reports should be ordered by timestamp ASC)
+		t.Log("=== Test 4: Validate chronological ordering ===")
+		for i := 1; i < len(reports); i++ {
+			require.True(t, reports[i-1].Timestamp.Before(reports[i].Timestamp) || reports[i-1].Timestamp.Equal(reports[i].Timestamp),
+				"Reports should be in chronological order (ASC)")
+		}
+
+		t.Log("CommitReportsGTETimestamp mixed reports filtering and limit test passed!")
+	})
+
+	t.Run("Ton Accessor - CommitReportsGTETimestamp - Basic functionality", func(t *testing.T) {
 		lpCfg := logpoller.DefaultConfigSet
 		filterStore := inmemorystore.NewFilterStore()
 		opts := &logpoller.ServiceOptions{
@@ -315,7 +556,7 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 		err = accessor.Sync(t.Context(), consts.ContractNameOffRamp, rawMockOffRampAddr)
 		require.NoError(t, err)
 
-		reports, err := accessor.CommitReportsGTETimestamp(t.Context(), queryTimestamp, primitives.Finalized, 10)
+		reports, err := accessor.CommitReportsGTETimestamp(t.Context(), queryTimestamp, primitives.Finalized, 1)
 		require.NoError(t, err, "failed to get commit reports")
 		require.Len(t, reports, 1, "expected 1 commit report")
 

@@ -813,6 +813,37 @@ describe('OffRamp', () => {
     const result = await commitReport([], 0x01, priceUpdates)
   })
 
+  it('Can commit with both merkle root and price updates', async () => {
+    await setupOCRConfig()
+    await setupSourceChainConfig()
+
+    // Create a merkle root
+    const message = createTestMessage()
+    const metadataHash = uint8ArrayToBigInt(getMetadataHash(CHAINSEL_EVM_TEST_90000001))
+    const rootBytes = uint8ArrayToBigInt(generateMessageId(message, metadataHash))
+    const root = createMerkleRoot(1n, 1n, rootBytes)
+
+    // Create price updates
+    const sourceToken = generateMockTonAddress()
+    const priceUpdates: PriceUpdates = {
+      tokenPriceUpdates: [
+        {
+          sourceToken,
+          usdPerToken: 1n,
+        },
+      ],
+      gasPriceUpdates: [
+        {
+          destChainSelector: CHAINSEL_EVM_TEST_90000001,
+          executionGasPrice: 1n,
+          dataAvailabilityGasPrice: 1n,
+        },
+      ],
+    }
+
+    const result = await commitReport([root], 0x01, priceUpdates)
+  })
+
   it('Test receiver bounces and offRamp emits ExecutionStateChanged: Failure', async () => {
     const data = beginCell().storeUint(1, 1).endCell() //receiver reverts if any data is on the message
     const message = createTestMessage(1n, 1n, receiver.address, data)

@@ -409,10 +409,6 @@ func (a *TONAccessor) CommitReportsGTETimestamp(
 	confidence primitives.ConfidenceLevel,
 	limit int,
 ) ([]ccipocr3.CommitPluginReportWithMeta, error) {
-	// double the internal limit for safe filtering
-	// TODO: remove, when we only query events with valid merkle root we don't need this
-	internalLimit := limit * 2
-
 	offrampAddr, err := a.getBinding(consts.ContractNameOffRamp)
 	if err != nil {
 		return nil, fmt.Errorf("OffRamp not bound: %w", err)
@@ -421,10 +417,10 @@ func (a *TONAccessor) CommitReportsGTETimestamp(
 	res, err := logpoller.NewQuery[offramp.CommitReportAccepted]().
 		WithSource(offrampAddr).
 		WithEventSig(hash.CRC32(consts.EventNameCommitReportAccepted)).
-		// TODO: filter merkle root only
 		FilterTimestamp(query.TimestampGTE(ts)).
+		FilterTyped(a.merkleRootPresentFilter). // Filter to only get events with MerkleRoot
 		OrderBy(query.SortByTxTimestamp, query.ASC).
-		Limit(internalLimit).
+		Limit(limit).
 		Execute(ctx, a.logPoller.GetStore())
 
 	if err != nil {
@@ -434,13 +430,19 @@ func (a *TONAccessor) CommitReportsGTETimestamp(
 	a.lggr.Debugw("queried commit reports", "numReports", len(res.Logs),
 		"destChain", a.chainSelector,
 		"ts", ts,
-		"limit", internalLimit,
+		"limit", limit,
 	)
-	reports := a.processCommitReports(res.Logs, ts, limit)
+	reports := a.processCommitReports(res.Logs, ts)
 	return reports, nil
 }
 
-func (a *TONAccessor) processCommitReports(logs []types.TypedLog[offramp.CommitReportAccepted], ts time.Time, limit int) []ccipocr3.CommitPluginReportWithMeta {
+// merkleRootPresentFilter checks if the CommitReportAccepted event contains a MerkleRoot.
+// This filter ensures we only process commits that contain merkle roots, not price-only updates.
+func (a *TONAccessor) merkleRootPresentFilter(event offramp.CommitReportAccepted) bool {
+	return event.MerkleRoot != nil
+}
+
+func (a *TONAccessor) processCommitReports(logs []types.TypedLog[offramp.CommitReportAccepted], ts time.Time) []ccipocr3.CommitPluginReportWithMeta {
 	var reports []ccipocr3.CommitPluginReportWithMeta
 	for _, log := range logs {
 		ev, err := a.validateCommitReportAcceptedEvent(log, ts)
@@ -476,11 +478,7 @@ func (a *TONAccessor) processCommitReports(logs []types.TypedLog[offramp.CommitR
 	}
 	a.lggr.Debugw("decoded commit reports", "reports", reports)
 
-	// TODO: remove, when we only query events with valid merkle root we don't need this
-	if len(reports) < limit {
-		return reports
-	}
-	return reports[:limit]
+	return reports
 }
 
 func (a *TONAccessor) processMerkleRoot(mr *ocr.MerkleRoot) ccipocr3.MerkleRootChain {
