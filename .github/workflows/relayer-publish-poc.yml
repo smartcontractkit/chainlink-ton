@@ -42,7 +42,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502 # v4.0.2
         with:
           aws-region: ${{ vars.AWS_REGION }}
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN_GATI_READONLY }}
+          role-to-assume: ${{ secrets.AWS_ROLE_PUBLISH_ARN_STAGING }}
           role-duration-seconds: 3600
           mask-aws-account-id: true
 
