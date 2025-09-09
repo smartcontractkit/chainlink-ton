@@ -13,6 +13,7 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 	"go.uber.org/zap/zapcore"
 
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	test_utils "github.com/smartcontractkit/chainlink-ton/deployment/utils"
 
 	chain_selectors "github.com/smartcontractkit/chain-selectors"
@@ -22,14 +23,12 @@ import (
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
-	"github.com/smartcontractkit/chainlink/deployment/ccip/shared/client"
-	"github.com/smartcontractkit/chainlink/deployment/ccip/shared/stateview"
-	tonstate "github.com/smartcontractkit/chainlink/deployment/ccip/shared/stateview/ton"
 	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
 	"github.com/smartcontractkit/chainlink/deployment/environment/memory"
 
 	ops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
 
+	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 	tonCommon "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
@@ -69,7 +68,7 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 	time.Sleep(5 * time.Second)
 
 	// -- deploy contracts
-	cs := ops.DeployChainContractsToTonCS(t, env, chainSelector)
+	cs := commonchangeset.Configure(ops.DeployCCIPContracts{}, ops.DeployChainContractsConfig(t, env, chainSelector))
 	env, _, err := commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{cs})
 	require.NoError(t, err, "failed to deploy ccip")
 
@@ -79,7 +78,11 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 	// 	chainSelector: big.NewInt(1e17), // Add TON chain gas price
 	// }
 	// TODO: fix this call - for now comment out to avoid compilation errors
-	// laneCS := ops.AddLaneTONChangesets(&env, chainSelector, evmSelector, chain_selectors.FamilyTon, chain_selectors.FamilyEVM, gasPrices)
+	// laneConfig := ops.AddLaneTONConfig(&env, chainSelector, evmSelector, chain_selectors.FamilyTon, chain_selectors.FamilyEVM, gasPrices)
+	// laneCS := commonchangeset.Configure(ops.AddTonLanes{}, config.UpdateTonLanesConfig{
+	// 	Lanes:      []config.LaneConfig{laneConfig},
+	// 	TestRouter: false,
+	// })
 	// env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{laneCS})
 	// require.NoError(t, err, "failed to add lane")
 
@@ -125,7 +128,7 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 	time.Sleep(5 * time.Second)
 
 	const maxSeqNo = 4
-	for seqNo := 0; seqNo < maxSeqNo; seqNo++ {
+	for seqNo := range maxSeqNo {
 		t.Log("Sending CCIP message", seqNo)
 		extraArgs := onramp.GenericExtraArgsV2{
 			GasLimit:                 big.NewInt(100),
@@ -142,25 +145,12 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 			FeeToken:  ops.TonTokenAddr,
 		}
 
-		msgCfg := &client.CCIPSendReqConfig{
-			SourceChain:  chainSelector,
-			DestChain:    evmSelector,
-			IsTestRouter: false,
-			Sender:       nil,            // For TON, sender is handled by the environment
-			Message:      tonSendRequest, // Populate with the CCIP message
-			MaxRetries:   3,
-		}
-
 		// TODO: send helper args are coupled with core memory environment, can we tidy this?
-		ccipState := stateview.CCIPOnChainState{
-			TonChains: map[uint64]tonstate.CCIPChainState{
-				chainSelector: {
-					Router: state[chainSelector].Router,
-					OnRamp: state[chainSelector].OnRamp,
-				},
-			},
+		ccipState := tonstate.CCIPChainState{
+			Router: state[chainSelector].Router,
+			OnRamp: state[chainSelector].OnRamp,
 		}
-		_, err = ops.SendTonRequest(env, ccipState, msgCfg)
+		_, _, err = ops.SendTonRequest(env, ccipState, chainSelector, evmSelector, tonSendRequest)
 		require.NoError(t, err, "failed to send CCIP message")
 		time.Sleep(2 * time.Second)
 	}

@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
 	chain_selectors "github.com/smartcontractkit/chain-selectors"
 	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
@@ -19,12 +18,10 @@ import (
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 	test_utils "github.com/smartcontractkit/chainlink-ton/deployment/utils"
 
-	"github.com/smartcontractkit/chainlink/deployment/ccip/changeset/v1_6"
 	"github.com/smartcontractkit/chainlink/deployment/environment/memory"
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/tlb"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/chainaccessor"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
@@ -36,7 +33,6 @@ import (
 	"go.uber.org/zap/zapcore"
 
 	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
-	"github.com/smartcontractkit/chainlink/deployment/common/proposalutils"
 )
 
 func TestDeploy(t *testing.T) {
@@ -60,46 +56,41 @@ func TestDeploy(t *testing.T) {
 	test_utils.FundWallets(t, tonChain.Client, []*address.Address{deployer.Address()}, []tlb.Coins{tlb.MustFromTON("1000")})
 	time.Sleep(5 * time.Second)
 
-	cs := ton_ops.DeployChainContractsToTonCS(t, env, chainSelector)
+	cs := commonchangeset.Configure(ton_ops.DeployCCIPContracts{}, ton_ops.DeployChainContractsConfig(t, env, chainSelector))
+
 	env, _, err := commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{cs})
 	require.NoError(t, err, "failed to deploy ccip")
 
 	// TODO: LINK token deployment
 	linkAddr := ton_ops.TonTokenAddr
 
-	tonDefinition := config.TonChainDefinition{
-		ConnectionConfig: v1_6.ConnectionConfig{
+	tonDefinition := config.ChainDefinition{
+		ConnectionConfig: config.ConnectionConfig{
 			RMNVerificationDisabled: true,
 			AllowListEnabled:        false,
 		},
 		Selector: tonChain.Selector,
 		GasPrice: big.NewInt(1e17),
-		TokenPrices: map[*address.Address]*big.Int{
-			ton_ops.TonTokenAddr: big.NewInt(99),
+		TokenPrices: map[string]*big.Int{
+			ton_ops.TonTokenAddr.String(): big.NewInt(99),
 		},
-		FeeQuoterDestChainConfig: ton_ops.DefaultFeeQuoterDestChainConfig(true),
-		TokenTransferFeeConfigs:  map[uint64]feequoter.UpdateTokenTransferFeeConfig{},
+		FeeQuoterDestChainConfig: ton_ops.TonFeeQuoterDestChainConfig,
+		// TokenTransferFeeConfigs:  map[uint64]feequoter.UpdateTokenTransferFeeConfig{},
 	}
-	evmDefinition := config.EVMChainDefinition{
-		ChainDefinition: v1_6.ChainDefinition{
-			Selector:                 evmSelector,
-			GasPrice:                 big.NewInt(1e17),
-			TokenPrices:              map[common.Address]*big.Int{},
-			FeeQuoterDestChainConfig: v1_6.DefaultFeeQuoterDestChainConfig(true),
-			ConnectionConfig: v1_6.ConnectionConfig{
-				RMNVerificationDisabled: true,
-				AllowListEnabled:        false,
-			},
+	evmDefinition := config.ChainDefinition{
+		Selector:                 evmSelector,
+		GasPrice:                 big.NewInt(1e17),
+		TokenPrices:              map[string]*big.Int{},
+		FeeQuoterDestChainConfig: ton_ops.EvmFeeQuoterDestChainConfig,
+		ConnectionConfig: config.ConnectionConfig{
+			RMNVerificationDisabled: true,
+			AllowListEnabled:        false,
 		},
-		OnRampVersion: []byte{1, 6, 1},
-		OnRamp:        []byte{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 99},
 	}
 
 	// TON->EVM
 	env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{
 		commonchangeset.Configure(ton_ops.AddTonLanes{}, config.UpdateTonLanesConfig{
-			EVMMCMSConfig: &proposalutils.TimelockConfig{},
-			TonMCMSConfig: &proposalutils.TimelockConfig{},
 			Lanes: []config.LaneConfig{
 				{
 					Source:     tonDefinition,
@@ -113,15 +104,16 @@ func TestDeploy(t *testing.T) {
 	require.NoError(t, err, "failed to add lane")
 
 	// EVM->TON
+	onRamp := []byte{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 99}
 	env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{
 		commonchangeset.Configure(ton_ops.AddTonLanes{}, config.UpdateTonLanesConfig{
-			EVMMCMSConfig: &proposalutils.TimelockConfig{},
-			TonMCMSConfig: &proposalutils.TimelockConfig{},
 			Lanes: []config.LaneConfig{
 				{
-					Source:     evmDefinition,
-					Dest:       tonDefinition,
-					IsDisabled: false,
+					Source:        evmDefinition,
+					Dest:          tonDefinition,
+					IsDisabled:    false,
+					OnRampVersion: []byte{1, 6, 1},
+					OnRamp:        onRamp,
 				},
 			},
 			TestRouter: false,
@@ -145,7 +137,6 @@ func TestDeploy(t *testing.T) {
 	env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{
 		commonchangeset.Configure(ton_ops.SetOCR3Config{}, ton_ops.SetOCR3OffRampConfig{
 			RemoteChainSels: []uint64{tonChain.Selector},
-			MCMS:            &proposalutils.TimelockConfig{},
 			Configs: map[operation.PluginType]operation.OCR3ConfigArgs{
 				operation.PluginTypeCCIPCommit: {
 					ConfigDigest:                   configDigest,
@@ -261,7 +252,7 @@ func TestDeploy(t *testing.T) {
 				IsEnabled:                 true,
 				IsRMNVerificationDisabled: true,
 				MinSeqNr:                  0,
-				OnRamp:                    evmDefinition.OnRamp,
+				OnRamp:                    onRamp,
 			},
 		}, sourceChainConfigs)
 
