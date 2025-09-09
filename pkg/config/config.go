@@ -16,13 +16,13 @@ const ChainFamilyName = "ton"
 
 var DefaultConfigSet = Chain{
 	TransactionManager: &txm.DefaultConfigSet,
-	LogPoller:         &logpoller.DefaultConfigSet,
+	LogPoller:          &logpoller.DefaultConfigSet,
 	ClientTTL:          10 * time.Minute,
 }
 
 type Chain struct {
 	TransactionManager *txm.Config
-	LogPoller         *logpoller.Config
+	LogPoller          *logpoller.Config
 	ClientTTL          time.Duration
 }
 

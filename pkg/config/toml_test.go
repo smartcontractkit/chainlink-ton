@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/config"
+
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
 	"github.com/smartcontractkit/chainlink-ton/pkg/txm"
 )
@@ -106,15 +107,15 @@ URL = 'http://localhost:8081'
 	t.Run("validation errors", func(t *testing.T) {
 		// Invalid TOML syntax
 		_, err := NewDecodedTOMLConfig("[TransactionManager # missing bracket")
-		assert.Error(t, err)
+		require.Error(t, err)
 
 		// Missing ChainID
 		_, err = NewDecodedTOMLConfig("Enabled = true\n[[Nodes]]\nName = 'test'\nURL = 'http://test'")
-		assert.Error(t, err)
+		require.Error(t, err)
 
 		// Disabled config
 		_, err = NewDecodedTOMLConfig("Enabled = false\nChainID = '1'\n[[Nodes]]\nName = 'test'\nURL = 'http://test'")
-		assert.Error(t, err)
+		require.Error(t, err)
 	})
 }
 
@@ -166,18 +167,18 @@ func TestNodeValidation(t *testing.T) {
 	name := "test-node"
 	url, _ := config.ParseURL("http://localhost:8081")
 	node := &Node{Name: &name, URL: url}
-	assert.NoError(t, node.ValidateConfig())
+	require.NoError(t, node.ValidateConfig())
 
 	// Missing/empty name fails
 	node.Name = nil
-	assert.Error(t, node.ValidateConfig())
+	require.Error(t, node.ValidateConfig())
 
 	emptyName := ""
 	node.Name = &emptyName
-	assert.Error(t, node.ValidateConfig())
+	require.Error(t, node.ValidateConfig())
 
 	// Missing URL fails
 	node.Name = &name
 	node.URL = nil
-	assert.Error(t, node.ValidateConfig())
+	require.Error(t, node.ValidateConfig())
 }
