@@ -28,6 +28,7 @@ jobs:
       base_image: ${{ steps.determine-base-image.outputs.BASE_IMAGE }}
       base_image_already_exists: ${{ steps.check-if-image-is-available.outputs.EXISTS }}
       core_ref: ${{ steps.read_core_ref.outputs.CORE_REF }}
+      core_ref_short: ${{ steps.determine_core_ref_short.outputs.CORE_REF_SHORT }}
     steps:
       - name: Setup GitHub token using GATI
         id: set-token
@@ -72,13 +73,23 @@ jobs:
           else
             echo "is_sha=false" >> $GITHUB_OUTPUT
           fi
+
+      - name: Determine CORE_REF_SHORT
+        id: determine_core_ref_short
+        run: |
+          REF="${{ steps.read_core_ref.outputs.CORE_REF }}"
+          if [[ "${{ steps.detect_core_ref_is_sha.outputs.is_sha }}" == "true" ]]; then
+            echo "CORE_REF_SHORT=${REF:0:7}" >> $GITHUB_OUTPUT
+          else
+            echo "CORE_REF_SHORT=$REF" >> $GITHUB_OUTPUT
+          fi
       
       - name: Determine Base Image Name
         id: determine-base-image
         run: |
           if [[ "${{ steps.detect_core_ref_is_sha.outputs.is_sha }}" == "true" ]]; then
             # TODO Replace this with the real name once we build this for the first time  
-            echo "BASE_IMAGE=${{ secrets.AWS_ACCOUNT_ID_STAGING}}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com/chainlink-plugins-dev:${{ steps.read_core_ref.outputs.CORE_REF }}-core-for-chainlink-ton" >> $GITHUB_OUTPUT
+            echo "BASE_IMAGE=${{ secrets.AWS_ACCOUNT_ID_STAGING}}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com/chainlink-plugins-dev:${{ steps.determine_core_ref_short.outputs.CORE_REF_SHORT }}-core-for-chainlink-ton" >> $GITHUB_OUTPUT
             # echo "BASE_IMAGE=${{ secrets.AWS_ACCOUNT_ID_STAGING}}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com/chainlink-plugins-dev@sha256:127228162a52b867d26afdcc84ca6b0c85d9691bb15d5c07c212ccbafb3ecf62" >> $GITHUB_OUTPUT
           else
             echo "BASE_IMAGE=${{ env.CHAINLINK_PUBLIC_ECR_IMAGE }}:${{ steps.read_core_ref.outputs.CORE_REF }}" >> $GITHUB_OUTPUT
@@ -144,6 +155,8 @@ jobs:
         run: |
           echo "BASE_IMAGE=${{ steps.determine-base-image.outputs.BASE_IMAGE }}"
           echo "BASE_IMAGE_ALREADY_EXISTS=${{ steps.check-if-image-is-available.outputs.EXISTS }}"
+          echo "CORE_REF=${{ steps.read_core_ref.outputs.CORE_REF }}"
+          echo "CORE_REF_SHORT=${{ steps.determine_core_ref_short.outputs.CORE_REF_SHORT }}"
 
   # TODO Update parameters to build the core image if it does not exist
   build-and-publish-core-with-docker:
@@ -164,7 +177,7 @@ jobs:
         CHAINLINK_USER=chainlink
         COMMIT_SHA=${{ needs.get-core-image.outputs.core_ref }}
       docker-manifest-sign: false
-      docker-image-tag-override: ${{ needs.get-core-image.outputs.core_ref }}-core-for-chainlink-ton
+      docker-image-tag-override: ${{ needs.get-core-image.outputs.core_ref_short }}-core-for-chainlink-ton
       git-sha: ${{ needs.get-core-image.outputs.core_ref }}
       github-event-name: ${{ github.event_name }}
       github-ref-name: ${{ github.ref_name }}
