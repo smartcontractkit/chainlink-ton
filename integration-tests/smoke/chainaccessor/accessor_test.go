@@ -13,7 +13,6 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 	"go.uber.org/zap/zapcore"
 
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	test_utils "github.com/smartcontractkit/chainlink-ton/deployment/utils"
 
 	chain_selectors "github.com/smartcontractkit/chain-selectors"
