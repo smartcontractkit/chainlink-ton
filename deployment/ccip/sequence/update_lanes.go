@@ -7,7 +7,6 @@ import (
 	"github.com/Masterminds/semver/v3"
 	chainsel "github.com/smartcontractkit/chain-selectors"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
-	"github.com/smartcontractkit/chainlink/deployment/ccip/changeset/v1_6"
 	"github.com/xssnick/tonutils-go/address"
 
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
@@ -118,9 +117,9 @@ func setTonSourceUpdates(lane config.LaneConfig, updateInputsByTonChain map[uint
 	input := updateInputsByTonChain[source.Selector]
 
 	if input.UpdateOnRampDestChainConfigs.Updates == nil {
-		input.UpdateOnRampDestChainConfigs.Updates = make(map[uint64]v1_6.OnRampDestinationUpdate)
+		input.UpdateOnRampDestChainConfigs.Updates = make(map[uint64]operation.OnRampDestinationUpdate)
 	}
-	input.UpdateOnRampDestChainConfigs.Updates[dest.Selector] = v1_6.OnRampDestinationUpdate{
+	input.UpdateOnRampDestChainConfigs.Updates[dest.Selector] = operation.OnRampDestinationUpdate{
 		IsEnabled:        isEnabled,
 		TestRouter:       isTestRouter, // TODO: changesets use a flag rather than raw address?
 		AllowListEnabled: dest.AllowListEnabled,
@@ -168,10 +167,10 @@ func setTonDestinationUpdates(lane config.LaneConfig, updateInputsByTonChain map
 	input := updateInputsByTonChain[dest.Selector]
 
 	if input.UpdateOffRampSourcesConfig.Updates == nil {
-		input.UpdateOffRampSourcesConfig.Updates = make(map[uint64]v1_6.OffRampSourceUpdate)
+		input.UpdateOffRampSourcesConfig.Updates = make(map[uint64]operation.OffRampSourceUpdate)
 	}
 
-	input.UpdateOffRampSourcesConfig.Updates[source.Selector] = v1_6.OffRampSourceUpdate{
+	input.UpdateOffRampSourcesConfig.Updates[source.Selector] = operation.OffRampSourceUpdate{
 		IsEnabled:                 isEnabled,
 		TestRouter:                isTestRouter,
 		IsRMNVerificationDisabled: source.RMNVerificationDisabled,

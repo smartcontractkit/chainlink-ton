@@ -8,12 +8,19 @@ import (
 
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
-	"github.com/smartcontractkit/chainlink/deployment"
 
 	"github.com/xssnick/tonutils-go/address"
+)
 
-	"github.com/smartcontractkit/chainlink/deployment/ccip/shared"
-	commontypes "github.com/smartcontractkit/chainlink/deployment/common/types"
+// Duplicates of chainlink/deployment/ccip/ to avoid import loops
+var (
+	Version1_6_0                   = *semver.MustParse("1.6.0")
+	LinkToken    cldf.ContractType = "LinkToken"
+	TonReceiver  cldf.ContractType = "TonReceiver"
+	Router       cldf.ContractType = "Router"
+	OnRamp       cldf.ContractType = "OnRamp"
+	OffRamp      cldf.ContractType = "OffRamp"
+	FeeQuoter    cldf.ContractType = "FeeQuoter"
 )
 
 // TonCCIPChainState holds a Go binding for all the currently deployed CCIP contracts
@@ -30,39 +37,40 @@ type CCIPChainState struct {
 }
 
 func SaveOnchainState(chainSelector uint64, state CCIPChainState, e cldf.Environment) error {
+	// TODO: use DataStore
 	ab := e.ExistingAddresses
 	if !state.LinkTokenAddress.IsAddrNone() {
-		err := ab.Save(chainSelector, state.LinkTokenAddress.String(), cldf.NewTypeAndVersion(commontypes.LinkToken, deployment.Version1_6_0))
+		err := ab.Save(chainSelector, state.LinkTokenAddress.String(), cldf.NewTypeAndVersion(LinkToken, Version1_6_0))
 		if err != nil {
 			return err
 		}
 	}
 	if !state.ReceiverAddress.IsAddrNone() {
-		err := ab.Save(chainSelector, state.ReceiverAddress.String(), cldf.NewTypeAndVersion(shared.TonReceiver, deployment.Version1_6_0))
+		err := ab.Save(chainSelector, state.ReceiverAddress.String(), cldf.NewTypeAndVersion(TonReceiver, Version1_6_0))
 		if err != nil {
 			return err
 		}
 	}
 	if !state.OffRamp.IsAddrNone() {
-		err := ab.Save(chainSelector, state.OffRamp.String(), cldf.NewTypeAndVersion(shared.OffRamp, deployment.Version1_6_0))
+		err := ab.Save(chainSelector, state.OffRamp.String(), cldf.NewTypeAndVersion(OffRamp, Version1_6_0))
 		if err != nil {
 			return err
 		}
 	}
 	if !state.Router.IsAddrNone() {
-		err := ab.Save(chainSelector, state.Router.String(), cldf.NewTypeAndVersion(shared.Router, deployment.Version1_6_0))
+		err := ab.Save(chainSelector, state.Router.String(), cldf.NewTypeAndVersion(Router, Version1_6_0))
 		if err != nil {
 			return err
 		}
 	}
 	if !state.OnRamp.IsAddrNone() {
-		err := ab.Save(chainSelector, state.OnRamp.String(), cldf.NewTypeAndVersion(shared.OnRamp, deployment.Version1_6_0))
+		err := ab.Save(chainSelector, state.OnRamp.String(), cldf.NewTypeAndVersion(OnRamp, Version1_6_0))
 		if err != nil {
 			return err
 		}
 	}
 	if !state.FeeQuoter.IsAddrNone() {
-		err := ab.Save(chainSelector, state.FeeQuoter.String(), cldf.NewTypeAndVersion(shared.FeeQuoter, deployment.Version1_6_0))
+		err := ab.Save(chainSelector, state.FeeQuoter.String(), cldf.NewTypeAndVersion(FeeQuoter, Version1_6_0))
 		if err != nil {
 			return err
 		}
@@ -105,17 +113,17 @@ func loadChainState(chain cldf_ton.Chain, addressTypes map[string]cldf.TypeAndVe
 		}
 
 		switch tvStr.Type {
-		case commontypes.LinkToken:
+		case LinkToken:
 			state.LinkTokenAddress = *address
-		case shared.TonReceiver:
+		case TonReceiver:
 			state.ReceiverAddress = *address
-		case shared.OffRamp:
+		case OffRamp:
 			state.OffRamp = *address
-		case shared.Router:
+		case Router:
 			state.Router = *address
-		case shared.OnRamp:
+		case OnRamp:
 			state.OnRamp = *address
-		case shared.FeeQuoter:
+		case FeeQuoter:
 			state.FeeQuoter = *address
 		default:
 			log.Warn().Str("address", addressStr).Str("type", string(tvStr.Type)).Msg("Unknown TON address type")

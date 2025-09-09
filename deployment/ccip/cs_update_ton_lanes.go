@@ -1,7 +1,6 @@
 package ops
 
 import (
-	"errors"
 	"fmt"
 
 	chainsel "github.com/smartcontractkit/chain-selectors"
@@ -28,9 +27,9 @@ func (cs AddTonLanes) VerifyPreconditions(env cldf.Environment, cfg config.Updat
 	}
 
 	// supportedChains := state.SupportedChains()
-	if cfg.TonMCMSConfig == nil {
-		return errors.New("config for TON MCMS is required for AddTONLanes changeset")
-	}
+	// if cfg.TonMCMSConfig == nil {
+	// 	return errors.New("config for TON MCMS is required for AddTONLanes changeset")
+	// }
 
 	// For every configured lane validate TON source or destination chain definitions
 	for _, laneCfg := range cfg.Lanes {

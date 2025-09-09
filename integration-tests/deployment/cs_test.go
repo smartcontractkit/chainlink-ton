@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
 	chain_selectors "github.com/smartcontractkit/chain-selectors"
 	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
@@ -17,7 +16,6 @@ import (
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 	test_utils "github.com/smartcontractkit/chainlink-ton/deployment/utils"
 
-	"github.com/smartcontractkit/chainlink/deployment/ccip/changeset/v1_6"
 	"github.com/smartcontractkit/chainlink/deployment/environment/memory"
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/tlb"
@@ -34,7 +32,6 @@ import (
 	"go.uber.org/zap/zapcore"
 
 	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
-	"github.com/smartcontractkit/chainlink/deployment/common/proposalutils"
 )
 
 const ChainSelEVMTest90000001 = 909606746561742123
@@ -60,7 +57,8 @@ func TestDeploy(t *testing.T) {
 	test_utils.FundWallets(t, tonChain.Client, []*address.Address{deployer.Address()}, []tlb.Coins{tlb.MustFromTON("1000")})
 	time.Sleep(5 * time.Second)
 
-	cs := ton_ops.DeployChainContractsToTonCS(t, env, chainSelector)
+	cs := commonchangeset.Configure(ton_ops.DeployCCIPContracts{}, ton_ops.DeployChainContractsConfig(t, env, chainSelector))
+
 	env, _, err := commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{cs})
 	require.NoError(t, err, "failed to deploy ccip")
 
@@ -69,12 +67,10 @@ func TestDeploy(t *testing.T) {
 
 	env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{
 		commonchangeset.Configure(ton_ops.AddTonLanes{}, config.UpdateTonLanesConfig{
-			EVMMCMSConfig: &proposalutils.TimelockConfig{},
-			TonMCMSConfig: &proposalutils.TimelockConfig{},
 			Lanes: []config.LaneConfig{
 				{
 					Source: config.TonChainDefinition{
-						ConnectionConfig: v1_6.ConnectionConfig{
+						ConnectionConfig: config.ConnectionConfig{
 							RMNVerificationDisabled: true,
 							AllowListEnabled:        false,
 						},
@@ -83,18 +79,18 @@ func TestDeploy(t *testing.T) {
 						TokenPrices: map[*address.Address]*big.Int{
 							ton_ops.TonTokenAddr: big.NewInt(99),
 						},
-						FeeQuoterDestChainConfig: ton_ops.DefaultFeeQuoterDestChainConfig(true, evmSelector),
+						FeeQuoterDestChainConfig: ton_ops.TonFeeQuoterDestChainConfig,
 						TokenTransferFeeConfigs:  map[uint64]feequoter.UpdateTokenTransferFeeConfig{
 							// TODO: populate when token transfer enabled
 						},
 					},
 					Dest: config.EVMChainDefinition{
-						ChainDefinition: v1_6.ChainDefinition{
+						ChainDefinition: config.ChainDefinition{
 							Selector:                 evmSelector,
 							GasPrice:                 big.NewInt(1e17),
-							TokenPrices:              map[common.Address]*big.Int{},
-							FeeQuoterDestChainConfig: v1_6.DefaultFeeQuoterDestChainConfig(true),
-							ConnectionConfig: v1_6.ConnectionConfig{
+							TokenPrices:              map[string]*big.Int{},
+							FeeQuoterDestChainConfig: ton_ops.EvmFeeQuoterDestChainConfig,
+							ConnectionConfig: config.ConnectionConfig{
 								RMNVerificationDisabled: true,
 								AllowListEnabled:        false,
 							},
