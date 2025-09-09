@@ -33,7 +33,8 @@ jobs:
         id: set-token
         uses: smartcontractkit/.github/actions/setup-github-token@setup-github-token/1.0.0
         with:
-          aws-role-arn: ${{ secrets.AWS_ROLE_ARN_GATI_READONLY }}
+          # aws-role-arn: ${{ secrets.AWS_ROLE_ARN_GATI_READONLY }}
+          aws-role-arn: ${{ secrets.AWS_ROLE_PUBLISH_ARN_STAGING }}
           aws-lambda-url: ${{ secrets.AWS_LAMBDA_URL_GATI }}
           aws-region: ${{ vars.AWS_REGION }}
           aws-role-duration-seconds: "1800"
