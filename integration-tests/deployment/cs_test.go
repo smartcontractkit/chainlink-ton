@@ -20,7 +20,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/tlb"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/chainaccessor"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
@@ -69,35 +68,33 @@ func TestDeploy(t *testing.T) {
 		commonchangeset.Configure(ton_ops.AddTonLanes{}, config.UpdateTonLanesConfig{
 			Lanes: []config.LaneConfig{
 				{
-					Source: config.TonChainDefinition{
+					Source: config.ChainDefinition{
 						ConnectionConfig: config.ConnectionConfig{
 							RMNVerificationDisabled: true,
 							AllowListEnabled:        false,
 						},
 						Selector: chainSelector,
 						GasPrice: big.NewInt(1e17),
-						TokenPrices: map[*address.Address]*big.Int{
-							ton_ops.TonTokenAddr: big.NewInt(99),
+						TokenPrices: map[string]*big.Int{
+							ton_ops.TonTokenAddr.String(): big.NewInt(99),
 						},
 						FeeQuoterDestChainConfig: ton_ops.TonFeeQuoterDestChainConfig,
-						TokenTransferFeeConfigs:  map[uint64]feequoter.UpdateTokenTransferFeeConfig{
-							// TODO: populate when token transfer enabled
+						// TokenTransferFeeConfigs:  map[uint64]feequoter.UpdateTokenTransferFeeConfig{
+						// 	// TODO: populate when token transfer enabled
+						// },
+					},
+					Dest: config.ChainDefinition{
+						Selector:                 evmSelector,
+						GasPrice:                 big.NewInt(1e17),
+						TokenPrices:              map[string]*big.Int{},
+						FeeQuoterDestChainConfig: ton_ops.EvmFeeQuoterDestChainConfig,
+						ConnectionConfig: config.ConnectionConfig{
+							RMNVerificationDisabled: true,
+							AllowListEnabled:        false,
 						},
 					},
-					Dest: config.EVMChainDefinition{
-						ChainDefinition: config.ChainDefinition{
-							Selector:                 evmSelector,
-							GasPrice:                 big.NewInt(1e17),
-							TokenPrices:              map[string]*big.Int{},
-							FeeQuoterDestChainConfig: ton_ops.EvmFeeQuoterDestChainConfig,
-							ConnectionConfig: config.ConnectionConfig{
-								RMNVerificationDisabled: true,
-								AllowListEnabled:        false,
-							},
-						},
-						OnRampVersion: []byte{1, 6, 1},
-					},
-					IsDisabled: false,
+					OnRampVersion: []byte{1, 6, 1},
+					IsDisabled:    false,
 				},
 			},
 			TestRouter: false,

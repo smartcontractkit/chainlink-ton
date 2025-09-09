@@ -86,8 +86,8 @@ func ToTonUpdateLanesConfig(tonChains map[uint64]tonstate.CCIPChainState, cfg co
 	// Group the operations by Ton chain
 	for _, lane := range cfg.Lanes {
 		// Process lanes with Ton as the source chain
-		if lane.Source.GetChainFamily() == chainsel.FamilyTon {
-			source := lane.Source.(config.TonChainDefinition)
+		if lane.Source.ChainFamily == chainsel.FamilyTon {
+			source := lane.Source
 			if _, exists := updateInputsByTonChain[source.Selector]; !exists {
 				updateInputsByTonChain[source.Selector] = UpdateTonLanesSeqInput{}
 			}
@@ -96,8 +96,8 @@ func ToTonUpdateLanesConfig(tonChains map[uint64]tonstate.CCIPChainState, cfg co
 		}
 
 		// Process lanes with Ton as the destination chain
-		if lane.Dest.GetChainFamily() == chainsel.FamilyTon {
-			dest := lane.Dest.(config.TonChainDefinition)
+		if lane.Dest.ChainFamily == chainsel.FamilyTon {
+			dest := lane.Dest
 			if _, exists := updateInputsByTonChain[dest.Selector]; !exists {
 				updateInputsByTonChain[dest.Selector] = UpdateTonLanesSeqInput{}
 			}
@@ -109,8 +109,8 @@ func ToTonUpdateLanesConfig(tonChains map[uint64]tonstate.CCIPChainState, cfg co
 }
 
 func setTonSourceUpdates(lane config.LaneConfig, updateInputsByTonChain map[uint64]UpdateTonLanesSeqInput, isTestRouter bool, onrampAddress *address.Address) {
-	source := lane.Source.(config.TonChainDefinition)
-	dest := lane.Dest.(config.EVMChainDefinition)
+	source := lane.Source
+	dest := lane.Dest
 	isEnabled := !lane.IsDisabled
 
 	// Setting the destination on the on ramp
@@ -136,13 +136,13 @@ func setTonSourceUpdates(lane config.LaneConfig, updateInputsByTonChain map[uint
 		input.UpdateFeeQuoterPricesConfig.TokenPrices = make(map[string]*big.Int)
 	}
 	for tokenAddr, price := range source.TokenPrices {
-		input.UpdateFeeQuoterPricesConfig.TokenPrices[tokenAddr.String()] = price
+		input.UpdateFeeQuoterPricesConfig.TokenPrices[tokenAddr] = price
 	}
 
 	// Setting the fee quoter destination on the source chain
 	input.UpdateFeeQuoterDestChainConfigs = append(input.UpdateFeeQuoterDestChainConfigs, ton_fee_quoter.UpdateDestChainConfig{
 		DestinationChainSelector: dest.Selector,
-		DestChainConfig:          dest.GetConvertedTonFeeQuoterConfig(),
+		DestChainConfig:          config.TonFeeQuoterConfig(dest.FeeQuoterDestChainConfig),
 	})
 
 	// Setting Router OnRamp version updates
@@ -159,8 +159,8 @@ func setTonSourceUpdates(lane config.LaneConfig, updateInputsByTonChain map[uint
 }
 
 func setTonDestinationUpdates(lane config.LaneConfig, updateInputsByTonChain map[uint64]UpdateTonLanesSeqInput, isTestRouter bool) {
-	source := lane.Source.(config.EVMChainDefinition)
-	dest := lane.Dest.(config.TonChainDefinition)
+	source := lane.Source
+	dest := lane.Dest
 	isEnabled := !lane.IsDisabled
 
 	// Setting off ramp updates

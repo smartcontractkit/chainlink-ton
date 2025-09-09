@@ -23,7 +23,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 )
 
 const (
@@ -60,7 +59,7 @@ var (
 	}
 
 	// Default fee quoter config for TON CCIP testing
-	TonFeeQuoterDestChainConfig = feequoter.DestChainConfig{
+	TonFeeQuoterDestChainConfig = config.FeeQuoterDestChainConfig{
 		IsEnabled:                       true,
 		MaxNumberOfTokensPerMsg:         0,
 		MaxDataBytes:                    100,
@@ -73,12 +72,12 @@ var (
 		DestGasPerDataAvailabilityByte:  0,
 		ChainFamilySelector:             config.TVMFamilySelector,
 		EnforceOutOfOrder:               false,
-		DefaultTokenFeeUsdCents:         0,
+		DefaultTokenFeeUSDCents:         0,
 		DefaultTokenDestGasOverhead:     0,
 		DefaultTxGasLimit:               1,
 		GasMultiplierWeiPerEth:          0,
 		GasPriceStalenessThreshold:      0,
-		NetworkFeeUsdCents:              0,
+		NetworkFeeUSDCents:              0,
 	}
 )
 
@@ -119,35 +118,33 @@ func AddLaneTONConfig(env *cldf.Environment, from, to uint64, fromFamily, toFami
 		env.Logger.Fatalf("AddLaneTONChangesets: expected at least one chain to be TON, got fromFamily=%s, toFamily=%s", fromFamily, toFamily)
 	}
 
-	var src, dest config.GenericChainDefinition
+	var src, dest config.ChainDefinition
 	// TODO: LINK placeholder address
 
 	switch fromFamily {
 	case chainsel.FamilyEVM:
-		src = config.EVMChainDefinition{
-			ChainDefinition: config.ChainDefinition{
-				ConnectionConfig: config.ConnectionConfig{
-					RMNVerificationDisabled: true,
-				},
-				Selector: from,
-				GasPrice: gasPrices[from],
+		src = config.ChainDefinition{
+			ChainFamily: fromFamily,
+			ConnectionConfig: config.ConnectionConfig{
+				RMNVerificationDisabled: true,
 			},
+			Selector: from,
+			GasPrice: gasPrices[from],
 		}
 	case chainsel.FamilyTon:
-		src = config.TonChainDefinition{
+		src = config.ChainDefinition{
+			ChainFamily: fromFamily,
 			ConnectionConfig: config.ConnectionConfig{
 				RMNVerificationDisabled: true,
 				AllowListEnabled:        false,
 			},
 			Selector: from,
 			GasPrice: gasPrices[from],
-			TokenPrices: map[*address.Address]*big.Int{
-				TonTokenAddr: big.NewInt(99),
+			TokenPrices: map[string]*big.Int{
+				TonTokenAddr.String(): big.NewInt(99),
 			},
 			FeeQuoterDestChainConfig: TonFeeQuoterDestChainConfig,
-			TokenTransferFeeConfigs:  map[uint64]feequoter.UpdateTokenTransferFeeConfig{
-				// TODO:
-			},
+			// TokenTransferFeeConfigs: , TODO:
 		}
 	default:
 		env.Logger.Fatalf("Unsupported source chain family: %v", fromFamily)
@@ -155,41 +152,39 @@ func AddLaneTONConfig(env *cldf.Environment, from, to uint64, fromFamily, toFami
 
 	switch toFamily {
 	case chainsel.FamilyEVM:
-		dest = config.EVMChainDefinition{
-			ChainDefinition: config.ChainDefinition{
-				ConnectionConfig: config.ConnectionConfig{
-					AllowListEnabled: false,
-				},
-				Selector:                 to,
-				GasPrice:                 gasPrices[to],
-				FeeQuoterDestChainConfig: EvmFeeQuoterDestChainConfig,
+		dest = config.ChainDefinition{
+			ChainFamily: toFamily,
+			ConnectionConfig: config.ConnectionConfig{
+				AllowListEnabled: false,
 			},
-			OnRampVersion: []byte{1, 6, 1},
+			Selector:                 to,
+			GasPrice:                 gasPrices[to],
+			FeeQuoterDestChainConfig: EvmFeeQuoterDestChainConfig,
 		}
 	case chainsel.FamilyTon:
-		dest = config.TonChainDefinition{
+		dest = config.ChainDefinition{
+			ChainFamily: toFamily,
 			ConnectionConfig: config.ConnectionConfig{
 				RMNVerificationDisabled: true,
 				AllowListEnabled:        false,
 			},
 			Selector: to,
 			GasPrice: big.NewInt(1e17),
-			TokenPrices: map[*address.Address]*big.Int{
-				TonTokenAddr: big.NewInt(99),
+			TokenPrices: map[string]*big.Int{
+				TonTokenAddr.String(): big.NewInt(99),
 			},
 			FeeQuoterDestChainConfig: TonFeeQuoterDestChainConfig,
-			TokenTransferFeeConfigs:  map[uint64]feequoter.UpdateTokenTransferFeeConfig{
-				// TODO:
-			},
+			// TokenTransferFeeConfigs: , TODO:
 		}
 	default:
 		env.Logger.Fatalf("Unsupported dstination chain family: %v", toFamily)
 	}
 
 	return config.LaneConfig{
-		Source:     src,
-		Dest:       dest,
-		IsDisabled: false,
+		Source:        src,
+		Dest:          dest,
+		OnRampVersion: []byte{1, 6, 1},
+		IsDisabled:    false,
 	}
 }
 
