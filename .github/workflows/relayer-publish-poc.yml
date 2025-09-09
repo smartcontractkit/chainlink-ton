@@ -158,6 +158,24 @@ jobs:
           echo "CORE_REF=${{ steps.read_core_ref.outputs.CORE_REF }}"
           echo "CORE_REF_SHORT=${{ steps.determine_core_ref_short.outputs.CORE_REF_SHORT }}"
 
+  debug-wf:
+    name: Debug
+    runs-on: ubuntu-24.04
+    needs: get-core-image
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Get Core Image Output
+        id: debug-outputs-2
+        run: |
+          echo "BASE_IMAGE=${{ needs.get-core-image.outputs.base_image }}"
+          echo "BASE_IMAGE_ALREADY_EXISTS=${{ needs.get-core-image.outputs.base_image_already_exists }}"
+          echo "CORE_REF=${{ needs.get-core-image.outputs.core_ref }}"
+          echo "CORE_REF_SHORT=${{ needs.get-core-image.outputs.core_ref_short }}"
+
   build-and-publish-core-with-docker:
     needs: get-core-image
     if: ${{ needs.get-core-image.outputs.base_image_already_exists != 'true' && (github.event_name != 'pull_request' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'build-publish-docker'))) }}
