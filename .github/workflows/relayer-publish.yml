@@ -90,7 +90,6 @@ jobs:
         id: determine-base-image
         run: |
           if [[ "${{ steps.detect_core_ref_is_sha.outputs.is_sha }}" == "true" ]]; then
-            # TODO Replace this with the real name once we build this for the first time  
             echo "BASE_IMAGE=${{ secrets.AWS_ACCOUNT_ID_STAGING}}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com/chainlink-plugins-dev:${{ steps.determine_core_ref_short.outputs.CORE_REF_SHORT }}-core-for-chainlink-ton" >> $GITHUB_OUTPUT
             echo "BASE_IMAGE_TAG=${{ steps.determine_core_ref_short.outputs.CORE_REF_SHORT }}-core-for-chainlink-ton" >> $GITHUB_OUTPUT
             echo "BASE_IMAGE_PUBLIC=false" >> $GITHUB_OUTPUT
@@ -153,7 +152,7 @@ jobs:
         run: |
           echo "BASE_IMAGE=${{ steps.determine-base-image.outputs.BASE_IMAGE }}"
           echo "BASE_IMAGE_TAG=${{ steps.determine-base-image.outputs.BASE_IMAGE_TAG }}"
-          echo "BASE_IMAGE_PUBLIC=${{ steps.check-if-image-is-available.outputs.BASE_IMAGE_PUBLIC }}"
+          echo "BASE_IMAGE_PUBLIC=${{ steps.determine-base-image.outputs.BASE_IMAGE_PUBLIC }}"
           echo "BASE_IMAGE_ALREADY_EXISTS=${{ steps.check-if-image-is-available.outputs.EXISTS }}"
           echo "CORE_REF=${{ steps.read_core_ref.outputs.CORE_REF }}"
           echo "CORE_REF_SHORT=${{ steps.determine_core_ref_short.outputs.CORE_REF_SHORT }}"
