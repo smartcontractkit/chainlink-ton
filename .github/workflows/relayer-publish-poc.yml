@@ -185,7 +185,8 @@ jobs:
   # TODO Update parameters to build the core image if it does not exist
   build-and-publish-core-with-docker:
     needs: get-core-image
-    if: ${{ needs.get-core-image.outputs.base_image_already_exists == 'false' }} && ${{ github.event_name != 'pull_request' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'build-publish-docker')) }}
+    if: ${{ needs.get-core-image.outputs.base_image_already_exists != 'true' }} && (${{ github.event_name != 'pull_request' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'build-publish-docker')) }})
+    name: Build & Publish Chainlink Core Docker Image
     permissions:
       contents: read
       id-token: write
@@ -215,7 +216,7 @@ jobs:
 
   build-and-publish-core-with-relayer-docker:
     needs: [get-core-image, build-and-publish-core-with-docker]
-    name: Build & Publish Docker Image
+    name: Build & Publish Chainlink Core Docker Image with Relayer
     # Non-PR → run; PR → only if label present
     if: ${{ github.event_name != 'pull_request' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'build-publish-docker')) }}
     permissions:
