@@ -158,7 +158,6 @@ jobs:
           echo "CORE_REF=${{ steps.read_core_ref.outputs.CORE_REF }}"
           echo "CORE_REF_SHORT=${{ steps.determine_core_ref_short.outputs.CORE_REF_SHORT }}"
 
-  # TODO Update parameters to build the core image if it does not exist
   build-and-publish-core-with-docker:
     needs: get-core-image
     if: ${{ needs.get-core-image.outputs.base_image_already_exists != 'true' && (github.event_name != 'pull_request' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'build-publish-docker'))) }}
@@ -189,34 +188,34 @@ jobs:
       AWS_ROLE_GATI_ARN: ${{ secrets.AWS_ROLE_ARN_GATI_READONLY }}
       AWS_LAMBDA_GATI_URL: ${{ secrets.AWS_LAMBDA_URL_GATI }}
 
-  # build-and-publish-core-with-relayer-docker:
-  #   needs: [get-core-image, build-and-publish-core-with-docker]
-  #   name: Build & Publish Chainlink Core Docker Image with Relayer
-  #   # Non-PR → run; PR → only if label present
-  #   if: ${{ github.event_name != 'pull_request' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'build-publish-docker')) }}
-  #   permissions:
-  #     contents: read
-  #     id-token: write
-  #   uses: smartcontractkit/.github/.github/workflows/reusable-docker-build-publish.yml@317784689643295083653d9c9d08d34d8e379a7f # 2025-05-13
-  #   with:
-  #     aws-ecr-name: chainlink-plugins-dev
-  #     aws-region-ecr: ${{ vars.AWS_REGION }}
-  #     aws-region-gati: ${{ vars.AWS_REGION }}
-  #     dockerfile: scripts/build/Dockerfile.build.nix
-  #     docker-build-context: .
-  #     docker-build-args: |
-  #       CHAINLINK_USER=chainlink
-  #       COMMIT_SHA=${{ github.sha }}
-  #       BASE_IMAGE=${{ needs.get-core-image.outputs.base_image }}
-  #     docker-manifest-sign: true
-  #     docker-tag-custom-suffix: "-chainlink-ton"
-  #     git-sha: ${{ github.sha }}
-  #     github-event-name: ${{ github.event_name }}
-  #     github-ref-name: ${{ github.ref_name }}
-  #     github-ref-type: ${{ github.ref_type }}
-  #     github-workflow-repository: ${{ github.repository }}
-  #   secrets:
-  #     AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID_STAGING }}
-  #     AWS_ROLE_PUBLISH_ARN: ${{ secrets.AWS_ROLE_PUBLISH_ARN_STAGING }}
-  #     AWS_ROLE_GATI_ARN: ${{ secrets.AWS_ROLE_ARN_GATI_READONLY }}
-  #     AWS_LAMBDA_GATI_URL: ${{ secrets.AWS_LAMBDA_URL_GATI }}
+  build-and-publish-core-with-relayer-docker:
+    needs: [get-core-image, build-and-publish-core-with-docker]
+    name: Build & Publish Chainlink Core Docker Image with Relayer
+    # Non-PR → run; PR → only if label present
+    if: ${{ always() && needs.get-core-image.result == 'success' && (needs.build-and-publish-core-with-docker.result == 'success' || needs.build-and-publish-core-with-docker.result == 'skipped') && (github.event_name != 'pull_request' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'build-publish-docker'))) }}
+    permissions:
+      contents: read
+      id-token: write
+    uses: smartcontractkit/.github/.github/workflows/reusable-docker-build-publish.yml@317784689643295083653d9c9d08d34d8e379a7f # 2025-05-13
+    with:
+      aws-ecr-name: chainlink-plugins-dev
+      aws-region-ecr: ${{ vars.AWS_REGION }}
+      aws-region-gati: ${{ vars.AWS_REGION }}
+      dockerfile: scripts/build/Dockerfile.build.nix
+      docker-build-context: .
+      docker-build-args: |
+        CHAINLINK_USER=chainlink
+        COMMIT_SHA=${{ github.sha }}
+        BASE_IMAGE=${{ needs.get-core-image.outputs.base_image }}
+      docker-manifest-sign: true
+      docker-tag-custom-suffix: "-chainlink-ton"
+      git-sha: ${{ github.sha }}
+      github-event-name: ${{ github.event_name }}
+      github-ref-name: ${{ github.ref_name }}
+      github-ref-type: ${{ github.ref_type }}
+      github-workflow-repository: ${{ github.repository }}
+    secrets:
+      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID_STAGING }}
+      AWS_ROLE_PUBLISH_ARN: ${{ secrets.AWS_ROLE_PUBLISH_ARN_STAGING }}
+      AWS_ROLE_GATI_ARN: ${{ secrets.AWS_ROLE_ARN_GATI_READONLY }}
+      AWS_LAMBDA_GATI_URL: ${{ secrets.AWS_LAMBDA_URL_GATI }}
