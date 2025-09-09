@@ -164,8 +164,7 @@ jobs:
         CHAINLINK_USER=chainlink
         COMMIT_SHA=${{ needs.get-core-image.outputs.core_ref }}
       docker-manifest-sign: false
-      docker-tag-custom-suffix: "-core-for-chainlink-ton"
-      docker-image-tag-override: ${{ needs.get-core-image.outputs.core_ref }}
+      docker-image-tag-override: ${{ needs.get-core-image.outputs.core_ref }}-core-for-chainlink-ton
       git-sha: ${{ needs.get-core-image.outputs.core_ref }}
       github-event-name: ${{ github.event_name }}
       github-ref-name: ${{ github.ref_name }}
