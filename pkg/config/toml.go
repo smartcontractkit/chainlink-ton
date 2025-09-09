@@ -52,7 +52,6 @@ func (c *TOMLConfig) SetDefaults() {
 	if c.TransactionManager == nil {
 		c.TransactionManager = DefaultConfigSet.TransactionManager
 	}
-
 	if c.LogPoller == nil {
 		c.LogPoller = DefaultConfigSet.LogPoller
 	}
