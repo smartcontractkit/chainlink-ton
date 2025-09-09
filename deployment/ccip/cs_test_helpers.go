@@ -124,7 +124,6 @@ func AddLaneTONConfig(env *cldf.Environment, from, to uint64, fromFamily, toFami
 	switch fromFamily {
 	case chainsel.FamilyEVM:
 		src = config.ChainDefinition{
-			ChainFamily: fromFamily,
 			ConnectionConfig: config.ConnectionConfig{
 				RMNVerificationDisabled: true,
 			},
@@ -133,7 +132,6 @@ func AddLaneTONConfig(env *cldf.Environment, from, to uint64, fromFamily, toFami
 		}
 	case chainsel.FamilyTon:
 		src = config.ChainDefinition{
-			ChainFamily: fromFamily,
 			ConnectionConfig: config.ConnectionConfig{
 				RMNVerificationDisabled: true,
 				AllowListEnabled:        false,
@@ -153,7 +151,6 @@ func AddLaneTONConfig(env *cldf.Environment, from, to uint64, fromFamily, toFami
 	switch toFamily {
 	case chainsel.FamilyEVM:
 		dest = config.ChainDefinition{
-			ChainFamily: toFamily,
 			ConnectionConfig: config.ConnectionConfig{
 				AllowListEnabled: false,
 			},
@@ -163,7 +160,6 @@ func AddLaneTONConfig(env *cldf.Environment, from, to uint64, fromFamily, toFami
 		}
 	case chainsel.FamilyTon:
 		dest = config.ChainDefinition{
-			ChainFamily: toFamily,
 			ConnectionConfig: config.ConnectionConfig{
 				RMNVerificationDisabled: true,
 				AllowListEnabled:        false,

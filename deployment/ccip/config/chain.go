@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"math/big"
 
+	chain_selectors "github.com/smartcontractkit/chain-selectors"
 	evm_fee_quoter "github.com/smartcontractkit/chainlink-ccip/chains/evm/gobindings/generated/v1_6_0/fee_quoter"
 	ton_fee_quoter "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 )
@@ -34,7 +35,6 @@ type ConnectionConfig struct {
 
 // ChainDefinition defines how a chain should be configured on both remote chains and itself.
 type ChainDefinition struct {
-	ChainFamily string `json:"chainFamily"`
 	// ConnectionConfig holds configuration for connection.
 	ConnectionConfig `json:"connectionConfig"`
 	// Selector is the chain selector of this chain.
@@ -47,6 +47,14 @@ type ChainDefinition struct {
 	FeeQuoterDestChainConfig FeeQuoterDestChainConfig `json:"feeQuoterDestChainConfig"`
 	// TokenTransferFeeConfigs is a map of chain selector to token transfer cost configuration.
 	TokenTransferFeeConfigs map[uint64]FeeQuoterTokenTransferFeeConfig `json:"tokenTransferFeeConfigs"`
+}
+
+func (d ChainDefinition) ChainFamily() string {
+	family, err := chain_selectors.GetSelectorFamily(d.Selector)
+	if err != nil {
+		panic(err)
+	}
+	return family
 }
 
 type FeeQuoterDestChainConfig struct {

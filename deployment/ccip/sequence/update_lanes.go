@@ -86,7 +86,7 @@ func ToTonUpdateLanesConfig(tonChains map[uint64]tonstate.CCIPChainState, cfg co
 	// Group the operations by Ton chain
 	for _, lane := range cfg.Lanes {
 		// Process lanes with Ton as the source chain
-		if lane.Source.ChainFamily == chainsel.FamilyTon {
+		if lane.Source.ChainFamily() == chainsel.FamilyTon {
 			source := lane.Source
 			if _, exists := updateInputsByTonChain[source.Selector]; !exists {
 				updateInputsByTonChain[source.Selector] = UpdateTonLanesSeqInput{}
@@ -96,7 +96,7 @@ func ToTonUpdateLanesConfig(tonChains map[uint64]tonstate.CCIPChainState, cfg co
 		}
 
 		// Process lanes with Ton as the destination chain
-		if lane.Dest.ChainFamily == chainsel.FamilyTon {
+		if lane.Dest.ChainFamily() == chainsel.FamilyTon {
 			dest := lane.Dest
 			if _, exists := updateInputsByTonChain[dest.Selector]; !exists {
 				updateInputsByTonChain[dest.Selector] = UpdateTonLanesSeqInput{}

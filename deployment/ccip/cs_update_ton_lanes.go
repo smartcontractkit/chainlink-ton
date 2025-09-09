@@ -25,13 +25,13 @@ func (cs AddTonLanes) VerifyPreconditions(env cldf.Environment, cfg config.Updat
 
 	// For every configured lane validate TON source or destination chain definitions
 	for _, laneCfg := range cfg.Lanes {
-		if laneCfg.Source.ChainFamily == chainsel.FamilyTon {
+		if laneCfg.Source.ChainFamily() == chainsel.FamilyTon {
 			_, exists := tonChains[laneCfg.Source.Selector]
 			if !exists {
 				return fmt.Errorf("source TON chain %d is not in env", laneCfg.Source.Selector)
 			}
 		}
-		if laneCfg.Dest.ChainFamily == chainsel.FamilyTon {
+		if laneCfg.Dest.ChainFamily() == chainsel.FamilyTon {
 			_, exists := tonChains[laneCfg.Dest.Selector]
 			if !exists {
 				return fmt.Errorf("destination TON chain %d is not in env", laneCfg.Dest.Selector)
