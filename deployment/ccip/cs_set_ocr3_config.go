@@ -10,7 +10,6 @@ import (
 	seq "github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/utils"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
-	"github.com/smartcontractkit/chainlink/deployment/common/proposalutils"
 	"github.com/smartcontractkit/mcms"
 )
 
@@ -18,7 +17,6 @@ var _ cldf.ChangeSetV2[SetOCR3OffRampConfig] = SetOCR3Config{}
 
 type SetOCR3OffRampConfig struct {
 	RemoteChainSels []uint64
-	MCMS            *proposalutils.TimelockConfig
 	Configs         map[operation.PluginType]operation.OCR3ConfigArgs
 }
 
