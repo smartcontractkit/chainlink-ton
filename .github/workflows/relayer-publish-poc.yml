@@ -111,7 +111,7 @@ jobs:
           docker images
 
       - name: Pull & Save Image on Cache Miss When Core Ref Is Not a SHA
-        if: steps.detect_core_ref_is_sha.outputs.is_sha == 'false' && steps.restore-cache-images.outputs.cache-hit == 'false'
+        if: steps.detect_core_ref_is_sha.outputs.is_sha == 'false' && steps.restore-cache-images.outputs.cache-hit != 'true'
         run: |
           echo "Cache Miss: Pulling chainlink core image from ${{ steps.determine-base-image.outputs.BASE_IMAGE }}"
           docker pull ${{ steps.determine-base-image.outputs.BASE_IMAGE }}
