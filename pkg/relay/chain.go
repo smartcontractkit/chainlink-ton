@@ -300,7 +300,7 @@ func (c *chain) GetClient(ctx context.Context) (*ton.APIClient, error) {
 		c.cacheMu.RUnlock()
 
 		if ok && time.Since(entry.timestamp) < c.cfg.ClientTTL {
-			c.lggr.Debugw("Using cached client", "name", node.Name, "url", node.URL)
+			c.lggr.Debugw("Using cached client", "name", node.Name)
 			return entry.client, nil
 		} else if ok {
 			// TTL expired — evict
@@ -317,7 +317,7 @@ func (c *chain) GetClient(ctx context.Context) (*ton.APIClient, error) {
 		// create an extra URL for liteclient config url
 		tonCfg, err := liteclient.GetConfigFromUrl(ctx, fmt.Sprintf("http://%v/localhost.global.config.json", configURL))
 		if err != nil {
-			c.lggr.Warnw("failed to fetch TON config", "name", node.Name, "ton-url", node.URL, "err", err)
+			c.lggr.Warnw("failed to fetch TON config", "name", node.Name, "err", err)
 			continue
 		}
 
@@ -325,7 +325,7 @@ func (c *chain) GetClient(ctx context.Context) (*ton.APIClient, error) {
 		err = connectionPool.AddConnectionsFromConfig(ctx, tonCfg)
 		if err != nil {
 			lastErr = err
-			c.lggr.Warnw("failed to connect", "name", node.Name, "ton-url", node.URL, "err", err)
+			c.lggr.Warnw("failed to connect", "name", node.Name, "err", err)
 			continue
 		}
 
@@ -360,7 +360,7 @@ func (c *chain) GetClient(ctx context.Context) (*ton.APIClient, error) {
 		}
 		c.cacheMu.Unlock()
 
-		c.lggr.Debugw("Created and cached client", "name", node.Name, "url", node.URL)
+		c.lggr.Debugw("Created and cached client", "name", node.Name)
 		return client, nil
 	}
 

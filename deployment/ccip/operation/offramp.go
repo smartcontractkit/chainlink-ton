@@ -5,7 +5,6 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
-	"github.com/smartcontractkit/chainlink/deployment/ccip/changeset/v1_6"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
@@ -82,8 +81,15 @@ func deployOffRamp(b operations.Bundle, deps TonDeps, in DeployOffRampInput) (De
 	return output, nil
 }
 
+type OffRampSourceUpdate struct {
+	IsEnabled  bool // If false, disables the source by setting router to 0x0.
+	TestRouter bool // Flag for safety only allow specifying either router or testRouter.
+	// IsRMNVerificationDisabled is a flag to disable RMN verification for this source chain.
+	IsRMNVerificationDisabled bool
+}
+
 type UpdateOffRampSourcesInput struct {
-	Updates map[uint64]v1_6.OffRampSourceUpdate
+	Updates map[uint64]OffRampSourceUpdate
 }
 
 type UpdateOffRampSourcesOutput struct {

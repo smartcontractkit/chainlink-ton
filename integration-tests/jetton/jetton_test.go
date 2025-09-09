@@ -7,6 +7,7 @@ import (
 	"path"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/smartcontractkit/chainlink-ton/integration-tests/tracetracking/testutils"
@@ -53,14 +54,24 @@ func TestJettonAll(t *testing.T) {
 		jettonClient     *jetton.Client
 	}
 
+	var initialAmount = big.NewInt(1_000_000_000_000)
+	var testCount uint = 13
+	var accountCountPerTest uint = 2
+	accounts := testutils.SetUpTest(t, chainsel.TON_LOCALNET.Selector, initialAmount, testCount*accountCountPerTest)
+	var lastUsedAccountIndex uint
+	var lock sync.Mutex
+
 	setUpCommon := func(t *testing.T) commonSetup {
 		var setup commonSetup
 		var err error
-		var initialAmount = big.NewInt(1_000_000_000_000)
-		accounts := testutils.SetUpTest(t, chainsel.TON_LOCALNET.Selector, initialAmount, 2)
-		setup.deployer = accounts[0]
-		setup.receiver = accounts[1]
-
+		{
+			lock.Lock()
+			defer lock.Unlock()
+			require.LessOrEqual(t, lastUsedAccountIndex+accountCountPerTest, uint(len(accounts)), "Not enough pre-funded accounts for tests")
+			setup.deployer = accounts[lastUsedAccountIndex]
+			setup.receiver = accounts[lastUsedAccountIndex+1]
+			lastUsedAccountIndex += accountCountPerTest
+		}
 		t.Logf("\n\n\n\n\n\nJetton Test Setup\n==========================\n")
 
 		defaultContent := createStringCell(t, JettonDataURI)
@@ -291,6 +302,7 @@ func TestJettonAll(t *testing.T) {
 
 	// Test: Jetton Master
 	t.Run("TestJettonMasterMetadata", func(t *testing.T) {
+		t.Parallel()
 		setup := setUpCommon(t)
 		jettonData, err := setup.jettonClient.GetJettonData(t.Context())
 		require.NoError(t, err, "failed to get jetton data")
@@ -318,6 +330,7 @@ func TestJettonAll(t *testing.T) {
 	})
 
 	t.Run("TestJettonMasterChangeContent", func(t *testing.T) {
+		t.Parallel()
 		setup := setUpCommon(t)
 		t.Logf("Testing change content\n")
 		const newContentURI = "new_content_uri"
@@ -354,6 +367,7 @@ func TestJettonAll(t *testing.T) {
 	})
 
 	t.Run("TestJettonMasterMint", func(t *testing.T) {
+		t.Parallel()
 		setup := setUpCommon(t)
 		t.Logf("Testing jetton minting\n")
 		recipient := address.MustParseAddr("UQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJKZ")
@@ -387,6 +401,7 @@ func TestJettonAll(t *testing.T) {
 	})
 
 	t.Run("TestJettonMasterChangeAdmin", func(t *testing.T) {
+		t.Parallel()
 		setup := setUpCommon(t)
 		t.Logf("Testing change admin\n")
 		changeAdminMsg, err := setup.jettonMinter.CallWaitRecursively(jetton_wrappers.ChangeAdminMessage{
@@ -419,6 +434,7 @@ func TestJettonAll(t *testing.T) {
 	})
 
 	t.Run("TestJettonMasterDropAdmin", func(t *testing.T) {
+		t.Parallel()
 		setup := setUpCommon(t)
 		t.Logf("Testing drop admin\n")
 		dropAdminMsg, err := setup.jettonMinter.CallWaitRecursively(jetton_wrappers.DropAdminMessage{
@@ -465,6 +481,7 @@ func TestJettonAll(t *testing.T) {
 
 	// Test: Jetton Send and Receive (setup sender when needed)
 	t.Run("TestJettonSendFastAutodeployWallet", func(t *testing.T) {
+		t.Parallel()
 		setup := setupSender(t)
 		receiver := address.MustParseAddr("UQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJKZ")
 		jettonAmount := tlb.MustFromTON("12")
@@ -491,6 +508,7 @@ func TestJettonAll(t *testing.T) {
 	})
 
 	t.Run("TestJettonSendFastExistingWallet", func(t *testing.T) {
+		t.Parallel()
 		setup := setupSender(t)
 		t.Logf("Deploying JettonMinter contract\n")
 		jettonWalletCode, err := jetton_wrappers.WalletCode()
@@ -532,6 +550,7 @@ func TestJettonAll(t *testing.T) {
 	})
 
 	t.Run("TestJettonSendExtended", func(t *testing.T) {
+		t.Parallel()
 		setup := setupSender(t)
 		receiver := address.MustParseAddr("UQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJKZ")
 		tonAmount := tlb.MustFromTON("0.1")
@@ -572,6 +591,7 @@ func TestJettonAll(t *testing.T) {
 
 	// Test: Jetton Onramp Mock (setup onramp when needed)
 	t.Run("TestJettonOnrampMock", func(t *testing.T) {
+		t.Parallel()
 		setup := setupOnrampMock(t)
 
 		t.Logf("\n\n\n\n\n\nOnramp Mock Tests Started\n==========================\n")
@@ -672,6 +692,7 @@ func TestJettonAll(t *testing.T) {
 
 	// Test: Jetton Receiver (setup receiver when needed)
 	t.Run("TestJettonReceiver", func(t *testing.T) {
+		t.Parallel()
 		setup := setupSimpleJettonReceiver(t)
 
 		t.Logf("\n\n\n\n\n\nJetton Receiver Tests Started\n==========================\n")
@@ -728,6 +749,7 @@ func TestJettonAll(t *testing.T) {
 
 	// Test: Jetton Wallet Operations (setup wallet when needed)
 	t.Run("TestJettonTransferFromDeploy", func(t *testing.T) {
+		t.Parallel()
 		setup := setupJettonWallet(t)
 		t.Logf("Deploying JettonWallet contract\n")
 
@@ -786,6 +808,7 @@ func TestJettonAll(t *testing.T) {
 	})
 
 	t.Run("TestJettonTransferOpenFromInit", func(t *testing.T) {
+		t.Parallel()
 		setup := setupJettonWallet(t)
 		t.Logf("Deploying JettonWallet contract\n")
 
@@ -844,6 +867,7 @@ func TestJettonAll(t *testing.T) {
 	})
 
 	t.Run("TestJettonBurn", func(t *testing.T) {
+		t.Parallel()
 		setup := setupJettonWallet(t)
 		t.Logf("Deploying JettonWallet contract\n")
 		jettonWalletCode, err := jetton_wrappers.WalletCode()
