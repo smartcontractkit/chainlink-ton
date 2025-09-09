@@ -77,7 +77,8 @@ jobs:
         id: determine-base-image
         run: |
           if [[ "${{ steps.detect_core_ref_is_sha.outputs.is_sha }}" == "true" ]]; then
-            echo "BASE_IMAGE=${{ secrets.AWS_ACCOUNT_ID_STAGING}}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com/chainlink_ton_core_local:${{ steps.read_core_ref.outputs.CORE_REF }}" >> $GITHUB_OUTPUT
+            # echo "BASE_IMAGE=${{ secrets.AWS_ACCOUNT_ID_STAGING}}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com/chainlink_ton_core_local:${{ steps.read_core_ref.outputs.CORE_REF }}" >> $GITHUB_OUTPUT
+            echo "BASE_IMAGE=${{ secrets.AWS_ACCOUNT_ID_STAGING}}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com/ccip:manual-8b4ffd8" >> $GITHUB_OUTPUT
           else
             echo "BASE_IMAGE=${{ env.CHAINLINK_PUBLIC_ECR_IMAGE }}:${{ steps.read_core_ref.outputs.CORE_REF }}" >> $GITHUB_OUTPUT
           fi
