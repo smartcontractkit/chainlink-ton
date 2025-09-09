@@ -210,6 +210,7 @@ jobs:
         TODO=${{ needs.get-core-image.outputs.core_ref_short }}
         TODO2=${{ needs.get-core-image.outputs.core_ref }}
         TODO3=${{ needs.get-core-image.outputs.base_image_already_exists }}
+        TODO4=${{ needs.get-core-image.outputs.base_image }}
       docker-manifest-sign: true
       docker-tag-custom-suffix: "-chainlink-ton"
       git-sha: ${{ github.sha }}
