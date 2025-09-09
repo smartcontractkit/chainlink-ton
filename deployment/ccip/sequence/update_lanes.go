@@ -44,7 +44,7 @@ func updateLanes(b operations.Bundle, deps operation.TonDeps, in UpdateTonLanesS
 	txs = append(txs, feeQuoterReport.Output...)
 
 	// update onramp with dest chain configs
-	b.Logger.Info("Updating destination configs on OnRamp", "input", in.UpdateOnRampDestChainConfigs)
+	b.Logger.Infow("Updating destination configs on OnRamp", "input", in.UpdateOnRampDestChainConfigs)
 	onRampReport, err := operations.ExecuteOperation(b, operation.UpdateOnRampDestChainConfigsOp, deps, in.UpdateOnRampDestChainConfigs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update onramp destinations: %w", err)
@@ -52,7 +52,7 @@ func updateLanes(b operations.Bundle, deps operation.TonDeps, in UpdateTonLanesS
 	txs = append(txs, onRampReport.Output...)
 
 	// configure offramp sources
-	b.Logger.Info("Updating source configs on OffRamp", "input", in.UpdateOffRampSourcesConfig)
+	b.Logger.Infow("Updating source configs on OffRamp", "input", in.UpdateOffRampSourcesConfig)
 	offRampReport, err := operations.ExecuteOperation(b, operation.UpdateOffRampSourceChainConfigsOp, deps, in.UpdateOffRampSourcesConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update offramp sources: %w", err)
@@ -62,7 +62,7 @@ func updateLanes(b operations.Bundle, deps operation.TonDeps, in UpdateTonLanesS
 	// add ccip owner to offramp allowlist
 
 	// update fee quoter with gas prices
-	b.Logger.Info("Updating prices on FeeQuoter", "input", in.UpdateFeeQuoterPricesConfig)
+	b.Logger.Infow("Updating prices on FeeQuoter", "input", in.UpdateFeeQuoterPricesConfig)
 	updatePricesReport, err := operations.ExecuteOperation(b, operation.UpdateFeeQuoterPricesOp, deps, in.UpdateFeeQuoterPricesConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update feequoter prices: %w", err)
@@ -70,7 +70,7 @@ func updateLanes(b operations.Bundle, deps operation.TonDeps, in UpdateTonLanesS
 	txs = append(txs, updatePricesReport.Output...)
 
 	// update router with destination onramp versions
-	b.Logger.Info("Updating Router", "input", in.UpdateRouterDestConfig)
+	b.Logger.Infow("Updating Router", "input", in.UpdateRouterDestConfig)
 	routerReport, err := operations.ExecuteOperation(b, operation.UpdateRouterDestOp, deps, in.UpdateRouterDestConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update router: %w", err)
