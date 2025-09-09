@@ -105,6 +105,9 @@ jobs:
       - name: Debug
         id: debug-2
         run: |
+          echo "BASE_IMAGE=$BASE_IMAGE"
+          echo "steps.detect_core_ref_is_sha.outputs.is_sha=${{ steps.detect_core_ref_is_sha.outputs.is_sha }}"
+          echo "steps.restore-cache-images.outputs.cache-hit=${{ steps.restore-cache-images.outputs.cache-hit }}"
           docker images
 
       - name: Pull & Save Image on Cache Miss When Core Ref Is Not a SHA
