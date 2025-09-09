@@ -300,7 +300,7 @@ func (c *chain) GetClient(ctx context.Context) (*ton.APIClient, error) {
 		c.cacheMu.RUnlock()
 
 		if ok && time.Since(entry.timestamp) < c.cfg.ClientTTL {
-			c.lggr.Debugw("Using cached client", "name", node.Name, "url", node.URL)
+			c.lggr.Debugw("Using cached client", "name", node.Name)
 			return entry.client, nil
 		} else if ok {
 			// TTL expired — evict
@@ -350,7 +350,7 @@ func (c *chain) GetClient(ctx context.Context) (*ton.APIClient, error) {
 		}
 		c.cacheMu.Unlock()
 
-		c.lggr.Debugw("Created and cached client", "name", node.Name, "url", node.URL)
+		c.lggr.Debugw("Created and cached client", "name", node.Name)
 		return client, nil
 	}
 
