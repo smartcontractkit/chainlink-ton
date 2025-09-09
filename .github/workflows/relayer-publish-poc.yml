@@ -168,7 +168,7 @@ jobs:
       github-event-name: ${{ github.event_name }}
       github-ref-name: ${{ github.ref_name }}
       github-ref-type: ${{ github.ref_type }}
-      github-workflow-repository: smartcontract/chainlink
+      github-workflow-repository: smartcontractkit/chainlink
     secrets:
       AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID_STAGING }}
       AWS_ROLE_PUBLISH_ARN: ${{ secrets.AWS_ROLE_PUBLISH_ARN_STAGING }}
