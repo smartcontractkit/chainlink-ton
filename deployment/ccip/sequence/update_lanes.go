@@ -2,6 +2,7 @@ package sequence
 
 import (
 	"fmt"
+	"maps"
 	"math/big"
 
 	"github.com/Masterminds/semver/v3"
@@ -35,7 +36,7 @@ func updateLanes(b operations.Bundle, deps operation.TonDeps, in UpdateTonLanesS
 	var txs [][]byte
 
 	// update fee quoter with dest chain configs
-	b.Logger.Info("Updating destination configs on FeeQuoter")
+	b.Logger.Infow("Updating destination configs on FeeQuoter", "input", in.UpdateFeeQuoterDestChainConfigs)
 	feeQuoterReport, err := operations.ExecuteOperation(b, operation.UpdateFeeQuoterDestChainConfigsOp, deps, in.UpdateFeeQuoterDestChainConfigs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update feequoter destinations: %w", err)
@@ -43,7 +44,7 @@ func updateLanes(b operations.Bundle, deps operation.TonDeps, in UpdateTonLanesS
 	txs = append(txs, feeQuoterReport.Output...)
 
 	// update onramp with dest chain configs
-	b.Logger.Info("Updating destination configs on OnRamp")
+	b.Logger.Info("Updating destination configs on OnRamp", "input", in.UpdateOnRampDestChainConfigs)
 	onRampReport, err := operations.ExecuteOperation(b, operation.UpdateOnRampDestChainConfigsOp, deps, in.UpdateOnRampDestChainConfigs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update onramp destinations: %w", err)
@@ -51,7 +52,7 @@ func updateLanes(b operations.Bundle, deps operation.TonDeps, in UpdateTonLanesS
 	txs = append(txs, onRampReport.Output...)
 
 	// configure offramp sources
-	b.Logger.Info("Updating source configs on OffRamp")
+	b.Logger.Info("Updating source configs on OffRamp", "input", in.UpdateOffRampSourcesConfig)
 	offRampReport, err := operations.ExecuteOperation(b, operation.UpdateOffRampSourceChainConfigsOp, deps, in.UpdateOffRampSourcesConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update offramp sources: %w", err)
@@ -61,7 +62,7 @@ func updateLanes(b operations.Bundle, deps operation.TonDeps, in UpdateTonLanesS
 	// add ccip owner to offramp allowlist
 
 	// update fee quoter with gas prices
-	b.Logger.Info("Updating prices on FeeQuoter")
+	b.Logger.Info("Updating prices on FeeQuoter", "input", in.UpdateFeeQuoterPricesConfig)
 	updatePricesReport, err := operations.ExecuteOperation(b, operation.UpdateFeeQuoterPricesOp, deps, in.UpdateFeeQuoterPricesConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update feequoter prices: %w", err)
@@ -69,7 +70,7 @@ func updateLanes(b operations.Bundle, deps operation.TonDeps, in UpdateTonLanesS
 	txs = append(txs, updatePricesReport.Output...)
 
 	// update router with destination onramp versions
-	b.Logger.Info("Updating Router")
+	b.Logger.Info("Updating Router", "input", in.UpdateRouterDestConfig)
 	routerReport, err := operations.ExecuteOperation(b, operation.UpdateRouterDestOp, deps, in.UpdateRouterDestConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update router: %w", err)
@@ -135,9 +136,7 @@ func setTonSourceUpdates(lane config.LaneConfig, updateInputsByTonChain map[uint
 	if input.UpdateFeeQuoterPricesConfig.TokenPrices == nil {
 		input.UpdateFeeQuoterPricesConfig.TokenPrices = make(map[string]*big.Int)
 	}
-	for tokenAddr, price := range source.TokenPrices {
-		input.UpdateFeeQuoterPricesConfig.TokenPrices[tokenAddr] = price
-	}
+	maps.Copy(input.UpdateFeeQuoterPricesConfig.TokenPrices, source.TokenPrices)
 
 	// Setting the fee quoter destination on the source chain
 	input.UpdateFeeQuoterDestChainConfigs = append(input.UpdateFeeQuoterDestChainConfigs, ton_fee_quoter.UpdateDestChainConfig{
