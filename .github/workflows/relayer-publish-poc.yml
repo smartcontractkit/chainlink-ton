@@ -209,12 +209,7 @@ jobs:
       docker-build-args: |
         CHAINLINK_USER=chainlink
         COMMIT_SHA=${{ github.sha }}
-        BASE_IMAGE=$AWS_ACCOUNT_ID.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com/${{ needs.get-core-image.outputs.base_image_with_no_repository }}
-        TODO=${{ needs.get-core-image.outputs.core_ref_short }}
-        TODO2=${{ needs.get-core-image.outputs.core_ref }}
-        TODO3=${{ needs.get-core-image.outputs.base_image_already_exists }}
-        TODO4=${{ needs.get-core-image.outputs.base_image }}
-        TODO5=${{ needs.get-core-image.outputs.base_image_with_no_repository }}
+        BASE_IMAGE=${{ needs.get-core-image.outputs.base_image_with_no_repository }}
       docker-manifest-sign: true
       docker-tag-custom-suffix: "-chainlink-ton"
       git-sha: ${{ github.sha }}
