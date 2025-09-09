@@ -5,7 +5,6 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
-	"github.com/smartcontractkit/chainlink/deployment/ccip/changeset/v1_6"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 
@@ -74,8 +73,14 @@ func deployOnRamp(b operations.Bundle, deps TonDeps, in DeployOnRampInput) (Depl
 	return output, nil
 }
 
+type OnRampDestinationUpdate struct {
+	IsEnabled        bool // If false, disables the destination by setting router to 0x0.
+	TestRouter       bool // Flag for safety only allow specifying either router or testRouter.
+	AllowListEnabled bool
+}
+
 type UpdateOnRampDestChainConfigsInput struct {
-	Updates map[uint64]v1_6.OnRampDestinationUpdate
+	Updates map[uint64]OnRampDestinationUpdate
 }
 
 type UpdateOnRampDestChainConfigsOutput struct {

@@ -46,7 +46,6 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 	env.Logger.Infof("TON_E2E: Deploying contracts for TON chains: %v", config.TonChainSelector)
 	selector := config.TonChainSelector
 
-	ab := cldf.NewMemoryAddressBook()
 	seqReports := make([]operations.Report[any, any], 0)
 	proposals := make([]mcms.TimelockProposal, 0)
 
@@ -127,7 +126,6 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 
 	// TODO: generate MCMS proposal or execute
 	return cldf.ChangesetOutput{
-		AddressBook:           ab,
 		MCMSTimelockProposals: proposals,
 		Reports:               seqReports,
 	}, nil
