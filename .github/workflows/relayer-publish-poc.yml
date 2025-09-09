@@ -145,9 +145,9 @@ jobs:
         id: build-and-push
         uses: smartcontractkit/.github/actions/build-push-docker@build-push-docker/0.7.0
         with:
-          platform: arm64
+          platform: linux/amd64
           tags: |
-            type=sha,suffix=arm64,sha=${{ github.ref_name }}
+            type=sha,suffix=amd64,sha=${{ github.ref_name }}
           docker-registry-url: format('{0}.dkr.ecr.{1}.amazonaws.com', secrets.AWS_ACCOUNT_ID_STAGING, vars.AWS_REGION)
           docker-repository-name: chainlink-plugins-dev
           dockerfile: plugins/chainlink.Dockerfile
