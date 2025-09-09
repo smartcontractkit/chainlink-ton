@@ -69,6 +69,7 @@ sequenceDiagram
     TRC ->> OR: Bounced{GetTokenPoolInfo{msgId, ccipSend}}
     Note over OR: get ccipSend from storage by<br>msgId Refund Jettons [...]
     else Supported Token
+    TRC ->> OR: TokenPoolInfo{address}
 
     OR ->> ORJW: TransferRequest { amount,<br>destination: TokenPoolA,<br>fwdPayload: msgId }
     
@@ -76,7 +77,7 @@ sequenceDiagram
     TPJW ->> TP: TransferNotification {<br>sender, amount,<br>fwdPayload: msgId }
     Note over TP: consume rate limit
     alt Rate limit error
-    Note over TP: Refund Jettons [...]
+    Note over TP, TPJW: Refund Jettons [...]
 
     else Consumes rate limit
     TP ->> OR: commitedLockOrBurn{msgId}
