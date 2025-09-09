@@ -17,7 +17,9 @@ jobs:
       # run both suites even if one fails
       fail-fast: false
       matrix:
-        test-suite: ["short", "all"]
+        # We currently don't have a big time difference between short and all tests, but this can be reenabled in the future.
+        # test-suite: ["short", "all"]
+        test-suite: ["all"]
 
     steps:
       - name: Check out code
@@ -47,4 +49,3 @@ jobs:
             echo "Running all tests..."
             nix develop .#ccip-e2e -c go test -v -count=1 -p=1 -timeout 30m ./...
           fi
-
