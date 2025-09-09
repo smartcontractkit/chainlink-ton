@@ -185,7 +185,7 @@ jobs:
   # TODO Update parameters to build the core image if it does not exist
   build-and-publish-core-with-docker:
     needs: get-core-image
-    if: ${{ needs.get-core-image.outputs.base_image_already_exists != 'true' }} && (${{ github.event_name != 'pull_request' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'build-publish-docker')) }})
+    if: ${{ needs.get-core-image.outputs.base_image_already_exists != 'true' }}
     name: Build & Publish Chainlink Core Docker Image
     permissions:
       contents: read
