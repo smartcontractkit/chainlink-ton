@@ -51,7 +51,7 @@ jobs:
         uses: aws-actions/amazon-ecr-login@062b18b96a7aff071d4dc91bc00c4c1a7945b076 # v2.0.1
         with:
           mask-password: "true"
-          registries: "${{ secrets.AWS_ACCOUNT_ID_STAGING}}"
+          registries: "${{ secrets.AWS_ACCOUNT_ID_STAGING}}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com"
 
       - name: Checkout chainlink-ton Repository
         uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
@@ -141,7 +141,7 @@ jobs:
           else
             echo "Checking if Chainlink Core image exist or we need to built it"
 
-            if docker pull ghcr.io/myorg/myimage:latest; then
+            if docker pull "${{ steps.determine-base-image.outputs.BASE_IMAGE }}"; then
               echo "Chainlink Core image ${{ steps.determine-base-image.outputs.BASE_IMAGE }} exist in the ECR. We can use it in the build step"
               echo "Saving Chainlink Core image to tarball…"
 
