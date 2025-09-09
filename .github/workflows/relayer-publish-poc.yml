@@ -148,7 +148,7 @@ jobs:
           platform: linux/amd64
           tags: |
             type=sha,suffix=amd64,sha=${{ github.ref_name }}
-          docker-registry-url: format('{0}.dkr.ecr.{1}.amazonaws.com', secrets.AWS_ACCOUNT_ID_STAGING, vars.AWS_REGION)
+          docker-registry-url: ${{ secrets.AWS_ACCOUNT_ID_STAGING }}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com
           docker-repository-name: chainlink-plugins-dev
           dockerfile: plugins/chainlink.Dockerfile
           docker-build-args: |
