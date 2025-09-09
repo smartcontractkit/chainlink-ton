@@ -26,7 +26,8 @@ jobs:
       DOCKER_CACHE_TAR_NAME: ccip-chainlink-core-sha-cache.tar
     outputs:
       base_image: ${{ steps.determine-base-image.outputs.BASE_IMAGE }}
-      base_image_with_no_repository: ${{ steps.determine-base-image.outputs.BASE_IMAGE_WITH_NO_REPOSITORY }}
+      base_image_tag: ${{ steps.determine-base-image.outputs.BASE_IMAGE_TAG }}
+      base_image_public: ${{ steps.determine-base-image.outputs.BASE_IMAGE_PUBLIC }}
       base_image_already_exists: ${{ steps.check-if-image-is-available.outputs.EXISTS }}
       core_ref: ${{ steps.read_core_ref.outputs.CORE_REF }}
       core_ref_short: ${{ steps.determine_core_ref_short.outputs.CORE_REF_SHORT }}
@@ -91,11 +92,12 @@ jobs:
           if [[ "${{ steps.detect_core_ref_is_sha.outputs.is_sha }}" == "true" ]]; then
             # TODO Replace this with the real name once we build this for the first time  
             echo "BASE_IMAGE=${{ secrets.AWS_ACCOUNT_ID_STAGING}}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com/chainlink-plugins-dev:${{ steps.determine_core_ref_short.outputs.CORE_REF_SHORT }}-core-for-chainlink-ton" >> $GITHUB_OUTPUT
-            echo "BASE_IMAGE_WITH_NO_REPOSITORY=chainlink-plugins-dev:${{ steps.determine_core_ref_short.outputs.CORE_REF_SHORT }}-core-for-chainlink-ton" >> $GITHUB_OUTPUT
-            # echo "BASE_IMAGE=${{ secrets.AWS_ACCOUNT_ID_STAGING}}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com/chainlink-plugins-dev@sha256:127228162a52b867d26afdcc84ca6b0c85d9691bb15d5c07c212ccbafb3ecf62" >> $GITHUB_OUTPUT
+            echo "BASE_IMAGE_TAG=${{ steps.determine_core_ref_short.outputs.CORE_REF_SHORT }}-core-for-chainlink-ton" >> $GITHUB_OUTPUT
+            echo "BASE_IMAGE_PUBLIC=false" >> $GITHUB_OUTPUT
           else
             echo "BASE_IMAGE=${{ env.CHAINLINK_PUBLIC_ECR_IMAGE }}:${{ steps.read_core_ref.outputs.CORE_REF }}" >> $GITHUB_OUTPUT
-            echo "BASE_IMAGE_WITH_NO_REPOSITORY=$BASE_IMAGE" >> $GITHUB_OUTPUT
+            echo "BASE_IMAGE_TAG=${{ steps.read_core_ref.outputs.CORE_REF }}" >> $GITHUB_OUTPUT
+            echo "BASE_IMAGE_PUBLIC=true" >> $GITHUB_OUTPUT
           fi
 
       - name: Debug To Be Removed
@@ -157,6 +159,8 @@ jobs:
         id: get-core-image-output
         run: |
           echo "BASE_IMAGE=${{ steps.determine-base-image.outputs.BASE_IMAGE }}"
+          echo "BASE_IMAGE_TAG=${{ steps.determine-base-image.outputs.BASE_IMAGE_TAG }}"
+          echo "BASE_IMAGE_PUBLIC=${{ steps.check-if-image-is-available.outputs.BASE_IMAGE_PUBLIC }}"
           echo "BASE_IMAGE_ALREADY_EXISTS=${{ steps.check-if-image-is-available.outputs.EXISTS }}"
           echo "CORE_REF=${{ steps.read_core_ref.outputs.CORE_REF }}"
           echo "CORE_REF_SHORT=${{ steps.determine_core_ref_short.outputs.CORE_REF_SHORT }}"
@@ -179,7 +183,7 @@ jobs:
         CHAINLINK_USER=chainlink
         COMMIT_SHA=${{ needs.get-core-image.outputs.core_ref }}
       docker-manifest-sign: false
-      docker-image-tag-override: ${{ needs.get-core-image.outputs.core_ref_short }}-core-for-chainlink-ton
+      docker-image-tag-override: ${{ needs.get-core-image.outputs.base_image_tag }}
       git-sha: ${{ needs.get-core-image.outputs.core_ref }}
       github-event-name: ${{ github.event_name }}
       github-ref-name: ${{ github.ref_name }}
@@ -221,4 +225,4 @@ jobs:
       DOCKER_BUILD_ARGS: |
         CHAINLINK_USER=chainlink
         COMMIT_SHA=${{ github.sha }}
-        BASE_IMAGE=${{ secrets.AWS_ACCOUNT_ID_STAGING}}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com/${{ needs.get-core-image.outputs.base_image_with_no_repository }}
+        BASE_IMAGE=${{ needs.get-core-image.outputs.base_image_public == 'true' && needs.get-core-image.outputs.base_image || format('{0}.dkr.ecr.{1}.amazonaws.com/chainlink-plugins-dev:{2}', secrets.AWS_ACCOUNT_ID_STAGING, vars.AWS_REGION, needs.get-core-image.outputs.base_image_tag) }}
