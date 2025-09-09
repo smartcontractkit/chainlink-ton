@@ -26,6 +26,7 @@ jobs:
       DOCKER_CACHE_TAR_NAME: ccip-chainlink-core-sha-cache.tar
     outputs:
       base_image: ${{ steps.determine-base-image.outputs.BASE_IMAGE }}
+      base_image_with_no_repository: ${{ steps.determine-base-image.outputs.BASE_IMAGE_WITH_NO_REPOSITORY }}
       base_image_already_exists: ${{ steps.check-if-image-is-available.outputs.EXISTS }}
       core_ref: ${{ steps.read_core_ref.outputs.CORE_REF }}
       core_ref_short: ${{ steps.determine_core_ref_short.outputs.CORE_REF_SHORT }}
@@ -90,9 +91,11 @@ jobs:
           if [[ "${{ steps.detect_core_ref_is_sha.outputs.is_sha }}" == "true" ]]; then
             # TODO Replace this with the real name once we build this for the first time  
             echo "BASE_IMAGE=${{ secrets.AWS_ACCOUNT_ID_STAGING}}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com/chainlink-plugins-dev:${{ steps.determine_core_ref_short.outputs.CORE_REF_SHORT }}-core-for-chainlink-ton" >> $GITHUB_OUTPUT
+            echo "BASE_IMAGE_WITH_NO_REPOSITORY=chainlink-plugins-dev:${{ steps.determine_core_ref_short.outputs.CORE_REF_SHORT }}-core-for-chainlink-ton" >> $GITHUB_OUTPUT
             # echo "BASE_IMAGE=${{ secrets.AWS_ACCOUNT_ID_STAGING}}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com/chainlink-plugins-dev@sha256:127228162a52b867d26afdcc84ca6b0c85d9691bb15d5c07c212ccbafb3ecf62" >> $GITHUB_OUTPUT
           else
             echo "BASE_IMAGE=${{ env.CHAINLINK_PUBLIC_ECR_IMAGE }}:${{ steps.read_core_ref.outputs.CORE_REF }}" >> $GITHUB_OUTPUT
+            echo "BASE_IMAGE_WITH_NO_REPOSITORY=$BASE_IMAGE" >> $GITHUB_OUTPUT
           fi
 
       - name: Debug To Be Removed
@@ -158,24 +161,6 @@ jobs:
           echo "CORE_REF=${{ steps.read_core_ref.outputs.CORE_REF }}"
           echo "CORE_REF_SHORT=${{ steps.determine_core_ref_short.outputs.CORE_REF_SHORT }}"
 
-  debug-wf:
-    name: Debug
-    runs-on: ubuntu-24.04
-    needs: get-core-image
-    permissions:
-      id-token: write
-      contents: read
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - name: Get Core Image Output
-        id: debug-outputs-2
-        run: |
-          echo "BASE_IMAGE=${{ needs.get-core-image.outputs.base_image }}"
-          echo "BASE_IMAGE_ALREADY_EXISTS=${{ needs.get-core-image.outputs.base_image_already_exists }}"
-          echo "CORE_REF=${{ needs.get-core-image.outputs.core_ref }}"
-          echo "CORE_REF_SHORT=${{ needs.get-core-image.outputs.core_ref_short }}"
-
   build-and-publish-core-with-docker:
     needs: get-core-image
     if: ${{ needs.get-core-image.outputs.base_image_already_exists != 'true' && (github.event_name != 'pull_request' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'build-publish-docker'))) }}
@@ -224,11 +209,12 @@ jobs:
       docker-build-args: |
         CHAINLINK_USER=chainlink
         COMMIT_SHA=${{ github.sha }}
-        BASE_IMAGE=${{ needs.get-core-image.outputs.base_image }}
+        BASE_IMAGE=$AWS_ACCOUNT_ID.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com/${{ needs.get-core-image.outputs.base_image_with_no_repository }}
         TODO=${{ needs.get-core-image.outputs.core_ref_short }}
         TODO2=${{ needs.get-core-image.outputs.core_ref }}
         TODO3=${{ needs.get-core-image.outputs.base_image_already_exists }}
         TODO4=${{ needs.get-core-image.outputs.base_image }}
+        TODO5=${{ needs.get-core-image.outputs.base_image_with_no_repository }}
       docker-manifest-sign: true
       docker-tag-custom-suffix: "-chainlink-ton"
       git-sha: ${{ github.sha }}
