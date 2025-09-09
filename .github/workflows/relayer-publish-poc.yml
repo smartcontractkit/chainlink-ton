@@ -76,9 +76,9 @@ jobs:
         id: determine-base-image
         run: |
           if [[ "${{ steps.detect_core_ref_is_sha.outputs.is_sha }}" == "true" ]]; then
-            # echo "BASE_IMAGE=${{ secrets.AWS_ACCOUNT_ID_STAGING}}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com/chainlink_ton_core_local:${{ steps.read_core_ref.outputs.CORE_REF }}" >> $GITHUB_OUTPUT
-            # TODO Replace this with the real name once we build this for the first time
-            echo "BASE_IMAGE=${{ secrets.AWS_ACCOUNT_ID_STAGING}}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com/chainlink-plugins-dev@sha256:127228162a52b867d26afdcc84ca6b0c85d9691bb15d5c07c212ccbafb3ecf62" >> $GITHUB_OUTPUT
+            # TODO Replace this with the real name once we build this for the first time  
+            echo "BASE_IMAGE=${{ secrets.AWS_ACCOUNT_ID_STAGING}}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com/chainlink_ton_core_local:${{ steps.read_core_ref.outputs.CORE_REF }}" >> $GITHUB_OUTPUT
+            # echo "BASE_IMAGE=${{ secrets.AWS_ACCOUNT_ID_STAGING}}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com/chainlink-plugins-dev@sha256:127228162a52b867d26afdcc84ca6b0c85d9691bb15d5c07c212ccbafb3ecf62" >> $GITHUB_OUTPUT
           else
             echo "BASE_IMAGE=${{ env.CHAINLINK_PUBLIC_ECR_IMAGE }}:${{ steps.read_core_ref.outputs.CORE_REF }}" >> $GITHUB_OUTPUT
           fi
