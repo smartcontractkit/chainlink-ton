@@ -2,6 +2,7 @@
   pkgs,
   rev,
 }: let
+  lock = pkgs.callPackage ./lock.nix {inherit pkgs;};
   package-info = builtins.fromJSON (builtins.readFile ../../pkg/package.json);
 in
   pkgs.buildGo124Module rec {
@@ -18,7 +19,7 @@ in
     ];
 
     # pin the vendor hash (update using 'pkgs.lib.fakeHash')
-    vendorHash = "sha256-c/RgeKbesYsxsNwGFa8UF13fxCGbqneMCRX9MSG3wmw=";
+    vendorHash = lock.chainlink-ton;
 
     # postInstall script to write version and rev to share folder
     postInstall = ''
