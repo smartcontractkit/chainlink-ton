@@ -53,7 +53,7 @@ var (
 		DefaultTokenFeeUSDCents:           25,
 		DefaultTokenDestGasOverhead:       90_000,
 		DefaultTxGasLimit:                 200_000,
-		GasMultiplierWeiPerEth:            11e8,
+		GasMultiplierWeiPerEth:            11e17,
 		GasPriceStalenessThreshold:        0,
 		NetworkFeeUSDCents:                10,
 	}
