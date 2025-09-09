@@ -38,20 +38,20 @@ jobs:
           aws-region: ${{ vars.AWS_REGION }}
           aws-role-duration-seconds: "1800"
 
-      # - name: Configure AWS Credentials
-      #   uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502 # v4.0.2
-      #   with:
-      #     aws-region: ${{ vars.AWS_REGION }}
-      #     role-to-assume: ${{ secrets.AWS_ROLE_PUBLISH_ARN_STAGING }}
-      #     role-duration-seconds: 3600
-      #     mask-aws-account-id: true
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502 # v4.0.2
+        with:
+          aws-region: ${{ vars.AWS_REGION }}
+          role-to-assume: ${{ secrets.AWS_ROLE_PUBLISH_ARN_STAGING }}
+          role-duration-seconds: 3600
+          mask-aws-account-id: true
 
-      # - name: Login to Amazon ECR
-      #   id: login-ecr
-      #   uses: aws-actions/amazon-ecr-login@062b18b96a7aff071d4dc91bc00c4c1a7945b076 # v2.0.1
-      #   with:
-      #     mask-password: "true"
-      #     registries: "${{ secrets.AWS_ACCOUNT_ID_STAGING}}"
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@062b18b96a7aff071d4dc91bc00c4c1a7945b076 # v2.0.1
+        with:
+          mask-password: "true"
+          registries: "${{ secrets.AWS_ACCOUNT_ID_STAGING}}"
 
       - name: Checkout chainlink-ton Repository
         uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
