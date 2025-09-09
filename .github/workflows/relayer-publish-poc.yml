@@ -140,6 +140,26 @@ jobs:
             -t ${{ steps.determine-base-image.outputs.BASE_IMAGE }} \
             -f plugins/chainlink.Dockerfile .
 
+      # Test build
+      - name: Docker image build
+        id: build-and-push
+        uses: smartcontractkit/.github/actions/build-push-docker@build-push-docker/0.7.0
+        with:
+          platform: amd64
+          tags: |
+            type=sha,suffix=amd64,sha=${{ github.ref_name }}
+          docker-registry-url: format('{0}.dkr.ecr.{1}.amazonaws.com', secrets.AWS_ACCOUNT_ID_STAGING, vars.AWS_REGION)
+          docker-repository-name: chainlink-plugins-dev
+          dockerfile: plugins/chainlink.Dockerfile
+          docker-build-args: |
+            CHAINLINK_USER=chainlink
+            COMMIT_SHA=${{ github.sha }}
+          context: .
+          aws-account-number: ${{ secrets.AWS_ACCOUNT_ID_STAGING }}
+          aws-role-arn: ${{ secrets.AWS_ROLE_PUBLISH_ARN_STAGING }}
+          aws-region: ${{ vars.AWS_REGION }}
+          github-token: ${{ steps.set-token.outputs.access-token || '' }}
+
       - name: Debug
         id: debug-3
         run: |
@@ -151,44 +171,35 @@ jobs:
           echo "Saving to tarball…"
           docker save ${{ steps.determine-base-image.outputs.BASE_IMAGE }} \
             -o ${{ env.DOCKER_CACHE_DIR }}/${{ steps.read_core_ref.outputs.CORE_REF }}-${{ env.DOCKER_CACHE_TAR_NAME_SUFFIX }}
-      
-      - name: Setup GitHub token using GATI
-        id: set-token-2
-        uses: smartcontractkit/.github/actions/setup-github-token@setup-github-token/1.0.0
-        with:
-          aws-role-arn: ${{ secrets.AWS_ROLE_ARN_GATI_READONLY }}
-          aws-lambda-url: ${{ secrets.AWS_LAMBDA_URL_GATI }}
-          aws-region: ${{ vars.AWS_REGION }}
-          aws-role-duration-seconds: "1800"
 
-  build-publish-docker:
-    needs: build-or-get-core
-    name: Build & Publish Docker Image
-    # Non-PR → run; PR → only if label present
-    if: ${{ github.event_name != 'pull_request' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'build-publish-docker')) }}
-    permissions:
-      contents: read
-      id-token: write
-    uses: smartcontractkit/.github/.github/workflows/reusable-docker-build-publish.yml@317784689643295083653d9c9d08d34d8e379a7f # 2025-05-13
-    with:
-      aws-ecr-name: chainlink-plugins-dev
-      aws-region-ecr: ${{ vars.AWS_REGION }}
-      aws-region-gati: ${{ vars.AWS_REGION }}
-      dockerfile: scripts/build/Dockerfile.build.nix
-      docker-build-context: .
-      docker-build-args: |
-        CHAINLINK_USER=chainlink
-        COMMIT_SHA=${{ github.sha }}
-        BASE_IMAGE=${{ needs.build-or-get-core.outputs.base_image }}
-      docker-manifest-sign: true
-      docker-tag-custom-suffix: "-chainlink-ton"
-      git-sha: ${{ github.sha }}
-      github-event-name: ${{ github.event_name }}
-      github-ref-name: ${{ github.ref_name }}
-      github-ref-type: ${{ github.ref_type }}
-      github-workflow-repository: ${{ github.repository }}
-    secrets:
-      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID_STAGING }}
-      AWS_ROLE_PUBLISH_ARN: ${{ secrets.AWS_ROLE_PUBLISH_ARN_STAGING }}
-      AWS_ROLE_GATI_ARN: ${{ secrets.AWS_ROLE_ARN_GATI_READONLY }}
-      AWS_LAMBDA_GATI_URL: ${{ secrets.AWS_LAMBDA_URL_GATI }}
+  # build-publish-docker:
+  #   needs: build-or-get-core
+  #   name: Build & Publish Docker Image
+  #   # Non-PR → run; PR → only if label present
+  #   if: ${{ github.event_name != 'pull_request' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'build-publish-docker')) }}
+  #   permissions:
+  #     contents: read
+  #     id-token: write
+  #   uses: smartcontractkit/.github/.github/workflows/reusable-docker-build-publish.yml@317784689643295083653d9c9d08d34d8e379a7f # 2025-05-13
+  #   with:
+  #     aws-ecr-name: chainlink-plugins-dev
+  #     aws-region-ecr: ${{ vars.AWS_REGION }}
+  #     aws-region-gati: ${{ vars.AWS_REGION }}
+  #     dockerfile: scripts/build/Dockerfile.build.nix
+  #     docker-build-context: .
+  #     docker-build-args: |
+  #       CHAINLINK_USER=chainlink
+  #       COMMIT_SHA=${{ github.sha }}
+  #       BASE_IMAGE=${{ needs.build-or-get-core.outputs.base_image }}
+  #     docker-manifest-sign: true
+  #     docker-tag-custom-suffix: "-chainlink-ton"
+  #     git-sha: ${{ github.sha }}
+  #     github-event-name: ${{ github.event_name }}
+  #     github-ref-name: ${{ github.ref_name }}
+  #     github-ref-type: ${{ github.ref_type }}
+  #     github-workflow-repository: ${{ github.repository }}
+  #   secrets:
+  #     AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID_STAGING }}
+  #     AWS_ROLE_PUBLISH_ARN: ${{ secrets.AWS_ROLE_PUBLISH_ARN_STAGING }}
+  #     AWS_ROLE_GATI_ARN: ${{ secrets.AWS_ROLE_ARN_GATI_READONLY }}
+  #     AWS_LAMBDA_GATI_URL: ${{ secrets.AWS_LAMBDA_URL_GATI }}
