@@ -27,6 +27,7 @@ jobs:
     outputs:
       base_image: ${{ steps.determine-base-image.outputs.BASE_IMAGE }}
       base_image_already_exists: ${{ steps.check-if-image-is-available.outputs.EXISTS }}
+      core_ref: ${{ steps.read_core_ref.outputs.CORE_REF }}
     steps:
       - name: Setup GitHub token using GATI
         id: set-token
@@ -161,10 +162,10 @@ jobs:
       docker-build-context: .
       docker-build-args: |
         CHAINLINK_USER=chainlink
-        COMMIT_SHA=${{ github.sha }}
+        COMMIT_SHA=${{ needs.get-core-image.outputs.core_ref }}
       docker-manifest-sign: true
       docker-tag-custom-suffix: "-core-for-chainlink-ton"
-      git-sha: ${{ github.sha }}
+      git-sha: ${{ needs.get-core-image.outputs.core_ref }}
       github-event-name: ${{ github.event_name }}
       github-ref-name: ${{ github.ref_name }}
       github-ref-type: ${{ github.ref_type }}
