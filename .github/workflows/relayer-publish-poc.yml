@@ -144,44 +144,6 @@ jobs:
           echo "BASE_IMAGE=${{ steps.determine-base-image.outputs.BASE_IMAGE }}"
           echo "BASE_IMAGE_ALREADY_EXISTS=${{ steps.check-if-image-is-available.outputs.EXISTS }}"
 
-      # - name: Checkout Chainlink Core repo
-      #   if: steps.detect_core_ref_is_sha.outputs.is_sha == 'true' && steps.check-if-image-is-available.outputs.exists == 'false'
-      #   id: checkout-core
-      #   uses: actions/checkout@v4
-      #   with:
-      #     repository: smartcontractkit/chainlink
-      #     ref: ${{ steps.read_core_ref.outputs.CORE_REF }}
-      #     path: temp/chainlink
-
-      # - name: Build Chainlink Image
-      #   if: steps.detect_core_ref_is_sha.outputs.is_sha == 'true' && steps.check-if-image-is-available.outputs.exists == 'false'
-      #   id: build-core
-      #   env:
-      #     GIT_AUTH_TOKEN: ${{ steps.set-token.outputs.access-token }}
-      #   run: |
-      #     cd temp/chainlink
-
-      #     echo "🔎 Building from commit: $(git rev-parse HEAD)"
-      #     echo "🔎 Commit message: $(git log -1 --pretty=%B)"
-      #     echo "🔎 Branch: $(git rev-parse --abbrev-ref HEAD)"
-      #     echo "🔎 Dockerfile: plugins/chainlink.Dockerfile"
-      #     echo "🔎 Build context: $(pwd)"
-      #     ls -sa
-
-      #     docker buildx build \
-      #       --secret id=GIT_AUTH_TOKEN \
-      #       --build-arg COMMIT_SHA=$(git rev-parse HEAD) \
-      #       -t ${{ steps.determine-base-image.outputs.BASE_IMAGE }} \
-      #       -f plugins/chainlink.Dockerfile .
-      
-
-      # - name: Save the Core Image Just Built
-      #   if: steps.detect_core_ref_is_sha.outputs.is_sha == 'true' && steps.check-if-image-is-available.outputs.exists == 'false'
-      #   run: |
-      #     echo "Saving to tarball…"
-      #     docker save ${{ steps.determine-base-image.outputs.BASE_IMAGE }} \
-      #       -o ${{ env.DOCKER_CACHE_DIR }}/${{ steps.read_core_ref.outputs.CORE_REF }}-${{ env.DOCKER_CACHE_TAR_NAME_NON_SHA }}
-
   # TODO Update parameters to build the core image if it does not exist
   build-and-publish-core-with-docker:
     needs: get-core-image
@@ -190,7 +152,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    uses: smartcontractkit/.github/.github/workflows/reusable-docker-build-publish.yml@317784689643295083653d9c9d08d34d8e379a7f # 2025-05-13
+    uses: smartcontractkit/.github/.github/workflows/reusable-docker-build-publish.yml@6d24cc0003b42bd99f593baa7198543d79505468 # @kristijan PR
     with:
       aws-ecr-name: chainlink-plugins-dev
       aws-region-ecr: ${{ vars.AWS_REGION }}
@@ -200,48 +162,47 @@ jobs:
       docker-build-args: |
         CHAINLINK_USER=chainlink
         COMMIT_SHA=${{ github.sha }}
-        CHAINLINK_IMAGE_ALREADY_EXISTS=${{ needs.get-core-image.outputs.base_image_already_exists }}
       docker-manifest-sign: true
       docker-tag-custom-suffix: "-core-for-chainlink-ton"
       git-sha: ${{ github.sha }}
       github-event-name: ${{ github.event_name }}
       github-ref-name: ${{ github.ref_name }}
       github-ref-type: ${{ github.ref_type }}
-      github-workflow-repository: ${{ github.repository }}
+      github-workflow-repository: chainlink
     secrets:
       AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID_STAGING }}
       AWS_ROLE_PUBLISH_ARN: ${{ secrets.AWS_ROLE_PUBLISH_ARN_STAGING }}
       AWS_ROLE_GATI_ARN: ${{ secrets.AWS_ROLE_ARN_GATI_READONLY }}
       AWS_LAMBDA_GATI_URL: ${{ secrets.AWS_LAMBDA_URL_GATI }}
 
-  build-and-publish-core-with-relayer-docker:
-    needs: [get-core-image, build-and-publish-core-with-docker]
-    name: Build & Publish Chainlink Core Docker Image with Relayer
-    # Non-PR → run; PR → only if label present
-    if: ${{ github.event_name != 'pull_request' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'build-publish-docker')) }}
-    permissions:
-      contents: read
-      id-token: write
-    uses: smartcontractkit/.github/.github/workflows/reusable-docker-build-publish.yml@317784689643295083653d9c9d08d34d8e379a7f # 2025-05-13
-    with:
-      aws-ecr-name: chainlink-plugins-dev
-      aws-region-ecr: ${{ vars.AWS_REGION }}
-      aws-region-gati: ${{ vars.AWS_REGION }}
-      dockerfile: scripts/build/Dockerfile.build.nix
-      docker-build-context: .
-      docker-build-args: |
-        CHAINLINK_USER=chainlink
-        COMMIT_SHA=${{ github.sha }}
-        BASE_IMAGE=${{ needs.get-core-image.outputs.base_image }}
-      docker-manifest-sign: true
-      docker-tag-custom-suffix: "-chainlink-ton"
-      git-sha: ${{ github.sha }}
-      github-event-name: ${{ github.event_name }}
-      github-ref-name: ${{ github.ref_name }}
-      github-ref-type: ${{ github.ref_type }}
-      github-workflow-repository: ${{ github.repository }}
-    secrets:
-      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID_STAGING }}
-      AWS_ROLE_PUBLISH_ARN: ${{ secrets.AWS_ROLE_PUBLISH_ARN_STAGING }}
-      AWS_ROLE_GATI_ARN: ${{ secrets.AWS_ROLE_ARN_GATI_READONLY }}
-      AWS_LAMBDA_GATI_URL: ${{ secrets.AWS_LAMBDA_URL_GATI }}
+  # build-and-publish-core-with-relayer-docker:
+  #   needs: [get-core-image, build-and-publish-core-with-docker]
+  #   name: Build & Publish Chainlink Core Docker Image with Relayer
+  #   # Non-PR → run; PR → only if label present
+  #   if: ${{ github.event_name != 'pull_request' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'build-publish-docker')) }}
+  #   permissions:
+  #     contents: read
+  #     id-token: write
+  #   uses: smartcontractkit/.github/.github/workflows/reusable-docker-build-publish.yml@317784689643295083653d9c9d08d34d8e379a7f # 2025-05-13
+  #   with:
+  #     aws-ecr-name: chainlink-plugins-dev
+  #     aws-region-ecr: ${{ vars.AWS_REGION }}
+  #     aws-region-gati: ${{ vars.AWS_REGION }}
+  #     dockerfile: scripts/build/Dockerfile.build.nix
+  #     docker-build-context: .
+  #     docker-build-args: |
+  #       CHAINLINK_USER=chainlink
+  #       COMMIT_SHA=${{ github.sha }}
+  #       BASE_IMAGE=${{ needs.get-core-image.outputs.base_image }}
+  #     docker-manifest-sign: true
+  #     docker-tag-custom-suffix: "-chainlink-ton"
+  #     git-sha: ${{ github.sha }}
+  #     github-event-name: ${{ github.event_name }}
+  #     github-ref-name: ${{ github.ref_name }}
+  #     github-ref-type: ${{ github.ref_type }}
+  #     github-workflow-repository: ${{ github.repository }}
+  #   secrets:
+  #     AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID_STAGING }}
+  #     AWS_ROLE_PUBLISH_ARN: ${{ secrets.AWS_ROLE_PUBLISH_ARN_STAGING }}
+  #     AWS_ROLE_GATI_ARN: ${{ secrets.AWS_ROLE_ARN_GATI_READONLY }}
+  #     AWS_LAMBDA_GATI_URL: ${{ secrets.AWS_LAMBDA_URL_GATI }}
