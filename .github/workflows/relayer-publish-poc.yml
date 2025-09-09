@@ -195,14 +195,14 @@ jobs:
       aws-ecr-name: chainlink-plugins-dev
       aws-region-ecr: ${{ vars.AWS_REGION }}
       aws-region-gati: ${{ vars.AWS_REGION }}
-      dockerfile: scripts/build/Dockerfile.build.nix
+      dockerfile: plugins/chainlink.Dockerfile
       docker-build-context: .
       docker-build-args: |
         CHAINLINK_USER=chainlink
         COMMIT_SHA=${{ github.sha }}
-        BASE_IMAGE=${{ needs.get-core-image.outputs.base_image }}
+        CHAINLINK_IMAGE_ALREADY_EXISTS=${{ needs.get-core-image.outputs.base_image_already_exists }}
       docker-manifest-sign: true
-      docker-tag-custom-suffix: "-chainlink-ton"
+      docker-tag-custom-suffix: "-core-for-chainlink-ton"
       git-sha: ${{ github.sha }}
       github-event-name: ${{ github.event_name }}
       github-ref-name: ${{ github.ref_name }}
