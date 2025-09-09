@@ -207,6 +207,9 @@ jobs:
         CHAINLINK_USER=chainlink
         COMMIT_SHA=${{ github.sha }}
         BASE_IMAGE=${{ needs.get-core-image.outputs.base_image }}
+        TODO=${{ needs.get-core-image.outputs.core_ref_short }}
+        TODO2=${{ needs.get-core-image.outputs.core_ref }}
+        TODO3=${{ needs.get-core-image.outputs.base_image_already_exists }}
       docker-manifest-sign: true
       docker-tag-custom-suffix: "-chainlink-ton"
       git-sha: ${{ github.sha }}
