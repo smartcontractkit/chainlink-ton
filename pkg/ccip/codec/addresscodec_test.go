@@ -83,21 +83,21 @@ func TestAddressCodec_OracleIDAsAddressBytes(t *testing.T) {
 			name:     "oracleID 0",
 			oracleID: 0,
 			expected: func() []byte {
-				return packOracleID(t, 0)
+				return packOracleID(0)
 			}(),
 		},
 		{
 			name:     "oracleID 1",
 			oracleID: 1,
 			expected: func() []byte {
-				return packOracleID(t, 1)
+				return packOracleID(1)
 			}(),
 		},
 		{
 			name:     "oracleID 255",
 			oracleID: 255,
 			expected: func() []byte {
-				return packOracleID(t, 255)
+				return packOracleID(255)
 			}(),
 		},
 	}
@@ -162,13 +162,10 @@ func TestAddressCodec_TransmitterBytesToString(t *testing.T) {
 	}
 }
 
-func packOracleID(t *testing.T, oracleID uint8) []byte {
+func packOracleID(oracleID uint8) []byte {
 	addr := make([]byte, 32)
 	binary.BigEndian.PutUint32(addr, uint32(oracleID))
 	tonAddr := address.NewAddress(0, 0, addr)
-	decodeString, err := base64.RawURLEncoding.DecodeString(tonAddr.String())
-	if err != nil {
-		t.Fatalf("failed to decode TVM address bytes: %v", err)
-	}
-	return decodeString
+	rawAddr := ToRawAddr(tonAddr)
+	return rawAddr[:]
 }
