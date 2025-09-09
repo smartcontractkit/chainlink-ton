@@ -66,7 +66,7 @@ sequenceDiagram
 
     else enough to cover for fee
     FQ ->> OR: feeValidated{msgID, ccipSend}
-    Note over OR: Calculate TR Cell based<br>on Token Addres
+    Note over OR: Calculate TR Cell based<br>on Token Address
 
     OR ->> TRC: GetTokenPoolInfo{msgID, ccipSend}
 
@@ -87,7 +87,7 @@ sequenceDiagram
     Note over TP, TPJW: Refund Jettons [...]
 
     else Consumes rate limit
-    TP ->> OR: commitedLockOrBurn{msgID} 
+    TP ->> OR: committedLockOrBurn{msgID} 
     OR ->> CS: consumeCcipSend 
     Note over CS: destroy
     destroy CS
