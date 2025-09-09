@@ -22,10 +22,8 @@ jobs:
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       DOCKER_CACHE_DIR: ${{ github.workspace }}/.cache
-      DOCKER_CACHE_KEY_SHA: ccip-chainlink-core-sha-cache-v1
-      DOCKER_CACHE_KEY_NON_SHA: ccip-chainlink-core-non-sha-cache-v1
-      DOCKER_CACHE_TAR_NAME_SHA: ccip-chainlink-core-sha-cache.tar
-      DOCKER_CACHE_TAR_NAME_NON_SHA: ccip-chainlink-core-non-sha-cache.tar
+      DOCKER_CACHE_KEY: ccip-chainlink-core-sha-cache-v1
+      DOCKER_CACHE_TAR_NAME: ccip-chainlink-core-sha-cache.tar
     outputs:
       base_image: ${{ steps.determine-base-image.outputs.BASE_IMAGE }}
     steps:
@@ -78,6 +76,7 @@ jobs:
         run: |
           if [[ "${{ steps.detect_core_ref_is_sha.outputs.is_sha }}" == "true" ]]; then
             # echo "BASE_IMAGE=${{ secrets.AWS_ACCOUNT_ID_STAGING}}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com/chainlink_ton_core_local:${{ steps.read_core_ref.outputs.CORE_REF }}" >> $GITHUB_OUTPUT
+            # TODO Replace this with the real name once we build this for the first time
             echo "BASE_IMAGE=${{ secrets.AWS_ACCOUNT_ID_STAGING}}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com/chainlink-plugins-dev@sha256:127228162a52b867d26afdcc84ca6b0c85d9691bb15d5c07c212ccbafb3ecf62" >> $GITHUB_OUTPUT
           else
             echo "BASE_IMAGE=${{ env.CHAINLINK_PUBLIC_ECR_IMAGE }}:${{ steps.read_core_ref.outputs.CORE_REF }}" >> $GITHUB_OUTPUT
@@ -89,75 +88,48 @@ jobs:
           echo "BASE_IMAGE=$BASE_IMAGE"
           docker images
 
-      - name: Restore Docker Images from Cache When Core Image Ref Is a SHA
-        if: steps.detect_core_ref_is_sha.outputs.is_sha == 'true'
-        id: restore-cache-images-sha
+      - name: Restore Docker Images from Cache
+        if: steps.detect_core_ref_is_sha.outputs.is_sha == 'false'
+        id: restore-cache-images
         uses: actions/cache@v4
         with:
-          path: ${{ env.DOCKER_CACHE_DIR }}/${{ steps.read_core_ref.outputs.CORE_REF }}-${{ env.DOCKER_CACHE_TAR_NAME_SHA }}
-          key: ${{ env.DOCKER_CACHE_KEY_SHA }}-${{ steps.read_core_ref.outputs.CORE_REF }}
+          path: ${{ env.DOCKER_CACHE_DIR }}/${{ steps.read_core_ref.outputs.CORE_REF }}-${{ env.DOCKER_CACHE_TAR_NAME }}
+          key: ${{ env.DOCKER_CACHE_KEY }}-${{ steps.read_core_ref.outputs.CORE_REF }}
 
       - name: Load Docker Images From Cache When Core Image Ref Is a SHA
-        if: steps.restore-cache-images-sha.outputs.cache-hit == 'true'
+        if: steps.detect_core_ref_is_sha.outputs.is_sha == 'false' && steps.restore-cache-images.outputs.cache-hit == 'true'
         run: |
-          echo "Cache hit for key '${{ env.DOCKER_CACHE_KEY_SHA }}-${{ steps.read_core_ref.outputs.CORE_REF }}'. Loading images with sha from tarball..."
-          docker load -i ${{ env.DOCKER_CACHE_DIR }}/${{ steps.read_core_ref.outputs.CORE_REF }}-${{ env.DOCKER_CACHE_TAR_NAME_SHA }}
+          echo "Cache hit for key '${{ env.DOCKER_CACHE_KEY }}-${{ steps.read_core_ref.outputs.CORE_REF }}'. Loading images with sha from tarball..."
+          docker load -i ${{ env.DOCKER_CACHE_DIR }}/${{ steps.read_core_ref.outputs.CORE_REF }}-${{ env.DOCKER_CACHE_TAR_NAME }}
 
       - name: Debug
         id: debug-2
         run: |
           docker images
 
-      - name: Restore Docker Images from Cache When Core Image Ref Is Not a SHA
-        if: steps.detect_core_ref_is_sha.outputs.is_sha == 'false'
-        id: restore-cache-images-non-sha
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.DOCKER_CACHE_DIR }}/${{ steps.read_core_ref.outputs.CORE_REF }}-${{ env.DOCKER_CACHE_TAR_NAME_NON_SHA }}
-          key: ${{ env.DOCKER_CACHE_KEY_NON_SHA }}-${{ steps.read_core_ref.outputs.CORE_REF }}
-
-      - name: Load Docker Images From Cache When Core Image Ref Is Not a SHA
-        if: steps.restore-cache-images-non-sha.outputs.cache-hit == 'true'
-        run: |
-          echo "Cache hit for key '${{ env.DOCKER_CACHE_KEY_NON_SHA }}-${{ steps.read_core_ref.outputs.CORE_REF }}'. Loading images with non-sha from tarball..."
-          docker load -i ${{ env.DOCKER_CACHE_DIR }}/${{ steps.read_core_ref.outputs.CORE_REF }}-${{ env.DOCKER_CACHE_TAR_NAME_NON_SHA }}
-
       - name: Pull & Save Image on Cache Miss When Core Ref Is Not a SHA
-        if: steps.detect_core_ref_is_sha.outputs.is_sha == 'false' && steps.restore-cache-images-non-sha.outputs.cache-hit != 'true'
+        if: steps.detect_core_ref_is_sha.outputs.is_sha == 'false' && steps.restore-cache-images.outputs.cache-hit == 'false'
         run: |
           echo "Cache Miss: Pulling chainlink core image from ${{ steps.determine-base-image.outputs.BASE_IMAGE }}"
           docker pull ${{ steps.determine-base-image.outputs.BASE_IMAGE }}
 
           echo "Saving to tarball…"
           docker save ${{ steps.determine-base-image.outputs.BASE_IMAGE }} \
-            -o ${{ env.DOCKER_CACHE_DIR }}/${{ steps.read_core_ref.outputs.CORE_REF }}-${{ env.DOCKER_CACHE_TAR_NAME_NON_SHA }}
+            -o ${{ env.DOCKER_CACHE_DIR }}/${{ steps.read_core_ref.outputs.CORE_REF }}-${{ env.DOCKER_CACHE_TAR_NAME }}
 
-      - name: Check if There Is A Core Image Already Built for This SHA
-        if: steps.detect_core_ref_is_sha.outputs.is_sha == 'true' && steps.restore-cache-images-sha.outputs.cache-hit != 'true'
+      - name: Check if There Is A Core Image Already Built for the provided SHA
+        if: steps.detect_core_ref_is_sha.outputs.is_sha == 'true'
         id: check-if-image-is-available
         run: |
-          if docker image inspect ${{ steps.determine-base-image.outputs.BASE_IMAGE }} > /dev/null 2>&1; then 
-            echo "Cache Hit: Using existing image ${{ steps.determine-base-image.outputs.BASE_IMAGE }}"
+          echo "Checking if Chainlink Core image exist or we need to built it"
+
+          if docker pull "${{ steps.determine-base-image.outputs.BASE_IMAGE }}"; then
+            echo "Chainlink Core image ${{ steps.determine-base-image.outputs.BASE_IMAGE }} exist in the ECR. We can use it in the build step"
             echo "exists=true" >> $GITHUB_OUTPUT
           else
-            echo "Checking if Chainlink Core image exist or we need to built it"
-
-            if docker pull "${{ steps.determine-base-image.outputs.BASE_IMAGE }}"; then
-              echo "Chainlink Core image ${{ steps.determine-base-image.outputs.BASE_IMAGE }} exist in the ECR. We can use it in the build step"
-              echo "exists=true" >> $GITHUB_OUTPUT
-            else
-              echo "Chainlink Core image ${{ steps.determine-base-image.outputs.BASE_IMAGE }} does not exist in the ECR. We need to built it."
-              echo "exists=false" >> $GITHUB_OUTPUT
-            fi
+            echo "Chainlink Core image ${{ steps.determine-base-image.outputs.BASE_IMAGE }} does not exist in the ECR. We need to built it."
+            echo "exists=false" >> $GITHUB_OUTPUT
           fi
-
-      - name: Save the Core Image That we just pull to cache
-        if: steps.detect_core_ref_is_sha.outputs.is_sha == 'true' && steps.restore-cache-images-sha.outputs.cache-hit != 'true' && steps.check-if-image-is-available.outputs.exists == 'true'
-        run: |
-          echo "Saving "${{ steps.determine-base-image.outputs.BASE_IMAGE }}" to tarball…"
-          docker save ${{ steps.determine-base-image.outputs.BASE_IMAGE }} \
-            -o ${{ env.DOCKER_CACHE_DIR }}/${{ steps.read_core_ref.outputs.CORE_REF }}-${{ env.DOCKER_CACHE_TAR_NAME_NON_SHA }}
-
 
       # - name: Checkout Chainlink Core repo
       #   if: steps.detect_core_ref_is_sha.outputs.is_sha == 'true' && steps.check-if-image-is-available.outputs.exists == 'false'
