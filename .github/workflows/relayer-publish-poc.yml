@@ -113,24 +113,29 @@ jobs:
         if: steps.detect_core_ref_is_sha.outputs.is_sha == 'false' && steps.restore-cache-images.outputs.cache-hit != 'true'
         run: |
           echo "Cache Miss: Pulling chainlink core image from ${{ steps.determine-base-image.outputs.BASE_IMAGE }}"
+          # TODO Check if pull fails when not exist
           docker pull ${{ steps.determine-base-image.outputs.BASE_IMAGE }}
 
           echo "Saving to tarball…"
           docker save ${{ steps.determine-base-image.outputs.BASE_IMAGE }} \
             -o ${{ env.DOCKER_CACHE_DIR }}/${{ steps.read_core_ref.outputs.CORE_REF }}-${{ env.DOCKER_CACHE_TAR_NAME }}
 
-      - name: Check if There Is A Core Image Already Built for the provided SHA
-        if: steps.detect_core_ref_is_sha.outputs.is_sha == 'true'
+      - name: Determine if There Is A Core Image Already Built for the provided SHA
         id: check-if-image-is-available
         run: |
-          echo "Checking if Chainlink Core image exist or we need to built it"
+          echo "Checking if ${{ steps.determine-base-image.outputs.BASE_IMAGE }} Chainlink Core image exist or we need to built it"
 
-          if docker pull "${{ steps.determine-base-image.outputs.BASE_IMAGE }}"; then
-            echo "Chainlink Core image ${{ steps.determine-base-image.outputs.BASE_IMAGE }} exist in the ECR. We can use it in the build step"
+          if ${{ steps.detect_core_ref_is_sha.outputs.is_sha != 'true' }}; then
+            echo "CORE_REF is not a SHA and should have been pull in the previous step"
             echo "EXISTS=true" >> $GITHUB_OUTPUT
           else
-            echo "Chainlink Core image ${{ steps.determine-base-image.outputs.BASE_IMAGE }} does not exist in the ECR. We need to built it."
-            echo "EXISTS=false" >> $GITHUB_OUTPUT
+            if docker pull "${{ steps.determine-base-image.outputs.BASE_IMAGE }}"; then
+              echo "Chainlink Core image ${{ steps.determine-base-image.outputs.BASE_IMAGE }} exist in the ECR. We can use it in the build step"
+              echo "EXISTS=true" >> $GITHUB_OUTPUT
+            else
+              echo "Chainlink Core image ${{ steps.determine-base-image.outputs.BASE_IMAGE }} does not exist in the ECR. We need to built it."
+              echo "EXISTS=false" >> $GITHUB_OUTPUT
+            fi
           fi
 
       - name: Get Core Image Output
