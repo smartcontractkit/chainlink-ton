@@ -98,7 +98,7 @@ jobs:
       - name: Debug To Be Removed
         id: debug
         run: |
-          echo "BASE_IMAGE=$BASE_IMAGE"
+          echo "BASE_IMAGE=${{ steps.determine-base-image.outputs.BASE_IMAGE }}"
           docker images
 
       - name: Restore Docker Image from Cache When Core Image Ref Is Not a SHA
