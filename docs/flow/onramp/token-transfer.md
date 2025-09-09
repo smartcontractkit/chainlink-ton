@@ -4,6 +4,8 @@
 
 > See also [how CCIPSend works](../../contracts/ccip/onramp-ccipsend-storage.md) and [how the Token Registry is implemented](../../contracts/ccip/token-registry.md).
 
+## Any token transfer paid in TON or LINK transfer paid in LINK
+
 ```mermaid
 sequenceDiagram
     participant R as Router
@@ -52,6 +54,8 @@ sequenceDiagram
     Note over OR: Reject CCIPSend
     else Supported Token
     TRC ->> OR: TokenPoolInfo{address}
+
+    Note over OR: If paying with LINK,<br>keep some for fee
 
     OR -->> TP: Transfer T { amount,<br>fwdPayload: msgID }
     

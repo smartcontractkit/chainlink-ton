@@ -22,7 +22,7 @@ sequenceDiagram
     end
 ```
 
-For token transfers paid in TON, the user interface is as follows:
+For token transfers paid in TON, LINK transfers paid in LINK and arbitrary messages paid in LINK, the user interface is as follows:
 
 ```mermaid
 sequenceDiagram
@@ -44,4 +44,4 @@ sequenceDiagram
     end
 ```
 
-TODO: both paid with Link
+TODO: Transfer non-LINK token transfers paid with LINK
