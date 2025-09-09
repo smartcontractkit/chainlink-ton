@@ -168,7 +168,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    uses: smartcontractkit/.github/.github/workflows/reusable-docker-build-publish.yml@6d24cc0003b42bd99f593baa7198543d79505468 # @kristijan PR
+    uses: smartcontractkit/.github/.github/workflows/reusable-docker-build-publish.yml@b9f1725282972837f22590e820dea4ea891c779b # @kristijan PR
     with:
       aws-ecr-name: chainlink-plugins-dev
       aws-region-ecr: ${{ vars.AWS_REGION }}
@@ -199,17 +199,13 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    uses: smartcontractkit/.github/.github/workflows/reusable-docker-build-publish.yml@6d24cc0003b42bd99f593baa7198543d79505468 # @kristijan PR
+    uses: smartcontractkit/.github/.github/workflows/reusable-docker-build-publish.yml@b9f1725282972837f22590e820dea4ea891c779b # @kristijan PR
     with:
       aws-ecr-name: chainlink-plugins-dev
       aws-region-ecr: ${{ vars.AWS_REGION }}
       aws-region-gati: ${{ vars.AWS_REGION }}
       dockerfile: scripts/build/Dockerfile.build.nix
       docker-build-context: .
-      docker-build-args: |
-        CHAINLINK_USER=chainlink
-        COMMIT_SHA=${{ github.sha }}
-        BASE_IMAGE=${{ needs.get-core-image.outputs.base_image_with_no_repository }}
       docker-manifest-sign: true
       docker-tag-custom-suffix: "-chainlink-ton"
       git-sha: ${{ github.sha }}
@@ -222,3 +218,7 @@ jobs:
       AWS_ROLE_PUBLISH_ARN: ${{ secrets.AWS_ROLE_PUBLISH_ARN_STAGING }}
       AWS_ROLE_GATI_ARN: ${{ secrets.AWS_ROLE_ARN_GATI_READONLY }}
       AWS_LAMBDA_GATI_URL: ${{ secrets.AWS_LAMBDA_URL_GATI }}
+      DOCKER_BUILD_ARGS: |
+        CHAINLINK_USER=chainlink
+        COMMIT_SHA=${{ github.sha }}
+        BASE_IMAGE=${{ secrets.AWS_ACCOUNT_ID_STAGING}}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com/${{ needs.get-core-image.outputs.base_image_with_no_repository }}
