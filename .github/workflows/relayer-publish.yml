@@ -124,7 +124,6 @@ jobs:
         if: steps.detect_core_ref_is_sha.outputs.is_sha == 'false' && steps.restore-cache-images.outputs.cache-hit != 'true'
         run: |
           echo "Cache Miss: Pulling chainlink core image from ${{ steps.determine-base-image.outputs.BASE_IMAGE }}"
-          # TODO Check if pull fails when not exist
           docker pull ${{ steps.determine-base-image.outputs.BASE_IMAGE }}
 
           echo "Saving to tarball…"
@@ -166,7 +165,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    uses: smartcontractkit/.github/.github/workflows/reusable-docker-build-publish.yml@b9f1725282972837f22590e820dea4ea891c779b # @kristijan PR
+    uses: smartcontractkit/.github/.github/workflows/reusable-docker-build-publish.yml@b9f1725282972837f22590e820dea4ea891c779b
     with:
       aws-ecr-name: chainlink-plugins-dev
       aws-region-ecr: ${{ vars.AWS_REGION }}
@@ -197,7 +196,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    uses: smartcontractkit/.github/.github/workflows/reusable-docker-build-publish.yml@b9f1725282972837f22590e820dea4ea891c779b # @kristijan PR
+    uses: smartcontractkit/.github/.github/workflows/reusable-docker-build-publish.yml@b9f1725282972837f22590e820dea4ea891c779b
     with:
       aws-ecr-name: chainlink-plugins-dev
       aws-region-ecr: ${{ vars.AWS_REGION }}
