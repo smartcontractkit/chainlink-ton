@@ -172,7 +172,7 @@ describe('CallProxy', () => {
   })
 
   it('should forward empty messages', async () => {
-    const emptyBody = beginCell().endCell()
+    const emptyBody = Cell.EMPTY
 
     const result = await bind.callProxy.sendInternal(deployer.getSender(), toNano('0.5'), emptyBody)
 
@@ -244,7 +244,7 @@ describe('CallProxy', () => {
         const deployResult = await callProxyInstance.sendInternal(
           deployer.getSender(),
           toNano('0.05'),
-          beginCell().endCell(),
+          Cell.EMPTY,
         )
 
         expect(deployResult.transactions).toHaveTransaction({

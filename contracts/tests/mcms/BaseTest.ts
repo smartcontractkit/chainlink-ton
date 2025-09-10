@@ -241,7 +241,7 @@ export class BaseTestSetup {
    * Deploy the callProxy contract and verify deployment
    */
   async deployCallProxyContract() {
-    const body = beginCell().endCell() // TODO change for TopUp msg
+    const body = Cell.EMPTY
     const result = await this.bind.callProxy.sendInternal(
       this.acc.deployer.getSender(),
       toNano('0.05'),
@@ -261,7 +261,7 @@ export class BaseTestSetup {
    */
   async deployCounterContract() {
     // const body = counter.builder.message.in.topUp.encode({ queryId: 1n }) // TODO use TopUp after it is implemented
-    const body = beginCell().endCell()
+    const body = Cell.EMPTY
     const result = await this.bind.counter.sendInternal(
       this.acc.deployer.getSender(),
       toNano('0.05'),
