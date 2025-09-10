@@ -55,10 +55,11 @@ sequenceDiagram
     else Supported Token
     TRC ->> OR: TokenPoolInfo{address}
 
-    OR -->> TP: Transfer T { amount,<br>fwdPayload: msgID }
+    OR -->> TP: Transfer T { amount, fwdPayload: msgID }
     
     Note over TP: consume rate limit
     alt Rate limit error
+    TP -->> OR: Transfer T { amount, fwdPayload: rateLimitExceeded{msgID} }
     Note over OR: Reject CCIPSend *
 
     else Consumes rate limit
