@@ -309,11 +309,10 @@ export class MCMSBaseTestSetup {
    * Deploy the Counter contract and verify deployment
    */
   async deployCounterContract(): Promise<void> {
-    const body = beginCell().endCell() // TODO should import counter.builder.message.in.topUp.encode({ queryId: 1n })
     const result = await this.bind.counter.sendInternal(
       this.acc.deployer.getSender(),
       toNano('2'),
-      body,
+      Cell.EMPTY,
     )
 
     expect(result.transactions).toHaveTransaction({
@@ -399,7 +398,7 @@ export class MCMSBaseTestSetup {
             }
             break
           case MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX:
-            op = beginCell().endCell()
+            op = Cell.EMPTY
             break
           default:
             // use default op

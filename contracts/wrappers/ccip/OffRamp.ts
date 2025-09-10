@@ -172,7 +172,7 @@ export class OffRamp extends OCR3Base {
     await provider.internal(via, {
       value: value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: beginCell().endCell(),
+      body: Cell.EMPTY,
     })
   }
 
@@ -376,7 +376,7 @@ function ExecutionReportToBuilder(report: ExecutionReport) {
         return Any2TVMRampMessageToBuilder(message)
       }),
     )
-    .storeRef(beginCell().endCell()) //TODO: offchainTokenData
+    .storeRef(Cell.EMPTY) //TODO: offchainTokenData
     .storeRef(
       asSnakeData(report.proofs, (proof) => {
         return beginCell().storeUint(proof, 256)
