@@ -200,7 +200,7 @@ jobs:
       aws-ecr-name: chainlink-plugins-dev
       aws-region-ecr: ${{ vars.AWS_REGION }}
       aws-region-gati: ${{ vars.AWS_REGION }}
-      dockerfile: scripts/build/Dockerfile.build.nix
+      dockerfile: scripts/build/Dockerfile.build-final.nix
       docker-build-context: .
       docker-manifest-sign: true
       docker-tag-custom-suffix: "-chainlink-ton"

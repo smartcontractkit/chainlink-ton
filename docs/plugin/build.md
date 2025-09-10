@@ -81,7 +81,7 @@ drwxr-xr-x 1 root root      4096 Apr  4 02:05 ..
 # ...
 ```
 
-### Using Dockerfile.build.nix builder
+### Using Dockerfile.build-final.nix builder
 
 Build the Chainlink core node image using a Nix builder.
 
@@ -90,7 +90,7 @@ Builds a specific Nix package (single bin or a bundle) and layers in the output 
 ```bash
 docker build . \
     -t smartcontract/chainlink-plugins-dev:v0.0.1-beta.1-chainlink-ton \
-    -f ./scripts/build/Dockerfile.build.nix
+    -f ./scripts/build/Dockerfile.build-final.nix
 ```
 
 Or with using specific build args:
@@ -98,7 +98,7 @@ Or with using specific build args:
 ```bash
 docker build . \
     -t smartcontract/chainlink-plugins-dev:v0.0.1-beta.1-chainlink-ton \
-    -f ./scripts/build/Dockerfile.build.nix \
+    -f ./scripts/build/Dockerfile.build-final.nix \
     --build-arg NIX_BUILD_PKG=chainlink-ton \
     --build-arg BASE_IMAGE=public.ecr.aws/chainlink/chainlink:v2.23.0-plugins
 ```

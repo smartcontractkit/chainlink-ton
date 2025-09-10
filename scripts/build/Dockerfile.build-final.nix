@@ -1,6 +1,8 @@
 # syntax = docker/dockerfile:1.4
 # Notice: this is a fork from https://github.com/docker/babashka-pod-docker/blob/main/Dockerfile.nix
 
+# Takes Chainlink core as a base image and layers in plugins
+ARG BASE_IMAGE=public.ecr.aws/chainlink/chainlink:v2.23.0-plugins
 # Build the 'default' pkg if not set
 ARG NIX_BUILD_PKG=default
 
@@ -26,3 +28,11 @@ RUN \
   # Evaluate and copy the symlink contents (build output)
   cp -R /tmp/output/result/ /tmp/build-output
 EOF
+
+# Final image
+FROM ${BASE_IMAGE} AS final
+
+COPY --from=builder /tmp/nix-store-closure /nix/store
+COPY --from=builder /tmp/build-output /usr/local
+
+# TODO: standard entrypoint?

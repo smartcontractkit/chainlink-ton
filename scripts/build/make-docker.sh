@@ -21,7 +21,7 @@ if [[ "$*" == *"--docker-builder"* ]]; then
     # Use the Docker builder
     docker build . \
         -t smartcontract/chainlink-plugins-dev:$PKG_VERSION-$PKG \
-        -f ./scripts/build/Dockerfile.build.nix \
+        -f ./scripts/build/Dockerfile.build-final.nix \
         --build-arg BASE_IMAGE=$BASE_IMAGE
 
     exit 0
