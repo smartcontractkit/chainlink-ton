@@ -43,7 +43,7 @@ type TxLoader interface {
 	// LoadTxsForAddresses retrieves all transactions from multiple source addresses concurrently
 	// within the given block range (prevBlock, toBlock] - exclusive of prevBlock, inclusive of toBlock.
 	LoadTxsForAddresses(ctx context.Context, blockRange *types.BlockRange, srcAddrs []*address.Address) ([]types.TxWithBlock, error)
-	// FetchTxsForAddresses retrieves all transactions from single source address
+	// FetchTxsForAddress retrieves all transactions from single source address
 	// within the given block range (prevBlock, toBlock] - exclusive of prevBlock, inclusive of toBlock.
 	FetchTxsForAddress(ctx context.Context, addr *address.Address, blockRange *types.BlockRange) ([]types.TxWithBlock, error)
 }
@@ -116,6 +116,6 @@ type QueryBuilder[T any] interface {
 
 // LogReader provides a way to retrieve logs without running the full LogPoller service.
 type LogReader interface {
-	// GetLogs retrieves all external message outputs for an address between fromBlock SeqNo (exclusive) and toBlock SeqNo (inclusive).
+	// GetLogs retrieves all external message outputs for an address between fromBlockSeqNo (exclusive) and toBlock (inclusive).
 	GetLogs(ctx context.Context, addr *address.Address, fromBlockSeqNo uint32, toBlock *ton.BlockIDExt) ([]types.Log, error)
 }
