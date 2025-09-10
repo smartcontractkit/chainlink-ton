@@ -127,10 +127,12 @@ func newChain(ctx context.Context, cfg *config.TOMLConfig, loopKs loop.Keystore,
 		Wallet: *signerWallet,
 	}
 
-	txmCfg := txm.DefaultConfigSet
+	// Get TXM configuration from chain config
+	txmCfg := *ch.cfg.TxManager()
 	ch.txm = txm.New(lggr, loopKs, apiClient, txmCfg)
 
-	lgCfg := logpoller.DefaultConfigSet
+	// Get LogPoller configuration from chain config
+	lgCfg := *ch.cfg.LogPollerConfig()
 	fs := inmemorystore.NewFilterStore()
 	lgOpts := &logpoller.ServiceOptions{
 		Config:   lgCfg,
