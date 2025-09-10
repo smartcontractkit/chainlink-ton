@@ -3,6 +3,7 @@ package logpoller
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/xssnick/tonutils-go/address"
@@ -58,7 +59,7 @@ func (lr *logReader) GetLogs(ctx context.Context, addr *address.Address, fromBlo
 		// display "genesis" if nil and don't panic
 		fromSeqNoStr := "genesis"
 		if prevBlock != nil {
-			fromSeqNoStr = fmt.Sprintf("%d", prevBlock.SeqNo)
+			fromSeqNoStr = strconv.FormatUint(uint64(prevBlock.SeqNo), 10)
 		}
 
 		return nil, fmt.Errorf("failed to fetch transactions fromSeqNo=%s, toSeqNo=%d: %w", fromSeqNoStr, toBlock.SeqNo, err)
