@@ -57,7 +57,7 @@ describe('MCMS - RBACTimelockUpdateDelayTest', () => {
 
     const delayChangedMsg = delayChangedTx[0].inMessage!
     const opcode = delayChangedMsg.body.beginParse().preloadUint(32)
-    const delayChangedConfirmation = rbactl.builder.message.out.minDelayChange.decode(
+    const delayChangedConfirmation = rbactl.builder.message.out.minDelayChange.load(
       delayChangedMsg.body,
     )
 

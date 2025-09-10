@@ -1,12 +1,14 @@
 import {
   Address,
   beginCell,
+  Builder,
   Cell,
   Contract,
   contractAddress,
   ContractProvider,
   Sender,
   SendMode,
+  Slice,
 } from '@ton/core'
 import { TypeAndVersion } from '../libraries/TypeAndVersion'
 import * as ownable2step from '../libraries/access/Ownable2Step'
@@ -88,30 +90,25 @@ export const builder = {
   data: (() => {
     // Creates a new `Counter_Data` contract data cell
     const contractData: CellCodec<ContractData> = {
-      encode: (data: ContractData): Cell => {
+      encode: (data: ContractData): Builder => {
         let _pendingOwnerMaybe = data.ownable.pendingOwner
           ? beginCell().storeAddress(data.ownable.pendingOwner)
           : null
         let ownable = beginCell()
           .storeAddress(data.ownable.owner)
           .storeMaybeBuilder(_pendingOwnerMaybe)
-        return beginCell()
-          .storeUint(data.id, 32)
-          .storeUint(data.value, 32)
-          .storeBuilder(ownable)
-          .endCell()
+        return beginCell().storeUint(data.id, 32).storeUint(data.value, 32).storeBuilder(ownable)
       },
-      decode: (cell: Cell): ContractData => {
-        const s = cell.beginParse()
-        const id = s.loadUintBig(32)
-        const value = s.loadUintBig(32)
+      load: (src: Slice): ContractData => {
+        const id = src.loadUintBig(32)
+        const value = src.loadUintBig(32)
         return {
-          id: s.loadUint(32),
-          value: s.loadUint(32),
+          id: src.loadUint(32),
+          value: src.loadUint(32),
           ownable: {
             // TODO: use ownable2step decoder
-            owner: s.loadAddress(),
-            pendingOwner: s.loadMaybeAddress(),
+            owner: src.loadAddress(),
+            pendingOwner: src.loadMaybeAddress(),
           },
         }
       },

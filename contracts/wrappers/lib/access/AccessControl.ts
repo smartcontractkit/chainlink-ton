@@ -1,12 +1,14 @@
 import {
   Address,
   beginCell,
+  Builder,
   Cell,
   Contract,
   ContractProvider,
   Dictionary,
   Sender,
   SendMode,
+  Slice,
 } from '@ton/core'
 import { crc32 } from 'zlib'
 import { CellCodec } from '../../utils'
@@ -82,97 +84,93 @@ export enum Errors {
 
 export const builder = {
   message: {
-    in: {
-      grantRole: {
-        encode: (msg: GrantRole): Cell => {
+    in: (() => {
+      const grantRole: CellCodec<GrantRole> = {
+        encode: (msg: GrantRole): Builder => {
           return beginCell()
             .storeUint(opcodes.in.GrantRole, 32)
             .storeUint(msg.queryId, 64)
             .storeUint(msg.role, 256)
             .storeAddress(msg.account)
-            .endCell()
         },
-        decode: (cell: Cell): GrantRole => {
-          const s = cell.beginParse()
-          s.skip(32) // skip opcode
+        load: (src: Slice): GrantRole => {
+          src.skip(32) // skip opcode
           return {
-            queryId: s.loadUintBig(64),
-            role: s.loadUintBig(256),
-            account: s.loadAddress(),
+            queryId: src.loadUintBig(64),
+            role: src.loadUintBig(256),
+            account: src.loadAddress(),
           }
         },
-      } as CellCodec<GrantRole>,
+      }
 
-      revokeRole: {
-        encode: (msg: RevokeRole): Cell => {
+      const revokeRole: CellCodec<RevokeRole> = {
+        encode: (msg: RevokeRole): Builder => {
           return beginCell()
             .storeUint(opcodes.in.RevokeRole, 32)
             .storeUint(msg.queryId, 64)
             .storeUint(msg.role, 256)
             .storeAddress(msg.account)
-            .endCell()
         },
-        decode: (cell: Cell): RevokeRole => {
-          const s = cell.beginParse()
-          s.skip(32) // skip opcode
+        load: (src: Slice): RevokeRole => {
+          src.skip(32) // skip opcode
           return {
-            queryId: s.loadUintBig(64),
-            role: s.loadUintBig(256),
-            account: s.loadAddress(),
+            queryId: src.loadUintBig(64),
+            role: src.loadUintBig(256),
+            account: src.loadAddress(),
           }
         },
-      } as CellCodec<RevokeRole>,
+      }
 
-      renounceRole: {
-        encode: (msg: RenounceRole): Cell => {
+      const renounceRole: CellCodec<RenounceRole> = {
+        encode: (msg: RenounceRole): Builder => {
           return beginCell()
             .storeUint(opcodes.in.RenounceRole, 32)
             .storeUint(msg.queryId, 64)
             .storeUint(msg.role, 256)
             .storeAddress(msg.callerConfirmation)
-            .endCell()
         },
-        decode: (cell: Cell): RenounceRole => {
-          const s = cell.beginParse()
-          s.skip(32) // skip opcode
+        load: (src: Slice): RenounceRole => {
+          src.skip(32) // skip opcode
           return {
-            queryId: s.loadUintBig(64),
-            role: s.loadUintBig(256),
-            callerConfirmation: s.loadAddress(),
+            queryId: src.loadUintBig(64),
+            role: src.loadUintBig(256),
+            callerConfirmation: src.loadAddress(),
           }
         },
-      } as CellCodec<RenounceRole>,
-    },
+      }
+
+      return {
+        grantRole,
+        revokeRole,
+        renounceRole,
+      }
+    })(),
   },
   data: (() => {
     const roleData: CellCodec<RoleData> = {
-      encode: (data: RoleData): Cell => {
+      encode: (data: RoleData): Builder => {
         return beginCell() // break line
           .storeUint(data.adminRole, 256)
           .storeUint(data.membersLen, 64)
           .storeDict(data.hasRole)
-          .endCell()
       },
-      decode: (cell: Cell): RoleData => {
-        const s = cell.beginParse()
+      load: (src: Slice): RoleData => {
         return {
-          adminRole: s.loadUintBig(256),
-          membersLen: s.loadUintBig(64),
-          hasRole: s.loadDict(Dictionary.Keys.Address(), Dictionary.Values.Buffer(0)),
+          adminRole: src.loadUintBig(256),
+          membersLen: src.loadUintBig(64),
+          hasRole: src.loadDict(Dictionary.Keys.Address(), Dictionary.Values.Buffer(0)),
         }
       },
     }
 
     const contractData: CellCodec<ContractData> = {
-      encode: (data: ContractData): Cell => {
+      encode: (data: ContractData): Builder => {
         return beginCell() // break line
           .storeDict(data.roles, Dictionary.Keys.BigUint(256), Dictionary.Values.Cell())
-          .endCell()
       },
-      decode: (cell: Cell): ContractData => {
-        const s = cell.beginParse()
+      load: (src: Slice): ContractData => {
         return {
-          roles: s.loadDict(Dictionary.Keys.BigUint(256), Dictionary.Values.Cell()),
+          roles: src.loadDict(Dictionary.Keys.BigUint(256), Dictionary.Values.Cell()),
         }
       },
     }
@@ -218,15 +216,15 @@ export class ContractClient implements Contract {
   }
 
   async sendGrantRole(p: ContractProvider, via: Sender, value: bigint = 0n, body: GrantRole) {
-    return this.sendInternal(p, via, value, builder.message.in.grantRole.encode(body))
+    return this.sendInternal(p, via, value, builder.message.in.grantRole.encode(body).asCell())
   }
 
   async sendRevokeRole(p: ContractProvider, via: Sender, value: bigint = 0n, body: RevokeRole) {
-    return this.sendInternal(p, via, value, builder.message.in.revokeRole.encode(body))
+    return this.sendInternal(p, via, value, builder.message.in.revokeRole.encode(body).asCell())
   }
 
   async sendRenounceRole(p: ContractProvider, via: Sender, value: bigint = 0n, body: RenounceRole) {
-    return this.sendInternal(p, via, value, builder.message.in.renounceRole.encode(body))
+    return this.sendInternal(p, via, value, builder.message.in.renounceRole.encode(body).asCell())
   }
 
   // --- Getters ---

@@ -208,7 +208,7 @@ describe('MCMS - RBACTimelockCancelTest', () => {
 
     const cancelMsg = cancelTx[0].inMessage!
     const opcode = cancelMsg.body.beginParse().preloadUint(32)
-    const canceledConfirmation = rbactl.builder.message.out.canceled.decode(cancelMsg.body)
+    const canceledConfirmation = rbactl.builder.message.out.canceled.load(cancelMsg.body)
 
     expect(opcode.toString(16)).toEqual(rbactl.opcodes.out.Canceled.toString(16))
     expect(canceledConfirmation.queryId).toEqual(1)

@@ -163,7 +163,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
         )
 
         const opcode = bypasserExecutedExternal.body.beginParse().preloadUint(32)
-        const bypasserExecutedEvent = rbactl.builder.message.out.bypasserCallExecuted.decode(
+        const bypasserExecutedEvent = rbactl.builder.message.out.bypasserCallExecuted.load(
           bypasserExecutedExternal.body,
         )
 
@@ -485,7 +485,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       )
 
       const opcode = callExecutedExternal.body.beginParse().preloadUint(32)
-      const callExecutedEvent = rbactl.builder.message.out.callExecuted.decode(
+      const callExecutedEvent = rbactl.builder.message.out.callExecuted.load(
         callExecutedExternal.body,
       )
 

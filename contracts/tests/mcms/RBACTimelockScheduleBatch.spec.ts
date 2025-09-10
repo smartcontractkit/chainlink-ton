@@ -184,9 +184,7 @@ describe('MCMS - RBACTimelockScheduleBatchTest', () => {
       )
 
       const opcode = result.externals[i].body.beginParse().preloadUint(32)
-      const callScheduled = rbactl.builder.message.out.callScheduled.decode(
-        result.externals[i].body,
-      )
+      const callScheduled = rbactl.builder.message.out.callScheduled.load(result.externals[i].body)
 
       expect(opcode.toString(16)).toEqual(rbactl.opcodes.out.CallScheduled.toString(16))
       expect(callScheduled.queryId).toEqual(1)
