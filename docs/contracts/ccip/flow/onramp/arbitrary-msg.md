@@ -15,30 +15,28 @@ sequenceDiagram
     R ->> OR: CCIPSend{}
     
     Note over OR: Create msgID
-    create participant CS
-    OR ->> CS: deploy CCIPSendStorage <br>initData{msgID}<br>store{msg: CCIPSend}
-    CS ->> OR: stored{msgID, CCIPSend}
+    create participant ORM
+    OR ->> ORM: deploy CCIPSendStorage <br>initData{msgID}<br>store{msg: CCIPSend}
 
     box OnRamp
     participant OR as OnRamp
-    participant CS as CCIPSendStorage<br>{id}
+    participant ORM as CCIPSendExecutor<br>{id}
     end
 
     participant FQ as FeeQuoter
 
-    OR ->> FQ: getValidatedFee{msgID, CCIPSend}
+    ORM ->> FQ: getValidatedFee{msgID, CCIPSend}
 
 
     alt not enough to cover fee
-    FQ ->> OR: feeNotValidated{msgID, CCIPSend}
-    Note over OR: Reject CCIPSend
+    FQ ->> ORM: feeNotValidated{msgID, CCIPSend}
+    Note over ORM: Reject CCIPSend
 
     else enough to cover for fee
-    FQ ->> OR: feeValidated{msgID, CCIPSend}
-    OR ->> CS: consume{context: success} 
-    Note over CS: destroy
-    destroy CS
-    CS ->> OR: consumed{msgID, data:<br>CCIPSend,context: success} +<br>TON remaining balance
+    FQ ->> ORM: feeValidated{msgID, CCIPSend}
+    Note over ORM: destroy
+    destroy ORM
+    ORM ->> OR: finishedSuccessfully{msgID, data:<br>CCIPSend} +<br>TON remaining balance
     note over OR: assign seqNum
     note over OR: emit{CCIPSend}
     OR ->> R: sendConfirmation{seqNum}<br>+ Recovered TON
@@ -51,10 +49,9 @@ For any bounce we catch, or when we say Reject CCIPSend, it envolves:
 ```mermaid
 sequenceDiagram
     participant OR as OnRamp
-    participant CS as CCIPSendStorage
-    OR ->> CS: consume{context: failedValidation} 
-    Note over CS: destroy
-    destroy CS
-    CS ->> OR: consumed{storageID: CS.id, data:<br>CCIPSend, context: failedValidation}<br>+ TON remaining balance
+    participant LRM as CCIPSendExecutor<br>{id}
+    Note over LRM: destroy
+    destroy LRM
+    LRM ->> OR: failed{storageID: LRM.id, data:<br>CCIPSend, reason}<br>+ TON remaining balance
     Note over OR: Send rejectedCCIPSend{reason}<br>to the user + excess TON
 ```

@@ -19,13 +19,14 @@ sequenceDiagram
     R -->> OR: Transfer T { amount,<br>fwdPayload: CCIPSend }
     
     Note over OR: Create msgID
-    create participant CS
-    OR ->> CS: deploy CCIPSendStorage <br>initData{msgID}<br>store{msg: CCIPSend}
-    CS ->> OR: stored{msgID, CCIPSend}
+    create participant ORM
+    OR ->> ORM: deploy CCIPSendExecutor <br>initData{msgID}<br>store{msg: CCIPSend}
+    ORM ->> OR: deployed{ORM.id, ccipSend}
+    OR -->> ORM: Transfer T { amount,<br>fwdPayload: msgID }
 
     box OnRamp
     participant OR as OnRamp
-    participant CS as CCIPSendStorage<br>{id}
+    participant ORM as CCIPSendExecutor<br>{id}
     end
 
     participant FQ as FeeQuoter
@@ -36,38 +37,37 @@ sequenceDiagram
 
     participant TP as Token Pool T
 
-    OR ->> FQ: getValidatedFee{msgID, CCIPSend}
+    ORM ->> FQ: getValidatedFee{msgID, CCIPSend}
 
 
     alt not enough to cover fee
-    FQ ->> OR: feeNotValidated{msgID, CCIPSend}
-    Note over OR: Reject CCIPSend *
+    FQ ->> ORM: feeNotValidated{msgID, CCIPSend}
+    Note over ORM: Reject CCIPSend *
 
     else enough to cover for fee
-    FQ ->> OR: feeValidated{msgID, CCIPSend}
-    Note over OR: Calculate TR Cell based<br>on Token Address
+    FQ ->> ORM: feeValidated{msgID, CCIPSend}
+    Note over ORM: Calculate TR Cell based<br>on Token Address
 
-    OR ->> TRC: GetTokenPoolInfo{msgID, CCIPSend}
+    ORM ->> TRC: GetTokenPoolInfo{msgID, CCIPSend}
 
     alt Token not supported (contract not deployed)
-    TRC ->> OR: Bounced{truncatedGetTokenPoolInfo{msgID}}
-    Note over OR: Reject CCIPSend *
+    TRC ->> ORM: Bounced{truncatedGetTokenPoolInfo{msgID}}
+    Note over ORM: Reject CCIPSend *
     else Supported Token
-    TRC ->> OR: TokenPoolInfo{address}
+    TRC ->> ORM: TokenPoolInfo{address}
 
-    OR -->> TP: Transfer T { amount, fwdPayload: msgID }
+    ORM -->> TP: Transfer T { amount, fwdPayload: msgID }
     
     Note over TP: consume rate limit
     alt Rate limit error
-    TP -->> OR: Transfer T { amount, fwdPayload: rateLimitExceeded{msgID} }
-    Note over OR: Reject CCIPSend *
+    TP -->> ORM: Transfer T { amount, fwdPayload: rateLimitExceeded{msgID} }
+    Note over ORM: Reject CCIPSend *
 
     else Consumes rate limit
-    TP ->> OR: committedLockOrBurn{msgID} 
-    OR ->> CS: consume{context: success} 
-    Note over CS: destroy
-    destroy CS
-    CS ->> OR: consumed{msgID, data:<br>CCIPSend,context: success} +<br>TON remaining balance
+    TP ->> ORM: committedLockOrBurn{msgID} 
+    Note over ORM: destroy
+    destroy ORM
+    ORM ->> OR: finishedSuccessfully{msgID, data:<br>CCIPSend} +<br>TON remaining balance
     note over OR: assign seqNum
     note over OR: emit{CCIPSend}
     OR ->> R: sendConfirmation{seqNum}<br>+ Recovered TON
@@ -82,10 +82,9 @@ For any bounce we catch, or every **Reject CCIPSend**, it envolves:
 ```mermaid
 sequenceDiagram
     participant OR as OnRamp
-    participant CS as CCIPSendStorage
-    OR ->> CS: consume{context: failedValidation} 
-    Note over CS: destroy
-    destroy CS
-    CS ->> OR: consumed{storageID: CS.id, data:<br>CCIPSend, context: failedValidation}<br>+ TON remaining balance
+    participant LRM as CCIPSendExecutor<br>{id}
+    Note over LRM: destroy
+    destroy LRM
+    LRM -->> OR: Transfer T {fwdPayload: failed{storageID: LRM.id, data:<br>CCIPSend, reason}}<br>+ TON remaining balance
     Note over OR: Send rejectedCCIPSend{reason}<br>to the user in a Jetton transfer<br>+ excess TON
 ```
