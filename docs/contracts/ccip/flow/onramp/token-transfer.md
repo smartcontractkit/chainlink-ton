@@ -4,6 +4,8 @@
 
 > See also [how CCIPSend works](../../onramp-ccipsend-storage.md) and [how the Token Registry is implemented](../../token-registry.md).
 
+_The message flow for **Reject CCIPSend** is collapsed to a Note. You can find more details below._
+
 ```mermaid
 sequenceDiagram
     participant R as Router
@@ -39,7 +41,7 @@ sequenceDiagram
 
     alt not enough to cover fee
     FQ ->> OR: feeNotValidated{msgID, CCIPSend}
-    Note over OR: Reject CCIPSend
+    Note over OR: Reject CCIPSend *
 
     else enough to cover for fee
     FQ ->> OR: feeValidated{msgID, CCIPSend}
@@ -49,7 +51,7 @@ sequenceDiagram
 
     alt Token not supported (contract not deployed)
     TRC ->> OR: Bounced{truncatedGetTokenPoolInfo{msgID}}
-    Note over OR: Reject CCIPSend
+    Note over OR: Reject CCIPSend *
     else Supported Token
     TRC ->> OR: TokenPoolInfo{address}
 
@@ -57,7 +59,7 @@ sequenceDiagram
     
     Note over TP: consume rate limit
     alt Rate limit error
-    Note over OR: Reject CCIPSend
+    Note over OR: Reject CCIPSend *
 
     else Consumes rate limit
     TP ->> OR: committedLockOrBurn{msgID} 
@@ -74,7 +76,7 @@ sequenceDiagram
     end
 ```
 
-For any bounce we catch, or when we say Reject CCIPSend, it envolves:
+For any bounce we catch, or every **Reject CCIPSend**, it envolves:
 
 ```mermaid
 sequenceDiagram
