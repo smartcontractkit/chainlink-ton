@@ -44,8 +44,7 @@ COPY --from=${BUILDER} /tmp/lib/ /usr/lib/
 
 # Chainlink plugins detector (build-time) and entrypoint (runtime)
 # Notice: detect-plugins-prep-env-setup.sh will generate /etc/chainlink/env-setup.sh
-COPY ./scripts/build/detect-plugins-prep-env-setup.sh /usr/local/bin/detect-plugins-prep-env-setup.sh
-COPY ./scripts/build/entrypoint-chainlink.sh /usr/local/bin/entrypoint-chainlink.sh
+COPY ./scripts/build/detect-plugins-prep-env-setup.sh ./scripts/build/entrypoint-chainlink.sh /usr/local/bin/
 RUN chmod +x /usr/local/bin/detect-plugins-prep-env-setup.sh /usr/local/bin/entrypoint-chainlink.sh && \
     /usr/local/bin/detect-plugins-prep-env-setup.sh
 
