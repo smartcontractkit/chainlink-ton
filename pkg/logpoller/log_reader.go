@@ -32,7 +32,7 @@ func NewLogReader(client ton.APIClientWrapped, lggr logger.Logger, loader TxLoad
 	}
 }
 
-// GetLogs retrieves all ExternalMsgOutLogs for an address between fromBlockSeqNo (exclusive) and toBlockSeqNo (inclusive).
+// GetLogs retrieves all ExternalMsgOutLogs for an address between fromBlockSeqNo (exclusive) and toBlock (inclusive).
 func (lr *logReader) GetLogs(ctx context.Context, addr *address.Address, fromBlockSeqNo uint32, toBlock *ton.BlockIDExt) ([]types.Log, error) {
 	// No new logs to fetch
 	if toBlock.SeqNo <= fromBlockSeqNo {
