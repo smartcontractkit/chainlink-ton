@@ -42,24 +42,23 @@ export enum Errors {
 
 export const builder = {
   message: {
-    in: {
+    in: (() => {
       // Creates a new `CallProxy_TopUp` message.
-      topUp: {
-        encode: (msg: TopUp): Cell => {
+      const topUp: CellCodec<TopUp> = {
+        encode: (msg: TopUp): Builder => {
           return beginCell() // break line
             .storeUint(opcodes.in.TopUp, 32)
             .storeUint(msg.queryId, 64)
-            .endCell()
         },
-        decode: (cell: Cell): TopUp => {
-          const s = cell.beginParse()
-          s.skip(32) // skip opcode
+        load: (src: Slice): TopUp => {
+          src.skip(32) // skip opcode
           return {
-            queryId: s.loadUintBig(64),
+            queryId: src.loadUintBig(64),
           }
         },
-      },
-    },
+      }
+      return { topUp }
+    })(),
   },
   data: (() => {
     // Creates a new `CallProxy_Data` contract data cell
