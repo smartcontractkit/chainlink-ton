@@ -39,7 +39,7 @@ describe('CallProxy', () => {
     const deployResult = await bind.callProxy.sendInternal(
       deployer.getSender(),
       toNano('0.05'),
-      callProxy.builder.message.in.topUp.encode({ queryId: 1n }), // TopUp message to deploy
+      Cell.EMPTY, // TopUp message to deploy
     )
 
     expect(deployResult.transactions).toHaveTransaction({
@@ -69,11 +69,7 @@ describe('CallProxy', () => {
   })
 
   it('should limit excess top-up', async () => {
-    const r = await bind.callProxy.sendInternal(
-      deployer.getSender(),
-      toNano('100.05'),
-      callProxy.builder.message.in.topUp.encode({ queryId: 1n }),
-    )
+    const r = await bind.callProxy.sendInternal(deployer.getSender(), toNano('100.05'), Cell.EMPTY)
 
     expect(r.transactions).toHaveTransaction({
       from: deployer.address,
@@ -81,11 +77,7 @@ describe('CallProxy', () => {
       exitCode: callProxy.Errors.ValueOutOfBounds,
     })
 
-    const r1 = await bind.callProxy.sendInternal(
-      deployer.getSender(),
-      toNano('0.05'),
-      callProxy.builder.message.in.topUp.encode({ queryId: 1n }),
-    )
+    const r1 = await bind.callProxy.sendInternal(deployer.getSender(), toNano('0.05'), Cell.EMPTY)
 
     expect(r1.transactions).toHaveTransaction({
       from: deployer.address,
@@ -93,11 +85,7 @@ describe('CallProxy', () => {
       success: true,
     })
 
-    const r2 = await bind.callProxy.sendInternal(
-      deployer.getSender(),
-      toNano('0.08'),
-      callProxy.builder.message.in.topUp.encode({ queryId: 1n }),
-    )
+    const r2 = await bind.callProxy.sendInternal(deployer.getSender(), toNano('0.08'), Cell.EMPTY)
 
     expect(r2.transactions).toHaveTransaction({
       from: deployer.address,
@@ -105,11 +93,7 @@ describe('CallProxy', () => {
       success: true,
     })
 
-    const r3 = await bind.callProxy.sendInternal(
-      deployer.getSender(),
-      toNano('0.08'),
-      callProxy.builder.message.in.topUp.encode({ queryId: 1n }),
-    )
+    const r3 = await bind.callProxy.sendInternal(deployer.getSender(), toNano('0.08'), Cell.EMPTY)
 
     expect(r3.transactions).toHaveTransaction({
       from: deployer.address,

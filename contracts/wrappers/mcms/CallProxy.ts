@@ -39,26 +39,6 @@ export enum Errors {
 }
 
 export const builder = {
-  message: {
-    in: {
-      // Creates a new `CallProxy_TopUp` message.
-      topUp: {
-        encode: (msg: TopUp): Cell => {
-          return beginCell() // break line
-            .storeUint(opcodes.in.TopUp, 32)
-            .storeUint(msg.queryId, 64)
-            .endCell()
-        },
-        decode: (cell: Cell): TopUp => {
-          const s = cell.beginParse()
-          s.skip(32) // skip opcode
-          return {
-            queryId: s.loadUintBig(64),
-          }
-        },
-      },
-    },
-  },
   data: (() => {
     // Creates a new `CallProxy_Data` contract data cell
     const contractData: CellCodec<ContractData> = {
