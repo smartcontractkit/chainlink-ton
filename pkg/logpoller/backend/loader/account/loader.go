@@ -63,7 +63,7 @@ func (l *accountTxLoader) LoadTxsForAddresses(ctx context.Context, blockRange *t
 	for _, addr := range srcAddrs {
 		currAddr := addr
 		eg.Go(func() error {
-			txs, err := l.fetchTxsForAddress(egCtx, currAddr, blockRange)
+			txs, err := l.FetchTxsForAddress(egCtx, currAddr, blockRange)
 			if err != nil {
 				return fmt.Errorf("failed to fetch for %s: %w", currAddr.String(), err)
 			}
@@ -93,7 +93,7 @@ func (l *accountTxLoader) LoadTxsForAddresses(ctx context.Context, blockRange *t
 //
 // Note: Block range (prevBlock, toBlock] is exclusive of prevBlock, inclusive of toBlock
 // TODO: stream tx back to log poller to avoid memory overhead in production
-func (l *accountTxLoader) fetchTxsForAddress(ctx context.Context, addr *address.Address, blockRange *types.BlockRange) ([]types.TxWithBlock, error) {
+func (l *accountTxLoader) FetchTxsForAddress(ctx context.Context, addr *address.Address, blockRange *types.BlockRange) ([]types.TxWithBlock, error) {
 	if blockRange.Prev != nil && blockRange.Prev.SeqNo >= blockRange.To.SeqNo {
 		return nil, fmt.Errorf("prevBlock %d is not before toBlock %d", blockRange.Prev.SeqNo, blockRange.To.SeqNo)
 	}

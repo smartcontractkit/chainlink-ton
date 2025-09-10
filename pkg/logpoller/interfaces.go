@@ -5,6 +5,8 @@ import (
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/ton"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 
@@ -38,9 +40,12 @@ type FilterStore interface {
 
 // TxLoader defines the interface for loading transactions from the TON blockchain.
 type TxLoader interface {
-	// LoadTxsForAddresses retrieves all transactions from the specified source addresses
+	// LoadTxsForAddresses retrieves all transactions from multiple source addresses concurrently
 	// within the given block range (prevBlock, toBlock] - exclusive of prevBlock, inclusive of toBlock.
 	LoadTxsForAddresses(ctx context.Context, blockRange *types.BlockRange, srcAddrs []*address.Address) ([]types.TxWithBlock, error)
+	// FetchTxsForAddresses retrieves all transactions from single source address
+	// within the given block range (prevBlock, toBlock] - exclusive of prevBlock, inclusive of toBlock.
+	FetchTxsForAddress(ctx context.Context, addr *address.Address, blockRange *types.BlockRange) ([]types.TxWithBlock, error)
 }
 
 // TxParser defines the interface for parsing raw blockchain transactions into structured logs.
@@ -50,6 +55,12 @@ type TxParser interface {
 	// extracts event signatures (opcodes for internal messages, topics for external out messages)
 	// along with the message body data to create structured log entries.
 	ParseTransactions(ctx context.Context, txs []types.TxWithBlock) ([]types.Log, error)
+}
+
+// MessageParser defines an interface for parsing TON messages
+type MessageParser interface {
+	// ParseExtMsgOut extracts event signature and payload from an external message output.
+	ParseExtMsgOut(msg *tlb.ExternalMessageOut) (eventSig uint32, body *cell.Cell, err error)
 }
 
 // LogStore defines the interface for storing and retrieving logs.
@@ -101,4 +112,10 @@ type QueryBuilder[T any] interface {
 
 	// Execute runs the constructed query and returns the results.
 	Execute(ctx context.Context, store LogStore) (query.Result[T], error)
+}
+
+// LogReader provides a way to retrieve logs without running the full LogPoller service.
+type LogReader interface {
+	// GetLogs retrieves all external message outputs for an address between fromBlock SeqNo (exclusive) and toBlock SeqNo (inclusive).
+	GetLogs(ctx context.Context, addr *address.Address, fromBlockSeqNo uint32, toBlock *ton.BlockIDExt) ([]types.Log, error)
 }

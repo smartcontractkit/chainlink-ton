@@ -20,7 +20,8 @@ func ParseExtMsgOut(msg *tlb.ExternalMessageOut, eventSig uint32) (sig uint32, b
 		return 0, nil, errors.New("failed to decode event topic")
 	}
 
-	if topic != eventSig {
+	// eventSig == 0 bypasses filtering
+	if eventSig != 0 && topic != eventSig {
 		return 0, nil, nil // topic doesn't match this event sig
 	}
 
@@ -41,7 +42,8 @@ func ParseInternalMsg(msg *tlb.InternalMessage, eventSig uint32) (sig uint32, bo
 		return 0, nil, fmt.Errorf("failed to extract opcode and body: %w", err)
 	}
 
-	if opcode != eventSig {
+	// eventSig == 0 bypasses filtering
+	if eventSig != 0 && opcode != eventSig {
 		return 0, nil, nil // opcode doesn't match this event sig
 	}
 
