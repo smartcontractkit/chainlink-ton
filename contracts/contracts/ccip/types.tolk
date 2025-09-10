@@ -176,7 +176,7 @@ struct OnRampUpdateDestChainConfig {
 
 // TODO: make this direct snakedata by using RemainingBitsAndRefs? this way it's not cell->cell
 struct (0x10000004) OnRampUpdateDestChainConfigs {
-    updates: cell; // vec<OrRampUpdateDestChainConfig>
+    updates: cell; // vec<OffRampUpdateDestChainConfig>
 }
 
 struct UpdateAllowlist {
@@ -313,42 +313,70 @@ struct (0x00000003) MessageValidated<C> {
 // OffRamp
 
 struct MerkleRoot_Storage {
+    rootId: uint224;
     owner: address;
     state: uint8;
-    report: Cell<MerkleRoot>;
-    states: uint256;          // modeled as a bytemap, so we can batch up to 32 executions
-    executionStates: uint256; // modeled as a bytemap, so we can batch up to 32 executions
-
-    tokenBalances: UMap<uint64, Map<TokenBalance>>; // seqNum -> tokenAddress -> (amount: coins, failed: bool)
-    // if any amount has failed = true, allows re-executing and will only transfer remaining
+    executionState: uint8; 
+    tokenBalance: TokenBalance;
+    message: Cell<Any2TVMRampMessage>? = null;
 }
 
 //crc32('MerkleRoot_Validate')
 struct (0x38ede91) MerkleRoot_Validate {
-    messages: cell, //vec<Any2TVMRampMessage>
-    proofs: cell, //vec<uint256>
-    proofFlagBits: uint256,
-    metadataHash: uint256,
+    message: Any2TVMRampMessage,
     //TODO: token data
 }
+
+//crc32('MerkleRoot_CCIPReceiveConfirm')
+struct (0x81650c13) MerkleRoot_CCIPReceiveConfirm {
+    receiver: address
+}
+
+//crc32('MerkleRoot_CCIPReceiveBounced')
+struct(0x845e303f) MerkleRoot_CCIPReceiveBounced {
+    receiver: address
+}
+
 
 //Must be sent from an owned MerkleRoot contract
 //crc32('OffRamp_DispatchValidated')
 struct (0x58cfcb02) OffRamp_DispatchValidated { 
-    messages: cell; // vec<Any2TVMRampMessage>
-    proofs: cell;
-    proofFlagBits: uint256;
-    metadataHash: uint256;
+    message: Cell<Any2TVMRampMessage>;
+    rootId: uint224;
 }
 
 //crc32('Receiver_CCIPReceive')
 struct (0xb3126df1) CCIPReceive {
-    message: Any2TVMMessage
+    rootId: uint224; // to calculate where to send CCIPReceiveConfirm and CCIPReceiveFailed
+    message: Any2TVMMessage;
+}
+
+//crc32('OffRamp_CCIPReceiveConfirm')
+struct (0x28f4166f) OffRamp_CCIPReceiveConfirm {
+    rootId: uint224;
+}
+
+//crc32('OffRamp_NotifySuccess')
+struct (0x23232323) OffRamp_NotifySuccess {
+    header: RampMessageHeader;
+    rootId: uint224;
+}
+
+//crc32('OffRamp_NotifyFailure')
+struct(0x177ebd03) OffRamp_NotifyFailure {
+    header: RampMessageHeader;
+    rootId: uint224;
+}
+
+//crc32('OffRamp_NotifyInProgress')
+struct (0xdc81855a) OffRamp_NotifyInProgress {
+    message: Any2TVMRampMessage; // vec<Any2TVMRampMessage>
+    rootId: uint224;
 }
 
 struct TokenBalance {
-    amount: coins;
-    failed: bool; // if marked as failed, a retry will allow re-sending these
+    amount: coins = 0;
+    failed: bool = false; // if marked as failed, a retry will allow re-sending these
 }
 
 // Errors
@@ -359,10 +387,10 @@ const ERROR_FEE_TOKEN_NOT_SUPPORTED: int = 258;
 const ERROR_STALE_GAS_PRICE: int = 259;
 const ERROR_INVALID_MSG_DATA: int = 260;
 const ERROR_SENDER_NOT_ALLOWED: int = 261;
-const ERROR_INVALID_MESSAGE_DEST_CHAIN_SELECTOR = 262;
-const ERROR_SOURCE_CHAIN_SELECTOR_MISMATCH = 263;
+const ERROR_INVALID_MESSAGE_DEST_CHAIN_SELECTOR: int = 262;
+const ERROR_SOURCE_CHAIN_SELECTOR_MISMATCH: int = 263;
 const ERROR_TOKEN_NOT_SUPPORTED: int = 264;
 const ERROR_UNAUTHORIZED: int = 265;
 const ERROR_SOURCE_CHAIN_NOT_ENABLED: int = 266;
-const ERROR_EMPTY_REPORT:int = 267;
+const ERROR_EMPTY_EXECUTION_REPORT:int = 267;
 const ERROR_DISPATCH_NOT_FROM_MERKLE_ROOT: int = 268;

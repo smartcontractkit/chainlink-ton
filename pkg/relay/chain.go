@@ -12,7 +12,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/xssnick/tonutils-go/liteclient"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
 	"github.com/xssnick/tonutils-go/tvm/cell"
@@ -35,6 +34,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/config"
 	"github.com/smartcontractkit/chainlink-ton/pkg/fees"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
+	tonchain "github.com/smartcontractkit/chainlink-ton/pkg/ton/chain"
 	tonconfig "github.com/smartcontractkit/chainlink-ton/pkg/ton/config"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/txm"
@@ -300,7 +300,7 @@ func (c *chain) GetClient(ctx context.Context) (*ton.APIClient, error) {
 		c.cacheMu.RUnlock()
 
 		if ok && time.Since(entry.timestamp) < c.cfg.ClientTTL {
-			c.lggr.Debugw("Using cached client", "name", node.Name, "url", node.URL)
+			c.lggr.Debugw("Using cached client", "name", node.Name)
 			return entry.client, nil
 		} else if ok {
 			// TTL expired — evict
@@ -310,27 +310,15 @@ func (c *chain) GetClient(ctx context.Context) (*ton.APIClient, error) {
 			c.cacheMu.Unlock()
 		}
 
-		// Build new client
-		configURL := node.URL.String()
-
-		// TODO this only works for localnet, need to handle for testnet/mainnet
-		// create an extra URL for liteclient config url
-		tonCfg, err := liteclient.GetConfigFromUrl(ctx, fmt.Sprintf("http://%v/localhost.global.config.json", configURL))
-		if err != nil {
-			c.lggr.Warnw("failed to fetch TON config", "name", node.Name, "ton-url", node.URL, "err", err)
-			continue
-		}
-
-		connectionPool := liteclient.NewConnectionPool()
-		err = connectionPool.AddConnectionsFromConfig(ctx, tonCfg)
-		if err != nil {
-			lastErr = err
-			c.lggr.Warnw("failed to connect", "name", node.Name, "ton-url", node.URL, "err", err)
+		// Build new client, expected URL format: liteserver://publickey@host:port
+		liteServerURL := node.URL.String()
+		connectionPool, cerr := tonchain.CreateLiteserverConnectionPool(ctx, liteServerURL)
+		if cerr != nil {
+			c.lggr.Warnw("failed to get connection pool", "name", node.Name, "ton-url", node.URL, "err", cerr)
 			continue
 		}
 
 		client := ton.NewAPIClient(connectionPool, ton.ProofCheckPolicyFast)
-		client.SetTrustedBlockFromConfig(tonCfg)
 
 		blockID, err := client.CurrentMasterchainInfo(ctx)
 		if err != nil {
@@ -338,6 +326,8 @@ func (c *chain) GetClient(ctx context.Context) (*ton.APIClient, error) {
 			c.evictClient(i, *node.Name, "CurrentMasterchainInfo failed")
 			continue
 		}
+		// set starting point to verify master block proofs chain
+		client.SetTrustedBlock(blockID)
 
 		block, err := client.GetBlockData(ctx, blockID)
 		if err != nil {
@@ -360,7 +350,7 @@ func (c *chain) GetClient(ctx context.Context) (*ton.APIClient, error) {
 		}
 		c.cacheMu.Unlock()
 
-		c.lggr.Debugw("Created and cached client", "name", node.Name, "url", node.URL)
+		c.lggr.Debugw("Created and cached client", "name", node.Name)
 		return client, nil
 	}
 
