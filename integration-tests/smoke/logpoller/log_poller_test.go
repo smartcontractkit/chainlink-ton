@@ -30,8 +30,8 @@ import (
 )
 
 func Test_LogPoller(t *testing.T) {
-	client := test_utils.CreateAPIClient(t, chainsel.TON_LOCALNET.Selector).WithRetry()
-	require.NotNil(t, client)
+	client, cerr := test_utils.CreateTestAPIClient(t, chainsel.TON_LOCALNET.Selector)
+	require.NoError(t, cerr)
 
 	t.Run("log poller:Loader event ingestion", func(t *testing.T) {
 		t.Parallel()

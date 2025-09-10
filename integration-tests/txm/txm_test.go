@@ -32,13 +32,11 @@ import (
 func TestTxmLocal(t *testing.T) {
 	logger := logger.Test(t)
 
-	nodeClient := test_utils.CreateAPIClient(t, chainsel.TON_LOCALNET.Selector)
-	require.NotNil(t, nodeClient)
-	logger.Debugw("Started MyLocalTON")
+	nodeClient, nerr := test_utils.CreateTestAPIClient(t, chainsel.TON_LOCALNET.Selector)
+	require.NoError(t, nerr)
 
 	wallet := test_utils.CreateRandomWallet(t, nodeClient, config.WalletVersion, wallet.WithWorkchain(0))
 	require.NotNil(t, wallet)
-	logger.Debugw("Created TON Wallet")
 
 	tonChain := test_utils.StartChain(t, nodeClient, chainsel.TON_LOCALNET.Selector, wallet)
 	require.NotNil(t, tonChain)
