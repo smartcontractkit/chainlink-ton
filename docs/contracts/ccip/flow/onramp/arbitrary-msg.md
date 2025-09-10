@@ -1,6 +1,6 @@
 # Arbitrary Message Onramp Flow
 
-> See [how CCIPSend works](../../contracts/ccip/onramp-ccipsend-storage.md) and [how the Token Registry is implemented](../../contracts/ccip/token-registry.md).
+> See [how CCIPSend works](../../onramp-ccipsend-storage.md) and [how the Token Registry is implemented](../../token-registry.md).
 
 ```mermaid
 sequenceDiagram

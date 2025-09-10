@@ -2,7 +2,7 @@
 
 > Before you read, see [Jetton Transfer Notation Convention](../token-transfer-notation-convention.md)
 
-> See also [how CCIPSend works](../../contracts/ccip/onramp-ccipsend-storage.md) and [how the Token Registry is implemented](../../contracts/ccip/token-registry.md).
+> See also [how CCIPSend works](../../onramp-ccipsend-storage.md) and [how the Token Registry is implemented](../../token-registry.md).
 
 ```mermaid
 sequenceDiagram
