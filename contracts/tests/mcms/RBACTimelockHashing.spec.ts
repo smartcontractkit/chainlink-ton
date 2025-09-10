@@ -27,15 +27,15 @@ describe('MCMS - RBACTimelockHashingTest', () => {
         {
           target: baseTest.bind.counter.address,
           value: 0n,
-          data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
+          data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }).asCell(),
         },
         {
           target: baseTest.bind.counter.address,
           value: 0n,
-          data: counter.builder.message.in.increaseCount.encode({ queryId: 2n }),
+          data: counter.builder.message.in.increaseCount.encode({ queryId: 2n }).asCell(),
         },
       ],
-      (c) => rbactl.builder.data.call.encode(c).asBuilder(),
+      (c) => rbactl.builder.data.call.encode(c),
     )
 
     // Schedule operation
@@ -55,7 +55,7 @@ describe('MCMS - RBACTimelockHashingTest', () => {
     }
     const hashedOperation = await baseTest.bind.timelock.getHashOperationBatch(operationBatch)
 
-    const offchainId = rbactl.builder.data.operationBatch.encode(operationBatch).hash()
+    const offchainId = rbactl.builder.data.operationBatch.encode(operationBatch).asCell().hash()
     const expectedHash = BigInt('0x' + offchainId.toString('hex'))
 
     expect(hashedOperation).toEqual(expectedHash)
