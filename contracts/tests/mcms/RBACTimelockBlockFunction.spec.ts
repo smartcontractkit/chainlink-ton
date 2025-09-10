@@ -50,7 +50,7 @@ describe('MCMS - RBACTimelockBlockFunctionTest', () => {
       const call = {
         target: baseTest.bind.counter.address,
         value: toNano('0.05'),
-        data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
+        data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }).asCell(),
       }
       const calls = BaseTestSetup.singletonCalls(call)
 
@@ -123,7 +123,7 @@ describe('MCMS - RBACTimelockBlockFunctionTest', () => {
       const call = {
         target: baseTest.bind.counter.address,
         value: toNano('0.05'),
-        data: counter.builder.message.in.increaseCount.encode({ queryId: 2n }),
+        data: counter.builder.message.in.increaseCount.encode({ queryId: 2n }).asCell(),
       }
       const calls = BaseTestSetup.singletonCalls(call)
 
@@ -336,7 +336,7 @@ describe('MCMS - RBACTimelockBlockFunctionTest', () => {
       const call = {
         target: baseTest.bind.counter.address,
         value: toNano('0.05'),
-        data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
+        data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }).asCell(),
       }
       const calls = BaseTestSetup.singletonCalls(call)
 
@@ -410,7 +410,7 @@ describe('MCMS - RBACTimelockBlockFunctionTest', () => {
       const call = {
         target: baseTest.bind.counter.address,
         value: toNano('0.05'),
-        data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
+        data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }).asCell(),
       }
       const calls = BaseTestSetup.singletonCalls(call)
 

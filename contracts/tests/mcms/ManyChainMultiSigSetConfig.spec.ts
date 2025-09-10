@@ -24,14 +24,16 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
 
   it('should fail if non-owner tries to set config', async () => {
     // Try to call setConfig from non-owner address (should fail)
-    const setConfigBody = mcms.builder.message.in.setConfig.encode({
-      queryId: 1n,
-      signerKeys: baseTest.testSigners.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey)),
-      signerGroups: baseTest.testSigners.map((s) => s.group),
-      groupQuorums: baseTest.testGroupQuorums,
-      groupParents: baseTest.testGroupParents,
-      clearRoot: false,
-    })
+    const setConfigBody = mcms.builder.message.in.setConfig
+      .encode({
+        queryId: 1n,
+        signerKeys: baseTest.testSigners.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey)),
+        signerGroups: baseTest.testSigners.map((s) => s.group),
+        groupQuorums: baseTest.testGroupQuorums,
+        groupParents: baseTest.testGroupParents,
+        clearRoot: false,
+      })
+      .asCell()
 
     const result = await baseTest.bind.mcms.sendInternal(
       baseTest.acc.deployer.getSender(),
@@ -53,14 +55,16 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
     const emptySignerKeys = emptySignerList.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey))
     const emptySignerGroups = emptySignerList.map((s) => s.group)
 
-    const setConfigBody = mcms.builder.message.in.setConfig.encode({
-      queryId: 1n,
-      signerKeys: emptySignerKeys,
-      signerGroups: emptySignerGroups,
-      groupQuorums: baseTest.testGroupQuorums,
-      groupParents: baseTest.testGroupParents,
-      clearRoot: false,
-    })
+    const setConfigBody = mcms.builder.message.in.setConfig
+      .encode({
+        queryId: 1n,
+        signerKeys: emptySignerKeys,
+        signerGroups: emptySignerGroups,
+        groupQuorums: baseTest.testGroupQuorums,
+        groupParents: baseTest.testGroupParents,
+        clearRoot: false,
+      })
+      .asCell()
 
     const result = await baseTest.bind.mcms.sendInternal(
       baseTest.acc.multisigOwner.getSender(),
@@ -84,14 +88,16 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
     const signerKeys = duplicateSigners.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey))
     const signerGroups = duplicateSigners.map((s) => s.group)
 
-    const setConfigBody = mcms.builder.message.in.setConfig.encode({
-      queryId: 1n,
-      signerKeys,
-      signerGroups,
-      groupQuorums: baseTest.testGroupQuorums,
-      groupParents: baseTest.testGroupParents,
-      clearRoot: false,
-    })
+    const setConfigBody = mcms.builder.message.in.setConfig
+      .encode({
+        queryId: 1n,
+        signerKeys,
+        signerGroups,
+        groupQuorums: baseTest.testGroupQuorums,
+        groupParents: baseTest.testGroupParents,
+        clearRoot: false,
+      })
+      .asCell()
 
     const result = await baseTest.bind.mcms.sendInternal(
       baseTest.acc.multisigOwner.getSender(),
@@ -115,14 +121,16 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
     const signerKeys = invalidGroupSigners.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey))
     const signerGroups = invalidGroupSigners.map((s) => s.group)
 
-    const setConfigBody = mcms.builder.message.in.setConfig.encode({
-      queryId: 1n,
-      signerKeys,
-      signerGroups,
-      groupQuorums: baseTest.testGroupQuorums,
-      groupParents: baseTest.testGroupParents,
-      clearRoot: false,
-    })
+    const setConfigBody = mcms.builder.message.in.setConfig
+      .encode({
+        queryId: 1n,
+        signerKeys,
+        signerGroups,
+        groupQuorums: baseTest.testGroupQuorums,
+        groupParents: baseTest.testGroupParents,
+        clearRoot: false,
+      })
+      .asCell()
 
     const result = await baseTest.bind.mcms.sendInternal(
       baseTest.acc.multisigOwner.getSender(),
@@ -149,14 +157,16 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
       }
     }
 
-    const setConfigBody = mcms.builder.message.in.setConfig.encode({
-      queryId: 1n,
-      signerKeys: baseTest.testSigners.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey)),
-      signerGroups: baseTest.testSigners.map((s) => s.group),
-      groupQuorums: invalidGroupQuorums,
-      groupParents: baseTest.testGroupParents,
-      clearRoot: false,
-    })
+    const setConfigBody = mcms.builder.message.in.setConfig
+      .encode({
+        queryId: 1n,
+        signerKeys: baseTest.testSigners.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey)),
+        signerGroups: baseTest.testSigners.map((s) => s.group),
+        groupQuorums: invalidGroupQuorums,
+        groupParents: baseTest.testGroupParents,
+        clearRoot: false,
+      })
+      .asCell()
 
     const result = await baseTest.bind.mcms.sendInternal(
       baseTest.acc.multisigOwner.getSender(),
@@ -183,14 +193,16 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
       }
     }
 
-    const setConfigBody = mcms.builder.message.in.setConfig.encode({
-      queryId: 1n,
-      signerKeys: baseTest.testSigners.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey)),
-      signerGroups: baseTest.testSigners.map((s) => s.group),
-      groupQuorums: baseTest.testGroupQuorums,
-      groupParents: invalidGroupParents,
-      clearRoot: false,
-    })
+    const setConfigBody = mcms.builder.message.in.setConfig
+      .encode({
+        queryId: 1n,
+        signerKeys: baseTest.testSigners.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey)),
+        signerGroups: baseTest.testSigners.map((s) => s.group),
+        groupQuorums: baseTest.testGroupQuorums,
+        groupParents: invalidGroupParents,
+        clearRoot: false,
+      })
+      .asCell()
 
     const result = await baseTest.bind.mcms.sendInternal(
       baseTest.acc.multisigOwner.getSender(),
@@ -217,14 +229,16 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
       }
     }
 
-    const setConfigBody = mcms.builder.message.in.setConfig.encode({
-      queryId: 1n,
-      signerKeys: baseTest.testSigners.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey)),
-      signerGroups: baseTest.testSigners.map((s) => s.group),
-      groupQuorums: baseTest.testGroupQuorums,
-      groupParents: invalidGroupParents,
-      clearRoot: false,
-    })
+    const setConfigBody = mcms.builder.message.in.setConfig
+      .encode({
+        queryId: 1n,
+        signerKeys: baseTest.testSigners.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey)),
+        signerGroups: baseTest.testSigners.map((s) => s.group),
+        groupQuorums: baseTest.testGroupQuorums,
+        groupParents: invalidGroupParents,
+        clearRoot: false,
+      })
+      .asCell()
 
     const result = await baseTest.bind.mcms.sendInternal(
       baseTest.acc.multisigOwner.getSender(),
@@ -245,14 +259,16 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
     const disabledGroupSigners = [...baseTest.testSigners]
     disabledGroupSigners[1].group = mcms.NUM_GROUPS - 1 // Last group should be disabled
 
-    const setConfigBody = mcms.builder.message.in.setConfig.encode({
-      queryId: 1n,
-      signerKeys: baseTest.testSigners.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey)),
-      signerGroups: disabledGroupSigners.map((s) => s.group),
-      groupQuorums: baseTest.testGroupQuorums,
-      groupParents: baseTest.testGroupParents,
-      clearRoot: false,
-    })
+    const setConfigBody = mcms.builder.message.in.setConfig
+      .encode({
+        queryId: 1n,
+        signerKeys: baseTest.testSigners.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey)),
+        signerGroups: disabledGroupSigners.map((s) => s.group),
+        groupQuorums: baseTest.testGroupQuorums,
+        groupParents: baseTest.testGroupParents,
+        clearRoot: false,
+      })
+      .asCell()
 
     const result = await baseTest.bind.mcms.sendInternal(
       baseTest.acc.multisigOwner.getSender(),
@@ -273,14 +289,16 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
     const signer = baseTest.testSigners.slice(0, 4)
     const shorterSignerGroup = baseTest.testSigners.slice(0, 3)
 
-    const setConfigBody = mcms.builder.message.in.setConfig.encode({
-      queryId: 1n,
-      signerKeys: signer.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey)),
-      signerGroups: shorterSignerGroup.map((s) => s.group),
-      groupQuorums: baseTest.testGroupQuorums,
-      groupParents: baseTest.testGroupParents,
-      clearRoot: false,
-    })
+    const setConfigBody = mcms.builder.message.in.setConfig
+      .encode({
+        queryId: 1n,
+        signerKeys: signer.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey)),
+        signerGroups: shorterSignerGroup.map((s) => s.group),
+        groupQuorums: baseTest.testGroupQuorums,
+        groupParents: baseTest.testGroupParents,
+        clearRoot: false,
+      })
+      .asCell()
 
     const result = await baseTest.bind.mcms.sendInternal(
       baseTest.acc.multisigOwner.getSender(),
@@ -297,14 +315,16 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
   })
 
   it('should successfully set config without clearing root', async () => {
-    const setConfigBody = mcms.builder.message.in.setConfig.encode({
-      queryId: 1n,
-      signerKeys: baseTest.testSigners.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey)),
-      signerGroups: baseTest.testSigners.map((s) => s.group),
-      groupQuorums: baseTest.testGroupQuorums,
-      groupParents: baseTest.testGroupParents,
-      clearRoot: false,
-    })
+    const setConfigBody = mcms.builder.message.in.setConfig
+      .encode({
+        queryId: 1n,
+        signerKeys: baseTest.testSigners.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey)),
+        signerGroups: baseTest.testSigners.map((s) => s.group),
+        groupQuorums: baseTest.testGroupQuorums,
+        groupParents: baseTest.testGroupParents,
+        clearRoot: false,
+      })
+      .asCell()
 
     const result = await baseTest.bind.mcms.sendInternal(
       baseTest.acc.multisigOwner.getSender(),
@@ -340,14 +360,16 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
   })
 
   it('should successfully set config and clear root', async () => {
-    const setConfigBody = mcms.builder.message.in.setConfig.encode({
-      queryId: 1n,
-      signerKeys: baseTest.testSigners.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey)),
-      signerGroups: baseTest.testSigners.map((s) => s.group),
-      groupQuorums: baseTest.testGroupQuorums,
-      groupParents: baseTest.testGroupParents,
-      clearRoot: true, // Clear the root
-    })
+    const setConfigBody = mcms.builder.message.in.setConfig
+      .encode({
+        queryId: 1n,
+        signerKeys: baseTest.testSigners.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey)),
+        signerGroups: baseTest.testSigners.map((s) => s.group),
+        groupQuorums: baseTest.testGroupQuorums,
+        groupParents: baseTest.testGroupParents,
+        clearRoot: true, // Clear the root
+      })
+      .asCell()
 
     const result = await baseTest.bind.mcms.sendInternal(
       baseTest.acc.multisigOwner.getSender(),
