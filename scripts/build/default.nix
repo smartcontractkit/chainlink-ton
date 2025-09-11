@@ -44,25 +44,37 @@
       }; # we don't have a package.json here, how to fetch version and description?
     };
   };
-in {
-  packages = rec {
-    chainlink-solana = buildGoPlugin build-info.solana;
-    chainlink-aptos = buildGoPlugin build-info.aptos;
 
-    chainlink-plugins-bundle = pkgs.symlinkJoin {
-      name = "chainlink-plugins-bundle";
-      paths = [
-        chainlink-ton
-        chainlink-solana
-        chainlink-aptos
+  chainlink = pkgs.callPackage ./lib/chainlink.nix {
+    inherit pkgs;
+    inherit lock;
 
-        # Added for debugging purposes (should not be needed for production pkgs/image)
-        pkgs.delve
-      ];
-      # Make sure the output path is deterministic
-      # (otherwise, it would include the hash of the input paths)
-      dontPatchELF = true;
-      dontStrip = true;
-    };
+    # operator-ui tag
+    tag = "v0.8.0-371c5cf"; # latest as of Jun 30, 2025
   };
+in {
+  packages =
+    rec {
+      chainlink-solana = buildGoPlugin build-info.solana;
+      chainlink-aptos = buildGoPlugin build-info.aptos;
+
+      chainlink-plugins-bundle = pkgs.symlinkJoin {
+        name = "chainlink-plugins-bundle";
+        paths = [
+          chainlink.packages.chainlink
+
+          chainlink-ton
+          chainlink-solana
+          chainlink-aptos
+
+          # Added for debugging purposes (should not be needed for production pkgs/image)
+          pkgs.delve
+        ];
+        # Make sure the output path is deterministic
+        # (otherwise, it would include the hash of the input paths)
+        dontPatchELF = true;
+        dontStrip = true;
+      };
+    }
+    // chainlink.packages;
 }
