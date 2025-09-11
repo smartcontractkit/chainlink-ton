@@ -8,14 +8,14 @@ import {
   Sender,
   SendMode,
 } from '@ton/core'
-import { JettonClientConfig, jettonClientConfigToCell, ErrorCodes } from './types'
+import { JettonClientConfig, builder, ErrorCodes } from './types'
 
 export type OnrampMockConfig = {
   jettonClient: JettonClientConfig
 }
 
 export function onrampMockConfigToCell(config: OnrampMockConfig): Cell {
-  return jettonClientConfigToCell(config.jettonClient)
+  return builder.data.traitData.encode(config.jettonClient).asCell()
 }
 
 export const OnrampConstants = {
