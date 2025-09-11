@@ -173,9 +173,31 @@ fun Map<V>.set(mutate self, key: address, value: V): void {
 }
 
 @inline @pure
+fun Map<V>.setIfNotExists(mutate self, key: address, value: V): bool {
+    return self.value.sDictSetIfNotExists(ADDR_KEY_LEN, key as slice, value.toCell().beginParse());
+}
+
+// TODO request TON Foundation to add this to tvm-dicts.tolk
+@pure
+fun dict.sDictSetIfNotExists(mutate self, keyLen: int, key: slice, value: slice): bool
+    asm(value key self keyLen) "DICTADD"
+
+@inline @pure
 fun Map<V>.has(self, key: address): bool {
     val (_, exists) = self.value.sDictGet(ADDR_KEY_LEN, key as slice);
     return exists;
+}
+
+@inline @pure
+fun Map<V>.keys(self): tuple? {
+    var list: tuple? = null;
+    var (_address, value, found) = self.min();
+    while (found) {
+        var address = _address! as address;
+            list = listPrepend(address, list);
+        (_address, value, found) = self.next(address);
+    };
+    return list;
 }
 
 //Returns a lisp-list with the keys of the map, destroys the dictionary in the process
@@ -286,11 +308,17 @@ fun UMap<K, V>.setRef(mutate self, key: K, value: V): void {
 
 @inline @pure
 fun UMap<K, V>.min(self): (K?, V?, bool) {
-    val (key, value, exists) = self.value.uDictGetFirst(ADDR_KEY_LEN);
+    val (key, value, exists) = self.value.uDictGetFirst(self.keyLen);
     if (!exists) {
         return (null, null, false);
     }
     return (key, V.fromSlice(value!), true);
+}
+
+@inline @pure
+fun UMap<K, V>.minLazy(self): (K?, slice?, bool) {
+    val (key, value, exists) = self.value.uDictGetFirst(self.keyLen);
+    return (key, value, exists);
 }
 
 @inline @pure
@@ -303,13 +331,19 @@ fun UMap<K, V>.next(self, key: K): (K?, V?, bool) {
 }
 
 @inline @pure
+fun UMap<K, V>.nextLazy(self, key: K): (K?, slice?, bool) {
+    val (nextKey, value, exists) = self.value.uDictGetNext(self.keyLen, key);
+    return (nextKey, value, exists);
+}
+
+@inline @pure
 fun UMap<K, V>.replace(mutate self, key: K, value: V): bool {
     return (self.value.uDictSetIfExists(self.keyLen, key, value.toCell().beginParse()));
 }
 
 @inline @pure
 fun UMap<K, V>.delete(mutate self, key: K): bool {
-    return self.value.sDictDelete(self.keyLen, key);
+    return self.value.sDictDelete(self.keyLen, key.toCell().beginParse());
 }
 
 //Returns a lisp-list with the keys of the map, destroys the dictionary in the process
@@ -326,6 +360,32 @@ fun UMap<K, V>.keysDestructs(mutate self): tuple? {
     return list;
 }
 
+//Returns a lisp-list with the keys of the map
+@inline
+fun UMap<K, V>.keys(self): tuple? {
+    var list: tuple? = null;
+    var (_key, _value, found) = self.min();
+    while (found) {
+            var key = _key! as K;
+            list = listPrepend(key, list);
+        (_key, _value, found) = self.next(key);
+    };
+    return list;
+}
+
+//Returns a lisp-list with the values of the map
+@inline
+fun UMap<K, V>.values(self): tuple? {
+    var list: tuple? = null;
+    var (_key, _value, found) = self.min();
+    while (found) {
+        var value = _value! as V;
+        var key = _key! as K;
+        list = listPrepend(value, list);
+        (_key, _value, found) = self.next(key);
+    };
+    return list;
+}
 
 struct TupleIterator<T> {
     pos: int = 0;
