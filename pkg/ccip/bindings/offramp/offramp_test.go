@@ -51,11 +51,11 @@ func TestCommit_EncodingAndDecoding(t *testing.T) {
 	require.NoError(t, err)
 
 	commitReport := ocr.CommitReport{
-		PriceUpdates: ocr.PriceUpdates{
+		MerkleRoots: merkleRoots,
+		PriceUpdates: &ocr.PriceUpdates{
 			TokenPriceUpdates: tokenPriceSlice,
 			GasPriceUpdates:   gasPriceSlice,
 		},
-		MerkleRoots: merkleRoots,
 	}
 
 	configDigest := make([]byte, 64) // 512 bits digest
@@ -63,22 +63,14 @@ func TestCommit_EncodingAndDecoding(t *testing.T) {
 		configDigest[i] = byte(i)
 	}
 
-	subSig := make([]byte, 32) // 768 bits signature
+	subSig := make([]byte, 96) // 768 bits signature
 	for i := range subSig {
 		subSig[i] = byte(i)
 	}
 
 	Sigs := []ocr.SignatureEd25519{
-		{
-			R:      subSig,
-			S:      subSig,
-			Signer: subSig,
-		},
-		{
-			R:      subSig,
-			S:      subSig,
-			Signer: subSig,
-		},
+		{Data: subSig},
+		{Data: subSig},
 	}
 
 	report := Commit{
@@ -138,7 +130,6 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 				DestChainSelector:   2,
 				SequenceNumber:      1,
 				Nonce:               0,
-				OnrampAddr:          onrampAddr,
 			},
 			Sender:   onrampAddr,
 			Data:     make([]byte, 1000),
