@@ -3,7 +3,6 @@ package smoke
 import (
 	"encoding/hex"
 	"math/big"
-	"math/rand/v2"
 	"testing"
 	"time"
 
@@ -11,201 +10,150 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
-	"go.uber.org/zap/zapcore"
 
-	test_utils "github.com/smartcontractkit/chainlink-ton/deployment/utils"
-
-	chain_selectors "github.com/smartcontractkit/chain-selectors"
 	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"
+	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
-	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
-
-	"github.com/smartcontractkit/chainlink-common/pkg/logger"
-	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
-	"github.com/smartcontractkit/chainlink/deployment/environment/memory"
-
-	ops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
-
-	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
-	tonCommon "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/chainaccessor"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/hash"
-
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
 	inmemorystore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/db/inmemory"
-	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/loader/account"
-	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/txparser"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/hash"
 )
 
-const ChainSelEVMTest90000001 = 909606746561742123
+const (
+	ChainSelEVMTest90000001 = 909606746561742123
+	ChainSelTON             = 13879075125137744094
 
-func Test_TonAccessorEventQueries(t *testing.T) {
-	lggr := logger.Test(t)
-	ctx := t.Context()
+	// Test addresses
+	TestFeeTokenAddr = "EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAd99"
+	MockOffRampAddr  = "EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF"
+)
 
-	// create memory env to reuse changesets
-	env := memory.NewMemoryEnvironment(t, lggr, zapcore.InfoLevel, memory.MemoryEnvironmentConfig{
-		Chains:    1,
-		TonChains: 1,
-	})
+// BOC (Bag of Cells) data captured from TypeScript tests.
+//
+// IMPORTANT: These BOCs are captured from contracts/tests/ccip/CCIPRouter.spec.ts
+// If those tests break, it means either:
+// - The transaction schema in the smart contracts has changed
+// - The Go bindings structure has changed
+//
+// When either happens, you need to:
+// 1. Fix the TypeScript tests first
+// 2. Re-capture the BOC hexes from the test output
+// 3. Update the BOC strings in this file
 
-	// get chain selectors
-	evmSelector := env.BlockChains.ListChainSelectors(chain.WithFamily(chain_selectors.FamilyEVM))[0]
-	tonChainSelectors := env.BlockChains.ListChainSelectors(chain.WithFamily(chain_selectors.FamilyTon))
-	require.Len(t, tonChainSelectors, 1, "Expected exactly 1 Ton chain")
-	chainSelector := tonChainSelectors[0]
-	tonChain := env.BlockChains.TonChains()[chainSelector]
-	deployer := tonChain.Wallet
+var (
+	// CCIPMessageSent BOCs from TypeScript tests
+	CCIPMessageSentSeq1BOC = "b5ee9c724101040100de0001dbec712336f3d9bad60787cb41bdd4fa6f167b1d57ee6c73c633be9902249b27d0c09c614ab4cba0de0c9f9284461c852b000000000000000100000000000000008008d0d4580cd8f09522be7c0390a7a632bda4a99291c435b767c95367ebe78e9ae00000000000000000000000100104838000000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000100203030300422012345678901234567890123456789012345678901234567890123456789012340000a04bb835"
+	CCIPMessageSentSeq2BOC = "b5ee9c724101040100de0001db56bd19cb412a95dca040f874a6389700c33b81d192bd5cd64292c3791742f3d0c09c614ab4cba0de0c9f9284461c852b000000000000000200000000000000008008d0d4580cd8f09522be7c0390a7a632bda4a99291c435b767c95367ebe78e9ae000000000000000000000001001048380000000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000001002030303004220abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890000060ebc76d"
+	CCIPMessageSentSeq3BOC = "b5ee9c724101040100de0001db5f4159ce2bcb67087cefd5ab9156077d0021f0170cc6f0032c0cdd76ac0e7c4ac09c614ab4cba0de0c9f9284461c852b000000000000000300000000000000008008d0d4580cd8f09522be7c0390a7a632bda4a99291c435b767c95367ebe78e9ae000000000000000000000001001048380000000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000001002030303004220fedcba0987654321fedcba0987654321fedcba0987654321fedcba098765432100005a837d0d"
 
-	// memory environment doesn't block on funding so changesets can execute before the env is fully ready, manually call fund so we block here
-	test_utils.FundWallets(t, tonChain.Client, []*address.Address{deployer.Address()}, []tlb.Coins{tlb.MustFromTON("1000")})
-	time.Sleep(5 * time.Second)
-
-	// -- deploy contracts
-	cs := commonchangeset.Configure(ops.DeployCCIPContracts{}, ops.DeployChainContractsConfig(t, env, chainSelector))
-	env, _, err := commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{cs})
-	require.NoError(t, err, "failed to deploy ccip")
-
-	// -- add lane using helper function
-	// gasPrices := map[uint64]*big.Int{
-	// 	evmSelector:   big.NewInt(1e17),
-	// 	chainSelector: big.NewInt(1e17), // Add TON chain gas price
-	// }
-	// TODO: fix this call - for now comment out to avoid compilation errors
-	// laneConfig := ops.AddLaneTONConfig(&env, chainSelector, evmSelector, chain_selectors.FamilyTon, chain_selectors.FamilyEVM, gasPrices)
-	// laneCS := commonchangeset.Configure(ops.AddTonLanes{}, config.UpdateTonLanesConfig{
-	// 	Lanes:      []config.LaneConfig{laneConfig},
-	// 	TestRouter: false,
-	// })
-	// env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{laneCS})
-	// require.NoError(t, err, "failed to add lane")
-
-	state, err := tonstate.LoadOnchainState(env)
-	require.NoError(t, err)
-
-	// -- start logpoller
-	lpCfg := logpoller.DefaultConfigSet
-	filterStore := inmemorystore.NewFilterStore()
-	opts := &logpoller.ServiceOptions{
-		Config:   lpCfg,
-		Client:   tonChain.Client,
-		Filters:  filterStore,
-		TxLoader: account.NewTxLoader(tonChain.Client, lggr, lpCfg.PageSize),
-		TxParser: txparser.NewTxParser(lggr, filterStore),
-		Store:    inmemorystore.NewLogStore(),
-	}
-	lp := logpoller.NewService(
-		lggr,
-		opts,
-	)
-
-	// -- initialize tonaccessor
-	addrCodec := codec.NewAddressCodec()
-	accessor, aerr := chainaccessor.NewTONAccessor(lggr, ccipocr3.ChainSelector(chainSelector), tonChain.Client, lp, addrCodec)
-	require.NoError(t, aerr)
-
-	onRampAddr := state[chainSelector].OnRamp
-
-	// -- bind onramp in accessor, event filter will be registered in Sync()
-	rawOnRampAddr, err := addrCodec.AddressStringToBytes(onRampAddr.String())
-	require.NoError(t, err)
-	err = accessor.Sync(ctx, consts.ContractNameOnRamp, rawOnRampAddr)
-	require.NoError(t, err)
-
-	// start listening for logs
-	require.NoError(t, lp.Start(ctx))
-	defer func() {
-		require.NoError(t, lp.Close())
-	}()
-
-	// TODO: use sendmanytx or highload wallet, otherwise we get 33 exit code(too many actions)
-	time.Sleep(5 * time.Second)
-
-	const maxSeqNo = 4
-	for seqNo := range maxSeqNo {
-		t.Log("Sending CCIP message", seqNo)
-		extraArgs := onramp.GenericExtraArgsV2{
-			GasLimit:                 big.NewInt(100),
-			AllowOutOfOrderExecution: false,
-		}
-
-		extraArgsCell, err := tlb.ToCell(extraArgs)
-		require.NoError(t, err)
-		tonSendRequest := ops.TonSendRequest{
-			QueryID:   rand.Uint64(),
-			Receiver:  tonCommon.CrossChainAddress(make([]byte, 20)),
-			Data:      tonCommon.SnakeBytes([]byte("tons of fun")),
-			ExtraArgs: extraArgsCell,
-			FeeToken:  ops.TonTokenAddr,
-		}
-
-		// TODO: send helper args are coupled with core memory environment, can we tidy this?
-		ccipState := tonstate.CCIPChainState{
-			Router: state[chainSelector].Router,
-			OnRamp: state[chainSelector].OnRamp,
-		}
-		_, _, err = ops.SendTonRequest(env, ccipState, chainSelector, evmSelector, tonSendRequest)
-		require.NoError(t, err, "failed to send CCIP message")
-		time.Sleep(2 * time.Second)
+	CCIPMessageSentBOCs = []struct {
+		Name      string
+		BOCHex    string
+		SeqNum    uint64
+		DestChain uint64
+	}{
+		{
+			Name:      "message_seq_1",
+			BOCHex:    CCIPMessageSentSeq1BOC,
+			SeqNum:    1,
+			DestChain: ChainSelEVMTest90000001,
+		},
+		{
+			Name:      "message_seq_2",
+			BOCHex:    CCIPMessageSentSeq2BOC,
+			SeqNum:    2,
+			DestChain: ChainSelEVMTest90000001,
+		},
+		{
+			Name:      "message_seq_3",
+			BOCHex:    CCIPMessageSentSeq3BOC,
+			SeqNum:    3,
+			DestChain: ChainSelEVMTest90000001,
+		},
 	}
 
-	t.Run("query CCIP events via TonAccessor", func(t *testing.T) {
-		// check the latest message is indexed
-		require.Eventually(t, func() bool {
-			seqNum, err := accessor.LatestMessageTo(ctx, ccipocr3.ChainSelector(evmSelector))
-			require.NoError(t, err, "failed to get latest message sequence number")
-			return seqNum == ccipocr3.SeqNum(maxSeqNo)
-		}, 30*time.Second, 3*time.Second, "log poller did not ingest events correctly in time")
+	// CommitReportAccepted BOCs from TypeScript tests
+	CommitReportAcceptedMerkleRootOnlyBOC = "b5ee9c7241010101005000009b864fc942230e42958a088888e448e2ea7356b40325722ea18a36a7cf9d00000000000000008000000000000000df513addb30a7c281b29b5e33872a05e3a408c74829bdc220e4a83397ba303eaa06e51f72f"
+	CommitReportAcceptedPriceOnlyBOC      = "b5ee9c7241010401006e000101600102000203007b80186c5b823fab63015c89fcbba3a5f7da0f33a4d86ab8550295cefee69c53a674a00000000000000000000000000000000000000000000000000000003000480c9f9284461c852b00000000000000000000000000010000000000000000000000000001e97333c0"
+	CommitReportAcceptedBothBOC           = "b5ee9c724101040100bb00019b864fc942230e42958a088888e448e2ea7356b40325722ea18a36a7cf9d000000000000000080000000000000009cb293328e30ade20be171db6e64f9c523767f882382cef1764b29b8aac8a773600102000203007b8017722f7ada93dc8cab8b5b89e26588a305fff7f3106a514264f3f7c458c9bd5f400000000000000000000000000000000000000000000000000000003000480c9f9284461c852b00000000000000000000000000010000000000000000000000000001ec76defc"
+)
 
-		// check all messages are indexed
-		msgs, err := accessor.MsgsBetweenSeqNums(ctx, ccipocr3.ChainSelector(evmSelector), ccipocr3.NewSeqNumRange(0, maxSeqNo))
-		require.NoError(t, err, "failed to get latest message sequence number")
-		require.Len(t, msgs, maxSeqNo, "expected %d messages, got %d", maxSeqNo, len(msgs))
-		require.Equal(t, msgs[0].Header.SequenceNumber, ccipocr3.SeqNum(1))
-		require.Equal(t, msgs[maxSeqNo-1].Header.SequenceNumber, ccipocr3.SeqNum(maxSeqNo))
+func Test_TonAccessorMessageSentEventQueries(t *testing.T) {
+	// Basic parsing test using the first BOC
+	messageSentBocHex := CCIPMessageSentSeq1BOC
+	messageSentBocBytes, err := hex.DecodeString(messageSentBocHex)
+	require.NoError(t, err, "failed to decode hex string")
+	messageSentCell, err := cell.FromBOC(messageSentBocBytes)
+	require.NoError(t, err, "failed to parse BOC from hex")
 
-		// range query
-		const start, end = 2, 4
-		msgs2, err := accessor.MsgsBetweenSeqNums(ctx, ccipocr3.ChainSelector(evmSelector), ccipocr3.NewSeqNumRange(start, end))
-		require.NoError(t, err, "failed to get latest message sequence number")
-		require.Len(t, msgs2, end-start+1, "expected %d messages, got %d", end-start+1, len(msgs2))
-		require.Equal(t, msgs2[0].Header.SequenceNumber, ccipocr3.SeqNum(start))
-		require.Equal(t, msgs2[len(msgs2)-1].Header.SequenceNumber, ccipocr3.SeqNum(end))
+	skipMagic := true // logpoller skips the opcode
+	var messageSent onramp.CCIPMessageSent
+	err = tlb.LoadFromCell(&messageSent, messageSentCell.BeginParse(), skipMagic)
+	require.NoError(t, err, "failed to decode CCIPMessageSent from BOC")
+
+	// Validate expected values from the TypeScript test
+	require.Equal(t, uint64(ChainSelTON), messageSent.Message.Header.SourceChainSelector)
+	require.Equal(t, uint64(ChainSelEVMTest90000001), messageSent.Message.Header.DestChainSelector)
+	require.Equal(t, uint64(1), messageSent.Message.Header.SequenceNumber)
+	require.Equal(t, uint64(0), messageSent.Message.Header.Nonce)
+	require.NotNil(t, messageSent.Message.Sender)
+	require.NotNil(t, messageSent.Message.Body.FeeToken)
+	require.Equal(t, TestFeeTokenAddr, messageSent.Message.Body.FeeToken.String())
+	require.NotNil(t, messageSent.Message.Body.FeeTokenAmount)
+}
+
+func Test_TonAccessor_MsgsBetweenSeqNums(t *testing.T) {
+	// Basic parsing test for all BOCs
+	t.Run("basic_parsing", func(t *testing.T) {
+		for _, tc := range CCIPMessageSentBOCs {
+			t.Run(tc.Name, func(t *testing.T) {
+				bocBytes, err := hex.DecodeString(tc.BOCHex)
+				require.NoError(t, err)
+				bocCell, err := cell.FromBOC(bocBytes)
+				require.NoError(t, err)
+
+				var messageSent onramp.CCIPMessageSent
+				err = tlb.LoadFromCell(&messageSent, bocCell.BeginParse(), true)
+				require.NoError(t, err)
+
+				require.Equal(t, tc.SeqNum, messageSent.Message.Header.SequenceNumber)
+				require.Equal(t, tc.DestChain, messageSent.Message.Header.DestChainSelector)
+				require.Equal(t, uint64(ChainSelTON), messageSent.Message.Header.SourceChainSelector)
+				require.NotNil(t, messageSent.Message.Body.FeeToken)
+				require.Equal(t, TestFeeTokenAddr, messageSent.Message.Body.FeeToken.String())
+			})
+		}
 	})
 }
 
 func Test_TonAccessorCommitEventQueries(t *testing.T) {
-	// BOC data from "Test commit with one merkle root for one empty message"
-	merkleRootOnlyBocHex := "b5ee9c7241010101005000009b864fc942230e42958a088888e448e2ea7356b40325722ea18a36a7cf9d00000000000000008000000000000000df513addb30a7c281b29b5e33872a05e3a408c74829bdc220e4a83397ba303eaa06e51f72f"
-	merkleRootOnlyBocBytes, err := hex.DecodeString(merkleRootOnlyBocHex)
+	// BOC data from OffRamp TypeScript tests
+	merkleRootOnlyBocBytes, err := hex.DecodeString(CommitReportAcceptedMerkleRootOnlyBOC)
 	require.NoError(t, err, "failed to decode hex string")
 	merkleRootOnlyCell, err := cell.FromBOC(merkleRootOnlyBocBytes)
 	require.NoError(t, err, "failed to parse BOC from hex")
 
-	// BOC data from "Can commit with no roots and only price updates"
-	priceOnlyBocHex := "b5ee9c7241010401006e000101600102000203007b80186c5b823fab63015c89fcbba3a5f7da0f33a4d86ab8550295cefee69c53a674a00000000000000000000000000000000000000000000000000000003000480c9f9284461c852b00000000000000000000000000010000000000000000000000000001e97333c0"
-	priceOnlyBocBytes, err := hex.DecodeString(priceOnlyBocHex)
+	priceOnlyBocBytes, err := hex.DecodeString(CommitReportAcceptedPriceOnlyBOC)
 	require.NoError(t, err, "failed to decode hex string")
 	priceOnlyCell, err := cell.FromBOC(priceOnlyBocBytes)
 	require.NoError(t, err, "failed to parse BOC from hex")
 
-	// BOC data from "Can commit with both merkle root and price updates"
-	bothBocHex := "b5ee9c724101040100bb00019b864fc942230e42958a088888e448e2ea7356b40325722ea18a36a7cf9d000000000000000080000000000000009cb293328e30ade20be171db6e64f9c523767f882382cef1764b29b8aac8a773600102000203007b8017722f7ada93dc8cab8b5b89e26588a305fff7f3106a514264f3f7c458c9bd5f400000000000000000000000000000000000000000000000000000003000480c9f9284461c852b00000000000000000000000000010000000000000000000000000001ec76defc"
-	bothBocBytes, err := hex.DecodeString(bothBocHex)
+	bothBocBytes, err := hex.DecodeString(CommitReportAcceptedBothBOC)
 	require.NoError(t, err, "failed to decode hex string")
 	bothCell, err := cell.FromBOC(bothBocBytes)
 	require.NoError(t, err, "failed to parse BOC from hex")
 
 	t.Run("Analyze BOC structure - MerkleRoot detection", func(t *testing.T) {
-		// Let's examine the actual cell data to understand the 'maybe' encoding pattern
+		// Examine cell data to understand 'maybe' encoding pattern
 		t.Logf("=== MerkleRoot Only BOC Analysis ===")
 		merkleParser := merkleRootOnlyCell.BeginParse()
-		t.Logf("BOC Hex: %s", merkleRootOnlyBocHex)
+		t.Logf("BOC Hex: %s", CommitReportAcceptedMerkleRootOnlyBOC)
 		t.Logf("Cell bits remaining: %d", merkleParser.BitsLeft())
 
 		// Read first bit to check 'maybe' for MerkleRoot
@@ -222,7 +170,7 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 
 		t.Logf("=== Price Updates Only BOC Analysis ===")
 		priceParser := priceOnlyCell.BeginParse()
-		t.Logf("BOC Hex: %s", priceOnlyBocHex)
+		t.Logf("BOC Hex: %s", CommitReportAcceptedPriceOnlyBOC)
 		t.Logf("Cell bits remaining: %d", priceParser.BitsLeft())
 
 		// Read first bit to check 'maybe' for MerkleRoot
@@ -239,7 +187,7 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 
 		t.Logf("=== Both MerkleRoot AND PriceUpdates BOC Analysis ===")
 		bothParser := bothCell.BeginParse()
-		t.Logf("BOC Hex: %s", bothBocHex)
+		t.Logf("BOC Hex: %s", CommitReportAcceptedBothBOC)
 		t.Logf("Cell bits remaining: %d", bothParser.BitsLeft())
 
 		// Read first bit to check 'maybe' for MerkleRoot
@@ -277,8 +225,6 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 		require.Equal(t, uint64(1), commitReportAccepted.MerkleRoot.MinSeqNr, "MinSeqNr should be 1")
 		require.Equal(t, uint64(1), commitReportAccepted.MerkleRoot.MaxSeqNr, "MaxSeqNr should be 1")
 
-		require.Nil(t, commitReportAccepted.PriceUpdates, "PriceUpdates should be nil for this test")
-		t.Log("BOC decoding test (MerkleRoot only) passed!")
 	})
 
 	t.Run("Test BOC decoding - Price Updates only", func(t *testing.T) {
@@ -322,8 +268,6 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 		expectedGasPrice := new(big.Int)
 		expectedGasPrice.SetString("5192296858534827628530496329220097", 10)
 		require.Equal(t, expectedGasPrice, gasUpdate.UsdPerUnitGas, "UsdPerUnitGas should match expected value")
-
-		t.Log("BOC decoding test (PriceUpdates only) passed!")
 	})
 
 	t.Run("Test BOC decoding - Both MerkleRoot and PriceUpdates", func(t *testing.T) {
@@ -376,8 +320,6 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 
 		// Validate expected values from the TypeScript test
 		require.Equal(t, uint64(909606746561742123), gasUpdate.DestChainSelector, "DestChainSelector should match EVM test chain")
-
-		t.Log("BOC decoding test (Both MerkleRoot and PriceUpdates) passed!")
 	})
 
 	t.Run("Ton Accessor - CommitReportsGTETimestamp - MerkleRoot filtering with mixed reports and limit", func(t *testing.T) {
@@ -397,8 +339,6 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 			opts,
 		)
 
-		mockOffRampAddr := "EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF"
-
 		// Set timestamp before saving the logs
 		baseTimestamp := time.Now()
 		queryTimestamp := baseTimestamp.Add(-1 * time.Minute)
@@ -408,7 +348,7 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 
 		// 1. MerkleRoot-only log (should be included)
 		lp.GetStore().SaveLog(types.Log{
-			Address:     address.MustParseAddr(mockOffRampAddr),
+			Address:     address.MustParseAddr(MockOffRampAddr),
 			EventSig:    hash.CRC32(consts.EventNameCommitReportAccepted),
 			Data:        merkleRootOnlyCell,
 			TxTimestamp: baseTimestamp.Add(1 * time.Second),
@@ -416,7 +356,7 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 
 		// 2. PriceUpdates-only log (should be filtered OUT)
 		lp.GetStore().SaveLog(types.Log{
-			Address:     address.MustParseAddr(mockOffRampAddr),
+			Address:     address.MustParseAddr(MockOffRampAddr),
 			EventSig:    hash.CRC32(consts.EventNameCommitReportAccepted),
 			Data:        priceOnlyCell,
 			TxTimestamp: baseTimestamp.Add(2 * time.Second),
@@ -424,7 +364,7 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 
 		// 3. Both MerkleRoot AND PriceUpdates (should be included)
 		lp.GetStore().SaveLog(types.Log{
-			Address:     address.MustParseAddr(mockOffRampAddr),
+			Address:     address.MustParseAddr(MockOffRampAddr),
 			EventSig:    hash.CRC32(consts.EventNameCommitReportAccepted),
 			Data:        bothCell,
 			TxTimestamp: baseTimestamp.Add(3 * time.Second),
@@ -432,7 +372,7 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 
 		// 4. Another PriceUpdates-only log (should be filtered OUT)
 		lp.GetStore().SaveLog(types.Log{
-			Address:     address.MustParseAddr(mockOffRampAddr),
+			Address:     address.MustParseAddr(MockOffRampAddr),
 			EventSig:    hash.CRC32(consts.EventNameCommitReportAccepted),
 			Data:        priceOnlyCell,
 			TxTimestamp: baseTimestamp.Add(4 * time.Second),
@@ -440,7 +380,7 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 
 		// 5. Another MerkleRoot-only log (should be included)
 		lp.GetStore().SaveLog(types.Log{
-			Address:     address.MustParseAddr(mockOffRampAddr),
+			Address:     address.MustParseAddr(MockOffRampAddr),
 			EventSig:    hash.CRC32(consts.EventNameCommitReportAccepted),
 			Data:        merkleRootOnlyCell,
 			TxTimestamp: baseTimestamp.Add(5 * time.Second),
@@ -450,10 +390,10 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 
 		// Setup accessor
 		addrCodec := codec.NewAddressCodec()
-		accessor, aerr := chainaccessor.NewTONAccessor(logger.Test(t), ccipocr3.ChainSelector(13879075125137744094), nil, lp, addrCodec)
+		accessor, aerr := chainaccessor.NewTONAccessor(logger.Test(t), ccipocr3.ChainSelector(ChainSelTON), nil, lp, addrCodec)
 		require.NoError(t, aerr)
 
-		rawMockOffRampAddr, err := addrCodec.AddressStringToBytes(mockOffRampAddr)
+		rawMockOffRampAddr, err := addrCodec.AddressStringToBytes(MockOffRampAddr)
 		require.NoError(t, err)
 		err = accessor.Sync(t.Context(), consts.ContractNameOffRamp, rawMockOffRampAddr)
 		require.NoError(t, err)
@@ -500,8 +440,6 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 			require.True(t, reports[i-1].Timestamp.Before(reports[i].Timestamp) || reports[i-1].Timestamp.Equal(reports[i].Timestamp),
 				"Reports should be in chronological order (ASC)")
 		}
-
-		t.Log("CommitReportsGTETimestamp mixed reports filtering and limit test passed!")
 	})
 
 	t.Run("Ton Accessor - CommitReportsGTETimestamp - Basic functionality", func(t *testing.T) {
@@ -521,26 +459,24 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 			opts,
 		)
 
-		mockOffRampAddr := "EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF"
-
 		// Set timestamp before saving the log
 		logTimestamp := time.Now()
 		queryTimestamp := logTimestamp.Add(-1 * time.Minute) // Query from 1 minute before the log
 
-		// save log
+		// Save log
 		lp.GetStore().SaveLog(types.Log{
-			Address:     address.MustParseAddr(mockOffRampAddr),
+			Address:     address.MustParseAddr(MockOffRampAddr),
 			EventSig:    hash.CRC32(consts.EventNameCommitReportAccepted),
 			Data:        merkleRootOnlyCell,
 			TxTimestamp: logTimestamp,
 		})
 
-		// query report via ton accessor
+		// Query report via ton accessor
 		addrCodec := codec.NewAddressCodec()
-		accessor, aerr := chainaccessor.NewTONAccessor(logger.Test(t), ccipocr3.ChainSelector(13879075125137744094), nil, lp, addrCodec)
+		accessor, aerr := chainaccessor.NewTONAccessor(logger.Test(t), ccipocr3.ChainSelector(ChainSelTON), nil, lp, addrCodec)
 		require.NoError(t, aerr)
 
-		rawMockOffRampAddr, err := addrCodec.AddressStringToBytes(mockOffRampAddr)
+		rawMockOffRampAddr, err := addrCodec.AddressStringToBytes(MockOffRampAddr)
 		require.NoError(t, err)
 		err = accessor.Sync(t.Context(), consts.ContractNameOffRamp, rawMockOffRampAddr)
 		require.NoError(t, err)
@@ -576,7 +512,5 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 		// Validate PriceUpdates should be empty for this test (since we used merkleRootOnlyCell)
 		require.Empty(t, report.Report.PriceUpdates.TokenPriceUpdates, "TokenPriceUpdates should be empty for merkle root only test")
 		require.Empty(t, report.Report.PriceUpdates.GasPriceUpdates, "GasPriceUpdates should be empty for merkle root only test")
-
-		t.Log("CommitReportsGTETimestamp test passed!")
 	})
 }

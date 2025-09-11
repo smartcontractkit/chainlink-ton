@@ -47,6 +47,7 @@ type Any2TVMTokenTransfer struct {
 	Amount            *big.Int                 `tlb:"## 256"`
 }
 
+// TVM2AnyRampMessage for execution context (includes onramp address in header)
 type TVM2AnyRampMessage struct {
 	Header        RampMessageHeader      `tlb:"."`
 	Sender        *address.Address       `tlb:"addr"`

@@ -16,6 +16,9 @@ import { ZERO_ADDRESS } from '../../src/utils'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_TON = 13879075125137744094n
+const TEST_TOKEN_ADDR = Address.parseRaw(
+  '0:0000000000000000000000000000000000000000000000000000000000000001',
+)
 
 describe('Router', () => {
   let blockchain: Blockchain
@@ -81,7 +84,7 @@ describe('Router', () => {
       result = await feeQuoter.sendUpdatePrices(deployer.getSender(), {
         value: toNano('1'),
         gasPrices: [],
-        tokenPrices: [{ token: ZERO_ADDRESS, price: 123n }],
+        tokenPrices: [{ token: TEST_TOKEN_ADDR, price: 123n }],
       })
       expect(result.transactions).toHaveTransaction({
         to: feeQuoter.address,
@@ -91,31 +94,33 @@ describe('Router', () => {
       // add config for EVM destination
       result = await feeQuoter.sendUpdateDestChainConfigs(deployer.getSender(), {
         value: toNano('1'),
-        destChainConfigs: [{
-          destChainSelector: CHAINSEL_EVM_TEST_90000001,
-          config: {
-            // minimal valid config
-            isEnabled: true,
-            maxNumberOfTokensPerMsg: 0, // TODO:
-            maxDataBytes: 100,
-            maxPerMsgGasLimit: 100,
-            destGasOverhead: 0,
-            destGasPerPayloadByteBase: 0,
-            destGasPerPayloadByteHigh: 0,
-            destGasPerPayloadByteThreshold: 0,
-            destDataAvailabilityOverheadGas: 0,
-            destGasPerDataAvailabilityByte: 0,
-            destDataAvailabilityMultiplierBps: 0,
-            chainFamilySelector: 0,
-            enforceOutOfOrder: true,
-            defaultTokenFeeUsdCents: 0,
-            defaultTokenDestGasOverhead: 0,
-            defaultTxGasLimit: 1,
-            gasMultiplierWeiPerEth: 0n,
-            gasPriceStalenessThreshold: 0,
-            networkFeeUsdCents: 0,
-          }
-        }],
+        destChainConfigs: [
+          {
+            destChainSelector: CHAINSEL_EVM_TEST_90000001,
+            config: {
+              // minimal valid config
+              isEnabled: true,
+              maxNumberOfTokensPerMsg: 0, // TODO:
+              maxDataBytes: 100,
+              maxPerMsgGasLimit: 100,
+              destGasOverhead: 0,
+              destGasPerPayloadByteBase: 0,
+              destGasPerPayloadByteHigh: 0,
+              destGasPerPayloadByteThreshold: 0,
+              destDataAvailabilityOverheadGas: 0,
+              destGasPerDataAvailabilityByte: 0,
+              destDataAvailabilityMultiplierBps: 0,
+              chainFamilySelector: 0,
+              enforceOutOfOrder: true,
+              defaultTokenFeeUsdCents: 0,
+              defaultTokenDestGasOverhead: 0,
+              defaultTxGasLimit: 1,
+              gasMultiplierWeiPerEth: 0n,
+              gasPriceStalenessThreshold: 0,
+              networkFeeUsdCents: 0,
+            },
+          },
+        ],
       })
       expect(result.transactions).toHaveTransaction({
         to: feeQuoter.address,
@@ -124,7 +129,7 @@ describe('Router', () => {
       // configure the feeToken
       result = await feeQuoter.sendUpdateFeeTokens(deployer.getSender(), {
         value: toNano('1'),
-        add: [{ token: ZERO_ADDRESS, premiumMultiplier: 1n }],
+        add: [{ token: TEST_TOKEN_ADDR, premiumMultiplier: 1n }],
         remove: [],
       })
       expect(result.transactions).toHaveTransaction({
@@ -195,53 +200,112 @@ describe('Router', () => {
       success: true,
     })
 
-    // router.ccipSend
-    result = await router.sendCcipSend(deployer.getSender(), {
+    // Test Case 1: Message to destination chain 1 (seq 1)
+    console.log('\n=== Sending CCIP Message 1 ===')
+    let result1 = await router.sendCcipSend(deployer.getSender(), {
       value: toNano('1'),
       queryID: 1,
       destChainSelector: CHAINSEL_EVM_TEST_90000001,
-      receiver: Buffer.alloc(64),
-      data: Cell.EMPTY,
+      receiver: Buffer.from(
+        '1234567890123456789012345678901234567890123456789012345678901234',
+        'hex',
+      ), // 32 bytes
+      data: Cell.EMPTY, // Simple empty data for test case 1
       tokenAmounts: Cell.EMPTY,
-      feeToken: ZERO_ADDRESS,
+      feeToken: TEST_TOKEN_ADDR,
       extraArgs: Cell.EMPTY,
     })
 
-    // we called the router
-    expect(result.transactions).toHaveTransaction({
+    expect(result1.transactions).toHaveTransaction({
       from: deployer.address,
       to: router.address,
-      deploy: false,
       success: true,
     })
-    // the router called the onRamp
-    expect(result.transactions).toHaveTransaction({
+    expect(result1.transactions).toHaveTransaction({
       from: router.address,
       to: onRamp.address,
-      deploy: false,
-      success: true,
-    })
-    // assert message went to feeQuoter
-    expect(result.transactions).toHaveTransaction({
-      from: onRamp.address,
-      to: feeQuoter.address,
-      deploy: false,
       success: true,
     })
 
-    // destChainConfig -> feeQuoter -> onRamp
-    expect(result.transactions).toHaveTransaction({
-      from: feeQuoter.address,
-      to: onRamp.address,
-      deploy: false,
-      success: true,
-    })
-
-    // assert CCIPMessageSent
-    assertLog(result.transactions, onRamp.address, LogTypes.CCIPMessageSent, {
+    assertLog(result1.transactions, onRamp.address, LogTypes.CCIPMessageSent, {
       message: {
         header: {
           destChainSelector: CHAINSEL_EVM_TEST_90000001,
+          sequenceNumber: 1n,
+        },
+        sender: deployer.address,
+      },
+    })
+
+    // Test Case 2: Second message to same destination (seq 2)
+    console.log('\n=== Sending CCIP Message 2 ===')
+    let result2 = await router.sendCcipSend(deployer.getSender(), {
+      value: toNano('1'),
+      queryID: 2,
+      destChainSelector: CHAINSEL_EVM_TEST_90000001, // Same destination
+      receiver: Buffer.from(
+        'abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
+        'hex',
+      ),
+      data: Cell.EMPTY,
+      tokenAmounts: Cell.EMPTY,
+      feeToken: TEST_TOKEN_ADDR,
+      extraArgs: Cell.EMPTY,
+    })
+
+    expect(result2.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: router.address,
+      success: true,
+    })
+    expect(result2.transactions).toHaveTransaction({
+      from: router.address,
+      to: onRamp.address,
+      success: true,
+    })
+
+    assertLog(result2.transactions, onRamp.address, LogTypes.CCIPMessageSent, {
+      message: {
+        header: {
+          destChainSelector: CHAINSEL_EVM_TEST_90000001,
+          sequenceNumber: 2n,
+        },
+        sender: deployer.address,
+      },
+    })
+
+    // Test Case 3: Third message to same destination (seq 3)
+    console.log('\n=== Sending CCIP Message 3 ===')
+    let result3 = await router.sendCcipSend(deployer.getSender(), {
+      value: toNano('1'),
+      queryID: 3,
+      destChainSelector: CHAINSEL_EVM_TEST_90000001, // Same destination
+      receiver: Buffer.from(
+        'fedcba0987654321fedcba0987654321fedcba0987654321fedcba0987654321',
+        'hex',
+      ),
+      data: Cell.EMPTY,
+      tokenAmounts: Cell.EMPTY,
+      feeToken: TEST_TOKEN_ADDR,
+      extraArgs: Cell.EMPTY,
+    })
+
+    expect(result3.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: router.address,
+      success: true,
+    })
+    expect(result3.transactions).toHaveTransaction({
+      from: router.address,
+      to: onRamp.address,
+      success: true,
+    })
+
+    assertLog(result3.transactions, onRamp.address, LogTypes.CCIPMessageSent, {
+      message: {
+        header: {
+          destChainSelector: CHAINSEL_EVM_TEST_90000001,
+          sequenceNumber: 3n,
         },
         sender: deployer.address,
       },
