@@ -14,24 +14,7 @@ import (
 
 // CCIPMessageSent uses TVM2AnyRampMessage but with event-specific header (no onramp address)
 type CCIPMessageSent struct {
-	Message TVM2AnyRampMessageEvent `tlb:"."`
-}
-
-// TVM2AnyRampMessageEvent reuses TVM2AnyRampMessage structure but overrides Header for events
-type TVM2AnyRampMessageEvent struct {
-	Header        EventRampMessageHeader     `tlb:"."` // Event header (no onramp address)
-	Sender        *address.Address           `tlb:"addr"`
-	Body          ocr.TVM2AnyRampMessageBody `tlb:"^"`
-	FeeValueJuels *big.Int                   `tlb:"## 96"`
-}
-
-// EventRampMessageHeader contains metadata for ramp message events (without onramp address).
-type EventRampMessageHeader struct {
-	MessageID           []byte `tlb:"bits 256"`
-	SourceChainSelector uint64 `tlb:"## 64"`
-	DestChainSelector   uint64 `tlb:"## 64"`
-	SequenceNumber      uint64 `tlb:"## 64"`
-	Nonce               uint64 `tlb:"## 64"`
+	Message ocr.TVM2AnyRampMessage `tlb:"."`
 }
 
 // GenericExtraArgsV2 represents generic extra arguments for transactions.
