@@ -38,6 +38,8 @@
         # TODO: why the pkg rename here?
         jetton-contracts = contracts.packages.contracts-jetton-func;
       };
+
+      build-pkgs = pkgs.callPackage ./scripts/build commonArgs;
       # Resolve tools
       dependency-analyzer = pkgs.callPackage ./tools/dependency_analyzer commonArgs;
 
@@ -71,12 +73,14 @@
         {
           # Chainlink core node plugin (default + alias)
           inherit chainlink-ton;
-          default = chainlink-ton;
+          # TODO: move back to chainlink-ton? Image doesn't respect --build-arg in docker build but uses default from Dockerfile?
+          default = build-pkgs.packages.chainlink-plugins-bundle;
           # Dependency analyzer
           dependency-analyzer = dependency-analyzer.packages.default;
 
           inherit lock-nix-tidy;
         }
-        // contracts.packages;
+        // contracts.packages
+        // build-pkgs.packages;
     });
 }
