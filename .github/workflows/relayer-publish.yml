@@ -32,6 +32,7 @@ jobs:
       core_ref: ${{ steps.read_core_ref.outputs.CORE_REF }}
       core_ref_short: ${{ steps.determine_core_ref_short.outputs.CORE_REF_SHORT }}
     steps:
+      #TODO: Remove. This read-only token we are getting through GATI is not being used anywhere in the workflow because chainlink core is a public repo
       - name: Setup GitHub token using GATI
         id: set-token
         uses: smartcontractkit/.github/actions/setup-github-token@setup-github-token/1.0.0
@@ -218,3 +219,40 @@ jobs:
         CHAINLINK_USER=chainlink
         COMMIT_SHA=${{ github.sha }}
         BASE_IMAGE=${{ needs.get-core-image.outputs.base_image_public == 'true' && needs.get-core-image.outputs.base_image || format('{0}.dkr.ecr.{1}.amazonaws.com/chainlink-plugins-dev:{2}', secrets.AWS_ACCOUNT_ID_STAGING, vars.AWS_REGION, needs.get-core-image.outputs.base_image_tag) }}
+
+  update-infra-k8s-with-new-tag:
+    needs: [build-and-publish-core-with-relayer-docker]
+    name: Push Updated Tag to Infra K8s
+    permissions:
+      id-token: write
+      contents: write
+    steps:
+      - name: Setup GitHub Token
+        id: setup-github-token
+        uses: smartcontractkit/.github/actions/setup-github-token@setup-github-token/1.0.0
+        with:
+          aws-role-arn: ${{ secrets.AWS_ROLE_ARN_GATI_CHAINLINK_TON_CD }} #TODO add this secret to the repo once approved by prodsec
+          aws-lambda-url: ${{ secrets.AWS_LAMBDA_URL_GATI }}
+          aws-region: ${{ secrets.AWS_REGION }}
+          aws-role-duration-seconds: "1800" 
+          # Enable this to use the token for any git dependencies including `go mod` fetching
+
+      - name: Checkout Infra-k8s
+        uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
+        with:
+          repository: smartcontractkit/infra-k8s
+          ref: ${{ variables.STAGING_INFRA_BRANCH }}
+          token: ${{ steps.setup-github-token.outputs.access-token }}
+      
+      - name: Configure Git identity
+        run: |
+          git config user.name "chainlink-ci[bot]"
+          git config user.email "chainlink-ci[bot]@users.noreply.github.com"
+
+      - name: Update Docker Image Tag on cl-ccip-v2-ton-testnet/config.yaml
+        run: |
+          yq e -i '.stage.main.common.image.tag = ${{ needs.build-and-publish-core-with-relayer-docker.outputs.docker-manifest-tag }}' projects/chainlink/files/chainlink-clusters/cl-ccip-v2-ton-testnet/config.yaml
+          git add projects/chainlink/files/chainlink-clusters/cl-ccip-v2-ton-testnet/config.yaml
+          git commit -m 'update chainlink core tag'
+          git push
+
