@@ -418,7 +418,13 @@ func (a *TONAccessor) CommitReportsGTETimestamp(
 		WithSource(offrampAddr).
 		WithEventSig(hash.CRC32(consts.EventNameCommitReportAccepted)).
 		FilterTimestamp(query.TimestampGTE(ts)).
-		FilterTyped(a.merkleRootPresentFilter). // Filter to only get events with MerkleRoot
+		// Filter to only get events with MerkleRoot
+		// TODO(@jadepark-dev): revisit when we have a persistent log DB implemented
+		FilterTyped(
+			func(event offramp.CommitReportAccepted) bool {
+				return event.MerkleRoot != nil
+			},
+		).
 		OrderBy(query.SortByTxTimestamp, query.ASC).
 		Limit(limit).
 		Execute(ctx, a.logPoller.GetStore())
@@ -434,12 +440,6 @@ func (a *TONAccessor) CommitReportsGTETimestamp(
 	)
 	reports := a.processCommitReports(res.Logs, ts)
 	return reports, nil
-}
-
-// merkleRootPresentFilter checks if the CommitReportAccepted event contains a MerkleRoot.
-// This filter ensures we only process commits that contain merkle roots, not price-only updates.
-func (a *TONAccessor) merkleRootPresentFilter(event offramp.CommitReportAccepted) bool {
-	return event.MerkleRoot != nil
 }
 
 func (a *TONAccessor) processCommitReports(logs []types.TypedLog[offramp.CommitReportAccepted], ts time.Time) []ccipocr3.CommitPluginReportWithMeta {
@@ -521,8 +521,9 @@ func (a *TONAccessor) ExecutedMessages(
 	ranges map[ccipocr3.ChainSelector][]ccipocr3.SeqNumRange,
 	confidence primitives.ConfidenceLevel,
 ) (map[ccipocr3.ChainSelector][]ccipocr3.SeqNum, error) {
-	// TODO: trim empty ranges from ranges
-	// TODO: this can be sanitized from the upper layer
+	// trim empty ranges from rangesPerChain
+	// TODO: this is a hack to avoid SQL errors from the chainreader,
+	// TODO(@jadepark-dev): revisit when we have a persistent log DB implemented
 	nonEmptyRangesPerChain := make(map[ccipocr3.ChainSelector][]ccipocr3.SeqNumRange)
 	for chain, ranges := range ranges {
 		if len(ranges) > 0 {
@@ -530,65 +531,90 @@ func (a *TONAccessor) ExecutedMessages(
 		}
 	}
 
-	// TODO: query executed messages from consts.ContractNameOffRamp
+	if len(nonEmptyRangesPerChain) == 0 {
+		a.lggr.Debugw("no sequence numbers to query", "nonEmptyRangesPerChain", nonEmptyRangesPerChain)
+		return nil, nil
+	}
+
+	// Query executed messages from OffRamp
 	offrampAddr, err := a.getBinding(consts.ContractNameOffRamp)
 	if err != nil {
-		return nil, fmt.Errorf("OffRamp not bound: %w", err)
+		return nil, fmt.Errorf("failed to get OffRamp binding: %w", err)
 	}
+
 	executed := make(map[ccipocr3.ChainSelector][]ccipocr3.SeqNum)
 
-	type ExecutionStateChangedEvent struct {
-		// TODO: TBD - from offramp or merkleroot?
-	}
-
-	// TODO: currently no support for OR condition, query individually
-	for _, ranges := range nonEmptyRangesPerChain {
+	// Query for ExecutionStateChanged events for all chains/ranges
+	// TODO(@jadepark-dev): revisit when we have a persistent log DB implemented(should be OR condition with SQL query)
+	for chainSelector, ranges := range nonEmptyRangesPerChain {
 		for _, seqRange := range ranges {
-			_ = seqRange
-			// query for each chain/range combination
-			res, err := logpoller.NewQuery[ExecutionStateChangedEvent]().
+			a.lggr.Debugw("querying execution state changed events",
+				"chainSelector", chainSelector, "seqRange", seqRange)
+
+			res, err := logpoller.NewQuery[offramp.ExecutionStateChanged]().
 				WithSource(offrampAddr).
 				WithEventSig(hash.CRC32(consts.EventNameExecutionStateChanged)).
-				// TODO: event structure TBD
-				// SkipBytes(32). // Skip to SourceChainSelector field
-				// FilterBytes(8, query.EQ(binary.BigEndian.AppendUint64(nil, uint64(chainSelector)))).
-				// FilterBytes(8, // SequenceNumber field
-				// 	query.GTE(binary.BigEndian.AppendUint64(nil, uint64(seqRange.Start()))),
-				// 	query.LTE(binary.BigEndian.AppendUint64(nil, uint64(seqRange.End()))),
-				// ).
-				// FilterTyped(func(event ExecutionStateChangedEvent) bool {
-				// 	// const EXECUTION_STATE_UNTOUCHED: uint8 = 0;
-				// 	// const EXECUTION_STATE_IN_PROGRESS: uint8 = 1;
-				// 	// const EXECUTION_STATE_SUCCESS: uint8 = 2;
-				// 	// const EXECUTION_STATE_FAILURE: uint8 = 3;
-				// 	//   return event.State > 0 // only executed states
-				// }).
+				// TODO(@jadepark-dev): revisit when we have a persistent log DB implemented
+				FilterTyped(func(event offramp.ExecutionStateChanged) bool {
+					// Filter by source chain selector, sequence number range, and execution state
+					return event.State > 0 && // IN_PROGRESS=1, SUCCESS=2, FAILURE=3, skip UNTOUCHED=0
+						event.SourceChainSelector == uint64(chainSelector) &&
+						event.SequenceNumber >= uint64(seqRange.Start()) &&
+						event.SequenceNumber <= uint64(seqRange.End())
+				}).
 				Execute(ctx, a.logPoller.GetStore())
 
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("failed to query offRamp: %w", err)
 			}
 
 			for _, log := range res.Logs {
-				_ = log
-				// TODO: build ExecutionStateChanged event
-				// TODO: validate event, skip on failure
-				// if err := validateExecutionStateChangedEvent(stateChange, nonEmptyRangesPerChain); err != nil {
-				// 	lggr.Errorw("validate execution state changed event",
-				// 	"err", err, "stateChange", stateChange)
-				// 	continue
-				// }
-				// TODO: append sequence number
-				// executed[chainSelector] = append(executed[chainSelector], log.TypedData.SequenceNumber)
+				if err := a.validateExecutionStateChangedEvent(log.TypedData, nonEmptyRangesPerChain); err != nil {
+					a.lggr.Errorw("validate execution state changed event",
+						"err", err, "stateChange", log.TypedData)
+					continue
+				}
+
+				executed[ccipocr3.ChainSelector(log.TypedData.SourceChainSelector)] =
+					append(executed[ccipocr3.ChainSelector(log.TypedData.SourceChainSelector)],
+						ccipocr3.SeqNum(log.TypedData.SequenceNumber))
 			}
 		}
 	}
 
-	// TODO: for item in logs, parse ExecutionStateChangedEvent and validate event
-	// TODO: we'll need to have local validateExecutionStateChangedEvent?(not public atm)
-
-	// TODO: return executed sequence numbers
 	return executed, nil
+}
+
+// validateExecutionStateChangedEvent validates that the execution state changed event
+// is within the requested ranges and has the correct structure
+func (a *TONAccessor) validateExecutionStateChangedEvent(
+	event offramp.ExecutionStateChanged,
+	ranges map[ccipocr3.ChainSelector][]ccipocr3.SeqNumRange,
+) error {
+	chainSelector := ccipocr3.ChainSelector(event.SourceChainSelector)
+	seqNum := ccipocr3.SeqNum(event.SequenceNumber)
+
+	// Check if the chain selector is in our requested ranges
+	seqRanges, exists := ranges[chainSelector]
+	if !exists {
+		return fmt.Errorf("source chain of messages was not queries")
+	}
+
+	// Check if the sequence number is within any of the requested ranges
+	for _, seqRange := range seqRanges {
+		if seqNum >= seqRange.Start() && seqNum <= seqRange.End() {
+			// Additional validations to match EVM behavior
+			if len(event.MessageID) == 0 {
+				return fmt.Errorf("message ID is zero")
+			}
+			if event.State == 0 {
+				return fmt.Errorf("state is zero")
+			}
+			return nil // Valid
+		}
+	}
+
+	return fmt.Errorf("execution state changed event sequence number is not in the expected range")
 }
 
 func (a *TONAccessor) NextSeqNum(ctx context.Context, sources []ccipocr3.ChainSelector) (seqNum map[ccipocr3.ChainSelector]ccipocr3.SeqNum, err error) {

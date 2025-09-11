@@ -14,6 +14,13 @@ type CommitReportAccepted struct {
 	PriceUpdates *ocr.PriceUpdates `tlb:"maybe ^"`
 }
 
+type ExecutionStateChanged struct {
+	SourceChainSelector uint64 `tlb:"## 64"`
+	SequenceNumber      uint64 `tlb:"## 64"`
+	MessageID           []byte `tlb:"bits 256"`
+	State               uint8  `tlb:"## 8"`
+}
+
 type Storage struct {
 	ID                                      uint32              `tlb:"## 32"`
 	Ownable                                 common.Ownable2Step `tlb:"."`

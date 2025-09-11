@@ -82,6 +82,11 @@ var (
 	CommitReportAcceptedMerkleRootOnlyBOC = "b5ee9c7241010101005000009b864fc942230e42958a088888e448e2ea7356b40325722ea18a36a7cf9d00000000000000008000000000000000df513addb30a7c281b29b5e33872a05e3a408c74829bdc220e4a83397ba303eaa06e51f72f"
 	CommitReportAcceptedPriceOnlyBOC      = "b5ee9c7241010401006e000101600102000203007b80186c5b823fab63015c89fcbba3a5f7da0f33a4d86ab8550295cefee69c53a674a00000000000000000000000000000000000000000000000000000003000480c9f9284461c852b00000000000000000000000000010000000000000000000000000001e97333c0"
 	CommitReportAcceptedBothBOC           = "b5ee9c724101040100bb00019b864fc942230e42958a088888e448e2ea7356b40325722ea18a36a7cf9d000000000000000080000000000000009cb293328e30ade20be171db6e64f9c523767f882382cef1764b29b8aac8a773600102000203007b8017722f7ada93dc8cab8b5b89e26588a305fff7f3106a514264f3f7c458c9bd5f400000000000000000000000000000000000000000000000000000003000480c9f9284461c852b00000000000000000000000000010000000000000000000000000001ec76defc"
+
+	// ExecutionStateChanged BOCs from TypeScript tests
+	ExecutionStateChangedInProgressBOC = "b5ee9c724101010100330000620c9f9284461c852b00000000000000010000000000000000000000000000000000000000000000000000000000000001016423df08"
+	ExecutionStateChangedSuccessBOC    = "b5ee9c724101010100330000620c9f9284461c852b000000000000000100000000000000000000000000000000000000000000000000000000000000010290d08f1b"
+	ExecutionStateChangedFailureBOC    = "b5ee9c724101010100330000620c9f9284461c852b00000000000000010000000000000000000000000000000000000000000000000000000000000001039353e4e9"
 )
 
 func Test_TonAccessorMessageSentEventQueries(t *testing.T) {
@@ -513,4 +518,143 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 		require.Empty(t, report.Report.PriceUpdates.TokenPriceUpdates, "TokenPriceUpdates should be empty for merkle root only test")
 		require.Empty(t, report.Report.PriceUpdates.GasPriceUpdates, "GasPriceUpdates should be empty for merkle root only test")
 	})
+}
+
+func Test_TonAccessorExecutionStateChangedEventQueries(t *testing.T) {
+	// Test parsing ExecutionStateChanged BOCs with different states
+	testCases := []struct {
+		name     string
+		bocHex   string
+		expState uint8
+	}{
+		{
+			name:     "in_progress_state",
+			bocHex:   ExecutionStateChangedInProgressBOC,
+			expState: 1, // EXECUTION_STATE_IN_PROGRESS
+		},
+		{
+			name:     "success_state",
+			bocHex:   ExecutionStateChangedSuccessBOC,
+			expState: 2, // EXECUTION_STATE_SUCCESS
+		},
+		{
+			name:     "failure_state",
+			bocHex:   ExecutionStateChangedFailureBOC,
+			expState: 3, // EXECUTION_STATE_FAILURE
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			bocBytes, err := hex.DecodeString(tc.bocHex)
+			require.NoError(t, err, "failed to decode hex string")
+			bocCell, err := cell.FromBOC(bocBytes)
+			require.NoError(t, err, "failed to parse BOC from hex")
+
+			var execEvent offramp.ExecutionStateChanged
+			err = tlb.LoadFromCell(&execEvent, bocCell.BeginParse(), true) // Skip magic for logpoller
+			require.NoError(t, err, "failed to decode ExecutionStateChanged from BOC")
+
+			// Validate expected values from the TypeScript test
+			require.Equal(t, uint64(ChainSelEVMTest90000001), execEvent.SourceChainSelector)
+			require.Equal(t, uint64(1), execEvent.SequenceNumber)
+			// MessageID should be 1 (stored as big-endian 256-bit integer)
+			expectedMessageID := make([]byte, 32)
+			expectedMessageID[31] = 1 // Set last byte to 1
+			require.Equal(t, expectedMessageID, execEvent.MessageID)
+			require.Equal(t, tc.expState, execEvent.State)
+		})
+	}
+}
+
+func Test_TonAccessorExecutedMessages(t *testing.T) {
+	// Test ExecutedMessages integration with logpoller using ExecutionStateChanged BOCs
+	lpCfg := logpoller.DefaultConfigSet
+	filterStore := inmemorystore.NewFilterStore()
+	opts := &logpoller.ServiceOptions{
+		Config:   lpCfg,
+		Client:   nil,
+		Filters:  filterStore,
+		TxLoader: nil,
+		TxParser: nil,
+		Store:    inmemorystore.NewLogStore(),
+	}
+
+	lp := logpoller.NewService(
+		logger.Test(t),
+		opts,
+	)
+
+	// Parse the ExecutionStateChanged BOCs and save them as logs
+	baseTimestamp := time.Now()
+
+	// 1. Add IN_PROGRESS event (should be included, matching EVM behavior)
+	inProgressBytes, err := hex.DecodeString(ExecutionStateChangedInProgressBOC)
+	require.NoError(t, err)
+	inProgressCell, err := cell.FromBOC(inProgressBytes)
+	require.NoError(t, err)
+
+	lp.GetStore().SaveLog(types.Log{
+		Address:     address.MustParseAddr(MockOffRampAddr),
+		EventSig:    hash.CRC32(consts.EventNameExecutionStateChanged),
+		Data:        inProgressCell,
+		TxTimestamp: baseTimestamp.Add(1 * time.Second),
+	})
+
+	// 2. Add SUCCESS event (should be included)
+	successBytes, err := hex.DecodeString(ExecutionStateChangedSuccessBOC)
+	require.NoError(t, err)
+	successCell, err := cell.FromBOC(successBytes)
+	require.NoError(t, err)
+
+	lp.GetStore().SaveLog(types.Log{
+		Address:     address.MustParseAddr(MockOffRampAddr),
+		EventSig:    hash.CRC32(consts.EventNameExecutionStateChanged),
+		Data:        successCell,
+		TxTimestamp: baseTimestamp.Add(2 * time.Second),
+	})
+
+	// 3. Add FAILURE event (should be included)
+	failureBytes, err := hex.DecodeString(ExecutionStateChangedFailureBOC)
+	require.NoError(t, err)
+	failureCell, err := cell.FromBOC(failureBytes)
+	require.NoError(t, err)
+
+	lp.GetStore().SaveLog(types.Log{
+		Address:     address.MustParseAddr(MockOffRampAddr),
+		EventSig:    hash.CRC32(consts.EventNameExecutionStateChanged),
+		Data:        failureCell,
+		TxTimestamp: baseTimestamp.Add(3 * time.Second),
+	})
+
+	// Setup accessor
+	addrCodec := codec.NewAddressCodec()
+	accessor, aerr := chainaccessor.NewTONAccessor(logger.Test(t), ccipocr3.ChainSelector(ChainSelTON), nil, lp, addrCodec)
+	require.NoError(t, aerr)
+
+	rawMockOffRampAddr, err := addrCodec.AddressStringToBytes(MockOffRampAddr)
+	require.NoError(t, err)
+	err = accessor.Sync(t.Context(), consts.ContractNameOffRamp, rawMockOffRampAddr)
+	require.NoError(t, err)
+
+	// Test ExecutedMessages query
+	ranges := map[ccipocr3.ChainSelector][]ccipocr3.SeqNumRange{
+		ccipocr3.ChainSelector(ChainSelEVMTest90000001): {
+			ccipocr3.NewSeqNumRange(1, 1), // Query for sequence number 1
+		},
+	}
+
+	executed, err := accessor.ExecutedMessages(t.Context(), ranges, primitives.Finalized)
+	require.NoError(t, err, "failed to get executed messages")
+
+	// Should return exactly 3 executed messages (IN_PROGRESS, SUCCESS and FAILURE, all > 0 states)
+	require.Len(t, executed, 1, "should have executed messages for 1 chain")
+
+	executedSeqNums := executed[ccipocr3.ChainSelector(ChainSelEVMTest90000001)]
+	require.Len(t, executedSeqNums, 3, "should have 3 executed messages (IN_PROGRESS, SUCCESS and FAILURE)")
+
+	// Verify both sequence numbers are 1 (from our test BOCs)
+	for _, seqNum := range executedSeqNums {
+		require.Equal(t, ccipocr3.SeqNum(1), seqNum, "sequence number should be 1")
+	}
 }
