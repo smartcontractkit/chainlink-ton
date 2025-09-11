@@ -42,7 +42,7 @@ export class OCR3BaseExample extends OCR3Base {
     await provider.internal(via, {
       value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: beginCell().endCell(),
+      body: Cell.EMPTY,
     })
   }
 

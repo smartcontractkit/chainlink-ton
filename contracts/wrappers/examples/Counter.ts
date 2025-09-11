@@ -151,7 +151,7 @@ export class ContractClient implements Contract, TypeAndVersion {
   }
 
   async sendDeploy(p: ContractProvider, via: Sender, value: bigint): Promise<void> {
-    const body = beginCell().endCell()
+    const body = Cell.EMPTY
     await this.sendInternal(p, via, value, body)
   }
 

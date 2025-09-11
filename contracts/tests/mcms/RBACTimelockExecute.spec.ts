@@ -1,6 +1,6 @@
 import '@ton/test-utils'
 
-import { Address, toNano, beginCell } from '@ton/core'
+import { toNano, beginCell, Cell } from '@ton/core'
 
 import * as rbactl from '../../wrappers/mcms/RBACTimelock'
 import * as counter from '../../wrappers/examples/Counter'
@@ -36,12 +36,10 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
     counterTwo = baseTest.blockchain.openContract(
       counter.ContractClient.newFrom(counterTwoData, code.counter),
     )
-    // const body = counter.builder.message.topUp.encode({ queryId: 1n }) // TODO use TopUp after it is implemented
-    const body = beginCell().endCell()
     const result = await counterTwo.sendInternal(
       baseTest.acc.deployer.getSender(),
       toNano('0.05'),
-      body,
+      Cell.EMPTY,
     )
     expect(result.transactions).toHaveTransaction({
       from: baseTest.acc.deployer.address,

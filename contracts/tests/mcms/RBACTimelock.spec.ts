@@ -417,7 +417,7 @@ describe('RBACTimelock', () => {
     const predecessor = 0n
     const salt = 0n
     const targetAccount = deployer.address
-    const msgToSend = beginCell().endCell()
+    const msgToSend = Cell.EMPTY
 
     const calls = [
       {

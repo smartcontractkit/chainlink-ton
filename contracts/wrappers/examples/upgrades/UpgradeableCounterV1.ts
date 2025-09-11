@@ -66,7 +66,7 @@ export class UpgradeableCounterV1 implements TypeAndVersion, Upgradeable {
     await provider.internal(via, {
       value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: beginCell().endCell(),
+      body: Cell.EMPTY,
     })
   }
 

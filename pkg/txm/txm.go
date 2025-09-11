@@ -210,7 +210,7 @@ func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Messag
 		t.Logger.Warnw("failed to broadcast tx, will retry", "attempt", attempt, "err", err, "to", tx.To.String())
 
 		select {
-		case <-time.After(t.Config.SendRetryDelay):
+		case <-time.After(t.Config.SendRetryDelay.Duration()):
 		case <-t.Stop:
 			t.Logger.Debugw("broadcastWithRetry: stopped during retry delay")
 			return errors.New("broadcast aborted")
@@ -228,7 +228,7 @@ func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Messag
 	// Determine expiration
 	lamportTime := receivedMessage.LamportTime
 	lamportTimeSecs := lamportTime / 1000
-	expirationTimestampSecs := lamportTimeSecs + uint64(t.Config.SendRetryDelay.Seconds())
+	expirationTimestampSecs := lamportTimeSecs + uint64(t.Config.SendRetryDelay.Duration().Seconds())
 
 	txStore := t.AccountStore.GetTxStore(t.Client.Wallet.Address().String())
 	if txStore == nil {

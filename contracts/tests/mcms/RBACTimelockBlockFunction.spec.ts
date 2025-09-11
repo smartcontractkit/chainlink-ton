@@ -234,7 +234,7 @@ describe('MCMS - RBACTimelockBlockFunctionTest', () => {
       const call = {
         target: baseTest.bind.counter.address,
         value: toNano('0.05'),
-        data: beginCell().endCell(), // empty data
+        data: Cell.EMPTY,
       }
       const calls = BaseTestSetup.singletonCalls(call)
 

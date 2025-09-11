@@ -11,6 +11,7 @@ import (
 
 	"github.com/hashicorp/consul/sdk/freeport"
 	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/liteclient"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton/wallet"
 
@@ -18,10 +19,11 @@ import (
 
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 
-	"github.com/xssnick/tonutils-go/liteclient"
 	"github.com/xssnick/tonutils-go/ton"
 
 	"github.com/smartcontractkit/chainlink-testing-framework/framework/components/blockchain"
+
+	tonchain "github.com/smartcontractkit/chainlink-ton/pkg/ton/chain"
 )
 
 func CreateRandomWallet(t *testing.T, client ton.APIClientWrapped, version wallet.VersionConfig, option wallet.Option) *wallet.Wallet {
@@ -166,79 +168,102 @@ func StartChain(t *testing.T, nodeClient *ton.APIClient, chainID uint64, deploye
 	return ton
 }
 
-// CreateAPIClient sets up a TON API client for integration tests.
-// It reads env::USE_EXISTING_TON_NODE to decide whether to create a new
-// ephemeral network or connect to a pre-existing one.
-func CreateAPIClient(t *testing.T, chainID uint64) *ton.APIClient {
+// CreateTestAPIClient is a test helper that wraps CreateAPIClient and registers cleanup with testing.T
+func CreateTestAPIClient(t *testing.T, chainID uint64) (*ton.APIClient, error) {
 	t.Helper()
 
-	var networkCfg string
-	var err error
-
-	if os.Getenv("USE_EXISTING_TON_NODE") == "true" {
-		networkCfg = getExistingNetworkConfig(t, chainID)
-	} else {
-		networkCfg = createNewNetwork(t, chainID)
+	port := freeport.GetOne(t)
+	client, cleanup, err := CreateAPIClient(t.Context(), chainID, port)
+	if err != nil {
+		return nil, err
 	}
 
-	cfg, err := liteclient.GetConfigFromUrl(t.Context(), networkCfg)
-	require.NoError(t, err, "failed to get config from URL: %s", networkCfg)
-
-	connectionPool := liteclient.NewConnectionPool()
-	err = connectionPool.AddConnectionsFromConfig(t.Context(), cfg)
-	require.NoError(t, err)
-
-	client := ton.NewAPIClient(connectionPool, ton.ProofCheckPolicyFast)
-	client.SetTrustedBlockFromConfig(cfg)
-
-	_, err = client.GetMasterchainInfo(t.Context())
-	require.NoError(t, err, "TON network not ready")
-
-	return client
+	t.Cleanup(cleanup)
+	return client, nil
 }
 
-// getExistingNetworkConfig returns the hardcoded configuration for a pre-existing network.
-func getExistingNetworkConfig(t *testing.T, chainID uint64) string {
-	t.Helper()
-	t.Logf("Using existing network for chain ID %d", chainID)
-	return "http://localhost:8000/localhost.global.config.json"
+// CreateAPIClient sets up a TON API client. Returns the client, cleanup function, and error.
+// The caller is responsible for calling the cleanup function when done.
+// Note: For new networks, a port must be provided since freeport allocation requires testing context.
+func CreateAPIClient(ctx context.Context, chainID uint64, port int) (*ton.APIClient, func(), error) {
+	var client *ton.APIClient
+	var cleanup func()
+	var err error
+
+	// Read env::USE_EXISTING_TON_NODE to decide whether to create a new ephemeral network
+	// or connect to a pre-existing one(for faster iteration).
+	if os.Getenv("USE_EXISTING_TON_NODE") == "true" {
+		client, err = getExistingNetworkConnection(ctx)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to get existing network connection string: %w", err)
+		}
+		cleanup = func() {} // no-op cleanup for existing network
+	} else {
+		client, cleanup, err = createNewNetwork(ctx, chainID, port)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to create new network: %w", err)
+		}
+	}
+
+	// test connection
+	mb, merr := client.GetMasterchainInfo(ctx)
+	if merr != nil {
+		if cleanup != nil {
+			cleanup() // cleanup on error
+		}
+		return nil, nil, fmt.Errorf("TON network not ready: %w", merr)
+	}
+	client.SetTrustedBlock(mb)
+
+	return client, cleanup, nil
+}
+
+// getExistingNetworkConnection returns the connection for a pre-existing network.
+func getExistingNetworkConnection(ctx context.Context) (*ton.APIClient, error) {
+	configURL := "http://localhost:8000/localhost.global.config.json"
+	pool := liteclient.NewConnectionPool()
+	pool.AddConnectionsFromConfigUrl(ctx, configURL)
+	return ton.NewAPIClient(pool, ton.ProofCheckPolicyFast), nil
 }
 
 // createNewNetwork provisions a new, temporary TON network for the test's duration.
 // It handles port allocation and automatic container cleanup.
-func createNewNetwork(t *testing.T, chainID uint64) string {
-	t.Helper()
-	t.Logf("Creating new ephemeral network for chain ID %d", chainID)
-
-	port := freeport.GetOne(t)
+func createNewNetwork(ctx context.Context, chainID uint64, port int) (client *ton.APIClient, cleanup func(), err error) {
+	// port := freeport.GetOne(t)
 	bcInput := &blockchain.Input{
 		ChainID: strconv.FormatUint(chainID, 10),
 		Type:    "ton",
 		Port:    strconv.Itoa(port),
-		// Note(@jadepark-dev): Due to mylocalton-docker 3.5 update, file server(for fetching config) service has been separated.
-		// https://github.com/neodix42/mylocalton-docker/pkgs/container/mylocalton-docker/versions
-		// This is older version(3.4) hash, ideally we should have automatic PR that watches releases, updates version, and run CI tests
-		Image: "ghcr.io/neodix42/mylocalton-docker@sha256:b4a8dc4bdd01a9bb5ebbe817ef764b9a21f2769b660b31733f7477b203d342ce",
+		Image:   "ghcr.io/neodix42/mylocalton-docker:v3.7",
 		CustomEnv: map[string]string{
-			"VERSION_CAPABILITIES":        "11",
-			"NEXT_BLOCK_GENERATION_DELAY": "0.5",
+			"NEXT_BLOCK_GENERATION_DELAY":    "0.5",
+			"EMBEDDED_FILE_HTTP_SERVER":      "true",
+			"EMBEDDED_FILE_HTTP_SERVER_PORT": strconv.Itoa(port),
 		},
 	}
 
 	bcOut, err := blockchain.NewBlockchainNetwork(bcInput)
-	require.NoError(t, err, "failed to create blockchain network")
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create blockchain network: %w", err)
+	}
 
 	// The cleanup function ensures the temporary network is terminated after the test.
-	t.Cleanup(func() {
+	cleanup = func() {
 		if bcOut.Container != nil && bcOut.Container.IsRunning() {
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
 			if cterr := bcOut.Container.Terminate(ctx); cterr != nil {
-				t.Logf("Container termination failed: %v", cterr)
+				fmt.Printf("Container termination failed: %v", cterr)
 			}
 		}
 		freeport.Return([]int{port})
-	})
+	}
 
-	return fmt.Sprintf("http://%s/localhost.global.config.json", bcOut.Nodes[0].ExternalHTTPUrl)
+	connectionPool, cerr := tonchain.CreateLiteserverConnectionPool(ctx, bcOut.Nodes[0].ExternalHTTPUrl)
+	if cerr != nil {
+		return nil, nil, fmt.Errorf("failed to create connection pool from liteserver URL: %w", cerr)
+	}
+
+	client = ton.NewAPIClient(connectionPool, ton.ProofCheckPolicyFast)
+	return client, cleanup, nil
 }

@@ -46,8 +46,8 @@ func TestComputeLookbackWindow(t *testing.T) {
 
 	t.Run("With default config", func(t *testing.T) {
 		currentSeqNo := uint32(50000)
-		lookbackDuration := DefaultConfigSet.LogPollerStartingLookback // 24 hours
-		blockTime := DefaultConfigSet.BlockTime                        // 2.5 seconds
+		lookbackDuration := DefaultConfigSet.LogPollerStartingLookback.Duration() // 24 hours
+		blockTime := DefaultConfigSet.BlockTime.Duration()                        // 2.5 seconds
 
 		result := computeLookbackWindow(currentSeqNo, lookbackDuration, blockTime)
 
