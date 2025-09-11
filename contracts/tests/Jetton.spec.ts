@@ -8,11 +8,10 @@ import { resolve } from 'path'
 import { readFileSync } from 'fs'
 import { execSync } from 'child_process'
 import { env } from 'process'
+import { JettonMinterCode, JettonWalletCode } from '../wrappers/jetton/JettonCode'
 
 const ONCHAIN_CONTENT_PREFIX = 0x00
 const OFFCHAIN_CONTENT_PREFIX = 0x01
-
-const PATH_CONTRACTS_JETTON = env.PATH_CONTRACTS_JETTON
 
 const jettonDataURI = 'smartcontract.com'
 
@@ -462,30 +461,4 @@ function findGitRoot(): string {
   } catch (error) {
     throw new Error('Could not find git repository root. Make sure you are in a git repository.')
   }
-}
-
-async function JettonMinterCode(): Promise<Cell> {
-  const compiledPath = `${PATH_CONTRACTS_JETTON}/JettonMinter.compiled.json`
-  const compiled = JSON.parse(readFileSync(compiledPath, 'utf8'))
-  const hex = compiled.hex
-  if (!hex) {
-    throw new Error('Compiled JettonMinter code hex not found in JSON')
-  }
-  // Remove 0x prefix if present
-  const hexStr = hex.startsWith('0x') ? hex.slice(2) : hex
-  const boc = Buffer.from(hexStr, 'hex')
-  return Cell.fromBoc(boc)[0]
-}
-
-async function JettonWalletCode(): Promise<Cell> {
-  const compiledPath = `${PATH_CONTRACTS_JETTON}/JettonWallet.compiled.json`
-  const compiled = JSON.parse(readFileSync(compiledPath, 'utf8'))
-  const hex = compiled.hex
-  if (!hex) {
-    throw new Error('Compiled JettonWallet code hex not found in JSON')
-  }
-  // Remove 0x prefix if present
-  const hexStr = hex.startsWith('0x') ? hex.slice(2) : hex
-  const boc = Buffer.from(hexStr, 'hex')
-  return Cell.fromBoc(boc)[0]
 }
