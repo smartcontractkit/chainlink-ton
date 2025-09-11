@@ -23,10 +23,6 @@ RUN curl https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add - \
 # keep user creation as before (we will run detector as root BEFORE switching to user)
 RUN if [ ${CHAINLINK_USER} != root ]; then useradd --uid 14933 --create-home ${CHAINLINK_USER}; fi
 
-# TODO: this should be auto-copied from builder stage
-# # Copy Delve debugger from build stage.
-# COPY --from=buildgo /go/bin/dlv /usr/local/bin/dlv
-
 # TODO: figure out how to pass these at build time whithout baking in specific context
 # # CCIP specific
 # COPY ./cci[p]/confi[g] /ccip-config

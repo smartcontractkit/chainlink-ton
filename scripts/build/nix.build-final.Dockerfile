@@ -1,12 +1,14 @@
 # syntax = docker/dockerfile:1.4
-# Notice: this is a fork from https://github.com/docker/babashka-pod-docker/blob/main/Dockerfile.nix
 
 # Takes Chainlink core as a base image and layers in plugins
 ARG BASE_IMAGE=public.ecr.aws/chainlink/chainlink:v2.23.0-plugins
+
+# Notice: this is a fork from https://github.com/docker/babashka-pod-docker/blob/main/Dockerfile.nix
+FROM nixos/nix:latest AS builder
+
 # Build the 'default' pkg if not set
 ARG NIX_BUILD_PKG=default
-
-FROM nixos/nix:latest AS builder
+ENV NIX_BUILD_PKG=${NIX_BUILD_PKG}
 
 WORKDIR /tmp/build
 RUN mkdir /tmp/nix-store-closure

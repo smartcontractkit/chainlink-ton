@@ -55,6 +55,9 @@ in {
         chainlink-ton
         chainlink-solana
         chainlink-aptos
+
+        # Added for debugging purposes (should not be needed for production pkgs/image)
+        pkgs.delve
       ];
       # Make sure the output path is deterministic
       # (otherwise, it would include the hash of the input paths)

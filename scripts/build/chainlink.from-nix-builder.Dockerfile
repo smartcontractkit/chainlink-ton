@@ -1,11 +1,11 @@
 # syntax = docker/dockerfile:1.4
 
 # Notice: this is a fork from https://github.com/docker/babashka-pod-docker/blob/main/Dockerfile.nix
+FROM nixos/nix:latest AS chainlink-builder
 
 # Build the 'default' pkg if not set
 ARG NIX_BUILD_PKG=default
-
-FROM nixos/nix:latest AS chainlink-builder
+ENV NIX_BUILD_PKG=${NIX_BUILD_PKG}
 
 WORKDIR /tmp/build
 RUN mkdir /tmp/nix-store-closure
@@ -51,10 +51,6 @@ RUN curl https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add - \
 
 # keep user creation as before (we will run detector as root BEFORE switching to user)
 RUN if [ ${CHAINLINK_USER} != root ]; then useradd --uid 14933 --create-home ${CHAINLINK_USER}; fi
-
-# TODO: this should be auto-copied from builder stage
-# # Copy Delve debugger from build stage.
-# COPY --from=buildgo /go/bin/dlv /usr/local/bin/dlv
 
 # TODO: figure out how to pass these at build time whithout baking in specific context
 # # CCIP specific

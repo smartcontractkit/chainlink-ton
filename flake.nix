@@ -74,8 +74,7 @@
         {
           # Chainlink core node plugin (default + alias)
           inherit chainlink-ton;
-          # TODO: move back to chainlink-ton? Image doesn't respect --build-arg in docker build but uses default from Dockerfile?
-          default = build-pkgs.packages.chainlink-plugins-bundle;
+          default = chainlink-ton;
           # Dependency analyzer
           dependency-analyzer = dependency-analyzer.packages.default;
 
