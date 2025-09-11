@@ -1,6 +1,7 @@
 {
   pkgs,
   rev,
+  chainlink-ton,
 }: let
   lock = pkgs.callPackage ./lock.nix {inherit pkgs;};
 
@@ -55,6 +56,7 @@ in {
     chainlink-plugins-bundle = pkgs.symlinkJoin {
       name = "chainlink-plugins-bundle";
       paths = [
+        chainlink-ton
         chainlink-solana
         chainlink-aptos
       ];

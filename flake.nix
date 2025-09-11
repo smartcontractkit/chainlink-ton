@@ -39,7 +39,7 @@
         jetton-contracts = contracts.packages.contracts-jetton-func;
       };
 
-      build-pkgs = pkgs.callPackage ./scripts/build commonArgs;
+      build-pkgs = pkgs.callPackage ./scripts/build (commonArgs // {inherit chainlink-ton;});
       # Resolve tools
       dependency-analyzer = pkgs.callPackage ./tools/dependency_analyzer commonArgs;
 
