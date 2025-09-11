@@ -12,7 +12,7 @@ pkgs.buildGo124Module rec {
 
   ldflags = [
     "-X main.Version=${build-info.package-info.version}"
-    "-X main.GitCommit=${build-info.rev}"
+    "-X main.GitCommit=${build-info.repo.rev}"
   ];
 
   # pin the vendor hash (update using 'pkgs.lib.fakeHash' in the lock file)
@@ -22,12 +22,12 @@ pkgs.buildGo124Module rec {
   postInstall = ''
     mkdir $out/share
     echo ${build-info.package-info.version} > $out/share/${pname}.version
-    echo ${build-info.rev} > $out/share/${pname}.rev
+    echo ${build-info.repo.rev} > $out/share/${pname}.rev
   '';
 
   meta = with pkgs.lib; {
     inherit (build-info.package-info) description;
     license = licenses.mit;
-    changelog = "${build-info.url}/releases/tag/v${build-info.package-info.version}";
+    changelog = "${build-info.repo.url}/releases/tag/v${build-info.package-info.version}";
   };
 }

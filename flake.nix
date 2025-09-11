@@ -31,13 +31,14 @@
       chainlink-ton = pkgs.callPackage ./cmd/chainlink-ton commonArgs;
       # Resolve sub-modules
       contracts = pkgs.callPackage ./contracts commonArgs;
-      integration-tests = pkgs.callPackage ./integration-tests {
-        inherit pkgs;
-        inherit rev;
-        inherit chainlink-ton;
-        # TODO: why the pkg rename here?
-        jetton-contracts = contracts.packages.contracts-jetton-func;
-      };
+      integration-tests = pkgs.callPackage ./integration-tests (
+        commonArgs
+        // {
+          inherit chainlink-ton;
+          # TODO: why the pkg rename here?
+          jetton-contracts = contracts.packages.contracts-jetton-func;
+        }
+      );
 
       build-pkgs = pkgs.callPackage ./scripts/build (commonArgs // {inherit chainlink-ton;});
       # Resolve tools

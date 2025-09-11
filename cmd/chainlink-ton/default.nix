@@ -3,34 +3,27 @@
   rev,
 }: let
   lock = pkgs.callPackage ./lock.nix {inherit pkgs;};
-  package-info = builtins.fromJSON (builtins.readFile ../../pkg/package.json);
-in
-  pkgs.buildGo124Module rec {
-    inherit (package-info) version;
-    pname = "chainlink-ton";
 
-    # source at the root of the module
-    src = ./../..;
-    subPackages = ["cmd/chainlink-ton"];
+  # Function to build a Go plugin given its build-info
+  buildGoPlugin = pkgs.callPackage ../../scripts/build/lib/build-go-plugin.nix {
+    inherit pkgs;
+    inherit lock;
+  };
 
-    ldflags = [
-      "-X main.Version=${package-info.version}"
-      "-X main.GitCommit=${rev}"
-    ];
+  build-info = {
+    ton = rec {
+      pname = "chainlink-ton";
+      repo = {
+        inherit rev;
+        url = "https://github.com/smartcontractkit/chainlink-ton";
+      };
 
-    # pin the vendor hash (update using 'pkgs.lib.fakeHash')
-    vendorHash = lock.chainlink-ton;
+      # source at the root of the module
+      src = ./../..;
+      subPackages = ["cmd/chainlink-ton"];
 
-    # postInstall script to write version and rev to share folder
-    postInstall = ''
-      mkdir $out/share
-      echo ${package-info.version} > $out/share/.version
-      echo ${rev} > $out/share/.rev
-    '';
-
-    meta = with pkgs.lib; {
-      inherit (package-info) description;
-      license = licenses.mit;
-      changelog = "https://github.com/smartcontractkit/chainlink-ton/releases/tag/v${version}";
+      package-info = builtins.fromJSON (builtins.readFile ../../pkg/package.json);
     };
-  }
+  };
+in
+  buildGoPlugin build-info.ton

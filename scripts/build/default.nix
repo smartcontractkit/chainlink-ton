@@ -14,14 +14,12 @@
   build-info = {
     solana = rec {
       pname = "chainlink-solana";
-      url = "https://github.com/smartcontractkit/chainlink-solana";
-      rev = "fa42dad2d413c116560ada2923dd122ff2812cd5";
-
-      src = builtins.fetchGit {
-        inherit rev;
-        inherit url;
+      repo = {
+        url = "https://github.com/smartcontractkit/chainlink-solana";
+        rev = "fa42dad2d413c116560ada2923dd122ff2812cd5";
       };
 
+      src = builtins.fetchGit repo;
       subPackages = ["pkg/solana/cmd/chainlink-solana"];
 
       package-info = {
@@ -32,14 +30,12 @@
 
     aptos = rec {
       pname = "chainlink-aptos";
-      url = "https://github.com/smartcontractkit/chainlink-aptos";
-      rev = "ad2cb3166a0d377b7ade9a9bd71f4c1a4eb4ac3f";
-
-      src = builtins.fetchGit {
-        inherit rev;
-        inherit url;
+      repo = {
+        url = "https://github.com/smartcontractkit/chainlink-aptos";
+        rev = "ad2cb3166a0d377b7ade9a9bd71f4c1a4eb4ac3f";
       };
 
+      src = builtins.fetchGit repo;
       subPackages = ["cmd/chainlink-aptos"];
 
       package-info = {
