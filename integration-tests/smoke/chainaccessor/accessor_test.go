@@ -17,11 +17,11 @@ import (
 	test_utils "github.com/smartcontractkit/chainlink-ton/deployment/utils"
 
 	chain_selectors "github.com/smartcontractkit/chain-selectors"
+
 	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"
+	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
-
-	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
 	"github.com/smartcontractkit/chainlink/deployment/environment/memory"
 

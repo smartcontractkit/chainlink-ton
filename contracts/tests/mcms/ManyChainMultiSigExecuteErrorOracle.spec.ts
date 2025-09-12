@@ -31,10 +31,12 @@ describe('MCMS - ManyChainMultiSigExecuteErrorOracleTest', () => {
     const r = await baseTest.bind.mcms.sendInternal(
       baseTest.acc.multisigOwner.getSender(),
       toNano('1'),
-      mcms.builder.message.in.transferOracleRole.encode({
-        queryId: 1n,
-        newOracle: acc.oracle.address,
-      }),
+      mcms.builder.message.in.transferOracleRole
+        .encode({
+          queryId: 1n,
+          newOracle: acc.oracle.address,
+        })
+        .asCell(),
     )
 
     expect(r.transactions).toHaveTransaction({
@@ -58,10 +60,12 @@ describe('MCMS - ManyChainMultiSigExecuteErrorOracleTest', () => {
     const r = await baseTest.bind.mcms.sendInternal(
       baseTest.acc.deployer.getSender(),
       toNano('1'),
-      mcms.builder.message.in.transferOracleRole.encode({
-        queryId: 1n,
-        newOracle: acc.oracle.address,
-      }),
+      mcms.builder.message.in.transferOracleRole
+        .encode({
+          queryId: 1n,
+          newOracle: acc.oracle.address,
+        })
+        .asCell(),
     )
 
     expect(r.transactions).toHaveTransaction({
@@ -80,11 +84,13 @@ describe('MCMS - ManyChainMultiSigExecuteErrorOracleTest', () => {
     // Execute first operation
     const proof1 = baseTest.getProofForOp(0)
 
-    const execBody = mcms.builder.message.in.execute.encode({
-      queryId: 1n,
-      op: mcms.builder.data.op.encode(baseTest.testOps[0]),
-      proof: proof1,
-    })
+    const execBody = mcms.builder.message.in.execute
+      .encode({
+        queryId: 1n,
+        op: mcms.builder.data.op.encode(baseTest.testOps[0]).asCell(),
+        proof: proof1,
+      })
+      .asCell()
 
     const r1 = await baseTest.bind.mcms.sendInternal(
       baseTest.acc.deployer.getSender(),
@@ -108,14 +114,16 @@ describe('MCMS - ManyChainMultiSigExecuteErrorOracleTest', () => {
     const r2 = await baseTest.bind.mcms.sendInternal(
       acc.oracle.getSender(),
       toNano('1'),
-      mcms.builder.message.in.submitErrorReport.encode({
-        queryId: 1n,
-        op: mcms.builder.data.op.encode(baseTest.testOps[0]),
-        proof: proof1,
-        opTxHash: txHash,
-        errorTxHash: txHash,
-        errorCode: 1337,
-      }),
+      mcms.builder.message.in.submitErrorReport
+        .encode({
+          queryId: 1n,
+          op: mcms.builder.data.op.encode(baseTest.testOps[0]).asCell(),
+          proof: proof1,
+          opTxHash: txHash,
+          errorTxHash: txHash,
+          errorCode: 1337,
+        })
+        .asCell(),
     )
 
     expect(r2.transactions).toHaveTransaction({
@@ -145,11 +153,13 @@ describe('MCMS - ManyChainMultiSigExecuteErrorOracleTest', () => {
     // Execute first operation
     const proof1 = baseTest.getProofForOp(0)
 
-    const execBody = mcms.builder.message.in.execute.encode({
-      queryId: 1n,
-      op: mcms.builder.data.op.encode(baseTest.testOps[0]),
-      proof: proof1,
-    })
+    const execBody = mcms.builder.message.in.execute
+      .encode({
+        queryId: 1n,
+        op: mcms.builder.data.op.encode(baseTest.testOps[0]).asCell(),
+        proof: proof1,
+      })
+      .asCell()
 
     const r1 = await baseTest.bind.mcms.sendInternal(
       baseTest.acc.deployer.getSender(),
@@ -173,14 +183,16 @@ describe('MCMS - ManyChainMultiSigExecuteErrorOracleTest', () => {
     const r2 = await baseTest.bind.mcms.sendInternal(
       acc.oracle.getSender(),
       toNano('1'),
-      mcms.builder.message.in.submitErrorReport.encode({
-        queryId: 1n,
-        op: mcms.builder.data.op.encode(baseTest.testOps[0]),
-        proof: proof1,
-        opTxHash: txHash,
-        errorTxHash: txHash,
-        errorCode: 1337,
-      }),
+      mcms.builder.message.in.submitErrorReport
+        .encode({
+          queryId: 1n,
+          op: mcms.builder.data.op.encode(baseTest.testOps[0]).asCell(),
+          proof: proof1,
+          opTxHash: txHash,
+          errorTxHash: txHash,
+          errorCode: 1337,
+        })
+        .asCell(),
     )
 
     expect(r2.transactions).toHaveTransaction({
@@ -208,11 +220,13 @@ describe('MCMS - ManyChainMultiSigExecuteErrorOracleTest', () => {
     // Try to execute the new op, new root
     const proofNew = baseTest.getProofForOp(0)
 
-    const execBodyNew = mcms.builder.message.in.execute.encode({
-      queryId: 1n,
-      op: mcms.builder.data.op.encode(baseTest.testOps[0]),
-      proof: proofNew,
-    })
+    const execBodyNew = mcms.builder.message.in.execute
+      .encode({
+        queryId: 1n,
+        op: mcms.builder.data.op.encode(baseTest.testOps[0]).asCell(),
+        proof: proofNew,
+      })
+      .asCell()
 
     const r3 = await baseTest.bind.mcms.sendInternal(
       baseTest.acc.deployer.getSender(),
@@ -237,14 +251,16 @@ describe('MCMS - ManyChainMultiSigExecuteErrorOracleTest', () => {
     const r = await baseTest.bind.mcms.sendInternal(
       baseTest.acc.multisigOwner.getSender(), // not an oracle
       toNano('1'),
-      mcms.builder.message.in.submitErrorReport.encode({
-        queryId: 1n,
-        op: mcms.builder.data.op.encode(baseTest.testOps[0]),
-        proof,
-        opTxHash: txHash,
-        errorTxHash: txHash,
-        errorCode: 1337,
-      }),
+      mcms.builder.message.in.submitErrorReport
+        .encode({
+          queryId: 1n,
+          op: mcms.builder.data.op.encode(baseTest.testOps[0]).asCell(),
+          proof,
+          opTxHash: txHash,
+          errorTxHash: txHash,
+          errorCode: 1337,
+        })
+        .asCell(),
     )
 
     expect(r.transactions).toHaveTransaction({
@@ -265,14 +281,16 @@ describe('MCMS - ManyChainMultiSigExecuteErrorOracleTest', () => {
     const r = await baseTest.bind.mcms.sendInternal(
       acc.oracle.getSender(),
       toNano('1'),
-      mcms.builder.message.in.submitErrorReport.encode({
-        queryId: 1n,
-        op: mcms.builder.data.op.encode(baseTest.testOps[0]),
-        proof: invalidProof,
-        opTxHash: txHash,
-        errorTxHash: txHash,
-        errorCode: 1337,
-      }),
+      mcms.builder.message.in.submitErrorReport
+        .encode({
+          queryId: 1n,
+          op: mcms.builder.data.op.encode(baseTest.testOps[0]).asCell(),
+          proof: invalidProof,
+          opTxHash: txHash,
+          errorTxHash: txHash,
+          errorCode: 1337,
+        })
+        .asCell(),
     )
 
     expect(r.transactions).toHaveTransaction({
