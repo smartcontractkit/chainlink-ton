@@ -221,8 +221,9 @@ jobs:
         BASE_IMAGE=${{ needs.get-core-image.outputs.base_image_public == 'true' && needs.get-core-image.outputs.base_image || format('{0}.dkr.ecr.{1}.amazonaws.com/chainlink-plugins-dev:{2}', secrets.AWS_ACCOUNT_ID_STAGING, vars.AWS_REGION, needs.get-core-image.outputs.base_image_tag) }}
 
   update-infra-k8s-with-new-tag:
-    needs: [build-and-publish-core-with-relayer-docker]
     name: Push Updated Tag to Infra K8s
+    needs: [build-and-publish-core-with-relayer-docker]
+    if: ${{ needs.build-and-publish-core-with-relayer-docker.result == 'success' }}
     runs-on: ubuntu-24.04
     permissions:
       id-token: write
