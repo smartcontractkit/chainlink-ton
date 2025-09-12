@@ -248,7 +248,7 @@ jobs:
         uses: smartcontractkit/.github/actions/setup-github-token@setup-github-token/1.0.0
         with:
           aws-role-arn: ${{ secrets.AWS_ROLE_ARN_GATI_CHAINLINK_TON_CD }} #TODO add this secret to the repo once approved by prodsec
-          aws-lambda-url: ${{ secrets.AWS_LAMBDA_URL_GATI }}
+          aws-lambda-url: ${{ secrets.AWS_LAMBDA_URL_GATI_CHANGESETS }}
           aws-region: ${{ secrets.AWS_REGION }}
           aws-role-duration-seconds: "1800" 
           # Enable this to use the token for any git dependencies including `go mod` fetching
