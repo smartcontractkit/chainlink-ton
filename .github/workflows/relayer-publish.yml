@@ -237,6 +237,7 @@ jobs:
   update-infra-k8s-with-new-tag:
     name: Push Updated Tag to Infra K8s
     needs: [build-and-publish-core-with-relayer-docker]
+    if: ${{ always() && needs.build-and-publish-core-with-relayer-docker.result == 'success' }}
     runs-on: ubuntu-24.04
     permissions:
       id-token: write
