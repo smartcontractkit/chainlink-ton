@@ -636,53 +636,48 @@ func (a *TONAccessor) Nonces(ctx context.Context, query map[ccipocr3.ChainSelect
 	return nonces, nil
 }
 
-func (a *TONAccessor) GetChainFeePriceUpdate(ctx context.Context, selectors []ccipocr3.ChainSelector) map[ccipocr3.ChainSelector]ccipocr3.TimestampedBig {
+func (a *TONAccessor) GetChainFeePriceUpdate(ctx context.Context, selectors []ccipocr3.ChainSelector) (map[ccipocr3.ChainSelector]ccipocr3.TimestampedUnixBig, error) {
 	addr, err := a.getBinding(consts.ContractNameFeeQuoter)
 	if err != nil {
-		a.lggr.Errorw("failed to batch get chain fee price updates", "err", err)
-		return nil
+		return nil, err
 	}
 	block, err := a.client.CurrentMasterchainInfo(ctx)
 	if err != nil {
-		a.lggr.Errorw("failed to batch get current block", "err", err)
-		return nil
+		return nil, fmt.Errorf("failed to get current block: %w", err)
 	}
-	prices := make(map[ccipocr3.ChainSelector]ccipocr3.TimestampedBig, len(selectors))
+	prices := make(map[ccipocr3.ChainSelector]ccipocr3.TimestampedUnixBig, len(selectors))
 	for _, selector := range selectors {
 		result, err := a.client.RunGetMethod(ctx, block, addr, "destinationChainGasPrice", uint64(selector))
 		// The plugin is built with EVM behaviour in mind: if a value doesn't exist the zero value is returned
 		if execError, ok := err.(ton.ContractExecError); ok && execError.Code == common.ErrUnknownDestChainSelector {
-			prices[selector] = ccipocr3.TimestampedBig{
-				Timestamp: time.Time{},
-				Value:     ccipocr3.NewBigIntFromInt64(0),
+			prices[selector] = ccipocr3.TimestampedUnixBig{
+				Timestamp: 0,
+				Value:     big.NewInt(0),
 			}
 			continue
 		}
 		if err != nil {
-			a.lggr.Errorw("failed to batch get chain fee price updates", "err", err)
-			return nil
+			return nil, fmt.Errorf("failed to get chain fee price updates: %w", err)
 		}
 
 		value, err := result.Cell(0)
 		if err != nil {
-			a.lggr.Errorw("failed to batch get chain fee price updates", "err", err)
-			return nil
+			return nil, fmt.Errorf("failed to get chain fee price updates: %w", err)
 		}
 		// HACK: we read the value as Timestamped since the binary layout is compatible, so that we match TimestampedBig (two values packed together)
 		var update feequoter.TimestampedPrice
 		if err := tlb.LoadFromCell(&update, value.BeginParse()); err != nil {
-			a.lggr.Errorw("failed to batch get chain fee price updates", "err", err)
-			return nil
+			return nil, fmt.Errorf("failed to get chain fee price updates: %w", err)
 		}
-		prices[selector] = ccipocr3.TimeStampedBigFromUnix(ccipocr3.TimestampedUnixBig{
+		prices[selector] = ccipocr3.TimestampedUnixBig{
 			Timestamp: uint32(update.Timestamp), // TODO: downcast?
 			Value:     update.Value,
-		})
+		}
 	}
-	return prices
+	return prices, nil
 }
 
-func (a *TONAccessor) GetLatestPriceSeqNr(ctx context.Context) (uint64, error) {
+func (a *TONAccessor) GetLatestPriceSeqNr(ctx context.Context) (ccipocr3.SeqNum, error) {
 	addr, err := a.getBinding(consts.ContractNameOffRamp)
 	if err != nil {
 		return 0, err
@@ -699,5 +694,80 @@ func (a *TONAccessor) GetLatestPriceSeqNr(ctx context.Context) (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
-	return value.Uint64(), nil
+	return ccipocr3.SeqNum(value.Uint64()), nil
+}
+
+func (a *TONAccessor) MessagesByTokenID(ctx context.Context,
+	source, dest ccipocr3.ChainSelector,
+	tokens map[ccipocr3.MessageTokenID]ccipocr3.RampTokenAmount,
+) (map[ccipocr3.MessageTokenID]ccipocr3.Bytes, error) {
+	// No CCTP on TON
+	return nil, errors.ErrUnsupported
+}
+
+// Price reader
+func (a *TONAccessor) GetFeedPricesUSD(
+	ctx context.Context,
+	tokens []ccipocr3.UnknownEncodedAddress,
+	tokenInfo map[ccipocr3.UnknownEncodedAddress]ccipocr3.TokenInfo,
+) (ccipocr3.TokenPriceMap, error) {
+	// Feeds chain lives on EVM
+	return nil, errors.ErrUnsupported
+}
+
+func (a *TONAccessor) GetFeeQuoterTokenUpdates(
+	ctx context.Context,
+	tokens []ccipocr3.UnknownEncodedAddress,
+	chain ccipocr3.ChainSelector,
+) (map[ccipocr3.UnknownEncodedAddress]ccipocr3.TimestampedUnixBig, error) {
+	addr, err := a.getBinding(consts.ContractNameFeeQuoter)
+	if err != nil {
+		return nil, err
+	}
+	block, err := a.client.CurrentMasterchainInfo(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get current block: %w", err)
+	}
+
+	// TODO: decode token addresses here according to chain selector
+
+	var encodedTokens []any
+	for _, token := range tokens {
+		encodedTokens = append(encodedTokens, token)
+	}
+	result, err := a.client.RunGetMethod(ctx, block, addr, "tokenPrices", encodedTokens...)
+	// result is a list of TimestampedPrice
+	if err != nil {
+		return nil, err
+	}
+	results := result.AsTuple()
+	if len(tokens) != len(results) {
+		return nil, fmt.Errorf("length mismatch: expected %d prices but received %d", len(tokens), len(results))
+	}
+	prices := make(map[ccipocr3.UnknownEncodedAddress]ccipocr3.TimestampedUnixBig, len(tokens))
+	for i, priceResult := range results {
+		token := tokens[i]
+		var price ccipocr3.TimestampedUnixBig
+		switch priceResult := priceResult.(type) {
+		case nil:
+			// return zero value
+			price = ccipocr3.TimestampedUnixBig{
+				Value:     big.NewInt(0),
+				Timestamp: 0,
+			}
+		case cell.Cell:
+			var timestampedPrice feequoter.TimestampedPrice
+			if err := tlb.LoadFromCell(&timestampedPrice, priceResult.BeginParse()); err != nil {
+				return nil, err
+			}
+			price = ccipocr3.TimestampedUnixBig{
+				Value:     timestampedPrice.Value,
+				Timestamp: uint32(timestampedPrice.Timestamp),
+			}
+		default:
+			return nil, fmt.Errorf("expected either cell or nil, received %T", priceResult)
+		}
+		prices[token] = price
+	}
+	return prices, nil
 }

@@ -364,17 +364,16 @@ get fun tokenPrice(token: address): TimestampedPrice {
 // vec<TimestampedPrice>
 get fun tokenPrices(tokens: tuple): tuple {
     val st = lazy Storage.load();
-    
-    var list: tuple? = null;
-
-    // TODO: are we able to get dynamic tuple inputs in getters?
+    var list: tuple = null;
     var iter = TupleIterator<address>.new(tokens);
 
     while(!iter.empty()) {
         val token = iter.next();
-        list = listPrepend(token, list);
+        // NOTE: Need to skip missing items as nil entries rather than fail the query
+        val (maybePrice, _exists) = st.usdPerToken.get(token);
+        list.push(maybePrice);
     }
-    return list!;
+    return list;
 }
 
 get fun destinationChainGasPrice(destChainSelector: uint64): cell {
