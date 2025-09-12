@@ -180,6 +180,8 @@ describe('Router', () => {
           allowlistAdmin: deployer.address,
         },
         destChainConfigs: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Cell()),
+        currentMessageId: 0n,
+        executor_code: await compile('CCIPSendExecutor'),
       }
       // TODO: use deployable to make deterministic?
       onRamp = blockchain.openContract(or.OnRamp.createFromConfig(data, code))
@@ -249,6 +251,25 @@ describe('Router', () => {
         },
       })
 
+      const executorAddress = ((): Address => {
+        for (const tx of result.transactions) {
+          if (
+            tx.inMessage != null &&
+            tx.inMessage != undefined &&
+            tx.inMessage.info.src != null &&
+            tx.inMessage.info.src != undefined &&
+            tx.inMessage.info.src instanceof Address &&
+            tx.inMessage.info.src.equals(onRamp.address) &&
+            tx.inMessage.info.dest != null &&
+            tx.inMessage.info.dest != undefined &&
+            tx.inMessage.info.dest instanceof Address
+          ) {
+            return tx.inMessage.info.dest
+          }
+        }
+        throw new Error('Executor address not found')
+      })()
+
       // we called the router
       expect(result.transactions).toHaveTransaction({
         from: sender.address,
@@ -263,17 +284,34 @@ describe('Router', () => {
         deploy: false,
         success: true,
       })
-      // assert message went to feeQuoter
+      // the onRamp deployed the executor
       expect(result.transactions).toHaveTransaction({
         from: onRamp.address,
+        to: executorAddress,
+        deploy: true,
+        success: true,
+      })
+
+      // assert message went to feeQuoter
+      expect(result.transactions).toHaveTransaction({
+        from: executorAddress,
         to: feeQuoter.address,
         deploy: false,
         success: true,
       })
 
-      // destChainConfig -> feeQuoter -> onRamp
+      // destChainConfig -> feeQuoter -> executor
       expect(result.transactions).toHaveTransaction({
         from: feeQuoter.address,
+        to: executorAddress,
+        deploy: false,
+        success: true,
+        destroyed: true,
+      })
+
+      // the executor called back the onRamp and self-destructed
+      expect(result.transactions).toHaveTransaction({
+        from: executorAddress,
         to: onRamp.address,
         deploy: false,
         success: true,
@@ -350,6 +388,25 @@ describe('Router', () => {
 
       const routerJettonWallet = await provideUserWalletFor(router.address)
 
+      const executorAddress = ((): Address => {
+        for (const tx of result.transactions) {
+          if (
+            tx.inMessage != null &&
+            tx.inMessage != undefined &&
+            tx.inMessage.info.src != null &&
+            tx.inMessage.info.src != undefined &&
+            tx.inMessage.info.src instanceof Address &&
+            tx.inMessage.info.src.equals(onRamp.address) &&
+            tx.inMessage.info.dest != null &&
+            tx.inMessage.info.dest != undefined &&
+            tx.inMessage.info.dest instanceof Address
+          ) {
+            return tx.inMessage.info.dest
+          }
+        }
+        throw new Error('Executor address not found')
+      })()
+
       // we called the router
       expect(result.transactions).toHaveTransaction({
         from: routerJettonWallet.address,
@@ -364,9 +421,23 @@ describe('Router', () => {
         deploy: false,
         success: true,
       })
-      // assert message went to feeQuoter
+      // the onRamp deployed the executor
       expect(result.transactions).toHaveTransaction({
         from: onRamp.address,
+        to: executorAddress,
+        deploy: true,
+        success: true,
+      })
+      // the executor withdrew the jettons
+      expect(result.transactions).toHaveTransaction({
+        from: executorAddress,
+        to: onRamp.address,
+        deploy: false,
+        success: true,
+      })
+      // assert message went to feeQuoter
+      expect(result.transactions).toHaveTransaction({
+        from: executorAddress,
         to: feeQuoter.address,
         deploy: false,
         success: true,

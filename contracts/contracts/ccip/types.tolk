@@ -176,6 +176,14 @@ struct OnRampUpdateDestChainConfig {
     allowlistEnabled: bool;
 }
 
+// crc32('OnRamp_ExecutorFinishedSuccessfully')
+struct (0xCFA6B336) OnRamp_ExecutorFinishedSuccessfully {
+    msgId: uint224,
+    msg: Cell<CCIPSend>
+    metadata: Metadata
+    fee: coins
+}
+
 // TODO: make this direct snakedata by using RemainingBitsAndRefs? this way it's not cell->cell
 struct (0x10000004) OnRampUpdateDestChainConfigs {
     updates: cell; // vec<OffRampUpdateDestChainConfig>
@@ -256,6 +264,10 @@ struct TokenTransferFeeConfig {
     deciBps: uint16;
     destGasOverhead: uint32;
     destBytesOverhead: uint32;
+}
+
+struct (0x20000001) FeeQuoter_UpdatePrices {
+    updates: PriceUpdates    
 }
 
 struct Metadata {

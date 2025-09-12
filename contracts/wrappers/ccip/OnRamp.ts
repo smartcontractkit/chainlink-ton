@@ -23,6 +23,8 @@ export type OnRampStorage = {
     allowlistAdmin: Address
   }
   destChainConfigs: Dictionary<bigint, Cell>
+  executor_code: Cell
+  currentMessageId: bigint
 }
 
 export type DestChainConfig = {
@@ -32,6 +34,7 @@ export type DestChainConfig = {
   allowedSenders: Dictionary<Address, boolean>
 }
 
+// TODO refactor builder
 export const Builder = {
   asStorage: (config: OnRampStorage): Cell => {
     return (
@@ -52,6 +55,8 @@ export const Builder = {
             .endCell(),
         )
         .storeDict(config.destChainConfigs)
+        .storeRef(config.executor_code)
+        .storeUint(config.currentMessageId, 224)
         .endCell()
     )
   },
