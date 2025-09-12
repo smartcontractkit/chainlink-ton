@@ -10,13 +10,14 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 
 	chain_selectors "github.com/smartcontractkit/chain-selectors"
+
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 	commontypes "github.com/smartcontractkit/chainlink-common/pkg/types"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/core"
 
-	provider "github.com/smartcontractkit/chainlink-ton/pkg/ccip/provider"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/provider"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/txm"
@@ -124,7 +125,7 @@ func (r *Relayer) NewCCIPProvider(ctx context.Context, rargs commontypes.CCIPPro
 		return nil, fmt.Errorf("invalid chain ID %d: could not find chain selector: %w", chainID, err)
 	}
 
-	// TODO: pass GetClient through? So we don't pin provider to a single clientcccccbngnrtivfncvljlntefebkudknlrdujtuhfvvlj
+	// TODO: pass GetClient through? So we don't pin provider to a single client
 
 	client, err := r.chain.GetClient(ctx)
 	if err != nil {
