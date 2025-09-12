@@ -224,7 +224,8 @@ jobs:
     name: debug
     needs: [build-and-publish-core-with-relayer-docker]
     runs-on: ubuntu-24.04
-    run: echo "${{ needs.build-and-publish-core-with-relayer-docker.result == 'success' }}"
+    run: |
+      echo "${{ needs.build-and-publish-core-with-relayer-docker.result == 'success' }}"
 
   update-infra-k8s-with-new-tag:
     name: Push Updated Tag to Infra K8s
