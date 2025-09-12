@@ -75,6 +75,41 @@ type DynamicConfig struct {
 	AllowListAdmin *address.Address `tlb:"addr"`
 }
 
+// TypeAndVersion holds the type and version of the onramp contract.
+type TypeAndVersion struct {
+	Type    string `tlb:"str"`
+	Version string `tlb:"str"`
+}
+
+// FromResult populates the TypeAndVersion struct from a ton.ExecutionResult.
+func (c *TypeAndVersion) FromResult(result *ton.ExecutionResult) error {
+	typ, err := result.Slice(0)
+	if err != nil {
+		return err
+	}
+	tStr, err := typ.LoadStringSnake()
+	if err != nil {
+		return err
+	}
+
+	version, err := result.Slice(1)
+	if err != nil {
+		return err
+	}
+
+	vStr, err := version.LoadStringSnake()
+	if err != nil {
+		return err
+	}
+
+	*c = TypeAndVersion{
+		Type:    tStr,
+		Version: vStr,
+	}
+
+	return nil
+}
+
 func (c *DynamicConfig) FromResult(result *ton.ExecutionResult) error {
 	feeQuoterAddressSlice, err := result.Slice(0)
 	if err != nil {

@@ -280,6 +280,13 @@ get fun supportedTokens() {
     // TODO?
 }
 
+// returns a tuple of uint64 chain selectors
+get fun destChainSelectors(): tuple {
+    val st = lazy Storage.load();
+    var d = st.destChainConfigs;
+    return d.keysDestructs()!;
+}
+
 
 fun withdrawFeeTokens() {
     

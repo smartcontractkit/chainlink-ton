@@ -1,14 +1,15 @@
 package state
 
 import (
+	"context"
 	"errors"
+	"fmt"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/rs/zerolog/log"
-	"github.com/smartcontractkit/chainlink-ton/deployment/view"
-
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
+	"github.com/smartcontractkit/chainlink-ton/deployment/view"
 
 	"github.com/xssnick/tonutils-go/address"
 )
@@ -51,8 +52,30 @@ func newTONChainView() TONChainView {
 	}
 }
 
-func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64) (TONChainView, error) {
+func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chainID string) (TONChainView, error) {
 	tonView := newTONChainView()
+	tonView.ChainSelector = selector
+	tonView.ChainID = chainID
+	tonClient, ok := e.BlockChains.TonChains()[selector]
+	if !ok {
+		return tonView, errors.New("chain not found or not a TON chain")
+	}
+
+	ctx := context.Background()
+	block, err := tonClient.Client.CurrentMasterchainInfo(ctx)
+	if err != nil {
+		return tonView, fmt.Errorf("failed to get current masterchain info: %w", err)
+	}
+
+	if !s.OnRamp.IsAddrNone() {
+		onRampView, err := view.GenerateOnRampView(ctx, tonClient, block, &s.OnRamp, selector)
+		if err != nil {
+			return tonView, fmt.Errorf("failed to generate onramp view for chain %d: %w", selector, err)
+		}
+
+		tonView.OnRamp[s.OnRamp.String()] = *onRampView
+	}
+
 	return tonView, nil
 }
 

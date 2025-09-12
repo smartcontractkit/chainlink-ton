@@ -1,7 +1,6 @@
 package deployment
 
 import (
-	"fmt"
 	"math/big"
 	"testing"
 	"time"
@@ -194,8 +193,11 @@ func TestDeploy(t *testing.T) {
 	})
 
 	t.Run("StateView", func(t *testing.T) {
-		generatedView, err := state[chainSelector].GenerateView(&env, chainSelector)
+		generatedView, err := state[chainSelector].GenerateView(&env, chainSelector, "-1")
 		require.NoError(t, err)
-		fmt.Printf("Generated view: %+v\n", generatedView)
+		require.Equal(t, generatedView.ChainID, "-1")
+		require.Equal(t, chainSelector, generatedView.ChainSelector)
+		onrampView := generatedView.OnRamp[onRampAddr.String()]
+		require.Equal(t, onRampAddr.String(), onrampView.Address)
 	})
 }
