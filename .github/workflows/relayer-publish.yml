@@ -223,16 +223,20 @@ jobs:
   debug:
     name: debug
     needs: [build-and-publish-core-with-relayer-docker]
+    if: ${{ always() }}
     runs-on: ubuntu-24.04
     steps:
-      - name: debug conditional
+      - name: Dump needs context
         run: |
-          echo "${{ needs.build-and-publish-core-with-relayer-docker.result == 'success' }}"
+          echo 'NEEDS JSON ->'
+          echo '${{ toJson(needs) }}'
+          echo 'Relayer result -> ${{ needs.build-and-publish-core-with-relayer-docker.result }}'
+          echo 'Event -> ${{ github.event_name }}'
+          echo 'Has label -> ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'build-publish-docker') }}'
 
   update-infra-k8s-with-new-tag:
     name: Push Updated Tag to Infra K8s
     needs: [build-and-publish-core-with-relayer-docker]
-    if: ${{ needs.build-and-publish-core-with-relayer-docker.result == 'success' }}
     runs-on: ubuntu-24.04
     permissions:
       id-token: write
