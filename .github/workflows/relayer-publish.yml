@@ -220,6 +220,12 @@ jobs:
         COMMIT_SHA=${{ github.sha }}
         BASE_IMAGE=${{ needs.get-core-image.outputs.base_image_public == 'true' && needs.get-core-image.outputs.base_image || format('{0}.dkr.ecr.{1}.amazonaws.com/chainlink-plugins-dev:{2}', secrets.AWS_ACCOUNT_ID_STAGING, vars.AWS_REGION, needs.get-core-image.outputs.base_image_tag) }}
 
+  debug:
+    name: debug
+    needs: [build-and-publish-core-with-relayer-docker]
+    runs-on: ubuntu-24.04
+    run: echo "${{ needs.build-and-publish-core-with-relayer-docker.result == 'success' }}"
+
   update-infra-k8s-with-new-tag:
     name: Push Updated Tag to Infra K8s
     needs: [build-and-publish-core-with-relayer-docker]
