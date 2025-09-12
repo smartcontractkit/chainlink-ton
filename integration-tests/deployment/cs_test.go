@@ -1,6 +1,7 @@
 package deployment
 
 import (
+	"fmt"
 	"math/big"
 	"testing"
 	"time"
@@ -190,5 +191,11 @@ func TestDeploy(t *testing.T) {
 			GasPriceStalenessThreshold:        0,
 			NetworkFeeUSDCents:                10,
 		}, config)
+	})
+
+	t.Run("StateView", func(t *testing.T) {
+		generatedView, err := state[chainSelector].GenerateView(&env, chainSelector)
+		require.NoError(t, err)
+		fmt.Printf("Generated view: %+v\n", generatedView)
 	})
 }

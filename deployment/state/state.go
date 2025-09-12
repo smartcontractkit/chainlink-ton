@@ -5,6 +5,7 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/rs/zerolog/log"
+	"github.com/smartcontractkit/chainlink-ton/deployment/view"
 
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
@@ -23,7 +24,7 @@ var (
 	FeeQuoter    cldf.ContractType = "FeeQuoter"
 )
 
-// TonCCIPChainState holds a Go binding for all the currently deployed CCIP contracts
+// CCIPChainState holds a Go binding for all the currently deployed CCIP contracts
 // on a chain. If a binding is nil, it means here is no such contract on the chain.
 type CCIPChainState struct {
 	LinkTokenAddress address.Address
@@ -34,6 +35,25 @@ type CCIPChainState struct {
 
 	// dummy receiver address
 	ReceiverAddress address.Address
+}
+
+type TONChainView struct {
+	ChainSelector uint64                     `json:"chainSelector,omitempty"`
+	ChainID       string                     `json:"chainID,omitempty"`
+	OnRamp        map[string]view.OnRampView `json:"onRamp,omitempty"`
+}
+
+func newTONChainView() TONChainView {
+	return TONChainView{
+		ChainSelector: 0,
+		ChainID:       "",
+		OnRamp:        make(map[string]view.OnRampView),
+	}
+}
+
+func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64) (TONChainView, error) {
+	tonView := newTONChainView()
+	return tonView, nil
 }
 
 func SaveOnchainState(chainSelector uint64, state CCIPChainState, e cldf.Environment) error {
