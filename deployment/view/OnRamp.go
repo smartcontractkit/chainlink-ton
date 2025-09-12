@@ -29,6 +29,7 @@ type OnRampDestChainConfig struct {
 	SequenceNumber   uint64
 	AllowlistEnabled bool
 	Router           string
+	// add allowedSenders ? missing from onramp binding now
 }
 
 type MetaData struct {
@@ -88,9 +89,8 @@ func fetchDestChainConfig(ctx context.Context, c cldf_ton.Chain, block *ton.Bloc
 	selectorSlice := result.AsTuple()[0].([]interface{})
 	output := make(map[uint64]OnRampDestChainConfig)
 
-	// Convert each interface{} element to uint64
 	for _, selector := range selectorSlice {
-		// Convert big.Int to uint64
+		// On-chain returns *big.Int for selector values, convert to uint64
 		if bigInt, ok := selector.(*big.Int); ok {
 			dest := bigInt.Uint64()
 			result, err = c.Client.RunGetMethod(ctx, block, onrampAddr, "destChainConfig", dest)

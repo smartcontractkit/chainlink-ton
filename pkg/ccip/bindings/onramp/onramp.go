@@ -81,7 +81,6 @@ type TypeAndVersion struct {
 	Version string `tlb:"str"`
 }
 
-// FromResult populates the TypeAndVersion struct from a ton.ExecutionResult.
 func (c *TypeAndVersion) FromResult(result *ton.ExecutionResult) error {
 	typ, err := result.Slice(0)
 	if err != nil {
