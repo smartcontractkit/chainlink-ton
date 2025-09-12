@@ -223,6 +223,7 @@ jobs:
   update-infra-k8s-with-new-tag:
     needs: [build-and-publish-core-with-relayer-docker]
     name: Push Updated Tag to Infra K8s
+    runs-on: ubuntu-24.04
     permissions:
       id-token: write
       contents: write
