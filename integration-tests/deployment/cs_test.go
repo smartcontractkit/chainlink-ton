@@ -195,7 +195,7 @@ func TestDeploy(t *testing.T) {
 	t.Run("StateView", func(t *testing.T) {
 		generatedView, err := state[chainSelector].GenerateView(&env, chainSelector, "-1")
 		require.NoError(t, err)
-		require.Equal(t, generatedView.ChainID, "-1")
+		require.Equal(t, "-1", generatedView.ChainID)
 		require.Equal(t, chainSelector, generatedView.ChainSelector)
 		onrampView := generatedView.OnRamp[onRampAddr.String()]
 		require.Equal(t, onRampAddr.String(), onrampView.Address)
