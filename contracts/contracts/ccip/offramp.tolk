@@ -309,7 +309,7 @@ fun _commit(msg: OffRamp_Commit, sender: address) {
             bounce: true,
             value: ton("0.05"), // TODO:
             dest: st.feeQuoter,
-            body: UpdatePrices {
+            body: FeeQuoter_UpdatePrices {
                 updates: report.priceUpdates!.load()
             },
         });

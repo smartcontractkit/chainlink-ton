@@ -76,7 +76,7 @@ struct TVM2AnyRampMessageBody {
     extraArgs: cell;
     tokenAmounts: cell;
     feeToken: address;
-    feeTokenAmount: uint256;
+    feeTokenAmount: coins;
 }
 
 const LEAF_DOMAIN_SEPARATOR: slice = stringHexToSlice("0000000000000000000000000000000000000000000000000000000000000000");
@@ -176,6 +176,14 @@ struct OnRampUpdateDestChainConfig {
     allowlistEnabled: bool;
 }
 
+// crc32('OnRamp_ExecutorFinishedSuccessfully')
+struct (0xCFA6B336) OnRamp_ExecutorFinishedSuccessfully {
+    msgId: uint224,
+    msg: Cell<CCIPSend>
+    metadata: Metadata
+    fee: coins
+}
+
 // TODO: make this direct snakedata by using RemainingBitsAndRefs? this way it's not cell->cell
 struct (0x10000004) OnRampUpdateDestChainConfigs {
     updates: cell; // vec<OffRampUpdateDestChainConfig>
@@ -258,40 +266,8 @@ struct TokenTransferFeeConfig {
     destBytesOverhead: uint32;
 }
 
-struct (0x20000001) UpdatePrices {
+struct (0x20000001) FeeQuoter_UpdatePrices {
     updates: PriceUpdates    
-}
-
-struct FeeToken {
-    premiumMultiplierWeiPerEth: uint64
-}
-
-struct (0x20000002) UpdateFeeTokens {
-    add: Map<FeeToken>; // token -> config
-    remove: cell; // vector<address>
-}
-
-// NOTE: we just merged this into UpdateFeeTokens
-// struct (0x10000003) UpdatePremiumMultiplierWeiPerEth { // token, multiplier }
-
-struct (0x20000003) UpdateTokenTransferFeeConfigs {
-    // TODO: would these be more efficient as snakedata (key, value)?
-    updates: UMap<uint64, UpdateTokenTransferFeeConfig>; // destChainSelector -> updates
-}
-
-struct UpdateTokenTransferFeeConfig {
-    add: Map<TokenTransferFeeConfig>; // token address -> config
-    remove: cell; // vector<address>
-} 
-
-struct (0x20000004) UpdateDestChainConfig {
-    destChainSelector: uint64;
-    destChainConfig: FeeQuoterDestChainConfig;
-}
-
-struct (0x20000005) GetValidatedFee<C> {
-    msg: Cell<CCIPSend>;
-    metadata: Cell<C>,
 }
 
 struct Metadata {
@@ -306,11 +282,6 @@ struct MessageMetadata {
     onRamp :Cell<CrossChainAddress>;
 }
 
-struct (0x00000003) MessageValidated<C> {
-    msg: Cell<CCIPSend>;
-    metadata: Cell<C>,
-    fee: uint256; // TODO: size down? coins?
-}
 
 // OffRamp
 
