@@ -85,7 +85,7 @@ export class JettonWallet implements Contract {
     await provider.internal(via, {
       value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: Cell.EMPTY,
+      body: beginCell().endCell(),
     })
   }
 

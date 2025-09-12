@@ -72,7 +72,7 @@ export class BaseTestSetup {
    */
   static singletonCalls(call: rbactl.Call): Cell {
     const calls = [call]
-    return asSnakeData<rbactl.Call>(calls, (c) => rbactl.builder.data.call.encode(c).asBuilder())
+    return asSnakeData<rbactl.Call>(calls, (c) => rbactl.builder.data.call.encode(c))
   }
 
   /**
@@ -176,7 +176,7 @@ export class BaseTestSetup {
     const data = {
       id: crc32(`mcms.timelock.${testId}`),
       minDelay: BaseTestSetup.MIN_DELAY,
-      rbac: ac.builder.data.contractData.encode(rbacStorage),
+      rbac: ac.builder.data.contractData.encode(rbacStorage).asCell(),
     }
 
     this.bind.timelock = this.blockchain.openContract(
@@ -219,7 +219,7 @@ export class BaseTestSetup {
    * Deploy the timelock contract and verify deployment
    */
   async deployTimelockContract(): Promise<void> {
-    const body = rbactl.builder.message.in.topUp.encode({ queryId: 1n })
+    const body = rbactl.builder.message.in.topUp.encode({ queryId: 1n }).asCell()
     const result = await this.bind.timelock.sendInternal(
       this.acc.deployer.getSender(),
       toNano('0.05'),
@@ -288,7 +288,7 @@ export class BaseTestSetup {
     const result = await this.bind.timelock.sendInternal(
       this.acc.admin.getSender(),
       toNano('0.05'),
-      body,
+      body.asCell(),
     )
     expect(result.transactions).toHaveTransaction({
       from: this.acc.admin.address,

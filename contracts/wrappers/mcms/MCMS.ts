@@ -1,6 +1,7 @@
 import {
   Address,
   beginCell,
+  Builder,
   Cell,
   Contract,
   contractAddress,
@@ -8,6 +9,7 @@ import {
   Dictionary,
   Sender,
   SendMode,
+  Slice,
 } from '@ton/core'
 import { crc32 } from 'zlib'
 import { CellCodec, sha256_32 } from '../utils'
@@ -430,23 +432,21 @@ export const opcodes = {
 }
 
 const rootMetadata: CellCodec<RootMetadata> = {
-  encode: (data: RootMetadata): Cell => {
+  encode: (data: RootMetadata): Builder => {
     return beginCell()
       .storeInt(data.chainId, 256)
       .storeAddress(data.multiSig)
       .storeUint(data.preOpCount, 40)
       .storeUint(data.postOpCount, 40)
       .storeBit(data.overridePreviousRoot)
-      .endCell()
   },
-  decode: (cell: Cell): RootMetadata => {
-    const s = cell.beginParse()
+  load: (src: Slice): RootMetadata => {
     return {
-      chainId: s.loadIntBig(256),
-      multiSig: s.loadAddress(),
-      preOpCount: s.loadUintBig(40),
-      postOpCount: s.loadUintBig(40),
-      overridePreviousRoot: s.loadBoolean(),
+      chainId: src.loadIntBig(256),
+      multiSig: src.loadAddress(),
+      preOpCount: src.loadUintBig(40),
+      postOpCount: src.loadUintBig(40),
+      overridePreviousRoot: src.loadBoolean(),
     }
   },
 }
@@ -456,71 +456,65 @@ export const builder = {
     in: {
       // Creates a new `MCMS_TopUp` message.
       topUp: {
-        encode: (msg: TopUp): Cell => {
+        encode: (msg: TopUp): Builder => {
           return beginCell() // break line
             .storeUint(opcodes.in.TopUp, 32)
             .storeUint(msg.queryId, 64)
-            .endCell()
         },
-        decode: (cell: Cell): TopUp => {
-          const s = cell.beginParse()
-          s.skip(32) // skip opcode
+        load: (src: Slice): TopUp => {
+          src.skip(32) // skip opcode
           return {
-            queryId: s.loadUintBig(64),
+            queryId: src.loadUintBig(64),
           }
         },
       },
       // Creates a new `MCMS_SetRoot` message.
       setRoot: {
-        encode: (msg: SetRoot): Cell => {
+        encode: (msg: SetRoot): Builder => {
           return beginCell()
             .storeUint(opcodes.in.SetRoot, 32)
             .storeUint(msg.queryId, 64)
             .storeUint(msg.root, 256)
             .storeUint(msg.validUntil, 32)
-            .storeBuilder(rootMetadata.encode(msg.metadata).asBuilder())
+            .storeBuilder(rootMetadata.encode(msg.metadata))
             .storeRef(msg.metadataProof)
             .storeRef(msg.signatures)
             .storeUint(msg.opFinalizationTimeout, 32)
-            .endCell()
         },
-        decode: (cell: Cell): SetRoot => {
-          const s = cell.beginParse()
-          s.skip(32) // skip opcode
+        load: (src: Slice): SetRoot => {
+          src.skip(32) // skip opcode
           return {
-            queryId: s.loadUintBig(64),
-            root: s.loadUintBig(256),
-            validUntil: s.loadUintBig(32),
-            metadata: s.loadRef().beginParse() as unknown as RootMetadata, // TODO: decode metadata properly
-            metadataProof: s.loadRef(),
-            signatures: s.loadRef(),
-            opFinalizationTimeout: s.loadUintBig(32),
+            queryId: src.loadUintBig(64),
+            root: src.loadUintBig(256),
+            validUntil: src.loadUintBig(32),
+            metadata: src.loadRef().beginParse() as unknown as RootMetadata, // TODO: decode metadata properly
+            metadataProof: src.loadRef(),
+            signatures: src.loadRef(),
+            opFinalizationTimeout: src.loadUintBig(32),
           }
         },
       },
       // Creates a new `MCMS_Execute` message.
       execute: {
-        encode: (msg: Execute): Cell => {
+        encode: (msg: Execute): Builder => {
           return beginCell()
             .storeUint(opcodes.in.Execute, 32)
             .storeUint(msg.queryId, 64)
             .storeRef(msg.op)
             .storeRef(asSnakeData<bigint>(msg.proof, (v) => beginCell().storeUint(v, 256)))
-            .endCell()
         },
-        decode: (cell: Cell): Execute => {
-          const s = cell.beginParse()
-          s.skip(32) // skip opcode
+        load: (src: Slice): Execute => {
+          src.skip(32) // skip opcode
           return {
-            queryId: s.loadUintBig(64),
-            op: s.loadRef(),
-            proof: fromSnakeData(s.loadRef(), (a) => a.loadUintBig(256)),
+            queryId: src.loadUintBig(64),
+            op: src.loadRef(),
+            proof: fromSnakeData(src.loadRef(), (a) => a.loadUintBig(256)),
           }
         },
       },
       // Creates a new `MCMS_SetConfig` message.
       setConfig: {
-        encode: (msg: SetConfig): Cell => {
+        encode: (msg: SetConfig): Builder => {
           return beginCell()
             .storeUint(opcodes.in.SetConfig, 32)
             .storeUint(msg.queryId, 64)
@@ -533,35 +527,33 @@ export const builder = {
               loadMap(Dictionary.Keys.Uint(8), Dictionary.Values.Uint(8), msg.groupParents),
             )
             .storeBit(msg.clearRoot)
-            .endCell()
         },
-        decode: (cell: Cell): SetConfig => {
-          const s = cell.beginParse()
-          s.skip(32) // skip opcode
+        load: (src: Slice): SetConfig => {
+          src.skip(32) // skip opcode
           return {
-            queryId: s.loadUintBig(64),
-            signerKeys: fromSnakeData<bigint>(s.loadRef(), (a) => a.loadUintBig(256)),
-            signerGroups: fromSnakeData<number>(s.loadRef(), (g) => g.loadUint(8)),
+            queryId: src.loadUintBig(64),
+            signerKeys: fromSnakeData<bigint>(src.loadRef(), (a) => a.loadUintBig(256)),
+            signerGroups: fromSnakeData<number>(src.loadRef(), (g) => g.loadUint(8)),
             groupQuorums: loadDict(
               Dictionary.loadDirect(
                 Dictionary.Keys.Uint(8),
                 Dictionary.Values.Uint(8),
-                s.loadRef(),
+                src.loadRef(),
               ),
             ),
             groupParents: loadDict(
               Dictionary.loadDirect(
                 Dictionary.Keys.Uint(8),
                 Dictionary.Values.Uint(8),
-                s.loadRef(),
+                src.loadRef(),
               ),
             ),
-            clearRoot: s.loadBoolean(),
+            clearRoot: src.loadBoolean(),
           }
         },
       },
       submitErrorReport: {
-        encode: (msg: SubmitErrorReport): Cell => {
+        encode: (msg: SubmitErrorReport): Builder => {
           return beginCell()
             .storeUint(opcodes.in.SubmitErrorReport, 32)
             .storeUint(msg.queryId, 64)
@@ -570,35 +562,31 @@ export const builder = {
             .storeUint(msg.opTxHash, 256)
             .storeUint(msg.errorTxHash, 256)
             .storeUint(msg.errorCode, 32)
-            .endCell()
         },
-        decode: (cell: Cell): SubmitErrorReport => {
-          const s = cell.beginParse()
-          s.skip(32) // skip opcode
+        load: (src: Slice): SubmitErrorReport => {
+          src.skip(32) // skip opcode
           return {
-            queryId: s.loadUintBig(64),
-            op: s.loadRef(),
-            proof: fromSnakeData(s.loadRef(), (a) => a.loadUintBig(256)),
-            opTxHash: s.loadUintBig(256),
-            errorTxHash: s.loadUintBig(256),
-            errorCode: s.loadUint(32),
+            queryId: src.loadUintBig(64),
+            op: src.loadRef(),
+            proof: fromSnakeData(src.loadRef(), (a) => a.loadUintBig(256)),
+            opTxHash: src.loadUintBig(256),
+            errorTxHash: src.loadUintBig(256),
+            errorCode: src.loadUint(32),
           }
         },
       },
       transferOracleRole: {
-        encode: (msg: TransferOracleRole): Cell => {
+        encode: (msg: TransferOracleRole): Builder => {
           return beginCell()
             .storeUint(opcodes.in.TransferOracleRole, 32)
             .storeUint(msg.queryId, 64)
             .storeAddress(msg.newOracle)
-            .endCell()
         },
-        decode: (cell: Cell): TransferOracleRole => {
-          const s = cell.beginParse()
-          s.skip(32) // skip opcode
+        load: (src: Slice): TransferOracleRole => {
+          src.skip(32) // skip opcode
           return {
-            queryId: s.loadUintBig(64),
-            newOracle: s.loadAddress(),
+            queryId: src.loadUintBig(64),
+            newOracle: src.loadAddress(),
           }
         },
       },
@@ -606,7 +594,7 @@ export const builder = {
   },
   data: (() => {
     const config: CellCodec<Config> = {
-      encode: (data: Config): Cell => {
+      encode: (data: Config): Builder => {
         const signers = loadMap(
           Dictionary.Keys.Uint(8),
           Dictionary.Values.Buffer(LEN_SIGNER_BYTES),
@@ -626,107 +614,105 @@ export const builder = {
           .storeDict(signers, Dictionary.Keys.Uint(8), Dictionary.Values.Buffer(LEN_SIGNER_BYTES))
           .storeDict(groupQuorums, Dictionary.Keys.Uint(8), Dictionary.Values.Uint(8))
           .storeDict(groupParents, Dictionary.Keys.Uint(8), Dictionary.Values.Uint(8))
-          .endCell()
       },
-      decode: (cell: Cell): Config => {
-        const s = cell.beginParse()
+      load: (src: Slice): Config => {
         return {
           signers: loadDict(
             Dictionary.loadDirect(
               Dictionary.Keys.Uint(8),
               Dictionary.Values.Buffer(LEN_SIGNER_BYTES),
-              s.loadRef(),
+              src.loadRef(),
             ),
           ),
           groupQuorums: loadDict(
-            Dictionary.loadDirect(Dictionary.Keys.Uint(8), Dictionary.Values.Uint(8), s.loadRef()),
+            Dictionary.loadDirect(
+              Dictionary.Keys.Uint(8),
+              Dictionary.Values.Uint(8),
+              src.loadRef(),
+            ),
           ),
           groupParents: loadDict(
-            Dictionary.loadDirect(Dictionary.Keys.Uint(8), Dictionary.Values.Uint(8), s.loadRef()),
+            Dictionary.loadDirect(
+              Dictionary.Keys.Uint(8),
+              Dictionary.Values.Uint(8),
+              src.loadRef(),
+            ),
           ),
         }
       },
     }
 
     const opPendingInfo: CellCodec<OpPendingInfo> = {
-      encode: (data: OpPendingInfo): Cell => {
+      encode: (data: OpPendingInfo): Builder => {
         return beginCell()
           .storeUint(data.validAfter, 32)
           .storeUint(data.opFinalizationTimeout, 32)
           .storeAddress(data.opPendingReceiver)
           .storeUint(data.opPendingBodyTruncated, 256)
-          .endCell()
       },
-      decode: (cell: Cell): OpPendingInfo => {
-        const s = cell.beginParse()
+      load: (src: Slice): OpPendingInfo => {
         return {
-          validAfter: s.loadUintBig(32),
-          opFinalizationTimeout: s.loadUintBig(32),
-          opPendingReceiver: s.loadAddress(),
-          opPendingBodyTruncated: s.loadUintBig(256),
+          validAfter: src.loadUintBig(32),
+          opFinalizationTimeout: src.loadUintBig(32),
+          opPendingReceiver: src.loadAddress(),
+          opPendingBodyTruncated: src.loadUintBig(256),
         }
       },
     }
 
     const expiringRootAndOpCount: CellCodec<ExpiringRootAndOpCount> = {
-      encode: (data: ExpiringRootAndOpCount): Cell => {
+      encode: (data: ExpiringRootAndOpCount): Builder => {
         return beginCell()
           .storeUint(data.root, 256)
           .storeUint(data.validUntil, 32)
           .storeUint(data.opCount, 40)
           .storeRef(opPendingInfo.encode(data.opPendingInfo))
-          .endCell()
       },
-      decode: (cell: Cell): ExpiringRootAndOpCount => {
-        const s = cell.beginParse()
+      load: (src: Slice): ExpiringRootAndOpCount => {
         return {
-          root: s.loadUintBig(256),
-          validUntil: s.loadUintBig(32),
-          opCount: s.loadUintBig(40),
-          opPendingInfo: opPendingInfo.decode(s.loadRef()),
+          root: src.loadUintBig(256),
+          validUntil: src.loadUintBig(32),
+          opCount: src.loadUintBig(40),
+          opPendingInfo: opPendingInfo.load(src.loadRef().beginParse()),
         }
       },
     }
 
     /// Information about the current root, extracted into a separate struct (wrapped in a cell).
     const rootInfo: CellCodec<RootInfo> = {
-      encode: (data: RootInfo): Cell => {
+      encode: (data: RootInfo): Builder => {
         return beginCell()
-          .storeBuilder(expiringRootAndOpCount.encode(data.expiringRootAndOpCount).asBuilder())
-          .storeBuilder(rootMetadata.encode(data.rootMetadata).asBuilder())
-          .endCell()
+          .storeBuilder(expiringRootAndOpCount.encode(data.expiringRootAndOpCount))
+          .storeBuilder(rootMetadata.encode(data.rootMetadata))
       },
-      decode: (cell: Cell): RootInfo => {
-        const s = cell.beginParse()
+      load: (src: Slice): RootInfo => {
         return {
-          expiringRootAndOpCount: expiringRootAndOpCount.decode(s.asCell()),
-          rootMetadata: rootMetadata.decode(s.asCell()),
+          expiringRootAndOpCount: expiringRootAndOpCount.load(src),
+          rootMetadata: rootMetadata.load(src),
         }
       },
     }
 
     // Creates a new `Signer` data cell
     const signer: CellCodec<Signer> = {
-      encode: (signer: Signer): Cell => {
+      encode: (signer: Signer): Builder => {
         return beginCell()
           .storeUint(signer.key, 256)
           .storeUint(signer.index, 8)
           .storeUint(signer.group, 8)
-          .endCell()
       },
-      decode: (cell: Cell): Signer => {
-        const s = cell.beginParse()
+      load: (src: Slice): Signer => {
         return {
-          key: s.loadUintBig(256),
-          index: s.loadUint(8),
-          group: s.loadUint(8),
+          key: src.loadUintBig(256),
+          index: src.loadUint(8),
+          group: src.loadUint(8),
         }
       },
     }
 
     // Creates a new `MCMS_Op` data cell
     const op: CellCodec<Op> = {
-      encode: (op: Op): Cell => {
+      encode: (op: Op): Builder => {
         return beginCell()
           .storeInt(op.chainId, 256)
           .storeAddress(op.multiSig)
@@ -734,41 +720,34 @@ export const builder = {
           .storeAddress(op.to)
           .storeCoins(op.value)
           .storeRef(op.data)
-          .endCell()
       },
-      decode: (cell: Cell): Op => {
-        const s = cell.beginParse()
+      load: (src: Slice): Op => {
         return {
-          chainId: s.loadIntBig(256),
-          multiSig: s.loadAddress(),
-          nonce: s.loadUintBig(40),
-          to: s.loadAddress(),
-          value: s.loadCoins(),
-          data: s.loadRef(),
+          chainId: src.loadIntBig(256),
+          multiSig: src.loadAddress(),
+          nonce: src.loadUintBig(40),
+          to: src.loadAddress(),
+          value: src.loadCoins(),
+          data: src.loadRef(),
         }
       },
     }
     const signature: CellCodec<Signature> = {
-      encode: (data: Signature): Cell => {
-        return beginCell()
-          .storeUint(data.r, 256)
-          .storeUint(data.s, 256)
-          .storeUint(data.signer, 256)
-          .endCell()
+      encode: (data: Signature): Builder => {
+        return beginCell().storeUint(data.r, 256).storeUint(data.s, 256).storeUint(data.signer, 256)
       },
-      decode: (cell: Cell): Signature => {
-        const s = cell.beginParse()
+      load: (src: Slice): Signature => {
         return {
-          r: s.loadUintBig(256),
-          s: s.loadUintBig(256),
-          signer: s.loadUintBig(256),
+          r: src.loadUintBig(256),
+          s: src.loadUintBig(256),
+          signer: src.loadUintBig(256),
         }
       },
     }
 
     // Creates a new `MCMS_Data` contract data cell
     const contractData: CellCodec<ContractData> = {
-      encode: (data: ContractData): Cell => {
+      encode: (data: ContractData): Builder => {
         let _pendingOwnerMaybe = data.ownable.pendingOwner
           ? beginCell().storeAddress(data.ownable.pendingOwner)
           : null
@@ -795,33 +774,31 @@ export const builder = {
             Dictionary.Values.Bool(),
           )
           .storeRef(rootInfo.encode(data.rootInfo))
-          .endCell()
       },
-      decode: (cell: Cell): ContractData => {
-        const s = cell.beginParse()
+      load: (src: Slice): ContractData => {
         return {
-          id: s.loadUint(32),
+          id: src.loadUint(32),
           ownable: {
-            owner: s.loadAddress(),
-            pendingOwner: s.loadAddress(),
+            owner: src.loadAddress(),
+            pendingOwner: src.loadAddress(),
           },
-          oracle: s.loadAddress(),
+          oracle: src.loadAddress(),
           signers: loadDict(
             Dictionary.loadDirect(
               Dictionary.Keys.BigUint(256),
               Dictionary.Values.Buffer(LEN_SIGNER_BYTES),
-              s.loadRef(),
+              src.loadRef(),
             ),
           ),
-          config: config.decode(s.loadRef()),
+          config: config.load(src.loadRef().beginParse()),
           seenSignedHashes: loadDict(
             Dictionary.loadDirect(
               Dictionary.Keys.BigUint(256),
               Dictionary.Values.Bool(),
-              s.loadRef(),
+              src.loadRef(),
             ),
           ),
-          rootInfo: rootInfo.decode(s.loadRef()),
+          rootInfo: rootInfo.load(src.loadRef().beginParse()),
         }
       },
     }
@@ -889,7 +866,7 @@ export class ContractClient implements Contract {
   }
 
   static newFrom(data: ContractData, code: Cell, workchain = 0) {
-    const init = { code, data: builder.data.contractData.encode(data) }
+    const init = { code, data: builder.data.contractData.encode(data).endCell() }
     return new ContractClient(contractAddress(workchain, init), init)
   }
 
@@ -898,19 +875,19 @@ export class ContractClient implements Contract {
   }
 
   async sendTopUp(p: ContractProvider, via: Sender, value: bigint = 0n, body: TopUp) {
-    return this.sendInternal(p, via, value, builder.message.in.topUp.encode(body))
+    return this.sendInternal(p, via, value, builder.message.in.topUp.encode(body).endCell())
   }
 
   async sendSetRoot(p: ContractProvider, via: Sender, value: bigint = 0n, body: SetRoot) {
-    return this.sendInternal(p, via, value, builder.message.in.setRoot.encode(body))
+    return this.sendInternal(p, via, value, builder.message.in.setRoot.encode(body).endCell())
   }
 
   async sendExecute(p: ContractProvider, via: Sender, value: bigint = 0n, body: Execute) {
-    return this.sendInternal(p, via, value, builder.message.in.execute.encode(body))
+    return this.sendInternal(p, via, value, builder.message.in.execute.encode(body).endCell())
   }
 
   async sendSetConfig(p: ContractProvider, via: Sender, value: bigint = 0n, body: SetConfig) {
-    return this.sendInternal(p, via, value, builder.message.in.setConfig.encode(body))
+    return this.sendInternal(p, via, value, builder.message.in.setConfig.encode(body).endCell())
   }
 
   // --- Getters ---

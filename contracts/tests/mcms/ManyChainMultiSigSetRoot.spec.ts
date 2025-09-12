@@ -41,7 +41,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         baseTest.testOps,
         MCMSBaseSetRootAndExecuteTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
       )
-      const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot)
+      const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot).asCell()
 
       const result = await baseTest.bind.mcms.sendInternal(
         baseTest.acc.deployer.getSender(),
@@ -73,7 +73,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         baseTest.testOps,
         MCMSBaseSetRootAndExecuteTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
       )
-      const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot)
+      const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot).asCell()
 
       const result = await baseTest.bind.mcms.sendInternal(
         baseTest.acc.deployer.getSender(),
@@ -106,7 +106,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         baseTest.testOps,
         MCMSBaseSetRootAndExecuteTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
       )
-      const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot)
+      const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot).asCell()
 
       const result = await baseTest.bind.mcms.sendInternal(
         baseTest.acc.deployer.getSender(),
@@ -141,7 +141,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         baseTest.testOps,
         MCMSBaseSetRootAndExecuteTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
       )
-      const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot)
+      const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot).asCell()
 
       const result = await baseTest.bind.mcms.sendInternal(
         baseTest.acc.deployer.getSender(),
@@ -164,7 +164,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
       await baseTest.bind.mcms.sendInternal(
         baseTest.acc.deployer.getSender(),
         toNano('10'),
-        mcms.builder.message.in.topUp.encode({ queryId: 1n }),
+        mcms.builder.message.in.topUp.encode({ queryId: 1n }).asCell(),
       )
       await baseTest.executeOperationsUpTo(MCMSBaseSetRootAndExecuteTestSetup.OPS_NUM)
 
@@ -185,7 +185,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         baseTest.testOps,
         MCMSBaseSetRootAndExecuteTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
       )
-      const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot)
+      const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot).asCell()
 
       const result = await baseTest.bind.mcms.sendInternal(
         baseTest.acc.deployer.getSender(),
@@ -217,7 +217,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         baseTest.testOps,
         MCMSBaseSetRootAndExecuteTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
       )
-      const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot)
+      const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot).asCell()
 
       const result = await baseTest.bind.mcms.sendInternal(
         baseTest.acc.deployer.getSender(),
@@ -251,7 +251,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
           baseTest.testOps,
           MCMSBaseSetRootAndExecuteTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
         )
-        const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot)
+        const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot).asCell()
 
         const result = await baseTest.bind.mcms.sendInternal(
           baseTest.acc.deployer.getSender(),
@@ -279,7 +279,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
           baseTest.testOps,
           MCMSBaseSetRootAndExecuteTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
         )
-        const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot)
+        const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot).asCell()
 
         const result = await baseTest.bind.mcms.sendInternal(
           baseTest.acc.deployer.getSender(),
@@ -307,7 +307,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         baseTest.testOps,
         MCMSBaseSetRootAndExecuteTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
       )
-      const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot)
+      const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot).asCell()
 
       const result = await baseTest.bind.mcms.sendInternal(
         baseTest.acc.deployer.getSender(),
@@ -358,7 +358,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         baseTest.testOps,
         MCMSBaseSetRootAndExecuteTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
       )
-      const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot)
+      const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot).asCell()
 
       const result = await baseTest.bind.mcms.sendInternal(
         baseTest.acc.deployer.getSender(),
@@ -382,7 +382,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
       const result = await baseTest.bind.mcms.sendInternal(
         baseTest.acc.deployer.getSender(),
         toNano('10'),
-        mcms.builder.message.in.topUp.encode({ queryId: 1n }),
+        mcms.builder.message.in.topUp.encode({ queryId: 1n }).asCell(),
       )
       expect(result.transactions).toHaveTransaction({
         from: baseTest.acc.deployer.address,
@@ -408,7 +408,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         baseTest.testOps,
         MCMSBaseSetRootAndExecuteTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
       )
-      const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot)
+      const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot).asCell()
 
       const result = await baseTest.bind.mcms.sendInternal(
         baseTest.acc.deployer.getSender(),
@@ -435,14 +435,16 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
       await baseTest.executeOperationsUpTo(Number(targetOpCount))
 
       // Set config with clearRoot = true
-      const setConfigBody = mcms.builder.message.in.setConfig.encode({
-        queryId: 1n,
-        signerKeys: baseTest.testSigners.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey)),
-        signerGroups: baseTest.testSigners.map((s) => s.group),
-        groupQuorums: baseTest.testGroupQuorums,
-        groupParents: baseTest.testGroupParents,
-        clearRoot: true,
-      })
+      const setConfigBody = mcms.builder.message.in.setConfig
+        .encode({
+          queryId: 1n,
+          signerKeys: baseTest.testSigners.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey)),
+          signerGroups: baseTest.testSigners.map((s) => s.group),
+          groupQuorums: baseTest.testGroupQuorums,
+          groupParents: baseTest.testGroupParents,
+          clearRoot: true,
+        })
+        .asCell()
 
       {
         const result = await baseTest.bind.mcms.sendInternal(
@@ -474,7 +476,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         baseTest.testOps,
         MCMSBaseSetRootAndExecuteTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
       )
-      const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot)
+      const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot).asCell()
 
       const result = await baseTest.bind.mcms.sendInternal(
         baseTest.acc.deployer.getSender(),
@@ -505,7 +507,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         baseTest.testOps,
         MCMSBaseSetRootAndExecuteTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
       ) // TODO: Original test doesn't add this 1, but this test fails with ERROR_SIGNED_HASH_ALREADY_SEEN if we don't. Thats probably a bug? Should the "override previous root" be used to calculate the hash? Or maybe it is a problem in the order of validations
-      const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot)
+      const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot).asCell()
 
       const result = await baseTest.bind.mcms.sendInternal(
         baseTest.acc.deployer.getSender(),
@@ -540,7 +542,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
           baseTest.testOps,
           MCMSBaseSetRootAndExecuteTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
         )
-        const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot)
+        const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot).asCell()
 
         const result = await baseTest.bind.mcms.sendInternal(
           baseTest.acc.deployer.getSender(),
@@ -566,7 +568,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         baseTest.testOps,
         MCMSBaseSetRootAndExecuteTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
       )
-      const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot)
+      const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot).asCell()
 
       const result = await baseTest.bind.mcms.sendInternal(
         baseTest.acc.deployer.getSender(),
@@ -607,7 +609,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         baseTest.testOps,
         MCMSBaseSetRootAndExecuteTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
       )
-      const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot)
+      const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot).asCell()
 
       const result = await baseTest.bind.mcms.sendInternal(
         baseTest.acc.deployer.getSender(),
@@ -642,7 +644,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         MCMSBaseSetRootAndExecuteTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
       )
       setRoot.metadata = corruptedMetadata
-      const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot)
+      const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot).asCell()
 
       const result = await baseTest.bind.mcms.sendInternal(
         baseTest.acc.deployer.getSender(),
@@ -674,7 +676,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         MCMSBaseSetRootAndExecuteTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
       )
       setRoot.metadata = corruptedMetadata
-      const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot)
+      const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot).asCell()
       const result = await baseTest.bind.mcms.sendInternal(
         baseTest.acc.deployer.getSender(),
         toNano('0.05'),
@@ -705,7 +707,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         MCMSBaseSetRootAndExecuteTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
       )
       setRoot.metadata = corruptedMetadata
-      const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot)
+      const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot).asCell()
       const result = await baseTest.bind.mcms.sendInternal(
         baseTest.acc.deployer.getSender(),
         toNano('0.05'),
@@ -736,7 +738,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         MCMSBaseSetRootAndExecuteTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
       )
       setRoot.metadata = corruptedMetadata
-      const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot)
+      const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot).asCell()
       const result = await baseTest.bind.mcms.sendInternal(
         baseTest.acc.deployer.getSender(),
         toNano('0.05'),
@@ -768,7 +770,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         MCMSBaseSetRootAndExecuteTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
       )
       setRoot.metadata = corruptedMetadata
-      const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot)
+      const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot).asCell()
       const result = await baseTest.bind.mcms.sendInternal(
         baseTest.acc.deployer.getSender(),
         toNano('0.05'),
@@ -807,14 +809,16 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
 
       // set the new partition of signers to groups
       {
-        const setConfigBody = mcms.builder.message.in.setConfig.encode({
-          queryId: 1n,
-          signerKeys: signers.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey)),
-          signerGroups,
-          groupQuorums: stricterGroupQuorums,
-          groupParents: baseTest.testGroupParents,
-          clearRoot: false,
-        })
+        const setConfigBody = mcms.builder.message.in.setConfig
+          .encode({
+            queryId: 1n,
+            signerKeys: signers.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey)),
+            signerGroups,
+            groupQuorums: stricterGroupQuorums,
+            groupParents: baseTest.testGroupParents,
+            clearRoot: false,
+          })
+          .asCell()
         const result = await baseTest.bind.mcms.sendInternal(
           baseTest.acc.multisigOwner.getSender(),
           toNano('1'),
@@ -858,7 +862,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         baseTest.testOps,
         MCMSBaseSetRootAndExecuteTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
       )
-      const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot)
+      const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot).asCell()
       const result = await baseTest.bind.mcms.sendInternal(
         baseTest.acc.deployer.getSender(),
         toNano('1'),
@@ -880,7 +884,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         baseTest.testOps,
         MCMSBaseSetRootAndExecuteTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
       )
-      const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot)
+      const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot).asCell()
       const result = await baseTest.bind.mcms.sendInternal(
         baseTest.acc.deployer.getSender(),
         toNano('0.05'),
@@ -908,7 +912,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         baseTest.testOps,
         MCMSBaseSetRootAndExecuteTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
       )
-      const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot)
+      const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot).asCell()
       const result = await baseTest.bind.mcms.sendInternal(
         baseTest.acc.deployer.getSender(),
         toNano('0.05'),
@@ -948,7 +952,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
       setRoot.root = corruptSetRoot.root
 
       // Use old signatures (invalid for new root)
-      const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot)
+      const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot).asCell()
       const result = await baseTest.bind.mcms.sendInternal(
         baseTest.acc.deployer.getSender(),
         toNano('0.05'),
@@ -980,7 +984,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
       const result = await baseTest.bind.mcms.sendInternal(
         baseTest.acc.deployer.getSender(),
         toNano('0.05'),
-        mcms.builder.message.in.setRoot.encode(setRoot),
+        mcms.builder.message.in.setRoot.encode(setRoot).asCell(),
       )
 
       expect(result.transactions).toHaveTransaction({

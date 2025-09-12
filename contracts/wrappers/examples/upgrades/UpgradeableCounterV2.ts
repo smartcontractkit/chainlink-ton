@@ -21,8 +21,7 @@ export type CounterConfig = {
 
 export function counterConfigToCell(config: CounterConfig): Cell {
   const builder = beginCell().storeUint(config.id, 32).storeUint(config.value, 32)
-
-  ownable2step.storeOwnable2StepConfig(builder, config.ownable)
+  builder.storeBuilder(ownable2step.builder.data.traitData.encode(config.ownable))
   return builder.endCell()
 }
 

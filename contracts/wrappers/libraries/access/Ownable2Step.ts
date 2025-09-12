@@ -7,6 +7,7 @@ import {
   ContractProvider,
   Sender,
   SendMode,
+  Slice,
 } from '@ton/core'
 import { crc32 } from 'zlib'
 import { CellCodec } from '../../utils'
@@ -47,56 +48,62 @@ export type Data = {
 
 export const builder = {
   message: {
-    in: {
+    in: (() => {
       // Creates a new `TransferOwnership` message.
-      transferOwnership: {
-        encode: (msg: TransferOwnership): Cell => {
+      const transferOwnership: CellCodec<TransferOwnership> = {
+        encode: (msg: TransferOwnership): Builder => {
           return beginCell() // break line
             .storeUint(opcodes.in.TransferOwnership, 32)
             .storeUint(msg.queryId, 64)
             .storeAddress(msg.newOwner)
-            .endCell()
         },
-        decode: (cell: Cell): TransferOwnership => {
-          const s = cell.beginParse()
-          s.skip(32) // skip opcode
+        load: (src: Slice): TransferOwnership => {
+          src.skip(32) // skip opcode
           return {
-            queryId: s.loadUintBig(64),
-            newOwner: s.loadAddress(),
+            queryId: src.loadUintBig(64),
+            newOwner: src.loadAddress(),
           }
         },
-      },
-      acceptOwnership: {
-        encode: (msg: AcceptOwnership): Cell => {
+      }
+      const acceptOwnership: CellCodec<AcceptOwnership> = {
+        encode: (msg: AcceptOwnership): Builder => {
           return beginCell() // break line
             .storeUint(opcodes.in.AcceptOwnership, 32)
             .storeUint(msg.queryId, 64)
-            .endCell()
         },
-        decode: (cell: Cell): AcceptOwnership => {
-          const s = cell.beginParse()
-          s.skip(32) // skip opcode
+        load: (src: Slice): AcceptOwnership => {
+          src.skip(32) // skip opcode
           return {
-            queryId: s.loadUintBig(64),
+            queryId: src.loadUintBig(64),
           }
         },
-      },
-    },
+      }
+
+      return {
+        transferOwnership,
+        acceptOwnership,
+      }
+    })(),
   },
   data: (() => {
     // Creates a new `Data` contract data cell
     const traitData: CellCodec<Data> = {
-      encode: (data: Data): Cell => {
-        let _pendingOwnerMaybe = data.pendingOwner
-          ? beginCell().storeAddress(data.pendingOwner)
-          : null
-        let ownable = beginCell().storeAddress(data.owner).storeMaybeBuilder(_pendingOwnerMaybe)
-        return beginCell().storeBuilder(ownable).endCell()
+      encode: (data: Data): Builder => {
+        var builder = beginCell()
+        builder.storeAddress(data.owner)
+
+        if (data.pendingOwner) {
+          builder
+            .storeBit(1) // Store '1' to indicate the address is present
+            .storeAddress(data.pendingOwner) // Then store the address
+        } else {
+          builder.storeBit(0) // Store '0' to indicate the address is absent
+        }
+        return builder
       },
-      decode: (cell: Cell): Data => {
-        const s = cell.beginParse()
-        const owner = s.loadAddress()
-        const pendingOwner = s.loadMaybeAddress()
+      load: (src: Slice): Data => {
+        const owner = src.loadAddress()
+        const pendingOwner = src.loadMaybeAddress()
         return {
           owner,
           pendingOwner,
@@ -108,18 +115,6 @@ export const builder = {
       traitData,
     }
   })(),
-}
-
-export function storeOwnable2StepConfig(builder: Builder, config: Data) {
-  builder.storeAddress(config.owner)
-
-  if (config.pendingOwner) {
-    builder
-      .storeBit(1) // Store '1' to indicate the address is present
-      .storeAddress(config.pendingOwner) // Then store the address
-  } else {
-    builder.storeBit(0) // Store '0' to indicate the address is absent
-  }
 }
 
 export class ContractClient implements Contract {
@@ -146,7 +141,12 @@ export class ContractClient implements Contract {
     value: bigint = 0n,
     body: TransferOwnership,
   ) {
-    return this.sendInternal(p, via, value, builder.message.in.transferOwnership.encode(body))
+    return this.sendInternal(
+      p,
+      via,
+      value,
+      builder.message.in.transferOwnership.encode(body).asCell(),
+    )
   }
 
   async sendAcceptOwnership(
@@ -155,7 +155,12 @@ export class ContractClient implements Contract {
     value: bigint = 0n,
     body: AcceptOwnership,
   ) {
-    return this.sendInternal(p, via, value, builder.message.in.acceptOwnership.encode(body))
+    return this.sendInternal(
+      p,
+      via,
+      value,
+      builder.message.in.acceptOwnership.encode(body).asCell(),
+    )
   }
 
   async getOwner(provider: ContractProvider): Promise<Address> {

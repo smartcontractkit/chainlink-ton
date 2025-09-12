@@ -24,10 +24,12 @@ describe('MCMS - RBACTimelockCancelTest', () => {
 
   it('should fail if non-canceller tries to cancel', async () => {
     // Try to cancel with executor role (should fail)
-    const body = rbactl.builder.message.in.cancel.encode({
-      queryId: 1n,
-      id: BaseTestSetup.EMPTY_SALT,
-    })
+    const body = rbactl.builder.message.in.cancel
+      .encode({
+        queryId: 1n,
+        id: BaseTestSetup.EMPTY_SALT,
+      })
+      .asCell()
 
     const result = await baseTest.bind.timelock.sendInternal(
       baseTest.acc.executorOne.getSender(),
@@ -46,19 +48,21 @@ describe('MCMS - RBACTimelockCancelTest', () => {
     const call = {
       target: baseTest.bind.counter.address,
       value: toNano('0.05'),
-      data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
+      data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }).asCell(),
     }
     const calls = BaseTestSetup.singletonCalls(call)
 
     // Schedule operation
     {
-      const scheduleBody = rbactl.builder.message.in.scheduleBatch.encode({
-        queryId: 1n,
-        calls,
-        predecessor: BaseTestSetup.NO_PREDECESSOR,
-        salt: BaseTestSetup.EMPTY_SALT,
-        delay: BaseTestSetup.MIN_DELAY,
-      })
+      const scheduleBody = rbactl.builder.message.in.scheduleBatch
+        .encode({
+          queryId: 1n,
+          calls,
+          predecessor: BaseTestSetup.NO_PREDECESSOR,
+          salt: BaseTestSetup.EMPTY_SALT,
+          delay: BaseTestSetup.MIN_DELAY,
+        })
+        .asCell()
 
       const result = await baseTest.bind.timelock.sendInternal(
         baseTest.acc.proposerOne.getSender(),
@@ -78,12 +82,14 @@ describe('MCMS - RBACTimelockCancelTest', () => {
 
     // Execute operation
     {
-      const executeBody = rbactl.builder.message.in.executeBatch.encode({
-        queryId: 1n,
-        calls,
-        predecessor: BaseTestSetup.NO_PREDECESSOR,
-        salt: BaseTestSetup.EMPTY_SALT,
-      })
+      const executeBody = rbactl.builder.message.in.executeBatch
+        .encode({
+          queryId: 1n,
+          calls,
+          predecessor: BaseTestSetup.NO_PREDECESSOR,
+          salt: BaseTestSetup.EMPTY_SALT,
+        })
+        .asCell()
 
       const result = await baseTest.bind.timelock.sendInternal(
         baseTest.acc.executorOne.getSender(),
@@ -111,10 +117,12 @@ describe('MCMS - RBACTimelockCancelTest', () => {
 
     // Try to cancel finished operation (should fail)
     {
-      const cancelBody = rbactl.builder.message.in.cancel.encode({
-        queryId: 1n,
-        id: operationID,
-      })
+      const cancelBody = rbactl.builder.message.in.cancel
+        .encode({
+          queryId: 1n,
+          id: operationID,
+        })
+        .asCell()
 
       const result = await baseTest.bind.timelock.sendInternal(
         baseTest.acc.cancellerOne.getSender(),
@@ -142,18 +150,20 @@ describe('MCMS - RBACTimelockCancelTest', () => {
     const call = {
       target: baseTest.bind.counter.address,
       value: toNano('0.05'),
-      data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
+      data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }).asCell(),
     }
     const calls = BaseTestSetup.singletonCalls(call)
 
     // Schedule operation
-    const scheduleBody = rbactl.builder.message.in.scheduleBatch.encode({
-      queryId: 1n,
-      calls,
-      predecessor: BaseTestSetup.NO_PREDECESSOR,
-      salt: BaseTestSetup.EMPTY_SALT,
-      delay: BaseTestSetup.MIN_DELAY,
-    })
+    const scheduleBody = rbactl.builder.message.in.scheduleBatch
+      .encode({
+        queryId: 1n,
+        calls,
+        predecessor: BaseTestSetup.NO_PREDECESSOR,
+        salt: BaseTestSetup.EMPTY_SALT,
+        delay: BaseTestSetup.MIN_DELAY,
+      })
+      .asCell()
 
     const scheduleResult = await baseTest.bind.timelock.sendInternal(
       baseTest.acc.proposerOne.getSender(),
@@ -180,10 +190,12 @@ describe('MCMS - RBACTimelockCancelTest', () => {
     expect(await baseTest.bind.timelock.isOperation(operationId)).toBe(true)
 
     // Cancel operation
-    const cancelBody = rbactl.builder.message.in.cancel.encode({
-      queryId: 1n,
-      id: operationId,
-    })
+    const cancelBody = rbactl.builder.message.in.cancel
+      .encode({
+        queryId: 1n,
+        id: operationId,
+      })
+      .asCell()
 
     const cancelResult = await baseTest.bind.timelock.sendInternal(
       canceller.getSender(),
@@ -208,7 +220,9 @@ describe('MCMS - RBACTimelockCancelTest', () => {
 
     const cancelMsg = cancelTx[0].inMessage!
     const opcode = cancelMsg.body.beginParse().preloadUint(32)
-    const canceledConfirmation = rbactl.builder.message.out.canceled.decode(cancelMsg.body)
+    const canceledConfirmation = rbactl.builder.message.out.canceled.load(
+      cancelMsg.body.beginParse(),
+    )
 
     expect(opcode.toString(16)).toEqual(rbactl.opcodes.out.Canceled.toString(16))
     expect(canceledConfirmation.queryId).toEqual(1)

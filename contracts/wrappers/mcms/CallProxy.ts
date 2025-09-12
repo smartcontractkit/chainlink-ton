@@ -1,12 +1,14 @@
 import {
   Address,
   beginCell,
+  Builder,
   Cell,
   Contract,
   contractAddress,
   ContractProvider,
   Sender,
   SendMode,
+  Slice,
 } from '@ton/core'
 import { crc32 } from 'zlib'
 import { CellCodec } from '../utils'
@@ -40,36 +42,34 @@ export enum Errors {
 
 export const builder = {
   message: {
-    in: {
+    in: (() => {
       // Creates a new `CallProxy_TopUp` message.
-      topUp: {
-        encode: (msg: TopUp): Cell => {
+      const topUp: CellCodec<TopUp> = {
+        encode: (msg: TopUp): Builder => {
           return beginCell() // break line
             .storeUint(opcodes.in.TopUp, 32)
             .storeUint(msg.queryId, 64)
-            .endCell()
         },
-        decode: (cell: Cell): TopUp => {
-          const s = cell.beginParse()
-          s.skip(32) // skip opcode
+        load: (src: Slice): TopUp => {
+          src.skip(32) // skip opcode
           return {
-            queryId: s.loadUintBig(64),
+            queryId: src.loadUintBig(64),
           }
         },
-      },
-    },
+      }
+      return { topUp }
+    })(),
   },
   data: (() => {
     // Creates a new `CallProxy_Data` contract data cell
     const contractData: CellCodec<ContractData> = {
-      encode: (data: ContractData): Cell => {
-        return beginCell().storeUint(data.id, 32).storeAddress(data.target).endCell()
+      encode: (data: ContractData): Builder => {
+        return beginCell().storeUint(data.id, 32).storeAddress(data.target)
       },
-      decode: (cell: Cell): ContractData => {
-        const s = cell.beginParse()
+      load: (src: Slice): ContractData => {
         return {
-          id: s.loadUint(32),
-          target: s.loadAddress(),
+          id: src.loadUint(32),
+          target: src.loadAddress(),
         }
       },
     }
@@ -91,7 +91,7 @@ export class ContractClient implements Contract {
   }
 
   static newFrom(data: ContractData, code: Cell, workchain = 0) {
-    const init = { code, data: builder.data.contractData.encode(data) }
+    const init = { code, data: builder.data.contractData.encode(data).asCell() }
     return new ContractClient(contractAddress(workchain, init), init)
   }
 

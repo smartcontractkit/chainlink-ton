@@ -94,7 +94,7 @@ func updateRouterDest(b operations.Bundle, deps TonDeps, in UpdateRouterDestInpu
 	msg := []*tlb.InternalMessage{
 		{
 			Bounce:  true,
-			Amount:  tlb.MustFromTON("1"),
+			Amount:  tlb.MustFromTON("0.1"),
 			DstAddr: &addr,
 			Body:    payload,
 		},
