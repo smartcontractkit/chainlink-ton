@@ -20,6 +20,7 @@ type FeeQuoterView struct {
 	metaData
 	StaticConfig    staticConfig                        `json:"staticConfig"`
 	DestChainConfig map[uint64]feeQuoterDestChainConfig `json:"feeQuoterDestChainConfig"`
+	// TODO saw usdPerToken and premiumMultiplierWeiPerEth are marked, check if we need to add them here too
 }
 
 type staticConfig struct {
