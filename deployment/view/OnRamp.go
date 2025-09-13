@@ -86,9 +86,13 @@ func fetchDestChainConfig(ctx context.Context, c cldf_ton.Chain, block *ton.Bloc
 		return nil, err
 	}
 
-	selectorSlice := result.AsTuple()[0].([]interface{})
-	output := make(map[uint64]OnRampDestChainConfig)
+	selectorSliceRaw := result.AsTuple()[0]
+	selectorSlice, ok := selectorSliceRaw.([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("unexpected type for selector slice")
+	}
 
+	output := make(map[uint64]OnRampDestChainConfig)
 	for _, selector := range selectorSlice {
 		// On-chain returns *big.Int for selector values, convert to uint64
 		if bigInt, ok := selector.(*big.Int); ok {
