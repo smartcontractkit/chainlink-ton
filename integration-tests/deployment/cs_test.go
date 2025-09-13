@@ -205,5 +205,9 @@ func TestDeploy(t *testing.T) {
 		routerView, exit := generatedView.Router[routerAddr.String()]
 		require.True(t, exit, "onRamp view not found")
 		require.Equal(t, routerAddr.String(), routerView.Address)
+
+		feeQuoterView, exit := generatedView.FeeQuoter[feeQuoterAddr.String()]
+		require.True(t, exit, "feeQuoter view not found")
+		require.Equal(t, feeQuoterAddr.String(), feeQuoterView.Address)
 	})
 }

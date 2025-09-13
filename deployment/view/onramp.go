@@ -13,16 +13,14 @@ import (
 )
 
 const (
-	destChainGetter       = "destChainSelectors"
-	dynamicConfigGetter   = "dynamicConfig"
-	destChainConfigGetter = "destChainConfig"
+	dynamicConfigGetter = "dynamicConfig"
 )
 
 type OnRampView struct {
 	metaData
 	ChainSelector   uint64                           `json:"chainSelector,omitempty"`
 	DynamicConfig   dynamicConfig                    `json:"dynamicConfig"`
-	DestChainConfig map[uint64]onRampDestChainConfig `json:"destChainConfig"`
+	DestChainConfig map[uint64]onRampDestChainConfig `json:"feeQuoterDestChainConfig"`
 }
 
 // DynamicConfig holds the dynamic configuration for the CCIP system, including fee quoter, fee aggregator, and allow list admin.
@@ -39,14 +37,17 @@ type onRampDestChainConfig struct {
 	// add allowedSenders ? missing from onramp binding now
 }
 
-type metaData struct {
-	Address      string `json:"address,omitempty"`
-	ContractType string `json:"contractType,omitempty"`
-	Version      string `json:"version,omitempty"`
-}
-
 func GenerateOnRampView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, onrampAddr *address.Address, srcSelector uint64) (*OnRampView, error) {
-	result, err := c.Client.RunGetMethod(ctx, block, onrampAddr, dynamicConfigGetter)
+	var typeVersion common.TypeAndVersion
+	result, err := c.Client.RunGetMethod(ctx, block, onrampAddr, versionGetter)
+	if err != nil {
+		return nil, fmt.Errorf("error getting typeAndVersion: %v", err)
+	}
+	if err = typeVersion.FromResult(result); err != nil {
+		return nil, fmt.Errorf("failed to parse typeAndVersion: %w", err)
+	}
+
+	result, err = c.Client.RunGetMethod(ctx, block, onrampAddr, dynamicConfigGetter)
 	if err != nil {
 		return nil, fmt.Errorf("error getting dynamicConfig: %v", err)
 	}
@@ -54,15 +55,6 @@ func GenerateOnRampView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockI
 	var dConfig onramp.DynamicConfig
 	if err = dConfig.FromResult(result); err != nil {
 		return nil, fmt.Errorf("failed to parse dynamicConfig: %w", err)
-	}
-
-	var typeVersion common.TypeAndVersion
-	result, err = c.Client.RunGetMethod(ctx, block, onrampAddr, versionGetter)
-	if err != nil {
-		return nil, fmt.Errorf("error getting typeAndVersion: %v", err)
-	}
-	if err = typeVersion.FromResult(result); err != nil {
-		return nil, fmt.Errorf("failed to parse typeAndVersion: %w", err)
 	}
 
 	destChainConfig, err := fetchDestChainConfig(ctx, c, block, onrampAddr)

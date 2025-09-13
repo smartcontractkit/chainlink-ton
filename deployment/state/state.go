@@ -39,10 +39,11 @@ type CCIPChainState struct {
 }
 
 type TONChainView struct {
-	ChainSelector uint64                     `json:"chainSelector,omitempty"`
-	ChainID       string                     `json:"chainID,omitempty"`
-	OnRamp        map[string]view.OnRampView `json:"onRamp,omitempty"`
-	Router        map[string]view.RouterView `json:"router,omitempty"`
+	ChainSelector uint64                        `json:"chainSelector,omitempty"`
+	ChainID       string                        `json:"chainID,omitempty"`
+	OnRamp        map[string]view.OnRampView    `json:"onRamp,omitempty"`
+	Router        map[string]view.RouterView    `json:"router,omitempty"`
+	FeeQuoter     map[string]view.FeeQuoterView `json:"feeQuoter,omitempty"`
 }
 
 func newTONChainView() TONChainView {
@@ -51,6 +52,7 @@ func newTONChainView() TONChainView {
 		ChainID:       "",
 		OnRamp:        make(map[string]view.OnRampView),
 		Router:        make(map[string]view.RouterView),
+		FeeQuoter:     make(map[string]view.FeeQuoterView),
 	}
 }
 
@@ -85,6 +87,15 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 		}
 
 		tonView.Router[s.Router.String()] = *routerView
+	}
+
+	if !s.FeeQuoter.IsAddrNone() {
+		feeQuoterView, err := view.GenerateFeeQuoterView(ctx, tonClient, block, &s.FeeQuoter)
+		if err != nil {
+			return tonView, fmt.Errorf("failed to generate fee quoter view for chain %d: %w", selector, err)
+		}
+
+		tonView.FeeQuoter[s.FeeQuoter.String()] = *feeQuoterView
 	}
 
 	return tonView, nil
