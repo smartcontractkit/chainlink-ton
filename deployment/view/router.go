@@ -20,6 +20,7 @@ type RouterView struct {
 	OnRampAddr string `json:"onRampAddr"`
 }
 
+// GenerateRouterView generates a view of the router contract at the specified block.
 func GenerateRouterView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, routerAddr *address.Address) (*RouterView, error) {
 	var typeVersion common.TypeAndVersion
 	result, err := c.Client.RunGetMethod(ctx, block, routerAddr, versionGetter)

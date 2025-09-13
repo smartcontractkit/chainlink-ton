@@ -16,6 +16,7 @@ const (
 	dynamicConfigGetter = "dynamicConfig"
 )
 
+// OnRampView represents a view of the on-ramp contract configuration.
 type OnRampView struct {
 	metaData
 	ChainSelector   uint64                           `json:"chainSelector,omitempty"`
@@ -23,7 +24,6 @@ type OnRampView struct {
 	DestChainConfig map[uint64]onRampDestChainConfig `json:"feeQuoterDestChainConfig"`
 }
 
-// DynamicConfig holds the dynamic configuration for the CCIP system, including fee quoter, fee aggregator, and allow list admin.
 type dynamicConfig struct {
 	FeeQuoter      string
 	FeeAggregator  string
@@ -37,6 +37,7 @@ type onRampDestChainConfig struct {
 	// add allowedSenders ? missing from onramp binding now
 }
 
+// GenerateOnRampView generates a view of the on-ramp contract at the specified block.
 func GenerateOnRampView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, onrampAddr *address.Address, srcSelector uint64) (*OnRampView, error) {
 	var typeVersion common.TypeAndVersion
 	result, err := c.Client.RunGetMethod(ctx, block, onrampAddr, versionGetter)

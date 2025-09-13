@@ -16,6 +16,7 @@ const (
 	staticConfigGetter = "staticConfig"
 )
 
+// FeeQuoterView represents a view of the fee quoter contract configuration.
 type FeeQuoterView struct {
 	metaData
 	StaticConfig    staticConfig                        `json:"staticConfig"`
@@ -51,6 +52,7 @@ type feeQuoterDestChainConfig struct {
 	NetworkFeeUsdCents                uint32 `json:"networkFeeUsdCents,omitempty"`
 }
 
+// GenerateFeeQuoterView generates a view of the fee quoter contract at the specified block.
 func GenerateFeeQuoterView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, feeQuoter *address.Address) (*FeeQuoterView, error) {
 	var typeVersion common.TypeAndVersion
 	result, err := c.Client.RunGetMethod(ctx, block, feeQuoter, versionGetter)
