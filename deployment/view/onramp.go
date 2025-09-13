@@ -6,40 +6,47 @@ import (
 	"math/big"
 
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
 )
 
+const (
+	destChainGetter       = "destChainSelectors"
+	dynamicConfigGetter   = "dynamicConfig"
+	destChainConfigGetter = "destChainConfig"
+)
+
 type OnRampView struct {
-	MetaData
+	metaData
 	ChainSelector   uint64                           `json:"chainSelector,omitempty"`
-	DynamicConfig   DynamicConfig                    `json:"dynamicConfig"`
-	DestChainConfig map[uint64]OnRampDestChainConfig `json:"destChainConfig"`
+	DynamicConfig   dynamicConfig                    `json:"dynamicConfig"`
+	DestChainConfig map[uint64]onRampDestChainConfig `json:"destChainConfig"`
 }
 
 // DynamicConfig holds the dynamic configuration for the CCIP system, including fee quoter, fee aggregator, and allow list admin.
-type DynamicConfig struct {
+type dynamicConfig struct {
 	FeeQuoter      string
 	FeeAggregator  string
 	AllowListAdmin string
 }
 
-type OnRampDestChainConfig struct {
+type onRampDestChainConfig struct {
 	SequenceNumber   uint64
 	AllowlistEnabled bool
 	Router           string
 	// add allowedSenders ? missing from onramp binding now
 }
 
-type MetaData struct {
+type metaData struct {
 	Address      string `json:"address,omitempty"`
 	ContractType string `json:"contractType,omitempty"`
 	Version      string `json:"version,omitempty"`
 }
 
 func GenerateOnRampView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, onrampAddr *address.Address, srcSelector uint64) (*OnRampView, error) {
-	result, err := c.Client.RunGetMethod(ctx, block, onrampAddr, "dynamicConfig")
+	result, err := c.Client.RunGetMethod(ctx, block, onrampAddr, dynamicConfigGetter)
 	if err != nil {
 		return nil, fmt.Errorf("error getting dynamicConfig: %v", err)
 	}
@@ -49,8 +56,8 @@ func GenerateOnRampView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockI
 		return nil, fmt.Errorf("failed to parse dynamicConfig: %w", err)
 	}
 
-	var typeVersion onramp.TypeAndVersion
-	result, err = c.Client.RunGetMethod(ctx, block, onrampAddr, "typeAndVersion")
+	var typeVersion common.TypeAndVersion
+	result, err = c.Client.RunGetMethod(ctx, block, onrampAddr, versionGetter)
 	if err != nil {
 		return nil, fmt.Errorf("error getting typeAndVersion: %v", err)
 	}
@@ -64,13 +71,13 @@ func GenerateOnRampView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockI
 	}
 
 	return &OnRampView{
-		MetaData: MetaData{
+		metaData: metaData{
 			Address:      onrampAddr.String(),
 			ContractType: typeVersion.Type,
 			Version:      typeVersion.Version,
 		},
 		ChainSelector: srcSelector,
-		DynamicConfig: DynamicConfig{
+		DynamicConfig: dynamicConfig{
 			FeeQuoter:      dConfig.FeeQuoter.String(),
 			FeeAggregator:  dConfig.FeeAggregator.String(),
 			AllowListAdmin: dConfig.AllowListAdmin.String(),
@@ -80,8 +87,8 @@ func GenerateOnRampView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockI
 }
 
 // fetchDestChainConfig retrieves destination chain configurations from the on-ramp contract.
-func fetchDestChainConfig(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, onrampAddr *address.Address) (map[uint64]OnRampDestChainConfig, error) {
-	result, err := c.Client.RunGetMethod(ctx, block, onrampAddr, "destChainSelectors")
+func fetchDestChainConfig(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, onrampAddr *address.Address) (map[uint64]onRampDestChainConfig, error) {
+	result, err := c.Client.RunGetMethod(ctx, block, onrampAddr, destChainGetter)
 	if err != nil {
 		return nil, err
 	}
@@ -92,12 +99,12 @@ func fetchDestChainConfig(ctx context.Context, c cldf_ton.Chain, block *ton.Bloc
 		return nil, fmt.Errorf("unexpected type for selector slice")
 	}
 
-	output := make(map[uint64]OnRampDestChainConfig)
+	output := make(map[uint64]onRampDestChainConfig)
 	for _, selector := range selectorSlice {
 		// On-chain returns *big.Int for selector values, convert to uint64
 		if bigInt, ok := selector.(*big.Int); ok {
 			dest := bigInt.Uint64()
-			result, err = c.Client.RunGetMethod(ctx, block, onrampAddr, "destChainConfig", dest)
+			result, err = c.Client.RunGetMethod(ctx, block, onrampAddr, destChainConfigGetter, dest)
 			if err != nil {
 				return nil, err
 			}
@@ -106,7 +113,7 @@ func fetchDestChainConfig(ctx context.Context, c cldf_ton.Chain, block *ton.Bloc
 				return nil, err
 			}
 
-			output[dest] = OnRampDestChainConfig{
+			output[dest] = onRampDestChainConfig{
 				SequenceNumber:   cfg.SequenceNumber,
 				AllowlistEnabled: cfg.AllowListEnabled,
 				Router:           cfg.Router.String(),

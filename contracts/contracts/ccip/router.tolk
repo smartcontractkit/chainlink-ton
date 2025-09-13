@@ -88,3 +88,8 @@ fun ccipSend(msg: CCIPSend, sender: address) {
 get fun typeAndVersion(): (slice, slice) {
      return ("com.chainlink.ton.ccip.Router", "1.0.0");
  }
+
+get fun onRamp(): address {
+    val st = lazy Storage.load();
+    return st.onRamp;
+}

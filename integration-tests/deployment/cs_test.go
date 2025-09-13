@@ -197,7 +197,12 @@ func TestDeploy(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, "-1", generatedView.ChainID)
 		require.Equal(t, chainSelector, generatedView.ChainSelector)
-		onrampView := generatedView.OnRamp[onRampAddr.String()]
-		require.Equal(t, onRampAddr.String(), onrampView.Address)
+		onRampView, exit := generatedView.OnRamp[onRampAddr.String()]
+		require.True(t, exit, "onRamp view not found")
+		require.Equal(t, onRampAddr.String(), onRampView.Address)
+
+		routerView, exit := generatedView.Router[onRampAddr.String()]
+		require.True(t, exit, "onRamp view not found")
+		require.Equal(t, state[chainSelector].Router, routerView.Address)
 	})
 }

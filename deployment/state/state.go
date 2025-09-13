@@ -42,6 +42,7 @@ type TONChainView struct {
 	ChainSelector uint64                     `json:"chainSelector,omitempty"`
 	ChainID       string                     `json:"chainID,omitempty"`
 	OnRamp        map[string]view.OnRampView `json:"onRamp,omitempty"`
+	Router        map[string]view.RouterView `json:"router,omitempty"`
 }
 
 func newTONChainView() TONChainView {
@@ -49,6 +50,7 @@ func newTONChainView() TONChainView {
 		ChainSelector: 0,
 		ChainID:       "",
 		OnRamp:        make(map[string]view.OnRampView),
+		Router:        make(map[string]view.RouterView),
 	}
 }
 
@@ -74,6 +76,15 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 		}
 
 		tonView.OnRamp[s.OnRamp.String()] = *onRampView
+	}
+
+	if !s.Router.IsAddrNone() {
+		routerView, err := view.GenerateRouterView(ctx, tonClient, block, &s.Router)
+		if err != nil {
+			return tonView, fmt.Errorf("failed to generate router view for chain %d: %w", selector, err)
+		}
+
+		tonView.Router[s.Router.String()] = *routerView
 	}
 
 	return tonView, nil
