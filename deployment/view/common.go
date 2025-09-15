@@ -1,9 +1,10 @@
 package view
 
 const (
-	versionGetter         = "typeAndVersion"
-	destChainGetter       = "destChainSelectors"
-	destChainConfigGetter = "destChainConfig"
+	versionGetter            = "typeAndVersion"
+	destChainGetter          = "destChainSelectors"
+	destChainConfigGetter    = "destChainConfig"
+	allDestChainConfigGetter = "allDestChainConfig"
 )
 
 // MetaData holds common metadata for all contract views.

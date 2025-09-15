@@ -3,13 +3,14 @@ package view
 import (
 	"context"
 	"fmt"
-	"math/big"
 
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
 const (
@@ -34,7 +35,7 @@ type OnRampDestChainConfig struct {
 	SequenceNumber   uint64 `json:"sequenceNumber,omitempty"`
 	AllowlistEnabled bool   `json:"allowlistEnabled,omitempty"`
 	Router           string `json:"router,omitempty"`
-	// add allowedSenders ? missing from onramp binding now
+	// TODO add allowedSenders
 }
 
 // FetchOnRampView generates a view of the on-ramp contract at the specified block.
@@ -79,40 +80,46 @@ func FetchOnRampView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDEx
 	}, nil
 }
 
-// fetchDestChainConfig retrieves destination chain configurations from the on-ramp contract.
 func fetchDestChainConfig(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, onrampAddr *address.Address) (map[uint64]OnRampDestChainConfig, error) {
-	result, err := c.Client.RunGetMethod(ctx, block, onrampAddr, destChainGetter)
+	output := make(map[uint64]OnRampDestChainConfig)
+	result, err := c.Client.RunGetMethod(ctx, block, onrampAddr, allDestChainConfigGetter)
 	if err != nil {
 		return nil, err
 	}
 
-	selectorSliceRaw := result.AsTuple()[0]
-	selectorSlice, ok := selectorSliceRaw.([]interface{})
-	if !ok {
-		return nil, fmt.Errorf("unexpected type for selector slice")
+	configDictRaw, err := result.Cell(0)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get cell from result: %w", err)
 	}
 
-	output := make(map[uint64]OnRampDestChainConfig)
-	for _, selector := range selectorSlice {
-		// On-chain returns *big.Int for selector values, convert to uint64
-		if bigInt, ok := selector.(*big.Int); ok {
-			dest := bigInt.Uint64()
-			result, err = c.Client.RunGetMethod(ctx, block, onrampAddr, destChainConfigGetter, dest)
-			if err != nil {
-				return nil, err
-			}
-			var cfg onramp.DestChainConfig
-			if err = cfg.FromResult(result); err != nil {
-				return nil, err
-			}
+	configDict := configDictRaw.AsDict(64)
+	all, err := configDict.LoadAll()
+	if err != nil {
+		return nil, fmt.Errorf("failed to load all entries from dictionary: %w", err)
+	}
 
-			output[dest] = OnRampDestChainConfig{
-				SequenceNumber:   cfg.SequenceNumber,
-				AllowlistEnabled: cfg.AllowListEnabled,
-				Router:           cfg.Router.String(),
-			}
+	var chainSel uint64
+	var cfgCell *cell.Cell
+	for _, val := range all {
+		chainSel, err = val.Key.LoadUInt(64)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load chain selector: %w", err)
+		}
+		cfgCell, err = val.Value.ToCell()
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert value to cell: %w", err)
+		}
+		var cfg onramp.DestChainConfig
+		err := tlb.LoadFromCell(&cfg, cfgCell.BeginParse())
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse DestChainConfig from cell: %w", err)
+		}
+
+		output[chainSel] = OnRampDestChainConfig{
+			SequenceNumber:   cfg.SequenceNumber,
+			AllowlistEnabled: cfg.AllowListEnabled,
+			Router:           cfg.Router.String(),
 		}
 	}
-
 	return output, nil
 }
