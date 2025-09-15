@@ -2,7 +2,7 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { toNano, Address, Cell, Dictionary, beginCell } from '@ton/core'
 import { compile } from '@ton/blueprint'
 import * as rt from '../../wrappers/ccip/Router'
-import { OnRamp, OnRampStorage } from '../../wrappers/ccip/OnRamp'
+import * as or from '../../wrappers/ccip/OnRamp'
 import {
   createTimestampedPriceValue,
   FeeQuoter,
@@ -25,7 +25,7 @@ describe('Router', () => {
   let sender: SandboxContract<TreasuryContract>
   let router: SandboxContract<rt.Router>
   let feeQuoter: SandboxContract<FeeQuoter>
-  let onRamp: SandboxContract<OnRamp>
+  let onRamp: SandboxContract<or.OnRamp>
 
   beforeAll(async () => {
     blockchain = await Blockchain.create()
@@ -160,7 +160,7 @@ describe('Router', () => {
     // setup onramp
     {
       let code = await compile('OnRamp')
-      let data: OnRampStorage = {
+      let data: or.OnRampStorage = {
         ownable: {
           owner: deployer.address,
           pendingOwner: null,
@@ -174,7 +174,7 @@ describe('Router', () => {
         destChainConfigs: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Cell()),
       }
       // TODO: use deployable to make deterministic?
-      onRamp = blockchain.openContract(OnRamp.createFromConfig(data, code))
+      onRamp = blockchain.openContract(or.OnRamp.createFromConfig(data, code))
       {
         const result = await onRamp.sendDeploy(deployer.getSender(), toNano('1'))
         expect(result.transactions).toHaveTransaction({
