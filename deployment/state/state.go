@@ -44,7 +44,7 @@ type TONChainView struct {
 	OnRamp        map[string]view.OnRampView    `json:"onRamp,omitempty"`
 	Router        map[string]view.RouterView    `json:"router,omitempty"`
 	FeeQuoter     map[string]view.FeeQuoterView `json:"feeQuoter,omitempty"`
-	// TODO: OffRamp view is missing, need to add it next
+	OffRamp       map[string]view.OffRampView   `json:"offRamp,omitempty"`
 }
 
 func newTONChainView() TONChainView {
@@ -54,6 +54,7 @@ func newTONChainView() TONChainView {
 		OnRamp:        make(map[string]view.OnRampView),
 		Router:        make(map[string]view.RouterView),
 		FeeQuoter:     make(map[string]view.FeeQuoterView),
+		OffRamp:       make(map[string]view.OffRampView),
 	}
 }
 
@@ -97,6 +98,15 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 		}
 
 		tonView.FeeQuoter[s.FeeQuoter.String()] = *feeQuoterView
+	}
+
+	if !s.OffRamp.IsAddrNone() {
+		offRampView, err := view.FetchOffRampView(ctx, tonClient, block, &s.OffRamp)
+		if err != nil {
+			return tonView, fmt.Errorf("failed to generate offramp view for chain %d: %w", selector, err)
+		}
+
+		tonView.OffRamp[s.OffRamp.String()] = *offRampView
 	}
 
 	return tonView, nil

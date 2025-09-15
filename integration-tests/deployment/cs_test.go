@@ -133,6 +133,7 @@ func TestDeploy(t *testing.T) {
 	rawLinkAddr, err := addrCodec.AddressStringToBytes(linkAddr.String())
 	require.NoError(t, err)
 	routerAddr := state[chainSelector].Router
+	offRampAddr := state[chainSelector].OffRamp
 
 	err = accessor.Sync(ctx, consts.ContractNameOnRamp, rawOnRampAddr)
 	require.NoError(t, err)
@@ -209,5 +210,9 @@ func TestDeploy(t *testing.T) {
 		feeQuoterView, exit := generatedView.FeeQuoter[feeQuoterAddr.String()]
 		require.True(t, exit, "feeQuoter view not found")
 		require.Equal(t, feeQuoterAddr.String(), feeQuoterView.Address)
+
+		offRampView, exit := generatedView.OffRamp[offRampAddr.String()]
+		require.True(t, exit, "offRamp view not found")
+		require.Equal(t, offRampAddr.String(), offRampView.Address)
 	})
 }
