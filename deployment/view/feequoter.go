@@ -9,6 +9,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 )
 
@@ -30,9 +31,16 @@ type StaticConfig struct {
 	StalenessThreshold uint32 `json:"stalenessThreshold,omitempty"`
 }
 
+type USDPerUnitGas struct {
+	ExecutionGasPrice        string `json:"executionGasPrice,omitempty"`
+	DataAvailabilityGasPrice string `json:"dataAvailabilityGasPrice,omitempty"`
+	Timestamp                uint64 `json:"timestamp,omitempty"`
+}
+
 type DestChainConfig struct {
-	Config FeeQuoterDestChainConfig `json:"config,omitempty"`
-	// TODO add usdPerUnitGas and tokenTransferFeeConfigs
+	Config        FeeQuoterDestChainConfig `json:"config,omitempty"`
+	USDPerUnitGas USDPerUnitGas            `json:"usdPerUnitGas,omitempty"`
+	// TODO add tokenTransferFeeConfigs
 }
 
 type FeeQuoterDestChainConfig struct {
@@ -104,8 +112,8 @@ func generateDestChainConfigsView(ctx context.Context, c cldf_ton.Chain, block *
 		return nil, err
 	}
 
-	selectorSliceRaw := result.AsTuple()[0]
-	selectorSlice, ok := selectorSliceRaw.([]interface{})
+	selectorSliceRaw := result.AsTuple()
+	selectorSlice, ok := selectorSliceRaw[0].([]interface{})
 	if !ok {
 		return nil, fmt.Errorf("unexpected type for selector slice")
 	}
@@ -124,29 +132,44 @@ func generateDestChainConfigsView(ctx context.Context, c cldf_ton.Chain, block *
 				return nil, err
 			}
 
-			fqConfig := FeeQuoterDestChainConfig{
-				IsEnabled:                         cfg.IsEnabled,
-				MaxNumberOfTokensPerMsg:           cfg.MaxNumberOfTokensPerMsg,
-				MaxDataBytes:                      cfg.MaxDataBytes,
-				MaxPerMsgGasLimit:                 cfg.MaxPerMsgGasLimit,
-				DestGasOverhead:                   cfg.DestGasOverhead,
-				DestGasPerPayloadByteBase:         cfg.DestGasPerPayloadByteBase,
-				DestGasPerPayloadByteHigh:         cfg.DestGasPerPayloadByteHigh,
-				DestGasPerPayloadByteThreshold:    cfg.DestGasPerPayloadByteThreshold,
-				DestDataAvailabilityOverheadGas:   cfg.DestDataAvailabilityOverheadGas,
-				DestGasPerDataAvailabilityByte:    cfg.DestGasPerDataAvailabilityByte,
-				DestDataAvailabilityMultiplierBps: cfg.DestDataAvailabilityMultiplierBps,
-				ChainFamilySelector:               cfg.ChainFamilySelector,
-				EnforceOutOfOrder:                 cfg.EnforceOutOfOrder,
-				DefaultTokenFeeUsdCents:           cfg.DefaultTokenFeeUsdCents,
-				DefaultTokenDestGasOverhead:       cfg.DefaultTokenDestGasOverhead,
-				DefaultTxGasLimit:                 cfg.DefaultTxGasLimit,
-				GasMultiplierWeiPerEth:            cfg.GasMultiplierWeiPerEth,
-				GasPriceStalenessThreshold:        cfg.GasPriceStalenessThreshold,
-				NetworkFeeUsdCents:                cfg.NetworkFeeUsdCents,
+			destConfig := DestChainConfig{
+				Config: FeeQuoterDestChainConfig{
+					IsEnabled:                         cfg.IsEnabled,
+					MaxNumberOfTokensPerMsg:           cfg.MaxNumberOfTokensPerMsg,
+					MaxDataBytes:                      cfg.MaxDataBytes,
+					MaxPerMsgGasLimit:                 cfg.MaxPerMsgGasLimit,
+					DestGasOverhead:                   cfg.DestGasOverhead,
+					DestGasPerPayloadByteBase:         cfg.DestGasPerPayloadByteBase,
+					DestGasPerPayloadByteHigh:         cfg.DestGasPerPayloadByteHigh,
+					DestGasPerPayloadByteThreshold:    cfg.DestGasPerPayloadByteThreshold,
+					DestDataAvailabilityOverheadGas:   cfg.DestDataAvailabilityOverheadGas,
+					DestGasPerDataAvailabilityByte:    cfg.DestGasPerDataAvailabilityByte,
+					DestDataAvailabilityMultiplierBps: cfg.DestDataAvailabilityMultiplierBps,
+					ChainFamilySelector:               cfg.ChainFamilySelector,
+					EnforceOutOfOrder:                 cfg.EnforceOutOfOrder,
+					DefaultTokenFeeUsdCents:           cfg.DefaultTokenFeeUsdCents,
+					DefaultTokenDestGasOverhead:       cfg.DefaultTokenDestGasOverhead,
+					DefaultTxGasLimit:                 cfg.DefaultTxGasLimit,
+					GasMultiplierWeiPerEth:            cfg.GasMultiplierWeiPerEth,
+					GasPriceStalenessThreshold:        cfg.GasPriceStalenessThreshold,
+					NetworkFeeUsdCents:                cfg.NetworkFeeUsdCents,
+				},
 			}
 
-			output[dest] = DestChainConfig{Config: fqConfig}
+			if cfg.USDPerUnitGas != nil {
+				gasPriceSlice := cfg.USDPerUnitGas.BeginParse()
+				var gasPrice feequoter.USDPerUnitGas
+				if err = tlb.LoadFromCell(&gasPrice, gasPriceSlice); err != nil {
+					return nil, err
+				}
+				destConfig.USDPerUnitGas = USDPerUnitGas{
+					ExecutionGasPrice:        gasPrice.ExecutionGasPrice.String(),
+					DataAvailabilityGasPrice: gasPrice.DataAvailabilityGasPrice.String(),
+					Timestamp:                gasPrice.Timestamp,
+				}
+			}
+
+			output[dest] = destConfig
 		}
 	}
 

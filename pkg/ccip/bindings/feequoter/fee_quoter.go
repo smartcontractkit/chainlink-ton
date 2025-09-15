@@ -23,25 +23,33 @@ type Storage struct {
 }
 
 type DestChainConfig struct {
-	IsEnabled                         bool   `tlb:"bool"`
-	MaxNumberOfTokensPerMsg           uint16 `tlb:"## 16"`
-	MaxDataBytes                      uint32 `tlb:"## 32"`
-	MaxPerMsgGasLimit                 uint32 `tlb:"## 32"`
-	DestGasOverhead                   uint32 `tlb:"## 32"`
-	DestGasPerPayloadByteBase         uint8  `tlb:"## 8"`
-	DestGasPerPayloadByteHigh         uint8  `tlb:"## 8"`
-	DestGasPerPayloadByteThreshold    uint16 `tlb:"## 16"`
-	DestDataAvailabilityOverheadGas   uint32 `tlb:"## 32"`
-	DestGasPerDataAvailabilityByte    uint16 `tlb:"## 16"`
-	DestDataAvailabilityMultiplierBps uint16 `tlb:"## 16"`
-	ChainFamilySelector               uint32 `tlb:"## 32"`
-	EnforceOutOfOrder                 bool   `tlb:"bool"`
-	DefaultTokenFeeUsdCents           uint16 `tlb:"## 16"`
-	DefaultTokenDestGasOverhead       uint32 `tlb:"## 32"`
-	DefaultTxGasLimit                 uint32 `tlb:"## 32"`
-	GasMultiplierWeiPerEth            uint64 `tlb:"## 64"`
-	GasPriceStalenessThreshold        uint32 `tlb:"## 32"`
-	NetworkFeeUsdCents                uint32 `tlb:"## 32"`
+	IsEnabled                         bool             `tlb:"bool"`
+	MaxNumberOfTokensPerMsg           uint16           `tlb:"## 16"`
+	MaxDataBytes                      uint32           `tlb:"## 32"`
+	MaxPerMsgGasLimit                 uint32           `tlb:"## 32"`
+	DestGasOverhead                   uint32           `tlb:"## 32"`
+	DestGasPerPayloadByteBase         uint8            `tlb:"## 8"`
+	DestGasPerPayloadByteHigh         uint8            `tlb:"## 8"`
+	DestGasPerPayloadByteThreshold    uint16           `tlb:"## 16"`
+	DestDataAvailabilityOverheadGas   uint32           `tlb:"## 32"`
+	DestGasPerDataAvailabilityByte    uint16           `tlb:"## 16"`
+	DestDataAvailabilityMultiplierBps uint16           `tlb:"## 16"`
+	ChainFamilySelector               uint32           `tlb:"## 32"`
+	EnforceOutOfOrder                 bool             `tlb:"bool"`
+	DefaultTokenFeeUsdCents           uint16           `tlb:"## 16"`
+	DefaultTokenDestGasOverhead       uint32           `tlb:"## 32"`
+	DefaultTxGasLimit                 uint32           `tlb:"## 32"`
+	GasMultiplierWeiPerEth            uint64           `tlb:"## 64"`
+	GasPriceStalenessThreshold        uint32           `tlb:"## 32"`
+	NetworkFeeUsdCents                uint32           `tlb:"## 32"`
+	USDPerUnitGas                     *cell.Cell       `tlb:"."`
+	TokenTransferFeeConfigs           *cell.Dictionary `tlb:"dict 267"`
+}
+
+type USDPerUnitGas struct {
+	ExecutionGasPrice        *big.Int `tlb:"## 112"`
+	DataAvailabilityGasPrice *big.Int `tlb:"## 112"`
+	Timestamp                uint64   `tlb:"## 64"`
 }
 
 func (c *DestChainConfig) FromResult(result *ton.ExecutionResult) error {
@@ -144,6 +152,34 @@ func (c *DestChainConfig) FromResult(result *ton.ExecutionResult) error {
 		GasPriceStalenessThreshold:        uint32(gasPriceStalenessThreshold.Uint64()), //nolint:gosec // G115
 		NetworkFeeUsdCents:                uint32(networkFeeUsdCents.Uint64()),         //nolint:gosec // G115
 	}
+
+	// parse GasPrice
+	isNil, err := result.IsNil(19)
+	if err != nil {
+		return err
+	}
+	if !isNil {
+		gasPriceCell, err := result.Cell(19)
+		if err != nil {
+			return err
+		}
+
+		c.USDPerUnitGas = gasPriceCell
+	}
+
+	// parse TokenTransferFeeConfigs
+	//isNil, err = result.IsNil(20)
+	//if err != nil {
+	//	return err
+	//}
+	//if !isNil {
+	//	tokenFeeConfigCell, err := result.Cell(20)
+	//	if err != nil {
+	//		return err
+	//	}
+	//	c.TokenTransferFeeConfigs = tokenFeeConfigCell.AsDict(267)
+	//}
+
 	return nil
 }
 
