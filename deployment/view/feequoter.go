@@ -22,7 +22,7 @@ type FeeQuoterView struct {
 	MetaData
 	StaticConfig    StaticConfig               `json:"staticConfig,omitempty"`
 	DestChainConfig map[uint64]DestChainConfig `json:"DestChainConfig,omitempty"`
-	// TODO saw usdPerToken and premiumMultiplierWeiPerEth are marked, check if we need to add them here too
+	// TODO add usdPerToken and premiumMultiplierWeiPerEth maps
 }
 
 type StaticConfig struct {
