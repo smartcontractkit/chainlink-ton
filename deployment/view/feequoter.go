@@ -15,21 +15,29 @@ import (
 )
 
 const (
-	staticConfigGetter = "staticConfig"
-	feeTokensGetter    = "feeTokens"
+	staticConfigGetter              = "staticConfig"
+	feeTokensGetter                 = "feeTokens"
+	tokenPriceGetter                = "tokenPrice"
+	usdPerTokensGetter              = "usdPerTokens"
+	feeTokenPremiumMultiplierGetter = "feeTokenPremiumMultiplier"
 )
 
 // FeeQuoterView represents a view of the fee quoter contract configuration.
 type FeeQuoterView struct {
 	MetaData
 	StaticConfig       StaticConfig                  `json:"staticConfig,omitempty"`
-	DestChainConfig    map[uint64]DestChainConfig    `json:"destChainConfig,omitempty"`
 	PremiumMultipliers map[string]PremiumMultipliers `json:"premiumMultipliers,omitempty"`
-	// TODO add premiumMultiplierWeiPerEth maps
+	USDPerTokens       map[string]USDPerToken        `json:"usdPerTokens,omitempty"`
+	DestChainConfig    map[uint64]DestChainConfig    `json:"destChainConfig,omitempty"`
 }
 
 type PremiumMultipliers struct {
 	PremiumMultiplierWeiPerEth uint64 `json:"premiumMultiplierWeiPerEth,omitempty"`
+}
+
+type USDPerToken struct {
+	Value     string `json:"value"`
+	Timestamp uint64 `json:"timestamp,omitempty"`
 }
 
 type StaticConfig struct {
@@ -72,8 +80,8 @@ type FeeQuoterDestChainConfig struct {
 	NetworkFeeUsdCents                uint32 `json:"networkFeeUsdCents,omitempty"`
 }
 
-// GenerateFeeQuoterView generates a view of the fee quoter contract at the specified block.
-func GenerateFeeQuoterView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, feeQuoter *address.Address) (*FeeQuoterView, error) {
+// FetchFeeQuoterView generates a view of the fee quoter contract at the specified block.
+func FetchFeeQuoterView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, feeQuoter *address.Address) (*FeeQuoterView, error) {
 	var typeVersion common.TypeAndVersion
 	result, err := c.Client.RunGetMethod(ctx, block, feeQuoter, versionGetter)
 	if err != nil {
@@ -93,14 +101,19 @@ func GenerateFeeQuoterView(ctx context.Context, c cldf_ton.Chain, block *ton.Blo
 		return nil, fmt.Errorf("failed to parse StaticConfig: %w", err)
 	}
 
-	destConfigs, err := generateDestChainConfigsView(ctx, c, block, feeQuoter)
+	destConfigs, err := fetchDestChainConfigsView(ctx, c, block, feeQuoter)
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate dest chain config view: %w", err)
+		return nil, fmt.Errorf("failed to fetch dest chain config view: %w", err)
 	}
 
-	premiumMultipliers, err := generateFeeTokensPremiumMultiplierView(ctx, c, block, feeQuoter)
+	premiumMultipliers, err := fetchFeeTokensPremiumMultiplierView(ctx, c, block, feeQuoter)
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate fee tokens premium multiplier view: %w", err)
+		return nil, fmt.Errorf("failed to fetch fee tokens premium multiplier view: %w", err)
+	}
+
+	usdPerTokens, err := fetchTimestampedPriceView(ctx, c, block, feeQuoter)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch usd per tokens view: %w", err)
 	}
 
 	return &FeeQuoterView{
@@ -115,11 +128,51 @@ func GenerateFeeQuoterView(ctx context.Context, c cldf_ton.Chain, block *ton.Blo
 			StalenessThreshold: sc.StalenessThreshold,
 		},
 		PremiumMultipliers: premiumMultipliers,
+		USDPerTokens:       usdPerTokens,
 		DestChainConfig:    destConfigs,
 	}, nil
 }
 
-func generateFeeTokensPremiumMultiplierView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, feeQuoter *address.Address) (map[string]PremiumMultipliers, error) {
+func fetchTimestampedPriceView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, feeQuoter *address.Address) (map[string]USDPerToken, error) {
+	result, err := c.Client.RunGetMethod(ctx, block, feeQuoter, usdPerTokensGetter)
+	if err != nil {
+		return nil, fmt.Errorf("error getting usdPerTokens: %v", err)
+	}
+
+	tokenSliceRaw := result.AsTuple()[0]
+	tokenSlice, ok := tokenSliceRaw.([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("unexpected type for token slice")
+	}
+
+	output := make(map[string]USDPerToken)
+	for _, token := range tokenSlice {
+		var tokenCell *cell.Slice
+		var tokenAddr *address.Address
+		if tokenCell, ok = token.(*cell.Slice); ok {
+			result, err = c.Client.RunGetMethod(ctx, block, feeQuoter, tokenPriceGetter, tokenCell)
+			if err != nil {
+				return nil, fmt.Errorf("error getting tokenPrice: %v", err)
+			}
+			var price feequoter.TimestampedPrice
+			if err = price.FromResult(result); err != nil {
+				return nil, fmt.Errorf("error to parse TimestampedPrice: %v", err)
+			}
+			tokenAddr, err = tokenCell.LoadAddr()
+			if err != nil {
+				return nil, fmt.Errorf("error to parse token address: %v", err)
+			}
+			output[tokenAddr.String()] = USDPerToken{
+				Value:     price.Value.String(),
+				Timestamp: price.Timestamp,
+			}
+		}
+	}
+
+	return output, nil
+}
+
+func fetchFeeTokensPremiumMultiplierView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, feeQuoter *address.Address) (map[string]PremiumMultipliers, error) {
 	result, err := c.Client.RunGetMethod(ctx, block, feeQuoter, feeTokensGetter)
 	if err != nil {
 		return nil, fmt.Errorf("error getting feeTokens: %v", err)
@@ -137,7 +190,7 @@ func generateFeeTokensPremiumMultiplierView(ctx context.Context, c cldf_ton.Chai
 		var tokenAddr *address.Address
 		var multiplier *big.Int
 		if tokenCell, ok = token.(*cell.Slice); ok {
-			result, err = c.Client.RunGetMethod(ctx, block, feeQuoter, "feeTokenPremiumMultiplier", tokenCell)
+			result, err = c.Client.RunGetMethod(ctx, block, feeQuoter, feeTokenPremiumMultiplierGetter, tokenCell)
 			if err != nil {
 				return nil, fmt.Errorf("error getting feeToken premium multiplier config: %v", err)
 			}
@@ -161,7 +214,7 @@ func generateFeeTokensPremiumMultiplierView(ctx context.Context, c cldf_ton.Chai
 	return output, nil
 }
 
-func generateDestChainConfigsView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, feeQuoter *address.Address) (map[uint64]DestChainConfig, error) {
+func fetchDestChainConfigsView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, feeQuoter *address.Address) (map[uint64]DestChainConfig, error) {
 	result, err := c.Client.RunGetMethod(ctx, block, feeQuoter, destChainGetter)
 	if err != nil {
 		return nil, err

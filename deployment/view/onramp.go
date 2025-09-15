@@ -37,8 +37,8 @@ type OnRampDestChainConfig struct {
 	// add allowedSenders ? missing from onramp binding now
 }
 
-// GenerateOnRampView generates a view of the on-ramp contract at the specified block.
-func GenerateOnRampView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, onrampAddr *address.Address, srcSelector uint64) (*OnRampView, error) {
+// FetchOnRampView generates a view of the on-ramp contract at the specified block.
+func FetchOnRampView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, onrampAddr *address.Address, srcSelector uint64) (*OnRampView, error) {
 	var typeVersion common.TypeAndVersion
 	result, err := c.Client.RunGetMethod(ctx, block, onrampAddr, versionGetter)
 	if err != nil {

@@ -11,8 +11,7 @@ import (
 )
 
 const (
-	versionGetter = "typeAndVersion"
-	onRampGetter  = "onRamp"
+	onRampGetter = "onRamp"
 )
 
 type RouterView struct {
@@ -20,8 +19,8 @@ type RouterView struct {
 	OnRampAddr string `json:"onRampAddr"`
 }
 
-// GenerateRouterView generates a view of the router contract at the specified block.
-func GenerateRouterView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, routerAddr *address.Address) (*RouterView, error) {
+// FetchRouterView generates a view of the router contract at the specified block.
+func FetchRouterView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, routerAddr *address.Address) (*RouterView, error) {
 	var typeVersion common.TypeAndVersion
 	result, err := c.Client.RunGetMethod(ctx, block, routerAddr, versionGetter)
 	if err != nil {

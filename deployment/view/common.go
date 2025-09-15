@@ -1,6 +1,7 @@
 package view
 
 const (
+	versionGetter         = "typeAndVersion"
 	destChainGetter       = "destChainSelectors"
 	destChainConfigGetter = "destChainConfig"
 )

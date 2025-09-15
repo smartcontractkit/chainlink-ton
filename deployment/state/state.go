@@ -73,7 +73,7 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 	}
 
 	if !s.OnRamp.IsAddrNone() {
-		onRampView, err := view.GenerateOnRampView(ctx, tonClient, block, &s.OnRamp, selector)
+		onRampView, err := view.FetchOnRampView(ctx, tonClient, block, &s.OnRamp, selector)
 		if err != nil {
 			return tonView, fmt.Errorf("failed to generate onramp view for chain %d: %w", selector, err)
 		}
@@ -82,7 +82,7 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 	}
 
 	if !s.Router.IsAddrNone() {
-		routerView, err := view.GenerateRouterView(ctx, tonClient, block, &s.Router)
+		routerView, err := view.FetchRouterView(ctx, tonClient, block, &s.Router)
 		if err != nil {
 			return tonView, fmt.Errorf("failed to generate router view for chain %d: %w", selector, err)
 		}
@@ -91,7 +91,7 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 	}
 
 	if !s.FeeQuoter.IsAddrNone() {
-		feeQuoterView, err := view.GenerateFeeQuoterView(ctx, tonClient, block, &s.FeeQuoter)
+		feeQuoterView, err := view.FetchFeeQuoterView(ctx, tonClient, block, &s.FeeQuoter)
 		if err != nil {
 			return tonView, fmt.Errorf("failed to generate fee quoter view for chain %d: %w", selector, err)
 		}
