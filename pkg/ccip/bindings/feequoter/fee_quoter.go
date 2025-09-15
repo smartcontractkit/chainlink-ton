@@ -131,6 +131,33 @@ func (c *DestChainConfig) FromResult(result *ton.ExecutionResult) error {
 	if err != nil {
 		return err
 	}
+
+	// parse GasPrice
+	isNil, err := result.IsNil(19)
+	if err != nil {
+		return err
+	}
+	var gasPriceCell *cell.Cell
+	if !isNil {
+		gasPriceCell, err = result.Cell(19)
+		if err != nil {
+			return err
+		}
+	}
+
+	//  parse TokenTransferFeeConfigs
+	var tokenFeeConfigCell *cell.Cell
+	isNil, err = result.IsNil(20)
+	if err != nil {
+		return err
+	}
+	if !isNil {
+		tokenFeeConfigCell, err = result.Cell(20)
+		if err != nil {
+			return err
+		}
+	}
+
 	*c = DestChainConfig{
 		IsEnabled:                         isEnabled,
 		MaxNumberOfTokensPerMsg:           uint16(maxNumberOfTokensPerMsg.Uint64()),           //nolint:gosec // G115
@@ -151,34 +178,8 @@ func (c *DestChainConfig) FromResult(result *ton.ExecutionResult) error {
 		GasMultiplierWeiPerEth:            gasMultiplierWeiPerEth.Uint64(),
 		GasPriceStalenessThreshold:        uint32(gasPriceStalenessThreshold.Uint64()), //nolint:gosec // G115
 		NetworkFeeUsdCents:                uint32(networkFeeUsdCents.Uint64()),         //nolint:gosec // G115
-	}
-
-	// parse GasPrice
-	isNil, err := result.IsNil(19)
-	if err != nil {
-		return err
-	}
-	var gasPriceCell *cell.Cell
-	if !isNil {
-		gasPriceCell, err = result.Cell(19)
-		if err != nil {
-			return err
-		}
-	}
-	c.USDPerUnitGas = gasPriceCell
-
-	//  parse TokenTransferFeeConfigs
-	var tokenFeeConfigCell *cell.Cell
-	isNil, err = result.IsNil(20)
-	if err != nil {
-		return err
-	}
-	if !isNil {
-		tokenFeeConfigCell, err = result.Cell(20)
-		if err != nil {
-			return err
-		}
-		c.TokenTransferFeeConfigs = tokenFeeConfigCell.AsDict(267)
+		USDPerUnitGas:                     gasPriceCell,
+		TokenTransferFeeConfigs:           tokenFeeConfigCell.AsDict(267),
 	}
 
 	return nil
