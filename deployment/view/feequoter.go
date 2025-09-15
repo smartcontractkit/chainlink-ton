@@ -169,6 +169,7 @@ func generateDestChainConfigsView(ctx context.Context, c cldf_ton.Chain, block *
 				}
 			}
 
+			// TODO parse tokenTransferFeeConfigs
 			output[dest] = destConfig
 		}
 	}

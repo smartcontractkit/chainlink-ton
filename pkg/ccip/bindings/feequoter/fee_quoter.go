@@ -167,18 +167,18 @@ func (c *DestChainConfig) FromResult(result *ton.ExecutionResult) error {
 		c.USDPerUnitGas = gasPriceCell
 	}
 
-	// parse TokenTransferFeeConfigs
-	//isNil, err = result.IsNil(20)
-	//if err != nil {
-	//	return err
-	//}
-	//if !isNil {
-	//	tokenFeeConfigCell, err := result.Cell(20)
-	//	if err != nil {
-	//		return err
-	//	}
-	//	c.TokenTransferFeeConfigs = tokenFeeConfigCell.AsDict(267)
-	//}
+	//  parse TokenTransferFeeConfigs
+	isNil, err = result.IsNil(20)
+	if err != nil {
+		return err
+	}
+	if !isNil {
+		tokenFeeConfigCell, err := result.Cell(20)
+		if err != nil {
+			return err
+		}
+		c.TokenTransferFeeConfigs = tokenFeeConfigCell.AsDict(267)
+	}
 
 	return nil
 }
