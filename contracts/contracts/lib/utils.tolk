@@ -316,24 +316,12 @@ fun UMap<K, V>.min(self): (K?, V?, bool) {
 }
 
 @inline @pure
-fun UMap<K, V>.minLazy(self): (K?, slice?, bool) {
-    val (key, value, exists) = self.value.uDictGetFirst(self.keyLen);
-    return (key, value, exists);
-}
-
-@inline @pure
 fun UMap<K, V>.next(self, key: K): (K?, V?, bool) {
     val (nextKey, value, exists) = self.value.uDictGetNext(self.keyLen, key);
     if (!exists) {
         return (null, null, false);
     }
     return (nextKey, V.fromSlice(value!), true);
-}
-
-@inline @pure
-fun UMap<K, V>.nextLazy(self, key: K): (K?, slice?, bool) {
-    val (nextKey, value, exists) = self.value.uDictGetNext(self.keyLen, key);
-    return (nextKey, value, exists);
 }
 
 @inline @pure
