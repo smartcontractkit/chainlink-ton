@@ -6,6 +6,7 @@ import "../lib/utils.tolk";
 import "@stdlib/tvm-dicts";
 import "ccipsend_executor/storage"
 import "ccipsend_executor/messages"
+import "../lib/jetton/messages"
 
 const CCIP_MESSAGE_SENT_TOPIC: int = stringCrc32("CCIPMessageSent"); 
 
@@ -58,7 +59,9 @@ fun OnRamp_Data.store(self) {
 
 type OnRamp_InMessage =
     | OnRampSend
+    | OnRamp_WithdrawJettons
     | OnRamp_ExecutorFinishedSuccessfully
+    | JettonTransferNotification
     | SetDynamicConfig
     | OnRampUpdateDestChainConfigs
     | UpdateAllowlists
@@ -69,6 +72,8 @@ fun onInternalMessage(in: InMessage) {
     val msg = lazy OnRamp_InMessage.fromSlice(in.body);
     match (msg) {
         OnRampSend => {send(msg, in.senderAddress)}
+        JettonTransferNotification => { onTransferNotification(msg, in.senderAddress) }
+        OnRamp_WithdrawJettons => { handleWithdrawJettons(msg, in.senderAddress)},
         OnRamp_ExecutorFinishedSuccessfully => {
             commit(msg, in.senderAddress);
         }
@@ -97,7 +102,7 @@ fun onInternalMessage(in: InMessage) {
     }
 }
 
-fun send(payload: OnRampSend, sender: address) {
+fun send(payload: OnRampSend, sender: address, jettonWallet: address? = null) {
     var st = lazy OnRamp_Data.load();
 
     val msg = payload.msg.load();
@@ -119,6 +124,12 @@ fun send(payload: OnRampSend, sender: address) {
 
     val config = st.config.load();
 
+    var tokenRegistry: address? = null;
+    var tokenAmounts = Iterator<TokenAmount>.new(msg.tokenAmounts);
+    if (!tokenAmounts.empty()) {
+        tokenRegistry = calculateTokenRegistryAddress(st, tokenAmounts.next().token);
+    }
+
     val executeMsg = createMessage({
         bounce: true,
         value: ton("0.05"), // TODO: calculate
@@ -136,8 +147,9 @@ fun send(payload: OnRampSend, sender: address) {
             onrampSend: payload,
             config: CCIPSendExecutor_Config {
                 feeQuoter: config.feeQuoter,
-                tokenRegistry: null, // TODO calculate tokenRegistry address if send triggered through token transfer
-            },
+                tokenRegistry,
+            }.toCell(),
+            onrampJettonWallet: jettonWallet,
         }
     });
 
@@ -145,6 +157,52 @@ fun send(payload: OnRampSend, sender: address) {
     st.currentMessageId += 1;
 
     st.store();
+}
+
+type OnRamp_NotificationInMessage =
+    | OnRampSend
+    // TODO refunds from CCIPSendExecutor
+    ;
+
+fun onTransferNotification(notification: JettonTransferNotification, jettonWallet: address) {
+    val msg = lazy OnRamp_NotificationInMessage.fromCell(notification.forwardPayload!);
+
+    match (msg) {
+        OnRampSend => {send(msg, notification.sender, jettonWallet)}
+        // TODO refunds from CCIPSendExecutor
+        else => {
+            // TBD
+        }
+    }
+}
+
+fun calculateTokenRegistryAddress(st: OnRamp_Data, token: address): address {
+    // TODO: calculate token registry address
+    return createAddressNone()
+}
+
+fun handleWithdrawJettons(payload: OnRamp_WithdrawJettons, executor: address) {
+    var st = lazy OnRamp_Data.load();
+    var tokenAmounts = Iterator<TokenAmount>.new(payload.tokens);
+    assert (!tokenAmounts.empty()) throw 5;
+    var tokenAmount = tokenAmounts.next();
+    assert (tokenAmounts.empty()) throw 0xFFFF; // TODO: only single token withdraw supported for now
+    // TODO validate sender is executor msg.msgId
+        val sendMsg = createMessage({
+        bounce: true,
+        value: ton("0.5"), // TODO
+        dest: payload.onrampJettonWallet,
+        body: AskToTransferFwdPayload {
+            queryId: 1, // TODO
+            jettonAmount: tokenAmount.amount,
+            transferRecipient: executor,
+            sendExcessesTo: contract.getAddress(),
+            customPayload: null,
+            forwardTonAmount: ton("0.45"), // TODO
+            forwardPayload: null,
+        },
+    });
+    sendMsg.send(SEND_MODE_REGULAR);
 }
 
 fun commit(payload: OnRamp_ExecutorFinishedSuccessfully, sender: address) {

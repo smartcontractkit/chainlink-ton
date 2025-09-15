@@ -149,7 +149,7 @@ struct (0x7362d09c) JettonTransferNotification {
     queryId: uint64;
     amount: coins;
     sender: address;
-    forwardPayload: Cell<CCIPSend>?; // could also be RemainingBitsAndRefs
+    forwardPayload: cell?; // could also be RemainingBitsAndRefs
 }
 
 // OnRamp
@@ -164,6 +164,13 @@ struct OnRampDynamicConfig {
     // destination address that will receive tokens on withdrawFees
     feeAggregator: address;
     allowlistAdmin: address;
+}
+
+// crc32('OnRamp_WithdrawJettons')
+struct (0x266AEACF) OnRamp_WithdrawJettons {
+    msgId: uint224,
+    tokens: cell; // vec<TokenAmount>
+    onrampJettonWallet: address;
 }
 
 struct (0x10000003) SetDynamicConfig {
@@ -274,6 +281,7 @@ struct Metadata {
     sender: address,
     // TODO: metadata { value, tokenAmounts }
 }
+
 
 struct MessageMetadata {
     header: uint256 = stringSha256("Any2TVMMessageHashV1");
