@@ -95,43 +95,6 @@ function describeBody(body: Cell): string {
 }
 
 /**
- * Describes the body of an emitted external message.
- */
-function describeEmitBody(body: Cell): string {
-  try {
-    const slice = body.beginParse()
-
-    if (slice.remainingBits === 0) {
-      return 'empty'
-    }
-
-    // Try string snake first for external messages (events)
-    try {
-      const strSnake = body.beginParse().loadStringTail()
-      if (strSnake) {
-        return `stringSnake: ${strSnake}`
-      }
-    } catch {
-      // Fall through
-    }
-
-    // Try opcode
-    if (slice.remainingBits >= 32) {
-      try {
-        const opcode = slice.loadUint(32)
-        return `opcode: ${opcode.toString(16)}`
-      } catch {
-        // Fall through
-      }
-    }
-
-    return `body: ${body.toBoc().toString('hex').substring(0, 32)}...`
-  } catch (error) {
-    return `body: parse error - ${error}`
-  }
-}
-
-/**
  * Describes an internal message with amount, bounce status, and exit code.
  */
 async function describeInternalMessage(
@@ -192,7 +155,7 @@ function describeExternalOutMessage(
   info: CommonMessageInfoExternalOut,
   body: Cell,
 ): string {
-  const description = describeEmitBody(body)
+  const description = describeBody(body)
   return `${src} emit: (${description})`
 }
 
