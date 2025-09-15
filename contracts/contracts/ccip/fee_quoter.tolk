@@ -395,6 +395,11 @@ get fun feeTokens(): tuple {
     return list!;
 }
 
+get fun feeTokenPremiumMultiplier(token: address): uint64 {
+    val st = lazy Storage.load();
+    return st.premiumMultiplierWeiPerEth.mustGet(token, ERROR_FEE_TOKEN_NOT_SUPPORTED);
+}
+
 get fun tokenTransferFeeConfig() {}
 
 // TODO: processMessageArgs(), processPoolReturnData()?

@@ -11,18 +11,25 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
 const (
 	staticConfigGetter = "staticConfig"
+	feeTokensGetter    = "feeTokens"
 )
 
 // FeeQuoterView represents a view of the fee quoter contract configuration.
 type FeeQuoterView struct {
 	MetaData
-	StaticConfig    StaticConfig               `json:"staticConfig,omitempty"`
-	DestChainConfig map[uint64]DestChainConfig `json:"DestChainConfig,omitempty"`
-	// TODO add usdPerToken and premiumMultiplierWeiPerEth maps
+	StaticConfig       StaticConfig                  `json:"staticConfig,omitempty"`
+	DestChainConfig    map[uint64]DestChainConfig    `json:"destChainConfig,omitempty"`
+	PremiumMultipliers map[string]PremiumMultipliers `json:"premiumMultipliers,omitempty"`
+	// TODO add premiumMultiplierWeiPerEth maps
+}
+
+type PremiumMultipliers struct {
+	PremiumMultiplierWeiPerEth uint64 `json:"premiumMultiplierWeiPerEth,omitempty"`
 }
 
 type StaticConfig struct {
@@ -91,6 +98,11 @@ func GenerateFeeQuoterView(ctx context.Context, c cldf_ton.Chain, block *ton.Blo
 		return nil, fmt.Errorf("failed to generate dest chain config view: %w", err)
 	}
 
+	premiumMultipliers, err := generateFeeTokensPremiumMultiplierView(ctx, c, block, feeQuoter)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate fee tokens premium multiplier view: %w", err)
+	}
+
 	return &FeeQuoterView{
 		MetaData: MetaData{
 			Address:      feeQuoter.String(),
@@ -102,8 +114,51 @@ func GenerateFeeQuoterView(ctx context.Context, c cldf_ton.Chain, block *ton.Blo
 			LinkToken:          sc.LinkToken.String(),
 			StalenessThreshold: sc.StalenessThreshold,
 		},
-		DestChainConfig: destConfigs,
+		PremiumMultipliers: premiumMultipliers,
+		DestChainConfig:    destConfigs,
 	}, nil
+}
+
+func generateFeeTokensPremiumMultiplierView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, feeQuoter *address.Address) (map[string]PremiumMultipliers, error) {
+	result, err := c.Client.RunGetMethod(ctx, block, feeQuoter, feeTokensGetter)
+	if err != nil {
+		return nil, fmt.Errorf("error getting feeTokens: %v", err)
+	}
+
+	tokenSliceRaw := result.AsTuple()[0]
+	tokenSlice, ok := tokenSliceRaw.([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("unexpected type for token slice")
+	}
+
+	output := make(map[string]PremiumMultipliers)
+	for _, token := range tokenSlice {
+		var tokenCell *cell.Slice
+		var tokenAddr *address.Address
+		var multiplier *big.Int
+		if tokenCell, ok = token.(*cell.Slice); ok {
+			result, err = c.Client.RunGetMethod(ctx, block, feeQuoter, "feeTokenPremiumMultiplier", tokenCell)
+			if err != nil {
+				return nil, fmt.Errorf("error getting feeToken premium multiplier config: %v", err)
+			}
+
+			multiplier, err = result.Int(0)
+			if err != nil {
+				return nil, fmt.Errorf("error to parse feeToken premium multiplier: %v", err)
+			}
+
+			tokenAddr, err = tokenCell.LoadAddr()
+			if err != nil {
+				return nil, fmt.Errorf("error to parse token address: %v", err)
+			}
+
+			output[tokenAddr.String()] = PremiumMultipliers{
+				PremiumMultiplierWeiPerEth: multiplier.Uint64(),
+			}
+		}
+	}
+
+	return output, nil
 }
 
 func generateDestChainConfigsView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, feeQuoter *address.Address) (map[uint64]DestChainConfig, error) {
@@ -112,8 +167,8 @@ func generateDestChainConfigsView(ctx context.Context, c cldf_ton.Chain, block *
 		return nil, err
 	}
 
-	selectorSliceRaw := result.AsTuple()
-	selectorSlice, ok := selectorSliceRaw[0].([]interface{})
+	selectorSliceRaw := result.AsTuple()[0]
+	selectorSlice, ok := selectorSliceRaw.([]interface{})
 	if !ok {
 		return nil, fmt.Errorf("unexpected type for selector slice")
 	}
@@ -134,25 +189,25 @@ func generateDestChainConfigsView(ctx context.Context, c cldf_ton.Chain, block *
 
 			destConfig := DestChainConfig{
 				Config: FeeQuoterDestChainConfig{
-					IsEnabled:                         cfg.IsEnabled,
-					MaxNumberOfTokensPerMsg:           cfg.MaxNumberOfTokensPerMsg,
-					MaxDataBytes:                      cfg.MaxDataBytes,
-					MaxPerMsgGasLimit:                 cfg.MaxPerMsgGasLimit,
-					DestGasOverhead:                   cfg.DestGasOverhead,
-					DestGasPerPayloadByteBase:         cfg.DestGasPerPayloadByteBase,
-					DestGasPerPayloadByteHigh:         cfg.DestGasPerPayloadByteHigh,
-					DestGasPerPayloadByteThreshold:    cfg.DestGasPerPayloadByteThreshold,
-					DestDataAvailabilityOverheadGas:   cfg.DestDataAvailabilityOverheadGas,
-					DestGasPerDataAvailabilityByte:    cfg.DestGasPerDataAvailabilityByte,
-					DestDataAvailabilityMultiplierBps: cfg.DestDataAvailabilityMultiplierBps,
-					ChainFamilySelector:               cfg.ChainFamilySelector,
-					EnforceOutOfOrder:                 cfg.EnforceOutOfOrder,
-					DefaultTokenFeeUsdCents:           cfg.DefaultTokenFeeUsdCents,
-					DefaultTokenDestGasOverhead:       cfg.DefaultTokenDestGasOverhead,
-					DefaultTxGasLimit:                 cfg.DefaultTxGasLimit,
-					GasMultiplierWeiPerEth:            cfg.GasMultiplierWeiPerEth,
-					GasPriceStalenessThreshold:        cfg.GasPriceStalenessThreshold,
-					NetworkFeeUsdCents:                cfg.NetworkFeeUsdCents,
+					IsEnabled:                         cfg.FQDestChainConfig.IsEnabled,
+					MaxNumberOfTokensPerMsg:           cfg.FQDestChainConfig.MaxNumberOfTokensPerMsg,
+					MaxDataBytes:                      cfg.FQDestChainConfig.MaxDataBytes,
+					MaxPerMsgGasLimit:                 cfg.FQDestChainConfig.MaxPerMsgGasLimit,
+					DestGasOverhead:                   cfg.FQDestChainConfig.DestGasOverhead,
+					DestGasPerPayloadByteBase:         cfg.FQDestChainConfig.DestGasPerPayloadByteBase,
+					DestGasPerPayloadByteHigh:         cfg.FQDestChainConfig.DestGasPerPayloadByteHigh,
+					DestGasPerPayloadByteThreshold:    cfg.FQDestChainConfig.DestGasPerPayloadByteThreshold,
+					DestDataAvailabilityOverheadGas:   cfg.FQDestChainConfig.DestDataAvailabilityOverheadGas,
+					DestGasPerDataAvailabilityByte:    cfg.FQDestChainConfig.DestGasPerDataAvailabilityByte,
+					DestDataAvailabilityMultiplierBps: cfg.FQDestChainConfig.DestDataAvailabilityMultiplierBps,
+					ChainFamilySelector:               cfg.FQDestChainConfig.ChainFamilySelector,
+					EnforceOutOfOrder:                 cfg.FQDestChainConfig.EnforceOutOfOrder,
+					DefaultTokenFeeUsdCents:           cfg.FQDestChainConfig.DefaultTokenFeeUsdCents,
+					DefaultTokenDestGasOverhead:       cfg.FQDestChainConfig.DefaultTokenDestGasOverhead,
+					DefaultTxGasLimit:                 cfg.FQDestChainConfig.DefaultTxGasLimit,
+					GasMultiplierWeiPerEth:            cfg.FQDestChainConfig.GasMultiplierWeiPerEth,
+					GasPriceStalenessThreshold:        cfg.FQDestChainConfig.GasPriceStalenessThreshold,
+					NetworkFeeUsdCents:                cfg.FQDestChainConfig.NetworkFeeUsdCents,
 				},
 			}
 
