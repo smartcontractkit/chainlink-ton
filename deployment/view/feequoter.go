@@ -19,8 +19,8 @@ const (
 // FeeQuoterView represents a view of the fee quoter contract configuration.
 type FeeQuoterView struct {
 	MetaData
-	StaticConfig    StaticConfig                        `json:"staticConfig"`
-	DestChainConfig map[uint64]FeeQuoterDestChainConfig `json:"feeQuoterDestChainConfig"`
+	StaticConfig    StaticConfig               `json:"staticConfig,omitempty"`
+	DestChainConfig map[uint64]DestChainConfig `json:"DestChainConfig,omitempty"`
 	// TODO saw usdPerToken and premiumMultiplierWeiPerEth are marked, check if we need to add them here too
 }
 
@@ -28,6 +28,11 @@ type StaticConfig struct {
 	MaxFeeJuelsPerMsg  string `json:"maxFeeJuelsPerMsg,omitempty"`
 	LinkToken          string `json:"linkToken,omitempty"`
 	StalenessThreshold uint32 `json:"stalenessThreshold,omitempty"`
+}
+
+type DestChainConfig struct {
+	Config FeeQuoterDestChainConfig `json:"config,omitempty"`
+	// TODO add usdPerUnitGas and tokenTransferFeeConfigs
 }
 
 type FeeQuoterDestChainConfig struct {
@@ -93,7 +98,7 @@ func GenerateFeeQuoterView(ctx context.Context, c cldf_ton.Chain, block *ton.Blo
 	}, nil
 }
 
-func generateDestChainConfigsView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, feeQuoter *address.Address) (map[uint64]FeeQuoterDestChainConfig, error) {
+func generateDestChainConfigsView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, feeQuoter *address.Address) (map[uint64]DestChainConfig, error) {
 	result, err := c.Client.RunGetMethod(ctx, block, feeQuoter, destChainGetter)
 	if err != nil {
 		return nil, err
@@ -105,7 +110,7 @@ func generateDestChainConfigsView(ctx context.Context, c cldf_ton.Chain, block *
 		return nil, fmt.Errorf("unexpected type for selector slice")
 	}
 
-	output := make(map[uint64]FeeQuoterDestChainConfig)
+	output := make(map[uint64]DestChainConfig)
 	for _, selector := range selectorSlice {
 		// On-chain returns *big.Int for selector values, convert to uint64
 		if bigInt, ok := selector.(*big.Int); ok {
@@ -119,7 +124,7 @@ func generateDestChainConfigsView(ctx context.Context, c cldf_ton.Chain, block *
 				return nil, err
 			}
 
-			output[dest] = FeeQuoterDestChainConfig{
+			fqConfig := FeeQuoterDestChainConfig{
 				IsEnabled:                         cfg.IsEnabled,
 				MaxNumberOfTokensPerMsg:           cfg.MaxNumberOfTokensPerMsg,
 				MaxDataBytes:                      cfg.MaxDataBytes,
@@ -140,6 +145,8 @@ func generateDestChainConfigsView(ctx context.Context, c cldf_ton.Chain, block *
 				GasPriceStalenessThreshold:        cfg.GasPriceStalenessThreshold,
 				NetworkFeeUsdCents:                cfg.NetworkFeeUsdCents,
 			}
+
+			output[dest] = DestChainConfig{Config: fqConfig}
 		}
 	}
 

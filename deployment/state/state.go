@@ -44,6 +44,7 @@ type TONChainView struct {
 	OnRamp        map[string]view.OnRampView    `json:"onRamp,omitempty"`
 	Router        map[string]view.RouterView    `json:"router,omitempty"`
 	FeeQuoter     map[string]view.FeeQuoterView `json:"feeQuoter,omitempty"`
+	// TODO: OffRamp view is missing, need to add it next
 }
 
 func newTONChainView() TONChainView {
