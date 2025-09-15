@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/smartcontractkit/libocr/offchainreporting2plus/ocr3types"
+	"github.com/xssnick/tonutils-go/ton"
+
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 	commontypes "github.com/smartcontractkit/chainlink-common/pkg/types"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
-	"github.com/smartcontractkit/libocr/offchainreporting2plus/ocr3types"
-	"github.com/xssnick/tonutils-go/ton"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/chainaccessor"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
@@ -37,37 +38,41 @@ type Provider struct {
 	services.StateMachine
 }
 
-func NewCCIPProvider(lggr logger.Logger,
+func NewCCIPProvider(
+	lggr logger.Logger,
 	chainSelector ccipocr3.ChainSelector,
 	client ton.APIClientWrapped,
 	txm txm.TxManager,
 	logPoller logpoller.Service,
-	offRampAddr string,
-	pluginType uint32) (*Provider, error) {
-	var err error
+	cargs commontypes.CCIPProviderArgs,
+) (*Provider, error) {
+	addressCodec := codec.NewAddressCodec()
+	offRampAddrStr, err := addressCodec.AddressBytesToString(cargs.OffRampAddress)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode offRamp address: %w", err)
+	}
+
 	var ct ocr3types.ContractTransmitter[[]byte]
-	switch pluginType {
+	switch cargs.PluginType {
 	case CCIPPluginTypeCommit:
-		ct, err = ocr.NewCCIPTransmitter(txm, lggr, offRampAddr, ocr.CommitCallData)
+		ct, err = ocr.NewCCIPTransmitter(txm, lggr, offRampAddrStr, ocr.CommitCallData)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create a CCIP ContractTransmitter for commit plugin: %w", err)
 		}
 
 	case CCIPPluginTypeExecute:
-		ct, err = ocr.NewCCIPTransmitter(txm, lggr, offRampAddr, ocr.ExecuteCallData)
+		ct, err = ocr.NewCCIPTransmitter(txm, lggr, offRampAddrStr, ocr.ExecuteCallData)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create a CCIP ContractTransmitter for execute plugin: %w", err)
 		}
 	default:
-		return nil, fmt.Errorf("unknown plugin type: %d", pluginType)
+		return nil, fmt.Errorf("unknown plugin type: %d", cargs.PluginType)
 	}
 
-	// TODO this is pretty much ignored in the core, we need to redesign core to resolve the extraDataCodec map issue if we want to use
-	// this codec
 	c := ccipocr3.Codec{
-		ChainSpecificAddressCodec: codec.NewAddressCodec(),
+		ChainSpecificAddressCodec: addressCodec,
 		CommitPluginCodec:         codec.NewCommitPluginCodecV1(),
-		ExecutePluginCodec:        codec.NewExecutePluginCodecV1(nil), // TODO extraDataCodec map can't be empty
+		ExecutePluginCodec:        codec.NewExecutePluginCodecV1(cargs.ExtraDataCodecBundle),
 		TokenDataEncoder:          codec.NewTokenDataEncoder(),
 		SourceChainExtraDataCodec: codec.NewExtraDataDecoder(),
 	}
