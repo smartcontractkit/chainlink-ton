@@ -4,6 +4,7 @@ import "../lib/upgrades/type_and_version.tolk";
 import "../deployable/types.tolk";
 import "../lib/utils.tolk";
 import "../lib/jetton/messages"
+import "../lib/jetton/messages_extended"
 
 struct Storage {
     ownable: Ownable2Step;

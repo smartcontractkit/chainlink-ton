@@ -7,6 +7,7 @@ import "@stdlib/tvm-dicts";
 import "ccipsend_executor/storage"
 import "ccipsend_executor/messages"
 import "../lib/jetton/messages"
+import "../lib/jetton/messages_extended"
 
 const CCIP_MESSAGE_SENT_TOPIC: int = stringCrc32("CCIPMessageSent"); 
 
