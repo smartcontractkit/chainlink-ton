@@ -32,10 +32,10 @@ type DynamicConfig struct {
 }
 
 type OnRampDestChainConfig struct {
-	SequenceNumber   uint64 `json:"sequenceNumber,omitempty"`
-	AllowlistEnabled bool   `json:"allowlistEnabled,omitempty"`
-	Router           string `json:"router,omitempty"`
-	// TODO add allowedSenders
+	SequenceNumber   uint64          `json:"sequenceNumber,omitempty"`
+	AllowlistEnabled bool            `json:"allowlistEnabled,omitempty"`
+	Router           string          `json:"router,omitempty"`
+	AllowedSenders   map[string]bool `json:"allowedSenders,omitempty"`
 }
 
 // FetchOnRampView generates a view of the on-ramp contract at the specified block.
@@ -100,6 +100,7 @@ func fetchDestChainConfig(ctx context.Context, c cldf_ton.Chain, block *ton.Bloc
 
 	var chainSel uint64
 	var cfgCell *cell.Cell
+	var allowedSendersDict []cell.DictKV
 	for _, val := range all {
 		chainSel, err = val.Key.LoadUInt(64)
 		if err != nil {
@@ -110,15 +111,38 @@ func fetchDestChainConfig(ctx context.Context, c cldf_ton.Chain, block *ton.Bloc
 			return nil, fmt.Errorf("failed to convert value to cell: %w", err)
 		}
 		var cfg onramp.DestChainConfig
-		err := tlb.LoadFromCell(&cfg, cfgCell.BeginParse())
+		err = tlb.LoadFromCell(&cfg, cfgCell.BeginParse())
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse DestChainConfig from cell: %w", err)
+		}
+
+		allowedSenders := make(map[string]bool)
+		allowedSendersDict, err = cfg.AllowedSender.LoadAll()
+		if err != nil {
+			return nil, fmt.Errorf("failed to load all allowed senders: %w", err)
+		}
+
+		var allowed bool
+		var senderAddr *address.Address
+		for _, senderVal := range allowedSendersDict {
+			senderAddr, err = senderVal.Key.LoadAddr()
+			if err != nil {
+				return nil, fmt.Errorf("failed to load sender address: %w", err)
+			}
+
+			allowed, err = senderVal.Value.LoadBoolBit()
+			if err != nil {
+				return nil, fmt.Errorf("failed to load allowed bool: %w", err)
+			}
+
+			allowedSenders[senderAddr.String()] = allowed
 		}
 
 		output[chainSel] = OnRampDestChainConfig{
 			SequenceNumber:   cfg.SequenceNumber,
 			AllowlistEnabled: cfg.AllowListEnabled,
 			Router:           cfg.Router.String(),
+			AllowedSenders:   allowedSenders,
 		}
 	}
 	return output, nil
