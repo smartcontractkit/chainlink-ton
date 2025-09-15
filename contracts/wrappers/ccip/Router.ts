@@ -14,8 +14,7 @@ import {
 
 import * as ownable2step from '../libraries/access/Ownable2Step'
 import { CellCodec } from '../utils'
-import { asSnakeData } from '../../src/utils'
-import { DestChainConfig } from './FeeQuoter'
+import { asSnakeData, fromSnakeData } from '../../src/utils'
 
 export type Storage = {
   ownable: ownable2step.Data
@@ -159,17 +158,22 @@ export const builder = {
               .storeUint(opts.receiver.byteLength, 8)
               .storeBuffer(opts.receiver, opts.receiver.byteLength)
               .storeRef(opts.data)
-              .storeRef(
-                asSnakeData(opts.tokenAmounts, (tokenAmount) =>
-                  tokenAmountCodec.encode(tokenAmount),
-                ),
-              ) // TODO: pack inputs
+              .storeRef(asSnakeData(opts.tokenAmounts, tokenAmountCodec.encode)) // TODO: pack inputs
               .storeAddress(opts.feeToken)
               .storeRef(opts.extraArgs)
           )
         },
         load: function (src: Slice): CCIPSend {
-          throw new Error('Function not implemented.')
+          src.skip(32)
+          return {
+            queryID: src.loadUint(64),
+            destChainSelector: src.loadUintBig(64),
+            receiver: src.loadBuffer(src.loadUint(8)),
+            data: src.loadRef(),
+            tokenAmounts: fromSnakeData(src.loadRef(), tokenAmountCodec.load),
+            feeToken: src.loadAddress(),
+            extraArgs: src.loadRef(),
+          }
         },
       }
 
