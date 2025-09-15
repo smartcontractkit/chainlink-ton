@@ -259,6 +259,7 @@ export function formatAmount(amount: bigint, decimals: number = 9): string {
   return `${wholePart}.${fractionalPart.toString().padStart(decimals, '0').replace(/0+$/, '')}`
 }
 
+// Extract address from transactions and map to contract names if possible
 export function prettifyAddressesMap(transactions: BlockchainTransaction[]): Map<string, string> {
   const map = new Map<string, string>()
   for (const tx of transactions) {
