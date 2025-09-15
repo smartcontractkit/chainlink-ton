@@ -18,19 +18,19 @@ const (
 
 // FeeQuoterView represents a view of the fee quoter contract configuration.
 type FeeQuoterView struct {
-	metaData
-	StaticConfig    staticConfig                        `json:"staticConfig"`
-	DestChainConfig map[uint64]feeQuoterDestChainConfig `json:"feeQuoterDestChainConfig"`
+	MetaData
+	StaticConfig    StaticConfig                        `json:"staticConfig"`
+	DestChainConfig map[uint64]FeeQuoterDestChainConfig `json:"feeQuoterDestChainConfig"`
 	// TODO saw usdPerToken and premiumMultiplierWeiPerEth are marked, check if we need to add them here too
 }
 
-type staticConfig struct {
+type StaticConfig struct {
 	MaxFeeJuelsPerMsg  string `json:"maxFeeJuelsPerMsg,omitempty"`
 	LinkToken          string `json:"linkToken,omitempty"`
 	StalenessThreshold uint32 `json:"stalenessThreshold,omitempty"`
 }
 
-type feeQuoterDestChainConfig struct {
+type FeeQuoterDestChainConfig struct {
 	IsEnabled                         bool   `json:"isEnabled,omitempty"`
 	MaxNumberOfTokensPerMsg           uint16 `json:"maxNumberOfTokensPerMsg,omitempty"`
 	MaxDataBytes                      uint32 `json:"maxDataBytes,omitempty"`
@@ -79,12 +79,12 @@ func GenerateFeeQuoterView(ctx context.Context, c cldf_ton.Chain, block *ton.Blo
 	}
 
 	return &FeeQuoterView{
-		metaData: metaData{
+		MetaData: MetaData{
 			Address:      feeQuoter.String(),
 			ContractType: typeVersion.Type,
 			Version:      typeVersion.Version,
 		},
-		StaticConfig: staticConfig{
+		StaticConfig: StaticConfig{
 			MaxFeeJuelsPerMsg:  sc.MaxFeeJuelsPerMsg.String(),
 			LinkToken:          sc.LinkToken.String(),
 			StalenessThreshold: sc.StalenessThreshold,
@@ -93,7 +93,7 @@ func GenerateFeeQuoterView(ctx context.Context, c cldf_ton.Chain, block *ton.Blo
 	}, nil
 }
 
-func generateDestChainConfigsView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, feeQuoter *address.Address) (map[uint64]feeQuoterDestChainConfig, error) {
+func generateDestChainConfigsView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, feeQuoter *address.Address) (map[uint64]FeeQuoterDestChainConfig, error) {
 	result, err := c.Client.RunGetMethod(ctx, block, feeQuoter, destChainGetter)
 	if err != nil {
 		return nil, err
@@ -105,7 +105,7 @@ func generateDestChainConfigsView(ctx context.Context, c cldf_ton.Chain, block *
 		return nil, fmt.Errorf("unexpected type for selector slice")
 	}
 
-	output := make(map[uint64]feeQuoterDestChainConfig)
+	output := make(map[uint64]FeeQuoterDestChainConfig)
 	for _, selector := range selectorSlice {
 		// On-chain returns *big.Int for selector values, convert to uint64
 		if bigInt, ok := selector.(*big.Int); ok {
@@ -119,7 +119,7 @@ func generateDestChainConfigsView(ctx context.Context, c cldf_ton.Chain, block *
 				return nil, err
 			}
 
-			output[dest] = feeQuoterDestChainConfig{
+			output[dest] = FeeQuoterDestChainConfig{
 				IsEnabled:                         cfg.IsEnabled,
 				MaxNumberOfTokensPerMsg:           cfg.MaxNumberOfTokensPerMsg,
 				MaxDataBytes:                      cfg.MaxDataBytes,

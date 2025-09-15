@@ -18,22 +18,22 @@ const (
 
 // OnRampView represents a view of the on-ramp contract configuration.
 type OnRampView struct {
-	metaData
+	MetaData
 	ChainSelector   uint64                           `json:"chainSelector,omitempty"`
-	DynamicConfig   dynamicConfig                    `json:"dynamicConfig"`
-	DestChainConfig map[uint64]onRampDestChainConfig `json:"feeQuoterDestChainConfig"`
+	DynamicConfig   DynamicConfig                    `json:"dynamicConfig,omitempty"`
+	DestChainConfig map[uint64]OnRampDestChainConfig `json:"feeQuoterDestChainConfig,omitempty"`
 }
 
-type dynamicConfig struct {
+type DynamicConfig struct {
 	FeeQuoter      string
 	FeeAggregator  string
 	AllowListAdmin string
 }
 
-type onRampDestChainConfig struct {
-	SequenceNumber   uint64
-	AllowlistEnabled bool
-	Router           string
+type OnRampDestChainConfig struct {
+	SequenceNumber   uint64 `json:"sequenceNumber,omitempty"`
+	AllowlistEnabled bool   `json:"allowlistEnabled,omitempty"`
+	Router           string `json:"router,omitempty"`
 	// add allowedSenders ? missing from onramp binding now
 }
 
@@ -64,13 +64,13 @@ func GenerateOnRampView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockI
 	}
 
 	return &OnRampView{
-		metaData: metaData{
+		MetaData: MetaData{
 			Address:      onrampAddr.String(),
 			ContractType: typeVersion.Type,
 			Version:      typeVersion.Version,
 		},
 		ChainSelector: srcSelector,
-		DynamicConfig: dynamicConfig{
+		DynamicConfig: DynamicConfig{
 			FeeQuoter:      dConfig.FeeQuoter.String(),
 			FeeAggregator:  dConfig.FeeAggregator.String(),
 			AllowListAdmin: dConfig.AllowListAdmin.String(),
@@ -80,7 +80,7 @@ func GenerateOnRampView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockI
 }
 
 // fetchDestChainConfig retrieves destination chain configurations from the on-ramp contract.
-func fetchDestChainConfig(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, onrampAddr *address.Address) (map[uint64]onRampDestChainConfig, error) {
+func fetchDestChainConfig(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, onrampAddr *address.Address) (map[uint64]OnRampDestChainConfig, error) {
 	result, err := c.Client.RunGetMethod(ctx, block, onrampAddr, destChainGetter)
 	if err != nil {
 		return nil, err
@@ -92,7 +92,7 @@ func fetchDestChainConfig(ctx context.Context, c cldf_ton.Chain, block *ton.Bloc
 		return nil, fmt.Errorf("unexpected type for selector slice")
 	}
 
-	output := make(map[uint64]onRampDestChainConfig)
+	output := make(map[uint64]OnRampDestChainConfig)
 	for _, selector := range selectorSlice {
 		// On-chain returns *big.Int for selector values, convert to uint64
 		if bigInt, ok := selector.(*big.Int); ok {
@@ -106,7 +106,7 @@ func fetchDestChainConfig(ctx context.Context, c cldf_ton.Chain, block *ton.Bloc
 				return nil, err
 			}
 
-			output[dest] = onRampDestChainConfig{
+			output[dest] = OnRampDestChainConfig{
 				SequenceNumber:   cfg.SequenceNumber,
 				AllowlistEnabled: cfg.AllowListEnabled,
 				Router:           cfg.Router.String(),

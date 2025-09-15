@@ -16,7 +16,7 @@ const (
 )
 
 type RouterView struct {
-	metaData
+	MetaData
 	OnRampAddr string `json:"onRampAddr"`
 }
 
@@ -46,7 +46,7 @@ func GenerateRouterView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockI
 	}
 
 	return &RouterView{
-		metaData: metaData{
+		MetaData: MetaData{
 			Address:      routerAddr.String(),
 			ContractType: typeVersion.Type,
 			Version:      typeVersion.Version,
