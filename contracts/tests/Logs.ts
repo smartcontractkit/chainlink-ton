@@ -171,8 +171,7 @@ export const testLogCCIPMessageSent = (
     const { sender: _, ...messageWithoutSender } = msg.message
     const { sender: __, ...matchWithoutSender } = match.message || {}
 
-    expect({ message: messageWithoutSender }).toMatchObject({ message: matchWithoutSender })
-    return true
+    return matchesObject(messageWithoutSender, matchWithoutSender)
   })
 }
 
