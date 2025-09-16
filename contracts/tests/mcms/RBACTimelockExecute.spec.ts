@@ -557,13 +557,15 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       const calls = BaseTestSetup.singletonCalls(incrementCall)
 
       // Schedule operation
-      const scheduleBody = rbactl.builder.message.in.scheduleBatch.encode({
-        queryId: 1n,
-        calls,
-        predecessor: BaseTestSetup.NO_PREDECESSOR,
-        salt: BaseTestSetup.EMPTY_SALT,
-        delay: BaseTestSetup.MIN_DELAY,
-      })
+      const scheduleBody = rbactl.builder.message.in.scheduleBatch
+        .encode({
+          queryId: 1n,
+          calls,
+          predecessor: BaseTestSetup.NO_PREDECESSOR,
+          salt: BaseTestSetup.EMPTY_SALT,
+          delay: BaseTestSetup.MIN_DELAY,
+        })
+        .asCell()
 
       await baseTest.bind.timelock.sendInternal(
         baseTest.acc.proposerOne.getSender(),
@@ -580,20 +582,24 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       await baseTest.bind.timelock.sendInternal(
         baseTest.acc.admin.getSender(),
         toNano('0.05'),
-        rbactl.builder.message.in.updateExecutorRoleCheck.encode({
-          queryId: 2n,
-          enabled: false,
-        }),
+        rbactl.builder.message.in.updateExecutorRoleCheck
+          .encode({
+            queryId: 2n,
+            enabled: false,
+          })
+          .asCell(),
       )
 
       expect(await baseTest.bind.timelock.isExecutorRoleCheckEnabled()).toBeFalsy()
 
-      const executeBody = rbactl.builder.message.in.executeBatch.encode({
-        queryId: 2n,
-        calls,
-        predecessor: BaseTestSetup.NO_PREDECESSOR,
-        salt: BaseTestSetup.EMPTY_SALT,
-      })
+      const executeBody = rbactl.builder.message.in.executeBatch
+        .encode({
+          queryId: 2n,
+          calls,
+          predecessor: BaseTestSetup.NO_PREDECESSOR,
+          salt: BaseTestSetup.EMPTY_SALT,
+        })
+        .asCell()
 
       // Execute via an account without the executor role
       const r = await baseTest.bind.timelock.sendInternal(
@@ -621,13 +627,15 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       const calls = BaseTestSetup.singletonCalls(incrementCall)
 
       // Schedule operation
-      const scheduleBody = rbactl.builder.message.in.scheduleBatch.encode({
-        queryId: 1n,
-        calls,
-        predecessor: BaseTestSetup.NO_PREDECESSOR,
-        salt: BaseTestSetup.EMPTY_SALT,
-        delay: BaseTestSetup.MIN_DELAY,
-      })
+      const scheduleBody = rbactl.builder.message.in.scheduleBatch
+        .encode({
+          queryId: 1n,
+          calls,
+          predecessor: BaseTestSetup.NO_PREDECESSOR,
+          salt: BaseTestSetup.EMPTY_SALT,
+          delay: BaseTestSetup.MIN_DELAY,
+        })
+        .asCell()
 
       await baseTest.bind.timelock.sendInternal(
         baseTest.acc.proposerOne.getSender(),
@@ -641,12 +649,14 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       // Try to execute without disabling ExecutorRoleCheck
       expect(await baseTest.bind.timelock.isExecutorRoleCheckEnabled()).toBeTruthy()
 
-      const executeBody = rbactl.builder.message.in.executeBatch.encode({
-        queryId: 2n,
-        calls,
-        predecessor: BaseTestSetup.NO_PREDECESSOR,
-        salt: BaseTestSetup.EMPTY_SALT,
-      })
+      const executeBody = rbactl.builder.message.in.executeBatch
+        .encode({
+          queryId: 2n,
+          calls,
+          predecessor: BaseTestSetup.NO_PREDECESSOR,
+          salt: BaseTestSetup.EMPTY_SALT,
+        })
+        .asCell()
 
       const r = await baseTest.bind.timelock.sendInternal(
         baseTest.acc.proposerOne.getSender(),
