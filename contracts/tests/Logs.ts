@@ -164,7 +164,9 @@ export const testLogCCIPMessageSent = (
 
     // Check sender address using .equals() if specified in match
     if (match.message?.sender && match.message.sender instanceof Address) {
-      expect(sender.equals(match.message.sender)).toBe(true)
+      if (!sender.equals(match.message.sender)) {
+        return false
+      }
     }
 
     // Check other fields using toMatchObject (excluding sender to avoid object comparison)
