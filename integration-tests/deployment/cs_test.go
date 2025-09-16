@@ -201,15 +201,15 @@ func TestDeploy(t *testing.T) {
 		require.Equal(t, chainSelector, generatedView.ChainSelector)
 		onRampView, exit := generatedView.OnRamp[onRampAddr.String()]
 		require.True(t, exit, "onRamp view not found")
-		require.Equal(t, onRampAddr.String(), onRampView.Address)
+		require.Equal(t, onRampAddr, *onRampView.Address)
 
 		routerView, exit := generatedView.Router[routerAddr.String()]
 		require.True(t, exit, "onRamp view not found")
-		require.Equal(t, routerAddr.String(), routerView.Address)
+		require.Equal(t, routerAddr, *routerView.Address)
 
 		feeQuoterView, exit := generatedView.FeeQuoter[feeQuoterAddr.String()]
 		require.True(t, exit, "feeQuoter view not found")
-		require.Equal(t, feeQuoterAddr.String(), feeQuoterView.Address)
+		require.Equal(t, feeQuoterAddr, *feeQuoterView.Address)
 		destConfig, exist := feeQuoterView.DestChainConfig[ChainSelEVMTest90000001]
 		require.True(t, exist, "feeQuoter view dest config not found")
 		require.True(t, destConfig.Config.IsEnabled)
@@ -218,6 +218,6 @@ func TestDeploy(t *testing.T) {
 
 		offRampView, exit := generatedView.OffRamp[offRampAddr.String()]
 		require.True(t, exit, "offRamp view not found")
-		require.Equal(t, offRampAddr.String(), offRampView.Address)
+		require.Equal(t, offRampAddr, *offRampView.Address)
 	})
 }

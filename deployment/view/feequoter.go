@@ -29,9 +29,9 @@ type PremiumMultipliers struct {
 }
 
 type StaticConfig struct {
-	MaxFeeJuelsPerMsg  string `json:"maxFeeJuelsPerMsg,omitempty"`
-	LinkToken          string `json:"linkToken,omitempty"`
-	StalenessThreshold uint32 `json:"stalenessThreshold,omitempty"`
+	MaxFeeJuelsPerMsg  string           `json:"maxFeeJuelsPerMsg,omitempty"`
+	LinkToken          *address.Address `json:"linkToken,omitempty"`
+	StalenessThreshold uint32           `json:"stalenessThreshold,omitempty"`
 }
 
 type USDPerUnitGas struct {
@@ -96,13 +96,13 @@ func FetchFeeQuoterView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockI
 
 	return &FeeQuoterView{
 		MetaData: MetaData{
-			Address:      feeQuoter.String(),
+			Address:      feeQuoter,
 			ContractType: typeVersion.Type,
 			Version:      typeVersion.Version,
 		},
 		StaticConfig: StaticConfig{
 			MaxFeeJuelsPerMsg:  sc.MaxFeeJuelsPerMsg.String(),
-			LinkToken:          sc.LinkToken.String(),
+			LinkToken:          sc.LinkToken,
 			StalenessThreshold: sc.StalenessThreshold,
 		},
 		DestChainConfig: destConfigs,

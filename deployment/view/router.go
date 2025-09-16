@@ -3,11 +3,13 @@ package view
 import (
 	"context"
 	"fmt"
+	"math/big"
 
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
 const (
@@ -16,7 +18,7 @@ const (
 
 type RouterView struct {
 	MetaData
-	OnRampAddr string `json:"onRampAddr"`
+	OnRampAddr map[uint64]*address.Address `json:"onRampAddr"`
 }
 
 // FetchRouterView generates a view of the router contract at the specified block.
@@ -30,26 +32,48 @@ func FetchRouterView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDEx
 		return nil, fmt.Errorf("failed to parse typeAndVersion: %w", err)
 	}
 
-	result, err = c.Client.RunGetMethod(ctx, block, routerAddr, onRampGetter)
-	if err != nil {
-		return nil, fmt.Errorf("error getting onrampAddr: %v", err)
-	}
-	cell, err := result.Slice(0)
+	result, err = c.Client.RunGetMethod(ctx, block, routerAddr, destChainsGetter)
 	if err != nil {
 		return nil, err
 	}
 
-	onRampAddr, err := cell.LoadAddr()
-	if err != nil {
-		return nil, fmt.Errorf("failed to load onramp address: %w", err)
+	selectorSliceRaw := result.AsTuple()[0]
+	selectorSlice, ok := selectorSliceRaw.([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("unexpected type for selector slice")
+	}
+
+	var onrampSlice *cell.Slice
+	var onRampAddr *address.Address
+	onRampAddrMap := make(map[uint64]*address.Address)
+	for _, selector := range selectorSlice {
+		// On-chain returns *big.Int for selector values, convert to uint64
+		if bigInt, ok := selector.(*big.Int); ok {
+			dest := bigInt.Uint64()
+			result, err = c.Client.RunGetMethod(ctx, block, routerAddr, onRampGetter, dest)
+			if err != nil {
+				return nil, fmt.Errorf("error getting onrampAddr: %v", err)
+			}
+			onrampSlice, err = result.Slice(0)
+			if err != nil {
+				return nil, err
+			}
+
+			onRampAddr, err = onrampSlice.LoadAddr()
+			if err != nil {
+				return nil, fmt.Errorf("failed to load onramp address: %w", err)
+			}
+
+			onRampAddrMap[dest] = onRampAddr
+		}
 	}
 
 	return &RouterView{
 		MetaData: MetaData{
-			Address:      routerAddr.String(),
+			Address:      routerAddr,
 			ContractType: typeVersion.Type,
 			Version:      typeVersion.Version,
 		},
-		OnRampAddr: onRampAddr.String(),
+		OnRampAddr: onRampAddrMap,
 	}, nil
 }

@@ -28,7 +28,7 @@ func FetchOffRampView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDE
 
 	return &OffRampView{
 		MetaData: MetaData{
-			Address:      offRampAddr.String(),
+			Address:      offRampAddr,
 			ContractType: typeVersion.Type,
 			Version:      typeVersion.Version,
 		},

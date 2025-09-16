@@ -66,7 +66,7 @@ func FetchOnRampView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDEx
 
 	return &OnRampView{
 		MetaData: MetaData{
-			Address:      onrampAddr.String(),
+			Address:      onrampAddr,
 			ContractType: typeVersion.Type,
 			Version:      typeVersion.Version,
 		},
