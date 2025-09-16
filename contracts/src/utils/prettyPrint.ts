@@ -265,18 +265,10 @@ export function prettifyAddressesMap(transactions: BlockchainTransaction[]): Map
   for (const tx of transactions) {
     if (!tx.inMessage) continue
     const prettyTx = prettifyTransaction(tx)
-    if (
-      tx.inMessage.info.src != null &&
-      tx.inMessage.info.src != undefined &&
-      tx.inMessage.info.src instanceof Address
-    ) {
+    if (tx.inMessage.info.src != null && tx.inMessage.info.src instanceof Address) {
       map.set(tx.inMessage.info.src.toRawString(), contractNameFromPrettyAddress(prettyTx.from)!)
     }
-    if (
-      tx.inMessage.info.dest != null &&
-      tx.inMessage.info.dest != undefined &&
-      tx.inMessage.info.dest instanceof Address
-    ) {
+    if (tx.inMessage.info.dest != null && tx.inMessage.info.dest instanceof Address) {
       map.set(tx.inMessage.info.dest.toRawString(), contractNameFromPrettyAddress(prettyTx.to)!)
     }
   }
