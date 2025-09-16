@@ -52,7 +52,7 @@ type USDPerUnitGas struct {
 type DestChainConfig struct {
 	Config        FeeQuoterDestChainConfig `json:"config,omitempty"`
 	USDPerUnitGas USDPerUnitGas            `json:"usdPerUnitGas,omitempty"`
-	// TODO add tokenTransferFeeConfigs
+	// TODO add tokenTransferFeeConfigs after update_lane sequence supports
 }
 
 type FeeQuoterDestChainConfig struct {
@@ -287,7 +287,7 @@ func fetchDestChainConfigsView(ctx context.Context, c cldf_ton.Chain, block *ton
 			}
 		}
 
-		// TODO parse tokenTransferFeeConfigs
+		// TODO parse tokenTransferFeeConfigs after update_lane sequence supports
 		output[selector] = destConfig
 	}
 
