@@ -297,9 +297,14 @@ describe('Router', () => {
     }
 
     // Setup Jetton
-    const { jettonMinter, userWallet } = await setupJetton(blockchain, feeQuoter, deployer, sender)
+    const { jettonMinter, provideUserWalletFor } = await setupJetton(
+      blockchain,
+      feeQuoter,
+      deployer,
+      sender,
+    )
 
-    const senderJettonWallet = await userWallet(sender.address)
+    const senderJettonWallet = await provideUserWalletFor(sender.address)
 
     const jettonAmount = toNano('1')
     const ccipSend = rt.builder.message.in.ccipSend
@@ -331,7 +336,7 @@ describe('Router', () => {
         message: transferMsg,
       })
 
-      const routerJettonWallet = await userWallet(router.address)
+      const routerJettonWallet = await provideUserWalletFor(router.address)
 
       // we called the router
       expect(result.transactions).toHaveTransaction({
@@ -480,7 +485,7 @@ async function setupJetton(
     })
   }
 
-  const userWallet = async (address: Address) => {
+  const provideUserWalletFor = async (address: Address) => {
     return blockchain.openContract(
       JettonWallet.createFromAddress(await jettonMinter.getWalletAddress(address)),
     )
@@ -488,6 +493,6 @@ async function setupJetton(
 
   return {
     jettonMinter,
-    userWallet,
+    provideUserWalletFor,
   }
 }
