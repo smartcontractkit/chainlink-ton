@@ -62,9 +62,11 @@ const EXIT_CODE_DESCRIPTIONS: Record<number, string> = {
  * Output:
  *
  * ```
- *  Map(2) {
- *   '0:4686a2c066c784a915f3e01c853d3195ed254c948e21adbb3e4a9b3f5f3c74d7' => 'TreasuryContract-deployer',
- *   '0:4df382f18b929bd4d68931b50f34253ca21b88c6d4c0dca5c78247865a2bcfc2' => 'ContractClient'
+ * Map(4) {
+ *   '0:4f0012472f2f564e18692f950888322b5075b3cfa32386af7a84f3f84ee32418' => 'TreasuryContract-sender',
+ *   '0:c1c4e33bf3f75b022d8f37ecf9e67f603307dd578028b3cefb05970578512e8f' => 'Router',
+ *   '0:d46751fd09468c4e7f4420dda2fe96f6bc3748327b11aecb6e3d2b851acd3f1c' => 'OnRamp',
+ *   '0:dca1dfcb72e34a8cfab939a613cd9e91e4002a048cab727df45b2704bf1cd02d' => 'FeeQuoter'
  * }
  * ```
  **/
@@ -109,10 +111,12 @@ export function prettifyAddressesMap(transactions: BlockchainTransaction[]): Map
  * Output:
  *
  * ```
- * external -- (opcode: 0x392eb5cb, exit code 0) --> TreasuryContract-deployer
- * └ TreasuryContract-deployer -- (opcode: 0x00000004, amount: 50000000, exit code 0) --> ContractClient
- * │ └ ContractClient emit: (opcode: 0x00000539)
- * │ └ ContractClient -- (opcode: 0xf3a02426, amount: 47629200, exit code 0) --> TreasuryContract-deployer
+ * external -- (opcode: 0xd7d5ec75, exit code 0) --> TreasuryContract-sender
+ * └ TreasuryContract-sender -- (opcode: 0x00000001, amount: 1000000000, exit code 0) --> Router
+ * │ └ Router -- (opcode: 0x10000002, amount: 99141200, exit code 0) --> OnRamp
+ * │ │ └ OnRamp -- (opcode: 0x20000005, amount: 48941600, exit code 0) --> FeeQuoter
+ * │ │ │ └ FeeQuoter -- (opcode: 0x00000003, amount: 48839200, exit code 0) --> OnRamp
+ * │ │ │ │ └ OnRamp emit: (opcode: 0x32a99a2b)
  * ```
  **/
 export async function dump(txs: BlockchainTransaction[]): Promise<string[]> {
