@@ -2,6 +2,8 @@ package deployment
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"math/big"
 	"testing"
 	"time"
@@ -226,5 +228,8 @@ func TestDeploy(t *testing.T) {
 		offRampView, exit := generatedView.OffRamp[offRampAddr.String()]
 		require.True(t, exit, "offRamp view not found")
 		require.Equal(t, offRampAddr, *offRampView.Address)
+		data, err := json.MarshalIndent(generatedView, "", "  ")
+		require.NoError(t, err)
+		fmt.Print("JSON encoded TON state view:\n" + string(data))
 	})
 }

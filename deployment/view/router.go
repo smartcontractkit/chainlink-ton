@@ -4,12 +4,14 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"runtime"
 
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
+	"golang.org/x/sync/errgroup"
 )
 
 const (
@@ -45,26 +47,31 @@ func FetchRouterView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDEx
 
 	var onrampSlice *cell.Slice
 	var onRampAddr *address.Address
+	var eg errgroup.Group
+	eg.SetLimit(runtime.NumCPU())
 	onRampAddrMap := make(map[uint64]*address.Address)
 	for _, selector := range selectorSlice {
 		// On-chain returns *big.Int for selector values, convert to uint64
 		if bigInt, ok := selector.(*big.Int); ok {
 			dest := bigInt.Uint64()
-			result, err = c.Client.RunGetMethod(ctx, block, routerAddr, onRampGetter, dest)
-			if err != nil {
-				return nil, fmt.Errorf("error getting onrampAddr: %v", err)
-			}
-			onrampSlice, err = result.Slice(0)
-			if err != nil {
-				return nil, err
-			}
+			eg.Go(func() error {
+				result, err = c.Client.RunGetMethod(ctx, block, routerAddr, onRampGetter, dest)
+				if err != nil {
+					return fmt.Errorf("error getting onrampAddr: %v", err)
+				}
+				onrampSlice, err = result.Slice(0)
+				if err != nil {
+					return err
+				}
 
-			onRampAddr, err = onrampSlice.LoadAddr()
-			if err != nil {
-				return nil, fmt.Errorf("failed to load onramp address: %w", err)
-			}
+				onRampAddr, err = onrampSlice.LoadAddr()
+				if err != nil {
+					return fmt.Errorf("failed to load onramp address: %w", err)
+				}
 
-			onRampAddrMap[dest] = onRampAddr
+				onRampAddrMap[dest] = onRampAddr
+				return nil
+			})
 		}
 	}
 
@@ -75,5 +82,5 @@ func FetchRouterView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDEx
 			Version:      typeVersion.Version,
 		},
 		OnRampAddr: onRampAddrMap,
-	}, nil
+	}, eg.Wait()
 }

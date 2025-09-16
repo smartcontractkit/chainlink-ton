@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"runtime"
 
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
@@ -11,6 +12,7 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
+	"golang.org/x/sync/errgroup"
 )
 
 const (
@@ -121,61 +123,67 @@ func fetchDestChainConfigsView(ctx context.Context, c cldf_ton.Chain, block *ton
 		return nil, fmt.Errorf("unexpected type for selector slice")
 	}
 
+	var eg errgroup.Group
+	eg.SetLimit(runtime.NumCPU())
 	output := make(map[uint64]DestChainConfig)
 	for _, selector := range selectorSlice {
 		// On-chain returns *big.Int for selector values, convert to uint64
 		if bigInt, ok := selector.(*big.Int); ok {
 			dest := bigInt.Uint64()
-			result, err = c.Client.RunGetMethod(ctx, block, feeQuoter, destChainConfigGetter, dest)
-			if err != nil {
-				return nil, err
-			}
-			var cfg feequoter.DestChainConfig
-			if err = cfg.FromResult(result); err != nil {
-				return nil, err
-			}
 
-			destConfig := DestChainConfig{
-				Config: FeeQuoterDestChainConfig{
-					IsEnabled:                         cfg.ChainConfig.IsEnabled,
-					MaxNumberOfTokensPerMsg:           cfg.ChainConfig.MaxNumberOfTokensPerMsg,
-					MaxDataBytes:                      cfg.ChainConfig.MaxDataBytes,
-					MaxPerMsgGasLimit:                 cfg.ChainConfig.MaxPerMsgGasLimit,
-					DestGasOverhead:                   cfg.ChainConfig.DestGasOverhead,
-					DestGasPerPayloadByteBase:         cfg.ChainConfig.DestGasPerPayloadByteBase,
-					DestGasPerPayloadByteHigh:         cfg.ChainConfig.DestGasPerPayloadByteHigh,
-					DestGasPerPayloadByteThreshold:    cfg.ChainConfig.DestGasPerPayloadByteThreshold,
-					DestDataAvailabilityOverheadGas:   cfg.ChainConfig.DestDataAvailabilityOverheadGas,
-					DestGasPerDataAvailabilityByte:    cfg.ChainConfig.DestGasPerDataAvailabilityByte,
-					DestDataAvailabilityMultiplierBps: cfg.ChainConfig.DestDataAvailabilityMultiplierBps,
-					ChainFamilySelector:               cfg.ChainConfig.ChainFamilySelector,
-					EnforceOutOfOrder:                 cfg.ChainConfig.EnforceOutOfOrder,
-					DefaultTokenFeeUsdCents:           cfg.ChainConfig.DefaultTokenFeeUsdCents,
-					DefaultTokenDestGasOverhead:       cfg.ChainConfig.DefaultTokenDestGasOverhead,
-					DefaultTxGasLimit:                 cfg.ChainConfig.DefaultTxGasLimit,
-					GasMultiplierWeiPerEth:            cfg.ChainConfig.GasMultiplierWeiPerEth,
-					GasPriceStalenessThreshold:        cfg.ChainConfig.GasPriceStalenessThreshold,
-					NetworkFeeUsdCents:                cfg.ChainConfig.NetworkFeeUsdCents,
-				},
-			}
-
-			if cfg.USDPerUnitGas != nil {
-				gasPriceSlice := cfg.USDPerUnitGas.BeginParse()
-				var gasPrice feequoter.USDPerUnitGas
-				if err = tlb.LoadFromCell(&gasPrice, gasPriceSlice); err != nil {
-					return nil, err
+			eg.Go(func() error {
+				result, err = c.Client.RunGetMethod(ctx, block, feeQuoter, destChainConfigGetter, dest)
+				if err != nil {
+					return err
 				}
-				destConfig.USDPerUnitGas = USDPerUnitGas{
-					ExecutionGasPrice:        gasPrice.ExecutionGasPrice.String(),
-					DataAvailabilityGasPrice: gasPrice.DataAvailabilityGasPrice.String(),
-					Timestamp:                gasPrice.Timestamp,
+				var cfg feequoter.DestChainConfig
+				if err = cfg.FromResult(result); err != nil {
+					return err
 				}
-			}
 
-			// TODO parse tokenTransferFeeConfigs after update_lane sequence supports
-			output[dest] = destConfig
+				destConfig := DestChainConfig{
+					Config: FeeQuoterDestChainConfig{
+						IsEnabled:                         cfg.ChainConfig.IsEnabled,
+						MaxNumberOfTokensPerMsg:           cfg.ChainConfig.MaxNumberOfTokensPerMsg,
+						MaxDataBytes:                      cfg.ChainConfig.MaxDataBytes,
+						MaxPerMsgGasLimit:                 cfg.ChainConfig.MaxPerMsgGasLimit,
+						DestGasOverhead:                   cfg.ChainConfig.DestGasOverhead,
+						DestGasPerPayloadByteBase:         cfg.ChainConfig.DestGasPerPayloadByteBase,
+						DestGasPerPayloadByteHigh:         cfg.ChainConfig.DestGasPerPayloadByteHigh,
+						DestGasPerPayloadByteThreshold:    cfg.ChainConfig.DestGasPerPayloadByteThreshold,
+						DestDataAvailabilityOverheadGas:   cfg.ChainConfig.DestDataAvailabilityOverheadGas,
+						DestGasPerDataAvailabilityByte:    cfg.ChainConfig.DestGasPerDataAvailabilityByte,
+						DestDataAvailabilityMultiplierBps: cfg.ChainConfig.DestDataAvailabilityMultiplierBps,
+						ChainFamilySelector:               cfg.ChainConfig.ChainFamilySelector,
+						EnforceOutOfOrder:                 cfg.ChainConfig.EnforceOutOfOrder,
+						DefaultTokenFeeUsdCents:           cfg.ChainConfig.DefaultTokenFeeUsdCents,
+						DefaultTokenDestGasOverhead:       cfg.ChainConfig.DefaultTokenDestGasOverhead,
+						DefaultTxGasLimit:                 cfg.ChainConfig.DefaultTxGasLimit,
+						GasMultiplierWeiPerEth:            cfg.ChainConfig.GasMultiplierWeiPerEth,
+						GasPriceStalenessThreshold:        cfg.ChainConfig.GasPriceStalenessThreshold,
+						NetworkFeeUsdCents:                cfg.ChainConfig.NetworkFeeUsdCents,
+					},
+				}
+
+				if cfg.USDPerUnitGas != nil {
+					gasPriceSlice := cfg.USDPerUnitGas.BeginParse()
+					var gasPrice feequoter.USDPerUnitGas
+					if err = tlb.LoadFromCell(&gasPrice, gasPriceSlice); err != nil {
+						return err
+					}
+					destConfig.USDPerUnitGas = USDPerUnitGas{
+						ExecutionGasPrice:        gasPrice.ExecutionGasPrice.String(),
+						DataAvailabilityGasPrice: gasPrice.DataAvailabilityGasPrice.String(),
+						Timestamp:                gasPrice.Timestamp,
+					}
+				}
+
+				// TODO parse tokenTransferFeeConfigs after update_lane sequence supports
+				output[dest] = destConfig
+				return nil
+			})
 		}
 	}
 
-	return output, nil
+	return output, eg.Wait()
 }

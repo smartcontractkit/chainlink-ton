@@ -130,13 +130,7 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 		})
 	}
 
-	err = errGroup.Wait()
-	if err != nil {
-		lggr.Errorw("error generating TON chain view", "error", err)
-		return tonView, err
-	}
-
-	return tonView, nil
+	return tonView, errGroup.Wait()
 }
 
 func SaveOnchainState(chainSelector uint64, state CCIPChainState, e cldf.Environment) error {
