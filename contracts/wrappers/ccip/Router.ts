@@ -1,20 +1,21 @@
 import {
-    Address,
-    beginCell,
-    Builder,
-    Cell,
-    Contract,
-    contractAddress,
-    ContractProvider, Dictionary,
-    Sender,
-    SendMode,
-    Slice,
+  Address,
+  beginCell,
+  Builder,
+  Cell,
+  Contract,
+  contractAddress,
+  ContractProvider,
+  Dictionary,
+  Sender,
+  SendMode,
+  Slice,
 } from '@ton/core'
 
 import * as ownable2step from '../libraries/access/Ownable2Step'
 import { CellCodec } from '../utils'
 import { asSnakeData } from '../../src/utils'
-import {DestChainConfig} from "./FeeQuoter";
+import { DestChainConfig } from './FeeQuoter'
 
 export type Storage = {
   ownable: ownable2step.Data
