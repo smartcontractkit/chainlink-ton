@@ -49,7 +49,7 @@ describe('Router', () => {
         owner: deployer.address,
         pendingOwner: null,
       },
-      onRamp: ZERO_ADDRESS,
+      onRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
     }
     router = blockchain.openContract(rt.Router.createFromConfig(data, routerCode))
     // Deploy contract
