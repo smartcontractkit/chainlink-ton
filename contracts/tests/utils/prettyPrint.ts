@@ -36,6 +36,85 @@ const EXIT_CODE_DESCRIPTIONS: Record<number, string> = {
   // Add more as needed
 }
 
+/**
+ * Extract the address of every participant in an array of transactions and maps to contract names if possible.
+ *
+ * Used for debugging purposes.
+ *
+ * Example using test from `contracts/tests/ccip/CCIPRouter.spec.ts`:
+ *
+ * ```
+ * const result = await router.sendCcipSend(sender.getSender(), {
+ *   value: toNano('1'),
+ *   body: {
+ *     queryID: 1,
+ *     destChainSelector: CHAINSEL_EVM_TEST_90000001,
+ *     receiver: Buffer.alloc(64),
+ *     data: Cell.EMPTY,
+ *     tokenAmounts: [],
+ *     feeToken: ZERO_ADDRESS,
+ *     extraArgs: Cell.EMPTY,
+ *   },
+ * })
+ * console.log(prettifyAddressesMap(result.transactions))
+ * ```
+ *
+ * Output:
+ *
+ * ```
+ *  Map(2) {
+ *   '0:4686a2c066c784a915f3e01c853d3195ed254c948e21adbb3e4a9b3f5f3c74d7' => 'TreasuryContract-deployer',
+ *   '0:4df382f18b929bd4d68931b50f34253ca21b88c6d4c0dca5c78247865a2bcfc2' => 'ContractClient'
+ * }
+ * ```
+ **/
+export function prettifyAddressesMap(transactions: BlockchainTransaction[]): Map<string, string> {
+  const map = new Map<string, string>()
+  for (const tx of transactions) {
+    if (!tx.inMessage) continue
+    const prettyTx = prettifyTransaction(tx)
+    if (tx.inMessage.info.src != null && tx.inMessage.info.src instanceof Address) {
+      map.set(tx.inMessage.info.src.toRawString(), contractNameFromPrettyAddress(prettyTx.from)!)
+    }
+    if (tx.inMessage.info.dest != null && tx.inMessage.info.dest instanceof Address) {
+      map.set(tx.inMessage.info.dest.toRawString(), contractNameFromPrettyAddress(prettyTx.to)!)
+    }
+  }
+  return map
+}
+
+/**
+ * Draw message trace from transactions.
+ *
+ * Used for debugging purposes.
+ *
+ * Example using test from `contracts/tests/ccip/CCIPRouter.spec.ts`:
+ *
+ * ```
+ * const result = await router.sendCcipSend(sender.getSender(), {
+ *   value: toNano('1'),
+ *   body: {
+ *     queryID: 1,
+ *     destChainSelector: CHAINSEL_EVM_TEST_90000001,
+ *     receiver: Buffer.alloc(64),
+ *     data: Cell.EMPTY,
+ *     tokenAmounts: [],
+ *     feeToken: ZERO_ADDRESS,
+ *     extraArgs: Cell.EMPTY,
+ *   },
+ * })
+ * console.log((await dump(result.transactions)).join('\n'))
+ * ```
+ *
+ * Output:
+ *
+ * ```
+ * external -- (opcode: 0x392eb5cb, exit code 0) --> TreasuryContract-deployer
+ * └ TreasuryContract-deployer -- (opcode: 0x00000004, amount: 50000000, exit code 0) --> ContractClient
+ * │ └ ContractClient emit: (opcode: 0x00000539)
+ * │ └ ContractClient -- (opcode: 0xf3a02426, amount: 47629200, exit code 0) --> TreasuryContract-deployer
+ * ```
+ **/
 export async function dump(txs: BlockchainTransaction[]): Promise<string[]> {
   return dumpRecursive(txs[0], txs)
 }
@@ -233,44 +312,4 @@ function compareMsgs(inMessage: Message, outMsg: Message): boolean {
     return inMessage.info.dest.equals(outMsg.info.dest)
   }
   return false
-}
-
-/**
- * Utility to format addresses in a consistent way.
- */
-export function formatAddress(address: Address | string | undefined | null): string {
-  if (!address) return 'NONE'
-  if (typeof address === 'string') return address
-  return address.toString()
-}
-
-/**
- * Utility to format amounts in a human-readable way.
- */
-export function formatAmount(amount: bigint, decimals: number = 9): string {
-  const divisor = BigInt(10 ** decimals)
-  const wholePart = amount / divisor
-  const fractionalPart = amount % divisor
-
-  if (fractionalPart === 0n) {
-    return wholePart.toString()
-  }
-
-  return `${wholePart}.${fractionalPart.toString().padStart(decimals, '0').replace(/0+$/, '')}`
-}
-
-// Extract address from transactions and map to contract names if possible
-export function prettifyAddressesMap(transactions: BlockchainTransaction[]): Map<string, string> {
-  const map = new Map<string, string>()
-  for (const tx of transactions) {
-    if (!tx.inMessage) continue
-    const prettyTx = prettifyTransaction(tx)
-    if (tx.inMessage.info.src != null && tx.inMessage.info.src instanceof Address) {
-      map.set(tx.inMessage.info.src.toRawString(), contractNameFromPrettyAddress(prettyTx.from)!)
-    }
-    if (tx.inMessage.info.dest != null && tx.inMessage.info.dest instanceof Address) {
-      map.set(tx.inMessage.info.dest.toRawString(), contractNameFromPrettyAddress(prettyTx.to)!)
-    }
-  }
-  return map
 }
