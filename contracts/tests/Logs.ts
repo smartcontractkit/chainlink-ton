@@ -5,7 +5,7 @@ import * as OCR3Logs from '../wrappers/libraries/ocr/Logs'
 import * as ReceiverLogs from '../wrappers/examples/ccip/Logs'
 import { fromSnakeData } from '../src/utils/types'
 import { merkleRootsFromCell, priceUpdatesFromCell } from '../wrappers/ccip/OffRamp'
-import { prettifyAddressesMap } from '../src/utils'
+import { prettifyAddressesMap } from './utils/prettyPrint'
 
 // https://github.com/ton-blockchain/liquid-staking-contract/blob/1f4e9badbed52a4cf80cc58e4bb36ed375c6c8e7/utils.ts#L269-L294
 export const getExternals = (transactions: BlockchainTransaction[]) => {
@@ -168,6 +168,14 @@ export const testLogCCIPMessageSent = (
       },
     }
 
+    // Check other fields using toMatchObject (excluding sender to avoid object comparison)
+    const { sender: _, ...messageWithoutSender } = msg.message
+    const { sender: __, ...matchWithoutSender } = match.message || {}
+
+    if (!matchesObject(messageWithoutSender, matchWithoutSender)) {
+      return false
+    }
+
     // Check sender address using .equals() if specified in match
     if (match.message?.sender && match.message.sender instanceof Address) {
       if (!sender.equals(match.message.sender)) {
@@ -179,12 +187,7 @@ export const testLogCCIPMessageSent = (
         return false
       }
     }
-
-    // Check other fields using toMatchObject (excluding sender to avoid object comparison)
-    const { sender: _, ...messageWithoutSender } = msg.message
-    const { sender: __, ...matchWithoutSender } = match.message || {}
-
-    return matchesObject(messageWithoutSender, matchWithoutSender)
+    return true
   })
 }
 
