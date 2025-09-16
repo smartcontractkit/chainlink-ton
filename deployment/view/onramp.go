@@ -3,12 +3,12 @@ package view
 import (
 	"context"
 	"fmt"
+	"math/big"
 
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/xssnick/tonutils-go/address"
-	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
@@ -80,70 +80,64 @@ func FetchOnRampView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDEx
 	}, nil
 }
 
+// fetchDestChainConfig retrieves destination chain configurations from the on-ramp contract.
 func fetchDestChainConfig(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, onrampAddr *address.Address) (map[uint64]OnRampDestChainConfig, error) {
-	output := make(map[uint64]OnRampDestChainConfig)
-	result, err := c.Client.RunGetMethod(ctx, block, onrampAddr, allDestChainConfigGetter)
+	result, err := c.Client.RunGetMethod(ctx, block, onrampAddr, destChainGetter)
 	if err != nil {
 		return nil, err
 	}
 
-	configDictRaw, err := result.Cell(0)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get cell from result: %w", err)
+	selectorSliceRaw := result.AsTuple()[0]
+	selectorSlice, ok := selectorSliceRaw.([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("unexpected type for selector slice")
 	}
 
-	configDict := configDictRaw.AsDict(64)
-	all, err := configDict.LoadAll()
-	if err != nil {
-		return nil, fmt.Errorf("failed to load all entries from dictionary: %w", err)
-	}
-
-	var chainSel uint64
-	var cfgCell *cell.Cell
 	var allowedSendersDict []cell.DictKV
-	for _, val := range all {
-		chainSel, err = val.Key.LoadUInt(64)
-		if err != nil {
-			return nil, fmt.Errorf("failed to load chain selector: %w", err)
-		}
-		cfgCell, err = val.Value.ToCell()
-		if err != nil {
-			return nil, fmt.Errorf("failed to convert value to cell: %w", err)
-		}
-		var cfg onramp.DestChainConfig
-		err = tlb.LoadFromCell(&cfg, cfgCell.BeginParse())
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse DestChainConfig from cell: %w", err)
-		}
-
-		allowedSenders := make(map[string]bool)
-		allowedSendersDict, err = cfg.AllowedSender.LoadAll()
-		if err != nil {
-			return nil, fmt.Errorf("failed to load all allowed senders: %w", err)
-		}
-
-		var allowed bool
-		var senderAddr *address.Address
-		for _, senderVal := range allowedSendersDict {
-			senderAddr, err = senderVal.Key.LoadAddr()
+	output := make(map[uint64]OnRampDestChainConfig)
+	for _, selector := range selectorSlice {
+		// On-chain returns *big.Int for selector values, convert to uint64
+		if bigInt, ok := selector.(*big.Int); ok {
+			dest := bigInt.Uint64()
+			result, err = c.Client.RunGetMethod(ctx, block, onrampAddr, destChainConfigGetter, dest)
 			if err != nil {
-				return nil, fmt.Errorf("failed to load sender address: %w", err)
+				return nil, err
+			}
+			var cfg onramp.DestChainConfig
+			if err = cfg.FromResult(result); err != nil {
+				return nil, err
 			}
 
-			allowed, err = senderVal.Value.LoadBoolBit()
+			allowedSenders := make(map[string]bool)
+			allowedSendersDict, err = cfg.AllowedSender.LoadAll()
 			if err != nil {
-				return nil, fmt.Errorf("failed to load allowed bool: %w", err)
+				return nil, fmt.Errorf("failed to load all allowed senders: %w", err)
 			}
 
-			allowedSenders[senderAddr.String()] = allowed
-		}
+			var allowed bool
+			var senderAddr *address.Address
+			for _, senderVal := range allowedSendersDict {
+				senderAddr, err = senderVal.Key.LoadAddr()
+				if err != nil {
+					return nil, fmt.Errorf("failed to load sender address: %w", err)
+				}
 
-		output[chainSel] = OnRampDestChainConfig{
-			SequenceNumber:   cfg.SequenceNumber,
-			AllowlistEnabled: cfg.AllowListEnabled,
-			Router:           cfg.Router.String(),
-			AllowedSenders:   allowedSenders,
+				allowed, err = senderVal.Value.LoadBoolBit()
+				if err != nil {
+					return nil, fmt.Errorf("failed to load allowed bool: %w", err)
+				}
+
+				allowedSenders[senderAddr.String()] = allowed
+			}
+
+			output[dest] = OnRampDestChainConfig{
+				SequenceNumber:   cfg.SequenceNumber,
+				AllowlistEnabled: cfg.AllowListEnabled,
+				Router:           cfg.Router.String(),
+				AllowedSenders:   allowedSenders,
+			}
 		}
 	}
+
 	return output, nil
 }

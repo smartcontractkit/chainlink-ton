@@ -280,9 +280,10 @@ get fun supportedTokens() {
     // TODO?
 }
 
-get fun allDestChainConfig(): dict {
+get fun destChainSelectors(): tuple {
     val st = lazy Storage.load();
-    return st.destChainConfigs.value;
+    var d = st.destChainConfigs;
+    return d.keysDestructs()!;
 }
 
 fun withdrawFeeTokens() {
