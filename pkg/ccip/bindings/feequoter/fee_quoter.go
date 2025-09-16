@@ -22,7 +22,7 @@ type Storage struct {
 	KeyLen                       uint16              `tlb:"## 16"`
 }
 
-type FQDestChainConfig struct {
+type FeeQuoterDestChainConfig struct {
 	IsEnabled                         bool   `tlb:"bool"`
 	MaxNumberOfTokensPerMsg           uint16 `tlb:"## 16"`
 	MaxDataBytes                      uint32 `tlb:"## 32"`
@@ -45,9 +45,9 @@ type FQDestChainConfig struct {
 }
 
 type DestChainConfig struct {
-	FQDestChainConfig       FQDestChainConfig `tlb:"."`
-	USDPerUnitGas           *cell.Cell        `tlb:"^"`
-	TokenTransferFeeConfigs *cell.Dictionary  `tlb:"dict 267"`
+	FeeQuoterDestChainConfig FeeQuoterDestChainConfig `tlb:"."`
+	USDPerUnitGas            *cell.Cell               `tlb:"^"`
+	TokenTransferFeeConfigs  *cell.Dictionary         `tlb:"dict 267"`
 }
 
 type USDPerUnitGas struct {
@@ -163,7 +163,7 @@ func (c *DestChainConfig) FromResult(result *ton.ExecutionResult) error {
 	}
 
 	*c = DestChainConfig{
-		FQDestChainConfig: FQDestChainConfig{
+		FeeQuoterDestChainConfig: FeeQuoterDestChainConfig{
 			IsEnabled:                         isEnabled,
 			MaxNumberOfTokensPerMsg:           uint16(maxNumberOfTokensPerMsg.Uint64()),           //nolint:gosec // G115
 			MaxDataBytes:                      uint32(maxDataBytes.Uint64()),                      //nolint:gosec // G115
@@ -291,8 +291,8 @@ type UpdateTokenTransferFeeConfig struct {
 type UpdateTokenTransferFeeConfigs struct{}
 
 type UpdateDestChainConfig struct {
-	DestinationChainSelector uint64            `tlb:"## 64"`
-	DestChainConfig          FQDestChainConfig `tlb:"."`
+	DestinationChainSelector uint64                   `tlb:"## 64"`
+	DestChainConfig          FeeQuoterDestChainConfig `tlb:"."`
 }
 
 type UpdateDestChainConfigs struct {

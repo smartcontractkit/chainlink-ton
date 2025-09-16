@@ -273,7 +273,7 @@ func (a *TONAccessor) LatestMessageTo(ctx context.Context, dest ccipocr3.ChainSe
 		SkipBytes(40). // Skip to DestChainSelector
 		FilterBytes(8, query.EQ(binary.BigEndian.AppendUint64(nil, uint64(dest)))).
 		OrderBy(query.SortByTxLT, query.DESC). // sort by transaction LT new to old
-		Limit(1).                              // only get the last one
+		Limit(1). // only get the last one
 		Execute(ctx, a.logPoller.GetStore())
 
 	if err != nil {
@@ -392,25 +392,25 @@ func (a *TONAccessor) GetFeeQuoterDestChainConfig(ctx context.Context, dest ccip
 		return ccipocr3.FeeQuoterDestChainConfig{}, err
 	}
 	return ccipocr3.FeeQuoterDestChainConfig{
-		IsEnabled:                         cfg.FQDestChainConfig.IsEnabled,
-		MaxNumberOfTokensPerMsg:           cfg.FQDestChainConfig.MaxNumberOfTokensPerMsg,
-		MaxDataBytes:                      cfg.FQDestChainConfig.MaxDataBytes,
-		MaxPerMsgGasLimit:                 cfg.FQDestChainConfig.MaxPerMsgGasLimit,
-		DestGasOverhead:                   cfg.FQDestChainConfig.DestGasOverhead,
-		DestGasPerPayloadByteBase:         uint32(cfg.FQDestChainConfig.DestGasPerPayloadByteBase),
-		DestGasPerPayloadByteHigh:         uint32(cfg.FQDestChainConfig.DestGasPerPayloadByteHigh),
-		DestGasPerPayloadByteThreshold:    uint32(cfg.FQDestChainConfig.DestGasPerPayloadByteThreshold),
-		DestDataAvailabilityOverheadGas:   cfg.FQDestChainConfig.DestDataAvailabilityOverheadGas,
-		DestGasPerDataAvailabilityByte:    cfg.FQDestChainConfig.DestGasPerDataAvailabilityByte,
-		DestDataAvailabilityMultiplierBps: cfg.FQDestChainConfig.DestDataAvailabilityMultiplierBps,
-		DefaultTokenFeeUSDCents:           cfg.FQDestChainConfig.DefaultTokenFeeUsdCents,
-		DefaultTokenDestGasOverhead:       cfg.FQDestChainConfig.DefaultTokenDestGasOverhead,
-		DefaultTxGasLimit:                 cfg.FQDestChainConfig.DefaultTxGasLimit,
-		GasMultiplierWeiPerEth:            cfg.FQDestChainConfig.GasMultiplierWeiPerEth,
-		NetworkFeeUSDCents:                cfg.FQDestChainConfig.NetworkFeeUsdCents,
-		GasPriceStalenessThreshold:        cfg.FQDestChainConfig.GasPriceStalenessThreshold,
-		EnforceOutOfOrder:                 cfg.FQDestChainConfig.EnforceOutOfOrder,
-		ChainFamilySelector:               [4]byte(binary.BigEndian.AppendUint32(nil, cfg.FQDestChainConfig.ChainFamilySelector)),
+		IsEnabled:                         cfg.FeeQuoterDestChainConfig.IsEnabled,
+		MaxNumberOfTokensPerMsg:           cfg.FeeQuoterDestChainConfig.MaxNumberOfTokensPerMsg,
+		MaxDataBytes:                      cfg.FeeQuoterDestChainConfig.MaxDataBytes,
+		MaxPerMsgGasLimit:                 cfg.FeeQuoterDestChainConfig.MaxPerMsgGasLimit,
+		DestGasOverhead:                   cfg.FeeQuoterDestChainConfig.DestGasOverhead,
+		DestGasPerPayloadByteBase:         uint32(cfg.FeeQuoterDestChainConfig.DestGasPerPayloadByteBase),
+		DestGasPerPayloadByteHigh:         uint32(cfg.FeeQuoterDestChainConfig.DestGasPerPayloadByteHigh),
+		DestGasPerPayloadByteThreshold:    uint32(cfg.FeeQuoterDestChainConfig.DestGasPerPayloadByteThreshold),
+		DestDataAvailabilityOverheadGas:   cfg.FeeQuoterDestChainConfig.DestDataAvailabilityOverheadGas,
+		DestGasPerDataAvailabilityByte:    cfg.FeeQuoterDestChainConfig.DestGasPerDataAvailabilityByte,
+		DestDataAvailabilityMultiplierBps: cfg.FeeQuoterDestChainConfig.DestDataAvailabilityMultiplierBps,
+		DefaultTokenFeeUSDCents:           cfg.FeeQuoterDestChainConfig.DefaultTokenFeeUsdCents,
+		DefaultTokenDestGasOverhead:       cfg.FeeQuoterDestChainConfig.DefaultTokenDestGasOverhead,
+		DefaultTxGasLimit:                 cfg.FeeQuoterDestChainConfig.DefaultTxGasLimit,
+		GasMultiplierWeiPerEth:            cfg.FeeQuoterDestChainConfig.GasMultiplierWeiPerEth,
+		NetworkFeeUSDCents:                cfg.FeeQuoterDestChainConfig.NetworkFeeUsdCents,
+		GasPriceStalenessThreshold:        cfg.FeeQuoterDestChainConfig.GasPriceStalenessThreshold,
+		EnforceOutOfOrder:                 cfg.FeeQuoterDestChainConfig.EnforceOutOfOrder,
+		ChainFamilySelector:               [4]byte(binary.BigEndian.AppendUint32(nil, cfg.FeeQuoterDestChainConfig.ChainFamilySelector)),
 	}, nil
 }
 
