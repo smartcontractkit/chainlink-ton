@@ -22,7 +22,7 @@ type Storage struct {
 	KeyLen                       uint16              `tlb:"## 16"`
 }
 
-type FeeQuoterDestChainConfig struct {
+type ChainConfig struct {
 	IsEnabled                         bool   `tlb:"bool"`
 	MaxNumberOfTokensPerMsg           uint16 `tlb:"## 16"`
 	MaxDataBytes                      uint32 `tlb:"## 32"`
@@ -45,9 +45,9 @@ type FeeQuoterDestChainConfig struct {
 }
 
 type DestChainConfig struct {
-	ChainConfig   FeeQuoterDestChainConfig `tlb:"."`
-	USDPerUnitGas *cell.Cell               `tlb:"^"`
-	TokenTransferFeeConfigs  *cell.Dictionary         `tlb:"dict 267"`
+	ChainConfig             ChainConfig      `tlb:"."`
+	USDPerUnitGas           *cell.Cell       `tlb:"^"`
+	TokenTransferFeeConfigs *cell.Dictionary `tlb:"dict 267"`
 }
 
 type USDPerUnitGas struct {
@@ -163,7 +163,7 @@ func (c *DestChainConfig) FromResult(result *ton.ExecutionResult) error {
 	}
 
 	*c = DestChainConfig{
-		ChainConfig: FeeQuoterDestChainConfig{
+		ChainConfig: ChainConfig{
 			IsEnabled:                         isEnabled,
 			MaxNumberOfTokensPerMsg:           uint16(maxNumberOfTokensPerMsg.Uint64()),           //nolint:gosec // G115
 			MaxDataBytes:                      uint32(maxDataBytes.Uint64()),                      //nolint:gosec // G115
@@ -291,8 +291,8 @@ type UpdateTokenTransferFeeConfig struct {
 type UpdateTokenTransferFeeConfigs struct{}
 
 type UpdateDestChainConfig struct {
-	DestinationChainSelector uint64                   `tlb:"## 64"`
-	DestChainConfig          FeeQuoterDestChainConfig `tlb:"."`
+	DestinationChainSelector uint64      `tlb:"## 64"`
+	DestChainConfig          ChainConfig `tlb:"."`
 }
 
 type UpdateDestChainConfigs struct {
