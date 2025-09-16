@@ -37,9 +37,9 @@ const EXIT_CODE_DESCRIPTIONS: Record<number, string> = {
 }
 
 /**
- * Extract the address of every participant in an array of transactions and maps to contract names if possible.
+ * Extracts the address of every participant in an array of transactions and maps to contract names if possible.
  *
- * Used for debugging purposes.
+ * Useful for debugging purposes.
  *
  * Example using test from `contracts/tests/ccip/CCIPRouter.spec.ts`:
  *
@@ -84,9 +84,9 @@ export function prettifyAddressesMap(transactions: BlockchainTransaction[]): Map
 }
 
 /**
- * Draw message trace from transactions.
+ * Draws message trace from transactions, replacing addresses with contract names when possible, parsing opcodes from bodies, showing exit codes, bounces and message values.
  *
- * Used for debugging purposes.
+ * Useful for debugging message flow between contracts.
  *
  * Example using test from `contracts/tests/ccip/CCIPRouter.spec.ts`:
  *
