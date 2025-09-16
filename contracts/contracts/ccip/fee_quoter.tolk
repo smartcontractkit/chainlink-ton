@@ -355,22 +355,6 @@ get fun tokenPrice(token: address): TimestampedPrice {
     return st.usdPerToken.mustGet(token, ERROR_TOKEN_NOT_SUPPORTED);
 }
 
-// vec<address>
-get fun usdPerTokens(): tuple {
-    val st = lazy Storage.load();
-    var d = st.usdPerToken.value;
-
-    var list: tuple? = null;
-    do {
-        var (key: slice?, _value: slice?, found: bool) = d.sDictDeleteFirstAndGet(ADDR_KEY_LEN);
-        if (found) {
-            var address = key! as address;
-            list = listPrepend(address, list);
-        }
-    } while (found);
-    return list!;
-}
-
 // vec<TimestampedPrice>
 get fun tokenPrices(tokens: tuple): tuple {
     val st = lazy Storage.load();
@@ -409,11 +393,6 @@ get fun feeTokens(): tuple {
         }
     } while (found);
     return list!;
-}
-
-get fun feeTokenPremiumMultiplier(token: address): uint64 {
-    val st = lazy Storage.load();
-    return st.premiumMultiplierWeiPerEth.mustGet(token, ERROR_FEE_TOKEN_NOT_SUPPORTED);
 }
 
 get fun tokenTransferFeeConfig() {}

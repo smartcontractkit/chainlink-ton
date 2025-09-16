@@ -82,7 +82,7 @@ func FetchOnRampView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDEx
 
 // fetchDestChainConfig retrieves destination chain configurations from the on-ramp contract.
 func fetchDestChainConfig(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, onrampAddr *address.Address) (map[uint64]OnRampDestChainConfig, error) {
-	result, err := c.Client.RunGetMethod(ctx, block, onrampAddr, destChainGetter)
+	result, err := c.Client.RunGetMethod(ctx, block, onrampAddr, destChainsGetter)
 	if err != nil {
 		return nil, err
 	}

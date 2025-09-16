@@ -11,33 +11,21 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
-	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
 const (
-	staticConfigGetter              = "staticConfig"
-	feeTokensGetter                 = "feeTokens"
-	tokenPriceGetter                = "tokenPrice"
-	usdPerTokensGetter              = "usdPerTokens"
-	feeTokenPremiumMultiplierGetter = "feeTokenPremiumMultiplier"
+	staticConfigGetter = "staticConfig"
 )
 
 // FeeQuoterView represents a view of the fee quoter contract configuration.
 type FeeQuoterView struct {
 	MetaData
-	StaticConfig       StaticConfig                  `json:"staticConfig,omitempty"`
-	PremiumMultipliers map[string]PremiumMultipliers `json:"premiumMultipliers,omitempty"`
-	USDPerTokens       map[string]USDPerToken        `json:"usdPerTokens,omitempty"`
-	DestChainConfig    map[uint64]DestChainConfig    `json:"destChainConfig,omitempty"`
+	StaticConfig    StaticConfig               `json:"staticConfig,omitempty"`
+	DestChainConfig map[uint64]DestChainConfig `json:"destChainConfig,omitempty"`
 }
 
 type PremiumMultipliers struct {
 	PremiumMultiplierWeiPerEth uint64 `json:"premiumMultiplierWeiPerEth,omitempty"`
-}
-
-type USDPerToken struct {
-	Value     string `json:"value"`
-	Timestamp uint64 `json:"timestamp,omitempty"`
 }
 
 type StaticConfig struct {
@@ -106,16 +94,6 @@ func FetchFeeQuoterView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockI
 		return nil, fmt.Errorf("failed to fetch dest chain config view: %w", err)
 	}
 
-	premiumMultipliers, err := fetchFeeTokensPremiumMultiplierView(ctx, c, block, feeQuoter)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch fee tokens premium multiplier view: %w", err)
-	}
-
-	usdPerTokens, err := fetchTimestampedPriceView(ctx, c, block, feeQuoter)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch usd per tokens view: %w", err)
-	}
-
 	return &FeeQuoterView{
 		MetaData: MetaData{
 			Address:      feeQuoter.String(),
@@ -127,95 +105,12 @@ func FetchFeeQuoterView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockI
 			LinkToken:          sc.LinkToken.String(),
 			StalenessThreshold: sc.StalenessThreshold,
 		},
-		PremiumMultipliers: premiumMultipliers,
-		USDPerTokens:       usdPerTokens,
-		DestChainConfig:    destConfigs,
+		DestChainConfig: destConfigs,
 	}, nil
 }
 
-func fetchTimestampedPriceView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, feeQuoter *address.Address) (map[string]USDPerToken, error) {
-	result, err := c.Client.RunGetMethod(ctx, block, feeQuoter, usdPerTokensGetter)
-	if err != nil {
-		return nil, fmt.Errorf("error getting usdPerTokens: %v", err)
-	}
-
-	tokenSliceRaw := result.AsTuple()[0]
-	tokenSlice, ok := tokenSliceRaw.([]interface{})
-	if !ok {
-		return nil, fmt.Errorf("unexpected type for token slice")
-	}
-
-	output := make(map[string]USDPerToken)
-	for _, token := range tokenSlice {
-		var tokenCell *cell.Slice
-		var tokenAddr *address.Address
-		if tokenCell, ok = token.(*cell.Slice); ok {
-			result, err = c.Client.RunGetMethod(ctx, block, feeQuoter, tokenPriceGetter, tokenCell)
-			if err != nil {
-				return nil, fmt.Errorf("error getting tokenPrice: %v", err)
-			}
-			var price feequoter.TimestampedPrice
-			if err = price.FromResult(result); err != nil {
-				return nil, fmt.Errorf("error to parse TimestampedPrice: %v", err)
-			}
-			tokenAddr, err = tokenCell.LoadAddr()
-			if err != nil {
-				return nil, fmt.Errorf("error to parse token address: %v", err)
-			}
-			output[tokenAddr.String()] = USDPerToken{
-				Value:     price.Value.String(),
-				Timestamp: price.Timestamp,
-			}
-		}
-	}
-
-	return output, nil
-}
-
-func fetchFeeTokensPremiumMultiplierView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, feeQuoter *address.Address) (map[string]PremiumMultipliers, error) {
-	result, err := c.Client.RunGetMethod(ctx, block, feeQuoter, feeTokensGetter)
-	if err != nil {
-		return nil, fmt.Errorf("error getting feeTokens: %v", err)
-	}
-
-	tokenSliceRaw := result.AsTuple()[0]
-	tokenSlice, ok := tokenSliceRaw.([]interface{})
-	if !ok {
-		return nil, fmt.Errorf("unexpected type for token slice")
-	}
-
-	output := make(map[string]PremiumMultipliers)
-	for _, token := range tokenSlice {
-		var tokenCell *cell.Slice
-		var tokenAddr *address.Address
-		var multiplier *big.Int
-		if tokenCell, ok = token.(*cell.Slice); ok {
-			result, err = c.Client.RunGetMethod(ctx, block, feeQuoter, feeTokenPremiumMultiplierGetter, tokenCell)
-			if err != nil {
-				return nil, fmt.Errorf("error getting feeToken premium multiplier config: %v", err)
-			}
-
-			multiplier, err = result.Int(0)
-			if err != nil {
-				return nil, fmt.Errorf("error to parse feeToken premium multiplier: %v", err)
-			}
-
-			tokenAddr, err = tokenCell.LoadAddr()
-			if err != nil {
-				return nil, fmt.Errorf("error to parse token address: %v", err)
-			}
-
-			output[tokenAddr.String()] = PremiumMultipliers{
-				PremiumMultiplierWeiPerEth: multiplier.Uint64(),
-			}
-		}
-	}
-
-	return output, nil
-}
-
 func fetchDestChainConfigsView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, feeQuoter *address.Address) (map[uint64]DestChainConfig, error) {
-	result, err := c.Client.RunGetMethod(ctx, block, feeQuoter, destChainGetter)
+	result, err := c.Client.RunGetMethod(ctx, block, feeQuoter, destChainsGetter)
 	if err != nil {
 		return nil, err
 	}

@@ -2,7 +2,7 @@ package view
 
 const (
 	versionGetter         = "typeAndVersion"
-	destChainGetter       = "destChainSelectors"
+	destChainsGetter      = "destChainSelectors"
 	destChainConfigGetter = "destChainConfig"
 )
 

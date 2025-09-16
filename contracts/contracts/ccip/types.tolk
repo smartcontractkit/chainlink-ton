@@ -284,7 +284,7 @@ struct UpdateTokenTransferFeeConfig {
 
 struct (0x20000004) UpdateDestChainConfig {
     destChainSelector: uint64;
-    destChainConfig:  FeeQuoterDestChainConfig;
+    destChainConfig: FeeQuoterDestChainConfig;
 }
 
 struct (0x20000005) GetValidatedFee<C> {
