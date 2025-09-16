@@ -1,6 +1,7 @@
 package deployment
 
 import (
+	"context"
 	"math/big"
 	"testing"
 	"time"
@@ -30,6 +31,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/txparser"
 
 	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/ton"
 	"go.uber.org/zap/zapcore"
 
 	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
@@ -53,6 +55,9 @@ func TestDeploy(t *testing.T) {
 	tonChain := env.BlockChains.TonChains()[chainSelector]
 	deployer := tonChain.Wallet
 	t.Log("Deployer: ", deployer.Address().String())
+	clientProvider := func(ctx context.Context) (ton.APIClientWrapped, error) {
+		return tonChain.Client, nil
+	}
 
 	// memory environment doesn't block on funding so changesets can execute before the env is fully ready, manually call fund so we block here
 	test_utils.FundWallets(t, tonChain.Client, []*address.Address{deployer.Address()}, []tlb.Coins{tlb.MustFromTON("1000")})
@@ -112,13 +117,15 @@ func TestDeploy(t *testing.T) {
 	filterStore := inmemorystore.NewFilterStore()
 	opts := &logpoller.ServiceOptions{
 		Config:   lpCfg,
-		Client:   tonChain.Client,
 		Filters:  filterStore,
-		TxLoader: account.NewTxLoader(tonChain.Client, lggr, lpCfg.PageSize),
+		TxLoader: account.NewTxLoader(lggr, clientProvider, lpCfg.PageSize),
 		TxParser: txparser.NewTxParser(lggr, filterStore),
 		Store:    inmemorystore.NewLogStore(),
 	}
-	lp := logpoller.NewService(lggr, opts)
+	lp := logpoller.NewService(lggr,
+		clientProvider,
+		opts,
+	)
 	addrCodec := codec.NewAddressCodec()
 	accessor, err := chainaccessor.NewTONAccessor(lggr, ccipocr3.ChainSelector(chainSelector), tonChain.Client, lp, addrCodec)
 	require.NoError(t, err)
