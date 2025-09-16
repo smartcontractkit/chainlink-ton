@@ -45,8 +45,8 @@ type FeeQuoterDestChainConfig struct {
 }
 
 type DestChainConfig struct {
-	FeeQuoterDestChainConfig FeeQuoterDestChainConfig `tlb:"."`
-	USDPerUnitGas            *cell.Cell               `tlb:"^"`
+	ChainConfig   FeeQuoterDestChainConfig `tlb:"."`
+	USDPerUnitGas *cell.Cell               `tlb:"^"`
 	TokenTransferFeeConfigs  *cell.Dictionary         `tlb:"dict 267"`
 }
 
@@ -163,7 +163,7 @@ func (c *DestChainConfig) FromResult(result *ton.ExecutionResult) error {
 	}
 
 	*c = DestChainConfig{
-		FeeQuoterDestChainConfig: FeeQuoterDestChainConfig{
+		ChainConfig: FeeQuoterDestChainConfig{
 			IsEnabled:                         isEnabled,
 			MaxNumberOfTokensPerMsg:           uint16(maxNumberOfTokensPerMsg.Uint64()),           //nolint:gosec // G115
 			MaxDataBytes:                      uint32(maxDataBytes.Uint64()),                      //nolint:gosec // G115
