@@ -210,6 +210,14 @@ func TestDeploy(t *testing.T) {
 		feeQuoterView, exit := generatedView.FeeQuoter[feeQuoterAddr.String()]
 		require.True(t, exit, "feeQuoter view not found")
 		require.Equal(t, feeQuoterAddr.String(), feeQuoterView.Address)
+		usdPerToken, exist := feeQuoterView.USDPerTokens["EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAd99"]
+		require.True(t, exist, "feeQuoter view price not found")
+		require.Equal(t, "99", usdPerToken.Value)
+		destConfig, exist := feeQuoterView.DestChainConfig[ChainSelEVMTest90000001]
+		require.True(t, exist, "feeQuoter view dest config not found")
+		require.True(t, destConfig.Config.IsEnabled)
+		require.Equal(t, uint16(10), destConfig.Config.MaxNumberOfTokensPerMsg)
+		require.Equal(t, uint32(3000000), destConfig.Config.MaxPerMsgGasLimit)
 
 		offRampView, exit := generatedView.OffRamp[offRampAddr.String()]
 		require.True(t, exit, "offRamp view not found")
