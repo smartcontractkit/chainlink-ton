@@ -10,8 +10,8 @@ import (
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/smartcontractkit/chainlink-ton/deployment/view"
-
 	"github.com/xssnick/tonutils-go/address"
+	"golang.org/x/sync/errgroup"
 )
 
 // Duplicates of chainlink/deployment/ccip/ to avoid import loops
@@ -59,6 +59,7 @@ func newTONChainView() TONChainView {
 }
 
 func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chainID string) (TONChainView, error) {
+	lggr := e.Logger
 	tonView := newTONChainView()
 	tonView.ChainSelector = selector
 	tonView.ChainID = chainID
@@ -67,46 +68,72 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 		return tonView, errors.New("chain not found or not a TON chain")
 	}
 
+	lggr.Infow("generating TON chain view",
+		"chain", tonClient.Name(),
+		"selector", selector)
+
 	ctx := context.Background()
 	block, err := tonClient.Client.CurrentMasterchainInfo(ctx)
 	if err != nil {
 		return tonView, fmt.Errorf("failed to get current masterchain info: %w", err)
 	}
 
+	errGroup := errgroup.Group{}
 	if !s.OnRamp.IsAddrNone() {
-		onRampView, err := view.FetchOnRampView(ctx, tonClient, block, &s.OnRamp, selector)
-		if err != nil {
-			return tonView, fmt.Errorf("failed to generate onramp view for chain %d: %w", selector, err)
-		}
-
-		tonView.OnRamp[s.OnRamp.String()] = *onRampView
+		errGroup.Go(func() error {
+			onRampView, err := view.FetchOnRampView(ctx, tonClient, block, &s.OnRamp, selector)
+			if err != nil {
+				return fmt.Errorf("failed to generate onramp view for chain %d: %w", selector, err)
+			}
+			lggr.Infow("generated onRamp view", "chainID", chainID, "onRamp", s.OnRamp.String())
+			tonView.OnRamp[s.OnRamp.String()] = *onRampView
+			return nil
+		})
 	}
 
 	if !s.Router.IsAddrNone() {
-		routerView, err := view.FetchRouterView(ctx, tonClient, block, &s.Router)
-		if err != nil {
-			return tonView, fmt.Errorf("failed to generate router view for chain %d: %w", selector, err)
-		}
+		errGroup.Go(func() error {
+			routerView, err := view.FetchRouterView(ctx, tonClient, block, &s.Router)
+			if err != nil {
+				return fmt.Errorf("failed to generate router view for chain %d: %w", selector, err)
+			}
 
-		tonView.Router[s.Router.String()] = *routerView
+			lggr.Infow("generated router view", "chainID", chainID, "router", s.Router.String())
+			tonView.Router[s.Router.String()] = *routerView
+			return nil
+		})
 	}
 
 	if !s.FeeQuoter.IsAddrNone() {
-		feeQuoterView, err := view.FetchFeeQuoterView(ctx, tonClient, block, &s.FeeQuoter)
-		if err != nil {
-			return tonView, fmt.Errorf("failed to generate fee quoter view for chain %d: %w", selector, err)
-		}
+		errGroup.Go(func() error {
+			feeQuoterView, err := view.FetchFeeQuoterView(ctx, tonClient, block, &s.FeeQuoter)
+			if err != nil {
+				return fmt.Errorf("failed to generate fee quoter view for chain %d: %w", selector, err)
+			}
 
-		tonView.FeeQuoter[s.FeeQuoter.String()] = *feeQuoterView
+			lggr.Infow("generated feeQuoter view", "chainID", chainID, "feeQuoter", s.FeeQuoter.String())
+			tonView.FeeQuoter[s.FeeQuoter.String()] = *feeQuoterView
+			return nil
+		})
 	}
 
 	if !s.OffRamp.IsAddrNone() {
-		offRampView, err := view.FetchOffRampView(ctx, tonClient, block, &s.OffRamp)
-		if err != nil {
-			return tonView, fmt.Errorf("failed to generate offramp view for chain %d: %w", selector, err)
-		}
+		errGroup.Go(func() error {
+			offRampView, err := view.FetchOffRampView(ctx, tonClient, block, &s.OffRamp)
+			if err != nil {
+				return fmt.Errorf("failed to generate offramp view for chain %d: %w", selector, err)
+			}
 
-		tonView.OffRamp[s.OffRamp.String()] = *offRampView
+			lggr.Infow("generated offRamp view", "chainID", chainID, "offRamp", s.OffRamp.String())
+			tonView.OffRamp[s.OffRamp.String()] = *offRampView
+			return nil
+		})
+	}
+
+	err = errGroup.Wait()
+	if err != nil {
+		lggr.Errorw("error generating TON chain view", "error", err)
+		return tonView, err
 	}
 
 	return tonView, nil
