@@ -3,6 +3,7 @@ package view
 import (
 	"context"
 	"fmt"
+	"math/big"
 
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
@@ -14,9 +15,11 @@ import (
 )
 
 const (
-	staticConfigGetter                 = "staticConfig"
-	allUSDPerTokensGetter              = "allUSDPerTokens"
-	allFeeTokenPremiumMultiplierGetter = "allFeeTokenPremiumMultipliers"
+	staticConfigGetter              = "staticConfig"
+	feeTokensGetter                 = "feeTokens"
+	tokenPriceGetter                = "tokenPrice"
+	usdPerTokensGetter              = "usdPerTokens"
+	feeTokenPremiumMultiplierGetter = "feeTokenPremiumMultiplier"
 )
 
 // FeeQuoterView represents a view of the fee quoter contract configuration.
@@ -131,45 +134,38 @@ func FetchFeeQuoterView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockI
 }
 
 func fetchTimestampedPriceView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, feeQuoter *address.Address) (map[string]USDPerToken, error) {
-	result, err := c.Client.RunGetMethod(ctx, block, feeQuoter, allUSDPerTokensGetter)
+	result, err := c.Client.RunGetMethod(ctx, block, feeQuoter, usdPerTokensGetter)
 	if err != nil {
-		return nil, fmt.Errorf("error getting allUSDPerTokens: %v", err)
+		return nil, fmt.Errorf("error getting usdPerTokens: %v", err)
 	}
 
-	usdDictRaw, err := result.Cell(0)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get raw usd dict cell from result: %w", err)
-	}
-
-	usdDict := usdDictRaw.AsDict(267)
-	allTokens, err := usdDict.LoadAll()
-	if err != nil {
-		return nil, fmt.Errorf("failed to load all entries from dictionary: %w", err)
+	tokenSliceRaw := result.AsTuple()[0]
+	tokenSlice, ok := tokenSliceRaw.([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("unexpected type for token slice")
 	}
 
 	output := make(map[string]USDPerToken)
-	var tokenAddr *address.Address
-	var priceCell *cell.Cell
-	var price feequoter.TimestampedPrice
-	for _, entry := range allTokens {
-		tokenAddr, err = entry.Key.LoadAddr()
-		if err != nil {
-			return nil, fmt.Errorf("failed to load token address: %w", err)
-		}
-
-		priceCell, err = entry.Value.ToCell()
-		if err != nil {
-			return nil, fmt.Errorf("failed to convert value to cell: %w", err)
-		}
-
-		err = tlb.LoadFromCell(&price, priceCell.BeginParse())
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse TimestampedPrice from cell: %w", err)
-		}
-
-		output[tokenAddr.String()] = USDPerToken{
-			Value:     price.Value.String(),
-			Timestamp: price.Timestamp,
+	for _, token := range tokenSlice {
+		var tokenCell *cell.Slice
+		var tokenAddr *address.Address
+		if tokenCell, ok = token.(*cell.Slice); ok {
+			result, err = c.Client.RunGetMethod(ctx, block, feeQuoter, tokenPriceGetter, tokenCell)
+			if err != nil {
+				return nil, fmt.Errorf("error getting tokenPrice: %v", err)
+			}
+			var price feequoter.TimestampedPrice
+			if err = price.FromResult(result); err != nil {
+				return nil, fmt.Errorf("error to parse TimestampedPrice: %v", err)
+			}
+			tokenAddr, err = tokenCell.LoadAddr()
+			if err != nil {
+				return nil, fmt.Errorf("error to parse token address: %v", err)
+			}
+			output[tokenAddr.String()] = USDPerToken{
+				Value:     price.Value.String(),
+				Timestamp: price.Timestamp,
+			}
 		}
 	}
 
@@ -177,36 +173,41 @@ func fetchTimestampedPriceView(ctx context.Context, c cldf_ton.Chain, block *ton
 }
 
 func fetchFeeTokensPremiumMultiplierView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, feeQuoter *address.Address) (map[string]PremiumMultipliers, error) {
-	result, err := c.Client.RunGetMethod(ctx, block, feeQuoter, allFeeTokenPremiumMultiplierGetter)
+	result, err := c.Client.RunGetMethod(ctx, block, feeQuoter, feeTokensGetter)
 	if err != nil {
 		return nil, fmt.Errorf("error getting feeTokens: %v", err)
 	}
 
-	pmDictRaw, err := result.Cell(0)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get raw premiumMultiplier dict cell from result: %w", err)
-	}
-
-	pmDict := pmDictRaw.AsDict(267)
-	allDict, err := pmDict.LoadAll()
-	if err != nil {
-		return nil, fmt.Errorf("failed to load all entries from dictionary: %w", err)
+	tokenSliceRaw := result.AsTuple()[0]
+	tokenSlice, ok := tokenSliceRaw.([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("unexpected type for token slice")
 	}
 
 	output := make(map[string]PremiumMultipliers)
-	for _, entry := range allDict {
-		tokenAddr, err := entry.Key.LoadAddr()
-		if err != nil {
-			return nil, fmt.Errorf("failed to load token address: %w", err)
-		}
+	for _, token := range tokenSlice {
+		var tokenCell *cell.Slice
+		var tokenAddr *address.Address
+		var multiplier *big.Int
+		if tokenCell, ok = token.(*cell.Slice); ok {
+			result, err = c.Client.RunGetMethod(ctx, block, feeQuoter, feeTokenPremiumMultiplierGetter, tokenCell)
+			if err != nil {
+				return nil, fmt.Errorf("error getting feeToken premium multiplier config: %v", err)
+			}
 
-		multiplier, err := entry.Value.LoadUInt(64)
-		if err != nil {
-			return nil, fmt.Errorf("failed to load premium multiplier: %w", err)
-		}
+			multiplier, err = result.Int(0)
+			if err != nil {
+				return nil, fmt.Errorf("error to parse feeToken premium multiplier: %v", err)
+			}
 
-		output[tokenAddr.String()] = PremiumMultipliers{
-			PremiumMultiplierWeiPerEth: multiplier,
+			tokenAddr, err = tokenCell.LoadAddr()
+			if err != nil {
+				return nil, fmt.Errorf("error to parse token address: %v", err)
+			}
+
+			output[tokenAddr.String()] = PremiumMultipliers{
+				PremiumMultiplierWeiPerEth: multiplier.Uint64(),
+			}
 		}
 	}
 
@@ -214,81 +215,71 @@ func fetchFeeTokensPremiumMultiplierView(ctx context.Context, c cldf_ton.Chain, 
 }
 
 func fetchDestChainConfigsView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, feeQuoter *address.Address) (map[uint64]DestChainConfig, error) {
-	result, err := c.Client.RunGetMethod(ctx, block, feeQuoter, allDestChainConfigGetter)
+	result, err := c.Client.RunGetMethod(ctx, block, feeQuoter, destChainGetter)
 	if err != nil {
 		return nil, err
 	}
 
-	dcDictRaw, err := result.Cell(0)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get all dest chain config dict cell from result: %w", err)
-	}
-
-	pmDict := dcDictRaw.AsDict(64)
-	allDict, err := pmDict.LoadAll()
-	if err != nil {
-		return nil, fmt.Errorf("failed to load all entries from dictionary: %w", err)
+	selectorSliceRaw := result.AsTuple()[0]
+	selectorSlice, ok := selectorSliceRaw.([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("unexpected type for selector slice")
 	}
 
 	output := make(map[uint64]DestChainConfig)
-	var selector uint64
-	var cfgCell *cell.Cell
-	var cfg feequoter.DestChainConfig
-	for _, entry := range allDict {
-		selector, err = entry.Key.LoadUInt(64)
-		if err != nil {
-			return nil, fmt.Errorf("failed to load chain selector: %w", err)
-		}
-
-		cfgCell, err = entry.Value.ToCell()
-		if err != nil {
-			return nil, fmt.Errorf("failed to convert value to cell: %w", err)
-		}
-
-		err = tlb.LoadFromCell(&cfg, cfgCell.BeginParse())
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse DestChainConfig from cell: %w", err)
-		}
-
-		destConfig := DestChainConfig{
-			Config: FeeQuoterDestChainConfig{
-				IsEnabled:                         cfg.FQDestChainConfig.IsEnabled,
-				MaxNumberOfTokensPerMsg:           cfg.FQDestChainConfig.MaxNumberOfTokensPerMsg,
-				MaxDataBytes:                      cfg.FQDestChainConfig.MaxDataBytes,
-				MaxPerMsgGasLimit:                 cfg.FQDestChainConfig.MaxPerMsgGasLimit,
-				DestGasOverhead:                   cfg.FQDestChainConfig.DestGasOverhead,
-				DestGasPerPayloadByteBase:         cfg.FQDestChainConfig.DestGasPerPayloadByteBase,
-				DestGasPerPayloadByteHigh:         cfg.FQDestChainConfig.DestGasPerPayloadByteHigh,
-				DestGasPerPayloadByteThreshold:    cfg.FQDestChainConfig.DestGasPerPayloadByteThreshold,
-				DestDataAvailabilityOverheadGas:   cfg.FQDestChainConfig.DestDataAvailabilityOverheadGas,
-				DestGasPerDataAvailabilityByte:    cfg.FQDestChainConfig.DestGasPerDataAvailabilityByte,
-				DestDataAvailabilityMultiplierBps: cfg.FQDestChainConfig.DestDataAvailabilityMultiplierBps,
-				ChainFamilySelector:               cfg.FQDestChainConfig.ChainFamilySelector,
-				EnforceOutOfOrder:                 cfg.FQDestChainConfig.EnforceOutOfOrder,
-				DefaultTokenFeeUsdCents:           cfg.FQDestChainConfig.DefaultTokenFeeUsdCents,
-				DefaultTokenDestGasOverhead:       cfg.FQDestChainConfig.DefaultTokenDestGasOverhead,
-				DefaultTxGasLimit:                 cfg.FQDestChainConfig.DefaultTxGasLimit,
-				GasMultiplierWeiPerEth:            cfg.FQDestChainConfig.GasMultiplierWeiPerEth,
-				GasPriceStalenessThreshold:        cfg.FQDestChainConfig.GasPriceStalenessThreshold,
-				NetworkFeeUsdCents:                cfg.FQDestChainConfig.NetworkFeeUsdCents,
-			},
-		}
-
-		if cfg.USDPerUnitGas != nil {
-			gasPriceSlice := cfg.USDPerUnitGas.BeginParse()
-			var gasPrice feequoter.USDPerUnitGas
-			if err = tlb.LoadFromCell(&gasPrice, gasPriceSlice); err != nil {
+	for _, selector := range selectorSlice {
+		// On-chain returns *big.Int for selector values, convert to uint64
+		if bigInt, ok := selector.(*big.Int); ok {
+			dest := bigInt.Uint64()
+			result, err = c.Client.RunGetMethod(ctx, block, feeQuoter, destChainConfigGetter, dest)
+			if err != nil {
 				return nil, err
 			}
-			destConfig.USDPerUnitGas = USDPerUnitGas{
-				ExecutionGasPrice:        gasPrice.ExecutionGasPrice.String(),
-				DataAvailabilityGasPrice: gasPrice.DataAvailabilityGasPrice.String(),
-				Timestamp:                gasPrice.Timestamp,
+			var cfg feequoter.DestChainConfig
+			if err = cfg.FromResult(result); err != nil {
+				return nil, err
 			}
-		}
 
-		// TODO parse tokenTransferFeeConfigs after update_lane sequence supports
-		output[selector] = destConfig
+			destConfig := DestChainConfig{
+				Config: FeeQuoterDestChainConfig{
+					IsEnabled:                         cfg.FQDestChainConfig.IsEnabled,
+					MaxNumberOfTokensPerMsg:           cfg.FQDestChainConfig.MaxNumberOfTokensPerMsg,
+					MaxDataBytes:                      cfg.FQDestChainConfig.MaxDataBytes,
+					MaxPerMsgGasLimit:                 cfg.FQDestChainConfig.MaxPerMsgGasLimit,
+					DestGasOverhead:                   cfg.FQDestChainConfig.DestGasOverhead,
+					DestGasPerPayloadByteBase:         cfg.FQDestChainConfig.DestGasPerPayloadByteBase,
+					DestGasPerPayloadByteHigh:         cfg.FQDestChainConfig.DestGasPerPayloadByteHigh,
+					DestGasPerPayloadByteThreshold:    cfg.FQDestChainConfig.DestGasPerPayloadByteThreshold,
+					DestDataAvailabilityOverheadGas:   cfg.FQDestChainConfig.DestDataAvailabilityOverheadGas,
+					DestGasPerDataAvailabilityByte:    cfg.FQDestChainConfig.DestGasPerDataAvailabilityByte,
+					DestDataAvailabilityMultiplierBps: cfg.FQDestChainConfig.DestDataAvailabilityMultiplierBps,
+					ChainFamilySelector:               cfg.FQDestChainConfig.ChainFamilySelector,
+					EnforceOutOfOrder:                 cfg.FQDestChainConfig.EnforceOutOfOrder,
+					DefaultTokenFeeUsdCents:           cfg.FQDestChainConfig.DefaultTokenFeeUsdCents,
+					DefaultTokenDestGasOverhead:       cfg.FQDestChainConfig.DefaultTokenDestGasOverhead,
+					DefaultTxGasLimit:                 cfg.FQDestChainConfig.DefaultTxGasLimit,
+					GasMultiplierWeiPerEth:            cfg.FQDestChainConfig.GasMultiplierWeiPerEth,
+					GasPriceStalenessThreshold:        cfg.FQDestChainConfig.GasPriceStalenessThreshold,
+					NetworkFeeUsdCents:                cfg.FQDestChainConfig.NetworkFeeUsdCents,
+				},
+			}
+
+			if cfg.USDPerUnitGas != nil {
+				gasPriceSlice := cfg.USDPerUnitGas.BeginParse()
+				var gasPrice feequoter.USDPerUnitGas
+				if err = tlb.LoadFromCell(&gasPrice, gasPriceSlice); err != nil {
+					return nil, err
+				}
+				destConfig.USDPerUnitGas = USDPerUnitGas{
+					ExecutionGasPrice:        gasPrice.ExecutionGasPrice.String(),
+					DataAvailabilityGasPrice: gasPrice.DataAvailabilityGasPrice.String(),
+					Timestamp:                gasPrice.Timestamp,
+				}
+			}
+
+			// TODO parse tokenTransferFeeConfigs after update_lane sequence supports
+			output[dest] = destConfig
+		}
 	}
 
 	return output, nil

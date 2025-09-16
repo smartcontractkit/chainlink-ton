@@ -355,10 +355,20 @@ get fun tokenPrice(token: address): TimestampedPrice {
     return st.usdPerToken.mustGet(token, ERROR_TOKEN_NOT_SUPPORTED);
 }
 
-// map<address, TimestampedPrice>
-get fun allUSDPerTokens(): dict {
+// vec<address>
+get fun usdPerTokens(): tuple {
     val st = lazy Storage.load();
-    return st.usdPerToken.value;
+    var d = st.usdPerToken.value;
+
+    var list: tuple? = null;
+    do {
+        var (key: slice?, _value: slice?, found: bool) = d.sDictDeleteFirstAndGet(ADDR_KEY_LEN);
+        if (found) {
+            var address = key! as address;
+            list = listPrepend(address, list);
+        }
+    } while (found);
+    return list!;
 }
 
 // vec<TimestampedPrice>
@@ -401,9 +411,9 @@ get fun feeTokens(): tuple {
     return list!;
 }
 
-get fun allFeeTokenPremiumMultipliers(): dict {
+get fun feeTokenPremiumMultiplier(token: address): uint64 {
     val st = lazy Storage.load();
-    return st.premiumMultiplierWeiPerEth.value;
+    return st.premiumMultiplierWeiPerEth.mustGet(token, ERROR_FEE_TOKEN_NOT_SUPPORTED);
 }
 
 get fun tokenTransferFeeConfig() {}
@@ -424,7 +434,8 @@ get fun typeAndVersion(): (slice, slice) {
      return ("com.chainlink.ton.ccip.FeeQuoter", "1.0.0");
 }
 
-get fun allDestChainConfigs(): dict {
+get fun destChainSelectors(): tuple {
     val st = lazy Storage.load();
-    return st.destChainConfigs.value;
+    var d = st.destChainConfigs;
+    return d.keysDestructs()!;
 }

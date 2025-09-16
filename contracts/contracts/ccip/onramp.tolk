@@ -280,7 +280,7 @@ get fun supportedTokens() {
     // TODO?
 }
 
-get fun allDestChainConfigs(): dict {
+get fun allDestChainConfig(): dict {
     val st = lazy Storage.load();
     return st.destChainConfigs.value;
 }
