@@ -436,7 +436,7 @@ export const builder = {
         },
       }
 
-      const updateExecutorRoleCheck: CellCodec<UpdateExecutorRoleCheck> =  {
+      const updateExecutorRoleCheck: CellCodec<UpdateExecutorRoleCheck> = {
         encode: (msg: UpdateExecutorRoleCheck): Builder => {
           return beginCell()
             .storeUint(opcodes.in.UpdateExecutorRoleCheck, 32)
