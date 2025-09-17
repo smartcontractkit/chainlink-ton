@@ -241,13 +241,13 @@ type UpdatePrices struct {
 }
 
 type UpdateFeeTokens struct {
-	_      tlb.Magic                          `tlb:"#20000002"` //nolint:revive // Ignore opcode tag
+	_      tlb.Magic                          `tlb:"#D0984986"` //nolint:revive // Ignore opcode tag
 	Add    *cell.Dictionary                   `tlb:"dict 267"`
 	Remove common.SnakeData[*address.Address] `tlb:"^"`
 }
 
 type UpdateTokenTransferFeeConfig struct {
-	_      tlb.Magic `tlb:"#20000003"` //nolint:revive // Ignore opcode tag
+	_      tlb.Magic `tlb:"#B2826316"` //nolint:revive // Ignore opcode tag
 	Add    map[*address.Address]TokenTransferFeeConfig
 	Remove []*address.Address `tlb:"addr"`
 }
@@ -259,6 +259,6 @@ type UpdateDestChainConfig struct {
 }
 
 type UpdateDestChainConfigs struct {
-	_       tlb.Magic                               `tlb:"#20000004"` //nolint:revive // Ignore opcode tag
+	_       tlb.Magic                               `tlb:"#29950BAA"` //nolint:revive // Ignore opcode tag
 	Updates common.SnakeData[UpdateDestChainConfig] `tlb:"^"`
 }

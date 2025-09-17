@@ -178,7 +178,7 @@ export const testLogCCIPMessageSent = (
         extraArgs: body.loadRef(),
         tokenAmounts: body.loadRef(),
         feeToken: body.loadAddress(),
-        feeTokenAmount: body.loadUintBig(256),
+        feeTokenAmount: body.loadCoins(),
         feeValueJuels: bs.loadUintBig(96),
       },
     }

@@ -299,9 +299,9 @@ export abstract class Params {}
 
 export abstract class Opcodes {
   static updatePrices = 0x20000001
-  static updateFeeTokens = 0x20000002
-  static updateTransferFeeConfigs = 0x20000003
-  static updateDestChainConfig = 0x20000004
+  static updateFeeTokens = 0xd0984986
+  static updateTransferFeeConfigs = 0xb2826316
+  static updateDestChainConfig = 0x29950baa
 }
 
 export type TokenPriceUpdate = {

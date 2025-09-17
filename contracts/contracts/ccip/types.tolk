@@ -76,7 +76,7 @@ struct TVM2AnyRampMessageBody {
     extraArgs: cell;
     tokenAmounts: cell;
     feeToken: address;
-    feeTokenAmount: uint256;
+    feeTokenAmount: coins;
 }
 
 const LEAF_DOMAIN_SEPARATOR: slice = stringHexToSlice("0000000000000000000000000000000000000000000000000000000000000000");
@@ -258,46 +258,6 @@ struct TokenTransferFeeConfig {
     destBytesOverhead: uint32;
 }
 
-struct (0x20000001) UpdatePrices {
-    updates: PriceUpdates    
-}
-
-struct FeeToken {
-    premiumMultiplierWeiPerEth: uint64
-}
-
-struct (0x20000002) UpdateFeeTokens {
-    add: Map<FeeToken>; // token -> config
-    remove: cell; // vector<address>
-}
-
-// NOTE: we just merged this into UpdateFeeTokens
-// struct (0x10000003) UpdatePremiumMultiplierWeiPerEth { // token, multiplier }
-
-struct (0x20000003) UpdateTokenTransferFeeConfigs {
-    // TODO: would these be more efficient as snakedata (key, value)?
-    updates: UMap<uint64, UpdateTokenTransferFeeConfig>; // destChainSelector -> updates
-}
-
-struct UpdateTokenTransferFeeConfig {
-    add: Map<TokenTransferFeeConfig>; // token address -> config
-    remove: cell; // vector<address>
-} 
-
-struct FeeQuoterUpdateDestChainConfig {
-    destChainSelector: uint64;
-    destChainConfig: FeeQuoterDestChainConfig;
-}
-
-struct (0x20000004) FeeQuoterUpdateDestChainConfigs {
-    updates: cell; // vec<FeeQuoterUpdateDestChainConfig>
-}
-
-struct (0x20000005) GetValidatedFee<C> {
-    msg: Cell<CCIPSend>;
-    metadata: Cell<C>,
-}
-
 struct Metadata {
     sender: address,
     // TODO: metadata { value, tokenAmounts }
@@ -310,11 +270,6 @@ struct MessageMetadata {
     onRamp :Cell<CrossChainAddress>;
 }
 
-struct (0x00000003) MessageValidated<C> {
-    msg: Cell<CCIPSend>;
-    metadata: Cell<C>,
-    fee: uint256; // TODO: size down? coins?
-}
 
 // OffRamp
 

@@ -60,5 +60,5 @@ type TVM2AnyRampMessageBody struct {
 	ExtraArgs      *cell.Cell               `tlb:"^"`
 	TokenAmounts   *cell.Cell               `tlb:"^"` // TODO: common.SnakeRef[TVM2AnyTokenTransfer] once defined
 	FeeToken       *address.Address         `tlb:"addr"`
-	FeeTokenAmount *big.Int                 `tlb:"## 256"`
+	FeeTokenAmount tlb.Coins                `tlb:"."`
 }

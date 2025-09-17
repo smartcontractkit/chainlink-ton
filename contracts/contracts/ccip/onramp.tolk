@@ -4,6 +4,7 @@ import "../lib/access/ownable_2step.tolk";
 import "../lib/upgrades/type_and_version.tolk";
 import "../lib/utils.tolk";
 import "@stdlib/tvm-dicts";
+import "fee_quoter/messages"
 
 const CCIP_MESSAGE_SENT_TOPIC: int = stringCrc32("CCIPMessageSent"); 
 
@@ -51,13 +52,13 @@ fun Storage.store(self) {
     return contract.setData(self.toCell());
 }
 
-type Msg = OnRampSend | MessageValidated<Metadata> | SetDynamicConfig | OnRampUpdateDestChainConfigs | UpdateAllowlists;
+type Msg = OnRampSend | FeeQuoter_MessageValidated<Metadata> | SetDynamicConfig | OnRampUpdateDestChainConfigs | UpdateAllowlists;
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy Msg.fromSlice(in.body);
     match (msg) {
         OnRampSend => { send(msg, in.senderAddress) }
-        MessageValidated<Metadata> => { onMessageValidated(msg, in.senderAddress) }
+        FeeQuoter_MessageValidated<Metadata> => { onMessageValidated(msg, in.senderAddress) }
         SetDynamicConfig => {
             var st = lazy Storage.load();
             st.ownable.requireOwner(in.senderAddress);
@@ -106,7 +107,7 @@ fun send(payload: OnRampSend, sender: address) {
         bounce: true,
         value: ton("0.05"), // TODO:
         dest: st.config.load().feeQuoter,
-        body: GetValidatedFee<Metadata> {
+        body: FeeQuoter_GetValidatedFee<Metadata> {
             msg: payload.msg,
             metadata: payload.metadata.toCell(), // TODO: must include nonce 
         }
@@ -116,7 +117,7 @@ fun send(payload: OnRampSend, sender: address) {
 
 // TODO: do we follow solana model and merge router + onramp? aptos also does this
 // does onramp even do anything apart from forwarding to fee quoter?
-fun onMessageValidated(payload: MessageValidated<Metadata>, sender: address) {
+fun onMessageValidated(payload: FeeQuoter_MessageValidated<Metadata>, sender: address) {
     var st = lazy Storage.load();
     val config = st.config.load();
     // notification must come from fee quoter
