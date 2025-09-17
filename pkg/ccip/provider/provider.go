@@ -59,7 +59,7 @@ func NewCCIPProvider(lggr logger.Logger,
 			return nil, fmt.Errorf("failed to create a CCIP ContractTransmitter for execute plugin: %w", err)
 		}
 	default:
-		return nil, fmt.Errorf("Unknown plugin type: %d", pluginType)
+		return nil, fmt.Errorf("unknown plugin type: %d", pluginType)
 	}
 
 	// TODO this is pretty much ignored in the core, we need to redesign core to resolve the extraDataCodec map issue if we want to use

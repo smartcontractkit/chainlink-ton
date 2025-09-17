@@ -2,6 +2,7 @@ package chainaccessor
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -151,19 +152,19 @@ func (a *TONAccessor) validateCommitReportAcceptedEvent(
 // TON only has single Merkle root
 func (a *TONAccessor) validateMerkleRoot(merkleRoot *ocr.MerkleRoot) error {
 	if merkleRoot.SourceChainSelector == 0 {
-		return fmt.Errorf("source chain is zero")
+		return errors.New("source chain is zero")
 	}
 	if merkleRoot.MinSeqNr == 0 {
-		return fmt.Errorf("minSeqNr is zero")
+		return errors.New("minSeqNr is zero")
 	}
 	if merkleRoot.MaxSeqNr == 0 {
-		return fmt.Errorf("maxSeqNr is zero")
+		return errors.New("maxSeqNr is zero")
 	}
 	if merkleRoot.MinSeqNr > merkleRoot.MaxSeqNr {
-		return fmt.Errorf("minSeqNr is greater than maxSeqNr")
+		return errors.New("minSeqNr is greater than maxSeqNr")
 	}
 	if len(merkleRoot.MerkleRoot) == 0 {
-		return fmt.Errorf("empty merkle root")
+		return errors.New("empty merkle root")
 	}
 	if len(merkleRoot.OnRampAddress) == 0 {
 		// TODO: better logging for address(currently it's raw byte)

@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"math/big"
 	"strings"
 
 	"github.com/xssnick/tonutils-go/address"
@@ -314,20 +313,20 @@ func extractDestGasAmountFromMap(input map[string]any) (uint32, error) {
 	return 0, errors.New("invalid token message, dest gas amount not found in the DestExecDataDecoded map")
 }
 
-func parseExtraArgsMap(input map[string]any) (*big.Int, error) {
-	var outputGas *big.Int
-	for fieldName, fieldValue := range input {
-		lowercase := strings.ToLower(fieldName)
-		switch lowercase {
-		case "gaslimit":
-			if val, ok := fieldValue.(*big.Int); ok {
-				outputGas = val
-				return outputGas, nil
-			}
-			return nil, fmt.Errorf("unexpected type for gas limit: %T", fieldValue)
-		default:
-			// no error here, as we only need the keys to gasLimit, other keys can be skipped without like AllowOutOfOrderExecution	etc.
-		}
-	}
-	return outputGas, errors.New("gas limit not found in extra data map")
-}
+// func parseExtraArgsMap(input map[string]any) (*big.Int, error) {
+// 	var outputGas *big.Int
+// 	for fieldName, fieldValue := range input {
+// 		lowercase := strings.ToLower(fieldName)
+// 		switch lowercase {
+// 		case "gaslimit":
+// 			if val, ok := fieldValue.(*big.Int); ok {
+// 				outputGas = val
+// 				return outputGas, nil
+// 			}
+// 			return nil, fmt.Errorf("unexpected type for gas limit: %T", fieldValue)
+// 		default:
+// 			// no error here, as we only need the keys to gasLimit, other keys can be skipped without like AllowOutOfOrderExecution	etc.
+// 		}
+// 	}
+// 	return outputGas, errors.New("gas limit not found in extra data map")
+// }

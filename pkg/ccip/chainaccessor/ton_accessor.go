@@ -443,7 +443,7 @@ func (a *TONAccessor) CommitReportsGTETimestamp(
 }
 
 func (a *TONAccessor) processCommitReports(logs []types.TypedLog[offramp.CommitReportAccepted], ts time.Time) []ccipocr3.CommitPluginReportWithMeta {
-	var reports []ccipocr3.CommitPluginReportWithMeta
+	reports := make([]ccipocr3.CommitPluginReportWithMeta, 0)
 	for _, log := range logs {
 		ev, err := a.validateCommitReportAcceptedEvent(log, ts)
 		if err != nil {
@@ -597,7 +597,7 @@ func (a *TONAccessor) validateExecutionStateChangedEvent(
 	// Check if the chain selector is in our requested ranges
 	seqRanges, exists := ranges[chainSelector]
 	if !exists {
-		return fmt.Errorf("source chain of messages was not queries")
+		return errors.New("source chain of messages was not queries")
 	}
 
 	// Check if the sequence number is within any of the requested ranges
@@ -605,16 +605,16 @@ func (a *TONAccessor) validateExecutionStateChangedEvent(
 		if seqNum >= seqRange.Start() && seqNum <= seqRange.End() {
 			// Additional validations to match EVM behavior
 			if len(event.MessageID) == 0 {
-				return fmt.Errorf("message ID is zero")
+				return errors.New("message ID is zero")
 			}
 			if event.State == 0 {
-				return fmt.Errorf("state is zero")
+				return errors.New("state is zero")
 			}
 			return nil // Valid
 		}
 	}
 
-	return fmt.Errorf("execution state changed event sequence number is not in the expected range")
+	return errors.New("execution state changed event sequence number is not in the expected range")
 }
 
 func (a *TONAccessor) NextSeqNum(ctx context.Context, sources []ccipocr3.ChainSelector) (seqNum map[ccipocr3.ChainSelector]ccipocr3.SeqNum, err error) {
@@ -649,7 +649,7 @@ func (a *TONAccessor) GetChainFeePriceUpdate(ctx context.Context, selectors []cc
 	for _, selector := range selectors {
 		result, err := a.client.RunGetMethod(ctx, block, addr, "destinationChainGasPrice", uint64(selector))
 		// The plugin is built with EVM behaviour in mind: if a value doesn't exist the zero value is returned
-		if execError, ok := err.(ton.ContractExecError); ok && execError.Code == common.ErrUnknownDestChainSelector {
+		if execError, ok := err.(ton.ContractExecError); ok && execError.Code == common.ErrUnknownDestChainSelector { //nolint:errorlint // we're guaranteed to get unwrapped error here
 			prices[selector] = ccipocr3.TimestampedUnixBig{
 				Timestamp: 0,
 				Value:     big.NewInt(0),
@@ -670,7 +670,7 @@ func (a *TONAccessor) GetChainFeePriceUpdate(ctx context.Context, selectors []cc
 			return nil, fmt.Errorf("failed to get chain fee price updates: %w", err)
 		}
 		prices[selector] = ccipocr3.TimestampedUnixBig{
-			Timestamp: uint32(update.Timestamp), // TODO: downcast?
+			Timestamp: uint32(update.Timestamp), //nolint:gosec // TODO: fix type onchain
 			Value:     update.Value,
 		}
 	}
@@ -731,7 +731,7 @@ func (a *TONAccessor) GetFeeQuoterTokenUpdates(
 
 	// TODO: decode token addresses here according to chain selector
 
-	var encodedTokens []any
+	encodedTokens := make([]any, 0, len(tokens))
 	for _, token := range tokens {
 		encodedTokens = append(encodedTokens, token)
 	}
@@ -762,7 +762,7 @@ func (a *TONAccessor) GetFeeQuoterTokenUpdates(
 			}
 			price = ccipocr3.TimestampedUnixBig{
 				Value:     timestampedPrice.Value,
-				Timestamp: uint32(timestampedPrice.Timestamp),
+				Timestamp: uint32(timestampedPrice.Timestamp), //nolint:gosec // TODO: fix type onchain
 			}
 		default:
 			return nil, fmt.Errorf("expected either cell or nil, received %T", priceResult)

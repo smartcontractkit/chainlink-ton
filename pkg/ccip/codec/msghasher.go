@@ -152,7 +152,7 @@ func (m messageHasherV1) Hash(ctx context.Context, msg ccipocr3.Message) (ccipoc
 		MustStoreUInt(header.SourceChainSelector, 64).
 		MustStoreUInt(header.DestChainSelector, 64).
 		MustStoreRef(cell.BeginCell().
-			MustStoreSlice([]byte{uint8(len(msg.Header.OnRamp))}, 8).
+			MustStoreSlice([]byte{uint8(len(msg.Header.OnRamp))}, 8). //nolint:gosec // OnRamp address length is always under 256 bytes
 			MustStoreSlice(msg.Header.OnRamp, uint(len(msg.Header.OnRamp))*8).EndCell()).
 		EndCell().
 		Hash()
@@ -172,7 +172,7 @@ func (m messageHasherV1) Hash(ctx context.Context, msg ccipocr3.Message) (ccipoc
 	}
 
 	builder := cell.BeginCell().
-		MustStoreSlice(LeafDomainSeparator[:], uint(len(LeafDomainSeparator[:])*8)).
+		MustStoreSlice(LeafDomainSeparator[:], uint(len(LeafDomainSeparator[:])*8)). //nolint:gosec // len here is 64
 		MustStoreSlice(metadataHash, 256)
 
 	// storing header
@@ -188,7 +188,7 @@ func (m messageHasherV1) Hash(ctx context.Context, msg ccipocr3.Message) (ccipoc
 	// storing sender ref
 	builder.MustStoreRef(
 		cell.BeginCell().
-			MustStoreSlice([]byte{uint8(len(sender))}, 8).
+			MustStoreSlice([]byte{uint8(len(sender))}, 8). //nolint:gosec // sender len is always under 256 bytes
 			MustStoreSlice(sender, uint(len(sender))*8).
 			EndCell())
 

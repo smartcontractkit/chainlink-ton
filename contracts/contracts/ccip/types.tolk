@@ -196,7 +196,7 @@ struct WithdrawFeeTokens {}
 
 struct TimestampedPrice {
     value: uint224;
-    timestamp: uint64;
+    timestamp: uint64; // TODO: size down to uint32, was a mistake when porting
 }
 
 struct PriceUpdates {

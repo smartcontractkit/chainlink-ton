@@ -154,7 +154,6 @@ func updateFeeQuoterFeeTokens(b operations.Bundle, deps TonDeps, in UpdateFeeQuo
 		if err := configs.Set(key, value); err != nil {
 			return nil, fmt.Errorf("failed to construct fee token update: %w", err)
 		}
-
 	}
 
 	in.Lggr.Debugf("Updated FeeQuoter fee tokens: %v, address: %v", configs, feeQuoterAddress.String())
@@ -226,8 +225,8 @@ func updateFeeQuoterPrices(b operations.Bundle, deps TonDeps, in UpdateFeeQuoter
 		return nil, nil
 	}
 
-	var tokenPrices []feequoter.TokenPriceUpdate
-	var gasPrices []feequoter.GasPriceUpdate
+	tokenPrices := make([]feequoter.TokenPriceUpdate, 0, len(in.TokenPrices))
+	gasPrices := make([]feequoter.GasPriceUpdate, 0, len(in.GasPrices))
 
 	for token, value := range in.TokenPrices {
 		tokenAddress, err := address.ParseAddr(token)

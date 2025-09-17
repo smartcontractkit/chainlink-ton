@@ -228,13 +228,14 @@ func (b *queryBuilder[T]) applySorting(parsedLogs []types.TypedLog[T]) {
 		for _, sortCriteria := range b.options.SortBy {
 			var cmp int
 
-			if sortCriteria.Field == query.SortByTxLT {
+			switch sortCriteria.Field {
+			case query.SortByTxLT:
 				if parsedLogs[i].TxLT < parsedLogs[j].TxLT {
 					cmp = -1
 				} else if parsedLogs[i].TxLT > parsedLogs[j].TxLT {
 					cmp = 1
 				}
-			} else if sortCriteria.Field == query.SortByTxTimestamp {
+			case query.SortByTxTimestamp:
 				if parsedLogs[i].TxTimestamp.Before(parsedLogs[j].TxTimestamp) {
 					cmp = -1
 				} else if parsedLogs[i].TxTimestamp.After(parsedLogs[j].TxTimestamp) {
@@ -259,10 +260,7 @@ func (b *queryBuilder[T]) calculatePagination(totalCount int) (start, end int) {
 	end = totalCount
 
 	if b.options.Offset > 0 {
-		start = b.options.Offset
-		if start > totalCount {
-			start = totalCount
-		}
+		start = min(b.options.Offset, totalCount)
 	}
 
 	if b.options.Limit > 0 {

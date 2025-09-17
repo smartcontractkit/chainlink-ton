@@ -39,10 +39,10 @@ func parseOCR3Config(configCell *cell.Cell) (ccipocr3.OCRConfig, error) {
 		return ccipocr3.OCRConfig{}, nil
 	}
 
-	var signers [][]byte
+	signers := make([][]byte, 0, len(entries))
 	for _, entry := range entries {
-		signer, err := entry.Key.LoadSlice(256)
-		if err != nil {
+		signer, err1 := entry.Key.LoadSlice(256)
+		if err1 != nil {
 			return ccipocr3.OCRConfig{}, nil
 		}
 		signers = append(signers, signer)
@@ -52,10 +52,10 @@ func parseOCR3Config(configCell *cell.Cell) (ccipocr3.OCRConfig, error) {
 	if err != nil {
 		return ccipocr3.OCRConfig{}, nil
 	}
-	var transmitters [][]byte
+	transmitters := make([][]byte, 0, len(entries))
 	for _, entry := range entries {
-		transmitter, err := entry.Key.LoadAddr()
-		if err != nil {
+		transmitter, err1 := entry.Key.LoadAddr()
+		if err1 != nil {
 			return ccipocr3.OCRConfig{}, nil
 		}
 		transmitters = append(transmitters, addrToBytes(transmitter))
@@ -92,12 +92,12 @@ func (a *TONAccessor) getOCR3Config(ctx context.Context, block *ton.BlockIDExt) 
 	}
 	// if the dictionary is empty, we get back nil
 	if !isNil {
-		configCell, err := result.Cell(1)
-		if err != nil {
+		configCell, err1 := result.Cell(1)
+		if err1 != nil {
 			return ccipocr3.OCRConfig{}, ccipocr3.OCRConfig{}, err
 		}
-		commitConfig, err = parseOCR3Config(configCell)
-		if err != nil {
+		commitConfig, err1 = parseOCR3Config(configCell)
+		if err1 != nil {
 			return ccipocr3.OCRConfig{}, ccipocr3.OCRConfig{}, err
 		}
 	}
@@ -164,7 +164,7 @@ func (a *TONAccessor) getOffRampConfig(ctx context.Context, block *ton.BlockIDEx
 		},
 		DynamicConfig: ccipocr3.OffRampDynamicChainConfig{
 			FeeQuoter:                               addrToBytes(feeQuoterAddress),
-			PermissionLessExecutionThresholdSeconds: uint32(permissionlessExecutionThresholdSeconds.Uint64()),
+			PermissionLessExecutionThresholdSeconds: uint32(permissionlessExecutionThresholdSeconds.Uint64()), //nolint:gosec // this type is uint32 onchain
 			IsRMNVerificationDisabled:               true,
 			MessageInterceptor:                      nil,
 		},

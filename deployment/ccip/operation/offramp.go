@@ -2,6 +2,7 @@ package operation
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 
 	"github.com/Masterminds/semver/v3"
@@ -111,11 +112,11 @@ func updateOffRampSourceChainConfigs(b operations.Bundle, deps TonDeps, in Updat
 		return nil, nil
 	}
 
-	var configs []offramp.UpdateSourceChainConfig
+	configs := make([]offramp.UpdateSourceChainConfig, 0, len(in.Updates))
 
 	for selector, update := range in.Updates {
 		if update.OnRamp == nil {
-			return nil, fmt.Errorf("onramp.UpdateSourceChainConfigs: OnRamp address should not be nil")
+			return nil, errors.New("onramp.UpdateSourceChainConfigs: OnRamp address should not be nil")
 		}
 
 		router := deps.CCIPOnChainState[deps.TonChain.Selector].Router
@@ -181,18 +182,18 @@ var SetOCR3ConfigOp = operations.NewOperation(
 func setOCR3Config(b operations.Bundle, deps TonDeps, in OCR3ConfigArgs) ([][]byte, error) {
 	addr := deps.CCIPOnChainState[deps.TonChain.Selector].OffRamp
 
-	var signers []offramp.Signer
+	signers := make([]offramp.Signer, 0, len(in.Signers))
 	for _, signer := range in.Signers {
 		if len(signer) != 32 {
-			return nil, fmt.Errorf("Invalid signer address, expected 32 bytes, got %d", len(signer))
+			return nil, fmt.Errorf("invalid signer address, expected 32 bytes, got %d", len(signer))
 		}
 		signers = append(signers, offramp.Signer{Pubkey: signer})
 	}
 
-	var transmitters []offramp.Transmitter
+	transmitters := make([]offramp.Transmitter, 0, len(in.Transmitters))
 	for _, transmitter := range in.Transmitters {
 		if len(transmitter) != 36 {
-			return nil, fmt.Errorf("Invalid transmitter address, expected 36 bytes, got %d", len(transmitter))
+			return nil, fmt.Errorf("invalid transmitter address, expected 36 bytes, got %d", len(transmitter))
 		}
 		workchain := int32(binary.BigEndian.Uint32(transmitter[0:4])) //nolint:gosec // G115
 		addr := address.NewAddress(0, byte(workchain), transmitter[4:])

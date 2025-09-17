@@ -2,13 +2,15 @@ package sequence
 
 import (
 	"fmt"
+	"os"
+
 	"github.com/Masterminds/semver/v3"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
+	"github.com/xssnick/tonutils-go/address"
+
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/utils"
-	"github.com/xssnick/tonutils-go/address"
-	"os"
 )
 
 const (

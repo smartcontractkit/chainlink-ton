@@ -42,7 +42,6 @@ func (cs AddTonLanes) VerifyPreconditions(env cldf.Environment, cfg config.Updat
 }
 
 func (cs AddTonLanes) Apply(env cldf.Environment, cfg config.UpdateTonLanesConfig) (cldf.ChangesetOutput, error) {
-
 	var (
 		timeLockProposals []mcms.TimelockProposal
 		// mcmsOperations    []mcmstypes.BatchOperation

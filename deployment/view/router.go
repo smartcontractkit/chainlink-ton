@@ -2,16 +2,18 @@ package view
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/big"
 	"runtime"
 
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 	"golang.org/x/sync/errgroup"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 )
 
 const (
@@ -28,7 +30,7 @@ func FetchRouterView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDEx
 	var typeVersion common.TypeAndVersion
 	result, err := c.Client.RunGetMethod(ctx, block, routerAddr, versionGetter)
 	if err != nil {
-		return nil, fmt.Errorf("error getting typeAndVersion: %v", err)
+		return nil, fmt.Errorf("error getting typeAndVersion: %w", err)
 	}
 	if err = typeVersion.FromResult(result); err != nil {
 		return nil, fmt.Errorf("failed to parse typeAndVersion: %w", err)
@@ -40,9 +42,9 @@ func FetchRouterView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDEx
 	}
 
 	selectorSliceRaw := result.AsTuple()[0]
-	selectorSlice, ok := selectorSliceRaw.([]interface{})
+	selectorSlice, ok := selectorSliceRaw.([]any)
 	if !ok {
-		return nil, fmt.Errorf("unexpected type for selector slice")
+		return nil, errors.New("unexpected type for selector slice")
 	}
 
 	var onrampSlice *cell.Slice
@@ -57,7 +59,7 @@ func FetchRouterView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDEx
 			eg.Go(func() error {
 				result, err = c.Client.RunGetMethod(ctx, block, routerAddr, onRampGetter, dest)
 				if err != nil {
-					return fmt.Errorf("error getting onrampAddr: %v", err)
+					return fmt.Errorf("error getting onrampAddr: %w", err)
 				}
 				onrampSlice, err = result.Slice(0)
 				if err != nil {

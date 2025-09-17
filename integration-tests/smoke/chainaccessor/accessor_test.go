@@ -17,6 +17,7 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
+
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
@@ -237,7 +238,6 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 		require.Equal(t, uint64(909606746561742123), commitReportAccepted.MerkleRoot.SourceChainSelector, "Source chain selector should match EVM test chain")
 		require.Equal(t, uint64(1), commitReportAccepted.MerkleRoot.MinSeqNr, "MinSeqNr should be 1")
 		require.Equal(t, uint64(1), commitReportAccepted.MerkleRoot.MaxSeqNr, "MaxSeqNr should be 1")
-
 	})
 
 	t.Run("Test BOC decoding - Price Updates only", func(t *testing.T) {
@@ -418,7 +418,7 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 		// Validate all returned reports have MerkleRoot
 		for i, report := range reports {
 			t.Logf("Report %d: timestamp=%v, merkleRoots=%d", i+1, report.Timestamp, len(report.Report.BlessedMerkleRoots))
-			require.Greater(t, len(report.Report.BlessedMerkleRoots), 0, "Report %d should have at least 1 blessed merkle root", i+1)
+			require.NotEmpty(t, report.Report.BlessedMerkleRoots, "Report %d should have at least 1 blessed merkle root", i+1)
 		}
 
 		// Test 2: Query with limit=2 - should return only first 2 MerkleRoot reports
@@ -432,7 +432,7 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 		// Validate the limited reports are the first 2 chronologically (with MerkleRoot)
 		for i, report := range limitedReports {
 			t.Logf("Limited Report %d: timestamp=%v, merkleRoots=%d", i+1, report.Timestamp, len(report.Report.BlessedMerkleRoots))
-			require.Greater(t, len(report.Report.BlessedMerkleRoots), 0, "Limited report %d should have at least 1 blessed merkle root", i+1)
+			require.NotEmpty(t, report.Report.BlessedMerkleRoots, "Limited report %d should have at least 1 blessed merkle root", i+1)
 		}
 
 		// Test 3: Query with limit=1 - should return only the first MerkleRoot report
@@ -441,7 +441,7 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 		require.NoError(t, err, "failed to get single commit report")
 
 		require.Len(t, singleReport, 1, "Should return exactly 1 report due to limit=1")
-		require.Greater(t, len(singleReport[0].Report.BlessedMerkleRoots), 0, "Single report should have at least 1 blessed merkle root")
+		require.NotEmpty(t, singleReport[0].Report.BlessedMerkleRoots, "Single report should have at least 1 blessed merkle root")
 
 		// Validate chronological ordering (reports should be ordered by timestamp ASC)
 		t.Log("=== Test 4: Validate chronological ordering ===")
