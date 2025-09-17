@@ -239,7 +239,7 @@ func TestDeploy(t *testing.T) {
 						N:                              0,
 						IsSignatureVerificationEnabled: false,
 					},
-					Signers:      nil,
+					Signers:      [][]byte{},
 					Transmitters: transmitters,
 				},
 			},
