@@ -235,12 +235,12 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.setup-github-token.outputs.access-token }}
           WORKFLOW_FILE_NAME: image-bump-cd.yaml
-          REPO_DESTINATION_NAME: smartcontractkit/infra-k8s
+          REPO_DESTINATION_NAME: ${{ secrets.REPO_K8S_DEPLOY }}
           REPO_DESTINATION_GIT_BRANCH: main
           OCI_IMAGE_TAG: ${{ needs.build-and-publish-core-with-relayer-docker.outputs.docker-manifest-tag }}
           PR_BASE_BRANCH: main
           PR_LABELS: preview-stage
-          PR_DRAFT: "false"
+          PR_DRAFT: "true"
           PRODUCTS: ccip-ton-staging
 
         run: |
@@ -251,4 +251,4 @@ jobs:
             --field "pr-base-branch=${PR_BASE_BRANCH}" \
             --field "pr-labels=${PR_LABELS}" \
             --field "pr-draft=${PR_DRAFT}" \
-            --field "products=${PRODUCTS}" # multi-line string
+            --field "products=${PRODUCTS}"
