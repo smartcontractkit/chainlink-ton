@@ -470,8 +470,26 @@ fun _execute(msg: OffRamp_Execute, sender: address) {
 fun _updateSourceChainConfig(msg: OffRamp_UpdateSourceChainConfig, sender: address) {
     var st = lazy Storage.load();
     st.ownable.requireOwner(sender);
-    msg.config.minSeqNr = 1; // TODO: properly set this: https://github.com/smartcontractkit/chainlink-aptos/blob/048fb2b7511134023f37155928a93b8489bd4a2b/contracts/ccip/ccip_offramp/sources/offramp.move#L979-L1001
-    st.sourceChainConfigs.set(msg.sourceChainSelector, msg.config);
+    var config: SourceChainConfig;
+    var (existingConfig, exists) = st.sourceChainConfigs.get(msg.sourceChainSelector);
+    if (!exists) {
+        config = SourceChainConfig {
+            router: msg.config.router,
+            isEnabled: msg.config.isEnabled,
+            minSeqNr: 1,
+            isRMNVerificationDisabled: false, // RMN verification is always disabled
+            onRamp: msg.config.onRamp,
+        };
+    } else {
+        // OnRamp updates should only happen due to a misconfiguration.
+        // If an OnRamp is misconfigured, no reports should have been
+        // committed and no messages should have been executed.        
+        config = existingConfig!;
+        assert(config.minSeqNr == 1 || config.onRamp.bitsEqual(msg.config.onRamp)) throw ERROR_INVALID_ON_RAMP_UPDATE;
+        config.isEnabled = msg.config.isEnabled;
+        config.onRamp = msg.config.onRamp;
+    }
+    st.sourceChainConfigs.set(msg.sourceChainSelector, config);
     st.store();
 }
 
