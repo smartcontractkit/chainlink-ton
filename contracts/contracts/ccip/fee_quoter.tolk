@@ -364,14 +364,14 @@ get fun tokenPrice(token: address): TimestampedPrice {
 // vec<TimestampedPrice>
 get fun tokenPrices(tokens: tuple): tuple {
     val st = lazy Storage.load();
-    var list: tuple = null;
+    var list: tuple = createEmptyTuple();
     var iter = TupleIterator<address>.new(tokens);
 
     while(!iter.empty()) {
         val token = iter.next();
         // NOTE: Need to skip missing items as nil entries rather than fail the query
         val (maybePrice, _exists) = st.usdPerToken.get(token);
-        list.push(maybePrice);
+        list.push(maybePrice.toCell());
     }
     return list;
 }
