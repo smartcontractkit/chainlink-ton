@@ -217,8 +217,6 @@ jobs:
     runs-on: ubuntu-24.04
     permissions:
       id-token: write
-      contents: write
-      actions: write
     steps:
       - name: Setup GitHub Token
         id: setup-github-token
