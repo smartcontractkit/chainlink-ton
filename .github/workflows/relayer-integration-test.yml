@@ -47,5 +47,5 @@ jobs:
           else
             # TODO: run conditionally(build tags)
             echo "Running all tests..."
-            nix develop .#ccip-e2e -c go test -v -count=1 -p=1 -timeout 30m ./...
+            nix develop .#ccip-e2e -c go test -v -count=30 -p=1 -timeout 30m ./...
           fi
