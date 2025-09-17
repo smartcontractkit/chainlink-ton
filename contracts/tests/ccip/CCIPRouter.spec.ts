@@ -238,7 +238,7 @@ describe('Router', () => {
           receiver: Buffer.alloc(64),
           data: Cell.EMPTY,
           tokenAmounts: [],
-          feeToken: ZERO_ADDRESS,
+          feeToken: TEST_TOKEN_ADDR,
           extraArgs: Cell.EMPTY,
         },
       })
@@ -296,11 +296,11 @@ describe('Router', () => {
     expect(result.transactions).toHaveTransaction({
       from: deployer.address,
       to: router.address,
-      deploy: true, // TRUE the first time around
+      deploy: false,
       success: true,
     })
 
-    // Test Case 1: Message to destination chain 1 (seq 1)
+    // Test Case 1: Message to destination chain 1 (seq 2)
     console.log('\n=== Sending CCIP Message 1 ===')
     let result1 = await router.sendCcipSend(deployer.getSender(), {
       value: toNano('1'),
@@ -333,13 +333,13 @@ describe('Router', () => {
       message: {
         header: {
           destChainSelector: CHAINSEL_EVM_TEST_90000001,
-          sequenceNumber: 1n,
+          sequenceNumber: 2n,
         },
         sender: deployer.address,
       },
     })
 
-    // Test Case 2: Second message to same destination (seq 2)
+    // Test Case 2: Second message to same destination (seq 3)
     console.log('\n=== Sending CCIP Message 2 ===')
     let result2 = await router.sendCcipSend(deployer.getSender(), {
       value: toNano('1'),
@@ -372,13 +372,13 @@ describe('Router', () => {
       message: {
         header: {
           destChainSelector: CHAINSEL_EVM_TEST_90000001,
-          sequenceNumber: 2n,
+          sequenceNumber: 3n,
         },
         sender: deployer.address,
       },
     })
 
-    // Test Case 3: Third message to same destination (seq 3)
+    // Test Case 3: Third message to same destination (seq 4)
     console.log('\n=== Sending CCIP Message 3 ===')
     let result3 = await router.sendCcipSend(deployer.getSender(), {
       value: toNano('1'),
@@ -411,7 +411,7 @@ describe('Router', () => {
       message: {
         header: {
           destChainSelector: CHAINSEL_EVM_TEST_90000001,
-          sequenceNumber: 3n,
+          sequenceNumber: 4n,
         },
         sender: deployer.address,
       },
