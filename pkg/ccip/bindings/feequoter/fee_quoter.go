@@ -22,7 +22,7 @@ type Storage struct {
 	KeyLen                       uint16              `tlb:"## 16"`
 }
 
-type ChainConfig struct {
+type DestChainConfig struct {
 	IsEnabled                         bool   `tlb:"bool"`
 	MaxNumberOfTokensPerMsg           uint16 `tlb:"## 16"`
 	MaxDataBytes                      uint32 `tlb:"## 32"`
@@ -42,12 +42,6 @@ type ChainConfig struct {
 	GasMultiplierWeiPerEth            uint64 `tlb:"## 64"`
 	GasPriceStalenessThreshold        uint32 `tlb:"## 32"`
 	NetworkFeeUsdCents                uint32 `tlb:"## 32"`
-}
-
-type DestChainConfig struct {
-	ChainConfig             ChainConfig      `tlb:"."`
-	USDPerUnitGas           *cell.Cell       `tlb:"^"`
-	TokenTransferFeeConfigs *cell.Dictionary `tlb:"dict 267"`
 }
 
 type USDPerUnitGas struct {
@@ -136,58 +130,27 @@ func (c *DestChainConfig) FromResult(result *ton.ExecutionResult) error {
 		return err
 	}
 
-	// parse GasPrice
-	isNil, err := result.IsNil(19)
-	if err != nil {
-		return err
-	}
-	var gasPriceCell *cell.Cell
-	if !isNil {
-		gasPriceCell, err = result.Cell(19)
-		if err != nil {
-			return err
-		}
-	}
-
-	//  parse TokenTransferFeeConfigs
-	var tokenFeeConfigCell *cell.Cell
-	isNil, err = result.IsNil(20)
-	if err != nil {
-		return err
-	}
-	if !isNil {
-		tokenFeeConfigCell, err = result.Cell(20)
-		if err != nil {
-			return err
-		}
-	}
-
 	*c = DestChainConfig{
-		ChainConfig: ChainConfig{
-			IsEnabled:                         isEnabled,
-			MaxNumberOfTokensPerMsg:           uint16(maxNumberOfTokensPerMsg.Uint64()),           //nolint:gosec // G115
-			MaxDataBytes:                      uint32(maxDataBytes.Uint64()),                      //nolint:gosec // G115
-			MaxPerMsgGasLimit:                 uint32(maxPerMsgGasLimit.Uint64()),                 //nolint:gosec // G115
-			DestGasOverhead:                   uint32(destGasOverhead.Uint64()),                   //nolint:gosec // G115
-			DestGasPerPayloadByteBase:         uint8(destGasPerPayloadByteBase.Uint64()),          //nolint:gosec // G115
-			DestGasPerPayloadByteHigh:         uint8(destGasPerPayloadByteHigh.Uint64()),          //nolint:gosec // G115
-			DestGasPerPayloadByteThreshold:    uint16(destGasPerPayloadByteThreshold.Uint64()),    //nolint:gosec // G115
-			DestDataAvailabilityOverheadGas:   uint32(destDataAvailabilityOverheadGas.Uint64()),   //nolint:gosec // G115
-			DestGasPerDataAvailabilityByte:    uint16(destGasPerDataAvailabilityByte.Uint64()),    //nolint:gosec // G115
-			DestDataAvailabilityMultiplierBps: uint16(destDataAvailabilityMultiplierBps.Uint64()), //nolint:gosec // G115
-			ChainFamilySelector:               uint32(chainFamilySelector.Uint64()),               //nolint:gosec // G115
-			EnforceOutOfOrder:                 enforceOutOfOrder,
-			DefaultTokenFeeUsdCents:           uint16(defaultTokenFeeUsdCents.Uint64()),     //nolint:gosec // G115
-			DefaultTokenDestGasOverhead:       uint32(defaultTokenDestGasOverhead.Uint64()), //nolint:gosec // G115
-			DefaultTxGasLimit:                 uint32(defaultTxGasLimit.Uint64()),           //nolint:gosec // G115
-			GasMultiplierWeiPerEth:            gasMultiplierWeiPerEth.Uint64(),
-			GasPriceStalenessThreshold:        uint32(gasPriceStalenessThreshold.Uint64()), //nolint:gosec // G115
-			NetworkFeeUsdCents:                uint32(networkFeeUsdCents.Uint64()),         //nolint:gosec // G115
-		},
-		USDPerUnitGas:           gasPriceCell,
-		TokenTransferFeeConfigs: tokenFeeConfigCell.AsDict(267),
+		IsEnabled:                         isEnabled,
+		MaxNumberOfTokensPerMsg:           uint16(maxNumberOfTokensPerMsg.Uint64()),           //nolint:gosec // G115
+		MaxDataBytes:                      uint32(maxDataBytes.Uint64()),                      //nolint:gosec // G115
+		MaxPerMsgGasLimit:                 uint32(maxPerMsgGasLimit.Uint64()),                 //nolint:gosec // G115
+		DestGasOverhead:                   uint32(destGasOverhead.Uint64()),                   //nolint:gosec // G115
+		DestGasPerPayloadByteBase:         uint8(destGasPerPayloadByteBase.Uint64()),          //nolint:gosec // G115
+		DestGasPerPayloadByteHigh:         uint8(destGasPerPayloadByteHigh.Uint64()),          //nolint:gosec // G115
+		DestGasPerPayloadByteThreshold:    uint16(destGasPerPayloadByteThreshold.Uint64()),    //nolint:gosec // G115
+		DestDataAvailabilityOverheadGas:   uint32(destDataAvailabilityOverheadGas.Uint64()),   //nolint:gosec // G115
+		DestGasPerDataAvailabilityByte:    uint16(destGasPerDataAvailabilityByte.Uint64()),    //nolint:gosec // G115
+		DestDataAvailabilityMultiplierBps: uint16(destDataAvailabilityMultiplierBps.Uint64()), //nolint:gosec // G115
+		ChainFamilySelector:               uint32(chainFamilySelector.Uint64()),               //nolint:gosec // G115
+		EnforceOutOfOrder:                 enforceOutOfOrder,
+		DefaultTokenFeeUsdCents:           uint16(defaultTokenFeeUsdCents.Uint64()),     //nolint:gosec // G115
+		DefaultTokenDestGasOverhead:       uint32(defaultTokenDestGasOverhead.Uint64()), //nolint:gosec // G115
+		DefaultTxGasLimit:                 uint32(defaultTxGasLimit.Uint64()),           //nolint:gosec // G115
+		GasMultiplierWeiPerEth:            gasMultiplierWeiPerEth.Uint64(),
+		GasPriceStalenessThreshold:        uint32(gasPriceStalenessThreshold.Uint64()), //nolint:gosec // G115
+		NetworkFeeUsdCents:                uint32(networkFeeUsdCents.Uint64()),         //nolint:gosec // G115
 	}
-
 	return nil
 }
 
@@ -291,8 +254,8 @@ type UpdateTokenTransferFeeConfig struct {
 type UpdateTokenTransferFeeConfigs struct{}
 
 type UpdateDestChainConfig struct {
-	DestinationChainSelector uint64      `tlb:"## 64"`
-	DestChainConfig          ChainConfig `tlb:"."`
+	DestinationChainSelector uint64          `tlb:"## 64"`
+	DestChainConfig          DestChainConfig `tlb:"."`
 }
 
 type UpdateDestChainConfigs struct {

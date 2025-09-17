@@ -221,9 +221,9 @@ func TestDeploy(t *testing.T) {
 		require.Equal(t, feeQuoterAddr, *feeQuoterView.Address)
 		destConfig, exist := feeQuoterView.DestChainConfig[ChainSelEVMTest90000001]
 		require.True(t, exist, "feeQuoter view dest config not found")
-		require.True(t, destConfig.Config.IsEnabled)
-		require.Equal(t, uint16(10), destConfig.Config.MaxNumberOfTokensPerMsg)
-		require.Equal(t, uint32(3000000), destConfig.Config.MaxPerMsgGasLimit)
+		require.True(t, destConfig.IsEnabled)
+		require.Equal(t, uint16(10), destConfig.MaxNumberOfTokensPerMsg)
+		require.Equal(t, uint32(3000000), destConfig.MaxPerMsgGasLimit)
 
 		offRampView, exit := generatedView.OffRamp[offRampAddr.String()]
 		require.True(t, exit, "offRamp view not found")

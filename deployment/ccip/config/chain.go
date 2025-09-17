@@ -89,8 +89,8 @@ type FeeQuoterTokenTransferFeeConfig struct {
 }
 
 // TonFeeQuoterConfig Convert generic fee quoter config to TON fee quoter config
-func TonFeeQuoterConfig(fqc FeeQuoterDestChainConfig) ton_fee_quoter.ChainConfig {
-	return ton_fee_quoter.ChainConfig{
+func TonFeeQuoterConfig(fqc FeeQuoterDestChainConfig) ton_fee_quoter.DestChainConfig {
+	return ton_fee_quoter.DestChainConfig{
 		IsEnabled:                         fqc.IsEnabled,
 		MaxNumberOfTokensPerMsg:           fqc.MaxNumberOfTokensPerMsg,
 		MaxDataBytes:                      fqc.MaxDataBytes,
