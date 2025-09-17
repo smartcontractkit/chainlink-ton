@@ -102,7 +102,19 @@ export const assertLog = <T extends CombinedLogType>(
   type: T,
   match: LogMatch<T>,
 ) => {
-  const matched = getExternals(transactions).some((x) => handlers[type](x, from, match))
+  let failedMatches: any[] = [];
+  const matched = getExternals(transactions).some((x) => {
+    try {
+      return handlers[type](x, from, match)
+    } catch (error) {
+      failedMatches.push(error)
+      return false
+    }
+  })
+  if (!matched && failedMatches.length > 0) {
+    // rethrow the last match failure since it's likely the most relevant
+    throw(failedMatches[failedMatches.length-1])
+  }
   expect(matched).toBe(true)
 }
 
