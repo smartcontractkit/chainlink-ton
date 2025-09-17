@@ -3,7 +3,6 @@ package view
 import (
 	"context"
 	"fmt"
-	"math/big"
 	"runtime"
 
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
@@ -89,63 +88,55 @@ func fetchDestChainConfig(ctx context.Context, c cldf_ton.Chain, block *ton.Bloc
 		return nil, err
 	}
 
-	selectorSliceRaw := result.AsTuple()[0]
-	selectorSlice, ok := selectorSliceRaw.([]interface{})
-	if !ok {
-		return nil, fmt.Errorf("unexpected type for selector slice")
-	}
-
+	chainSelectors := parseExecutionResultForDestChainSelectors(result.AsTuple())
 	var allowedSendersDict []cell.DictKV
 	var eg errgroup.Group
 	eg.SetLimit(runtime.NumCPU())
 	output := make(map[uint64]OnRampDestChainConfig)
-	for _, selector := range selectorSlice {
+	for _, dest := range chainSelectors {
 		// On-chain returns *big.Int for selector values, convert to uint64
-		if bigInt, ok := selector.(*big.Int); ok {
-			dest := bigInt.Uint64()
+		eg.Go(func() error {
+			result, err = c.Client.RunGetMethod(ctx, block, onrampAddr, destChainConfigGetter, dest)
+			if err != nil {
+				return err
+			}
+			var cfg onramp.DestChainConfig
+			if err = cfg.FromResult(result); err != nil {
+				return err
+			}
 
-			eg.Go(func() error {
-				result, err = c.Client.RunGetMethod(ctx, block, onrampAddr, destChainConfigGetter, dest)
+			allowedSenders := make(map[string]bool)
+			allowedSendersDict, err = cfg.AllowedSender.LoadAll()
+			if err != nil {
+				return fmt.Errorf("failed to load all allowed senders: %w", err)
+			}
+
+			var allowed bool
+			var senderAddr *address.Address
+			for _, senderVal := range allowedSendersDict {
+				senderAddr, err = senderVal.Key.LoadAddr()
 				if err != nil {
-					return err
-				}
-				var cfg onramp.DestChainConfig
-				if err = cfg.FromResult(result); err != nil {
-					return err
+					return fmt.Errorf("failed to load sender address: %w", err)
 				}
 
-				allowedSenders := make(map[string]bool)
-				allowedSendersDict, err = cfg.AllowedSender.LoadAll()
+				allowed, err = senderVal.Value.LoadBoolBit()
 				if err != nil {
-					return fmt.Errorf("failed to load all allowed senders: %w", err)
+					return fmt.Errorf("failed to load allowed bool: %w", err)
 				}
 
-				var allowed bool
-				var senderAddr *address.Address
-				for _, senderVal := range allowedSendersDict {
-					senderAddr, err = senderVal.Key.LoadAddr()
-					if err != nil {
-						return fmt.Errorf("failed to load sender address: %w", err)
-					}
+				allowedSenders[senderAddr.String()] = allowed
+			}
 
-					allowed, err = senderVal.Value.LoadBoolBit()
-					if err != nil {
-						return fmt.Errorf("failed to load allowed bool: %w", err)
-					}
+			output[dest] = OnRampDestChainConfig{
+				SequenceNumber:   cfg.SequenceNumber,
+				AllowlistEnabled: cfg.AllowListEnabled,
+				Router:           cfg.Router.String(),
+				AllowedSenders:   allowedSenders,
+			}
 
-					allowedSenders[senderAddr.String()] = allowed
-				}
+			return nil
+		})
 
-				output[dest] = OnRampDestChainConfig{
-					SequenceNumber:   cfg.SequenceNumber,
-					AllowlistEnabled: cfg.AllowListEnabled,
-					Router:           cfg.Router.String(),
-					AllowedSenders:   allowedSenders,
-				}
-
-				return nil
-			})
-		}
 	}
 
 	return output, eg.Wait()
