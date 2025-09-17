@@ -247,7 +247,11 @@ func (lp *service) RegisterFilter(ctx context.Context, flt types.Filter) error {
 	// TODO(2025-08-28@jadepark-dev): clean up, forcing replay for e2e now
 	// Run replay in a separate goroutine to avoid blocking filter registration
 	// Only replay when client and loader are available (not in barebone test setups)
-	if lp.client != nil && lp.loader != nil {
+	client, err := lp.clientProvider(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get client: %w", err)
+	}
+	if client != nil && lp.loader != nil {
 		go func() {
 			replayCtx := context.Background()
 			lp.lggr.Infow("replaying logs for new filter", "filter", flt.Name, "fromBlock", flt.StartingSeqNo)

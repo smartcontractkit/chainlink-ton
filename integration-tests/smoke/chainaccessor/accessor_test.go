@@ -12,16 +12,11 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
-	"go.uber.org/zap/zapcore"
-
-	chain_selectors "github.com/smartcontractkit/chain-selectors"
-	"github.com/smartcontractkit/chainlink/deployment/environment/memory"
 
 	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/query/primitives"
-	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
@@ -29,8 +24,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
 	inmemorystore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/db/inmemory"
-	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/loader/account"
-	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/txparser"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/hash"
 )
@@ -148,23 +141,9 @@ func Test_TonAccessor_MsgsBetweenSeqNums(t *testing.T) {
 }
 
 func Test_TonAccessorCommitEventQueries(t *testing.T) {
-	lggr := logger.Test(t)
-
-	// create memory env to reuse changesets
-	env := memory.NewMemoryEnvironment(t, lggr, zapcore.InfoLevel, memory.MemoryEnvironmentConfig{
-		Chains:    1,
-		TonChains: 1,
-	})
-
-	// get chain selectors
-	evmSelector := env.BlockChains.ListChainSelectors(chain.WithFamily(chain_selectors.FamilyEVM))[0]
-	tonChainSelectors := env.BlockChains.ListChainSelectors(chain.WithFamily(chain_selectors.FamilyTon))
-	require.Len(t, tonChainSelectors, 1, "Expected exactly 1 Ton chain")
-	chainSelector := tonChainSelectors[0]
-	tonChain := env.BlockChains.TonChains()[chainSelector]
-	deployer := tonChain.Wallet
+	// Note: we don't test the API client interaction here, so we return empty client
 	clientProvider := func(ctx context.Context) (ton.APIClientWrapped, error) {
-		return tonChain.Client, nil
+		return nil, nil
 	}
 
 	// BOC data from OffRamp TypeScript tests
@@ -357,18 +336,15 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 	})
 
 	t.Run("Ton Accessor - CommitReportsGTETimestamp - MerkleRoot filtering with mixed reports and limit", func(t *testing.T) {
-		lpCfg := logpoller.DefaultConfigSet
-		filterStore := inmemorystore.NewFilterStore()
 		opts := &logpoller.ServiceOptions{
-			Config:   lpCfg,
-			Filters:  filterStore,
-			TxLoader: nil,
-			TxParser: nil,
-			Store:    inmemorystore.NewLogStore(),
+			Config:  logpoller.DefaultConfigSet,
+			Store:   inmemorystore.NewLogStore(),
+			Filters: inmemorystore.NewFilterStore(),
 		}
 
 		lp := logpoller.NewService(
 			logger.Test(t),
+			clientProvider,
 			opts,
 		)
 
@@ -476,10 +452,9 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 	})
 
 	t.Run("Ton Accessor - CommitReportsGTETimestamp - Basic functionality", func(t *testing.T) {
-		lpCfg := logpoller.DefaultConfigSet
 		filterStore := inmemorystore.NewFilterStore()
 		opts := &logpoller.ServiceOptions{
-			Config:   lpCfg,
+			Config:   logpoller.DefaultConfigSet,
 			Filters:  filterStore,
 			TxLoader: nil,
 			TxParser: nil,
@@ -596,14 +571,15 @@ func Test_TonAccessorExecutionStateChangedEventQueries(t *testing.T) {
 }
 
 func Test_TonAccessorExecutedMessages(t *testing.T) {
+	// Note: we don't test the API client interaction here, so we return empty client
+	clientProvider := func(ctx context.Context) (ton.APIClientWrapped, error) {
+		return nil, nil
+	}
 	// Test ExecutedMessages integration with logpoller using ExecutionStateChanged BOCs
-	lpCfg := logpoller.DefaultConfigSet
-	filterStore := inmemorystore.NewFilterStore()
 	opts := &logpoller.ServiceOptions{
-		Filters:  filterStore,
-		TxLoader: account.NewTxLoader(lggr, clientProvider, lpCfg.PageSize),
-		TxParser: txparser.NewTxParser(lggr, filterStore),
-		Store:    inmemorystore.NewLogStore(),
+		Config:  logpoller.DefaultConfigSet,
+		Filters: inmemorystore.NewFilterStore(),
+		Store:   inmemorystore.NewLogStore(),
 	}
 
 	lp := logpoller.NewService(
