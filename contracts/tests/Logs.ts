@@ -129,7 +129,8 @@ function testLogCCIPCommitReportAccepted(
       merkleRoot,
       priceUpdates,
     }
-    return matchesObject(reportAccepted, match)
+    matchesObject(reportAccepted, match)
+    return true
   })
 }
 
@@ -166,7 +167,8 @@ export const testLogCCIPMessageSent = (
       },
     }
 
-    return matchesObject(msg, match)
+    matchesObject(msg, match)
+    return true
   })
 }
 
@@ -184,7 +186,8 @@ export const testLogCCIPExecutionStateChanged = (
       state: cs.loadUintBig(8),
     }
 
-    return matchesObject(msg, match)
+    matchesObject(msg, match)
+    return true
   })
 }
 
@@ -236,7 +239,8 @@ export const testTransmittedLogMessage = (
       sequenceNumber: cs.loadUint(64),
     }
 
-    return matchesObject(msg, match)
+    matchesObject(msg, match)
+    return true
   })
 }
 
@@ -255,24 +259,15 @@ export const testLogReceiverCCIPMessageReceived = (
       .storeRef(msg.data)
       .endCell()
 
-    return equalsObject(expectedCell, x)
+    equalsObject(expectedCell, x)
+    return true
   })
 }
 
 function matchesObject(obj, match) {
-  try {
-    expect(obj).toMatchObject(match)
-    return true
-  } catch {
-    return false
-  }
+  expect(obj).toMatchObject(match)
 }
 
-function equalsObject(obj1: any, obj2: any): boolean {
-  try {
-    expect(obj1).toEqual(obj2)
-    return true
-  } catch {
-    return false
-  }
+function equalsObject(obj1: any, obj2: any) {
+  expect(obj1).toEqual(obj2)
 }
