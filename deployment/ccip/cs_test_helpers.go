@@ -81,9 +81,14 @@ var (
 	}
 )
 
-func DeployChainContractsConfig(t *testing.T, env cldf.Environment, chainSelector uint64) DeployCCIPContractsCfg {
+func DeployChainContractsConfig(t *testing.T, env cldf.Environment, chainSelector uint64, contractVersion string) DeployCCIPContractsCfg {
 	tonChain := env.BlockChains.TonChains()[chainSelector]
 	deployer := tonChain.Wallet
+
+	// if contractVersion is not set, use local version
+	if contractVersion == "" {
+		contractVersion = sequence.ContractsLocalVersion
+	}
 
 	return DeployCCIPContractsCfg{
 		TonChainSelector: chainSelector,
@@ -108,7 +113,7 @@ func DeployChainContractsConfig(t *testing.T, env cldf.Environment, chainSelecto
 				FeeAggregator: deployer.WalletAddress(),
 			},
 		},
-		ContractsVersion: sequence.ContractsLocalVersion,
+		ContractsVersion: contractVersion,
 	}
 }
 

@@ -39,7 +39,7 @@ describe('CallProxy', () => {
     const deployResult = await bind.callProxy.sendInternal(
       deployer.getSender(),
       toNano('0.05'),
-      callProxy.builder.message.in.topUp.encode({ queryId: 1n }), // TopUp message to deploy
+      callProxy.builder.message.in.topUp.encode({ queryId: 1n }).asCell(), // TopUp message to deploy
     )
 
     expect(deployResult.transactions).toHaveTransaction({
@@ -72,7 +72,7 @@ describe('CallProxy', () => {
     const r = await bind.callProxy.sendInternal(
       deployer.getSender(),
       toNano('100.05'),
-      callProxy.builder.message.in.topUp.encode({ queryId: 1n }),
+      callProxy.builder.message.in.topUp.encode({ queryId: 1n }).asCell(),
     )
 
     expect(r.transactions).toHaveTransaction({
@@ -84,7 +84,7 @@ describe('CallProxy', () => {
     const r1 = await bind.callProxy.sendInternal(
       deployer.getSender(),
       toNano('0.05'),
-      callProxy.builder.message.in.topUp.encode({ queryId: 1n }),
+      callProxy.builder.message.in.topUp.encode({ queryId: 1n }).asCell(),
     )
 
     expect(r1.transactions).toHaveTransaction({
@@ -96,7 +96,7 @@ describe('CallProxy', () => {
     const r2 = await bind.callProxy.sendInternal(
       deployer.getSender(),
       toNano('0.08'),
-      callProxy.builder.message.in.topUp.encode({ queryId: 1n }),
+      callProxy.builder.message.in.topUp.encode({ queryId: 1n }).asCell(),
     )
 
     expect(r2.transactions).toHaveTransaction({
@@ -108,7 +108,7 @@ describe('CallProxy', () => {
     const r3 = await bind.callProxy.sendInternal(
       deployer.getSender(),
       toNano('0.08'),
-      callProxy.builder.message.in.topUp.encode({ queryId: 1n }),
+      callProxy.builder.message.in.topUp.encode({ queryId: 1n }).asCell(),
     )
 
     expect(r3.transactions).toHaveTransaction({

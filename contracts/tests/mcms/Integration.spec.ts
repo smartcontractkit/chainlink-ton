@@ -179,7 +179,7 @@ describe('MCMS - IntegrationTest', () => {
       const data = {
         id: crc32('mcms.timelock.test-integration'), // unique ID for this instance
         minDelay: MIN_DELAY,
-        rbac: ac.builder.data.contractData.encode(rbacStorage),
+        rbac: ac.builder.data.contractData.encode(rbacStorage).asCell(),
       }
 
       bind.timelock = blockchain.openContract(rbactl.ContractClient.newFrom(data, code.timelock))
@@ -212,7 +212,7 @@ describe('MCMS - IntegrationTest', () => {
 
     // Deploy Timelock contract
     {
-      const body = rbactl.builder.message.in.topUp.encode({ queryId: 1n })
+      const body = rbactl.builder.message.in.topUp.encode({ queryId: 1n }).asCell()
       const r = await bind.timelock.sendInternal(acc.deployer.getSender(), toNano('0.05'), body)
 
       expect(r.transactions).toHaveTransaction({
@@ -229,11 +229,13 @@ describe('MCMS - IntegrationTest', () => {
       const r1 = await bind.ac.sendInternal(
         acc.deployer.getSender(),
         toNano('0.05'),
-        ac.builder.message.in.grantRole.encode({
-          queryId: 1n,
-          role: rbactl.roles.admin,
-          account: bind.timelock.address,
-        }),
+        ac.builder.message.in.grantRole
+          .encode({
+            queryId: 1n,
+            role: rbactl.roles.admin,
+            account: bind.timelock.address,
+          })
+          .asCell(),
       )
 
       expect(r1.transactions).toHaveTransaction({
@@ -245,7 +247,7 @@ describe('MCMS - IntegrationTest', () => {
 
     // Set up (deploy, configure) MCMS contracts and transfer ownership to Timelock
     {
-      const body = mcms.builder.message.in.topUp.encode({ queryId: 1n })
+      const body = mcms.builder.message.in.topUp.encode({ queryId: 1n }).asCell()
       const r = await bind.mcmsPropose.sendInternal(acc.deployer.getSender(), toNano('0.05'), body)
 
       expect(r.transactions).toHaveTransaction({
@@ -259,17 +261,19 @@ describe('MCMS - IntegrationTest', () => {
       const rSetConfig = await bind.mcmsPropose.sendInternal(
         acc.deployer.getSender(),
         toNano('0.2'),
-        mcms.builder.message.in.setConfig.encode({
-          queryId: 1n,
-          signerKeys: proposerKeyPairs().map((v) => uint8ArrayToBigInt(v.publicKey)),
-          signerGroups: Array(PROPOSE_COUNT).fill(0),
-          groupQuorums: new Map(Array.from({ length: MCMS_NUM_GROUPS }, (_, i) => [i, 0])).set(
-            0,
-            PROPOSE_QUORUM,
-          ),
-          groupParents: new Map(Array.from({ length: MCMS_NUM_GROUPS }, (_, i) => [i, 0])),
-          clearRoot: false,
-        }),
+        mcms.builder.message.in.setConfig
+          .encode({
+            queryId: 1n,
+            signerKeys: proposerKeyPairs().map((v) => uint8ArrayToBigInt(v.publicKey)),
+            signerGroups: Array(PROPOSE_COUNT).fill(0),
+            groupQuorums: new Map(Array.from({ length: MCMS_NUM_GROUPS }, (_, i) => [i, 0])).set(
+              0,
+              PROPOSE_QUORUM,
+            ),
+            groupParents: new Map(Array.from({ length: MCMS_NUM_GROUPS }, (_, i) => [i, 0])),
+            clearRoot: false,
+          })
+          .asCell(),
       )
 
       expect(rSetConfig.transactions).toHaveTransaction({
@@ -285,7 +289,7 @@ describe('MCMS - IntegrationTest', () => {
     }
 
     {
-      const body = mcms.builder.message.in.topUp.encode({ queryId: 1n })
+      const body = mcms.builder.message.in.topUp.encode({ queryId: 1n }).asCell()
       const result = await bind.mcmsVeto.sendInternal(
         acc.deployer.getSender(),
         toNano('0.05'),
@@ -303,18 +307,20 @@ describe('MCMS - IntegrationTest', () => {
       const rSetConfig = await bind.mcmsVeto.sendInternal(
         acc.deployer.getSender(),
         toNano('0.2'),
-        mcms.builder.message.in.setConfig.encode({
-          queryId: 1n,
-          signerKeys: vetoKeyPairs().map((v) => uint8ArrayToBigInt(v.publicKey)),
-          signerGroups: Array(VETO_COUNT).fill(0),
-          groupQuorums: new Map(Array.from({ length: MCMS_NUM_GROUPS }, (_, i) => [i, 0])).set(
-            0,
-            VETO_QUORUM,
-          ),
+        mcms.builder.message.in.setConfig
+          .encode({
+            queryId: 1n,
+            signerKeys: vetoKeyPairs().map((v) => uint8ArrayToBigInt(v.publicKey)),
+            signerGroups: Array(VETO_COUNT).fill(0),
+            groupQuorums: new Map(Array.from({ length: MCMS_NUM_GROUPS }, (_, i) => [i, 0])).set(
+              0,
+              VETO_QUORUM,
+            ),
 
-          groupParents: new Map(Array.from({ length: MCMS_NUM_GROUPS }, (_, i) => [i, 0])),
-          clearRoot: false,
-        }),
+            groupParents: new Map(Array.from({ length: MCMS_NUM_GROUPS }, (_, i) => [i, 0])),
+            clearRoot: false,
+          })
+          .asCell(),
       )
 
       expect(rSetConfig.transactions).toHaveTransaction({
@@ -330,7 +336,7 @@ describe('MCMS - IntegrationTest', () => {
     }
 
     {
-      const body = mcms.builder.message.in.topUp.encode({ queryId: 1n })
+      const body = mcms.builder.message.in.topUp.encode({ queryId: 1n }).asCell()
       const result = await bind.mcmsBypass.sendInternal(
         acc.deployer.getSender(),
         toNano('0.05'),
@@ -348,22 +354,24 @@ describe('MCMS - IntegrationTest', () => {
       const rSetConfig = await bind.mcmsBypass.sendInternal(
         acc.deployer.getSender(),
         toNano('0.2'),
-        mcms.builder.message.in.setConfig.encode({
-          queryId: 1n,
-          signerKeys: signerKeyPairs.map((v) => uint8ArrayToBigInt(v.publicKey)),
-          signerGroups: Array(PROPOSE_COUNT + VETO_COUNT)
-            .fill(1, 0, PROPOSE_COUNT)
-            .fill(2, PROPOSE_COUNT, PROPOSE_COUNT + VETO_COUNT),
-          groupQuorums: new Map(Array.from({ length: MCMS_NUM_GROUPS }, (_, i) => [i, 0]))
-            .set(0, 2)
-            .set(1, PROPOSE_QUORUM)
-            .set(2, VETO_QUORUM),
-          groupParents: new Map(Array.from({ length: MCMS_NUM_GROUPS }, (_, i) => [i, 0]))
-            .set(0, 0)
-            .set(1, 0)
-            .set(2, 0),
-          clearRoot: false,
-        }),
+        mcms.builder.message.in.setConfig
+          .encode({
+            queryId: 1n,
+            signerKeys: signerKeyPairs.map((v) => uint8ArrayToBigInt(v.publicKey)),
+            signerGroups: Array(PROPOSE_COUNT + VETO_COUNT)
+              .fill(1, 0, PROPOSE_COUNT)
+              .fill(2, PROPOSE_COUNT, PROPOSE_COUNT + VETO_COUNT),
+            groupQuorums: new Map(Array.from({ length: MCMS_NUM_GROUPS }, (_, i) => [i, 0]))
+              .set(0, 2)
+              .set(1, PROPOSE_QUORUM)
+              .set(2, VETO_QUORUM),
+            groupParents: new Map(Array.from({ length: MCMS_NUM_GROUPS }, (_, i) => [i, 0]))
+              .set(0, 0)
+              .set(1, 0)
+              .set(2, 0),
+            clearRoot: false,
+          })
+          .asCell(),
       )
 
       expect(rSetConfig.transactions).toHaveTransaction({
@@ -380,7 +388,7 @@ describe('MCMS - IntegrationTest', () => {
 
     // Deploy CallProxy contract
     {
-      const body = mcms.builder.message.in.topUp.encode({ queryId: 1n })
+      const body = mcms.builder.message.in.topUp.encode({ queryId: 1n }).asCell()
       const result = await bind.callProxy.sendInternal(
         acc.deployer.getSender(),
         toNano('0.05'),
@@ -400,11 +408,13 @@ describe('MCMS - IntegrationTest', () => {
       const r1 = await bind.ac.sendInternal(
         acc.deployer.getSender(),
         toNano('0.05'),
-        ac.builder.message.in.grantRole.encode({
-          queryId: 1n,
-          role: rbactl.roles.executor,
-          account: bind.callProxy.address,
-        }),
+        ac.builder.message.in.grantRole
+          .encode({
+            queryId: 1n,
+            role: rbactl.roles.executor,
+            account: bind.callProxy.address,
+          })
+          .asCell(),
       )
 
       expect(r1.transactions).toHaveTransaction({
@@ -440,25 +450,33 @@ describe('MCMS - IntegrationTest', () => {
     await ownable.sendInternal(
       acc.deployer.getSender(),
       toNano('0.05'),
-      ownable2step.builder.message.in.transferOwnership.encode({
-        queryId: 1n,
-        newOwner: bind.timelock.address,
-      }),
+      ownable2step.builder.message.in.transferOwnership
+        .encode({
+          queryId: 1n,
+          newOwner: bind.timelock.address,
+        })
+        .asCell(),
     )
 
     // Notice: using admin bypasser role to accept ownership transfer
     const result = await bind.timelock.sendInternal(
       acc.deployer.getSender(),
       toNano('0.10'),
-      rbactl.builder.message.in.bypasserExecuteBatch.encode({
-        queryId: 1n,
-        // Notice: single call encoded as calls
-        calls: rbactl.builder.data.call.encode({
-          target: ownable.address,
-          value: toNano('0.05'),
-          data: ownable2step.builder.message.in.acceptOwnership.encode({ queryId: 1n }),
-        }),
-      }),
+      rbactl.builder.message.in.bypasserExecuteBatch
+        .encode({
+          queryId: 1n,
+          // Notice: single call encoded as calls
+          calls: rbactl.builder.data.call
+            .encode({
+              target: ownable.address,
+              value: toNano('0.05'),
+              data: ownable2step.builder.message.in.acceptOwnership
+                .encode({ queryId: 1n })
+                .asCell(),
+            })
+            .asCell(),
+        })
+        .asCell(),
     )
 
     expect(result.transactions).toHaveTransaction({
@@ -511,15 +529,15 @@ describe('MCMS - IntegrationTest', () => {
           {
             target: bind.counter.address,
             value: toNano('0.05'),
-            data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
+            data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }).asCell(),
           },
           {
             target: bind.counter.address,
             value: toNano('0.05'),
-            data: counter.builder.message.in.increaseCount.encode({ queryId: 2n }),
+            data: counter.builder.message.in.increaseCount.encode({ queryId: 2n }).asCell(),
           },
         ],
-        (c) => rbactl.builder.data.call.encode(c).asBuilder(),
+        (c) => rbactl.builder.data.call.encode(c),
       )
 
       const operationBatch: rbactl.OperationBatch = {
@@ -548,13 +566,15 @@ describe('MCMS - IntegrationTest', () => {
           nonce: 0n,
           to: bind.timelock.address,
           value: toNano('0.05'),
-          data: rbactl.builder.message.in.scheduleBatch.encode({
-            queryId: 1n,
-            calls,
-            predecessor: proposePredecessor,
-            salt: 0n,
-            delay: MIN_DELAY,
-          }),
+          data: rbactl.builder.message.in.scheduleBatch
+            .encode({
+              queryId: 1n,
+              calls,
+              predecessor: proposePredecessor,
+              salt: 0n,
+              delay: MIN_DELAY,
+            })
+            .asCell(),
         },
       ]
       const [setRoot, opProofs] = merkleProof.build(
@@ -568,7 +588,7 @@ describe('MCMS - IntegrationTest', () => {
       const r = await bind.mcmsPropose.sendInternal(
         acc.deployer.getSender(),
         toNano('0.10'),
-        mcms.builder.message.in.setRoot.encode(setRoot),
+        mcms.builder.message.in.setRoot.encode(setRoot).asCell(),
       )
 
       expect(r.transactions).toHaveTransaction({
@@ -580,11 +600,13 @@ describe('MCMS - IntegrationTest', () => {
       const r1 = await bind.mcmsPropose.sendInternal(
         acc.deployer.getSender(),
         toNano('0.10'),
-        mcms.builder.message.in.execute.encode({
-          queryId: 1n,
-          op: mcms.builder.data.op.encode(ops[0]),
-          proof: opProofs[0],
-        }),
+        mcms.builder.message.in.execute
+          .encode({
+            queryId: 1n,
+            op: mcms.builder.data.op.encode(ops[0]).asCell(),
+            proof: opProofs[0],
+          })
+          .asCell(),
       )
 
       expect(r1.transactions).toHaveTransaction({
@@ -598,12 +620,14 @@ describe('MCMS - IntegrationTest', () => {
       const r2 = await bind.callProxy.sendInternal(
         acc.deployer.getSender(),
         toNano('0.10'),
-        rbactl.builder.message.in.executeBatch.encode({
-          queryId: 1n,
-          predecessor: proposePredecessor,
-          salt: 0n,
-          calls,
-        }),
+        rbactl.builder.message.in.executeBatch
+          .encode({
+            queryId: 1n,
+            predecessor: proposePredecessor,
+            salt: 0n,
+            calls,
+          })
+          .asCell(),
       )
 
       expect(r2.transactions).toHaveTransaction({
@@ -618,12 +642,14 @@ describe('MCMS - IntegrationTest', () => {
       const r3 = await bind.callProxy.sendInternal(
         acc.deployer.getSender(),
         toNano('1'), // TODO: notice the gas value required to pass is higher b/c reserveToncoinsOnBalance (check)
-        rbactl.builder.message.in.executeBatch.encode({
-          queryId: 2n,
-          predecessor: proposePredecessor,
-          salt: 0n,
-          calls,
-        }),
+        rbactl.builder.message.in.executeBatch
+          .encode({
+            queryId: 2n,
+            predecessor: proposePredecessor,
+            salt: 0n,
+            calls,
+          })
+          .asCell(),
       )
 
       expect(r3.transactions).toHaveTransaction({
@@ -672,13 +698,15 @@ describe('MCMS - IntegrationTest', () => {
           nonce: 1n,
           to: bind.timelock.address,
           value: toNano('0.05'),
-          data: rbactl.builder.message.in.scheduleBatch.encode({
-            queryId: 1n,
-            calls,
-            predecessor: proposePredecessor,
-            salt: 0n,
-            delay: MIN_DELAY,
-          }),
+          data: rbactl.builder.message.in.scheduleBatch
+            .encode({
+              queryId: 1n,
+              calls,
+              predecessor: proposePredecessor,
+              salt: 0n,
+              delay: MIN_DELAY,
+            })
+            .asCell(),
         },
       ]
 
@@ -693,7 +721,7 @@ describe('MCMS - IntegrationTest', () => {
       const r = await bind.mcmsPropose.sendInternal(
         acc.deployer.getSender(),
         toNano('0.10'),
-        mcms.builder.message.in.setRoot.encode(setRoot),
+        mcms.builder.message.in.setRoot.encode(setRoot).asCell(),
       )
 
       expect(r.transactions).toHaveTransaction({
@@ -705,11 +733,13 @@ describe('MCMS - IntegrationTest', () => {
       const r1 = await bind.mcmsPropose.sendInternal(
         acc.deployer.getSender(),
         toNano('0.10'),
-        mcms.builder.message.in.execute.encode({
-          queryId: 1n,
-          op: mcms.builder.data.op.encode(ops[0]),
-          proof: opProofs[0],
-        }),
+        mcms.builder.message.in.execute
+          .encode({
+            queryId: 1n,
+            op: mcms.builder.data.op.encode(ops[0]).asCell(),
+            proof: opProofs[0],
+          })
+          .asCell(),
       )
 
       expect(r1.transactions).toHaveTransaction({
@@ -724,12 +754,14 @@ describe('MCMS - IntegrationTest', () => {
       const r2 = await bind.callProxy.sendInternal(
         acc.deployer.getSender(),
         toNano('0.80'), // TODO: notice the gas value required to pass is higher b/c reserveToncoinsOnBalance (check)
-        rbactl.builder.message.in.executeBatch.encode({
-          queryId: 2n,
-          predecessor: proposePredecessor + 1n, // wrong predecessor
-          salt: 0n,
-          calls,
-        }),
+        rbactl.builder.message.in.executeBatch
+          .encode({
+            queryId: 2n,
+            predecessor: proposePredecessor + 1n, // wrong predecessor
+            salt: 0n,
+            calls,
+          })
+          .asCell(),
       )
 
       expect(r2.transactions).toHaveTransaction({
@@ -748,12 +780,14 @@ describe('MCMS - IntegrationTest', () => {
       const r3 = await bind.callProxy.sendInternal(
         acc.deployer.getSender(),
         toNano('0.80'), // TODO: notice the gas value required to pass is higher b/c reserveToncoinsOnBalance (check)
-        rbactl.builder.message.in.executeBatch.encode({
-          queryId: 3n,
-          predecessor: proposePredecessor,
-          salt: 0n,
-          calls,
-        }),
+        rbactl.builder.message.in.executeBatch
+          .encode({
+            queryId: 3n,
+            predecessor: proposePredecessor,
+            salt: 0n,
+            calls,
+          })
+          .asCell(),
       )
 
       expect(r3.transactions).toHaveTransaction({
@@ -777,10 +811,10 @@ describe('MCMS - IntegrationTest', () => {
           {
             target: bind.timelock.address,
             value: toNano('0.05'),
-            data: rbactl.builder.message.in.updateDelay.encode({ queryId: 1n, newDelay }),
+            data: rbactl.builder.message.in.updateDelay.encode({ queryId: 1n, newDelay }).asCell(),
           },
         ],
-        (c) => rbactl.builder.data.call.encode(c).asBuilder(),
+        (c) => rbactl.builder.data.call.encode(c),
       )
 
       const operationBatch: rbactl.OperationBatch = {
@@ -809,7 +843,9 @@ describe('MCMS - IntegrationTest', () => {
           nonce: 0n,
           to: bind.timelock.address,
           value: toNano('0.05'),
-          data: rbactl.builder.message.in.bypasserExecuteBatch.encode({ queryId: 1n, calls }),
+          data: rbactl.builder.message.in.bypasserExecuteBatch
+            .encode({ queryId: 1n, calls })
+            .asCell(),
         },
       ]
 
@@ -824,7 +860,7 @@ describe('MCMS - IntegrationTest', () => {
       const r = await bind.mcmsBypass.sendInternal(
         acc.deployer.getSender(),
         toNano('0.20'),
-        mcms.builder.message.in.setRoot.encode(setRoot),
+        mcms.builder.message.in.setRoot.encode(setRoot).asCell(),
       )
 
       expect(r.transactions).toHaveTransaction({
@@ -836,11 +872,13 @@ describe('MCMS - IntegrationTest', () => {
       const r1 = await bind.mcmsBypass.sendInternal(
         acc.deployer.getSender(),
         toNano('0.10'),
-        mcms.builder.message.in.execute.encode({
-          queryId: 1n,
-          op: mcms.builder.data.op.encode(ops[0]),
-          proof: opProofs[0],
-        }),
+        mcms.builder.message.in.execute
+          .encode({
+            queryId: 1n,
+            op: mcms.builder.data.op.encode(ops[0]).asCell(),
+            proof: opProofs[0],
+          })
+          .asCell(),
       )
 
       expect(r1.transactions).toHaveTransaction({
@@ -874,7 +912,7 @@ describe('MCMS - IntegrationTest', () => {
 
       {
         // Notice: we need to add funds or test fails with 'Not enough Toncoin'
-        const body = mcms.builder.message.in.topUp.encode({ queryId: 1n })
+        const body = mcms.builder.message.in.topUp.encode({ queryId: 1n }).asCell()
         const r = await bind.mcmsPropose.sendInternal(
           acc.deployer.getSender(),
           toNano('1.00'),
@@ -892,14 +930,16 @@ describe('MCMS - IntegrationTest', () => {
           {
             target: bind.timelock.address,
             value: toNano('0.05'),
-            data: ac.builder.message.in.grantRole.encode({
-              queryId: 1n,
-              role: rbactl.roles.admin,
-              account: evil,
-            }),
+            data: ac.builder.message.in.grantRole
+              .encode({
+                queryId: 1n,
+                role: rbactl.roles.admin,
+                account: evil,
+              })
+              .asCell(),
           },
         ],
-        (c) => rbactl.builder.data.call.encode(c).asBuilder(),
+        (c) => rbactl.builder.data.call.encode(c),
       )
 
       const operationBatch: rbactl.OperationBatch = {
@@ -928,13 +968,15 @@ describe('MCMS - IntegrationTest', () => {
           nonce: 2n,
           to: bind.timelock.address,
           value: toNano('0.05'),
-          data: rbactl.builder.message.in.scheduleBatch.encode({
-            queryId: 1n,
-            calls,
-            predecessor: proposePredecessor,
-            salt: 0n,
-            delay: MIN_DELAY,
-          }),
+          data: rbactl.builder.message.in.scheduleBatch
+            .encode({
+              queryId: 1n,
+              calls,
+              predecessor: proposePredecessor,
+              salt: 0n,
+              delay: MIN_DELAY,
+            })
+            .asCell(),
         },
       ]
 
@@ -949,7 +991,7 @@ describe('MCMS - IntegrationTest', () => {
       const r = await bind.mcmsPropose.sendInternal(
         acc.deployer.getSender(),
         toNano('0.20'),
-        mcms.builder.message.in.setRoot.encode(setRoot),
+        mcms.builder.message.in.setRoot.encode(setRoot).asCell(),
       )
 
       expect(r.transactions).toHaveTransaction({
@@ -961,11 +1003,13 @@ describe('MCMS - IntegrationTest', () => {
       const r1 = await bind.mcmsPropose.sendInternal(
         acc.deployer.getSender(),
         toNano('0.10'),
-        mcms.builder.message.in.execute.encode({
-          queryId: 1n,
-          op: mcms.builder.data.op.encode(ops[0]),
-          proof: opProofs[0],
-        }),
+        mcms.builder.message.in.execute
+          .encode({
+            queryId: 1n,
+            op: mcms.builder.data.op.encode(ops[0]).asCell(),
+            proof: opProofs[0],
+          })
+          .asCell(),
       )
 
       expect(r1.transactions).toHaveTransaction({
@@ -977,12 +1021,14 @@ describe('MCMS - IntegrationTest', () => {
       const r2 = await bind.callProxy.sendInternal(
         acc.deployer.getSender(),
         toNano('0.10'),
-        rbactl.builder.message.in.executeBatch.encode({
-          queryId: 1n,
-          predecessor: proposePredecessor,
-          salt: 0n,
-          calls,
-        }),
+        rbactl.builder.message.in.executeBatch
+          .encode({
+            queryId: 1n,
+            predecessor: proposePredecessor,
+            salt: 0n,
+            calls,
+          })
+          .asCell(),
       )
 
       expect(r2.transactions).toHaveTransaction({
@@ -1014,7 +1060,7 @@ describe('MCMS - IntegrationTest', () => {
             nonce: 0n,
             to: bind.timelock.address,
             value: toNano('0.05'),
-            data: rbactl.builder.message.in.cancel.encode({ queryId: 1n, id: callsHash }),
+            data: rbactl.builder.message.in.cancel.encode({ queryId: 1n, id: callsHash }).asCell(),
           },
         ]
 
@@ -1029,7 +1075,7 @@ describe('MCMS - IntegrationTest', () => {
         const r = await bind.mcmsVeto.sendInternal(
           acc.deployer.getSender(),
           toNano('0.10'),
-          mcms.builder.message.in.setRoot.encode(setRoot),
+          mcms.builder.message.in.setRoot.encode(setRoot).asCell(),
         )
 
         expect(r.transactions).toHaveTransaction({
@@ -1041,11 +1087,13 @@ describe('MCMS - IntegrationTest', () => {
         const r1 = await bind.mcmsVeto.sendInternal(
           acc.deployer.getSender(),
           toNano('0.10'),
-          mcms.builder.message.in.execute.encode({
-            queryId: 1n,
-            op: mcms.builder.data.op.encode(ops[0]),
-            proof: opProofs[0],
-          }),
+          mcms.builder.message.in.execute
+            .encode({
+              queryId: 1n,
+              op: mcms.builder.data.op.encode(ops[0]).asCell(),
+              proof: opProofs[0],
+            })
+            .asCell(),
         )
 
         expect(r1.transactions).toHaveTransaction({
@@ -1061,12 +1109,14 @@ describe('MCMS - IntegrationTest', () => {
         const r2 = await bind.callProxy.sendInternal(
           acc.deployer.getSender(),
           toNano('0.10'),
-          rbactl.builder.message.in.executeBatch.encode({
-            queryId: 1n,
-            predecessor: proposePredecessor,
-            salt: 0n,
-            calls,
-          }),
+          rbactl.builder.message.in.executeBatch
+            .encode({
+              queryId: 1n,
+              predecessor: proposePredecessor,
+              salt: 0n,
+              calls,
+            })
+            .asCell(),
         )
 
         expect(r2.transactions).toHaveTransaction({
@@ -1088,35 +1138,37 @@ describe('MCMS - IntegrationTest', () => {
           {
             target: bind.mcmsPropose.address,
             value: toNano('0.2'),
-            data: mcms.builder.message.in.setConfig.encode({
-              queryId: 1n,
-              signerKeys: proposerKeyPairs().map((v) => uint8ArrayToBigInt(v.publicKey)),
-              signerGroups: Array(PROPOSE_COUNT).fill(0),
-              groupQuorums: new Map(Array.from({ length: MCMS_NUM_GROUPS }, (_, i) => [i, 0])).set(
-                0,
-                PROPOSE_QUORUM - 1,
-              ),
-              groupParents: new Map(Array.from({ length: MCMS_NUM_GROUPS }, (_, i) => [i, 0])),
-              clearRoot: false,
-            }),
+            data: mcms.builder.message.in.setConfig
+              .encode({
+                queryId: 1n,
+                signerKeys: proposerKeyPairs().map((v) => uint8ArrayToBigInt(v.publicKey)),
+                signerGroups: Array(PROPOSE_COUNT).fill(0),
+                groupQuorums: new Map(
+                  Array.from({ length: MCMS_NUM_GROUPS }, (_, i) => [i, 0]),
+                ).set(0, PROPOSE_QUORUM - 1),
+                groupParents: new Map(Array.from({ length: MCMS_NUM_GROUPS }, (_, i) => [i, 0])),
+                clearRoot: false,
+              })
+              .asCell(),
           },
           {
             target: bind.mcmsVeto.address,
             value: toNano('0.2'),
-            data: mcms.builder.message.in.setConfig.encode({
-              queryId: 1n,
-              signerKeys: vetoKeyPairs().map((v) => uint8ArrayToBigInt(v.publicKey)),
-              signerGroups: Array(VETO_COUNT).fill(0),
-              groupQuorums: new Map(Array.from({ length: MCMS_NUM_GROUPS }, (_, i) => [i, 0])).set(
-                0,
-                VETO_QUORUM - 1,
-              ),
-              groupParents: new Map(Array.from({ length: MCMS_NUM_GROUPS }, (_, i) => [i, 0])),
-              clearRoot: false,
-            }),
+            data: mcms.builder.message.in.setConfig
+              .encode({
+                queryId: 1n,
+                signerKeys: vetoKeyPairs().map((v) => uint8ArrayToBigInt(v.publicKey)),
+                signerGroups: Array(VETO_COUNT).fill(0),
+                groupQuorums: new Map(
+                  Array.from({ length: MCMS_NUM_GROUPS }, (_, i) => [i, 0]),
+                ).set(0, VETO_QUORUM - 1),
+                groupParents: new Map(Array.from({ length: MCMS_NUM_GROUPS }, (_, i) => [i, 0])),
+                clearRoot: false,
+              })
+              .asCell(),
           },
         ],
-        (c) => rbactl.builder.data.call.encode(c).asBuilder(),
+        (c) => rbactl.builder.data.call.encode(c),
       )
 
       const operationBatch: rbactl.OperationBatch = {
@@ -1145,13 +1197,15 @@ describe('MCMS - IntegrationTest', () => {
           nonce: 3n,
           to: bind.timelock.address,
           value: toNano('0.05'),
-          data: rbactl.builder.message.in.scheduleBatch.encode({
-            queryId: 1n,
-            calls,
-            predecessor: proposePredecessor,
-            salt: 0n,
-            delay: MIN_DELAY,
-          }),
+          data: rbactl.builder.message.in.scheduleBatch
+            .encode({
+              queryId: 1n,
+              calls,
+              predecessor: proposePredecessor,
+              salt: 0n,
+              delay: MIN_DELAY,
+            })
+            .asCell(),
         },
       ]
 
@@ -1166,7 +1220,7 @@ describe('MCMS - IntegrationTest', () => {
       const r = await bind.mcmsPropose.sendInternal(
         acc.deployer.getSender(),
         toNano('0.10'),
-        mcms.builder.message.in.setRoot.encode(setRoot),
+        mcms.builder.message.in.setRoot.encode(setRoot).asCell(),
       )
 
       expect(r.transactions).toHaveTransaction({
@@ -1178,11 +1232,13 @@ describe('MCMS - IntegrationTest', () => {
       const r1 = await bind.mcmsPropose.sendInternal(
         acc.deployer.getSender(),
         toNano('0.10'),
-        mcms.builder.message.in.execute.encode({
-          queryId: 1n,
-          op: mcms.builder.data.op.encode(ops[0]),
-          proof: opProofs[0],
-        }),
+        mcms.builder.message.in.execute
+          .encode({
+            queryId: 1n,
+            op: mcms.builder.data.op.encode(ops[0]).asCell(),
+            proof: opProofs[0],
+          })
+          .asCell(),
       )
 
       expect(r1.transactions).toHaveTransaction({
@@ -1196,12 +1252,14 @@ describe('MCMS - IntegrationTest', () => {
       const r2 = await bind.callProxy.sendInternal(
         acc.deployer.getSender(),
         toNano('0.80'), // TODO: notice the gas value required to pass is higher b/c reserveToncoinsOnBalance (check)
-        rbactl.builder.message.in.executeBatch.encode({
-          queryId: 2n,
-          predecessor: proposePredecessor,
-          salt: 0n,
-          calls,
-        }),
+        rbactl.builder.message.in.executeBatch
+          .encode({
+            queryId: 2n,
+            predecessor: proposePredecessor,
+            salt: 0n,
+            calls,
+          })
+          .asCell(),
       )
 
       expect(r2.transactions).toHaveTransaction({

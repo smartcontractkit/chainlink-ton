@@ -44,6 +44,12 @@ type DestChainConfig struct {
 	NetworkFeeUsdCents                uint32 `tlb:"## 32"`
 }
 
+type USDPerUnitGas struct {
+	ExecutionGasPrice        *big.Int `tlb:"## 112"`
+	DataAvailabilityGasPrice *big.Int `tlb:"## 112"`
+	Timestamp                uint64   `tlb:"## 64"`
+}
+
 func (c *DestChainConfig) FromResult(result *ton.ExecutionResult) error {
 	isEnabledInt, err := result.Int(0)
 	if err != nil {
@@ -123,6 +129,7 @@ func (c *DestChainConfig) FromResult(result *ton.ExecutionResult) error {
 	if err != nil {
 		return err
 	}
+
 	*c = DestChainConfig{
 		IsEnabled:                         isEnabled,
 		MaxNumberOfTokensPerMsg:           uint16(maxNumberOfTokensPerMsg.Uint64()),           //nolint:gosec // G115

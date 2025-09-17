@@ -1,6 +1,7 @@
 package smoke
 
 import (
+	"context"
 	"math/big"
 	"math/rand/v2"
 	"testing"
@@ -9,17 +10,20 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/ton"
 	"go.uber.org/zap/zapcore"
+
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	test_utils "github.com/smartcontractkit/chainlink-ton/deployment/utils"
 
 	chain_selectors "github.com/smartcontractkit/chain-selectors"
+
 	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"
+	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
-
-	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
 	"github.com/smartcontractkit/chainlink/deployment/environment/memory"
 
@@ -57,13 +61,16 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 	chainSelector := tonChainSelectors[0]
 	tonChain := env.BlockChains.TonChains()[chainSelector]
 	deployer := tonChain.Wallet
+	clientProvider := func(ctx context.Context) (ton.APIClientWrapped, error) {
+		return tonChain.Client, nil
+	}
 
 	// memory environment doesn't block on funding so changesets can execute before the env is fully ready, manually call fund so we block here
 	test_utils.FundWallets(t, tonChain.Client, []*address.Address{deployer.Address()}, []tlb.Coins{tlb.MustFromTON("1000")})
 	time.Sleep(5 * time.Second)
 
 	// -- deploy contracts
-	cs := commonchangeset.Configure(ops.DeployCCIPContracts{}, ops.DeployChainContractsConfig(t, env, chainSelector))
+	cs := commonchangeset.Configure(ops.DeployCCIPContracts{}, ops.DeployChainContractsConfig(t, env, chainSelector, sequence.ContractsLocalVersion))
 	env, _, err := commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{cs})
 	require.NoError(t, err, "failed to deploy ccip")
 
@@ -88,14 +95,14 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 	filterStore := inmemorystore.NewFilterStore()
 	opts := &logpoller.ServiceOptions{
 		Config:   lpCfg,
-		Client:   tonChain.Client,
 		Filters:  filterStore,
-		TxLoader: account.NewTxLoader(tonChain.Client, lggr, lpCfg.PageSize),
+		TxLoader: account.NewTxLoader(lggr, clientProvider, lpCfg.PageSize),
 		TxParser: txparser.NewTxParser(lggr, filterStore),
 		Store:    inmemorystore.NewLogStore(),
 	}
 	lp := logpoller.NewService(
 		lggr,
+		clientProvider,
 		opts,
 	)
 

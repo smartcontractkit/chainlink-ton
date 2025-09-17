@@ -411,4 +411,10 @@ get fun staticConfig(): (uint96, address, uint64) {
 
 get fun typeAndVersion(): (slice, slice) {
      return ("com.chainlink.ton.ccip.FeeQuoter", "1.0.0");
- }
+}
+
+get fun destChainSelectors(): tuple {
+    val st = lazy Storage.load();
+    var d = st.destChainConfigs;
+    return d.keysDestructs()!;
+}

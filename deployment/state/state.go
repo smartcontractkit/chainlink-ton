@@ -1,15 +1,17 @@
 package state
 
 import (
+	"context"
 	"errors"
+	"fmt"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/rs/zerolog/log"
-
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
-
+	"github.com/smartcontractkit/chainlink-ton/deployment/view"
 	"github.com/xssnick/tonutils-go/address"
+	"golang.org/x/sync/errgroup"
 )
 
 // Duplicates of chainlink/deployment/ccip/ to avoid import loops
@@ -23,7 +25,7 @@ var (
 	FeeQuoter    cldf.ContractType = "FeeQuoter"
 )
 
-// TonCCIPChainState holds a Go binding for all the currently deployed CCIP contracts
+// CCIPChainState holds a Go binding for all the currently deployed CCIP contracts
 // on a chain. If a binding is nil, it means here is no such contract on the chain.
 type CCIPChainState struct {
 	LinkTokenAddress address.Address
@@ -34,6 +36,101 @@ type CCIPChainState struct {
 
 	// dummy receiver address
 	ReceiverAddress address.Address
+}
+
+type TONChainView struct {
+	ChainSelector uint64                        `json:"chainSelector,omitempty"`
+	ChainID       string                        `json:"chainID,omitempty"`
+	OnRamp        map[string]view.OnRampView    `json:"onRamp,omitempty"`
+	Router        map[string]view.RouterView    `json:"router,omitempty"`
+	FeeQuoter     map[string]view.FeeQuoterView `json:"feeQuoter,omitempty"`
+	OffRamp       map[string]view.OffRampView   `json:"offRamp,omitempty"`
+}
+
+func newTONChainView() TONChainView {
+	return TONChainView{
+		ChainSelector: 0,
+		ChainID:       "",
+		OnRamp:        make(map[string]view.OnRampView),
+		Router:        make(map[string]view.RouterView),
+		FeeQuoter:     make(map[string]view.FeeQuoterView),
+		OffRamp:       make(map[string]view.OffRampView),
+	}
+}
+
+func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chainID string) (TONChainView, error) {
+	lggr := e.Logger
+	tonView := newTONChainView()
+	tonView.ChainSelector = selector
+	tonView.ChainID = chainID
+	tonClient, ok := e.BlockChains.TonChains()[selector]
+	if !ok {
+		return tonView, errors.New("chain not found or not a TON chain")
+	}
+
+	lggr.Infow("generating TON chain view",
+		"chain", tonClient.Name(),
+		"selector", selector)
+
+	ctx := context.Background()
+	block, err := tonClient.Client.CurrentMasterchainInfo(ctx)
+	if err != nil {
+		return tonView, fmt.Errorf("failed to get current masterchain info: %w", err)
+	}
+
+	errGroup := errgroup.Group{}
+	if !s.OnRamp.IsAddrNone() {
+		errGroup.Go(func() error {
+			onRampView, err := view.FetchOnRampView(ctx, tonClient, block, &s.OnRamp, selector)
+			if err != nil {
+				return fmt.Errorf("failed to generate onramp view for chain %d: %w", selector, err)
+			}
+			lggr.Infow("generated onRamp view", "chainID", chainID, "onRamp", s.OnRamp.String())
+			tonView.OnRamp[s.OnRamp.String()] = *onRampView
+			return nil
+		})
+	}
+
+	if !s.Router.IsAddrNone() {
+		errGroup.Go(func() error {
+			routerView, err := view.FetchRouterView(ctx, tonClient, block, &s.Router)
+			if err != nil {
+				return fmt.Errorf("failed to generate router view for chain %d: %w", selector, err)
+			}
+
+			lggr.Infow("generated router view", "chainID", chainID, "router", s.Router.String())
+			tonView.Router[s.Router.String()] = *routerView
+			return nil
+		})
+	}
+
+	if !s.FeeQuoter.IsAddrNone() {
+		errGroup.Go(func() error {
+			feeQuoterView, err := view.FetchFeeQuoterView(ctx, tonClient, block, &s.FeeQuoter)
+			if err != nil {
+				return fmt.Errorf("failed to generate fee quoter view for chain %d: %w", selector, err)
+			}
+
+			lggr.Infow("generated feeQuoter view", "chainID", chainID, "feeQuoter", s.FeeQuoter.String())
+			tonView.FeeQuoter[s.FeeQuoter.String()] = *feeQuoterView
+			return nil
+		})
+	}
+
+	if !s.OffRamp.IsAddrNone() {
+		errGroup.Go(func() error {
+			offRampView, err := view.FetchOffRampView(ctx, tonClient, block, &s.OffRamp)
+			if err != nil {
+				return fmt.Errorf("failed to generate offramp view for chain %d: %w", selector, err)
+			}
+
+			lggr.Infow("generated offRamp view", "chainID", chainID, "offRamp", s.OffRamp.String())
+			tonView.OffRamp[s.OffRamp.String()] = *offRampView
+			return nil
+		})
+	}
+
+	return tonView, errGroup.Wait()
 }
 
 func SaveOnchainState(chainSelector uint64, state CCIPChainState, e cldf.Environment) error {
