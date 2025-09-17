@@ -19,7 +19,7 @@ const (
 
 type RouterView struct {
 	MetaData
-	OnRampAddr map[uint64]*address.Address `json:"onRampAddr"`
+	OnRampAddr map[uint64]*address.Address `json:"onRampAddr,omitempty"`
 }
 
 // FetchRouterView generates a view of the router contract at the specified block.
