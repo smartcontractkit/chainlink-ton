@@ -188,6 +188,10 @@ github.com/jackc/puddle v1.1.3/go.mod h1:m4B5Dj62Y0fbyuIc15OsIqK0+JU8nkqQjsgx7dv
 github.com/jackc/puddle v1.3.0/go.mod h1:m4B5Dj62Y0fbyuIc15OsIqK0+JU8nkqQjsgx7dvjSWk=
 github.com/jhump/protoreflect v1.15.3 h1:6SFRuqU45u9hIZPJAoZ8c28T3nK64BNdp9w6jFonzls=
 github.com/jhump/protoreflect v1.15.3/go.mod h1:4ORHmSBmlCW8fh3xHmJMGyul1zNqZK4Elxc8qKP+p1k=
+github.com/jmank88/gomods v0.1.6 h1:HNHM9x2QPdF7R72pm83MZpori5AlPiXiukTdLqrUJYE=
+github.com/jmank88/gomods v0.1.6/go.mod h1:mFFORqytinYpCj2zbyAqAka1R8LZOG9N34uvMzKVSyA=
+github.com/jmank88/modgraph v0.1.1 h1:Lz9XlGbsb//zsHRDPq+fbU28NaSgUwUY/1PjbOMLnew=
+github.com/jmank88/modgraph v0.1.1/go.mod h1:wECy/lrullAgq5p3K1CK0KvLlnIkxTc1V2u6p0bdT4s=
 github.com/jmoiron/sqlx v1.4.0 h1:1PLqN7S1UYp5t4SrVVnt4nUVNemrDAtxlulVe+Qgm3o=
 github.com/jmoiron/sqlx v1.4.0/go.mod h1:ZrZ7UsYB/weZdl2Bxg6jCRO9c3YHl8r3ahlKmRT4JLY=
 github.com/jpillora/backoff v1.0.0 h1:uvFg412JmmHBHw7iwprIxkPMI+sGQ4kzOWsMeHnm2EA=

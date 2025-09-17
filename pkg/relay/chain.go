@@ -83,23 +83,13 @@ func NewChain(cfg *config.TOMLConfig, opts ChainOpts) (Chain, error) {
 		return nil, fmt.Errorf("cannot create new chain with ID %s: chain is disabled", cfg.ChainID)
 	}
 
-	return newChain(context.Background(), cfg, opts.KeyStore, opts.Logger, opts.DS)
+	return newChain(cfg, opts.KeyStore, opts.Logger, opts.DS)
 }
 
-func newChain(ctx context.Context, cfg *config.TOMLConfig, loopKs loop.Keystore, lggr logger.Logger, ds sqlutil.DataSource) (*chain, error) {
+func newChain(cfg *config.TOMLConfig, loopKs loop.Keystore, lggr logger.Logger, ds sqlutil.DataSource) (*chain, error) {
 	lggr = logger.With(lggr, "chainID", cfg.ChainID)
 
-	// TEMP: fetch the first account in the store to use for transmissions to avoid having to specify it in TOML
-	accounts, err := loopKs.Accounts(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch accounts from keystore: %w", err)
-	}
-
-	if len(accounts) == 0 {
-		return nil, errors.New("no TON account available")
-	}
-
-	_, err = strconv.ParseInt(cfg.ChainID, 10, 16)
+	_, err := strconv.ParseInt(cfg.ChainID, 10, 16)
 	if err != nil {
 		return nil, fmt.Errorf("invalid chain ID %s: could not parse as an integer: %w", cfg.ChainID, err)
 	}
@@ -112,38 +102,47 @@ func newChain(ctx context.Context, cfg *config.TOMLConfig, loopKs loop.Keystore,
 		clientCache: make(map[int]*cachedClient),
 	}
 
-	tonClient, err := ch.GetClient(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create TON client for chain ID %s: %w", cfg.ChainID, err)
-	}
+	// TODO(@jadepark-dev): TXM technically doesn't need SignedAPIClient, revisit to refactor
+	signedClientProvider := commonutils.NewLazyLoadCtx(func(ctx context.Context) (tracetracking.SignedAPIClient, error) {
+		tonClient, err := ch.GetClient(ctx)
+		if err != nil {
+			return tracetracking.SignedAPIClient{}, fmt.Errorf("failed to create TON client for chain ID %s: %w", cfg.ChainID, err)
+		}
 
-	signerWallet, err := ch.GetSignerWallet(ctx, tonClient, loopKs, 0)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get signer wallet for chain ID %s: %w", cfg.ChainID, err)
-	}
+		signerWallet, err := ch.GetSignerWallet(ctx, tonClient, loopKs, 0)
+		if err != nil {
+			return tracetracking.SignedAPIClient{}, fmt.Errorf("failed to get signer wallet for chain ID %s: %w", cfg.ChainID, err)
+		}
 
-	apiClient := tracetracking.SignedAPIClient{
-		Client: tonClient,
-		Wallet: *signerWallet,
-	}
+		return tracetracking.SignedAPIClient{
+			Client: tonClient,
+			Wallet: *signerWallet,
+		}, nil
+	})
 
-	// Get TXM configuration from chain config
-	txmCfg := *ch.cfg.TxManager()
-	ch.txm = txm.New(lggr, loopKs, apiClient, txmCfg)
+	ch.txm = txm.New(lggr, loopKs, signedClientProvider.Get, *ch.cfg.TxManager())
+
+	clientProvider := func(ctx context.Context) (ton.APIClientWrapped, error) {
+		signedClient, err := signedClientProvider.Get(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return signedClient.Client, nil
+	}
 
 	// Get LogPoller configuration from chain config
-	lgCfg := *ch.cfg.LogPollerConfig()
+	lpCfg := *ch.cfg.LogPollerConfig()
 	fs := inmemorystore.NewFilterStore()
 	lgOpts := &logpoller.ServiceOptions{
-		Config:   lgCfg,
-		Client:   tonClient,
+		Config:   lpCfg,
 		Filters:  fs,
-		TxLoader: account.NewTxLoader(tonClient, lggr, lgCfg.PageSize),
+		TxLoader: account.NewTxLoader(lggr, clientProvider, lpCfg.PageSize),
 		TxParser: txparser.NewTxParser(lggr, fs),
 		Store:    inmemorystore.NewLogStore(),
 	}
 
-	ch.lp = logpoller.NewService(lggr, lgOpts)
+	ch.lp = logpoller.NewService(lggr, clientProvider, lgOpts)
+
 	// TODO: Setup accounts balance monitor
 
 	return ch, nil

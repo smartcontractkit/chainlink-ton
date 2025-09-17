@@ -1,4 +1,4 @@
-import { Cell } from '@ton/core'
+import { Builder, Slice } from '@ton/core'
 import { createHash } from 'crypto'
 
 // Helper function to compute a 32-bit SHA-256 hash of a string (e.g., Tolk's stringSha256_32)
@@ -9,6 +9,6 @@ export const sha256_32 = (input: string): bigint => {
 }
 
 export interface CellCodec<T> {
-  encode: (data: T) => Cell
-  decode: (cell: Cell) => T
+  encode: (data: T) => Builder
+  load: (src: Slice) => T
 }

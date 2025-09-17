@@ -1,6 +1,7 @@
 package txm_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -54,11 +55,13 @@ func TestTxmLocal(t *testing.T) {
 }
 
 func runTxmTest(t *testing.T, logger logger.Logger, config txm.Config, tonChain cldf_ton.Chain, keystore loop.Keystore, iterations int) {
-	apiClient := tracetracking.SignedAPIClient{
-		Client: tonChain.Client,
-		Wallet: *tonChain.Wallet,
+	signedClientProvider := func(ctx context.Context) (tracetracking.SignedAPIClient, error) {
+		return tracetracking.SignedAPIClient{
+			Client: tonChain.Client,
+			Wallet: *tonChain.Wallet,
+		}, nil
 	}
-	tonTxm := txm.New(logger, keystore, apiClient, config)
+	tonTxm := txm.New(logger, keystore, signedClientProvider, config)
 	err := tonTxm.Start(t.Context())
 	require.NoError(t, err)
 	defer func() {

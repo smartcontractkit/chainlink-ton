@@ -119,8 +119,11 @@ func (s *Service) SendTx(ctx context.Context, msg tontypes.Message) error {
 	amount := tlb.MustFromTON(msg.Amount)
 
 	txManager := s.chain.TxManager()
-	signedClient := txManager.GetClient()
-	fromWallet := signedClient.Wallet
+	client, err := txManager.GetClient(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get client: %w", err)
+	}
+	fromWallet := client.Wallet
 
 	request := txm.Request{
 		Mode:            msg.Mode,

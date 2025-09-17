@@ -1,12 +1,14 @@
 import {
   Address,
   beginCell,
+  Builder,
   Cell,
   Contract,
   contractAddress,
   ContractProvider,
   Sender,
   SendMode,
+  Slice,
 } from '@ton/core'
 import { TypeAndVersion } from '../libraries/TypeAndVersion'
 import * as ownable2step from '../libraries/access/Ownable2Step'
@@ -48,70 +50,58 @@ export type ContractData = {
 
 export const builder = {
   message: {
-    in: {
+    in: (() => {
       // Creates a new `SetCount` message.
-      setCount: {
-        encode: (msg: SetCount): Cell => {
+      const setCount: CellCodec<SetCount> = {
+        encode: (msg: SetCount): Builder => {
           return beginCell() // break line
             .storeUint(opcodes.in.SetCount, 32)
             .storeUint(msg.queryId, 64)
             .storeUint(msg.newCount, 32)
-            .endCell()
         },
-        decode: (cell: Cell): SetCount => {
-          const s = cell.beginParse()
-          s.skip(32) // skip opcode
+        load: (src: Slice): SetCount => {
+          src.skip(32) // skip opcode
           return {
-            queryId: s.loadUintBig(64),
-            newCount: s.loadUint(32),
+            queryId: src.loadUintBig(64),
+            newCount: src.loadUint(32),
           }
         },
-      },
+      }
       // Creates a new `IncreaseCount` message.
-      increaseCount: {
-        encode: (msg: IncreaseCount): Cell => {
-          return beginCell()
-            .storeUint(opcodes.in.IncreaseCount, 32)
-            .storeUint(msg.queryId, 64)
-            .endCell()
+      const increaseCount: CellCodec<IncreaseCount> = {
+        encode: (msg: IncreaseCount): Builder => {
+          return beginCell().storeUint(opcodes.in.IncreaseCount, 32).storeUint(msg.queryId, 64)
         },
-        decode: (cell: Cell): IncreaseCount => {
-          const s = cell.beginParse()
-          s.skip(32) // skip opcode
+        load: (src: Slice): IncreaseCount => {
+          src.skip(32) // skip opcode
           return {
-            queryId: s.loadUintBig(64),
+            queryId: src.loadUintBig(64),
           }
         },
-      },
-    },
+      }
+
+      return { setCount, increaseCount }
+    })(),
   },
   data: (() => {
     // Creates a new `Counter_Data` contract data cell
     const contractData: CellCodec<ContractData> = {
-      encode: (data: ContractData): Cell => {
-        let _pendingOwnerMaybe = data.ownable.pendingOwner
-          ? beginCell().storeAddress(data.ownable.pendingOwner)
-          : null
-        let ownable = beginCell()
-          .storeAddress(data.ownable.owner)
-          .storeMaybeBuilder(_pendingOwnerMaybe)
+      encode: (data: ContractData): Builder => {
         return beginCell()
           .storeUint(data.id, 32)
           .storeUint(data.value, 32)
-          .storeBuilder(ownable)
-          .endCell()
+          .storeBuilder(ownable2step.builder.data.traitData.encode(data.ownable))
       },
-      decode: (cell: Cell): ContractData => {
-        const s = cell.beginParse()
-        const id = s.loadUintBig(32)
-        const value = s.loadUintBig(32)
+      load: (src: Slice): ContractData => {
+        const id = src.loadUintBig(32)
+        const value = src.loadUintBig(32)
         return {
-          id: s.loadUint(32),
-          value: s.loadUint(32),
+          id: src.loadUint(32),
+          value: src.loadUint(32),
           ownable: {
             // TODO: use ownable2step decoder
-            owner: s.loadAddress(),
-            pendingOwner: s.loadMaybeAddress(),
+            owner: src.loadAddress(),
+            pendingOwner: src.loadMaybeAddress(),
           },
         }
       },
@@ -138,7 +128,7 @@ export class ContractClient implements Contract, TypeAndVersion {
   }
 
   static newFrom(data: ContractData, code: Cell, workchain = 0): ContractClient {
-    const init = { code, data: builder.data.contractData.encode(data) }
+    const init = { code, data: builder.data.contractData.encode(data).asCell() }
     return new ContractClient(contractAddress(workchain, init), init)
   }
 
@@ -156,7 +146,7 @@ export class ContractClient implements Contract, TypeAndVersion {
   }
 
   async sendSetCount(p: ContractProvider, via: Sender, value: bigint = 0n, body: SetCount) {
-    return this.sendInternal(p, via, value, builder.message.in.setCount.encode(body))
+    return this.sendInternal(p, via, value, builder.message.in.setCount.encode(body).asCell())
   }
 
   async sendIncreaseCount(

@@ -197,11 +197,13 @@ export class MCMSBaseTestSetup {
     const signers = new Map<number, Buffer>()
     for (let i = 0; i < this.testSigners.length; i++) {
       const signer = this.testSigners[i]
-      const signerData = mcms.builder.data.signer.encode({
-        key: BigInt('0x' + signer.keyPair.publicKey.toString('hex')),
-        index: signer.index,
-        group: signer.group,
-      })
+      const signerData = mcms.builder.data.signer
+        .encode({
+          key: BigInt('0x' + signer.keyPair.publicKey.toString('hex')),
+          index: signer.index,
+          group: signer.group,
+        })
+        .asCell()
       signers.set(i, signerData.toBoc())
     }
 
@@ -276,7 +278,7 @@ export class MCMSBaseTestSetup {
    * Deploy the MCMS contract and verify deployment
    */
   async deployMCMSContract(): Promise<void> {
-    const body = mcms.builder.message.in.topUp.encode({ queryId: 1n })
+    const body = mcms.builder.message.in.topUp.encode({ queryId: 1n }).asCell()
     const result = await this.bind.mcms.sendInternal(
       this.acc.deployer.getSender(),
       toNano('2'),
@@ -331,14 +333,16 @@ export class MCMSBaseTestSetup {
 
     // Build signer groups cell
 
-    const setConfigBody = mcms.builder.message.in.setConfig.encode({
-      queryId: 1n,
-      signerKeys: this.testSigners.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey)),
-      signerGroups: this.testSigners.map((s) => s.group),
-      groupQuorums: this.testConfig.groupQuorums,
-      groupParents: this.testConfig.groupParents,
-      clearRoot: false,
-    })
+    const setConfigBody = mcms.builder.message.in.setConfig
+      .encode({
+        queryId: 1n,
+        signerKeys: this.testSigners.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey)),
+        signerGroups: this.testSigners.map((s) => s.group),
+        groupQuorums: this.testConfig.groupQuorums,
+        groupParents: this.testConfig.groupParents,
+        clearRoot: false,
+      })
+      .asCell()
 
     const result = await this.bind.mcms.sendInternal(
       this.acc.multisigOwner.getSender(),
@@ -383,16 +387,18 @@ export class MCMSBaseTestSetup {
         i == MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX ? toNano('10') : toNano('0.10')
 
       // default op
-      let op = counter.builder.message.in.setCount.encode({
-        queryId: BigInt(i + startNonce),
-        newCount: i + startNonce,
-      })
+      let op = counter.builder.message.in.setCount
+        .encode({
+          queryId: BigInt(i + startNonce),
+          newCount: i + startNonce,
+        })
+        .asCell()
 
       {
         switch (i) {
           case MCMSBaseSetRootAndExecuteTestSetup.REVERTING_OP_INDEX:
             if (includeRevertingOp) {
-              op = beginCell().storeUint(0xffffffff, 32).endCell()
+              op = beginCell().storeUint(0xffffffff, 32).asCell()
             } else {
               // use default op
             }
@@ -550,7 +556,7 @@ export class MCMSBaseSetRootAndExecuteTestSetup extends MCMSBaseTestSetup {
     // Store the operation proofs for later use in execute tests
     this.opProofs = opProofs
 
-    const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot)
+    const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot).asCell()
 
     const result = await this.bind.mcms.sendInternal(
       this.acc.deployer.getSender(),
@@ -578,11 +584,13 @@ export class MCMSBaseSetRootAndExecuteTestSetup extends MCMSBaseTestSetup {
   // Execute all operations up to the post-op count limit to simulate setOpCount
   async executeOperationsUpTo(index: number) {
     for (let i = 0; i < index; i++) {
-      const executeBody = mcms.builder.message.in.execute.encode({
-        queryId: BigInt(i + 1),
-        op: mcms.builder.data.op.encode(this.testOps[i]),
-        proof: this.opProofs[i],
-      })
+      const executeBody = mcms.builder.message.in.execute
+        .encode({
+          queryId: BigInt(i + 1),
+          op: mcms.builder.data.op.encode(this.testOps[i]).asCell(),
+          proof: this.opProofs[i],
+        })
+        .asCell()
 
       const result = await this.bind.mcms.sendInternal(
         this.acc.deployer.getSender(),

@@ -1,6 +1,7 @@
 import {
   Address,
   beginCell,
+  Builder,
   Cell,
   Contract,
   contractAddress,
@@ -8,6 +9,7 @@ import {
   Dictionary,
   Sender,
   SendMode,
+  Slice,
 } from '@ton/core'
 import { crc32 } from 'zlib'
 import { CellCodec, sha256_32 } from '../utils'
@@ -248,52 +250,51 @@ export const opcodes = {
 
 export const builder = {
   message: {
-    init: {
-      encode: (msg: Init): Cell => {
-        return beginCell()
-          .storeUint(opcodes.in.Init, 32)
-          .storeUint(msg.queryId, 64)
-          .storeUint(msg.minDelay, 64)
-          .storeAddress(msg.admin)
-          .storeRef(msg.proposers)
-          .storeRef(msg.executors)
-          .storeRef(msg.cancellers)
-          .storeRef(msg.bypassers)
-          .endCell()
-      },
-      decode: (cell: Cell): Init => {
-        const s = cell.beginParse()
-        s.skip(32) // skip opcode
-        return {
-          queryId: s.loadUintBig(64),
-          minDelay: s.loadUintBig(64),
-          admin: s.loadAddress(),
-          proposers: s.loadRef(),
-          executors: s.loadRef(),
-          cancellers: s.loadRef(),
-          bypassers: s.loadRef(),
-        }
-      },
-    } as CellCodec<Init>,
-    in: {
-      topUp: {
-        encode: (msg: TopUp): Cell => {
+    init: (() => {
+      const init: CellCodec<Init> = {
+        encode: (msg: Init): Builder => {
+          return beginCell()
+            .storeUint(opcodes.in.Init, 32)
+            .storeUint(msg.queryId, 64)
+            .storeUint(msg.minDelay, 64)
+            .storeAddress(msg.admin)
+            .storeRef(msg.proposers)
+            .storeRef(msg.executors)
+            .storeRef(msg.cancellers)
+            .storeRef(msg.bypassers)
+        },
+        load: (src: Slice): Init => {
+          src.skip(32) // skip opcode
+          return {
+            queryId: src.loadUintBig(64),
+            minDelay: src.loadUintBig(64),
+            admin: src.loadAddress(),
+            proposers: src.loadRef(),
+            executors: src.loadRef(),
+            cancellers: src.loadRef(),
+            bypassers: src.loadRef(),
+          }
+        },
+      }
+      return init
+    })(),
+    in: (() => {
+      const topUp: CellCodec<TopUp> = {
+        encode: (msg: TopUp): Builder => {
           return beginCell() // break line
             .storeUint(opcodes.in.TopUp, 32)
             .storeUint(msg.queryId, 64)
-            .endCell()
         },
-        decode: (cell: Cell): TopUp => {
-          const s = cell.beginParse()
-          s.skip(32) // skip opcode
+        load: (src: Slice): TopUp => {
+          src.skip(32) // skip opcode
           return {
-            queryId: s.loadUintBig(64),
+            queryId: src.loadUintBig(64),
           }
         },
-      } as CellCodec<TopUp>,
+      }
 
-      scheduleBatch: {
-        encode: (msg: ScheduleBatch): Cell => {
+      const scheduleBatch: CellCodec<ScheduleBatch> = {
+        encode: (msg: ScheduleBatch): Builder => {
           return beginCell()
             .storeUint(opcodes.in.ScheduleBatch, 32)
             .storeUint(msg.queryId, 64)
@@ -301,137 +302,134 @@ export const builder = {
             .storeUint(msg.predecessor, 256)
             .storeUint(msg.salt, 256)
             .storeUint(msg.delay, 64)
-            .endCell()
         },
-        decode: (cell: Cell): ScheduleBatch => {
-          const s = cell.beginParse()
-          s.skip(32) // skip opcode
+        load: (src: Slice): ScheduleBatch => {
+          src.skip(32) // skip opcode
           return {
-            queryId: s.loadUintBig(64),
-            calls: s.loadRef(),
-            predecessor: s.loadUintBig(256),
-            salt: s.loadUintBig(256),
-            delay: s.loadUintBig(64),
+            queryId: src.loadUintBig(64),
+            calls: src.loadRef(),
+            predecessor: src.loadUintBig(256),
+            salt: src.loadUintBig(256),
+            delay: src.loadUintBig(64),
           }
         },
-      } as CellCodec<ScheduleBatch>,
+      }
 
-      cancel: {
-        encode: (msg: Cancel): Cell => {
+      const cancel: CellCodec<Cancel> = {
+        encode: (msg: Cancel): Builder => {
           return beginCell()
             .storeUint(opcodes.in.Cancel, 32)
             .storeUint(msg.queryId, 64)
             .storeUint(msg.id, 256)
-            .endCell()
         },
-        decode: (cell: Cell): Cancel => {
-          const s = cell.beginParse()
-          s.skip(32) // skip opcode
+        load: (src: Slice): Cancel => {
+          src.skip(32) // skip opcode
           return {
-            queryId: s.loadUintBig(64),
-            id: s.loadUintBig(256),
+            queryId: src.loadUintBig(64),
+            id: src.loadUintBig(256),
           }
         },
-      } as CellCodec<Cancel>,
+      }
 
-      executeBatch: {
-        encode: (msg: ExecuteBatch): Cell => {
+      const executeBatch: CellCodec<ExecuteBatch> = {
+        encode: (msg: ExecuteBatch): Builder => {
           return beginCell()
             .storeUint(opcodes.in.ExecuteBatch, 32)
             .storeUint(msg.queryId, 64)
             .storeRef(msg.calls)
             .storeUint(msg.predecessor, 256)
             .storeUint(msg.salt, 256)
-            .endCell()
         },
-        decode: (cell: Cell): ExecuteBatch => {
-          const s = cell.beginParse()
-          s.skip(32) // skip opcode
+        load: (src: Slice): ExecuteBatch => {
+          src.skip(32) // skip opcode
           return {
-            queryId: s.loadUintBig(64),
-            calls: s.loadRef(),
-            predecessor: s.loadUintBig(256),
-            salt: s.loadUintBig(256),
+            queryId: src.loadUintBig(64),
+            calls: src.loadRef(),
+            predecessor: src.loadUintBig(256),
+            salt: src.loadUintBig(256),
           }
         },
-      } as CellCodec<ExecuteBatch>,
+      }
 
-      updateDelay: {
-        encode: (msg: UpdateDelay): Cell => {
+      const updateDelay: CellCodec<UpdateDelay> = {
+        encode: (msg: UpdateDelay): Builder => {
           return beginCell()
             .storeUint(opcodes.in.UpdateDelay, 32)
             .storeUint(msg.queryId, 64)
             .storeUint(msg.newDelay, 64)
-            .endCell()
         },
-        decode: (cell: Cell): UpdateDelay => {
-          const s = cell.beginParse()
-          s.skip(32) // skip opcode
+        load: (src: Slice): UpdateDelay => {
+          src.skip(32) // skip opcode
           return {
-            queryId: s.loadUintBig(64),
+            queryId: src.loadUintBig(64),
             newDelay: -1, // TODO: decode delay properly (number vs bigint mismatch)
-            // newDelay: s.loadUintBig(64),
+            // newDelay: src.loadUintBig(64),
           }
         },
-      } as CellCodec<UpdateDelay>,
+      }
 
-      blockFunctionSelector: {
-        encode: (msg: BlockFunctionSelector): Cell => {
+      const blockFunctionSelector: CellCodec<BlockFunctionSelector> = {
+        encode: (msg: BlockFunctionSelector): Builder => {
           return beginCell()
             .storeUint(opcodes.in.BlockFunctionSelector, 32)
             .storeUint(msg.queryId, 64)
             .storeUint(msg.selector, 32)
-            .endCell()
         },
-        decode: (cell: Cell): BlockFunctionSelector => {
-          const s = cell.beginParse()
-          s.skip(32) // skip opcode
+        load: (src: Slice): BlockFunctionSelector => {
+          src.skip(32) // skip opcode
           return {
-            queryId: s.loadUintBig(64),
-            selector: s.loadUint(32),
+            queryId: src.loadUintBig(64),
+            selector: src.loadUint(32),
           }
         },
-      } as CellCodec<BlockFunctionSelector>,
+      }
 
-      unblockFunctionSelector: {
-        encode: (msg: UnblockFunctionSelector): Cell => {
+      const unblockFunctionSelector: CellCodec<UnblockFunctionSelector> = {
+        encode: (msg: UnblockFunctionSelector): Builder => {
           return beginCell()
             .storeUint(opcodes.in.UnblockFunctionSelector, 32)
             .storeUint(msg.queryId, 64)
             .storeUint(msg.selector, 32)
-            .endCell()
         },
-        decode: (cell: Cell): UnblockFunctionSelector => {
-          const s = cell.beginParse()
-          s.skip(32) // skip opcode
+        load: (src: Slice): UnblockFunctionSelector => {
+          src.skip(32) // skip opcode
           return {
-            queryId: s.loadUintBig(64),
-            selector: s.loadUint(32),
+            queryId: src.loadUintBig(64),
+            selector: src.loadUint(32),
           }
         },
-      } as CellCodec<UnblockFunctionSelector>,
+      }
 
-      bypasserExecuteBatch: {
-        encode: (msg: BypasserExecuteBatch): Cell => {
+      const bypasserExecuteBatch: CellCodec<BypasserExecuteBatch> = {
+        encode: (msg: BypasserExecuteBatch): Builder => {
           return beginCell()
             .storeUint(opcodes.in.BypasserExecuteBatch, 32)
             .storeUint(msg.queryId, 64)
             .storeRef(msg.calls)
-            .endCell()
         },
-        decode: (cell: Cell): BypasserExecuteBatch => {
-          const s = cell.beginParse()
-          s.skip(32) // skip opcode
+        load: (src: Slice): BypasserExecuteBatch => {
+          src.skip(32) // skip opcode
           return {
-            queryId: s.loadUintBig(64),
-            calls: s.loadRef(),
+            queryId: src.loadUintBig(64),
+            calls: src.loadRef(),
           }
         },
-      } as CellCodec<BypasserExecuteBatch>,
-    },
-    out: {
-      callScheduled: {
-        encode: (event: CallScheduled): Cell => {
+      }
+
+      return {
+        topUp,
+        scheduleBatch,
+        cancel,
+        executeBatch,
+        updateDelay,
+        blockFunctionSelector,
+        unblockFunctionSelector,
+        bypasserExecuteBatch,
+      }
+    })(),
+    out: (() => {
+      const callScheduled: CellCodec<CallScheduled> = {
+        encode: (event: CallScheduled): Builder => {
           return beginCell()
             .storeUint(opcodes.out.CallScheduled, 32)
             .storeUint(event.queryId, 64)
@@ -441,24 +439,22 @@ export const builder = {
             .storeUint(event.predecessor, 256)
             .storeUint(event.salt, 256)
             .storeUint(event.delay, 64)
-            .endCell()
         },
-        decode: (cell: Cell): CallScheduled => {
-          const s = cell.beginParse()
-          s.skip(32) // skip opcode
+        load: (src: Slice): CallScheduled => {
+          src.skip(32) // skip opcode
           return {
-            queryId: s.loadUint(64),
-            id: s.loadUintBig(256),
-            index: s.loadUint(64),
-            call: s.loadRef(),
-            predecessor: s.loadUintBig(256),
-            salt: s.loadUintBig(256),
-            delay: s.loadUint(64),
+            queryId: src.loadUint(64),
+            id: src.loadUintBig(256),
+            index: src.loadUint(64),
+            call: src.loadRef(),
+            predecessor: src.loadUintBig(256),
+            salt: src.loadUintBig(256),
+            delay: src.loadUint(64),
           }
         },
-      } as CellCodec<CallScheduled>,
-      callExecuted: {
-        encode: (event: CallExecuted): Cell => {
+      }
+      const callExecuted: CellCodec<CallExecuted> = {
+        encode: (event: CallExecuted): Builder => {
           return beginCell()
             .storeUint(opcodes.out.CallExecuted, 32)
             .storeUint(event.queryId, 64)
@@ -467,23 +463,21 @@ export const builder = {
             .storeAddress(event.target)
             .storeCoins(event.value)
             .storeRef(event.data)
-            .endCell()
         },
-        decode: (cell: Cell): CallExecuted => {
-          const s = cell.beginParse()
-          s.skip(32) // skip opcode
+        load: (src: Slice): CallExecuted => {
+          src.skip(32) // skip opcode
           return {
-            queryId: s.loadUint(64),
-            id: s.loadUintBig(256),
-            index: s.loadUint(64),
-            target: s.loadAddress(),
-            value: s.loadCoins(),
-            data: s.loadRef(),
+            queryId: src.loadUint(64),
+            id: src.loadUintBig(256),
+            index: src.loadUint(64),
+            target: src.loadAddress(),
+            value: src.loadCoins(),
+            data: src.loadRef(),
           }
         },
-      } as CellCodec<CallExecuted>,
-      bypasserCallExecuted: {
-        encode: (event: BypasserCallExecuted): Cell => {
+      }
+      const bypasserCallExecuted: CellCodec<BypasserCallExecuted> = {
+        encode: (event: BypasserCallExecuted): Builder => {
           return beginCell()
             .storeUint(opcodes.out.BypasserCallExecuted, 32)
             .storeUint(event.queryId, 64)
@@ -491,95 +485,95 @@ export const builder = {
             .storeAddress(event.target)
             .storeCoins(event.value)
             .storeRef(event.data)
-            .endCell()
         },
-        decode: (cell: Cell): BypasserCallExecuted => {
-          const s = cell.beginParse()
-          s.skip(32) // skip opcode
+        load: (src: Slice): BypasserCallExecuted => {
+          src.skip(32) // skip opcode
           return {
-            queryId: s.loadUint(64),
-            index: s.loadUint(64),
-            target: s.loadAddress(),
-            value: s.loadCoins(),
-            data: s.loadRef(),
+            queryId: src.loadUint(64),
+            index: src.loadUint(64),
+            target: src.loadAddress(),
+            value: src.loadCoins(),
+            data: src.loadRef(),
           }
         },
-      } as CellCodec<BypasserCallExecuted>,
-      canceled: {
-        encode: (event: Canceled): Cell => {
+      }
+      const canceled: CellCodec<Canceled> = {
+        encode: (event: Canceled): Builder => {
           return beginCell()
             .storeUint(opcodes.out.Canceled, 32)
             .storeUint(event.queryId, 64)
             .storeUint(event.id, 256)
-            .endCell()
         },
-        decode: (cell: Cell): Canceled => {
-          const s = cell.beginParse()
-          s.skip(32) // skip opcode
+        load: (src: Slice): Canceled => {
+          src.skip(32) // skip opcode
           return {
-            queryId: s.loadUint(64),
-            id: s.loadUintBig(256),
+            queryId: src.loadUint(64),
+            id: src.loadUintBig(256),
           }
         },
-      } as CellCodec<Canceled>,
-      minDelayChange: {
-        encode: (event: MinDelayChange): Cell => {
+      }
+      const minDelayChange: CellCodec<MinDelayChange> = {
+        encode: (event: MinDelayChange): Builder => {
           return beginCell()
             .storeUint(opcodes.out.MinDelayChange, 32)
             .storeUint(event.queryId, 64)
             .storeUint(event.oldDelay, 64)
             .storeUint(event.newDelay, 64)
-            .endCell()
         },
-        decode: (cell: Cell): MinDelayChange => {
-          const s = cell.beginParse()
-          s.skip(32) // skip opcode
+        load: (src: Slice): MinDelayChange => {
+          src.skip(32) // skip opcode
           return {
-            queryId: s.loadUint(64),
-            oldDelay: s.loadUint(64),
-            newDelay: s.loadUint(64),
+            queryId: src.loadUint(64),
+            oldDelay: src.loadUint(64),
+            newDelay: src.loadUint(64),
           }
         },
-      } as CellCodec<MinDelayChange>,
-      functionSelectorBlocked: {
-        encode: (event: FunctionSelectorBlocked): Cell => {
+      }
+      const functionSelectorBlocked: CellCodec<FunctionSelectorBlocked> = {
+        encode: (event: FunctionSelectorBlocked): Builder => {
           return beginCell()
             .storeUint(opcodes.out.FunctionSelectorBlocked, 32)
             .storeUint(event.queryId, 64)
             .storeUint(event.selector, 32)
-            .endCell()
         },
-        decode: (cell: Cell): FunctionSelectorBlocked => {
-          const s = cell.beginParse()
-          s.skip(32) // skip opcode
+        load: (src: Slice): FunctionSelectorBlocked => {
+          src.skip(32) // skip opcode
           return {
-            queryId: s.loadUint(64),
-            selector: s.loadUint(32),
+            queryId: src.loadUint(64),
+            selector: src.loadUint(32),
           }
         },
-      } as CellCodec<FunctionSelectorBlocked>,
-      functionSelectorUnblocked: {
-        encode: (event: FunctionSelectorUnblocked): Cell => {
+      }
+      const functionSelectorUnblocked: CellCodec<FunctionSelectorUnblocked> = {
+        encode: (event: FunctionSelectorUnblocked): Builder => {
           return beginCell()
             .storeUint(opcodes.out.FunctionSelectorUnblocked, 32)
             .storeUint(event.queryId, 64)
             .storeUint(event.selector, 32)
-            .endCell()
         },
-        decode: (cell: Cell): FunctionSelectorUnblocked => {
-          const s = cell.beginParse()
-          s.skip(32) // skip opcode
+        load: (src: Slice): FunctionSelectorUnblocked => {
+          src.skip(32) // skip opcode
           return {
-            queryId: s.loadUint(64),
-            selector: s.loadUint(32),
+            queryId: src.loadUint(64),
+            selector: src.loadUint(32),
           }
         },
-      } as CellCodec<FunctionSelectorUnblocked>,
-    },
+      }
+
+      return {
+        callScheduled,
+        callExecuted,
+        bypasserCallExecuted,
+        canceled,
+        minDelayChange,
+        functionSelectorBlocked,
+        functionSelectorUnblocked,
+      }
+    })(),
   },
-  data: {
-    contractData: {
-      encode: (data: ContractData): Cell => {
+  data: (() => {
+    const contractData: CellCodec<ContractData> = {
+      encode: (data: ContractData): Builder => {
         return beginCell()
           .storeUint(data.id, 32)
           .storeUint(data.minDelay, 64)
@@ -590,49 +584,43 @@ export const builder = {
               Dictionary.empty(Dictionary.Keys.Uint(32), Dictionary.Values.Buffer(0)),
           )
           .storeRef(data.rbac)
-          .endCell()
       },
-      decode: (cell: Cell): ContractData => {
+      load: (src: Slice): ContractData => {
         throw new Error('not implemented')
       },
-    } as CellCodec<ContractData>,
-
-    call: {
-      encode: (call: Call): Cell => {
-        return beginCell()
-          .storeAddress(call.target)
-          .storeCoins(call.value)
-          .storeRef(call.data)
-          .endCell()
+    }
+    const call: CellCodec<Call> = {
+      encode: (call: Call): Builder => {
+        return beginCell().storeAddress(call.target).storeCoins(call.value).storeRef(call.data)
       },
-      decode: (cell: Cell): Call => {
-        const stack = cell.beginParse()
+      load: (src: Slice): Call => {
         return {
-          target: stack.loadAddress(),
-          value: stack.loadCoins(),
-          data: stack.loadRef(),
+          target: src.loadAddress(),
+          value: src.loadCoins(),
+          data: src.loadRef(),
         }
       },
-    } as CellCodec<Call>,
+    }
 
-    operationBatch: {
-      encode: (op: OperationBatch): Cell => {
-        return beginCell()
-          .storeRef(op.calls)
-          .storeUint(op.predecessor, 256)
-          .storeUint(op.salt, 256)
-          .endCell()
+    const operationBatch: CellCodec<OperationBatch> = {
+      encode: (op: OperationBatch): Builder => {
+        return beginCell().storeRef(op.calls).storeUint(op.predecessor, 256).storeUint(op.salt, 256)
       },
-      decode: (cell: Cell): OperationBatch => {
-        const s = cell.beginParse()
+      load: (src: Slice): OperationBatch => {
         return {
-          calls: s.loadRef(),
-          predecessor: s.loadUintBig(256),
-          salt: s.loadUintBig(256),
+          calls: src.loadRef(),
+          predecessor: src.loadUintBig(256),
+          salt: src.loadUintBig(256),
         }
       },
-    } as CellCodec<OperationBatch>,
-  },
+    }
+
+    return {
+      contractData,
+      call,
+      operationBatch,
+    }
+  })(),
 }
 
 // Compute the role ID for a given role name as keccak256(<role>)
@@ -679,7 +667,7 @@ export class ContractClient implements Contract {
   }
 
   static newFrom(data: ContractData, code: Cell, workchain = 0) {
-    const init = { code, data: builder.data.contractData.encode(data) }
+    const init = { code, data: builder.data.contractData.encode(data).asCell() }
     return new ContractClient(contractAddress(workchain, init), init)
   }
 
@@ -692,11 +680,11 @@ export class ContractClient implements Contract {
   }
 
   async sendInit(provider: ContractProvider, via: Sender, value: bigint, body: Init) {
-    return this.sendInternal(provider, via, value, builder.message.init.encode(body))
+    return this.sendInternal(provider, via, value, builder.message.init.encode(body).asCell())
   }
 
   async sendTopUp(provider: ContractProvider, via: Sender, value: bigint = 0n, body: TopUp) {
-    return this.sendInternal(provider, via, value, builder.message.in.topUp.encode(body))
+    return this.sendInternal(provider, via, value, builder.message.in.topUp.encode(body).asCell())
   }
 
   async sendScheduleBatch(
@@ -705,19 +693,19 @@ export class ContractClient implements Contract {
     value: bigint = 0n,
     body: ScheduleBatch,
   ) {
-    return this.sendInternal(p, via, value, builder.message.in.scheduleBatch.encode(body))
+    return this.sendInternal(p, via, value, builder.message.in.scheduleBatch.encode(body).asCell())
   }
 
   async sendCancel(p: ContractProvider, via: Sender, value: bigint = 0n, body: Cancel) {
-    return this.sendInternal(p, via, value, builder.message.in.cancel.encode(body))
+    return this.sendInternal(p, via, value, builder.message.in.cancel.encode(body).asCell())
   }
 
   async sendExecuteBatch(p: ContractProvider, via: Sender, value: bigint = 0n, body: ExecuteBatch) {
-    return this.sendInternal(p, via, value, builder.message.in.executeBatch.encode(body))
+    return this.sendInternal(p, via, value, builder.message.in.executeBatch.encode(body).asCell())
   }
 
   async sendUpdateDelay(p: ContractProvider, via: Sender, value: bigint = 0n, body: UpdateDelay) {
-    return this.sendInternal(p, via, value, builder.message.in.updateDelay.encode(body))
+    return this.sendInternal(p, via, value, builder.message.in.updateDelay.encode(body).asCell())
   }
 
   async sendBlockFunctionSelector(
@@ -726,7 +714,12 @@ export class ContractClient implements Contract {
     value: bigint = 0n,
     body: BlockFunctionSelector,
   ) {
-    return this.sendInternal(p, via, value, builder.message.in.blockFunctionSelector.encode(body))
+    return this.sendInternal(
+      p,
+      via,
+      value,
+      builder.message.in.blockFunctionSelector.encode(body).asCell(),
+    )
   }
 
   async sendUnblockFunctionSelector(
@@ -735,7 +728,12 @@ export class ContractClient implements Contract {
     value: bigint = 0n,
     body: UnblockFunctionSelector,
   ) {
-    return this.sendInternal(p, via, value, builder.message.in.unblockFunctionSelector.encode(body))
+    return this.sendInternal(
+      p,
+      via,
+      value,
+      builder.message.in.unblockFunctionSelector.encode(body).asCell(),
+    )
   }
 
   async sendBypasserExecuteBatch(
@@ -744,7 +742,12 @@ export class ContractClient implements Contract {
     value: bigint = 0n,
     body: BypasserExecuteBatch,
   ) {
-    return this.sendInternal(p, via, value, builder.message.in.bypasserExecuteBatch.encode(body))
+    return this.sendInternal(
+      p,
+      via,
+      value,
+      builder.message.in.bypasserExecuteBatch.encode(body).asCell(),
+    )
   }
 
   // --- Getters ---

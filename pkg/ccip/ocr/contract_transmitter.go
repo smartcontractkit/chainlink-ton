@@ -57,8 +57,12 @@ func NewCCIPTransmitter(
 	}, nil
 }
 
-func (c *ccipTransmitter) FromAccount(context.Context) (ocrtypes.Account, error) {
-	w := c.txm.GetClient().Wallet
+func (c *ccipTransmitter) FromAccount(ctx context.Context) (ocrtypes.Account, error) {
+	client, err := c.txm.GetClient(ctx)
+	if err != nil {
+		return "", fmt.Errorf("failed to get client: %w", err)
+	}
+	w := client.Wallet
 	rawAddr := codec.ToRawAddr(w.WalletAddress())
 	return ocrtypes.Account(hex.EncodeToString(rawAddr[:])), nil
 }
@@ -90,13 +94,17 @@ func (c *ccipTransmitter) Transmit(
 		return fmt.Errorf("failed to generate call data: %w", err)
 	}
 
-	w := c.txm.GetClient().Wallet
+	client, err := c.txm.GetClient(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get client: %w", err)
+	}
+	w := client.Wallet
 	request := txm.Request{
 		Mode:            wallet.PayGasSeparately,
 		FromWallet:      w,
 		ContractAddress: *address.MustParseAddr(c.offrampAddress),
 		Body:            argsCell,
-		Amount:          tlb.MustFromTON("0.05"), // TODO what should this be, overhead + gasLimist? constant for now
+		Amount:          tlb.MustFromTON("0.05"), // TODO: make this configurable
 	}
 
 	c.lggr.Infow("Submitting transaction", "address", c.offrampAddress, "request", request)

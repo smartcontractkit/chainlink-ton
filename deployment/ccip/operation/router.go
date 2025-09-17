@@ -46,7 +46,8 @@ func deployRouter(b operations.Bundle, deps TonDeps, in DeployRouterInput) (Depl
 			Owner:        deps.TonChain.WalletAddress,
 			PendingOwner: nil,
 		},
-		OnRamp: nil, // set afterwards
+		OnRamps: nil, // set afterwards
+		KeyLen:  64,
 	}
 	initData, err := tlb.ToCell(storage)
 	if err != nil {
@@ -94,7 +95,7 @@ func updateRouterDest(b operations.Bundle, deps TonDeps, in UpdateRouterDestInpu
 	msg := []*tlb.InternalMessage{
 		{
 			Bounce:  true,
-			Amount:  tlb.MustFromTON("1"),
+			Amount:  tlb.MustFromTON("0.1"),
 			DstAddr: &addr,
 			Body:    payload,
 		},
