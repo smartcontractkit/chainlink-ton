@@ -140,8 +140,8 @@ describe('Router', () => {
                 gasMultiplierWeiPerEth: 0n,
                 gasPriceStalenessThreshold: 0,
                 networkFeeUsdCents: 0,
-              }
-            }
+              },
+            },
           ],
         })
         expect(result.transactions).toHaveTransaction({
@@ -153,7 +153,10 @@ describe('Router', () => {
       {
         const result = await feeQuoter.sendUpdateFeeTokens(deployer.getSender(), {
           value: toNano('1'),
-          msg: { add: new Map([[TEST_TOKEN_ADDR, { premiumMultiplierWeiPerEth: 1n }]]), remove: [] },
+          msg: {
+            add: new Map([[TEST_TOKEN_ADDR, { premiumMultiplierWeiPerEth: 1n }]]),
+            remove: [],
+          },
         })
         expect(result.transactions).toHaveTransaction({
           to: feeQuoter.address,
@@ -315,7 +318,7 @@ describe('Router', () => {
         tokenAmounts: [],
         feeToken: TEST_TOKEN_ADDR,
         extraArgs: Cell.EMPTY,
-      }
+      },
     })
 
     expect(result1.transactions).toHaveTransaction({
@@ -354,7 +357,7 @@ describe('Router', () => {
         tokenAmounts: [],
         feeToken: TEST_TOKEN_ADDR,
         extraArgs: Cell.EMPTY,
-      }
+      },
     })
 
     expect(result2.transactions).toHaveTransaction({
@@ -393,7 +396,7 @@ describe('Router', () => {
         tokenAmounts: [],
         feeToken: TEST_TOKEN_ADDR,
         extraArgs: Cell.EMPTY,
-      }
+      },
     })
 
     expect(result3.transactions).toHaveTransaction({

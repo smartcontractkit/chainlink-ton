@@ -75,7 +75,7 @@ export const setupTestFeeQuoter = async (
           gasPriceStalenessThreshold: 0,
           networkFeeUsdCents: 0,
         },
-      }
+      },
     ],
   })
 

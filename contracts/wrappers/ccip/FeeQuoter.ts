@@ -152,8 +152,8 @@ export const builder = {
             .storeRef(
               asSnakeData(updates, (update) =>
                 new TonBuilder()
-                .storeInt(update.destChainSelector, 64)
-                .storeBuilder( destChainConfigToBuilder(update.config))
+                  .storeInt(update.destChainSelector, 64)
+                  .storeBuilder(destChainConfigToBuilder(update.config)),
               ),
             )
         },
