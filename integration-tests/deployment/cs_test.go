@@ -262,7 +262,7 @@ func TestDeploy(t *testing.T) {
 				Router:                    rawRouterAddr,
 				IsEnabled:                 true,
 				IsRMNVerificationDisabled: true,
-				MinSeqNr:                  0,
+				MinSeqNr:                  1,
 				OnRamp:                    onRamp,
 			},
 		}, sourceChainConfigs)
