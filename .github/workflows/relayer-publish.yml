@@ -248,11 +248,11 @@ jobs:
           REPO_DESTINATION_NAME: smartcontractkit/infra-k8s
           REPO_DESTINATION_GIT_BRANCH: main
           #OCI_IMAGE_TAG: ${{ needs.build-and-publish-core-with-relayer-docker.outputs.docker-manifest-tag }}
-          OCI_IMAGE_TAG: falopa
+          OCI_IMAGE_TAG: pr-183-9b1cb68-chainlink-ton
           PR_BASE_BRANCH: main
           PR_LABELS: preview-stage
           PR_DRAFT: "true"
-          PRODUCTS: ccip-ton
+          PRODUCTS: ccip-ton-staging
 
         run: |
           gh workflow run "${WORKFLOW_FILE_NAME}" \
