@@ -1335,16 +1335,23 @@ fun MCMS<T>.onInternalMessage(mutate self, msgSender: address, msgValue: coins, 
             // noop
         }
         else => {
-            val msgHandled = 0
+            val _msgHandled = 0
                 || self.data.ownable.onInternalMessage(msgSender, msgBody);
 
-            if (!msgHandled) {
-                // If the message was not handled
-                // ignore empty messages, "wrong opcode" for others
-                assert (msgBody.isEmpty()) throw ERROR_WRONG_OP;
-            }
+            // If the message was not handled:
+            //  - ignore all other messages, empty or not empty
+            //  - accept generic replies, don't throw "wrong opcode"
         }
     }
+}
+
+fun onInternalMessage(in: InMessage) {
+    // Load the contract storage as MCMS and handle the message
+    var mcms = MCMS<bool>.load();
+    mcms.onInternalMessage(in.senderAddress, in.valueCoins, in.body);
+
+    // Store the updated contract data
+    mcms.data.storeAsContractData();
 }
 
 fun onBouncedMessage(in: InMessageBounced) {
@@ -1353,6 +1360,8 @@ fun onBouncedMessage(in: InMessageBounced) {
 
     var rootInfo = lazy RootInfo.fromCell(mcms.data.rootInfo);
     var opPendingInfo = lazy OpPendingInfo.fromCell(rootInfo.expiringRootAndOpCount.opPendingInfo);
+
+    // TODO: emit an event with the bounce details?
 
     // Check the bounced message against the stored pending operation
     // If the received bounce does NOT equal expected, mark the root invalid.
@@ -1376,15 +1385,6 @@ fun onBouncedMessage(in: InMessageBounced) {
 
     rootInfo.expiringRootAndOpCount.opPendingInfo = opPendingInfo.toCell();
     mcms.data.rootInfo = rootInfo.toCell();
-    mcms.data.storeAsContractData();
-}
-
-fun onInternalMessage(in: InMessage) {
-    // Load the contract storage as MCMS and handle the message
-    var mcms = MCMS<bool>.load();
-    mcms.onInternalMessage(in.senderAddress, in.valueCoins, in.body);
-
-    // Store the updated contract data
     mcms.data.storeAsContractData();
 }
 

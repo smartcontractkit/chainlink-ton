@@ -53,6 +53,11 @@ describe('RBACTimelock', () => {
       id: crc32('mcms.timelock.test-sandbox'), // unique ID for this instance
       minDelay,
       executorRoleCheckEnabled: true,
+      opPendingInfo: {
+        validAfter: 0,
+        opFinalizationTimeout: 0,
+        opPendingId: 0n,
+      },
       rbac: ac.builder.data.contractData.encode(rbacStorage).asCell(),
     }
 
@@ -75,6 +80,9 @@ describe('RBACTimelock', () => {
     )
     expect(rbactl.roles.bypasser).toBe(
       0xa1b2b8005de234c4b8ce8cd0be058239056e0d54f6097825b5117101469d5a8dn,
+    )
+    expect(rbactl.roles.oracle).toBe(
+      0x68e79a7bf1e0bc45d0a330c573bc367f9cf464fd326078812f301165fbda4ef1n,
     )
   })
 

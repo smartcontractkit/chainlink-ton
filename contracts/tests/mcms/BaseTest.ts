@@ -167,6 +167,11 @@ export class BaseTestSetup {
       id: crc32(`mcms.timelock.${testId}`),
       minDelay: BaseTestSetup.MIN_DELAY,
       executorRoleCheckEnabled: true,
+      opPendingInfo: {
+        validAfter: 0,
+        opFinalizationTimeout: 0,
+        opPendingId: 0n,
+      },
       rbac: ac.builder.data.contractData.encode(rbacStorage).asCell(),
     }
 

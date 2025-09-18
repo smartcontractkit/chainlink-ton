@@ -35,6 +35,8 @@ export type Init = {
 
   // Flag to enable/disable the executor role check (if disabled, anyone can execute)
   executorRoleCheckEnabled: boolean
+  // The timeout required to finalize the currently executing op
+  opFinalizationTimeout: number
 }
 
 // @dev Top up contract with TON coins.
@@ -155,6 +157,8 @@ export type ContractData = {
 
   // Flag to enable/disable the executor role check (if disabled, anyone can execute)
   executorRoleCheckEnabled: boolean
+  // The timeout required to finalize the currently executing op, before being able to execute another op.
+  opPendingInfo: OpPendingInfo
 
   // AccessControl trait data
   rbac: Cell
@@ -178,6 +182,20 @@ export type OperationBatch = {
   predecessor: bigint
   // Salt used to derive the operation ID
   salt: bigint
+}
+
+/// Information about the currently pending operation.
+///
+/// @dev TON-specific additional data required to support reliable execution in the async environment.
+export type OpPendingInfo = {
+  /// The time at which the scheduled ops becomes valid to execute [executionTime(opCount -
+  /// At this time the previous executed operation is considered optimistically final and successful,
+  /// meaning no bounce was received and we can continue executing.
+  validAfter: number
+  /// The timeout required to finalize the currently executing op
+  opFinalizationTimeout: number
+  /// The id of the currently pending operation (OperationBatch hash)
+  opPendingId: bigint
 }
 
 export type ExecuteData = {
@@ -281,6 +299,7 @@ export const builder = {
             .storeRef(asSnakeData<Address>(msg.cancellers, (a) => beginCell().storeAddress(a)))
             .storeRef(asSnakeData<Address>(msg.bypassers, (a) => beginCell().storeAddress(a)))
             .storeBit(msg.executorRoleCheckEnabled)
+            .storeUint(msg.opFinalizationTimeout, 32)
         },
         load: (src: Slice): Init => {
           src.skip(32) // skip opcode
@@ -293,6 +312,7 @@ export const builder = {
             cancellers: fromSnakeData<Address>(src.loadRef(), (s) => s.loadAddress()),
             bypassers: fromSnakeData<Address>(src.loadRef(), (s) => s.loadAddress()),
             executorRoleCheckEnabled: src.loadBit(),
+            opFinalizationTimeout: src.loadUint(32),
           }
         },
       }
@@ -620,6 +640,9 @@ export const builder = {
               Dictionary.empty(Dictionary.Keys.Uint(32), Dictionary.Values.Buffer(0)),
           )
           .storeBit(data.executorRoleCheckEnabled)
+          .storeUint(data.opPendingInfo.validAfter, 32)
+          .storeUint(data.opPendingInfo.opFinalizationTimeout, 32)
+          .storeUint(data.opPendingInfo.opPendingId, 256)
           .storeRef(data.rbac)
       },
       load: (src: Slice): ContractData => {
@@ -679,6 +702,8 @@ export const roles = {
   executor: computeRoleID('EXECUTOR_ROLE'),
   // 0xa1b2b8005de234c4b8ce8cd0be058239056e0d54f6097825b5117101469d5a8d
   bypasser: computeRoleID('BYPASSER_ROLE'),
+  // 0x68e79a7bf1e0bc45d0a330c573bc367f9cf464fd326078812f301165fbda4ef1
+  oracle: computeRoleID('ORACLE_ROLE'),
 }
 
 // Timestamp value used to mark an operation as done
