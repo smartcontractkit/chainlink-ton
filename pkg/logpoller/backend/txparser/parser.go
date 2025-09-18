@@ -8,9 +8,9 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
-	txparserUtils "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/txparser/utils"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
+	txparserutils "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/txparser/utils"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
 )
 
@@ -73,9 +73,9 @@ func (p *txParser) parseTx(ctx context.Context, tx types.TxWithBlock) ([]types.L
 
 			switch msg.MsgType {
 			case tlb.MsgTypeExternalOut:
-				eventSig, body, err = txparserUtils.ParseExtMsgOut(msg.AsExternalOut())
+				eventSig, body, err = txparserutils.ParseExtMsgOut(msg.AsExternalOut())
 			case tlb.MsgTypeInternal:
-				eventSig, body, err = txparserUtils.ParseInternalMsg(msg.AsInternal())
+				eventSig, body, err = txparserutils.ParseInternalMsg(msg.AsInternal())
 			case tlb.MsgTypeExternalIn:
 				continue // not supported
 			}
