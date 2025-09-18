@@ -112,7 +112,9 @@ jobs:
           path: chainlink
 
       - name: Build contracts
-        run: nix build -v .#contracts
+        run: | 
+          cd contracts
+          nix develop .#contracts -c yarn && yarn build
 
       - name: Setup Environment and Run Tests
         run: |
