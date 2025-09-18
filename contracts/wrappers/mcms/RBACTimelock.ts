@@ -268,6 +268,7 @@ export const opcodes = {
     UnblockFunctionSelector: crc32('Timelock_UnblockFunctionSelector'),
     BypasserExecuteBatch: crc32('Timelock_BypasserExecuteBatch'),
     UpdateExecutorRoleCheck: crc32('Timelock_UpdateExecutorRoleCheck'),
+    SubmitErrorReport: crc32('Timelock_SubmitErrorReport'),
   },
   out: {
     BatchScheduled: crc32('Timelock_BatchScheduled'),
@@ -281,6 +282,7 @@ export const opcodes = {
     FunctionSelectorBlocked: crc32('Timelock_FunctionSelectorBlocked'),
     FunctionSelectorUnblocked: crc32('Timelock_FunctionSelectorUnblocked'),
     ExecutorRoleCheckUpdated: crc32('Timelock_ExecutorRoleCheckUpdated'),
+    ErrorReportSubmitted: crc32('Timelock_ErrorReportSubmitted'),
   },
 }
 
@@ -867,6 +869,17 @@ export class ContractClient implements Contract {
   async isOperationDone(p: ContractProvider, id: bigint): Promise<boolean> {
     return p
       .get('isOperationDone', [
+        {
+          type: 'int',
+          value: id,
+        },
+      ])
+      .then((r) => r.stack.readBoolean())
+  }
+
+  async isOperationError(p: ContractProvider, id: bigint): Promise<boolean> {
+    return p
+      .get('isOperationError', [
         {
           type: 'int',
           value: id,

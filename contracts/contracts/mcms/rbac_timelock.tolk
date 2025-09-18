@@ -149,11 +149,11 @@ struct (0x6e9Bf263) Timelock_ExecuteBatch {
     /// Query ID of the change request.
     queryId: uint64;
 
-    // Array of calls to be scheduled
+    /// Array of calls to be scheduled
     calls: cell; // vec<Timelock_Call>
-    // Predecessor operation ID
+    /// Predecessor operation ID
     predecessor: uint256;
-    // Salt used to derive the operation ID
+    /// Salt used to derive the operation ID
     salt: uint256;
 }
 
@@ -238,6 +238,26 @@ struct (0x34d98baa) Timelock_UpdateExecutorRoleCheck {
     enabled: bool;
 }
 
+/// Submit an oracle error report, which marks an operation in error state.
+///
+/// The error report is used for a category of errors which might occur during execution
+/// of an operation, but can't be caught on-chain (OOG errors, and downstream tx-trace errors).
+///
+struct (0xf4538b79) Timelock_SubmitErrorReport {
+    /// Query ID of the change request.
+    queryId: uint64;
+
+    /// The operation which produced the error (used to re-derive the op id).
+    opBatch: Cell<OperationBatch>;
+    /// The hash of the execute transaction.
+    opTxHash: uint256;
+
+    /// The hash of the transaction which errored (part of the tx trace).
+    errorTxHash: uint256;
+    /// The error code.
+    errorCode: uint32;
+}
+
 /// Union of all incoming messages.
 type Timelock_InMessage =
     | Timelock_Init
@@ -249,7 +269,8 @@ type Timelock_InMessage =
     | Timelock_BlockFunctionSelector
     | Timelock_UnblockFunctionSelector
     | Timelock_BypasserExecuteBatch
-    | Timelock_UpdateExecutorRoleCheck;
+    | Timelock_UpdateExecutorRoleCheck
+    | Timelock_SubmitErrorReport;
 
 /// Union of all outgoing messages.
 type Timelock_OutMessage =
@@ -263,7 +284,8 @@ type Timelock_OutMessage =
     | Timelock_MinDelayChange
     | Timelock_FunctionSelectorBlocked
     | Timelock_FunctionSelectorUnblocked
-    | Timelock_ExecutorRoleCheckUpdated;
+    | Timelock_ExecutorRoleCheckUpdated
+    | Timelock_ErrorReportSubmitted;
 
 // --- Messages - outgoing ---
 
@@ -379,6 +401,25 @@ struct (0xc6d451e2) Timelock_ExecutorRoleCheckUpdated {
 
     /// Flag to enable/disable the executor role check (if disabled, anyone can execute)
     enabled: bool;
+}
+
+/// Sent back to sender when an error report is successfully submitted.
+struct (0xdbd4c8ee) Timelock_ErrorReportSubmitted {
+    /// Query ID of the change request.
+    queryId: uint64;
+
+    /// The id (hash) of the operation which produced the error.
+    id: uint256;
+    /// The hash of the operation execute transaction.
+    opTxHash: uint256;
+
+    /// The hash of the transaction which errored.
+    errorTxHash: uint256;
+    /// The error code.
+    errorCode: uint32;
+
+    /// Whether the operation that was pending was the one for which the error was reported.
+    matchesPendingOp: bool;
 }
 
 // --- Storage ---
@@ -548,18 +589,23 @@ fun Timelock<T>.isOperation(self, id: int): bool {
 
 /// Returns whether an operation is pending or not.
 fun Timelock<T>.isOperationPending(self, id: int): bool {
-    return self.getTimestamp(id) > DONE_TIMESTAMP;
+    return self.getTimestamp(id) > ERROR_TIMESTAMP;
 }
 
 /// Returns whether an operation is ready or not.
 fun Timelock<T>.isOperationReady(self, id: int): bool {
     val t = self.getTimestamp(id);
-    return t > DONE_TIMESTAMP && t <= blockchain.now();
+    return t > ERROR_TIMESTAMP && t <= blockchain.now();
 }
 
 /// Returns whether an operation is done or not.
 fun Timelock<T>.isOperationDone(self, id: int): bool {
     return self.getTimestamp(id) == DONE_TIMESTAMP;
+}
+
+/// Returns whether an operation is in error state or not.
+fun Timelock<T>.isOperationError(self, id: int): bool {
+    return self.getTimestamp(id) == ERROR_TIMESTAMP;
 }
 
 /// Returns whether an operation is final or not.
@@ -1014,6 +1060,49 @@ fun Timelock<T>.updateExecutorRoleCheck(mutate self, sender: address, queryId: u
     reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
+/// Submit an oracle error report, which marks the current operation in error state.
+///
+/// @see <Timelock_SubmitErrorReport> for more information.
+fun Timelock<T>.submitErrorReport(
+    mutate self,
+    sender: address,
+    queryId: uint64,
+    opBatch: OperationBatch,
+    opTxHash: uint256,
+    errorTxHash: uint256,
+    errorCode: uint32
+) {
+    assert(self.isInitialized()) throw ERROR_CONTRACT_NOT_INITIALIZED;
+    // Only the oracle can submit error reports
+    val rbac = self.hookTrait__AccessControl();
+    rbac.requireRole(ORACLE_ROLE, sender);
+
+    val id = self.hashOperationBatch(opBatch);
+    assert(self.isOperationDone(id)) throw ERROR_OPERATION_NOT_DONE;
+
+    // Mark op in error state (recover with new op + bypass)
+    val value = beginCell().storeUint(ERROR_TIMESTAMP, 64).endCell().beginParse();
+    self.data.timestamps.uDictSet(256, id, value); // Mark the operation as error
+
+    // Check the reported error against the stored pending operation
+    val matchesPendingOp = self.data.opPendingInfo.opPendingId == id;
+
+    val reply = createMessage({
+        bounce: false,
+        value: 0,
+        dest: sender,
+        body: Timelock_ErrorReportSubmitted{
+            queryId,
+            id,
+            opTxHash,
+            errorTxHash,
+            errorCode,
+            matchesPendingOp,
+        }
+    });
+    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
 /// Returns whether the contract is initialized.
 fun Timelock<T>.isInitialized(self): bool {
     val rbac = self.hookTrait__AccessControl();
@@ -1149,6 +1238,10 @@ fun Timelock<T>.onInternalMessage(mutate self, msgSender: address, msgValue: coi
         Timelock_UpdateExecutorRoleCheck => {
             self.updateExecutorRoleCheck(msgSender, msg.queryId, msg.enabled);
         }
+        Timelock_SubmitErrorReport => {
+            self.submitErrorReport(msgSender, msg.queryId, OperationBatch.fromCell(msg.opBatch),
+                msg.opTxHash, msg.errorTxHash, msg.errorCode);
+        }
         else => {
             assert(self.isInitialized()) throw ERROR_CONTRACT_NOT_INITIALIZED;
             var rbac = self.hookTrait__AccessControl();
@@ -1226,6 +1319,11 @@ get fun isOperationReady(id: int): bool {
 /// @see <Timelock<T>.isOperationDone>
 get fun isOperationDone(id: int): bool {
     return Timelock<bool>.load().isOperationDone(id);
+}
+
+/// @see <Timelock<T>.isOperationError>
+get fun isOperationError(id: int): bool {
+    return Timelock<bool>.load().isOperationError(id);
 }
 
 /// @see <Timelock<T>.isPendingOperationFinal>
