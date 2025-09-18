@@ -279,4 +279,221 @@ describe('Router', () => {
       })
     }
   })
+
+  // TODO: This test is only asserting the user interface. It should be extended to assert the actual fee payment
+  it('onramp token transfer - paid with TON', async () => {
+    // Configure onRamp on router
+    {
+      const result = await router.sendSetRamp(deployer.getSender(), {
+        value: toNano('1'),
+        queryID: 0,
+        destChainSelector: CHAINSEL_EVM_TEST_90000001,
+        onRamp: onRamp.address,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: router.address,
+        success: true,
+      })
+    }
+
+    // Setup Jetton
+    const { jettonMinter, provideUserWalletFor } = await setupJetton(
+      blockchain,
+      feeQuoter,
+      deployer,
+      sender,
+    )
+
+    const senderJettonWallet = await provideUserWalletFor(sender.address)
+
+    const jettonAmount = toNano('1')
+    const ccipSend = rt.builder.message.in.ccipSend
+      .encode({
+        queryID: 1,
+        destChainSelector: CHAINSEL_EVM_TEST_90000001,
+        receiver: Buffer.alloc(64),
+        data: Cell.EMPTY,
+        tokenAmounts: [{ amount: jettonAmount, token: jettonMinter.address }],
+        feeToken: ZERO_ADDRESS,
+        extraArgs: Cell.EMPTY,
+      })
+      .asCell()
+
+    const transferMsg: TransferMessage = {
+      queryId: 0n,
+      jettonAmount,
+      destination: router.address,
+      responseDestination: sender.address,
+      customPayload: null,
+      forwardTonAmount: toNano('1'), // TODO This should be derived from the fee
+      forwardPayload: ccipSend,
+    }
+
+    // ccip send over jetton transfer
+    {
+      const result = await senderJettonWallet.sendTransfer(sender.getSender(), {
+        value: toNano('2'),
+        message: transferMsg,
+      })
+
+      const routerJettonWallet = await provideUserWalletFor(router.address)
+
+      // we called the router
+      expect(result.transactions).toHaveTransaction({
+        from: routerJettonWallet.address,
+        to: router.address,
+        deploy: false,
+        success: true,
+      })
+      // the router called the onRamp
+      expect(result.transactions).toHaveTransaction({
+        from: router.address,
+        to: onRamp.address,
+        deploy: false,
+        success: true,
+      })
+      // assert message went to feeQuoter
+      expect(result.transactions).toHaveTransaction({
+        from: onRamp.address,
+        to: feeQuoter.address,
+        deploy: false,
+        success: true,
+      })
+
+      // destChainConfig -> feeQuoter -> onRamp
+      expect(result.transactions).toHaveTransaction({
+        from: feeQuoter.address,
+        to: onRamp.address,
+        deploy: false,
+        success: true,
+      })
+
+      // assert CCIPMessageSent
+      assertLog(result.transactions, onRamp.address, LogTypes.CCIPMessageSent, {
+        message: {
+          header: {
+            destChainSelector: CHAINSEL_EVM_TEST_90000001,
+          },
+          sender: sender.address,
+        },
+      })
+    }
+  })
 })
+
+async function setupJetton(
+  blockchain: Blockchain,
+  feeQuoter: SandboxContract<FeeQuoter>,
+  deployer: SandboxContract<TreasuryContract>,
+  user: SandboxContract<TreasuryContract>,
+) {
+  const jettonDataURI = 'smartcontract.com'
+
+  const defaultContent = beginCell().storeStringTail(jettonDataURI).endCell()
+
+  // get jetton wallet code
+  const jettonWalletCode = await JettonWalletCode()
+
+  // deploy jetton minter
+  const jettonMinterCode = await JettonMinterCode()
+  const jettonMinter = blockchain.openContract(
+    JettonMinter.createFromConfig(
+      {
+        admin: deployer.address,
+        walletCode: jettonWalletCode,
+        jettonContent: defaultContent,
+        totalSupply: 0n,
+      },
+      jettonMinterCode,
+    ),
+  )
+
+  const deployResult = await jettonMinter.sendDeploy(deployer.getSender(), toNano('1'))
+
+  expect(deployResult.transactions).toHaveTransaction({
+    from: deployer.address,
+    to: jettonMinter.address,
+    deploy: true,
+  })
+
+  // mint jettons to sender contract address as part of the setup
+  const mintResult = await jettonMinter.sendMint(deployer.getSender(), {
+    value: toNano('1'),
+    message: {
+      queryId: 0n,
+      destination: user.address,
+      tonAmount: toNano('0.05'),
+      jettonAmount: toNano('1'),
+      from: deployer.address,
+      responseDestination: deployer.address,
+      forwardTonAmount: 0n,
+    },
+  })
+
+  expect(mintResult.transactions).toHaveTransaction({
+    from: deployer.address,
+    to: jettonMinter.address,
+    success: true,
+    endStatus: 'active',
+    outMessagesCount: 1, // mint message
+  })
+
+  {
+    // TODO sendUpdatePrices to pay fees with LINK
+    // const result = await feeQuoter.sendUpdatePrices(deployer.getSender(), {
+    //   value: toNano('1'),
+    //   gasPrices: [],
+    //   tokenPrices: [{ token: jettonMinter.address, price: 1n }],
+    // })
+    // expect(result.transactions).toHaveTransaction({
+    //   to: feeQuoter.address,
+    //   success: true,
+    // })
+  }
+
+  {
+    const result = await feeQuoter.sendUpdateTokenTransferFeeConfigs(deployer.getSender(), {
+      value: toNano('1'),
+      msg: {
+        updates: new Map([
+          [
+            CHAINSEL_EVM_TEST_90000001,
+            {
+              add: new Map([
+                [
+                  jettonMinter.address,
+                  {
+                    isEnabled: true,
+                    minFeeUsdCents: 1,
+                    maxFeeUsdCents: 100,
+                    deciBps: 0,
+                    destGasOverhead: 0,
+                    destBytesOverhead: 0,
+                  },
+                ],
+              ]),
+              remove: [],
+            },
+          ],
+        ]),
+      },
+    })
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: feeQuoter.address,
+      success: true,
+    })
+  }
+
+  const provideUserWalletFor = async (address: Address) => {
+    return blockchain.openContract(
+      JettonWallet.createFromAddress(await jettonMinter.getWalletAddress(address)),
+    )
+  }
+
+  return {
+    jettonMinter,
+    provideUserWalletFor,
+  }
+}

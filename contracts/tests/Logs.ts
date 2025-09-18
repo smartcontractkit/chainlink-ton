@@ -5,6 +5,7 @@ import * as OCR3Logs from '../wrappers/libraries/ocr/Logs'
 import * as ReceiverLogs from '../wrappers/examples/ccip/Logs'
 import { fromSnakeData } from '../src/utils/types'
 import { merkleRootsFromCell, priceUpdatesFromCell } from '../wrappers/ccip/OffRamp'
+import { prettifyAddressesMap } from './utils/prettyPrint'
 
 // https://github.com/ton-blockchain/liquid-staking-contract/blob/1f4e9badbed52a4cf80cc58e4bb36ed375c6c8e7/utils.ts#L269-L294
 export const getExternals = (transactions: BlockchainTransaction[]) => {
@@ -69,11 +70,12 @@ type Handler<T extends CombinedLogType> = (
   message: Message,
   from: Address,
   match: LogTypeMap[T],
+  addressesMap: Map<string, string>,
 ) => boolean
 
 const handlers: { [K in CombinedLogType]: Handler<K> } = {
-  [CCIPLogs.LogTypes.CCIPMessageSent]: (x, from, match) =>
-    testLogCCIPMessageSent(x, from, match as DeepPartial<CCIPLogs.CCIPMessageSent>),
+  [CCIPLogs.LogTypes.CCIPMessageSent]: (x, from, match, addressesMap) =>
+    testLogCCIPMessageSent(x, from, match as DeepPartial<CCIPLogs.CCIPMessageSent>, addressesMap),
 
   [CCIPLogs.LogTypes.CCIPCommitReportAccepted]: (x, from, match) =>
     testLogCCIPCommitReportAccepted(
@@ -102,7 +104,10 @@ export const assertLog = <T extends CombinedLogType>(
   type: T,
   match: LogMatch<T>,
 ) => {
-  const matched = getExternals(transactions).some((x) => handlers[type](x, from, match))
+  const prettyAddressesMap = prettifyAddressesMap(transactions)
+  const matched = getExternals(transactions).some((x) =>
+    handlers[type](x, from, match, prettyAddressesMap),
+  )
   expect(matched).toBe(true)
 }
 
@@ -133,6 +138,7 @@ export const testLogCCIPMessageSent = (
   message: Message,
   from: Address,
   match: DeepPartial<CCIPLogs.CCIPMessageSent>,
+  prettyAddressesMap: Map<string, string>,
 ) => {
   return testLog(message, from, CCIPLogs.LogTypes.CCIPMessageSent, (x) => {
     let bs = x.beginParse()
@@ -162,7 +168,26 @@ export const testLogCCIPMessageSent = (
       },
     }
 
-    return matchesObject(msg, match)
+    // Check other fields using toMatchObject (excluding sender to avoid object comparison)
+    const { sender: _, ...messageWithoutSender } = msg.message
+    const { sender: __, ...matchWithoutSender } = match.message || {}
+
+    if (!matchesObject(messageWithoutSender, matchWithoutSender)) {
+      return false
+    }
+
+    // Check sender address using .equals() if specified in match
+    if (match.message?.sender && match.message.sender instanceof Address) {
+      if (!sender.equals(match.message.sender)) {
+        console.log(
+          `Sender address mismatch:\n` +
+            `  Expected: ${match.message.sender.toString()} (${prettyAddressesMap.get(match.message.sender.toRawString())})\n` +
+            `  Received: ${sender.toString()} (${prettyAddressesMap.get(sender.toRawString())})`,
+        )
+        return false
+      }
+    }
+    return true
   })
 }
 

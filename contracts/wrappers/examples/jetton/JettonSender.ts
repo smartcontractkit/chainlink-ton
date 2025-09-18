@@ -8,7 +8,7 @@ import {
   Sender,
   SendMode,
 } from '@ton/core'
-import { JettonClientConfig, jettonClientConfigToCell, JettonOpcodes } from './types'
+import { JettonClientConfig, builder, JettonOpcodes } from './types'
 import { crc32 } from 'zlib'
 
 export type JettonSenderConfig = {
@@ -16,7 +16,7 @@ export type JettonSenderConfig = {
 }
 
 export function jettonSenderConfigToCell(config: JettonSenderConfig): Cell {
-  return jettonClientConfigToCell(config.jettonClient)
+  return builder.data.traitData.encode(config.jettonClient).asCell()
 }
 
 export const SenderOpcodes = {
