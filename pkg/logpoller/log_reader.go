@@ -54,7 +54,7 @@ func (lr *logReader) GetLogs(ctx context.Context, addr *address.Address, fromBlo
 
 	// Fetch tx for address on given blockRange
 	blockRange := &types.BlockRange{Prev: prevBlock, To: toBlock}
-	txs, err := lr.loader.FetchTxsForAddress(ctx, addr, blockRange)
+	txs, err := lr.loader.FetchTxsForAddress(ctx, blockRange, addr)
 	if err != nil {
 		// display "genesis" if nil and don't panic
 		fromSeqNoStr := "genesis"

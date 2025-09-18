@@ -44,7 +44,7 @@ type TxLoader interface {
 	LoadTxsForAddresses(ctx context.Context, blockRange *types.BlockRange, srcAddrs []*address.Address) ([]types.TxWithBlock, error)
 	// FetchTxsForAddress retrieves all transactions from single source address
 	// within the given block range (prevBlock, toBlock] - exclusive of prevBlock, inclusive of toBlock.
-	FetchTxsForAddress(ctx context.Context, addr *address.Address, blockRange *types.BlockRange) ([]types.TxWithBlock, error)
+	FetchTxsForAddress(ctx context.Context, blockRange *types.BlockRange, addr *address.Address) ([]types.TxWithBlock, error)
 }
 
 // TxParser defines the interface for parsing raw blockchain transactions into structured logs.
