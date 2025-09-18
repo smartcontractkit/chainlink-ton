@@ -269,9 +269,9 @@ async function dumpRecursive(
         output.push(await describeExternalInMessage(message.info, message.body, prettyTx, exitCode))
         break
       case 'external-out':
-        throw `external-out message don't have a tx`
+        throw new Error("external-out message doesn't have a tx")
       default:
-        throw `unknown message type`
+        throw new Error('unknown message type')
     }
   }
 
