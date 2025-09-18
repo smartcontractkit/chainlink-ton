@@ -175,6 +175,11 @@ describe('MCMS - IntegrationTest', () => {
         id: crc32('mcms.timelock.test-integration'), // unique ID for this instance
         minDelay: MIN_DELAY,
         executorRoleCheckEnabled: true,
+        opPendingInfo: {
+          validAfter: 0,
+          opFinalizationTimeout: 0,
+          opPendingId: 0n,
+        },
         rbac: ac.builder.data.contractData.encode(rbacStorage).asCell(),
       }
 
