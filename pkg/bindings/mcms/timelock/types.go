@@ -162,6 +162,22 @@ type BypasserExecuteBatch struct {
 	Calls common.SnakeData[Call] `tlb:"^"` // vec<Timelock_Call>
 }
 
+// Updates the executor role check (enabled/disabled) which guards the execution of operations.
+//
+// Replies with {Timelock_ExecutorRoleCheckUpdated} message.
+//
+// Requirements:
+//
+// - the caller must have the 'admin' role.
+type UpdateExecutorRoleCheck struct {
+	_ tlb.Magic `tlb:"#34d98baa"` //nolint:revive // (opcode) should stay uninitialized
+	// Query ID of the change request.
+	QueryID uint64 `tlb:"## 64"`
+
+	// Flag to enable/disable the executor role check (if disabled, anyone can execute)
+	Enabled bool `tlb:"bool"`
+}
+
 // --- Messages - outgoing ---
 
 // @dev Emitted when a call is scheduled as part of operation `id`.
@@ -242,6 +258,16 @@ type FunctionSelectorUnblocked struct {
 	Selector uint32 `tlb:"## 32"`
 }
 
+// Sent back to sender after the executor role check is updated.
+type ExecutorRoleCheckUpdated struct {
+	_ tlb.Magic `tlb:"#c6d451e2"` //nolint:revive // (opcode) should stay uninitialized
+	// Query ID of the change request.
+	QueryID uint64 `tlb:"## 64"`
+
+	// Flag to enable/disable the executor role check (if disabled, anyone can execute)
+	Enabled bool `tlb:"bool"`
+}
+
 // --- Data (storage & structures) ---
 
 // RBACTimelock contract storage, auto-serialized to/from cell.
@@ -258,6 +284,9 @@ type Data struct {
 	BlockedFnSelectorsLen uint32 `tlb:"## 32"`
 	// Map of blocked function selectors.
 	BlockedFnSelectors *cell.Dictionary `tlb:"dict 32"` // map<uint32, bool>
+
+	// Flag to enable/disable the executor role check (if disabled, anyone can execute)
+	ExecutorRoleCheckEnabled bool `tlb:"bool"`
 
 	// AccessControl trait data
 	RBAC rbac.Data `tlb:"^"`

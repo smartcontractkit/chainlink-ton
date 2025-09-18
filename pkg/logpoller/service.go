@@ -26,14 +26,14 @@ import (
 // external messages from registered filter addresses.
 type service struct {
 	services.Service
-	eng *services.Engine // Service engine for lifecycle management
+	eng            *services.Engine                                    // Service engine for lifecycle management
+	lggr           logger.SugaredLogger                                // Logger instance
+	clientProvider func(context.Context) (ton.APIClientWrapped, error) // TON blockchain client lazy getter
 
-	lggr    logger.SugaredLogger // Logger instance
-	client  ton.APIClientWrapped // TON blockchain client
-	filters FilterStore          // Registry of active filters
-	loader  TxLoader             // Transaction loader returning loaded txs
-	parser  TxParser             // Transaction parser returning logs
-	store   LogStore             // Log storage (MVP: in-memory, to be replaced with ORM)
+	filters FilterStore // Registry of active filters
+	loader  TxLoader    // Transaction loader returning loaded txs
+	parser  TxParser    // Transaction parser returning logs
+	store   LogStore    // Log storage (MVP: in-memory, to be replaced with ORM)
 
 	pollPeriod         time.Duration // How often to poll for new blocks
 	lastProcessedBlock uint32        // Last processed masterchain sequence number
@@ -43,7 +43,6 @@ type service struct {
 
 type ServiceOptions struct {
 	Config   Config
-	Client   ton.APIClientWrapped
 	Filters  FilterStore
 	TxLoader TxLoader
 	TxParser TxParser
@@ -51,10 +50,10 @@ type ServiceOptions struct {
 }
 
 // NewService creates a new TON log polling service instance
-func NewService(lggr logger.Logger, opts *ServiceOptions) Service {
+func NewService(lggr logger.Logger, clientProvider func(context.Context) (ton.APIClientWrapped, error), opts *ServiceOptions) Service {
 	lp := &service{
 		lggr:             logger.Sugared(lggr),
-		client:           opts.Client,
+		clientProvider:   clientProvider,
 		filters:          opts.Filters,
 		loader:           opts.TxLoader,
 		parser:           opts.TxParser,
@@ -122,7 +121,12 @@ func (lp *service) run(ctx context.Context) (err error) {
 // getMasterchainBlockRange calculates the range of blocks that need to be processed.
 // Returns nil if there are no new blocks to process.
 func (lp *service) getMasterchainBlockRange(ctx context.Context) (*types.BlockRange, error) {
-	toBlock, err := lp.client.CurrentMasterchainInfo(ctx)
+	client, err := lp.clientProvider(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get client: %w", err)
+	}
+
+	toBlock, err := client.CurrentMasterchainInfo(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get current masterchain info: %w", err)
 	}
@@ -186,8 +190,12 @@ func (lp *service) resolvePreviousBlock(ctx context.Context, lastProcessedBlockS
 		return nil, nil
 	}
 
+	client, err := lp.clientProvider(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get client: %w", err)
+	}
 	// get the prevBlock based on the last processed sequence number
-	prevBlock, err := lp.client.LookupBlock(ctx, toBlock.Workchain, toBlock.Shard, lastProcessedBlockSeqNo)
+	prevBlock, err := client.LookupBlock(ctx, toBlock.Workchain, toBlock.Shard, lastProcessedBlockSeqNo)
 	if err != nil {
 		return nil, fmt.Errorf("LookupBlock for previous seqno %d: %w", lastProcessedBlockSeqNo, err)
 	}
@@ -285,10 +293,14 @@ func computeLookbackWindow(currentSeqNo uint32, lookbackDuration time.Duration, 
 }
 
 func (lp *service) Replay(ctx context.Context, fromBlock uint32) error {
+	client, err := lp.clientProvider(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get client: %w", err)
+	}
 	// TODO(2025-08-28@jadepark-dev): clean up, forcing replay for e2e now
 	// TODO: Replace with proper asynchronous backfill mechanism
 
-	toBlock, err := lp.client.CurrentMasterchainInfo(ctx)
+	toBlock, err := client.CurrentMasterchainInfo(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get current masterchain info: %w", err)
 	}
@@ -303,7 +315,7 @@ func (lp *service) Replay(ctx context.Context, fromBlock uint32) error {
 	blockRange := &types.BlockRange{Prev: nil, To: toBlock}
 	var prevBlock *ton.BlockIDExt
 	if fromBlock != 0 {
-		prevBlock, err = lp.client.LookupBlock(ctx, toBlock.Workchain, toBlock.Shard, fromBlock)
+		prevBlock, err = client.LookupBlock(ctx, toBlock.Workchain, toBlock.Shard, fromBlock)
 		if err != nil {
 			return fmt.Errorf("LookupBlock for previous seqno %d: %w", fromBlock, err)
 		}

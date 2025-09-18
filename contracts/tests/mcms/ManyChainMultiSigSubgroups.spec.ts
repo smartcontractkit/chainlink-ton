@@ -98,7 +98,7 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
     }
 
     // Deploy MCMS contract
-    const body = mcms.builder.message.in.topUp.encode({ queryId: 1n })
+    const body = mcms.builder.message.in.topUp.encode({ queryId: 1n }).asCell()
     const deployResult = await bind.mcms.sendInternal(acc.deployer.getSender(), toNano('2'), body)
 
     expect(deployResult.transactions).toHaveTransaction({
@@ -155,14 +155,16 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
 
     // Set configuration
     {
-      const setConfigBody = mcms.builder.message.in.setConfig.encode({
-        queryId: 1n,
-        signerKeys: testSigners.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey)),
-        signerGroups: testSigners.map((s) => s.group),
-        groupQuorums,
-        groupParents,
-        clearRoot: false,
-      })
+      const setConfigBody = mcms.builder.message.in.setConfig
+        .encode({
+          queryId: 1n,
+          signerKeys: testSigners.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey)),
+          signerGroups: testSigners.map((s) => s.group),
+          groupQuorums,
+          groupParents,
+          clearRoot: false,
+        })
+        .asCell()
 
       const result = await bind.mcms.sendInternal(
         acc.multisigOwner.getSender(),
@@ -211,7 +213,9 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
       MCMSBaseTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
     )
 
-    const insufficientSetRootBody = mcms.builder.message.in.setRoot.encode(insufficientSetRoot)
+    const insufficientSetRootBody = mcms.builder.message.in.setRoot
+      .encode(insufficientSetRoot)
+      .asCell()
     const insufficientResult = await bind.mcms.sendInternal(
       acc.deployer.getSender(),
       toNano('0.5'),
@@ -290,14 +294,16 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
     {
       const signers = testSigners.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey))
 
-      const setConfigBody = mcms.builder.message.in.setConfig.encode({
-        queryId: 1n,
-        signerKeys: signers,
-        signerGroups: testSigners.map((s) => s.group),
-        groupQuorums,
-        groupParents,
-        clearRoot: false,
-      })
+      const setConfigBody = mcms.builder.message.in.setConfig
+        .encode({
+          queryId: 1n,
+          signerKeys: signers,
+          signerGroups: testSigners.map((s) => s.group),
+          groupQuorums,
+          groupParents,
+          clearRoot: false,
+        })
+        .asCell()
 
       const result = await bind.mcms.sendInternal(
         acc.multisigOwner.getSender(),
@@ -365,7 +371,7 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
           MCMSBaseTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
         )
 
-        const reducedSetRootBody = mcms.builder.message.in.setRoot.encode(reducedSetRoot)
+        const reducedSetRootBody = mcms.builder.message.in.setRoot.encode(reducedSetRoot).asCell()
         const result = await bind.mcms.sendInternal(
           acc.deployer.getSender(),
           toNano('0.5'),
@@ -401,7 +407,7 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
       MCMSBaseTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
     )
 
-    const overrideSetRootBody = mcms.builder.message.in.setRoot.encode(overrideSetRoot)
+    const overrideSetRootBody = mcms.builder.message.in.setRoot.encode(overrideSetRoot).asCell()
     const overrideResult = await bind.mcms.sendInternal(
       acc.deployer.getSender(),
       toNano('0.5'),
@@ -435,14 +441,16 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
 
     const signerGroupsData = testSigners.map((s) => s.group)
     // Test malformed configuration should fail
-    const malformedSetConfigBody = mcms.builder.message.in.setConfig.encode({
-      queryId: 1n,
-      signerKeys: testSigners.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey)),
-      signerGroups: signerGroupsData,
-      groupQuorums,
-      groupParents: malformedGroupParents,
-      clearRoot: false,
-    })
+    const malformedSetConfigBody = mcms.builder.message.in.setConfig
+      .encode({
+        queryId: 1n,
+        signerKeys: testSigners.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey)),
+        signerGroups: signerGroupsData,
+        groupQuorums,
+        groupParents: malformedGroupParents,
+        clearRoot: false,
+      })
+      .asCell()
 
     const malformedResult = await bind.mcms.sendInternal(
       acc.multisigOwner.getSender(),
@@ -464,14 +472,16 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
       correctGroupParents.set(i, i - 1) // Each group's parent is the previous one
     }
 
-    const correctSetConfigBody = mcms.builder.message.in.setConfig.encode({
-      queryId: 2n,
-      signerKeys: testSigners.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey)),
-      signerGroups: signerGroupsData,
-      groupQuorums,
-      groupParents: correctGroupParents,
-      clearRoot: false,
-    })
+    const correctSetConfigBody = mcms.builder.message.in.setConfig
+      .encode({
+        queryId: 2n,
+        signerKeys: testSigners.map((s) => uint8ArrayToBigInt(s.keyPair.publicKey)),
+        signerGroups: signerGroupsData,
+        groupQuorums,
+        groupParents: correctGroupParents,
+        clearRoot: false,
+      })
+      .asCell()
 
     const correctResult = await bind.mcms.sendInternal(
       acc.multisigOwner.getSender(),

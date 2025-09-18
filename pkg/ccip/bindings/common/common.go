@@ -7,8 +7,43 @@ import (
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
+
+// TypeAndVersion holds the type and version of the onramp contract.
+type TypeAndVersion struct {
+	Type    string `tlb:"str"`
+	Version string `tlb:"str"`
+}
+
+func (c *TypeAndVersion) FromResult(result *ton.ExecutionResult) error {
+	typ, err := result.Slice(0)
+	if err != nil {
+		return err
+	}
+	tStr, err := typ.LoadStringSnake()
+	if err != nil {
+		return err
+	}
+
+	version, err := result.Slice(1)
+	if err != nil {
+		return err
+	}
+
+	vStr, err := version.LoadStringSnake()
+	if err != nil {
+		return err
+	}
+
+	*c = TypeAndVersion{
+		Type:    tStr,
+		Version: vStr,
+	}
+
+	return nil
+}
 
 // Ownable2Step represents a two-step ownership structure, where an owner can set a pending owner.
 type Ownable2Step struct {

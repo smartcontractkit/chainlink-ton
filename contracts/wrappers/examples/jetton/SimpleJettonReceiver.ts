@@ -8,10 +8,10 @@ import {
   Sender,
   SendMode,
 } from '@ton/core'
-import { JettonClientConfig, jettonClientConfigToCell } from './types'
+import * as types from './types'
 
 export type SimpleJettonReceiverConfig = {
-  jettonClient: JettonClientConfig
+  jettonClient: types.JettonClientConfig
   amountChecker: bigint
   payloadChecker: Cell | null
 }
@@ -20,7 +20,7 @@ export function simpleJettonReceiverConfigToCell(config: SimpleJettonReceiverCon
   const builder = beginCell()
 
   // Store JettonClient
-  builder.storeRef(jettonClientConfigToCell(config.jettonClient))
+  builder.storeRef(types.builder.data.traitData.encode(config.jettonClient).asCell())
 
   // Store amountChecker
   builder.storeCoins(config.amountChecker)

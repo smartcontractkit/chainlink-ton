@@ -8,7 +8,7 @@ struct Storage {
     ownable: Ownable2Step;
 
     // TODO: expand this with versions support
-    onRamp: address;
+    onRamps: UMap<uint64, address>; // destChainSelector -> onRamp address
 }
 
 fun Storage.load(): Storage {
@@ -41,7 +41,7 @@ fun onSetRamp(msg: SetRamp, sender: address) {
     var st = lazy Storage.load();
     st.ownable.requireOwner(sender);
 
-    st.onRamp = msg.onRamp;
+    st.onRamps.set(msg.destChainSelector, msg.onRamp);
     st.store();
 
     // TODO: emit(OnRampSet)
@@ -76,10 +76,12 @@ fun ccipSend(msg: CCIPSend, sender: address) {
 
     // forward to onRamp
     // ccipSend(onRamp, msg, value/token amounts)
+
+    val onRamp = st.onRamps.mustGet(msg.destChainSelector, ERROR_DEST_CHAIN_NOT_ENABLED);
     val sendMsg = createMessage({
         bounce: true,
         value: ton("0.1"), // TODO:
-        dest: st.onRamp,
+        dest: onRamp,
         body: OnRampSend { msg: msg.toCell(), metadata: Metadata{ sender } },
     });
     sendMsg.send(SEND_MODE_REGULAR);
@@ -88,3 +90,14 @@ fun ccipSend(msg: CCIPSend, sender: address) {
 get fun typeAndVersion(): (slice, slice) {
      return ("com.chainlink.ton.ccip.Router", "1.0.0");
  }
+
+get fun onRamp(destChainSelector: uint64): address {
+    val st = lazy Storage.load();
+    return st.onRamps.mustGet(destChainSelector, ERROR_DEST_CHAIN_NOT_ENABLED);
+}
+
+get fun destChainSelectors(): tuple {
+    val st = lazy Storage.load();
+    var d = st.onRamps;
+    return d.keysDestructs()!;
+}

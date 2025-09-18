@@ -105,7 +105,7 @@ func updateFeeQuoterDestChainConfigs(b operations.Bundle, deps TonDeps, in Updat
 	messages := []*tlb.InternalMessage{
 		{
 			Bounce:  true,
-			Amount:  tlb.MustFromTON("1"),
+			Amount:  tlb.MustFromTON("0.1"),
 			DstAddr: &address,
 			Body:    payload,
 		},
@@ -167,7 +167,7 @@ func updateFeeQuoterFeeTokens(b operations.Bundle, deps TonDeps, in UpdateFeeQuo
 	messages := []*tlb.InternalMessage{
 		{
 			Bounce:  true,
-			Amount:  tlb.MustFromTON("1"),
+			Amount:  tlb.MustFromTON("0.1"),
 			DstAddr: &feeQuoterAddress,
 			Body:    payload,
 		},
@@ -245,7 +245,7 @@ func updateFeeQuoterPrices(b operations.Bundle, deps TonDeps, in UpdateFeeQuoter
 	messages := []*tlb.InternalMessage{
 		{
 			Bounce:  true,
-			Amount:  tlb.MustFromTON("1"),
+			Amount:  tlb.MustFromTON("0.1"),
 			DstAddr: &feeQuoterAddress,
 			Body:    payload,
 		},

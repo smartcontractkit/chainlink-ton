@@ -1,12 +1,29 @@
-import { Address, Cell, beginCell } from '@ton/core'
+import { Address, Builder, Cell, Slice, beginCell } from '@ton/core'
+import { CellCodec } from '../../utils'
 
 export type JettonClientConfig = {
   masterAddress: Address
   jettonWalletCode: Cell
 }
 
-export function jettonClientConfigToCell(config: JettonClientConfig): Cell {
-  return beginCell().storeAddress(config.masterAddress).storeRef(config.jettonWalletCode).endCell()
+export const builder = {
+  data: (() => {
+    const traitData: CellCodec<JettonClientConfig> = {
+      encode: (config: JettonClientConfig): Builder => {
+        return beginCell().storeAddress(config.masterAddress).storeRef(config.jettonWalletCode)
+      },
+      load: (src: Slice): JettonClientConfig => {
+        return {
+          masterAddress: src.loadAddress(),
+          jettonWalletCode: src.loadRef(),
+        }
+      },
+    }
+
+    return {
+      traitData,
+    }
+  })(),
 }
 
 export const JettonOpcodes = {

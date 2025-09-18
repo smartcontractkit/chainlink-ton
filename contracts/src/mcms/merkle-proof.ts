@@ -30,7 +30,7 @@ export function build(
   const opProofs: OpProofs = Array.from({ length: ops.length }, (_, i) => computeProof(i))
 
   const encodeProof = (v) => beginCell().storeUint(v, 256)
-  const encodeSignature = (v) => mcms.builder.data.signature.encode(v).asBuilder()
+  const encodeSignature = (v) => mcms.builder.data.signature.encode(v)
 
   return [
     {
@@ -117,7 +117,7 @@ export function constructLeaves(ops: mcms.Op[], rootMetadata: mcms.RootMetadata)
 export function leafMetadataPreimage(rootMetadata: mcms.RootMetadata): Cell {
   return beginCell()
     .storeUint(mcms.MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA, 256)
-    .storeBuilder(mcms.builder.data.rootMetadata.encode(rootMetadata).asBuilder())
+    .storeBuilder(mcms.builder.data.rootMetadata.encode(rootMetadata))
     .endCell()
 }
 

@@ -23,10 +23,12 @@ describe('MCMS - RBACTimelockBlockFunctionTest', () => {
 
   it('should fail if not admin tries to block function selector', async () => {
     // Try to block with proposer role (should fail)
-    const body = rbactl.builder.message.in.blockFunctionSelector.encode({
-      queryId: 1n,
-      selector: counter.opcodes.in.IncreaseCount,
-    })
+    const body = rbactl.builder.message.in.blockFunctionSelector
+      .encode({
+        queryId: 1n,
+        selector: counter.opcodes.in.IncreaseCount,
+      })
+      .asCell()
 
     const result = await baseTest.bind.timelock.sendInternal(
       baseTest.acc.proposerOne.getSender(),
@@ -48,17 +50,19 @@ describe('MCMS - RBACTimelockBlockFunctionTest', () => {
       const call = {
         target: baseTest.bind.counter.address,
         value: toNano('0.05'),
-        data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
+        data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }).asCell(),
       }
       const calls = BaseTestSetup.singletonCalls(call)
 
-      const scheduleBody = rbactl.builder.message.in.scheduleBatch.encode({
-        queryId: 1n,
-        calls,
-        predecessor: BaseTestSetup.NO_PREDECESSOR,
-        salt: BaseTestSetup.EMPTY_SALT,
-        delay: BaseTestSetup.MIN_DELAY,
-      })
+      const scheduleBody = rbactl.builder.message.in.scheduleBatch
+        .encode({
+          queryId: 1n,
+          calls,
+          predecessor: BaseTestSetup.NO_PREDECESSOR,
+          salt: BaseTestSetup.EMPTY_SALT,
+          delay: BaseTestSetup.MIN_DELAY,
+        })
+        .asCell()
 
       const result = await baseTest.bind.timelock.sendInternal(
         baseTest.acc.proposerOne.getSender(),
@@ -75,10 +79,12 @@ describe('MCMS - RBACTimelockBlockFunctionTest', () => {
 
     // Block function selector
     {
-      const blockBody = rbactl.builder.message.in.blockFunctionSelector.encode({
-        queryId: 1n,
-        selector: counter.opcodes.in.IncreaseCount,
-      })
+      const blockBody = rbactl.builder.message.in.blockFunctionSelector
+        .encode({
+          queryId: 1n,
+          selector: counter.opcodes.in.IncreaseCount,
+        })
+        .asCell()
 
       const result = await baseTest.bind.timelock.sendInternal(
         baseTest.acc.admin.getSender(),
@@ -103,8 +109,8 @@ describe('MCMS - RBACTimelockBlockFunctionTest', () => {
 
       const functionSelectorBlockedMsg = functionSelectorBlockedTx[0].inMessage!
       const opcode = functionSelectorBlockedMsg.body.beginParse().preloadUint(32)
-      const blockedConfirmation = rbactl.builder.message.out.functionSelectorBlocked.decode(
-        functionSelectorBlockedMsg.body,
+      const blockedConfirmation = rbactl.builder.message.out.functionSelectorBlocked.load(
+        functionSelectorBlockedMsg.body.beginParse(),
       )
 
       expect(opcode.toString(16)).toEqual(rbactl.opcodes.out.FunctionSelectorBlocked.toString(16))
@@ -117,17 +123,19 @@ describe('MCMS - RBACTimelockBlockFunctionTest', () => {
       const call = {
         target: baseTest.bind.counter.address,
         value: toNano('0.05'),
-        data: counter.builder.message.in.increaseCount.encode({ queryId: 2n }),
+        data: counter.builder.message.in.increaseCount.encode({ queryId: 2n }).asCell(),
       }
       const calls = BaseTestSetup.singletonCalls(call)
 
-      const scheduleBody = rbactl.builder.message.in.scheduleBatch.encode({
-        queryId: 1n,
-        calls,
-        predecessor: BaseTestSetup.NO_PREDECESSOR,
-        salt: BaseTestSetup.EMPTY_SALT,
-        delay: BaseTestSetup.MIN_DELAY,
-      })
+      const scheduleBody = rbactl.builder.message.in.scheduleBatch
+        .encode({
+          queryId: 1n,
+          calls,
+          predecessor: BaseTestSetup.NO_PREDECESSOR,
+          salt: BaseTestSetup.EMPTY_SALT,
+          delay: BaseTestSetup.MIN_DELAY,
+        })
+        .asCell()
 
       const result = await baseTest.bind.timelock.sendInternal(
         baseTest.acc.proposerOne.getSender(),
@@ -149,10 +157,12 @@ describe('MCMS - RBACTimelockBlockFunctionTest', () => {
 
     // Block zero function selector
     {
-      const blockBody = rbactl.builder.message.in.blockFunctionSelector.encode({
-        queryId: 1n,
-        selector: zeroSelector,
-      })
+      const blockBody = rbactl.builder.message.in.blockFunctionSelector
+        .encode({
+          queryId: 1n,
+          selector: zeroSelector,
+        })
+        .asCell()
 
       const result = await baseTest.bind.timelock.sendInternal(
         baseTest.acc.admin.getSender(),
@@ -176,13 +186,15 @@ describe('MCMS - RBACTimelockBlockFunctionTest', () => {
       }
       const calls = BaseTestSetup.singletonCalls(call)
 
-      const scheduleBody = rbactl.builder.message.in.scheduleBatch.encode({
-        queryId: 1n,
-        calls,
-        predecessor: BaseTestSetup.NO_PREDECESSOR,
-        salt: BaseTestSetup.EMPTY_SALT,
-        delay: BaseTestSetup.MIN_DELAY,
-      })
+      const scheduleBody = rbactl.builder.message.in.scheduleBatch
+        .encode({
+          queryId: 1n,
+          calls,
+          predecessor: BaseTestSetup.NO_PREDECESSOR,
+          salt: BaseTestSetup.EMPTY_SALT,
+          delay: BaseTestSetup.MIN_DELAY,
+        })
+        .asCell()
 
       const result = await baseTest.bind.timelock.sendInternal(
         baseTest.acc.proposerOne.getSender(),
@@ -207,13 +219,15 @@ describe('MCMS - RBACTimelockBlockFunctionTest', () => {
       }
       const calls = BaseTestSetup.singletonCalls(call)
 
-      const scheduleBody = rbactl.builder.message.in.scheduleBatch.encode({
-        queryId: 1n,
-        calls,
-        predecessor: BaseTestSetup.NO_PREDECESSOR,
-        salt: BaseTestSetup.EMPTY_SALT,
-        delay: BaseTestSetup.MIN_DELAY,
-      })
+      const scheduleBody = rbactl.builder.message.in.scheduleBatch
+        .encode({
+          queryId: 1n,
+          calls,
+          predecessor: BaseTestSetup.NO_PREDECESSOR,
+          salt: BaseTestSetup.EMPTY_SALT,
+          delay: BaseTestSetup.MIN_DELAY,
+        })
+        .asCell()
 
       const result = await baseTest.bind.timelock.sendInternal(
         baseTest.acc.proposerOne.getSender(),
@@ -238,13 +252,15 @@ describe('MCMS - RBACTimelockBlockFunctionTest', () => {
       }
       const calls = BaseTestSetup.singletonCalls(call)
 
-      const scheduleBody = rbactl.builder.message.in.scheduleBatch.encode({
-        queryId: 1n,
-        calls,
-        predecessor: BaseTestSetup.NO_PREDECESSOR,
-        salt: BaseTestSetup.EMPTY_SALT,
-        delay: BaseTestSetup.MIN_DELAY,
-      })
+      const scheduleBody = rbactl.builder.message.in.scheduleBatch
+        .encode({
+          queryId: 1n,
+          calls,
+          predecessor: BaseTestSetup.NO_PREDECESSOR,
+          salt: BaseTestSetup.EMPTY_SALT,
+          delay: BaseTestSetup.MIN_DELAY,
+        })
+        .asCell()
 
       const result = await baseTest.bind.timelock.sendInternal(
         baseTest.acc.proposerOne.getSender(),
@@ -268,13 +284,15 @@ describe('MCMS - RBACTimelockBlockFunctionTest', () => {
       }
       const calls = BaseTestSetup.singletonCalls(call)
 
-      const scheduleBody = rbactl.builder.message.in.scheduleBatch.encode({
-        queryId: 1n,
-        calls,
-        predecessor: BaseTestSetup.NO_PREDECESSOR,
-        salt: BaseTestSetup.EMPTY_SALT,
-        delay: BaseTestSetup.MIN_DELAY,
-      })
+      const scheduleBody = rbactl.builder.message.in.scheduleBatch
+        .encode({
+          queryId: 1n,
+          calls,
+          predecessor: BaseTestSetup.NO_PREDECESSOR,
+          salt: BaseTestSetup.EMPTY_SALT,
+          delay: BaseTestSetup.MIN_DELAY,
+        })
+        .asCell()
 
       const result = await baseTest.bind.timelock.sendInternal(
         baseTest.acc.proposerOne.getSender(),
@@ -293,10 +311,12 @@ describe('MCMS - RBACTimelockBlockFunctionTest', () => {
   it('should unblock function selector', async () => {
     // Block Function
     {
-      const blockBody = rbactl.builder.message.in.blockFunctionSelector.encode({
-        queryId: 1n,
-        selector: counter.opcodes.in.IncreaseCount,
-      })
+      const blockBody = rbactl.builder.message.in.blockFunctionSelector
+        .encode({
+          queryId: 1n,
+          selector: counter.opcodes.in.IncreaseCount,
+        })
+        .asCell()
 
       const result = await baseTest.bind.timelock.sendInternal(
         baseTest.acc.admin.getSender(),
@@ -316,17 +336,19 @@ describe('MCMS - RBACTimelockBlockFunctionTest', () => {
       const call = {
         target: baseTest.bind.counter.address,
         value: toNano('0.05'),
-        data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
+        data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }).asCell(),
       }
       const calls = BaseTestSetup.singletonCalls(call)
 
-      const scheduleBody = rbactl.builder.message.in.scheduleBatch.encode({
-        queryId: 1n,
-        calls,
-        predecessor: BaseTestSetup.NO_PREDECESSOR,
-        salt: BaseTestSetup.EMPTY_SALT,
-        delay: BaseTestSetup.MIN_DELAY,
-      })
+      const scheduleBody = rbactl.builder.message.in.scheduleBatch
+        .encode({
+          queryId: 1n,
+          calls,
+          predecessor: BaseTestSetup.NO_PREDECESSOR,
+          salt: BaseTestSetup.EMPTY_SALT,
+          delay: BaseTestSetup.MIN_DELAY,
+        })
+        .asCell()
 
       const result = await baseTest.bind.timelock.sendInternal(
         baseTest.acc.proposerOne.getSender(),
@@ -344,10 +366,12 @@ describe('MCMS - RBACTimelockBlockFunctionTest', () => {
 
     // Unblock Function
     {
-      const unblockBody = rbactl.builder.message.in.unblockFunctionSelector.encode({
-        queryId: 1n,
-        selector: counter.opcodes.in.IncreaseCount,
-      })
+      const unblockBody = rbactl.builder.message.in.unblockFunctionSelector
+        .encode({
+          queryId: 1n,
+          selector: counter.opcodes.in.IncreaseCount,
+        })
+        .asCell()
 
       const result = await baseTest.bind.timelock.sendInternal(
         baseTest.acc.admin.getSender(),
@@ -372,8 +396,8 @@ describe('MCMS - RBACTimelockBlockFunctionTest', () => {
 
       const functionSelectorUnblockedMsg = functionSelectorUnblockedTx[0].inMessage!
       const opcode = functionSelectorUnblockedMsg.body.beginParse().preloadUint(32)
-      const unblockedConfirmation = rbactl.builder.message.out.functionSelectorUnblocked.decode(
-        functionSelectorUnblockedMsg.body,
+      const unblockedConfirmation = rbactl.builder.message.out.functionSelectorUnblocked.load(
+        functionSelectorUnblockedMsg.body.beginParse(),
       )
 
       expect(opcode.toString(16)).toEqual(rbactl.opcodes.out.FunctionSelectorUnblocked.toString(16))
@@ -386,17 +410,19 @@ describe('MCMS - RBACTimelockBlockFunctionTest', () => {
       const call = {
         target: baseTest.bind.counter.address,
         value: toNano('0.05'),
-        data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
+        data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }).asCell(),
       }
       const calls = BaseTestSetup.singletonCalls(call)
 
-      const scheduleBody = rbactl.builder.message.in.scheduleBatch.encode({
-        queryId: 1n,
-        calls,
-        predecessor: BaseTestSetup.NO_PREDECESSOR,
-        salt: BaseTestSetup.EMPTY_SALT,
-        delay: BaseTestSetup.MIN_DELAY,
-      })
+      const scheduleBody = rbactl.builder.message.in.scheduleBatch
+        .encode({
+          queryId: 1n,
+          calls,
+          predecessor: BaseTestSetup.NO_PREDECESSOR,
+          salt: BaseTestSetup.EMPTY_SALT,
+          delay: BaseTestSetup.MIN_DELAY,
+        })
+        .asCell()
 
       const result = await baseTest.bind.timelock.sendInternal(
         baseTest.acc.proposerOne.getSender(),

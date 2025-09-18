@@ -286,7 +286,7 @@ fun UMap<K, V>.setRef(mutate self, key: K, value: V): void {
 
 @inline @pure
 fun UMap<K, V>.min(self): (K?, V?, bool) {
-    val (key, value, exists) = self.value.uDictGetFirst(ADDR_KEY_LEN);
+    val (key, value, exists) = self.value.uDictGetFirst(self.keyLen);
     if (!exists) {
         return (null, null, false);
     }

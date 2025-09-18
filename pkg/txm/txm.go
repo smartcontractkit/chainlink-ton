@@ -25,26 +25,25 @@ import (
 
 type TxManager interface {
 	services.Service
-
 	Enqueue(request Request) error
 	GetTransactionStatus(ctx context.Context, lt uint64) (commontypes.TransactionStatus, tvm.ExitCode, tlb.Coins, error)
-	GetClient() tracetracking.SignedAPIClient
+	GetClient(ctx context.Context) (tracetracking.SignedAPIClient, error)
 	InflightCount() (int, int)
 }
 
 var _ TxManager = (*Txm)(nil)
 
 type Txm struct {
-	Logger   logger.Logger
-	Keystore loop.Keystore
-	Config   Config
+	logger   logger.Logger
+	keystore loop.Keystore
+	config   Config
 
-	Client        tracetracking.SignedAPIClient
-	BroadcastChan chan *Tx
-	AccountStore  *AccountStore
-	Starter       commonutils.StartStopOnce
-	Done          sync.WaitGroup
-	Stop          chan struct{}
+	clientProvider func(context.Context) (tracetracking.SignedAPIClient, error)
+	broadcastChan  chan *Tx
+	accountStore   *AccountStore
+	starter        commonutils.StartStopOnce
+	done           sync.WaitGroup
+	stop           services.StopChan
 }
 
 type Request struct {
@@ -57,39 +56,39 @@ type Request struct {
 	StateInit       *cell.Cell      // Optional: contract deploy init
 }
 
-func New(lgr logger.Logger, keystore loop.Keystore, client tracetracking.SignedAPIClient, config Config) *Txm {
+func New(lgr logger.Logger, keystore loop.Keystore, clientProvider func(context.Context) (tracetracking.SignedAPIClient, error), config Config) *Txm {
 	txm := &Txm{
-		Logger:        logger.Named(lgr, "Txm"),
-		Keystore:      keystore,
-		Config:        config,
-		Client:        client,
-		BroadcastChan: make(chan *Tx, config.BroadcastChanSize),
-		AccountStore:  NewAccountStore(),
-		Stop:          make(chan struct{}),
+		logger:         logger.Named(lgr, "Txm"),
+		keystore:       keystore,
+		config:         config,
+		clientProvider: clientProvider,
+		broadcastChan:  make(chan *Tx, config.BroadcastChanSize),
+		accountStore:   NewAccountStore(),
+		stop:           make(chan struct{}),
 	}
 
 	return txm
 }
 
 func (t *Txm) Name() string {
-	return t.Logger.Name()
+	return t.logger.Name()
 }
 
 func (t *Txm) Ready() error {
-	return t.Starter.Ready()
+	return t.starter.Ready()
 }
 
 func (t *Txm) HealthReport() map[string]error {
-	return map[string]error{t.Name(): t.Starter.Healthy()}
+	return map[string]error{t.Name(): t.starter.Healthy()}
 }
 
-func (t *Txm) GetClient() tracetracking.SignedAPIClient {
-	return t.Client
+func (t *Txm) GetClient(ctx context.Context) (tracetracking.SignedAPIClient, error) {
+	return t.clientProvider(ctx)
 }
 
 func (t *Txm) Start(ctx context.Context) error {
-	return t.Starter.StartOnce("Txm", func() error {
-		t.Done.Add(2) // waitgroup: broadcast loop and confirm loop
+	return t.starter.StartOnce("Txm", func() error {
+		t.done.Add(2) // waitgroup: broadcast loop and confirm loop
 		go t.broadcastLoop()
 		go t.confirmLoop()
 		return nil
@@ -97,13 +96,13 @@ func (t *Txm) Start(ctx context.Context) error {
 }
 
 func (t *Txm) InflightCount() (int, int) {
-	return len(t.BroadcastChan), t.AccountStore.GetTotalInflightCount()
+	return len(t.broadcastChan), t.accountStore.GetTotalInflightCount()
 }
 
 func (t *Txm) Close() error {
-	return t.Starter.StopOnce("Txm", func() error {
-		close(t.Stop)
-		t.Done.Wait()
+	return t.starter.StopOnce("Txm", func() error {
+		close(t.stop)
+		t.done.Wait()
 		return nil
 	})
 }
@@ -117,11 +116,11 @@ func (t *Txm) Enqueue(request Request) error {
 		return fmt.Errorf("failed to convert public key to hex: %w", err)
 	}
 
-	if _, err := t.Keystore.Sign(context.Background(), pubKeyHex, nil); err != nil {
+	if _, err := t.keystore.Sign(context.Background(), pubKeyHex, nil); err != nil {
 		return fmt.Errorf("failed to sign: %w", err)
 	}
 
-	txExpirationMins := time.Minute * time.Duration(t.Config.TxExpirationMins) //nolint:gosec // ignoring G115 overflow conversion
+	txExpirationMins := time.Minute * time.Duration(t.config.TxExpirationMins) //nolint:gosec // ignoring G115 overflow conversion
 	tx := &Tx{
 		Mode:       request.Mode,
 		From:       *request.FromWallet.Address(),
@@ -135,7 +134,7 @@ func (t *Txm) Enqueue(request Request) error {
 	}
 
 	select {
-	case t.BroadcastChan <- tx:
+	case t.broadcastChan <- tx:
 		return nil
 	default:
 		return errors.New("broadcast channel full, could not enqueue transaction")
@@ -144,23 +143,23 @@ func (t *Txm) Enqueue(request Request) error {
 
 // Continuously listens and broadcasts enqueued transactions
 func (t *Txm) broadcastLoop() {
-	defer t.Done.Done()
+	defer t.done.Done()
 
-	ctx, cancel := commonutils.ContextFromChan(t.Stop)
+	ctx, cancel := commonutils.ContextFromChan(t.stop)
 	defer cancel()
 
-	t.Logger.Debugw("broadcastLoop: started")
+	t.logger.Debugw("broadcastLoop: started")
 
 	for {
 		select {
-		case tx := <-t.BroadcastChan:
-			t.Logger.Debugw("broadcasting transaction", "to", tx.To.String(), "amount", tx.Amount.Nano().String())
+		case tx := <-t.broadcastChan:
+			t.logger.Debugw("broadcasting transaction", "to", tx.To.String(), "amount", tx.Amount.Nano().String())
 
 			var st tlb.StateInit
 			if tx.StateInit != nil {
 				err := tlb.LoadFromCell(&st, tx.StateInit.BeginParse())
 				if err != nil {
-					t.Logger.Errorw("load from cell failed", "err", err, "to", tx.To.String())
+					t.logger.Errorw("load from cell failed", "err", err, "to", tx.To.String())
 					continue
 				}
 			}
@@ -184,11 +183,11 @@ func (t *Txm) broadcastLoop() {
 			// 3. Sign and send
 			err := t.broadcastWithRetry(ctx, tx, msg)
 			if err != nil {
-				t.Logger.Errorw("broadcast failed after retries", "err", err)
+				t.logger.Errorw("broadcast failed after retries", "err", err)
 				continue
 			}
-		case <-t.Stop:
-			t.Logger.Debugw("broadcastLoop: stopped")
+		case <-t.stop:
+			t.logger.Debugw("broadcastLoop: stopped")
 			return
 		}
 	}
@@ -199,26 +198,33 @@ func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Messag
 	var receivedMessage *tracetracking.ReceivedMessage
 	var err error
 
-	for attempt := uint(1); attempt <= t.Config.MaxSendRetryAttempts; attempt++ {
-		receivedMessage, _, err = t.Client.SendWaitTransaction(ctx, tx.To, msg)
+	// load client
+	client, cerr := t.clientProvider(ctx)
+	if cerr != nil {
+		return fmt.Errorf("failed to get client: %w", cerr)
+	}
+
+	// try to send transaction
+	for attempt := uint(1); attempt <= t.config.MaxSendRetryAttempts; attempt++ {
+		receivedMessage, _, err = client.SendWaitTransaction(ctx, tx.To, msg)
 
 		if err == nil {
-			t.Logger.Infow("transaction broadcasted", "to", tx.To.String(), "amount", tx.Amount.Nano().String())
+			t.logger.Infow("transaction broadcasted", "to", tx.To.String(), "amount", tx.Amount.Nano().String())
 			break
 		}
 
-		t.Logger.Warnw("failed to broadcast tx, will retry", "attempt", attempt, "err", err, "to", tx.To.String())
+		t.logger.Warnw("failed to broadcast tx, will retry", "attempt", attempt, "err", err, "to", tx.To.String())
 
 		select {
-		case <-time.After(t.Config.SendRetryDelay.Duration()):
-		case <-t.Stop:
-			t.Logger.Debugw("broadcastWithRetry: stopped during retry delay")
+		case <-time.After(t.config.SendRetryDelay.Duration()):
+		case <-t.stop:
+			t.logger.Debugw("broadcastWithRetry: stopped during retry delay")
 			return errors.New("broadcast aborted")
 		}
 	}
 
 	if err != nil {
-		t.Logger.Errorw("failed to broadcast tx after retries", "err", err, "to", tx.To.String())
+		t.logger.Errorw("failed to broadcast tx after retries", "err", err, "to", tx.To.String())
 		return err
 	}
 
@@ -228,16 +234,17 @@ func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Messag
 	// Determine expiration
 	lamportTime := receivedMessage.LamportTime
 	lamportTimeSecs := lamportTime / 1000
-	expirationTimestampSecs := lamportTimeSecs + uint64(t.Config.SendRetryDelay.Duration().Seconds())
+	expirationTimestampSecs := lamportTimeSecs + uint64(t.config.SendRetryDelay.Duration().Seconds())
 
-	txStore := t.AccountStore.GetTxStore(t.Client.Wallet.Address().String())
+	walletAddr := client.Wallet.Address().String()
+	txStore := t.accountStore.GetTxStore(walletAddr)
 	if txStore == nil {
-		return fmt.Errorf("txStore not found for sender %s", t.Client.Wallet.Address().String())
+		return fmt.Errorf("txStore not found for sender %s", walletAddr)
 	}
 
 	err = txStore.AddUnconfirmed(lamportTime, expirationTimestampSecs, tx)
 	if err != nil {
-		t.Logger.Errorf("AddUnconfirmed err: %v", err)
+		t.logger.Errorf("AddUnconfirmed err: %v", err)
 		return err
 	}
 
@@ -246,22 +253,25 @@ func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Messag
 
 // Periodically checks unconfirmed transactions for finality.
 func (t *Txm) confirmLoop() {
-	defer t.Done.Done()
+	defer t.done.Done()
 
-	_, cancel := commonutils.ContextFromChan(t.Stop)
+	_, cancel := commonutils.ContextFromChan(t.stop)
 	defer cancel()
 
-	pollDuration := time.Duration(t.Config.ConfirmPollSecs) * time.Second //nolint:gosec // ignoring G115 overflow conversion
+	pollDuration := time.Duration(t.config.ConfirmPollSecs) * time.Second //nolint:gosec // ignoring G115 overflow conversion
 	tick := time.After(pollDuration)
 
-	t.Logger.Debugw("confirmLoop: started")
+	t.logger.Debugw("confirmLoop: started")
+
+	ctx, cancel := t.stop.NewCtx()
+	defer cancel()
 
 	for {
 		select {
 		case <-tick:
 			start := time.Now()
 
-			t.checkUnconfirmed()
+			t.checkUnconfirmed(ctx)
 
 			remaining := pollDuration - time.Since(start)
 			if remaining > 0 {
@@ -271,27 +281,32 @@ func (t *Txm) confirmLoop() {
 				// reset tick to fire immediately
 				tick = time.After(0)
 			}
-		case <-t.Stop:
-			t.Logger.Debugw("confirmLoop: stopped")
+		case <-ctx.Done():
+			t.logger.Debugw("confirmLoop: stopped")
 			return
 		}
 	}
 }
 
 // Validates the confirmation status of all unconfirmed transactions by resolving their traces.
-func (t *Txm) checkUnconfirmed() {
-	allUnconfirmedTxs := t.AccountStore.GetAllUnconfirmed()
+func (t *Txm) checkUnconfirmed(ctx context.Context) {
+	allUnconfirmedTxs := t.accountStore.GetAllUnconfirmed()
 
 	for accountAddress, unconfirmedTxs := range allUnconfirmedTxs {
-		txStore := t.AccountStore.GetTxStore(accountAddress)
+		txStore := t.accountStore.GetTxStore(accountAddress)
 
 		for _, unconfirmedTx := range unconfirmedTxs {
 			tx := unconfirmedTx.Tx
 			receivedMessage := tx.ReceivedMessage
 
-			err := receivedMessage.WaitForTrace(t.Client.Client)
+			client, err := t.clientProvider(ctx)
 			if err != nil {
-				t.Logger.Errorw("failed to wait for trace", "LT", unconfirmedTx.LT, "error", err)
+				t.logger.Errorw("failed to get client", "error", err)
+				continue
+			}
+			err = receivedMessage.WaitForTrace(client.Client)
+			if err != nil {
+				t.logger.Errorw("failed to wait for trace", "LT", unconfirmedTx.LT, "error", err)
 				continue
 			}
 
@@ -303,14 +318,14 @@ func (t *Txm) checkUnconfirmed() {
 			traceSucceeded := receivedMessage.TraceSucceeded()
 
 			if err := txStore.MarkFinalized(unconfirmedTx.LT, traceSucceeded, exitCode); err != nil {
-				t.Logger.Errorw("failed to mark tx as finalized in TxStore", "LT", unconfirmedTx.LT, "error", err)
+				t.logger.Errorw("failed to mark tx as finalized in TxStore", "LT", unconfirmedTx.LT, "error", err)
 				continue
 			}
 
 			if traceSucceeded {
-				t.Logger.Infow("transaction confirmed", "LT", unconfirmedTx.LT, "exitCode", exitCode)
+				t.logger.Infow("transaction confirmed", "LT", unconfirmedTx.LT, "exitCode", exitCode)
 			} else {
-				t.Logger.Warnw("transaction failed", "LT", unconfirmedTx.LT, "exitCode", exitCode)
+				t.logger.Warnw("transaction failed", "LT", unconfirmedTx.LT, "exitCode", exitCode)
 			}
 		}
 	}
@@ -318,9 +333,14 @@ func (t *Txm) checkUnconfirmed() {
 
 // GetTransactionStatus translates internal TON transaction state to chainlink common statuses.
 func (t *Txm) GetTransactionStatus(ctx context.Context, lt uint64) (commontypes.TransactionStatus, tvm.ExitCode, tlb.Coins, error) {
-	txStore := t.AccountStore.GetTxStore(t.Client.Wallet.Address().String())
+	client, err := t.clientProvider(ctx)
+	if err != nil {
+		return commontypes.Unknown, 0, tlb.ZeroCoins, fmt.Errorf("failed to get client: %w", err)
+	}
+	walletAddr := client.Wallet.Address().String()
+	txStore := t.accountStore.GetTxStore(walletAddr)
 	if txStore == nil {
-		return commontypes.Unknown, 0, tlb.ZeroCoins, fmt.Errorf("txStore not found for sender %s", t.Client.Wallet.Address().String())
+		return commontypes.Unknown, 0, tlb.ZeroCoins, fmt.Errorf("txStore not found for sender %s", walletAddr)
 	}
 
 	status, succeeded, exitCode, totalActionFees, found := txStore.GetTxState(lt)
