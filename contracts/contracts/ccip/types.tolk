@@ -122,7 +122,7 @@ fun TVM2AnyRampMessage.generateMessageId(self, metadataHash: uint256): uint256 {
 // Router
  
 struct TokenAmount {
-    amount: uint256;
+    amount: coins;
     token: address;
 }
 
@@ -132,6 +132,8 @@ struct (0x10000001) SetRamp {
     destChainSelector: uint64;
     onRamp: address;
 }
+
+// TODO should separate CCIPSend msg (with opcode) from CCIPSend data
 
 struct (0x00000001) CCIPSend {
     queryId: uint64;
