@@ -24,9 +24,11 @@ describe('MCMS - RBACTimelockReceivable', () => {
     const contractBefore = await baseTest.blockchain.getContract(baseTest.bind.timelock.address)
     const balanceBefore = await contractBefore.account.account?.storage.balance!
 
-    const topUpBody = rbactl.builder.message.in.topUp.encode({
-      queryId: 1n,
-    })
+    const topUpBody = rbactl.builder.message.in.topUp
+      .encode({
+        queryId: 1n,
+      })
+      .asCell()
 
     const transferAmount = toNano('0.5')
 

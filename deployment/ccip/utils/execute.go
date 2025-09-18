@@ -22,7 +22,7 @@ func ExecuteProposals(env cldf.Environment, client *ton.APIClient, sender *walle
 	msgs := make([]*wallet.Message, len(internalMsgs))
 	for i, msg := range internalMsgs {
 		msgs[i] = &wallet.Message{
-			Mode:            wallet.PayGasSeparately, // TODO: wallet.IgnoreErrors ?
+			Mode:            wallet.PayGasSeparately | wallet.IgnoreErrors,
 			InternalMessage: msg,
 		}
 	}

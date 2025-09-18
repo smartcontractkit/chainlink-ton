@@ -1,9 +1,8 @@
-import { toNano, beginCell } from '@ton/core'
+import { toNano } from '@ton/core'
 import '@ton/test-utils'
 import { MCMSBaseSetRootAndExecuteTestSetup, MCMSTestCode } from './ManyChainMultiSigBaseTest'
 import * as mcms from '../../wrappers/mcms/MCMS'
-import { asSnakeData } from '../../src/utils'
-import { ERROR_UNAUTHORIZED_SIGNER } from '../../wrappers/libraries/ocr/ExitCodes'
+import { ZERO_ADDRESS } from '../../src/utils'
 
 describe('MCMS - ManyChainMultiSigExecuteTest', () => {
   let baseTest: MCMSBaseSetRootAndExecuteTestSetup
@@ -25,9 +24,10 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
     await baseTest.bind.mcms.sendInternal(
       baseTest.acc.deployer.getSender(),
       toNano('10'),
-      mcms.builder.message.in.topUp.encode({ queryId: 1n }),
+      mcms.builder.message.in.topUp.encode({ queryId: 1n }).asCell(),
     )
 
+    await baseTest.recreateTestOpsNoRevertingOp()
     await baseTest.executeOperationsUpTo(MCMSBaseSetRootAndExecuteTestSetup.OPS_NUM)
 
     // Verify we've reached the post-op count
@@ -38,11 +38,13 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
     // Use any operation and proof - they won't even be checked
     const fakeOp = baseTest.testOps[0]
 
-    const executeBody = mcms.builder.message.in.execute.encode({
-      queryId: 999n,
-      op: mcms.builder.data.op.encode(fakeOp),
-      proof: [], // fakeProof
-    })
+    const executeBody = mcms.builder.message.in.execute
+      .encode({
+        queryId: 999n,
+        op: mcms.builder.data.op.encode(fakeOp).asCell(),
+        proof: [], // fakeProof
+      })
+      .asCell()
 
     const result = await baseTest.bind.mcms.sendInternal(
       baseTest.acc.deployer.getSender(),
@@ -64,11 +66,13 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
     modifiedOp.value = modifiedOp.value + 1n
 
     // Try with empty proof first
-    const executeBody1 = mcms.builder.message.in.execute.encode({
-      queryId: 1n,
-      op: mcms.builder.data.op.encode(modifiedOp),
-      proof: [], // emptyProof
-    })
+    const executeBody1 = mcms.builder.message.in.execute
+      .encode({
+        queryId: 1n,
+        op: mcms.builder.data.op.encode(modifiedOp).asCell(),
+        proof: [], // emptyProof
+      })
+      .asCell()
 
     const result1 = await baseTest.bind.mcms.sendInternal(
       baseTest.acc.deployer.getSender(),
@@ -86,11 +90,13 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
     // Send a proof for the original op before the modification - should still fail
     const originalProof = baseTest.getProofForOp(0)
 
-    const executeBody2 = mcms.builder.message.in.execute.encode({
-      queryId: 2n,
-      op: mcms.builder.data.op.encode(modifiedOp),
-      proof: originalProof,
-    })
+    const executeBody2 = mcms.builder.message.in.execute
+      .encode({
+        queryId: 2n,
+        op: mcms.builder.data.op.encode(modifiedOp).asCell(),
+        proof: originalProof,
+      })
+      .asCell()
 
     const result2 = await baseTest.bind.mcms.sendInternal(
       baseTest.acc.deployer.getSender(),
@@ -114,11 +120,13 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
     const wrongChainIdOp = { ...baseTest.testOps[0] }
     wrongChainIdOp.chainId = wrongChainIdOp.chainId + 1n
 
-    const executeBody1 = mcms.builder.message.in.execute.encode({
-      queryId: 1n,
-      op: mcms.builder.data.op.encode(wrongChainIdOp),
-      proof: dummyProof,
-    })
+    const executeBody1 = mcms.builder.message.in.execute
+      .encode({
+        queryId: 1n,
+        op: mcms.builder.data.op.encode(wrongChainIdOp).asCell(),
+        proof: dummyProof,
+      })
+      .asCell()
 
     const result1 = await baseTest.bind.mcms.sendInternal(
       baseTest.acc.deployer.getSender(),
@@ -137,11 +145,13 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
     const wrongMultiSigOp = { ...baseTest.testOps[0] }
     wrongMultiSigOp.multiSig = baseTest.acc.multisigOwner.address
 
-    const executeBody2 = mcms.builder.message.in.execute.encode({
-      queryId: 2n,
-      op: mcms.builder.data.op.encode(wrongMultiSigOp),
-      proof: dummyProof,
-    })
+    const executeBody2 = mcms.builder.message.in.execute
+      .encode({
+        queryId: 2n,
+        op: mcms.builder.data.op.encode(wrongMultiSigOp).asCell(),
+        proof: dummyProof,
+      })
+      .asCell()
 
     const result2 = await baseTest.bind.mcms.sendInternal(
       baseTest.acc.deployer.getSender(),
@@ -160,11 +170,13 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
     const wrongNonceOp = { ...baseTest.testOps[0] }
     wrongNonceOp.nonce = wrongNonceOp.nonce + 1n
 
-    const executeBody3 = mcms.builder.message.in.execute.encode({
-      queryId: 3n,
-      op: mcms.builder.data.op.encode(wrongNonceOp),
-      proof: dummyProof,
-    })
+    const executeBody3 = mcms.builder.message.in.execute
+      .encode({
+        queryId: 3n,
+        op: mcms.builder.data.op.encode(wrongNonceOp).asCell(),
+        proof: dummyProof,
+      })
+      .asCell()
 
     const result3 = await baseTest.bind.mcms.sendInternal(
       baseTest.acc.deployer.getSender(),
@@ -182,11 +194,13 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
     // Test 4: Expired root (advance time past validUntil)
     baseTest.warpTime(MCMSBaseSetRootAndExecuteTestSetup.TEST_VALID_UNTIL + 1)
 
-    const executeBody4 = mcms.builder.message.in.execute.encode({
-      queryId: 4n,
-      op: mcms.builder.data.op.encode(baseTest.testOps[0]),
-      proof: dummyProof,
-    })
+    const executeBody4 = mcms.builder.message.in.execute
+      .encode({
+        queryId: 4n,
+        op: mcms.builder.data.op.encode(baseTest.testOps[0]).asCell(),
+        proof: dummyProof,
+      })
+      .asCell()
 
     const result4 = await baseTest.bind.mcms.sendInternal(
       baseTest.acc.deployer.getSender(),
@@ -206,11 +220,13 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
     // Execute first operation
     const proof1 = baseTest.getProofForOp(0)
 
-    const executeBody1 = mcms.builder.message.in.execute.encode({
-      queryId: 1n,
-      op: mcms.builder.data.op.encode(baseTest.testOps[0]),
-      proof: proof1,
-    })
+    const executeBody1 = mcms.builder.message.in.execute
+      .encode({
+        queryId: 1n,
+        op: mcms.builder.data.op.encode(baseTest.testOps[0]).asCell(),
+        proof: proof1,
+      })
+      .asCell()
 
     const result1 = await baseTest.bind.mcms.sendInternal(
       baseTest.acc.deployer.getSender(),
@@ -245,11 +261,13 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
     // Try to execute the third op instead of the second - should fail with WrongNonce
     const proof3 = baseTest.getProofForOp(2)
 
-    const executeBody3 = mcms.builder.message.in.execute.encode({
-      queryId: 3n,
-      op: mcms.builder.data.op.encode(baseTest.testOps[2]),
-      proof: proof3,
-    })
+    const executeBody3 = mcms.builder.message.in.execute
+      .encode({
+        queryId: 3n,
+        op: mcms.builder.data.op.encode(baseTest.testOps[2]).asCell(),
+        proof: proof3,
+      })
+      .asCell()
 
     const result3Early = await baseTest.bind.mcms.sendInternal(
       baseTest.acc.deployer.getSender(),
@@ -267,11 +285,13 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
     // Execute the second op correctly
     const proof2 = baseTest.getProofForOp(1)
 
-    const executeBody2 = mcms.builder.message.in.execute.encode({
-      queryId: 2n,
-      op: mcms.builder.data.op.encode(baseTest.testOps[1]),
-      proof: proof2,
-    })
+    const executeBody2 = mcms.builder.message.in.execute
+      .encode({
+        queryId: 2n,
+        op: mcms.builder.data.op.encode(baseTest.testOps[1]).asCell(),
+        proof: proof2,
+      })
+      .asCell()
 
     const result2 = await baseTest.bind.mcms.sendInternal(
       baseTest.acc.deployer.getSender(),
@@ -296,19 +316,21 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
     await baseTest.executeOperationsUpTo(MCMSBaseSetRootAndExecuteTestSetup.REVERTING_OP_INDEX)
 
     // Verify we're at the correct op count
-    const currentOpCount = await baseTest.bind.mcms.getOpCount()
+    let currentOpCount = await baseTest.bind.mcms.getOpCount()
     expect(currentOpCount).toEqual(BigInt(MCMSBaseSetRootAndExecuteTestSetup.REVERTING_OP_INDEX))
 
     // Now try to execute the reverting operation
     const proof = baseTest.getProofForOp(MCMSBaseSetRootAndExecuteTestSetup.REVERTING_OP_INDEX)
 
-    const executeBody = mcms.builder.message.in.execute.encode({
-      queryId: BigInt(MCMSBaseSetRootAndExecuteTestSetup.REVERTING_OP_INDEX + 1),
-      op: mcms.builder.data.op.encode(
-        baseTest.testOps[MCMSBaseSetRootAndExecuteTestSetup.REVERTING_OP_INDEX],
-      ),
-      proof,
-    })
+    const executeBody = mcms.builder.message.in.execute
+      .encode({
+        queryId: BigInt(MCMSBaseSetRootAndExecuteTestSetup.REVERTING_OP_INDEX + 1),
+        op: mcms.builder.data.op
+          .encode(baseTest.testOps[MCMSBaseSetRootAndExecuteTestSetup.REVERTING_OP_INDEX])
+          .asCell(),
+        proof,
+      })
+      .asCell()
 
     const result = await baseTest.bind.mcms.sendInternal(
       baseTest.acc.deployer.getSender(),
@@ -325,9 +347,22 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
     })
 
     // TODO check emit or reply with the failed error
+
+    // Verify we're (back) at the correct op count, the error was handled and we can retry
+    currentOpCount = await baseTest.bind.mcms.getOpCount()
+    expect(currentOpCount).toEqual(BigInt(MCMSBaseSetRootAndExecuteTestSetup.REVERTING_OP_INDEX))
+
+    // Check OpPendingInfo is cleared after a bounce
+    const opPendingInfo = await baseTest.bind.mcms.getOpPendingInfo()
+    expect(opPendingInfo).toBeDefined()
+    expect(opPendingInfo.validAfter).toBeGreaterThan(0)
+    expect(opPendingInfo.opPendingReceiver).toEqualAddress(ZERO_ADDRESS)
+    expect(opPendingInfo.opPendingBodyTruncated).toEqual(0n)
   })
 
   it('should handle value operations correctly - insufficient balance', async () => {
+    await baseTest.recreateTestOpsNoRevertingOp()
+
     // Check that MCMS contract has minimal balance initially
     const mcmsContract = await baseTest.blockchain.getContract(baseTest.bind.mcms.address)
     expect(mcmsContract.balance).toBeLessThanOrEqual(toNano('2')) // Should be very low (just deployment funds)
@@ -346,13 +381,15 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
     // Try to execute value operation without sufficient balance
     const proof = baseTest.getProofForOp(MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX)
 
-    const executeBody = mcms.builder.message.in.execute.encode({
-      queryId: BigInt(MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX + 1),
-      op: mcms.builder.data.op.encode(
-        baseTest.testOps[MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX],
-      ),
-      proof,
-    })
+    const executeBody = mcms.builder.message.in.execute
+      .encode({
+        queryId: BigInt(MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX + 1),
+        op: mcms.builder.data.op
+          .encode(baseTest.testOps[MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX])
+          .asCell(),
+        proof,
+      })
+      .asCell()
 
     const result = await baseTest.bind.mcms.sendInternal(
       baseTest.acc.deployer.getSender(),
@@ -370,6 +407,8 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
   })
 
   it('should handle value operations correctly - with sufficient balance', async () => {
+    await baseTest.recreateTestOpsNoRevertingOp()
+
     // Execute operations up to the value operation index
     await baseTest.executeOperationsUpTo(MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX)
 
@@ -381,21 +420,25 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
     // Execute the value operation
     const proof = baseTest.getProofForOp(MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX)
 
-    const executeBody = mcms.builder.message.in.execute.encode({
-      queryId: BigInt(MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX + 1),
-      op: mcms.builder.data.op.encode(
-        baseTest.testOps[MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX],
-      ),
-      proof,
-    })
+    const executeBody = mcms.builder.message.in.execute
+      .encode({
+        queryId: BigInt(MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX + 1),
+        op: mcms.builder.data.op
+          .encode(baseTest.testOps[MCMSBaseSetRootAndExecuteTestSetup.VALUE_OP_INDEX])
+          .asCell(),
+        proof,
+      })
+      .asCell()
 
     // TopUp contract before execution operation
     await baseTest.bind.mcms.sendInternal(
       baseTest.acc.deployer.getSender(),
       toNano('10'),
-      mcms.builder.message.in.topUp.encode({
-        queryId: 1n,
-      }),
+      mcms.builder.message.in.topUp
+        .encode({
+          queryId: 1n,
+        })
+        .asCell(),
     )
 
     const result = await baseTest.bind.mcms.sendInternal(

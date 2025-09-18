@@ -1,27 +1,30 @@
 package deployment
 
 import (
+	"context"
+	"encoding/json"
+	"fmt"
 	"math/big"
 	"testing"
+	"time"
 
-	"github.com/ethereum/go-ethereum/common"
+	chain_selectors "github.com/smartcontractkit/chain-selectors"
 	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"
+	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
 
-	chain_selectors "github.com/smartcontractkit/chain-selectors"
-	"github.com/stretchr/testify/require"
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
 
 	ton_ops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
+	test_utils "github.com/smartcontractkit/chainlink-ton/deployment/utils"
 
-	"github.com/smartcontractkit/chainlink/deployment/ccip/changeset/v1_6"
 	"github.com/smartcontractkit/chainlink/deployment/environment/memory"
-	"github.com/smartcontractkit/chainlink/v2/core/logger"
+	"github.com/stretchr/testify/require"
+	"github.com/xssnick/tonutils-go/tlb"
 
-	test_utils "github.com/smartcontractkit/chainlink-ton/integration-tests/utils"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/chainaccessor"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
@@ -30,19 +33,17 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/txparser"
 
 	"github.com/xssnick/tonutils-go/address"
-	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/ton"
 	"go.uber.org/zap/zapcore"
 
 	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
-	"github.com/smartcontractkit/chainlink/deployment/common/proposalutils"
 )
 
 const ChainSelEVMTest90000001 = 909606746561742123
 
 func TestDeploy(t *testing.T) {
 	t.Parallel()
-	// env := setupEnv(t)
-	lggr := logger.TestLogger(t)
+	lggr := logger.Test(t)
 	env := memory.NewMemoryEnvironment(t, lggr, zapcore.InfoLevel, memory.MemoryEnvironmentConfig{
 		Chains:    1,
 		TonChains: 1,
@@ -56,11 +57,16 @@ func TestDeploy(t *testing.T) {
 	tonChain := env.BlockChains.TonChains()[chainSelector]
 	deployer := tonChain.Wallet
 	t.Log("Deployer: ", deployer.Address().String())
+	clientProvider := func(ctx context.Context) (ton.APIClientWrapped, error) {
+		return tonChain.Client, nil
+	}
 
 	// memory environment doesn't block on funding so changesets can execute before the env is fully ready, manually call fund so we block here
 	test_utils.FundWallets(t, tonChain.Client, []*address.Address{deployer.Address()}, []tlb.Coins{tlb.MustFromTON("1000")})
+	time.Sleep(5 * time.Second)
 
-	cs := ton_ops.DeployChainContractsToTonCS(t, env, chainSelector)
+	cs := commonchangeset.Configure(ton_ops.DeployCCIPContracts{}, ton_ops.DeployChainContractsConfig(t, env, chainSelector, sequence.ContractsLocalVersion))
+
 	env, _, err := commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{cs})
 	require.NoError(t, err, "failed to deploy ccip")
 
@@ -69,39 +75,35 @@ func TestDeploy(t *testing.T) {
 
 	env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{
 		commonchangeset.Configure(ton_ops.AddTonLanes{}, config.UpdateTonLanesConfig{
-			EVMMCMSConfig: &proposalutils.TimelockConfig{},
-			TonMCMSConfig: &proposalutils.TimelockConfig{},
 			Lanes: []config.LaneConfig{
 				{
-					Source: config.TonChainDefinition{
-						ConnectionConfig: v1_6.ConnectionConfig{
+					Source: config.ChainDefinition{
+						ConnectionConfig: config.ConnectionConfig{
 							RMNVerificationDisabled: true,
 							AllowListEnabled:        false,
 						},
 						Selector: chainSelector,
 						GasPrice: big.NewInt(1e17),
-						TokenPrices: map[*address.Address]*big.Int{
-							ton_ops.TonTokenAddr: big.NewInt(99),
+						TokenPrices: map[string]*big.Int{
+							ton_ops.TonTokenAddr.String(): big.NewInt(99),
 						},
-						FeeQuoterDestChainConfig: ton_ops.DefaultFeeQuoterDestChainConfig(true, evmSelector),
-						TokenTransferFeeConfigs:  map[uint64]feequoter.UpdateTokenTransferFeeConfig{
-							// TODO: populate when token transfer enabled
+						FeeQuoterDestChainConfig: ton_ops.TonFeeQuoterDestChainConfig,
+						// TokenTransferFeeConfigs:  map[uint64]feequoter.UpdateTokenTransferFeeConfig{
+						// 	// TODO: populate when token transfer enabled
+						// },
+					},
+					Dest: config.ChainDefinition{
+						Selector:                 evmSelector,
+						GasPrice:                 big.NewInt(1e17),
+						TokenPrices:              map[string]*big.Int{},
+						FeeQuoterDestChainConfig: ton_ops.EvmFeeQuoterDestChainConfig,
+						ConnectionConfig: config.ConnectionConfig{
+							RMNVerificationDisabled: true,
+							AllowListEnabled:        false,
 						},
 					},
-					Dest: config.EVMChainDefinition{
-						ChainDefinition: v1_6.ChainDefinition{
-							Selector:                 evmSelector,
-							GasPrice:                 big.NewInt(1e17),
-							TokenPrices:              map[common.Address]*big.Int{},
-							FeeQuoterDestChainConfig: v1_6.DefaultFeeQuoterDestChainConfig(true),
-							ConnectionConfig: v1_6.ConnectionConfig{
-								RMNVerificationDisabled: true,
-								AllowListEnabled:        false,
-							},
-						},
-						OnRampVersion: []byte{1, 6, 1},
-					},
-					IsDisabled: false,
+					OnRampVersion: []byte{1, 6, 1},
+					IsDisabled:    false,
 				},
 			},
 			TestRouter: false,
@@ -117,13 +119,15 @@ func TestDeploy(t *testing.T) {
 	filterStore := inmemorystore.NewFilterStore()
 	opts := &logpoller.ServiceOptions{
 		Config:   lpCfg,
-		Client:   tonChain.Client,
 		Filters:  filterStore,
-		TxLoader: account.NewTxLoader(tonChain.Client, lggr, lpCfg.PageSize),
+		TxLoader: account.NewTxLoader(lggr, clientProvider, lpCfg.PageSize),
 		TxParser: txparser.NewTxParser(lggr, filterStore),
 		Store:    inmemorystore.NewLogStore(),
 	}
-	lp := logpoller.NewService(lggr, opts)
+	lp := logpoller.NewService(lggr,
+		clientProvider,
+		opts,
+	)
 	addrCodec := codec.NewAddressCodec()
 	accessor, err := chainaccessor.NewTONAccessor(lggr, ccipocr3.ChainSelector(chainSelector), tonChain.Client, lp, addrCodec)
 	require.NoError(t, err)
@@ -137,6 +141,8 @@ func TestDeploy(t *testing.T) {
 	require.NoError(t, err)
 	rawLinkAddr, err := addrCodec.AddressStringToBytes(linkAddr.String())
 	require.NoError(t, err)
+	routerAddr := state[chainSelector].Router
+	offRampAddr := state[chainSelector].OffRamp
 
 	err = accessor.Sync(ctx, consts.ContractNameOnRamp, rawOnRampAddr)
 	require.NoError(t, err)
@@ -195,5 +201,35 @@ func TestDeploy(t *testing.T) {
 			GasPriceStalenessThreshold:        0,
 			NetworkFeeUSDCents:                10,
 		}, config)
+	})
+
+	t.Run("StateView", func(t *testing.T) {
+		generatedView, err := state[chainSelector].GenerateView(&env, chainSelector, "-1")
+		require.NoError(t, err)
+		require.Equal(t, "-1", generatedView.ChainID)
+		require.Equal(t, chainSelector, generatedView.ChainSelector)
+		onRampView, exit := generatedView.OnRamp[onRampAddr.String()]
+		require.True(t, exit, "onRamp view not found")
+		require.Equal(t, onRampAddr, *onRampView.Address)
+
+		routerView, exit := generatedView.Router[routerAddr.String()]
+		require.True(t, exit, "onRamp view not found")
+		require.Equal(t, routerAddr, *routerView.Address)
+
+		feeQuoterView, exit := generatedView.FeeQuoter[feeQuoterAddr.String()]
+		require.True(t, exit, "feeQuoter view not found")
+		require.Equal(t, feeQuoterAddr, *feeQuoterView.Address)
+		destConfig, exist := feeQuoterView.DestChainConfig[ChainSelEVMTest90000001]
+		require.True(t, exist, "feeQuoter view dest config not found")
+		require.True(t, destConfig.IsEnabled)
+		require.Equal(t, uint16(10), destConfig.MaxNumberOfTokensPerMsg)
+		require.Equal(t, uint32(3000000), destConfig.MaxPerMsgGasLimit)
+
+		offRampView, exit := generatedView.OffRamp[offRampAddr.String()]
+		require.True(t, exit, "offRamp view not found")
+		require.Equal(t, offRampAddr, *offRampView.Address)
+		data, err := json.MarshalIndent(generatedView, "", "  ")
+		require.NoError(t, err)
+		fmt.Print("JSON encoded TON state view:\n" + string(data))
 	})
 }

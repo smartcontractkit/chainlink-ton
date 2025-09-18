@@ -1,8 +1,11 @@
 package codec
 
 import (
+	"crypto/ed25519"
+	crypto_rand "crypto/rand"
 	"encoding/base64"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"testing"
 
@@ -80,21 +83,21 @@ func TestAddressCodec_OracleIDAsAddressBytes(t *testing.T) {
 			name:     "oracleID 0",
 			oracleID: 0,
 			expected: func() []byte {
-				return packOracleID(t, 0)
+				return packOracleID(0)
 			}(),
 		},
 		{
 			name:     "oracleID 1",
 			oracleID: 1,
 			expected: func() []byte {
-				return packOracleID(t, 1)
+				return packOracleID(1)
 			}(),
 		},
 		{
 			name:     "oracleID 255",
 			oracleID: 255,
 			expected: func() []byte {
-				return packOracleID(t, 255)
+				return packOracleID(255)
 			}(),
 		},
 	}
@@ -110,13 +113,59 @@ func TestAddressCodec_OracleIDAsAddressBytes(t *testing.T) {
 	}
 }
 
-func packOracleID(t *testing.T, oracleID uint8) []byte {
+func TestAddressCodec_TransmitterBytesToString(t *testing.T) {
+	codec := addressCodec{}
+
+	// Generate a real ed25519 key for testing
+	pubKey, _, err := ed25519.GenerateKey(crypto_rand.Reader)
+	require.NoError(t, err)
+
+	testCases := []struct {
+		name     string
+		input    []byte
+		expected string
+	}{
+		{
+			name:     "valid ed25519 public key",
+			input:    pubKey,
+			expected: hex.EncodeToString(pubKey),
+		},
+		{
+			name:     "32-byte key with mixed values",
+			input:    []byte{0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef},
+			expected: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+		},
+		{
+			name:     "all zeros",
+			input:    make([]byte, 32),
+			expected: "0000000000000000000000000000000000000000000000000000000000000000",
+		},
+		{
+			name:     "all ones",
+			input:    []byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
+			expected: "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+		},
+		{
+			name:     "empty input",
+			input:    []byte{},
+			expected: "",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actual, err := codec.TransmitterBytesToString(tc.input)
+
+			require.NoError(t, err)
+			require.Equal(t, tc.expected, actual)
+		})
+	}
+}
+
+func packOracleID(oracleID uint8) []byte {
 	addr := make([]byte, 32)
 	binary.BigEndian.PutUint32(addr, uint32(oracleID))
 	tonAddr := address.NewAddress(0, 0, addr)
-	decodeString, err := base64.RawURLEncoding.DecodeString(tonAddr.String())
-	if err != nil {
-		t.Fatalf("failed to decode TVM address bytes: %v", err)
-	}
-	return decodeString
+	rawAddr := ToRawAddr(tonAddr)
+	return rawAddr[:]
 }

@@ -5,7 +5,6 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
-	"github.com/smartcontractkit/chainlink/deployment/ccip/changeset/v1_6"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 
@@ -20,6 +19,7 @@ type DeployOnRampInput struct {
 	ChainSelector uint64
 	FeeQuoter     *address.Address
 	FeeAggregator *address.Address
+	ContractPath  string
 }
 
 type DeployOnRampOutput struct {
@@ -37,8 +37,7 @@ func deployOnRamp(b operations.Bundle, deps TonDeps, in DeployOnRampInput) (Depl
 	output := DeployOnRampOutput{}
 
 	// TODO wrap the code cell creation somewhere
-	CounterContractPath := utils.GetBuildDir("OnRamp.compiled.json")
-	codeCell, err := wrappers.ParseCompiledContract(CounterContractPath)
+	codeCell, err := wrappers.ParseCompiledContract(in.ContractPath)
 	if err != nil {
 		return output, fmt.Errorf("failed to compile contract: %w", err)
 	}
@@ -73,8 +72,14 @@ func deployOnRamp(b operations.Bundle, deps TonDeps, in DeployOnRampInput) (Depl
 	return output, nil
 }
 
+type OnRampDestinationUpdate struct {
+	IsEnabled        bool // If false, disables the destination by setting router to 0x0.
+	TestRouter       bool // Flag for safety only allow specifying either router or testRouter.
+	AllowListEnabled bool
+}
+
 type UpdateOnRampDestChainConfigsInput struct {
-	Updates map[uint64]v1_6.OnRampDestinationUpdate
+	Updates map[uint64]OnRampDestinationUpdate
 }
 
 type UpdateOnRampDestChainConfigsOutput struct {
@@ -114,7 +119,7 @@ func updateOnRampDestChainConfigs(b operations.Bundle, deps TonDeps, in UpdateOn
 	messages := []*tlb.InternalMessage{
 		{
 			Bounce:  true,
-			Amount:  tlb.MustFromTON("1"),
+			Amount:  tlb.MustFromTON("0.1"),
 			DstAddr: &addr,
 			Body:    payload,
 		},

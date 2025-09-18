@@ -7,6 +7,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-common/pkg/config"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
 	"github.com/smartcontractkit/chainlink-ton/pkg/txm"
 )
 
@@ -15,12 +16,30 @@ const ChainFamilyName = "ton"
 
 var DefaultConfigSet = Chain{
 	TransactionManager: &txm.DefaultConfigSet,
+	LogPoller:          &logpoller.DefaultConfigSet,
 	ClientTTL:          10 * time.Minute,
 }
 
 type Chain struct {
 	TransactionManager *txm.Config
+	LogPoller          *logpoller.Config
 	ClientTTL          time.Duration
+}
+
+// TxManager returns the transaction manager configuration
+func (c *Chain) TxManager() *txm.Config {
+	if c.TransactionManager != nil {
+		return c.TransactionManager
+	}
+	return &txm.DefaultConfigSet
+}
+
+// LogPollerConfig returns the log poller configuration
+func (c *Chain) LogPollerConfig() *logpoller.Config {
+	if c.LogPoller != nil {
+		return c.LogPoller
+	}
+	return &logpoller.DefaultConfigSet
 }
 
 type Node struct {

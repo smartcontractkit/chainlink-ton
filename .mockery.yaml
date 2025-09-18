@@ -5,7 +5,7 @@ filename: "{{ .InterfaceName | snakecase }}.go"
 packages:
   github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3:
     config:
-      dir: "./mocks/ccipocr3"
+      dir: ./mocks/ccipocr3
     interfaces:
       SourceChainExtraDataCodec:
       ChainSpecificAddressCodec:

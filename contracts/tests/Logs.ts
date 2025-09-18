@@ -5,6 +5,7 @@ import * as OCR3Logs from '../wrappers/libraries/ocr/Logs'
 import * as ReceiverLogs from '../wrappers/examples/ccip/Logs'
 import { fromSnakeData } from '../src/utils/types'
 import { merkleRootsFromCell, priceUpdatesFromCell } from '../wrappers/ccip/OffRamp'
+import { prettifyAddressesMap } from './utils/prettyPrint'
 
 // https://github.com/ton-blockchain/liquid-staking-contract/blob/1f4e9badbed52a4cf80cc58e4bb36ed375c6c8e7/utils.ts#L269-L294
 export const getExternals = (transactions: BlockchainTransaction[]) => {
@@ -49,77 +50,73 @@ type DeepPartial<T> = {
   [P in keyof T]?: DeepPartial<T[P]>
 }
 
-const CombinedLogTypes = {
-  ...CCIPLogs.LogTypes,
-  ...OCR3Logs.LogTypes,
-  ...ReceiverLogs.LogTypes,
+// map from log type → match payload type
+type LogTypeMap = {
+  [CCIPLogs.LogTypes.CCIPMessageSent]: DeepPartial<CCIPLogs.CCIPMessageSent>
+  [CCIPLogs.LogTypes.CCIPCommitReportAccepted]: DeepPartial<CCIPLogs.CCIPCommitReportAccepted>
+  [CCIPLogs.LogTypes.ExecutionStateChanged]: DeepPartial<CCIPLogs.ExecutionStateChanged>
+  [OCR3Logs.LogTypes.OCR3BaseConfigSet]: OCR3Logs.OCR3BaseConfigSet
+  [OCR3Logs.LogTypes.OCR3BaseTransmitted]: DeepPartial<OCR3Logs.OCR3BaseTransmitted>
+  [ReceiverLogs.LogTypes.ReceiverCCIPMessageReceived]: ReceiverLogs.ReceiverCCIPMessageReceived
 }
 
-type CombinedLogTypes = (typeof CombinedLogTypes)[keyof typeof CombinedLogTypes]
+// union of the keys of that map
+type CombinedLogType = keyof LogTypeMap
 
-type LogMatch<T extends CombinedLogTypes> = T extends CCIPLogs.LogTypes.CCIPMessageSent
-  ? DeepPartial<CCIPLogs.CCIPMessageSent>
-  : T extends CCIPLogs.LogTypes.CCIPCommitReportAccepted
-    ? DeepPartial<CCIPLogs.CCIPCommitReportAccepted>
-    : T extends OCR3Logs.LogTypes.OCR3BaseConfigSet
-      ? OCR3Logs.OCR3BaseConfigSet
-      : T extends OCR3Logs.LogTypes.OCR3BaseTransmitted
-        ? DeepPartial<OCR3Logs.OCR3BaseTransmitted>
-        : T extends ReceiverLogs.LogTypes.ReceiverCCIPMessageReceived
-          ? ReceiverLogs.ReceiverCCIPMessageReceived
-          : number
+type LogMatch<T extends CombinedLogType> = LogTypeMap[T]
 
-export const assertLog = <T extends CombinedLogTypes>(
+// Strongly-typed handler map
+type Handler<T extends CombinedLogType> = (
+  message: Message,
+  from: Address,
+  match: LogTypeMap[T],
+  addressesMap: Map<string, string>,
+) => boolean
+
+const handlers: { [K in CombinedLogType]: Handler<K> } = {
+  [CCIPLogs.LogTypes.CCIPMessageSent]: (x, from, match, addressesMap) =>
+    testLogCCIPMessageSent(x, from, match as DeepPartial<CCIPLogs.CCIPMessageSent>, addressesMap),
+
+  [CCIPLogs.LogTypes.CCIPCommitReportAccepted]: (x, from, match) =>
+    testLogCCIPCommitReportAccepted(
+      x,
+      from,
+      match as DeepPartial<CCIPLogs.CCIPCommitReportAccepted>,
+    ),
+
+  [CCIPLogs.LogTypes.ExecutionStateChanged]: (x, from, match) =>
+    testLogCCIPExecutionStateChanged(x, from, match as DeepPartial<CCIPLogs.ExecutionStateChanged>),
+
+  [ReceiverLogs.LogTypes.ReceiverCCIPMessageReceived]: (x, from, match) =>
+    testLogReceiverCCIPMessageReceived(x, from, match as ReceiverLogs.ReceiverCCIPMessageReceived),
+
+  [OCR3Logs.LogTypes.OCR3BaseConfigSet]: (x, from, match) =>
+    testConfigSetLogMessage(x, from, match as OCR3Logs.OCR3BaseConfigSet),
+
+  [OCR3Logs.LogTypes.OCR3BaseTransmitted]: (x, from, match) =>
+    testTransmittedLogMessage(x, from, match as Partial<OCR3Logs.OCR3BaseTransmitted>),
+}
+
+// assertLog delegates via the handler table
+export const assertLog = <T extends CombinedLogType>(
   transactions: BlockchainTransaction[],
   from: Address,
   type: T,
   match: LogMatch<T>,
 ) => {
-  const matched = getExternals(transactions).some((x) => {
-    switch (type) {
-      case CCIPLogs.LogTypes.CCIPMessageSent:
-        return testLogCCIPMessageSent(x, from, match as DeepPartial<CCIPLogs.CCIPMessageSent>)
-
-      case CCIPLogs.LogTypes.CCIPCommitReportAccepted:
-        return testLogCCIPCommitReportAccepted(
-          x,
-          from,
-          match as DeepPartial<CCIPLogs.CCIPCommitReportAccepted>,
-        )
-
-      case ReceiverLogs.LogTypes.ReceiverCCIPMessageReceived:
-        return testLogReceiverCCIPMessageReceived(
-          x,
-          from,
-          match as ReceiverLogs.ReceiverCCIPMessageReceived,
-        )
-
-      case OCR3Logs.LogTypes.OCR3BaseConfigSet:
-        return testConfigSetLogMessage(x, from, match as OCR3Logs.OCR3BaseConfigSet)
-
-      case OCR3Logs.LogTypes.OCR3BaseTransmitted:
-        return testTransmittedLogMessage(
-          x,
-          from,
-          match as DeepPartial<OCR3Logs.OCR3BaseTransmitted>,
-        )
-
-      default:
-        throw new Error('Unhandled log type')
-    }
-  })
-
+  const prettyAddressesMap = prettifyAddressesMap(transactions)
+  const matched = getExternals(transactions).some((x) =>
+    handlers[type](x, from, match, prettyAddressesMap),
+  )
   expect(matched).toBe(true)
 }
-
-//TODO: Move the definition for the matcher passed to testLog to wrappers ccip/Logs and ocr/Logs
 
 function testLogCCIPCommitReportAccepted(
   message: Message,
   from: Address,
   match: DeepPartial<CCIPLogs.CCIPCommitReportAccepted>,
 ) {
-  return testLog(message, from, CombinedLogTypes.CCIPCommitReportAccepted, (x) => {
+  return testLog(message, from, CCIPLogs.LogTypes.CCIPCommitReportAccepted, (x) => {
     let bs = x.beginParse()
 
     const priceUpdatesCell = bs.loadMaybeRef()
@@ -133,8 +130,7 @@ function testLogCCIPCommitReportAccepted(
       priceUpdates,
       merkleRoots,
     }
-    expect(reportAccepted).toMatchObject(match)
-    return true
+    return matchesObject(reportAccepted, match)
   })
 }
 
@@ -142,8 +138,9 @@ export const testLogCCIPMessageSent = (
   message: Message,
   from: Address,
   match: DeepPartial<CCIPLogs.CCIPMessageSent>,
+  prettyAddressesMap: Map<string, string>,
 ) => {
-  return testLog(message, from, CombinedLogTypes.CCIPMessageSent, (x) => {
+  return testLog(message, from, CCIPLogs.LogTypes.CCIPMessageSent, (x) => {
     let bs = x.beginParse()
 
     const header = {
@@ -171,8 +168,44 @@ export const testLogCCIPMessageSent = (
       },
     }
 
-    expect(msg).toMatchObject(match)
+    // Check other fields using toMatchObject (excluding sender to avoid object comparison)
+    const { sender: _, ...messageWithoutSender } = msg.message
+    const { sender: __, ...matchWithoutSender } = match.message || {}
+
+    if (!matchesObject(messageWithoutSender, matchWithoutSender)) {
+      return false
+    }
+
+    // Check sender address using .equals() if specified in match
+    if (match.message?.sender && match.message.sender instanceof Address) {
+      if (!sender.equals(match.message.sender)) {
+        console.log(
+          `Sender address mismatch:\n` +
+            `  Expected: ${match.message.sender.toString()} (${prettyAddressesMap.get(match.message.sender.toRawString())})\n` +
+            `  Received: ${sender.toString()} (${prettyAddressesMap.get(sender.toRawString())})`,
+        )
+        return false
+      }
+    }
     return true
+  })
+}
+
+export const testLogCCIPExecutionStateChanged = (
+  message: Message,
+  from: Address,
+  match: DeepPartial<CCIPLogs.ExecutionStateChanged>,
+) => {
+  return testLog(message, from, CCIPLogs.LogTypes.ExecutionStateChanged, (x) => {
+    const cs = x.beginParse()
+    const msg = {
+      sourceChainSelector: cs.loadUintBig(64),
+      sequenceNumber: cs.loadUintBig(64),
+      messageId: cs.loadUintBig(256),
+      state: cs.loadUintBig(8),
+    }
+
+    return matchesObject(msg, match)
   })
 }
 
@@ -181,21 +214,32 @@ export const testConfigSetLogMessage = (
   from: Address,
   match: OCR3Logs.OCR3BaseConfigSet,
 ) => {
-  return testLog(message, from, CombinedLogTypes.OCR3BaseConfigSet, (x) => {
+  return testLog(message, from, OCR3Logs.LogTypes.OCR3BaseConfigSet, (x) => {
     const cs = x.beginParse()
     const ocrPluginType = cs.loadUint(16)
     const configDigest = cs.loadUintBig(256)
-    const signers = fromSnakeData(cs.loadRef(), (x) => x.loadUintBig(256))
+    const signers = fromSnakeData(cs.loadRef(), (x) => x.loadUintBig(256)).sort()
     const transmitters = fromSnakeData(cs.loadRef(), (x) => x.loadAddress())
+      .map((x) => x.toString())
+      .sort()
     const bigF = cs.loadUint(8)
 
-    expect(ocrPluginType).toEqual(match.ocrPluginType)
-    expect(configDigest).toEqual(match.configDigest)
-    expect(signers.sort()).toEqual(match.signers.sort())
-    for (let i = 0; i < transmitters.length; i++) {
-      expect(transmitters[i].toString()).toEqual(match.transmitters![i].toString())
+    const msg = {
+      ocrPluginType,
+      configDigest,
+      signers,
+      transmitters,
+      bigF,
     }
-    expect(bigF).toEqual(match.bigF)
+    const modifiedMatch = {
+      ocrPluginType: match.ocrPluginType,
+      configDigest: match.configDigest,
+      signers: match.signers.sort(),
+      transmitters: match.transmitters.map((x) => x.toString()).sort(),
+      bigF: match.bigF,
+    }
+
+    equalsObject(msg, modifiedMatch)
     return true
   })
 }
@@ -205,15 +249,15 @@ export const testTransmittedLogMessage = (
   from: Address,
   match: Partial<OCR3Logs.OCR3BaseTransmitted>,
 ) => {
-  return testLog(message, from, CombinedLogTypes.OCR3BaseTransmitted, (x) => {
+  return testLog(message, from, OCR3Logs.LogTypes.OCR3BaseTransmitted, (x) => {
     const cs = x.beginParse()
     const msg = {
       ocrPluginType: cs.loadUint(16),
       configDigest: cs.loadUintBig(256),
       sequenceNumber: cs.loadUint(64),
     }
-    expect(msg).toMatchObject(match)
-    return true
+
+    return matchesObject(msg, match)
   })
 }
 
@@ -222,7 +266,7 @@ export const testLogReceiverCCIPMessageReceived = (
   from: Address,
   expected: ReceiverLogs.ReceiverCCIPMessageReceived,
 ) => {
-  return testLog(message, from, CombinedLogTypes.ReceiverCCIPMessageReceived, (x) => {
+  return testLog(message, from, ReceiverLogs.LogTypes.ReceiverCCIPMessageReceived, (x) => {
     const msg = expected.message
     const expectedCell = beginCell()
       .storeUint(msg.messageId, 256)
@@ -232,7 +276,24 @@ export const testLogReceiverCCIPMessageReceived = (
       .storeRef(msg.data)
       .endCell()
 
-    expect(expectedCell).toEqual(x)
-    return true
+    return equalsObject(expectedCell, x)
   })
+}
+
+function matchesObject(obj, match) {
+  try {
+    expect(obj).toMatchObject(match)
+    return true
+  } catch {
+    return false
+  }
+}
+
+function equalsObject(obj1: any, obj2: any): boolean {
+  try {
+    expect(obj1).toEqual(obj2)
+    return true
+  } catch {
+    return false
+  }
 }

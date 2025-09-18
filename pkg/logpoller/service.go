@@ -2,6 +2,7 @@ package logpoller
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -25,22 +26,23 @@ import (
 // external messages from registered filter addresses.
 type service struct {
 	services.Service
-	eng *services.Engine // Service engine for lifecycle management
+	eng            *services.Engine                                    // Service engine for lifecycle management
+	lggr           logger.SugaredLogger                                // Logger instance
+	clientProvider func(context.Context) (ton.APIClientWrapped, error) // TON blockchain client lazy getter
 
-	lggr    logger.SugaredLogger // Logger instance
-	client  ton.APIClientWrapped // TON blockchain client
-	filters FilterStore          // Registry of active filters
-	loader  TxLoader             // Transaction loader returning loaded txs
-	parser  TxParser             // Transaction parser returning logs
-	store   LogStore             // Log storage (MVP: in-memory, to be replaced with ORM)
+	filters FilterStore // Registry of active filters
+	loader  TxLoader    // Transaction loader returning loaded txs
+	parser  TxParser    // Transaction parser returning logs
+	store   LogStore    // Log storage (MVP: in-memory, to be replaced with ORM)
 
 	pollPeriod         time.Duration // How often to poll for new blocks
 	lastProcessedBlock uint32        // Last processed masterchain sequence number
+	startingLookback   time.Duration // How far back to look when starting up
+	blockTime          time.Duration // Expected block time for calculations
 }
 
 type ServiceOptions struct {
 	Config   Config
-	Client   ton.APIClientWrapped
 	Filters  FilterStore
 	TxLoader TxLoader
 	TxParser TxParser
@@ -48,15 +50,17 @@ type ServiceOptions struct {
 }
 
 // NewService creates a new TON log polling service instance
-func NewService(lggr logger.Logger, opts *ServiceOptions) Service {
+func NewService(lggr logger.Logger, clientProvider func(context.Context) (ton.APIClientWrapped, error), opts *ServiceOptions) Service {
 	lp := &service{
-		lggr:       logger.Sugared(lggr),
-		client:     opts.Client,
-		filters:    opts.Filters,
-		loader:     opts.TxLoader,
-		parser:     opts.TxParser,
-		store:      opts.Store,
-		pollPeriod: opts.Config.PollPeriod,
+		lggr:             logger.Sugared(lggr),
+		clientProvider:   clientProvider,
+		filters:          opts.Filters,
+		loader:           opts.TxLoader,
+		parser:           opts.TxParser,
+		store:            opts.Store,
+		pollPeriod:       opts.Config.PollPeriod.Duration(),
+		startingLookback: opts.Config.LogPollerStartingLookback.Duration(),
+		blockTime:        opts.Config.BlockTime.Duration(),
 	}
 	lp.Service, lp.eng = services.Config{
 		Name:  "TONLogPoller",
@@ -117,14 +121,19 @@ func (lp *service) run(ctx context.Context) (err error) {
 // getMasterchainBlockRange calculates the range of blocks that need to be processed.
 // Returns nil if there are no new blocks to process.
 func (lp *service) getMasterchainBlockRange(ctx context.Context) (*types.BlockRange, error) {
-	lastProcessedBlock, err := lp.getLastProcessedBlock()
+	client, err := lp.clientProvider(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get last processed block: %w", err)
+		return nil, fmt.Errorf("failed to get client: %w", err)
 	}
 
-	toBlock, err := lp.client.CurrentMasterchainInfo(ctx)
+	toBlock, err := client.CurrentMasterchainInfo(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get current masterchain info: %w", err)
+	}
+
+	lastProcessedBlock, err := lp.getLastProcessedBlock(toBlock)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get last processed block: %w", err)
 	}
 
 	// if we've already processed this block, wait for the next one
@@ -143,28 +152,50 @@ func (lp *service) getMasterchainBlockRange(ctx context.Context) (*types.BlockRa
 }
 
 // getLastProcessedBlock retrieves the last processed masterchain sequence number.
-// Currently uses in-memory storage; will be replaced with database persistence.
-func (lp *service) getLastProcessedBlock() (uint32, error) {
+// If no previous block has been processed, it uses the lookback window to determine
+// an appropriate starting point to avoid missing recent events.
+func (lp *service) getLastProcessedBlock(currentBlock *ton.BlockIDExt) (uint32, error) {
 	lastProcessed := lp.lastProcessedBlock
 	if lastProcessed > 0 {
 		return lastProcessed, nil
 	}
 
-	// TODO: get the latest processed seqno from log table
-	// TODO: implement lookbackwindow configuration and fallback
+	// TODO: get the latest processed seqno from log table when persistent storage is implemented
+
+	if currentBlock.SeqNo == 0 {
+		return 0, errors.New("current masterchain seqno is 0 - waiting for next block to start processing")
+	}
+
+	lookbackSeqNo := computeLookbackWindow(currentBlock.SeqNo, lp.startingLookback, lp.blockTime)
+
+	if lookbackSeqNo > lastProcessed {
+		blocksToProcess := currentBlock.SeqNo - lookbackSeqNo
+		lp.lggr.Infow("Starting from lookback window",
+			"fromSeqNo", lookbackSeqNo,
+			"toSeqNo", currentBlock.SeqNo,
+			"blocksToProcess", blocksToProcess)
+		return lookbackSeqNo, nil
+	}
+
+	lp.lggr.Infow("Resuming from last processed", "seqNo", lastProcessed)
 	return lastProcessed, nil
 }
 
 // resolvePreviousBlock determines the previous block reference based on the last processed sequence number
 func (lp *service) resolvePreviousBlock(ctx context.Context, lastProcessedBlockSeqNo uint32, toBlock *ton.BlockIDExt) (*ton.BlockIDExt, error) {
 	if lastProcessedBlockSeqNo == 0 {
-		// TODO: we shouldn't process from genesis, but rather have a pointer for starting point
-		lp.lggr.Debugw("First run detected, processing from genesis", "toSeq", toBlock.SeqNo)
+		// Start from genesis - this only happens when lookback window calculation
+		// determines the chain is shorter than the configured lookback duration(likely localnet)
+		lp.lggr.Debugw("Processing from genesis", "toSeq", toBlock.SeqNo)
 		return nil, nil
 	}
 
+	client, err := lp.clientProvider(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get client: %w", err)
+	}
 	// get the prevBlock based on the last processed sequence number
-	prevBlock, err := lp.client.LookupBlock(ctx, toBlock.Workchain, toBlock.Shard, lastProcessedBlockSeqNo)
+	prevBlock, err := client.LookupBlock(ctx, toBlock.Workchain, toBlock.Shard, lastProcessedBlockSeqNo)
 	if err != nil {
 		return nil, fmt.Errorf("LookupBlock for previous seqno %d: %w", lastProcessedBlockSeqNo, err)
 	}
@@ -201,14 +232,30 @@ func (lp *service) processBlockRange(ctx context.Context, blockRange *types.Bloc
 			continue
 		}
 		lp.store.SaveLog(log)
-		// lp.lggr.Debugw("saved log", "log", log.String())
+		lp.lggr.Debugw("saved log", "log", log.String())
 	}
 	return nil
 }
 
 // RegisterFilter adds a new filter to monitor specific address/event signature combinations
 func (lp *service) RegisterFilter(ctx context.Context, flt types.Filter) error {
-	return lp.filters.RegisterFilter(ctx, flt)
+	// Register the filter first
+	if err := lp.filters.RegisterFilter(ctx, flt); err != nil {
+		return err
+	}
+
+	// TODO(2025-08-28@jadepark-dev): clean up, forcing replay for e2e now
+	// TODO: Replace with proper asynchronous backfill mechanism
+	// For now, run replay in background for e2e testing needs - replay will use lookback window for safety
+	go func() {
+		replayCtx := context.Background()
+		lp.lggr.Infow("starting background replay for new filter", "filter", flt.Name, "fromBlock", flt.StartingSeqNo)
+		if err := lp.Replay(replayCtx, flt.StartingSeqNo); err != nil {
+			lp.lggr.Errorw("background replay failed for new filter", "filter", flt.Name, "error", err)
+		}
+	}()
+
+	return nil
 }
 
 // UnregisterFilter removes a filter by name
@@ -224,4 +271,73 @@ func (lp *service) HasFilter(ctx context.Context, name string) (bool, error) {
 // GetStore exposes the underlying log store for direct access
 func (lp *service) GetStore() LogStore {
 	return lp.store
+}
+
+// computeLookbackWindow calculates the lookback sequence number
+// based on the current sequence number, lookback duration, and block time.
+func computeLookbackWindow(currentSeqNo uint32, lookbackDuration time.Duration, blockTime time.Duration) uint32 {
+	// Calculate how many blocks to go back based on time duration
+	// Use ceiling division like Solana: ceil(lookback/blockTime) = (lookback-1)/blockTime + 1
+	//nolint:gosec //G115: integer overflow conversion int64 -> uint32
+	lookbackBlocks := uint32(int64((lookbackDuration-1)/blockTime) + 1)
+
+	var lookbackSeqNo uint32
+	if currentSeqNo > lookbackBlocks {
+		lookbackSeqNo = currentSeqNo - lookbackBlocks
+	} else {
+		// If lookback would go before genesis, start from 0(with localnet)
+		lookbackSeqNo = 0
+	}
+
+	return lookbackSeqNo
+}
+
+func (lp *service) Replay(ctx context.Context, fromBlock uint32) error {
+	client, err := lp.clientProvider(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get client: %w", err)
+	}
+	// TODO(2025-08-28@jadepark-dev): clean up, forcing replay for e2e now
+	// TODO: Replace with proper asynchronous backfill mechanism
+
+	toBlock, err := client.CurrentMasterchainInfo(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get current masterchain info: %w", err)
+	}
+
+	// Use safe lookback window if fromBlock is 0 (avoid replaying entire chain)
+	if fromBlock == 0 {
+		fromBlock = computeLookbackWindow(toBlock.SeqNo, lp.startingLookback, lp.blockTime)
+		lp.lggr.Infow("Replay with no starting block specified, using lookback window",
+			"lookbackSeqNo", fromBlock, "lookbackDuration", lp.startingLookback)
+	}
+
+	blockRange := &types.BlockRange{Prev: nil, To: toBlock}
+	var prevBlock *ton.BlockIDExt
+	if fromBlock != 0 {
+		prevBlock, err = client.LookupBlock(ctx, toBlock.Workchain, toBlock.Shard, fromBlock)
+		if err != nil {
+			return fmt.Errorf("LookupBlock for previous seqno %d: %w", fromBlock, err)
+		}
+		blockRange.Prev = prevBlock
+	}
+
+	lp.lggr.Debugw("replaying logs", "fromBlock", fromBlock, "toBlock", toBlock.SeqNo,
+		"blocksToProcess", toBlock.SeqNo-fromBlock)
+
+	// get addresses
+	addresses, err := lp.filters.GetDistinctAddresses(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get distinct addresses: %w", err)
+	}
+	if len(addresses) == 0 {
+		return nil
+	}
+
+	// process block range
+	if err := lp.processBlockRange(ctx, blockRange, addresses); err != nil {
+		return fmt.Errorf("failed to process block range: %w", err)
+	}
+
+	return nil
 }

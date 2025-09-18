@@ -52,6 +52,9 @@ func (c *TOMLConfig) SetDefaults() {
 	if c.TransactionManager == nil {
 		c.TransactionManager = DefaultConfigSet.TransactionManager
 	}
+	if c.LogPoller == nil {
+		c.LogPoller = DefaultConfigSet.LogPoller
+	}
 
 	// Set network name full defaults
 	if c.NetworkNameFull == "" {
@@ -89,6 +92,9 @@ func NodeStatus(n *Node, id string) (relaytypes.NodeStatus, error) {
 func setFromChain(c, f *Chain) {
 	if f.TransactionManager != nil {
 		c.TransactionManager = f.TransactionManager
+	}
+	if f.LogPoller != nil {
+		c.LogPoller = f.LogPoller
 	}
 }
 

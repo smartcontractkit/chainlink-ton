@@ -34,14 +34,19 @@ Open the [https://github.dev/smartcontractkit/chainlink-ton](https://github.dev/
 
 ## Linting with GolangCI-Lint in your Nix Shell
 
-If you're using our Nix shell via shell.nix, you can automatically pull the upstream `.golangci.yml` from the Chainlink repo, modify it for our local-prefixes, and run lint without managing a local config file. [see](shell.nix)
+If you're using our Nix shell via shell.nix, a `golint` alias is automatically set up that pulls the upstream `.golangci.yml` from the Chainlink repo and modifies it for our local-prefixes without managing a local config file.
 
 Usage:
 
 ```bash
 nix develop .                   # drops you into the dev environment
+
+# The golint alias is automatically available:
 cd pkg && golint ./...                # lint your pkg directory
 cd integration-tests && golint ./...  # lint integration tests
+
+# Or run directly without alias:
+cd pkg && golangci-lint run --config <(curl -sSL https://raw.githubusercontent.com/smartcontractkit/chainlink/develop/.golangci.yml | yq e '.formatters.settings.goimports.local-prefixes = ["github.com/smartcontractkit/chainlink-ton"]' -) --path-mode "abs" ./...
 ```
 
 This ensures you're always using the exact same lint rules as our CI without writing any config files locally.

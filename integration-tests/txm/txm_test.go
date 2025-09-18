@@ -1,12 +1,13 @@
 package txm_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
 	chainsel "github.com/smartcontractkit/chain-selectors"
 
-	test_utils "integration-tests/utils"
+	test_utils "github.com/smartcontractkit/chainlink-ton/deployment/utils"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/loop"
@@ -32,13 +33,11 @@ import (
 func TestTxmLocal(t *testing.T) {
 	logger := logger.Test(t)
 
-	nodeClient := test_utils.CreateAPIClient(t, chainsel.TON_LOCALNET.Selector)
-	require.NotNil(t, nodeClient)
-	logger.Debugw("Started MyLocalTON")
+	nodeClient, nerr := test_utils.CreateTestAPIClient(t, chainsel.TON_LOCALNET.Selector)
+	require.NoError(t, nerr)
 
 	wallet := test_utils.CreateRandomWallet(t, nodeClient, config.WalletVersion, wallet.WithWorkchain(0))
 	require.NotNil(t, wallet)
-	logger.Debugw("Created TON Wallet")
 
 	tonChain := test_utils.StartChain(t, nodeClient, chainsel.TON_LOCALNET.Selector, wallet)
 	require.NotNil(t, tonChain)
@@ -56,11 +55,13 @@ func TestTxmLocal(t *testing.T) {
 }
 
 func runTxmTest(t *testing.T, logger logger.Logger, config txm.Config, tonChain cldf_ton.Chain, keystore loop.Keystore, iterations int) {
-	apiClient := tracetracking.SignedAPIClient{
-		Client: tonChain.Client,
-		Wallet: *tonChain.Wallet,
+	signedClientProvider := func(ctx context.Context) (tracetracking.SignedAPIClient, error) {
+		return tracetracking.SignedAPIClient{
+			Client: tonChain.Client,
+			Wallet: *tonChain.Wallet,
+		}, nil
 	}
-	tonTxm := txm.New(logger, keystore, apiClient, config)
+	tonTxm := txm.New(logger, keystore, signedClientProvider, config)
 	err := tonTxm.Start(t.Context())
 	require.NoError(t, err)
 	defer func() {

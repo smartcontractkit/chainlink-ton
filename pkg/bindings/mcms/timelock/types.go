@@ -23,7 +23,7 @@ import (
 // - `bypassers`: accounts to be granted bypasser role
 type Init struct {
 	_ tlb.Magic `tlb:"#4982fcfd"` //nolint:revive // (opcode) should stay uninitialized
-	// Query ID of the change owner request.
+	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
 	// Minimum delay in seconds for future operations.
@@ -43,7 +43,7 @@ type Init struct {
 // Contract might receive/hold TON as part of the maintenance process.
 type TopUp struct {
 	_ tlb.Magic `tlb:"#fee62ba6"` //nolint:revive // (opcode) should stay uninitialized
-	// Query ID of the change owner request.
+	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 }
 
@@ -57,7 +57,7 @@ type TopUp struct {
 // - all payloads must not start with a blocked function selector.
 type ScheduleBatch struct {
 	_ tlb.Magic `tlb:"#094718f4"` //nolint:revive // (opcode) should stay uninitialized
-	// Query ID of the change owner request.
+	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
 	Calls       common.SnakeData[Call] `tlb:"^"`      // Array of calls to be scheduled // vec<Timelock_Call>
@@ -73,7 +73,7 @@ type ScheduleBatch struct {
 // - the caller must have the 'canceller' or 'admin' role.
 type Cancel struct {
 	_ tlb.Magic `tlb:"#af3bf1d0"` //nolint:revive // (opcode) should stay uninitialized
-	// Query ID of the change owner request.
+	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
 	// ID of the operation to cancel.
@@ -89,7 +89,7 @@ type Cancel struct {
 // - the caller must have the 'executor' or 'admin' role.
 type ExecuteBatch struct {
 	_ tlb.Magic `tlb:"#6e9bf263"` //nolint:revive // (opcode) should stay uninitialized
-	// Query ID of the change owner request.
+	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
 	Calls       common.SnakeData[Call] `tlb:"^"`      // Array of calls to be scheduled // vec<Timelock_Call>
@@ -106,7 +106,7 @@ type ExecuteBatch struct {
 // - the caller must have the 'admin' role.
 type UpdateDelay struct {
 	_ tlb.Magic `tlb:"#7a57a45c"` //nolint:revive // (opcode) should stay uninitialized
-	// Query ID of the change owner request.
+	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
 	// New minimum delay in seconds for future operations.
@@ -125,7 +125,7 @@ type UpdateDelay struct {
 // - the caller must have the 'admin' role.
 type BlockFunctionSelector struct {
 	_ tlb.Magic `tlb:"#2637af77"` //nolint:revive // (opcode) should stay uninitialized
-	// Query ID of the change owner request.
+	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
 	// Function selector to block.
@@ -139,7 +139,7 @@ type BlockFunctionSelector struct {
 // - the caller must have the 'admin' role.
 type UnblockFunctionSelector struct {
 	_ tlb.Magic `tlb:"#26f19f4e"` //nolint:revive // (opcode) should stay uninitialized
-	// Query ID of the change owner request.
+	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
 	// Function selector to unblock.
@@ -155,11 +155,27 @@ type UnblockFunctionSelector struct {
 // - the caller must have the 'bypasser' or 'admin' role.
 type BypasserExecuteBatch struct {
 	_ tlb.Magic `tlb:"#bb0e9f7d"` //nolint:revive // (opcode) should stay uninitialized
-	// Query ID of the change owner request.
+	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
 	// Array of calls to be scheduled
 	Calls common.SnakeData[Call] `tlb:"^"` // vec<Timelock_Call>
+}
+
+// Updates the executor role check (enabled/disabled) which guards the execution of operations.
+//
+// Replies with {Timelock_ExecutorRoleCheckUpdated} message.
+//
+// Requirements:
+//
+// - the caller must have the 'admin' role.
+type UpdateExecutorRoleCheck struct {
+	_ tlb.Magic `tlb:"#34d98baa"` //nolint:revive // (opcode) should stay uninitialized
+	// Query ID of the change request.
+	QueryID uint64 `tlb:"## 64"`
+
+	// Flag to enable/disable the executor role check (if disabled, anyone can execute)
+	Enabled bool `tlb:"bool"`
 }
 
 // --- Messages - outgoing ---
@@ -167,7 +183,7 @@ type BypasserExecuteBatch struct {
 // @dev Emitted when a call is scheduled as part of operation `id`.
 type CallScheduled struct {
 	_ tlb.Magic `tlb:"#c55fca54"` //nolint:revive // (opcode) should stay uninitialized
-	// Query ID of the change owner request.
+	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
 	ID          *big.Int `tlb:"## 256"` // ID of the operation that was scheduled.
@@ -181,7 +197,7 @@ type CallScheduled struct {
 // @dev Emitted when a call is performed as part of operation `id`.
 type CallExecuted struct {
 	_ tlb.Magic `tlb:"#49ea5d0e"` //nolint:revive // (opcode) should stay uninitialized
-	// Query ID of the change owner request.
+	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
 	ID     *big.Int        `tlb:"## 256"` // ID of the operation that was executed.
@@ -194,7 +210,7 @@ type CallExecuted struct {
 // @dev Emitted when a call is performed via bypasser.
 type BypasserCallExecuted struct {
 	_ tlb.Magic `tlb:"#9c7f3010"` //nolint:revive // (opcode) should stay uninitialized
-	// Query ID of the change owner request.
+	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
 	Index  uint64          `tlb:"## 64"` // Index of the call in the operation
@@ -206,7 +222,7 @@ type BypasserCallExecuted struct {
 // @dev Emitted when operation `id` is cancelled.
 type Cancelled struct {
 	_ tlb.Magic `tlb:"#580e80f2"` //nolint:revive // (opcode) should stay uninitialized
-	// Query ID of the change owner request.
+	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
 	ID *big.Int `tlb:"## 256"` // ID of the operation that was cancelled.
@@ -215,7 +231,7 @@ type Cancelled struct {
 // @dev Emitted when the minimum delay for future operations is modified.
 type MinDelayChange struct {
 	_ tlb.Magic `tlb:"#904b14e0"` //nolint:revive // (opcode) should stay uninitialized
-	// Query ID of the change owner request.
+	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
 	OldDuration uint64 `tlb:"## 64"` // Duration of the old minimum delay in seconds.
@@ -225,7 +241,7 @@ type MinDelayChange struct {
 // @dev Emitted when a function selector is blocked.
 type FunctionSelectorBlocked struct {
 	_ tlb.Magic `tlb:"#9c4d6d94"` //nolint:revive // (opcode) should stay uninitialized
-	// Query ID of the change owner request.
+	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
 	// Function selector that was blocked.
@@ -235,11 +251,21 @@ type FunctionSelectorBlocked struct {
 // @dev Emitted when a function selector is unblocked.
 type FunctionSelectorUnblocked struct {
 	_ tlb.Magic `tlb:"#f410a31b"` //nolint:revive // (opcode) should stay uninitialized
-	// Query ID of the change owner request.
+	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
 	// Function selector that was unblocked.
 	Selector uint32 `tlb:"## 32"`
+}
+
+// Sent back to sender after the executor role check is updated.
+type ExecutorRoleCheckUpdated struct {
+	_ tlb.Magic `tlb:"#c6d451e2"` //nolint:revive // (opcode) should stay uninitialized
+	// Query ID of the change request.
+	QueryID uint64 `tlb:"## 64"`
+
+	// Flag to enable/disable the executor role check (if disabled, anyone can execute)
+	Enabled bool `tlb:"bool"`
 }
 
 // --- Data (storage & structures) ---
@@ -258,6 +284,9 @@ type Data struct {
 	BlockedFnSelectorsLen uint32 `tlb:"## 32"`
 	// Map of blocked function selectors.
 	BlockedFnSelectors *cell.Dictionary `tlb:"dict 32"` // map<uint32, bool>
+
+	// Flag to enable/disable the executor role check (if disabled, anyone can execute)
+	ExecutorRoleCheckEnabled bool `tlb:"bool"`
 
 	// AccessControl trait data
 	RBAC rbac.Data `tlb:"^"`

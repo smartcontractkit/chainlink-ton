@@ -93,7 +93,7 @@
                                 <div style="display: inline-block; font-size: 12px; font-family: &quot;Helvetica&quot;; color: light-dark(#000000, #ffffff); line-height: 1.2; pointer-events: all; white-space: nowrap; ">
                                     <div>
                                         <font color="#000000" style="color: light-dark(rgb(0, 0, 0), rgb(237, 237, 237));">
-                                            /// Query ID of the change owner request.
+                                            /// Query ID of the change request.
                                         </font>
                                     </div>
                                     <div>
@@ -156,7 +156,7 @@
                                 <div style="display: inline-block; font-size: 12px; font-family: &quot;Helvetica&quot;; color: light-dark(#000000, #ffffff); line-height: 1.2; pointer-events: all; white-space: nowrap; ">
                                     <div>
                                         <font color="#000000" style="color: light-dark(rgb(0, 0, 0), rgb(237, 237, 237));">
-                                            /// Query ID of the change owner request.
+                                            /// Query ID of the change request.
                                         </font>
                                     </div>
                                     <div>
@@ -311,7 +311,7 @@
                                 <div style="display: inline-block; font-size: 12px; font-family: &quot;Helvetica&quot;; color: light-dark(#000000, #ffffff); line-height: 1.2; pointer-events: all; white-space: nowrap; ">
                                     <div>
                                         <font color="#000000" style="color: light-dark(rgb(0, 0, 0), rgb(237, 237, 237));">
-                                            /// Query ID of the change owner request.
+                                            /// Query ID of the change request.
                                         </font>
                                     </div>
                                     <div>
@@ -364,7 +364,7 @@
                                 <div style="display: inline-block; font-size: 12px; font-family: &quot;Helvetica&quot;; color: light-dark(#000000, #ffffff); line-height: 1.2; pointer-events: all; white-space: nowrap; ">
                                     <div>
                                         <font color="#000000" style="color: light-dark(rgb(0, 0, 0), rgb(237, 237, 237));">
-                                            /// Query ID of the change owner request.
+                                            /// Query ID of the change request.
                                         </font>
                                     </div>
                                     <div>

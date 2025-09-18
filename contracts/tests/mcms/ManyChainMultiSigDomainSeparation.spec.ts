@@ -51,7 +51,7 @@ describe('MCMS - ManyChainMultiSigDomainSeparationTest', () => {
       nonce: 0n,
       to: baseTest.bind.mcms.address,
       value: 0n,
-      data: beginCell().endCell(),
+      data: Cell.EMPTY,
     }
 
     const opPreimageCell = merkleProof.leafOpPreimage(emptyOp)

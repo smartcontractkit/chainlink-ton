@@ -5,6 +5,7 @@ import (
 	"math/big"
 
 	"github.com/Masterminds/semver/v3"
+	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
@@ -19,8 +20,9 @@ import (
 )
 
 type DeployFeeQuoterInput struct {
-	Params   config.FeeQuoterParams
-	LinkAddr *address.Address
+	Params       config.FeeQuoterParams
+	LinkAddr     *address.Address
+	ContractPath string
 }
 
 type DeployFeeQuoterOutput struct {
@@ -38,8 +40,7 @@ func deployFeeQuoter(b operations.Bundle, deps TonDeps, in DeployFeeQuoterInput)
 	output := DeployFeeQuoterOutput{}
 
 	// TODO wrap the code cell creation somewhere
-	CounterContractPath := utils.GetBuildDir("FeeQuoter.compiled.json")
-	codeCell, err := wrappers.ParseCompiledContract(CounterContractPath)
+	codeCell, err := wrappers.ParseCompiledContract(in.ContractPath)
 	if err != nil {
 		return output, fmt.Errorf("failed to compile contract: %w", err)
 	}
@@ -103,7 +104,7 @@ func updateFeeQuoterDestChainConfigs(b operations.Bundle, deps TonDeps, in Updat
 	messages := []*tlb.InternalMessage{
 		{
 			Bounce:  true,
-			Amount:  tlb.MustFromTON("1"),
+			Amount:  tlb.MustFromTON("0.1"),
 			DstAddr: &address,
 			Body:    payload,
 		},
@@ -117,6 +118,7 @@ type FeeTokenConfig struct {
 
 // UpdateFeeQuoterFeeTokensInput contains configuration for updating FeeQuoter fee tokens
 type UpdateFeeQuoterFeeTokensInput struct {
+	Lggr      logger.Logger
 	FeeTokens map[string]FeeTokenConfig // token address (string) -> { premium multiplier }
 }
 
@@ -149,6 +151,9 @@ func updateFeeQuoterFeeTokens(b operations.Bundle, deps TonDeps, in UpdateFeeQuo
 		}
 
 	}
+
+	in.Lggr.Debugf("Updated FeeQuoter fee tokens: %v, address: %v", configs, feeQuoterAddress.String())
+
 	input := feequoter.UpdateFeeTokens{
 		Add:    configs,
 		Remove: nil,
@@ -161,7 +166,7 @@ func updateFeeQuoterFeeTokens(b operations.Bundle, deps TonDeps, in UpdateFeeQuo
 	messages := []*tlb.InternalMessage{
 		{
 			Bounce:  true,
-			Amount:  tlb.MustFromTON("1"),
+			Amount:  tlb.MustFromTON("0.1"),
 			DstAddr: &feeQuoterAddress,
 			Body:    payload,
 		},
@@ -239,7 +244,7 @@ func updateFeeQuoterPrices(b operations.Bundle, deps TonDeps, in UpdateFeeQuoter
 	messages := []*tlb.InternalMessage{
 		{
 			Bounce:  true,
-			Amount:  tlb.MustFromTON("1"),
+			Amount:  tlb.MustFromTON("0.1"),
 			DstAddr: &feeQuoterAddress,
 			Body:    payload,
 		},

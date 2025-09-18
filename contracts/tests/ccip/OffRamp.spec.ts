@@ -46,11 +46,16 @@ const LEAF_DOMAIN_SEPARATOR = beginCell().storeUint(0, 256).asSlice()
 
 // Error codes from the contract
 const ERROR_SOURCE_CHAIN_NOT_ENABLED = 266
-const ERROR_STATE_IS_NOT_UNTOUCHED = 0x7878
+const ERROR_STATE_IS_NOT_UNTOUCHED = 300
 const ERROR_EMPTY_REPORT = 267
 const ERROR_INVALID_MESSAGE_DEST_CHAIN_SELECTOR = 262
 const ERROR_SOURCE_CHAIN_SELECTOR_MISMATCH = 263
 const ERROR_DISPATCH_NOT_FROM_MERKLE_ROOT = 268
+
+// These have to match the EVM states
+const EXECUTION_STATE_IN_PROGRESS = 1n
+const EXECUTION_STATE_SUCCESS = 2n
+const EXECUTION_STATE_FAILURE = 3n
 
 function generateSecureRandomId(): bigint {
   return BigInt(Math.floor(Math.random() * 0x100000000)) // 2^32
@@ -64,7 +69,8 @@ const createSignatures = (
 }
 
 const getMerkleRootID = (root: bigint) => {
-  return beginCell().storeUint(1, 16).storeUint(root, 256)
+  const cs = beginCell().storeUint(root, 256).asSlice()
+  return beginCell().storeUint(cs.loadUintBig(224), 224)
 }
 
 const getMetadataHash = (sourceChainSelector: bigint) => {
@@ -158,6 +164,7 @@ describe('OffRamp', () => {
     sequenceNumber = 1n,
     messageId = 1n,
     receiverAddress = generateMockTonAddress(),
+    data: Cell = Cell.EMPTY,
   ) => {
     const header: RampMessageHeader = {
       messageId,
@@ -170,7 +177,7 @@ describe('OffRamp', () => {
     return {
       header,
       sender: bigIntToBuffer(EVM_SENDER_ADDRESS_TEST),
-      data: beginCell().endCell(),
+      data: data,
       receiver: receiverAddress,
     }
   }
@@ -301,8 +308,7 @@ describe('OffRamp', () => {
   const merkleRootAddress = (root: MerkleRoot) => {
     const data = beginCell()
       .storeAddress(offRamp.address) //owner
-      .storeUint(1, 16) //id
-      .storeUint(root.merkleRoot, 256)
+      .storeBuilder(getMerkleRootID(root.merkleRoot))
       .endCell()
 
     const init: StateInit = {
@@ -383,7 +389,7 @@ describe('OffRamp', () => {
 
     // Deploy test receiver
     {
-      let code = await compile('Receiver')
+      let code = await compile('examples.receiver')
       receiver = blockchain.openContract(ExampleReceiver.create(code, offRamp.address))
       const result = await receiver.sendDeploy(deployer.getSender(), toNano('10'))
       expect(result.transactions).toHaveTransaction({
@@ -745,6 +751,50 @@ describe('OffRamp', () => {
       to: offRamp.address,
       success: false,
       exitCode: ERROR_DISPATCH_NOT_FROM_MERKLE_ROOT,
+    })
+  })
+
+  it('Test receiver bounces and offRamp emits ExecutionStateChanged: Failure', async () => {
+    const data = beginCell().storeUint(1, 1).endCell() //receiver reverts if any data is on the message
+    const message = createTestMessage(1n, 1n, receiver.address, data)
+
+    await setupAndCommitMessage(message)
+    const report = createExecuteReport([message])
+    const result = await executeReport(report)
+
+    // Message should be bounce from the receiver
+    expect(result.transactions).toHaveTransaction({
+      from: offRamp.address,
+      to: receiver.address,
+      success: false,
+    })
+
+    assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
+      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+      sequenceNumber: 1n,
+      messageId: 1n,
+      state: EXECUTION_STATE_IN_PROGRESS,
+    })
+
+    assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
+      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+      sequenceNumber: 1n,
+      messageId: 1n,
+      state: EXECUTION_STATE_FAILURE,
+    })
+  })
+
+  it('Test receiver notifies success and offRamp emits ExecutionStateChanged: Success', async () => {
+    const message = createTestMessage(1n, 1n, receiver.address)
+    await setupAndCommitMessage(message)
+    const report = createExecuteReport([message])
+    const result = await executeReport(report)
+
+    assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
+      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+      sequenceNumber: 1n,
+      messageId: 1n,
+      state: EXECUTION_STATE_SUCCESS,
     })
   })
 })

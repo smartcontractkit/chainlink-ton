@@ -1,6 +1,7 @@
 package smoke
 
 import (
+	"context"
 	"math/big"
 	"math/rand/v2"
 	"testing"
@@ -9,28 +10,27 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
-	"github.com/xssnick/tonutils-go/ton/wallet"
-	"github.com/xssnick/tonutils-go/tvm/cell"
+	"github.com/xssnick/tonutils-go/ton"
 	"go.uber.org/zap/zapcore"
 
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
+
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
+	test_utils "github.com/smartcontractkit/chainlink-ton/deployment/utils"
+
 	chain_selectors "github.com/smartcontractkit/chain-selectors"
+
 	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"
+	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
-
-	"github.com/smartcontractkit/chainlink/deployment/ccip/shared/client"
-	"github.com/smartcontractkit/chainlink/deployment/ccip/shared/stateview"
-	tonStateView "github.com/smartcontractkit/chainlink/deployment/ccip/shared/stateview/ton"
 	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
 	"github.com/smartcontractkit/chainlink/deployment/environment/memory"
-	"github.com/smartcontractkit/chainlink/v2/core/logger"
 
 	ops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
-	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 
+	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 	tonCommon "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 
@@ -40,14 +40,12 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/txparser"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/chainaccessor"
-
-	test_utils "github.com/smartcontractkit/chainlink-ton/integration-tests/utils"
 )
 
 const ChainSelEVMTest90000001 = 909606746561742123
 
 func Test_TonAccessorEventQueries(t *testing.T) {
-	lggr := logger.TestLogger(t)
+	lggr := logger.Test(t)
 	ctx := t.Context()
 
 	// create memory env to reuse changesets
@@ -63,12 +61,16 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 	chainSelector := tonChainSelectors[0]
 	tonChain := env.BlockChains.TonChains()[chainSelector]
 	deployer := tonChain.Wallet
+	clientProvider := func(ctx context.Context) (ton.APIClientWrapped, error) {
+		return tonChain.Client, nil
+	}
 
 	// memory environment doesn't block on funding so changesets can execute before the env is fully ready, manually call fund so we block here
 	test_utils.FundWallets(t, tonChain.Client, []*address.Address{deployer.Address()}, []tlb.Coins{tlb.MustFromTON("1000")})
+	time.Sleep(5 * time.Second)
 
 	// -- deploy contracts
-	cs := ops.DeployChainContractsToTonCS(t, env, chainSelector)
+	cs := commonchangeset.Configure(ops.DeployCCIPContracts{}, ops.DeployChainContractsConfig(t, env, chainSelector, sequence.ContractsLocalVersion))
 	env, _, err := commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{cs})
 	require.NoError(t, err, "failed to deploy ccip")
 
@@ -77,7 +79,11 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 		evmSelector:   big.NewInt(1e17),
 		chainSelector: big.NewInt(1e17), // Add TON chain gas price
 	}
-	laneCS := ops.AddLaneTONChangesets(&env, chainSelector, evmSelector, chain_selectors.FamilyTon, chain_selectors.FamilyEVM, gasPrices)
+	laneConfig := ops.AddLaneTONConfig(&env, chainSelector, evmSelector, chain_selectors.FamilyTon, chain_selectors.FamilyEVM, gasPrices)
+	laneCS := commonchangeset.Configure(ops.AddTonLanes{}, config.UpdateTonLanesConfig{
+		Lanes:      []config.LaneConfig{laneConfig},
+		TestRouter: false,
+	})
 	env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{laneCS})
 	require.NoError(t, err, "failed to add lane")
 
@@ -89,14 +95,14 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 	filterStore := inmemorystore.NewFilterStore()
 	opts := &logpoller.ServiceOptions{
 		Config:   lpCfg,
-		Client:   tonChain.Client,
 		Filters:  filterStore,
-		TxLoader: account.NewTxLoader(tonChain.Client, lggr, lpCfg.PageSize),
+		TxLoader: account.NewTxLoader(lggr, clientProvider, lpCfg.PageSize),
 		TxParser: txparser.NewTxParser(lggr, filterStore),
 		Store:    inmemorystore.NewLogStore(),
 	}
 	lp := logpoller.NewService(
 		lggr,
+		clientProvider,
 		opts,
 	)
 
@@ -119,50 +125,11 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 		require.NoError(t, lp.Close())
 	}()
 
-	feeQuoterAddr := state[chainSelector].FeeQuoter
-
-	// -- set fee token manually
-	feeTokenDict := cell.NewDict(267) // key size for address
-	feeToken := feequoter.FeeToken{PremiumMultiplierWeiPerEth: 1}
-	feeTokenCell, err := tlb.ToCell(feeToken)
-	require.NoError(t, err, "failed to encode FeeToken")
-
-	// Add the fee token to dictionary (address as key)
-	addressKeyCell := cell.BeginCell().MustStoreAddr(ops.TonTokenAddr).EndCell()
-	err = feeTokenDict.Set(addressKeyCell, feeTokenCell)
-	require.NoError(t, err, "failed to add fee token to dictionary")
-
-	updateFeeTokensMsg := feequoter.UpdateFeeTokens{
-		Add:    feeTokenDict,
-		Remove: tonCommon.SnakeData[*address.Address]{}, // Empty remove list
-	}
-
-	updateFeeTokensCell, err := tlb.ToCell(updateFeeTokensMsg)
-	require.NoError(t, err, "failed to encode UpdateFeeTokens message")
-
-	updateFeeTokensInternalMsg := &wallet.Message{
-		Mode: 1,
-		InternalMessage: &tlb.InternalMessage{
-			IHRDisabled: true,
-			Bounce:      false,
-			DstAddr:     &feeQuoterAddr,
-			Amount:      tlb.MustFromTON("0.01"),
-			Body:        updateFeeTokensCell,
-		},
-	}
-
-	tt := tracetracking.NewSignedAPIClient(tonChain.Client, *deployer)
-	updateFeeTokensResult, updateFeeTokensBlockID, err := tt.SendWaitTransaction(ctx, feeQuoterAddr, updateFeeTokensInternalMsg)
-	require.NoError(t, err, "failed to send UpdateFeeTokens transaction")
-
-	t.Logf("UpdateFeeTokens transaction sent successfully - Block: %d, ExitCode: %d",
-		updateFeeTokensBlockID.SeqNo, updateFeeTokensResult.ExitCode)
-
 	// TODO: use sendmanytx or highload wallet, otherwise we get 33 exit code(too many actions)
 	time.Sleep(5 * time.Second)
 
 	const maxSeqNo = 4
-	for seqNo := 0; seqNo <= maxSeqNo; seqNo++ {
+	for seqNo := range maxSeqNo {
 		t.Log("Sending CCIP message", seqNo)
 		extraArgs := onramp.GenericExtraArgsV2{
 			GasLimit:                 big.NewInt(100),
@@ -179,24 +146,12 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 			FeeToken:  ops.TonTokenAddr,
 		}
 
-		msgCfg := &client.CCIPSendReqConfig{
-			SourceChain:  chainSelector,
-			DestChain:    evmSelector,
-			IsTestRouter: false,
-			Sender:       nil,            // For TON, sender is handled by the environment
-			Message:      tonSendRequest, // Populate with the CCIP message
-			MaxRetries:   3,
-		}
-
 		// TODO: send helper args are coupled with core memory environment, can we tidy this?
-		ccipState := stateview.CCIPOnChainState{
-			TonChains: map[uint64]tonStateView.CCIPChainState{
-				chainSelector: {
-					Router: state[chainSelector].Router,
-				},
-			},
+		ccipState := tonstate.CCIPChainState{
+			Router: state[chainSelector].Router,
+			OnRamp: state[chainSelector].OnRamp,
 		}
-		_, err = ops.SendTonRequest(env, ccipState, msgCfg)
+		_, _, err = ops.SendTonRequest(env, ccipState, chainSelector, evmSelector, tonSendRequest)
 		require.NoError(t, err, "failed to send CCIP message")
 		time.Sleep(2 * time.Second)
 	}
@@ -212,9 +167,9 @@ func Test_TonAccessorEventQueries(t *testing.T) {
 		// check all messages are indexed
 		msgs, err := accessor.MsgsBetweenSeqNums(ctx, ccipocr3.ChainSelector(evmSelector), ccipocr3.NewSeqNumRange(0, maxSeqNo))
 		require.NoError(t, err, "failed to get latest message sequence number")
-		require.Len(t, msgs, maxSeqNo+1, "expected %d messages, got %d", maxSeqNo+1, len(msgs))
-		require.Equal(t, msgs[0].Header.SequenceNumber, ccipocr3.SeqNum(0))
-		require.Equal(t, msgs[maxSeqNo].Header.SequenceNumber, ccipocr3.SeqNum(maxSeqNo))
+		require.Len(t, msgs, maxSeqNo, "expected %d messages, got %d", maxSeqNo, len(msgs))
+		require.Equal(t, msgs[0].Header.SequenceNumber, ccipocr3.SeqNum(1))
+		require.Equal(t, msgs[maxSeqNo-1].Header.SequenceNumber, ccipocr3.SeqNum(maxSeqNo))
 
 		// range query
 		const start, end = 2, 4

@@ -12,10 +12,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/xssnick/tonutils-go/liteclient"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
 	"github.com/xssnick/tonutils-go/tvm/cell"
+
+	inmemorystore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/db/inmemory"
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/loader/account"
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/txparser"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/chains"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
@@ -31,6 +34,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/config"
 	"github.com/smartcontractkit/chainlink-ton/pkg/fees"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
+	tonchain "github.com/smartcontractkit/chainlink-ton/pkg/ton/chain"
 	tonconfig "github.com/smartcontractkit/chainlink-ton/pkg/ton/config"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/txm"
@@ -79,23 +83,13 @@ func NewChain(cfg *config.TOMLConfig, opts ChainOpts) (Chain, error) {
 		return nil, fmt.Errorf("cannot create new chain with ID %s: chain is disabled", cfg.ChainID)
 	}
 
-	return newChain(context.Background(), cfg, opts.KeyStore, opts.Logger, opts.DS)
+	return newChain(cfg, opts.KeyStore, opts.Logger, opts.DS)
 }
 
-func newChain(ctx context.Context, cfg *config.TOMLConfig, loopKs loop.Keystore, lggr logger.Logger, ds sqlutil.DataSource) (*chain, error) {
+func newChain(cfg *config.TOMLConfig, loopKs loop.Keystore, lggr logger.Logger, ds sqlutil.DataSource) (*chain, error) {
 	lggr = logger.With(lggr, "chainID", cfg.ChainID)
 
-	// TEMP: fetch the first account in the store to use for transmissions to avoid having to specify it in TOML
-	accounts, err := loopKs.Accounts(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch accounts from keystore: %w", err)
-	}
-
-	if len(accounts) == 0 {
-		return nil, errors.New("no TON account available")
-	}
-
-	_, err = strconv.ParseInt(cfg.ChainID, 10, 16)
+	_, err := strconv.ParseInt(cfg.ChainID, 10, 16)
 	if err != nil {
 		return nil, fmt.Errorf("invalid chain ID %s: could not parse as an integer: %w", cfg.ChainID, err)
 	}
@@ -108,23 +102,46 @@ func newChain(ctx context.Context, cfg *config.TOMLConfig, loopKs loop.Keystore,
 		clientCache: make(map[int]*cachedClient),
 	}
 
-	tonClient, err := ch.GetClient(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create TON client for chain ID %s: %w", cfg.ChainID, err)
+	// TODO(@jadepark-dev): TXM technically doesn't need SignedAPIClient, revisit to refactor
+	signedClientProvider := commonutils.NewLazyLoadCtx(func(ctx context.Context) (tracetracking.SignedAPIClient, error) {
+		tonClient, err := ch.GetClient(ctx)
+		if err != nil {
+			return tracetracking.SignedAPIClient{}, fmt.Errorf("failed to create TON client for chain ID %s: %w", cfg.ChainID, err)
+		}
+
+		signerWallet, err := ch.GetSignerWallet(ctx, tonClient, loopKs, 0)
+		if err != nil {
+			return tracetracking.SignedAPIClient{}, fmt.Errorf("failed to get signer wallet for chain ID %s: %w", cfg.ChainID, err)
+		}
+
+		return tracetracking.SignedAPIClient{
+			Client: tonClient,
+			Wallet: *signerWallet,
+		}, nil
+	})
+
+	ch.txm = txm.New(lggr, loopKs, signedClientProvider.Get, *ch.cfg.TxManager())
+
+	clientProvider := func(ctx context.Context) (ton.APIClientWrapped, error) {
+		signedClient, err := signedClientProvider.Get(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return signedClient.Client, nil
 	}
 
-	signerWallet, err := ch.GetSignerWallet(ctx, tonClient, loopKs, 0)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get signer wallet for chain ID %s: %w", cfg.ChainID, err)
+	// Get LogPoller configuration from chain config
+	lpCfg := *ch.cfg.LogPollerConfig()
+	fs := inmemorystore.NewFilterStore()
+	lgOpts := &logpoller.ServiceOptions{
+		Config:   lpCfg,
+		Filters:  fs,
+		TxLoader: account.NewTxLoader(lggr, clientProvider, lpCfg.PageSize),
+		TxParser: txparser.NewTxParser(lggr, fs),
+		Store:    inmemorystore.NewLogStore(),
 	}
 
-	apiClient := tracetracking.SignedAPIClient{
-		Client: tonClient,
-		Wallet: *signerWallet,
-	}
-
-	txmCfg := txm.DefaultConfigSet
-	ch.txm = txm.New(lggr, loopKs, apiClient, txmCfg)
+	ch.lp = logpoller.NewService(lggr, clientProvider, lgOpts)
 
 	// TODO: Setup accounts balance monitor
 
@@ -137,11 +154,13 @@ func (c *chain) Name() string {
 
 func (c *chain) Start(ctx context.Context) error {
 	return c.starter.StartOnce("Chain", func() error {
-		c.lggr.Debug("Starting")
-		c.lggr.Debug("Starting txm")
-
+		c.lggr.Debug("Starting txm and log poller")
 		var ms services.MultiStart
-		return ms.Start(ctx, c.txm)
+
+		if err := ms.Start(ctx, c.txm); err != nil {
+			return err
+		}
+		return ms.Start(ctx, c.lp)
 	})
 }
 
@@ -149,7 +168,7 @@ func (c *chain) Close() error {
 	return c.starter.StopOnce("Chain", func() error {
 		c.lggr.Debug("Stopping")
 		c.lggr.Debug("Stopping txm")
-		return services.CloseAll(c.txm)
+		return services.CloseAll(c.txm, c.lp)
 	})
 }
 
@@ -232,9 +251,14 @@ func (c *chain) Transact(ctx context.Context, from, to string, amount *big.Int, 
 	return errors.ErrUnsupported
 }
 
-func (c *chain) Replay(ctx context.Context, fromBlock string, args map[string]any) error {
-	// TODO(NONEVM-1460): implement
-	return errors.ErrUnsupported
+func (c *chain) Replay(ctx context.Context, fromBlock string, _ map[string]any) error {
+	// TODO(2025-08-28@jadepark-dev): clean up, forcing replay for e2e now
+	fromBlockNum, err := strconv.ParseUint(fromBlock, 10, 32)
+	if err != nil {
+		return fmt.Errorf("invalid fromBlock: %w", err)
+	}
+	err = c.lp.Replay(ctx, uint32(fromBlockNum))
+	return err
 }
 
 func (c *chain) ID() string {
@@ -277,7 +301,7 @@ func (c *chain) GetClient(ctx context.Context) (*ton.APIClient, error) {
 		c.cacheMu.RUnlock()
 
 		if ok && time.Since(entry.timestamp) < c.cfg.ClientTTL {
-			c.lggr.Debugw("Using cached client", "name", node.Name, "url", node.URL)
+			c.lggr.Debugw("Using cached client", "name", node.Name)
 			return entry.client, nil
 		} else if ok {
 			// TTL expired — evict
@@ -287,27 +311,15 @@ func (c *chain) GetClient(ctx context.Context) (*ton.APIClient, error) {
 			c.cacheMu.Unlock()
 		}
 
-		// Build new client
-		configURL := node.URL.String()
-
-		// TODO this only works for localnet, need to handle for testnet/mainnet
-		// create an extra URL for liteclient config url
-		tonCfg, err := liteclient.GetConfigFromUrl(ctx, fmt.Sprintf("http://%v/localhost.global.config.json", configURL))
-		if err != nil {
-			c.lggr.Warnw("failed to fetch TON config", "name", node.Name, "ton-url", node.URL, "err", err)
-			continue
-		}
-
-		connectionPool := liteclient.NewConnectionPool()
-		err = connectionPool.AddConnectionsFromConfig(ctx, tonCfg)
-		if err != nil {
-			lastErr = err
-			c.lggr.Warnw("failed to connect", "name", node.Name, "ton-url", node.URL, "err", err)
+		// Build new client, expected URL format: liteserver://publickey@host:port
+		liteServerURL := node.URL.String()
+		connectionPool, cerr := tonchain.CreateLiteserverConnectionPool(ctx, liteServerURL)
+		if cerr != nil {
+			c.lggr.Warnw("failed to get connection pool", "name", node.Name, "ton-url", node.URL, "err", cerr)
 			continue
 		}
 
 		client := ton.NewAPIClient(connectionPool, ton.ProofCheckPolicyFast)
-		client.SetTrustedBlockFromConfig(tonCfg)
 
 		blockID, err := client.CurrentMasterchainInfo(ctx)
 		if err != nil {
@@ -315,6 +327,8 @@ func (c *chain) GetClient(ctx context.Context) (*ton.APIClient, error) {
 			c.evictClient(i, *node.Name, "CurrentMasterchainInfo failed")
 			continue
 		}
+		// set starting point to verify master block proofs chain
+		client.SetTrustedBlock(blockID)
 
 		block, err := client.GetBlockData(ctx, blockID)
 		if err != nil {
@@ -337,7 +351,7 @@ func (c *chain) GetClient(ctx context.Context) (*ton.APIClient, error) {
 		}
 		c.cacheMu.Unlock()
 
-		c.lggr.Debugw("Created and cached client", "name", node.Name, "url", node.URL)
+		c.lggr.Debugw("Created and cached client", "name", node.Name)
 		return client, nil
 	}
 

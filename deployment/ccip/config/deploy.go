@@ -6,10 +6,11 @@ import (
 	"math/big"
 
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
-	"github.com/smartcontractkit/chainlink/deployment/ccip/shared"
 
 	"github.com/xssnick/tonutils-go/address"
 )
+
+type TokenSymbol string
 
 type ChainContractParams struct {
 	FeeQuoterParams FeeQuoterParams
@@ -39,7 +40,7 @@ type FeeToken struct {
 type FeeQuoterParams struct {
 	MaxFeeJuelsPerMsg            *big.Int
 	TokenPriceStalenessThreshold uint64
-	FeeTokens                    map[shared.TokenSymbol]FeeToken
+	FeeTokens                    map[TokenSymbol]FeeToken
 }
 
 func (f FeeQuoterParams) Validate() error {

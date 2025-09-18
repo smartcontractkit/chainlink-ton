@@ -7,9 +7,9 @@ import (
 	"math/big"
 	"testing"
 
-	testutils "integration-tests/utils"
-
 	"github.com/stretchr/testify/require"
+
+	testutils "github.com/smartcontractkit/chainlink-ton/deployment/utils"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
@@ -20,7 +20,8 @@ import (
 )
 
 func SetUpTest(t *testing.T, chainID uint64, initialAmount *big.Int, fundedAccountsCount uint) (accounts []tracetracking.SignedAPIClient) {
-	api := testutils.CreateAPIClient(t, chainID)
+	api, cerr := testutils.CreateTestAPIClient(t, chainID)
+	require.NoError(t, cerr)
 
 	accounts = make([]tracetracking.SignedAPIClient, fundedAccountsCount)
 

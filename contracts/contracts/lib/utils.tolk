@@ -6,16 +6,44 @@ const ERROR_INVALID_DATA = 0x77;
 const ERROR_BITMAP_OUT_OF_BOUNDS = 0x78;
 
 /// TODO: is this enough? do we make this configurable?
+/// TODO: replace with more dynamic DEFAULT_MESSAGE_FWD_BUDGET_GAS_UNITS + calculateGasFee
 ///
 /// The default message budget fee for messages (replies, notifications),
 /// for which the value is not explicitly set, and we're not sending
 /// the full excess value.
 const DEFAULT_MESSAGE_BUDGET_FEE = ton("0.01");
 
+/// The default message forwarding budget fee for messages (replies, notifications, sends)
+/// in gas units. The expectation is this is enough to cover the basic transaction costs
+/// for the recipient, at least validation and bounces, to avoid out of gas errors (no bounces).
+///
+/// TL;DR: Today (Q3/25), a basic transaction costs about 0.0025 TON.
+/// Current settings in basechain are as follows: 1 unit of gas costs 400 nanotons.
+/// Source: https://docs.ton.org/v3/documentation/smart-contracts/transaction-fees/fees
+///
+/// For comparison, the Jetton contract requires at least 21k gas units + fwd_fee + storage_fee
+/// to cover the token transaction costs.
+///
+const DEFAULT_MESSAGE_FWD_BUDGET_GAS_UNITS = 30000;  // 0.012 TON at 400 nanotons/unit
+
+/// Maximum size of a bounced message
+///
+/// Notice: documentation for in.bouncedBody is off, as it states the bounced body
+/// will be 0xffffffff + 224 bits, but the actual size is 0xffffffff + 256 bits.
+const BOUNCE_MSG_SIZE_MAX = 256;
+
 /// Returns the global ID of the current blockchain (chain ID).
 fun globalId(): int {
     // Notice: configParam(19)! will be available (non-null)
     return blockchain.configParam(19)!.beginParse().loadInt(32);
+}
+
+/// Extracts the (potential) bounced body from the given slice (message body).
+fun extractBouncedBody(body: slice): uint256 {
+    val remainingBits = body.remainingBitsCount();
+    return remainingBits < BOUNCE_MSG_SIZE_MAX
+        ? body.loadUint(remainingBits)
+        : body.loadUint(BOUNCE_MSG_SIZE_MAX);
 }
 
 /// Computes the Keccak-256 hash of the given data.

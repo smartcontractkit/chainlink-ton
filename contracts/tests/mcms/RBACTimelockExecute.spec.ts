@@ -1,6 +1,6 @@
 import '@ton/test-utils'
 
-import { Address, toNano, beginCell } from '@ton/core'
+import { toNano, beginCell, Cell } from '@ton/core'
 
 import * as rbactl from '../../wrappers/mcms/RBACTimelock'
 import * as counter from '../../wrappers/examples/Counter'
@@ -36,12 +36,10 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
     counterTwo = baseTest.blockchain.openContract(
       counter.ContractClient.newFrom(counterTwoData, code.counter),
     )
-    // const body = counter.builder.message.topUp.encode({ queryId: 1n }) // TODO use TopUp after it is implemented
-    const body = beginCell().endCell()
     const result = await counterTwo.sendInternal(
       baseTest.acc.deployer.getSender(),
       toNano('0.05'),
-      body,
+      Cell.EMPTY,
     )
     expect(result.transactions).toHaveTransaction({
       from: baseTest.acc.deployer.address,
@@ -55,13 +53,15 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       const calls = BaseTestSetup.singletonCalls({
         target: baseTest.bind.counter.address,
         value: toNano('0.05'),
-        data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
+        data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }).asCell(),
       })
 
-      const body = rbactl.builder.message.in.bypasserExecuteBatch.encode({
-        queryId: 1n,
-        calls,
-      })
+      const body = rbactl.builder.message.in.bypasserExecuteBatch
+        .encode({
+          queryId: 1n,
+          calls,
+        })
+        .asCell()
 
       // Try with proposer role (should fail)
       const result = await baseTest.bind.timelock.sendInternal(
@@ -88,10 +88,12 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       }
       const calls = BaseTestSetup.singletonCalls(invalidCall)
 
-      const body = rbactl.builder.message.in.bypasserExecuteBatch.encode({
-        queryId: 1n,
-        calls,
-      })
+      const body = rbactl.builder.message.in.bypasserExecuteBatch
+        .encode({
+          queryId: 1n,
+          calls,
+        })
+        .asCell()
 
       const result = await baseTest.bind.timelock.sendInternal(
         baseTest.acc.admin.getSender(),
@@ -120,25 +122,29 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
           // Increment counter
           target: baseTest.bind.counter.address,
           value: toNano('0.05'),
-          data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
+          data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }).asCell(),
         },
         {
           // Set counterTwo
           target: counterTwo.address,
           value: toNano('0.05'),
-          data: counter.builder.message.in.setCount.encode({
-            queryId: 1n,
-            newCount: 10,
-          }),
+          data: counter.builder.message.in.setCount
+            .encode({
+              queryId: 1n,
+              newCount: 10,
+            })
+            .asCell(),
         },
       ]
       const encodedCalls = asSnakeData<rbactl.Call>(calls, (c) =>
-        rbactl.builder.data.call.encode(c).asBuilder(),
+        rbactl.builder.data.call.encode(c).asCell().asBuilder(),
       )
-      const executeMsg = rbactl.builder.message.in.bypasserExecuteBatch.encode({
-        queryId: 1n,
-        calls: encodedCalls,
-      })
+      const executeMsg = rbactl.builder.message.in.bypasserExecuteBatch
+        .encode({
+          queryId: 1n,
+          calls: encodedCalls,
+        })
+        .asCell()
 
       const result = await baseTest.bind.timelock.sendInternal(
         signer.getSender(),
@@ -165,8 +171,8 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
         )
 
         const opcode = bypasserExecutedExternal.body.beginParse().preloadUint(32)
-        const bypasserExecutedEvent = rbactl.builder.message.out.bypasserCallExecuted.decode(
-          bypasserExecutedExternal.body,
+        const bypasserExecutedEvent = rbactl.builder.message.out.bypasserCallExecuted.load(
+          bypasserExecutedExternal.body.beginParse(),
         )
 
         expect(opcode.toString(16)).toEqual(rbactl.opcodes.out.BypasserCallExecuted.toString(16))
@@ -206,15 +212,17 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       const calls = BaseTestSetup.singletonCalls({
         target: baseTest.bind.counter.address,
         value: toNano('0.05'),
-        data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
+        data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }).asCell(),
       })
 
-      const body = rbactl.builder.message.in.executeBatch.encode({
-        queryId: 1n,
-        calls,
-        predecessor: BaseTestSetup.NO_PREDECESSOR,
-        salt: BaseTestSetup.EMPTY_SALT,
-      })
+      const body = rbactl.builder.message.in.executeBatch
+        .encode({
+          queryId: 1n,
+          calls,
+          predecessor: BaseTestSetup.NO_PREDECESSOR,
+          salt: BaseTestSetup.EMPTY_SALT,
+        })
+        .asCell()
 
       // Try with proposer role (should fail)
       const result = await baseTest.bind.timelock.sendInternal(
@@ -235,17 +243,19 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       const calls = BaseTestSetup.singletonCalls({
         target: baseTest.bind.counter.address,
         value: toNano('0.05'),
-        data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
+        data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }).asCell(),
       })
 
       // Schedule operation
-      const scheduleBody = rbactl.builder.message.in.scheduleBatch.encode({
-        queryId: 1n,
-        calls,
-        predecessor: BaseTestSetup.NO_PREDECESSOR,
-        salt: BaseTestSetup.EMPTY_SALT,
-        delay: BaseTestSetup.MIN_DELAY,
-      })
+      const scheduleBody = rbactl.builder.message.in.scheduleBatch
+        .encode({
+          queryId: 1n,
+          calls,
+          predecessor: BaseTestSetup.NO_PREDECESSOR,
+          salt: BaseTestSetup.EMPTY_SALT,
+          delay: BaseTestSetup.MIN_DELAY,
+        })
+        .asCell()
 
       const scheduleResult = await baseTest.bind.timelock.sendInternal(
         baseTest.acc.proposerOne.getSender(),
@@ -262,12 +272,14 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       // Try to execute before delay is met (only advance a short time)
       baseTest.warpTime(Number(BaseTestSetup.MIN_DELAY - 2n * 24n * 60n * 60n)) // 2 days short
 
-      const executeBody = rbactl.builder.message.in.executeBatch.encode({
-        queryId: 1n,
-        calls,
-        predecessor: BaseTestSetup.NO_PREDECESSOR,
-        salt: BaseTestSetup.EMPTY_SALT,
-      })
+      const executeBody = rbactl.builder.message.in.executeBatch
+        .encode({
+          queryId: 1n,
+          calls,
+          predecessor: BaseTestSetup.NO_PREDECESSOR,
+          salt: BaseTestSetup.EMPTY_SALT,
+        })
+        .asCell()
 
       const result = await baseTest.bind.timelock.sendInternal(
         baseTest.acc.executorOne.getSender(),
@@ -287,19 +299,21 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       const predecessorCall: rbactl.Call = {
         target: baseTest.bind.counter.address,
         value: toNano('0.05'),
-        data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
+        data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }).asCell(),
       }
       const predecessorCalls = BaseTestSetup.singletonCalls(predecessorCall)
 
       {
         // Schedule predecessor operation
-        const scheduleCall = rbactl.builder.message.in.scheduleBatch.encode({
-          queryId: 1n,
-          calls: predecessorCalls,
-          predecessor: BaseTestSetup.NO_PREDECESSOR,
-          salt: BaseTestSetup.EMPTY_SALT,
-          delay: BaseTestSetup.MIN_DELAY,
-        })
+        const scheduleCall = rbactl.builder.message.in.scheduleBatch
+          .encode({
+            queryId: 1n,
+            calls: predecessorCalls,
+            predecessor: BaseTestSetup.NO_PREDECESSOR,
+            salt: BaseTestSetup.EMPTY_SALT,
+            delay: BaseTestSetup.MIN_DELAY,
+          })
+          .asCell()
 
         await baseTest.bind.timelock.sendInternal(
           baseTest.acc.proposerOne.getSender(),
@@ -320,21 +334,25 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       const dependentCall: rbactl.Call = {
         target: baseTest.bind.counter.address,
         value: toNano('0.05'),
-        data: counter.builder.message.in.setCount.encode({
-          queryId: 2n,
-          newCount: 5,
-        }),
+        data: counter.builder.message.in.setCount
+          .encode({
+            queryId: 2n,
+            newCount: 5,
+          })
+          .asCell(),
       }
       const dependentCalls = BaseTestSetup.singletonCalls(dependentCall)
 
       {
-        const scheduleBody = rbactl.builder.message.in.scheduleBatch.encode({
-          queryId: 2n,
-          calls: dependentCalls,
-          predecessor: predecessorId,
-          salt: BaseTestSetup.EMPTY_SALT,
-          delay: BaseTestSetup.MIN_DELAY,
-        })
+        const scheduleBody = rbactl.builder.message.in.scheduleBatch
+          .encode({
+            queryId: 2n,
+            calls: dependentCalls,
+            predecessor: predecessorId,
+            salt: BaseTestSetup.EMPTY_SALT,
+            delay: BaseTestSetup.MIN_DELAY,
+          })
+          .asCell()
 
         await baseTest.bind.timelock.sendInternal(
           baseTest.acc.proposerOne.getSender(),
@@ -347,12 +365,14 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       baseTest.warpTime(Number(BaseTestSetup.MIN_DELAY + 2n * 24n * 60n * 60n)) // 2 days extra
 
       // Try to execute dependent operation (should fail)
-      const executeBody = rbactl.builder.message.in.executeBatch.encode({
-        queryId: 3n,
-        calls: dependentCalls,
-        predecessor: predecessorId,
-        salt: BaseTestSetup.EMPTY_SALT,
-      })
+      const executeBody = rbactl.builder.message.in.executeBatch
+        .encode({
+          queryId: 3n,
+          calls: dependentCalls,
+          predecessor: predecessorId,
+          salt: BaseTestSetup.EMPTY_SALT,
+        })
+        .asCell()
 
       const result = await baseTest.bind.timelock.sendInternal(
         baseTest.acc.executorOne.getSender(),
@@ -379,13 +399,15 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       const calls = BaseTestSetup.singletonCalls(invalidCall)
 
       // Schedule operation
-      const scheduleBody = rbactl.builder.message.in.scheduleBatch.encode({
-        queryId: 1n,
-        calls,
-        predecessor: BaseTestSetup.NO_PREDECESSOR,
-        salt: BaseTestSetup.EMPTY_SALT,
-        delay: BaseTestSetup.MIN_DELAY,
-      })
+      const scheduleBody = rbactl.builder.message.in.scheduleBatch
+        .encode({
+          queryId: 1n,
+          calls,
+          predecessor: BaseTestSetup.NO_PREDECESSOR,
+          salt: BaseTestSetup.EMPTY_SALT,
+          delay: BaseTestSetup.MIN_DELAY,
+        })
+        .asCell()
 
       await baseTest.bind.timelock.sendInternal(
         baseTest.acc.proposerOne.getSender(),
@@ -397,12 +419,14 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       baseTest.warpTime(Number(BaseTestSetup.MIN_DELAY + 2n * 24n * 60n * 60n))
 
       // Try to execute (should fail due to invalid call)
-      const executeBody = rbactl.builder.message.in.executeBatch.encode({
-        queryId: 2n,
-        calls,
-        predecessor: BaseTestSetup.NO_PREDECESSOR,
-        salt: BaseTestSetup.EMPTY_SALT,
-      })
+      const executeBody = rbactl.builder.message.in.executeBatch
+        .encode({
+          queryId: 2n,
+          calls,
+          predecessor: BaseTestSetup.NO_PREDECESSOR,
+          salt: BaseTestSetup.EMPTY_SALT,
+        })
+        .asCell()
 
       const result = await baseTest.bind.timelock.sendInternal(
         baseTest.acc.executorOne.getSender(),
@@ -429,21 +453,25 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       const setCountCall: rbactl.Call = {
         target: baseTest.bind.counter.address,
         value: toNano('0.05'),
-        data: counter.builder.message.in.setCount.encode({
-          queryId: 1n,
-          newCount: 10,
-        }),
+        data: counter.builder.message.in.setCount
+          .encode({
+            queryId: 1n,
+            newCount: 10,
+          })
+          .asCell(),
       }
       const calls = BaseTestSetup.singletonCalls(setCountCall)
 
       // Schedule operation
-      const scheduleBody = rbactl.builder.message.in.scheduleBatch.encode({
-        queryId: 1n,
-        calls,
-        predecessor: BaseTestSetup.NO_PREDECESSOR,
-        salt: BaseTestSetup.EMPTY_SALT,
-        delay: BaseTestSetup.MIN_DELAY,
-      })
+      const scheduleBody = rbactl.builder.message.in.scheduleBatch
+        .encode({
+          queryId: 1n,
+          calls,
+          predecessor: BaseTestSetup.NO_PREDECESSOR,
+          salt: BaseTestSetup.EMPTY_SALT,
+          delay: BaseTestSetup.MIN_DELAY,
+        })
+        .asCell()
 
       await baseTest.bind.timelock.sendInternal(
         baseTest.acc.proposerOne.getSender(),
@@ -455,12 +483,14 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       baseTest.warpTime(Number(BaseTestSetup.MIN_DELAY + 1n))
 
       // Execute operation
-      const executeBody = rbactl.builder.message.in.executeBatch.encode({
-        queryId: 2n,
-        calls,
-        predecessor: BaseTestSetup.NO_PREDECESSOR,
-        salt: BaseTestSetup.EMPTY_SALT,
-      })
+      const executeBody = rbactl.builder.message.in.executeBatch
+        .encode({
+          queryId: 2n,
+          calls,
+          predecessor: BaseTestSetup.NO_PREDECESSOR,
+          salt: BaseTestSetup.EMPTY_SALT,
+        })
+        .asCell()
 
       const result = await baseTest.bind.timelock.sendInternal(
         executor.getSender(),
@@ -487,8 +517,8 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       )
 
       const opcode = callExecutedExternal.body.beginParse().preloadUint(32)
-      const callExecutedEvent = rbactl.builder.message.out.callExecuted.decode(
-        callExecutedExternal.body,
+      const callExecutedEvent = rbactl.builder.message.out.callExecuted.load(
+        callExecutedExternal.body.beginParse(),
       )
 
       expect(opcode.toString(16)).toEqual(rbactl.opcodes.out.CallExecuted.toString(16))
@@ -516,23 +546,26 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
     }
   })
 
-  describe('Call Proxy Execute Tests', () => {
-    it('should execute through valid call proxy', async () => {
+  // Notice: no CallProxy on TON, we use the ExecutorRoleCheck flag
+  describe('~~Call Proxy~~/ExecutorRoleCheck Execute Tests', () => {
+    it('should execute by anybody if ExecutorRoleCheck flag is disabled', async () => {
       const incrementCall: rbactl.Call = {
         target: baseTest.bind.counter.address,
         value: toNano('0.05'),
-        data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
+        data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }).asCell(),
       }
       const calls = BaseTestSetup.singletonCalls(incrementCall)
 
       // Schedule operation
-      const scheduleBody = rbactl.builder.message.in.scheduleBatch.encode({
-        queryId: 1n,
-        calls,
-        predecessor: BaseTestSetup.NO_PREDECESSOR,
-        salt: BaseTestSetup.EMPTY_SALT,
-        delay: BaseTestSetup.MIN_DELAY,
-      })
+      const scheduleBody = rbactl.builder.message.in.scheduleBatch
+        .encode({
+          queryId: 1n,
+          calls,
+          predecessor: BaseTestSetup.NO_PREDECESSOR,
+          salt: BaseTestSetup.EMPTY_SALT,
+          delay: BaseTestSetup.MIN_DELAY,
+        })
+        .asCell()
 
       await baseTest.bind.timelock.sendInternal(
         baseTest.acc.proposerOne.getSender(),
@@ -543,27 +576,41 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       // Wait for delay
       baseTest.warpTime(Number(BaseTestSetup.MIN_DELAY + 1n))
 
-      // Grant executor role to call proxy
-      await baseTest.grantCallProxyExecutorRole()
+      // Update ExecutorRoleCheck to disabled
+      expect(await baseTest.bind.timelock.isExecutorRoleCheckEnabled()).toBeTruthy()
 
-      // Execute through call proxy using external caller
-      const executeBody = rbactl.builder.message.in.executeBatch.encode({
-        queryId: 2n,
-        calls,
-        predecessor: BaseTestSetup.NO_PREDECESSOR,
-        salt: BaseTestSetup.EMPTY_SALT,
-      })
+      await baseTest.bind.timelock.sendInternal(
+        baseTest.acc.admin.getSender(),
+        toNano('0.05'),
+        rbactl.builder.message.in.updateExecutorRoleCheck
+          .encode({
+            queryId: 2n,
+            enabled: false,
+          })
+          .asCell(),
+      )
 
-      // Execute via call proxy
-      const proxyResult = await baseTest.bind.callProxy.sendInternal(
-        baseTest.acc.deployer.getSender(), // External caller
+      expect(await baseTest.bind.timelock.isExecutorRoleCheckEnabled()).toBeFalsy()
+
+      const executeBody = rbactl.builder.message.in.executeBatch
+        .encode({
+          queryId: 2n,
+          calls,
+          predecessor: BaseTestSetup.NO_PREDECESSOR,
+          salt: BaseTestSetup.EMPTY_SALT,
+        })
+        .asCell()
+
+      // Execute via an account without the executor role
+      const r = await baseTest.bind.timelock.sendInternal(
+        baseTest.acc.proposerOne.getSender(), // External caller
         toNano('1'),
         executeBody,
       )
 
-      expect(proxyResult.transactions).toHaveTransaction({
-        from: baseTest.acc.deployer.address,
-        to: baseTest.bind.callProxy.address,
+      expect(r.transactions).toHaveTransaction({
+        from: baseTest.acc.proposerOne.address,
+        to: baseTest.bind.timelock.address,
         success: true,
       })
 
@@ -571,22 +618,24 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       expect(await baseTest.bind.counter.getValue()).toEqual(1)
     })
 
-    it('should fail if call proxy is not executor', async () => {
+    it('should fail to execute by anybody if ExecutorRoleCheck flag is disabled', async () => {
       const incrementCall: rbactl.Call = {
         target: baseTest.bind.counter.address,
         value: toNano('0.05'),
-        data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }),
+        data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }).asCell(),
       }
       const calls = BaseTestSetup.singletonCalls(incrementCall)
 
       // Schedule operation
-      const scheduleBody = rbactl.builder.message.in.scheduleBatch.encode({
-        queryId: 1n,
-        calls,
-        predecessor: BaseTestSetup.NO_PREDECESSOR,
-        salt: BaseTestSetup.EMPTY_SALT,
-        delay: BaseTestSetup.MIN_DELAY,
-      })
+      const scheduleBody = rbactl.builder.message.in.scheduleBatch
+        .encode({
+          queryId: 1n,
+          calls,
+          predecessor: BaseTestSetup.NO_PREDECESSOR,
+          salt: BaseTestSetup.EMPTY_SALT,
+          delay: BaseTestSetup.MIN_DELAY,
+        })
+        .asCell()
 
       await baseTest.bind.timelock.sendInternal(
         baseTest.acc.proposerOne.getSender(),
@@ -597,23 +646,27 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       // Wait for delay
       baseTest.warpTime(Number(BaseTestSetup.MIN_DELAY + 1n))
 
-      // Try to execute through call proxy without granting executor role
-      const executeBody = rbactl.builder.message.in.executeBatch.encode({
-        queryId: 2n,
-        calls,
-        predecessor: BaseTestSetup.NO_PREDECESSOR,
-        salt: BaseTestSetup.EMPTY_SALT,
-      })
+      // Try to execute without disabling ExecutorRoleCheck
+      expect(await baseTest.bind.timelock.isExecutorRoleCheckEnabled()).toBeTruthy()
 
-      const proxyResult = await baseTest.bind.callProxy.sendInternal(
-        baseTest.acc.deployer.getSender(),
+      const executeBody = rbactl.builder.message.in.executeBatch
+        .encode({
+          queryId: 2n,
+          calls,
+          predecessor: BaseTestSetup.NO_PREDECESSOR,
+          salt: BaseTestSetup.EMPTY_SALT,
+        })
+        .asCell()
+
+      const r = await baseTest.bind.timelock.sendInternal(
+        baseTest.acc.proposerOne.getSender(),
         toNano('1'),
         executeBody,
       )
 
-      // The call proxy should fail to execute because it doesn't have executor role
-      expect(proxyResult.transactions).toHaveTransaction({
-        from: baseTest.bind.callProxy.address,
+      // The sender should fail to execute because it doesn't have executor role
+      expect(r.transactions).toHaveTransaction({
+        from: baseTest.acc.proposerOne.address,
         to: baseTest.bind.timelock.address,
         success: false,
         exitCode: ac.Errors.UnauthorizedAccount,

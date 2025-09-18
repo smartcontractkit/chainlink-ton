@@ -29,7 +29,7 @@ type TxManager interface {
 
 	Enqueue(request txm.Request) error
 	GetTransactionStatus(ctx context.Context, lt uint64) (commontypes.TransactionStatus, tvm.ExitCode, tlb.Coins, error)
-	GetClient() tracetracking.SignedAPIClient
+	GetClient(ctx context.Context) (tracetracking.SignedAPIClient, error)
 	InflightCount() (int, int)
 }
 
@@ -113,7 +113,7 @@ func (r *Relayer) TON() (commontypes.TONService, error) {
 	return &r.tonService, nil
 }
 
-func (r *Relayer) NewCCIPProvider(ctx context.Context, rargs commontypes.RelayArgs) (commontypes.CCIPProvider, error) {
+func (r *Relayer) NewCCIPProvider(ctx context.Context, cargs commontypes.CCIPProviderArgs) (commontypes.CCIPProvider, error) {
 	// TODO: store chainSelector within Chain
 	chainID, err := strconv.ParseInt(r.chain.ID(), 10, 16)
 	if err != nil {
