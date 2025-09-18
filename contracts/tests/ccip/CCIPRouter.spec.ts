@@ -238,7 +238,10 @@ describe('Router', () => {
         body: {
           queryID: 1,
           destChainSelector: CHAINSEL_EVM_TEST_90000001,
-          receiver: Buffer.alloc(64),
+          receiver: Buffer.from(
+            '1234567890123456789012345678901234567890123456789012345678901234',
+            'hex',
+          ), // 32 bytes
           data: Cell.EMPTY,
           tokenAmounts: [],
           feeToken: TEST_TOKEN_ADDR,
@@ -288,58 +291,6 @@ describe('Router', () => {
     }
   })
 
-  it('onramp', async () => {
-    // Configure onRamp on router
-    let result = await router.sendSetRamp(deployer.getSender(), {
-      value: toNano('1'),
-      queryID: 0,
-      destChainSelector: CHAINSEL_EVM_TEST_90000001,
-      onRamp: onRamp.address,
-    })
-    expect(result.transactions).toHaveTransaction({
-      from: deployer.address,
-      to: router.address,
-      deploy: false,
-      success: true,
-    })
-
-    result = await router.sendCcipSend(deployer.getSender(), {
-      value: toNano('1'),
-      body: {
-        queryID: 1,
-        destChainSelector: CHAINSEL_EVM_TEST_90000001,
-        receiver: Buffer.from(
-          '1234567890123456789012345678901234567890123456789012345678901234',
-          'hex',
-        ), // 32 bytes
-        data: Cell.EMPTY,
-        tokenAmounts: [],
-        feeToken: TEST_TOKEN_ADDR,
-        extraArgs: Cell.EMPTY,
-      },
-    })
-
-    expect(result.transactions).toHaveTransaction({
-      from: deployer.address,
-      to: router.address,
-      success: true,
-    })
-    expect(result.transactions).toHaveTransaction({
-      from: router.address,
-      to: onRamp.address,
-      success: true,
-    })
-
-    assertLog(result.transactions, onRamp.address, LogTypes.CCIPMessageSent, {
-      message: {
-        header: {
-          destChainSelector: CHAINSEL_EVM_TEST_90000001,
-        },
-        sender: deployer.address,
-      },
-    })
-  })
-
   // TODO: This test is only asserting the user interface. It should be extended to assert the actual fee payment
   it('onramp token transfer - paid with TON', async () => {
     // Configure onRamp on router
@@ -375,7 +326,7 @@ describe('Router', () => {
         receiver: Buffer.alloc(64),
         data: Cell.EMPTY,
         tokenAmounts: [{ amount: jettonAmount, token: jettonMinter.address }],
-        feeToken: ZERO_ADDRESS,
+        feeToken: TEST_TOKEN_ADDR,
         extraArgs: Cell.EMPTY,
       })
       .asCell()
