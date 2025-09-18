@@ -81,8 +81,8 @@ determine_base_image() {
     
     if is_sha "$core_ref"; then
         log_info "SHA detected - using private ECR"
-        base_image="${AWS_ACCOUNT_ID_STAGING}.dkr.ecr.${AWS_REGION}.amazonaws.com/chainlink-plugins-dev:${core_ref_short}-core-for-chainlink-ton"
-        base_image_tag="${core_ref_short}-core-for-chainlink-ton"
+        base_image="${AWS_ACCOUNT_ID_STAGING}.dkr.ecr.${AWS_REGION}.amazonaws.com/chainlink-plugins-dev:chainlink-${core_ref_short}"
+        base_image_tag="chainlink-${core_ref_short}"
         base_image_public="false"
     else
         log_info "Tag detected - using public ECR"
