@@ -280,6 +280,7 @@ describe('Router', () => {
     }
   })
 
+  // TODO: This test is only asserting the user interface. It should be extended to assert the actual fee payment
   it('onramp token transfer - paid with TON', async () => {
     // Configure onRamp on router
     {
