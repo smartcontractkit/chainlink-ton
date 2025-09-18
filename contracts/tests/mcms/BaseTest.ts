@@ -174,7 +174,7 @@ export class BaseTestSetup {
       executorRoleCheckEnabled: true,
       opPendingInfo: {
         validAfter: 0,
-        opFinalizationTimeout: 0,
+        opFinalizationTimeout: 0n,
         opPendingId: 0n,
       },
       rbac: ac.builder.data.contractData.encode(rbacStorage).asCell(),

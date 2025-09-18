@@ -89,7 +89,7 @@ struct (0x4982fcfd) Timelock_Init {
     /// Flag to enable/disable the executor role check (if disabled, anyone can execute)
     executorRoleCheckEnabled: bool;
     /// The timeout required to finalize the currently executing op
-    opFinalizationTimeout: uint32;
+    opFinalizationTimeout: uint64;
 }
 
 /// Top up contract with TON coins.
@@ -159,7 +159,7 @@ struct (0x6e9Bf263) Timelock_ExecuteBatch {
 
 /// Changes the minimum timelock duration for future operations.
 ///
-/// Emits a {Timelock_MinDelayChange} event.
+/// Replies with {Timelock_MinDelayChange} message.
 ///
 /// Requirements:
 ///
@@ -171,6 +171,22 @@ struct (0x7a57a45c) Timelock_UpdateDelay {
 
     /// New minimum delay in seconds for future operations.
     newDelay: uint64;
+}
+
+/// Changes the timeout required to finalize the currently executing op
+///
+/// Replies with {Timelock_OpFinalizationTimeoutChange} message.
+///
+/// Requirements:
+///
+/// - the caller must have the 'admin' role.
+///
+struct (0x94278d4f) Timelock_UpdateOpFinalizationTimeout {
+    /// Query ID of the change request.
+    queryId: uint64;
+
+    /// The timeout required to finalize the currently executing op
+    newOpFinalizationTimeout: uint64;
 }
 
 /// Blocks a function selector from being used, i.e. schedule
@@ -266,6 +282,7 @@ type Timelock_InMessage =
     | Timelock_Cancel
     | Timelock_ExecuteBatch
     | Timelock_UpdateDelay
+    | Timelock_UpdateOpFinalizationTimeout
     | Timelock_BlockFunctionSelector
     | Timelock_UnblockFunctionSelector
     | Timelock_BypasserExecuteBatch
@@ -282,6 +299,7 @@ type Timelock_OutMessage =
     | Timelock_BypasserCallExecuted
     | Timelock_Canceled
     | Timelock_MinDelayChange
+    | Timelock_OpFinalizationTimeoutChange
     | Timelock_FunctionSelectorBlocked
     | Timelock_FunctionSelectorUnblocked
     | Timelock_ExecutorRoleCheckUpdated
@@ -289,7 +307,7 @@ type Timelock_OutMessage =
 
 // --- Messages - outgoing ---
 
-/// Sent back to sender after a batch is scheduled.
+/// Replied to sender after a batch is scheduled.
 struct (0xdf65b59e) Timelock_BatchScheduled {
     /// Query ID of the change request.
     queryId: uint64;
@@ -316,7 +334,7 @@ struct (0xc55fca54) Timelock_CallScheduled {
     delay: uint64;
 }
 
-/// Sent back to sender after a batch is executed.
+/// Replied to sender after a batch is executed.
 struct (0xa941ea1a) Timelock_BatchExecuted {
     /// Query ID of the change request.
     queryId: uint64;
@@ -338,13 +356,13 @@ struct (0x49ea5d0e) Timelock_CallExecuted {
     data: cell;
 }
 
-/// Sent back to sender after a batch is executed via bypasser escape hatch.
+/// Replied to sender after a batch is executed via bypasser escape hatch.
 struct (0x539b4214) Timelock_BypasserBatchExecuted {
     /// Query ID of the change request.
     queryId: uint64;
 }
 
-/// Emitted when a call is performed via bypasser.
+/// Replied to sender when a call is performed via bypasser.
 struct (0x9c7f3010) Timelock_BypasserCallExecuted {
     /// Query ID of the change request.
     queryId: uint64;
@@ -356,7 +374,7 @@ struct (0x9c7f3010) Timelock_BypasserCallExecuted {
     data: cell;
 }
 
-/// Emitted when operation `id` is cancelled.
+/// Replied to sender when operation `id` is cancelled.
 struct (0x580e80f2) Timelock_Canceled {
     /// Query ID of the change request.
     queryId: uint64;
@@ -365,7 +383,7 @@ struct (0x580e80f2) Timelock_Canceled {
     id: uint256;
 }
 
-/// Emitted when the minimum delay for future operations is modified.
+/// Replied to sender when the minimum delay for future operations is modified.
 struct (0x904b14e0) Timelock_MinDelayChange {
     /// Query ID of the change request.
     queryId: uint64;
@@ -373,6 +391,17 @@ struct (0x904b14e0) Timelock_MinDelayChange {
     /// Duration of the old minimum delay in seconds.
     oldDuration: uint64;
     /// Duration of the new minimum delay in seconds.
+    newDuration: uint64;
+}
+
+/// Replied to sender when the op finalization timeout is modified.
+struct (0x1f102718) Timelock_OpFinalizationTimeoutChange {
+    /// Query ID of the change request.
+    queryId: uint64;
+
+    /// Duration of the old timeout in seconds.
+    oldDuration: uint64;
+    /// Duration of the new timeout in seconds.
     newDuration: uint64;
 }
 
@@ -394,7 +423,7 @@ struct (0xf410a31b) Timelock_FunctionSelectorUnblocked {
     selector: uint32;
 }
 
-/// Sent back to sender after the executor role check is updated.
+/// Replied to sender after the executor role check is updated.
 struct (0xc6d451e2) Timelock_ExecutorRoleCheckUpdated {
     /// Query ID of the change request.
     queryId: uint64;
@@ -403,7 +432,7 @@ struct (0xc6d451e2) Timelock_ExecutorRoleCheckUpdated {
     enabled: bool;
 }
 
-/// Sent back to sender when an error report is successfully submitted.
+/// Replied to sender when an error report is successfully submitted.
 struct (0xdbd4c8ee) Timelock_ErrorReportSubmitted {
     /// Query ID of the change request.
     queryId: uint64;
@@ -498,7 +527,7 @@ struct OpPendingInfo {
     /// meaning no bounce was received and we can continue executing.
     validAfter: uint32;
     /// The timeout required to finalize the currently executing op
-    opFinalizationTimeout: uint32;
+    opFinalizationTimeout: uint64;
     /// The id of the currently pending operation (OperationBatch hash)
     opPendingId: uint256;
 }
@@ -526,6 +555,7 @@ const PROPOSER_ROLE = 0xb09aa5aeb3702cfd50b6b62bc4532604938f21248a27a1d5ca736082
 const CANCELLER_ROLE = 0xfd643c72710c63c0180259aba6b2d05451e3591a24e58b62239378085726f783; // keccak256('CANCELLER_ROLE')
 const EXECUTOR_ROLE = 0xd8aa0f3194971a2a116679f7c2090f6939c8d4e01a2a8d7e41d55e5351469e63;  // keccak256('EXECUTOR_ROLE')
 const BYPASSER_ROLE = 0xa1b2b8005de234c4b8ce8cd0be058239056e0d54f6097825b5117101469d5a8d;  // keccak256('BYPASSER_ROLE')
+/// @dev: new role, can report errors for executed operations
 const ORACLE_ROLE = 0x68e79a7bf1e0bc45d0a330c573bc367f9cf464fd326078812f301165fbda4ef1;    // keccak256('ORACLE_ROLE')
 
 /// Timestamp value used to mark an operation as done
@@ -653,7 +683,7 @@ fun Timelock<T>.init(
     cancellers: cell, // vec<address>
     bypassers: cell,  // vec<address>
     executorRoleCheckEnabled: bool = true,
-    opFinalizationTimeout: uint32 = 10  // 10 seconds
+    opFinalizationTimeout: uint64 = 10  // 10 seconds
 ): void {
     // TODO: add a check to secure contract initialization
     //   - check that the contract is not already initialized
@@ -897,13 +927,7 @@ fun Timelock<T>.afterCall(mutate self, id: uint256): void {
 }
 
 /// Changes the minimum timelock duration for future operations.
-///
-/// Emits a {Timelock_MinDelayChange} event.
-///
-/// Requirements:
-///
-/// - the caller must have the 'admin' role.
-///
+/// @see {Timelock_UpdateDelay} for more information.
 fun Timelock<T>.updateDelay(mutate self, sender: address, queryId: uint64, newDelay: uint64): void {
     val rbac = self.hookTrait__AccessControl();
     rbac.requireRole(ADMIN_ROLE, sender);
@@ -922,6 +946,28 @@ fun Timelock<T>.updateDelay(mutate self, sender: address, queryId: uint64, newDe
 
     // Update the minimum delay
     self.data.minDelay = newDelay;
+}
+
+/// Changes the timeout required to finalize the currently executing op
+/// @see {Timelock_UpdateOpFinalizationTimeout} for more information.
+fun Timelock<T>.updateOpFinalizationTimeout(mutate self, sender: address, queryId: uint64, newOpFinalizationTimeout: uint64): void {
+    val rbac = self.hookTrait__AccessControl();
+    rbac.requireRole(ADMIN_ROLE, sender);
+
+    val reply = createMessage({
+        bounce: false,
+        value: 0,
+        dest: sender,
+        body: Timelock_OpFinalizationTimeoutChange{
+            queryId,
+            oldDuration: self.data.opPendingInfo.opFinalizationTimeout,
+            newDuration: newOpFinalizationTimeout
+        }
+    });
+    reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+
+    // Update the op finalization timeout
+    self.data.opPendingInfo.opFinalizationTimeout = newOpFinalizationTimeout;
 }
 
 /// Blocks a function selector from being used, i.e. schedule
@@ -1203,6 +1249,9 @@ fun Timelock<T>.onInternalMessage(mutate self, msgSender: address, msgValue: coi
         }
         Timelock_UpdateDelay => {
             self.updateDelay(msgSender, msg.queryId, msg.newDelay);
+        }
+        Timelock_UpdateOpFinalizationTimeout => {
+            self.updateOpFinalizationTimeout(msgSender, msg.queryId, msg.newOpFinalizationTimeout);
         }
         Timelock_BlockFunctionSelector => {
             self.blockFunctionSelector(msgSender, msg.queryId, msg.selector);

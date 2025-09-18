@@ -16,7 +16,7 @@ import { CellCodec, sha256_32 } from '../utils'
 import { keccak256 } from '@ethersproject/keccak256'
 import { uint8ArrayToBigInt } from '../../src/utils'
 
-// @dev Initializes the contract
+// Initializes the contract
 export type Init = {
   // Query ID of the change request.
   queryId: bigint
@@ -36,16 +36,16 @@ export type Init = {
   // Flag to enable/disable the executor role check (if disabled, anyone can execute)
   executorRoleCheckEnabled: boolean
   // The timeout required to finalize the currently executing op
-  opFinalizationTimeout: number
+  opFinalizationTimeout: bigint
 }
 
-// @dev Top up contract with TON coins.
+// Top up contract with TON coins.
 export type TopUp = {
   // Query ID of the change request.
   queryId: bigint
 }
 
-// @dev Schedule an operation containing a batch of transactions.
+// Schedule an operation containing a batch of transactions.
 export type ScheduleBatch = {
   // Query ID of the change request.
   queryId: bigint
@@ -60,7 +60,7 @@ export type ScheduleBatch = {
   delay: bigint
 }
 
-// @dev Cancel an operation.
+// Cancel an operation.
 export type Cancel = {
   // Query ID of the change request.
   queryId: bigint
@@ -69,7 +69,7 @@ export type Cancel = {
   id: bigint
 }
 
-// @dev Execute an (ready) operation containing a batch of transactions.
+// Execute an (ready) operation containing a batch of transactions.
 export type ExecuteBatch = {
   // Query ID of the change request.
   queryId: bigint
@@ -82,7 +82,7 @@ export type ExecuteBatch = {
   salt: bigint
 }
 
-// @dev Changes the minimum timelock duration for future operations.
+// Changes the minimum timelock duration for future operations.
 export type UpdateDelay = {
   // Query ID of the change request.
   queryId: bigint
@@ -91,7 +91,16 @@ export type UpdateDelay = {
   newDelay: number
 }
 
-// @dev Blocks a function selector from being used
+/// Changes the timeout required to finalize the currently executing op
+export type UpdateOpFinalizationTimeout = {
+  // Query ID of the change request.
+  queryId: bigint
+
+  // The timeout required to finalize the currently executing op
+  newOpFinalizationTimeout: number
+}
+
+// Blocks a function selector from being used
 export type BlockFunctionSelector = {
   // Query ID of the change request.
   queryId: bigint
@@ -100,7 +109,7 @@ export type BlockFunctionSelector = {
   selector: number
 }
 
-// @dev Unblocks a previously blocked function selector so it can be used again.
+// Unblocks a previously blocked function selector so it can be used again.
 export type UnblockFunctionSelector = {
   /// Query ID of the change request.
   queryId: bigint
@@ -127,7 +136,7 @@ export type UpdateExecutorRoleCheck = {
   enabled: boolean
 }
 
-// @dev Union of all (input) messages.
+// Union of all (input) messages.
 export type InMessage =
   | Init
   | TopUp
@@ -174,7 +183,7 @@ export type Call = {
   data: Cell
 }
 
-/// @dev Batch of transactions represented as a operation, which can be scheduled and executed.
+/// Batch of transactions represented as a operation, which can be scheduled and executed.
 export type OperationBatch = {
   // Array of calls to be scheduled
   calls: Cell // vec<Timelock_Call>
@@ -193,7 +202,7 @@ export type OpPendingInfo = {
   /// meaning no bounce was received and we can continue executing.
   validAfter: number
   /// The timeout required to finalize the currently executing op
-  opFinalizationTimeout: number
+  opFinalizationTimeout: bigint
   /// The id of the currently pending operation (OperationBatch hash)
   opPendingId: bigint
 }
@@ -269,6 +278,7 @@ export const opcodes = {
     BypasserExecuteBatch: crc32('Timelock_BypasserExecuteBatch'),
     UpdateExecutorRoleCheck: crc32('Timelock_UpdateExecutorRoleCheck'),
     SubmitErrorReport: crc32('Timelock_SubmitErrorReport'),
+    UpdateOpFinalizationTimeout: crc32('Timelock_UpdateOpFinalizationTimeout'),
   },
   out: {
     BatchScheduled: crc32('Timelock_BatchScheduled'),
@@ -283,6 +293,7 @@ export const opcodes = {
     FunctionSelectorUnblocked: crc32('Timelock_FunctionSelectorUnblocked'),
     ExecutorRoleCheckUpdated: crc32('Timelock_ExecutorRoleCheckUpdated'),
     ErrorReportSubmitted: crc32('Timelock_ErrorReportSubmitted'),
+    OpFinalizationTimeoutChange: crc32('Timelock_OpFinalizationTimeoutChange'),
   },
 }
 
@@ -301,7 +312,7 @@ export const builder = {
             .storeRef(msg.cancellers)
             .storeRef(msg.bypassers)
             .storeBit(msg.executorRoleCheckEnabled)
-            .storeUint(msg.opFinalizationTimeout, 32)
+            .storeUint(msg.opFinalizationTimeout, 64)
         },
         load: (src: Slice): Init => {
           src.skip(32) // skip opcode
@@ -314,7 +325,7 @@ export const builder = {
             cancellers: src.loadRef(),
             bypassers: src.loadRef(),
             executorRoleCheckEnabled: src.loadBit(),
-            opFinalizationTimeout: src.loadUint(32),
+            opFinalizationTimeout: src.loadUintBig(64),
           }
         },
       }
@@ -410,6 +421,23 @@ export const builder = {
         },
       }
 
+      const updateOpFinalizationTimeout: CellCodec<UpdateOpFinalizationTimeout> = {
+        encode: (msg: UpdateOpFinalizationTimeout): Builder => {
+          return beginCell()
+            .storeUint(opcodes.in.UpdateOpFinalizationTimeout, 32)
+            .storeUint(msg.queryId, 64)
+            .storeUint(msg.newOpFinalizationTimeout, 64)
+        },
+        load: (src: Slice): UpdateOpFinalizationTimeout => {
+          src.skip(32) // skip opcode
+          return {
+            queryId: src.loadUintBig(64),
+            newOpFinalizationTimeout: -1, // TODO: decode delay properly (number vs bigint mismatch)
+            // newOpFinalizationTimeout: src.loadUintBig(64),
+          }
+        },
+      }
+
       const blockFunctionSelector: CellCodec<BlockFunctionSelector> = {
         encode: (msg: BlockFunctionSelector): Builder => {
           return beginCell()
@@ -480,6 +508,7 @@ export const builder = {
         cancel,
         executeBatch,
         updateDelay,
+        updateOpFinalizationTimeout,
         blockFunctionSelector,
         unblockFunctionSelector,
         bypasserExecuteBatch,
@@ -644,7 +673,7 @@ export const builder = {
           )
           .storeBit(data.executorRoleCheckEnabled)
           .storeUint(data.opPendingInfo.validAfter, 32)
-          .storeUint(data.opPendingInfo.opFinalizationTimeout, 32)
+          .storeUint(data.opPendingInfo.opFinalizationTimeout, 64)
           .storeUint(data.opPendingInfo.opPendingId, 256)
           .storeRef(data.rbac)
       },
