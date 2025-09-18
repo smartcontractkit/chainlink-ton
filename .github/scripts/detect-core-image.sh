@@ -51,11 +51,12 @@ read_core_version() {
     echo "$core_ref"  # This goes to stdout for capture
 }
 
+
 # Detect if the ref is a SHA or tag
 is_sha() {
     local ref="$1"
-    # SHA pattern: exactly 40 hex characters OR 7+ hex characters that look like a commit SHA
-    if [[ "$ref" =~ ^[0-9a-fA-F]{40}$ ]] || [[ "$ref" =~ ^[0-9a-fA-F]{7,}$ ]]; then
+    # SHA pattern: between 7 and 40 hex characters that look like a commit SHA
+    if [[ "$ref" =~ ^[0-9a-fA-F]{7,40}$ ]]; then
         return 0  # true
     else
         return 1  # false
