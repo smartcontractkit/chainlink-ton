@@ -234,7 +234,7 @@ func SendTonRequest(
 	}
 
 	walletMsg := &wallet.Message{
-		Mode: wallet.PayGasSeparately, // TODO: wallet.IgnoreErrors ?
+		Mode: wallet.PayGasSeparately | wallet.IgnoreErrors,
 		InternalMessage: &tlb.InternalMessage{
 			IHRDisabled: true,
 			Bounce:      false,
