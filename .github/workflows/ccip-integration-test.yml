@@ -119,6 +119,7 @@ jobs:
       - name: Setup Environment and Run Tests
         run: |
           export CCIP_CONTRACTS_TON_VERSION="local"
+          ls -l ${GITHUB_WORKSPACE}/chainlink
           ln -s "${GITHUB_WORKSPACE}/contracts" "${GITHUB_WORKSPACE}/chainlink/contracts"
           nix develop .#ccip-e2e -c scripts/e2e/setup-env.sh --core-dir "${GITHUB_WORKSPACE}/chainlink"
           nix develop .#ccip-e2e -c scripts/e2e/run-test.sh --core-dir "${GITHUB_WORKSPACE}/chainlink" --test-command "${{ matrix.type.cmd }}"
