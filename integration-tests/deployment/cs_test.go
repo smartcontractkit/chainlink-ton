@@ -275,7 +275,7 @@ func TestDeploy(t *testing.T) {
 				DynamicConfig: ccipocr3.OnRampDynamicConfig{
 					FeeQuoter:              rawFeeQuoterAddr,
 					ReentrancyGuardEntered: false,
-					MessageInterceptor:     nil,
+					MessageInterceptor:     []byte{},
 					FeeAggregator:          rawDeployerAddr,
 					AllowListAdmin:         rawDeployerAddr,
 				},
@@ -283,7 +283,7 @@ func TestDeploy(t *testing.T) {
 			DestChainConfig: ccipocr3.OnRampDestChainConfig{
 				SequenceNumber:   0,
 				AllowListEnabled: false,
-				Router:           nil,
+				Router:           rawRouterAddr,
 			},
 		}, config.OnRamp)
 	})
