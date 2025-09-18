@@ -477,7 +477,7 @@ fun _updateSourceChainConfig(msg: OffRamp_UpdateSourceChainConfig, sender: addre
             router: msg.config.router,
             isEnabled: msg.config.isEnabled,
             minSeqNr: 1,
-            isRMNVerificationDisabled: false, // RMN verification is always disabled
+            isRMNVerificationDisabled: true, // RMN verification is always disabled
             onRamp: msg.config.onRamp,
         };
     } else {
