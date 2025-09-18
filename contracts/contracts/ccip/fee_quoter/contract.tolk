@@ -305,7 +305,7 @@ fun getValidatedFee(payload: FeeQuoter_GetValidatedFee<cell>, sender: address) {
         body: FeeQuoter_MessageValidated<cell> {
             msg: payload.msg,
             metadata: payload.metadata,
-            fee: feeTokenAmount
+            fee: feeTokenAmount,
         }
     });
     getValidatedFeeMsg.send(SEND_MODE_REGULAR);
