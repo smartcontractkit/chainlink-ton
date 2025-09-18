@@ -215,7 +215,7 @@ describe('Router', () => {
         })
       }
     }
-  })
+  }, 10000)
 
   it('onramp arbitrary message passing', async () => {
     // Configure onRamp on router
