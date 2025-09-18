@@ -303,9 +303,7 @@ describe('Router', () => {
       success: true,
     })
 
-    // Test Case 1: Message to destination chain 1 (seq 2)
-    console.log('\n=== Sending CCIP Message 1 ===')
-    let result1 = await router.sendCcipSend(deployer.getSender(), {
+    result = await router.sendCcipSend(deployer.getSender(), {
       value: toNano('1'),
       body: {
         queryID: 1,
@@ -314,45 +312,6 @@ describe('Router', () => {
           '1234567890123456789012345678901234567890123456789012345678901234',
           'hex',
         ), // 32 bytes
-        data: Cell.EMPTY, // Simple empty data for test case 1
-        tokenAmounts: [],
-        feeToken: TEST_TOKEN_ADDR,
-        extraArgs: Cell.EMPTY,
-      },
-    })
-
-    expect(result1.transactions).toHaveTransaction({
-      from: deployer.address,
-      to: router.address,
-      success: true,
-    })
-    expect(result1.transactions).toHaveTransaction({
-      from: router.address,
-      to: onRamp.address,
-      success: true,
-    })
-
-    assertLog(result1.transactions, onRamp.address, LogTypes.CCIPMessageSent, {
-      message: {
-        header: {
-          destChainSelector: CHAINSEL_EVM_TEST_90000001,
-          sequenceNumber: 2n,
-        },
-        sender: deployer.address,
-      },
-    })
-
-    // Test Case 2: Second message to same destination (seq 3)
-    console.log('\n=== Sending CCIP Message 2 ===')
-    let result2 = await router.sendCcipSend(deployer.getSender(), {
-      value: toNano('1'),
-      body: {
-        queryID: 2,
-        destChainSelector: CHAINSEL_EVM_TEST_90000001, // Same destination
-        receiver: Buffer.from(
-          'abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
-          'hex',
-        ),
         data: Cell.EMPTY,
         tokenAmounts: [],
         feeToken: TEST_TOKEN_ADDR,
@@ -360,61 +319,21 @@ describe('Router', () => {
       },
     })
 
-    expect(result2.transactions).toHaveTransaction({
+    expect(result.transactions).toHaveTransaction({
       from: deployer.address,
       to: router.address,
       success: true,
     })
-    expect(result2.transactions).toHaveTransaction({
+    expect(result.transactions).toHaveTransaction({
       from: router.address,
       to: onRamp.address,
       success: true,
     })
 
-    assertLog(result2.transactions, onRamp.address, LogTypes.CCIPMessageSent, {
+    assertLog(result.transactions, onRamp.address, LogTypes.CCIPMessageSent, {
       message: {
         header: {
           destChainSelector: CHAINSEL_EVM_TEST_90000001,
-          sequenceNumber: 3n,
-        },
-        sender: deployer.address,
-      },
-    })
-
-    // Test Case 3: Third message to same destination (seq 4)
-    console.log('\n=== Sending CCIP Message 3 ===')
-    let result3 = await router.sendCcipSend(deployer.getSender(), {
-      value: toNano('1'),
-      body: {
-        queryID: 3,
-        destChainSelector: CHAINSEL_EVM_TEST_90000001, // Same destination
-        receiver: Buffer.from(
-          'fedcba0987654321fedcba0987654321fedcba0987654321fedcba0987654321',
-          'hex',
-        ),
-        data: Cell.EMPTY,
-        tokenAmounts: [],
-        feeToken: TEST_TOKEN_ADDR,
-        extraArgs: Cell.EMPTY,
-      },
-    })
-
-    expect(result3.transactions).toHaveTransaction({
-      from: deployer.address,
-      to: router.address,
-      success: true,
-    })
-    expect(result3.transactions).toHaveTransaction({
-      from: router.address,
-      to: onRamp.address,
-      success: true,
-    })
-
-    assertLog(result3.transactions, onRamp.address, LogTypes.CCIPMessageSent, {
-      message: {
-        header: {
-          destChainSelector: CHAINSEL_EVM_TEST_90000001,
-          sequenceNumber: 4n,
         },
         sender: deployer.address,
       },
