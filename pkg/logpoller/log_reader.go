@@ -12,25 +12,24 @@ import (
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
+	txparserUtils "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/txparser/utils"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
 )
 
 var _ LogReader = (*logReader)(nil)
 
 type logReader struct {
-	client    ton.APIClientWrapped
-	lggr      logger.Logger
-	loader    TxLoader
-	msgParser MessageParser
+	client ton.APIClientWrapped
+	lggr   logger.Logger
+	loader TxLoader
 }
 
 // NewLogReader creates a new LogReader instance.
-func NewLogReader(client ton.APIClientWrapped, lggr logger.Logger, loader TxLoader, msgParser MessageParser) LogReader {
+func NewLogReader(client ton.APIClientWrapped, lggr logger.Logger, loader TxLoader) LogReader {
 	return &logReader{
-		client:    client,
-		lggr:      lggr,
-		loader:    loader,
-		msgParser: msgParser,
+		client: client,
+		lggr:   lggr,
+		loader: loader,
 	}
 }
 
@@ -90,7 +89,7 @@ func (lr *logReader) extractExternalMsgOutLogs(txs []types.TxWithBlock) ([]types
 			extMsg := msg.AsExternalOut()
 
 			// Fail hard so we don't skip events. We want at-least-once delivery guarantees on events
-			eventSig, body, err := lr.msgParser.ParseExtMsgOut(extMsg)
+			eventSig, body, err := txparserUtils.ParseExtMsgOut(extMsg)
 			if err != nil {
 				return nil, fmt.Errorf("failed to parse external message out for txHash=%v, LT=%d: %w", tx.Tx.Hash, tx.Tx.LT, err)
 			}

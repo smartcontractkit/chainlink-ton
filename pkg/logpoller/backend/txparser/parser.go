@@ -8,6 +8,7 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+	txparserUtils "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/txparser/utils"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
@@ -72,9 +73,9 @@ func (p *txParser) parseTx(ctx context.Context, tx types.TxWithBlock) ([]types.L
 
 			switch msg.MsgType {
 			case tlb.MsgTypeExternalOut:
-				eventSig, body, err = ParseExtMsgOut(msg.AsExternalOut(), filter.EventSig)
+				eventSig, body, err = txparserUtils.ParseExtMsgOut(msg.AsExternalOut())
 			case tlb.MsgTypeInternal:
-				eventSig, body, err = ParseInternalMsg(msg.AsInternal(), filter.EventSig)
+				eventSig, body, err = txparserUtils.ParseInternalMsg(msg.AsInternal())
 			case tlb.MsgTypeExternalIn:
 				continue // not supported
 			}
@@ -101,16 +102,4 @@ func (p *txParser) parseTx(ctx context.Context, tx types.TxWithBlock) ([]types.L
 		}
 	}
 	return allLogs, nil
-}
-
-// messageParserWithoutFilters provides a way to parse messages without using log poller filters
-type messageParserWithoutFilters struct{}
-
-func NewMessageParser() logpoller.MessageParser {
-	return &messageParserWithoutFilters{}
-}
-
-func (p *messageParserWithoutFilters) ParseExtMsgOut(msg *tlb.ExternalMessageOut) (uint32, *cell.Cell, error) {
-	// eventSig=0 to bypass filtering
-	return ParseExtMsgOut(msg, 0)
 }

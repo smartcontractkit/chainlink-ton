@@ -6,7 +6,6 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
-	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 
@@ -55,12 +54,6 @@ type TxParser interface {
 	// extracts event signatures (opcodes for internal messages, topics for external out messages)
 	// along with the message body data to create structured log entries.
 	ParseTransactions(ctx context.Context, txs []types.TxWithBlock) ([]types.Log, error)
-}
-
-// MessageParser defines an interface for parsing TON messages
-type MessageParser interface {
-	// ParseExtMsgOut extracts event signature and payload from an external message output.
-	ParseExtMsgOut(msg *tlb.ExternalMessageOut) (eventSig uint32, body *cell.Cell, err error)
 }
 
 // LogStore defines the interface for storing and retrieving logs.
