@@ -64,7 +64,7 @@ func deployOnRamp(b operations.Bundle, deps TonDeps, in DeployOnRampInput) (Depl
 		},
 		DestChainConfigs: nil,
 		ExecutorCode:     executorCode,
-		CurrentMessageId: big.NewInt(0),
+		CurrentMessageID: big.NewInt(0),
 	}
 	initData, err := tlb.ToCell(storage)
 	if err != nil {

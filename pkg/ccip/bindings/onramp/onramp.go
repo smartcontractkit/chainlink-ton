@@ -116,7 +116,7 @@ type Storage struct {
 	Config           DynamicConfig       `tlb:"^"`
 	DestChainConfigs *cell.Dictionary    `tlb:"dict 64"`
 	ExecutorCode     *cell.Cell          `tlb:"^"`
-	CurrentMessageId *big.Int            `tlb:"## 224"`
+	CurrentMessageID *big.Int            `tlb:"## 224"`
 }
 
 // Methods
