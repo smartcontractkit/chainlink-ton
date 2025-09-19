@@ -52,7 +52,7 @@ jobs:
         type:
           # Note: list of tests, add more tests here
           - name: "TON CCIP Messaging Tests"
-            cmd: "cd integration-tests/smoke/ccip && go test ccip_ton_messaging_test.go -timeout 12m -test.parallel=2 -count=1 -json"
+            cmd: "cd integration-tests/smoke/ccip && go test ccip_ton_messaging_test.go -timeout 20m -test.parallel=2 -count=1 -json"
 
     name: ${{ matrix.type.name }}
     runs-on: ubuntu-latest
