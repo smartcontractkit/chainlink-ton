@@ -1,4 +1,5 @@
 import "../types"
+import "errors"
 
 tolk 1.1
 
@@ -66,7 +67,7 @@ struct CCIPSendExecutor<T> {
 
 fun CCIPSendExecutor<T>.load(): CCIPSendExecutor<T> {
     val st = lazy CCIPSendExecutor_Data.fromCell(contract.getData());
-    assert (st.state is Cell<T>) throw 505; // invalid state // TODO export to error
+    assert (st.state is Cell<T>) throw CCIPSEND_EXECUTOR_ERROR_STATE_NOT_EXPECTED; // invalid state
     return CCIPSendExecutor<T> {
         messageId: st.messageId,
         onrampSend: st.onrampSend,
