@@ -128,7 +128,7 @@ func AddLaneTONConfig(env *cldf.Environment, onRamp []byte, from, to uint64, fro
 	// TODO: LINK placeholder address
 
 	const TONtoUSD = 3.15              // As of September 2025
-	const TONtoNanoTON = 1e9           // Smalest denomination
+	const TONtoNanoTON = 1e9           // Smallest denomination
 	const TokenPriceBaseAmount = 1e18  // Defined for `TokenPrices`
 	var USDDecimals = big.NewInt(1e18) // Defined for `TokenPrices`
 	var TONBaseAmountTokenPrice = big.NewInt(int64(TONtoUSD * (TokenPriceBaseAmount / TONtoNanoTON)))
