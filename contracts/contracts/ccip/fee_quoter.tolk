@@ -377,8 +377,8 @@ get fun tokenPrices(tokens: tuple): tuple {
     while(!iter.empty()) {
         val token = iter.next();
         // NOTE: Need to skip missing items as nil entries rather than fail the query
-        val (maybePrice, _exists) = st.usdPerToken.get(token);
-        list.push(maybePrice.toCell());
+        val entry = st.usdPerToken.get(token);
+        list.push(entry.loadValue().toCell());
     }
     return list;
 }

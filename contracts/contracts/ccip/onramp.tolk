@@ -283,7 +283,7 @@ get fun supportedTokens() {
 get fun destChainSelectors(): tuple {
     val st = lazy Storage.load();
     var d = st.destChainConfigs;
-    return d.keysDestructs()!;
+    return keysLispList(d)!;
 }
 
 fun withdrawFeeTokens() {

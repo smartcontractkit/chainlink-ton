@@ -8,7 +8,7 @@ struct Storage {
     ownable: Ownable2Step;
 
     // TODO: expand this with versions support
-    onRamps: UMap<uint64, address>; // destChainSelector -> onRamp address
+    onRamps: map<uint64, address>; // destChainSelector -> onRamp address
 }
 
 fun Storage.load(): Storage {
@@ -99,5 +99,5 @@ get fun onRamp(destChainSelector: uint64): address {
 get fun destChainSelectors(): tuple {
     val st = lazy Storage.load();
     var d = st.onRamps;
-    return d.keysDestructs()!;
+    return keysLispList(d)!;
 }
