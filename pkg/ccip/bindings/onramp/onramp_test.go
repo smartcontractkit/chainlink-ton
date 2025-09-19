@@ -173,7 +173,6 @@ func TestStorage(t *testing.T) {
 			AllowListAdmin: dummyAddr,
 		},
 		DestChainConfigs: destConfigMap,
-		KeyLen:           64,
 	}
 
 	c, err = tlb.ToCell(s)
