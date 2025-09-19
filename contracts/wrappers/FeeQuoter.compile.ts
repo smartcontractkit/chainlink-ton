@@ -2,6 +2,6 @@ import { CompilerConfig } from '@ton/blueprint'
 
 export const compile: CompilerConfig = {
   lang: 'tolk',
-  entrypoint: 'contracts/ccip/fee_quoter.tolk',
+  entrypoint: 'contracts/ccip/fee_quoter/contract.tolk',
   withStackComments: true,
 }

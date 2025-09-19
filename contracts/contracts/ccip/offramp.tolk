@@ -6,6 +6,7 @@ import "../lib/ocr/multi_ocr3_base"
 import "../lib/ocr/types"
 import "../lib/upgrades/type_and_version.tolk"
 import "../lib/utils.tolk"
+import "fee_quoter/messages"
 
 struct Storage {
     id: uint32;
@@ -321,7 +322,7 @@ fun _commit(msg: OffRamp_Commit, sender: address) {
             bounce: true,
             value: ton("0.05"), // TODO:
             dest: st.feeQuoter,
-            body: UpdatePrices {
+            body: FeeQuoter_UpdatePrices {
                 updates: report.priceUpdates!.load()
             },
         });

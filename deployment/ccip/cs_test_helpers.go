@@ -127,6 +127,12 @@ func AddLaneTONConfig(env *cldf.Environment, onRamp []byte, from, to uint64, fro
 	var src, dest config.ChainDefinition
 	// TODO: LINK placeholder address
 
+	const TONtoUSD = 3.15              // As of September 2025
+	const TONtoNanoTON = 1e9           // Smallest denomination
+	const TokenPriceBaseAmount = 1e18  // Defined for `TokenPrices`
+	var USDDecimals = big.NewInt(1e18) // Defined for `TokenPrices`
+	var TONBaseAmountTokenPrice = big.NewInt(int64(TONtoUSD * (TokenPriceBaseAmount / TONtoNanoTON)))
+	TON_TOKEN_PRICE := big.NewInt(0).Mul(TONBaseAmountTokenPrice, USDDecimals)
 	switch fromFamily {
 	case chainsel.FamilyEVM:
 		src = config.ChainDefinition{
@@ -145,7 +151,7 @@ func AddLaneTONConfig(env *cldf.Environment, onRamp []byte, from, to uint64, fro
 			Selector: from,
 			GasPrice: gasPrices[from],
 			TokenPrices: map[string]*big.Int{
-				TonTokenAddr.String(): big.NewInt(99),
+				TonTokenAddr.String(): TON_TOKEN_PRICE,
 			},
 			FeeQuoterDestChainConfig: TonFeeQuoterDestChainConfig,
 			// TokenTransferFeeConfigs: , TODO:
@@ -173,7 +179,7 @@ func AddLaneTONConfig(env *cldf.Environment, onRamp []byte, from, to uint64, fro
 			Selector: to,
 			GasPrice: big.NewInt(1e17),
 			TokenPrices: map[string]*big.Int{
-				TonTokenAddr.String(): big.NewInt(99),
+				TonTokenAddr.String(): TON_TOKEN_PRICE,
 			},
 			FeeQuoterDestChainConfig: TonFeeQuoterDestChainConfig,
 			// TokenTransferFeeConfigs: , TODO:

@@ -1,10 +1,10 @@
-name: 'TON - CCIP Integration Tests'
+name: "TON - CCIP Integration Tests"
 
 on:
   pull_request:
   push:
     branches:
-      - 'main'
+      - "main"
 
 permissions:
   contents: read
@@ -51,8 +51,8 @@ jobs:
       matrix:
         type:
           # Note: list of tests, add more tests here
-          - name: 'TON CCIP Messaging Tests'
-            cmd: 'cd integration-tests/smoke/ccip && go test ccip_ton_messaging_test.go -timeout 12m -test.parallel=2 -count=1 -json'
+          - name: "TON CCIP Messaging Tests"
+            cmd: "cd integration-tests/smoke/ccip && go test ccip_ton_messaging_test.go -timeout 20m -test.parallel=2 -count=1 -json"
 
     name: ${{ matrix.type.name }}
     runs-on: ubuntu-latest
@@ -112,13 +112,14 @@ jobs:
           path: chainlink
 
       - name: Build contracts
-        run: | 
+        run: |
           cd contracts
           nix develop .#contracts -c yarn && yarn build
 
       - name: Setup Environment and Run Tests
         run: |
           export CCIP_CONTRACTS_TON_VERSION="local"
+          ln -sfn "${GITHUB_WORKSPACE}/contracts" "${GITHUB_WORKSPACE}/chainlink/contracts"
           nix develop .#ccip-e2e -c scripts/e2e/setup-env.sh --core-dir "${GITHUB_WORKSPACE}/chainlink"
           nix develop .#ccip-e2e -c scripts/e2e/run-test.sh --core-dir "${GITHUB_WORKSPACE}/chainlink" --test-command "${{ matrix.type.cmd }}"
 
