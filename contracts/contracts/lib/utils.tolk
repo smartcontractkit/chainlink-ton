@@ -188,3 +188,18 @@ fun Bitmap256.has(self, index: int): bool {
     assert(index >= 0 && index < 256, ERROR_BITMAP_OUT_OF_BOUNDS);
     return (self.bits & (1 << index)) != 0;
 }
+
+// Returns a lisp-list with the keys of the map, destroys the dictionary in the process
+// TODO: we should probably use a normal tuple
+fun keysLispList<K, V>(dict: map<K, V>){
+    var list: tuple? = null;
+    var entry = dict.findFirst();
+    while (entry.isFound) {
+        if (entry.isFound) {
+            var key = entry.getKey();
+            list = listPrepend(key, list);
+            entry = entry.iterateNext();
+        }
+    } ;
+    return list;
+}

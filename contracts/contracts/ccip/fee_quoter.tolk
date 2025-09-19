@@ -152,11 +152,11 @@ fun updateDestChainConfigs(mutate st: Storage, updates: cell) {
     while (!iter.empty()) {
         val update = iter.next();
         // create or update entries
-        val (maybeDestChainConfig, exists) = st.destChainConfigs.get(update.destChainSelector);
-        if (exists) {
-            var destChainConfig = maybeDestChainConfig!;
+        val entry = st.destChainConfigs.get(update.destChainSelector);
+        if (entry.isFound) {
+            var destChainConfig = entry.loadValue();
             destChainConfig.config = update.destChainConfig;
-            st.destChainConfigs.replace(update.destChainSelector, destChainConfig);
+            st.destChainConfigs.replaceIfExists(update.destChainSelector, destChainConfig);
         } else {
             st.destChainConfigs.set(update.destChainSelector, DestChainConfig {
                 config: update.destChainConfig,
@@ -165,7 +165,7 @@ fun updateDestChainConfigs(mutate st: Storage, updates: cell) {
                     dataAvailabilityGasPrice: 0,
                     timestamp: 0,
                 }.toCell(),
-                tokenTransferFeeConfigs: Map<TokenTransferFeeConfig>.new()
+                tokenTransferFeeConfigs: createEmptyMap()
             })
         }
     }
@@ -430,5 +430,5 @@ get fun typeAndVersion(): (slice, slice) {
 get fun destChainSelectors(): tuple {
     val st = lazy Storage.load();
     var d = st.destChainConfigs;
-    return d.keysDestructs()!;
+    return keysLispList(d)!;
 }
