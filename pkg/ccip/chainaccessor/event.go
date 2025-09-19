@@ -103,7 +103,7 @@ func (a *TONAccessor) convertCCIPMessageSent(
 		Receiver:       ccipocr3.UnknownAddress(tonEvent.Message.Body.Receiver),
 		ExtraArgs:      ccipocr3.Bytes(tonEvent.Message.Body.ExtraArgs.ToBOC()),
 		FeeToken:       ccipocr3.UnknownAddress(feeTokenAddr[:]),
-		FeeTokenAmount: ccipocr3.NewBigInt(tonEvent.Message.Body.FeeTokenAmount.Nano()),
+		FeeTokenAmount: ccipocr3.NewBigInt(tonEvent.Message.Body.FeeTokenAmount),
 		// TokenAmounts:   tokenAmounts, // TODO: enable token transfer
 	}
 	genericEvent := &chainaccessor.SendRequestedEvent{

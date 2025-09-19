@@ -4,7 +4,6 @@ import (
 	"math/big"
 
 	"github.com/xssnick/tonutils-go/address"
-	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
@@ -61,5 +60,5 @@ type TVM2AnyRampMessageBody struct {
 	ExtraArgs      *cell.Cell               `tlb:"^"`
 	TokenAmounts   *cell.Cell               `tlb:"^"` // TODO: common.SnakeRef[TVM2AnyTokenTransfer] once defined
 	FeeToken       *address.Address         `tlb:"addr"`
-	FeeTokenAmount tlb.Coins                `tlb:"."`
+	FeeTokenAmount *big.Int                 `tlb:"## 256"`
 }

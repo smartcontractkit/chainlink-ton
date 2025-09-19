@@ -76,7 +76,7 @@ struct TVM2AnyRampMessageBody {
     extraArgs: cell;
     tokenAmounts: cell;
     feeToken: address;
-    feeTokenAmount: coins;
+    feeTokenAmount: uint256;
 }
 
 const LEAF_DOMAIN_SEPARATOR: slice = stringHexToSlice("0000000000000000000000000000000000000000000000000000000000000000");
