@@ -58,7 +58,7 @@ struct DestChainConfig {
 type Msg = UpdatePrices
     | UpdateFeeTokens
     | UpdateTokenTransferFeeConfigs
-    | UpdateDestChainConfig
+    | FeeQuoterUpdateDestChainConfigs
     | GetValidatedFee<cell>; // marked as cell since we never attempt to load the metadata
 
 fun onInternalMessage(in: InMessage) {
@@ -82,10 +82,10 @@ fun onInternalMessage(in: InMessage) {
             updateTokenTransferFeeConfigs(mutate st, msg);
             st.store();
         }
-        UpdateDestChainConfig => {
+        FeeQuoterUpdateDestChainConfigs => {
             var st = lazy Storage.load();
             st.ownable.requireOwner(in.senderAddress);
-            updateDestChainConfig(mutate st, msg); // TODO: pass in st.destChainConfigs instead
+            updateDestChainConfigs(mutate st, msg.updates); // TODO: pass in st.destChainConfigs instead
             st.store();
         }
         GetValidatedFee<cell> => { getValidatedFee(msg, in.senderAddress) }
@@ -146,22 +146,28 @@ fun updateTokenTransferFeeConfigs(mutate st: Storage, msg: UpdateTokenTransferFe
 }
 
 // TODO: allow providing an array of these msgs to feeQuoter
-fun updateDestChainConfig(mutate st: Storage, msg: UpdateDestChainConfig) {
-    val entry = st.destChainConfigs.get(msg.destChainSelector);
-    if (entry.isFound) {
-        var destChainConfig = entry.loadValue();
-        destChainConfig.config = msg.destChainConfig;
-        st.destChainConfigs.replaceAndGetPrevious(msg.destChainSelector, destChainConfig);
-    } else {
-        st.destChainConfigs.set(msg.destChainSelector, DestChainConfig {
-            config: msg.destChainConfig,
-            usdPerUnitGas: GasPrice {
-                executionGasPrice: 0,
-                dataAvailabilityGasPrice: 0,
-                timestamp: 0,
-            }.toCell(),
-            tokenTransferFeeConfigs: createEmptyMap()
-        })
+fun updateDestChainConfigs(mutate st: Storage, updates: cell) {
+    var iter = Iterator<FeeQuoterUpdateDestChainConfig>.new(updates);
+
+    while (!iter.empty()) {
+        val update = iter.next();
+        // create or update entries
+        val (maybeDestChainConfig, exists) = st.destChainConfigs.get(update.destChainSelector);
+        if (exists) {
+            var destChainConfig = maybeDestChainConfig!;
+            destChainConfig.config = update.destChainConfig;
+            st.destChainConfigs.replace(update.destChainSelector, destChainConfig);
+        } else {
+            st.destChainConfigs.set(update.destChainSelector, DestChainConfig {
+                config: update.destChainConfig,
+                usdPerUnitGas: GasPrice {
+                    executionGasPrice: 0,
+                    dataAvailabilityGasPrice: 0,
+                    timestamp: 0,
+                }.toCell(),
+                tokenTransferFeeConfigs: Map<TokenTransferFeeConfig>.new()
+            })
+        }
     }
 }
 
@@ -365,21 +371,22 @@ get fun tokenPrice(token: address): TimestampedPrice {
 // vec<TimestampedPrice>
 get fun tokenPrices(tokens: tuple): tuple {
     val st = lazy Storage.load();
-    
-    var list: tuple? = null;
-
-    // TODO: are we able to get dynamic tuple inputs in getters?
+    var list: tuple = createEmptyTuple();
     var iter = TupleIterator<address>.new(tokens);
 
     while(!iter.empty()) {
         val token = iter.next();
-        list = listPrepend(token, list);
+        // NOTE: Need to skip missing items as nil entries rather than fail the query
+        val (maybePrice, _exists) = st.usdPerToken.get(token);
+        list.push(maybePrice.toCell());
     }
-    return list!;
+    return list;
 }
 
-get fun destinationChainGasPrice(destChainSelector: uint64) {
-    
+get fun destinationChainGasPrice(destChainSelector: uint64): cell {
+    val st = lazy Storage.load();
+    val config = st.destChainConfigs.mustGet(destChainSelector, ERROR_UNKNOWN_DEST_CHAIN_SELECTOR);
+    return config.usdPerUnitGas
 }
 
 get fun tokenAndGasPrices(token: address, destChainSelector: uint64) {

@@ -42,7 +42,6 @@ func (cs AddTonLanes) VerifyPreconditions(env cldf.Environment, cfg config.Updat
 }
 
 func (cs AddTonLanes) Apply(env cldf.Environment, cfg config.UpdateTonLanesConfig) (cldf.ChangesetOutput, error) {
-
 	var (
 		timeLockProposals []mcms.TimelockProposal
 		// mcmsOperations    []mcmstypes.BatchOperation
@@ -62,7 +61,6 @@ func (cs AddTonLanes) Apply(env cldf.Environment, cfg config.UpdateTonLanesConfi
 	for tonChainSel, sequenceInput := range updateInputsByTonChain {
 		tonChains := env.BlockChains.TonChains()
 		chain := tonChains[tonChainSel]
-
 		deps := operation.TonDeps{
 			TonChain:         chain,
 			CCIPOnChainState: s,

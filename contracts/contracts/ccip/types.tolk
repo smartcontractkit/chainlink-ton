@@ -42,7 +42,7 @@ struct Any2TVMRampMessage {
     sender: Cell<CrossChainAddress>;
     data: cell;
     receiver: address;
-    //gasLimit: coins;
+    // gasLimit: coins;
     tokenAmounts: cell?; // vec<Any2TVMTokenTransfer>
     // maybe mark these amounts as slice remaining then parse them by hand to avoid requiring this to be a map<> at send time?
 }
@@ -92,7 +92,7 @@ fun Any2TVMRampMessage.generateMessageId(self, metadataHash: uint256): uint256 {
             .storeUint(self.header.messageId, 256)
             .storeAddress(self.receiver)
             .storeUint(self.header.sequenceNumber, 64)
-            //.storeCoins(self.gasLimit)
+            // .storeCoins(self.gasLimit)
             .storeUint(self.header.nonce, 64)
             .endCell()
         )
@@ -198,7 +198,7 @@ struct WithdrawFeeTokens {}
 
 struct TimestampedPrice {
     value: uint224;
-    timestamp: uint64;
+    timestamp: uint64; // TODO: size down to uint32, was a mistake when porting
 }
 
 struct PriceUpdates {
@@ -284,9 +284,13 @@ struct UpdateTokenTransferFeeConfig {
     remove: cell; // vector<address>
 } 
 
-struct (0x20000004) UpdateDestChainConfig {
+struct FeeQuoterUpdateDestChainConfig {
     destChainSelector: uint64;
     destChainConfig: FeeQuoterDestChainConfig;
+}
+
+struct (0x20000004) FeeQuoterUpdateDestChainConfigs {
+    updates: cell; // vec<FeeQuoterUpdateDestChainConfig>
 }
 
 struct (0x20000005) GetValidatedFee<C> {
@@ -396,3 +400,4 @@ const ERROR_UNAUTHORIZED: int = 265;
 const ERROR_SOURCE_CHAIN_NOT_ENABLED: int = 266;
 const ERROR_EMPTY_EXECUTION_REPORT:int = 267;
 const ERROR_DISPATCH_NOT_FROM_MERKLE_ROOT: int = 268;
+const ERROR_INVALID_ON_RAMP_UPDATE: int = 269;

@@ -111,8 +111,14 @@ jobs:
           ref: ${{ steps.read_core_ref.outputs.CORE_REF }}
           path: chainlink
 
+      - name: Build contracts
+        run: | 
+          cd contracts
+          nix develop .#contracts -c yarn && yarn build
+
       - name: Setup Environment and Run Tests
         run: |
+          export CCIP_CONTRACTS_TON_VERSION="local"
           nix develop .#ccip-e2e -c scripts/e2e/setup-env.sh --core-dir "${GITHUB_WORKSPACE}/chainlink"
           nix develop .#ccip-e2e -c scripts/e2e/run-test.sh --core-dir "${GITHUB_WORKSPACE}/chainlink" --test-command "${{ matrix.type.cmd }}"
 

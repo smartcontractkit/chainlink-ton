@@ -70,7 +70,7 @@ export class OCR3BaseExample extends OCR3Base {
         .storeRef(opts.report)
         .storeRef(
           asSnakeData<SignatureEd25519>(opts.signatures, (item) =>
-            new Builder().storeUint(item.r, 256).storeUint(item.s, 256).storeUint(item.signer, 256),
+            new Builder().storeUint(item.signer, 256).storeUint(item.r, 256).storeUint(item.s, 256),
           ),
         )
         .endCell(),

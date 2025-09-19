@@ -258,7 +258,6 @@ type UpdateDestChainConfig struct {
 }
 
 type UpdateDestChainConfigs struct {
-	_      tlb.Magic             `tlb:"#20000004"` //nolint:revive // Ignore opcode tag
-	Update UpdateDestChainConfig `tlb:"."`
-	// Updates common.SnakeData[UpdateDestChainConfig] `tlb:"^"`
+	_       tlb.Magic                               `tlb:"#20000004"` //nolint:revive // Ignore opcode tag
+	Updates common.SnakeData[UpdateDestChainConfig] `tlb:"^"`
 }

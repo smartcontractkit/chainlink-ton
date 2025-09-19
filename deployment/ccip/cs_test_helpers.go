@@ -104,7 +104,8 @@ func DeployChainContractsConfig(t *testing.T, env cldf.Environment, chainSelecto
 				},
 			},
 			OffRampParams: config.OffRampParams{
-				// ...
+				ChainSelector:                    tonChain.Selector,
+				PermissionlessExecutionThreshold: 0,
 			},
 			OnRampParams: config.OnRampParams{
 				ChainSelector: ChainSelEVMTest90000001,
@@ -118,7 +119,7 @@ func DeployChainContractsConfig(t *testing.T, env cldf.Environment, chainSelecto
 }
 
 // TODO add TON token price into func parameters
-func AddLaneTONConfig(env *cldf.Environment, from, to uint64, fromFamily, toFamily string, gasPrices map[uint64]*big.Int) config.LaneConfig {
+func AddLaneTONConfig(env *cldf.Environment, onRamp []byte, from, to uint64, fromFamily, toFamily string, gasPrices map[uint64]*big.Int) config.LaneConfig {
 	if fromFamily != chainsel.FamilyTon && toFamily != chainsel.FamilyTon {
 		env.Logger.Fatalf("AddLaneTONChangesets: expected at least one chain to be TON, got fromFamily=%s, toFamily=%s", fromFamily, toFamily)
 	}
@@ -178,13 +179,14 @@ func AddLaneTONConfig(env *cldf.Environment, from, to uint64, fromFamily, toFami
 			// TokenTransferFeeConfigs: , TODO:
 		}
 	default:
-		env.Logger.Fatalf("Unsupported dstination chain family: %v", toFamily)
+		env.Logger.Fatalf("Unsupported destination chain family: %v", toFamily)
 	}
 
 	return config.LaneConfig{
 		Source:        src,
 		Dest:          dest,
 		OnRampVersion: []byte{1, 6, 1},
+		OnRamp:        onRamp,
 		IsDisabled:    false,
 	}
 }
@@ -232,7 +234,7 @@ func SendTonRequest(
 	}
 
 	walletMsg := &wallet.Message{
-		Mode: wallet.PayGasSeparately, // TODO: wallet.IgnoreErrors ?
+		Mode: wallet.PayGasSeparately | wallet.IgnoreErrors,
 		InternalMessage: &tlb.InternalMessage{
 			IHRDisabled: true,
 			Bounce:      false,

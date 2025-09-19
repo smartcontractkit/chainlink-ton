@@ -1,11 +1,11 @@
-import "types.tolk";
-import "../lib/access/ownable_2step.tolk";
-import "../lib/upgrades/type_and_version.tolk";
+import "types.tolk"
+import "../deployable/types.tolk"
+import "../lib/access/ownable_2step.tolk"
 import "../lib/crypto/merkle_multi_proof.tolk"
-import "../deployable/types.tolk";
-import "../lib/utils.tolk";
-import "../lib/ocr/multi_ocr3_base";
-import "../lib/ocr/types";
+import "../lib/ocr/multi_ocr3_base"
+import "../lib/ocr/types"
+import "../lib/upgrades/type_and_version.tolk"
+import "../lib/utils.tolk"
 
 struct Storage {
     id: uint32;
@@ -25,6 +25,20 @@ struct Storage {
 
     // This is the OCR sequence number, not to be confused with the CCIP message sequence number.
     latestPriceSequenceNumber: uint64;
+}
+
+struct Config {
+    // -- Static config
+    chainSelector: uint64
+    // gasForCallExactCheck
+    // rmnRemote
+    // nonceManager
+    // tokenAdminRegistry
+    // -- Dynamic config
+    feeQuoter: address
+    permissionlessExecutionThresholdSeconds: uint32
+    // isRMNVerificationDisabled
+    // messageInterceptor
 }
 
 struct SourceChainConfig {
@@ -68,11 +82,11 @@ struct AlreadyAttempted {
     sequenceNumber: uint64;
 }
 
-const CCIP_COMMIT_REPORT_ACCEPTED_TOPIC: int = stringCrc32("CCIPCommitReportAccepted");
+const CCIP_COMMIT_REPORT_ACCEPTED_TOPIC: int = stringCrc32("CommitReportAccepted");
 
 struct CommitReportAccepted {
+    merkleRoot: MerkleRoot? // vec<MerkleRoots>
     priceUpdates: Cell<PriceUpdates>?;
-    merkleRoots: cell // vec<MerkleRoots>
 }
 
 struct SkippedReportExecution {
@@ -231,11 +245,9 @@ fun _ccipReceiveConfirm(msg: OffRamp_CCIPReceiveConfirm, sender: address) {
 
 // TODO: handle signals from MerkleRoot for releaseTokens
 // maybe send these and MerkleRoot_Execute straight to router
-
 // the payload would need the id & chainSelector so we can calculate/validate offrampAddress & that the merkle root is allowed to send for that ID
 // NOTE: this assumes router has a well known, static address. So two stage deployment: put up router, then compile the addr into contracts
 // (or init contract state with that router addr? probably what solana does)
-
 //TODO: This function should relay to the router or the message should be received directly by the router
 fun _dispatchValidated(msg: OffRamp_DispatchValidated, sender: address) {
             val st = Storage.load();
@@ -317,18 +329,21 @@ fun _commit(msg: OffRamp_Commit, sender: address) {
     }
 
     var roots = Iterator<MerkleRoot>.new(report.merkleRoots);
-
+    val priceUpdatesOnlyReport = roots.empty();
     while (!roots.empty()) {
         val root = roots.next();
 
         // validate lane not cursed
 
-        val sourceChainConfig = st.sourceChainConfigs.mustGet(root.sourceChainSelector, ERROR_SOURCE_CHAIN_NOT_ENABLED);
+        var sourceChainConfig = st.sourceChainConfigs.mustGet(root.sourceChainSelector, ERROR_SOURCE_CHAIN_NOT_ENABLED);
 
-        assert(sourceChainConfig.isEnabled,ERROR_SOURCE_CHAIN_NOT_ENABLED);
+        assert(sourceChainConfig.isEnabled, ERROR_SOURCE_CHAIN_NOT_ENABLED);
 
         // validate against sourceChainConfig etc
+
         // increment seqNr
+        sourceChainConfig.minSeqNr += 1;
+        st.sourceChainConfigs.replace(root.sourceChainSelector, sourceChainConfig);
 
         val rootId = getMerkleRootID(root.merkleRoot);
         // initialize MerkleRoot subcontract
@@ -371,11 +386,14 @@ fun _commit(msg: OffRamp_Commit, sender: address) {
         msg.signatures
     );
 
-    emit(CCIP_COMMIT_REPORT_ACCEPTED_TOPIC, CommitReportAccepted {
-        priceUpdates: report.priceUpdates,
-        merkleRoots: report.merkleRoots,
-    });
-
+    var root: MerkleRoot? = null;
+    if (!priceUpdatesOnlyReport) {
+        root = MerkleRoot.fromCell(report.merkleRoots);
+    }
+    emit(
+        CCIP_COMMIT_REPORT_ACCEPTED_TOPIC,
+        CommitReportAccepted { merkleRoot: root, priceUpdates: report.priceUpdates }
+    );
 }
 
 fun _execute(msg: OffRamp_Execute, sender: address) {
@@ -452,10 +470,28 @@ fun _execute(msg: OffRamp_Execute, sender: address) {
 fun _updateSourceChainConfig(msg: OffRamp_UpdateSourceChainConfig, sender: address) {
     var st = lazy Storage.load();
     st.ownable.requireOwner(sender);
-    st.sourceChainConfigs.set(msg.sourceChainSelector, msg.config);
+    var config: SourceChainConfig;
+    var (existingConfig, exists) = st.sourceChainConfigs.get(msg.sourceChainSelector);
+    if (!exists) {
+        config = SourceChainConfig {
+            router: msg.config.router,
+            isEnabled: msg.config.isEnabled,
+            minSeqNr: 1,
+            isRMNVerificationDisabled: true, // RMN verification is always disabled
+            onRamp: msg.config.onRamp,
+        };
+    } else {
+        // OnRamp updates should only happen due to a misconfiguration.
+        // If an OnRamp is misconfigured, no reports should have been
+        // committed and no messages should have been executed.        
+        config = existingConfig!;
+        assert(config.minSeqNr == 1 || config.onRamp.bitsEqual(msg.config.onRamp)) throw ERROR_INVALID_ON_RAMP_UPDATE;
+        config.isEnabled = msg.config.isEnabled;
+        config.onRamp = msg.config.onRamp;
+    }
+    st.sourceChainConfigs.set(msg.sourceChainSelector, config);
     st.store();
 }
-
 
 @pure @inline
 fun getMerkleRootID(merkleRoot: uint256): builder {
@@ -467,26 +503,30 @@ fun getMerkleRootID(merkleRoot: uint256): builder {
 // get fun executionState() {
 //     // TODO: node will need to directly look at MerkleRoot subcontracts
 // }
-
 // get fun merkleRoot() {
 //     // TODO: node will need to directly look at MerkleRoot subcontracts
 // }
-
-get fun latestPriceSequenceNumber() {
-    
+get fun latestPriceSequenceNumber(): uint64 {
+    var st = lazy Storage.load();
+    return st.latestPriceSequenceNumber
 }
-
-get fun staticConfig() {
-    // chainSelector, gasForCallExactCheck?, rmnRemote, nonceManager, tokenAdminRegistry
-}
-
 
 fun setDynamicConfig() {
     
 }
 
-get fun dynamicConfig() {
-    // TODO: combine get staticConfig and dynamicConfig into get config
+get fun ocr3Config(): OCR3Base {
+    var st = lazy Storage.load();
+    return st.ocr3Base.load();
+}
+
+get fun config(): Config {
+    val st = lazy Storage.load();
+    return {
+        chainSelector: st.chainSelector,
+        feeQuoter: st.feeQuoter,
+        permissionlessExecutionThresholdSeconds: st.permissionlessExecutionThresholdSeconds,
+    }
 }
 
 get fun sourceChainConfig(sourceChainSelector: uint64): SourceChainConfig {

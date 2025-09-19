@@ -145,14 +145,19 @@ export const builder = {
           throw new Error('Function not implemented.') // TODO implement if needed
         },
       }
-      const updateDestChainConfig: CellCodec<UpdateDestChainConfig> = {
-        encode: (msg: UpdateDestChainConfig): Builder => {
+      const updateDestChainConfigs: CellCodec<UpdateDestChainConfigs> = {
+        encode: (updates: UpdateDestChainConfigs): Builder => {
           return beginCell()
             .storeUint(Opcodes.updateDestChainConfig, 32)
-            .storeUint(msg.destChainSelector, 64)
-            .storeBuilder(destChainConfigToBuilder(msg.destChainConfig))
+            .storeRef(
+              asSnakeData(updates, (update) =>
+                new TonBuilder()
+                  .storeInt(update.destChainSelector, 64)
+                  .storeBuilder(destChainConfigToBuilder(update.config)),
+              ),
+            )
         },
-        load(src: Slice): UpdateDestChainConfig {
+        load(src: Slice): UpdateDestChainConfigs {
           throw new Error('Function not implemented.') // TODO implement if needed
         },
       }
@@ -160,7 +165,7 @@ export const builder = {
         updatePrices,
         updateFeeTokens,
         updateTokenTransferFeeConfigs,
-        updateDestChainConfig,
+        updateDestChainConfigs,
       }
     })(),
   },
@@ -345,10 +350,10 @@ export type UpdateTokenTransferFeeConfig = {
   remove: Address[] // vector<address>
 }
 
-export type UpdateDestChainConfig = {
+export type UpdateDestChainConfigs = {
   destChainSelector: bigint
-  destChainConfig: DestChainConfig
-}
+  config: DestChainConfig
+}[]
 
 export abstract class Errors {}
 
@@ -384,18 +389,18 @@ export class FeeQuoter implements Contract {
     })
   }
 
-  async sendUpdateDestChainConfig(
+  async sendUpdateDestChainConfigs(
     provider: ContractProvider,
     via: Sender,
     opts: {
       value: bigint
-      msg: UpdateDestChainConfig
+      updates: UpdateDestChainConfigs
     },
   ) {
     await provider.internal(via, {
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: builder.message.in.updateDestChainConfig.encode(opts.msg).asCell(),
+      body: builder.message.in.updateDestChainConfigs.encode(opts.updates).asCell(),
     })
   }
 

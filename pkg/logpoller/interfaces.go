@@ -85,6 +85,12 @@ type QueryBuilder[T any] interface {
 	// FilterTyped adds a high-level filter function that operates on the parsed event data.
 	FilterTyped(filter func(T) bool) QueryBuilder[T]
 
+	// --- Timestamp Filtering ---
+	// Method for filtering logs based on their transaction timestamp.
+
+	// FilterTimestamp adds a timestamp-based filter to the query.
+	FilterTimestamp(filter query.TimestampFilter) QueryBuilder[T]
+
 	// --- Query Options ---
 	// Methods for controlling pagination and sorting of the final result set.
 

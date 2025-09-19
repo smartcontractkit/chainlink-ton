@@ -21,7 +21,11 @@ import (
 
 var _ commontypes.CCIPProvider = &Provider{}
 
-const CCIPProviderName = "TONCCIPProvider"
+const (
+	CCIPProviderName      = "TONCCIPProvider"
+	CCIPPluginTypeCommit  = 0
+	CCIPPluginTypeExecute = 1
+)
 
 type Provider struct {
 	lggr  logger.Logger
@@ -33,12 +37,33 @@ type Provider struct {
 	services.StateMachine
 }
 
-func NewCCIPProvider(lggr logger.Logger, chainSelector ccipocr3.ChainSelector, client ton.APIClientWrapped, txm txm.TxManager, logPoller logpoller.Service) (*Provider, error) {
-	ct, err := ocr.NewCCIPTransmitter(txm, lggr)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create a CCIP ContractTransmitter: %w", err)
+func NewCCIPProvider(lggr logger.Logger,
+	chainSelector ccipocr3.ChainSelector,
+	client ton.APIClientWrapped,
+	txm txm.TxManager,
+	logPoller logpoller.Service,
+	offRampAddr string,
+	pluginType uint32) (*Provider, error) {
+	var err error
+	var ct ocr3types.ContractTransmitter[[]byte]
+	switch pluginType {
+	case CCIPPluginTypeCommit:
+		ct, err = ocr.NewCCIPTransmitter(txm, lggr, offRampAddr, ocr.CommitCallData)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create a CCIP ContractTransmitter for commit plugin: %w", err)
+		}
+
+	case CCIPPluginTypeExecute:
+		ct, err = ocr.NewCCIPTransmitter(txm, lggr, offRampAddr, ocr.ExecuteCallData)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create a CCIP ContractTransmitter for execute plugin: %w", err)
+		}
+	default:
+		return nil, fmt.Errorf("unknown plugin type: %d", pluginType)
 	}
 
+	// TODO this is pretty much ignored in the core, we need to redesign core to resolve the extraDataCodec map issue if we want to use
+	// this codec
 	c := ccipocr3.Codec{
 		ChainSpecificAddressCodec: codec.NewAddressCodec(),
 		CommitPluginCodec:         codec.NewCommitPluginCodecV1(),

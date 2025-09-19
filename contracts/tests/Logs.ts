@@ -4,7 +4,7 @@ import * as CCIPLogs from '../wrappers/ccip/Logs'
 import * as OCR3Logs from '../wrappers/libraries/ocr/Logs'
 import * as ReceiverLogs from '../wrappers/examples/ccip/Logs'
 import { fromSnakeData } from '../src/utils/types'
-import { merkleRootsFromCell, priceUpdatesFromCell } from '../wrappers/ccip/OffRamp'
+import { MerkleRoot, merkleRootFromSlice, priceUpdatesFromCell } from '../wrappers/ccip/OffRamp'
 import { prettifyAddressesMap } from './utils/prettyPrint'
 
 // https://github.com/ton-blockchain/liquid-staking-contract/blob/1f4e9badbed52a4cf80cc58e4bb36ed375c6c8e7/utils.ts#L269-L294
@@ -105,9 +105,19 @@ export const assertLog = <T extends CombinedLogType>(
   match: LogMatch<T>,
 ) => {
   const prettyAddressesMap = prettifyAddressesMap(transactions)
-  const matched = getExternals(transactions).some((x) =>
-    handlers[type](x, from, match, prettyAddressesMap),
-  )
+  let failedMatches: any[] = []
+  const matched = getExternals(transactions).some((x) => {
+    try {
+      return handlers[type](x, from, match, prettyAddressesMap)
+    } catch (error) {
+      failedMatches.push(error)
+      return false
+    }
+  })
+  if (!matched && failedMatches.length > 0) {
+    // rethrow the last match failure since it's likely the most relevant
+    throw failedMatches[failedMatches.length - 1]
+  }
   expect(matched).toBe(true)
 }
 
@@ -119,18 +129,23 @@ function testLogCCIPCommitReportAccepted(
   return testLog(message, from, CCIPLogs.LogTypes.CCIPCommitReportAccepted, (x) => {
     let bs = x.beginParse()
 
+    const commitHasMerkleRoots = bs.loadBit()
+    let merkleRoot: MerkleRoot | undefined = undefined
+    if (commitHasMerkleRoots) {
+      merkleRoot = merkleRootFromSlice(bs)
+    }
+
     const priceUpdatesCell = bs.loadMaybeRef()
-    const merkleRootsCell = bs.loadRef()
 
     const priceUpdates =
       priceUpdatesCell != undefined ? priceUpdatesFromCell(priceUpdatesCell) : undefined
-    const merkleRoots = merkleRootsFromCell(merkleRootsCell)
 
     const reportAccepted: CCIPLogs.CCIPCommitReportAccepted = {
+      merkleRoot,
       priceUpdates,
-      merkleRoots,
     }
-    return matchesObject(reportAccepted, match)
+    matchesObject(reportAccepted, match)
+    return true
   })
 }
 
@@ -172,19 +187,16 @@ export const testLogCCIPMessageSent = (
     const { sender: _, ...messageWithoutSender } = msg.message
     const { sender: __, ...matchWithoutSender } = match.message || {}
 
-    if (!matchesObject(messageWithoutSender, matchWithoutSender)) {
-      return false
-    }
+    matchesObject(messageWithoutSender, matchWithoutSender)
 
     // Check sender address using .equals() if specified in match
     if (match.message?.sender && match.message.sender instanceof Address) {
       if (!sender.equals(match.message.sender)) {
-        console.log(
+        throw new Error(
           `Sender address mismatch:\n` +
             `  Expected: ${match.message.sender.toString()} (${prettyAddressesMap.get(match.message.sender.toRawString())})\n` +
             `  Received: ${sender.toString()} (${prettyAddressesMap.get(sender.toRawString())})`,
         )
-        return false
       }
     }
     return true
@@ -205,7 +217,8 @@ export const testLogCCIPExecutionStateChanged = (
       state: cs.loadUintBig(8),
     }
 
-    return matchesObject(msg, match)
+    matchesObject(msg, match)
+    return true
   })
 }
 
@@ -257,7 +270,8 @@ export const testTransmittedLogMessage = (
       sequenceNumber: cs.loadUint(64),
     }
 
-    return matchesObject(msg, match)
+    matchesObject(msg, match)
+    return true
   })
 }
 
@@ -276,24 +290,15 @@ export const testLogReceiverCCIPMessageReceived = (
       .storeRef(msg.data)
       .endCell()
 
-    return equalsObject(expectedCell, x)
+    equalsObject(expectedCell, x)
+    return true
   })
 }
 
 function matchesObject(obj, match) {
-  try {
-    expect(obj).toMatchObject(match)
-    return true
-  } catch {
-    return false
-  }
+  expect(obj).toMatchObject(match)
 }
 
-function equalsObject(obj1: any, obj2: any): boolean {
-  try {
-    expect(obj1).toEqual(obj2)
-    return true
-  } catch {
-    return false
-  }
+function equalsObject(obj1: any, obj2: any) {
+  expect(obj1).toEqual(obj2)
 }
