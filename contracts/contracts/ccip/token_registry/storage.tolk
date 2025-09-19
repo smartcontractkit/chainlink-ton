@@ -9,7 +9,7 @@ struct TokenRegistry_Storage {
 
 struct TokenRegistry_TokenInfo {
     tokenPool: address
-    walletCode: Cell
+    walletCode: cell
     enabled: bool
 }
 

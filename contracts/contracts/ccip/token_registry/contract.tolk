@@ -5,7 +5,7 @@ import "../../lib/jetton/jetton_client"
 tolk 1.0;
 
 fun onInternalMessage(in: InMessage) {
-    val msg = TokenRegistry_InMessage.fromSlice(in.body);
+    val msg = lazy TokenRegistry_InMessage.fromSlice(in.body);
 
     match (msg) {
         TokenRegistry_SetInfo => {
@@ -18,7 +18,7 @@ fun onInternalMessage(in: InMessage) {
             this.handleGetTokenInfo(msg, in.senderAddress);
         }
         else => {
-            assert (msg.body.isEmpty()) throw 10; // TODO propper error
+            assert (in.body.isEmpty()) throw 10; // TODO propper error
         }
     }
 }
@@ -33,7 +33,7 @@ fun TokenRegistry.load(): TokenRegistry {
     };
 }
 
-fun TokenRegistry.store(self: TokenRegistry) {
+fun TokenRegistry.store(self) {
     return self.data.store();
 }
 
@@ -51,7 +51,7 @@ fun TokenRegistry.handleGetTokenInfo(self, msg: TokenRegistry_GetTokenInfo, send
         return;
     }
 
-    val msg = createMessage({
+    val response = createMessage({
         dest: sender,
         value: 0,
         bounce: true,
@@ -60,5 +60,5 @@ fun TokenRegistry.handleGetTokenInfo(self, msg: TokenRegistry_GetTokenInfo, send
             tokenPool: self.data.info.tokenPool,
         }
     });
-    msg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    response.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }

@@ -1,4 +1,5 @@
 import "storage"
+import "../types"
 
 tolk 1.0
 
@@ -16,7 +17,7 @@ struct (0x22E22393)TokenRegistry_SetInfo {
 // crc32('TokenRegistry_GetTokenInfo')
 struct (0xDD5D5127)TokenRegistry_GetTokenInfo {
     queryId: uint64
-    ccipSend: Cell
+    ccipSend: Cell<CCIPSend>
     executorJettonWallet: address
 }
 
