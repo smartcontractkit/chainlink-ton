@@ -152,7 +152,7 @@ fun onMessageValidated(payload: FeeQuoter_MessageValidated<Metadata>, sender: ad
             extraArgs: msg.extraArgs,
             tokenAmounts: createEmptyCell(), // TODO:
             feeToken: msg.feeToken,
-            feeTokenAmount: payload.fee,
+            feeTokenAmount: payload.fee as uint256, // safe because it is 128 bits
         }.toCell(),
         feeValueJuels: 0, // TODO:
     };
