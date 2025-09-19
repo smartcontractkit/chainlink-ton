@@ -9,25 +9,77 @@ struct CCIPSendExecutor_InitialData {
 }
 
 struct CCIPSendExecutor_Data {
-    onramp: address,
     messageId: uint224,
     onrampSend: OnRampSend,
-    executionStatus: CCIPSendExecutor_ExecutionStatus,
-    config: Cell<CCIPSendExecutor_Config>,
+    addresses: Cell<CCIPSendExecutor_Addresses>,
+    state: CCIPSendExecutor_State,
 }
 
-struct CCIPSendExecutor_Config {
+struct CCIPSendExecutor_Addresses {
+    onramp: address,
     feeQuoter: address,
+}
+
+type CCIPSendExecutor_State =
+    | Cell<CCIPSendExecutor_State_Initialized>
+    | Cell<CCIPSendExecutor_State_WaitingForJettons>
+    // TODO | Cell<CCIPSendExecutor_State_OnGoingTokenRegistryQuery>
+    | Cell<CCIPSendExecutor_State_OnGoingFeeValidation>
+    // TODO | Cell<CCIPSendExecutor_State_OnGoingLockOrBurn>
+
+struct CCIPSendExecutor_State_Initialized {
     tokenRegistry: address?,
 }
 
-type CCIPSendExecutor_ExecutionStatus =
-    | CCIPSendExecutor_WaitingForJettons
-    | CCIPSendExecutor_OnGoingFeeValidation
-    | CCIPSendExecutor_OnGoingTokenRegistryQuery
+struct CCIPSendExecutor_State_WaitingForJettons {
+    tokenRegistry: address,
+}
 
-struct CCIPSendExecutor_WaitingForJettons {}
+// TODO
+// struct CCIPSendExecutor_State_OnGoingTokenRegistryQuery {
+//     tokenRegistry: address,
+//     jettonWallet: address,
+// }
 
-struct CCIPSendExecutor_OnGoingFeeValidation {}
+struct CCIPSendExecutor_State_OnGoingFeeValidation {
+    pendingJettonLock: CCIPSendExecutor_PendingJettonLock?
+}
 
-struct CCIPSendExecutor_OnGoingTokenRegistryQuery {}
+struct CCIPSendExecutor_PendingJettonLock {
+    tokenRegistry: address,
+    jettonWallet: address,
+    tokenPool: address,
+}
+
+// TODO
+// struct CCIPSendExecutor_State_OnGoingLockOrBurn {
+// }
+
+// Casted state
+
+struct CCIPSendExecutor<T> {
+    messageId: uint224,
+    onrampSend: OnRampSend,
+    addresses: Cell<CCIPSendExecutor_Addresses>,
+    state: Cell<T>,
+}
+
+fun CCIPSendExecutor<T>.load(): CCIPSendExecutor<T> {
+    val st = lazy CCIPSendExecutor_Data.fromCell(contract.getData());
+    assert (st.state is Cell<T>) throw 505; // invalid state // TODO export to error
+    return CCIPSendExecutor<T> {
+        messageId: st.messageId,
+        onrampSend: st.onrampSend,
+        addresses: st.addresses,
+        state: st.state,
+    };
+}
+
+fun CCIPSendExecutor<T>.store(self) {
+    contract.setData(CCIPSendExecutor_Data {
+        messageId: 0,
+        onrampSend: self.onrampSend,
+        addresses: self.addresses,
+        state: self.state,
+    }.toCell());
+}
