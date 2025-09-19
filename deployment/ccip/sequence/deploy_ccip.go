@@ -8,7 +8,6 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
-	"github.com/xssnick/tonutils-go/address"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
