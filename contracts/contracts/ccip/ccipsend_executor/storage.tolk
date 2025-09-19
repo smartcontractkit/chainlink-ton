@@ -24,9 +24,9 @@ struct CCIPSendExecutor_Addresses {
 type CCIPSendExecutor_State =
     | Cell<CCIPSendExecutor_State_Initialized>
     | Cell<CCIPSendExecutor_State_WaitingForJettons>
-    // TODO | Cell<CCIPSendExecutor_State_OnGoingTokenRegistryQuery>
+    | Cell<CCIPSendExecutor_State_OnGoingTokenRegistryQuery>
     | Cell<CCIPSendExecutor_State_OnGoingFeeValidation>
-    // TODO | Cell<CCIPSendExecutor_State_OnGoingLockOrBurn>
+    | Cell<CCIPSendExecutor_State_OnGoingLockOrBurn>
 
 struct CCIPSendExecutor_State_Initialized {
     tokenRegistry: address?,
@@ -36,11 +36,10 @@ struct CCIPSendExecutor_State_WaitingForJettons {
     tokenRegistry: address,
 }
 
-// TODO
-// struct CCIPSendExecutor_State_OnGoingTokenRegistryQuery {
-//     tokenRegistry: address,
-//     jettonWallet: address,
-// }
+struct CCIPSendExecutor_State_OnGoingTokenRegistryQuery {
+    tokenRegistry: address,
+    jettonWallet: address,
+}
 
 struct CCIPSendExecutor_State_OnGoingFeeValidation {
     pendingJettonLock: CCIPSendExecutor_PendingJettonLock?
@@ -52,9 +51,8 @@ struct CCIPSendExecutor_PendingJettonLock {
     tokenPool: address,
 }
 
-// TODO
-// struct CCIPSendExecutor_State_OnGoingLockOrBurn {
-// }
+struct CCIPSendExecutor_State_OnGoingLockOrBurn {
+}
 
 // Casted state
 
@@ -72,7 +70,7 @@ fun CCIPSendExecutor<T>.load(): CCIPSendExecutor<T> {
         messageId: st.messageId,
         onrampSend: st.onrampSend,
         addresses: st.addresses,
-        state: st.state,
+        state: st.state as Cell<T>,
     };
 }
 

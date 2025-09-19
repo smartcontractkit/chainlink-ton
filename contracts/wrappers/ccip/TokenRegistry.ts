@@ -43,6 +43,17 @@ export type SetInfo = {
   info: TokenInfo
 }
 
+export type GetTokenInfo = {
+  queryId: number
+  ccipSend: rt.CCIPSend
+  executorJettonWallet: Address
+}
+
+export type TokenPoolInfo = {
+  queryId: number
+  tokenPool: Address
+}
+
 export const builder = {
   data: (() => {
     const tokenInfo: CellCodec<TokenInfo> = {
@@ -102,6 +113,44 @@ export const builder = {
           },
         }
       })(),
+      getTokenInfo: ((): CellCodec<GetTokenInfo> => {
+        return {
+          encode: function (data: GetTokenInfo): Builder {
+            return beginCell()
+              .storeUint(Opcodes.getTokenInfo, 32)
+              .storeUint(data.queryId, 64)
+              .storeRef(rt.builder.message.in.ccipSend.encode(data.ccipSend))
+              .storeAddress(data.executorJettonWallet)
+          },
+          load: function (src: Slice): GetTokenInfo {
+            src.skip(32)
+            return {
+              queryId: src.loadUint(64),
+              ccipSend: rt.builder.message.in.ccipSend.load(src.loadRef().beginParse()),
+              executorJettonWallet: src.loadAddress(),
+            }
+          },
+        }
+      })(),
+    },
+    out: {
+      tokenPoolInfo: ((): CellCodec<TokenPoolInfo> => {
+        return {
+          encode: function (data: TokenPoolInfo): Builder {
+            return beginCell()
+              .storeUint(OutgoingOpcodes.tokenPoolInfo, 32)
+              .storeUint(data.queryId, 64)
+              .storeAddress(data.tokenPool)
+          },
+          load: function (src: Slice): TokenPoolInfo {
+            src.skip(32)
+            return {
+              queryId: src.loadUint(64),
+              tokenPool: src.loadAddress(),
+            }
+          },
+        }
+      })(),
     },
   },
 }
@@ -109,6 +158,11 @@ export abstract class Params {}
 
 export abstract class Opcodes {
   static setInfo = crc32('TokenRegistry_SetInfo')
+  static getTokenInfo = crc32('TokenRegistry_GetTokenInfo')
+}
+
+export abstract class OutgoingOpcodes {
+  static tokenPoolInfo = crc32('TokenRegistry_TokenPoolInfo')
 }
 
 export abstract class Errors {}
@@ -145,43 +199,13 @@ export class TokenRegistry implements Contract {
     })
   }
 
-  async sendSetDynamicConfig(
-    provider: ContractProvider,
-    via: Sender,
-    opts: {
-      value: bigint
-      config: boolean
-    },
-  ) {
-    await provider.internal(via, {
-      value: opts.value,
-      sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: beginCell().storeUint(Opcodes.setDynamicConfig, 32).endCell(),
-    })
-  }
-
-  async sendUpdateDestChainConfigs(
-    provider: ContractProvider,
-    via: Sender,
-    opts: {
-      value: bigint
-      destChainConfigs: { destChainSelector: bigint; router: Address; allowlistEnabled: boolean }[]
-    },
-  ) {
-    await provider.internal(via, {
-      value: opts.value,
-      sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: beginCell()
-        .storeUint(Opcodes.updateDestChainConfigs, 32)
-        .storeRef(
-          asSnakeData(opts.destChainConfigs, (config) =>
-            new Builder()
-              .storeUint(config.destChainSelector, 64)
-              .storeAddress(config.router)
-              .storeBit(config.allowlistEnabled),
-          ),
-        )
-        .endCell(),
-    })
+  async sendSetInfo(provider: ContractProvider, via: Sender, opts: SetInfo, value: bigint) {
+    const body = builder.messages.in.setInfo
+      .encode({
+        queryId: opts.queryId ?? 0,
+        info: opts.info,
+      })
+      .asCell()
+    await this.sendInternal(provider, via, value, body)
   }
 }
