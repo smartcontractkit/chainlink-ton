@@ -9,7 +9,7 @@ type FeeQuoter_InMessage =
     | FeeQuoter_UpdatePrices
     | FeeQuoter_UpdateFeeTokens
     | FeeQuoter_UpdateTokenTransferFeeConfigs
-    | FeeQuoter_UpdateDestChainConfigss
+    | FeeQuoter_UpdateDestChainConfigs
     | FeeQuoter_GetValidatedFee<cell>; // marked as cell since we never attempt to load the metadata
 
 

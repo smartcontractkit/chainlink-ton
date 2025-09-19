@@ -135,7 +135,7 @@ fun updateTokenTransferFeeConfigs(mutate st: Storage, msg: FeeQuoter_UpdateToken
 
 // TODO: allow providing an array of these msgs to feeQuoter
 fun updateDestChainConfigs(mutate st: Storage, updates: cell) {
-    var iter = Iterator<FeeQuoterUpdateDestChainConfig>.new(updates);
+    var iter = Iterator<FeeQuoter_UpdateDestChainConfig>.new(updates);
 
     while (!iter.empty()) {
         val update = iter.next();
