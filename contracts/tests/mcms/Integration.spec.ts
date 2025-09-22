@@ -34,7 +34,7 @@ describe('MCMS - IntegrationTest', () => {
       timelock: await compile('mcms.RBACTimelock'),
       counter: await compile('examples.Counter'),
     }
-  })
+  }, 10_000)
 
   var acc: {
     deployer: SandboxContract<TreasuryContract>
