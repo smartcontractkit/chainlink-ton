@@ -121,7 +121,7 @@ fun updateTokenTransferFeeConfigs(mutate st: Storage, msg: FeeQuoter_UpdateToken
                 val tokenAddr = tokenEntry.getKey();
                 val config = tokenEntry.loadValue();
 
-                destChainConfig.tokenTransferFeeConfigs.set(tokenAddr, config!);
+                destChainConfig.tokenTransferFeeConfigs.set(tokenAddr, config);
                 tokenEntry = update.add.iterateNext(tokenEntry);
             }
 
