@@ -16,7 +16,7 @@ fun onInternalMessage(in: InMessage) {
                 dest: in.senderAddress,
                 body: beginCell().endCell(),
             });
-            reply.send(SEND_MODE_CARRY_ALL_BALANCE);
+            reply.send(SEND_MODE_CARRY_ALL_BALANCE + SEND_MODE_DESTROY);
         }
         else => {
             assert (in.body.isEmpty()) throw 0xFFFF;
