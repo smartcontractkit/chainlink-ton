@@ -45,6 +45,11 @@ fun calculateGasMinFee(): coins {
     return calculateGasFee(workchain, DEFAULT_MESSAGE_FWD_BUDGET_GAS_UNITS);
 }
 
+/// Calculates the gas fee for the current workchain and DEFAULT_MESSAGE_FWD_BUDGET_GAS_UNITS, returns half of it.
+fun calculateGasMinFeeHalf(): coins {
+    return calculateGasMinFee() / 2;
+}
+
 /// Computes the Keccak-256 hash of the given data.
 @pure
 fun keccak256(data: slice): uint256
