@@ -18,7 +18,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
-	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
+	lptypes "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/hash"
 )
 
@@ -67,7 +67,7 @@ func (a *TONAccessor) registerFilter(ctx context.Context, name string, address *
 		}
 	}
 
-	filter := types.Filter{
+	filter := lptypes.Filter{
 		Name:     name,
 		Address:  address,
 		MsgType:  tlb.MsgTypeExternalOut,
@@ -75,7 +75,7 @@ func (a *TONAccessor) registerFilter(ctx context.Context, name string, address *
 		// TODO: add starting signo
 	}
 
-	if err := a.logPoller.RegisterFilter(ctx, filter); err != nil {
+	if _, err := a.logPoller.RegisterFilter(ctx, filter); err != nil {
 		return fmt.Errorf("failed to register logpoller filter: %w", err)
 	}
 
@@ -115,7 +115,7 @@ func (a *TONAccessor) convertCCIPMessageSent(
 }
 
 func (a *TONAccessor) validateCommitReportAcceptedEvent(
-	log types.TypedLog[offramp.CommitReportAccepted], gteTimestamp time.Time,
+	log lptypes.TypedLog[offramp.CommitReportAccepted], gteTimestamp time.Time,
 ) (*offramp.CommitReportAccepted, error) {
 	ev := &log.TypedData
 

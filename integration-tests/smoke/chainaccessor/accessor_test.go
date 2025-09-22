@@ -24,8 +24,9 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/chainaccessor"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
-	inmemorystore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/db/inmemory"
-	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
+	lptypes "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
+	lpquery "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/query"
+	inmemorystore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/store/memory"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/hash"
 )
 
@@ -336,9 +337,10 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 	})
 
 	t.Run("Ton Accessor - CommitReportsGTETimestamp - MerkleRoot filtering with mixed reports and limit", func(t *testing.T) {
+		store := inmemorystore.NewLogStore(logger.Test(t), "test-chain")
 		opts := &logpoller.ServiceOptions{
 			Config:  logpoller.DefaultConfigSet,
-			Store:   inmemorystore.NewLogStore(),
+			Store:   store,
 			Filters: inmemorystore.NewFilterStore(),
 		}
 
@@ -352,47 +354,82 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 		baseTimestamp := time.Now()
 		queryTimestamp := baseTimestamp.Add(-1 * time.Minute)
 
+		// Let chainaccessor.Sync() handle filter registration
+
 		// Save MIXED logs in chronological order to test filtering and limit functionality
 		t.Log("Saving mixed commit reports...")
 
-		// 1. MerkleRoot-only log (should be included)
-		lp.GetStore().SaveLog(types.Log{
-			Address:     address.MustParseAddr(MockOffRampAddr),
-			EventSig:    hash.CRC32(consts.EventNameCommitReportAccepted),
-			Data:        merkleRootOnlyCell,
-			TxTimestamp: baseTimestamp.Add(1 * time.Second),
-		})
-
-		// 2. PriceUpdates-only log (should be filtered OUT)
-		lp.GetStore().SaveLog(types.Log{
-			Address:     address.MustParseAddr(MockOffRampAddr),
-			EventSig:    hash.CRC32(consts.EventNameCommitReportAccepted),
-			Data:        priceOnlyCell,
-			TxTimestamp: baseTimestamp.Add(2 * time.Second),
-		})
-
-		// 3. Both MerkleRoot AND PriceUpdates (should be included)
-		lp.GetStore().SaveLog(types.Log{
-			Address:     address.MustParseAddr(MockOffRampAddr),
-			EventSig:    hash.CRC32(consts.EventNameCommitReportAccepted),
-			Data:        bothCell,
-			TxTimestamp: baseTimestamp.Add(3 * time.Second),
-		})
-
-		// 4. Another PriceUpdates-only log (should be filtered OUT)
-		lp.GetStore().SaveLog(types.Log{
-			Address:     address.MustParseAddr(MockOffRampAddr),
-			EventSig:    hash.CRC32(consts.EventNameCommitReportAccepted),
-			Data:        priceOnlyCell,
-			TxTimestamp: baseTimestamp.Add(4 * time.Second),
-		})
-
-		// 5. Another MerkleRoot-only log (should be included)
-		lp.GetStore().SaveLog(types.Log{
-			Address:     address.MustParseAddr(MockOffRampAddr),
-			EventSig:    hash.CRC32(consts.EventNameCommitReportAccepted),
-			Data:        merkleRootOnlyCell,
-			TxTimestamp: baseTimestamp.Add(5 * time.Second),
+		store.SaveLogs(t.Context(), []lptypes.Log{
+			// 1. MerkleRoot-only log (should be included)
+			{
+				ChainID:          "test-chain",
+				FilterID:         1,
+				Address:          address.MustParseAddr(MockOffRampAddr),
+				EventSig:         hash.CRC32(consts.EventNameCommitReportAccepted),
+				Data:             merkleRootOnlyCell,
+				TxHash:           lptypes.TxHash{1, 2, 3, 4, 5},
+				TxLT:             1000,
+				TxTimestamp:      baseTimestamp.Add(1 * time.Second),
+				Block:            &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: 100},
+				MasterBlockSeqno: 200,
+				MsgIndex:         0,
+			},
+			// 2. PriceUpdates-only log (should be filtered OUT)
+			{
+				ChainID:          "test-chain",
+				FilterID:         1,
+				Address:          address.MustParseAddr(MockOffRampAddr),
+				EventSig:         hash.CRC32(consts.EventNameCommitReportAccepted),
+				Data:             priceOnlyCell,
+				TxHash:           lptypes.TxHash{2, 3, 4, 5, 6},
+				TxLT:             1001,
+				TxTimestamp:      baseTimestamp.Add(2 * time.Second),
+				Block:            &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: 101},
+				MasterBlockSeqno: 201,
+				MsgIndex:         1,
+			},
+			// 3. Both MerkleRoot AND PriceUpdates (should be included)
+			{
+				ChainID:          "test-chain",
+				FilterID:         1,
+				Address:          address.MustParseAddr(MockOffRampAddr),
+				EventSig:         hash.CRC32(consts.EventNameCommitReportAccepted),
+				Data:             bothCell,
+				TxHash:           lptypes.TxHash{3, 4, 5, 6, 7},
+				TxLT:             1002,
+				TxTimestamp:      baseTimestamp.Add(3 * time.Second),
+				Block:            &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: 102},
+				MasterBlockSeqno: 202,
+				MsgIndex:         2,
+			},
+			// 4. Another PriceUpdates-only log (should be filtered OUT)
+			{
+				ChainID:          "test-chain",
+				FilterID:         1,
+				Address:          address.MustParseAddr(MockOffRampAddr),
+				EventSig:         hash.CRC32(consts.EventNameCommitReportAccepted),
+				Data:             priceOnlyCell,
+				TxHash:           lptypes.TxHash{4, 5, 6, 7, 8},
+				TxLT:             1003,
+				TxTimestamp:      baseTimestamp.Add(4 * time.Second),
+				Block:            &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: 103},
+				MasterBlockSeqno: 203,
+				MsgIndex:         3,
+			},
+			// 5. Another MerkleRoot-only log (should be included)
+			{
+				ChainID:          "test-chain",
+				FilterID:         1,
+				Address:          address.MustParseAddr(MockOffRampAddr),
+				EventSig:         hash.CRC32(consts.EventNameCommitReportAccepted),
+				Data:             merkleRootOnlyCell,
+				TxHash:           lptypes.TxHash{5, 6, 7, 8, 9},
+				TxLT:             1004,
+				TxTimestamp:      baseTimestamp.Add(5 * time.Second),
+				Block:            &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: 104},
+				MasterBlockSeqno: 204,
+				MsgIndex:         4,
+			},
 		})
 
 		t.Logf("Saved 5 logs total: 3 with MerkleRoot (should be included), 2 PriceUpdates-only (should be filtered out)")
@@ -452,13 +489,13 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 	})
 
 	t.Run("Ton Accessor - CommitReportsGTETimestamp - Basic functionality", func(t *testing.T) {
-		filterStore := inmemorystore.NewFilterStore()
+		store := inmemorystore.NewLogStore(logger.Test(t), "test-chain")
 		opts := &logpoller.ServiceOptions{
-			Config:   logpoller.DefaultConfigSet,
-			Filters:  filterStore,
-			TxLoader: nil,
-			TxParser: nil,
-			Store:    inmemorystore.NewLogStore(),
+			Config:    logpoller.DefaultConfigSet,
+			Filters:   inmemorystore.NewFilterStore(),
+			TxLoader:  nil,
+			Processor: nil,
+			Store:     store,
 		}
 
 		lp := logpoller.NewService(
@@ -471,13 +508,69 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 		logTimestamp := time.Now()
 		queryTimestamp := logTimestamp.Add(-1 * time.Minute) // Query from 1 minute before the log
 
-		// Save log
-		lp.GetStore().SaveLog(types.Log{
-			Address:     address.MustParseAddr(MockOffRampAddr),
-			EventSig:    hash.CRC32(consts.EventNameCommitReportAccepted),
-			Data:        merkleRootOnlyCell,
-			TxTimestamp: logTimestamp,
-		})
+		// Save log (let chainaccessor.Sync() handle filter registration)
+		savedCount, saveErr := store.SaveLogs(t.Context(), []lptypes.Log{{
+			ChainID:          "test-chain",
+			FilterID:         1, // Use a simple filter ID
+			Address:          address.MustParseAddr(MockOffRampAddr),
+			EventSig:         hash.CRC32(consts.EventNameCommitReportAccepted),
+			Data:             merkleRootOnlyCell,
+			TxHash:           lptypes.TxHash{1, 2, 3, 4, 5},
+			TxLT:             1000,
+			TxTimestamp:      logTimestamp,
+			Block:            &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: 100},
+			MasterBlockSeqno: 200,
+			MsgIndex:         0,
+		}})
+		require.NoError(t, saveErr, "failed to save logs")
+		t.Logf("DEBUG: Saved %d logs to store", savedCount)
+
+		// DEBUG: Show what we're querying for vs what we saved
+		queryAddr := address.MustParseAddr(MockOffRampAddr)
+		queryEventSig := hash.CRC32(consts.EventNameCommitReportAccepted)
+		savedAddr := address.MustParseAddr(MockOffRampAddr)
+		savedEventSig := hash.CRC32(consts.EventNameCommitReportAccepted)
+
+		t.Logf("DEBUG: Query conditions - Address: %s, EventSig: %d, Timestamp >= %v",
+			queryAddr.String(), queryEventSig, queryTimestamp)
+		t.Logf("DEBUG: Saved log conditions - Address: %s, EventSig: %d, Timestamp: %v",
+			savedAddr.String(), savedEventSig, logTimestamp)
+		t.Logf("DEBUG: Address match: %v, EventSig match: %v, Timestamp check: %v >= %v = %v",
+			queryAddr.Equals(savedAddr), queryEventSig == savedEventSig,
+			logTimestamp, queryTimestamp, logTimestamp.After(queryTimestamp) || logTimestamp.Equal(queryTimestamp))
+
+		// DEBUG: Test direct store query to bypass logpoller service
+		storeQuery := &lpquery.LogQuery{
+			FieldFilters: []*lpquery.FieldFilter{
+				{
+					Field:    "address",
+					Operator: primitives.Eq,
+					Value:    address.MustParseAddr(MockOffRampAddr),
+				},
+				{
+					Field:    "event_sig",
+					Operator: primitives.Eq,
+					Value:    hash.CRC32(consts.EventNameCommitReportAccepted),
+				},
+				lpquery.Timestamp(queryTimestamp, primitives.Gte),
+			},
+		}
+		storeLogs, storeHasMore, storeCursor, storeErr := store.QueryLogs(t.Context(), storeQuery)
+		t.Logf("DEBUG: Direct store query found %d logs, hasMore=%v, cursor=%s, err=%v",
+			len(storeLogs), storeHasMore, storeCursor, storeErr)
+
+		// DEBUG: Test logpoller service query
+		debugLogs, debugHasMore, debugCursor, debugErr := lp.NewQuery().
+			WithSource(address.MustParseAddr(MockOffRampAddr)).
+			WithEventSig(hash.CRC32(consts.EventNameCommitReportAccepted)).
+			WithFields(lpquery.Timestamp(queryTimestamp, primitives.Gte)).
+			Execute(t.Context())
+		t.Logf("DEBUG: Logpoller service query found %d logs, hasMore=%v, cursor=%s, err=%v",
+			len(debugLogs), debugHasMore, debugCursor, debugErr)
+		for i, log := range debugLogs {
+			t.Logf("DEBUG: Log %d: Address=%s, EventSig=%d, TxTimestamp=%v",
+				i, log.Address.String(), log.EventSig, log.TxTimestamp)
+		}
 
 		// Query report via ton accessor
 		addrCodec := codec.NewAddressCodec()
@@ -576,10 +669,11 @@ func Test_TonAccessorExecutedMessages(t *testing.T) {
 		return nil, nil
 	}
 	// Test ExecutedMessages integration with logpoller using ExecutionStateChanged BOCs
+	store := inmemorystore.NewLogStore(logger.Test(t), "test-chain")
 	opts := &logpoller.ServiceOptions{
 		Config:  logpoller.DefaultConfigSet,
 		Filters: inmemorystore.NewFilterStore(),
-		Store:   inmemorystore.NewLogStore(),
+		Store:   store,
 	}
 
 	lp := logpoller.NewService(
@@ -597,25 +691,11 @@ func Test_TonAccessorExecutedMessages(t *testing.T) {
 	inProgressCell, err := cell.FromBOC(inProgressBytes)
 	require.NoError(t, err)
 
-	lp.GetStore().SaveLog(types.Log{
-		Address:     address.MustParseAddr(MockOffRampAddr),
-		EventSig:    hash.CRC32(consts.EventNameExecutionStateChanged),
-		Data:        inProgressCell,
-		TxTimestamp: baseTimestamp.Add(1 * time.Second),
-	})
-
 	// 2. Add SUCCESS event (should be included)
 	successBytes, err := hex.DecodeString(ExecutionStateChangedSuccessBOC)
 	require.NoError(t, err)
 	successCell, err := cell.FromBOC(successBytes)
 	require.NoError(t, err)
-
-	lp.GetStore().SaveLog(types.Log{
-		Address:     address.MustParseAddr(MockOffRampAddr),
-		EventSig:    hash.CRC32(consts.EventNameExecutionStateChanged),
-		Data:        successCell,
-		TxTimestamp: baseTimestamp.Add(2 * time.Second),
-	})
 
 	// 3. Add FAILURE event (should be included)
 	failureBytes, err := hex.DecodeString(ExecutionStateChangedFailureBOC)
@@ -623,11 +703,46 @@ func Test_TonAccessorExecutedMessages(t *testing.T) {
 	failureCell, err := cell.FromBOC(failureBytes)
 	require.NoError(t, err)
 
-	lp.GetStore().SaveLog(types.Log{
-		Address:     address.MustParseAddr(MockOffRampAddr),
-		EventSig:    hash.CRC32(consts.EventNameExecutionStateChanged),
-		Data:        failureCell,
-		TxTimestamp: baseTimestamp.Add(3 * time.Second),
+	store.SaveLogs(t.Context(), []lptypes.Log{
+		{
+			ChainID:          "test-chain",
+			FilterID:         1,
+			Address:          address.MustParseAddr(MockOffRampAddr),
+			EventSig:         hash.CRC32(consts.EventNameExecutionStateChanged),
+			Data:             inProgressCell,
+			TxHash:           lptypes.TxHash{1, 2, 3, 4, 5},
+			TxLT:             1000,
+			TxTimestamp:      baseTimestamp.Add(1 * time.Second),
+			Block:            &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: 100},
+			MasterBlockSeqno: 200,
+			MsgIndex:         0,
+		},
+		{
+			ChainID:          "test-chain",
+			FilterID:         1,
+			Address:          address.MustParseAddr(MockOffRampAddr),
+			EventSig:         hash.CRC32(consts.EventNameExecutionStateChanged),
+			Data:             successCell,
+			TxHash:           lptypes.TxHash{2, 3, 4, 5, 6},
+			TxLT:             1001,
+			TxTimestamp:      baseTimestamp.Add(2 * time.Second),
+			Block:            &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: 101},
+			MasterBlockSeqno: 201,
+			MsgIndex:         1,
+		},
+		{
+			ChainID:          "test-chain",
+			FilterID:         1,
+			Address:          address.MustParseAddr(MockOffRampAddr),
+			EventSig:         hash.CRC32(consts.EventNameExecutionStateChanged),
+			Data:             failureCell,
+			TxHash:           lptypes.TxHash{3, 4, 5, 6, 7},
+			TxLT:             1002,
+			TxTimestamp:      baseTimestamp.Add(3 * time.Second),
+			Block:            &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: 102},
+			MasterBlockSeqno: 202,
+			MsgIndex:         2,
+		},
 	})
 
 	// Setup accessor
