@@ -1189,6 +1189,11 @@ get fun getBlockedFunctionSelectorAt(index: uint32): uint32 {
     return Timelock<bool>.load().getBlockedFunctionSelectorAt(index);
 }
 
+/// @see <Timelock<T>.isInitialized>
+get fun isInitialized(): bool {
+    return Timelock<bool>.load().isInitialized();
+}
+
 /// @see <Timelock<T>.isExecutorRoleCheckEnabled>
 get fun isExecutorRoleCheckEnabled(): bool {
     return Timelock<bool>.load().isExecutorRoleCheckEnabled();
