@@ -481,7 +481,7 @@ fun AccessControl<T>._setRoleAdmin(
     self.data.roles.uDictSetRef(LEN_ROLE, role, d.toCell());
 
     val body = AccessControl_RoleAdminChanged{queryId, role, previousAdminRole, newAdminRole: adminRole};
-    self.sendReply(sender, body, calculateGasMinFee(), returnExcess);
+    self.sendReply(sender, body, calculateGasMinFeeHalf(), returnExcess);
 }
 
 /// @dev Attempts to grant `role` to `account` and returns a boolean indicating if `role` was granted.
@@ -517,7 +517,7 @@ fun AccessControl<T>._grantRole(
     // Save the updated role data
     self.data.roles.uDictSetRef(LEN_ROLE, role, d.toCell());
 
-    val minFee = calculateGasMinFee();
+    val minFee = calculateGasMinFeeHalf();
     val body = AccessControl_RoleGranted{queryId, role, account, sender};
     self.sendNotification(sender, body, minFee, account);
     self.sendReply(sender, body, minFee, returnExcess);
@@ -558,7 +558,7 @@ fun AccessControl<T>._revokeRole(
     // Save the updated role data
     self.data.roles.uDictSetRef(LEN_ROLE, role, d.toCell());
 
-    val minFee = calculateGasMinFee();
+    val minFee = calculateGasMinFeeHalf();
     val body = AccessControl_RoleRevoked{queryId, role, account, sender};
     self.sendNotification(sender, body, minFee, account);
     self.sendReply(sender, body, minFee, returnExcess);
@@ -600,7 +600,7 @@ fun AccessControl<T>.sendNotification<B>(
     if (account != sender) {
         // Create and send the message (notification) to the account that was updated
         val n = createMessage({ bounce: false, value, dest: account, body });
-        n.send(SEND_MODE_REGULAR);
+        n.send(SEND_MODE_PAY_FEES_SEPARATELY);
     }
 }
 
@@ -619,7 +619,7 @@ fun AccessControl<T>.sendReply<B>(
     val reply = createMessage({bounce: false, value, dest: sender, body });
     reply.send(returnExcess
         ? SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE
-        : SEND_MODE_REGULAR);
+        : SEND_MODE_PAY_FEES_SEPARATELY);
 }
 
 // --- Getters ---

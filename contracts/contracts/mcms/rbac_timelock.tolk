@@ -731,11 +731,11 @@ fun Timelock<T>.init(
     // Reply back to sender
     val reply = createMessage({
         bounce: false,
-        value: calculateGasMinFee(), // send small value as gas budget, keep the rest
+        value: calculateGasMinFeeHalf(), // send small value as gas budget, keep the rest (payable)
         dest: sender,
         body: Timelock_MinDelayChange{queryId, oldDuration: 0, newDuration: minDelay}
     });
-    reply.send(SEND_MODE_REGULAR);
+    reply.send(SEND_MODE_PAY_FEES_SEPARATELY);
 }
 
 /// Schedule an operation containing a batch of transactions.
@@ -783,11 +783,11 @@ fun Timelock<T>.scheduleBatch(
 
     val reply = createMessage({
         bounce: false,
-        value: calculateGasMinFee(), // send small value as gas budget, keep the rest
+        value: calculateGasMinFeeHalf(), // send small value as gas budget, keep the rest (payable)
         dest: sender,
         body: Timelock_BatchScheduled{queryId, id, delay}
     });
-    reply.send(SEND_MODE_REGULAR);
+    reply.send(SEND_MODE_PAY_FEES_SEPARATELY);
 }
 
 /// Schedule an operation that becomes valid after a given delay.
@@ -882,11 +882,11 @@ fun Timelock<T>.executeBatch(
 
     val reply = createMessage({
         bounce: false,
-        value: calculateGasMinFee(), // send small value as gas budget, keep the rest
+        value: calculateGasMinFeeHalf(), // send small value as gas budget, keep the rest (payable)
         dest: sender,
         body: Timelock_BatchExecuted{queryId, id}
     });
-    reply.send(SEND_MODE_REGULAR);
+    reply.send(SEND_MODE_PAY_FEES_SEPARATELY);
 }
 
 /// Execute an operation's call.
@@ -1070,11 +1070,11 @@ fun Timelock<T>.bypasserExecuteBatch(
 
     val reply = createMessage({
         bounce: false,
-        value: calculateGasMinFee(), // send small value as gas budget, keep the rest
+        value: calculateGasMinFeeHalf(), // send small value as gas budget, keep the rest (payable)
         dest: sender,
         body: Timelock_BypasserBatchExecuted{queryId}
     });
-    reply.send(SEND_MODE_REGULAR);
+    reply.send(SEND_MODE_PAY_FEES_SEPARATELY);
 }
 
 /// Updates the executor role check (enabled/disabled) which guards the execution of operations.

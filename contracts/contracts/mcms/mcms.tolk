@@ -876,8 +876,7 @@ fun MCMS<T>.execute(
 
     // We enforce a minimum amount of TON op.value trying to ensure the receiver gets at least enough gas for
     // fee validation + a bounce, and avoid out of gas errors in which cases a message will not bounce.
-    val minFee = calculateGasMinFee();
-    if (op.value < minFee) {
+    if (op.value < calculateGasMinFee()) {
         throw ERROR_INSUFFICIENT_VALUE;
     }
 
@@ -925,11 +924,11 @@ fun MCMS<T>.execute(
     // Reply back to sender
     val reply = createMessage({
         bounce: false,
-        value: minFee, // send small value as gas budget, keep the rest
+        value: calculateGasMinFeeHalf(), // send small value as gas budget, keep the rest (payable)
         dest: sender,
         body: MCMS_OpExecuted{queryId, nonce: op.nonce, to: op.to, data: op.data, value: op.value}
     });
-    reply.send(SEND_MODE_REGULAR);
+    reply.send(SEND_MODE_PAY_FEES_SEPARATELY);
 }
 
 /// setConfig sets a new data.config. If clearRoot is true, then it also invalidates
