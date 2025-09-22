@@ -3,6 +3,7 @@ import '@ton/test-utils'
 import * as rbactl from '../../wrappers/mcms/RBACTimelock'
 
 import { BaseTestSetup, TestCode } from './BaseTest'
+import { toNano } from '@ton/core'
 
 describe('MCMS - RBACTimelockConstructorTest', () => {
   let baseTest: BaseTestSetup
@@ -18,6 +19,36 @@ describe('MCMS - RBACTimelockConstructorTest', () => {
     await baseTest.initializeBlockchain()
     await baseTest.setupTimelockContract('test-constructor')
     await baseTest.deployTimelockContract()
+  })
+
+  it('should not init twice', async () => {
+    const body = rbactl.builder.message.in.init
+      .encode({
+        queryId: 1n,
+        minDelay: BaseTestSetup.MIN_DELAY,
+        admin: baseTest.acc.admin.address,
+        proposers: [],
+        executors: [],
+        cancellers: [],
+        bypassers: [],
+        executorRoleCheckEnabled: true,
+        opFinalizationTimeout: 0n,
+      })
+      .asCell()
+
+    const r = await baseTest.bind.timelock.sendInternal(
+      baseTest.acc.deployer.getSender(),
+      toNano('0.3'),
+      body,
+    )
+
+    expect(r.transactions).toHaveTransaction({
+      from: baseTest.acc.deployer.address,
+      to: baseTest.bind.timelock.address,
+      deploy: false,
+      success: false,
+      exitCode: rbactl.Errors.ContractAlreadyInitialized,
+    })
   })
 
   it('should set admin role', async () => {
