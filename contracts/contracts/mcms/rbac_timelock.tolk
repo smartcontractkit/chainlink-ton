@@ -976,6 +976,12 @@ fun Timelock<T>.updateOpFinalizationTimeout(mutate self, sender: address, queryI
 
     // Update the op finalization timeout
     self.data.opPendingInfo.opFinalizationTimeout = newOpFinalizationTimeout;
+    // Set the pending operation finalization timeout
+    val newValidAfter = blockchain.now() + self.data.opPendingInfo.opFinalizationTimeout;
+    if (newValidAfter < self.data.opPendingInfo.validAfter) {
+        // If the new timeout is shorter, we can update validAfter to the new time
+        self.data.opPendingInfo.validAfter = newValidAfter;
+    }
 }
 
 /// Blocks a function selector from being used, i.e. schedule
