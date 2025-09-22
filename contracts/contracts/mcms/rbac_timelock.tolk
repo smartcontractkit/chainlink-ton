@@ -665,6 +665,12 @@ fun Timelock<T>.scheduleBatch(
         val call = cc.next();
         self.checkFunctionSelectorNotBlocked(call.data.beginParse());
 
+        // We enforce a minimum amount of TON op.value trying to ensure the receiver gets at least enough gas for
+        // fee validation + a bounce, and avoid out of gas errors in which cases a message will not bounce.
+        if (call.value < calculateGasMinFee()) {
+            throw ERROR_INSUFFICIENT_VALUE;
+        }
+
         val body = Timelock_CallScheduled{
             queryId,
             id,
@@ -962,8 +968,7 @@ fun Timelock<T>.updateExecutorRoleCheck(mutate self, sender: address, queryId: u
 
 /// Returns whether the contract is initialized.
 fun Timelock<T>.isInitialized(self): bool {
-    val rbac = self.hookTrait__AccessControl();
-    return rbac.getRoleMemberCount(ADMIN_ROLE) > 0; // at least one admin account
+    return self.data.opPendingInfo.validAfter != 0;
 }
 
 /// Returns whether the executor role check is enabled.
