@@ -417,7 +417,10 @@ func (m SentMessage) MatchesReceived(incomingMessage *tlb.InternalMessage) bool 
 //
 // The function returns immediately if the message is already in Finalized state.
 // Otherwise, it processes all cascading messages until the entire trace is complete.
-func (m *ReceivedMessage) WaitForTrace(c ton.APIClientWrapped) error {
+//
+// An optional addressMap can be provided to print the evolution of the trace in every
+// step, replacing addresses according to the provided mapping for better readability.
+func (m *ReceivedMessage) WaitForTrace(c ton.APIClientWrapped, addressMap ...map[string]string) error {
 	if m.Status() == Finalized {
 		return nil
 	}
@@ -426,6 +429,9 @@ func (m *ReceivedMessage) WaitForTrace(c ton.APIClientWrapped) error {
 	messagesWithUnconfirmedOutgoingMessages = append(messagesWithUnconfirmedOutgoingMessages, m)
 
 	for len(messagesWithUnconfirmedOutgoingMessages) != 0 {
+		if len(addressMap) == 1 {
+			fmt.Println("Trace:", replaceAddresses(addressMap[0], m.Dump()))
+		}
 		cascadingMessage := messagesWithUnconfirmedOutgoingMessages[0]
 		messagesWithUnconfirmedOutgoingMessages = messagesWithUnconfirmedOutgoingMessages[1:]
 		err := cascadingMessage.WaitForOutgoingMessagesToBeReceived(c)

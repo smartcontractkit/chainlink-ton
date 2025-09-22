@@ -18,9 +18,22 @@ func (m *SentMessage) Dump() string {
 }
 
 // Outputs a nicely indented string representation of the trace tree, with the exit codes, bounced tags and sender-receiver
-func (m *ReceivedMessage) Dump() string {
+// If an address map is provided, it replaces all occurrences of the keys with the corresponding values
+func (m *ReceivedMessage) Dump(addressMap ...map[string]string) string {
 	lines := dumpRec(m)
-	return strings.Join(lines, "\n")
+	if len(addressMap) == 0 {
+		return strings.Join(lines, "\n")
+	} else if len(addressMap) == 1 {
+		return replaceAddresses(addressMap[0], strings.Join(lines, "\n"))
+	}
+	panic("Dump: invalid number of address maps")
+}
+
+func replaceAddresses(addressMap map[string]string, text string) string {
+	for oldAddr, newAddr := range addressMap {
+		text = strings.ReplaceAll(text, oldAddr, newAddr)
+	}
+	return text
 }
 
 func dumpRec(m *ReceivedMessage) []string {
