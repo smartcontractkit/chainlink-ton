@@ -69,14 +69,8 @@ get fun ocr3Signers(ocrPluginType: uint16): tuple? {
     val config = s.ocr3Base.getConfig(ocrPluginType);
     assert(config != null, ERROR_NON_EXISTENT_OCR_PLUGIN_TYPE);
     var d = config!.signers;
-    var list: tuple? = null;
-    var entry = d.findFirst();
-    while (entry.isFound) {
-        var address = entry.getKey();
-        list = listPrepend(address, list);
-        entry = d.iterateNext(entry);
-    }
-    return list;
+
+    return keysLispList(d);
 }
 
 get fun ocr3Transmitters(ocrPluginType: uint16): tuple? {
@@ -84,13 +78,7 @@ get fun ocr3Transmitters(ocrPluginType: uint16): tuple? {
     val config = s.ocr3Base.getConfig(ocrPluginType);
     assert(config != null, ERROR_NON_EXISTENT_OCR_PLUGIN_TYPE);
     var d  = config!.transmitters;
-    var list: tuple? = null;
-    var entry = d.findFirst();
-    while (entry.isFound) {
-        var address = entry.getKey();
-        list = listPrepend(address, list);
-        entry = d.iterateNext(entry);
-    }
-    return list;
+
+    return keysLispList(d);
 }
 
