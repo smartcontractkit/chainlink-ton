@@ -1197,6 +1197,11 @@ get fun isExecutorRoleCheckEnabled(): bool {
     return Timelock<bool>.load().isExecutorRoleCheckEnabled();
 }
 
+/// @see <Timelock<T>.getOpPendingInfo>
+get fun getOpPendingInfo(): OpPendingInfo {
+    return Timelock<bool>.load().getOpPendingInfo();
+}
+
 // --- Getters - <AccessControl<T>> extension ---
 
 /// @see <AccessControl<T>.hasRole>
