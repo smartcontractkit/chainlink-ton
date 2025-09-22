@@ -57,4 +57,10 @@ type Processor interface {
 
 // LogStore defines the interface for storing and retrieving logs.
 type LogStore interface {
+	SaveLogs(ctx context.Context, logs []models.Log) (int64, error)
+	// QueryLogs retrieves logs with TON-specific filtering capabilities including byte-level filtering,
+	// sorting, and pagination. This method handles all filtering, sorting, and pagination.
+	// The LogStore is responsible for translating parameters to its optimal execution strategy.
+	// Uses chainlink-common's LimitAndSort for standardized pagination and sorting.
+	QueryLogs(ctx context.Context, query *query.LogQuery) (logs []models.Log, hasMore bool, nextCursor string, err error)
 }
