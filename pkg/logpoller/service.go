@@ -12,7 +12,8 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/query"
 )
 
 // TON LogPoller Service
@@ -30,23 +31,23 @@ type service struct {
 	lggr           logger.SugaredLogger                                // Logger instance
 	clientProvider func(context.Context) (ton.APIClientWrapped, error) // TON blockchain client lazy getter
 
-	filters FilterStore // Registry of active filters
-	loader  TxLoader    // Transaction loader returning loaded txs
-	parser  TxParser    // Transaction parser returning logs
-	store   LogStore    // Log storage (MVP: in-memory, to be replaced with ORM)
+	filters   FilterStore // Registry of active filters
+	loader    TxLoader    // Transaction loader returning loaded txs
+	processor Processor   // Transaction processor returning populated logs
+	store     LogStore    // Log storage (MVP: in-memory, to be replaced with ORM)
 
 	pollPeriod         time.Duration // How often to poll for new blocks
 	lastProcessedBlock uint32        // Last processed masterchain sequence number
 	startingLookback   time.Duration // How far back to look when starting up
-	blockTime          time.Duration // Expected block time for calculations
+	blockTime          time.Duration // Expected block time for calculations(approximately 2.5 seconds)
 }
 
 type ServiceOptions struct {
-	Config   Config
-	Filters  FilterStore
-	TxLoader TxLoader
-	TxParser TxParser
-	Store    LogStore
+	Config    Config
+	Filters   FilterStore
+	TxLoader  TxLoader
+	Processor Processor
+	Store     LogStore
 }
 
 // NewService creates a new TON log polling service instance
@@ -56,7 +57,7 @@ func NewService(lggr logger.Logger, clientProvider func(context.Context) (ton.AP
 		clientProvider:   clientProvider,
 		filters:          opts.Filters,
 		loader:           opts.TxLoader,
-		parser:           opts.TxParser,
+		processor:        opts.Processor,
 		store:            opts.Store,
 		pollPeriod:       opts.Config.PollPeriod.Duration(),
 		startingLookback: opts.Config.LogPollerStartingLookback.Duration(),
@@ -120,7 +121,7 @@ func (lp *service) run(ctx context.Context) (err error) {
 
 // getMasterchainBlockRange calculates the range of blocks that need to be processed.
 // Returns nil if there are no new blocks to process.
-func (lp *service) getMasterchainBlockRange(ctx context.Context) (*types.BlockRange, error) {
+func (lp *service) getMasterchainBlockRange(ctx context.Context) (*models.BlockRange, error) {
 	client, err := lp.clientProvider(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get client: %w", err)
@@ -148,7 +149,7 @@ func (lp *service) getMasterchainBlockRange(ctx context.Context) (*types.BlockRa
 		return nil, fmt.Errorf("failed to resolve previous block: %w", err)
 	}
 
-	return &types.BlockRange{Prev: prevBlock, To: toBlock}, nil
+	return &models.BlockRange{Prev: prevBlock, To: toBlock}, nil
 }
 
 // getLastProcessedBlock retrieves the last processed masterchain sequence number.
@@ -203,9 +204,9 @@ func (lp *service) resolvePreviousBlock(ctx context.Context, lastProcessedBlockS
 }
 
 // processBlockRange handles scanning a range of blocks for transactions
-func (lp *service) processBlockRange(ctx context.Context, blockRange *types.BlockRange, addresses []*address.Address) error {
+func (lp *service) processBlockRange(ctx context.Context, blockRange *models.BlockRange, addresses []*address.Address) error {
 	// 1. Load raw transactions with blocks from the blockchain
-	txs, err := lp.loader.LoadTxsForAddresses(ctx, blockRange, addresses)
+	txs, blocks, err := lp.loader.LoadTxsForAddresses(ctx, blockRange, addresses)
 	if err != nil {
 		return fmt.Errorf("failed to load transactions: %w", err)
 	}
@@ -214,34 +215,85 @@ func (lp *service) processBlockRange(ctx context.Context, blockRange *types.Bloc
 	}
 	lp.lggr.Debugw("loaded transactions from chain", "count", len(txs))
 
-	// 2. Index the raw transactions into structured logs(covers ExtMsgOut and InternalMsg)
-	logs, err := lp.parser.ParseTransactions(ctx, txs)
+	// 2. Build filter index for efficient lookup
+	filterIndex, err := lp.buildFilterIndex(ctx, addresses)
 	if err != nil {
-		return fmt.Errorf("failed to index transactions: %w", err)
+		return fmt.Errorf("failed to build filter index: %w", err)
 	}
+
+	// 3. Process transactions with filter index
+	lp.lggr.Debugw("processing transactions with filter index", "txCount", len(txs), "filterIndexSize", len(filterIndex))
+	logs, err := lp.processor.ProcessTransactions(ctx, txs, blocks, filterIndex)
+	if err != nil {
+		return fmt.Errorf("failed to process transactions: %w", err)
+	}
+	lp.lggr.Debugw("processor returned logs", "count", len(logs))
 	if len(logs) == 0 {
+		lp.lggr.Debugw("no logs generated from transactions")
 		return nil
 	}
-	lp.lggr.Debugw("indexed transactions into logs", "count", len(logs))
+	lp.lggr.Debugw("processed transactions into logs", "count", len(logs))
 
-	// 3. Save the logs to the store
+	// 4. Filter out errored logs and save the rest
+	var validLogs []models.Log //nolint:prealloc // cannot predict number of valid logs
 	for _, log := range logs {
 		if log.Error != nil {
-			// TODO: how do we deal with failed logs? store with error field or discard?
-			lp.lggr.Errorw("failed to save log", "log", log, "error", log.Error)
+			// TODO: handle errored logs bubbled up from the processor, currently not supported
+			lp.lggr.Errorw("discarding errored log", "log", log, "error", log.Error)
 			continue
 		}
-		lp.store.SaveLog(log)
-		lp.lggr.Debugw("saved log", "log", log.String())
+		validLogs = append(validLogs, log)
+	}
+
+	if len(validLogs) > 0 {
+		savedCount, err := lp.store.SaveLogs(ctx, validLogs)
+		if err != nil {
+			return fmt.Errorf("failed to save logs: %w", err)
+		}
+		lp.lggr.Debugw("saved logs", "requested", len(validLogs), "actualSaved", savedCount)
 	}
 	return nil
 }
 
+// BuildFilterIndex creates a filter index for efficient lookup during processing.
+// This function consolidates filter queries and builds an in-memory index to avoid
+// repeated database calls during transaction processing.
+func (lp *service) buildFilterIndex(ctx context.Context, addresses []*address.Address) (models.FilterIndex, error) {
+	filterIndex := make(models.FilterIndex)
+
+	lp.lggr.Debugw("building filter index", "addresses", len(addresses))
+
+	for _, addr := range addresses {
+		// Get all filters for this address
+		filters, err := lp.filters.GetFiltersByAddress(ctx, addr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get filters for %s: %w", addr.String(), err)
+		}
+
+		lp.lggr.Debugw("found filters for address", "address", addr.String(), "count", len(filters))
+
+		// Index filters by (address, msgType, eventSig)
+		for _, filter := range filters {
+			key := models.FilterKey{
+				Address:  addr,
+				MsgType:  filter.MsgType,
+				EventSig: filter.EventSig,
+			}
+			filterIndex[key] = append(filterIndex[key], filter.ID)
+			lp.lggr.Debugw("indexed filter", "filterID", filter.ID, "address", addr.String(), "msgType", filter.MsgType, "eventSig", filter.EventSig)
+		}
+	}
+
+	lp.lggr.Debugw("built filter index", "totalKeys", len(filterIndex))
+	return filterIndex, nil
+}
+
 // RegisterFilter adds a new filter to monitor specific address/event signature combinations
-func (lp *service) RegisterFilter(ctx context.Context, flt types.Filter) error {
+func (lp *service) RegisterFilter(ctx context.Context, flt models.Filter) (int64, error) {
 	// Register the filter first
-	if err := lp.filters.RegisterFilter(ctx, flt); err != nil {
-		return err
+	id, err := lp.filters.RegisterFilter(ctx, flt)
+	if err != nil {
+		return 0, err
 	}
 
 	// TODO(2025-08-28@jadepark-dev): clean up, forcing replay for e2e now
@@ -249,7 +301,7 @@ func (lp *service) RegisterFilter(ctx context.Context, flt types.Filter) error {
 	// Only replay when client and loader are available (not in barebone test setups)
 	client, err := lp.clientProvider(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to get client: %w", err)
+		return 0, fmt.Errorf("failed to get client: %w", err)
 	}
 	if client != nil && lp.loader != nil {
 		go func() {
@@ -263,7 +315,7 @@ func (lp *service) RegisterFilter(ctx context.Context, flt types.Filter) error {
 		lp.lggr.Debugw("skipping replay for new filter - client or loader not available", "filter", flt.Name)
 	}
 
-	return nil
+	return id, nil
 }
 
 // UnregisterFilter removes a filter by name
@@ -274,11 +326,6 @@ func (lp *service) UnregisterFilter(ctx context.Context, name string) error {
 // HasFilter checks if a filter with the given name exists
 func (lp *service) HasFilter(ctx context.Context, name string) (bool, error) {
 	return lp.filters.HasFilter(ctx, name)
-}
-
-// GetStore exposes the underlying log store for direct access
-func (lp *service) GetStore() LogStore {
-	return lp.store
 }
 
 // computeLookbackWindow calculates the lookback sequence number
@@ -320,7 +367,7 @@ func (lp *service) Replay(ctx context.Context, fromBlock uint32) error {
 			"lookbackSeqNo", fromBlock, "lookbackDuration", lp.startingLookback)
 	}
 
-	blockRange := &types.BlockRange{Prev: nil, To: toBlock}
+	blockRange := &models.BlockRange{Prev: nil, To: toBlock}
 	var prevBlock *ton.BlockIDExt
 	if fromBlock != 0 {
 		prevBlock, err = client.LookupBlock(ctx, toBlock.Workchain, toBlock.Shard, fromBlock)
@@ -348,4 +395,9 @@ func (lp *service) Replay(ctx context.Context, fromBlock uint32) error {
 	}
 
 	return nil
+}
+
+// NewQuery creates a new query builder for constructing log queries.
+func (lp *service) NewQuery() query.QueryBuilder {
+	return query.NewQueryBuilder(lp.store)
 }

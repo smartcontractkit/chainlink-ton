@@ -5,12 +5,14 @@ go 1.24.5
 toolchain go1.24.6
 
 require (
+	github.com/jmoiron/sqlx v1.4.0
+	github.com/rubenv/pgtest v1.1.0
 	github.com/smartcontractkit/chain-selectors v1.0.67
 	github.com/smartcontractkit/chainlink-ccip v0.1.1-solana.0.20250910210251-724af8ee41ad
 	github.com/smartcontractkit/chainlink-common v0.9.5-0.20250910201107-cb4c31b624d3
 	github.com/smartcontractkit/chainlink-deployments-framework v0.44.0
 	github.com/smartcontractkit/chainlink-ton v0.0.0-20250904183752-4ea5c19ee886
-	github.com/smartcontractkit/chainlink-ton/deployment v0.0.0-20250904183752-4ea5c19ee886
+	github.com/smartcontractkit/chainlink-ton/deployment v0.0.0-20250918170600-1954e9abf01c
 	github.com/smartcontractkit/chainlink/deployment v0.0.0-20250910142604-9ad532208b79
 	github.com/stretchr/testify v1.10.0
 	github.com/xssnick/tonutils-go v1.14.1
@@ -262,7 +264,6 @@ require (
 	github.com/jackpal/go-nat-pmp v1.0.2 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/jmhodges/levigo v1.0.0 // indirect
-	github.com/jmoiron/sqlx v1.4.0 // indirect
 	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/jonboulle/clockwork v0.5.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect

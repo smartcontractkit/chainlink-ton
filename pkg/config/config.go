@@ -26,6 +26,16 @@ type Chain struct {
 	ClientTTL          time.Duration
 }
 
+// ValidateConfig validates the chain configuration
+func (c *Chain) ValidateConfig() error {
+	if c.LogPoller != nil {
+		if err := c.LogPoller.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // TxManager returns the transaction manager configuration
 func (c *Chain) TxManager() *txm.Config {
 	if c.TransactionManager != nil {

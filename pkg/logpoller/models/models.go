@@ -1,4 +1,4 @@
-package types //nolint:revive,nolintlint // TODO: update to meaningful package name
+package models
 
 import (
 	"encoding/hex"
@@ -20,13 +20,7 @@ type BlockRange struct {
 	To   *ton.BlockIDExt // target block to process up to
 }
 
-// internal types for indexing
-type TxWithBlock struct {
-	Tx    *tlb.Transaction
-	Block *ton.BlockIDExt
-}
-
-// internal types for processing, DB schema should be separated
+// internal types for processing
 type Filter struct {
 	ID            int64            // ID is a unique identifier for the filter.
 	Name          string           // Name is a human-readable name for the filter, used for identification purposes.
@@ -48,6 +42,8 @@ type Log struct {
 	TxTimestamp      time.Time        // Timestamp of the transaction that generated the log.
 	Block            *ton.BlockIDExt  // Shard block metadata
 	MasterBlockSeqno uint32           // Masterchain block sequence number
+	MsgLT            uint64           // Message logical time for ordering
+	MsgIndex         int64            // Index of the message within the transaction (0, 1, 2, ...)
 	Error            error            // Optional error associated with the log entry.
 }
 
@@ -59,7 +55,6 @@ type TypedLog[T any] struct {
 
 func (l Log) String() string {
 	var sb strings.Builder
-
 	sb.WriteString(fmt.Sprintf("  Filter ID:    %d\n", l.FilterID))
 	sb.WriteString(fmt.Sprintf("  Address:      %s\n", l.Address))
 	sb.WriteString(fmt.Sprintf("  Tx Hash:      %s\n", hex.EncodeToString(l.TxHash[:])))
@@ -76,4 +71,28 @@ func (l Log) String() string {
 	sb.WriteString(fmt.Sprintf("  Chain ID:     %s\n", l.ChainID))
 
 	return sb.String()
+}
+
+func (l TypedLog[T]) String() string {
+	var sb strings.Builder
+	sb.WriteString(l.Log.String())
+	sb.WriteString(fmt.Sprintf("  Typed Data:   %v\n", l.TypedData))
+	return sb.String()
+}
+
+// FilterIndex maps filter keys to matching filter IDs for efficient lookup
+type FilterIndex map[FilterKey][]int64
+
+// FilterKey uniquely identifies a filter by address, message type, and event signature
+type FilterKey struct {
+	Address  *address.Address
+	MsgType  tlb.MsgType
+	EventSig uint32
+}
+
+// Equal compares two FilterKeys using Address.Equals()
+func (fk FilterKey) Equal(other FilterKey) bool {
+	return fk.Address.Equals(other.Address) &&
+		fk.MsgType == other.MsgType &&
+		fk.EventSig == other.EventSig
 }

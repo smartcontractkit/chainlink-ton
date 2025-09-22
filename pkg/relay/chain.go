@@ -16,10 +16,6 @@ import (
 	"github.com/xssnick/tonutils-go/ton/wallet"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
-	inmemorystore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/db/inmemory"
-	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/loader/account"
-	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/txparser"
-
 	"github.com/smartcontractkit/chainlink-common/pkg/chains"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/loop"
@@ -34,6 +30,9 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/config"
 	"github.com/smartcontractkit/chainlink-ton/pkg/fees"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
+	txloader "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/loader"
+	txprocessor "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/processor"
+	inmemorystore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/store/memory"
 	tonchain "github.com/smartcontractkit/chainlink-ton/pkg/ton/chain"
 	tonconfig "github.com/smartcontractkit/chainlink-ton/pkg/ton/config"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
@@ -132,13 +131,12 @@ func newChain(cfg *config.TOMLConfig, loopKs loop.Keystore, lggr logger.Logger, 
 
 	// Get LogPoller configuration from chain config
 	lpCfg := *ch.cfg.LogPollerConfig()
-	fs := inmemorystore.NewFilterStore()
 	lgOpts := &logpoller.ServiceOptions{
-		Config:   lpCfg,
-		Filters:  fs,
-		TxLoader: account.NewTxLoader(lggr, clientProvider, lpCfg.PageSize),
-		TxParser: txparser.NewTxParser(lggr, fs),
-		Store:    inmemorystore.NewLogStore(),
+		Config:    lpCfg,
+		Filters:   inmemorystore.NewFilterStore(),
+		TxLoader:  txloader.New(lggr, clientProvider, lpCfg.PageSize),
+		Processor: txprocessor.New(lggr, "test-chain"),
+		Store:     inmemorystore.NewLogStore(lggr, "test-chain"),
 	}
 
 	ch.lp = logpoller.NewService(lggr, clientProvider, lgOpts)

@@ -36,15 +36,15 @@ func NewDecodedTOMLConfig(rawConfig string) (*TOMLConfig, error) {
 		return &TOMLConfig{}, fmt.Errorf("failed to decode config toml: %w:\n\t%s", err, rawConfig)
 	}
 
-	if err := cfg.ValidateConfig(); err != nil {
-		return &TOMLConfig{}, fmt.Errorf("invalid ton config: %w", err)
-	}
-
 	if !cfg.IsEnabled() {
 		return &TOMLConfig{}, fmt.Errorf("cannot create new chain with ID %s: config is disabled", cfg.ChainID)
 	}
 
 	cfg.SetDefaults()
+
+	if err := cfg.ValidateConfig(); err != nil {
+		return &TOMLConfig{}, fmt.Errorf("invalid ton config: %w", err)
+	}
 	return &cfg, nil
 }
 
@@ -52,8 +52,33 @@ func (c *TOMLConfig) SetDefaults() {
 	if c.TransactionManager == nil {
 		c.TransactionManager = DefaultConfigSet.TransactionManager
 	}
+
 	if c.LogPoller == nil {
 		c.LogPoller = DefaultConfigSet.LogPoller
+	} else {
+		// apply defaults to missing fields within LogPoller
+		defaultLogPoller := DefaultConfigSet.LogPoller
+
+		if c.LogPoller.PollPeriod == nil {
+			c.LogPoller.PollPeriod = defaultLogPoller.PollPeriod
+		}
+		if c.LogPoller.PageSize == 0 {
+			c.LogPoller.PageSize = defaultLogPoller.PageSize
+		}
+		if c.LogPoller.LogPollerStartingLookback == nil {
+			c.LogPoller.LogPollerStartingLookback = defaultLogPoller.LogPollerStartingLookback
+		}
+		if c.LogPoller.BlockTime == nil {
+			c.LogPoller.BlockTime = defaultLogPoller.BlockTime
+		}
+
+		// apply defaults to database config (only if zero)
+		if c.LogPoller.BatchInsertSize == 0 {
+			c.LogPoller.BatchInsertSize = defaultLogPoller.BatchInsertSize
+		}
+		if c.LogPoller.MinBatchSize == 0 {
+			c.LogPoller.MinBatchSize = defaultLogPoller.MinBatchSize
+		}
 	}
 
 	// Set network name full defaults
@@ -110,6 +135,9 @@ func (c *TOMLConfig) ValidateConfig() (err error) {
 			err = errors.Join(err, node.ValidateConfig())
 		}
 	}
+
+	// validate chain configuration (including LogPoller)
+	err = errors.Join(err, c.Chain.ValidateConfig())
 
 	return
 }
