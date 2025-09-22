@@ -528,7 +528,7 @@ describe('MCMS - RBACTimelockGetters', () => {
         executeBody,
       )
 
-       expect(r.transactions).toHaveTransaction({
+      expect(r.transactions).toHaveTransaction({
         from: baseTest.acc.executorOne.getSender().address,
         to: baseTest.bind.timelock.address,
         success: true,
