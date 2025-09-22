@@ -273,15 +273,10 @@ struct TokenTransferFeeConfig {
     destBytesOverhead: uint32;
 }
 
-struct (0x20000001) FeeQuoter_UpdatePrices {
-    updates: PriceUpdates    
-}
-
 struct Metadata {
     sender: address,
     // TODO: metadata { value, tokenAmounts }
 }
-
 
 struct MessageMetadata {
     header: uint256 = stringSha256("Any2TVMMessageHashV1");
