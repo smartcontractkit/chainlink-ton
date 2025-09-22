@@ -1,7 +1,6 @@
 tolk 1.0
 
 import "@stdlib/tvm-dicts";
-import "@stdlib/gas-payments";
 
 import "../lib/utils";
 import "../lib/access/access_control";
@@ -739,7 +738,7 @@ fun Timelock<T>.init(
     // Reply back to sender
     val reply = createMessage({
         bounce: false,
-        value: DEFAULT_MESSAGE_BUDGET_FEE, // send small value as gas budget, keep the rest
+        value: calculateGasMinFee(), // send small value as gas budget, keep the rest
         dest: sender,
         body: Timelock_MinDelayChange{queryId, oldDuration: 0, newDuration: minDelay}
     });
@@ -792,7 +791,7 @@ fun Timelock<T>.scheduleBatch(
 
     val reply = createMessage({
         bounce: false,
-        value: DEFAULT_MESSAGE_BUDGET_FEE, // send small value as gas budget, keep the rest
+        value: calculateGasMinFee(), // send small value as gas budget, keep the rest
         dest: sender,
         body: Timelock_BatchScheduled{queryId, id, delay}
     });
@@ -870,9 +869,7 @@ fun Timelock<T>.executeBatch(
 
         // We enforce a minimum amount of TON op.value trying to ensure the receiver gets at least enough gas for
         // fee validation + a bounce, and avoid out of gas errors in which cases a message will not bounce.
-        val workchain = contract.getAddress().getWorkchain();
-        val minValue = calculateGasFee(workchain, DEFAULT_MESSAGE_FWD_BUDGET_GAS_UNITS);
-        if (call.value < minValue) {
+        if (call.value < calculateGasMinFee()) {
             throw ERROR_INSUFFICIENT_VALUE;
         }
 
@@ -895,7 +892,7 @@ fun Timelock<T>.executeBatch(
 
     val reply = createMessage({
         bounce: false,
-        value: DEFAULT_MESSAGE_BUDGET_FEE, // send small value as gas budget, keep the rest
+        value: calculateGasMinFee(), // send small value as gas budget, keep the rest
         dest: sender,
         body: Timelock_BatchExecuted{queryId, id}
     });
@@ -1061,6 +1058,13 @@ fun Timelock<T>.bypasserExecuteBatch(
     assert(self.isInitialized()) throw ERROR_CONTRACT_NOT_INITIALIZED;
     self.onlyRoleOrAdminRole(BYPASSER_ROLE, sender);
 
+    // Reset the pending operation info, on bypass
+    self.data.opPendingInfo = OpPendingInfo {
+        validAfter: blockchain.now(),
+        opFinalizationTimeout: self.data.opPendingInfo.opFinalizationTimeout,
+        opPendingId: 0
+    };
+
     var index = 0;
     var cc = Iterator<Timelock_Call>.new(calls);
     while (!cc.empty()) {
@@ -1080,7 +1084,7 @@ fun Timelock<T>.bypasserExecuteBatch(
 
     val reply = createMessage({
         bounce: false,
-        value: DEFAULT_MESSAGE_BUDGET_FEE, // send small value as gas budget, keep the rest
+        value: calculateGasMinFee(), // send small value as gas budget, keep the rest
         dest: sender,
         body: Timelock_BypasserBatchExecuted{queryId}
     });

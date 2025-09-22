@@ -917,6 +917,17 @@ export class ContractClient implements Contract {
       .then((r) => r.stack.readBoolean())
   }
 
+  async isPendingOperationFinal(p: ContractProvider, id: bigint): Promise<boolean> {
+    return p
+      .get('isPendingOperationFinal', [
+        {
+          type: 'int',
+          value: id,
+        },
+      ])
+      .then((r) => r.stack.readBoolean())
+  }
+
   async getTimestamp(p: ContractProvider, id: bigint): Promise<bigint> {
     return p
       .get('getTimestamp', [
@@ -974,5 +985,15 @@ export class ContractClient implements Contract {
 
   async isExecutorRoleCheckEnabled(p: ContractProvider): Promise<boolean> {
     return p.get('isExecutorRoleCheckEnabled', []).then((r) => r.stack.readBoolean())
+  }
+
+  async getOpPendingInfo(p: ContractProvider): Promise<OpPendingInfo> {
+    return p // break line
+      .get('getOpPendingInfo', [])
+      .then((result) => ({
+        validAfter: result.stack.readNumber(),
+        opFinalizationTimeout: result.stack.readBigNumber(),
+        opPendingId: result.stack.readBigNumber(),
+      }))
   }
 }
