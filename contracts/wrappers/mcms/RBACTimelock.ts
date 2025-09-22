@@ -692,6 +692,14 @@ export enum Errors {
   OperationCanNotBeCancelled = 104,
   OperationAlreadyScheduled = 105,
   InsufficientDelay = 106,
+  /// Thrown when trying to execute a pending operation while another pending operation is not yet final
+  PendingOperationNot_Final = 107,
+  /// Thrown when the provided op.value is insufficient (min required value not met).
+  InsufficientValue = 108,
+  /// Thrown when trying to submit an error report for an operation that is not done.
+  OperationNotDone = 109,
+  /// Thrown when trying to initialize the contract more than once.
+  ContractAlreadyInitialized = 110,
 }
 
 export class ContractClient implements Contract {

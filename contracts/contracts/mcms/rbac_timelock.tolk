@@ -477,6 +477,15 @@ const ERROR_OPERATION_CAN_NOT_BE_CANCELLED = 104;
 const ERROR_OPERATION_ALREADY_SCHEDULED = 105;
 const ERROR_INSUFFICIENT_DELAY = 106;
 
+/// Thrown when trying to execute a pending operation while another pending operation is not yet final
+const ERROR_PENDING_OPERATION_NOT_FINAL = 107;
+/// Thrown when the provided op.value is insufficient (min required value not met).
+const ERROR_INSUFFICIENT_VALUE = 108;
+/// Thrown when trying to submit an error report for an operation that is not done.
+const ERROR_OPERATION_NOT_DONE = 109;
+/// Thrown when trying to initialize the contract more than once.
+const ERROR_CONTRACT_ALREADY_INITIALIZED = 110;
+
 // --- Constants - storage ---
 
 /// Represents TON message op code size
@@ -574,9 +583,9 @@ fun Timelock<T>.init(
     bypassers: cell,  // vec<address>
     executorRoleCheckEnabled: bool = true
 ): void {
-    // TODO: add a check to secure contract initialization
-    //   - check that the contract is not already initialized
-    //   - check that the deployer is the Timelock_Init sender
+    // @dev: anyone can call init, but only once. The deployer should send init message with stateInit (deployment).
+    // Check that the contract is not already initialized
+    assert(self.data.opPendingInfo.validAfter == 0) throw ERROR_CONTRACT_ALREADY_INITIALIZED;
 
     var rbac = self.hookTrait__AccessControl();
 
@@ -1163,7 +1172,10 @@ get fun isExecutorRoleCheckEnabled(): bool {
     return Timelock<bool>.load().isExecutorRoleCheckEnabled();
 }
 
-// TODO: should we also expose <Timelock<T>._checkFunctionSelectorNotBlocked (not in EVM version)?
+/// @see <Timelock<T>.getOpPendingInfo>
+get fun getOpPendingInfo(): OpPendingInfo {
+    return Timelock<bool>.load().getOpPendingInfo();
+}
 
 // --- Getters - <AccessControl<T>> extension ---
 
