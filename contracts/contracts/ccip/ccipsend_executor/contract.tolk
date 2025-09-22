@@ -148,5 +148,5 @@ fun CCIPSendExecutor<T>.exitSuccessfully(self, fee: coins) {
             fee,
         }
     });
-    sendMsg.send(SEND_MODE_CARRY_ALL_BALANCE + SEND_MODE_DESTROY);
+    sendMsg.send(SEND_MODE_CARRY_ALL_BALANCE /* TODO add this flag after tracetraker is fixed + SEND_MODE_DESTROY */);
 }
