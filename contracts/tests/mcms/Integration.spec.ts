@@ -131,16 +131,16 @@ describe('MCMS - IntegrationTest', () => {
               rbactl.roles.admin,
               {
                 adminRole: rbactl.roles.admin, // default admin role
-                membersLen: 1n, // one member (deployer)
-                hasRole: ac.builder.data.hasRoleDict([acc.deployer.address]),
+                membersLen: 0n, // no members yet
+                hasRole: ac.builder.data.hasRoleDict([]),
               },
             ],
             [
               rbactl.roles.proposer,
               {
                 adminRole: rbactl.roles.admin, // default admin role
-                membersLen: 1n, // one member (deployer)
-                hasRole: ac.builder.data.hasRoleDict([bind.mcmsPropose.address]),
+                membersLen: 0n, // no members yet
+                hasRole: ac.builder.data.hasRoleDict([]),
               },
             ],
             [
@@ -155,16 +155,16 @@ describe('MCMS - IntegrationTest', () => {
               rbactl.roles.canceller,
               {
                 adminRole: rbactl.roles.admin, // default admin role
-                membersLen: 1n, // one member (deployer)
-                hasRole: ac.builder.data.hasRoleDict([bind.mcmsVeto.address]),
+                membersLen: 0n, // no members yet
+                hasRole: ac.builder.data.hasRoleDict([]),
               },
             ],
             [
               rbactl.roles.bypasser,
               {
                 adminRole: rbactl.roles.admin, // default admin role
-                membersLen: 1n, // one member (deployer)
-                hasRole: ac.builder.data.hasRoleDict([bind.mcmsBypass.address]),
+                membersLen: 0n, // no members yet
+                hasRole: ac.builder.data.hasRoleDict([]),
               },
             ],
           ]),
@@ -207,10 +207,9 @@ describe('MCMS - IntegrationTest', () => {
           cancellers: [bind.mcmsVeto.address],
           bypassers: [bind.mcmsBypass.address],
           executorRoleCheckEnabled: true,
-          opFinalizationTimeout: 0n,
         })
         .asCell()
-      const r = await bind.timelock.sendInternal(acc.deployer.getSender(), toNano('0.1'), body)
+      const r = await bind.timelock.sendInternal(acc.deployer.getSender(), toNano('0.2'), body)
 
       expect(r.transactions).toHaveTransaction({
         from: acc.deployer.address,

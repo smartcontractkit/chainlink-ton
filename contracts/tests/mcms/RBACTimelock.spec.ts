@@ -33,8 +33,8 @@ describe('RBACTimelock', () => {
 
     const roleData: ac.RoleData = {
       adminRole: rbactl.roles.admin, // default admin role
-      membersLen: 1n, // one member (deployer)
-      hasRole: ac.builder.data.hasRoleDict([deployer.address]),
+      membersLen: 0n, // no members yet
+      hasRole: ac.builder.data.hasRoleDict([]),
     }
 
     const rbacStorage: ac.ContractData = {
@@ -140,11 +140,10 @@ describe('RBACTimelock', () => {
         cancellers: [deployer.address],
         bypassers: [deployer.address],
         executorRoleCheckEnabled: true,
-        opFinalizationTimeout: 0n,
       })
       .asCell()
 
-    const r = await timelock.sendInternal(deployer.getSender(), toNano('0.1'), body)
+    const r = await timelock.sendInternal(deployer.getSender(), toNano('0.3'), body)
 
     expect(r.transactions).toHaveTransaction({
       from: deployer.address,

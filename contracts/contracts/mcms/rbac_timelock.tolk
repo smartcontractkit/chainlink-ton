@@ -620,6 +620,9 @@ fun Timelock<T>.init(
         rbac._grantRole(queryId, sender, BYPASSER_ROLE, bb.next());
     }
 
+    // Map from underlying trait storage to contract storage
+    self.data.rbac = rbac.data.toCell();
+
     self.data.minDelay = minDelay;
     self.data.executorRoleCheckEnabled = executorRoleCheckEnabled;
 
@@ -661,12 +664,6 @@ fun Timelock<T>.scheduleBatch(
     while (!cc.empty()) {
         val call = cc.next();
         self.checkFunctionSelectorNotBlocked(call.data.beginParse());
-
-        // We enforce a minimum amount of TON op.value trying to ensure the receiver gets at least enough gas for
-        // fee validation + a bounce, and avoid out of gas errors in which cases a message will not bounce.
-        if (call.value < calculateGasMinFee()) {
-            throw ERROR_INSUFFICIENT_VALUE;
-        }
 
         val body = Timelock_CallScheduled{
             queryId,
@@ -965,7 +962,8 @@ fun Timelock<T>.updateExecutorRoleCheck(mutate self, sender: address, queryId: u
 
 /// Returns whether the contract is initialized.
 fun Timelock<T>.isInitialized(self): bool {
-    return self.data.opPendingInfo.validAfter != 0;
+    val rbac = self.hookTrait__AccessControl();
+    return rbac.getRoleMemberCount(ADMIN_ROLE) > 0; // at least one admin account
 }
 
 /// Returns whether the executor role check is enabled.
@@ -1197,11 +1195,6 @@ get fun isInitialized(): bool {
 /// @see <Timelock<T>.isExecutorRoleCheckEnabled>
 get fun isExecutorRoleCheckEnabled(): bool {
     return Timelock<bool>.load().isExecutorRoleCheckEnabled();
-}
-
-/// @see <Timelock<T>.getOpPendingInfo>
-get fun getOpPendingInfo(): OpPendingInfo {
-    return Timelock<bool>.load().getOpPendingInfo();
 }
 
 // --- Getters - <AccessControl<T>> extension ---
