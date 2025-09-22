@@ -1162,8 +1162,8 @@ fun Timelock<T>.submitErrorReport(
 
 /// Returns whether the contract is initialized.
 fun Timelock<T>.isInitialized(self): bool {
-    val rbac = self.hookTrait__AccessControl();
-    return rbac.getRoleMemberCount(ADMIN_ROLE) > 0; // at least one admin account
+    // Set during init, never < blockchain.now()
+    return self.data.opPendingInfo.validAfter != 0;
 }
 
 /// Returns whether the executor role check is enabled.
