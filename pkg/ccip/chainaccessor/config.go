@@ -62,14 +62,6 @@ func parseOCR3Config(configCell *cell.Cell) (ccipocr3.OCRConfig, error) {
 		transmitters = append(transmitters, addrToBytes(transmitter))
 	}
 
-	// Optional: treat empty config as error
-	if configDigest == (ccipocr3.Bytes32{}) &&
-		config.ConfigInfo.F == 0 &&
-		config.ConfigInfo.N == 0 &&
-		len(signers) == 0 && len(transmitters) == 0 {
-		return ccipocr3.OCRConfig{}, errors.New("empty OCR3 config returned")
-	}
-
 	return ccipocr3.OCRConfig{
 		ConfigInfo: ccipocr3.ConfigInfo{
 			ConfigDigest:                   configDigest,
