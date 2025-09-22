@@ -1,7 +1,6 @@
 import '@ton/test-utils'
 
 import * as rbactl from '../../wrappers/mcms/RBACTimelock'
-import * as ac from '../../wrappers/lib/access/AccessControl'
 
 import { BaseTestSetup, TestCode } from './BaseTest'
 
@@ -16,7 +15,9 @@ describe('MCMS - RBACTimelockConstructorTest', () => {
   beforeEach(async () => {
     baseTest = new BaseTestSetup()
     baseTest.code = code
-    await baseTest.setupAll('test-constructor')
+    await baseTest.initializeBlockchain()
+    await baseTest.setupTimelockContract('test-constructor')
+    await baseTest.deployTimelockContract()
   })
 
   it('should set admin role', async () => {

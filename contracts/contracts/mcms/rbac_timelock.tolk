@@ -577,6 +577,8 @@ const ERROR_INSUFFICIENT_VALUE = 108;
 const ERROR_OPERATION_NOT_DONE = 109;
 /// Thrown when trying to initialize the contract more than once.
 const ERROR_CONTRACT_ALREADY_INITIALIZED = 110;
+/// Thrown when trying to call a function on an uninitialized contract.
+const ERROR_CONTRACT_NOT_INITIALIZED = 111;
 
 // --- Constants - storage ---
 
@@ -688,7 +690,7 @@ fun Timelock<T>.init(
 ): void {
     // @dev: anyone can call init, but only once. The deployer should send init message with stateInit (deployment).
     // Check that the contract is not already initialized
-    assert(self.data.opPendingInfo.validAfter == 0) throw ERROR_CONTRACT_ALREADY_INITIALIZED;
+    assert(!self.isInitialized()) throw ERROR_CONTRACT_ALREADY_INITIALIZED;
 
     var rbac = self.hookTrait__AccessControl();
 
@@ -758,6 +760,7 @@ fun Timelock<T>.scheduleBatch(
     salt: uint256,
     delay: uint64
 ): void {
+    assert(self.isInitialized()) throw ERROR_CONTRACT_NOT_INITIALIZED;
     self.onlyRoleOrAdminRole(PROPOSER_ROLE, sender);
 
     val id = self.hashOperationBatch(OperationBatch{calls, predecessor, salt});
@@ -768,6 +771,12 @@ fun Timelock<T>.scheduleBatch(
     while (!cc.empty()) {
         val call = cc.next();
         self.checkFunctionSelectorNotBlocked(call.data.beginParse());
+
+        // We enforce a minimum amount of TON op.value trying to ensure the receiver gets at least enough gas for
+        // fee validation + a bounce, and avoid out of gas errors in which cases a message will not bounce.
+        if (call.value < calculateGasMinFee()) {
+            throw ERROR_INSUFFICIENT_VALUE;
+        }
 
         val body = Timelock_CallScheduled{
             queryId,
@@ -808,6 +817,7 @@ fun Timelock<T>.schedule(mutate self, id: uint256, delay: uint64): void {
 /// - the caller must have the 'canceller' or 'admin' role.
 ///
 fun Timelock<T>.cancel(mutate self, sender: address, queryId: uint64, id: uint256): void {
+    assert(self.isInitialized()) throw ERROR_CONTRACT_NOT_INITIALIZED;
     self.onlyRoleOrAdminRole(CANCELLER_ROLE, sender);
     assert(self.isOperationPending(id)) throw ERROR_OPERATION_CAN_NOT_BE_CANCELLED;
 
@@ -847,6 +857,7 @@ fun Timelock<T>.executeBatch(
     predecessor: uint256,
     salt: uint256
 ): void {
+    assert(self.isInitialized()) throw ERROR_CONTRACT_NOT_INITIALIZED;
     if (self.data.executorRoleCheckEnabled) {
         self.onlyRoleOrAdminRole(EXECUTOR_ROLE, sender);
     }
@@ -858,12 +869,6 @@ fun Timelock<T>.executeBatch(
     var cc = Iterator<Timelock_Call>.new(calls);
     while (!cc.empty()) {
         val call = cc.next();
-
-        // We enforce a minimum amount of TON op.value trying to ensure the receiver gets at least enough gas for
-        // fee validation + a bounce, and avoid out of gas errors in which cases a message will not bounce.
-        if (call.value < calculateGasMinFee()) {
-            throw ERROR_INSUFFICIENT_VALUE;
-        }
 
         self.execute(call);
 
@@ -928,6 +933,7 @@ fun Timelock<T>.afterCall(mutate self, id: uint256): void {
 /// Changes the minimum timelock duration for future operations.
 /// @see {Timelock_UpdateDelay} for more information.
 fun Timelock<T>.updateDelay(mutate self, sender: address, queryId: uint64, newDelay: uint64): void {
+    assert(self.isInitialized()) throw ERROR_CONTRACT_NOT_INITIALIZED;
     val rbac = self.hookTrait__AccessControl();
     rbac.requireRole(ADMIN_ROLE, sender);
 
@@ -950,6 +956,7 @@ fun Timelock<T>.updateDelay(mutate self, sender: address, queryId: uint64, newDe
 /// Changes the timeout required to finalize the currently executing op
 /// @see {Timelock_UpdateOpFinalizationTimeout} for more information.
 fun Timelock<T>.updateOpFinalizationTimeout(mutate self, sender: address, queryId: uint64, newOpFinalizationTimeout: uint64): void {
+    assert(self.isInitialized()) throw ERROR_CONTRACT_NOT_INITIALIZED;
     val rbac = self.hookTrait__AccessControl();
     rbac.requireRole(ADMIN_ROLE, sender);
 
@@ -981,6 +988,7 @@ fun Timelock<T>.updateOpFinalizationTimeout(mutate self, sender: address, queryI
 /// - the caller must have the 'admin' role.
 ///
 fun Timelock<T>.blockFunctionSelector(mutate self, sender: address, queryId: uint64, selector: uint32): bool {
+    assert(self.isInitialized()) throw ERROR_CONTRACT_NOT_INITIALIZED;
     val rbac = self.hookTrait__AccessControl();
     rbac.requireRole(ADMIN_ROLE, sender);
 
@@ -1009,6 +1017,7 @@ fun Timelock<T>.blockFunctionSelector(mutate self, sender: address, queryId: uin
 /// - the caller must have the 'admin' role.
 ///
 fun Timelock<T>.unblockFunctionSelector(mutate self, sender: address, queryId: uint64, selector: uint32): bool {
+    assert(self.isInitialized()) throw ERROR_CONTRACT_NOT_INITIALIZED;
     val rbac = self.hookTrait__AccessControl();
     rbac.requireRole(ADMIN_ROLE, sender);
 
@@ -1044,6 +1053,7 @@ fun Timelock<T>.bypasserExecuteBatch(
     queryId: uint64,
     calls: cell, // vec<Timelock_Call>
 ): void {
+    assert(self.isInitialized()) throw ERROR_CONTRACT_NOT_INITIALIZED;
     self.onlyRoleOrAdminRole(BYPASSER_ROLE, sender);
 
     // Reset the pending operation info, on bypass
@@ -1083,6 +1093,7 @@ fun Timelock<T>.bypasserExecuteBatch(
 ///
 /// @see <Timelock_UpdateExecutorRoleCheck> for more information.
 fun Timelock<T>.updateExecutorRoleCheck(mutate self, sender: address, queryId: uint64, enabled: bool ): void {
+    assert(self.isInitialized()) throw ERROR_CONTRACT_NOT_INITIALIZED;
     val rbac = self.hookTrait__AccessControl();
     rbac.requireRole(ADMIN_ROLE, sender);
 
@@ -1109,6 +1120,7 @@ fun Timelock<T>.submitErrorReport(
     errorTxHash: uint256,
     errorCode: uint32
 ) {
+    assert(self.isInitialized()) throw ERROR_CONTRACT_NOT_INITIALIZED;
     // Only the oracle can submit error reports
     val rbac = self.hookTrait__AccessControl();
     rbac.requireRole(ORACLE_ROLE, sender);
@@ -1137,6 +1149,11 @@ fun Timelock<T>.submitErrorReport(
         }
     });
     reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
+/// Returns whether the contract is initialized.
+fun Timelock<T>.isInitialized(self): bool {
+    return self.data.opPendingInfo.validAfter != 0;
 }
 
 /// Returns whether the executor role check is enabled.
@@ -1276,6 +1293,7 @@ fun Timelock<T>.onInternalMessage(mutate self, msgSender: address, msgValue: coi
                 msg.opTxHash, msg.errorTxHash, msg.errorCode);
         }
         else => {
+            assert(self.isInitialized()) throw ERROR_CONTRACT_NOT_INITIALIZED;
             var rbac = self.hookTrait__AccessControl();
 
             val msgHandled = 0

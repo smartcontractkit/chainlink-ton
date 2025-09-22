@@ -207,10 +207,27 @@ export class BaseTestSetup {
    * Deploy the timelock contract and verify deployment
    */
   async deployTimelockContract(): Promise<void> {
-    const body = rbactl.builder.message.in.topUp.encode({ queryId: 1n }).asCell()
+    const PROPOSERS = [this.acc.proposerOne.address, this.acc.proposerTwo.address]
+    const EXECUTORS = [this.acc.executorOne.address, this.acc.executorTwo.address]
+    const CANCELLERS = [this.acc.cancellerOne.address, this.acc.cancellerTwo.address]
+    const BYPASSERS = [this.acc.bypasserOne.address, this.acc.bypasserTwo.address]
+
+    const body = rbactl.builder.message.in.init
+      .encode({
+        queryId: 1n,
+        minDelay: BaseTestSetup.MIN_DELAY,
+        admin: this.acc.admin.address,
+        proposers: PROPOSERS,
+        executors: EXECUTORS,
+        cancellers: CANCELLERS,
+        bypassers: BYPASSERS,
+        executorRoleCheckEnabled: true,
+        opFinalizationTimeout: 0n,
+      })
+      .asCell()
     const result = await this.bind.timelock.sendInternal(
       this.acc.deployer.getSender(),
-      toNano('0.05'),
+      toNano('0.3'),
       body,
     )
 

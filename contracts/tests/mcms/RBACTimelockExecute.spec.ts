@@ -551,7 +551,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
     it('should execute by anybody if ExecutorRoleCheck flag is disabled', async () => {
       const incrementCall: rbactl.Call = {
         target: baseTest.bind.counter.address,
-        value: toNano('0.05'),
+        value: toNano('0.12'),
         data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }).asCell(),
       }
       const calls = BaseTestSetup.singletonCalls(incrementCall)
