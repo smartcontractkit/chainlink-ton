@@ -132,7 +132,15 @@ struct (0xb98c95e3) OffRamp_UpdateSourceChainConfig {
     config: SourceChainConfig;
 }
 
-type OffRamp_InMessage = OffRamp_Commit | OffRamp_Execute | OffRamp_DispatchValidated | OffRamp_UpdateSourceChainConfig | OCR3Base_SetOCR3Config | OffRamp_CCIPReceiveConfirm | OffRamp_NotifyFailure | OffRamp_NotifySuccess;
+type OffRamp_InMessage =
+    | OffRamp_Commit
+    | OffRamp_Execute
+    | OffRamp_DispatchValidated
+    | OffRamp_UpdateSourceChainConfig
+    | OCR3Base_SetOCR3Config
+    | OffRamp_CCIPReceiveConfirm
+    | OffRamp_NotifyFailure
+    | OffRamp_NotifySuccess;
 
 type OffRamp_BouncedMessage =  CCIPReceive;
 
