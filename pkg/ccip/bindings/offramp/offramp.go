@@ -65,7 +65,6 @@ type SourceChainConfig struct {
 type OCR3Config struct {
 	ConfigInfo   ConfigInfo       `tlb:"."`
 	Signers      *cell.Dictionary `tlb:"dict 256"`
-	KeyLen       uint16           `tlb:"## 16"`
 	Transmitters *cell.Dictionary `tlb:"dict 267"`
 }
 
