@@ -1,9 +1,7 @@
 import '@ton/test-utils'
-
 import { toNano } from '@ton/core'
 
 import { rbactl } from '../../wrappers/mcms'
-
 import { BaseTestSetup, TestCode } from './BaseTest'
 
 describe('MCMS - RBACTimelockReceivable', () => {
@@ -25,9 +23,7 @@ describe('MCMS - RBACTimelockReceivable', () => {
     const balanceBefore = await contractBefore.account.account?.storage.balance!
 
     const topUpBody = rbactl.builder.message.in.topUp
-      .encode({
-        queryId: 1n,
-      })
+      .encode({queryId: 1n })
       .asCell()
 
     const transferAmount = toNano('0.5')

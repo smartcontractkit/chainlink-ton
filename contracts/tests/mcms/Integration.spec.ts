@@ -1,7 +1,7 @@
 import '@ton/test-utils'
 
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { Address, Cell, toNano } from '@ton/core'
+import { Address, beginCell, Cell, toNano } from '@ton/core'
 import { KeyPair, sign } from '@ton/crypto'
 import { compile } from '@ton/blueprint'
 
@@ -197,8 +197,20 @@ describe('MCMS - IntegrationTest', () => {
 
     // Deploy Timelock contract
     {
-      const body = rbactl.builder.message.in.topUp.encode({ queryId: 1n }).asCell()
-      const r = await bind.timelock.sendInternal(acc.deployer.getSender(), toNano('0.05'), body)
+      const body = rbactl.builder.message.in.init
+        .encode({
+          queryId: 1n,
+          minDelay: MIN_DELAY,
+          admin: acc.deployer.address,
+          proposers: [bind.mcmsPropose.address],
+          executors: [],
+          cancellers: [bind.mcmsVeto.address],
+          bypassers: [bind.mcmsBypass.address],
+          executorRoleCheckEnabled: true,
+          opFinalizationTimeout: 0n,
+        })
+        .asCell()
+      const r = await bind.timelock.sendInternal(acc.deployer.getSender(), toNano('0.1'), body)
 
       expect(r.transactions).toHaveTransaction({
         from: acc.deployer.address,
