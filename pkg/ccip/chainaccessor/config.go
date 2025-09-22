@@ -27,103 +27,103 @@ func addrToBytes(addr *address.Address) []byte {
 }
 
 func parseOCR3Config(configCell *cell.Cell) (ccipocr3.OCRConfig, error) {
-    var config offramp.OCR3Config
-    if err := tlb.LoadFromCell(&config, configCell.BeginParse()); err != nil {
-        return ccipocr3.OCRConfig{}, fmt.Errorf("load OCR3Config from cell: %w", err)
-    }
+	var config offramp.OCR3Config
+	if err := tlb.LoadFromCell(&config, configCell.BeginParse()); err != nil {
+		return ccipocr3.OCRConfig{}, fmt.Errorf("load OCR3Config from cell: %w", err)
+	}
 
-    var configDigest ccipocr3.Bytes32
-    copy(configDigest[:], config.ConfigInfo.ConfigDigest)
+	var configDigest ccipocr3.Bytes32
+	copy(configDigest[:], config.ConfigInfo.ConfigDigest)
 
-    entries, err := config.Signers.LoadAll()
-    if err != nil {
-        return ccipocr3.OCRConfig{}, fmt.Errorf("load signers: %w", err)
-    }
+	entries, err := config.Signers.LoadAll()
+	if err != nil {
+		return ccipocr3.OCRConfig{}, fmt.Errorf("load signers: %w", err)
+	}
 
-    signers := make([][]byte, 0, len(entries))
-    for _, entry := range entries {
-        signer, err1 := entry.Key.LoadSlice(256)
-        if err1 != nil {
-            return ccipocr3.OCRConfig{}, fmt.Errorf("decode signer: %w", err1)
-        }
-        signers = append(signers, signer)
-    }
+	signers := make([][]byte, 0, len(entries))
+	for _, entry := range entries {
+		signer, err1 := entry.Key.LoadSlice(256)
+		if err1 != nil {
+			return ccipocr3.OCRConfig{}, fmt.Errorf("decode signer: %w", err1)
+		}
+		signers = append(signers, signer)
+	}
 
-    entries, err = config.Transmitters.LoadAll()
-    if err != nil {
-        return ccipocr3.OCRConfig{}, fmt.Errorf("load transmitters: %w", err)
-    }
-    transmitters := make([][]byte, 0, len(entries))
-    for _, entry := range entries {
-        transmitter, err1 := entry.Key.LoadAddr()
-        if err1 != nil {
-            return ccipocr3.OCRConfig{}, fmt.Errorf("decode transmitter addr: %w", err1)
-        }
-        transmitters = append(transmitters, addrToBytes(transmitter))
-    }
+	entries, err = config.Transmitters.LoadAll()
+	if err != nil {
+		return ccipocr3.OCRConfig{}, fmt.Errorf("load transmitters: %w", err)
+	}
+	transmitters := make([][]byte, 0, len(entries))
+	for _, entry := range entries {
+		transmitter, err1 := entry.Key.LoadAddr()
+		if err1 != nil {
+			return ccipocr3.OCRConfig{}, fmt.Errorf("decode transmitter addr: %w", err1)
+		}
+		transmitters = append(transmitters, addrToBytes(transmitter))
+	}
 
-    // Optional: treat empty config as error
-    if configDigest == (ccipocr3.Bytes32{}) &&
-        config.ConfigInfo.F == 0 &&
-        config.ConfigInfo.N == 0 &&
-        len(signers) == 0 && len(transmitters) == 0 {
-        return ccipocr3.OCRConfig{}, errors.New("empty OCR3 config returned")
-    }
+	// Optional: treat empty config as error
+	if configDigest == (ccipocr3.Bytes32{}) &&
+		config.ConfigInfo.F == 0 &&
+		config.ConfigInfo.N == 0 &&
+		len(signers) == 0 && len(transmitters) == 0 {
+		return ccipocr3.OCRConfig{}, errors.New("empty OCR3 config returned")
+	}
 
-    return ccipocr3.OCRConfig{
-        ConfigInfo: ccipocr3.ConfigInfo{
-            ConfigDigest:                   configDigest,
-            F:                              config.ConfigInfo.F,
-            N:                              config.ConfigInfo.N,
-            IsSignatureVerificationEnabled: config.ConfigInfo.IsSignatureVerificationEnabled,
-        },
-        Signers:      signers,
-        Transmitters: transmitters,
-    }, nil
+	return ccipocr3.OCRConfig{
+		ConfigInfo: ccipocr3.ConfigInfo{
+			ConfigDigest:                   configDigest,
+			F:                              config.ConfigInfo.F,
+			N:                              config.ConfigInfo.N,
+			IsSignatureVerificationEnabled: config.ConfigInfo.IsSignatureVerificationEnabled,
+		},
+		Signers:      signers,
+		Transmitters: transmitters,
+	}, nil
 }
 
 func (a *TONAccessor) getOCR3Config(ctx context.Context, block *ton.BlockIDExt) (commitConfig ccipocr3.OCRConfig, execConfig ccipocr3.OCRConfig, err error) {
-    addr, err := a.getBinding(consts.ContractNameOffRamp)
-    if err != nil {
-        return ccipocr3.OCRConfig{}, ccipocr3.OCRConfig{}, err
-    }
-    result, err := a.client.RunGetMethod(ctx, block, addr, "ocr3Config")
-    if err != nil {
-        return ccipocr3.OCRConfig{}, ccipocr3.OCRConfig{}, err
-    }
+	addr, err := a.getBinding(consts.ContractNameOffRamp)
+	if err != nil {
+		return ccipocr3.OCRConfig{}, ccipocr3.OCRConfig{}, err
+	}
+	result, err := a.client.RunGetMethod(ctx, block, addr, "ocr3Config")
+	if err != nil {
+		return ccipocr3.OCRConfig{}, ccipocr3.OCRConfig{}, err
+	}
 
-    // commit (index 1)
-    isNil, err := result.IsNil(1)
-    if err != nil {
-        return ccipocr3.OCRConfig{}, ccipocr3.OCRConfig{}, err
-    }
-    if !isNil {
-        configCell, err1 := result.Cell(1)
-        if err1 != nil {
-            return ccipocr3.OCRConfig{}, ccipocr3.OCRConfig{}, err1
-        }
-        commitConfig, err1 = parseOCR3Config(configCell)
-        if err1 != nil {
-            return ccipocr3.OCRConfig{}, ccipocr3.OCRConfig{}, err1
-        }
-    }
+	// commit (index 1)
+	isNil, err := result.IsNil(1)
+	if err != nil {
+		return ccipocr3.OCRConfig{}, ccipocr3.OCRConfig{}, err
+	}
+	if !isNil {
+		configCell, err1 := result.Cell(1)
+		if err1 != nil {
+			return ccipocr3.OCRConfig{}, ccipocr3.OCRConfig{}, err1
+		}
+		commitConfig, err1 = parseOCR3Config(configCell)
+		if err1 != nil {
+			return ccipocr3.OCRConfig{}, ccipocr3.OCRConfig{}, err1
+		}
+	}
 
-    // exec (index 2)
-    isNil, err = result.IsNil(2)
-    if err != nil {
-        return ccipocr3.OCRConfig{}, ccipocr3.OCRConfig{}, err
-    }
-    if !isNil {
-        configCell, err2 := result.Cell(2)
-        if err2 != nil {
-            return ccipocr3.OCRConfig{}, ccipocr3.OCRConfig{}, err2
-        }
-        execConfig, err2 = parseOCR3Config(configCell)
-        if err2 != nil {
-            return ccipocr3.OCRConfig{}, ccipocr3.OCRConfig{}, err2
-        }
-    }
-    return commitConfig, execConfig, nil
+	// exec (index 2)
+	isNil, err = result.IsNil(2)
+	if err != nil {
+		return ccipocr3.OCRConfig{}, ccipocr3.OCRConfig{}, err
+	}
+	if !isNil {
+		configCell, err2 := result.Cell(2)
+		if err2 != nil {
+			return ccipocr3.OCRConfig{}, ccipocr3.OCRConfig{}, err2
+		}
+		execConfig, err2 = parseOCR3Config(configCell)
+		if err2 != nil {
+			return ccipocr3.OCRConfig{}, ccipocr3.OCRConfig{}, err2
+		}
+	}
+	return commitConfig, execConfig, nil
 }
 
 // getOffRampConfig retrieves static configuration for the off-ramp contract
