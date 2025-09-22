@@ -307,7 +307,8 @@ describe('Router', () => {
         to: executorAddress,
         deploy: false,
         success: true,
-        destroyed: true,
+        destroyed: false,
+        // destroyed: true, // TODO should be true after tracetracker is fixed
       })
 
       // the executor called back the onRamp and self-destructed
