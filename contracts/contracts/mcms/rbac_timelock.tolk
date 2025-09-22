@@ -575,6 +575,8 @@ const ERROR_PENDING_OPERATION_NOT_FINAL = 107;
 const ERROR_INSUFFICIENT_VALUE = 108;
 /// Thrown when trying to submit an error report for an operation that is not done.
 const ERROR_OPERATION_NOT_DONE = 109;
+/// Thrown when trying to initialize the contract more than once.
+const ERROR_CONTRACT_ALREADY_INITIALIZED = 110;
 
 // --- Constants - storage ---
 
@@ -684,9 +686,9 @@ fun Timelock<T>.init(
     executorRoleCheckEnabled: bool = true,
     opFinalizationTimeout: uint64 = 10  // 10 seconds
 ): void {
-    // TODO: add a check to secure contract initialization
-    //   - check that the contract is not already initialized
-    //   - check that the deployer is the Timelock_Init sender
+    // @dev: anyone can call init, but only once. The deployer should send init message with stateInit (deployment).
+    // Check that the contract is not already initialized
+    assert(self.data.opPendingInfo.validAfter == 0) throw ERROR_CONTRACT_ALREADY_INITIALIZED;
 
     var rbac = self.hookTrait__AccessControl();
 
@@ -1395,8 +1397,6 @@ get fun isExecutorRoleCheckEnabled(): bool {
 get fun getOpPendingInfo(): OpPendingInfo {
     return Timelock<bool>.load().getOpPendingInfo();
 }
-
-// TODO: should we also expose <Timelock<T>._checkFunctionSelectorNotBlocked (not in EVM version)?
 
 // --- Getters - <AccessControl<T>> extension ---
 
