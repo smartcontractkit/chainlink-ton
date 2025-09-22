@@ -217,6 +217,7 @@ export class BaseTestSetup {
         cancellers: CANCELLERS,
         bypassers: BYPASSERS,
         executorRoleCheckEnabled: true,
+        opFinalizationTimeout: 0n,
       })
       .asCell()
     const result = await this.bind.timelock.sendInternal(

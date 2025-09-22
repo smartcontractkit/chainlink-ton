@@ -212,6 +212,7 @@ describe('MCMS - IntegrationTest', () => {
           cancellers: [bind.mcmsVeto.address],
           bypassers: [bind.mcmsBypass.address],
           executorRoleCheckEnabled: true,
+          opFinalizationTimeout: 0n,
         })
         .asCell()
       const r = await bind.timelock.sendInternal(acc.deployer.getSender(), toNano('0.2'), body)

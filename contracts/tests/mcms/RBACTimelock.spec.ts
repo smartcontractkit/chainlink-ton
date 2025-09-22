@@ -152,6 +152,7 @@ describe('RBACTimelock', () => {
         cancellers: [deployer.address],
         bypassers: [deployer.address],
         executorRoleCheckEnabled: true,
+        opFinalizationTimeout: 0n,
       })
       .asCell()
 

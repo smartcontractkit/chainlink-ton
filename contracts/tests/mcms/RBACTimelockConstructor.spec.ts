@@ -32,6 +32,7 @@ describe('MCMS - RBACTimelockConstructorTest', () => {
         cancellers: [],
         bypassers: [],
         executorRoleCheckEnabled: true,
+        opFinalizationTimeout: 0n,
       })
       .asCell()
 

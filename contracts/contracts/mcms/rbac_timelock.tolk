@@ -775,6 +775,12 @@ fun Timelock<T>.scheduleBatch(
         val call = cc.next();
         self.checkFunctionSelectorNotBlocked(call.data.beginParse());
 
+        // We enforce a minimum amount of TON op.value trying to ensure the receiver gets at least enough gas for
+        // fee validation + a bounce, and avoid out of gas errors in which cases a message will not bounce.
+        if (call.value < calculateGasMinFee()) {
+            throw ERROR_INSUFFICIENT_VALUE;
+        }
+
         val body = Timelock_CallScheduled{
             queryId,
             id,
@@ -867,12 +873,6 @@ fun Timelock<T>.executeBatch(
     while (!cc.empty()) {
         val call = cc.next();
 
-        // We enforce a minimum amount of TON op.value trying to ensure the receiver gets at least enough gas for
-        // fee validation + a bounce, and avoid out of gas errors in which cases a message will not bounce.
-        if (call.value < calculateGasMinFee()) {
-            throw ERROR_INSUFFICIENT_VALUE;
-        }
-
         self.execute(call);
 
         val body = Timelock_CallExecuted{
@@ -959,6 +959,7 @@ fun Timelock<T>.updateDelay(mutate self, sender: address, queryId: uint64, newDe
 /// Changes the timeout required to finalize the currently executing op
 /// @see {Timelock_UpdateOpFinalizationTimeout} for more information.
 fun Timelock<T>.updateOpFinalizationTimeout(mutate self, sender: address, queryId: uint64, newOpFinalizationTimeout: uint64): void {
+    assert(self.isInitialized()) throw ERROR_CONTRACT_NOT_INITIALIZED;
     val rbac = self.hookTrait__AccessControl();
     rbac.requireRole(ADMIN_ROLE, sender);
 
