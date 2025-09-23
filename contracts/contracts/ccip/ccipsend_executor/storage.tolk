@@ -76,7 +76,7 @@ fun CCIPSendExecutor<T>.load(): CCIPSendExecutor<T> {
 
 fun CCIPSendExecutor<T>.store(self) {
     contract.setData(CCIPSendExecutor_Data {
-        messageId: 0,
+        messageId: self.messageId,
         onrampSend: self.onrampSend,
         addresses: self.addresses,
         state: self.state,
