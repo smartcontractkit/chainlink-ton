@@ -368,7 +368,7 @@ type OpPendingInfo struct {
 	// The timeout required to finalize the currently executing op
 	OpFinalizationTimeout uint64 `tlb:"## 64"`
 	// The id of the currently pending operation (OperationBatch hash)
-	OpPendingId *big.Int `tlb:"## 256"`
+	OpPendingID *big.Int `tlb:"## 256"`
 }
 
 // --- Constants ---
