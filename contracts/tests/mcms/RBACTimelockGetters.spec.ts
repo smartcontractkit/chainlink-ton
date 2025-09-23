@@ -488,7 +488,7 @@ describe('MCMS - RBACTimelockGetters', () => {
     it('should return DONE_TIMESTAMP if operation has been executed', async () => {
       const call = {
         target: baseTest.bind.counter.address,
-        value: toNano('0.05'),
+        value: toNano('0.12'),
         data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }).asCell(),
       }
       const calls = BaseTestSetup.singletonCalls(call)
@@ -522,11 +522,17 @@ describe('MCMS - RBACTimelockGetters', () => {
         })
         .asCell()
 
-      await baseTest.bind.timelock.sendInternal(
+      const r = await baseTest.bind.timelock.sendInternal(
         baseTest.acc.executorOne.getSender(),
         toNano('1'),
         executeBody,
       )
+
+      expect(r.transactions).toHaveTransaction({
+        from: baseTest.acc.executorOne.getSender().address,
+        to: baseTest.bind.timelock.address,
+        success: true,
+      })
 
       const operationBatch: rbactl.OperationBatch = {
         calls,

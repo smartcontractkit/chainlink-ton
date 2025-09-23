@@ -477,6 +477,17 @@ const ERROR_OPERATION_CAN_NOT_BE_CANCELLED = 104;
 const ERROR_OPERATION_ALREADY_SCHEDULED = 105;
 const ERROR_INSUFFICIENT_DELAY = 106;
 
+/// Thrown when trying to execute a pending operation while another pending operation is not yet final
+const ERROR_PENDING_OPERATION_NOT_FINAL = 107;
+/// Thrown when the provided op.value is insufficient (min required value not met).
+const ERROR_INSUFFICIENT_VALUE = 108;
+/// Thrown when trying to submit an error report for an operation that is not done.
+const ERROR_OPERATION_NOT_DONE = 109;
+/// Thrown when trying to initialize the contract more than once.
+const ERROR_CONTRACT_ALREADY_INITIALIZED = 110;
+/// Thrown when trying to call a function on an uninitialized contract.
+const ERROR_CONTRACT_NOT_INITIALIZED = 111;
+
 // --- Constants - storage ---
 
 /// Represents TON message op code size
@@ -574,9 +585,9 @@ fun Timelock<T>.init(
     bypassers: cell,  // vec<address>
     executorRoleCheckEnabled: bool = true
 ): void {
-    // TODO: add a check to secure contract initialization
-    //   - check that the contract is not already initialized
-    //   - check that the deployer is the Timelock_Init sender
+    // @dev: anyone can call init, but only once. The deployer should send init message with stateInit (deployment).
+    // Check that the contract is not already initialized
+    assert(!self.isInitialized()) throw ERROR_CONTRACT_ALREADY_INITIALIZED;
 
     var rbac = self.hookTrait__AccessControl();
 
@@ -609,6 +620,9 @@ fun Timelock<T>.init(
         rbac._grantRole(queryId, sender, BYPASSER_ROLE, bb.next());
     }
 
+    // Map from underlying trait storage to contract storage
+    self.data.rbac = rbac.data.toCell();
+
     self.data.minDelay = minDelay;
     self.data.executorRoleCheckEnabled = executorRoleCheckEnabled;
 
@@ -639,6 +653,7 @@ fun Timelock<T>.scheduleBatch(
     salt: uint256,
     delay: uint64
 ): void {
+    assert(self.isInitialized()) throw ERROR_CONTRACT_NOT_INITIALIZED;
     self.onlyRoleOrAdminRole(PROPOSER_ROLE, sender);
 
     val id = self.hashOperationBatch(OperationBatch{calls, predecessor, salt});
@@ -689,6 +704,7 @@ fun Timelock<T>.schedule(mutate self, id: uint256, delay: uint64): void {
 /// - the caller must have the 'canceller' or 'admin' role.
 ///
 fun Timelock<T>.cancel(mutate self, sender: address, queryId: uint64, id: uint256): void {
+    assert(self.isInitialized()) throw ERROR_CONTRACT_NOT_INITIALIZED;
     self.onlyRoleOrAdminRole(CANCELLER_ROLE, sender);
     assert(self.isOperationPending(id)) throw ERROR_OPERATION_CAN_NOT_BE_CANCELLED;
 
@@ -723,6 +739,7 @@ fun Timelock<T>.executeBatch(
     predecessor: uint256,
     salt: uint256
 ): void {
+    assert(self.isInitialized()) throw ERROR_CONTRACT_NOT_INITIALIZED;
     if (self.data.executorRoleCheckEnabled) {
         self.onlyRoleOrAdminRole(EXECUTOR_ROLE, sender);
     }
@@ -798,6 +815,7 @@ fun Timelock<T>.afterCall(mutate self, id: uint256): void {
 /// - the caller must have the 'admin' role.
 ///
 fun Timelock<T>.updateDelay(mutate self, sender: address, queryId: uint64, newDelay: uint64): void {
+    assert(self.isInitialized()) throw ERROR_CONTRACT_NOT_INITIALIZED;
     val rbac = self.hookTrait__AccessControl();
     rbac.requireRole(ADMIN_ROLE, sender);
 
@@ -817,7 +835,7 @@ fun Timelock<T>.updateDelay(mutate self, sender: address, queryId: uint64, newDe
     self.data.minDelay = newDelay;
 }
 
-/// @dev Blocks a function selector from being used, i.e. schedule
+/// Blocks a function selector from being used, i.e. schedule
 /// operations with this function selector will revert.
 ///
 /// Note that blocked selectors are only checked when an operation is being
@@ -829,6 +847,7 @@ fun Timelock<T>.updateDelay(mutate self, sender: address, queryId: uint64, newDe
 /// - the caller must have the 'admin' role.
 ///
 fun Timelock<T>.blockFunctionSelector(mutate self, sender: address, queryId: uint64, selector: uint32): bool {
+    assert(self.isInitialized()) throw ERROR_CONTRACT_NOT_INITIALIZED;
     val rbac = self.hookTrait__AccessControl();
     rbac.requireRole(ADMIN_ROLE, sender);
 
@@ -857,6 +876,7 @@ fun Timelock<T>.blockFunctionSelector(mutate self, sender: address, queryId: uin
 /// - the caller must have the 'admin' role.
 ///
 fun Timelock<T>.unblockFunctionSelector(mutate self, sender: address, queryId: uint64, selector: uint32): bool {
+    assert(self.isInitialized()) throw ERROR_CONTRACT_NOT_INITIALIZED;
     val rbac = self.hookTrait__AccessControl();
     rbac.requireRole(ADMIN_ROLE, sender);
 
@@ -892,6 +912,7 @@ fun Timelock<T>.bypasserExecuteBatch(
     queryId: uint64,
     calls: cell, // vec<Timelock_Call>
 ): void {
+    assert(self.isInitialized()) throw ERROR_CONTRACT_NOT_INITIALIZED;
     self.onlyRoleOrAdminRole(BYPASSER_ROLE, sender);
 
     var index = 0;
@@ -924,6 +945,7 @@ fun Timelock<T>.bypasserExecuteBatch(
 ///
 /// @see <Timelock_UpdateExecutorRoleCheck> for more information.
 fun Timelock<T>.updateExecutorRoleCheck(mutate self, sender: address, queryId: uint64, enabled: bool ): void {
+    assert(self.isInitialized()) throw ERROR_CONTRACT_NOT_INITIALIZED;
     val rbac = self.hookTrait__AccessControl();
     rbac.requireRole(ADMIN_ROLE, sender);
 
@@ -936,6 +958,12 @@ fun Timelock<T>.updateExecutorRoleCheck(mutate self, sender: address, queryId: u
         body: Timelock_ExecutorRoleCheckUpdated{queryId, enabled}
     });
     reply.send(SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+}
+
+/// Returns whether the contract is initialized.
+fun Timelock<T>.isInitialized(self): bool {
+    val rbac = self.hookTrait__AccessControl();
+    return rbac.getRoleMemberCount(ADMIN_ROLE) > 0; // at least one admin account
 }
 
 /// Returns whether the executor role check is enabled.
@@ -1068,6 +1096,7 @@ fun Timelock<T>.onInternalMessage(mutate self, msgSender: address, msgValue: coi
             self.updateExecutorRoleCheck(msgSender, msg.queryId, msg.enabled);
         }
         else => {
+            assert(self.isInitialized()) throw ERROR_CONTRACT_NOT_INITIALIZED;
             var rbac = self.hookTrait__AccessControl();
 
             val msgHandled = 0
@@ -1158,12 +1187,15 @@ get fun getBlockedFunctionSelectorAt(index: uint32): uint32 {
     return Timelock<bool>.load().getBlockedFunctionSelectorAt(index);
 }
 
+/// @see <Timelock<T>.isInitialized>
+get fun isInitialized(): bool {
+    return Timelock<bool>.load().isInitialized();
+}
+
 /// @see <Timelock<T>.isExecutorRoleCheckEnabled>
 get fun isExecutorRoleCheckEnabled(): bool {
     return Timelock<bool>.load().isExecutorRoleCheckEnabled();
 }
-
-// TODO: should we also expose <Timelock<T>._checkFunctionSelectorNotBlocked (not in EVM version)?
 
 // --- Getters - <AccessControl<T>> extension ---
 

@@ -14,7 +14,7 @@ import {
 import { crc32 } from 'zlib'
 import { CellCodec, sha256_32 } from '../utils'
 import { keccak256 } from '@ethersproject/keccak256'
-import { uint8ArrayToBigInt } from '../../src/utils'
+import { asSnakeData, fromSnakeData, uint8ArrayToBigInt } from '../../src/utils'
 
 // @dev Initializes the contract
 export type Init = {
@@ -28,10 +28,10 @@ export type Init = {
   admin: Address
 
   // Collection of addresses to be granted proposer, executor, canceller and bypasser roles.
-  proposers: Cell // vec<address>
-  executors: Cell // vec<address>
-  cancellers: Cell // vec<address>
-  bypassers: Cell // vec<address>
+  proposers: Address[]
+  executors: Address[]
+  cancellers: Address[]
+  bypassers: Address[]
 
   // Flag to enable/disable the executor role check (if disabled, anyone can execute)
   executorRoleCheckEnabled: boolean
@@ -268,7 +268,7 @@ export const opcodes = {
 
 export const builder = {
   message: {
-    init: (() => {
+    in: (() => {
       const init: CellCodec<Init> = {
         encode: (msg: Init): Builder => {
           return beginCell()
@@ -276,10 +276,10 @@ export const builder = {
             .storeUint(msg.queryId, 64)
             .storeUint(msg.minDelay, 64)
             .storeAddress(msg.admin)
-            .storeRef(msg.proposers)
-            .storeRef(msg.executors)
-            .storeRef(msg.cancellers)
-            .storeRef(msg.bypassers)
+            .storeRef(asSnakeData<Address>(msg.proposers, (a) => beginCell().storeAddress(a)))
+            .storeRef(asSnakeData<Address>(msg.executors, (a) => beginCell().storeAddress(a)))
+            .storeRef(asSnakeData<Address>(msg.cancellers, (a) => beginCell().storeAddress(a)))
+            .storeRef(asSnakeData<Address>(msg.bypassers, (a) => beginCell().storeAddress(a)))
             .storeBit(msg.executorRoleCheckEnabled)
         },
         load: (src: Slice): Init => {
@@ -288,17 +288,15 @@ export const builder = {
             queryId: src.loadUintBig(64),
             minDelay: src.loadUintBig(64),
             admin: src.loadAddress(),
-            proposers: src.loadRef(),
-            executors: src.loadRef(),
-            cancellers: src.loadRef(),
-            bypassers: src.loadRef(),
+            proposers: fromSnakeData<Address>(src.loadRef(), (s) => s.loadAddress()),
+            executors: fromSnakeData<Address>(src.loadRef(), (s) => s.loadAddress()),
+            cancellers: fromSnakeData<Address>(src.loadRef(), (s) => s.loadAddress()),
+            bypassers: fromSnakeData<Address>(src.loadRef(), (s) => s.loadAddress()),
             executorRoleCheckEnabled: src.loadBit(),
           }
         },
       }
-      return init
-    })(),
-    in: (() => {
+
       const topUp: CellCodec<TopUp> = {
         encode: (msg: TopUp): Builder => {
           return beginCell() // break line
@@ -453,6 +451,7 @@ export const builder = {
       }
 
       return {
+        init,
         topUp,
         scheduleBatch,
         cancel,
@@ -692,6 +691,16 @@ export enum Errors {
   OperationCanNotBeCancelled = 104,
   OperationAlreadyScheduled = 105,
   InsufficientDelay = 106,
+  /// Thrown when trying to execute a pending operation while another pending operation is not yet final
+  PendingOperationNotFinal = 107,
+  /// Thrown when the provided op.value is insufficient (min required value not met).
+  InsufficientValue = 108,
+  /// Thrown when trying to submit an error report for an operation that is not done.
+  OperationNotDone = 109,
+  /// Thrown when trying to initialize the contract more than once.
+  ContractAlreadyInitialized = 110,
+  /// Thrown when trying to call a function on an uninitialized contract.
+  ContractNotInitialized = 111,
 }
 
 export class ContractClient implements Contract {
@@ -718,7 +727,7 @@ export class ContractClient implements Contract {
   }
 
   async sendInit(provider: ContractProvider, via: Sender, value: bigint, body: Init) {
-    return this.sendInternal(provider, via, value, builder.message.init.encode(body).asCell())
+    return this.sendInternal(provider, via, value, builder.message.in.init.encode(body).asCell())
   }
 
   async sendTopUp(provider: ContractProvider, via: Sender, value: bigint = 0n, body: TopUp) {
