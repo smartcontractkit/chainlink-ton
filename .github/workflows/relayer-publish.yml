@@ -78,7 +78,7 @@ jobs:
       aws-ecr-name: chainlink-plugins-dev
       aws-region-ecr: ${{ vars.AWS_REGION }}
       aws-region-gati: ${{ vars.AWS_REGION }}
-      dockerfile: plugins/chainlink.Dockerfile
+      dockerfile: core/chainlink.Dockerfile
       docker-build-context: .
       docker-build-args: |
         CHAINLINK_USER=chainlink
