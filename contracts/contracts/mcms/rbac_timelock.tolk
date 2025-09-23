@@ -1334,6 +1334,10 @@ fun onBouncedMessage(in: InMessageBounced) {
     // Load the contract storage as Timelock and handle the message
     var timelock = Timelock<bool>.load();
 
+    if (timelock.data.opPendingInfo.opPendingId == 0) {
+        return; // noop
+    }
+
     val id = timelock.data.opPendingInfo.opPendingId;
     val value = beginCell().storeUint(ERROR_TIMESTAMP, 64).endCell().beginParse();
     timelock.data.timestamps.uDictSet(256, id, value); // Mark the operation as error

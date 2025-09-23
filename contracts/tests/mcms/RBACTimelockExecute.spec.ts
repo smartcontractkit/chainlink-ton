@@ -78,8 +78,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       })
     })
 
-    // TODO: Catch bounced messages on errors
-    it.skip('should fail if one target reverts (invalid call)', async () => {
+    it('should fail if one target reverts (invalid call)', async () => {
       // Create a call with invalid data that will cause failure
       const invalidCall: rbactl.Call = {
         target: baseTest.bind.counter.address,
@@ -104,7 +103,20 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       expect(result.transactions).toHaveTransaction({
         from: baseTest.acc.admin.address,
         to: baseTest.bind.timelock.address,
+        success: true,
+      })
+
+      expect(result.transactions).toHaveTransaction({
+        from: baseTest.bind.timelock.address,
+        to: baseTest.bind.counter.address,
         success: false,
+      })
+
+      expect(result.transactions).toHaveTransaction({
+        from: baseTest.bind.counter.address,
+        to: baseTest.bind.timelock.address,
+        success: true,
+        inMessageBounced: true,
       })
     })
 
@@ -388,8 +400,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       })
     })
 
-    // TODO: Timelock doesn't handle reverts yet, and we do not know if it will")
-    it.skip('should fail if one target call fails', async () => {
+    it('should fail if one target call fails', async () => {
       // Create a call with invalid data
       const invalidCall: rbactl.Call = {
         target: baseTest.bind.counter.address,
@@ -437,8 +448,31 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       expect(result.transactions).toHaveTransaction({
         from: baseTest.acc.executorOne.address,
         to: baseTest.bind.timelock.address,
+        success: true,
+      })
+
+      expect(result.transactions).toHaveTransaction({
+        from: baseTest.bind.timelock.address,
+        to: baseTest.bind.counter.address,
         success: false,
       })
+
+      expect(result.transactions).toHaveTransaction({
+        from: baseTest.bind.counter.address,
+        to: baseTest.bind.timelock.address,
+        success: true,
+        inMessageBounced: true,
+      })
+
+      // Verify operation was marked as error
+      const operationBatch: rbactl.OperationBatch = {
+        calls,
+        predecessor: BaseTestSetup.NO_PREDECESSOR,
+        salt: BaseTestSetup.EMPTY_SALT,
+      }
+      const operationId = await baseTest.bind.timelock.getHashOperationBatch(operationBatch)
+      const timestamp = await baseTest.bind.timelock.getTimestamp(operationId)
+      expect(timestamp).toEqual(rbactl.ERROR_TIMESTAMP)
     })
 
     it('should allow executor to execute scheduled operation', async () => {
@@ -539,7 +573,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       // Verify the operation ID in the event matches
       expect(callExecutedEvent.id).toEqual(operationId)
       const timestamp = await baseTest.bind.timelock.getTimestamp(operationId)
-      expect(timestamp).toEqual(BaseTestSetup.DONE_TIMESTAMP)
+      expect(timestamp).toEqual(rbactl.DONE_TIMESTAMP)
 
       // Verify counter value was set
       expect(await baseTest.bind.counter.getValue()).toEqual(10)

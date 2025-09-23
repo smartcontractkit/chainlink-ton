@@ -542,7 +542,7 @@ describe('MCMS - RBACTimelockGetters', () => {
       const operationID = await baseTest.bind.timelock.getHashOperationBatch(operationBatch)
 
       const operationTimestamp = await baseTest.bind.timelock.getTimestamp(operationID)
-      expect(operationTimestamp).toBe(BaseTestSetup.DONE_TIMESTAMP)
+      expect(operationTimestamp).toBe(rbactl.DONE_TIMESTAMP)
     })
   })
 })

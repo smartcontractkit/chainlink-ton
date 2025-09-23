@@ -793,9 +793,9 @@ export const topics = {
 }
 
 // Timestamp value used to mark an operation as done
-export const DONE_TIMESTAMP = 1
+export const DONE_TIMESTAMP = 1n
 // Timestamp value used to mark an operation as error
-export const ERROR_TIMESTAMP = 2
+export const ERROR_TIMESTAMP = 2n
 
 export enum Errors {
   SelectorIsBlocked = 101,
