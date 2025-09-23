@@ -136,6 +136,27 @@ export type UpdateExecutorRoleCheck = {
   enabled: boolean
 }
 
+// Submit an oracle error report, which marks an operation in error state.
+//
+// The error report is used for a category of errors which might occur during execution
+// of an operation, but can't be caught on-chain (OOG errors, and downstream tx-trace errors).
+//
+// struct (0xf4538b79) Timelock_SubmitErrorReport {
+export type SubmitErrorReport = {
+  // Query ID of the change request.
+  queryId: bigint
+
+  // The operation which produced the error (used to re-derive the op id).
+  opBatch: OperationBatch // Cell<OperationBatch>
+  // The hash of the execute transaction.
+  opTxHash: bigint
+
+  /// The hash of the transaction which errored (part of the tx trace).
+  errorTxHash: bigint
+  /// The error code.
+  errorCode: number
+}
+
 // Union of all (input) messages.
 export type InMessage =
   | Init
@@ -148,6 +169,7 @@ export type InMessage =
   | UnblockFunctionSelector
   | BypasserExecuteBatch
   | UpdateExecutorRoleCheck
+  | SubmitErrorReport
 
 // RBACTimelock contract storage
 export type ContractData = {
@@ -294,6 +316,20 @@ export const opcodes = {
     ExecutorRoleCheckUpdated: crc32('Timelock_ExecutorRoleCheckUpdated'),
     ErrorReportSubmitted: crc32('Timelock_ErrorReportSubmitted'),
     OpFinalizationTimeoutChange: crc32('Timelock_OpFinalizationTimeoutChange'),
+  },
+}
+
+// extracted to use in closure
+const operationBatch: CellCodec<OperationBatch> = {
+  encode: (op: OperationBatch): Builder => {
+    return beginCell().storeRef(op.calls).storeUint(op.predecessor, 256).storeUint(op.salt, 256)
+  },
+  load: (src: Slice): OperationBatch => {
+    return {
+      calls: src.loadRef(),
+      predecessor: src.loadUintBig(256),
+      salt: src.loadUintBig(256),
+    }
   },
 }
 
@@ -500,6 +536,28 @@ export const builder = {
         },
       }
 
+      const submitErrorReport: CellCodec<SubmitErrorReport> = {
+        encode: (msg: SubmitErrorReport): Builder => {
+          return beginCell()
+            .storeUint(opcodes.in.SubmitErrorReport, 32)
+            .storeUint(msg.queryId, 64)
+            .storeRef(operationBatch.encode(msg.opBatch).asCell())
+            .storeUint(msg.opTxHash, 256)
+            .storeUint(msg.errorTxHash, 256)
+            .storeUint(msg.errorCode, 32)
+        },
+        load: (s: Slice): SubmitErrorReport => {
+          s.skip(32) // skip opcode
+          return {
+            queryId: s.loadUintBig(64),
+            opBatch: operationBatch.load(s.loadRef().asSlice()),
+            opTxHash: s.loadUintBig(256),
+            errorTxHash: s.loadUintBig(256),
+            errorCode: s.loadUint(32),
+          }
+        },
+      }
+
       return {
         init,
         topUp,
@@ -512,6 +570,7 @@ export const builder = {
         unblockFunctionSelector,
         bypasserExecuteBatch,
         updateExecutorRoleCheck,
+        submitErrorReport,
       }
     })(),
     out: (() => {
@@ -689,19 +748,6 @@ export const builder = {
           target: src.loadAddress(),
           value: src.loadCoins(),
           data: src.loadRef(),
-        }
-      },
-    }
-
-    const operationBatch: CellCodec<OperationBatch> = {
-      encode: (op: OperationBatch): Builder => {
-        return beginCell().storeRef(op.calls).storeUint(op.predecessor, 256).storeUint(op.salt, 256)
-      },
-      load: (src: Slice): OperationBatch => {
-        return {
-          calls: src.loadRef(),
-          predecessor: src.loadUintBig(256),
-          salt: src.loadUintBig(256),
         }
       },
     }
