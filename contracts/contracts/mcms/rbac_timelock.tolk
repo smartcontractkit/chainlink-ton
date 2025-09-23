@@ -602,6 +602,11 @@ fun Timelock<T>.load(context: T? = null, hooks: Timelock_Hooks<T>? = null): Time
     };
 }
 
+/// Returns the id that derives the (contract) address of this Timelock instance.
+fun Timelock<T>.getId(self): uint32 {
+    return self.data.id;
+}
+
 /// Requires that the sender has the given role or the admin role.
 fun Timelock<T>.onlyRoleOrAdminRole(self, role: int, sender: address): void {
     val rbac = self.hookTrait__AccessControl();
@@ -1365,6 +1370,11 @@ get fun typeAndVersion(): (slice, slice) {
      return ("com.chainlink.ton.mcms.Timelock", "1.0.0");
 }
 
+/// @see <Timelock<T>.getId>
+get fun getId(): uint32 {
+    return Timelock<bool>.load().getId();
+}
+
 /// @see <Timelock<T>.isOperation>
 get fun isOperation(id: int): bool {
     return Timelock<bool>.load().isOperation(id);
@@ -1434,8 +1444,6 @@ get fun isExecutorRoleCheckEnabled(): bool {
 get fun getOpPendingInfo(): OpPendingInfo {
     return Timelock<bool>.load().getOpPendingInfo();
 }
-
-// TODO: should we also expose <Timelock<T>._checkFunctionSelectorNotBlocked (not in EVM version)?
 
 // --- Getters - <AccessControl<T>> extension ---
 

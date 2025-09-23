@@ -919,6 +919,10 @@ export class ContractClient implements Contract {
     return [type, version]
   }
 
+  async getId(p: ContractProvider): Promise<number> {
+    return p.get('getId', []).then((r) => r.stack.readNumber())
+  }
+
   async isOperation(p: ContractProvider, id: bigint): Promise<boolean> {
     return p
       .get('isOperation', [

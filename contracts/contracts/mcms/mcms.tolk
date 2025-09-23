@@ -1264,6 +1264,11 @@ fun MCMS<T>._execute(self, target: address, value: coins, data: cell): void {
     op.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
+/// Returns the id that derives the (contract) address of this MCMS instance.
+fun MCMS<T>.getId(self): uint32 {
+    return self.data.id;
+}
+
 /// Returns the current configuration of the contract
 fun MCMS<T>.getConfig(self): Config {
     return Config.fromCell(self.data.config);
@@ -1389,6 +1394,11 @@ fun onBouncedMessage(in: InMessageBounced) {
 
 get fun typeAndVersion(): (slice, slice) {
      return ("com.chainlink.ton.mcms.MCMS", "1.0.0");
+}
+
+/// @see <MCMS<T>.getId>
+get fun getId(): uint32 {
+    return MCMS<bool>.load().getId();
 }
 
 /// @see <MCMS<T>.getConfig>
