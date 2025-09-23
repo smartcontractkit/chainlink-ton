@@ -166,7 +166,7 @@ export type ContractData = {
 
   // Flag to enable/disable the executor role check (if disabled, anyone can execute)
   executorRoleCheckEnabled: boolean
-  // The timeout required to finalize the currently executing op, before being able to execute another op.
+  // Information about the currently pending operation.
   opPendingInfo: OpPendingInfo
 
   // AccessControl trait data

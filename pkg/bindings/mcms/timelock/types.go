@@ -330,6 +330,8 @@ type Data struct {
 
 	// Flag to enable/disable the executor role check (if disabled, anyone can execute)
 	ExecutorRoleCheckEnabled bool `tlb:"bool"`
+	// Information about the currently pending operation.
+	OpPendingInfo OpPendingInfo `tlb:"."`
 
 	// AccessControl trait data
 	RBAC rbac.Data `tlb:"^"`
@@ -353,6 +355,20 @@ type OperationBatch struct {
 	Predecessor *big.Int `tlb:"## 256"`
 	// Salt used to derive the operation ID
 	Salt *big.Int `tlb:"## 256"`
+}
+
+// Information about the currently pending operation.
+//
+// @dev TON-specific additional data required to support reliable execution in the async environment.
+type OpPendingInfo struct {
+	// The time at which the scheduled ops becomes valid to execute [executionTime(opCount -
+	// At this time the previous executed operation is considered optimistically final and successful,
+	// meaning no bounce was received and we can continue executing.
+	ValidAfter uint32 `tlb:"## 32"`
+	// The timeout required to finalize the currently executing op
+	OpFinalizationTimeout uint64 `tlb:"## 64"`
+	// The id of the currently pending operation (OperationBatch hash)
+	OpPendingId *big.Int `tlb:"## 256"`
 }
 
 // --- Constants ---
