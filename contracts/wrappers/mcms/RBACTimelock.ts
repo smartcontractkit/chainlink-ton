@@ -737,8 +737,16 @@ export const roles = {
   oracle: computeRoleID('ORACLE_ROLE'),
 }
 
+export const topics = {
+  BypasserCallExecuted: crc32('Timelock_BypasserCallExecuted'),
+  CallScheduled: crc32('Timelock_CallScheduled'),
+  CallExecuted: crc32('Timelock_CallExecuted'),
+}
+
 // Timestamp value used to mark an operation as done
 export const DONE_TIMESTAMP = 1
+// Timestamp value used to mark an operation as error
+export const ERROR_TIMESTAMP = 2
 
 export enum Errors {
   SelectorIsBlocked = 101,
