@@ -322,7 +322,10 @@ export const opcodes = {
 // extracted to use in closure
 const operationBatch: CellCodec<OperationBatch> = {
   encode: (op: OperationBatch): Builder => {
-    return beginCell().storeRef(op.calls).storeUint(op.predecessor, 256).storeUint(op.salt, 256)
+    return beginCell() // break
+      .storeRef(op.calls)
+      .storeUint(op.predecessor, 256)
+      .storeUint(op.salt, 256)
   },
   load: (src: Slice): OperationBatch => {
     return {

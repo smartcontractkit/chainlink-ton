@@ -381,18 +381,18 @@ type Op struct {
 
 func stringSha256_32(data string) uint32 {
 	d := sha256.Sum256([]byte(data))
-	return uint32(binary.BigEndian.Uint32(d[0:4]))
+	return binary.BigEndian.Uint32(d[0:4])
 }
 
 // Should be used as the first 32 bytes of the pre-image of the leaf that holds a
 // op. This value is for domain separation of the different values stored in the
 // Merkle tree.
-var MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP = stringSha256_32("MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP")
+var ManyChainMultiSigDomainSeparatorOp = stringSha256_32("MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP")
 
 // Should be used as the first 32 bytes of the pre-image of the leaf that holds the
 // root metadata. This value is for domain separation of the different values stored in the
 // Merkle tree.
-var MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA = stringSha256_32("MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA")
+var ManyChainMultiSigDomainSeparatorMetadata = stringSha256_32("MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA")
 
 const (
 	// Thrown when number of signers is 0 or greater than MAX_NUM_SIGNERS.
