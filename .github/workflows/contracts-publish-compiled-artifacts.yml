@@ -113,3 +113,9 @@ jobs:
           files: |
             ${{ steps.package.outputs.tar_path }}
 
+      - name: Write contract build SHA to file
+        if: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && github.event.inputs.create_release == 'true') }}
+        run: |
+          # most up to date build SHA for contracts for the current version, to be used by other workflows/repos
+          # note: the hash of the built artifacts is available on after it gets merged in the main branch as a release
+          echo "${{ steps.get_sha.outputs.short_sha }}" > ../../deployment/.contract_build_sha
