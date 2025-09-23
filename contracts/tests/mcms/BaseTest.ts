@@ -39,7 +39,6 @@ export type TestContracts = {
 
 export class BaseTestSetup {
   static readonly MIN_DELAY = 24n * 60n * 60n * 7n
-  static readonly DONE_TIMESTAMP = 1n
   static readonly NO_PREDECESSOR = 0n
   static readonly EMPTY_SALT = 0n
 
@@ -116,11 +115,6 @@ export class BaseTestSetup {
    * Setup the timelock contract with RBAC configuration
    */
   async setupTimelockContract(testId: string): Promise<void> {
-    const PROPOSERS = [this.acc.proposerOne.address, this.acc.proposerTwo.address]
-    const EXECUTORS = [this.acc.executorOne.address, this.acc.executorTwo.address]
-    const CANCELLERS = [this.acc.cancellerOne.address, this.acc.cancellerTwo.address]
-    const BYPASSERS = [this.acc.bypasserOne.address, this.acc.bypasserTwo.address]
-
     const rbacStorage: ac.ContractData = {
       roles: ac.builder.data.rolesDict(
         new Map([
@@ -128,40 +122,40 @@ export class BaseTestSetup {
             rbactl.roles.admin,
             {
               adminRole: rbactl.roles.admin,
-              membersLen: 1n,
-              hasRole: ac.builder.data.hasRoleDict([this.acc.admin.address]),
+              membersLen: 0n,
+              hasRole: ac.builder.data.hasRoleDict([]),
             },
           ],
           [
             rbactl.roles.proposer,
             {
               adminRole: rbactl.roles.admin,
-              membersLen: BigInt(PROPOSERS.length),
-              hasRole: ac.builder.data.hasRoleDict(PROPOSERS),
+              membersLen: 0n,
+              hasRole: ac.builder.data.hasRoleDict([]),
             },
           ],
           [
             rbactl.roles.executor,
             {
               adminRole: rbactl.roles.admin,
-              membersLen: BigInt(EXECUTORS.length),
-              hasRole: ac.builder.data.hasRoleDict(EXECUTORS),
+              membersLen: 0n,
+              hasRole: ac.builder.data.hasRoleDict([]),
             },
           ],
           [
             rbactl.roles.canceller,
             {
               adminRole: rbactl.roles.admin,
-              membersLen: BigInt(CANCELLERS.length),
-              hasRole: ac.builder.data.hasRoleDict(CANCELLERS),
+              membersLen: 0n,
+              hasRole: ac.builder.data.hasRoleDict([]),
             },
           ],
           [
             rbactl.roles.bypasser,
             {
               adminRole: rbactl.roles.admin,
-              membersLen: BigInt(BYPASSERS.length),
-              hasRole: ac.builder.data.hasRoleDict(BYPASSERS),
+              membersLen: 0n,
+              hasRole: ac.builder.data.hasRoleDict([]),
             },
           ],
         ]),
@@ -172,6 +166,11 @@ export class BaseTestSetup {
       id: crc32(`mcms.timelock.${testId}`),
       minDelay: BaseTestSetup.MIN_DELAY,
       executorRoleCheckEnabled: true,
+      opPendingInfo: {
+        validAfter: 0,
+        opFinalizationTimeout: 0n,
+        opPendingId: 0n,
+      },
       rbac: ac.builder.data.contractData.encode(rbacStorage).asCell(),
     }
 
@@ -202,10 +201,27 @@ export class BaseTestSetup {
    * Deploy the timelock contract and verify deployment
    */
   async deployTimelockContract(): Promise<void> {
-    const body = rbactl.builder.message.in.topUp.encode({ queryId: 1n }).asCell()
+    const PROPOSERS = [this.acc.proposerOne.address, this.acc.proposerTwo.address]
+    const EXECUTORS = [this.acc.executorOne.address, this.acc.executorTwo.address]
+    const CANCELLERS = [this.acc.cancellerOne.address, this.acc.cancellerTwo.address]
+    const BYPASSERS = [this.acc.bypasserOne.address, this.acc.bypasserTwo.address]
+
+    const body = rbactl.builder.message.in.init
+      .encode({
+        queryId: 1n,
+        minDelay: BaseTestSetup.MIN_DELAY,
+        admin: this.acc.admin.address,
+        proposers: PROPOSERS,
+        executors: EXECUTORS,
+        cancellers: CANCELLERS,
+        bypassers: BYPASSERS,
+        executorRoleCheckEnabled: true,
+        opFinalizationTimeout: 0n,
+      })
+      .asCell()
     const result = await this.bind.timelock.sendInternal(
       this.acc.deployer.getSender(),
-      toNano('0.05'),
+      toNano('0.5'),
       body,
     )
 

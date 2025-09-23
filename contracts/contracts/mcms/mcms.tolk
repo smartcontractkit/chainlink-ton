@@ -1,7 +1,6 @@
 tolk 1.0
 
 import "@stdlib/tvm-dicts";
-import "@stdlib/gas-payments";
 
 import "../lib/utils";
 import "../lib/access/ownable_2step.tolk";
@@ -877,9 +876,7 @@ fun MCMS<T>.execute(
 
     // We enforce a minimum amount of TON op.value trying to ensure the receiver gets at least enough gas for
     // fee validation + a bounce, and avoid out of gas errors in which cases a message will not bounce.
-    val workchain = contract.getAddress().getWorkchain();
-    val minValue = calculateGasFee(workchain, DEFAULT_MESSAGE_FWD_BUDGET_GAS_UNITS);
-    if (op.value < minValue) {
+    if (op.value < calculateGasFeeDefault()) {
         throw ERROR_INSUFFICIENT_VALUE;
     }
 
@@ -927,11 +924,11 @@ fun MCMS<T>.execute(
     // Reply back to sender
     val reply = createMessage({
         bounce: false,
-        value: minValue, // send small value as gas budget, keep the rest
+        value: calculateGasFeeFor(FEE_SIZE_SMALL), // send small value as gas budget, keep the rest (payable)
         dest: sender,
         body: MCMS_OpExecuted{queryId, nonce: op.nonce, to: op.to, data: op.data, value: op.value}
     });
-    reply.send(SEND_MODE_REGULAR);
+    reply.send(SEND_MODE_PAY_FEES_SEPARATELY);
 }
 
 /// setConfig sets a new data.config. If clearRoot is true, then it also invalidates
@@ -1267,6 +1264,11 @@ fun MCMS<T>._execute(self, target: address, value: coins, data: cell): void {
     op.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
+/// Returns the id that derives the (contract) address of this MCMS instance.
+fun MCMS<T>.getId(self): uint32 {
+    return self.data.id;
+}
+
 /// Returns the current configuration of the contract
 fun MCMS<T>.getConfig(self): Config {
     return Config.fromCell(self.data.config);
@@ -1335,16 +1337,23 @@ fun MCMS<T>.onInternalMessage(mutate self, msgSender: address, msgValue: coins, 
             // noop
         }
         else => {
-            val msgHandled = 0
+            val _msgHandled = 0
                 || self.data.ownable.onInternalMessage(msgSender, msgBody);
 
-            if (!msgHandled) {
-                // If the message was not handled
-                // ignore empty messages, "wrong opcode" for others
-                assert (msgBody.isEmpty()) throw ERROR_WRONG_OP;
-            }
+            // If the message was not handled:
+            //  - ignore all other messages, empty or not empty
+            //  - accept generic replies, don't throw "wrong opcode"
         }
     }
+}
+
+fun onInternalMessage(in: InMessage) {
+    // Load the contract storage as MCMS and handle the message
+    var mcms = MCMS<bool>.load();
+    mcms.onInternalMessage(in.senderAddress, in.valueCoins, in.body);
+
+    // Store the updated contract data
+    mcms.data.storeAsContractData();
 }
 
 fun onBouncedMessage(in: InMessageBounced) {
@@ -1353,6 +1362,8 @@ fun onBouncedMessage(in: InMessageBounced) {
 
     var rootInfo = lazy RootInfo.fromCell(mcms.data.rootInfo);
     var opPendingInfo = lazy OpPendingInfo.fromCell(rootInfo.expiringRootAndOpCount.opPendingInfo);
+
+    // TODO: emit an event with the bounce details?
 
     // Check the bounced message against the stored pending operation
     // If the received bounce does NOT equal expected, mark the root invalid.
@@ -1379,19 +1390,15 @@ fun onBouncedMessage(in: InMessageBounced) {
     mcms.data.storeAsContractData();
 }
 
-fun onInternalMessage(in: InMessage) {
-    // Load the contract storage as MCMS and handle the message
-    var mcms = MCMS<bool>.load();
-    mcms.onInternalMessage(in.senderAddress, in.valueCoins, in.body);
-
-    // Store the updated contract data
-    mcms.data.storeAsContractData();
-}
-
 // --- Getters ---
 
 get fun typeAndVersion(): (slice, slice) {
      return ("com.chainlink.ton.mcms.MCMS", "1.0.0");
+}
+
+/// @see <MCMS<T>.getId>
+get fun getId(): uint32 {
+    return MCMS<bool>.load().getId();
 }
 
 /// @see <MCMS<T>.getConfig>

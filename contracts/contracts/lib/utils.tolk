@@ -1,17 +1,10 @@
 import "@stdlib/tvm-dicts.tolk";
 import "@stdlib/lisp-lists"
+import "@stdlib/gas-payments";
 
 const ERROR_WRONG_OP = 0xffff;
 const ERROR_INVALID_DATA = 0x77;
 const ERROR_BITMAP_OUT_OF_BOUNDS = 0x78;
-
-/// TODO: is this enough? do we make this configurable?
-/// TODO: replace with more dynamic DEFAULT_MESSAGE_FWD_BUDGET_GAS_UNITS + calculateGasFee
-///
-/// The default message budget fee for messages (replies, notifications),
-/// for which the value is not explicitly set, and we're not sending
-/// the full excess value.
-const DEFAULT_MESSAGE_BUDGET_FEE = ton("0.01");
 
 /// The default message forwarding budget fee for messages (replies, notifications, sends)
 /// in gas units. The expectation is this is enough to cover the basic transaction costs
@@ -44,6 +37,26 @@ fun extractBouncedBody(body: slice): uint256 {
     return remainingBits < BOUNCE_MSG_SIZE_MAX
         ? body.loadUint(remainingBits)
         : body.loadUint(BOUNCE_MSG_SIZE_MAX);
+}
+
+const FEE_SIZE_SMALL = 1;
+const FEE_SIZE_DEFAULT = 2;
+const FEE_SIZE_LARGE = 3;
+
+/// Calculates the gas fee for the current workchain and DEFAULT_MESSAGE_FWD_BUDGET_GAS_UNITS.
+fun calculateGasFeeDefault(): coins {
+    val workchain = contract.getAddress().getWorkchain();
+    return calculateGasFee(workchain, DEFAULT_MESSAGE_FWD_BUDGET_GAS_UNITS);
+}
+
+/// Calculates the gas fee for the given size (small, default, large).
+fun calculateGasFeeFor(size: int): coins {
+    if (size == FEE_SIZE_SMALL) {
+        return calculateGasFeeDefault() / 2
+    } else if (size == FEE_SIZE_LARGE) {
+        return calculateGasFeeDefault() * 2;
+    }
+    return calculateGasFeeDefault();
 }
 
 /// Computes the Keccak-256 hash of the given data.

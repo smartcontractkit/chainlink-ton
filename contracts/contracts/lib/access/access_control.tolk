@@ -241,8 +241,8 @@ fun AccessControl<T>.msgSender(self, msgSender: address, msgBody: slice): addres
 ///
 /// Format of the revert message is described in {requireRole}.
 @inline
-fun AccessControl<T>.onlyRole(self, role: int, msgFull: cell): void {
-    self.requireRoleSender(role, msgFull)
+fun AccessControl<T>.onlyRole(self, role: int, msgSender: address, msgBody: slice): void {
+    self.requireRoleSender(role, msgSender, msgBody);
 }
 
 // @dev Returns `true` if `account` has been granted `role`.
@@ -262,8 +262,8 @@ fun AccessControl<T>.hasRole(self, role: int, account: address): bool {
 /// @dev Revert with a standard message if `msgSender()` is missing `role`.
 ///
 /// Format of the revert message is described in {requireRole}.
-fun AccessControl<T>.requireRoleSender(self, role: int, msgFull: cell): void {
-    val sender = self.msgSender(msgFull);
+fun AccessControl<T>.requireRoleSender(self, role: int, msgSender: address, msgBody: slice): void {
+    val sender = self.msgSender(msgSender, msgBody);
     self.requireRole(role, sender);
 }
 
@@ -481,7 +481,7 @@ fun AccessControl<T>._setRoleAdmin(
     self.data.roles.uDictSetRef(LEN_ROLE, role, d.toCell());
 
     val body = AccessControl_RoleAdminChanged{queryId, role, previousAdminRole, newAdminRole: adminRole};
-    self.sendReply(sender, body, DEFAULT_MESSAGE_BUDGET_FEE, returnExcess);
+    self.sendReply(sender, body, calculateGasFeeFor(FEE_SIZE_SMALL), returnExcess);
 }
 
 /// @dev Attempts to grant `role` to `account` and returns a boolean indicating if `role` was granted.
@@ -517,9 +517,10 @@ fun AccessControl<T>._grantRole(
     // Save the updated role data
     self.data.roles.uDictSetRef(LEN_ROLE, role, d.toCell());
 
+    val minFee = calculateGasFeeFor(FEE_SIZE_SMALL);
     val body = AccessControl_RoleGranted{queryId, role, account, sender};
-    self.sendNotification(sender, body, DEFAULT_MESSAGE_BUDGET_FEE, account);
-    self.sendReply(sender, body, DEFAULT_MESSAGE_BUDGET_FEE, returnExcess);
+    self.sendNotification(sender, body, minFee, account);
+    self.sendReply(sender, body, minFee, returnExcess);
 
     return true; // role granted successfully
 }
@@ -557,9 +558,10 @@ fun AccessControl<T>._revokeRole(
     // Save the updated role data
     self.data.roles.uDictSetRef(LEN_ROLE, role, d.toCell());
 
+    val minFee = calculateGasFeeFor(FEE_SIZE_SMALL);
     val body = AccessControl_RoleRevoked{queryId, role, account, sender};
-    self.sendNotification(sender, body, DEFAULT_MESSAGE_BUDGET_FEE, account);
-    self.sendReply(sender, body, DEFAULT_MESSAGE_BUDGET_FEE, returnExcess);
+    self.sendNotification(sender, body, minFee, account);
+    self.sendReply(sender, body, minFee, returnExcess);
 
     return true; // role revoked successfully
 }
@@ -591,14 +593,14 @@ fun AccessControl<T>.sendNotification<B>(
     self,
     sender: address,
     body: B,
-    value: coins = DEFAULT_MESSAGE_BUDGET_FEE,
+    value: coins,
     account: address,
 ): void {
     // Skip notification if account == sender
     if (account != sender) {
         // Create and send the message (notification) to the account that was updated
-        createMessage({ bounce: false, value, dest: account, body })
-            .send(SEND_MODE_REGULAR);
+        val n = createMessage({ bounce: false, value, dest: account, body });
+        n.send(SEND_MODE_PAY_FEES_SEPARATELY);
     }
 }
 
@@ -608,16 +610,16 @@ fun AccessControl<T>.sendReply<B>(
     self,
     sender: address,
     body: B,
-    value: coins = DEFAULT_MESSAGE_BUDGET_FEE,
+    value: coins,
     returnExcess: bool = true
 ): void {
     // Create and send the message (reply) to the sender
     value = returnExcess ? ton("0") : value; // return all, or fixed compute budget
 
-    createMessage({bounce: false, value, dest: sender, body })
-        .send(returnExcess
-            ? SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE
-            : SEND_MODE_REGULAR);
+    val reply = createMessage({bounce: false, value, dest: sender, body });
+    reply.send(returnExcess
+        ? SEND_MODE_REGULAR | SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE
+        : SEND_MODE_PAY_FEES_SEPARATELY);
 }
 
 // --- Getters ---
