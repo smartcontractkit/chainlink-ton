@@ -353,10 +353,10 @@ func (s *inMemoryLogs) extractBitRange(cellPayload []byte, startBit, bitLength u
 	}
 
 	// For bit ranges, pad with leading zeros if necessary to match expected byte length
-	expectedByteLength := int((bitLength + 7) / 8) // Round up to nearest byte
-	if len(resultBytes) < expectedByteLength {
+	expectedByteLength := int64((bitLength + 7) / 8) //nolint:gosec // bitLength is controlled and reasonable for memory operations
+	if int64(len(resultBytes)) < expectedByteLength {
 		padded := make([]byte, expectedByteLength)
-		copy(padded[expectedByteLength-len(resultBytes):], resultBytes)
+		copy(padded[expectedByteLength-int64(len(resultBytes)):], resultBytes)
 		return padded, nil
 	}
 

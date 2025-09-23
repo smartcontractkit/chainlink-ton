@@ -204,7 +204,7 @@ func TestPgLogStore(t *testing.T) {
 				Offset: 4, // Offset where Value field appears in cell payload (after BOC header)
 				Size:   4, // 4 bytes for uint32 Value
 				Conditions: []query.Condition{
-					query.Bytes([]byte{0x00, 0x00, 0x00, 0xc8}, primitives.Eq), // 200 = 0xc8 in hex
+					query.WithCondition([]byte{0x00, 0x00, 0x00, 0xc8}, primitives.Eq), // 200 = 0xc8 in hex
 				},
 			},
 		}

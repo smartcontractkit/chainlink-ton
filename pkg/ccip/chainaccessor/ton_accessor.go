@@ -261,7 +261,7 @@ func (a *TONAccessor) MsgsBetweenSeqNums(ctx context.Context, dest ccipocr3.Chai
 		}
 		rawOnrampAddr := codec.ToRawAddr(onrampAddr)
 		genericEvent.Message.Header.OnRamp = rawOnrampAddr[:]
-		genericEvent.Message.Header.TxHash = hex.EncodeToString(typedLog.Log.TxHash[:])
+		genericEvent.Message.Header.TxHash = hex.EncodeToString(typedLog.TxHash[:])
 		msgs = append(msgs, genericEvent.Message)
 		a.lggr.Debugw("MsgsBetweenSeqNums: found message and appended it to the output", "seqNum", genericEvent.SequenceNumber, "txHash", genericEvent.Message.Header.TxHash, "destChainSelector", dest, "sourceChainSelector", a.chainSelector)
 	}
@@ -461,7 +461,7 @@ func (a *TONAccessor) CommitReportsGTETimestamp(
 		).
 		WithLimitAndSort(commonquery.LimitAndSort{
 			SortBy: []commonquery.SortBy{query.NewTimestampSort(commonquery.Asc)},
-			Limit:  commonquery.CountLimit(uint64(limit)),
+			Limit:  commonquery.CountLimit(uint64(limit)), //nolint:gosec // limit is a reasonable value for query operations
 		}).
 		Execute(ctx)
 

@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	commonquery "github.com/smartcontractkit/chainlink-common/pkg/types/query"
@@ -174,7 +175,7 @@ func (p *queryParser) addCursorFilter(limitAndSort commonquery.LimitAndSort) err
 	}
 
 	p.params["cursor_address"] = addr.String()
-	p.params["cursor_msg_lt"] = fmt.Sprintf("%d", msgLT)
+	p.params["cursor_msg_lt"] = strconv.FormatUint(msgLT, 10)
 
 	cursorCondition := fmt.Sprintf("(address, msg_lt) %s (:cursor_address, :cursor_msg_lt)", cursorOp)
 	p.addCondition(cursorCondition)

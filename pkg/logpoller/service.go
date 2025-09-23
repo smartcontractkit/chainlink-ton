@@ -398,6 +398,6 @@ func (lp *service) Replay(ctx context.Context, fromBlock uint32) error {
 }
 
 // NewQuery creates a new query builder for constructing log queries.
-func (lp *service) NewQuery() query.QueryBuilder {
+func (lp *service) NewQuery() query.Builder {
 	return query.NewQueryBuilder(lp.store)
 }

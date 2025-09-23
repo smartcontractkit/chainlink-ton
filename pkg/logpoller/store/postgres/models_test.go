@@ -28,8 +28,8 @@ func TestFilterModel_Conversion(t *testing.T) {
 	}
 
 	// Convert to database model and back
-	filterModel := filterModel{}
-	dbFilter := filterModel.FromFilter(originalFilter)
+	dbFilterModel := filterModel{}
+	dbFilter := dbFilterModel.FromFilter(originalFilter)
 	convertedFilter, err := dbFilter.ToFilter()
 	require.NoError(t, err)
 
@@ -86,8 +86,8 @@ func TestLogModel_Conversion(t *testing.T) {
 	}
 
 	// Convert to database model and back
-	logModel := logModel{}
-	dbLog := logModel.FromLog(originalLog)
+	dbLogModel := logModel{}
+	dbLog := dbLogModel.FromLog(originalLog)
 	convertedLog, err := dbLog.ToLog()
 	require.NoError(t, err)
 

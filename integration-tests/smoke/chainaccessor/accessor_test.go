@@ -359,7 +359,7 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 		// Save MIXED logs in chronological order to test filtering and limit functionality
 		t.Log("Saving mixed commit reports...")
 
-		store.SaveLogs(t.Context(), []lptypes.Log{
+		_, serr := store.SaveLogs(t.Context(), []lptypes.Log{
 			// 1. MerkleRoot-only log (should be included)
 			{
 				ChainID:          "test-chain",
@@ -431,6 +431,7 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 				MsgIndex:         4,
 			},
 		})
+		require.NoError(t, serr, "failed to save logs")
 
 		t.Logf("Saved 5 logs total: 3 with MerkleRoot (should be included), 2 PriceUpdates-only (should be filtered out)")
 
@@ -703,7 +704,7 @@ func Test_TonAccessorExecutedMessages(t *testing.T) {
 	failureCell, err := cell.FromBOC(failureBytes)
 	require.NoError(t, err)
 
-	store.SaveLogs(t.Context(), []lptypes.Log{
+	_, serr := store.SaveLogs(t.Context(), []lptypes.Log{
 		{
 			ChainID:          "test-chain",
 			FilterID:         1,
@@ -744,6 +745,7 @@ func Test_TonAccessorExecutedMessages(t *testing.T) {
 			MsgIndex:         2,
 		},
 	})
+	require.NoError(t, serr, "failed to save logs")
 
 	// Setup accessor
 	addrCodec := codec.NewAddressCodec()

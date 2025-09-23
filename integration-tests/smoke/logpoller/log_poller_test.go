@@ -280,8 +280,8 @@ func Test_LogPoller(t *testing.T) {
 				WithBocBytes(
 					query.SkipBytes(4), // skip ID field to reach Counter field
 					query.MatchBytes(4,
-						query.Bytes(binary.BigEndian.AppendUint32(nil, 0), primitives.Gt),
-						query.Bytes(binary.BigEndian.AppendUint32(nil, targetCounter), primitives.Lte),
+						query.WithCondition(binary.BigEndian.AppendUint32(nil, 0), primitives.Gt),
+						query.WithCondition(binary.BigEndian.AppendUint32(nil, targetCounter), primitives.Lte),
 					),
 				).
 				Execute(t.Context())
@@ -296,8 +296,8 @@ func Test_LogPoller(t *testing.T) {
 				WithBocBytes(
 					query.SkipBytes(4), // skip ID field to reach Counter field
 					query.MatchBytes(4,
-						query.Bytes(binary.BigEndian.AppendUint32(nil, 0), primitives.Gt),
-						query.Bytes(binary.BigEndian.AppendUint32(nil, targetCounter), primitives.Lte),
+						query.WithCondition(binary.BigEndian.AppendUint32(nil, 0), primitives.Gt),
+						query.WithCondition(binary.BigEndian.AppendUint32(nil, targetCounter), primitives.Lte),
 					),
 				).
 				Execute(t.Context())
@@ -363,8 +363,8 @@ func Test_LogPoller(t *testing.T) {
 				WithBocBytes(
 					query.SkipBytes(4), // skip ID field to reach Counter field
 					query.MatchBytes(4,
-						query.Bytes(binary.BigEndian.AppendUint32(nil, 0), primitives.Gt),
-						query.Bytes(binary.BigEndian.AppendUint32(nil, targetCounter), primitives.Lte),
+						query.WithCondition(binary.BigEndian.AppendUint32(nil, 0), primitives.Gt),
+						query.WithCondition(binary.BigEndian.AppendUint32(nil, targetCounter), primitives.Lte),
 					),
 				).
 				Execute(t.Context())
@@ -410,8 +410,8 @@ func Test_LogPoller(t *testing.T) {
 				WithBocBytes(
 					query.SkipBytes(4), // skip ID field to reach Counter field
 					query.MatchBytes(4,
-						query.Bytes(binary.BigEndian.AppendUint32(nil, 0), primitives.Gt),
-						query.Bytes(binary.BigEndian.AppendUint32(nil, targetCounter), primitives.Lte),
+						query.WithCondition(binary.BigEndian.AppendUint32(nil, 0), primitives.Gt),
+						query.WithCondition(binary.BigEndian.AppendUint32(nil, targetCounter), primitives.Lte),
 					),
 				).
 				WithLimitAndSort(commonquery.LimitAndSort{
@@ -453,8 +453,8 @@ func Test_LogPoller(t *testing.T) {
 					WithBocBytes(
 						query.SkipBytes(4), // skip ID field to reach Counter field
 						query.MatchBytes(4,
-							query.Bytes(binary.BigEndian.AppendUint32(nil, 5), primitives.Gt),
-							query.Bytes(binary.BigEndian.AppendUint32(nil, 10), primitives.Lte),
+							query.WithCondition(binary.BigEndian.AppendUint32(nil, 5), primitives.Gt),
+							query.WithCondition(binary.BigEndian.AppendUint32(nil, 10), primitives.Lte),
 						),
 					).
 					Execute(t.Context())
@@ -490,7 +490,7 @@ func Test_LogPoller(t *testing.T) {
 					WithEventSig(counter.TopicCountIncreased).
 					WithBocBytes(
 						query.SkipBytes(8), // skip to sender address field
-						query.MatchBytes(uint(len(senderBytes)), query.Bytes(senderBytes, primitives.Eq)),
+						query.MatchBytes(uint64(len(senderBytes)), query.WithCondition(senderBytes, primitives.Eq)),
 					).
 					Execute(t.Context())
 				require.NoError(t, queryErr)
@@ -519,8 +519,8 @@ func Test_LogPoller(t *testing.T) {
 					WithBocBytes(
 						query.SkipBytes(4), // skip ID field to reach Counter field
 						query.MatchBytes(4,
-							query.Bytes(binary.BigEndian.AppendUint32(nil, 1), primitives.Gte),
-							query.Bytes(binary.BigEndian.AppendUint32(nil, 3), primitives.Lte),
+							query.WithCondition(binary.BigEndian.AppendUint32(nil, 1), primitives.Gte),
+							query.WithCondition(binary.BigEndian.AppendUint32(nil, 3), primitives.Lte),
 						),
 					).
 					Execute(t.Context())
@@ -549,7 +549,7 @@ func Test_LogPoller(t *testing.T) {
 					WithSource(emitterB.ContractAddress()).
 					WithEventSig(counter.TopicCountIncreased).
 					WithBocBytes(
-						query.MatchBytes(4, query.Bytes(binary.BigEndian.AppendUint32(nil, emitterB.GetID()), primitives.Eq)), // compare ID at offset 0
+						query.MatchBytes(4, query.WithCondition(binary.BigEndian.AppendUint32(nil, emitterB.GetID()), primitives.Eq)), // compare ID at offset 0
 					).
 					Execute(t.Context())
 				require.NoError(t, queryErr)
@@ -756,8 +756,8 @@ func Test_LogPoller(t *testing.T) {
 					WithBocBytes(
 						query.SkipBytes(4), // skip ID field to reach Counter field
 						query.MatchBytes(4,
-							query.Bytes(binary.BigEndian.AppendUint32(nil, uint32(from)), primitives.Gte),
-							query.Bytes(binary.BigEndian.AppendUint32(nil, uint32(to)), primitives.Lte),
+							query.WithCondition(binary.BigEndian.AppendUint32(nil, uint32(from)), primitives.Gte),
+							query.WithCondition(binary.BigEndian.AppendUint32(nil, uint32(to)), primitives.Lte),
 						),
 					).
 					WithLimitAndSort(commonquery.LimitAndSort{
@@ -796,7 +796,7 @@ func Test_LogPoller(t *testing.T) {
 					WithEventSig(counter.TopicCountIncreased).
 					WithBocBytes(
 						query.SkipBytes(4), // skip ID field to reach Counter field
-						query.MatchBytes(4, query.Bytes(binary.BigEndian.AppendUint32(nil, 100), primitives.Gt)), // No events should match
+						query.MatchBytes(4, query.WithCondition(binary.BigEndian.AppendUint32(nil, 100), primitives.Gt)), // No events should match
 					).
 					WithLimitAndSort(commonquery.LimitAndSort{
 						SortBy: []commonquery.SortBy{query.NewTxLTSort(commonquery.Asc)},

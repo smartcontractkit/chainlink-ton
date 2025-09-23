@@ -12,8 +12,8 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
 )
 
-// QueryBuilder defines the interface for constructing and executing log queries.
-type QueryBuilder interface {
+// Builder defines the interface for constructing and executing log queries.
+type Builder interface {
 	// WithSource sets the TON contract address to filter logs by (required for Execute)
 	WithSource(addr *address.Address) *queryBuilder
 	// WithEventSig sets the event signature (topic or opcode) to filter logs by (required for Execute)

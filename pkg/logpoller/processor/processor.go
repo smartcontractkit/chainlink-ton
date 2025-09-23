@@ -135,6 +135,10 @@ func (p *txProcessor) processMessage(tx *tlb.Transaction, block *ton.BlockIDExt,
 	// create logs with the found filterIDs
 	logs := make([]models.Log, len(filterIDs))
 	for i, filterID := range filterIDs {
+		msgLT, err := p.extractMsgLT(msg)
+		if err != nil {
+			return nil, fmt.Errorf("failed to extract msgLT: %w", err)
+		}
 		logs[i] = models.Log{
 			FilterID:    filterID,
 			ChainID:     p.chainID,
@@ -145,7 +149,7 @@ func (p *txProcessor) processMessage(tx *tlb.Transaction, block *ton.BlockIDExt,
 			TxLT:        tx.LT,
 			TxTimestamp: time.Unix(int64(tx.Now), 0).UTC(),
 			Block:       block,
-			MsgLT:       p.extractMsgLT(msg),
+			MsgLT:       msgLT,
 			MsgIndex:    int64(msgIndex),
 			// TODO: populate Error field for failed message processing
 			// scope: structural validation errors (nil message/content)
@@ -157,18 +161,20 @@ func (p *txProcessor) processMessage(tx *tlb.Transaction, block *ton.BlockIDExt,
 	return logs, nil
 }
 
-func (p *txProcessor) extractMsgLT(msg *tlb.Message) uint64 {
+func (p *txProcessor) extractMsgLT(msg *tlb.Message) (uint64, error) {
 	switch msg.MsgType {
+	default:
+		return 0, fmt.Errorf("unsupported message type: %v", msg.MsgType)
 	case tlb.MsgTypeInternal:
 		if internal := msg.AsInternal(); internal != nil {
-			return internal.CreatedLT
+			return internal.CreatedLT, nil
 		}
 	case tlb.MsgTypeExternalOut:
 		if extOut := msg.AsExternalOut(); extOut != nil {
-			return extOut.CreatedLT
+			return extOut.CreatedLT, nil
 		}
 	}
-	return 0
+	return 0, fmt.Errorf("unsupported message type: %v", msg.MsgType)
 }
 
 func (p *txProcessor) extractEventSigAndBody(msg *tlb.Message) (eventSig uint32, body *cell.Cell, err error) {

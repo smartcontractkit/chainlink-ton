@@ -20,7 +20,7 @@ type Service interface {
 	UnregisterFilter(ctx context.Context, name string) error
 	HasFilter(ctx context.Context, name string) (bool, error)
 	Replay(ctx context.Context, fromBlock uint32) error
-	NewQuery() query.QueryBuilder
+	NewQuery() query.Builder
 }
 
 // FilterStore defines an interface for storing and retrieving log filter specifications.

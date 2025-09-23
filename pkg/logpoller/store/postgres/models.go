@@ -147,13 +147,13 @@ func (l logModel) ToLog() (lptypes.Log, error) {
 		FilterID:         l.FilterID,
 		ChainID:          l.ChainID,
 		Address:          addr,
-		EventSig:         uint32(l.EventSig),
+		EventSig:         uint32(l.EventSig), //nolint:gosec // EventSig values are controlled and within uint32 range
 		Data:             cellData,
 		TxHash:           txHash,
 		TxLT:             txLT,
 		TxTimestamp:      l.TxTimestamp,
 		Block:            block,
-		MasterBlockSeqno: uint32(l.MasterBlockSeqno),
+		MasterBlockSeqno: uint32(l.MasterBlockSeqno), //nolint:gosec // MasterBlockSeqno values are controlled and within uint32 range
 		MsgLT:            msgLT,
 		MsgIndex:         l.MsgIndex,
 	}, nil
