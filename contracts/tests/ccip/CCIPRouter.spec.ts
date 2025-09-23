@@ -183,6 +183,7 @@ describe('Router', () => {
         destChainConfigs: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Cell()),
         currentMessageId: 0n,
         executor_code: await compile('CCIPSendExecutor'),
+        token_registry_code: await compile('TokenRegistry'),
       }
       // TODO: use deployable to make deterministic?
       onRamp = blockchain.openContract(or.OnRamp.createFromConfig(data, code))
@@ -370,6 +371,9 @@ describe('Router', () => {
         extraArgs: Cell.EMPTY,
       })
       .asCell()
+
+    console.log('router address:', router.address.toString())
+    console.log('sender address:', sender.address.toString())
 
     const transferMsg: jetton.AskToTransfer = {
       queryId: 0,
@@ -599,11 +603,11 @@ async function setupJetton(
     message: {
       queryId: 0n,
       destination: user.address,
-      tonAmount: toNano('0.05'),
+      tonAmount: toNano('0.1'),
       jettonAmount: toNano('1'),
       from: deployer.address,
       responseDestination: deployer.address,
-      forwardTonAmount: 0n,
+      forwardTonAmount: toNano('0.05'),
     },
   })
 
@@ -614,6 +618,23 @@ async function setupJetton(
     endStatus: 'active',
     outMessagesCount: 1, // mint message
   })
+
+  const provideUserWalletFor = async (address: Address) => {
+    return blockchain.openContract(
+      jetton.JettonWallet.createFromAddress(await jettonMinter.getWalletAddress(address)),
+    )
+  }
+
+  const userJettonWallet = await provideUserWalletFor(user.address)
+
+  expect(mintResult.transactions).toHaveTransaction({
+    from: jettonMinter.address,
+    to: userJettonWallet.address,
+    deploy: true,
+    success: true,
+  })
+
+  console.log('mint trace:', (await dump(mintResult.transactions)).join('\n'))
 
   {
     // TODO sendUpdatePrices to pay fees with LINK
@@ -660,12 +681,6 @@ async function setupJetton(
       to: feeQuoter.address,
       success: true,
     })
-  }
-
-  const provideUserWalletFor = async (address: Address) => {
-    return blockchain.openContract(
-      jetton.JettonWallet.createFromAddress(await jettonMinter.getWalletAddress(address)),
-    )
   }
 
   return {

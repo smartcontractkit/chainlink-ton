@@ -3,7 +3,7 @@ tolk 1.0
 struct TokenRegistry_Storage {
     onramp: address // TODO this could be MCMS?
     minterAddress: address
-    info: TokenRegistry_TokenInfo?
+    info: TokenRegistry_TokenInfo? = null
     // mintAuthority: address? TODO add mint authority for when the token is delegated / self served token pools
 }
 

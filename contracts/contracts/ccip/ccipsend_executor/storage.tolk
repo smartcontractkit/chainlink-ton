@@ -70,7 +70,7 @@ fun CCIPSendExecutor<T>.load(): CCIPSendExecutor<T> {
         messageId: st.messageId,
         onrampSend: st.onrampSend,
         addresses: st.addresses,
-        state: st.state as Cell<T>,
+        state: st.state,
     };
 }
 
