@@ -39,15 +39,24 @@ fun extractBouncedBody(body: slice): uint256 {
         : body.loadUint(BOUNCE_MSG_SIZE_MAX);
 }
 
+const FEE_SIZE_SMALL = 1;
+const FEE_SIZE_DEFAULT = 2;
+const FEE_SIZE_LARGE = 3;
+
 /// Calculates the gas fee for the current workchain and DEFAULT_MESSAGE_FWD_BUDGET_GAS_UNITS.
-fun calculateGasMinFee(): coins {
+fun calculateGasFeeDefault(): coins {
     val workchain = contract.getAddress().getWorkchain();
     return calculateGasFee(workchain, DEFAULT_MESSAGE_FWD_BUDGET_GAS_UNITS);
 }
 
-/// Calculates the gas fee for the current workchain and DEFAULT_MESSAGE_FWD_BUDGET_GAS_UNITS, returns half of it.
-fun calculateGasMinFeeHalf(): coins {
-    return calculateGasMinFee() / 2;
+/// Calculates the gas fee for the given size (small, default, large).
+fun calculateGasFeeFor(size: int): coins {
+    if (size == FEE_SIZE_SMALL) {
+        return calculateGasFeeDefault() / 2
+    } else if (size == FEE_SIZE_LARGE) {
+        return calculateGasFeeDefault() * 2;
+    }
+    return calculateGasFeeDefault();
 }
 
 /// Computes the Keccak-256 hash of the given data.

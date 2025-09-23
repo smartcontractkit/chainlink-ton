@@ -743,7 +743,7 @@ fun Timelock<T>.init(
     // Reply back to sender
     val reply = createMessage({
         bounce: false,
-        value: calculateGasMinFeeHalf(), // send small value as gas budget, keep the rest (payable)
+        value: calculateGasFeeFor(FEE_SIZE_SMALL), // send small value as gas budget, keep the rest (payable)
         dest: sender,
         body: Timelock_MinDelayChange{queryId, oldDuration: 0, newDuration: minDelay}
     });
@@ -782,7 +782,7 @@ fun Timelock<T>.scheduleBatch(
 
         // We enforce a minimum amount of TON op.value trying to ensure the receiver gets at least enough gas for
         // fee validation + a bounce, and avoid out of gas errors in which cases a message will not bounce.
-        if (call.value < calculateGasMinFee()) {
+        if (call.value < calculateGasFeeDefault()) {
             throw ERROR_INSUFFICIENT_VALUE;
         }
 
@@ -802,7 +802,7 @@ fun Timelock<T>.scheduleBatch(
 
     val reply = createMessage({
         bounce: false,
-        value: calculateGasMinFeeHalf(), // send small value as gas budget, keep the rest (payable)
+        value: calculateGasFeeFor(FEE_SIZE_SMALL), // send small value as gas budget, keep the rest (payable)
         dest: sender,
         body: Timelock_BatchScheduled{queryId, id, delay}
     });
@@ -897,7 +897,7 @@ fun Timelock<T>.executeBatch(
 
     val reply = createMessage({
         bounce: false,
-        value: calculateGasMinFeeHalf(), // send small value as gas budget, keep the rest (payable)
+        value: calculateGasFeeFor(FEE_SIZE_SMALL), // send small value as gas budget, keep the rest (payable)
         dest: sender,
         body: Timelock_BatchExecuted{queryId, id}
     });
@@ -1096,7 +1096,7 @@ fun Timelock<T>.bypasserExecuteBatch(
 
     val reply = createMessage({
         bounce: false,
-        value: calculateGasMinFeeHalf(), // send small value as gas budget, keep the rest (payable)
+        value: calculateGasFeeFor(FEE_SIZE_SMALL), // send small value as gas budget, keep the rest (payable)
         dest: sender,
         body: Timelock_BypasserBatchExecuted{queryId}
     });

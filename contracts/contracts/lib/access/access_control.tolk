@@ -481,7 +481,7 @@ fun AccessControl<T>._setRoleAdmin(
     self.data.roles.uDictSetRef(LEN_ROLE, role, d.toCell());
 
     val body = AccessControl_RoleAdminChanged{queryId, role, previousAdminRole, newAdminRole: adminRole};
-    self.sendReply(sender, body, calculateGasMinFeeHalf(), returnExcess);
+    self.sendReply(sender, body, calculateGasFeeFor(FEE_SIZE_SMALL), returnExcess);
 }
 
 /// @dev Attempts to grant `role` to `account` and returns a boolean indicating if `role` was granted.
@@ -517,7 +517,7 @@ fun AccessControl<T>._grantRole(
     // Save the updated role data
     self.data.roles.uDictSetRef(LEN_ROLE, role, d.toCell());
 
-    val minFee = calculateGasMinFeeHalf();
+    val minFee = calculateGasFeeFor(FEE_SIZE_SMALL);
     val body = AccessControl_RoleGranted{queryId, role, account, sender};
     self.sendNotification(sender, body, minFee, account);
     self.sendReply(sender, body, minFee, returnExcess);
@@ -558,7 +558,7 @@ fun AccessControl<T>._revokeRole(
     // Save the updated role data
     self.data.roles.uDictSetRef(LEN_ROLE, role, d.toCell());
 
-    val minFee = calculateGasMinFeeHalf();
+    val minFee = calculateGasFeeFor(FEE_SIZE_SMALL);
     val body = AccessControl_RoleRevoked{queryId, role, account, sender};
     self.sendNotification(sender, body, minFee, account);
     self.sendReply(sender, body, minFee, returnExcess);
