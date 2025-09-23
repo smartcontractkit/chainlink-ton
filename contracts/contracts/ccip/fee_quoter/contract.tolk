@@ -1,26 +1,11 @@
 import "@stdlib/lisp-lists"
-import "../types";
 import "../../lib/access/ownable_2step";
 import "../../deployable/types";
 import "../../lib/upgrades/type_and_version";
 import "../../lib/utils";
-import "messages"
-
-const VAL_1E5:  uint256 = 100000;
-const VAL_1E14: uint256 = 100000000000000;
-const VAL_1E16: uint256 = 10000000000000000;
-const VAL_1E18: uint256 = 1000000000000000000;
-
-// TODO:
-const TON_2_EVM_MESSAGE_FIXED_BYTES = 1;
-const TON_2_EVM_MESSAGE_FIXED_BYTES_PER_TOKEN = 1;
-
-const CCIP_LOCK_OR_BURN_V1_RET_BYTES = 32;
-
-const CHAIN_FAMILY_SELECTOR_EVM:   uint32 = 0x2812d52c;
-const CHAIN_FAMILY_SELECTOR_SVM:   uint32 = 0x1e10bdc4;
-const CHAIN_FAMILY_SELECTOR_APTOS: uint32 = 0xac77ffec;
-const CHAIN_FAMILY_SELECTOR_SUI:   uint32 = 0xc4e05953;
+import "messages";
+import "types";
+import "exit_codes";
 
 struct Storage {
     ownable: Ownable2Step;
@@ -44,16 +29,6 @@ fun Storage.load(): Storage {
 
 fun Storage.store(self) {
     return contract.setData(self.toCell());
-}
-
-// This represents FeeQuoter's DestChainConfig (not OnRamp)
-struct DestChainConfig {
-    config: FeeQuoterDestChainConfig;
-
-    // TODO: split this out since updates are more frequent?
-    usdPerUnitGas: Cell<GasPrice>; // TODO: it'd be nice if this wasn't split off
-
-    tokenTransferFeeConfigs: map<address, TokenTransferFeeConfig>;
 }
 
 fun onInternalMessage(in: InMessage) {
@@ -200,24 +175,15 @@ fun updatePrices(mutate st: Storage, priceUpdates: PriceUpdates) {
 
 // apply_premium_multiplier_wei_per_eth_updates??
 
-fun DestChainConfig.getValidatedGasPrice(self): (uint112, uint112) {
-    val price = self.usdPerUnitGas.load();
-    val threshold = self.config.gasPriceStalenessThreshold as int64;
-    val elapsedTime = blockchain.now() - price.timestamp;
-
-    assert(threshold == 0 || threshold > elapsedTime, ERROR_STALE_GAS_PRICE);
-
-    return (price.executionGasPrice, price.dataAvailabilityGasPrice)
-}
 
 get fun validatedFee(msg: CCIPSend): coins {
     var st = lazy Storage.load();
 
-    val destChainConfig = st.destChainConfigs.mustGet(msg.destChainSelector, ERROR_DEST_CHAIN_NOT_ENABLED);
-    assert(destChainConfig.config.isEnabled, ERROR_DEST_CHAIN_NOT_ENABLED);
+    val destChainConfig = st.destChainConfigs.mustGet(msg.destChainSelector, Error.DestChainNotEnabled);
+    assert(destChainConfig.config.isEnabled, Error.DestChainNotEnabled);
     // validate the fee token is actually supported
-    val premiumMultiplier = st.premiumMultiplierWeiPerEth.mustGet(msg.feeToken, ERROR_FEE_TOKEN_NOT_SUPPORTED) as uint256;
-    val feeTokenPrice = st.usdPerToken.mustGet(msg.feeToken, ERROR_FEE_TOKEN_NOT_SUPPORTED);
+    val premiumMultiplier = st.premiumMultiplierWeiPerEth.mustGet(msg.feeToken, Error.FeeTokenNotSupported) as uint256;
+    val feeTokenPrice = st.usdPerToken.mustGet(msg.feeToken, Error.FeeTokenNotSupported);
 
     var gasLimit = 0;
     // NOTE: we could deploy distinct contracts to cut down on code
@@ -246,8 +212,8 @@ get fun validatedFee(msg: CCIPSend): coins {
     // The fixed OCR report calldata overhead gas is accounted for in `dest_gas_overhead`.
     // It is not included in the calculation below for simplicity.
     val (_cellsCount, dataBitsSize, _cellRefs, traversed) = msg.data.calculateSize(99); // TODO: use Iterator.lenBytes
-    assert(traversed, ERROR_INVALID_MSG_DATA);
-    assert(dataBitsSize % 8 == 0, ERROR_INVALID_MSG_DATA);
+    assert(traversed, Error.InvalidMsgData);
+    assert(dataBitsSize % 8 == 0, Error.InvalidMsgData);
     val calldataLen = dataBitsSize / 8 as uint256 + tokenTransferBytesOverhead;
     var calldataGas = calldataLen * destChainConfig.config.destGasPerPayloadByteBase as uint256;
     val calldataThreshold = destChainConfig.config.destGasPerPayloadByteThreshold as uint256;
@@ -327,7 +293,7 @@ fun getTokenTransferCost(st: Storage, destChainConfig: DestChainConfig, mutate t
         val tokenAmount = tokens.next();
         count += 1;
 
-        val transferFeeConfig = destChainConfig.tokenTransferFeeConfigs.mustGet(tokenAmount.token, ERROR_TOKEN_NOT_SUPPORTED);
+        val transferFeeConfig = destChainConfig.tokenTransferFeeConfigs.mustGet(tokenAmount.token, Error.TokenNotSupported);
         if (!transferFeeConfig.isEnabled) {
             // If the token has no specific overrides configured, we use the global defaults.
             tokenTransferFeeWei +=((destChainConfig.config.defaultTokenFeeUsdCents as uint256) * VAL_1E16);
@@ -336,7 +302,7 @@ fun getTokenTransferCost(st: Storage, destChainConfig: DestChainConfig, mutate t
         } else {
             var bpsFeeUsdWei = 0;
             if (transferFeeConfig.deciBps > 0) {
-                val tokenPrice = st.usdPerToken.mustGet(tokenAmount.token, ERROR_TOKEN_NOT_SUPPORTED);
+                val tokenPrice = st.usdPerToken.mustGet(tokenAmount.token, Error.TokenNotSupported);
 
                 // Calculate token transfer value, then apply fee ratio
                 // ratio represents multiples of 0.1bps, or 1e-5
@@ -357,7 +323,7 @@ fun getTokenTransferCost(st: Storage, destChainConfig: DestChainConfig, mutate t
 
 get fun tokenPrice(token: address): TimestampedPrice {
     val st = lazy Storage.load();
-    return st.usdPerToken.mustGet(token, ERROR_TOKEN_NOT_SUPPORTED);
+    return st.usdPerToken.mustGet(token, Error.TokenNotSupported);
 }
 
 // vec<TimestampedPrice>
@@ -377,7 +343,7 @@ get fun tokenPrices(tokens: tuple): tuple {
 
 get fun destinationChainGasPrice(destChainSelector: uint64): cell {
     val st = lazy Storage.load();
-    val config = st.destChainConfigs.mustGet(destChainSelector, ERROR_UNKNOWN_DEST_CHAIN_SELECTOR);
+    val config = st.destChainConfigs.mustGet(destChainSelector, Error.UnknownDestChainSelector);
     return config.usdPerUnitGas
 }
 
@@ -407,7 +373,7 @@ get fun tokenTransferFeeConfig() {}
 
 get fun destChainConfig(destChainSelector: uint64): DestChainConfig {
     val st = lazy Storage.load();
-    return st.destChainConfigs.mustGet(destChainSelector, ERROR_DEST_CHAIN_NOT_ENABLED);
+    return st.destChainConfigs.mustGet(destChainSelector, Error.DestChainNotEnabled);
 }
 
 get fun staticConfig(): (uint96, address, uint64) {

@@ -1,22 +1,10 @@
 import "types.tolk";
-import "../lib/upgrades/type_and_version.tolk";
-import "../deployable/types.tolk";
-import "../lib/utils.tolk";
-
-// State stores the general state machine indicating which phase we're in
-// TODO: we might be able to merge this into execution_states
-const STATE_UNTOUCHED: uint8 = 0;
-const STATE_TOKEN_TRANSFER: uint8 = 1;
-const STATE_EXECUTE: uint8 = 2;
-const STATE_EXECUTE_FAILED: uint8 = 3;
-const STATE_SUCCESS: uint8 = 4;
-
-// TODO: we need to fit additional states: TOKEN_TRANSFER | EXECUTE
-
-const ERROR_STATE_IS_NOT_UNTOUCHED = 300;
-const ERROR_UPDATING_STATE_OF_NON_EXECUTED_MESSAGE = 301;
-const ERROR_NOTIFICATION_FROM_INVALID_RECEIVER = 303;
-
+import "messages.tolk";
+import "exit_codes.tolk";
+import "storage";
+import "../../lib/upgrades/type_and_version.tolk";
+import "../../deployable/types.tolk";
+import "../../lib/utils.tolk";
 
 fun MerkleRoot_Storage.load(): MerkleRoot_Storage {
     return MerkleRoot_Storage.fromCell(contract.getData());
@@ -25,8 +13,6 @@ fun MerkleRoot_Storage.load(): MerkleRoot_Storage {
 fun MerkleRoot_Storage.store(self) {
     return contract.setData(self.toCell());
 }
-
-type MerkleRoot_InMessage = MerkleRoot_Validate | MerkleRoot_CCIPReceiveBounced | MerkleRoot_CCIPReceiveConfirm;
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy MerkleRoot_InMessage.fromSlice(in.body);
@@ -50,14 +36,14 @@ fun onInternalMessage(in: InMessage) {
 fun _ccipReceiveBounced(msg: MerkleRoot_CCIPReceiveBounced, sender: address){
     var st = MerkleRoot_Storage.load();
 
-    assert(sender == st.owner, ERROR_NOT_OWNER);
-    assert(st.state == STATE_EXECUTE && st.message != null, ERROR_UPDATING_STATE_OF_NON_EXECUTED_MESSAGE);
+    assert(sender == st.owner, Error.NotOwner);
+    assert(st.state == State.Execute && st.message != null, Error.UpdatingStateOfNonExecutedMessage);
 
     val ccipMessage = st.message!.load();
 
-    assert (msg.receiver == ccipMessage.receiver, ERROR_NOTIFICATION_FROM_INVALID_RECEIVER);
+    assert (msg.receiver == ccipMessage.receiver, Error.NotificationFromInvalidReceiver);
 
-    st.state = STATE_EXECUTE_FAILED;
+    st.state = State.ExecuteFailed;
     st.store();
 
     val messageHeader = ccipMessage.header;
@@ -77,14 +63,14 @@ fun _ccipReceiveBounced(msg: MerkleRoot_CCIPReceiveBounced, sender: address){
 fun _ccipReceiveConfirm(msg: MerkleRoot_CCIPReceiveConfirm, sender: address) {
     var st = MerkleRoot_Storage.load();
 
-    assert(st.state == STATE_EXECUTE && st.message != null, ERROR_UPDATING_STATE_OF_NON_EXECUTED_MESSAGE);
-    assert(sender == st.owner, ERROR_NOT_OWNER);
+    assert(st.state == State.Execute && st.message != null, Error.UpdatingStateOfNonExecutedMessage);
+    assert(sender == st.owner, Error.NotOwner);
 
     val ccipMessage = st.message!.load();
 
-    assert (msg.receiver == ccipMessage.receiver, ERROR_NOTIFICATION_FROM_INVALID_RECEIVER);
+    assert (msg.receiver == ccipMessage.receiver, Error.NotificationFromInvalidReceiver);
 
-    st.state = STATE_SUCCESS;
+    st.state = State.Success;
     st.store();
 
     val messageHeader = ccipMessage.header;
@@ -103,8 +89,8 @@ fun _ccipReceiveConfirm(msg: MerkleRoot_CCIPReceiveConfirm, sender: address) {
 fun _validateAndExecute(msg: MerkleRoot_Validate, sender: address) {
     var st = MerkleRoot_Storage.load();
 
-    assert(sender == st.owner, ERROR_NOT_OWNER);
-    assert(st.state == STATE_UNTOUCHED, ERROR_STATE_IS_NOT_UNTOUCHED);
+    assert(sender == st.owner, Error.NotOwner);
+    assert(st.state == State.Untouched, Error.StateIsNotUntouched);
 
     val ccipMessage = msg.message;
 
@@ -130,7 +116,7 @@ fun _validateAndExecute(msg: MerkleRoot_Validate, sender: address) {
 }
 
 fun _execute(st: MerkleRoot_Storage, mesage: Any2TVMRampMessage) {
-    st.state = STATE_EXECUTE;
+    st.state = State.Execute;
     st.store();
     createMessage(
         {

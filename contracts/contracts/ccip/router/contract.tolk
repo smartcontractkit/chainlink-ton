@@ -1,4 +1,5 @@
 import "types.tolk";
+import "../onramp/messages.tolk";
 import "../lib/access/ownable_2step.tolk";
 import "../lib/upgrades/type_and_version.tolk";
 import "../deployable/types.tolk";
@@ -18,8 +19,6 @@ fun Storage.load(): Storage {
 fun Storage.store(self) {
     return contract.setData(self.toCell());
 }
-
-type Msg = CCIPSend | SetRamp | JettonTransferNotification;
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy Msg.fromSlice(in.body);
@@ -55,7 +54,7 @@ fun onTransferNotification(msg: JettonTransferNotification, sender: address) {
     val st = lazy Storage.load();
 
     // TODO: need to validate that the transfer notification came from our own wallet
-    // assert(sender == st.owner) throw ERROR_NOT_OWNER;
+    // assert(sender == st.owner) throw Error.NotOwner;
     // TODO: need to validate the jetton (master) address, but to do this we need to
     // derive the address. We can probably fetch that from the ccip send payload's tokenAmounts
 
@@ -77,12 +76,12 @@ fun ccipSend(msg: CCIPSend, sender: address) {
     // forward to onRamp
     // ccipSend(onRamp, msg, value/token amounts)
 
-    val onRamp = st.onRamps.mustGet(msg.destChainSelector, ERROR_DEST_CHAIN_NOT_ENABLED);
+    val onRamp = st.onRamps.mustGet(msg.destChainSelector, Error.DestChainNotEnabled);
     val sendMsg = createMessage({
         bounce: true,
         value: ton("0.1"), // TODO:
         dest: onRamp,
-        body: OnRampSend { msg: msg.toCell(), metadata: Metadata{ sender } },
+        body: OnRamp_Send { msg: msg.toCell(), metadata: Metadata{ sender } },
     });
     sendMsg.send(SEND_MODE_REGULAR);
 }
@@ -93,7 +92,7 @@ get fun typeAndVersion(): (slice, slice) {
 
 get fun onRamp(destChainSelector: uint64): address {
     val st = lazy Storage.load();
-    return st.onRamps.mustGet(destChainSelector, ERROR_DEST_CHAIN_NOT_ENABLED);
+    return st.onRamps.mustGet(destChainSelector, Error.DestChainNotEnabled);
 }
 
 get fun destChainSelectors(): tuple {

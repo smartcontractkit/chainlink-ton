@@ -4,13 +4,11 @@ import "../lib/access/ownable_2step.tolk";
 import "../lib/upgrades/type_and_version.tolk";
 import "../lib/utils.tolk";
 import "@stdlib/tvm-dicts";
-import "fee_quoter/messages"
-
-const CCIP_MESSAGE_SENT_TOPIC: int = stringCrc32("CCIPMessageSent"); 
-
-struct CCIPMessageSent {
-    message: TVM2AnyRampMessage;
-}
+import "fee_quoter/messages";
+import "events";
+import "types";
+import "messages";
+import "exit_codes";
 
 struct Storage {
     ownable: Ownable2Step;
@@ -30,13 +28,6 @@ struct Storage {
 
     destChainConfigs: map<uint64, DestChainConfig>; // chainSelector -> DestChainConfig
 }
-
-struct DestChainConfig {
-    router: address; // Local router address that is allowed to send messages to the destination chain.
-    sequenceNumber: uint64;
-    allowlistEnabled: bool;
-    allowedSenders: map<address, bool>;
-}
 // TODO: move allowlist into accounts
 // user calls wallet -> account contract -> router, account verifies dest chain and if
 // the user is allowed to send. This will also allow users to deposit funds ahead of time
@@ -52,7 +43,6 @@ fun Storage.store(self) {
     return contract.setData(self.toCell());
 }
 
-type Msg = OnRampSend | FeeQuoter_MessageValidated<Metadata> | SetDynamicConfig | OnRampUpdateDestChainConfigs | UpdateAllowlists;
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy Msg.fromSlice(in.body);
@@ -90,14 +80,14 @@ fun send(payload: OnRampSend, sender: address) {
     val msg = payload.msg.load();
 
     // validate allowlist
-    val destChainConfig = st.destChainConfigs.mustGet(msg.destChainSelector, ERROR_UNKNOWN_DEST_CHAIN_SELECTOR);
+    val destChainConfig = st.destChainConfigs.mustGet(msg.destChainSelector, Error.UnknownDestChainSelector);
 
     // ccipSend must be forwarded from the router
-    assert(destChainConfig.router == sender, ERROR_UNAUTHORIZED);
+    assert(destChainConfig.router == sender, Error.Unauthorized);
 
     if (destChainConfig.allowlistEnabled) {
         val entry = destChainConfig.allowedSenders.get(payload.metadata.sender);
-        assert(entry.isFound && entry.loadValue(), ERROR_SENDER_NOT_ALLOWED);
+        assert(entry.isFound && entry.loadValue(), Error.SenderNotAllowed);
     }
 
     // TODO: validate jetton amounts match msg.tokenAmounts
@@ -121,7 +111,7 @@ fun onMessageValidated(payload: FeeQuoter_MessageValidated<Metadata>, sender: ad
     var st = lazy Storage.load();
     val config = st.config.load();
     // notification must come from fee quoter
-    assert(config.feeQuoter == sender, ERROR_UNAUTHORIZED);
+    assert(config.feeQuoter == sender, Error.Unauthorized);
 
     val msg: CCIPSend = payload.msg.load();
     val metadata = payload.metadata.load();
@@ -130,7 +120,7 @@ fun onMessageValidated(payload: FeeQuoter_MessageValidated<Metadata>, sender: ad
     // else refund and notify
 
     // assign sequence number, we can't do this sooner since the message might fail validation/getFee
-    var destChainConfig = st.destChainConfigs.mustGet(msg.destChainSelector, ERROR_UNKNOWN_DEST_CHAIN_SELECTOR);
+    var destChainConfig = st.destChainConfigs.mustGet(msg.destChainSelector, Error.UnknownDestChainSelector);
     destChainConfig.sequenceNumber = destChainConfig.sequenceNumber + 1;
     st.destChainConfigs.set(msg.destChainSelector, destChainConfig);
     st.store();
@@ -187,7 +177,7 @@ get fun isChainSupported(destChainSelector: uint64): bool {
 
 get fun expectedNextSequenceNumber(destChainSelector: uint64): uint64 {
     val st = lazy Storage.load();
-    val config = st.destChainConfigs.mustGet(destChainSelector,ERROR_UNKNOWN_DEST_CHAIN_SELECTOR);
+    val config = st.destChainConfigs.mustGet(destChainSelector,Error.UnknownDestChainSelector);
     return config.sequenceNumber + 1;
 }
 
@@ -227,13 +217,13 @@ fun applyDestChainConfigUpdates(mutate st: Storage, updates: cell) {
 
 get fun destChainConfig(destChainSelector: uint64): DestChainConfig {
     val st = lazy Storage.load();
-    return st.destChainConfigs.mustGet(destChainSelector,ERROR_UNKNOWN_DEST_CHAIN_SELECTOR);
+    return st.destChainConfigs.mustGet(destChainSelector,Error.UnknownDestChainSelector);
 }
 
 // vec<address>
 get fun allowedSendersList(destChainSelector: uint64): tuple {
     val st = lazy Storage.load();
-    val config = st.destChainConfigs.mustGet(destChainSelector,ERROR_UNKNOWN_DEST_CHAIN_SELECTOR);
+    val config = st.destChainConfigs.mustGet(destChainSelector,Error.UnknownDestChainSelector);
     var allowedSenders = config.allowedSenders;
 
     var list: tuple? = null;
@@ -256,7 +246,7 @@ fun applyAllowlistUpdates(mutate st: Storage, updates: cell) {
     while (!iter.empty()) {
         val update = iter.next();
 
-        var config = st.destChainConfigs.mustGet(update.destChainSelector, ERROR_UNKNOWN_DEST_CHAIN_SELECTOR);
+        var config = st.destChainConfigs.mustGet(update.destChainSelector, Error.UnknownDestChainSelector);
 
         var iterAdd = Iterator<address>.new(update.add);
         while (!iterAdd.empty()) {
