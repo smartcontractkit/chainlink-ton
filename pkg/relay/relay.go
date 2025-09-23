@@ -10,13 +10,14 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 
 	chain_selectors "github.com/smartcontractkit/chain-selectors"
+
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 	commontypes "github.com/smartcontractkit/chainlink-common/pkg/types"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/core"
 
-	provider "github.com/smartcontractkit/chainlink-ton/pkg/ccip/provider"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/provider"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 	"github.com/smartcontractkit/chainlink-ton/pkg/txm"
@@ -113,7 +114,7 @@ func (r *Relayer) TON() (commontypes.TONService, error) {
 	return &r.tonService, nil
 }
 
-func (r *Relayer) NewCCIPProvider(ctx context.Context, cargs commontypes.CCIPProviderArgs) (commontypes.CCIPProvider, error) {
+func (r *Relayer) NewCCIPProvider(ctx context.Context, rargs commontypes.CCIPProviderArgs) (commontypes.CCIPProvider, error) {
 	// TODO: store chainSelector within Chain
 	chainID, err := strconv.ParseInt(r.chain.ID(), 10, 16)
 	if err != nil {
@@ -125,9 +126,12 @@ func (r *Relayer) NewCCIPProvider(ctx context.Context, cargs commontypes.CCIPPro
 	}
 
 	// TODO: pass GetClient through? So we don't pin provider to a single client
+
 	client, err := r.chain.GetClient(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch TON client: %w", err)
 	}
-	return provider.NewCCIPProvider(r.lggr, ccipocr3.ChainSelector(chainSelector), client, r.chain.TxManager(), r.chain.LogPoller())
+
+	// TODO: check if rargs.ContractID is offramp address ?
+	return provider.NewCCIPProvider(r.lggr, ccipocr3.ChainSelector(chainSelector), client, r.chain.TxManager(), r.chain.LogPoller(), rargs.OffRampAddress, rargs.PluginType)
 }

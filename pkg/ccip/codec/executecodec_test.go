@@ -2,6 +2,7 @@ package codec
 
 import (
 	"context"
+	"encoding/hex"
 	"math/big"
 	"math/rand"
 	"testing"
@@ -23,8 +24,6 @@ func randomTONExecuteReport(t *testing.T, sourceChainSelector uint64) ccipocr3.E
 	const msgsPerReport = 2
 	const numTokensPerMsg = 2
 
-	ac := NewAddressCodec()
-
 	chainReports := make([]ccipocr3.ExecutePluginReportSingleChain, numChainReports)
 	for i := 0; i < numChainReports; i++ {
 		reportMessages := make([]ccipocr3.Message, msgsPerReport)
@@ -33,14 +32,16 @@ func randomTONExecuteReport(t *testing.T, sourceChainSelector uint64) ccipocr3.E
 			require.NoError(t, err)
 			extraData := []byte{0x12, 0x34}
 
-			receiverAddr, err := ac.AddressStringToBytes(addr.String())
+			evmSenderBytes, err := hex.DecodeString("1a5fdbc891c5d4e6ad68064ae45d43146d4f9f3a")
 			require.NoError(t, err)
+
+			receiverAddr := ToRawAddr(addr)
 
 			tokenAmounts := make([]ccipocr3.RampTokenAmount, numTokensPerMsg)
 			for z := 0; z < numTokensPerMsg; z++ {
 				tokenAmounts[z] = ccipocr3.RampTokenAmount{
 					SourcePoolAddress: ccipocr3.UnknownAddress(addr.String()),
-					DestTokenAddress:  receiverAddr,
+					DestTokenAddress:  receiverAddr[:],
 					ExtraData:         extraData,
 					Amount:            ccipocr3.NewBigInt(big.NewInt(rand.Int63())),
 					DestExecData:      []byte{0, 0, 0, 0},
@@ -54,10 +55,11 @@ func randomTONExecuteReport(t *testing.T, sourceChainSelector uint64) ccipocr3.E
 					DestChainSelector:   ccipocr3.ChainSelector(rand.Uint64()),
 					SequenceNumber:      ccipocr3.SeqNum(rand.Uint64()),
 					Nonce:               rand.Uint64(),
+					OnRamp:              evmSenderBytes,
 				},
 				Sender:       ccipocr3.UnknownAddress(addr.String()),
 				Data:         extraData,
-				Receiver:     receiverAddr,
+				Receiver:     receiverAddr[:],
 				ExtraArgs:    []byte{0, 0, 0, 0},
 				TokenAmounts: tokenAmounts,
 			}

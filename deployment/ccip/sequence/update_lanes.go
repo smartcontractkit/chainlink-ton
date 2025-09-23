@@ -173,6 +173,7 @@ func setTonDestinationUpdates(lane config.LaneConfig, updateInputsByTonChain map
 		IsEnabled:                 isEnabled,
 		TestRouter:                isTestRouter,
 		IsRMNVerificationDisabled: source.RMNVerificationDisabled,
+		OnRamp:                    lane.OnRamp,
 	}
 
 	updateInputsByTonChain[dest.Selector] = input

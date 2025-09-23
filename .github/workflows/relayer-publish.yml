@@ -1,3 +1,7 @@
+# TON Relayer Docker Publishing Workflow
+# Builds and publishes Docker images for the TON relayer,
+# including the base Chainlink core image and the combined core+relayer image
+
 name: TON - Relayer - Publish Docker Image
 
 on:
@@ -7,40 +11,30 @@ on:
     tags:
       - "v*"
   pull_request:
-    types: [labeled, opened, synchronize, reopened]  # Trigger when a label is added
-
-env:
-  CHAINLINK_PUBLIC_ECR_IMAGE: public.ecr.aws/chainlink/chainlink
+    types: [labeled, opened, synchronize, reopened]
 
 jobs:
-  get-core-image:
+  # Identifies which Chainlink core image to use as the base for building the TON relayer.
+  # It handles both SHA refs and tag refs differently.
+  determine-core-image:
     name: Determine Chainlink Core Base Image
     runs-on: ubuntu-24.04
     permissions:
       id-token: write
       contents: read
+    
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      DOCKER_CACHE_DIR: ${{ github.workspace }}/.cache
-      DOCKER_CACHE_KEY: ccip-chainlink-core-sha-cache-v1
-      DOCKER_CACHE_TAR_NAME: ccip-chainlink-core-sha-cache.tar
+    
     outputs:
-      base_image: ${{ steps.determine-base-image.outputs.BASE_IMAGE }}
-      base_image_tag: ${{ steps.determine-base-image.outputs.BASE_IMAGE_TAG }}
-      base_image_public: ${{ steps.determine-base-image.outputs.BASE_IMAGE_PUBLIC }}
-      base_image_already_exists: ${{ steps.check-if-image-is-available.outputs.EXISTS }}
-      core_ref: ${{ steps.read_core_ref.outputs.CORE_REF }}
-      core_ref_short: ${{ steps.determine_core_ref_short.outputs.CORE_REF_SHORT }}
+      base_image: ${{ steps.detect-core-image.outputs.BASE_IMAGE }}
+      base_image_tag: ${{ steps.detect-core-image.outputs.BASE_IMAGE_TAG }}
+      base_image_public: ${{ steps.detect-core-image.outputs.BASE_IMAGE_PUBLIC }}
+      base_image_already_exists: ${{ steps.detect-core-image.outputs.EXISTS }}
+      core_ref: ${{ steps.detect-core-image.outputs.CORE_REF }}
+      core_ref_short: ${{ steps.detect-core-image.outputs.CORE_REF_SHORT }}
     steps:
-      - name: Setup GitHub token using GATI
-        id: set-token
-        uses: smartcontractkit/.github/actions/setup-github-token@setup-github-token/1.0.0
-        with:
-          aws-role-arn: ${{ secrets.AWS_ROLE_ARN_GATI_READONLY }}
-          aws-lambda-url: ${{ secrets.AWS_LAMBDA_URL_GATI }}
-          aws-region: ${{ vars.AWS_REGION }}
-          aws-role-duration-seconds: "1800"
-
+      # Setup and Authentication
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502 # v4.0.2
         with:
@@ -56,111 +50,26 @@ jobs:
           mask-password: "true"
           registries: "${{ secrets.AWS_ACCOUNT_ID_STAGING}}"
 
-      - name: Checkout chainlink-ton Repository
+      - name: Checkout Repository
         uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
 
-      - name: Prepare Cache Dir For Docker Images
-        run: mkdir -p ${{ env.DOCKER_CACHE_DIR }}
+      # Core Image Detection Script
+      - name: Detect and Configure Core Image
+        id: detect-core-image
+        env:
+          AWS_ACCOUNT_ID_STAGING: ${{ secrets.AWS_ACCOUNT_ID_STAGING }}
+          AWS_REGION: ${{ vars.AWS_REGION }}
+        run: ./.github/scripts/detect-core-image.sh
 
-      - name: Read Chainlink Core Ref from .core_version File
-        id: read_core_ref
-        run: echo "CORE_REF=$(cat ./scripts/.core_version | tr -d '[:space:]')" >> $GITHUB_OUTPUT
-
-      - name: Detect if CORE_REF is a SHA
-        id: detect_core_ref_is_sha
-        run: |
-          REF="${{ steps.read_core_ref.outputs.CORE_REF }}"
-          if [[ "$REF" =~ ^[0-9a-fA-F]{7,40}$ ]]; then
-            echo "is_sha=true" >> $GITHUB_OUTPUT
-          else
-            echo "is_sha=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Determine CORE_REF_SHORT
-        id: determine_core_ref_short
-        run: |
-          REF="${{ steps.read_core_ref.outputs.CORE_REF }}"
-          if [[ "${{ steps.detect_core_ref_is_sha.outputs.is_sha }}" == "true" ]]; then
-            echo "CORE_REF_SHORT=${REF:0:7}" >> $GITHUB_OUTPUT
-          else
-            echo "CORE_REF_SHORT=$REF" >> $GITHUB_OUTPUT
-          fi
-      
-      - name: Determine Base Image Name
-        id: determine-base-image
-        run: |
-          if [[ "${{ steps.detect_core_ref_is_sha.outputs.is_sha }}" == "true" ]]; then
-            echo "BASE_IMAGE=${{ secrets.AWS_ACCOUNT_ID_STAGING}}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com/chainlink-plugins-dev:${{ steps.determine_core_ref_short.outputs.CORE_REF_SHORT }}-core-for-chainlink-ton" >> $GITHUB_OUTPUT
-            echo "BASE_IMAGE_TAG=${{ steps.determine_core_ref_short.outputs.CORE_REF_SHORT }}-core-for-chainlink-ton" >> $GITHUB_OUTPUT
-            echo "BASE_IMAGE_PUBLIC=false" >> $GITHUB_OUTPUT
-          else
-            echo "BASE_IMAGE=${{ env.CHAINLINK_PUBLIC_ECR_IMAGE }}:${{ steps.read_core_ref.outputs.CORE_REF }}" >> $GITHUB_OUTPUT
-            echo "BASE_IMAGE_TAG=${{ steps.read_core_ref.outputs.CORE_REF }}" >> $GITHUB_OUTPUT
-            echo "BASE_IMAGE_PUBLIC=true" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Debug To Be Removed
-        id: debug
-        run: |
-          echo "BASE_IMAGE=${{ steps.determine-base-image.outputs.BASE_IMAGE }}"
-          docker images
-
-      - name: Restore Docker Image from Cache When Core Image Ref Is Not a SHA
-        if: steps.detect_core_ref_is_sha.outputs.is_sha == 'false'
-        id: restore-cache-images
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.DOCKER_CACHE_DIR }}/${{ steps.read_core_ref.outputs.CORE_REF }}-${{ env.DOCKER_CACHE_TAR_NAME }}
-          key: ${{ env.DOCKER_CACHE_KEY }}-${{ steps.read_core_ref.outputs.CORE_REF }}
-
-      - name: Load Docker Images From Cache When Core Image Ref Is Not a SHA
-        if: steps.detect_core_ref_is_sha.outputs.is_sha == 'false' && steps.restore-cache-images.outputs.cache-hit == 'true'
-        run: |
-          echo "Cache hit for key '${{ env.DOCKER_CACHE_KEY }}-${{ steps.read_core_ref.outputs.CORE_REF }}'. Loading images with sha from tarball..."
-          docker load -i ${{ env.DOCKER_CACHE_DIR }}/${{ steps.read_core_ref.outputs.CORE_REF }}-${{ env.DOCKER_CACHE_TAR_NAME }}
-
-      - name: Pull & Save Image on Cache Miss When Core Ref Is Not a SHA
-        if: steps.detect_core_ref_is_sha.outputs.is_sha == 'false' && steps.restore-cache-images.outputs.cache-hit != 'true'
-        run: |
-          echo "Cache Miss: Pulling chainlink core image from ${{ steps.determine-base-image.outputs.BASE_IMAGE }}"
-          docker pull ${{ steps.determine-base-image.outputs.BASE_IMAGE }}
-
-          echo "Saving to tarball…"
-          docker save ${{ steps.determine-base-image.outputs.BASE_IMAGE }} \
-            -o ${{ env.DOCKER_CACHE_DIR }}/${{ steps.read_core_ref.outputs.CORE_REF }}-${{ env.DOCKER_CACHE_TAR_NAME }}
-
-      - name: Determine if There Is A Core Image Already Built for the provided SHA
-        id: check-if-image-is-available
-        run: |
-          echo "Checking if ${{ steps.determine-base-image.outputs.BASE_IMAGE }} Chainlink Core image exist or we need to built it"
-
-          if ${{ steps.detect_core_ref_is_sha.outputs.is_sha != 'true' }}; then
-            echo "CORE_REF is not a SHA and should have been pull in the previous step"
-            echo "EXISTS=true" >> $GITHUB_OUTPUT
-          else
-            if docker pull "${{ steps.determine-base-image.outputs.BASE_IMAGE }}"; then
-              echo "Chainlink Core image ${{ steps.determine-base-image.outputs.BASE_IMAGE }} exist in the ECR. We can use it in the build step"
-              echo "EXISTS=true" >> $GITHUB_OUTPUT
-            else
-              echo "Chainlink Core image ${{ steps.determine-base-image.outputs.BASE_IMAGE }} does not exist in the ECR. We need to built it."
-              echo "EXISTS=false" >> $GITHUB_OUTPUT
-            fi
-          fi
-
-      - name: Get Core Image Output
-        id: get-core-image-output
-        run: |
-          echo "BASE_IMAGE=${{ steps.determine-base-image.outputs.BASE_IMAGE }}"
-          echo "BASE_IMAGE_TAG=${{ steps.determine-base-image.outputs.BASE_IMAGE_TAG }}"
-          echo "BASE_IMAGE_PUBLIC=${{ steps.determine-base-image.outputs.BASE_IMAGE_PUBLIC }}"
-          echo "BASE_IMAGE_ALREADY_EXISTS=${{ steps.check-if-image-is-available.outputs.EXISTS }}"
-          echo "CORE_REF=${{ steps.read_core_ref.outputs.CORE_REF }}"
-          echo "CORE_REF_SHORT=${{ steps.determine_core_ref_short.outputs.CORE_REF_SHORT }}"
-
-  build-and-publish-core-with-docker:
-    needs: get-core-image
-    if: ${{ needs.get-core-image.outputs.base_image_already_exists != 'true' && (github.event_name != 'pull_request' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'build-publish-docker'))) }}
+  # Only runs if the core image doesn't already exist 
+  build-core-image:
     name: Build & Publish Chainlink Core Docker Image
+    needs: determine-core-image
+    if: |
+      needs.determine-core-image.outputs.base_image_already_exists != 'true' && (
+        github.event_name != 'pull_request' || 
+        contains(github.event.pull_request.labels.*.name, 'build-publish-docker')
+      )
     permissions:
       contents: read
       id-token: write
@@ -173,10 +82,10 @@ jobs:
       docker-build-context: .
       docker-build-args: |
         CHAINLINK_USER=chainlink
-        COMMIT_SHA=${{ needs.get-core-image.outputs.core_ref }}
+        COMMIT_SHA=${{ needs.determine-core-image.outputs.core_ref }}
       docker-manifest-sign: false
-      docker-image-tag-override: ${{ needs.get-core-image.outputs.base_image_tag }}
-      git-sha: ${{ needs.get-core-image.outputs.core_ref }}
+      docker-image-tag-override: ${{ needs.determine-core-image.outputs.base_image_tag }}
+      git-sha: ${{ needs.determine-core-image.outputs.core_ref }}
       github-event-name: ${{ github.event_name }}
       github-ref-name: ${{ github.ref_name }}
       github-ref-type: ${{ github.ref_type }}
@@ -187,11 +96,19 @@ jobs:
       AWS_ROLE_GATI_ARN: ${{ secrets.AWS_ROLE_ARN_GATI_READONLY }}
       AWS_LAMBDA_GATI_URL: ${{ secrets.AWS_LAMBDA_URL_GATI }}
 
-  build-and-publish-core-with-relayer-docker:
-    needs: [get-core-image, build-and-publish-core-with-docker]
-    name: Build & Publish Chainlink Core Docker Image with Relayer
-    # Non-PR → run; PR → only if label present
-    if: ${{ always() && needs.get-core-image.result == 'success' && (needs.build-and-publish-core-with-docker.result == 'success' || needs.build-and-publish-core-with-docker.result == 'skipped') && (github.event_name != 'pull_request' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'build-publish-docker'))) }}
+  # Builds the final image combining Chainlink core with the TON relayer
+  build-relayer-image:
+    name: Build & Publish Chainlink Core + TON Relayer Image
+    needs: [determine-core-image, build-core-image]
+    if: |
+      always() && 
+      needs.determine-core-image.result == 'success' && (
+        needs.build-core-image.result == 'success' || 
+        needs.build-core-image.result == 'skipped'
+      ) && (
+        github.event_name != 'pull_request' || 
+        contains(github.event.pull_request.labels.*.name, 'build-publish-docker')
+      )
     permissions:
       contents: read
       id-token: write
@@ -217,4 +134,52 @@ jobs:
       DOCKER_BUILD_ARGS: |
         CHAINLINK_USER=chainlink
         COMMIT_SHA=${{ github.sha }}
-        BASE_IMAGE=${{ needs.get-core-image.outputs.base_image_public == 'true' && needs.get-core-image.outputs.base_image || format('{0}.dkr.ecr.{1}.amazonaws.com/chainlink-plugins-dev:{2}', secrets.AWS_ACCOUNT_ID_STAGING, vars.AWS_REGION, needs.get-core-image.outputs.base_image_tag) }}
+        BASE_IMAGE=${{ 
+          needs.determine-core-image.outputs.base_image_public == 'true' && 
+          needs.determine-core-image.outputs.base_image || 
+          format('{0}.dkr.ecr.{1}.amazonaws.com/chainlink-plugins-dev:{2}', 
+            secrets.AWS_ACCOUNT_ID_STAGING, 
+            vars.AWS_REGION, 
+            needs.determine-core-image.outputs.base_image_tag) 
+        }}
+
+  # Updates the Kubernetes infrastructure with the newly built image
+  deploy-to-staging:
+    name: Update Staging Infrastructure
+    needs: [build-relayer-image]
+    if: always() && needs.build-relayer-image.result == 'success'
+    runs-on: ubuntu-24.04
+    permissions:
+      id-token: write
+    steps:
+      - name: Setup GitHub Token for Infrastructure Updates
+        id: setup-github-token
+        uses: smartcontractkit/.github/actions/setup-github-token@setup-github-token/1.0.0
+        with:
+          aws-role-arn: ${{ secrets.AWS_ROLE_ARN_GATI_CHAINLINK_TON_CD }}
+          aws-lambda-url: ${{ secrets.AWS_LAMBDA_URL_GATI_CHANGESETS }}
+          aws-region: ${{ vars.AWS_REGION }}
+          aws-role-duration-seconds: "1800"
+
+      - name: Trigger Infrastructure Deployment
+        env:
+          GH_TOKEN: ${{ steps.setup-github-token.outputs.access-token }}
+          # Deployment configuration
+          WORKFLOW_FILE: image-bump-cd.yaml
+          TARGET_REPO: ${{ secrets.REPO_K8S_DEPLOY }}
+          TARGET_BRANCH: main
+          IMAGE_TAG: ${{ needs.build-relayer-image.outputs.docker-manifest-tag }}
+          # PR configuration for staging deployment
+          PR_BASE_BRANCH: main
+          PR_LABELS: preview-stage
+          PR_DRAFT: "true"
+          PRODUCTS: ccip-ton-staging
+        run: |
+          gh workflow run "${WORKFLOW_FILE}" \
+            --repo "${TARGET_REPO}" \
+            --ref "${TARGET_BRANCH}" \
+            --field "oci-image-tag=${IMAGE_TAG}" \
+            --field "pr-base-branch=${PR_BASE_BRANCH}" \
+            --field "pr-labels=${PR_LABELS}" \
+            --field "pr-draft=${PR_DRAFT}" \
+            --field "products=${PRODUCTS}"

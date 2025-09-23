@@ -25,24 +25,149 @@ func addrToBytes(addr *address.Address) []byte {
 	return rawAddr[:]
 }
 
-// getOffRampStaticConfig retrieves static configuration for the off-ramp contract
-func (a *TONAccessor) getOffRampStaticConfig(ctx context.Context, block *ton.BlockIDExt) (ccipocr3.OffRampStaticChainConfig, error) {
-	return ccipocr3.OffRampStaticChainConfig{
-		ChainSelector:        0,
-		GasForCallExactCheck: 0,
-		RmnRemote:            []byte{},
-		TokenAdminRegistry:   []byte{},
-		NonceManager:         []byte{},
+func parseOCR3Config(configCell *cell.Cell) (ccipocr3.OCRConfig, error) {
+	var config offramp.OCR3Config
+	if err := tlb.LoadFromCell(&config, configCell.BeginParse()); err != nil {
+		return ccipocr3.OCRConfig{}, nil
+	}
+
+	var configDigest ccipocr3.Bytes32
+	copy(configDigest[:], config.ConfigInfo.ConfigDigest)
+
+	entries, err := config.Signers.LoadAll()
+	if err != nil {
+		return ccipocr3.OCRConfig{}, nil
+	}
+
+	signers := make([][]byte, 0, len(entries))
+	for _, entry := range entries {
+		signer, err1 := entry.Key.LoadSlice(256)
+		if err1 != nil {
+			return ccipocr3.OCRConfig{}, nil
+		}
+		signers = append(signers, signer)
+	}
+
+	entries, err = config.Transmitters.LoadAll()
+	if err != nil {
+		return ccipocr3.OCRConfig{}, nil
+	}
+	transmitters := make([][]byte, 0, len(entries))
+	for _, entry := range entries {
+		transmitter, err1 := entry.Key.LoadAddr()
+		if err1 != nil {
+			return ccipocr3.OCRConfig{}, nil
+		}
+		transmitters = append(transmitters, addrToBytes(transmitter))
+	}
+
+	return ccipocr3.OCRConfig{
+		ConfigInfo: ccipocr3.ConfigInfo{
+			ConfigDigest:                   configDigest,
+			F:                              config.ConfigInfo.F,
+			N:                              config.ConfigInfo.N, // TODO: N should match transmitters/signers
+			IsSignatureVerificationEnabled: config.ConfigInfo.IsSignatureVerificationEnabled,
+		},
+		Signers:      signers,
+		Transmitters: transmitters,
 	}, nil
 }
 
-// getOffRampDynamicConfig retrieves dynamic configuration for the off-ramp contract
-func (a *TONAccessor) getOffRampDynamicConfig(ctx context.Context, block *ton.BlockIDExt) (ccipocr3.OffRampDynamicChainConfig, error) {
-	return ccipocr3.OffRampDynamicChainConfig{
-		FeeQuoter:                               []byte{},
-		PermissionLessExecutionThresholdSeconds: 0,
-		IsRMNVerificationDisabled:               true,
-		MessageInterceptor:                      []byte{},
+func (a *TONAccessor) getOCR3Config(ctx context.Context, block *ton.BlockIDExt) (commitConfig ccipocr3.OCRConfig, execConfig ccipocr3.OCRConfig, err error) {
+	addr, err := a.getBinding(consts.ContractNameOffRamp)
+	if err != nil {
+		return ccipocr3.OCRConfig{}, ccipocr3.OCRConfig{}, err
+	}
+	result, err := a.client.RunGetMethod(ctx, block, addr, "ocr3Config")
+	if err != nil {
+		return ccipocr3.OCRConfig{}, ccipocr3.OCRConfig{}, err
+	}
+
+	// NOTE: skip index 0: chainId
+
+	// commit
+	isNil, err := result.IsNil(1)
+	if err != nil {
+		return ccipocr3.OCRConfig{}, ccipocr3.OCRConfig{}, err
+	}
+	// if the dictionary is empty, we get back nil
+	if !isNil {
+		configCell, err1 := result.Cell(1)
+		if err1 != nil {
+			return ccipocr3.OCRConfig{}, ccipocr3.OCRConfig{}, err
+		}
+		commitConfig, err1 = parseOCR3Config(configCell)
+		if err1 != nil {
+			return ccipocr3.OCRConfig{}, ccipocr3.OCRConfig{}, err
+		}
+	}
+	// exec
+	isNil, err = result.IsNil(2)
+	if err != nil {
+		return ccipocr3.OCRConfig{}, ccipocr3.OCRConfig{}, err
+	}
+	// if the dictionary is empty, we get back nil
+	if !isNil {
+		configCell, err := result.Cell(2)
+		if err != nil {
+			return ccipocr3.OCRConfig{}, ccipocr3.OCRConfig{}, err
+		}
+		execConfig, err = parseOCR3Config(configCell)
+		if err != nil {
+			return ccipocr3.OCRConfig{}, ccipocr3.OCRConfig{}, err
+		}
+	}
+	return commitConfig, execConfig, nil
+}
+
+// getOffRampConfig retrieves static configuration for the off-ramp contract
+func (a *TONAccessor) getOffRampConfig(ctx context.Context, block *ton.BlockIDExt) (ccipocr3.OfframpConfig, error) {
+	addr, err := a.getBinding(consts.ContractNameOffRamp)
+	if err != nil {
+		return ccipocr3.OfframpConfig{}, err
+	}
+	result, err := a.client.RunGetMethod(ctx, block, addr, "config")
+	if err != nil {
+		return ccipocr3.OfframpConfig{}, err
+	}
+	chainSelector, err := result.Int(0)
+	if err != nil {
+		return ccipocr3.OfframpConfig{}, err
+	}
+	feeQuoterAddressSlice, err := result.Slice(1)
+	if err != nil {
+		return ccipocr3.OfframpConfig{}, err
+	}
+	feeQuoterAddress, err := feeQuoterAddressSlice.LoadAddr()
+	if err != nil {
+		return ccipocr3.OfframpConfig{}, err
+	}
+	permissionlessExecutionThresholdSeconds, err := result.Int(2)
+	if err != nil {
+		return ccipocr3.OfframpConfig{}, err
+	}
+
+	commitConfig, execConfig, err := a.getOCR3Config(ctx, block)
+	if err != nil {
+		return ccipocr3.OfframpConfig{}, err
+	}
+
+	return ccipocr3.OfframpConfig{
+		CommitLatestOCRConfig: ccipocr3.OCRConfigResponse{OCRConfig: commitConfig},
+		ExecLatestOCRConfig:   ccipocr3.OCRConfigResponse{OCRConfig: execConfig},
+		StaticConfig: ccipocr3.OffRampStaticChainConfig{
+			ChainSelector:        ccipocr3.ChainSelector(chainSelector.Uint64()),
+			GasForCallExactCheck: 0,
+			RmnRemote:            nil, // TODO:
+			TokenAdminRegistry:   nil, // TODO:
+			NonceManager:         nil,
+		},
+		DynamicConfig: ccipocr3.OffRampDynamicChainConfig{
+			FeeQuoter:                               addrToBytes(feeQuoterAddress),
+			PermissionLessExecutionThresholdSeconds: uint32(permissionlessExecutionThresholdSeconds.Uint64()), //nolint:gosec // this type is uint32 onchain
+			IsRMNVerificationDisabled:               true,
+			MessageInterceptor:                      nil,
+		},
 	}, nil
 }
 
@@ -52,11 +177,20 @@ func (a *TONAccessor) getOffRampSourceChainConfigs(ctx context.Context, block *t
 	if err != nil {
 		return nil, err
 	}
+
 	var sourceChainConfigs = make(map[ccipocr3.ChainSelector]ccipocr3.SourceChainConfig, len(sourceChainSelectors))
 	// TODO: check how much data we can return, if this can potentially be too big for a single RPC call
 	result, err := a.client.RunGetMethod(ctx, block, addr, "allSourceChainConfigs")
 	if err != nil {
 		return nil, err
+	}
+	isNil, err := result.IsNil(0)
+	if err != nil {
+		return nil, err
+	}
+	// if the dictionary is empty, we get back nil
+	if isNil {
+		return nil, nil
 	}
 	rawDict, err := result.Cell(0)
 	if err != nil {
@@ -66,14 +200,16 @@ func (a *TONAccessor) getOffRampSourceChainConfigs(ctx context.Context, block *t
 	for _, selector := range sourceChainSelectors {
 		key := cell.BeginCell().MustStoreUInt(uint64(selector), 64).EndCell()
 		entry, err := dict.LoadValue(key)
+		// The plugin is built with EVM behaviour in mind: if a value doesn't exist the zero value is returned
 		if errors.Is(err, cell.ErrNoSuchKeyInDict) {
+			// TODO: should we still set to zero value?
 			continue
 		}
 		if err != nil {
 			return nil, err
 		}
 		var config offramp.SourceChainConfig
-		if err := tlb.LoadFromCell(config, entry); err != nil {
+		if err := tlb.LoadFromCell(&config, entry); err != nil {
 			return nil, err
 		}
 		sourceChainConfigs[selector] = ccipocr3.SourceChainConfig{
@@ -125,7 +261,7 @@ func (a *TONAccessor) getOnRampDynamicConfig(ctx context.Context, block *ton.Blo
 	return ccipocr3.OnRampDynamicConfig{
 		FeeQuoter:              addrToBytes(cfg.FeeQuoter),
 		ReentrancyGuardEntered: false,
-		MessageInterceptor:     []byte{}, // TODO: unimplemented on TON?
+		MessageInterceptor:     []byte{}, // unimplemented on TON
 		FeeAggregator:          addrToBytes(cfg.FeeAggregator),
 		AllowListAdmin:         addrToBytes(cfg.AllowListAdmin),
 	}, nil

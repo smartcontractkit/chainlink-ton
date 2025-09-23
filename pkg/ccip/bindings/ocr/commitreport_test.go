@@ -87,21 +87,12 @@ func TestCommitReport_EncodingAndDecoding(t *testing.T) {
 	}
 	require.NoError(t, err)
 
-	sigs := common.SnakeRef[common.SnakeBytes]{
-		make(common.SnakeBytes, 64),
-		make(common.SnakeBytes, 64),
-	}
-
 	commitReport := CommitReport{
-		PriceUpdates: PriceUpdates{
+		PriceUpdates: &PriceUpdates{
 			TokenPriceUpdates: tokenPriceSlice,
 			GasPriceUpdates:   gasPriceSlice,
 		},
-		MerkleRoot: MerkleRoots{
-			UnblessedMerkleRoots: merkleRoots,
-			BlessedMerkleRoots:   merkleRoots,
-		},
-		RMNSignatures: sigs,
+		MerkleRoots: merkleRoots,
 	}
 
 	// Encode to cell

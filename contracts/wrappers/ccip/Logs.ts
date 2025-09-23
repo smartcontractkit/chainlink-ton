@@ -2,7 +2,7 @@ import { Address, Cell } from '@ton/core'
 import { crc32 } from 'zlib'
 import { Any2TVMMessage, MerkleRoot, PriceUpdates } from './OffRamp'
 
-export const CCIP_COMMIT_REPORT_ACCEPTED_TOPIC = crc32('CCIPCommitReportAccepted')
+export const CCIP_COMMIT_REPORT_ACCEPTED_TOPIC = crc32('CommitReportAccepted')
 export const CCIP_MESSAGE_SENT_TOPIC = crc32('CCIPMessageSent')
 export const EXECUTION_STATE_CHANGED_TOPIC = crc32('ExecutionStateChanged')
 
@@ -33,8 +33,8 @@ export type CCIPMessageSent = {
 }
 
 export type CCIPCommitReportAccepted = {
+  merkleRoot?: MerkleRoot
   priceUpdates?: PriceUpdates
-  merkleRoots: MerkleRoot[]
 }
 
 export type ExecutionStateChanged = {

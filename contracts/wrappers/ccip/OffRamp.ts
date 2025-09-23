@@ -79,7 +79,7 @@ export type Any2TVMRampMessage = {
   sender: CrossChainAddress
   data: Cell
   receiver: Address
-  //gasLimit: coins , does not make sense here
+  // gasLimit: bigint ,
   tokenAmounts?: Cell // vec<Any2TONTokenTransfer>
 }
 
@@ -199,7 +199,7 @@ export class OffRamp extends OCR3Base {
         .storeBuilder(commitReportToBuilder(opts.report))
         .storeRef(
           asSnakeData(opts.signatures, (item) =>
-            beginCell().storeUint(item.r, 256).storeUint(item.s, 256).storeUint(item.signer, 256),
+            beginCell().storeUint(item.signer, 256).storeUint(item.r, 256).storeUint(item.s, 256),
           ),
         )
         .endCell(),
@@ -331,22 +331,20 @@ export function merkleRootsToCell(roots: MerkleRoot[]): Cell {
   )
 }
 
-export function merkleRootsFromCell(data: Cell): MerkleRoot[] {
-  return fromSnakeData(data, (x) => {
-    const sourceChainSelector = x.loadUintBig(64)
-    const onRampAddressLength = x.loadUint(8)
-    const onRampAddress = Buffer.from(bigIntToUint8Array(x.loadUintBig(onRampAddressLength * 8)))
-    const minSeqNr = x.loadUintBig(64)
-    const maxSeqNr = x.loadUintBig(64)
-    const merkleRoot = x.loadUintBig(256)
-    return {
-      sourceChainSelector,
-      onRampAddress,
-      minSeqNr,
-      maxSeqNr,
-      merkleRoot,
-    }
-  })
+export function merkleRootFromSlice(data: Slice): MerkleRoot {
+  const sourceChainSelector = data.loadUintBig(64)
+  const onRampAddressLength = data.loadUint(8)
+  const onRampAddress = Buffer.from(bigIntToUint8Array(data.loadUintBig(onRampAddressLength * 8)))
+  const minSeqNr = data.loadUintBig(64)
+  const maxSeqNr = data.loadUintBig(64)
+  const merkleRoot = data.loadUintBig(256)
+  return {
+    sourceChainSelector,
+    onRampAddress,
+    minSeqNr,
+    maxSeqNr,
+    merkleRoot,
+  }
 }
 
 export function commitReportToBuilder(report: CommitReport): import('@ton/core').Builder {

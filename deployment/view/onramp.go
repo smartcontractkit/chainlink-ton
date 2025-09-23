@@ -6,12 +6,13 @@ import (
 	"runtime"
 
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 	"golang.org/x/sync/errgroup"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 )
 
 const (
@@ -44,7 +45,7 @@ func FetchOnRampView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDEx
 	var typeVersion common.TypeAndVersion
 	result, err := c.Client.RunGetMethod(ctx, block, onrampAddr, versionGetter)
 	if err != nil {
-		return nil, fmt.Errorf("error getting typeAndVersion: %v", err)
+		return nil, fmt.Errorf("error getting typeAndVersion: %w", err)
 	}
 	if err = typeVersion.FromResult(result); err != nil {
 		return nil, fmt.Errorf("failed to parse typeAndVersion: %w", err)
@@ -52,7 +53,7 @@ func FetchOnRampView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDEx
 
 	result, err = c.Client.RunGetMethod(ctx, block, onrampAddr, dynamicConfigGetter)
 	if err != nil {
-		return nil, fmt.Errorf("error getting dynamicConfig: %v", err)
+		return nil, fmt.Errorf("error getting dynamicConfig: %w", err)
 	}
 
 	var dConfig onramp.DynamicConfig

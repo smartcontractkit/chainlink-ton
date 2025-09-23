@@ -92,9 +92,13 @@ var UpdateFeeQuoterDestChainConfigsOp = operations.NewOperation(
 func updateFeeQuoterDestChainConfigs(b operations.Bundle, deps TonDeps, in UpdateFeeQuoterDestChainConfigsInput) ([][]byte, error) {
 	address := deps.CCIPOnChainState[deps.TonChain.Selector].FeeQuoter
 
+	// Skip if there's no updates
+	if len(in) == 0 {
+		return nil, nil
+	}
+
 	input := feequoter.UpdateDestChainConfigs{
-		Update: in[0], // TEMP: until contracts get updated
-		// Updates: common.SnakeData[feequoter.UpdateDestChainConfig](in),
+		Updates: common.SnakeData[feequoter.UpdateDestChainConfig](in),
 	}
 
 	payload, err := tlb.ToCell(input)
@@ -150,10 +154,14 @@ func updateFeeQuoterFeeTokens(b operations.Bundle, deps TonDeps, in UpdateFeeQuo
 		if err := configs.Set(key, value); err != nil {
 			return nil, fmt.Errorf("failed to construct fee token update: %w", err)
 		}
-
 	}
 
 	in.Lggr.Debugf("Updated FeeQuoter fee tokens: %v, address: %v", configs, feeQuoterAddress.String())
+
+	// skip if there's no updates
+	if len(in.FeeTokens) == 0 {
+		return nil, nil
+	}
 
 	input := feequoter.UpdateFeeTokens{
 		Add:    configs,
@@ -212,8 +220,13 @@ var UpdateFeeQuoterPricesOp = operations.NewOperation(
 func updateFeeQuoterPrices(b operations.Bundle, deps TonDeps, in UpdateFeeQuoterPricesInput) ([][]byte, error) {
 	feeQuoterAddress := deps.CCIPOnChainState[deps.TonChain.Selector].FeeQuoter
 
-	var tokenPrices []feequoter.TokenPriceUpdate
-	var gasPrices []feequoter.GasPriceUpdate
+	if len(in.TokenPrices) == 0 && len(in.GasPrices) == 0 {
+		// Nothing to update
+		return nil, nil
+	}
+
+	tokenPrices := make([]feequoter.TokenPriceUpdate, 0, len(in.TokenPrices))
+	gasPrices := make([]feequoter.GasPriceUpdate, 0, len(in.GasPrices))
 
 	for token, value := range in.TokenPrices {
 		tokenAddress, err := address.ParseAddr(token)

@@ -18,7 +18,6 @@ import (
 	commontypes "github.com/smartcontractkit/chainlink-common/pkg/types"
 	commonutils "github.com/smartcontractkit/chainlink-common/pkg/utils"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/key"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
@@ -109,16 +108,18 @@ func (t *Txm) Close() error {
 
 // Enqueues a transaction for broadcasting.
 func (t *Txm) Enqueue(request Request) error {
+	// NOTE: this will fail because the wallet is initialized with a signer and has no private key
+	// we should be validating this in chain.go/API client, not per enqueue since it's wasted signatures
 	// Ensure we can sign with the requested address
-	pubKey := request.FromWallet.PrivateKey().Public()
-	pubKeyHex, err := key.PublicKeyHex(pubKey)
-	if err != nil {
-		return fmt.Errorf("failed to convert public key to hex: %w", err)
-	}
-
-	if _, err := t.keystore.Sign(context.Background(), pubKeyHex, nil); err != nil {
-		return fmt.Errorf("failed to sign: %w", err)
-	}
+	// pubKey := request.FromWallet.PrivateKey().Public()
+	// pubKeyHex, err := key.PublicKeyHex(pubKey)
+	// if err != nil {
+	// 	return fmt.Errorf("failed to convert public key to hex: %w", err)
+	// }
+	//
+	// if _, err := t.keystore.Sign(context.Background(), pubKeyHex, nil); err != nil {
+	// 	return fmt.Errorf("failed to sign: %w", err)
+	// }
 
 	txExpirationMins := time.Minute * time.Duration(t.config.TxExpirationMins) //nolint:gosec // ignoring G115 overflow conversion
 	tx := &Tx{

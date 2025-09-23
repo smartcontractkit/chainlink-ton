@@ -96,7 +96,7 @@ var UpdateOnRampDestChainConfigsOp = operations.NewOperation(
 func updateOnRampDestChainConfigs(b operations.Bundle, deps TonDeps, in UpdateOnRampDestChainConfigsInput) ([][]byte, error) {
 	addr := deps.CCIPOnChainState[deps.TonChain.Selector].OnRamp
 
-	var configs []onramp.UpdateDestChainConfig
+	configs := make([]onramp.UpdateDestChainConfig, 0, len(in.Updates))
 
 	for selector, update := range in.Updates {
 		// TODO: TestRouter support

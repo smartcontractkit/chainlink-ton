@@ -4,6 +4,7 @@ type LaneConfig struct {
 	Source        ChainDefinition
 	Dest          ChainDefinition
 	OnRampVersion []byte
+	OnRamp        []byte
 	IsDisabled    bool
 }
 

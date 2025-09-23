@@ -385,8 +385,7 @@ func (c *chain) GetSignerWallet(ctx context.Context, client *ton.APIClient, loop
 
 	// Wrap your loopKs.Sign into a compatible signer function
 	signer := func(ctx context.Context, toSign *cell.Cell, subwallet uint32) ([]byte, error) {
-		boc := toSign.ToBOC()
-		return loopKs.Sign(ctx, account, boc)
+		return loopKs.Sign(ctx, account, toSign.Hash())
 	}
 
 	// Create the wallet from public key + signer wrapper

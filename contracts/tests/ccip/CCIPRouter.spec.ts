@@ -18,6 +18,9 @@ import { JettonWallet, TransferMessage } from '../../wrappers/jetton/JettonWalle
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_TON = 13879075125137744094n
+const TEST_TOKEN_ADDR = Address.parseRaw(
+  '0:0000000000000000000000000000000000000000000000000000000000000001',
+)
 
 describe('Router', () => {
   let blockchain: Blockchain
@@ -99,7 +102,7 @@ describe('Router', () => {
           msg: {
             updates: {
               gasPricesUpdates: [],
-              tokenPricesUpdates: [{ token: ZERO_ADDRESS, price: 123n }],
+              tokenPricesUpdates: [{ token: TEST_TOKEN_ADDR, price: 123n }],
             },
           },
         })
@@ -111,33 +114,35 @@ describe('Router', () => {
 
       // add config for EVM destination
       {
-        const result = await feeQuoter.sendUpdateDestChainConfig(deployer.getSender(), {
+        const result = await feeQuoter.sendUpdateDestChainConfigs(deployer.getSender(), {
           value: toNano('1'),
-          msg: {
-            destChainSelector: CHAINSEL_EVM_TEST_90000001,
-            destChainConfig: {
-              // minimal valid config
-              isEnabled: true,
-              maxNumberOfTokensPerMsg: 0, // TODO:
-              maxDataBytes: 100,
-              maxPerMsgGasLimit: 100,
-              destGasOverhead: 0,
-              destGasPerPayloadByteBase: 0,
-              destGasPerPayloadByteHigh: 0,
-              destGasPerPayloadByteThreshold: 0,
-              destDataAvailabilityOverheadGas: 0,
-              destGasPerDataAvailabilityByte: 0,
-              destDataAvailabilityMultiplierBps: 0,
-              chainFamilySelector: 0,
-              enforceOutOfOrder: true,
-              defaultTokenFeeUsdCents: 0,
-              defaultTokenDestGasOverhead: 0,
-              defaultTxGasLimit: 1,
-              gasMultiplierWeiPerEth: 0n,
-              gasPriceStalenessThreshold: 0,
-              networkFeeUsdCents: 0,
+          updates: [
+            {
+              destChainSelector: CHAINSEL_EVM_TEST_90000001,
+              config: {
+                // minimal valid config
+                isEnabled: true,
+                maxNumberOfTokensPerMsg: 0, // TODO:
+                maxDataBytes: 100,
+                maxPerMsgGasLimit: 100,
+                destGasOverhead: 0,
+                destGasPerPayloadByteBase: 0,
+                destGasPerPayloadByteHigh: 0,
+                destGasPerPayloadByteThreshold: 0,
+                destDataAvailabilityOverheadGas: 0,
+                destGasPerDataAvailabilityByte: 0,
+                destDataAvailabilityMultiplierBps: 0,
+                chainFamilySelector: 0,
+                enforceOutOfOrder: true,
+                defaultTokenFeeUsdCents: 0,
+                defaultTokenDestGasOverhead: 0,
+                defaultTxGasLimit: 1,
+                gasMultiplierWeiPerEth: 0n,
+                gasPriceStalenessThreshold: 0,
+                networkFeeUsdCents: 0,
+              },
             },
-          },
+          ],
         })
         expect(result.transactions).toHaveTransaction({
           to: feeQuoter.address,
@@ -148,7 +153,10 @@ describe('Router', () => {
       {
         const result = await feeQuoter.sendUpdateFeeTokens(deployer.getSender(), {
           value: toNano('1'),
-          msg: { add: new Map([[ZERO_ADDRESS, { premiumMultiplierWeiPerEth: 1n }]]), remove: [] },
+          msg: {
+            add: new Map([[TEST_TOKEN_ADDR, { premiumMultiplierWeiPerEth: 1n }]]),
+            remove: [],
+          },
         })
         expect(result.transactions).toHaveTransaction({
           to: feeQuoter.address,
@@ -230,10 +238,13 @@ describe('Router', () => {
         body: {
           queryID: 1,
           destChainSelector: CHAINSEL_EVM_TEST_90000001,
-          receiver: Buffer.alloc(64),
+          receiver: Buffer.from(
+            '1234567890123456789012345678901234567890123456789012345678901234',
+            'hex',
+          ), // 32 bytes
           data: Cell.EMPTY,
           tokenAmounts: [],
-          feeToken: ZERO_ADDRESS,
+          feeToken: TEST_TOKEN_ADDR,
           extraArgs: Cell.EMPTY,
         },
       })
@@ -315,7 +326,7 @@ describe('Router', () => {
         receiver: Buffer.alloc(64),
         data: Cell.EMPTY,
         tokenAmounts: [{ amount: jettonAmount, token: jettonMinter.address }],
-        feeToken: ZERO_ADDRESS,
+        feeToken: TEST_TOKEN_ADDR,
         extraArgs: Cell.EMPTY,
       })
       .asCell()

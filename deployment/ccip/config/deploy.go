@@ -59,11 +59,6 @@ func (f FeeQuoterParams) Validate() error {
 type OffRampParams struct {
 	ChainSelector                    uint64
 	PermissionlessExecutionThreshold uint32
-	IsRMNVerificationDisabled        []bool
-	// TODO: remove SourceChain params, this should all be part of AddLane?
-	SourceChainSelectors []uint64
-	SourceChainIsEnabled []bool
-	SourceChainsOnRamp   [][]byte
 }
 
 func (o OffRampParams) Validate() error {
@@ -72,9 +67,6 @@ func (o OffRampParams) Validate() error {
 	}
 	if o.PermissionlessExecutionThreshold == 0 {
 		return errors.New("PermissionlessExecutionThreshold can't be 0")
-	}
-	if len(o.SourceChainSelectors) != len(o.SourceChainIsEnabled) {
-		return errors.New("SourceChainSelectors and SourceChainIsEnabled must have the same length")
 	}
 	return nil
 }

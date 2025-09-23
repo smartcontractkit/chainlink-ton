@@ -11,6 +11,22 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
+const (
+	ErrUnknownDestChainSelector = iota + 256
+	DestChainNotEnabled
+	FeeTokenNotSupported
+	StaleGasPrice
+	InvalidMsgData
+	SenderNotAllowed
+	InvalidMessageDestChainSelector
+	SourceChainSelectorMismatch
+	TokenNotSupported
+	Unauthorized
+	SourceChainNotEnabled
+	EmptyReport
+	DispatchNotFromMerkleRoot
+)
+
 // TypeAndVersion holds the type and version of the onramp contract.
 type TypeAndVersion struct {
 	Type    string `tlb:"str"`

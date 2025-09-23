@@ -8,14 +8,14 @@ const OCR_PLUGIN_TYPE_COMMIT: int = 0;
 const OCR_PLUGIN_TYPE_EXECUTE: int = 1;
 
 
-struct Config {
+struct OCRConfig {
 	configInfo: ConfigInfo;
 	signers: UMap<uint256, uint8>;
 	transmitters: Map<uint8>;
 }
 
-fun newOCRConfig(): Config {
-	return Config {
+fun newOCRConfig(): OCRConfig {
+	return OCRConfig {
 		configInfo: ConfigInfo{},
 		signers: UMap<uint256, uint8>.new(256),
 		transmitters: Map<uint8>.new()
@@ -23,7 +23,7 @@ fun newOCRConfig(): Config {
 }
 
 
-fun Config.assignSignerOracles(
+fun OCRConfig.assignSignerOracles(
 	mutate self,
 	signers: cell /*Vector<uint256>*/
 ) {
@@ -43,7 +43,7 @@ fun Config.assignSignerOracles(
 	self.signers = signersDict;
 }
 
-fun Config.assignTransmitterOracles(
+fun OCRConfig.assignTransmitterOracles(
 	mutate self,
 	transmitters: cell, //Vector<address>
 ) {
@@ -70,9 +70,9 @@ struct ConfigInfo {
 }
 
 struct SignatureEd25519 {
+	signer: uint256
 	r: uint256;
 	s: uint256;
-	signer: uint256
 }
 
 struct ReportContext {

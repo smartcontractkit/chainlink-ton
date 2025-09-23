@@ -30,6 +30,7 @@ func NewCommitPluginCodecV1() cciptypes.CommitPluginCodec {
 func (cr *commitPluginCodecV1) Encode(ctx context.Context, report cciptypes.CommitPluginReport) ([]byte, error) {
 	tpuSlice := make([]ocr.TokenPriceUpdate, len(report.PriceUpdates.TokenPriceUpdates))
 	for i, tpu := range report.PriceUpdates.TokenPriceUpdates {
+		// TODO: use address codec here?
 		addr, err := address.ParseAddr(string(tpu.TokenID))
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse token address %s: %w", tpu.TokenID, err)
@@ -77,24 +78,12 @@ func (cr *commitPluginCodecV1) Encode(ctx context.Context, report cciptypes.Comm
 		}
 	}
 
-	sigSlice := make(common.SnakeRef[common.SnakeBytes], len(report.RMNSignatures))
-	for i, sig := range report.RMNSignatures {
-		rmnSig64Array := make([]byte, 64)
-		copy(rmnSig64Array[:32], sig.R[:])
-		copy(rmnSig64Array[32:], sig.S[:])
-		sigSlice[i] = rmnSig64Array
-	}
-
 	cellReport := ocr.CommitReport{
-		PriceUpdates: ocr.PriceUpdates{
+		PriceUpdates: &ocr.PriceUpdates{
 			TokenPriceUpdates: tpuSlice,
 			GasPriceUpdates:   gpuSlice,
 		},
-		MerkleRoot: ocr.MerkleRoots{
-			BlessedMerkleRoots:   mkSlice,
-			UnblessedMerkleRoots: unblessedMkSlice,
-		},
-		RMNSignatures: sigSlice,
+		MerkleRoots: append(mkSlice, unblessedMkSlice...),
 	}
 
 	c, err := tlb.ToCell(cellReport)
@@ -152,43 +141,12 @@ func (cr *commitPluginCodecV1) Decode(ctx context.Context, bytes []byte) (ccipty
 		}
 	}
 
-	var sigSlice []cciptypes.RMNECDSASignature
-	if len(report.RMNSignatures) > 0 {
-		sigSlice = make([]cciptypes.RMNECDSASignature, len(report.RMNSignatures))
-		for i, sig := range report.RMNSignatures {
-			if len(sig) != 64 {
-				return cciptypes.CommitPluginReport{}, fmt.Errorf("invalid RMN signature length: %d", len(sig))
-			}
-
-			var r, s [32]byte
-			copy(r[:], sig[:32])
-			copy(s[:], sig[32:])
-			sigSlice[i] = cciptypes.RMNECDSASignature{
-				R: r,
-				S: s,
-			}
-		}
-	}
-
-	mr := report.MerkleRoot
-	var bmrSlice []cciptypes.MerkleRootChain
-	if len(mr.BlessedMerkleRoots) > 0 {
-		bmrSlice = make([]cciptypes.MerkleRootChain, len(mr.BlessedMerkleRoots))
-		for i, mr := range mr.BlessedMerkleRoots {
-			bmrSlice[i] = cciptypes.MerkleRootChain{
-				ChainSel:      cciptypes.ChainSelector(mr.SourceChainSelector),
-				OnRampAddress: cciptypes.UnknownAddress(mr.OnRampAddress),
-				SeqNumsRange:  cciptypes.NewSeqNumRange(cciptypes.SeqNum(mr.MinSeqNr), cciptypes.SeqNum(mr.MaxSeqNr)),
-				MerkleRoot:    cciptypes.Bytes32(mr.MerkleRoot),
-			}
-		}
-	}
-
-	var unblessedMrSlice []cciptypes.MerkleRootChain
-	if len(mr.UnblessedMerkleRoots) > 0 {
-		unblessedMrSlice = make([]cciptypes.MerkleRootChain, len(mr.UnblessedMerkleRoots))
-		for i, mr := range mr.UnblessedMerkleRoots {
-			unblessedMrSlice[i] = cciptypes.MerkleRootChain{
+	mr := report.MerkleRoots
+	var merkleRoots []cciptypes.MerkleRootChain
+	if len(mr) > 0 {
+		merkleRoots = make([]cciptypes.MerkleRootChain, len(mr))
+		for i, mr := range mr {
+			merkleRoots[i] = cciptypes.MerkleRootChain{
 				ChainSel:      cciptypes.ChainSelector(mr.SourceChainSelector),
 				OnRampAddress: cciptypes.UnknownAddress(mr.OnRampAddress),
 				SeqNumsRange:  cciptypes.NewSeqNumRange(cciptypes.SeqNum(mr.MinSeqNr), cciptypes.SeqNum(mr.MaxSeqNr)),
@@ -202,8 +160,8 @@ func (cr *commitPluginCodecV1) Decode(ctx context.Context, bytes []byte) (ccipty
 			TokenPriceUpdates: tpuSlice,
 			GasPriceUpdates:   gpuSlice,
 		},
-		BlessedMerkleRoots:   bmrSlice,
-		UnblessedMerkleRoots: unblessedMrSlice,
-		RMNSignatures:        sigSlice,
+		BlessedMerkleRoots:   nil,
+		UnblessedMerkleRoots: merkleRoots,
+		RMNSignatures:        nil,
 	}, nil
 }

@@ -104,7 +104,8 @@ func DeployChainContractsConfig(t *testing.T, env cldf.Environment, chainSelecto
 				},
 			},
 			OffRampParams: config.OffRampParams{
-				// ...
+				ChainSelector:                    tonChain.Selector,
+				PermissionlessExecutionThreshold: 0,
 			},
 			OnRampParams: config.OnRampParams{
 				ChainSelector: ChainSelEVMTest90000001,
@@ -118,7 +119,7 @@ func DeployChainContractsConfig(t *testing.T, env cldf.Environment, chainSelecto
 }
 
 // TODO add TON token price into func parameters
-func AddLaneTONConfig(env *cldf.Environment, from, to uint64, fromFamily, toFamily string, gasPrices map[uint64]*big.Int) config.LaneConfig {
+func AddLaneTONConfig(env *cldf.Environment, onRamp []byte, from, to uint64, fromFamily, toFamily string, gasPrices map[uint64]*big.Int) config.LaneConfig {
 	if fromFamily != chainsel.FamilyTon && toFamily != chainsel.FamilyTon {
 		env.Logger.Fatalf("AddLaneTONChangesets: expected at least one chain to be TON, got fromFamily=%s, toFamily=%s", fromFamily, toFamily)
 	}
@@ -126,6 +127,12 @@ func AddLaneTONConfig(env *cldf.Environment, from, to uint64, fromFamily, toFami
 	var src, dest config.ChainDefinition
 	// TODO: LINK placeholder address
 
+	const TONtoUSD = 3.15              // As of September 2025
+	const TONtoNanoTON = 1e9           // Smallest denomination
+	const TokenPriceBaseAmount = 1e18  // Defined for `TokenPrices`
+	var USDDecimals = big.NewInt(1e18) // Defined for `TokenPrices`
+	var TONBaseAmountTokenPrice = big.NewInt(int64(TONtoUSD * (TokenPriceBaseAmount / TONtoNanoTON)))
+	TON_TOKEN_PRICE := big.NewInt(0).Mul(TONBaseAmountTokenPrice, USDDecimals)
 	switch fromFamily {
 	case chainsel.FamilyEVM:
 		src = config.ChainDefinition{
@@ -144,7 +151,7 @@ func AddLaneTONConfig(env *cldf.Environment, from, to uint64, fromFamily, toFami
 			Selector: from,
 			GasPrice: gasPrices[from],
 			TokenPrices: map[string]*big.Int{
-				TonTokenAddr.String(): big.NewInt(99),
+				TonTokenAddr.String(): TON_TOKEN_PRICE,
 			},
 			FeeQuoterDestChainConfig: TonFeeQuoterDestChainConfig,
 			// TokenTransferFeeConfigs: , TODO:
@@ -172,19 +179,20 @@ func AddLaneTONConfig(env *cldf.Environment, from, to uint64, fromFamily, toFami
 			Selector: to,
 			GasPrice: big.NewInt(1e17),
 			TokenPrices: map[string]*big.Int{
-				TonTokenAddr.String(): big.NewInt(99),
+				TonTokenAddr.String(): TON_TOKEN_PRICE,
 			},
 			FeeQuoterDestChainConfig: TonFeeQuoterDestChainConfig,
 			// TokenTransferFeeConfigs: , TODO:
 		}
 	default:
-		env.Logger.Fatalf("Unsupported dstination chain family: %v", toFamily)
+		env.Logger.Fatalf("Unsupported destination chain family: %v", toFamily)
 	}
 
 	return config.LaneConfig{
 		Source:        src,
 		Dest:          dest,
 		OnRampVersion: []byte{1, 6, 1},
+		OnRamp:        onRamp,
 		IsDisabled:    false,
 	}
 }
@@ -232,7 +240,7 @@ func SendTonRequest(
 	}
 
 	walletMsg := &wallet.Message{
-		Mode: wallet.PayGasSeparately, // TODO: wallet.IgnoreErrors ?
+		Mode: wallet.PayGasSeparately | wallet.IgnoreErrors,
 		InternalMessage: &tlb.InternalMessage{
 			IHRDisabled: true,
 			Bounce:      false,

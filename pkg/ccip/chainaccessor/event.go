@@ -2,7 +2,9 @@ package chainaccessor
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"time"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
@@ -13,6 +15,8 @@ import (
 	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/hash"
@@ -42,7 +46,7 @@ func (a *TONAccessor) bindContractEvent(ctx context.Context, contractName string
 	}
 
 	for _, eventName := range eventNames {
-		if err := a.registerFilterIfNotExists(ctx, eventName, address); err != nil {
+		if err := a.registerFilter(ctx, eventName, address); err != nil {
 			return fmt.Errorf("failed to register filter for event %s: %w", eventName, err)
 		}
 	}
@@ -50,21 +54,24 @@ func (a *TONAccessor) bindContractEvent(ctx context.Context, contractName string
 	return nil
 }
 
-// registerFilterIfNotExists registers a filter for the given event if it doesn't already exist.
-func (a *TONAccessor) registerFilterIfNotExists(ctx context.Context, eventName string, address *address.Address) error {
-	hasFilter, err := a.logPoller.HasFilter(ctx, eventName)
+// registerFilter registers a filter for the given event if it doesn't already exist.
+func (a *TONAccessor) registerFilter(ctx context.Context, name string, address *address.Address) error {
+	hasFilter, err := a.logPoller.HasFilter(ctx, name)
 	if err != nil {
 		return fmt.Errorf("failed to check for filter: %w", err)
 	}
+	// If filter exists, unregister it first to handle address changes
 	if hasFilter {
-		return nil
+		if err := a.logPoller.UnregisterFilter(ctx, name); err != nil {
+			return fmt.Errorf("failed to unregister logpoller filter: %w", err)
+		}
 	}
 
 	filter := types.Filter{
-		Name:     eventName,
+		Name:     name,
 		Address:  address,
 		MsgType:  tlb.MsgTypeExternalOut,
-		EventSig: hash.CRC32(eventName),
+		EventSig: hash.CRC32(name),
 		// TODO: add starting signo
 	}
 
@@ -105,4 +112,64 @@ func (a *TONAccessor) convertCCIPMessageSent(
 		Message:           msg,
 	}
 	return genericEvent
+}
+
+func (a *TONAccessor) validateCommitReportAcceptedEvent(
+	log types.TypedLog[offramp.CommitReportAccepted], gteTimestamp time.Time,
+) (*offramp.CommitReportAccepted, error) {
+	ev := &log.TypedData
+
+	if log.TxTimestamp.Unix() < gteTimestamp.Unix() {
+		return nil, fmt.Errorf("commit report accepted event timestamp is less than the minimum timestamp %v<%v",
+			log.TxTimestamp, gteTimestamp.Unix())
+	}
+
+	if ev.MerkleRoot != nil {
+		if err := a.validateMerkleRoot(ev.MerkleRoot); err != nil {
+			return nil, fmt.Errorf("merkle roots: %w", err)
+		}
+	}
+
+	// TODO: do we need to validate price updates?
+	// for _, tpus := range ev.PriceUpdates.TokenPriceUpdates {
+	// 	if tpus.SourceToken.IsZeroOrEmpty() {
+	// 		return nil, fmt.Errorf("invalid source token address: %s", tpus.SourceToken.String())
+	// 	}
+	// 	if tpus.UsdPerToken == nil || tpus.UsdPerToken.Cmp(big.NewInt(0)) <= 0 {
+	// 		return nil, fmt.Errorf("nil or non-positive usd per token")
+	// 	}
+	// }
+
+	// for _, gpus := range ev.PriceUpdates.GasPriceUpdates {
+	// 	if gpus.UsdPerUnitGas == nil || gpus.UsdPerUnitGas.Cmp(big.NewInt(0)) < 0 {
+	// 		return nil, fmt.Errorf("nil or negative usd per unit gas: %s", gpus.UsdPerUnitGas.String())
+	// 	}
+	// }
+
+	return ev, nil
+}
+
+// TON only has single Merkle root
+func (a *TONAccessor) validateMerkleRoot(merkleRoot *ocr.MerkleRoot) error {
+	if merkleRoot.SourceChainSelector == 0 {
+		return errors.New("source chain is zero")
+	}
+	if merkleRoot.MinSeqNr == 0 {
+		return errors.New("minSeqNr is zero")
+	}
+	if merkleRoot.MaxSeqNr == 0 {
+		return errors.New("maxSeqNr is zero")
+	}
+	if merkleRoot.MinSeqNr > merkleRoot.MaxSeqNr {
+		return errors.New("minSeqNr is greater than maxSeqNr")
+	}
+	if len(merkleRoot.MerkleRoot) == 0 {
+		return errors.New("empty merkle root")
+	}
+	if len(merkleRoot.OnRampAddress) == 0 {
+		// TODO: better logging for address(currently it's raw byte)
+		return fmt.Errorf("invalid onramp address: %x", merkleRoot.OnRampAddress)
+	}
+
+	return nil
 }

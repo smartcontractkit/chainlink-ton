@@ -53,11 +53,11 @@ struct (0x2B78359F) OCR3Base_SetOCR3Config {
 
 struct OCR3Base {
 	chainId: uint8; //TODO :Is this even necessary?
-	commit: Cell<Config>?;
-	execute: Cell<Config>?;
+	commit: Cell<OCRConfig>?;
+	execute: Cell<OCRConfig>?;
 }
 
-fun OCR3Base.getConfig(self, ocrPluginType: uint16): Config? {
+fun OCR3Base.getConfig(self, ocrPluginType: uint16): OCRConfig? {
 	if (ocrPluginType == OCR_PLUGIN_TYPE_COMMIT) {
 		if (self.commit == null) {
 			return null;
@@ -190,7 +190,7 @@ fun OCR3Base.verifySignature(
 
 		val (signerIndex, authorized) = signers.get(signer);
 		assert(authorized, ERROR_UNAUTHORIZED_SIGNER);
-		assert(isSignatureValid(hashedReport,signature.toCell().beginParse(), signer),	ERROR_INVALID_SIGNATURE);
+		assert(isSignatureValid(hashedReport,signature.toCell().beginParse().skipBits(256), signer), ERROR_INVALID_SIGNATURE);
 
 		assert(!seen.has(signerIndex!), ERROR_NON_UNIQUE_SIGNATURES);
 		seen.set(signerIndex!);
