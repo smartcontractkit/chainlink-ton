@@ -338,7 +338,7 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 	t.Run("Ton Accessor - CommitReportsGTETimestamp - MerkleRoot filtering with mixed reports and limit", func(t *testing.T) {
 		opts := &logpoller.ServiceOptions{
 			Config:  logpoller.DefaultConfigSet,
-			Store:   inmemorystore.NewLogStore(),
+			Store:   inmemorystore.NewLogStore(logger.Test(t)),
 			Filters: inmemorystore.NewFilterStore(),
 		}
 
@@ -458,7 +458,7 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 			Filters:  filterStore,
 			TxLoader: nil,
 			TxParser: nil,
-			Store:    inmemorystore.NewLogStore(),
+			Store:    inmemorystore.NewLogStore(logger.Test(t)),
 		}
 
 		lp := logpoller.NewService(
@@ -579,7 +579,7 @@ func Test_TonAccessorExecutedMessages(t *testing.T) {
 	opts := &logpoller.ServiceOptions{
 		Config:  logpoller.DefaultConfigSet,
 		Filters: inmemorystore.NewFilterStore(),
-		Store:   inmemorystore.NewLogStore(),
+		Store:   inmemorystore.NewLogStore(logger.Test(t)),
 	}
 
 	lp := logpoller.NewService(
