@@ -105,6 +105,8 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_WaitingForJettons>.onJettonTransferF
 }
 
 fun getValidatedFee(feeQuoter: address, onrampSend: OnRampSend) {
+    debug.printString("Requesting fee validation");
+    debug.print(onrampSend.msg.load().extraArgs);
     val getValidatedFeeMsg = createMessage({
         bounce: true,
         value: ton("0.05"), // TODO

@@ -355,6 +355,19 @@ struct TokenBalance {
     failed: bool = false; // if marked as failed, a retry will allow re-sending these
 }
 
+struct (0x181dcf10) GenericExtraArgsV2 {
+    gasLimit: uint256;
+    allowOutOfOrderExecution: bool;
+}
+
+struct (0x1f3b3aba) SVMExtraArgsV1 {
+	computeUnits: uint32;
+	accountIsWritableBitmap: uint64;
+	allowOutOfOrderExecution: bool;
+	tokenReceiver: uint256;
+	accounts: cell; // vec<slice>
+}
+
 // Errors
 
 const ERROR_UNKNOWN_DEST_CHAIN_SELECTOR: int = 256;

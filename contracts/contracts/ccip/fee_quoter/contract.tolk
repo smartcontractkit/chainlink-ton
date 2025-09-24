@@ -5,6 +5,7 @@ import "../../deployable/types";
 import "../../lib/upgrades/type_and_version";
 import "../../lib/utils";
 import "messages"
+import "errors"
 
 const VAL_1E5:  uint256 = 100000;
 const VAL_1E14: uint256 = 100000000000000;
@@ -213,19 +214,13 @@ fun DestChainConfig.getValidatedGasPrice(self): (uint112, uint112) {
 get fun validatedFee(msg: CCIPSend): coins {
     var st = lazy Storage.load();
 
-    val destChainConfig = st.destChainConfigs.mustGet(msg.destChainSelector, ERROR_DEST_CHAIN_NOT_ENABLED);
+    val destChainConfig: DestChainConfig = st.destChainConfigs.mustGet(msg.destChainSelector, ERROR_DEST_CHAIN_NOT_ENABLED);
     assert(destChainConfig.config.isEnabled, ERROR_DEST_CHAIN_NOT_ENABLED);
     // validate the fee token is actually supported
     val premiumMultiplier = st.premiumMultiplierWeiPerEth.mustGet(msg.feeToken, ERROR_FEE_TOKEN_NOT_SUPPORTED) as uint256;
     val feeTokenPrice = st.usdPerToken.mustGet(msg.feeToken, ERROR_FEE_TOKEN_NOT_SUPPORTED);
 
-    var gasLimit = 0;
-    // NOTE: we could deploy distinct contracts to cut down on code
-    // match (cfg.chainFamilySelector) {
-    //     CHAIN_FAMILY_SELECTOR_EVM | CHAIN_FAMILY_SELECTOR_APTOS | CHAIN_FAMILY_SELECTOR_SUI => { } // resolveGenericGasLimit()
-    //     CHAIN_FAMILY_SELECTOR_SVM => { } // resolveSVMGasLimit()
-    // }
-    // validateDestFamilyAddress(cfg.chainFamilySelector, receiver, gasLimit);
+    var gasLimit = validateMessageAndResolveGasLimitForDestination(msg.extraArgs, destChainConfig.config, msg.receiver);
 
     // TODO: this can throw and bounce the message
     val (executionGasPrice, dataAvailabilityGasPrice) = destChainConfig.getValidatedGasPrice();
@@ -296,6 +291,69 @@ get fun validatedFee(msg: CCIPSend): coins {
     val feeTokenAmount = (feeTokenValue / feeTokenPrice.value);
 
     return feeTokenAmount;
+}
+
+fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: FeeQuoterDestChainConfig, receiver: CrossChainAddress): int {
+    // NOTE: we could deploy distinct contracts to cut down on code
+    if (config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_EVM ||
+        config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_APTOS ||
+        config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_SUI) {
+        val gasLimit = resolveGenericGasLimit(extraArgs, config.defaultTxGasLimit, config.maxPerMsgGasLimit, config.enforceOutOfOrder);
+        validateDestFamilyAddress(config.chainFamilySelector, receiver, gasLimit);
+        return gasLimit;
+    }
+    else if (config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_SVM) {
+        // resolveSVMGasLimit()
+        val svmExtraArgs = parseSvmExtraArgs(extraArgs, config.defaultTxGasLimit, config.enforceOutOfOrder);
+        val gasLimit = svmExtraArgs.computeUnits;
+        validateDestFamilyAddress(config.chainFamilySelector, receiver, gasLimit);
+
+        // TODO Solidity implementation does more validations here
+        // val accounts = Iterator<cell>.new(svmExtraArgs.accounts);
+        return gasLimit;
+    } else {
+        throw ERROR_UNSUPPORTED_CHAIN_FAMILY_SELECTOR;
+    }
+}
+
+fun resolveGenericGasLimit(extraArgs: cell, defaultTxGasLimit: uint32, maxPerMsgGasLimit: uint32, enforceOutOfOrder: bool): int {
+    return parseGenericExtraArgs(extraArgs, defaultTxGasLimit, maxPerMsgGasLimit, enforceOutOfOrder).gasLimit;
+}
+
+fun parseGenericExtraArgs(extraArgs: cell, defaultTxGasLimit: uint32, maxPerMsgGasLimit: uint32, enforceOutOfOrder: bool): GenericExtraArgsV2 {
+    val extra = parseUnvalidatedEVMExtraArgs(extraArgs, defaultTxGasLimit);
+    assert (extra.gasLimit <= maxPerMsgGasLimit) throw ERROR_GAS_LIMIT_TOO_HIGH;
+    if (enforceOutOfOrder) {
+        debug.printString("enforceOutOfOrder");
+        assert (extra.allowOutOfOrderExecution) throw EXTRA_ARG_OUT_OF_ORDER_EXECUTION_MUST_BE_TRUE;
+    }
+    return extra;
+}
+
+fun parseUnvalidatedEVMExtraArgs(extraArgs: cell, defaultTxGasLimit: uint32): GenericExtraArgsV2 {
+    if (extraArgs.beginParse().isEmpty()) {
+        return GenericExtraArgsV2 {
+            gasLimit: defaultTxGasLimit as uint256,
+            allowOutOfOrderExecution: false, // TBD: isn't default true in TON?
+        };
+    }
+    return GenericExtraArgsV2.fromCell(extraArgs);
+}
+
+fun parseSvmExtraArgs(extraArgs: cell, maxPerMsgGasLimit: uint32, enforceOutOfOrder: bool): SVMExtraArgsV1 {
+    val extra = SVMExtraArgsV1.fromCell(extraArgs, {
+        throwIfOpcodeDoesNotMatch: ERROR_INVALID_EXTRA_ARGS_DATA,
+    });
+    assert (extra.computeUnits <= maxPerMsgGasLimit) throw ERROR_GAS_LIMIT_TOO_HIGH;
+    if (enforceOutOfOrder) {
+        assert (extra.allowOutOfOrderExecution) throw EXTRA_ARG_OUT_OF_ORDER_EXECUTION_MUST_BE_TRUE;
+    }
+    return extra;
+}
+
+fun validateDestFamilyAddress(chainFamilySelector: uint32, receiver: CrossChainAddress, gasLimit: int) {
+    // TODO
+    return;
 }
 
 fun getValidatedFee(payload: FeeQuoter_GetValidatedFee<cell>, sender: address) {

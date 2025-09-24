@@ -19,6 +19,11 @@ import { dump } from '../utils/prettyPrint'
 import { CellCodec } from '../../wrappers/utils'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
+const CHAIN_FAMILY_SELECTOR_EVM = 0x2812d52c
+const CHAIN_FAMILY_SELECTOR_SVM = 0x1e10bdc4
+const CHAIN_FAMILY_SELECTOR_APTOS = 0xac77ffec
+const CHAIN_FAMILY_SELECTOR_SUI = 0xc4e05953
+
 const CHAINSEL_TON = 13879075125137744094n
 const TEST_TOKEN_ADDR = Address.parseRaw(
   '0:0000000000000000000000000000000000000000000000000000000000000001',
@@ -134,7 +139,7 @@ describe('Router', () => {
                 destDataAvailabilityOverheadGas: 0,
                 destGasPerDataAvailabilityByte: 0,
                 destDataAvailabilityMultiplierBps: 0,
-                chainFamilySelector: 0,
+                chainFamilySelector: CHAIN_FAMILY_SELECTOR_EVM,
                 enforceOutOfOrder: true,
                 defaultTokenFeeUsdCents: 0,
                 defaultTokenDestGasOverhead: 0,
@@ -249,7 +254,13 @@ describe('Router', () => {
           data: Cell.EMPTY,
           tokenAmounts: [],
           feeToken: TEST_TOKEN_ADDR,
-          extraArgs: Cell.EMPTY,
+          extraArgs: rt.builder.data.extraArgs
+            .encode({
+              kind: 'generic-v2',
+              gasLimit: 0n,
+              allowOutOfOrderExecution: true,
+            })
+            .asCell(),
         },
       })
 

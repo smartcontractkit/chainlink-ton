@@ -117,6 +117,28 @@ const tokenAmountCodec: CellCodec<TokenAmount> = {
   },
 }
 
+type GenericExtraArgsV2 = {
+  kind: 'generic-v2'
+  gasLimit: bigint
+  allowOutOfOrderExecution: boolean
+}
+
+type SVMExtraArgsV1 = {
+  kind: 'svm-v1'
+  computeUnits: bigint
+  accountIsWritableBitMap: bigint
+  allowOutOfOrderExecution: boolean
+  tokenReceiver: bigint
+  accounts: Cell
+}
+
+type ExtraArgs = GenericExtraArgsV2 | SVMExtraArgsV1
+
+export const ExtraArgsOpcodes = {
+  genericV2: 0x181dcf10,
+  svmV1: 0x1f3b3aba,
+}
+
 export const builder = {
   data: (() => {
     const contractData: CellCodec<Storage> = {
@@ -139,10 +161,34 @@ export const builder = {
         }
       },
     }
+    const extraArgs: CellCodec<ExtraArgs> = {
+      encode: function (data: ExtraArgs): Builder {
+        // switch on type of data: ExtraArgs: GenericExtraArgsV2 | SVMExtraArgsV1
+        switch (data.kind) {
+          case 'generic-v2':
+            return beginCell()
+              .storeUint(ExtraArgsOpcodes.genericV2, 32)
+              .storeUint(data.gasLimit, 256)
+              .storeBit(data.allowOutOfOrderExecution)
+          case 'svm-v1':
+            return beginCell()
+              .storeUint(ExtraArgsOpcodes.svmV1, 32)
+              .storeUint(data.computeUnits, 32)
+              .storeUint(data.accountIsWritableBitMap, 64)
+              .storeBit(data.allowOutOfOrderExecution)
+              .storeUint(data.tokenReceiver, 256)
+              .storeRef(data.accounts)
+        }
+      },
+      load: function (src: Slice): ExtraArgs {
+        throw new Error('Function not implemented.')
+      },
+    }
 
     return {
       contractData,
       tokenAmountCodec,
+      extraArgs,
     }
   })(),
   message: {
@@ -160,6 +206,7 @@ export const builder = {
               .storeRef(opts.data)
               .storeRef(asSnakeData(opts.tokenAmounts, tokenAmountCodec.encode)) // TODO: pack inputs
               .storeAddress(opts.feeToken)
+
               .storeRef(opts.extraArgs)
           )
         },
