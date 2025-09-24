@@ -213,10 +213,19 @@ struct AccessControl_Hooks<T> {
 
 const DEFAULT_ADMIN_ROLE = 0x00;
 
-const ERROR_ACCESS_CONTROL_UNAUTHORIZED_ACCOUNT = 90;
-const ERROR_ACCESS_CONTROL_BAD_CONFIRMATION = 91;
+/// Error codes used by the Timelock contract.
+enum AccessControl_Error {
+    UnauthorizedAccount = 60900 // AccessControl<T>.errorCode(0)
+    BadConfirmation
+}
 
 // --- Methods ---
+
+/// Returns the error code for this facility and the given local code.
+///     errorCode(0) == 60900
+fun AccessControl<T>.errorCode(local: uint16): uint16 {
+    return errorCode(stringCrc32("com.chainlink.ton.lib.access.AccessControl"), local);
+}
 
 /// @dev Returns the sender of the message.
 ///
@@ -269,7 +278,7 @@ fun AccessControl<T>.requireRoleSender(self, role: int, msgSender: address, msgB
 ///
 fun AccessControl<T>.requireRole(self, role: int, account: address): void {
     if (!self.hasRole(role, account)) {
-        throw(ERROR_ACCESS_CONTROL_UNAUTHORIZED_ACCOUNT); // TODO: attach error arguments
+        throw AccessControl_Error.UnauthorizedAccount; // TODO: attach error arguments
     }
 }
 
@@ -447,7 +456,7 @@ fun AccessControl<T>.renounceRole(
     returnExcess: bool = false
 ): bool {
     if (callerConfirmation != sender) {
-        throw(ERROR_ACCESS_CONTROL_BAD_CONFIRMATION); // TODO: attach error arguments
+        throw AccessControl_Error.BadConfirmation; // TODO: attach error arguments
     }
 
     // Renouncing a role is equivalent to revoking it from the caller

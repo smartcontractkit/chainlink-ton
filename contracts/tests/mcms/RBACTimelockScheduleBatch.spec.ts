@@ -88,7 +88,7 @@ describe('MCMS - RBACTimelockScheduleBatchTest', () => {
       from: baseTest.acc.executorOne.address,
       to: baseTest.bind.timelock.address,
       success: false,
-      exitCode: ac.Errors.UnauthorizedAccount,
+      exitCode: ac.Error.UnauthorizedAccount,
     })
   })
 
@@ -259,7 +259,7 @@ describe('MCMS - RBACTimelockScheduleTest', () => {
       from: baseTest.acc.executorOne.address,
       to: baseTest.bind.timelock.address,
       success: false,
-      exitCode: ac.Errors.UnauthorizedAccount,
+      exitCode: ac.Error.UnauthorizedAccount,
     })
   })
 

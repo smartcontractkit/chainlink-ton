@@ -75,11 +75,9 @@ export const opcodes = {
   },
 }
 
-const ERROR_INVALID_ROLE = 89
-
-export enum Errors {
-  UnauthorizedAccount = 90,
-  BadConfirmation = 91,
+export enum Error {
+  UnauthorizedAccount = 60900,
+  BadConfirmation,
 }
 
 export const builder = {

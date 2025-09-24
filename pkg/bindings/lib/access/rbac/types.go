@@ -143,7 +143,9 @@ type RoleData struct {
 
 const (
 	DefaultAdminRole = 0x00
+)
 
-	ErrorAccessControlUnauthorizedAccount = 90
-	ErrorAccessControlBadConfirmation     = 91
+const (
+	ErrorUnauthorizedAccount = 60900
+	ErrorBadConfirmation
 )

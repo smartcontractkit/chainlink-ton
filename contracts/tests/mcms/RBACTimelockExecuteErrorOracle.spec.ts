@@ -100,7 +100,7 @@ describe('MCMS - RBACTimelockExecuteErrorOracleTest', () => {
       from: baseTest.acc.deployer.address,
       to: baseTest.bind.timelock.address,
       success: false,
-      exitCode: ac.Errors.UnauthorizedAccount,
+      exitCode: ac.Error.UnauthorizedAccount,
     })
 
     expect(await baseTest.bind.ac.getRoleMemberCount(rbactl.roles.oracle)).toEqual(0n)

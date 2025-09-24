@@ -139,7 +139,7 @@ struct (0x4b3af0b5) MCMS_SubmitErrorReport {
     /// Query ID of the change request.
     queryId: uint64;
 
-    /// The operation which produced the Error.
+    /// The operation which produced the MCMS_Error.
     op: Cell<Op>;
     /// The MerkleProof for the op's inclusion in the MerkleTree
     proof: cell; // vec<uint256>,
@@ -218,7 +218,7 @@ struct (0xbbc4deb4) MCMS_ErrorReportSubmitted {
     /// Query ID of the change request.
     queryId: uint64;
 
-    /// The (merkle leaf) hash of the operation which produced the Error.
+    /// The (merkle leaf) hash of the operation which produced the MCMS_Error.
     opLeafHash: uint256;
     /// The hash of the operation execute transaction.
     opTxHash: uint256;
@@ -328,7 +328,7 @@ const MAX_NUM_SIGNERS = 200;
 const DEFAULT_FINALIZATION_TIMEOUT = 60; // in seconds
 
 /// Error codes used by the Timelock contract.
-enum Error {
+enum MCMS_Error {
     /// Thrown when number of signers is 0 or greater than MAX_NUM_SIGNERS.
     OutOfBoundsNumSigners = 39000 // MCMS<T>.errorCode(0)
 
@@ -642,7 +642,7 @@ fun MCMS<T>.setRoot(
     {
         var r = self.data.seenSignedHashes.get(signedHash);
         if (r.isFound) {
-            throw Error.SignedHashAlreadySeen;
+            throw MCMS_Error.SignedHashAlreadySeen;
         }
     }
 
@@ -655,11 +655,11 @@ fun MCMS<T>.setRoot(
     {
         var _rootQuorum = config.groupQuorums.get(0);
         if (!_rootQuorum.isFound) {
-            throw Error.MissingConfig;
+            throw MCMS_Error.MissingConfig;
         }
         rootQuorum = _rootQuorum.loadValue();
         if (rootQuorum == 0) {
-            throw Error.MissingConfig;
+            throw MCMS_Error.MissingConfig;
         }
     }
 
@@ -673,26 +673,26 @@ fun MCMS<T>.setRoot(
             var s = ss.next();
             val valid = isSignatureValid(signedHash, s.toCell().beginParse(), s.signer);
             if (!valid) {
-                throw Error.InvalidSigner;
+                throw MCMS_Error.InvalidSigner;
             }
 
             // the off-chain system is required to sort the signatures by the
             // signer key in an increasing order
             if (prevSigner >= s.signer) {
-                throw Error.SignersKeysMustBeStrictlyIncreasing;
+                throw MCMS_Error.SignersKeysMustBeStrictlyIncreasing;
             }
             prevSigner = s.signer;
 
             {
                 val _signer = self.data.signers.get(s.signer);
                 if (!_signer.isFound) {
-                    throw Error.InvalidSigner;
+                    throw MCMS_Error.InvalidSigner;
                 }
                 signer = _signer.loadValue();
             }
 
             if (signer.key != s.signer) {
-                throw Error.InvalidSigner;
+                throw MCMS_Error.InvalidSigner;
             }
 
             // @dev break/continue from loops are not supported yet in Tolk.
@@ -746,12 +746,12 @@ fun MCMS<T>.setRoot(
         // did the root group reach its quorum?
         var _rootVotes = groupVoteCounts.get(0);
         if (!_rootVotes.isFound || _rootVotes.loadValue() < rootQuorum) {
-            throw Error.InsufficientSigners;
+            throw MCMS_Error.InsufficientSigners;
         }
     }
 
     if (validUntil < blockchain.now()) {
-        throw Error.ValidUntilHasAlreadyPassed;
+        throw MCMS_Error.ValidUntilHasAlreadyPassed;
     }
 
     {
@@ -765,17 +765,17 @@ fun MCMS<T>.setRoot(
                 .hash();
         // "../lib/crypto/merkle_proof.tolk"
         if (!verify(metadataProof, root, hashedLeaf)) {
-            throw Error.ProofCannotBeVerified;
+            throw MCMS_Error.ProofCannotBeVerified;
         }
     }
 
     // Check if right environment via chainId
     if (globalId() as int256 != metadata.chainId) {
-        throw Error.WrongChainId;
+        throw MCMS_Error.WrongChainId;
     }
 
     if (contract.getAddress() != metadata.multiSig) {
-        throw Error.WrongMultiSig;
+        throw MCMS_Error.WrongMultiSig;
     }
 
     // Unpack the root info from the contract data
@@ -785,17 +785,17 @@ fun MCMS<T>.setRoot(
     // executed, unless overridePreviousRoot is set
     val opCount: uint40 = rootInfo.expiringRootAndOpCount.opCount;
     if (opCount != rootInfo.rootMetadata.postOpCount && !metadata.overridePreviousRoot) {
-        throw Error.PendingOps;
+        throw MCMS_Error.PendingOps;
     }
 
     // the signers are responsible for tracking opCount offchain and ensuring that
     // preOpCount equals to opCount
     if (opCount != metadata.preOpCount) {
-        throw Error.WrongPreOpCount;
+        throw MCMS_Error.WrongPreOpCount;
     }
 
     if (metadata.preOpCount > metadata.postOpCount) {
-        throw Error.WrongPostOpCount;
+        throw MCMS_Error.WrongPostOpCount;
     }
 
     // done with validation, persist in in contract state
@@ -856,35 +856,35 @@ fun MCMS<T>.execute(
     val rootMetadata = rootInfo.rootMetadata;
 
     if (rootMetadata.postOpCount <= currentExpiringRootAndOpCount.opCount) {
-        throw Error.PostOpCountReached;
+        throw MCMS_Error.PostOpCountReached;
     }
 
     // Check if right environment via chainId
     if (op.chainId != globalId() as int256) {
-        throw Error.WrongChainId;
+        throw MCMS_Error.WrongChainId;
     }
 
     if (op.multiSig != contract.getAddress()) {
-        throw Error.WrongMultiSig;
+        throw MCMS_Error.WrongMultiSig;
     }
 
     if (blockchain.now() >= currentExpiringRootAndOpCount.validUntil) {
-        throw Error.RootExpired;
+        throw MCMS_Error.RootExpired;
     }
 
     val opPendingInfo = lazy OpPendingInfo.fromCell(currentExpiringRootAndOpCount.opPendingInfo);
     if (blockchain.now() < opPendingInfo.validAfter) {
-        throw Error.RootNotFinalized;
+        throw MCMS_Error.RootNotFinalized;
     }
 
     if (op.nonce != currentExpiringRootAndOpCount.opCount) {
-        throw Error.WrongNonce;
+        throw MCMS_Error.WrongNonce;
     }
 
     // We enforce a minimum amount of TON op.value trying to ensure the receiver gets at least enough gas for
     // fee validation + a bounce, and avoid out of gas errors in which cases a message will not bounce.
     if (op.value < calculateGasFeeDefault()) {
-        throw Error.InsufficientValue;
+        throw MCMS_Error.InsufficientValue;
     }
 
     // verify that the op exists in the merkle tree
@@ -897,7 +897,7 @@ fun MCMS<T>.execute(
             .hash();
     // "../lib/crypto/merkle_proof.tolk"
     if (!verify(proof, currentExpiringRootAndOpCount.root, hashedLeaf)) {
-        throw Error.ProofCannotBeVerified;
+        throw MCMS_Error.ProofCannotBeVerified;
     }
 
     // Update the state
@@ -971,12 +971,12 @@ fun MCMS<T>.setConfig(
     var signerKeyIterator = Iterator<uint256>.new(signerKeys);
     val numSigners = signerKeyIterator.size(32); // notice size in bytes
     if (numSigners == 0 || numSigners > MAX_NUM_SIGNERS) {
-        throw Error.OutOfBoundsNumSigners;
+        throw MCMS_Error.OutOfBoundsNumSigners;
     }
 
     var signerGroupIterator = Iterator<uint8>.new(signerGroups);
     if (numSigners != signerGroupIterator.size(1)) { // notice size in bytes
-        throw Error.SignerGroupsLengthMismatch;
+        throw MCMS_Error.SignerGroupsLengthMismatch;
     }
 
     {
@@ -987,7 +987,7 @@ fun MCMS<T>.setConfig(
         while (!signerGroupIterator.empty()) {
             var g = signerGroupIterator.next();
             if (g >= NUM_GROUPS) {
-                throw Error.OutOfBoundsGroup;
+                throw MCMS_Error.OutOfBoundsGroup;
             }
 
             var count = groupChildrenCounts.get(g);
@@ -1013,7 +1013,7 @@ fun MCMS<T>.setConfig(
                 }
             }
             if ((i != 0 && gp >= i) || (i == 0 && gp != 0)) {
-                throw Error.GroupTreeNotWellFormed;
+                throw MCMS_Error.GroupTreeNotWellFormed;
             }
 
             var gq = 0; // default quorum for groups without a set quorum
@@ -1038,12 +1038,12 @@ fun MCMS<T>.setConfig(
             if (disabled) {
                 // a disabled group shouldn't have any children
                 if (count > 0) {
-                    throw Error.SignerInDisabledGroup;
+                    throw MCMS_Error.SignerInDisabledGroup;
                 }
             } else {
                 // ensure that the group quorum can be met
                 if (count < gq) {
-                    throw Error.OutOfBoundsGroupQuorum;
+                    throw MCMS_Error.OutOfBoundsGroupQuorum;
                 }
 
                 var current = 0;
@@ -1087,7 +1087,7 @@ fun MCMS<T>.setConfig(
     while (!signerKeyIterator.empty()) {
         var key = signerKeyIterator.next();
         if (prevSigner >= key) {
-            throw Error.SignersKeysMustBeStrictlyIncreasing;
+            throw MCMS_Error.SignersKeysMustBeStrictlyIncreasing;
         }
 
         val group = signerGroupIterator.next();
@@ -1161,22 +1161,22 @@ fun MCMS<T>.submitErrorReport(
 ) {
     // Only the oracle can submit error reports
     if (sender != self.data.oracle) {
-        throw Error.UnauthorizedOracle;
+        throw MCMS_Error.UnauthorizedOracle;
     }
 
     // Check if right environment via chainId
     if (op.chainId != globalId() as int256) {
-        throw Error.WrongChainId;
+        throw MCMS_Error.WrongChainId;
     }
 
     if (op.multiSig != contract.getAddress()) {
-        throw Error.WrongMultiSig;
+        throw MCMS_Error.WrongMultiSig;
     }
 
     var rootInfo = lazy RootInfo.fromCell(self.data.rootInfo);
 
     if (blockchain.now() > rootInfo.expiringRootAndOpCount.validUntil) {
-        throw Error.RootExpired;
+        throw MCMS_Error.RootExpired;
     }
 
     // verify that the op exists in the merkle tree
@@ -1189,7 +1189,7 @@ fun MCMS<T>.submitErrorReport(
             .hash();
     // "../lib/crypto/merkle_proof.tolk"
     if (!verify(proof, rootInfo.expiringRootAndOpCount.root, hashedLeaf)) {
-        throw Error.ProofCannotBeVerified;
+        throw MCMS_Error.ProofCannotBeVerified;
     }
 
     // Mark root in error state (recover with new root + bypass)
