@@ -3,6 +3,7 @@ package codec
 import (
 	"encoding/binary"
 	"fmt"
+	"math/big"
 	"reflect"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -50,7 +51,14 @@ func (d extraDataDecoder) DecodeExtraArgsToMap(extraArgs ccipocr3.Bytes) (map[st
 	}
 	tag, err := c.BeginParse().LoadSlice(32)
 	if err != nil {
-		return outputMap, fmt.Errorf("failed to load tag from cell: %w", err)
+		//TODO: remove this after TON2EVM verified
+		tempExtraArgs := onramp.GenericExtraArgsV2{
+			GasLimit:                 big.NewInt(1000000),
+			AllowOutOfOrderExecution: true,
+		}
+		c, _ = tlb.ToCell(tempExtraArgs)
+		fmt.Printf("failed to load tag from cell: %w\n", err)
+		// return outputMap, fmt.Errorf("failed to load tag from cell: %w", err)
 	}
 
 	switch hexutil.Encode(tag) {
