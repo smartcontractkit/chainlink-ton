@@ -709,9 +709,9 @@ function verifyBodyIsTransferNotification(
     transferNotificationValidaton?: (x: jetton.TransferNotificationForRecipient) => boolean
   },
 ): boolean {
-  // === Verifies that body is an askToTransfer with forwardPayload: onrampSend ===
+  // === Verifies that body is an transferNotification with forwardPayload: onrampSend ===
   if (!x) return false // Body is not empty
-  // Parse askToTransfer
+  // Parse transferNotification
   let transferRequest: jetton.TransferNotificationForRecipient
   try {
     transferRequest = jetton.builder.messages.out.transferNotificationForRecipient.load(
@@ -735,9 +735,9 @@ function verifyBodyIsTransferNotificationWithFwdPayload<T>(
     fwdPayloadValidation?: (x: T) => boolean
   },
 ): boolean {
-  // === Verifies that body is an askToTransfer with forwardPayload: onrampSend ===
+  // === Verifies that body is an transferNotification with forwardPayload: onrampSend ===
   if (!x) return false // Body is not empty
-  // Parse askToTransfer
+  // Parse transferNotification
   let transferRequest: jetton.TransferNotificationWithFwdPayload<T>
   try {
     transferRequest = jetton.builder.messages.out
