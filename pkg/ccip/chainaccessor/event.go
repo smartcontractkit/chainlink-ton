@@ -93,6 +93,7 @@ func (a *TONAccessor) convertCCIPMessageSent(
 	feeTokenAddr := codec.ToRawAddr(tonEvent.Message.Body.FeeToken)
 
 	// TODO: remove after TON2EVM verified
+	// TODO: remove after TON2EVM verified
 	extraArgs := onramp.GenericExtraArgsV2{
 		GasLimit:                 big.NewInt(1000000),
 		AllowOutOfOrderExecution: true,
