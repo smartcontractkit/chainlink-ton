@@ -165,6 +165,9 @@ func TestStorage(t *testing.T) {
 	b := cell.BeginCell()
 	require.NoError(t, b.StoreUInt(42, 32))
 	ExecutorCode := b.EndCell()
+	bt := cell.BeginCell()
+	require.NoError(t, bt.StoreUInt(84, 32))
+	TokenRegistryCode := bt.EndCell()
 
 	s := Storage{
 		Ownable: common.Ownable2Step{
@@ -176,9 +179,10 @@ func TestStorage(t *testing.T) {
 			FeeQuoter:      dummyAddr,
 			AllowListAdmin: dummyAddr,
 		},
-		DestChainConfigs: destConfigMap,
-		ExecutorCode:     ExecutorCode,
-		CurrentMessageID: big.NewInt(123),
+		DestChainConfigs:  destConfigMap,
+		ExecutorCode:      ExecutorCode,
+		TokenRegistryCode: TokenRegistryCode,
+		CurrentMessageID:  big.NewInt(123),
 	}
 
 	c, err = tlb.ToCell(s)
@@ -190,6 +194,7 @@ func TestStorage(t *testing.T) {
 	require.Equal(t, s.ChainSelector, decoded.ChainSelector)
 	require.Equal(t, s.Config, decoded.Config)
 	require.Equal(t, ExecutorCode, decoded.ExecutorCode)
+	require.Equal(t, TokenRegistryCode, decoded.TokenRegistryCode)
 	require.Equal(t, big.NewInt(123), decoded.CurrentMessageID)
 	require.NotNil(t, decoded.DestChainConfigs)
 	destConfigDecodedMap, err := decoded.DestChainConfigs.LoadAll()
