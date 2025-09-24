@@ -182,13 +182,17 @@ fun onTransferNotification(notification: JettonTransferNotification, jettonWalle
 }
 
 fun calculateTokenRegistryAddress(st: OnRamp_Data, token: address): address {
-    return beginCell().storeUint(0, 32).storeUint(ContractState {
-        code: st.token_registry_code,
-        data: TokenRegistry_Storage {
-            onramp: contract.getAddress(),
-            minterAddress: token,
-        }.toCell(),
-    }.toCell().hash(), 256).endCell().beginParse().loadAddress();
+    return address.fromValidBuilder(AutoDeployAddress {
+        workchain: BASECHAIN,
+        stateInit: ContractState {
+            code: st.token_registry_code,
+            data: TokenRegistry_Storage {
+                onramp: contract.getAddress(),
+                minterAddress: token,
+            }.toCell(),
+        },
+        toShard: null,
+    }.buildAddress())
 }
 
 fun handleWithdrawJettons(payload: OnRamp_WithdrawJettons, executor: address) {
