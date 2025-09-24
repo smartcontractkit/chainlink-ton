@@ -7,7 +7,7 @@ import (
 )
 
 func TestGetContractBuildSHA(t *testing.T) {
-	const shaFile = ".contract_build_sha"
+	const shaFile = "contract_build_sha"
 
 	data, err := os.ReadFile(shaFile)
 	if err != nil {
