@@ -118,4 +118,4 @@ jobs:
         run: |
           # most up to date build SHA for contracts for the current version, to be used by other workflows/repos
           # note: the hash of the built artifacts is available on after it gets merged in the main branch as a release
-          echo "${{ steps.get_sha.outputs.short_sha }}" > ../../deployment/.contract_build_sha
+          echo "${{ steps.get_sha.outputs.short_sha }}" > ../../deployment/utils/.contract_build_sha
