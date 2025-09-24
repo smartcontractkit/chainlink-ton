@@ -267,7 +267,7 @@ describe('MCMS - ManyChainMultiSigExecuteErrorOracleTest', () => {
       from: baseTest.acc.multisigOwner.address,
       to: baseTest.bind.mcms.address,
       success: false,
-      exitCode: mcms.Error.ERROR_UNAUTHORIZED_ORACLE,
+      exitCode: mcms.Error.UNAUTHORIZED_ORACLE,
     })
   })
 

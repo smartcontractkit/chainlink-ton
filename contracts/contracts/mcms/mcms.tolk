@@ -327,87 +327,66 @@ const MAX_NUM_SIGNERS = 200;
 
 const DEFAULT_FINALIZATION_TIMEOUT = 60; // in seconds
 
-/// Thrown when number of signers is 0 or greater than MAX_NUM_SIGNERS.
-const ERROR_OUT_OF_BOUNDS_NUM_SIGNERS = 100;
-
-/// Thrown when signerKeys and signerGroups have different lengths.
-const ERROR_SIGNER_GROUPS_LENGTH_MISMATCH = 101;
-
-/// Thrown when number of some signer's group is greater than (NUM_GROUPS-1).
-const ERROR_OUT_OF_BOUNDS_GROUP = 102;
-
-/// Thrown when the group tree isn't well-formed.
-const ERROR_GROUP_TREE_NOT_WELL_FORMED = 103;
-
-/// Thrown when the quorum of some group is larger than the number of signers in it.
-const ERROR_OUT_OF_BOUNDS_GROUP_QUORUM = 104;
-
-/// Thrown when a disabled group contains a signer.
-const ERROR_SIGNER_IN_DISABLED_GROUP = 105;
-
-/// Thrown when the signers' public keys are not a strictly increasing monotone sequence.
-/// Prevents signers from including more than one signature.
-const ERROR_SIGNERS_KEYS_MUST_BE_STRICTLY_INCREASING = 106;
-
-/// Thrown when the signature corresponds to invalid signer.
-const ERROR_INVALID_SIGNER = 107;
-
-/// Thrown when there is no sufficient set of valid signatures provided to make the
-/// root group successful.
-const ERROR_INSUFFICIENT_SIGNERS = 108;
-
-/// Thrown when attempt to set metadata or execute op for another chain.
-const ERROR_WRONG_CHAIN_ID = 109;
-
-/// Thrown when the multiSig address in metadata or op is
-/// incompatible with the address of this contract.
-const ERROR_WRONG_MULTI_SIG = 110;
-
-/// Thrown when the preOpCount <= postOpCount invariant is violated.
-const ERROR_WRONG_POST_OP_COUNT = 111;
-
-/// Thrown when attempting to set a new root while there are still pending ops
-/// from the previous root without explicitly overriding it.
-const ERROR_PENDING_OPS = 112;
-
-/// Thrown when preOpCount in metadata is incompatible with the current opCount.
-const ERROR_WRONG_PRE_OP_COUNT = 113;
-
-/// Thrown when the provided merkle proof cannot be verified.
-const ERROR_PROOF_CANNOT_BE_VERIFIED = 114;
-
-/// Thrown when attempt to execute an op after
-/// data.rootInfo.expiringRootAndOpCount.validUntil has passed.
-const ERROR_ROOT_EXPIRED = 115;
-
-/// Thrown when attempt to bypass the enforced ops' order in the merkle tree or
-/// re-execute an op.
-const ERROR_WRONG_NONCE = 116;
-
-/// Thrown when attempting to execute an op even though opCount equals
-/// metadata.postOpCount.
-const ERROR_POST_OP_COUNT_REACHED = 117;
-
-/// Thrown when the underlying call in _execute() reverts.
-const ERROR_CALL_REVERTED = 118;
-
-/// Thrown when attempt to set past validUntil for the root.
-const ERROR_VALID_UNTIL_HAS_ALREADY_PASSED = 119;
-
-/// Thrown when setRoot() is called before setting a config.
-const ERROR_MISSING_CONFIG = 120;
-
-/// Thrown when attempt to set the same (root, validUntil) in setRoot().
-const ERROR_SIGNED_HASH_ALREADY_SEEN = 121;
-
-/// Thrown when the root has not been finalized yet (can't execute next op before finalization).
-const ERROR_ROOT_NOT_FINALIZED = 122;
-
-/// Thrown when the provided op.value is insufficient (min required value not met).
-const ERROR_INSUFFICIENT_VALUE = 123;
-
-/// Thrown when the error report sender is not the authorized oracle.
-const ERROR_UNAUTHORIZED_ORACLE = 124;
+/// Error codes used by the Timelock contract.
+enum Error {
+    /// Thrown when number of signers is 0 or greater than MAX_NUM_SIGNERS.
+    OutOfBoundsNumSigners = 58600
+    /// Thrown when signerKeys and signerGroups have different lengths.
+    SignerGroupsLengthMismatch
+    /// Thrown when number of some signer's group is greater than (NUM_GROUPS-1).
+    OutOfBoundsGroup
+    /// Thrown when the group tree isn't well-formed.
+    GroupTreeNotWellFormed
+    /// Thrown when the quorum of some group is larger than the number of signers in it.
+    OutOfBoundsGroupQuorum
+    /// Thrown when a disabled group contains a signer.
+    SignerInDisabledGroup
+    /// Thrown when the signers' public keys are not a strictly increasing monotone sequence.
+    /// Prevents signers from including more than one signature.
+    SignersKeysMustBeStrictlyIncreasing
+    /// Thrown when the signature corresponds to invalid signer.
+    InvalidSigner
+    /// Thrown when there is no sufficient set of valid signatures provided to make the
+    /// root group successful.
+    InsufficientSigners
+    /// Thrown when attempt to set metadata or execute op for another chain.
+    WrongChainId
+    /// Thrown when the multiSig address in metadata or op is
+    /// incompatible with the address of this contract.
+    WrongMultiSig
+    /// Thrown when the preOpCount <= postOpCount invariant is violated.
+    WrongPostOpCount
+    /// Thrown when attempting to set a new root while there are still pending ops
+    /// from the previous root without explicitly overriding it.
+    PendingOps
+    /// Thrown when preOpCount in metadata is incompatible with the current opCount.
+    WrongPreOpCount
+    /// Thrown when the provided merkle proof cannot be verified.
+    ProofCannotBeVerified
+    /// Thrown when attempt to execute an op after
+    /// data.rootInfo.expiringRootAndOpCount.validUntil has passed.
+    RootExpired
+    /// Thrown when attempt to bypass the enforced ops' order in the merkle tree or
+    /// re-execute an op.
+    WrongNonce
+    /// Thrown when attempting to execute an op even though opCount equals
+    /// metadata.postOpCount.
+    PostOpCountReached
+    /// Thrown when the underlying call in _execute() reverts.
+    CallReverted
+    /// Thrown when attempt to set past validUntil for the root.
+    ValidUntilHasAlreadyPassed
+    /// Thrown when setRoot() is called before setting a config.
+    MissingConfig
+    /// Thrown when attempt to set the same (root, validUntil) in setRoot().
+    SignedHashAlreadySeen
+    /// Thrown when the root has not been finalized yet (can't execute next op before finalization).
+    RootNotFinalized
+    /// Thrown when the provided op.value is insufficient (min required value not met).
+    InsufficientValue
+    /// Thrown when the error report sender is not the authorized oracle.
+    UnauthorizedOracle
+}
 
 // --- Constants - storage ---
 
@@ -581,6 +560,12 @@ struct Op {
 
 // --- Methods ---
 
+/// Returns the error code for this facility and the given local code.
+///     errorCode(0) == 58600
+fun MCMS<T>.errorCode(local: uint16): uint16 {
+    return errorCode(stringCrc16("com.chainlink.ton.mcms.MCMS"), local);
+}
+
 /// @dev Loads the MCMS contract data from persistent storage.
 fun MCMS<T>.load(context: T? = null, hooks: MCMS_Hooks<T>? = null): MCMS<T> {
     // Load the contract data from the persistent storage
@@ -633,7 +618,7 @@ fun MCMS<T>.setRoot(
     {
         var r = self.data.seenSignedHashes.get(signedHash);
         if (r.isFound) {
-            throw ERROR_SIGNED_HASH_ALREADY_SEEN;
+            throw Error.SignedHashAlreadySeen;
         }
     }
 
@@ -646,11 +631,11 @@ fun MCMS<T>.setRoot(
     {
         var _rootQuorum = config.groupQuorums.get(0);
         if (!_rootQuorum.isFound) {
-            throw ERROR_MISSING_CONFIG;
+            throw Error.MissingConfig;
         }
         rootQuorum = _rootQuorum.loadValue();
         if (rootQuorum == 0) {
-            throw ERROR_MISSING_CONFIG;
+            throw Error.MissingConfig;
         }
     }
 
@@ -664,26 +649,26 @@ fun MCMS<T>.setRoot(
             var s = ss.next();
             val valid = isSignatureValid(signedHash, s.toCell().beginParse(), s.signer);
             if (!valid) {
-                throw ERROR_INVALID_SIGNER;
+                throw Error.InvalidSigner;
             }
 
             // the off-chain system is required to sort the signatures by the
             // signer key in an increasing order
             if (prevSigner >= s.signer) {
-                throw ERROR_SIGNERS_KEYS_MUST_BE_STRICTLY_INCREASING;
+                throw Error.SignersKeysMustBeStrictlyIncreasing;
             }
             prevSigner = s.signer;
 
             {
                 val _signer = self.data.signers.get(s.signer);
                 if (!_signer.isFound) {
-                    throw ERROR_INVALID_SIGNER;
+                    throw Error.InvalidSigner;
                 }
                 signer = _signer.loadValue();
             }
 
             if (signer.key != s.signer) {
-                throw ERROR_INVALID_SIGNER;
+                throw Error.InvalidSigner;
             }
 
             // @dev break/continue from loops are not supported yet in Tolk.
@@ -737,12 +722,12 @@ fun MCMS<T>.setRoot(
         // did the root group reach its quorum?
         var _rootVotes = groupVoteCounts.get(0);
         if (!_rootVotes.isFound || _rootVotes.loadValue() < rootQuorum) {
-            throw ERROR_INSUFFICIENT_SIGNERS;
+            throw Error.InsufficientSigners;
         }
     }
 
     if (validUntil < blockchain.now()) {
-        throw ERROR_VALID_UNTIL_HAS_ALREADY_PASSED;
+        throw Error.ValidUntilHasAlreadyPassed;
     }
 
     {
@@ -756,17 +741,17 @@ fun MCMS<T>.setRoot(
                 .hash();
         // "../lib/crypto/merkle_proof.tolk"
         if (!verify(metadataProof, root, hashedLeaf)) {
-            throw ERROR_PROOF_CANNOT_BE_VERIFIED;
+            throw Error.ProofCannotBeVerified;
         }
     }
 
     // Check if right environment via chainId
     if (globalId() as int256 != metadata.chainId) {
-        throw ERROR_WRONG_CHAIN_ID;
+        throw Error.WrongChainId;
     }
 
     if (contract.getAddress() != metadata.multiSig) {
-        throw ERROR_WRONG_MULTI_SIG;
+        throw Error.WrongMultiSig;
     }
 
     // Unpack the root info from the contract data
@@ -776,17 +761,17 @@ fun MCMS<T>.setRoot(
     // executed, unless overridePreviousRoot is set
     val opCount: uint40 = rootInfo.expiringRootAndOpCount.opCount;
     if (opCount != rootInfo.rootMetadata.postOpCount && !metadata.overridePreviousRoot) {
-        throw ERROR_PENDING_OPS;
+        throw Error.PendingOps;
     }
 
     // the signers are responsible for tracking opCount offchain and ensuring that
     // preOpCount equals to opCount
     if (opCount != metadata.preOpCount) {
-        throw ERROR_WRONG_PRE_OP_COUNT;
+        throw Error.WrongPreOpCount;
     }
 
     if (metadata.preOpCount > metadata.postOpCount) {
-        throw ERROR_WRONG_POST_OP_COUNT;
+        throw Error.WrongPostOpCount;
     }
 
     // done with validation, persist in in contract state
@@ -847,35 +832,35 @@ fun MCMS<T>.execute(
     val rootMetadata = rootInfo.rootMetadata;
 
     if (rootMetadata.postOpCount <= currentExpiringRootAndOpCount.opCount) {
-        throw ERROR_POST_OP_COUNT_REACHED;
+        throw Error.PostOpCountReached;
     }
 
     // Check if right environment via chainId
     if (op.chainId != globalId() as int256) {
-        throw ERROR_WRONG_CHAIN_ID;
+        throw Error.WrongChainId;
     }
 
     if (op.multiSig != contract.getAddress()) {
-        throw ERROR_WRONG_MULTI_SIG;
+        throw Error.WrongMultiSig;
     }
 
     if (blockchain.now() >= currentExpiringRootAndOpCount.validUntil) {
-        throw ERROR_ROOT_EXPIRED;
+        throw Error.RootExpired;
     }
 
     val opPendingInfo = lazy OpPendingInfo.fromCell(currentExpiringRootAndOpCount.opPendingInfo);
     if (blockchain.now() < opPendingInfo.validAfter) {
-        throw ERROR_ROOT_NOT_FINALIZED;
+        throw Error.RootNotFinalized;
     }
 
     if (op.nonce != currentExpiringRootAndOpCount.opCount) {
-        throw ERROR_WRONG_NONCE;
+        throw Error.WrongNonce;
     }
 
     // We enforce a minimum amount of TON op.value trying to ensure the receiver gets at least enough gas for
     // fee validation + a bounce, and avoid out of gas errors in which cases a message will not bounce.
     if (op.value < calculateGasFeeDefault()) {
-        throw ERROR_INSUFFICIENT_VALUE;
+        throw Error.InsufficientValue;
     }
 
     // verify that the op exists in the merkle tree
@@ -888,7 +873,7 @@ fun MCMS<T>.execute(
             .hash();
     // "../lib/crypto/merkle_proof.tolk"
     if (!verify(proof, currentExpiringRootAndOpCount.root, hashedLeaf)) {
-        throw ERROR_PROOF_CANNOT_BE_VERIFIED;
+        throw Error.ProofCannotBeVerified;
     }
 
     // Update the state
@@ -962,12 +947,12 @@ fun MCMS<T>.setConfig(
     var signerKeyIterator = Iterator<uint256>.new(signerKeys);
     val numSigners = signerKeyIterator.size(32); // notice size in bytes
     if (numSigners == 0 || numSigners > MAX_NUM_SIGNERS) {
-        throw ERROR_OUT_OF_BOUNDS_NUM_SIGNERS;
+        throw Error.OutOfBoundsNumSigners;
     }
 
     var signerGroupIterator = Iterator<uint8>.new(signerGroups);
     if (numSigners != signerGroupIterator.size(1)) { // notice size in bytes
-        throw ERROR_SIGNER_GROUPS_LENGTH_MISMATCH;
+        throw Error.SignerGroupsLengthMismatch;
     }
 
     {
@@ -978,7 +963,7 @@ fun MCMS<T>.setConfig(
         while (!signerGroupIterator.empty()) {
             var g = signerGroupIterator.next();
             if (g >= NUM_GROUPS) {
-                throw ERROR_OUT_OF_BOUNDS_GROUP;
+                throw Error.OutOfBoundsGroup;
             }
 
             var count = groupChildrenCounts.get(g);
@@ -1004,7 +989,7 @@ fun MCMS<T>.setConfig(
                 }
             }
             if ((i != 0 && gp >= i) || (i == 0 && gp != 0)) {
-                throw ERROR_GROUP_TREE_NOT_WELL_FORMED;
+                throw Error.GroupTreeNotWellFormed;
             }
 
             var gq = 0; // default quorum for groups without a set quorum
@@ -1029,12 +1014,12 @@ fun MCMS<T>.setConfig(
             if (disabled) {
                 // a disabled group shouldn't have any children
                 if (count > 0) {
-                    throw ERROR_SIGNER_IN_DISABLED_GROUP;
+                    throw Error.SignerInDisabledGroup;
                 }
             } else {
                 // ensure that the group quorum can be met
                 if (count < gq) {
-                    throw ERROR_OUT_OF_BOUNDS_GROUP_QUORUM;
+                    throw Error.OutOfBoundsGroupQuorum;
                 }
 
                 var current = 0;
@@ -1078,7 +1063,7 @@ fun MCMS<T>.setConfig(
     while (!signerKeyIterator.empty()) {
         var key = signerKeyIterator.next();
         if (prevSigner >= key) {
-            throw ERROR_SIGNERS_KEYS_MUST_BE_STRICTLY_INCREASING;
+            throw Error.SignersKeysMustBeStrictlyIncreasing;
         }
 
         val group = signerGroupIterator.next();
@@ -1152,22 +1137,22 @@ fun MCMS<T>.submitErrorReport(
 ) {
     // Only the oracle can submit error reports
     if (sender != self.data.oracle) {
-        throw ERROR_UNAUTHORIZED_ORACLE;
+        throw Error.UnauthorizedOracle;
     }
 
     // Check if right environment via chainId
     if (op.chainId != globalId() as int256) {
-        throw ERROR_WRONG_CHAIN_ID;
+        throw Error.WrongChainId;
     }
 
     if (op.multiSig != contract.getAddress()) {
-        throw ERROR_WRONG_MULTI_SIG;
+        throw Error.WrongMultiSig;
     }
 
     var rootInfo = lazy RootInfo.fromCell(self.data.rootInfo);
 
     if (blockchain.now() > rootInfo.expiringRootAndOpCount.validUntil) {
-        throw ERROR_ROOT_EXPIRED;
+        throw Error.RootExpired;
     }
 
     // verify that the op exists in the merkle tree
@@ -1180,7 +1165,7 @@ fun MCMS<T>.submitErrorReport(
             .hash();
     // "../lib/crypto/merkle_proof.tolk"
     if (!verify(proof, rootInfo.expiringRootAndOpCount.root, hashedLeaf)) {
-        throw ERROR_PROOF_CANNOT_BE_VERIFIED;
+        throw Error.ProofCannotBeVerified;
     }
 
     // Mark root in error state (recover with new root + bypass)
