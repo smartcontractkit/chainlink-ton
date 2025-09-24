@@ -121,7 +121,7 @@ jobs:
       docker-build-context: .
       docker-manifest-sign: true
       docker-tag-custom-suffix: "-chainlink-ton"
-      git-sha: ${{ github.sha }}
+      git-sha: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
       github-event-name: ${{ github.event_name }}
       github-ref-name: ${{ github.ref_name }}
       github-ref-type: ${{ github.ref_type }}
