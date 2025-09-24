@@ -739,7 +739,7 @@ export const builder = {
           .storeRef(data.rbac)
       },
       load: (src: Slice): ContractData => {
-        throw new Error('not implemented')
+        throw new globalThis.Error('not implemented')
       },
     }
     const call: CellCodec<Call> = {
@@ -797,7 +797,7 @@ export const DONE_TIMESTAMP = 1n
 // Timestamp value used to mark an operation as error
 export const ERROR_TIMESTAMP = 2n
 
-export enum ErrorCode {
+export enum Error {
   SelectorIsBlocked = 19300,
   OperationNotReady,
   OperationMissingDependency,

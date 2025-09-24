@@ -304,7 +304,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
         from: baseTest.acc.executorOne.address,
         to: baseTest.bind.timelock.address,
         success: false,
-        exitCode: rbactl.ErrorCode.OperationNotReady,
+        exitCode: rbactl.Error.OperationNotReady,
       })
     })
 
@@ -397,7 +397,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
         from: baseTest.acc.executorOne.address,
         to: baseTest.bind.timelock.address,
         success: false,
-        exitCode: rbactl.ErrorCode.OperationMissingDependency,
+        exitCode: rbactl.Error.OperationMissingDependency,
       })
     })
 

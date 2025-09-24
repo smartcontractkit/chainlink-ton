@@ -434,7 +434,7 @@ struct (0xdbd4c8ee) Timelock_ErrorReportSubmitted {
     /// Query ID of the change request.
     queryId: uint64;
 
-    /// The id (hash) of the operation which produced the error.
+    /// The id (hash) of the operation which produced the Error.
     id: uint256;
     /// The hash of the operation execute transaction.
     opTxHash: uint256;

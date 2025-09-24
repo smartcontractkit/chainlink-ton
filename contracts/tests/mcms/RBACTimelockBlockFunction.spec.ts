@@ -147,7 +147,7 @@ describe('MCMS - RBACTimelockBlockFunctionTest', () => {
         from: baseTest.acc.proposerOne.address,
         to: baseTest.bind.timelock.address,
         success: false,
-        exitCode: rbactl.ErrorCode.SelectorIsBlocked,
+        exitCode: rbactl.Error.SelectorIsBlocked,
       })
     }
   })
@@ -206,7 +206,7 @@ describe('MCMS - RBACTimelockBlockFunctionTest', () => {
         from: baseTest.acc.proposerOne.address,
         to: baseTest.bind.timelock.address,
         success: false,
-        exitCode: rbactl.ErrorCode.SelectorIsBlocked,
+        exitCode: rbactl.Error.SelectorIsBlocked,
       })
     }
 
@@ -239,7 +239,7 @@ describe('MCMS - RBACTimelockBlockFunctionTest', () => {
         from: baseTest.acc.proposerOne.address,
         to: baseTest.bind.timelock.address,
         success: false,
-        exitCode: rbactl.ErrorCode.SelectorIsBlocked,
+        exitCode: rbactl.Error.SelectorIsBlocked,
       })
     }
 
@@ -360,7 +360,7 @@ describe('MCMS - RBACTimelockBlockFunctionTest', () => {
         from: baseTest.acc.proposerOne.address,
         to: baseTest.bind.timelock.address,
         success: false,
-        exitCode: rbactl.ErrorCode.SelectorIsBlocked,
+        exitCode: rbactl.Error.SelectorIsBlocked,
       })
     }
 

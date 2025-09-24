@@ -67,7 +67,7 @@ describe('RBACTimelock', () => {
   })
 
   it('should compute error code', async () => {
-    expect(rbactl.ErrorCode.SelectorIsBlocked).toBe(
+    expect(rbactl.Error.SelectorIsBlocked).toBe(
       errorCode(crc32('com.chainlink.ton.mcms.Timelock'), 0),
     )
   })

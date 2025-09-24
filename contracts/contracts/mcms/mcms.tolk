@@ -139,7 +139,7 @@ struct (0x4b3af0b5) MCMS_SubmitErrorReport {
     /// Query ID of the change request.
     queryId: uint64;
 
-    /// The operation which produced the error.
+    /// The operation which produced the Error.
     op: Cell<Op>;
     /// The MerkleProof for the op's inclusion in the MerkleTree
     proof: cell; // vec<uint256>,
@@ -218,7 +218,7 @@ struct (0xbbc4deb4) MCMS_ErrorReportSubmitted {
     /// Query ID of the change request.
     queryId: uint64;
 
-    /// The (merkle leaf) hash of the operation which produced the error.
+    /// The (merkle leaf) hash of the operation which produced the Error.
     opLeafHash: uint256;
     /// The hash of the operation execute transaction.
     opTxHash: uint256;

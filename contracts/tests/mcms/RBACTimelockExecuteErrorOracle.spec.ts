@@ -212,7 +212,7 @@ describe('MCMS - RBACTimelockExecuteErrorOracleTest', () => {
       from: baseTest.acc.executorOne.address,
       to: baseTest.bind.timelock.address,
       success: false,
-      exitCode: rbactl.ErrorCode.OperationNotReady,
+      exitCode: rbactl.Error.OperationNotReady,
     })
   })
 })
