@@ -16,6 +16,7 @@ import { JettonMinterCode, JettonWalletCode } from '../../wrappers/jetton/Jetton
 import { JettonMinter } from '../../wrappers/jetton/JettonMinter'
 import * as jetton from '../../wrappers/jetton/JettonWallet'
 import { dump } from '../utils/prettyPrint'
+import { CellCodec } from '../../wrappers/utils'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_TON = 13879075125137744094n
@@ -271,7 +272,6 @@ describe('Router', () => {
         throw new Error('Executor address not found')
       })()
 
-      // we called the router
       expect(result.transactions).toHaveTransaction({
         from: sender.address,
         to: router.address,
@@ -411,6 +411,8 @@ describe('Router', () => {
       })()
       const executorJettonWallet = await provideUserWalletFor(executorAddress)
 
+      // console.log('Trace:\n', (await dump(result.transactions)).join('\n'))
+
       // we called the router
       expect(result.transactions).toHaveTransaction({
         from: routerJettonWallet.address,
@@ -425,26 +427,14 @@ describe('Router', () => {
         deploy: false,
         success: true,
         body(x) {
-          if (!x) return false
-          const transferRequest = jetton.builder.messages.in.askToTransfer.load(x.beginParse())
-          if (transferRequest.forwardPayload == null || transferRequest.forwardPayload == undefined)
-            return false
-          if (!transferRequest.destination.equals(onRamp.address)) return false
-          try {
-            const payload = or.builder.messages.in.onrampSend.load(
-              ((forwardPayload: Cell | Slice): Slice => {
-                if (forwardPayload instanceof Cell) {
-                  return forwardPayload.beginParse()
-                } else {
-                  return forwardPayload
-                }
-              })(transferRequest.forwardPayload),
-            )
-            return true
-          } catch {
-            console.log('Failed to load onrampSend')
-            return false
-          }
+          return verifyBodyIsTransferRequestWithFwdPayload(x, or.builder.messages.in.onrampSend, {
+            transferRequestValidaton: (transferRequest) => {
+              return transferRequest.destination.equals(onRamp.address) // destination is the onRamp
+            },
+            fwdPayloadValidation: (onRampSend) => {
+              return onRampSend.metadata.sender.equals(sender.address) // sender is preserved
+            },
+          })
         },
       })
       expect(result.transactions).toHaveTransaction({
@@ -453,31 +443,18 @@ describe('Router', () => {
         deploy: false,
         success: true,
         body(x) {
-          if (!x) return false
-          const transferNotification =
-            jetton.builder.messages.out.transferNotificationForRecipient.load(x.beginParse())
-          if (
-            transferNotification.forwardPayload == null ||
-            transferNotification.forwardPayload == undefined
+          return verifyBodyIsTransferNotificationWithFwdPayload(
+            x,
+            or.builder.messages.in.onrampSend,
+            {
+              transferNotificationValidaton: (transferRequest) => {
+                return transferRequest.senderAddress.equals(router.address) // sender is the router
+              },
+              fwdPayloadValidation: (onRampSend) => {
+                return onRampSend.metadata.sender.equals(sender.address) // sender is preserved
+              },
+            },
           )
-            return false
-          if (!transferNotification.senderAddress.equals(router.address)) {
-            return false
-          }
-          try {
-            const payload = or.builder.messages.in.onrampSend.load(
-              ((forwardPayload: Cell | Slice): Slice => {
-                if (forwardPayload instanceof Cell) {
-                  return forwardPayload.beginParse()
-                } else {
-                  return forwardPayload
-                }
-              })(transferNotification.forwardPayload),
-            )
-            return true
-          } catch {
-            return false
-          }
         },
       })
       // the onRamp deployed the executor
@@ -500,11 +477,14 @@ describe('Router', () => {
         deploy: false,
         success: true,
         body(x) {
-          if (!x) return false
-          const transferRequest = jetton.builder.messages.in.askToTransfer.load(x.beginParse())
-          if (transferRequest.jettonAmount !== jettonAmount) return false
-          if (!transferRequest.destination.equals(executorAddress)) return false
-          return true
+          return verifyBodyIsTransferRequest(x, {
+            transferRequestValidaton: (transferRequest) => {
+              return (
+                transferRequest.jettonAmount == jettonAmount &&
+                transferRequest.destination.equals(executorAddress)
+              )
+            },
+          })
         },
       })
       expect(result.transactions).toHaveTransaction({
@@ -513,12 +493,11 @@ describe('Router', () => {
         deploy: false,
         success: true,
         body(x) {
-          if (!x) return false
-          // const transferNotification =
-          //   jetton.builder.messages.out.transferNotificationForRecipient.load(x.beginParse())
-          // if (transferNotification.jettonAmount !== jettonAmount) return false
-          // if (!transferNotification.senderAddress.equals(onRamp.address)) return false
-          return true
+          return verifyBodyIsTransferNotification(x, {
+            transferNotificationValidaton: (transferRequest) =>
+              transferRequest.jettonAmount == jettonAmount &&
+              transferRequest.senderAddress.equals(onRamp.address),
+          })
         },
       })
       // assert message went to feeQuoter
@@ -672,4 +651,108 @@ async function setupJetton(
     jettonMinter,
     provideUserWalletFor,
   }
+}
+
+function verifyBodyIsTransferRequest(
+  x: Cell | undefined,
+  opt: {
+    transferRequestValidaton?: (x: jetton.AskToTransfer) => boolean
+  },
+): boolean {
+  // === Verifies that body is an askToTransfer with forwardPayload: onrampSend ===
+  if (!x) return false // Body is not empty
+  // Parse askToTransfer
+  let transferRequest: jetton.AskToTransfer
+  try {
+    transferRequest = jetton.builder.messages.in.askToTransfer.load(x.beginParse())
+  } catch (e) {
+    console.log('Failed to load payload: ', e)
+    return false
+  }
+  if (opt?.transferRequestValidaton && !opt.transferRequestValidaton(transferRequest)) {
+    return false
+  }
+  return true
+}
+
+function verifyBodyIsTransferRequestWithFwdPayload<T>(
+  x: Cell | undefined,
+  payloadCodec: CellCodec<T>,
+  opt: {
+    transferRequestValidaton?: (x: jetton.AskToTransferWithFwdPayload<T>) => boolean
+    fwdPayloadValidation?: (x: T) => boolean
+  },
+): boolean {
+  // === Verifies that body is an askToTransfer with forwardPayload: onrampSend ===
+  if (!x) return false // Body is not empty
+  // Parse askToTransfer
+  let transferRequest: jetton.AskToTransferWithFwdPayload<T>
+  try {
+    transferRequest = jetton.builder.messages.in
+      .askToTransferWithFwdPayload(payloadCodec)
+      .load(x.beginParse())
+  } catch (e) {
+    console.log('Failed to load payload: ', e)
+    return false
+  }
+  if (opt?.transferRequestValidaton && !opt.transferRequestValidaton(transferRequest)) {
+    return false
+  }
+  if (opt?.fwdPayloadValidation && !opt.fwdPayloadValidation(transferRequest.forwardPayload)) {
+    return false
+  }
+  return true
+}
+
+function verifyBodyIsTransferNotification(
+  x: Cell | undefined,
+  opt: {
+    transferNotificationValidaton?: (x: jetton.TransferNotificationForRecipient) => boolean
+  },
+): boolean {
+  // === Verifies that body is an askToTransfer with forwardPayload: onrampSend ===
+  if (!x) return false // Body is not empty
+  // Parse askToTransfer
+  let transferRequest: jetton.TransferNotificationForRecipient
+  try {
+    transferRequest = jetton.builder.messages.out.transferNotificationForRecipient.load(
+      x.beginParse(),
+    )
+  } catch (e) {
+    console.log('Failed to load onrampSend: ', e)
+    return false
+  }
+  if (opt?.transferNotificationValidaton && !opt.transferNotificationValidaton(transferRequest)) {
+    return false
+  }
+  return true
+}
+
+function verifyBodyIsTransferNotificationWithFwdPayload<T>(
+  x: Cell | undefined,
+  payloadCodec: CellCodec<T>,
+  opt: {
+    transferNotificationValidaton?: (x: jetton.TransferNotificationWithFwdPayload<T>) => boolean
+    fwdPayloadValidation?: (x: T) => boolean
+  },
+): boolean {
+  // === Verifies that body is an askToTransfer with forwardPayload: onrampSend ===
+  if (!x) return false // Body is not empty
+  // Parse askToTransfer
+  let transferRequest: jetton.TransferNotificationWithFwdPayload<T>
+  try {
+    transferRequest = jetton.builder.messages.out
+      .transferNotificationWithFwdPayload(payloadCodec)
+      .load(x.beginParse())
+  } catch (e) {
+    console.log('Failed to load onrampSend: ', e)
+    return false
+  }
+  if (opt?.transferNotificationValidaton && !opt.transferNotificationValidaton(transferRequest)) {
+    return false
+  }
+  if (opt?.fwdPayloadValidation && !opt.fwdPayloadValidation(transferRequest.forwardPayload)) {
+    return false
+  }
+  return true
 }
