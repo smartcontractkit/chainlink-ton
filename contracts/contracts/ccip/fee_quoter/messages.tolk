@@ -1,5 +1,6 @@
 import "types"
 import "@stdlib/lisp-lists"
+import "../router/messages.tolk"
 
 type FeeQuoter_InMessage =
     | FeeQuoter_UpdatePrices
@@ -15,7 +16,7 @@ struct (0x20000001) FeeQuoter_UpdatePrices {
 
 // crc32('FeeQuoter_GetValidatedFee')
 struct (0x7496FF56) FeeQuoter_GetValidatedFee<C> {
-    msg: Cell<CCIPSend>
+    msg: Cell<Router_CCIPSend>
     metadata: Cell<C>
 }
 

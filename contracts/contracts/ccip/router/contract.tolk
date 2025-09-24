@@ -1,9 +1,12 @@
-import "types.tolk";
+import "types";
+import "messages";
+import "exit_codes";
 import "../onramp/messages.tolk";
-import "../lib/access/ownable_2step.tolk";
-import "../lib/upgrades/type_and_version.tolk";
-import "../deployable/types.tolk";
-import "../lib/utils.tolk";
+import "../onramp/types.tolk";
+import "../../lib/access/ownable_2step.tolk";
+import "../../lib/upgrades/type_and_version.tolk";
+import "../../deployable/types.tolk";
+import "../../lib/utils.tolk";
 
 struct Storage {
     ownable: Ownable2Step;
@@ -21,7 +24,7 @@ fun Storage.store(self) {
 }
 
 fun onInternalMessage(in: InMessage) {
-    val msg = lazy Msg.fromSlice(in.body);
+    val msg = lazy Router_InMsg.fromSlice(in.body);
     match (msg) {
         SetRamp => { onSetRamp(msg, in.senderAddress) }
         CCIPSend => { onSend(msg, in.senderAddress) }
@@ -81,7 +84,7 @@ fun ccipSend(msg: CCIPSend, sender: address) {
         bounce: true,
         value: ton("0.1"), // TODO:
         dest: onRamp,
-        body: OnRamp_Send { msg: msg.toCell(), metadata: Metadata{ sender } },
+        body: OnRamp_Send { msg: msg.toCell(), metadata: Metadata { sender } },
     });
     sendMsg.send(SEND_MODE_REGULAR);
 }

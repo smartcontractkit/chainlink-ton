@@ -1,4 +1,7 @@
-type Msg = Router_CCIPSend | Router_SetRamp | Router_JettonTransferNotification;
+import "../common/types.tolk";
+import "types.tolk";
+
+type Router_InMsg = Router_CCIPSend | Router_SetRamp | Router_JettonTransferNotification;
 
 struct (0x10000001) Router_SetRamp {
     queryId: uint64;
@@ -23,7 +26,7 @@ struct (0x7362d09c) Router_JettonTransferNotification {
     queryId: uint64;
     amount: coins;
     sender: address;
-    forwardPayload: Cell<CCIPSend>?; // could also be RemainingBitsAndRefs
+    forwardPayload: Cell<Router_CCIPSend>?; // could also be RemainingBitsAndRefs
 }
 
 

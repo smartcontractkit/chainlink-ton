@@ -5,6 +5,7 @@ import "../../lib/upgrades/type_and_version";
 import "../../lib/utils";
 import "messages";
 import "types";
+import "config";
 import "exit_codes";
 
 struct Storage {
@@ -272,7 +273,7 @@ fun getValidatedFee(payload: FeeQuoter_GetValidatedFee<cell>, sender: address) {
         bounce: true,
         value: ton("0.05"), // TODO:
         dest: sender,
-        body: FeeQuoter_MessageValidated<cell> {
+        body: OnRamp_MessageValidated<cell> {
             msg: payload.msg,
             metadata: payload.metadata,
             fee: feeTokenAmount,

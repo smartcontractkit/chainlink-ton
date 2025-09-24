@@ -1,3 +1,5 @@
+import "../common/types.tolk";
+
 struct TokenAmount {
     amount: coins;
     token: address;
@@ -5,10 +7,7 @@ struct TokenAmount {
 
 struct WithdrawFeeTokens {}
 
-struct Metadata {
-    sender: address,
-    // TODO: metadata { value, tokenAmounts }
-}
+
 
 struct MessageMetadata {
     header: uint256 = stringSha256("Any2TVMMessageHashV1");

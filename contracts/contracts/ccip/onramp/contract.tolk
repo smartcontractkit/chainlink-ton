@@ -1,14 +1,18 @@
 import "@stdlib/lisp-lists";
-import "types.tolk";
-import "../lib/access/ownable_2step.tolk";
-import "../lib/upgrades/type_and_version.tolk";
-import "../lib/utils.tolk";
 import "@stdlib/tvm-dicts";
-import "fee_quoter/messages";
+
 import "events";
 import "types";
 import "messages";
 import "exit_codes";
+
+import "../common/types";
+import "../fee_quoter/messages";
+
+import "../../lib/access/ownable_2step";
+import "../../lib/upgrades/type_and_version";
+import "../../lib/utils.tolk";
+
 
 struct Storage {
     ownable: Ownable2Step;
@@ -45,23 +49,23 @@ fun Storage.store(self) {
 
 
 fun onInternalMessage(in: InMessage) {
-    val msg = lazy Msg.fromSlice(in.body);
+    val msg = lazy OnRamp_InMessage.fromSlice(in.body);
     match (msg) {
-        OnRampSend => { send(msg, in.senderAddress) }
-        FeeQuoter_MessageValidated<Metadata> => { onMessageValidated(msg, in.senderAddress) }
-        SetDynamicConfig => {
+        OnRamp_Send => { send(msg, in.senderAddress) }
+        OnRamp_MessageValidated<Metadata> => { onMessageValidated(msg, in.senderAddress) }
+        OnRamp_SetDynamicConfig => {
             var st = lazy Storage.load();
             st.ownable.requireOwner(in.senderAddress);
             st.config = msg.config.toCell();
             st.store();
         }
-        OnRampUpdateDestChainConfigs => {
+        OnRamp_UpdateDestChainConfigs => {
             var st = lazy Storage.load();
             st.ownable.requireOwner(in.senderAddress);
             applyDestChainConfigUpdates(mutate st, msg.updates);
             st.store();
         }
-        UpdateAllowlists => {
+        OnRamp_UpdateAllowlists => {
             var st = lazy Storage.load();
             st.ownable.requireOwner(in.senderAddress);
             applyAllowlistUpdates(mutate st, msg.updates);
@@ -74,7 +78,7 @@ fun onInternalMessage(in: InMessage) {
     }
 }
 
-fun send(payload: OnRampSend, sender: address) {
+fun send(payload: OnRamp_Send, sender: address) {
     val st = lazy Storage.load();
 
     val msg = payload.msg.load();
@@ -107,13 +111,13 @@ fun send(payload: OnRampSend, sender: address) {
 
 // TODO: do we follow solana model and merge router + onramp? aptos also does this
 // does onramp even do anything apart from forwarding to fee quoter?
-fun onMessageValidated(payload: FeeQuoter_MessageValidated<Metadata>, sender: address) {
+fun onMessageValidated(payload: OnRamp_MessageValidated<Metadata>, sender: address) {
     var st = lazy Storage.load();
     val config = st.config.load();
     // notification must come from fee quoter
     assert(config.feeQuoter == sender, Error.Unauthorized);
 
-    val msg: CCIPSend = payload.msg.load();
+    val msg = payload.msg.load();
     val metadata = payload.metadata.load();
 
     // validate user transferred enough value

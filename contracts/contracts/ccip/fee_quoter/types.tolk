@@ -14,26 +14,6 @@ const CHAIN_FAMILY_SELECTOR_SVM:   uint32 = 0x1e10bdc4;
 const CHAIN_FAMILY_SELECTOR_APTOS: uint32 = 0xac77ffec;
 const CHAIN_FAMILY_SELECTOR_SUI:   uint32 = 0xc4e05953;
 
-// This represents FeeQuoter's DestChainConfig (not OnRamp)
-struct DestChainConfig {
-    config: FeeQuoterDestChainConfig;
-
-    // TODO: split this out since updates are more frequent?
-    usdPerUnitGas: Cell<GasPrice>; // TODO: it'd be nice if this wasn't split off
-
-    tokenTransferFeeConfigs: map<address, TokenTransferFeeConfig>;
-}
-
-fun DestChainConfig.getValidatedGasPrice(self): (uint112, uint112) {
-    val price = self.usdPerUnitGas.load();
-    val threshold = self.config.gasPriceStalenessThreshold as int64;
-    val elapsedTime = blockchain.now() - price.timestamp;
-
-    assert(threshold == 0 || threshold > elapsedTime, Error.StaleGasPrice);
-
-    return (price.executionGasPrice, price.dataAvailabilityGasPrice)
-}
-
 struct FeeQuoterDestChainConfig {
     isEnabled: bool;
     maxNumberOfTokensPerMsg: uint16;

@@ -1,6 +1,6 @@
-import "../lib/utils.tolk";
-
 const ERROR_OUT_OF_RANGE = 5;
+
+const LEAF_DOMAIN_SEPARATOR: slice = stringHexToSlice("0000000000000000000000000000000000000000000000000000000000000000");
 
 // 1-byte length prefixed byte slice (up to 64 bytes)
 // Almost all uses need to Cell<> box this type because it can be sized up to 8+512 bits

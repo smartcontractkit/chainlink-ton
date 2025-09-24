@@ -1,7 +1,7 @@
 import "../router/messages.tolk";
 import "types.tolk";
 
-type Msg = OnRampSend | FeeQuoter_MessageValidated<Metadata> | SetDynamicConfig | OnRampUpdateDestChainConfigs | UpdateAllowlists;
+type OnRamp_InMessage = OnRamp_Send | OnRamp_MessageValidated<Metadata> | OnRamp_SetDynamicConfig | OnRamp_UpdateDestChainConfigs | OnRamp_UpdateAllowlists;
 
 // crc32('OnRamp_MessageValidated')
 struct (0x1FA60374) OnRamp_MessageValidated<C> {
@@ -12,7 +12,7 @@ struct (0x1FA60374) OnRamp_MessageValidated<C> {
 
 struct (0x10000002) OnRamp_Send {
     // queryId is embedded in the first element of CCIPSend
-    msg: Cell<CCIPSend>;
+    msg: Cell<Router_CCIPSend>;
     metadata: Metadata
 }
 

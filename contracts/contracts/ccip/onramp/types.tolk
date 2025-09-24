@@ -1,3 +1,5 @@
+import "../common/types.tolk"
+
 struct UpdateAllowlist {
     destChainSelector: uint64;
     add: cell; // vec<address>
@@ -15,6 +17,11 @@ struct OnRampDynamicConfig {
     // destination address that will receive tokens on withdrawFees
     feeAggregator: address;
     allowlistAdmin: address;
+}
+
+struct Metadata {
+    sender: address,
+    // TODO: metadata { value, tokenAmounts }
 }
 
 struct DestChainConfig {
