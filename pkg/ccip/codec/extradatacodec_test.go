@@ -14,7 +14,6 @@ import (
 )
 
 func Test_decodeExtraArgs(t *testing.T) {
-	t.Skip("Skipping extra args tests")
 	extraDataDecoder := NewExtraDataDecoder()
 	t.Run("decode dest exec data into map svm", func(t *testing.T) {
 		destGasAmount := uint32(10000)

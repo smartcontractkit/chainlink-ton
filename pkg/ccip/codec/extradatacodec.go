@@ -3,11 +3,11 @@ package codec
 import (
 	"encoding/binary"
 	"fmt"
-	"math/big"
 	"reflect"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 
@@ -46,19 +46,12 @@ func (d extraDataDecoder) DecodeExtraArgsToMap(extraArgs ccipocr3.Bytes) (map[st
 
 	outputMap := make(map[string]any)
 
-	// c, err := cell.FromBOC(extraArgs)
-	// if err != nil {
-	// 	return outputMap, fmt.Errorf("failed to decode BOC: %w", err)
-	// }
-
-	//TODO: remove this after TON2EVM verified
-	tempExtraArgs := onramp.GenericExtraArgsV2{
-		GasLimit:                 big.NewInt(1000000),
-		AllowOutOfOrderExecution: true,
+	c, err := cell.FromBOC(extraArgs)
+	if err != nil {
+		return outputMap, fmt.Errorf("failed to decode BOC: %w", err)
 	}
-	tempC, _ := tlb.ToCell(tempExtraArgs)
 
-	tag, err := tempC.BeginParse().LoadSlice(32)
+	tag, err := c.BeginParse().LoadSlice(32)
 	if err != nil {
 		return outputMap, fmt.Errorf("failed to load tag from cell: %w", err)
 	}
@@ -66,7 +59,7 @@ func (d extraDataDecoder) DecodeExtraArgsToMap(extraArgs ccipocr3.Bytes) (map[st
 	switch hexutil.Encode(tag) {
 	case hexutil.Encode(evmExtraArgsV2Tag):
 		var args onramp.GenericExtraArgsV2
-		if err = tlb.LoadFromCell(&args, tempC.BeginParse()); err != nil {
+		if err = tlb.LoadFromCell(&args, c.BeginParse()); err != nil {
 			return nil, fmt.Errorf("failed to tlb load extra args from cell: %w", err)
 		}
 		val = reflect.ValueOf(args)
@@ -74,7 +67,7 @@ func (d extraDataDecoder) DecodeExtraArgsToMap(extraArgs ccipocr3.Bytes) (map[st
 
 	case hexutil.Encode(svmExtraArgsV1Tag):
 		var tlbArgs onramp.SVMExtraArgsV1
-		if err = tlb.LoadFromCell(&tlbArgs, tempC.BeginParse()); err != nil {
+		if err = tlb.LoadFromCell(&tlbArgs, c.BeginParse()); err != nil {
 			return nil, fmt.Errorf("failed to tlb load extra args from cell: %w", err)
 		}
 		val = reflect.ValueOf(tlbArgs)
