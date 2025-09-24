@@ -37,9 +37,6 @@ fun onInternalMessage(in: InMessage) {
 }
 
 fun init(onramp_send: OnRampSend, config: CCIPSendExecutor_Config): CCIPSendExecutor<CCIPSendExecutor_State_Initialized> {
-    debug.printString("initializing ccip send executor");
-    debug.printString("token registry:");
-    debug.print(config.tokenRegistry);
     val st = lazy CCIPSendExecutor_InitialData.fromCell(contract.getData());
     val this = CCIPSendExecutor<CCIPSendExecutor_State_Initialized> {
         messageId: st.messageId,
@@ -52,8 +49,6 @@ fun init(onramp_send: OnRampSend, config: CCIPSendExecutor_Config): CCIPSendExec
             tokenRegistry: config.tokenRegistry,
         }.toCell(),
     };
-    debug.printString("stored token registry");
-    debug.print(this.state.load().tokenRegistry!);
     return this;
 }
 
@@ -76,11 +71,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_Initialized>.onExecute(mutate self, 
 
 fun CCIPSendExecutor<CCIPSendExecutor_State_Initialized>.withdrawJettons(mutate self, onrampJettonWallet: address) {
     val ccipSend = lazy self.onrampSend.msg.load();
-    debug.printString("withdrawing jettons from");
-    debug.printString("token registry");
     val state = lazy self.state.load();
-    debug.print(state.tokenRegistry!);
-
 
     val withdrawMsg = createMessage({
         bounce: true,
@@ -106,8 +97,6 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_Initialized>.withdrawJettons(mutate 
 
 fun CCIPSendExecutor<CCIPSendExecutor_State_WaitingForJettons>.onJettonTransferFromOnRamp(mutate self, msg: JettonTransferNotification, jettonWallet: address) {
     val tokenRegistry = self.state.load().tokenRegistry;
-    debug.printString("querying token registry:");
-    debug.print(tokenRegistry);
     val queryMsg = createMessage({
         bounce: true,
         value: 0,

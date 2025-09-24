@@ -23,13 +23,9 @@ fun TokenRegistry_Storage.load(): TokenRegistry_Storage {
     return TokenRegistry_Storage.fromCell(contract.getData());
 }
 
-fun TokenRegistry_Storage.store(self) {
-    contract.setData(self.toCell());
-}
-
 fun TokenRegistry_InitializedStorage.load(): TokenRegistry_InitializedStorage {
     val st = TokenRegistry_Storage.fromCell(contract.getData());
-    assert (st.info != null) throw 5; // TODO propper error
+    assert (st.info != null) throw 0xFFFF; // TODO propper error
     return TokenRegistry_InitializedStorage {
         onramp: st.onramp,
         minterAddress: st.minterAddress,

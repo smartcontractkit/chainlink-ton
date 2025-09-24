@@ -68,6 +68,7 @@ type OnRamp_InMessage =
     | SetDynamicConfig
     | OnRampUpdateDestChainConfigs
     | UpdateAllowlists
+    | ReturnExcessesBack
     ;
     // TODO | UpdateExecutorCode
 
@@ -97,6 +98,9 @@ fun onInternalMessage(in: InMessage) {
             st.ownable.requireOwner(in.senderAddress);
             applyAllowlistUpdates(mutate st, msg.updates);
             st.store();
+        }
+        ReturnExcessesBack => {
+            return;
         }
         else => {
             // ignore empty messages, "wrong opcode" for others
@@ -132,9 +136,6 @@ fun send(payload: OnRampSend, sender: address, jettonWallet: address? = null) {
     if (!tokenAmounts.empty()) {
         tokenRegistry = calculateTokenRegistryAddress(st, tokenAmounts.next().token);
     }
-    debug.printString("token registry address:");
-    debug.print(tokenRegistry);
-
     val executeMsg = createMessage({
         bounce: true,
         value: ton("0.05"), // TODO: calculate

@@ -5,18 +5,14 @@ import {
   Contract,
   contractAddress,
   ContractProvider,
-  Dictionary,
   Sender,
   SendMode,
   Slice,
   Builder,
 } from '@ton/core'
 
-import * as ownable2step from '../libraries/access/Ownable2Step'
-import { asSnakeData } from '../../src/utils'
 import { CellCodec } from '../utils'
 import * as rt from './Router'
-import { crc32 } from 'zlib'
 
 export type Storage = {
   onramp: Address
@@ -73,22 +69,32 @@ export const builder = {
     }
     const contractData: CellCodec<Storage> = {
       encode: function (data: Storage): Builder {
-        return beginCell()
-          .storeAddress(data.onramp)
-          .storeAddress(data.minterAddress)
-          .storeMaybeBuilder(data.info && tokenInfo.encode(data.info))
+        const builder = beginCell().storeAddress(data.onramp).storeAddress(data.minterAddress)
+
+        // Store whether info exists
+        if (data.info) {
+          builder.storeBit(true)
+          builder.storeBuilder(tokenInfo.encode(data.info))
+        } else {
+          builder.storeBit(false)
+        }
+
+        return builder
       },
       load: function (src: Slice): Storage {
+        const onramp = src.loadAddress()
+        const minterAddress = src.loadAddress()
+        const hasInfo = src.loadBit()
+
+        let info: TokenInfo | undefined
+        if (hasInfo) {
+          info = tokenInfo.load(src)
+        }
+
         return {
-          onramp: src.loadAddress(),
-          minterAddress: src.loadAddress(),
-          info: (() => {
-            const maybeTokenInfo = src.loadMaybeRef()
-            if (maybeTokenInfo != null) {
-              return tokenInfo.load(maybeTokenInfo.beginParse())
-            }
-            return undefined
-          })(),
+          onramp,
+          minterAddress,
+          info,
         }
       },
     }
@@ -102,13 +108,13 @@ export const builder = {
             return beginCell()
               .storeUint(Opcodes.setInfo, 32)
               .storeUint(data.queryId, 64)
-              .storeRef(builder.data.tokenInfo.encode(data.info).endCell())
+              .storeBuilder(builder.data.tokenInfo.encode(data.info))
           },
           load: function (src: Slice): SetInfo {
             src.skip(32)
             return {
               queryId: src.loadUint(64),
-              info: builder.data.tokenInfo.load(src.loadRef().beginParse()),
+              info: builder.data.tokenInfo.load(src),
             }
           },
         }
@@ -119,7 +125,7 @@ export const builder = {
             return beginCell()
               .storeUint(Opcodes.getTokenInfo, 32)
               .storeUint(data.queryId, 64)
-              .storeRef(rt.builder.message.in.ccipSend.encode(data.ccipSend))
+              .storeRef(rt.builder.message.in.ccipSend.encode(data.ccipSend).endCell())
               .storeAddress(data.executorJettonWallet)
           },
           load: function (src: Slice): GetTokenInfo {
@@ -157,15 +163,18 @@ export const builder = {
 export abstract class Params {}
 
 export abstract class Opcodes {
-  static setInfo = crc32('TokenRegistry_SetInfo')
-  static getTokenInfo = crc32('TokenRegistry_GetTokenInfo')
+  static setInfo = 0x22e22393 // crc32('TokenRegistry_SetInfo')
+  static getTokenInfo = 0xdd5d5127 // crc32('TokenRegistry_GetTokenInfo')
 }
 
 export abstract class OutgoingOpcodes {
-  static tokenPoolInfo = crc32('TokenRegistry_TokenPoolInfo')
+  static tokenPoolInfo = 0xb8f88a81 // crc32('TokenRegistry_TokenPoolInfo')
 }
 
-export abstract class Errors {}
+export abstract class Errors {
+  static infoNotSet = 5
+  static invalidMessage = 10
+}
 
 export class TokenRegistry implements Contract {
   constructor(
@@ -207,5 +216,25 @@ export class TokenRegistry implements Contract {
       })
       .asCell()
     await this.sendInternal(provider, via, value, body)
+  }
+
+  async sendGetTokenInfo(
+    provider: ContractProvider,
+    via: Sender,
+    opts: {
+      value: bigint
+      queryId: number
+      ccipSend: rt.CCIPSend
+      executorJettonWallet: Address
+    },
+  ) {
+    const body = builder.messages.in.getTokenInfo
+      .encode({
+        queryId: opts.queryId,
+        ccipSend: opts.ccipSend,
+        executorJettonWallet: opts.executorJettonWallet,
+      })
+      .asCell()
+    await this.sendInternal(provider, via, opts.value, body)
   }
 }

@@ -1,6 +1,7 @@
 import "messages"
 import "storage"
 import "../../lib/jetton/jetton_client"
+import "../../lib/jetton/utils"
 
 tolk 1.0;
 
@@ -10,8 +11,13 @@ fun onInternalMessage(in: InMessage) {
     match (msg) {
         TokenRegistry_SetInfo => {
             var st = TokenRegistry_Storage.load();
-            st.info = msg.info;
-            st.store();
+            TokenRegistry{
+                data: TokenRegistry_InitializedStorage {
+                    onramp: st.onramp,
+                    minterAddress: st.minterAddress,
+                    info: msg.info,
+                },
+            }.store();
         }
         TokenRegistry_GetTokenInfo => {
             val this = TokenRegistry.load();
@@ -40,14 +46,19 @@ fun TokenRegistry.store(self) {
 fun TokenRegistry.handleGetTokenInfo(self, msg: TokenRegistry_GetTokenInfo, sender: address) {
     if (!self.data.info.enabled) {
         // TODO: send message blocking transaction
+        debug.printString("TokenRegistry: Registry is disabled");
+        throw 501;
         return;
     }
 
-    if (msg.executorJettonWallet != JettonClient {
-        masterAddress: self.data.minterAddress,
-        jettonWalletCode: self.data.info.walletCode,
-    }.walletAddress()) {
+    if (msg.executorJettonWallet != calculateUserJettonWalletAddress(
+        sender,
+        self.data.minterAddress,
+        self.data.info.walletCode,
+    )) {
         // TODO: Send message blocking transaction
+        debug.printString("TokenRegistry: Invalid executor jetton wallet");
+        throw 502;
         return;
     }
 
