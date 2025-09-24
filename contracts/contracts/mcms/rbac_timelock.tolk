@@ -1482,7 +1482,7 @@ get fun getRoleMemberCount(role: int): int {
 }
 
 /// @see <AccessControl<T>.getRoleMembers>
-get fun getRoleMembers(role: int): dict {
+get fun getRoleMembers(role: int): map<address, bool>  {
     val rbac = Timelock<bool>.load().hookTrait__AccessControl();
     return rbac.getRoleMembers(role);
 }

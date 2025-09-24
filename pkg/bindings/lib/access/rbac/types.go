@@ -124,7 +124,7 @@ type RoleAdminChanged struct {
 // AccessControl data struct, auto-serialized to/from cell.
 type Data struct {
 	// Roles mapping
-	Roles *cell.Dictionary `tlb:"dict 32"` // map<uint32, RoleData>
+	Roles *cell.Dictionary `tlb:"dict 256"` // map<uint256, RoleData>
 }
 
 // Internal storage struct for role data
@@ -136,7 +136,7 @@ type RoleData struct {
 	// Number of members in the role
 	MembersLen uint64 `tlb:"## 64"`
 	// Members of the role, indexed by their address hash.
-	HasRole *cell.Dictionary `tlb:"dict 267"` // map<address, slice>
+	HasRole *cell.Dictionary `tlb:"dict 267"` // map<address, bool>
 }
 
 // --- Constants ---

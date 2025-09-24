@@ -123,8 +123,8 @@ struct (0x89277f4b) MCMS_SetConfig {
 
     signerKeys: cell;   // vec<uint256> (public keys)
     signerGroups: cell; // vec<uint8>
-    groupQuorums: map<uint8, uint8>; // (indexed, iterable backwards)
-    groupParents: map<uint8, uint8>; // (indexed, iterable backwards)
+    groupQuorums: map<uint8, uint8>; // indexed, iterable backwards
+    groupParents: map<uint8, uint8>; // indexed, iterable backwards
     clearRoot: bool;
 }
 
