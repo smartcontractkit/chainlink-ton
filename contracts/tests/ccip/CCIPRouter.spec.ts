@@ -272,6 +272,7 @@ describe('Router', () => {
         throw new Error('Executor address not found')
       })()
 
+      // we called the router
       expect(result.transactions).toHaveTransaction({
         from: sender.address,
         to: router.address,
@@ -410,8 +411,6 @@ describe('Router', () => {
         throw new Error('Executor address not found')
       })()
       const executorJettonWallet = await provideUserWalletFor(executorAddress)
-
-      // console.log('Trace:\n', (await dump(result.transactions)).join('\n'))
 
       // we called the router
       expect(result.transactions).toHaveTransaction({
