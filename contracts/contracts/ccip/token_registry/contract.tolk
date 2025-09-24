@@ -3,7 +3,7 @@ import "storage"
 import "../../lib/jetton/jetton_client"
 import "../../lib/jetton/utils"
 
-tolk 1.0;
+tolk 1.1;
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy TokenRegistry_InMessage.fromSlice(in.body);

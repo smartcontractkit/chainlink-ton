@@ -1,4 +1,4 @@
-tolk 1.0
+tolk 1.1
 
 struct TokenRegistry_Storage {
     onramp: address // TODO this could be MCMS?

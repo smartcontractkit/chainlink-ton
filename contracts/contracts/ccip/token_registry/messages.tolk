@@ -1,7 +1,7 @@
 import "storage"
 import "../types"
 
-tolk 1.0
+tolk 1.1
 
 type TokenRegistry_InMessage = 
     | TokenRegistry_SetInfo
