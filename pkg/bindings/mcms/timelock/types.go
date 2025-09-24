@@ -417,7 +417,7 @@ const (
 
 const (
 	// Error codes
-	ErrorSelectorIsBlocked = iota * 21300
+	ErrorSelectorIsBlocked = iota * 19300
 	ErrorOperationNotReady
 	ErrorOperationMissingDependency
 	ErrorOperationCannotBeCancelled

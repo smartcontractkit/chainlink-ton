@@ -330,60 +330,84 @@ const DEFAULT_FINALIZATION_TIMEOUT = 60; // in seconds
 /// Error codes used by the Timelock contract.
 enum Error {
     /// Thrown when number of signers is 0 or greater than MAX_NUM_SIGNERS.
-    OutOfBoundsNumSigners = 58600
+    OutOfBoundsNumSigners = 39000 // MCMS<T>.errorCode(0)
+
     /// Thrown when signerKeys and signerGroups have different lengths.
     SignerGroupsLengthMismatch
+
     /// Thrown when number of some signer's group is greater than (NUM_GROUPS-1).
     OutOfBoundsGroup
+
     /// Thrown when the group tree isn't well-formed.
     GroupTreeNotWellFormed
+
     /// Thrown when the quorum of some group is larger than the number of signers in it.
     OutOfBoundsGroupQuorum
+
     /// Thrown when a disabled group contains a signer.
     SignerInDisabledGroup
+
     /// Thrown when the signers' public keys are not a strictly increasing monotone sequence.
     /// Prevents signers from including more than one signature.
     SignersKeysMustBeStrictlyIncreasing
+
     /// Thrown when the signature corresponds to invalid signer.
     InvalidSigner
+
     /// Thrown when there is no sufficient set of valid signatures provided to make the
     /// root group successful.
     InsufficientSigners
+
     /// Thrown when attempt to set metadata or execute op for another chain.
     WrongChainId
+
     /// Thrown when the multiSig address in metadata or op is
     /// incompatible with the address of this contract.
     WrongMultiSig
+
     /// Thrown when the preOpCount <= postOpCount invariant is violated.
     WrongPostOpCount
+
     /// Thrown when attempting to set a new root while there are still pending ops
     /// from the previous root without explicitly overriding it.
     PendingOps
+
     /// Thrown when preOpCount in metadata is incompatible with the current opCount.
     WrongPreOpCount
+
     /// Thrown when the provided merkle proof cannot be verified.
     ProofCannotBeVerified
+
     /// Thrown when attempt to execute an op after
     /// data.rootInfo.expiringRootAndOpCount.validUntil has passed.
     RootExpired
+
     /// Thrown when attempt to bypass the enforced ops' order in the merkle tree or
     /// re-execute an op.
     WrongNonce
+
     /// Thrown when attempting to execute an op even though opCount equals
     /// metadata.postOpCount.
     PostOpCountReached
+
     /// Thrown when the underlying call in _execute() reverts.
     CallReverted
+
     /// Thrown when attempt to set past validUntil for the root.
     ValidUntilHasAlreadyPassed
+
     /// Thrown when setRoot() is called before setting a config.
     MissingConfig
+
     /// Thrown when attempt to set the same (root, validUntil) in setRoot().
     SignedHashAlreadySeen
+
     /// Thrown when the root has not been finalized yet (can't execute next op before finalization).
     RootNotFinalized
+
     /// Thrown when the provided op.value is insufficient (min required value not met).
     InsufficientValue
+
     /// Thrown when the error report sender is not the authorized oracle.
     UnauthorizedOracle
 }
@@ -561,9 +585,9 @@ struct Op {
 // --- Methods ---
 
 /// Returns the error code for this facility and the given local code.
-///     errorCode(0) == 58600
+///     errorCode(0) == 39000
 fun MCMS<T>.errorCode(local: uint16): uint16 {
-    return errorCode(stringCrc16("com.chainlink.ton.mcms.MCMS"), local);
+    return errorCode(stringCrc32("com.chainlink.ton.mcms.MCMS"), local);
 }
 
 /// @dev Loads the MCMS contract data from persistent storage.

@@ -396,7 +396,7 @@ var ManyChainMultiSigDomainSeparatorMetadata = stringSha256_32("MANY_CHAIN_MULTI
 
 const (
 	// Thrown when number of signers is 0 or greater than MAX_NUM_SIGNERS.
-	ErrorOutOfBoundsNumSigners = 58600
+	ErrorOutOfBoundsNumSigners = 39000
 
 	// Thrown when signerKeys and signerGroups have different lengths.
 	ErrorSignerGroupsLengthMismatch

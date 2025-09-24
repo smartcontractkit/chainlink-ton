@@ -562,7 +562,7 @@ const ERROR_TIMESTAMP = 2;
 
 /// Error codes used by the Timelock contract.
 enum Error {
-    SelectorIsBlocked = 21300
+    SelectorIsBlocked = 19300 // Timelock<T>.errorCode(0)
     OperationNotReady
     OperationMissingDependency
     OperationCanNotBeCancelled
@@ -571,8 +571,10 @@ enum Error {
     PendingOperationNotFinal
     InsufficientValue
     OperationNotDone
+
     /// Thrown when trying to initialize the contract more than once.
     ContractAlreadyInitialized
+
     /// Thrown when trying to call a function on an uninitialized contract.
     ContractNotInitialized
 }
@@ -585,9 +587,9 @@ const MIN_TON_FOR_STORAGE = 1000000000; // 1 TON
 // --- Methods ---
 
 /// Returns the error code for this facility and the given local code.
-///     errorCode(0) == 21300
+///     errorCode(0) == 19300
 fun Timelock<T>.errorCode(local: uint16): uint16 {
-    return errorCode(stringCrc16("com.chainlink.ton.mcms.Timelock"), local);
+    return errorCode(stringCrc32("com.chainlink.ton.mcms.Timelock"), local);
 }
 
 /// Loads the Timelock contract data from persistent storage.

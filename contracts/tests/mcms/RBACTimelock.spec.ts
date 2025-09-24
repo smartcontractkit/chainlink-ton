@@ -7,6 +7,7 @@ import { rbactl } from '../../wrappers/mcms'
 import { ac } from '../../wrappers/lib/access'
 import { crc32 } from 'zlib'
 import { asSnakeData } from '../../src/utils'
+import { errorCode } from '../../wrappers/utils'
 
 describe('RBACTimelock', () => {
   let code: Cell
@@ -65,7 +66,13 @@ describe('RBACTimelock', () => {
     acContract = blockchain.openContract(ac.ContractClient.newAt(timelock.address))
   })
 
-  it('Should compute keccak256 roles', async () => {
+  it('should compute error code', async () => {
+    expect(rbactl.ErrorCode.SelectorIsBlocked).toBe(
+      errorCode(crc32('com.chainlink.ton.mcms.Timelock'), 0),
+    )
+  })
+
+  it('should compute keccak256 roles', async () => {
     expect(rbactl.roles.admin).toBe(
       0xa49807205ce4d355092ef5a8a18f56e8913cf4a201fbe287825b095693c21775n,
     )
@@ -86,7 +93,7 @@ describe('RBACTimelock', () => {
     )
   })
 
-  it('Should compute crc32 opcodes', async () => {
+  it('should compute crc32 opcodes', async () => {
     // In opcodes
     expect(rbactl.opcodes.in.Init).toBe(0x4982fcfd)
     expect(rbactl.opcodes.in.TopUp).toBe(0xfee62ba6)

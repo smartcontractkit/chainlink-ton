@@ -152,7 +152,7 @@ export const MAX_NUM_SIGNERS = 200
 
 export enum Error {
   /// Thrown when number of signers is 0 or greater than MAX_NUM_SIGNERS.
-  OUT_OF_BOUNDS_NUM_SIGNERS = 58600,
+  OUT_OF_BOUNDS_NUM_SIGNERS = 39000,
 
   /// Thrown when signerKeys and signerGroups have different lengths.
   SIGNER_GROUPS_LENGTH_MISMATCH,

@@ -6,17 +6,17 @@ const ERROR_WRONG_OP = 0xffff;
 const ERROR_INVALID_DATA = 0x77;
 const ERROR_BITMAP_OUT_OF_BOUNDS = 0x78;
 
-/// Returns the facility ID for the given CRC16 key (e.g. stringCrc16("com.chainlink.ton.mcms.Timelock")).
+/// Returns the facility ID for the given CRC32 key (e.g. stringCrc32("com.chainlink.ton.mcms.Timelock")).
 /// Returns a value in range 10..649 (640 values).
 @pure
-fun facilityId(crc16Key: int): uint16 {
-    return (crc16Key % 640) + 10;
+fun facilityId(crc32Key: int): uint16 {
+    return (crc32Key % 640) + 10;
 }
 
 /// Returns an error code composed from facility and local code (max 2^16-1).
 @pure
-fun errorCode(crc16Key: int, local: uint16): uint16 {
-    return facilityId(crc16Key) * 100 + local;
+fun errorCode(crc32Key: int, local: uint16): uint16 {
+    return facilityId(crc32Key) * 100 + local;
 }
 
 /// The default message forwarding budget fee for messages (replies, notifications, sends)

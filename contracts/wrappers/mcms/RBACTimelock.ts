@@ -797,8 +797,8 @@ export const DONE_TIMESTAMP = 1n
 // Timestamp value used to mark an operation as error
 export const ERROR_TIMESTAMP = 2n
 
-export enum Errors {
-  SelectorIsBlocked = 21300,
+export enum ErrorCode {
+  SelectorIsBlocked = 19300,
   OperationNotReady,
   OperationMissingDependency,
   OperationCanNotBeCancelled,

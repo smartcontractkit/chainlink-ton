@@ -9,6 +9,7 @@ import * as ac from '../../wrappers/lib/access/AccessControl'
 import { BaseTestSetup, TestCode } from './BaseTest'
 import { SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { asSnakeData } from '../../src/utils'
+import { ERROR_TIMESTAMP } from '../../wrappers/mcms/RBACTimelock'
 
 describe('MCMS - RBACTimelockExecuteTest', () => {
   let baseTest: BaseTestSetup
@@ -303,7 +304,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
         from: baseTest.acc.executorOne.address,
         to: baseTest.bind.timelock.address,
         success: false,
-        exitCode: rbactl.Errors.OperationNotReady,
+        exitCode: rbactl.ErrorCode.OperationNotReady,
       })
     })
 
@@ -396,7 +397,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
         from: baseTest.acc.executorOne.address,
         to: baseTest.bind.timelock.address,
         success: false,
-        exitCode: rbactl.Errors.OperationMissingDependency,
+        exitCode: rbactl.ErrorCode.OperationMissingDependency,
       })
     })
 
@@ -472,7 +473,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       }
       const operationId = await baseTest.bind.timelock.getHashOperationBatch(operationBatch)
       const timestamp = await baseTest.bind.timelock.getTimestamp(operationId)
-      expect(timestamp).toEqual(rbactl.ERROR_TIMESTAMP)
+      expect(timestamp).toEqual(ERROR_TIMESTAMP)
     })
 
     it('should allow executor to execute scheduled operation', async () => {
