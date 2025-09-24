@@ -13,7 +13,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
 )
 
-var _ O11yLogProvider = (*tonO11yLogProvider)(nil)
+var _ RawLogProvider = (*tonO11yLogProvider)(nil)
 
 type tonO11yLogProvider struct {
 	client ton.APIClientWrapped
@@ -21,7 +21,7 @@ type tonO11yLogProvider struct {
 }
 
 // NewLogReader creates a new LogReader instance.
-func NewTonO11yLogProvider(client ton.APIClientWrapped, loader TxLoader) O11yLogProvider {
+func NewTonO11yLogProvider(client ton.APIClientWrapped, loader TxLoader) RawLogProvider {
 	return &tonO11yLogProvider{
 		client: client,
 		loader: loader,
@@ -29,43 +29,27 @@ func NewTonO11yLogProvider(client ton.APIClientWrapped, loader TxLoader) O11yLog
 }
 
 // GetLogs retrieves all ExternalMsgOutLogs for an address between fromBlockSeqNo (exclusive) and toBlock (inclusive).
-func (tlp *tonO11yLogProvider) GetLogs(ctx context.Context, addr, from, to any) ([]types.O11yLog, error) {
-	// Type assertions for TON-specific types
-	addrTyped, ok := addr.(*address.Address)
-	if !ok {
-		return nil, fmt.Errorf("expected addr to be *address.Address, got %T", addr)
-	}
-
-	fromBlockSeqNo, ok := from.(uint32)
-	if !ok {
-		return nil, fmt.Errorf("expected from to be uint32, got %T", from)
-	}
-
-	toBlock, ok := to.(*ton.BlockIDExt)
-	if !ok {
-		return nil, fmt.Errorf("expected to to be *ton.BlockIDExt, got %T", to)
-	}
-
+func (tlp *tonO11yLogProvider) GetLogs(ctx context.Context, addr *address.Address, from uint32, to *ton.BlockIDExt) ([]types.RawLog, error) {
 	// No new logs to fetch
-	if toBlock.SeqNo <= fromBlockSeqNo {
+	if to.SeqNo <= from {
 		return nil, nil
 	}
 
 	// Resolve previous block if exists
 	var prevBlock *ton.BlockIDExt
 	var err error
-	if fromBlockSeqNo == 0 {
+	if from == 0 {
 		prevBlock = nil // genesis has no prevBlock
 	} else {
-		prevBlock, err = tlp.client.LookupBlock(ctx, toBlock.Workchain, toBlock.Shard, fromBlockSeqNo)
+		prevBlock, err = tlp.client.LookupBlock(ctx, to.Workchain, to.Shard, from)
 		if err != nil {
-			return nil, fmt.Errorf("failed to lookup block for address=%s, fromSeqNo=%d: %w", addrTyped.String(), fromBlockSeqNo, err)
+			return nil, fmt.Errorf("failed to lookup block for address=%s, fromSeqNo=%d: %w", addr.String(), from, err)
 		}
 	}
 
 	// Fetch tx for address on given blockRange
-	blockRange := &types.BlockRange{Prev: prevBlock, To: toBlock}
-	txs, err := tlp.loader.FetchTxsForAddress(ctx, blockRange, addrTyped)
+	blockRange := &types.BlockRange{Prev: prevBlock, To: to}
+	txs, err := tlp.loader.FetchTxsForAddress(ctx, blockRange, addr)
 	if err != nil {
 		// display "genesis" if nil and don't panic
 		fromSeqNoStr := "genesis"
@@ -73,20 +57,20 @@ func (tlp *tonO11yLogProvider) GetLogs(ctx context.Context, addr, from, to any) 
 			fromSeqNoStr = strconv.FormatUint(uint64(prevBlock.SeqNo), 10)
 		}
 
-		return nil, fmt.Errorf("failed to fetch transactions fromSeqNo=%s, toSeqNo=%d: %w", fromSeqNoStr, toBlock.SeqNo, err)
+		return nil, fmt.Errorf("failed to fetch transactions fromSeqNo=%s, toSeqNo=%d: %w", fromSeqNoStr, to.SeqNo, err)
 	}
 
 	// Extract only externalMsgOut logs that we found in all these txes.
 	logs, err := tlp.extractExternalMsgOutLogs(ctx, txs)
 	if err != nil {
-		return nil, fmt.Errorf("failed to extract logs for address=%s: %w", addrTyped.String(), err)
+		return nil, fmt.Errorf("failed to extract logs for address=%s: %w", addr.String(), err)
 	}
 
 	return logs, nil
 }
 
-func (tlp *tonO11yLogProvider) extractExternalMsgOutLogs(ctx context.Context, txs []types.TxWithBlock) ([]types.O11yLog, error) {
-	var allLogs []types.O11yLog
+func (tlp *tonO11yLogProvider) extractExternalMsgOutLogs(ctx context.Context, txs []types.TxWithBlock) ([]types.RawLog, error) {
+	var allLogs []types.RawLog
 
 	for _, tx := range txs {
 		msgs, _ := tx.Tx.IO.Out.ToSlice()
@@ -102,7 +86,6 @@ func (tlp *tonO11yLogProvider) extractExternalMsgOutLogs(ctx context.Context, tx
 				continue
 			}
 
-			srcAddr := msg.Msg.SenderAddr()
 			extMsg := msg.AsExternalOut()
 
 			// Fail hard so we don't skip events. We want at-least-once delivery guarantees on events
@@ -113,24 +96,12 @@ func (tlp *tonO11yLogProvider) extractExternalMsgOutLogs(ctx context.Context, tx
 
 			// If we got a valid event and body
 			if body != nil && eventSig != 0 {
-				log := types.O11yLog{
-					Address: srcAddr.String(),
-					From:    tx.Tx.IO.In.AsInternal().SrcAddr.String(),
-
-					TransactionHash:  fmt.Sprintf("%x", tx.Tx.Hash),
-					TransactionIndex: fmt.Sprintf("%d", tx.Tx.LT),
-					Topics:           []string{fmt.Sprintf("%d", eventSig)},
-					Data:             fmt.Sprintf("0x%x", body.ToBOC()), // as hex
-
-					BlockTimestamp: fmt.Sprintf("%d", blockData.BlockInfo.GenUtime),
-					BlockNumber:    fmt.Sprintf("%d", blockData.BlockInfo.SeqNo),
-					BlockHash:      fmt.Sprintf("%x", blockData.BlockInfo.MasterRef.RootHash),
-					LogIndex:       fmt.Sprintf("%d", 0),
-					ChainId:        "",    // TODO: Ask how to obtain this info from logs
-					Removed:        false, // no reorgs
-					Success:        true,  // TODO: Determine what we'll do here with errors
+				log := types.RawLog{
+					Tx:    tx.Tx,
+					Block: blockData,
+					Data:  body,
+					Topic: eventSig,
 				}
-
 				allLogs = append(allLogs, log)
 			}
 		}

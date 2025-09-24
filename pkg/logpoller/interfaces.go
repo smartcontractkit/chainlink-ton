@@ -5,6 +5,7 @@ import (
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/ton"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 
@@ -112,9 +113,8 @@ type QueryBuilder[T any] interface {
 	Execute(ctx context.Context, store LogStore) (query.Result[T], error)
 }
 
-// TODO: Move to cl-common once deps are solved and improve comm
-// O11yLogProvider provides logs without running the full LogPoller service.
-type O11yLogProvider interface {
+// RawLogProvider provides raw logs leveraging LogPoller libs without running the full service (o11y use case)
+type RawLogProvider interface {
 	// GetLogs retrieves all external message outputs for an address between fromBlockSeqNo (exclusive) and toBlock (inclusive).
-	GetLogs(ctx context.Context, addr, from, to any) ([]types.O11yLog, error)
+	GetLogs(ctx context.Context, addr *address.Address, from uint32, to *ton.BlockIDExt) ([]types.RawLog, error)
 }

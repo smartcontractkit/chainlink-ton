@@ -78,23 +78,10 @@ func (l Log) String() string {
 	return sb.String()
 }
 
-// TODO: Move to cl-common once deps are solved and improve comm
-type O11yLog struct {
-	Address string `json:"address"`
-	From    string `json:"from"`
-
-	TransactionHash  string   `json:"transaction_hash"`
-	TransactionIndex string   `json:"transaction_index"`
-	Topics           []string `json:"topics"`
-	Data             string   `json:"data"`
-
-	BlockTimestamp string `json:"block_timestamp"`
-	BlockNumber    string `json:"block_number"`
-	BlockHash      string `json:"block_hash"`
-	LogIndex       string `json:"log_index"`
-
-	ChainId string `json:"chain_id"`
-
-	Removed bool `json:"removed"`
-	Success bool `json:"success"`
+// RawLog contains raw log data + metadata that can be transformed by consumers as needed (eg. o11y)
+type RawLog struct {
+	Tx    *tlb.Transaction
+	Block *tlb.Block
+	Data  *cell.Cell
+	Topic uint32
 }
