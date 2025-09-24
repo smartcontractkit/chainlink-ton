@@ -1,7 +1,5 @@
 tolk 1.1
 
-import "@stdlib/tvm-dicts";
-
 import "../lib/utils";
 import "../lib/access/access_control";
 
@@ -469,12 +467,12 @@ struct Timelock_Data {
     /// Minimum delay for operations in seconds
     minDelay: uint64;
     /// Map of operation id to timestamp
-    timestamps: dict; // map<int, uint64>
+    timestamps: map<uint256, uint64>;
 
     /// Number of fn selectors blocked by the contract.
     blockedFnSelectorsLen: uint32;
     /// Map of blocked function selectors.
-    blockedFnSelectors: dict; // map<uint32, slice>
+    blockedFnSelectors: map<uint32, bool>;
 
     /// Flag to enable/disable the executor role check (if disabled, anyone can execute)
     executorRoleCheckEnabled: bool;
@@ -582,8 +580,6 @@ const ERROR_CONTRACT_NOT_INITIALIZED = 111;
 
 // --- Constants - storage ---
 
-/// Represents TON message op code size
-const LEN_BLOCKED_FN_SELECTOR = 32;
 /// Represents the amount of TON coins we reserve on the balance to pay for storage fees.
 const MIN_TON_FOR_STORAGE = 1000000000; // 1 TON
 
@@ -649,15 +645,14 @@ fun Timelock<T>.isPendingOperationFinal(self): bool {
 
 /// Returns the timestamp at with an operation becomes ready (0 for
 /// unset operations, 1 for done operations).
-fun Timelock<T>.getTimestamp(self, id: int): uint64 {
-    // Get the timestamp for the given id from the timestamps dictionary
-    var (timestampSlice, exists) = self.data.timestamps.uDictGet(256, id);
-    if (!exists) {
+fun Timelock<T>.getTimestamp(self, id: uint256): uint64 {
+    // Get the timestamp for the given id from the timestamps map
+    var timestamp = self.data.timestamps.get(id);
+    if (!timestamp.isFound) {
         return 0; // operation not exists
     }
 
-    // Load the timestamp from the slice
-    return timestampSlice!.loadUint(64);
+    return timestamp.loadValue();
 }
 
 /// Returns the minimum delay for an operation to become valid.
@@ -814,8 +809,8 @@ fun Timelock<T>.schedule(mutate self, id: uint256, delay: uint64): void {
     assert(!self.isOperation(id)) throw ERROR_OPERATION_ALREADY_SCHEDULED;
     assert(delay >= self.getMinDelay()) throw ERROR_INSUFFICIENT_DELAY;
 
-    val value = beginCell().storeUint(blockchain.now() + delay, 64).endCell().beginParse();
-    self.data.timestamps.uDictSet(256, id, value); // seconds since epoch
+    val value = blockchain.now() + delay;
+    self.data.timestamps.set(id, value); // seconds since epoch
 }
 
 /// Cancel an operation.
@@ -830,7 +825,7 @@ fun Timelock<T>.cancel(mutate self, sender: address, queryId: uint64, id: uint25
     assert(self.isOperationPending(id)) throw ERROR_OPERATION_CAN_NOT_BE_CANCELLED;
 
     // Remove the timestamp for the operation
-    self.data.timestamps.uDictDelete(256, id);
+    self.data.timestamps.delete(id);
 
     val reply = createMessage({
         bounce: false,
@@ -930,8 +925,8 @@ fun Timelock<T>.beforeCall(self, id: uint256, predecessor: uint256): void {
 fun Timelock<T>.afterCall(mutate self, id: uint256): void {
     assert(self.isOperationReady(id)) throw ERROR_OPERATION_NOT_READY;
 
-    val value = beginCell().storeUint(DONE_TIMESTAMP, 64).endCell().beginParse();
-    self.data.timestamps.uDictSet(256, id, value); // Mark the operation as done
+    // Mark the operation as done
+    self.data.timestamps.set(id, DONE_TIMESTAMP);
 
     // Set the pending operation finalization timeout and info
     self.data.opPendingInfo.validAfter = blockchain.now() + self.data.opPendingInfo.opFinalizationTimeout;
@@ -1006,7 +1001,7 @@ fun Timelock<T>.blockFunctionSelector(mutate self, sender: address, queryId: uin
     val rbac = self.hookTrait__AccessControl();
     rbac.requireRole(ADMIN_ROLE, sender);
 
-    val updated = self.data.blockedFnSelectors.uDictSetIfNotExists(LEN_BLOCKED_FN_SELECTOR, selector, createEmptySlice());
+    val updated = self.data.blockedFnSelectors.addIfNotExists(selector, true);
     if (updated) {
         self.data.blockedFnSelectorsLen += 1;
 
@@ -1035,7 +1030,7 @@ fun Timelock<T>.unblockFunctionSelector(mutate self, sender: address, queryId: u
     val rbac = self.hookTrait__AccessControl();
     rbac.requireRole(ADMIN_ROLE, sender);
 
-    val updated = self.data.blockedFnSelectors.uDictDelete(LEN_BLOCKED_FN_SELECTOR, selector);
+    val updated = self.data.blockedFnSelectors.delete(selector);
     if (updated) {
         self.data.blockedFnSelectorsLen -= 1;
 
@@ -1143,8 +1138,7 @@ fun Timelock<T>.submitErrorReport(
     assert(self.isOperationDone(id)) throw ERROR_OPERATION_NOT_DONE;
 
     // Mark op in error state (recover with new op + bypass)
-    val value = beginCell().storeUint(ERROR_TIMESTAMP, 64).endCell().beginParse();
-    self.data.timestamps.uDictSet(256, id, value); // Mark the operation as error
+    self.data.timestamps.set(id, ERROR_TIMESTAMP); // Mark the operation as error
 
     // Check the reported error against the stored pending operation
     val matchesPendingOp = self.data.opPendingInfo.opPendingId == id;
@@ -1201,17 +1195,18 @@ fun Timelock<T>.getBlockedFunctionSelectorAt(self, index: uint32): uint32 {
     // Get a mutable reference to the blocked function selectors map (used for iteration)
     var blockedFnSelectors = self.data.blockedFnSelectors;
 
-    // Notice: we need to iterate through the dictionary to get the item at the specified index.
+    // Notice: we need to iterate through the map to get the item at the specified index.
     // This is not efficient, but it is the only way to get an item at index without additional data structures.
     var i = 0;
     while (i < index) {
-        blockedFnSelectors.uDictDeleteFirstAndGet(LEN_BLOCKED_FN_SELECTOR);
+        val first = blockedFnSelectors.findFirst(); // assume exists
+        blockedFnSelectors.delete(first.getKey());
         i += 1; // increment to next account
     }
 
     // Get the item at the specified index
-    var (selector: int?, _: slice?, _: bool) = blockedFnSelectors.uDictDeleteFirstAndGet(LEN_BLOCKED_FN_SELECTOR);
-    return selector! as uint32;
+    val selector = blockedFnSelectors.findFirst();
+    return selector.getKey();
 }
 
 @inline
@@ -1221,19 +1216,19 @@ fun Timelock<T>.getBlockedFunctionSelectorFirst(self): uint32 {
     }
 
     // Get the first item in the map
-    var (selector, _, _) = self.data.blockedFnSelectors.uDictGetFirst(LEN_BLOCKED_FN_SELECTOR);
-    return selector! as uint32;
+    var selector = self.data.blockedFnSelectors.findFirst();
+    return selector.getKey();
 }
 
 @inline
 fun Timelock<T>.getBlockedFunctionSelectorNext(self, pivot: uint32): uint32 {
     // Get the next item in the map, after the pivot
-    var (selector, _, exists) = self.data.blockedFnSelectors.uDictGetNext(LEN_BLOCKED_FN_SELECTOR, pivot);
-    if (!exists) {
+    var selector = self.data.blockedFnSelectors.findKeyGreater(pivot);
+    if (!selector.isFound) {
         return 0; // no next item
     }
 
-    return selector! as uint32;
+    return selector.getKey();
 }
 
 /// Checks to see if the function being scheduled is blocked.
@@ -1245,9 +1240,9 @@ fun Timelock<T>.checkFunctionSelectorNotBlocked(self, data: slice): void {
 
     // Load the function selector from the message body
     val selector = data.loadMessageOp(); // 32-bit integer
-    var (_, exists) = self.data.blockedFnSelectors.uDictGet(LEN_BLOCKED_FN_SELECTOR, selector);
+    var blocked = self.data.blockedFnSelectors.get(selector);
 
-    if (exists) {
+    if (blocked.isFound) {
         throw(ERROR_SELECTOR_IS_BLOCKED); // TODO: attach error arguments
     }
 }
@@ -1344,8 +1339,7 @@ fun onBouncedMessage(in: InMessageBounced) {
     }
 
     val id = timelock.data.opPendingInfo.opPendingId;
-    val value = beginCell().storeUint(ERROR_TIMESTAMP, 64).endCell().beginParse();
-    timelock.data.timestamps.uDictSet(256, id, value); // Mark the operation as error
+    timelock.data.timestamps.set(id, ERROR_TIMESTAMP); // Mark the operation as error
 
      // Store the updated contract data
     timelock.data.storeAsContractData();
