@@ -149,7 +149,7 @@ struct (0x7362d09c) JettonTransferNotification {
     queryId: uint64;
     amount: coins;
     sender: address;
-    forwardPayload: Cell<CCIPSend>?; // could also be RemainingBitsAndRefs
+    forwardPayload: cell?; // could also be RemainingBitsAndRefs
 }
 
 // OnRamp
@@ -166,6 +166,13 @@ struct OnRampDynamicConfig {
     allowlistAdmin: address;
 }
 
+// crc32('OnRamp_WithdrawJettons')
+struct (0x266AEACF) OnRamp_WithdrawJettons {
+    msgId: uint224,
+    tokens: cell; // vec<TokenAmount>
+    onrampJettonWallet: address;
+}
+
 struct (0x10000003) SetDynamicConfig {
     config: OnRampDynamicConfig
 }
@@ -174,6 +181,14 @@ struct OnRampUpdateDestChainConfig {
     destChainSelector: uint64;
     router: address;
     allowlistEnabled: bool;
+}
+
+// crc32('OnRamp_ExecutorFinishedSuccessfully')
+struct (0xCFA6B336) OnRamp_ExecutorFinishedSuccessfully {
+    msgId: uint224,
+    msg: Cell<CCIPSend>
+    metadata: Metadata
+    fee: coins
 }
 
 // TODO: make this direct snakedata by using RemainingBitsAndRefs? this way it's not cell->cell

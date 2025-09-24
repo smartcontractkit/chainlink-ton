@@ -115,6 +115,8 @@ type Storage struct {
 	ChainSelector    uint64              `tlb:"## 64"`
 	Config           DynamicConfig       `tlb:"^"`
 	DestChainConfigs *cell.Dictionary    `tlb:"dict 64"`
+	ExecutorCode     *cell.Cell          `tlb:"^"`
+	CurrentMessageID *big.Int            `tlb:"## 224"`
 }
 
 // Methods
