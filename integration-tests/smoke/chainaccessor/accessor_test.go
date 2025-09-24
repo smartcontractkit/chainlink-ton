@@ -360,6 +360,7 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 			Address:     address.MustParseAddr(MockOffRampAddr),
 			EventSig:    hash.CRC32(consts.EventNameCommitReportAccepted),
 			Data:        merkleRootOnlyCell,
+			TxLT:        1,
 			TxTimestamp: baseTimestamp.Add(1 * time.Second),
 		})
 
@@ -368,6 +369,7 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 			Address:     address.MustParseAddr(MockOffRampAddr),
 			EventSig:    hash.CRC32(consts.EventNameCommitReportAccepted),
 			Data:        priceOnlyCell,
+			TxLT:        2,
 			TxTimestamp: baseTimestamp.Add(2 * time.Second),
 		})
 
@@ -376,6 +378,7 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 			Address:     address.MustParseAddr(MockOffRampAddr),
 			EventSig:    hash.CRC32(consts.EventNameCommitReportAccepted),
 			Data:        bothCell,
+			TxLT:        3,
 			TxTimestamp: baseTimestamp.Add(3 * time.Second),
 		})
 
@@ -384,6 +387,7 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 			Address:     address.MustParseAddr(MockOffRampAddr),
 			EventSig:    hash.CRC32(consts.EventNameCommitReportAccepted),
 			Data:        priceOnlyCell,
+			TxLT:        4,
 			TxTimestamp: baseTimestamp.Add(4 * time.Second),
 		})
 
@@ -392,6 +396,7 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 			Address:     address.MustParseAddr(MockOffRampAddr),
 			EventSig:    hash.CRC32(consts.EventNameCommitReportAccepted),
 			Data:        merkleRootOnlyCell,
+			TxLT:        5,
 			TxTimestamp: baseTimestamp.Add(5 * time.Second),
 		})
 
@@ -476,6 +481,7 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 			Address:     address.MustParseAddr(MockOffRampAddr),
 			EventSig:    hash.CRC32(consts.EventNameCommitReportAccepted),
 			Data:        merkleRootOnlyCell,
+			TxLT:        100,
 			TxTimestamp: logTimestamp,
 		})
 
@@ -601,6 +607,7 @@ func Test_TonAccessorExecutedMessages(t *testing.T) {
 		Address:     address.MustParseAddr(MockOffRampAddr),
 		EventSig:    hash.CRC32(consts.EventNameExecutionStateChanged),
 		Data:        inProgressCell,
+		TxLT:        201,
 		TxTimestamp: baseTimestamp.Add(1 * time.Second),
 	})
 
@@ -614,6 +621,7 @@ func Test_TonAccessorExecutedMessages(t *testing.T) {
 		Address:     address.MustParseAddr(MockOffRampAddr),
 		EventSig:    hash.CRC32(consts.EventNameExecutionStateChanged),
 		Data:        successCell,
+		TxLT:        202,
 		TxTimestamp: baseTimestamp.Add(2 * time.Second),
 	})
 
@@ -627,6 +635,7 @@ func Test_TonAccessorExecutedMessages(t *testing.T) {
 		Address:     address.MustParseAddr(MockOffRampAddr),
 		EventSig:    hash.CRC32(consts.EventNameExecutionStateChanged),
 		Data:        failureCell,
+		TxLT:        203,
 		TxTimestamp: baseTimestamp.Add(3 * time.Second),
 	})
 
