@@ -1,7 +1,5 @@
 tolk 1.1
 
-import "@stdlib/tvm-dicts";
-
 import "../lib/utils";
 import "../lib/access/ownable_2step.tolk";
 import "../lib/crypto/merkle_proof.tolk";
@@ -125,8 +123,8 @@ struct (0x89277f4b) MCMS_SetConfig {
 
     signerKeys: cell;   // vec<uint256> (public keys)
     signerGroups: cell; // vec<uint8>
-    groupQuorums: dict; // map<uint8, uint8> (indexed, iterable backwards)
-    groupParents: dict; // map<uint8, uint8> (indexed, iterable backwards)
+    groupQuorums: map<uint8, uint8>; // (indexed, iterable backwards)
+    groupParents: map<uint8, uint8>; // (indexed, iterable backwards)
     clearRoot: bool;
 }
 
@@ -278,13 +276,13 @@ struct MCMS_Data {
 
     /// signers is used to easily validate the existence of the signer by its public key. We still
     /// have signers stored in config in order to easily deactivate them when a new config is set.
-    signers: dict; // map<uint256, Signer> - exists if the public key is a signer
+    signers: map<uint256, Signer>; // exists if the public key is a signer
 
     /// The current configuration of the contract
     config: Cell<Config>; // @dev split out as cell to avoid size limits
 
     /// Remember signedHashes that this contract has seen. Each signedHash can only be set once.
-    seenSignedHashes: dict; // map<uint256, bool>
+    seenSignedHashes: map<uint256, bool>;
 
     /// The current RootMetadata and ExpiringRootAndOpCount wrapped in a cell bc size limits.
     rootInfo: Cell<RootInfo>;
@@ -473,17 +471,17 @@ struct Signer {
 ///    {addr: address(D), index: 4, group: 2}, {addr: address(B), index: 5, group: 1},
 ///  ]
 struct Config {
-    signers: dict; // map<uint8, Signer> - (indexed)
+    signers: map<uint8, Signer>; // indexed
     /// groupQuorums[i] stores the quorum for the i-th signer group. Any group with
     /// groupQuorums[i] = 0 is considered disabled. The i-th group is successful if
     /// it is enabled and at least groupQuorums[i] of its children are successful.
-    groupQuorums: dict; // map<uint8, uint8> (indexed, iterable backwards)
+    groupQuorums: map<uint8, uint8>; // indexed, iterable backwards
     /// groupParents[i] stores the parent group of the i-th signer group. We ensure that the
     /// groups form a tree structure (where the root/0-th signer group points to itself as
     /// parent) by enforcing
     /// - (i != 0) implies (groupParents[i] < i)
     /// - groupParents[0] == 0
-    groupParents: dict; // map<uint8, uint8> (indexed, iterable backwards)
+    groupParents: map<uint8, uint8>; // indexed, iterable backwards
 }
 
 /// Information about the current root, extracted into a separate struct (wrapped in a cell).
@@ -633,8 +631,8 @@ fun MCMS<T>.setRoot(
     // an adversary keeps alternatively calling setRoot(root1), setRoot(root2),
     // setRoot(root1), ...
     {
-        var (_, exists) = self.data.seenSignedHashes.uDictGet(256, signedHash);
-        if (exists) {
+        var r = self.data.seenSignedHashes.get(signedHash);
+        if (r.isFound) {
             throw ERROR_SIGNED_HASH_ALREADY_SEEN;
         }
     }
@@ -646,11 +644,11 @@ fun MCMS<T>.setRoot(
     // we cannot proceed if it isn't configured with a valid (non-zero) quorum
     var rootQuorum: uint8;
     {
-        var (_rootQuorum, exists) = config.groupQuorums.uDictGet(8, 0);
-        if (!exists) {
+        var _rootQuorum = config.groupQuorums.get(0);
+        if (!_rootQuorum.isFound) {
             throw ERROR_MISSING_CONFIG;
         }
-        rootQuorum = _rootQuorum!.loadUint(8);
+        rootQuorum = _rootQuorum.loadValue();
         if (rootQuorum == 0) {
             throw ERROR_MISSING_CONFIG;
         }
@@ -661,7 +659,7 @@ fun MCMS<T>.setRoot(
         var signer: Signer;
         var prevSigner: uint256 = 0; // start with zero key
         var ss = Iterator<Signature>.new(signatures);
-        var groupVoteCounts = createEmptyDict(); // number of votes per group, map<uint8, uint8> (indexed)
+        var groupVoteCounts: map<uint8, uint8> = createEmptyMap(); // number of votes per group, map<uint8, uint8> (indexed)
         while (!ss.empty()) {
             var s = ss.next();
             val valid = isSignatureValid(signedHash, s.toCell().beginParse(), s.signer);
@@ -677,11 +675,11 @@ fun MCMS<T>.setRoot(
             prevSigner = s.signer;
 
             {
-                val (_signer, exists) = self.data.signers.uDictGet(256, s.signer);
-                if (!exists) {
+                val _signer = self.data.signers.get(s.signer);
+                if (!_signer.isFound) {
                     throw ERROR_INVALID_SIGNER;
                 }
-                signer = Signer.fromSlice(_signer!);
+                signer = _signer.loadValue();
             }
 
             if (signer.key != s.signer) {
@@ -695,19 +693,19 @@ fun MCMS<T>.setRoot(
             while (!_break) {
                 var votes = 1;
                 {
-                    var (current, exists) = groupVoteCounts.uDictGet(8, group);
-                    if (exists) {
-                        votes = current!.loadUint(8) + 1;
+                    var current = groupVoteCounts.get(group);
+                    if (current.isFound) {
+                        votes = current.loadValue() + 1;
                     }
                 }
                 // Store the incremented vote count for the group
-                groupVoteCounts.uDictSet(8, group, beginCell().storeUint(votes, 8).endCell().beginParse());
+                groupVoteCounts.set(group, votes);
 
                 var quorum = 0;
                 {
-                    var (_quorum, exists) = config.groupQuorums.uDictGet(8, group);
-                    if (exists) {
-                        quorum = _quorum!.loadUint(8);
+                    var _quorum = config.groupQuorums.get(group);
+                    if (_quorum.isFound) {
+                        quorum = _quorum.loadValue();
                     }
                 }
 
@@ -725,9 +723,9 @@ fun MCMS<T>.setRoot(
                 if (!_break) {
                     var parent = 0;
                     {
-                        var (_parent, exists) = config.groupParents.uDictGet(8, group);
-                        if (exists) {
-                            parent = _parent!.loadUint(8);
+                        var _parent = config.groupParents.get(group);
+                        if (_parent.isFound) {
+                            parent = _parent.loadValue();
                         }
                     }
 
@@ -737,8 +735,8 @@ fun MCMS<T>.setRoot(
         }
 
         // did the root group reach its quorum?
-        var (_rootVotes, exists) = groupVoteCounts.uDictGet(8, 0);
-        if (!exists || _rootVotes!.loadUint(8) < rootQuorum) {
+        var _rootVotes = groupVoteCounts.get(0);
+        if (!_rootVotes.isFound || _rootVotes.loadValue() < rootQuorum) {
             throw ERROR_INSUFFICIENT_SIGNERS;
         }
     }
@@ -792,7 +790,7 @@ fun MCMS<T>.setRoot(
     }
 
     // done with validation, persist in in contract state
-    self.data.seenSignedHashes.uDictSet(256, signedHash, createEmptySlice());
+    self.data.seenSignedHashes.set(signedHash, true);
     self.data.rootInfo = RootInfo {
         expiringRootAndOpCount: ExpiringRootAndOpCount{
             root,
@@ -954,8 +952,8 @@ fun MCMS<T>.setConfig(
     queryId: uint64,
     signerKeys: cell,   // vec<uint256> (public keys)
     signerGroups: cell, // vec<uint8>
-    groupQuorums: dict, // map<uint8, uint8> (indexed, iterable backwards)
-    groupParents: dict, // map<uint8, uint8> (indexed, iterable backwards)
+    groupQuorums: map<uint8, uint8>, // indexed, iterable backwards
+    groupParents: map<uint8, uint8>, // indexed, iterable backwards
     clearRoot: bool,
 ) {
     self.data.ownable.requireOwner(sender);
@@ -975,7 +973,7 @@ fun MCMS<T>.setConfig(
     {
         // Validate group structure
         // counts the number of children of each group
-        var groupChildrenCounts = createEmptyDict();
+        var groupChildrenCounts: map<uint8, uint8> = createEmptyMap();
         // first, we count the signers as children
         while (!signerGroupIterator.empty()) {
             var g = signerGroupIterator.next();
@@ -983,18 +981,12 @@ fun MCMS<T>.setConfig(
                 throw ERROR_OUT_OF_BOUNDS_GROUP;
             }
 
-            var (count, exists) = groupChildrenCounts.uDictGet(8, g);
-            var value = beginCell()
-                .storeUint(1, 8)
-                .endCell()
-                .beginParse();
-            if (exists) {
-                value = beginCell()
-                    .storeUint(count!.loadUint(8) + 1, 8)
-                    .endCell()
-                    .beginParse();
+            var count = groupChildrenCounts.get(g);
+            var value = 1;
+            if (count.isFound) {
+                value = count.loadValue() + 1;
             }
-            groupChildrenCounts.uDictSet(8, g, value);
+            groupChildrenCounts.set(g, value);
         }
 
         // second, we iterate backwards so as to check each group and propagate counts from
@@ -1006,9 +998,9 @@ fun MCMS<T>.setConfig(
             // ensure we have a well-formed group tree. the root should have itself as parent
             var gp: int = 0; // default parent for root group
             {
-                var (value, exists) = groupParents.uDictGet(8, i);
-                if (exists) {
-                    gp = value!.loadUint(8);
+                var value = groupParents.get(i);
+                if (value.isFound) {
+                    gp = value.loadValue();
                 }
             }
             if ((i != 0 && gp >= i) || (i == 0 && gp != 0)) {
@@ -1017,9 +1009,9 @@ fun MCMS<T>.setConfig(
 
             var gq = 0; // default quorum for groups without a set quorum
             {
-                var (value, exists) = groupQuorums.uDictGet(8, i);
-                if (exists) {
-                    gq = value!.loadUint(8);
+                var value = groupQuorums.get(i);
+                if (value.isFound) {
+                    gq = value.loadValue();
                 }
             }
 
@@ -1028,9 +1020,9 @@ fun MCMS<T>.setConfig(
             var count = 0; // default count
             {
                 // get the number of children for this group
-                var (value, exists) = groupChildrenCounts.uDictGet(8, i);
-                if (exists) {
-                    count = value!.loadUint(8);
+                var value = groupChildrenCounts.get(i);
+                if (value.isFound) {
+                    count = value.loadValue();
                 }
             }
 
@@ -1047,15 +1039,12 @@ fun MCMS<T>.setConfig(
 
                 var current = 0;
                 {
-                   var (value, exists)  = groupChildrenCounts.uDictGet(8, gp);
-                   if (exists) {
-                       current = value!.loadUint(8);
+                   var value = groupChildrenCounts.get(gp);
+                   if (value.isFound) {
+                       current = value.loadValue();
                    }
                 }
-                groupChildrenCounts.uDictSet(8, gp, beginCell()
-                    .storeUint(current + 1, 8)
-                    .endCell()
-                    .beginParse());
+                groupChildrenCounts.set(gp, current + 1);
                 // the above line clobbers groupChildrenCounts[0] in last iteration, don't use it after the loop ends
             }
 
@@ -1067,14 +1056,15 @@ fun MCMS<T>.setConfig(
     // Upack config from the contract data
     var config = Config.fromCell(self.data.config);
     // Iterate over and remove old signers
-    var (_index, oldSigner, exists) = config.signers.uDictDeleteFirstAndGet(8);
-    while (exists) {
-        val s = lazy Signer.fromSlice(oldSigner!);
+    var oldSigner = config.signers.findFirst();
+    while (oldSigner.isFound) {
+        val s = oldSigner.loadValue();
         // Remove any old signer addresses
-        self.data.signers.uDictDelete(256, s.key);
-        (_index, oldSigner, exists) = config.signers.uDictDeleteFirstAndGet(8);
+        config.signers.delete(oldSigner.getKey());
+        self.data.signers.delete(s.key);
+        oldSigner = config.signers.findFirst();
     }
-    config.signers = createEmptyDict(); // reset signers
+    config.signers = createEmptyMap(); // reset signers
 
     config.groupQuorums = groupQuorums;
     config.groupParents = groupParents;
@@ -1092,9 +1082,9 @@ fun MCMS<T>.setConfig(
         }
 
         val group = signerGroupIterator.next();
-        var signer = Signer{key, index: i as uint8, group: group}.toCell().beginParse();
-        self.data.signers.uDictSet(256, key, signer);
-        config.signers.uDictSet(8, i, signer);
+        var signer = Signer{key, index: i as uint8, group: group};
+        self.data.signers.set(key, signer);
+        config.signers.set(i, signer);
 
         prevSigner = key;
 
