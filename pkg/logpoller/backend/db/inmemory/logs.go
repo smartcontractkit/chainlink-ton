@@ -13,6 +13,7 @@ import (
 
 var _ logpoller.LogStore = (*inMemoryLogs)(nil)
 
+// TODO(@jadepark-dev): TON Accessor tend to call Replay multiple times on Sync, so dedup logic is implemented here
 // logKey represents a composite key for log deduplication
 // using address + event signature + TxLT
 type logKey struct {
