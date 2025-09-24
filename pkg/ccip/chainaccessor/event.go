@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
 	"time"
 
 	"github.com/xssnick/tonutils-go/address"
@@ -90,6 +91,14 @@ func (a *TONAccessor) convertCCIPMessageSent(
 ) *chainaccessor.SendRequestedEvent {
 	senderAddr := codec.ToRawAddr(tonEvent.Message.Sender)
 	feeTokenAddr := codec.ToRawAddr(tonEvent.Message.Body.FeeToken)
+
+	// TODO: remove after TON2EVM verified
+	extraArgs := onramp.GenericExtraArgsV2{
+		GasLimit:                 big.NewInt(1000000),
+		AllowOutOfOrderExecution: true,
+	}
+	extraArgsCell, _ := tlb.ToCell(extraArgs)
+
 	msg := ccipocr3.Message{
 		Header: ccipocr3.RampMessageHeader{
 			MessageID:           ccipocr3.Bytes32(tonEvent.Message.Header.MessageID),
@@ -98,10 +107,11 @@ func (a *TONAccessor) convertCCIPMessageSent(
 			SequenceNumber:      ccipocr3.SeqNum(tonEvent.Message.Header.SequenceNumber),
 			Nonce:               tonEvent.Message.Header.Nonce,
 		},
-		Sender:         ccipocr3.UnknownAddress(senderAddr[:]),
-		Data:           ccipocr3.Bytes(tonEvent.Message.Body.Data),
-		Receiver:       ccipocr3.UnknownAddress(tonEvent.Message.Body.Receiver),
-		ExtraArgs:      ccipocr3.Bytes(tonEvent.Message.Body.ExtraArgs.ToBOC()),
+		Sender:   ccipocr3.UnknownAddress(senderAddr[:]),
+		Data:     ccipocr3.Bytes(tonEvent.Message.Body.Data),
+		Receiver: ccipocr3.UnknownAddress(tonEvent.Message.Body.Receiver),
+		// ExtraArgs:      ccipocr3.Bytes(tonEvent.Message.Body.ExtraArgs.ToBOC()),
+		ExtraArgs:      ccipocr3.Bytes(extraArgsCell.ToBOC()),
 		FeeToken:       ccipocr3.UnknownAddress(feeTokenAddr[:]),
 		FeeTokenAmount: ccipocr3.NewBigInt(tonEvent.Message.Body.FeeTokenAmount),
 		// TokenAmounts:   tokenAmounts, // TODO: enable token transfer
