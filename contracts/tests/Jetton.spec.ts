@@ -8,7 +8,7 @@ import { resolve } from 'path'
 import { readFileSync } from 'fs'
 import { execSync } from 'child_process'
 import { env } from 'process'
-import { JettonMinterCode, JettonWalletCode } from '../wrappers/jetton/JettonCode'
+import * as jetton from '../wrappers/jetton/JettonCode'
 
 const ONCHAIN_CONTENT_PREFIX = 0x00
 const OFFCHAIN_CONTENT_PREFIX = 0x01
@@ -35,10 +35,10 @@ describe('Send and Receive Jettons', () => {
     defaultContent = beginCell().storeStringTail(jettonDataURI).endCell()
 
     // get jetton wallet code
-    jettonWalletCode = await JettonWalletCode()
+    jettonWalletCode = await jetton.JettonWalletCode()
 
     // deploy jetton minter
-    const jettonMinterCode = await JettonMinterCode()
+    const jettonMinterCode = await jetton.JettonMinterCode()
     jettonMinter = blockchain.openContract(
       JettonMinter.createFromConfig(
         {
@@ -267,10 +267,10 @@ describe('Receiving Jettons as an Onramp Mock', () => {
     defaultContent = beginCell().storeStringTail(jettonDataURI).endCell()
 
     // get jetton wallet code
-    jettonWalletCode = await JettonWalletCode()
+    jettonWalletCode = await jetton.JettonWalletCode()
 
     // deploy jetton minter
-    const jettonMinterCode = await JettonMinterCode()
+    const jettonMinterCode = await jetton.JettonMinterCode()
     jettonMinter = blockchain.openContract(
       JettonMinter.createFromConfig(
         {

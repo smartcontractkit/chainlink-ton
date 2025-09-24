@@ -2,7 +2,7 @@ import "../types"
 import "@stdlib/lisp-lists"
 import "../../lib/utils";
 
-tolk 1.0
+tolk 1.1
 
 type FeeQuoter_InMessage =
     | FeeQuoter_UpdatePrices

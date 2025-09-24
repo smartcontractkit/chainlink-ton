@@ -9,6 +9,7 @@ import (
 	"time"
 
 	chain_selectors "github.com/smartcontractkit/chain-selectors"
+
 	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
@@ -23,9 +24,10 @@ import (
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 	test_utils "github.com/smartcontractkit/chainlink-ton/deployment/utils"
 
-	"github.com/smartcontractkit/chainlink/deployment/environment/memory"
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/tlb"
+
+	"github.com/smartcontractkit/chainlink/deployment/environment/memory"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/chainaccessor"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"

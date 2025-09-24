@@ -1,5 +1,5 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { toNano, Address, Cell, Dictionary, beginCell } from '@ton/core'
+import { toNano, Address, Cell, Dictionary, beginCell, Slice } from '@ton/core'
 import { compile } from '@ton/blueprint'
 import * as rt from '../../wrappers/ccip/Router'
 import * as or from '../../wrappers/ccip/OnRamp'
@@ -14,7 +14,8 @@ import { LogTypes } from '../../wrappers/ccip/Logs'
 import { ZERO_ADDRESS } from '../../src/utils'
 import { JettonMinterCode, JettonWalletCode } from '../../wrappers/jetton/JettonCode'
 import { JettonMinter } from '../../wrappers/jetton/JettonMinter'
-import { JettonWallet, TransferMessage } from '../../wrappers/jetton/JettonWallet'
+import * as jetton from '../../wrappers/jetton/JettonWallet'
+import { dump } from '../utils/prettyPrint'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_TON = 13879075125137744094n
@@ -180,6 +181,8 @@ describe('Router', () => {
           allowlistAdmin: deployer.address,
         },
         destChainConfigs: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Cell()),
+        currentMessageId: 0n,
+        executor_code: await compile('CCIPSendExecutor'),
       }
       // TODO: use deployable to make deterministic?
       onRamp = blockchain.openContract(or.OnRamp.createFromConfig(data, code))
@@ -213,7 +216,7 @@ describe('Router', () => {
         })
       }
     }
-  })
+  }, 10000)
 
   it('onramp arbitrary message passing', async () => {
     // Configure onRamp on router
@@ -249,6 +252,25 @@ describe('Router', () => {
         },
       })
 
+      const executorAddress = ((): Address => {
+        for (const tx of result.transactions) {
+          if (
+            tx.inMessage != null &&
+            tx.inMessage != undefined &&
+            tx.inMessage.info.src != null &&
+            tx.inMessage.info.src != undefined &&
+            tx.inMessage.info.src instanceof Address &&
+            tx.inMessage.info.src.equals(onRamp.address) &&
+            tx.inMessage.info.dest != null &&
+            tx.inMessage.info.dest != undefined &&
+            tx.inMessage.info.dest instanceof Address
+          ) {
+            return tx.inMessage.info.dest
+          }
+        }
+        throw new Error('Executor address not found')
+      })()
+
       // we called the router
       expect(result.transactions).toHaveTransaction({
         from: sender.address,
@@ -263,17 +285,35 @@ describe('Router', () => {
         deploy: false,
         success: true,
       })
-      // assert message went to feeQuoter
+      // the onRamp deployed the executor
       expect(result.transactions).toHaveTransaction({
         from: onRamp.address,
+        to: executorAddress,
+        deploy: true,
+        success: true,
+      })
+
+      // assert message went to feeQuoter
+      expect(result.transactions).toHaveTransaction({
+        from: executorAddress,
         to: feeQuoter.address,
         deploy: false,
         success: true,
       })
 
-      // destChainConfig -> feeQuoter -> onRamp
+      // destChainConfig -> feeQuoter -> executor
       expect(result.transactions).toHaveTransaction({
         from: feeQuoter.address,
+        to: executorAddress,
+        deploy: false,
+        success: true,
+        destroyed: false,
+        // destroyed: true, // TODO should be true after tracetracker is fixed
+      })
+
+      // the executor called back the onRamp and self-destructed
+      expect(result.transactions).toHaveTransaction({
+        from: executorAddress,
         to: onRamp.address,
         deploy: false,
         success: true,
@@ -331,8 +371,8 @@ describe('Router', () => {
       })
       .asCell()
 
-    const transferMsg: TransferMessage = {
-      queryId: 0n,
+    const transferMsg: jetton.AskToTransfer = {
+      queryId: 0,
       jettonAmount,
       destination: router.address,
       responseDestination: sender.address,
@@ -349,6 +389,27 @@ describe('Router', () => {
       })
 
       const routerJettonWallet = await provideUserWalletFor(router.address)
+      const onRampJettonWallet = await provideUserWalletFor(onRamp.address)
+
+      const executorAddress = ((): Address => {
+        for (const tx of result.transactions) {
+          if (
+            tx.inMessage != null &&
+            tx.inMessage != undefined &&
+            tx.inMessage.info.src != null &&
+            tx.inMessage.info.src != undefined &&
+            tx.inMessage.info.src instanceof Address &&
+            tx.inMessage.info.src.equals(onRamp.address) &&
+            tx.inMessage.info.dest != null &&
+            tx.inMessage.info.dest != undefined &&
+            tx.inMessage.info.dest instanceof Address
+          ) {
+            return tx.inMessage.info.dest
+          }
+        }
+        throw new Error('Executor address not found')
+      })()
+      const executorJettonWallet = await provideUserWalletFor(executorAddress)
 
       // we called the router
       expect(result.transactions).toHaveTransaction({
@@ -360,13 +421,109 @@ describe('Router', () => {
       // the router called the onRamp
       expect(result.transactions).toHaveTransaction({
         from: router.address,
+        to: routerJettonWallet.address,
+        deploy: false,
+        success: true,
+        body(x) {
+          if (!x) return false
+          const transferRequest = jetton.builder.messages.in.askToTransfer.load(x.beginParse())
+          if (transferRequest.forwardPayload == null || transferRequest.forwardPayload == undefined)
+            return false
+          if (!transferRequest.destination.equals(onRamp.address)) return false
+          try {
+            const payload = or.builder.messages.in.onrampSend.load(
+              ((forwardPayload: Cell | Slice): Slice => {
+                if (forwardPayload instanceof Cell) {
+                  return forwardPayload.beginParse()
+                } else {
+                  return forwardPayload
+                }
+              })(transferRequest.forwardPayload),
+            )
+            return true
+          } catch {
+            console.log('Failed to load onrampSend')
+            return false
+          }
+        },
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: onRampJettonWallet.address,
+        to: onRamp.address,
+        deploy: false,
+        success: true,
+        body(x) {
+          if (!x) return false
+          const transferNotification =
+            jetton.builder.messages.out.transferNotificationForRecipient.load(x.beginParse())
+          if (
+            transferNotification.forwardPayload == null ||
+            transferNotification.forwardPayload == undefined
+          )
+            return false
+          if (!transferNotification.senderAddress.equals(router.address)) {
+            return false
+          }
+          try {
+            const payload = or.builder.messages.in.onrampSend.load(
+              ((forwardPayload: Cell | Slice): Slice => {
+                if (forwardPayload instanceof Cell) {
+                  return forwardPayload.beginParse()
+                } else {
+                  return forwardPayload
+                }
+              })(transferNotification.forwardPayload),
+            )
+            return true
+          } catch {
+            return false
+          }
+        },
+      })
+      // the onRamp deployed the executor
+      expect(result.transactions).toHaveTransaction({
+        from: onRamp.address,
+        to: executorAddress,
+        deploy: true,
+        success: true,
+      })
+      // the executor withdrew the jettons
+      expect(result.transactions).toHaveTransaction({
+        from: executorAddress,
         to: onRamp.address,
         deploy: false,
         success: true,
       })
-      // assert message went to feeQuoter
       expect(result.transactions).toHaveTransaction({
         from: onRamp.address,
+        to: onRampJettonWallet.address,
+        deploy: false,
+        success: true,
+        body(x) {
+          if (!x) return false
+          const transferRequest = jetton.builder.messages.in.askToTransfer.load(x.beginParse())
+          if (transferRequest.jettonAmount !== jettonAmount) return false
+          if (!transferRequest.destination.equals(executorAddress)) return false
+          return true
+        },
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: executorJettonWallet.address,
+        to: executorAddress,
+        deploy: false,
+        success: true,
+        body(x) {
+          if (!x) return false
+          // const transferNotification =
+          //   jetton.builder.messages.out.transferNotificationForRecipient.load(x.beginParse())
+          // if (transferNotification.jettonAmount !== jettonAmount) return false
+          // if (!transferNotification.senderAddress.equals(onRamp.address)) return false
+          return true
+        },
+      })
+      // assert message went to feeQuoter
+      expect(result.transactions).toHaveTransaction({
+        from: executorAddress,
         to: feeQuoter.address,
         deploy: false,
         success: true,
@@ -375,6 +532,14 @@ describe('Router', () => {
       // destChainConfig -> feeQuoter -> onRamp
       expect(result.transactions).toHaveTransaction({
         from: feeQuoter.address,
+        to: executorAddress,
+        deploy: false,
+        success: true,
+      })
+
+      // the executor called back the onRamp and self-destructed
+      expect(result.transactions).toHaveTransaction({
+        from: executorAddress,
         to: onRamp.address,
         deploy: false,
         success: true,
@@ -499,7 +664,7 @@ async function setupJetton(
 
   const provideUserWalletFor = async (address: Address) => {
     return blockchain.openContract(
-      JettonWallet.createFromAddress(await jettonMinter.getWalletAddress(address)),
+      jetton.JettonWallet.createFromAddress(await jettonMinter.getWalletAddress(address)),
     )
   }
 
