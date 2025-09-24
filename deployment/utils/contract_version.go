@@ -9,7 +9,7 @@ import (
 //
 //	note: the hash of the built artifacts is automatically modified only after a branch gets merged in the main branch as a release
 func GetContractBuildSHA() (string, error) {
-	const shaFile = ".contract_build_sha"
+	const shaFile = "contract_build_sha"
 	data, err := os.ReadFile(shaFile)
 	if err != nil {
 		return "", err
