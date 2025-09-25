@@ -23,11 +23,16 @@ type SetRamp struct {
 	OnRamp            *address.Address `tlb:"addr"`
 }
 
+// DestChainSelector is a wrapper uint64 to support SnakeData encoding.
+type DestChainSelector struct {
+	Value uint64 `tlb:"## 64"`
+}
+
 type SetRamps struct {
-	_                  tlb.Magic                `tlb:"#10000002"` //nolint:revive // Ignore opcode tag
-	QueryID            uint64                   `tlb:"## 64"`
-	DestChainSelectors common.SnakeData[uint64] `tlb:"^"`
-	OnRamps            *address.Address         `tlb:"addr"`
+	_                  tlb.Magic                           `tlb:"#10000002"` //nolint:revive // Ignore opcode tag
+	QueryID            uint64                              `tlb:"## 64"`
+	DestChainSelectors common.SnakeData[DestChainSelector] `tlb:"^"`
+	OnRamps            *address.Address                    `tlb:"addr"`
 }
 
 // TokenAmount is a structure that holds the amount and token address for a CCIP transaction.

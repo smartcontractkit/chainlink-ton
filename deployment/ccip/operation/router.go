@@ -64,7 +64,7 @@ func deployRouter(b operations.Bundle, deps TonDeps, in DeployRouterInput) (Depl
 	return output, nil
 }
 
-type UpdateRouterDestInput map[string][]uint64
+type UpdateRouterDestInput map[string][]router.DestChainSelector
 
 type UpdateRouterDestOutput struct {
 }
@@ -83,7 +83,7 @@ func updateRouterDest(b operations.Bundle, deps TonDeps, in UpdateRouterDestInpu
 	for onRampAddrStr, selectors := range in {
 		rampAddr := address.MustParseAddr(onRampAddrStr)
 		input := router.SetRamps{
-			DestChainSelectors: common.SnakeData[uint64](selectors),
+			DestChainSelectors: selectors,
 			OnRamps:            rampAddr,
 		}
 

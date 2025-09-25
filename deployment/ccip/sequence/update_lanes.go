@@ -8,6 +8,7 @@ import (
 	"github.com/Masterminds/semver/v3"
 	chainsel "github.com/smartcontractkit/chain-selectors"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 	"github.com/xssnick/tonutils-go/address"
 
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
@@ -158,7 +159,7 @@ func setTonSourceUpdates(lane config.LaneConfig, updateInputsByTonChain map[uint
 	rampAddress := onrampAddress.String()
 	input.UpdateRouterDestConfig[rampAddress] = append(
 		input.UpdateRouterDestConfig[rampAddress],
-		dest.Selector,
+		router.DestChainSelector{Value: dest.Selector},
 	)
 
 	updateInputsByTonChain[source.Selector] = input
