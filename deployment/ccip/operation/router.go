@@ -83,7 +83,7 @@ func updateRouterDest(b operations.Bundle, deps TonDeps, in UpdateRouterDestInpu
 	for onRampAddrStr, selectors := range in {
 		rampAddr := address.MustParseAddr(onRampAddrStr)
 		input := router.SetRamps{
-			DestChainSelectors: selectors,
+			DestChainSelectors: common.SnakeData[uint64](selectors),
 			OnRamps:            rampAddr,
 		}
 
