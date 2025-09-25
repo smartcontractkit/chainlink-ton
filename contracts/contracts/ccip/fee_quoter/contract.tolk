@@ -6,6 +6,7 @@ import "../../lib/upgrades/type_and_version";
 import "../../lib/utils";
 import "messages"
 import "errors"
+import "../../lib/cross_chain_address_validation"
 
 const VAL_1E5:  uint256 = 100000;
 const VAL_1E14: uint256 = 100000000000000;
@@ -351,9 +352,22 @@ fun parseSvmExtraArgs(extraArgs: cell, maxPerMsgGasLimit: uint32, enforceOutOfOr
 }
 
 fun validateDestFamilyAddress(chainFamilySelector: uint32, receiver: CrossChainAddress, gasLimit: int) {
-    // TODO
-    return;
+    if (chainFamilySelector == CHAIN_FAMILY_SELECTOR_EVM) {
+        debug.printString("Validating EVM address");
+        return validateEVMAddress(receiver);
+    } else if (chainFamilySelector == CHAIN_FAMILY_SELECTOR_SVM) {
+        // SVM addresses don't have a precompile space at the first X addresses, instead we validate that if the gasLimit
+        // is non-zero, the address must not be 0x0.
+        return validate32ByteAddress(receiver, gasLimit > 0 ? 1 : 0);
+    } else if (chainFamilySelector == CHAIN_FAMILY_SELECTOR_APTOS) {
+        return validate32ByteAddress(receiver, APTOS_PRECOMPILE_SPACE);
+    } else if (chainFamilySelector == CHAIN_FAMILY_SELECTOR_SUI) {
+        return validate32ByteAddress(receiver, gasLimit > 0 ? APTOS_PRECOMPILE_SPACE : 0);
+    } else {
+        throw ERROR_UNSUPPORTED_CHAIN_FAMILY_SELECTOR;
+    }
 }
+
 
 fun getValidatedFee(payload: FeeQuoter_GetValidatedFee<cell>, sender: address) {
     val msg = payload.msg.load();

@@ -29,6 +29,11 @@ const TEST_TOKEN_ADDR = Address.parseRaw(
   '0:0000000000000000000000000000000000000000000000000000000000000001',
 )
 
+const EVM_ADDRESS = Buffer.from(
+  '0000000000000000000000001234567890123456789012345678901234567890',
+  'hex',
+) // 32 bytes
+
 describe('Router', () => {
   let blockchain: Blockchain
   let deployer: SandboxContract<TreasuryContract>
@@ -247,10 +252,7 @@ describe('Router', () => {
         body: {
           queryID: 1,
           destChainSelector: CHAINSEL_EVM_TEST_90000001,
-          receiver: Buffer.from(
-            '1234567890123456789012345678901234567890123456789012345678901234',
-            'hex',
-          ), // 32 bytes
+          receiver: EVM_ADDRESS,
           data: Cell.EMPTY,
           tokenAmounts: [],
           feeToken: TEST_TOKEN_ADDR,
@@ -375,7 +377,7 @@ describe('Router', () => {
       .encode({
         queryID: 1,
         destChainSelector: CHAINSEL_EVM_TEST_90000001,
-        receiver: Buffer.alloc(64),
+        receiver: EVM_ADDRESS,
         data: Cell.EMPTY,
         tokenAmounts: [{ amount: jettonAmount, token: jettonMinter.address }],
         feeToken: TEST_TOKEN_ADDR,
