@@ -652,93 +652,109 @@ async function setupJetton(
   }
 }
 
-function verifyBodyIsValidate<T>(
-  x: Cell | undefined,
+function verifyBodyMessage<T>(
+  body: Cell | undefined,
   codec: CellCodec<T>,
-  validations: ((x: T) => boolean)[],
+  validations: ((message: T) => boolean)[] = [],
 ): boolean {
-  if (!x) return false // Body is not empty
-  let msg: T
-  try {
-    msg = codec.load(x.beginParse())
-  } catch (e) {
-    console.log('Failed to load payload: ', e)
+  if (!body) {
+    console.log('Body is empty')
     return false
   }
-  for (const v of validations) {
-    if (!v(msg)) return false
+
+  let message: T
+  try {
+    message = codec.load(body.beginParse())
+  } catch (e) {
+    console.log('Failed to parse message body:', e)
+    return false
   }
-  return true
+
+  return validations.every((validate) => validate(message))
 }
 
 function verifyBodyIsTransferRequest(
-  x: Cell | undefined,
-  opt: {
-    transferRequestValidaton?: (x: jetton.AskToTransfer) => boolean
-  },
+  body: Cell | undefined,
+  options: {
+    transferRequestValidaton?: (request: jetton.AskToTransfer) => boolean
+  } = {},
 ): boolean {
-  return verifyBodyIsValidate(
-    x,
-    jetton.builder.messages.in.askToTransfer,
-    opt?.transferRequestValidaton ? [opt.transferRequestValidaton] : [],
-  )
+  const { transferRequestValidaton } = options
+  const validations = transferRequestValidaton ? [transferRequestValidaton] : []
+
+  return verifyBodyMessage(body, jetton.builder.messages.in.askToTransfer, validations)
 }
 
 function verifyBodyIsTransferRequestWithFwdPayload<T>(
-  x: Cell | undefined,
+  body: Cell | undefined,
   payloadCodec: CellCodec<T>,
-  opt: {
-    transferRequestValidaton?: (x: jetton.AskToTransferWithFwdPayload<T>) => boolean
-    fwdPayloadValidation?: (x: T) => boolean
-  },
+  options: {
+    transferRequestValidaton?: (request: jetton.AskToTransferWithFwdPayload<T>) => boolean
+    fwdPayloadValidation?: (payload: T) => boolean
+  } = {},
 ): boolean {
-  return verifyBodyIsValidate(
-    x,
+  const { transferRequestValidaton, fwdPayloadValidation } = options
+
+  const validations = [
+    ...(transferRequestValidaton ? [transferRequestValidaton] : []),
+    ...(fwdPayloadValidation
+      ? [
+          (request: jetton.AskToTransferWithFwdPayload<T>) =>
+            fwdPayloadValidation(request.forwardPayload),
+        ]
+      : []),
+  ]
+
+  return verifyBodyMessage(
+    body,
     jetton.builder.messages.in.askToTransferWithFwdPayload(payloadCodec),
-    [
-      ...(opt?.transferRequestValidaton ? [opt.transferRequestValidaton] : []),
-      ...(opt?.fwdPayloadValidation
-        ? [
-            (transferRequest: jetton.AskToTransferWithFwdPayload<T>) =>
-              opt.fwdPayloadValidation!(transferRequest.forwardPayload),
-          ]
-        : []),
-    ],
+    validations,
   )
 }
 
 function verifyBodyIsTransferNotification(
-  x: Cell | undefined,
-  opt: {
-    transferNotificationValidaton?: (x: jetton.TransferNotificationForRecipient) => boolean
-  },
+  body: Cell | undefined,
+  options: {
+    transferNotificationValidaton?: (
+      notification: jetton.TransferNotificationForRecipient,
+    ) => boolean
+  } = {},
 ): boolean {
-  return verifyBodyIsValidate(
-    x,
+  const { transferNotificationValidaton } = options
+  const validations = transferNotificationValidaton ? [transferNotificationValidaton] : []
+
+  return verifyBodyMessage(
+    body,
     jetton.builder.messages.out.transferNotificationForRecipient,
-    opt?.transferNotificationValidaton ? [opt.transferNotificationValidaton] : [],
+    validations,
   )
 }
 
 function verifyBodyIsTransferNotificationWithFwdPayload<T>(
-  x: Cell | undefined,
+  body: Cell | undefined,
   payloadCodec: CellCodec<T>,
-  opt: {
-    transferNotificationValidaton?: (x: jetton.TransferNotificationWithFwdPayload<T>) => boolean
-    fwdPayloadValidation?: (x: T) => boolean
-  },
+  options: {
+    transferNotificationValidaton?: (
+      notification: jetton.TransferNotificationWithFwdPayload<T>,
+    ) => boolean
+    fwdPayloadValidation?: (payload: T) => boolean
+  } = {},
 ): boolean {
-  return verifyBodyIsValidate(
-    x,
+  const { transferNotificationValidaton, fwdPayloadValidation } = options
+
+  const validations = [
+    ...(transferNotificationValidaton ? [transferNotificationValidaton] : []),
+    ...(fwdPayloadValidation
+      ? [
+          (notification: jetton.TransferNotificationWithFwdPayload<T>) =>
+            fwdPayloadValidation(notification.forwardPayload),
+        ]
+      : []),
+  ]
+
+  return verifyBodyMessage(
+    body,
     jetton.builder.messages.out.transferNotificationWithFwdPayload(payloadCodec),
-    [
-      ...(opt?.transferNotificationValidaton ? [opt.transferNotificationValidaton] : []),
-      ...(opt?.fwdPayloadValidation
-        ? [
-            (transferRequest: jetton.TransferNotificationWithFwdPayload<T>) =>
-              opt.fwdPayloadValidation!(transferRequest.forwardPayload),
-          ]
-        : []),
-    ],
+    validations,
   )
 }
