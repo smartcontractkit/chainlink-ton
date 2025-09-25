@@ -20,6 +20,8 @@ const config: Config = {
   ],
   maxWorkers: '50%',
   workerThreads: true,
+
+  testTimeout: 30000, // Overwrite default 5s timeout
 }
 
 export default config

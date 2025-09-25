@@ -90,6 +90,7 @@ func (a *TONAccessor) convertCCIPMessageSent(
 ) *chainaccessor.SendRequestedEvent {
 	senderAddr := codec.ToRawAddr(tonEvent.Message.Sender)
 	feeTokenAddr := codec.ToRawAddr(tonEvent.Message.Body.FeeToken)
+
 	msg := ccipocr3.Message{
 		Header: ccipocr3.RampMessageHeader{
 			MessageID:           ccipocr3.Bytes32(tonEvent.Message.Header.MessageID),

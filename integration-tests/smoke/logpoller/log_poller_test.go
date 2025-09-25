@@ -175,7 +175,7 @@ func Test_LogPoller(t *testing.T) {
 			Filters:  fs,
 			TxLoader: account.NewTxLoader(logger.Test(t), clientProvider, cfg.PageSize),
 			TxParser: txparser.NewTxParser(logger.Test(t), fs),
-			Store:    inmemorystore.NewLogStore(),
+			Store:    inmemorystore.NewLogStore(logger.Test(t)),
 		}
 		lp := logpoller.NewService(
 			logger.Test(t),

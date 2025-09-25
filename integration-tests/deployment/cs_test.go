@@ -181,7 +181,7 @@ func TestDeploy(t *testing.T) {
 		Filters:  filterStore,
 		TxLoader: account.NewTxLoader(lggr, clientProvider, lpCfg.PageSize),
 		TxParser: txparser.NewTxParser(lggr, filterStore),
-		Store:    inmemorystore.NewLogStore(),
+		Store:    inmemorystore.NewLogStore(lggr),
 	}
 	lp := logpoller.NewService(lggr,
 		clientProvider,
