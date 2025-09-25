@@ -64,7 +64,7 @@ func deployRouter(b operations.Bundle, deps TonDeps, in DeployRouterInput) (Depl
 	return output, nil
 }
 
-type UpdateRouterDestInput map[uint64]*address.Address
+type UpdateRouterDestInput map[string][]uint64
 
 type UpdateRouterDestOutput struct {
 }
@@ -80,10 +80,11 @@ func updateRouterDest(b operations.Bundle, deps TonDeps, in UpdateRouterDestInpu
 	addr := deps.CCIPOnChainState[deps.TonChain.Selector].Router
 
 	msgs := make([]*tlb.InternalMessage, 0)
-	for destSelector, onRampAddr := range in {
-		input := router.SetRamp{
-			DestChainSelector: destSelector,
-			OnRamp:            onRampAddr,
+	for onRampAddrStr, selectors := range in {
+		rampAddr := address.MustParseAddr(onRampAddrStr)
+		input := router.SetRamps{
+			DestChainSelectors: selectors,
+			OnRamps:            rampAddr,
 		}
 
 		payload, err := tlb.ToCell(input)
@@ -97,7 +98,6 @@ func updateRouterDest(b operations.Bundle, deps TonDeps, in UpdateRouterDestInpu
 			DstAddr: &addr,
 			Body:    payload,
 		}
-
 		msgs = append(msgs, &msg)
 	}
 

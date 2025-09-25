@@ -23,6 +23,13 @@ type SetRamp struct {
 	OnRamp            *address.Address `tlb:"addr"`
 }
 
+type SetRamps struct {
+	_                  tlb.Magic                `tlb:"#10000002"` //nolint:revive // Ignore opcode tag
+	QueryID            uint64                   `tlb:"## 64"`
+	DestChainSelectors common.SnakeData[uint64] `tlb:"^"`
+	OnRamps            *address.Address         `tlb:"addr"`
+}
+
 // TokenAmount is a structure that holds the amount and token address for a CCIP transaction.
 type TokenAmount struct {
 	Amount *big.Int        `tlb:"## 256"`

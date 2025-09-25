@@ -136,7 +136,7 @@ struct (0x10000001) SetRamp {
 // update multiple chain selectors in batch to the same onramp address
 struct (0x10000002) SetRamps {
     queryId: uint64;
-    updates: cell; // vec<uint64> for destChainSelectors
+    destChainSelectors: cell; // vec<uint64> for destChainSelectors
     onRamp: address;
 }
 

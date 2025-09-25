@@ -54,10 +54,10 @@ fun onSetRamps(msg: SetRamps, sender: address) {
     var st = lazy Storage.load();
     st.ownable.requireOwner(sender);
 
-    var ramps = Iterator<uint64>.new(msg.updates);
-    while (!ramps.empty()) {
-        val ramp = ramps.next();
-        st.onRamps.set(ramp, msg.onRamp);
+    var selectors = Iterator<uint64>.new(msg.destChainSelectors);
+    while (!selectors.empty()) {
+        val selector = selectors.next();
+        st.onRamps.set(selector, msg.onRamp);
     }
     st.store();
 }
