@@ -91,16 +91,14 @@ func updateRouterDest(b operations.Bundle, deps TonDeps, in UpdateRouterDestInpu
 			return nil, fmt.Errorf("failed to serialize router input: %w", err)
 		}
 
-		msg := []*tlb.InternalMessage{
-			{
-				Bounce:  true,
-				Amount:  tlb.MustFromTON("0.1"),
-				DstAddr: &addr,
-				Body:    payload,
-			},
+		msg := tlb.InternalMessage{
+			Bounce:  true,
+			Amount:  tlb.MustFromTON("0.1"),
+			DstAddr: &addr,
+			Body:    payload,
 		}
 
-		msgs = append(msgs, msg...)
+		msgs = append(msgs, &msg)
 	}
 
 	return utils.Serialize(msgs)
