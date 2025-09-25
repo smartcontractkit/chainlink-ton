@@ -652,26 +652,36 @@ async function setupJetton(
   }
 }
 
+function verifyBodyIsValidate<T>(
+  x: Cell | undefined,
+  codec: CellCodec<T>,
+  validations: ((x: T) => boolean)[],
+): boolean {
+  if (!x) return false // Body is not empty
+  let msg: T
+  try {
+    msg = codec.load(x.beginParse())
+  } catch (e) {
+    console.log('Failed to load payload: ', e)
+    return false
+  }
+  for (const v of validations) {
+    if (!v(msg)) return false
+  }
+  return true
+}
+
 function verifyBodyIsTransferRequest(
   x: Cell | undefined,
   opt: {
     transferRequestValidaton?: (x: jetton.AskToTransfer) => boolean
   },
 ): boolean {
-  // === Verifies that body is an askToTransfer with forwardPayload: onrampSend ===
-  if (!x) return false // Body is not empty
-  // Parse askToTransfer
-  let transferRequest: jetton.AskToTransfer
-  try {
-    transferRequest = jetton.builder.messages.in.askToTransfer.load(x.beginParse())
-  } catch (e) {
-    console.log('Failed to load payload: ', e)
-    return false
-  }
-  if (opt?.transferRequestValidaton && !opt.transferRequestValidaton(transferRequest)) {
-    return false
-  }
-  return true
+  return verifyBodyIsValidate(
+    x,
+    jetton.builder.messages.in.askToTransfer,
+    opt?.transferRequestValidaton ? [opt.transferRequestValidaton] : [],
+  )
 }
 
 function verifyBodyIsTransferRequestWithFwdPayload<T>(
@@ -682,25 +692,19 @@ function verifyBodyIsTransferRequestWithFwdPayload<T>(
     fwdPayloadValidation?: (x: T) => boolean
   },
 ): boolean {
-  // === Verifies that body is an askToTransfer with forwardPayload: onrampSend ===
-  if (!x) return false // Body is not empty
-  // Parse askToTransfer
-  let transferRequest: jetton.AskToTransferWithFwdPayload<T>
-  try {
-    transferRequest = jetton.builder.messages.in
-      .askToTransferWithFwdPayload(payloadCodec)
-      .load(x.beginParse())
-  } catch (e) {
-    console.log('Failed to load payload: ', e)
-    return false
-  }
-  if (opt?.transferRequestValidaton && !opt.transferRequestValidaton(transferRequest)) {
-    return false
-  }
-  if (opt?.fwdPayloadValidation && !opt.fwdPayloadValidation(transferRequest.forwardPayload)) {
-    return false
-  }
-  return true
+  return verifyBodyIsValidate(
+    x,
+    jetton.builder.messages.in.askToTransferWithFwdPayload(payloadCodec),
+    [
+      ...(opt?.transferRequestValidaton ? [opt.transferRequestValidaton] : []),
+      ...(opt?.fwdPayloadValidation
+        ? [
+            (transferRequest: jetton.AskToTransferWithFwdPayload<T>) =>
+              opt.fwdPayloadValidation!(transferRequest.forwardPayload),
+          ]
+        : []),
+    ],
+  )
 }
 
 function verifyBodyIsTransferNotification(
@@ -709,22 +713,11 @@ function verifyBodyIsTransferNotification(
     transferNotificationValidaton?: (x: jetton.TransferNotificationForRecipient) => boolean
   },
 ): boolean {
-  // === Verifies that body is an transferNotification with forwardPayload: onrampSend ===
-  if (!x) return false // Body is not empty
-  // Parse transferNotification
-  let transferRequest: jetton.TransferNotificationForRecipient
-  try {
-    transferRequest = jetton.builder.messages.out.transferNotificationForRecipient.load(
-      x.beginParse(),
-    )
-  } catch (e) {
-    console.log('Failed to load onrampSend: ', e)
-    return false
-  }
-  if (opt?.transferNotificationValidaton && !opt.transferNotificationValidaton(transferRequest)) {
-    return false
-  }
-  return true
+  return verifyBodyIsValidate(
+    x,
+    jetton.builder.messages.out.transferNotificationForRecipient,
+    opt?.transferNotificationValidaton ? [opt.transferNotificationValidaton] : [],
+  )
 }
 
 function verifyBodyIsTransferNotificationWithFwdPayload<T>(
@@ -735,23 +728,17 @@ function verifyBodyIsTransferNotificationWithFwdPayload<T>(
     fwdPayloadValidation?: (x: T) => boolean
   },
 ): boolean {
-  // === Verifies that body is an transferNotification with forwardPayload: onrampSend ===
-  if (!x) return false // Body is not empty
-  // Parse transferNotification
-  let transferRequest: jetton.TransferNotificationWithFwdPayload<T>
-  try {
-    transferRequest = jetton.builder.messages.out
-      .transferNotificationWithFwdPayload(payloadCodec)
-      .load(x.beginParse())
-  } catch (e) {
-    console.log('Failed to load onrampSend: ', e)
-    return false
-  }
-  if (opt?.transferNotificationValidaton && !opt.transferNotificationValidaton(transferRequest)) {
-    return false
-  }
-  if (opt?.fwdPayloadValidation && !opt.fwdPayloadValidation(transferRequest.forwardPayload)) {
-    return false
-  }
-  return true
+  return verifyBodyIsValidate(
+    x,
+    jetton.builder.messages.out.transferNotificationWithFwdPayload(payloadCodec),
+    [
+      ...(opt?.transferNotificationValidaton ? [opt.transferNotificationValidaton] : []),
+      ...(opt?.fwdPayloadValidation
+        ? [
+            (transferRequest: jetton.TransferNotificationWithFwdPayload<T>) =>
+              opt.fwdPayloadValidation!(transferRequest.forwardPayload),
+          ]
+        : []),
+    ],
+  )
 }
