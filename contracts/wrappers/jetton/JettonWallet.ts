@@ -60,6 +60,16 @@ export type AskToTransfer = {
   forwardPayload: Cell | Slice | null
 }
 
+export type AskToTransferWithFwdPayload<T> = {
+  queryId: number
+  jettonAmount: bigint
+  destination: Address
+  responseDestination: Address
+  customPayload: Cell | null
+  forwardTonAmount: bigint
+  forwardPayload: T
+}
+
 export type BurnMessage = {
   queryId: bigint
   jettonAmount: bigint
@@ -72,6 +82,13 @@ export type TransferNotificationForRecipient = {
   jettonAmount: bigint
   senderAddress: Address
   forwardPayload: Cell | null
+}
+
+export type TransferNotificationWithFwdPayload<T> = {
+  queryId: number
+  jettonAmount: bigint
+  senderAddress: Address
+  forwardPayload: T
 }
 
 export class JettonWallet implements Contract {
@@ -199,7 +216,10 @@ export const builder = {
           return body
         },
         load: function (src: Slice): AskToTransfer {
-          src.skip(32)
+          let op = src.loadUint(32)
+          if (op !== Opcodes.TRANSFER) {
+            throw new Error(`Invalid opcode, expected ${Opcodes.TRANSFER}, got ${op}`)
+          }
           const askToTransfer = {
             queryId: src.loadUint(64),
             jettonAmount: src.loadCoins(),
@@ -218,8 +238,41 @@ export const builder = {
           return askToTransfer
         },
       }
+      const askToTransferWithFwdPayload = <T>(
+        payloadCodec: CellCodec<T>,
+      ): CellCodec<AskToTransferWithFwdPayload<T>> => {
+        return {
+          encode: function (data: AskToTransferWithFwdPayload<T>): Builder {
+            let tr: AskToTransfer = {
+              ...data,
+              forwardPayload: payloadCodec.encode(data.forwardPayload).endCell(),
+            }
+            return askToTransfer.encode(tr)
+          },
+          load: function (src: Slice): AskToTransferWithFwdPayload<T> {
+            let transferRequest = askToTransfer.load(src)
+            if (!transferRequest.forwardPayload) {
+              throw new Error('forwardPayload is null')
+            }
+            let payload = payloadCodec.load(
+              ((forwardPayload: Cell | Slice): Slice => {
+                if (forwardPayload instanceof Cell) {
+                  return forwardPayload.beginParse()
+                } else {
+                  return forwardPayload
+                }
+              })(transferRequest.forwardPayload),
+            )
+            return {
+              ...transferRequest,
+              forwardPayload: payload,
+            }
+          },
+        }
+      }
       return {
         askToTransfer,
+        askToTransferWithFwdPayload,
       }
     })(),
     out: (() => {
@@ -242,8 +295,41 @@ export const builder = {
           }
         },
       }
+      const transferNotificationWithFwdPayload = <T>(
+        payloadCodec: CellCodec<T>,
+      ): CellCodec<TransferNotificationWithFwdPayload<T>> => {
+        return {
+          encode: function (data: TransferNotificationWithFwdPayload<T>): Builder {
+            let tn: TransferNotificationForRecipient = {
+              ...data,
+              forwardPayload: payloadCodec.encode(data.forwardPayload).endCell(),
+            }
+            return transferNotificationForRecipient.encode(tn)
+          },
+          load: function (src: Slice): TransferNotificationWithFwdPayload<T> {
+            let tn = transferNotificationForRecipient.load(src)
+            if (!tn.forwardPayload) {
+              throw new Error('forwardPayload is null')
+            }
+            let payload = payloadCodec.load(
+              ((forwardPayload: Cell | Slice): Slice => {
+                if (forwardPayload instanceof Cell) {
+                  return forwardPayload.beginParse()
+                } else {
+                  return forwardPayload
+                }
+              })(tn.forwardPayload),
+            )
+            return {
+              ...tn,
+              forwardPayload: payload,
+            }
+          },
+        }
+      }
       return {
         transferNotificationForRecipient,
+        transferNotificationWithFwdPayload,
       }
     })(),
   },
