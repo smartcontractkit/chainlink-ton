@@ -149,11 +149,13 @@ func setTonSourceUpdates(lane config.LaneConfig, updateInputsByTonChain map[uint
 	// if onRampVersion == nil {
 	// 	onRampVersion = defaultOnRampVersion
 	// }
-	input.UpdateRouterDestConfig = operation.UpdateRouterDestInput{
-		DestChainSelector: dest.Selector,
-		OnRamp:            onrampAddress,
+
+	// update the onramp address map with the destination selector
+	if input.UpdateRouterDestConfig == nil {
+		input.UpdateRouterDestConfig = make(map[uint64]*address.Address)
 	}
 
+	input.UpdateRouterDestConfig[dest.Selector] = onrampAddress
 	updateInputsByTonChain[source.Selector] = input
 }
 
