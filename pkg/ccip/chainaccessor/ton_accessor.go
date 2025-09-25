@@ -674,9 +674,13 @@ func (a *TONAccessor) GetChainFeePriceUpdate(ctx context.Context, selectors []cc
 		a.lggr.Debugf("TON TON TON TON TON: %+v", update)
 		a.lggr.Debugf("TON TON TON TON TON: %+v", update.Timestamp)
 		a.lggr.Debugf("TON TON TON TON TON: %+v", update.ExecutionGasPrice)
+
+		packedFee := new(big.Int).Lsh(update.DataAvailabilityGasPrice, 112)
+		packedFee.Or(packedFee, update.ExecutionGasPrice)
+
 		prices[selector] = ccipocr3.TimestampedUnixBig{
 			Timestamp: uint32(update.Timestamp), //nolint:gosec // TODO: fix type onchain
-			Value:     update.ExecutionGasPrice,
+			Value:     packedFee,
 		}
 	}
 	return prices, nil
