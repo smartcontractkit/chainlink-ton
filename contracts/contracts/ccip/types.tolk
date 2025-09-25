@@ -356,7 +356,7 @@ struct TokenBalance {
 }
 
 struct (0x181dcf10) GenericExtraArgsV2 {
-    gasLimit: uint256;
+    gasLimit: uint256?;
     allowOutOfOrderExecution: bool;
 }
 

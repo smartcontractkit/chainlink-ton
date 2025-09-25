@@ -331,7 +331,8 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: Fee
     if (config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_EVM ||
         config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_APTOS ||
         config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_SUI) {
-        val gasLimit = resolveGenericGasLimit(extraArgs, config.defaultTxGasLimit, config.maxPerMsgGasLimit, config.enforceOutOfOrder);
+        val gasLimitOpt = resolveGenericGasLimit(extraArgs, config.defaultTxGasLimit, config.maxPerMsgGasLimit, config.enforceOutOfOrder);
+        val gasLimit = gasLimitOpt != null ? gasLimitOpt : 0;
         validateDestFamilyAddress(config.chainFamilySelector, message.receiver, gasLimit);
         return gasLimit;
     }
@@ -388,7 +389,7 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: Fee
     }
 }
 
-fun resolveGenericGasLimit(extraArgs: cell, defaultTxGasLimit: uint32, maxPerMsgGasLimit: uint32, enforceOutOfOrder: bool): int {
+fun resolveGenericGasLimit(extraArgs: cell, defaultTxGasLimit: uint32, maxPerMsgGasLimit: uint32, enforceOutOfOrder: bool): int?{
     return parseGenericExtraArgs(extraArgs, defaultTxGasLimit, maxPerMsgGasLimit, enforceOutOfOrder).gasLimit;
 }
 
@@ -401,12 +402,6 @@ fun parseGenericExtraArgs(extraArgs: cell, defaultTxGasLimit: uint32, maxPerMsgG
     return extra;
 }
 
-struct (0x181dcf10) GenericExtraArgsV2_2 {
-    gasLimit: uint256?
-    allowOutOfOrderExecution: bool
-}
-
-
 fun parseUnvalidatedEVMExtraArgs(extraArgs: cell, defaultTxGasLimit: uint32): GenericExtraArgsV2 {
     if (extraArgs.beginParse().isEmpty()) {
         return GenericExtraArgsV2 {
@@ -414,11 +409,7 @@ fun parseUnvalidatedEVMExtraArgs(extraArgs: cell, defaultTxGasLimit: uint32): Ge
             allowOutOfOrderExecution: false, // TBD: isn't default true in TON?
         };
     }
-    val extra = GenericExtraArgsV2_2.fromCell(extraArgs);
-    return GenericExtraArgsV2 {
-        gasLimit: extra.gasLimit != null ? extra.gasLimit : 0,
-        allowOutOfOrderExecution: extra.allowOutOfOrderExecution,
-    }
+    return GenericExtraArgsV2.fromCell(extraArgs);
 }
 
 fun parseSvmExtraArgs(extraArgs: cell, maxPerMsgGasLimit: uint32, enforceOutOfOrder: bool): SVMExtraArgsV1 {
