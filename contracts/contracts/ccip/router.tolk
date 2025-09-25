@@ -21,12 +21,13 @@ fun Storage.store(self) {
     return contract.setData(self.toCell());
 }
 
-type Msg = CCIPSend | SetRamp | JettonTransferNotification;
+type Msg = CCIPSend | SetRamp | SetRamps | JettonTransferNotification;
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy Msg.fromSlice(in.body);
     match (msg) {
         SetRamp => { onSetRamp(msg, in.senderAddress) }
+        SetRamps => {onSetRamps(msg, in.senderAddress)}
         CCIPSend => { onSend(msg, in.senderAddress) }
         JettonTransferNotification => { onTransferNotification(msg, in.senderAddress) }
         else => {
@@ -47,6 +48,18 @@ fun onSetRamp(msg: SetRamp, sender: address) {
     st.store();
 
     // TODO: emit(OnRampSet)
+}
+
+fun onSetRamps(msg: SetRamps, sender: address) {
+    var st = lazy Storage.load();
+    st.ownable.requireOwner(sender);
+
+    var ramps = Iterator<uint64>.new(msg.updates);
+    while (!ramps.empty()) {
+        val ramp = ramps.next();
+        st.onRamps.set(ramp, msg.onRamp);
+    }
+    st.store();
 }
 
 fun onSend(msg: CCIPSend, sender: address) {
