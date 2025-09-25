@@ -119,7 +119,7 @@ const tokenAmountCodec: CellCodec<TokenAmount> = {
 
 type GenericExtraArgsV2 = {
   kind: 'generic-v2'
-  gasLimit: bigint
+  gasLimit?: bigint
   allowOutOfOrderExecution: boolean
 }
 
@@ -168,7 +168,7 @@ export const builder = {
           case 'generic-v2':
             return beginCell()
               .storeUint(ExtraArgsOpcodes.genericV2, 32)
-              .storeUint(data.gasLimit, 256)
+              .storeMaybeUint(data.gasLimit, 256)
               .storeBit(data.allowOutOfOrderExecution)
           case 'svm-v1':
             return beginCell()
