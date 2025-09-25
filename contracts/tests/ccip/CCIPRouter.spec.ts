@@ -134,7 +134,7 @@ describe('Router', () => {
               config: {
                 // minimal valid config
                 isEnabled: true,
-                maxNumberOfTokensPerMsg: 0, // TODO:
+                maxNumberOfTokensPerMsg: 1,
                 maxDataBytes: 100,
                 maxPerMsgGasLimit: 100,
                 destGasOverhead: 0,

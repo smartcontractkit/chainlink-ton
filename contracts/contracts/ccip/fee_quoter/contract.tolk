@@ -221,7 +221,7 @@ get fun validatedFee(msg: CCIPSend): coins {
     val premiumMultiplier = st.premiumMultiplierWeiPerEth.mustGet(msg.feeToken, ERROR_FEE_TOKEN_NOT_SUPPORTED) as uint256;
     val feeTokenPrice = st.usdPerToken.mustGet(msg.feeToken, ERROR_FEE_TOKEN_NOT_SUPPORTED);
 
-    var gasLimit = validateMessageAndResolveGasLimitForDestination(msg.extraArgs, destChainConfig.config, msg.receiver);
+    var gasLimit = validateMessageAndResolveGasLimitForDestination(msg.extraArgs, destChainConfig.config, msg);
 
     // TODO: this can throw and bounce the message
     val (executionGasPrice, dataAvailabilityGasPrice) = destChainConfig.getValidatedGasPrice();
@@ -294,23 +294,94 @@ get fun validatedFee(msg: CCIPSend): coins {
     return feeTokenAmount;
 }
 
-fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: FeeQuoterDestChainConfig, receiver: CrossChainAddress): int {
+// TBD this should live in a different file
+const SUI_EXTRA_ARGS_MAX_RECEIVER_OBJECT_IDS = 64;
+const SUI_MESSAGING_ACCOUNTS_OVERHEAD = 1;
+const SUI_ACCOUNT_BYTE_SIZE: uint256 = 32;
+/// @dev The expected static payload size of a token transfer when Borsh encoded and submitted to SUI.
+/// TokenPool extra data and offchain data sizes are dynamic, and should be accounted for separately.
+const SUI_TOKEN_TRANSFER_DATA_OVERHEAD: uint256 = (4 + 32) // source_pool
++ 32 // token_address
++ 4 // gas_amount
++ 4 // extra_data overhead
++ 32 // amount
++ 32 // size of the token lookup table account
++ 32 // token-related accounts in the lookup table, over-estimated to 32, typically between 11 - 13
++ 32 // token account belonging to the token receiver, e.g ATA, not included in the token lookup table
++ 32 // per-chain token pool config, not included in the token lookup table
++ 32; // per-chain token billing config, not always included in the token lookup table
+
+fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: FeeQuoterDestChainConfig, message: CCIPSend): int {
+    val (_cells, dataBits, _cellReferences, succeded) = message.data.calculateSize(99); // How are we decoding this?
+    assert(succeded, ERROR_INVALID_MSG_DATA);
+    assert(dataBits % 8 == 0, ERROR_INVALID_MSG_DATA); // TBD: This is not present in the Solidity implementation, but the it uses bytes for data, so I supose this is implied
+    val dataLength = dataBits / 8 as uint256;
+
+    // Check that payload is formed correctly.
+    assert (dataLength <= config.maxDataBytes) throw ERROR_MSG_DATA_TOO_LARGE;
+    var tokenAmounts = Iterator<TokenAmount>.new(message.tokenAmounts);
+    var numberOfTokens = 0;
+    while (!tokenAmounts.empty()) {
+        var _ = tokenAmounts.next();
+        numberOfTokens += 1;
+    }
+    assert (numberOfTokens <= config.maxNumberOfTokensPerMsg) throw ERROR_UNSUPORTED_NUMBER_OF_TOKENS;
+
     // NOTE: we could deploy distinct contracts to cut down on code
     if (config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_EVM ||
         config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_APTOS ||
         config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_SUI) {
         val gasLimit = resolveGenericGasLimit(extraArgs, config.defaultTxGasLimit, config.maxPerMsgGasLimit, config.enforceOutOfOrder);
-        validateDestFamilyAddress(config.chainFamilySelector, receiver, gasLimit);
+        validateDestFamilyAddress(config.chainFamilySelector, message.receiver, gasLimit);
         return gasLimit;
     }
     else if (config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_SVM) {
         // resolveSVMGasLimit()
         val svmExtraArgs = parseSvmExtraArgs(extraArgs, config.defaultTxGasLimit, config.enforceOutOfOrder);
         val gasLimit = svmExtraArgs.computeUnits;
-        validateDestFamilyAddress(config.chainFamilySelector, receiver, gasLimit);
+        validateDestFamilyAddress(config.chainFamilySelector, message.receiver, gasLimit);
 
-        // TODO Solidity implementation does more validations here
-        // val accounts = Iterator<cell>.new(svmExtraArgs.accounts);
+        // objectIds are 32 bytes long
+        val accounts = Iterator<uint256>.new(svmExtraArgs.accounts);
+        val receiverObjectIdsLength = accounts.size(32);
+        // The max payload size for SUI is heavily dependent on the receiver object ids passed into extra args and the number of
+        // tokens. Below, token and account overhead will count towards maxDataBytes.
+        var suiExpandedDataLength = dataLength;
+
+        if (a32ByteAddress.fromSlice(message.receiver).value == 0) {
+            // When message receiver is zero, CCIP receiver is not invoked on SUI.
+            // There should not be additional accounts specified for the receiver.
+            assert (receiverObjectIdsLength > 0) throw ERROR_INVALID_SUI_RECEIVER_ADDRESS;
+        } else {
+            // The messaging accounts needed for CCIP receiver on SUI are:
+            // message receiver,
+            // plus remaining accounts specified in Sui extraArgs. Each account is 32 bytes.
+            suiExpandedDataLength += ((receiverObjectIdsLength + SUI_MESSAGING_ACCOUNTS_OVERHEAD) * SUI_ACCOUNT_BYTE_SIZE);
+        }
+         
+        if (numberOfTokens > 0 && svmExtraArgs.tokenReceiver == 0) {
+            throw ERROR_INVALID_TOKEN_RECEIVER;
+        }
+
+        assert (receiverObjectIdsLength <= SUI_EXTRA_ARGS_MAX_RECEIVER_OBJECT_IDS) throw ERROR_TOO_MANY_SUI_EXTRA_ARGS_RECEIVER_OBJECT_IDS;
+
+        suiExpandedDataLength += (numberOfTokens * SUI_TOKEN_TRANSFER_DATA_OVERHEAD);
+
+        // TBD this is not doable in TON. We cannot aford to have a map of every token to be sent to Solana.
+        // The token destBytesOverhead can be very different per token so we have to take it into account as well.
+        // for (uint256 i = 0; i < numberOfTokens; ++i) {
+        //   uint256 destBytesOverhead =
+        //     s_tokenTransferFeeConfig[destChainSelector][message.tokenAmounts[i].token].destBytesOverhead
+        //   // Pools get Pool.CCIP_LOCK_OR_BURN_V1_RET_BYTES by default, but if an override is set we use that instead.
+        //   if (destBytesOverhead > 0) {
+        //     suiExpandedDataLength += destBytesOverhead;
+        //   } else {
+        //     suiExpandedDataLength += Pool.CCIP_LOCK_OR_BURN_V1_RET_BYTES;
+        //   }
+        // }
+
+        assert (suiExpandedDataLength <= config.maxDataBytes) throw ERROR_MSG_DATA_TOO_LARGE;
+
         return gasLimit;
     } else {
         throw ERROR_UNSUPPORTED_CHAIN_FAMILY_SELECTOR;
@@ -353,7 +424,6 @@ fun parseSvmExtraArgs(extraArgs: cell, maxPerMsgGasLimit: uint32, enforceOutOfOr
 
 fun validateDestFamilyAddress(chainFamilySelector: uint32, receiver: CrossChainAddress, gasLimit: int) {
     if (chainFamilySelector == CHAIN_FAMILY_SELECTOR_EVM) {
-        debug.printString("Validating EVM address");
         return validateEVMAddress(receiver);
     } else if (chainFamilySelector == CHAIN_FAMILY_SELECTOR_SVM) {
         // SVM addresses don't have a precompile space at the first X addresses, instead we validate that if the gasLimit
