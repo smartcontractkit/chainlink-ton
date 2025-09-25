@@ -222,7 +222,7 @@ describe('Router', () => {
         })
       }
     }
-  }, 10000)
+  })
 
   it('onramp arbitrary message passing', async () => {
     // Configure onRamp on router
@@ -257,7 +257,7 @@ describe('Router', () => {
           extraArgs: rt.builder.data.extraArgs
             .encode({
               kind: 'generic-v2',
-              gasLimit: 0n,
+              gasLimit: 100n,
               allowOutOfOrderExecution: true,
             })
             .asCell(),
@@ -379,7 +379,13 @@ describe('Router', () => {
         data: Cell.EMPTY,
         tokenAmounts: [{ amount: jettonAmount, token: jettonMinter.address }],
         feeToken: TEST_TOKEN_ADDR,
-        extraArgs: Cell.EMPTY,
+        extraArgs: rt.builder.data.extraArgs
+          .encode({
+            kind: 'generic-v2',
+            gasLimit: 100n,
+            allowOutOfOrderExecution: true,
+          })
+          .asCell(),
       })
       .asCell()
 

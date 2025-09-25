@@ -324,7 +324,6 @@ fun parseGenericExtraArgs(extraArgs: cell, defaultTxGasLimit: uint32, maxPerMsgG
     val extra = parseUnvalidatedEVMExtraArgs(extraArgs, defaultTxGasLimit);
     assert (extra.gasLimit <= maxPerMsgGasLimit) throw ERROR_GAS_LIMIT_TOO_HIGH;
     if (enforceOutOfOrder) {
-        debug.printString("enforceOutOfOrder");
         assert (extra.allowOutOfOrderExecution) throw EXTRA_ARG_OUT_OF_ORDER_EXECUTION_MUST_BE_TRUE;
     }
     return extra;
