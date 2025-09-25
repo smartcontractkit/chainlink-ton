@@ -211,7 +211,7 @@ function contractNameFromPrettyAddress(address: string | undefined): string | un
   if (parts.length > 1) {
     return parts[1].trim().replace(')', '')
   }
-  return undefined
+  return parts[0]
 }
 
 /**

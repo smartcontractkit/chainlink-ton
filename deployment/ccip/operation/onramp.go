@@ -18,11 +18,12 @@ import (
 )
 
 type DeployOnRampInput struct {
-	ChainSelector        uint64
-	FeeQuoter            *address.Address
-	FeeAggregator        *address.Address
-	ContractPath         string
-	ExecutorContractPath string
+	ChainSelector             uint64
+	FeeQuoter                 *address.Address
+	FeeAggregator             *address.Address
+	ContractPath              string
+	ExecutorContractPath      string
+	TokenRegistryContractPath string
 }
 
 type DeployOnRampOutput struct {
@@ -48,6 +49,10 @@ func deployOnRamp(b operations.Bundle, deps TonDeps, in DeployOnRampInput) (Depl
 	if err != nil {
 		return output, fmt.Errorf("failed to compile executor contract: %w", err)
 	}
+	tokenRegistryCode, err := wrappers.ParseCompiledContract(in.TokenRegistryContractPath)
+	if err != nil {
+		return output, fmt.Errorf("failed to compile token registry contract: %w", err)
+	}
 
 	conn := tracetracking.NewSignedAPIClient(deps.TonChain.Client, *deps.TonChain.Wallet)
 
@@ -62,9 +67,10 @@ func deployOnRamp(b operations.Bundle, deps TonDeps, in DeployOnRampInput) (Depl
 			FeeAggregator:  in.FeeAggregator,
 			AllowListAdmin: deps.TonChain.WalletAddress,
 		},
-		DestChainConfigs: nil,
-		ExecutorCode:     executorCode,
-		CurrentMessageID: big.NewInt(0),
+		DestChainConfigs:  nil,
+		ExecutorCode:      executorCode,
+		TokenRegistryCode: tokenRegistryCode,
+		CurrentMessageID:  big.NewInt(0),
 	}
 	initData, err := tlb.ToCell(storage)
 	if err != nil {

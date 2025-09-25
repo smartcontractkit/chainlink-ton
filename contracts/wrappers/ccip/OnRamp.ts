@@ -27,6 +27,7 @@ export type OnRampStorage = {
   }
   destChainConfigs: Dictionary<bigint, Cell>
   executor_code: Cell
+  token_registry_code: Cell
   currentMessageId: bigint
 }
 
@@ -76,6 +77,7 @@ export const builder = {
               // UMap<> type
               .storeDict(data.destChainConfigs)
               .storeRef(data.executor_code)
+              .storeRef(data.token_registry_code)
               .storeUint(data.currentMessageId, 224)
           )
         },

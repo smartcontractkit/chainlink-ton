@@ -106,11 +106,12 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 	output.FeeQuoterAddress = deployFeeQuoterReport.Output.Address
 
 	onrampInput := operation.DeployOnRampInput{
-		ChainSelector:        in.CCIPConfig.OnRampParams.ChainSelector,
-		FeeQuoter:            deployFeeQuoterReport.Output.Address,
-		FeeAggregator:        in.CCIPConfig.OnRampParams.FeeAggregator,
-		ContractPath:         utils.GetBuildDir("OnRamp.compiled.json"),
-		ExecutorContractPath: utils.GetBuildDir("CCIPSendExecutor.compiled.json"),
+		ChainSelector:             in.CCIPConfig.OnRampParams.ChainSelector,
+		FeeQuoter:                 deployFeeQuoterReport.Output.Address,
+		FeeAggregator:             in.CCIPConfig.OnRampParams.FeeAggregator,
+		ContractPath:              utils.GetBuildDir("OnRamp.compiled.json"),
+		ExecutorContractPath:      utils.GetBuildDir("CCIPSendExecutor.compiled.json"),
+		TokenRegistryContractPath: utils.GetBuildDir("TokenRegistry.compiled.json"),
 	}
 
 	deployOnRampReport, err := operations.ExecuteOperation(b, operation.DeployOnRampOp, deps, onrampInput)

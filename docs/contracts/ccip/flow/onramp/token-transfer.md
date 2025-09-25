@@ -48,7 +48,7 @@ sequenceDiagram
     FQ ->> ORM: feeValidated{msgID, CCIPSend}
     Note over ORM: Calculate TR Cell based<br>on Token Address
 
-    ORM ->> TRC: GetTokenPoolInfo{msgID, CCIPSend}
+    ORM ->> TRC: GetTokenInfo{msgID, CCIPSend, executorJettonWallet}
 
     alt Token not supported (contract not deployed)
     TRC ->> ORM: Bounced{truncatedGetTokenPoolInfo{msgID}}

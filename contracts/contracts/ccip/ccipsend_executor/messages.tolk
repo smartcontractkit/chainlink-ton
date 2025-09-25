@@ -1,6 +1,7 @@
 import "../types"
 import "storage"
 import "../fee_quoter/messages"
+import "../token_registry/messages"
 
 tolk 1.1
 
@@ -20,5 +21,5 @@ type CCIPSendExecutor_InMessage =
     | CCIPSendExecutor_Execute
     | FeeQuoter_MessageValidated<Metadata>
     | JettonTransferNotification
-    // TODO | TokenRegistry_TokenPoolInfo
+    | TokenRegistry_TokenPoolInfo
     // TODO Implement interrupt message that allows to cancel the pending CCIP send and return funds to the sender. This should be callable only after a certain timeout. 

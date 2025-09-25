@@ -8,6 +8,7 @@ import "ccipsend_executor/storage"
 import "ccipsend_executor/messages"
 import "../lib/jetton/messages"
 import "../lib/jetton/messages_extended"
+import "token_registry/storage"
 
 const CCIP_MESSAGE_SENT_TOPIC: int = stringCrc32("CCIPMessageSent"); 
 
@@ -33,6 +34,7 @@ struct OnRamp_Data {
 
     destChainConfigs: map<uint64, DestChainConfig>; // chainSelector -> DestChainConfig
     executor_code: cell; // code for CCIPSendExecutor
+    token_registry_code: cell; // code for TokenRegistry
     currentMessageId: uint224;
     // TODO track last destroyed executor+gaps to allow owner to reclaim funds?
 }
@@ -66,6 +68,7 @@ type OnRamp_InMessage =
     | SetDynamicConfig
     | OnRampUpdateDestChainConfigs
     | UpdateAllowlists
+    | ReturnExcessesBack
     ;
     // TODO | UpdateExecutorCode
 
@@ -95,6 +98,9 @@ fun onInternalMessage(in: InMessage) {
             st.ownable.requireOwner(in.senderAddress);
             applyAllowlistUpdates(mutate st, msg.updates);
             st.store();
+        }
+        ReturnExcessesBack => {
+            return;
         }
         else => {
             // ignore empty messages, "wrong opcode" for others
@@ -130,7 +136,6 @@ fun send(payload: OnRampSend, sender: address, jettonWallet: address? = null) {
     if (!tokenAmounts.empty()) {
         tokenRegistry = calculateTokenRegistryAddress(st, tokenAmounts.next().token);
     }
-
     val executeMsg = createMessage({
         bounce: true,
         value: ton("0.05"), // TODO: calculate
@@ -178,8 +183,17 @@ fun onTransferNotification(notification: JettonTransferNotification, jettonWalle
 }
 
 fun calculateTokenRegistryAddress(st: OnRamp_Data, token: address): address {
-    // TODO: calculate token registry address
-    return createAddressNone()
+    return address.fromValidBuilder(AutoDeployAddress {
+        workchain: BASECHAIN,
+        stateInit: ContractState {
+            code: st.token_registry_code,
+            data: TokenRegistry_Storage {
+                onramp: contract.getAddress(),
+                minterAddress: token,
+            }.toCell(),
+        },
+        toShard: null,
+    }.buildAddress())
 }
 
 fun handleWithdrawJettons(payload: OnRamp_WithdrawJettons, executor: address) {

@@ -3,6 +3,8 @@ import { toNano, Address, Cell, Dictionary, beginCell, Slice } from '@ton/core'
 import { compile } from '@ton/blueprint'
 import * as rt from '../../wrappers/ccip/Router'
 import * as or from '../../wrappers/ccip/OnRamp'
+import * as ex from '../../wrappers/ccip/CCIPSendExecutor'
+import * as tr from '../../wrappers/ccip/TokenRegistry'
 import {
   createTimestampedPriceValue,
   FeeQuoter,
@@ -15,7 +17,7 @@ import { ZERO_ADDRESS } from '../../src/utils'
 import { JettonMinterCode, JettonWalletCode } from '../../wrappers/jetton/JettonCode'
 import { JettonMinter } from '../../wrappers/jetton/JettonMinter'
 import * as jetton from '../../wrappers/jetton/JettonWallet'
-import { dump } from '../utils/prettyPrint'
+import { dump, prettifyAddressesMap } from '../utils/prettyPrint'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_TON = 13879075125137744094n
@@ -23,20 +25,42 @@ const TEST_TOKEN_ADDR = Address.parseRaw(
   '0:0000000000000000000000000000000000000000000000000000000000000001',
 )
 
+type Bind = {
+  deployer: SandboxContract<TreasuryContract>
+  sender: SandboxContract<TreasuryContract>
+  router: SandboxContract<rt.Router>
+  feeQuoter: SandboxContract<FeeQuoter>
+  onRamp: SandboxContract<or.OnRamp>
+  ccipSendExecutor: SandboxContract<ex.CCIPSendExecutor>
+  tokenRegistry: SandboxContract<tr.TokenRegistry>
+}
+
+type Code = {
+  router: Cell
+  feeQuoter: Cell
+  onRamp: Cell
+  ccipSendExecutor: Cell
+  tokenRegistry: Cell
+}
+
 describe('Router', () => {
   let blockchain: Blockchain
-  let deployer: SandboxContract<TreasuryContract>
-  let sender: SandboxContract<TreasuryContract>
-  let router: SandboxContract<rt.Router>
-  let feeQuoter: SandboxContract<FeeQuoter>
-  let onRamp: SandboxContract<or.OnRamp>
+  let bind = {} as Bind
+  let code: Code
 
   beforeAll(async () => {
     blockchain = await Blockchain.create()
-    deployer = await blockchain.treasury('deployer')
-    sender = await blockchain.treasury('sender')
 
-    let deployerCode = await compile('Deployable')
+    code = {
+      router: await compile('Router'),
+      feeQuoter: await compile('FeeQuoter'),
+      onRamp: await compile('OnRamp'),
+      ccipSendExecutor: await compile('CCIPSendExecutor'),
+      tokenRegistry: await compile('TokenRegistry'),
+    }
+
+    bind.deployer = await blockchain.treasury('deployer')
+    bind.sender = await blockchain.treasury('sender')
 
     let merkleRootCodeRaw = await compile('MerkleRoot')
 
@@ -47,21 +71,24 @@ describe('Router', () => {
     const libs = beginCell().storeDictDirect(_libs).endCell()
     blockchain.libs = libs
     // Mock UpdatePrices Message handler
-    let routerCode = await compile('Router')
     let data: rt.Storage = {
       ownable: {
-        owner: deployer.address,
+        owner: bind.deployer.address,
         pendingOwner: null,
       },
       onRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
     }
-    router = blockchain.openContract(rt.Router.createFromConfig(data, routerCode))
+    bind.router = blockchain.openContract(rt.Router.createFromConfig(data, code.router))
     // Deploy contract
     {
-      const result = await router.sendInternal(deployer.getSender(), toNano('1'), Cell.EMPTY)
+      const result = await bind.router.sendInternal(
+        bind.deployer.getSender(),
+        toNano('1'),
+        Cell.EMPTY,
+      )
       expect(result.transactions).toHaveTransaction({
-        from: deployer.address,
-        to: router.address,
+        from: bind.deployer.address,
+        to: bind.router.address,
         deploy: true,
         success: true,
       })
@@ -69,11 +96,9 @@ describe('Router', () => {
 
     // setup fee quoter
     {
-      let code = await compile('FeeQuoter')
-
       let data: FeeQuoterStorage = {
         ownable: {
-          owner: deployer.address,
+          owner: bind.deployer.address,
           pendingOwner: null,
         },
         maxFeeJuelsPerMsg: 1000000n,
@@ -86,19 +111,19 @@ describe('Router', () => {
         ),
         destChainConfigs: Dictionary.empty(Dictionary.Keys.BigUint(64)),
       }
-      feeQuoter = blockchain.openContract(FeeQuoter.createFromConfig(data, code))
+      bind.feeQuoter = blockchain.openContract(FeeQuoter.createFromConfig(data, code.feeQuoter))
 
       {
-        const result = await feeQuoter.sendDeploy(deployer.getSender(), toNano('1'))
+        const result = await bind.feeQuoter.sendDeploy(bind.deployer.getSender(), toNano('1'))
         expect(result.transactions).toHaveTransaction({
-          from: deployer.address,
-          to: feeQuoter.address,
+          from: bind.deployer.address,
+          to: bind.feeQuoter.address,
           deploy: true,
           success: true,
         })
       }
       {
-        const result = await feeQuoter.sendUpdatePrices(deployer.getSender(), {
+        const result = await bind.feeQuoter.sendUpdatePrices(bind.deployer.getSender(), {
           value: toNano('1'),
           msg: {
             updates: {
@@ -108,14 +133,14 @@ describe('Router', () => {
           },
         })
         expect(result.transactions).toHaveTransaction({
-          to: feeQuoter.address,
+          to: bind.feeQuoter.address,
           success: true,
         })
       }
 
       // add config for EVM destination
       {
-        const result = await feeQuoter.sendUpdateDestChainConfigs(deployer.getSender(), {
+        const result = await bind.feeQuoter.sendUpdateDestChainConfigs(bind.deployer.getSender(), {
           value: toNano('1'),
           updates: [
             {
@@ -146,13 +171,13 @@ describe('Router', () => {
           ],
         })
         expect(result.transactions).toHaveTransaction({
-          to: feeQuoter.address,
+          to: bind.feeQuoter.address,
           success: true,
         })
       }
       // configure the feeToken
       {
-        const result = await feeQuoter.sendUpdateFeeTokens(deployer.getSender(), {
+        const result = await bind.feeQuoter.sendUpdateFeeTokens(bind.deployer.getSender(), {
           value: toNano('1'),
           msg: {
             add: new Map([[TEST_TOKEN_ADDR, { premiumMultiplierWeiPerEth: 1n }]]),
@@ -160,7 +185,7 @@ describe('Router', () => {
           },
         })
         expect(result.transactions).toHaveTransaction({
-          to: feeQuoter.address,
+          to: bind.feeQuoter.address,
           success: true,
         })
       }
@@ -168,29 +193,29 @@ describe('Router', () => {
     }
     // setup onramp
     {
-      let code = await compile('OnRamp')
       let data: or.OnRampStorage = {
         ownable: {
-          owner: deployer.address,
+          owner: bind.deployer.address,
           pendingOwner: null,
         },
         chainSelector: CHAINSEL_TON,
         config: {
-          feeQuoter: feeQuoter.address,
-          feeAggregator: deployer.address,
-          allowlistAdmin: deployer.address,
+          feeQuoter: bind.feeQuoter.address,
+          feeAggregator: bind.deployer.address,
+          allowlistAdmin: bind.deployer.address,
         },
         destChainConfigs: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Cell()),
         currentMessageId: 0n,
-        executor_code: await compile('CCIPSendExecutor'),
+        executor_code: code.ccipSendExecutor,
+        token_registry_code: code.tokenRegistry,
       }
       // TODO: use deployable to make deterministic?
-      onRamp = blockchain.openContract(or.OnRamp.createFromConfig(data, code))
+      bind.onRamp = blockchain.openContract(or.OnRamp.createFromConfig(data, code.onRamp))
       {
-        const result = await onRamp.sendDeploy(deployer.getSender(), toNano('1'))
+        const result = await bind.onRamp.sendDeploy(bind.deployer.getSender(), toNano('1'))
         expect(result.transactions).toHaveTransaction({
-          from: deployer.address,
-          to: onRamp.address,
+          from: bind.deployer.address,
+          to: bind.onRamp.address,
           deploy: true,
           success: true,
         })
@@ -198,19 +223,19 @@ describe('Router', () => {
 
       // add config for EVM destination
       {
-        const result = await onRamp.sendUpdateDestChainConfigs(deployer.getSender(), {
+        const result = await bind.onRamp.sendUpdateDestChainConfigs(bind.deployer.getSender(), {
           value: toNano('1'),
           destChainConfigs: [
             {
               destChainSelector: CHAINSEL_EVM_TEST_90000001,
-              router: router.address,
+              router: bind.router.address,
               allowlistEnabled: false,
             },
           ],
         })
         expect(result.transactions).toHaveTransaction({
-          from: deployer.address,
-          to: onRamp.address,
+          from: bind.deployer.address,
+          to: bind.onRamp.address,
           deploy: false,
           success: true,
         })
@@ -221,22 +246,22 @@ describe('Router', () => {
   it('onramp arbitrary message passing', async () => {
     // Configure onRamp on router
     {
-      const result = await router.sendSetRamp(deployer.getSender(), {
+      const result = await bind.router.sendSetRamp(bind.deployer.getSender(), {
         value: toNano('1'),
         queryID: 0,
         destChainSelector: CHAINSEL_EVM_TEST_90000001,
-        onRamp: onRamp.address,
+        onRamp: bind.onRamp.address,
       })
       expect(result.transactions).toHaveTransaction({
-        from: deployer.address,
-        to: router.address,
+        from: bind.deployer.address,
+        to: bind.router.address,
         success: true,
       })
     }
 
-    // router.ccipSend
+    // bind.router.ccipSend
     {
-      const result = await router.sendCcipSend(sender.getSender(), {
+      const result = await bind.router.sendCcipSend(bind.sender.getSender(), {
         value: toNano('1'),
         body: {
           queryID: 1,
@@ -260,7 +285,7 @@ describe('Router', () => {
             tx.inMessage.info.src != null &&
             tx.inMessage.info.src != undefined &&
             tx.inMessage.info.src instanceof Address &&
-            tx.inMessage.info.src.equals(onRamp.address) &&
+            tx.inMessage.info.src.equals(bind.onRamp.address) &&
             tx.inMessage.info.dest != null &&
             tx.inMessage.info.dest != undefined &&
             tx.inMessage.info.dest instanceof Address
@@ -273,21 +298,21 @@ describe('Router', () => {
 
       // we called the router
       expect(result.transactions).toHaveTransaction({
-        from: sender.address,
-        to: router.address,
+        from: bind.sender.address,
+        to: bind.router.address,
         deploy: false,
         success: true,
       })
       // the router called the onRamp
       expect(result.transactions).toHaveTransaction({
-        from: router.address,
-        to: onRamp.address,
+        from: bind.router.address,
+        to: bind.onRamp.address,
         deploy: false,
         success: true,
       })
       // the onRamp deployed the executor
       expect(result.transactions).toHaveTransaction({
-        from: onRamp.address,
+        from: bind.onRamp.address,
         to: executorAddress,
         deploy: true,
         success: true,
@@ -296,14 +321,14 @@ describe('Router', () => {
       // assert message went to feeQuoter
       expect(result.transactions).toHaveTransaction({
         from: executorAddress,
-        to: feeQuoter.address,
+        to: bind.feeQuoter.address,
         deploy: false,
         success: true,
       })
 
       // destChainConfig -> feeQuoter -> executor
       expect(result.transactions).toHaveTransaction({
-        from: feeQuoter.address,
+        from: bind.feeQuoter.address,
         to: executorAddress,
         deploy: false,
         success: true,
@@ -314,18 +339,18 @@ describe('Router', () => {
       // the executor called back the onRamp and self-destructed
       expect(result.transactions).toHaveTransaction({
         from: executorAddress,
-        to: onRamp.address,
+        to: bind.onRamp.address,
         deploy: false,
         success: true,
       })
 
       // assert CCIPMessageSent
-      assertLog(result.transactions, onRamp.address, LogTypes.CCIPMessageSent, {
+      assertLog(result.transactions, bind.onRamp.address, LogTypes.CCIPMessageSent, {
         message: {
           header: {
             destChainSelector: CHAINSEL_EVM_TEST_90000001,
           },
-          sender: sender.address,
+          sender: bind.sender.address,
         },
       })
     }
@@ -335,28 +360,27 @@ describe('Router', () => {
   it('onramp token transfer - paid with TON', async () => {
     // Configure onRamp on router
     {
-      const result = await router.sendSetRamp(deployer.getSender(), {
+      const result = await bind.router.sendSetRamp(bind.deployer.getSender(), {
         value: toNano('1'),
         queryID: 0,
         destChainSelector: CHAINSEL_EVM_TEST_90000001,
-        onRamp: onRamp.address,
+        onRamp: bind.onRamp.address,
       })
       expect(result.transactions).toHaveTransaction({
-        from: deployer.address,
-        to: router.address,
+        from: bind.deployer.address,
+        to: bind.router.address,
         success: true,
       })
     }
 
     // Setup Jetton
-    const { jettonMinter, provideUserWalletFor } = await setupJetton(
+    const { jettonMinter, tokenRegistry, provideUserWalletFor } = await setupJetton(
       blockchain,
-      feeQuoter,
-      deployer,
-      sender,
+      bind,
+      code,
     )
 
-    const senderJettonWallet = await provideUserWalletFor(sender.address)
+    const senderJettonWallet = await provideUserWalletFor(bind.sender.address)
 
     const jettonAmount = toNano('1')
     const ccipSend = rt.builder.message.in.ccipSend
@@ -374,8 +398,8 @@ describe('Router', () => {
     const transferMsg: jetton.AskToTransfer = {
       queryId: 0,
       jettonAmount,
-      destination: router.address,
-      responseDestination: sender.address,
+      destination: bind.router.address,
+      responseDestination: bind.sender.address,
       customPayload: null,
       forwardTonAmount: toNano('1'), // TODO This should be derived from the fee
       forwardPayload: ccipSend,
@@ -383,13 +407,13 @@ describe('Router', () => {
 
     // ccip send over jetton transfer
     {
-      const result = await senderJettonWallet.sendTransfer(sender.getSender(), {
+      const result = await senderJettonWallet.sendTransfer(bind.sender.getSender(), {
         value: toNano('2'),
         message: transferMsg,
       })
 
-      const routerJettonWallet = await provideUserWalletFor(router.address)
-      const onRampJettonWallet = await provideUserWalletFor(onRamp.address)
+      const routerJettonWallet = await provideUserWalletFor(bind.router.address)
+      const onRampJettonWallet = await provideUserWalletFor(bind.onRamp.address)
 
       const executorAddress = ((): Address => {
         for (const tx of result.transactions) {
@@ -399,7 +423,7 @@ describe('Router', () => {
             tx.inMessage.info.src != null &&
             tx.inMessage.info.src != undefined &&
             tx.inMessage.info.src instanceof Address &&
-            tx.inMessage.info.src.equals(onRamp.address) &&
+            tx.inMessage.info.src.equals(bind.onRamp.address) &&
             tx.inMessage.info.dest != null &&
             tx.inMessage.info.dest != undefined &&
             tx.inMessage.info.dest instanceof Address
@@ -409,18 +433,23 @@ describe('Router', () => {
         }
         throw new Error('Executor address not found')
       })()
+
+      const executor = blockchain.openContract(
+        ex.CCIPSendExecutor.createFromAddress(executorAddress),
+      )
       const executorJettonWallet = await provideUserWalletFor(executorAddress)
+      console.log('trace:', (await dump(result.transactions)).join('\n'))
 
       // we called the router
       expect(result.transactions).toHaveTransaction({
         from: routerJettonWallet.address,
-        to: router.address,
+        to: bind.router.address,
         deploy: false,
         success: true,
       })
       // the router called the onRamp
       expect(result.transactions).toHaveTransaction({
-        from: router.address,
+        from: bind.router.address,
         to: routerJettonWallet.address,
         deploy: false,
         success: true,
@@ -429,7 +458,7 @@ describe('Router', () => {
           const transferRequest = jetton.builder.messages.in.askToTransfer.load(x.beginParse())
           if (transferRequest.forwardPayload == null || transferRequest.forwardPayload == undefined)
             return false
-          if (!transferRequest.destination.equals(onRamp.address)) return false
+          if (!transferRequest.destination.equals(bind.onRamp.address)) return false
           try {
             const payload = or.builder.messages.in.onrampSend.load(
               ((forwardPayload: Cell | Slice): Slice => {
@@ -449,7 +478,7 @@ describe('Router', () => {
       })
       expect(result.transactions).toHaveTransaction({
         from: onRampJettonWallet.address,
-        to: onRamp.address,
+        to: bind.onRamp.address,
         deploy: false,
         success: true,
         body(x) {
@@ -461,7 +490,7 @@ describe('Router', () => {
             transferNotification.forwardPayload == undefined
           )
             return false
-          if (!transferNotification.senderAddress.equals(router.address)) {
+          if (!transferNotification.senderAddress.equals(bind.router.address)) {
             return false
           }
           try {
@@ -482,7 +511,7 @@ describe('Router', () => {
       })
       // the onRamp deployed the executor
       expect(result.transactions).toHaveTransaction({
-        from: onRamp.address,
+        from: bind.onRamp.address,
         to: executorAddress,
         deploy: true,
         success: true,
@@ -490,12 +519,12 @@ describe('Router', () => {
       // the executor withdrew the jettons
       expect(result.transactions).toHaveTransaction({
         from: executorAddress,
-        to: onRamp.address,
+        to: bind.onRamp.address,
         deploy: false,
         success: true,
       })
       expect(result.transactions).toHaveTransaction({
-        from: onRamp.address,
+        from: bind.onRamp.address,
         to: onRampJettonWallet.address,
         deploy: false,
         success: true,
@@ -517,21 +546,21 @@ describe('Router', () => {
           // const transferNotification =
           //   jetton.builder.messages.out.transferNotificationForRecipient.load(x.beginParse())
           // if (transferNotification.jettonAmount !== jettonAmount) return false
-          // if (!transferNotification.senderAddress.equals(onRamp.address)) return false
+          // if (!transferNotification.senderAddress.equals(bind.onRamp.address)) return false
           return true
         },
       })
       // assert message went to feeQuoter
       expect(result.transactions).toHaveTransaction({
         from: executorAddress,
-        to: feeQuoter.address,
+        to: bind.feeQuoter.address,
         deploy: false,
         success: true,
       })
 
       // destChainConfig -> feeQuoter -> onRamp
       expect(result.transactions).toHaveTransaction({
-        from: feeQuoter.address,
+        from: bind.feeQuoter.address,
         to: executorAddress,
         deploy: false,
         success: true,
@@ -540,30 +569,25 @@ describe('Router', () => {
       // the executor called back the onRamp and self-destructed
       expect(result.transactions).toHaveTransaction({
         from: executorAddress,
-        to: onRamp.address,
+        to: bind.onRamp.address,
         deploy: false,
         success: true,
       })
 
       // assert CCIPMessageSent
-      assertLog(result.transactions, onRamp.address, LogTypes.CCIPMessageSent, {
+      assertLog(result.transactions, bind.onRamp.address, LogTypes.CCIPMessageSent, {
         message: {
           header: {
             destChainSelector: CHAINSEL_EVM_TEST_90000001,
           },
-          sender: sender.address,
+          sender: bind.sender.address,
         },
       })
     }
   })
 })
 
-async function setupJetton(
-  blockchain: Blockchain,
-  feeQuoter: SandboxContract<FeeQuoter>,
-  deployer: SandboxContract<TreasuryContract>,
-  user: SandboxContract<TreasuryContract>,
-) {
+async function setupJetton(blockchain: Blockchain, bind: Bind, code: Code) {
   const jettonDataURI = 'smartcontract.com'
 
   const defaultContent = beginCell().storeStringTail(jettonDataURI).endCell()
@@ -576,7 +600,7 @@ async function setupJetton(
   const jettonMinter = blockchain.openContract(
     JettonMinter.createFromConfig(
       {
-        admin: deployer.address,
+        admin: bind.deployer.address,
         walletCode: jettonWalletCode,
         jettonContent: defaultContent,
         totalSupply: 0n,
@@ -585,39 +609,54 @@ async function setupJetton(
     ),
   )
 
-  const deployResult = await jettonMinter.sendDeploy(deployer.getSender(), toNano('1'))
+  const deployResult = await jettonMinter.sendDeploy(bind.deployer.getSender(), toNano('1'))
 
   expect(deployResult.transactions).toHaveTransaction({
-    from: deployer.address,
+    from: bind.deployer.address,
     to: jettonMinter.address,
     deploy: true,
   })
 
   // mint jettons to sender contract address as part of the setup
-  const mintResult = await jettonMinter.sendMint(deployer.getSender(), {
+  const mintResult = await jettonMinter.sendMint(bind.deployer.getSender(), {
     value: toNano('1'),
     message: {
       queryId: 0n,
-      destination: user.address,
-      tonAmount: toNano('0.05'),
+      destination: bind.sender.address,
+      tonAmount: toNano('0.1'),
       jettonAmount: toNano('1'),
-      from: deployer.address,
-      responseDestination: deployer.address,
-      forwardTonAmount: 0n,
+      from: bind.deployer.address,
+      responseDestination: bind.deployer.address,
+      forwardTonAmount: toNano('0.05'),
     },
   })
 
   expect(mintResult.transactions).toHaveTransaction({
-    from: deployer.address,
+    from: bind.deployer.address,
     to: jettonMinter.address,
     success: true,
     endStatus: 'active',
     outMessagesCount: 1, // mint message
   })
 
+  const provideUserWalletFor = async (address: Address) => {
+    return blockchain.openContract(
+      jetton.JettonWallet.createFromAddress(await jettonMinter.getWalletAddress(address)),
+    )
+  }
+
+  const userJettonWallet = await provideUserWalletFor(bind.sender.address)
+
+  expect(mintResult.transactions).toHaveTransaction({
+    from: jettonMinter.address,
+    to: userJettonWallet.address,
+    deploy: true,
+    success: true,
+  })
+
   {
     // TODO sendUpdatePrices to pay fees with LINK
-    // const result = await feeQuoter.sendUpdatePrices(deployer.getSender(), {
+    // const result = await feeQuoter.sendUpdatePrices(bind.deployer.getSender(), {
     //   value: toNano('1'),
     //   gasPrices: [],
     //   tokenPrices: [{ token: jettonMinter.address, price: 1n }],
@@ -628,48 +667,89 @@ async function setupJetton(
     // })
   }
 
+  // configure feeQuoter to accept the jetton as fee payment
   {
-    const result = await feeQuoter.sendUpdateTokenTransferFeeConfigs(deployer.getSender(), {
-      value: toNano('1'),
-      msg: {
-        updates: new Map([
-          [
-            CHAINSEL_EVM_TEST_90000001,
-            {
-              add: new Map([
-                [
-                  jettonMinter.address,
-                  {
-                    isEnabled: true,
-                    minFeeUsdCents: 1,
-                    maxFeeUsdCents: 100,
-                    deciBps: 0,
-                    destGasOverhead: 0,
-                    destBytesOverhead: 0,
-                  },
-                ],
-              ]),
-              remove: [],
-            },
-          ],
-        ]),
+    const result = await bind.feeQuoter.sendUpdateTokenTransferFeeConfigs(
+      bind.deployer.getSender(),
+      {
+        value: toNano('1'),
+        msg: {
+          updates: new Map([
+            [
+              CHAINSEL_EVM_TEST_90000001,
+              {
+                add: new Map([
+                  [
+                    jettonMinter.address,
+                    {
+                      isEnabled: true,
+                      minFeeUsdCents: 1,
+                      maxFeeUsdCents: 100,
+                      deciBps: 0,
+                      destGasOverhead: 0,
+                      destBytesOverhead: 0,
+                    },
+                  ],
+                ]),
+                remove: [],
+              },
+            ],
+          ]),
+        },
       },
-    })
+    )
     expect(result.transactions).toHaveTransaction({
-      from: deployer.address,
-      to: feeQuoter.address,
+      from: bind.deployer.address,
+      to: bind.feeQuoter.address,
       success: true,
     })
   }
 
-  const provideUserWalletFor = async (address: Address) => {
-    return blockchain.openContract(
-      jetton.JettonWallet.createFromAddress(await jettonMinter.getWalletAddress(address)),
+  let tokenRegistry: SandboxContract<tr.TokenRegistry>
+  // setup token registry
+  {
+    let data: tr.Storage = {
+      onramp: bind.onRamp.address,
+      minterAddress: jettonMinter.address,
+    }
+
+    tokenRegistry = blockchain.openContract(
+      tr.TokenRegistry.createFromConfig(data, code.tokenRegistry),
     )
+    {
+      const result = await tokenRegistry.sendDeploy(bind.deployer.getSender(), toNano('1'))
+      expect(result.transactions).toHaveTransaction({
+        from: bind.deployer.address,
+        to: tokenRegistry.address,
+        deploy: true,
+        success: true,
+      })
+    }
+
+    {
+      const result = await tokenRegistry.sendSetInfo(
+        bind.deployer.getSender(),
+        {
+          queryId: 0,
+          info: {
+            tokenPool: ZERO_ADDRESS, // TODO until we have a real pool
+            walletCode: jettonWalletCode,
+            enabled: true,
+          },
+        },
+        toNano('1'),
+      )
+      expect(result.transactions).toHaveTransaction({
+        from: bind.deployer.address,
+        to: tokenRegistry.address,
+        success: true,
+      })
+    }
   }
 
   return {
     jettonMinter,
+    tokenRegistry,
     provideUserWalletFor,
   }
 }
