@@ -126,6 +126,7 @@ func (a *TONAccessor) GetAllConfigsLegacy(ctx context.Context, destChainSelector
 		}
 		config.CurseInfo = curseInfo
 
+		a.lggr.Debug("Getting source chain configs", "sourceChainSelectors", sourceChainSelectors)
 		sourceChainConfigs, err = a.getOffRampSourceChainConfigs(ctx, block, sourceChainSelectors)
 		if !errors.Is(err, ErrNoBindings) && err != nil {
 			return ccipocr3.ChainConfigSnapshot{}, nil, fmt.Errorf("failed to get source chain configs: %w", err)
@@ -637,6 +638,7 @@ func (a *TONAccessor) Nonces(ctx context.Context, query map[ccipocr3.ChainSelect
 }
 
 func (a *TONAccessor) GetChainFeePriceUpdate(ctx context.Context, selectors []ccipocr3.ChainSelector) (map[ccipocr3.ChainSelector]ccipocr3.TimestampedUnixBig, error) {
+	a.lggr.Debugf("TON TON TON TON TON in GetChainFeePriceUpdate")
 	addr, err := a.getBinding(consts.ContractNameFeeQuoter)
 	if err != nil {
 		return nil, err
@@ -665,13 +667,16 @@ func (a *TONAccessor) GetChainFeePriceUpdate(ctx context.Context, selectors []cc
 			return nil, fmt.Errorf("failed to get chain fee price updates: %w", err)
 		}
 		// HACK: we read the value as Timestamped since the binary layout is compatible, so that we match TimestampedBig (two values packed together)
-		var update feequoter.TimestampedPrice
+		var update feequoter.USDPerUnitGas
 		if err := tlb.LoadFromCell(&update, value.BeginParse()); err != nil {
 			return nil, fmt.Errorf("failed to get chain fee price updates: %w", err)
 		}
+		a.lggr.Debugf("TON TON TON TON TON: %+v", update)
+		a.lggr.Debugf("TON TON TON TON TON: %+v", update.Timestamp)
+		a.lggr.Debugf("TON TON TON TON TON: %+v", update.ExecutionGasPrice)
 		prices[selector] = ccipocr3.TimestampedUnixBig{
 			Timestamp: uint32(update.Timestamp), //nolint:gosec // TODO: fix type onchain
-			Value:     update.Value,
+			Value:     update.ExecutionGasPrice,
 		}
 	}
 	return prices, nil
