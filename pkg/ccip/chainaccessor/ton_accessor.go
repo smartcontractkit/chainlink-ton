@@ -186,6 +186,7 @@ func (a *TONAccessor) GetChainFeeComponents(ctx context.Context) (ccipocr3.Chain
 //   - Sync() directly calls bindContractEvent() to register event filters with TON logPoller
 //   - Both expose same Sync() interface to CCIPChainReader
 func (a *TONAccessor) Sync(ctx context.Context, contractName string, contractAddress ccipocr3.UnknownAddress) error {
+	a.lggr.Debugf("TON TON TON TON TON in Sync, binding %s contract", contractName)
 	strAddr, err := a.addrCodec.AddressBytesToString(contractAddress)
 	if err != nil {
 		return fmt.Errorf("failed with addr codec decode: %w", err)
@@ -638,15 +639,17 @@ func (a *TONAccessor) Nonces(ctx context.Context, query map[ccipocr3.ChainSelect
 }
 
 func (a *TONAccessor) GetChainFeePriceUpdate(ctx context.Context, selectors []ccipocr3.ChainSelector) (map[ccipocr3.ChainSelector]ccipocr3.TimestampedUnixBig, error) {
-	a.lggr.Debugf("TON TON TON TON TON in GetChainFeePriceUpdate")
+	a.lggr.Debugf("TON:GetChainFeePriceUpdate, for %d selectors", len(selectors))
 	addr, err := a.getBinding(consts.ContractNameFeeQuoter)
 	if err != nil {
+		a.lggr.Errorw("failed to get fee quoter binding", "err", err)
 		return nil, err
 	}
 	block, err := a.client.CurrentMasterchainInfo(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get current block: %w", err)
 	}
+	a.lggr.Debugf("TON: about to query destinationChainGasPrice, for %d selectors", len(selectors))
 	prices := make(map[ccipocr3.ChainSelector]ccipocr3.TimestampedUnixBig, len(selectors))
 	for _, selector := range selectors {
 		result, err := a.client.RunGetMethod(ctx, block, addr, "destinationChainGasPrice", uint64(selector))
@@ -671,9 +674,9 @@ func (a *TONAccessor) GetChainFeePriceUpdate(ctx context.Context, selectors []cc
 		if err := tlb.LoadFromCell(&update, value.BeginParse()); err != nil {
 			return nil, fmt.Errorf("failed to get chain fee price updates: %w", err)
 		}
-		a.lggr.Debugf("TON TON TON TON TON: %+v", update)
-		a.lggr.Debugf("TON TON TON TON TON: %+v", update.Timestamp)
-		a.lggr.Debugf("TON TON TON TON TON: %+v", update.ExecutionGasPrice)
+		a.lggr.Debugf("TON 1: %+v", update)
+		a.lggr.Debugf("TON 2: %+v", update.Timestamp)
+		a.lggr.Debugf("TON 3: %+v", update.ExecutionGasPrice)
 
 		packedFee := new(big.Int).Lsh(update.DataAvailabilityGasPrice, 112)
 		packedFee.Or(packedFee, update.ExecutionGasPrice)
