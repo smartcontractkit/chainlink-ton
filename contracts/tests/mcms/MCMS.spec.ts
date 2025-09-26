@@ -6,6 +6,7 @@ import { compile } from '@ton/blueprint'
 
 import { mcms } from '../../wrappers/mcms'
 import { crc32 } from 'zlib'
+import { errorCode } from '../../wrappers/utils'
 
 describe('MCMS', () => {
   let blockchain: Blockchain
@@ -52,7 +53,13 @@ describe('MCMS', () => {
     }
   })
 
-  it('Should compute crc32 opcodes', async () => {
+  it('should compute error code', async () => {
+    expect(mcms.Error.OutOfBoundsNumSigners).toBe(
+      errorCode(crc32('com.chainlink.ton.mcms.MCMS'), 0),
+    )
+  })
+
+  it('should compute crc32 opcodes', async () => {
     // In opcodes
     expect(mcms.opcodes.in.TopUp).toBe(0x5f427bb3)
     expect(mcms.opcodes.in.SetRoot).toBe(0xe7fabde3)

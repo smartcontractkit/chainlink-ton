@@ -12,14 +12,15 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
 )
 
+// CCIPMessageSent uses TVM2AnyRampMessage but with event-specific header (no onramp address)
 type CCIPMessageSent struct {
-	Message ocr.TVM2AnyRampMessage `tlb:"."` // inline, not reference - matches contract structure
+	Message ocr.TVM2AnyRampMessage `tlb:"."`
 }
 
 // GenericExtraArgsV2 represents generic extra arguments for transactions.
 type GenericExtraArgsV2 struct {
 	_                        tlb.Magic `tlb:"#181dcf10"` //nolint:revive // Ignore opcode tag // hex encoded bytes4(keccak256("CCIP EVMExtraArgsV2")), can be verified with hexutil.MustDecode("0x181dcf10")
-	GasLimit                 *big.Int  `tlb:"## 256"`
+	GasLimit                 *big.Int  `tlb:"maybe ## 256"`
 	AllowOutOfOrderExecution bool      `tlb:"bool"`
 }
 
@@ -114,7 +115,8 @@ type Storage struct {
 	ChainSelector    uint64              `tlb:"## 64"`
 	Config           DynamicConfig       `tlb:"^"`
 	DestChainConfigs *cell.Dictionary    `tlb:"dict 64"`
-	KeyLen           uint16              `tlb:"## 16"`
+	ExecutorCode     *cell.Cell          `tlb:"^"`
+	CurrentMessageID *big.Int            `tlb:"## 224"`
 }
 
 // Methods

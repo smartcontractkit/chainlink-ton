@@ -9,6 +9,7 @@ import * as ac from '../../wrappers/lib/access/AccessControl'
 import { BaseTestSetup, TestCode } from './BaseTest'
 import { SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { asSnakeData } from '../../src/utils'
+import { ERROR_TIMESTAMP } from '../../wrappers/mcms/RBACTimelock'
 
 describe('MCMS - RBACTimelockExecuteTest', () => {
   let baseTest: BaseTestSetup
@@ -74,12 +75,11 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
         from: baseTest.acc.proposerOne.address,
         to: baseTest.bind.timelock.address,
         success: false,
-        exitCode: ac.Errors.UnauthorizedAccount,
+        exitCode: ac.Error.UnauthorizedAccount,
       })
     })
 
-    // TODO: Catch bounced messages on errors
-    it.skip('should fail if one target reverts (invalid call)', async () => {
+    it('should fail if one target reverts (invalid call)', async () => {
       // Create a call with invalid data that will cause failure
       const invalidCall: rbactl.Call = {
         target: baseTest.bind.counter.address,
@@ -104,7 +104,20 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       expect(result.transactions).toHaveTransaction({
         from: baseTest.acc.admin.address,
         to: baseTest.bind.timelock.address,
+        success: true,
+      })
+
+      expect(result.transactions).toHaveTransaction({
+        from: baseTest.bind.timelock.address,
+        to: baseTest.bind.counter.address,
         success: false,
+      })
+
+      expect(result.transactions).toHaveTransaction({
+        from: baseTest.bind.counter.address,
+        to: baseTest.bind.timelock.address,
+        success: true,
+        inMessageBounced: true,
       })
     })
 
@@ -235,7 +248,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
         from: baseTest.acc.proposerOne.address,
         to: baseTest.bind.timelock.address,
         success: false,
-        exitCode: ac.Errors.UnauthorizedAccount,
+        exitCode: ac.Error.UnauthorizedAccount,
       })
     })
 
@@ -291,7 +304,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
         from: baseTest.acc.executorOne.address,
         to: baseTest.bind.timelock.address,
         success: false,
-        exitCode: rbactl.Errors.OperationNotReady,
+        exitCode: rbactl.Error.OperationNotReady,
       })
     })
 
@@ -384,12 +397,11 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
         from: baseTest.acc.executorOne.address,
         to: baseTest.bind.timelock.address,
         success: false,
-        exitCode: rbactl.Errors.OperationMissingDependency,
+        exitCode: rbactl.Error.OperationMissingDependency,
       })
     })
 
-    // TODO: Timelock doesn't handle reverts yet, and we do not know if it will")
-    it.skip('should fail if one target call fails', async () => {
+    it('should fail if one target call fails', async () => {
       // Create a call with invalid data
       const invalidCall: rbactl.Call = {
         target: baseTest.bind.counter.address,
@@ -437,8 +449,31 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       expect(result.transactions).toHaveTransaction({
         from: baseTest.acc.executorOne.address,
         to: baseTest.bind.timelock.address,
+        success: true,
+      })
+
+      expect(result.transactions).toHaveTransaction({
+        from: baseTest.bind.timelock.address,
+        to: baseTest.bind.counter.address,
         success: false,
       })
+
+      expect(result.transactions).toHaveTransaction({
+        from: baseTest.bind.counter.address,
+        to: baseTest.bind.timelock.address,
+        success: true,
+        inMessageBounced: true,
+      })
+
+      // Verify operation was marked as error
+      const operationBatch: rbactl.OperationBatch = {
+        calls,
+        predecessor: BaseTestSetup.NO_PREDECESSOR,
+        salt: BaseTestSetup.EMPTY_SALT,
+      }
+      const operationId = await baseTest.bind.timelock.getHashOperationBatch(operationBatch)
+      const timestamp = await baseTest.bind.timelock.getTimestamp(operationId)
+      expect(timestamp).toEqual(ERROR_TIMESTAMP)
     })
 
     it('should allow executor to execute scheduled operation', async () => {
@@ -539,18 +574,19 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       // Verify the operation ID in the event matches
       expect(callExecutedEvent.id).toEqual(operationId)
       const timestamp = await baseTest.bind.timelock.getTimestamp(operationId)
-      expect(timestamp).toEqual(BaseTestSetup.DONE_TIMESTAMP)
+      expect(timestamp).toEqual(rbactl.DONE_TIMESTAMP)
 
       // Verify counter value was set
       expect(await baseTest.bind.counter.getValue()).toEqual(10)
     }
   })
 
-  describe('Call Proxy Execute Tests', () => {
-    it('should execute through valid call proxy', async () => {
+  // Notice: no CallProxy on TON, we use the ExecutorRoleCheck flag
+  describe('~~Call Proxy~~/ExecutorRoleCheck Execute Tests', () => {
+    it('should execute by anybody if ExecutorRoleCheck flag is disabled', async () => {
       const incrementCall: rbactl.Call = {
         target: baseTest.bind.counter.address,
-        value: toNano('0.05'),
+        value: toNano('0.12'),
         data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }).asCell(),
       }
       const calls = BaseTestSetup.singletonCalls(incrementCall)
@@ -575,10 +611,22 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       // Wait for delay
       baseTest.warpTime(Number(BaseTestSetup.MIN_DELAY + 1n))
 
-      // Grant executor role to call proxy
-      await baseTest.grantCallProxyExecutorRole()
+      // Update ExecutorRoleCheck to disabled
+      expect(await baseTest.bind.timelock.isExecutorRoleCheckEnabled()).toBeTruthy()
 
-      // Execute through call proxy using external caller
+      await baseTest.bind.timelock.sendInternal(
+        baseTest.acc.admin.getSender(),
+        toNano('0.05'),
+        rbactl.builder.message.in.updateExecutorRoleCheck
+          .encode({
+            queryId: 2n,
+            enabled: false,
+          })
+          .asCell(),
+      )
+
+      expect(await baseTest.bind.timelock.isExecutorRoleCheckEnabled()).toBeFalsy()
+
       const executeBody = rbactl.builder.message.in.executeBatch
         .encode({
           queryId: 2n,
@@ -588,16 +636,16 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
         })
         .asCell()
 
-      // Execute via call proxy
-      const proxyResult = await baseTest.bind.callProxy.sendInternal(
-        baseTest.acc.deployer.getSender(), // External caller
+      // Execute via an account without the executor role
+      const r = await baseTest.bind.timelock.sendInternal(
+        baseTest.acc.proposerOne.getSender(), // External caller
         toNano('1'),
         executeBody,
       )
 
-      expect(proxyResult.transactions).toHaveTransaction({
-        from: baseTest.acc.deployer.address,
-        to: baseTest.bind.callProxy.address,
+      expect(r.transactions).toHaveTransaction({
+        from: baseTest.acc.proposerOne.address,
+        to: baseTest.bind.timelock.address,
         success: true,
       })
 
@@ -605,7 +653,7 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       expect(await baseTest.bind.counter.getValue()).toEqual(1)
     })
 
-    it('should fail if call proxy is not executor', async () => {
+    it('should fail to execute by anybody if ExecutorRoleCheck flag is disabled', async () => {
       const incrementCall: rbactl.Call = {
         target: baseTest.bind.counter.address,
         value: toNano('0.05'),
@@ -633,7 +681,9 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
       // Wait for delay
       baseTest.warpTime(Number(BaseTestSetup.MIN_DELAY + 1n))
 
-      // Try to execute through call proxy without granting executor role
+      // Try to execute without disabling ExecutorRoleCheck
+      expect(await baseTest.bind.timelock.isExecutorRoleCheckEnabled()).toBeTruthy()
+
       const executeBody = rbactl.builder.message.in.executeBatch
         .encode({
           queryId: 2n,
@@ -643,18 +693,18 @@ describe('MCMS - RBACTimelockExecuteTest', () => {
         })
         .asCell()
 
-      const proxyResult = await baseTest.bind.callProxy.sendInternal(
-        baseTest.acc.deployer.getSender(),
+      const r = await baseTest.bind.timelock.sendInternal(
+        baseTest.acc.proposerOne.getSender(),
         toNano('1'),
         executeBody,
       )
 
-      // The call proxy should fail to execute because it doesn't have executor role
-      expect(proxyResult.transactions).toHaveTransaction({
-        from: baseTest.bind.callProxy.address,
+      // The sender should fail to execute because it doesn't have executor role
+      expect(r.transactions).toHaveTransaction({
+        from: baseTest.acc.proposerOne.address,
         to: baseTest.bind.timelock.address,
         success: false,
-        exitCode: ac.Errors.UnauthorizedAccount,
+        exitCode: ac.Error.UnauthorizedAccount,
       })
     })
   })

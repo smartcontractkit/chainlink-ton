@@ -42,7 +42,7 @@ struct Any2TVMRampMessage {
     sender: Cell<CrossChainAddress>;
     data: cell;
     receiver: address;
-    //gasLimit: coins;
+    // gasLimit: coins;
     tokenAmounts: cell?; // vec<Any2TVMTokenTransfer>
     // maybe mark these amounts as slice remaining then parse them by hand to avoid requiring this to be a map<> at send time?
 }
@@ -92,7 +92,7 @@ fun Any2TVMRampMessage.generateMessageId(self, metadataHash: uint256): uint256 {
             .storeUint(self.header.messageId, 256)
             .storeAddress(self.receiver)
             .storeUint(self.header.sequenceNumber, 64)
-            //.storeCoins(self.gasLimit)
+            // .storeCoins(self.gasLimit)
             .storeUint(self.header.nonce, 64)
             .endCell()
         )
@@ -122,16 +122,19 @@ fun TVM2AnyRampMessage.generateMessageId(self, metadataHash: uint256): uint256 {
 // Router
  
 struct TokenAmount {
-    amount: uint256;
+    amount: coins;
     token: address;
 }
 
-struct (0x10000001) SetRamp {
-    queryId: uint64;
+// update multiple chain selectors in batch to the same onramp address
+struct (0x10000001) SetRamps {
     // TODO: support onramp and offramp, support list
-    destChainSelector: uint64;
+    queryId: uint64;
+    destChainSelectors: cell; // vec<uint64> for destChainSelectors
     onRamp: address;
 }
+
+// TODO should separate CCIPSend msg (with opcode) from CCIPSend data
 
 struct (0x00000001) CCIPSend {
     queryId: uint64;
@@ -147,7 +150,7 @@ struct (0x7362d09c) JettonTransferNotification {
     queryId: uint64;
     amount: coins;
     sender: address;
-    forwardPayload: Cell<CCIPSend>?; // could also be RemainingBitsAndRefs
+    forwardPayload: cell?; // could also be RemainingBitsAndRefs
 }
 
 // OnRamp
@@ -164,6 +167,13 @@ struct OnRampDynamicConfig {
     allowlistAdmin: address;
 }
 
+// crc32('OnRamp_WithdrawJettons')
+struct (0x266AEACF) OnRamp_WithdrawJettons {
+    msgId: uint224,
+    tokens: cell; // vec<TokenAmount>
+    onrampJettonWallet: address;
+}
+
 struct (0x10000003) SetDynamicConfig {
     config: OnRampDynamicConfig
 }
@@ -172,6 +182,14 @@ struct OnRampUpdateDestChainConfig {
     destChainSelector: uint64;
     router: address;
     allowlistEnabled: bool;
+}
+
+// crc32('OnRamp_ExecutorFinishedSuccessfully')
+struct (0xCFA6B336) OnRamp_ExecutorFinishedSuccessfully {
+    msgId: uint224,
+    msg: Cell<CCIPSend>
+    metadata: Metadata
+    fee: coins
 }
 
 // TODO: make this direct snakedata by using RemainingBitsAndRefs? this way it's not cell->cell
@@ -196,7 +214,7 @@ struct WithdrawFeeTokens {}
 
 struct TimestampedPrice {
     value: uint224;
-    timestamp: uint64;
+    timestamp: uint64; // TODO: size down to uint32, was a mistake when porting
 }
 
 struct PriceUpdates {
@@ -256,42 +274,6 @@ struct TokenTransferFeeConfig {
     destBytesOverhead: uint32;
 }
 
-struct (0x20000001) UpdatePrices {
-    updates: PriceUpdates    
-}
-
-struct FeeToken {
-    premiumMultiplierWeiPerEth: uint64
-}
-
-struct (0x20000002) UpdateFeeTokens {
-    add: Map<FeeToken>; // token -> config
-    remove: cell; // vector<address>
-}
-
-// NOTE: we just merged this into UpdateFeeTokens
-// struct (0x10000003) UpdatePremiumMultiplierWeiPerEth { // token, multiplier }
-
-struct (0x20000003) UpdateTokenTransferFeeConfigs {
-    // TODO: would these be more efficient as snakedata (key, value)?
-    updates: UMap<uint64, UpdateTokenTransferFeeConfig>; // destChainSelector -> updates
-}
-
-struct UpdateTokenTransferFeeConfig {
-    add: Map<TokenTransferFeeConfig>; // token address -> config
-    remove: cell; // vector<address>
-} 
-
-struct (0x20000004) UpdateDestChainConfig {
-    destChainSelector: uint64;
-    destChainConfig: FeeQuoterDestChainConfig;
-}
-
-struct (0x20000005) GetValidatedFee<C> {
-    msg: Cell<CCIPSend>;
-    metadata: Cell<C>,
-}
-
 struct Metadata {
     sender: address,
     // TODO: metadata { value, tokenAmounts }
@@ -304,11 +286,6 @@ struct MessageMetadata {
     onRamp :Cell<CrossChainAddress>;
 }
 
-struct (0x00000003) MessageValidated<C> {
-    msg: Cell<CCIPSend>;
-    metadata: Cell<C>,
-    fee: uint256; // TODO: size down? coins?
-}
 
 // OffRamp
 
@@ -379,6 +356,19 @@ struct TokenBalance {
     failed: bool = false; // if marked as failed, a retry will allow re-sending these
 }
 
+struct (0x181dcf10) GenericExtraArgsV2 {
+    gasLimit: uint256?;
+    allowOutOfOrderExecution: bool;
+}
+
+struct (0x1f3b3aba) SVMExtraArgsV1 {
+	computeUnits: uint32;
+	accountIsWritableBitmap: uint64;
+	allowOutOfOrderExecution: bool;
+	tokenReceiver: uint256;
+	accounts: cell; // vec<slice>
+}
+
 // Errors
 
 const ERROR_UNKNOWN_DEST_CHAIN_SELECTOR: int = 256;
@@ -394,3 +384,4 @@ const ERROR_UNAUTHORIZED: int = 265;
 const ERROR_SOURCE_CHAIN_NOT_ENABLED: int = 266;
 const ERROR_EMPTY_EXECUTION_REPORT:int = 267;
 const ERROR_DISPATCH_NOT_FROM_MERKLE_ROOT: int = 268;
+const ERROR_INVALID_ON_RAMP_UPDATE: int = 269;

@@ -9,9 +9,10 @@ import (
 	"github.com/rs/zerolog/log"
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
-	"github.com/smartcontractkit/chainlink-ton/deployment/view"
 	"github.com/xssnick/tonutils-go/address"
 	"golang.org/x/sync/errgroup"
+
+	"github.com/smartcontractkit/chainlink-ton/deployment/view"
 )
 
 // Duplicates of chainlink/deployment/ccip/ to avoid import loops

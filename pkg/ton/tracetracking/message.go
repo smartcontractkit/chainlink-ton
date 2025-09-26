@@ -294,11 +294,11 @@ func (m *ReceivedMessage) mapOutgoingMessages(outgoingMessages []tlb.Message) {
 	for _, outgoingMessage := range outgoingMessages {
 		switch outgoingMessage.MsgType {
 		case tlb.MsgTypeInternal:
-			outgoingInternalMessage := outgoingMessage.AsInternal()
-			m.AppendSentMessage(outgoingInternalMessage)
+			msg := outgoingMessage.AsInternal()
+			m.AppendSentMessage(msg)
 		case tlb.MsgTypeExternalOut:
-			outgoingExternalMessage := outgoingMessage.AsExternalOut()
-			m.AppendEvent(outgoingExternalMessage)
+			msg := outgoingMessage.AsExternalOut()
+			m.AppendEvent(msg)
 		case tlb.MsgTypeExternalIn:
 			panic("ReceivedMessage should not contain external in messages, only external out messages")
 		}

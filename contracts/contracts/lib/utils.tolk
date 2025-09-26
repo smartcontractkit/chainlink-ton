@@ -1,17 +1,23 @@
 import "@stdlib/tvm-dicts.tolk";
 import "@stdlib/lisp-lists"
+import "@stdlib/gas-payments";
 
 const ERROR_WRONG_OP = 0xffff;
 const ERROR_INVALID_DATA = 0x77;
 const ERROR_BITMAP_OUT_OF_BOUNDS = 0x78;
 
-/// TODO: is this enough? do we make this configurable?
-/// TODO: replace with more dynamic DEFAULT_MESSAGE_FWD_BUDGET_GAS_UNITS + calculateGasFee
-///
-/// The default message budget fee for messages (replies, notifications),
-/// for which the value is not explicitly set, and we're not sending
-/// the full excess value.
-const DEFAULT_MESSAGE_BUDGET_FEE = ton("0.01");
+/// Returns the facility ID for the given CRC32 key (e.g. stringCrc32("com.chainlink.ton.mcms.Timelock")).
+/// Returns a value in range 10..649 (640 values).
+@pure
+fun facilityId(crc32Key: int): uint16 {
+    return (crc32Key % 640) + 10;
+}
+
+/// Returns an error code composed from facility and local code (max 2^16-1).
+@pure
+fun errorCode(crc32Key: int, local: uint16): uint16 {
+    return facilityId(crc32Key) * 100 + local;
+}
 
 /// The default message forwarding budget fee for messages (replies, notifications, sends)
 /// in gas units. The expectation is this is enough to cover the basic transaction costs
@@ -44,6 +50,26 @@ fun extractBouncedBody(body: slice): uint256 {
     return remainingBits < BOUNCE_MSG_SIZE_MAX
         ? body.loadUint(remainingBits)
         : body.loadUint(BOUNCE_MSG_SIZE_MAX);
+}
+
+const FEE_SIZE_SMALL = 1;
+const FEE_SIZE_DEFAULT = 2;
+const FEE_SIZE_LARGE = 3;
+
+/// Calculates the gas fee for the current workchain and DEFAULT_MESSAGE_FWD_BUDGET_GAS_UNITS.
+fun calculateGasFeeDefault(): coins {
+    val workchain = contract.getAddress().getWorkchain();
+    return calculateGasFee(workchain, DEFAULT_MESSAGE_FWD_BUDGET_GAS_UNITS);
+}
+
+/// Calculates the gas fee for the given size (small, default, large).
+fun calculateGasFeeFor(size: int): coins {
+    if (size == FEE_SIZE_SMALL) {
+        return calculateGasFeeDefault() / 2
+    } else if (size == FEE_SIZE_LARGE) {
+        return calculateGasFeeDefault() * 2;
+    }
+    return calculateGasFeeDefault();
 }
 
 /// Computes the Keccak-256 hash of the given data.
@@ -136,197 +162,6 @@ fun Iterator<T>.size(self, elemSize: int): int {
 // https://github.com/ton-org/ton-core/blob/213fed91d6f63d978c27588509e15ab53c8bafdb/src/dict/Dictionary.ts#L425
 const ADDR_KEY_LEN = 267;
 
-// NOTE: this assumes the slice keys are address values
-struct Map<V> {
-    value: dict;
-}
-
-@inline @pure
-fun Map<V>.new(): Map<V> {
-    return Map { value: createEmptyDict() }
-}
-
-@inline @pure
-fun Map<V>.isEmpty(self): bool {
-    return self.value.dictIsEmpty();
-}
-
-@inline @pure
-fun Map<V>.get(self, key: address): (V?, bool) {
-    val (value, exists) = self.value.sDictGet(ADDR_KEY_LEN, key as slice);
-    if (!exists) {
-        return (null, false);
-    }
-    return (V.fromSlice(value!), true);
-}
-
-@inline
-fun Map<V>.mustGet(self, key: address, errorCode: int): V {
-    val (value, exists) = self.value.sDictGet(ADDR_KEY_LEN, key as slice);
-    assert(exists, errorCode);
-    return V.fromSlice(value!);
-}
-
-@inline @pure
-fun Map<V>.set(mutate self, key: address, value: V): void {
-    return self.value.sDictSet(ADDR_KEY_LEN, key as slice, value.toCell().beginParse());
-}
-
-@inline @pure
-fun Map<V>.has(self, key: address): bool {
-    val (_, exists) = self.value.sDictGet(ADDR_KEY_LEN, key as slice);
-    return exists;
-}
-
-//Returns a lisp-list with the keys of the map, destroys the dictionary in the process
-@inline
-fun Map<V>.keysDestructs(mutate self): tuple? {  
-    var list: tuple? = null;
-    do {
-        var (key: slice?, _value: slice?, found: bool) = self.value.sDictDeleteFirstAndGet(ADDR_KEY_LEN);
-        if (found) {
-            var address = key! as address;
-            list = listPrepend(address, list);
-        }
-    } while (found);
-    return list;
-}
-
-// Notice: currently not available in tolk 1.0/stdlib
-@pure
-fun dict.sDictGetNext(self, keyLen: int, pivot: slice): (slice?, slice?, bool)
-    asm(pivot self keyLen -> 1 0 2) "DICTGETNEXT" "NULLSWAPIFNOT2";
-
-@inline @pure
-fun Map<V>.min(self): (address?, V?, bool) {
-    val (key, value, exists) = self.value.sDictGetFirst(ADDR_KEY_LEN);
-    if (!exists) {
-        return (null, null, false);
-    }
-    return (key as address?, V.fromSlice(value!), true);
-}
-
-@inline @pure
-fun Map<V>.next(self, key: address): (address?, V?, bool) {
-    val (nextKey, value, exists) = self.value.sDictGetNext(ADDR_KEY_LEN, key as slice);
-    if (!exists) {
-        return (null, null, false);
-    }
-    return (nextKey as address?, V.fromSlice(value!), true);
-}
-
-@inline @pure
-fun Map<V>.delete(mutate self, key: address): bool {
-    return self.value.sDictDelete(ADDR_KEY_LEN, key as slice);
-}
-
-// TODO: mark functions as @pure
-struct UMap<K, V> {
-    value: dict;
-    keyLen: uint16; // TODO: get rid of keylen to save storage space, wish we could us a type param
-}
-
-@inline
-fun UMap<K, V>.new(keyLen: int): UMap<K, V> {
-    return UMap { value: createEmptyDict(), keyLen }
-}
-
-@inline
-fun UMap<K, V>.isEmpty(self): bool {
-    return self.value.dictIsEmpty();
-}
-
-@inline
-fun UMap<K, V>.has(self, key: K): bool {
-    val (_, exists) = self.value.uDictGet(self.keyLen, key);
-    return exists;
-}
-
-@inline
-fun UMap<K, V>.get(self, key: K): (V?, bool) {
-    val (value, exists) = self.value.uDictGet(self.keyLen, key);
-    if (!exists) {
-        return (null, false);
-    }
-    return (V.fromSlice(value!), true);
-}
-
-@inline
-fun UMap<K, V>.mustGet(self, key: K, errorCode: int): V {
-    val (maybeValue, exists) = self.value.uDictGet(self.keyLen, key);
-    assert(exists, errorCode);
-    return V.fromSlice(maybeValue!);
-}
-
-@inline
-fun UMap<K, V>.set(mutate self, key: K, value: V): void {
-    return (self.value.uDictSet(self.keyLen, key, value.toCell().beginParse()));
-}
-
-@inline
-fun UMap<K, V>.getRef(self, key: K): (V?, bool) {
-    val (value, exists) = self.value.uDictGetRef(self.keyLen, key);
-    if (!exists) {
-        return (null, false);
-    }
-    return (V.fromCell(value!), true);
-}
-
-@inline
-fun UMap<K, V>.mustGetRef(self, key: K, errorCode: int): V {
-    val (maybeValue, exists) = self.value.uDictGetRef(self.keyLen, key);
-    assert(exists, errorCode);
-    return V.fromCell(maybeValue!);
-}
-
-@inline
-fun UMap<K, V>.setRef(mutate self, key: K, value: V): void {
-    return (self.value.uDictSetRef(self.keyLen, key, value.toCell()));
-}
-
-@inline @pure
-fun UMap<K, V>.min(self): (K?, V?, bool) {
-    val (key, value, exists) = self.value.uDictGetFirst(ADDR_KEY_LEN);
-    if (!exists) {
-        return (null, null, false);
-    }
-    return (key, V.fromSlice(value!), true);
-}
-
-@inline @pure
-fun UMap<K, V>.next(self, key: K): (K?, V?, bool) {
-    val (nextKey, value, exists) = self.value.uDictGetNext(self.keyLen, key);
-    if (!exists) {
-        return (null, null, false);
-    }
-    return (nextKey, V.fromSlice(value!), true);
-}
-
-@inline @pure
-fun UMap<K, V>.replace(mutate self, key: K, value: V): bool {
-    return (self.value.uDictSetIfExists(self.keyLen, key, value.toCell().beginParse()));
-}
-
-@inline @pure
-fun UMap<K, V>.delete(mutate self, key: K): bool {
-    return self.value.sDictDelete(self.keyLen, key);
-}
-
-//Returns a lisp-list with the keys of the map, destroys the dictionary in the process
-@inline
-fun UMap<K, V>.keysDestructs(mutate self): tuple? {
-    var list: tuple? = null;
-    do {
-        var (key: int?, _value: slice?, found: bool) = self.value.uDictDeleteFirstAndGet(self.keyLen);
-        if (found) {
-            var value = key! as K;
-            list = listPrepend(value, list);
-        }
-    } while (found);
-    return list;
-}
-
-
 struct TupleIterator<T> {
     pos: int = 0;
     len: int; // TLEN is 26 gas, we cache the value for minimal savings
@@ -378,4 +213,18 @@ fun Bitmap256.set(mutate self, index: int): void {
 fun Bitmap256.has(self, index: int): bool {
     assert(index >= 0 && index < 256, ERROR_BITMAP_OUT_OF_BOUNDS);
     return (self.bits & (1 << index)) != 0;
+}
+
+// Returns a lisp-list with the keys of the map
+fun keysLispList<K, V>(dict: map<K, V>): tuple?{
+    var list: tuple? = null;
+    var entry = dict.findFirst();
+    while (entry.isFound) {
+        if (entry.isFound) {
+            var key = entry.getKey();
+            list = listPrepend(key, list);
+            entry = dict.iterateNext(entry);
+        }
+    } ;
+    return list;
 }

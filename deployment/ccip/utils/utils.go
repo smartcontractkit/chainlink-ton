@@ -40,7 +40,7 @@ func unpack[T any](data []byte) (T, error) {
 		return decoded, err
 	}
 	err = tlb.LoadFromCell(&decoded, cell.BeginParse())
-	return decoded, nil
+	return decoded, err
 }
 
 func pack(msg any) ([]byte, error) {

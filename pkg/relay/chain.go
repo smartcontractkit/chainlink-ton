@@ -138,7 +138,7 @@ func newChain(cfg *config.TOMLConfig, loopKs loop.Keystore, lggr logger.Logger, 
 		Filters:  fs,
 		TxLoader: account.NewTxLoader(lggr, clientProvider, lpCfg.PageSize),
 		TxParser: txparser.NewTxParser(lggr, fs),
-		Store:    inmemorystore.NewLogStore(),
+		Store:    inmemorystore.NewLogStore(lggr),
 	}
 
 	ch.lp = logpoller.NewService(lggr, clientProvider, lgOpts)
@@ -385,8 +385,7 @@ func (c *chain) GetSignerWallet(ctx context.Context, client *ton.APIClient, loop
 
 	// Wrap your loopKs.Sign into a compatible signer function
 	signer := func(ctx context.Context, toSign *cell.Cell, subwallet uint32) ([]byte, error) {
-		boc := toSign.ToBOC()
-		return loopKs.Sign(ctx, account, boc)
+		return loopKs.Sign(ctx, account, toSign.Hash())
 	}
 
 	// Create the wallet from public key + signer wrapper

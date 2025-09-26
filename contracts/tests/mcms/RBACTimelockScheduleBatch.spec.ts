@@ -88,7 +88,7 @@ describe('MCMS - RBACTimelockScheduleBatchTest', () => {
       from: baseTest.acc.executorOne.address,
       to: baseTest.bind.timelock.address,
       success: false,
-      exitCode: ac.Errors.UnauthorizedAccount,
+      exitCode: ac.Error.UnauthorizedAccount,
     })
   })
 
@@ -130,7 +130,7 @@ describe('MCMS - RBACTimelockScheduleBatchTest', () => {
       from: baseTest.acc.proposerOne.address,
       to: baseTest.bind.timelock.address,
       success: false,
-      exitCode: rbactl.Errors.SelectorIsBlocked,
+      exitCode: rbactl.Error.SelectorIsBlocked,
     })
   })
 
@@ -259,7 +259,7 @@ describe('MCMS - RBACTimelockScheduleTest', () => {
       from: baseTest.acc.executorOne.address,
       to: baseTest.bind.timelock.address,
       success: false,
-      exitCode: ac.Errors.UnauthorizedAccount,
+      exitCode: ac.Error.UnauthorizedAccount,
     })
   })
 
@@ -306,7 +306,7 @@ describe('MCMS - RBACTimelockScheduleTest', () => {
       from: baseTest.acc.proposerOne.address,
       to: baseTest.bind.timelock.address,
       success: false,
-      exitCode: rbactl.Errors.SelectorIsBlocked,
+      exitCode: rbactl.Error.SelectorIsBlocked,
     })
   })
 
@@ -352,7 +352,7 @@ describe('MCMS - RBACTimelockScheduleTest', () => {
       from: baseTest.acc.proposerOne.address,
       to: baseTest.bind.timelock.address,
       success: false,
-      exitCode: rbactl.Errors.OperationAlreadyScheduled,
+      exitCode: rbactl.Error.OperationAlreadyScheduled,
     })
   })
 
@@ -384,7 +384,7 @@ describe('MCMS - RBACTimelockScheduleTest', () => {
       from: baseTest.acc.proposerOne.address,
       to: baseTest.bind.timelock.address,
       success: false,
-      exitCode: rbactl.Errors.InsufficientDelay,
+      exitCode: rbactl.Error.InsufficientDelay,
     })
   })
 

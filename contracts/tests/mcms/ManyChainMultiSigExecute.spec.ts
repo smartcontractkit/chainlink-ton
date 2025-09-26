@@ -56,7 +56,7 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
       from: baseTest.acc.deployer.address,
       to: baseTest.bind.mcms.address,
       success: false,
-      exitCode: mcms.Error.POST_OP_COUNT_REACHED,
+      exitCode: mcms.Error.PostOpCountReached,
     })
   })
 
@@ -84,7 +84,7 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
       from: baseTest.acc.deployer.address,
       to: baseTest.bind.mcms.address,
       success: false,
-      exitCode: mcms.Error.PROOF_CANNOT_BE_VERIFIED,
+      exitCode: mcms.Error.ProofCannotBeVerified,
     })
 
     // Send a proof for the original op before the modification - should still fail
@@ -108,7 +108,7 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
       from: baseTest.acc.deployer.address,
       to: baseTest.bind.mcms.address,
       success: false,
-      exitCode: mcms.Error.PROOF_CANNOT_BE_VERIFIED,
+      exitCode: mcms.Error.ProofCannotBeVerified,
     })
   })
 
@@ -138,7 +138,7 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
       from: baseTest.acc.deployer.address,
       to: baseTest.bind.mcms.address,
       success: false,
-      exitCode: mcms.Error.WRONG_CHAIN_ID,
+      exitCode: mcms.Error.WrongChainId,
     })
 
     // Test 2: Wrong multiSig address
@@ -163,7 +163,7 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
       from: baseTest.acc.deployer.address,
       to: baseTest.bind.mcms.address,
       success: false,
-      exitCode: mcms.Error.WRONG_MULTI_SIG,
+      exitCode: mcms.Error.WrongMultiSig,
     })
 
     // Test 3: Wrong nonce
@@ -188,7 +188,7 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
       from: baseTest.acc.deployer.address,
       to: baseTest.bind.mcms.address,
       success: false,
-      exitCode: mcms.Error.WRONG_NONCE,
+      exitCode: mcms.Error.WrongNonce,
     })
 
     // Test 4: Expired root (advance time past validUntil)
@@ -212,7 +212,7 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
       from: baseTest.acc.deployer.address,
       to: baseTest.bind.mcms.address,
       success: false,
-      exitCode: mcms.Error.ROOT_EXPIRED,
+      exitCode: mcms.Error.RootExpired,
     })
   })
 
@@ -255,7 +255,7 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
       from: baseTest.acc.deployer.address,
       to: baseTest.bind.mcms.address,
       success: false,
-      exitCode: mcms.Error.WRONG_NONCE,
+      exitCode: mcms.Error.WrongNonce,
     })
 
     // Try to execute the third op instead of the second - should fail with WrongNonce
@@ -279,7 +279,7 @@ describe('MCMS - ManyChainMultiSigExecuteTest', () => {
       from: baseTest.acc.deployer.address,
       to: baseTest.bind.mcms.address,
       success: false,
-      exitCode: mcms.Error.WRONG_NONCE,
+      exitCode: mcms.Error.WrongNonce,
     })
 
     // Execute the second op correctly

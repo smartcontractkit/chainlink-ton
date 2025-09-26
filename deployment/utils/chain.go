@@ -223,7 +223,10 @@ func CreateAPIClient(ctx context.Context, chainID uint64, port int) (ton.APIClie
 func getExistingNetworkConnection(ctx context.Context) (ton.APIClientWrapped, error) {
 	configURL := "http://localhost:8000/localhost.global.config.json"
 	pool := liteclient.NewConnectionPool()
-	pool.AddConnectionsFromConfigUrl(ctx, configURL)
+	err := pool.AddConnectionsFromConfigUrl(ctx, configURL)
+	if err != nil {
+		return nil, err
+	}
 	return ton.NewAPIClient(pool, ton.ProofCheckPolicyFast), nil
 }
 

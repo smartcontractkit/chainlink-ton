@@ -3,15 +3,15 @@ package view
 import (
 	"context"
 	"fmt"
-	"math/big"
 	"runtime"
 
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
 	"golang.org/x/sync/errgroup"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 )
 
 const (
@@ -21,7 +21,7 @@ const (
 // FeeQuoterView represents a view of the fee quoter contract configuration.
 type FeeQuoterView struct {
 	MetaData
-	StaticConfig    StaticConfig               `json:"staticConfig,omitempty"`
+	StaticConfig    StaticConfig               `json:"staticConfig"`
 	DestChainConfig map[uint64]DestChainConfig `json:"destChainConfig,omitempty"`
 }
 
@@ -76,7 +76,7 @@ func FetchFeeQuoterView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockI
 
 	result, err = c.Client.RunGetMethod(ctx, block, feeQuoter, staticConfigGetter)
 	if err != nil {
-		return nil, fmt.Errorf("error getting typeAndVersion: %v", err)
+		return nil, fmt.Errorf("error getting typeAndVersion: %w", err)
 	}
 
 	var sc feequoter.StaticConfig
@@ -110,56 +110,47 @@ func fetchDestChainConfigsView(ctx context.Context, c cldf_ton.Chain, block *ton
 		return nil, err
 	}
 
-	selectorSliceRaw := result.AsTuple()[0]
-	selectorSlice, ok := selectorSliceRaw.([]interface{})
-	if !ok {
-		return nil, fmt.Errorf("unexpected type for selector slice")
-	}
+	selectorSlice := parseExecutionResultForDestChainSelectors(result.AsTuple())
 
 	var eg errgroup.Group
 	eg.SetLimit(runtime.NumCPU())
 	output := make(map[uint64]DestChainConfig)
-	for _, selector := range selectorSlice {
-		// On-chain returns *big.Int for selector values, convert to uint64
-		if bigInt, ok := selector.(*big.Int); ok {
-			dest := bigInt.Uint64()
+	for _, dest := range selectorSlice {
+		eg.Go(func() error {
+			result, err = c.Client.RunGetMethod(ctx, block, feeQuoter, destChainConfigGetter, dest)
+			if err != nil {
+				return err
+			}
+			var cfg feequoter.DestChainConfig
+			if err = cfg.FromResult(result); err != nil {
+				return err
+			}
 
-			eg.Go(func() error {
-				result, err = c.Client.RunGetMethod(ctx, block, feeQuoter, destChainConfigGetter, dest)
-				if err != nil {
-					return err
-				}
-				var cfg feequoter.DestChainConfig
-				if err = cfg.FromResult(result); err != nil {
-					return err
-				}
+			destConfig := DestChainConfig{
+				IsEnabled:                         cfg.IsEnabled,
+				MaxNumberOfTokensPerMsg:           cfg.MaxNumberOfTokensPerMsg,
+				MaxDataBytes:                      cfg.MaxDataBytes,
+				MaxPerMsgGasLimit:                 cfg.MaxPerMsgGasLimit,
+				DestGasOverhead:                   cfg.DestGasOverhead,
+				DestGasPerPayloadByteBase:         cfg.DestGasPerPayloadByteBase,
+				DestGasPerPayloadByteHigh:         cfg.DestGasPerPayloadByteHigh,
+				DestGasPerPayloadByteThreshold:    cfg.DestGasPerPayloadByteThreshold,
+				DestDataAvailabilityOverheadGas:   cfg.DestDataAvailabilityOverheadGas,
+				DestGasPerDataAvailabilityByte:    cfg.DestGasPerDataAvailabilityByte,
+				DestDataAvailabilityMultiplierBps: cfg.DestDataAvailabilityMultiplierBps,
+				ChainFamilySelector:               cfg.ChainFamilySelector,
+				EnforceOutOfOrder:                 cfg.EnforceOutOfOrder,
+				DefaultTokenFeeUsdCents:           cfg.DefaultTokenFeeUsdCents,
+				DefaultTokenDestGasOverhead:       cfg.DefaultTokenDestGasOverhead,
+				DefaultTxGasLimit:                 cfg.DefaultTxGasLimit,
+				GasMultiplierWeiPerEth:            cfg.GasMultiplierWeiPerEth,
+				GasPriceStalenessThreshold:        cfg.GasPriceStalenessThreshold,
+				NetworkFeeUsdCents:                cfg.NetworkFeeUsdCents,
+			}
 
-				destConfig := DestChainConfig{
-					IsEnabled:                         cfg.IsEnabled,
-					MaxNumberOfTokensPerMsg:           cfg.MaxNumberOfTokensPerMsg,
-					MaxDataBytes:                      cfg.MaxDataBytes,
-					MaxPerMsgGasLimit:                 cfg.MaxPerMsgGasLimit,
-					DestGasOverhead:                   cfg.DestGasOverhead,
-					DestGasPerPayloadByteBase:         cfg.DestGasPerPayloadByteBase,
-					DestGasPerPayloadByteHigh:         cfg.DestGasPerPayloadByteHigh,
-					DestGasPerPayloadByteThreshold:    cfg.DestGasPerPayloadByteThreshold,
-					DestDataAvailabilityOverheadGas:   cfg.DestDataAvailabilityOverheadGas,
-					DestGasPerDataAvailabilityByte:    cfg.DestGasPerDataAvailabilityByte,
-					DestDataAvailabilityMultiplierBps: cfg.DestDataAvailabilityMultiplierBps,
-					ChainFamilySelector:               cfg.ChainFamilySelector,
-					EnforceOutOfOrder:                 cfg.EnforceOutOfOrder,
-					DefaultTokenFeeUsdCents:           cfg.DefaultTokenFeeUsdCents,
-					DefaultTokenDestGasOverhead:       cfg.DefaultTokenDestGasOverhead,
-					DefaultTxGasLimit:                 cfg.DefaultTxGasLimit,
-					GasMultiplierWeiPerEth:            cfg.GasMultiplierWeiPerEth,
-					GasPriceStalenessThreshold:        cfg.GasPriceStalenessThreshold,
-					NetworkFeeUsdCents:                cfg.NetworkFeeUsdCents,
-				}
-
-				output[dest] = destConfig
-				return nil
-			})
-		}
+			output[dest] = destConfig
+			return nil
+		})
 	}
 
 	return output, eg.Wait()

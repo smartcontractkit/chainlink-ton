@@ -19,12 +19,13 @@ var _ QueryBuilder[any] = (*queryBuilder[any])(nil)
 // Phase 1: stored cell-level filtering at the storage layer
 // Phase 2: Strongly-typed filtering on parsed events in the application layer
 type queryBuilder[T any] struct {
-	address     *address.Address
-	eventSig    uint32
-	byteFilters []query.ByteFilter
-	byteCursor  uint
-	typedFilter func(T) bool
-	options     query.Options
+	address         *address.Address
+	eventSig        uint32
+	byteFilters     []query.ByteFilter
+	byteCursor      uint
+	typedFilter     func(T) bool
+	timestampFilter *query.TimestampFilter
+	options         query.Options
 }
 
 // NewQuery creates a new query builder for constructing log queries with two-phase filtering.
@@ -81,6 +82,12 @@ func (b *queryBuilder[T]) FilterTyped(filter func(T) bool) QueryBuilder[T] {
 	return b
 }
 
+// FilterTimestamp adds a timestamp-based filter to the query.
+func (b *queryBuilder[T]) FilterTimestamp(filter query.TimestampFilter) QueryBuilder[T] {
+	b.timestampFilter = &filter
+	return b
+}
+
 // Limit sets the maximum number of results to return.
 func (b *queryBuilder[T]) Limit(limit int) QueryBuilder[T] {
 	b.options.Limit = limit
@@ -130,8 +137,20 @@ func (b *queryBuilder[T]) Execute(_ context.Context, store LogStore) (query.Resu
 		preFilteredLogs = logs
 	}
 
+	// Apply timestamp filtering if specified
+	var timestampFilteredLogs []types.Log
+	if b.timestampFilter != nil {
+		for _, log := range preFilteredLogs {
+			if b.timestampFilter.Matches(log.TxTimestamp) {
+				timestampFilteredLogs = append(timestampFilteredLogs, log)
+			}
+		}
+	} else {
+		timestampFilteredLogs = preFilteredLogs
+	}
+
 	var filteredParsedLogs []types.TypedLog[T]
-	for _, log := range preFilteredLogs {
+	for _, log := range timestampFilteredLogs {
 		var event T
 		// always skip magic(opcode in msg) when parsing log cells, we only store message body
 		const skipMagic = true
@@ -209,10 +228,17 @@ func (b *queryBuilder[T]) applySorting(parsedLogs []types.TypedLog[T]) {
 		for _, sortCriteria := range b.options.SortBy {
 			var cmp int
 
-			if sortCriteria.Field == query.SortByTxLT {
+			switch sortCriteria.Field {
+			case query.SortByTxLT:
 				if parsedLogs[i].TxLT < parsedLogs[j].TxLT {
 					cmp = -1
 				} else if parsedLogs[i].TxLT > parsedLogs[j].TxLT {
+					cmp = 1
+				}
+			case query.SortByTxTimestamp:
+				if parsedLogs[i].TxTimestamp.Before(parsedLogs[j].TxTimestamp) {
+					cmp = -1
+				} else if parsedLogs[i].TxTimestamp.After(parsedLogs[j].TxTimestamp) {
 					cmp = 1
 				}
 			}
@@ -234,10 +260,7 @@ func (b *queryBuilder[T]) calculatePagination(totalCount int) (start, end int) {
 	end = totalCount
 
 	if b.options.Offset > 0 {
-		start = b.options.Offset
-		if start > totalCount {
-			start = totalCount
-		}
+		start = min(b.options.Offset, totalCount)
 	}
 
 	if b.options.Limit > 0 {

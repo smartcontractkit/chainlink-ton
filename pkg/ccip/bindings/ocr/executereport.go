@@ -4,7 +4,6 @@ import (
 	"math/big"
 
 	"github.com/xssnick/tonutils-go/address"
-	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
@@ -21,12 +20,12 @@ type ExecuteReport struct {
 
 // Any2TVMRampMessage represents ramp message, which is part of the execute report.
 type Any2TVMRampMessage struct {
-	Header       RampMessageHeader                     `tlb:"."`
-	Sender       common.CrossChainAddress              `tlb:"^"`
-	Data         common.SnakeBytes                     `tlb:"^"`
-	Receiver     *address.Address                      `tlb:"addr"`
-	GasLimit     tlb.Coins                             `tlb:"."`
-	TokenAmounts common.SnakeRef[Any2TVMTokenTransfer] `tlb:"^"`
+	Header   RampMessageHeader        `tlb:"."`
+	Sender   common.CrossChainAddress `tlb:"^"`
+	Data     common.SnakeBytes        `tlb:"^"`
+	Receiver *address.Address         `tlb:"addr"`
+	// GasLimit     tlb.Coins                             `tlb:"maybe ."` // TODO, missing in on-chain contract, TBD until supporting token transfer
+	TokenAmounts common.SnakeRef[Any2TVMTokenTransfer] `tlb:"maybe ^"`
 }
 
 // RampMessageHeader contains metadata for a ramp message.
@@ -47,6 +46,7 @@ type Any2TVMTokenTransfer struct {
 	Amount            *big.Int                 `tlb:"## 256"`
 }
 
+// TVM2AnyRampMessage for execution context (includes onramp address in header)
 type TVM2AnyRampMessage struct {
 	Header        RampMessageHeader      `tlb:"."`
 	Sender        *address.Address       `tlb:"addr"`
@@ -57,8 +57,8 @@ type TVM2AnyRampMessage struct {
 type TVM2AnyRampMessageBody struct {
 	Receiver       common.CrossChainAddress `tlb:"^"`
 	Data           common.SnakeBytes        `tlb:"^"`
-	ExtraArgs      *cell.Cell               `tlb:"^"` // TODO: common.SnakeRef[TVM2AnyTokenTransfer] once defined
-	TokenAmounts   *cell.Cell               `tlb:"^"`
+	ExtraArgs      *cell.Cell               `tlb:"^"`
+	TokenAmounts   *cell.Cell               `tlb:"^"` // TODO: common.SnakeRef[TVM2AnyTokenTransfer] once defined
 	FeeToken       *address.Address         `tlb:"addr"`
 	FeeTokenAmount *big.Int                 `tlb:"## 256"`
 }
