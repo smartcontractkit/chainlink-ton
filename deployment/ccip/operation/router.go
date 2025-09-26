@@ -4,9 +4,10 @@ import (
 	"fmt"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
+
+	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/utils"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
@@ -16,6 +17,7 @@ import (
 )
 
 type DeployRouterInput struct {
+	ID           uint32
 	ContractPath string
 }
 
@@ -42,6 +44,7 @@ func deployRouter(b operations.Bundle, deps TonDeps, in DeployRouterInput) (Depl
 	conn := tracetracking.NewSignedAPIClient(deps.TonChain.Client, *deps.TonChain.Wallet)
 
 	storage := router.Storage{
+		ID: in.ID,
 		Ownable: common.Ownable2Step{
 			Owner:        deps.TonChain.WalletAddress,
 			PendingOwner: nil,

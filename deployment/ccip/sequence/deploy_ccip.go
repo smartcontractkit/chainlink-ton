@@ -85,6 +85,7 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 	}
 
 	routerInput := operation.DeployRouterInput{
+		ID: in.CCIPConfig.RouterParams.ID,
 		// chainSelector ?
 		ContractPath: utils.GetBuildDir("Router.compiled.json"),
 	}

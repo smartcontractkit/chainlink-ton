@@ -16,6 +16,7 @@ type ChainContractParams struct {
 	FeeQuoterParams FeeQuoterParams
 	OffRampParams   OffRampParams
 	OnRampParams    OnRampParams
+	RouterParams    RouterParams
 }
 
 func (c ChainContractParams) Validate() error {
@@ -84,5 +85,14 @@ func (o OnRampParams) Validate() error {
 	if err := cldf.IsValidChainSelector(o.ChainSelector); err != nil {
 		return fmt.Errorf("invalid chain selector: %d - %w", o.ChainSelector, err)
 	}
+	return nil
+}
+
+type RouterParams struct {
+	ID uint32
+}
+
+func (r RouterParams) Validate() error {
+	// No specific validation for now
 	return nil
 }

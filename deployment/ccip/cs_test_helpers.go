@@ -93,6 +93,9 @@ func DeployChainContractsConfig(t *testing.T, env cldf.Environment, chainSelecto
 	return DeployCCIPContractsCfg{
 		TonChainSelector: chainSelector,
 		Params: config.ChainContractParams{
+			RouterParams: config.RouterParams{
+				ID: idForContracts,
+			},
 			FeeQuoterParams: config.FeeQuoterParams{
 				ID:                           idForContracts,
 				MaxFeeJuelsPerMsg:            big.NewInt(1),
