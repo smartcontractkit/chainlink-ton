@@ -670,20 +670,14 @@ func (a *TONAccessor) GetChainFeePriceUpdate(ctx context.Context, selectors []cc
 			return nil, fmt.Errorf("failed to get chain fee price updates: %w", err)
 		}
 		// HACK: we read the value as Timestamped since the binary layout is compatible, so that we match TimestampedBig (two values packed together)
-		var update feequoter.USDPerUnitGas
+		var update feequoter.TimestampedPrice
 		if err := tlb.LoadFromCell(&update, value.BeginParse()); err != nil {
 			return nil, fmt.Errorf("failed to get chain fee price updates: %w", err)
 		}
-		a.lggr.Debugf("TON 1: %+v", update)
-		a.lggr.Debugf("TON 2: %+v", update.Timestamp)
-		a.lggr.Debugf("TON 3: %+v", update.ExecutionGasPrice)
-
-		packedFee := new(big.Int).Lsh(update.DataAvailabilityGasPrice, 112)
-		packedFee.Or(packedFee, update.ExecutionGasPrice)
 
 		prices[selector] = ccipocr3.TimestampedUnixBig{
 			Timestamp: uint32(update.Timestamp), //nolint:gosec // TODO: fix type onchain
-			Value:     packedFee,
+			Value:     update.Value,
 		}
 	}
 	return prices, nil
