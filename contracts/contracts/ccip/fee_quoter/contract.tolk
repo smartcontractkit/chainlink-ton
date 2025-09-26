@@ -312,8 +312,8 @@ const SUI_TOKEN_TRANSFER_DATA_OVERHEAD: uint256 = (4 + 32) // source_pool
 + 32; // per-chain token billing config, not always included in the token lookup table
 
 fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: FeeQuoterDestChainConfig, message: CCIPSend): int {
-    val (_cells, dataBits, _cellReferences, succeded) = message.data.calculateSize(99); // How are we decoding this?
-    assert(succeded, ERROR_INVALID_MSG_DATA);
+    val (_cells, dataBits, _cellReferences, succeeded) = message.data.calculateSize(99); // How are we decoding this?
+    assert(succeeded, ERROR_INVALID_MSG_DATA);
     assert(dataBits % 8 == 0, ERROR_INVALID_MSG_DATA); // TBD: This is not present in the Solidity implementation, but the it uses bytes for data, so I supose this is implied
     val dataLength = dataBits / 8 as uint256;
 
