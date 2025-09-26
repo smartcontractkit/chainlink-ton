@@ -14,7 +14,7 @@ import {
 
 import * as ownable2step from '../libraries/access/Ownable2Step'
 import { CellCodec } from '../utils'
-import { asSnakeData, fromSnakeData } from '../../src/utils'
+import {asSnakeData, asSnakeDataUint, fromSnakeData} from '../../src/utils'
 
 export type Storage = {
   ownable: ownable2step.Data
@@ -25,7 +25,7 @@ export type Storage = {
 export abstract class Params {}
 
 export abstract class Opcodes {
-  static setRamp = 0x10000001
+  static setRamps = 0x10000001
   static ccipSend = 0x00000001
 }
 
@@ -55,13 +55,13 @@ export class Router implements Contract {
     })
   }
 
-  async sendSetRamp(
+  async sendSetRamps(
     provider: ContractProvider,
     via: Sender,
     opts: {
       value: bigint
       queryID?: number
-      destChainSelector: bigint
+      destChainSelector: bigint[]
       onRamp: Address
     },
   ) {
@@ -69,9 +69,9 @@ export class Router implements Contract {
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: beginCell()
-        .storeUint(Opcodes.setRamp, 32)
+        .storeUint(Opcodes.setRamps, 32)
         .storeUint(opts.queryID ?? 0, 64)
-        .storeUint(opts.destChainSelector, 64)
+        .storeRef(asSnakeDataUint(opts.destChainSelector, 64))
         .storeAddress(opts.onRamp)
         .endCell(),
     })

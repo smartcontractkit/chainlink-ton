@@ -222,10 +222,10 @@ describe('Router', () => {
   it('onramp arbitrary message passing', async () => {
     // Configure onRamp on router
     {
-      const result = await router.sendSetRamp(deployer.getSender(), {
+      const result = await router.sendSetRamps(deployer.getSender(), {
         value: toNano('1'),
         queryID: 0,
-        destChainSelector: CHAINSEL_EVM_TEST_90000001,
+        destChainSelector: [CHAINSEL_EVM_TEST_90000001],
         onRamp: onRamp.address,
       })
       expect(result.transactions).toHaveTransaction({
@@ -336,10 +336,10 @@ describe('Router', () => {
   it('onramp token transfer - paid with TON', async () => {
     // Configure onRamp on router
     {
-      const result = await router.sendSetRamp(deployer.getSender(), {
+      const result = await router.sendSetRamps(deployer.getSender(), {
         value: toNano('1'),
         queryID: 0,
-        destChainSelector: CHAINSEL_EVM_TEST_90000001,
+        destChainSelector: [CHAINSEL_EVM_TEST_90000001],
         onRamp: onRamp.address,
       })
       expect(result.transactions).toHaveTransaction({
