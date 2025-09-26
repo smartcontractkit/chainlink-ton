@@ -21,7 +21,7 @@ fun Storage.store(self) {
     return contract.setData(self.toCell());
 }
 
-type Msg = CCIPSend | SetRamp | SetRamps | JettonTransferNotification;
+type Msg = CCIPSend | SetRamps | JettonTransferNotification;
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy Msg.fromSlice(in.body);
