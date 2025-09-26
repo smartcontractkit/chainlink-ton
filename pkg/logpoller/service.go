@@ -102,8 +102,6 @@ func (lp *service) run(ctx context.Context) (err error) {
 		return nil
 	}
 
-	lp.lggr.Debugf("processing range (%d, %d]", blockRange.Prev.SeqNo, blockRange.To.SeqNo)
-
 	// TODO: load filter from persistent store
 	// TODO: implement backfill logic(if there is filters marked for backfill)
 	addresses, err := lp.filters.GetDistinctAddresses(ctx)
@@ -149,7 +147,11 @@ func (lp *service) processBlockRange(ctx context.Context, blockRange *models.Blo
 		return err
 	}
 
-	lp.lggr.Debugf("processed range (%d, %d], saved %d logs from %d addresses", blockRange.Prev.SeqNo, blockRange.To.SeqNo, totalSaved, len(addresses))
+	if blockRange.Prev == nil {
+		lp.lggr.Debugf("processed range (unspecified, %d], saved %d logs from %d addresses", blockRange.To.SeqNo, totalSaved, len(addresses))
+	} else {
+		lp.lggr.Debugf("processed range (%d, %d], saved %d logs from %d addresses", blockRange.Prev.SeqNo, blockRange.To.SeqNo, totalSaved, len(addresses))
+	}
 
 	return nil
 }
