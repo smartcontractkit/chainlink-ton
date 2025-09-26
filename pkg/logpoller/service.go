@@ -210,6 +210,7 @@ func (lp *service) loadTxsForAddresses(ctx context.Context, blockRange *models.B
 		}(addr)
 	}
 
+	// close channels asynchronously
 	go func() {
 		wg.Wait()
 		close(txsOut)
