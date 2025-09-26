@@ -6,7 +6,6 @@ import (
 	"encoding/binary"
 	"math/big"
 	"math/rand/v2"
-	"sync"
 	"testing"
 	"time"
 
@@ -91,17 +90,9 @@ func Test_LogPoller(t *testing.T) {
 			require.NoError(t, berr)
 
 			var txs []models.Tx
-			var wg sync.WaitGroup
-			wg.Add(1)
-
-			go func() {
-				defer wg.Done()
-				for tx := range txsCh {
-					txs = append(txs, tx)
-				}
-			}()
-
-			wg.Wait()
+			for tx := range txsCh {
+				txs = append(txs, tx)
+			}
 
 			indexedCells := make([]*cell.Cell, 0, len(txs))
 			for _, tx := range txs {
@@ -116,6 +107,59 @@ func Test_LogPoller(t *testing.T) {
 				}
 			}
 			require.NoError(t, helper.VerifyAllCountLogs(indexedCells, expectedEvents))
+		})
+
+		t.Run("loading block by block", func(t *testing.T) {
+			t.Parallel()
+			var allLoadedLogCells []*cell.Cell
+			loader := txloader.New(logger.Test(t), clientProvider, pageSize)
+
+			// iterate block by block from prevBlock to toBlock
+			currentBlock := prevBlock
+			for seqNo := prevBlock.SeqNo + 1; seqNo <= toBlock.SeqNo; seqNo++ {
+				nextBlock, nberr := client.WaitForBlock(seqNo).LookupBlock(
+					t.Context(),
+					firstTx.Block.Workchain,
+					firstTx.Block.Shard,
+					seqNo,
+				)
+				require.NoError(t, nberr)
+
+				// Create a block range for just this single block
+				iterRange := &models.BlockRange{
+					Prev: currentBlock,
+					To:   nextBlock,
+				}
+
+				txsCh, _, berr := loader.LoadTxsForAddress(
+					t.Context(),
+					iterRange,
+					emitter.ContractAddress(),
+				)
+				require.NoError(t, berr)
+
+				var txs []models.Tx
+				for tx := range txsCh {
+					txs = append(txs, tx)
+				}
+
+				// Extract messages from the loaded transactions
+				for _, tx := range txs {
+					msgs, _ := tx.Transaction.IO.Out.ToSlice()
+					for _, msg := range msgs {
+						if msg.MsgType == tlb.MsgTypeExternalOut {
+							if extOut := msg.AsExternalOut(); extOut != nil {
+								allLoadedLogCells = append(allLoadedLogCells, extOut.Payload())
+							}
+						}
+					}
+				}
+				currentBlock = nextBlock // update for next iteration
+			}
+
+			// verify if we loaded all expected events, without duplicates
+			err = helper.VerifyAllCountLogs(allLoadedLogCells, batchCount*txPerBatch*msgPerTx)
+			require.NoError(t, err)
 		})
 	})
 
