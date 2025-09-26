@@ -265,7 +265,7 @@ func (a *TONAccessor) LatestMessageTo(ctx context.Context, dest ccipocr3.ChainSe
 		SkipBytes(40). // Skip to DestChainSelector
 		FilterBytes(8, query.EQ(binary.BigEndian.AppendUint64(nil, uint64(dest)))).
 		OrderBy(query.SortByTxLT, query.DESC). // sort by transaction LT new to old
-		Limit(1).                              // only get the last one
+		Limit(1). // only get the last one
 		Execute(ctx, a.logPoller.GetStore())
 
 	if err != nil {
@@ -664,21 +664,21 @@ func (a *TONAccessor) GetChainFeePriceUpdate(ctx context.Context, selectors []cc
 			continue
 		}
 		if err != nil {
-			// TODO: possibly return new map or continue
-			return nil, fmt.Errorf("failed to get chain fee price updates: %w", err)
+			a.lggr.Errorw("failed to query destinationChainGasPrice, continuing with other selectors", "selector", selector, "err", err)
+			continue
 		}
 
 		value, err := result.Cell(0)
 		if err != nil {
-			// TODO: possibly return new map or continue
-			return nil, fmt.Errorf("failed to get chain fee price updates: %w", err)
+			a.lggr.Errorw("failed to get value from result.Cell(0), continuing with other selectors", "selector", selector, "err", err)
+			continue
 		}
 
 		// HACK: we read the value as Timestamped since the binary layout is compatible, so that we match TimestampedBig (two values packed together)
 		var update feequoter.TimestampedPrice
 		if err := tlb.LoadFromCell(&update, value.BeginParse()); err != nil {
-			// TODO: possibly return new map or continue
-			return nil, fmt.Errorf("failed to get chain fee price updates: %w", err)
+			a.lggr.Errorw("failed to unmarshal TimestampedPrice, continuing with other selectors", "selector", selector, "err", err)
+			continue
 		}
 
 		prices[selector] = ccipocr3.TimestampedUnixBig{
