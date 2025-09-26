@@ -126,15 +126,9 @@ struct TokenAmount {
     token: address;
 }
 
-struct (0x10000001) SetRamp {
-    queryId: uint64;
-    // TODO: support onramp and offramp, support list
-    destChainSelector: uint64;
-    onRamp: address;
-}
-
 // update multiple chain selectors in batch to the same onramp address
-struct (0x10000002) SetRamps {
+struct (0x10000001) SetRamps {
+    // TODO: support onramp and offramp, support list
     queryId: uint64;
     destChainSelectors: cell; // vec<uint64> for destChainSelectors
     onRamp: address;
