@@ -26,7 +26,6 @@ type Msg = CCIPSend | SetRamps | JettonTransferNotification;
 fun onInternalMessage(in: InMessage) {
     val msg = lazy Msg.fromSlice(in.body);
     match (msg) {
-        SetRamp => { onSetRamp(msg, in.senderAddress) }
         SetRamps => {onSetRamps(msg, in.senderAddress)}
         CCIPSend => { onSend(msg, in.senderAddress) }
         JettonTransferNotification => { onTransferNotification(msg, in.senderAddress) }
@@ -38,16 +37,6 @@ fun onInternalMessage(in: InMessage) {
 }
 
 fun onBouncedMessage(in: InMessageBounced) {
-}
-
-fun onSetRamp(msg: SetRamp, sender: address) {
-    var st = lazy Storage.load();
-    st.ownable.requireOwner(sender);
-
-    st.onRamps.set(msg.destChainSelector, msg.onRamp);
-    st.store();
-
-    // TODO: emit(OnRampSet)
 }
 
 fun onSetRamps(msg: SetRamps, sender: address) {
