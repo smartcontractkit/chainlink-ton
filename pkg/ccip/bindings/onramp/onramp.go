@@ -20,7 +20,7 @@ type CCIPMessageSent struct {
 // GenericExtraArgsV2 represents generic extra arguments for transactions.
 type GenericExtraArgsV2 struct {
 	_                        tlb.Magic `tlb:"#181dcf10"` //nolint:revive // Ignore opcode tag // hex encoded bytes4(keccak256("CCIP EVMExtraArgsV2")), can be verified with hexutil.MustDecode("0x181dcf10")
-	GasLimit                 *big.Int  `tlb:"## 256"`
+	GasLimit                 *big.Int  `tlb:"maybe ## 256"`
 	AllowOutOfOrderExecution bool      `tlb:"bool"`
 }
 
