@@ -51,6 +51,8 @@ fun onSetRamps(msg: SetRamps, sender: address) {
     st.store();
 }
 
+// TODO: emit(OnRampsSet)
+
 fun onSend(msg: CCIPSend, sender: address) {
     ccipSend(msg, sender);
 }

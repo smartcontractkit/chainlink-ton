@@ -47,6 +47,17 @@ export class Router implements Contract {
     return new Router(contractAddress(workchain, init), init)
   }
 
+  async onRamp(provider: ContractProvider, chainSelector: bigint) {
+    return await provider
+      .get('onRamp', [
+        {
+          type: 'int',
+          value: BigInt(chainSelector),
+        },
+      ])
+      .then((r) => r.stack.readAddress())
+  }
+
   async sendInternal(provider: ContractProvider, via: Sender, value: bigint, body: Cell) {
     await provider.internal(via, {
       value: value,

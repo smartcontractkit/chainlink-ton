@@ -19,6 +19,7 @@ import { dump } from '../utils/prettyPrint'
 import { CellCodec } from '../../wrappers/utils'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
+const CHAINSEL_EVM_TEST_90000002 = 5548718428018410741n
 const CHAINSEL_TON = 13879075125137744094n
 const TEST_TOKEN_ADDR = Address.parseRaw(
   '0:0000000000000000000000000000000000000000000000000000000000000001',
@@ -218,6 +219,33 @@ describe('Router', () => {
       }
     }
   }, 10000)
+
+  it('update router ramps in batch', async () => {
+    {
+      const result = await router.sendSetRamps(deployer.getSender(), {
+        value: toNano('1'),
+        queryID: 0,
+        destChainSelector: [CHAINSEL_EVM_TEST_90000001, CHAINSEL_EVM_TEST_90000002],
+        onRamp: onRamp.address,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: router.address,
+        success: true,
+      })
+    }
+
+    {
+      let result = await router.onRamp(
+        blockchain.provider(router.address),
+        CHAINSEL_EVM_TEST_90000001,
+      )
+      expect(result).toEqual(onRamp.address)
+
+      result = await router.onRamp(blockchain.provider(router.address), CHAINSEL_EVM_TEST_90000002)
+      expect(result).toEqual(onRamp.address)
+    }
+  })
 
   it('onramp arbitrary message passing', async () => {
     // Configure onRamp on router
