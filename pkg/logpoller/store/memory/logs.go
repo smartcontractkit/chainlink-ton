@@ -23,12 +23,21 @@ import (
 
 var _ logpoller.LogStore = (*inMemoryLogs)(nil)
 
+// logKey represents a composite key for log deduplication
+// using address + event signature + TxLT
+type logKey struct {
+	address  string // address string representation
+	eventSig uint32 // event signature
+	txLT     uint64 // transaction logical time
+}
+
 // inMemoryLogs is in-memory implementation of the LogStore interface.
 // This provides basic log storage and querying capabilities without database persistence.
 // For production use, this proper database-backed storage should be used.
 type inMemoryLogs struct {
 	mu      sync.Mutex
 	logs    []models.Log
+	logKeys map[logKey]bool // set of existing log keys for deduplication
 	lggr    logger.Logger
 	chainID string
 }
@@ -37,6 +46,9 @@ func NewLogStore(lggr logger.Logger, chainID string) logpoller.LogStore {
 	return &inMemoryLogs{
 		lggr:    lggr,
 		chainID: chainID,
+
+		logs:    make([]models.Log, 0),
+		logKeys: make(map[logKey]bool),
 	}
 }
 
@@ -49,9 +61,19 @@ func (s *inMemoryLogs) SaveLogs(ctx context.Context, logs []models.Log) (int64, 
 		if log.ChainID != s.chainID {
 			return 0, fmt.Errorf("invalid chainID in log got %s want %s", log.ChainID, s.chainID)
 		}
-	}
 
-	s.logs = append(s.logs, logs...)
+		key := logKey{
+			address:  log.Address.String(),
+			eventSig: log.EventSig,
+			txLT:     log.TxLT,
+		}
+
+		if s.logKeys[key] {
+			continue
+		}
+		s.logs = append(s.logs, log)
+		s.logKeys[key] = true
+	}
 	return int64(len(logs)), nil
 }
 
@@ -65,7 +87,7 @@ func (s *inMemoryLogs) QueryLogs(
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// Step 1: Apply all filters in one pass (basic + advanced)
+	// apply all filters
 	var filtered []models.Log
 	for _, log := range s.logs {
 		if s.applyFilters(log, logQuery) {
@@ -73,15 +95,15 @@ func (s *inMemoryLogs) QueryLogs(
 		}
 	}
 
-	// Step 2: Apply sorting
+	// apply sorting
 	s.applySorting(filtered, logQuery.LimitAndSort)
 
-	// Step 3: Apply cursor filtering (after sorting for efficiency)
+	// apply cursor filtering (after sorting for efficiency)
 	if logQuery.LimitAndSort.HasCursorLimit() {
 		filtered = s.applyCursorFilter(filtered, logQuery.LimitAndSort)
 	}
 
-	// Step 5: Apply limit
+	// apply limit
 	requestedLimit := int(logQuery.LimitAndSort.Limit.Count) //nolint:gosec // limit values are reasonable for in-memory store
 	if requestedLimit > 0 && len(filtered) > requestedLimit {
 		hasMore = true
@@ -98,27 +120,27 @@ func (s *inMemoryLogs) QueryLogs(
 	return
 }
 
-// applyFilters checks if a log passes all filters in the query (optimized single-pass version)
+// applyFilters checks if a log passes all filters in the query
 func (s *inMemoryLogs) applyFilters(log models.Log, logQuery *query.LogQuery) bool {
 	if len(logQuery.ByteFilters) == 0 && len(logQuery.BitFilters) == 0 && len(logQuery.FieldFilters) == 0 {
 		return true
 	}
 
-	// Field filters (includes chain_id, address and event_sig filters from WithSource/WithEventSig)
+	// field filters (includes chain_id, address and event_sig filters from WithSource/WithEventSig)
 	for _, filter := range logQuery.FieldFilters {
 		if !s.matchFields(log, filter) {
 			return false
 		}
 	}
 
-	// Byte filters (raw data filters)
+	// byte filters (raw data filters)
 	for _, filter := range logQuery.ByteFilters {
 		if !s.matchBytes(log, filter) {
 			return false
 		}
 	}
 
-	// Bit filters (raw data filters)
+	// bit filters (raw data filters)
 	for _, filter := range logQuery.BitFilters {
 		if !s.matchBits(log, filter) {
 			return false
@@ -153,10 +175,10 @@ func (s *inMemoryLogs) matchFields(log models.Log, filter *query.FieldFilter) bo
 	case "msg_index":
 		logValue = log.MsgIndex
 	default:
-		return false // Unknown field
+		return false // unknown field
 	}
 
-	// Apply the comparison operator
+	// apply the comparison operator
 	return s.compareValues(logValue, filter.Value, filter.Operator)
 }
 
@@ -164,7 +186,7 @@ func (s *inMemoryLogs) matchFields(log models.Log, filter *query.FieldFilter) bo
 func (s *inMemoryLogs) compareValues(logValue, filterValue interface{}, operator primitives.ComparisonOperator) bool {
 	cmp, ok := s.compareTypedValues(logValue, filterValue)
 	if !ok {
-		// Fallback to simple equality for unsupported types
+		// fallback to simple equality for unsupported types
 		switch operator {
 		case primitives.Eq:
 			return logValue == filterValue
