@@ -401,6 +401,12 @@ fun parseGenericExtraArgs(extraArgs: cell, defaultTxGasLimit: uint32, maxPerMsgG
     return extra;
 }
 
+struct (0x181dcf10) GenericExtraArgsV2_2 {
+    gasLimit: uint256?
+    allowOutOfOrderExecution: bool
+}
+
+
 fun parseUnvalidatedEVMExtraArgs(extraArgs: cell, defaultTxGasLimit: uint32): GenericExtraArgsV2 {
     if (extraArgs.beginParse().isEmpty()) {
         return GenericExtraArgsV2 {
@@ -408,7 +414,11 @@ fun parseUnvalidatedEVMExtraArgs(extraArgs: cell, defaultTxGasLimit: uint32): Ge
             allowOutOfOrderExecution: false, // TBD: isn't default true in TON?
         };
     }
-    return GenericExtraArgsV2.fromCell(extraArgs);
+    val extra = GenericExtraArgsV2_2.fromCell(extraArgs);
+    return GenericExtraArgsV2 {
+        gasLimit: extra.gasLimit != null ? extra.gasLimit : 0,
+        allowOutOfOrderExecution: extra.allowOutOfOrderExecution,
+    }
 }
 
 fun parseSvmExtraArgs(extraArgs: cell, maxPerMsgGasLimit: uint32, enforceOutOfOrder: bool): SVMExtraArgsV1 {
