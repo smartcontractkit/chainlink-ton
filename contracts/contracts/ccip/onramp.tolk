@@ -19,6 +19,7 @@ struct CCIPMessageSent {
 
 struct OnRamp_Storage {
     id: uint32;
+    testExtraField: bool;
     ownable: Ownable2Step;
 
     // static config
