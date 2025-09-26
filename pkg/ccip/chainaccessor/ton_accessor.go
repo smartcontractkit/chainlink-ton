@@ -681,11 +681,13 @@ func (a *TONAccessor) GetChainFeePriceUpdate(ctx context.Context, selectors []cc
 			continue
 		}
 
+		a.lggr.Debugw("TON:GetChainFeePriceUpdate added price for selector", "selector", selector, "value", update.Value, "timestamp", update.Timestamp)
 		prices[selector] = ccipocr3.TimestampedUnixBig{
 			Timestamp: uint32(update.Timestamp), //nolint:gosec // TODO: fix type onchain
 			Value:     update.Value,
 		}
 	}
+	a.lggr.Debugw("TON:GetChainFeePriceUpdate completed returning prices", "numPrices", len(prices), "prices", prices)
 	return prices, nil
 }
 
