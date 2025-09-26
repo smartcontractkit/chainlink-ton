@@ -15,7 +15,7 @@ struct CCIPMessageSent {
     message: TVM2AnyRampMessage;
 }
 
-struct OnRamp_Data {
+struct OnRamp_Storage {
     ownable: Ownable2Step;
 
     // static config
@@ -50,11 +50,11 @@ struct DestChainConfig {
 // nonceManager: also seems to fit best in a sender subcontract with a dict destChainSelector -> nonce
 // if we pass through account contract then we can grab a nonce and pass it through?
 
-fun OnRamp_Data.load(): OnRamp_Data {
-    return OnRamp_Data.fromCell(contract.getData());
+fun OnRamp_Storage.load(): OnRamp_Storage {
+    return OnRamp_Storage.fromCell(contract.getData());
 }
 
-fun OnRamp_Data.store(self) {
+fun OnRamp_Storage.store(self) {
     return contract.setData(self.toCell());
 }
 
@@ -79,19 +79,19 @@ fun onInternalMessage(in: InMessage) {
             commit(msg, in.senderAddress);
         }
         SetDynamicConfig => {
-            var st = lazy OnRamp_Data.load();
+            var st = lazy OnRamp_Storage.load();
             st.ownable.requireOwner(in.senderAddress);
             st.config = msg.config.toCell();
             st.store();
         }
         OnRampUpdateDestChainConfigs => {
-            var st = lazy OnRamp_Data.load();
+            var st = lazy OnRamp_Storage.load();
             st.ownable.requireOwner(in.senderAddress);
             applyDestChainConfigUpdates(mutate st, msg.updates);
             st.store();
         }
         UpdateAllowlists => {
-            var st = lazy OnRamp_Data.load();
+            var st = lazy OnRamp_Storage.load();
             st.ownable.requireOwner(in.senderAddress);
             applyAllowlistUpdates(mutate st, msg.updates);
             st.store();
@@ -104,7 +104,7 @@ fun onInternalMessage(in: InMessage) {
 }
 
 fun send(payload: OnRampSend, sender: address, jettonWallet: address? = null) {
-    var st = lazy OnRamp_Data.load();
+    var st = lazy OnRamp_Storage.load();
 
     val msg = payload.msg.load();
 
@@ -177,13 +177,13 @@ fun onTransferNotification(notification: JettonTransferNotification, jettonWalle
     }
 }
 
-fun calculateTokenRegistryAddress(st: OnRamp_Data, token: address): address {
+fun calculateTokenRegistryAddress(st: OnRamp_Storage, token: address): address {
     // TODO: calculate token registry address
     return createAddressNone()
 }
 
 fun handleWithdrawJettons(payload: OnRamp_WithdrawJettons, executor: address) {
-    var st = lazy OnRamp_Data.load();
+    var st = lazy OnRamp_Storage.load();
     var tokenAmounts = Iterator<TokenAmount>.new(payload.tokens);
     assert (!tokenAmounts.empty()) throw 5;
     var tokenAmount = tokenAmounts.next();
@@ -207,7 +207,7 @@ fun handleWithdrawJettons(payload: OnRamp_WithdrawJettons, executor: address) {
 }
 
 fun commit(payload: OnRamp_ExecutorFinishedSuccessfully, sender: address) {
-    var st = lazy OnRamp_Data.load();
+    var st = lazy OnRamp_Storage.load();
     // TODO validate sender is executor msg.msgId
 
     val ccipsend: CCIPSend = payload.msg.load();
@@ -268,13 +268,13 @@ fun commit(payload: OnRamp_ExecutorFinishedSuccessfully, sender: address) {
 
 
 get fun isChainSupported(destChainSelector: uint64): bool {
-    val st = lazy OnRamp_Data.load();
+    val st = lazy OnRamp_Storage.load();
     val entry = st.destChainConfigs.get(destChainSelector);
     return entry.isFound;
 }
 
 get fun expectedNextSequenceNumber(destChainSelector: uint64): uint64 {
-    val st = lazy OnRamp_Data.load();
+    val st = lazy OnRamp_Storage.load();
     val config = st.destChainConfigs.mustGet(destChainSelector,ERROR_UNKNOWN_DEST_CHAIN_SELECTOR);
     return config.sequenceNumber + 1;
 }
@@ -286,11 +286,11 @@ get fun staticConfig() {
 }
 
 get fun dynamicConfig(): OnRampDynamicConfig {
-    val st = lazy OnRamp_Data.load();
+    val st = lazy OnRamp_Storage.load();
     return st.config.load()
 }
 
-fun applyDestChainConfigUpdates(mutate st: OnRamp_Data, updates: cell) {
+fun applyDestChainConfigUpdates(mutate st: OnRamp_Storage, updates: cell) {
     var iter = Iterator<OnRampUpdateDestChainConfig>.new(updates);
 
     while (!iter.empty()) {
@@ -314,13 +314,13 @@ fun applyDestChainConfigUpdates(mutate st: OnRamp_Data, updates: cell) {
 }
 
 get fun destChainConfig(destChainSelector: uint64): DestChainConfig {
-    val st = lazy OnRamp_Data.load();
+    val st = lazy OnRamp_Storage.load();
     return st.destChainConfigs.mustGet(destChainSelector,ERROR_UNKNOWN_DEST_CHAIN_SELECTOR);
 }
 
 // vec<address>
 get fun allowedSendersList(destChainSelector: uint64): tuple {
-    val st = lazy OnRamp_Data.load();
+    val st = lazy OnRamp_Storage.load();
     val config = st.destChainConfigs.mustGet(destChainSelector,ERROR_UNKNOWN_DEST_CHAIN_SELECTOR);
     var allowedSenders = config.allowedSenders;
 
@@ -338,7 +338,7 @@ get fun allowedSendersList(destChainSelector: uint64): tuple {
     return list!;
 }
 
-fun applyAllowlistUpdates(mutate st: OnRamp_Data, updates: cell) {
+fun applyAllowlistUpdates(mutate st: OnRamp_Storage, updates: cell) {
     var iter = Iterator<UpdateAllowlist>.new(updates);
 
     while (!iter.empty()) {
@@ -370,7 +370,7 @@ get fun supportedTokens() {
 }
 
 get fun destChainSelectors(): tuple {
-    val st = lazy OnRamp_Data.load();
+    val st = lazy OnRamp_Storage.load();
     var d = st.destChainConfigs;
     return keysLispList(d)!;
 }
