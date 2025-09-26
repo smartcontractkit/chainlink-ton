@@ -18,6 +18,7 @@ import (
 )
 
 type DeployOnRampInput struct {
+	ID                   uint32
 	ChainSelector        uint64
 	FeeQuoter            *address.Address
 	FeeAggregator        *address.Address
@@ -52,6 +53,7 @@ func deployOnRamp(b operations.Bundle, deps TonDeps, in DeployOnRampInput) (Depl
 	conn := tracetracking.NewSignedAPIClient(deps.TonChain.Client, *deps.TonChain.Wallet)
 
 	storage := onramp.Storage{
+		ID: in.ID,
 		Ownable: common.Ownable2Step{
 			Owner:        deps.TonChain.WalletAddress,
 			PendingOwner: nil,

@@ -7,6 +7,7 @@ import "../lib/jetton/messages"
 import "../lib/jetton/messages_extended"
 
 struct Storage {
+    id: uint32;
     ownable: Ownable2Step;
 
     // TODO: expand this with versions support
@@ -118,7 +119,7 @@ fun ccipSend(msg: CCIPSend, sender: address) {
 }
 
 get fun typeAndVersion(): (slice, slice) {
-     return ("com.chainlink.ton.ccip.Router", "1.0.0");
+     return ("com.chainlink.ton.ccip.Router", "0.0.1");
  }
 
 get fun onRamp(destChainSelector: uint64): address {

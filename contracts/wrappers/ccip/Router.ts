@@ -17,6 +17,7 @@ import { CellCodec } from '../utils'
 import { asSnakeData, asSnakeDataUint, fromSnakeData } from '../../src/utils'
 
 export type Storage = {
+  id: number
   ownable: ownable2step.Data
 
   onRamps: Dictionary<bigint, Address>
@@ -155,6 +156,7 @@ export const builder = {
     const contractData: CellCodec<Storage> = {
       encode: (config: Storage): Builder => {
         return beginCell()
+          .storeUint(config.id, 32)
           .storeAddress(config.ownable.owner)
           .storeMaybeBuilder(
             config.ownable.pendingOwner
@@ -167,6 +169,7 @@ export const builder = {
 
       load: (src: Slice): Storage => {
         return {
+          id: src.loadUint(32),
           ownable: ownable2step.builder.data.traitData.load(src.loadRef().beginParse()),
           onRamps: Dictionary.empty(Dictionary.Keys.BigUint(64)),
         }

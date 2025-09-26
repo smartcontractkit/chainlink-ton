@@ -551,5 +551,5 @@ get fun allSourceChainConfigs(): map<uint64, SourceChainConfig> {
 fun applySourceChainConfigUpdates() {}
 
 get fun typeAndVersion(): (slice, slice) {
-     return ("com.chainlink.ton.ccip.OffRamp", "1.0.0");
+     return ("com.chainlink.ton.ccip.OffRamp", "0.0.1");
  }

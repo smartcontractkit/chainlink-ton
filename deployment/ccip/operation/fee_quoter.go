@@ -5,11 +5,12 @@ import (
 	"math/big"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/smartcontractkit/chainlink-common/pkg/logger"
-	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
+
+	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/utils"
@@ -48,6 +49,7 @@ func deployFeeQuoter(b operations.Bundle, deps TonDeps, in DeployFeeQuoterInput)
 	conn := tracetracking.NewSignedAPIClient(deps.TonChain.Client, *deps.TonChain.Wallet)
 
 	storage := feequoter.Storage{
+		ID: in.Params.ID,
 		Ownable: common.Ownable2Step{
 			Owner:        deps.TonChain.WalletAddress,
 			PendingOwner: nil,

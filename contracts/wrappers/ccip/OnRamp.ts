@@ -18,6 +18,7 @@ import { CellCodec } from '../utils'
 import * as rt from './Router'
 
 export type OnRampStorage = {
+  id: number
   ownable: ownable2step.Data
   chainSelector: bigint
   config: {
@@ -63,6 +64,7 @@ export const builder = {
         encode: function (data: OnRampStorage): Builder {
           return (
             beginCell()
+              .storeUint(data.id, 32)
               .storeBuilder(ownable2step.builder.data.traitData.encode(data.ownable))
               .storeUint(data.chainSelector, 64)
               // Cell<DynamicConfig>

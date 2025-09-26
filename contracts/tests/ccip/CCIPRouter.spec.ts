@@ -61,6 +61,7 @@ describe('Router', () => {
     // Mock UpdatePrices Message handler
     let routerCode = await compile('Router')
     let data: rt.Storage = {
+      id: 0,
       ownable: {
         owner: deployer.address,
         pendingOwner: null,
@@ -84,6 +85,7 @@ describe('Router', () => {
       let code = await compile('FeeQuoter')
 
       let data: FeeQuoterStorage = {
+        id: 0,
         ownable: {
           owner: deployer.address,
           pendingOwner: null,
@@ -182,6 +184,7 @@ describe('Router', () => {
     {
       let code = await compile('OnRamp')
       let data: or.OnRampStorage = {
+        id: 0,
         ownable: {
           owner: deployer.address,
           pendingOwner: null,

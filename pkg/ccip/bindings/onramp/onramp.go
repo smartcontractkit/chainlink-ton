@@ -111,6 +111,7 @@ func (c *DynamicConfig) FromResult(result *ton.ExecutionResult) error {
 
 // Storage represents the storage structure for the CCIP onramp contract.
 type Storage struct {
+	ID               uint32              `tlb:"## 32"`
 	Ownable          common.Ownable2Step `tlb:"."`
 	ChainSelector    uint64              `tlb:"## 64"`
 	Config           DynamicConfig       `tlb:"^"`

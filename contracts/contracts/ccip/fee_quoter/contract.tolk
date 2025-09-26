@@ -25,6 +25,7 @@ const CHAIN_FAMILY_SELECTOR_APTOS: uint32 = 0xac77ffec;
 const CHAIN_FAMILY_SELECTOR_SUI:   uint32 = 0xc4e05953;
 
 struct Storage {
+    id: uint32;
     ownable: Ownable2Step;
 
     maxFeeJuelsPerMsg: uint96;
@@ -558,7 +559,7 @@ get fun staticConfig(): (uint96, address, uint64) {
 }
 
 get fun typeAndVersion(): (slice, slice) {
-     return ("com.chainlink.ton.ccip.FeeQuoter", "1.0.0");
+     return ("com.chainlink.ton.ccip.FeeQuoter", "0.0.1");
 }
 
 get fun destChainSelectors(): tuple {
