@@ -45,17 +45,26 @@ def run_command(cmd, cwd=None, check=True):
 def build_contracts(contracts_dir, verbose=False):
     """Build contracts using nix develop and yarn build."""
     if verbose:
+        print(f"Installing dependencies in {contracts_dir}...")
+    dependency_install_command = "nix develop .#contracts -c yarn"
+    dependency_install_result = run_command(dependency_install_command, cwd=contracts_dir)
+    if verbose:
+        print(f"Dependencies installed in {contracts_dir}")
+        if dependency_install_result.stdout:
+            print(f"Install output: {dependency_install_result.stdout}")
+
+    if verbose:
         print(f"Building contracts in {contracts_dir}...")
     
     build_cmd = "nix develop .#contracts -c yarn build"
-    result = run_command(build_cmd, cwd=contracts_dir)
+    contract_build_result = run_command(build_cmd, cwd=contracts_dir)
     
     if verbose:
         print(f"Build completed in {contracts_dir}")
-        if result.stdout:
-            print(f"Build output: {result.stdout}")
+        if contract_build_result.stdout:
+            print(f"Build output: {contract_build_result.stdout}")
     
-    return result
+    return contract_build_result
 
 
 def get_compiled_contracts(contracts_dir):
