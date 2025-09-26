@@ -642,13 +642,15 @@ func (a *TONAccessor) GetChainFeePriceUpdate(ctx context.Context, selectors []cc
 	a.lggr.Debugf("TON:GetChainFeePriceUpdate, for %d selectors", len(selectors))
 	addr, err := a.getBinding(consts.ContractNameFeeQuoter)
 	if err != nil {
-		a.lggr.Errorw("failed to get fee quoter binding", "err", err)
-		return nil, err
+		a.lggr.Warnw("failed to get fee quoter binding", "err", err)
+		return make(map[ccipocr3.ChainSelector]ccipocr3.TimestampedUnixBig), nil // return a new empty map
 	}
 	block, err := a.client.CurrentMasterchainInfo(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get current block: %w", err)
+		a.lggr.Warnw("failed to get current block", "err", err)
+		return make(map[ccipocr3.ChainSelector]ccipocr3.TimestampedUnixBig), nil // return a new empty map
 	}
+
 	a.lggr.Debugf("TON: about to query destinationChainGasPrice, for %d selectors", len(selectors))
 	prices := make(map[ccipocr3.ChainSelector]ccipocr3.TimestampedUnixBig, len(selectors))
 	for _, selector := range selectors {
@@ -662,16 +664,20 @@ func (a *TONAccessor) GetChainFeePriceUpdate(ctx context.Context, selectors []cc
 			continue
 		}
 		if err != nil {
+			// TODO: possibly return new map or continue
 			return nil, fmt.Errorf("failed to get chain fee price updates: %w", err)
 		}
 
 		value, err := result.Cell(0)
 		if err != nil {
+			// TODO: possibly return new map or continue
 			return nil, fmt.Errorf("failed to get chain fee price updates: %w", err)
 		}
+
 		// HACK: we read the value as Timestamped since the binary layout is compatible, so that we match TimestampedBig (two values packed together)
 		var update feequoter.TimestampedPrice
 		if err := tlb.LoadFromCell(&update, value.BeginParse()); err != nil {
+			// TODO: possibly return new map or continue
 			return nil, fmt.Errorf("failed to get chain fee price updates: %w", err)
 		}
 
