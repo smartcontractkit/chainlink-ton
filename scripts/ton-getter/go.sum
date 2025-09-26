@@ -1,0 +1,4 @@
+filippo.io/edwards25519 v1.1.0 h1:FNf4tywRC1HmFuKW5xopWpigGjJKiJSV0Cqo0cJWDaA=
+filippo.io/edwards25519 v1.1.0/go.mod h1:BxyFTGdWcka3PhytdK4V28tE5sGfRvvvRV7EaN4VDT4=
+github.com/xssnick/tonutils-go v1.15.0 h1:jTkrJSgukJjHboWiCTMwXJu3k0h3ZNDjeNuwr1FLLsc=
+github.com/xssnick/tonutils-go v1.15.0/go.mod h1:rpahE9aWb+Jsj1CZezPpJH0Bu5d8vRPYvYKT7Z67MSA=
