@@ -564,6 +564,16 @@ get fun typeAndVersion(): (slice, slice) {
     return ("com.chainlink.ton.ccip.FeeQuoter", CONTRACT_VERSION);
 }
 
+// Returns the current code of the contract.
+get fun code(): cell {
+    return contract.getCode();
+}
+
+// Returns the sha256 hash of the current code of the contract.
+get fun codeHash(): int {
+    return contract.getCode().hash();
+}
+
 get fun destChainSelectors(): tuple {
     val st = lazy Storage.load();
     var d = st.destChainConfigs;

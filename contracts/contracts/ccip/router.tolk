@@ -124,6 +124,16 @@ get fun typeAndVersion(): (slice, slice) {
     return ("com.chainlink.ton.ccip.Router", CONTRACT_VERSION);
 }
 
+// Returns the current code of the contract.
+get fun code(): cell {
+    return contract.getCode();
+}
+
+// Returns the sha256 hash of the current code of the contract.
+get fun codeHash(): int {
+    return contract.getCode().hash();
+}
+
 get fun onRamp(destChainSelector: uint64): address {
     val st = lazy Storage.load();
     return st.onRamps.mustGet(destChainSelector, ERROR_DEST_CHAIN_NOT_ENABLED);

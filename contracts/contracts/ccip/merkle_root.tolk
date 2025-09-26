@@ -178,5 +178,15 @@ fun _execute(st: MerkleRoot_Storage, mesage: Any2TVMRampMessage) {
 // IDEA: we could incentivise receivers to call back on success by sharing the rent refund
 
 get fun typeAndVersion(): (slice, slice) {
-     return ("com.chainlink.ton.ccip.MerkleRoot", CONTRACT_VERSION);
- }
+    return ("com.chainlink.ton.ccip.MerkleRoot", CONTRACT_VERSION);
+}
+
+// Returns the current code of the contract.
+get fun code(): cell {
+    return contract.getCode();
+}
+
+// Returns the sha256 hash of the current code of the contract.
+get fun codeHash(): int {
+    return contract.getCode().hash();
+}
