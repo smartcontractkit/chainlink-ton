@@ -1,6 +1,4 @@
-import "types.tolk";
 import "../lib/access/ownable_2step.tolk";
-import "../lib/upgrades/type_and_version.tolk";
 
 const CONTRACT_VERSION = "0.0.1";
 

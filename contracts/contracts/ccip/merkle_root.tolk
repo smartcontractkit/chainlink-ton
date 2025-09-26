@@ -1,5 +1,4 @@
 import "types.tolk";
-import "../lib/upgrades/type_and_version.tolk";
 import "../deployable/types.tolk";
 import "../lib/utils.tolk";
 

@@ -2,7 +2,6 @@ import "@stdlib/lisp-lists"
 import "../types";
 import "../../lib/access/ownable_2step";
 import "../../deployable/types";
-import "../../lib/upgrades/type_and_version";
 import "../../lib/utils";
 import "messages"
 import "errors"

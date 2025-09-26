@@ -4,7 +4,6 @@ import "../lib/access/ownable_2step.tolk"
 import "../lib/crypto/merkle_multi_proof.tolk"
 import "../lib/ocr/multi_ocr3_base"
 import "../lib/ocr/types"
-import "../lib/upgrades/type_and_version.tolk"
 import "../lib/utils.tolk"
 import "fee_quoter/messages"
 
