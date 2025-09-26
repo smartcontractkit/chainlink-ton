@@ -15,8 +15,8 @@ struct EVMAddress {
 
 const TYPE_UINT160_MAX = (1 << 160) - 1 /* type(uint160).max */
 
-fun validateEVMAddress(receiver: CrossChainAddress) {
-    val evmAddr = EVMAddress.fromSlice(receiver, {
+fun CrossChainAddress.validateEVMAddress(self) {
+    val evmAddr = EVMAddress.fromSlice(self, {
         throwIfOpcodeDoesNotMatch: ERROR_INVALID_EVM_ADDRESS,
     });
     assert (evmAddr.value <= TYPE_UINT160_MAX) throw ERROR_INVALID_EVM_ADDRESS;
@@ -27,8 +27,8 @@ struct a32ByteAddress {
     value: uint256;
 }
 
-fun validate32ByteAddress(receiver: CrossChainAddress, minValue: uint256) {
-    val addr = a32ByteAddress.fromSlice(receiver, {
+fun CrossChainAddress.validate32ByteAddress(self, minValue: uint256) {
+    val addr = a32ByteAddress.fromSlice(self, {
         throwIfOpcodeDoesNotMatch: ERROR_INVALID_EVM_ADDRESS,
     });
     if (minValue > 0) {

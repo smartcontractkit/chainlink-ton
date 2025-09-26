@@ -425,15 +425,15 @@ fun parseSvmExtraArgs(extraArgs: cell, maxPerMsgGasLimit: uint32, enforceOutOfOr
 
 fun validateDestFamilyAddress(chainFamilySelector: uint32, receiver: CrossChainAddress, gasLimit: int) {
     if (chainFamilySelector == CHAIN_FAMILY_SELECTOR_EVM) {
-        return validateEVMAddress(receiver);
+        return receiver.validateEVMAddress();
     } else if (chainFamilySelector == CHAIN_FAMILY_SELECTOR_SVM) {
         // SVM addresses don't have a precompile space at the first X addresses, instead we validate that if the gasLimit
         // is non-zero, the address must not be 0x0.
-        return validate32ByteAddress(receiver, gasLimit > 0 ? 1 : 0);
+        return receiver.validate32ByteAddress(gasLimit > 0 ? 1 : 0);
     } else if (chainFamilySelector == CHAIN_FAMILY_SELECTOR_APTOS) {
-        return validate32ByteAddress(receiver, APTOS_PRECOMPILE_SPACE);
+        return receiver.validate32ByteAddress(APTOS_PRECOMPILE_SPACE);
     } else if (chainFamilySelector == CHAIN_FAMILY_SELECTOR_SUI) {
-        return validate32ByteAddress(receiver, gasLimit > 0 ? APTOS_PRECOMPILE_SPACE : 0);
+        return receiver.validate32ByteAddress(gasLimit > 0 ? APTOS_PRECOMPILE_SPACE : 0);
     } else {
         throw ERROR_UNSUPPORTED_CHAIN_FAMILY_SELECTOR;
     }
