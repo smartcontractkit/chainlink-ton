@@ -144,6 +144,8 @@ def main():
     
     import_map = analyze_imports(os.path.join(root_dir, 'contracts', 'contracts'))
     output_file = os.path.join(root_dir,'contracts', 'generated', 'dependencies.md')
+    output_dir = os.path.dirname(output_file)
+    os.makedirs(output_dir, exist_ok=True)
 
     # Generate and save Mermaid diagram
     mermaid_content = generate_mermaid_diagram(import_map, root_dir)

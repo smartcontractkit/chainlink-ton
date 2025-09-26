@@ -1,9 +1,8 @@
 import "../types"
 import "@stdlib/lisp-lists"
 import "../../lib/utils";
-import "messages"
 
-tolk 1.0
+tolk 1.1
 
 type FeeQuoter_InMessage =
     | FeeQuoter_UpdatePrices
@@ -30,7 +29,7 @@ struct FeeToken {
 
 // crc32('FeeQuoter_UpdateFeeTokens')
 struct (0xD0984986) FeeQuoter_UpdateFeeTokens {
-    add: Map<FeeToken>; // token -> config
+    add: map<address, FeeToken>; // token -> config
     remove: cell; // vector<address>
 }
 
@@ -40,11 +39,11 @@ struct (0xD0984986) FeeQuoter_UpdateFeeTokens {
 // crc32('FeeQuoter_UpdateTokenTransferFeeConfigs')
 struct (0xB2826316) FeeQuoter_UpdateTokenTransferFeeConfigs {
     // TODO: would these be more efficient as snakedata (key, value)?
-    updates: UMap<uint64, UpdateTokenTransferFeeConfig>; // destChainSelector -> updates
+    updates: map<uint64, UpdateTokenTransferFeeConfig>; // destChainSelector -> updates
 }
 
 struct UpdateTokenTransferFeeConfig {
-    add: Map<TokenTransferFeeConfig>; // token address -> config
+    add: map<address, TokenTransferFeeConfig>; // token address -> config
     remove: cell; // vector<address>
 }
 

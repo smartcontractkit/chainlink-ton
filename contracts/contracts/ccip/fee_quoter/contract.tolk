@@ -30,12 +30,12 @@ struct Storage {
     tokenPriceStalenessThreshold: uint64;
 
     // TODO: this is on DestChain instead (same as Solana)
-    // usdPerUnitGasByDestChain: UMap<uint64, TimestampedPrice>; // (idict len=64) chainSelector -> TimestampedPrice
-    usdPerToken: Map<TimestampedPrice>;
+    // usdPerUnitGasByDestChain: map<uint64, TimestampedPrice>; // (idict len=64) chainSelector -> TimestampedPrice
+    usdPerToken: map<address, TimestampedPrice>;
     // TODO: use presence in this map to validate a token as feeToken
-    premiumMultiplierWeiPerEth: Map<uint64>;
+    premiumMultiplierWeiPerEth: map<address, uint64>;
 
-    destChainConfigs: UMap<uint64, DestChainConfig>
+    destChainConfigs: map<uint64, DestChainConfig>
 }
 
 fun Storage.load(): Storage {
@@ -53,7 +53,7 @@ struct DestChainConfig {
     // TODO: split this out since updates are more frequent?
     usdPerUnitGas: Cell<GasPrice>; // TODO: it'd be nice if this wasn't split off
 
-    tokenTransferFeeConfigs: Map<TokenTransferFeeConfig>; // (sdict) address -> TokenTransferFeeConfig
+    tokenTransferFeeConfigs: map<address, TokenTransferFeeConfig>;
 }
 
 fun onInternalMessage(in: InMessage) {
@@ -92,11 +92,12 @@ fun onInternalMessage(in: InMessage) {
 }
 
 fun updateFeeTokens(mutate st: Storage, msg: FeeQuoter_UpdateFeeTokens) {
-    var (token, config, exists) = msg.add.min();
-    while (exists) {
-        st.premiumMultiplierWeiPerEth.set(token!, config!.premiumMultiplierWeiPerEth);
-
-        (token, config, exists) = msg.add.next(token!);
+    var entry = msg.add.findFirst();
+    while (entry.isFound) {
+        val token = entry.getKey();
+        val config = entry.loadValue();
+        st.premiumMultiplierWeiPerEth.set(token, config.premiumMultiplierWeiPerEth);
+        entry = msg.add.iterateNext(entry);
     }
 
     var iter = Iterator<address>.new(msg.remove);
@@ -107,17 +108,21 @@ fun updateFeeTokens(mutate st: Storage, msg: FeeQuoter_UpdateFeeTokens) {
 }
 
 fun updateTokenTransferFeeConfigs(mutate st: Storage, msg: FeeQuoter_UpdateTokenTransferFeeConfigs) {
-    var (destChainSelector, update, exists) = msg.updates.min();
-    while (exists) {
-        val (maybeDestChainConfig, configExists) = st.destChainConfigs.get(destChainSelector!);
-        if (configExists) {
-            var destChainConfig = maybeDestChainConfig!;
+    var entry = msg.updates.findFirst();
+    while (entry.isFound) {
+        val destChainSelector = entry.getKey();
+        val update = entry.loadValue();
+        var configEntry = st.destChainConfigs.get(destChainSelector);
+        if (configEntry.isFound) {
+            var destChainConfig = configEntry.loadValue();
 
-            var (tokenAddr, config, existsInner) = update!.add.min();
-            while (existsInner) {
-                destChainConfig.tokenTransferFeeConfigs.set(tokenAddr!, config!);
+            var tokenEntry = update.add.findFirst();
+            while (tokenEntry.isFound) {
+                val tokenAddr = tokenEntry.getKey();
+                val config = tokenEntry.loadValue();
 
-                (tokenAddr, config, existsInner) = update!.add.next(tokenAddr!);
+                destChainConfig.tokenTransferFeeConfigs.set(tokenAddr, config);
+                tokenEntry = update.add.iterateNext(tokenEntry);
             }
 
             var iter = Iterator<address>.new(update!.remove);
@@ -126,10 +131,9 @@ fun updateTokenTransferFeeConfigs(mutate st: Storage, msg: FeeQuoter_UpdateToken
                 destChainConfig.tokenTransferFeeConfigs.delete(tokenAddr);
             }
 
-            st.destChainConfigs.replace(destChainSelector!, destChainConfig);
+            st.destChainConfigs.replaceAndGetPrevious(destChainSelector, destChainConfig);
         }
-
-        (destChainSelector, update, exists) = msg.updates.next(destChainSelector!);
+        entry = msg.updates.iterateNext(entry);
     }
 }
 
@@ -140,11 +144,11 @@ fun updateDestChainConfigs(mutate st: Storage, updates: cell) {
     while (!iter.empty()) {
         val update = iter.next();
         // create or update entries
-        val (maybeDestChainConfig, exists) = st.destChainConfigs.get(update.destChainSelector);
-        if (exists) {
-            var destChainConfig = maybeDestChainConfig!;
+        val entry = st.destChainConfigs.get(update.destChainSelector);
+        if (entry.isFound) {
+            var destChainConfig = entry.loadValue();
             destChainConfig.config = update.destChainConfig;
-            st.destChainConfigs.replace(update.destChainSelector, destChainConfig);
+            st.destChainConfigs.replaceIfExists(update.destChainSelector, destChainConfig);
         } else {
             st.destChainConfigs.set(update.destChainSelector, DestChainConfig {
                 config: update.destChainConfig,
@@ -153,7 +157,7 @@ fun updateDestChainConfigs(mutate st: Storage, updates: cell) {
                     dataAvailabilityGasPrice: 0,
                     timestamp: 0,
                 }.toCell(),
-                tokenTransferFeeConfigs: Map<TokenTransferFeeConfig>.new()
+                tokenTransferFeeConfigs: createEmptyMap()
             })
         }
     }
@@ -178,16 +182,16 @@ fun updatePrices(mutate st: Storage, priceUpdates: PriceUpdates) {
     while (!iter2.empty()) {
         val update = iter2.next();
 
-        val (maybeDestChainConfig, exists) = st.destChainConfigs.get(update.destChainSelector);
+        val entry = st.destChainConfigs.get(update.destChainSelector);
         // NOTE: this only allows pushing gas updates to chains with a destChainConfig
-        if (exists) {
-            var destChainConfig = maybeDestChainConfig!;
+        if (entry.isFound) {
+            var destChainConfig = entry.loadValue();
             destChainConfig.usdPerUnitGas = GasPrice {
                 executionGasPrice: update.executionGasPrice,
                 dataAvailabilityGasPrice: update.dataAvailabilityGasPrice,
                 timestamp
             }.toCell();
-            st.destChainConfigs.replace(update.destChainSelector, destChainConfig);
+            st.destChainConfigs.replaceAndGetPrevious(update.destChainSelector, destChainConfig);
 
           //TODO: emit UsdPerUnitGasUpdated(update.destChainSelector, update.usdPerUnitGas, block.timestamp);
         }
@@ -365,8 +369,8 @@ get fun tokenPrices(tokens: tuple): tuple {
     while(!iter.empty()) {
         val token = iter.next();
         // NOTE: Need to skip missing items as nil entries rather than fail the query
-        val (maybePrice, _exists) = st.usdPerToken.get(token);
-        list.push(maybePrice.toCell());
+        val entry = st.usdPerToken.get(token);
+        list.push(entry.loadValue().toCell());
     }
     return list;
 }
@@ -384,16 +388,16 @@ get fun tokenAndGasPrices(token: address, destChainSelector: uint64) {
 // vec<address>
 get fun feeTokens(): tuple {
     val st = lazy Storage.load();
-    var d = st.premiumMultiplierWeiPerEth.value;
+    var feeTokens = st.premiumMultiplierWeiPerEth;
     
     var list: tuple? = null;
-    do {
-        var (key: slice?, _value: slice?, found: bool) = d.sDictDeleteFirstAndGet(ADDR_KEY_LEN);
-        if (found) {
-            var address = key! as address;
-            list = listPrepend(address, list);
-        }
-    } while (found);
+    var entry = feeTokens.findFirst();
+    while (entry.isFound) {
+        val address = entry.getKey();
+        list = listPrepend(address, list);
+
+        entry = feeTokens.iterateNext(entry);
+    }
     return list!;
 }
 
@@ -418,5 +422,5 @@ get fun typeAndVersion(): (slice, slice) {
 get fun destChainSelectors(): tuple {
     val st = lazy Storage.load();
     var d = st.destChainConfigs;
-    return d.keysDestructs()!;
+    return keysLispList(d)!;
 }

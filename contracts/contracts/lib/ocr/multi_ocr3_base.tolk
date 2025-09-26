@@ -147,7 +147,7 @@ fun OCR3Base.transmit(
     
     val pluginTransmitters = ocrConfig.transmitters;
 
-    assert(pluginTransmitters.has(transmitter), ERROR_UNAUTHORIZED_TRANSMITTER);
+    assert(pluginTransmitters.get(transmitter).isFound, ERROR_UNAUTHORIZED_TRANSMITTER);
 
     if (configInfo.isSignatureVerificationEnabled) {
     	var expectedSignatures = configInfo.bigF + 1;
@@ -178,7 +178,7 @@ fun OCR3Base.hashReport(self, report: cell, reportContext: ReportContext): int {
 
 fun OCR3Base.verifySignature(
 	mutate self,
-	signers: UMap<uint256, uint8>, // <signer -> index>
+	signers: map<uint256, uint8>, // <signer -> index>
 	hashedReport: uint256,
 	signatures: cell // Vector<SignatureEd25519>
 ) {
@@ -188,8 +188,10 @@ fun OCR3Base.verifySignature(
 		val signature = signaturesIt.next();
 		val signer = signature.signer;
 
-		val (signerIndex, authorized) = signers.get(signer);
+		val entry = signers.get(signer);
+		val authorized= entry.isFound;
 		assert(authorized, ERROR_UNAUTHORIZED_SIGNER);
+		val signerIndex = entry.loadValue();
 		assert(isSignatureValid(hashedReport,signature.toCell().beginParse().skipBits(256), signer), ERROR_INVALID_SIGNATURE);
 
 		assert(!seen.has(signerIndex!), ERROR_NON_UNIQUE_SIGNATURES);

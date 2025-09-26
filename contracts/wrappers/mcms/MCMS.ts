@@ -899,6 +899,10 @@ export class ContractClient implements Contract {
     return [type, version]
   }
 
+  async getId(p: ContractProvider): Promise<number> {
+    return p.get('getId', []).then((r) => r.stack.readNumber())
+  }
+
   async getConfig(p: ContractProvider): Promise<Config> {
     return p.get('getConfig', []).then((r) => ({
       signers: loadDict(

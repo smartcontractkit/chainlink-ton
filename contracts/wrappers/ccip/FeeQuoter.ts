@@ -243,7 +243,6 @@ export const builder = {
           .storeDict(data.usdPerToken)
           .storeDict(data.premiumMultiplierWeiPerEth)
           .storeDict(data.destChainConfigs)
-          .storeUint(64, 16) // keyLen
       },
       load: (src: Slice): FeeQuoterStorage => {
         const ownable = ownable2step.builder.data.traitData.load(src)

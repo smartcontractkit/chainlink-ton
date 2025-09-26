@@ -1,6 +1,8 @@
 package mcms
 
 import (
+	"crypto/sha256"
+	"encoding/binary"
 	"math/big"
 
 	"github.com/xssnick/tonutils-go/address"
@@ -14,7 +16,7 @@ import (
 
 // --- Messages - incoming ---
 
-// @dev Top up contract with TON coins.
+// Top up contract with TON coins.
 // Contract might receive/hold TON as part of the maintenance process.
 type TopUp struct {
 	_ tlb.Magic `tlb:"#5f427bb3"` //nolint:revive // (opcode) should stay uninitialized
@@ -22,7 +24,7 @@ type TopUp struct {
 	QueryID uint64 `tlb:"## 64"`
 }
 
-// @dev Sets a new expiring root.
+// Sets a new expiring root.
 //
 // @param root is the new expiring root.
 // @param validUntil is the time by which root is valid
@@ -196,7 +198,32 @@ type OracleRoleTransferred struct {
 	NewOracle *address.Address `tlb:"addr"` // The address of the new oracle.
 }
 
-// -- Data structures ---
+// --- Data (storage & structures) ---
+
+// MCMS contract storage, auto-serialized to/from cell.
+type Data struct {
+	// ID allows multiple independent instances, since contract address depends on initial state.
+	ID uint32 `tlb:"## 32"`
+
+	// Ownable trait data
+	Ownable common.Ownable2Step `tlb:"."`
+
+	// Address of the error oracle account, which can submit error reports.
+	Oracle *address.Address `tlb:"addr"`
+
+	// Signers is used to easily validate the existence of the signer by its public key. We still
+	// have signers stored in config in order to easily deactivate them when a new config is set.
+	Signers *cell.Dictionary `tlb:"dict 256"` // map<uint256, Signer> - exists if the public key is a signer
+
+	// The current configuration of the contract
+	Config Config `tlb:"^"` // @dev split out as cell to avoid size limits
+
+	// Remember signedHashes that this contract has seen. Each signedHash can only be set once.
+	SeenSignedHashes *cell.Dictionary `tlb:"dict 256"` // map<uint256, bool>
+
+	// The current RootMetadata and ExpiringRootAndOpCount wrapped in a cell bc size limits.
+	RootInfo RootInfo `tlb:"^"`
+}
 
 type Proof struct {
 	Value *big.Int `tlb:"## 256"` // The value of the struct
@@ -257,16 +284,61 @@ type SignerKey struct {
 //	]
 type Config struct {
 	Signers *cell.Dictionary `tlb:"dict 8"` // map<uint8, Signer> - (indexed)
-	/// groupQuorums[i] stores the quorum for the i-th signer group. Any group with
-	/// groupQuorums[i] = 0 is considered disabled. The i-th group is successful if
-	/// it is enabled and at least groupQuorums[i] of its children are successful.
+	// groupQuorums[i] stores the quorum for the i-th signer group. Any group with
+	// groupQuorums[i] = 0 is considered disabled. The i-th group is successful if
+	// it is enabled and at least groupQuorums[i] of its children are successful.
 	GroupQuorums *cell.Dictionary `tlb:"dict 8"` // map<uint8, uint8> (indexed, iterable backwards)
-	/// groupParents[i] stores the parent group of the i-th signer group. We ensure that the
-	/// groups form a tree structure (where the root/0-th signer group points to itself as
-	/// parent) by enforcing
-	/// - (i != 0) implies (groupParents[i] < i)
-	/// - groupParents[0] == 0
+	// groupParents[i] stores the parent group of the i-th signer group. We ensure that the
+	// groups form a tree structure (where the root/0-th signer group points to itself as
+	// parent) by enforcing
+	// - (i != 0) implies (groupParents[i] < i)
+	// - groupParents[0] == 0
 	GroupParents *cell.Dictionary `tlb:"dict 8"` // map<uint8, uint8> (indexed, iterable backwards)
+}
+
+// Information about the current root, extracted into a separate struct (wrapped in a cell).
+type RootInfo struct {
+	// The current expiring root and the number of ops in it.
+	ExpiringRootAndOpCount ExpiringRootAndOpCount `tlb:"."`
+	// The current metadata about the root.
+	RootMetadata RootMetadata `tlb:"."`
+}
+
+// MerkleRoots are a bit tricky since they reveal almost no information about the contents of
+// the tree they authenticate. To mitigate this, we enforce that this contract can only execute
+// ops from a single root at any given point in time. We further associate an expiry
+// with each root to ensure that messages are executed in a timely manner. setRoot and various
+// execute calls are expected to happen in quick succession. We put the expiring root and
+// opCount in same struct in order to reduce gas costs of reading and writing.
+type ExpiringRootAndOpCount struct {
+	/// The expiring root.
+	Root *big.Int `tlb:"## 256"`
+	/// We prefer using block.timestamp instead of block.number, as a single
+	/// root may target many chains. We assume that block.timestamp can
+	/// be manipulated by block producers but only within relatively tight
+	/// bounds (a few minutes at most).
+	ValidUntil uint32 `tlb:"## 32"`
+	/// each ManyChainMultiSig instance has it own independent opCount.
+	OpCount uint64 `tlb:"## 40"`
+	/// Information about the currently pending operation.
+	OpPendingInfo OpPendingInfo `tlb:"^"`
+}
+
+// Information about the currently pending operation.
+//
+// @dev TON-specific additional data required to support reliable execution in the async environment.
+type OpPendingInfo struct {
+	// The time at which the root becomes valid [executionTime(opCount - 1) + opFinalizationTimeout].
+	// At this time the previous executed operation is considered optimistically final and successful,
+	// meaning no bounce was received and we can continue executing.
+	ValidAfter uint32 `tlb:"## 32"`
+	// The timeout required to finalize the currently executing op
+	OpFinalizationTimeout uint32 `tlb:"## 32"`
+	// The address that the (pending) operation was sent to (and could bounce from).
+	OpPendingReceiver *address.Address `tlb:"addr"`
+	// The truncated body of the pending operation (256 bits from the original message),
+	// stored as the next expected potential bounce, and verified in onBounceMessage handler.
+	OpPendingBodyTruncated *big.Int `tlb:"## 256"`
 }
 
 // Each root also authenticates metadata about itself (stored as one of the leaves)
@@ -307,15 +379,20 @@ type Op struct {
 
 // --- Constants ---
 
+func stringSha256_32(data string) uint32 {
+	d := sha256.Sum256([]byte(data))
+	return binary.BigEndian.Uint32(d[0:4])
+}
+
 // Should be used as the first 32 bytes of the pre-image of the leaf that holds a
 // op. This value is for domain separation of the different values stored in the
 // Merkle tree.
-// const MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP = stringSha256_32("MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP")
+var ManyChainMultiSigDomainSeparatorOp = stringSha256_32("MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP")
 
 // Should be used as the first 32 bytes of the pre-image of the leaf that holds the
 // root metadata. This value is for domain separation of the different values stored in the
 // Merkle tree.
-// const MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA = stringSha256_32("MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA")
+var ManyChainMultiSigDomainSeparatorMetadata = stringSha256_32("MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA")
 
 const (
 	// Thrown when number of signers is 0 or greater than MAX_NUM_SIGNERS.

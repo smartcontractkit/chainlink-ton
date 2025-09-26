@@ -25,7 +25,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
 	lptypes "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
-	lpquery "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/query"
 	inmemorystore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/store/memory"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/hash"
 )
@@ -525,53 +524,6 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 		}})
 		require.NoError(t, saveErr, "failed to save logs")
 		t.Logf("DEBUG: Saved %d logs to store", savedCount)
-
-		// DEBUG: Show what we're querying for vs what we saved
-		queryAddr := address.MustParseAddr(MockOffRampAddr)
-		queryEventSig := hash.CRC32(consts.EventNameCommitReportAccepted)
-		savedAddr := address.MustParseAddr(MockOffRampAddr)
-		savedEventSig := hash.CRC32(consts.EventNameCommitReportAccepted)
-
-		t.Logf("DEBUG: Query conditions - Address: %s, EventSig: %d, Timestamp >= %v",
-			queryAddr.String(), queryEventSig, queryTimestamp)
-		t.Logf("DEBUG: Saved log conditions - Address: %s, EventSig: %d, Timestamp: %v",
-			savedAddr.String(), savedEventSig, logTimestamp)
-		t.Logf("DEBUG: Address match: %v, EventSig match: %v, Timestamp check: %v >= %v = %v",
-			queryAddr.Equals(savedAddr), queryEventSig == savedEventSig,
-			logTimestamp, queryTimestamp, logTimestamp.After(queryTimestamp) || logTimestamp.Equal(queryTimestamp))
-
-		// DEBUG: Test direct store query to bypass logpoller service
-		storeQuery := &lpquery.LogQuery{
-			FieldFilters: []*lpquery.FieldFilter{
-				{
-					Field:    "address",
-					Operator: primitives.Eq,
-					Value:    address.MustParseAddr(MockOffRampAddr),
-				},
-				{
-					Field:    "event_sig",
-					Operator: primitives.Eq,
-					Value:    hash.CRC32(consts.EventNameCommitReportAccepted),
-				},
-				lpquery.Timestamp(queryTimestamp, primitives.Gte),
-			},
-		}
-		storeLogs, storeHasMore, storeCursor, storeErr := store.QueryLogs(t.Context(), storeQuery)
-		t.Logf("DEBUG: Direct store query found %d logs, hasMore=%v, cursor=%s, err=%v",
-			len(storeLogs), storeHasMore, storeCursor, storeErr)
-
-		// DEBUG: Test logpoller service query
-		debugLogs, debugHasMore, debugCursor, debugErr := lp.NewQuery().
-			WithSource(address.MustParseAddr(MockOffRampAddr)).
-			WithEventSig(hash.CRC32(consts.EventNameCommitReportAccepted)).
-			WithFields(lpquery.Timestamp(queryTimestamp, primitives.Gte)).
-			Execute(t.Context())
-		t.Logf("DEBUG: Logpoller service query found %d logs, hasMore=%v, cursor=%s, err=%v",
-			len(debugLogs), debugHasMore, debugCursor, debugErr)
-		for i, log := range debugLogs {
-			t.Logf("DEBUG: Log %d: Address=%s, EventSig=%d, TxTimestamp=%v",
-				i, log.Address.String(), log.EventSig, log.TxTimestamp)
-		}
 
 		// Query report via ton accessor
 		addrCodec := codec.NewAddressCodec()
