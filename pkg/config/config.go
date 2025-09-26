@@ -29,6 +29,8 @@ type Chain struct {
 // ValidateConfig validates the chain configuration
 func (c *Chain) ValidateConfig() error {
 	if c.LogPoller != nil {
+		// set defaults for any missing fields to support optional fields and ensure backward compatibility
+		c.LogPoller.SetDefaults()
 		if err := c.LogPoller.Validate(); err != nil {
 			return err
 		}

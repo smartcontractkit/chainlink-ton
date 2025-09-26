@@ -39,8 +39,9 @@ type FilterStore interface {
 // TxLoader defines the interface for loading transactions from the TON blockchain.
 type TxLoader interface {
 	// LoadTxsForAddress retrieves transactions for a specific address within a block range.
+	// pageSize controls the number of transactions to fetch per TON API call for pagination.
 	// Returns parallel slices of transactions and their corresponding blocks.
-	LoadTxsForAddress(ctx context.Context, blockRange *models.BlockRange, addr *address.Address) (<-chan models.Tx, <-chan error, error)
+	LoadTxsForAddress(ctx context.Context, blockRange *models.BlockRange, addr *address.Address, pageSize uint32) (<-chan models.Tx, <-chan error, error)
 }
 
 // Processor defines the interface for processing raw blockchain transactions into structured logs.
@@ -54,7 +55,11 @@ type Processor interface {
 
 // LogStore defines the interface for storing and retrieving logs.
 type LogStore interface {
-	SaveLogs(ctx context.Context, logs []models.Log) (int64, error)
+	// SaveLogs saves logs to storage with configurable batching behavior(with transaction support in PostgreSQL).
+	// batchInsertSize controls the maximum number of logs per database batch operation.
+	// minBatchSize sets the minimum batch size for retry attempts on timeout errors.
+	// Returns the number of logs successfully saved.
+	SaveLogs(ctx context.Context, logs []models.Log, batchInsertSize, minBatchSize uint32) (int64, error)
 	// QueryLogs retrieves logs with TON-specific filtering capabilities including byte-level filtering,
 	// sorting, and pagination. This method handles all filtering, sorting, and pagination.
 	// The LogStore is responsible for translating parameters to its optimal execution strategy.

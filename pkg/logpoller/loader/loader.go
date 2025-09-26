@@ -24,19 +24,16 @@ var _ logpoller.TxLoader = (*rawTxLoader)(nil)
 type rawTxLoader struct {
 	lggr           logger.SugaredLogger                                // Logger for debugging and monitoring
 	clientProvider func(context.Context) (ton.APIClientWrapped, error) // TON blockchain client lazy getter
-	pageSize       uint32                                              // Number of transactions to fetch per API call
 }
 
 // New creates a new rawTxLoader instance
 func New(
 	lggr logger.Logger,
 	clientProvider func(context.Context) (ton.APIClientWrapped, error),
-	pageSize uint32,
 ) logpoller.TxLoader {
 	return &rawTxLoader{
 		lggr:           logger.Sugared(lggr),
 		clientProvider: clientProvider,
-		pageSize:       pageSize,
 	}
 }
 
@@ -50,7 +47,7 @@ func New(
 //
 // Note: Block range (prevBlock, toBlock] is exclusive of prevBlock, inclusive of toBlock
 // Returns parallel slices of transactions and their corresponding blocks.
-func (l *rawTxLoader) LoadTxsForAddress(ctx context.Context, blockRange *models.BlockRange, addr *address.Address) (<-chan models.Tx, <-chan error, error) {
+func (l *rawTxLoader) LoadTxsForAddress(ctx context.Context, blockRange *models.BlockRange, addr *address.Address, pageSize uint32) (<-chan models.Tx, <-chan error, error) {
 	if blockRange.Prev != nil && blockRange.Prev.SeqNo >= blockRange.To.SeqNo {
 		return nil, nil, fmt.Errorf("prevBlock %d is not before toBlock %d", blockRange.Prev.SeqNo, blockRange.To.SeqNo)
 	}
@@ -78,7 +75,7 @@ func (l *rawTxLoader) LoadTxsForAddress(ctx context.Context, blockRange *models.
 		curLT, curHash := endLT, endHash
 
 		for {
-			batch, batchBlocks, err := l.listTransactionsWithBlock(ctx, addr, l.pageSize, curLT, curHash)
+			batch, batchBlocks, err := l.listTransactionsWithBlock(ctx, addr, pageSize, curLT, curHash)
 			if errors.Is(err, ton.ErrNoTransactionsWereFound) || len(batch) == 0 {
 				// no more transactions to process
 				break

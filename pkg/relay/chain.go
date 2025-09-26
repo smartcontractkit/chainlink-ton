@@ -131,11 +131,10 @@ func newChain(cfg *config.TOMLConfig, loopKs loop.Keystore, lggr logger.Logger, 
 
 	// TODO(@jadepark-dev): replace store with postgres
 	// Get LogPoller configuration from chain config
-	lpCfg := *ch.cfg.LogPollerConfig()
 	lgOpts := &logpoller.ServiceOptions{
-		Config:    lpCfg,
+		Config:    *ch.cfg.LogPollerConfig(),
 		Filters:   inmemorystore.NewFilterStore(),
-		TxLoader:  txloader.New(lggr, clientProvider, lpCfg.PageSize),
+		TxLoader:  txloader.New(lggr, clientProvider),
 		Processor: txprocessor.New(lggr, "test-chain"),
 		Store:     inmemorystore.NewLogStore(lggr, "test-chain"),
 	}

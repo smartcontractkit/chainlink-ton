@@ -52,7 +52,7 @@ func NewLogStore(lggr logger.Logger, chainID string) logpoller.LogStore {
 	}
 }
 
-func (s *inMemoryLogs) SaveLogs(ctx context.Context, logs []models.Log) (int64, error) {
+func (s *inMemoryLogs) SaveLogs(ctx context.Context, logs []models.Log, batchInsertSize, minBatchSize uint32) (int64, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 

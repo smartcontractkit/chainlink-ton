@@ -80,12 +80,13 @@ func Test_LogPoller(t *testing.T) {
 
 		t.Run("loading entire block range at once", func(t *testing.T) {
 			t.Parallel()
-			loader := txloader.New(logger.Test(t), clientProvider, pageSize)
+			loader := txloader.New(logger.Test(t), clientProvider)
 
 			txsCh, _, berr := loader.LoadTxsForAddress(
 				t.Context(),
 				blockRange,
 				emitter.ContractAddress(),
+				pageSize,
 			)
 			require.NoError(t, berr)
 
@@ -112,7 +113,7 @@ func Test_LogPoller(t *testing.T) {
 		t.Run("loading block by block", func(t *testing.T) {
 			t.Parallel()
 			var allLoadedLogCells []*cell.Cell
-			loader := txloader.New(logger.Test(t), clientProvider, pageSize)
+			loader := txloader.New(logger.Test(t), clientProvider)
 
 			// iterate block by block from prevBlock to toBlock
 			currentBlock := prevBlock
@@ -135,6 +136,7 @@ func Test_LogPoller(t *testing.T) {
 					t.Context(),
 					iterRange,
 					emitter.ContractAddress(),
+					pageSize,
 				)
 				require.NoError(t, berr)
 
@@ -180,13 +182,11 @@ func Test_LogPoller(t *testing.T) {
 		const interval = 1 * time.Second
 		const timeout = 60 * time.Second
 
-		cfg := logpoller.DefaultConfigSet
-		fs := inmemorystore.NewFilterStore()
 		lggr := logger.Test(t)
 		opts := &logpoller.ServiceOptions{
-			Config:    cfg,
-			Filters:   fs,
-			TxLoader:  txloader.New(lggr, clientProvider, cfg.PageSize),
+			Config:    logpoller.DefaultConfigSet,
+			Filters:   inmemorystore.NewFilterStore(),
+			TxLoader:  txloader.New(lggr, clientProvider),
 			Processor: txprocessor.New(lggr, "test-chain"),
 			Store:     inmemorystore.NewLogStore(lggr, "test-chain"),
 		}

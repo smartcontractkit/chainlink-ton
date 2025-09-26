@@ -429,7 +429,7 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 				MasterBlockSeqno: 204,
 				MsgIndex:         4,
 			},
-		})
+		}, logpoller.DefaultConfigSet.BatchInsertSize, logpoller.DefaultConfigSet.MinBatchSize)
 		require.NoError(t, serr, "failed to save logs")
 
 		t.Logf("Saved 5 logs total: 3 with MerkleRoot (should be included), 2 PriceUpdates-only (should be filtered out)")
@@ -521,7 +521,7 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 			Block:            &ton.BlockIDExt{Workchain: 0, Shard: -1, SeqNo: 100},
 			MasterBlockSeqno: 200,
 			MsgIndex:         0,
-		}})
+		}}, logpoller.DefaultConfigSet.BatchInsertSize, logpoller.DefaultConfigSet.MinBatchSize)
 		require.NoError(t, saveErr, "failed to save logs")
 		t.Logf("DEBUG: Saved %d logs to store", savedCount)
 
@@ -696,7 +696,7 @@ func Test_TonAccessorExecutedMessages(t *testing.T) {
 			MasterBlockSeqno: 202,
 			MsgIndex:         2,
 		},
-	})
+	}, logpoller.DefaultConfigSet.BatchInsertSize, logpoller.DefaultConfigSet.MinBatchSize)
 	require.NoError(t, serr, "failed to save logs")
 
 	// Setup accessor

@@ -40,6 +40,12 @@ type service struct {
 	lastProcessedBlock uint32        // Last processed masterchain sequence number
 	startingLookback   time.Duration // How far back to look when starting up
 	blockTime          time.Duration // Expected block time for calculations(approximately 2.5 seconds)
+
+	// Configuration for transaction loading and log storage
+	pageSize        uint32 // Number of transactions to fetch per API call
+	batchInsertSize uint32 // PostgreSQL batch insert size
+	minBatchSize    uint32 // Minimum batch size for timeout retry
+	saveThreshold   uint32 // Number of logs to buffer in memory before saving
 }
 
 type ServiceOptions struct {
@@ -62,6 +68,10 @@ func NewService(lggr logger.Logger, clientProvider func(context.Context) (ton.AP
 		pollPeriod:       opts.Config.PollPeriod.Duration(),
 		startingLookback: opts.Config.LogPollerStartingLookback.Duration(),
 		blockTime:        opts.Config.BlockTime.Duration(),
+		pageSize:         opts.Config.PageSize,
+		batchInsertSize:  opts.Config.BatchInsertSize,
+		minBatchSize:     opts.Config.MinBatchSize,
+		saveThreshold:    opts.Config.SaveThreshold,
 	}
 	lp.Service, lp.eng = services.Config{
 		Name:  "TONLogPoller",
@@ -169,7 +179,7 @@ func (lp *service) loadTxsForAddresses(ctx context.Context, blockRange *models.B
 		go func(a *address.Address) {
 			defer wg.Done()
 
-			txsIn, errsIn, err := lp.loader.LoadTxsForAddress(ctx, blockRange, a)
+			txsIn, errsIn, err := lp.loader.LoadTxsForAddress(ctx, blockRange, a, lp.pageSize)
 			if err != nil {
 				lp.lggr.Warnf("Loader setup failed for address, skipping: %s, err: %v", a.String(), err)
 				errsOut <- err // propagate the error to the caller
@@ -220,7 +230,7 @@ func (lp *service) saveLogs(ctx context.Context, logsCh <-chan models.Log, errsC
 		}
 	}()
 
-	const saveThreshold = 1000 // TODO: configurable: how many logs to buffer before saving
+	saveThreshold := int(lp.saveThreshold)
 	chunk := make([]models.Log, 0, saveThreshold)
 	totalSaved := 0
 
@@ -233,7 +243,7 @@ func (lp *service) saveLogs(ctx context.Context, logsCh <-chan models.Log, errsC
 
 		// if the chunk is full, save it to the database
 		if len(chunk) >= saveThreshold {
-			savedCount, err := lp.store.SaveLogs(ctx, chunk)
+			savedCount, err := lp.store.SaveLogs(ctx, chunk, lp.batchInsertSize, lp.minBatchSize)
 			if err != nil {
 				return 0, fmt.Errorf("failed to save log chunk: %w", err)
 			}
@@ -244,7 +254,7 @@ func (lp *service) saveLogs(ctx context.Context, logsCh <-chan models.Log, errsC
 
 	// after the channel is closed, save any remaining logs in the last chunk
 	if len(chunk) > 0 {
-		savedCount, err := lp.store.SaveLogs(ctx, chunk)
+		savedCount, err := lp.store.SaveLogs(ctx, chunk, lp.batchInsertSize, lp.minBatchSize)
 		if err != nil {
 			return 0, fmt.Errorf("failed to save final log chunk: %w", err)
 		}

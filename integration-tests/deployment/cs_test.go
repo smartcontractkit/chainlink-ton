@@ -174,12 +174,10 @@ func TestDeploy(t *testing.T) {
 	require.NoError(t, err)
 
 	// -- TON Accessor tests
-	lpCfg := logpoller.DefaultConfigSet
-	filterStore := inmemorystore.NewFilterStore()
 	opts := &logpoller.ServiceOptions{
-		Config:    lpCfg,
-		Filters:   filterStore,
-		TxLoader:  txloader.New(lggr, clientProvider, lpCfg.PageSize),
+		Config:    logpoller.DefaultConfigSet,
+		Filters:   inmemorystore.NewFilterStore(),
+		TxLoader:  txloader.New(lggr, clientProvider),
 		Processor: txprocessor.New(lggr, "test-chain"),
 		Store:     inmemorystore.NewLogStore(lggr, "test-chain"),
 	}

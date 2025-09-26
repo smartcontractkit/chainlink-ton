@@ -83,8 +83,6 @@ func TestPgLogStore(t *testing.T) {
 		orm,
 		logger.Test(t),
 		"test-chain",
-		logpoller.DefaultConfigSet.BatchInsertSize,
-		logpoller.DefaultConfigSet.MinBatchSize,
 	)
 
 	// Test data setup
@@ -108,7 +106,7 @@ func TestPgLogStore(t *testing.T) {
 	testLogs := createTestLogs(t, testAddr, filterID)
 
 	// SaveLogs test
-	savedCount, err := logStore.SaveLogs(ctx, testLogs)
+	savedCount, err := logStore.SaveLogs(ctx, testLogs, logpoller.DefaultConfigSet.BatchInsertSize, logpoller.DefaultConfigSet.MinBatchSize)
 	require.NoError(t, err)
 	require.Equal(t, int64(len(testLogs)), savedCount)
 

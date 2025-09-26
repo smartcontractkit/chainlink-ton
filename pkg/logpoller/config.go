@@ -18,6 +18,7 @@ type Config struct {
 	// Database configuration - simple values with defaults
 	BatchInsertSize uint32
 	MinBatchSize    uint32
+	SaveThreshold   uint32 // Number of logs to buffer in memory before saving
 }
 
 var DefaultConfigSet = Config{
@@ -26,13 +27,34 @@ var DefaultConfigSet = Config{
 	LogPollerStartingLookback: config.MustNewDuration(24 * time.Hour),          // Look back 24 hours on startup
 	BlockTime:                 config.MustNewDuration(2500 * time.Millisecond), // TON block time is approximately 2.5 seconds
 
-	// TODO: copied from Solana logpoller, need load testing
-	// database configuration
+	// fixed-sized fields in models.Log: ~342 bytes + Data field(BOC cell)
+	// ccip message conservative e.g. 1500 bytes -> ~1842 bytes per log // TODO: calculate the average CCIP log size
+	// SaveThreshold:   8000, // ~14.7MB
+
+	// fixed-sized fields in postgres models.Log: ~474 bytes + Data field(BOC cell)
+	// ccip message conservative e.g. 1500 bytes -> ~1974 bytes per log
+	// BatchInsertSize: 4000, // ~7.9MB
+
+	// database configuration, // TODO: need load testing
 	BatchInsertSize: 4000, // PostgreSQL batch insert size
 	MinBatchSize:    500,  // Minimum batch size for timeout retry
+	SaveThreshold:   8000, // Memory buffer size before batch saving
 }
 
-// Validate validates the configuration
+// SetDefaults sets default values for any zero-valued fields to ensure backward compatibility
+func (c *Config) SetDefaults() {
+	if c.BatchInsertSize == 0 {
+		c.BatchInsertSize = DefaultConfigSet.BatchInsertSize
+	}
+	if c.MinBatchSize == 0 {
+		c.MinBatchSize = DefaultConfigSet.MinBatchSize
+	}
+	if c.SaveThreshold == 0 {
+		c.SaveThreshold = DefaultConfigSet.SaveThreshold
+	}
+}
+
+// Validate validates the configuration, this runs against the default config if not set
 func (c *Config) Validate() error {
 	if c.PageSize == 0 {
 		return errors.New("page_size must be greater than 0")
@@ -46,6 +68,9 @@ func (c *Config) Validate() error {
 	if c.MinBatchSize > c.BatchInsertSize {
 		return fmt.Errorf("min_batch_size (%d) cannot be greater than batch_insert_size (%d)",
 			c.MinBatchSize, c.BatchInsertSize)
+	}
+	if c.SaveThreshold == 0 {
+		return errors.New("save_threshold must be greater than 0")
 	}
 	return nil
 }

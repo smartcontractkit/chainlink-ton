@@ -16,26 +16,22 @@ var _ logpoller.LogStore = (*pgLogStore)(nil)
 
 // pgLogStore implements TON log storage using PostgreSQL with advanced querying capabilities
 type pgLogStore struct {
-	orm             *DSORM
-	lggr            logger.Logger
-	chainID         string
-	batchInsertSize uint32
-	minBatchSize    uint32
+	orm     *DSORM
+	lggr    logger.Logger
+	chainID string
 }
 
 // NewLogStore creates a new PostgreSQL-based log store
-func NewLogStore(orm *DSORM, lggr logger.Logger, chainID string, batchInsertSize, minBatchSize uint32) logpoller.LogStore {
+func NewLogStore(orm *DSORM, lggr logger.Logger, chainID string) logpoller.LogStore {
 	return &pgLogStore{
-		orm:             orm,
-		lggr:            lggr,
-		chainID:         chainID,
-		batchInsertSize: batchInsertSize,
-		minBatchSize:    minBatchSize,
+		orm:     orm,
+		lggr:    lggr,
+		chainID: chainID,
 	}
 }
 
 // SaveLogs saves multiple logs to the database in a batch operation with transaction support
-func (s *pgLogStore) SaveLogs(ctx context.Context, logs []models.Log) (int64, error) {
+func (s *pgLogStore) SaveLogs(ctx context.Context, logs []models.Log, batchInsertSize, minBatchSize uint32) (int64, error) {
 	if len(logs) == 0 {
 		return 0, nil
 	}
@@ -47,7 +43,7 @@ func (s *pgLogStore) SaveLogs(ctx context.Context, logs []models.Log) (int64, er
 	}
 
 	// Build SQL and execute with transaction and batching
-	totalInserted, err := s.insertLogsWithBatching(ctx, dbLogs)
+	totalInserted, err := s.insertLogsWithBatching(ctx, dbLogs, batchInsertSize, minBatchSize)
 	if err != nil {
 		return 0, fmt.Errorf("failed to save logs to database: %w", err)
 	}
@@ -55,14 +51,14 @@ func (s *pgLogStore) SaveLogs(ctx context.Context, logs []models.Log) (int64, er
 }
 
 // insertLogsWithBatching handles batched log insertion with transaction support
-func (s *pgLogStore) insertLogsWithBatching(ctx context.Context, logs []logModel) (int64, error) {
+func (s *pgLogStore) insertLogsWithBatching(ctx context.Context, logs []logModel, batchInsertSize, minBatchSize uint32) (int64, error) {
 	if err := s.validateLogs(logs); err != nil {
 		return 0, err
 	}
 
 	var totalInserted int64
 	err := s.orm.Transact(ctx, func(orm *DSORM) error {
-		inserted, err := s.insertLogsWithinTx(ctx, orm, logs)
+		inserted, err := s.insertLogsWithinTx(ctx, orm, logs, batchInsertSize, minBatchSize)
 		totalInserted = inserted
 		return err
 	})
@@ -70,8 +66,8 @@ func (s *pgLogStore) insertLogsWithBatching(ctx context.Context, logs []logModel
 }
 
 // insertLogsWithinTx performs the actual batch insertion within a transaction
-func (s *pgLogStore) insertLogsWithinTx(ctx context.Context, orm *DSORM, logs []logModel) (int64, error) {
-	batchInsertSize := int(s.batchInsertSize)
+func (s *pgLogStore) insertLogsWithinTx(ctx context.Context, orm *DSORM, logs []logModel, batchInsertSize, minBatchSize uint32) (int64, error) {
+	batchSize := int(batchInsertSize)
 	query := `
 		INSERT INTO ton.log_poller_logs (
 			filter_id,
@@ -113,18 +109,18 @@ func (s *pgLogStore) insertLogsWithinTx(ctx context.Context, orm *DSORM, logs []
 	`
 
 	var totalInserted int64
-	for i := 0; i < len(logs); i += batchInsertSize {
-		start, end := i, i+batchInsertSize
+	for i := 0; i < len(logs); i += batchSize {
+		start, end := i, i+batchSize
 		if end > len(logs) {
 			end = len(logs)
 		}
 
 		rowsInserted, err := orm.NamedExecContext(ctx, query, logs[start:end])
 		if err != nil {
-			if errors.Is(err, context.DeadlineExceeded) && batchInsertSize > int(s.minBatchSize) {
+			if errors.Is(err, context.DeadlineExceeded) && batchSize > int(minBatchSize) {
 				// In case of DB timeouts, try to insert again with a smaller batch up to a limit
-				batchInsertSize /= 2
-				i -= batchInsertSize // counteract +=batchInsertSize on next loop iteration
+				batchSize /= 2
+				i -= batchSize // counteract +=batchSize on next loop iteration
 				continue
 			}
 			return 0, fmt.Errorf("failed to insert logs batch %d-%d: %w", start, end-1, err)
