@@ -1,4 +1,4 @@
-package txloader
+package loader
 
 import (
 	"bytes"
@@ -6,14 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"sync"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tl"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
-	"golang.org/x/sync/errgroup"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
@@ -21,73 +19,28 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
 )
 
-var _ logpoller.TxLoader = (*accountTxLoader)(nil)
+var _ logpoller.TxLoader = (*rawTxLoader)(nil)
 
-// TODO(NONEVM-2188): refactor as subengine, with background workers for production scalability
-type accountTxLoader struct {
+type rawTxLoader struct {
 	lggr           logger.SugaredLogger                                // Logger for debugging and monitoring
 	clientProvider func(context.Context) (ton.APIClientWrapped, error) // TON blockchain client lazy getter
 	pageSize       uint32                                              // Number of transactions to fetch per API call
 }
 
-// New creates a new MessageLoader instance
+// New creates a new rawTxLoader instance
 func New(
 	lggr logger.Logger,
 	clientProvider func(context.Context) (ton.APIClientWrapped, error),
 	pageSize uint32,
 ) logpoller.TxLoader {
-	// TODO(NONEVM-2188): add background worker pool initializaion here
-	return &accountTxLoader{
+	return &rawTxLoader{
 		lggr:           logger.Sugared(lggr),
 		clientProvider: clientProvider,
 		pageSize:       pageSize,
 	}
 }
 
-// LoadTxsForAddresses scans TON blockchain for transactions from specified addresses
-// between prevBlock(exclusive) and toBlock(inclusive)
-// Returns parallel slices of transactions and their corresponding blocks.
-// TODO(NONEVM-2188): refactor to use background workers for scale in production
-// TODO(@jadepark-dev): manage process in service.go, keep loader pure and reusable
-func (l *accountTxLoader) LoadTxsForAddresses(ctx context.Context, blockRange *models.BlockRange, srcAddrs []*address.Address) (txs []*tlb.Transaction, blocks []*ton.BlockIDExt, err error) {
-	var allTxs []*tlb.Transaction
-	var allBlocks []*ton.BlockIDExt
-	var mu sync.Mutex
-
-	eg, egCtx := errgroup.WithContext(ctx)
-
-	l.lggr.Debugf("scanning block range (%d, %d] for %d contracts", func() uint32 {
-		if blockRange.Prev != nil {
-			return blockRange.Prev.SeqNo
-		}
-		return 0
-	}(), blockRange.To.SeqNo, len(srcAddrs))
-
-	for _, addr := range srcAddrs {
-		currAddr := addr
-		eg.Go(func() error {
-			txs, blocks, err := l.fetchTxsForAddress(egCtx, blockRange, currAddr)
-			if err != nil {
-				return fmt.Errorf("failed to fetch for %s: %w", currAddr.String(), err)
-			}
-			if len(txs) > 0 {
-				mu.Lock()
-				allTxs = append(allTxs, txs...)
-				allBlocks = append(allBlocks, blocks...)
-				mu.Unlock()
-			}
-			return nil
-		})
-	}
-
-	if err := eg.Wait(); err != nil {
-		return nil, nil, err
-	}
-
-	return allTxs, allBlocks, nil
-}
-
-// FetchTxsForAddress retrieves transactions for a specific address within a block range.
+// LoadTxsForAddress retrieves transactions for a specific address within a block range.
 // Uses TON's account-based transaction model with logical time (LT) bounds for efficient scanning.
 //
 // The method:
@@ -97,65 +50,77 @@ func (l *accountTxLoader) LoadTxsForAddresses(ctx context.Context, blockRange *m
 //
 // Note: Block range (prevBlock, toBlock] is exclusive of prevBlock, inclusive of toBlock
 // Returns parallel slices of transactions and their corresponding blocks.
-// TODO: stream tx back to log poller to avoid memory overhead in production
-func (l *accountTxLoader) fetchTxsForAddress(ctx context.Context, blockRange *models.BlockRange, addr *address.Address) (txs []*tlb.Transaction, blocks []*ton.BlockIDExt, err error) {
+func (l *rawTxLoader) LoadTxsForAddress(ctx context.Context, blockRange *models.BlockRange, addr *address.Address) (<-chan models.Tx, <-chan error, error) {
 	if blockRange.Prev != nil && blockRange.Prev.SeqNo >= blockRange.To.SeqNo {
 		return nil, nil, fmt.Errorf("prevBlock %d is not before toBlock %d", blockRange.Prev.SeqNo, blockRange.To.SeqNo)
 	}
 
-	startLT, endLT, endHash, err := l.getTransactionBounds(ctx, blockRange, addr)
+	startLT, endLT, endHash, err := l.GetTransactionBounds(ctx, blockRange, addr)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get transaction bounds for %s: %w", addr.String(), err)
 	}
 
+	txOut := make(chan models.Tx, 100)
+	errOut := make(chan error, 1)
+
 	if startLT >= endLT {
+		// not an error, just a no-op
 		l.lggr.Trace("No transactions to process", "address", addr.String(), "startLT", startLT, "endLT", endLT)
-		return nil, nil, nil
+		close(txOut)
+		close(errOut)
+		return txOut, errOut, nil
 	}
 
-	var indexedTxs []*tlb.Transaction
-	var indexedBlocks []*ton.BlockIDExt
-	curLT, curHash := endLT, endHash
+	go func() {
+		defer close(txOut)
+		defer close(errOut)
 
-	for {
-		batch, batchBlocks, err := l.listTransactionsWithBlock(ctx, addr, l.pageSize, curLT, curHash)
-		if errors.Is(err, ton.ErrNoTransactionsWereFound) || len(batch) == 0 {
-			// no more transactions to process
-			break
-		} else if err != nil {
-			return nil, nil, fmt.Errorf("failed to list transactions for %s: %w", addr.String(), err)
-		}
+		curLT, curHash := endLT, endHash
 
-		// The batch is sorted from oldest to newest.
-		for i, tx := range batch {
-			if tx.LT <= startLT {
-				// no need to process older transactions, they are already handled.
-				continue
+		for {
+			batch, batchBlocks, err := l.listTransactionsWithBlock(ctx, addr, l.pageSize, curLT, curHash)
+			if errors.Is(err, ton.ErrNoTransactionsWereFound) || len(batch) == 0 {
+				// no more transactions to process
+				break
+			} else if err != nil {
+				errOut <- fmt.Errorf("failed to list transactions for address %s: %w", addr.String(), err)
+				return
 			}
 
-			if tx.IO.Out == nil {
-				// no need to process transactions without output messages
-				continue
+			// The batch is sorted from oldest to newest.
+			for i, tx := range batch {
+				if tx.LT <= startLT {
+					// no need to process older transactions, they are already handled.
+					continue
+				}
+
+				if tx.IO.Out == nil {
+					// no need to process transactions without output messages
+					continue
+				}
+
+				select {
+				case txOut <- models.Tx{Transaction: tx, Block: batchBlocks[i]}:
+				case <-ctx.Done():
+					return
+				}
+			}
+			// batch[0] is the oldest transaction in this batch.
+			// if it's already older than our start point, we don't need to fetch any more pages.
+			if batch[0].LT <= startLT {
+				break
 			}
 
-			indexedTxs = append(indexedTxs, tx)
-			indexedBlocks = append(indexedBlocks, batchBlocks[i])
+			// move the cursor to just before the *oldest* tx in this batch,
+			// so next page picks up right where this one left off
+			curLT, curHash = batch[0].PrevTxLT, batch[0].PrevTxHash
 		}
-		// batch[0] is the oldest transaction in this batch.
-		// if it's already older than our start point, we don't need to fetch any more pages.
-		if batch[0].LT <= startLT {
-			break
-		}
+	}()
 
-		// move the cursor to just before the *oldest* tx in this batch,
-		// so next page picks up right where this one left off
-		curLT, curHash = batch[0].PrevTxLT, batch[0].PrevTxHash
-	}
-
-	return indexedTxs, indexedBlocks, nil
+	return txOut, errOut, nil
 }
 
-// getTransactionBounds determines the logical time (LT) range for scanning transactions
+// GetTransactionBounds determines the logical time (LT) range for scanning transactions
 // between two blocks for a specific address on the TON blockchain.
 //
 // TON's account-based transaction model uses logical time (LT) to order transactions
@@ -170,7 +135,7 @@ func (l *accountTxLoader) fetchTxsForAddress(ctx context.Context, blockRange *mo
 //
 // prevBlock: Block where the address was last seen(already processed)
 // toBlock: Block where the scan ends
-func (l *accountTxLoader) getTransactionBounds(ctx context.Context, blockRange *models.BlockRange, addr *address.Address) (startLT, endLT uint64, endHash []byte, err error) {
+func (l *rawTxLoader) GetTransactionBounds(ctx context.Context, blockRange *models.BlockRange, addr *address.Address) (startLT, endLT uint64, endHash []byte, err error) {
 	client, err := l.clientProvider(ctx)
 	if err != nil {
 		return 0, 0, nil, fmt.Errorf("failed to get client: %w", err)
@@ -201,7 +166,7 @@ func (l *accountTxLoader) getTransactionBounds(ctx context.Context, blockRange *
 // It returns a list of transactions, a list of corresponding block IDs, and an error if one occurs.
 // ListTransactions - returns list of transactions before (including) passed lt and hash, the oldest one is first in result slice
 // Transactions will be verified to match final tx hash, which should be taken from proved account state, then it is safe.
-func (l *accountTxLoader) listTransactionsWithBlock(ctx context.Context, addr *address.Address, limit uint32, lt uint64, txHash []byte) ([]*tlb.Transaction, []*ton.BlockIDExt, error) {
+func (l *rawTxLoader) listTransactionsWithBlock(ctx context.Context, addr *address.Address, limit uint32, lt uint64, txHash []byte) ([]*tlb.Transaction, []*ton.BlockIDExt, error) {
 	// unlikely to have overflow, but just for safety
 	if limit > math.MaxInt32 {
 		return nil, nil, fmt.Errorf("limit %d exceeds maximum int32 value", limit)
@@ -248,7 +213,7 @@ func (l *accountTxLoader) listTransactionsWithBlock(ctx context.Context, addr *a
 		// he txHash parameter is what we're expecting to find, while tx.Hash is what we actually got.
 		//
 		// Chain validation pattern:
-		// TX100: compare txHash (parameter - cursor from fetchTxsForAddress) with tx.Hash
+		// TX100: compare txHash (parameter - cursor from LoadTxsForAddress) with tx.Hash
 		// TX99:  compare tx.PrevTxHash (from TX100) with tx.Hash
 		// TX98:  compare tx.PrevTxHash (from TX99) with tx.Hash
 		//

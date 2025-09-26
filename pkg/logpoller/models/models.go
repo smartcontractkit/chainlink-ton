@@ -12,7 +12,12 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
-type TxHash [32]byte
+type TxHash [32]byte // transaction hash
+
+type Tx struct {
+	Transaction *tlb.Transaction // raw TON transaction from blockchain
+	Block       *ton.BlockIDExt  // block metadata
+}
 
 // BlockRange represents a range of blocks to process
 type BlockRange struct {

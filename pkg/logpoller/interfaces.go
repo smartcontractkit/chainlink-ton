@@ -4,8 +4,6 @@ import (
 	"context"
 
 	"github.com/xssnick/tonutils-go/address"
-	"github.com/xssnick/tonutils-go/tlb"
-	"github.com/xssnick/tonutils-go/ton"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 
@@ -40,10 +38,9 @@ type FilterStore interface {
 
 // TxLoader defines the interface for loading transactions from the TON blockchain.
 type TxLoader interface {
-	// LoadTxsForAddresses retrieves all transactions from the specified source addresses
-	// within the given block range (prevBlock, toBlock] - exclusive of prevBlock, inclusive of toBlock.
+	// LoadTxsForAddress retrieves transactions for a specific address within a block range.
 	// Returns parallel slices of transactions and their corresponding blocks.
-	LoadTxsForAddresses(ctx context.Context, blockRange *models.BlockRange, srcAddrs []*address.Address) (txs []*tlb.Transaction, blocks []*ton.BlockIDExt, err error)
+	LoadTxsForAddress(ctx context.Context, blockRange *models.BlockRange, addr *address.Address) (<-chan models.Tx, <-chan error, error)
 }
 
 // Processor defines the interface for processing raw blockchain transactions into structured logs.
@@ -52,7 +49,7 @@ type Processor interface {
 	// filter index to extract relevant event data. The processor handles different message types
 	// (internal, external out) and extracts event signatures along with message body data.
 	// Takes parallel slices of transactions and their corresponding blocks.
-	ProcessTransactions(ctx context.Context, txs []*tlb.Transaction, blocks []*ton.BlockIDExt, filterIndex models.FilterIndex) ([]models.Log, error)
+	ProcessTransactions(ctx context.Context, filterIndex models.FilterIndex, txs <-chan models.Tx) (<-chan models.Log, error)
 }
 
 // LogStore defines the interface for storing and retrieving logs.

@@ -32,38 +32,47 @@ func New(lggr logger.Logger, chainID string) logpoller.Processor {
 }
 
 // ProcessTransactions iterates through transactions and processes each one
-func (p *txProcessor) ProcessTransactions(ctx context.Context, txs []*tlb.Transaction, blocks []*ton.BlockIDExt, filterIndex models.FilterIndex) ([]models.Log, error) {
-	if len(txs) != len(blocks) {
-		return nil, fmt.Errorf("transaction and block slices must have the same length: txs=%d, blocks=%d", len(txs), len(blocks))
+func (p *txProcessor) ProcessTransactions(ctx context.Context, filterIndex models.FilterIndex, txsIn <-chan models.Tx) (<-chan models.Log, error) {
+	if len(filterIndex) == 0 {
+		return nil, nil
 	}
 
-	var allLogs []models.Log
+	logsOut := make(chan models.Log, 100)
 
-	p.lggr.Debugw("processor starting", "txCount", len(txs), "filterIndexKeys", len(filterIndex))
+	go func() {
+		defer close(logsOut)
 
-	for i, tx := range txs {
-		logs, err := p.processTx(ctx, tx, blocks[i], filterIndex)
-		if err != nil {
-			// TODO: processing error, skip transaction. should be monitored
-			p.lggr.Errorw("failure while processing transaction, skipping", "tx_hash", tx.Hash, "err", err)
-			continue
+		for tx := range txsIn {
+			logs, err := p.processTx(ctx, tx.Transaction, tx.Block, filterIndex)
+			if err != nil {
+				// skip this transaction, but keep the pipeline running
+				p.lggr.Errorw("failure while processing transaction, skipping", "tx_hash", tx.Transaction.Hash, "err", err)
+				continue
+			}
+
+			// send all generated logs to the output channel
+			for _, log := range logs {
+				select {
+				case logsOut <- log:
+				case <-ctx.Done():
+					return
+				}
+			}
 		}
+	}()
 
-		p.lggr.Debugw("processed transaction", "txIndex", i, "txHash", tx.Hash, "logsGenerated", len(logs))
-
-		if len(logs) > 0 {
-			allLogs = append(allLogs, logs...)
-		}
-	}
-
-	p.lggr.Debugw("processor completed", "totalLogs", len(allLogs))
-	return allLogs, nil
+	return logsOut, nil
 }
 
 // processTx handles a single transaction
 func (p *txProcessor) processTx(_ context.Context, tx *tlb.Transaction, block *ton.BlockIDExt, filterIndex models.FilterIndex) ([]models.Log, error) {
 	if tx == nil {
 		return nil, errors.New("transaction is nil")
+	}
+
+	if tx.IO.Out == nil {
+		// this should never happen, since we filter out transactions without output messages in the loader
+		return nil, errors.New("transaction has no output messages")
 	}
 
 	var allLogs []models.Log
@@ -95,7 +104,6 @@ func (p *txProcessor) processMessage(tx *tlb.Transaction, block *ton.BlockIDExt,
 	// attempt to extract the event data
 	eventSig, body, err := p.extractEventSigAndBody(msg)
 	if err != nil {
-		p.lggr.Warnw("Failed to extract event from message", "msgType", msg.MsgType, "err", err)
 		return nil, fmt.Errorf("event extraction failed: %w", err)
 	}
 
@@ -112,7 +120,7 @@ func (p *txProcessor) processMessage(tx *tlb.Transaction, block *ton.BlockIDExt,
 		EventSig: eventSig,
 	}
 
-	p.lggr.Debugw("looking for filter match",
+	p.lggr.Tracew("looking for filter match",
 		"address", srcAddr.String(),
 		"msgType", msg.MsgType,
 		"eventSig", eventSig,
@@ -126,7 +134,7 @@ func (p *txProcessor) processMessage(tx *tlb.Transaction, block *ton.BlockIDExt,
 			break
 		}
 	}
-	p.lggr.Debugw("filter lookup result", "matchingFilters", len(filterIDs), "filterIDs", filterIDs)
+	p.lggr.Tracew("filter lookup result", "matchingFilters", len(filterIDs), "filterIDs", filterIDs)
 
 	if len(filterIDs) == 0 {
 		return []models.Log{}, nil // no matching filters found
@@ -149,8 +157,9 @@ func (p *txProcessor) processMessage(tx *tlb.Transaction, block *ton.BlockIDExt,
 			TxLT:        tx.LT,
 			TxTimestamp: time.Unix(int64(tx.Now), 0).UTC(),
 			Block:       block,
-			MsgLT:       msgLT,
-			MsgIndex:    int64(msgIndex),
+			// TODO: populate MasterBlockSeqno
+			MsgLT:    msgLT,
+			MsgIndex: int64(msgIndex),
 			// TODO: populate Error field for failed message processing
 			// scope: structural validation errors (nil message/content)
 			// scope: event extraction errors (BOC decode failures, unsupported message types)

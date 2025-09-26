@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"math/big"
 	"math/rand/v2"
+	"sync"
 	"testing"
 	"time"
 
@@ -82,15 +83,36 @@ func Test_LogPoller(t *testing.T) {
 			t.Parallel()
 			loader := txloader.New(logger.Test(t), clientProvider, pageSize)
 
-			txs, _, berr := loader.LoadTxsForAddresses(
+			txsCh, errsCh, berr := loader.LoadTxsForAddress(
 				t.Context(),
 				blockRange,
-				[]*address.Address{emitter.ContractAddress()},
+				emitter.ContractAddress(),
 			)
 			require.NoError(t, berr)
+
+			var txs []models.Tx
+			var wg sync.WaitGroup
+			wg.Add(2)
+
+			go func() {
+				defer wg.Done()
+				for tx := range txsCh {
+					txs = append(txs, tx)
+				}
+			}()
+
+			go func() {
+				defer wg.Done()
+				for err := range errsCh {
+					require.NoError(t, err, "Unexpected error from loader stream")
+				}
+			}()
+
+			wg.Wait()
+
 			indexedCells := make([]*cell.Cell, 0, len(txs))
 			for _, tx := range txs {
-				msgs, _ := tx.IO.Out.ToSlice()
+				msgs, _ := tx.Transaction.IO.Out.ToSlice()
 				for _, msg := range msgs {
 					// test contract only emits ExternalMessageOut
 					if msg.MsgType == tlb.MsgTypeExternalOut {
@@ -125,16 +147,35 @@ func Test_LogPoller(t *testing.T) {
 					To:   nextBlock,
 				}
 
-				loadedTxs, _, berr := loader.LoadTxsForAddresses(
+				txsCh, errsCh, berr := loader.LoadTxsForAddress(
 					t.Context(),
 					iterRange,
-					[]*address.Address{emitter.ContractAddress()},
+					emitter.ContractAddress(),
 				)
 				require.NoError(t, berr)
 
+				var txs []models.Tx
+				var wg sync.WaitGroup
+				wg.Add(2)
+
+				go func() {
+					defer wg.Done()
+					for tx := range txsCh {
+						txs = append(txs, tx)
+					}
+				}()
+
+				go func() {
+					defer wg.Done()
+					for err := range errsCh {
+						require.NoError(t, err, "Unexpected error from loader stream")
+					}
+				}()
+
+				wg.Wait()
 				// Extract messages from the loaded transactions
-				for _, tx := range loadedTxs {
-					msgs, _ := tx.IO.Out.ToSlice()
+				for _, tx := range txs {
+					msgs, _ := tx.Transaction.IO.Out.ToSlice()
 					for _, msg := range msgs {
 						if msg.MsgType == tlb.MsgTypeExternalOut {
 							if extOut := msg.AsExternalOut(); extOut != nil {

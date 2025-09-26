@@ -2,8 +2,8 @@ package logpoller
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/xssnick/tonutils-go/address"
@@ -96,10 +96,13 @@ func (lp *service) run(ctx context.Context) (err error) {
 	if err != nil {
 		return fmt.Errorf("failed to get masterchain block range: %w", err)
 	}
+
 	if blockRange == nil {
 		// no new blocks to process
 		return nil
 	}
+
+	lp.lggr.Debugf("processing range (%d, %d]", blockRange.Prev.SeqNo, blockRange.To.SeqNo)
 
 	// TODO: load filter from persistent store
 	// TODO: implement backfill logic(if there is filters marked for backfill)
@@ -119,232 +122,137 @@ func (lp *service) run(ctx context.Context) (err error) {
 	return nil
 }
 
-// getMasterchainBlockRange calculates the range of blocks that need to be processed.
-// Returns nil if there are no new blocks to process.
-func (lp *service) getMasterchainBlockRange(ctx context.Context) (*models.BlockRange, error) {
-	client, err := lp.clientProvider(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get client: %w", err)
-	}
-
-	toBlock, err := client.CurrentMasterchainInfo(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get current masterchain info: %w", err)
-	}
-
-	lastProcessedBlock, err := lp.getLastProcessedBlock(toBlock)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get last processed block: %w", err)
-	}
-
-	// if we've already processed this block, wait for the next one
-	if toBlock.SeqNo <= lastProcessedBlock {
-		return nil, nil
-	}
-
-	lp.lggr.Debugf("new block found, processing range (%d, %d]", lastProcessedBlock, toBlock.SeqNo)
-
-	prevBlock, err := lp.resolvePreviousBlock(ctx, lastProcessedBlock, toBlock)
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve previous block: %w", err)
-	}
-
-	return &models.BlockRange{Prev: prevBlock, To: toBlock}, nil
-}
-
-// getLastProcessedBlock retrieves the last processed masterchain sequence number.
-// If no previous block has been processed, it uses the lookback window to determine
-// an appropriate starting point to avoid missing recent events.
-func (lp *service) getLastProcessedBlock(currentBlock *ton.BlockIDExt) (uint32, error) {
-	lastProcessed := lp.lastProcessedBlock
-	if lastProcessed > 0 {
-		return lastProcessed, nil
-	}
-
-	// TODO: get the latest processed seqno from log table when persistent storage is implemented
-
-	if currentBlock.SeqNo == 0 {
-		return 0, errors.New("current masterchain seqno is 0 - waiting for next block to start processing")
-	}
-
-	lookbackSeqNo := computeLookbackWindow(currentBlock.SeqNo, lp.startingLookback, lp.blockTime)
-
-	if lookbackSeqNo > lastProcessed {
-		blocksToProcess := currentBlock.SeqNo - lookbackSeqNo
-		lp.lggr.Infow("Starting from lookback window",
-			"fromSeqNo", lookbackSeqNo,
-			"toSeqNo", currentBlock.SeqNo,
-			"blocksToProcess", blocksToProcess)
-		return lookbackSeqNo, nil
-	}
-
-	lp.lggr.Infow("Resuming from last processed", "seqNo", lastProcessed)
-	return lastProcessed, nil
-}
-
-// resolvePreviousBlock determines the previous block reference based on the last processed sequence number
-func (lp *service) resolvePreviousBlock(ctx context.Context, lastProcessedBlockSeqNo uint32, toBlock *ton.BlockIDExt) (*ton.BlockIDExt, error) {
-	if lastProcessedBlockSeqNo == 0 {
-		// Start from genesis - this only happens when lookback window calculation
-		// determines the chain is shorter than the configured lookback duration(likely localnet)
-		lp.lggr.Debugw("Processing from genesis", "toSeq", toBlock.SeqNo)
-		return nil, nil
-	}
-
-	client, err := lp.clientProvider(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get client: %w", err)
-	}
-	// get the prevBlock based on the last processed sequence number
-	prevBlock, err := client.LookupBlock(ctx, toBlock.Workchain, toBlock.Shard, lastProcessedBlockSeqNo)
-	if err != nil {
-		return nil, fmt.Errorf("LookupBlock for previous seqno %d: %w", lastProcessedBlockSeqNo, err)
-	}
-	return prevBlock, nil
-}
-
 // processBlockRange handles scanning a range of blocks for transactions
 func (lp *service) processBlockRange(ctx context.Context, blockRange *models.BlockRange, addresses []*address.Address) error {
-	// 1. Load raw transactions with blocks from the blockchain
-	txs, blocks, err := lp.loader.LoadTxsForAddresses(ctx, blockRange, addresses)
+	// load raw transactions with blocks from the blockchain
+	txsCh, errsCh, err := lp.loadTxsForAddresses(ctx, blockRange, addresses)
 	if err != nil {
-		return fmt.Errorf("failed to load transactions: %w", err)
+		return fmt.Errorf("failed to start transaction loader: %w", err)
 	}
-	if len(txs) == 0 {
-		return nil
-	}
-	lp.lggr.Debugw("loaded transactions from chain", "count", len(txs))
 
-	// 2. Build filter index for efficient lookup
+	// build filter index for efficient lookup
 	filterIndex, err := lp.buildFilterIndex(ctx, addresses)
 	if err != nil {
 		return fmt.Errorf("failed to build filter index: %w", err)
 	}
 
-	// 3. Process transactions with filter index
-	lp.lggr.Debugw("processing transactions with filter index", "txCount", len(txs), "filterIndexSize", len(filterIndex))
-	logs, err := lp.processor.ProcessTransactions(ctx, txs, blocks, filterIndex)
+	// process transactions with filter index
+	logsCh, err := lp.processor.ProcessTransactions(ctx, filterIndex, txsCh)
 	if err != nil {
-		return fmt.Errorf("failed to process transactions: %w", err)
-	}
-	lp.lggr.Debugw("processor returned logs", "count", len(logs))
-	if len(logs) == 0 {
-		lp.lggr.Debugw("no logs generated from transactions")
-		return nil
-	}
-	lp.lggr.Debugw("processed transactions into logs", "count", len(logs))
-
-	// 4. Filter out errored logs and save the rest
-	var validLogs []models.Log //nolint:prealloc // cannot predict number of valid logs
-	for _, log := range logs {
-		if log.Error != nil {
-			// TODO: handle errored logs bubbled up from the processor, currently not supported
-			lp.lggr.Errorw("discarding errored log", "log", log, "error", log.Error)
-			continue
-		}
-		validLogs = append(validLogs, log)
+		return fmt.Errorf("failed to start transaction processor: %w", err)
 	}
 
-	if len(validLogs) > 0 {
-		savedCount, err := lp.store.SaveLogs(ctx, validLogs)
-		if err != nil {
-			return fmt.Errorf("failed to save logs: %w", err)
-		}
-		lp.lggr.Debugw("saved logs", "requested", len(validLogs), "actualSaved", savedCount)
+	// save logs
+	totalSaved, err := lp.saveLogs(ctx, logsCh, errsCh)
+	if err != nil {
+		// return the error to halt processing on this block range
+		return err
 	}
+
+	lp.lggr.Debugf("processed range (%d, %d], saved %d logs from %d addresses", blockRange.Prev.SeqNo, blockRange.To.SeqNo, totalSaved, len(addresses))
+
 	return nil
 }
 
-// BuildFilterIndex creates a filter index for efficient lookup during processing.
-// This function consolidates filter queries and builds an in-memory index to avoid
-// repeated database calls during transaction processing.
-func (lp *service) buildFilterIndex(ctx context.Context, addresses []*address.Address) (models.FilterIndex, error) {
-	filterIndex := make(models.FilterIndex)
+// loadTxsForAddresses scans TON blockchain for transactions from specified addresses
+// between prevBlock(exclusive) and toBlock(inclusive)
+// Returns parallel slices of transactions and their corresponding blocks.
+func (lp *service) loadTxsForAddresses(ctx context.Context, blockRange *models.BlockRange, srcAddrs []*address.Address) (<-chan models.Tx, <-chan error, error) {
+	txsOut := make(chan models.Tx)
+	errsOut := make(chan error, len(srcAddrs))
 
-	lp.lggr.Debugw("building filter index", "addresses", len(addresses))
+	var wg sync.WaitGroup
+	for _, addr := range srcAddrs {
+		wg.Add(1)
+		go func(a *address.Address) {
+			defer wg.Done()
 
-	for _, addr := range addresses {
-		// Get all filters for this address
-		filters, err := lp.filters.GetFiltersByAddress(ctx, addr)
+			txsIn, errsIn, err := lp.loader.LoadTxsForAddress(ctx, blockRange, a)
+			if err != nil {
+				lp.lggr.Warnw("Loader setup failed for address, skipping", "address", a.String(), "err", err)
+				errsOut <- err // propagate the error to the caller
+				return
+			}
+
+			for {
+				select {
+				case tx, ok := <-txsIn:
+					if !ok { // here the transaction channel is closed, this stream is done
+						return
+					}
+					select {
+					case txsOut <- tx:
+					case <-ctx.Done():
+						return
+					}
+				case err, ok := <-errsIn:
+					if !ok {
+						continue
+					}
+					lp.lggr.Warnw("Loader stream failed for address, skipping", a.String(), "err", err)
+					errsOut <- err
+				case <-ctx.Done():
+					return
+				}
+			}
+		}(addr)
+	}
+
+	go func() {
+		wg.Wait()
+		close(txsOut)
+		close(errsOut)
+	}()
+
+	return txsOut, errsOut, nil
+}
+
+func (lp *service) saveLogs(ctx context.Context, logsCh <-chan models.Log, errsCh <-chan error) (int, error) {
+	// handle errors
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for err := range errsCh {
+			lp.lggr.Errorw("error from transaction loader", "err", err)
+		}
+	}()
+
+	const saveThreshold = 1000 // TODO: configurable: how many logs to buffer before saving
+	chunk := make([]models.Log, 0, saveThreshold)
+	totalSaved := 0
+
+	for log := range logsCh {
+		if log.Error != nil {
+			lp.lggr.Errorw("discarding errored log", "log", log, "error", log.Error)
+			continue
+		}
+		chunk = append(chunk, log)
+
+		// if the chunk is full, save it to the database
+		if len(chunk) >= saveThreshold {
+			savedCount, err := lp.store.SaveLogs(ctx, chunk)
+			if err != nil {
+				return 0, fmt.Errorf("failed to save log chunk: %w", err)
+			}
+			totalSaved += int(savedCount)
+			chunk = chunk[:0] // reset the chunk
+		}
+	}
+
+	// after the channel is closed, save any remaining logs in the last chunk
+	if len(chunk) > 0 {
+		savedCount, err := lp.store.SaveLogs(ctx, chunk)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get filters for %s: %w", addr.String(), err)
+			return 0, fmt.Errorf("failed to save final log chunk: %w", err)
 		}
-
-		lp.lggr.Debugw("found filters for address", "address", addr.String(), "count", len(filters))
-
-		// Index filters by (address, msgType, eventSig)
-		for _, filter := range filters {
-			key := models.FilterKey{
-				Address:  addr,
-				MsgType:  filter.MsgType,
-				EventSig: filter.EventSig,
-			}
-			filterIndex[key] = append(filterIndex[key], filter.ID)
-			lp.lggr.Debugw("indexed filter", "filterID", filter.ID, "address", addr.String(), "msgType", filter.MsgType, "eventSig", filter.EventSig)
-		}
+		totalSaved += int(savedCount)
 	}
 
-	lp.lggr.Debugw("built filter index", "totalKeys", len(filterIndex))
-	return filterIndex, nil
-}
+	// wait for the error-handling goroutine to finish before exiting
+	wg.Wait()
 
-// RegisterFilter adds a new filter to monitor specific address/event signature combinations
-func (lp *service) RegisterFilter(ctx context.Context, flt models.Filter) (int64, error) {
-	// Register the filter first
-	id, err := lp.filters.RegisterFilter(ctx, flt)
-	if err != nil {
-		return 0, err
-	}
-
-	// TODO(2025-08-28@jadepark-dev): clean up, forcing replay for e2e now
-	// Run replay in a separate goroutine to avoid blocking filter registration
-	// Only replay when client and loader are available (not in barebone test setups)
-	client, err := lp.clientProvider(ctx)
-	if err != nil {
-		return 0, fmt.Errorf("failed to get client: %w", err)
-	}
-	if client != nil && lp.loader != nil {
-		go func() {
-			replayCtx := context.Background()
-			lp.lggr.Infow("replaying logs for new filter", "filter", flt.Name, "fromBlock", flt.StartingSeqNo)
-			if err := lp.Replay(replayCtx, flt.StartingSeqNo); err != nil {
-				lp.lggr.Errorw("failed to replay logs for new filter", "filter", flt.Name, "error", err)
-			}
-		}()
-	} else {
-		lp.lggr.Debugw("skipping replay for new filter - client or loader not available", "filter", flt.Name)
-	}
-
-	return id, nil
-}
-
-// UnregisterFilter removes a filter by name
-func (lp *service) UnregisterFilter(ctx context.Context, name string) error {
-	return lp.filters.UnregisterFilter(ctx, name)
-}
-
-// HasFilter checks if a filter with the given name exists
-func (lp *service) HasFilter(ctx context.Context, name string) (bool, error) {
-	return lp.filters.HasFilter(ctx, name)
-}
-
-// computeLookbackWindow calculates the lookback sequence number
-// based on the current sequence number, lookback duration, and block time.
-func computeLookbackWindow(currentSeqNo uint32, lookbackDuration time.Duration, blockTime time.Duration) uint32 {
-	// Calculate how many blocks to go back based on time duration
-	// Use ceiling division like Solana: ceil(lookback/blockTime) = (lookback-1)/blockTime + 1
-	//nolint:gosec //G115: integer overflow conversion int64 -> uint32
-	lookbackBlocks := uint32(int64((lookbackDuration-1)/blockTime) + 1)
-
-	var lookbackSeqNo uint32
-	if currentSeqNo > lookbackBlocks {
-		lookbackSeqNo = currentSeqNo - lookbackBlocks
-	} else {
-		// If lookback would go before genesis, start from 0(with localnet)
-		lookbackSeqNo = 0
-	}
-
-	return lookbackSeqNo
+	return totalSaved, nil
 }
 
 func (lp *service) Replay(ctx context.Context, fromBlock uint32) error {
