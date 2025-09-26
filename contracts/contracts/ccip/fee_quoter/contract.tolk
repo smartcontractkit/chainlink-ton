@@ -325,7 +325,7 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: Fee
         var _ = tokenAmounts.next();
         numberOfTokens += 1;
     }
-    assert (numberOfTokens <= config.maxNumberOfTokensPerMsg) throw ERROR_UNSUPORTED_NUMBER_OF_TOKENS;
+    assert (numberOfTokens <= config.maxNumberOfTokensPerMsg) throw ERROR_UNSUPPORTED_NUMBER_OF_TOKENS;
 
     // NOTE: we could deploy distinct contracts to cut down on code
     if (config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_EVM ||
