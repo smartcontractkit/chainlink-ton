@@ -1,6 +1,4 @@
-tolk 1.0
-
-import "@stdlib/tvm-dicts";
+tolk 1.1
 
 import "../lib/utils";
 import "../lib/access/access_control";
@@ -263,7 +261,7 @@ struct (0xf4538b79) Timelock_SubmitErrorReport {
     queryId: uint64;
 
     /// The operation which produced the error (used to re-derive the op id).
-    opBatch: Cell<OperationBatch>;
+    opBatch: Cell<Timelock_OperationBatch>;
     /// The hash of the execute transaction.
     opTxHash: uint256;
 
@@ -436,7 +434,7 @@ struct (0xdbd4c8ee) Timelock_ErrorReportSubmitted {
     /// Query ID of the change request.
     queryId: uint64;
 
-    /// The id (hash) of the operation which produced the error.
+    /// The id (hash) of the operation which produced the Timelock_Error.
     id: uint256;
     /// The hash of the operation execute transaction.
     opTxHash: uint256;
@@ -469,17 +467,17 @@ struct Timelock_Data {
     /// Minimum delay for operations in seconds
     minDelay: uint64;
     /// Map of operation id to timestamp
-    timestamps: dict; // map<int, uint64>
+    timestamps: map<uint256, uint64>;
 
     /// Number of fn selectors blocked by the contract.
     blockedFnSelectorsLen: uint32;
     /// Map of blocked function selectors.
-    blockedFnSelectors: dict; // map<uint32, slice>
+    blockedFnSelectors: map<uint32, bool>;
 
     /// Flag to enable/disable the executor role check (if disabled, anyone can execute)
     executorRoleCheckEnabled: bool;
     /// Information about the currently pending operation.
-    opPendingInfo: OpPendingInfo;
+    opPendingInfo: Timelock_OpPendingInfo;
 
     /// AccessControl trait data
     rbac: Cell<AccessControl_Data>;
@@ -508,7 +506,7 @@ struct Timelock_Call {
 }
 
 /// Batch of transactions represented as a operation, which can be scheduled and executed.
-struct OperationBatch {
+struct Timelock_OperationBatch {
     /// Array of calls to be scheduled
     calls: cell; // vec<Timelock_Call>
     /// Predecessor operation ID
@@ -520,14 +518,14 @@ struct OperationBatch {
 /// Information about the currently pending operation.
 ///
 /// @dev TON-specific additional data required to support reliable execution in the async environment.
-struct OpPendingInfo {
+struct Timelock_OpPendingInfo {
     /// The time at which the scheduled ops becomes valid to execute [executionTime(opCount -
     /// At this time the previous executed operation is considered optimistically final and successful,
     /// meaning no bounce was received and we can continue executing.
     validAfter: uint32;
     /// The timeout required to finalize the currently executing op
     opFinalizationTimeout: uint64;
-    /// The id of the currently pending operation (OperationBatch hash)
+    /// The id of the currently pending operation (Timelock_OperationBatch hash)
     opPendingId: uint256;
 }
 
@@ -539,7 +537,7 @@ struct Timelock_Hooks<T> {
     rbac: AccessControl_Hooks<T>;
 
     /// Hook to get the identifier of an operation containing a batch of transactions.
-    hashOperationBatch: ((T?, OperationBatch) -> uint256)?;
+    hashOperationBatch: ((T?, Timelock_OperationBatch) -> uint256)?;
 }
 
 // --- Constants ---
@@ -562,32 +560,37 @@ const DONE_TIMESTAMP = 1;
 /// Timestamp value used to mark an operation as error
 const ERROR_TIMESTAMP = 2;
 
-const ERROR_SELECTOR_IS_BLOCKED = 101;
-const ERROR_OPERATION_NOT_READY = 102;
-const ERROR_OPERATION_MISSING_DEPENDENCY = 103;
-const ERROR_OPERATION_CAN_NOT_BE_CANCELLED = 104;
-const ERROR_OPERATION_ALREADY_SCHEDULED = 105;
-const ERROR_INSUFFICIENT_DELAY = 106;
+/// Error codes used by the Timelock contract.
+enum Timelock_Error {
+    SelectorIsBlocked = 19300 // Timelock<T>.errorCode(0)
+    OperationNotReady
+    OperationMissingDependency
+    OperationCanNotBeCancelled
+    OperationAlreadyScheduled
+    InsufficientDelay
+    PendingOperationNotFinal
+    InsufficientValue
+    OperationNotDone
 
-/// Thrown when trying to execute a pending operation while another pending operation is not yet final
-const ERROR_PENDING_OPERATION_NOT_FINAL = 107;
-/// Thrown when the provided op.value is insufficient (min required value not met).
-const ERROR_INSUFFICIENT_VALUE = 108;
-/// Thrown when trying to submit an error report for an operation that is not done.
-const ERROR_OPERATION_NOT_DONE = 109;
-/// Thrown when trying to initialize the contract more than once.
-const ERROR_CONTRACT_ALREADY_INITIALIZED = 110;
-/// Thrown when trying to call a function on an uninitialized contract.
-const ERROR_CONTRACT_NOT_INITIALIZED = 111;
+    /// Thrown when trying to initialize the contract more than once.
+    ContractAlreadyInitialized
+
+    /// Thrown when trying to call a function on an uninitialized contract.
+    ContractNotInitialized
+}
 
 // --- Constants - storage ---
 
-/// Represents TON message op code size
-const LEN_BLOCKED_FN_SELECTOR = 32;
 /// Represents the amount of TON coins we reserve on the balance to pay for storage fees.
 const MIN_TON_FOR_STORAGE = 1000000000; // 1 TON
 
 // --- Methods ---
+
+/// Returns the error code for this facility and the given local code.
+///     errorCode(0) == 19300
+fun Timelock<T>.errorCode(local: uint16): uint16 {
+    return errorCode(stringCrc32("com.chainlink.ton.mcms.Timelock"), local);
+}
 
 /// Loads the Timelock contract data from persistent storage.
 fun Timelock<T>.load(context: T? = null, hooks: Timelock_Hooks<T>? = null): Timelock<T> {
@@ -649,15 +652,14 @@ fun Timelock<T>.isPendingOperationFinal(self): bool {
 
 /// Returns the timestamp at with an operation becomes ready (0 for
 /// unset operations, 1 for done operations).
-fun Timelock<T>.getTimestamp(self, id: int): uint64 {
-    // Get the timestamp for the given id from the timestamps dictionary
-    var (timestampSlice, exists) = self.data.timestamps.uDictGet(256, id);
-    if (!exists) {
+fun Timelock<T>.getTimestamp(self, id: uint256): uint64 {
+    // Get the timestamp for the given id from the timestamps map
+    var timestamp = self.data.timestamps.get(id);
+    if (!timestamp.isFound) {
         return 0; // operation not exists
     }
 
-    // Load the timestamp from the slice
-    return timestampSlice!.loadUint(64);
+    return timestamp.loadValue();
 }
 
 /// Returns the minimum delay for an operation to become valid.
@@ -670,7 +672,7 @@ fun Timelock<T>.getMinDelay(self): uint64 {
 /// Returns the operation batch hash as its ID.
 ///
 /// Override available via {Timelock_Hooks<T>.hashOperationBatch} hook.
-fun Timelock<T>.hashOperationBatch(self, op: OperationBatch): uint256 {
+fun Timelock<T>.hashOperationBatch(self, op: Timelock_OperationBatch): uint256 {
     if (self.hooks != null && self.hooks.hashOperationBatch != null) {
         return self.hooks.hashOperationBatch(self.context, op); // extension hook
     }
@@ -695,7 +697,7 @@ fun Timelock<T>.init(
 ): void {
     // @dev: anyone can call init, but only once. The deployer should send init message with stateInit (deployment).
     // Check that the contract is not already initialized
-    assert(!self.isInitialized()) throw ERROR_CONTRACT_ALREADY_INITIALIZED;
+    assert(!self.isInitialized()) throw Timelock_Error.ContractAlreadyInitialized;
 
     var rbac = self.hookTrait__AccessControl();
 
@@ -734,7 +736,7 @@ fun Timelock<T>.init(
 
     self.data.minDelay = minDelay;
     self.data.executorRoleCheckEnabled = executorRoleCheckEnabled;
-    self.data.opPendingInfo = OpPendingInfo {
+    self.data.opPendingInfo = Timelock_OpPendingInfo {
         validAfter: blockchain.now(),
         opFinalizationTimeout,
         opPendingId: 0
@@ -768,10 +770,10 @@ fun Timelock<T>.scheduleBatch(
     salt: uint256,
     delay: uint64
 ): void {
-    assert(self.isInitialized()) throw ERROR_CONTRACT_NOT_INITIALIZED;
+    assert(self.isInitialized()) throw Timelock_Error.ContractNotInitialized;
     self.onlyRoleOrAdminRole(PROPOSER_ROLE, sender);
 
-    val id = self.hashOperationBatch(OperationBatch{calls, predecessor, salt});
+    val id = self.hashOperationBatch(Timelock_OperationBatch{calls, predecessor, salt});
     self.schedule(id, delay);
 
     var index = 0;
@@ -783,7 +785,7 @@ fun Timelock<T>.scheduleBatch(
         // We enforce a minimum amount of TON op.value trying to ensure the receiver gets at least enough gas for
         // fee validation + a bounce, and avoid out of gas errors in which cases a message will not bounce.
         if (call.value < calculateGasFeeDefault()) {
-            throw ERROR_INSUFFICIENT_VALUE;
+            throw Timelock_Error.InsufficientValue;
         }
 
         val body = Timelock_CallScheduled{
@@ -811,11 +813,11 @@ fun Timelock<T>.scheduleBatch(
 
 /// Schedule an operation that becomes valid after a given delay.
 fun Timelock<T>.schedule(mutate self, id: uint256, delay: uint64): void {
-    assert(!self.isOperation(id)) throw ERROR_OPERATION_ALREADY_SCHEDULED;
-    assert(delay >= self.getMinDelay()) throw ERROR_INSUFFICIENT_DELAY;
+    assert(!self.isOperation(id)) throw Timelock_Error.OperationAlreadyScheduled;
+    assert(delay >= self.getMinDelay()) throw Timelock_Error.InsufficientDelay;
 
-    val value = beginCell().storeUint(blockchain.now() + delay, 64).endCell().beginParse();
-    self.data.timestamps.uDictSet(256, id, value); // seconds since epoch
+    val value = blockchain.now() + delay;
+    self.data.timestamps.set(id, value); // seconds since epoch
 }
 
 /// Cancel an operation.
@@ -825,12 +827,12 @@ fun Timelock<T>.schedule(mutate self, id: uint256, delay: uint64): void {
 /// - the caller must have the 'canceller' or 'admin' role.
 ///
 fun Timelock<T>.cancel(mutate self, sender: address, queryId: uint64, id: uint256): void {
-    assert(self.isInitialized()) throw ERROR_CONTRACT_NOT_INITIALIZED;
+    assert(self.isInitialized()) throw Timelock_Error.ContractNotInitialized;
     self.onlyRoleOrAdminRole(CANCELLER_ROLE, sender);
-    assert(self.isOperationPending(id)) throw ERROR_OPERATION_CAN_NOT_BE_CANCELLED;
+    assert(self.isOperationPending(id)) throw Timelock_Error.OperationCanNotBeCancelled;
 
     // Remove the timestamp for the operation
-    self.data.timestamps.uDictDelete(256, id);
+    self.data.timestamps.delete(id);
 
     val reply = createMessage({
         bounce: false,
@@ -865,12 +867,12 @@ fun Timelock<T>.executeBatch(
     predecessor: uint256,
     salt: uint256
 ): void {
-    assert(self.isInitialized()) throw ERROR_CONTRACT_NOT_INITIALIZED;
+    assert(self.isInitialized()) throw Timelock_Error.ContractNotInitialized;
     if (self.data.executorRoleCheckEnabled) {
         self.onlyRoleOrAdminRole(EXECUTOR_ROLE, sender);
     }
 
-    val id = self.hashOperationBatch(OperationBatch{calls, predecessor, salt});
+    val id = self.hashOperationBatch(Timelock_OperationBatch{calls, predecessor, salt});
     self.beforeCall(id, predecessor);
 
     var index = 0;
@@ -918,9 +920,9 @@ fun Timelock<T>.execute(self, call: Timelock_Call): void {
 
 /// Hook before execution of an operation's calls.
 fun Timelock<T>.beforeCall(self, id: uint256, predecessor: uint256): void {
-    assert(self.isOperationReady(id)) throw ERROR_OPERATION_NOT_READY;
-    assert(predecessor == 0 || self.isOperationDone(predecessor)) throw ERROR_OPERATION_MISSING_DEPENDENCY;
-    assert(self.isPendingOperationFinal()) throw ERROR_PENDING_OPERATION_NOT_FINAL;
+    assert(self.isOperationReady(id)) throw Timelock_Error.OperationNotReady;
+    assert(predecessor == 0 || self.isOperationDone(predecessor)) throw Timelock_Error.OperationMissingDependency;
+    assert(self.isPendingOperationFinal()) throw Timelock_Error.PendingOperationNotFinal;
 
     // We need to reserve TON coins on the balance to pay for storage fees
     reserveToncoinsOnBalance(MIN_TON_FOR_STORAGE, RESERVE_MODE_EXACT_AMOUNT);
@@ -928,10 +930,10 @@ fun Timelock<T>.beforeCall(self, id: uint256, predecessor: uint256): void {
 
 /// Hook after execution of an operation's calls.
 fun Timelock<T>.afterCall(mutate self, id: uint256): void {
-    assert(self.isOperationReady(id)) throw ERROR_OPERATION_NOT_READY;
+    assert(self.isOperationReady(id)) throw Timelock_Error.OperationNotReady;
 
-    val value = beginCell().storeUint(DONE_TIMESTAMP, 64).endCell().beginParse();
-    self.data.timestamps.uDictSet(256, id, value); // Mark the operation as done
+    // Mark the operation as done
+    self.data.timestamps.set(id, DONE_TIMESTAMP);
 
     // Set the pending operation finalization timeout and info
     self.data.opPendingInfo.validAfter = blockchain.now() + self.data.opPendingInfo.opFinalizationTimeout;
@@ -941,7 +943,7 @@ fun Timelock<T>.afterCall(mutate self, id: uint256): void {
 /// Changes the minimum timelock duration for future operations.
 /// @see {Timelock_UpdateDelay} for more information.
 fun Timelock<T>.updateDelay(mutate self, sender: address, queryId: uint64, newDelay: uint64): void {
-    assert(self.isInitialized()) throw ERROR_CONTRACT_NOT_INITIALIZED;
+    assert(self.isInitialized()) throw Timelock_Error.ContractNotInitialized;
     val rbac = self.hookTrait__AccessControl();
     rbac.requireRole(ADMIN_ROLE, sender);
 
@@ -964,7 +966,7 @@ fun Timelock<T>.updateDelay(mutate self, sender: address, queryId: uint64, newDe
 /// Changes the timeout required to finalize the currently executing op
 /// @see {Timelock_UpdateOpFinalizationTimeout} for more information.
 fun Timelock<T>.updateOpFinalizationTimeout(mutate self, sender: address, queryId: uint64, newOpFinalizationTimeout: uint64): void {
-    assert(self.isInitialized()) throw ERROR_CONTRACT_NOT_INITIALIZED;
+    assert(self.isInitialized()) throw Timelock_Error.ContractNotInitialized;
     val rbac = self.hookTrait__AccessControl();
     rbac.requireRole(ADMIN_ROLE, sender);
 
@@ -1002,11 +1004,11 @@ fun Timelock<T>.updateOpFinalizationTimeout(mutate self, sender: address, queryI
 /// - the caller must have the 'admin' role.
 ///
 fun Timelock<T>.blockFunctionSelector(mutate self, sender: address, queryId: uint64, selector: uint32): bool {
-    assert(self.isInitialized()) throw ERROR_CONTRACT_NOT_INITIALIZED;
+    assert(self.isInitialized()) throw Timelock_Error.ContractNotInitialized;
     val rbac = self.hookTrait__AccessControl();
     rbac.requireRole(ADMIN_ROLE, sender);
 
-    val updated = self.data.blockedFnSelectors.uDictSetIfNotExists(LEN_BLOCKED_FN_SELECTOR, selector, createEmptySlice());
+    val updated = self.data.blockedFnSelectors.addIfNotExists(selector, true);
     if (updated) {
         self.data.blockedFnSelectorsLen += 1;
 
@@ -1031,11 +1033,11 @@ fun Timelock<T>.blockFunctionSelector(mutate self, sender: address, queryId: uin
 /// - the caller must have the 'admin' role.
 ///
 fun Timelock<T>.unblockFunctionSelector(mutate self, sender: address, queryId: uint64, selector: uint32): bool {
-    assert(self.isInitialized()) throw ERROR_CONTRACT_NOT_INITIALIZED;
+    assert(self.isInitialized()) throw Timelock_Error.ContractNotInitialized;
     val rbac = self.hookTrait__AccessControl();
     rbac.requireRole(ADMIN_ROLE, sender);
 
-    val updated = self.data.blockedFnSelectors.uDictDelete(LEN_BLOCKED_FN_SELECTOR, selector);
+    val updated = self.data.blockedFnSelectors.delete(selector);
     if (updated) {
         self.data.blockedFnSelectorsLen -= 1;
 
@@ -1067,11 +1069,11 @@ fun Timelock<T>.bypasserExecuteBatch(
     queryId: uint64,
     calls: cell, // vec<Timelock_Call>
 ): void {
-    assert(self.isInitialized()) throw ERROR_CONTRACT_NOT_INITIALIZED;
+    assert(self.isInitialized()) throw Timelock_Error.ContractNotInitialized;
     self.onlyRoleOrAdminRole(BYPASSER_ROLE, sender);
 
     // Reset the pending operation info, on bypass
-    self.data.opPendingInfo = OpPendingInfo {
+    self.data.opPendingInfo = Timelock_OpPendingInfo {
         validAfter: blockchain.now(),
         opFinalizationTimeout: self.data.opPendingInfo.opFinalizationTimeout,
         opPendingId: 0
@@ -1107,7 +1109,7 @@ fun Timelock<T>.bypasserExecuteBatch(
 ///
 /// @see <Timelock_UpdateExecutorRoleCheck> for more information.
 fun Timelock<T>.updateExecutorRoleCheck(mutate self, sender: address, queryId: uint64, enabled: bool ): void {
-    assert(self.isInitialized()) throw ERROR_CONTRACT_NOT_INITIALIZED;
+    assert(self.isInitialized()) throw Timelock_Error.ContractNotInitialized;
     val rbac = self.hookTrait__AccessControl();
     rbac.requireRole(ADMIN_ROLE, sender);
 
@@ -1129,22 +1131,21 @@ fun Timelock<T>.submitErrorReport(
     mutate self,
     sender: address,
     queryId: uint64,
-    opBatch: OperationBatch,
+    opBatch: Timelock_OperationBatch,
     opTxHash: uint256,
     errorTxHash: uint256,
     errorCode: uint32
 ) {
-    assert(self.isInitialized()) throw ERROR_CONTRACT_NOT_INITIALIZED;
+    assert(self.isInitialized()) throw Timelock_Error.ContractNotInitialized;
     // Only the oracle can submit error reports
     val rbac = self.hookTrait__AccessControl();
     rbac.requireRole(ORACLE_ROLE, sender);
 
     val id = self.hashOperationBatch(opBatch);
-    assert(self.isOperationDone(id)) throw ERROR_OPERATION_NOT_DONE;
+    assert(self.isOperationDone(id)) throw Timelock_Error.OperationNotDone;
 
     // Mark op in error state (recover with new op + bypass)
-    val value = beginCell().storeUint(ERROR_TIMESTAMP, 64).endCell().beginParse();
-    self.data.timestamps.uDictSet(256, id, value); // Mark the operation as error
+    self.data.timestamps.set(id, ERROR_TIMESTAMP); // Mark the operation as error
 
     // Check the reported error against the stored pending operation
     val matchesPendingOp = self.data.opPendingInfo.opPendingId == id;
@@ -1201,17 +1202,18 @@ fun Timelock<T>.getBlockedFunctionSelectorAt(self, index: uint32): uint32 {
     // Get a mutable reference to the blocked function selectors map (used for iteration)
     var blockedFnSelectors = self.data.blockedFnSelectors;
 
-    // Notice: we need to iterate through the dictionary to get the item at the specified index.
+    // Notice: we need to iterate through the map to get the item at the specified index.
     // This is not efficient, but it is the only way to get an item at index without additional data structures.
     var i = 0;
     while (i < index) {
-        blockedFnSelectors.uDictDeleteFirstAndGet(LEN_BLOCKED_FN_SELECTOR);
+        val first = blockedFnSelectors.findFirst(); // assume exists
+        blockedFnSelectors.delete(first.getKey());
         i += 1; // increment to next account
     }
 
     // Get the item at the specified index
-    var (selector: int?, _: slice?, _: bool) = blockedFnSelectors.uDictDeleteFirstAndGet(LEN_BLOCKED_FN_SELECTOR);
-    return selector! as uint32;
+    val selector = blockedFnSelectors.findFirst();
+    return selector.getKey();
 }
 
 @inline
@@ -1221,19 +1223,19 @@ fun Timelock<T>.getBlockedFunctionSelectorFirst(self): uint32 {
     }
 
     // Get the first item in the map
-    var (selector, _, _) = self.data.blockedFnSelectors.uDictGetFirst(LEN_BLOCKED_FN_SELECTOR);
-    return selector! as uint32;
+    var selector = self.data.blockedFnSelectors.findFirst();
+    return selector.getKey();
 }
 
 @inline
 fun Timelock<T>.getBlockedFunctionSelectorNext(self, pivot: uint32): uint32 {
     // Get the next item in the map, after the pivot
-    var (selector, _, exists) = self.data.blockedFnSelectors.uDictGetNext(LEN_BLOCKED_FN_SELECTOR, pivot);
-    if (!exists) {
+    var selector = self.data.blockedFnSelectors.findKeyGreater(pivot);
+    if (!selector.isFound) {
         return 0; // no next item
     }
 
-    return selector! as uint32;
+    return selector.getKey();
 }
 
 /// Checks to see if the function being scheduled is blocked.
@@ -1245,10 +1247,10 @@ fun Timelock<T>.checkFunctionSelectorNotBlocked(self, data: slice): void {
 
     // Load the function selector from the message body
     val selector = data.loadMessageOp(); // 32-bit integer
-    var (_, exists) = self.data.blockedFnSelectors.uDictGet(LEN_BLOCKED_FN_SELECTOR, selector);
+    var blocked = self.data.blockedFnSelectors.get(selector);
 
-    if (exists) {
-        throw(ERROR_SELECTOR_IS_BLOCKED); // TODO: attach error arguments
+    if (blocked.isFound) {
+        throw Timelock_Error.SelectorIsBlocked;
     }
 }
 
@@ -1258,7 +1260,7 @@ fun Timelock<T>.getBlockedFunctionSelectorCount(self): uint32 {
 }
 
 /// Returns the pending operation info.
-fun Timelock<T>.getOpPendingInfo(self): OpPendingInfo {
+fun Timelock<T>.getOpPendingInfo(self): Timelock_OpPendingInfo {
     return self.data.opPendingInfo;
 }
 
@@ -1304,11 +1306,11 @@ fun Timelock<T>.onInternalMessage(mutate self, msgSender: address, msgValue: coi
             self.updateExecutorRoleCheck(msgSender, msg.queryId, msg.enabled);
         }
         Timelock_SubmitErrorReport => {
-            self.submitErrorReport(msgSender, msg.queryId, OperationBatch.fromCell(msg.opBatch),
+            self.submitErrorReport(msgSender, msg.queryId, Timelock_OperationBatch.fromCell(msg.opBatch),
                 msg.opTxHash, msg.errorTxHash, msg.errorCode);
         }
         else => {
-            assert(self.isInitialized()) throw ERROR_CONTRACT_NOT_INITIALIZED;
+            assert(self.isInitialized()) throw Timelock_Error.ContractNotInitialized;
             var rbac = self.hookTrait__AccessControl();
 
             val msgHandled = 0
@@ -1344,8 +1346,7 @@ fun onBouncedMessage(in: InMessageBounced) {
     }
 
     val id = timelock.data.opPendingInfo.opPendingId;
-    val value = beginCell().storeUint(ERROR_TIMESTAMP, 64).endCell().beginParse();
-    timelock.data.timestamps.uDictSet(256, id, value); // Mark the operation as error
+    timelock.data.timestamps.set(id, ERROR_TIMESTAMP); // Mark the operation as error
 
      // Store the updated contract data
     timelock.data.storeAsContractData();
@@ -1416,7 +1417,7 @@ get fun getMinDelay(): uint64 {
 }
 
 /// @see <Timelock<T>.hashOperationBatch>
-get fun hashOperationBatch(op: OperationBatch): uint256 {
+get fun hashOperationBatch(op: Timelock_OperationBatch): uint256 {
     return Timelock<bool>.load().hashOperationBatch(op);
 }
 
@@ -1441,7 +1442,7 @@ get fun isExecutorRoleCheckEnabled(): bool {
 }
 
 /// @see <Timelock<T>.getOpPendingInfo>
-get fun getOpPendingInfo(): OpPendingInfo {
+get fun getOpPendingInfo(): Timelock_OpPendingInfo {
     return Timelock<bool>.load().getOpPendingInfo();
 }
 
@@ -1488,7 +1489,7 @@ get fun getRoleMemberCount(role: int): int {
 }
 
 /// @see <AccessControl<T>.getRoleMembers>
-get fun getRoleMembers(role: int): dict {
+get fun getRoleMembers(role: int): map<address, bool>  {
     val rbac = Timelock<bool>.load().hookTrait__AccessControl();
     return rbac.getRoleMembers(role);
 }

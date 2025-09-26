@@ -598,7 +598,7 @@ describe('MCMS - IntegrationTest', () => {
         from: acc.deployer.address,
         to: bind.timelock.address,
         success: false,
-        exitCode: rbactl.Errors.OperationNotReady,
+        exitCode: rbactl.Error.OperationNotReady,
       })
 
       blockchain.now = blockchain.now! + Number(MIN_DELAY)
@@ -724,7 +724,7 @@ describe('MCMS - IntegrationTest', () => {
       expect(r2.transactions).toHaveTransaction({
         from: acc.deployer.address,
         to: bind.timelock.address,
-        exitCode: rbactl.Errors.OperationNotReady,
+        exitCode: rbactl.Error.OperationNotReady,
       })
 
       // succeeds once we use right predecessor
@@ -986,7 +986,7 @@ describe('MCMS - IntegrationTest', () => {
         from: acc.deployer.address,
         to: bind.timelock.address,
         success: false,
-        exitCode: rbactl.Errors.OperationNotReady,
+        exitCode: rbactl.Error.OperationNotReady,
       })
 
       blockchain.now = blockchain.now! + Number(MIN_DELAY) / 4
@@ -1074,7 +1074,7 @@ describe('MCMS - IntegrationTest', () => {
           from: acc.deployer.address,
           to: bind.timelock.address,
           success: false,
-          exitCode: rbactl.Errors.OperationNotReady,
+          exitCode: rbactl.Error.OperationNotReady,
         })
       }
     }

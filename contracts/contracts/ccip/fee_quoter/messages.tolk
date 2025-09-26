@@ -1,6 +1,4 @@
 import "../types"
-import "@stdlib/lisp-lists"
-import "../../lib/utils";
 
 tolk 1.1
 
@@ -10,8 +8,6 @@ type FeeQuoter_InMessage =
     | FeeQuoter_UpdateTokenTransferFeeConfigs
     | FeeQuoter_UpdateDestChainConfigs
     | FeeQuoter_GetValidatedFee<cell>; // marked as cell since we never attempt to load the metadata
-
-
 
 struct (0x20000001) FeeQuoter_UpdatePrices {
     updates: PriceUpdates    

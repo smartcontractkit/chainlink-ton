@@ -47,7 +47,7 @@ describe('MCMS - RBACTimelockConstructorTest', () => {
       to: baseTest.bind.timelock.address,
       deploy: false,
       success: false,
-      exitCode: rbactl.Errors.ContractAlreadyInitialized,
+      exitCode: rbactl.Error.ContractAlreadyInitialized,
     })
   })
 

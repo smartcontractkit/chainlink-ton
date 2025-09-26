@@ -1,4 +1,4 @@
-tolk 1.0
+tolk 1.1
 
 import "@stdlib/common.tolk"
 import "../lib/upgrades/type_and_version.tolk"

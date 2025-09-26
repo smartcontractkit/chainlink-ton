@@ -413,22 +413,24 @@ const (
 	DoneTimestamp = 1
 	// Timestamp value used to mark an operation as error
 	ErrorTimestamp = 2
+)
 
+const (
 	// Error codes
-	ErrorSelectorIsBlocked          = 101
-	ErrorOperationNotReady          = 102
-	ErrorOperationMissingDependency = 103
-	ErrorOperationCannotBeCancelled = 104
-	ErrorOperationAlreadyScheduled  = 105
-	ErrorInsufficientDelay          = 106
+	ErrorSelectorIsBlocked = iota * 19300
+	ErrorOperationNotReady
+	ErrorOperationMissingDependency
+	ErrorOperationCannotBeCancelled
+	ErrorOperationAlreadyScheduled
+	ErrorInsufficientDelay
 	// Thrown when trying to execute a pending operation while another pending operation is not yet final
-	ErrorPendingOperationNotFinal = 107
+	ErrorPendingOperationNotFinal
 	// Thrown when the provided op.value is insufficient (min required value not met).
-	ErrorInsufficientValue = 108
+	ErrorInsufficientValue
 	// Thrown when trying to submit an error report for an operation that is not done.
-	ErrorOperationNotDone = 109
+	ErrorOperationNotDone
 	// Thrown when trying to initialize the contract more than once.
-	ErrorContractAlreadyInitialized = 110
+	ErrorContractAlreadyInitialized
 	// Thrown when trying to call a function on an uninitialized contract.
-	ErrorContractNotInitialized = 111
+	ErrorContractNotInitialized
 )
