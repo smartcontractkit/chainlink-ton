@@ -352,7 +352,7 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: Fee
         if (a32ByteAddress.fromSlice(message.receiver).value == 0) {
             // When message receiver is zero, CCIP receiver is not invoked on SUI.
             // There should not be additional accounts specified for the receiver.
-            assert (receiverObjectIdsLength > 0) throw ERROR_INVALID_SUI_RECEIVER_ADDRESS;
+            assert (receiverObjectIdsLength == 0) throw ERROR_INVALID_SUI_RECEIVER_ADDRESS;
         } else {
             // The messaging accounts needed for CCIP receiver on SUI are:
             // message receiver,
