@@ -169,7 +169,7 @@ func (lp *service) loadTxsForAddresses(ctx context.Context, blockRange *models.B
 
 			txsIn, errsIn, err := lp.loader.LoadTxsForAddress(ctx, blockRange, a)
 			if err != nil {
-				lp.lggr.Warnw("Loader setup failed for address, skipping", "address", a.String(), "err", err)
+				lp.lggr.Warnf("Loader setup failed for address, skipping: %s, err: %v", a.String(), err)
 				errsOut <- err // propagate the error to the caller
 				return
 			}
@@ -189,7 +189,7 @@ func (lp *service) loadTxsForAddresses(ctx context.Context, blockRange *models.B
 					if !ok {
 						continue
 					}
-					lp.lggr.Warnw("Loader stream failed for address, skipping", a.String(), "err", err)
+					lp.lggr.Warnf("Loader stream failed for address, skipping: %s, err: %v", a.String(), err)
 					errsOut <- err
 				case <-ctx.Done():
 					return

@@ -6,8 +6,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
 	"github.com/xssnick/tonutils-go/ton"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
 )
 
 // getMasterchainBlockRange calculates the range of blocks that need to be processed.

@@ -124,23 +124,6 @@ func NewTxLTSort(direction commonquery.SortDirection) commonquery.SortBy {
 	}
 }
 
-// NewMasterBlockSort creates a sort by master block sequence number.
-func NewMasterBlockSort(direction commonquery.SortDirection) commonquery.SortBy {
-	return &FieldSort{
-		field:     "master_block_seqno",
-		direction: direction,
-		compareFn: func(log1, log2 models.Log) int {
-			if log1.MasterBlockSeqno < log2.MasterBlockSeqno {
-				return -1
-			}
-			if log1.MasterBlockSeqno > log2.MasterBlockSeqno {
-				return 1
-			}
-			return 0
-		},
-	}
-}
-
 // NewTimestampSort creates a sort by transaction timestamp.
 func NewTimestampSort(direction commonquery.SortDirection) commonquery.SortBy {
 	return &FieldSort{

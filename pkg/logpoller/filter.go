@@ -4,8 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
 	"github.com/xssnick/tonutils-go/address"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
 )
 
 // BuildFilterIndex creates a filter index for efficient lookup during processing.

@@ -120,12 +120,6 @@ func (p *txProcessor) processMessage(tx *tlb.Transaction, block *ton.BlockIDExt,
 		EventSig: eventSig,
 	}
 
-	p.lggr.Tracew("looking for filter match",
-		"address", srcAddr.String(),
-		"msgType", msg.MsgType,
-		"eventSig", eventSig,
-		"filterKey", filterKey)
-
 	// Find matching filters using Equal method
 	var filterIDs []int64
 	for key, ids := range filterIndex {
@@ -134,7 +128,6 @@ func (p *txProcessor) processMessage(tx *tlb.Transaction, block *ton.BlockIDExt,
 			break
 		}
 	}
-	p.lggr.Tracew("filter lookup result", "matchingFilters", len(filterIDs), "filterIDs", filterIDs)
 
 	if len(filterIDs) == 0 {
 		return []models.Log{}, nil // no matching filters found
@@ -170,22 +163,6 @@ func (p *txProcessor) processMessage(tx *tlb.Transaction, block *ton.BlockIDExt,
 	return logs, nil
 }
 
-func (p *txProcessor) extractMsgLT(msg *tlb.Message) (uint64, error) {
-	switch msg.MsgType {
-	default:
-		return 0, fmt.Errorf("unsupported message type: %v", msg.MsgType)
-	case tlb.MsgTypeInternal:
-		if internal := msg.AsInternal(); internal != nil {
-			return internal.CreatedLT, nil
-		}
-	case tlb.MsgTypeExternalOut:
-		if extOut := msg.AsExternalOut(); extOut != nil {
-			return extOut.CreatedLT, nil
-		}
-	}
-	return 0, fmt.Errorf("unsupported message type: %v", msg.MsgType)
-}
-
 func (p *txProcessor) extractEventSigAndBody(msg *tlb.Message) (eventSig uint32, body *cell.Cell, err error) {
 	switch msg.MsgType {
 	default:
@@ -203,4 +180,20 @@ func (p *txProcessor) extractEventSigAndBody(msg *tlb.Message) (eventSig uint32,
 		}
 		return eventSig, body, nil
 	}
+}
+
+func (p *txProcessor) extractMsgLT(msg *tlb.Message) (uint64, error) {
+	switch msg.MsgType {
+	default:
+		return 0, fmt.Errorf("unsupported message type: %v", msg.MsgType)
+	case tlb.MsgTypeInternal:
+		if internal := msg.AsInternal(); internal != nil {
+			return internal.CreatedLT, nil
+		}
+	case tlb.MsgTypeExternalOut:
+		if extOut := msg.AsExternalOut(); extOut != nil {
+			return extOut.CreatedLT, nil
+		}
+	}
+	return 0, fmt.Errorf("unsupported message type: %v", msg.MsgType)
 }
