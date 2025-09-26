@@ -14,7 +14,7 @@ import {
 
 import * as ownable2step from '../libraries/access/Ownable2Step'
 import { CellCodec } from '../utils'
-import {asSnakeData, asSnakeDataUint, fromSnakeData} from '../../src/utils'
+import { asSnakeData, asSnakeDataUint, fromSnakeData } from '../../src/utils'
 
 export type Storage = {
   ownable: ownable2step.Data
