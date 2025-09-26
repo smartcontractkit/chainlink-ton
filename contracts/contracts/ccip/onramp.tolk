@@ -9,6 +9,8 @@ import "ccipsend_executor/messages"
 import "../lib/jetton/messages"
 import "../lib/jetton/messages_extended"
 
+const CONTRACT_VERSION = "0.0.1";
+
 const CCIP_MESSAGE_SENT_TOPIC: int = stringCrc32("CCIPMessageSent"); 
 
 struct CCIPMessageSent {
@@ -381,5 +383,5 @@ fun withdrawFeeTokens() {
 }
 
 get fun typeAndVersion(): (slice, slice) {
-     return ("com.chainlink.ton.ccip.OnRamp", "0.0.1");
+     return ("com.chainlink.ton.ccip.OnRamp", CONTRACT_VERSION);
  }

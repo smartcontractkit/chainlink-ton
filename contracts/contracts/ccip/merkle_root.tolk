@@ -3,6 +3,8 @@ import "../lib/upgrades/type_and_version.tolk";
 import "../deployable/types.tolk";
 import "../lib/utils.tolk";
 
+const CONTRACT_VERSION = "0.0.1";
+
 // State stores the general state machine indicating which phase we're in
 // TODO: we might be able to merge this into execution_states
 const STATE_UNTOUCHED: uint8 = 0;
@@ -176,5 +178,5 @@ fun _execute(st: MerkleRoot_Storage, mesage: Any2TVMRampMessage) {
 // IDEA: we could incentivise receivers to call back on success by sharing the rent refund
 
 get fun typeAndVersion(): (slice, slice) {
-     return ("com.chainlink.ton.ccip.MerkleRoot", "1.0.0");
+     return ("com.chainlink.ton.ccip.MerkleRoot", CONTRACT_VERSION);
  }

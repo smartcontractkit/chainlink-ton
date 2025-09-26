@@ -4,6 +4,8 @@ import "../lib/utils";
 import "../lib/access/ownable_2step.tolk";
 import "../lib/crypto/merkle_proof.tolk";
 
+const CONTRACT_VERSION = "0.0.1";
+
 /// This is a multi-sig contract that supports signing many transactions (called "ops" in
 /// the context of this contract to prevent confusion with transactions on the underlying chain)
 /// targeting many chains with a single set of signatures. Authorized ops along with some metadata
@@ -1392,7 +1394,7 @@ fun onBouncedMessage(in: InMessageBounced) {
 // --- Getters ---
 
 get fun typeAndVersion(): (slice, slice) {
-     return ("com.chainlink.ton.mcms.MCMS", "1.0.0");
+     return ("com.chainlink.ton.mcms.MCMS", CONTRACT_VERSION);
 }
 
 /// @see <MCMS<T>.getId>

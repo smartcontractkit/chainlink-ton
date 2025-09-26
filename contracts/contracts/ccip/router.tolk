@@ -6,6 +6,8 @@ import "../lib/utils.tolk";
 import "../lib/jetton/messages"
 import "../lib/jetton/messages_extended"
 
+const CONTRACT_VERSION = "0.0.1";
+
 struct Storage {
     id: uint32;
     ownable: Ownable2Step;
@@ -119,8 +121,8 @@ fun ccipSend(msg: CCIPSend, sender: address) {
 }
 
 get fun typeAndVersion(): (slice, slice) {
-     return ("com.chainlink.ton.ccip.Router", "0.0.1");
- }
+    return ("com.chainlink.ton.ccip.Router", CONTRACT_VERSION);
+}
 
 get fun onRamp(destChainSelector: uint64): address {
     val st = lazy Storage.load();
