@@ -5,6 +5,8 @@ import "../lib/upgrades/type_and_version.tolk"
 import "../lib/utils.tolk"
 import "../lib/access/ownable_2step.tolk"
 
+const CONTRACT_VERSION = "0.0.1";
+
 /// Counter contract + event emission (Tolk example)
 /// Message to set the counter value.
 struct (0x00000004) SetCount {
@@ -155,6 +157,6 @@ get fun value(): int {
 
 /// Gets the current type and version of the contract.
 get fun typeAndVersion(): (slice, slice) {
-    return TypeAndVersion { typeStr: "com.chainlink.ton.examples.Counter", versionStr: "1.1.0" }
+    return TypeAndVersion { typeStr: "com.chainlink.ton.examples.Counter", versionStr: CONTRACT_VERSION }
         .typeAndVersion();
 }

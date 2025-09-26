@@ -6,6 +6,8 @@ import "../../lib/upgrades/type_and_version";
 import "../../lib/utils";
 import "messages"
 
+const CONTRACT_VERSION = "0.0.1";
+
 const VAL_1E5:  uint256 = 100000;
 const VAL_1E14: uint256 = 100000000000000;
 const VAL_1E16: uint256 = 10000000000000000;
@@ -417,7 +419,7 @@ get fun staticConfig(): (uint96, address, uint64) {
 }
 
 get fun typeAndVersion(): (slice, slice) {
-     return ("com.chainlink.ton.ccip.FeeQuoter", "0.0.1");
+    return ("com.chainlink.ton.ccip.FeeQuoter", CONTRACT_VERSION);
 }
 
 get fun destChainSelectors(): tuple {

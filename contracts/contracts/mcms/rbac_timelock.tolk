@@ -5,6 +5,8 @@ import "@stdlib/tvm-dicts";
 import "../lib/utils";
 import "../lib/access/access_control";
 
+const CONTRACT_VERSION = "0.0.1";
+
 /**
  * Contract module which acts as a timelocked controller with role-based
  * access control. When set as the owner of an `Ownable` smart contract, it
@@ -1367,7 +1369,7 @@ fun Timelock<T>.hookTrait__AccessControl(self): AccessControl<T>{
 // --- Getters ---
 
 get fun typeAndVersion(): (slice, slice) {
-     return ("com.chainlink.ton.mcms.Timelock", "1.0.0");
+    return ("com.chainlink.ton.mcms.Timelock", CONTRACT_VERSION);
 }
 
 /// @see <Timelock<T>.getId>

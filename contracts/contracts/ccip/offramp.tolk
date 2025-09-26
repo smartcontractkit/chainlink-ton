@@ -8,6 +8,8 @@ import "../lib/upgrades/type_and_version.tolk"
 import "../lib/utils.tolk"
 import "fee_quoter/messages"
 
+const CONTRACT_VERSION = "0.0.1";
+
 struct Storage {
     id: uint32;
     ownable: Ownable2Step;
@@ -551,5 +553,5 @@ get fun allSourceChainConfigs(): map<uint64, SourceChainConfig> {
 fun applySourceChainConfigUpdates() {}
 
 get fun typeAndVersion(): (slice, slice) {
-     return ("com.chainlink.ton.ccip.OffRamp", "0.0.1");
- }
+    return ("com.chainlink.ton.ccip.OffRamp", CONTRACT_VERSION);
+}
