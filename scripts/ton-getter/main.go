@@ -22,9 +22,9 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/chain"
 )
 
-// TON Testnet liteserver configuration
-// These are official TON testnet liteservers
-var testnetLiteservers = []string{
+// TON RPC liteserver configuration
+// These are official TON RPC liteservers
+var RPCLiteservers = []string{
 	"liteserver://sU7QavX2F964iI9oToP9gffQpCQIoOLppeqL/pdPvpM=@822907680:27842",
 }
 
@@ -76,10 +76,10 @@ func main() {
 
 	ctx := context.Background()
 
-	// Connect to TON testnet
-	client, err := connectToTestnet(ctx, config.LiteserverURL)
+	// Connect to TON RPC
+	client, err := connectToRPC(ctx, config.LiteserverURL)
 	if err != nil {
-		log.Fatalf("Failed to connect to TON testnet: %v", err)
+		log.Fatalf("Failed to connect to TON RPC: %v", err)
 	}
 
 	// Parse contract address
@@ -123,7 +123,7 @@ func main() {
 func parseFlags() (*Config, error) {
 	var (
 		contractAddress = flag.String("address", "", "Contract address (required)")
-		liteserverURL   = flag.String("liteserver", "", "Custom liteserver URL (optional, uses default testnet servers)")
+		liteserverURL   = flag.String("liteserver", "", "Custom liteserver URL (optional, uses default RPC servers)")
 	)
 	flag.Parse()
 
@@ -139,7 +139,7 @@ func parseFlags() (*Config, error) {
 	return config, nil
 }
 
-func connectToTestnet(ctx context.Context, customLiteserver string) (*ton.APIClient, error) {
+func connectToRPC(ctx context.Context, customLiteserver string) (*ton.APIClient, error) {
 	pool := liteclient.NewConnectionPool()
 
 	if customLiteserver != "" {
@@ -150,8 +150,8 @@ func connectToTestnet(ctx context.Context, customLiteserver string) (*ton.APICli
 		}
 		pool = connectionPool
 	} else {
-		// Use default testnet liteservers
-		for i, liteserverURL := range testnetLiteservers {
+		// Use default RPC liteservers
+		for i, liteserverURL := range RPCLiteservers {
 			connectionPool, err := chain.CreateLiteserverConnectionPool(ctx, liteserverURL)
 			if err != nil {
 				log.Printf("Warning: failed to connect to liteserver %d (%s): %v", i+1, liteserverURL, err)
@@ -170,7 +170,7 @@ func connectToTestnet(ctx context.Context, customLiteserver string) (*ton.APICli
 		return nil, fmt.Errorf("failed to get masterchain info: %w", err)
 	}
 
-	fmt.Println("Successfully connected to TON testnet")
+	fmt.Println("Successfully connected to TON RPC")
 	return client, nil
 }
 
