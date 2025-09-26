@@ -16,6 +16,7 @@ struct CCIPMessageSent {
 }
 
 struct OnRamp_Storage {
+    id: uint32;
     ownable: Ownable2Step;
 
     // static config
@@ -380,5 +381,5 @@ fun withdrawFeeTokens() {
 }
 
 get fun typeAndVersion(): (slice, slice) {
-     return ("com.chainlink.ton.ccip.OnRamp", "1.0.0");
+     return ("com.chainlink.ton.ccip.OnRamp", "0.0.1");
  }

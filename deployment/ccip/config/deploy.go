@@ -38,6 +38,7 @@ type FeeToken struct {
 }
 
 type FeeQuoterParams struct {
+	ID                           uint32
 	MaxFeeJuelsPerMsg            *big.Int
 	TokenPriceStalenessThreshold uint64
 	FeeTokens                    map[TokenSymbol]FeeToken
@@ -57,6 +58,7 @@ func (f FeeQuoterParams) Validate() error {
 }
 
 type OffRampParams struct {
+	ID                               uint32
 	ChainSelector                    uint64
 	PermissionlessExecutionThreshold uint32
 }
@@ -72,6 +74,7 @@ func (o OffRampParams) Validate() error {
 }
 
 type OnRampParams struct {
+	ID             uint32
 	ChainSelector  uint64
 	AllowlistAdmin *address.Address
 	FeeAggregator  *address.Address

@@ -6,10 +6,11 @@ import (
 	"fmt"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
+
+	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/utils"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
@@ -19,6 +20,7 @@ import (
 )
 
 type DeployOffRampInput struct {
+	ID                                      uint32
 	ChainSelector                           uint64
 	FeeQuoter                               *address.Address
 	PermissionlessExecutionThresholdSeconds uint32
@@ -49,7 +51,7 @@ func deployOffRamp(b operations.Bundle, deps TonDeps, in DeployOffRampInput) (De
 	conn := tracetracking.NewSignedAPIClient(deps.TonChain.Client, *deps.TonChain.Wallet)
 
 	storage := offramp.Storage{
-		ID: 0,
+		ID: in.ID,
 		Ownable: common.Ownable2Step{
 			Owner:        deps.TonChain.WalletAddress,
 			PendingOwner: nil,
