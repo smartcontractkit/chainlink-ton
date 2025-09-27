@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/big"
 	"strings"
@@ -15,6 +16,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 	"github.com/stretchr/testify/require"
 	tonaddress "github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
@@ -93,7 +95,7 @@ func sendCCIPFromTon(t *testing.T, ctx context.Context, api *ton.APIClient, w *w
 			IHRDisabled: true,
 			Bounce:      true,
 			DstAddr:     routerAddr,
-			Amount:      tlb.MustFromTON("1.0"), // TODO: adjust
+			Amount:      tlb.MustFromTON("0.1"), // TODO: adjust
 			Body:        messageBody,
 		},
 	}
@@ -102,13 +104,66 @@ func sendCCIPFromTon(t *testing.T, ctx context.Context, api *ton.APIClient, w *w
 	receivedMsg, _, err := tt.SendWaitTransaction(ctx, *routerAddr, msg)
 	require.NoError(t, err, "send transaction failed")
 
-	require.Equal(t, uint32(0), receivedMsg.ExitCode, "router execution failed")
+	require.Equal(t, tvm.ExitCode(0), receivedMsg.ExitCode, "router execution failed")
 
 	err = receivedMsg.WaitForTrace(api)
 	require.NoError(t, err, "trace wait failed")
 
-	//TODO: Parse sequence number from CCIPMessageSent event
-	return 0, fmt.Sprintf("%x", receivedMsg.TxHash)
+	// Parse sequence number from CCIPMessageSent event
+	sequenceNumber, err := extractSequenceFromCCIPMessageSent(receivedMsg)
+	require.NoError(t, err, "failed to extract sequence number from CCIPMessageSent event")
+
+	t.Logf("CCIP message sent: sequence=%d tonTxHash=%x", sequenceNumber, receivedMsg.TxHash)
+
+	return sequenceNumber, fmt.Sprintf("%x", receivedMsg.TxHash)
+}
+
+// extractSequenceFromCCIPMessageSent extracts the sequence number from the CCIPMessageSent event
+// by parsing the outgoing external messages in the transaction trace.
+func extractSequenceFromCCIPMessageSent(msg *tracetracking.ReceivedMessage) (uint64, error) {
+	if msg == nil {
+		return 0, errors.New("received message is nil")
+	}
+
+	// Collect all messages to process in a queue
+	var messagesToProcess []*tracetracking.ReceivedMessage
+	messagesToProcess = append(messagesToProcess, msg)
+
+	var lastMsg *tracetracking.ReceivedMessage
+
+	// Process messages iteratively to find the one with external messages
+	for len(messagesToProcess) > 0 {
+		// Get the first message from the queue
+		currentMsg := messagesToProcess[0]
+		messagesToProcess = messagesToProcess[1:]
+
+		if len(currentMsg.OutgoingInternalReceivedMessages) == 0 {
+			continue
+		}
+
+		for _, outMsg := range currentMsg.OutgoingInternalReceivedMessages {
+			if outMsg.ExitCode != 0 || !outMsg.Success {
+				continue // Skip failed messages
+			}
+
+			// Add this message to the queue for further processing
+			messagesToProcess = append(messagesToProcess, outMsg)
+			lastMsg = outMsg
+		}
+	}
+
+	if lastMsg == nil || len(lastMsg.OutgoingExternalMessages) == 0 {
+		return 0, errors.New("no outgoing external messages found")
+	}
+
+	// Parse the CCIPMessageSent event from the external message body
+	var event onramp.CCIPMessageSent
+	err := tlb.LoadFromCell(&event, lastMsg.OutgoingExternalMessages[0].Body.BeginParse())
+	if err != nil {
+		return 0, fmt.Errorf("failed to parse CCIPMessageSent from cell: %w", err)
+	}
+
+	return event.Message.Header.SequenceNumber, nil
 }
 
 // waitForMessageReceived polls for MessageReceived events and validates the payload

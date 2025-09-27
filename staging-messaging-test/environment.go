@@ -52,14 +52,17 @@ func setupTestEnvironment(t *testing.T, ctx context.Context) *TestEnvironment {
 	walletSeedPhrase := os.Getenv("TON_SENDER_WALLET_SEED_PHRASE")
 	require.NotEmpty(t, walletSeedPhrase, "TON_SENDER_WALLET_SEED_PHRASE not set")
 
-	w, err := wallet.FromSeed(api, strings.Fields(walletSeedPhrase), wallet.V5R1Final)
+	w, err := wallet.FromSeed(api, strings.Fields(walletSeedPhrase), wallet.V3R2)
+
 	require.NoError(t, err, "wallet init failed")
+	t.Log(w)
 
 	mc, err := api.CurrentMasterchainInfo(ctx)
 	require.NoError(t, err, "Failed to get masterchain info")
 
 	balance, err := w.GetBalance(ctx, mc)
 	require.NoError(t, err, "Failed to get wallet balance")
+	t.Logf("Wallet address: %s", w.Address().String())
 	t.Logf("Wallet balance: %s", balance.String())
 
 	ethClient := getEthClient(t)
@@ -89,7 +92,7 @@ func getEthClient(t *testing.T) *ethclient.Client {
 func getAPIClient(t *testing.T) *ton.APIClient {
 	// Connect to TON testnet
 	client := liteclient.NewConnectionPool()
-	cfg, err := liteclient.GetConfigFromUrl(context.Background(), "https://ton-blockchain.github.io/global.config.json")
+	cfg, err := liteclient.GetConfigFromUrl(context.Background(), "https://ton.org/testnet-global.config.json")
 	if err != nil {
 		t.Fatalf("Failed to get testnet config: %v", err)
 	}
