@@ -1,0 +1,24 @@
+name: Staging TON2EVM messaging test 
+
+on:
+  schedule:
+    # Runs at minute 0, 15, 30, and 45 of every hour
+    - cron: "*/15 * * * *"
+
+jobs:
+  half_hour_job:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Run TON2EVM messaging test
+        env:
+          TON_ROUTER_ADDRESS: ${{ secrets.STAGING_TON_ROUTER_ADDRESS }}
+          EVM_DEST_CHAIN_SELECTOR: ${{ secrets.STAGING_SEPOLIA_DEST_CHAIN_SELECTOR }}
+          EVM_RECEIVER_ADDRESS: ${{ secrets.STAGING_EVM_RECEIVER_ADDRESS }}
+          CCIP_MESSAGE: "hello-ton->evm-${{ github.run_id }}"
+          TON_SENDER_WALLET_SEED_PHRASEL: ${{ secrets.STAGING_TEST_SENDER_WALLET_SEED }}
+          SEPOLIA_RPC_URL: ${{ secrets.SEPOLIA_RPC_URL }}
+
+        run: echo "TON 2 EVM staging messaging test"

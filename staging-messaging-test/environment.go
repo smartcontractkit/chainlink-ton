@@ -53,9 +53,7 @@ func setupTestEnvironment(t *testing.T, ctx context.Context) *TestEnvironment {
 	require.NotEmpty(t, walletSeedPhrase, "TON_SENDER_WALLET_SEED_PHRASE not set")
 
 	w, err := wallet.FromSeed(api, strings.Fields(walletSeedPhrase), wallet.V3R2)
-
 	require.NoError(t, err, "wallet init failed")
-	t.Log(w)
 
 	mc, err := api.CurrentMasterchainInfo(ctx)
 	require.NoError(t, err, "Failed to get masterchain info")
@@ -82,7 +80,7 @@ func setupTestEnvironment(t *testing.T, ctx context.Context) *TestEnvironment {
 func getEthClient(t *testing.T) *ethclient.Client {
 	rpc := os.Getenv("SEPOLIA_RPC_URL")
 	if rpc == "" {
-		rpc = "https://rpc.sepolia.org" //TODO: Should be arbitrum sepolia??
+		rpc = "https://ethereum-sepolia-rpc.publicnode.com"
 	}
 	c, err := ethclient.Dial(rpc)
 	require.NoError(t, err, "failed to connect sepolia rpc")
@@ -90,7 +88,6 @@ func getEthClient(t *testing.T) *ethclient.Client {
 }
 
 func getAPIClient(t *testing.T) *ton.APIClient {
-	// Connect to TON testnet
 	client := liteclient.NewConnectionPool()
 	cfg, err := liteclient.GetConfigFromUrl(context.Background(), "https://ton.org/testnet-global.config.json")
 	if err != nil {
@@ -102,7 +99,6 @@ func getAPIClient(t *testing.T) *ton.APIClient {
 		t.Fatalf("Failed to connect to TON network: %v", err)
 	}
 
-	// Initialize TON API client
 	api := ton.NewAPIClient(client)
 	return api
 }

@@ -18,6 +18,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 	"github.com/stretchr/testify/require"
+	"github.com/xssnick/tonutils-go/address"
 	tonaddress "github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
@@ -64,12 +65,9 @@ func Test_StagingMessagingTest(t *testing.T) {
 	t.Log("Test passed: message observed on receiver")
 }
 
-func sendCCIPFromTon(t *testing.T, ctx context.Context, api *ton.APIClient, w *wallet.Wallet, routerAddr *tonaddress.Address,
-	destSelector uint64, receiverBytes, data []byte) (uint64, string) {
-
-	// Create ExtraArgs for EVM destination
+func sendCCIPFromTon(t *testing.T, ctx context.Context, api *ton.APIClient, w *wallet.Wallet, routerAddr *tonaddress.Address, destSelector uint64, receiverBytes, data []byte) (uint64, string) {
 	extraArgs := onramp.GenericExtraArgsV2{
-		GasLimit:                 big.NewInt(200000), // 200k gas limit
+		GasLimit:                 big.NewInt(200000),
 		AllowOutOfOrderExecution: false,
 	}
 
@@ -82,7 +80,7 @@ func sendCCIPFromTon(t *testing.T, ctx context.Context, api *ton.APIClient, w *w
 		Receiver:          receiverBytes,
 		Data:              data,
 		TokenAmounts:      nil,
-		FeeToken:          nil,
+		FeeToken:          address.MustParseRawAddr("0:0000000000000000000000000000000000000000000000000000000000000001"),
 		ExtraArgs:         extraArgsCell,
 	}
 
@@ -95,7 +93,7 @@ func sendCCIPFromTon(t *testing.T, ctx context.Context, api *ton.APIClient, w *w
 			IHRDisabled: true,
 			Bounce:      true,
 			DstAddr:     routerAddr,
-			Amount:      tlb.MustFromTON("0.1"), // TODO: adjust
+			Amount:      tlb.MustFromTON("0.1"), 
 			Body:        messageBody,
 		},
 	}
@@ -109,7 +107,6 @@ func sendCCIPFromTon(t *testing.T, ctx context.Context, api *ton.APIClient, w *w
 	err = receivedMsg.WaitForTrace(api)
 	require.NoError(t, err, "trace wait failed")
 
-	// Parse sequence number from CCIPMessageSent event
 	sequenceNumber, err := extractSequenceFromCCIPMessageSent(receivedMsg)
 	require.NoError(t, err, "failed to extract sequence number from CCIPMessageSent event")
 
@@ -118,22 +115,17 @@ func sendCCIPFromTon(t *testing.T, ctx context.Context, api *ton.APIClient, w *w
 	return sequenceNumber, fmt.Sprintf("%x", receivedMsg.TxHash)
 }
 
-// extractSequenceFromCCIPMessageSent extracts the sequence number from the CCIPMessageSent event
-// by parsing the outgoing external messages in the transaction trace.
 func extractSequenceFromCCIPMessageSent(msg *tracetracking.ReceivedMessage) (uint64, error) {
 	if msg == nil {
 		return 0, errors.New("received message is nil")
 	}
 
-	// Collect all messages to process in a queue
 	var messagesToProcess []*tracetracking.ReceivedMessage
 	messagesToProcess = append(messagesToProcess, msg)
 
 	var lastMsg *tracetracking.ReceivedMessage
 
-	// Process messages iteratively to find the one with external messages
 	for len(messagesToProcess) > 0 {
-		// Get the first message from the queue
 		currentMsg := messagesToProcess[0]
 		messagesToProcess = messagesToProcess[1:]
 
@@ -143,10 +135,9 @@ func extractSequenceFromCCIPMessageSent(msg *tracetracking.ReceivedMessage) (uin
 
 		for _, outMsg := range currentMsg.OutgoingInternalReceivedMessages {
 			if outMsg.ExitCode != 0 || !outMsg.Success {
-				continue // Skip failed messages
+				continue
 			}
 
-			// Add this message to the queue for further processing
 			messagesToProcess = append(messagesToProcess, outMsg)
 			lastMsg = outMsg
 		}
@@ -156,7 +147,6 @@ func extractSequenceFromCCIPMessageSent(msg *tracetracking.ReceivedMessage) (uin
 		return 0, errors.New("no outgoing external messages found")
 	}
 
-	// Parse the CCIPMessageSent event from the external message body
 	var event onramp.CCIPMessageSent
 	err := tlb.LoadFromCell(&event, lastMsg.OutgoingExternalMessages[0].Body.BeginParse())
 	if err != nil {
@@ -166,8 +156,14 @@ func extractSequenceFromCCIPMessageSent(msg *tracetracking.ReceivedMessage) (uin
 	return event.Message.Header.SequenceNumber, nil
 }
 
-// waitForMessageReceived polls for MessageReceived events and validates the payload
-func waitForMessageReceived(ctx context.Context, t *testing.T, ethClient *ethclient.Client, receiver ethcommon.Address, fromBlock uint64, expectedPayload string) {
+func waitForMessageReceived(
+	ctx context.Context,
+	t *testing.T,
+	ethClient *ethclient.Client,
+	receiver ethcommon.Address,
+	fromBlock uint64,
+	expectedPayload string,
+) {
 	parsedABI, err := abi.JSON(strings.NewReader(messageReceivedEventABI))
 	require.NoError(t, err, "parse abi")
 	ev, ok := parsedABI.Events["MessageReceived"]
@@ -186,6 +182,9 @@ func waitForMessageReceived(ctx context.Context, t *testing.T, ethClient *ethcli
 		DestTokenAmounts    []TokenAmount
 	}
 
+	start := fromBlock
+	const span uint64 = 20
+
 	ticker := time.NewTicker(4 * time.Second)
 	defer ticker.Stop()
 
@@ -193,17 +192,48 @@ func waitForMessageReceived(ctx context.Context, t *testing.T, ethClient *ethcli
 		select {
 		case <-ctx.Done():
 			t.Fatalf("timeout waiting for MessageReceived event: %v", ctx.Err())
+
 		case <-ticker.C:
+			head, err := ethClient.BlockNumber(ctx)
+			if err != nil {
+				t.Logf("BlockNumber error: %v", err)
+				continue
+			}
+
+			if start > head {
+				t.Logf("Head=%d is behind start=%d; waiting...", head, start)
+				continue
+			}
+
+			toU64 := start + span - 1
+			if toU64 > head {
+				toU64 = head
+			}
+
+			from := new(big.Int).SetUint64(start)
+			to := new(big.Int).SetUint64(toU64)
+
 			q := ethereum.FilterQuery{
-				FromBlock: big.NewInt(int64(fromBlock)),
+				FromBlock: from,
+				ToBlock:   to,
 				Addresses: []ethcommon.Address{receiver},
 				Topics:    [][]ethcommon.Hash{{topic}},
 			}
+			t.Logf("Querying logs from block %d to %d", q.FromBlock.Uint64(), q.ToBlock.Uint64())
+
 			logs, err := ethClient.FilterLogs(ctx, q)
 			if err != nil {
+				t.Logf("FilterLogs error: %v", err)
 				continue
 			}
+
+			nextStart := toU64 + 1
+
 			for _, lg := range logs {
+				if lg.BlockNumber+1 > nextStart {
+					nextStart = lg.BlockNumber + 1
+				}
+
 				var decoded Event
 				if err := parsedABI.UnpackIntoInterface(&decoded, "MessageReceived", lg.Data); err != nil {
 					continue
@@ -213,6 +243,8 @@ func waitForMessageReceived(ctx context.Context, t *testing.T, ethClient *ethcli
 					decoded.MessageId, decoded.SourceChainSelector, len(decoded.Data), len(decoded.DestTokenAmounts), lg.BlockNumber)
 				return
 			}
+
+			start = nextStart
 		}
 	}
 }
