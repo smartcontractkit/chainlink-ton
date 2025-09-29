@@ -265,7 +265,7 @@ func (a *TONAccessor) LatestMessageTo(ctx context.Context, dest ccipocr3.ChainSe
 		SkipBytes(40). // Skip to DestChainSelector
 		FilterBytes(8, query.EQ(binary.BigEndian.AppendUint64(nil, uint64(dest)))).
 		OrderBy(query.SortByTxLT, query.DESC). // sort by transaction LT new to old
-		Limit(1). // only get the last one
+		Limit(1).                              // only get the last one
 		Execute(ctx, a.logPoller.GetStore())
 
 	if err != nil {
@@ -640,27 +640,33 @@ func (a *TONAccessor) Nonces(ctx context.Context, query map[ccipocr3.ChainSelect
 
 func (a *TONAccessor) GetChainFeePriceUpdate(ctx context.Context, selectors []ccipocr3.ChainSelector) (map[ccipocr3.ChainSelector]ccipocr3.TimestampedUnixBig, error) {
 	a.lggr.Debugf("TON:GetChainFeePriceUpdate, for %d selectors", len(selectors))
+
+	// initialize the map with default values for all selectors
+	prices := make(map[ccipocr3.ChainSelector]ccipocr3.TimestampedUnixBig, len(selectors))
+	for _, selector := range selectors {
+		prices[selector] = ccipocr3.TimestampedUnixBig{
+			Timestamp: 0,
+			Value:     big.NewInt(0),
+		}
+	}
+
 	addr, err := a.getBinding(consts.ContractNameFeeQuoter)
 	if err != nil {
 		a.lggr.Warnw("failed to get fee quoter binding", "err", err)
-		return make(map[ccipocr3.ChainSelector]ccipocr3.TimestampedUnixBig), nil // return a new empty map
+		return prices, nil // return map with default values
 	}
 	block, err := a.client.CurrentMasterchainInfo(ctx)
 	if err != nil {
 		a.lggr.Warnw("failed to get current block", "err", err)
-		return make(map[ccipocr3.ChainSelector]ccipocr3.TimestampedUnixBig), nil // return a new empty map
+		return prices, nil // return map with default values
 	}
 
 	a.lggr.Debugf("TON: about to query destinationChainGasPrice, for %d selectors", len(selectors))
-	prices := make(map[ccipocr3.ChainSelector]ccipocr3.TimestampedUnixBig, len(selectors))
 	for _, selector := range selectors {
 		result, err := a.client.RunGetMethod(ctx, block, addr, "destinationChainGasPrice", uint64(selector))
 		// The plugin is built with EVM behaviour in mind: if a value doesn't exist the zero value is returned
 		if execError, ok := err.(ton.ContractExecError); ok && execError.Code == common.ErrUnknownDestChainSelector { //nolint:errorlint // we're guaranteed to get unwrapped error here
-			prices[selector] = ccipocr3.TimestampedUnixBig{
-				Timestamp: 0,
-				Value:     big.NewInt(0),
-			}
+			// skip setting default value since it's already set during initialization
 			continue
 		}
 		if err != nil {
@@ -677,8 +683,7 @@ func (a *TONAccessor) GetChainFeePriceUpdate(ctx context.Context, selectors []cc
 		// HACK: we read the value as Timestamped since the binary layout is compatible, so that we match TimestampedBig (two values packed together)
 		var update feequoter.TimestampedPrice
 		if err := tlb.LoadFromCell(&update, value.BeginParse()); err != nil {
-			a.lggr.Errorw("failed to unmarshal TimestampedPrice, continuing with other selectors", "selector", selector, "err", err)
-			continue
+			return nil, fmt.Errorf("failed to decode TimestampedPrice, potentially unsynced gobindings: %w", err)
 		}
 
 		a.lggr.Debugw("TON:GetChainFeePriceUpdate added price for selector", "selector", selector, "value", update.Value, "timestamp", update.Timestamp)
