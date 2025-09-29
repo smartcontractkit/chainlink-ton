@@ -26,15 +26,18 @@ jobs:
         with:
           nix_path: nixpkgs=channel:nixos-unstable
 
+
       - name: Run TON2EVM messaging test
         run: |
           pushd staging-messaging-test
-          nix develop -c env \
-            TON_ROUTER_ADDRESS=${{ secrets.STAGING_TON_ROUTER_ADDRESS }} \
-            EVM_DEST_CHAIN_SELECTOR=${{ secrets.STAGING_SEPOLIA_DEST_CHAIN_SELECTOR }} \
-            EVM_RECEIVER_ADDRESS=${{ secrets.STAGING_EVM_RECEIVER_ADDRESS }} \
+          nix develop -c bash -lc '
+            TON_ROUTER_ADDRESS="${{ secrets.STAGING_TON_ROUTER_ADDRESS }}" \
+            EVM_DEST_CHAIN_SELECTOR="${{ secrets.STAGING_SEPOLIA_DEST_CHAIN_SELECTOR }}" \
+            EVM_RECEIVER_ADDRESS="${{ secrets.STAGING_EVM_RECEIVER_ADDRESS }}" \
             CCIP_MESSAGE="hello-ton->evm-${{ github.run_id }}" \
-            TON_SENDER_WALLET_SEED_PHRASE=${{ secrets.STAGING_TEST_SENDER_WALLET_SEED }} \
-            SEPOLIA_RPC_URL=${{ secrets.SEPOLIA_RPC_URL }} \
+            TON_SENDER_WALLET_SEED_PHRASE="${{ secrets.STAGING_TEST_SENDER_WALLET_SEED }}" \
+            SEPOLIA_RPC_URL="${{ secrets.SEPOLIA_RPC_URL }}" \
             go test
+          '
           popd
+
