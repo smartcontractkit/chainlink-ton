@@ -1,16 +1,31 @@
-name: Staging TON2EVM messaging test 
+name: Staging TON2EVM messaging test
 
 on:
   schedule:
     # Runs at minute 0, 15, 30, and 45 of every hour
     - cron: "*/15 * * * *"
 
+  pull_request:
+    types: [labeled]
+    branches:
+      - main  # adjust if your PRs target another branch
+
 jobs:
-  half_hour_job:
+  messaging-test:
+    if: |
+      github.event_name == 'schedule' ||
+      (github.event_name == 'pull_request' &&
+       github.event.action == 'labeled' &&
+       github.event.label.name == 'run-staging-ton2evm-test')
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - name: Check out code
+        uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@02a151ada4993995686f9ed4f1be7cfbb229e56f # v31
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
 
       - name: Run TON2EVM messaging test
         env:
@@ -20,5 +35,8 @@ jobs:
           CCIP_MESSAGE: "hello-ton->evm-${{ github.run_id }}"
           TON_SENDER_WALLET_SEED_PHRASEL: ${{ secrets.STAGING_TEST_SENDER_WALLET_SEED }}
           SEPOLIA_RPC_URL: ${{ secrets.SEPOLIA_RPC_URL }}
+        run: |
+          pushd staging-messaging-test
+          nix develop -c go test 
+          popd
 
-        run: echo "TON 2 EVM staging messaging test"
