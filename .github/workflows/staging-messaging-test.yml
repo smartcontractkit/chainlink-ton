@@ -36,6 +36,12 @@ jobs:
           SEPOLIA_RPC_URL: ${{ secrets.SEPOLIA_RPC_URL }}
         run: |
           pushd staging-messaging-test
-          nix develop -c go test 
+          nix develop \
+            --keep TON_ROUTER_ADDRESS \
+            --keep EVM_DEST_CHAIN_SELECTOR \
+            --keep EVM_RECEIVER_ADDRESS \
+            --keep CCIP_MESSAGE \
+            --keep TON_SENDER_WALLET_SEED_PHRASE \
+            --keep SEPOLIA_RPC_URL \
+            -c go test
           popd
-
