@@ -6,9 +6,9 @@ on:
     - cron: "*/15 * * * *"
 
   pull_request:
-    types: [labeled]
+    types: [opened, synchronize, reopened, labeled]
     branches:
-      - main  # adjust if your PRs target another branch
+      - main
 
 jobs:
   messaging-test:
