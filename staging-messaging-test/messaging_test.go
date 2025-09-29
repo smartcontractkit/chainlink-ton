@@ -48,8 +48,8 @@ func Test_StagingMessagingTest(t *testing.T) {
 
 	env := setupTestEnvironment(t, ctx)
 
-	seq, tonTxHash := sendCCIPFromTon(t, ctx, env.API, env.Wallet, env.RouterAddress, env.DestSelector, env.ReceiverBytes, []byte(env.MessageData))
-	t.Logf("Sent CCIP message sequence tentative=%d tonTxHash=%s", seq, tonTxHash)
+	seq := sendCCIPFromTon(t, ctx, env.API, env.Wallet, env.RouterAddress, env.DestSelector, env.ReceiverBytes, []byte(env.MessageData))
+	t.Logf("Sent CCIP message sequence number=%d", seq)
 
 	startBlock, err := env.EthClient.BlockNumber(ctx)
 	require.NoError(t, err, "failed to get starting block")
@@ -65,7 +65,7 @@ func Test_StagingMessagingTest(t *testing.T) {
 	t.Log("Test passed: message observed on receiver")
 }
 
-func sendCCIPFromTon(t *testing.T, ctx context.Context, api *ton.APIClient, w *wallet.Wallet, routerAddr *tonaddress.Address, destSelector uint64, receiverBytes, data []byte) (uint64, string) {
+func sendCCIPFromTon(t *testing.T, ctx context.Context, api *ton.APIClient, w *wallet.Wallet, routerAddr *tonaddress.Address, destSelector uint64, receiverBytes, data []byte) uint64 {
 	extraArgs := onramp.GenericExtraArgsV2{
 		GasLimit:                 big.NewInt(200000),
 		AllowOutOfOrderExecution: false,
@@ -110,9 +110,9 @@ func sendCCIPFromTon(t *testing.T, ctx context.Context, api *ton.APIClient, w *w
 	sequenceNumber, err := extractSequenceFromCCIPMessageSent(receivedMsg)
 	require.NoError(t, err, "failed to extract sequence number from CCIPMessageSent event")
 
-	t.Logf("CCIP message sent: sequence=%d tonTxHash=%x", sequenceNumber, receivedMsg.TxHash)
+	t.Logf("CCIP message sent: sequence=%d", sequenceNumber)
 
-	return sequenceNumber, fmt.Sprintf("%x", receivedMsg.TxHash)
+	return sequenceNumber
 }
 
 func extractSequenceFromCCIPMessageSent(msg *tracetracking.ReceivedMessage) (uint64, error) {
