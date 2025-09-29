@@ -15,8 +15,7 @@ jobs:
     if: |
       github.event_name == 'schedule' ||
       (github.event_name == 'pull_request' &&
-       github.event.action == 'labeled' &&
-       github.event.label.name == 'run-staging-ton2evm-test')
+       contains(github.event.pull_request.labels.*.name, 'run-staging-ton2evm-test'))
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
