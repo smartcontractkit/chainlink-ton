@@ -6,7 +6,6 @@ import (
 	"sync"
 
 	"github.com/smartcontractkit/libocr/offchainreporting2plus/ocr3types"
-	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
@@ -58,7 +57,7 @@ func NewCCIPProvider(
 	// NOTE: provider can still be initialized with an EVM offramp address, and AddressBytesToString will fail on addresses with len=20
 	// technically we only need the chainwriter to do fee estimation so this doesn't matter and we can use a zero address
 	// TODO: Should we even build the rest of the provider? Or just initialize the accessor with just the estimator.
-	if len(cargs.OffRampAddress) == 36 {
+	if len(cargs.OffRampAddress) == codec.TONAddressLength {
 		offRampAddrStr, err = addressCodec.AddressBytesToString(cargs.OffRampAddress)
 		if err != nil {
 			return nil, fmt.Errorf("failed to decode TON offRamp address: %w", err)
@@ -68,9 +67,9 @@ func NewCCIPProvider(
 		// EVM address provided - use zero address as placeholder
 		lggr.Warnw("EVM offramp address provided to TON provider, using zero address placeholder",
 			"providedLength", len(cargs.OffRampAddress),
-			"expectedLength", 36)
+			"expectedLength", codec.TONAddressLength)
 		// Use a zero TON address as placeholder
-		offRampAddrStr = address.MustParseRawAddr("0:0000000000000000000000000000000000000000000000000000000000000000").String()
+		offRampAddrStr = codec.TONZeroAddressStr
 	}
 
 	var ct ocr3types.ContractTransmitter[[]byte]
