@@ -387,6 +387,18 @@ func downloadAndExtract(ctx context.Context, url, destDir string) error {
 			continue
 		}
 
+		// Sanitize and validate the filename to prevent directory traversal and other issues.
+		baseName := filepath.Base(header.Name)
+		if baseName != header.Name ||
+			strings.TrimSpace(baseName) == "" ||
+			strings.Contains(baseName, "/") ||
+			strings.Contains(baseName, "\\") ||
+			strings.Contains(baseName, "..") ||
+			strings.HasPrefix(baseName, ".") {
+			log.Printf("Skipping suspicious archive entry: %q", header.Name)
+			continue
+		}
+
 		// Create the destination file path
 		destPath := filepath.Join(destDir, filepath.Base(header.Name))
 
