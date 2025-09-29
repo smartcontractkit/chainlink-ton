@@ -35,6 +35,7 @@ import (
 	inmemorystore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/db/inmemory"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/loader/account"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/txparser"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/hash"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
@@ -67,7 +68,7 @@ func TestDeploy(t *testing.T) {
 	test_utils.FundWallets(t, tonChain.Client, []*address.Address{deployer.Address()}, []tlb.Coins{tlb.MustFromTON("1000")})
 	time.Sleep(5 * time.Second)
 
-	cs := commonchangeset.Configure(ton_ops.DeployCCIPContracts{}, ton_ops.DeployChainContractsConfig(t, env, chainSelector, sequence.ContractsLocalVersion))
+	cs := commonchangeset.Configure(ton_ops.DeployCCIPContracts{}, ton_ops.DeployChainContractsConfig(t, env, chainSelector, sequence.ContractsLocalVersion, hash.CRC32("github.com/smartcontractkit/chainlink-ton/integration-tests/deployment/cs_test.TestDeploy")))
 
 	env, _, err := commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{cs})
 	require.NoError(t, err, "failed to deploy ccip")

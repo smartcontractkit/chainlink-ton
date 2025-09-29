@@ -4,9 +4,10 @@ import "../lib/access/ownable_2step.tolk"
 import "../lib/crypto/merkle_multi_proof.tolk"
 import "../lib/ocr/multi_ocr3_base"
 import "../lib/ocr/types"
-import "../lib/upgrades/type_and_version.tolk"
 import "../lib/utils.tolk"
 import "fee_quoter/messages"
+
+const CONTRACT_VERSION = "0.0.1";
 
 struct Storage {
     id: uint32;
@@ -551,5 +552,15 @@ get fun allSourceChainConfigs(): map<uint64, SourceChainConfig> {
 fun applySourceChainConfigUpdates() {}
 
 get fun typeAndVersion(): (slice, slice) {
-     return ("com.chainlink.ton.ccip.OffRamp", "1.0.0");
- }
+    return ("com.chainlink.ton.ccip.OffRamp", CONTRACT_VERSION);
+}
+
+// Returns the current code of the contract.
+get fun code(): cell {
+    return contract.getCode();
+}
+
+// Returns the sha256 hash of the current code of the contract.
+get fun codeHash(): int {
+    return contract.getCode().hash();
+}

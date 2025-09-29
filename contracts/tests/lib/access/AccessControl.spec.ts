@@ -12,7 +12,7 @@ describe('AccessControl', () => {
     // TODO: deploy and init AccessControl test contract
   })
 
-  it('Should compute crc32 opcodes', async () => {
+  it('should compute crc32 opcodes', async () => {
     // `const op = stringCrc32("some_str")` = 4013618352 = 0xEF3AF4B0
     const computed = crc32('some_str')
     expect(computed).toBe(0xef3af4b0)

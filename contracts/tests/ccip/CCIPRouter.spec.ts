@@ -16,12 +16,24 @@ import { JettonMinterCode, JettonWalletCode } from '../../wrappers/jetton/Jetton
 import { JettonMinter } from '../../wrappers/jetton/JettonMinter'
 import * as jetton from '../../wrappers/jetton/JettonWallet'
 import { dump } from '../utils/prettyPrint'
+import { CellCodec } from '../../wrappers/utils'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
+const CHAINSEL_EVM_TEST_90000002 = 5548718428018410741n
+const CHAIN_FAMILY_SELECTOR_EVM = 0x2812d52c
+const CHAIN_FAMILY_SELECTOR_SVM = 0x1e10bdc4
+const CHAIN_FAMILY_SELECTOR_APTOS = 0xac77ffec
+const CHAIN_FAMILY_SELECTOR_SUI = 0xc4e05953
+
 const CHAINSEL_TON = 13879075125137744094n
 const TEST_TOKEN_ADDR = Address.parseRaw(
   '0:0000000000000000000000000000000000000000000000000000000000000001',
 )
+
+const EVM_ADDRESS = Buffer.from(
+  '0000000000000000000000001234567890123456789012345678901234567890',
+  'hex',
+) // 32 bytes
 
 describe('Router', () => {
   let blockchain: Blockchain
@@ -49,6 +61,7 @@ describe('Router', () => {
     // Mock UpdatePrices Message handler
     let routerCode = await compile('Router')
     let data: rt.Storage = {
+      id: 0,
       ownable: {
         owner: deployer.address,
         pendingOwner: null,
@@ -72,6 +85,7 @@ describe('Router', () => {
       let code = await compile('FeeQuoter')
 
       let data: FeeQuoterStorage = {
+        id: 0,
         ownable: {
           owner: deployer.address,
           pendingOwner: null,
@@ -123,7 +137,7 @@ describe('Router', () => {
               config: {
                 // minimal valid config
                 isEnabled: true,
-                maxNumberOfTokensPerMsg: 0, // TODO:
+                maxNumberOfTokensPerMsg: 1,
                 maxDataBytes: 100,
                 maxPerMsgGasLimit: 100,
                 destGasOverhead: 0,
@@ -133,7 +147,7 @@ describe('Router', () => {
                 destDataAvailabilityOverheadGas: 0,
                 destGasPerDataAvailabilityByte: 0,
                 destDataAvailabilityMultiplierBps: 0,
-                chainFamilySelector: 0,
+                chainFamilySelector: CHAIN_FAMILY_SELECTOR_EVM,
                 enforceOutOfOrder: true,
                 defaultTokenFeeUsdCents: 0,
                 defaultTokenDestGasOverhead: 0,
@@ -170,6 +184,7 @@ describe('Router', () => {
     {
       let code = await compile('OnRamp')
       let data: or.OnRampStorage = {
+        id: 0,
         ownable: {
           owner: deployer.address,
           pendingOwner: null,
@@ -216,15 +231,42 @@ describe('Router', () => {
         })
       }
     }
-  }, 10000)
+  })
+
+  it('update router ramps in batch', async () => {
+    {
+      const result = await router.sendSetRamps(deployer.getSender(), {
+        value: toNano('1'),
+        queryID: 0,
+        destChainSelector: [CHAINSEL_EVM_TEST_90000001, CHAINSEL_EVM_TEST_90000002],
+        onRamp: onRamp.address,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: router.address,
+        success: true,
+      })
+    }
+
+    {
+      let result = await router.onRamp(
+        blockchain.provider(router.address),
+        CHAINSEL_EVM_TEST_90000001,
+      )
+      expect(result).toEqual(onRamp.address)
+
+      result = await router.onRamp(blockchain.provider(router.address), CHAINSEL_EVM_TEST_90000002)
+      expect(result).toEqual(onRamp.address)
+    }
+  })
 
   it('onramp arbitrary message passing', async () => {
     // Configure onRamp on router
     {
-      const result = await router.sendSetRamp(deployer.getSender(), {
+      const result = await router.sendSetRamps(deployer.getSender(), {
         value: toNano('1'),
         queryID: 0,
-        destChainSelector: CHAINSEL_EVM_TEST_90000001,
+        destChainSelector: [CHAINSEL_EVM_TEST_90000001],
         onRamp: onRamp.address,
       })
       expect(result.transactions).toHaveTransaction({
@@ -241,14 +283,17 @@ describe('Router', () => {
         body: {
           queryID: 1,
           destChainSelector: CHAINSEL_EVM_TEST_90000001,
-          receiver: Buffer.from(
-            '1234567890123456789012345678901234567890123456789012345678901234',
-            'hex',
-          ), // 32 bytes
+          receiver: EVM_ADDRESS,
           data: Cell.EMPTY,
           tokenAmounts: [],
           feeToken: TEST_TOKEN_ADDR,
-          extraArgs: Cell.EMPTY,
+          extraArgs: rt.builder.data.extraArgs
+            .encode({
+              kind: 'generic-v2',
+              gasLimit: 100n,
+              allowOutOfOrderExecution: true,
+            })
+            .asCell(),
         },
       })
 
@@ -335,10 +380,10 @@ describe('Router', () => {
   it('onramp token transfer - paid with TON', async () => {
     // Configure onRamp on router
     {
-      const result = await router.sendSetRamp(deployer.getSender(), {
+      const result = await router.sendSetRamps(deployer.getSender(), {
         value: toNano('1'),
         queryID: 0,
-        destChainSelector: CHAINSEL_EVM_TEST_90000001,
+        destChainSelector: [CHAINSEL_EVM_TEST_90000001],
         onRamp: onRamp.address,
       })
       expect(result.transactions).toHaveTransaction({
@@ -363,11 +408,17 @@ describe('Router', () => {
       .encode({
         queryID: 1,
         destChainSelector: CHAINSEL_EVM_TEST_90000001,
-        receiver: Buffer.alloc(64),
+        receiver: EVM_ADDRESS,
         data: Cell.EMPTY,
         tokenAmounts: [{ amount: jettonAmount, token: jettonMinter.address }],
         feeToken: TEST_TOKEN_ADDR,
-        extraArgs: Cell.EMPTY,
+        extraArgs: rt.builder.data.extraArgs
+          .encode({
+            kind: 'generic-v2',
+            gasLimit: 100n,
+            allowOutOfOrderExecution: true,
+          })
+          .asCell(),
       })
       .asCell()
 
@@ -425,26 +476,14 @@ describe('Router', () => {
         deploy: false,
         success: true,
         body(x) {
-          if (!x) return false
-          const transferRequest = jetton.builder.messages.in.askToTransfer.load(x.beginParse())
-          if (transferRequest.forwardPayload == null || transferRequest.forwardPayload == undefined)
-            return false
-          if (!transferRequest.destination.equals(onRamp.address)) return false
-          try {
-            const payload = or.builder.messages.in.onrampSend.load(
-              ((forwardPayload: Cell | Slice): Slice => {
-                if (forwardPayload instanceof Cell) {
-                  return forwardPayload.beginParse()
-                } else {
-                  return forwardPayload
-                }
-              })(transferRequest.forwardPayload),
-            )
-            return true
-          } catch {
-            console.log('Failed to load onrampSend')
-            return false
-          }
+          return verifyBodyIsTransferRequestWithFwdPayload(x, or.builder.messages.in.onrampSend, {
+            transferRequestValidaton: (transferRequest) => {
+              return transferRequest.destination.equals(onRamp.address) // destination is the onRamp
+            },
+            fwdPayloadValidation: (onRampSend) => {
+              return onRampSend.metadata.sender.equals(sender.address) // sender is preserved
+            },
+          })
         },
       })
       expect(result.transactions).toHaveTransaction({
@@ -453,31 +492,18 @@ describe('Router', () => {
         deploy: false,
         success: true,
         body(x) {
-          if (!x) return false
-          const transferNotification =
-            jetton.builder.messages.out.transferNotificationForRecipient.load(x.beginParse())
-          if (
-            transferNotification.forwardPayload == null ||
-            transferNotification.forwardPayload == undefined
+          return verifyBodyIsTransferNotificationWithFwdPayload(
+            x,
+            or.builder.messages.in.onrampSend,
+            {
+              transferNotificationValidaton: (transferRequest) => {
+                return transferRequest.senderAddress.equals(router.address) // sender is the router
+              },
+              fwdPayloadValidation: (onRampSend) => {
+                return onRampSend.metadata.sender.equals(sender.address) // sender is preserved
+              },
+            },
           )
-            return false
-          if (!transferNotification.senderAddress.equals(router.address)) {
-            return false
-          }
-          try {
-            const payload = or.builder.messages.in.onrampSend.load(
-              ((forwardPayload: Cell | Slice): Slice => {
-                if (forwardPayload instanceof Cell) {
-                  return forwardPayload.beginParse()
-                } else {
-                  return forwardPayload
-                }
-              })(transferNotification.forwardPayload),
-            )
-            return true
-          } catch {
-            return false
-          }
         },
       })
       // the onRamp deployed the executor
@@ -500,11 +526,14 @@ describe('Router', () => {
         deploy: false,
         success: true,
         body(x) {
-          if (!x) return false
-          const transferRequest = jetton.builder.messages.in.askToTransfer.load(x.beginParse())
-          if (transferRequest.jettonAmount !== jettonAmount) return false
-          if (!transferRequest.destination.equals(executorAddress)) return false
-          return true
+          return verifyBodyIsTransferRequest(x, {
+            transferRequestValidaton: (transferRequest) => {
+              return (
+                transferRequest.jettonAmount == jettonAmount &&
+                transferRequest.destination.equals(executorAddress)
+              )
+            },
+          })
         },
       })
       expect(result.transactions).toHaveTransaction({
@@ -513,12 +542,11 @@ describe('Router', () => {
         deploy: false,
         success: true,
         body(x) {
-          if (!x) return false
-          // const transferNotification =
-          //   jetton.builder.messages.out.transferNotificationForRecipient.load(x.beginParse())
-          // if (transferNotification.jettonAmount !== jettonAmount) return false
-          // if (!transferNotification.senderAddress.equals(onRamp.address)) return false
-          return true
+          return verifyBodyIsTransferNotification(x, {
+            transferNotificationValidaton: (transferRequest) =>
+              transferRequest.jettonAmount == jettonAmount &&
+              transferRequest.senderAddress.equals(onRamp.address),
+          })
         },
       })
       // assert message went to feeQuoter
@@ -672,4 +700,111 @@ async function setupJetton(
     jettonMinter,
     provideUserWalletFor,
   }
+}
+
+function verifyBodyMessage<T>(
+  body: Cell | undefined,
+  codec: CellCodec<T>,
+  validations: ((message: T) => boolean)[] = [],
+): boolean {
+  if (!body) {
+    console.log('Body is empty')
+    return false
+  }
+
+  let message: T
+  try {
+    message = codec.load(body.beginParse())
+  } catch (e) {
+    console.log('Failed to parse message body:', e)
+    return false
+  }
+
+  return validations.every((validate) => validate(message))
+}
+
+function verifyBodyIsTransferRequest(
+  body: Cell | undefined,
+  options: {
+    transferRequestValidaton?: (request: jetton.AskToTransfer) => boolean
+  } = {},
+): boolean {
+  const { transferRequestValidaton } = options
+  const validations = transferRequestValidaton ? [transferRequestValidaton] : []
+
+  return verifyBodyMessage(body, jetton.builder.messages.in.askToTransfer, validations)
+}
+
+function verifyBodyIsTransferRequestWithFwdPayload<T>(
+  body: Cell | undefined,
+  payloadCodec: CellCodec<T>,
+  options: {
+    transferRequestValidaton?: (request: jetton.AskToTransferWithFwdPayload<T>) => boolean
+    fwdPayloadValidation?: (payload: T) => boolean
+  } = {},
+): boolean {
+  const { transferRequestValidaton, fwdPayloadValidation } = options
+
+  const validations = [
+    ...(transferRequestValidaton ? [transferRequestValidaton] : []),
+    ...(fwdPayloadValidation
+      ? [
+          (request: jetton.AskToTransferWithFwdPayload<T>) =>
+            fwdPayloadValidation(request.forwardPayload),
+        ]
+      : []),
+  ]
+
+  return verifyBodyMessage(
+    body,
+    jetton.builder.messages.in.askToTransferWithFwdPayload(payloadCodec),
+    validations,
+  )
+}
+
+function verifyBodyIsTransferNotification(
+  body: Cell | undefined,
+  options: {
+    transferNotificationValidaton?: (
+      notification: jetton.TransferNotificationForRecipient,
+    ) => boolean
+  } = {},
+): boolean {
+  const { transferNotificationValidaton } = options
+  const validations = transferNotificationValidaton ? [transferNotificationValidaton] : []
+
+  return verifyBodyMessage(
+    body,
+    jetton.builder.messages.out.transferNotificationForRecipient,
+    validations,
+  )
+}
+
+function verifyBodyIsTransferNotificationWithFwdPayload<T>(
+  body: Cell | undefined,
+  payloadCodec: CellCodec<T>,
+  options: {
+    transferNotificationValidaton?: (
+      notification: jetton.TransferNotificationWithFwdPayload<T>,
+    ) => boolean
+    fwdPayloadValidation?: (payload: T) => boolean
+  } = {},
+): boolean {
+  const { transferNotificationValidaton, fwdPayloadValidation } = options
+
+  const validations = [
+    ...(transferNotificationValidaton ? [transferNotificationValidaton] : []),
+    ...(fwdPayloadValidation
+      ? [
+          (notification: jetton.TransferNotificationWithFwdPayload<T>) =>
+            fwdPayloadValidation(notification.forwardPayload),
+        ]
+      : []),
+  ]
+
+  return verifyBodyMessage(
+    body,
+    jetton.builder.messages.out.transferNotificationWithFwdPayload(payloadCodec),
+    validations,
+  )
 }

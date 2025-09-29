@@ -85,6 +85,7 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 	}
 
 	routerInput := operation.DeployRouterInput{
+		ID: in.CCIPConfig.RouterParams.ID,
 		// chainSelector ?
 		ContractPath: utils.GetBuildDir("Router.compiled.json"),
 	}
@@ -106,6 +107,7 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 	output.FeeQuoterAddress = deployFeeQuoterReport.Output.Address
 
 	onrampInput := operation.DeployOnRampInput{
+		ID:                   in.CCIPConfig.OnRampParams.ID,
 		ChainSelector:        in.CCIPConfig.OnRampParams.ChainSelector,
 		FeeQuoter:            deployFeeQuoterReport.Output.Address,
 		FeeAggregator:        in.CCIPConfig.OnRampParams.FeeAggregator,
@@ -120,6 +122,7 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 	output.OnRampAddress = deployOnRampReport.Output.Address
 
 	offrampInput := operation.DeployOffRampInput{
+		ID:                                      in.CCIPConfig.OffRampParams.ID,
 		ChainSelector:                           in.CCIPConfig.OffRampParams.ChainSelector,
 		FeeQuoter:                               deployFeeQuoterReport.Output.Address,
 		PermissionlessExecutionThresholdSeconds: in.CCIPConfig.OffRampParams.PermissionlessExecutionThreshold,

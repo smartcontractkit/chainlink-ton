@@ -8,6 +8,7 @@ import * as ac from '../../wrappers/lib/access/AccessControl'
 
 import { BaseTestSetup, TestCode } from './BaseTest'
 import { SandboxContract, TreasuryContract } from '@ton/sandbox'
+import { ERROR_TIMESTAMP } from '../../wrappers/mcms/RBACTimelock'
 
 describe('MCMS - RBACTimelockExecuteErrorOracleTest', () => {
   let baseTest: BaseTestSetup
@@ -99,7 +100,7 @@ describe('MCMS - RBACTimelockExecuteErrorOracleTest', () => {
       from: baseTest.acc.deployer.address,
       to: baseTest.bind.timelock.address,
       success: false,
-      exitCode: ac.Errors.UnauthorizedAccount,
+      exitCode: ac.Error.UnauthorizedAccount,
     })
 
     expect(await baseTest.bind.ac.getRoleMemberCount(rbactl.roles.oracle)).toEqual(0n)
@@ -198,7 +199,7 @@ describe('MCMS - RBACTimelockExecuteErrorOracleTest', () => {
       success: true,
     })
 
-    expect(await baseTest.bind.timelock.getTimestamp(operationId)).toEqual(rbactl.ERROR_TIMESTAMP)
+    expect(await baseTest.bind.timelock.getTimestamp(operationId)).toEqual(ERROR_TIMESTAMP)
 
     // Try to re-execute the same op - should fail with OperationNotReady
     const r3 = await baseTest.bind.timelock.sendInternal(
@@ -211,7 +212,7 @@ describe('MCMS - RBACTimelockExecuteErrorOracleTest', () => {
       from: baseTest.acc.executorOne.address,
       to: baseTest.bind.timelock.address,
       success: false,
-      exitCode: rbactl.Errors.OperationNotReady,
+      exitCode: rbactl.Error.OperationNotReady,
     })
   })
 })
