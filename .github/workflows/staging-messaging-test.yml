@@ -36,6 +36,6 @@ jobs:
           SEPOLIA_RPC_URL: ${{ secrets.SEPOLIA_RPC_URL }}
         run: |
           pushd staging-messaging-test
+          nix develop
           eval "$(nix print-dev-env .#)"
-          nix develop -c go test
-          popd
+          go test
