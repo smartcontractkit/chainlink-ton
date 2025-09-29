@@ -36,6 +36,7 @@ jobs:
           SEPOLIA_RPC_URL: ${{ secrets.SEPOLIA_RPC_URL }}
         run: |
           pushd staging-messaging-test
+          eval "$(nix print-dev-env .#)"
           nix develop \
             --keep TON_ROUTER_ADDRESS \
             --keep EVM_DEST_CHAIN_SELECTOR \
