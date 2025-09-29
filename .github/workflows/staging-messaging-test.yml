@@ -32,7 +32,7 @@ jobs:
           EVM_DEST_CHAIN_SELECTOR: ${{ secrets.STAGING_SEPOLIA_DEST_CHAIN_SELECTOR }}
           EVM_RECEIVER_ADDRESS: ${{ secrets.STAGING_EVM_RECEIVER_ADDRESS }}
           CCIP_MESSAGE: "hello-ton->evm-${{ github.run_id }}"
-          TON_SENDER_WALLET_SEED_PHRASEL: ${{ secrets.STAGING_TEST_SENDER_WALLET_SEED }}
+          TON_SENDER_WALLET_SEED_PHRASE: ${{ secrets.STAGING_TEST_SENDER_WALLET_SEED }}
           SEPOLIA_RPC_URL: ${{ secrets.SEPOLIA_RPC_URL }}
         run: |
           pushd staging-messaging-test
