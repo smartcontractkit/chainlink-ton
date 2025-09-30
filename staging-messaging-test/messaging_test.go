@@ -67,15 +67,15 @@ func Test_StagingMessagingTest(t *testing.T) {
 
 func sendCCIPFromTon(t *testing.T, ctx context.Context, api *ton.APIClient, w *wallet.Wallet, routerAddr *tonaddress.Address, destSelector uint64, receiverBytes, data []byte) uint64 {
 	extraArgs := onramp.GenericExtraArgsV2{
-		GasLimit:                 big.NewInt(200000),
-		AllowOutOfOrderExecution: false,
+		GasLimit:                 big.NewInt(1000000),
+		AllowOutOfOrderExecution: true,
 	}
 
 	extraArgsCell, err := tlb.ToCell(extraArgs)
 	require.NoError(t, err, "failed to serialize ExtraArgs")
 
 	ccipSend := router.CCIPSend{
-		QueryID:           uint64(time.Now().UnixNano()),
+		QueryID:           uint64(0),
 		DestChainSelector: destSelector,
 		Receiver:          receiverBytes,
 		Data:              data,

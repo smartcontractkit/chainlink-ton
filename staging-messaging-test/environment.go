@@ -2,9 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/hex"
-	"os"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -28,31 +25,14 @@ type TestEnvironment struct {
 }
 
 func setupTestEnvironment(t *testing.T, ctx context.Context) *TestEnvironment {
-	routerAddress, err := tonaddress.ParseAddr(os.Getenv("TON_ROUTER_ADDRESS"))
-	require.NoError(t, err, "Failed to parse Ton Router Address from Env")
+	env := loadEnv(t)
 
-	destSelStr := os.Getenv("EVM_DEST_CHAIN_SELECTOR")
-	require.NotEmpty(t, destSelStr, "EVM_DEST_CHAIN_SELECTOR not set")
-	destSelector, err := strconv.ParseUint(destSelStr, 10, 64)
-	require.NoError(t, err, "cannot parse EVM_DEST_CHAIN_SELECTOR")
-
-	receiverHex := os.Getenv("EVM_RECEIVER_ADDRESS")
-	require.NotEmpty(t, receiverHex, "EVM_RECEIVER_ADDRESS not set")
-	receiverHex = strings.TrimPrefix(receiverHex, "0x")
-	receiverBytes, err := hex.DecodeString(receiverHex)
-	require.NoError(t, err, "invalid EVM_RECEIVER_ADDRESS hex")
-
-	msgData := os.Getenv("CCIP_MESSAGE")
-	if msgData == "" {
-		msgData = "hello-ton->evm"
-	}
+	routerAddress, err := tonaddress.ParseAddr(env.TonRouterAddress)
+	require.NoError(t, err, "failed to parse %s", EnvTonRouterAddress)
 
 	api := getAPIClient(t)
 
-	walletSeedPhrase := os.Getenv("TON_SENDER_WALLET_SEED_PHRASE")
-	require.NotEmpty(t, walletSeedPhrase, "TON_SENDER_WALLET_SEED_PHRASE not set")
-
-	w, err := wallet.FromSeed(api, strings.Fields(walletSeedPhrase), wallet.V3R2)
+	w, err := wallet.FromSeed(api, strings.Fields(env.TonSenderWalletSeedPhrase), wallet.V3R2)
 	require.NoError(t, err, "wallet init failed")
 
 	mc, err := api.CurrentMasterchainInfo(ctx)
@@ -63,23 +43,21 @@ func setupTestEnvironment(t *testing.T, ctx context.Context) *TestEnvironment {
 	t.Logf("Wallet address: %s", w.Address().String())
 	t.Logf("Wallet balance: %s", balance.String())
 
-	ethClient := getEthClient(t)
+	ethClient := getEthClient(t, env.SepoliaRPCURL)
 
 	return &TestEnvironment{
 		RouterAddress: routerAddress,
-		DestSelector:  destSelector,
-		ReceiverBytes: receiverBytes,
-		ReceiverHex:   receiverHex,
-		MessageData:   msgData,
+		DestSelector:  env.EvmDestChainSelector,
+		ReceiverBytes: env.EvmReceiverBytes,
+		ReceiverHex:   env.EvmReceiverHex,
+		MessageData:   env.CcipMessage,
 		API:           api,
 		Wallet:        w,
 		EthClient:     ethClient,
 	}
 }
-
-func getEthClient(t *testing.T) *ethclient.Client {
-	rpc := os.Getenv("SEPOLIA_RPC_URL")
-	if rpc == "" {
+func getEthClient(t *testing.T, rpc string) *ethclient.Client {
+	if rpc == "" { // default if optional var unset
 		rpc = "https://ethereum-sepolia-rpc.publicnode.com"
 	}
 	c, err := ethclient.Dial(rpc)
