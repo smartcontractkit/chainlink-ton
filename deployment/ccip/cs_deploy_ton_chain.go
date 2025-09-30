@@ -13,6 +13,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/utils"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 
+	semver "github.com/Masterminds/semver/v3"
 	tonaddress "github.com/xssnick/tonutils-go/address"
 )
 
@@ -57,6 +58,7 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 
 	tonChains := env.BlockChains.TonChains()
 	chain := tonChains[selector]
+	ab := cldf.NewMemoryAddressBook()
 
 	deps := operation.TonDeps{
 		TonChain:         chain,
@@ -124,9 +126,17 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 		return cldf.ChangesetOutput{}, err
 	}
 
+	// TODO Get Contract Type from CCIP constants (?)
+	// TODO Get contract version from input of the change set (?)
+	_ = ab.Save(selector, ccipSeqReport.Output.OnRampAddress.String(), cldf.NewTypeAndVersion("OnRamp", *semver.MustParse("1.0.0")))
+	_ = ab.Save(selector, ccipSeqReport.Output.RouterAddress.String(), cldf.NewTypeAndVersion("Router", *semver.MustParse("1.0.0")))
+	_ = ab.Save(selector, ccipSeqReport.Output.FeeQuoterAddress.String(), cldf.NewTypeAndVersion("FeeQuoter", *semver.MustParse("1.0.0")))
+	_ = ab.Save(selector, ccipSeqReport.Output.OffRampAddress.String(), cldf.NewTypeAndVersion("OffRamp", *semver.MustParse("1.0.0")))
+
 	// TODO: generate MCMS proposal or execute
 	return cldf.ChangesetOutput{
 		MCMSTimelockProposals: proposals,
 		Reports:               seqReports,
+		AddressBook:           ab,
 	}, nil
 }
