@@ -44,7 +44,7 @@ jobs:
           curl -X POST -H 'Content-type: application/json' \
             --data "{
               \"Status\": \"Success\",
-              \"Sender\": \"${{ secrets.STAGING_TEST_SENDER_ADDRESS }}\",
+              \"Router\": \"${{ secrets.STAGING_TON_ROUTER_ADDRESS }}\",
               \"Receiver\": \"${{ secrets.STAGING_EVM_RECEIVER_ADDRESS }}\",
               \"Data\": \"hello-ton->evm-${{ github.run_id }}\"
             }" \
@@ -56,7 +56,7 @@ jobs:
           curl -X POST -H 'Content-type: application/json' \
             --data "{
               \"Status\": \"Failure\",
-              \"Sender\": \"${{ secrets.STAGING_TEST_SENDER_ADDRESS }}\",
+              \"Router\": \"${{ secrets.STAGING_TON_ROUTER_ADDRESS }}\",
               \"Receiver\": \"${{ secrets.STAGING_EVM_RECEIVER_ADDRESS }}\",
               \"Data\": \"hello-ton->evm-${{ github.run_id }}\"
             }" \
