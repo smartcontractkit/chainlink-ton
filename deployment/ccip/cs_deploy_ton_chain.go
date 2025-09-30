@@ -128,10 +128,28 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 
 	// TODO Get Contract Type from CCIP constants (?)
 	// TODO Get contract version from input of the change set (?)
-	_ = ab.Save(selector, ccipSeqReport.Output.OnRampAddress.String(), cldf.NewTypeAndVersion("OnRamp", *semver.MustParse("1.0.0")))
-	_ = ab.Save(selector, ccipSeqReport.Output.RouterAddress.String(), cldf.NewTypeAndVersion("Router", *semver.MustParse("1.0.0")))
-	_ = ab.Save(selector, ccipSeqReport.Output.FeeQuoterAddress.String(), cldf.NewTypeAndVersion("FeeQuoter", *semver.MustParse("1.0.0")))
-	_ = ab.Save(selector, ccipSeqReport.Output.OffRampAddress.String(), cldf.NewTypeAndVersion("OffRamp", *semver.MustParse("1.0.0")))
+	emptyAddress := tonaddress.NewAddressNone()
+
+	onRampInState := states[selector].OnRamp
+	routerInState := states[selector].Router
+	feeQuoterInState := states[selector].FeeQuoter
+	offRampInState := states[selector].OffRamp
+
+	if emptyAddress.Equals(&onRampInState) && !emptyAddress.Equals(ccipSeqReport.Output.OnRampAddress) {
+		_ = ab.Save(selector, ccipSeqReport.Output.OnRampAddress.String(), cldf.NewTypeAndVersion("OnRamp", *semver.MustParse("1.0.0")))
+	}
+
+	if emptyAddress.Equals(&routerInState) && !emptyAddress.Equals(ccipSeqReport.Output.RouterAddress) {
+		_ = ab.Save(selector, ccipSeqReport.Output.RouterAddress.String(), cldf.NewTypeAndVersion("Router", *semver.MustParse("1.0.0")))
+	}
+
+	if emptyAddress.Equals(&feeQuoterInState) && !emptyAddress.Equals(ccipSeqReport.Output.FeeQuoterAddress) {
+		_ = ab.Save(selector, ccipSeqReport.Output.FeeQuoterAddress.String(), cldf.NewTypeAndVersion("FeeQuoter", *semver.MustParse("1.0.0")))
+	}
+
+	if emptyAddress.Equals(&offRampInState) && !emptyAddress.Equals(ccipSeqReport.Output.OffRampAddress) {
+		_ = ab.Save(selector, ccipSeqReport.Output.OffRampAddress.String(), cldf.NewTypeAndVersion("OffRamp", *semver.MustParse("1.0.0")))
+	}
 
 	// TODO: generate MCMS proposal or execute
 	return cldf.ChangesetOutput{
