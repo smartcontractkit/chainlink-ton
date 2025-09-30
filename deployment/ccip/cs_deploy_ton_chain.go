@@ -13,7 +13,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/utils"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 
-	// semver "github.com/Masterminds/semver/v3"
 	tonaddress "github.com/xssnick/tonutils-go/address"
 )
 
