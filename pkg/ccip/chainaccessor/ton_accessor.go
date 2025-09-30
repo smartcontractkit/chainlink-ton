@@ -9,6 +9,7 @@ import (
 	"math/big"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
@@ -773,6 +774,9 @@ func (a *TONAccessor) GetFeeQuoterTokenUpdates(
 			}
 		default:
 			return nil, fmt.Errorf("expected either cell or nil, received %T", priceResult)
+		}
+		if !utf8.ValidString(token.String()) {
+			return nil, fmt.Errorf("gRPC can't handle non-UTF8 strings: %x", token)
 		}
 		prices[ccipocr3.UnknownEncodedAddress(token)] = price
 	}
