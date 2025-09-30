@@ -13,7 +13,6 @@ import (
 type Storage struct {
 	Ownable common.Ownable2Step `tlb:"."`
 	OnRamps *cell.Dictionary    `tlb:"dict 64"`
-	KeyLen  uint16              `tlb:"## 16"`
 }
 
 type SetRamp struct {

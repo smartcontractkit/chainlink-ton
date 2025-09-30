@@ -66,7 +66,6 @@ func deployOffRamp(b operations.Bundle, deps TonDeps, in DeployOffRampInput) (De
 		ChainSelector:                           in.ChainSelector,
 		PermissionlessExecutionThresholdSeconds: in.PermissionlessExecutionThresholdSeconds,
 		SourceChainConfigs:                      nil,
-		KeyLen:                                  64,
 		LatestPriceSequenceNumber:               0,
 	}
 	initData, err := tlb.ToCell(storage)

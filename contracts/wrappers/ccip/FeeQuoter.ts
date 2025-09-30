@@ -17,7 +17,6 @@ import {
 import * as ownable2step from '../libraries/access/Ownable2Step'
 import { CellCodec } from '../utils'
 import { asSnakeData, fromSnakeData } from '../../src/utils'
-import { loadMap, loadDict, UMapToBuilder } from '../../src/utils/dict'
 
 export type FeeQuoterStorage = {
   ownable: ownable2step.Data
@@ -138,8 +137,7 @@ export const builder = {
             updatesDict.set(destChainSelector, updateTokenTransferFeeConfig)
           }
 
-          const updates = UMapToBuilder({ dict: updatesDict, keyLen: 64 })
-          return beginCell().storeUint(Opcodes.updateTransferFeeConfigs, 32).storeBuilder(updates)
+          return beginCell().storeUint(Opcodes.updateTransferFeeConfigs, 32).storeDict(updatesDict)
         },
         load(src: Slice): UpdateTokenTransferFeeConfigs {
           throw new Error('Function not implemented.') // TODO implement if needed
