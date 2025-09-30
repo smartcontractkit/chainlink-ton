@@ -643,22 +643,14 @@ func (a *TONAccessor) GetChainFeePriceUpdate(ctx context.Context, selectors []cc
 
 	// initialize the map with default values for all selectors
 	prices := make(map[ccipocr3.ChainSelector]ccipocr3.TimestampedUnixBig, len(selectors))
-	for _, selector := range selectors {
-		prices[selector] = ccipocr3.TimestampedUnixBig{
-			Timestamp: 0,
-			Value:     big.NewInt(0),
-		}
-	}
-
 	addr, err := a.getBinding(consts.ContractNameFeeQuoter)
 	if err != nil {
-		a.lggr.Warnw("failed to get fee quoter binding", "err", err)
-		return prices, nil // return map with default values
+		return nil, err
 	}
 	block, err := a.client.CurrentMasterchainInfo(ctx)
 	if err != nil {
 		a.lggr.Warnw("failed to get current block", "err", err)
-		return prices, nil // return map with default values
+		return nil, fmt.Errorf("failed to get current block: %w", err)
 	}
 
 	a.lggr.Debugf("TON: about to query destinationChainGasPrice, for %d selectors", len(selectors))
@@ -666,18 +658,19 @@ func (a *TONAccessor) GetChainFeePriceUpdate(ctx context.Context, selectors []cc
 		result, err := a.client.RunGetMethod(ctx, block, addr, "destinationChainGasPrice", uint64(selector))
 		// The plugin is built with EVM behaviour in mind: if a value doesn't exist the zero value is returned
 		if execError, ok := err.(ton.ContractExecError); ok && execError.Code == common.ErrUnknownDestChainSelector { //nolint:errorlint // we're guaranteed to get unwrapped error here
-			// skip setting default value since it's already set during initialization
+			prices[selector] = ccipocr3.TimestampedUnixBig{
+				Timestamp: 0,
+				Value:     big.NewInt(0),
+			}
 			continue
 		}
 		if err != nil {
-			a.lggr.Errorw("failed to query destinationChainGasPrice, continuing with other selectors", "selector", selector, "err", err)
-			continue
+			return nil, err
 		}
 
 		value, err := result.Cell(0)
 		if err != nil {
-			a.lggr.Errorw("failed to get value from result.Cell(0), continuing with other selectors", "selector", selector, "err", err)
-			continue
+			return nil, err
 		}
 
 		// HACK: we read the value as Timestamped since the binary layout is compatible, so that we match TimestampedBig (two values packed together)
