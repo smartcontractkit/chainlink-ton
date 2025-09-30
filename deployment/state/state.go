@@ -134,46 +134,46 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 	return tonView, errGroup.Wait()
 }
 
-func SaveOnchainState(chainSelector uint64, state CCIPChainState, e cldf.Environment) error {
+func GetAddressBook(chainSelector uint64, state CCIPChainState) (cldf.AddressBook, error) {
 	// TODO: use DataStore
-	ab := e.ExistingAddresses
+	ab := cldf.NewMemoryAddressBook()
 	if !state.LinkTokenAddress.IsAddrNone() {
 		err := ab.Save(chainSelector, state.LinkTokenAddress.String(), cldf.NewTypeAndVersion(LinkToken, Version1_6_0))
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 	if !state.ReceiverAddress.IsAddrNone() {
 		err := ab.Save(chainSelector, state.ReceiverAddress.String(), cldf.NewTypeAndVersion(TonReceiver, Version1_6_0))
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 	if !state.OffRamp.IsAddrNone() {
 		err := ab.Save(chainSelector, state.OffRamp.String(), cldf.NewTypeAndVersion(OffRamp, Version1_6_0))
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 	if !state.Router.IsAddrNone() {
 		err := ab.Save(chainSelector, state.Router.String(), cldf.NewTypeAndVersion(Router, Version1_6_0))
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 	if !state.OnRamp.IsAddrNone() {
 		err := ab.Save(chainSelector, state.OnRamp.String(), cldf.NewTypeAndVersion(OnRamp, Version1_6_0))
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 	if !state.FeeQuoter.IsAddrNone() {
 		err := ab.Save(chainSelector, state.FeeQuoter.String(), cldf.NewTypeAndVersion(FeeQuoter, Version1_6_0))
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
-	return nil
+	return ab, nil
 }
 
 func LoadOnchainState(e cldf.Environment) (map[uint64]CCIPChainState, error) {

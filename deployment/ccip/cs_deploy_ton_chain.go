@@ -13,7 +13,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/utils"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 
-	semver "github.com/Masterminds/semver/v3"
+	// semver "github.com/Masterminds/semver/v3"
 	tonaddress "github.com/xssnick/tonutils-go/address"
 )
 
@@ -58,7 +58,6 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 
 	tonChains := env.BlockChains.TonChains()
 	chain := tonChains[selector]
-	ab := cldf.NewMemoryAddressBook()
 
 	deps := operation.TonDeps{
 		TonChain:         chain,
@@ -94,8 +93,8 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 	s.FeeQuoter = *ccipSeqReport.Output.FeeQuoterAddress
 	s.OffRamp = *ccipSeqReport.Output.OffRampAddress
 
-	// Save state
-	err = state.SaveOnchainState(selector, s, env)
+	// Get address book
+	ab, err := state.GetAddressBook(selector, s)
 	deps.CCIPOnChainState[selector] = s
 	if err != nil {
 		return cldf.ChangesetOutput{}, err
@@ -124,31 +123,6 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 
 	if err != nil {
 		return cldf.ChangesetOutput{}, err
-	}
-
-	// TODO Get Contract Type from CCIP constants (?)
-	// TODO Get contract version from input of the change set (?)
-	emptyAddress := tonaddress.NewAddressNone()
-
-	onRampInState := states[selector].OnRamp
-	routerInState := states[selector].Router
-	feeQuoterInState := states[selector].FeeQuoter
-	offRampInState := states[selector].OffRamp
-
-	if emptyAddress.Equals(&onRampInState) && !emptyAddress.Equals(ccipSeqReport.Output.OnRampAddress) {
-		_ = ab.Save(selector, ccipSeqReport.Output.OnRampAddress.String(), cldf.NewTypeAndVersion("OnRamp", *semver.MustParse("1.0.0")))
-	}
-
-	if emptyAddress.Equals(&routerInState) && !emptyAddress.Equals(ccipSeqReport.Output.RouterAddress) {
-		_ = ab.Save(selector, ccipSeqReport.Output.RouterAddress.String(), cldf.NewTypeAndVersion("Router", *semver.MustParse("1.0.0")))
-	}
-
-	if emptyAddress.Equals(&feeQuoterInState) && !emptyAddress.Equals(ccipSeqReport.Output.FeeQuoterAddress) {
-		_ = ab.Save(selector, ccipSeqReport.Output.FeeQuoterAddress.String(), cldf.NewTypeAndVersion("FeeQuoter", *semver.MustParse("1.0.0")))
-	}
-
-	if emptyAddress.Equals(&offRampInState) && !emptyAddress.Equals(ccipSeqReport.Output.OffRampAddress) {
-		_ = ab.Save(selector, ccipSeqReport.Output.OffRampAddress.String(), cldf.NewTypeAndVersion("OffRamp", *semver.MustParse("1.0.0")))
 	}
 
 	// TODO: generate MCMS proposal or execute
