@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/libocr/offchainreporting2/types"
 	"github.com/smartcontractkit/libocr/offchainreporting2plus/ocr3types"
@@ -110,15 +111,27 @@ func (c *ccipTransmitter) Transmit(
 		return fmt.Errorf("failed to get client: %w", err)
 	}
 	w := client.Wallet
+
+	// Generate unique transaction ID for this transmission attempt
+	// (same approach as CW - see chainlink/core/capabilities/ccip/ocrimpls/contract_transmitter.go)
+	txID := uuid.New()
+	idempotencyKey := c.offrampAddress + "-" + txID.String()
+
 	request := txm.Request{
 		Mode:            wallet.PayGasSeparately,
 		FromWallet:      w,
 		ContractAddress: *address.MustParseAddr(c.offrampAddress),
 		Body:            argsCell,
 		Amount:          tlb.MustFromTON("0.05"), // TODO: make this configurable
+		IdempotencyKey:  &idempotencyKey,
 	}
 
-	c.lggr.Infow("Submitting transaction", "address", c.offrampAddress, "request", request)
+	c.lggr.Infow("Submitting transaction",
+		"address", c.offrampAddress,
+		"idempotencyKey", idempotencyKey,
+		"configDigest", hex.EncodeToString(configDigest[:]),
+		"seqNr", seqNr,
+		"reportLength", len(reportWithInfo.Report))
 	if err := c.txm.Enqueue(request); err != nil {
 		return fmt.Errorf("failed to submit transaction via txm: %w", err)
 	}
