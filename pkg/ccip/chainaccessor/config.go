@@ -299,25 +299,25 @@ func (a *TONAccessor) GetCurseInfo(_ context.Context, _ *ton.BlockIDExt) (ccipoc
 
 // GetTypeAndVersion retrieves the type and version information from a TON contract
 func (a *TONAccessor) GetTypeAndVersion(ctx context.Context, block *ton.BlockIDExt, contractName string) (string, string, error) {
-    addr, err := a.getBinding(contractName)
-    if err != nil {
-        return "", "", err
-    }
-    
-    result, err := a.client.RunGetMethod(ctx, block, addr, "typeAndVersion")
-    if err != nil {
-        return "", "", fmt.Errorf("get type and version: %w", err)
-    }
-    
-    contractType, err := result.MustSlice(0).LoadStringSnake()
-    if err != nil {
-        return "", "", fmt.Errorf("get type and version: parse contract type: %w", err)
-    }
-    
-    version, err := result.MustSlice(1).LoadStringSnake()
-    if err != nil {
-        return "", "", fmt.Errorf("get type and version: parse contract version: %w", err)
-    }
-    
-    return contractType, version, nil
+	addr, err := a.getBinding(contractName)
+	if err != nil {
+		return "", "", err
+	}
+
+	result, err := a.client.RunGetMethod(ctx, block, addr, "typeAndVersion")
+	if err != nil {
+		return "", "", fmt.Errorf("get type and version: %w", err)
+	}
+
+	contractType, err := result.MustSlice(0).LoadStringSnake()
+	if err != nil {
+		return "", "", fmt.Errorf("get type and version: parse contract type: %w", err)
+	}
+
+	version, err := result.MustSlice(1).LoadStringSnake()
+	if err != nil {
+		return "", "", fmt.Errorf("get type and version: parse contract version: %w", err)
+	}
+
+	return contractType, version, nil
 }
