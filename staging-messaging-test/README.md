@@ -11,7 +11,7 @@ This test suite validates end-to-end CCIP messaging from TON to EVM chains.
 - `TON_SENDER_WALLET_SEED_PHRASE`: Wallet seed phrase for TON transactions
 - `SEPOLIA_RPC_URL`: RPC URL for Sepolia network (optional, has default)
 
-## Running the Test
+## Run the Test
 
 ```bash
 go test -v ./...
