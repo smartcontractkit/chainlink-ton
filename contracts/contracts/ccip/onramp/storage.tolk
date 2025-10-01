@@ -1,3 +1,6 @@
+import "types"
+import "../../lib/access/ownable_2step"
+
 struct OnRamp_Storage {
     id: uint32;
     ownable: Ownable2Step;

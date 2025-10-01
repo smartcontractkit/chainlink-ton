@@ -104,4 +104,17 @@ const SUI_TOKEN_TRANSFER_DATA_OVERHEAD: uint256 = (4 + 32) // source_pool
 + 32 // per-chain token pool config, not included in the token lookup table
 + 32; // per-chain token billing config, not always included in the token lookup table
 
+struct UpdateTokenTransferFeeConfig {
+    add: map<address, TokenTransferFeeConfig>; // token address -> config
+    remove: cell; // vector<address>
+}
+
+struct FeeToken {
+    premiumMultiplierWeiPerEth: uint64
+}
+
+struct FeeQuoter_UpdateDestChainConfig {
+    destChainSelector: uint64;
+    destChainConfig: FeeQuoterDestChainConfig;
+}
 

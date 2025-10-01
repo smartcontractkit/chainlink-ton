@@ -1,6 +1,8 @@
-import "../types"
+import "types"
 import "messages"
 import "storage"
+import "errors"
+import "../common/types"
 import "../fee_quoter/messages"
 
 fun onInternalMessage(in: InMessage) {
@@ -11,12 +13,12 @@ fun onInternalMessage(in: InMessage) {
             assert (in.senderAddress == this.addresses.load().onramp) throw 0xFFFF;
             this.onExecute(msg.onrampJettonWallet);
         }
-        JettonTransferNotification => {
+        Common_JettonTransferNotification => {
             var this = CCIPSendExecutor<CCIPSendExecutor_State_WaitingForJettons>.load();
             // TODO match refunds from TokenPool
             this.onJettonTransferFromOnRamp(msg, in.senderAddress);
         }
-        FeeQuoter_MessageValidated<Metadata> => {
+        CCIPSendExecutor_MessageValidated<Metadata> => {
             var this = CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.load();
             this.onMessageValidated(msg, in.senderAddress);
         }
@@ -83,7 +85,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_Initialized>.withdrawJettons(mutate 
     newState.store();
 }
 
-fun CCIPSendExecutor<CCIPSendExecutor_State_WaitingForJettons>.onJettonTransferFromOnRamp(mutate self, msg: JettonTransferNotification, jettonWallet: address) {
+fun CCIPSendExecutor<CCIPSendExecutor_State_WaitingForJettons>.onJettonTransferFromOnRamp(mutate self, msg: Common_JettonTransferNotification, jettonWallet: address) {
     // TODO query token registry for token pool
     getValidatedFee(self.addresses.load().feeQuoter, self.onrampSend); // temporary
     val newState = CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation> {
@@ -114,7 +116,7 @@ fun getValidatedFee(feeQuoter: address, onrampSend: OnRampSend) {
     getValidatedFeeMsg.send(SEND_MODE_REGULAR);
 }
 
-fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValidated(mutate self, msg: FeeQuoter_MessageValidated<Metadata>, sender: address) {
+fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValidated(mutate self, msg: CCIPSendExecutor_MessageValidated<Metadata>, sender: address) {
     // notification must come from fee quoter
     val addresses = lazy self.addresses.load();
     assert(addresses.feeQuoter == sender, Error.Unauthorized);

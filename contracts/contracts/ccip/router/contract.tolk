@@ -1,9 +1,14 @@
-import "types.tolk";
-import "../lib/access/ownable_2step.tolk";
-import "../deployable/types.tolk";
-import "../lib/utils.tolk";
-import "../lib/jetton/messages"
-import "../lib/jetton/messages_extended"
+import "messages"
+import "storage"
+import "errors"
+
+import "../common/types";
+import "../common/messages";
+import "../../lib/access/ownable_2step";
+import "../../deployable/types";
+import "../../lib/utils";
+import "../../lib/jetton/messages"
+import "../../lib/jetton/messages_extended"
 
 const CONTRACT_VERSION = "0.0.1";
 
@@ -12,7 +17,7 @@ fun onInternalMessage(in: InMessage) {
     match (msg) {
         SetRamps => {onSetRamps(msg, in.senderAddress)}
         CCIPSend => { onSend(msg, in.senderAddress) }
-        JettonTransferNotification => { onTransferNotification(msg, in.senderAddress) }
+        Common_JettonTransferNotification => { onTransferNotification(msg, in.senderAddress) }
         else => {
             // ignore empty messages, "wrong opcode" for others
             assert (in.body.isEmpty()) throw 0xFFFF
@@ -41,7 +46,7 @@ fun onSend(msg: CCIPSend, sender: address) {
     ccipSend(msg, sender);
 }
 
-fun onTransferNotification(transferNotification: JettonTransferNotification, wallet: address) {
+fun onTransferNotification(transferNotification: Common_JettonTransferNotification, wallet: address) {
     val st = lazy Storage.load();
 
     // TBD: I think we don't need to validate the sender here. If it is not a Jetton Wallet, it would not be able to transfer the jettons?

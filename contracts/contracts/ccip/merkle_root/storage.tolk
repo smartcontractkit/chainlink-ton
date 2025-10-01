@@ -1,3 +1,6 @@
+import "../offramp/types";
+import "../common/types";
+
 struct MerkleRoot_Storage {
     rootId: uint224;
     owner: address;

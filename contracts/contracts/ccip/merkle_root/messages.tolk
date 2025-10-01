@@ -1,3 +1,5 @@
+import "../offramp/types"
+
 type MerkleRoot_InMessage = MerkleRoot_Validate | MerkleRoot_CCIPReceiveBounced | MerkleRoot_CCIPReceiveConfirm;
 
 //crc32('MerkleRoot_Validate')

@@ -1,3 +1,6 @@
+import "types"
+import "../fee_quoter/types"
+
 const EXECUTION_STATE_CHANGED_TOPIC: int = stringCrc32("ExecutionStateChanged");
 struct ExecutionStateChanged {
     sourceChainSelector: uint64,

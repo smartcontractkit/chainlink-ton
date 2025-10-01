@@ -1,11 +1,18 @@
+import "types"
+import "events"
+import "storage"
+import "errors"
+import "messages"
+
 import "@stdlib/lisp-lists";
-import "types.tolk";
-import "../lib/access/ownable_2step.tolk";
-import "../lib/utils.tolk";
-import "ccipsend_executor/storage"
-import "ccipsend_executor/messages"
-import "../lib/jetton/messages"
-import "../lib/jetton/messages_extended"
+import "../common/types";
+import "../common/messages";
+import "../../lib/access/ownable_2step";
+import "../../lib/utils";
+import "../ccipsend_executor/storage"
+import "../ccipsend_executor/messages"
+import "../../lib/jetton/messages"
+import "../../lib/jetton/messages_extended"
 
 const CONTRACT_VERSION = "0.0.1";
 
@@ -100,7 +107,7 @@ fun send(payload: OnRampSend, sender: address, jettonWallet: address? = null) {
     st.store();
 }
 
-fun onTransferNotification(notification: JettonTransferNotification, jettonWallet: address) {
+fun onTransferNotification(notification: Common_JettonTransferNotification, jettonWallet: address) {
     val msg = lazy OnRamp_NotificationInMessage.fromCell(notification.forwardPayload!);
 
     match (msg) {

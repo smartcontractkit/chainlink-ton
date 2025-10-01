@@ -1,5 +1,3 @@
-tolk 1.1
-
 enum Error {
     UnsupportedChainFamilySelector
     GasLimitTooHigh

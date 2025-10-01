@@ -1,4 +1,4 @@
-type Msg = CCIPSend | SetRamps | JettonTransferNotification;
+type Msg = CCIPSend | SetRamps | Common_JettonTransferNotification;
 
 // update multiple chain selectors in batch to the same onramp address
 struct (0x10000001) SetRamps {

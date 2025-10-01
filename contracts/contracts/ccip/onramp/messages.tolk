@@ -1,8 +1,12 @@
+import "types"
+import "../common/messages"
+import "../router/messages"
+
 type OnRamp_InMessage =
     | OnRampSend
     | OnRamp_WithdrawJettons
     | OnRamp_ExecutorFinishedSuccessfully
-    | JettonTransferNotification
+    | Common_JettonTransferNotification
     | SetDynamicConfig
     | OnRampUpdateDestChainConfigs
     | UpdateAllowlists
@@ -50,5 +54,4 @@ struct (0x10000005) UpdateAllowlists {
 }
 
 struct WithdrawFeeTokens {}
-
 

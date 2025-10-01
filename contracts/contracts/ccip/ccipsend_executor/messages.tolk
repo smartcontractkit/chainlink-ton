@@ -2,7 +2,12 @@ import "../types"
 import "storage"
 import "../fee_quoter/messages"
 
-tolk 1.1
+type CCIPSendExecutor_InMessage =
+    | CCIPSendExecutor_Execute
+    | CCIPSendExecutor_MessageValidated<Metadata>
+    | Common_JettonTransferNotification
+    // TODO | TokenRegistry_TokenPoolInfo
+    // TODO Implement interrupt message that allows to cancel the pending CCIP send and return funds to the sender. This should be callable only after a certain timeout. 
 
 // crc32('CCIPSendExecutor_Execute')
 struct (0xAF3C62B3)CCIPSendExecutor_Execute {
@@ -11,14 +16,16 @@ struct (0xAF3C62B3)CCIPSendExecutor_Execute {
     onrampJettonWallet: address? = null,
 }
 
+// TODO crc32('CCIPSendExecutor_MessageValidated')
+struct (0x1FA60374) CCIPSendExecutor_MessageValidated<C> {
+    msg: Cell<CCIPSend>
+    metadata: Cell<C>
+    fee: coins
+}
+
 struct CCIPSendExecutor_Config {
     feeQuoter: address,
     tokenRegistry: address?,
 }
 
-type CCIPSendExecutor_InMessage =
-    | CCIPSendExecutor_Execute
-    | FeeQuoter_MessageValidated<Metadata>
-    | JettonTransferNotification
-    // TODO | TokenRegistry_TokenPoolInfo
-    // TODO Implement interrupt message that allows to cancel the pending CCIP send and return funds to the sender. This should be callable only after a certain timeout. 
+

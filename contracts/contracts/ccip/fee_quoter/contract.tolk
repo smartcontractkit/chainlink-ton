@@ -1,11 +1,14 @@
-import "@stdlib/lisp-lists"
-import "../types";
-import "../../lib/access/ownable_2step";
-import "../../deployable/types";
-import "../../lib/utils";
 import "messages"
 import "errors"
-import "../../lib/cross_chain_address_validation"
+import "types"
+import "storage"
+
+import "@stdlib/lisp-lists"
+import "../common/types";
+import "../../../lib/access/ownable_2step";
+import "../../../deployable/types";
+import "../../../lib/utils";
+import "../../../lib/cross_chain_address_validation"
 
 const CONTRACT_VERSION = "0.0.1";
 
