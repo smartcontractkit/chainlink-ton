@@ -119,7 +119,7 @@ func (a *TONAccessor) getOCR3Config(ctx context.Context, block *ton.BlockIDExt) 
 }
 
 // getOffRampConfig retrieves static configuration for the off-ramp contract
-func (a *TONAccessor) getOffRampConfig(ctx context.Context, block *ton.BlockIDExt) (ccipocr3.OfframpConfig, error) {
+func (a *TONAccessor) GetOffRampConfig(ctx context.Context, block *ton.BlockIDExt) (ccipocr3.OfframpConfig, error) {
 	addr, err := a.getBinding(consts.ContractNameOffRamp)
 	if err != nil {
 		return ccipocr3.OfframpConfig{}, err
@@ -170,7 +170,7 @@ func (a *TONAccessor) getOffRampConfig(ctx context.Context, block *ton.BlockIDEx
 }
 
 // getOffRampSourceChainConfigs retrieves source chain configurations from the off-ramp contract
-func (a *TONAccessor) getOffRampSourceChainConfigs(ctx context.Context, block *ton.BlockIDExt, sourceChainSelectors []ccipocr3.ChainSelector) (map[ccipocr3.ChainSelector]ccipocr3.SourceChainConfig, error) {
+func (a *TONAccessor) GetOffRampSourceChainConfigs(ctx context.Context, block *ton.BlockIDExt, sourceChainSelectors []ccipocr3.ChainSelector) (map[ccipocr3.ChainSelector]ccipocr3.SourceChainConfig, error) {
 	addr, err := a.getBinding(consts.ContractNameOffRamp)
 	if err != nil {
 		return nil, err
@@ -222,7 +222,7 @@ func (a *TONAccessor) getOffRampSourceChainConfigs(ctx context.Context, block *t
 }
 
 // getFeeQuoterStaticConfig retrieves static configuration from the fee quoter contract
-func (a *TONAccessor) getFeeQuoterStaticConfig(ctx context.Context, block *ton.BlockIDExt) (ccipocr3.FeeQuoterStaticConfig, error) {
+func (a *TONAccessor) GetFeeQuoterStaticConfig(ctx context.Context, block *ton.BlockIDExt) (ccipocr3.FeeQuoterStaticConfig, error) {
 	addr, err := a.getBinding(consts.ContractNameFeeQuoter)
 	if err != nil {
 		return ccipocr3.FeeQuoterStaticConfig{}, err
@@ -243,7 +243,7 @@ func (a *TONAccessor) getFeeQuoterStaticConfig(ctx context.Context, block *ton.B
 }
 
 // getOnRampDynamicConfig retrieves dynamic configuration from the on-ramp contract
-func (a *TONAccessor) getOnRampDynamicConfig(ctx context.Context, block *ton.BlockIDExt) (ccipocr3.OnRampDynamicConfig, error) {
+func (a *TONAccessor) GetOnRampDynamicConfig(ctx context.Context, block *ton.BlockIDExt) (ccipocr3.OnRampDynamicConfig, error) {
 	addr, err := a.getBinding(consts.ContractNameOnRamp)
 	if err != nil {
 		return ccipocr3.OnRampDynamicConfig{}, err
@@ -266,7 +266,7 @@ func (a *TONAccessor) getOnRampDynamicConfig(ctx context.Context, block *ton.Blo
 }
 
 // getOnRampDestChainConfig retrieves destination chain configuration from the on-ramp contract
-func (a *TONAccessor) getOnRampDestChainConfig(ctx context.Context, block *ton.BlockIDExt, dest ccipocr3.ChainSelector) (ccipocr3.OnRampDestChainConfig, error) {
+func (a *TONAccessor) GetOnRampDestChainConfig(ctx context.Context, block *ton.BlockIDExt, dest ccipocr3.ChainSelector) (ccipocr3.OnRampDestChainConfig, error) {
 	addr, err := a.getBinding(consts.ContractNameOnRamp)
 	if err != nil {
 		return ccipocr3.OnRampDestChainConfig{}, err
@@ -289,10 +289,35 @@ func (a *TONAccessor) getOnRampDestChainConfig(ctx context.Context, block *ton.B
 }
 
 // getCurseInfo retrieves curse information for RMN verification
-func (a *TONAccessor) getCurseInfo(_ context.Context, _ *ton.BlockIDExt) (ccipocr3.CurseInfo, error) {
+func (a *TONAccessor) GetCurseInfo(_ context.Context, _ *ton.BlockIDExt) (ccipocr3.CurseInfo, error) {
 	return ccipocr3.CurseInfo{
 		CursedSourceChains: map[ccipocr3.ChainSelector]bool{},
 		CursedDestination:  false,
 		GlobalCurse:        false,
 	}, nil
+}
+
+// GetTypeAndVersion retrieves the type and version information from a TON contract
+func (a *TONAccessor) GetTypeAndVersion(ctx context.Context, block *ton.BlockIDExt, contractName string) (string, string, error) {
+    addr, err := a.getBinding(contractName)
+    if err != nil {
+        return "", "", err
+    }
+    
+    result, err := a.client.RunGetMethod(ctx, block, addr, "typeAndVersion")
+    if err != nil {
+        return "", "", fmt.Errorf("get type and version: %w", err)
+    }
+    
+    contractType, err := result.MustSlice(0).LoadStringSnake()
+    if err != nil {
+        return "", "", fmt.Errorf("get type and version: parse contract type: %w", err)
+    }
+    
+    version, err := result.MustSlice(1).LoadStringSnake()
+    if err != nil {
+        return "", "", fmt.Errorf("get type and version: parse contract version: %w", err)
+    }
+    
+    return contractType, version, nil
 }
