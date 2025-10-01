@@ -93,7 +93,7 @@ func sendCCIPFromTon(t *testing.T, ctx context.Context, api *ton.APIClient, w *w
 			IHRDisabled: true,
 			Bounce:      true,
 			DstAddr:     routerAddr,
-			Amount:      tlb.MustFromTON("0.1"), 
+			Amount:      tlb.MustFromTON("0.1"),
 			Body:        messageBody,
 		},
 	}
@@ -238,8 +238,15 @@ func waitForMessageReceived(
 				if err := parsedABI.UnpackIntoInterface(&decoded, "MessageReceived", lg.Data); err != nil {
 					continue
 				}
-				require.Equal(t, expectedPayload, string(decoded.Data), "payload mismatch")
-				t.Logf("MessageReceived: messageId=%x sourceChain=%d dataLen=%d tokens=%d block=%d",
+
+				got := string(decoded.Data)
+				if got != expectedPayload {
+					t.Logf("Ignoring MessageReceived with different payload (got=%q expected=%q) messageId=%x block=%d",
+						got, expectedPayload, decoded.MessageId, lg.BlockNumber)
+					continue
+				}
+
+				t.Logf("Matched MessageReceived: messageId=%x sourceChain=%d dataLen=%d tokens=%d block=%d",
 					decoded.MessageId, decoded.SourceChainSelector, len(decoded.Data), len(decoded.DestTokenAmounts), lg.BlockNumber)
 				return
 			}
