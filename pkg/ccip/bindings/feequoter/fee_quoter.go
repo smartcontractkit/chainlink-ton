@@ -12,6 +12,7 @@ import (
 )
 
 type Storage struct {
+	ID                           uint32              `tlb:"## 32"`
 	Ownable                      common.Ownable2Step `tlb:"."`
 	MaxFeeJuelsPerMsg            *big.Int            `tlb:"## 96"`
 	LinkToken                    *address.Address    `tlb:"addr"`
@@ -19,7 +20,6 @@ type Storage struct {
 	UsdPerToken                  *cell.Dictionary    `tlb:"dict 267"`
 	PremiumMultiplierWeiPerEth   *cell.Dictionary    `tlb:"dict 267"`
 	DestChainConfigs             *cell.Dictionary    `tlb:"dict 64"`
-	KeyLen                       uint16              `tlb:"## 16"`
 }
 
 type DestChainConfig struct {

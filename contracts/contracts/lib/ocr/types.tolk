@@ -10,15 +10,15 @@ const OCR_PLUGIN_TYPE_EXECUTE: int = 1;
 
 struct OCRConfig {
 	configInfo: ConfigInfo;
-	signers: UMap<uint256, uint8>;
-	transmitters: Map<uint8>;
+	signers: map<uint256, uint8>;
+	transmitters: map<address, uint8>;
 }
 
 fun newOCRConfig(): OCRConfig {
 	return OCRConfig {
 		configInfo: ConfigInfo{},
-		signers: UMap<uint256, uint8>.new(256),
-		transmitters: Map<uint8>.new()
+		signers: createEmptyMap(),
+		transmitters: createEmptyMap()
 	}
 }
 
@@ -28,38 +28,38 @@ fun OCRConfig.assignSignerOracles(
 	signers: cell /*Vector<uint256>*/
 ) {
 	// TODO: Right now we cannot do ed25519 public key validation on chain. For now we assume valid keys.
-	var signersDict = UMap<uint256, uint8>.new(256);
+	var signersMap= createEmptyMap<uint256, uint8>();
 	var signersIt = Iterator<uint256>.new(signers);
 	var i = 0;
 	while (!signersIt.empty()) {
 		val signer = signersIt.next();
-		assert(!signersDict.has(signer), ERROR_REPEATED_SIGNERS);
+		assert(!signersMap.get(signer).isFound, ERROR_REPEATED_SIGNERS);
 		i = i + 1;
-		signersDict.set(
+		signersMap.set(
 			signer,
 			i
 		);
 	}
-	self.signers = signersDict;
+	self.signers = signersMap;
 }
 
 fun OCRConfig.assignTransmitterOracles(
 	mutate self,
 	transmitters: cell, //Vector<address>
 ) {
-	var transmittersDict = Map<uint8>.new(); 
+	var transmittersMap = createEmptyMap<address, uint8>(); 
 	var transmittersIt = Iterator<address>.new(transmitters);
 	var i = 0;
 	while (!transmittersIt.empty()) {
 		val transmitter = transmittersIt.next();
-		assert(!transmittersDict.has(transmitter), ERROR_REPEATED_TRANSMITTERS);
+		assert(!transmittersMap.get(transmitter).isFound, ERROR_REPEATED_TRANSMITTERS);
 		i = i + 1;
-		transmittersDict.set(
+		transmittersMap.set(
 			transmitter,
 			i
 		);
 	}
-	self.transmitters = transmittersDict;
+	self.transmitters = transmittersMap;
 }
 
 struct ConfigInfo {

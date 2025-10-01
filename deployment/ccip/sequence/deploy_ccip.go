@@ -5,8 +5,9 @@ import (
 	"os"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/xssnick/tonutils-go/address"
+
+	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
@@ -84,6 +85,7 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 	}
 
 	routerInput := operation.DeployRouterInput{
+		ID: in.CCIPConfig.RouterParams.ID,
 		// chainSelector ?
 		ContractPath: utils.GetBuildDir("Router.compiled.json"),
 	}
@@ -105,10 +107,12 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 	output.FeeQuoterAddress = deployFeeQuoterReport.Output.Address
 
 	onrampInput := operation.DeployOnRampInput{
-		ChainSelector: in.CCIPConfig.OnRampParams.ChainSelector,
-		FeeQuoter:     deployFeeQuoterReport.Output.Address,
-		FeeAggregator: in.CCIPConfig.OnRampParams.FeeAggregator,
-		ContractPath:  utils.GetBuildDir("OnRamp.compiled.json"),
+		ID:                   in.CCIPConfig.OnRampParams.ID,
+		ChainSelector:        in.CCIPConfig.OnRampParams.ChainSelector,
+		FeeQuoter:            deployFeeQuoterReport.Output.Address,
+		FeeAggregator:        in.CCIPConfig.OnRampParams.FeeAggregator,
+		ContractPath:         utils.GetBuildDir("OnRamp.compiled.json"),
+		ExecutorContractPath: utils.GetBuildDir("CCIPSendExecutor.compiled.json"),
 	}
 
 	deployOnRampReport, err := operations.ExecuteOperation(b, operation.DeployOnRampOp, deps, onrampInput)
@@ -118,6 +122,7 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 	output.OnRampAddress = deployOnRampReport.Output.Address
 
 	offrampInput := operation.DeployOffRampInput{
+		ID:                                      in.CCIPConfig.OffRampParams.ID,
 		ChainSelector:                           in.CCIPConfig.OffRampParams.ChainSelector,
 		FeeQuoter:                               deployFeeQuoterReport.Output.Address,
 		PermissionlessExecutionThresholdSeconds: in.CCIPConfig.OffRampParams.PermissionlessExecutionThreshold,

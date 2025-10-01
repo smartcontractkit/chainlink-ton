@@ -37,7 +37,7 @@
 
       yarnOfflineCache = pkgs.fetchYarnDeps {
         inherit yarnLock;
-        # pin the vendor hash (update using 'pkgs.lib.fakeHash')
+        # pin the vendor hash
         hash = lock.contracts;
       };
 

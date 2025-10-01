@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/smartcontractkit/libocr/offchainreporting2plus/ocr3types"
+	"github.com/xssnick/tonutils-go/ton"
+
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 	commontypes "github.com/smartcontractkit/chainlink-common/pkg/types"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
-	"github.com/smartcontractkit/libocr/offchainreporting2plus/ocr3types"
-	"github.com/xssnick/tonutils-go/ton"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/chainaccessor"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
@@ -37,37 +38,61 @@ type Provider struct {
 	services.StateMachine
 }
 
-func NewCCIPProvider(lggr logger.Logger,
+func NewCCIPProvider(
+	lggr logger.Logger,
 	chainSelector ccipocr3.ChainSelector,
 	client ton.APIClientWrapped,
 	txm txm.TxManager,
 	logPoller logpoller.Service,
-	offRampAddr string,
-	pluginType uint32) (*Provider, error) {
+	cargs commontypes.CCIPProviderArgs,
+) (*Provider, error) {
+	// TODO: clean up, too verbose
+	lggr.Info("Creating TON CCIPProvider", "chainSelector", chainSelector, "pluginType", cargs.PluginType, "offRampAddress", cargs.OffRampAddress)
+
+	// Validate offramp address
+	addressCodec := codec.NewAddressCodec()
+	var offRampAddrStr string
 	var err error
+
+	// NOTE: provider can still be initialized with an EVM offramp address, and AddressBytesToString will fail on addresses with len=20
+	// technically we only need the chainwriter to do fee estimation so this doesn't matter and we can use a zero address
+	// TODO: Should we even build the rest of the provider? Or just initialize the accessor with just the estimator.
+	if len(cargs.OffRampAddress) == codec.TONAddressLength {
+		offRampAddrStr, err = addressCodec.AddressBytesToString(cargs.OffRampAddress)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode TON offRamp address: %w", err)
+		}
+	} else {
+		// TODO: clean up, too verbose
+		// EVM address provided - use zero address as placeholder
+		lggr.Warnw("EVM offramp address provided to TON provider, using zero address placeholder",
+			"providedLength", len(cargs.OffRampAddress),
+			"expectedLength", codec.TONAddressLength)
+		// Use a zero TON address as placeholder
+		offRampAddrStr = codec.TONZeroAddressStr
+	}
+
 	var ct ocr3types.ContractTransmitter[[]byte]
-	switch pluginType {
+	switch cargs.PluginType {
 	case CCIPPluginTypeCommit:
-		ct, err = ocr.NewCCIPTransmitter(txm, lggr, offRampAddr, ocr.CommitCallData)
+		ct, err = ocr.NewCCIPTransmitter(txm, lggr, offRampAddrStr, ocr.CommitCallData)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create a CCIP ContractTransmitter for commit plugin: %w", err)
 		}
 
 	case CCIPPluginTypeExecute:
-		ct, err = ocr.NewCCIPTransmitter(txm, lggr, offRampAddr, ocr.ExecuteCallData)
+		ct, err = ocr.NewCCIPTransmitter(txm, lggr, offRampAddrStr, ocr.ExecuteCallData)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create a CCIP ContractTransmitter for execute plugin: %w", err)
 		}
 	default:
-		return nil, fmt.Errorf("unknown plugin type: %d", pluginType)
+		return nil, fmt.Errorf("unknown plugin type: %d", cargs.PluginType)
 	}
 
-	// TODO this is pretty much ignored in the core, we need to redesign core to resolve the extraDataCodec map issue if we want to use
-	// this codec
 	c := ccipocr3.Codec{
-		ChainSpecificAddressCodec: codec.NewAddressCodec(),
+		ChainSpecificAddressCodec: addressCodec,
 		CommitPluginCodec:         codec.NewCommitPluginCodecV1(),
-		ExecutePluginCodec:        codec.NewExecutePluginCodecV1(nil), // TODO extraDataCodec map can't be empty
+		ExecutePluginCodec:        codec.NewExecutePluginCodecV1(cargs.ExtraDataCodecBundle),
 		TokenDataEncoder:          codec.NewTokenDataEncoder(),
 		SourceChainExtraDataCodec: codec.NewExtraDataDecoder(),
 	}

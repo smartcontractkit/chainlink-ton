@@ -53,7 +53,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         from: baseTest.acc.deployer.address,
         to: baseTest.bind.mcms.address,
         success: false,
-        exitCode: mcms.Error.WRONG_CHAIN_ID,
+        exitCode: mcms.Error.WrongChainId,
       })
     })
 
@@ -85,7 +85,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         from: baseTest.acc.deployer.address,
         to: baseTest.bind.mcms.address,
         success: false,
-        exitCode: mcms.Error.WRONG_MULTI_SIG,
+        exitCode: mcms.Error.WrongMultiSig,
       })
     })
 
@@ -118,7 +118,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         from: baseTest.acc.deployer.address,
         to: baseTest.bind.mcms.address,
         success: false,
-        exitCode: mcms.Error.WRONG_PRE_OP_COUNT,
+        exitCode: mcms.Error.WrongPreOpCount,
       })
     })
 
@@ -153,7 +153,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         from: baseTest.acc.deployer.address,
         to: baseTest.bind.mcms.address,
         success: false,
-        exitCode: mcms.Error.WRONG_PRE_OP_COUNT,
+        exitCode: mcms.Error.WrongPreOpCount,
       })
     })
 
@@ -197,7 +197,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         from: baseTest.acc.deployer.address,
         to: baseTest.bind.mcms.address,
         success: false,
-        exitCode: mcms.Error.WRONG_POST_OP_COUNT,
+        exitCode: mcms.Error.WrongPostOpCount,
       })
     })
 
@@ -229,7 +229,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         from: baseTest.acc.deployer.address,
         to: baseTest.bind.mcms.address,
         success: false,
-        exitCode: mcms.Error.VALID_UNTIL_HAS_ALREADY_PASSED,
+        exitCode: mcms.Error.ValidUntilHasAlreadyPassed,
       })
     })
 
@@ -290,7 +290,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
           from: baseTest.acc.deployer.address,
           to: baseTest.bind.mcms.address,
           success: false,
-          exitCode: mcms.Error.SIGNED_HASH_ALREADY_SEEN,
+          exitCode: mcms.Error.SignedHashAlreadySeen,
         })
       }
 
@@ -370,7 +370,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         from: baseTest.acc.deployer.address,
         to: baseTest.bind.mcms.address,
         success: false,
-        exitCode: mcms.Error.MISSING_CONFIG,
+        exitCode: mcms.Error.MissingConfig,
       })
     })
   })
@@ -506,7 +506,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         newRootMetadata,
         baseTest.testOps,
         MCMSBaseSetRootAndExecuteTestSetup.OP_FINALIZATION_TIMEOUT_ZERO,
-      ) // TODO: Original test doesn't add this 1, but this test fails with ERROR_SIGNED_HASH_ALREADY_SEEN if we don't. Thats probably a bug? Should the "override previous root" be used to calculate the hash? Or maybe it is a problem in the order of validations
+      ) // TODO: Original test doesn't add this 1, but this test fails with ERROR_SignedHashAlreadySeen if we don't. Thats probably a bug? Should the "override previous root" be used to calculate the hash? Or maybe it is a problem in the order of validations
       const setRootBody = mcms.builder.message.in.setRoot.encode(setRoot).asCell()
 
       const result = await baseTest.bind.mcms.sendInternal(
@@ -519,7 +519,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         from: baseTest.acc.deployer.address,
         to: baseTest.bind.mcms.address,
         success: false,
-        exitCode: mcms.Error.PENDING_OPS,
+        exitCode: mcms.Error.PendingOps,
       })
     })
 
@@ -655,7 +655,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         from: baseTest.acc.deployer.address,
         to: baseTest.bind.mcms.address,
         success: false,
-        exitCode: mcms.Error.PROOF_CANNOT_BE_VERIFIED,
+        exitCode: mcms.Error.ProofCannotBeVerified,
       })
     })
 
@@ -686,7 +686,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         from: baseTest.acc.deployer.address,
         to: baseTest.bind.mcms.address,
         success: false,
-        exitCode: mcms.Error.PROOF_CANNOT_BE_VERIFIED,
+        exitCode: mcms.Error.ProofCannotBeVerified,
       })
     })
 
@@ -717,7 +717,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         from: baseTest.acc.deployer.address,
         to: baseTest.bind.mcms.address,
         success: false,
-        exitCode: mcms.Error.PROOF_CANNOT_BE_VERIFIED,
+        exitCode: mcms.Error.ProofCannotBeVerified,
       })
     })
 
@@ -748,7 +748,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         from: baseTest.acc.deployer.address,
         to: baseTest.bind.mcms.address,
         success: false,
-        exitCode: mcms.Error.PROOF_CANNOT_BE_VERIFIED,
+        exitCode: mcms.Error.ProofCannotBeVerified,
       })
     })
 
@@ -780,7 +780,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         from: baseTest.acc.deployer.address,
         to: baseTest.bind.mcms.address,
         success: false,
-        exitCode: mcms.Error.PROOF_CANNOT_BE_VERIFIED,
+        exitCode: mcms.Error.ProofCannotBeVerified,
       })
     })
   })
@@ -872,7 +872,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         from: baseTest.acc.deployer.address,
         to: baseTest.bind.mcms.address,
         success: false,
-        exitCode: mcms.Error.INSUFFICIENT_SIGNERS,
+        exitCode: mcms.Error.InsufficientSigners,
       })
     })
 
@@ -894,7 +894,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         from: baseTest.acc.deployer.address,
         to: baseTest.bind.mcms.address,
         success: false,
-        exitCode: mcms.Error.INSUFFICIENT_SIGNERS,
+        exitCode: mcms.Error.InsufficientSigners,
       })
     })
 
@@ -922,7 +922,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         from: baseTest.acc.deployer.address,
         to: baseTest.bind.mcms.address,
         success: false,
-        exitCode: mcms.Error.SIGNERS_KEYS_MUST_BE_STRICTLY_INCREASING,
+        exitCode: mcms.Error.SignersKeysMustBeStrictlyIncreasing,
       })
     })
 
@@ -962,7 +962,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         from: baseTest.acc.deployer.address,
         to: baseTest.bind.mcms.address,
         success: false,
-        exitCode: mcms.Error.INVALID_SIGNER,
+        exitCode: mcms.Error.InvalidSigner,
       })
     })
 
@@ -991,7 +991,7 @@ describe('MCMS - ManyChainMultiSigSetRootTest', () => {
         from: baseTest.acc.deployer.address,
         to: baseTest.bind.mcms.address,
         success: false,
-        exitCode: mcms.Error.INVALID_SIGNER,
+        exitCode: mcms.Error.InvalidSigner,
       })
     })
   })

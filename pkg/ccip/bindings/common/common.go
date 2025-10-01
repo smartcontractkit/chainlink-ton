@@ -202,6 +202,7 @@ func unpackArrayWithRefChaining[T any](root *cell.Cell) ([]T, error) {
 // packArrayWithStaticType packs a slice of any serializable type T into a linked cell structure.
 // Elements are stored directly in the cell's bits. If an element does not fit, a new cell is started.
 // Cells are linked via references for arrays that span multiple cells.
+// note: T cannot be primitive types does not supported by tlb.ToCell (e.g., address, uint64, int32, bool, etc.), wrapper type is needed such as DestChainSelector in router binding
 func packArrayWithStaticType[T any](array []T) (*cell.Cell, error) {
 	cells := []*cell.Builder{}
 	builder := cell.BeginCell()

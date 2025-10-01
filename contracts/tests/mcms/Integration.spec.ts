@@ -1,7 +1,7 @@
 import '@ton/test-utils'
 
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { Address, Cell, toNano } from '@ton/core'
+import { Address, beginCell, Cell, toNano } from '@ton/core'
 import { KeyPair, sign } from '@ton/crypto'
 import { compile } from '@ton/blueprint'
 
@@ -34,7 +34,7 @@ describe('MCMS - IntegrationTest', () => {
       timelock: await compile('mcms.RBACTimelock'),
       counter: await compile('examples.Counter'),
     }
-  })
+  }, 10_000)
 
   var acc: {
     deployer: SandboxContract<TreasuryContract>
@@ -131,16 +131,16 @@ describe('MCMS - IntegrationTest', () => {
               rbactl.roles.admin,
               {
                 adminRole: rbactl.roles.admin, // default admin role
-                membersLen: 1n, // one member (deployer)
-                hasRole: ac.builder.data.hasRoleDict([acc.deployer.address]),
+                membersLen: 0n, // no members yet
+                hasRole: ac.builder.data.hasRoleDict([]),
               },
             ],
             [
               rbactl.roles.proposer,
               {
                 adminRole: rbactl.roles.admin, // default admin role
-                membersLen: 1n, // one member (deployer)
-                hasRole: ac.builder.data.hasRoleDict([bind.mcmsPropose.address]),
+                membersLen: 0n, // no members yet
+                hasRole: ac.builder.data.hasRoleDict([]),
               },
             ],
             [
@@ -155,16 +155,16 @@ describe('MCMS - IntegrationTest', () => {
               rbactl.roles.canceller,
               {
                 adminRole: rbactl.roles.admin, // default admin role
-                membersLen: 1n, // one member (deployer)
-                hasRole: ac.builder.data.hasRoleDict([bind.mcmsVeto.address]),
+                membersLen: 0n, // no members yet
+                hasRole: ac.builder.data.hasRoleDict([]),
               },
             ],
             [
               rbactl.roles.bypasser,
               {
                 adminRole: rbactl.roles.admin, // default admin role
-                membersLen: 1n, // one member (deployer)
-                hasRole: ac.builder.data.hasRoleDict([bind.mcmsBypass.address]),
+                membersLen: 0n, // no members yet
+                hasRole: ac.builder.data.hasRoleDict([]),
               },
             ],
           ]),
@@ -175,6 +175,11 @@ describe('MCMS - IntegrationTest', () => {
         id: crc32('mcms.timelock.test-integration'), // unique ID for this instance
         minDelay: MIN_DELAY,
         executorRoleCheckEnabled: true,
+        opPendingInfo: {
+          validAfter: 0,
+          opFinalizationTimeout: 0n,
+          opPendingId: 0n,
+        },
         rbac: ac.builder.data.contractData.encode(rbacStorage).asCell(),
       }
 
@@ -197,8 +202,20 @@ describe('MCMS - IntegrationTest', () => {
 
     // Deploy Timelock contract
     {
-      const body = rbactl.builder.message.in.topUp.encode({ queryId: 1n }).asCell()
-      const r = await bind.timelock.sendInternal(acc.deployer.getSender(), toNano('0.05'), body)
+      const body = rbactl.builder.message.in.init
+        .encode({
+          queryId: 1n,
+          minDelay: MIN_DELAY,
+          admin: acc.deployer.address,
+          proposers: [bind.mcmsPropose.address],
+          executors: [],
+          cancellers: [bind.mcmsVeto.address],
+          bypassers: [bind.mcmsBypass.address],
+          executorRoleCheckEnabled: true,
+          opFinalizationTimeout: 0n,
+        })
+        .asCell()
+      const r = await bind.timelock.sendInternal(acc.deployer.getSender(), toNano('0.2'), body)
 
       expect(r.transactions).toHaveTransaction({
         from: acc.deployer.address,
@@ -581,7 +598,7 @@ describe('MCMS - IntegrationTest', () => {
         from: acc.deployer.address,
         to: bind.timelock.address,
         success: false,
-        exitCode: rbactl.Errors.OperationNotReady,
+        exitCode: rbactl.Error.OperationNotReady,
       })
 
       blockchain.now = blockchain.now! + Number(MIN_DELAY)
@@ -707,7 +724,7 @@ describe('MCMS - IntegrationTest', () => {
       expect(r2.transactions).toHaveTransaction({
         from: acc.deployer.address,
         to: bind.timelock.address,
-        exitCode: rbactl.Errors.OperationNotReady,
+        exitCode: rbactl.Error.OperationNotReady,
       })
 
       // succeeds once we use right predecessor
@@ -969,7 +986,7 @@ describe('MCMS - IntegrationTest', () => {
         from: acc.deployer.address,
         to: bind.timelock.address,
         success: false,
-        exitCode: rbactl.Errors.OperationNotReady,
+        exitCode: rbactl.Error.OperationNotReady,
       })
 
       blockchain.now = blockchain.now! + Number(MIN_DELAY) / 4
@@ -1057,7 +1074,7 @@ describe('MCMS - IntegrationTest', () => {
           from: acc.deployer.address,
           to: bind.timelock.address,
           success: false,
-          exitCode: rbactl.Errors.OperationNotReady,
+          exitCode: rbactl.Error.OperationNotReady,
         })
       }
     }

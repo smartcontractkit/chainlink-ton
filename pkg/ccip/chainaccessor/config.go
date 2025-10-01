@@ -3,6 +3,7 @@ package chainaccessor
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
@@ -28,7 +29,7 @@ func addrToBytes(addr *address.Address) []byte {
 func parseOCR3Config(configCell *cell.Cell) (ccipocr3.OCRConfig, error) {
 	var config offramp.OCR3Config
 	if err := tlb.LoadFromCell(&config, configCell.BeginParse()); err != nil {
-		return ccipocr3.OCRConfig{}, nil
+		return ccipocr3.OCRConfig{}, fmt.Errorf("load OCR3Config from cell: %w", err)
 	}
 
 	var configDigest ccipocr3.Bytes32
@@ -36,27 +37,27 @@ func parseOCR3Config(configCell *cell.Cell) (ccipocr3.OCRConfig, error) {
 
 	entries, err := config.Signers.LoadAll()
 	if err != nil {
-		return ccipocr3.OCRConfig{}, nil
+		return ccipocr3.OCRConfig{}, fmt.Errorf("load signers: %w", err)
 	}
 
 	signers := make([][]byte, 0, len(entries))
 	for _, entry := range entries {
 		signer, err1 := entry.Key.LoadSlice(256)
 		if err1 != nil {
-			return ccipocr3.OCRConfig{}, nil
+			return ccipocr3.OCRConfig{}, fmt.Errorf("decode signer: %w", err1)
 		}
 		signers = append(signers, signer)
 	}
 
 	entries, err = config.Transmitters.LoadAll()
 	if err != nil {
-		return ccipocr3.OCRConfig{}, nil
+		return ccipocr3.OCRConfig{}, fmt.Errorf("load transmitters: %w", err)
 	}
 	transmitters := make([][]byte, 0, len(entries))
 	for _, entry := range entries {
 		transmitter, err1 := entry.Key.LoadAddr()
 		if err1 != nil {
-			return ccipocr3.OCRConfig{}, nil
+			return ccipocr3.OCRConfig{}, fmt.Errorf("decode transmitter addr: %w", err1)
 		}
 		transmitters = append(transmitters, addrToBytes(transmitter))
 	}
@@ -65,7 +66,7 @@ func parseOCR3Config(configCell *cell.Cell) (ccipocr3.OCRConfig, error) {
 		ConfigInfo: ccipocr3.ConfigInfo{
 			ConfigDigest:                   configDigest,
 			F:                              config.ConfigInfo.F,
-			N:                              config.ConfigInfo.N, // TODO: N should match transmitters/signers
+			N:                              config.ConfigInfo.N,
 			IsSignatureVerificationEnabled: config.ConfigInfo.IsSignatureVerificationEnabled,
 		},
 		Signers:      signers,
@@ -83,38 +84,35 @@ func (a *TONAccessor) getOCR3Config(ctx context.Context, block *ton.BlockIDExt) 
 		return ccipocr3.OCRConfig{}, ccipocr3.OCRConfig{}, err
 	}
 
-	// NOTE: skip index 0: chainId
-
-	// commit
+	// commit (index 1)
 	isNil, err := result.IsNil(1)
 	if err != nil {
 		return ccipocr3.OCRConfig{}, ccipocr3.OCRConfig{}, err
 	}
-	// if the dictionary is empty, we get back nil
 	if !isNil {
 		configCell, err1 := result.Cell(1)
 		if err1 != nil {
-			return ccipocr3.OCRConfig{}, ccipocr3.OCRConfig{}, err
+			return ccipocr3.OCRConfig{}, ccipocr3.OCRConfig{}, err1
 		}
 		commitConfig, err1 = parseOCR3Config(configCell)
 		if err1 != nil {
-			return ccipocr3.OCRConfig{}, ccipocr3.OCRConfig{}, err
+			return ccipocr3.OCRConfig{}, ccipocr3.OCRConfig{}, err1
 		}
 	}
-	// exec
+
+	// exec (index 2)
 	isNil, err = result.IsNil(2)
 	if err != nil {
 		return ccipocr3.OCRConfig{}, ccipocr3.OCRConfig{}, err
 	}
-	// if the dictionary is empty, we get back nil
 	if !isNil {
-		configCell, err := result.Cell(2)
-		if err != nil {
-			return ccipocr3.OCRConfig{}, ccipocr3.OCRConfig{}, err
+		configCell, err2 := result.Cell(2)
+		if err2 != nil {
+			return ccipocr3.OCRConfig{}, ccipocr3.OCRConfig{}, err2
 		}
-		execConfig, err = parseOCR3Config(configCell)
-		if err != nil {
-			return ccipocr3.OCRConfig{}, ccipocr3.OCRConfig{}, err
+		execConfig, err2 = parseOCR3Config(configCell)
+		if err2 != nil {
+			return ccipocr3.OCRConfig{}, ccipocr3.OCRConfig{}, err2
 		}
 	}
 	return commitConfig, execConfig, nil

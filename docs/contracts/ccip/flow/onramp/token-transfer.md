@@ -20,8 +20,8 @@ sequenceDiagram
     
     Note over OR: Create msgID
     create participant ORM
-    OR ->> ORM: deploy CCIPSendExecutor <br>initData{msgID}<br>store{msg: CCIPSend}
-    ORM ->> OR: deployed{ORM.id, ccipSend}
+    OR ->> ORM: deploy CCIPSendExecutor <br>initData{msgID}<br>execute{CCIPSend, onrampJettonWallet}
+    ORM ->> OR: withdrawJettons{ORM.id, ccipSend}
     OR -->> ORM: Transfer T { amount,<br>fwdPayload: msgID }
 
     box OnRamp

@@ -47,7 +47,7 @@ describe('MCMS - RBACTimelockCancelTest', () => {
   it('should not be able to cancel finished operation', async () => {
     const call = {
       target: baseTest.bind.counter.address,
-      value: toNano('0.05'),
+      value: toNano('0.12'),
       data: counter.builder.message.in.increaseCount.encode({ queryId: 1n }).asCell(),
     }
     const calls = BaseTestSetup.singletonCalls(call)

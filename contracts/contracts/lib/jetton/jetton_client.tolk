@@ -20,7 +20,7 @@ struct JettonMessageOptions {
     /// whether a message will bounce back on error
     bounce: bool
     /// message value: attached tons (or tons + extra currencies)
-    value: coins | (coins, ExtraCurrenciesDict)
+    value: coins | (coins, ExtraCurrenciesMap)
 }
 
 @inline

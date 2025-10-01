@@ -4,9 +4,10 @@ import "../lib/access/ownable_2step.tolk"
 import "../lib/crypto/merkle_multi_proof.tolk"
 import "../lib/ocr/multi_ocr3_base"
 import "../lib/ocr/types"
-import "../lib/upgrades/type_and_version.tolk"
 import "../lib/utils.tolk"
 import "fee_quoter/messages"
+
+const CONTRACT_VERSION = "0.0.1";
 
 struct Storage {
     id: uint32;
@@ -22,7 +23,7 @@ struct Storage {
     // dynamic config
     permissionlessExecutionThresholdSeconds: uint32,
 
-    sourceChainConfigs: UMap<uint64, SourceChainConfig>;
+    sourceChainConfigs: map<uint64, SourceChainConfig>;
 
     // This is the OCR sequence number, not to be confused with the CCIP message sequence number.
     latestPriceSequenceNumber: uint64;
@@ -132,7 +133,15 @@ struct (0xb98c95e3) OffRamp_UpdateSourceChainConfig {
     config: SourceChainConfig;
 }
 
-type OffRamp_InMessage = OffRamp_Commit | OffRamp_Execute | OffRamp_DispatchValidated | OffRamp_UpdateSourceChainConfig | OCR3Base_SetOCR3Config | OffRamp_CCIPReceiveConfirm | OffRamp_NotifyFailure | OffRamp_NotifySuccess;
+type OffRamp_InMessage =
+    | OffRamp_Commit
+    | OffRamp_Execute
+    | OffRamp_DispatchValidated
+    | OffRamp_UpdateSourceChainConfig
+    | OCR3Base_SetOCR3Config
+    | OffRamp_CCIPReceiveConfirm
+    | OffRamp_NotifyFailure
+    | OffRamp_NotifySuccess;
 
 type OffRamp_BouncedMessage =  CCIPReceive;
 
@@ -344,7 +353,7 @@ fun _commit(msg: OffRamp_Commit, sender: address) {
 
         // increment seqNr
         sourceChainConfig.minSeqNr += 1;
-        st.sourceChainConfigs.replace(root.sourceChainSelector, sourceChainConfig);
+        st.sourceChainConfigs.replaceIfExists(root.sourceChainSelector, sourceChainConfig);
 
         val rootId = getMerkleRootID(root.merkleRoot);
         // initialize MerkleRoot subcontract
@@ -472,8 +481,8 @@ fun _updateSourceChainConfig(msg: OffRamp_UpdateSourceChainConfig, sender: addre
     var st = lazy Storage.load();
     st.ownable.requireOwner(sender);
     var config: SourceChainConfig;
-    var (existingConfig, exists) = st.sourceChainConfigs.get(msg.sourceChainSelector);
-    if (!exists) {
+    var existingConfigEntry = st.sourceChainConfigs.get(msg.sourceChainSelector);
+    if (!existingConfigEntry.isFound) {
         config = SourceChainConfig {
             router: msg.config.router,
             isEnabled: msg.config.isEnabled,
@@ -485,7 +494,7 @@ fun _updateSourceChainConfig(msg: OffRamp_UpdateSourceChainConfig, sender: addre
         // OnRamp updates should only happen due to a misconfiguration.
         // If an OnRamp is misconfigured, no reports should have been
         // committed and no messages should have been executed.        
-        config = existingConfig!;
+        config = existingConfigEntry.loadValue();
         assert(config.minSeqNr == 1 || config.onRamp.bitsEqual(msg.config.onRamp)) throw ERROR_INVALID_ON_RAMP_UPDATE;
         config.isEnabled = msg.config.isEnabled;
         config.onRamp = msg.config.onRamp;
@@ -535,13 +544,23 @@ get fun sourceChainConfig(sourceChainSelector: uint64): SourceChainConfig {
     return st.sourceChainConfigs.mustGet(sourceChainSelector,ERROR_SOURCE_CHAIN_NOT_ENABLED);
 }
 
-get fun allSourceChainConfigs(): dict {
+get fun allSourceChainConfigs(): map<uint64, SourceChainConfig> {
     val st = lazy Storage.load();
-    return st.sourceChainConfigs.value;
+    return st.sourceChainConfigs;
 }
 
 fun applySourceChainConfigUpdates() {}
 
 get fun typeAndVersion(): (slice, slice) {
-     return ("com.chainlink.ton.ccip.OffRamp", "1.0.0");
- }
+    return ("com.chainlink.ton.ccip.OffRamp", CONTRACT_VERSION);
+}
+
+// Returns the current code of the contract.
+get fun code(): cell {
+    return contract.getCode();
+}
+
+// Returns the sha256 hash of the current code of the contract.
+get fun codeHash(): int {
+    return contract.getCode().hash();
+}

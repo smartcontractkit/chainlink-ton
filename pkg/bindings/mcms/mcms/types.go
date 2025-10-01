@@ -1,6 +1,8 @@
 package mcms
 
 import (
+	"crypto/sha256"
+	"encoding/binary"
 	"math/big"
 
 	"github.com/xssnick/tonutils-go/address"
@@ -14,7 +16,7 @@ import (
 
 // --- Messages - incoming ---
 
-// @dev Top up contract with TON coins.
+// Top up contract with TON coins.
 // Contract might receive/hold TON as part of the maintenance process.
 type TopUp struct {
 	_ tlb.Magic `tlb:"#5f427bb3"` //nolint:revive // (opcode) should stay uninitialized
@@ -22,7 +24,7 @@ type TopUp struct {
 	QueryID uint64 `tlb:"## 64"`
 }
 
-// @dev Sets a new expiring root.
+// Sets a new expiring root.
 //
 // @param root is the new expiring root.
 // @param validUntil is the time by which root is valid
@@ -196,7 +198,32 @@ type OracleRoleTransferred struct {
 	NewOracle *address.Address `tlb:"addr"` // The address of the new oracle.
 }
 
-// -- Data structures ---
+// --- Data (storage & structures) ---
+
+// MCMS contract storage, auto-serialized to/from cell.
+type Data struct {
+	// ID allows multiple independent instances, since contract address depends on initial state.
+	ID uint32 `tlb:"## 32"`
+
+	// Ownable trait data
+	Ownable common.Ownable2Step `tlb:"."`
+
+	// Address of the error oracle account, which can submit error reports.
+	Oracle *address.Address `tlb:"addr"`
+
+	// Signers is used to easily validate the existence of the signer by its public key. We still
+	// have signers stored in config in order to easily deactivate them when a new config is set.
+	Signers *cell.Dictionary `tlb:"dict 256"` // map<uint256, Signer> - exists if the public key is a signer
+
+	// The current configuration of the contract
+	Config Config `tlb:"^"` // @dev split out as cell to avoid size limits
+
+	// Remember signedHashes that this contract has seen. Each signedHash can only be set once.
+	SeenSignedHashes *cell.Dictionary `tlb:"dict 256"` // map<uint256, bool>
+
+	// The current RootMetadata and ExpiringRootAndOpCount wrapped in a cell bc size limits.
+	RootInfo RootInfo `tlb:"^"`
+}
 
 type Proof struct {
 	Value *big.Int `tlb:"## 256"` // The value of the struct
@@ -257,16 +284,61 @@ type SignerKey struct {
 //	]
 type Config struct {
 	Signers *cell.Dictionary `tlb:"dict 8"` // map<uint8, Signer> - (indexed)
-	/// groupQuorums[i] stores the quorum for the i-th signer group. Any group with
-	/// groupQuorums[i] = 0 is considered disabled. The i-th group is successful if
-	/// it is enabled and at least groupQuorums[i] of its children are successful.
+	// groupQuorums[i] stores the quorum for the i-th signer group. Any group with
+	// groupQuorums[i] = 0 is considered disabled. The i-th group is successful if
+	// it is enabled and at least groupQuorums[i] of its children are successful.
 	GroupQuorums *cell.Dictionary `tlb:"dict 8"` // map<uint8, uint8> (indexed, iterable backwards)
-	/// groupParents[i] stores the parent group of the i-th signer group. We ensure that the
-	/// groups form a tree structure (where the root/0-th signer group points to itself as
-	/// parent) by enforcing
-	/// - (i != 0) implies (groupParents[i] < i)
-	/// - groupParents[0] == 0
+	// groupParents[i] stores the parent group of the i-th signer group. We ensure that the
+	// groups form a tree structure (where the root/0-th signer group points to itself as
+	// parent) by enforcing
+	// - (i != 0) implies (groupParents[i] < i)
+	// - groupParents[0] == 0
 	GroupParents *cell.Dictionary `tlb:"dict 8"` // map<uint8, uint8> (indexed, iterable backwards)
+}
+
+// Information about the current root, extracted into a separate struct (wrapped in a cell).
+type RootInfo struct {
+	// The current expiring root and the number of ops in it.
+	ExpiringRootAndOpCount ExpiringRootAndOpCount `tlb:"."`
+	// The current metadata about the root.
+	RootMetadata RootMetadata `tlb:"."`
+}
+
+// MerkleRoots are a bit tricky since they reveal almost no information about the contents of
+// the tree they authenticate. To mitigate this, we enforce that this contract can only execute
+// ops from a single root at any given point in time. We further associate an expiry
+// with each root to ensure that messages are executed in a timely manner. setRoot and various
+// execute calls are expected to happen in quick succession. We put the expiring root and
+// opCount in same struct in order to reduce gas costs of reading and writing.
+type ExpiringRootAndOpCount struct {
+	/// The expiring root.
+	Root *big.Int `tlb:"## 256"`
+	/// We prefer using block.timestamp instead of block.number, as a single
+	/// root may target many chains. We assume that block.timestamp can
+	/// be manipulated by block producers but only within relatively tight
+	/// bounds (a few minutes at most).
+	ValidUntil uint32 `tlb:"## 32"`
+	/// each ManyChainMultiSig instance has it own independent opCount.
+	OpCount uint64 `tlb:"## 40"`
+	/// Information about the currently pending operation.
+	OpPendingInfo OpPendingInfo `tlb:"^"`
+}
+
+// Information about the currently pending operation.
+//
+// @dev TON-specific additional data required to support reliable execution in the async environment.
+type OpPendingInfo struct {
+	// The time at which the root becomes valid [executionTime(opCount - 1) + opFinalizationTimeout].
+	// At this time the previous executed operation is considered optimistically final and successful,
+	// meaning no bounce was received and we can continue executing.
+	ValidAfter uint32 `tlb:"## 32"`
+	// The timeout required to finalize the currently executing op
+	OpFinalizationTimeout uint32 `tlb:"## 32"`
+	// The address that the (pending) operation was sent to (and could bounce from).
+	OpPendingReceiver *address.Address `tlb:"addr"`
+	// The truncated body of the pending operation (256 bits from the original message),
+	// stored as the next expected potential bounce, and verified in onBounceMessage handler.
+	OpPendingBodyTruncated *big.Int `tlb:"## 256"`
 }
 
 // Each root also authenticates metadata about itself (stored as one of the leaves)
@@ -307,96 +379,101 @@ type Op struct {
 
 // --- Constants ---
 
+func stringSha256_32(data string) uint32 {
+	d := sha256.Sum256([]byte(data))
+	return binary.BigEndian.Uint32(d[0:4])
+}
+
 // Should be used as the first 32 bytes of the pre-image of the leaf that holds a
 // op. This value is for domain separation of the different values stored in the
 // Merkle tree.
-// const MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP = stringSha256_32("MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP")
+var ManyChainMultiSigDomainSeparatorOp = stringSha256_32("MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP")
 
 // Should be used as the first 32 bytes of the pre-image of the leaf that holds the
 // root metadata. This value is for domain separation of the different values stored in the
 // Merkle tree.
-// const MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA = stringSha256_32("MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA")
+var ManyChainMultiSigDomainSeparatorMetadata = stringSha256_32("MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA")
 
 const (
 	// Thrown when number of signers is 0 or greater than MAX_NUM_SIGNERS.
-	ErrorOutOfBoundsNumSigners = 100
+	ErrorOutOfBoundsNumSigners = 39000
 
 	// Thrown when signerKeys and signerGroups have different lengths.
-	ErrorSignerGroupsLengthMismatch = 101
+	ErrorSignerGroupsLengthMismatch
 
 	// Thrown when number of some signer's group is greater than (NUM_GROUPS-1).
-	ErrorOutOfBoundsGroup = 102
+	ErrorOutOfBoundsGroup
 
 	// Thrown when the group tree isn't well-formed.
-	ErrorGroupTreeNotWellFormed = 103
+	ErrorGroupTreeNotWellFormed
 
 	// Thrown when the quorum of some group is larger than the number of signers in it.
-	ErrorOutOfBoundsGroupQuorum = 104
+	ErrorOutOfBoundsGroupQuorum
 
 	// Thrown when a disabled group contains a signer.
-	ErrorSignerInDisabledGroup = 105
+	ErrorSignerInDisabledGroup
 
 	// Thrown when the signers' public keys are not a strictly increasing monotone sequence.
 	// Prevents signers from including more than one signature.
-	ErrorSignersKeysMustBeStrictlyIncreasing = 106
+	ErrorSignersKeysMustBeStrictlyIncreasing
 
 	// Thrown when the signature corresponds to invalid signer.
-	ErrorInvalidSigner = 107
+	ErrorInvalidSigner
 
 	// Thrown when there is no sufficient set of valid signatures provided to make the
 	// root group successful.
-	ErrorInsufficientSigners = 108
+	ErrorInsufficientSigners
 
 	// Thrown when attempt to set metadata or execute op for another chain.
-	ErrorWrongChainID = 109
+	ErrorWrongChainID
 
 	// Thrown when the multiSig address in metadata or op is
 	// incompatible with the address of this contract.
-	ErrorWrongMultiSig = 110
+	ErrorWrongMultiSig
 
 	// Thrown when the preOpCount <= postOpCount invariant is violated.
-	ErrorWrongPostOpCount = 111
+	ErrorWrongPostOpCount
 
 	// Thrown when attempting to set a new root while there are still pending ops
 	// from the previous root without explicitly overriding it.
-	ErrorPendingOps = 112
+	ErrorPendingOps
 
 	// Thrown when preOpCount in metadata is incompatible with the current opCount.
-	ErrorWrongPreOpCount = 113
+	ErrorWrongPreOpCount
 
 	// Thrown when the provided merkle proof cannot be verified.
-	ErrorProofCannotBeVerified = 114
+	ErrorProofCannotBeVerified
 
 	// Thrown when attempt to execute an op after
 	// data.expiringRootAndOpCount.validUntil has passed.
-	ErrorRootExpired = 115
+	ErrorRootExpired
 
 	// Thrown when attempt to bypass the enforced ops' order in the merkle tree or
 	// re-execute an op.
-	ErrorWrongNonce = 116
+	ErrorWrongNonce
 
 	// Thrown when attempting to execute an op even though opCount equals
 	// metadata.postOpCount.
-	ErrorPostOpCountReached = 117
+	ErrorPostOpCountReached
 
 	// Thrown when the underlying call in _execute() reverts.
-	ErrorCallReverted = 118
+	ErrorCallReverted
 
 	// Thrown when attempt to set past validUntil for the root.
-	ErrorValidUntilHasAlreadyPassed = 119
+	ErrorValidUntilHasAlreadyPassed
 
 	// Thrown when setRoot() is called before setting a config.
-	ErrorMissingConfig = 120
+	ErrorMissingConfig
 
 	// Thrown when attempt to set the same (root, validUntil) in setRoot().
-	ErrorSignedHashAlreadySeen = 121
+	ErrorSignedHashAlreadySeen
 
 	/// Thrown when the root has not been finalized yet (can't execute next op before finalization).
-	ErrorRootNotFinalized = 122
+	ErrorRootNotFinalized
 
 	/// Thrown when the provided op.value is insufficient (min required value not met).
-	ErrorInsufficientValue = 123
+	ErrorInsufficientValue
 
 	/// Thrown when the error report sender is not the authorized oracle.
-	ErrorUnauthorizedOracle = 124
+	ErrorUnauthorizedOracle
 )

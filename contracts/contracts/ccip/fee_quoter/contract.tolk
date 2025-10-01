@@ -2,9 +2,12 @@ import "@stdlib/lisp-lists"
 import "../types";
 import "../../lib/access/ownable_2step";
 import "../../deployable/types";
-import "../../lib/upgrades/type_and_version";
 import "../../lib/utils";
 import "messages"
+import "errors"
+import "../../lib/cross_chain_address_validation"
+
+const CONTRACT_VERSION = "0.0.1";
 
 const VAL_1E5:  uint256 = 100000;
 const VAL_1E14: uint256 = 100000000000000;
@@ -23,6 +26,7 @@ const CHAIN_FAMILY_SELECTOR_APTOS: uint32 = 0xac77ffec;
 const CHAIN_FAMILY_SELECTOR_SUI:   uint32 = 0xc4e05953;
 
 struct Storage {
+    id: uint32;
     ownable: Ownable2Step;
 
     maxFeeJuelsPerMsg: uint96;
@@ -30,12 +34,12 @@ struct Storage {
     tokenPriceStalenessThreshold: uint64;
 
     // TODO: this is on DestChain instead (same as Solana)
-    // usdPerUnitGasByDestChain: UMap<uint64, TimestampedPrice>; // (idict len=64) chainSelector -> TimestampedPrice
-    usdPerToken: Map<TimestampedPrice>;
+    // usdPerUnitGasByDestChain: map<uint64, TimestampedPrice>; // (idict len=64) chainSelector -> TimestampedPrice
+    usdPerToken: map<address, TimestampedPrice>;
     // TODO: use presence in this map to validate a token as feeToken
-    premiumMultiplierWeiPerEth: Map<uint64>;
+    premiumMultiplierWeiPerEth: map<address, uint64>;
 
-    destChainConfigs: UMap<uint64, DestChainConfig>
+    destChainConfigs: map<uint64, DestChainConfig>
 }
 
 fun Storage.load(): Storage {
@@ -53,7 +57,7 @@ struct DestChainConfig {
     // TODO: split this out since updates are more frequent?
     usdPerUnitGas: Cell<GasPrice>; // TODO: it'd be nice if this wasn't split off
 
-    tokenTransferFeeConfigs: Map<TokenTransferFeeConfig>; // (sdict) address -> TokenTransferFeeConfig
+    tokenTransferFeeConfigs: map<address, TokenTransferFeeConfig>;
 }
 
 fun onInternalMessage(in: InMessage) {
@@ -92,11 +96,12 @@ fun onInternalMessage(in: InMessage) {
 }
 
 fun updateFeeTokens(mutate st: Storage, msg: FeeQuoter_UpdateFeeTokens) {
-    var (token, config, exists) = msg.add.min();
-    while (exists) {
-        st.premiumMultiplierWeiPerEth.set(token!, config!.premiumMultiplierWeiPerEth);
-
-        (token, config, exists) = msg.add.next(token!);
+    var entry = msg.add.findFirst();
+    while (entry.isFound) {
+        val token = entry.getKey();
+        val config = entry.loadValue();
+        st.premiumMultiplierWeiPerEth.set(token, config.premiumMultiplierWeiPerEth);
+        entry = msg.add.iterateNext(entry);
     }
 
     var iter = Iterator<address>.new(msg.remove);
@@ -107,17 +112,21 @@ fun updateFeeTokens(mutate st: Storage, msg: FeeQuoter_UpdateFeeTokens) {
 }
 
 fun updateTokenTransferFeeConfigs(mutate st: Storage, msg: FeeQuoter_UpdateTokenTransferFeeConfigs) {
-    var (destChainSelector, update, exists) = msg.updates.min();
-    while (exists) {
-        val (maybeDestChainConfig, configExists) = st.destChainConfigs.get(destChainSelector!);
-        if (configExists) {
-            var destChainConfig = maybeDestChainConfig!;
+    var entry = msg.updates.findFirst();
+    while (entry.isFound) {
+        val destChainSelector = entry.getKey();
+        val update = entry.loadValue();
+        var configEntry = st.destChainConfigs.get(destChainSelector);
+        if (configEntry.isFound) {
+            var destChainConfig = configEntry.loadValue();
 
-            var (tokenAddr, config, existsInner) = update!.add.min();
-            while (existsInner) {
-                destChainConfig.tokenTransferFeeConfigs.set(tokenAddr!, config!);
+            var tokenEntry = update.add.findFirst();
+            while (tokenEntry.isFound) {
+                val tokenAddr = tokenEntry.getKey();
+                val config = tokenEntry.loadValue();
 
-                (tokenAddr, config, existsInner) = update!.add.next(tokenAddr!);
+                destChainConfig.tokenTransferFeeConfigs.set(tokenAddr, config);
+                tokenEntry = update.add.iterateNext(tokenEntry);
             }
 
             var iter = Iterator<address>.new(update!.remove);
@@ -126,10 +135,9 @@ fun updateTokenTransferFeeConfigs(mutate st: Storage, msg: FeeQuoter_UpdateToken
                 destChainConfig.tokenTransferFeeConfigs.delete(tokenAddr);
             }
 
-            st.destChainConfigs.replace(destChainSelector!, destChainConfig);
+            st.destChainConfigs.replaceAndGetPrevious(destChainSelector, destChainConfig);
         }
-
-        (destChainSelector, update, exists) = msg.updates.next(destChainSelector!);
+        entry = msg.updates.iterateNext(entry);
     }
 }
 
@@ -140,11 +148,11 @@ fun updateDestChainConfigs(mutate st: Storage, updates: cell) {
     while (!iter.empty()) {
         val update = iter.next();
         // create or update entries
-        val (maybeDestChainConfig, exists) = st.destChainConfigs.get(update.destChainSelector);
-        if (exists) {
-            var destChainConfig = maybeDestChainConfig!;
+        val entry = st.destChainConfigs.get(update.destChainSelector);
+        if (entry.isFound) {
+            var destChainConfig = entry.loadValue();
             destChainConfig.config = update.destChainConfig;
-            st.destChainConfigs.replace(update.destChainSelector, destChainConfig);
+            st.destChainConfigs.replaceIfExists(update.destChainSelector, destChainConfig);
         } else {
             st.destChainConfigs.set(update.destChainSelector, DestChainConfig {
                 config: update.destChainConfig,
@@ -153,7 +161,7 @@ fun updateDestChainConfigs(mutate st: Storage, updates: cell) {
                     dataAvailabilityGasPrice: 0,
                     timestamp: 0,
                 }.toCell(),
-                tokenTransferFeeConfigs: Map<TokenTransferFeeConfig>.new()
+                tokenTransferFeeConfigs: createEmptyMap()
             })
         }
     }
@@ -178,16 +186,16 @@ fun updatePrices(mutate st: Storage, priceUpdates: PriceUpdates) {
     while (!iter2.empty()) {
         val update = iter2.next();
 
-        val (maybeDestChainConfig, exists) = st.destChainConfigs.get(update.destChainSelector);
+        val entry = st.destChainConfigs.get(update.destChainSelector);
         // NOTE: this only allows pushing gas updates to chains with a destChainConfig
-        if (exists) {
-            var destChainConfig = maybeDestChainConfig!;
+        if (entry.isFound) {
+            var destChainConfig = entry.loadValue();
             destChainConfig.usdPerUnitGas = GasPrice {
                 executionGasPrice: update.executionGasPrice,
                 dataAvailabilityGasPrice: update.dataAvailabilityGasPrice,
                 timestamp
             }.toCell();
-            st.destChainConfigs.replace(update.destChainSelector, destChainConfig);
+            st.destChainConfigs.replaceAndGetPrevious(update.destChainSelector, destChainConfig);
 
           //TODO: emit UsdPerUnitGasUpdated(update.destChainSelector, update.usdPerUnitGas, block.timestamp);
         }
@@ -209,19 +217,13 @@ fun DestChainConfig.getValidatedGasPrice(self): (uint112, uint112) {
 get fun validatedFee(msg: CCIPSend): coins {
     var st = lazy Storage.load();
 
-    val destChainConfig = st.destChainConfigs.mustGet(msg.destChainSelector, ERROR_DEST_CHAIN_NOT_ENABLED);
+    val destChainConfig: DestChainConfig = st.destChainConfigs.mustGet(msg.destChainSelector, ERROR_DEST_CHAIN_NOT_ENABLED);
     assert(destChainConfig.config.isEnabled, ERROR_DEST_CHAIN_NOT_ENABLED);
     // validate the fee token is actually supported
     val premiumMultiplier = st.premiumMultiplierWeiPerEth.mustGet(msg.feeToken, ERROR_FEE_TOKEN_NOT_SUPPORTED) as uint256;
     val feeTokenPrice = st.usdPerToken.mustGet(msg.feeToken, ERROR_FEE_TOKEN_NOT_SUPPORTED);
 
-    var gasLimit = 0;
-    // NOTE: we could deploy distinct contracts to cut down on code
-    // match (cfg.chainFamilySelector) {
-    //     CHAIN_FAMILY_SELECTOR_EVM | CHAIN_FAMILY_SELECTOR_APTOS | CHAIN_FAMILY_SELECTOR_SUI => { } // resolveGenericGasLimit()
-    //     CHAIN_FAMILY_SELECTOR_SVM => { } // resolveSVMGasLimit()
-    // }
-    // validateDestFamilyAddress(cfg.chainFamilySelector, receiver, gasLimit);
+    var gasLimit = validateMessageAndResolveGasLimitForDestination(msg.extraArgs, destChainConfig.config, msg);
 
     // TODO: this can throw and bounce the message
     val (executionGasPrice, dataAvailabilityGasPrice) = destChainConfig.getValidatedGasPrice();
@@ -294,6 +296,152 @@ get fun validatedFee(msg: CCIPSend): coins {
     return feeTokenAmount;
 }
 
+// TBD this should live in a different file
+const SUI_EXTRA_ARGS_MAX_RECEIVER_OBJECT_IDS = 64;
+const SUI_MESSAGING_ACCOUNTS_OVERHEAD = 1;
+const SUI_ACCOUNT_BYTE_SIZE: uint256 = 32;
+/// @dev The expected static payload size of a token transfer when Borsh encoded and submitted to SUI.
+/// TokenPool extra data and offchain data sizes are dynamic, and should be accounted for separately.
+const SUI_TOKEN_TRANSFER_DATA_OVERHEAD: uint256 = (4 + 32) // source_pool
++ 32 // token_address
++ 4 // gas_amount
++ 4 // extra_data overhead
++ 32 // amount
++ 32 // size of the token lookup table account
++ 32 // token-related accounts in the lookup table, over-estimated to 32, typically between 11 - 13
++ 32 // token account belonging to the token receiver, e.g ATA, not included in the token lookup table
++ 32 // per-chain token pool config, not included in the token lookup table
++ 32; // per-chain token billing config, not always included in the token lookup table
+
+fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: FeeQuoterDestChainConfig, message: CCIPSend): int {
+    val (_cells, dataBits, _cellReferences, succeeded) = message.data.calculateSize(99); // How are we decoding this?
+    assert(succeeded, ERROR_INVALID_MSG_DATA);
+    assert(dataBits % 8 == 0, ERROR_INVALID_MSG_DATA); // TBD: This is not present in the Solidity implementation, but the it uses bytes for data, so I supose this is implied
+    val dataLength = dataBits / 8 as uint256;
+
+    // Check that payload is formed correctly.
+    assert (dataLength <= config.maxDataBytes) throw ERROR_MSG_DATA_TOO_LARGE;
+    var tokenAmounts = Iterator<TokenAmount>.new(message.tokenAmounts);
+    var numberOfTokens = 0;
+    while (!tokenAmounts.empty()) {
+        var _ = tokenAmounts.next();
+        numberOfTokens += 1;
+    }
+    assert (numberOfTokens <= config.maxNumberOfTokensPerMsg) throw ERROR_UNSUPPORTED_NUMBER_OF_TOKENS;
+
+    // NOTE: we could deploy distinct contracts to cut down on code
+    if (config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_EVM ||
+        config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_APTOS ||
+        config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_SUI) {
+        val gasLimitOpt = resolveGenericGasLimit(extraArgs, config.defaultTxGasLimit, config.maxPerMsgGasLimit, config.enforceOutOfOrder);
+        val gasLimit = gasLimitOpt != null ? gasLimitOpt : 0;
+        validateDestFamilyAddress(config.chainFamilySelector, message.receiver, gasLimit);
+        return gasLimit;
+    }
+    else if (config.chainFamilySelector == CHAIN_FAMILY_SELECTOR_SVM) {
+        // resolveSVMGasLimit()
+        val svmExtraArgs = parseSvmExtraArgs(extraArgs, config.defaultTxGasLimit, config.enforceOutOfOrder);
+        val gasLimit = svmExtraArgs.computeUnits;
+        validateDestFamilyAddress(config.chainFamilySelector, message.receiver, gasLimit);
+
+        // objectIds are 32 bytes long
+        val accounts = Iterator<uint256>.new(svmExtraArgs.accounts);
+        val receiverObjectIdsLength = accounts.size(32);
+        // The max payload size for SUI is heavily dependent on the receiver object ids passed into extra args and the number of
+        // tokens. Below, token and account overhead will count towards maxDataBytes.
+        var suiExpandedDataLength = dataLength;
+
+        if (a32ByteAddress.fromSlice(message.receiver).value == 0) {
+            // When message receiver is zero, CCIP receiver is not invoked on SUI.
+            // There should not be additional accounts specified for the receiver.
+            assert (receiverObjectIdsLength == 0) throw ERROR_INVALID_SUI_RECEIVER_ADDRESS;
+        } else {
+            // The messaging accounts needed for CCIP receiver on SUI are:
+            // message receiver,
+            // plus remaining accounts specified in Sui extraArgs. Each account is 32 bytes.
+            suiExpandedDataLength += ((receiverObjectIdsLength + SUI_MESSAGING_ACCOUNTS_OVERHEAD) * SUI_ACCOUNT_BYTE_SIZE);
+        }
+         
+        if (numberOfTokens > 0 && svmExtraArgs.tokenReceiver == 0) {
+            throw ERROR_INVALID_TOKEN_RECEIVER;
+        }
+
+        assert (receiverObjectIdsLength <= SUI_EXTRA_ARGS_MAX_RECEIVER_OBJECT_IDS) throw ERROR_TOO_MANY_SUI_EXTRA_ARGS_RECEIVER_OBJECT_IDS;
+
+        suiExpandedDataLength += (numberOfTokens * SUI_TOKEN_TRANSFER_DATA_OVERHEAD);
+
+        // TBD this is not doable in TON. We cannot aford to have a map of every token to be sent to Solana.
+        // The token destBytesOverhead can be very different per token so we have to take it into account as well.
+        // for (uint256 i = 0; i < numberOfTokens; ++i) {
+        //   uint256 destBytesOverhead =
+        //     s_tokenTransferFeeConfig[destChainSelector][message.tokenAmounts[i].token].destBytesOverhead
+        //   // Pools get Pool.CCIP_LOCK_OR_BURN_V1_RET_BYTES by default, but if an override is set we use that instead.
+        //   if (destBytesOverhead > 0) {
+        //     suiExpandedDataLength += destBytesOverhead;
+        //   } else {
+        //     suiExpandedDataLength += Pool.CCIP_LOCK_OR_BURN_V1_RET_BYTES;
+        //   }
+        // }
+
+        assert (suiExpandedDataLength <= config.maxDataBytes) throw ERROR_MSG_DATA_TOO_LARGE;
+
+        return gasLimit;
+    } else {
+        throw ERROR_UNSUPPORTED_CHAIN_FAMILY_SELECTOR;
+    }
+}
+
+fun resolveGenericGasLimit(extraArgs: cell, defaultTxGasLimit: uint32, maxPerMsgGasLimit: uint32, enforceOutOfOrder: bool): int?{
+    return parseGenericExtraArgs(extraArgs, defaultTxGasLimit, maxPerMsgGasLimit, enforceOutOfOrder).gasLimit;
+}
+
+fun parseGenericExtraArgs(extraArgs: cell, defaultTxGasLimit: uint32, maxPerMsgGasLimit: uint32, enforceOutOfOrder: bool): GenericExtraArgsV2 {
+    val extra = parseUnvalidatedEVMExtraArgs(extraArgs, defaultTxGasLimit);
+    assert (extra.gasLimit == null || extra.gasLimit <= maxPerMsgGasLimit) throw ERROR_GAS_LIMIT_TOO_HIGH;
+    if (enforceOutOfOrder) {
+        assert (extra.allowOutOfOrderExecution) throw EXTRA_ARG_OUT_OF_ORDER_EXECUTION_MUST_BE_TRUE;
+    }
+    return extra;
+}
+
+fun parseUnvalidatedEVMExtraArgs(extraArgs: cell, defaultTxGasLimit: uint32): GenericExtraArgsV2 {
+    if (extraArgs.beginParse().isEmpty()) {
+        return GenericExtraArgsV2 {
+            gasLimit: defaultTxGasLimit as uint256,
+            allowOutOfOrderExecution: false, // TBD: isn't default true in TON?
+        };
+    }
+    return GenericExtraArgsV2.fromCell(extraArgs);
+}
+
+fun parseSvmExtraArgs(extraArgs: cell, maxPerMsgGasLimit: uint32, enforceOutOfOrder: bool): SVMExtraArgsV1 {
+    val extra = SVMExtraArgsV1.fromCell(extraArgs, {
+        throwIfOpcodeDoesNotMatch: ERROR_INVALID_EXTRA_ARGS_DATA,
+    });
+    assert (extra.computeUnits <= maxPerMsgGasLimit) throw ERROR_GAS_LIMIT_TOO_HIGH;
+    if (enforceOutOfOrder) {
+        assert (extra.allowOutOfOrderExecution) throw EXTRA_ARG_OUT_OF_ORDER_EXECUTION_MUST_BE_TRUE;
+    }
+    return extra;
+}
+
+fun validateDestFamilyAddress(chainFamilySelector: uint32, receiver: CrossChainAddress, gasLimit: int) {
+    if (chainFamilySelector == CHAIN_FAMILY_SELECTOR_EVM) {
+        return receiver.validateEVMAddress();
+    } else if (chainFamilySelector == CHAIN_FAMILY_SELECTOR_SVM) {
+        // SVM addresses don't have a precompile space at the first X addresses, instead we validate that if the gasLimit
+        // is non-zero, the address must not be 0x0.
+        return receiver.validate32ByteAddress(gasLimit > 0 ? 1 : 0);
+    } else if (chainFamilySelector == CHAIN_FAMILY_SELECTOR_APTOS) {
+        return receiver.validate32ByteAddress(APTOS_PRECOMPILE_SPACE);
+    } else if (chainFamilySelector == CHAIN_FAMILY_SELECTOR_SUI) {
+        return receiver.validate32ByteAddress(gasLimit > 0 ? APTOS_PRECOMPILE_SPACE : 0);
+    } else {
+        throw ERROR_UNSUPPORTED_CHAIN_FAMILY_SELECTOR;
+    }
+}
+
+
 fun getValidatedFee(payload: FeeQuoter_GetValidatedFee<cell>, sender: address) {
     val msg = payload.msg.load();
     val feeTokenAmount = validatedFee(msg);
@@ -365,8 +513,8 @@ get fun tokenPrices(tokens: tuple): tuple {
     while(!iter.empty()) {
         val token = iter.next();
         // NOTE: Need to skip missing items as nil entries rather than fail the query
-        val (maybePrice, _exists) = st.usdPerToken.get(token);
-        list.push(maybePrice.toCell());
+        val entry = st.usdPerToken.get(token);
+        list.push(entry.loadValue().toCell());
     }
     return list;
 }
@@ -384,16 +532,16 @@ get fun tokenAndGasPrices(token: address, destChainSelector: uint64) {
 // vec<address>
 get fun feeTokens(): tuple {
     val st = lazy Storage.load();
-    var d = st.premiumMultiplierWeiPerEth.value;
+    var feeTokens = st.premiumMultiplierWeiPerEth;
     
     var list: tuple? = null;
-    do {
-        var (key: slice?, _value: slice?, found: bool) = d.sDictDeleteFirstAndGet(ADDR_KEY_LEN);
-        if (found) {
-            var address = key! as address;
-            list = listPrepend(address, list);
-        }
-    } while (found);
+    var entry = feeTokens.findFirst();
+    while (entry.isFound) {
+        val address = entry.getKey();
+        list = listPrepend(address, list);
+
+        entry = feeTokens.iterateNext(entry);
+    }
     return list!;
 }
 
@@ -412,11 +560,21 @@ get fun staticConfig(): (uint96, address, uint64) {
 }
 
 get fun typeAndVersion(): (slice, slice) {
-     return ("com.chainlink.ton.ccip.FeeQuoter", "1.0.0");
+    return ("com.chainlink.ton.ccip.FeeQuoter", CONTRACT_VERSION);
+}
+
+// Returns the current code of the contract.
+get fun code(): cell {
+    return contract.getCode();
+}
+
+// Returns the sha256 hash of the current code of the contract.
+get fun codeHash(): int {
+    return contract.getCode().hash();
 }
 
 get fun destChainSelectors(): tuple {
     val st = lazy Storage.load();
     var d = st.destChainConfigs;
-    return d.keysDestructs()!;
+    return keysLispList(d)!;
 }
