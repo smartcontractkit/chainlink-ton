@@ -173,6 +173,15 @@ validate_project_dir "$CHAINLINK_CORE_DIR" "Chainlink Core"
 
 validate_core_version "$CHAINLINK_CORE_DIR"
 
+# NOTE: Contracts must be built separately before running tests
+# To build: cd contracts && yarn build
+# This allows testing with previous contract versions without rebuilding
+setup_contracts "$CHAINLINK_CORE_DIR"
+
+# TODO: Revisit to check if this is needed. we already have nix build for chainlink-ton.
+# but the point is building the binary for every test run in local dev env
+build_ton_binary
+
 setup_postgres
 
 (
