@@ -1,5 +1,7 @@
 import "../lib/access/ownable_2step.tolk";
 
+//TODO implement
+
 const CONTRACT_VERSION = "0.0.1";
 
 struct Storage {

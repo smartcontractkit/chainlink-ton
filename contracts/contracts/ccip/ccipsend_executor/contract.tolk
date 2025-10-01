@@ -3,9 +3,6 @@ import "messages"
 import "storage"
 import "../fee_quoter/messages"
 
-tolk 1.1
-
-
 fun onInternalMessage(in: InMessage) {
     val msg = lazy CCIPSendExecutor_InMessage.fromSlice(in.body);
     match (msg) {
@@ -120,7 +117,7 @@ fun getValidatedFee(feeQuoter: address, onrampSend: OnRampSend) {
 fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValidated(mutate self, msg: FeeQuoter_MessageValidated<Metadata>, sender: address) {
     // notification must come from fee quoter
     val addresses = lazy self.addresses.load();
-    assert(addresses.feeQuoter == sender, ERROR_UNAUTHORIZED);
+    assert(addresses.feeQuoter == sender, Error.Unauthorized);
 
     if (msg.fee > contract.getOriginalBalance()) {
         // TODO: handle insufficient funds

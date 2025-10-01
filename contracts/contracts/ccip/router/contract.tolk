@@ -7,24 +7,6 @@ import "../lib/jetton/messages_extended"
 
 const CONTRACT_VERSION = "0.0.1";
 
-struct Storage {
-    id: uint32;
-    ownable: Ownable2Step;
-
-    // TODO: expand this with versions support
-    onRamps: map<uint64, address>; // destChainSelector -> onRamp address
-}
-
-fun Storage.load(): Storage {
-    return Storage.fromCell(contract.getData());
-}
-
-fun Storage.store(self) {
-    return contract.setData(self.toCell());
-}
-
-type Msg = CCIPSend | SetRamps | JettonTransferNotification;
-
 fun onInternalMessage(in: InMessage) {
     val msg = lazy Msg.fromSlice(in.body);
     match (msg) {
@@ -65,7 +47,7 @@ fun onTransferNotification(transferNotification: JettonTransferNotification, wal
     // TBD: I think we don't need to validate the sender here. If it is not a Jetton Wallet, it would not be able to transfer the jettons?
 
     // TODO: need to validate that the transfer notification came from our own wallet
-    // assert(sender == st.owner) throw ERROR_NOT_OWNER;
+    // assert(sender == st.owner) throw Error.NotOwner;
     // TODO: need to validate the jetton (master) address, but to do this we need to
     // derive the address. We can probably fetch that from the ccip send payload's tokenAmounts
 
@@ -80,7 +62,7 @@ fun onTransferNotification(transferNotification: JettonTransferNotification, wal
 
     // TODO: store msg.amount + value
     // make sure msg.amount == sendMsg.token amount
-    val onRamp = st.onRamps.mustGet(sendMsg.destChainSelector, ERROR_DEST_CHAIN_NOT_ENABLED);
+    val onRamp = st.onRamps.mustGet(sendMsg.destChainSelector, Error.DestChainNotEnabled);
 
     val transferMessage = createMessage({
         bounce: true,
@@ -109,7 +91,7 @@ fun ccipSend(msg: CCIPSend, sender: address) {
     // forward to onRamp
     // ccipSend(onRamp, msg, value/token amounts)
 
-    val onRamp = st.onRamps.mustGet(msg.destChainSelector, ERROR_DEST_CHAIN_NOT_ENABLED);
+    val onRamp = st.onRamps.mustGet(msg.destChainSelector, Error.DestChainNotEnabled);
     val sendMsg = createMessage({
         bounce: true,
         value: 0,
@@ -135,7 +117,7 @@ get fun codeHash(): int {
 
 get fun onRamp(destChainSelector: uint64): address {
     val st = lazy Storage.load();
-    return st.onRamps.mustGet(destChainSelector, ERROR_DEST_CHAIN_NOT_ENABLED);
+    return st.onRamps.mustGet(destChainSelector, Error.DestChainNotEnabled);
 }
 
 get fun destChainSelectors(): tuple {

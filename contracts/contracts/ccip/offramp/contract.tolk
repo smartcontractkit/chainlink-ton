@@ -9,141 +9,6 @@ import "fee_quoter/messages"
 
 const CONTRACT_VERSION = "0.0.1";
 
-struct Storage {
-    id: uint32;
-    ownable: Ownable2Step;
-    deployer: cell; // Deployable compiled code
-    merkleRootCode: cell; // make sure to use a library cell offchain to save space
-    feeQuoter: address;
-    ocr3Base: Cell<OCR3Base>
-
-    // static config
-    chainSelector: uint64;
-
-    // dynamic config
-    permissionlessExecutionThresholdSeconds: uint32,
-
-    sourceChainConfigs: map<uint64, SourceChainConfig>;
-
-    // This is the OCR sequence number, not to be confused with the CCIP message sequence number.
-    latestPriceSequenceNumber: uint64;
-}
-
-struct Config {
-    // -- Static config
-    chainSelector: uint64
-    // gasForCallExactCheck
-    // rmnRemote
-    // nonceManager
-    // tokenAdminRegistry
-    // -- Dynamic config
-    feeQuoter: address
-    permissionlessExecutionThresholdSeconds: uint32
-    // isRMNVerificationDisabled
-    // messageInterceptor
-}
-
-struct SourceChainConfig {
-    router: address;
-    isEnabled: bool;
-    minSeqNr: uint64;
-    isRMNVerificationDisabled: bool;
-    onRamp: CrossChainAddress;
-}
-
-const EXECUTION_STATE_CHANGED_TOPIC: int = stringCrc32("ExecutionStateChanged");
-struct ExecutionStateChanged {
-    sourceChainSelector: uint64,
-    sequenceNumber: uint64,
-    messageId: uint256,
-    state: uint8,
-    //returnData? probably not
-}
-
-// These have to match the EVM states
-const EXECUTION_STATE_IN_PROGRESS: uint8 = 1;
-const EXECUTION_STATE_SUCCESS: uint8 = 2;
-const EXECUTION_STATE_FAILURE: uint8 = 3;
-
-
-fun Storage.load(): Storage {
-    return Storage.fromCell(contract.getData());
-}
-
-fun Storage.store(self) {
-    return contract.setData(self.toCell());
-}
-
-struct SkippedAlreadyExecuted {
-    sourceChainSelector: uint64;
-    sequenceNumber: uint64;
-}
-
-struct AlreadyAttempted {
-    sourceChainSelector: uint64;
-    sequenceNumber: uint64;
-}
-
-const CCIP_COMMIT_REPORT_ACCEPTED_TOPIC: int = stringCrc32("CommitReportAccepted");
-
-struct CommitReportAccepted {
-    merkleRoot: MerkleRoot? // vec<MerkleRoots>
-    priceUpdates: Cell<PriceUpdates>?;
-}
-
-struct SkippedReportExecution {
-    sourceChainSelector: uint64;
-}
-
-struct ExecutionReport {
-    sourceChainSelector: uint64;
-    messages: cell; // vec<Any2TVMRampMessage>
-    offchainTokenData: cell; // TODO: vec<vec<u8>>, one per token
-    proofs: cell; // Proofs used to construct the merkle root TODO: vec<bytes32>
-    proofFlagBits: uint256;
-}
-
-// Matches the EVM struct
-struct CommitReport {
-    priceUpdates: Cell<PriceUpdates>?; // Price updates for the fee_quoter
-    merkleRoots: cell; // vec<MerkleRoot> Merkle roots 
-}
-
-//crc32('OffRamp_Commit')
-struct (0x9d431905) OffRamp_Commit {
-    queryId: uint64;
-    // TODO: could just store as one slice since context is fixed size
-    reportContext: ReportContext;
-    report: CommitReport;
-    signatures: cell; //vec<SignatureEd25519>
-}
-
-//crc32('OffRamp_Execute')
-struct (0x27bdac33) OffRamp_Execute {
-    queryId: uint64;
-    // TODO: could just store as one slice since context is fixed size
-    reportContext: ReportContext;
-    report: ExecutionReport;
-}
-
-//crc32('OffRamp_UpdateSourceChainConfig')
-struct (0xb98c95e3) OffRamp_UpdateSourceChainConfig {
-    queryId: uint64;
-    sourceChainSelector: uint64;
-    config: SourceChainConfig;
-}
-
-type OffRamp_InMessage =
-    | OffRamp_Commit
-    | OffRamp_Execute
-    | OffRamp_DispatchValidated
-    | OffRamp_UpdateSourceChainConfig
-    | OCR3Base_SetOCR3Config
-    | OffRamp_CCIPReceiveConfirm
-    | OffRamp_NotifyFailure
-    | OffRamp_NotifySuccess;
-
-type OffRamp_BouncedMessage =  CCIPReceive;
 
 fun onInternalMessage(in:InMessage) {
     val msg = lazy OffRamp_InMessage.fromSlice(in.body);
@@ -276,7 +141,7 @@ fun _dispatchValidated(msg: OffRamp_DispatchValidated, sender: address) {
                     }.toCell()
                 }
             };
-            assert(expectedAddress.addressMatches(sender)) throw ERROR_DISPATCH_NOT_FROM_MERKLE_ROOT;
+            assert(expectedAddress.addressMatches(sender)) throw Error.DispatchNotFromMerkleRoot;
 
             // dispatch message to receiver
             val ccipReceive: CCIPReceive = {
@@ -345,9 +210,9 @@ fun _commit(msg: OffRamp_Commit, sender: address) {
 
         // validate lane not cursed
 
-        var sourceChainConfig = st.sourceChainConfigs.mustGet(root.sourceChainSelector, ERROR_SOURCE_CHAIN_NOT_ENABLED);
+        var sourceChainConfig = st.sourceChainConfigs.mustGet(root.sourceChainSelector, Error.SourceChainNotEnabled);
 
-        assert(sourceChainConfig.isEnabled, ERROR_SOURCE_CHAIN_NOT_ENABLED);
+        assert(sourceChainConfig.isEnabled, Error.SourceChainNotEnabled);
 
         // validate against sourceChainConfig etc
 
@@ -414,8 +279,8 @@ fun _execute(msg: OffRamp_Execute, sender: address) {
 
     val report = msg.report;
 
-    val sourceChainConfig = st.sourceChainConfigs.mustGet(report.sourceChainSelector, ERROR_SOURCE_CHAIN_NOT_ENABLED);
-    assert(sourceChainConfig.isEnabled, ERROR_SOURCE_CHAIN_NOT_ENABLED);
+    val sourceChainConfig = st.sourceChainConfigs.mustGet(report.sourceChainSelector, Error.SourceChainNotEnabled);
+    assert(sourceChainConfig.isEnabled, Error.SourceChainNotEnabled);
 
     // We do this hash here instead of in _verify to avoid two separate loops over the same data. Hashing all of the
     // message fields ensures that the message being executed is correct and not tampered with. Including the known
@@ -428,18 +293,18 @@ fun _execute(msg: OffRamp_Execute, sender: address) {
     }.toCell().hash();
 
 
-    assert(!report.messages.beginParse().isEmpty(), ERROR_EMPTY_EXECUTION_REPORT);
+    assert(!report.messages.beginParse().isEmpty(), Error.EmptyExecutionReport);
     val message = Any2TVMRampMessage.fromCell(report.messages);
 
     // Commits do not verify the destChainSelector in the message since only the root is committed, so we
     // have to check it explicitly. This check is also important as we have assumed the metaDataHash above uses
     // the i_chainSelector as the destChainSelector.
-    assert(message.header.destChainSelector == st.chainSelector, ERROR_INVALID_MESSAGE_DEST_CHAIN_SELECTOR);
+    assert(message.header.destChainSelector == st.chainSelector, Error.InvalidMessageDestChainSelector);
 
     // If the message source chain selector does not match the report's source chain selector and the root has not
     // been committed for the report source chain selector this will be caught by the root verification.
     // This acts as an extra check to ensure the message source chain selector matches the report's source chain.
-    assert(message.header.sourceChainSelector == report.sourceChainSelector, ERROR_SOURCE_CHAIN_SELECTOR_MISMATCH);
+    assert(message.header.sourceChainSelector == report.sourceChainSelector, Error.SourceChainSelectorMismatch);
 
     val root = message.generateMessageId(metadataHash);
 
@@ -495,7 +360,7 @@ fun _updateSourceChainConfig(msg: OffRamp_UpdateSourceChainConfig, sender: addre
         // If an OnRamp is misconfigured, no reports should have been
         // committed and no messages should have been executed.        
         config = existingConfigEntry.loadValue();
-        assert(config.minSeqNr == 1 || config.onRamp.bitsEqual(msg.config.onRamp)) throw ERROR_INVALID_ON_RAMP_UPDATE;
+        assert(config.minSeqNr == 1 || config.onRamp.bitsEqual(msg.config.onRamp)) throw Error.InvalidOnRampUpdate;
         config.isEnabled = msg.config.isEnabled;
         config.onRamp = msg.config.onRamp;
     }
@@ -541,7 +406,7 @@ get fun config(): Config {
 
 get fun sourceChainConfig(sourceChainSelector: uint64): SourceChainConfig {
     val st = lazy Storage.load();
-    return st.sourceChainConfigs.mustGet(sourceChainSelector,ERROR_SOURCE_CHAIN_NOT_ENABLED);
+    return st.sourceChainConfigs.mustGet(sourceChainSelector,Error.SourceChainNotEnabled);
 }
 
 get fun allSourceChainConfigs(): map<uint64, SourceChainConfig> {
