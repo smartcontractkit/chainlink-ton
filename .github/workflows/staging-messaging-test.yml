@@ -1,4 +1,6 @@
 name: Staging - TON2EVM messaging test
+permissions:
+  contents: read
 
 on:
   schedule:
