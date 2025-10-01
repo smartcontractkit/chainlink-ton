@@ -106,6 +106,12 @@ var UpdateOnRampDestChainConfigsOp = operations.NewOperation(
 func updateOnRampDestChainConfigs(b operations.Bundle, deps TonDeps, in UpdateOnRampDestChainConfigsInput) ([][]byte, error) {
 	addr := deps.CCIPOnChainState[deps.TonChain.Selector].OnRamp
 
+	if len(in.Updates) == 0 {
+		b.Logger.Info("Skipping onramp.updateOnRampDestChainConfigs, no updates")
+		// Nothing to update
+		return nil, nil
+	}
+
 	configs := make([]onramp.UpdateDestChainConfig, 0, len(in.Updates))
 
 	for selector, update := range in.Updates {

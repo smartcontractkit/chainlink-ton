@@ -9,6 +9,7 @@ import (
 	"math/big"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
@@ -717,8 +718,7 @@ func (a *TONAccessor) GetFeedPricesUSD(
 
 func (a *TONAccessor) GetFeeQuoterTokenUpdates(
 	ctx context.Context,
-	tokens []ccipocr3.UnknownEncodedAddress,
-	chain ccipocr3.ChainSelector,
+	tokens []ccipocr3.UnknownAddress,
 ) (map[ccipocr3.UnknownEncodedAddress]ccipocr3.TimestampedUnixBig, error) {
 	addr, err := a.getBinding(consts.ContractNameFeeQuoter)
 	if err != nil {
@@ -733,7 +733,15 @@ func (a *TONAccessor) GetFeeQuoterTokenUpdates(
 
 	encodedTokens := make([]any, 0, len(tokens))
 	for _, token := range tokens {
-		encodedTokens = append(encodedTokens, token)
+		strAddr, err2 := a.addrCodec.AddressBytesToString(token)
+		if err2 != nil {
+			return nil, fmt.Errorf("failed to AddressBytesToString for encodedTokens: %w", err2)
+		}
+		addrParsed, err2 := address.ParseAddr(strAddr)
+		if err2 != nil {
+			return nil, fmt.Errorf("failed to ParseAddr %s for encodedTokens: %w", strAddr, err2)
+		}
+		encodedTokens = append(encodedTokens, addrParsed)
 	}
 	result, err := a.client.RunGetMethod(ctx, block, addr, "tokenPrices", encodedTokens...)
 	// result is a list of TimestampedPrice
@@ -767,7 +775,10 @@ func (a *TONAccessor) GetFeeQuoterTokenUpdates(
 		default:
 			return nil, fmt.Errorf("expected either cell or nil, received %T", priceResult)
 		}
-		prices[token] = price
+		if !utf8.ValidString(token.String()) {
+			return nil, fmt.Errorf("gRPC can't handle non-UTF8 strings: %x", token)
+		}
+		prices[ccipocr3.UnknownEncodedAddress(token)] = price
 	}
 	return prices, nil
 }
