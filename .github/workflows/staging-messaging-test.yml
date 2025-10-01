@@ -17,6 +17,10 @@ jobs:
       (github.event_name == 'pull_request' &&
        contains(github.event.pull_request.labels.*.name, 'run-staging-ton2evm-test'))
     runs-on: ubuntu-latest
+    env:
+      RUN_URL: "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+      TRIGGER: "${{ github.event_name }}"
+      WHEN: "${{ github.run_started_at }}" # ISO8601
     steps:
       - name: Check out code
         uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
@@ -43,10 +47,13 @@ jobs:
         run: |
           curl -X POST -H 'Content-type: application/json' \
             --data "{
-              \"Status\": \"Success\",
+              \"Status\": \":white_check_mark: Success\",
               \"Router\": \"${{ secrets.STAGING_TON_ROUTER_ADDRESS }}\",
               \"Receiver\": \"${{ secrets.STAGING_EVM_RECEIVER_ADDRESS }}\",
-              \"Data\": \"hello-ton->evm-${{ github.run_id }}\"
+              \"Data\": \"hello-ton->evm-${{ github.run_id }}\",
+              \"RunURL\": \"${RUN_URL}\",
+              \"Trigger\": \"${TRIGGER}\",
+              \"When\": \"${WHEN}\"
             }" \
             ${{ secrets.STAGING_TEST_SLACK_WEBHOOK }}
 
@@ -55,9 +62,13 @@ jobs:
         run: |
           curl -X POST -H 'Content-type: application/json' \
             --data "{
-              \"Status\": \"Failure\",
+              \"Status\": \":x: Failure\",
               \"Router\": \"${{ secrets.STAGING_TON_ROUTER_ADDRESS }}\",
               \"Receiver\": \"${{ secrets.STAGING_EVM_RECEIVER_ADDRESS }}\",
-              \"Data\": \"hello-ton->evm-${{ github.run_id }}\"
+              \"Data\": \"hello-ton->evm-${{ github.run_id }}\",
+              \"RunURL\": \"${RUN_URL}\",
+              \"Trigger\": \"${TRIGGER}\",
+              \"When\": \"${WHEN}\"
             }" \
             ${{ secrets.STAGING_TEST_SLACK_WEBHOOK }}
+
