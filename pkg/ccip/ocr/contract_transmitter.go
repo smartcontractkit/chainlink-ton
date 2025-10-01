@@ -90,10 +90,20 @@ func (c *ccipTransmitter) Transmit(
 		signatures = append(signatures, fixedSig)
 	}
 
+	// TODO: remove this logging after EVM2TON, too verbose
+	c.lggr.Debugw("Generating call data for transmission",
+		"reportLength", len(reportWithInfo.Report),
+		"reportHex", hex.EncodeToString(reportWithInfo.Report),
+		"numSignatures", len(signatures))
+
 	argsCell, err := c.toEd25519CalldataFn(rawContextBytes, reportWithInfo, signatures)
 	if err != nil {
 		return fmt.Errorf("failed to generate call data: %w", err)
 	}
+
+	// TODO: remove this logging after EVM2TON, too verbose
+	c.lggr.Debugw("Successfully generated call data for transmission",
+		"reportLength", len(reportWithInfo.Report))
 
 	client, err := c.txm.GetClient(ctx)
 	if err != nil {
@@ -160,12 +170,14 @@ var ExecuteCallData = func(
 ) (*cell.Cell, error) {
 	reportCell, err := cell.FromBOC(report.Report)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to decode BOC (len=%d, hex=%x): %w", len(report.Report), report.Report, err)
 	}
 
+	// Decode as single ExecuteReport (not array) since TON supports single chain only
 	var executeReport ocr.ExecuteReport
 	if err = tlb.LoadFromCell(&executeReport, reportCell.BeginParse()); err != nil {
-		return nil, fmt.Errorf("cannot decode commit report from cell: %w", err)
+		return nil, fmt.Errorf("cannot decode execute report from cell (reportLen=%d, cellBits=%d, cellRefs=%d): %w",
+			len(report.Report), reportCell.BitsSize(), reportCell.RefsNum(), err)
 	}
 
 	execute := offramp.Execute{
