@@ -1,7 +1,5 @@
-import "../lib/utils.tolk";
+import "../../lib/utils.tolk";
 import "errors";
-
-const Error.CrossChainAddressOutOfRange = 5;
 
 // 1-byte length prefixed byte slice (up to 64 bytes)
 // Almost all uses need to Cell<> box this type because it can be sized up to 8+512 bits
@@ -9,16 +7,16 @@ type CrossChainAddress = slice;
 
 fun CrossChainAddress.packToBuilder(self, mutate b: builder) {
     val nBits = self.remainingBitsCount();
-    assert(nBits % 8 == 0, Error.CrossChainAddressOutOfRange);
+    assert(nBits % 8 == 0, Common_Error.CrossChainAddressOutOfRange);
     val nBytes = nBits / 8;
-    assert(nBytes <= 64, Error.CrossChainAddressOutOfRange);
+    assert(nBytes <= 64, Common_Error.CrossChainAddressOutOfRange);
     b.storeUint(nBytes, 8);
     b.storeSlice(self);
 }
 
 fun CrossChainAddress.unpackFromSlice(mutate s: slice) {
     val nBytes= s.loadUint(8);
-    assert(nBytes <= 64, Error.CrossChainAddressOutOfRange);
+    assert(nBytes <= 64, Common_Error.CrossChainAddressOutOfRange);
     return s.loadBits(nBytes * 8);
 }
 

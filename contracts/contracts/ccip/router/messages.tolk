@@ -1,3 +1,6 @@
+import "../common/types.tolk"
+import "../common/messages"
+
 type Msg = CCIPSend | SetRamps | Common_JettonTransferNotification;
 
 // update multiple chain selectors in batch to the same onramp address

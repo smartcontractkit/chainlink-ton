@@ -1,3 +1,3 @@
-enum Error {
+enum Common_Error {
     CrossChainAddressOutOfRange;
 }

@@ -2,11 +2,13 @@ import "messages"
 import "storage"
 import "errors"
 
-import "../common/types";
-import "../common/messages";
-import "../../lib/access/ownable_2step";
-import "../../deployable/types";
-import "../../lib/utils";
+import "../onramp/messages"
+import "../onramp/types"
+import "../common/types"
+import "../common/messages"
+import "../../lib/access/ownable_2step"
+import "../../deployable/types"
+import "../../lib/utils"
 import "../../lib/jetton/messages"
 import "../../lib/jetton/messages_extended"
 
@@ -67,7 +69,7 @@ fun onTransferNotification(transferNotification: Common_JettonTransferNotificati
 
     // TODO: store msg.amount + value
     // make sure msg.amount == sendMsg.token amount
-    val onRamp = st.onRamps.mustGet(sendMsg.destChainSelector, Error.DestChainNotEnabled);
+    val onRamp = st.onRamps.mustGet(sendMsg.destChainSelector, Error.DestChainNotEnabled as int);
 
     val transferMessage = createMessage({
         bounce: true,
@@ -96,7 +98,7 @@ fun ccipSend(msg: CCIPSend, sender: address) {
     // forward to onRamp
     // ccipSend(onRamp, msg, value/token amounts)
 
-    val onRamp = st.onRamps.mustGet(msg.destChainSelector, Error.DestChainNotEnabled);
+    val onRamp = st.onRamps.mustGet(msg.destChainSelector, Error.DestChainNotEnabled as int);
     val sendMsg = createMessage({
         bounce: true,
         value: 0,
@@ -122,7 +124,7 @@ get fun codeHash(): int {
 
 get fun onRamp(destChainSelector: uint64): address {
     val st = lazy Storage.load();
-    return st.onRamps.mustGet(destChainSelector, Error.DestChainNotEnabled);
+    return st.onRamps.mustGet(destChainSelector, Error.DestChainNotEnabled as int);
 }
 
 get fun destChainSelectors(): tuple {
