@@ -40,7 +40,6 @@ func setupTestEnvironment(t *testing.T, ctx context.Context) *TestEnvironment {
 
 	balance, err := w.GetBalance(ctx, mc)
 	require.NoError(t, err, "Failed to get wallet balance")
-	t.Logf("Wallet address: %s", w.Address().String())
 	t.Logf("Wallet balance: %s", balance.String())
 
 	ethClient := getEthClient(t, env.SepoliaRPCURL)
