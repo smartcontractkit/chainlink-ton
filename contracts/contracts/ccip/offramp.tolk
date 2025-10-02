@@ -290,7 +290,7 @@ fun _dispatchValidated(msg: OffRamp_DispatchValidated, sender: address) {
 
             val messageForReceiver = createMessage({
                 bounce: true,
-                value: ton("0.1"), // increased to cover forward fees and Receiver's response // TODO: use the gas limit from the message
+                value: ton("0.05"), // TODO: use the gas limit from the message
                 dest: message.receiver,
                 body: ccipReceive
             });
@@ -442,7 +442,6 @@ fun _execute(msg: OffRamp_Execute, sender: address) {
 
 
     assert(!report.messages.beginParse().isEmpty(), ERROR_EMPTY_EXECUTION_REPORT);
-    // TODO: not vec
     val message = Any2TVMRampMessage.fromCell(report.messages);
 
     // Commits do not verify the destChainSelector in the message since only the root is committed, so we
