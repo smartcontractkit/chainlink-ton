@@ -1,6 +1,6 @@
-import "../types"
 import "errors"
 import "types"
+import "../onramp/messages"
 
 struct CCIPSendExecutor<T> {
     messageId: uint224,
@@ -11,7 +11,7 @@ struct CCIPSendExecutor<T> {
 
 fun CCIPSendExecutor<T>.load(): CCIPSendExecutor<T> {
     val st = lazy CCIPSendExecutor_Data.fromCell(contract.getData());
-    assert (st.state is Cell<T>) throw CCIPSEND_EXECUTOR_ERROR_STATE_NOT_EXPECTED; // invalid state
+    assert (st.state is Cell<T>) throw CCIPSendExecutor_Error.CcipsendExecutorStateNotExpected; // invalid state
     return CCIPSendExecutor<T> {
         messageId: st.messageId,
         onrampSend: st.onrampSend,

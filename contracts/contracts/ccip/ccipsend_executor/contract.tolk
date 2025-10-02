@@ -2,8 +2,8 @@ import "types"
 import "messages"
 import "storage"
 import "errors"
-import "../common/types"
 import "../fee_quoter/messages"
+import "../onramp/messages"
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy CCIPSendExecutor_InMessage.fromSlice(in.body);
@@ -13,14 +13,14 @@ fun onInternalMessage(in: InMessage) {
             assert (in.senderAddress == this.addresses.load().onramp) throw 0xFFFF;
             this.onExecute(msg.onrampJettonWallet);
         }
+        CCIPSendExecutor_MessageValidated<Metadata> => {
+            var this = CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.load();
+            this.onMessageValidated(msg, in.senderAddress);
+        }
         Common_JettonTransferNotification => {
             var this = CCIPSendExecutor<CCIPSendExecutor_State_WaitingForJettons>.load();
             // TODO match refunds from TokenPool
             this.onJettonTransferFromOnRamp(msg, in.senderAddress);
-        }
-        CCIPSendExecutor_MessageValidated<Metadata> => {
-            var this = CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.load();
-            this.onMessageValidated(msg, in.senderAddress);
         }
         else => {
             assert (in.body.isEmpty()) throw 0xFFFF;
@@ -119,7 +119,7 @@ fun getValidatedFee(feeQuoter: address, onrampSend: OnRampSend) {
 fun CCIPSendExecutor<CCIPSendExecutor_State_OnGoingFeeValidation>.onMessageValidated(mutate self, msg: CCIPSendExecutor_MessageValidated<Metadata>, sender: address) {
     // notification must come from fee quoter
     val addresses = lazy self.addresses.load();
-    assert(addresses.feeQuoter == sender, Error.Unauthorized);
+    assert(addresses.feeQuoter == sender, CCIPSendExecutor_Error.Unauthorized);
 
     if (msg.fee > contract.getOriginalBalance()) {
         // TODO: handle insufficient funds

@@ -1,4 +1,4 @@
-import "../onramp/message_types.tolk";
+import "../onramp/messages.tolk";
 
 struct CCIPSendExecutor_InitialData {
     onramp: address,
@@ -46,6 +46,11 @@ struct CCIPSendExecutor_PendingJettonLock {
     tokenRegistry: address,
     jettonWallet: address,
     tokenPool: address,
+}
+
+struct CCIPSendExecutor_Config {
+    feeQuoter: address,
+    tokenRegistry: address?,
 }
 
 // TODO

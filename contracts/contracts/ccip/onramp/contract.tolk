@@ -1,3 +1,5 @@
+tolk 1.1
+
 import "types"
 import "events"
 import "storage"
@@ -10,9 +12,12 @@ import "../common/messages";
 import "../../lib/access/ownable_2step";
 import "../../lib/utils";
 import "../ccipsend_executor/storage"
+import "../ccipsend_executor/types"
 import "../ccipsend_executor/messages"
+import "../router/messages"
 import "../../lib/jetton/messages"
 import "../../lib/jetton/messages_extended"
+
 
 const CONTRACT_VERSION = "0.0.1";
 
@@ -56,7 +61,7 @@ fun send(payload: OnRampSend, sender: address, jettonWallet: address? = null) {
     val msg = payload.msg.load();
 
     // validate allowlist
-    val destChainConfig = st.destChainConfigs.mustGet(msg.destChainSelector, Error.UnknownDestChainSelector);
+    val destChainConfig = st.destChainConfigs.mustGet(msg.destChainSelector, Error.UnknownDestChainSelector as int);
 
     // ccipSend must be forwarded from the router
     assert(destChainConfig.router == sender, Error.Unauthorized);
@@ -158,7 +163,7 @@ fun commit(payload: OnRamp_ExecutorFinishedSuccessfully, sender: address) {
     // else refund and notify
 
     // assign sequence number, we can't do this sooner since the message might fail validation/getFee
-    var destChainConfig = st.destChainConfigs.mustGet(ccipsend.destChainSelector, Error.UnknownDestChainSelector);
+    var destChainConfig = st.destChainConfigs.mustGet(ccipsend.destChainSelector, Error.UnknownDestChainSelector as int);
     destChainConfig.sequenceNumber = destChainConfig.sequenceNumber + 1;
     st.destChainConfigs.set(ccipsend.destChainSelector, destChainConfig);
     st.store();
@@ -216,7 +221,7 @@ get fun isChainSupported(destChainSelector: uint64): bool {
 
 get fun expectedNextSequenceNumber(destChainSelector: uint64): uint64 {
     val st = lazy OnRamp_Storage.load();
-    val config = st.destChainConfigs.mustGet(destChainSelector,Error.UnknownDestChainSelector);
+    val config = st.destChainConfigs.mustGet(destChainSelector,Error.UnknownDestChainSelector as int);
     return config.sequenceNumber + 1;
 }
 
@@ -256,13 +261,13 @@ fun applyDestChainConfigUpdates(mutate st: OnRamp_Storage, updates: cell) {
 
 get fun destChainConfig(destChainSelector: uint64): DestChainConfig {
     val st = lazy OnRamp_Storage.load();
-    return st.destChainConfigs.mustGet(destChainSelector,Error.UnknownDestChainSelector);
+    return st.destChainConfigs.mustGet(destChainSelector,Error.UnknownDestChainSelector as int);
 }
 
 // vec<address>
 get fun allowedSendersList(destChainSelector: uint64): tuple {
     val st = lazy OnRamp_Storage.load();
-    val config = st.destChainConfigs.mustGet(destChainSelector,Error.UnknownDestChainSelector);
+    val config = st.destChainConfigs.mustGet(destChainSelector,Error.UnknownDestChainSelector as int);
     var allowedSenders = config.allowedSenders;
 
     var list: tuple? = null;
@@ -285,7 +290,7 @@ fun applyAllowlistUpdates(mutate st: OnRamp_Storage, updates: cell) {
     while (!iter.empty()) {
         val update = iter.next();
 
-        var config = st.destChainConfigs.mustGet(update.destChainSelector, Error.UnknownDestChainSelector);
+        var config = st.destChainConfigs.mustGet(update.destChainSelector, Error.UnknownDestChainSelector as int);
 
         var iterAdd = Iterator<address>.new(update.add);
         while (!iterAdd.empty()) {

@@ -1,6 +1,9 @@
-import "../types"
-import "storage"
-import "../fee_quoter/messages"
+import "types"
+
+import "../common/messages"
+import "../onramp/messages"
+import "../router/messages"
+import "../onramp/types"
 
 type CCIPSendExecutor_InMessage =
     | CCIPSendExecutor_Execute
@@ -23,9 +26,6 @@ struct (0x1FA60374) CCIPSendExecutor_MessageValidated<C> {
     fee: coins
 }
 
-struct CCIPSendExecutor_Config {
-    feeQuoter: address,
-    tokenRegistry: address?,
-}
+
 
 

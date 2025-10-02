@@ -1,5 +1,5 @@
 enum Error {
-    UnknownDestChainSelector
-    Unauthorized
-    SenderNotAllowed
+    UnknownDestChainSelector = 2200;
+    Unauthorized;
+    SenderNotAllowed;
 }
