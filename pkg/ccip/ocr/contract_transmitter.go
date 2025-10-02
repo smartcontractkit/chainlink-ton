@@ -122,7 +122,7 @@ func (c *ccipTransmitter) Transmit(
 		FromWallet:      w,
 		ContractAddress: *address.MustParseAddr(c.offrampAddress),
 		Body:            argsCell,
-		Amount:          tlb.MustFromTON("0.05"), // TODO: make this configurable
+		Amount:          tlb.MustFromTON("0.2"), // Increased to cover Execute flow: OffRamp -> MerkleRoot -> Receiver -> OffRamp chain // TODO: make this configurable and calc with gas limit
 		IdempotencyKey:  &idempotencyKey,
 	}
 
