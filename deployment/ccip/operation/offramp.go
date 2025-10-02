@@ -23,6 +23,8 @@ type DeployOffRampInput struct {
 	FeeQuoter                               *address.Address
 	PermissionlessExecutionThresholdSeconds uint32
 	ContractPath                            string
+	DeployerContractPath                    string
+	MerkleRootContractPath                  string
 }
 
 // TODO: single deploy output
@@ -46,6 +48,16 @@ func deployOffRamp(b operations.Bundle, deps TonDeps, in DeployOffRampInput) (De
 		return output, fmt.Errorf("failed to compile contract: %w", err)
 	}
 
+	deployerCode, err := wrappers.ParseCompiledContract(in.DeployerContractPath)
+	if err != nil {
+		return output, fmt.Errorf("failed to compile deployer contract: %w", err)
+	}
+
+	merkleRootCode, err := wrappers.ParseCompiledContract(in.MerkleRootContractPath)
+	if err != nil {
+		return output, fmt.Errorf("failed to compile merkle root contract: %w", err)
+	}
+
 	conn := tracetracking.NewSignedAPIClient(deps.TonChain.Client, *deps.TonChain.Wallet)
 
 	storage := offramp.Storage{
@@ -54,8 +66,8 @@ func deployOffRamp(b operations.Bundle, deps TonDeps, in DeployOffRampInput) (De
 			Owner:        deps.TonChain.WalletAddress,
 			PendingOwner: nil,
 		},
-		Deployer:       cell.BeginCell().EndCell(),
-		MerkleRootCode: cell.BeginCell().EndCell(),
+		Deployer:       deployerCode,
+		MerkleRootCode: merkleRootCode,
 		// empty OCR3Base
 		OCR3Base: cell.BeginCell().
 			MustStoreUInt(0, 8).

@@ -84,8 +84,8 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 	// Placeholders
 	address := tonaddress.MustParseAddr("EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8")
 	s.LinkTokenAddress = *address
-	address = tonaddress.MustParseAddr("UQCk4967vNM_V46Dn8I0x-gB_QE2KkdW1GQ7mWz1DtYGLEd8")
-	s.ReceiverAddress = *address
+	// ReceiverAddress will be set by test when receiver is deployed/created
+	// s.ReceiverAddress is left uninitialized here
 
 	s.OnRamp = *ccipSeqReport.Output.OnRampAddress
 	s.Router = *ccipSeqReport.Output.RouterAddress
