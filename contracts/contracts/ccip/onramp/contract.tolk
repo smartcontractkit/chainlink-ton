@@ -231,7 +231,7 @@ get fun staticConfig() {
     // chainSelector, rmnRemote, nonceManager, tokenAdminRegistry
 }
 
-get fun dynamicConfig(): OnRampDynamicConfig {
+get fun dynamicConfig(): OnRamp_DynamicConfig {
     val st = lazy OnRamp_Storage.load();
     return st.config.load()
 }
@@ -249,7 +249,7 @@ fun applyDestChainConfigUpdates(mutate st: OnRamp_Storage, updates: cell) {
             config.allowlistEnabled = update.allowlistEnabled;
             st.destChainConfigs.replaceAndGetPrevious(update.destChainSelector, config);
         } else {
-            st.destChainConfigs.set(update.destChainSelector, DestChainConfig {
+            st.destChainConfigs.set(update.destChainSelector, OnRamp_DestChainConfig {
                 router: update.router,
                 sequenceNumber: 0,
                 allowlistEnabled: update.allowlistEnabled,
@@ -259,7 +259,7 @@ fun applyDestChainConfigUpdates(mutate st: OnRamp_Storage, updates: cell) {
     }
 }
 
-get fun destChainConfig(destChainSelector: uint64): DestChainConfig {
+get fun destChainConfig(destChainSelector: uint64): OnRamp_DestChainConfig {
     val st = lazy OnRamp_Storage.load();
     return st.destChainConfigs.mustGet(destChainSelector,Error.UnknownDestChainSelector as int);
 }

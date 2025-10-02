@@ -16,9 +16,9 @@ struct OnRamp_Storage {
     // NOTE: fee quoter also processes pool return data
 
     // dynamic config
-    config: Cell<OnRampDynamicConfig>;
+    config: Cell<OnRamp_DynamicConfig>;
 
-    destChainConfigs: map<uint64, DestChainConfig>; // chainSelector -> DestChainConfig
+    destChainConfigs: map<uint64, OnRamp_DestChainConfig>; // chainSelector -> DestChainConfig
     executor_code: cell; // code for CCIPSendExecutor
     currentMessageId: uint224;
     // TODO track last destroyed executor+gaps to allow owner to reclaim funds?

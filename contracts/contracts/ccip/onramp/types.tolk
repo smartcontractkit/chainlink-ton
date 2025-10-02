@@ -1,6 +1,6 @@
 import "../common/types"
 
-struct DestChainConfig {
+struct OnRamp_DestChainConfig {
     router: address; // Local router address that is allowed to send messages to the destination chain.
     sequenceNumber: uint64;
     allowlistEnabled: bool;
@@ -13,7 +13,7 @@ struct DestChainConfig {
 // nonceManager: also seems to fit best in a sender subcontract with a dict destChainSelector -> nonce
 // if we pass through account contract then we can grab a nonce and pass it through?
 
-struct OnRampDynamicConfig {
+struct OnRamp_DynamicConfig {
     feeQuoter: address;
     // destination address that will receive tokens on withdrawFees
     feeAggregator: address;

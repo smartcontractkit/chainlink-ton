@@ -1,3 +1,6 @@
+import "../../lib/access/ownable_2step"
+import "types"
+
 struct Storage {
     id: uint32;
     ownable: Ownable2Step;

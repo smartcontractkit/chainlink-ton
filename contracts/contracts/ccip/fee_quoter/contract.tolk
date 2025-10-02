@@ -5,10 +5,12 @@ import "storage"
 
 import "@stdlib/lisp-lists"
 import "../common/types";
-import "../../../lib/access/ownable_2step";
-import "../../../deployable/types";
-import "../../../lib/utils";
-import "../../../lib/cross_chain_address_validation"
+import "../../lib/access/ownable_2step";
+import "../../deployable/types";
+import "../../lib/utils";
+import "../../lib/cross_chain_address_validation"
+import "../router/messages"
+import "../ccipsend_executor/messages"
 
 const CONTRACT_VERSION = "0.0.1";
 
@@ -169,11 +171,11 @@ fun DestChainConfig.getValidatedGasPrice(self): (uint112, uint112) {
 get fun validatedFee(msg: CCIPSend): coins {
     var st = lazy Storage.load();
 
-    val destChainConfig: DestChainConfig = st.destChainConfigs.mustGet(msg.destChainSelector, Error.DestChainNotEnabled);
+    val destChainConfig: DestChainConfig = st.destChainConfigs.mustGet(msg.destChainSelector, Error.DestChainNotEnabled as int);
     assert(destChainConfig.config.isEnabled, Error.DestChainNotEnabled);
     // validate the fee token is actually supported
-    val premiumMultiplier = st.premiumMultiplierWeiPerEth.mustGet(msg.feeToken, Error.FeeTokenNotSupported) as uint256;
-    val feeTokenPrice = st.usdPerToken.mustGet(msg.feeToken, Error.FeeTokenNotSupported);
+    val premiumMultiplier = st.premiumMultiplierWeiPerEth.mustGet(msg.feeToken, Error.FeeTokenNotSupported as int) as uint256;
+    val feeTokenPrice = st.usdPerToken.mustGet(msg.feeToken, Error.FeeTokenNotSupported as int);
 
     var gasLimit = validateMessageAndResolveGasLimitForDestination(msg.extraArgs, destChainConfig.config, msg);
 
@@ -350,7 +352,7 @@ fun parseUnvalidatedEVMExtraArgs(extraArgs: cell, defaultTxGasLimit: uint32): Ge
 
 fun parseSvmExtraArgs(extraArgs: cell, maxPerMsgGasLimit: uint32, enforceOutOfOrder: bool): SVMExtraArgsV1 {
     val extra = SVMExtraArgsV1.fromCell(extraArgs, {
-        throwIfOpcodeDoesNotMatch: Error.InvalidExtraArgsData,
+        throwIfOpcodeDoesNotMatch: Error.InvalidExtraArgsData as int,
     });
     assert (extra.computeUnits <= maxPerMsgGasLimit) throw Error.GasLimitTooHigh;
     if (enforceOutOfOrder) {
@@ -384,7 +386,7 @@ fun getValidatedFee(payload: FeeQuoter_GetValidatedFee<cell>, sender: address) {
         bounce: true,
         value: ton("0.05"), // TODO:
         dest: sender,
-        body: FeeQuoter_MessageValidated<cell> {
+        body: CCIPSendExecutor_MessageValidated<cell> {
             msg: payload.msg,
             metadata: payload.metadata,
             fee: feeTokenAmount,
@@ -405,7 +407,7 @@ fun getTokenTransferCost(st: Storage, destChainConfig: DestChainConfig, mutate t
         val tokenAmount = tokens.next();
         count += 1;
 
-        val transferFeeConfig = destChainConfig.tokenTransferFeeConfigs.mustGet(tokenAmount.token, Error.TokenNotSupported);
+        val transferFeeConfig = destChainConfig.tokenTransferFeeConfigs.mustGet(tokenAmount.token, Error.TokenNotSupported as int);
         if (!transferFeeConfig.isEnabled) {
             // If the token has no specific overrides configured, we use the global defaults.
             tokenTransferFeeWei +=((destChainConfig.config.defaultTokenFeeUsdCents as uint256) * VAL_1E16);
@@ -414,7 +416,7 @@ fun getTokenTransferCost(st: Storage, destChainConfig: DestChainConfig, mutate t
         } else {
             var bpsFeeUsdWei = 0;
             if (transferFeeConfig.deciBps > 0) {
-                val tokenPrice = st.usdPerToken.mustGet(tokenAmount.token, Error.TokenNotSupported);
+                val tokenPrice = st.usdPerToken.mustGet(tokenAmount.token, Error.TokenNotSupported as int);
 
                 // Calculate token transfer value, then apply fee ratio
                 // ratio represents multiples of 0.1bps, or 1e-5
@@ -435,7 +437,7 @@ fun getTokenTransferCost(st: Storage, destChainConfig: DestChainConfig, mutate t
 
 get fun tokenPrice(token: address): TimestampedPrice {
     val st = lazy Storage.load();
-    return st.usdPerToken.mustGet(token, Error.TokenNotSupported);
+    return st.usdPerToken.mustGet(token, Error.TokenNotSupported as int);
 }
 
 // vec<TimestampedPrice>
@@ -455,7 +457,7 @@ get fun tokenPrices(tokens: tuple): tuple {
 
 get fun destinationChainGasPrice(destChainSelector: uint64): cell {
     val st = lazy Storage.load();
-    val config = st.destChainConfigs.mustGet(destChainSelector, Error.UnknownDestChainSelector);
+    val config = st.destChainConfigs.mustGet(destChainSelector, Error.UnknownDestChainSelector as int);
     return config.usdPerUnitGas
 }
 
@@ -485,7 +487,7 @@ get fun tokenTransferFeeConfig() {}
 
 get fun destChainConfig(destChainSelector: uint64): DestChainConfig {
     val st = lazy Storage.load();
-    return st.destChainConfigs.mustGet(destChainSelector, Error.DestChainNotEnabled);
+    return st.destChainConfigs.mustGet(destChainSelector, Error.DestChainNotEnabled as int);
 }
 
 get fun staticConfig(): (uint96, address, uint64) {

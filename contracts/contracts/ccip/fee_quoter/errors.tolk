@@ -8,4 +8,10 @@ enum Error {
     InvalidTokenReceiver
     TooManySuiExtraArgsReceiverObjectIds
     MsgDataTooLarge
+    StaleGasPrice
+    DestChainNotEnabled
+    FeeTokenNotSupported
+    InvalidMsgData
+    TokenNotSupported
+    UnknownDestChainSelector
 }

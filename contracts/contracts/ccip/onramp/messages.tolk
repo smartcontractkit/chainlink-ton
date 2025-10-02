@@ -32,7 +32,7 @@ struct (0x266AEACF) OnRamp_WithdrawJettons {
 }
 
 struct (0x10000003) SetDynamicConfig {
-    config: OnRampDynamicConfig
+    config: OnRamp_DynamicConfig
 }
 
 // crc32('OnRamp_ExecutorFinishedSuccessfully')
