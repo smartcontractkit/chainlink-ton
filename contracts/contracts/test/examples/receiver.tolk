@@ -23,7 +23,7 @@ type Msg = CCIPReceive;
 fun onInternalMessage(in: InMessage) {
     val msg = lazy Msg.fromSlice(in.body);
     match (msg) {
-        CCIPReceive => {
+        Receiver_CCIPReceive => {
             // Standard for every receiver to implement:
             // - Check CCIPReceive only comes from offRamp/ router
             // - Send CCIPReceiveConfirm to msg.callback
