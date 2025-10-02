@@ -1,4 +1,5 @@
-import "../types"
+import "types"
+import "../router/messages"
 
 type FeeQuoter_InMessage =
     | FeeQuoter_UpdatePrices
@@ -8,7 +9,7 @@ type FeeQuoter_InMessage =
     | FeeQuoter_GetValidatedFee<cell>; // marked as cell since we never attempt to load the metadata
 
 struct (0x20000001) FeeQuoter_UpdatePrices {
-    updates: PriceUpdates    
+    updates: PriceUpdates
 }
 
 // crc32('FeeQuoter_GetValidatedFee')

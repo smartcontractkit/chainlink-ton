@@ -13,6 +13,8 @@ import "../../lib/ocr/types"
 import "../../lib/utils.tolk"
 import "../fee_quoter/messages"
 import "../merkle_root/messages"
+import "../../lib/receiver/messages"
+import "../merkle_root/storage"
 
 const CONTRACT_VERSION = "0.0.1";
 
@@ -54,7 +56,7 @@ fun onBouncedMessage(in: InMessageBounced) {
     in.bouncedBody.skipBouncedPrefix();
     val msg = lazy OffRamp_BouncedMessage.fromSlice(in.bouncedBody);
     match (msg) {
-        CCIPReceive => {
+        Receiver_CCIPReceive => {
             _bouncedCCIPReceive(msg.rootId, in.senderAddress);
         }
     }
@@ -150,7 +152,7 @@ fun _dispatchValidated(msg: OffRamp_DispatchValidated, sender: address) {
             assert(expectedAddress.addressMatches(sender)) throw Error.DispatchNotFromMerkleRoot;
 
             // dispatch message to receiver
-            val ccipReceive: CCIPReceive = {
+            val ccipReceive: Receiver_CCIPReceive = {
                 rootId: rootId, // receiver should call back the MR directly
                 message: {
                     messageId: message.header.messageId,
@@ -216,7 +218,7 @@ fun _commit(msg: OffRamp_Commit, sender: address) {
 
         // validate lane not cursed
 
-        var sourceChainConfig = st.sourceChainConfigs.mustGet(root.sourceChainSelector, Error.SourceChainNotEnabled);
+        var sourceChainConfig = st.sourceChainConfigs.mustGet(root.sourceChainSelector, Error.SourceChainNotEnabled as int);
 
         assert(sourceChainConfig.isEnabled, Error.SourceChainNotEnabled);
 
@@ -285,7 +287,7 @@ fun _execute(msg: OffRamp_Execute, sender: address) {
 
     val report = msg.report;
 
-    val sourceChainConfig = st.sourceChainConfigs.mustGet(report.sourceChainSelector, Error.SourceChainNotEnabled);
+    val sourceChainConfig = st.sourceChainConfigs.mustGet(report.sourceChainSelector, Error.SourceChainNotEnabled as int);
     assert(sourceChainConfig.isEnabled, Error.SourceChainNotEnabled);
 
     // We do this hash here instead of in _verify to avoid two separate loops over the same data. Hashing all of the
@@ -412,7 +414,7 @@ get fun config(): Config {
 
 get fun sourceChainConfig(sourceChainSelector: uint64): SourceChainConfig {
     val st = lazy Storage.load();
-    return st.sourceChainConfigs.mustGet(sourceChainSelector,Error.SourceChainNotEnabled);
+    return st.sourceChainConfigs.mustGet(sourceChainSelector,Error.SourceChainNotEnabled as int);
 }
 
 get fun allSourceChainConfigs(): map<uint64, SourceChainConfig> {

@@ -1,6 +1,7 @@
 import "types"
 import "../../lib/ocr/types.tolk"
 import "../../lib/ocr/multi_ocr3_base.tolk"
+import "../../lib/receiver/messages.tolk"
 import "../common/types.tolk"
 
 type OffRamp_InMessage =
