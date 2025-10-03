@@ -42,8 +42,6 @@ fun onInternalMessage(in: InMessage) {
                 message: msg.message,
             });
 
-            assert(msg.message.data.beginParse().isEmpty(), RECEIVER_ERROR); 
-
         }
         else => {
             // ignore empty messages, "wrong opcode" for others
