@@ -44,11 +44,3 @@ type CCIPSend struct {
 	FeeToken          *address.Address             `tlb:"addr"`
 	ExtraArgs         *cell.Cell                   `tlb:"^"`
 }
-
-type JettonTransferNotification struct {
-	_              tlb.Magic        `tlb:"#7362d09c"` //nolint:revive // Ignore opcode tag
-	QueryID        uint64           `tlb:"## 64"`
-	Amount         tlb.Coins        `tlb:"^"`
-	Sender         *address.Address `tlb:"addr"`
-	ForwardPayload *cell.Cell       `tlb:"maybe ^"`
-}

@@ -12,6 +12,16 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
 )
 
+// OnRamp opcodes
+const (
+	OpcodeOnRampSend                         = 0x40000001
+	OpcodeOnRampWithdrawJettons              = 0x40000002
+	OpcodeOnRampExecutorFinishedSuccessfully = 0x40000003
+	OpcodeSetDynamicConfig                   = 0x10000003
+	OpcodeUpdateDestChainConfigs             = 0x10000004
+	OpcodeUpdateAllowlists                   = 0x10000005
+)
+
 // CCIPMessageSent uses TVM2AnyRampMessage but with event-specific header (no onramp address)
 type CCIPMessageSent struct {
 	Message ocr.TVM2AnyRampMessage `tlb:"."`
@@ -151,3 +161,44 @@ type UpdateAllowlists struct {
 }
 
 type WithdrawFeeTokens struct{}
+
+// Message structures that map to the existing types in onramp.go
+type Send struct {
+	_        tlb.Magic  `tlb:"#10000002"` //nolint:revive // Ignore opcode tag
+	Msg      *cell.Cell `tlb:"^"`         // Cell containing the CCIPSend message
+	Metadata Metadata   `tlb:"."`         // Cell containing metadata
+}
+
+type Metadata struct {
+	Sender *address.Address `tlb:"addr"`
+}
+
+type WithdrawJettons struct {
+	_                  tlb.Magic        `tlb:"#266AEACF"` //nolint:revive // Ignore opcode tag
+	MsgId              big.Int          `tlb:"## 224"`    // Message ID
+	Tokens             *cell.Cell       `tlb:"^"`         // Token amounts
+	OnrampJettonWallet *address.Address `tlb:"addr"`      // Onramp jetton wallet address
+}
+
+type ExecutorFinishedSuccessfully struct {
+	_        tlb.Magic  `tlb:"#CFA6B336"` //nolint:revive // Ignore opcode tag
+	MsgId    big.Int    `tlb:"## 224"`    // Message ID
+	Msg      *cell.Cell `tlb:"^"`         // Original CCIPSend message
+	Metadata Metadata   `tlb:"."`         // Metadata
+	Fee      *tlb.Coins `tlb:"."`         // Fee amount
+}
+
+type SetDynamicConfigMessage struct {
+	_      tlb.Magic     `tlb:"#10000003"` //nolint:revive // Ignore opcode tag
+	Config DynamicConfig `tlb:"."`
+}
+
+type UpdateDestChainConfigsMessage struct {
+	_       tlb.Magic  `tlb:"#10000004"` //nolint:revive // Ignore opcode tag
+	Updates *cell.Cell `tlb:"^"`         // Snake-encoded updates
+}
+
+type UpdateAllowlistsMessage struct {
+	_       tlb.Magic  `tlb:"#10000005"` //nolint:revive // Ignore opcode tag
+	Updates *cell.Cell `tlb:"^"`         // Snake-encoded updates
+}
