@@ -195,29 +195,64 @@ func (a *TONAccessor) GetOffRampSourceChainConfigs(ctx context.Context, block *t
 		return nil, err
 	}
 	dict := rawDict.AsDict(64)
-	for _, selector := range sourceChainSelectors {
-		key := cell.BeginCell().MustStoreUInt(uint64(selector), 64).EndCell()
-		entry, err := dict.LoadValue(key)
-		// The plugin is built with EVM behaviour in mind: if a value doesn't exist the zero value is returned
-		if errors.Is(err, cell.ErrNoSuchKeyInDict) {
-			// TODO: should we still set to zero value?
-			continue
-		}
+
+	// If no specific selectors provided, get ALL keys from the dictionary
+	if len(sourceChainSelectors) == 0 {
+		dictEntries, err := dict.LoadAll()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to load dictionary entries: %w", err)
 		}
-		var config offramp.SourceChainConfig
-		if err := tlb.LoadFromCell(&config, entry); err != nil {
-			return nil, err
+
+		// Process each entry
+		for _, entry := range dictEntries {
+			selectorValue, err := entry.Key.LoadUInt(64)
+			if err != nil {
+				a.lggr.Warnf("Failed to parse selector key: %v", err)
+				continue
+			}
+
+			selector := ccipocr3.ChainSelector(selectorValue)
+
+			var config offramp.SourceChainConfig
+			if err := tlb.LoadFromCell(&config, entry.Value); err != nil {
+				a.lggr.Warnf("Failed to parse config for selector %d: %v", selector, err)
+				continue
+			}
+
+			sourceChainConfigs[selector] = ccipocr3.SourceChainConfig{
+				Router:                    addrToBytes(config.Router),
+				IsEnabled:                 config.IsEnabled,
+				IsRMNVerificationDisabled: config.IsRMNVerificationDisabled,
+				MinSeqNr:                  config.MinSeqNr,
+				OnRamp:                    ccipocr3.UnknownAddress(config.OnRamp),
+			}
 		}
-		sourceChainConfigs[selector] = ccipocr3.SourceChainConfig{
-			Router:                    addrToBytes(config.Router),
-			IsEnabled:                 config.IsEnabled,
-			IsRMNVerificationDisabled: config.IsRMNVerificationDisabled,
-			MinSeqNr:                  config.MinSeqNr,
-			OnRamp:                    ccipocr3.UnknownAddress(config.OnRamp),
+	} else {
+		for _, selector := range sourceChainSelectors {
+			key := cell.BeginCell().MustStoreUInt(uint64(selector), 64).EndCell()
+			entry, err := dict.LoadValue(key)
+			// The plugin is built with EVM behaviour in mind: if a value doesn't exist the zero value is returned
+			if errors.Is(err, cell.ErrNoSuchKeyInDict) {
+				// TODO: should we still set to zero value?
+				continue
+			}
+			if err != nil {
+				return nil, err
+			}
+			var config offramp.SourceChainConfig
+			if err := tlb.LoadFromCell(&config, entry); err != nil {
+				return nil, err
+			}
+			sourceChainConfigs[selector] = ccipocr3.SourceChainConfig{
+				Router:                    addrToBytes(config.Router),
+				IsEnabled:                 config.IsEnabled,
+				IsRMNVerificationDisabled: config.IsRMNVerificationDisabled,
+				MinSeqNr:                  config.MinSeqNr,
+				OnRamp:                    ccipocr3.UnknownAddress(config.OnRamp),
+			}
 		}
 	}
+
 	return sourceChainConfigs, nil
 }
 
