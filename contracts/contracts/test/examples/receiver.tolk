@@ -1,5 +1,7 @@
-import "../../ccip/types";
+import "../../lib/receiver/messages";
+import "../../lib/receiver/types";
 import "../../lib/utils";
+import "../../ccip/offramp/messages";
 
 //crc32('Receiver_CCIPMessageReceived')
 const RECEIVED_MESSAGE = 0xc5a40ab3;
@@ -18,7 +20,7 @@ struct CCIPMessageReceived {
     message: Any2TVMMessage
 }
 
-type Msg = CCIPReceive;
+type Msg = Receiver_CCIPReceive;
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy Msg.fromSlice(in.body);
