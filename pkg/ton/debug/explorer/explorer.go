@@ -85,7 +85,7 @@ func findTx(ctx context.Context, api *ton.APIClient, srcAddr *address.Address, t
 	// Start from the latest transaction
 	maxLT := account.LastTxLT
 	maxHash := account.LastTxHash
-	for range uint64(20) {
+	for range uint64(200) {
 		txs, err := api.ListTransactions(ctx, srcAddr, pageSize, maxLT, maxHash)
 		if err != nil {
 			return nil, fmt.Errorf("get transaction: %w", err)
