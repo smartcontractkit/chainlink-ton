@@ -4,8 +4,6 @@ import "../../lib/utils";
 //crc32('Receiver_CCIPMessageReceived')
 const RECEIVED_MESSAGE = 0xc5a40ab3;
 
-const RECEIVER_ERROR = 666;
-
 struct Storage {
     offRamp: address; //TODO: should be router?
 }
@@ -41,7 +39,6 @@ fun onInternalMessage(in: InMessage) {
             emit(RECEIVED_MESSAGE, CCIPMessageReceived{
                 message: msg.message,
             });
-
         }
         else => {
             // ignore empty messages, "wrong opcode" for others

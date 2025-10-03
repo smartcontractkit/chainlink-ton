@@ -47,6 +47,7 @@ fun onInternalMessage(in: InMessage) {
         }
     }
 }
+
 fun _ccipReceiveBounced(msg: MerkleRoot_CCIPReceiveBounced, sender: address){
     var st = MerkleRoot_Storage.load();
 

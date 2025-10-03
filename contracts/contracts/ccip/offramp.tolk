@@ -142,7 +142,7 @@ type OffRamp_InMessage =
     | OffRamp_NotifyFailure
     | OffRamp_NotifySuccess;
 
-type OffRamp_BouncedMessage =  CCIPReceive;
+type OffRamp_BouncedMessage = CCIPReceive;
 
 fun onInternalMessage(in:InMessage) {
     val msg = lazy OffRamp_InMessage.fromSlice(in.body);
@@ -183,6 +183,8 @@ fun onBouncedMessage(in: InMessageBounced) {
     val msg = lazy OffRamp_BouncedMessage.fromSlice(in.bouncedBody);
     match (msg) {
         CCIPReceive => {
+            // with lazy load only deserialize accessed fields (rootId), 
+            // not the message reference in CCIPReceive
             _bouncedCCIPReceive(msg.rootId, in.senderAddress);
         }
     }
