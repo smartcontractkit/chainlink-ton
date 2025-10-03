@@ -212,20 +212,12 @@ func (a *TONAccessor) GetOffRampSourceChainConfigs(ctx context.Context, block *t
 			}
 
 			selector := ccipocr3.ChainSelector(selectorValue)
-
-			var config offramp.SourceChainConfig
-			if err := tlb.LoadFromCell(&config, entry.Value); err != nil {
+			config, err := parseSourceChainConfig(entry.Value)
+			if err != nil {
 				a.lggr.Warnf("Failed to parse config for selector %d: %v", selector, err)
 				continue
 			}
-
-			sourceChainConfigs[selector] = ccipocr3.SourceChainConfig{
-				Router:                    addrToBytes(config.Router),
-				IsEnabled:                 config.IsEnabled,
-				IsRMNVerificationDisabled: config.IsRMNVerificationDisabled,
-				MinSeqNr:                  config.MinSeqNr,
-				OnRamp:                    ccipocr3.UnknownAddress(config.OnRamp),
-			}
+			sourceChainConfigs[selector] = config
 		}
 	} else {
 		for _, selector := range sourceChainSelectors {
@@ -239,21 +231,31 @@ func (a *TONAccessor) GetOffRampSourceChainConfigs(ctx context.Context, block *t
 			if err != nil {
 				return nil, err
 			}
-			var config offramp.SourceChainConfig
-			if err := tlb.LoadFromCell(&config, entry); err != nil {
+			config, err := parseSourceChainConfig(entry)
+			if err != nil {
 				return nil, err
 			}
-			sourceChainConfigs[selector] = ccipocr3.SourceChainConfig{
-				Router:                    addrToBytes(config.Router),
-				IsEnabled:                 config.IsEnabled,
-				IsRMNVerificationDisabled: config.IsRMNVerificationDisabled,
-				MinSeqNr:                  config.MinSeqNr,
-				OnRamp:                    ccipocr3.UnknownAddress(config.OnRamp),
-			}
+			sourceChainConfigs[selector] = config
 		}
 	}
 
 	return sourceChainConfigs, nil
+}
+
+// parseSourceChainConfig converts a raw slice into a ccipocr3.SourceChainConfig
+func parseSourceChainConfig(slice *cell.Slice) (ccipocr3.SourceChainConfig, error) {
+	var config offramp.SourceChainConfig
+	if err := tlb.LoadFromCell(&config, slice); err != nil {
+		return ccipocr3.SourceChainConfig{}, err
+	}
+
+	return ccipocr3.SourceChainConfig{
+		Router:                    addrToBytes(config.Router),
+		IsEnabled:                 config.IsEnabled,
+		IsRMNVerificationDisabled: config.IsRMNVerificationDisabled,
+		MinSeqNr:                  config.MinSeqNr,
+		OnRamp:                    ccipocr3.UnknownAddress(config.OnRamp),
+	}, nil
 }
 
 // getFeeQuoterStaticConfig retrieves static configuration from the fee quoter contract
