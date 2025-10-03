@@ -2,7 +2,8 @@ import "messages"
 import "errors"
 import "types"
 import "storage"
-import "../offRamp/types"
+import "../offramp/messages"
+import "../offramp/types"
 
 const CONTRACT_VERSION = "0.0.1";
 

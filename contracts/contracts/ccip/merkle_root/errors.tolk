@@ -4,4 +4,5 @@ enum Error {
     StateIsNotUntouched;
     UpdatingStateOfNonExecutedMessage;
     NotificationFromInvalidReceiver;
+    NotOwner;
 }

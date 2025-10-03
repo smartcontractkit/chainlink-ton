@@ -1,4 +1,4 @@
 enum CCIPSendExecutor_Error {
-    CcipSendExecutorStateNotExpected;
+    StateNotExpected;
     Unauthorized;
 }

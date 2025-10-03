@@ -4,6 +4,8 @@ import "storage"
 import "errors"
 import "../fee_quoter/messages"
 import "../onramp/messages"
+import "../onramp/types"
+import "../common/messages"
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy CCIPSendExecutor_InMessage.fromSlice(in.body);

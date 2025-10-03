@@ -11,7 +11,7 @@ struct CCIPSendExecutor<T> {
 
 fun CCIPSendExecutor<T>.load(): CCIPSendExecutor<T> {
     val st = lazy CCIPSendExecutor_Data.fromCell(contract.getData());
-    assert (st.state is Cell<T>) throw CCIPSendExecutor_Error.CcipsendExecutorStateNotExpected; // invalid state
+    assert (st.state is Cell<T>) throw CCIPSendExecutor_Error.StateNotExpected; // invalid state
     return CCIPSendExecutor<T> {
         messageId: st.messageId,
         onrampSend: st.onrampSend,
