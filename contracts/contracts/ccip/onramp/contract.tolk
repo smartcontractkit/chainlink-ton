@@ -19,7 +19,7 @@ import "../../lib/jetton/messages"
 import "../../lib/jetton/messages_extended"
 
 
-const CONTRACT_VERSION = "0.0.1";
+const CONTRACT_VERSION = "0.0.2";
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy OnRamp_InMessage.fromSlice(in.body);
