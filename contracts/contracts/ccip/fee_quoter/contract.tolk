@@ -5,14 +5,15 @@ import "storage"
 
 import "@stdlib/lisp-lists"
 import "../common/types";
+import "../common/cross_chain_address_validation"
 import "../../lib/access/ownable_2step";
 import "../../deployable/types";
 import "../../lib/utils";
-import "../../lib/cross_chain_address_validation"
 import "../router/messages"
 import "../ccipsend_executor/messages"
 
 const CONTRACT_VERSION = "0.0.1";
+const FACILITY_NAME = "com.chainlink.ton.ccip.FeeQuoter";
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy FeeQuoter_InMessage.fromSlice(in.body);
@@ -497,6 +498,10 @@ get fun staticConfig(): (uint96, address, uint64) {
 
 get fun typeAndVersion(): (slice, slice) {
     return ("com.chainlink.ton.ccip.FeeQuoter", CONTRACT_VERSION);
+}
+
+get fun facilityId(): uint16  {
+    return getFacilityId(stringCrc32("com.chainlink.ton.ccip.FeeQuoter"));
 }
 
 // Returns the current code of the contract.

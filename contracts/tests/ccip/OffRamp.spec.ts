@@ -11,8 +11,13 @@ import {
   OffRampStorage,
   RampMessageHeader,
   PriceUpdates,
+  MerkleRootError,
+  MERKLE_ROOT_FACILITY_ID,
+  OFFRAMP_FACILITY_NAME,
+  MERKLE_ROOT_FACILITY_NAME,
+  OFFRAMP_FACILITY_ID,
 } from '../../wrappers/ccip/OffRamp'
-import { OffRamp } from '../../wrappers/ccip/OffRamp'
+import { OffRamp, OffRampError} from '../../wrappers/ccip/OffRamp'
 import { FeeQuoter } from '../../wrappers/ccip/FeeQuoter'
 import { assertLog, expectFailedTransaction, expectSuccessfulTransaction } from '../Logs'
 import '@ton/test-utils'
@@ -31,6 +36,7 @@ import {
   OCR3_PLUGIN_TYPE_COMMIT,
   OCR3_PLUGIN_TYPE_EXECUTE,
 } from '../../wrappers/libraries/ocr/MultiOCR3Base'
+
 import * as OCR3Logs from '../../wrappers/libraries/ocr/Logs'
 import * as CCIPLogs from '../../wrappers/ccip/Logs'
 import * as ReceiverLogs from '../../wrappers/examples/ccip/Logs'
@@ -38,6 +44,8 @@ import { setupTestFeeQuoter } from './helpers/SetUp'
 
 import { ReportContext, SignatureEd25519 } from '../../wrappers/libraries/ocr/MultiOCR3Base'
 import { ExampleReceiver } from '../../wrappers/examples/ccip/Receiver'
+import { crc32 } from 'zlib'
+import { facilityId } from '../../wrappers/utils'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_TON = 13879075125137744094n
@@ -45,14 +53,6 @@ const EVM_SENDER_ADDRESS_TEST = 0x1a5fdbc891c5d4e6ad68064ae45d43146d4f9f3an
 const EVM_ONRAMP_ADDRESS_TEST = 0x111111c891c5d4e6ad68064ae45d43146d4f9f3an
 const ROUTER_ADDRESS_TEST = generateMockTonAddress()
 const LEAF_DOMAIN_SEPARATOR = beginCell().storeUint(0, 256).asSlice()
-
-// Error codes from the contract
-const ERROR_SOURCE_CHAIN_NOT_ENABLED = 266
-const ERROR_STATE_IS_NOT_UNTOUCHED = 300
-const ERROR_EMPTY_REPORT = 267
-const ERROR_INVALID_MESSAGE_DEST_CHAIN_SELECTOR = 262
-const ERROR_SOURCE_CHAIN_SELECTOR_MISMATCH = 263
-const ERROR_DISPATCH_NOT_FROM_MERKLE_ROOT = 268
 
 // These have to match the EVM states
 const EXECUTION_STATE_IN_PROGRESS = 1n
@@ -469,7 +469,7 @@ describe('OffRamp', () => {
       result,
       transmitters[0].address,
       offRamp.address,
-      ERROR_SOURCE_CHAIN_NOT_ENABLED,
+      OffRampError.SourceChainNotEnabled,
     )
   })
 
@@ -688,7 +688,7 @@ describe('OffRamp', () => {
     // There should be a failed transaction with the specific error code from offRamp to MerkleRoot
     expect(secondExecuteResult.transactions).toHaveTransaction({
       from: offRamp.address,
-      exitCode: ERROR_STATE_IS_NOT_UNTOUCHED,
+      exitCode: MerkleRootError.StateIsNotUntouched,
       success: false,
     })
   })
@@ -696,7 +696,7 @@ describe('OffRamp', () => {
   it('Test execute fails with empty report', async () => {
     await setupOCRConfigs()
     const report = createExecuteReport([])
-    await executeReportExpectingFailure(report, ERROR_EMPTY_REPORT)
+    await executeReportExpectingFailure(report, OffRampError.EmptyExecutionReport)
   })
 
   it('Test execute fails when message destChainSelector is wrong', async () => {
@@ -705,7 +705,7 @@ describe('OffRamp', () => {
 
     await setupAndCommitMessage(wrongDestMessage)
     const report = createExecuteReport([wrongDestMessage])
-    await executeReportExpectingFailure(report, ERROR_INVALID_MESSAGE_DEST_CHAIN_SELECTOR)
+    await executeReportExpectingFailure(report, OffRampError.InvalidMessageDestChainSelector)
   })
 
   it('Test execute fails when message sourceChainSelector mismatches report', async () => {
@@ -714,7 +714,7 @@ describe('OffRamp', () => {
 
     await setupAndCommitMessage(wrongSourceMessage)
     const report = createExecuteReport([wrongSourceMessage], CHAINSEL_EVM_TEST_90000001) // Different from message
-    await executeReportExpectingFailure(report, ERROR_SOURCE_CHAIN_SELECTOR_MISMATCH)
+    await executeReportExpectingFailure(report, OffRampError.SourceChainSelectorMismatch)
   })
 
   it('Test execute fails when source chain is disabled', async () => {
@@ -731,7 +731,7 @@ describe('OffRamp', () => {
     await setupSourceChainConfig(false)
 
     const report = createExecuteReport([message])
-    await executeReportExpectingFailure(report, ERROR_SOURCE_CHAIN_NOT_ENABLED)
+    await executeReportExpectingFailure(report, OffRampError.SourceChainNotEnabled)
   })
 
   it('Test execute fails when source chain config does not exist', async () => {
@@ -741,7 +741,7 @@ describe('OffRamp', () => {
 
     await setupOCRConfigs()
     const report = createExecuteReport([message], unknownChainSelector)
-    await executeReportExpectingFailure(report, ERROR_SOURCE_CHAIN_NOT_ENABLED)
+    await executeReportExpectingFailure(report, OffRampError.SourceChainNotEnabled)
   })
 
   it('Test execute succeeds with valid message and proof', async () => {
@@ -788,7 +788,7 @@ describe('OffRamp', () => {
       from: deployer.address,
       to: offRamp.address,
       success: false,
-      exitCode: ERROR_DISPATCH_NOT_FROM_MERKLE_ROOT,
+      exitCode: OffRampError.DispatchNotFromMerkleRoot,
     })
   })
 
@@ -886,5 +886,10 @@ describe('OffRamp', () => {
       messageId: 1n,
       state: EXECUTION_STATE_SUCCESS,
     })
+  })
+
+  it('Test facilityId matches facility name', () => {
+    expect(MERKLE_ROOT_FACILITY_ID).toEqual(facilityId(crc32(MERKLE_ROOT_FACILITY_NAME)))
+    expect(OFFRAMP_FACILITY_ID).toEqual(facilityId(crc32(OFFRAMP_FACILITY_NAME)))
   })
 })

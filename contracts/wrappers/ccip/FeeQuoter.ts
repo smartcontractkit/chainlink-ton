@@ -19,6 +19,28 @@ import { CellCodec } from '../utils'
 import { asSnakeData, fromSnakeData } from '../../src/utils'
 import { loadMap, loadDict, UMapToBuilder } from '../../src/utils/dict'
 
+export const FEE_QUOTER_FACILITY_NAME = 'com.chainlink.ton.ccip.FeeQuoter';
+export const FEE_QUOTER_FACILITY_ID = 248
+export const FEE_QUOTER_ERROR_CODE = 24800 //FACILITY_ID * 100
+
+export enum FeeQuoterError {
+    UnsupportedChainFamilySelector = FEE_QUOTER_ERROR_CODE,
+    GasLimitTooHigh,
+    ExtraArgOutOfOrderExecutionMustBeTrue,
+    InvalidExtraArgsData,
+    UnsupportedNumberOfTokens,
+    InvalidSuiReceiverAddress,
+    InvalidTokenReceiver,
+    TooManySuiExtraArgsReceiverObjectIds,
+    MsgDataTooLarge,
+    StaleGasPrice,
+    DestChainNotEnabled,
+    FeeTokenNotSupported,
+    InvalidMsgData,
+    TokenNotSupported,
+    UnknownDestChainSelector,
+}
+
 export type FeeQuoterStorage = {
   id: number
   ownable: ownable2step.Data

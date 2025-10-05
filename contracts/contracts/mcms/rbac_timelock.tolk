@@ -487,7 +487,7 @@ struct Timelock_Data {
 
 /// Load from contract data using auto-serialization.
 @inline
-fun Timelock_Data.fromContractData() {
+fun Timelock_Data.fromContractData(): Timelock_Data {
     return Timelock_Data.fromCell(contract.getData());
 }
 
@@ -591,7 +591,7 @@ const MIN_TON_FOR_STORAGE = 1000000000; // 1 TON
 /// Returns the error code for this facility and the given local code.
 ///     errorCode(0) == 19300
 fun Timelock<T>.errorCode(local: uint16): uint16 {
-    return errorCode(stringCrc32("com.chainlink.ton.mcms.Timelock"), local);
+    return getErrorCode(stringCrc32("com.chainlink.ton.mcms.Timelock"), local);
 }
 
 /// Loads the Timelock contract data from persistent storage.

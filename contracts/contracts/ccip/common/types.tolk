@@ -1,4 +1,3 @@
-import "../../lib/utils.tolk";
 import "errors";
 
 // 1-byte length prefixed byte slice (up to 64 bytes)
@@ -6,8 +5,7 @@ import "errors";
 type CrossChainAddress = slice;
 
 fun CrossChainAddress.packToBuilder(self, mutate b: builder) {
-    val nBits = self.remainingBitsCount();
-    assert(nBits % 8 == 0, Common_Error.CrossChainAddressOutOfRange);
+    val nBits = self.remainingBitsCount(); assert(nBits % 8 == 0, Common_Error.CrossChainAddressOutOfRange);
     val nBytes = nBits / 8;
     assert(nBytes <= 64, Common_Error.CrossChainAddressOutOfRange);
     b.storeUint(nBytes, 8);

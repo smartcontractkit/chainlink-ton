@@ -1,3 +1,6 @@
+//TODO organize CrossChainAddress library and add it's own facilityid
+
 enum Common_Error {
-    CrossChainAddressOutOfRange;
+    //Out of range?
+    CrossChainAddressOutOfRange = 5; 
 }

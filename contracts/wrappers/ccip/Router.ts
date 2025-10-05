@@ -16,6 +16,14 @@ import * as ownable2step from '../libraries/access/Ownable2Step'
 import { CellCodec } from '../utils'
 import { asSnakeData, asSnakeDataUint, fromSnakeData } from '../../src/utils'
 
+export const ROUTER_FACILITY_NAME = 'com.chainlink.ton.ccip.Router';
+export const ROUTER_FACILITY_ID = 496
+export const ROUTER_ERROR_CODE = 49600 //FACILITY_ID * 100
+
+export enum RouterError {
+    DestChainNotEnabled = ROUTER_ERROR_CODE,
+}
+
 export type Storage = {
   id: number
   ownable: ownable2step.Data
@@ -29,8 +37,6 @@ export abstract class Opcodes {
   static setRamps = 0x10000001
   static ccipSend = 0x00000001
 }
-
-export abstract class Errors {}
 
 export class Router implements Contract {
   constructor(

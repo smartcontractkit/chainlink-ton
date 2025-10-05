@@ -589,7 +589,7 @@ struct Op {
 /// Returns the error code for this facility and the given local code.
 ///     errorCode(0) == 39000
 fun MCMS<T>.errorCode(local: uint16): uint16 {
-    return errorCode(stringCrc32("com.chainlink.ton.mcms.MCMS"), local);
+    return getErrorCode(stringCrc32("com.chainlink.ton.mcms.MCMS"), local);
 }
 
 /// @dev Loads the MCMS contract data from persistent storage.
@@ -1218,7 +1218,7 @@ fun MCMS<T>.submitErrorReport(
             opLeafHash: hashedLeaf,
             opTxHash,
             errorTxHash,
-            errorCode,
+            errorCode: errorCode,
             root,
             matchesPendingOp,
         }

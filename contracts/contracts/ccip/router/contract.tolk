@@ -112,6 +112,10 @@ get fun typeAndVersion(): (slice, slice) {
     return ("com.chainlink.ton.ccip.Router", CONTRACT_VERSION);
 }
 
+get fun facilityId(): uint16  {
+    return getFacilityId(stringCrc32("com.chainlink.ton.ccip.Router"));
+}
+
 // Returns the current code of the contract.
 get fun code(): cell {
     return contract.getCode();

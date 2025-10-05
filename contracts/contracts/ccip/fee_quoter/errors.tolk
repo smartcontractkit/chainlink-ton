@@ -1,5 +1,7 @@
+import "../../lib/utils"
+
 enum Error {
-    UnsupportedChainFamilySelector
+    UnsupportedChainFamilySelector = 24800 // Facility ID * 100
     GasLimitTooHigh
     ExtraArgOutOfOrderExecutionMustBeTrue
     InvalidExtraArgsData
@@ -15,3 +17,4 @@ enum Error {
     TokenNotSupported
     UnknownDestChainSelector
 }
+

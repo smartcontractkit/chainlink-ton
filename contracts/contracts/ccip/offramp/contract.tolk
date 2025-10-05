@@ -287,7 +287,10 @@ fun _execute(msg: OffRamp_Execute, sender: address) {
 
     val report = msg.report;
 
-    val sourceChainConfig = st.sourceChainConfigs.mustGet(report.sourceChainSelector, Error.SourceChainNotEnabled as int);
+    var sourceChainConfigResult = st.sourceChainConfigs.get(report.sourceChainSelector);
+    assert(sourceChainConfigResult.isFound, Error.SourceChainNotEnabled);
+
+    val sourceChainConfig = sourceChainConfigResult.loadValue();
     assert(sourceChainConfig.isEnabled, Error.SourceChainNotEnabled);
 
     // We do this hash here instead of in _verify to avoid two separate loops over the same data. Hashing all of the
@@ -426,6 +429,9 @@ fun applySourceChainConfigUpdates() {}
 
 get fun typeAndVersion(): (slice, slice) {
     return ("com.chainlink.ton.ccip.OffRamp", CONTRACT_VERSION);
+}
+get fun facilityId(): uint16  {
+    return getFacilityId(stringCrc32("com.chainlink.ton.ccip.OffRamp"));
 }
 
 // Returns the current code of the contract.

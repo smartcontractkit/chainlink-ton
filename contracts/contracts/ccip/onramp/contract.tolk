@@ -329,6 +329,10 @@ get fun typeAndVersion(): (slice, slice) {
     return ("com.chainlink.ton.ccip.OnRamp", CONTRACT_VERSION);
 }
 
+get fun facilityId(): uint16  {
+    return getFacilityId(stringCrc32("com.chainlink.ton.ccip.OnRamp"));
+}
+
 // Returns the current code of the contract.
 get fun code(): cell {
     return contract.getCode();

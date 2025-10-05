@@ -6,6 +6,11 @@ import "../fee_quoter/messages"
 import "../onramp/messages"
 import "../onramp/types"
 import "../common/messages"
+import "../../lib/utils"
+
+const CONTRACT_VERSION = "0.0.1";
+const FACILITY_NAME = "com.chainlink.ton.ccip.CCIPSendExecutor";
+const FACILITY_ID = stringCrc32("com.chainlink.ton.ccip.CCIPSendExecutor"); //436
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy CCIPSendExecutor_InMessage.fromSlice(in.body);
@@ -150,4 +155,16 @@ fun CCIPSendExecutor<T>.exitSuccessfully(self, fee: coins) {
         }
     });
     sendMsg.send(SEND_MODE_CARRY_ALL_BALANCE /* TODO add this flag after tracetraker is fixed + SEND_MODE_DESTROY */);
+}
+
+get fun typeAndVersion(): (slice, slice) {
+    return ("com.chainlink.ton.ccip.CCIPSendExecutor", CONTRACT_VERSION);
+}
+
+get fun facilityId(): uint16  {
+    return getFacilityId(stringCrc32("com.chainlink.ton.ccip.CCIPSendExecutor"));
+}
+
+get fun errorCode(local: uint16): uint16 {
+    return getErrorCode(stringCrc32("com.chainlink.ton.ccip.CCIPSendExecutor"), local);
 }

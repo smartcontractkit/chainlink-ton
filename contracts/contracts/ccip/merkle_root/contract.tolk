@@ -4,6 +4,7 @@ import "types"
 import "storage"
 import "../offramp/messages"
 import "../offramp/types"
+import "../../lib/utils"
 
 const CONTRACT_VERSION = "0.0.1";
 
@@ -156,6 +157,10 @@ fun _execute(st: MerkleRoot_Storage, mesage: Any2TVMRampMessage) {
 
 get fun typeAndVersion(): (slice, slice) {
     return ("com.chainlink.ton.ccip.MerkleRoot", CONTRACT_VERSION);
+}
+
+get fun facilityId(): uint16  {
+    return getFacilityId(stringCrc32("com.chainlink.ton.ccip.MerkleRoot"));
 }
 
 // Returns the current code of the contract.
