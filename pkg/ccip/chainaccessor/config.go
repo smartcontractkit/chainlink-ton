@@ -250,12 +250,13 @@ func (a *TONAccessor) GetOffRampSourceChainConfig(ctx context.Context, block *to
 	}
 
 	result, err := a.client.RunGetMethod(ctx, block, addr, "sourceChainConfig", uint64(sourceChainSelector))
-	// Handle ERROR_SOURCE_CHAIN_NOT_ENABLED case for non-existent source chain
-	if execError, ok := err.(ton.ContractExecError); ok && execError.Code == 266 {
-		a.lggr.Debugw("Source chain not enabled", "chainSelector", sourceChainSelector)
-		return ccipocr3.SourceChainConfig{}, fmt.Errorf("%s not enabled", sourceChainSelector)
-	}
 	if err != nil {
+		// Handle ERROR_SOURCE_CHAIN_NOT_ENABLED=266 case for non-existent source chain
+		var execError ton.ContractExecError
+		if errors.As(err, &execError) && execError.Code == 266 {
+			a.lggr.Debugw("source chain not enabled", "chainSelector", sourceChainSelector)
+			return ccipocr3.SourceChainConfig{}, fmt.Errorf("%s not enabled", sourceChainSelector)
+		}
 		return ccipocr3.SourceChainConfig{}, err
 	}
 
