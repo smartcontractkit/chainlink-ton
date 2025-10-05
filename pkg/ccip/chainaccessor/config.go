@@ -169,7 +169,7 @@ func (a *TONAccessor) GetOffRampConfig(ctx context.Context, block *ton.BlockIDEx
 	}, nil
 }
 
-// getOffRampSourceChainConfigs retrieves source chain configurations from the off-ramp contract
+// getOffRampSourceChainConfigs retrieves multiple source chain configurations from the off-ramp contract
 func (a *TONAccessor) GetOffRampSourceChainConfigs(ctx context.Context, block *ton.BlockIDExt, sourceChainSelectors []ccipocr3.ChainSelector) (map[ccipocr3.ChainSelector]ccipocr3.SourceChainConfig, error) {
 	addr, err := a.getBinding(consts.ContractNameOffRamp)
 	if err != nil {
@@ -240,6 +240,37 @@ func (a *TONAccessor) GetOffRampSourceChainConfigs(ctx context.Context, block *t
 	}
 
 	return sourceChainConfigs, nil
+}
+
+// GetOffRampSourceChainConfig retrieves a specific source chain configuration
+func (a *TONAccessor) GetOffRampSourceChainConfig(ctx context.Context, block *ton.BlockIDExt, sourceChainSelector ccipocr3.ChainSelector) (ccipocr3.SourceChainConfig, error) {
+	addr, err := a.getBinding(consts.ContractNameOffRamp)
+	if err != nil {
+		return ccipocr3.SourceChainConfig{}, err
+	}
+
+	result, err := a.client.RunGetMethod(ctx, block, addr, "sourceChainConfig", uint64(sourceChainSelector))
+	// Handle ERROR_SOURCE_CHAIN_NOT_ENABLED case for non-existent source chain
+	if execError, ok := err.(ton.ContractExecError); ok && execError.Code == 266 {
+		a.lggr.Debugw("Source chain not enabled", "chainSelector", sourceChainSelector)
+		return ccipocr3.SourceChainConfig{}, fmt.Errorf("%s not enabled", sourceChainSelector)
+	}
+	if err != nil {
+		return ccipocr3.SourceChainConfig{}, err
+	}
+
+	var config offramp.SourceChainConfig
+	if err := config.FromResult(result); err != nil {
+		return ccipocr3.SourceChainConfig{}, err
+	}
+
+	return ccipocr3.SourceChainConfig{
+		Router:                    addrToBytes(config.Router),
+		IsEnabled:                 config.IsEnabled,
+		IsRMNVerificationDisabled: config.IsRMNVerificationDisabled,
+		MinSeqNr:                  config.MinSeqNr,
+		OnRamp:                    ccipocr3.UnknownAddress(config.OnRamp),
+	}, nil
 }
 
 // parseSourceChainConfig converts a raw slice into a ccipocr3.SourceChainConfig
