@@ -590,9 +590,10 @@ describe('Router', () => {
   it('Test facilityId matches facility name', () => {
     expect(or.ONRAMP_FACILITY_ID).toEqual(facilityId(crc32(or.ONRAMP_FACILITY_NAME)))
     expect(rt.ROUTER_FACILITY_ID).toEqual(facilityId(crc32(rt.ROUTER_FACILITY_NAME)))
-    expect(CCIP_SEND_EXECUTOR_FACILITY_ID).toEqual(facilityId(crc32(or.CCIP_SEND_EXECUTOR_FACILITY_NAME)))
+    expect(CCIP_SEND_EXECUTOR_FACILITY_ID).toEqual(
+      facilityId(crc32(or.CCIP_SEND_EXECUTOR_FACILITY_NAME)),
+    )
   })
-
 })
 
 async function setupJetton(

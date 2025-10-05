@@ -16,12 +16,12 @@ import * as ownable2step from '../libraries/access/Ownable2Step'
 import { CellCodec } from '../utils'
 import { asSnakeData, asSnakeDataUint, fromSnakeData } from '../../src/utils'
 
-export const ROUTER_FACILITY_NAME = 'com.chainlink.ton.ccip.Router';
+export const ROUTER_FACILITY_NAME = 'com.chainlink.ton.ccip.Router'
 export const ROUTER_FACILITY_ID = 496
 export const ROUTER_ERROR_CODE = 49600 //FACILITY_ID * 100
 
 export enum RouterError {
-    DestChainNotEnabled = ROUTER_ERROR_CODE,
+  DestChainNotEnabled = ROUTER_ERROR_CODE,
 }
 
 export type Storage = {

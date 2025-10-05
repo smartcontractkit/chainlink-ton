@@ -17,7 +17,7 @@ import {
   MERKLE_ROOT_FACILITY_NAME,
   OFFRAMP_FACILITY_ID,
 } from '../../wrappers/ccip/OffRamp'
-import { OffRamp, OffRampError} from '../../wrappers/ccip/OffRamp'
+import { OffRamp, OffRampError } from '../../wrappers/ccip/OffRamp'
 import { FeeQuoter } from '../../wrappers/ccip/FeeQuoter'
 import { assertLog, expectFailedTransaction, expectSuccessfulTransaction } from '../Logs'
 import '@ton/test-utils'

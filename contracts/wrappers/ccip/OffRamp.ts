@@ -17,7 +17,6 @@ import * as ownable2step from '../libraries/access/Ownable2Step'
 import { crc32 } from 'zlib'
 import { facilityId } from '../utils'
 
-
 export type OffRampStorage = {
   id: bigint
   ownable: ownable2step.Data
@@ -141,28 +140,28 @@ export const Opcodes = {
   dispatchValidated: crc32('OffRamp_DispatchValidated'),
 }
 
-export const MERKLE_ROOT_FACILITY_NAME = 'com.chainlink.ton.ccip.MerkleRoot';
+export const MERKLE_ROOT_FACILITY_NAME = 'com.chainlink.ton.ccip.MerkleRoot'
 export const MERKLE_ROOT_FACILITY_ID = 479
 export const MERKLE_ROOT_ERROR_CODE = 47900 //FACILITY_ID * 100
 
-export const OFFRAMP_FACILITY_NAME = 'com.chainlink.ton.ccip.OffRamp';
+export const OFFRAMP_FACILITY_NAME = 'com.chainlink.ton.ccip.OffRamp'
 export const OFFRAMP_FACILITY_ID = 84
 export const OFFRAMP_ERROR_CODE = 8400 //FACILITY_ID * 100
 
 export enum OffRampError {
-    DispatchNotFromMerkleRoot = OFFRAMP_ERROR_CODE,
-    SourceChainNotEnabled,
-    EmptyExecutionReport,
-    InvalidMessageDestChainSelector,
-    SourceChainSelectorMismatch,
-    InvalidOnRampUpdate,
+  DispatchNotFromMerkleRoot = OFFRAMP_ERROR_CODE,
+  SourceChainNotEnabled,
+  EmptyExecutionReport,
+  InvalidMessageDestChainSelector,
+  SourceChainSelectorMismatch,
+  InvalidOnRampUpdate,
 }
 
 export enum MerkleRootError {
-    StateIsNotUntouched = MERKLE_ROOT_ERROR_CODE,
-    UpdatingStateOfNonExecutedMessage,
-    NotificationFromInvalidReceiver,
-    NotOwner,
+  StateIsNotUntouched = MERKLE_ROOT_ERROR_CODE,
+  UpdatingStateOfNonExecutedMessage,
+  NotificationFromInvalidReceiver,
+  NotOwner,
 }
 
 export class OffRamp extends OCR3Base {
