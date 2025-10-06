@@ -5,11 +5,14 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
+// CellCodec is an interface for encoding and decoding data of type T to and from TON Cells.
 type CellCodec[T any] interface {
 	Encode(data T) (*cell.Builder, error)
 	Decode(src *cell.Slice) (T, error)
 }
 
+// TLBCodec returns a CellCodec implementation that uses struct tlb tags for encoding and decoding.
+// It wraps the `tlb.ToCell` and `tlb.LoadFromCell` functions from the tonutils-go/tlb package.
 func TLBCodec[T any]() CellCodec[T] {
 	return &tlbCodec[T]{}
 }
