@@ -179,7 +179,7 @@ func (e *executePluginCodecV1) Encode(ctx context.Context, report ccipocr3.Execu
 	// TON supports single chain only, encode single ExecuteReport (not array)
 	// Contract expects single message: val message = Any2TVMRampMessage.fromCell(report.messages);
 	if len(rampMessages) == 0 {
-		return nil, fmt.Errorf("no messages to encode")
+		return nil, errors.New("no messages to encode")
 	}
 
 	// Take only the first message (contract only processes one message at a time)

@@ -99,6 +99,7 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 		},
 	}
 
+	// TODO: need clarity on how to handle multiple messages
 	rampMessageSlice := []Any2TVMRampMessage{
 		{
 			Header: RampMessageHeader{
@@ -132,9 +133,9 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 
 	report := ExecuteReport{
 		SourceChainSelector: 1,
-		Messages:            rampMessageSlice,
+		Messages:            rampMessageSlice[0],
 		OffChainTokenData:   common.SnakeRef[common.SnakeBytes]{make([]byte, 120), make([]byte, 130)},
-		Proofs:              common.SnakeRef[common.SnakeBytes]{make([]byte, 32), make([]byte, 32)},
+		Proofs:              common.SnakeData[common.SnakeBytes]{make([]byte, 32), make([]byte, 32)},
 		ProofFlagBits:       big.NewInt(0),
 	}
 
@@ -151,6 +152,6 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 	err = tlb.LoadFromCell(&decoded, newCell.BeginParse())
 	require.NoError(t, err)
 	require.Equal(t, c.Hash(), newCell.Hash())
-	require.Len(t, decoded.Messages[0].TokenAmounts, 3)
+	require.Len(t, decoded.Messages.TokenAmounts, 3)
 	require.Len(t, decoded.Proofs, 2)
 }
