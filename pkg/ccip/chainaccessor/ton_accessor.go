@@ -187,7 +187,6 @@ func (a *TONAccessor) GetChainFeeComponents(ctx context.Context) (ccipocr3.Chain
 //   - Sync() directly calls bindContractEvent() to register event filters with TON logPoller
 //   - Both expose same Sync() interface to CCIPChainReader
 func (a *TONAccessor) Sync(ctx context.Context, contractName string, contractAddress ccipocr3.UnknownAddress) error {
-	a.lggr.Debugf("TON TON TON TON TON in Sync, binding %s contract", contractName)
 	strAddr, err := a.addrCodec.AddressBytesToString(contractAddress)
 	if err != nil {
 		return fmt.Errorf("failed with addr codec decode: %w", err)
@@ -421,7 +420,7 @@ func (a *TONAccessor) CommitReportsGTETimestamp(
 		WithEventSig(hash.CRC32(consts.EventNameCommitReportAccepted)).
 		FilterTimestamp(query.TimestampGTE(ts)).
 		// Filter to only get events with MerkleRoot
-		// TODO(@jadepark-dev): revisit when we have a persistent log DB implemented
+		// TODO(@jadepark-dev): revisit when we have a persistent log DB implemented: we need bit query for merkle root prefix
 		FilterTyped(
 			func(event offramp.CommitReportAccepted) bool {
 				return event.MerkleRoot != nil
@@ -639,8 +638,6 @@ func (a *TONAccessor) Nonces(ctx context.Context, query map[ccipocr3.ChainSelect
 }
 
 func (a *TONAccessor) GetChainFeePriceUpdate(ctx context.Context, selectors []ccipocr3.ChainSelector) (map[ccipocr3.ChainSelector]ccipocr3.TimestampedUnixBig, error) {
-	a.lggr.Debugf("TON:GetChainFeePriceUpdate, for %d selectors", len(selectors))
-
 	// initialize the map with default values for all selectors
 	prices := make(map[ccipocr3.ChainSelector]ccipocr3.TimestampedUnixBig, len(selectors))
 	addr, err := a.getBinding(consts.ContractNameFeeQuoter)
@@ -653,7 +650,6 @@ func (a *TONAccessor) GetChainFeePriceUpdate(ctx context.Context, selectors []cc
 		return nil, fmt.Errorf("failed to get current block: %w", err)
 	}
 
-	a.lggr.Debugf("TON: about to query destinationChainGasPrice, for %d selectors", len(selectors))
 	for _, selector := range selectors {
 		result, err := a.client.RunGetMethod(ctx, block, addr, "destinationChainGasPrice", uint64(selector))
 		// The plugin is built with EVM behaviour in mind: if a value doesn't exist the zero value is returned
@@ -679,13 +675,11 @@ func (a *TONAccessor) GetChainFeePriceUpdate(ctx context.Context, selectors []cc
 			return nil, fmt.Errorf("failed to decode TimestampedPrice, potentially unsynced gobindings: %w", err)
 		}
 
-		a.lggr.Debugw("TON:GetChainFeePriceUpdate added price for selector", "selector", selector, "value", update.Value, "timestamp", update.Timestamp)
 		prices[selector] = ccipocr3.TimestampedUnixBig{
 			Timestamp: update.Timestamp,
 			Value:     update.Value,
 		}
 	}
-	a.lggr.Debugw("TON:GetChainFeePriceUpdate completed returning prices", "numPrices", len(prices), "prices", prices)
 	return prices, nil
 }
 
