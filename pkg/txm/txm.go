@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -248,8 +249,28 @@ func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Messag
 			"to", tx.To.String(),
 			"err", err)
 
+		// ==========================================================================
+		// Testing "Failed to unpack account state" error with longer retry delay
+		// ==========================================================================
+		retryDelay := t.config.SendRetryDelay.Duration()
+		if strings.Contains(err.Error(), "Failed to unpack account state") {
+			// Use exponential backoff for state finalization delays
+			// Start with 5 seconds, increase by 2 seconds per attempt
+			stateFinalizationDelay := time.Duration(5+2*int(attempt-1)) * time.Second
+			if stateFinalizationDelay > 15*time.Second {
+				stateFinalizationDelay = 15 * time.Second // Cap at 15 seconds
+			}
+			retryDelay = stateFinalizationDelay
+			t.logger.Infow("TON state finalization pending, using longer retry delay",
+				"txID", txID,
+				"attempt", attempt,
+				"retryDelay", retryDelay.String(),
+				"reason", "waiting for previous transaction to finalize on TON blockchain")
+		}
+		// ==========================================================================
+
 		select {
-		case <-time.After(t.config.SendRetryDelay.Duration()):
+		case <-time.After(retryDelay):
 		case <-t.stop:
 			t.logger.Debugw("broadcastWithRetry: stopped during retry delay")
 			return errors.New("broadcast aborted")
