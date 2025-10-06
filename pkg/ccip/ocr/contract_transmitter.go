@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/google/uuid"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/libocr/offchainreporting2/types"
 	"github.com/smartcontractkit/libocr/offchainreporting2plus/ocr3types"
@@ -91,20 +90,10 @@ func (c *ccipTransmitter) Transmit(
 		signatures = append(signatures, fixedSig)
 	}
 
-	// TODO: remove this logging after EVM2TON, too verbose
-	c.lggr.Debugw("Generating call data for transmission",
-		"reportLength", len(reportWithInfo.Report),
-		"reportHex", hex.EncodeToString(reportWithInfo.Report),
-		"numSignatures", len(signatures))
-
 	argsCell, err := c.toEd25519CalldataFn(rawContextBytes, reportWithInfo, signatures)
 	if err != nil {
 		return fmt.Errorf("failed to generate call data: %w", err)
 	}
-
-	// TODO: remove this logging after EVM2TON, too verbose
-	c.lggr.Debugw("Successfully generated call data for transmission",
-		"reportLength", len(reportWithInfo.Report))
 
 	client, err := c.txm.GetClient(ctx)
 	if err != nil {
@@ -112,28 +101,30 @@ func (c *ccipTransmitter) Transmit(
 	}
 	w := client.Wallet
 
-	// Generate unique transaction ID for this transmission attempt
-	// (same approach as CW - see chainlink/core/capabilities/ccip/ocrimpls/contract_transmitter.go)
-	txID := uuid.New()
-	idempotencyKey := c.offrampAddress + "-" + txID.String()
+	// extract CCIP-specific txID for enhanced tracking (includes messageID if execute report)
+	// falls back to seq-only format for commit reports or decode failures
+	txID := extractCCIPTxID(reportWithInfo.Report, seqNr)
 
 	request := txm.Request{
 		Mode:            wallet.PayGasSeparately,
 		FromWallet:      w,
 		ContractAddress: *address.MustParseAddr(c.offrampAddress),
 		Body:            argsCell,
-		Amount:          tlb.MustFromTON("0.05"), // TODO: make this configurable
-		IdempotencyKey:  &idempotencyKey,
+		Amount:          tlb.MustFromTON("0.1"), // TODO: make this configurable
+		ID:              &txID,
 	}
 
-	c.lggr.Infow("Submitting transaction",
-		"address", c.offrampAddress,
-		"idempotencyKey", idempotencyKey,
+	c.lggr.Infow("Transmitting OCR report",
+		"txID", txID,
+		"from", w.Address().String(),
+		"to", c.offrampAddress,
 		"configDigest", hex.EncodeToString(configDigest[:]),
 		"seqNr", seqNr,
-		"reportLength", len(reportWithInfo.Report))
+		"reportBytes", len(reportWithInfo.Report),
+		"signatures", len(sigs))
 	if err := c.txm.Enqueue(request); err != nil {
-		return fmt.Errorf("failed to submit transaction via txm: %w", err)
+		return fmt.Errorf("failed to enqueue transaction (txID=%s, seqNr=%d): %w",
+			txID, seqNr, err)
 	}
 
 	return nil
@@ -216,4 +207,29 @@ func rawReportContext(digest types.ConfigDigest, seqNr uint64) [64]byte {
 	// Write seqNr in the last 8 bytes
 	binary.BigEndian.PutUint64(result[56:], seqNr)
 	return result
+}
+
+// extractCCIPTxID is a CCIP-specific helper that attempts to extract messageID from execute reports
+// for better debugging and transaction tracking. This is NOT used by the generic transmitter,
+// but can be useful for logging and debugging in CCIP-specific code.
+//
+// Returns:
+//   - For execute reports: "seq-{seqNum}-msg-{messageID}"
+//   - For commit reports or decode failures: "seq-{seqNum}"
+//
+// Note: This is a "hacky" convenience function that makes assumptions about report structure.
+func extractCCIPTxID(reportBytes []byte, seqNr uint64) string {
+	reportCell, err := cell.FromBOC(reportBytes)
+	if err != nil {
+		return fmt.Sprintf("seq-%d", seqNr)
+	}
+
+	var executeReport ocr.ExecuteReport
+	if err = tlb.LoadFromCell(&executeReport, reportCell.BeginParse()); err != nil {
+		// Not an execute report (likely commit report)
+		return fmt.Sprintf("seq-%d", seqNr)
+	}
+
+	messageIDHex := hex.EncodeToString(executeReport.Messages.Header.MessageID)
+	return fmt.Sprintf("seq-%d-msg-%s", executeReport.Messages.Header.SequenceNumber, messageIDHex)
 }
