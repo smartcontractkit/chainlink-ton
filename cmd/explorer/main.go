@@ -20,13 +20,31 @@ var (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "explorer",
+	Use:   "explorer <address> <tx-hash>",
 	Short: "TON blockchain explorer and trace analyzer",
 	Long: `A command-line tool for exploring TON blockchain transactions and analyzing traces.
-This tool helps debug and understand transaction flows on the TON network.`,
+This tool helps debug and understand transaction flows on the TON network.
+
+Arguments:
+  address   Destination address in base64
+  tx-hash   Transaction hash in hex`,
+	Args: func(cmd *cobra.Command, args []string) error {
+		if len(args) < 2 {
+			return fmt.Errorf("requires exactly 2 arguments: <address> <tx-hash>")
+		}
+		return nil
+	},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if destAddressStr == "" || txHashStr == "" {
-			return fmt.Errorf("both --address and --tx flags are required")
+		// Use positional arguments if provided, otherwise fall back to flags
+		address := args[0]
+		txHash := args[1]
+
+		// Override with flags if they were explicitly provided
+		if destAddressStr != "" {
+			address = destAddressStr
+		}
+		if txHashStr != "" {
+			txHash = txHashStr
 		}
 
 		ctx := context.Background()
@@ -34,7 +52,7 @@ This tool helps debug and understand transaction flows on the TON network.`,
 		if err != nil {
 			return fmt.Errorf("failed to initialize explorer: %w", err)
 		}
-		err = client.PrintTrace(ctx, destAddressStr, txHashStr)
+		err = client.PrintTrace(ctx, address, txHash)
 		if err != nil {
 			return fmt.Errorf("failed to execute trace: %w", err)
 		}
@@ -43,19 +61,12 @@ This tool helps debug and understand transaction flows on the TON network.`,
 }
 
 func init() {
-	rootCmd.Flags().StringVarP(&destAddressStr, "address", "a", "", "Destination address in base64 (required)")
-	rootCmd.Flags().StringVarP(&txHashStr, "tx", "t", "", "Transaction hash in hex (required)")
+	rootCmd.Flags().StringVarP(&destAddressStr, "address", "a", "", "Destination address in base64 (optional if provided as argument)")
+	rootCmd.Flags().StringVarP(&txHashStr, "tx", "t", "", "Transaction hash in hex (optional if provided as argument)")
 	rootCmd.Flags().StringVarP(&net, "net", "n", "testnet", "TON network (mainnet, testnet, mylocalton, or http://domain/x.global.config.json)")
 	rootCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Shows full body of unmatched messages")
 	rootCmd.Flags().Uint32VarP(&pageSize, "page-size", "s", 10, "Number of blocks to fetch per page")
 	rootCmd.Flags().Uint32VarP(&maxPages, "max-pages", "p", 10, "Maximum number of pages to fetch")
-
-	if err := rootCmd.MarkFlagRequired("address"); err != nil {
-		panic(err)
-	}
-	if err := rootCmd.MarkFlagRequired("tx"); err != nil {
-		panic(err)
-	}
 }
 
 func main() {
