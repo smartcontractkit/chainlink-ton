@@ -15,6 +15,34 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 )
 
+// Connect establishes a connection to the specified TON network and returns an
+// explorer instance for tracing transactions.
+//
+// Parameters:
+// - net: The TON network to connect to (e.g., "mainnet", "testnet", "mylocalton", "http://127.0.0.1:8000/localhost.global.config.json").
+// - verbose: Whether to enable verbose output.
+// - pageSize: The number of transactions to fetch per page.
+// - maxPages: The maximum number of pages to fetch.
+func Connect(net string, verbose bool, pageSize uint32, maxPages uint32) (*client, error) {
+	apiClient, err := connect(context.Background(), net)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to network: %w", err)
+	}
+	return &client{
+		connection: apiClient,
+		verbose:    verbose,
+		pageSize:   pageSize,
+		maxPages:   maxPages,
+	}, nil
+}
+
+type client struct {
+	connection *ton.APIClient
+	verbose    bool
+	pageSize   uint32
+	maxPages   uint32
+}
+
 // PrintTrace connects to the specified TON network, retrieves the transaction
 // by the given source address and transaction hash, and prints the full execution
 // trace of the transaction, including all outgoing messages and their subsequent
@@ -22,18 +50,8 @@ import (
 //
 // Parameters:
 // - ctx: The context for managing request deadlines and cancellation.
-// - net: The TON network to connect to (e.g., "mainnet", "testnet", "mylocalton", "http://127.0.0.1:8000/localhost.global.config.json"").
 // - srcAddresstr: The source address of the transaction in string format.
-func PrintTrace(ctx context.Context, net string, srcAddresstr string, txHashStr string, verbose bool) error {
-	client, err := connect(ctx, net)
-	if err != nil {
-		return err
-	}
-
-	return PrintTraceWithClient(ctx, client, srcAddresstr, txHashStr, verbose)
-}
-
-func PrintTraceWithClient(ctx context.Context, client *ton.APIClient, srcAddresstr string, txHashStr string, verbose bool) error {
+func (e *client) PrintTrace(ctx context.Context, srcAddresstr string, txHashStr string) error {
 	senderAddr, err := address.ParseAddr(srcAddresstr)
 	if err != nil {
 		return fmt.Errorf("failed to parse transaction address: %w", err)
@@ -43,7 +61,7 @@ func PrintTraceWithClient(ctx context.Context, client *ton.APIClient, srcAddress
 		return fmt.Errorf("failed to decode tx hash: %w", err)
 	}
 
-	tx, err := findTx(ctx, client, senderAddr, txHash)
+	tx, err := e.findTx(ctx, e.connection, senderAddr, txHash)
 	if err != nil {
 		return err
 	}
@@ -57,7 +75,7 @@ func PrintTraceWithClient(ctx context.Context, client *ton.APIClient, srcAddress
 
 	fmt.Println("waiting for full trace...")
 
-	err = recvMsg.WaitForTrace(client)
+	err = recvMsg.WaitForTrace(e.connection)
 	if err != nil {
 		return fmt.Errorf("failed to wait for trace: %w", err)
 	}
@@ -65,12 +83,12 @@ func PrintTraceWithClient(ctx context.Context, client *ton.APIClient, srcAddress
 	fmt.Println("full trace received:")
 
 	debugger := debug.NewDebuggerTreeTrace(map[string]deployment.TypeAndVersion{})
-	fmt.Println(debugger.DumpReceived(&recvMsg, verbose))
+	fmt.Println(debugger.DumpReceived(&recvMsg, e.verbose))
 
 	return nil
 }
 
-func findTx(ctx context.Context, api *ton.APIClient, srcAddr *address.Address, txHash []byte) (*tlb.Transaction, error) {
+func (e *client) findTx(ctx context.Context, api *ton.APIClient, srcAddr *address.Address, txHash []byte) (*tlb.Transaction, error) {
 	block, err := api.GetMasterchainInfo(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("get masterchain info: %w", err)
@@ -80,13 +98,11 @@ func findTx(ctx context.Context, api *ton.APIClient, srcAddr *address.Address, t
 		return nil, fmt.Errorf("get account: %w", err)
 	}
 
-	const pageSize uint32 = 10
-
 	// Start from the latest transaction
 	maxLT := account.LastTxLT
 	maxHash := account.LastTxHash
-	for range uint64(200) {
-		txs, err := api.ListTransactions(ctx, srcAddr, pageSize, maxLT, maxHash)
+	for range e.maxPages {
+		txs, err := api.ListTransactions(ctx, srcAddr, e.pageSize, maxLT, maxHash)
 		if err != nil {
 			return nil, fmt.Errorf("get transaction: %w", err)
 		}
