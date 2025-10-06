@@ -119,12 +119,8 @@ func (e *client) GetSenderAddressFromTxHash(ctx context.Context, txHashStr strin
 		type txResult struct {
 			Account string `json:"account"`
 		}
-		type addrEntry struct {
-			UserFriendly string `json:"user_friendly"`
-		}
 		type apiResponse struct {
-			Transactions []txResult           `json:"transactions"`
-			AddressBook  map[string]addrEntry `json:"address_book"`
+			Transactions []txResult `json:"transactions"`
 		}
 		resp, err := http.Get(apiURL)
 		if err != nil {
@@ -146,15 +142,6 @@ func (e *client) GetSenderAddressFromTxHash(ctx context.Context, txHashStr strin
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse source address from toncenter response: %w", err)
 		}
-
-		// entry, ok := respData.AddressBook[respData.Transactions[0].Account]
-		// if !ok {
-		// 	return nil, fmt.Errorf("source address not found in toncenter response")
-		// }
-		// addr, err := address.ParseAddr(entry.UserFriendly)
-		// if err != nil {
-		// 	return nil, fmt.Errorf("failed to parse source address from toncenter response: %w", err)
-		// }
 		return addr, nil
 	}
 	return nil, fmt.Errorf("source address is required for non-mainnet/testnet networks")
