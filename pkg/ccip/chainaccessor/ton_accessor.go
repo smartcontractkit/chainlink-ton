@@ -680,7 +680,7 @@ func (a *TONAccessor) GetChainFeePriceUpdate(ctx context.Context, selectors []cc
 
 		a.lggr.Debugw("TON:GetChainFeePriceUpdate added price for selector", "selector", selector, "value", update.Value, "timestamp", update.Timestamp)
 		prices[selector] = ccipocr3.TimestampedUnixBig{
-			Timestamp: uint32(update.Timestamp), //nolint:gosec // TODO: fix type onchain
+			Timestamp: update.Timestamp,
 			Value:     update.Value,
 		}
 	}
@@ -773,7 +773,7 @@ func (a *TONAccessor) GetFeeQuoterTokenUpdates(
 			}
 			price = ccipocr3.TimestampedUnixBig{
 				Value:     timestampedPrice.Value,
-				Timestamp: uint32(timestampedPrice.Timestamp), //nolint:gosec // TODO: fix type onchain
+				Timestamp: timestampedPrice.Timestamp,
 			}
 		default:
 			return nil, fmt.Errorf("expected either cell or nil, received %T", priceResult)

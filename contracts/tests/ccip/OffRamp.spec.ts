@@ -956,19 +956,19 @@ describe('OffRamp', () => {
     expect(config.minSeqNr).toBe(101n)
   })
 
-  it('Test receiver bounces and offRamp emits ExecutionStateChanged: Failure', async () => {
-    const data = beginCell().storeUint(1, 1).endCell() //receiver reverts if any data is on the message
+  it('Test receiver notifies success with non-empty data and offRamp emits ExecutionStateChanged: Success', async () => {
+    const data = beginCell().storeUint(1, 1).endCell() // receiver now accepts data
     const message = createTestMessage(1n, 1n, receiver.address, data)
 
     await setupAndCommitMessage(message)
     const report = createExecuteReport([message])
     const result = await executeReport(report)
 
-    // Message should be bounce from the receiver
+    // Message should be successfully processed by the receiver
     expect(result.transactions).toHaveTransaction({
       from: offRamp.address,
       to: receiver.address,
-      success: false,
+      success: true,
     })
 
     assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
@@ -982,21 +982,112 @@ describe('OffRamp', () => {
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
       sequenceNumber: 1n,
       messageId: 1n,
-      state: EXECUTION_STATE_FAILURE,
+      state: EXECUTION_STATE_SUCCESS,
     })
+
+    assertLog(
+      result.transactions,
+      receiver.address,
+      ReceiverLogs.LogTypes.ReceiverCCIPMessageReceived,
+      {
+        message: {
+          messageId: message.header.messageId,
+          sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+          sender: message.sender,
+          data: message.data,
+        },
+      },
+    )
   })
 
-  it('Test receiver notifies success and offRamp emits ExecutionStateChanged: Success', async () => {
-    const message = createTestMessage(1n, 1n, receiver.address)
+  it('Test receiver notifies success with empty data and offRamp emits ExecutionStateChanged: Success', async () => {
+    const message = createTestMessage(1n, 1n, receiver.address) // empty data (Cell.EMPTY)
     await setupAndCommitMessage(message)
     const report = createExecuteReport([message])
     const result = await executeReport(report)
+
+    expect(result.transactions).toHaveTransaction({
+      from: offRamp.address,
+      to: receiver.address,
+      success: true,
+    })
+
+    assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
+      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+      sequenceNumber: 1n,
+      messageId: 1n,
+      state: EXECUTION_STATE_IN_PROGRESS,
+    })
 
     assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
       sequenceNumber: 1n,
       messageId: 1n,
       state: EXECUTION_STATE_SUCCESS,
+    })
+
+    assertLog(
+      result.transactions,
+      receiver.address,
+      ReceiverLogs.LogTypes.ReceiverCCIPMessageReceived,
+      {
+        message: {
+          messageId: message.header.messageId,
+          sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+          sender: message.sender,
+          data: message.data,
+        },
+      },
+    )
+  })
+
+  it('Test receiver rejects message from wrong offRamp and emits ExecutionStateChanged: Failure', async () => {
+    // Deploy a receiver with WRONG offRamp address - it will reject messages from the real offRamp
+    let code = await compile('examples.receiver')
+    const wrongOffRampAddress = generateMockTonAddress() // Use a different address
+    const badReceiver = blockchain.openContract(ExampleReceiver.create(code, wrongOffRampAddress))
+    const result = await badReceiver.sendDeploy(deployer.getSender(), toNano('10'))
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: badReceiver.address,
+      deploy: true,
+      success: true,
+    })
+
+    // Send message to the bad receiver
+    const message = createTestMessage(1n, 1n, badReceiver.address)
+    await setupAndCommitMessage(message)
+    const report = createExecuteReport([message])
+    const executeResult = await executeReport(report)
+
+    // The execute call itself should succeed
+    expect(executeResult.transactions).toHaveTransaction({
+      from: transmitters[0].address,
+      to: offRamp.address,
+      success: true,
+    })
+
+    // Message should bounce from the bad receiver (wrong offRamp check fails)
+    expect(executeResult.transactions).toHaveTransaction({
+      from: offRamp.address,
+      to: badReceiver.address,
+      success: false,
+    })
+
+    // Should emit IN_PROGRESS first
+    assertLog(executeResult.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
+      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+      sequenceNumber: 1n,
+      messageId: 1n,
+      state: EXECUTION_STATE_IN_PROGRESS,
+    })
+
+    // Should emit FAILURE after bounce
+    assertLog(executeResult.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
+      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+      sequenceNumber: 1n,
+      messageId: 1n,
+      state: EXECUTION_STATE_FAILURE,
     })
   })
 })
