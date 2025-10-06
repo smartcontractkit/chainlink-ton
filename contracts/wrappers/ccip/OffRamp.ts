@@ -300,7 +300,7 @@ export class OffRamp extends OCR3Base {
     const onRampSlice = result.stack.readCell().beginParse()
     const onRampLength = onRampSlice.loadUint(8)
     const onRamp = onRampSlice.loadBuffer(onRampLength)
-    
+
     return {
       router,
       isEnabled,

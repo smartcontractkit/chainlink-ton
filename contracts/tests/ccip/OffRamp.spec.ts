@@ -846,7 +846,7 @@ describe('OffRamp', () => {
 
   it('Test price update sequence number increases with OCR sequence', async () => {
     await setupOCRConfig()
-    
+
     const sourceToken = generateMockTonAddress()
     const priceUpdates: PriceUpdates = {
       tokenPriceUpdates: [
@@ -876,7 +876,7 @@ describe('OffRamp', () => {
 
   it('Test stale price updates are rejected', async () => {
     await setupOCRConfig()
-    
+
     const sourceToken = generateMockTonAddress()
     const priceUpdates: PriceUpdates = {
       tokenPriceUpdates: [
@@ -904,7 +904,7 @@ describe('OffRamp', () => {
     const metadataHash = uint8ArrayToBigInt(getMetadataHash(CHAINSEL_EVM_TEST_90000001))
     const rootBytes = uint8ArrayToBigInt(generateMessageId(message, metadataHash))
     const root = createMerkleRoot(1n, 1n, rootBytes)
-    
+
     await setupSourceChainConfig()
     await commitReport([root], 0x08, priceUpdates) // 0x08 < 0x10, price update should be ignored
     latestSeq = await offRamp.getLatestPriceSequenceNumber()
@@ -1075,19 +1075,29 @@ describe('OffRamp', () => {
     })
 
     // Should emit IN_PROGRESS first
-    assertLog(executeResult.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
-      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
-      sequenceNumber: 1n,
-      messageId: 1n,
-      state: EXECUTION_STATE_IN_PROGRESS,
-    })
+    assertLog(
+      executeResult.transactions,
+      offRamp.address,
+      CCIPLogs.LogTypes.ExecutionStateChanged,
+      {
+        sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+        sequenceNumber: 1n,
+        messageId: 1n,
+        state: EXECUTION_STATE_IN_PROGRESS,
+      },
+    )
 
     // Should emit FAILURE after bounce
-    assertLog(executeResult.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
-      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
-      sequenceNumber: 1n,
-      messageId: 1n,
-      state: EXECUTION_STATE_FAILURE,
-    })
+    assertLog(
+      executeResult.transactions,
+      offRamp.address,
+      CCIPLogs.LogTypes.ExecutionStateChanged,
+      {
+        sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+        sequenceNumber: 1n,
+        messageId: 1n,
+        state: EXECUTION_STATE_FAILURE,
+      },
+    )
   })
 })
