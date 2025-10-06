@@ -2,8 +2,11 @@ package main
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
+	"net/url"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -19,42 +22,90 @@ var (
 	maxPages       uint32
 )
 
+// parseURL extracts transaction hash and network from tonscan URL
+// Supports tonscan.org URL formats
+func parseURL(urlStr string) (txHash, address, network string, err error) {
+	u, err := url.Parse(urlStr)
+	if err != nil {
+		return "", "", "", fmt.Errorf("invalid URL: %w", err)
+	}
+
+	// Determine network from subdomain (tonscan.org format)
+	network = "mainnet" // default
+	if strings.Contains(u.Host, "testnet.tonscan.org") {
+		network = "testnet"
+	} else if strings.Contains(u.Host, "tonscan.org") {
+		network = "mainnet"
+	}
+
+	// Handle tonscan.org transaction URLs: /tx/{hash}
+	if strings.Contains(u.Host, "tonscan.org") {
+		pathParts := strings.Split(strings.Trim(u.Path, "/"), "/")
+		if len(pathParts) >= 2 && pathParts[0] == "tx" {
+			txHash = pathParts[1]
+			return txHash, address, network, nil
+		}
+	}
+
+	return "", "", "", fmt.Errorf("unsupported URL format")
+}
+
 var rootCmd = &cobra.Command{
-	Use:   "explorer <address> <tx-hash>",
+	Use:   "explorer <tx-hash> <address> | <url>",
 	Short: "TON blockchain explorer and trace analyzer",
 	Long: `A command-line tool for exploring TON blockchain transactions and analyzing traces.
 This tool helps debug and understand transaction flows on the TON network.
 
+Usage:
+  explorer <tx-hash> <address>  - Analyze transaction with address and hash
+  explorer <url>                - Analyze transaction from URL
+
 Arguments:
   address   Destination address in base64
-  tx-hash   Transaction hash in hex`,
+  tx-hash   Transaction hash in hex
+  url       tonscan TX URL`,
 	Args: func(cmd *cobra.Command, args []string) error {
-		if len(args) < 2 {
-			return fmt.Errorf("requires exactly 2 arguments: <address> <tx-hash>")
+		if len(args) != 1 && len(args) != 2 {
+			return fmt.Errorf("requires 1 argument (URL) or 2 arguments (<tx-hash> <address>)")
 		}
 		return nil
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		// Use positional arguments if provided, otherwise fall back to flags
-		address := args[0]
-		txHash := args[1]
+		var txHash, address, parsedNet string
 
-		// Override with flags if they were explicitly provided
-		if destAddressStr != "" {
-			address = destAddressStr
+		urlOrTx := args[0]
+		var parseURLErr error
+		txHash, address, parsedNet, parseURLErr = parseURL(urlOrTx)
+		if parseURLErr == nil {
+			if cmd.Root().Flags().Changed("net") {
+				return fmt.Errorf("cannot specify network flag when using URL")
+			}
+			net = parsedNet
+		} else {
+			// Not a URL, treat as tx-hash
+			if len(urlOrTx) == 64 || (len(urlOrTx) == 66 && strings.HasPrefix(urlOrTx, "0x")) {
+				_, err := hex.DecodeString(strings.TrimPrefix(urlOrTx, "0x"))
+				if err != nil {
+					return fmt.Errorf("invalid transaction hash or url: %w", err)
+				}
+				txHash = urlOrTx
+			} else {
+				return fmt.Errorf("failed to parse URL: %w", parseURLErr)
+			}
 		}
-		if txHashStr != "" {
-			txHash = txHashStr
+
+		if len(args) == 2 {
+			address = args[1]
 		}
 
 		ctx := context.Background()
-		client, err := explorer.Connect(net, verbose, pageSize, maxPages)
-		if err != nil {
-			return fmt.Errorf("failed to initialize explorer: %w", err)
+		client, parseURLErr := explorer.Connect(net, verbose, pageSize, maxPages)
+		if parseURLErr != nil {
+			return fmt.Errorf("failed to initialize explorer: %w", parseURLErr)
 		}
-		err = client.PrintTrace(ctx, address, txHash)
-		if err != nil {
-			return fmt.Errorf("failed to execute trace: %w", err)
+		parseURLErr = client.PrintTrace(ctx, txHash, address)
+		if parseURLErr != nil {
+			return fmt.Errorf("failed to execute trace: %w", parseURLErr)
 		}
 		return nil
 	},
