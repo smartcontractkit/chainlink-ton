@@ -35,7 +35,7 @@ source "${SCRIPT_DIR}/lib.sh"
 
 # test database configuration
 PG_CONTAINER_NAME="cl_pg"
-PG_HOST="localhost"
+PG_HOST="127.0.0.1"
 PG_PORT=5432
 PG_DB="chainlink_test"
 PG_USER="postgres"
