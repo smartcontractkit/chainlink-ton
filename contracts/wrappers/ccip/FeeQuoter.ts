@@ -36,12 +36,12 @@ export type TimestampedPrice = {
 export function createTimestampedPriceValue(): DictionaryValue<TimestampedPrice> {
   return {
     serialize: (src, builder) => {
-      builder.storeUint(src.value, 224).storeUint(src.timestamp, 64)
+      builder.storeUint(src.value, 224).storeUint(src.timestamp, 32)
     },
     parse: (src): TimestampedPrice => {
       return {
         value: src.loadUintBig(224),
-        timestamp: src.loadUintBig(64),
+        timestamp: src.loadUintBig(32),
       }
     },
   }
@@ -170,12 +170,12 @@ export const builder = {
   data: (() => {
     const timestampedPrice: CellCodec<TimestampedPrice> = {
       encode: (data: TimestampedPrice): Builder => {
-        return beginCell().storeUint(data.value, 224).storeUint(data.timestamp, 64)
+        return beginCell().storeUint(data.value, 224).storeUint(data.timestamp, 32)
       },
       load: (src: Slice): TimestampedPrice => {
         return {
           value: src.loadUintBig(224),
-          timestamp: src.loadUintBig(64),
+          timestamp: src.loadUintBig(32),
         }
       },
     }

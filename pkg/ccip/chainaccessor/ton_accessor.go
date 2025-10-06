@@ -358,9 +358,8 @@ func (a *TONAccessor) GetTokenPriceUSD(ctx context.Context, rawTokenAddress ccip
 		return ccipocr3.TimestampedUnixBig{}, err
 	}
 	return ccipocr3.TimestampedUnixBig{
-		Value: timestampedPrice.Value,
-		// TODO: u64 -> u32? should we fix the onchain type?
-		Timestamp: uint32(timestampedPrice.Timestamp), //nolint:gosec // G115
+		Value:     timestampedPrice.Value,
+		Timestamp: timestampedPrice.Timestamp,
 	}, nil
 }
 
