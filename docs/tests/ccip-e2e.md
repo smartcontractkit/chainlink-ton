@@ -90,26 +90,9 @@ E2E tests run automatically through GitHub Actions (`.github/workflows/ccip-inte
 
 **Execution**: The workflow also reads `.core_version`, checks out the specified Chainlink core version, then runs both setup and test scripts within the `ccip-e2e` Nix shell for environment consistency.
 
-## TON Blockchain Explorer During Tests
-
-The TON blockchain explorer can be used to inspect the mylocalton blockchain state during test execution.
-
-### How to Use
-
-After the mylocalton container starts (~3 minutes into test execution):
-
-```bash
-./tools/ton-explorer/ton-explorer.sh
-# Access at: http://localhost:8080/last
-
-# To stop:
-./tools/ton-explorer/ton-explorer.sh stop
-```
-
 ## Key Files
 
 * `scripts/.core_version`: The definitive source of truth for the `chainlink` Git reference used in tests.
 * `scripts/e2e/setup-env.sh`: Script for setting up the E2E testing environment, including DB and Chainlink Core preparation.
 * `scripts/e2e/run-test.sh`: Script for executing the E2E tests after the environment is set up.
-* `tools/ton-explorer/ton-explorer.sh`: Script for launching the TON blockchain explorer during tests.
 * `.github/workflows/ccip-integration-test.yml`: The GitHub Actions CI workflow that automates E2E testing.
