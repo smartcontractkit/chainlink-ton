@@ -17,26 +17,13 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/decoders/jetton/minter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/decoders/jetton/wallet"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/visualizations/tree"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/event"
 	tt "github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
-type DebuggerWriter interface {
-	AddActor(address string, contractType cldf.ContractType, name string)
-	NewSentMessage(msg *tt.SentMessage, info lib.MessageInfo) DebuggerWriter
-	NewReceivedMessage(msg *tt.ReceivedMessage, info lib.TxInfo) DebuggerWriter
-	NewEvent(msg *tt.OutgoingExternalMessages, info lib.MessageInfo)
-	String() string
-}
-
-type DebuggerEnvironment struct {
-	existingAddresses map[string]cldf.TypeAndVersion
-	contracts         map[cldf.ContractType]lib.ContractDecoder
-	writerFactory     func(DebuggerEnvironment) DebuggerWriter
-}
-
-// func NewDebuggerFromEnv(env cldf.Environment, writer DebuggerWriter) Debugger {
+// func NewDebuggerFromEnv(env cldf.Environment, writer lib.DebuggerWriter) Debugger {
 // 	return Debugger{
 // 		ExistingAddresses: env.GetAddressBook(),
 // 		Contracts:   make(map[*cldf.ContractType]lib.ContractDecoder),
@@ -44,16 +31,22 @@ type DebuggerEnvironment struct {
 // 	}
 // }
 
+type DebuggerEnvironment struct {
+	existingAddresses map[string]cldf.TypeAndVersion
+	contracts         map[cldf.ContractType]lib.ContractDecoder
+	writerFactory     func(DebuggerEnvironment) lib.DebuggerVisualization
+}
+
 func NewDebuggerTreeTrace(addresses map[string]cldf.TypeAndVersion) DebuggerEnvironment {
 	return DebuggerEnvironment{
 		existingAddresses: addresses,
 		contracts:         defaultDecoders(),
-		writerFactory: func(d DebuggerEnvironment) DebuggerWriter {
-			writer := &TreeDiagram{
+		writerFactory: func(d DebuggerEnvironment) lib.DebuggerVisualization {
+			writer := &tree.TreeDiagram{
 				Actors: make(map[string]string),
 			}
 			for addr, typeAndVersion := range d.existingAddresses {
-				writer.AddActor(addr, typeAndVersion.Type, "")
+				writer.NewActor(addr, typeAndVersion.Type, "")
 			}
 			return writer
 		},
@@ -75,7 +68,7 @@ func registerDecoder(t map[cldf.ContractType]lib.ContractDecoder, decoder lib.Co
 	t[decoder.ContractType()] = decoder
 }
 
-func (d *DebuggerEnvironment) RegisterDecoders(decoders ...lib.ContractDecoder) {
+func (d DebuggerEnvironment) RegisterDecoders(decoders ...lib.ContractDecoder) {
 	for _, v := range decoders {
 		d.contracts[v.ContractType()] = v
 	}
@@ -90,7 +83,7 @@ func (d DebuggerEnvironment) NewInstance() debugger {
 
 type debugger struct {
 	environment DebuggerEnvironment
-	Writer      DebuggerWriter
+	Writer      lib.DebuggerVisualization
 }
 
 func (d DebuggerEnvironment) DumpSent(m *tt.SentMessage, verbose ...bool) string {
@@ -108,7 +101,7 @@ func (d debugger) dumpSent(m *tt.SentMessage, verbose bool) string {
 		return fmt.Sprintf("error describing sent message: %v", err)
 	}
 	_ = d.Writer.NewSentMessage(m, info)
-	return d.Writer.String()
+	return d.Writer.ToString()
 }
 
 // Outputs a nicely indented string representation of the trace tree, with the exit codes, bounced tags and sender-receiver
@@ -130,11 +123,11 @@ func (d debugger) dumpReceived(m *tt.ReceivedMessage, verbose bool) (string, err
 	if err != nil {
 		return "", fmt.Errorf("error dumping received message: %w", err)
 	}
-	return d.Writer.String(), nil
+	return d.Writer.ToString(), nil
 }
 
 func (d debugger) dumpRec(m *tt.ReceivedMessage, verbose bool) error {
-	var subcontext DebuggerWriter
+	var subcontext lib.DebuggerVisualization
 	info, err := d.environment.describeReceivedMessage(m, verbose)
 	if err != nil {
 		return fmt.Errorf("error describing received message: %w", err)
@@ -164,7 +157,7 @@ func (d debugger) dumpRec(m *tt.ReceivedMessage, verbose bool) error {
 	return nil
 }
 
-func (d debugger) withSubcontext(subcontext DebuggerWriter) debugger {
+func (d debugger) withSubcontext(subcontext lib.DebuggerVisualization) debugger {
 	return debugger{
 		environment: d.environment,
 		Writer:      subcontext,

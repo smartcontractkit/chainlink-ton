@@ -1,4 +1,4 @@
-package debug
+package tree
 
 import (
 	"fmt"
@@ -61,21 +61,21 @@ type TreeDiagram struct {
 	Root   *treeNode
 }
 
-func NewTreeDiagram() DebuggerWriter {
+func NewTreeDiagram() lib.DebuggerVisualization {
 	return &TreeDiagram{
 		Actors: make(map[string]string),
 		Root:   nil,
 	}
 }
 
-func (w *TreeDiagram) String() string {
+func (w *TreeDiagram) ToString() string {
 	if w.Root == nil {
 		return "no messages"
 	}
 	return w.Root.ToString()
 }
 
-func (w *TreeDiagram) AddActor(address string, contractType deployment.ContractType, name string) {
+func (w *TreeDiagram) NewActor(address string, contractType deployment.ContractType, name string) {
 	if _, exists := w.Actors[address]; !exists {
 		if name != "" {
 			w.Actors[address] = name
@@ -85,12 +85,12 @@ func (w *TreeDiagram) AddActor(address string, contractType deployment.ContractT
 	}
 }
 
-func (w *TreeDiagram) NewSentMessage(msg *tt.SentMessage, info lib.MessageInfo) DebuggerWriter {
+func (w *TreeDiagram) NewSentMessage(msg *tt.SentMessage, info lib.MessageInfo) lib.DebuggerVisualization {
 	newVar := w.describeInternalMsg(msg.InternalMsg, info, nil)
 	return w.insertMsg(newVar)
 }
 
-func (w *TreeDiagram) insertMsg(description string) DebuggerWriter {
+func (w *TreeDiagram) insertMsg(description string) lib.DebuggerVisualization {
 	if w.Root == nil {
 		w.Root = &treeNode{
 			description: description,
@@ -109,7 +109,7 @@ func (w *TreeDiagram) NewEvent(msg *tt.OutgoingExternalMessages, info lib.Messag
 	w.insertMsg(w.describeExternalOutMsg(msg, info))
 }
 
-func (w *TreeDiagram) NewReceivedMessage(msg *tt.ReceivedMessage, info lib.TxInfo) DebuggerWriter {
+func (w *TreeDiagram) NewReceivedMessage(msg *tt.ReceivedMessage, info lib.TxInfo) lib.DebuggerVisualization {
 	return w.insertMsg(w.DescribeReceivedMessage(msg, info))
 }
 

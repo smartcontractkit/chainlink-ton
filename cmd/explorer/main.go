@@ -15,6 +15,8 @@ var (
 	txHashStr      string
 	net            string
 	verbose        bool
+	pageSize       uint32
+	maxPages       uint32
 )
 
 var rootCmd = &cobra.Command{
@@ -28,7 +30,11 @@ This tool helps debug and understand transaction flows on the TON network.`,
 		}
 
 		ctx := context.Background()
-		err := explorer.PrintTrace(ctx, net, destAddressStr, txHashStr, verbose)
+		client, err := explorer.Connect(net, verbose, pageSize, maxPages)
+		if err != nil {
+			return fmt.Errorf("failed to initialize explorer: %w", err)
+		}
+		err = client.PrintTrace(ctx, destAddressStr, txHashStr)
 		if err != nil {
 			return fmt.Errorf("failed to execute trace: %w", err)
 		}
@@ -41,6 +47,8 @@ func init() {
 	rootCmd.Flags().StringVarP(&txHashStr, "tx", "t", "", "Transaction hash in hex (required)")
 	rootCmd.Flags().StringVarP(&net, "net", "n", "testnet", "TON network (mainnet, testnet, mylocalton, or http://domain/x.global.config.json)")
 	rootCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Shows full body of unmatched messages")
+	rootCmd.Flags().Uint32VarP(&pageSize, "page-size", "s", 10, "Number of blocks to fetch per page")
+	rootCmd.Flags().Uint32VarP(&maxPages, "max-pages", "p", 10, "Maximum number of pages to fetch")
 
 	if err := rootCmd.MarkFlagRequired("address"); err != nil {
 		panic(err)
