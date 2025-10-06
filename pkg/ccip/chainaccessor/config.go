@@ -200,10 +200,6 @@ func (a *TONAccessor) getOffRampSourceChainConfigs(ctx context.Context, block *t
 		entry, err := dict.LoadValue(key)
 		// The plugin is built with EVM behaviour in mind: if a value doesn't exist the zero value is returned
 		if errors.Is(err, cell.ErrNoSuchKeyInDict) {
-			// TODO: should we still set to zero value?
-			// TODO: testing: seeing "fetched source chain configs count mismatch" without this
-			// {"L":"INFO","T":"11:38:41.374855000","N":"CCIPCommitPlugin.ton.-217.13879075125137744094.EQBtFwi-ylU6kqYq4KgSd7UKwth6H5yeYbyo-02wf3HfuOz0","C":"reader/ccip.go:987","M":"fetched source chain configs count mismatch","plugin":"Commit","oracleID":1,"donID":3,"configDigest":"000ae96fdcecc0b218ead6413e2d7ac8872710c5baa4df3d8058f5b963f82044","component":"CCIPReader","ocrSeqNr":0,"ocrPhase":null,"expected":2,"actual":1,"destChain":"ChainSelector(13879075125137744094)"}
-			a.lggr.Debug("Source chain config not found, setting to zero value", "selector", selector)
 			sourceChainConfigs[selector] = ccipocr3.SourceChainConfig{}
 			continue
 		}

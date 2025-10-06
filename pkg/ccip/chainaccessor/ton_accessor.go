@@ -127,7 +127,6 @@ func (a *TONAccessor) GetAllConfigsLegacy(ctx context.Context, destChainSelector
 		}
 		config.CurseInfo = curseInfo
 
-		a.lggr.Debug("Getting source chain configs", "sourceChainSelectors", sourceChainSelectors)
 		sourceChainConfigs, err = a.getOffRampSourceChainConfigs(ctx, block, sourceChainSelectors)
 		if !errors.Is(err, ErrNoBindings) && err != nil {
 			return ccipocr3.ChainConfigSnapshot{}, nil, fmt.Errorf("failed to get source chain configs: %w", err)

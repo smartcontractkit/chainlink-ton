@@ -44,7 +44,7 @@ func (e *executePluginCodecV1) Encode(ctx context.Context, report ccipocr3.Execu
 		return nil, nil
 	}
 
-	// TON supports single chain only, so we expect exactly one chain report
+	// TON supports single report only, so we expect exactly one chain report
 	if len(report.ChainReports) != 1 {
 		return nil, fmt.Errorf("TON supports single chain only, got %d chain reports", len(report.ChainReports))
 	}
