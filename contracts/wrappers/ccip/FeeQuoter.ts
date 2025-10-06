@@ -19,6 +19,7 @@ import { CellCodec } from '../utils'
 import { asSnakeData, fromSnakeData } from '../../src/utils'
 
 export type FeeQuoterStorage = {
+  id: number
   ownable: ownable2step.Data
   maxFeeJuelsPerMsg: bigint
   linkToken: Address
@@ -234,6 +235,7 @@ export const builder = {
     const contractData: CellCodec<FeeQuoterStorage> = {
       encode: (data: FeeQuoterStorage): Builder => {
         return beginCell()
+          .storeUint(data.id, 32)
           .storeBuilder(ownable2step.builder.data.traitData.encode(data.ownable))
           .storeUint(data.maxFeeJuelsPerMsg, 96)
           .storeAddress(data.linkToken)
@@ -243,6 +245,7 @@ export const builder = {
           .storeDict(data.destChainConfigs)
       },
       load: (src: Slice): FeeQuoterStorage => {
+        const id = src.loadUint(32)
         const ownable = ownable2step.builder.data.traitData.load(src)
         const maxFeeJuelsPerMsg = src.loadUintBig(96)
         const linkToken = src.loadAddress()
@@ -273,6 +276,7 @@ export const builder = {
         }
 
         return {
+          id,
           ownable,
           maxFeeJuelsPerMsg,
           linkToken,

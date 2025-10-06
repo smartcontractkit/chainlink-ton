@@ -1,12 +1,14 @@
 import "types.tolk";
 import "../lib/access/ownable_2step.tolk";
-import "../lib/upgrades/type_and_version.tolk";
 import "../deployable/types.tolk";
 import "../lib/utils.tolk";
 import "../lib/jetton/messages"
 import "../lib/jetton/messages_extended"
 
+const CONTRACT_VERSION = "0.0.1";
+
 struct Storage {
+    id: uint32;
     ownable: Ownable2Step;
 
     // TODO: expand this with versions support
@@ -21,12 +23,12 @@ fun Storage.store(self) {
     return contract.setData(self.toCell());
 }
 
-type Msg = CCIPSend | SetRamp | JettonTransferNotification;
+type Msg = CCIPSend | SetRamps | JettonTransferNotification;
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy Msg.fromSlice(in.body);
     match (msg) {
-        SetRamp => { onSetRamp(msg, in.senderAddress) }
+        SetRamps => {onSetRamps(msg, in.senderAddress)}
         CCIPSend => { onSend(msg, in.senderAddress) }
         JettonTransferNotification => { onTransferNotification(msg, in.senderAddress) }
         else => {
@@ -39,15 +41,19 @@ fun onInternalMessage(in: InMessage) {
 fun onBouncedMessage(in: InMessageBounced) {
 }
 
-fun onSetRamp(msg: SetRamp, sender: address) {
+fun onSetRamps(msg: SetRamps, sender: address) {
     var st = lazy Storage.load();
     st.ownable.requireOwner(sender);
 
-    st.onRamps.set(msg.destChainSelector, msg.onRamp);
+    var selectors = Iterator<uint64>.new(msg.destChainSelectors);
+    while (!selectors.empty()) {
+        val selector = selectors.next();
+        st.onRamps.set(selector, msg.onRamp);
+    }
     st.store();
-
-    // TODO: emit(OnRampSet)
 }
+
+// TODO: emit(OnRampsSet)
 
 fun onSend(msg: CCIPSend, sender: address) {
     ccipSend(msg, sender);
@@ -114,8 +120,18 @@ fun ccipSend(msg: CCIPSend, sender: address) {
 }
 
 get fun typeAndVersion(): (slice, slice) {
-     return ("com.chainlink.ton.ccip.Router", "1.0.0");
- }
+    return ("com.chainlink.ton.ccip.Router", CONTRACT_VERSION);
+}
+
+// Returns the current code of the contract.
+get fun code(): cell {
+    return contract.getCode();
+}
+
+// Returns the sha256 hash of the current code of the contract.
+get fun codeHash(): int {
+    return contract.getCode().hash();
+}
 
 get fun onRamp(destChainSelector: uint64): address {
     val st = lazy Storage.load();

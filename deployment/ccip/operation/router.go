@@ -4,9 +4,10 @@ import (
 	"fmt"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
+
+	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/utils"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
@@ -16,6 +17,7 @@ import (
 )
 
 type DeployRouterInput struct {
+	ID           uint32
 	ContractPath string
 }
 
@@ -42,6 +44,7 @@ func deployRouter(b operations.Bundle, deps TonDeps, in DeployRouterInput) (Depl
 	conn := tracetracking.NewSignedAPIClient(deps.TonChain.Client, *deps.TonChain.Wallet)
 
 	storage := router.Storage{
+		ID: in.ID,
 		Ownable: common.Ownable2Step{
 			Owner:        deps.TonChain.WalletAddress,
 			PendingOwner: nil,
@@ -63,10 +66,7 @@ func deployRouter(b operations.Bundle, deps TonDeps, in DeployRouterInput) (Depl
 	return output, nil
 }
 
-type UpdateRouterDestInput struct {
-	DestChainSelector uint64
-	OnRamp            *address.Address
-}
+type UpdateRouterDestInput map[string][]router.DestChainSelector
 
 type UpdateRouterDestOutput struct {
 }
@@ -81,23 +81,27 @@ var UpdateRouterDestOp = operations.NewOperation(
 func updateRouterDest(b operations.Bundle, deps TonDeps, in UpdateRouterDestInput) ([][]byte, error) {
 	addr := deps.CCIPOnChainState[deps.TonChain.Selector].Router
 
-	input := router.SetRamp{
-		DestChainSelector: in.DestChainSelector,
-		OnRamp:            in.OnRamp,
-	}
+	msgs := make([]*tlb.InternalMessage, 0)
+	for onRampAddrStr, selectors := range in {
+		rampAddr := address.MustParseAddr(onRampAddrStr)
+		input := router.SetRamps{
+			DestChainSelectors: selectors,
+			OnRamps:            rampAddr,
+		}
 
-	payload, err := tlb.ToCell(input)
-	if err != nil {
-		return nil, fmt.Errorf("failed to serialize router input: %w", err)
-	}
+		payload, err := tlb.ToCell(input)
+		if err != nil {
+			return nil, fmt.Errorf("failed to serialize router input: %w", err)
+		}
 
-	msg := []*tlb.InternalMessage{
-		{
+		msg := tlb.InternalMessage{
 			Bounce:  true,
 			Amount:  tlb.MustFromTON("0.1"),
 			DstAddr: &addr,
 			Body:    payload,
-		},
+		}
+		msgs = append(msgs, &msg)
 	}
-	return utils.Serialize(msg)
+
+	return utils.Serialize(msgs)
 }

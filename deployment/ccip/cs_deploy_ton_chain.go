@@ -92,8 +92,8 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 	s.FeeQuoter = *ccipSeqReport.Output.FeeQuoterAddress
 	s.OffRamp = *ccipSeqReport.Output.OffRampAddress
 
-	// Save state
-	err = state.SaveOnchainState(selector, s, env)
+	// Get address book
+	ab, err := state.GetAddressBook(selector, s)
 	deps.CCIPOnChainState[selector] = s
 	if err != nil {
 		return cldf.ChangesetOutput{}, err
@@ -128,5 +128,6 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 	return cldf.ChangesetOutput{
 		MCMSTimelockProposals: proposals,
 		Reports:               seqReports,
+		AddressBook:           ab,
 	}, nil
 }

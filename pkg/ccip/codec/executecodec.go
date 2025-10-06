@@ -23,12 +23,12 @@ import (
 // - "OffRamp 1.6.0-dev"
 type executePluginCodecV1 struct {
 	addressCodec   ccipocr3.ChainSpecificAddressCodec
-	extraDataCodec ccipocr3.ExtraDataCodec
+	extraDataCodec ccipocr3.ExtraDataCodecBundle
 }
 
 var _ ccipocr3.ExecutePluginCodec = &executePluginCodecV1{}
 
-func NewExecutePluginCodecV1(extraDataCodec ccipocr3.ExtraDataCodec) ccipocr3.ExecutePluginCodec {
+func NewExecutePluginCodecV1(extraDataCodec ccipocr3.ExtraDataCodecBundle) ccipocr3.ExecutePluginCodec {
 	return &executePluginCodecV1{
 		addressCodec:   NewAddressCodec(),
 		extraDataCodec: extraDataCodec,

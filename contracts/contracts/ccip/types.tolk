@@ -128,10 +128,11 @@ struct TokenAmount {
     token: address;
 }
 
-struct (0x10000001) SetRamp {
-    queryId: uint64;
+// update multiple chain selectors in batch to the same onramp address
+struct (0x10000001) SetRamps {
     // TODO: support onramp and offramp, support list
-    destChainSelector: uint64;
+    queryId: uint64;
+    destChainSelectors: cell; // vec<uint64> for destChainSelectors
     onRamp: address;
 }
 
@@ -355,6 +356,19 @@ struct (0xdc81855a) OffRamp_NotifyInProgress {
 struct TokenBalance {
     amount: coins = 0;
     failed: bool = false; // if marked as failed, a retry will allow re-sending these
+}
+
+struct (0x181dcf10) GenericExtraArgsV2 {
+    gasLimit: uint256?;
+    allowOutOfOrderExecution: bool;
+}
+
+struct (0x1f3b3aba) SVMExtraArgsV1 {
+	computeUnits: uint32;
+	accountIsWritableBitmap: uint64;
+	allowOutOfOrderExecution: bool;
+	tokenReceiver: uint256;
+	accounts: cell; // vec<slice>
 }
 
 // Errors

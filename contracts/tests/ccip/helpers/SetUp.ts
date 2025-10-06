@@ -18,6 +18,7 @@ export const setupTestFeeQuoter = async (
   let code = await compile('FeeQuoter')
 
   let data: FeeQuoterStorage = {
+    id: 0,
     ownable: {
       owner: deployer.address,
       pendingOwner: null,

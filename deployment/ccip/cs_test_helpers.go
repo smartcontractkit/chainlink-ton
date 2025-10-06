@@ -81,7 +81,7 @@ var (
 	}
 )
 
-func DeployChainContractsConfig(t *testing.T, env cldf.Environment, chainSelector uint64, contractVersion string) DeployCCIPContractsCfg {
+func DeployChainContractsConfig(t *testing.T, env cldf.Environment, chainSelector uint64, contractVersion string, idForContracts uint32) DeployCCIPContractsCfg {
 	tonChain := env.BlockChains.TonChains()[chainSelector]
 	deployer := tonChain.Wallet
 
@@ -93,7 +93,11 @@ func DeployChainContractsConfig(t *testing.T, env cldf.Environment, chainSelecto
 	return DeployCCIPContractsCfg{
 		TonChainSelector: chainSelector,
 		Params: config.ChainContractParams{
+			RouterParams: config.RouterParams{
+				ID: idForContracts,
+			},
 			FeeQuoterParams: config.FeeQuoterParams{
+				ID:                           idForContracts,
 				MaxFeeJuelsPerMsg:            big.NewInt(1),
 				TokenPriceStalenessThreshold: 0,
 				FeeTokens: map[config.TokenSymbol]config.FeeToken{
@@ -104,10 +108,12 @@ func DeployChainContractsConfig(t *testing.T, env cldf.Environment, chainSelecto
 				},
 			},
 			OffRampParams: config.OffRampParams{
+				ID:                               idForContracts,
 				ChainSelector:                    tonChain.Selector,
 				PermissionlessExecutionThreshold: 0,
 			},
 			OnRampParams: config.OnRampParams{
+				ID:            idForContracts,
 				ChainSelector: ChainSelEVMTest90000001,
 				// TODO:
 				// AllowlistAdmin: &address.Address{},

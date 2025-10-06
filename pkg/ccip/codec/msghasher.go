@@ -21,10 +21,10 @@ var LeafDomainSeparator [32]byte
 type messageHasherV1 struct {
 	lggr           logger.Logger
 	addrCodec      addressCodec
-	extraDataCodec ccipocr3.ExtraDataCodec
+	extraDataCodec ccipocr3.ExtraDataCodecBundle
 }
 
-func NewMessageHasherV1(lg logger.Logger, extraDataCodec ccipocr3.ExtraDataCodec) ccipocr3.MessageHasher {
+func NewMessageHasherV1(lg logger.Logger, extraDataCodec ccipocr3.ExtraDataCodecBundle) ccipocr3.MessageHasher {
 	return messageHasherV1{
 		lggr:           lg,
 		extraDataCodec: extraDataCodec,

@@ -152,86 +152,86 @@ export const MAX_NUM_SIGNERS = 200
 
 export enum Error {
   /// Thrown when number of signers is 0 or greater than MAX_NUM_SIGNERS.
-  OUT_OF_BOUNDS_NUM_SIGNERS = 100,
+  OutOfBoundsNumSigners = 39000,
 
   /// Thrown when signerKeys and signerGroups have different lengths.
-  SIGNER_GROUPS_LENGTH_MISMATCH = 101,
+  SignerGroupsLengthMismatch,
 
   /// Thrown when number of some signer's group is greater than (NUM_GROUPS-1).
-  OUT_OF_BOUNDS_GROUP = 102,
+  OutOfBoundsGroup,
 
   /// Thrown when the group tree isn't well-formed.
-  GROUP_TREE_NOT_WELL_FORMED = 103,
+  GroupTreeNotWellFormed,
 
   /// Thrown when the quorum of some group is larger than the number of signers in it.
-  OUT_OF_BOUNDS_GROUP_QUORUM = 104,
+  OutOfBoundsGroupQuorum,
 
   /// Thrown when a disabled group contains a signer.
-  SIGNER_IN_DISABLED_GROUP = 105,
+  SignerInDisabledGroup,
 
   /// Thrown when the signers' public keys are not a strictly increasing monotone sequence.
   /// Prevents signers from including more than one signature.
-  SIGNERS_KEYS_MUST_BE_STRICTLY_INCREASING = 106,
+  SignersKeysMustBeStrictlyIncreasing,
 
   /// Thrown when the signature corresponds to invalid signer.
-  INVALID_SIGNER = 107,
+  InvalidSigner,
 
   /// Thrown when there is no sufficient set of valid signatures provided to make the
   /// root group successful.
-  INSUFFICIENT_SIGNERS = 108,
+  InsufficientSigners,
 
   /// Thrown when attempt to set metadata or execute op for another chain.
-  WRONG_CHAIN_ID = 109,
+  WrongChainId,
 
   /// Thrown when the multiSig address in metadata or op is
   /// incompatible with the address of this contract.
-  WRONG_MULTI_SIG = 110,
+  WrongMultiSig,
 
   /// Thrown when the preOpCount <= postOpCount invariant is violated.
-  WRONG_POST_OP_COUNT = 111,
+  WrongPostOpCount,
 
   /// Thrown when attempting to set a new root while there are still pending ops
   /// from the previous root without explicitly overriding it.
-  PENDING_OPS = 112,
+  PendingOps,
 
   /// Thrown when preOpCount in metadata is incompatible with the current opCount.
-  WRONG_PRE_OP_COUNT = 113,
+  WrongPreOpCount,
 
   /// Thrown when the provided merkle proof cannot be verified.
-  PROOF_CANNOT_BE_VERIFIED = 114,
+  ProofCannotBeVerified,
 
   /// Thrown when attempt to execute an op after
   /// s_expiringRootAndOpCount.validUntil has passed.
-  ROOT_EXPIRED = 115,
+  RootExpired,
 
   /// Thrown when attempt to bypass the enforced ops' order in the merkle tree or
   /// re-execute an op.
-  WRONG_NONCE = 116,
+  WrongNonce,
 
   /// Thrown when attempting to execute an op even though opCount equals
   /// metadata.postOpCount.
-  POST_OP_COUNT_REACHED = 117,
+  PostOpCountReached,
 
   /// Thrown when the underlying call in _execute() reverts.
-  CALL_REVERTED = 118,
+  CallReverted,
 
   /// Thrown when attempt to set past validUntil for the root.
-  VALID_UNTIL_HAS_ALREADY_PASSED = 119,
+  ValidUntilHasAlreadyPassed,
 
   /// Thrown when setRoot() is called before setting a config.
-  MISSING_CONFIG = 120,
+  MissingConfig,
 
   /// Thrown when attempt to set the same (root, validUntil) in setRoot().
-  SIGNED_HASH_ALREADY_SEEN = 121,
+  SignedHashAlreadySeen,
 
   /// Thrown when the root has not been finalized yet (can't execute next op before finalization).
-  ERROR_ROOT_NOT_FINALIZED = 122,
+  RootNotFinalized,
 
   /// Thrown when the provided op.value is insufficient (min required value not met).
-  ERROR_INSUFFICIENT_VALUE = 123,
+  InsufficientValue,
 
   /// Thrown when the error report sender is not the authorized oracle.
-  ERROR_UNAUTHORIZED_ORACLE = 124,
+  UnauthorizedOracle,
 }
 
 // --- Data structures ---

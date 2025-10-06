@@ -12,6 +12,7 @@ import (
 )
 
 type Storage struct {
+	ID                           uint32              `tlb:"## 32"`
 	Ownable                      common.Ownable2Step `tlb:"."`
 	MaxFeeJuelsPerMsg            *big.Int            `tlb:"## 96"`
 	LinkToken                    *address.Address    `tlb:"addr"`

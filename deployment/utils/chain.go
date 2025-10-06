@@ -157,11 +157,12 @@ func waitForAirdropCompletion(t *testing.T, client ton.APIClientWrapped, recipie
 	}
 }
 
-func StartChain(t *testing.T, nodeClient *ton.APIClient, chainID uint64, deployerWallet *wallet.Wallet) cldf_ton.Chain {
+func StartChain(t *testing.T, nodeClient ton.APIClientWrapped, chainID uint64, deployerWallet *wallet.Wallet) cldf_ton.Chain {
 	t.Helper()
 	ton := cldf_ton.Chain{
 		ChainMetadata: cldf_ton.ChainMetadata{Selector: chainID},
-		Client:        nodeClient,
+		// TODO: CLDF should accept ton.APIClientWrapped instead of *ton.APIClient
+		Client:        nodeClient.(*ton.APIClient),
 		Wallet:        deployerWallet,
 		WalletAddress: deployerWallet.Address(),
 	}
@@ -169,7 +170,7 @@ func StartChain(t *testing.T, nodeClient *ton.APIClient, chainID uint64, deploye
 }
 
 // CreateTestAPIClient is a test helper that wraps CreateAPIClient and registers cleanup with testing.T
-func CreateTestAPIClient(t *testing.T, chainID uint64) (*ton.APIClient, error) {
+func CreateTestAPIClient(t *testing.T, chainID uint64) (ton.APIClientWrapped, error) {
 	t.Helper()
 
 	port := freeport.GetOne(t)
@@ -185,8 +186,8 @@ func CreateTestAPIClient(t *testing.T, chainID uint64) (*ton.APIClient, error) {
 // CreateAPIClient sets up a TON API client. Returns the client, cleanup function, and error.
 // The caller is responsible for calling the cleanup function when done.
 // Note: For new networks, a port must be provided since freeport allocation requires testing context.
-func CreateAPIClient(ctx context.Context, chainID uint64, port int) (*ton.APIClient, func(), error) {
-	var client *ton.APIClient
+func CreateAPIClient(ctx context.Context, chainID uint64, port int) (ton.APIClientWrapped, func(), error) {
+	var client ton.APIClientWrapped
 	var cleanup func()
 	var err error
 
@@ -215,11 +216,11 @@ func CreateAPIClient(ctx context.Context, chainID uint64, port int) (*ton.APICli
 	}
 	client.SetTrustedBlock(mb)
 
-	return client, cleanup, nil
+	return client.WithRetry(3), cleanup, nil
 }
 
 // getExistingNetworkConnection returns the connection for a pre-existing network.
-func getExistingNetworkConnection(ctx context.Context) (*ton.APIClient, error) {
+func getExistingNetworkConnection(ctx context.Context) (ton.APIClientWrapped, error) {
 	configURL := "http://localhost:8000/localhost.global.config.json"
 	pool := liteclient.NewConnectionPool()
 	err := pool.AddConnectionsFromConfigUrl(ctx, configURL)
@@ -231,7 +232,7 @@ func getExistingNetworkConnection(ctx context.Context) (*ton.APIClient, error) {
 
 // createNewNetwork provisions a new, temporary TON network for the test's duration.
 // It handles port allocation and automatic container cleanup.
-func createNewNetwork(ctx context.Context, chainID uint64, port int) (client *ton.APIClient, cleanup func(), err error) {
+func createNewNetwork(ctx context.Context, chainID uint64, port int) (client ton.APIClientWrapped, cleanup func(), err error) {
 	// port := freeport.GetOne(t)
 	bcInput := &blockchain.Input{
 		ChainID: strconv.FormatUint(chainID, 10),
