@@ -6,11 +6,11 @@ tolk 1.1
 
 struct CCIPSendExecutor_InitialData {
     onramp: address,
-    messageId: uint224,
+    messageId: RootID,
 }
 
 struct CCIPSendExecutor_Data {
-    messageId: uint224,
+    messageId: RootID,
     onrampSend: OnRampSend,
     addresses: Cell<CCIPSendExecutor_Addresses>,
     state: CCIPSendExecutor_State,
@@ -59,7 +59,7 @@ struct CCIPSendExecutor_PendingJettonLock {
 // Casted state
 
 struct CCIPSendExecutor<T> {
-    messageId: uint224,
+    messageId: RootID,
     onrampSend: OnRampSend,
     addresses: Cell<CCIPSendExecutor_Addresses>,
     state: Cell<T>,

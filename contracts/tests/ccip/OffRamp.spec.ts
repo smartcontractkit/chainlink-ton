@@ -72,7 +72,7 @@ const createSignatures = (
 
 const getMerkleRootID = (root: bigint) => {
   const cs = beginCell().storeUint(root, 256).asSlice()
-  return beginCell().storeUint(cs.loadUintBig(224), 224)
+  return beginCell().storeUint(cs.loadUintBig(192), 192)
 }
 
 const getMetadataHash = (sourceChainSelector: bigint) => {

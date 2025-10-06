@@ -33,7 +33,7 @@ struct OnRamp_Data {
 
     destChainConfigs: map<uint64, DestChainConfig>; // chainSelector -> DestChainConfig
     executor_code: cell; // code for CCIPSendExecutor
-    currentMessageId: uint224;
+    currentMessageId: RootID;
     // TODO track last destroyed executor+gaps to allow owner to reclaim funds?
 }
 

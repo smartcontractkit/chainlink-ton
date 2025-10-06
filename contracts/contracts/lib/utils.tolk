@@ -20,10 +20,7 @@ const ERROR_BITMAP_OUT_OF_BOUNDS = 0x78;
 const DEFAULT_MESSAGE_FWD_BUDGET_GAS_UNITS = 30000;  // 0.012 TON at 400 nanotons/unit
 
 /// Maximum size of a bounced message
-///
-/// Notice: documentation for in.bouncedBody is off, as it states the bounced body
-/// will be 0xffffffff + 224 bits, but the actual size is 0xffffffff + 256 bits.
-const BOUNCE_MSG_SIZE_MAX = 256;
+const BOUNCE_MSG_SIZE_MAX = 224;
 
 /// Returns the global ID of the current blockchain (chain ID).
 fun globalId(): int {
