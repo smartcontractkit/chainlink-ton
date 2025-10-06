@@ -265,13 +265,7 @@ func (a *TONAccessor) GetOffRampSourceChainConfig(ctx context.Context, block *to
 		return ccipocr3.SourceChainConfig{}, err
 	}
 
-	return ccipocr3.SourceChainConfig{
-		Router:                    addrToBytes(config.Router),
-		IsEnabled:                 config.IsEnabled,
-		IsRMNVerificationDisabled: config.IsRMNVerificationDisabled,
-		MinSeqNr:                  config.MinSeqNr,
-		OnRamp:                    ccipocr3.UnknownAddress(config.OnRamp),
-	}, nil
+	return sourceChainConfigToGeneric(config), nil
 }
 
 // parseSourceChainConfig converts a raw slice into a ccipocr3.SourceChainConfig
@@ -281,13 +275,18 @@ func parseSourceChainConfig(slice *cell.Slice) (ccipocr3.SourceChainConfig, erro
 		return ccipocr3.SourceChainConfig{}, err
 	}
 
+	return sourceChainConfigToGeneric(config), nil
+}
+
+// sourceChainConfigToGeneric converts from offramp.SourceChainConfig to ccipocr3.SourceChainConfig
+func sourceChainConfigToGeneric(config offramp.SourceChainConfig) ccipocr3.SourceChainConfig {
 	return ccipocr3.SourceChainConfig{
 		Router:                    addrToBytes(config.Router),
 		IsEnabled:                 config.IsEnabled,
 		IsRMNVerificationDisabled: config.IsRMNVerificationDisabled,
 		MinSeqNr:                  config.MinSeqNr,
 		OnRamp:                    ccipocr3.UnknownAddress(config.OnRamp),
-	}, nil
+	}
 }
 
 // getFeeQuoterStaticConfig retrieves static configuration from the fee quoter contract
