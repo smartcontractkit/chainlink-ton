@@ -168,3 +168,12 @@ get fun errorCode(local: uint16): uint16 {
     return getErrorCode(stringCrc32("com.chainlink.ton.ccip.CCIPSendExecutor"), local);
 }
 
+// Returns the current code of the contract.
+get fun code(): cell {
+    return contract.getCode();
+}
+
+// Returns the sha256 hash of the current code of the contract.
+get fun codeHash(): int {
+    return contract.getCode().hash();
+}

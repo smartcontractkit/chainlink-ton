@@ -17,6 +17,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/decoders/jetton/minter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/decoders/jetton/wallet"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/visualizations/sequence"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/visualizations/tree"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/event"
 	tt "github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
@@ -42,9 +43,21 @@ func NewDebuggerTreeTrace(addresses map[string]cldf.TypeAndVersion) DebuggerEnvi
 		existingAddresses: addresses,
 		contracts:         defaultDecoders(),
 		writerFactory: func(d DebuggerEnvironment) lib.DebuggerVisualization {
-			writer := &tree.TreeDiagram{
-				Actors: make(map[string]string),
+			writer := tree.NewTreeDiagram()
+			for addr, typeAndVersion := range d.existingAddresses {
+				writer.NewActor(addr, typeAndVersion.Type, "")
 			}
+			return writer
+		},
+	}
+}
+
+func NewDebuggerSequenceTrace(addresses map[string]cldf.TypeAndVersion) DebuggerEnvironment {
+	return DebuggerEnvironment{
+		existingAddresses: addresses,
+		contracts:         defaultDecoders(),
+		writerFactory: func(d DebuggerEnvironment) lib.DebuggerVisualization {
+			writer := sequence.NewVisualization()
 			for addr, typeAndVersion := range d.existingAddresses {
 				writer.NewActor(addr, typeAndVersion.Type, "")
 			}

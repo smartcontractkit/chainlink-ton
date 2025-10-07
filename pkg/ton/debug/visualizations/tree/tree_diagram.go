@@ -56,93 +56,93 @@ func (n *treeNode) insertMsg(msg string) *treeNode {
 	return newNode
 }
 
-type TreeDiagram struct {
+type visualization struct {
 	Actors map[string]string // address -> name
 	Root   *treeNode
 }
 
 func NewTreeDiagram() lib.DebuggerVisualization {
-	return &TreeDiagram{
+	return &visualization{
 		Actors: make(map[string]string),
 		Root:   nil,
 	}
 }
 
-func (w *TreeDiagram) ToString() string {
-	if w.Root == nil {
+func (v *visualization) ToString() string {
+	if v.Root == nil {
 		return "no messages"
 	}
-	return w.Root.ToString()
+	return v.Root.ToString()
 }
 
-func (w *TreeDiagram) NewActor(address string, contractType deployment.ContractType, name string) {
-	if _, exists := w.Actors[address]; !exists {
+func (v *visualization) NewActor(address string, contractType deployment.ContractType, name string) {
+	if _, exists := v.Actors[address]; !exists {
 		if name != "" {
-			w.Actors[address] = name
+			v.Actors[address] = name
 		} else {
-			w.Actors[address] = contractType.String()
+			v.Actors[address] = contractType.String()
 		}
 	}
 }
 
-func (w *TreeDiagram) NewSentMessage(msg *tt.SentMessage, info lib.MessageInfo) lib.DebuggerVisualization {
-	newVar := w.describeInternalMsg(msg.InternalMsg, info, nil)
-	return w.insertMsg(newVar)
+func (v *visualization) NewSentMessage(msg *tt.SentMessage, info lib.MessageInfo) lib.DebuggerVisualization {
+	newVar := v.describeInternalMsg(msg.InternalMsg, info, nil)
+	return v.insertMsg(newVar)
 }
 
-func (w *TreeDiagram) insertMsg(description string) lib.DebuggerVisualization {
-	if w.Root == nil {
-		w.Root = &treeNode{
+func (v *visualization) insertMsg(description string) lib.DebuggerVisualization {
+	if v.Root == nil {
+		v.Root = &treeNode{
 			description: description,
 			children:    &[]treeNode{},
 		}
-		return w
+		return v
 	}
-	newNode := w.Root.insertMsg(description)
-	return &TreeDiagram{
-		Actors: w.Actors,
+	newNode := v.Root.insertMsg(description)
+	return &visualization{
+		Actors: v.Actors,
 		Root:   newNode,
 	}
 }
 
-func (w *TreeDiagram) NewEvent(msg *tt.OutgoingExternalMessages, info lib.MessageInfo) {
-	w.insertMsg(w.describeExternalOutMsg(msg, info))
+func (v *visualization) NewEvent(msg *tt.OutgoingExternalMessages, info lib.MessageInfo) {
+	v.insertMsg(v.describeExternalOutMsg(msg, info))
 }
 
-func (w *TreeDiagram) NewReceivedMessage(msg *tt.ReceivedMessage, info lib.TxInfo) lib.DebuggerVisualization {
-	return w.insertMsg(w.DescribeReceivedMessage(msg, info))
+func (v *visualization) NewReceivedMessage(msg *tt.ReceivedMessage, info lib.TxInfo) lib.DebuggerVisualization {
+	return v.insertMsg(v.DescribeReceivedMessage(msg, info))
 }
 
-func (w *TreeDiagram) DescribeReceivedMessage(m *tt.ReceivedMessage, info lib.TxInfo) string {
+func (v *visualization) DescribeReceivedMessage(m *tt.ReceivedMessage, info lib.TxInfo) string {
 	if m.ExternalMsg != nil {
-		return w.describeExternalInMsg(m.ExternalMsg, info)
+		return v.describeExternalInMsg(m.ExternalMsg, info)
 	} else if m.InternalMsg != nil {
-		return w.describeInternalMsg(m.InternalMsg, info.Msg, &info.ExitCode)
+		return v.describeInternalMsg(m.InternalMsg, info.Msg, &info.ExitCode)
 	}
 	return "unknown message type"
 }
 
-func (w *TreeDiagram) describeAddr(addr *address.Address) string {
+func (v *visualization) describeAddr(addr *address.Address) string {
 	addrStr := addr.String()
-	if name, exists := w.Actors[addrStr]; exists {
+	if name, exists := v.Actors[addrStr]; exists {
 		return name
 	}
 	return addrStr
 }
 
-func (w *TreeDiagram) describeExternalInMsg(msg *tlb.ExternalMessageIn, info lib.TxInfo) string {
+func (v *visualization) describeExternalInMsg(msg *tlb.ExternalMessageIn, info lib.TxInfo) string {
 	bodyDescription := info.Msg.Body().Compact()
 	description := fmt.Sprintf("%s, %s{%s}", info.ExitCode, info.Msg.Name(), bodyDescription)
 	return fmt.Sprintf("%s --> %s",
-		description, w.describeAddr(msg.DstAddr))
+		description, v.describeAddr(msg.DstAddr))
 }
 
-func (w *TreeDiagram) describeExternalOutMsg(msg *tt.OutgoingExternalMessages, info lib.MessageInfo) string {
+func (v *visualization) describeExternalOutMsg(msg *tt.OutgoingExternalMessages, info lib.MessageInfo) string {
 	bodyDescription := info.Body().Compact()
 	return fmt.Sprintf("event: {%s, %s}", info.Name(), bodyDescription)
 }
 
-func (w *TreeDiagram) describeInternalMsg(msg *tlb.InternalMessage, info lib.MessageInfo, exitCode *string) string {
+func (v *visualization) describeInternalMsg(msg *tlb.InternalMessage, info lib.MessageInfo, exitCode *string) string {
 	description := "amount: " + msg.Amount.String()
 	if msg.Bounced {
 		description += ", bounce"
@@ -150,9 +150,9 @@ func (w *TreeDiagram) describeInternalMsg(msg *tlb.InternalMessage, info lib.Mes
 	if exitCode != nil {
 		description += ", " + *exitCode
 	}
-	description += fmt.Sprintf(", %s{%s}", info.Name(), replaceAddresses(w.Actors, info.Body().Compact()))
+	description += fmt.Sprintf(", %s{%s}", info.Name(), replaceAddresses(v.Actors, info.Body().Compact()))
 	return fmt.Sprintf("%s --> %s",
-		description, w.describeAddr(msg.DstAddr))
+		description, v.describeAddr(msg.DstAddr))
 }
 
 func replaceAddresses(addressMap map[string]string, text string) string {
