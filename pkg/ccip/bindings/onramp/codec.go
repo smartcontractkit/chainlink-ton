@@ -15,6 +15,13 @@ var Builder = builder{
 			UpdateAllowlists:             codec.TLBCodec[UpdateAllowlistsMessage](),
 		},
 	},
+	Events: eventBuilder{
+		CCIPMessageSent: codec.TLBCodec[CCIPMessageSent](),
+	},
+}
+
+type eventBuilder struct {
+	CCIPMessageSent codec.CellCodec[CCIPMessageSent]
 }
 
 type inMessageBuilder struct {
@@ -32,4 +39,5 @@ type messageBuilder struct {
 
 type builder struct {
 	Messages messageBuilder
+	Events   eventBuilder
 }

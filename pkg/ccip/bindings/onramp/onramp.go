@@ -22,6 +22,11 @@ const (
 	OpcodeUpdateAllowlists                   = 0x10000005
 )
 
+// Topics
+const (
+	TopicCCIPMessageSent = 0xA45D293C // CRC32("CCIPMessageSent")
+)
+
 // CCIPMessageSent uses TVM2AnyRampMessage but with event-specific header (no onramp address)
 type CCIPMessageSent struct {
 	Message ocr.TVM2AnyRampMessage `tlb:"."`
