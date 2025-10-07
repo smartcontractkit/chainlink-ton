@@ -504,6 +504,10 @@ get fun facilityId(): uint16  {
     return getFacilityId(stringCrc32("com.chainlink.ton.ccip.FeeQuoter"));
 }
 
+get fun errorCode(local: uint16): uint16 {
+    return getErrorCode(stringCrc32("com.chainlink.ton.ccip.FeeQuoter"), local);
+}
+
 // Returns the current code of the contract.
 get fun code(): cell {
     return contract.getCode();

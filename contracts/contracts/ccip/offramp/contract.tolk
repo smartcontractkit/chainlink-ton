@@ -430,8 +430,13 @@ fun applySourceChainConfigUpdates() {}
 get fun typeAndVersion(): (slice, slice) {
     return ("com.chainlink.ton.ccip.OffRamp", CONTRACT_VERSION);
 }
+
 get fun facilityId(): uint16  {
     return getFacilityId(stringCrc32("com.chainlink.ton.ccip.OffRamp"));
+}
+
+get fun errorCode(local: uint16): uint16 {
+    return getErrorCode(stringCrc32("com.chainlink.ton.ccip.OffRamp"), local);
 }
 
 // Returns the current code of the contract.
