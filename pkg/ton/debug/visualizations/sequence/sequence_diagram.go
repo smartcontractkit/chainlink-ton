@@ -24,6 +24,7 @@ type visualization struct {
 func NewVisualization() lib.DebuggerVisualization {
 	diagram := sequence.NewDiagram()
 	diagram.Config.SetMessageAlign("left")
+	diagram.Config.SetNoteAlign("left")
 	return &visualization{
 		Actors:       make(map[string]string),
 		ActiveActors: make(map[string]*sequence.Actor),

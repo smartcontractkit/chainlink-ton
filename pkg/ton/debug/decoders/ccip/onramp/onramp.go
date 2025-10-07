@@ -10,6 +10,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/decoders/ccip/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/event"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
@@ -28,6 +29,20 @@ func (d *decoder) ContractType() cldf.ContractType {
 
 // EventInfo implements lib.ContractDecoder.
 func (d *decoder) EventInfo(dstAddr *address.Address, msg *cell.Cell) (lib.MessageInfo, error) {
+	bucket := event.NewExtOutLogBucket(dstAddr)
+	topic, err := bucket.DecodeEventTopic()
+	if err != nil {
+		return nil, &lib.UnknownMessageError{}
+	}
+	if topic == onramp.TopicCCIPMessageSent {
+
+		ccipMessageSent, err := onramp.Builder.Events.CCIPMessageSent.Decode(msg.BeginParse())
+		if err != nil {
+			return nil, err
+		}
+		return lib.NewMessageInfo("CCIPMessageSent", ccipMessageSent)
+	}
+
 	return nil, &lib.UnknownMessageError{}
 }
 
