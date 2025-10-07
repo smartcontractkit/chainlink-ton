@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"net/url"
 	"os"
 	"strings"
 
@@ -20,35 +19,8 @@ var (
 	verbose        bool
 	pageSize       uint32
 	maxPages       uint32
+	format         string
 )
-
-// parseURL extracts transaction hash and network from tonscan URL
-// Supports tonscan.org URL formats
-func parseURL(urlStr string) (txHash, address, network string, err error) {
-	u, err := url.Parse(urlStr)
-	if err != nil {
-		return "", "", "", fmt.Errorf("invalid URL: %w", err)
-	}
-
-	// Determine network from subdomain (tonscan.org format)
-	network = "mainnet" // default
-	if strings.Contains(u.Host, "testnet.tonscan.org") {
-		network = "testnet"
-	} else if strings.Contains(u.Host, "tonscan.org") {
-		network = "mainnet"
-	}
-
-	// Handle tonscan.org transaction URLs: /tx/{hash}
-	if strings.Contains(u.Host, "tonscan.org") {
-		pathParts := strings.Split(strings.Trim(u.Path, "/"), "/")
-		if len(pathParts) >= 2 && pathParts[0] == "tx" {
-			txHash = pathParts[1]
-			return txHash, address, network, nil
-		}
-	}
-
-	return "", "", "", fmt.Errorf("unsupported URL format")
-}
 
 var rootCmd = &cobra.Command{
 	Use:   "explorer <tx-hash> <address> | <url>",
@@ -75,7 +47,7 @@ Arguments:
 
 		urlOrTx := args[0]
 		var parseURLErr error
-		txHash, address, parsedNet, parseURLErr = parseURL(urlOrTx)
+		txHash, address, parsedNet, parseURLErr = explorer.ParseURL(urlOrTx)
 		if parseURLErr == nil {
 			if cmd.Root().Flags().Changed("net") {
 				return fmt.Errorf("cannot specify network flag when using URL")
@@ -103,7 +75,7 @@ Arguments:
 		if parseURLErr != nil {
 			return fmt.Errorf("failed to initialize explorer: %w", parseURLErr)
 		}
-		parseURLErr = client.PrintTrace(ctx, txHash, address)
+		parseURLErr = client.PrintTrace(ctx, txHash, address, format)
 		if parseURLErr != nil {
 			return fmt.Errorf("failed to execute trace: %w", parseURLErr)
 		}
@@ -113,6 +85,7 @@ Arguments:
 
 func init() {
 	rootCmd.Flags().StringVarP(&destAddressStr, "address", "a", "", "Destination address in base64 (optional if provided as argument)")
+	rootCmd.Flags().StringVarP(&format, "format", "f", "", "Visualization format (tree or sequence)")
 	rootCmd.Flags().StringVarP(&txHashStr, "tx", "t", "", "Transaction hash in hex (optional if provided as argument)")
 	rootCmd.Flags().StringVarP(&net, "net", "n", "testnet", "TON network (mainnet, testnet, mylocalton, or http://domain/x.global.config.json)")
 	rootCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Shows full body of unmatched messages")
