@@ -119,7 +119,7 @@ func (a *TONAccessor) getOCR3Config(ctx context.Context, block *ton.BlockIDExt) 
 }
 
 // getOffRampConfig retrieves static configuration for the off-ramp contract
-func (a *TONAccessor) getOffRampConfig(ctx context.Context, block *ton.BlockIDExt) (ccipocr3.OfframpConfig, error) {
+func (a *TONAccessor) GetOffRampConfig(ctx context.Context, block *ton.BlockIDExt) (ccipocr3.OfframpConfig, error) {
 	addr, err := a.getBinding(consts.ContractNameOffRamp)
 	if err != nil {
 		return ccipocr3.OfframpConfig{}, err
@@ -169,8 +169,8 @@ func (a *TONAccessor) getOffRampConfig(ctx context.Context, block *ton.BlockIDEx
 	}, nil
 }
 
-// getOffRampSourceChainConfigs retrieves source chain configurations from the off-ramp contract
-func (a *TONAccessor) getOffRampSourceChainConfigs(ctx context.Context, block *ton.BlockIDExt, sourceChainSelectors []ccipocr3.ChainSelector) (map[ccipocr3.ChainSelector]ccipocr3.SourceChainConfig, error) {
+// getOffRampSourceChainConfigs retrieves multiple source chain configurations from the off-ramp contract
+func (a *TONAccessor) GetOffRampSourceChainConfigs(ctx context.Context, block *ton.BlockIDExt, sourceChainSelectors []ccipocr3.ChainSelector) (map[ccipocr3.ChainSelector]ccipocr3.SourceChainConfig, error) {
 	addr, err := a.getBinding(consts.ContractNameOffRamp)
 	if err != nil {
 		return nil, err
@@ -195,34 +195,102 @@ func (a *TONAccessor) getOffRampSourceChainConfigs(ctx context.Context, block *t
 		return nil, err
 	}
 	dict := rawDict.AsDict(64)
-	for _, selector := range sourceChainSelectors {
-		key := cell.BeginCell().MustStoreUInt(uint64(selector), 64).EndCell()
-		entry, err := dict.LoadValue(key)
-		// The plugin is built with EVM behaviour in mind: if a value doesn't exist the zero value is returned
-		if errors.Is(err, cell.ErrNoSuchKeyInDict) {
-			sourceChainConfigs[selector] = ccipocr3.SourceChainConfig{}
-			continue
-		}
+
+	// If no specific selectors provided, get ALL keys from the dictionary
+	if len(sourceChainSelectors) == 0 {
+		dictEntries, err := dict.LoadAll()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to load dictionary entries: %w", err)
 		}
-		var config offramp.SourceChainConfig
-		if err := tlb.LoadFromCell(&config, entry); err != nil {
-			return nil, err
+
+		// Process each entry
+		for _, entry := range dictEntries {
+			selectorValue, err := entry.Key.LoadUInt(64)
+			if err != nil {
+				a.lggr.Warnf("Failed to parse selector key: %v", err)
+				continue
+			}
+
+			selector := ccipocr3.ChainSelector(selectorValue)
+			config, err := parseSourceChainConfig(entry.Value)
+			if err != nil {
+				a.lggr.Warnf("Failed to parse config for selector %d: %v", selector, err)
+				continue
+			}
+			sourceChainConfigs[selector] = config
 		}
-		sourceChainConfigs[selector] = ccipocr3.SourceChainConfig{
-			Router:                    addrToBytes(config.Router),
-			IsEnabled:                 config.IsEnabled,
-			IsRMNVerificationDisabled: config.IsRMNVerificationDisabled,
-			MinSeqNr:                  config.MinSeqNr,
-			OnRamp:                    ccipocr3.UnknownAddress(config.OnRamp),
+	} else {
+		for _, selector := range sourceChainSelectors {
+			key := cell.BeginCell().MustStoreUInt(uint64(selector), 64).EndCell()
+			entry, err := dict.LoadValue(key)
+			// The plugin is built with EVM behaviour in mind: if a value doesn't exist the zero value is returned
+			if errors.Is(err, cell.ErrNoSuchKeyInDict) {
+				sourceChainConfigs[selector] = ccipocr3.SourceChainConfig{}
+				continue
+			}
+			if err != nil {
+				return nil, err
+			}
+			config, err := parseSourceChainConfig(entry)
+			if err != nil {
+				return nil, err
+			}
+			sourceChainConfigs[selector] = config
 		}
 	}
+
 	return sourceChainConfigs, nil
 }
 
+// GetOffRampSourceChainConfig retrieves a specific source chain configuration
+func (a *TONAccessor) GetOffRampSourceChainConfig(ctx context.Context, block *ton.BlockIDExt, sourceChainSelector ccipocr3.ChainSelector) (ccipocr3.SourceChainConfig, error) {
+	addr, err := a.getBinding(consts.ContractNameOffRamp)
+	if err != nil {
+		return ccipocr3.SourceChainConfig{}, err
+	}
+
+	result, err := a.client.RunGetMethod(ctx, block, addr, "sourceChainConfig", uint64(sourceChainSelector))
+	if err != nil {
+		// Handle ERROR_SOURCE_CHAIN_NOT_ENABLED=266 case for non-existent source chain
+		var execError ton.ContractExecError
+		if errors.As(err, &execError) && execError.Code == 266 {
+			a.lggr.Debugw("source chain not enabled", "chainSelector", sourceChainSelector)
+			return ccipocr3.SourceChainConfig{}, fmt.Errorf("%s not enabled", sourceChainSelector)
+		}
+		return ccipocr3.SourceChainConfig{}, err
+	}
+
+	var config offramp.SourceChainConfig
+	if err := config.FromResult(result); err != nil {
+		return ccipocr3.SourceChainConfig{}, err
+	}
+
+	return sourceChainConfigToGeneric(config), nil
+}
+
+// parseSourceChainConfig converts a raw slice into a ccipocr3.SourceChainConfig
+func parseSourceChainConfig(slice *cell.Slice) (ccipocr3.SourceChainConfig, error) {
+	var config offramp.SourceChainConfig
+	if err := tlb.LoadFromCell(&config, slice); err != nil {
+		return ccipocr3.SourceChainConfig{}, err
+	}
+
+	return sourceChainConfigToGeneric(config), nil
+}
+
+// sourceChainConfigToGeneric converts from offramp.SourceChainConfig to ccipocr3.SourceChainConfig
+func sourceChainConfigToGeneric(config offramp.SourceChainConfig) ccipocr3.SourceChainConfig {
+	return ccipocr3.SourceChainConfig{
+		Router:                    addrToBytes(config.Router),
+		IsEnabled:                 config.IsEnabled,
+		IsRMNVerificationDisabled: config.IsRMNVerificationDisabled,
+		MinSeqNr:                  config.MinSeqNr,
+		OnRamp:                    ccipocr3.UnknownAddress(config.OnRamp),
+	}
+}
+
 // getFeeQuoterStaticConfig retrieves static configuration from the fee quoter contract
-func (a *TONAccessor) getFeeQuoterStaticConfig(ctx context.Context, block *ton.BlockIDExt) (ccipocr3.FeeQuoterStaticConfig, error) {
+func (a *TONAccessor) GetFeeQuoterStaticConfig(ctx context.Context, block *ton.BlockIDExt) (ccipocr3.FeeQuoterStaticConfig, error) {
 	addr, err := a.getBinding(consts.ContractNameFeeQuoter)
 	if err != nil {
 		return ccipocr3.FeeQuoterStaticConfig{}, err
@@ -243,7 +311,7 @@ func (a *TONAccessor) getFeeQuoterStaticConfig(ctx context.Context, block *ton.B
 }
 
 // getOnRampDynamicConfig retrieves dynamic configuration from the on-ramp contract
-func (a *TONAccessor) getOnRampDynamicConfig(ctx context.Context, block *ton.BlockIDExt) (ccipocr3.OnRampDynamicConfig, error) {
+func (a *TONAccessor) GetOnRampDynamicConfig(ctx context.Context, block *ton.BlockIDExt) (ccipocr3.OnRampDynamicConfig, error) {
 	addr, err := a.getBinding(consts.ContractNameOnRamp)
 	if err != nil {
 		return ccipocr3.OnRampDynamicConfig{}, err
@@ -266,7 +334,7 @@ func (a *TONAccessor) getOnRampDynamicConfig(ctx context.Context, block *ton.Blo
 }
 
 // getOnRampDestChainConfig retrieves destination chain configuration from the on-ramp contract
-func (a *TONAccessor) getOnRampDestChainConfig(ctx context.Context, block *ton.BlockIDExt, dest ccipocr3.ChainSelector) (ccipocr3.OnRampDestChainConfig, error) {
+func (a *TONAccessor) GetOnRampDestChainConfig(ctx context.Context, block *ton.BlockIDExt, dest ccipocr3.ChainSelector) (ccipocr3.OnRampDestChainConfig, error) {
 	addr, err := a.getBinding(consts.ContractNameOnRamp)
 	if err != nil {
 		return ccipocr3.OnRampDestChainConfig{}, err
@@ -289,7 +357,7 @@ func (a *TONAccessor) getOnRampDestChainConfig(ctx context.Context, block *ton.B
 }
 
 // getCurseInfo retrieves curse information for RMN verification
-func (a *TONAccessor) getCurseInfo(_ context.Context, _ *ton.BlockIDExt) (ccipocr3.CurseInfo, error) {
+func (a *TONAccessor) GetCurseInfo(_ context.Context, _ *ton.BlockIDExt) (ccipocr3.CurseInfo, error) {
 	return ccipocr3.CurseInfo{
 		CursedSourceChains: map[ccipocr3.ChainSelector]bool{},
 		CursedDestination:  false,

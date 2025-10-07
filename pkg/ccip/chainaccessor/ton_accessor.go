@@ -95,7 +95,7 @@ func (a *TONAccessor) GetAllConfigsLegacy(ctx context.Context, destChainSelector
 		// we're fetching config on the destination chain (offramp + fee quoter static config + RMN)
 
 		// OffRamp
-		offrampConfig, err := a.getOffRampConfig(ctx, block)
+		offrampConfig, err := a.GetOffRampConfig(ctx, block)
 		if !errors.Is(err, ErrNoBindings) && err != nil {
 			return ccipocr3.ChainConfigSnapshot{}, nil, fmt.Errorf("failed to get current offramp config: %w", err)
 		}
@@ -103,7 +103,7 @@ func (a *TONAccessor) GetAllConfigsLegacy(ctx context.Context, destChainSelector
 		config.Offramp = offrampConfig
 
 		// FeeQuoter
-		feeQuoterStaticConfig, err := a.getFeeQuoterStaticConfig(ctx, block)
+		feeQuoterStaticConfig, err := a.GetFeeQuoterStaticConfig(ctx, block)
 		if !errors.Is(err, ErrNoBindings) && err != nil {
 			return ccipocr3.ChainConfigSnapshot{}, nil, fmt.Errorf("failed to get current feequoter static config: %w", err)
 		}
@@ -121,13 +121,13 @@ func (a *TONAccessor) GetAllConfigsLegacy(ctx context.Context, destChainSelector
 		}
 
 		// CurseInfo
-		curseInfo, err := a.getCurseInfo(ctx, block)
+		curseInfo, err := a.GetCurseInfo(ctx, block)
 		if !errors.Is(err, ErrNoBindings) && err != nil {
 			return ccipocr3.ChainConfigSnapshot{}, nil, fmt.Errorf("failed to get curse info: %w", err)
 		}
 		config.CurseInfo = curseInfo
 
-		sourceChainConfigs, err = a.getOffRampSourceChainConfigs(ctx, block, sourceChainSelectors)
+		sourceChainConfigs, err = a.GetOffRampSourceChainConfigs(ctx, block, sourceChainSelectors)
 		if !errors.Is(err, ErrNoBindings) && err != nil {
 			return ccipocr3.ChainConfigSnapshot{}, nil, fmt.Errorf("failed to get source chain configs: %w", err)
 		}
@@ -135,11 +135,11 @@ func (a *TONAccessor) GetAllConfigsLegacy(ctx context.Context, destChainSelector
 		// we're fetching config on the source chain (onramp + router config)
 
 		// OnRamp
-		onRampDynamicConfig, err := a.getOnRampDynamicConfig(ctx, block)
+		onRampDynamicConfig, err := a.GetOnRampDynamicConfig(ctx, block)
 		if !errors.Is(err, ErrNoBindings) && err != nil {
 			return ccipocr3.ChainConfigSnapshot{}, nil, fmt.Errorf("failed to get current onramp dynamic config: %w", err)
 		}
-		onRampDestChainConfig, err := a.getOnRampDestChainConfig(ctx, block, destChainSelector)
+		onRampDestChainConfig, err := a.GetOnRampDestChainConfig(ctx, block, destChainSelector)
 		if !errors.Is(err, ErrNoBindings) && err != nil {
 			return ccipocr3.ChainConfigSnapshot{}, nil, fmt.Errorf("failed to get current onramp dest chain config: %w", err)
 		}
