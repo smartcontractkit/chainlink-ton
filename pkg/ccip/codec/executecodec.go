@@ -171,9 +171,11 @@ func (e *executePluginCodecV1) Encode(ctx context.Context, report ccipocr3.Execu
 		offChainTokenData = tokenDataSlice
 	}
 
-	proofs := make(common.SnakeData[common.SnakeBytes], 0, len(chainReport.Proofs))
+	proofs := make(common.SnakeData[common.Proof256], 0, len(chainReport.Proofs))
 	for _, proof := range chainReport.Proofs {
-		proofs = append(proofs, proof[:])
+		var p common.Proof256
+		copy(p[:], proof[:])
+		proofs = append(proofs, p)
 	}
 
 	// TON supports single chain only, encode single ExecuteReport (not array)

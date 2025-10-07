@@ -135,7 +135,7 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 		SourceChainSelector: 1,
 		Messages:            rampMessageSlice[0],
 		OffChainTokenData:   common.SnakeRef[common.SnakeBytes]{make([]byte, 120), make([]byte, 130)},
-		Proofs:              common.SnakeData[common.SnakeBytes]{make([]byte, 32), make([]byte, 32)},
+		Proofs:              common.SnakeData[common.Proof256]{common.Proof256{}, common.Proof256{}},
 		ProofFlagBits:       big.NewInt(0),
 	}
 

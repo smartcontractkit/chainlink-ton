@@ -20,7 +20,7 @@ import (
 )
 
 func randomTONExecuteReport(t *testing.T, sourceChainSelector uint64) ccipocr3.ExecutePluginReport {
-	const numChainReports = 2
+	const numChainReports = 1 // currently TON supports single report only
 	const msgsPerReport = 2
 	const numTokensPerMsg = 2
 
