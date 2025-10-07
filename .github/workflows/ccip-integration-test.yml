@@ -51,10 +51,10 @@ jobs:
       matrix:
         type:
           # Note: list of tests, add more tests here
-          - name: "CCIP Messaging Tests(TON2EVM)"
-            cmd: "cd integration-tests/smoke/ccip && go test -run Test_CCIPMessaging_TON2EVM -timeout 20m -test.parallel=2 -count=1 -json"
-          - name: "CCIP Messaging Tests(EVM2TON)"
-            cmd: "cd integration-tests/smoke/ccip && go test -run Test_CCIPMessaging_EVM2TON -timeout 20m -test.parallel=2 -count=1 -json"
+          - name: "TON2EVM Messaging Test"
+            cmd: "cd integration-tests && go test ./smoke/ccip -run Test_CCIPMessaging_TON2EVM -timeout 20m -test.parallel=2 -count=1 -json"
+          - name: "EVM2TON Messaging Test"
+            cmd: "cd integration-tests && go test ./smoke/ccip -run Test_CCIPMessaging_EVM2TON -timeout 20m -test.parallel=2 -count=1 -json"
 
     name: ${{ matrix.type.name }}
     runs-on: ubuntu-latest

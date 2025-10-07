@@ -396,7 +396,7 @@ describe('OffRamp', () => {
 
     // Deploy test receiver
     {
-      let code = await compile('examples.receiver')
+      let code = await compile('ccip.test.receiver')
       receiver = blockchain.openContract(ExampleReceiver.create(code, offRamp.address))
       const result = await receiver.sendDeploy(deployer.getSender(), toNano('10'))
       expect(result.transactions).toHaveTransaction({
@@ -1043,7 +1043,7 @@ describe('OffRamp', () => {
 
   it('Test receiver rejects message from wrong offRamp and emits ExecutionStateChanged: Failure', async () => {
     // Deploy a receiver with WRONG offRamp address - it will reject messages from the real offRamp
-    let code = await compile('examples.receiver')
+    let code = await compile('ccip.test.receiver')
     const wrongOffRampAddress = generateMockTonAddress() // Use a different address
     const badReceiver = blockchain.openContract(ExampleReceiver.create(code, wrongOffRampAddress))
     const result = await badReceiver.sendDeploy(deployer.getSender(), toNano('10'))
