@@ -317,6 +317,10 @@ func describeBody(body *cell.Cell, verbose bool) lib.MessageInfo {
 	if err == nil {
 		return NewSimpleInfoUnknown(fmt.Sprintf("stringSnake: %x", strSnake))
 	}
+	opcode, err := slice.LoadUInt(32)
+	if err != nil {
+		return NewSimpleInfoUnknown(fmt.Sprintf("opcode: %x, body: %s", opcode, hex.EncodeToString(body.ToBOC())))
+	}
 	return NewSimpleInfoUnknown("body:" + hex.EncodeToString(body.ToBOC()))
 }
 
@@ -341,11 +345,12 @@ func describeEmitBody(dstAddr *address.Address, body *cell.Cell, verbose bool) l
 	if err == nil {
 		return NewSimpleInfo(eventName, fmt.Sprintf("stringSnake: %x", strSnake))
 	}
-	if !verbose {
-		opcode, err := slice.LoadUInt(32)
-		if err == nil {
-			return NewSimpleInfo(eventName, fmt.Sprintf("opcode: %x", opcode))
-		}
+	opcode, err := slice.LoadUInt(32)
+	if err != nil {
+		return NewSimpleInfo(eventName, "body:"+hex.EncodeToString(body.ToBOC()))
 	}
-	return NewSimpleInfo(eventName, "body:"+hex.EncodeToString(body.ToBOC()))
+	if !verbose {
+		return NewSimpleInfo(eventName, fmt.Sprintf("opcode: %x", opcode))
+	}
+	return NewSimpleInfo(eventName, fmt.Sprintf("opcode: %x, body: %s", opcode, hex.EncodeToString(body.ToBOC())))
 }

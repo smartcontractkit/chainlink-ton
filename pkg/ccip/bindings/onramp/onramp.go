@@ -14,9 +14,9 @@ import (
 
 // OnRamp opcodes
 const (
-	OpcodeOnRampSend                         = 0x40000001
-	OpcodeOnRampWithdrawJettons              = 0x40000002
-	OpcodeOnRampExecutorFinishedSuccessfully = 0x40000003
+	OpcodeOnRampSend                         = 0x10000002
+	OpcodeOnRampWithdrawJettons              = 0x266AEACF
+	OpcodeOnRampExecutorFinishedSuccessfully = 0xCFA6B336
 	OpcodeSetDynamicConfig                   = 0x10000003
 	OpcodeUpdateDestChainConfigs             = 0x10000004
 	OpcodeUpdateAllowlists                   = 0x10000005
