@@ -5,6 +5,8 @@ import "../fee_quoter/messages"
 
 tolk 1.1
 
+const CONTRACT_VERSION = "0.0.2";
+
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy CCIPSendExecutor_InMessage.fromSlice(in.body);
@@ -149,4 +151,8 @@ fun CCIPSendExecutor<T>.exitSuccessfully(self, fee: coins) {
         }
     });
     sendMsg.send(SEND_MODE_CARRY_ALL_BALANCE /* TODO add this flag after tracetraker is fixed + SEND_MODE_DESTROY */);
+}
+
+get fun typeAndVersion(): (slice, slice) {
+    return ("com.chainlink.ton.ccip.CCIPSendExecutor", CONTRACT_VERSION);
 }

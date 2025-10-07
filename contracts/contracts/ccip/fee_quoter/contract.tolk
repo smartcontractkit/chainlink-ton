@@ -7,7 +7,7 @@ import "messages"
 import "errors"
 import "../../lib/cross_chain_address_validation"
 
-const CONTRACT_VERSION = "0.0.1";
+const CONTRACT_VERSION = "0.0.2";
 
 const VAL_1E5:  uint256 = 100000;
 const VAL_1E14: uint256 = 100000000000000;

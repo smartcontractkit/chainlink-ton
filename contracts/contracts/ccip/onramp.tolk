@@ -7,7 +7,7 @@ import "ccipsend_executor/messages"
 import "../lib/jetton/messages"
 import "../lib/jetton/messages_extended"
 
-const CONTRACT_VERSION = "0.0.1";
+const CONTRACT_VERSION = "0.0.2";
 
 const CCIP_MESSAGE_SENT_TOPIC: int = stringCrc32("CCIPMessageSent"); 
 

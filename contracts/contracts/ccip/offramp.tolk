@@ -7,7 +7,7 @@ import "../lib/ocr/types"
 import "../lib/utils.tolk"
 import "fee_quoter/messages"
 
-const CONTRACT_VERSION = "0.0.1";
+const CONTRACT_VERSION = "0.0.2";
 
 struct Storage {
     id: uint32;
