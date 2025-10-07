@@ -1,8 +1,12 @@
 package offramp
 
 import (
+	"fmt"
+	"math/big"
+
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
@@ -43,24 +47,53 @@ type SourceChainConfig struct {
 	OnRamp                    common.CrossChainAddress `tlb:"."`
 }
 
-// func (c *SourceChainConfig) FromResult(result *ton.ExecutionResult) error {
-// 	routerAddressSlice, err := result.Slice(0)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	routerAddress, err := routerAddressSlice.LoadAddr()
-// 	if err != nil {
-// 		return err
-// 	}
-// 	*c = SourceChainConfig{
-// 		Router:                    routerAddress,
-// 		IsEnabled:                 isEnabled,
-// 		MinSeqNr:                  minSeqNr,
-// 		IsRMNVerificationDisabled: isRMNVerificationDisabled,
-// 		OnRamp: onRamp,
-// 	}
-// 	return nil
-// }
+func (c *SourceChainConfig) FromResult(result *ton.ExecutionResult) error {
+	routerAddressSlice, err := result.Slice(0)
+	if err != nil {
+		return fmt.Errorf("failed to get router address slice: %w", err)
+	}
+	routerAddress, err := routerAddressSlice.LoadAddr()
+	if err != nil {
+		return fmt.Errorf("failed to load router address: %w", err)
+	}
+
+	isEnabledInt, err := result.Int(1)
+	if err != nil {
+		return fmt.Errorf("failed to get isEnabled: %w", err)
+	}
+	isEnabled := isEnabledInt.Cmp(big.NewInt(0)) != 0
+
+	minSeqNrInt, err := result.Int(2)
+	if err != nil {
+		return fmt.Errorf("failed to get minSeqNr: %w", err)
+	}
+	minSeqNr := minSeqNrInt.Uint64()
+
+	isRMNDisabledInt, err := result.Int(3)
+	if err != nil {
+		return fmt.Errorf("failed to get isRMNVerificationDisabled: %w", err)
+	}
+	isRMNVerificationDisabled := isRMNDisabledInt.Cmp(big.NewInt(0)) != 0
+
+	onRampCell, err := result.Cell(4)
+	if err != nil {
+		return fmt.Errorf("failed to get onRamp cell: %w", err)
+	}
+
+	var onRamp common.CrossChainAddress
+	if err := tlb.LoadFromCell(&onRamp, onRampCell.BeginParse()); err != nil {
+		return fmt.Errorf("failed to parse onRamp: %w", err)
+	}
+
+	*c = SourceChainConfig{
+		Router:                    routerAddress,
+		IsEnabled:                 isEnabled,
+		MinSeqNr:                  minSeqNr,
+		IsRMNVerificationDisabled: isRMNVerificationDisabled,
+		OnRamp:                    onRamp,
+	}
+	return nil
+}
 
 type OCR3Config struct {
 	ConfigInfo   ConfigInfo       `tlb:"."`
