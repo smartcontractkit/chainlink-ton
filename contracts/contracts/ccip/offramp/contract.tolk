@@ -382,6 +382,9 @@ fun _updateSourceChainConfig(msg: OffRamp_UpdateSourceChainConfig, sender: addre
             isRMNVerificationDisabled: true, // RMN verification is always disabled
             onRamp: msg.config.onRamp,
         };
+        emit(SOURCE_CHAIN_SELECTOR_ADDED_TOPIC, SourceChainSelectorAdded {
+            sourceChainSelector: msg.sourceChainSelector,
+        })
     } else {
         // OnRamp updates should only happen due to a misconfiguration.
         // If an OnRamp is misconfigured, no reports should have been
@@ -393,6 +396,10 @@ fun _updateSourceChainConfig(msg: OffRamp_UpdateSourceChainConfig, sender: addre
     }
     st.sourceChainConfigs.set(msg.sourceChainSelector, config);
     st.store();
+    emit(SOURCE_CHAIN_CONFIG_UPDATED_TOPIC, SourceChainConfigUpdated {
+        sourceChainSelector: msg.sourceChainSelector,
+        sourceChainConfig: config,
+    })
 }
 
 @pure @inline

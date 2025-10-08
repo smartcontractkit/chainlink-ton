@@ -241,20 +241,26 @@ fun applyDestChainConfigUpdates(mutate st: OnRamp_Storage, updates: cell) {
     while (!iter.empty()) {
         val update = iter.next();
         // create or update entries
+        var config: OnRamp_DestChainConfig;
         val entry = st.destChainConfigs.get(update.destChainSelector);
         if (entry.isFound) {
-            var config = entry.loadValue();
+            config = entry.loadValue();
             config.router = update.router;
             config.allowlistEnabled = update.allowlistEnabled;
             st.destChainConfigs.replaceAndGetPrevious(update.destChainSelector, config);
         } else {
-            st.destChainConfigs.set(update.destChainSelector, OnRamp_DestChainConfig {
+            config = OnRamp_DestChainConfig {
                 router: update.router,
                 sequenceNumber: 0,
                 allowlistEnabled: update.allowlistEnabled,
                 allowedSenders: createEmptyMap(),
-            })
+            };
+            st.destChainConfigs.set(config)
         }
+        emit(DEST_CHAIN_CONFIG_SET, DestChainConfigSet {
+            destChainSelector: update.destChainSelector,
+            destChainConfig: config,
+        });
     }
 }
 
