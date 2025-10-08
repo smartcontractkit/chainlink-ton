@@ -191,7 +191,7 @@ fun onBouncedMessage(in: InMessageBounced) {
     }
 } 
 
-fun _bouncedCCIPReceive(rootId: RootID, sender: address) {
+fun _bouncedCCIPReceive(rootId: uint224, sender: address) {
     val st = Storage.load();
     val receiveBounced = createMessage({
         bounce: true,
@@ -201,7 +201,7 @@ fun _bouncedCCIPReceive(rootId: RootID, sender: address) {
                 code: st.deployer,
                 data: Deployable {
                     owner: contract.getAddress(),
-                    id: beginCell().storeUint(rootId, 192),
+                    id: beginCell().storeUint(rootId, 224),
                 }.toCell(), 
             },
         },
@@ -244,7 +244,7 @@ fun _ccipReceiveConfirm(msg: OffRamp_CCIPReceiveConfirm, sender: address) {
                 code: st.deployer,
                 data: Deployable {
                     owner: contract.getAddress(),
-                    id: beginCell().storeUint(msg.rootId, 192),
+                    id: beginCell().storeUint(msg.rootId, 224),
                 }.toCell(),
             }
         },
@@ -274,7 +274,7 @@ fun _dispatchValidated(msg: OffRamp_DispatchValidated, sender: address) {
                     code: st.deployer,
                     data: Deployable {
                         owner: contract.getAddress(),
-                        id: beginCell().storeUint(rootId, 192),
+                        id: beginCell().storeUint(rootId, 224),
                     }.toCell()
                 }
             };
@@ -387,7 +387,7 @@ fun _commit(msg: OffRamp_Commit, sender: address) {
                 stateInit: {
                     code: st.merkleRootCode,
                     data: MerkleRoot_Storage {
-                        rootId: rootId.endCell().beginParse().loadUint(192), 
+                        rootId: rootId.endCell().beginParse().loadUint(224), 
                         owner: contract.getAddress(),
                         state: 0,
                         executionState: 0,
@@ -523,7 +523,7 @@ fun _updateSourceChainConfig(msg: OffRamp_UpdateSourceChainConfig, sender: addre
 fun getMerkleRootID(merkleRoot: uint256): builder {
     var cs = beginCell().storeUint(merkleRoot, 256).endCell().beginParse();
     return beginCell() // id:u16 = 1 | merkleRoot:256
-        .storeUint(cs.loadUint(192), 192);
+        .storeUint(cs.loadUint(224), 224);
 }
 
 // get fun executionState() {

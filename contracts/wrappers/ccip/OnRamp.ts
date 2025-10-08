@@ -78,7 +78,7 @@ export const builder = {
               // UMap<> type
               .storeDict(data.destChainConfigs)
               .storeRef(data.executor_code)
-              .storeUint(data.currentMessageId, 192)
+              .storeUint(data.currentMessageId, 224)
           )
         },
         load: function (src: Slice): OnRampStorage {

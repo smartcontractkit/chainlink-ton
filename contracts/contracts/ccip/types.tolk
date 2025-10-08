@@ -21,8 +21,6 @@ fun CrossChainAddress.unpackFromSlice(mutate s: slice) {
     return s.loadBits(nBytes * 8);
 }
 
-type RootID = uint192
-
 struct MerkleRoot {
     sourceChainSelector: uint64;
     onRampAddress: CrossChainAddress;
@@ -171,7 +169,7 @@ struct OnRampDynamicConfig {
 
 // crc32('OnRamp_WithdrawJettons')
 struct (0x266AEACF) OnRamp_WithdrawJettons {
-    msgId: RootID,
+    msgId: uint224,
     tokens: cell; // vec<TokenAmount>
     onrampJettonWallet: address;
 }
@@ -188,7 +186,7 @@ struct OnRampUpdateDestChainConfig {
 
 // crc32('OnRamp_ExecutorFinishedSuccessfully')
 struct (0xCFA6B336) OnRamp_ExecutorFinishedSuccessfully {
-    msgId: RootID,
+    msgId: uint224,
     msg: Cell<CCIPSend>
     metadata: Metadata
     fee: coins
@@ -292,7 +290,7 @@ struct MessageMetadata {
 // OffRamp
 
 struct MerkleRoot_Storage {
-    rootId: RootID;
+    rootId: uint224;
     owner: address;
     state: uint8;
     executionState: uint8; 
@@ -321,36 +319,36 @@ struct(0x845e303f) MerkleRoot_CCIPReceiveBounced {
 //crc32('OffRamp_DispatchValidated')
 struct (0x58cfcb02) OffRamp_DispatchValidated { 
     message: Cell<Any2TVMRampMessage>;
-    rootId: RootID;
+    rootId: uint224;
 }
 
 //crc32('Receiver_CCIPReceive')
 struct (0xb3126df1) CCIPReceive {
-    rootId: RootID; // to calculate where to send CCIPReceiveConfirm and CCIPReceiveFailed
+    rootId: uint224; // to calculate where to send CCIPReceiveConfirm and CCIPReceiveFailed
     message: Any2TVMMessage;
 }
 
 //crc32('OffRamp_CCIPReceiveConfirm')
 struct (0x28f4166f) OffRamp_CCIPReceiveConfirm {
-    rootId: RootID;
+    rootId: uint224;
 }
 
 //crc32('OffRamp_NotifySuccess')
 struct (0x23232323) OffRamp_NotifySuccess {
     header: RampMessageHeader;
-    rootId: RootID;
+    rootId: uint224;
 }
 
 //crc32('OffRamp_NotifyFailure')
 struct(0x177ebd03) OffRamp_NotifyFailure {
     header: RampMessageHeader;
-    rootId: RootID;
+    rootId: uint224;
 }
 
 //crc32('OffRamp_NotifyInProgress')
 struct (0xdc81855a) OffRamp_NotifyInProgress {
     message: Any2TVMRampMessage; // vec<Any2TVMRampMessage>
-    rootId: RootID;
+    rootId: uint224;
 }
 
 struct TokenBalance {
