@@ -4,7 +4,7 @@ import "../onramp/messages"
 
 struct CCIPSendExecutor<T> {
     messageId: uint224,
-    onrampSend: OnRampSend,
+    onrampSend: OnRamp_Send,
     addresses: Cell<CCIPSendExecutor_Addresses>,
     state: Cell<T>,
 }

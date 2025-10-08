@@ -1,10 +1,10 @@
 import "../common/types.tolk"
 import "../common/messages"
 
-type Msg = CCIPSend | SetRamps | Common_JettonTransferNotification;
+type Msg = Router_CCIPSend | Router_SetRamps | Common_JettonTransferNotification;
 
 // update multiple chain selectors in batch to the same onramp address
-struct (0x10000001) SetRamps {
+struct (0x10000001) Router_SetRamps {
     // TODO: support onramp and offramp, support list
     queryId: uint64;
     destChainSelectors: cell; // vec<uint64> for destChainSelectors
@@ -13,7 +13,7 @@ struct (0x10000001) SetRamps {
 
 // TODO should separate CCIPSend msg (with opcode) from CCIPSend data
 
-struct (0x00000001) CCIPSend {
+struct (0x00000001) Router_CCIPSend {
     queryId: uint64;
     destChainSelector: uint64;
     receiver: CrossChainAddress;

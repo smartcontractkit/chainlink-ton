@@ -34,11 +34,11 @@ fun onInternalMessage(in: InMessage) {
     }
 }
 
-fun init(onramp_send: OnRampSend, config: CCIPSendExecutor_Config): CCIPSendExecutor<CCIPSendExecutor_State_Initialized> {
+fun init(onrampSend: OnRamp_Send, config: CCIPSendExecutor_Config): CCIPSendExecutor<CCIPSendExecutor_State_Initialized> {
     val st = lazy CCIPSendExecutor_InitialData.fromCell(contract.getData());
     return CCIPSendExecutor<CCIPSendExecutor_State_Initialized> {
         messageId: st.messageId,
-        onrampSend: onramp_send,
+        onrampSend: onrampSend,
         addresses: CCIPSendExecutor_Addresses {
             onramp: st.onramp,
             feeQuoter: config.feeQuoter,
@@ -109,7 +109,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_WaitingForJettons>.onJettonTransferF
     newState.store();
 }
 
-fun getValidatedFee(feeQuoter: address, onrampSend: OnRampSend) {
+fun getValidatedFee(feeQuoter: address, onrampSend: OnRamp_Send) {
     val getValidatedFeeMsg = createMessage({
         bounce: true,
         value: ton("0.05"), // TODO

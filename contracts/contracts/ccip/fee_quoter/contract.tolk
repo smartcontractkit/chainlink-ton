@@ -12,7 +12,7 @@ import "../../lib/utils";
 import "../router/messages"
 import "../ccipsend_executor/messages"
 
-const CONTRACT_VERSION = "0.0.2";
+const CONTRACT_VERSION = "0.0.3";
 const FACILITY_NAME = "com.chainlink.ton.ccip.FeeQuoter";
 
 fun onInternalMessage(in: InMessage) {
@@ -169,7 +169,7 @@ fun DestChainConfig.getValidatedGasPrice(self): (uint112, uint112) {
     return (price.executionGasPrice, price.dataAvailabilityGasPrice)
 }
 
-get fun validatedFee(msg: CCIPSend): coins {
+get fun validatedFee(msg: Router_CCIPSend): coins {
     var st = lazy Storage.load();
 
     val destChainConfig: DestChainConfig = st.destChainConfigs.mustGet(msg.destChainSelector, Error.DestChainNotEnabled as int);
@@ -251,7 +251,7 @@ get fun validatedFee(msg: CCIPSend): coins {
     return feeTokenAmount;
 }
 
-fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: FeeQuoterDestChainConfig, message: CCIPSend): int {
+fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: FeeQuoterDestChainConfig, message: Router_CCIPSend): int {
     val (_cells, dataBits, _cellReferences, succeeded) = message.data.calculateSize(99); // How are we decoding this?
     assert(succeeded, Error.InvalidMsgData);
     assert(dataBits % 8 == 0, Error.InvalidMsgData); // TBD: This is not present in the Solidity implementation, but the it uses bytes for data, so I supose this is implied

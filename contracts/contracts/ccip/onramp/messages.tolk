@@ -3,24 +3,24 @@ import "../common/messages"
 import "../router/messages"
 
 type OnRamp_InMessage =
-    | OnRampSend
+    | OnRamp_Send
     | OnRamp_WithdrawJettons
     | OnRamp_ExecutorFinishedSuccessfully
+    | OnRamp_SetDynamicConfig
+    | OnRamp_UpdateDestChainConfigs
+    | OnRamp_UpdateAllowlists
     | Common_JettonTransferNotification
-    | SetDynamicConfig
-    | OnRampUpdateDestChainConfigs
-    | UpdateAllowlists
     ;
     // TODO | UpdateExecutorCode
 
 type OnRamp_NotificationInMessage =
-    | OnRampSend
+    | OnRamp_Send
     // TODO refunds from CCIPSendExecutor
     ;
 
-struct (0x10000002) OnRampSend {
+struct (0x10000002) OnRamp_Send {
     // queryId is embedded in the first element of CCIPSend
-    msg: Cell<CCIPSend>;
+    msg: Cell<Router_CCIPSend>;
     metadata: Metadata
 }
 
@@ -31,25 +31,25 @@ struct (0x266AEACF) OnRamp_WithdrawJettons {
     onrampJettonWallet: address;
 }
 
-struct (0x10000003) SetDynamicConfig {
+struct (0x10000003) OnRamp_SetDynamicConfig {
     config: OnRamp_DynamicConfig
 }
 
 // crc32('OnRamp_ExecutorFinishedSuccessfully')
 struct (0xCFA6B336) OnRamp_ExecutorFinishedSuccessfully {
     msgId: uint224,
-    msg: Cell<CCIPSend>
+    msg: Cell<Router_CCIPSend>
     metadata: Metadata
     fee: coins
 }
 
 // TODO: make this direct snakedata by using RemainingBitsAndRefs? this way it's not cell->cell
-struct (0x10000004) OnRampUpdateDestChainConfigs {
+struct (0x10000004) OnRamp_UpdateDestChainConfigs {
     updates: cell; // vec<OffRampUpdateDestChainConfig>
 }
 
 // TODO: make this direct snakedata by using RemainingBitsAndRefs? this way it's not cell->cell
-struct (0x10000005) UpdateAllowlists {
+struct (0x10000005) OnRamp_UpdateAllowlists {
     updates: cell; // vec<UpdateAllowlist>
 }
 

@@ -17,8 +17,8 @@ const CONTRACT_VERSION = "0.0.2";
 fun onInternalMessage(in: InMessage) {
     val msg = lazy Msg.fromSlice(in.body);
     match (msg) {
-        SetRamps => {onSetRamps(msg, in.senderAddress)}
-        CCIPSend => { onSend(msg, in.senderAddress) }
+        Router_SetRamps => {onSetRamps(msg, in.senderAddress)}
+        Router_CCIPSend => { onSend(msg, in.senderAddress) }
         Common_JettonTransferNotification => { onTransferNotification(msg, in.senderAddress) }
         else => {
             // ignore empty messages, "wrong opcode" for others
@@ -30,7 +30,7 @@ fun onInternalMessage(in: InMessage) {
 fun onBouncedMessage(in: InMessageBounced) {
 }
 
-fun onSetRamps(msg: SetRamps, sender: address) {
+fun onSetRamps(msg: Router_SetRamps, sender: address) {
     var st = lazy Storage.load();
     st.ownable.requireOwner(sender);
 
@@ -44,7 +44,7 @@ fun onSetRamps(msg: SetRamps, sender: address) {
 
 // TODO: emit(OnRampsSet)
 
-fun onSend(msg: CCIPSend, sender: address) {
+fun onSend(msg: Router_CCIPSend, sender: address) {
     ccipSend(msg, sender);
 }
 
@@ -59,7 +59,7 @@ fun onTransferNotification(transferNotification: Common_JettonTransferNotificati
     // derive the address. We can probably fetch that from the ccip send payload's tokenAmounts
 
     // TODO: catch errors, if different message type than CCIPSend
-    val sendMsg = CCIPSend.fromCell(transferNotification.forwardPayload!);
+    val sendMsg = Router_CCIPSend.fromCell(transferNotification.forwardPayload!);
     var tokenAmounts = Iterator<TokenAmount>.new(sendMsg.tokenAmounts);
     // TODO handle payment in LINK if this is a LINK transfer
     assert (!tokenAmounts.empty()) throw 0xFFFF; // TODO: proper error code for no token amounts
@@ -82,7 +82,7 @@ fun onTransferNotification(transferNotification: Common_JettonTransferNotificati
             sendExcessesTo: contract.getAddress(),
             customPayload: null,
             forwardTonAmount: ton("0.5"), // TODO
-            forwardPayload: OnRampSend { msg: sendMsg.toCell(), metadata: Metadata{ sender: transferNotification.sender } }.toCell(),
+            forwardPayload: OnRamp_Send { msg: sendMsg.toCell(), metadata: Metadata{ sender: transferNotification.sender } }.toCell(),
         },
     });
     transferMessage.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
@@ -92,7 +92,7 @@ fun onTransferNotification(transferNotification: Common_JettonTransferNotificati
     // self.forward(msg.sender, null, false, null);
 }
 
-fun ccipSend(msg: CCIPSend, sender: address) {
+fun ccipSend(msg: Router_CCIPSend, sender: address) {
     val st = lazy Storage.load();
 
     // forward to onRamp
@@ -103,7 +103,7 @@ fun ccipSend(msg: CCIPSend, sender: address) {
         bounce: true,
         value: 0,
         dest: onRamp,
-        body: OnRampSend { msg: msg.toCell(), metadata: Metadata{ sender } },
+        body: OnRamp_Send { msg: msg.toCell(), metadata: Metadata{ sender } },
     });
     sendMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }

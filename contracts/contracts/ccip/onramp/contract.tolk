@@ -23,25 +23,25 @@ const CONTRACT_VERSION = "0.0.3";
 fun onInternalMessage(in: InMessage) {
     val msg = lazy OnRamp_InMessage.fromSlice(in.body);
     match (msg) {
-        OnRampSend => {send(msg, in.senderAddress)}
+        OnRamp_Send => {send(msg, in.senderAddress)}
         Common_JettonTransferNotification => { onTransferNotification(msg, in.senderAddress) }
         OnRamp_WithdrawJettons => { handleWithdrawJettons(msg, in.senderAddress)},
         OnRamp_ExecutorFinishedSuccessfully => {
             commit(msg, in.senderAddress);
         }
-        SetDynamicConfig => {
+        OnRamp_SetDynamicConfig => {
             var st = lazy OnRamp_Storage.load();
             st.ownable.requireOwner(in.senderAddress);
             st.config = msg.config.toCell();
             st.store();
         }
-        OnRampUpdateDestChainConfigs => {
+        OnRamp_UpdateDestChainConfigs => {
             var st = lazy OnRamp_Storage.load();
             st.ownable.requireOwner(in.senderAddress);
             applyDestChainConfigUpdates(mutate st, msg.updates);
             st.store();
         }
-        UpdateAllowlists => {
+        OnRamp_UpdateAllowlists => {
             var st = lazy OnRamp_Storage.load();
             st.ownable.requireOwner(in.senderAddress);
             applyAllowlistUpdates(mutate st, msg.updates);
@@ -54,7 +54,7 @@ fun onInternalMessage(in: InMessage) {
     }
 }
 
-fun send(payload: OnRampSend, sender: address, jettonWallet: address? = null) {
+fun send(payload: OnRamp_Send, sender: address, jettonWallet: address? = null) {
     var st = lazy OnRamp_Storage.load();
 
     val msg = payload.msg.load();
@@ -115,7 +115,7 @@ fun onTransferNotification(notification: Common_JettonTransferNotification, jett
     val msg = lazy OnRamp_NotificationInMessage.fromCell(notification.forwardPayload!);
 
     match (msg) {
-        OnRampSend => {send(msg, notification.sender, jettonWallet)}
+        OnRamp_Send => {send(msg, notification.sender, jettonWallet)}
         // TODO refunds from CCIPSendExecutor
         else => {
             // TBD
@@ -155,7 +155,7 @@ fun commit(payload: OnRamp_ExecutorFinishedSuccessfully, sender: address) {
     var st = lazy OnRamp_Storage.load();
     // TODO validate sender is executor msg.msgId
 
-    val ccipsend: CCIPSend = payload.msg.load();
+    val ccipsend: Router_CCIPSend = payload.msg.load();
     val metadata = payload.metadata;
 
     // validate user transferred enough value

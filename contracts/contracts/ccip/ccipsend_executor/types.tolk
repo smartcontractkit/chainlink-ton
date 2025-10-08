@@ -7,7 +7,7 @@ struct CCIPSendExecutor_InitialData {
 
 struct CCIPSendExecutor_Data {
     messageId: uint224,
-    onrampSend: OnRampSend,
+    onrampSend: OnRamp_Send,
     addresses: Cell<CCIPSendExecutor_Addresses>,
     state: CCIPSendExecutor_State,
 }

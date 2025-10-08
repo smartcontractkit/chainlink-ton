@@ -14,14 +14,14 @@ type CCIPSendExecutor_InMessage =
 
 // crc32('CCIPSendExecutor_Execute')
 struct (0xAF3C62B3)CCIPSendExecutor_Execute {
-    onrampSend: OnRampSend,
+    onrampSend: OnRamp_Send,
     config: Cell<CCIPSendExecutor_Config>,
     onrampJettonWallet: address? = null,
 }
 
 // TODO crc32('CCIPSendExecutor_MessageValidated')
 struct (0x1FA60374) CCIPSendExecutor_MessageValidated<C> {
-    msg: Cell<CCIPSend>
+    msg: Cell<Router_CCIPSend>
     metadata: Cell<C>
     fee: coins
 }
