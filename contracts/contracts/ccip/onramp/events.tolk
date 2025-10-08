@@ -9,5 +9,5 @@ struct CCIPMessageSent {
 const DEST_CHAIN_CONFIG_SET: int = stringCrc32("DestChainConfigSet");
 struct DestChainConfigSet {
     destChainSelector: uint64;
-    destChainConfig: DestChainConfig;
+    destChainConfig: OnRamp_DestChainConfig;
 }
