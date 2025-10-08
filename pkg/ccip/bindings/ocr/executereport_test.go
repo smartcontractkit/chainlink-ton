@@ -99,41 +99,24 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 		},
 	}
 
-	// TODO: need clarity on how to handle multiple messages
-	rampMessageSlice := []Any2TVMRampMessage{
-		{
-			Header: RampMessageHeader{
-				MessageID:           make([]byte, 32),
-				SourceChainSelector: 1,
-				DestChainSelector:   2,
-				SequenceNumber:      1,
-				Nonce:               0,
-			},
-			Sender:   onrampAddr,
-			Data:     make([]byte, 1000),
-			Receiver: addr,
-			//GasLimit:     tlb.MustFromNano(big.NewInt(1000), 1),
-			TokenAmounts: tokenAmountsSlice,
+	rampMessageSlice := Any2TVMRampMessage{
+		Header: RampMessageHeader{
+			MessageID:           make([]byte, 32),
+			SourceChainSelector: 1,
+			DestChainSelector:   2,
+			SequenceNumber:      1,
+			Nonce:               0,
 		},
-		{
-			Header: RampMessageHeader{
-				MessageID:           make([]byte, 32),
-				SourceChainSelector: 2,
-				DestChainSelector:   3,
-				SequenceNumber:      2,
-				Nonce:               1,
-			},
-			Sender:   onrampAddr,
-			Data:     make([]byte, 1000),
-			Receiver: addr,
-			//GasLimit:     tlb.MustFromNano(big.NewInt(1000), 1),
-			TokenAmounts: tokenAmountsSlice,
-		},
+		Sender:   onrampAddr,
+		Data:     make([]byte, 1000),
+		Receiver: addr,
+		//GasLimit:     tlb.MustFromNano(big.NewInt(1000), 1),
+		TokenAmounts: tokenAmountsSlice,
 	}
 
 	report := ExecuteReport{
 		SourceChainSelector: 1,
-		Messages:            rampMessageSlice[0],
+		Messages:            rampMessageSlice,
 		OffChainTokenData:   common.SnakeRef[common.SnakeBytes]{make([]byte, 120), make([]byte, 130)},
 		Proofs:              common.SnakeData[common.Proof256]{common.Proof256{}, common.Proof256{}},
 		ProofFlagBits:       big.NewInt(0),
