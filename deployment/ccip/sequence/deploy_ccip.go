@@ -127,6 +127,8 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 		FeeQuoter:                               deployFeeQuoterReport.Output.Address,
 		PermissionlessExecutionThresholdSeconds: in.CCIPConfig.OffRampParams.PermissionlessExecutionThreshold,
 		ContractPath:                            utils.GetBuildDir("OffRamp.compiled.json"),
+		DeployerContractPath:                    utils.GetBuildDir("Deployable.compiled.json"),
+		MerkleRootContractPath:                  utils.GetBuildDir("MerkleRoot.compiled.json"),
 	}
 	// TODO: the rest of OffRampParams (SourceChain config)
 

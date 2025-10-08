@@ -36,7 +36,7 @@ export const setupTestFeeQuoter = async (
   // HACK: pre-insert token data
   data.usdPerToken.set(ZERO_ADDRESS, {
     value: 123n,
-    timestamp: BigInt(Date.now()),
+    timestamp: BigInt(Math.floor(Date.now() / 1000)), // Convert milliseconds to seconds for uint32
   } as TimestampedPrice)
   let feeQuoter = blockchain.openContract(FeeQuoter.createFromConfig(data, code))
 

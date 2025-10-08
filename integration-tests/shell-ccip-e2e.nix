@@ -37,7 +37,7 @@ in
       export PG_USER=postgres
       export PG_PASSWORD=postgres
       export PG_DB=chainlink_test
-      export CL_DATABASE_URL="postgresql://''${PG_USER}:''${PG_PASSWORD}@localhost:''${PG_PORT}/''${PG_DB}?sslmode=disable"
+      export CL_DATABASE_URL="postgresql://''${PG_USER}:''${PG_PASSWORD}@127.0.0.1:''${PG_PORT}/''${PG_DB}?sslmode=disable"
 
       alias setup-e2e="./scripts/e2e/setup-env.sh"
       alias run-e2e="./scripts/e2e/run-test.sh"

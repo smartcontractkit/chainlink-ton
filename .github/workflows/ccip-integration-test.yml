@@ -11,12 +11,12 @@ permissions:
   actions: read
 
 env:
-  DOCKER_CACHE_KEY: ccip-e2e-images-v1
+  DOCKER_CACHE_KEY: ccip-e2e-images-v2
   DOCKER_CACHE_DIR: ${{ github.workspace }}/.cache
   DOCKER_CACHE_TAR_NAME: ccip-e2e-docker-images.tar
   # mylocalton docker image / CCIP E2E test database image
   DOCKER_IMAGES: >-
-    ghcr.io/neodix42/mylocalton-docker:latest
+    ghcr.io/neodix42/mylocalton-docker:v3.7
     postgres:16-alpine
 jobs:
   prepare-images:
@@ -51,8 +51,10 @@ jobs:
       matrix:
         type:
           # Note: list of tests, add more tests here
-          - name: "TON CCIP Messaging Tests"
-            cmd: "cd integration-tests/smoke/ccip && go test ccip_ton_messaging_test.go -timeout 20m -test.parallel=2 -count=1 -json"
+          - name: "TON2EVM Messaging Test"
+            cmd: "cd integration-tests && go test ./smoke/ccip -run Test_CCIPMessaging_TON2EVM -timeout 20m -test.parallel=1 -count=1 -json"
+          - name: "EVM2TON Messaging Test"
+            cmd: "cd integration-tests && go test ./smoke/ccip -run Test_CCIPMessaging_EVM2TON -timeout 20m -test.parallel=1 -count=1 -json"
 
     name: ${{ matrix.type.name }}
     runs-on: ubuntu-latest
@@ -118,8 +120,6 @@ jobs:
 
       - name: Setup Environment and Run Tests
         run: |
-          export CCIP_CONTRACTS_TON_VERSION="local"
-          ln -sfn "${GITHUB_WORKSPACE}/contracts" "${GITHUB_WORKSPACE}/chainlink/contracts"
           nix develop .#ccip-e2e -c scripts/e2e/setup-env.sh --core-dir "${GITHUB_WORKSPACE}/chainlink"
           nix develop .#ccip-e2e -c scripts/e2e/run-test.sh --core-dir "${GITHUB_WORKSPACE}/chainlink" --test-command "${{ matrix.type.cmd }}"
 

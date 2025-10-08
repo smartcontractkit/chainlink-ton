@@ -17,7 +17,6 @@ import {
 import * as ownable2step from '../libraries/access/Ownable2Step'
 import { CellCodec } from '../utils'
 import { asSnakeData, fromSnakeData } from '../../src/utils'
-import { loadMap, loadDict, UMapToBuilder } from '../../src/utils/dict'
 
 export const FEE_QUOTER_FACILITY_NAME = 'com.chainlink.ton.ccip.FeeQuoter'
 export const FEE_QUOTER_FACILITY_ID = 248
@@ -60,12 +59,12 @@ export type TimestampedPrice = {
 export function createTimestampedPriceValue(): DictionaryValue<TimestampedPrice> {
   return {
     serialize: (src, builder) => {
-      builder.storeUint(src.value, 224).storeUint(src.timestamp, 64)
+      builder.storeUint(src.value, 224).storeUint(src.timestamp, 32)
     },
     parse: (src): TimestampedPrice => {
       return {
         value: src.loadUintBig(224),
-        timestamp: src.loadUintBig(64),
+        timestamp: src.loadUintBig(32),
       }
     },
   }
@@ -161,8 +160,7 @@ export const builder = {
             updatesDict.set(destChainSelector, updateTokenTransferFeeConfig)
           }
 
-          const updates = UMapToBuilder({ dict: updatesDict, keyLen: 64 })
-          return beginCell().storeUint(Opcodes.updateTransferFeeConfigs, 32).storeBuilder(updates)
+          return beginCell().storeUint(Opcodes.updateTransferFeeConfigs, 32).storeDict(updatesDict)
         },
         load(src: Slice): UpdateTokenTransferFeeConfigs {
           throw new Error('Function not implemented.') // TODO implement if needed
@@ -195,12 +193,12 @@ export const builder = {
   data: (() => {
     const timestampedPrice: CellCodec<TimestampedPrice> = {
       encode: (data: TimestampedPrice): Builder => {
-        return beginCell().storeUint(data.value, 224).storeUint(data.timestamp, 64)
+        return beginCell().storeUint(data.value, 224).storeUint(data.timestamp, 32)
       },
       load: (src: Slice): TimestampedPrice => {
         return {
           value: src.loadUintBig(224),
-          timestamp: src.loadUintBig(64),
+          timestamp: src.loadUintBig(32),
         }
       },
     }

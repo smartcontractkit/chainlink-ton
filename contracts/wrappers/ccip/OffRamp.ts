@@ -302,6 +302,36 @@ export class OffRamp extends OCR3Base {
         .endCell(),
     })
   }
+
+  async getLatestPriceSequenceNumber(provider: ContractProvider): Promise<bigint> {
+    const result = await provider.get('latestPriceSequenceNumber', [])
+    return result.stack.readBigNumber()
+  }
+
+  async getSourceChainConfig(
+    provider: ContractProvider,
+    sourceChainSelector: bigint,
+  ): Promise<SourceChainConfig> {
+    const result = await provider.get('sourceChainConfig', [
+      { type: 'int', value: sourceChainSelector },
+    ])
+    // Tolk returns struct as tuple
+    const router = result.stack.readAddress()
+    const isEnabled = result.stack.readBoolean()
+    const minSeqNr = result.stack.readBigNumber()
+    const isRMNVerificationDisabled = result.stack.readBoolean()
+    const onRampSlice = result.stack.readCell().beginParse()
+    const onRampLength = onRampSlice.loadUint(8)
+    const onRamp = onRampSlice.loadBuffer(onRampLength)
+
+    return {
+      router,
+      isEnabled,
+      minSeqNr,
+      isRMNVerificationDisabled,
+      onRamp,
+    }
+  }
 }
 
 export function priceUpdatesToCell(priceUpdates: PriceUpdates): Cell {

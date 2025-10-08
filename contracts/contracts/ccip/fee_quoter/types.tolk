@@ -1,6 +1,6 @@
 struct TimestampedPrice {
     value: uint224;
-    timestamp: uint64; // TODO: size down to uint32, was a mistake when porting
+    timestamp: uint32;
 }
 
 struct PriceUpdates {

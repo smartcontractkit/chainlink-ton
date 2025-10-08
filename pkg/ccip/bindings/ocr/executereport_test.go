@@ -99,42 +99,26 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 		},
 	}
 
-	rampMessageSlice := []Any2TVMRampMessage{
-		{
-			Header: RampMessageHeader{
-				MessageID:           make([]byte, 32),
-				SourceChainSelector: 1,
-				DestChainSelector:   2,
-				SequenceNumber:      1,
-				Nonce:               0,
-			},
-			Sender:   onrampAddr,
-			Data:     make([]byte, 1000),
-			Receiver: addr,
-			//GasLimit:     tlb.MustFromNano(big.NewInt(1000), 1),
-			TokenAmounts: tokenAmountsSlice,
+	rampMessageSlice := Any2TVMRampMessage{
+		Header: RampMessageHeader{
+			MessageID:           make([]byte, 32),
+			SourceChainSelector: 1,
+			DestChainSelector:   2,
+			SequenceNumber:      1,
+			Nonce:               0,
 		},
-		{
-			Header: RampMessageHeader{
-				MessageID:           make([]byte, 32),
-				SourceChainSelector: 2,
-				DestChainSelector:   3,
-				SequenceNumber:      2,
-				Nonce:               1,
-			},
-			Sender:   onrampAddr,
-			Data:     make([]byte, 1000),
-			Receiver: addr,
-			//GasLimit:     tlb.MustFromNano(big.NewInt(1000), 1),
-			TokenAmounts: tokenAmountsSlice,
-		},
+		Sender:   onrampAddr,
+		Data:     make([]byte, 1000),
+		Receiver: addr,
+		//GasLimit:     tlb.MustFromNano(big.NewInt(1000), 1),
+		TokenAmounts: tokenAmountsSlice,
 	}
 
 	report := ExecuteReport{
 		SourceChainSelector: 1,
 		Messages:            rampMessageSlice,
 		OffChainTokenData:   common.SnakeRef[common.SnakeBytes]{make([]byte, 120), make([]byte, 130)},
-		Proofs:              common.SnakeRef[common.SnakeBytes]{make([]byte, 32), make([]byte, 32)},
+		Proofs:              common.SnakeData[common.Proof256]{common.Proof256{}, common.Proof256{}},
 		ProofFlagBits:       big.NewInt(0),
 	}
 
@@ -151,6 +135,6 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 	err = tlb.LoadFromCell(&decoded, newCell.BeginParse())
 	require.NoError(t, err)
 	require.Equal(t, c.Hash(), newCell.Hash())
-	require.Len(t, decoded.Messages[0].TokenAmounts, 3)
+	require.Len(t, decoded.Messages.TokenAmounts, 3)
 	require.Len(t, decoded.Proofs, 2)
 }

@@ -36,6 +36,8 @@ const DEFAULT_MESSAGE_FWD_BUDGET_GAS_UNITS = 30000;  // 0.012 TON at 400 nanoton
 ///
 /// Notice: documentation for in.bouncedBody is off, as it states the bounced body
 /// will be 0xffffffff + 224 bits, but the actual size is 0xffffffff + 256 bits.
+/// Confimred with TON team: 256 is "original body size", so in.bouncedBody is 288 in total
+/// Note: In TVM 12, "rich bounced messages" will be added — containing all the original message that was sent
 const BOUNCE_MSG_SIZE_MAX = 256;
 
 /// Returns the global ID of the current blockchain (chain ID).

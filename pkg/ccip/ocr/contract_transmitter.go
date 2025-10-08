@@ -7,6 +7,11 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/ton/wallet"
+	"github.com/xssnick/tonutils-go/tvm/cell"
+
 	"github.com/smartcontractkit/libocr/offchainreporting2/types"
 	"github.com/smartcontractkit/libocr/offchainreporting2plus/ocr3types"
 	ocrtypes "github.com/smartcontractkit/libocr/offchainreporting2plus/types"
@@ -17,13 +22,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
-
 	"github.com/smartcontractkit/chainlink-ton/pkg/txm"
-
-	"github.com/xssnick/tonutils-go/address"
-	"github.com/xssnick/tonutils-go/tlb"
-	"github.com/xssnick/tonutils-go/ton/wallet"
-	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
 type ToEd25519CalldataFunc func(
@@ -101,17 +100,31 @@ func (c *ccipTransmitter) Transmit(
 		return fmt.Errorf("failed to get client: %w", err)
 	}
 	w := client.Wallet
+
+	// extract CCIP-specific txID for enhanced tracking (includes messageID if execute report)
+	// falls back to seq-only format for commit reports or decode failures
+	txID := extractCCIPTxID(reportWithInfo.Report, seqNr)
+
 	request := txm.Request{
 		Mode:            wallet.PayGasSeparately,
 		FromWallet:      w,
 		ContractAddress: *address.MustParseAddr(c.offrampAddress),
 		Body:            argsCell,
-		Amount:          tlb.MustFromTON("0.05"), // TODO: make this configurable
+		Amount:          tlb.MustFromTON("0.1"), // TODO: make this configurable
+		ID:              &txID,
 	}
 
-	c.lggr.Infow("Submitting transaction", "address", c.offrampAddress, "request", request)
+	c.lggr.Infow("Transmitting OCR report",
+		"txID", txID,
+		"from", w.Address().String(),
+		"to", c.offrampAddress,
+		"configDigest", hex.EncodeToString(configDigest[:]),
+		"seqNr", seqNr,
+		"reportBytes", len(reportWithInfo.Report),
+		"signatures", len(sigs))
 	if err := c.txm.Enqueue(request); err != nil {
-		return fmt.Errorf("failed to submit transaction via txm: %w", err)
+		return fmt.Errorf("failed to enqueue transaction (txID=%s, seqNr=%d): %w",
+			txID, seqNr, err)
 	}
 
 	return nil
@@ -161,12 +174,14 @@ var ExecuteCallData = func(
 ) (*cell.Cell, error) {
 	reportCell, err := cell.FromBOC(report.Report)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to decode BOC (len=%d, hex=%x): %w", len(report.Report), report.Report, err)
 	}
 
+	// Decode as single ExecuteReport (not array) since TON supports single chain only
 	var executeReport ocr.ExecuteReport
 	if err = tlb.LoadFromCell(&executeReport, reportCell.BeginParse()); err != nil {
-		return nil, fmt.Errorf("cannot decode commit report from cell: %w", err)
+		return nil, fmt.Errorf("cannot decode execute report from cell (reportLen=%d, cellBits=%d, cellRefs=%d): %w",
+			len(report.Report), reportCell.BitsSize(), reportCell.RefsNum(), err)
 	}
 
 	execute := offramp.Execute{
@@ -192,4 +207,29 @@ func rawReportContext(digest types.ConfigDigest, seqNr uint64) [64]byte {
 	// Write seqNr in the last 8 bytes
 	binary.BigEndian.PutUint64(result[56:], seqNr)
 	return result
+}
+
+// extractCCIPTxID is a CCIP-specific helper that attempts to extract messageID from execute reports
+// for better debugging and transaction tracking. This is NOT used by the generic transmitter,
+// but can be useful for logging and debugging in CCIP-specific code.
+//
+// Returns:
+//   - For execute reports: "seq-{seqNum}-msg-{messageID}"
+//   - For commit reports or decode failures: "seq-{seqNum}"
+//
+// Note: This is a "hacky" convenience function that makes assumptions about report structure.
+func extractCCIPTxID(reportBytes []byte, seqNr uint64) string {
+	reportCell, err := cell.FromBOC(reportBytes)
+	if err != nil {
+		return fmt.Sprintf("seq-%d", seqNr)
+	}
+
+	var executeReport ocr.ExecuteReport
+	if err = tlb.LoadFromCell(&executeReport, reportCell.BeginParse()); err != nil {
+		// Not an execute report (likely commit report)
+		return fmt.Sprintf("seq-%d", seqNr)
+	}
+
+	messageIDHex := hex.EncodeToString(executeReport.Messages.Header.MessageID)
+	return fmt.Sprintf("seq-%d-msg-%s", executeReport.Messages.Header.SequenceNumber, messageIDHex)
 }

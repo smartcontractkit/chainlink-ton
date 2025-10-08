@@ -396,7 +396,7 @@ describe('OffRamp', () => {
 
     // Deploy test receiver
     {
-      let code = await compile('examples.receiver')
+      let code = await compile('ccip.test.receiver')
       receiver = blockchain.openContract(ExampleReceiver.create(code, offRamp.address))
       const result = await receiver.sendDeploy(deployer.getSender(), toNano('10'))
       expect(result.transactions).toHaveTransaction({
@@ -844,19 +844,131 @@ describe('OffRamp', () => {
     const result = await commitReport([root], 0x01, priceUpdates)
   })
 
-  it('Test receiver bounces and offRamp emits ExecutionStateChanged: Failure', async () => {
-    const data = beginCell().storeUint(1, 1).endCell() //receiver reverts if any data is on the message
+  it('Test price update sequence number increases with OCR sequence', async () => {
+    await setupOCRConfig()
+
+    const sourceToken = generateMockTonAddress()
+    const priceUpdates: PriceUpdates = {
+      tokenPriceUpdates: [
+        {
+          sourceToken,
+          usdPerToken: 100n,
+        },
+      ],
+      gasPriceUpdates: [],
+    }
+
+    // First commit with sequence 0x01
+    await commitReport([], 0x01, priceUpdates)
+    let latestSeq = await offRamp.getLatestPriceSequenceNumber()
+    expect(latestSeq).toBe(0x01n)
+
+    // Second commit with sequence 0x05 (jump forward)
+    await commitReport([], 0x05, priceUpdates)
+    latestSeq = await offRamp.getLatestPriceSequenceNumber()
+    expect(latestSeq).toBe(0x05n)
+
+    // Third commit with higher sequence 0x10
+    await commitReport([], 0x10, priceUpdates)
+    latestSeq = await offRamp.getLatestPriceSequenceNumber()
+    expect(latestSeq).toBe(0x10n)
+  })
+
+  it('Test stale price updates are rejected', async () => {
+    await setupOCRConfig()
+
+    const sourceToken = generateMockTonAddress()
+    const priceUpdates: PriceUpdates = {
+      tokenPriceUpdates: [
+        {
+          sourceToken,
+          usdPerToken: 100n,
+        },
+      ],
+      gasPriceUpdates: [],
+    }
+
+    // First commit with sequence 0x10
+    await commitReport([], 0x10, priceUpdates)
+    let latestSeq = await offRamp.getLatestPriceSequenceNumber()
+    expect(latestSeq).toBe(0x10n)
+
+    // Try to commit with older sequence 0x05 (should be ignored)
+    await commitReport([], 0x05, priceUpdates)
+    latestSeq = await offRamp.getLatestPriceSequenceNumber()
+    // Sequence should remain at 0x10, stale update ignored
+    expect(latestSeq).toBe(0x10n)
+
+    // But commit with same merkle root should succeed (just price update ignored)
+    const message = createTestMessage()
+    const metadataHash = uint8ArrayToBigInt(getMetadataHash(CHAINSEL_EVM_TEST_90000001))
+    const rootBytes = uint8ArrayToBigInt(generateMessageId(message, metadataHash))
+    const root = createMerkleRoot(1n, 1n, rootBytes)
+
+    await setupSourceChainConfig()
+    await commitReport([root], 0x08, priceUpdates) // 0x08 < 0x10, price update should be ignored
+    latestSeq = await offRamp.getLatestPriceSequenceNumber()
+    expect(latestSeq).toBe(0x10n) // Still at 0x10, but merkle root was committed
+  })
+
+  it('Test source chain minSeqNr updates correctly to maxSeqNr + 1', async () => {
+    await setupOCRConfig()
+    await setupSourceChainConfig()
+
+    // First commit with minSeqNr=1, maxSeqNr=5
+    const message1 = createTestMessage(1n, 1n)
+    const metadataHash = uint8ArrayToBigInt(getMetadataHash(CHAINSEL_EVM_TEST_90000001))
+    const root1Bytes = uint8ArrayToBigInt(generateMessageId(message1, metadataHash))
+    const root1 = createMerkleRoot(1n, 5n, root1Bytes) // maxSeqNr = 5
+
+    await commitReport([root1])
+
+    // Check that minSeqNr is now 6 (maxSeqNr + 1)
+    const config1 = await offRamp.getSourceChainConfig(CHAINSEL_EVM_TEST_90000001)
+    expect(config1.minSeqNr).toBe(6n)
+
+    // Second commit with minSeqNr=6, maxSeqNr=10
+    const message2 = createTestMessage(6n, 6n)
+    const root2Bytes = uint8ArrayToBigInt(generateMessageId(message2, metadataHash))
+    const root2 = createMerkleRoot(6n, 10n, root2Bytes) // maxSeqNr = 10
+
+    await commitReport([root2])
+
+    // Check that minSeqNr is now 11 (maxSeqNr + 1)
+    const config2 = await offRamp.getSourceChainConfig(CHAINSEL_EVM_TEST_90000001)
+    expect(config2.minSeqNr).toBe(11n)
+  })
+
+  it('Test commit with large sequence number gap', async () => {
+    await setupOCRConfig()
+    await setupSourceChainConfig()
+
+    // Commit with a large gap: minSeqNr=1, maxSeqNr=100
+    const message = createTestMessage(1n, 1n)
+    const metadataHash = uint8ArrayToBigInt(getMetadataHash(CHAINSEL_EVM_TEST_90000001))
+    const rootBytes = uint8ArrayToBigInt(generateMessageId(message, metadataHash))
+    const root = createMerkleRoot(1n, 100n, rootBytes)
+
+    await commitReport([root])
+
+    // minSeqNr should jump to 101
+    const config = await offRamp.getSourceChainConfig(CHAINSEL_EVM_TEST_90000001)
+    expect(config.minSeqNr).toBe(101n)
+  })
+
+  it('Test receiver notifies success with non-empty data and offRamp emits ExecutionStateChanged: Success', async () => {
+    const data = beginCell().storeUint(1, 1).endCell() // receiver now accepts data
     const message = createTestMessage(1n, 1n, receiver.address, data)
 
     await setupAndCommitMessage(message)
     const report = createExecuteReport([message])
     const result = await executeReport(report)
 
-    // Message should be bounce from the receiver
+    // Message should be successfully processed by the receiver
     expect(result.transactions).toHaveTransaction({
       from: offRamp.address,
       to: receiver.address,
-      success: false,
+      success: true,
     })
 
     assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
@@ -870,15 +982,42 @@ describe('OffRamp', () => {
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
       sequenceNumber: 1n,
       messageId: 1n,
-      state: EXECUTION_STATE_FAILURE,
+      state: EXECUTION_STATE_SUCCESS,
     })
+
+    assertLog(
+      result.transactions,
+      receiver.address,
+      ReceiverLogs.LogTypes.ReceiverCCIPMessageReceived,
+      {
+        message: {
+          messageId: message.header.messageId,
+          sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+          sender: message.sender,
+          data: message.data,
+        },
+      },
+    )
   })
 
-  it('Test receiver notifies success and offRamp emits ExecutionStateChanged: Success', async () => {
-    const message = createTestMessage(1n, 1n, receiver.address)
+  it('Test receiver notifies success with empty data and offRamp emits ExecutionStateChanged: Success', async () => {
+    const message = createTestMessage(1n, 1n, receiver.address) // empty data (Cell.EMPTY)
     await setupAndCommitMessage(message)
     const report = createExecuteReport([message])
     const result = await executeReport(report)
+
+    expect(result.transactions).toHaveTransaction({
+      from: offRamp.address,
+      to: receiver.address,
+      success: true,
+    })
+
+    assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
+      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+      sequenceNumber: 1n,
+      messageId: 1n,
+      state: EXECUTION_STATE_IN_PROGRESS,
+    })
 
     assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
@@ -886,6 +1025,80 @@ describe('OffRamp', () => {
       messageId: 1n,
       state: EXECUTION_STATE_SUCCESS,
     })
+
+    assertLog(
+      result.transactions,
+      receiver.address,
+      ReceiverLogs.LogTypes.ReceiverCCIPMessageReceived,
+      {
+        message: {
+          messageId: message.header.messageId,
+          sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+          sender: message.sender,
+          data: message.data,
+        },
+      },
+    )
+  })
+
+  it('Test receiver rejects message from wrong offRamp and emits ExecutionStateChanged: Failure', async () => {
+    // Deploy a receiver with WRONG offRamp address - it will reject messages from the real offRamp
+    let code = await compile('ccip.test.receiver')
+    const wrongOffRampAddress = generateMockTonAddress() // Use a different address
+    const badReceiver = blockchain.openContract(ExampleReceiver.create(code, wrongOffRampAddress))
+    const result = await badReceiver.sendDeploy(deployer.getSender(), toNano('10'))
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: badReceiver.address,
+      deploy: true,
+      success: true,
+    })
+
+    // Send message to the bad receiver
+    const message = createTestMessage(1n, 1n, badReceiver.address)
+    await setupAndCommitMessage(message)
+    const report = createExecuteReport([message])
+    const executeResult = await executeReport(report)
+
+    // The execute call itself should succeed
+    expect(executeResult.transactions).toHaveTransaction({
+      from: transmitters[0].address,
+      to: offRamp.address,
+      success: true,
+    })
+
+    // Message should bounce from the bad receiver (wrong offRamp check fails)
+    expect(executeResult.transactions).toHaveTransaction({
+      from: offRamp.address,
+      to: badReceiver.address,
+      success: false,
+    })
+
+    // Should emit IN_PROGRESS first
+    assertLog(
+      executeResult.transactions,
+      offRamp.address,
+      CCIPLogs.LogTypes.ExecutionStateChanged,
+      {
+        sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+        sequenceNumber: 1n,
+        messageId: 1n,
+        state: EXECUTION_STATE_IN_PROGRESS,
+      },
+    )
+
+    // Should emit FAILURE after bounce
+    assertLog(
+      executeResult.transactions,
+      offRamp.address,
+      CCIPLogs.LogTypes.ExecutionStateChanged,
+      {
+        sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+        sequenceNumber: 1n,
+        messageId: 1n,
+        state: EXECUTION_STATE_FAILURE,
+      },
+    )
   })
 
   it('Test facilityId matches facility name', () => {

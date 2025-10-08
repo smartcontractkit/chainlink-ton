@@ -46,7 +46,7 @@ The process involves two main scripts:
 4. Export test database URL:
 
     ```bash
-    export CL_DATABASE_URL="postgresql://postgres:postgres@localhost:5432/chainlink_test?sslmode=disable"
+    export CL_DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:5432/chainlink_test?sslmode=disable"
     ```
 
 5. Run tests:

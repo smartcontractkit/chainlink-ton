@@ -8,9 +8,8 @@ import "../onramp/types"
 import "../common/messages"
 import "../../lib/utils"
 
-const CONTRACT_VERSION = "0.0.1";
+const CONTRACT_VERSION = "0.0.3";
 const FACILITY_NAME = "com.chainlink.ton.ccip.CCIPSendExecutor";
-const FACILITY_ID = stringCrc32("com.chainlink.ton.ccip.CCIPSendExecutor"); //436
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy CCIPSendExecutor_InMessage.fromSlice(in.body);

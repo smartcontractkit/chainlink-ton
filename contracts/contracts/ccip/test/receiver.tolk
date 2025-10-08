@@ -1,12 +1,15 @@
+// NOTE: This test receiver is located in contracts/ccip/test/ 
+// because it needs to be included in GitHub release artifacts for integration tests.
+// Contracts with the "examples.*" prefix are excluded from published releases.
+// See: .github/workflows/contracts-publish-compiled-artifacts.yml
+
+
 import "../../lib/receiver/messages";
 import "../../lib/receiver/types";
 import "../../lib/utils";
 import "../../ccip/offramp/messages";
 
-//crc32('Receiver_CCIPMessageReceived')
-const RECEIVED_MESSAGE = 0xc5a40ab3;
-
-const RECEIVER_ERROR = 666;
+const RECEIVED_MESSAGE_TOPIC = 0xc5a40ab3; //crc32('Receiver_CCIPMessageReceived')
 
 struct Storage {
     offRamp: address; //TODO: should be router?
@@ -40,12 +43,9 @@ fun onInternalMessage(in: InMessage) {
             });
             receiveConfirm.send(SEND_MODE_REGULAR);
 
-            emit(RECEIVED_MESSAGE, CCIPMessageReceived{
+            emit(RECEIVED_MESSAGE_TOPIC, CCIPMessageReceived{
                 message: msg.message,
             });
-
-            assert(msg.message.data.beginParse().isEmpty(), RECEIVER_ERROR); 
-
         }
         else => {
             // ignore empty messages, "wrong opcode" for others

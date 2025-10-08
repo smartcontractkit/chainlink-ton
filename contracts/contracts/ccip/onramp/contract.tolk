@@ -18,8 +18,7 @@ import "../router/messages"
 import "../../lib/jetton/messages"
 import "../../lib/jetton/messages_extended"
 
-
-const CONTRACT_VERSION = "0.0.2";
+const CONTRACT_VERSION = "0.0.3";
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy OnRamp_InMessage.fromSlice(in.body);
