@@ -222,11 +222,9 @@ fun keysLispList<K, V>(dict: map<K, V>): tuple?{
     var list: tuple? = null;
     var entry = dict.findFirst();
     while (entry.isFound) {
-        if (entry.isFound) {
-            var key = entry.getKey();
-            list = listPrepend(key, list);
-            entry = dict.iterateNext(entry);
-        }
+        var key = entry.getKey();
+        list = listPrepend(key, list);
+        entry = dict.iterateNext(entry);
     } ;
     return list;
 }

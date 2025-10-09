@@ -467,19 +467,10 @@ get fun tokenAndGasPrices(token: address, destChainSelector: uint64) {
 }
 
 // vec<address>
-get fun feeTokens(): tuple {
+get fun feeTokens(): tuple? {
     val st = lazy Storage.load();
     var feeTokens = st.premiumMultiplierWeiPerEth;
-    
-    var list: tuple? = null;
-    var entry = feeTokens.findFirst();
-    while (entry.isFound) {
-        val address = entry.getKey();
-        list = listPrepend(address, list);
-
-        entry = feeTokens.iterateNext(entry);
-    }
-    return list!;
+    return keysLispList(feeTokens);
 }
 
 get fun tokenTransferFeeConfig() {}
@@ -518,7 +509,7 @@ get fun codeHash(): int {
     return contract.getCode().hash();
 }
 
-get fun destChainSelectors(): tuple {
+get fun destChainSelectors(): tuple? {
     val st = lazy Storage.load();
     var d = st.destChainConfigs;
     return keysLispList(d)!;

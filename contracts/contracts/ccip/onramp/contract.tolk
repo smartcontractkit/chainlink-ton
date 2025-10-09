@@ -264,23 +264,13 @@ get fun destChainConfig(destChainSelector: uint64): OnRamp_DestChainConfig {
 }
 
 // vec<address>
-get fun allowedSendersList(destChainSelector: uint64): tuple {
+get fun allowedSendersList(destChainSelector: uint64): tuple? {
     val st = lazy OnRamp_Storage.load();
     val config = st.destChainConfigs.mustGet(destChainSelector,Error.UnknownDestChainSelector as int);
     var allowedSenders = config.allowedSenders;
 
-    var list: tuple? = null;
-    var entry = allowedSenders.findFirst();
-    while (entry.isFound) {
-        // var (wc, addressHash) = (key! as address).getWorkchainAndHash();
-        // list = listPrepend([wc, addressHash], list);
-        var address = entry.getKey();
-        list = listPrepend(address, list);
-
-        entry = allowedSenders.iterateNext(entry);
-    }
-
-    return list!;
+    // var (wc, addressHash) = (key! as address).getWorkchainAndHash();
+    return keysLispList(allowedSenders);
 }
 
 fun applyAllowlistUpdates(mutate st: OnRamp_Storage, updates: cell) {
@@ -314,7 +304,7 @@ get fun supportedTokens() {
     // TODO?
 }
 
-get fun destChainSelectors(): tuple {
+get fun destChainSelectors(): tuple? {
     val st = lazy OnRamp_Storage.load();
     var d = st.destChainConfigs;
     return keysLispList(d)!;
