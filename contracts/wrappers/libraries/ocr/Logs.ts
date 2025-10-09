@@ -4,12 +4,12 @@ import { crc32 } from 'zlib'
 export const LOG_TOPIC: Record<string, number> = {
   OCR3Base_ConfigSet: crc32('OCR3Base_ConfigSet'),
   OCR3Base_Transmitted: crc32('OCR3Base_Transmitted'),
-};
+}
 
 export const LogTypes = {
   OCR3BaseConfigSet: 'OCR3Base_ConfigSet',
   OCR3BaseTransmitted: 'OCR3Base_Transmitted',
-} as const;
+} as const
 
 export type OCR3BaseConfigSet = {
   ocrPluginType: number

@@ -221,7 +221,7 @@ describe('OffRamp', () => {
     return result
   }
 
-  const setupSourceChainConfig = async (overrides = {}, isInitialSetup = true ) => {
+  const setupSourceChainConfig = async (overrides = {}, isInitialSetup = true) => {
     const config = createDefaultSourceChainConfig({ ...overrides })
     const result = await offRamp.sendUpdateSourceChainConfig(deployer.getSender(), {
       value: toNano('0.5'),
@@ -461,7 +461,7 @@ describe('OffRamp', () => {
     const root = createMerkleRoot(1n, 1n, rootBytes)
 
     await setupOCRConfig()
-    await setupSourceChainConfig({isEnabled: false}) // disabled source chain
+    await setupSourceChainConfig({ isEnabled: false }) // disabled source chain
 
     const report: CommitReport = { merkleRoots: [root] }
     const reportContext: ReportContext = { configDigest, padding: 0n, sequenceBytes: 0x01 }
@@ -740,7 +740,7 @@ describe('OffRamp', () => {
     await commitReport([root])
 
     // Disable source chain for execution
-    await setupSourceChainConfig({isEnabled: false, minSeqNr: 2n}, false)
+    await setupSourceChainConfig({ isEnabled: false, minSeqNr: 2n }, false)
 
     const report = createExecuteReport([message])
     await executeReportExpectingFailure(report, OffRampError.SourceChainNotEnabled)

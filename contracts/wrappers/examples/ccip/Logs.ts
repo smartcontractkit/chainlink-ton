@@ -7,8 +7,7 @@ export const LOG_TOPIC: Record<string, number> = {
 
 export const LogTypes = {
   ReceiverCCIPMessageReceived: 'Receiver_CCIPMessageReceived',
-} as const;
-
+} as const
 
 export type ReceiverCCIPMessageReceived = {
   message: Any2TVMMessage

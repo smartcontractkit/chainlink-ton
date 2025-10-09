@@ -66,9 +66,9 @@ export type DestChainConfig = {
 }
 
 export type UpdateDestChainConfig = {
-    destChainSelector: bigint
-    router: Address
-    allowlistEnabled: boolean
+  destChainSelector: bigint
+  router: Address
+  allowlistEnabled: boolean
 }
 
 const metadataCodec: CellCodec<Metadata> = {
@@ -109,7 +109,7 @@ export const builder = {
         },
       }
     })(),
-    destChainConfig: ((): CellCodec<DestChainConfig> => {
+    destChainConfig: (): CellCodec<DestChainConfig> => {
       return {
         encode: function (data: DestChainConfig): Builder {
           return beginCell()
@@ -127,7 +127,7 @@ export const builder = {
           }
         },
       }
-    })
+    },
   },
   messages: {
     in: {

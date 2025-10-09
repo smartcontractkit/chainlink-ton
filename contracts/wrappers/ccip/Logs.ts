@@ -11,9 +11,9 @@ export const LogTypes = {
   SourceChainConfigUpdated: 'SourceChainConfigUpdated',
   DestChainSelectorAdded: 'DestChainSelectorAdded',
   DestChainConfigUpdated: 'DestChainConfigUpdated',
-} as const;
+} as const
 
-export type CombinedLogType = typeof LogTypes[keyof typeof LogTypes];
+export type CombinedLogType = (typeof LogTypes)[keyof typeof LogTypes]
 
 export const LOG_TOPIC: Record<CombinedLogType, number> = {
   CCIPMessageSent: crc32('CCIPMessageSent'),
@@ -23,7 +23,7 @@ export const LOG_TOPIC: Record<CombinedLogType, number> = {
   SourceChainConfigUpdated: crc32('SourceChainConfigUpdated'),
   DestChainSelectorAdded: crc32('DestChainSelectorAdded'),
   DestChainConfigUpdated: crc32('DestChainConfigUpdated'),
-};
+}
 
 export type CCIPMessageSent = {
   message: {

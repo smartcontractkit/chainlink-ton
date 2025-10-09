@@ -216,9 +216,9 @@ describe('Router', () => {
       // add config for EVM destination
       {
         const config = {
-              router: router.address,
-              sequenceNumber: 0n,
-              allowlistEnabled: false,
+          router: router.address,
+          sequenceNumber: 0n,
+          allowlistEnabled: false,
         }
 
         const result = await onRamp.sendUpdateDestChainConfigs(deployer.getSender(), {
@@ -227,7 +227,7 @@ describe('Router', () => {
             {
               destChainSelector: CHAINSEL_EVM_TEST_90000001,
               router: config.router,
-              allowlistEnabled: config.allowlistEnabled
+              allowlistEnabled: config.allowlistEnabled,
             },
           ],
         })
@@ -237,8 +237,13 @@ describe('Router', () => {
           deploy: false,
           success: true,
         })
-        assertLog(result.transactions, onRamp.address, LogTypes.DestChainSelectorAdded, {destChainSelector: CHAINSEL_EVM_TEST_90000001})
-        assertLog(result.transactions, onRamp.address, LogTypes.DestChainConfigUpdated, {destChainSelector: CHAINSEL_EVM_TEST_90000001, config})
+        assertLog(result.transactions, onRamp.address, LogTypes.DestChainSelectorAdded, {
+          destChainSelector: CHAINSEL_EVM_TEST_90000001,
+        })
+        assertLog(result.transactions, onRamp.address, LogTypes.DestChainConfigUpdated, {
+          destChainSelector: CHAINSEL_EVM_TEST_90000001,
+          config,
+        })
       }
     }
   })
