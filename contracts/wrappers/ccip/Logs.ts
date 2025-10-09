@@ -3,23 +3,27 @@ import { crc32 } from 'zlib'
 import { Any2TVMMessage, MerkleRoot, PriceUpdates, SourceChainConfig } from './OffRamp'
 import { DestChainConfig } from './OnRamp'
 
-export const COMMIT_REPORT_ACCEPTED_TOPIC = crc32('CommitReportAccepted')
-export const CCIP_MESSAGE_SENT_TOPIC = crc32('CCIPMessageSent')
-export const EXECUTION_STATE_CHANGED_TOPIC = crc32('ExecutionStateChanged')
-export const SOURCE_CHAIN_SELECTOR_ADDED_TOPIC = crc32('SourceChainSelectorAdded')
-export const SOURCE_CHAIN_CONFIG_UPDATED_TOPIC = crc32("SourceChainConfigUpdated");
-export const DEST_CHAIN_CONFIG_SET_TOPIC = crc32("DestChainConfigSet");
+export const LogTypes = {
+  CCIPMessageSent: 'CCIPMessageSent',
+  CCIPCommitReportAccepted: 'CCIPCommitReportAccepted',
+  ExecutionStateChanged: 'ExecutionStateChanged',
+  SourceChainSelectorAdded: 'SourceChainSelectorAdded',
+  SourceChainConfigUpdated: 'SourceChainConfigUpdated',
+  DestChainSelectorAdded: 'DestChainSelectorAdded',
+  DestChainConfigUpdated: 'DestChainConfigUpdated',
+} as const;
 
+export type CombinedLogType = typeof LogTypes[keyof typeof LogTypes];
 
-
-export enum LogTypes {
-  CCIPMessageSent = CCIP_MESSAGE_SENT_TOPIC,
-  CCIPCommitReportAccepted = COMMIT_REPORT_ACCEPTED_TOPIC,
-  ExecutionStateChanged = EXECUTION_STATE_CHANGED_TOPIC,
-  SourceChainSelectorAdded = SOURCE_CHAIN_SELECTOR_ADDED_TOPIC,
-  SourceChainConfigUpdated = SOURCE_CHAIN_CONFIG_UPDATED_TOPIC,
-  DestChainConfigSet = DEST_CHAIN_CONFIG_SET_TOPIC
-}
+export const LOG_TOPIC: Record<CombinedLogType, number> = {
+  CCIPMessageSent: crc32('CCIPMessageSent'),
+  CCIPCommitReportAccepted: crc32('CCIPCommitReportAccepted'),
+  ExecutionStateChanged: crc32('ExecutionStateChanged'),
+  SourceChainSelectorAdded: crc32('SourceChainSelectorAdded'),
+  SourceChainConfigUpdated: crc32('SourceChainConfigUpdated'),
+  DestChainSelectorAdded: crc32('DestChainSelectorAdded'),
+  DestChainConfigUpdated: crc32('DestChainConfigUpdated'),
+};
 
 export type CCIPMessageSent = {
   message: {
@@ -62,7 +66,11 @@ export type SourceChainConfigUpdated = {
   config: SourceChainConfig
 }
 
-export type DestChainConfigSet = {
+export type DestChainSelectorAdded = {
+  destChainSelector: bigint //64
+}
+
+export type DestChainConfigUpdated = {
   destChainSelector: bigint //64
   config: DestChainConfig
 }

@@ -418,6 +418,16 @@ export const sourceChainConfigToBuilder = (config: SourceChainConfig) => {
     .storeBuffer(config.onRamp, config.onRamp.byteLength)
 }
 
+export const sourceChainConfigFromSlice = (slice: Slice): SourceChainConfig => {
+  return {
+    router: slice.loadAddress(),
+    isEnabled: slice.loadBit(),
+    minSeqNr: slice.loadUintBig(64),
+    isRMNVerificationDisabled: slice.loadBit(),
+    onRamp: slice.loadBuffer(slice.loadUint(8)),
+  }
+}
+
 function ExecutionReportToBuilder(report: ExecutionReport) {
   return beginCell()
     .storeUint(report.sourceChainSelector, 64)

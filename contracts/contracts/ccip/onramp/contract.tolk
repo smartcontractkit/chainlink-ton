@@ -255,9 +255,12 @@ fun applyDestChainConfigUpdates(mutate st: OnRamp_Storage, updates: cell) {
                 allowlistEnabled: update.allowlistEnabled,
                 allowedSenders: createEmptyMap(),
             };
-            st.destChainConfigs.set(update.destChainSelector, config)
+            st.destChainConfigs.set(update.destChainSelector, config);
+            emit(DEST_CHAIN_SELECTOR_ADDED_TOPIC, DestChainSelectorAdded {
+                destChainSelector: update.destChainSelector
+            });
         }
-        emit(DEST_CHAIN_CONFIG_SET, DestChainConfigSet {
+        emit(DEST_CHAIN_CONFIG_UPDATED_TOPIC, DestChainConfigUpdated {
             destChainSelector: update.destChainSelector,
             destChainConfig: config,
         });

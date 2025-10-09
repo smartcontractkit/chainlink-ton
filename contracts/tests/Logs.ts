@@ -4,8 +4,14 @@ import * as CCIPLogs from '../wrappers/ccip/Logs'
 import * as OCR3Logs from '../wrappers/libraries/ocr/Logs'
 import * as ReceiverLogs from '../wrappers/examples/ccip/Logs'
 import { fromSnakeData } from '../src/utils/types'
-import { MerkleRoot, merkleRootFromSlice, priceUpdatesFromCell } from '../wrappers/ccip/OffRamp'
+import {
+  MerkleRoot,
+  merkleRootFromSlice,
+  priceUpdatesFromCell,
+  sourceChainConfigFromSlice,
+} from '../wrappers/ccip/OffRamp'
 import { prettifyAddressesMap } from './utils/prettyPrint'
+import { crc32 } from 'zlib'
 
 // https://github.com/ton-blockchain/liquid-staking-contract/blob/1f4e9badbed52a4cf80cc58e4bb36ed375c6c8e7/utils.ts#L269-L294
 export const getExternals = (transactions: BlockchainTransaction[]) => {
@@ -16,7 +22,7 @@ export const getExternals = (transactions: BlockchainTransaction[]) => {
 export const testLog = (
   message: Message,
   from: Address,
-  topic: number | bigint,
+  topic: string,
   matcher?: (body: Cell) => boolean,
 ) => {
   if (message.info.type !== 'external-out') {
@@ -25,7 +31,7 @@ export const testLog = (
   }
   if (!message.info.src.equals(from)) return false
   if (!message.info.dest) return false
-  if (message.info.dest!.value !== BigInt(topic)) return false
+  if (message.info.dest!.value !== BigInt(crc32(topic))) return false
   if (matcher !== undefined) {
     if (!message.body) console.log('No body')
     return matcher(message.body)
@@ -55,6 +61,10 @@ type LogTypeMap = {
   [CCIPLogs.LogTypes.CCIPMessageSent]: DeepPartial<CCIPLogs.CCIPMessageSent>
   [CCIPLogs.LogTypes.CCIPCommitReportAccepted]: DeepPartial<CCIPLogs.CCIPCommitReportAccepted>
   [CCIPLogs.LogTypes.ExecutionStateChanged]: DeepPartial<CCIPLogs.ExecutionStateChanged>
+  [CCIPLogs.LogTypes.SourceChainSelectorAdded]: CCIPLogs.SourceChainSelectorAdded
+  [CCIPLogs.LogTypes.SourceChainConfigUpdated]: CCIPLogs.SourceChainConfigUpdated
+  [CCIPLogs.LogTypes.DestChainSelectorAdded]: CCIPLogs.DestChainSelectorAdded
+  [CCIPLogs.LogTypes.DestChainConfigUpdated]: CCIPLogs.DestChainConfigUpdated
   [OCR3Logs.LogTypes.OCR3BaseConfigSet]: OCR3Logs.OCR3BaseConfigSet
   [OCR3Logs.LogTypes.OCR3BaseTransmitted]: DeepPartial<OCR3Logs.OCR3BaseTransmitted>
   [ReceiverLogs.LogTypes.ReceiverCCIPMessageReceived]: ReceiverLogs.ReceiverCCIPMessageReceived
@@ -86,6 +96,18 @@ const handlers: { [K in CombinedLogType]: Handler<K> } = {
 
   [CCIPLogs.LogTypes.ExecutionStateChanged]: (x, from, match) =>
     testLogCCIPExecutionStateChanged(x, from, match as DeepPartial<CCIPLogs.ExecutionStateChanged>),
+
+  [CCIPLogs.LogTypes.SourceChainSelectorAdded]: (x, from, match) =>
+    testLogSourceChainSelectorAdded(x, from, match as CCIPLogs.SourceChainSelectorAdded),
+
+  [CCIPLogs.LogTypes.SourceChainConfigUpdated]: (x, from, match) =>
+    testLogSourceChainConfigUpdated(x, from, match as CCIPLogs.SourceChainConfigUpdated),
+
+  [CCIPLogs.LogTypes.DestChainSelectorAdded]: (x, from, match) =>
+    testLogDestChainSelectorAdded(x, from, match as CCIPLogs.DestChainSelectorAdded),
+
+  [CCIPLogs.LogTypes.DestChainConfigUpdated]: (x, from, match) =>
+    testLogDestChainConfigUpdated(x, from, match as CCIPLogs.DestChainConfigUpdated),
 
   [ReceiverLogs.LogTypes.ReceiverCCIPMessageReceived]: (x, from, match) =>
     testLogReceiverCCIPMessageReceived(x, from, match as ReceiverLogs.ReceiverCCIPMessageReceived),
@@ -291,6 +313,68 @@ export const testLogReceiverCCIPMessageReceived = (
       .endCell()
 
     equalsObject(expectedCell, x)
+    return true
+  })
+}
+
+export const testLogSourceChainSelectorAdded = (
+  message: Message,
+  from: Address,
+  match: CCIPLogs.SourceChainSelectorAdded,
+) => {
+  return testLog(message, from, CCIPLogs.LogTypes.SourceChainSelectorAdded, (x) => {
+    const cs = x.beginParse()
+    const msg = {
+      sourceChainSelector: cs.loadUintBig(64),
+    }
+    equalsObject(msg, match)
+    return true
+  })
+}
+
+export const testLogSourceChainConfigUpdated = (
+  message: Message,
+  from: Address,
+  match: CCIPLogs.SourceChainConfigUpdated,
+) => {
+  return testLog(message, from, CCIPLogs.LogTypes.SourceChainConfigUpdated, (x) => {
+    const cs = x.beginParse()
+    const msg = {
+      sourceChainSelector: cs.loadUintBig(64),
+      config: sourceChainConfigFromSlice(cs),
+    }
+    equalsObject(msg, match)
+    return true
+  })
+}
+
+export const testLogDestChainSelectorAdded = (
+  message: Message,
+  from: Address,
+  match: CCIPLogs.DestChainSelectorAdded,
+) => {
+  return testLog(message, from, CCIPLogs.LogTypes.DestChainSelectorAdded, (x) => {
+    const cs = x.beginParse()
+    const msg = {
+      destChainSelector: cs.loadUintBig(64),
+    }
+    equalsObject(msg, match)
+    return true
+  })
+}
+
+export const testLogDestChainConfigUpdated = (
+  message: Message,
+  from: Address,
+  match: CCIPLogs.DestChainConfigUpdated,
+) => {
+  return testLog(message, from, CCIPLogs.LogTypes.DestChainConfigUpdated, (x) => {
+    const cs = x.beginParse()
+    const msg = {
+      destChainSelector: cs.loadUintBig(64),
+      config: sourceChainConfigFromSlice(cs),
+    }
+    equalsObject(msg, match)
     return true
   })
 }

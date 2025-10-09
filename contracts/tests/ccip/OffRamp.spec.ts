@@ -16,6 +16,7 @@ import {
   OFFRAMP_FACILITY_NAME,
   MERKLE_ROOT_FACILITY_NAME,
   OFFRAMP_FACILITY_ID,
+  SourceChainConfig,
 } from '../../wrappers/ccip/OffRamp'
 import { OffRamp, OffRampError } from '../../wrappers/ccip/OffRamp'
 import { FeeQuoter } from '../../wrappers/ccip/FeeQuoter'
@@ -153,11 +154,11 @@ describe('OffRamp', () => {
     ...overrides,
   })
 
-  const createDefaultSourceChainConfig = (overrides = {}) => ({
+  const createDefaultSourceChainConfig = (overrides = {}): SourceChainConfig => ({
     router: ROUTER_ADDRESS_TEST,
     isEnabled: true,
     minSeqNr: 1n,
-    isRMNVerificationDisabled: false,
+    isRMNVerificationDisabled: true,
     onRamp: bigIntToBuffer(EVM_ONRAMP_ADDRESS_TEST),
     ...overrides,
   })
@@ -220,14 +221,25 @@ describe('OffRamp', () => {
     return result
   }
 
-  const setupSourceChainConfig = async (isEnabled = true, overrides = {}) => {
-    const config = createDefaultSourceChainConfig({ isEnabled, ...overrides })
+  const setupSourceChainConfig = async (overrides = {}, isInitialSetup = true ) => {
+    const config = createDefaultSourceChainConfig({ ...overrides })
     const result = await offRamp.sendUpdateSourceChainConfig(deployer.getSender(), {
       value: toNano('0.5'),
       sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
       config,
     })
     expectSuccessfulTransaction(result, deployer.address, offRamp.address)
+
+    if (isInitialSetup) {
+      assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.SourceChainSelectorAdded, {
+        sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+      })
+    }
+
+    assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.SourceChainConfigUpdated, {
+      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+      config: config,
+    })
     return result
   }
 
@@ -449,7 +461,7 @@ describe('OffRamp', () => {
     const root = createMerkleRoot(1n, 1n, rootBytes)
 
     await setupOCRConfig()
-    await setupSourceChainConfig(false) // disabled source chain
+    await setupSourceChainConfig({isEnabled: false}) // disabled source chain
 
     const report: CommitReport = { merkleRoots: [root] }
     const reportContext: ReportContext = { configDigest, padding: 0n, sequenceBytes: 0x01 }
@@ -728,7 +740,7 @@ describe('OffRamp', () => {
     await commitReport([root])
 
     // Disable source chain for execution
-    await setupSourceChainConfig(false)
+    await setupSourceChainConfig({isEnabled: false, minSeqNr: 2n}, false)
 
     const report = createExecuteReport([message])
     await executeReportExpectingFailure(report, OffRampError.SourceChainNotEnabled)
