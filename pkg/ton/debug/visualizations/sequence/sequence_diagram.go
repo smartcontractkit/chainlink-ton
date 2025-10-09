@@ -53,13 +53,14 @@ func (v *visualization) NewSentMessage(msg *tt.SentMessage, info lib.MessageInfo
 
 func (v *visualization) insertMsg(from, to *address.Address, description string) lib.DebuggerVisualization {
 	description = sanitizeString(description)
-	if from != nil && to != nil {
+	switch {
+	case from != nil && to != nil:
 		v.Diagram.AddMessage(v.actorFromAddr(from), v.actorFromAddr(to), sequence.MessageSolidArrow, description)
-	} else if from != nil && to == nil {
+	case from != nil && to == nil:
 		v.Diagram.AddMessage(v.actorFromAddr(from), sequence.NewActor("unknown", "unknown", sequence.ActorParticipant), sequence.MessageSolidArrow, description)
-	} else if from == nil && to != nil {
+	case from == nil && to != nil:
 		v.Diagram.AddMessage(sequence.NewActor("unknown", "unknown", sequence.ActorParticipant), v.actorFromAddr(to), sequence.MessageSolidArrow, description)
-	} else {
+	default:
 		v.Diagram.AddMessage(sequence.NewActor("unknown", "unknown", sequence.ActorParticipant), sequence.NewActor("unknown", "unknown", sequence.ActorParticipant), sequence.MessageSolidArrow, description)
 	}
 	return v
@@ -76,7 +77,7 @@ func (v *visualization) actorFromAddr(addr *address.Address) *sequence.Actor {
 	var actor *sequence.Actor
 	var ok bool
 	name := v.describeAddr(addr)
-	id := strings.Replace(addr.StringRaw(), ":", "_", -1)
+	id := strings.ReplaceAll(addr.StringRaw(), ":", "_")
 	if actor, ok = v.ActiveActors[id]; !ok {
 		actor = v.Diagram.AddActor(id, name, sequence.ActorParticipant)
 		v.ActiveActors[id] = actor

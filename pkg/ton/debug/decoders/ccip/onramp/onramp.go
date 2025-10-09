@@ -8,7 +8,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/decoders/ccip/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/decoders/ccip/ccipcommon"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/event"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
@@ -35,7 +35,6 @@ func (d *decoder) EventInfo(dstAddr *address.Address, msg *cell.Cell) (lib.Messa
 		return nil, &lib.UnknownMessageError{}
 	}
 	if topic == onramp.TopicCCIPMessageSent {
-
 		ccipMessageSent, err := onramp.Builder.Events.CCIPMessageSent.Decode(msg.BeginParse())
 		if err != nil {
 			return nil, err
@@ -103,5 +102,5 @@ func (d *decoder) InternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
 }
 
 func (d *decoder) ExitCodeInfo(exitCode tvm.ExitCode) (string, error) {
-	return common.NewDecoder().ExitCodeInfo(exitCode)
+	return ccipcommon.NewDecoder().ExitCodeInfo(exitCode)
 }

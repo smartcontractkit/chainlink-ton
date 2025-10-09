@@ -6,7 +6,7 @@ import (
 )
 
 func sanitizeString(s string) string {
-	var wrapWidth int = 80
+	var wrapWidth = 80
 	description := wrap(s, wrapWidth)
 	description = strings.ReplaceAll(description, "\n", "<br/>")
 	description = strings.ReplaceAll(description, "\"", "'")
@@ -60,16 +60,17 @@ func wrap(s string, width int) string {
 				wLen = utf8.RuneCountInString(w)
 			}
 
-			if lineRunes == 0 {
+			switch {
+			case lineRunes == 0:
 				// start a new line
 				line.WriteString(w)
 				lineRunes = wLen
-			} else if lineRunes+1+wLen <= width {
+			case lineRunes+1+wLen <= width:
 				// add to current line with a space
 				line.WriteByte(' ')
 				line.WriteString(w)
 				lineRunes += 1 + wLen
-			} else {
+			default:
 				// wrap
 				flush()
 				line.WriteString(w)

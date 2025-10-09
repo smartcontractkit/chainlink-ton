@@ -1,6 +1,7 @@
 package explorer
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"strings"
@@ -31,5 +32,5 @@ func ParseURL(urlStr string) (txHash, address, network string, err error) {
 		}
 	}
 
-	return "", "", "", fmt.Errorf("unsupported URL format")
+	return "", "", "", errors.New("unsupported URL format")
 }

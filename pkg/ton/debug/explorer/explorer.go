@@ -4,8 +4,11 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
+	"time"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/xssnick/tonutils-go/address"
@@ -14,6 +17,7 @@ import (
 	"github.com/xssnick/tonutils-go/ton"
 
 	"github.com/smartcontractkit/chainlink-deployments-framework/deployment"
+
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
@@ -154,7 +158,7 @@ func (c *client) queryActorsReceivedRec(ctx context.Context, block *ton.BlockIDE
 			return err
 		}
 	}
-	fmt.Println(fmt.Errorf("unknown message type").Error())
+	fmt.Println(errors.New("unknown message type").Error())
 	return nil
 }
 
@@ -232,43 +236,61 @@ func (c *client) tryMatchByCodeHash(ctx context.Context, block *ton.BlockIDExt, 
 }
 
 func (c *client) GetSenderAddressFromTxHash(ctx context.Context, txHashStr string) (*address.Address, error) {
-	if c.net == "mainnet" || c.net == "testnet" {
-		// fetch from https://testnet.toncenter.com/api/v3/transactions?hash=txHashStr
-		var apiURL string
-		if c.net == "mainnet" {
-			apiURL = "https://toncenter.com/api/v3/transactions?hash=" + txHashStr
-		} else {
-			apiURL = "https://testnet.toncenter.com/api/v3/transactions?hash=" + txHashStr
-		}
-		type txResult struct {
-			Account string `json:"account"`
-		}
-		type apiResponse struct {
-			Transactions []txResult `json:"transactions"`
-		}
-		resp, err := http.Get(apiURL)
-		if err != nil {
-			return nil, fmt.Errorf("failed to fetch transaction info from toncenter: %w", err)
-		}
-		defer resp.Body.Close()
-		if resp.StatusCode != http.StatusOK {
-			return nil, fmt.Errorf("unexpected status code from toncenter: %d", resp.StatusCode)
-		}
-		var respData apiResponse
-		err = json.NewDecoder(resp.Body).Decode(&respData)
-		if err != nil {
-			return nil, fmt.Errorf("failed to decode toncenter response: %w", err)
-		}
-		if len(respData.Transactions) != 1 {
-			return nil, fmt.Errorf("transaction not found in toncenter response")
-		}
-		addr, err := address.ParseRawAddr(respData.Transactions[0].Account)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse source address from toncenter response: %w", err)
-		}
-		return addr, nil
+	// fetch from https://testnet.toncenter.com/api/v3/transactions?hash=txHashStr
+	var baseURL string
+	switch c.net {
+	case "mainnet":
+		baseURL = "https://toncenter.com/api/v3/transactions"
+	case "testnet":
+		baseURL = "https://testnet.toncenter.com/api/v3/transactions"
+	default:
+		return nil, fmt.Errorf("unsupported network: %s", c.net)
 	}
-	return nil, fmt.Errorf("source address is required for non-mainnet/testnet networks")
+	type txResult struct {
+		Account string `json:"account"`
+	}
+	type apiResponse struct {
+		Transactions []txResult `json:"transactions"`
+	}
+	// Use url.URL for safer URL construction
+	u, err := url.Parse(baseURL)
+	if err != nil {
+		return nil, fmt.Errorf("invalid base URL: %w", err)
+	}
+
+	// Add query parameters safely
+	q := u.Query()
+	q.Set("hash", txHashStr) // No need for manual encoding when using url.Values
+	u.RawQuery = q.Encode()
+
+	// Create request with context and timeout
+	client := &http.Client{Timeout: 30 * time.Second}
+	req, err := http.NewRequestWithContext(ctx, "GET", u.String(), nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch transaction info from toncenter: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code from toncenter: %d", resp.StatusCode)
+	}
+	var respData apiResponse
+	err = json.NewDecoder(resp.Body).Decode(&respData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode toncenter response: %w", err)
+	}
+	if len(respData.Transactions) != 1 {
+		return nil, errors.New("transaction not found in toncenter response")
+	}
+	addr, err := address.ParseRawAddr(respData.Transactions[0].Account)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse source address from toncenter response: %w", err)
+	}
+	return addr, nil
 }
 
 func (c *client) findTx(ctx context.Context, api *ton.APIClient, srcAddr *address.Address, txHash []byte) (*tlb.Transaction, error) {
@@ -299,7 +321,7 @@ func (c *client) findTx(ctx context.Context, api *ton.APIClient, srcAddr *addres
 		maxLT = last.PrevTxLT
 		maxHash = last.PrevTxHash
 	}
-	return nil, fmt.Errorf("transaction not found")
+	return nil, errors.New("transaction not found")
 }
 
 func equalHash(a, b []byte) bool {
