@@ -88,6 +88,12 @@ fun emit<T>(topic: int, body: T) {
     emitMsg.send(SEND_MODE_REGULAR);
 }
 
+type SnakedCell<T> = cell;
+
+fun SnakedCell<T>.iter(self): Iterator<T> {
+    return Iterator<T>.new(self)
+}
+
 // Iterates over arrays stored as snake data.
 struct Iterator<T> {
     data: slice;
@@ -119,7 +125,7 @@ fun Iterator<T>.next(mutate self): T {
 @inline
 fun Iterator<T>.countBytes(self): int {
     val maxCells = 128;
-    val (cellsCount, dataBitsSize, cellRefs) = self.data.calculateSizeStrict(maxCells);
+    val (cellsCount, dataBitsSize, _cellRefs) = self.data.calculateSizeStrict(maxCells);
     assert(dataBitsSize % 8 == 0, ERROR_INVALID_DATA);
     return dataBitsSize / 8;
 }
@@ -128,7 +134,7 @@ fun Iterator<T>.countBytes(self): int {
 @inline
 fun countAddresses(data: cell): int {
     val maxCells = 128;
-    val (cellsCount, dataBitsSize, cellRefs) = data.calculateSizeStrict(maxCells);
+    val (cellsCount, dataBitsSize, _cellRefs) = data.calculateSizeStrict(maxCells);
     assert(dataBitsSize % ADDR_KEY_LEN == 0, ERROR_INVALID_DATA);
     return dataBitsSize / ADDR_KEY_LEN;
 }
@@ -177,7 +183,6 @@ fun TupleIterator<T>.new(data: tuple) {
 
 @inline @pure
 fun TupleIterator<T>.empty(self): bool {
-    // TODO: should we cache data.size()?
     return self.pos >= self.len
 }
 

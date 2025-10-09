@@ -1,11 +1,13 @@
+import "../../lib/utils"
+
 struct TimestampedPrice {
     value: uint224;
     timestamp: uint32;
 }
 
 struct PriceUpdates {
-    tokenPriceUpdates: cell; // vec<TokenPriceUpdate>
-    gasPriceUpdates: cell; // vec<GasPriceUpdate>
+    tokenPriceUpdates: SnakedCell<TokenPriceUpdate>;
+    gasPriceUpdates: SnakedCell<GasPriceUpdate>;
 }
 
 struct TokenPriceUpdate {
@@ -106,7 +108,7 @@ const SUI_TOKEN_TRANSFER_DATA_OVERHEAD: uint256 = (4 + 32) // source_pool
 
 struct UpdateTokenTransferFeeConfig {
     add: map<address, TokenTransferFeeConfig>; // token address -> config
-    remove: cell; // vector<address>
+    remove: SnakedCell<address>;
 }
 
 struct FeeToken {

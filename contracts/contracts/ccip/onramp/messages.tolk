@@ -1,6 +1,8 @@
 import "types"
+import "../common/types"
 import "../common/messages"
 import "../router/messages"
+import "../../lib/utils"
 
 type OnRamp_InMessage =
     | OnRamp_Send
@@ -27,7 +29,7 @@ struct (0x10000002) OnRamp_Send {
 // crc32('OnRamp_WithdrawJettons')
 struct (0x266AEACF) OnRamp_WithdrawJettons {
     msgId: uint224,
-    tokens: cell; // vec<TokenAmount>
+    tokens: SnakedCell<TokenAmount>;
     onrampJettonWallet: address;
 }
 

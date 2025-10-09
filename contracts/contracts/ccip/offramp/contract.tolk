@@ -224,7 +224,7 @@ fun _commit(msg: OffRamp_Commit, sender: address) {
         // note: if prices are stale, we continue to process merkle roots if any exist
     }
 
-    var roots = Iterator<MerkleRoot>.new(report.merkleRoots);
+    var roots = report.merkleRoots.iter();
     val priceUpdatesOnlyReport = roots.empty();
     while (!roots.empty()) {
         val root = roots.next();
