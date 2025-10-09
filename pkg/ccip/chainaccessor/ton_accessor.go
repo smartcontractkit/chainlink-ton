@@ -324,6 +324,7 @@ func (a *TONAccessor) GetExpectedNextSequenceNumber(ctx context.Context, dest cc
 	return ccipocr3.SeqNum(value.Uint64()), nil
 }
 
+// GetTokenPriceUSD returns price per TON, with 18 decimals
 func (a *TONAccessor) GetTokenPriceUSD(ctx context.Context, rawTokenAddress ccipocr3.UnknownAddress) (ccipocr3.TimestampedUnixBig, error) {
 	addr, err := a.getBinding(consts.ContractNameFeeQuoter)
 	if err != nil {
