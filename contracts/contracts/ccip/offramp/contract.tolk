@@ -4,6 +4,7 @@ import "types"
 import "storage"
 import "events"
 
+import "../../lib/upgrades/upgradeable"
 import "../common/types.tolk"
 import "../../deployable/types.tolk"
 import "../../lib/access/ownable_2step.tolk"
@@ -68,6 +69,9 @@ fun onInternalMessage(in:InMessage) {
                 reserve: RESERVE
             }.withdraw(msg, in.valueCoins);
         }
+        Upgradeable_Upgrade => {
+            _upgrade(msg, in.senderAddress);
+        }
         else => {
             // ignore empty messages, "wrong opcode" for others
             assert (in.body.isEmpty()) throw 0xFFFF
@@ -85,7 +89,22 @@ fun onBouncedMessage(in: InMessageBounced) {
             _bouncedCCIPReceive(msg.execId, in.senderAddress);
         }
     }
-} 
+}
+
+fun _upgrade(msg: Upgradeable_Upgrade, sender: address) {
+    val st = Storage.load();
+    st.ownable.requireOwner(sender);
+    Upgradeable{
+        migrate: migrate,
+        version: version,
+    }.upgrade(msg.code);
+}
+
+@method_id(1000)
+fun migrate(storage: cell): cell { return beginCell().endCell(); }
+
+@method_id(1001)
+fun version(): slice { return CONTRACT_VERSION; }
 
 fun _bouncedCCIPReceive(execId: uint224, sender: address) {
     val st = Storage.load();

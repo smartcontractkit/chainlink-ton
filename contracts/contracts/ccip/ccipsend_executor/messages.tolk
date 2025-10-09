@@ -1,4 +1,6 @@
 import "types"
+import "storage"
+import "../../lib/upgrades/upgradeable"
 
 import "../common/messages"
 import "../onramp/messages"

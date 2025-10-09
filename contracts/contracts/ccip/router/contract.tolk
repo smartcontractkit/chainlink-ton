@@ -1,7 +1,6 @@
 import "messages"
 import "storage"
 import "errors"
-
 import "../onramp/messages"
 import "../onramp/types"
 import "../common/types"
@@ -9,9 +8,12 @@ import "../common/messages"
 import "../../lib/access/ownable_2step"
 import "../../lib/funding/withdrawable.tolk"
 import "../../deployable/types"
+import "../../lib/access/ownable_2step"
 import "../../lib/utils"
 import "../../lib/jetton/messages"
 import "../../lib/jetton/messages_extended"
+import "../../lib/upgrades/upgradeable"
+
 
 const CONTRACT_VERSION = "0.0.4";
 const RESERVE = ton("1"); // TODO: set correct value
@@ -29,6 +31,7 @@ fun onInternalMessage(in: InMessage) {
                 reserve: RESERVE
             }.withdraw(msg, in.valueCoins);
         }
+        Upgradeable_Upgrade => { onUpgrade(msg, in.senderAddress) }
         else => {
             // ignore empty messages, "wrong opcode" for others
             assert (in.body.isEmpty()) throw 0xFFFF
@@ -116,6 +119,21 @@ fun ccipSend(msg: Router_CCIPSend, sender: address) {
     });
     sendMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
+
+fun onUpgrade(msg: Upgradeable_Upgrade, sender: address) {
+    var st = lazy Storage.load();
+    st.ownable.requireOwner(sender);
+    Upgradeable{
+        migrate: migrate,
+        version: version,
+    }.upgrade(msg.code);
+}
+
+@method_id(1000)
+fun migrate(storage: cell): cell { return beginCell().endCell(); }
+
+@method_id(1001)
+fun version(): slice { return CONTRACT_VERSION; }
 
 get fun typeAndVersion(): (slice, slice) {
     return ("com.chainlink.ton.ccip.Router", CONTRACT_VERSION);

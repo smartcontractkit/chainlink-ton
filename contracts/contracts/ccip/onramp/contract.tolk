@@ -18,6 +18,7 @@ import "../router/messages"
 import "../../lib/jetton/messages"
 import "../../lib/jetton/messages_extended"
 import "../../lib/funding/withdrawable"
+import "../../lib/upgrades/upgradeable"
 
 const CONTRACT_VERSION = "0.0.6";
 const RESERVE = ton("1"); // TODO: set correct value
@@ -55,6 +56,14 @@ fun onInternalMessage(in: InMessage) {
             Withdrawable{
                 reserve: RESERVE
             }.withdraw(msg, in.valueCoins);
+        }
+        Upgradeable_Upgrade => {
+            var st = lazy OnRamp_Storage.load();
+            st.ownable.requireOwner(in.senderAddress);
+            Upgradeable{
+                migrate: migrate,
+                version: version,
+            }.upgrade(msg.code);
         }
         else => {
             // ignore empty messages, "wrong opcode" for others
@@ -357,3 +366,9 @@ get fun codeHash(): int {
 get fun reserve(): coins {
     return RESERVE;
 }
+
+@method_id(1000)
+fun migrate(storage: cell): cell { return beginCell().endCell(); }
+
+@method_id(1001)
+fun version(): slice { return CONTRACT_VERSION; }

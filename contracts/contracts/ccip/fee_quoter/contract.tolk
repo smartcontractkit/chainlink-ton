@@ -11,6 +11,7 @@ import "../../lib/utils";
 import "../router/messages"
 import "../ccipsend_executor/messages"
 import "../../lib/funding/withdrawable"
+import "../../lib/upgrades/upgradeable"
 
 const CONTRACT_VERSION = "0.0.5";
 const FACILITY_NAME = "com.chainlink.ton.ccip.FeeQuoter";
@@ -50,6 +51,14 @@ fun onInternalMessage(in: InMessage) {
             Withdrawable{
                 reserve: RESERVE
             }.withdraw(msg, in.valueCoins);
+        }
+        Upgradeable_Upgrade => {
+            var st = lazy Storage.load();
+            st.ownable.requireOwner(in.senderAddress);
+            Upgradeable{
+                migrate: migrate,
+                version: version,
+            }.upgrade(msg.code);
         }
         else => {
             // ignore empty messages, "wrong opcode" for others
@@ -526,3 +535,9 @@ get fun destChainSelectors(): tuple? {
 get fun reserve(): coins {
     return RESERVE;
 }
+
+@method_id(1000)
+fun migrate(storage: cell): cell { return beginCell().endCell(); }
+
+@method_id(1001)
+fun version(): slice { return CONTRACT_VERSION; }
