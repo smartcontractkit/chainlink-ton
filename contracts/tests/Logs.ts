@@ -12,6 +12,7 @@ import {
 } from '../wrappers/ccip/OffRamp'
 import { prettifyAddressesMap } from './utils/prettyPrint'
 import { crc32 } from 'zlib'
+import * as OR from '../wrappers/ccip/OnRamp'
 
 // https://github.com/ton-blockchain/liquid-staking-contract/blob/1f4e9badbed52a4cf80cc58e4bb36ed375c6c8e7/utils.ts#L269-L294
 export const getExternals = (transactions: BlockchainTransaction[]) => {
@@ -64,7 +65,7 @@ type LogTypeMap = {
   [CCIPLogs.LogTypes.SourceChainSelectorAdded]: CCIPLogs.SourceChainSelectorAdded
   [CCIPLogs.LogTypes.SourceChainConfigUpdated]: CCIPLogs.SourceChainConfigUpdated
   [CCIPLogs.LogTypes.DestChainSelectorAdded]: CCIPLogs.DestChainSelectorAdded
-  [CCIPLogs.LogTypes.DestChainConfigUpdated]: CCIPLogs.DestChainConfigUpdated
+  [CCIPLogs.LogTypes.DestChainConfigUpdated]: DeepPartial<CCIPLogs.DestChainConfigUpdated>
   [OCR3Logs.LogTypes.OCR3BaseConfigSet]: OCR3Logs.OCR3BaseConfigSet
   [OCR3Logs.LogTypes.OCR3BaseTransmitted]: DeepPartial<OCR3Logs.OCR3BaseTransmitted>
   [ReceiverLogs.LogTypes.ReceiverCCIPMessageReceived]: ReceiverLogs.ReceiverCCIPMessageReceived
@@ -107,7 +108,7 @@ const handlers: { [K in CombinedLogType]: Handler<K> } = {
     testLogDestChainSelectorAdded(x, from, match as CCIPLogs.DestChainSelectorAdded),
 
   [CCIPLogs.LogTypes.DestChainConfigUpdated]: (x, from, match) =>
-    testLogDestChainConfigUpdated(x, from, match as CCIPLogs.DestChainConfigUpdated),
+    testLogDestChainConfigUpdated(x, from, match as DeepPartial<CCIPLogs.DestChainConfigUpdated>),
 
   [ReceiverLogs.LogTypes.ReceiverCCIPMessageReceived]: (x, from, match) =>
     testLogReceiverCCIPMessageReceived(x, from, match as ReceiverLogs.ReceiverCCIPMessageReceived),
@@ -366,15 +367,15 @@ export const testLogDestChainSelectorAdded = (
 export const testLogDestChainConfigUpdated = (
   message: Message,
   from: Address,
-  match: CCIPLogs.DestChainConfigUpdated,
+  match: DeepPartial<CCIPLogs.DestChainConfigUpdated>,
 ) => {
   return testLog(message, from, CCIPLogs.LogTypes.DestChainConfigUpdated, (x) => {
     const cs = x.beginParse()
     const msg = {
       destChainSelector: cs.loadUintBig(64),
-      config: sourceChainConfigFromSlice(cs),
+      config: OR.builder.data.destChainConfig().load(cs),
     }
-    equalsObject(msg, match)
+    matchesObject(msg, match)
     return true
   })
 }
