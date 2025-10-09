@@ -237,6 +237,7 @@ describe('Router', () => {
           deploy: false,
           success: true,
         })
+        assertLog(result.transactions, onRamp.address, LogTypes.DestChainSelectorAdded, {destChainSelector: CHAINSEL_EVM_TEST_90000001})
         assertLog(result.transactions, onRamp.address, LogTypes.DestChainConfigUpdated, {destChainSelector: CHAINSEL_EVM_TEST_90000001, config})
       }
     }
