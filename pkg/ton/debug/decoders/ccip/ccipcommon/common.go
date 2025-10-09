@@ -1,4 +1,4 @@
-package common
+package ccipcommon
 
 import (
 	"github.com/xssnick/tonutils-go/address"

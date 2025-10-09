@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -38,7 +39,7 @@ Arguments:
   url       tonscan TX URL`,
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) != 1 && len(args) != 2 {
-			return fmt.Errorf("requires 1 argument (URL) or 2 arguments (<tx-hash> <address>)")
+			return errors.New("requires 1 argument (URL) or 2 arguments (<tx-hash> <address>)")
 		}
 		return nil
 	},
@@ -50,20 +51,20 @@ Arguments:
 		txHash, address, parsedNet, parseURLErr = explorer.ParseURL(urlOrTx)
 		if parseURLErr == nil {
 			if cmd.Root().Flags().Changed("net") {
-				return fmt.Errorf("cannot specify network flag when using URL")
+				return errors.New("cannot specify network flag when using URL")
 			}
 			net = parsedNet
 		} else {
 			// Not a URL, treat as tx-hash
-			if len(urlOrTx) == 64 || (len(urlOrTx) == 66 && strings.HasPrefix(urlOrTx, "0x")) {
-				_, err := hex.DecodeString(strings.TrimPrefix(urlOrTx, "0x"))
-				if err != nil {
-					return fmt.Errorf("invalid transaction hash or url: %w", err)
-				}
-				txHash = urlOrTx
-			} else {
+			if len(urlOrTx) != 64 && (len(urlOrTx) != 66 || !strings.HasPrefix(urlOrTx, "0x")) {
 				return fmt.Errorf("failed to parse URL: %w", parseURLErr)
 			}
+
+			_, err := hex.DecodeString(strings.TrimPrefix(urlOrTx, "0x"))
+			if err != nil {
+				return fmt.Errorf("invalid transaction hash or url: %w", err)
+			}
+			txHash = urlOrTx
 		}
 
 		if len(args) == 2 {
