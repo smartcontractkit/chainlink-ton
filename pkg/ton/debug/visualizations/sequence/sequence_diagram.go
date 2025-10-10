@@ -48,7 +48,7 @@ func NewVisualization(fmt OutputFmt) lib.DebuggerVisualization {
 func (v *visualization) ToString() string {
 	diagramStr := v.Diagram.String()
 	switch v.Format {
-	case v.Format:
+	case OutputFmtURL:
 		// Compress with zlib and base64 encode
 		var buf bytes.Buffer
 		w := zlib.NewWriter(&buf)
@@ -72,7 +72,6 @@ func (v *visualization) ToString() string {
 }
 
 func (v *visualization) NewActor(address string, contractType deployment.ContractType, name string) {
-	fmt.Println("Registering actor:", address, contractType, name)
 	if _, exists := v.Actors[address]; !exists {
 		if name != "" {
 			v.Actors[address] = name
@@ -115,7 +114,6 @@ func (v *visualization) actorFromAddr(addr *address.Address) *sequence.Actor {
 	name := v.describeAddr(addr)
 	id := strings.ReplaceAll(addr.StringRaw(), ":", "_")
 	if actor, ok = v.ActiveActors[id]; !ok {
-		fmt.Println("adding active actor: ", id, "\n", name, "\n=====")
 		actor = v.Diagram.AddActor(id, name, sequence.ActorParticipant)
 		v.ActiveActors[id] = actor
 	}
@@ -142,8 +140,6 @@ func (v *visualization) DescribeReceivedMessage(m *tt.ReceivedMessage, info lib.
 
 func (v *visualization) describeAddr(addr *address.Address) string {
 	addrStr := addr.String()
-	fmt.Println("looking for ", addrStr)
-	fmt.Println("in actors:", v.Actors)
 	if name, exists := v.Actors[addrStr]; exists {
 		return name
 	}
