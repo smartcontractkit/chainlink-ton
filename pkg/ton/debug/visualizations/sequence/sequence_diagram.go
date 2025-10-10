@@ -115,6 +115,7 @@ func (v *visualization) actorFromAddr(addr *address.Address) *sequence.Actor {
 	name := v.describeAddr(addr)
 	id := strings.ReplaceAll(addr.StringRaw(), ":", "_")
 	if actor, ok = v.ActiveActors[id]; !ok {
+		fmt.Println("adding active actor: ", id, "\n", name, "\n=====")
 		actor = v.Diagram.AddActor(id, name, sequence.ActorParticipant)
 		v.ActiveActors[id] = actor
 	}
