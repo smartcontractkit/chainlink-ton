@@ -25,6 +25,15 @@ type ExecutionStateChanged struct {
 	State               uint8  `tlb:"## 8"`
 }
 
+type SourceChainConfigUpdated struct {
+	SourcehainSelector uint64            `tlb:"## 64"`
+	SourceChainConfig SourceChainConfig `tlb:"."`
+}
+
+type SourceChainSelectorAdded struct {
+	SourceChainSelector uint64 `tlb:"## 64"`
+}
+
 type Storage struct {
 	ID                                      uint32              `tlb:"## 32"`
 	Ownable                                 common.Ownable2Step `tlb:"."`
