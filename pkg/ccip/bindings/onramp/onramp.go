@@ -17,6 +17,15 @@ type CCIPMessageSent struct {
 	Message ocr.TVM2AnyRampMessage `tlb:"."`
 }
 
+type DestChainSelectorAdded struct {
+	DestChainSelector uint64 `tlb:"## 64"`
+}
+
+type DestChainSelectorUpdated struct {
+	DestChainSelector uint64          `tlb:"## 64"`
+	Config		  DestChainConfig `tlb:"."`
+}
+
 // GenericExtraArgsV2 represents generic extra arguments for transactions.
 type GenericExtraArgsV2 struct {
 	_                        tlb.Magic `tlb:"#181dcf10"` //nolint:revive // Ignore opcode tag // hex encoded bytes4(keccak256("CCIP EVMExtraArgsV2")), can be verified with hexutil.MustDecode("0x181dcf10")
