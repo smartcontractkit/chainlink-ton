@@ -52,12 +52,12 @@ func NewDebuggerTreeTrace(addresses map[string]cldf.TypeAndVersion) DebuggerEnvi
 	}
 }
 
-func NewDebuggerSequenceTrace(addresses map[string]cldf.TypeAndVersion) DebuggerEnvironment {
+func NewDebuggerSequenceTrace(addresses map[string]cldf.TypeAndVersion, outputFmt sequence.OutputFmt) DebuggerEnvironment {
 	return DebuggerEnvironment{
 		existingAddresses: addresses,
 		contracts:         defaultDecoders(),
 		writerFactory: func(d DebuggerEnvironment) lib.DebuggerVisualization {
-			writer := sequence.NewVisualization()
+			writer := sequence.NewVisualization(outputFmt)
 			for addr, typeAndVersion := range d.existingAddresses {
 				writer.NewActor(addr, typeAndVersion.Type, "")
 			}

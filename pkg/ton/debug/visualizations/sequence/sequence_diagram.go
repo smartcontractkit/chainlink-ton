@@ -1,7 +1,11 @@
 package sequence
 
 import (
+	"bytes"
+	"compress/zlib"
+	"encoding/base64"
 	"fmt"
+	"net/url"
 	"strings"
 
 	"github.com/xssnick/tonutils-go/address"
@@ -19,9 +23,17 @@ type visualization struct {
 	Actors       map[string]string // address -> name
 	ActiveActors map[string]*sequence.Actor
 	Diagram      *sequence.Diagram
+	Format       OutputFmt
 }
 
-func NewVisualization() lib.DebuggerVisualization {
+type OutputFmt int
+
+const (
+	OutputFmtURL OutputFmt = iota
+	OutputFmtRaw
+)
+
+func NewVisualization(fmt OutputFmt) lib.DebuggerVisualization {
 	diagram := sequence.NewDiagram()
 	diagram.Config.SetMessageAlign("left")
 	diagram.Config.SetNoteAlign("left")
@@ -29,11 +41,34 @@ func NewVisualization() lib.DebuggerVisualization {
 		Actors:       make(map[string]string),
 		ActiveActors: make(map[string]*sequence.Actor),
 		Diagram:      diagram,
+		Format:       fmt,
 	}
 }
 
 func (v *visualization) ToString() string {
-	return v.Diagram.String()
+	diagramStr := v.Diagram.String()
+	switch v.Format {
+	case v.Format:
+		// Compress with zlib and base64 encode
+		var buf bytes.Buffer
+		w := zlib.NewWriter(&buf)
+		_, err := w.Write([]byte(diagramStr))
+		if err != nil {
+			return "failed to write to zlib writer: " + err.Error()
+		}
+		err = w.Close()
+		if err != nil {
+			return "failed to close zlib writer: " + err.Error()
+		}
+		zlibEncodedDiagram := base64.StdEncoding.EncodeToString(buf.Bytes())
+
+		mermaidURL := "https://www.mermaidchart.com/play#pako:" + url.PathEscape(zlibEncodedDiagram)
+		return mermaidURL
+	case OutputFmtRaw:
+		return diagramStr
+	default:
+		return "unknown format"
+	}
 }
 
 func (v *visualization) NewActor(address string, contractType deployment.ContractType, name string) {
