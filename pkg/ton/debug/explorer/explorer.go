@@ -303,13 +303,19 @@ func (c *client) queryOutgoingMessages(ctx context.Context, block *ton.BlockIDEx
 }
 
 func (c *client) queryActorIfNotVisited(ctx context.Context, block *ton.BlockIDExt, addr *address.Address, knownActors map[string]deployment.TypeAndVersion, visited map[string]bool) error {
+	c.lggr.Debug("queryActorIfNotVisited", addr.String())
+	c.lggr.Debug("visited:", visited)
+	c.lggr.Debug("knownActors:", knownActors)
 	if visited[addr.String()] {
+		c.lggr.Debug("already visited", addr.String())
 		return nil
 	}
 	if _, known := knownActors[addr.String()]; known {
 		visited[addr.String()] = true
+		c.lggr.Debug("actor found in knownActors", addr.String())
 		return nil
 	}
+	c.lggr.Debug("actor not known")
 	var typeVersion common.TypeAndVersion
 	result, err := c.connection.RunGetMethod(ctx, block, addr, "typeAndVersion")
 	defer func() {
