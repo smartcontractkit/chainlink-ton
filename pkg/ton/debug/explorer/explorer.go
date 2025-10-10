@@ -226,11 +226,13 @@ func (c *client) PrintTrace(ctx context.Context, txHashStr string, srcAddresstr 
 		return fmt.Errorf("failed to wait for trace: %w", err)
 	}
 
+	c.lggr.Debug("actors before query:\n", knownActors)
 	c.lggr.Info("querying actors")
 	err = c.queryActors(ctx, &recvMsg, knownActors)
 	if err != nil {
 		return fmt.Errorf("failed to query actors: %w", err)
 	}
+	c.lggr.Debug("actors after query:\n", knownActors)
 
 	c.lggr.Info("full trace received:")
 
