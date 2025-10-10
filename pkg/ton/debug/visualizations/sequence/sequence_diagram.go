@@ -72,6 +72,7 @@ func (v *visualization) ToString() string {
 }
 
 func (v *visualization) NewActor(address string, contractType deployment.ContractType, name string) {
+	fmt.Println("Registering actor:", address, contractType, name)
 	if _, exists := v.Actors[address]; !exists {
 		if name != "" {
 			v.Actors[address] = name
@@ -140,6 +141,8 @@ func (v *visualization) DescribeReceivedMessage(m *tt.ReceivedMessage, info lib.
 
 func (v *visualization) describeAddr(addr *address.Address) string {
 	addrStr := addr.String()
+	fmt.Println("looking for ", addrStr)
+	fmt.Println("in actors:", v.Actors)
 	if name, exists := v.Actors[addrStr]; exists {
 		return name
 	}
