@@ -90,7 +90,7 @@ Arguments:
 			}
 
 			ctx := context.Background()
-			client, err := Connect(net, verbose, pageSize, maxPages)
+			client, err := Connect(lggr, net, verbose, pageSize, maxPages)
 			if err != nil {
 				return fmt.Errorf("failed to initialize explorer: %w", err)
 			}
@@ -145,12 +145,13 @@ func parseFormat(visualization string, format string) (Format, error) {
 // - verbose: Whether to enable verbose output.
 // - pageSize: The number of transactions to fetch per page.
 // - maxPages: The maximum number of pages to fetch.
-func Connect(net string, verbose bool, pageSize uint32, maxPages uint32) (*client, error) {
+func Connect(lggr logger.Logger, net string, verbose bool, pageSize uint32, maxPages uint32) (*client, error) {
 	apiClient, err := connect(context.Background(), net)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to network: %w", err)
 	}
 	return &client{
+		lggr:       lggr,
 		connection: apiClient,
 		net:        net,
 		verbose:    verbose,
