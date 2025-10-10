@@ -166,10 +166,9 @@ func (a *TONAccessor) GetAllConfigsLegacy(ctx context.Context, destChainSelector
 }
 
 func (a *TONAccessor) GetChainFeeComponents(ctx context.Context) (ccipocr3.ChainFeeComponents, error) {
-	// TODO(NONEVM-2364) implement me
 	return ccipocr3.ChainFeeComponents{
-		ExecutionFee:        big.NewInt(1),
-		DataAvailabilityFee: big.NewInt(1),
+		ExecutionFee:        big.NewInt(400), // Basechain costs are 400 nanotons (400e-9), and TON has 9 decimals
+		DataAvailabilityFee: big.NewInt(0),   // there are no storage fees per tx, instead contracts pay rent
 	}, nil
 }
 
@@ -325,6 +324,7 @@ func (a *TONAccessor) GetExpectedNextSequenceNumber(ctx context.Context, dest cc
 	return ccipocr3.SeqNum(value.Uint64()), nil
 }
 
+// GetTokenPriceUSD returns price per TON, with 18 decimals
 func (a *TONAccessor) GetTokenPriceUSD(ctx context.Context, rawTokenAddress ccipocr3.UnknownAddress) (ccipocr3.TimestampedUnixBig, error) {
 	addr, err := a.getBinding(consts.ContractNameFeeQuoter)
 	if err != nil {
