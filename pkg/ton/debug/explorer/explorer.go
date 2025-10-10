@@ -26,7 +26,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 )
 
-func GenerateExplorerCmd() *cobra.Command {
+func GenerateExplorerCmd(contracts map[string]deployment.TypeAndVersion) *cobra.Command {
 
 	var (
 		destAddressStr string
@@ -88,17 +88,17 @@ Arguments:
 			}
 
 			ctx := context.Background()
-			client, parseURLErr := Connect(net, verbose, pageSize, maxPages)
-			if parseURLErr != nil {
-				return fmt.Errorf("failed to initialize explorer: %w", parseURLErr)
+			client, err := Connect(net, verbose, pageSize, maxPages)
+			if err != nil {
+				return fmt.Errorf("failed to initialize explorer: %w", err)
 			}
 			explorerFormat, err := parseFormat(visualization, format)
 			if err != nil {
 				return fmt.Errorf("failed to parse format: %w", err)
 			}
-			parseURLErr = client.PrintTrace(ctx, txHash, address, explorerFormat)
-			if parseURLErr != nil {
-				return fmt.Errorf("failed to execute trace: %w", parseURLErr)
+			err = client.PrintTrace(ctx, txHash, address, explorerFormat, contracts)
+			if err != nil {
+				return fmt.Errorf("failed to execute trace: %w", err)
 			}
 			return nil
 		},
@@ -182,7 +182,7 @@ const (
 // - ctx: The context for managing request deadlines and cancellation.
 // - txHashStr: The transaction hash in hexadecimal format.
 // - srcAddresstr: The source address of the transaction in string format.
-func (c *client) PrintTrace(ctx context.Context, txHashStr string, srcAddresstr string, format Format) error {
+func (c *client) PrintTrace(ctx context.Context, txHashStr string, srcAddresstr string, format Format, knownActors map[string]deployment.TypeAndVersion) error {
 	var senderAddr *address.Address
 	var err error
 	if srcAddresstr == "" {
@@ -225,7 +225,6 @@ func (c *client) PrintTrace(ctx context.Context, txHashStr string, srcAddresstr 
 	if err != nil {
 		return fmt.Errorf("failed to wait for trace: %w", err)
 	}
-	knownActors := map[string]deployment.TypeAndVersion{} // TODO fill from cld address book
 
 	fmt.Println("querying actors")
 	err = c.queryActors(ctx, &recvMsg, knownActors)
