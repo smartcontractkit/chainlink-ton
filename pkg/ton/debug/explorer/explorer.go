@@ -18,6 +18,8 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 
+	"github.com/smartcontractkit/wsrpc/logger"
+
 	"github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
@@ -26,7 +28,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 )
 
-func GenerateExplorerCmd(contracts map[string]deployment.TypeAndVersion) *cobra.Command {
+func GenerateExplorerCmd(lggr logger.Logger, contracts map[string]deployment.TypeAndVersion) *cobra.Command {
 
 	var (
 		destAddressStr string
@@ -158,6 +160,7 @@ func Connect(net string, verbose bool, pageSize uint32, maxPages uint32) (*clien
 }
 
 type client struct {
+	lggr       logger.Logger
 	connection *ton.APIClient
 	net        string
 	verbose    bool
@@ -186,16 +189,12 @@ func (c *client) PrintTrace(ctx context.Context, txHashStr string, srcAddresstr 
 	var senderAddr *address.Address
 	var err error
 	if srcAddresstr == "" {
-		if c.verbose {
-			fmt.Println("source address not provided, attempting to fetch from toncenter by hash...")
-		}
+		c.lggr.Debug("source address not provided, attempting to fetch from toncenter by hash...")
 		senderAddr, err = c.GetSenderAddressFromTxHash(ctx, txHashStr)
 		if err != nil {
 			return fmt.Errorf("failed to get sender address from tx hash: %w", err)
 		}
-		if c.verbose {
-			fmt.Println("source address found:", senderAddr.String())
-		}
+		c.lggr.Debug("source address found:", senderAddr.String())
 	} else {
 		senderAddr, err = address.ParseAddr(srcAddresstr)
 		if err != nil {
@@ -212,27 +211,27 @@ func (c *client) PrintTrace(ctx context.Context, txHashStr string, srcAddresstr 
 		return err
 	}
 
-	fmt.Println("tx found in lt:", tx.LT)
+	c.lggr.Info("tx found in lt:", tx.LT)
 
 	recvMsg, err := tracetracking.MapToReceivedMessage(tx)
 	if err != nil {
 		return fmt.Errorf("failed to map transaction to received message: %w", err)
 	}
 
-	fmt.Println("waiting for full trace...")
+	c.lggr.Info("waiting for full trace...")
 
 	err = recvMsg.WaitForTrace(c.connection)
 	if err != nil {
 		return fmt.Errorf("failed to wait for trace: %w", err)
 	}
 
-	fmt.Println("querying actors")
+	c.lggr.Info("querying actors")
 	err = c.queryActors(ctx, &recvMsg, knownActors)
 	if err != nil {
 		return fmt.Errorf("failed to query actors: %w", err)
 	}
 
-	fmt.Println("full trace received:")
+	c.lggr.Info("full trace received:")
 
 	var debugger debug.DebuggerEnvironment
 	switch format {
@@ -245,7 +244,7 @@ func (c *client) PrintTrace(ctx context.Context, txHashStr string, srcAddresstr 
 	default:
 		return errors.New("unknown format")
 	}
-	fmt.Println(debugger.DumpReceived(&recvMsg, c.verbose))
+	c.lggr.Info(debugger.DumpReceived(&recvMsg, c.verbose))
 
 	return nil
 }

@@ -613,6 +613,8 @@ github.com/smartcontractkit/libocr v0.0.0-20250905115425-2785a5cee79d h1:/0/80Ic
 github.com/smartcontractkit/libocr v0.0.0-20250905115425-2785a5cee79d/go.mod h1:Acy3BTBxou83ooMESLO90s8PKSu7RvLCzwSTbxxfOK0=
 github.com/smartcontractkit/mcms v0.25.0 h1:GTkG6jQ2CYoVQFKkRQnA42IvUrR4gObeHqwrQNRhmGM=
 github.com/smartcontractkit/mcms v0.25.0/go.mod h1:7v5DNfWqIS81nISbuFBrlV1QHZfD+pFQzjsxqqhcK9o=
+github.com/smartcontractkit/wsrpc v0.8.4 h1:pgNfTzq2tr3gs2ztP3x12+sUckyIo4Pms04508U5544=
+github.com/smartcontractkit/wsrpc v0.8.4/go.mod h1:2u/wfnhl5R4RlSXseN4n6HHIWk8w1Am3AT6gWftQbNg=
 github.com/spf13/cast v1.10.0 h1:h2x0u2shc1QuLHfxi+cTJvs30+ZAHOGRic8uyGTDWxY=
 github.com/spf13/cast v1.10.0/go.mod h1:jNfB8QC9IA6ZuY2ZjDp0KtFO2LZZlg4S/7bzP6qqeHo=
 github.com/spf13/cobra v1.10.1 h1:lJeBwCfmrnXthfAupyUTzJ/J4Nc1RsHC/mSRU2dll/s=
