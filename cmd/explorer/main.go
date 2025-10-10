@@ -20,6 +20,7 @@ var (
 	verbose        bool
 	pageSize       uint32
 	maxPages       uint32
+	visualization  string
 	format         string
 )
 
@@ -76,7 +77,11 @@ Arguments:
 		if parseURLErr != nil {
 			return fmt.Errorf("failed to initialize explorer: %w", parseURLErr)
 		}
-		parseURLErr = client.PrintTrace(ctx, txHash, address, format)
+		explorerFormat, err := parseFormat(visualization, format)
+		if err != nil {
+			return fmt.Errorf("failed to parse format: %w", err)
+		}
+		parseURLErr = client.PrintTrace(ctx, txHash, address, explorerFormat)
 		if parseURLErr != nil {
 			return fmt.Errorf("failed to execute trace: %w", parseURLErr)
 		}
@@ -84,9 +89,29 @@ Arguments:
 	},
 }
 
+func parseFormat(visualization string, format string) (explorer.Format, error) {
+	switch visualization {
+	case "tree":
+		if format != "" {
+			return explorer.Format(0), fmt.Errorf("format option is not applicable for tree visualization")
+		}
+		return explorer.FormatTree, nil
+	case "sequence":
+		switch format {
+		case "", "url":
+			return explorer.FormatSequenceURL, nil
+		case "raw":
+			return explorer.FormatSequenceRaw, nil
+		}
+		return explorer.Format(0), fmt.Errorf("invalid sequence format: %s", format)
+	}
+	return explorer.Format(0), fmt.Errorf("invalid visualization format: %s", format)
+}
+
 func init() {
 	rootCmd.Flags().StringVarP(&destAddressStr, "address", "a", "", "Destination address in base64 (optional if provided as argument)")
-	rootCmd.Flags().StringVarP(&format, "format", "f", "", "Visualization format (tree or sequence)")
+	rootCmd.Flags().StringVarP(&visualization, "visualization", "V", "sequence", "Visualization format (sequence or tree)")
+	rootCmd.Flags().StringVarP(&format, "format", "f", "", "Sequence visualization format (url or raw) (only for sequence visualization)")
 	rootCmd.Flags().StringVarP(&txHashStr, "tx", "t", "", "Transaction hash in hex (optional if provided as argument)")
 	rootCmd.Flags().StringVarP(&net, "net", "n", "testnet", "TON network (mainnet, testnet, mylocalton, or http://domain/x.global.config.json)")
 	rootCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Shows full body of unmatched messages")

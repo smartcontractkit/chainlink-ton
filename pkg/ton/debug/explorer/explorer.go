@@ -20,6 +20,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/visualizations/sequence"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 )
 
@@ -53,6 +54,14 @@ type client struct {
 	maxPages   uint32
 }
 
+type Format int
+
+const (
+	FormatTree Format = iota
+	FormatSequenceURL
+	FormatSequenceRaw
+)
+
 // PrintTrace connects to the specified TON network, retrieves the transaction
 // by the given source address and transaction hash, and prints the full execution
 // trace of the transaction, including all outgoing messages and their subsequent
@@ -60,8 +69,9 @@ type client struct {
 //
 // Parameters:
 // - ctx: The context for managing request deadlines and cancellation.
+// - txHashStr: The transaction hash in hexadecimal format.
 // - srcAddresstr: The source address of the transaction in string format.
-func (c *client) PrintTrace(ctx context.Context, txHashStr string, srcAddresstr string, visualization string) error {
+func (c *client) PrintTrace(ctx context.Context, txHashStr string, srcAddresstr string, format Format) error {
 	var senderAddr *address.Address
 	var err error
 	if srcAddresstr == "" {
@@ -115,10 +125,15 @@ func (c *client) PrintTrace(ctx context.Context, txHashStr string, srcAddresstr 
 	fmt.Println("full trace received:")
 
 	var debugger debug.DebuggerEnvironment
-	if visualization == "sequence" {
-		debugger = debug.NewDebuggerSequenceTrace(knownActors)
-	} else {
+	switch format {
+	case FormatSequenceURL:
+		debugger = debug.NewDebuggerSequenceTrace(knownActors, sequence.OutputFmtURL)
+	case FormatSequenceRaw:
+		debugger = debug.NewDebuggerSequenceTrace(knownActors, sequence.OutputFmtRaw)
+	case FormatTree:
 		debugger = debug.NewDebuggerTreeTrace(knownActors)
+	default:
+		return errors.New("unknown format")
 	}
 	fmt.Println(debugger.DumpReceived(&recvMsg, c.verbose))
 
