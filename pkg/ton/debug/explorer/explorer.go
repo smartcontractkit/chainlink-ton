@@ -145,21 +145,16 @@ func (c *client) queryActorsReceivedRec(ctx context.Context, block *ton.BlockIDE
 			return err
 		}
 		err = c.queryOutgoingMessages(ctx, block, message.OutgoingInternalSentMessages, message.OutgoingInternalReceivedMessages, knownActors, visited)
-		if err != nil {
-			return err
-		}
+		return err
 	} else if message.ExternalMsg != nil {
 		err := c.queryActorIfNotVisited(ctx, block, message.ExternalMsg.DstAddr, knownActors, visited)
 		if err != nil {
 			return err
 		}
 		err = c.queryOutgoingMessages(ctx, block, message.OutgoingInternalSentMessages, message.OutgoingInternalReceivedMessages, knownActors, visited)
-		if err != nil {
-			return err
-		}
+		return err
 	}
-	fmt.Println(errors.New("unknown message type").Error())
-	return nil
+	return fmt.Errorf("unknown message type: %+v", message)
 }
 
 func (c *client) queryOutgoingMessages(ctx context.Context, block *ton.BlockIDExt, outgoingSentMessages []*tracetracking.SentMessage, outgoingReceivedMessages []*tracetracking.ReceivedMessage, knownActors map[string]deployment.TypeAndVersion, visited map[string]bool) error {
