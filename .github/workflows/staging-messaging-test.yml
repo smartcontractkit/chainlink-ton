@@ -51,7 +51,8 @@ jobs:
         id: test
         run: |
           cd staging-messaging-test
-          nix develop -c go run ./cmd/${{ matrix.test }} > result.json 2>&1 || true
+          nix develop -c go run ./cmd/${{ matrix.test }} > result.json || true
+          echo "=== Test Result JSON ==="
           cat result.json
 
       - name: Send Slack notification
