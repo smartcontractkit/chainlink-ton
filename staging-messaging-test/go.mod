@@ -9,7 +9,6 @@ require (
 	github.com/smartcontractkit/chainlink-ccip v0.1.1-solana.0.20250930202440-88c08e65d960
 	github.com/smartcontractkit/chainlink-common v0.9.6-0.20251003171904-99a82a53b142
 	github.com/smartcontractkit/chainlink-ton v0.0.0
-	github.com/stretchr/testify v1.10.0
 	github.com/xssnick/tonutils-go v1.14.1
 )
 
@@ -26,7 +25,6 @@ require (
 	github.com/cpuguy83/go-md2man/v2 v2.0.6 // indirect
 	github.com/crate-crypto/go-eth-kzg v1.3.0 // indirect
 	github.com/crate-crypto/go-ipa v0.0.0-20240724233137-53bbb0ceb27a // indirect
-	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/deckarep/golang-set/v2 v2.6.0 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0 // indirect
 	github.com/ethereum/c-kzg-4844/v2 v2.1.0 // indirect
@@ -48,7 +46,6 @@ require (
 	github.com/pion/dtls/v2 v2.2.12 // indirect
 	github.com/pion/transport/v2 v2.2.10 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/rs/cors v1.11.1 // indirect
 	github.com/shirou/gopsutil v3.21.11+incompatible // indirect
