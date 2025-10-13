@@ -23,7 +23,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ccip/chains/evm/gobindings/generated/v1_2_0/router"
 	"github.com/smartcontractkit/chainlink-ccip/chains/evm/gobindings/generated/v1_6_0/message_hasher"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
-	"github.com/smartcontractkit/chainlink/v2/core/capabilities/ccip/ccipevm"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/staging-messaging-test/lib"
@@ -93,13 +92,13 @@ func (c *Client) SendMessage(ctx context.Context, lggr logger.Logger, msg lib.Me
 		return nil, fmt.Errorf("failed to parse router ABI: %w", err)
 	}
 
-	// Build extra args using standard serializer
-	extraArgsBytes, err := ccipevm.SerializeClientGenericExtraArgsV2(message_hasher.ClientGenericExtraArgsV2{
+	// Build extra args manually
+	extraArgsBytes, err := buildEVMExtraArgsV2(message_hasher.ClientGenericExtraArgsV2{
 		GasLimit:                 big.NewInt(lib.EVMDefaultGasLimit),
 		AllowOutOfOrderExecution: true,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to serialize extra args: %w", err)
+		return nil, fmt.Errorf("failed to build extra args: %w", err)
 	}
 
 	// Construct EVM2AnyMessage
