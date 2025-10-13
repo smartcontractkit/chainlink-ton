@@ -259,7 +259,7 @@ func (c *Client) WaitForMessageReceived(ctx context.Context, lggr logger.Logger,
 				}
 
 				gotData := string(decoded.Data)
-				gotMessageID := hex.EncodeToString(decoded.MessageID[:])
+				gotMessageID := hex.EncodeToString(decoded.MessageId[:])
 
 				// Match on messageID if provided, otherwise match on data
 				if messageID != "" && gotMessageID != messageID {
@@ -277,4 +277,13 @@ func (c *Client) WaitForMessageReceived(ctx context.Context, lggr logger.Logger,
 			startBlock = nextStart
 		}
 	}
+}
+
+func (c *Client) GetBalance(ctx context.Context, address string) (string, error) {
+	addr := common.HexToAddress(address)
+	balance, err := c.client.BalanceAt(ctx, addr, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to get balance: %w", err)
+	}
+	return formatETH(balance), nil
 }

@@ -2,6 +2,8 @@ package tests
 
 import (
 	"context"
+	"os"
+	"strconv"
 	"testing"
 	"time"
 
@@ -21,7 +23,13 @@ func Test_EVM2TON(t *testing.T) {
 	lggr, err := logger.New()
 	require.NoError(t, err, "failed to create logger")
 
-	args, err := lib.LoadArgs(lib.EVMSepoliaSelector, lib.TONTestnetSelector)
+	// Read selectors from environment
+	evmSelector, err := strconv.ParseUint(os.Getenv("ETHEREUM_TESTNET_SEPOLIA_SELECTOR"), 10, 64)
+	require.NoError(t, err, "ETHEREUM_TESTNET_SEPOLIA_SELECTOR not set or invalid")
+	tonSelector, err := strconv.ParseUint(os.Getenv("TON_TESTNET_SELECTOR"), 10, 64)
+	require.NoError(t, err, "TON_TESTNET_SELECTOR not set or invalid")
+
+	args, err := lib.LoadArgs(evmSelector, tonSelector)
 	require.NoError(t, err)
 	tc, err := lib.SetupContext(ctx, lggr, args)
 	require.NoError(t, err)

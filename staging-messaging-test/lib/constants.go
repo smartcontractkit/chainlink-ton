@@ -25,9 +25,3 @@ const (
 	TONTxBatchSize            uint32 = 100                     // Number of transactions to fetch per batch
 	TONPollInterval                  = 2500 * time.Millisecond // How often to poll for new TON blocks
 )
-
-// Chain selectors for staging tests
-const (
-	EVMSepoliaSelector = 16015286601757825753
-	TONTestnetSelector = 1399300952838017768
-)

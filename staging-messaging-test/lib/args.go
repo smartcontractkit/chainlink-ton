@@ -25,6 +25,8 @@ type Client interface {
 	WaitForMessageReceived(ctx context.Context, lggr logger.Logger, receiver string, messageID string, expectedData string, startBlock uint64) error
 	// GetCurrentBlock returns the current block number
 	GetCurrentBlock(ctx context.Context) (uint64, error)
+	// GetBalance returns the balance of the given address
+	GetBalance(ctx context.Context, address string) (string, error)
 }
 
 // MessageToSend contains all params needed to send a CCIP message
@@ -48,6 +50,11 @@ var clientFactories = make(map[string]ClientFactory)
 
 func RegisterClientFactory(family string, factory ClientFactory) {
 	clientFactories[family] = factory
+}
+
+func GetClientFactory(family string) (ClientFactory, bool) {
+	factory, ok := clientFactories[family]
+	return factory, ok
 }
 
 // TestArgs holds test configuration
@@ -108,11 +115,11 @@ func LoadArgs(srcChainSel, destChainSel uint64) (TestArgs, error) {
 		}
 	})
 
-	srcChainName, err := getChainName(srcChainSel)
+	srcChainName, err := GetChainName(srcChainSel)
 	if err != nil {
 		return TestArgs{}, fmt.Errorf("failed to get source chain name: %w", err)
 	}
-	destChainName, err := getChainName(destChainSel)
+	destChainName, err := GetChainName(destChainSel)
 	if err != nil {
 		return TestArgs{}, fmt.Errorf("failed to get destination chain name: %w", err)
 	}
@@ -132,7 +139,7 @@ func LoadArgs(srcChainSel, destChainSel uint64) (TestArgs, error) {
 	}, nil
 }
 
-func getChainName(chainSel uint64) (string, error) {
+func GetChainName(chainSel uint64) (string, error) {
 	chainID, err := chainsel.GetChainIDFromSelector(chainSel)
 	if err != nil {
 		return "", fmt.Errorf("failed to get chain ID from selector %d: %w", chainSel, err)

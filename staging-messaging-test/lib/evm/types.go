@@ -6,7 +6,7 @@ import (
 
 // MessageReceivedEvent represents the MessageReceived event structure
 type MessageReceivedEvent struct {
-	MessageID           [32]byte
+	MessageId           [32]byte
 	SourceChainSelector uint64
 	Sender              []byte
 	Data                []byte

@@ -323,3 +323,30 @@ func (c *Client) WaitForMessageReceived(ctx context.Context, lggr logger.Logger,
 		}
 	}
 }
+
+func (c *Client) GetBalance(ctx context.Context, addrStr string) (string, error) {
+	addr, err := address.ParseAddr(addrStr)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse address: %w", err)
+	}
+
+	mc, err := c.client.CurrentMasterchainInfo(ctx)
+	if err != nil {
+		return "", fmt.Errorf("failed to get masterchain info: %w", err)
+	}
+
+	acc, err := c.client.GetAccount(ctx, mc, addr)
+	if err != nil {
+		return "", fmt.Errorf("failed to get account: %w", err)
+	}
+
+	if !acc.IsActive {
+		return "0", nil
+	}
+
+	// Convert nanoTON to TON (divide by 10^9)
+	// acc.State.Balance is tlb.Coins which contains a *big.Int
+	tonAmount := acc.State.Balance.Nano()
+	ton := new(big.Float).Quo(new(big.Float).SetInt(tonAmount), new(big.Float).SetInt64(1e9))
+	return ton.Text('f', 9), nil
+}
