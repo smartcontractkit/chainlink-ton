@@ -31,7 +31,6 @@ import (
 )
 
 func GenerateExplorerCmd(lggr logger.Logger, contracts map[string]deployment.TypeAndVersion, client *ton.APIClient) *cobra.Command {
-
 	var (
 		destAddressStr string
 		txHashStr      string
@@ -127,7 +126,7 @@ func parseFormat(visualization string, format string) (Format, error) {
 	switch visualization {
 	case "tree":
 		if format != "" {
-			return Format(0), fmt.Errorf("format option is not applicable for tree visualization")
+			return Format(0), errors.New("format option is not applicable for tree visualization")
 		}
 		return FormatTree, nil
 	case "sequence":
@@ -604,16 +603,16 @@ func connect(ctx context.Context, net string) (*ton.APIClient, error) {
 			return nil, fmt.Errorf("failed to get config from url: %w", err)
 		}
 
-		// Get the liteserver port mapping (typically port 46995 internally)
+		// Get the liteserver port mapping
 		liteserverConfig := config.Liteservers[0]
-		liteserverPort := strconv.Itoa(int(liteserverConfig.Port))
+		liteserverPort := strconv.Itoa(liteserverConfig.Port)
 		externalLiteserverPort, err := getPortMapping(inspect, liteserverPort)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get port mapping for liteserver: %w", err)
 		}
 
 		// Connect to the liteserver using the external port
-		connectionString := fmt.Sprintf("127.0.0.1:%s", externalLiteserverPort)
+		connectionString := "127.0.0.1:" + externalLiteserverPort
 		err = pool.AddConnection(ctx, connectionString, liteserverConfig.ID.Key)
 		if err != nil {
 			return nil, fmt.Errorf("failed to add localton connection: %w", err)
