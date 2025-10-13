@@ -23,6 +23,7 @@ import (
 	tonlploader "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/loader/account"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/txparser"
 	tonlptypes "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
+	tonchain "github.com/smartcontractkit/chainlink-ton/pkg/ton/chain"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/staging-messaging-test/lib"
 )
@@ -39,20 +40,34 @@ type Client struct {
 	wallet   *wallet.Wallet
 }
 
+func connectClient(ctx context.Context, endpoint string) (*ton.APIClient, error) {
+	if strings.HasPrefix(endpoint, "liteserver://") {
+		pool, err := tonchain.CreateLiteserverConnectionPool(ctx, endpoint)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create liteserver connection pool: %w", err)
+		}
+		return ton.NewAPIClient(pool, ton.ProofCheckPolicyFast), nil
+	} else {
+		cfg, err := liteclient.GetConfigFromUrl(ctx, endpoint)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get TON config: %w", err)
+		}
+		pool := liteclient.NewConnectionPool()
+		err = pool.AddConnectionsFromConfig(ctx, cfg)
+		if err != nil {
+			return nil, fmt.Errorf("failed to connect to TON: %w", err)
+		}
+		return ton.NewAPIClient(pool, ton.ProofCheckPolicyFast), nil
+	}
+}
+
 // NewClient creates a new TON client
 func NewClient(ctx context.Context, lggr logger.Logger, chainSel uint64, endpoint string, walletKey string) (lib.Client, error) {
-	pool := liteclient.NewConnectionPool()
-	cfg, err := liteclient.GetConfigFromUrl(ctx, endpoint)
+	// support both liteserver:// and config URL format
+	client, err := connectClient(ctx, endpoint)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get TON config: %w", err)
+		return nil, fmt.Errorf("failed to get TON client: %w", err)
 	}
-
-	err = pool.AddConnectionsFromConfig(ctx, cfg)
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to TON: %w", err)
-	}
-
-	client := ton.NewAPIClient(pool)
 
 	c := &Client{
 		chainSel: chainSel,
@@ -76,7 +91,7 @@ func NewClient(ctx context.Context, lggr logger.Logger, chainSel uint64, endpoin
 		mc, _ := client.CurrentMasterchainInfo(ctx)
 		balance, _ := w.GetBalance(ctx, mc)
 		lggr.Infow("TON wallet initialized",
-			"address", w.WalletAddress().String(),
+			"address", w.Address().String(),
 			"balance", balance.String())
 	}
 
