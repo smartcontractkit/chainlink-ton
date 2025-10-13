@@ -16,11 +16,19 @@ type TxInfo struct {
 	ExitCode string
 }
 
+// Describes a decoded message or event.
+//
+// - Name is a short name of the message/event type.
+// - Body carries the contents of the message/event in both compact and detailed forms.
 type MessageInfo interface {
 	Name() string
 	Body() BodyInfo
 }
 
+// BodyInfo describes the contents of a message or event.
+//
+// - Compact is a single-line representation.
+// - Describe is a pretty-printed, multi-line representation.
 type BodyInfo interface {
 	Compact() string
 	Describe() string
