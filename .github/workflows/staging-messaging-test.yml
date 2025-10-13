@@ -97,7 +97,8 @@ jobs:
               \"latency\": \"$LATENCY\",
               \"run_url\": \"${{ env.RUN_URL }}\",
               \"trigger\": \"${{ env.TRIGGER }}\",
-              \"when\": \"${{ env.WHEN }}\"
+              \"when\": \"${{ env.WHEN }}\",
+              \"error\": \"$ERROR\"
             }" \
             ${{ secrets.STAGING_TEST_SLACK_WEBHOOK }}
 
