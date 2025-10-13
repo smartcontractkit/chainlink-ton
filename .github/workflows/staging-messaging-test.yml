@@ -22,6 +22,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # Note: add more tests here
         test: [ton2evm, evm2ton]
     env:
       TON_TESTNET_SELECTOR: ${{ vars.TON_TESTNET_SELECTOR }}
@@ -49,11 +50,10 @@ jobs:
 
       - name: Run ${{ matrix.test }} test
         id: test
+        continue-on-error: true
         run: |
           cd staging-messaging-test
-          nix develop -c go run ./cmd/${{ matrix.test }} > result.json || true
-          echo "=== Test Result JSON ==="
-          cat result.json
+          nix develop -c go run ./cmd/${{ matrix.test }} > result.json
 
       - name: Send Slack notification
         if: always()
@@ -100,3 +100,13 @@ jobs:
               \"when\": \"${{ env.WHEN }}\"
             }" \
             ${{ secrets.STAGING_TEST_SLACK_WEBHOOK }}
+
+      - name: Fail job if test failed
+        if: always()
+        run: |
+          cd staging-messaging-test
+          STATUS=$(jq -s '.[-1].status' result.json -r)
+          if [[ "$STATUS" != "success" ]]; then
+            echo "Test failed with status: $STATUS"
+            exit 1
+          fi
