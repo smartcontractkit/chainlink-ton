@@ -33,3 +33,5 @@ type BodyInfo interface {
 Your decoder should go in `pkg/ton/debug/decoders/<domain>` package. If it is a ccip contract, then in `pkg/ton/debug/decoders/ccip`. E.g. `pkg/ton/debug/decoders/ccip/feequoter/feequoter.go`.
 
 I suggest not placing any business logic in the decoder. Instead, create a separate package for that, e.g. `pkg/ccip/bindings/feequoter/codec.go` and use it from the decoder.
+
+When trying to parse a message, your decoder should return `lib.UnknownMessageError{}` if the opcode doesn't match. As we are rellying on unique opcodes, if the opcode matches, you can assume the message is for your contract, and return a different error if the message is malformed.
