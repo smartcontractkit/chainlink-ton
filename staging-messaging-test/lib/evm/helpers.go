@@ -56,6 +56,7 @@ func buildEVMExtraArgsV2(extraArgs message_hasher.ClientGenericExtraArgsV2) ([]b
 }
 
 // extractFromCCIPMessageSent extracts sequence number and messageID from CCIPMessageSent event
+// Event signature: CCIPMessageSent(uint64 indexed destChainSelector, uint64 indexed sequenceNumber, Internal.EVM2AnyRampMessage message)
 func extractFromCCIPMessageSent(receipt *types.Receipt) (uint64, string, error) {
 	parsedABI, err := abi.JSON(strings.NewReader(OnRampABI))
 	if err != nil {
@@ -68,17 +69,24 @@ func extractFromCCIPMessageSent(receipt *types.Receipt) (uint64, string, error) 
 	}
 
 	for _, log := range receipt.Logs {
-		if len(log.Topics) == 0 || log.Topics[0] != event.ID {
+		// topics[0] = event signature hash
+		// topics[1] = destChainSelector (indexed)
+		// topics[2] = sequenceNumber (indexed)
+		if len(log.Topics) < 3 || log.Topics[0] != event.ID {
 			continue
 		}
 
+		// Extract sequenceNumber from topics[2] (indexed parameter)
+		seqNum := log.Topics[2].Big().Uint64()
+
+		// Unpack the message from data (non-indexed parameter)
 		var eventData onramp.OnRampCCIPMessageSent
 		if err := parsedABI.UnpackIntoInterface(&eventData, "CCIPMessageSent", log.Data); err != nil {
 			continue
 		}
 
 		messageID := hex.EncodeToString(eventData.Message.Header.MessageId[:])
-		return eventData.SequenceNumber, messageID, nil
+		return seqNum, messageID, nil
 	}
 
 	return 0, "", errors.New("CCIPMessageSent event not found in receipt")
