@@ -3,13 +3,11 @@ package evm
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"math/big"
 	"strings"
-	"testing"
 	"time"
-
-	"github.com/stretchr/testify/require"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -41,9 +39,11 @@ type Client struct {
 }
 
 // NewClient creates a new EVM client
-func NewClient(t *testing.T, ctx context.Context, lggr logger.Logger, chainSel uint64, endpoint string, walletKey string) lib.Client {
+func NewClient(ctx context.Context, lggr logger.Logger, chainSel uint64, endpoint string, walletKey string) (lib.Client, error) {
 	client, err := ethclient.Dial(endpoint)
-	require.NoError(t, err, "failed to dial EVM RPC")
+	if err != nil {
+		return nil, fmt.Errorf("failed to dial EVM RPC: %w", err)
+	}
 
 	c := &Client{
 		chainSel: chainSel,
@@ -53,13 +53,19 @@ func NewClient(t *testing.T, ctx context.Context, lggr logger.Logger, chainSel u
 
 	if walletKey != "" {
 		pk, err := crypto.HexToECDSA(strings.TrimPrefix(walletKey, "0x"))
-		require.NoError(t, err, "failed to parse private key")
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse private key: %w", err)
+		}
 
 		chainID, err := client.ChainID(ctx)
-		require.NoError(t, err, "failed to get chain ID")
+		if err != nil {
+			return nil, fmt.Errorf("failed to get chain ID: %w", err)
+		}
 
 		auth, err := bind.NewKeyedTransactorWithChainID(pk, chainID)
-		require.NoError(t, err, "failed to create transactor")
+		if err != nil {
+			return nil, fmt.Errorf("failed to create transactor: %w", err)
+		}
 
 		c.wallet = auth
 
@@ -69,7 +75,7 @@ func NewClient(t *testing.T, ctx context.Context, lggr logger.Logger, chainSel u
 			"balance", formatETH(balance))
 	}
 
-	return c
+	return c, nil
 }
 
 func (c *Client) ChainSelector() uint64 {
@@ -191,7 +197,7 @@ func (c *Client) WaitForMessageReceived(ctx context.Context, lggr logger.Logger,
 
 	ev, ok := parsedABI.Events["MessageReceived"]
 	if !ok {
-		return fmt.Errorf("MessageReceived event not in ABI")
+		return errors.New("MessageReceived event not in ABI")
 	}
 	topic := ev.ID
 
@@ -253,7 +259,7 @@ func (c *Client) WaitForMessageReceived(ctx context.Context, lggr logger.Logger,
 				}
 
 				gotData := string(decoded.Data)
-				gotMessageID := hex.EncodeToString(decoded.MessageId[:])
+				gotMessageID := hex.EncodeToString(decoded.MessageID[:])
 
 				// Match on messageID if provided, otherwise match on data
 				if messageID != "" && gotMessageID != messageID {

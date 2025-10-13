@@ -63,6 +63,6 @@ func extractFromCCIPMessageSent(msg *tracetracking.ReceivedMessage) (uint64, str
 		return 0, "", fmt.Errorf("failed to parse CCIPMessageSent from cell: %w", err)
 	}
 
-	messageID := hex.EncodeToString(event.Message.Header.MessageID[:])
+	messageID := hex.EncodeToString(event.Message.Header.MessageID)
 	return event.Message.Header.SequenceNumber, messageID, nil
 }

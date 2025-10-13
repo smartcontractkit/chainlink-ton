@@ -2,6 +2,7 @@ package evm
 
 import (
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"math/big"
 	"strings"
@@ -48,7 +49,9 @@ func buildEVMExtraArgsV2(extraArgs message_hasher.ClientGenericExtraArgsV2) ([]b
 	}
 
 	// Combine version tag + packed data
-	result := append(versionTag, packed...)
+	result := make([]byte, len(versionTag)+len(packed))
+	copy(result, versionTag)
+	copy(result[len(versionTag):], packed)
 	return result, nil
 }
 
@@ -61,7 +64,7 @@ func extractFromCCIPMessageSent(receipt *types.Receipt) (uint64, string, error) 
 
 	event, ok := parsedABI.Events["CCIPMessageSent"]
 	if !ok {
-		return 0, "", fmt.Errorf("CCIPMessageSent event not found in ABI")
+		return 0, "", errors.New("CCIPMessageSent event not found in ABI")
 	}
 
 	for _, log := range receipt.Logs {
@@ -78,5 +81,5 @@ func extractFromCCIPMessageSent(receipt *types.Receipt) (uint64, string, error) 
 		return eventData.SequenceNumber, messageID, nil
 	}
 
-	return 0, "", fmt.Errorf("CCIPMessageSent event not found in receipt")
+	return 0, "", errors.New("CCIPMessageSent event not found in receipt")
 }

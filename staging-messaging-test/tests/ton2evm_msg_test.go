@@ -21,8 +21,10 @@ func Test_TON2EVM(t *testing.T) {
 	lggr, err := logger.New()
 	require.NoError(t, err, "failed to create logger")
 
-	args := lib.LoadArgs(t, lib.TONTestnetSelector, lib.EVMSepoliaSelector)
-	tc := lib.SetupContext(ctx, t, lggr, args)
+	args, err := lib.LoadArgs(lib.TONTestnetSelector, lib.EVMSepoliaSelector)
+	require.NoError(t, err)
+	tc, err := lib.SetupContext(ctx, lggr, args)
+	require.NoError(t, err)
 
 	startTime := time.Now()
 

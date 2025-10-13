@@ -7,13 +7,11 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"testing"
 	"time"
 
 	"github.com/joho/godotenv"
 	chainsel "github.com/smartcontractkit/chain-selectors"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
-	"github.com/stretchr/testify/require"
 )
 
 var loadEnvOnce sync.Once
@@ -39,13 +37,12 @@ type MessageToSend struct {
 
 // ClientFactory creates a Client
 type ClientFactory func(
-	t *testing.T,
 	ctx context.Context,
 	lggr logger.Logger,
 	chainSel uint64,
 	endpoint string,
 	walletKey string,
-) Client
+) (Client, error)
 
 var clientFactories = make(map[string]ClientFactory)
 
@@ -79,9 +76,8 @@ type TestContext struct {
 type SendResult struct {
 	SeqNum    uint64
 	MessageID string // hex, no 0x prefix
-	// TODO: empty for TON, populate
-	TxHash   string // hex, no 0x prefix
-	BlockNum uint64
+	TxHash    string // hex, no 0x prefix // TODO: currently empty for TON, populate
+	BlockNum  uint64
 }
 
 func (tc *TestContext) SendMessage(ctx context.Context, lggr logger.Logger, data []byte) (*SendResult, error) {
@@ -100,20 +96,26 @@ func (tc *TestContext) WaitForMessageReceived(ctx context.Context, lggr logger.L
 }
 
 // LoadArgs loads configuration from env
-func LoadArgs(t *testing.T, srcChainSel, destChainSel uint64) TestArgs {
+func LoadArgs(srcChainSel, destChainSel uint64) (TestArgs, error) {
 	// Load .env file once (for local testing)
 	loadEnvOnce.Do(func() {
 		envPath := filepath.Join("..", ".env")
 		if err := godotenv.Load(envPath); err != nil {
 			// Silently ignore if .env doesn't exist (CI will use environment variables)
 			if !os.IsNotExist(err) {
-				t.Logf("Warning: failed to load .env file: %v", err)
+				fmt.Printf("Warning: failed to load .env file: %v", err)
 			}
 		}
 	})
 
-	srcChainName := getChainName(t, srcChainSel)
-	destChainName := getChainName(t, destChainSel)
+	srcChainName, err := getChainName(srcChainSel)
+	if err != nil {
+		return TestArgs{}, fmt.Errorf("failed to get source chain name: %w", err)
+	}
+	destChainName, err := getChainName(destChainSel)
+	if err != nil {
+		return TestArgs{}, fmt.Errorf("failed to get destination chain name: %w", err)
+	}
 
 	srcPrefix := normalizeChainName(srcChainName)
 	destPrefix := normalizeChainName(destChainName)
@@ -121,26 +123,32 @@ func LoadArgs(t *testing.T, srcChainSel, destChainSel uint64) TestArgs {
 	return TestArgs{
 		SrcChainSel:  srcChainSel,
 		DestChainSel: destChainSel,
-		SrcRouter:    getEnv(t, srcPrefix+"_ROUTER"),
-		SrcWalletKey: getEnv(t, srcPrefix+"_WALLET_KEY"),
-		SrcEndpoint:  getEnv(t, srcPrefix+"_ENDPOINT"),
-		DestReceiver: getEnv(t, destPrefix+"_RECEIVER"),
-		DestEndpoint: getEnv(t, destPrefix+"_ENDPOINT"),
-		MessageData:  getEnvOrDefault("MESSAGE", fmt.Sprintf("CCIP staging test %s", time.Now().UTC().Format("15:04"))),
-	}
+		SrcRouter:    mustGetEnv(srcPrefix + "_ROUTER"),
+		SrcWalletKey: mustGetEnv(srcPrefix + "_WALLET_KEY"),
+		SrcEndpoint:  mustGetEnv(srcPrefix + "_ENDPOINT"),
+		DestReceiver: mustGetEnv(destPrefix + "_RECEIVER"),
+		DestEndpoint: mustGetEnv(destPrefix + "_ENDPOINT"),
+		MessageData:  getEnvOrDefault("MESSAGE", "CCIP staging test "+time.Now().UTC().Format("15:04")),
+	}, nil
 }
 
-func getChainName(t *testing.T, chainSel uint64) string {
+func getChainName(chainSel uint64) (string, error) {
 	chainID, err := chainsel.GetChainIDFromSelector(chainSel)
-	require.NoError(t, err, "failed to get chain ID from selector %d", chainSel)
+	if err != nil {
+		return "", fmt.Errorf("failed to get chain ID from selector %d: %w", chainSel, err)
+	}
 
 	family, err := chainsel.GetSelectorFamily(chainSel)
-	require.NoError(t, err, "failed to get chain family from selector %d", chainSel)
+	if err != nil {
+		return "", fmt.Errorf("failed to get chain family from selector %d: %w", chainSel, err)
+	}
 
 	chainDetails, err := chainsel.GetChainDetailsByChainIDAndFamily(chainID, family)
-	require.NoError(t, err, "failed to get chain details for chain ID %s and family %s", chainID, family)
+	if err != nil {
+		return "", fmt.Errorf("failed to get chain details for chain ID %s and family %s: %w", chainID, family, err)
+	}
 
-	return chainDetails.ChainName
+	return chainDetails.ChainName, nil
 }
 
 func normalizeChainName(name string) string {
@@ -151,36 +159,46 @@ func normalizeChainName(name string) string {
 }
 
 // SetupContext creates clients from TestArgs
-func SetupContext(ctx context.Context, t *testing.T, lggr logger.Logger, args TestArgs) *TestContext {
+func SetupContext(ctx context.Context, lggr logger.Logger, args TestArgs) (*TestContext, error) {
 	tc := &TestContext{Args: args}
 
 	srcFamily, err := chainsel.GetSelectorFamily(args.SrcChainSel)
-	require.NoError(t, err, "unknown source chain family")
+	if err != nil {
+		return nil, fmt.Errorf("unknown source chain family: %w", err)
+	}
 
 	destFamily, err := chainsel.GetSelectorFamily(args.DestChainSel)
-	require.NoError(t, err, "unknown dest chain family")
+	if err != nil {
+		return nil, fmt.Errorf("unknown dest chain family: %w", err)
+	}
 
 	srcFactory, ok := clientFactories[srcFamily]
-	require.True(t, ok, "no factory for source chain family: %s", srcFamily)
+	if !ok {
+		return nil, fmt.Errorf("no factory for source chain family: %s", srcFamily)
+	}
 
 	destFactory, ok := clientFactories[destFamily]
-	require.True(t, ok, "no factory for dest chain family: %s", destFamily)
+	if !ok {
+		return nil, fmt.Errorf("no factory for dest chain family: %s", destFamily)
+	}
 
-	tc.Source = srcFactory(t, ctx, lggr, args.SrcChainSel, args.SrcEndpoint, args.SrcWalletKey)
-	tc.Dest = destFactory(t, ctx, lggr, args.DestChainSel, args.DestEndpoint, "")
+	tc.Source, err = srcFactory(ctx, lggr, args.SrcChainSel, args.SrcEndpoint, args.SrcWalletKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create source client: %w", err)
+	}
+	tc.Dest, err = destFactory(ctx, lggr, args.DestChainSel, args.DestEndpoint, "")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create dest client: %w", err)
+	}
 
-	return tc
+	return tc, nil
 }
 
-func SetupLogger(t *testing.T) logger.Logger {
-	lggr, err := logger.New()
-	require.NoError(t, err, "failed to create logger")
-	return lggr
-}
-
-func getEnv(t *testing.T, key string) string {
+func mustGetEnv(key string) string {
 	v := os.Getenv(key)
-	require.NotEmpty(t, v, "%s not set", key)
+	if v == "" {
+		panic(fmt.Errorf("%s not set", key))
+	}
 	return v
 }
 

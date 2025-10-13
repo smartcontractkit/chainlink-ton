@@ -6,10 +6,7 @@ import (
 	"fmt"
 	"math/big"
 	"strings"
-	"testing"
 	"time"
-
-	"github.com/stretchr/testify/require"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/liteclient"
@@ -43,13 +40,17 @@ type Client struct {
 }
 
 // NewClient creates a new TON client
-func NewClient(t *testing.T, ctx context.Context, lggr logger.Logger, chainSel uint64, endpoint string, walletKey string) lib.Client {
+func NewClient(ctx context.Context, lggr logger.Logger, chainSel uint64, endpoint string, walletKey string) (lib.Client, error) {
 	pool := liteclient.NewConnectionPool()
 	cfg, err := liteclient.GetConfigFromUrl(ctx, endpoint)
-	require.NoError(t, err, "failed to get TON config")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get TON config: %w", err)
+	}
 
 	err = pool.AddConnectionsFromConfig(ctx, cfg)
-	require.NoError(t, err, "failed to connect to TON")
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to TON: %w", err)
+	}
 
 	client := ton.NewAPIClient(pool)
 
@@ -66,7 +67,9 @@ func NewClient(t *testing.T, ctx context.Context, lggr logger.Logger, chainSel u
 			Workchain:       0,
 		}
 		w, err := wallet.FromSeed(client, strings.Fields(walletKey), v5r1Config)
-		require.NoError(t, err, "failed to create TON wallet")
+		if err != nil {
+			return nil, fmt.Errorf("failed to create TON wallet: %w", err)
+		}
 
 		c.wallet = w
 
@@ -77,7 +80,7 @@ func NewClient(t *testing.T, ctx context.Context, lggr logger.Logger, chainSel u
 			"balance", balance.String())
 	}
 
-	return c
+	return c, nil
 }
 
 func (c *Client) ChainSelector() uint64 {
@@ -190,9 +193,10 @@ func (c *Client) WaitForMessageReceived(ctx context.Context, lggr logger.Logger,
 
 	lggr.Infow("Waiting for CCIPReceive event", "receiver", receiver, "messageID", messageID, "startBlock", startBlock)
 
+	cl := c.client.WithRetry(lib.TONClientRetries)
 	// Initialize transaction loader (same pattern as ton_assertions.go)
 	clientProvider := func(ctx context.Context) (ton.APIClientWrapped, error) {
-		return c.client.WithRetry(lib.TONClientRetries), nil
+		return cl, nil
 	}
 	loader := tonlploader.NewTxLoader(lggr, clientProvider, lib.TONTxBatchSize)
 
@@ -200,7 +204,7 @@ func (c *Client) WaitForMessageReceived(ctx context.Context, lggr logger.Logger,
 	defer ticker.Stop()
 
 	lastProgressLog := time.Now()
-	lastProcessedBlock := uint32(startBlock)
+	lastProcessedBlock := uint32(startBlock) //nolint:gosec // safe conversion
 
 	for {
 		select {
@@ -215,7 +219,7 @@ func (c *Client) WaitForMessageReceived(ctx context.Context, lggr logger.Logger,
 			}
 
 			// Get current block
-			toBlock, err := c.client.WithRetry(lib.TONClientRetries).CurrentMasterchainInfo(ctx)
+			toBlock, err := cl.CurrentMasterchainInfo(ctx)
 			if err != nil {
 				lggr.Warnw("Failed to get current masterchain info", "error", err)
 				continue
@@ -229,7 +233,7 @@ func (c *Client) WaitForMessageReceived(ctx context.Context, lggr logger.Logger,
 			// Lookup previous block
 			var prevBlock *ton.BlockIDExt
 			if lastProcessedBlock > 0 {
-				prevBlock, err = c.client.WithRetry(lib.TONClientRetries).LookupBlock(ctx, toBlock.Workchain, toBlock.Shard, lastProcessedBlock)
+				prevBlock, err = cl.LookupBlock(ctx, toBlock.Workchain, toBlock.Shard, lastProcessedBlock)
 				if err != nil {
 					lggr.Warnw("Failed to lookup previous block", "block", lastProcessedBlock, "error", err)
 					continue
