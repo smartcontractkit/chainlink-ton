@@ -63,11 +63,11 @@ Display message trace as a tree structure with `--visualization tree`.
 
 ## Environment injection
 
-The same cli is exposed in [chainlink-deployments's repo](https://github.com/smartcontractkit/chainlink-deployments/branch/tree/main/domains/ccip/cmd) which injects contract metadata from the DataStore.
+The same cli is exposed in [chainlink-deployments's repo](https://github.com/smartcontractkit/chainlink-deployments/tree/main/domains/ccip/cmd) which injects contract metadata from the DataStore.
 
 ## Debugging Functionality
 
-### Humman-readable addresses
+### Human-readable addresses
 
 The explorer will try to match contract addresses to known contracts. It will first look into the injected contracts map, and then fallback to calling the `typeAndVersion` getter on the contract. If none of these methods work, the explorer will try to match the contract to known types with its code hash.
 

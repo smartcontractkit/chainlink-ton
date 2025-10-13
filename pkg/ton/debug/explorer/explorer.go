@@ -284,11 +284,11 @@ const (
 // Parameters:
 // - ctx: The context for managing request deadlines and cancellation.
 // - txHashStr: The transaction hash in hexadecimal format.
-// - srcAddresstr: The source address of the transaction in string format.
-func (c *client) PrintTrace(ctx context.Context, txHashStr string, srcAddresstr string, format Format, knownActors map[string]deployment.TypeAndVersion) error {
+// - srcAddrStr: The source address of the transaction in string format.
+func (c *client) PrintTrace(ctx context.Context, txHashStr string, srcAddrStr string, format Format, knownActors map[string]deployment.TypeAndVersion) error {
 	var senderAddr *address.Address
 	var err error
-	if srcAddresstr == "" {
+	if srcAddrStr == "" {
 		c.lggr.Debug("source address not provided, attempting to fetch from toncenter by hash...")
 		senderAddr, err = c.GetSenderAddressFromTxHash(ctx, txHashStr)
 		if err != nil {
@@ -296,7 +296,7 @@ func (c *client) PrintTrace(ctx context.Context, txHashStr string, srcAddresstr 
 		}
 		c.lggr.Debug("source address found:", senderAddr.String())
 	} else {
-		senderAddr, err = address.ParseAddr(srcAddresstr)
+		senderAddr, err = address.ParseAddr(srcAddrStr)
 		if err != nil {
 			return fmt.Errorf("failed to parse transaction address: %w", err)
 		}
