@@ -548,7 +548,7 @@ func (c *client) findTx(ctx context.Context, api *ton.APIClient, srcAddr *addres
 		maxLT = last.PrevTxLT
 		maxHash = last.PrevTxHash
 	}
-	return nil, errors.New("transaction not found")
+	return nil, errors.New("transaction not found in searched range. Try increasing --page-size and --max-pages")
 }
 
 func equalHash(a, b []byte) bool {
@@ -617,6 +617,12 @@ func connect(ctx context.Context, net string) (*ton.APIClient, error) {
 		err = pool.AddConnection(ctx, connectionString, liteserverConfig.ID.Key)
 		if err != nil {
 			return nil, fmt.Errorf("failed to add localton connection: %w", err)
+		}
+	default:
+		configURL := net
+		err := pool.AddConnectionsFromConfigUrl(ctx, configURL)
+		if err != nil {
+			return nil, fmt.Errorf("failed to add connections from config url: %w", err)
 		}
 	}
 	return ton.NewAPIClient(pool, ton.ProofCheckPolicyFast), nil

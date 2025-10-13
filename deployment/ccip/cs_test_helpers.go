@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math/big"
 	"testing"
-	"time"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
@@ -272,8 +271,6 @@ func SendTonRequest(
 	if err != nil {
 		return 0, nil, fmt.Errorf("failed to wait for trace: %w", err)
 	}
-
-	time.Sleep(24 * time.Hour) // Wait for the message to be fully processed
 
 	event, err := waitForReceivedMsgFlatten(e, clientConn, receivedMsg)
 	if err != nil {
