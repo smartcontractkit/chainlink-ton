@@ -83,6 +83,8 @@ jobs:
       ETHEREUM_TESTNET_SEPOLIA_WALLET_KEY: ${{ secrets.STAGING_ETHEREUM_TESTNET_SEPOLIA_WALLET_KEY }}
       ETHEREUM_TESTNET_SEPOLIA_ENDPOINT: ${{ secrets.STAGING_ETHEREUM_TESTNET_SEPOLIA_ENDPOINT }}
       MESSAGE: "ccip-staging-${{ github.run_id }}-${{ matrix.direction }}"
+      RUN_URL: "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+      TRIGGER: "${{ github.event_name }}"
     steps:
       - name: Check out code
         uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
@@ -98,32 +100,42 @@ jobs:
           cd staging-messaging-test
           nix develop -c ./run_test.sh ${{ matrix.direction }}
 
-      - name: Send Slack notification
-        if: always()
+      - name: Send Slack notification (success)
+        if: success()
         run: |
-          if [[ "${{ job.status }}" == "success" ]]; then
-            STATUS="✅ Success"
-          else
-            STATUS="❌ Failed"
-          fi
-          
           DIRECTION=$(echo "${{ matrix.direction }}" | tr '[:lower:]' '[:upper:]' | sed 's/2/ → /')
-          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          SRC_ROUTER="${{ matrix.direction == 'ton2evm' && secrets.STAGING_TON_TESTNET_ROUTER || secrets.STAGING_ETHEREUM_TESTNET_SEPOLIA_ROUTER }}"
+          DEST_RECEIVER="${{ matrix.direction == 'ton2evm' && secrets.STAGING_ETHEREUM_TESTNET_SEPOLIA_RECEIVER || secrets.STAGING_TON_TESTNET_RECEIVER }}"
           
           curl -X POST -H 'Content-type: application/json' \
             --data "{
-              \"text\": \"${STATUS}: CCIP ${DIRECTION}\",
-              \"blocks\": [
-                {\"type\": \"header\", \"text\": {\"type\": \"plain_text\", \"text\": \"${STATUS}: CCIP ${DIRECTION}\"}},
-                {\"type\": \"section\", \"fields\": [
-                  {\"type\": \"mrkdwn\", \"text\": \"*Trigger:* ${{ github.event_name }}\"},
-                  {\"type\": \"mrkdwn\", \"text\": \"*Message:* \\\`${{ env.MESSAGE }}\\\`\"}
-                ]},
-                {\"type\": \"section\", \"fields\": [
-                  {\"type\": \"mrkdwn\", \"text\": \"*TON:* \\\`${{ needs.check-balances.outputs.ton_balance }}\\\`\"},
-                  {\"type\": \"mrkdwn\", \"text\": \"*EVM:* \\\`${{ needs.check-balances.outputs.evm_balance }}\\\`\"}
-                ]},
-                {\"type\": \"context\", \"elements\": [{\"type\": \"mrkdwn\", \"text\": \"<${RUN_URL}|View Logs>\"}]}
-              ]
+              \"Status\": \":white_check_mark: Success - CCIP ${DIRECTION}\",
+              \"Router\": \"${SRC_ROUTER}\",
+              \"Receiver\": \"${DEST_RECEIVER}\",
+              \"Data\": \"${{ env.MESSAGE }}\",
+              \"RunURL\": \"${RUN_URL}\",
+              \"Trigger\": \"${TRIGGER}\",
+              \"TON_Balance\": \"${{ needs.check-balances.outputs.ton_balance }}\",
+              \"EVM_Balance\": \"${{ needs.check-balances.outputs.evm_balance }}\"
             }" \
-            "${{ secrets.STAGING_TEST_SLACK_WEBHOOK }}"
+            ${{ secrets.STAGING_TEST_SLACK_WEBHOOK }}
+
+      - name: Send Slack notification (failure)
+        if: failure()
+        run: |
+          DIRECTION=$(echo "${{ matrix.direction }}" | tr '[:lower:]' '[:upper:]' | sed 's/2/ → /')
+          SRC_ROUTER="${{ matrix.direction == 'ton2evm' && secrets.STAGING_TON_TESTNET_ROUTER || secrets.STAGING_ETHEREUM_TESTNET_SEPOLIA_ROUTER }}"
+          DEST_RECEIVER="${{ matrix.direction == 'ton2evm' && secrets.STAGING_ETHEREUM_TESTNET_SEPOLIA_RECEIVER || secrets.STAGING_TON_TESTNET_RECEIVER }}"
+          
+          curl -X POST -H 'Content-type: application/json' \
+            --data "{
+              \"Status\": \":x: Failure - CCIP ${DIRECTION}\",
+              \"Router\": \"${SRC_ROUTER}\",
+              \"Receiver\": \"${DEST_RECEIVER}\",
+              \"Data\": \"${{ env.MESSAGE }}\",
+              \"RunURL\": \"${RUN_URL}\",
+              \"Trigger\": \"${TRIGGER}\",
+              \"TON_Balance\": \"${{ needs.check-balances.outputs.ton_balance }}\",
+              \"EVM_Balance\": \"${{ needs.check-balances.outputs.evm_balance }}\"
+            }" \
+            ${{ secrets.STAGING_TEST_SLACK_WEBHOOK }}
