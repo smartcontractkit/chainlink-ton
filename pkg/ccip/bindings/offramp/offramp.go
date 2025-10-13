@@ -35,7 +35,6 @@ type Storage struct {
 	ChainSelector                           uint64              `tlb:"## 64"`
 	PermissionlessExecutionThresholdSeconds uint32              `tlb:"## 32"`
 	SourceChainConfigs                      *cell.Dictionary    `tlb:"dict 64"`
-	KeyLen                                  uint16              `tlb:"## 16"`
 	LatestPriceSequenceNumber               uint64              `tlb:"## 64"`
 }
 

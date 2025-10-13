@@ -1,3 +1,4 @@
-tolk 1.0
-
-const CCIPSEND_EXECUTOR_ERROR_STATE_NOT_EXPECTED = 500;
+enum CCIPSendExecutor_Error {
+    StateNotExpected = 43600; // Facility ID * 100
+    Unauthorized;
+}

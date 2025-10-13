@@ -226,7 +226,7 @@ func (a *TONAccessor) GetOffRampSourceChainConfigs(ctx context.Context, block *t
 			entry, err := dict.LoadValue(key)
 			// The plugin is built with EVM behaviour in mind: if a value doesn't exist the zero value is returned
 			if errors.Is(err, cell.ErrNoSuchKeyInDict) {
-				// TODO: should we still set to zero value?
+				sourceChainConfigs[selector] = ccipocr3.SourceChainConfig{}
 				continue
 			}
 			if err != nil {

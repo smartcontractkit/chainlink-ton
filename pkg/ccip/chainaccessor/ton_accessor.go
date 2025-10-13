@@ -166,10 +166,9 @@ func (a *TONAccessor) GetAllConfigsLegacy(ctx context.Context, destChainSelector
 }
 
 func (a *TONAccessor) GetChainFeeComponents(ctx context.Context) (ccipocr3.ChainFeeComponents, error) {
-	// TODO(NONEVM-2364) implement me
 	return ccipocr3.ChainFeeComponents{
-		ExecutionFee:        big.NewInt(1),
-		DataAvailabilityFee: big.NewInt(1),
+		ExecutionFee:        big.NewInt(400), // Basechain costs are 400 nanotons (400e-9), and TON has 9 decimals
+		DataAvailabilityFee: big.NewInt(0),   // there are no storage fees per tx, instead contracts pay rent
 	}, nil
 }
 
@@ -325,6 +324,7 @@ func (a *TONAccessor) GetExpectedNextSequenceNumber(ctx context.Context, dest cc
 	return ccipocr3.SeqNum(value.Uint64()), nil
 }
 
+// GetTokenPriceUSD returns price per TON, with 18 decimals
 func (a *TONAccessor) GetTokenPriceUSD(ctx context.Context, rawTokenAddress ccipocr3.UnknownAddress) (ccipocr3.TimestampedUnixBig, error) {
 	addr, err := a.getBinding(consts.ContractNameFeeQuoter)
 	if err != nil {
@@ -357,9 +357,8 @@ func (a *TONAccessor) GetTokenPriceUSD(ctx context.Context, rawTokenAddress ccip
 		return ccipocr3.TimestampedUnixBig{}, err
 	}
 	return ccipocr3.TimestampedUnixBig{
-		Value: timestampedPrice.Value,
-		// TODO: u64 -> u32? should we fix the onchain type?
-		Timestamp: uint32(timestampedPrice.Timestamp), //nolint:gosec // G115
+		Value:     timestampedPrice.Value,
+		Timestamp: timestampedPrice.Timestamp,
 	}, nil
 }
 
@@ -420,7 +419,7 @@ func (a *TONAccessor) CommitReportsGTETimestamp(
 		WithEventSig(hash.CRC32(consts.EventNameCommitReportAccepted)).
 		FilterTimestamp(query.TimestampGTE(ts)).
 		// Filter to only get events with MerkleRoot
-		// TODO(@jadepark-dev): revisit when we have a persistent log DB implemented
+		// TODO(@jadepark-dev): revisit when we have a persistent log DB implemented: we need bit query for merkle root prefix
 		FilterTyped(
 			func(event offramp.CommitReportAccepted) bool {
 				return event.MerkleRoot != nil
@@ -638,15 +637,18 @@ func (a *TONAccessor) Nonces(ctx context.Context, query map[ccipocr3.ChainSelect
 }
 
 func (a *TONAccessor) GetChainFeePriceUpdate(ctx context.Context, selectors []ccipocr3.ChainSelector) (map[ccipocr3.ChainSelector]ccipocr3.TimestampedUnixBig, error) {
+	// initialize the map with default values for all selectors
+	prices := make(map[ccipocr3.ChainSelector]ccipocr3.TimestampedUnixBig, len(selectors))
 	addr, err := a.getBinding(consts.ContractNameFeeQuoter)
 	if err != nil {
 		return nil, err
 	}
 	block, err := a.client.CurrentMasterchainInfo(ctx)
 	if err != nil {
+		a.lggr.Warnw("failed to get current block", "err", err)
 		return nil, fmt.Errorf("failed to get current block: %w", err)
 	}
-	prices := make(map[ccipocr3.ChainSelector]ccipocr3.TimestampedUnixBig, len(selectors))
+
 	for _, selector := range selectors {
 		result, err := a.client.RunGetMethod(ctx, block, addr, "destinationChainGasPrice", uint64(selector))
 		// The plugin is built with EVM behaviour in mind: if a value doesn't exist the zero value is returned
@@ -658,20 +660,22 @@ func (a *TONAccessor) GetChainFeePriceUpdate(ctx context.Context, selectors []cc
 			continue
 		}
 		if err != nil {
-			return nil, fmt.Errorf("failed to get chain fee price updates: %w", err)
+			return nil, err
 		}
 
 		value, err := result.Cell(0)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get chain fee price updates: %w", err)
+			return nil, err
 		}
+
 		// HACK: we read the value as Timestamped since the binary layout is compatible, so that we match TimestampedBig (two values packed together)
 		var update feequoter.TimestampedPrice
 		if err := tlb.LoadFromCell(&update, value.BeginParse()); err != nil {
-			return nil, fmt.Errorf("failed to get chain fee price updates: %w", err)
+			return nil, fmt.Errorf("failed to decode TimestampedPrice, potentially unsynced gobindings: %w", err)
 		}
+
 		prices[selector] = ccipocr3.TimestampedUnixBig{
-			Timestamp: uint32(update.Timestamp), //nolint:gosec // TODO: fix type onchain
+			Timestamp: update.Timestamp,
 			Value:     update.Value,
 		}
 	}
@@ -770,7 +774,7 @@ func (a *TONAccessor) GetFeeQuoterTokenUpdates(
 			}
 			price = ccipocr3.TimestampedUnixBig{
 				Value:     timestampedPrice.Value,
-				Timestamp: uint32(timestampedPrice.Timestamp), //nolint:gosec // TODO: fix type onchain
+				Timestamp: timestampedPrice.Timestamp,
 			}
 		default:
 			return nil, fmt.Errorf("expected either cell or nil, received %T", priceResult)

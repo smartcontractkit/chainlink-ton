@@ -1,6 +1,6 @@
 // From https://github.com/smartcontractkit/chainlink-ccip/blob/2c65147d933b7c8e7495dc3d96a460c4c9006fbb/chains/evm/contracts/libraries/Internal.sol
 
-import "../ccip/types"
+import "types"
 
 tolk 1.1
 
@@ -13,7 +13,7 @@ struct EVMAddress {
     value: uint256;
 }
 
-const TYPE_UINT160_MAX = (1 << 160) - 1 /* type(uint160).max */
+const TYPE_UINT160_MAX = (1 << 160) - 1; /* type(uint160).max */
 
 fun CrossChainAddress.validateEVMAddress(self) {
     val evmAddr = EVMAddress.fromSlice(self, {

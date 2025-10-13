@@ -142,9 +142,9 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 
 	report := ocr.ExecuteReport{
 		SourceChainSelector: 1,
-		Messages:            rampMessageSlice,
+		Messages:            rampMessageSlice[0],
 		OffChainTokenData:   common.SnakeRef[common.SnakeBytes]{make([]byte, 120), make([]byte, 130)},
-		Proofs:              common.SnakeRef[common.SnakeBytes]{make([]byte, 32), make([]byte, 32)},
+		Proofs:              common.SnakeData[common.Proof256]{common.Proof256{}, common.Proof256{}},
 		ProofFlagBits:       big.NewInt(0),
 	}
 
@@ -172,7 +172,7 @@ func TestExecute_EncodingAndDecoding(t *testing.T) {
 	err = tlb.LoadFromCell(&decoded, newCell.BeginParse())
 	require.NoError(t, err)
 	require.Equal(t, c.Hash(), newCell.Hash())
-	require.Len(t, decoded.ExecuteReport.Messages[0].TokenAmounts, 2)
+	require.Len(t, decoded.ExecuteReport.Messages.TokenAmounts, 2)
 	require.Len(t, decoded.ExecuteReport.Proofs, 2)
 	require.Equal(t, execute.QueryID, decoded.QueryID)
 	require.Equal(t, execute.ConfigDigest, decoded.ConfigDigest)

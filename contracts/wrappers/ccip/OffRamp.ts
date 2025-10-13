@@ -15,6 +15,7 @@ import { OCR3Base, ReportContext, SignatureEd25519 } from '../libraries/ocr/Mult
 import { asSnakeData, fromSnakeData, bigIntToUint8Array } from '../../src/utils/types'
 import * as ownable2step from '../libraries/access/Ownable2Step'
 import { crc32 } from 'zlib'
+import { facilityId } from '../utils'
 
 export type OffRampStorage = {
   id: bigint
@@ -139,7 +140,29 @@ export const Opcodes = {
   dispatchValidated: crc32('OffRamp_DispatchValidated'),
 }
 
-export abstract class Errors {}
+export const MERKLE_ROOT_FACILITY_NAME = 'com.chainlink.ton.ccip.MerkleRoot'
+export const MERKLE_ROOT_FACILITY_ID = 479
+export const MERKLE_ROOT_ERROR_CODE = 47900 //FACILITY_ID * 100
+
+export const OFFRAMP_FACILITY_NAME = 'com.chainlink.ton.ccip.OffRamp'
+export const OFFRAMP_FACILITY_ID = 84
+export const OFFRAMP_ERROR_CODE = 8400 //FACILITY_ID * 100
+
+export enum OffRampError {
+  DispatchNotFromMerkleRoot = OFFRAMP_ERROR_CODE,
+  SourceChainNotEnabled,
+  EmptyExecutionReport,
+  InvalidMessageDestChainSelector,
+  SourceChainSelectorMismatch,
+  InvalidOnRampUpdate,
+}
+
+export enum MerkleRootError {
+  StateIsNotUntouched = MERKLE_ROOT_ERROR_CODE,
+  UpdatingStateOfNonExecutedMessage,
+  NotificationFromInvalidReceiver,
+  NotOwner,
+}
 
 export class OffRamp extends OCR3Base {
   constructor(
@@ -278,6 +301,36 @@ export class OffRamp extends OCR3Base {
         .storeUint(opts.metadataHash, 256)
         .endCell(),
     })
+  }
+
+  async getLatestPriceSequenceNumber(provider: ContractProvider): Promise<bigint> {
+    const result = await provider.get('latestPriceSequenceNumber', [])
+    return result.stack.readBigNumber()
+  }
+
+  async getSourceChainConfig(
+    provider: ContractProvider,
+    sourceChainSelector: bigint,
+  ): Promise<SourceChainConfig> {
+    const result = await provider.get('sourceChainConfig', [
+      { type: 'int', value: sourceChainSelector },
+    ])
+    // Tolk returns struct as tuple
+    const router = result.stack.readAddress()
+    const isEnabled = result.stack.readBoolean()
+    const minSeqNr = result.stack.readBigNumber()
+    const isRMNVerificationDisabled = result.stack.readBoolean()
+    const onRampSlice = result.stack.readCell().beginParse()
+    const onRampLength = onRampSlice.loadUint(8)
+    const onRamp = onRampSlice.loadBuffer(onRampLength)
+
+    return {
+      router,
+      isEnabled,
+      minSeqNr,
+      isRMNVerificationDisabled,
+      onRamp,
+    }
   }
 }
 

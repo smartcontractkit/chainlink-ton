@@ -16,7 +16,9 @@ import { JettonMinterCode, JettonWalletCode } from '../../wrappers/jetton/Jetton
 import { JettonMinter } from '../../wrappers/jetton/JettonMinter'
 import * as jetton from '../../wrappers/jetton/JettonWallet'
 import { dump } from '../utils/prettyPrint'
-import { CellCodec } from '../../wrappers/utils'
+import { CellCodec, facilityId } from '../../wrappers/utils'
+import { crc32 } from 'zlib'
+import { CCIP_SEND_EXECUTOR_FACILITY_ID } from '../../wrappers/ccip/OnRamp'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_EVM_TEST_90000002 = 5548718428018410741n
@@ -583,6 +585,14 @@ describe('Router', () => {
         },
       })
     }
+  })
+
+  it('Test facilityId matches facility name', () => {
+    expect(or.ONRAMP_FACILITY_ID).toEqual(facilityId(crc32(or.ONRAMP_FACILITY_NAME)))
+    expect(rt.ROUTER_FACILITY_ID).toEqual(facilityId(crc32(rt.ROUTER_FACILITY_NAME)))
+    expect(CCIP_SEND_EXECUTOR_FACILITY_ID).toEqual(
+      facilityId(crc32(or.CCIP_SEND_EXECUTOR_FACILITY_NAME)),
+    )
   })
 })
 

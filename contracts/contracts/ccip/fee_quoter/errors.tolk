@@ -1,11 +1,21 @@
-tolk 1.1
+import "../../lib/utils"
 
-const ERROR_UNSUPPORTED_CHAIN_FAMILY_SELECTOR = 1001
-const ERROR_GAS_LIMIT_TOO_HIGH = 1002
-const EXTRA_ARG_OUT_OF_ORDER_EXECUTION_MUST_BE_TRUE = 1003
-const ERROR_INVALID_EXTRA_ARGS_DATA = 1004
-const ERROR_UNSUPPORTED_NUMBER_OF_TOKENS = 1005
-const ERROR_INVALID_SUI_RECEIVER_ADDRESS = 1006
-const ERROR_INVALID_TOKEN_RECEIVER = 1007
-const ERROR_TOO_MANY_SUI_EXTRA_ARGS_RECEIVER_OBJECT_IDS = 1008
-const ERROR_MSG_DATA_TOO_LARGE = 1009
+enum Error {
+    UnsupportedChainFamilySelector = 24800 // Facility ID * 100
+    GasLimitTooHigh
+    ExtraArgOutOfOrderExecutionMustBeTrue
+    InvalidExtraArgsData
+    UnsupportedNumberOfTokens
+    InvalidSuiReceiverAddress
+    InvalidTokenReceiver
+    TooManySuiExtraArgsReceiverObjectIds
+    MsgDataTooLarge
+    StaleGasPrice
+    DestChainNotEnabled
+    FeeTokenNotSupported
+    InvalidMsgData
+    TokenNotSupported
+    UnknownDestChainSelector
+}
+
+
