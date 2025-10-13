@@ -60,17 +60,21 @@ jobs:
         run: |
           cd staging-messaging-test
           
-          # Parse result (if file doesn't exist or is invalid, jq will fail and we skip notification)
-          STATUS=$(jq -r '.status' result.json)
-          CASE=$(jq -r '.case' result.json)
-          ROUTER=$(jq -r '.router' result.json)
-          RECEIVER=$(jq -r '.receiver' result.json)
-          DATA=$(jq -r '.data' result.json)
-          MESSAGE_ID=$(jq -r '.message_id // "N/A"' result.json)
-          SENDER_ADDRESS=$(jq -r '.sender_address // "N/A"' result.json)
-          SENDER_BALANCE=$(jq -r '.sender_balance // "N/A"' result.json)
-          LATENCY=$(jq -r '.latency_formatted // "N/A"' result.json)
-          ERROR=$(jq -r '.error // ""' result.json)
+          # Extract the last JSON object (test result) from file (logs are also JSON)
+          # Use jq slurp mode to read all JSON objects and take the last one
+          TEST_RESULT=$(jq -s '.[-1]' result.json)
+          
+          # Parse result
+          STATUS=$(echo "$TEST_RESULT" | jq -r '.status')
+          CASE=$(echo "$TEST_RESULT" | jq -r '.case')
+          ROUTER=$(echo "$TEST_RESULT" | jq -r '.router')
+          RECEIVER=$(echo "$TEST_RESULT" | jq -r '.receiver')
+          DATA=$(echo "$TEST_RESULT" | jq -r '.data')
+          MESSAGE_ID=$(echo "$TEST_RESULT" | jq -r '.message_id // "N/A"')
+          SENDER_ADDRESS=$(echo "$TEST_RESULT" | jq -r '.sender_address // "N/A"')
+          SENDER_BALANCE=$(echo "$TEST_RESULT" | jq -r '.sender_balance // "N/A"')
+          LATENCY=$(echo "$TEST_RESULT" | jq -r '.latency_formatted // "N/A"')
+          ERROR=$(echo "$TEST_RESULT" | jq -r '.error // ""')
           
           # Set status icon
           if [[ "$STATUS" == "success" ]]; then
