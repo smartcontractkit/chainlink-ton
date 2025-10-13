@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"compress/zlib"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
-	"net/url"
 	"strings"
 
 	"github.com/xssnick/tonutils-go/address"
@@ -49,10 +49,20 @@ func (v *visualization) ToString() string {
 	diagramStr := v.Diagram.String()
 	switch v.Format {
 	case OutputFmtURL:
+		type objectFormat struct {
+			Code string `json:"code"`
+		}
+		object := objectFormat{
+			Code: diagramStr,
+		}
+		jsonObject, err := json.Marshal(object)
+		if err != nil {
+			return "failed to marshal diagram to JSON: " + err.Error()
+		}
 		// Compress with zlib and base64 encode
-		var buf bytes.Buffer
-		w := zlib.NewWriter(&buf)
-		_, err := w.Write([]byte(diagramStr))
+		buf := bytes.NewBuffer([]byte{})
+		w := zlib.NewWriter(buf)
+		_, err = w.Write(jsonObject)
 		if err != nil {
 			return "failed to write to zlib writer: " + err.Error()
 		}
@@ -60,9 +70,9 @@ func (v *visualization) ToString() string {
 		if err != nil {
 			return "failed to close zlib writer: " + err.Error()
 		}
-		zlibEncodedDiagram := base64.StdEncoding.EncodeToString(buf.Bytes())
+		zlibEncodedDiagram := base64.URLEncoding.EncodeToString(buf.Bytes())
 
-		mermaidURL := "https://www.mermaidchart.com/play#pako:" + url.PathEscape(zlibEncodedDiagram)
+		mermaidURL := "https://www.mermaidchart.com/play#pako:" + zlibEncodedDiagram
 		return mermaidURL
 	case OutputFmtRaw:
 		return diagramStr
