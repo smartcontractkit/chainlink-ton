@@ -8,7 +8,7 @@ import (
 )
 
 // ParseURL extracts transaction hash and network from tonscan URL
-// Supports tonscan.org URL formats
+// Supports tonscan.org and mylocalton explorer URL formats
 func ParseURL(urlStr string) (txHash, address, network string, err error) {
 	u, err := url.Parse(urlStr)
 	if err != nil {
@@ -16,11 +16,13 @@ func ParseURL(urlStr string) (txHash, address, network string, err error) {
 	}
 
 	// Determine network from subdomain (tonscan.org format)
-	network = "mainnet" // default
+	network = "testnet" // default
 	if strings.Contains(u.Host, "testnet.tonscan.org") {
 		network = "testnet"
 	} else if strings.Contains(u.Host, "tonscan.org") {
 		network = "mainnet"
+	} else if strings.Contains(u.Host, "localhost") {
+		network = "mylocalton"
 	}
 
 	// Handle tonscan.org transaction URLs: /tx/{hash}
@@ -29,6 +31,16 @@ func ParseURL(urlStr string) (txHash, address, network string, err error) {
 		if len(pathParts) >= 2 && pathParts[0] == "tx" {
 			txHash = pathParts[1]
 			return txHash, address, network, nil
+		}
+	} else if strings.Contains(u.Host, "localhost") {
+		// Handle mylocalton transaction URLs: /transaction?hash={hash}&account={address}
+		if u.Path == "/transaction" {
+			query := u.Query()
+			txHash = query.Get("hash")
+			address = query.Get("account")
+			if txHash != "" {
+				return txHash, address, network, nil
+			}
 		}
 	}
 

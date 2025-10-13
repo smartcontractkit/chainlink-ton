@@ -22,12 +22,13 @@ go build
 ```bash
 # URL (recommended)
 ./explorer https://testnet.tonscan.org/tx/<tx-hash>
+./explorer http://localhost:8080/transaction?account=<account_addr>&hash=<tx-hash>
 
 # Hash + address
-./explorer <tx-hash> <address>
+./explorer <tx-hash> <address> [--net testnet|mainnet|mylocalton|http://custom-domain/global.config.json]
 
 # Hash only (auto-resolves address)
-./explorer <tx-hash>
+./explorer <tx-hash> [--net testnet|mainnet|mylocalton|http://custom-domain/global.config.json]
 ```
 
 ## Networks
