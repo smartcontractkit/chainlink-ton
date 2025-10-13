@@ -9,23 +9,19 @@ End-to-end validation for CCIP messaging between (currently only) TON and EVM ch
 cp env.example .env
 # Edit .env with your values
 
-# Run single direction
-./run_test.sh TON2EVM
-./run_test.sh EVM2TON
-
-# Or use Go directly
-go test -v -run Test_TON2EVM ./tests
-go test -v -run Test_EVM2TON ./tests
+# Run tests
+go run ./cmd/ton2evm  # TON → EVM test
+go run ./cmd/evm2ton  # EVM → TON test
 ```
 
 ## Structure
 
 ```
 staging-messaging-test/
-├── cmd/check_balance/     # Balance checker utility
-├── lib/                   # Chain clients (evm/, ton/)
-├── tests/                 # Test files per direction
-├── run_test.sh           # Test runner
+├── cmd/
+│   ├── ton2evm/          # TON→EVM test (standalone executable)
+│   └── evm2ton/          # EVM→TON test (standalone executable)
+├── lib/                  # Chain clients (evm/, ton/), shared types
 └── env.example           # Environment template
 ```
 
@@ -53,7 +49,7 @@ ETHEREUM_TESTNET_SEPOLIA_ENDPOINT=https://ethereum-sepolia-rpc.publicnode.com
 
 ## GitHub Actions
 
-Runs both test directions in parallel using matrix. Repository settings:
+Uses matrix strategy to run tests in parallel. Each test sends its own Slack notification. Repository settings:
 
 **Variables:**
 - `TON_TESTNET_SELECTOR`
@@ -94,13 +90,31 @@ lib.RegisterClientFactory(chainsel.FamilyXYZ, NewXYZClient)
 
 ### Adding a Test Direction
 
-1. Create `tests/xyz2abc_msg_test.go`
-2. Add to workflow matrix: `direction: [ton2evm, evm2ton, xyz2abc]`
-3. Done
+1. Create new test command `cmd/xyz2abc/main.go` (copy from `cmd/ton2evm/main.go`)
+2. Update chain selectors, case name, and log messages
+3. Add to workflow matrix:
+   ```yaml
+   matrix:
+     test: [ton2evm, evm2ton, xyz2abc]
+   ```
+4. Ensure required environment variables are set
+5. Done - test runs independently in its own matrix job
 
-### Balance Checker
+### JSON Output
 
-```bash
-go run ./cmd/check_balance <selector> <address>
-# Returns JSON with balance
+Each test outputs JSON with metrics:
+
+```json
+{
+  "case": "messaging-ton2evm",
+  "status": "success",
+  "sender_address": "EQDtF...",
+  "sender_balance": "10.5",
+  "message_id": "abc123...",
+  "latency_seconds": 45,
+  "latency_formatted": "00:45",
+  "router": "0x...",
+  "receiver": "0x...",
+  "data": "test-message"
+}
 ```

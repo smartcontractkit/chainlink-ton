@@ -350,3 +350,10 @@ func (c *Client) GetBalance(ctx context.Context, addrStr string) (string, error)
 	ton := new(big.Float).Quo(new(big.Float).SetInt(tonAmount), new(big.Float).SetInt64(1e9))
 	return ton.Text('f', 9), nil
 }
+
+func (c *Client) GetWalletAddress(ctx context.Context) (string, error) {
+	if c.wallet == nil {
+		return "", fmt.Errorf("wallet not initialized")
+	}
+	return c.wallet.Address().String(), nil
+}

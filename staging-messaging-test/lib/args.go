@@ -27,6 +27,8 @@ type Client interface {
 	GetCurrentBlock(ctx context.Context) (uint64, error)
 	// GetBalance returns the balance of the given address
 	GetBalance(ctx context.Context, address string) (string, error)
+	// GetWalletAddress returns the wallet address if initialized, or error
+	GetWalletAddress(ctx context.Context) (string, error)
 }
 
 // MessageToSend contains all params needed to send a CCIP message

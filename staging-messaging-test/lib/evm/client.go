@@ -287,3 +287,10 @@ func (c *Client) GetBalance(ctx context.Context, address string) (string, error)
 	}
 	return formatETH(balance), nil
 }
+
+func (c *Client) GetWalletAddress(ctx context.Context) (string, error) {
+	if c.wallet == nil {
+		return "", fmt.Errorf("wallet not initialized")
+	}
+	return c.wallet.From.Hex(), nil
+}

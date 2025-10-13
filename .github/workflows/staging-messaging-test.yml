@@ -11,7 +11,6 @@ on:
     types: [opened, synchronize, reopened, labeled]
     branches:
       - main
-      - jade/ci-staging-evm2ton
 
 jobs:
   messaging-tests:
@@ -23,7 +22,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        direction: [ton2evm, evm2ton]
+        test: [ton2evm, evm2ton]
     env:
       TON_TESTNET_SELECTOR: ${{ vars.TON_TESTNET_SELECTOR }}
       ETHEREUM_TESTNET_SEPOLIA_SELECTOR: ${{ vars.ETHEREUM_TESTNET_SEPOLIA_SELECTOR }}
@@ -35,9 +34,10 @@ jobs:
       ETHEREUM_TESTNET_SEPOLIA_RECEIVER: ${{ secrets.STAGING_ETHEREUM_TESTNET_SEPOLIA_RECEIVER }}
       ETHEREUM_TESTNET_SEPOLIA_WALLET_KEY: ${{ secrets.STAGING_ETHEREUM_TESTNET_SEPOLIA_WALLET_KEY }}
       ETHEREUM_TESTNET_SEPOLIA_ENDPOINT: ${{ secrets.STAGING_ETHEREUM_TESTNET_SEPOLIA_ENDPOINT }}
-      MESSAGE: "ccip-staging-${{ github.run_id }}-${{ matrix.direction }}"
+      MESSAGE: "ccip-staging-${{ github.run_id }}"
       RUN_URL: "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
       TRIGGER: "${{ github.event_name }}"
+      WHEN: "${{ github.run_started_at }}" # ISO8601
     steps:
       - name: Check out code
         uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
@@ -47,44 +47,51 @@ jobs:
         with:
           nix_path: nixpkgs=channel:nixos-unstable
 
-      - name: Run ${{ matrix.direction }} test
+      - name: Run ${{ matrix.test }} test
         id: test
         run: |
           cd staging-messaging-test
-          nix develop -c ./run_test.sh ${{ matrix.direction }}
+          nix develop -c go run ./cmd/${{ matrix.test }} > result.json 2>&1 || true
+          cat result.json
 
-      - name: Send Slack notification (success)
-        if: success()
+      - name: Send Slack notification
+        if: always()
         run: |
-          DIRECTION=$(echo "${{ matrix.direction }}" | tr '[:lower:]' '[:upper:]' | sed 's/2/ → /')
-          SRC_ROUTER="${{ matrix.direction == 'ton2evm' && secrets.STAGING_TON_TESTNET_ROUTER || secrets.STAGING_ETHEREUM_TESTNET_SEPOLIA_ROUTER }}"
-          DEST_RECEIVER="${{ matrix.direction == 'ton2evm' && secrets.STAGING_ETHEREUM_TESTNET_SEPOLIA_RECEIVER || secrets.STAGING_TON_TESTNET_RECEIVER }}"
+          cd staging-messaging-test
           
+          # Parse result (if file doesn't exist or is invalid, jq will fail and we skip notification)
+          STATUS=$(jq -r '.status' result.json)
+          CASE=$(jq -r '.case' result.json)
+          ROUTER=$(jq -r '.router' result.json)
+          RECEIVER=$(jq -r '.receiver' result.json)
+          DATA=$(jq -r '.data' result.json)
+          MESSAGE_ID=$(jq -r '.message_id // "N/A"' result.json)
+          SENDER_ADDRESS=$(jq -r '.sender_address // "N/A"' result.json)
+          SENDER_BALANCE=$(jq -r '.sender_balance // "N/A"' result.json)
+          LATENCY=$(jq -r '.latency_formatted // "N/A"' result.json)
+          ERROR=$(jq -r '.error // ""' result.json)
+          
+          # Set status icon
+          if [[ "$STATUS" == "success" ]]; then
+            STATUS_ICON=":white_check_mark: Success"
+          else
+            STATUS_ICON=":x: Failure"
+          fi
+          
+          # Send webhook
           curl -X POST -H 'Content-type: application/json' \
             --data "{
-              \"Status\": \":white_check_mark: Success - CCIP ${DIRECTION}\",
-              \"Router\": \"${SRC_ROUTER}\",
-              \"Receiver\": \"${DEST_RECEIVER}\",
-              \"Data\": \"${{ env.MESSAGE }}\",
-              \"RunURL\": \"${RUN_URL}\",
-              \"Trigger\": \"${TRIGGER}\",
-            }" \
-            ${{ secrets.STAGING_TEST_SLACK_WEBHOOK }}
-
-      - name: Send Slack notification (failure)
-        if: failure()
-        run: |
-          DIRECTION=$(echo "${{ matrix.direction }}" | tr '[:lower:]' '[:upper:]' | sed 's/2/ → /')
-          SRC_ROUTER="${{ matrix.direction == 'ton2evm' && secrets.STAGING_TON_TESTNET_ROUTER || secrets.STAGING_ETHEREUM_TESTNET_SEPOLIA_ROUTER }}"
-          DEST_RECEIVER="${{ matrix.direction == 'ton2evm' && secrets.STAGING_ETHEREUM_TESTNET_SEPOLIA_RECEIVER || secrets.STAGING_TON_TESTNET_RECEIVER }}"
-          
-          curl -X POST -H 'Content-type: application/json' \
-            --data "{
-              \"Status\": \":x: Failure - CCIP ${DIRECTION}\",
-              \"Router\": \"${SRC_ROUTER}\",
-              \"Receiver\": \"${DEST_RECEIVER}\",
-              \"Data\": \"${{ env.MESSAGE }}\",
-              \"RunURL\": \"${RUN_URL}\",
-              \"Trigger\": \"${TRIGGER}\",
+              \"status\": \"$STATUS_ICON\",
+              \"test_case\": \"$CASE\",
+              \"src_router\": \"$ROUTER\",
+              \"dest_receiver\": \"$RECEIVER\",
+              \"data\": \"$DATA\",
+              \"message_id\": \"$MESSAGE_ID\",
+              \"sender_address\": \"$SENDER_ADDRESS\",
+              \"sender_balance\": \"$SENDER_BALANCE\",
+              \"latency\": \"$LATENCY\",
+              \"run_url\": \"${{ env.RUN_URL }}\",
+              \"trigger\": \"${{ env.TRIGGER }}\",
+              \"when\": \"${{ env.WHEN }}\"
             }" \
             ${{ secrets.STAGING_TEST_SLACK_WEBHOOK }}
