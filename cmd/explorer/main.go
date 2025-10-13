@@ -10,7 +10,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/explorer"
 )
 
-var rootCmd = explorer.GenerateExplorerCmd(logger.DefaultLogger, map[string]deployment.TypeAndVersion{})
+var rootCmd = explorer.GenerateExplorerCmd(logger.DefaultLogger, map[string]deployment.TypeAndVersion{}, nil)
 
 func main() {
 	if err := rootCmd.Execute(); err != nil {

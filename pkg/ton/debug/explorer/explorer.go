@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os/exec"
+	"strconv"
 	"strings"
 	"time"
 
@@ -28,7 +30,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 )
 
-func GenerateExplorerCmd(lggr logger.Logger, contracts map[string]deployment.TypeAndVersion) *cobra.Command {
+func GenerateExplorerCmd(lggr logger.Logger, contracts map[string]deployment.TypeAndVersion, client *ton.APIClient) *cobra.Command {
 
 	var (
 		destAddressStr string
@@ -62,6 +64,9 @@ Arguments:
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if client != nil && cmd.Flags().Changed("net") {
+				return errors.New("cannot specify network flag when using existing client")
+			}
 			var txHash, address, parsedNet string
 
 			urlOrTx := args[0]
@@ -90,7 +95,7 @@ Arguments:
 			}
 
 			ctx := context.Background()
-			client, err := Connect(lggr, net, verbose, pageSize, maxPages)
+			client, err := Connect(lggr, client, net, verbose, pageSize, maxPages)
 			if err != nil {
 				return fmt.Errorf("failed to initialize explorer: %w", err)
 			}
@@ -137,6 +142,98 @@ func parseFormat(visualization string, format string) (Format, error) {
 	return Format(0), fmt.Errorf("invalid visualization format: %s", format)
 }
 
+// ContainerInspect represents the structure returned by docker inspect
+type ContainerInspect struct {
+	ID    string `json:"Id"`
+	State struct {
+		Running bool `json:"Running"`
+	} `json:"State"`
+	Config struct {
+		Image string `json:"Image"`
+	} `json:"Config"`
+	NetworkSettings struct {
+		Ports map[string][]struct {
+			HostIP   string `json:"HostIp"`
+			HostPort string `json:"HostPort"`
+		} `json:"Ports"`
+	} `json:"NetworkSettings"`
+}
+
+// findMylocaltonContainer finds a running mylocalton container and returns its ID
+func findMylocaltonContainer(ctx context.Context) (string, error) {
+	cmd := exec.CommandContext(ctx, "docker", "ps", "--format", "{{.ID}}\t{{.Image}}", "--filter", "status=running")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to list docker containers: %w", err)
+	}
+
+	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
+		parts := strings.Split(line, "\t")
+		if len(parts) != 2 {
+			continue
+		}
+		containerID := parts[0]
+		image := parts[1]
+
+		// Look for mylocalton containers, but exclude explorer
+		if strings.Contains(image, "mylocalton-docker") && !strings.Contains(image, "mylocalton-docker-explorer") {
+			return containerID, nil
+		}
+	}
+
+	return "", errors.New("no running mylocalton container found")
+}
+
+// inspectContainer runs docker inspect on the given container ID
+func inspectContainer(ctx context.Context, containerID string) (*ContainerInspect, error) {
+	cmd := exec.CommandContext(ctx, "docker", "inspect", containerID)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		if strings.Contains(string(output), "No such object") || strings.Contains(string(output), "No such container") {
+			return nil, fmt.Errorf("container %s does not exist", containerID)
+		}
+		return nil, fmt.Errorf("docker inspect failed: %w\nOutput: %s", err, string(output))
+	}
+
+	var inspects []ContainerInspect
+	if err := json.Unmarshal(output, &inspects); err != nil {
+		return nil, fmt.Errorf("failed to parse docker inspect output: %w", err)
+	}
+
+	if len(inspects) == 0 {
+		return nil, fmt.Errorf("container %s not found", containerID)
+	}
+
+	inspect := &inspects[0]
+
+	if !inspect.State.Running {
+		return nil, fmt.Errorf("container %s exists but is not running", containerID)
+	}
+
+	return inspect, nil
+}
+
+// getPortMapping extracts the host port that maps to a given container port
+func getPortMapping(inspect *ContainerInspect, containerPort string) (string, error) {
+	portKey := containerPort + "/tcp"
+	ports, exists := inspect.NetworkSettings.Ports[portKey]
+	if !exists || len(ports) == 0 {
+		return "", fmt.Errorf("no port mapping found for container port %s", containerPort)
+	}
+
+	// Return the first host port mapping
+	hostPort := ports[0].HostPort
+	if hostPort == "" {
+		return "", fmt.Errorf("empty host port mapping for container port %s", containerPort)
+	}
+
+	return hostPort, nil
+}
+
 // Connect establishes a connection to the specified TON network and returns an
 // explorer instance for tracing transactions.
 //
@@ -145,10 +242,13 @@ func parseFormat(visualization string, format string) (Format, error) {
 // - verbose: Whether to enable verbose output.
 // - pageSize: The number of transactions to fetch per page.
 // - maxPages: The maximum number of pages to fetch.
-func Connect(lggr logger.Logger, net string, verbose bool, pageSize uint32, maxPages uint32) (*client, error) {
-	apiClient, err := connect(context.Background(), net)
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to network: %w", err)
+func Connect(lggr logger.Logger, apiClient *ton.APIClient, net string, verbose bool, pageSize uint32, maxPages uint32) (*client, error) {
+	if apiClient == nil {
+		var err error
+		apiClient, err = connect(context.Background(), net)
+		if err != nil {
+			return nil, fmt.Errorf("failed to connect to network: %w", err)
+		}
 	}
 	return &client{
 		lggr:       lggr,
@@ -464,19 +564,60 @@ func equalHash(a, b []byte) bool {
 }
 
 func connect(ctx context.Context, net string) (*ton.APIClient, error) {
-	configURL := net
+	pool := liteclient.NewConnectionPool()
 	switch net {
 	case "mainnet":
-		configURL = "https://ton-blockchain.github.io/global.config.json"
+		configURL := "https://ton-blockchain.github.io/global.config.json"
+		err := pool.AddConnectionsFromConfigUrl(ctx, configURL)
+		if err != nil {
+			return nil, fmt.Errorf("failed to add connections from config url: %w", err)
+		}
 	case "testnet":
-		configURL = "https://ton.org/testnet-global.config.json"
+		configURL := "https://ton.org/testnet-global.config.json"
+		err := pool.AddConnectionsFromConfigUrl(ctx, configURL)
+		if err != nil {
+			return nil, fmt.Errorf("failed to add connections from config url: %w", err)
+		}
 	case "mylocalton":
-		configURL = "http://127.0.0.1:8000/localhost.global.config.json"
-	}
-	pool := liteclient.NewConnectionPool()
-	err := pool.AddConnectionsFromConfigUrl(ctx, configURL)
-	if err != nil {
-		return nil, fmt.Errorf("failed to add connections from config url: %w", err)
+		// Find running mylocalton container
+		containerID, err := findMylocaltonContainer(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to find mylocalton container: %w", err)
+		}
+
+		// Inspect the container to get port mappings
+		inspect, err := inspectContainer(ctx, containerID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to inspect container %s: %w", containerID, err)
+		}
+
+		// Get the external port mapping for internal port 8000 (config server)
+		configPort, err := getPortMapping(inspect, "8000")
+		if err != nil {
+			return nil, fmt.Errorf("failed to get port mapping for config server: %w", err)
+		}
+
+		// Fetch the config from the mapped port
+		configURL := fmt.Sprintf("http://127.0.0.1:%s/localhost.global.config.json", configPort)
+		config, err := liteclient.GetConfigFromUrl(ctx, configURL)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get config from url: %w", err)
+		}
+
+		// Get the liteserver port mapping (typically port 46995 internally)
+		liteserverConfig := config.Liteservers[0]
+		liteserverPort := strconv.Itoa(int(liteserverConfig.Port))
+		externalLiteserverPort, err := getPortMapping(inspect, liteserverPort)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get port mapping for liteserver: %w", err)
+		}
+
+		// Connect to the liteserver using the external port
+		connectionString := fmt.Sprintf("127.0.0.1:%s", externalLiteserverPort)
+		err = pool.AddConnection(ctx, connectionString, liteserverConfig.ID.Key)
+		if err != nil {
+			return nil, fmt.Errorf("failed to add localton connection: %w", err)
+		}
 	}
 	return ton.NewAPIClient(pool, ton.ProofCheckPolicyFast), nil
 }
