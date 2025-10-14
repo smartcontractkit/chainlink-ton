@@ -29,7 +29,6 @@ When developing features or fixes that require changes in both repositories, the
 4. **Do NOT merge yet** - note the commit hash of your PR branch
 
 ### Step 2: Create Core Branch and Sync Dependencies
-``
 1. In the `chainlink` core repository, create a new branch
 2. Follow the ["Syncing Changes from chainlink-ton to Core"](#syncing-changes-from-chainlink-ton-to-core) steps using the latest commit hash from the chainlink-ton PR
 
