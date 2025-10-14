@@ -74,13 +74,12 @@ func (c *SourceChainConfig) FromResult(result *ton.ExecutionResult) error {
 	}
 	isRMNVerificationDisabled := isRMNDisabledInt.Cmp(big.NewInt(0)) != 0
 
-	onRampCell, err := result.Cell(4)
+	onRampSlice, err := result.Slice(4)
 	if err != nil {
-		return fmt.Errorf("failed to get onRamp cell: %w", err)
+		return fmt.Errorf("failed to get onRamp slice: %w", err)
 	}
-
-	var onRamp common.CrossChainAddress
-	if err := tlb.LoadFromCell(&onRamp, onRampCell.BeginParse()); err != nil {
+	onRamp, err := common.LoadCrossChainAddressFromSnakeData(onRampSlice)
+	if err != nil {
 		return fmt.Errorf("failed to parse onRamp: %w", err)
 	}
 

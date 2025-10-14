@@ -128,6 +128,18 @@ func (c *CrossChainAddress) LoadFromCell(s *cell.Slice) error {
 	return nil
 }
 
+// LoadCrossChainAddressFromSnakeData parses a CrossChainAddress from a slice
+// that contains standard TL-B snake-formatted bytes (no custom length prefix).
+// This is used for parsing data from contract getters that return structs with `bytes` fields.
+func LoadCrossChainAddressFromSnakeData(s *cell.Slice) (CrossChainAddress, error) {
+	// Load all remaining bits from the slice as the address data.
+	data, err := s.LoadSlice(s.BitsLeft())
+	if err != nil {
+		return nil, fmt.Errorf("failed to load snake data for cross chain address: %w", err)
+	}
+	return CrossChainAddress(data), nil
+}
+
 // PackArrayWithRefChaining packs a slice of any serializable type T into a linked cell structure,
 // storing each element as a cell reference. When only one reference slot is left, it starts a new cell
 // and uses the last reference for chaining.
