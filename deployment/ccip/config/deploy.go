@@ -17,7 +17,6 @@ type ChainContractParams struct {
 	OffRampParams   OffRampParams
 	OnRampParams    OnRampParams
 	RouterParams    RouterParams
-	ReceiverParams  ReceiverParams
 }
 
 func (c ChainContractParams) Validate() error {

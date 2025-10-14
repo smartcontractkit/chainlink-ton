@@ -12,7 +12,6 @@ import "../../ccip/offramp/messages";
 const RECEIVED_MESSAGE_TOPIC = 0xc5a40ab3; //crc32('Receiver_CCIPMessageReceived')
 
 struct Storage {
-    id: uint32;
     offRamp: address; //TODO: should be router?
 }
 
