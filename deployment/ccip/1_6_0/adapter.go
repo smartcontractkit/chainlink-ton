@@ -31,14 +31,32 @@ func (a *TonAdapter) GetOnRampAddress(env *cldf.Environment, chainSelector uint6
 	return onrampAddress.Data(), nil
 }
 
-func (a *TonAdapter) GetOffRampAddress(e *cldf.Environment, chainSelector uint64) ([]byte, error) {
-	return []byte{}, nil // Not implemented for Ton
+func (a *TonAdapter) GetOffRampAddress(env *cldf.Environment, chainSelector uint64) ([]byte, error) {
+	tonChains, err := tonstate.LoadOnchainState(*env)
+	if err != nil {
+		return []byte{}, fmt.Errorf("failed to load TON onchain state: %w", err)
+	}
+
+	offrampAddress := tonChains[chainSelector].OffRamp
+	return offrampAddress.Data(), nil
 }
 
-func (a *TonAdapter) GetFQAddress(e *cldf.Environment, chainSelector uint64) ([]byte, error) {
-	return []byte{}, nil // Not implemented for Ton
+func (a *TonAdapter) GetFQAddress(env *cldf.Environment, chainSelector uint64) ([]byte, error) {
+	tonChains, err := tonstate.LoadOnchainState(*env)
+	if err != nil {
+		return []byte{}, fmt.Errorf("failed to load TON onchain state: %w", err)
+	}
+
+	feeQuoterAddress := tonChains[chainSelector].FeeQuoter
+	return feeQuoterAddress.Data(), nil
 }
 
-func (a *TonAdapter) GetRouterAddress(e *cldf.Environment, chainSelector uint64) ([]byte, error) {
-	return []byte{}, nil // Not implemented for Ton
+func (a *TonAdapter) GetRouterAddress(env *cldf.Environment, chainSelector uint64) ([]byte, error) {
+	tonChains, err := tonstate.LoadOnchainState(*env)
+	if err != nil {
+		return []byte{}, fmt.Errorf("failed to load TON onchain state: %w", err)
+	}
+
+	routerAddress := tonChains[chainSelector].Router
+	return routerAddress.Data(), nil
 }
