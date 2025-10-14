@@ -53,7 +53,7 @@ jobs:
         continue-on-error: true
         run: |
           cd staging-messaging-test
-          nix develop -c go run ./cmd/${{ matrix.test }}
+          nix develop -c go run ./cmd/run-test -case ${{ matrix.test }}
 
       - name: Send Slack notification
         if: always()

@@ -1,6 +1,6 @@
 # CCIP Staging Messaging Tests
 
-End-to-end validation for CCIP messaging between (currently only) TON and EVM chains.
+End-to-end validation for CCIP messaging between TON and EVM chains.
 
 ## Quick Start
 
@@ -9,20 +9,22 @@ End-to-end validation for CCIP messaging between (currently only) TON and EVM ch
 cp env.example .env
 # Edit .env with your values
 
-# Run tests
-go run ./cmd/ton2evm  # TON → EVM test
-go run ./cmd/evm2ton  # EVM → TON test
+# Run tests using unified runner
+go run ./cmd/run-test -case ton2evm  # TON → EVM test
+go run ./cmd/run-test -case evm2ton  # EVM → TON test
 ```
 
 ## Structure
 
 ```
 staging-messaging-test/
+├── cases/                # Test case implementations
+│   ├── ton2evm.go       # TON→EVM test logic
+│   └── evm2ton.go       # EVM→TON test logic
 ├── cmd/
-│   ├── ton2evm/          # TON→EVM test (standalone executable)
-│   └── evm2ton/          # EVM→TON test (standalone executable)
-├── lib/                  # Chain clients (evm/, ton/), shared types
-└── env.example           # Environment template
+│   ├── run-test/        # Unified test runner (use -case flag)
+│   └── send-slack/      # Slack notification sender
+└── lib/                 # Chain clients (evm/, ton/), shared types
 ```
 
 ## Environment Variables
@@ -52,10 +54,12 @@ ETHEREUM_TESTNET_SEPOLIA_ENDPOINT=https://ethereum-sepolia-rpc.publicnode.com
 Uses matrix strategy to run tests in parallel. Each test sends its own Slack notification. Repository settings:
 
 **Variables:**
+
 - `TON_TESTNET_SELECTOR`
 - `ETHEREUM_TESTNET_SEPOLIA_SELECTOR`
 
 **Secrets:**
+
 - `STAGING_TON_TESTNET_ROUTER`
 - `STAGING_TON_TESTNET_RECEIVER`
 - `STAGING_TON_TESTNET_WALLET_KEY`
@@ -88,15 +92,33 @@ Register new chains:
 lib.RegisterClientFactory(chainsel.FamilyXYZ, NewXYZClient)
 ```
 
-### Adding a Test Direction
+### Adding a Test Case
 
-1. Create new test command `cmd/xyz2abc/main.go` (copy from `cmd/ton2evm/main.go`)
-2. Update chain selectors, case name, and log messages
+1. Create test case in `cases/xyz2abc.go`:
+
+   ```go
+   func XYZ2ABC(ctx context.Context, lggr logger.Logger) (*lib.TestResult, error) {
+       result := &lib.TestResult{Case: "messaging-xyz2abc", Status: "failure"}
+       // ... test logic ...
+       result.Status = "success"
+       return result, nil
+   }
+   ```
+
+2. Add case to `cmd/run-test/main.go` switch statement:
+
+   ```go
+   case "xyz2abc":
+       result, err = cases.XYZ2ABC(ctx, lggr)
+   ```
+
 3. Add to workflow matrix:
+
    ```yaml
    matrix:
      test: [ton2evm, evm2ton, xyz2abc]
    ```
+
 4. Ensure required environment variables are set
 5. Done - test runs independently in its own matrix job
 
