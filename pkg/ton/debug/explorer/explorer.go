@@ -66,7 +66,9 @@ Arguments:
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var err error
 			var log logger.Logger
-			if lggr == nil {
+			if lggr != nil {
+				log = *lggr
+			} else {
 				config := logger.Config{}
 				if verbose {
 					config.Level = zapcore.DebugLevel
