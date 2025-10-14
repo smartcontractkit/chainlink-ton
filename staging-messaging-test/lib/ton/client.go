@@ -102,6 +102,7 @@ func (c *Client) ChainSelector() uint64 {
 	return c.chainSel
 }
 
+// TODO: externalize message configurations to cover more scenarios(tokens, gas, etc)
 func (c *Client) SendMessage(ctx context.Context, lggr logger.Logger, msg lib.MessageToSend) (*lib.SendResult, error) {
 	routerAddr, err := address.ParseAddr(msg.Router)
 	if err != nil {
