@@ -41,6 +41,11 @@ func TON2EVM(ctx context.Context, lggr logger.Logger) (*lib.TestResult, error) {
 		return result, err
 	}
 
+	// Initialize test metadata (available even on failure for reporting)
+	result.Router = args.SrcRouter
+	result.Receiver = args.DestReceiver
+	result.Data = args.MessageData
+
 	// Setup context
 	testCtx, err := lib.SetupContext(ctx, lggr, args)
 	if err != nil {
@@ -62,6 +67,8 @@ func TON2EVM(ctx context.Context, lggr logger.Logger) (*lib.TestResult, error) {
 			senderBalance = balance
 		}
 	}
+	result.SenderAddress = senderAddr
+	result.SenderBalance = senderBalance
 
 	// Get starting block
 	startBlock, err := testCtx.Dest.GetCurrentBlock(ctx)
@@ -82,6 +89,7 @@ func TON2EVM(ctx context.Context, lggr logger.Logger) (*lib.TestResult, error) {
 		return result, err
 	}
 
+	result.MessageID = sendResult.MessageID
 	lggr.Infow("Message sent", "seqNum", sendResult.SeqNum, "messageID", sendResult.MessageID)
 
 	// Wait for message received
@@ -92,17 +100,10 @@ func TON2EVM(ctx context.Context, lggr logger.Logger) (*lib.TestResult, error) {
 		return result, err
 	}
 
-	// Calculate latency
-	duration := time.Since(startTime)
-
-	// Populate result with all gathered information
+	// Populate result with test outcome data
 	result.Status = "success"
-	result.Router = args.SrcRouter
-	result.Receiver = args.DestReceiver
-	result.Data = args.MessageData
-	result.SenderAddress = senderAddr
-	result.SenderBalance = senderBalance
-	result.MessageID = sendResult.MessageID
+
+	duration := time.Since(startTime)
 	result.LatencySeconds = int64(duration.Seconds())
 	result.LatencyFormatted = lib.FormatDuration(duration)
 

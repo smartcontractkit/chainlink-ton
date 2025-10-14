@@ -41,6 +41,11 @@ func EVM2TON(ctx context.Context, lggr logger.Logger) (*lib.TestResult, error) {
 		return result, err
 	}
 
+	// Initialize test metadata (available even on failure for reporting)
+	result.Router = args.SrcRouter
+	result.Receiver = args.DestReceiver
+	result.Data = args.MessageData
+
 	// Setup context
 	testCtx, err := lib.SetupContext(ctx, lggr, args)
 	if err != nil {
@@ -62,6 +67,8 @@ func EVM2TON(ctx context.Context, lggr logger.Logger) (*lib.TestResult, error) {
 			senderBalance = balance
 		}
 	}
+	result.SenderAddress = senderAddr
+	result.SenderBalance = senderBalance
 
 	// Get starting block
 	startBlock, err := testCtx.Dest.GetCurrentBlock(ctx)
@@ -83,6 +90,7 @@ func EVM2TON(ctx context.Context, lggr logger.Logger) (*lib.TestResult, error) {
 	}
 
 	lggr.Infow("Message sent", "seqNum", sendResult.SeqNum, "messageID", sendResult.MessageID, "txHash", sendResult.TxHash)
+	result.MessageID = sendResult.MessageID
 
 	// Wait for message received
 	err = testCtx.WaitForMessageReceived(ctx, lggr, sendResult.MessageID, args.MessageData, startBlock)
@@ -92,17 +100,9 @@ func EVM2TON(ctx context.Context, lggr logger.Logger) (*lib.TestResult, error) {
 		return result, err
 	}
 
-	// Calculate latency
-	duration := time.Since(startTime)
-
-	// Populate result with all gathered information
 	result.Status = "success"
-	result.Router = args.SrcRouter
-	result.Receiver = args.DestReceiver
-	result.Data = args.MessageData
-	result.SenderAddress = senderAddr
-	result.SenderBalance = senderBalance
-	result.MessageID = sendResult.MessageID
+
+	duration := time.Since(startTime)
 	result.LatencySeconds = int64(duration.Seconds())
 	result.LatencyFormatted = lib.FormatDuration(duration)
 
