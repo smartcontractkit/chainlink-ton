@@ -78,7 +78,7 @@ func (c *SourceChainConfig) FromResult(result *ton.ExecutionResult) error {
 	if err != nil {
 		return fmt.Errorf("failed to get onRamp slice: %w", err)
 	}
-	onRamp, err := common.LoadCrossChainAddressFromSnakeData(onRampSlice)
+	onRamp, err := common.LoadCrossChainAddressWithoutPrefix(onRampSlice)
 	if err != nil {
 		return fmt.Errorf("failed to parse onRamp: %w", err)
 	}
