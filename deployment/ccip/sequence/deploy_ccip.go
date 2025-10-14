@@ -33,6 +33,7 @@ type DeployCCIPSeqOutput struct {
 	FeeQuoterAddress *address.Address
 	OnRampAddress    *address.Address
 	OffRampAddress   *address.Address
+	ReceiverAddress  *address.Address
 	Transactions     [][]byte
 }
 
@@ -84,6 +85,7 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 		b.Logger.Infof("Not downloading contracts from Github. Using local version")
 	}
 
+	// Router
 	routerInput := operation.DeployRouterInput{
 		ID: in.CCIPConfig.RouterParams.ID,
 		// chainSelector ?
@@ -95,6 +97,7 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 	}
 	output.RouterAddress = deployRouterReport.Output.Address
 
+	// FeeQuoter
 	feeQuoterInput := operation.DeployFeeQuoterInput{
 		Params:       in.CCIPConfig.FeeQuoterParams,
 		LinkAddr:     address.NewAddressNone(),
@@ -106,6 +109,7 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 	}
 	output.FeeQuoterAddress = deployFeeQuoterReport.Output.Address
 
+	// OnRamp
 	onrampInput := operation.DeployOnRampInput{
 		ID:                   in.CCIPConfig.OnRampParams.ID,
 		ChainSelector:        in.CCIPConfig.OnRampParams.ChainSelector,
@@ -121,6 +125,7 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 	}
 	output.OnRampAddress = deployOnRampReport.Output.Address
 
+	// OffRamp
 	offrampInput := operation.DeployOffRampInput{
 		ID:                                      in.CCIPConfig.OffRampParams.ID,
 		ChainSelector:                           in.CCIPConfig.OffRampParams.ChainSelector,
@@ -130,13 +135,26 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 		DeployerContractPath:                    utils.GetBuildDir("Deployable.compiled.json"),
 		MerkleRootContractPath:                  utils.GetBuildDir("MerkleRoot.compiled.json"),
 	}
-	// TODO: the rest of OffRampParams (SourceChain config)
 
 	deployOffRampReport, err := operations.ExecuteOperation(b, operation.DeployOffRampOp, deps, offrampInput)
 	if err != nil {
 		return output, err
 	}
 	output.OffRampAddress = deployOffRampReport.Output.Address
+
+	// Receiver
+	receiverInput := operation.DeployReceiverInput{
+		ID:             in.CCIPConfig.OnRampParams.ID,
+		OffRampAddress: deployOffRampReport.Output.Address,
+		Coins:          "0.1",
+		ContractPath:   utils.GetBuildDir("ccip.test.receiver.compiled.json"),
+	}
+
+	deployReceiverReport, err := operations.ExecuteOperation(b, operation.DeployReceiverOp, deps, receiverInput)
+	if err != nil {
+		return output, err
+	}
+	output.ReceiverAddress = deployReceiverReport.Output.Address
 
 	return output, nil
 }

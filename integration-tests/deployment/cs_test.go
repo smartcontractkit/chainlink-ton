@@ -207,7 +207,10 @@ func TestDeploy(t *testing.T) {
 	require.NoError(t, err)
 	rawLinkAddr, err := addrCodec.AddressStringToBytes(linkAddr.String())
 	require.NoError(t, err)
-	rawDeployerAddr, err := addrCodec.AddressStringToBytes(deployer.Address().String())
+	receiverAddr := state[chainSelector].ReceiverAddress
+	_, err = addrCodec.AddressStringToBytes(receiverAddr.String())
+	require.NoError(t, err)
+	rawDeployerAddr, err := addrCodec.AddressStringToBytes(deployer.WalletAddress().String())
 	require.NoError(t, err)
 
 	err = accessor.Sync(ctx, consts.ContractNameOnRamp, rawOnRampAddr)
