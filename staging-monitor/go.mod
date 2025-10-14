@@ -1,4 +1,4 @@
-module github.com/smartcontractkit/chainlink-ton/staging-messaging-test
+module github.com/smartcontractkit/chainlink-ton/staging-monitor
 
 go 1.24.6
 

@@ -8,20 +8,20 @@ import (
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
-	"github.com/smartcontractkit/chainlink-ton/staging-messaging-test/cases"
-	"github.com/smartcontractkit/chainlink-ton/staging-messaging-test/lib"
-	_ "github.com/smartcontractkit/chainlink-ton/staging-messaging-test/lib/evm"
-	_ "github.com/smartcontractkit/chainlink-ton/staging-messaging-test/lib/ton"
+	"github.com/smartcontractkit/chainlink-ton/staging-monitor/cases"
+	"github.com/smartcontractkit/chainlink-ton/staging-monitor/lib"
+	_ "github.com/smartcontractkit/chainlink-ton/staging-monitor/lib/evm"
+	_ "github.com/smartcontractkit/chainlink-ton/staging-monitor/lib/ton"
 )
 
 func main() {
-	testCase := flag.String("case", "", "Test case to run: ton2evm, evm2ton")
+	testCase := flag.String("case", "", "Test case to run: ton2evm-messaging, evm2ton-messaging")
 	resultFile := flag.String("result-file", "result.json", "Path to write test result JSON")
 	flag.Parse()
 
 	if *testCase == "" {
 		fmt.Fprintln(os.Stderr, "Error: -case flag is required")
-		fmt.Fprintln(os.Stderr, "Available test cases: ton2evm, evm2ton")
+		fmt.Fprintln(os.Stderr, "Available test cases: ton2evm-messaging, evm2ton-messaging")
 		flag.Usage()
 		os.Exit(1)
 	}
@@ -50,10 +50,10 @@ func main() {
 
 		var err error
 		switch *testCase {
-		case "ton2evm":
-			result, err = cases.TON2EVM(ctx, lggr)
-		case "evm2ton":
-			result, err = cases.EVM2TON(ctx, lggr)
+		case "ton2evm-messaging":
+			result, err = cases.TON2EVMMessaging(ctx, lggr)
+		case "evm2ton-messaging":
+			result, err = cases.EVM2TONMessaging(ctx, lggr)
 		default:
 			result = &lib.TestResult{
 				Case:   *testCase,

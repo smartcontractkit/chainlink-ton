@@ -9,26 +9,26 @@ import (
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
-	"github.com/smartcontractkit/chainlink-ton/staging-messaging-test/lib"
+	"github.com/smartcontractkit/chainlink-ton/staging-monitor/lib"
 )
 
-// TON2EVM executes the TON to EVM messaging test case
-func TON2EVM(ctx context.Context, lggr logger.Logger) (*lib.TestResult, error) {
+// EVM2TONMessaging executes the EVM to TON messaging test case
+func EVM2TONMessaging(ctx context.Context, lggr logger.Logger) (*lib.TestResult, error) {
 	result := &lib.TestResult{
-		Case:   "messaging-ton2evm",
+		Case:   "messaging-evm2ton",
 		Status: "failure", // default to failure, set to success on pass
 	}
 
 	// Parse selectors
-	srcChainSel, err := strconv.ParseUint(os.Getenv("TON_TESTNET_SELECTOR"), 10, 64)
+	srcChainSel, err := strconv.ParseUint(os.Getenv("ETHEREUM_TESTNET_SEPOLIA_SELECTOR"), 10, 64)
 	if err != nil {
-		result.Error = "TON_TESTNET_SELECTOR not set or invalid"
+		result.Error = "ETHEREUM_TESTNET_SEPOLIA_SELECTOR not set or invalid"
 		lggr.Errorw("Failed to parse source chain selector", "error", err)
 		return result, err
 	}
-	destChainSel, err := strconv.ParseUint(os.Getenv("ETHEREUM_TESTNET_SEPOLIA_SELECTOR"), 10, 64)
+	destChainSel, err := strconv.ParseUint(os.Getenv("TON_TESTNET_SELECTOR"), 10, 64)
 	if err != nil {
-		result.Error = "ETHEREUM_TESTNET_SEPOLIA_SELECTOR not set or invalid"
+		result.Error = "TON_TESTNET_SELECTOR not set or invalid"
 		lggr.Errorw("Failed to parse destination chain selector", "error", err)
 		return result, err
 	}
@@ -55,7 +55,7 @@ func TON2EVM(ctx context.Context, lggr logger.Logger) (*lib.TestResult, error) {
 	}
 
 	// Get sender balance (optional, for reporting)
-	senderAddr, err := testCtx.Source.GetWalletAddress(ctx)
+	senderAddr, err := testCtx.Source.GetWalletAddress()
 	senderBalance := ""
 	if err != nil {
 		lggr.Warnw("Failed to get sender address", "error", err)
@@ -79,7 +79,7 @@ func TON2EVM(ctx context.Context, lggr logger.Logger) (*lib.TestResult, error) {
 	}
 
 	// Send message
-	lggr.Info("Sending CCIP message from TON to EVM")
+	lggr.Info("Sending CCIP message from EVM to TON")
 	startTime := time.Now()
 
 	sendResult, err := testCtx.SendMessage(ctx, lggr, []byte(args.MessageData))
@@ -89,8 +89,8 @@ func TON2EVM(ctx context.Context, lggr logger.Logger) (*lib.TestResult, error) {
 		return result, err
 	}
 
+	lggr.Infow("Message sent", "seqNum", sendResult.SeqNum, "messageID", sendResult.MessageID, "txHash", sendResult.TxHash)
 	result.MessageID = sendResult.MessageID
-	lggr.Infow("Message sent", "seqNum", sendResult.SeqNum, "messageID", sendResult.MessageID)
 
 	// Wait for message received
 	err = testCtx.WaitForMessageReceived(ctx, lggr, sendResult.MessageID, args.MessageData, startBlock)
@@ -100,7 +100,6 @@ func TON2EVM(ctx context.Context, lggr logger.Logger) (*lib.TestResult, error) {
 		return result, err
 	}
 
-	// Populate result with test outcome data
 	result.Status = "success"
 
 	duration := time.Since(startTime)

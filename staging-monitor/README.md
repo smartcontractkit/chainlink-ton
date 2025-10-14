@@ -1,6 +1,6 @@
-# CCIP Staging Messaging Tests
+# CCIP Staging Monitor
 
-End-to-end validation for CCIP messaging between TON and EVM chains.
+End-to-end validation for CCIP functionality between TON and EVM chains. Includes messaging, token transfer, gas limit tests, and more.
 
 ## Quick Start
 
@@ -10,17 +10,17 @@ cp env.example .env
 # Edit .env with your values
 
 # Run tests using unified runner
-go run ./cmd/run-test -case ton2evm  # TON → EVM test
-go run ./cmd/run-test -case evm2ton  # EVM → TON test
+go run ./cmd/run-test -case ton2evm-messaging  # TON → EVM messaging test
+go run ./cmd/run-test -case evm2ton-messaging  # EVM → TON messaging test
 ```
 
 ## Structure
 
 ```
-staging-messaging-test/
+staging-monitor/
 ├── cases/                # Test case implementations
-│   ├── ton2evm.go       # TON→EVM test logic
-│   └── evm2ton.go       # EVM→TON test logic
+│   ├── ton2evm_messaging.go  # TON→EVM messaging test logic
+│   └── evm2ton_messaging.go  # EVM→TON messaging test logic
 ├── cmd/
 │   ├── run-test/        # Unified test runner (use -case flag)
 │   └── send-slack/      # Slack notification sender
@@ -94,10 +94,10 @@ lib.RegisterClientFactory(chainsel.FamilyXYZ, NewXYZClient)
 
 ### Adding a Test Case
 
-1. Create test case in `cases/xyz2abc.go`:
+1. Create test case in `cases/xyz2abc_messaging.go`:
 
    ```go
-   func XYZ2ABC(ctx context.Context, lggr logger.Logger) (*lib.TestResult, error) {
+   func XYZ2ABCMessaging(ctx context.Context, lggr logger.Logger) (*lib.TestResult, error) {
        result := &lib.TestResult{Case: "messaging-xyz2abc", Status: "failure"}
        // ... test logic ...
        result.Status = "success"

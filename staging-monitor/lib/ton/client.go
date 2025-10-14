@@ -25,7 +25,8 @@ import (
 	tonlptypes "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
 	tonchain "github.com/smartcontractkit/chainlink-ton/pkg/ton/chain"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
-	"github.com/smartcontractkit/chainlink-ton/staging-messaging-test/lib"
+
+	"github.com/smartcontractkit/chainlink-ton/staging-monitor/lib"
 )
 
 func init() {
@@ -38,27 +39,6 @@ type Client struct {
 	lggr     logger.Logger
 	client   *ton.APIClient
 	wallet   *wallet.Wallet
-}
-
-func connectClient(ctx context.Context, endpoint string) (*ton.APIClient, error) {
-	if strings.HasPrefix(endpoint, "liteserver://") {
-		pool, err := tonchain.CreateLiteserverConnectionPool(ctx, endpoint)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create liteserver connection pool: %w", err)
-		}
-		return ton.NewAPIClient(pool, ton.ProofCheckPolicyFast), nil
-	} else {
-		cfg, err := liteclient.GetConfigFromUrl(ctx, endpoint)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get TON config: %w", err)
-		}
-		pool := liteclient.NewConnectionPool()
-		err = pool.AddConnectionsFromConfig(ctx, cfg)
-		if err != nil {
-			return nil, fmt.Errorf("failed to connect to TON: %w", err)
-		}
-		return ton.NewAPIClient(pool, ton.ProofCheckPolicyFast), nil
-	}
 }
 
 // NewClient creates a new TON client
@@ -96,6 +76,27 @@ func NewClient(ctx context.Context, lggr logger.Logger, chainSel uint64, endpoin
 	}
 
 	return c, nil
+}
+
+func connectClient(ctx context.Context, endpoint string) (*ton.APIClient, error) {
+	if strings.HasPrefix(endpoint, "liteserver://") {
+		pool, err := tonchain.CreateLiteserverConnectionPool(ctx, endpoint)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create liteserver connection pool: %w", err)
+		}
+		return ton.NewAPIClient(pool, ton.ProofCheckPolicyFast), nil
+	}
+	// connect via config URL
+	cfg, err := liteclient.GetConfigFromUrl(ctx, endpoint)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get TON config: %w", err)
+	}
+	pool := liteclient.NewConnectionPool()
+	err = pool.AddConnectionsFromConfig(ctx, cfg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to TON: %w", err)
+	}
+	return ton.NewAPIClient(pool, ton.ProofCheckPolicyFast), nil
 }
 
 func (c *Client) ChainSelector() uint64 {
@@ -352,7 +353,7 @@ func (c *Client) GetBalance(ctx context.Context, addrStr string) (string, error)
 	return ton.Text('f', 9), nil
 }
 
-func (c *Client) GetWalletAddress(ctx context.Context) (string, error) {
+func (c *Client) GetWalletAddress() (string, error) {
 	if c.wallet == nil {
 		return "", fmt.Errorf("wallet not initialized")
 	}

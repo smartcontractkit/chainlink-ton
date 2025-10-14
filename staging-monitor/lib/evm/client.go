@@ -23,7 +23,8 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
-	"github.com/smartcontractkit/chainlink-ton/staging-messaging-test/lib"
+
+	"github.com/smartcontractkit/chainlink-ton/staging-monitor/lib"
 )
 
 func init() {
@@ -289,7 +290,7 @@ func (c *Client) GetBalance(ctx context.Context, address string) (string, error)
 	return formatETH(balance), nil
 }
 
-func (c *Client) GetWalletAddress(ctx context.Context) (string, error) {
+func (c *Client) GetWalletAddress() (string, error) {
 	if c.wallet == nil {
 		return "", fmt.Errorf("wallet not initialized")
 	}

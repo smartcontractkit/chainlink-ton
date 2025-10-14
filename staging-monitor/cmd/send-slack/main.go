@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/smartcontractkit/chainlink-ton/staging-messaging-test/lib"
+	"github.com/smartcontractkit/chainlink-ton/staging-monitor/lib"
 )
 
 func main() {

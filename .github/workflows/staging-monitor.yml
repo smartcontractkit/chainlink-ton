@@ -1,4 +1,4 @@
-name: Staging - CCIP Messaging Tests
+name: CCIP Staging Monitor
 permissions:
   contents: read
 
@@ -13,17 +13,20 @@ on:
       - main
 
 jobs:
-  messaging-tests:
+  monitor-tests:
     if: |
       github.event_name == 'schedule' ||
       (github.event_name == 'pull_request' &&
-       contains(github.event.pull_request.labels.*.name, 'run-staging-messaging-test'))
+       contains(github.event.pull_request.labels.*.name, 'run-staging-monitor-test'))
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         # Note: add more tests here
-        test: [ton2evm, evm2ton]
+        test: [
+          ton2evm-messaging, 
+          evm2ton-messaging,
+        ]
     env:
       TON_TESTNET_SELECTOR: ${{ vars.TON_TESTNET_SELECTOR }}
       ETHEREUM_TESTNET_SEPOLIA_SELECTOR: ${{ vars.ETHEREUM_TESTNET_SEPOLIA_SELECTOR }}
@@ -52,7 +55,7 @@ jobs:
         id: test
         continue-on-error: true
         run: |
-          cd staging-messaging-test
+          cd staging-monitor
           nix develop -c go run ./cmd/run-test -case ${{ matrix.test }}
 
       - name: Send Slack notification
@@ -60,13 +63,13 @@ jobs:
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.STAGING_TEST_SLACK_WEBHOOK }}
         run: |
-          cd staging-messaging-test
+          cd staging-monitor
           nix develop -c go run ./cmd/send-slack -webhook-url="$SLACK_WEBHOOK_URL"
 
       - name: Fail job if test failed
         if: always()
         run: |
-          cd staging-messaging-test
+          cd staging-monitor
           STATUS=$(jq -r '.status' result.json)
           if [[ "$STATUS" != "success" ]]; then
             echo "Test failed with status: $STATUS"
