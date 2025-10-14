@@ -96,12 +96,3 @@ func (r RouterParams) Validate() error {
 	// No specific validation for now
 	return nil
 }
-
-type ReceiverParams struct {
-	ID uint32
-}
-
-func (r ReceiverParams) Validate() error {
-	// No specific validation for now
-	return nil
-}
