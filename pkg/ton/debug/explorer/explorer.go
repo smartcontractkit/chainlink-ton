@@ -438,6 +438,9 @@ func (c *client) queryActorIfNotVisited(ctx context.Context, block *ton.BlockIDE
 	result, err := c.connection.RunGetMethod(ctx, block, addr, "typeAndVersion")
 	defer func() {
 	}()
+	if err != nil {
+		return c.tryMatchByCodeHash(ctx, block, addr, knownActors)
+	}
 	if err = typeVersion.FromResult(result); err != nil {
 		return fmt.Errorf("failed to parse typeAndVersion: %w", err)
 	}
@@ -446,6 +449,31 @@ func (c *client) queryActorIfNotVisited(ctx context.Context, block *ton.BlockIDE
 	knownActors[addr.String()] = deployment.TypeAndVersion{
 		Version: *semVer,
 		Type:    deployment.ContractType(typeVersion.Type),
+	}
+	return nil
+}
+
+func (c *client) tryMatchByCodeHash(ctx context.Context, block *ton.BlockIDExt, addr *address.Address, knownActors map[string]deployment.TypeAndVersion) error {
+	account, err := c.connection.GetAccount(ctx, block, addr)
+	if err != nil {
+		return fmt.Errorf("get account: %w", err)
+	}
+	code := account.Code.ToBOC()
+	codeHex := hex.EncodeToString(code)
+	switch codeHex {
+	case "b5ee9c7241021001000228000114ff00f4a413f4bcf2c80b01020120020d02014803040078d020d74bc00101c060b0915be101d0d3030171b0915be0fa4030f828c705b39130e0d31f018210ae42e5a4ba9d8040d721d74cf82a01ed55fb04e030020120050a02027306070011adce76a2686b85ffc00201200809001aabb6ed44d0810122d721d70b3f0018aa3bed44d08307d721d70b1f0201200b0c001bb9a6eed44d0810162d721d70b15800e5b8bf2eda2edfb21ab09028409b0ed44d0810120d721f404f404d33fd315d1058e1bf82325a15210b99f326df82305aa0015a112b992306dde923033e2923033e25230800df40f6fa19ed021d721d70a00955f037fdb31e09130e259800df40f6fa19cd001d721d70a00937fdb31e0915be270801f6f2d48308d718d121f900ed44d0d3ffd31ff404f404d33fd315d1f82321a15220b98e12336df82324aa00a112b9926d32de58f82301de541675f910f2a106d0d31fd4d307d30cd309d33fd315d15168baf2a2515abaf2a6f8232aa15250bcf2a304f823bbf2a35304800df40f6fa199d024d721d70a00f2649130e20e01fe5309800df40f6fa18e13d05004d718d20001f264c858cf16cf8301cf168e1030c824cf40cf8384095005a1a514cf40e2f800c94039800df41704c8cbff13cb1ff40012f40012cb3f12cb15c9ed54f80f21d0d30001f265d3020171b0925f03e0fa4001d70b01c000f2a5fa4031fa0031f401fa0031fa00318060d721d300010f0020f265d2000193d431d19130e272b1fb00b585bf03": // https://github.com/ton-blockchain/highload-wallet-contract-v3/blob/main/build/HighloadWalletV3.compiled.json
+		knownActors[addr.String()] = deployment.TypeAndVersion{
+			Version: *semver.MustParse("3.2.0"),
+			Type:    deployment.ContractType("org.ton.Wallet"),
+		}
+		return nil
+	case "b5ee9c7241021401000281000114ff00f4a413f4bcf2c80b01020120020d020148030402dcd020d749c120915b8f6320d70b1f2082106578746ebd21821073696e74bdb0925f03e082106578746eba8eb48020d72101d074d721fa4030fa44f828fa443058bd915be0ed44d0810141d721f4058307f40e6fa1319130e18040d721707fdb3ce03120d749810280b99130e070e2100f020120050c020120060902016e07080019adce76a2684020eb90eb85ffc00019af1df6a2684010eb90eb858fc00201480a0b0017b325fb51341c75c875c2c7e00011b262fb513435c280200019be5f0f6a2684080a0eb90fa02c0102f20e011e20d70b1f82107369676ebaf2e08a7f0f01e68ef0eda2edfb218308d722028308d723208020d721d31fd31fd31fed44d0d200d31f20d31fd3ffd70a000af90140ccf9109a28945f0adb31e1f2c087df02b35007b0f2d0845125baf2e0855036baf2e086f823bbf2d0882292f800de01a47fc8ca00cb1f01cf16c9ed542092f80fde70db3cd81003f6eda2edfb02f404216e926c218e4c0221d73930709421c700b38e2d01d72820761e436c20d749c008f2e09320d74ac002f2e09320d71d06c712c2005230b0f2d089d74cd7393001a4e86c128407bbf2e093d74ac000f2e093ed55e2d20001c000915be0ebd72c08142091709601d72c081c12e25210b1e30f20d74a111213009601fa4001fa44f828fa443058baf2e091ed44d0810141d718f405049d7fc8ca0040048307f453f2e08b8e14038307f45bf2e08c22d70a00216e01b3b0f2d090e2c85003cf1612f400c9ed54007230d72c08248e2d21f2e092d200ed44d0d2005113baf2d08f54503091319c01810140d721d70a00f2e08ee2c8ca0058cf16c9ed5493f2c08de20010935bdb31e1d74cd0b4d6c35e": // https://github.com/ton-blockchain/wallet-contract-v5/blob/main/build/wallet_v5.compiled.json
+		knownActors[addr.String()] = deployment.TypeAndVersion{
+			Version: *semver.MustParse("3.1.0"),
+			Type:    deployment.ContractType("org.ton.Wallet"),
+		}
+		return nil
+		// TODO add missing wallets
 	}
 	return nil
 }
