@@ -17,11 +17,12 @@ func ParseURL(urlStr string) (txHash, address, network string, err error) {
 
 	// Determine network from subdomain (tonscan.org format)
 	network = "testnet" // default
-	if strings.Contains(u.Host, "testnet.tonscan.org") {
+	switch {
+	case strings.Contains(u.Host, "testnet.tonscan.org"):
 		network = "testnet"
-	} else if strings.Contains(u.Host, "tonscan.org") {
+	case strings.Contains(u.Host, "tonscan.org"):
 		network = "mainnet"
-	} else if strings.Contains(u.Host, "localhost") {
+	case strings.Contains(u.Host, "localhost"):
 		network = "mylocalton"
 	}
 
