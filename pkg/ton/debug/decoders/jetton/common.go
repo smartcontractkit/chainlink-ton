@@ -1,7 +1,6 @@
 package jetton
 
 import (
-	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton"
@@ -28,8 +27,7 @@ func (j *decoder) InternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
 		return nil, err
 	}
 	if opCode == jetton.OpcodeTopUp {
-		var topUp jetton.TopUpMessage
-		err := tlb.LoadFromCell(&topUp, r)
+		topUp, err := jetton.Builder.Messages.In.TopUp.Decode(r)
 		if err != nil {
 			return nil, err
 		}

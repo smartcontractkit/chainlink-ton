@@ -9,18 +9,6 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
-)
-
-// CCIPSend Executor opcodes
-const (
-	OpcodeCCIPSendExecutorExecute = 0xAF3C62B3 // crc32('CCIPSendExecutor_Execute')
-)
-
-// CCIPSend Executor exit codes
-const (
-	ErrorStateNotExpected tvm.ExitCode = tvm.ExitCode(500)
-	ErrorUnauthorized     tvm.ExitCode = tvm.ExitCode(265) // ERROR_UNAUTHORIZED from contract
 )
 
 // CCIPSendExecutor_Execute message structure
