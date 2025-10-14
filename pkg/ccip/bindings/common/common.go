@@ -128,14 +128,12 @@ func (c *CrossChainAddress) LoadFromCell(s *cell.Slice) error {
 	return nil
 }
 
-// LoadCrossChainAddressFromSnakeData parses a CrossChainAddress from a slice
-// that contains standard TL-B snake-formatted bytes (no custom length prefix).
-// This is used for parsing data from contract getters that return structs with `bytes` fields.
-func LoadCrossChainAddressFromSnakeData(s *cell.Slice) (CrossChainAddress, error) {
-	// Load all remaining bits from the slice as the address data.
+// LoadCrossChainAddressWithoutPrefix parses a CrossChainAddress from raw data that lacks a length prefix as the first byte.
+// TODO: check why getter is not including the first byte as length prefix for CrossChainAddress type
+func LoadCrossChainAddressWithoutPrefix(s *cell.Slice) (CrossChainAddress, error) {
 	data, err := s.LoadSlice(s.BitsLeft())
 	if err != nil {
-		return nil, fmt.Errorf("failed to load snake data for cross chain address: %w", err)
+		return nil, fmt.Errorf("failed to load data for cross chain address: %w", err)
 	}
 	return CrossChainAddress(data), nil
 }
