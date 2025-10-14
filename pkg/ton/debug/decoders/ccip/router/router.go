@@ -2,6 +2,7 @@ package router
 
 import (
 	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
@@ -47,13 +48,15 @@ func (d *decoder) InternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
 	}
 	switch opCode {
 	case router.OpcodeSetRamps:
-		setRamps, err := router.Builder.Messages.In.SetRamps.Decode(r)
+		var setRamps router.SetRamps
+		err := tlb.LoadFromCell(&setRamps, r)
 		if err != nil {
 			return nil, err
 		}
 		return lib.NewMessageInfo("SetRamps", setRamps)
 	case router.OpcodeCCIPSend:
-		ccipSend, err := router.Builder.Messages.In.CCIPSend.Decode(r)
+		var ccipSend router.CCIPSend
+		err := tlb.LoadFromCell(&ccipSend, r)
 		if err != nil {
 			return nil, err
 		}

@@ -2,6 +2,7 @@ package onramp
 
 import (
 	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
@@ -35,7 +36,8 @@ func (d *decoder) EventInfo(dstAddr *address.Address, msg *cell.Cell) (lib.Messa
 		return nil, &lib.UnknownMessageError{}
 	}
 	if topic == onramp.TopicCCIPMessageSent {
-		ccipMessageSent, err := onramp.Builder.Events.CCIPMessageSent.Decode(msg.BeginParse())
+		var ccipMessageSent onramp.CCIPMessageSent
+		err := tlb.LoadFromCell(&ccipMessageSent, msg.BeginParse())
 		if err != nil {
 			return nil, err
 		}
@@ -62,37 +64,43 @@ func (d *decoder) InternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
 	}
 	switch opCode {
 	case onramp.OpcodeOnRampSend:
-		onRampSend, err := onramp.Builder.Messages.In.OnRampSend.Decode(r)
+		var onRampSend onramp.Send
+		err := tlb.LoadFromCell(&onRampSend, r)
 		if err != nil {
 			return nil, err
 		}
 		return lib.NewMessageInfo("OnRampSend", onRampSend)
 	case onramp.OpcodeOnRampWithdrawJettons:
-		withdrawJettons, err := onramp.Builder.Messages.In.WithdrawJettons.Decode(r)
+		var withdrawJettons onramp.WithdrawJettons
+		err := tlb.LoadFromCell(&withdrawJettons, r)
 		if err != nil {
 			return nil, err
 		}
 		return lib.NewMessageInfo("WithdrawJettons", withdrawJettons)
 	case onramp.OpcodeOnRampExecutorFinishedSuccessfully:
-		executorFinished, err := onramp.Builder.Messages.In.ExecutorFinishedSuccessfully.Decode(r)
+		var executorFinished onramp.ExecutorFinishedSuccessfully
+		err := tlb.LoadFromCell(&executorFinished, r)
 		if err != nil {
 			return nil, err
 		}
 		return lib.NewMessageInfo("ExecutorFinishedSuccessfully", executorFinished)
 	case onramp.OpcodeSetDynamicConfig:
-		setDynamicConfig, err := onramp.Builder.Messages.In.SetDynamicConfig.Decode(r)
+		var setDynamicConfig onramp.SetDynamicConfigMessage
+		err := tlb.LoadFromCell(&setDynamicConfig, r)
 		if err != nil {
 			return nil, err
 		}
 		return lib.NewMessageInfo("SetDynamicConfig", setDynamicConfig)
 	case onramp.OpcodeUpdateDestChainConfigs:
-		updateDestChainConfigs, err := onramp.Builder.Messages.In.UpdateDestChainConfigs.Decode(r)
+		var updateDestChainConfigs onramp.UpdateDestChainConfigsMessage
+		err := tlb.LoadFromCell(&updateDestChainConfigs, r)
 		if err != nil {
 			return nil, err
 		}
 		return lib.NewMessageInfo("UpdateDestChainConfigs", updateDestChainConfigs)
 	case onramp.OpcodeUpdateAllowlists:
-		updateAllowlists, err := onramp.Builder.Messages.In.UpdateAllowlists.Decode(r)
+		var updateAllowlists onramp.UpdateAllowlistsMessage
+		err := tlb.LoadFromCell(&updateAllowlists, r)
 		if err != nil {
 			return nil, err
 		}

@@ -2,6 +2,7 @@ package ccipsendexecutor
 
 import (
 	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
@@ -46,7 +47,8 @@ func (d *decoder) InternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
 		return nil, err
 	}
 	if opCode == ccipsendexecutor.OpcodeCCIPSendExecutorExecute {
-		execute, err := ccipsendexecutor.Builder.Messages.In.Execute.Decode(r)
+		var execute ccipsendexecutor.Execute
+		err := tlb.LoadFromCell(&execute, r)
 		if err != nil {
 			return nil, err
 		}
