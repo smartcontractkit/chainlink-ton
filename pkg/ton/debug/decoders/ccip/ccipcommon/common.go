@@ -14,7 +14,7 @@ type decoder struct {
 
 // EventInfo implements lib.ContractDecoder.
 func (d *decoder) EventInfo(dstAddr *address.Address, msg *cell.Cell) (lib.MessageInfo, error) {
-	panic("unimplemented")
+	return nil, &lib.UnknownMessageError{}
 }
 
 // ExitCodeInfo implements lib.ContractDecoder.
