@@ -51,7 +51,8 @@ func (j *decoder) InternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
 	}
 	switch opCode {
 	case wallet.OpcodeWalletTransfer:
-		askToTransfer, err := wallet.Builder.Messages.In.AskToTransfer.Decode(r)
+		var askToTransfer wallet.AskToTransfer
+		err := tlb.LoadFromCell(&askToTransfer, r)
 		if err != nil {
 			return nil, err
 		}
@@ -72,7 +73,8 @@ func (j *decoder) InternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
 			})
 		}
 	case wallet.OpcodeWalletInternalTransfer:
-		internalTransfer, err := wallet.Builder.Messages.In.InternalTransfer.Decode(r)
+		var internalTransfer wallet.InternalTransferMessage
+		err := tlb.LoadFromCell(&internalTransfer, r)
 		if err != nil {
 			return nil, err
 		}

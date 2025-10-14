@@ -2,6 +2,7 @@ package feequoter
 
 import (
 	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
@@ -46,37 +47,43 @@ func (d *decoder) InternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
 	}
 	switch opCode {
 	case feequoter.OpcodeUpdatePrices:
-		updatePrices, err := feequoter.Builder.Messages.In.UpdatePrices.Decode(r)
+		var updatePrices feequoter.UpdatePrices
+		err := tlb.LoadFromCell(&updatePrices, r)
 		if err != nil {
 			return nil, err
 		}
 		return lib.NewMessageInfo("UpdatePrices", updatePrices)
 	case feequoter.OpcodeUpdateFeeTokens:
-		updateFeeTokens, err := feequoter.Builder.Messages.In.UpdateFeeTokens.Decode(r)
+		var updateFeeTokens feequoter.UpdateFeeTokens
+		err := tlb.LoadFromCell(&updateFeeTokens, r)
 		if err != nil {
 			return nil, err
 		}
 		return lib.NewMessageInfo("UpdateFeeTokens", updateFeeTokens)
 	case feequoter.OpcodeUpdateTokenTransferFeeConfigs:
-		updateConfigs, err := feequoter.Builder.Messages.In.UpdateTokenTransferFeeConfigs.Decode(r)
+		var updateConfigs feequoter.UpdateTokenTransferFeeConfigs
+		err := tlb.LoadFromCell(&updateConfigs, r)
 		if err != nil {
 			return nil, err
 		}
 		return lib.NewMessageInfo("UpdateTokenTransferFeeConfigs", updateConfigs)
 	case feequoter.OpcodeUpdateDestChainConfigs:
-		updateDestConfigs, err := feequoter.Builder.Messages.In.UpdateDestChainConfigs.Decode(r)
+		var updateDestConfigs feequoter.UpdateDestChainConfigs
+		err := tlb.LoadFromCell(&updateDestConfigs, r)
 		if err != nil {
 			return nil, err
 		}
 		return lib.NewMessageInfo("UpdateDestChainConfigs", updateDestConfigs)
 	case feequoter.OpcodeFeeQuoterGetValidatedFee:
-		getValidatedFee, err := feequoter.Builder.Messages.In.GetValidatedFee.Decode(r)
+		var getValidatedFee feequoter.GetValidatedFee
+		err := tlb.LoadFromCell(&getValidatedFee, r)
 		if err != nil {
 			return nil, err
 		}
 		return lib.NewMessageInfo("GetValidatedFee", getValidatedFee)
 	case feequoter.OpcodeFeeQuoterMessageValidated:
-		messageValidated, err := feequoter.Builder.Messages.Out.MessageValidated.Decode(r)
+		var messageValidated feequoter.MessageValidated
+		err := tlb.LoadFromCell(&messageValidated, r)
 		if err != nil {
 			return nil, err
 		}

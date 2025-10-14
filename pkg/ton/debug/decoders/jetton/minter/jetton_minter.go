@@ -52,7 +52,8 @@ func (j *decoder) InternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
 	}
 	switch opCode {
 	case minter.OpcodeMinterMint:
-		mint, err := minter.Builder.Messages.In.Mint.Decode(r)
+		var mint minter.MintMessage
+		err := tlb.LoadFromCell(&mint, r)
 		if err != nil {
 			return nil, err
 		}
@@ -71,13 +72,15 @@ func (j *decoder) InternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
 			MasterMsg:   wallet.InternalTransferDescription(mint.MasterMsg, payloadInfo),
 		})
 	case minter.OpcodeMinterChangeAdmin:
-		changeAdmin, err := minter.Builder.Messages.In.ChangeAdmin.Decode(r)
+		var changeAdmin minter.ChangeAdminMessage
+		err := tlb.LoadFromCell(&changeAdmin, r)
 		if err != nil {
 			return nil, err
 		}
 		return lib.NewMessageInfo("ChangeAdmin", changeAdmin)
 	case minter.OpcodeMinterClaimAdmin:
-		changeContent, err := minter.Builder.Messages.In.ClaimAdmin.Decode(r)
+		var changeContent minter.ClaimAdminMessage
+		err := tlb.LoadFromCell(&changeContent, r)
 		if err != nil {
 			return nil, err
 		}
