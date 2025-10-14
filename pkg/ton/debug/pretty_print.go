@@ -24,14 +24,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
-// func NewDebuggerFromEnv(env cldf.Environment, writer lib.DebuggerWriter) Debugger {
-// 	return Debugger{
-// 		ExistingAddresses: env.GetAddressBook(),
-// 		Contracts:   make(map[*cldf.ContractType]lib.ContractDecoder),
-// 		Writer:      writer,
-// 	}
-// }
-
 type DebuggerEnvironment struct {
 	existingAddresses map[string]cldf.TypeAndVersion
 	contracts         map[cldf.ContractType]lib.ContractDecoder
