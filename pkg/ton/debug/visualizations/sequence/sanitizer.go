@@ -6,9 +6,18 @@ import (
 )
 
 func sanitizeString(s string) string {
+	description := ""
+	for i, line := range strings.Split(s, "\n") {
+		if i > 0 {
+			description += "<br/>"
+		}
+		withoutPadding := strings.TrimLeft(line, " ")
+		paddingLen := len(line) - len(withoutPadding)
+		newPadding := strings.Repeat("_", paddingLen)
+		description += newPadding + withoutPadding
+	}
 	var wrapWidth = 80
-	description := wrap(s, wrapWidth)
-	description = strings.ReplaceAll(description, "\n", "<br/>")
+	description = wrap(description, wrapWidth)
 	description = strings.ReplaceAll(description, "\"", "'")
 	return description
 }
@@ -21,7 +30,7 @@ func wrap(s string, width int) string {
 	}
 
 	var out []string
-	paras := strings.Split(s, "\n")
+	paras := strings.Split(s, "<br/>")
 
 	for i := range paras {
 		p := paras[i]
@@ -82,7 +91,7 @@ func wrap(s string, width int) string {
 	}
 
 	// Join lines, but keep single trailing newline behavior similar to input
-	return strings.Join(out, "\n")
+	return strings.Join(out, "<br/>")
 }
 
 // takeRunes returns the first n runes of s.
