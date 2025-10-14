@@ -436,6 +436,11 @@ func (c *client) queryActorIfNotVisited(ctx context.Context, block *ton.BlockIDE
 	c.lggr.Debug("actor not known")
 	var typeVersion common.TypeAndVersion
 	result, err := c.connection.RunGetMethod(ctx, block, addr, "typeAndVersion")
+	if err != nil {
+		// We don't fail here because many contracts don't implement typeAndVersion
+		return nil // TODO try deducing from code?
+	}
+
 	defer func() {
 	}()
 	if err = typeVersion.FromResult(result); err != nil {
