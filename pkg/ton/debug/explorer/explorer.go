@@ -19,8 +19,9 @@ import (
 	"github.com/xssnick/tonutils-go/liteclient"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
+	"go.uber.org/zap/zapcore"
 
-	"github.com/smartcontractkit/wsrpc/logger"
+	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 
 	"github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 
@@ -30,7 +31,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 )
 
-func GenerateExplorerCmd(lggr logger.Logger, contracts map[string]deployment.TypeAndVersion, client *ton.APIClient) *cobra.Command {
+func GenerateExplorerCmd(lggr *logger.Logger, contracts map[string]deployment.TypeAndVersion, client *ton.APIClient) *cobra.Command {
 	var (
 		destAddressStr string
 		txHashStr      string
@@ -63,6 +64,18 @@ Arguments:
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
+			var err error
+			var log logger.Logger
+			if lggr == nil {
+				config := logger.Config{}
+				if verbose {
+					config.Level = zapcore.DebugLevel
+				}
+				log, err = config.New()
+				if err != nil {
+					return fmt.Errorf("failed to create logger: %w", err)
+				}
+			}
 			if client != nil && cmd.Flags().Changed("net") {
 				return errors.New("cannot specify network flag when using existing client")
 			}
@@ -94,7 +107,7 @@ Arguments:
 			}
 
 			ctx := context.Background()
-			client, err := Connect(lggr, client, net, verbose, pageSize, maxPages)
+			client, err := Connect(log, client, net, verbose, pageSize, maxPages)
 			if err != nil {
 				return fmt.Errorf("failed to initialize explorer: %w", err)
 			}
@@ -115,7 +128,9 @@ Arguments:
 	cmd.Flags().StringVarP(&format, "format", "f", "", "Sequence visualization format (url or raw) (only for sequence visualization)")
 	cmd.Flags().StringVarP(&txHashStr, "tx", "t", "", "Transaction hash in hex (optional if provided as argument)")
 	cmd.Flags().StringVarP(&net, "net", "n", "testnet", "TON network (mainnet, testnet, mylocalton, or http://domain/x.global.config.json)")
-	cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Shows full body of unmatched messages")
+	if lggr == nil {
+		cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Shows full body of unmatched messages")
+	}
 	cmd.Flags().Uint32VarP(&pageSize, "page-size", "s", 10, "Number of blocks to fetch per page")
 	cmd.Flags().Uint32VarP(&maxPages, "max-pages", "p", 10, "Maximum number of pages to fetch")
 
