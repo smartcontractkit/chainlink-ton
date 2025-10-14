@@ -2,54 +2,73 @@ package main
 
 import (
 	"context"
-	"encoding/json"
+	"flag"
 	"fmt"
 	"os"
 	"strconv"
 	"time"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+
 	"github.com/smartcontractkit/chainlink-ton/staging-messaging-test/lib"
 	_ "github.com/smartcontractkit/chainlink-ton/staging-messaging-test/lib/evm"
 	_ "github.com/smartcontractkit/chainlink-ton/staging-messaging-test/lib/ton"
 )
 
 func main() {
+	resultFile := flag.String("result-file", "result.json", "Path to write test result JSON")
+	flag.Parse()
+
+	resultPath := lib.GetResultFilePath(*resultFile)
+
 	result := lib.TestResult{
 		Case:   "messaging-evm2ton",
-		Status: "failure",
+		Status: "failure", // default to failure, set to success on pass
 	}
+
+	exitCode := 0
 
 	lggr, err := logger.New()
 	if err != nil {
 		result.Error = fmt.Sprintf("Failed to create logger: %v", err)
-		outputJSON(result)
+		lib.OutputJSON(result, resultPath)
 		os.Exit(1)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), lib.TestTimeout)
-	defer cancel()
+	func() {
+		ctx, cancel := context.WithTimeout(context.Background(), lib.TestTimeout)
+		defer cancel()
 
+		if err := runEVM2TON(ctx, lggr, &result); err != nil {
+			exitCode = 1
+		}
+	}()
+
+	lib.OutputJSON(result, resultPath)
+	os.Exit(exitCode)
+}
+
+func runEVM2TON(ctx context.Context, lggr logger.Logger, result *lib.TestResult) error {
 	// Parse selectors
 	srcChainSel, err := strconv.ParseUint(os.Getenv("ETHEREUM_TESTNET_SEPOLIA_SELECTOR"), 10, 64)
 	if err != nil {
 		result.Error = "ETHEREUM_TESTNET_SEPOLIA_SELECTOR not set or invalid"
-		outputJSON(result)
-		os.Exit(1)
+		lggr.Errorw("Failed to parse source chain selector", "error", err)
+		return err
 	}
 	destChainSel, err := strconv.ParseUint(os.Getenv("TON_TESTNET_SELECTOR"), 10, 64)
 	if err != nil {
 		result.Error = "TON_TESTNET_SELECTOR not set or invalid"
-		outputJSON(result)
-		os.Exit(1)
+		lggr.Errorw("Failed to parse destination chain selector", "error", err)
+		return err
 	}
 
 	// Load args
 	args, err := lib.LoadArgs(srcChainSel, destChainSel)
 	if err != nil {
 		result.Error = fmt.Sprintf("Failed to load args: %v", err)
-		outputJSON(result)
-		os.Exit(1)
+		lggr.Errorw("Failed to load args", "error", err)
+		return err
 	}
 
 	result.Router = args.SrcRouter
@@ -60,8 +79,8 @@ func main() {
 	testCtx, err := lib.SetupContext(ctx, lggr, args)
 	if err != nil {
 		result.Error = fmt.Sprintf("Failed to setup context: %v", err)
-		outputJSON(result)
-		os.Exit(1)
+		lggr.Errorw("Failed to setup context", "error", err)
+		return err
 	}
 
 	// Get sender balance
@@ -82,8 +101,8 @@ func main() {
 	startBlock, err := testCtx.Dest.GetCurrentBlock(ctx)
 	if err != nil {
 		result.Error = fmt.Sprintf("Failed to get current block: %v", err)
-		outputJSON(result)
-		os.Exit(1)
+		lggr.Errorw("Failed to get current block", "error", err)
+		return err
 	}
 
 	// Send message
@@ -93,8 +112,8 @@ func main() {
 	sendResult, err := testCtx.SendMessage(ctx, lggr, []byte(args.MessageData))
 	if err != nil {
 		result.Error = fmt.Sprintf("Failed to send message: %v", err)
-		outputJSON(result)
-		os.Exit(1)
+		lggr.Errorw("Failed to send message", "error", err)
+		return err
 	}
 
 	result.MessageID = sendResult.MessageID
@@ -104,8 +123,8 @@ func main() {
 	err = testCtx.WaitForMessageReceived(ctx, lggr, sendResult.MessageID, args.MessageData, startBlock)
 	if err != nil {
 		result.Error = fmt.Sprintf("Failed waiting for message: %v", err)
-		outputJSON(result)
-		os.Exit(1)
+		lggr.Errorw("Failed waiting for message", "error", err)
+		return err
 	}
 
 	// Calculate latency
@@ -115,11 +134,5 @@ func main() {
 
 	lggr.Infow("Test passed", "latency", result.LatencyFormatted)
 	result.Status = "success"
-	outputJSON(result)
-}
-
-func outputJSON(result lib.TestResult) {
-	encoder := json.NewEncoder(os.Stdout)
-	encoder.SetIndent("", "  ")
-	encoder.Encode(result)
+	return nil
 }

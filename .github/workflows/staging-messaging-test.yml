@@ -53,60 +53,21 @@ jobs:
         continue-on-error: true
         run: |
           cd staging-messaging-test
-          nix develop -c go run ./cmd/${{ matrix.test }} > result.json
+          nix develop -c go run ./cmd/${{ matrix.test }}
 
       - name: Send Slack notification
         if: always()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.STAGING_TEST_SLACK_WEBHOOK }}
         run: |
           cd staging-messaging-test
-          
-          # Extract the last JSON object (test result) from file (logs are also JSON)
-          # Use jq slurp mode to read all JSON objects and take the last one
-          TEST_RESULT=$(jq -s '.[-1]' result.json)
-          
-          # Parse result
-          STATUS=$(echo "$TEST_RESULT" | jq -r '.status')
-          CASE=$(echo "$TEST_RESULT" | jq -r '.case')
-          ROUTER=$(echo "$TEST_RESULT" | jq -r '.router')
-          RECEIVER=$(echo "$TEST_RESULT" | jq -r '.receiver')
-          DATA=$(echo "$TEST_RESULT" | jq -r '.data')
-          MESSAGE_ID=$(echo "$TEST_RESULT" | jq -r '.message_id // "N/A"')
-          SENDER_ADDRESS=$(echo "$TEST_RESULT" | jq -r '.sender_address // "N/A"')
-          SENDER_BALANCE=$(echo "$TEST_RESULT" | jq -r '.sender_balance // "N/A"')
-          LATENCY=$(echo "$TEST_RESULT" | jq -r '.latency_formatted // "N/A"')
-          ERROR=$(echo "$TEST_RESULT" | jq -r '.error // ""')
-          
-          # Set status icon
-          if [[ "$STATUS" == "success" ]]; then
-            STATUS_ICON=":white_check_mark: Success"
-          else
-            STATUS_ICON=":x: Failure"
-          fi
-          
-          # Send webhook
-          curl -X POST -H 'Content-type: application/json' \
-            --data "{
-              \"status\": \"$STATUS_ICON\",
-              \"test_case\": \"$CASE\",
-              \"src_router\": \"$ROUTER\",
-              \"dest_receiver\": \"$RECEIVER\",
-              \"data\": \"$DATA\",
-              \"message_id\": \"$MESSAGE_ID\",
-              \"sender_address\": \"$SENDER_ADDRESS\",
-              \"sender_balance\": \"$SENDER_BALANCE\",
-              \"latency\": \"$LATENCY\",
-              \"run_url\": \"${{ env.RUN_URL }}\",
-              \"trigger\": \"${{ env.TRIGGER }}\",
-              \"when\": \"${{ env.WHEN }}\",
-              \"error\": \"$ERROR\"
-            }" \
-            ${{ secrets.STAGING_TEST_SLACK_WEBHOOK }}
+          nix develop -c go run ./cmd/send-slack -webhook-url="$SLACK_WEBHOOK_URL"
 
       - name: Fail job if test failed
         if: always()
         run: |
           cd staging-messaging-test
-          STATUS=$(jq -s '.[-1].status' result.json -r)
+          STATUS=$(jq -r '.status' result.json)
           if [[ "$STATUS" != "success" ]]; then
             echo "Test failed with status: $STATUS"
             exit 1
