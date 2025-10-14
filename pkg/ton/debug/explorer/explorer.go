@@ -97,7 +97,7 @@ Arguments:
 					return fmt.Errorf("failed to parse URL: %w", parseURLErr)
 				}
 
-				_, err := hex.DecodeString(strings.TrimPrefix(urlOrTx, "0x"))
+				_, err = hex.DecodeString(strings.TrimPrefix(urlOrTx, "0x"))
 				if err != nil {
 					return fmt.Errorf("invalid transaction hash or url: %w", err)
 				}
