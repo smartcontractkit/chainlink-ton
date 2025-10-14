@@ -53,7 +53,7 @@ func NewMessageInfo[T any](name string, msg T) (MessageInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	long, err := json.MarshalIndent(msg, "", "__")
+	long, err := json.MarshalIndent(msg, "", "  ")
 	if err != nil {
 		return nil, err
 	}
