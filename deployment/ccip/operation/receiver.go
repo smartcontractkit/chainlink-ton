@@ -15,6 +15,7 @@ import (
 )
 
 type DeployReceiverInput struct {
+	ID             uint32
 	ContractPath   string
 	OffRampAddress *address.Address
 	Coins          string
@@ -42,6 +43,7 @@ func deployReceiver(b operations.Bundle, deps TonDeps, in DeployReceiverInput) (
 	conn := tracetracking.NewSignedAPIClient(deps.TonChain.Client, *deps.TonChain.Wallet)
 
 	storage := receiver.Storage{
+		ID:      in.ID,
 		OffRamp: in.OffRampAddress,
 	}
 

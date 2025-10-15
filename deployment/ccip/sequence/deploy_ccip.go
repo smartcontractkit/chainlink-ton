@@ -144,6 +144,7 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 
 	// Receiver
 	receiverInput := operation.DeployReceiverInput{
+		ID:             in.CCIPConfig.ReceiverParams.ID,
 		OffRampAddress: deployOffRampReport.Output.Address,
 		Coins:          "0.1",
 		ContractPath:   utils.GetBuildDir("ccip.test.receiver.compiled.json"),
