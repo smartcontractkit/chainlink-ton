@@ -6,7 +6,6 @@ import (
 	"github.com/Masterminds/semver/v3"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
-	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
@@ -56,7 +55,7 @@ func deployReceiver(b operations.Bundle, deps TonDeps, in DeployReceiverInput) (
 		codeCell,
 		initData,
 		tlb.MustFromTON(in.Coins),
-		cell.BeginCell().EndCell(),
+		nil,
 	)
 	if err != nil {
 		return output, fmt.Errorf("failed to deploy receiver contract: %w", err)
