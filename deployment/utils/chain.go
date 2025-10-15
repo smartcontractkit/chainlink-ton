@@ -243,6 +243,10 @@ func createNewNetwork(ctx context.Context, chainID uint64, port int) (client ton
 			"NEXT_BLOCK_GENERATION_DELAY":    "0.5",
 			"EMBEDDED_FILE_HTTP_SERVER":      "true",
 			"EMBEDDED_FILE_HTTP_SERVER_PORT": strconv.Itoa(port),
+			// Gas prices aligned with mainnet/testnet
+			// Mainnet: flat_gas_price=40000, flat_gas_limit=100 -> 400 nanotons/gas
+			"GAS_PRICE":    "400",   // Basechain gas price (nanotons/gas)
+			"GAS_PRICE_MC": "10000", // Masterchain gas price (nanotons/gas)
 		},
 	}
 

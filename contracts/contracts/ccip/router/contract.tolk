@@ -11,6 +11,7 @@ import "../../deployable/types"
 import "../../lib/utils"
 import "../../lib/jetton/messages"
 import "../../lib/jetton/messages_extended"
+import "../gas_amounts.tolk"
 
 const CONTRACT_VERSION = "0.0.2";
 
@@ -81,7 +82,7 @@ fun onTransferNotification(transferNotification: Common_JettonTransferNotificati
             transferRecipient: onRamp,
             sendExcessesTo: contract.getAddress(),
             customPayload: null,
-            forwardTonAmount: ton("0.5"), // TODO
+            forwardTonAmount: ROUTER_JETTON_TRANSFER,
             forwardPayload: OnRamp_Send { msg: sendMsg.toCell(), metadata: Metadata{ sender: transferNotification.sender } }.toCell(),
         },
     });

@@ -37,6 +37,7 @@ type ccipTransmitter struct {
 	txm                 txm.TxManager
 	offrampAddress      string
 	toEd25519CalldataFn ToEd25519CalldataFunc
+	amount              string // TON amount to send with transmit
 	lggr                logger.Logger
 }
 
@@ -45,6 +46,7 @@ func NewCCIPTransmitter(
 	lggr logger.Logger,
 	offrampAddress string,
 	toEd25519CalldataFn ToEd25519CalldataFunc,
+	amount string,
 ) (ocr3types.ContractTransmitter[[]byte], error) {
 	if txm == nil || lggr == nil {
 		return nil, errors.New("invalid transmitter args")
@@ -54,6 +56,7 @@ func NewCCIPTransmitter(
 		txm:                 txm,
 		offrampAddress:      offrampAddress,
 		toEd25519CalldataFn: toEd25519CalldataFn,
+		amount:              amount,
 		lggr:                lggr,
 	}, nil
 }
@@ -110,7 +113,7 @@ func (c *ccipTransmitter) Transmit(
 		FromWallet:      w,
 		ContractAddress: *address.MustParseAddr(c.offrampAddress),
 		Body:            argsCell,
-		Amount:          tlb.MustFromTON("0.05"), // TODO: make this configurable
+		Amount:          tlb.MustFromTON(c.amount),
 		ID:              &txID,
 	}
 

@@ -15,6 +15,7 @@ import "../fee_quoter/messages"
 import "../merkle_root/messages"
 import "../../lib/receiver/messages"
 import "../merkle_root/storage"
+import "../gas_amounts.tolk"
 
 const CONTRACT_VERSION = "0.0.3";
 
@@ -68,7 +69,7 @@ fun _bouncedCCIPReceive(rootId: uint224, sender: address) {
     val st = Storage.load();
     val receiveBounced = createMessage({
         bounce: true,
-        value: ton("0.5"),
+        value: OFFRAMP_DISPATCH_VALIDATED,
         dest: {
             stateInit: { //the MR address
                 code: st.deployer,
@@ -111,7 +112,7 @@ fun _ccipReceiveConfirm(msg: OffRamp_CCIPReceiveConfirm, sender: address) {
     val st = Storage.load();
     val merkleRootReceiveConfirm = createMessage({
         bounce: true,
-        value: ton("0.05"), //TODO how much do we need to send
+        value: OFFRAMP_CCIP_RECEIVE_CONFIRM,
         dest: {
             stateInit: {
                 code: st.deployer,
@@ -166,7 +167,7 @@ fun _dispatchValidated(msg: OffRamp_DispatchValidated, sender: address) {
 
             val messageForReceiver = createMessage({
                 bounce: true,
-                value: ton("0.05"), // TODO: use the gas limit from the message
+                value: OFFRAMP_DISPATCH_VALIDATED,
                 dest: message.receiver,
                 body: ccipReceive
             });
@@ -213,7 +214,7 @@ fun _commit(msg: OffRamp_Commit, sender: address) {
             // and update the prices in the fee quoter
             val updatePricesMsg = createMessage({
                 bounce: true,
-                value: ton("0.05"), // TODO:
+                value: OFFRAMP_UPDATE_PRICES,
                 dest: st.feeQuoter,
                 body: FeeQuoter_UpdatePrices {
                     updates: report.priceUpdates!.load()
@@ -245,7 +246,7 @@ fun _commit(msg: OffRamp_Commit, sender: address) {
         // initialize MerkleRoot subcontract
         val initMsg = createMessage({
             bounce: true, // TODO: could bounce if root already exists but i don't think we shuold handle it
-            value: ton("1"), // TODO:
+            value: MERKLEROOT_DEPLOYMENT,
             dest: {
                 stateInit: {
                     code: st.deployer,
@@ -338,7 +339,7 @@ fun _execute(msg: OffRamp_Execute, sender: address) {
     // send message to MerkleRoot (execute)
      val executeMsg = createMessage({
          bounce: true,
-         value: ton("0.1"), // TODO:
+         value: MERKLEROOT_VALIDATE,
          dest: {
              stateInit: {
                  code: st.deployer,

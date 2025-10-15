@@ -17,6 +17,7 @@ import "../ccipsend_executor/messages"
 import "../router/messages"
 import "../../lib/jetton/messages"
 import "../../lib/jetton/messages_extended"
+import "../gas_amounts.tolk"
 
 const CONTRACT_VERSION = "0.0.3";
 
@@ -84,7 +85,7 @@ fun send(payload: OnRamp_Send, sender: address, jettonWallet: address? = null) {
 
     val executeMsg = createMessage({
         bounce: true,
-        value: ton("0.05"), // TODO: calculate
+        value: ONRAMP_EXECUTOR_DEPLOY,
         dest: AutoDeployAddress {
             stateInit: ContractState {
                 code: st.executor_code,
@@ -137,14 +138,14 @@ fun handleWithdrawJettons(payload: OnRamp_WithdrawJettons, executor: address) {
     // TODO validate sender is executor msg.msgId
         val sendMsg = createMessage({
         bounce: true,
-        value: ton("0.5"), // TODO
+        value: ONRAMP_JETTON_WITHDRAW,
         dest: payload.onrampJettonWallet,
         body: AskToTransferFwdPayload {
             queryId: 1, // TODO
             jettonAmount: tokenAmount.amount, transferRecipient: executor,
             sendExcessesTo: contract.getAddress(),
             customPayload: null,
-            forwardTonAmount: ton("0.45"), // TODO
+            forwardTonAmount: ONRAMP_JETTON_FORWARD,
             forwardPayload: null,
         },
     });

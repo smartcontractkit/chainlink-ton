@@ -26,6 +26,13 @@ const (
 	CCIPProviderName      = "TONCCIPProvider"
 	CCIPPluginTypeCommit  = 0
 	CCIPPluginTypeExecute = 1
+
+	// Gas amounts calculated from gas-report.json with 10% safety margin
+	// Config Param #21: gas_price=26214400 (400 nanotons/gas)
+	// Config Param #25: lump=400000, bit_price=26214400, cell_price=2621440000
+	// Forward fees calculated from actual bits/cells in gas report
+	CommitTransmitAmount  = "0.025" // OffRamp Commit - 24,201 gas, 24,286 bits, 62 cells, fwd=0.01259
+	ExecuteTransmitAmount = "0.021" // OffRamp Execute - 15,928 gas, 24,286 bits, 62 cells, fwd=0.01259
 )
 
 type Provider struct {
@@ -75,13 +82,13 @@ func NewCCIPProvider(
 	var ct ocr3types.ContractTransmitter[[]byte]
 	switch cargs.PluginType {
 	case CCIPPluginTypeCommit:
-		ct, err = ocr.NewCCIPTransmitter(txm, lggr, offRampAddrStr, ocr.CommitCallData)
+		ct, err = ocr.NewCCIPTransmitter(txm, lggr, offRampAddrStr, ocr.CommitCallData, CommitTransmitAmount)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create a CCIP ContractTransmitter for commit plugin: %w", err)
 		}
 
 	case CCIPPluginTypeExecute:
-		ct, err = ocr.NewCCIPTransmitter(txm, lggr, offRampAddrStr, ocr.ExecuteCallData)
+		ct, err = ocr.NewCCIPTransmitter(txm, lggr, offRampAddrStr, ocr.ExecuteCallData, ExecuteTransmitAmount)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create a CCIP ContractTransmitter for execute plugin: %w", err)
 		}

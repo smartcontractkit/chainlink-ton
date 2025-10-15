@@ -5,6 +5,7 @@ import "storage"
 import "../offramp/messages"
 import "../offramp/types"
 import "../../lib/utils"
+import "../gas_amounts.tolk"
 
 const CONTRACT_VERSION = "0.0.3";
 
@@ -116,7 +117,7 @@ fun _execute(st: MerkleRoot_Storage, mesage: Any2TVMRampMessage) {
     createMessage(
         {
             bounce: true,
-            value: ton("0.05"),
+            value: MERKLEROOT_DISPATCH,
             dest: st.owner,
             body: OffRamp_DispatchValidated {
                 message: mesage.toCell(),

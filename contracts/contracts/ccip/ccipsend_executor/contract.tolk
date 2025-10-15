@@ -7,6 +7,7 @@ import "../onramp/messages"
 import "../onramp/types"
 import "../common/messages"
 import "../../lib/utils"
+import "../gas_amounts"
 
 const CONTRACT_VERSION = "0.0.3";
 const FACILITY_NAME = "com.chainlink.ton.ccip.CCIPSendExecutor";
@@ -71,7 +72,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_Initialized>.withdrawJettons(mutate 
 
     val withdrawMsg = createMessage({
         bounce: true,
-        value: ton("0.05"), // TODO
+        value: EXECUTOR_WITHDRAW_JETTONS,
         dest: self.addresses.load().onramp,
         body: OnRamp_WithdrawJettons {
             msgId: self.messageId,
@@ -112,7 +113,7 @@ fun CCIPSendExecutor<CCIPSendExecutor_State_WaitingForJettons>.onJettonTransferF
 fun getValidatedFee(feeQuoter: address, onrampSend: OnRamp_Send) {
     val getValidatedFeeMsg = createMessage({
         bounce: true,
-        value: ton("0.05"), // TODO
+        value: EXECUTOR_GET_VALIDATED_FEE,
         dest: feeQuoter,
         body: FeeQuoter_GetValidatedFee<Metadata> {
             msg: onrampSend.msg,
