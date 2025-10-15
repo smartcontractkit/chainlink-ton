@@ -6,10 +6,11 @@ import (
 	"github.com/Masterminds/semver/v3"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
-	receiver "github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/receiver"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/receiver"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
@@ -50,7 +51,13 @@ func deployReceiver(b operations.Bundle, deps TonDeps, in DeployReceiverInput) (
 		return output, fmt.Errorf("failed to pack initData: %w", err)
 	}
 
-	contract, _, err := wrappers.Deploy(&conn, codeCell, initData, tlb.MustFromTON(in.Coins), nil)
+	contract, _, err := wrappers.Deploy(
+		&conn,
+		codeCell,
+		initData,
+		tlb.MustFromTON(in.Coins),
+		cell.BeginCell().EndCell(),
+	)
 	if err != nil {
 		return output, fmt.Errorf("failed to deploy receiver contract: %w", err)
 	}
