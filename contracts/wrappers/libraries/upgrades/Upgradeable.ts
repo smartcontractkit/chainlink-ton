@@ -74,20 +74,22 @@ export const builder = {
   },
 }
 
-export class Upgradeable {
-  readonly address: Address
+export async function sendUpgrade(
+  provider: ContractProvider,
+  via: Sender,
+  value: bigint,
+  body: Upgrade,
+) {
+  await provider.internal(via, {
+    value: value,
+    sendMode: SendMode.PAY_GAS_SEPARATELY,
+    body: builder.message.in.upgrade.encode(body).endCell(),
+  })
+}
+export interface Upgradeable extends Contract {
+  // readonly address: Address
 
-  async sendUpgrade(provider: ContractProvider, via: Sender, value: bigint, body: Upgrade) {
-    await provider.internal(via, {
-      value: value,
-      sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: builder.message.in.upgrade.encode(body).endCell(),
-    })
-  }
-
-  code(): Promise<Cell> {
-    throw new Error('Method not implemented.')
-  }
+  sendUpgrade(provider: ContractProvider, via: Sender, value: bigint, body: Upgrade): Promise<void>
 }
 
 export async function sendUpgradeAndReturnNewVersion<T extends Upgradeable>(
@@ -96,13 +98,15 @@ export async function sendUpgradeAndReturnNewVersion<T extends Upgradeable>(
   value: bigint,
   newVersion: new (address: Address, init?: { code: Cell; data: Cell }) => T,
   fromVersion: string,
+  newCode: Cell,
   queryId?: bigint,
 ): Promise<{ upgradeResult: SendMessageResult; newVersionInstance: T }> {
+  // throw new Error('Not implemented')
   const newVersionInstance = new newVersion(current.address)
   const upgradeResult = await current.sendUpgrade(via, value, {
     queryId: queryId ?? 0n,
     fromVersion: fromVersion,
-    code: await newVersionInstance.code(),
+    code: newCode,
   })
   return { upgradeResult, newVersionInstance }
 }

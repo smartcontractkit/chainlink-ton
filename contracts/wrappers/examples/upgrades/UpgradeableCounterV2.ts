@@ -12,8 +12,11 @@ import {
 } from '@ton/core'
 import * as upgradeable from '../../libraries/upgrades/Upgradeable'
 import { compile } from '@ton/blueprint'
-import { TypeAndVersion } from '../../libraries/TypeAndVersion'
+import * as typeAndVersion from '../../libraries/TypeAndVersion'
 import * as ownable2step from '../../libraries/access/Ownable2Step'
+
+export const FACILITY_NAME = 'com.chainlink.ton.examples.upgrades.UpgradeableCounter'
+export const CONTRACT_VERSION = '2.0.0'
 
 export type CounterConfig = {
   id: number
@@ -70,26 +73,20 @@ export const builder = {
   },
 }
 
-export class UpgradeableCounterV2 implements Contract, TypeAndVersion, upgradeable.Upgradeable {
-  private typeAndVersion: TypeAndVersion
-  private upgradeableClient: upgradeable.Upgradeable
+export class UpgradeableCounterV2
+  implements Contract, typeAndVersion.TypeAndVersion, upgradeable.Upgradeable
+{
   private ownable: ownable2step.ContractClient
 
   constructor(
     readonly address: Address,
     readonly init?: { code: Cell; data: Cell },
   ) {
-    this.typeAndVersion = new TypeAndVersion()
-    this.upgradeableClient = new upgradeable.Upgradeable()
     this.ownable = new ownable2step.ContractClient(address)
   }
 
   static createFromAddress(address: Address) {
     return new UpgradeableCounterV2(address)
-  }
-
-  static code(): Promise<Cell> {
-    return compile('examples.upgrades.UpgradeableCounterV2')
   }
 
   code(): Promise<Cell> {
@@ -125,15 +122,15 @@ export class UpgradeableCounterV2 implements Contract, TypeAndVersion, upgradeab
 
   // Delegate TypeAndVersion methods
   async getTypeAndVersion(provider: ContractProvider): Promise<{ type: string; version: string }> {
-    return this.typeAndVersion.getTypeAndVersion(provider)
+    return typeAndVersion.getTypeAndVersion(provider)
   }
 
   async getCode(provider: ContractProvider): Promise<Cell> {
-    return this.typeAndVersion.getCode(provider)
+    return typeAndVersion.getCode(provider)
   }
 
   async getCodeHash(provider: ContractProvider): Promise<bigint> {
-    return this.typeAndVersion.getCodeHash(provider)
+    return typeAndVersion.getCodeHash(provider)
   }
 
   // Delegate Upgradeable methods
@@ -143,7 +140,19 @@ export class UpgradeableCounterV2 implements Contract, TypeAndVersion, upgradeab
     value: bigint,
     body: upgradeable.Upgrade,
   ) {
-    await this.upgradeableClient.sendUpgrade(provider, via, value, body)
+    await upgradeable.sendUpgrade(provider, via, value, body)
+  }
+
+  static code(): Promise<Cell> {
+    return compile('examples.upgrades.UpgradeableCounterV2')
+  }
+
+  static version() {
+    return CONTRACT_VERSION
+  }
+
+  static facilityName() {
+    return FACILITY_NAME
   }
 
   // Ownership methods
