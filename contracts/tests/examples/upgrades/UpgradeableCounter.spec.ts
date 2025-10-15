@@ -95,10 +95,13 @@ describe('UpgradeableCounter', () => {
       const increaser = await blockchain.treasury('increaser' + i)
       const counterBefore = await upgradeableCounter.getValue()
 
-      let increaseResult = await upgradeableCounter.sendStep(increaser.getSender(), {
-        value: toNano('0.05'),
-        queryId: Math.floor(Math.random() * 10000),
-      })
+      let increaseResult = await upgradeableCounter.sendStep(
+        increaser.getSender(),
+        toNano('0.05'),
+        {
+          queryId: BigInt(Math.floor(Math.random() * 10000)),
+        },
+      )
 
       expect(increaseResult.transactions).toHaveTransaction({
         from: increaser.address,
@@ -185,10 +188,13 @@ describe('UpgradeableCounter', () => {
 
       const counterBefore = await upgradeableCounterV2.getValue()
 
-      let decreaseResult = await upgradeableCounterV2.sendStep(decreaser.getSender(), {
-        value: toNano('0.05'),
-        queryId: Math.floor(Math.random() * 10000),
-      })
+      let decreaseResult = await upgradeableCounterV2.sendStep(
+        decreaser.getSender(),
+        toNano('0.05'),
+        {
+          queryId: BigInt(Math.floor(Math.random() * 10000)),
+        },
+      )
 
       expect(decreaseResult.transactions).toHaveTransaction({
         from: decreaser.address,
@@ -206,12 +212,15 @@ describe('UpgradeableCounter', () => {
     const nonOwner = await blockchain.treasury('nonOwner')
 
     // Try to upgrade from non-owner address - should fail
-    const upgradeResult = await upgradeableCounter.sendUpgrade(nonOwner.getSender(), {
-      value: toNano('0.05'),
-      queryId: Math.floor(Math.random() * 10000),
-      fromVersion: '1.0.0',
-      code: codeV2,
-    })
+    const upgradeResult = await upgradeableCounter.sendUpgrade(
+      nonOwner.getSender(),
+      toNano('0.05'),
+      {
+        queryId: BigInt(Math.floor(Math.random() * 10000)),
+        fromVersion: '1.0.0',
+        code: codeV2,
+      },
+    )
 
     expect(upgradeResult.transactions).toHaveTransaction({
       from: nonOwner.address,
@@ -232,9 +241,8 @@ describe('UpgradeableCounter', () => {
     expect(typeAndVersion.version).toBe('1.0.0')
 
     // Try to upgrade with wrong fromVersion - should fail
-    const upgradeResult = await upgradeableCounter.sendUpgrade(owner.getSender(), {
-      value: toNano('0.05'),
-      queryId: Math.floor(Math.random() * 10000),
+    const upgradeResult = await upgradeableCounter.sendUpgrade(owner.getSender(), toNano('0.05'), {
+      queryId: BigInt(Math.floor(Math.random() * 10000)),
       fromVersion: '2.0.0', // Wrong version!
       code: codeV2,
     })
@@ -304,12 +312,15 @@ describe('UpgradeableCounter', () => {
     expect(currentOwner.equals(newOwner.address)).toBe(true)
 
     // Old owner should no longer be able to upgrade
-    const oldOwnerUpgradeResult = await upgradeableCounter.sendUpgrade(owner.getSender(), {
-      value: toNano('0.05'),
-      queryId: Math.floor(Math.random() * 10000),
-      fromVersion: '1.0.0',
-      code: codeV2,
-    })
+    const oldOwnerUpgradeResult = await upgradeableCounter.sendUpgrade(
+      owner.getSender(),
+      toNano('0.05'),
+      {
+        queryId: BigInt(Math.floor(Math.random() * 10000)),
+        fromVersion: '1.0.0',
+        code: codeV2,
+      },
+    )
 
     expect(oldOwnerUpgradeResult.transactions).toHaveTransaction({
       from: owner.address,
