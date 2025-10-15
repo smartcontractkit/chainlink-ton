@@ -123,6 +123,7 @@ describe('UpgradeableCounter', () => {
       owner.getSender(),
       toNano('0.05'),
       UpgradeableCounterV2,
+      '1.0.0',
     )
     expect(upgradeResult.transactions).toHaveTransaction({
       from: owner.address,
@@ -167,6 +168,7 @@ describe('UpgradeableCounter', () => {
       owner.getSender(),
       toNano('0.05'),
       UpgradeableCounterV2,
+      '1.0.0',
     )
 
     expect(upgradeResult.transactions).toHaveTransaction({
@@ -207,6 +209,7 @@ describe('UpgradeableCounter', () => {
     const upgradeResult = await upgradeableCounter.sendUpgrade(nonOwner.getSender(), {
       value: toNano('0.05'),
       queryId: Math.floor(Math.random() * 10000),
+      fromVersion: '1.0.0',
       code: codeV2,
     })
 
@@ -219,6 +222,38 @@ describe('UpgradeableCounter', () => {
     // Verify the contract is still on version 1
     const typeAndVersion = await upgradeableCounter.getTypeAndVersion()
     expect(typeAndVersion.version).toBe('1.0.0')
+  })
+
+  it('should fail when fromVersion does not match current version', async () => {
+    let { blockchain, owner, upgradeableCounter, codeV2 } = await setUpTest(0)
+
+    // Verify initial version
+    const typeAndVersion = await upgradeableCounter.getTypeAndVersion()
+    expect(typeAndVersion.version).toBe('1.0.0')
+
+    // Try to upgrade with wrong fromVersion - should fail
+    const upgradeResult = await upgradeableCounter.sendUpgrade(owner.getSender(), {
+      value: toNano('0.05'),
+      queryId: Math.floor(Math.random() * 10000),
+      fromVersion: '2.0.0', // Wrong version!
+      code: codeV2,
+    })
+
+    expect(upgradeResult.transactions).toHaveTransaction({
+      from: owner.address,
+      to: upgradeableCounter.address,
+      success: false,
+      exitCode: 43700, // Upgradeable_Error.VersionMismatch
+    })
+
+    // Verify the contract is still on version 1
+    const finalVersion = await upgradeableCounter.getTypeAndVersion()
+    expect(finalVersion.version).toBe('1.0.0')
+
+    // Verify the code hasn't changed
+    const currentCode = await upgradeableCounter.getCode()
+    const v1Code = await UpgradeableCounterV1.code()
+    expect(currentCode.toString('hex')).toBe(v1Code.toString('hex'))
   })
 
   it('should transfer ownership and allow new owner to upgrade', async () => {
@@ -272,6 +307,7 @@ describe('UpgradeableCounter', () => {
     const oldOwnerUpgradeResult = await upgradeableCounter.sendUpgrade(owner.getSender(), {
       value: toNano('0.05'),
       queryId: Math.floor(Math.random() * 10000),
+      fromVersion: '1.0.0',
       code: codeV2,
     })
 
@@ -287,6 +323,7 @@ describe('UpgradeableCounter', () => {
       newOwner.getSender(),
       toNano('0.05'),
       UpgradeableCounterV2,
+      '1.0.0',
     )
 
     expect(upgradeResult.transactions).toHaveTransaction({

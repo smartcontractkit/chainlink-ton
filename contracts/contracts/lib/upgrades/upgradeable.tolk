@@ -77,16 +77,37 @@ import "../utils.tolk";
 ///     }
 /// ```
 struct Upgradeable {
-    /// Abstract methods that must be implemented by the contract.
+    /// Points to a function that migrates the storage before the upgrade.
+    /// It receives the storage cell from the old version and returns the
+    /// migrated storage cell for the new version.
+    /// 
+    /// At TVM level, this only stores the method_id of the function to call,
+    /// so it automatically points to the new implementation after the code
+    /// is swapped.
+    /// 
+    /// This function must specify a method_id explicitly in the contract,
+    /// and it must be consistent across versions.
     migrate: (cell) -> cell;
+    /// Points to a function that returns the version of the contract.
+    /// 
+    /// At TVM level, this only stores the method_id of the function to call,
+    /// so it automatically points to the new implementation after the code
+    /// is swapped.
+    /// 
+    /// This function must specify a method_id explicitly in the contract,
+    /// and it must be consistent across versions.
     version: () -> slice;
 }
 
+enum Upgradeable_Error {
+    VersionMismatch = 43700; // Facility ID * 100
+}
 
 /// Message for upgrading a contract.
 struct (0x0aa811ed) Upgradeable_Upgrade {
     queryId: uint64;
     code: cell;
+    fromVersion: RemainingBitsAndRefs;
 }
 
 struct UpgradedEvent {
@@ -100,19 +121,22 @@ struct UpgradedEvent {
 
 const UPGRADED_EVENT = 0xa33b498e; // Event topic for the upgrade event
 
-fun Upgradeable.upgrade(self, code: cell) {
+fun Upgradeable.upgrade(self, msg: Upgradeable_Upgrade) {
+    // Ensure the upgrade requirements are met
+    val currentVersion = self.version();
+    assert (currentVersion.bitsEqual(msg.fromVersion)) throw Upgradeable_Error.VersionMismatch;
     // Schedule the code to be changed after the compute phase
-    contract.setCodePostponed(code);
-    // Load the code dinamically
-    var cont = transformSliceToContinuation(code.beginParse());
+    contract.setCodePostponed(msg.code);
+    // Load the code dynamically
+    var cont = transformSliceToContinuation(msg.code.beginParse());
     setTvmRegisterC3(cont); // After this line, we are running the new code
     // Call the migrate function implemented by the new version
     var c = contract.getData();
     var newStorage = self.migrate(c);
     contract.setData(newStorage);
     emit(UPGRADED_EVENT, UpgradedEvent{
-        code: code,
-        hash: code.hash(),
+        code: msg.code,
+        hash: msg.code.hash(),
         version: UnsafeBodyNoRef {
             forceInline: self.version(), // This is expected to be the version of the new code
             },

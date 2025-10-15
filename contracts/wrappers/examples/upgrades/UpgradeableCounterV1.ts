@@ -112,6 +112,7 @@ export class UpgradeableCounterV1 implements TypeAndVersion, Upgradeable {
     opts: {
       value: bigint
       queryId?: number
+      fromVersion: string
       code: Cell
     },
   ) {

@@ -24,6 +24,7 @@ export class Upgradeable {
     opts: {
       value: bigint
       queryId?: number
+      fromVersion: string
       code: Cell
     },
   ) {
@@ -34,6 +35,7 @@ export class Upgradeable {
         .storeUint(Opcodes.OP_UPGRADE, 32)
         .storeUint(opts.queryId ?? 0, 64)
         .storeRef(opts.code)
+        .storeStringTail(opts.fromVersion)
         .endCell(),
     })
   }
@@ -48,12 +50,14 @@ export async function sendUpgradeAndReturnNewVersion<T extends Upgradeable>(
   via: Sender,
   value: bigint,
   newVersion: new (address: Address, init?: { code: Cell; data: Cell }) => T,
+  fromVersion: string,
   queryId?: number,
 ): Promise<{ upgradeResult: SendMessageResult; newVersionInstance: T }> {
   const newVersionInstance = new newVersion(current.address)
   const upgradeResult = await current.sendUpgrade(via, {
     value: value,
     queryId: queryId,
+    fromVersion: fromVersion,
     code: await newVersionInstance.code(),
   })
   return { upgradeResult, newVersionInstance }

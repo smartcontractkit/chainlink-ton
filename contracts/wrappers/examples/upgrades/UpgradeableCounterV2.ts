@@ -112,6 +112,7 @@ export class UpgradeableCounterV2 implements Contract, TypeAndVersion, Upgradeab
     opts: {
       value: bigint
       queryId?: number
+      fromVersion: string
       code: Cell
     },
   ) {

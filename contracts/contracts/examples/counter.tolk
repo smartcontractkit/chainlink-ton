@@ -1,7 +1,6 @@
 tolk 1.1
 
 import "@stdlib/common.tolk"
-import "../lib/upgrades/type_and_version.tolk"
 import "../lib/utils.tolk"
 import "../lib/access/ownable_2step.tolk"
 
@@ -157,6 +156,5 @@ get fun value(): int {
 
 /// Gets the current type and version of the contract.
 get fun typeAndVersion(): (slice, slice) {
-    return TypeAndVersion { typeStr: "com.chainlink.ton.examples.Counter", versionStr: CONTRACT_VERSION }
-        .typeAndVersion();
+    return ("com.chainlink.ton.examples.Counter", CONTRACT_VERSION)
 }
