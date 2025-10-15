@@ -1,4 +1,4 @@
-package onramp
+package receiver
 
 import (
 	"github.com/xssnick/tonutils-go/address"
