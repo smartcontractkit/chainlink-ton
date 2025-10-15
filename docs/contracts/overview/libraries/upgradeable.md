@@ -27,8 +27,11 @@ Handles `Upgradeable_Upgrade` message of type:
 struct (0x0aa811ed) Upgradeable_Upgrade {
     queryId: uint64;
     code: cell;
+    fromVersion: RemainingBitsAndRefs;
 }
 ```
+
+The `fromVersion` parameter ensures that upgrades are performed from the expected version, preventing accidental upgrades from intermediate or incorrect versions.
 
 Emits an `UpgradedEvent` upon successful upgrade:
 
@@ -37,9 +40,19 @@ struct UpgradedEvent {
     /// The new code of the contract.
     code: cell;
     /// The SHA256 hash of the new code.
-    sha: uint256;
+    hash: uint256;
     /// The version of the contract after the upgrade.
     version: UnsafeBodyNoRef<slice>;
+}
+```
+
+### Error Codes
+
+The module defines the following error codes:
+
+```tolk
+enum Upgradeable_Error {
+    VersionMismatch = 43700; // Thrown when fromVersion doesn't match current version
 }
 ```
 
@@ -175,6 +188,8 @@ get fun typeAndVersion(): (slice, slice) {
 
 ## Upgrade Flow
 
+The upgrade process includes version verification to ensure upgrades are performed from the expected version:
+
 ```mermaid
 ---
 config:
@@ -187,14 +202,15 @@ sequenceDiagram
     
     Note over Counter: Initial state:<br/>code: V1 (increment)<br/>state: StorageV1 {<br/>- id: uint32<br/>- value: uint32<br/>- ownable2Step: Ownable2Step<br/>}<br/>version: "1.0.0"
 
-    Owner->>Counter: send Upgradeable_Upgrade message<br/>(with V2 code)
+    Owner->>Counter: send Upgradeable_Upgrade message<br/>(with V2 code + fromVersion: "1.0.0")
     activate Counter
     Note over Counter: 1. Verify sender is owner<br/>(requireUpgrade check)
-    Note over Counter: 2. Get current storage
-    Note over Counter: 3. Call migrateStorage(oldCell)
-    Note over Counter: 4. Replace contract code
-    Note over Counter: 5. Set new storage
-    Note over Counter: 6. Emit UpgradedEvent
+    Note over Counter: 2. Verify fromVersion matches current version<br/>(throws VersionMismatch error if not)
+    Note over Counter: 3. Get current storage
+    Note over Counter: 4. Call migrateStorage(oldCell)
+    Note over Counter: 5. Replace contract code
+    Note over Counter: 6. Set new storage
+    Note over Counter: 7. Emit UpgradedEvent
     deactivate Counter
 
     Note over Counter: New state:<br/>code: V2 (decrement)<br/>state: StorageV2 {<br/>- value: uint64<br/>- id: uint32<br/>- ownable2Step: Ownable2Step<br/>}<br/>version: "2.0.0"
@@ -204,3 +220,111 @@ sequenceDiagram
     Note over Counter: Decrements counter<br/>(value = n - 1)
     deactivate Counter
 ```
+
+### Version Mismatch Protection
+
+The upgrade mechanism includes built-in protection against incorrect version upgrades:
+
+```typescript
+// ✅ Correct: Upgrading from the current version
+await contract.sendUpgrade(owner.getSender(), toNano('0.05'), {
+  queryId: 0n,
+  fromVersion: '1.0.0',  // Matches current version
+  code: v2Code,
+})
+
+// ❌ Incorrect: Will fail with exit code 43700 (VersionMismatch)
+await contract.sendUpgrade(owner.getSender(), toNano('0.05'), {
+  queryId: 0n,
+  fromVersion: '2.0.0',  // Doesn't match current version "1.0.0"
+  code: v2Code,
+})
+```
+
+This prevents scenarios where:
+
+- A contract is upgraded from an unexpected intermediate version
+- Multiple upgrade transactions are sent simultaneously
+- An old upgrade transaction is replayed after a newer upgrade has completed
+
+## Testing Upgradeable Contracts
+
+The framework provides a reusable test specification for upgradeable contracts through `newUpgradeableInterfaceSpec`. This allows you to easily test the standard upgrade functionality without duplicating test code.
+
+### Using the Test Spec
+
+```typescript
+import { newUpgradeableInterfaceSpec } from '../../../wrappers/libraries/upgrades/UpgradeableSpec'
+import { UpgradeableCounterV1 } from '../../../wrappers/examples/upgrades/UpgradeableCounterV1'
+import { UpgradeableCounterV2 } from '../../../wrappers/examples/upgrades/UpgradeableCounterV2'
+
+describe('UpgradeableCounter', () => {
+  // Create the reusable test spec
+  const upgradeableSpec = newUpgradeableInterfaceSpec(
+    {
+      contractType: UpgradeableCounterV1.type(),
+      versionV1: UpgradeableCounterV1.version(),
+      versionV2: UpgradeableCounterV2.version(),
+      getCodeV1: () => UpgradeableCounterV1.code(),
+      getCodeV2: () => UpgradeableCounterV2.code(),
+      V2Constructor: UpgradeableCounterV2,
+      upgradeValue: toNano('0.05'), // Optional: defaults to 0.05 TON
+    },
+    async (blockchain, owner) => {
+      // Setup function: deploy your V1 contract
+      const codeV1 = await UpgradeableCounterV1.code()
+      const contract = blockchain.openContract(
+        UpgradeableCounterV1.createFromConfig(
+          {
+            id: 0,
+            value: 0,
+            ownable: { owner: owner.address, pendingOwner: null },
+          },
+          codeV1,
+        ),
+      )
+      const deployer = await blockchain.treasury('deployer')
+      await contract.sendDeploy(deployer.getSender(), toNano('0.05'))
+      return contract
+    },
+  )
+
+  // Use the reusable test spec for standard upgradeable contract tests
+  upgradeableSpec.run()
+
+  // Add your contract-specific tests
+  it('should increment counter', async () => {
+    // Your custom test logic
+  })
+})
+```
+
+### Test Coverage
+
+The test spec provides the following test cases:
+
+1. **should deploy on correct version**: Verifies that the contract deploys with the correct version, type, code, and code hash
+2. **should upgrade from V1 to V2**: Tests the complete upgrade flow from V1 to V2, including:
+   - Version verification before and after upgrade
+   - Code and code hash verification
+   - Upgrade event emission with correct version, code, and code hash
+3. **should fail when fromVersion does not match current version**: Verifies that upgrades fail with exit code 43700 when `fromVersion` doesn't match the current version
+
+### Configuration Options
+
+The `UpgradeableTestConfig` accepts the following parameters:
+
+- `contractType`: The expected contract type name (e.g., from `YourContract.type()`)
+- `versionV1`: Version string for V1 contract (e.g., from `YourContractV1.version()`)
+- `versionV2`: Version string for V2 contract (e.g., from `YourContractV2.version()`)
+- `getCodeV1`: Function to get the code for V1 contract
+- `getCodeV2`: Function to get the code for V2 contract
+- `V2Constructor`: Constructor class for V2 contract
+- `upgradeValue` (optional): Amount of TON to use for upgrade transactions (defaults to 0.05 TON)
+
+### Benefits
+
+- **Consistency**: All upgradeable contracts are tested the same way
+- **Maintainability**: Bug fixes and improvements to upgrade testing are automatically applied to all contracts
+- **Focus**: Allows you to focus on testing contract-specific functionality
+- **Type Safety**: Properly typed with `SandboxContract<UpgradeableContract>` for full TypeScript support
