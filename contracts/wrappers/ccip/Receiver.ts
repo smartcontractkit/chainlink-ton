@@ -16,9 +16,8 @@ import * as ownable2step from '../libraries/access/Ownable2Step'
 import { CellCodec } from '../utils'
 import { asSnakeData, asSnakeDataUint, fromSnakeData } from '../../src/utils'
 import {CCIPSend, TokenAmount} from "./Router";
-import {Any2TVMMessage, Any2TVMMessageToBuilder, CCIPReceiveConfirm, CrossChainAddress, OffRamp} from "./OffRamp";
+import {Any2TVMMessage, builder as OffRampBuilder, CCIPReceiveConfirm, CrossChainAddress, OffRamp} from "./OffRamp";
 
-export const RECEIVER_FACILITY_NAME = 'com.chainlink.ton.ccip.test.Receiver'
 export const RECEIVER_FACILITY_ID = 346
 export const RECEIVER_ERROR_CODE = 34600 //FACILITY_ID * 100
 
@@ -128,25 +127,16 @@ export const builder = {
               beginCell()
                   .storeUint(Opcodes.ccipReceive, 32)
                   .storeUint(opts.rootId, 224)
-                  .storeBuilder(Any2TVMMessageToBuilder(opts.message))
+                  .storeBuilder(OffRampBuilder.data.any2TVMMessage.encode(opts.message))
           )
         },
         load: function (src: Slice): CCIPReceive {
+          // TODO We can check that the opcode matches
           src.skip(32)
-          // TODO Check that the opcode matches
-
-          const sender = src.loadRef().beginParse()
-          const senderSize = sender.loadUint(8)
-          const senderData = sender.loadBuffer(senderSize * 8)
 
           return {
             rootId: src.loadUintBig(224),
-            message: {
-              messageId: BigInt(src.loadUint(256)),
-              sourceChainSelector: BigInt(src.loadUint(64)),
-              sender: senderData,
-              data: src.loadRef(),
-            }
+            message: OffRampBuilder.data.any2TVMMessage.load(src)
           }
         }
       }

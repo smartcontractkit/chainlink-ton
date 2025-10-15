@@ -10,5 +10,3 @@ fun Storage.load(): Storage {
 fun Storage.store(self) {
     return contract.setData(self.toCell());
 }
-
-

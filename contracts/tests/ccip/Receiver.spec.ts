@@ -49,7 +49,6 @@ describe('Receiver', () => {
 
   it('should deploy', async () => {
     // the check is done inside beforeEach
-    // blockchain and counter are ready to use
   })
 
   it('should have the right storage', async () => {
