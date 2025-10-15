@@ -126,7 +126,7 @@ fun onUpgrade(msg: Upgradeable_Upgrade, sender: address) {
     Upgradeable{
         migrate: migrate,
         version: version,
-    }.upgrade(msg.code);
+    }.upgrade(msg);
 }
 
 @method_id(1000)

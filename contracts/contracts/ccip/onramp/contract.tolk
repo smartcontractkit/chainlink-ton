@@ -63,7 +63,7 @@ fun onInternalMessage(in: InMessage) {
             Upgradeable{
                 migrate: migrate,
                 version: version,
-            }.upgrade(msg.code);
+            }.upgrade(msg);
         }
         else => {
             // ignore empty messages, "wrong opcode" for others
