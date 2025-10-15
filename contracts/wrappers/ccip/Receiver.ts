@@ -9,14 +9,21 @@ import {
   Dictionary,
   Sender,
   SendMode,
-  Slice, TupleBuilder,
+  Slice,
+  TupleBuilder,
 } from '@ton/core'
 
 import * as ownable2step from '../libraries/access/Ownable2Step'
 import { CellCodec } from '../utils'
 import { asSnakeData, asSnakeDataUint, fromSnakeData } from '../../src/utils'
-import {CCIPSend, TokenAmount} from "./Router";
-import {Any2TVMMessage, builder as OffRampBuilder, CCIPReceiveConfirm, CrossChainAddress, OffRamp} from "./OffRamp";
+import { CCIPSend, TokenAmount } from './Router'
+import {
+  Any2TVMMessage,
+  builder as OffRampBuilder,
+  CCIPReceiveConfirm,
+  CrossChainAddress,
+  OffRamp,
+} from './OffRamp'
 
 export const RECEIVER_FACILITY_ID = 346
 export const RECEIVER_ERROR_CODE = 34600 //FACILITY_ID * 100
@@ -75,26 +82,26 @@ export class Receiver implements Contract {
   }
 
   async getId(provider: ContractProvider): Promise<number> {
-    const { stack } = await provider.get("getId", []);
-    return stack.readNumber();
+    const { stack } = await provider.get('getId', [])
+    return stack.readNumber()
   }
 
   async getOffRampAddress(provider: ContractProvider): Promise<Address> {
-    const { stack } = await provider.get("getOfframpAddress", []);
-    return stack.readAddress();
+    const { stack } = await provider.get('getOfframpAddress', [])
+    return stack.readAddress()
   }
 
   async getFacilityId(provider: ContractProvider): Promise<number> {
-    const { stack } = await provider.get("facilityId", []);
-    return stack.readNumber();
+    const { stack } = await provider.get('facilityId', [])
+    return stack.readNumber()
   }
 
   async getErrorCode(provider: ContractProvider, local: number): Promise<number> {
-    const args = new TupleBuilder();
-    args.writeNumber(local); // Push your number argument onto the stack
+    const args = new TupleBuilder()
+    args.writeNumber(local) // Push your number argument onto the stack
 
-    const { stack } = await provider.get("errorCode", args.build());
-    return stack.readNumber();
+    const { stack } = await provider.get('errorCode', args.build())
+    return stack.readNumber()
   }
 }
 
@@ -102,9 +109,7 @@ export const builder = {
   data: (() => {
     const contractData: CellCodec<ReceiverStorage> = {
       encode: (config: ReceiverStorage): Builder => {
-        return beginCell()
-          .storeUint(config.id, 32)
-          .storeAddress(config.offramp)
+        return beginCell().storeUint(config.id, 32).storeAddress(config.offramp)
       },
 
       load: (src: Slice): ReceiverStorage => {
@@ -123,12 +128,10 @@ export const builder = {
     in: (() => {
       const ccipReceive: CellCodec<CCIPReceive> = {
         encode: (opts: CCIPReceive): Builder => {
-          return (
-              beginCell()
-                  .storeUint(Opcodes.ccipReceive, 32)
-                  .storeUint(opts.rootId, 224)
-                  .storeBuilder(OffRampBuilder.data.any2TVMMessage.encode(opts.message))
-          )
+          return beginCell()
+            .storeUint(Opcodes.ccipReceive, 32)
+            .storeUint(opts.rootId, 224)
+            .storeBuilder(OffRampBuilder.data.any2TVMMessage.encode(opts.message))
         },
         load: function (src: Slice): CCIPReceive {
           // TODO We can check that the opcode matches
@@ -136,9 +139,9 @@ export const builder = {
 
           return {
             rootId: src.loadUintBig(224),
-            message: OffRampBuilder.data.any2TVMMessage.load(src)
+            message: OffRampBuilder.data.any2TVMMessage.load(src),
           }
-        }
+        },
       }
 
       return {

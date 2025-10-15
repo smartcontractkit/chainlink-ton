@@ -1,12 +1,20 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import {beginCell, toNano} from '@ton/core'
+import { beginCell, toNano } from '@ton/core'
 import { compile } from '@ton/blueprint'
 import '@ton/test-utils'
 
-import { Receiver, ReceiverError, ReceiverStorage, CCIPReceive, builder as CCIPReceiveBuilder, RECEIVER_FACILITY_ID, RECEIVER_ERROR_CODE } from '../../wrappers/ccip/Receiver'
+import {
+  Receiver,
+  ReceiverError,
+  ReceiverStorage,
+  CCIPReceive,
+  builder as CCIPReceiveBuilder,
+  RECEIVER_FACILITY_ID,
+  RECEIVER_ERROR_CODE,
+} from '../../wrappers/ccip/Receiver'
 import { builder as OffRampBuilder } from '../../wrappers/ccip/OffRamp'
-import { assertLog } from "../Logs";
-import * as CCIPLogs from "../../wrappers/ccip/Logs";
+import { assertLog } from '../Logs'
+import * as CCIPLogs from '../../wrappers/ccip/Logs'
 
 function generateSecureRandomId(): number {
   return Math.floor(Math.random() * 0x100000000) // 2^32
@@ -69,9 +77,9 @@ describe('Receiver', () => {
       message: {
         messageId: BigInt(1),
         sourceChainSelector: BigInt(2),
-        sender: Buffer.from("cross chain address"),
-        data: beginCell().storeBuffer(Buffer.from("cross chain data")).endCell(),
-      }
+        sender: Buffer.from('cross chain address'),
+        data: beginCell().storeBuffer(Buffer.from('cross chain data')).endCell(),
+      },
     }
 
     const result = await receiver.sendCCIPReceive(deployer.getSender(), toNano('1'), ccipReceive)
@@ -89,12 +97,19 @@ describe('Receiver', () => {
       to: deployer.address,
       success: true,
       deploy: false,
-      body: OffRampBuilder.message.in.ccipReceiveConfirm.encode({ rootId: ccipReceive.rootId }).endCell()
+      body: OffRampBuilder.message.in.ccipReceiveConfirm
+        .encode({ rootId: ccipReceive.rootId })
+        .endCell(),
     })
 
-    assertLog(result.transactions, receiver.address, CCIPLogs.LogTypes.ReceiverCCIPMessageReceived, {
-        message: ccipReceive.message
-    })
+    assertLog(
+      result.transactions,
+      receiver.address,
+      CCIPLogs.LogTypes.ReceiverCCIPMessageReceived,
+      {
+        message: ccipReceive.message,
+      },
+    )
   })
 
   it('should failed with unauthorized when calling ccipReceive with a different sender as the offramp address', async () => {
@@ -103,12 +118,16 @@ describe('Receiver', () => {
       message: {
         messageId: BigInt(1),
         sourceChainSelector: BigInt(2),
-        sender: Buffer.from("cross chain address"),
-        data: beginCell().storeBuffer(Buffer.from("cross chain data")).endCell(),
-      }
+        sender: Buffer.from('cross chain address'),
+        data: beginCell().storeBuffer(Buffer.from('cross chain data')).endCell(),
+      },
     }
 
-    const result = await receiver.sendCCIPReceive(unauthorized.getSender(), toNano('1'), ccipReceive)
+    const result = await receiver.sendCCIPReceive(
+      unauthorized.getSender(),
+      toNano('1'),
+      ccipReceive,
+    )
 
     expect(result.transactions).toHaveTransaction({
       from: unauthorized.address,

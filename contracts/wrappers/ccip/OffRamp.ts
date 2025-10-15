@@ -9,15 +9,15 @@ import {
   Sender,
   SendMode,
   Slice,
-  Builder
+  Builder,
 } from '@ton/core'
 
 import { OCR3Base, ReportContext, SignatureEd25519 } from '../libraries/ocr/MultiOCR3Base'
 import { asSnakeData, fromSnakeData, bigIntToUint8Array } from '../../src/utils/types'
 import * as ownable2step from '../libraries/access/Ownable2Step'
 import { crc32 } from 'zlib'
-import {CellCodec, facilityId} from '../utils'
-import {CCIPReceive, ReceiverStorage} from "./Receiver";
+import { CellCodec, facilityId } from '../utils'
+import { CCIPReceive, ReceiverStorage } from './Receiver'
 
 export type OffRampStorage = {
   id: bigint
@@ -94,7 +94,7 @@ export type Any2TVMMessage = {
 }
 
 export type CCIPReceiveConfirm = {
-    rootId: bigint
+  rootId: bigint
 }
 
 export type MerkleRoot = {
@@ -112,45 +112,45 @@ export const builder = {
     const contractData: CellCodec<OffRampStorage> = {
       encode: (storage: OffRampStorage): Builder => {
         return (
-            beginCell()
-              .storeUint(storage.id, 32)
-              .storeAddress(storage.ownable.owner)
-              .storeMaybeBuilder(
-                  storage.ownable.pendingOwner
-                      ? beginCell().storeAddress(storage.ownable.pendingOwner)
-                      : null,
-              )
-              .storeRef(storage.deployerCode)
-              .storeRef(storage.merkleRootCode)
-              .storeAddress(storage.feeQuoter)
-              // empty OCR3Base::
-              .storeRef(
-                  beginCell()
-                      .storeUint(1, 8) //chainId
-                      .storeBit(false)
-                      .storeBit(false)
-                      .endCell(),
-              )
-              .storeUint(storage.chainSelector, 64)
-              .storeUint(storage.permissionlessExecutionThresholdSeconds, 32)
-              .storeDict(Dictionary.empty())
-              .storeUint(storage.latestPriceSequenceNumber, 64))
+          beginCell()
+            .storeUint(storage.id, 32)
+            .storeAddress(storage.ownable.owner)
+            .storeMaybeBuilder(
+              storage.ownable.pendingOwner
+                ? beginCell().storeAddress(storage.ownable.pendingOwner)
+                : null,
+            )
+            .storeRef(storage.deployerCode)
+            .storeRef(storage.merkleRootCode)
+            .storeAddress(storage.feeQuoter)
+            // empty OCR3Base::
+            .storeRef(
+              beginCell()
+                .storeUint(1, 8) //chainId
+                .storeBit(false)
+                .storeBit(false)
+                .endCell(),
+            )
+            .storeUint(storage.chainSelector, 64)
+            .storeUint(storage.permissionlessExecutionThresholdSeconds, 32)
+            .storeDict(Dictionary.empty())
+            .storeUint(storage.latestPriceSequenceNumber, 64)
+        )
       },
 
       load: (src: Slice): OffRampStorage => {
-        throw new Error("Implement me")
+        throw new Error('Implement me')
       },
     }
 
     const any2TVMMessage: CellCodec<Any2TVMMessage> = {
       encode: (message: Any2TVMMessage): Builder => {
-        return (
-            beginCell()
-              .storeUint(message.messageId, 256)
-              .storeUint(message.sourceChainSelector, 64)
-              .storeUint(message.sender.byteLength, 8)
-              .storeBuffer(message.sender, message.sender.byteLength)
-              .storeRef(message.data))
+        return beginCell()
+          .storeUint(message.messageId, 256)
+          .storeUint(message.sourceChainSelector, 64)
+          .storeUint(message.sender.byteLength, 8)
+          .storeBuffer(message.sender, message.sender.byteLength)
+          .storeRef(message.data)
       },
 
       load: (src: Slice): Any2TVMMessage => {
@@ -170,7 +170,7 @@ export const builder = {
 
     return {
       contractData,
-      any2TVMMessage
+      any2TVMMessage,
     }
   })(),
   message: {
@@ -178,8 +178,8 @@ export const builder = {
       const ccipReceiveConfirm: CellCodec<CCIPReceiveConfirm> = {
         encode: (confirm: CCIPReceiveConfirm): Builder => {
           return beginCell()
-              .storeUint(Opcodes.ccipReceiveConfirm, 32)
-              .storeUint(confirm.rootId, 224)
+            .storeUint(Opcodes.ccipReceiveConfirm, 32)
+            .storeUint(confirm.rootId, 224)
         },
         load: (src: Slice): CCIPReceiveConfirm => {
           // TODO We can check that the opcode matches
@@ -188,7 +188,7 @@ export const builder = {
           return {
             rootId: src.loadUintBig(224),
           }
-        }
+        },
       }
 
       return {
@@ -505,16 +505,16 @@ function ExecutionReportToBuilder(report: ExecutionReport) {
 
 function Any2TVMRampMessageToBuilder(message: Any2TVMRampMessage) {
   return beginCell()
-      .storeBuilder(RampMessageHeaderToBuidler(message.header))
-      .storeRef(
-          beginCell()
-              .storeUint(message.sender.byteLength, 8)
-              .storeBuffer(message.sender, message.sender.byteLength)
-              .endCell(),
-      )
-      .storeRef(message.data)
-      .storeAddress(message.receiver)
-      .storeMaybeRef(message.tokenAmounts)
+    .storeBuilder(RampMessageHeaderToBuidler(message.header))
+    .storeRef(
+      beginCell()
+        .storeUint(message.sender.byteLength, 8)
+        .storeBuffer(message.sender, message.sender.byteLength)
+        .endCell(),
+    )
+    .storeRef(message.data)
+    .storeAddress(message.receiver)
+    .storeMaybeRef(message.tokenAmounts)
 }
 
 function RampMessageHeaderToBuidler(header: RampMessageHeader) {
