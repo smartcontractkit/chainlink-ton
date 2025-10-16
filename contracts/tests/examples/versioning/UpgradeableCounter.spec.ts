@@ -94,7 +94,7 @@ describe('UpgradeableCounter - Upgrade Tests', () => {
 describe('UpgradeableCounter - Current Version Tests', () => {
   const currentVersionSpec = newCurrentVersionSpec(
     {
-      contractType: UpgradeableCounterV1.type(), // Same type for both versions
+      contractType: UpgradeableCounterV2.type(),
       currentVersion: UpgradeableCounterV2.version(),
       getCurrentCode: () => UpgradeableCounterV2.code(),
       CurrentVersionConstructor: UpgradeableCounterV2,

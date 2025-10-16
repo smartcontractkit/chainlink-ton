@@ -16,7 +16,7 @@ import { TypeAndVersion } from '../../../wrappers/libraries/TypeAndVersion'
 /**
  * Configuration for testing upgrades between two versions of an upgradeable contract.
  */
-export type UpgradeTestConfig<TPrevVersionContract, TCurrentVersionContract> = {
+export type UpgradeTestConfig<TCurrentVersionContract> = {
   /** The expected contract type name (e.g., 'com.chainlink.ton.examples.versioning.upgrades.UpgradeableCounter') */
   contractType: string
   /** Version string for previous version contract */
@@ -114,7 +114,7 @@ export function newUpgradeSpec<
   TContractV1 extends UpgradeableContract,
   TContractV2 extends UpgradeableContract,
 >(
-  config: UpgradeTestConfig<TContractV1, TContractV2>,
+  config: UpgradeTestConfig<TContractV2>,
   setupPrevContract: (
     blockchain: Blockchain,
     owner: SandboxContract<TreasuryContract>,

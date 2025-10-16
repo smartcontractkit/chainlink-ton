@@ -151,7 +151,7 @@ export class UpgradeableCounterV2
     return CONTRACT_VERSION
   }
 
-  static facilityName() {
+  static type() {
     return FACILITY_NAME
   }
 
