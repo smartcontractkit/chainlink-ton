@@ -128,6 +128,16 @@ func (c *CrossChainAddress) LoadFromCell(s *cell.Slice) error {
 	return nil
 }
 
+// LoadCrossChainAddressWithoutPrefix parses a CrossChainAddress from raw data that lacks a length prefix as the first byte.
+// TODO: check why getter is not including the first byte as length prefix for CrossChainAddress type
+func LoadCrossChainAddressWithoutPrefix(s *cell.Slice) (CrossChainAddress, error) {
+	data, err := s.LoadSlice(s.BitsLeft())
+	if err != nil {
+		return nil, fmt.Errorf("failed to load data for cross chain address: %w", err)
+	}
+	return CrossChainAddress(data), nil
+}
+
 // PackArrayWithRefChaining packs a slice of any serializable type T into a linked cell structure,
 // storing each element as a cell reference. When only one reference slot is left, it starts a new cell
 // and uses the last reference for chaining.

@@ -41,8 +41,6 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 	// TODO: Implement logic of deploying Ton chain packages and modules
 	// - once all contracts are deployed, we can remove the hardcoded addresses from the TonTestDeployPrerequisitesChangeSet
 	// - Deploy TON MCMS, https://smartcontract-it.atlassian.net/browse/NONEVM-1939
-	// - Deploy and initialize TON CCIP Offramp, Router, Onramp, Dummy Receiver and set the contract address https://smartcontract-it.atlassian.net/browse/NONEVM-1938
-	// - Replace with actual TON addresses after contracts are supported, https://smartcontract-it.atlassian.net/browse/NONEVM-1938
 	env.Logger.Infof("TON_E2E: Deploying contracts for TON chains: %v", config.TonChainSelector)
 	selector := config.TonChainSelector
 
@@ -84,13 +82,12 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 	// Placeholders
 	address := tonaddress.MustParseAddr("EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8")
 	s.LinkTokenAddress = *address
-	// ReceiverAddress will be set by test when receiver is deployed/created
-	// s.ReceiverAddress is left uninitialized here
 
 	s.OnRamp = *ccipSeqReport.Output.OnRampAddress
 	s.Router = *ccipSeqReport.Output.RouterAddress
 	s.FeeQuoter = *ccipSeqReport.Output.FeeQuoterAddress
 	s.OffRamp = *ccipSeqReport.Output.OffRampAddress
+	s.ReceiverAddress = *ccipSeqReport.Output.ReceiverAddress
 
 	// Get address book
 	ab, err := state.GetAddressBook(selector, s)
