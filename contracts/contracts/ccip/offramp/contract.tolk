@@ -140,7 +140,7 @@ fun markStateOnRoot(root: address, messageId: uint256, state: ExecutionState) {
             state,
         },
     });
-    markState.send(SEND_MODE_REGULAR);
+    // markState.send(SEND_MODE_REGULAR);
 }
 
 // Received from ReceiveExecutor after validating that the confirm message came from the correct receiver
