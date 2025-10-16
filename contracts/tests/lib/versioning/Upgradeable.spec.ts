@@ -12,4 +12,8 @@ describe('Upgradeable', () => {
   it('should have correct opcode', async () => {
     expect(upgradeable.opcodes.Upgrade).toBe(crc32('Upgradeable_Upgrade'))
   })
+
+  it('should have correct event topic', async () => {
+    expect(upgradeable.eventTopics.Upgraded).toBe(crc32('Upgradeable_UpgradedEvent'))
+  })
 })

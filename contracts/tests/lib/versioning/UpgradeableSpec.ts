@@ -234,7 +234,7 @@ export function newUpgradeSpec<
         })
         expect(event).toBeDefined()
 
-        const upgradedEvent = upgradeable.loadUpgradedEvent(event!.body.beginParse())
+        const upgradedEvent = upgradeable.builder.event.upgraded.load(event!.body.beginParse())
         expect(upgradedEvent.version).toBe(config.currentVersion)
         expect(upgradedEvent.code.toString('hex')).toBe(testSetup.currentCode.toString('hex'))
         expect(upgradedEvent.codeHash).toBe(expectedHash)

@@ -10,15 +10,18 @@ import {
   Slice,
 } from '@ton/core'
 import { SandboxContract, SendMessageResult } from '@ton/sandbox'
-import { crc32 } from 'zlib'
 import { CellCodec } from '../../utils'
 
 export const opcodes = {
-  Upgrade: crc32('Upgradeable_Upgrade'),
+  Upgrade: 0x0aa811ed,
 }
 
 export enum Error {
   VersionMismatch = 28700,
+}
+
+export const eventTopics = {
+  Upgraded: 0x6cf83c03, // crc32("Upgradeable_UpgradedEvent")
 }
 
 export type Upgrade = {
@@ -112,19 +115,4 @@ export async function sendUpgradeAndReturnNewVersion<T extends Upgradeable>(
     code: newCode,
   })
   return { upgradeResult, newVersionInstance }
-}
-
-export function loadUpgradedEvent(slice: Slice): {
-  version: string
-  code: Cell
-  codeHash: bigint
-} {
-  const code = slice.loadRef()
-  const codeHash = slice.loadUintBig(256)
-  const version = slice.loadStringTail()
-  return {
-    version,
-    code,
-    codeHash,
-  }
 }

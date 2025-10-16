@@ -104,13 +104,14 @@ enum Upgradeable_Error {
 }
 
 /// Message for upgrading a contract.
-struct (0x0aa811ed) Upgradeable_Upgrade {
+/// crc32("Upgradeable_Upgrade") == 0x6cf83c03
+struct (0x6cf83c03) Upgradeable_Upgrade {
     queryId: uint64;
     code: cell;
     fromVersion: RemainingBitsAndRefs;
 }
 
-struct UpgradedEvent {
+struct Upgradeable_UpgradedEvent {
     /// The new code of the contract.
     code: cell;
     /// The SHA256 hash of the new code.
@@ -119,7 +120,7 @@ struct UpgradedEvent {
     version: UnsafeBodyNoRef<slice>;
 }
 
-const UPGRADED_EVENT = 0xa33b498e; // Event topic for the upgrade event
+const UPGRADEABLE_UPGRADED_EVENT = 0xa33b498e; // crc32("Upgradeable_UpgradedEvent")
 
 fun Upgradeable.upgrade(self, msg: Upgradeable_Upgrade) {
     // Ensure the upgrade requirements are met
@@ -134,7 +135,7 @@ fun Upgradeable.upgrade(self, msg: Upgradeable_Upgrade) {
     var c = contract.getData();
     var newStorage = self.migrate(c);
     contract.setData(newStorage);
-    emit(UPGRADED_EVENT, UpgradedEvent{
+    emit(UPGRADEABLE_UPGRADED_EVENT, Upgradeable_UpgradedEvent{
         code: msg.code,
         hash: msg.code.hash(),
         version: UnsafeBodyNoRef {
