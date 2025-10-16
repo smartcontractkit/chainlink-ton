@@ -185,6 +185,15 @@ fun Bitmap256.has(self, index: int): bool {
     return (self.bits & (1 << index)) != 0;
 }
 
+// For address snake data
+@inline
+fun countAddresses(data: cell): int {
+    val maxCells = 128;
+    val (cellsCount, dataBitsSize, cellRefs) = data.calculateSizeStrict(maxCells);
+    assert(dataBitsSize % ADDR_KEY_LEN == 0, ERROR_INVALID_DATA);
+    return dataBitsSize / ADDR_KEY_LEN;
+}
+
 // Returns a lisp-list with the keys of the map
 fun keysLispList<K, V>(dict: map<K, V>): tuple? {
     var list: tuple? = null;

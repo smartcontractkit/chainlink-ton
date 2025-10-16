@@ -92,7 +92,8 @@ fun OCR3Base.setOcr3Config(mutate self, msg: OCR3Base_SetOCR3Config) {
 			ERROR_STATIC_CONFIG_CANNOT_BE_CHANGED
 		);
 	}
-	val transmitters_length = msg.transmitters.iter().size(ADDR_KEY_LEN);
+	val transmitters_length = countAddresses(msg.transmitters);
+	// val transmitters_length = msg.transmitters.iter().size(ADDR_KEY_LEN);
 
 	assert(transmitters_length <= MAX_NUM_ORACLES, ERROR_TOO_MANY_TRANSMITTERS);
 	assert(transmitters_length > 0, ERROR_NO_TRANSMITTERS);
