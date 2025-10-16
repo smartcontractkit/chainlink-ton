@@ -20,7 +20,7 @@ import (
 var (
 	Version1_6_0                 = *semver.MustParse("1.6.0")
 	LinkToken    ds.ContractType = "LinkToken"
-	TonReceiver  ds.ContractType = "TonReceiver"
+	TonReceiver  ds.ContractType = "Receiver"
 	Router       ds.ContractType = "Router"
 	OnRamp       ds.ContractType = "OnRamp"
 	OffRamp      ds.ContractType = "OffRamp"
