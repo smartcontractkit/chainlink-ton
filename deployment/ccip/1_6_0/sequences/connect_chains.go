@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/Masterminds/semver/v3"
-	chain_selectors "github.com/smartcontractkit/chain-selectors"
+	chainSelectors "github.com/smartcontractkit/chain-selectors"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/lanes"
 	ccipapi "github.com/smartcontractkit/chainlink-ccip/deployment/lanes"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
@@ -16,6 +16,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 )
 
 // TODO: why is it that this methods don't have the env as a parameter?
@@ -28,18 +29,9 @@ func (a *TonAdapter) ConfigureLaneLegAsSource(env *cldf.Environment) *cldfOps.Se
 			var txs [][]byte
 
 			// TODO: What should go here?
-			tonChainSelectors := env.BlockChains.ListChainSelectors(chain.WithFamily(chain_selectors.FamilyTon))
-			chainSelector := tonChainSelectors[0]
-
-			tonChains := env.BlockChains.TonChains()
-			chain := tonChains[chainSelector]
-			states, err := state.LoadOnchainState(*env)
+			deps, err := extractTonDeps(env)
 			if err != nil {
-				return sequences.OnChainOutput{}, fmt.Errorf("failed to load TON onchain state: %w", err)
-			}
-			deps := operation.TonDeps{
-				TonChain:         chain,
-				CCIPOnChainState: states,
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to extract TON deps: %w", err)
 			}
 
 			// update fee quoter with dest chain configs
@@ -74,8 +66,61 @@ func (a *TonAdapter) ConfigureLaneLegAsSource(env *cldf.Environment) *cldfOps.Se
 	)
 }
 
-func (a *TonAdapter) ConfigureLaneLegAsDest() *cldfOps.Sequence[ccipapi.UpdateLanesInput, sequences.OnChainOutput, cldfChain.BlockChains] {
-	return nil // Not implemented for Ton
+func extractTonDeps(env *cldf.Environment) (operation.TonDeps, error) {
+	tonChainSelectors := env.BlockChains.ListChainSelectors(chain.WithFamily(chainSelectors.FamilyTon))
+	chainSelector := tonChainSelectors[0]
+
+	tonChains := env.BlockChains.TonChains()
+	chain := tonChains[chainSelector]
+	states, err := state.LoadOnchainState(*env)
+	if err != nil {
+		return operation.TonDeps{}, fmt.Errorf("failed to load TON onchain state: %w", err)
+	}
+	deps := operation.TonDeps{
+		TonChain:         chain,
+		CCIPOnChainState: states,
+	}
+	return deps, nil
+}
+
+// TODO: why is it that this methods don't have the env as a parameter?
+func (a *TonAdapter) ConfigureLaneLegAsDest(env *cldf.Environment) *cldfOps.Sequence[ccipapi.UpdateLanesInput, sequences.OnChainOutput, cldfChain.BlockChains] {
+	return cldfOps.NewSequence[ccipapi.UpdateLanesInput, sequences.OnChainOutput, cldfChain.BlockChains](
+		"ConfigureLaneLegAsDest",
+		semver.MustParse("1.0.0"),
+		"Configures lane leg as dest on CCIP 1.6.0",
+		func(b operations.Bundle, chains cldfChain.BlockChains, input lanes.UpdateLanesInput) (sequences.OnChainOutput, error) {
+			var txs [][]byte
+
+			// TODO: What should go here?
+			deps, err := extractTonDeps(env)
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to extract TON deps: %w", err)
+			}
+
+			// configure offramp sources
+			updateOffRampSourcesConfig := mapToUpdateOffRampSourcesConfig(input)
+			b.Logger.Infow("Updating source configs on OffRamp", "input", updateOffRampSourcesConfig)
+			offRampReport, err := operations.ExecuteOperation(b, operation.UpdateOffRampSourceChainConfigsOp, deps, updateOffRampSourcesConfig)
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to update offramp sources: %w", err)
+			}
+			txs = append(txs, offRampReport.Output...)
+
+			// add ccip owner to offramp allowlist
+
+			// update router with destination onramp versions
+			updateRouterDestConfig := mapToUpdateRouterDestConfig(input)
+			b.Logger.Infow("Updating Router", "input", updateRouterDestConfig)
+			routerReport, err := operations.ExecuteOperation(b, operation.UpdateRouterDestOp, deps, updateRouterDestConfig)
+			if err != nil {
+				return sequences.OnChainOutput{}, fmt.Errorf("failed to update router: %w", err)
+			}
+			txs = append(txs, routerReport.Output...)
+
+			return sequences.OnChainOutput{}, nil
+		},
+	)
 }
 
 func mapToUpdateFeeQuoterDestChainConfigs(input lanes.UpdateLanesInput) operation.UpdateFeeQuoterDestChainConfigsInput {
@@ -126,6 +171,29 @@ func mapToUpdateFeeQuoterPricesConfig(input ccipapi.UpdateLanesInput) operation.
 			input.Dest.Selector: {
 				ExecutionGasPrice:        input.Dest.GasPrice,
 				DataAvailabilityGasPrice: input.Dest.GasPrice,
+			},
+		},
+	}
+}
+
+func mapToUpdateOffRampSourcesConfig(input ccipapi.UpdateLanesInput) operation.UpdateOffRampSourcesInput {
+	return operation.UpdateOffRampSourcesInput{
+		Updates: map[uint64]operation.OffRampSourceUpdate{
+			input.Source.Selector: {
+				IsEnabled:                 true,
+				TestRouter:                false, // TODO: Should we check if the source is a test router?
+				IsRMNVerificationDisabled: !input.Source.RMNVerificationEnabled,
+				OnRamp:                    input.Source.OnRamp,
+			},
+		},
+	}
+}
+
+func mapToUpdateRouterDestConfig(input ccipapi.UpdateLanesInput) operation.UpdateRouterDestInput {
+	return operation.UpdateRouterDestInput{ // TODO: Check if this map is correct
+		string(input.Dest.OnRamp): []router.DestChainSelector{
+			{
+				Value: input.Dest.Selector,
 			},
 		},
 	}
