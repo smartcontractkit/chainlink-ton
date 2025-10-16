@@ -93,6 +93,8 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 		b.Logger.Infof("Not downloading contracts from Github. Using local version")
 	}
 
+	contractsSemver := semver.MustParse("1.6.0") // TODO Revisit versioning. How to handle semver & sha approaches?
+
 	// Router
 	routerAddress := deps.CCIPOnChainState[in.ChainSelector].Router
 	if !routerAddress.IsAddrNone() {
@@ -115,7 +117,7 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 				Address:       routerAddress.String(),
 				ChainSelector: in.ChainSelector,
 				Type:          state.Router,
-				Version:       semver.MustParse("1.0.0"), // TODO Revisit versioning
+				Version:       contractsSemver,
 				Labels:        ds.NewLabelSet(fmt.Sprintf("sha:%v", in.ContractsVersion)),
 			},
 		}
@@ -144,7 +146,7 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 				Address:       feeQuoterAddress.String(),
 				ChainSelector: in.ChainSelector,
 				Type:          state.FeeQuoter,
-				Version:       semver.MustParse("1.0.0"), // TODO Revisit versioning
+				Version:       contractsSemver,
 				Labels:        ds.NewLabelSet(fmt.Sprintf("sha:%v", in.ContractsVersion)),
 			},
 		}
@@ -177,7 +179,7 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 				Address:       onRampAddress.String(),
 				ChainSelector: in.ChainSelector,
 				Type:          state.OnRamp,
-				Version:       semver.MustParse("1.0.0"), // TODO Revisit versioning
+				Version:       contractsSemver,
 				Labels:        ds.NewLabelSet(fmt.Sprintf("sha:%v", in.ContractsVersion)),
 			},
 		}
@@ -211,7 +213,7 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 				Address:       offRampAddress.String(),
 				ChainSelector: in.ChainSelector,
 				Type:          state.OffRamp,
-				Version:       semver.MustParse("1.0.0"), // TODO Revisit versioning
+				Version:       contractsSemver,
 				Labels:        ds.NewLabelSet(fmt.Sprintf("sha:%v", in.ContractsVersion)),
 			},
 		}
@@ -241,7 +243,7 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 				Address:       receiverAddress.String(),
 				ChainSelector: in.ChainSelector,
 				Type:          state.TonReceiver,
-				Version:       semver.MustParse("1.0.0"), // TODO Revisit versioning
+				Version:       contractsSemver,
 				Labels:        ds.NewLabelSet(fmt.Sprintf("sha:%v", in.ContractsVersion)),
 			},
 		}

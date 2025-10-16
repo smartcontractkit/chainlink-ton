@@ -2,6 +2,7 @@ package ops
 
 import (
 	"fmt"
+	"github.com/Masterminds/semver/v3"
 	ds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
@@ -85,24 +86,33 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 
 	// Use data store to track new deployed addresses
 	dataStore := ds.NewMemoryDataStore()
+	// Keep address book for backward compatibility. TODO remove it once we adopted this version in CLD
+	ab := cldf.NewMemoryAddressBook()
+	contractsVersion := *semver.MustParse("1.6.0")
 	if ccipSeqReport.Output.RouterAddress != nil {
+		// FYI Add method will never fail given that the dataStore is empty
 		_ = dataStore.Addresses().Add(ccipSeqReport.Output.RouterAddress.CLDFAddressRef)
+		_ = ab.Save(selector, state.Router.String(), cldf.NewTypeAndVersion(cldf.ContractType(state.Router.String()), contractsVersion))
 		s.Router = ccipSeqReport.Output.RouterAddress.TONAddress
 	}
 	if ccipSeqReport.Output.FeeQuoterAddress != nil {
 		_ = dataStore.Addresses().Add(ccipSeqReport.Output.FeeQuoterAddress.CLDFAddressRef)
+		_ = ab.Save(selector, state.FeeQuoter.String(), cldf.NewTypeAndVersion(cldf.ContractType(state.FeeQuoter.String()), contractsVersion))
 		s.FeeQuoter = ccipSeqReport.Output.FeeQuoterAddress.TONAddress
 	}
 	if ccipSeqReport.Output.OnRampAddress != nil {
 		_ = dataStore.Addresses().Add(ccipSeqReport.Output.OnRampAddress.CLDFAddressRef)
+		_ = ab.Save(selector, state.OnRamp.String(), cldf.NewTypeAndVersion(cldf.ContractType(state.OnRamp.String()), contractsVersion))
 		s.OnRamp = ccipSeqReport.Output.OnRampAddress.TONAddress
 	}
 	if ccipSeqReport.Output.OffRampAddress != nil {
 		_ = dataStore.Addresses().Add(ccipSeqReport.Output.OffRampAddress.CLDFAddressRef)
+		_ = ab.Save(selector, state.OffRamp.String(), cldf.NewTypeAndVersion(cldf.ContractType(state.OffRamp.String()), contractsVersion))
 		s.OffRamp = ccipSeqReport.Output.OffRampAddress.TONAddress
 	}
 	if ccipSeqReport.Output.ReceiverAddress != nil {
 		_ = dataStore.Addresses().Add(ccipSeqReport.Output.ReceiverAddress.CLDFAddressRef)
+		_ = ab.Save(selector, state.TonReceiver.String(), cldf.NewTypeAndVersion(cldf.ContractType(state.TonReceiver.String()), contractsVersion))
 		s.OffRamp = ccipSeqReport.Output.ReceiverAddress.TONAddress
 	}
 
@@ -124,7 +134,7 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 	if err != nil {
 		return cldf.ChangesetOutput{}, fmt.Errorf("failed to update fee quoter fee tokens: %w", err)
 	}
-	
+
 	txs = append(txs, updateFeeTokensReport.Output...)
 
 	err = utils.ExecuteProposals(env, chain.Client, chain.Wallet, txs)
@@ -138,5 +148,6 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 		MCMSTimelockProposals: proposals,
 		Reports:               seqReports,
 		DataStore:             dataStore,
+		AddressBook:           ab,
 	}, nil
 }
