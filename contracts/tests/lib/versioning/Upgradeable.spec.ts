@@ -8,4 +8,8 @@ describe('Upgradeable', () => {
       errorCode(crc32('com.chainlink.ton.lib.versioning.Upgradeable'), 0),
     )
   })
+
+  it('should have correct opcode', async () => {
+    expect(upgradeable.opcodes.Upgrade).toBe(crc32('Upgradeable_Upgrade'))
+  })
 })
