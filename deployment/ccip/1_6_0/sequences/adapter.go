@@ -1,4 +1,4 @@
-package v160
+package sequences
 
 import (
 	"fmt"
