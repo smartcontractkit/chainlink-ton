@@ -4,7 +4,7 @@ import '@ton/test-utils'
 import { UpgradeableCounterV1 } from '../../../wrappers/examples/versioning/UpgradeableCounterV1'
 import { UpgradeableCounterV2 } from '../../../wrappers/examples/versioning/UpgradeableCounterV2'
 import { sendUpgradeAndReturnNewVersion } from '../../../wrappers/libraries/versioning/Upgradeable'
-import { newUpgradeableInterfaceSpec } from '../../lib/versioning/UpgradeableSpec'
+import { newUpgradeSpec, newCurrentVersionSpec } from '../../lib/versioning/UpgradeableSpec'
 
 async function setUpTest(i: number): Promise<{
   blockchain: Blockchain
@@ -61,12 +61,8 @@ async function setUpTest(i: number): Promise<{
   }
 }
 
-describe('UpgradeableCounter', () => {
-  it('should deploy', async () => {
-    await setUpTest(0)
-  })
-
-  const upgradeableSpec = newUpgradeableInterfaceSpec(
+describe('UpgradeableCounter - Upgrade Tests', () => {
+  const upgradeSpec = newUpgradeSpec(
     {
       contractType: UpgradeableCounterV1.type(),
       prevVersion: UpgradeableCounterV1.version(),
@@ -92,7 +88,41 @@ describe('UpgradeableCounter', () => {
       return contract
     },
   )
-  upgradeableSpec.run()
+  upgradeSpec.run()
+})
+
+describe('UpgradeableCounter - Current Version Tests', () => {
+  const currentVersionSpec = newCurrentVersionSpec(
+    {
+      contractType: UpgradeableCounterV1.type(), // Same type for both versions
+      currentVersion: UpgradeableCounterV2.version(),
+      getCurrentCode: () => UpgradeableCounterV2.code(),
+      CurrentVersionConstructor: UpgradeableCounterV2,
+    },
+    async (blockchain, owner) => {
+      const code = await UpgradeableCounterV2.code()
+      const contract = blockchain.openContract(
+        UpgradeableCounterV2.createFromConfig(
+          {
+            id: 0,
+            value: 0,
+            ownable: { owner: owner.address, pendingOwner: null },
+          },
+          code,
+        ),
+      )
+      const deployer = await blockchain.treasury('deployer')
+      await contract.sendDeploy(deployer.getSender(), toNano('0.05'))
+      return contract
+    },
+  )
+  currentVersionSpec.run()
+})
+
+describe('UpgradeableCounter - Unit Tests', () => {
+  it('should deploy', async () => {
+    await setUpTest(0)
+  })
 
   // Contract-specific tests below
 

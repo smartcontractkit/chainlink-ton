@@ -249,18 +249,24 @@ This prevents scenarios where:
 
 ## Testing Upgradeable Contracts
 
-The framework provides a reusable test specification for upgradeable contracts through `newUpgradeableInterfaceSpec`. This allows you to easily test the standard upgrade functionality without duplicating test code.
+The framework provides two reusable test specifications for upgradeable contracts:
 
-### Using the Test Spec
+1. **`newUpgradeSpec`**: Tests the upgrade process from a previous version to a current version
+2. **`newCurrentVersionSpec`**: Tests the current version's upgradeable interface without going through the upgrade process
+
+This separation allows you to test the upgrade path separately from the current version's behavior, avoiding unnecessary setup when you only need to test the current version.
+
+### Testing Upgrade Process
+
+Use `newUpgradeSpec` to test that upgrades work correctly from a previous version to the current version:
 
 ```typescript
-import { newUpgradeableInterfaceSpec } from '../../../wrappers/libraries/upgrades/UpgradeableSpec'
+import { newUpgradeSpec } from '../../../wrappers/libraries/upgrades/UpgradeableSpec'
 import { UpgradeableCounterV1 } from '../../../wrappers/examples/upgrades/UpgradeableCounterV1'
 import { UpgradeableCounterV2 } from '../../../wrappers/examples/upgrades/UpgradeableCounterV2'
 
-describe('UpgradeableCounter', () => {
-  // Create the reusable test spec
-  const upgradeableSpec = newUpgradeableInterfaceSpec(
+describe('UpgradeableCounter - Upgrade Tests', () => {
+  const upgradeSpec = newUpgradeSpec(
     {
       contractType: UpgradeableCounterV1.type(),
       prevVersion: UpgradeableCounterV1.version(),
@@ -271,8 +277,8 @@ describe('UpgradeableCounter', () => {
       upgradeValue: toNano('0.05'), // Optional: defaults to 0.05 TON
     },
     async (blockchain, owner) => {
-      // Setup function: deploy your V1 contract
-      const codeV1 = await UpgradeableCounterV1.code()
+      // Setup function: deploy your previous version contract
+      const code = await UpgradeableCounterV1.code()
       const contract = blockchain.openContract(
         UpgradeableCounterV1.createFromConfig(
           {
@@ -280,7 +286,7 @@ describe('UpgradeableCounter', () => {
             value: 0,
             ownable: { owner: owner.address, pendingOwner: null },
           },
-          codeV1,
+          code,
         ),
       )
       const deployer = await blockchain.treasury('deployer')
@@ -289,31 +295,78 @@ describe('UpgradeableCounter', () => {
     },
   )
 
-  // Use the reusable test spec for standard upgradeable contract tests
-  upgradeableSpec.run()
+  upgradeSpec.run()
+})
+```
+
+#### Upgrade Test Coverage
+
+The upgrade test spec provides the following test cases:
+
+1. **should deploy on correct version**: Verifies that the previous version contract deploys with the correct version, type, code, and code hash
+2. **should upgrade from previous to current version**: Tests the complete upgrade flow, including:
+   - Version verification before and after upgrade
+   - Code and code hash verification
+   - Upgrade event emission with correct version, code, and code hash
+3. **should fail when fromVersion does not match current version**: Verifies that upgrades fail with exit code 43700 when `fromVersion` doesn't match the current version
+
+### Testing Current Version
+
+Use `newCurrentVersionSpec` to test the current version's upgradeable interface directly:
+
+```typescript
+import { newCurrentVersionSpec } from '../../../wrappers/libraries/upgrades/UpgradeableSpec'
+import { UpgradeableCounterV2 } from '../../../wrappers/examples/upgrades/UpgradeableCounterV2'
+
+describe('UpgradeableCounter - Current Version Tests', () => {
+  const currentVersionSpec = newCurrentVersionSpec(
+    {
+      contractType: UpgradeableCounterV2.type(),
+      currentVersion: UpgradeableCounterV2.version(),
+      getCurrentCode: () => UpgradeableCounterV2.code(),
+      CurrentVersionConstructor: UpgradeableCounterV2,
+      upgradeValue: toNano('0.05'), // Optional: defaults to 0.05 TON
+    },
+    async (blockchain, owner) => {
+      // Setup function: deploy your current version contract directly
+      const code = await UpgradeableCounterV2.code()
+      const contract = blockchain.openContract(
+        UpgradeableCounterV2.createFromConfig(
+          {
+            id: 0,
+            value: 0,
+            ownable: { owner: owner.address, pendingOwner: null },
+          },
+          code,
+        ),
+      )
+      const deployer = await blockchain.treasury('deployer')
+      await contract.sendDeploy(deployer.getSender(), toNano('0.05'))
+      return contract
+    },
+  )
+
+  currentVersionSpec.run()
 
   // Add your contract-specific tests
-  it('should increment counter', async () => {
+  it('should decrement counter', async () => {
     // Your custom test logic
   })
 })
 ```
 
-### Test Coverage
+#### Current Version Test Coverage
 
-The test spec provides the following test cases:
+The current version test spec provides the following test cases:
 
 1. **should deploy on correct version**: Verifies that the contract deploys with the correct version, type, code, and code hash
-2. **should upgrade from V1 to V2**: Tests the complete upgrade flow from the previous version to the current version, including:
-   - Version verification before and after upgrade
-   - Code and code hash verification
-   - Upgrade event emission with correct version, code, and code hash
-3. **should fail when non-owner tries to upgrade**: Ensures that only the owner can perform upgrades
-4. **should fail when fromVersion does not match current version**: Verifies that upgrades fail with exit code 43700 when `fromVersion` doesn't match the current version
+2. **should fail when non-owner tries to upgrade**: Ensures that only the owner can perform upgrades
 
 ### Configuration Options
 
-The `UpgradeableTestConfig` accepts the following parameters:
+#### UpgradeTestConfig
+
+For `newUpgradeSpec`, accepts the following parameters:
 
 - `contractType`: The expected contract type name (e.g., from `YourContract.type()`)
 - `prevVersion`: Version string for the previous version contract (e.g., from `YourContractV1.version()`)
@@ -323,8 +376,20 @@ The `UpgradeableTestConfig` accepts the following parameters:
 - `CurrentVersionConstructor`: Constructor class for the current version contract
 - `upgradeValue` (optional): Amount of TON to use for upgrade transactions (defaults to 0.05 TON)
 
+#### CurrentVersionTestConfig
+
+For `newCurrentVersionSpec`, accepts the following parameters:
+
+- `contractType`: The expected contract type name (e.g., from `YourContract.type()`)
+- `currentVersion`: Version string for the current version contract (e.g., from `YourContractV2.version()`)
+- `getCurrentCode`: Function to get the code for the current version contract
+- `CurrentVersionConstructor`: Constructor class for the current version contract
+- `upgradeValue` (optional): Amount of TON to use for upgrade transactions (defaults to 0.05 TON)
+
 ### Benefits
 
+- **Separation of Concerns**: Test upgrade process separately from current version behavior
+- **Efficiency**: Skip upgrade setup when testing current version features
 - **Consistency**: All upgradeable contracts are tested the same way
 - **Maintainability**: Bug fixes and improvements to upgrade testing are automatically applied to all contracts
 - **Focus**: Allows you to focus on testing contract-specific functionality
