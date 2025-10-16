@@ -94,11 +94,9 @@ struct Any2TVMTokenTransfer {
     amount: uint256;
 }
 
-
-//TODO: enum ExecutionState
 // These have to match the EVM states
-const EXECUTION_STATE_IN_PROGRESS: uint8 = 1;
-const EXECUTION_STATE_SUCCESS: uint8 = 2;
-const EXECUTION_STATE_FAILURE: uint8 = 3;
-
-
+enum ExecutionState: uint8 {
+    InProgress = 1
+    Success = 2
+    Failure = 3
+}

@@ -9,10 +9,9 @@ struct Storage {
     linkToken: address;
     tokenPriceStalenessThreshold: uint64;
 
-    // TODO: this is on DestChain instead (same as Solana)
-    // usdPerUnitGasByDestChain: map<uint64, TimestampedPrice>; // (idict len=64) chainSelector -> TimestampedPrice
+    // NOTE: usdPerUnitGasByDestChain is on DestChainConfig instead (same as Solana)
     usdPerToken: map<address, TimestampedPrice>;
-    // TODO: use presence in this map to validate a token as feeToken
+    // NOTE: use presence in this map to validate a token as feeToken
     premiumMultiplierWeiPerEth: map<address, uint64>;
 
     destChainConfigs: map<uint64, DestChainConfig>
