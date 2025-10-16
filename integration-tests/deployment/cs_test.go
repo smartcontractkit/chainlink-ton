@@ -73,6 +73,15 @@ func TestDeploy(t *testing.T) {
 	env, _, err := commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{cs})
 	require.NoError(t, err, "failed to deploy ccip")
 
+	// <redeploy>
+	// Execute deploy one more time to make sure that no contracts are redeployed
+	env, output, err := commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{cs})
+	require.NoError(t, err, "failed to re-deploy ccip")
+	addresses, err := output[0].DataStore.Addresses().Fetch()
+	require.NoError(t, err, "failed to get addresses from data store")
+	require.Empty(t, addresses, "expected no new addresses on redeploy, got: %v", addresses)
+	// </redeploy>
+
 	// TODO: LINK token deployment
 	linkAddr := ton_ops.TonTokenAddr
 
