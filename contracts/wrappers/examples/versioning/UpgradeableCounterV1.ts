@@ -14,9 +14,10 @@ import * as upgradeable from '../../libraries/versioning/Upgradeable'
 import { compile } from '@ton/blueprint'
 import * as typeAndVersion from '../../libraries/TypeAndVersion'
 import * as ownable2step from '../../libraries/access/Ownable2Step'
+import { CellCodec } from '../../utils'
 
-export const FACILITY_NAME = 'com.chainlink.ton.examples.upgrades.UpgradeableCounter'
-export const CONTRACT_VERSION = '2.0.0'
+export const FACILITY_NAME = 'com.chainlink.ton.examples.versioning.upgrades.UpgradeableCounter'
+export const CONTRACT_VERSION = '1.0.0'
 
 export type CounterConfig = {
   id: number
@@ -26,11 +27,6 @@ export type CounterConfig = {
 
 export type Step = {
   queryId: bigint
-}
-
-interface CellCodec<T> {
-  encode: (data: T) => Builder
-  load: (src: Slice) => T
 }
 
 export const opcodes = {
@@ -61,8 +57,8 @@ export const builder = {
       return {
         encode: (config: CounterConfig): Builder => {
           return beginCell()
-            .storeUint(config.value, 64)
             .storeUint(config.id, 32)
+            .storeUint(config.value, 32)
             .storeBuilder(ownable2step.builder.data.traitData.encode(config.ownable))
         },
         load: (src: Slice): CounterConfig => {
@@ -73,8 +69,8 @@ export const builder = {
   },
 }
 
-export class UpgradeableCounterV2
-  implements Contract, typeAndVersion.TypeAndVersion, upgradeable.Upgradeable
+export class UpgradeableCounterV1
+  implements typeAndVersion.TypeAndVersion, upgradeable.Upgradeable
 {
   private ownable: ownable2step.ContractClient
 
@@ -86,17 +82,25 @@ export class UpgradeableCounterV2
   }
 
   static createFromAddress(address: Address) {
-    return new UpgradeableCounterV2(address)
+    return new UpgradeableCounterV1(address)
   }
 
-  code(): Promise<Cell> {
-    return compile('examples.upgrades.UpgradeableCounterV2')
+  static code(): Promise<Cell> {
+    return compile('examples.versioning.upgrades.UpgradeableCounterV1')
+  }
+
+  static version() {
+    return CONTRACT_VERSION
+  }
+
+  static type() {
+    return FACILITY_NAME
   }
 
   static createFromConfig(config: CounterConfig, code: Cell, workchain = 0) {
     const data = builder.data.counterConfig.encode(config).endCell()
     const init = { code, data }
-    return new UpgradeableCounterV2(contractAddress(workchain, init), init)
+    return new UpgradeableCounterV1(contractAddress(workchain, init), init)
   }
 
   async sendDeploy(provider: ContractProvider, via: Sender, value: bigint) {
@@ -141,18 +145,6 @@ export class UpgradeableCounterV2
     body: upgradeable.Upgrade,
   ) {
     await upgradeable.sendUpgrade(provider, via, value, body)
-  }
-
-  static code(): Promise<Cell> {
-    return compile('examples.upgrades.UpgradeableCounterV2')
-  }
-
-  static version() {
-    return CONTRACT_VERSION
-  }
-
-  static facilityName() {
-    return FACILITY_NAME
   }
 
   // Ownership methods

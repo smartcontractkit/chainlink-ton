@@ -1,6 +1,6 @@
-import "../../../../../lib/utils.tolk";
-import "../../../../../lib/versioning/upgradeable.tolk";
-import "../../../../../lib/access/ownable_2step.tolk";
+import "../../../../../../lib/utils.tolk";
+import "../../../../../../lib/versioning/upgradeable.tolk";
+import "../../../../../../lib/access/ownable_2step.tolk";
 import "./storage.tolk";
 import "../v1/storage.tolk";
 
@@ -14,7 +14,7 @@ fun saveData(data: StorageV2) {
     contract.setData(data.toCell());
 }
 
-const FACILITY_NAME= "com.chainlink.ton.examples.upgrades.UpgradeableCounter";
+const FACILITY_NAME= "com.chainlink.ton.examples.versioning.upgrades.UpgradeableCounter";
 const CONTRACT_VERSION = "2.0.0";
 
 struct (0x00000001) Step {
@@ -88,7 +88,7 @@ fun version(): slice { return CONTRACT_VERSION; }
 
 
 get fun typeAndVersion(): (slice, slice) {
-    return ("com.chainlink.ton.examples.upgrades.UpgradeableCounter", CONTRACT_VERSION);
+    return ("com.chainlink.ton.examples.versioning.upgrades.UpgradeableCounter", CONTRACT_VERSION);
 }
 
 // Returns the current code of the contract.
@@ -102,9 +102,9 @@ get fun codeHash(): int {
 }
 
 get fun facilityId(): uint16  {
-    return getFacilityId(stringCrc32("com.chainlink.ton.examples.upgrades.UpgradeableCounter"));
+    return getFacilityId(stringCrc32("com.chainlink.ton.examples.versioning.upgrades.UpgradeableCounter"));
 }
 
 get fun errorCode(local: uint16): uint16 {
-    return getErrorCode(stringCrc32("com.chainlink.ton.examples.upgrades.UpgradeableCounter"), local);
+    return getErrorCode(stringCrc32("com.chainlink.ton.examples.versioning.upgrades.UpgradeableCounter"), local);
 }

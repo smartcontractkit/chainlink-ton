@@ -8,7 +8,7 @@ import { TypeAndVersion } from '../../../wrappers/libraries/TypeAndVersion'
  * Configuration for testing an upgradeable contract.
  */
 export type UpgradeableTestConfig<TContractV1, TContractV2> = {
-  /** The expected contract type name (e.g., 'com.chainlink.ton.examples.upgrades.UpgradeableCounter') */
+  /** The expected contract type name (e.g., 'com.chainlink.ton.examples.versioning.upgrades.UpgradeableCounter') */
   contractType: string
   /** Version string for V1 contract */
   versionV1: string
@@ -40,7 +40,7 @@ export interface UpgradeableContract extends upgradeable.Upgradeable, TypeAndVer
  * ```typescript
  * const upgradeableSpec = newUpgradeableInterfaceSpec(
  *   {
- *     contractType: 'com.chainlink.ton.examples.upgrades.UpgradeableCounter',
+ *     contractType: 'com.chainlink.ton.examples.versioning.upgrades.UpgradeableCounter',
  *     versionV1: '1.0.0',
  *     versionV2: '2.0.0',
  *     getCodeV1: () => UpgradeableCounterV1.code(),
@@ -198,28 +198,26 @@ export function newUpgradeableInterfaceSpec<
       /**
        * Test that upgrade fails when a non-owner tries to upgrade
        */
-      const shouldFailWhenNonOwnerTriesToUpgrade = () => {
-        it('should fail when non-owner tries to upgrade', async () => {
-          const { nonOwner, contractV1, codeV2 } = await setup()
+      it('should fail when non-owner tries to upgrade', async () => {
+        const { nonOwner, contractV1, codeV2 } = await setup()
 
-          // Try to upgrade from non-owner address - should fail
-          const upgradeResult = await contractV1.sendUpgrade(nonOwner.getSender(), amount, {
-            queryId: BigInt(Math.floor(Math.random() * 10000)),
-            fromVersion: config.versionV1,
-            code: codeV2,
-          })
-
-          expect(upgradeResult.transactions).toHaveTransaction({
-            from: nonOwner.address,
-            to: contractV1.address,
-            success: false,
-          })
-
-          // Verify the contract is still on V1
-          const typeAndVersion = await contractV1.getTypeAndVersion()
-          expect(typeAndVersion.version).toBe(config.versionV1)
+        // Try to upgrade from non-owner address - should fail
+        const upgradeResult = await contractV1.sendUpgrade(nonOwner.getSender(), amount, {
+          queryId: BigInt(Math.floor(Math.random() * 10000)),
+          fromVersion: config.versionV1,
+          code: codeV2,
         })
-      }
+
+        expect(upgradeResult.transactions).toHaveTransaction({
+          from: nonOwner.address,
+          to: contractV1.address,
+          success: false,
+        })
+
+        // Verify the contract is still on V1
+        const typeAndVersion = await contractV1.getTypeAndVersion()
+        expect(typeAndVersion.version).toBe(config.versionV1)
+      })
 
       /**
        * Test that upgrade fails when fromVersion doesn't match current version

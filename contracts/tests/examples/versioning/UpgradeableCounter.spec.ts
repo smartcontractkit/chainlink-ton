@@ -1,8 +1,8 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Cell, toNano } from '@ton/core'
 import '@ton/test-utils'
-import { UpgradeableCounterV1 } from '../../../wrappers/examples/upgrades/UpgradeableCounterV1'
-import { UpgradeableCounterV2 } from '../../../wrappers/examples/upgrades/UpgradeableCounterV2'
+import { UpgradeableCounterV1 } from '../../../wrappers/examples/versioning/UpgradeableCounterV1'
+import { UpgradeableCounterV2 } from '../../../wrappers/examples/versioning/UpgradeableCounterV2'
 import { sendUpgradeAndReturnNewVersion } from '../../../wrappers/libraries/versioning/Upgradeable'
 import { newUpgradeableInterfaceSpec } from '../../lib/versioning/UpgradeableSpec'
 
@@ -257,7 +257,9 @@ describe('UpgradeableCounter', () => {
 
     // Verify the contract is now on version 2
     const typeAndVersion = await upgradeableCounterV2.getTypeAndVersion()
-    expect(typeAndVersion.type).toBe('com.chainlink.ton.examples.upgrades.UpgradeableCounter')
+    expect(typeAndVersion.type).toBe(
+      'com.chainlink.ton.examples.versioning.upgrades.UpgradeableCounter',
+    )
     expect(typeAndVersion.version).toBe('2.0.0')
 
     // Verify new owner is still the owner after upgrade
