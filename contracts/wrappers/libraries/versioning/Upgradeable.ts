@@ -105,7 +105,6 @@ export async function sendUpgradeAndReturnNewVersion<T extends Upgradeable>(
   newCode: Cell,
   queryId?: bigint,
 ): Promise<{ upgradeResult: SendMessageResult; newVersionInstance: T }> {
-  // throw new Error('Not implemented')
   const newVersionInstance = new newVersion(current.address)
   const upgradeResult = await current.sendUpgrade(via, value, {
     queryId: queryId ?? 0n,
