@@ -263,11 +263,11 @@ describe('UpgradeableCounter', () => {
   const upgradeableSpec = newUpgradeableInterfaceSpec(
     {
       contractType: UpgradeableCounterV1.type(),
-      versionV1: UpgradeableCounterV1.version(),
-      versionV2: UpgradeableCounterV2.version(),
-      getCodeV1: () => UpgradeableCounterV1.code(),
-      getCodeV2: () => UpgradeableCounterV2.code(),
-      V2Constructor: UpgradeableCounterV2,
+      prevVersion: UpgradeableCounterV1.version(),
+      currentVersion: UpgradeableCounterV2.version(),
+      getPrevCode: () => UpgradeableCounterV1.code(),
+      getCurrentCode: () => UpgradeableCounterV2.code(),
+      CurrentVersionConstructor: UpgradeableCounterV2,
       upgradeValue: toNano('0.05'), // Optional: defaults to 0.05 TON
     },
     async (blockchain, owner) => {
@@ -304,22 +304,23 @@ describe('UpgradeableCounter', () => {
 The test spec provides the following test cases:
 
 1. **should deploy on correct version**: Verifies that the contract deploys with the correct version, type, code, and code hash
-2. **should upgrade from V1 to V2**: Tests the complete upgrade flow from V1 to V2, including:
+2. **should upgrade from V1 to V2**: Tests the complete upgrade flow from the previous version to the current version, including:
    - Version verification before and after upgrade
    - Code and code hash verification
    - Upgrade event emission with correct version, code, and code hash
-3. **should fail when fromVersion does not match current version**: Verifies that upgrades fail with exit code 43700 when `fromVersion` doesn't match the current version
+3. **should fail when non-owner tries to upgrade**: Ensures that only the owner can perform upgrades
+4. **should fail when fromVersion does not match current version**: Verifies that upgrades fail with exit code 43700 when `fromVersion` doesn't match the current version
 
 ### Configuration Options
 
 The `UpgradeableTestConfig` accepts the following parameters:
 
 - `contractType`: The expected contract type name (e.g., from `YourContract.type()`)
-- `versionV1`: Version string for V1 contract (e.g., from `YourContractV1.version()`)
-- `versionV2`: Version string for V2 contract (e.g., from `YourContractV2.version()`)
-- `getCodeV1`: Function to get the code for V1 contract
-- `getCodeV2`: Function to get the code for V2 contract
-- `V2Constructor`: Constructor class for V2 contract
+- `prevVersion`: Version string for the previous version contract (e.g., from `YourContractV1.version()`)
+- `currentVersion`: Version string for the current version contract (e.g., from `YourContractV2.version()`)
+- `getPrevCode`: Function to get the code for the previous version contract
+- `getCurrentCode`: Function to get the code for the current version contract
+- `CurrentVersionConstructor`: Constructor class for the current version contract
 - `upgradeValue` (optional): Amount of TON to use for upgrade transactions (defaults to 0.05 TON)
 
 ### Benefits

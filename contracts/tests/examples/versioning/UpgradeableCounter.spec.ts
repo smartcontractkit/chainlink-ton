@@ -69,11 +69,11 @@ describe('UpgradeableCounter', () => {
   const upgradeableSpec = newUpgradeableInterfaceSpec(
     {
       contractType: UpgradeableCounterV1.type(),
-      versionV1: UpgradeableCounterV1.version(),
-      versionV2: UpgradeableCounterV2.version(),
-      getCodeV1: () => UpgradeableCounterV1.code(),
-      getCodeV2: () => UpgradeableCounterV2.code(),
-      V2Constructor: UpgradeableCounterV2,
+      prevVersion: UpgradeableCounterV1.version(),
+      currentVersion: UpgradeableCounterV2.version(),
+      getPrevCode: () => UpgradeableCounterV1.code(),
+      getCurrentCode: () => UpgradeableCounterV2.code(),
+      CurrentVersionConstructor: UpgradeableCounterV2,
     },
     async (blockchain, owner) => {
       const codeV1 = await UpgradeableCounterV1.code()
