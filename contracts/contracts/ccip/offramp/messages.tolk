@@ -5,7 +5,7 @@ import "../../lib/receiver/messages.tolk"
 import "../common/types.tolk"
 import "../../lib/utils"
 import "../../lib/funding/withdrawable"
-import "../../lib/upgrades/upgradeable"
+import "../../lib/versioning/upgradeable"
 
 type OffRamp_InMessage =
     | OffRamp_Commit

@@ -3,8 +3,8 @@ import { Cell, toNano } from '@ton/core'
 import '@ton/test-utils'
 import { UpgradeableCounterV1 } from '../../../wrappers/examples/upgrades/UpgradeableCounterV1'
 import { UpgradeableCounterV2 } from '../../../wrappers/examples/upgrades/UpgradeableCounterV2'
-import { sendUpgradeAndReturnNewVersion } from '../../../wrappers/libraries/upgrades/Upgradeable'
-import { newUpgradeableInterfaceSpec } from '../../../wrappers/libraries/upgrades/UpgradeableSpec'
+import { sendUpgradeAndReturnNewVersion } from '../../../wrappers/libraries/versioning/Upgradeable'
+import { newUpgradeableInterfaceSpec } from '../../lib/versioning/UpgradeableSpec'
 
 async function setUpTest(i: number): Promise<{
   blockchain: Blockchain
@@ -66,7 +66,6 @@ describe('UpgradeableCounter', () => {
     await setUpTest(0)
   })
 
-  // it('should comply with the upgradeable interface', () => {
   const upgradeableSpec = newUpgradeableInterfaceSpec(
     {
       contractType: UpgradeableCounterV1.type(),
@@ -93,9 +92,7 @@ describe('UpgradeableCounter', () => {
       return contract
     },
   )
-  // Use the reusable test spec for standard upgradeable contract tests
   upgradeableSpec.run()
-  // })
 
   // Contract-specific tests below
 

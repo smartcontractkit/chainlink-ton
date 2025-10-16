@@ -1,8 +1,8 @@
 import { Address, Cell, Contract, ContractProvider, Message, Sender, toNano } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import '@ton/test-utils'
-import * as upgradeable from './Upgradeable'
-import { TypeAndVersion } from '../TypeAndVersion'
+import * as upgradeable from '../../../wrappers/libraries/versioning/Upgradeable'
+import { TypeAndVersion } from '../../../wrappers/libraries/TypeAndVersion'
 
 /**
  * Configuration for testing an upgradeable contract.
@@ -242,7 +242,7 @@ export function newUpgradeableInterfaceSpec<
           from: owner.address,
           to: contractV1.address,
           success: false,
-          exitCode: 43700, // Upgradeable_Error.VersionMismatch
+          exitCode: upgradeable.Error.VersionMismatch,
         })
 
         // Verify the contract is still on V1

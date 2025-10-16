@@ -2,7 +2,7 @@ import "../common/types.tolk"
 import "../common/messages"
 import "../../lib/utils"
 import "../../lib/funding/withdrawable.tolk";
-import "../../lib/upgrades/upgradeable"
+import "../../lib/versioning/upgradeable"
 
 type Msg =
     | Router_CCIPSend

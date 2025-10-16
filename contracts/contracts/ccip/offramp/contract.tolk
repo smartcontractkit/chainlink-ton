@@ -4,7 +4,7 @@ import "types"
 import "storage"
 import "events"
 
-import "../../lib/upgrades/upgradeable"
+import "../../lib/versioning/upgradeable"
 import "../common/types.tolk"
 import "../../deployable/types.tolk"
 import "../../lib/access/ownable_2step.tolk"

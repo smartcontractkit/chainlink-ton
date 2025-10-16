@@ -100,7 +100,7 @@ struct Upgradeable {
 }
 
 enum Upgradeable_Error {
-    VersionMismatch = 43700; // Facility ID * 100
+    VersionMismatch = 28700; // Facility ID * 100
 }
 
 /// Message for upgrading a contract.

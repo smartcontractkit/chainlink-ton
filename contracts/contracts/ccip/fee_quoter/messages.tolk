@@ -2,7 +2,7 @@ import "types"
 import "../router/messages"
 import "../../lib/utils"
 import "../../lib/funding/withdrawable"
-import "../../lib/upgrades/upgradeable"
+import "../../lib/versioning/upgradeable"
 
 type FeeQuoter_InMessage =
     | FeeQuoter_UpdatePrices

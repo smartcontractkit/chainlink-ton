@@ -1,5 +1,5 @@
 import "../../../../../lib/utils.tolk";
-import "../../../../../lib/upgrades/upgradeable.tolk";
+import "../../../../../lib/versioning/upgradeable.tolk";
 import "../../../../../lib/access/ownable_2step.tolk";
 import "./storage.tolk";
 import "../v1/storage.tolk";

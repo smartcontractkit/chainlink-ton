@@ -4,7 +4,7 @@ import "../common/messages"
 import "../router/messages"
 import "../../lib/utils"
 import "../../lib/funding/withdrawable"
-import "../../lib/upgrades/upgradeable"
+import "../../lib/versioning/upgradeable"
 
 type OnRamp_InMessage =
     | OnRamp_Send

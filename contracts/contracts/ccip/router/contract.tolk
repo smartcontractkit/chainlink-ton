@@ -12,7 +12,7 @@ import "../../lib/access/ownable_2step"
 import "../../lib/utils"
 import "../../lib/jetton/messages"
 import "../../lib/jetton/messages_extended"
-import "../../lib/upgrades/upgradeable"
+import "../../lib/versioning/upgradeable"
 
 
 const CONTRACT_VERSION = "0.0.4";

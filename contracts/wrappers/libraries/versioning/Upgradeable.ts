@@ -18,7 +18,7 @@ export const opcodes = {
 }
 
 export enum Error {
-  VersionMismatch = 43700,
+  VersionMismatch = 28700,
 }
 
 export type Upgrade = {

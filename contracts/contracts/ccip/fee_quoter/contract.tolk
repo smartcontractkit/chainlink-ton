@@ -11,7 +11,7 @@ import "../../lib/utils";
 import "../router/messages"
 import "../ccipsend_executor/messages"
 import "../../lib/funding/withdrawable"
-import "../../lib/upgrades/upgradeable"
+import "../../lib/versioning/upgradeable"
 
 const CONTRACT_VERSION = "0.0.5";
 const FACILITY_NAME = "com.chainlink.ton.ccip.FeeQuoter";
