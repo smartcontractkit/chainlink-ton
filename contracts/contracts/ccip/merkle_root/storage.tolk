@@ -1,13 +1,12 @@
 import "../offramp/types";
-import "../common/types";
+import "types";
 
 struct MerkleRoot_Storage {
     rootId: uint224;
     owner: address;
-    state: uint8 = 0;
-    executionState: uint8 = 0; 
-    tokenBalance: TokenBalance = TokenBalance{};
-    message: Cell<Any2TVMRampMessage>? = null;
+    expectedMessages: uint16;
+    validatedMessages: map<uint256, bool>; // messageId -> alreadyValidated 
+    validatedMessageCount: uint16 = 0;
 }
 
 fun MerkleRoot_Storage.load(): MerkleRoot_Storage {

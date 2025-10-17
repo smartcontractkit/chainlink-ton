@@ -1,7 +1,7 @@
 import "../../lib/utils"
 
 enum Error {
-    DispatchNotFromMerkleRoot = 8400
+    MessageNotFromOwnedContract = 8400
     SourceChainNotEnabled
     EmptyExecutionReport
     InvalidMessageDestChainSelector
