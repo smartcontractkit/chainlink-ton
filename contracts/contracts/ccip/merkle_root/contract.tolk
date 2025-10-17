@@ -88,7 +88,6 @@ fun _initExecute(msg: MerkleRoot_Validate, sender: address) {
     val isManualExecute = msg.gasOverride != null; 
     if (isManualExecute) {
         // TODO: validate limits
-
         val isOldCommitReport = (blockchain.now() - st.timestamp < msg.permissionlessExecutionThresholdSeconds);
 
         // Manual execution is fine if we previously failed or if the commit report is just too old.
