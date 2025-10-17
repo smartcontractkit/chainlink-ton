@@ -258,6 +258,7 @@ require (
 	github.com/jackc/pgtype v1.14.4 // indirect
 	github.com/jackc/pgx/v4 v4.18.3 // indirect
 	github.com/jackpal/go-nat-pmp v1.0.2 // indirect
+	github.com/jinzhu/copier v0.4.0 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/jmhodges/levigo v1.0.0 // indirect
 	github.com/jmoiron/sqlx v1.4.0 // indirect
@@ -346,6 +347,7 @@ require (
 	github.com/rs/zerolog v1.33.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/ryanuber/go-glob v1.0.0 // indirect
+	github.com/samber/lo v1.49.1 // indirect
 	github.com/sanity-io/litter v1.5.5 // indirect
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1 // indirect
 	github.com/sasha-s/go-deadlock v0.3.5 // indirect
@@ -380,6 +382,7 @@ require (
 	github.com/smartcontractkit/chainlink-protos/svr v1.1.0 // indirect
 	github.com/smartcontractkit/chainlink-protos/workflows/go v0.0.0-20250908151016-bf310cf85379 // indirect
 	github.com/smartcontractkit/chainlink-solana v1.1.2-0.20250905170534-87e867e6cf31 // indirect
+	github.com/smartcontractkit/chainlink-sui v0.0.0-20250916193659-4becc28a467f // indirect
 	github.com/smartcontractkit/chainlink-testing-framework/framework v0.10.30 // indirect
 	github.com/smartcontractkit/chainlink-testing-framework/lib v1.54.4 // indirect
 	github.com/smartcontractkit/chainlink-testing-framework/parrot v0.6.2 // indirect
