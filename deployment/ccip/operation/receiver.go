@@ -43,8 +43,9 @@ func deployReceiver(b operations.Bundle, deps TonDeps, in DeployReceiverInput) (
 	conn := tracetracking.NewSignedAPIClient(deps.TonChain.Client, *deps.TonChain.Wallet)
 
 	storage := receiver.Storage{
-		ID:      in.ID,
-		OffRamp: in.OffRampAddress,
+		ID:        in.ID,
+		OffRamp:   in.OffRampAddress,
+		RejectAll: false,
 	}
 
 	initData, err := tlb.ToCell(storage)
