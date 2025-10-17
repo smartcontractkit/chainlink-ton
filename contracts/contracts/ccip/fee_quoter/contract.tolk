@@ -11,7 +11,7 @@ import "../../lib/utils";
 import "../router/messages"
 import "../ccipsend_executor/messages"
 
-const CONTRACT_VERSION = "0.0.3";
+const CONTRACT_VERSION = "0.0.4";
 const FACILITY_NAME = "com.chainlink.ton.ccip.FeeQuoter";
 
 fun onInternalMessage(in: InMessage) {
