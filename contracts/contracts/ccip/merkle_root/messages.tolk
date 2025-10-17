@@ -15,4 +15,3 @@ struct (0x0123) MerkleRoot_MarkState {
     messageId: uint256,
     state: ExecutionState
 }
-
