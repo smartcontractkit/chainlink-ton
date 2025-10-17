@@ -93,7 +93,7 @@ jobs:
     secrets:
       AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID_STAGING }}
       AWS_ROLE_PUBLISH_ARN: ${{ secrets.AWS_ROLE_PUBLISH_ARN_STAGING }}
-      AWS_ROLE_GATI_ARN: ${{ secrets.AWS_ROLE_ARN_GATI_READONLY }}
+      AWS_ROLE_GATI_ARN: ${{ secrets.AWS_OIDC_CHAINLINK_READ_ONLY_TOKEN_ISSUER_ROLE_ARN }}
       AWS_LAMBDA_GATI_URL: ${{ secrets.AWS_LAMBDA_URL_GATI }}
 
   # Builds the final image combining Chainlink core with the TON relayer
@@ -129,7 +129,7 @@ jobs:
     secrets:
       AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID_STAGING }}
       AWS_ROLE_PUBLISH_ARN: ${{ secrets.AWS_ROLE_PUBLISH_ARN_STAGING }}
-      AWS_ROLE_GATI_ARN: ${{ secrets.AWS_ROLE_ARN_GATI_READONLY }}
+      AWS_ROLE_GATI_ARN: ${{ secrets.AWS_OIDC_CHAINLINK_READ_ONLY_TOKEN_ISSUER_ROLE_ARN }}
       AWS_LAMBDA_GATI_URL: ${{ secrets.AWS_LAMBDA_URL_GATI }}
       DOCKER_BUILD_ARGS: |
         CHAINLINK_USER=chainlink
