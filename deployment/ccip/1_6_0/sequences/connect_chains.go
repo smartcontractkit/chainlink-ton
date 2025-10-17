@@ -20,90 +20,92 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 )
 
-// TODO: why is it that this methods don't have the env as a parameter?
 func (a *TonAdapter) ConfigureLaneLegAsSource() *cldfOps.Sequence[ccipapi.UpdateLanesInput, sequences.OnChainOutput, cldfChain.BlockChains] {
-	return cldfOps.NewSequence[ccipapi.UpdateLanesInput, sequences.OnChainOutput, cldfChain.BlockChains](
-		"ConfigureLaneLegAsSource",
-		semver.MustParse("1.0.0"),
-		"Configures lane leg as source on CCIP 1.6.0",
-		func(b operations.Bundle, chains cldfChain.BlockChains, input lanes.UpdateLanesInput) (sequences.OnChainOutput, error) {
-			var txs [][]byte
-
-			deps, err := extractTonDeps(input)
-			if err != nil {
-				return sequences.OnChainOutput{}, fmt.Errorf("failed to extract TON deps: %w", err)
-			}
-
-			// update fee quoter with dest chain configs
-			updateFeeQuoterDestChainConfigs := mapToUpdateFeeQuoterDestChainConfigs(input)
-			b.Logger.Infow("Updating destination configs on FeeQuoter", "input", updateFeeQuoterDestChainConfigs)
-			feeQuoterReport, err := operations.ExecuteOperation(b, operation.UpdateFeeQuoterDestChainConfigsOp, deps, updateFeeQuoterDestChainConfigs)
-			if err != nil {
-				return sequences.OnChainOutput{}, fmt.Errorf("failed to update feequoter destinations: %w", err)
-			}
-			txs = append(txs, feeQuoterReport.Output...)
-
-			// update onramp with dest chain configs
-			updateOnRampDestChainConfigs := mapToUpdateOnRampDestChainConfigs(input)
-			b.Logger.Infow("Updating destination configs on OnRamp", "input", updateOnRampDestChainConfigs)
-			onRampReport, err := operations.ExecuteOperation(b, operation.UpdateOnRampDestChainConfigsOp, deps, updateOnRampDestChainConfigs)
-			if err != nil {
-				return sequences.OnChainOutput{}, fmt.Errorf("failed to update onramp destinations: %w", err)
-			}
-			txs = append(txs, onRampReport.Output...)
-
-			// update fee quoter with gas prices
-			updateFeeQuoterPricesConfig := mapToUpdateFeeQuoterPricesConfig(input)
-			b.Logger.Infow("Updating prices on FeeQuoter", "input", updateFeeQuoterPricesConfig)
-			updatePricesReport, err := operations.ExecuteOperation(b, operation.UpdateFeeQuoterPricesOp, deps, updateFeeQuoterPricesConfig)
-			if err != nil {
-				return sequences.OnChainOutput{}, fmt.Errorf("failed to update feequoter prices: %w", err)
-			}
-			txs = append(txs, updatePricesReport.Output...)
-
-			return sequences.OnChainOutput{}, nil
-		},
-	)
+	return ConfigureLaneLegAsSource
 }
 
-// TODO: why is it that this methods don't have the env as a parameter?
 func (a *TonAdapter) ConfigureLaneLegAsDest() *cldfOps.Sequence[ccipapi.UpdateLanesInput, sequences.OnChainOutput, cldfChain.BlockChains] {
-	return cldfOps.NewSequence[ccipapi.UpdateLanesInput, sequences.OnChainOutput, cldfChain.BlockChains](
-		"ConfigureLaneLegAsDest",
-		semver.MustParse("1.0.0"),
-		"Configures lane leg as dest on CCIP 1.6.0",
-		func(b operations.Bundle, chains cldfChain.BlockChains, input lanes.UpdateLanesInput) (sequences.OnChainOutput, error) {
-			var txs [][]byte
-
-			deps, err := extractTonDeps(input)
-			if err != nil {
-				return sequences.OnChainOutput{}, fmt.Errorf("failed to extract TON deps: %w", err)
-			}
-
-			// configure offramp sources
-			updateOffRampSourcesConfig := mapToUpdateOffRampSourcesConfig(input)
-			b.Logger.Infow("Updating source configs on OffRamp", "input", updateOffRampSourcesConfig)
-			offRampReport, err := operations.ExecuteOperation(b, operation.UpdateOffRampSourceChainConfigsOp, deps, updateOffRampSourcesConfig)
-			if err != nil {
-				return sequences.OnChainOutput{}, fmt.Errorf("failed to update offramp sources: %w", err)
-			}
-			txs = append(txs, offRampReport.Output...)
-
-			// add ccip owner to offramp allowlist
-
-			// update router with destination onramp versions
-			updateRouterDestConfig := mapToUpdateRouterDestConfig(input)
-			b.Logger.Infow("Updating Router", "input", updateRouterDestConfig)
-			routerReport, err := operations.ExecuteOperation(b, operation.UpdateRouterDestOp, deps, updateRouterDestConfig)
-			if err != nil {
-				return sequences.OnChainOutput{}, fmt.Errorf("failed to update router: %w", err)
-			}
-			txs = append(txs, routerReport.Output...)
-
-			return sequences.OnChainOutput{}, nil
-		},
-	)
+	return ConfigureLaneLegAsDest
 }
+
+var ConfigureLaneLegAsSource = cldfOps.NewSequence(
+	"ConfigureLaneLegAsSource",
+	semver.MustParse("1.6.0"),
+	"Configures lane leg as source on CCIP 1.6.0",
+	func(b operations.Bundle, chains cldfChain.BlockChains, input lanes.UpdateLanesInput) (sequences.OnChainOutput, error) {
+		var txs [][]byte
+
+		deps, err := extractTonDeps(input)
+		if err != nil {
+			return sequences.OnChainOutput{}, fmt.Errorf("failed to extract TON deps: %w", err)
+		}
+
+		// update fee quoter with dest chain configs
+		updateFeeQuoterDestChainConfigs := mapToUpdateFeeQuoterDestChainConfigs(input)
+		b.Logger.Infow("Updating destination configs on FeeQuoter", "input", updateFeeQuoterDestChainConfigs)
+		feeQuoterReport, err := operations.ExecuteOperation(b, operation.UpdateFeeQuoterDestChainConfigsOp, deps, updateFeeQuoterDestChainConfigs)
+		if err != nil {
+			return sequences.OnChainOutput{}, fmt.Errorf("failed to update feequoter destinations: %w", err)
+		}
+		txs = append(txs, feeQuoterReport.Output...)
+
+		// update onramp with dest chain configs
+		updateOnRampDestChainConfigs := mapToUpdateOnRampDestChainConfigs(input)
+		b.Logger.Infow("Updating destination configs on OnRamp", "input", updateOnRampDestChainConfigs)
+		onRampReport, err := operations.ExecuteOperation(b, operation.UpdateOnRampDestChainConfigsOp, deps, updateOnRampDestChainConfigs)
+		if err != nil {
+			return sequences.OnChainOutput{}, fmt.Errorf("failed to update onramp destinations: %w", err)
+		}
+		txs = append(txs, onRampReport.Output...)
+
+		// update fee quoter with gas prices
+		updateFeeQuoterPricesConfig := mapToUpdateFeeQuoterPricesConfig(input)
+		b.Logger.Infow("Updating prices on FeeQuoter", "input", updateFeeQuoterPricesConfig)
+		updatePricesReport, err := operations.ExecuteOperation(b, operation.UpdateFeeQuoterPricesOp, deps, updateFeeQuoterPricesConfig)
+		if err != nil {
+			return sequences.OnChainOutput{}, fmt.Errorf("failed to update feequoter prices: %w", err)
+		}
+		txs = append(txs, updatePricesReport.Output...)
+
+		return sequences.OnChainOutput{}, nil
+	},
+)
+
+var ConfigureLaneLegAsDest = cldfOps.NewSequence(
+	"ConfigureLaneLegAsDest",
+	semver.MustParse("1.6.0"),
+	"Configures lane leg as dest on CCIP 1.6.0",
+	func(b operations.Bundle, chains cldfChain.BlockChains, input lanes.UpdateLanesInput) (sequences.OnChainOutput, error) {
+		var txs [][]byte
+
+		deps, err := extractTonDeps(input)
+		if err != nil {
+			return sequences.OnChainOutput{}, fmt.Errorf("failed to extract TON deps: %w", err)
+		}
+
+		// configure offramp sources
+		updateOffRampSourcesConfig := mapToUpdateOffRampSourcesConfig(input)
+		b.Logger.Infow("Updating source configs on OffRamp", "input", updateOffRampSourcesConfig)
+		offRampReport, err := operations.ExecuteOperation(b, operation.UpdateOffRampSourceChainConfigsOp, deps, updateOffRampSourcesConfig)
+		if err != nil {
+			return sequences.OnChainOutput{}, fmt.Errorf("failed to update offramp sources: %w", err)
+		}
+		txs = append(txs, offRampReport.Output...)
+
+		// add ccip owner to offramp allowlist
+
+		// update router with destination onramp versions
+		updateRouterDestConfig := mapToUpdateRouterDestConfig(input)
+		b.Logger.Infow("Updating Router", "input", updateRouterDestConfig)
+		routerReport, err := operations.ExecuteOperation(b, operation.UpdateRouterDestOp, deps, updateRouterDestConfig)
+		if err != nil {
+			return sequences.OnChainOutput{}, fmt.Errorf("failed to update router: %w", err)
+		}
+		txs = append(txs, routerReport.Output...)
+
+		return sequences.OnChainOutput{}, nil
+	},
+)
 
 func extractTonDeps(input lanes.UpdateLanesInput) (operation.TonDeps, error) {
 	onRampAddr, err := codec.AddressBytesToTONAddress(input.Source.OnRamp)
