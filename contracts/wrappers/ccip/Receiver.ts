@@ -83,13 +83,16 @@ export class Receiver implements Contract {
     })
   }
 
-  async sendSetRejectAll(provider: ContractProvider, via: Sender, value: bigint, rejectAll: boolean) {
+  async sendSetRejectAll(
+    provider: ContractProvider,
+    via: Sender,
+    value: bigint,
+    rejectAll: boolean,
+  ) {
     await provider.internal(via, {
       value: value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: beginCell()
-      .storeUint(Opcodes.setRejectAll, 32)
-      .storeBit(rejectAll).endCell()
+      body: beginCell().storeUint(Opcodes.setRejectAll, 32).storeBit(rejectAll).endCell(),
     })
   }
 
@@ -121,7 +124,10 @@ export const builder = {
   data: (() => {
     const contractData: CellCodec<ReceiverStorage> = {
       encode: (config: ReceiverStorage): Builder => {
-        return beginCell().storeUint(config.id, 32).storeAddress(config.offramp).storeBit(config.rejectAll)
+        return beginCell()
+          .storeUint(config.id, 32)
+          .storeAddress(config.offramp)
+          .storeBit(config.rejectAll)
       },
 
       load: (src: Slice): ReceiverStorage => {

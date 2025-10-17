@@ -1305,7 +1305,7 @@ describe('OffRamp - Unit Tests', () => {
     await setupAndCommitMessage(message)
     const report = createExecuteReport([message])
 
-    const result = await receiver.sendSetRejectAll(deployer.getSender(), toNano('0.1'), true);
+    const result = await receiver.sendSetRejectAll(deployer.getSender(), toNano('0.1'), true)
     expect(result.transactions).toHaveTransaction({
       from: deployer.address,
       to: receiver.address,
@@ -1316,7 +1316,7 @@ describe('OffRamp - Unit Tests', () => {
 
     // TODO: expect fail
 
-    const result3 = await receiver.sendSetRejectAll(deployer.getSender(), toNano('0.1'), false);
+    const result3 = await receiver.sendSetRejectAll(deployer.getSender(), toNano('0.1'), false)
     expect(result.transactions).toHaveTransaction({
       from: deployer.address,
       to: receiver.address,
