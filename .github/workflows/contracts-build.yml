@@ -40,3 +40,37 @@ jobs:
           nix_path: nixpkgs=channel:nixos-unstable
       - name: Run build
         run: nix build -v .#contracts
+
+  check-contract-versions:
+    name: Verify Contract Version Updates
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Check out PR code
+        uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
+        with:
+          path: "pr-branch"
+
+      - name: Check out base branch code
+        uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: "base-branch"
+
+      - name: Set up Python
+        uses: actions/setup-python@0a5c61591373683505ea898e09a3ea4f39ef2b9c # v5.0.0
+        with:
+          python-version: "3.9"
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@02a151ada4993995686f9ed4f1be7cfbb229e56f # v31
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+
+      - name: Check contract versions
+        run: |
+          pr-branch/.github/scripts/check-contract-versions.py \
+            --pr-dir pr-branch \
+            --base-dir base-branch \
+            --verbose

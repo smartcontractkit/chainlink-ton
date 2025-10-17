@@ -2,7 +2,6 @@ import { Address, beginCell, Cell, Message } from '@ton/core'
 import { BlockchainTransaction } from '@ton/sandbox'
 import * as CCIPLogs from '../wrappers/ccip/Logs'
 import * as OCR3Logs from '../wrappers/libraries/ocr/Logs'
-import * as ReceiverLogs from '../wrappers/examples/ccip/Logs'
 import { fromSnakeData } from '../src/utils/types'
 import { MerkleRoot, merkleRootFromSlice, priceUpdatesFromCell } from '../wrappers/ccip/OffRamp'
 import { prettifyAddressesMap } from './utils/prettyPrint'
@@ -57,7 +56,7 @@ type LogTypeMap = {
   [CCIPLogs.LogTypes.ExecutionStateChanged]: DeepPartial<CCIPLogs.ExecutionStateChanged>
   [OCR3Logs.LogTypes.OCR3BaseConfigSet]: OCR3Logs.OCR3BaseConfigSet
   [OCR3Logs.LogTypes.OCR3BaseTransmitted]: DeepPartial<OCR3Logs.OCR3BaseTransmitted>
-  [ReceiverLogs.LogTypes.ReceiverCCIPMessageReceived]: ReceiverLogs.ReceiverCCIPMessageReceived
+  [CCIPLogs.LogTypes.ReceiverCCIPMessageReceived]: CCIPLogs.ReceiverCCIPMessageReceived
 }
 
 // union of the keys of that map
@@ -87,8 +86,8 @@ const handlers: { [K in CombinedLogType]: Handler<K> } = {
   [CCIPLogs.LogTypes.ExecutionStateChanged]: (x, from, match) =>
     testLogCCIPExecutionStateChanged(x, from, match as DeepPartial<CCIPLogs.ExecutionStateChanged>),
 
-  [ReceiverLogs.LogTypes.ReceiverCCIPMessageReceived]: (x, from, match) =>
-    testLogReceiverCCIPMessageReceived(x, from, match as ReceiverLogs.ReceiverCCIPMessageReceived),
+  [CCIPLogs.LogTypes.ReceiverCCIPMessageReceived]: (x, from, match) =>
+    testLogReceiverCCIPMessageReceived(x, from, match as CCIPLogs.ReceiverCCIPMessageReceived),
 
   [OCR3Logs.LogTypes.OCR3BaseConfigSet]: (x, from, match) =>
     testConfigSetLogMessage(x, from, match as OCR3Logs.OCR3BaseConfigSet),
@@ -278,9 +277,9 @@ export const testTransmittedLogMessage = (
 export const testLogReceiverCCIPMessageReceived = (
   message: Message,
   from: Address,
-  expected: ReceiverLogs.ReceiverCCIPMessageReceived,
+  expected: CCIPLogs.ReceiverCCIPMessageReceived,
 ) => {
-  return testLog(message, from, ReceiverLogs.LogTypes.ReceiverCCIPMessageReceived, (x) => {
+  return testLog(message, from, CCIPLogs.LogTypes.ReceiverCCIPMessageReceived, (x) => {
     const msg = expected.message
     const expectedCell = beginCell()
       .storeUint(msg.messageId, 256)

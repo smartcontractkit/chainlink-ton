@@ -226,7 +226,7 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
       from: acc.deployer.address,
       to: bind.mcms.address,
       success: false,
-      exitCode: mcms.Error.INSUFFICIENT_SIGNERS,
+      exitCode: mcms.Error.InsufficientSigners,
     })
 
     // Test sufficient signatures (remove only 1 signer)
@@ -462,7 +462,7 @@ describe('MCMS - ManyChainMultiSigSubgroupsTest', () => {
       from: acc.multisigOwner.address,
       to: bind.mcms.address,
       success: false,
-      exitCode: mcms.Error.GROUP_TREE_NOT_WELL_FORMED,
+      exitCode: mcms.Error.GroupTreeNotWellFormed,
     })
 
     // Fix the group parent relationships

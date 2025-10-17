@@ -8,6 +8,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/ton"
+	"go.uber.org/zap/zapcore"
+
 	chain_selectors "github.com/smartcontractkit/chain-selectors"
 
 	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"
@@ -15,18 +21,15 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
 
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
-
 	ton_ops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
 
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 	test_utils "github.com/smartcontractkit/chainlink-ton/deployment/utils"
 
-	"github.com/stretchr/testify/require"
-	"github.com/xssnick/tonutils-go/tlb"
-
+	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
 	"github.com/smartcontractkit/chainlink/deployment/environment/memory"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/chainaccessor"
@@ -35,12 +38,7 @@ import (
 	txloader "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/loader"
 	txprocessor "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/processor"
 	inmemorystore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/store/memory"
-
-	"github.com/xssnick/tonutils-go/address"
-	"github.com/xssnick/tonutils-go/ton"
-	"go.uber.org/zap/zapcore"
-
-	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/hash"
 )
 
 func TestDeploy(t *testing.T) {
@@ -67,10 +65,19 @@ func TestDeploy(t *testing.T) {
 	test_utils.FundWallets(t, tonChain.Client, []*address.Address{deployer.Address()}, []tlb.Coins{tlb.MustFromTON("1000")})
 	time.Sleep(5 * time.Second)
 
-	cs := commonchangeset.Configure(ton_ops.DeployCCIPContracts{}, ton_ops.DeployChainContractsConfig(t, env, chainSelector, sequence.ContractsLocalVersion))
+	cs := commonchangeset.Configure(ton_ops.DeployCCIPContracts{}, ton_ops.DeployChainContractsConfig(t, env, chainSelector, sequence.ContractsLocalVersion, hash.CRC32("github.com/smartcontractkit/chainlink-ton/integration-tests/deployment/cs_test.TestDeploy")))
 
 	env, _, err := commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{cs})
 	require.NoError(t, err, "failed to deploy ccip")
+
+	// <redeploy>
+	// Execute deploy one more time to make sure that no contracts are redeployed
+	env, output, err := commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{cs})
+	require.NoError(t, err, "failed to re-deploy ccip")
+	addresses, err := output[0].DataStore.Addresses().Fetch()
+	require.NoError(t, err, "failed to get addresses from data store")
+	require.Empty(t, addresses, "expected no new addresses on redeploy, got: %v", addresses)
+	// </redeploy>
 
 	// TODO: LINK token deployment
 	linkAddr := ton_ops.TonTokenAddr
@@ -204,7 +211,18 @@ func TestDeploy(t *testing.T) {
 	require.NoError(t, err)
 	rawLinkAddr, err := addrCodec.AddressStringToBytes(linkAddr.String())
 	require.NoError(t, err)
-	rawDeployerAddr, err := addrCodec.AddressStringToBytes(deployer.Address().String())
+	// <Verify receiver address>
+	receiverAddr := state[chainSelector].ReceiverAddress
+	_, err = addrCodec.AddressStringToBytes(receiverAddr.String())
+	require.NoError(t, err)
+	mc, err := tonChain.Client.GetMasterchainInfo(ctx)
+	require.NoError(t, err)
+	getOfframpAddressResponse, err := tonChain.Client.RunGetMethod(ctx, mc, &receiverAddr, "getOfframpAddress")
+	require.NoError(t, err)
+	shouldBeOffRampAddress := getOfframpAddressResponse.MustSlice(0).MustLoadAddr()
+	require.Equal(t, offRampAddr.String(), shouldBeOffRampAddress.String())
+	// </Verify receiver address>
+	rawDeployerAddr, err := addrCodec.AddressStringToBytes(deployer.WalletAddress().String())
 	require.NoError(t, err)
 
 	err = accessor.Sync(ctx, consts.ContractNameOnRamp, rawOnRampAddr)

@@ -21,4 +21,5 @@ type Tx struct {
 	CreatedAt       time.Time                     // when the tx was first enqueued
 	Expiration      time.Time                     // expiration timestamp based on TTL
 	ReceivedMessage tracetracking.ReceivedMessage // received message
+	ID              *string                       // optional: unique ID for transaction tracking
 }

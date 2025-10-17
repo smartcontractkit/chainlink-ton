@@ -6,6 +6,19 @@ const ERROR_WRONG_OP = 0xffff;
 const ERROR_INVALID_DATA = 0x77;
 const ERROR_BITMAP_OUT_OF_BOUNDS = 0x78;
 
+/// Returns the facility ID for the given CRC32 key (e.g. stringCrc32("com.chainlink.ton.mcms.Timelock")).
+/// Returns a value in range 10..649 (640 values).
+@pure
+fun getFacilityId(crc32Key: int): uint16 {
+    return (crc32Key % 640) + 10;
+}
+
+/// Returns an error code composed from facility and local code (max 2^16-1).
+@pure
+fun getErrorCode(crc32Key: int, local: uint16): uint16 {
+    return getFacilityId(crc32Key) * 100 + local;
+}
+
 /// The default message forwarding budget fee for messages (replies, notifications, sends)
 /// in gas units. The expectation is this is enough to cover the basic transaction costs
 /// for the recipient, at least validation and bounces, to avoid out of gas errors (no bounces).
@@ -23,6 +36,8 @@ const DEFAULT_MESSAGE_FWD_BUDGET_GAS_UNITS = 30000;  // 0.012 TON at 400 nanoton
 ///
 /// Notice: documentation for in.bouncedBody is off, as it states the bounced body
 /// will be 0xffffffff + 224 bits, but the actual size is 0xffffffff + 256 bits.
+/// Confimred with TON team: 256 is "original body size", so in.bouncedBody is 288 in total
+/// Note: In TVM 12, "rich bounced messages" will be added — containing all the original message that was sent
 const BOUNCE_MSG_SIZE_MAX = 256;
 
 /// Returns the global ID of the current blockchain (chain ID).

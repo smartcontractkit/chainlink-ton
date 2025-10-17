@@ -1,34 +1,25 @@
-import "types.tolk";
-import "../lib/access/ownable_2step.tolk";
-import "../lib/upgrades/type_and_version.tolk";
-import "../deployable/types.tolk";
-import "../lib/utils.tolk";
-import "../lib/jetton/messages"
-import "../lib/jetton/messages_extended"
+import "messages"
+import "storage"
+import "errors"
 
-struct Storage {
-    ownable: Ownable2Step;
+import "../onramp/messages"
+import "../onramp/types"
+import "../common/types"
+import "../common/messages"
+import "../../lib/access/ownable_2step"
+import "../../deployable/types"
+import "../../lib/utils"
+import "../../lib/jetton/messages"
+import "../../lib/jetton/messages_extended"
 
-    // TODO: expand this with versions support
-    onRamps: map<uint64, address>; // destChainSelector -> onRamp address
-}
-
-fun Storage.load(): Storage {
-    return Storage.fromCell(contract.getData());
-}
-
-fun Storage.store(self) {
-    return contract.setData(self.toCell());
-}
-
-type Msg = CCIPSend | SetRamp | JettonTransferNotification;
+const CONTRACT_VERSION = "0.0.2";
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy Msg.fromSlice(in.body);
     match (msg) {
-        SetRamp => { onSetRamp(msg, in.senderAddress) }
-        CCIPSend => { onSend(msg, in.senderAddress) }
-        JettonTransferNotification => { onTransferNotification(msg, in.senderAddress) }
+        Router_SetRamps => {onSetRamps(msg, in.senderAddress)}
+        Router_CCIPSend => { onSend(msg, in.senderAddress) }
+        Common_JettonTransferNotification => { onTransferNotification(msg, in.senderAddress) }
         else => {
             // ignore empty messages, "wrong opcode" for others
             assert (in.body.isEmpty()) throw 0xFFFF
@@ -39,32 +30,36 @@ fun onInternalMessage(in: InMessage) {
 fun onBouncedMessage(in: InMessageBounced) {
 }
 
-fun onSetRamp(msg: SetRamp, sender: address) {
+fun onSetRamps(msg: Router_SetRamps, sender: address) {
     var st = lazy Storage.load();
     st.ownable.requireOwner(sender);
 
-    st.onRamps.set(msg.destChainSelector, msg.onRamp);
+    var selectors = Iterator<uint64>.new(msg.destChainSelectors);
+    while (!selectors.empty()) {
+        val selector = selectors.next();
+        st.onRamps.set(selector, msg.onRamp);
+    }
     st.store();
-
-    // TODO: emit(OnRampSet)
 }
 
-fun onSend(msg: CCIPSend, sender: address) {
+// TODO: emit(OnRampsSet)
+
+fun onSend(msg: Router_CCIPSend, sender: address) {
     ccipSend(msg, sender);
 }
 
-fun onTransferNotification(transferNotification: JettonTransferNotification, wallet: address) {
+fun onTransferNotification(transferNotification: Common_JettonTransferNotification, wallet: address) {
     val st = lazy Storage.load();
 
     // TBD: I think we don't need to validate the sender here. If it is not a Jetton Wallet, it would not be able to transfer the jettons?
 
     // TODO: need to validate that the transfer notification came from our own wallet
-    // assert(sender == st.owner) throw ERROR_NOT_OWNER;
+    // assert(sender == st.owner) throw Error.NotOwner;
     // TODO: need to validate the jetton (master) address, but to do this we need to
     // derive the address. We can probably fetch that from the ccip send payload's tokenAmounts
 
     // TODO: catch errors, if different message type than CCIPSend
-    val sendMsg = CCIPSend.fromCell(transferNotification.forwardPayload!);
+    val sendMsg = Router_CCIPSend.fromCell(transferNotification.forwardPayload!);
     var tokenAmounts = Iterator<TokenAmount>.new(sendMsg.tokenAmounts);
     // TODO handle payment in LINK if this is a LINK transfer
     assert (!tokenAmounts.empty()) throw 0xFFFF; // TODO: proper error code for no token amounts
@@ -74,7 +69,7 @@ fun onTransferNotification(transferNotification: JettonTransferNotification, wal
 
     // TODO: store msg.amount + value
     // make sure msg.amount == sendMsg.token amount
-    val onRamp = st.onRamps.mustGet(sendMsg.destChainSelector, ERROR_DEST_CHAIN_NOT_ENABLED);
+    val onRamp = st.onRamps.mustGet(sendMsg.destChainSelector, Error.DestChainNotEnabled as int);
 
     val transferMessage = createMessage({
         bounce: true,
@@ -87,7 +82,7 @@ fun onTransferNotification(transferNotification: JettonTransferNotification, wal
             sendExcessesTo: contract.getAddress(),
             customPayload: null,
             forwardTonAmount: ton("0.5"), // TODO
-            forwardPayload: OnRampSend { msg: sendMsg.toCell(), metadata: Metadata{ sender: transferNotification.sender } }.toCell(),
+            forwardPayload: OnRamp_Send { msg: sendMsg.toCell(), metadata: Metadata{ sender: transferNotification.sender } }.toCell(),
         },
     });
     transferMessage.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
@@ -97,29 +92,47 @@ fun onTransferNotification(transferNotification: JettonTransferNotification, wal
     // self.forward(msg.sender, null, false, null);
 }
 
-fun ccipSend(msg: CCIPSend, sender: address) {
+fun ccipSend(msg: Router_CCIPSend, sender: address) {
     val st = lazy Storage.load();
 
     // forward to onRamp
     // ccipSend(onRamp, msg, value/token amounts)
 
-    val onRamp = st.onRamps.mustGet(msg.destChainSelector, ERROR_DEST_CHAIN_NOT_ENABLED);
+    val onRamp = st.onRamps.mustGet(msg.destChainSelector, Error.DestChainNotEnabled as int);
     val sendMsg = createMessage({
         bounce: true,
         value: 0,
         dest: onRamp,
-        body: OnRampSend { msg: msg.toCell(), metadata: Metadata{ sender } },
+        body: OnRamp_Send { msg: msg.toCell(), metadata: Metadata{ sender } },
     });
     sendMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
 get fun typeAndVersion(): (slice, slice) {
-     return ("com.chainlink.ton.ccip.Router", "1.0.0");
- }
+    return ("com.chainlink.ton.ccip.Router", CONTRACT_VERSION);
+}
+
+get fun facilityId(): uint16  {
+    return getFacilityId(stringCrc32("com.chainlink.ton.ccip.Router"));
+}
+
+get fun errorCode(local: uint16): uint16 {
+    return getErrorCode(stringCrc32("com.chainlink.ton.ccip.Router"), local);
+}
+
+// Returns the current code of the contract.
+get fun code(): cell {
+    return contract.getCode();
+}
+
+// Returns the sha256 hash of the current code of the contract.
+get fun codeHash(): int {
+    return contract.getCode().hash();
+}
 
 get fun onRamp(destChainSelector: uint64): address {
     val st = lazy Storage.load();
-    return st.onRamps.mustGet(destChainSelector, ERROR_DEST_CHAIN_NOT_ENABLED);
+    return st.onRamps.mustGet(destChainSelector, Error.DestChainNotEnabled as int);
 }
 
 get fun destChainSelectors(): tuple {
@@ -127,3 +140,4 @@ get fun destChainSelectors(): tuple {
     var d = st.onRamps;
     return keysLispList(d)!;
 }
+

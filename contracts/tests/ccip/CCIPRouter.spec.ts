@@ -16,13 +16,26 @@ import { JettonMinterCode, JettonWalletCode } from '../../wrappers/jetton/Jetton
 import { JettonMinter } from '../../wrappers/jetton/JettonMinter'
 import * as jetton from '../../wrappers/jetton/JettonWallet'
 import { dump } from '../utils/prettyPrint'
-import { CellCodec } from '../../wrappers/utils'
+import { CellCodec, facilityId } from '../../wrappers/utils'
+import { crc32 } from 'zlib'
+import { CCIP_SEND_EXECUTOR_FACILITY_ID } from '../../wrappers/ccip/OnRamp'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
+const CHAINSEL_EVM_TEST_90000002 = 5548718428018410741n
+const CHAIN_FAMILY_SELECTOR_EVM = 0x2812d52c
+const CHAIN_FAMILY_SELECTOR_SVM = 0x1e10bdc4
+const CHAIN_FAMILY_SELECTOR_APTOS = 0xac77ffec
+const CHAIN_FAMILY_SELECTOR_SUI = 0xc4e05953
+
 const CHAINSEL_TON = 13879075125137744094n
 const TEST_TOKEN_ADDR = Address.parseRaw(
   '0:0000000000000000000000000000000000000000000000000000000000000001',
 )
+
+const EVM_ADDRESS = Buffer.from(
+  '0000000000000000000000001234567890123456789012345678901234567890',
+  'hex',
+) // 32 bytes
 
 describe('Router', () => {
   let blockchain: Blockchain
@@ -50,6 +63,7 @@ describe('Router', () => {
     // Mock UpdatePrices Message handler
     let routerCode = await compile('Router')
     let data: rt.Storage = {
+      id: 0,
       ownable: {
         owner: deployer.address,
         pendingOwner: null,
@@ -73,6 +87,7 @@ describe('Router', () => {
       let code = await compile('FeeQuoter')
 
       let data: FeeQuoterStorage = {
+        id: 0,
         ownable: {
           owner: deployer.address,
           pendingOwner: null,
@@ -124,7 +139,7 @@ describe('Router', () => {
               config: {
                 // minimal valid config
                 isEnabled: true,
-                maxNumberOfTokensPerMsg: 0, // TODO:
+                maxNumberOfTokensPerMsg: 1,
                 maxDataBytes: 100,
                 maxPerMsgGasLimit: 100,
                 destGasOverhead: 0,
@@ -134,7 +149,7 @@ describe('Router', () => {
                 destDataAvailabilityOverheadGas: 0,
                 destGasPerDataAvailabilityByte: 0,
                 destDataAvailabilityMultiplierBps: 0,
-                chainFamilySelector: 0,
+                chainFamilySelector: CHAIN_FAMILY_SELECTOR_EVM,
                 enforceOutOfOrder: true,
                 defaultTokenFeeUsdCents: 0,
                 defaultTokenDestGasOverhead: 0,
@@ -171,6 +186,7 @@ describe('Router', () => {
     {
       let code = await compile('OnRamp')
       let data: or.OnRampStorage = {
+        id: 0,
         ownable: {
           owner: deployer.address,
           pendingOwner: null,
@@ -217,15 +233,42 @@ describe('Router', () => {
         })
       }
     }
-  }, 10000)
+  })
+
+  it('update router ramps in batch', async () => {
+    {
+      const result = await router.sendSetRamps(deployer.getSender(), {
+        value: toNano('1'),
+        queryID: 0,
+        destChainSelector: [CHAINSEL_EVM_TEST_90000001, CHAINSEL_EVM_TEST_90000002],
+        onRamp: onRamp.address,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: router.address,
+        success: true,
+      })
+    }
+
+    {
+      let result = await router.onRamp(
+        blockchain.provider(router.address),
+        CHAINSEL_EVM_TEST_90000001,
+      )
+      expect(result).toEqual(onRamp.address)
+
+      result = await router.onRamp(blockchain.provider(router.address), CHAINSEL_EVM_TEST_90000002)
+      expect(result).toEqual(onRamp.address)
+    }
+  })
 
   it('onramp arbitrary message passing', async () => {
     // Configure onRamp on router
     {
-      const result = await router.sendSetRamp(deployer.getSender(), {
+      const result = await router.sendSetRamps(deployer.getSender(), {
         value: toNano('1'),
         queryID: 0,
-        destChainSelector: CHAINSEL_EVM_TEST_90000001,
+        destChainSelector: [CHAINSEL_EVM_TEST_90000001],
         onRamp: onRamp.address,
       })
       expect(result.transactions).toHaveTransaction({
@@ -242,14 +285,17 @@ describe('Router', () => {
         body: {
           queryID: 1,
           destChainSelector: CHAINSEL_EVM_TEST_90000001,
-          receiver: Buffer.from(
-            '1234567890123456789012345678901234567890123456789012345678901234',
-            'hex',
-          ), // 32 bytes
+          receiver: EVM_ADDRESS,
           data: Cell.EMPTY,
           tokenAmounts: [],
           feeToken: TEST_TOKEN_ADDR,
-          extraArgs: Cell.EMPTY,
+          extraArgs: rt.builder.data.extraArgs
+            .encode({
+              kind: 'generic-v2',
+              gasLimit: 100n,
+              allowOutOfOrderExecution: true,
+            })
+            .asCell(),
         },
       })
 
@@ -336,10 +382,10 @@ describe('Router', () => {
   it('onramp token transfer - paid with TON', async () => {
     // Configure onRamp on router
     {
-      const result = await router.sendSetRamp(deployer.getSender(), {
+      const result = await router.sendSetRamps(deployer.getSender(), {
         value: toNano('1'),
         queryID: 0,
-        destChainSelector: CHAINSEL_EVM_TEST_90000001,
+        destChainSelector: [CHAINSEL_EVM_TEST_90000001],
         onRamp: onRamp.address,
       })
       expect(result.transactions).toHaveTransaction({
@@ -364,11 +410,17 @@ describe('Router', () => {
       .encode({
         queryID: 1,
         destChainSelector: CHAINSEL_EVM_TEST_90000001,
-        receiver: Buffer.alloc(64),
+        receiver: EVM_ADDRESS,
         data: Cell.EMPTY,
         tokenAmounts: [{ amount: jettonAmount, token: jettonMinter.address }],
         feeToken: TEST_TOKEN_ADDR,
-        extraArgs: Cell.EMPTY,
+        extraArgs: rt.builder.data.extraArgs
+          .encode({
+            kind: 'generic-v2',
+            gasLimit: 100n,
+            allowOutOfOrderExecution: true,
+          })
+          .asCell(),
       })
       .asCell()
 
@@ -533,6 +585,14 @@ describe('Router', () => {
         },
       })
     }
+  })
+
+  it('Test facilityId matches facility name', () => {
+    expect(or.ONRAMP_FACILITY_ID).toEqual(facilityId(crc32(or.ONRAMP_FACILITY_NAME)))
+    expect(rt.ROUTER_FACILITY_ID).toEqual(facilityId(crc32(rt.ROUTER_FACILITY_NAME)))
+    expect(CCIP_SEND_EXECUTOR_FACILITY_ID).toEqual(
+      facilityId(crc32(or.CCIP_SEND_EXECUTOR_FACILITY_NAME)),
+    )
   })
 })
 

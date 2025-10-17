@@ -59,7 +59,7 @@ export type RoleData = {
   adminRole: bigint
 
   membersLen: bigint
-  hasRole: Dictionary<Address, Buffer>
+  hasRole: Dictionary<Address, Boolean>
 }
 
 export const opcodes = {
@@ -75,11 +75,9 @@ export const opcodes = {
   },
 }
 
-const ERROR_INVALID_ROLE = 89
-
-export enum Errors {
-  UnauthorizedAccount = 90,
-  BadConfirmation = 91,
+export enum Error {
+  UnauthorizedAccount = 60900,
+  BadConfirmation,
 }
 
 export const builder = {
@@ -158,7 +156,7 @@ export const builder = {
         return {
           adminRole: src.loadUintBig(256),
           membersLen: src.loadUintBig(64),
-          hasRole: src.loadDict(Dictionary.Keys.Address(), Dictionary.Values.Buffer(0)),
+          hasRole: src.loadDict(Dictionary.Keys.Address(), Dictionary.Values.Bool()),
         }
       },
     }
@@ -183,9 +181,9 @@ export const builder = {
       roleData,
 
       // Creates a new `AccessControl_RoleData.hasRole` contract data cell with the given roles.
-      hasRoleDict: (accounts: Address[]): Dictionary<Address, Buffer> => {
-        const dict = Dictionary.empty(Dictionary.Keys.Address(), Dictionary.Values.Buffer(0))
-        const addAccountFn = (dict, account: Address) => dict.set(account, Buffer.alloc(0))
+      hasRoleDict: (accounts: Address[]): Dictionary<Address, Boolean> => {
+        const dict = Dictionary.empty(Dictionary.Keys.Address(), Dictionary.Values.Bool())
+        const addAccountFn = (dict, account: Address) => dict.set(account, true)
         return accounts.reduce(addAccountFn, dict)
       },
 

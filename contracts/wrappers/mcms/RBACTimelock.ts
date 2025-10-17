@@ -739,7 +739,7 @@ export const builder = {
           .storeRef(data.rbac)
       },
       load: (src: Slice): ContractData => {
-        throw new Error('not implemented')
+        throw new globalThis.Error('not implemented')
       },
     }
     const call: CellCodec<Call> = {
@@ -797,23 +797,23 @@ export const DONE_TIMESTAMP = 1n
 // Timestamp value used to mark an operation as error
 export const ERROR_TIMESTAMP = 2n
 
-export enum Errors {
-  SelectorIsBlocked = 101,
-  OperationNotReady = 102,
-  OperationMissingDependency = 103,
-  OperationCanNotBeCancelled = 104,
-  OperationAlreadyScheduled = 105,
-  InsufficientDelay = 106,
+export enum Error {
+  SelectorIsBlocked = 19300,
+  OperationNotReady,
+  OperationMissingDependency,
+  OperationCanNotBeCancelled,
+  OperationAlreadyScheduled,
+  InsufficientDelay,
   /// Thrown when trying to execute a pending operation while another pending operation is not yet final
-  PendingOperationNotFinal = 107,
+  PendingOperationNotFinal,
   /// Thrown when the provided op.value is insufficient (min required value not met).
-  InsufficientValue = 108,
+  InsufficientValue,
   /// Thrown when trying to submit an error report for an operation that is not done.
-  OperationNotDone = 109,
+  OperationNotDone,
   /// Thrown when trying to initialize the contract more than once.
-  ContractAlreadyInitialized = 110,
+  ContractAlreadyInitialized,
   /// Thrown when trying to call a function on an uninitialized contract.
-  ContractNotInitialized = 111,
+  ContractNotInitialized,
 }
 
 export class ContractClient implements Contract {

@@ -128,6 +128,16 @@ func (c *CrossChainAddress) LoadFromCell(s *cell.Slice) error {
 	return nil
 }
 
+// LoadCrossChainAddressWithoutPrefix parses a CrossChainAddress from raw data that lacks a length prefix as the first byte.
+// TODO: check why getter is not including the first byte as length prefix for CrossChainAddress type
+func LoadCrossChainAddressWithoutPrefix(s *cell.Slice) (CrossChainAddress, error) {
+	data, err := s.LoadSlice(s.BitsLeft())
+	if err != nil {
+		return nil, fmt.Errorf("failed to load data for cross chain address: %w", err)
+	}
+	return CrossChainAddress(data), nil
+}
+
 // PackArrayWithRefChaining packs a slice of any serializable type T into a linked cell structure,
 // storing each element as a cell reference. When only one reference slot is left, it starts a new cell
 // and uses the last reference for chaining.
@@ -202,6 +212,7 @@ func unpackArrayWithRefChaining[T any](root *cell.Cell) ([]T, error) {
 // packArrayWithStaticType packs a slice of any serializable type T into a linked cell structure.
 // Elements are stored directly in the cell's bits. If an element does not fit, a new cell is started.
 // Cells are linked via references for arrays that span multiple cells.
+// note: T cannot be primitive types does not supported by tlb.ToCell (e.g., address, uint64, int32, bool, etc.), wrapper type is needed such as DestChainSelector in router binding
 func packArrayWithStaticType[T any](array []T) (*cell.Cell, error) {
 	cells := []*cell.Builder{}
 	builder := cell.BeginCell()
@@ -417,4 +428,34 @@ func NewDummyCell() (*cell.Cell, error) {
 		return nil, err
 	}
 	return builder.EndCell(), nil
+}
+
+// Proof256 represents a 32-byte (256 bits) proof used in merkle proofs.
+// This wrapper type allows [32]byte to be used with SnakeData by implementing
+// ToCell/LoadFromCell that directly store/load 256 bits inline, avoiding the
+// infinite loop issue that occurs with SnakeBytes (which uses c.ToCell() in LoadFromCell).
+type Proof256 [32]byte
+
+// ToCell stores the 256-bit proof directly as inline bits.
+func (p Proof256) ToCell() (*cell.Cell, error) {
+	builder := cell.BeginCell()
+	if err := builder.StoreSlice(p[:], 256); err != nil {
+		return nil, fmt.Errorf("failed to store proof256: %w", err)
+	}
+	return builder.EndCell(), nil
+}
+
+// LoadFromCell loads 256 bits directly from the slice and advances its position.
+// This is critical: unlike SnakeBytes.LoadFromCell which calls c.ToCell() (creating
+// a new cell without advancing the original slice), this directly reads from the slice.
+func (p *Proof256) LoadFromCell(s *cell.Slice) error {
+	if s.BitsLeft() < 256 {
+		return fmt.Errorf("not enough bits to load Proof256: have %d, need 256", s.BitsLeft())
+	}
+	data, err := s.LoadSlice(256) // advances position
+	if err != nil {
+		return fmt.Errorf("failed to load proof256: %w", err)
+	}
+	copy(p[:], data)
+	return nil
 }

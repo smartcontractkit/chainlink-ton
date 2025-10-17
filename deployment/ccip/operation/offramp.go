@@ -6,10 +6,11 @@ import (
 	"fmt"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
+
+	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/utils"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
@@ -19,10 +20,14 @@ import (
 )
 
 type DeployOffRampInput struct {
+	ID                                      uint32
 	ChainSelector                           uint64
 	FeeQuoter                               *address.Address
 	PermissionlessExecutionThresholdSeconds uint32
 	ContractPath                            string
+	DeployerContractPath                    string
+	MerkleRootContractPath                  string
+	Coins                                   string
 }
 
 // TODO: single deploy output
@@ -46,16 +51,26 @@ func deployOffRamp(b operations.Bundle, deps TonDeps, in DeployOffRampInput) (De
 		return output, fmt.Errorf("failed to compile contract: %w", err)
 	}
 
+	deployerCode, err := wrappers.ParseCompiledContract(in.DeployerContractPath)
+	if err != nil {
+		return output, fmt.Errorf("failed to compile deployer contract: %w", err)
+	}
+
+	merkleRootCode, err := wrappers.ParseCompiledContract(in.MerkleRootContractPath)
+	if err != nil {
+		return output, fmt.Errorf("failed to compile merkle root contract: %w", err)
+	}
+
 	conn := tracetracking.NewSignedAPIClient(deps.TonChain.Client, *deps.TonChain.Wallet)
 
 	storage := offramp.Storage{
-		ID: 0,
+		ID: in.ID,
 		Ownable: common.Ownable2Step{
 			Owner:        deps.TonChain.WalletAddress,
 			PendingOwner: nil,
 		},
-		Deployer:       cell.BeginCell().EndCell(),
-		MerkleRootCode: cell.BeginCell().EndCell(),
+		Deployer:       deployerCode,
+		MerkleRootCode: merkleRootCode,
 		// empty OCR3Base
 		OCR3Base: cell.BeginCell().
 			MustStoreUInt(0, 8).
@@ -66,7 +81,6 @@ func deployOffRamp(b operations.Bundle, deps TonDeps, in DeployOffRampInput) (De
 		ChainSelector:                           in.ChainSelector,
 		PermissionlessExecutionThresholdSeconds: in.PermissionlessExecutionThresholdSeconds,
 		SourceChainConfigs:                      nil,
-		KeyLen:                                  64,
 		LatestPriceSequenceNumber:               0,
 	}
 	initData, err := tlb.ToCell(storage)
@@ -74,7 +88,7 @@ func deployOffRamp(b operations.Bundle, deps TonDeps, in DeployOffRampInput) (De
 		return output, fmt.Errorf("failed to pack initData: %w", err)
 	}
 
-	contract, _, err := wrappers.Deploy(&conn, codeCell, initData, tlb.MustFromTON("1"), nil)
+	contract, _, err := wrappers.Deploy(&conn, codeCell, initData, tlb.MustFromTON(in.Coins), nil)
 	if err != nil {
 		return output, fmt.Errorf("failed to deploy offramp contract: %w", err)
 	}

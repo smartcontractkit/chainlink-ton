@@ -14,9 +14,18 @@ import {
 
 import * as ownable2step from '../libraries/access/Ownable2Step'
 import { CellCodec } from '../utils'
-import { asSnakeData, fromSnakeData } from '../../src/utils'
+import { asSnakeData, asSnakeDataUint, fromSnakeData } from '../../src/utils'
+
+export const ROUTER_FACILITY_NAME = 'com.chainlink.ton.ccip.Router'
+export const ROUTER_FACILITY_ID = 496
+export const ROUTER_ERROR_CODE = 49600 //FACILITY_ID * 100
+
+export enum RouterError {
+  DestChainNotEnabled = ROUTER_ERROR_CODE,
+}
 
 export type Storage = {
+  id: number
   ownable: ownable2step.Data
 
   onRamps: Dictionary<bigint, Address>
@@ -25,11 +34,9 @@ export type Storage = {
 export abstract class Params {}
 
 export abstract class Opcodes {
-  static setRamp = 0x10000001
+  static setRamps = 0x10000001
   static ccipSend = 0x00000001
 }
-
-export abstract class Errors {}
 
 export class Router implements Contract {
   constructor(
@@ -47,6 +54,17 @@ export class Router implements Contract {
     return new Router(contractAddress(workchain, init), init)
   }
 
+  async onRamp(provider: ContractProvider, chainSelector: bigint) {
+    return await provider
+      .get('onRamp', [
+        {
+          type: 'int',
+          value: BigInt(chainSelector),
+        },
+      ])
+      .then((r) => r.stack.readAddress())
+  }
+
   async sendInternal(provider: ContractProvider, via: Sender, value: bigint, body: Cell) {
     await provider.internal(via, {
       value: value,
@@ -55,13 +73,13 @@ export class Router implements Contract {
     })
   }
 
-  async sendSetRamp(
+  async sendSetRamps(
     provider: ContractProvider,
     via: Sender,
     opts: {
       value: bigint
       queryID?: number
-      destChainSelector: bigint
+      destChainSelector: bigint[]
       onRamp: Address
     },
   ) {
@@ -69,9 +87,9 @@ export class Router implements Contract {
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: beginCell()
-        .storeUint(Opcodes.setRamp, 32)
+        .storeUint(Opcodes.setRamps, 32)
         .storeUint(opts.queryID ?? 0, 64)
-        .storeUint(opts.destChainSelector, 64)
+        .storeRef(asSnakeDataUint(opts.destChainSelector, 64))
         .storeAddress(opts.onRamp)
         .endCell(),
     })
@@ -117,11 +135,34 @@ const tokenAmountCodec: CellCodec<TokenAmount> = {
   },
 }
 
+type GenericExtraArgsV2 = {
+  kind: 'generic-v2'
+  gasLimit?: bigint
+  allowOutOfOrderExecution: boolean
+}
+
+type SVMExtraArgsV1 = {
+  kind: 'svm-v1'
+  computeUnits: bigint
+  accountIsWritableBitMap: bigint
+  allowOutOfOrderExecution: boolean
+  tokenReceiver: bigint
+  accounts: Cell
+}
+
+type ExtraArgs = GenericExtraArgsV2 | SVMExtraArgsV1
+
+export const ExtraArgsOpcodes = {
+  genericV2: 0x181dcf10,
+  svmV1: 0x1f3b3aba,
+}
+
 export const builder = {
   data: (() => {
     const contractData: CellCodec<Storage> = {
       encode: (config: Storage): Builder => {
         return beginCell()
+          .storeUint(config.id, 32)
           .storeAddress(config.ownable.owner)
           .storeMaybeBuilder(
             config.ownable.pendingOwner
@@ -129,20 +170,44 @@ export const builder = {
               : null,
           )
           .storeDict(config.onRamps)
-          .storeUint(64, 16) // keyLen
       },
 
       load: (src: Slice): Storage => {
         return {
+          id: src.loadUint(32),
           ownable: ownable2step.builder.data.traitData.load(src.loadRef().beginParse()),
           onRamps: Dictionary.empty(Dictionary.Keys.BigUint(64)),
         }
+      },
+    }
+    const extraArgs: CellCodec<ExtraArgs> = {
+      encode: function (data: ExtraArgs): Builder {
+        // switch on type of data: ExtraArgs: GenericExtraArgsV2 | SVMExtraArgsV1
+        switch (data.kind) {
+          case 'generic-v2':
+            return beginCell()
+              .storeUint(ExtraArgsOpcodes.genericV2, 32)
+              .storeMaybeUint(data.gasLimit, 256)
+              .storeBit(data.allowOutOfOrderExecution)
+          case 'svm-v1':
+            return beginCell()
+              .storeUint(ExtraArgsOpcodes.svmV1, 32)
+              .storeUint(data.computeUnits, 32)
+              .storeUint(data.accountIsWritableBitMap, 64)
+              .storeBit(data.allowOutOfOrderExecution)
+              .storeUint(data.tokenReceiver, 256)
+              .storeRef(data.accounts)
+        }
+      },
+      load: function (src: Slice): ExtraArgs {
+        throw new Error('Function not implemented.')
       },
     }
 
     return {
       contractData,
       tokenAmountCodec,
+      extraArgs,
     }
   })(),
   message: {
@@ -160,6 +225,7 @@ export const builder = {
               .storeRef(opts.data)
               .storeRef(asSnakeData(opts.tokenAmounts, tokenAmountCodec.encode)) // TODO: pack inputs
               .storeAddress(opts.feeToken)
+
               .storeRef(opts.extraArgs)
           )
         },

@@ -143,7 +143,7 @@ describe('MCMS - ManyChainMultiSigExecuteErrorOracleTest', () => {
       from: baseTest.acc.deployer.address,
       to: baseTest.bind.mcms.address,
       success: false,
-      exitCode: mcms.Error.ROOT_EXPIRED,
+      exitCode: mcms.Error.RootExpired,
     })
   })
 
@@ -267,7 +267,7 @@ describe('MCMS - ManyChainMultiSigExecuteErrorOracleTest', () => {
       from: baseTest.acc.multisigOwner.address,
       to: baseTest.bind.mcms.address,
       success: false,
-      exitCode: mcms.Error.ERROR_UNAUTHORIZED_ORACLE,
+      exitCode: mcms.Error.UnauthorizedOracle,
     })
   })
 
@@ -297,7 +297,7 @@ describe('MCMS - ManyChainMultiSigExecuteErrorOracleTest', () => {
       from: acc.oracle.address,
       to: baseTest.bind.mcms.address,
       success: false,
-      exitCode: mcms.Error.PROOF_CANNOT_BE_VERIFIED,
+      exitCode: mcms.Error.ProofCannotBeVerified,
     })
   })
 })

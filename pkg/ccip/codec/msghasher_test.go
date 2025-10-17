@@ -13,6 +13,7 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 
 	chainsel "github.com/smartcontractkit/chain-selectors"
+
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 
@@ -28,7 +29,7 @@ func randomTONMessage(t *testing.T, sourceChainSelector uint64) ccipocr3.Message
 func TestMessageHasherV1_TON(t *testing.T) {
 	ctx := context.Background()
 	mockExtraDataCodec := new(mocks.SourceChainExtraDataCodec)
-	edc := ccipocr3.ExtraDataCodec(map[string]ccipocr3.SourceChainExtraDataCodec{
+	edc := ccipocr3.ExtraDataCodecMap(map[string]ccipocr3.SourceChainExtraDataCodec{
 		chainsel.FamilyEVM: mockExtraDataCodec,
 	})
 
@@ -129,7 +130,7 @@ func TestMessageHasherV1_TON(t *testing.T) {
 func TestMessageHasherV1_ErrorCases(t *testing.T) {
 	ctx := context.Background()
 	mockExtraDataCodec := new(mocks.SourceChainExtraDataCodec)
-	edc := ccipocr3.ExtraDataCodec(map[string]ccipocr3.SourceChainExtraDataCodec{})
+	edc := ccipocr3.ExtraDataCodecMap(map[string]ccipocr3.SourceChainExtraDataCodec{})
 
 	lg := logger.Test(t)
 	hasher := NewMessageHasherV1(lg, edc)
@@ -160,7 +161,7 @@ func TestMessageHasherV1_CrossLanguageCompatibility(t *testing.T) {
 	// Right now the hash from ts and gobinding Any2TVMRamp message generates different msg hash. Need to fix it before running this test
 	ctx := context.Background()
 	mockExtraDataCodec := new(mocks.SourceChainExtraDataCodec)
-	edc := ccipocr3.ExtraDataCodec(map[string]ccipocr3.SourceChainExtraDataCodec{
+	edc := ccipocr3.ExtraDataCodecMap(map[string]ccipocr3.SourceChainExtraDataCodec{
 		chainsel.FamilyEVM: mockExtraDataCodec,
 	})
 

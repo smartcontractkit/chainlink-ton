@@ -17,7 +17,26 @@ import { asSnakeData } from '../../src/utils'
 import { CellCodec } from '../utils'
 import * as rt from './Router'
 
+export const ONRAMP_FACILITY_NAME = 'com.chainlink.ton.ccip.OnRamp'
+export const ONRAMP_FACILITY_ID = 181
+export const ONRAMP_ERROR_CODE = 18100 //FACILITY_ID * 100
+
+export const CCIP_SEND_EXECUTOR_FACILITY_NAME = 'com.chainlink.ton.ccip.CCIPSendExecutor'
+export const CCIP_SEND_EXECUTOR_FACILITY_ID = 436
+export const CCIP_SEND_EXECUTOR_ERROR_CODE = 43600 //FACILITY_ID * 100
+
+export enum OnRampError {
+  UnknownDestChainSelector = ONRAMP_ERROR_CODE,
+  Unauthorized,
+  SenderNotAllowed,
+}
+export enum CCIPSendExecutorError {
+  StateNotExpected = CCIP_SEND_EXECUTOR_ERROR_CODE,
+  Unauthorized,
+}
+
 export type OnRampStorage = {
+  id: number
   ownable: ownable2step.Data
   chainSelector: bigint
   config: {
@@ -63,6 +82,7 @@ export const builder = {
         encode: function (data: OnRampStorage): Builder {
           return (
             beginCell()
+              .storeUint(data.id, 32)
               .storeBuilder(ownable2step.builder.data.traitData.encode(data.ownable))
               .storeUint(data.chainSelector, 64)
               // Cell<DynamicConfig>
