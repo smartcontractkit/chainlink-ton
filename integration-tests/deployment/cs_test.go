@@ -73,6 +73,15 @@ func TestDeploy(t *testing.T) {
 	env, _, err := commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{cs})
 	require.NoError(t, err, "failed to deploy ccip")
 
+	// <redeploy>
+	// Execute deploy one more time to make sure that no contracts are redeployed
+	env, output, err := commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{cs})
+	require.NoError(t, err, "failed to re-deploy ccip")
+	addresses, err := output[0].DataStore.Addresses().Fetch()
+	require.NoError(t, err, "failed to get addresses from data store")
+	require.Empty(t, addresses, "expected no new addresses on redeploy, got: %v", addresses)
+	// </redeploy>
+
 	// TODO: LINK token deployment
 	linkAddr := ton_ops.TonTokenAddr
 
@@ -207,7 +216,18 @@ func TestDeploy(t *testing.T) {
 	require.NoError(t, err)
 	rawLinkAddr, err := addrCodec.AddressStringToBytes(linkAddr.String())
 	require.NoError(t, err)
-	rawDeployerAddr, err := addrCodec.AddressStringToBytes(deployer.Address().String())
+	// <Verify receiver address>
+	receiverAddr := state[chainSelector].ReceiverAddress
+	_, err = addrCodec.AddressStringToBytes(receiverAddr.String())
+	require.NoError(t, err)
+	mc, err := tonChain.Client.GetMasterchainInfo(ctx)
+	require.NoError(t, err)
+	getOfframpAddressResponse, err := tonChain.Client.RunGetMethod(ctx, mc, &receiverAddr, "getOfframpAddress")
+	require.NoError(t, err)
+	shouldBeOffRampAddress := getOfframpAddressResponse.MustSlice(0).MustLoadAddr()
+	require.Equal(t, offRampAddr.String(), shouldBeOffRampAddress.String())
+	// </Verify receiver address>
+	rawDeployerAddr, err := addrCodec.AddressStringToBytes(deployer.WalletAddress().String())
 	require.NoError(t, err)
 
 	err = accessor.Sync(ctx, consts.ContractNameOnRamp, rawOnRampAddr)

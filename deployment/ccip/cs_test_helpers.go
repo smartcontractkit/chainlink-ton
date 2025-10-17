@@ -119,6 +119,9 @@ func DeployChainContractsConfig(t *testing.T, env cldf.Environment, chainSelecto
 				// AllowlistAdmin: &address.Address{},
 				FeeAggregator: deployer.WalletAddress(),
 			},
+			ReceiverParams: config.ReceiverParams{
+				ID: idForContracts,
+			},
 		},
 		ContractsVersion: contractVersion,
 	}

@@ -77,7 +77,7 @@ fun send(payload: OnRamp_Send, sender: address, jettonWallet: address? = null) {
     val config = st.config.load();
 
     var tokenRegistry: address? = null;
-    var tokenAmounts = Iterator<TokenAmount>.new(msg.tokenAmounts);
+    var tokenAmounts = msg.tokenAmounts.iter();
     if (!tokenAmounts.empty()) {
         tokenRegistry = calculateTokenRegistryAddress(st, tokenAmounts.next().token);
     }
@@ -130,7 +130,7 @@ fun calculateTokenRegistryAddress(st: OnRamp_Storage, token: address): address {
 
 fun handleWithdrawJettons(payload: OnRamp_WithdrawJettons, executor: address) {
     var st = lazy OnRamp_Storage.load();
-    var tokenAmounts = Iterator<TokenAmount>.new(payload.tokens);
+    var tokenAmounts = payload.tokens.iter();
     assert (!tokenAmounts.empty()) throw 5;
     var tokenAmount = tokenAmounts.next();
     assert (tokenAmounts.empty()) throw 0xFFFF; // TODO: only single token withdraw supported for now
@@ -273,23 +273,13 @@ get fun destChainConfig(destChainSelector: uint64): OnRamp_DestChainConfig {
 }
 
 // vec<address>
-get fun allowedSendersList(destChainSelector: uint64): tuple {
+get fun allowedSendersList(destChainSelector: uint64): tuple? {
     val st = lazy OnRamp_Storage.load();
     val config = st.destChainConfigs.mustGet(destChainSelector,Error.UnknownDestChainSelector as int);
     var allowedSenders = config.allowedSenders;
 
-    var list: tuple? = null;
-    var entry = allowedSenders.findFirst();
-    while (entry.isFound) {
-        // var (wc, addressHash) = (key! as address).getWorkchainAndHash();
-        // list = listPrepend([wc, addressHash], list);
-        var address = entry.getKey();
-        list = listPrepend(address, list);
-
-        entry = allowedSenders.iterateNext(entry);
-    }
-
-    return list!;
+    // var (wc, addressHash) = (key! as address).getWorkchainAndHash();
+    return keysLispList(allowedSenders);
 }
 
 fun applyAllowlistUpdates(mutate st: OnRamp_Storage, updates: cell) {
@@ -300,13 +290,13 @@ fun applyAllowlistUpdates(mutate st: OnRamp_Storage, updates: cell) {
 
         var config = st.destChainConfigs.mustGet(update.destChainSelector, Error.UnknownDestChainSelector as int);
 
-        var iterAdd = Iterator<address>.new(update.add);
+        var iterAdd = update.add.iter();
         while (!iterAdd.empty()) {
             val sender = iterAdd.next();
             config.allowedSenders.set(sender, true);
         }
 
-        var iterRemove = Iterator<address>.new(update.remove);
+        var iterRemove = update.remove.iter();
         while (!iterRemove.empty()) {
             val sender = iterRemove.next();
             config.allowedSenders.delete(sender);
@@ -323,7 +313,7 @@ get fun supportedTokens() {
     // TODO?
 }
 
-get fun destChainSelectors(): tuple {
+get fun destChainSelectors(): tuple? {
     val st = lazy OnRamp_Storage.load();
     var d = st.destChainConfigs;
     return keysLispList(d)!;

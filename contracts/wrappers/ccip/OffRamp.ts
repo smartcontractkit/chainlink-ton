@@ -9,13 +9,15 @@ import {
   Sender,
   SendMode,
   Slice,
+  Builder,
 } from '@ton/core'
 
 import { OCR3Base, ReportContext, SignatureEd25519 } from '../libraries/ocr/MultiOCR3Base'
 import { asSnakeData, fromSnakeData, bigIntToUint8Array } from '../../src/utils/types'
 import * as ownable2step from '../libraries/access/Ownable2Step'
 import { crc32 } from 'zlib'
-import { facilityId } from '../utils'
+import { CellCodec, facilityId } from '../utils'
+import { CCIPReceive, ReceiverStorage } from './Receiver'
 
 export type OffRampStorage = {
   id: bigint
@@ -91,6 +93,10 @@ export type Any2TVMMessage = {
   data: Cell
 }
 
+export type CCIPReceiveConfirm = {
+  rootId: bigint
+}
+
 export type MerkleRoot = {
   sourceChainSelector: bigint
   onRampAddress: CrossChainAddress
@@ -101,36 +107,97 @@ export type MerkleRoot = {
 
 //TODO: Refactor these with the CellCodec<T> pattern
 
-export const Builder = {
-  asStorage: (config: OffRampStorage): Cell => {
-    return (
-      beginCell()
-        .storeUint(config.id, 32)
-        .storeAddress(config.ownable.owner)
-        .storeMaybeBuilder(
-          config.ownable.pendingOwner
-            ? beginCell().storeAddress(config.ownable.pendingOwner)
-            : null,
-        )
-        .storeRef(config.deployerCode)
-        .storeRef(config.merkleRootCode)
-        .storeAddress(config.feeQuoter)
-        // empty OCR3Base::
-        .storeRef(
+export const builder = {
+  data: (() => {
+    const contractData: CellCodec<OffRampStorage> = {
+      encode: (storage: OffRampStorage): Builder => {
+        return (
           beginCell()
-            .storeUint(1, 8) //chainId
-            .storeBit(false)
-            .storeBit(false)
-            .endCell(),
+            .storeUint(storage.id, 32)
+            .storeAddress(storage.ownable.owner)
+            .storeMaybeBuilder(
+              storage.ownable.pendingOwner
+                ? beginCell().storeAddress(storage.ownable.pendingOwner)
+                : null,
+            )
+            .storeRef(storage.deployerCode)
+            .storeRef(storage.merkleRootCode)
+            .storeAddress(storage.feeQuoter)
+            // empty OCR3Base::
+            .storeRef(
+              beginCell()
+                .storeUint(1, 8) //chainId
+                .storeBit(false)
+                .storeBit(false)
+                .endCell(),
+            )
+            .storeUint(storage.chainSelector, 64)
+            .storeUint(storage.permissionlessExecutionThresholdSeconds, 32)
+            .storeDict(Dictionary.empty())
+            .storeUint(storage.latestPriceSequenceNumber, 64)
         )
-        .storeUint(config.chainSelector, 64)
-        .storeUint(config.permissionlessExecutionThresholdSeconds, 32)
-        .storeDict(Dictionary.empty())
-        .storeUint(config.latestPriceSequenceNumber, 64)
-        .endCell()
-    )
+      },
+
+      load: (src: Slice): OffRampStorage => {
+        throw new Error('Implement me')
+      },
+    }
+
+    const any2TVMMessage: CellCodec<Any2TVMMessage> = {
+      encode: (message: Any2TVMMessage): Builder => {
+        return beginCell()
+          .storeUint(message.messageId, 256)
+          .storeUint(message.sourceChainSelector, 64)
+          .storeUint(message.sender.byteLength, 8)
+          .storeBuffer(message.sender, message.sender.byteLength)
+          .storeRef(message.data)
+      },
+
+      load: (src: Slice): Any2TVMMessage => {
+        const messageId = src.loadUintBig(256)
+        const sourceChainSelector = src.loadUintBig(64)
+        const senderSize = src.loadUint(8)
+        const sender = src.loadBuffer(senderSize * 8)
+
+        return {
+          messageId,
+          sourceChainSelector,
+          sender,
+          data: src.loadRef(),
+        }
+      },
+    }
+
+    return {
+      contractData,
+      any2TVMMessage,
+    }
+  })(),
+  message: {
+    in: (() => {
+      const ccipReceiveConfirm: CellCodec<CCIPReceiveConfirm> = {
+        encode: (confirm: CCIPReceiveConfirm): Builder => {
+          return beginCell()
+            .storeUint(Opcodes.ccipReceiveConfirm, 32)
+            .storeUint(confirm.rootId, 224)
+        },
+        load: (src: Slice): CCIPReceiveConfirm => {
+          // TODO We can check that the opcode matches
+          src.skip(32)
+
+          return {
+            rootId: src.loadUintBig(224),
+          }
+        },
+      }
+
+      return {
+        ccipReceiveConfirm,
+      }
+    })(),
   },
 }
+
 export abstract class Params {}
 
 export const Opcodes = {
@@ -138,6 +205,7 @@ export const Opcodes = {
   execute: crc32('OffRamp_Execute'),
   updateSourceChainConfig: crc32('OffRamp_UpdateSourceChainConfig'),
   dispatchValidated: crc32('OffRamp_DispatchValidated'),
+  ccipReceiveConfirm: crc32('OffRamp_CCIPReceiveConfirm'),
 }
 
 export const MERKLE_ROOT_FACILITY_NAME = 'com.chainlink.ton.ccip.MerkleRoot'
@@ -177,7 +245,7 @@ export class OffRamp extends OCR3Base {
   }
 
   static createFromConfig(config: OffRampStorage, code: Cell, workchain = 0) {
-    const data = Builder.asStorage(config)
+    const data = builder.data.contractData.encode(config).endCell()
     const init = { code, data }
     return new OffRamp(contractAddress(workchain, init), init)
   }

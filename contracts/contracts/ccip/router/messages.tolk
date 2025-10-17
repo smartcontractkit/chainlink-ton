@@ -1,5 +1,6 @@
 import "../common/types.tolk"
 import "../common/messages"
+import "../../lib/utils"
 
 type Msg = Router_CCIPSend | Router_SetRamps | Common_JettonTransferNotification;
 
@@ -7,7 +8,7 @@ type Msg = Router_CCIPSend | Router_SetRamps | Common_JettonTransferNotification
 struct (0x10000001) Router_SetRamps {
     // TODO: support onramp and offramp, support list
     queryId: uint64;
-    destChainSelectors: cell; // vec<uint64> for destChainSelectors
+    destChainSelectors: SnakedCell<uint64>;
     onRamp: address;
 }
 
@@ -18,7 +19,7 @@ struct (0x00000001) Router_CCIPSend {
     destChainSelector: uint64;
     receiver: CrossChainAddress;
     data: cell;
-    tokenAmounts: cell; // vec<tokenAmount>
+    tokenAmounts: SnakedCell<TokenAmount>;
     feeToken: address;
     extraArgs: cell;
 }

@@ -8,6 +8,7 @@ import (
 	"github.com/Masterminds/semver/v3"
 	"github.com/rs/zerolog/log"
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
+	ds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/xssnick/tonutils-go/address"
 	"golang.org/x/sync/errgroup"
@@ -17,13 +18,13 @@ import (
 
 // Duplicates of chainlink/deployment/ccip/ to avoid import loops
 var (
-	Version1_6_0                   = *semver.MustParse("1.6.0")
-	LinkToken    cldf.ContractType = "LinkToken"
-	TonReceiver  cldf.ContractType = "TonReceiver"
-	Router       cldf.ContractType = "Router"
-	OnRamp       cldf.ContractType = "OnRamp"
-	OffRamp      cldf.ContractType = "OffRamp"
-	FeeQuoter    cldf.ContractType = "FeeQuoter"
+	Version1_6_0                 = *semver.MustParse("1.6.0")
+	LinkToken    ds.ContractType = "LinkToken"
+	TonReceiver  ds.ContractType = "Receiver"
+	Router       ds.ContractType = "Router"
+	OnRamp       ds.ContractType = "OnRamp"
+	OffRamp      ds.ContractType = "OffRamp"
+	FeeQuoter    ds.ContractType = "FeeQuoter"
 )
 
 // CCIPChainState holds a Go binding for all the currently deployed CCIP contracts
@@ -34,9 +35,7 @@ type CCIPChainState struct {
 	Router           address.Address
 	OnRamp           address.Address
 	FeeQuoter        address.Address
-
-	// dummy receiver address
-	ReceiverAddress address.Address
+	ReceiverAddress  address.Address
 }
 
 type TONChainView struct {
@@ -134,59 +133,12 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 	return tonView, errGroup.Wait()
 }
 
-func GetAddressBook(chainSelector uint64, state CCIPChainState) (cldf.AddressBook, error) {
-	// TODO: use DataStore
-	ab := cldf.NewMemoryAddressBook()
-	if !state.LinkTokenAddress.IsAddrNone() {
-		err := ab.Save(chainSelector, state.LinkTokenAddress.String(), cldf.NewTypeAndVersion(LinkToken, Version1_6_0))
-		if err != nil {
-			return nil, err
-		}
-	}
-	if !state.ReceiverAddress.IsAddrNone() {
-		err := ab.Save(chainSelector, state.ReceiverAddress.String(), cldf.NewTypeAndVersion(TonReceiver, Version1_6_0))
-		if err != nil {
-			return nil, err
-		}
-	}
-	if !state.OffRamp.IsAddrNone() {
-		err := ab.Save(chainSelector, state.OffRamp.String(), cldf.NewTypeAndVersion(OffRamp, Version1_6_0))
-		if err != nil {
-			return nil, err
-		}
-	}
-	if !state.Router.IsAddrNone() {
-		err := ab.Save(chainSelector, state.Router.String(), cldf.NewTypeAndVersion(Router, Version1_6_0))
-		if err != nil {
-			return nil, err
-		}
-	}
-	if !state.OnRamp.IsAddrNone() {
-		err := ab.Save(chainSelector, state.OnRamp.String(), cldf.NewTypeAndVersion(OnRamp, Version1_6_0))
-		if err != nil {
-			return nil, err
-		}
-	}
-	if !state.FeeQuoter.IsAddrNone() {
-		err := ab.Save(chainSelector, state.FeeQuoter.String(), cldf.NewTypeAndVersion(FeeQuoter, Version1_6_0))
-		if err != nil {
-			return nil, err
-		}
-	}
-	return ab, nil
-}
-
 func LoadOnchainState(e cldf.Environment) (map[uint64]CCIPChainState, error) {
 	chains := make(map[uint64]CCIPChainState)
 	for chainSelector, chain := range e.BlockChains.TonChains() {
-		addresses, err := e.ExistingAddresses.AddressesForChain(chainSelector)
-		if err != nil {
-			// Chain not found in address book, initialize empty
-			if !errors.Is(err, cldf.ErrChainNotFound) {
-				return chains, err
-			}
-			addresses = make(map[string]cldf.TypeAndVersion)
-		}
+		addresses := e.DataStore.Addresses().Filter(
+			ds.AddressRefByChainSelector(chainSelector),
+		)
 		chainState, err := loadChainState(chain, addresses)
 		if err != nil {
 			return chains, err
@@ -197,42 +149,47 @@ func LoadOnchainState(e cldf.Environment) (map[uint64]CCIPChainState, error) {
 }
 
 // loadChainState Loads all state for a TonChain into state
-func loadChainState(chain cldf_ton.Chain, addressTypes map[string]cldf.TypeAndVersion) (CCIPChainState, error) {
+func loadChainState(chain cldf_ton.Chain, addresses []ds.AddressRef) (CCIPChainState, error) {
 	_ = chain // TODO: Use chain to access the client if needed
 	state := CCIPChainState{}
 
 	// Most programs upgraded in place, but some are not so we always want to
 	// load the latest version
-	versions := make(map[cldf.ContractType]semver.Version)
-	for addressStr, tvStr := range addressTypes {
-		address, err := address.ParseAddr(addressStr)
+	versions := make(map[ds.ContractType]semver.Version)
+
+	for _, addressType := range addresses {
+		contractType := addressType.Type
+		version := addressType.Version
+		rawContractAddress := addressType.Address
+		contractAddress, err := address.ParseAddr(rawContractAddress)
+
 		if err != nil {
 			return state, err
 		}
 
-		switch tvStr.Type {
+		switch contractType {
 		case LinkToken:
-			state.LinkTokenAddress = *address
+			state.LinkTokenAddress = *contractAddress
 		case TonReceiver:
-			state.ReceiverAddress = *address
+			state.ReceiverAddress = *contractAddress
 		case OffRamp:
-			state.OffRamp = *address
+			state.OffRamp = *contractAddress
 		case Router:
-			state.Router = *address
+			state.Router = *contractAddress
 		case OnRamp:
-			state.OnRamp = *address
+			state.OnRamp = *contractAddress
 		case FeeQuoter:
-			state.FeeQuoter = *address
+			state.FeeQuoter = *contractAddress
 		default:
-			log.Warn().Str("address", addressStr).Str("type", string(tvStr.Type)).Msg("Unknown TON address type")
+			log.Warn().Str("address", rawContractAddress).Str("type", contractType.String()).Msg("Unknown TON address type")
 			continue
 		}
 
-		existingVersion, ok := versions[tvStr.Type]
+		existingVersion, ok := versions[contractType]
 		if ok {
-			log.Warn().Str("existingVersion", existingVersion.String()).Str("type", string(tvStr.Type)).Msg("Duplicate address type found")
+			log.Warn().Str("existingVersion", existingVersion.String()).Str("type", contractType.String()).Msg("Duplicate address type found")
 		}
-		versions[tvStr.Type] = tvStr.Version
+		versions[contractType] = *version
 	}
 
 	return state, nil

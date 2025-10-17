@@ -1,4 +1,3 @@
-import "@stdlib/tvm-dicts.tolk";
 import "@stdlib/lisp-lists"
 import "@stdlib/gas-payments";
 
@@ -8,13 +7,11 @@ const ERROR_BITMAP_OUT_OF_BOUNDS = 0x78;
 
 /// Returns the facility ID for the given CRC32 key (e.g. stringCrc32("com.chainlink.ton.mcms.Timelock")).
 /// Returns a value in range 10..649 (640 values).
-@pure
 fun getFacilityId(crc32Key: int): uint16 {
     return (crc32Key % 640) + 10;
 }
 
 /// Returns an error code composed from facility and local code (max 2^16-1).
-@pure
 fun getErrorCode(crc32Key: int, local: uint16): uint16 {
     return getFacilityId(crc32Key) * 100 + local;
 }
@@ -75,7 +72,6 @@ fun calculateGasFeeFor(size: int): coins {
 }
 
 /// Computes the Keccak-256 hash of the given data.
-@pure
 fun keccak256(data: slice): uint256
     asm "1 PUSHINT HASHEXT_KECCAK256";
 
@@ -88,23 +84,28 @@ fun emit<T>(topic: int, body: T) {
     emitMsg.send(SEND_MODE_REGULAR);
 }
 
+type SnakedCell<T> = cell;
+
+fun SnakedCell<T>.iter(self): Iterator<T> {
+    return Iterator<T>.new(self)
+}
+
 // Iterates over arrays stored as snake data.
 struct Iterator<T> {
     data: slice;
 }
 
-@inline @pure
+@inline
 fun Iterator<T>.new(data: cell): Iterator<T> {
     return Iterator<T> { data: data.beginParse() };
 }
 
-@inline @pure
+@inline
 fun Iterator<T>.empty(self): bool {
     return self.data.isEmpty()
 }
 
-
-@inline @pure
+@inline
 fun Iterator<T>.next(mutate self): T {
     var (bits, refs) = self.data.remainingBitsAndRefsCount();
     if (bits == 0) {
@@ -119,41 +120,9 @@ fun Iterator<T>.next(mutate self): T {
 @inline
 fun Iterator<T>.countBytes(self): int {
     val maxCells = 128;
-    val (cellsCount, dataBitsSize, cellRefs) = self.data.calculateSizeStrict(maxCells);
+    val (cellsCount, dataBitsSize, _cellRefs) = self.data.calculateSizeStrict(maxCells);
     assert(dataBitsSize % 8 == 0, ERROR_INVALID_DATA);
     return dataBitsSize / 8;
-}
-
-// For address snake data
-@inline
-fun countAddresses(data: cell): int {
-    val maxCells = 128;
-    val (cellsCount, dataBitsSize, cellRefs) = data.calculateSizeStrict(maxCells);
-    assert(dataBitsSize % ADDR_KEY_LEN == 0, ERROR_INVALID_DATA);
-    return dataBitsSize / ADDR_KEY_LEN;
-}
-
-@inline
-fun Iterator<T>.has(mutate self, elem: T): bool {
-    while (!self.empty()) {
-        val current = self.next();
-        if (current == elem) {
-            return true;
-        }
-    }
-    return false;
-}
-
-@inline
-fun has<T>(element: T, tuple: tuple) {
-    val size = tuple.size();
-    var i = 0;
-    while(i < size){
-        if (tuple.get<T>(i) == element) {
-            return true;
-        }
-    }
-    return false;
 }
 
 @inline
@@ -170,26 +139,25 @@ struct TupleIterator<T> {
     data: tuple;
 }
 
-@inline @pure
+@inline
 fun TupleIterator<T>.new(data: tuple) {
     return TupleIterator<T> { data, len: data.size() };
 }
 
-@inline @pure
+@inline
 fun TupleIterator<T>.empty(self): bool {
-    // TODO: should we cache data.size()?
     return self.pos >= self.len
 }
 
 
-@inline @pure
+@inline
 fun TupleIterator<T>.next(mutate self): T {
     var offset = self.pos;
     self.pos += 1;
     return self.data.get<T>(offset);
 }
 
-@inline @pure
+@inline
 fun TupleIterator<T>.size(self, elemSize: int): int {
     // elemSize is ignored since we know exact size,
     // param is there for interface compatibility
@@ -217,16 +185,23 @@ fun Bitmap256.has(self, index: int): bool {
     return (self.bits & (1 << index)) != 0;
 }
 
+// For address snake data
+@inline
+fun countAddresses(data: cell): int {
+    val maxCells = 128;
+    val (cellsCount, dataBitsSize, cellRefs) = data.calculateSizeStrict(maxCells);
+    assert(dataBitsSize % ADDR_KEY_LEN == 0, ERROR_INVALID_DATA);
+    return dataBitsSize / ADDR_KEY_LEN;
+}
+
 // Returns a lisp-list with the keys of the map
-fun keysLispList<K, V>(dict: map<K, V>): tuple?{
+fun keysLispList<K, V>(dict: map<K, V>): tuple? {
     var list: tuple? = null;
     var entry = dict.findFirst();
     while (entry.isFound) {
-        if (entry.isFound) {
-            var key = entry.getKey();
-            list = listPrepend(key, list);
-            entry = dict.iterateNext(entry);
-        }
+        var key = entry.getKey();
+        list = listPrepend(key, list);
+        entry = dict.iterateNext(entry);
     } ;
     return list;
 }

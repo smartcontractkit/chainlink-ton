@@ -107,7 +107,7 @@ fun _notifySuccess(msg: OffRamp_NotifySuccess, sender: address) {
         sourceChainSelector: messageHeader.sourceChainSelector,
         sequenceNumber: messageHeader.sequenceNumber,
         messageId: messageHeader.messageId,
-        state: EXECUTION_STATE_SUCCESS
+        state: ExecutionState.Success
     });
 }
 fun _notifyFailure(msg: OffRamp_NotifyFailure, sender: address) {
@@ -118,7 +118,7 @@ fun _notifyFailure(msg: OffRamp_NotifyFailure, sender: address) {
         sourceChainSelector: messageHeader.sourceChainSelector,
         sequenceNumber: messageHeader.sequenceNumber,
         messageId: messageHeader.messageId,
-        state: EXECUTION_STATE_FAILURE
+        state: ExecutionState.Failure
     });
 }
 
@@ -220,7 +220,7 @@ fun _commit(msg: OffRamp_Commit, sender: address) {
         // note: if prices are stale, we continue to process merkle roots if any exist
     }
 
-    var roots = Iterator<MerkleRoot>.new(report.merkleRoots);
+    var roots = report.merkleRoots.iter();
     val priceUpdatesOnlyReport = roots.empty();
     while (!roots.empty()) {
         val root = roots.next();

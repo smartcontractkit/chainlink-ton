@@ -2,22 +2,17 @@
 // because it needs to be included in GitHub release artifacts for integration tests.
 // Contracts with the "examples.*" prefix are excluded from published releases.
 // See: .github/workflows/contracts-publish-compiled-artifacts.yml
+import "storage"
+import "errors"
 
+import "../../../lib/receiver/messages";
+import "../../../lib/receiver/types";
+import "../../../lib/utils";
+import "../../../ccip/offramp/messages";
 
-import "../../lib/receiver/messages";
-import "../../lib/receiver/types";
-import "../../lib/utils";
-import "../../ccip/offramp/messages";
+const CONTRACT_VERSION = "0.0.1";
 
 const RECEIVED_MESSAGE_TOPIC = 0xc5a40ab3; //crc32('Receiver_CCIPMessageReceived')
-
-struct Storage {
-    offRamp: address; //TODO: should be router?
-}
-
-fun Storage.load() {
-    return Storage.fromCell(contract.getData());
-}
 
 struct CCIPMessageReceived {
     message: Any2TVMMessage
@@ -32,7 +27,8 @@ fun onInternalMessage(in: InMessage) {
             // Standard for every receiver to implement:
             // - Check CCIPReceive only comes from offRamp/ router
             // - Send CCIPReceiveConfirm to msg.callback
-            assert(in.senderAddress == Storage.load().offRamp) throw 0x7777;
+            assert(in.senderAddress == Storage.load().offRamp, Error.Unauthorized);
+
             val receiveConfirm = createMessage({
                 bounce: true,
                 value: ton("0.05"), //TODO how much do we need to send
@@ -52,4 +48,36 @@ fun onInternalMessage(in: InMessage) {
             assert (in.body.isEmpty()) throw 0xFFFF
         }
     }
+}
+
+get fun getId(): uint32 {
+    val st = lazy Storage.load();
+    return st.id;
+}
+
+get fun getOfframpAddress(): address {
+    val st = lazy Storage.load();
+    return st.offRamp;
+}
+
+get fun typeAndVersion(): (slice, slice) {
+    return ("com.chainlink.ton.ccip.test.Receiver", CONTRACT_VERSION);
+}
+
+get fun facilityId(): uint16  {
+    return getFacilityId(stringCrc32("com.chainlink.ton.ccip.test.Receiver"));
+}
+
+get fun errorCode(local: uint16): uint16 {
+    return getErrorCode(stringCrc32("com.chainlink.ton.ccip.test.Receiver"), local);
+}
+
+// Returns the current code of the contract.
+get fun code(): cell {
+    return contract.getCode();
+}
+
+// Returns the sha256 hash of the current code of the contract.
+get fun codeHash(): int {
+    return contract.getCode().hash();
 }

@@ -19,6 +19,7 @@ import (
 type DeployRouterInput struct {
 	ID           uint32
 	ContractPath string
+	Coins        string
 }
 
 type DeployRouterOutput struct {
@@ -56,7 +57,7 @@ func deployRouter(b operations.Bundle, deps TonDeps, in DeployRouterInput) (Depl
 		return output, fmt.Errorf("failed to pack initData: %w", err)
 	}
 
-	contract, _, err := wrappers.Deploy(&conn, codeCell, initData, tlb.MustFromTON("1"), nil)
+	contract, _, err := wrappers.Deploy(&conn, codeCell, initData, tlb.MustFromTON(in.Coins), nil)
 	if err != nil {
 		return output, fmt.Errorf("failed to deploy router contract: %w", err)
 	}

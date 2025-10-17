@@ -6,7 +6,7 @@ struct ExecutionStateChanged {
     sourceChainSelector: uint64,
     sequenceNumber: uint64,
     messageId: uint256,
-    state: uint8,
+    state: ExecutionState,
     //returnData? probably not
 }
 

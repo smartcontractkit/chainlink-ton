@@ -83,13 +83,12 @@ func (c *SourceChainConfig) FromResult(result *ton.ExecutionResult) error {
 	}
 	isRMNVerificationDisabled := isRMNDisabledInt.Cmp(big.NewInt(0)) != 0
 
-	onRampCell, err := result.Cell(4)
+	onRampSlice, err := result.Slice(4)
 	if err != nil {
-		return fmt.Errorf("failed to get onRamp cell: %w", err)
+		return fmt.Errorf("failed to get onRamp slice: %w", err)
 	}
-
-	var onRamp common.CrossChainAddress
-	if err := tlb.LoadFromCell(&onRamp, onRampCell.BeginParse()); err != nil {
+	onRamp, err := common.LoadCrossChainAddressWithoutPrefix(onRampSlice)
+	if err != nil {
 		return fmt.Errorf("failed to parse onRamp: %w", err)
 	}
 
@@ -157,4 +156,21 @@ type Execute struct {
 	QueryID       uint64            `tlb:"## 64"`
 	ConfigDigest  []byte            `tlb:"bits 512"`
 	ExecuteReport ocr.ExecuteReport `tlb:"."`
+}
+
+const CCIPReceiveOpCode = 0xb3126df1
+
+// CCIPReceive represents the CCIP message received on TON
+type CCIPReceive struct {
+	_       tlb.Magic      `tlb:"#b3126df1"` //nolint:revive // Ignore opcode tag // crc32('Receiver_CCIPReceive')
+	RootID  []byte         `tlb:"bits 224"`
+	Message Any2TVMMessage `tlb:"."`
+}
+
+// Any2TVMMessage represents a cross-chain message to TON
+type Any2TVMMessage struct {
+	MessageID           [32]byte                 `tlb:"bits 256"`
+	SourceChainSelector uint64                   `tlb:"## 64"`
+	Sender              common.CrossChainAddress `tlb:"."` // CrossChainAddress (inline: length prefix + bytes)
+	Data                *cell.Cell               `tlb:"^"`
 }

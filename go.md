@@ -161,8 +161,8 @@ flowchart LR
 	chainlink-ton/integration-tests --> chainlink-ton/deployment
 	chainlink-ton/integration-tests --> chainlink/deployment
 	click chainlink-ton/integration-tests href "https://github.com/smartcontractkit/chainlink-ton"
-	chainlink-ton/staging-messaging-test --> chainlink-ton
-	click chainlink-ton/staging-messaging-test href "https://github.com/smartcontractkit/chainlink-ton"
+	chainlink-ton/staging-monitor --> chainlink-ton
+	click chainlink-ton/staging-monitor href "https://github.com/smartcontractkit/chainlink-ton"
 	chainlink-tron/relayer --> chainlink-common
 	chainlink-tron/relayer --> chainlink-common/pkg/values
 	click chainlink-tron/relayer href "https://github.com/smartcontractkit/chainlink-tron"
@@ -271,7 +271,7 @@ flowchart LR
 		 chainlink-ton
 		 chainlink-ton/deployment
 		 chainlink-ton/integration-tests
-		 chainlink-ton/staging-messaging-test
+		 chainlink-ton/staging-monitor
 	end
 	click chainlink-ton-repo href "https://github.com/smartcontractkit/chainlink-ton"
 

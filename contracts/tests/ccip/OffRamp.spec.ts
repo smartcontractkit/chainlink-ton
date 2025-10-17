@@ -40,11 +40,10 @@ import {
 
 import * as OCR3Logs from '../../wrappers/libraries/ocr/Logs'
 import * as CCIPLogs from '../../wrappers/ccip/Logs'
-import * as ReceiverLogs from '../../wrappers/examples/ccip/Logs'
 import { setupTestFeeQuoter } from './helpers/SetUp'
 
 import { ReportContext, SignatureEd25519 } from '../../wrappers/libraries/ocr/MultiOCR3Base'
-import { ExampleReceiver } from '../../wrappers/examples/ccip/Receiver'
+import { Receiver } from '../../wrappers/ccip/Receiver'
 import { crc32 } from 'zlib'
 import { facilityId } from '../../wrappers/utils'
 
@@ -131,7 +130,7 @@ describe('OffRamp', () => {
   let deployer: SandboxContract<TreasuryContract>
   let offRamp: SandboxContract<OffRamp>
   let feeQuoter: SandboxContract<FeeQuoter>
-  let receiver: SandboxContract<ExampleReceiver>
+  let receiver: SandboxContract<Receiver>
   let deployerCode: Cell
   let merkleRootCodeRaw: Cell
   let transmitters: SandboxContract<TreasuryContract>[]
@@ -409,7 +408,9 @@ describe('OffRamp', () => {
     // Deploy test receiver
     {
       let code = await compile('ccip.test.receiver')
-      receiver = blockchain.openContract(ExampleReceiver.create(code, offRamp.address))
+      receiver = blockchain.openContract(
+        Receiver.createFromConfig({ id: 1, offramp: offRamp.address }, code),
+      )
       const result = await receiver.sendDeploy(deployer.getSender(), toNano('10'))
       expect(result.transactions).toHaveTransaction({
         from: deployer.address,
@@ -773,7 +774,7 @@ describe('OffRamp', () => {
     assertLog(
       result.transactions,
       receiver.address,
-      ReceiverLogs.LogTypes.ReceiverCCIPMessageReceived,
+      CCIPLogs.LogTypes.ReceiverCCIPMessageReceived,
       {
         message: {
           messageId: message.header.messageId,
@@ -1000,7 +1001,7 @@ describe('OffRamp', () => {
     assertLog(
       result.transactions,
       receiver.address,
-      ReceiverLogs.LogTypes.ReceiverCCIPMessageReceived,
+      CCIPLogs.LogTypes.ReceiverCCIPMessageReceived,
       {
         message: {
           messageId: message.header.messageId,
@@ -1041,7 +1042,7 @@ describe('OffRamp', () => {
     assertLog(
       result.transactions,
       receiver.address,
-      ReceiverLogs.LogTypes.ReceiverCCIPMessageReceived,
+      CCIPLogs.LogTypes.ReceiverCCIPMessageReceived,
       {
         message: {
           messageId: message.header.messageId,
@@ -1057,7 +1058,9 @@ describe('OffRamp', () => {
     // Deploy a receiver with WRONG offRamp address - it will reject messages from the real offRamp
     let code = await compile('ccip.test.receiver')
     const wrongOffRampAddress = generateMockTonAddress() // Use a different address
-    const badReceiver = blockchain.openContract(ExampleReceiver.create(code, wrongOffRampAddress))
+    const badReceiver = blockchain.openContract(
+      Receiver.createFromConfig({ id: 1, offramp: wrongOffRampAddress }, code),
+    )
     const result = await badReceiver.sendDeploy(deployer.getSender(), toNano('10'))
     expect(result.transactions).toHaveTransaction({
       from: deployer.address,

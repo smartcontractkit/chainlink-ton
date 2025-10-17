@@ -57,7 +57,8 @@ jobs:
             cmd: "cd integration-tests && go test ./smoke/ccip -run Test_CCIPMessaging_EVM2TON -timeout 20m -test.parallel=1 -count=1 -json"
 
     name: ${{ matrix.type.name }}
-    runs-on: ubuntu-latest
+    # ubuntu-latest: 4 / 16 GB / 150GB SSD https://github.com/smartcontractkit/chainlink-ton/actions/runners
+    runs-on: ubuntu-latest-4cores-16GB
     steps:
       - name: Checkout Repository
         uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
