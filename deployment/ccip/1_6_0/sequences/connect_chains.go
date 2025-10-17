@@ -4,23 +4,24 @@ import (
 	"fmt"
 
 	"github.com/Masterminds/semver/v3"
-	chainSelectors "github.com/smartcontractkit/chain-selectors"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/lanes"
 	ccipapi "github.com/smartcontractkit/chainlink-ccip/deployment/lanes"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
-	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
 	cldfChain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
-	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
+	"github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
+	cldfTon "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	cldfOps "github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
+	"github.com/xssnick/tonutils-go/address"
 )
 
 // TODO: why is it that this methods don't have the env as a parameter?
-func (a *TonAdapter) ConfigureLaneLegAsSource(env *cldf.Environment) *cldfOps.Sequence[ccipapi.UpdateLanesInput, sequences.OnChainOutput, cldfChain.BlockChains] {
+func (a *TonAdapter) ConfigureLaneLegAsSource() *cldfOps.Sequence[ccipapi.UpdateLanesInput, sequences.OnChainOutput, cldfChain.BlockChains] {
 	return cldfOps.NewSequence[ccipapi.UpdateLanesInput, sequences.OnChainOutput, cldfChain.BlockChains](
 		"ConfigureLaneLegAsSource",
 		semver.MustParse("1.0.0"),
@@ -28,8 +29,7 @@ func (a *TonAdapter) ConfigureLaneLegAsSource(env *cldf.Environment) *cldfOps.Se
 		func(b operations.Bundle, chains cldfChain.BlockChains, input lanes.UpdateLanesInput) (sequences.OnChainOutput, error) {
 			var txs [][]byte
 
-			// TODO: What should go here?
-			deps, err := extractTonDeps(env)
+			deps, err := extractTonDeps(input)
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to extract TON deps: %w", err)
 			}
@@ -66,25 +66,8 @@ func (a *TonAdapter) ConfigureLaneLegAsSource(env *cldf.Environment) *cldfOps.Se
 	)
 }
 
-func extractTonDeps(env *cldf.Environment) (operation.TonDeps, error) {
-	tonChainSelectors := env.BlockChains.ListChainSelectors(chain.WithFamily(chainSelectors.FamilyTon))
-	chainSelector := tonChainSelectors[0]
-
-	tonChains := env.BlockChains.TonChains()
-	chain := tonChains[chainSelector]
-	states, err := state.LoadOnchainState(*env)
-	if err != nil {
-		return operation.TonDeps{}, fmt.Errorf("failed to load TON onchain state: %w", err)
-	}
-	deps := operation.TonDeps{
-		TonChain:         chain,
-		CCIPOnChainState: states,
-	}
-	return deps, nil
-}
-
 // TODO: why is it that this methods don't have the env as a parameter?
-func (a *TonAdapter) ConfigureLaneLegAsDest(env *cldf.Environment) *cldfOps.Sequence[ccipapi.UpdateLanesInput, sequences.OnChainOutput, cldfChain.BlockChains] {
+func (a *TonAdapter) ConfigureLaneLegAsDest() *cldfOps.Sequence[ccipapi.UpdateLanesInput, sequences.OnChainOutput, cldfChain.BlockChains] {
 	return cldfOps.NewSequence[ccipapi.UpdateLanesInput, sequences.OnChainOutput, cldfChain.BlockChains](
 		"ConfigureLaneLegAsDest",
 		semver.MustParse("1.0.0"),
@@ -92,8 +75,7 @@ func (a *TonAdapter) ConfigureLaneLegAsDest(env *cldf.Environment) *cldfOps.Sequ
 		func(b operations.Bundle, chains cldfChain.BlockChains, input lanes.UpdateLanesInput) (sequences.OnChainOutput, error) {
 			var txs [][]byte
 
-			// TODO: What should go here?
-			deps, err := extractTonDeps(env)
+			deps, err := extractTonDeps(input)
 			if err != nil {
 				return sequences.OnChainOutput{}, fmt.Errorf("failed to extract TON deps: %w", err)
 			}
@@ -121,6 +103,46 @@ func (a *TonAdapter) ConfigureLaneLegAsDest(env *cldf.Environment) *cldfOps.Sequ
 			return sequences.OnChainOutput{}, nil
 		},
 	)
+}
+
+func extractTonDeps(input lanes.UpdateLanesInput) (operation.TonDeps, error) {
+	onRampAddr, err := codec.AddressBytesToTONAddress(input.Source.OnRamp)
+	if err != nil {
+		return operation.TonDeps{}, fmt.Errorf("failed to convert onramp address: %w", err)
+	}
+	offRampAddr, err := codec.AddressBytesToTONAddress(input.Source.OffRamp)
+	if err != nil {
+		return operation.TonDeps{}, fmt.Errorf("failed to convert offramp address: %w", err)
+	}
+	routerAddr, err := codec.AddressBytesToTONAddress(input.Source.Router)
+	if err != nil {
+		return operation.TonDeps{}, fmt.Errorf("failed to convert router address: %w", err)
+	}
+	feeQuoterAddr, err := codec.AddressBytesToTONAddress(input.Source.FeeQuoter)
+	if err != nil {
+		return operation.TonDeps{}, fmt.Errorf("failed to convert feequoter address: %w", err)
+	}
+	deps := operation.TonDeps{
+		TonChain: cldfTon.Chain{ // TODO: Check if this is correct
+			ChainMetadata: ton.ChainMetadata{
+				Selector: input.Source.Selector,
+			},
+			Client:        nil,
+			Wallet:        nil,
+			WalletAddress: nil,
+			URL:           "",
+		},
+		CCIPOnChainState: map[uint64]state.CCIPChainState{
+			input.Source.Selector: {
+				OnRamp:          *onRampAddr,
+				OffRamp:         *offRampAddr,
+				Router:          *routerAddr,
+				FeeQuoter:       *feeQuoterAddr,
+				ReceiverAddress: *address.NewAddressNone(), // TODO: Check if this is correct
+			},
+		},
+	}
+	return deps, nil
 }
 
 func mapToUpdateFeeQuoterDestChainConfigs(input lanes.UpdateLanesInput) operation.UpdateFeeQuoterDestChainConfigsInput {

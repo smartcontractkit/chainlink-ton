@@ -54,6 +54,19 @@ func (a addressCodec) AddressBytesToString(bytes []byte) (string, error) {
 	return addr.String(), nil
 }
 
+// AddressBytesToAddress converts a byte slice representing a TON address into its ton address representation, only supporting standard TON addresses.
+func AddressBytesToTONAddress(bytes []byte) (*address.Address, error) {
+	if len(bytes) != TONAddressLength {
+		return address.NewAddressNone(), fmt.Errorf("invalid address length: expected %d bytes, got %d", TONAddressLength, len(bytes))
+	}
+	var rawAddr RawAddr
+	copy(rawAddr[:], bytes)
+	workchain := int32(binary.BigEndian.Uint32(rawAddr[0:4])) //nolint:gosec // G115
+
+	addr := address.NewAddress(0, byte(workchain), rawAddr[4:])
+	return addr, nil
+}
+
 // AddressStringToBytes converts a string representation of a TON address into its byte representation.
 func (a addressCodec) AddressStringToBytes(addrString string) ([]byte, error) {
 	// ParseAddr currently only works for base64 encoded std address strings, any other address format will fail
