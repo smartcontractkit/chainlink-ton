@@ -43,78 +43,78 @@ func New(
 // The method:
 // 1. Determines LT bounds using account states at prevBlock and toBlock
 // 2. Uses listTransactionsWithBlock to paginate through the account's transaction history
-// 3. Returns loaded transactions back to service layer
+// 3. Writes loaded transactions to the provided txOut channel
 //
 // Note: Block range (prevBlock, toBlock] is exclusive of prevBlock, inclusive of toBlock
-// Returns parallel slices of transactions and their corresponding blocks.
-func (l *rawTxLoader) LoadTxsForAddress(ctx context.Context, blockRange *models.BlockRange, addr *address.Address, pageSize uint32) (<-chan models.Tx, <-chan error, error) {
+// This method executes synchronously - the caller should spawn goroutines for concurrent loading.
+func (l *rawTxLoader) LoadTxsForAddress(ctx context.Context, blockRange *models.BlockRange, addr *address.Address, pageSize uint32, txOut chan<- models.Tx, errOut chan<- error) error {
+	// Validation
 	if blockRange.Prev != nil && blockRange.Prev.SeqNo >= blockRange.To.SeqNo {
-		return nil, nil, fmt.Errorf("prevBlock %d is not before toBlock %d", blockRange.Prev.SeqNo, blockRange.To.SeqNo)
+		return fmt.Errorf("prevBlock %d is not before toBlock %d", blockRange.Prev.SeqNo, blockRange.To.SeqNo)
 	}
 
+	// Get transaction bounds
 	startLT, endLT, endHash, err := l.GetTransactionBounds(ctx, blockRange, addr)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get transaction bounds for %s: %w", addr.String(), err)
+		return fmt.Errorf("failed to get transaction bounds for %s: %w", addr.String(), err)
 	}
-
-	txOut := make(chan models.Tx, 100)
-	errOut := make(chan error, 1)
 
 	if startLT >= endLT {
 		// not an error, just a no-op
 		l.lggr.Trace("No transactions to process", "address", addr.String(), "startLT", startLT, "endLT", endLT)
-		close(txOut)
-		close(errOut)
-		return txOut, errOut, nil
+		return nil
 	}
 
-	go func() {
-		defer close(txOut)
-		defer close(errOut)
+	curLT, curHash := endLT, endHash
 
-		curLT, curHash := endLT, endHash
-
-		for {
-			batch, batchBlocks, err := l.listTransactionsWithBlock(ctx, addr, pageSize, curLT, curHash)
-			if errors.Is(err, ton.ErrNoTransactionsWereFound) || len(batch) == 0 {
-				// no more transactions to process
-				break
-			} else if err != nil {
-				errOut <- fmt.Errorf("failed to list transactions for address %s: %w", addr.String(), err)
-				return
-			}
-
-			// The batch is sorted from oldest to newest.
-			for i, tx := range batch {
-				if tx.LT <= startLT {
-					// no need to process older transactions, they are already handled.
-					continue
-				}
-
-				if tx.IO.Out == nil {
-					// no need to process transactions without output messages
-					continue
-				}
-
-				select {
-				case txOut <- models.Tx{Transaction: tx, Block: batchBlocks[i]}:
-				case <-ctx.Done():
-					return
-				}
-			}
-			// batch[0] is the oldest transaction in this batch.
-			// if it's already older than our start point, we don't need to fetch any more pages.
-			if batch[0].LT <= startLT {
-				break
-			}
-
-			// move the cursor to just before the *oldest* tx in this batch,
-			// so next page picks up right where this one left off
-			curLT, curHash = batch[0].PrevTxLT, batch[0].PrevTxHash
+	for {
+		batch, batchBlocks, err := l.listTransactionsWithBlock(ctx, addr, pageSize, curLT, curHash)
+		if errors.Is(err, ton.ErrNoTransactionsWereFound) || len(batch) == 0 {
+			// no more transactions to process
+			break
+		} else if err != nil {
+			l.lggr.Errorw("failed to list transactions for address", "address", addr.String(), "error", err)
+			errOut <- fmt.Errorf("failed to list transactions for address %s: %w", addr.String(), err)
+			return nil // don't block other addresses
 		}
-	}()
 
-	return txOut, errOut, nil
+		// The batch is sorted from oldest to newest.
+		for i, tx := range batch {
+			if tx.LT <= startLT {
+				// no need to process older transactions, they are already handled.
+				continue
+			}
+
+			if tx.IO.Out == nil {
+				// no need to process transactions without output messages
+				continue
+			}
+
+			select {
+			case txOut <- models.Tx{
+				Transaction: tx,
+				Block:       batchBlocks[i],
+			}:
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		}
+
+		// The oldest transaction in this batch determines if we need to fetch more pages
+		// and where the next page cursor should start
+		oldestTx := batch[0]
+
+		// if it's already older than our start point, we don't need to fetch any more pages.
+		if oldestTx.LT <= startLT {
+			break
+		}
+
+		// move the cursor to just before the oldest tx in this batch,
+		// so next page picks up right where this one left off
+		curLT, curHash = oldestTx.PrevTxLT, oldestTx.PrevTxHash
+	}
+
+	return nil
 }
 
 // GetTransactionBounds determines the logical time (LT) range for scanning transactions

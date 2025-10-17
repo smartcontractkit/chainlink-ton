@@ -4,6 +4,8 @@ import (
 	"context"
 
 	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/ton"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 
@@ -40,17 +42,18 @@ type FilterStore interface {
 type TxLoader interface {
 	// LoadTxsForAddress retrieves transactions for a specific address within a block range.
 	// pageSize controls the number of transactions to fetch per TON API call for pagination.
-	// Returns parallel slices of transactions and their corresponding blocks.
-	LoadTxsForAddress(ctx context.Context, blockRange *models.BlockRange, addr *address.Address, pageSize uint32) (<-chan models.Tx, <-chan error, error)
+	// Transactions and runtime errors are written to the provided channels synchronously.
+	// Returns immediate validation/setup errors. The caller is responsible for spawning goroutines
+	// and managing channel lifecycle.
+	LoadTxsForAddress(ctx context.Context, blockRange *models.BlockRange, addr *address.Address, pageSize uint32, txOut chan<- models.Tx, errOut chan<- error) error
 }
 
 // Processor defines the interface for processing raw blockchain transactions into structured logs.
 type Processor interface {
-	// ProcessTransactions processes transactions by examining their messages and applying the provided
-	// filter index to extract relevant event data. The processor handles different message types
-	// (internal, external out) and extracts event signatures along with message body data.
-	// Takes parallel slices of transactions and their corresponding blocks.
-	ProcessTransactions(ctx context.Context, filterIndex models.FilterIndex, txs <-chan models.Tx) (<-chan models.Log, error)
+	// ProcessTx processes a single transaction synchronously.
+	// Examines transaction messages and applies the filter index to extract relevant event data.
+	// Returns logs or error. Service layer manages concurrency.
+	ProcessTx(ctx context.Context, tx *tlb.Transaction, block *ton.BlockIDExt, filterIndex models.FilterIndex) ([]models.Log, error)
 }
 
 // LogStore defines the interface for storing and retrieving logs.

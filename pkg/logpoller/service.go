@@ -132,35 +132,38 @@ func (lp *service) run(ctx context.Context) (err error) {
 
 // processBlockRange handles scanning a range of blocks for transactions
 func (lp *service) processBlockRange(ctx context.Context, blockRange *models.BlockRange, addresses []*address.Address) error {
-	// load raw transactions with blocks from the blockchain
-	txsCh, errsCh, err := lp.loadTxsForAddresses(ctx, blockRange, addresses)
-	if err != nil {
-		return fmt.Errorf("failed to start transaction loader: %w", err)
-	}
-
 	// build filter index for efficient lookup
 	filterIndex, err := lp.buildFilterIndex(ctx, addresses)
 	if err != nil {
 		return fmt.Errorf("failed to build filter index: %w", err)
 	}
 
-	// process transactions with filter index
-	logsCh, err := lp.processor.ProcessTransactions(ctx, filterIndex, txsCh)
-	if err != nil {
-		return fmt.Errorf("failed to start transaction processor: %w", err)
-	}
+	txsCh, loaderErrsCh := lp.loadTxsForAddresses(ctx, blockRange, addresses)
+	logsCh, processorErrsCh := lp.processTransactions(ctx, filterIndex, txsCh)
 
-	// save logs
-	totalSaved, err := lp.saveLogs(ctx, logsCh, errsCh)
+	// TODO: error metrics
+	go func() {
+		for err := range loaderErrsCh {
+			lp.lggr.Errorw("loader error", "err", err)
+		}
+	}()
+	go func() {
+		for err := range processorErrsCh {
+			lp.lggr.Errorw("processor error", "err", err)
+		}
+	}()
+
+	totalSaved, err := lp.saveLogs(ctx, logsCh)
 	if err != nil {
-		// return the error to halt processing on this block range
-		return err
+		return fmt.Errorf("failed to save logs: %w", err)
 	}
 
 	if blockRange.Prev == nil {
-		lp.lggr.Debugf("processed range (unspecified, %d], saved %d logs from %d addresses", blockRange.To.SeqNo, totalSaved, len(addresses))
+		lp.lggr.Debugf("processed range (unspecified, %d], saved %d logs from %d addresses",
+			blockRange.To.SeqNo, totalSaved, len(addresses))
 	} else {
-		lp.lggr.Debugf("processed range (%d, %d], saved %d logs from %d addresses", blockRange.Prev.SeqNo, blockRange.To.SeqNo, totalSaved, len(addresses))
+		lp.lggr.Debugf("processed range (%d, %d], saved %d logs from %d addresses",
+			blockRange.Prev.SeqNo, blockRange.To.SeqNo, totalSaved, len(addresses))
 	}
 
 	return nil
@@ -169,8 +172,8 @@ func (lp *service) processBlockRange(ctx context.Context, blockRange *models.Blo
 // loadTxsForAddresses scans TON blockchain for transactions from specified addresses
 // between prevBlock(exclusive) and toBlock(inclusive)
 // Returns parallel slices of transactions and their corresponding blocks.
-func (lp *service) loadTxsForAddresses(ctx context.Context, blockRange *models.BlockRange, srcAddrs []*address.Address) (<-chan models.Tx, <-chan error, error) {
-	txsOut := make(chan models.Tx)
+func (lp *service) loadTxsForAddresses(ctx context.Context, blockRange *models.BlockRange, srcAddrs []*address.Address) (<-chan models.Tx, <-chan error) {
+	txsOut := make(chan models.Tx, lp.pageSize) // expected burst size
 	errsOut := make(chan error, len(srcAddrs))
 
 	var wg sync.WaitGroup
@@ -179,91 +182,96 @@ func (lp *service) loadTxsForAddresses(ctx context.Context, blockRange *models.B
 		go func(a *address.Address) {
 			defer wg.Done()
 
-			txsIn, errsIn, err := lp.loader.LoadTxsForAddress(ctx, blockRange, a, lp.pageSize)
-			if err != nil {
-				lp.lggr.Warnf("Loader setup failed for address, skipping: %s, err: %v", a.String(), err)
-				errsOut <- err // propagate the error to the caller
-				return
-			}
-
-			for {
-				select {
-				case tx, ok := <-txsIn:
-					if !ok { // here the transaction channel is closed, this stream is done
-						return
-					}
-					select {
-					case txsOut <- tx:
-					case <-ctx.Done():
-						return
-					}
-				case err, ok := <-errsIn:
-					if !ok {
-						continue
-					}
-					lp.lggr.Warnf("Loader stream failed for address, skipping: %s, err: %v", a.String(), err)
-					errsOut <- err
-				case <-ctx.Done():
-					return
-				}
+			if err := lp.loader.LoadTxsForAddress(ctx, blockRange, a, lp.pageSize, txsOut, errsOut); err != nil {
+				lp.lggr.Warnf("Loader setup failed for address: %s, err: %v", a.String(), err)
+				errsOut <- err
 			}
 		}(addr)
 	}
 
-	// close channels asynchronously
+	// close channels when all goroutines are done
 	go func() {
 		wg.Wait()
 		close(txsOut)
 		close(errsOut)
 	}()
 
-	return txsOut, errsOut, nil
+	return txsOut, errsOut
 }
 
-func (lp *service) saveLogs(ctx context.Context, logsCh <-chan models.Log, errsCh <-chan error) (int, error) {
-	// handle errors
+// processTransactions spawns goroutines to process transactions in parallel.
+// TODO: consider worker pool if transaction volume becomes high (>1000/block)
+func (lp *service) processTransactions(
+	ctx context.Context,
+	filterIndex models.FilterIndex,
+	txsIn <-chan models.Tx,
+) (<-chan models.Log, <-chan error) {
+	logsOut := make(chan models.Log, lp.saveThreshold)
+	errsOut := make(chan error)
+
 	var wg sync.WaitGroup
-	wg.Add(1)
+
 	go func() {
-		defer wg.Done()
-		for err := range errsCh {
-			lp.lggr.Errorw("error from transaction loader", "err", err)
+		for tx := range txsIn {
+			wg.Add(1)
+			go func(t models.Tx) {
+				defer wg.Done()
+
+				logs, err := lp.processor.ProcessTx(ctx, t.Transaction, t.Block, filterIndex)
+				if err != nil {
+					errsOut <- fmt.Errorf("failed to process tx %x: %w", t.Transaction.Hash, err)
+					return
+				}
+
+				for _, log := range logs {
+					select {
+					case logsOut <- log:
+					case <-ctx.Done():
+						return
+					}
+				}
+			}(tx)
 		}
+
+		wg.Wait()
+		close(logsOut)
+		close(errsOut)
 	}()
 
+	return logsOut, errsOut
+}
+
+func (lp *service) saveLogs(ctx context.Context, logsCh <-chan models.Log) (int, error) {
 	saveThreshold := int(lp.saveThreshold)
 	chunk := make([]models.Log, 0, saveThreshold)
 	totalSaved := 0
 
 	for log := range logsCh {
 		if log.Error != nil {
-			lp.lggr.Errorw("discarding errored log", "log", log, "error", log.Error)
+			lp.lggr.Errorw("discarding invalid log", "log", log, "error", log.Error)
 			continue
 		}
 		chunk = append(chunk, log)
 
-		// if the chunk is full, save it to the database
+		// save chunk if it's full
 		if len(chunk) >= saveThreshold {
 			savedCount, err := lp.store.SaveLogs(ctx, chunk, lp.batchInsertSize, lp.minBatchSize)
 			if err != nil {
-				return 0, fmt.Errorf("failed to save log chunk: %w", err)
+				return totalSaved, fmt.Errorf("failed to save chunk: %w", err)
 			}
 			totalSaved += int(savedCount)
-			chunk = chunk[:0] // reset the chunk
+			chunk = chunk[:0] //reset chunk
 		}
 	}
 
-	// after the channel is closed, save any remaining logs in the last chunk
+	// save remaining logs in the last chunk
 	if len(chunk) > 0 {
 		savedCount, err := lp.store.SaveLogs(ctx, chunk, lp.batchInsertSize, lp.minBatchSize)
 		if err != nil {
-			return 0, fmt.Errorf("failed to save final log chunk: %w", err)
+			return totalSaved, fmt.Errorf("failed to save final chunk: %w", err)
 		}
 		totalSaved += int(savedCount)
 	}
-
-	// wait for the error-handling goroutine to finish before exiting
-	wg.Wait()
 
 	return totalSaved, nil
 }

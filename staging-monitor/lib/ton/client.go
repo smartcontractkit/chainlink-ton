@@ -20,10 +20,10 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
-	tonlploader "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/loader/account"
-	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/txparser"
-	tonlptypes "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
+	tonlploader "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/loader"
+	tonlpmodels "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
 	tonchain "github.com/smartcontractkit/chainlink-ton/pkg/ton/chain"
+	tonmessage "github.com/smartcontractkit/chainlink-ton/pkg/ton/message"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 
 	"github.com/smartcontractkit/chainlink-ton/staging-monitor/lib"
@@ -215,7 +215,7 @@ func (c *Client) WaitForMessageReceived(ctx context.Context, lggr logger.Logger,
 	clientProvider := func(ctx context.Context) (ton.APIClientWrapped, error) {
 		return cl, nil
 	}
-	loader := tonlploader.NewTxLoader(lggr, clientProvider, lib.TONTxBatchSize)
+	loader := tonlploader.New(lggr, clientProvider)
 
 	ticker := time.NewTicker(lib.TONPollInterval)
 	defer ticker.Stop()
@@ -257,30 +257,43 @@ func (c *Client) WaitForMessageReceived(ctx context.Context, lggr logger.Logger,
 				}
 			}
 
-			blockRange := &tonlptypes.BlockRange{Prev: prevBlock, To: toBlock}
+			blockRange := &tonlpmodels.BlockRange{Prev: prevBlock, To: toBlock}
 
 			// Fetch transactions for receiver address
-			txs, err := loader.FetchTxsForAddress(ctx, blockRange, receiverAddr)
-			if err != nil {
-				lggr.Warnw("Failed to load transactions", "error", err)
-				continue
-			}
+			txsCh := make(chan tonlpmodels.Tx, lib.TONTxBatchSize)
+			errsCh := make(chan error, 1)
+
+			go func() {
+				defer close(txsCh)
+				defer close(errsCh)
+				if err := loader.LoadTxsForAddress(ctx, blockRange, receiverAddr, lib.TONTxBatchSize, txsCh, errsCh); err != nil {
+					lggr.Errorw("Failed to load transactions", "error", err)
+					errsCh <- err
+				}
+			}()
+
+			// Handle errors from the loader
+			go func() {
+				for err := range errsCh {
+					lggr.Errorw("Error loading transactions", "error", err)
+				}
+			}()
 
 			// Process transactions
-			for _, txWithBlock := range txs {
-				if txWithBlock.Tx == nil || txWithBlock.Tx.IO.In == nil {
+			for txWithBlock := range txsCh {
+				if txWithBlock.Transaction == nil || txWithBlock.Transaction.IO.In == nil {
 					continue
 				}
 
-				tx := txWithBlock.Tx
+				tx := txWithBlock.Transaction
 
 				// Check if this is a CCIPReceive message
 				if tx.IO.In.MsgType == tlb.MsgTypeInternal {
 					intMsg := tx.IO.In.AsInternal()
 
-					// Use txparser utility to extract opcode and validate
-					sig, _, err := txparser.ParseInternalMsg(intMsg, offramp.CCIPReceiveOpCode)
-					if err != nil || sig == 0 {
+					// Use tonmessage utility to extract opcode and validate
+					sig, _, err := tonmessage.ParseInternalMsg(intMsg)
+					if err != nil || sig != offramp.CCIPReceiveOpCode {
 						continue // Not a CCIPReceive message or parse error
 					}
 

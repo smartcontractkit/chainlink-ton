@@ -82,18 +82,34 @@ func Test_LogPoller(t *testing.T) {
 			t.Parallel()
 			loader := txloader.New(logger.Test(t), clientProvider)
 
-			txsCh, _, berr := loader.LoadTxsForAddress(
-				t.Context(),
-				blockRange,
-				emitter.ContractAddress(),
-				pageSize,
-			)
-			require.NoError(t, berr)
+			txsCh := make(chan models.Tx, 100)
+			errsCh := make(chan error, 1)
+
+			go func() {
+				defer close(txsCh)
+				defer close(errsCh)
+				if err := loader.LoadTxsForAddress(
+					t.Context(),
+					blockRange,
+					emitter.ContractAddress(),
+					pageSize,
+					txsCh,
+					errsCh,
+				); err != nil {
+					errsCh <- err
+				}
+			}()
 
 			var txs []models.Tx
+			var loadErr error
 			for tx := range txsCh {
 				txs = append(txs, tx)
 			}
+			// Check for any errors
+			for err := range errsCh {
+				loadErr = err
+			}
+			require.NoError(t, loadErr)
 
 			indexedCells := make([]*cell.Cell, 0, len(txs))
 			for _, tx := range txs {
@@ -132,18 +148,34 @@ func Test_LogPoller(t *testing.T) {
 					To:   nextBlock,
 				}
 
-				txsCh, _, berr := loader.LoadTxsForAddress(
-					t.Context(),
-					iterRange,
-					emitter.ContractAddress(),
-					pageSize,
-				)
-				require.NoError(t, berr)
+				txsCh := make(chan models.Tx, 100)
+				errsCh := make(chan error, 1)
+
+				go func() {
+					defer close(txsCh)
+					defer close(errsCh)
+					if err := loader.LoadTxsForAddress(
+						t.Context(),
+						iterRange,
+						emitter.ContractAddress(),
+						pageSize,
+						txsCh,
+						errsCh,
+					); err != nil {
+						errsCh <- err
+					}
+				}()
 
 				var txs []models.Tx
+				var loadErr error
 				for tx := range txsCh {
 					txs = append(txs, tx)
 				}
+				// Check for any errors
+				for err := range errsCh {
+					loadErr = err
+				}
+				require.NoError(t, loadErr)
 
 				// Extract messages from the loaded transactions
 				for _, tx := range txs {

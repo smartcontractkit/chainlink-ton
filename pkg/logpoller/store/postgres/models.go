@@ -21,7 +21,7 @@ type filterModel struct {
 	Address       string    `db:"address"` // user-friendly TON address string
 	MsgType       string    `db:"msg_type"`
 	EventSig      uint32    `db:"event_sig"`
-	StartingSeqNo uint32    `db:"starting_seq_no"`
+	StartingSeqNo uint32    `db:"starting_seq_no"` //TODO: not in use
 	CreatedAt     time.Time `db:"created_at"`
 }
 

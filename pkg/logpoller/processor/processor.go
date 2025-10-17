@@ -31,41 +31,8 @@ func New(lggr logger.Logger, chainID string) logpoller.Processor {
 	}
 }
 
-// ProcessTransactions iterates through transactions and processes each one
-func (p *txProcessor) ProcessTransactions(ctx context.Context, filterIndex models.FilterIndex, txsIn <-chan models.Tx) (<-chan models.Log, error) {
-	if len(filterIndex) == 0 {
-		return nil, nil
-	}
-
-	logsOut := make(chan models.Log, 100)
-
-	go func() {
-		defer close(logsOut)
-
-		for tx := range txsIn {
-			logs, err := p.processTx(ctx, tx.Transaction, tx.Block, filterIndex)
-			if err != nil {
-				// skip this transaction, but keep the pipeline running
-				p.lggr.Errorw("failure while processing transaction, skipping", "tx_hash", tx.Transaction.Hash, "err", err)
-				continue
-			}
-
-			// send all generated logs to the output channel
-			for _, log := range logs {
-				select {
-				case logsOut <- log:
-				case <-ctx.Done():
-					return
-				}
-			}
-		}
-	}()
-
-	return logsOut, nil
-}
-
-// processTx handles a single transaction
-func (p *txProcessor) processTx(_ context.Context, tx *tlb.Transaction, block *ton.BlockIDExt, filterIndex models.FilterIndex) ([]models.Log, error) {
+// ProcessTx handles a single transaction
+func (p *txProcessor) ProcessTx(_ context.Context, tx *tlb.Transaction, block *ton.BlockIDExt, filterIndex models.FilterIndex) ([]models.Log, error) {
 	if tx == nil {
 		return nil, errors.New("transaction is nil")
 	}
