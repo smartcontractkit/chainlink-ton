@@ -20,9 +20,9 @@ import (
 //
 // This package implements a log polling service for TON blockchain.
 // It monitors external message outputs from specified addresses and
-// applies filtering logic to support cross-chain message detection.
+// applies filtering logic to detect messages.
 
-// service is the main TON log polling service implementation.
+// service is the main TON log poller service.
 // It continuously polls the TON masterchain, discovers new blocks, and processes
 // external messages from registered filter addresses.
 type service struct {
@@ -34,14 +34,15 @@ type service struct {
 	filters   FilterStore // Registry of active filters
 	loader    TxLoader    // Transaction loader returning loaded txs
 	processor Processor   // Transaction processor returning populated logs
-	store     LogStore    // Log storage (MVP: in-memory, to be replaced with ORM)
+	store     LogStore    // Log storage interface
 
+	// configuration for service operation
 	pollPeriod         time.Duration // How often to poll for new blocks
 	lastProcessedBlock uint32        // Last processed masterchain sequence number
 	startingLookback   time.Duration // How far back to look when starting up
 	blockTime          time.Duration // Expected block time for calculations(approximately 2.5 seconds)
 
-	// Configuration for transaction loading and log storage
+	// configuration for transaction loading and log storage
 	pageSize        uint32 // Number of transactions to fetch per API call
 	batchInsertSize uint32 // PostgreSQL batch insert size
 	minBatchSize    uint32 // Minimum batch size for timeout retry
