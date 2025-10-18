@@ -1,20 +1,16 @@
 import "messages"
 import "errors"
-import "types"
 import "storage"
 import "../offramp/messages"
 import "../offramp/types"
 import "../../lib/utils"
-import "../common/types"
 import "../../deployable/types.tolk"
 import "../receive_executor/storage"
 
 const CONTRACT_VERSION = "0.0.3";
 
 // MerkleRoot contract
-// Root is commited on Commit Reports and messages are executed on Execute Reports
-// This contract deploys ReceiveExecutor contracts that handle the execution state of each message
-// and routes messages from the executors to the offramp and back.
+// Root is commited on Commit Reports and the existance of this contract is used to validate Execute Reports
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy MerkleRoot_InMessage.fromSlice(in.body);
@@ -22,7 +18,7 @@ fun onInternalMessage(in: InMessage) {
         // Sender must be OffRamp
         MerkleRoot_Validate => {
             // If we receive this message from the OffRamp then the merkle proof has already been validated
-            // and we know the message is part of the Commit Report.
+            // and we know the message is part of the Commit Report. 
             _initExecute(msg, in.senderAddress);
         }
         else => {
@@ -32,6 +28,8 @@ fun onInternalMessage(in: InMessage) {
     }
 }
 
+// Responds to the OffRamp to validate existance of the message in the Execute report.
+// This triggers OffRamp deployment of the ReceiveExecutor contract that handles execution state for the message
 fun _initExecute(msg: MerkleRoot_Validate, sender: address) {
     var st = MerkleRoot_Storage.load();
 

@@ -99,6 +99,7 @@ fun _bouncedCCIPReceive(execId: uint224, sender: address) {
     receiveBounced.send(SEND_MODE_REGULAR);
 }
 
+// Received from ReceiveExecutor after validating that the confirm message came from the correct receiver
 fun _notifySuccess(msg: OffRamp_NotifySuccess, sender: address) {
     assertSenderIsOwnedContract(Storage.load(), sender, getOwnedContractId(msg.header.messageId));
 
@@ -110,6 +111,8 @@ fun _notifySuccess(msg: OffRamp_NotifySuccess, sender: address) {
         state: ExecutionState.Success
     });
 }
+
+// Received from ReceiveExecutor after validating that the bounce message came from the correct receiver and enabling manual execute to retry
 fun _notifyFailure(msg: OffRamp_NotifyFailure, sender: address) {
     assertSenderIsOwnedContract(Storage.load(), sender, getOwnedContractId(msg.header.messageId));
 
@@ -122,6 +125,8 @@ fun _notifyFailure(msg: OffRamp_NotifyFailure, sender: address) {
     });
 }
 
+// Sent by the receiver to confirm successful receipt of the message,
+// ReceiveExecutor must further validate that the sender is the intended receiver
 fun _ccipReceiveConfirm(msg: OffRamp_CCIPReceiveConfirm, sender: address) {
     val st = Storage.load();
     val receiveConfirm = createMessage({
@@ -414,7 +419,7 @@ fun _executeValidated(msg: OffRamp_ExecuteValidated, sender: address) {
         sourceChainSelector: message.header.sourceChainSelector,
         sequenceNumber: message.header.sequenceNumber,
         messageId: message.header.messageId,
-        state: EXECUTION_STATE_IN_PROGRESS
+        state: ExecutionState.InProgress
     });
 
     initializeExecutor(st, message, rootId);
