@@ -31,7 +31,7 @@ fun onInternalMessage(in: InMessage) {
 fun _initExecute(msg: ReceiveExecutor_InitExecute, sender: address) {
     var st = ReceiveExecutor_Storage.load();
 
-    assert(sender == st.owner, Error.NotOwner);
+    assert(sender == st.owner, Error.Unauthorized);
     assert(st.state == ReceiveExecutor_MessageState.Untouched, Error.StateIsNotUntouched);
 
     //TODO 
@@ -64,8 +64,8 @@ fun _execute(st: ReceiveExecutor_Storage) {
 fun _ccipReceiveConfirm(msg: ReceiveExecutor_Confirm, sender: address) {
     var st = ReceiveExecutor_Storage.load();
 
-    assert(st.state == ReceiveExecutor_MessageState.Execute && st.message != null, Error.UpdatingStateOfNonExecutedMessage);
-    assert(sender == st.owner, Error.NotOwner);
+    assert(st.state == ReceiveExecutor_MessageState.Execute, Error.UpdatingStateOfNonExecutedMessage);
+    assert(sender == st.owner, Error.Unauthorized);
 
     val ccipMessage = Any2TVMRampMessage.fromCell(st.message);
 
@@ -89,8 +89,8 @@ fun _ccipReceiveConfirm(msg: ReceiveExecutor_Confirm, sender: address) {
 fun _ccipReceiveBounced(msg: ReceiveExecutor_Bounced, sender: address){
     var st: ReceiveExecutor_Storage = ReceiveExecutor_Storage.load();
 
-    assert(sender == st.owner, Error.NotOwner);
-    assert(st.state == ReceiveExecutor_MessageState.Execute && st.message != null, Error.UpdatingStateOfNonExecutedMessage);
+    assert(sender == st.owner, Error.Unauthorized);
+    assert(st.state == ReceiveExecutor_MessageState.Execute, Error.UpdatingStateOfNonExecutedMessage);
 
     val ccipMessage = Any2TVMRampMessage.fromCell(st.message);
 

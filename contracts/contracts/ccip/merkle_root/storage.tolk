@@ -1,5 +1,4 @@
 import "../offramp/types";
-import "types";
 
 struct MerkleRoot_Storage {
     rootId: uint224;
