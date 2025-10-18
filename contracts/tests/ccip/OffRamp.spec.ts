@@ -133,6 +133,7 @@ describe('OffRamp', () => {
   let receiver: SandboxContract<Receiver>
   let deployerCode: Cell
   let merkleRootCodeRaw: Cell
+  let receiveExecutorCodeRaw: Cell
   let transmitters: SandboxContract<TreasuryContract>[]
   let signers: KeyPair[]
   let signersPublicKeys: bigint[]
@@ -343,6 +344,7 @@ describe('OffRamp', () => {
     deployer = await blockchain.treasury('deployer')
     deployerCode = await compile('Deployable')
     merkleRootCodeRaw = await compile('MerkleRoot')
+    receiveExecutorCodeRaw = await compile('ReceiveExecutor')
 
     transmitters = await Promise.all([
       blockchain.treasury('transmitter1'),
@@ -363,7 +365,10 @@ describe('OffRamp', () => {
     // Populate the emulator library code
     // https://docs.ton.org/v3/documentation/data-formats/tlb/library-cells#testing-in-the-blueprint
     const _libs = Dictionary.empty(Dictionary.Keys.BigUint(256), Dictionary.Values.Cell())
+
     _libs.set(BigInt(`0x${merkleRootCodeRaw.hash().toString('hex')}`), merkleRootCodeRaw)
+    _libs.set(BigInt(`0x${receiveExecutorCodeRaw.hash().toString('hex')}`), receiveExecutorCodeRaw)
+
     const libs = beginCell().storeDictDirect(_libs).endCell()
     blockchain.libs = libs
 
@@ -377,8 +382,11 @@ describe('OffRamp', () => {
       let code = await compile('OffRamp')
 
       // Use a library reference
-      let libPrep = beginCell().storeUint(2, 8).storeBuffer(merkleRootCodeRaw.hash()).endCell()
-      let merkleRootCode = new Cell({ exotic: true, bits: libPrep.bits, refs: libPrep.refs })
+      let merkleRootLibPrep = beginCell().storeUint(2, 8).storeBuffer(merkleRootCodeRaw.hash()).endCell()
+      let merkleRootCode = new Cell({ exotic: true, bits: merkleRootLibPrep.bits, refs: merkleRootLibPrep.refs })
+
+      let receiveExecutorLibPrep = beginCell().storeUint(2, 8).storeBuffer(receiveExecutorCodeRaw.hash()).endCell()
+      let receiveExecutorCode = new Cell({ exotic: true, bits: receiveExecutorLibPrep.bits, refs: receiveExecutorLibPrep.refs })
 
       let data: OffRampStorage = {
         id: generateSecureRandomId(),
@@ -386,8 +394,11 @@ describe('OffRamp', () => {
           owner: deployer.address,
           pendingOwner: null,
         },
-        deployerCode: deployerCode,
-        merkleRootCode: merkleRootCode,
+        deployables: {
+          deployerCode: deployerCode,
+          merkleRootCode: merkleRootCode,
+          receiveExecutorCode: receiveExecutorCode
+        },
         feeQuoter: feeQuoter.address,
         chainSelector: CHAINSEL_TON,
         permissionlessExecutionThresholdSeconds: 60,
@@ -791,10 +802,7 @@ describe('OffRamp', () => {
 
     const result = await offRamp.sendDispatchValidated(deployer.getSender(), {
       value: toNano('0.5'),
-      messages: [message],
-      proofs: [],
-      proofFlagBits: 0n,
-      metadataHash: uint8ArrayToBigInt(getMetadataHash(CHAINSEL_EVM_TEST_90000001)),
+      message: message,
     })
 
     expect(result.transactions).toHaveTransaction({
@@ -1062,6 +1070,7 @@ describe('OffRamp', () => {
       Receiver.createFromConfig({ id: 1, offramp: wrongOffRampAddress }, code),
     )
     const result = await badReceiver.sendDeploy(deployer.getSender(), toNano('10'))
+
     expect(result.transactions).toHaveTransaction({
       from: deployer.address,
       to: badReceiver.address,

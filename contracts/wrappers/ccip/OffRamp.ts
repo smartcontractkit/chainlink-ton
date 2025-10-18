@@ -22,12 +22,17 @@ import { CCIPReceive, ReceiverStorage } from './Receiver'
 export type OffRampStorage = {
   id: bigint
   ownable: ownable2step.Data
-  deployerCode: Cell
-  merkleRootCode: Cell
+  deployables: Deployables
   feeQuoter: Address
   chainSelector: bigint
   permissionlessExecutionThresholdSeconds: number
   latestPriceSequenceNumber: bigint
+}
+
+export type Deployables = {
+  deployerCode: Cell
+  merkleRootCode: Cell
+  receiveExecutorCode: Cell
 }
 
 export type SourceChainConfig = {
@@ -120,8 +125,13 @@ export const builder = {
                 ? beginCell().storeAddress(storage.ownable.pendingOwner)
                 : null,
             )
-            .storeRef(storage.deployerCode)
-            .storeRef(storage.merkleRootCode)
+            .storeRef(
+              beginCell()
+                .storeRef(storage.deployables.deployerCode)
+                .storeRef(storage.deployables.merkleRootCode)
+                .storeRef(storage.deployables.receiveExecutorCode)
+              .endCell()
+            )
             .storeAddress(storage.feeQuoter)
             // empty OCR3Base::
             .storeRef(
@@ -348,10 +358,7 @@ export class OffRamp extends OCR3Base {
     via: Sender,
     opts: {
       value: bigint
-      messages: Any2TVMRampMessage[]
-      proofs: bigint[] //256[]
-      proofFlagBits: bigint //256
-      metadataHash: bigint //256
+      message: Any2TVMRampMessage
     },
   ) {
     await provider.internal(via, {
@@ -359,14 +366,7 @@ export class OffRamp extends OCR3Base {
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: beginCell()
         .storeUint(Opcodes.dispatchValidated, 32)
-        .storeRef(
-          asSnakeData(opts.messages, (item) =>
-            beginCell().storeBuilder(Any2TVMRampMessageToBuilder(item)),
-          ),
-        )
-        .storeRef(asSnakeData(opts.proofs, (item) => beginCell().storeUint(item, 256)))
-        .storeUint(opts.proofFlagBits, 256)
-        .storeUint(opts.metadataHash, 256)
+        .storeBuilder(Any2TVMRampMessageToBuilder(opts.message))
         .endCell(),
     })
   }

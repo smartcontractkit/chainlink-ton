@@ -45,6 +45,7 @@ struct(0xabcdef01) OffRamp_MessageReadyForDispatch {
     message: Any2TVMRampMessage;
 }
 
+//Must be sent by owner
 //crc32('OffRamp_UpdateSourceChainConfig')
 struct (0xb98c95e3) OffRamp_UpdateSourceChainConfig {
     queryId: uint64;
@@ -52,7 +53,7 @@ struct (0xb98c95e3) OffRamp_UpdateSourceChainConfig {
     config: SourceChainConfig;
 }
 
-//Must be sent from an owned MerkleRoot contract
+//Must be sent from an owned ReceiveExecutor contract
 //crc32('OffRamp_DispatchValidated')
 struct (0x58cfcb02) OffRamp_DispatchValidated { 
     message: Any2TVMRampMessage;
