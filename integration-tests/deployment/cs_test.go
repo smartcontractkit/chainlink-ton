@@ -2,8 +2,10 @@ package deployment
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/timelock"
 	"math/big"
 	"testing"
 	"time"
@@ -59,7 +61,7 @@ func TestDeploy(t *testing.T) {
 	chainSelector := tonChainSelectors[0]
 	tonChain := env.BlockChains.TonChains()[chainSelector]
 	deployer := tonChain.Wallet
-	t.Log("Deployer: ", deployer.Address().String())
+	t.Log("Deployer: ", deployer.WalletAddress().String())
 	clientProvider := func(ctx context.Context) (ton.APIClientWrapped, error) {
 		return tonChain.Client, nil
 	}
@@ -227,6 +229,57 @@ func TestDeploy(t *testing.T) {
 	shouldBeOffRampAddress := getOfframpAddressResponse.MustSlice(0).MustLoadAddr()
 	require.Equal(t, offRampAddr.String(), shouldBeOffRampAddress.String())
 	// </Verify receiver address>
+
+	// <Verify timelock address>
+	timelockAddr := state[chainSelector].Timelock
+	_, err = addrCodec.AddressStringToBytes(timelockAddr.String())
+	isInitializedResponse, err := tonChain.Client.RunGetMethod(ctx, mc, &timelockAddr, "isInitialized")
+	require.NoError(t, err)
+	t.Log("isInitializedResponse: ", isInitializedResponse)
+
+	mcInfo, err := tonChain.Client.CurrentMasterchainInfo(ctx)
+	if err != nil {
+		panic(err)
+	}
+	acc, err := tonChain.Client.GetAccount(ctx, mcInfo, &timelockAddr)
+	if err != nil {
+		t.Log("Error getting account state", "addr", timelockAddr, "error", err)
+	} else {
+		t.Log("Account data", "data hash", hex.EncodeToString(acc.Data.Hash()), "size", acc.Data.BitsSize())
+	}
+
+	// isInitialized, err := isInitializedResponse.MustSlice(0).LoadBoolBit()
+	// require.NoError(t, err)
+	// require.True(t, isInitialized)
+	// require.NoError(t, err)
+	// require.NoError(t, err)
+	getProposerResponse, err := tonChain.Client.RunGetMethod(ctx, mc, &timelockAddr, "getRoleMemberFirst", timelock.RoleProposer)
+	require.NoError(t, err)
+	getExecutorResponse, err := tonChain.Client.RunGetMethod(ctx, mc, &timelockAddr, "getRoleMemberFirst", timelock.RoleExecutor)
+	require.NoError(t, err)
+	getCancellerResponse, err := tonChain.Client.RunGetMethod(ctx, mc, &timelockAddr, "getRoleMemberFirst", timelock.RoleCanceller)
+	require.NoError(t, err)
+	getBypasserResponse, err := tonChain.Client.RunGetMethod(ctx, mc, &timelockAddr, "getRoleMemberFirst", timelock.RoleBaypasser)
+	require.NoError(t, err)
+	getAdminResponse, err := tonChain.Client.RunGetMethod(ctx, mc, &timelockAddr, "getRoleMemberFirst", timelock.RoleAdmin)
+	require.NoError(t, err)
+	shouldBeDeployer1 := getProposerResponse.MustSlice(0).MustLoadAddr()
+	shouldBeDeployer2 := getExecutorResponse.MustSlice(0).MustLoadAddr()
+	shouldBeDeployer3 := getCancellerResponse.MustSlice(0).MustLoadAddr()
+	shouldBeDeployer4 := getBypasserResponse.MustSlice(0).MustLoadAddr()
+	shouldBeDeployer5 := getAdminResponse.MustSlice(0).MustLoadAddr()
+	t.Log("shouldBeDeployer1: ", shouldBeDeployer1.String())
+	t.Log("shouldBeDeployer2: ", shouldBeDeployer1.String())
+	t.Log("shouldBeDeployer3: ", shouldBeDeployer1.String())
+	t.Log("shouldBeDeployer4: ", shouldBeDeployer1.String())
+	t.Log("shouldBeDeployer5: ", shouldBeDeployer1.String())
+	require.Equal(t, deployer.WalletAddress().Bounce(true).String(), shouldBeDeployer1.String())
+	require.Equal(t, deployer.WalletAddress().Bounce(true).String(), shouldBeDeployer2.String())
+	require.Equal(t, deployer.WalletAddress().Bounce(true).String(), shouldBeDeployer3.String())
+	require.Equal(t, deployer.WalletAddress().Bounce(true).String(), shouldBeDeployer4.String())
+	require.Equal(t, deployer.WalletAddress().Bounce(true).String(), shouldBeDeployer5.String())
+	// </Verify timelock address>
+
 	rawDeployerAddr, err := addrCodec.AddressStringToBytes(deployer.WalletAddress().String())
 	require.NoError(t, err)
 

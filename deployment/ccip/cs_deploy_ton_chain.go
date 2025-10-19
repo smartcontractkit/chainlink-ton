@@ -115,6 +115,11 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 		_ = ab.Save(selector, state.TonReceiver.String(), cldf.NewTypeAndVersion(cldf.ContractType(state.TonReceiver.String()), contractsVersion))
 		s.ReceiverAddress = ccipSeqReport.Output.ReceiverAddress.TONAddress
 	}
+	if ccipSeqReport.Output.TimelockAddress != nil {
+		_ = dataStore.Addresses().Add(ccipSeqReport.Output.TimelockAddress.CLDFAddressRef)
+		_ = ab.Save(selector, state.Timelock.String(), cldf.NewTypeAndVersion(cldf.ContractType(state.Timelock.String()), contractsVersion))
+		s.Timelock = ccipSeqReport.Output.TimelockAddress.TONAddress
+	}
 
 	deps.CCIPOnChainState[selector] = s
 
@@ -137,6 +142,22 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 
 	txs = append(txs, updateFeeTokensReport.Output...)
 
+	// timelock.init
+	initTimelockInput := operation.InitTimelockInput{
+		Admin:      config.Params.TimelockParams.Admin,
+		Proposers:  config.Params.TimelockParams.Proposers,
+		Executors:  config.Params.TimelockParams.Executors,
+		Cancellers: config.Params.TimelockParams.Cancellers,
+		Bypassers:  config.Params.TimelockParams.Bypassers,
+	}
+
+	initTimelockReport, err := operations.ExecuteOperation(env.OperationsBundle, operation.InitTimelockOp, deps, initTimelockInput)
+	if err != nil {
+		return cldf.ChangesetOutput{}, fmt.Errorf("failed to init timelock contract: %w", err)
+	}
+	txs = append(txs, initTimelockReport.Output...)
+
+	// Execute post-deployment transactions
 	err = utils.ExecuteProposals(env, chain.Client, chain.Wallet, txs)
 
 	if err != nil {

@@ -25,6 +25,7 @@ var (
 	OnRamp       ds.ContractType = "OnRamp"
 	OffRamp      ds.ContractType = "OffRamp"
 	FeeQuoter    ds.ContractType = "FeeQuoter"
+	Timelock     ds.ContractType = "Timelock"
 )
 
 // CCIPChainState holds a Go binding for all the currently deployed CCIP contracts
@@ -35,6 +36,7 @@ type CCIPChainState struct {
 	Router           address.Address
 	OnRamp           address.Address
 	FeeQuoter        address.Address
+	Timelock         address.Address
 	ReceiverAddress  address.Address
 }
 
@@ -180,6 +182,8 @@ func loadChainState(chain cldf_ton.Chain, addresses []ds.AddressRef) (CCIPChainS
 			state.OnRamp = *contractAddress
 		case FeeQuoter:
 			state.FeeQuoter = *contractAddress
+		case Timelock:
+			state.Timelock = *contractAddress
 		default:
 			log.Warn().Str("address", rawContractAddress).Str("type", contractType.String()).Msg("Unknown TON address type")
 			continue

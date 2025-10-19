@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"os"
 	"strings"
 
@@ -222,6 +223,37 @@ func Deploy(client *tracetracking.SignedAPIClient, codeCell *cell.Cell, initData
 	if err != nil {
 		return nil, nil, fmt.Errorf("deployment failed: %w", err)
 	}
+
+	receivedMessage, err := tracetracking.MapToReceivedMessage(tx)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get outgoing messages: %w", err)
+	}
+	err = receivedMessage.WaitForTrace(client.Client)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to wait for trace: %w", err)
+	}
+	if receivedMessage.ExitCode != tvm.ExitCodeSuccess || len(receivedMessage.OutgoingInternalReceivedMessages) != 1 {
+		return nil, nil, fmt.Errorf("contract deployment failed: error sending external message: exit code %d: %s", receivedMessage.ExitCode, receivedMessage.ExitCode.Describe())
+	}
+
+	return &Contract{addr, client}, &receivedMessage, nil
+}
+
+func Deploy2(l logger.Logger, client *tracetracking.SignedAPIClient, codeCell *cell.Cell, initData *cell.Cell, amount tlb.Coins, msgBody *cell.Cell) (*Contract, *tracetracking.ReceivedMessage, error) {
+	// Deploy the contract
+	addr, tx, block, err := client.Wallet.DeployContractWaitTransaction(
+		context.Background(), // TODO: use context from args
+		amount,
+		msgBody,
+		codeCell,
+		initData,
+	)
+
+	if err != nil {
+		return nil, nil, fmt.Errorf("deployment failed: %w", err)
+	}
+
+	l.Infow("Deployed Contract", "addr", addr, "tx", tx.String(), "block", block)
 
 	receivedMessage, err := tracetracking.MapToReceivedMessage(tx)
 	if err != nil {
