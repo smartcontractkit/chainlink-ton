@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"runtime"
+	"sync"
 
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	"github.com/xssnick/tonutils-go/address"
@@ -113,6 +114,7 @@ func fetchDestChainConfigsView(ctx context.Context, c cldf_ton.Chain, block *ton
 	selectorSlice := parseExecutionResultForDestChainSelectors(result.AsTuple())
 
 	var eg errgroup.Group
+	var mu sync.Mutex
 	eg.SetLimit(runtime.NumCPU())
 	output := make(map[uint64]DestChainConfig)
 	for _, dest := range selectorSlice {
@@ -148,7 +150,9 @@ func fetchDestChainConfigsView(ctx context.Context, c cldf_ton.Chain, block *ton
 				NetworkFeeUsdCents:                cfg.NetworkFeeUsdCents,
 			}
 
+			mu.Lock()
 			output[dest] = destConfig
+			mu.Unlock()
 			return nil
 		})
 	}

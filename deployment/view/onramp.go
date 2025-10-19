@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"runtime"
+	"sync"
 
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	"github.com/xssnick/tonutils-go/address"
@@ -94,6 +95,7 @@ func fetchDestChainConfig(ctx context.Context, c cldf_ton.Chain, block *ton.Bloc
 	var eg errgroup.Group
 	eg.SetLimit(runtime.NumCPU())
 	output := make(map[uint64]OnRampDestChainConfig)
+	var mu sync.Mutex
 	for _, dest := range chainSelectors {
 		// On-chain returns *big.Int for selector values, convert to uint64
 		eg.Go(func() error {
@@ -128,12 +130,14 @@ func fetchDestChainConfig(ctx context.Context, c cldf_ton.Chain, block *ton.Bloc
 				allowedSenders[senderAddr.String()] = allowed
 			}
 
+			mu.Lock()
 			output[dest] = OnRampDestChainConfig{
 				SequenceNumber:   cfg.SequenceNumber,
 				AllowlistEnabled: cfg.AllowListEnabled,
 				Router:           cfg.Router.String(),
 				AllowedSenders:   allowedSenders,
 			}
+			mu.Unlock()
 
 			return nil
 		})

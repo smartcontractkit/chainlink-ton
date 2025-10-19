@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"runtime"
+	"sync"
 
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	"github.com/xssnick/tonutils-go/address"
@@ -44,6 +45,7 @@ func FetchRouterView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDEx
 	var onrampSlice *cell.Slice
 	var onRampAddr *address.Address
 	var eg errgroup.Group
+	var mu sync.Mutex
 	eg.SetLimit(runtime.NumCPU())
 	onRampAddrMap := make(map[uint64]*address.Address)
 	for _, dest := range selectorSlice {
@@ -63,7 +65,9 @@ func FetchRouterView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDEx
 				return fmt.Errorf("failed to load onramp address: %w", err)
 			}
 
+			mu.Lock()
 			onRampAddrMap[dest] = onRampAddr
+			mu.Unlock()
 			return nil
 		})
 	}
