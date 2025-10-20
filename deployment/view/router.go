@@ -50,8 +50,8 @@ func FetchRouterView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDEx
 	onRampAddrMap := make(map[uint64]*address.Address)
 	for _, destChain := range selectorSlice {
 		// On-chain returns *big.Int for selector values, convert to uint64
+		dest := destChain // capture range variable
 		eg.Go(func() error {
-			dest := destChain // capture range variable
 			result, err := c.Client.RunGetMethod(ctx, block, routerAddr, onRampGetter, dest)
 			if err != nil {
 				return fmt.Errorf("error getting onrampAddr: %v", err)

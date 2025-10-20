@@ -97,9 +97,8 @@ func fetchDestChainConfig(ctx context.Context, c cldf_ton.Chain, block *ton.Bloc
 	output := make(map[uint64]OnRampDestChainConfig)
 	var mu sync.Mutex
 	for _, destChain := range chainSelectors {
-		// On-chain returns *big.Int for selector values, convert to uint64
+		dest := destChain // capture range variable
 		eg.Go(func() error {
-			dest := destChain // capture range variable
 			result, err := c.Client.RunGetMethod(ctx, block, onrampAddr, destChainConfigGetter, dest)
 			if err != nil {
 				return err
