@@ -1,6 +1,7 @@
 import {
   Address,
   beginCell,
+  Builder,
   Cell,
   Contract,
   contractAddress,
@@ -10,6 +11,7 @@ import {
   Slice,
 } from '@ton/core'
 import { JettonOpcodes } from '../examples/jetton/types'
+import { CellCodec } from '../utils'
 
 export type JettonWalletConfig = {
   ownerAddress: Address
@@ -37,7 +39,7 @@ export function parseJettonWalletData(data: Cell) {
   }
 }
 
-export const WalletOpcodes = {
+export const Opcodes = {
   TRANSFER: JettonOpcodes.TRANSFER,
   TRANSFER_NOTIFICATION: JettonOpcodes.TRANSFER_NOTIFICATION,
   INTERNAL_TRANSFER: JettonOpcodes.INTERNAL_TRANSFER,
@@ -48,8 +50,8 @@ export const WalletOpcodes = {
   WITHDRAW_JETTONS: JettonOpcodes.WITHDRAW_JETTONS,
 }
 
-export type TransferMessage = {
-  queryId: bigint
+export type AskToTransfer = {
+  queryId: number
   jettonAmount: bigint
   destination: Address
   responseDestination: Address
@@ -58,11 +60,35 @@ export type TransferMessage = {
   forwardPayload: Cell | Slice | null
 }
 
+export type AskToTransferWithFwdPayload<T> = {
+  queryId: number
+  jettonAmount: bigint
+  destination: Address
+  responseDestination: Address
+  customPayload: Cell | null
+  forwardTonAmount: bigint
+  forwardPayload: T
+}
+
 export type BurnMessage = {
   queryId: bigint
   jettonAmount: bigint
   responseDestination: Address | null
   customPayload: Cell | null
+}
+
+export type TransferNotificationForRecipient = {
+  queryId: number
+  jettonAmount: bigint
+  senderAddress: Address
+  forwardPayload: Cell | null
+}
+
+export type TransferNotificationWithFwdPayload<T> = {
+  queryId: number
+  jettonAmount: bigint
+  senderAddress: Address
+  forwardPayload: T
 }
 
 export class JettonWallet implements Contract {
@@ -94,28 +120,10 @@ export class JettonWallet implements Contract {
     via: Sender,
     opts: {
       value: bigint
-      message: TransferMessage
+      message: AskToTransfer
     },
   ) {
-    const forwardPayload = opts.message.forwardPayload
-    const body = beginCell()
-      .storeUint(WalletOpcodes.TRANSFER, 32)
-      .storeUint(opts.message.queryId, 64)
-      .storeCoins(opts.message.jettonAmount)
-      .storeAddress(opts.message.destination)
-      .storeAddress(opts.message.responseDestination)
-
-    body.storeMaybeRef(opts.message.customPayload)
-
-    body.storeCoins(opts.message.forwardTonAmount)
-
-    const byRef = forwardPayload instanceof Cell
-    body.storeBit(byRef)
-    if (byRef) {
-      body.storeRef(forwardPayload)
-    } else if (forwardPayload) {
-      body.storeSlice(forwardPayload)
-    }
+    const body = builder.messages.in.askToTransfer.encode(opts.message)
 
     await provider.internal(via, {
       value: opts.value,
@@ -133,7 +141,7 @@ export class JettonWallet implements Contract {
     },
   ) {
     const body = beginCell()
-      .storeUint(WalletOpcodes.BURN, 32)
+      .storeUint(Opcodes.BURN, 32)
       .storeUint(opts.message.queryId, 64)
       .storeCoins(opts.message.jettonAmount)
       .storeAddress(opts.message.responseDestination)
@@ -156,29 +164,8 @@ export class JettonWallet implements Contract {
       value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: beginCell()
-        .storeUint(WalletOpcodes.WITHDRAW_TONS, 32)
+        .storeUint(Opcodes.WITHDRAW_TONS, 32)
         .storeUint(0, 64) // query_id
-        .endCell(),
-    })
-  }
-
-  async sendWithdrawJettons(
-    provider: ContractProvider,
-    via: Sender,
-    opts: {
-      value: bigint
-      from: Address
-      amount: bigint
-    },
-  ) {
-    await provider.internal(via, {
-      value: opts.value,
-      sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: beginCell()
-        .storeUint(WalletOpcodes.WITHDRAW_JETTONS, 32)
-        .storeUint(0, 64) // query_id
-        .storeAddress(opts.from)
-        .storeCoins(opts.amount)
         .endCell(),
     })
   }
@@ -202,4 +189,148 @@ export class JettonWallet implements Contract {
     const { stack } = await provider.get('get_status', [])
     return stack.readNumber()
   }
+}
+
+export const builder = {
+  messages: {
+    in: (() => {
+      const askToTransfer: CellCodec<AskToTransfer> = {
+        encode: function (data: AskToTransfer): Builder {
+          const body = beginCell()
+            .storeUint(Opcodes.TRANSFER, 32)
+            .storeUint(data.queryId, 64)
+            .storeCoins(data.jettonAmount)
+            .storeAddress(data.destination)
+            .storeAddress(data.responseDestination)
+            .storeMaybeRef(data.customPayload)
+            .storeCoins(data.forwardTonAmount)
+
+          const forwardPayload = data.forwardPayload
+          const byRef = forwardPayload instanceof Cell
+          body.storeBit(byRef)
+          if (byRef) {
+            body.storeRef(forwardPayload)
+          } else if (forwardPayload) {
+            body.storeSlice(forwardPayload)
+          }
+          return body
+        },
+        load: function (src: Slice): AskToTransfer {
+          let op = src.loadUint(32)
+          if (op !== Opcodes.TRANSFER) {
+            throw new Error(`Invalid opcode, expected ${Opcodes.TRANSFER}, got ${op}`)
+          }
+          const askToTransfer = {
+            queryId: src.loadUint(64),
+            jettonAmount: src.loadCoins(),
+            destination: src.loadAddress(),
+            responseDestination: src.loadAddress(),
+            customPayload: src.loadMaybeRef(),
+            forwardTonAmount: src.loadCoins(),
+            forwardPayload: null as Cell | Slice | null,
+          }
+          const byRef = src.loadBit()
+          if (byRef) {
+            askToTransfer.forwardPayload = src.loadRef()
+          } else if (src.remainingBits > 0) {
+            askToTransfer.forwardPayload = src
+          }
+          return askToTransfer
+        },
+      }
+      const askToTransferWithFwdPayload = <T>(
+        payloadCodec: CellCodec<T>,
+      ): CellCodec<AskToTransferWithFwdPayload<T>> => {
+        return {
+          encode: function (data: AskToTransferWithFwdPayload<T>): Builder {
+            let tr: AskToTransfer = {
+              ...data,
+              forwardPayload: payloadCodec.encode(data.forwardPayload).endCell(),
+            }
+            return askToTransfer.encode(tr)
+          },
+          load: function (src: Slice): AskToTransferWithFwdPayload<T> {
+            let transferRequest = askToTransfer.load(src)
+            if (!transferRequest.forwardPayload) {
+              throw new Error('forwardPayload is null')
+            }
+            let payload = payloadCodec.load(
+              ((forwardPayload: Cell | Slice): Slice => {
+                if (forwardPayload instanceof Cell) {
+                  return forwardPayload.beginParse()
+                } else {
+                  return forwardPayload
+                }
+              })(transferRequest.forwardPayload),
+            )
+            return {
+              ...transferRequest,
+              forwardPayload: payload,
+            }
+          },
+        }
+      }
+      return {
+        askToTransfer,
+        askToTransferWithFwdPayload,
+      }
+    })(),
+    out: (() => {
+      const transferNotificationForRecipient: CellCodec<TransferNotificationForRecipient> = {
+        encode: function (data: TransferNotificationForRecipient): Builder {
+          return beginCell()
+            .storeUint(Opcodes.TRANSFER_NOTIFICATION, 32)
+            .storeUint(data.queryId, 64)
+            .storeCoins(data.jettonAmount)
+            .storeAddress(data.senderAddress)
+            .storeMaybeRef(data.forwardPayload)
+        },
+        load: function (src: Slice): TransferNotificationForRecipient {
+          src.skip(32)
+          return {
+            queryId: src.loadUint(64),
+            jettonAmount: src.loadCoins(),
+            senderAddress: src.loadAddress(),
+            forwardPayload: src.loadMaybeRef(),
+          }
+        },
+      }
+      const transferNotificationWithFwdPayload = <T>(
+        payloadCodec: CellCodec<T>,
+      ): CellCodec<TransferNotificationWithFwdPayload<T>> => {
+        return {
+          encode: function (data: TransferNotificationWithFwdPayload<T>): Builder {
+            let tn: TransferNotificationForRecipient = {
+              ...data,
+              forwardPayload: payloadCodec.encode(data.forwardPayload).endCell(),
+            }
+            return transferNotificationForRecipient.encode(tn)
+          },
+          load: function (src: Slice): TransferNotificationWithFwdPayload<T> {
+            let tn = transferNotificationForRecipient.load(src)
+            if (!tn.forwardPayload) {
+              throw new Error('forwardPayload is null')
+            }
+            let payload = payloadCodec.load(
+              ((forwardPayload: Cell | Slice): Slice => {
+                if (forwardPayload instanceof Cell) {
+                  return forwardPayload.beginParse()
+                } else {
+                  return forwardPayload
+                }
+              })(tn.forwardPayload),
+            )
+            return {
+              ...tn,
+              forwardPayload: payload,
+            }
+          },
+        }
+      }
+      return {
+        transferNotificationForRecipient,
+        transferNotificationWithFwdPayload,
+      }
+    })(),
+  },
 }

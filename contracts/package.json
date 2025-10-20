@@ -13,7 +13,8 @@
   "scripts": {
     "bp": "blueprint",
     "start": "blueprint run",
-    "build": "blueprint build --all",
+    "clean": "[ -d build ] && rm -rf build || true",
+    "build": "yarn clean && blueprint build --all",
     "test": "jest --verbose",
     "fmt:check": "yarn fmt-contracts:check && yarn fmt-typescript:check",
     "fmt": "yarn fmt-contracts && yarn fmt-typescript",

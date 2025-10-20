@@ -20,7 +20,7 @@ import (
 )
 
 func randomTONExecuteReport(t *testing.T, sourceChainSelector uint64) ccipocr3.ExecutePluginReport {
-	const numChainReports = 2
+	const numChainReports = 1 // currently TON supports single report only
 	const msgsPerReport = 2
 	const numTokensPerMsg = 2
 
@@ -78,7 +78,7 @@ func randomTONExecuteReport(t *testing.T, sourceChainSelector uint64) ccipocr3.E
 func TestExecutePluginCodecV1_TON(t *testing.T) {
 	ctx := context.Background()
 	mockExtraDataCodec := new(mocks.SourceChainExtraDataCodec)
-	edc := ccipocr3.ExtraDataCodec(map[string]ccipocr3.SourceChainExtraDataCodec{
+	edc := ccipocr3.ExtraDataCodecMap(map[string]ccipocr3.SourceChainExtraDataCodec{
 		chainsel.FamilyEVM:    mockExtraDataCodec,
 		chainsel.FamilySolana: mockExtraDataCodec,
 		chainsel.FamilyTon:    mockExtraDataCodec,

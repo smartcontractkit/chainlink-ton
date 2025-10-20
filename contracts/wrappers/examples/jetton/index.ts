@@ -18,9 +18,9 @@ export {
 // Jetton Wallet
 export {
   JettonWallet,
-  WalletOpcodes,
+  Opcodes as WalletOpcodes,
   type JettonWalletConfig,
-  type TransferMessage,
+  type AskToTransfer as TransferMessage,
   type BurnMessage,
   jettonWalletConfigToCell,
   parseJettonWalletData,

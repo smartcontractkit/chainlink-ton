@@ -2,11 +2,13 @@ package operation
 
 import (
 	"fmt"
+	"math/big"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
+
+	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/utils"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
@@ -16,10 +18,13 @@ import (
 )
 
 type DeployOnRampInput struct {
-	ChainSelector uint64
-	FeeQuoter     *address.Address
-	FeeAggregator *address.Address
-	ContractPath  string
+	ID                   uint32
+	ChainSelector        uint64
+	FeeQuoter            *address.Address
+	FeeAggregator        *address.Address
+	ContractPath         string
+	ExecutorContractPath string
+	Coins                string
 }
 
 type DeployOnRampOutput struct {
@@ -41,10 +46,15 @@ func deployOnRamp(b operations.Bundle, deps TonDeps, in DeployOnRampInput) (Depl
 	if err != nil {
 		return output, fmt.Errorf("failed to compile contract: %w", err)
 	}
+	executorCode, err := wrappers.ParseCompiledContract(in.ExecutorContractPath)
+	if err != nil {
+		return output, fmt.Errorf("failed to compile executor contract: %w", err)
+	}
 
 	conn := tracetracking.NewSignedAPIClient(deps.TonChain.Client, *deps.TonChain.Wallet)
 
 	storage := onramp.Storage{
+		ID: in.ID,
 		Ownable: common.Ownable2Step{
 			Owner:        deps.TonChain.WalletAddress,
 			PendingOwner: nil,
@@ -56,13 +66,15 @@ func deployOnRamp(b operations.Bundle, deps TonDeps, in DeployOnRampInput) (Depl
 			AllowListAdmin: deps.TonChain.WalletAddress,
 		},
 		DestChainConfigs: nil,
+		ExecutorCode:     executorCode,
+		CurrentMessageID: big.NewInt(0),
 	}
 	initData, err := tlb.ToCell(storage)
 	if err != nil {
 		return output, fmt.Errorf("failed to pack initData: %w", err)
 	}
 
-	contract, _, err := wrappers.Deploy(&conn, codeCell, initData, tlb.MustFromTON("1"), nil)
+	contract, _, err := wrappers.Deploy(&conn, codeCell, initData, tlb.MustFromTON(in.Coins), nil)
 	if err != nil {
 		return output, fmt.Errorf("failed to deploy onramp contract: %w", err)
 	}
@@ -94,6 +106,12 @@ var UpdateOnRampDestChainConfigsOp = operations.NewOperation(
 
 func updateOnRampDestChainConfigs(b operations.Bundle, deps TonDeps, in UpdateOnRampDestChainConfigsInput) ([][]byte, error) {
 	addr := deps.CCIPOnChainState[deps.TonChain.Selector].OnRamp
+
+	if len(in.Updates) == 0 {
+		b.Logger.Info("Skipping onramp.updateOnRampDestChainConfigs, no updates")
+		// Nothing to update
+		return nil, nil
+	}
 
 	configs := make([]onramp.UpdateDestChainConfig, 0, len(in.Updates))
 

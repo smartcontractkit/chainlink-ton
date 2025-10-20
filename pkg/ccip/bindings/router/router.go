@@ -11,16 +11,21 @@ import (
 )
 
 type Storage struct {
+	ID      uint32              `tlb:"## 32"`
 	Ownable common.Ownable2Step `tlb:"."`
 	OnRamps *cell.Dictionary    `tlb:"dict 64"`
-	KeyLen  uint16              `tlb:"## 16"`
 }
 
-type SetRamp struct {
-	_                 tlb.Magic        `tlb:"#10000001"` //nolint:revive // Ignore opcode tag
-	QueryID           uint64           `tlb:"## 64"`
-	DestChainSelector uint64           `tlb:"## 64"`
-	OnRamp            *address.Address `tlb:"addr"`
+// DestChainSelector is a wrapper uint64 to support SnakeData encoding.
+type DestChainSelector struct {
+	Value uint64 `tlb:"## 64"`
+}
+
+type SetRamps struct {
+	_                  tlb.Magic                           `tlb:"#10000001"` //nolint:revive // Ignore opcode tag
+	QueryID            uint64                              `tlb:"## 64"`
+	DestChainSelectors common.SnakeData[DestChainSelector] `tlb:"^"`
+	OnRamps            *address.Address                    `tlb:"addr"`
 }
 
 // TokenAmount is a structure that holds the amount and token address for a CCIP transaction.

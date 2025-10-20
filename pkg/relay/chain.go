@@ -138,7 +138,7 @@ func newChain(cfg *config.TOMLConfig, loopKs loop.Keystore, lggr logger.Logger, 
 		Filters:  fs,
 		TxLoader: account.NewTxLoader(lggr, clientProvider, lpCfg.PageSize),
 		TxParser: txparser.NewTxParser(lggr, fs),
-		Store:    inmemorystore.NewLogStore(),
+		Store:    inmemorystore.NewLogStore(lggr),
 	}
 
 	ch.lp = logpoller.NewService(lggr, clientProvider, lgOpts)

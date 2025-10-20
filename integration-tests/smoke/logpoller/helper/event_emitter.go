@@ -122,8 +122,8 @@ func NewTestEventSource(client ton.APIClientWrapped, wallet *wallet.Wallet, name
 	}
 
 	data, err := tlb.ToCell(counter.ContractData{
-		ID:    id,
-		Value: 0, // initial value as zero
+		ID:    id, // random id
+		Value: 0,  // initial value as zero
 		Ownable: common.Ownable2Step{
 			Owner:        wallet.WalletAddress(),
 			PendingOwner: nil,
@@ -303,9 +303,7 @@ func (e *TestEventSource) SendBulkTestEvents(ctx context.Context, batchCount, tx
 }
 
 func (e *TestEventSource) SendIncreaseCounterMsg(ctx context.Context) (*tlb.Transaction, *ton.BlockIDExt, error) {
-	body, err := tlb.ToCell(counter.IncreaseCount{
-		QueryID: rand.Uint64(),
-	})
+	body, err := tlb.ToCell(counter.IncreaseCount{})
 
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create cell: %w", err)
@@ -333,9 +331,7 @@ func (e *TestEventSource) SendIncreaseCounterMsg(ctx context.Context) (*tlb.Tran
 func (e *TestEventSource) sendManyIncreaseCountMsgs(ctx context.Context, count int) (*tlb.Transaction, *ton.BlockIDExt, error) {
 	messages := make([]*wallet.Message, count)
 	for i := 0; i < count; i++ {
-		body, err := tlb.ToCell(counter.IncreaseCount{
-			QueryID: rand.Uint64(),
-		})
+		body, err := tlb.ToCell(counter.IncreaseCount{})
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to create cell: %w", err)
 		}

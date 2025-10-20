@@ -1,8 +1,12 @@
 package offramp
 
 import (
+	"fmt"
+	"math/big"
+
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
@@ -31,7 +35,6 @@ type Storage struct {
 	ChainSelector                           uint64              `tlb:"## 64"`
 	PermissionlessExecutionThresholdSeconds uint32              `tlb:"## 32"`
 	SourceChainConfigs                      *cell.Dictionary    `tlb:"dict 64"`
-	KeyLen                                  uint16              `tlb:"## 16"`
 	LatestPriceSequenceNumber               uint64              `tlb:"## 64"`
 }
 
@@ -43,24 +46,52 @@ type SourceChainConfig struct {
 	OnRamp                    common.CrossChainAddress `tlb:"."`
 }
 
-// func (c *SourceChainConfig) FromResult(result *ton.ExecutionResult) error {
-// 	routerAddressSlice, err := result.Slice(0)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	routerAddress, err := routerAddressSlice.LoadAddr()
-// 	if err != nil {
-// 		return err
-// 	}
-// 	*c = SourceChainConfig{
-// 		Router:                    routerAddress,
-// 		IsEnabled:                 isEnabled,
-// 		MinSeqNr:                  minSeqNr,
-// 		IsRMNVerificationDisabled: isRMNVerificationDisabled,
-// 		OnRamp: onRamp,
-// 	}
-// 	return nil
-// }
+func (c *SourceChainConfig) FromResult(result *ton.ExecutionResult) error {
+	routerAddressSlice, err := result.Slice(0)
+	if err != nil {
+		return fmt.Errorf("failed to get router address slice: %w", err)
+	}
+	routerAddress, err := routerAddressSlice.LoadAddr()
+	if err != nil {
+		return fmt.Errorf("failed to load router address: %w", err)
+	}
+
+	isEnabledInt, err := result.Int(1)
+	if err != nil {
+		return fmt.Errorf("failed to get isEnabled: %w", err)
+	}
+	isEnabled := isEnabledInt.Cmp(big.NewInt(0)) != 0
+
+	minSeqNrInt, err := result.Int(2)
+	if err != nil {
+		return fmt.Errorf("failed to get minSeqNr: %w", err)
+	}
+	minSeqNr := minSeqNrInt.Uint64()
+
+	isRMNDisabledInt, err := result.Int(3)
+	if err != nil {
+		return fmt.Errorf("failed to get isRMNVerificationDisabled: %w", err)
+	}
+	isRMNVerificationDisabled := isRMNDisabledInt.Cmp(big.NewInt(0)) != 0
+
+	onRampSlice, err := result.Slice(4)
+	if err != nil {
+		return fmt.Errorf("failed to get onRamp slice: %w", err)
+	}
+	onRamp, err := common.LoadCrossChainAddressWithoutPrefix(onRampSlice)
+	if err != nil {
+		return fmt.Errorf("failed to parse onRamp: %w", err)
+	}
+
+	*c = SourceChainConfig{
+		Router:                    routerAddress,
+		IsEnabled:                 isEnabled,
+		MinSeqNr:                  minSeqNr,
+		IsRMNVerificationDisabled: isRMNVerificationDisabled,
+		OnRamp:                    onRamp,
+	}
+	return nil
+}
 
 type OCR3Config struct {
 	ConfigInfo   ConfigInfo       `tlb:"."`
@@ -116,4 +147,21 @@ type Execute struct {
 	QueryID       uint64            `tlb:"## 64"`
 	ConfigDigest  []byte            `tlb:"bits 512"`
 	ExecuteReport ocr.ExecuteReport `tlb:"."`
+}
+
+const CCIPReceiveOpCode = 0xb3126df1
+
+// CCIPReceive represents the CCIP message received on TON
+type CCIPReceive struct {
+	_       tlb.Magic      `tlb:"#b3126df1"` //nolint:revive // Ignore opcode tag // crc32('Receiver_CCIPReceive')
+	RootID  []byte         `tlb:"bits 224"`
+	Message Any2TVMMessage `tlb:"."`
+}
+
+// Any2TVMMessage represents a cross-chain message to TON
+type Any2TVMMessage struct {
+	MessageID           [32]byte                 `tlb:"bits 256"`
+	SourceChainSelector uint64                   `tlb:"## 64"`
+	Sender              common.CrossChainAddress `tlb:"."` // CrossChainAddress (inline: length prefix + bytes)
+	Data                *cell.Cell               `tlb:"^"`
 }

@@ -12,6 +12,7 @@ import (
 )
 
 type Storage struct {
+	ID                           uint32              `tlb:"## 32"`
 	Ownable                      common.Ownable2Step `tlb:"."`
 	MaxFeeJuelsPerMsg            *big.Int            `tlb:"## 96"`
 	LinkToken                    *address.Address    `tlb:"addr"`
@@ -164,7 +165,7 @@ type TokenTransferFeeConfig struct {
 
 type TimestampedPrice struct {
 	Value     *big.Int `tlb:"## 224"`
-	Timestamp uint64   `tlb:"## 64"`
+	Timestamp uint32   `tlb:"## 32"`
 }
 
 // TODO: we can't parse ton.ExecutionResult via tlb, implement as a tlb feature upstream
@@ -180,7 +181,7 @@ func (p *TimestampedPrice) FromResult(result *ton.ExecutionResult) error {
 
 	*p = TimestampedPrice{
 		Value:     value,
-		Timestamp: timestamp.Uint64(),
+		Timestamp: uint32(timestamp.Uint64()), //nolint:gosec // G115
 	}
 	return nil
 }

@@ -16,6 +16,9 @@ type ChainContractParams struct {
 	FeeQuoterParams FeeQuoterParams
 	OffRampParams   OffRampParams
 	OnRampParams    OnRampParams
+	RouterParams    RouterParams
+	ReceiverParams  ReceiverParams
+	TimelockParams  TimelockParams
 }
 
 func (c ChainContractParams) Validate() error {
@@ -38,6 +41,7 @@ type FeeToken struct {
 }
 
 type FeeQuoterParams struct {
+	ID                           uint32
 	MaxFeeJuelsPerMsg            *big.Int
 	TokenPriceStalenessThreshold uint64
 	FeeTokens                    map[TokenSymbol]FeeToken
@@ -57,6 +61,7 @@ func (f FeeQuoterParams) Validate() error {
 }
 
 type OffRampParams struct {
+	ID                               uint32
 	ChainSelector                    uint64
 	PermissionlessExecutionThreshold uint32
 }
@@ -72,6 +77,7 @@ func (o OffRampParams) Validate() error {
 }
 
 type OnRampParams struct {
+	ID             uint32
 	ChainSelector  uint64
 	AllowlistAdmin *address.Address
 	FeeAggregator  *address.Address
@@ -81,5 +87,41 @@ func (o OnRampParams) Validate() error {
 	if err := cldf.IsValidChainSelector(o.ChainSelector); err != nil {
 		return fmt.Errorf("invalid chain selector: %d - %w", o.ChainSelector, err)
 	}
+	return nil
+}
+
+type RouterParams struct {
+	ID uint32
+}
+
+func (r RouterParams) Validate() error {
+	// No specific validation for now
+	return nil
+}
+
+type ReceiverParams struct {
+	ID uint32
+}
+
+func (r ReceiverParams) Validate() error {
+	// No specific validation for now
+	return nil
+}
+
+type TimelockParams struct {
+	ID         uint32
+	MinDelay   uint64
+	Admin      *address.Address
+	Proposers  []*address.Address
+	Executors  []*address.Address
+	Cancellers []*address.Address
+	Bypassers  []*address.Address
+}
+
+func (t TimelockParams) Validate() error {
+	if t.Admin == nil {
+		return fmt.Errorf("timelock admin should be specified")
+	}
+
 	return nil
 }

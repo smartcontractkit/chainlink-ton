@@ -1,0 +1,31 @@
+import "types"
+
+import "../common/messages"
+import "../onramp/messages"
+import "../router/messages"
+import "../onramp/types"
+
+type CCIPSendExecutor_InMessage =
+    | CCIPSendExecutor_Execute
+    | CCIPSendExecutor_MessageValidated<Metadata>
+    | Common_JettonTransferNotification
+    // TODO | TokenRegistry_TokenPoolInfo
+    // TODO Implement interrupt message that allows to cancel the pending CCIP send and return funds to the sender. This should be callable only after a certain timeout. 
+
+// crc32('CCIPSendExecutor_Execute')
+struct (0xAF3C62B3)CCIPSendExecutor_Execute {
+    onrampSend: OnRamp_Send,
+    config: Cell<CCIPSendExecutor_Config>,
+    onrampJettonWallet: address? = null,
+}
+
+// TODO crc32('CCIPSendExecutor_MessageValidated')
+struct (0x1FA60374) CCIPSendExecutor_MessageValidated<C> {
+    msg: Cell<Router_CCIPSend>
+    metadata: Cell<C>
+    fee: coins
+}
+
+
+
+

@@ -5,8 +5,9 @@ import (
 	"encoding/hex"
 	"fmt"
 
-	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 	"github.com/xssnick/tonutils-go/address"
+
+	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 )
 
 type addressCodec struct{}
@@ -19,8 +20,15 @@ var _ ccipocr3.ChainSpecificAddressCodec = &addressCodec{}
 // For correctness *address.Address should always be compared using .Equals() since user-friendly addresses can represent
 // the same address with different flags.
 
+const (
+	TONAddressLength  = 36
+	TONZeroAddressStr = "0:0000000000000000000000000000000000000000000000000000000000000000"
+)
+
+var TONZeroAddress = address.MustParseRawAddr(TONZeroAddressStr)
+
 // RawAddr is a fixed-size byte array representing a TON standard address
-type RawAddr [36]byte
+type RawAddr [TONAddressLength]byte
 
 // ToRawAddr converts an address.Address to a RawAddr.
 func ToRawAddr(addr *address.Address) (rawAddress RawAddr) {
@@ -35,8 +43,8 @@ func NewAddressCodec() ccipocr3.ChainSpecificAddressCodec {
 
 // AddressBytesToString converts a byte slice representing a TON address into its string representation, only supporting standard TON addresses.
 func (a addressCodec) AddressBytesToString(bytes []byte) (string, error) {
-	if len(bytes) != 36 {
-		return "", fmt.Errorf("invalid address length: expected 36 bytes, got %d", len(bytes))
+	if len(bytes) != TONAddressLength {
+		return "", fmt.Errorf("invalid address length: expected %d bytes, got %d", TONAddressLength, len(bytes))
 	}
 	var rawAddr RawAddr
 	copy(rawAddr[:], bytes)

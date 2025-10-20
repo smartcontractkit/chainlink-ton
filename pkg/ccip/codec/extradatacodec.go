@@ -43,11 +43,14 @@ func (d extraDataDecoder) DecodeExtraArgsToMap(extraArgs ccipocr3.Bytes) (map[st
 
 	var val reflect.Value
 	var typ reflect.Type
+
 	outputMap := make(map[string]any)
+
 	c, err := cell.FromBOC(extraArgs)
 	if err != nil {
 		return outputMap, fmt.Errorf("failed to decode BOC: %w", err)
 	}
+
 	tag, err := c.BeginParse().LoadSlice(32)
 	if err != nil {
 		return outputMap, fmt.Errorf("failed to load tag from cell: %w", err)

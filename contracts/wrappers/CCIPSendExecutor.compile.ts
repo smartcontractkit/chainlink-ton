@@ -2,6 +2,6 @@ import { CompilerConfig } from '@ton/blueprint'
 
 export const compile: CompilerConfig = {
   lang: 'tolk',
-  entrypoint: 'contracts/test/examples/receiver.tolk',
+  entrypoint: 'contracts/ccip/ccipsend_executor/contract.tolk',
   withStackComments: true,
 }

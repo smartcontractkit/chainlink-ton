@@ -76,7 +76,7 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
       from: baseTest.acc.multisigOwner.address,
       to: baseTest.bind.mcms.address,
       success: false,
-      exitCode: mcms.Error.OUT_OF_BOUNDS_NUM_SIGNERS,
+      exitCode: mcms.Error.OutOfBoundsNumSigners,
     })
   })
 
@@ -109,7 +109,7 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
       from: baseTest.acc.multisigOwner.address,
       to: baseTest.bind.mcms.address,
       success: false,
-      exitCode: mcms.Error.SIGNERS_KEYS_MUST_BE_STRICTLY_INCREASING,
+      exitCode: mcms.Error.SignersKeysMustBeStrictlyIncreasing,
     })
   })
 
@@ -142,7 +142,7 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
       from: baseTest.acc.multisigOwner.address,
       to: baseTest.bind.mcms.address,
       success: false,
-      exitCode: mcms.Error.OUT_OF_BOUNDS_GROUP,
+      exitCode: mcms.Error.OutOfBoundsGroup,
     })
   })
 
@@ -178,7 +178,7 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
       from: baseTest.acc.multisigOwner.address,
       to: baseTest.bind.mcms.address,
       success: false,
-      exitCode: mcms.Error.OUT_OF_BOUNDS_GROUP_QUORUM,
+      exitCode: mcms.Error.OutOfBoundsGroupQuorum,
     })
   })
 
@@ -214,7 +214,7 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
       from: baseTest.acc.multisigOwner.address,
       to: baseTest.bind.mcms.address,
       success: false,
-      exitCode: mcms.Error.GROUP_TREE_NOT_WELL_FORMED,
+      exitCode: mcms.Error.GroupTreeNotWellFormed,
     })
   })
 
@@ -250,7 +250,7 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
       from: baseTest.acc.multisigOwner.address,
       to: baseTest.bind.mcms.address,
       success: false,
-      exitCode: mcms.Error.GROUP_TREE_NOT_WELL_FORMED,
+      exitCode: mcms.Error.GroupTreeNotWellFormed,
     })
   })
 
@@ -280,7 +280,7 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
       from: baseTest.acc.multisigOwner.address,
       to: baseTest.bind.mcms.address,
       success: false,
-      exitCode: mcms.Error.SIGNER_IN_DISABLED_GROUP,
+      exitCode: mcms.Error.SignerInDisabledGroup,
     })
   })
 
@@ -310,7 +310,7 @@ describe('MCMS - ManyChainMultiSigSetConfigTest', () => {
       from: baseTest.acc.multisigOwner.address,
       to: baseTest.bind.mcms.address,
       success: false,
-      exitCode: mcms.Error.SIGNER_GROUPS_LENGTH_MISMATCH,
+      exitCode: mcms.Error.SignerGroupsLengthMismatch,
     })
   })
 
