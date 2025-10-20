@@ -7,11 +7,12 @@ import (
 )
 
 const (
-	versionGetter         = "typeAndVersion"
-	destChainsGetter      = "destChainSelectors"
-	destChainConfigGetter = "destChainConfig"
-	srcChainConfigGetter  = "sourceChainConfig"
-	configGetter          = "config"
+	versionGetter                   = "typeAndVersion"
+	destChainsGetter                = "destChainSelectors"
+	destChainConfigGetter           = "destChainConfig"
+	srcChainConfigGetter            = "sourceChainConfig"
+	configGetter                    = "config"
+	latestPriceSequenceNumberGetter = "latestPriceSequenceNumber"
 )
 
 // MetaData holds common metadata for all contract views.

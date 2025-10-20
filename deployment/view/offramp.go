@@ -15,8 +15,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 )
 
-const latestPriceSequenceNumberGetter = "latestPriceSequenceNumber"
-
 type OffRampView struct {
 	MetaData
 	LatestPriceSequenceNumber uint64                              `json:"latestPriceSequenceNumber,omitempty"`
