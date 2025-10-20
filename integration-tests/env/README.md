@@ -63,7 +63,7 @@ deployerKey = ""
 
 #### Testnet Environment (`testnet-env.toml`)
 
-You can specify `testnet-env.toml` to configure devnet. Just copy past the local-env.toml and replace with private keys and RPC endpoints. Next use the devenv in your tests: 
+You can specify `testnet-env.toml` to configure devnet. Just copy paste the local-env.toml and replace with private keys and RPC endpoints. Next use the devenv in your tests: 
 
 ```go
 env, err := devenv.NewTestEnvironmentBuilder(lggr).WithTON().WithEVM().Testnet().Build(t)

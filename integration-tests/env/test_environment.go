@@ -25,8 +25,8 @@ import (
 )
 
 const DEFAULT_TON_WALLET_VERSION = "V5R1"
-const LOCAL_ENV_CONFIF_FILE = "local-env.toml"
-const TESTNET_ENV_CONFIF_FILE = "testnet-env.toml"
+const LOCAL_ENV_CONFIG_FILE = "local-env.toml"
+const TESTNET_ENV_CONFIG_FILE = "testnet-env.toml"
 const DEFAULT_FUND_AMOUNT_TON = "1000"
 
 type EnvironmentType int
@@ -61,13 +61,13 @@ func (b *TestEnvironmentBuilder) CTF() *TestEnvironmentBuilder {
 
 func (b *TestEnvironmentBuilder) Local() *TestEnvironmentBuilder {
 	b.Type = LOCAL
-	b.EnvConfigFile = LOCAL_ENV_CONFIF_FILE
+	b.EnvConfigFile = LOCAL_ENV_CONFIG_FILE
 	return b
 }
 
 func (b *TestEnvironmentBuilder) Testnet() *TestEnvironmentBuilder {
 	b.Type = TESTNET
-	b.EnvConfigFile = TESTNET_ENV_CONFIF_FILE
+	b.EnvConfigFile = TESTNET_ENV_CONFIG_FILE
 	return b
 }
 
@@ -106,7 +106,7 @@ func (b *TestEnvironmentBuilder) Build(t *testing.T) (cldf.Environment, error) {
 		return cldf.Environment{}, err
 	}
 
-	// Only do this when using my local ton.
+	// Only fund wallets when using my-local-ton.
 	if b.Type == CTF || b.Type == LOCAL {
 		for _, chain := range env.BlockChains.TonChains() {
 			test_utils.FundWallets(t, chain.Client, []*address.Address{chain.WalletAddress}, []tlb.Coins{tlb.MustFromTON(DEFAULT_FUND_AMOUNT_TON)})
