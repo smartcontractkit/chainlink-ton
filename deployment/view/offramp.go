@@ -104,7 +104,7 @@ func fetchSrcChainConfig(ctx context.Context, c cldf_ton.Chain, block *ton.Block
 	var mut sync.Mutex
 	for _, dest := range chainSelectors {
 		eg.Go(func() error {
-			result, err = c.Client.RunGetMethod(ctx, block, offRampAddr, srcChainConfigGetter, dest)
+			result, err := c.Client.RunGetMethod(ctx, block, offRampAddr, srcChainConfigGetter, dest) // New variables per goroutine
 			if err != nil {
 				return err
 			}
