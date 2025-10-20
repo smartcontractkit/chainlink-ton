@@ -70,7 +70,7 @@ func (c *Config) FromResult(result *ton.ExecutionResult) error {
 
 	thresholdSeconds := thresholdInt.Uint64()
 	if thresholdSeconds > math.MaxUint32 {
-		return fmt.Errorf("thresholdSeconds exceeds uint32")
+		return fmt.Errorf("thresholdSeconds:%v exceeds uint32", thresholdSeconds)
 	}
 
 	*c = Config{
