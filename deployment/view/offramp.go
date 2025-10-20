@@ -114,13 +114,20 @@ func fetchSrcChainConfig(ctx context.Context, c cldf_ton.Chain, block *ton.Block
 				return err
 			}
 
+			var onRampAddr string
+			if cfg.OnRamp != nil {
+				onRampAddr = string(cfg.OnRamp)
+			} else {
+				onRampAddr = ""
+			}
+
 			mut.Lock()
 			output[dest] = OffRampSourceChainConfig{
 				Router:                    cfg.Router.String(),
 				IsEnabled:                 cfg.IsEnabled,
 				MinSeqNr:                  cfg.MinSeqNr,
 				IsRMNVerificationDisabled: cfg.IsRMNVerificationDisabled,
-				OnRamp:                    string(cfg.OnRamp),
+				OnRamp:                    onRampAddr,
 			}
 			mut.Unlock()
 
