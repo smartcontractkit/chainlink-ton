@@ -99,4 +99,4 @@ env, err := devenv.NewTestEnvironmentBuilder(lggr).WithTON().WithEVM().Build(t)
 
 ### Next steps
 
-The 
+This is an initial implementation aimed at simplifying local development with TON. However, a more extensible approach would be to create a development environment for CCIP 1.6 that supports not only TON and EVM, but other chains as well. This environment should also be usable for running tests in CI and include JD integration with the appropriate functions to deploy and configure CCIP contracts on the selected chains using the tooling API.
