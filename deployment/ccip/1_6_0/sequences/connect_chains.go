@@ -17,7 +17,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
-	"github.com/xssnick/tonutils-go/address"
 )
 
 func (a *TonAdapter) ConfigureLaneLegAsSource() *cldfOps.Sequence[ccipapi.UpdateLanesInput, sequences.OnChainOutput, cldfChain.BlockChains] {
@@ -41,7 +40,7 @@ var ConfigureLaneLegAsSource = cldfOps.NewSequence(
 		}
 
 		// update fee quoter with dest chain configs
-		updateFeeQuoterDestChainConfigs := mapToUpdateFeeQuoterDestChainConfigs(input)
+		updateFeeQuoterDestChainConfigs := intoUpdateFeeQuoterDestChainConfigs(input)
 		b.Logger.Infow("Updating destination configs on FeeQuoter", "input", updateFeeQuoterDestChainConfigs)
 		feeQuoterReport, err := operations.ExecuteOperation(b, operation.UpdateFeeQuoterDestChainConfigsOp, deps, updateFeeQuoterDestChainConfigs)
 		if err != nil {
@@ -50,7 +49,7 @@ var ConfigureLaneLegAsSource = cldfOps.NewSequence(
 		txs = append(txs, feeQuoterReport.Output...)
 
 		// update onramp with dest chain configs
-		updateOnRampDestChainConfigs := mapToUpdateOnRampDestChainConfigs(input)
+		updateOnRampDestChainConfigs := intoUpdateOnRampDestChainConfigs(input)
 		b.Logger.Infow("Updating destination configs on OnRamp", "input", updateOnRampDestChainConfigs)
 		onRampReport, err := operations.ExecuteOperation(b, operation.UpdateOnRampDestChainConfigsOp, deps, updateOnRampDestChainConfigs)
 		if err != nil {
@@ -59,7 +58,7 @@ var ConfigureLaneLegAsSource = cldfOps.NewSequence(
 		txs = append(txs, onRampReport.Output...)
 
 		// update fee quoter with gas prices
-		updateFeeQuoterPricesConfig := mapToUpdateFeeQuoterPricesConfig(input)
+		updateFeeQuoterPricesConfig := intoUpdateFeeQuoterPricesConfig(input)
 		b.Logger.Infow("Updating prices on FeeQuoter", "input", updateFeeQuoterPricesConfig)
 		updatePricesReport, err := operations.ExecuteOperation(b, operation.UpdateFeeQuoterPricesOp, deps, updateFeeQuoterPricesConfig)
 		if err != nil {
@@ -84,7 +83,7 @@ var ConfigureLaneLegAsDest = cldfOps.NewSequence(
 		}
 
 		// configure offramp sources
-		updateOffRampSourcesConfig := mapToUpdateOffRampSourcesConfig(input)
+		updateOffRampSourcesConfig := intoUpdateOffRampSourcesConfig(input)
 		b.Logger.Infow("Updating source configs on OffRamp", "input", updateOffRampSourcesConfig)
 		offRampReport, err := operations.ExecuteOperation(b, operation.UpdateOffRampSourceChainConfigsOp, deps, updateOffRampSourcesConfig)
 		if err != nil {
@@ -95,7 +94,7 @@ var ConfigureLaneLegAsDest = cldfOps.NewSequence(
 		// add ccip owner to offramp allowlist
 
 		// update router with destination onramp versions
-		updateRouterDestConfig := mapToUpdateRouterDestConfig(input)
+		updateRouterDestConfig := intoUpdateRouterDestConfig(input)
 		b.Logger.Infow("Updating Router", "input", updateRouterDestConfig)
 		routerReport, err := operations.ExecuteOperation(b, operation.UpdateRouterDestOp, deps, updateRouterDestConfig)
 		if err != nil {
@@ -124,30 +123,31 @@ func extractTonDeps(input lanes.UpdateLanesInput) (operation.TonDeps, error) {
 	if err != nil {
 		return operation.TonDeps{}, fmt.Errorf("failed to convert feequoter address: %w", err)
 	}
+
+	// Only fill in the fields that are relevant to the operations used
 	deps := operation.TonDeps{
-		TonChain: cldfTon.Chain{ // TODO: Check if this is correct
+		TonChain: cldfTon.Chain{
 			ChainMetadata: ton.ChainMetadata{
 				Selector: input.Source.Selector,
 			},
-			Client:        nil,
-			Wallet:        nil,
-			WalletAddress: nil,
-			URL:           "",
 		},
 		CCIPOnChainState: map[uint64]state.CCIPChainState{
 			input.Source.Selector: {
-				OnRamp:          *onRampAddr,
-				OffRamp:         *offRampAddr,
-				Router:          *routerAddr,
-				FeeQuoter:       *feeQuoterAddr,
-				ReceiverAddress: *address.NewAddressNone(), // TODO: Check if this is correct
+				OnRamp:    *onRampAddr,
+				OffRamp:   *offRampAddr,
+				Router:    *routerAddr,
+				FeeQuoter: *feeQuoterAddr,
 			},
 		},
 	}
 	return deps, nil
 }
 
-func mapToUpdateFeeQuoterDestChainConfigs(input lanes.UpdateLanesInput) operation.UpdateFeeQuoterDestChainConfigsInput {
+///////////////
+/// Mappers ///
+///////////////
+
+func intoUpdateFeeQuoterDestChainConfigs(input lanes.UpdateLanesInput) operation.UpdateFeeQuoterDestChainConfigsInput {
 	return []feequoter.UpdateDestChainConfig{
 		{
 			DestinationChainSelector: input.Dest.Selector,
@@ -176,7 +176,7 @@ func mapToUpdateFeeQuoterDestChainConfigs(input lanes.UpdateLanesInput) operatio
 	}
 }
 
-func mapToUpdateOnRampDestChainConfigs(input ccipapi.UpdateLanesInput) operation.UpdateOnRampDestChainConfigsInput {
+func intoUpdateOnRampDestChainConfigs(input ccipapi.UpdateLanesInput) operation.UpdateOnRampDestChainConfigsInput {
 	return operation.UpdateOnRampDestChainConfigsInput{
 		Updates: map[uint64]operation.OnRampDestinationUpdate{
 			input.Dest.Selector: {
@@ -188,7 +188,7 @@ func mapToUpdateOnRampDestChainConfigs(input ccipapi.UpdateLanesInput) operation
 	}
 }
 
-func mapToUpdateFeeQuoterPricesConfig(input ccipapi.UpdateLanesInput) operation.UpdateFeeQuoterPricesInput {
+func intoUpdateFeeQuoterPricesConfig(input ccipapi.UpdateLanesInput) operation.UpdateFeeQuoterPricesInput {
 	return operation.UpdateFeeQuoterPricesInput{
 		TokenPrices: input.Dest.TokenPrices,
 		GasPrices: map[uint64]operation.GasPrice{
@@ -200,12 +200,12 @@ func mapToUpdateFeeQuoterPricesConfig(input ccipapi.UpdateLanesInput) operation.
 	}
 }
 
-func mapToUpdateOffRampSourcesConfig(input ccipapi.UpdateLanesInput) operation.UpdateOffRampSourcesInput {
+func intoUpdateOffRampSourcesConfig(input ccipapi.UpdateLanesInput) operation.UpdateOffRampSourcesInput {
 	return operation.UpdateOffRampSourcesInput{
 		Updates: map[uint64]operation.OffRampSourceUpdate{
 			input.Source.Selector: {
-				IsEnabled:                 true,
-				TestRouter:                false, // TODO: Should we check if the source is a test router?
+				IsEnabled:                 !input.IsDisabled,
+				TestRouter:                input.TestRouter,
 				IsRMNVerificationDisabled: !input.Source.RMNVerificationEnabled,
 				OnRamp:                    input.Source.OnRamp,
 			},
@@ -213,8 +213,8 @@ func mapToUpdateOffRampSourcesConfig(input ccipapi.UpdateLanesInput) operation.U
 	}
 }
 
-func mapToUpdateRouterDestConfig(input ccipapi.UpdateLanesInput) operation.UpdateRouterDestInput {
-	return operation.UpdateRouterDestInput{ // TODO: Check if this map is correct
+func intoUpdateRouterDestConfig(input ccipapi.UpdateLanesInput) operation.UpdateRouterDestInput {
+	return operation.UpdateRouterDestInput{
 		string(input.Dest.OnRamp): []router.DestChainSelector{
 			{
 				Value: input.Dest.Selector,
