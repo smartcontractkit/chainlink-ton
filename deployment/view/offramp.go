@@ -13,7 +13,18 @@ import (
 
 type OffRampView struct {
 	MetaData
-	// TODO add remaining fields once offramp getters are implemented in the contract
+	ChainSelector                           uint64                       `json:"chainSelector,omitempty"`
+	LatestPriceSequenceNumber               uint64                       `json:"latestPriceSequenceNumber,omitempty"`
+	PermissionlessExecutionThresholdSeconds uint32                       `json:"permissionlessExecutionThresholdSeconds,omitempty"`
+	SourceChainConfigs                      map[uint64]SourceChainConfig `json:"sourceChainConfigs,omitempty"`
+}
+
+type SourceChainConfig struct {
+	Router                    string `json:"router,omitempty"`
+	IsEnabled                 bool   `json:"isEnabled,omitempty"`
+	MinSeqNr                  uint64 `json:"minSeqNr,omitempty"`
+	IsRMNVerificationDisabled bool   `json:"isRMNVerificationDisabled,omitempty"`
+	OnRamp                    string `json:"onRamp,omitempty"`
 }
 
 // FetchOffRampView generates a view of the offramp contract at the specified block.
