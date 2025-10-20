@@ -81,7 +81,7 @@ func FundWallets(t *testing.T, client ton.APIClientWrapped, recipients []*addres
 	_, _, txerr := funder.SendManyWaitTransaction(t.Context(), messages)
 	require.NoError(t, txerr, "airdrop transaction failed")
 
-	err = waitForAirdropCompletion(t, client, recipients, amounts, 120*time.Second, true)
+	err = waitForAirdropCompletion(t, client, recipients, amounts, 60*time.Second, true)
 	require.NoError(t, err, "airdrop completion verification failed")
 }
 

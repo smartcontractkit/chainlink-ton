@@ -37,7 +37,8 @@ To stop it:
 To point your tests to a locally running TON (the one created by `./env.sh`)  and EVM stack:
 
 ```go
-env, err := envBuilder.WithLogger(lggr).WithTON().WithEVM().Local().Build(t)
+env, err := devenv.NewTestEnvironmentBuilder(lggr).WithTON().WithEVM().Local().Build(t)
+
 ```
 
 `local-env.toml` contains the following configuration:
@@ -65,7 +66,7 @@ deployerKey = ""
 You can specify `testnet-env.toml` to configure devnet. Just copy past the local-env.toml and replace with private keys and RPC endpoints. Next use the devenv in your tests: 
 
 ```go
-env, err := envBuilder.WithLogger(lggr).WithTON().WithEVM().Testnet().Build(t)
+env, err := devenv.NewTestEnvironmentBuilder(lggr).WithTON().WithEVM().Testnet().Build(t)
 ```
 
 ---
@@ -75,13 +76,13 @@ env, err := envBuilder.WithLogger(lggr).WithTON().WithEVM().Testnet().Build(t)
 By default, the environment uses **CTF** where TON and EVM chains will spin up using test containers.
 
 ```go
-env, err := envBuilder.WithLogger(lggr).WithTON().WithEVM().CTF().Build(t)
+env, err := devenv.NewTestEnvironmentBuilder(lggr).WithTON().WithEVM().CTF().Build(t)
 ```
 
 or simply:
 
 ```go
-env, err := envBuilder.WithLogger(lggr).WithTON().WithEVM().Build(t)
+env, err := devenv.NewTestEnvironmentBuilder(lggr).WithTON().WithEVM().Build(t)
 ```
 
 ---

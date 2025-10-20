@@ -17,7 +17,7 @@ cmd_up() {
   echo "🚀 Starting all containers..."
   docker-compose -f ${COMPOSE_FILE} --env-file ${COMPOSE_ENV_FILE} up -d
   echo "✅ All containers are up."
-  $C ps
+  docker-compose -f ${COMPOSE_FILE} --env-file ${COMPOSE_ENV_FILE}  ps
 }
 
 cmd_down() {

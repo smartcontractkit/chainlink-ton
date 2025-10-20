@@ -49,9 +49,8 @@ type TestEnvironmentBuilder struct {
 	EnvConfigFile           string
 }
 
-func (b *TestEnvironmentBuilder) WithLogger(lggr logger.Logger) *TestEnvironmentBuilder {
-	b.Logger = lggr
-	return b
+func NewTestEnvironmentBuilder(lggr logger.Logger) *TestEnvironmentBuilder {
+	return &TestEnvironmentBuilder{Logger: lggr}
 }
 
 func (b *TestEnvironmentBuilder) CTF() *TestEnvironmentBuilder {

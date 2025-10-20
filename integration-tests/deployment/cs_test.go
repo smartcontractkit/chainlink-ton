@@ -35,8 +35,7 @@ func TestDeploy(t *testing.T) {
 	t.Parallel()
 	lggr := logger.Test(t)
 
-	envBuilder := devenv.TestEnvironmentBuilder{}
-	env, err := envBuilder.WithLogger(lggr).WithTON().WithEVM().Build(t)
+	env, err := devenv.NewTestEnvironmentBuilder(lggr).WithTON().WithEVM().Build(t)
 	require.NoError(t, err)
 
 	// Get chain selectors
@@ -217,6 +216,7 @@ func TestDeploy(t *testing.T) {
 	// <Verify timelock address>
 	timelockAddr := state[chainSelector].Timelock
 	_, err = addrCodec.AddressStringToBytes(timelockAddr.String())
+	require.NoError(t, err)
 	isInitializedResponse, err := tonChain.Client.RunGetMethod(ctx, mc, &timelockAddr, "isInitialized")
 	require.NoError(t, err)
 	rawIsInitialized, err := isInitializedResponse.Int(0)
