@@ -47,9 +47,7 @@ export const builder = {
   },
 }
 
-export class WithdrawableWallet
-  implements typeAndVersion.TypeAndVersion, withdrawable.Withdrawable
-{
+export class WithdrawableWallet implements withdrawable.Withdrawable {
   private ownable: ownable2step.ContractClient
 
   constructor(
@@ -97,19 +95,6 @@ export class WithdrawableWallet
   async getReserve(provider: ContractProvider): Promise<bigint> {
     const result = await provider.get('reserve', [])
     return result.stack.readBigNumber()
-  }
-
-  // Delegate TypeAndVersion methods
-  async getTypeAndVersion(provider: ContractProvider): Promise<{ type: string; version: string }> {
-    return typeAndVersion.getTypeAndVersion(provider)
-  }
-
-  async getCode(provider: ContractProvider): Promise<Cell> {
-    return typeAndVersion.getCode(provider)
-  }
-
-  async getCodeHash(provider: ContractProvider): Promise<bigint> {
-    return typeAndVersion.getCodeHash(provider)
   }
 
   // Delegate Withdrawable methods
