@@ -13,7 +13,7 @@ import "../../lib/utils"
 import "../../lib/jetton/messages"
 import "../../lib/jetton/messages_extended"
 
-const CONTRACT_VERSION = "0.0.3";
+const CONTRACT_VERSION = "0.0.4";
 const RESERVE = ton("1"); // TODO: set correct value
 
 fun onInternalMessage(in: InMessage) {
