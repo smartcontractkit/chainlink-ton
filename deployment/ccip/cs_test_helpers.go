@@ -122,6 +122,15 @@ func DeployChainContractsConfig(t *testing.T, env cldf.Environment, chainSelecto
 			ReceiverParams: config.ReceiverParams{
 				ID: idForContracts,
 			},
+			TimelockParams: config.TimelockParams{
+				ID:         idForContracts,
+				MinDelay:   0,
+				Admin:      deployer.WalletAddress(),
+				Proposers:  []*address.Address{deployer.WalletAddress()},
+				Executors:  []*address.Address{deployer.WalletAddress()},
+				Cancellers: []*address.Address{deployer.WalletAddress()},
+				Bypassers:  []*address.Address{deployer.WalletAddress()},
+			},
 		},
 		ContractsVersion: contractVersion,
 	}

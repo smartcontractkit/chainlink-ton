@@ -27,6 +27,19 @@ const (
 	DispatchNotFromMerkleRoot
 )
 
+// WrappedAddress is a simple wrapper around address.Address for TLB serialization. Needed for common.SnakeRef[] of addresses.
+type WrappedAddress struct {
+	WrappedAddress *address.Address `tlb:"addr"`
+}
+
+func WrapAddresses(addrs []*address.Address) []WrappedAddress {
+	wrapped := make([]WrappedAddress, len(addrs))
+	for i, a := range addrs {
+		wrapped[i] = WrappedAddress{WrappedAddress: a}
+	}
+	return wrapped
+}
+
 // TypeAndVersion holds the type and version of the onramp contract.
 type TypeAndVersion struct {
 	Type    string `tlb:"str"`
