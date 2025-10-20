@@ -12,7 +12,7 @@ import "../router/messages"
 import "../ccipsend_executor/messages"
 import "../../lib/funding/withdrawable"
 
-const CONTRACT_VERSION = "0.0.4";
+const CONTRACT_VERSION = "0.0.5";
 const FACILITY_NAME = "com.chainlink.ton.ccip.FeeQuoter";
 const RESERVE = ton("1"); // TODO: set correct value
 
