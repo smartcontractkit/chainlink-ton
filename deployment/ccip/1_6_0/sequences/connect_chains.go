@@ -94,7 +94,10 @@ var ConfigureLaneLegAsDest = cldfOps.NewSequence(
 		// add ccip owner to offramp allowlist
 
 		// update router with destination onramp versions
-		updateRouterDestConfig := intoUpdateRouterDestConfig(input)
+		updateRouterDestConfig, err := intoUpdateRouterDestConfig(input)
+		if err != nil {
+			return sequences.OnChainOutput{}, fmt.Errorf("failed to convert router dest config: %w", err)
+		}
 		b.Logger.Infow("Updating Router", "input", updateRouterDestConfig)
 		routerReport, err := operations.ExecuteOperation(b, operation.UpdateRouterDestOp, deps, updateRouterDestConfig)
 		if err != nil {
@@ -213,12 +216,18 @@ func intoUpdateOffRampSourcesConfig(input ccipapi.UpdateLanesInput) operation.Up
 	}
 }
 
-func intoUpdateRouterDestConfig(input ccipapi.UpdateLanesInput) operation.UpdateRouterDestInput {
+func intoUpdateRouterDestConfig(input ccipapi.UpdateLanesInput) (operation.UpdateRouterDestInput, error) {
+	addressCodec := codec.NewAddressCodec()
+	onRampAddrStr, err := addressCodec.AddressBytesToString(input.Dest.OnRamp)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert onramp address to string: %w", err)
+	}
+
 	return operation.UpdateRouterDestInput{
-		string(input.Dest.OnRamp): []router.DestChainSelector{
+		onRampAddrStr: []router.DestChainSelector{
 			{
 				Value: input.Dest.Selector,
 			},
 		},
-	}
+	}, nil
 }
