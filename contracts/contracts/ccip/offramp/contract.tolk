@@ -101,7 +101,7 @@ fun _upgrade(msg: Upgradeable_Upgrade, sender: address) {
 }
 
 @method_id(1000)
-fun migrate(storage: cell): cell { return beginCell().endCell(); }
+fun migrate(storage: cell): cell { return createEmptyCell(); }
 
 @method_id(1001)
 fun version(): slice { return CONTRACT_VERSION; }

@@ -14,6 +14,7 @@ import * as upgradeable from '../../libraries/versioning/Upgradeable'
 import { compile } from '@ton/blueprint'
 import * as typeAndVersion from '../../libraries/TypeAndVersion'
 import * as ownable2step from '../../libraries/access/Ownable2Step'
+import { CellCodec } from '../../utils'
 
 export const FACILITY_NAME = 'com.chainlink.ton.examples.versioning.upgrades.UpgradeableCounter'
 export const CONTRACT_VERSION = '2.0.0'
@@ -26,11 +27,6 @@ export type CounterConfig = {
 
 export type Step = {
   queryId: bigint
-}
-
-interface CellCodec<T> {
-  encode: (data: T) => Builder
-  load: (src: Slice) => T
 }
 
 export const opcodes = {

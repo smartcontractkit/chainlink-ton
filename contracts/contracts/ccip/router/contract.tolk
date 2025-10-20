@@ -123,14 +123,11 @@ fun ccipSend(msg: Router_CCIPSend, sender: address) {
 fun onUpgrade(msg: Upgradeable_Upgrade, sender: address) {
     var st = lazy Storage.load();
     st.ownable.requireOwner(sender);
-    Upgradeable{
-        migrate: migrate,
-        version: version,
-    }.upgrade(msg);
+    Upgradeable{ migrate, version }.upgrade(msg);
 }
 
 @method_id(1000)
-fun migrate(storage: cell): cell { return beginCell().endCell(); }
+fun migrate(storage: cell): cell { return createEmptyCell(); }
 
 @method_id(1001)
 fun version(): slice { return CONTRACT_VERSION; }
