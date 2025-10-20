@@ -114,8 +114,6 @@ func fetchSrcChainConfig(ctx context.Context, c cldf_ton.Chain, block *ton.Block
 			var onRampAddr string
 			if cfg.OnRamp != nil {
 				onRampAddr = string(cfg.OnRamp)
-			} else {
-				onRampAddr = ""
 			}
 
 			mut.Lock()
