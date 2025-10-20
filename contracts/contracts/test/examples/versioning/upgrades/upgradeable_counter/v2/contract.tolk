@@ -91,16 +91,6 @@ get fun typeAndVersion(): (slice, slice) {
     return ("com.chainlink.ton.examples.versioning.upgrades.UpgradeableCounter", CONTRACT_VERSION);
 }
 
-// Returns the current code of the contract.
-get fun code(): cell {
-    return contract.getCode();
-}
-
-// Returns the sha256 hash of the current code of the contract.
-get fun codeHash(): int {
-    return contract.getCode().hash();
-}
-
 get fun facilityId(): uint16  {
     return getFacilityId(stringCrc32("com.chainlink.ton.examples.versioning.upgrades.UpgradeableCounter"));
 }

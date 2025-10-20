@@ -1373,16 +1373,6 @@ get fun typeAndVersion(): (slice, slice) {
     return ("com.chainlink.ton.mcms.Timelock", CONTRACT_VERSION);
 }
 
-// Returns the current code of the contract.
-get fun code(): cell {
-    return contract.getCode();
-}
-
-// Returns the sha256 hash of the current code of the contract.
-get fun codeHash(): int {
-    return contract.getCode().hash();
-}
-
 /// @see <Timelock<T>.getId>
 get fun getId(): uint32 {
     return Timelock<bool>.load().getId();
