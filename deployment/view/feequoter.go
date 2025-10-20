@@ -119,7 +119,7 @@ func fetchDestChainConfigsView(ctx context.Context, c cldf_ton.Chain, block *ton
 	output := make(map[uint64]DestChainConfig)
 	for _, dest := range selectorSlice {
 		eg.Go(func() error {
-			result, err = c.Client.RunGetMethod(ctx, block, feeQuoter, destChainConfigGetter, dest)
+			result, err := c.Client.RunGetMethod(ctx, block, feeQuoter, destChainConfigGetter, dest) // New variables per goroutine
 			if err != nil {
 				return err
 			}

@@ -98,7 +98,7 @@ func fetchDestChainConfig(ctx context.Context, c cldf_ton.Chain, block *ton.Bloc
 	var mu sync.Mutex
 	for _, dest := range chainSelectors {
 		eg.Go(func() error {
-			result, err = c.Client.RunGetMethod(ctx, block, onrampAddr, destChainConfigGetter, dest)
+			result, err := c.Client.RunGetMethod(ctx, block, onrampAddr, destChainConfigGetter, dest) // New variables per goroutine
 			if err != nil {
 				return err
 			}
