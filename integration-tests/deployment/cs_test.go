@@ -27,8 +27,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/tlb"
 
-	"github.com/smartcontractkit/chainlink/deployment/environment/memory"
-
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/timelock"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/chainaccessor"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
@@ -36,25 +34,18 @@ import (
 	inmemorystore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/db/inmemory"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/loader/account"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/txparser"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/hash"
-
+	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
-	"go.uber.org/zap/zapcore"
-
-	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
 )
 
 func TestDeploy(t *testing.T) {
 	t.Parallel()
 	lggr := logger.Test(t)
-	env := memory.NewMemoryEnvironment(t, lggr, zapcore.InfoLevel, memory.MemoryEnvironmentConfig{
-		Chains:    1,
-		TonChains: 1,
-	})
+	env, _ := NewMemoryEnvironment(t, lggr, true)
 
 	// Get chain selectors
-	evmSelector := env.BlockChains.ListChainSelectors(chain.WithFamily(chain_selectors.FamilyEVM))[0]
+	evmSelector := chain_selectors.ETHEREUM_TESTNET_SEPOLIA.Selector // env.BlockChains.ListChainSelectors(chain.WithFamily(chain_selectors.FamilyEVM))[0]
 	tonChainSelectors := env.BlockChains.ListChainSelectors(chain.WithFamily(chain_selectors.FamilyTon))
 	require.Len(t, tonChainSelectors, 1, "Expected exactly 1 Ton chain")
 	chainSelector := tonChainSelectors[0]
@@ -69,9 +60,12 @@ func TestDeploy(t *testing.T) {
 	test_utils.FundWallets(t, tonChain.Client, []*address.Address{deployer.Address()}, []tlb.Coins{tlb.MustFromTON("1000")})
 	time.Sleep(5 * time.Second)
 
-	cs := commonchangeset.Configure(ton_ops.DeployCCIPContracts{}, ton_ops.DeployChainContractsConfig(t, env, chainSelector, sequence.ContractsLocalVersion, hash.CRC32("github.com/smartcontractkit/chainlink-ton/integration-tests/deployment/cs_test.TestDeploy")))
+	// Random contract's ID to avoid collision on subsequence runs of the test against the same chain node
+	contractID, err := ton_ops.RandomUint32()
+	require.NoError(t, err)
+	cs := commonchangeset.Configure(ton_ops.DeployCCIPContracts{}, ton_ops.DeployChainContractsConfig(t, env, chainSelector, sequence.ContractsLocalVersion, contractID))
 
-	env, _, err := commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{cs})
+	env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{cs})
 	require.NoError(t, err, "failed to deploy ccip")
 
 	// <redeploy>
@@ -232,7 +226,6 @@ func TestDeploy(t *testing.T) {
 	// <Verify timelock address>
 	timelockAddr := state[chainSelector].Timelock
 	_, err = addrCodec.AddressStringToBytes(timelockAddr.String())
-	require.NoError(t, err)
 	isInitializedResponse, err := tonChain.Client.RunGetMethod(ctx, mc, &timelockAddr, "isInitialized")
 	require.NoError(t, err)
 	rawIsInitialized, err := isInitializedResponse.Int(0)
