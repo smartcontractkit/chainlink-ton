@@ -1,7 +1,7 @@
 import "../offramp/types";
 
 struct MerkleRoot_Storage {
-    rootId: uint224;
+    root: uint256;
     owner: address;
     expectedMessages: uint16;
     validatedMessages: map<uint256, bool>; // messageId -> alreadyValidated 

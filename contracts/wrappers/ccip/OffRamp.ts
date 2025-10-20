@@ -359,6 +359,7 @@ export class OffRamp extends OCR3Base {
     opts: {
       value: bigint
       message: Any2TVMRampMessage
+      execId: bigint
     },
   ) {
     await provider.internal(via, {
@@ -366,7 +367,8 @@ export class OffRamp extends OCR3Base {
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: beginCell()
         .storeUint(Opcodes.dispatchValidated, 32)
-        .storeBuilder(Any2TVMRampMessageToBuilder(opts.message))
+        .storeRef(Any2TVMRampMessageToBuilder(opts.message))
+        .storeUint(opts.execId, 224)
         .endCell(),
     })
   }

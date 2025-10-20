@@ -1,5 +1,3 @@
-import "../../lib/utils"
-
 enum Error {
     MessageNotFromOwnedContract = 8400
     SourceChainNotEnabled

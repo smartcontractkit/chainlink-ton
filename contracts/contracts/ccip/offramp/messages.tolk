@@ -38,7 +38,8 @@ struct (0x27bdac33) OffRamp_Execute {
 //TODO crc32 etc
 struct (0x13241224) OffRamp_ExecuteValidated {
     message: Cell<Any2TVMRampMessage>;
-    rootId: uint224;
+    root: uint256;
+    metadataHash: uint256;
 }
 
 struct(0xabcdef01) OffRamp_MessageReadyForDispatch {
@@ -56,7 +57,8 @@ struct (0xb98c95e3) OffRamp_UpdateSourceChainConfig {
 //Must be sent from an owned ReceiveExecutor contract
 //crc32('OffRamp_DispatchValidated')
 struct (0x58cfcb02) OffRamp_DispatchValidated { 
-    message: Any2TVMRampMessage;
+    message: Cell<Any2TVMRampMessage>;
+    execId: uint224;
 }
 
 //crc32('OffRamp_CCIPReceiveConfirm')
@@ -67,9 +69,11 @@ struct (0x28f4166f) OffRamp_CCIPReceiveConfirm {
 //TODO crc32('OffRamp_NotifySuccess')
 struct (0x23232323) OffRamp_NotifySuccess {
     header: RampMessageHeader;
+    execId: uint224;
 }
 
 //TODO crc32('OffRamp_NotifyFailure')
 struct (0x33533353) OffRamp_NotifyFailure {
     header: RampMessageHeader;
+    execId: uint224;
 }

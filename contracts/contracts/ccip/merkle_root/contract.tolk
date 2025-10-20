@@ -34,7 +34,7 @@ fun _initExecute(msg: MerkleRoot_Validate, sender: address) {
     var st = MerkleRoot_Storage.load();
 
     assert(sender == st.owner, Error.NotOwner);
-    val ccipMessage = msg.message;
+    val ccipMessage = msg.message.load();
 
     assert(!st.validatedMessages.exists(ccipMessage.header.messageId)) throw Error.AlreadyExecuted;
 
@@ -49,7 +49,8 @@ fun _initExecute(msg: MerkleRoot_Validate, sender: address) {
             dest: st.owner,
             body: OffRamp_ExecuteValidated {
                 message: ccipMessage.toCell(),
-                rootId: st.rootId
+                root: st.root,
+                metadataHash: msg.metadataHash
             }
         });
         executeValidated.send(SEND_MODE_REGULAR);
@@ -62,7 +63,8 @@ fun _initExecute(msg: MerkleRoot_Validate, sender: address) {
             dest: st.owner,
             body: OffRamp_ExecuteValidated {
                 message: ccipMessage.toCell(),
-                rootId: st.rootId
+                root: st.root,
+                metadataHash: msg.metadataHash
             }
         });
         executeValidated.send(SEND_MODE_CARRY_ALL_BALANCE);

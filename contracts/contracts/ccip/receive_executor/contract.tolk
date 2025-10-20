@@ -44,8 +44,6 @@ fun _initExecute(msg: ReceiveExecutor_InitExecute, sender: address) {
 }
 
 fun _execute(st: ReceiveExecutor_Storage) {
-    val message = st.message.load();
-
     st.state = ReceiveExecutor_MessageState.Execute;
     st.store();
     createMessage(
@@ -54,7 +52,8 @@ fun _execute(st: ReceiveExecutor_Storage) {
             value: ton("0.05"),
             dest: st.owner,
             body: OffRamp_DispatchValidated {
-                message: message,
+                message: st.message,
+                execId: st.execId,
             }
         }
     ).send(SEND_MODE_REGULAR);
@@ -81,6 +80,7 @@ fun _ccipReceiveConfirm(msg: ReceiveExecutor_Confirm, sender: address) {
         dest: st.owner,
         body: OffRamp_NotifySuccess {
             header: messageHeader,
+            execId: st.execId,
         },
     });
     notifySuccess.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
@@ -107,6 +107,7 @@ fun _ccipReceiveBounced(msg: ReceiveExecutor_Bounced, sender: address){
         dest: st.owner,
         body: OffRamp_NotifyFailure {
             header: messageHeader,
+            execId: st.execId,
         },
     });
     notifySuccess.send(SEND_MODE_REGULAR);
