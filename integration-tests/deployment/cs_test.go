@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/timelock"
 	"math/big"
 	"testing"
 	"time"
@@ -30,6 +29,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink/deployment/environment/memory"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/timelock"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/chainaccessor"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
@@ -232,6 +232,7 @@ func TestDeploy(t *testing.T) {
 	// <Verify timelock address>
 	timelockAddr := state[chainSelector].Timelock
 	_, err = addrCodec.AddressStringToBytes(timelockAddr.String())
+	require.NoError(t, err)
 	isInitializedResponse, err := tonChain.Client.RunGetMethod(ctx, mc, &timelockAddr, "isInitialized")
 	require.NoError(t, err)
 	rawIsInitialized, err := isInitializedResponse.Int(0)
