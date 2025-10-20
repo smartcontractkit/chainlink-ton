@@ -257,9 +257,14 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 	} else {
 		timelockInput := operation.DeployTimelockInput{
 			ID:           in.CCIPConfig.TimelockParams.ID,
-			MinDelay:     in.CCIPConfig.TimelockParams.MinDelay,
 			ContractPath: utils.GetBuildDir("mcms.RBACTimelock.compiled.json"),
 			Coins:        "1",
+			MinDelay:     in.CCIPConfig.TimelockParams.MinDelay,
+			Admin:        in.CCIPConfig.TimelockParams.Admin,
+			Proposers:    in.CCIPConfig.TimelockParams.Proposers,
+			Executors:    in.CCIPConfig.TimelockParams.Executors,
+			Cancellers:   in.CCIPConfig.TimelockParams.Cancellers,
+			Bypassers:    in.CCIPConfig.TimelockParams.Bypassers,
 		}
 		deployTimelockReport, err := operations.ExecuteOperation(b, operation.DeployTimelockOp, deps, timelockInput)
 		if err != nil {

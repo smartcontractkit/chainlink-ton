@@ -2,7 +2,6 @@ package deployment
 
 import (
 	"context"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/timelock"
@@ -235,24 +234,10 @@ func TestDeploy(t *testing.T) {
 	_, err = addrCodec.AddressStringToBytes(timelockAddr.String())
 	isInitializedResponse, err := tonChain.Client.RunGetMethod(ctx, mc, &timelockAddr, "isInitialized")
 	require.NoError(t, err)
-	t.Log("isInitializedResponse: ", isInitializedResponse)
-
-	mcInfo, err := tonChain.Client.CurrentMasterchainInfo(ctx)
-	if err != nil {
-		panic(err)
-	}
-	acc, err := tonChain.Client.GetAccount(ctx, mcInfo, &timelockAddr)
-	if err != nil {
-		t.Log("Error getting account state", "addr", timelockAddr, "error", err)
-	} else {
-		t.Log("Account data", "data hash", hex.EncodeToString(acc.Data.Hash()), "size", acc.Data.BitsSize())
-	}
-
-	// isInitialized, err := isInitializedResponse.MustSlice(0).LoadBoolBit()
-	// require.NoError(t, err)
-	// require.True(t, isInitialized)
-	// require.NoError(t, err)
-	// require.NoError(t, err)
+	rawIsInitialized, err := isInitializedResponse.Int(0)
+	require.NoError(t, err)
+	isInitialized := rawIsInitialized.Sign() != 0
+	require.True(t, isInitialized)
 	getProposerResponse, err := tonChain.Client.RunGetMethod(ctx, mc, &timelockAddr, "getRoleMemberFirst", timelock.RoleProposer)
 	require.NoError(t, err)
 	getExecutorResponse, err := tonChain.Client.RunGetMethod(ctx, mc, &timelockAddr, "getRoleMemberFirst", timelock.RoleExecutor)
@@ -268,11 +253,6 @@ func TestDeploy(t *testing.T) {
 	shouldBeDeployer3 := getCancellerResponse.MustSlice(0).MustLoadAddr()
 	shouldBeDeployer4 := getBypasserResponse.MustSlice(0).MustLoadAddr()
 	shouldBeDeployer5 := getAdminResponse.MustSlice(0).MustLoadAddr()
-	t.Log("shouldBeDeployer1: ", shouldBeDeployer1.String())
-	t.Log("shouldBeDeployer2: ", shouldBeDeployer1.String())
-	t.Log("shouldBeDeployer3: ", shouldBeDeployer1.String())
-	t.Log("shouldBeDeployer4: ", shouldBeDeployer1.String())
-	t.Log("shouldBeDeployer5: ", shouldBeDeployer1.String())
 	require.Equal(t, deployer.WalletAddress().Bounce(true).String(), shouldBeDeployer1.String())
 	require.Equal(t, deployer.WalletAddress().Bounce(true).String(), shouldBeDeployer2.String())
 	require.Equal(t, deployer.WalletAddress().Bounce(true).String(), shouldBeDeployer3.String())
