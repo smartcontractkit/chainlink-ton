@@ -15,7 +15,7 @@ func TestGetContractBuildSHA(t *testing.T) {
 	}
 	expected := strings.TrimSpace(string(data))
 
-	sha stat:= GetContractBuildSHA()
+	sha := GetContractBuildSHA()
 	if sha != expected {
 		t.Errorf("expected %s, got %s", expected, sha)
 	}
