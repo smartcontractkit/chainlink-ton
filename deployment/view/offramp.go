@@ -102,10 +102,9 @@ func fetchSrcChainConfig(ctx context.Context, c cldf_ton.Chain, block *ton.Block
 	eg.SetLimit(runtime.NumCPU())
 	output := make(map[uint64]OffRampSourceChainConfig)
 	var mut sync.Mutex
-	for _, destChain := range chainSelectors {
-		dest := destChain // capture loop variable
+	for _, dest := range chainSelectors {
 		eg.Go(func() error {
-			result, err := c.Client.RunGetMethod(ctx, block, offRampAddr, srcChainConfigGetter, dest)
+			result, err = c.Client.RunGetMethod(ctx, block, offRampAddr, srcChainConfigGetter, dest)
 			if err != nil {
 				return err
 			}
