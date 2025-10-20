@@ -16,7 +16,7 @@ import "../merkle_root/messages"
 import "../../lib/receiver/messages"
 import "../merkle_root/storage"
 
-const CONTRACT_VERSION = "0.0.3";
+const CONTRACT_VERSION = "0.0.4";
 
 fun onInternalMessage(in:InMessage) {
     val msg = lazy OffRamp_InMessage.fromSlice(in.body);
