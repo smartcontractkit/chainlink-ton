@@ -142,7 +142,6 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 
 	txs = append(txs, updateFeeTokensReport.Output...)
 
-	// Execute post-deployment transactions
 	err = utils.ExecuteProposals(env, chain.Client, chain.Wallet, txs)
 
 	if err != nil {

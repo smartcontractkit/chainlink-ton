@@ -34,14 +34,6 @@ type DeployTimelockOutput struct {
 	Address *address.Address
 }
 
-//type InitTimelockInput struct {
-//	Admin      *address.Address
-//	Proposers  []*address.Address
-//	Executors  []*address.Address
-//	Cancellers []*address.Address
-//	Bypassers  []*address.Address
-//}
-
 var DeployTimelockOp = operations.NewOperation(
 	"deploy-timelock-op",
 	semver.MustParse("0.1.0"),
@@ -101,8 +93,7 @@ func deployTimelock(b operations.Bundle, deps TonDeps, in DeployTimelockInput) (
 		return output, fmt.Errorf("failed to pack body: %w", err)
 	}
 
-	contract, _, err := wrappers.Deploy2(
-		b.Logger,
+	contract, _, err := wrappers.Deploy(
 		&conn,
 		codeCell,
 		initData,

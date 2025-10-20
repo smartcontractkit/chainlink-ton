@@ -118,7 +118,10 @@ type TimelockParams struct {
 	Bypassers  []*address.Address
 }
 
-func (r TimelockParams) Validate() error {
-	// No specific validation for now
+func (t TimelockParams) Validate() error {
+	if t.Admin == nil {
+		return fmt.Errorf("timelock admin should be specified")
+	}
+
 	return nil
 }
