@@ -6,27 +6,21 @@ import (
 	"fmt"
 	"math/big"
 	"testing"
-	"time"
+
+	"github.com/stretchr/testify/require"
+	"github.com/xssnick/tonutils-go/ton"
 
 	chain_selectors "github.com/smartcontractkit/chain-selectors"
-
 	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
-
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
-
 	ton_ops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
-
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
-	test_utils "github.com/smartcontractkit/chainlink-ton/deployment/utils"
-
-	"github.com/stretchr/testify/require"
-	"github.com/xssnick/tonutils-go/tlb"
-
+	devenv "github.com/smartcontractkit/chainlink-ton/integration-tests/env"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/timelock"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/chainaccessor"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
@@ -35,17 +29,18 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/loader/account"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/txparser"
 	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
-	"github.com/xssnick/tonutils-go/address"
-	"github.com/xssnick/tonutils-go/ton"
 )
 
 func TestDeploy(t *testing.T) {
 	t.Parallel()
 	lggr := logger.Test(t)
-	env, _ := NewMemoryEnvironment(t, lggr, true)
+
+	envBuilder := devenv.TestEnvironmentBuilder{}
+	env, err := envBuilder.WithLogger(lggr).WithTON().WithEVM().Build(t)
+	require.NoError(t, err)
 
 	// Get chain selectors
-	evmSelector := chain_selectors.ETHEREUM_TESTNET_SEPOLIA.Selector // env.BlockChains.ListChainSelectors(chain.WithFamily(chain_selectors.FamilyEVM))[0]
+	evmSelector := env.BlockChains.ListChainSelectors(chain.WithFamily(chain_selectors.FamilyEVM))[0]
 	tonChainSelectors := env.BlockChains.ListChainSelectors(chain.WithFamily(chain_selectors.FamilyTon))
 	require.Len(t, tonChainSelectors, 1, "Expected exactly 1 Ton chain")
 	chainSelector := tonChainSelectors[0]
@@ -55,10 +50,6 @@ func TestDeploy(t *testing.T) {
 	clientProvider := func(ctx context.Context) (ton.APIClientWrapped, error) {
 		return tonChain.Client, nil
 	}
-
-	// memory environment doesn't block on funding so changesets can execute before the env is fully ready, manually call fund so we block here
-	test_utils.FundWallets(t, tonChain.Client, []*address.Address{deployer.Address()}, []tlb.Coins{tlb.MustFromTON("1000")})
-	time.Sleep(5 * time.Second)
 
 	// Random contract's ID to avoid collision on subsequence runs of the test against the same chain node
 	contractID, err := ton_ops.RandomUint32()
