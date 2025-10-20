@@ -29,7 +29,7 @@ jobs:
       ton_changes: ${{ steps.changes.outputs.ton_changes }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           persist-credentials: false
       - name: Detect changes
@@ -51,7 +51,7 @@ jobs:
       contents: write
     steps:
       - name: Check out code
-        uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
