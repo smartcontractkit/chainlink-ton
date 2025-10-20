@@ -21,7 +21,7 @@ const (
 // FeeQuoterView represents a view of the fee quoter contract configuration.
 type FeeQuoterView struct {
 	MetaData
-	StaticConfig    StaticConfig               `json:"staticConfig"`
+	StaticConfig    FeeQuoterStaticConfig      `json:"staticConfig"`
 	DestChainConfig map[uint64]DestChainConfig `json:"destChainConfig,omitempty"`
 }
 
@@ -29,7 +29,7 @@ type PremiumMultipliers struct {
 	PremiumMultiplierWeiPerEth uint64 `json:"premiumMultiplierWeiPerEth,omitempty"`
 }
 
-type StaticConfig struct {
+type FeeQuoterStaticConfig struct {
 	MaxFeeJuelsPerMsg  string           `json:"maxFeeJuelsPerMsg,omitempty"`
 	LinkToken          *address.Address `json:"linkToken,omitempty"`
 	StalenessThreshold uint32           `json:"stalenessThreshold,omitempty"`
@@ -95,7 +95,7 @@ func FetchFeeQuoterView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockI
 			ContractType: typeVersion.Type,
 			Version:      typeVersion.Version,
 		},
-		StaticConfig: StaticConfig{
+		StaticConfig: FeeQuoterStaticConfig{
 			MaxFeeJuelsPerMsg:  sc.MaxFeeJuelsPerMsg.String(),
 			LinkToken:          sc.LinkToken,
 			StalenessThreshold: sc.StalenessThreshold,

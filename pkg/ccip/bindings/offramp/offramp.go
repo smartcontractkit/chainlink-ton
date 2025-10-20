@@ -38,6 +38,44 @@ type Storage struct {
 	LatestPriceSequenceNumber               uint64              `tlb:"## 64"`
 }
 
+type Config struct {
+	ChainSelector                           uint64           `tlb:"## 64"`
+	FeeQuoterAddress                        *address.Address `tlb:"addr"`
+	PermissionlessExecutionThresholdSeconds uint32           `tlb:"## 32"`
+}
+
+func (c *Config) FromResult(result *ton.ExecutionResult) error {
+	cs, err := result.Int(0)
+	if err != nil {
+		return fmt.Errorf("failed to get ChainSelector: %w", err)
+	}
+
+	chainSelector := cs.Uint64()
+
+	feeQuoterAddressSlice, err := result.Slice(1)
+	if err != nil {
+		return fmt.Errorf("failed to get feeQuoter address slice: %w", err)
+	}
+
+	feeQuoterAddress, err := feeQuoterAddressSlice.LoadAddr()
+	if err != nil {
+		return fmt.Errorf("failed to load feeQuoter address: %w", err)
+	}
+
+	thresholdInt, err := result.Int(2)
+	if err != nil {
+		return fmt.Errorf("failed to get permissionlessExecutionThresholdSeconds: %w", err)
+	}
+	thresholdSeconds := thresholdInt.Uint64()
+
+	*c = Config{
+		ChainSelector:                           chainSelector,
+		FeeQuoterAddress:                        feeQuoterAddress,
+		PermissionlessExecutionThresholdSeconds: uint32(thresholdSeconds),
+	}
+	return nil
+}
+
 type SourceChainConfig struct {
 	Router                    *address.Address         `tlb:"addr"`
 	IsEnabled                 bool                     `tlb:"bool"`

@@ -10,6 +10,8 @@ const (
 	versionGetter         = "typeAndVersion"
 	destChainsGetter      = "destChainSelectors"
 	destChainConfigGetter = "destChainConfig"
+	srcChainConfigGetter  = "sourceChainConfig"
+	configGetter          = "config"
 )
 
 // MetaData holds common metadata for all contract views.
