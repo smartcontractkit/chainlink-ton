@@ -92,7 +92,7 @@ fun _notifyFailure(msg: OffRamp_NotifyFailure, sender: address) {
         sourceChainSelector: messageHeader.sourceChainSelector,
         sequenceNumber: messageHeader.sequenceNumber,
         messageId: messageHeader.messageId,
-        state: EXECUTION_STATE_FAILURE 
+        state: ExecutionState.Failure
     });
 }
 
@@ -103,7 +103,7 @@ fun _notifySuccess(msg: OffRamp_NotifySuccess, sender: address) {
         sourceChainSelector: messageHeader.sourceChainSelector,
         sequenceNumber: messageHeader.sequenceNumber,
         messageId: messageHeader.messageId,
-        state: EXECUTION_STATE_SUCCESS
+        state: ExecutionState.Success
     });
 }
 
@@ -180,19 +180,19 @@ fun _dispatchValidated(msg: OffRamp_DispatchValidated, sender: address) {
                 sourceChainSelector: header.sourceChainSelector,
                 sequenceNumber: header.sequenceNumber,
                 messageId: header.messageId,
-                state: EXECUTION_STATE_IN_PROGRESS 
+                state: ExecutionState.InProgress
             });
 }
 
 fun _setOCR3Config(msg: OCR3Base_SetOCR3Config, sender: address) {
-        var st = lazy Storage.load();
-        st.ownable.requireOwner(sender);
+    var st = lazy Storage.load();
+    st.ownable.requireOwner(sender);
 
-        var ocr3Base = st.ocr3Base.load();
-        ocr3Base.setOcr3Config(msg);
+    var ocr3Base = st.ocr3Base.load();
+    ocr3Base.setOcr3Config(msg);
 
-        st.ocr3Base = ocr3Base.toCell();
-        st.store();
+    st.ocr3Base = ocr3Base.toCell();
+    st.store();
 }
 
 fun _commit(msg: OffRamp_Commit, sender: address) {
@@ -224,7 +224,7 @@ fun _commit(msg: OffRamp_Commit, sender: address) {
         // note: if prices are stale, we continue to process merkle roots if any exist
     }
 
-    var roots = Iterator<MerkleRoot>.new(report.merkleRoots);
+    var roots = report.merkleRoots.iter();
     val priceUpdatesOnlyReport = roots.empty();
     while (!roots.empty()) {
         val root = roots.next();

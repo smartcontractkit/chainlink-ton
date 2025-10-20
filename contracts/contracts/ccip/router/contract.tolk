@@ -12,7 +12,7 @@ import "../../lib/utils"
 import "../../lib/jetton/messages"
 import "../../lib/jetton/messages_extended"
 
-const CONTRACT_VERSION = "0.0.2";
+const CONTRACT_VERSION = "0.0.3";
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy Msg.fromSlice(in.body);
@@ -34,7 +34,7 @@ fun onSetRamps(msg: Router_SetRamps, sender: address) {
     var st = lazy Storage.load();
     st.ownable.requireOwner(sender);
 
-    var selectors = Iterator<uint64>.new(msg.destChainSelectors);
+    var selectors = msg.destChainSelectors.iter();
     while (!selectors.empty()) {
         val selector = selectors.next();
         st.onRamps.set(selector, msg.onRamp);
@@ -60,7 +60,7 @@ fun onTransferNotification(transferNotification: Common_JettonTransferNotificati
 
     // TODO: catch errors, if different message type than CCIPSend
     val sendMsg = Router_CCIPSend.fromCell(transferNotification.forwardPayload!);
-    var tokenAmounts = Iterator<TokenAmount>.new(sendMsg.tokenAmounts);
+    var tokenAmounts = sendMsg.tokenAmounts.iter();
     // TODO handle payment in LINK if this is a LINK transfer
     assert (!tokenAmounts.empty()) throw 0xFFFF; // TODO: proper error code for no token amounts
     val transferedJetton = tokenAmounts.next();

@@ -18,8 +18,8 @@ const OCR3BASE_TRANSMITTED: int = stringCrc32("OCR3Base_Transmitted");
 struct OCR3Base_ConfigSet {
     ocrPluginType: uint16;
     configDigest: uint256;
-    signers: cell; //Vector<uint256>
-    transmitters: cell; // Vector<address>
+    signers: SnakedCell<uint256>;
+    transmitters: SnakedCell<address>;
     bigF: uint8;
 }
 
@@ -47,8 +47,8 @@ struct (0x2B78359F) OCR3Base_SetOCR3Config {
     ocrPluginType: uint16;
     bigF: uint8;
     isSignatureVerificationEnabled: bool;
-    signers: cell; //Vector<uint256>;
-    transmitters: cell; //Vector<address>;
+    signers: SnakedCell<uint256>;
+    transmitters: SnakedCell<address>;
 }
 
 struct OCR3Base {
@@ -93,12 +93,13 @@ fun OCR3Base.setOcr3Config(mutate self, msg: OCR3Base_SetOCR3Config) {
 		);
 	}
 	val transmitters_length = countAddresses(msg.transmitters);
+	// val transmitters_length = msg.transmitters.iter().size(ADDR_KEY_LEN);
 
 	assert(transmitters_length <= MAX_NUM_ORACLES, ERROR_TOO_MANY_TRANSMITTERS);
 	assert(transmitters_length > 0, ERROR_NO_TRANSMITTERS);
 	
 	if (msg.isSignatureVerificationEnabled) {
-		val signers_length = Iterator<uint256>.new(msg.signers).countBytes() / 32;
+		val signers_length = msg.signers.iter().countBytes() / 32;
 		assert(signers_length > 0, ERROR_NO_SIGNERS);
 		assert(signers_length <= MAX_NUM_ORACLES, ERROR_TOO_MANY_SIGNERS);
 		assert(signers_length > 3 * msg.bigF, ERROR_BIG_F_TOO_HIGH);
@@ -132,7 +133,7 @@ fun OCR3Base.transmit(
     ocrPluginType: int,
     reportContext: ReportContext,
     report: cell,
-    signatures: cell, //Vector<SignatureEd25519>
+    signatures: SnakedCell<SignatureEd25519>,
 ) {
     var ocrConfig = self.getConfig(ocrPluginType);
     assert(ocrConfig != null, ERROR_NON_EXISTENT_OCR_PLUGIN_TYPE);
@@ -151,7 +152,7 @@ fun OCR3Base.transmit(
 
     if (configInfo.isSignatureVerificationEnabled) {
     	var expectedSignatures = configInfo.bigF + 1;
-	val signatures_length = Iterator<SignatureEd25519>.new(signatures).countBytes() / 96; //expensive
+		val signatures_length = signatures.iter().countBytes() / 96; //expensive
     	assert(signatures_length == expectedSignatures, ERROR_WRONG_NUMBER_OF_SIGNATURES);
     	var hashedReport = self.hashReport(report, reportContext);
     	var pluginSigners = ocrConfig.signers;
@@ -180,10 +181,10 @@ fun OCR3Base.verifySignature(
 	mutate self,
 	signers: map<uint256, uint8>, // <signer -> index>
 	hashedReport: uint256,
-	signatures: cell // Vector<SignatureEd25519>
+	signatures: SnakedCell<SignatureEd25519>
 ) {
 	var seen = Bitmap256.new();
-	var signaturesIt = Iterator<SignatureEd25519>.new(signatures); 
+	var signaturesIt = signatures.iter(); 
 	while (!signaturesIt.empty()) {
 		val signature = signaturesIt.next();
 		val signer = signature.signer;

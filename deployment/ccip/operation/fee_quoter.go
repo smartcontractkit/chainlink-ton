@@ -24,6 +24,7 @@ type DeployFeeQuoterInput struct {
 	Params       config.FeeQuoterParams
 	LinkAddr     *address.Address
 	ContractPath string
+	Coins        string
 }
 
 type DeployFeeQuoterOutput struct {
@@ -68,7 +69,7 @@ func deployFeeQuoter(b operations.Bundle, deps TonDeps, in DeployFeeQuoterInput)
 
 	// TODO: handle setting FeeTokens and PremiumMultiplierWeiPerEthByFeeToken
 
-	contract, _, err := wrappers.Deploy(&conn, codeCell, initData, tlb.MustFromTON("1"), nil)
+	contract, _, err := wrappers.Deploy(&conn, codeCell, initData, tlb.MustFromTON(in.Coins), nil)
 	if err != nil {
 		return output, fmt.Errorf("failed to deploy fee quoter contract: %w", err)
 	}
