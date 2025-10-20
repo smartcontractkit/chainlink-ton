@@ -39,9 +39,7 @@ export type WithdrawableTestConfig<TContract> = {
 /**
  * Contract interface that must be implemented by withdrawable contracts for testing.
  */
-export interface WithdrawableContract extends withdrawable.Withdrawable, Contract {
-  sendDeploy(provider: ContractProvider, via: any, value: bigint): Promise<void>
-}
+export interface WithdrawableContract extends withdrawable.Withdrawable, Contract {}
 
 interface TestSetup<TContract> {
   blockchain: Blockchain
@@ -111,6 +109,19 @@ export function newWithdrawableSpec<TContract extends WithdrawableContract>(
     const recipient = await blockchain.treasury('recipient')
     const code = await config.getCode()
     const contract = await setupContract(blockchain, owner)
+    const balance = (await blockchain.getContract(contract.address)).balance
+    if (balance < config.reserve + toNano('10')) {
+      const funder = await blockchain.treasury('funder')
+      const res = await funder.send({
+        value: toNano('10'),
+        to: contract.address,
+      })
+      expect(res.transactions).toHaveTransaction({
+        from: funder.address,
+        to: contract.address,
+        success: true,
+      })
+    }
 
     return {
       blockchain,
@@ -284,13 +295,6 @@ export function newWithdrawableSpec<TContract extends WithdrawableContract>(
         const tx = searchTX(result, contract)
         const outMsg = getOutMsg(tx)
         expect(outMsg.info.value.coins).toBe(initialBalance - reserve + remainingMessageValue(tx))
-        var output = ''
-        output += `Initial Balance:       ${initialBalance.toString()}\n`
-        output += `remainingMessageValue: ${remainingMessageValue(tx).toString()}\n`
-        output += `Reserve:               ${reserve.toString()}\n`
-        output += `Withdraw Amount:       ${(initialBalance - reserve + remainingMessageValue(tx)).toString()}\n`
-        output += `Total Out Value:       ${(outMsg.info.value.coins + tx.description.computePhase.gasFees + (tx.description.actionPhase.totalFwdFees ?? 0n)).toString()}\n`
-        console.log(output)
 
         const finalBalance = (await blockchain.getContract(contract.address)).balance
         // Contract should have the reserve amount left

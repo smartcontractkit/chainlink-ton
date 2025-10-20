@@ -31,8 +31,10 @@ import {
   generateEd25519KeyPair,
   generateMockTonAddress,
   uint8ArrayToBigInt,
+  ZERO_ADDRESS,
 } from '../../src/utils'
 import { KeyPair, sha256_sync } from '@ton/crypto'
+import { newWithdrawableSpec } from '../lib/funding/WithdrawableSpec'
 
 import {
   createSignature,
@@ -128,7 +130,40 @@ export function generateMessageId(message: Any2TVMRampMessage, metadataHash: big
   )
 }
 
-describe('OffRamp', () => {
+describe('OffRamp - Withdrawable Tests', () => {
+  const withdrawableSpec = newWithdrawableSpec(
+    {
+      getCode: () => compile('OffRamp'),
+      ContractConstructor: OffRamp,
+      withdrawValue: toNano('0.05'),
+      reserve: toNano('1'),
+    },
+    async (blockchain, owner) => {
+      const code = await compile('OffRamp')
+      let data: OffRampStorage = {
+        id: generateSecureRandomId(),
+        ownable: {
+          owner: owner.address,
+          pendingOwner: null,
+        },
+        deployerCode: beginCell().endCell(),
+        merkleRootCode: beginCell().endCell(),
+        feeQuoter: ZERO_ADDRESS,
+        chainSelector: CHAINSEL_TON,
+        permissionlessExecutionThresholdSeconds: 60,
+        latestPriceSequenceNumber: 0n,
+      }
+
+      const contract = blockchain.openContract(OffRamp.createFromConfig(data, code))
+      const deployer = await blockchain.treasury('deployer')
+      await contract.sendDeploy(deployer.getSender(), toNano('0.05'))
+      return contract
+    },
+  )
+  withdrawableSpec.run()
+})
+
+describe('OffRamp - Unit Tests', () => {
   let blockchain: Blockchain
   let deployer: SandboxContract<TreasuryContract>
   let offRamp: SandboxContract<OffRamp>
