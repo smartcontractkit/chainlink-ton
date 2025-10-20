@@ -14,67 +14,51 @@ import { crc32 } from 'zlib'
 import { CellCodec } from '../../utils'
 
 export const opcodes = {
-  Withdraw: crc32('Withdrawable_Withdraw'),
+  Withdraw: 0xf343fc1b, // crc32('Withdrawable_Withdraw')
 }
 
 export enum Error {
-  VersionMismatch = 28700,
+  InsufficientBalance = 44800, // Facility ID * 100
+  HitReserve,
+  LowReserve,
+  InvalidRequest,
 }
 
 export type Withdraw = {
   queryId: bigint
-  code: Cell
-  fromVersion: string
-}
-
-export type WithdrawdEvent = {
-  code: Cell
-  codeHash: bigint
-  version: string
+  destination: Address
+  amount: bigint
+  force: boolean
+  drainAllAvailable: boolean
 }
 
 export const builder = {
   message: {
     in: {
-      upgrade: ((): CellCodec<Withdraw> => {
+      withdraw: ((): CellCodec<Withdraw> => {
         return {
           encode: (msg: Withdraw): Builder => {
             return beginCell()
               .storeUint(opcodes.Withdraw, 32)
               .storeUint(msg.queryId, 64)
-              .storeRef(msg.code)
-              .storeStringTail(msg.fromVersion)
+              .storeAddress(msg.destination)
+              .storeCoins(msg.amount)
+              .storeBit(msg.force)
+              .storeBit(msg.drainAllAvailable)
           },
           load: (src: Slice): Withdraw => {
             src.skip(32) // opcode
             return {
               queryId: src.loadUintBig(64),
-              code: src.loadRef(),
-              fromVersion: src.loadStringTail(),
+              destination: src.loadAddress(),
+              amount: src.loadCoins(),
+              force: src.loadBit(),
+              drainAllAvailable: src.loadBit(),
             }
           },
         }
       })(),
     },
-  },
-  event: {
-    upgraded: ((): CellCodec<WithdrawdEvent> => {
-      return {
-        encode: (event: WithdrawdEvent): Builder => {
-          return beginCell()
-            .storeRef(event.code)
-            .storeUint(event.codeHash, 256)
-            .storeStringTail(event.version)
-        },
-        load: (src: Slice): WithdrawdEvent => {
-          return {
-            code: src.loadRef(),
-            codeHash: src.loadUintBig(256),
-            version: src.loadStringTail(),
-          }
-        },
-      }
-    })(),
   },
 }
 
@@ -87,7 +71,7 @@ export async function sendWithdraw(
   await provider.internal(via, {
     value: value,
     sendMode: SendMode.PAY_GAS_SEPARATELY,
-    body: builder.message.in.upgrade.encode(body).endCell(),
+    body: builder.message.in.withdraw.encode(body).endCell(),
   })
 }
 
