@@ -2,7 +2,7 @@ import "../lib/access/ownable_2step.tolk";
 
 //TODO implement
 
-const CONTRACT_VERSION = "0.0.1";
+const CONTRACT_VERSION = "0.0.2";
 
 struct Storage {
     ownable: Ownable2Step;

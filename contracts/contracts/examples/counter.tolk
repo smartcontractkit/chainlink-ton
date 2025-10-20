@@ -4,7 +4,7 @@ import "@stdlib/common.tolk"
 import "../lib/utils.tolk"
 import "../lib/access/ownable_2step.tolk"
 
-const CONTRACT_VERSION = "1.1.1";
+const CONTRACT_VERSION = "1.1.2";
 
 /// Counter contract + event emission (Tolk example)
 /// Message to set the counter value.
