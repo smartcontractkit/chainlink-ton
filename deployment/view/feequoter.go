@@ -117,10 +117,9 @@ func fetchDestChainConfigsView(ctx context.Context, c cldf_ton.Chain, block *ton
 	var mu sync.Mutex
 	eg.SetLimit(runtime.NumCPU())
 	output := make(map[uint64]DestChainConfig)
-	for _, destChain := range selectorSlice {
-		dest := destChain // capture range variable
+	for _, dest := range selectorSlice {
 		eg.Go(func() error {
-			result, err := c.Client.RunGetMethod(ctx, block, feeQuoter, destChainConfigGetter, dest)
+			result, err = c.Client.RunGetMethod(ctx, block, feeQuoter, destChainConfigGetter, dest)
 			if err != nil {
 				return err
 			}
