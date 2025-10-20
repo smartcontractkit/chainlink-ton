@@ -1,11 +1,13 @@
 package env
 
 import (
+	"errors"
 	"fmt"
-	"github.com/pelletier/go-toml/v2"
 	"os"
 	"path/filepath"
 	"runtime"
+
+	"github.com/pelletier/go-toml/v2"
 )
 
 type Config struct {
@@ -18,7 +20,7 @@ type OnchainConfig struct {
 }
 
 type TonBlockchain struct {
-	ChainId       int32  `toml:"chainId"`
+	ChainID       int    `toml:"chainID"`
 	Name          string `toml:"name"`
 	HTTPURL       string `toml:"httpURL"`
 	DeployerKey   string `toml:"deployerKey"`
@@ -26,7 +28,7 @@ type TonBlockchain struct {
 }
 
 type EvmBlockchain struct {
-	ChainId     int32  `toml:"chainId"`
+	ChainID     int    `toml:"chainID"`
 	Name        string `toml:"name"`
 	HTTPURL     string `toml:"httpURL"`
 	WSSURL      string `toml:"wssURL"`
@@ -37,7 +39,7 @@ func LoadEnvironmentConfig(filename string) (*Config, error) {
 	// Get the directory where this source file lives.
 	_, thisFile, _, ok := runtime.Caller(0)
 	if !ok {
-		return nil, fmt.Errorf("unable to determine caller path")
+		return nil, errors.New("unable to determine caller path")
 	}
 	dir := filepath.Dir(thisFile)
 

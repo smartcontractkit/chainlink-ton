@@ -1,8 +1,8 @@
 package env
 
 import (
-	"context"
 	"fmt"
+	"strconv"
 	"testing"
 	"time"
 
@@ -24,10 +24,12 @@ import (
 	"github.com/smartcontractkit/chainlink/deployment/environment/memory"
 )
 
-const DEFAULT_TON_WALLET_VERSION = "V5R1"
-const LOCAL_ENV_CONFIG_FILE = "local-env.toml"
-const TESTNET_ENV_CONFIG_FILE = "testnet-env.toml"
-const DEFAULT_FUND_AMOUNT_TON = "1000"
+const (
+	DefaultTonWalletVersion = "V5R1"
+	LocalEnvConfigFile      = "local-env.toml"
+	TestnetEnvConfigFile    = "testnet-env.toml"
+	DefaultFundAmountTon    = "1000"
+)
 
 type EnvironmentType int
 
@@ -61,13 +63,13 @@ func (b *TestEnvironmentBuilder) CTF() *TestEnvironmentBuilder {
 
 func (b *TestEnvironmentBuilder) Local() *TestEnvironmentBuilder {
 	b.Type = LOCAL
-	b.EnvConfigFile = LOCAL_ENV_CONFIG_FILE
+	b.EnvConfigFile = LocalEnvConfigFile
 	return b
 }
 
 func (b *TestEnvironmentBuilder) Testnet() *TestEnvironmentBuilder {
 	b.Type = TESTNET
-	b.EnvConfigFile = TESTNET_ENV_CONFIG_FILE
+	b.EnvConfigFile = TestnetEnvConfigFile
 	return b
 }
 
@@ -109,7 +111,7 @@ func (b *TestEnvironmentBuilder) Build(t *testing.T) (cldf.Environment, error) {
 	// Only fund wallets when using my-local-ton.
 	if b.Type == CTF || b.Type == LOCAL {
 		for _, chain := range env.BlockChains.TonChains() {
-			test_utils.FundWallets(t, chain.Client, []*address.Address{chain.WalletAddress}, []tlb.Coins{tlb.MustFromTON(DEFAULT_FUND_AMOUNT_TON)})
+			test_utils.FundWallets(t, chain.Client, []*address.Address{chain.WalletAddress}, []tlb.Coins{tlb.MustFromTON(DefaultFundAmountTon)})
 			time.Sleep(5 * time.Second)
 		}
 	}
@@ -128,7 +130,6 @@ func (b *TestEnvironmentBuilder) newCTFBasedEnvironment(t *testing.T) (cldf.Envi
 
 func (b *TestEnvironmentBuilder) newConfigFileBasedEnvironment(t *testing.T) (cldf.Environment, error) {
 	providers := make([]cldf_chain.BlockChain, 0)
-	selectors := make([]uint64, 0)
 
 	config, err := LoadEnvironmentConfig(b.EnvConfigFile)
 	if err != nil {
@@ -137,20 +138,19 @@ func (b *TestEnvironmentBuilder) newConfigFileBasedEnvironment(t *testing.T) (cl
 
 	// TON Testnet
 	for _, chain := range config.Onchain.TonBlockchains {
-		tonChainId := chain.ChainId
-		chainDetails, err := chain_selectors.GetChainDetailsByChainIDAndFamily(fmt.Sprint(tonChainId), chain_selectors.FamilyTon)
+		tonChainID := chain.ChainID
+		chainDetails, err := chain_selectors.GetChainDetailsByChainIDAndFamily(strconv.Itoa(tonChainID), chain_selectors.FamilyTon)
 		if err != nil {
 			return cldf.Environment{}, err
 		}
 
 		tonChainSelector := chainDetails.ChainSelector
-		selectors = append(selectors, tonChainSelector)
 
 		var (
 			deployerSignerGen cldf_ton_provider.PrivateKeyGenerator
 		)
 
-		walletVersion := DEFAULT_TON_WALLET_VERSION
+		walletVersion := DefaultTonWalletVersion
 		deployerSignerGen = cldf_ton_provider.PrivateKeyRandom()
 
 		if chain.WalletVersion != "" {
@@ -173,13 +173,13 @@ func (b *TestEnvironmentBuilder) newConfigFileBasedEnvironment(t *testing.T) (cl
 		if err != nil {
 			return cldf.Environment{}, err
 		}
-		providers = append(providers, tonProvider)
 
+		providers = append(providers, tonProvider)
 	}
 
 	for _, chain := range config.Onchain.EvmBlockchains {
-		evmChainId := chain.ChainId
-		chainDetails, err := chain_selectors.GetChainDetailsByChainIDAndFamily(fmt.Sprint(evmChainId), chain_selectors.FamilyEVM)
+		evmChainID := chain.ChainID
+		chainDetails, err := chain_selectors.GetChainDetailsByChainIDAndFamily(strconv.Itoa(evmChainID), chain_selectors.FamilyEVM)
 		if err != nil {
 			return cldf.Environment{}, err
 		}
@@ -215,19 +215,19 @@ func (b *TestEnvironmentBuilder) newConfigFileBasedEnvironment(t *testing.T) (cl
 		if err != nil {
 			return cldf.Environment{}, err
 		}
-		providers = append(providers, evmProvider)
 
+		providers = append(providers, evmProvider)
 	}
 
 	blockchains := cldf_chain.NewBlockChainsFromSlice(providers)
 	bundle := operations.NewBundle(
-		func() context.Context { return context.Background() },
+		t.Context,
 		b.Logger,
 		operations.NewMemoryReporter(),
 	)
 
 	env := cldf.Environment{
-		GetContext:        func() context.Context { return context.Background() },
+		GetContext:        t.Context,
 		Logger:            b.Logger,
 		BlockChains:       blockchains,
 		DataStore:         datastore.NewMemoryDataStore().Seal(),
