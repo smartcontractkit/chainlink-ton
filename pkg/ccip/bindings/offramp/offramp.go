@@ -2,6 +2,7 @@ package offramp
 
 import (
 	"fmt"
+	"math"
 	"math/big"
 
 	"github.com/xssnick/tonutils-go/address"
@@ -66,7 +67,11 @@ func (c *Config) FromResult(result *ton.ExecutionResult) error {
 	if err != nil {
 		return fmt.Errorf("failed to get permissionlessExecutionThresholdSeconds: %w", err)
 	}
+
 	thresholdSeconds := thresholdInt.Uint64()
+	if thresholdSeconds > math.MaxUint32 {
+		return fmt.Errorf("thresholdSeconds exceeds uint32")
+	}
 
 	*c = Config{
 		ChainSelector:                           chainSelector,
