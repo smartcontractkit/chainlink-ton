@@ -7,12 +7,14 @@ import "../onramp/types"
 import "../common/types"
 import "../common/messages"
 import "../../lib/access/ownable_2step"
+import "../../lib/funding/withdrawable.tolk"
 import "../../deployable/types"
 import "../../lib/utils"
 import "../../lib/jetton/messages"
 import "../../lib/jetton/messages_extended"
 
 const CONTRACT_VERSION = "0.0.3";
+const RESERVE = ton("1"); // TODO: set correct value
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy Msg.fromSlice(in.body);
@@ -20,6 +22,13 @@ fun onInternalMessage(in: InMessage) {
         Router_SetRamps => {onSetRamps(msg, in.senderAddress)}
         Router_CCIPSend => { onSend(msg, in.senderAddress) }
         Common_JettonTransferNotification => { onTransferNotification(msg, in.senderAddress) }
+        Withdrawable_Withdraw => {
+            var st = lazy Storage.load();
+            st.ownable.requireOwner(in.senderAddress);
+            Withdrawable{
+                reserve: RESERVE
+            }.withdraw(msg, in.valueCoins);
+        }
         else => {
             // ignore empty messages, "wrong opcode" for others
             assert (in.body.isEmpty()) throw 0xFFFF

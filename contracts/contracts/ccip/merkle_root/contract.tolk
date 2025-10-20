@@ -6,11 +6,14 @@ import "../offramp/types"
 import "../../lib/utils"
 import "../../deployable/types.tolk"
 import "../receive_executor/storage"
-
-const CONTRACT_VERSION = "0.0.4";
+import "../../lib/funding/withdrawable"
 
 // MerkleRoot contract
 // Root is commited on Commit Reports and the existance of this contract is used to validate Execute Reports
+
+const CONTRACT_VERSION = "0.0.5";
+const RESERVE = ton("1"); // TODO: set correct value
+
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy MerkleRoot_InMessage.fromSlice(in.body);
@@ -20,6 +23,13 @@ fun onInternalMessage(in: InMessage) {
             // If we receive this message from the OffRamp then the merkle proof has already been validated
             // and we know the message is part of the Commit Report. 
             _initExecute(msg, in.senderAddress);
+        }
+        Withdrawable_Withdraw => {
+            var st = MerkleRoot_Storage.load();
+            assert(in.senderAddress == st.owner, Error.NotOwner);
+            Withdrawable{
+                reserve: RESERVE
+            }.withdraw(msg, in.valueCoins);
         }
         else => {
             // ignore empty messages, "wrong opcode" for others
