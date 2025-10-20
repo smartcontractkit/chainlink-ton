@@ -94,3 +94,9 @@ env, err := devenv.NewTestEnvironmentBuilder(lggr).WithTON().WithEVM().Build(t)
 | **In-memory (CTF)** | Ephemeral env, used in CI             | Automated tests in CI and local                                              |
 | **Local (Docker)** | Full TON + EVM stack via Docker       | Faster automated tests running locally                                       |
 | **Testnet / Devnet** | Connect to public devnets   | Faster automated tests running locally and real-network validation |
+
+---
+
+### Next steps
+
+The 

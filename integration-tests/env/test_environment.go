@@ -3,13 +3,14 @@ package env
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"testing"
 	"time"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"go.uber.org/zap/zapcore"
+
+	chain_selectors "github.com/smartcontractkit/chain-selectors"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	cldf_chain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
@@ -135,8 +136,14 @@ func (b *TestEnvironmentBuilder) newConfigFileBasedEnvironment(t *testing.T) (cl
 	}
 
 	// TON Testnet
-	for _, chain := range config.TonBlockchains {
-		tonChainSelector, _ := strconv.ParseUint(chain.Selector, 10, 64)
+	for _, chain := range config.Onchain.TonBlockchains {
+		tonChainId := chain.ChainId
+		chainDetails, err := chain_selectors.GetChainDetailsByChainIDAndFamily(fmt.Sprint(tonChainId), chain_selectors.FamilyTon)
+		if err != nil {
+			return cldf.Environment{}, err
+		}
+
+		tonChainSelector := chainDetails.ChainSelector
 		selectors = append(selectors, tonChainSelector)
 
 		var (
@@ -170,8 +177,14 @@ func (b *TestEnvironmentBuilder) newConfigFileBasedEnvironment(t *testing.T) (cl
 
 	}
 
-	for _, chain := range config.EvmBlockchains {
-		evmChainSelector, _ := strconv.ParseUint(chain.Selector, 10, 64)
+	for _, chain := range config.Onchain.EvmBlockchains {
+		evmChainId := chain.ChainId
+		chainDetails, err := chain_selectors.GetChainDetailsByChainIDAndFamily(fmt.Sprint(evmChainId), chain_selectors.FamilyEVM)
+		if err != nil {
+			return cldf.Environment{}, err
+		}
+
+		evmChainSelector := chainDetails.ChainSelector
 
 		var (
 			deployerSignerGen cldf_evm_provider.SignerGenerator

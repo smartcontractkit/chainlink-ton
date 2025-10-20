@@ -9,12 +9,16 @@ import (
 )
 
 type Config struct {
+	Onchain OnchainConfig `toml:"onchain"`
+}
+
+type OnchainConfig struct {
 	TonBlockchains []TonBlockchain `toml:"ton_blockchain"`
 	EvmBlockchains []EvmBlockchain `toml:"evm_blockchain"`
 }
 
 type TonBlockchain struct {
-	Selector      string `toml:"selector"`
+	ChainId       int32  `toml:"chainId"`
 	Name          string `toml:"name"`
 	HTTPURL       string `toml:"httpURL"`
 	DeployerKey   string `toml:"deployerKey"`
@@ -22,7 +26,7 @@ type TonBlockchain struct {
 }
 
 type EvmBlockchain struct {
-	Selector    string `toml:"selector"`
+	ChainId     int32  `toml:"chainId"`
 	Name        string `toml:"name"`
 	HTTPURL     string `toml:"httpURL"`
 	WSSURL      string `toml:"wssURL"`
