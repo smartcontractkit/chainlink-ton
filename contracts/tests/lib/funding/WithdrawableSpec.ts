@@ -163,7 +163,11 @@ export function newWithdrawableSpec<TContract extends WithdrawableContract>(
         expect(outMsg.info.value.coins).toBe(withdrawAmount + remainingMessageValue(tx))
 
         const finalBalance = (await blockchain.getContract(contract.address)).balance
-        expect(finalBalance).toBe(initialBalance - withdrawAmount)
+        expect(finalBalance).toBe(
+          initialBalance -
+            withdrawAmount -
+            (tx.description.storagePhase?.storageFeesCollected ?? 0n),
+        )
       })
 
       /**
@@ -255,7 +259,11 @@ export function newWithdrawableSpec<TContract extends WithdrawableContract>(
         expect(outMsg.info.value.coins).toBe(attemptedAmount + remainingMessageValue(tx))
 
         const finalBalance = (await blockchain.getContract(contract.address)).balance
-        expect(finalBalance).toBe(contractBalance - attemptedAmount)
+        expect(finalBalance).toBe(
+          contractBalance -
+            attemptedAmount -
+            (tx.description.storagePhase?.storageFeesCollected ?? 0n),
+        )
         expect(finalBalance).toBeLessThan(reserve)
       })
 
@@ -291,7 +299,9 @@ export function newWithdrawableSpec<TContract extends WithdrawableContract>(
 
         const finalBalance = (await blockchain.getContract(contract.address)).balance
         // Contract should have the reserve amount left
-        expect(finalBalance).toBe(reserve)
+        expect(finalBalance).toBe(
+          reserve - (tx.description.storagePhase?.storageFeesCollected ?? 0n),
+        )
       })
 
       /**
