@@ -150,3 +150,7 @@ get fun destChainSelectors(): tuple {
     return keysLispList(d)!;
 }
 
+get fun reserve(): coins {
+    return RESERVE;
+}
+

@@ -18,9 +18,6 @@ import {
 import { Contract, ContractProvider } from '@ton/core'
 import '@ton/test-utils'
 import * as withdrawable from '../../../wrappers/libraries/funding/Withdrawable'
-import { dump } from '../../utils/prettyPrint'
-import { prettifyTransaction } from '@ton/test-utils'
-import { skip } from 'node:test'
 
 /**
  * Configuration for testing withdrawable functionality.
@@ -30,16 +27,12 @@ export type WithdrawableTestConfig<TContract> = {
   getCode: () => Promise<Cell>
   /** Constructor for the contract */
   ContractConstructor: new (address: Address, init?: { code: Cell; data: Cell }) => TContract
-  /** Amount of TON to use on withdraw messages */
-  withdrawValue: bigint
-  /** Initial reserve amount for the contract */
-  reserve: bigint
 }
 
 /**
  * Contract interface that must be implemented by withdrawable contracts for testing.
  */
-export interface WithdrawableContract extends withdrawable.Withdrawable, Contract {}
+export interface WithdrawableContract extends withdrawable.Withdrawable {}
 
 interface TestSetup<TContract> {
   blockchain: Blockchain
@@ -95,6 +88,8 @@ export function newWithdrawableSpec<TContract extends WithdrawableContract>(
     owner: SandboxContract<TreasuryContract>,
   ) => Promise<SandboxContract<TContract>>,
 ) {
+  const withdrawValue = toNano('0.05')
+  var reserve: bigint
   async function setup(): Promise<TestSetup<TContract>> {
     const blockchain = await Blockchain.create()
     blockchain.verbosity = {
@@ -110,7 +105,8 @@ export function newWithdrawableSpec<TContract extends WithdrawableContract>(
     const code = await config.getCode()
     const contract = await setupContract(blockchain, owner)
     const balance = (await blockchain.getContract(contract.address)).balance
-    if (balance < config.reserve + toNano('10')) {
+    reserve = await (contract as SandboxContract<WithdrawableContract>).getReserve()
+    if (balance < reserve + toNano('10')) {
       const funder = await blockchain.treasury('funder')
       const res = await funder.send({
         value: toNano('10'),
@@ -132,9 +128,6 @@ export function newWithdrawableSpec<TContract extends WithdrawableContract>(
       code,
     }
   }
-
-  const withdrawValue = config.withdrawValue
-  const reserve = config.reserve
 
   return {
     run: () => {

@@ -522,3 +522,7 @@ get fun destChainSelectors(): tuple? {
     var d = st.destChainConfigs;
     return keysLispList(d)!;
 }
+
+get fun reserve(): coins {
+    return RESERVE;
+}

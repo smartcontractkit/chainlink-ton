@@ -66,8 +66,6 @@ describe('WithdrawableWallet - Withdrawable Tests', () => {
     {
       getCode: () => WithdrawableWallet.code(),
       ContractConstructor: WithdrawableWallet,
-      withdrawValue: toNano('0.05'),
-      reserve: toNano('1'),
     },
     async (blockchain, owner) => {
       const code = await WithdrawableWallet.code()

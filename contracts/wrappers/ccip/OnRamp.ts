@@ -245,4 +245,8 @@ export class OnRamp implements Contract, withdrawable.Withdrawable {
   ) {
     await withdrawable.sendWithdraw(provider, via, value, body)
   }
+
+  async getReserve(provider: ContractProvider): Promise<bigint> {
+    return await withdrawable.getReserve(provider)
+  }
 }

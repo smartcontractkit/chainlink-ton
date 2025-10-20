@@ -92,11 +92,6 @@ export class WithdrawableWallet implements withdrawable.Withdrawable {
     return result.stack.readBigNumber()
   }
 
-  async getReserve(provider: ContractProvider): Promise<bigint> {
-    const result = await provider.get('reserve', [])
-    return result.stack.readBigNumber()
-  }
-
   // Delegate Withdrawable methods
   async sendWithdraw(
     provider: ContractProvider,
@@ -105,6 +100,10 @@ export class WithdrawableWallet implements withdrawable.Withdrawable {
     body: withdrawable.Withdraw,
   ) {
     await withdrawable.sendWithdraw(provider, via, value, body)
+  }
+
+  async getReserve(provider: ContractProvider): Promise<bigint> {
+    return await withdrawable.getReserve(provider)
   }
 
   // Ownership methods

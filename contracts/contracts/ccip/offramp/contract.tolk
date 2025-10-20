@@ -559,3 +559,7 @@ get fun code(): cell {
 get fun codeHash(): int {
     return contract.getCode().hash();
 }
+
+get fun reserve(): coins {
+    return RESERVE;
+}

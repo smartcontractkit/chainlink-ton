@@ -10,6 +10,7 @@ import {
   SendMode,
   Slice,
   Builder,
+  ContractABI,
 } from '@ton/core'
 
 import { OCR3Base, ReportContext, SignatureEd25519 } from '../libraries/ocr/MultiOCR3Base'
@@ -19,6 +20,7 @@ import * as withdrawable from '../libraries/funding/Withdrawable'
 import { crc32 } from 'zlib'
 import { CellCodec, facilityId } from '../utils'
 import { CCIPReceive, ReceiverStorage } from './Receiver'
+import { Maybe } from '@ton/core/dist/utils/maybe'
 
 export type OffRampStorage = {
   id: bigint
@@ -421,6 +423,10 @@ export class OffRamp extends OCR3Base implements withdrawable.Withdrawable {
     body: withdrawable.Withdraw,
   ) {
     await withdrawable.sendWithdraw(provider, via, value, body)
+  }
+
+  async getReserve(provider: ContractProvider): Promise<bigint> {
+    return await withdrawable.getReserve(provider)
   }
 }
 

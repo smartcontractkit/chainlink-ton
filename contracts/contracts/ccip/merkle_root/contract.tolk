@@ -24,13 +24,6 @@ fun onInternalMessage(in: InMessage) {
             // and we know the message is part of the Commit Report. 
             _initExecute(msg, in.senderAddress);
         }
-        Withdrawable_Withdraw => {
-            var st = MerkleRoot_Storage.load();
-            assert(in.senderAddress == st.owner, Error.NotOwner);
-            Withdrawable{
-                reserve: RESERVE
-            }.withdraw(msg, in.valueCoins);
-        }
         else => {
             // ignore empty messages, "wrong opcode" for others
             assert (in.body.isEmpty()) throw 0xFFFF

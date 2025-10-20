@@ -11,8 +11,6 @@ describe('OnRamp - Withdrawable Tests', () => {
     {
       getCode: () => compile('OnRamp'),
       ContractConstructor: OnRamp,
-      withdrawValue: toNano('0.05'),
-      reserve: toNano('1'),
     },
     async (blockchain, owner) => {
       const code = await compile('OnRamp')

@@ -18,7 +18,7 @@ const CONTRACT_VERSION = "1.0.0";
 
 fun onInternalMessage(in: InMessage) {
     val sender = in.senderAddress;
-    var storage = loadData();
+    var storage: Storage = loadData();
     var handled = storage.ownable2Step.onInternalMessage(sender, in.body);
 
     if (handled) {
@@ -73,4 +73,9 @@ get fun facilityId(): uint16  {
 
 get fun errorCode(local: uint16): uint16 {
     return getErrorCode(stringCrc32("com.chainlink.ton.examples.funding.WithdrawableWallet"), local);
+}
+
+get fun reserve(): coins {
+    var storage: Storage = loadData();
+    return storage.reserve;
 }

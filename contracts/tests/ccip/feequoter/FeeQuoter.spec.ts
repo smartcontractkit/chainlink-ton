@@ -9,8 +9,6 @@ describe('FeeQuoter - Withdrawable Tests', () => {
     {
       getCode: () => compile('FeeQuoter'),
       ContractConstructor: FeeQuoter,
-      withdrawValue: toNano('0.05'),
-      reserve: toNano('1'),
     },
     async (blockchain, owner) => setupTestFeeQuoter(owner, blockchain),
   )
