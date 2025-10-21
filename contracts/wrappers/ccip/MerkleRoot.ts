@@ -100,7 +100,7 @@ export const builder = {
   })(),
 }
 
-export class MerkleRoot implements typeAndVersion.TypeAndVersion, Contract {
+export class MerkleRoot implements typeAndVersion.Interface, Contract {
   constructor(
     readonly address: Address,
     readonly init?: { code: Cell; data: Cell },

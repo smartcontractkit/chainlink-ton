@@ -113,7 +113,7 @@ export const builder = {
   })(),
 }
 
-export class ContractClient implements Contract, typeAndVersion.TypeAndVersion {
+export class ContractClient implements Contract, typeAndVersion.Interface {
   constructor(
     readonly address: Address,
     readonly init?: { code: Cell; data: Cell },

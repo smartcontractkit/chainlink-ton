@@ -261,7 +261,7 @@ export enum ReceiveExecutorError {
 
 export class OffRamp
   extends OCR3Base
-  implements upgradeable.Interface, withdrawable.Interface, typeAndVersion.TypeAndVersion, Contract
+  implements upgradeable.Interface, withdrawable.Interface, typeAndVersion.Interface, Contract
 {
   constructor(
     readonly address: Address,

@@ -11,7 +11,7 @@ import {
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import '@ton/test-utils'
 import * as upgradeable from '../../../wrappers/libraries/versioning/Upgradeable'
-import { TypeAndVersion } from '../../../wrappers/libraries/versioning/TypeAndVersion'
+import { Interface } from '../../../wrappers/libraries/versioning/TypeAndVersion'
 
 /**
  * Configuration for testing type and version
@@ -26,7 +26,7 @@ export type TypeAndVersionTestConfig = {
 /**
  * Contract interface that must be implemented by contracts for testing.
  */
-export interface TypeAndVersionContract extends TypeAndVersion, Contract {}
+export interface TypeAndVersionContract extends Interface, Contract {}
 
 interface TestSetup {
   blockchain: Blockchain

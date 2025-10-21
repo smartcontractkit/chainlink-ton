@@ -12,7 +12,7 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import '@ton/test-utils'
 import * as upgradeable from '../../../wrappers/libraries/versioning/Upgradeable'
 import * as wrongVersion from '../../../wrappers/examples/versioning/WrongVersion'
-import { TypeAndVersion } from '../../../wrappers/libraries/versioning/TypeAndVersion'
+import * as typeAndVersion from '../../../wrappers/libraries/versioning/TypeAndVersion'
 
 /**
  * Configuration for testing upgrades between two versions of an upgradeable contract.
@@ -69,7 +69,10 @@ export type CurrentVersionTestConfig<TCurrentVersionContract> = {
 /**
  * Contract interface that must be implemented by upgradeable contracts for testing.
  */
-export interface UpgradeableContract extends upgradeable.Interface, TypeAndVersion, Contract {}
+export interface UpgradeableContract
+  extends upgradeable.Interface,
+    typeAndVersion.Interface,
+    Contract {}
 
 interface TestSetup {
   blockchain: Blockchain

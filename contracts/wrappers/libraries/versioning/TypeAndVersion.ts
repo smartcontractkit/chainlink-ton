@@ -24,7 +24,7 @@ export async function getCodeHash(provider: ContractProvider): Promise<bigint> {
   return BigInt('0x' + hash.toString('hex'))
 }
 
-export interface TypeAndVersion {
+export interface Interface {
   getTypeAndVersion(provider: ContractProvider): Promise<{ type: string; version: string }>
   getCode(provider: ContractProvider): Promise<Cell>
   getCodeHash(provider: ContractProvider): Promise<bigint>
