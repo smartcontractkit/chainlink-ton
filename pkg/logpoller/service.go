@@ -31,10 +31,9 @@ type service struct {
 	lggr           logger.SugaredLogger                                // Logger instance
 	clientProvider func(context.Context) (ton.APIClientWrapped, error) // TON blockchain client lazy getter
 
-	filters   FilterStore // Registry of active filters
-	loader    TxLoader    // Transaction loader returning loaded txs
-	processor Processor   // Transaction processor returning populated logs
-	store     LogStore    // Log storage interface
+	loader      TxLoader    // Transaction loader returning loaded txs
+	filterStore FilterStore // Filter store for managing filters
+	logStore    LogStore    // Log store for storing logs
 
 	// configuration for service operation
 	pollPeriod         time.Duration // How often to poll for new blocks
@@ -50,11 +49,10 @@ type service struct {
 }
 
 type ServiceOptions struct {
-	Config    Config
-	Filters   FilterStore
-	TxLoader  TxLoader
-	Processor Processor
-	Store     LogStore
+	Config      Config
+	FilterStore FilterStore
+	TxLoader    TxLoader
+	LogStore    LogStore
 }
 
 // NewService creates a new TON log polling service instance
@@ -62,10 +60,9 @@ func NewService(lggr logger.Logger, clientProvider func(context.Context) (ton.AP
 	lp := &service{
 		lggr:             logger.Sugared(lggr),
 		clientProvider:   clientProvider,
-		filters:          opts.Filters,
+		filterStore:      opts.FilterStore,
 		loader:           opts.TxLoader,
-		processor:        opts.Processor,
-		store:            opts.Store,
+		logStore:         opts.LogStore,
 		pollPeriod:       opts.Config.PollPeriod.Duration(),
 		startingLookback: opts.Config.LogPollerStartingLookback.Duration(),
 		blockTime:        opts.Config.BlockTime.Duration(),
@@ -115,7 +112,7 @@ func (lp *service) run(ctx context.Context) (err error) {
 
 	// TODO: load filter from persistent store
 	// TODO: implement backfill logic(if there is filters marked for backfill)
-	addresses, err := lp.filters.GetDistinctAddresses(ctx)
+	addresses, err := lp.filterStore.GetDistinctAddresses(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get distinct addresses: %w", err)
 	}
@@ -218,7 +215,7 @@ func (lp *service) processTransactions(
 			go func(t models.Tx) {
 				defer wg.Done()
 
-				logs, err := lp.processor.ProcessTx(ctx, t.Transaction, t.Block, filterIndex)
+				logs, err := lp.ProcessTx(ctx, t.Transaction, t.Block, filterIndex)
 				if err != nil {
 					errsOut <- fmt.Errorf("failed to process tx %x: %w", t.Transaction.Hash, err)
 					return
@@ -256,7 +253,7 @@ func (lp *service) saveLogs(ctx context.Context, logsCh <-chan models.Log) (int,
 
 		// save chunk if it's full
 		if len(chunk) >= saveThreshold {
-			savedCount, err := lp.store.SaveLogs(ctx, chunk, lp.batchInsertSize, lp.minBatchSize)
+			savedCount, err := lp.logStore.SaveLogs(ctx, chunk, lp.batchInsertSize, lp.minBatchSize)
 			if err != nil {
 				return totalSaved, fmt.Errorf("failed to save chunk: %w", err)
 			}
@@ -267,7 +264,7 @@ func (lp *service) saveLogs(ctx context.Context, logsCh <-chan models.Log) (int,
 
 	// save remaining logs in the last chunk
 	if len(chunk) > 0 {
-		savedCount, err := lp.store.SaveLogs(ctx, chunk, lp.batchInsertSize, lp.minBatchSize)
+		savedCount, err := lp.logStore.SaveLogs(ctx, chunk, lp.batchInsertSize, lp.minBatchSize)
 		if err != nil {
 			return totalSaved, fmt.Errorf("failed to save final chunk: %w", err)
 		}
@@ -311,7 +308,7 @@ func (lp *service) Replay(ctx context.Context, fromBlock uint32) error {
 		"blocksToProcess", toBlock.SeqNo-fromBlock)
 
 	// get addresses
-	addresses, err := lp.filters.GetDistinctAddresses(ctx)
+	addresses, err := lp.filterStore.GetDistinctAddresses(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get distinct addresses: %w", err)
 	}
@@ -329,5 +326,5 @@ func (lp *service) Replay(ctx context.Context, fromBlock uint32) error {
 
 // NewQuery creates a new query builder for constructing log queries.
 func (lp *service) NewQuery() query.Builder {
-	return query.NewQueryBuilder(lp.store)
+	return query.NewQueryBuilder(lp.logStore)
 }

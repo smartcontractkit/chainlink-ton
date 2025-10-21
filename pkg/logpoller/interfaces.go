@@ -4,8 +4,6 @@ import (
 	"context"
 
 	"github.com/xssnick/tonutils-go/address"
-	"github.com/xssnick/tonutils-go/tlb"
-	"github.com/xssnick/tonutils-go/ton"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 
@@ -46,14 +44,6 @@ type TxLoader interface {
 	// Returns immediate validation/setup errors. The caller is responsible for spawning goroutines
 	// and managing channel lifecycle.
 	LoadTxsForAddress(ctx context.Context, blockRange *models.BlockRange, addr *address.Address, pageSize uint32, txOut chan<- models.Tx, errOut chan<- error) error
-}
-
-// Processor defines the interface for processing raw blockchain transactions into structured logs.
-type Processor interface {
-	// ProcessTx processes a single transaction synchronously.
-	// Examines transaction messages and applies the filter index to extract relevant event data.
-	// Returns logs or error. Service layer manages concurrency.
-	ProcessTx(ctx context.Context, tx *tlb.Transaction, block *ton.BlockIDExt, filterIndex models.FilterIndex) ([]models.Log, error)
 }
 
 // LogStore defines the interface for storing and retrieving logs.

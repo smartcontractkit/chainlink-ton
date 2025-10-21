@@ -16,7 +16,7 @@ func (lp *service) buildFilterIndex(ctx context.Context, addresses []*address.Ad
 	filterIndex := make(models.FilterIndex)
 	for _, addr := range addresses {
 		// Get all filters for this address
-		filters, err := lp.filters.GetFiltersByAddress(ctx, addr)
+		filters, err := lp.filterStore.GetFiltersByAddress(ctx, addr)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get filters for %s: %w", addr.String(), err)
 		}
@@ -38,7 +38,7 @@ func (lp *service) buildFilterIndex(ctx context.Context, addresses []*address.Ad
 // RegisterFilter adds a new filter to monitor specific address/event signature combinations
 func (lp *service) RegisterFilter(ctx context.Context, flt models.Filter) (int64, error) {
 	// Register the filter first
-	id, err := lp.filters.RegisterFilter(ctx, flt)
+	id, err := lp.filterStore.RegisterFilter(ctx, flt)
 	if err != nil {
 		return 0, err
 	}
@@ -67,10 +67,10 @@ func (lp *service) RegisterFilter(ctx context.Context, flt models.Filter) (int64
 
 // UnregisterFilter removes a filter by name
 func (lp *service) UnregisterFilter(ctx context.Context, name string) error {
-	return lp.filters.UnregisterFilter(ctx, name)
+	return lp.filterStore.UnregisterFilter(ctx, name)
 }
 
 // HasFilter checks if a filter with the given name exists
 func (lp *service) HasFilter(ctx context.Context, name string) (bool, error) {
-	return lp.filters.HasFilter(ctx, name)
+	return lp.filterStore.HasFilter(ctx, name)
 }

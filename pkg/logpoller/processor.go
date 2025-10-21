@@ -1,4 +1,4 @@
-package processor
+package logpoller
 
 import (
 	"context"
@@ -6,33 +6,17 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/message"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
 )
 
-var _ logpoller.Processor = (*txProcessor)(nil)
-
-type txProcessor struct {
-	lggr    logger.SugaredLogger
-	chainID string
-}
-
-func New(lggr logger.Logger, chainID string) logpoller.Processor {
-	return &txProcessor{
-		lggr:    logger.Sugared(lggr),
-		chainID: chainID,
-	}
-}
-
 // ProcessTx handles a single transaction
-func (p *txProcessor) ProcessTx(_ context.Context, tx *tlb.Transaction, block *ton.BlockIDExt, filterIndex models.FilterIndex) ([]models.Log, error) {
+func (lp *service) ProcessTx(ctx context.Context, tx *tlb.Transaction, block *ton.BlockIDExt, filterIndex models.FilterIndex) ([]models.Log, error) {
 	if tx == nil {
 		return nil, errors.New("transaction is nil")
 	}
@@ -50,10 +34,10 @@ func (p *txProcessor) ProcessTx(_ context.Context, tx *tlb.Transaction, block *t
 	}
 
 	for msgIndex, msg := range msgs {
-		logs, err := p.processMessage(tx, block, msgIndex, &msg, filterIndex)
+		logs, err := lp.processMessage(ctx, tx, block, msgIndex, &msg, filterIndex)
 		if err != nil {
 			// Critical structural error - skip message, log error
-			p.lggr.Errorw("critical error processing message, skipping", "tx_hash", tx.Hash, "msgIndex", msgIndex, "err", err)
+			lp.lggr.Errorw("critical error processing message, skipping", "tx_hash", tx.Hash, "msgIndex", msgIndex, "err", err)
 			continue
 		}
 		allLogs = append(allLogs, logs...)
@@ -62,14 +46,14 @@ func (p *txProcessor) ProcessTx(_ context.Context, tx *tlb.Transaction, block *t
 }
 
 // processMessage handles a single message within a transaction
-func (p *txProcessor) processMessage(tx *tlb.Transaction, block *ton.BlockIDExt, msgIndex int, msg *tlb.Message, filterIndex models.FilterIndex) ([]models.Log, error) {
+func (lp *service) processMessage(_ context.Context, tx *tlb.Transaction, block *ton.BlockIDExt, msgIndex int, msg *tlb.Message, filterIndex models.FilterIndex) ([]models.Log, error) {
 	// guard clauses for initial validation and early exit
 	if msg == nil || msg.Msg == nil {
 		return nil, errors.New("message or message content is nil")
 	}
 
 	// attempt to extract the event data
-	eventSig, body, err := p.extractEventSigAndBody(msg)
+	eventSig, body, err := extractEventSigAndBody(msg)
 	if err != nil {
 		return nil, fmt.Errorf("event extraction failed: %w", err)
 	}
@@ -103,13 +87,12 @@ func (p *txProcessor) processMessage(tx *tlb.Transaction, block *ton.BlockIDExt,
 	// create logs with the found filterIDs
 	logs := make([]models.Log, len(filterIDs))
 	for i, filterID := range filterIDs {
-		msgLT, err := p.extractMsgLT(msg)
+		msgLT, err := extractMsgLT(msg)
 		if err != nil {
 			return nil, fmt.Errorf("failed to extract msgLT: %w", err)
 		}
 		logs[i] = models.Log{
 			FilterID:    filterID,
-			ChainID:     p.chainID,
 			EventSig:    eventSig,
 			Address:     msg.Msg.SenderAddr(),
 			Data:        body,
@@ -130,7 +113,7 @@ func (p *txProcessor) processMessage(tx *tlb.Transaction, block *ton.BlockIDExt,
 	return logs, nil
 }
 
-func (p *txProcessor) extractEventSigAndBody(msg *tlb.Message) (eventSig uint32, body *cell.Cell, err error) {
+func extractEventSigAndBody(msg *tlb.Message) (eventSig uint32, body *cell.Cell, err error) {
 	switch msg.MsgType {
 	default:
 		return 0, nil, fmt.Errorf("unsupported message type: %v", msg.MsgType)
@@ -149,7 +132,7 @@ func (p *txProcessor) extractEventSigAndBody(msg *tlb.Message) (eventSig uint32,
 	}
 }
 
-func (p *txProcessor) extractMsgLT(msg *tlb.Message) (uint64, error) {
+func extractMsgLT(msg *tlb.Message) (uint64, error) {
 	switch msg.MsgType {
 	default:
 		return 0, fmt.Errorf("unsupported message type: %v", msg.MsgType)

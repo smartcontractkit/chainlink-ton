@@ -115,6 +115,11 @@ func (s *pgLogStore) insertLogsWithinTx(ctx context.Context, orm *DSORM, logs []
 			end = len(logs)
 		}
 
+		// set chainID for all logs in the batch
+		for j := start; j < end; j++ {
+			logs[j].ChainID = s.chainID
+		}
+
 		rowsInserted, err := orm.NamedExecContext(ctx, query, logs[start:end])
 		if err != nil {
 			if errors.Is(err, context.DeadlineExceeded) && batchSize > int(minBatchSize) {

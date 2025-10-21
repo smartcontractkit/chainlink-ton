@@ -6,26 +6,30 @@ import (
 
 	"github.com/xssnick/tonutils-go/address"
 
+	"github.com/smartcontractkit/chainlink-common/pkg/logger"
+
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/models"
 )
 
-var _ logpoller.FilterStore = (*sqlFilterStore)(nil)
+var _ logpoller.FilterStore = (*filterStore)(nil)
 
-type sqlFilterStore struct {
+type filterStore struct {
 	orm     *DSORM
+	lggr    logger.Logger
 	chainID string
 }
 
-func NewSQLFilterStore(orm *DSORM, chainID string) logpoller.FilterStore {
-	return &sqlFilterStore{
+func NewFilterStore(orm *DSORM, lggr logger.Logger, chainID string) logpoller.FilterStore {
+	return &filterStore{
 		orm:     orm,
+		lggr:    lggr,
 		chainID: chainID,
 	}
 }
 
 // RegisterFilter implements business logic for registering a filter
-func (m *sqlFilterStore) RegisterFilter(ctx context.Context, filter models.Filter) (int64, error) {
+func (m *filterStore) RegisterFilter(ctx context.Context, filter models.Filter) (int64, error) {
 	// convert application-level type to database-level type
 	filterModel := filterModel{}
 	dbF := filterModel.FromFilter(filter)
@@ -47,7 +51,7 @@ func (m *sqlFilterStore) RegisterFilter(ctx context.Context, filter models.Filte
 }
 
 // UnregisterFilter implements business logic for removing a filter
-func (m *sqlFilterStore) UnregisterFilter(ctx context.Context, name string) error {
+func (m *filterStore) UnregisterFilter(ctx context.Context, name string) error {
 	query := `
 		DELETE FROM ton.log_poller_filters 
 		WHERE chain_id = :chain_id AND name = :name
@@ -60,7 +64,7 @@ func (m *sqlFilterStore) UnregisterFilter(ctx context.Context, name string) erro
 }
 
 // HasFilter checks if a filter exists
-func (m *sqlFilterStore) HasFilter(ctx context.Context, name string) (bool, error) {
+func (m *filterStore) HasFilter(ctx context.Context, name string) (bool, error) {
 	query := `
 		SELECT EXISTS(
 			SELECT 1 FROM ton.log_poller_filters 
@@ -81,7 +85,7 @@ func (m *sqlFilterStore) HasFilter(ctx context.Context, name string) (bool, erro
 }
 
 // GetDistinctAddresses returns all unique contract addresses being tracked
-func (m *sqlFilterStore) GetDistinctAddresses(ctx context.Context) ([]*address.Address, error) {
+func (m *filterStore) GetDistinctAddresses(ctx context.Context) ([]*address.Address, error) {
 	query := `
 		SELECT DISTINCT address 
 		FROM ton.log_poller_filters 
@@ -106,7 +110,7 @@ func (m *sqlFilterStore) GetDistinctAddresses(ctx context.Context) ([]*address.A
 }
 
 // GetFiltersByAddress returns filters for a specific address and message type
-func (m *sqlFilterStore) GetFiltersByAddress(ctx context.Context, addr *address.Address) ([]models.Filter, error) {
+func (m *filterStore) GetFiltersByAddress(ctx context.Context, addr *address.Address) ([]models.Filter, error) {
 	query := `
 		SELECT id, chain_id,name, address, msg_type, event_sig, starting_seq_no, created_at 
 		FROM ton.log_poller_filters 

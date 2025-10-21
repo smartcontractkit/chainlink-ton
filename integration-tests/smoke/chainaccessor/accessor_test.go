@@ -338,9 +338,9 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 	t.Run("Ton Accessor - CommitReportsGTETimestamp - MerkleRoot filtering with mixed reports and limit", func(t *testing.T) {
 		store := inmemorystore.NewLogStore(logger.Test(t), "test-chain")
 		opts := &logpoller.ServiceOptions{
-			Config:  logpoller.DefaultConfigSet,
-			Store:   store,
-			Filters: inmemorystore.NewFilterStore(),
+			Config:      logpoller.DefaultConfigSet,
+			LogStore:    store,
+			FilterStore: inmemorystore.NewFilterStore(),
 		}
 
 		lp := logpoller.NewService(
@@ -491,11 +491,9 @@ func Test_TonAccessorCommitEventQueries(t *testing.T) {
 	t.Run("Ton Accessor - CommitReportsGTETimestamp - Basic functionality", func(t *testing.T) {
 		store := inmemorystore.NewLogStore(logger.Test(t), "test-chain")
 		opts := &logpoller.ServiceOptions{
-			Config:    logpoller.DefaultConfigSet,
-			Filters:   inmemorystore.NewFilterStore(),
-			TxLoader:  nil,
-			Processor: nil,
-			Store:     store,
+			Config:      logpoller.DefaultConfigSet,
+			FilterStore: inmemorystore.NewFilterStore(),
+			LogStore:    store,
 		}
 
 		lp := logpoller.NewService(
@@ -624,9 +622,9 @@ func Test_TonAccessorExecutedMessages(t *testing.T) {
 	// Test ExecutedMessages integration with logpoller using ExecutionStateChanged BOCs
 	store := inmemorystore.NewLogStore(logger.Test(t), "test-chain")
 	opts := &logpoller.ServiceOptions{
-		Config:  logpoller.DefaultConfigSet,
-		Filters: inmemorystore.NewFilterStore(),
-		Store:   store,
+		Config:      logpoller.DefaultConfigSet,
+		FilterStore: inmemorystore.NewFilterStore(),
+		LogStore:    store,
 	}
 
 	lp := logpoller.NewService(

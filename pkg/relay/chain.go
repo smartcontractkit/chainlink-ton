@@ -31,8 +31,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/fees"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
 	txloader "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/loader"
-	txprocessor "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/processor"
-	inmemorystore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/store/memory"
+	lppgstore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/store/postgres"
 	tonchain "github.com/smartcontractkit/chainlink-ton/pkg/ton/chain"
 	tonconfig "github.com/smartcontractkit/chainlink-ton/pkg/ton/config"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
@@ -129,14 +128,13 @@ func newChain(cfg *config.TOMLConfig, loopKs loop.Keystore, lggr logger.Logger, 
 		return signedClient.Client, nil
 	}
 
-	// TODO(@jadepark-dev): replace store with postgres
+	orm := lppgstore.NewORM(ch.ID(), ds, lggr)
 	// Get LogPoller configuration from chain config
 	lgOpts := &logpoller.ServiceOptions{
-		Config:    *ch.cfg.LogPollerConfig(),
-		Filters:   inmemorystore.NewFilterStore(),
-		TxLoader:  txloader.New(lggr, clientProvider),
-		Processor: txprocessor.New(lggr, "test-chain"),
-		Store:     inmemorystore.NewLogStore(lggr, "test-chain"),
+		Config:      *ch.cfg.LogPollerConfig(),
+		TxLoader:    txloader.New(lggr, clientProvider),
+		FilterStore: lppgstore.NewFilterStore(orm, lggr, ch.ID()),
+		LogStore:    lppgstore.NewLogStore(orm, lggr, ch.ID()),
 	}
 
 	ch.lp = logpoller.NewService(lggr, clientProvider, lgOpts)

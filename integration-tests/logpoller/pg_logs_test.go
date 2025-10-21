@@ -78,7 +78,7 @@ func TestPgLogStore(t *testing.T) {
 	// Create stores
 	orm := postgres.NewORM("test-chain", ds, logger.Test(t))
 
-	filterStore := postgres.NewSQLFilterStore(orm, "test-chain")
+	filterStore := postgres.NewFilterStore(orm, logger.Test(t), "test-chain")
 	logStore := postgres.NewLogStore(
 		orm,
 		logger.Test(t),

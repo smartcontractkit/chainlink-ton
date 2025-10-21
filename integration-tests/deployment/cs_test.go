@@ -30,9 +30,8 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/chainaccessor"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
-	inmemorystore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/db/inmemory"
-	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/loader/account"
-	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/txparser"
+	txloader "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/loader"
+	inmemorystore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/store/memory"
 )
 
 func TestDeploy(t *testing.T) {
@@ -176,11 +175,10 @@ func TestDeploy(t *testing.T) {
 	lpCfg := logpoller.DefaultConfigSet
 	filterStore := inmemorystore.NewFilterStore()
 	opts := &logpoller.ServiceOptions{
-		Config:   lpCfg,
-		Filters:  filterStore,
-		TxLoader: account.NewTxLoader(lggr, clientProvider, lpCfg.PageSize),
-		TxParser: txparser.NewTxParser(lggr, filterStore),
-		Store:    inmemorystore.NewLogStore(lggr),
+		Config:      lpCfg,
+		FilterStore: filterStore,
+		TxLoader:    txloader.New(lggr, clientProvider),
+		LogStore:    inmemorystore.NewLogStore(lggr, "test-chain"),
 	}
 	lp := logpoller.NewService(lggr,
 		clientProvider,
