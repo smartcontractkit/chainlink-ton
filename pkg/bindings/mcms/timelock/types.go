@@ -32,13 +32,13 @@ type Init struct {
 	MinDelay uint64 `tlb:"## 64"`
 
 	// Address of the admin account.
-	Admin address.Address `tlb:"addr"`
+	Admin *address.Address `tlb:"addr"`
 
 	// Collection of addresses to be granted proposer, executor, canceller and bypasser roles.
-	Proposers  common.SnakeData[address.Address] `tlb:"^"`
-	Executors  common.SnakeData[address.Address] `tlb:"^"`
-	Cancellers common.SnakeData[address.Address] `tlb:"^"`
-	Bypassers  common.SnakeData[address.Address] `tlb:"^"`
+	Proposers  common.SnakeRef[common.WrappedAddress] `tlb:"^"`
+	Executors  common.SnakeRef[common.WrappedAddress] `tlb:"^"`
+	Cancellers common.SnakeRef[common.WrappedAddress] `tlb:"^"`
+	Bypassers  common.SnakeRef[common.WrappedAddress] `tlb:"^"`
 
 	// Flag to enable/disable the executor role check (if disabled, anyone can execute)
 	ExecutorRoleCheckEnabled bool `tlb:"bool"`
@@ -321,10 +321,11 @@ type Data struct {
 	// Minimum delay for operations in seconds
 	MinDelay uint64 `tlb:"## 64"`
 	// Map of operation id to timestamp
-	Timestamps *cell.Dictionary `tlb:"dict 64"` // map<uint64, uint64>
+	Timestamps *cell.Dictionary `tlb:"dict 256"` // map<uint256, uint64>
 
 	// Number of fn selectors blocked by the contract.
 	BlockedFnSelectorsLen uint32 `tlb:"## 32"`
+
 	// Map of blocked function selectors.
 	BlockedFnSelectors *cell.Dictionary `tlb:"dict 32"` // map<uint32, bool>
 

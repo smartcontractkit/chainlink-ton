@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"math/big"
 	"strings"
 
 	"github.com/xssnick/tonutils-go/address"
@@ -171,10 +172,10 @@ func (e *executePluginCodecV1) Encode(ctx context.Context, report ccipocr3.Execu
 		offChainTokenData = tokenDataSlice
 	}
 
-	proofs := make(common.SnakeData[common.Proof256], 0, len(chainReport.Proofs))
+	proofs := make(common.SnakeData[common.Proof], 0, len(chainReport.Proofs))
 	for _, proof := range chainReport.Proofs {
-		var p common.Proof256
-		copy(p[:], proof[:])
+		var p common.Proof
+		p.Value = new(big.Int).SetBytes(proof[:])
 		proofs = append(proofs, p)
 	}
 
@@ -221,7 +222,7 @@ func (e *executePluginCodecV1) Decode(ctx context.Context, data []byte) (ccipocr
 	{
 		proofs := make([]ccipocr3.Bytes32, 0, len(tonReport.Proofs))
 		for _, proof := range tonReport.Proofs {
-			proofs = append(proofs, ccipocr3.Bytes32(proof[:]))
+			proofs = append(proofs, ccipocr3.Bytes32(proof.Value.Bytes()))
 		}
 
 		// Messages is a single message (not array) - contract only processes one at a time

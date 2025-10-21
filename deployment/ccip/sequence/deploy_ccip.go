@@ -43,6 +43,7 @@ type DeployCCIPSeqOutput struct {
 	OnRampAddress    *TONContractAddress
 	OffRampAddress   *TONContractAddress
 	ReceiverAddress  *TONContractAddress
+	TimelockAddress  *TONContractAddress
 	Transactions     [][]byte
 }
 
@@ -243,6 +244,40 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 				Address:       receiverAddress.String(),
 				ChainSelector: in.ChainSelector,
 				Type:          state.TonReceiver,
+				Version:       contractsSemver,
+				Labels:        ds.NewLabelSet(fmt.Sprintf("sha:%v", in.ContractsVersion)),
+			},
+		}
+	}
+
+	// Timelock
+	timelockAddress := deps.CCIPOnChainState[in.ChainSelector].Timelock
+	if !timelockAddress.IsAddrNone() {
+		b.Logger.Infof("Timelock contract is already deployed at address: %s. Skipping...", timelockAddress.String())
+	} else {
+		timelockInput := operation.DeployTimelockInput{
+			ID:           in.CCIPConfig.TimelockParams.ID,
+			ContractPath: utils.GetBuildDir("mcms.RBACTimelock.compiled.json"),
+			Coins:        "1",
+			MinDelay:     in.CCIPConfig.TimelockParams.MinDelay,
+			Admin:        in.CCIPConfig.TimelockParams.Admin,
+			Proposers:    in.CCIPConfig.TimelockParams.Proposers,
+			Executors:    in.CCIPConfig.TimelockParams.Executors,
+			Cancellers:   in.CCIPConfig.TimelockParams.Cancellers,
+			Bypassers:    in.CCIPConfig.TimelockParams.Bypassers,
+		}
+		deployTimelockReport, err := operations.ExecuteOperation(b, operation.DeployTimelockOp, deps, timelockInput)
+		if err != nil {
+			return output, err
+		}
+
+		timelockAddress = *deployTimelockReport.Output.Address
+		output.TimelockAddress = &TONContractAddress{
+			TONAddress: timelockAddress,
+			CLDFAddressRef: ds.AddressRef{
+				Address:       timelockAddress.String(),
+				ChainSelector: in.ChainSelector,
+				Type:          state.Timelock,
 				Version:       contractsSemver,
 				Labels:        ds.NewLabelSet(fmt.Sprintf("sha:%v", in.ContractsVersion)),
 			},

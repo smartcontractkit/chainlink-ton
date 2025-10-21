@@ -1,9 +1,8 @@
-import "messages"
 import "errors"
+import "messages"
 import "types"
 import "storage"
 
-import "@stdlib/lisp-lists"
 import "../common/types";
 import "../common/cross_chain_address_validation"
 import "../../lib/access/ownable_2step";
@@ -12,7 +11,7 @@ import "../../lib/utils";
 import "../router/messages"
 import "../ccipsend_executor/messages"
 
-const CONTRACT_VERSION = "0.0.3";
+const CONTRACT_VERSION = "0.0.4";
 const FACILITY_NAME = "com.chainlink.ton.ccip.FeeQuoter";
 
 fun onInternalMessage(in: InMessage) {
@@ -59,7 +58,7 @@ fun updateFeeTokens(mutate st: Storage, msg: FeeQuoter_UpdateFeeTokens) {
         entry = msg.add.iterateNext(entry);
     }
 
-    var iter = Iterator<address>.new(msg.remove);
+    var iter = msg.remove.iter();
     while (!iter.empty()) {
         val tokenAddr = iter.next();
         st.premiumMultiplierWeiPerEth.delete(tokenAddr);
@@ -84,7 +83,7 @@ fun updateTokenTransferFeeConfigs(mutate st: Storage, msg: FeeQuoter_UpdateToken
                 tokenEntry = update.add.iterateNext(tokenEntry);
             }
 
-            var iter = Iterator<address>.new(update!.remove);
+            var iter = update!.remove.iter();
             while (!iter.empty()) {
                 val tokenAddr = iter.next();
                 destChainConfig.tokenTransferFeeConfigs.delete(tokenAddr);
@@ -126,7 +125,7 @@ fun updatePrices(mutate st: Storage, priceUpdates: PriceUpdates) {
     val timestamp = blockchain.now();
 
     // TODO: assert cells are well-formed
-    var iter = Iterator<TokenPriceUpdate>.new(priceUpdates.tokenPriceUpdates);
+    var iter = priceUpdates.tokenPriceUpdates.iter();
     while (!iter.empty()) {
         val update = iter.next();
 
@@ -137,7 +136,7 @@ fun updatePrices(mutate st: Storage, priceUpdates: PriceUpdates) {
       //TODO: emit UsdPerTokenUpdated(update.sourceToken, update.usdPerToken, block.timestamp);
     }
 
-    var iter2 = Iterator<GasPriceUpdate>.new(priceUpdates.gasPriceUpdates);
+    var iter2 = priceUpdates.gasPriceUpdates.iter();
     while (!iter2.empty()) {
         val update = iter2.next();
 
@@ -185,7 +184,7 @@ get fun validatedFee(msg: Router_CCIPSend): coins {
 
     // Network fee
 
-    var tokensIter = Iterator<TokenAmount>.new(msg.tokenAmounts);
+    var tokensIter = msg.tokenAmounts.iter();
     var (tokenCount, premiumFeeUsdWei, tokenTransferGas, tokenTransferBytesOverhead) = (0, destChainConfig.config.networkFeeUsdCents as uint256, 0, 0);
     if (!tokensIter.empty()) {
         (tokenCount, premiumFeeUsdWei, tokenTransferGas, tokenTransferBytesOverhead) = getTokenTransferCost(st, destChainConfig, mutate tokensIter);
@@ -258,7 +257,7 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: Fee
     val dataLength = dataBits / 8 as uint256;
 
     // Check that payload is formed correctly.
-    assert (dataLength <= config.maxDataBytes) throw Error.MsgDataTooLarge; var tokenAmounts = Iterator<TokenAmount>.new(message.tokenAmounts);
+    assert (dataLength <= config.maxDataBytes) throw Error.MsgDataTooLarge; var tokenAmounts = message.tokenAmounts.iter();
     var numberOfTokens = 0;
     while (!tokenAmounts.empty()) {
         var _ = tokenAmounts.next();
@@ -282,7 +281,7 @@ fun validateMessageAndResolveGasLimitForDestination(extraArgs: cell, config: Fee
         validateDestFamilyAddress(config.chainFamilySelector, message.receiver, gasLimit);
 
         // objectIds are 32 bytes long
-        val accounts = Iterator<uint256>.new(svmExtraArgs.accounts);
+        val accounts = svmExtraArgs.accounts.iter();
         val receiverObjectIdsLength = accounts.size(32);
         // The max payload size for SUI is heavily dependent on the receiver object ids passed into extra args and the number of
         // tokens. Below, token and account overhead will count towards maxDataBytes.
@@ -467,19 +466,10 @@ get fun tokenAndGasPrices(token: address, destChainSelector: uint64) {
 }
 
 // vec<address>
-get fun feeTokens(): tuple {
+get fun feeTokens(): tuple? {
     val st = lazy Storage.load();
     var feeTokens = st.premiumMultiplierWeiPerEth;
-    
-    var list: tuple? = null;
-    var entry = feeTokens.findFirst();
-    while (entry.isFound) {
-        val address = entry.getKey();
-        list = listPrepend(address, list);
-
-        entry = feeTokens.iterateNext(entry);
-    }
-    return list!;
+    return keysLispList(feeTokens);
 }
 
 get fun tokenTransferFeeConfig() {}
@@ -518,7 +508,7 @@ get fun codeHash(): int {
     return contract.getCode().hash();
 }
 
-get fun destChainSelectors(): tuple {
+get fun destChainSelectors(): tuple? {
     val st = lazy Storage.load();
     var d = st.destChainConfigs;
     return keysLispList(d)!;

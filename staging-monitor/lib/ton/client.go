@@ -71,7 +71,6 @@ func NewClient(ctx context.Context, lggr logger.Logger, chainSel uint64, endpoin
 		mc, _ := client.CurrentMasterchainInfo(ctx)
 		balance, _ := w.GetBalance(ctx, mc)
 		lggr.Infow("TON wallet initialized",
-			"address", w.Address().String(),
 			"balance", balance.String())
 	}
 

@@ -1,4 +1,5 @@
 import "errors";
+import "../../lib/utils";
 
 // 1-byte length prefixed byte slice (up to 64 bytes)
 // Almost all uses need to Cell<> box this type because it can be sized up to 8+512 bits
@@ -38,7 +39,7 @@ struct (0x1f3b3aba) SVMExtraArgsV1 {
 	accountIsWritableBitmap: uint64;
 	allowOutOfOrderExecution: bool;
 	tokenReceiver: uint256;
-	accounts: cell; // vec<slice>
+	accounts: SnakedCell<uint256>; // vec<slice>
 }
 
 struct TokenBalance {

@@ -16,8 +16,8 @@ fun saveData(data: MerkleMultiProofCalculator) {
 
 struct(0x00000001) CalculateRoot {
     queryId: uint64,
-    leaves: cell,
-    proofs: cell,
+    leaves: SnakedCell<uint256>,
+    proofs: SnakedCell<uint256>,
     proofFlagBits: uint256,
 }
 
@@ -29,8 +29,8 @@ fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: sli
     var storage = loadData();
     val msg = CalculateRoot.fromSlice(msgBody);
 
-    var leavesIterator = Iterator<uint256>.new(msg.leaves);
-    var proofsIterator = Iterator<uint256>.new(msg.proofs);
+    var leavesIterator = msg.leaves.iter();
+    var proofsIterator = msg.proofs.iter();
     val root = merkleRoot(
         leavesIterator,
         proofsIterator,

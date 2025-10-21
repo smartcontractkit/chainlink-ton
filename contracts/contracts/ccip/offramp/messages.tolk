@@ -3,6 +3,7 @@ import "../../lib/ocr/types.tolk"
 import "../../lib/ocr/multi_ocr3_base.tolk"
 import "../../lib/receiver/messages.tolk"
 import "../common/types.tolk"
+import "../../lib/utils"
 
 type OffRamp_InMessage =
     | OffRamp_Commit
@@ -22,7 +23,7 @@ struct (0x9d431905) OffRamp_Commit {
     // TODO: could just store as one slice since context is fixed size
     reportContext: ReportContext;
     report: CommitReport;
-    signatures: cell; //vec<SignatureEd25519>
+    signatures: SnakedCell<SignatureEd25519>;
 }
 
 //crc32('OffRamp_Execute')
