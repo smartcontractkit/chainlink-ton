@@ -10,7 +10,7 @@ struct ExecutionStateChanged {
     //returnData? probably not
 }
 
-const CCIP_COMMIT_REPORT_ACCEPTED_TOPIC: int = stringCrc32("CCIPCommitReportAccepted");
+const TOPIC_COMMIT_REPORT_ACCEPTED: int = stringCrc32("CommitReportAccepted");
 struct CommitReportAccepted {
     merkleRoot: MerkleRoot? // vec<MerkleRoots>
     priceUpdates: Cell<PriceUpdates>?;

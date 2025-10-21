@@ -292,7 +292,7 @@ fun _commit(msg: OffRamp_Commit, sender: address) {
         root = MerkleRoot.fromCell(report.merkleRoots);
     }
     emit(
-        CCIP_COMMIT_REPORT_ACCEPTED_TOPIC,
+        TOPIC_COMMIT_REPORT_ACCEPTED,
         CommitReportAccepted { merkleRoot: root, priceUpdates: report.priceUpdates }
     );
 }

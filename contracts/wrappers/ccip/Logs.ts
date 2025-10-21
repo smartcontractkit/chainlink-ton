@@ -5,7 +5,7 @@ import { DestChainConfig } from './OnRamp'
 
 export const LogTypes = {
   CCIPMessageSent: 'CCIPMessageSent',
-  CCIPCommitReportAccepted: 'CCIPCommitReportAccepted',
+  CommitReportAccepted: 'CommitReportAccepted',
   ExecutionStateChanged: 'ExecutionStateChanged',
   SourceChainSelectorAdded: 'SourceChainSelectorAdded',
   SourceChainConfigUpdated: 'SourceChainConfigUpdated',
@@ -18,7 +18,7 @@ export type CombinedLogType = (typeof LogTypes)[keyof typeof LogTypes]
 
 export const LOG_TOPIC: Record<CombinedLogType, number> = {
   CCIPMessageSent: crc32('CCIPMessageSent'),
-  CCIPCommitReportAccepted: crc32('CCIPCommitReportAccepted'),
+  CommitReportAccepted: crc32('CommitReportAccepted'),
   ExecutionStateChanged: crc32('ExecutionStateChanged'),
   SourceChainSelectorAdded: crc32('SourceChainSelectorAdded'),
   SourceChainConfigUpdated: crc32('SourceChainConfigUpdated'),
@@ -47,7 +47,7 @@ export type CCIPMessageSent = {
   }
 }
 
-export type CCIPCommitReportAccepted = {
+export type CommitReportAccepted = {
   merkleRoot?: MerkleRoot
   priceUpdates?: PriceUpdates
 }

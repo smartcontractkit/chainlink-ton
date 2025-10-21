@@ -59,7 +59,7 @@ type DeepPartial<T> = {
 // map from log type → match payload type
 type LogTypeMap = {
   [CCIPLogs.LogTypes.CCIPMessageSent]: DeepPartial<CCIPLogs.CCIPMessageSent>
-  [CCIPLogs.LogTypes.CCIPCommitReportAccepted]: DeepPartial<CCIPLogs.CCIPCommitReportAccepted>
+  [CCIPLogs.LogTypes.CommitReportAccepted]: DeepPartial<CCIPLogs.CommitReportAccepted>
   [CCIPLogs.LogTypes.ExecutionStateChanged]: DeepPartial<CCIPLogs.ExecutionStateChanged>
   [CCIPLogs.LogTypes.SourceChainSelectorAdded]: CCIPLogs.SourceChainSelectorAdded
   [CCIPLogs.LogTypes.SourceChainConfigUpdated]: CCIPLogs.SourceChainConfigUpdated
@@ -87,11 +87,11 @@ const handlers: { [K in CombinedLogType]: Handler<K> } = {
   [CCIPLogs.LogTypes.CCIPMessageSent]: (x, from, match, addressesMap) =>
     testLogCCIPMessageSent(x, from, match as DeepPartial<CCIPLogs.CCIPMessageSent>, addressesMap),
 
-  [CCIPLogs.LogTypes.CCIPCommitReportAccepted]: (x, from, match) =>
+  [CCIPLogs.LogTypes.CommitReportAccepted]: (x, from, match) =>
     testLogCCIPCommitReportAccepted(
       x,
       from,
-      match as DeepPartial<CCIPLogs.CCIPCommitReportAccepted>,
+      match as DeepPartial<CCIPLogs.CommitReportAccepted>,
     ),
 
   [CCIPLogs.LogTypes.ExecutionStateChanged]: (x, from, match) =>
@@ -146,9 +146,9 @@ export const assertLog = <T extends CombinedLogType>(
 function testLogCCIPCommitReportAccepted(
   message: Message,
   from: Address,
-  match: DeepPartial<CCIPLogs.CCIPCommitReportAccepted>,
+  match: DeepPartial<CCIPLogs.CommitReportAccepted>,
 ) {
-  return testLog(message, from, CCIPLogs.LogTypes.CCIPCommitReportAccepted, (x) => {
+  return testLog(message, from, CCIPLogs.LogTypes.CommitReportAccepted, (x) => {
     let bs = x.beginParse()
 
     const commitHasMerkleRoots = bs.loadBit()
@@ -162,7 +162,7 @@ function testLogCCIPCommitReportAccepted(
     const priceUpdates =
       priceUpdatesCell != undefined ? priceUpdatesFromCell(priceUpdatesCell) : undefined
 
-    const reportAccepted: CCIPLogs.CCIPCommitReportAccepted = {
+    const reportAccepted: CCIPLogs.CommitReportAccepted = {
       merkleRoot,
       priceUpdates,
     }
