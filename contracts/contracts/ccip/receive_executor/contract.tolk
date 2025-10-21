@@ -35,6 +35,7 @@ fun _initExecute(msg: ReceiveExecutor_InitExecute, sender: address) {
     assert(st.state == ReceiveExecutor_MessageState.Untouched, Error.StateIsNotUntouched);
 
     //TODO 
+
     // if tokenAmounts > 0 && state == initial
     // set state = token transfer
     // send message to offramp to ask to release tokens
@@ -83,7 +84,7 @@ fun _ccipReceiveConfirm(msg: ReceiveExecutor_Confirm, sender: address) {
             execId: st.execId,
         },
     });
-    notifySuccess.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+    notifySuccess.send(SEND_MODE_CARRY_ALL_BALANCE);
 }
 
 fun _ccipReceiveBounced(msg: ReceiveExecutor_Bounced, sender: address){
