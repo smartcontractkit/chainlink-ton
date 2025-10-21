@@ -19,10 +19,10 @@ const (
 	staticConfigGetter = "staticConfig"
 )
 
-// FeeQuoterView represents a view of the fee quoter contract configuration.
-type FeeQuoterView struct {
+// View represents a view of the fee quoter contract configuration.
+type View struct {
 	view.MetaData
-	StaticConfig    FeeQuoterStaticConfig      `json:"staticConfig"`
+	StaticConfig    StaticConfig               `json:"staticConfig"`
 	DestChainConfig map[uint64]DestChainConfig `json:"destChainConfig,omitempty"`
 }
 
@@ -30,7 +30,7 @@ type PremiumMultipliers struct {
 	PremiumMultiplierWeiPerEth uint64 `json:"premiumMultiplierWeiPerEth,omitempty"`
 }
 
-type FeeQuoterStaticConfig struct {
+type StaticConfig struct {
 	MaxFeeJuelsPerMsg  string           `json:"maxFeeJuelsPerMsg,omitempty"`
 	LinkToken          *address.Address `json:"linkToken,omitempty"`
 	StalenessThreshold uint32           `json:"stalenessThreshold,omitempty"`
@@ -65,7 +65,7 @@ type DestChainConfig struct {
 }
 
 // FetchFeeQuoterView generates a view of the fee quoter contract at the specified block.
-func FetchFeeQuoterView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, feeQuoter *address.Address) (*FeeQuoterView, error) {
+func FetchFeeQuoterView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, feeQuoter *address.Address) (*View, error) {
 	var typeVersion common.TypeAndVersion
 	result, err := c.Client.RunGetMethod(ctx, block, feeQuoter, view.VersionGetter)
 	if err != nil {
@@ -90,13 +90,13 @@ func FetchFeeQuoterView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockI
 		return nil, fmt.Errorf("failed to fetch dest chain config view: %w", err)
 	}
 
-	return &FeeQuoterView{
+	return &View{
 		MetaData: view.MetaData{
 			Address:      feeQuoter,
 			ContractType: typeVersion.Type,
 			Version:      typeVersion.Version,
 		},
-		StaticConfig: FeeQuoterStaticConfig{
+		StaticConfig: StaticConfig{
 			MaxFeeJuelsPerMsg:  sc.MaxFeeJuelsPerMsg.String(),
 			LinkToken:          sc.LinkToken,
 			StalenessThreshold: sc.StalenessThreshold,

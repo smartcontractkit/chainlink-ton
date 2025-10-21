@@ -20,12 +20,12 @@ const (
 	dynamicConfigGetter = "dynamicConfig"
 )
 
-// OnRampView represents a view of the on-ramp contract configuration.
-type OnRampView struct {
+// View represents a view of the on-ramp contract configuration.
+type View struct {
 	view.MetaData
-	ChainSelector   uint64                           `json:"chainSelector,omitempty"`
-	DynamicConfig   DynamicConfig                    `json:"dynamicConfig,omitempty"`
-	DestChainConfig map[uint64]OnRampDestChainConfig `json:"feeQuoterDestChainConfig,omitempty"`
+	ChainSelector   uint64                     `json:"chainSelector,omitempty"`
+	DynamicConfig   DynamicConfig              `json:"dynamicConfig,omitempty"`
+	DestChainConfig map[uint64]DestChainConfig `json:"feeQuoterDestChainConfig,omitempty"`
 }
 
 type DynamicConfig struct {
@@ -34,7 +34,7 @@ type DynamicConfig struct {
 	AllowListAdmin string
 }
 
-type OnRampDestChainConfig struct {
+type DestChainConfig struct {
 	SequenceNumber   uint64          `json:"sequenceNumber,omitempty"`
 	AllowlistEnabled bool            `json:"allowlistEnabled,omitempty"`
 	Router           string          `json:"router,omitempty"`
@@ -42,7 +42,7 @@ type OnRampDestChainConfig struct {
 }
 
 // FetchOnRampView generates a view of the on-ramp contract at the specified block.
-func FetchOnRampView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, onrampAddr *address.Address, srcSelector uint64) (*OnRampView, error) {
+func FetchOnRampView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, onrampAddr *address.Address, srcSelector uint64) (*View, error) {
 	var typeVersion common.TypeAndVersion
 	result, err := c.Client.RunGetMethod(ctx, block, onrampAddr, view.VersionGetter)
 	if err != nil {
@@ -67,7 +67,7 @@ func FetchOnRampView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDEx
 		return nil, fmt.Errorf("failed to fetch dest chain config: %w", err)
 	}
 
-	return &OnRampView{
+	return &View{
 		MetaData: view.MetaData{
 			Address:      onrampAddr,
 			ContractType: typeVersion.Type,
@@ -84,7 +84,7 @@ func FetchOnRampView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDEx
 }
 
 // fetchDestChainConfig retrieves destination chain configurations from the on-ramp contract.
-func fetchDestChainConfig(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, onrampAddr *address.Address) (map[uint64]OnRampDestChainConfig, error) {
+func fetchDestChainConfig(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, onrampAddr *address.Address) (map[uint64]DestChainConfig, error) {
 	result, err := c.Client.RunGetMethod(ctx, block, onrampAddr, view.DestChainsGetter)
 	if err != nil {
 		return nil, err
@@ -94,7 +94,7 @@ func fetchDestChainConfig(ctx context.Context, c cldf_ton.Chain, block *ton.Bloc
 	var allowedSendersDict []cell.DictKV
 	var eg errgroup.Group
 	eg.SetLimit(runtime.NumCPU())
-	output := make(map[uint64]OnRampDestChainConfig)
+	output := make(map[uint64]DestChainConfig)
 	for _, dest := range chainSelectors {
 		// On-chain returns *big.Int for selector values, convert to uint64
 		eg.Go(func() error {
@@ -129,7 +129,7 @@ func fetchDestChainConfig(ctx context.Context, c cldf_ton.Chain, block *ton.Bloc
 				allowedSenders[senderAddr.String()] = allowed
 			}
 
-			output[dest] = OnRampDestChainConfig{
+			output[dest] = DestChainConfig{
 				SequenceNumber:   cfg.SequenceNumber,
 				AllowlistEnabled: cfg.AllowListEnabled,
 				Router:           cfg.Router.String(),

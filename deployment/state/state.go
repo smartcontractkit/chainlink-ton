@@ -43,21 +43,21 @@ type CCIPChainState struct {
 }
 
 type TONChainView struct {
-	ChainSelector uint64                             `json:"chainSelector,omitempty"`
-	ChainID       string                             `json:"chainID,omitempty"`
-	OnRamp        map[string]onramp.OnRampView       `json:"onRamp,omitempty"`
-	Router        map[string]router.RouterView       `json:"router,omitempty"`
-	FeeQuoter     map[string]feequoter.FeeQuoterView `json:"feeQuoter,omitempty"`
-	OffRamp       map[string]offramp.View            `json:"offRamp,omitempty"`
+	ChainSelector uint64                    `json:"chainSelector,omitempty"`
+	ChainID       string                    `json:"chainID,omitempty"`
+	OnRamp        map[string]onramp.View    `json:"onRamp,omitempty"`
+	Router        map[string]router.View    `json:"router,omitempty"`
+	FeeQuoter     map[string]feequoter.View `json:"feeQuoter,omitempty"`
+	OffRamp       map[string]offramp.View   `json:"offRamp,omitempty"`
 }
 
 func newTONChainView() TONChainView {
 	return TONChainView{
 		ChainSelector: 0,
 		ChainID:       "",
-		OnRamp:        make(map[string]onramp.OnRampView),
-		Router:        make(map[string]router.RouterView),
-		FeeQuoter:     make(map[string]feequoter.FeeQuoterView),
+		OnRamp:        make(map[string]onramp.View),
+		Router:        make(map[string]router.View),
+		FeeQuoter:     make(map[string]feequoter.View),
 		OffRamp:       make(map[string]offramp.View),
 	}
 }
