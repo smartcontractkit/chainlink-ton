@@ -264,7 +264,7 @@ describe('OffRamp', () => {
     })
     expectSuccessfulTransaction(result, transmitters[0].address, offRamp.address)
 
-    assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.CCIPCommitReportAccepted, {
+    assertLog(result.transactions, offRamp.address, CCIPLogs.LogTypes.CommitReportAccepted, {
       merkleRoot: merkleRoots[0],
       priceUpdates: priceUpdates,
     })
