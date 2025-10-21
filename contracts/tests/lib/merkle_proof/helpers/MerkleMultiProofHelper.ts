@@ -35,7 +35,7 @@ export class MerkleTree {
     if (leafHashes.length === 0) {
       throw new LeavesCannotBeEmpty()
     }
-    
+
     this.hash = hashFunction
     this.buildTree(leafHashes)
   }
@@ -47,7 +47,7 @@ export class MerkleTree {
   private buildTree(leafHashes: bigint[]): void {
     let layer = [...leafHashes]
     this.layers = [layer]
-    
+
     while (layer.length > 1) {
       layer = this.computeNextLayer(layer)
       this.layers.push(layer)
@@ -82,7 +82,7 @@ export class MerkleTree {
    * Get all layers of the tree (for debugging/inspection)
    */
   public getLayers(): bigint[][] {
-    return this.layers.map(layer => [...layer])
+    return this.layers.map((layer) => [...layer])
   }
 
   /**
@@ -99,7 +99,7 @@ export class MerkleTree {
 
     // Sort and deduplicate indices
     const sortedIndices = [...new Set(indices)].sort((a, b) => a - b)
-    
+
     // Validate indices
     const maxIndex = this.layers[0].length - 1
     for (const idx of sortedIndices) {
@@ -110,21 +110,21 @@ export class MerkleTree {
 
     const proof: Proof = {
       hashes: [],
-      sourceFlags: []
+      sourceFlags: [],
     }
 
     let currentIndices = [...sortedIndices]
-    
+
     // Iterate through all layers except the root
     for (let layerIndex = 0; layerIndex < this.layers.length - 1; layerIndex++) {
       const layer = this.layers[layerIndex]
       const singleLayerProof = this.proveSingleLayer(layer, currentIndices)
-      
+
       currentIndices = singleLayerProof.nextIndices
       proof.hashes.push(...singleLayerProof.subProof)
       proof.sourceFlags.push(...singleLayerProof.sourceFlags)
     }
-    
+
     return proof
   }
 
@@ -132,19 +132,19 @@ export class MerkleTree {
     const authIndices: number[] = []
     const nextIndices: number[] = []
     const sourceFlags: boolean[] = []
-    
+
     let j = 0
     while (j < indices.length) {
       const x = indices[j]
       const parent = this.parentIndex(x)
-      
+
       // Only add parent if it's not already in nextIndices
       if (nextIndices.length === 0 || nextIndices[nextIndices.length - 1] !== parent) {
         nextIndices.push(parent)
       }
-      
+
       const sibling = this.siblingIndex(x)
-      
+
       if (j + 1 < indices.length && indices[j + 1] === sibling) {
         // Both siblings are being proven, so we can use the provided hashes
         j++ // Skip the sibling
@@ -159,7 +159,7 @@ export class MerkleTree {
       }
       j++
     }
-    
+
     const subProof: bigint[] = []
     for (const authIndex of authIndices) {
       if (authIndex < 0 || authIndex >= layer.length) {
@@ -167,11 +167,11 @@ export class MerkleTree {
       }
       subProof.push(layer[authIndex])
     }
-    
+
     return {
       nextIndices,
       subProof,
-      sourceFlags
+      sourceFlags,
     }
   }
 
@@ -215,7 +215,10 @@ export class MerkleHelper {
   /**
    * Convenience method to create a tree and generate a proof for specific indices
    */
-  public createTreeAndProve(leafHashes: bigint[], indices: number[]): { tree: MerkleTree, proof: Proof, root: bigint } {
+  public createTreeAndProve(
+    leafHashes: bigint[],
+    indices: number[],
+  ): { tree: MerkleTree; proof: Proof; root: bigint } {
     const tree = this.createTree(leafHashes)
     const proof = tree.prove(indices)
     const root = tree.getRoot()
@@ -226,17 +229,14 @@ export class MerkleHelper {
    * Convenience method to hash leaf data and create a tree
    */
   public createTreeFromData(leafData: (string | Uint8Array)[]): MerkleTree {
-    const hashedLeaves = leafData.map(data => this.hashLeafData(data))
+    const hashedLeaves = leafData.map((data) => this.hashLeafData(data))
     return this.createTree(hashedLeaves)
   }
 
   /**
    * Validates a merkle multi proof using the new sourceFlags format
    */
-  public verifyMultiProof(
-    leaves: bigint[],
-    proof: Proof
-  ): bigint {
+  public verifyMultiProof(leaves: bigint[], proof: Proof): bigint {
     const leavesLen = leaves.length
     const proofsLen = proof.hashes.length
 
@@ -251,7 +251,7 @@ export class MerkleHelper {
       throw new InvalidProof(`Hashes ${totalHashes} != sourceFlags ${proof.sourceFlags.length}`)
     }
 
-    const sourceProofCount = proof.sourceFlags.filter(flag => !flag).length
+    const sourceProofCount = proof.sourceFlags.filter((flag) => !flag).length
     if (sourceProofCount !== proofsLen) {
       throw new InvalidProof(`Proof source flags ${sourceProofCount} != proof hashes ${proofsLen}`)
     }
@@ -293,15 +293,11 @@ export class MerkleHelper {
   }
 
   // Legacy method for backward compatibility
-  public merkleMultiProof(
-    leaves: bigint[],
-    proofs: bigint[],
-    proofFlagBits: bigint
-  ): bigint {
+  public merkleMultiProof(leaves: bigint[], proofs: bigint[], proofFlagBits: bigint): bigint {
     // Convert bit flags to boolean array
     const totalHashes = leaves.length + proofs.length - 1
     const sourceFlags: boolean[] = []
-    
+
     for (let i = 0; i < totalHashes; i++) {
       const useLeafOrHash = (proofFlagBits & (1n << BigInt(i))) === 1n << BigInt(i)
       sourceFlags.push(useLeafOrHash)
@@ -309,7 +305,7 @@ export class MerkleHelper {
 
     return this.verifyMultiProof(leaves, {
       hashes: proofs,
-      sourceFlags
+      sourceFlags,
     })
   }
 

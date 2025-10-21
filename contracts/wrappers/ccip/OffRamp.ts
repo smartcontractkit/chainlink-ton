@@ -130,7 +130,7 @@ export const builder = {
                 .storeRef(storage.deployables.deployerCode)
                 .storeRef(storage.deployables.merkleRootCode)
                 .storeRef(storage.deployables.receiveExecutorCode)
-              .endCell()
+                .endCell(),
             )
             .storeAddress(storage.feeQuoter)
             // empty OCR3Base::

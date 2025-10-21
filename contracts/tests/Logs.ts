@@ -88,11 +88,7 @@ const handlers: { [K in CombinedLogType]: Handler<K> } = {
     testLogCCIPMessageSent(x, from, match as DeepPartial<CCIPLogs.CCIPMessageSent>, addressesMap),
 
   [CCIPLogs.LogTypes.CommitReportAccepted]: (x, from, match) =>
-    testLogCCIPCommitReportAccepted(
-      x,
-      from,
-      match as DeepPartial<CCIPLogs.CommitReportAccepted>,
-    ),
+    testLogCCIPCommitReportAccepted(x, from, match as DeepPartial<CCIPLogs.CommitReportAccepted>),
 
   [CCIPLogs.LogTypes.ExecutionStateChanged]: (x, from, match) =>
     testLogCCIPExecutionStateChanged(x, from, match as DeepPartial<CCIPLogs.ExecutionStateChanged>),
