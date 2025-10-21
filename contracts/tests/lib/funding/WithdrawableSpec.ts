@@ -15,7 +15,6 @@ import {
   TransactionComputeVm,
   TransactionDescriptionGeneric,
 } from '@ton/core'
-import { Contract, ContractProvider } from '@ton/core'
 import '@ton/test-utils'
 import * as withdrawable from '../../../wrappers/libraries/funding/Withdrawable'
 
@@ -27,6 +26,8 @@ export type WithdrawableTestConfig<TContract> = {
   getCode: () => Promise<Cell>
   /** Constructor for the contract */
   ContractConstructor: new (address: Address, init?: { code: Cell; data: Cell }) => TContract
+  /** Expected error code when a non-owner tries to withdraw */
+  ownershipErrorCode: number
 }
 
 /**
@@ -180,6 +181,32 @@ export function newWithdrawableSpec<TContract extends WithdrawableContract>(
 
   return {
     run: () => {
+      /**
+       * Test that only the owner can withdraw
+       */
+      it('should fail when non-owner tries to withdraw', async () => {
+        const { contract, nonOwner, recipient } = await setup()
+
+        const result = await (contract as SandboxContract<WithdrawableContract>).sendWithdraw(
+          nonOwner.getSender(),
+          withdrawValue,
+          {
+            queryId: 0n,
+            destination: recipient.address,
+            amount: toNano('1'),
+            reserve: undefined,
+            drainAllAvailable: false,
+          },
+        )
+
+        expect(result.transactions).toHaveTransaction({
+          from: nonOwner.address,
+          to: contract.address,
+          success: false,
+          exitCode: config.ownershipErrorCode,
+        })
+      })
+
       /**
        * Test that the contract can withdraw a specific amount
        */

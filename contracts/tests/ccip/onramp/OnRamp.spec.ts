@@ -3,6 +3,7 @@ import { OnRamp, OnRampStorage } from '../../../wrappers/ccip/OnRamp'
 import { beginCell, Dictionary, toNano } from '@ton/core'
 import { newWithdrawableSpec } from '../../lib/funding/WithdrawableSpec'
 import { ZERO_ADDRESS } from '../../../src/utils'
+import * as ownable2step from '../../../wrappers/libraries/access/Ownable2Step'
 
 const CHAINSEL_TON = 13879075125137744094n // TODO repeated constant
 
@@ -11,6 +12,7 @@ describe('OnRamp - Withdrawable Tests', () => {
     {
       getCode: () => compile('OnRamp'),
       ContractConstructor: OnRamp,
+      ownershipErrorCode: ownable2step.Errors.OnlyCallableByOwner,
     },
     async (blockchain, owner) => {
       const code = await compile('OnRamp')

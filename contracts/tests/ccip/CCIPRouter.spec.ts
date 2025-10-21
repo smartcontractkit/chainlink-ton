@@ -20,6 +20,7 @@ import { CellCodec, facilityId } from '../../wrappers/utils'
 import { crc32 } from 'zlib'
 import { CCIP_SEND_EXECUTOR_FACILITY_ID } from '../../wrappers/ccip/OnRamp'
 import { newWithdrawableSpec } from '../lib/funding/WithdrawableSpec'
+import * as ownable2step from '../../wrappers/libraries/access/Ownable2Step'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_EVM_TEST_90000002 = 5548718428018410741n
@@ -43,6 +44,7 @@ describe('Router - Withdrawable Tests', () => {
     {
       getCode: () => compile('Router'),
       ContractConstructor: rt.Router,
+      ownershipErrorCode: ownable2step.Errors.OnlyCallableByOwner,
     },
     async (blockchain, owner) => {
       const code = await compile('Router')

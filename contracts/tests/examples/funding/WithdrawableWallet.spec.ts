@@ -1,9 +1,8 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Cell, toNano } from '@ton/core'
 import '@ton/test-utils'
-import { WithdrawableWallet } from '../../../wrappers/examples/funding/WithdrawableWallet'
+import * as withdrawableWallet from '../../../wrappers/examples/funding/WithdrawableWallet'
 import { newWithdrawableSpec } from '../../lib/funding/WithdrawableSpec'
-import * as withdrawable from '../../../wrappers/libraries/funding/Withdrawable'
 import * as ownable2step from '../../../wrappers/libraries/access/Ownable2Step'
 
 async function setUpTest(
@@ -14,7 +13,7 @@ async function setUpTest(
   deployer: SandboxContract<TreasuryContract>
   owner: SandboxContract<TreasuryContract>
   recipient: SandboxContract<TreasuryContract>
-  wallet: SandboxContract<WithdrawableWallet>
+  wallet: SandboxContract<withdrawableWallet.WithdrawableWallet>
   code: Cell
 }> {
   let blockchain = await Blockchain.create()
@@ -29,10 +28,10 @@ async function setUpTest(
   let owner = await blockchain.treasury('owner')
   let recipient = await blockchain.treasury('recipient')
 
-  let code = await WithdrawableWallet.code()
+  let code = await withdrawableWallet.WithdrawableWallet.code()
 
   let wallet = blockchain.openContract(
-    WithdrawableWallet.createFromConfig(
+    withdrawableWallet.WithdrawableWallet.createFromConfig(
       {
         id: 0,
         ownable: { owner: owner.address, pendingOwner: null },
@@ -64,13 +63,14 @@ async function setUpTest(
 describe('WithdrawableWallet - Withdrawable Tests', () => {
   const withdrawableSpec = newWithdrawableSpec(
     {
-      getCode: () => WithdrawableWallet.code(),
-      ContractConstructor: WithdrawableWallet,
+      getCode: () => withdrawableWallet.WithdrawableWallet.code(),
+      ContractConstructor: withdrawableWallet.WithdrawableWallet,
+      ownershipErrorCode: ownable2step.Errors.OnlyCallableByOwner,
     },
     async (blockchain, owner) => {
-      const code = await WithdrawableWallet.code()
+      const code = await withdrawableWallet.WithdrawableWallet.code()
       const contract = blockchain.openContract(
-        WithdrawableWallet.createFromConfig(
+        withdrawableWallet.WithdrawableWallet.createFromConfig(
           {
             id: 0,
             ownable: { owner: owner.address, pendingOwner: null },

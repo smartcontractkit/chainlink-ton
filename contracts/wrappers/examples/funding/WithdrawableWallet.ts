@@ -18,6 +18,8 @@ import { CellCodec } from '../../utils'
 export const FACILITY_NAME = 'com.chainlink.ton.examples.funding.WithdrawableWallet'
 export const CONTRACT_VERSION = '1.0.0'
 
+export type Errors = ownable2step.Errors
+
 export type WalletConfig = {
   id: number
   ownable: ownable2step.Data

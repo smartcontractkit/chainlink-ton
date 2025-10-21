@@ -35,6 +35,7 @@ import {
 } from '../../src/utils'
 import { KeyPair, sha256_sync } from '@ton/crypto'
 import { newWithdrawableSpec } from '../lib/funding/WithdrawableSpec'
+import * as ownable2step from '../../wrappers/libraries/access/Ownable2Step'
 
 import {
   createSignature,
@@ -135,6 +136,7 @@ describe('OffRamp - Withdrawable Tests', () => {
     {
       getCode: () => compile('OffRamp'),
       ContractConstructor: OffRamp,
+      ownershipErrorCode: ownable2step.Errors.OnlyCallableByOwner,
     },
     async (blockchain, owner) => {
       const code = await compile('OffRamp')
