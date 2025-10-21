@@ -10,25 +10,26 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/ton"
 
-	chain_selectors "github.com/smartcontractkit/chain-selectors"
-
 	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
-	ton_ops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
-	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
-	devenv "github.com/smartcontractkit/chainlink-ton/integration-tests/env"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/timelock"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/chainaccessor"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
-	inmemorystore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/db/inmemory"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/loader/account"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/txparser"
+
+	chain_selectors "github.com/smartcontractkit/chain-selectors"
+
+	ton_ops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
+	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
+	devenv "github.com/smartcontractkit/chainlink-ton/integration-tests/env"
+	inmemorystore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/db/inmemory"
 	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
 )
 
