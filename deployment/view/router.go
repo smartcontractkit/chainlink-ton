@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"runtime"
-	"sync"
 
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	"github.com/xssnick/tonutils-go/address"
@@ -41,34 +40,45 @@ func FetchRouterView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDEx
 	}
 
 	selectorSlice := parseExecutionResultForDestChainSelectors(result.AsTuple())
-
-	var onrampSlice *cell.Slice
+	var onRampSlice *cell.Slice
 	var onRampAddr *address.Address
 	var eg errgroup.Group
-	var mu sync.Mutex
 	eg.SetLimit(runtime.NumCPU())
 	onRampAddrMap := make(map[uint64]*address.Address)
+	updateChanMap := make(map[uint64]chan *address.Address)
 	for _, dest := range selectorSlice {
+		updateChan := make(chan *address.Address, 1)
+		updateChanMap[dest] = updateChan
+
 		eg.Go(func() error {
 			result, err := c.Client.RunGetMethod(ctx, block, routerAddr, onRampGetter, dest) // New variables per goroutine
 			if err != nil {
 				return fmt.Errorf("error getting onrampAddr: %v", err)
 			}
-			onrampSlice, err = result.Slice(0)
+			onRampSlice, err = result.Slice(0)
 			if err != nil {
 				return err
 			}
 
-			onRampAddr, err = onrampSlice.LoadAddr()
+			onRampAddr, err = onRampSlice.LoadAddr()
 			if err != nil {
 				return fmt.Errorf("failed to load onramp address: %w", err)
 			}
 
-			mu.Lock()
-			onRampAddrMap[dest] = onRampAddr
-			mu.Unlock()
+			updateChan <- onRampAddr
 			return nil
 		})
+	}
+
+	// Wait for all goroutines to complete first
+	if err = eg.Wait(); err != nil {
+		return nil, err
+	}
+
+	// Then collect results
+	for selector, ch := range updateChanMap {
+		onRampAddrMap[selector] = <-ch
+		close(ch)
 	}
 
 	return &RouterView{
@@ -78,5 +88,5 @@ func FetchRouterView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDEx
 			Version:      typeVersion.Version,
 		},
 		OnRampAddr: onRampAddrMap,
-	}, eg.Wait()
+	}, nil
 }

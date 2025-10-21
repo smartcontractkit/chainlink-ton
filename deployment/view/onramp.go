@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"runtime"
-	"sync"
 
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	"github.com/xssnick/tonutils-go/address"
@@ -95,8 +94,12 @@ func fetchDestChainConfig(ctx context.Context, c cldf_ton.Chain, block *ton.Bloc
 	var eg errgroup.Group
 	eg.SetLimit(runtime.NumCPU())
 	output := make(map[uint64]OnRampDestChainConfig)
-	var mu sync.Mutex
+	updateChanMap := make(map[uint64]chan OnRampDestChainConfig)
+
 	for _, dest := range chainSelectors {
+		updateChan := make(chan OnRampDestChainConfig, 1)
+		updateChanMap[dest] = updateChan
+
 		eg.Go(func() error {
 			result, err := c.Client.RunGetMethod(ctx, block, onrampAddr, destChainConfigGetter, dest) // New variables per goroutine
 			if err != nil {
@@ -129,19 +132,27 @@ func fetchDestChainConfig(ctx context.Context, c cldf_ton.Chain, block *ton.Bloc
 				allowedSenders[senderAddr.String()] = allowed
 			}
 
-			mu.Lock()
-			output[dest] = OnRampDestChainConfig{
+			updateChan <- OnRampDestChainConfig{
 				SequenceNumber:   cfg.SequenceNumber,
 				AllowlistEnabled: cfg.AllowListEnabled,
 				Router:           cfg.Router.String(),
 				AllowedSenders:   allowedSenders,
 			}
-			mu.Unlock()
 
 			return nil
 		})
-
 	}
 
-	return output, eg.Wait()
+	// Wait for all goroutines to complete first
+	if err = eg.Wait(); err != nil {
+		return nil, err
+	}
+
+	// Then collect results
+	for selector, ch := range updateChanMap {
+		output[selector] = <-ch
+		close(ch)
+	}
+
+	return output, nil
 }

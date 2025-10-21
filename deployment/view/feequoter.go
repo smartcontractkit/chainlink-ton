@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"runtime"
-	"sync"
 
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	"github.com/xssnick/tonutils-go/address"
@@ -112,12 +111,14 @@ func fetchDestChainConfigsView(ctx context.Context, c cldf_ton.Chain, block *ton
 	}
 
 	selectorSlice := parseExecutionResultForDestChainSelectors(result.AsTuple())
-
 	var eg errgroup.Group
-	var mu sync.Mutex
 	eg.SetLimit(runtime.NumCPU())
 	output := make(map[uint64]DestChainConfig)
+	updateChanMap := make(map[uint64]chan DestChainConfig)
 	for _, dest := range selectorSlice {
+		updateChan := make(chan DestChainConfig, 1)
+		updateChanMap[dest] = updateChan
+
 		eg.Go(func() error {
 			result, err := c.Client.RunGetMethod(ctx, block, feeQuoter, destChainConfigGetter, dest) // New variables per goroutine
 			if err != nil {
@@ -128,7 +129,7 @@ func fetchDestChainConfigsView(ctx context.Context, c cldf_ton.Chain, block *ton
 				return err
 			}
 
-			destConfig := DestChainConfig{
+			updateChan <- DestChainConfig{
 				IsEnabled:                         cfg.IsEnabled,
 				MaxNumberOfTokensPerMsg:           cfg.MaxNumberOfTokensPerMsg,
 				MaxDataBytes:                      cfg.MaxDataBytes,
@@ -150,12 +151,20 @@ func fetchDestChainConfigsView(ctx context.Context, c cldf_ton.Chain, block *ton
 				NetworkFeeUsdCents:                cfg.NetworkFeeUsdCents,
 			}
 
-			mu.Lock()
-			output[dest] = destConfig
-			mu.Unlock()
 			return nil
 		})
 	}
 
-	return output, eg.Wait()
+	// Wait for all goroutines to complete first
+	if err = eg.Wait(); err != nil {
+		return nil, err
+	}
+
+	// Then collect results
+	for selector, ch := range updateChanMap {
+		output[selector] = <-ch
+		close(ch)
+	}
+
+	return output, nil
 }
