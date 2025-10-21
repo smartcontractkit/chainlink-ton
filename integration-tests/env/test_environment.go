@@ -20,8 +20,9 @@ import (
 	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
-	testutils "github.com/smartcontractkit/chainlink-ton/deployment/utils"
 	"github.com/smartcontractkit/chainlink/deployment/environment/memory"
+
+	testutils "github.com/smartcontractkit/chainlink-ton/deployment/utils"
 )
 
 const (
