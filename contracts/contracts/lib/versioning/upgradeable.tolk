@@ -78,8 +78,12 @@ import "../utils.tolk";
 /// ```
 struct Upgradeable {
     /// Points to a function that migrates the storage before the upgrade.
-    /// It receives the storage cell from the old version and returns the
-    /// migrated storage cell for the new version.
+    /// It receives the storage cell and the CONTRACT_VERSION string from the
+    /// old version.
+    /// Verifies the version is supported and returns the migrated storage cell
+    /// for the new version.
+    /// 
+    /// It can support migrating from multiple versions.
     /// 
     /// At TVM level, this only stores the method_id of the function to call,
     /// so it automatically points to the new implementation after the code
@@ -87,7 +91,7 @@ struct Upgradeable {
     /// 
     /// This function must specify a method_id explicitly in the contract,
     /// and it must be consistent across versions.
-    migrate: (cell) -> cell;
+    migrate: (cell, slice) -> cell;
     /// Points to a function that returns the version of the contract.
     /// 
     /// At TVM level, this only stores the method_id of the function to call,
@@ -108,7 +112,6 @@ enum Upgradeable_Error {
 struct (0x0aa811ed) Upgradeable_Upgrade {
     queryId: uint64;
     code: cell;
-    fromVersion: RemainingBitsAndRefs;
 }
 
 struct Upgradeable_UpgradedEvent {
@@ -125,7 +128,6 @@ const UPGRADEABLE_UPGRADED_EVENT = 0xa33b498e; // crc32("Upgradeable_UpgradedEve
 fun Upgradeable.upgrade(self, msg: Upgradeable_Upgrade) {
     // Ensure the upgrade requirements are met
     val currentVersion = self.version();
-    assert (currentVersion.bitsEqual(msg.fromVersion)) throw Upgradeable_Error.VersionMismatch;
     // Schedule the code to be changed after the compute phase
     contract.setCodePostponed(msg.code);
     // Load the code dynamically
@@ -133,7 +135,7 @@ fun Upgradeable.upgrade(self, msg: Upgradeable_Upgrade) {
     setTvmRegisterC3(cont); // After this line, we are running the new code
     // Call the migrate function implemented by the new version
     var c = contract.getData();
-    var newStorage = self.migrate(c);
+    var newStorage = self.migrate(c, currentVersion);
     contract.setData(newStorage);
     emit(UPGRADEABLE_UPGRADED_EVENT, Upgradeable_UpgradedEvent{
         code: msg.code,

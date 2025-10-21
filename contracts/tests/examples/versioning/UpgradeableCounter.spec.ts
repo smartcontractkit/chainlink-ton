@@ -166,7 +166,6 @@ describe('UpgradeableCounter - Unit Tests', () => {
       owner.getSender(),
       toNano('0.05'),
       UpgradeableCounterV2,
-      '1.0.0',
       await UpgradeableCounterV2.code(),
     )
 
@@ -256,7 +255,6 @@ describe('UpgradeableCounter - Unit Tests', () => {
       toNano('0.05'),
       {
         queryId: BigInt(Math.floor(Math.random() * 10000)),
-        fromVersion: '1.0.0',
         code: codeV2,
       },
     )
@@ -273,7 +271,6 @@ describe('UpgradeableCounter - Unit Tests', () => {
       newOwner.getSender(),
       toNano('0.05'),
       UpgradeableCounterV2,
-      '1.0.0',
       await UpgradeableCounterV2.code(),
     )
 

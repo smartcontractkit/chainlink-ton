@@ -71,7 +71,7 @@ get fun pendingOwner(): address? {
 }
 
 @method_id(1000)
-fun migrate(storage: cell): cell { return createEmptyCell(); }
+fun migrate(storage: cell, version: slice): cell { throw Upgradeable_Error.VersionMismatch; }
 @method_id(1001)
 fun version(): slice { return CONTRACT_VERSION; }
 

@@ -12,6 +12,7 @@ import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import '@ton/test-utils'
 import * as upgradeable from '../../../wrappers/libraries/versioning/Upgradeable'
 import { TypeAndVersion } from '../../../wrappers/libraries/TypeAndVersion'
+import * as wrongVersion from '../../../wrappers/examples/versioning/WrongVersion'
 
 /**
  * Configuration for testing upgrades between two versions of an upgradeable contract.
@@ -196,7 +197,6 @@ export function newUpgradeSpec<
             testSetup.owner.getSender(),
             amount,
             config.CurrentVersionConstructor,
-            config.prevVersion,
             testSetup.currentCode,
           )
 
@@ -360,7 +360,6 @@ export function newCurrentVersionSpec<TCurrentVersionContract extends Upgradeabl
         // Use some dummy code for the upgrade attempt
         const upgradeResult = await currentContract.sendUpgrade(nonOwner.getSender(), amount, {
           queryId: BigInt(Math.floor(Math.random() * 10000)),
-          fromVersion: config.currentVersion,
           code: beginCell().endCell(), // Dummy code
         })
 
@@ -383,33 +382,41 @@ export function newCurrentVersionSpec<TCurrentVersionContract extends Upgradeabl
        * Test that upgrade fails when fromVersion doesn't match current version
        */
       it('should fail when fromVersion does not match current version', async () => {
-        const { currentContract, owner, currentCode } = await setup()
+        const { currentContract, owner, currentCode, blockchain } = await setup()
 
-        // Verify initial version
-        const typeAndVersion = await currentContract.getTypeAndVersion()
-        expect(typeAndVersion.version).toBe(config.currentVersion)
+        const wrongVersionCode = await wrongVersion.WrongVersion.code()
+        const wrongVersionContract = blockchain.openContract(
+          wrongVersion.WrongVersion.createFromConfig(
+            { id: 0, version: config.currentVersion + '-different' },
+            wrongVersionCode,
+          ),
+        )
+        {
+          const result = await wrongVersionContract.sendDeploy(owner.getSender(), toNano('0.05'))
+          expect(result.transactions).toHaveTransaction({
+            from: owner.address,
+            to: wrongVersionContract.address,
+            success: true,
+            deploy: true,
+          })
+        }
 
         // Try to upgrade with wrong fromVersion - should fail
-        const upgradeResult = await currentContract.sendUpgrade(owner.getSender(), amount, {
+        const upgradeResult = await wrongVersionContract.sendUpgrade(owner.getSender(), amount, {
           queryId: BigInt(Math.floor(Math.random() * 10000)),
-          fromVersion: config.currentVersion + '-different', // Wrong version!
-          code: beginCell().endCell(), // Dummy code
+          code: currentCode,
         })
 
         expect(upgradeResult.transactions).toHaveTransaction({
           from: owner.address,
-          to: currentContract.address,
+          to: wrongVersionContract.address,
           success: false,
           exitCode: upgradeable.Error.VersionMismatch,
         })
 
-        // Verify the contract is still on current version
-        const finalVersion = await currentContract.getTypeAndVersion()
-        expect(finalVersion.version).toBe(config.currentVersion)
-
         // Verify the code hasn't changed
-        const code = await currentContract.getCode()
-        expect(code.toString('hex')).toBe(currentCode.toString('hex'))
+        const code = await wrongVersionContract.getCode()
+        expect(code.toString('hex')).toBe(wrongVersionCode.toString('hex'))
       })
     },
   }

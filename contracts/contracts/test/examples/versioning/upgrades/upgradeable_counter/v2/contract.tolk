@@ -71,8 +71,12 @@ get fun pendingOwner(): address? {
     return storage.ownable2Step.get_pendingOwner();
 }
 
+const COUNTER_V1_CONTRACT_VERSION = "1.0.0";
+
 @method_id(1000)
-fun migrate(storage: cell): cell {
+fun migrate(storage: cell, version: slice): cell {
+    assert (version.bitsEqual(COUNTER_V1_CONTRACT_VERSION)) throw Upgradeable_Error.VersionMismatch;
+    
     // Parse it as StorageV1
     var oldStorage = StorageV1.fromCell(storage);
     // Create new StorageV2 with the old value and id
