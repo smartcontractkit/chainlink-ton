@@ -69,9 +69,7 @@ export const builder = {
   },
 }
 
-export class UpgradeableCounterV1
-  implements typeAndVersion.TypeAndVersion, upgradeable.Upgradeable
-{
+export class ContractClient implements typeAndVersion.TypeAndVersion, upgradeable.Upgradeable {
   private ownable: ownable2step.ContractClient
 
   constructor(
@@ -82,7 +80,7 @@ export class UpgradeableCounterV1
   }
 
   static createFromAddress(address: Address) {
-    return new UpgradeableCounterV1(address)
+    return new ContractClient(address)
   }
 
   static code(): Promise<Cell> {
@@ -100,7 +98,7 @@ export class UpgradeableCounterV1
   static createFromConfig(config: CounterConfig, code: Cell, workchain = 0) {
     const data = builder.data.counterConfig.encode(config).endCell()
     const init = { code, data }
-    return new UpgradeableCounterV1(contractAddress(workchain, init), init)
+    return new ContractClient(contractAddress(workchain, init), init)
   }
 
   async sendDeploy(provider: ContractProvider, via: Sender, value: bigint) {

@@ -45,14 +45,14 @@ export const builder = {
   },
 }
 
-export class WrongVersion implements /*typeAndVersion.TypeAndVersion,*/ upgradeable.Upgradeable {
+export class ContractClient implements /*typeAndVersion.TypeAndVersion,*/ upgradeable.Upgradeable {
   constructor(
     readonly address: Address,
     readonly init?: { code: Cell; data: Cell },
   ) {}
 
   static createFromAddress(address: Address) {
-    return new WrongVersion(address)
+    return new ContractClient(address)
   }
 
   static code(): Promise<Cell> {
@@ -62,7 +62,7 @@ export class WrongVersion implements /*typeAndVersion.TypeAndVersion,*/ upgradea
   static createFromConfig(config: Storage, code: Cell, workchain = 0) {
     const data = builder.data.counterConfig.encode(config).endCell()
     const init = { code, data }
-    return new WrongVersion(contractAddress(workchain, init), init)
+    return new ContractClient(contractAddress(workchain, init), init)
   }
 
   async sendDeploy(provider: ContractProvider, via: Sender, value: bigint) {

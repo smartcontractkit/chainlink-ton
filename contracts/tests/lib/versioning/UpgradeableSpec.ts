@@ -384,9 +384,9 @@ export function newCurrentVersionSpec<TCurrentVersionContract extends Upgradeabl
       it('should fail when fromVersion does not match current version', async () => {
         const { currentContract, owner, currentCode, blockchain } = await setup()
 
-        const wrongVersionCode = await wrongVersion.WrongVersion.code()
+        const wrongVersionCode = await wrongVersion.ContractClient.code()
         const wrongVersionContract = blockchain.openContract(
-          wrongVersion.WrongVersion.createFromConfig(
+          wrongVersion.ContractClient.createFromConfig(
             { id: 0, version: config.currentVersion + '-different' },
             wrongVersionCode,
           ),

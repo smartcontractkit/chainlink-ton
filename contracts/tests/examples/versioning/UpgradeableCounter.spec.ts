@@ -1,8 +1,8 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import { Cell, toNano } from '@ton/core'
 import '@ton/test-utils'
-import { UpgradeableCounterV1 } from '../../../wrappers/examples/versioning/UpgradeableCounterV1'
-import { UpgradeableCounterV2 } from '../../../wrappers/examples/versioning/UpgradeableCounterV2'
+import * as upCounterV1 from '../../../wrappers/examples/versioning/UpgradeableCounterV1'
+import * as upCounterV2 from '../../../wrappers/examples/versioning/UpgradeableCounterV2'
 import { sendUpgradeAndReturnNewVersion } from '../../../wrappers/libraries/versioning/Upgradeable'
 import { newUpgradeSpec, newCurrentVersionSpec } from '../../lib/versioning/UpgradeableSpec'
 
@@ -10,7 +10,7 @@ async function setUpTest(i: number): Promise<{
   blockchain: Blockchain
   deployer: SandboxContract<TreasuryContract>
   owner: SandboxContract<TreasuryContract>
-  upgradeableCounter: SandboxContract<UpgradeableCounterV1>
+  upgradeableCounter: SandboxContract<upCounterV1.ContractClient>
   codeV1: Cell
   codeV2: Cell
 }> {
@@ -26,10 +26,10 @@ async function setUpTest(i: number): Promise<{
   let deployer = await blockchain.treasury('deployer')
   let owner = await blockchain.treasury('owner')
 
-  let codeV1 = await UpgradeableCounterV1.code()
+  let codeV1 = await upCounterV1.ContractClient.code()
 
   let upgradeableCounter = blockchain.openContract(
-    UpgradeableCounterV1.createFromConfig(
+    upCounterV1.ContractClient.createFromConfig(
       {
         id: 0,
         value: i,
@@ -57,24 +57,24 @@ async function setUpTest(i: number): Promise<{
     owner,
     upgradeableCounter,
     codeV1,
-    codeV2: await UpgradeableCounterV2.code(),
+    codeV2: await upCounterV2.ContractClient.code(),
   }
 }
 
 describe('UpgradeableCounter - Upgrade Tests', () => {
   const upgradeSpec = newUpgradeSpec(
     {
-      contractType: UpgradeableCounterV1.type(),
-      prevVersion: UpgradeableCounterV1.version(),
-      currentVersion: UpgradeableCounterV2.version(),
-      getPrevCode: () => UpgradeableCounterV1.code(),
-      getCurrentCode: () => UpgradeableCounterV2.code(),
-      CurrentVersionConstructor: UpgradeableCounterV2,
+      contractType: upCounterV1.ContractClient.type(),
+      prevVersion: upCounterV1.ContractClient.version(),
+      currentVersion: upCounterV2.ContractClient.version(),
+      getPrevCode: () => upCounterV1.ContractClient.code(),
+      getCurrentCode: () => upCounterV2.ContractClient.code(),
+      CurrentVersionConstructor: upCounterV2.ContractClient,
     },
     async (blockchain, owner) => {
-      const codeV1 = await UpgradeableCounterV1.code()
+      const codeV1 = await upCounterV1.ContractClient.code()
       const contract = blockchain.openContract(
-        UpgradeableCounterV1.createFromConfig(
+        upCounterV1.ContractClient.createFromConfig(
           {
             id: 0,
             value: 0,
@@ -94,15 +94,15 @@ describe('UpgradeableCounter - Upgrade Tests', () => {
 describe('UpgradeableCounter - Current Version Tests', () => {
   const currentVersionSpec = newCurrentVersionSpec(
     {
-      contractType: UpgradeableCounterV2.type(),
-      currentVersion: UpgradeableCounterV2.version(),
-      getCurrentCode: () => UpgradeableCounterV2.code(),
-      CurrentVersionConstructor: UpgradeableCounterV2,
+      contractType: upCounterV2.ContractClient.type(),
+      currentVersion: upCounterV2.ContractClient.version(),
+      getCurrentCode: () => upCounterV2.ContractClient.code(),
+      CurrentVersionConstructor: upCounterV2.ContractClient,
     },
     async (blockchain, owner) => {
-      const code = await UpgradeableCounterV2.code()
+      const code = await upCounterV2.ContractClient.code()
       const contract = blockchain.openContract(
-        UpgradeableCounterV2.createFromConfig(
+        upCounterV2.ContractClient.createFromConfig(
           {
             id: 0,
             value: 0,
@@ -165,8 +165,8 @@ describe('UpgradeableCounter - Unit Tests', () => {
       upgradeableCounterV1,
       owner.getSender(),
       toNano('0.05'),
-      UpgradeableCounterV2,
-      await UpgradeableCounterV2.code(),
+      upCounterV2.ContractClient,
+      await upCounterV2.ContractClient.code(),
     )
 
     expect(upgradeResult.transactions).toHaveTransaction({
@@ -270,8 +270,8 @@ describe('UpgradeableCounter - Unit Tests', () => {
       upgradeableCounter,
       newOwner.getSender(),
       toNano('0.05'),
-      UpgradeableCounterV2,
-      await UpgradeableCounterV2.code(),
+      upCounterV2.ContractClient,
+      await upCounterV2.ContractClient.code(),
     )
 
     expect(upgradeResult.transactions).toHaveTransaction({
