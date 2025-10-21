@@ -23,7 +23,7 @@ type DestChainSelectorAdded struct {
 
 type DestChainSelectorUpdated struct {
 	DestChainSelector uint64          `tlb:"## 64"`
-	Config		  DestChainConfig `tlb:"."`
+	Config            DestChainConfig `tlb:"."`
 }
 
 // GenericExtraArgsV2 represents generic extra arguments for transactions.

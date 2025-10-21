@@ -26,8 +26,8 @@ type ExecutionStateChanged struct {
 }
 
 type SourceChainConfigUpdated struct {
-	SourcehainSelector uint64            `tlb:"## 64"`
-	SourceChainConfig SourceChainConfig `tlb:"."`
+	SourceChainSelector uint64            `tlb:"## 64"`
+	SourceChainConfig   SourceChainConfig `tlb:"."`
 }
 
 type SourceChainSelectorAdded struct {
@@ -37,7 +37,7 @@ type SourceChainSelectorAdded struct {
 type Storage struct {
 	ID                                      uint32              `tlb:"## 32"`
 	Ownable                                 common.Ownable2Step `tlb:"."`
-	Deployables			        Deployables	    `tlb:"^"`
+	Deployables                             Deployables         `tlb:"^"`
 	FeeQuoter                               *address.Address    `tlb:"addr"`
 	OCR3Base                                *cell.Cell          `tlb:"^"` // TODO:
 	ChainSelector                           uint64              `tlb:"## 64"`
@@ -47,9 +47,9 @@ type Storage struct {
 }
 
 type Deployables struct {
-	Deployer	    *cell.Cell          `tlb:"^"`
-	MerkleRootCode      *cell.Cell          `tlb:"^"`
-	ReceiveExecutorCode *cell.Cell          `tlb:"^"`
+	Deployer            *cell.Cell `tlb:"^"`
+	MerkleRootCode      *cell.Cell `tlb:"^"`
+	ReceiveExecutorCode *cell.Cell `tlb:"^"`
 }
 
 type SourceChainConfig struct {
