@@ -1,4 +1,4 @@
-package view
+package feequoter
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"runtime"
 
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
+	"github.com/smartcontractkit/chainlink-ton/deployment/view"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
 	"golang.org/x/sync/errgroup"
@@ -20,7 +21,7 @@ const (
 
 // FeeQuoterView represents a view of the fee quoter contract configuration.
 type FeeQuoterView struct {
-	MetaData
+	view.MetaData
 	StaticConfig    FeeQuoterStaticConfig      `json:"staticConfig"`
 	DestChainConfig map[uint64]DestChainConfig `json:"destChainConfig,omitempty"`
 }
@@ -66,7 +67,7 @@ type DestChainConfig struct {
 // FetchFeeQuoterView generates a view of the fee quoter contract at the specified block.
 func FetchFeeQuoterView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, feeQuoter *address.Address) (*FeeQuoterView, error) {
 	var typeVersion common.TypeAndVersion
-	result, err := c.Client.RunGetMethod(ctx, block, feeQuoter, versionGetter)
+	result, err := c.Client.RunGetMethod(ctx, block, feeQuoter, view.VersionGetter)
 	if err != nil {
 		return nil, fmt.Errorf("error getting typeAndVersion: %v", err)
 	}
@@ -90,7 +91,7 @@ func FetchFeeQuoterView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockI
 	}
 
 	return &FeeQuoterView{
-		MetaData: MetaData{
+		MetaData: view.MetaData{
 			Address:      feeQuoter,
 			ContractType: typeVersion.Type,
 			Version:      typeVersion.Version,
@@ -105,19 +106,19 @@ func FetchFeeQuoterView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockI
 }
 
 func fetchDestChainConfigsView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, feeQuoter *address.Address) (map[uint64]DestChainConfig, error) {
-	result, err := c.Client.RunGetMethod(ctx, block, feeQuoter, destChainsGetter)
+	result, err := c.Client.RunGetMethod(ctx, block, feeQuoter, view.DestChainsGetter)
 	if err != nil {
 		return nil, err
 	}
 
-	selectorSlice := parseExecutionResultForDestChainSelectors(result.AsTuple())
+	selectorSlice := view.ParseExecutionResultForDestChainSelectors(result.AsTuple())
 
 	var eg errgroup.Group
 	eg.SetLimit(runtime.NumCPU())
 	output := make(map[uint64]DestChainConfig)
 	for _, dest := range selectorSlice {
 		eg.Go(func() error {
-			result, err = c.Client.RunGetMethod(ctx, block, feeQuoter, destChainConfigGetter, dest)
+			result, err = c.Client.RunGetMethod(ctx, block, feeQuoter, view.DestChainConfigGetter, dest)
 			if err != nil {
 				return err
 			}

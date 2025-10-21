@@ -1,12 +1,12 @@
-package view
+package offramp
 
 import (
 	"context"
 	"fmt"
 	"runtime"
-	"sync"
 
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
+	"github.com/smartcontractkit/chainlink-ton/deployment/view"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
@@ -15,14 +15,14 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 )
 
-type OffRampView struct {
-	MetaData
-	LatestPriceSequenceNumber uint64                              `json:"latestPriceSequenceNumber,omitempty"`
-	Config                    OffRampConfig                       `json:"Config,omitempty"`
-	SourceChainConfigs        map[uint64]OffRampSourceChainConfig `json:"sourceChainConfigs,omitempty"`
+type View struct {
+	view.MetaData
+	LatestPriceSequenceNumber uint64                       `json:"latestPriceSequenceNumber,omitempty"`
+	Config                    Config                       `json:"Config,omitempty"`
+	SourceChainConfigs        map[uint64]SourceChainConfig `json:"sourceChainConfigs,omitempty"`
 }
 
-type OffRampSourceChainConfig struct {
+type SourceChainConfig struct {
 	Router                    string `json:"router,omitempty"`
 	IsEnabled                 bool   `json:"isEnabled,omitempty"`
 	MinSeqNr                  uint64 `json:"minSeqNr,omitempty"`
@@ -30,16 +30,16 @@ type OffRampSourceChainConfig struct {
 	OnRamp                    string `json:"onRamp,omitempty"`
 }
 
-type OffRampConfig struct {
+type Config struct {
 	FeeQuoter                               string `json:"feeQuoter,omitempty"`
 	ChainSelector                           uint64 `json:"chainSelector,omitempty"`
 	PermissionlessExecutionThresholdSeconds uint32 `json:"permissionlessExecutionThresholdSeconds,omitempty"`
 }
 
 // FetchOffRampView generates a view of the offramp contract at the specified block.
-func FetchOffRampView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, offRampAddr *address.Address) (*OffRampView, error) {
+func FetchOffRampView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, offRampAddr *address.Address) (*View, error) {
 	var typeVersion common.TypeAndVersion
-	result, err := c.Client.RunGetMethod(ctx, block, offRampAddr, versionGetter)
+	result, err := c.Client.RunGetMethod(ctx, block, offRampAddr, view.VersionGetter)
 	if err != nil {
 		return nil, fmt.Errorf("error getting typeAndVersion: %v", err)
 	}
@@ -48,7 +48,7 @@ func FetchOffRampView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDE
 	}
 
 	var offRampConfig offramp.Config
-	result, err = c.Client.RunGetMethod(ctx, block, offRampAddr, configGetter)
+	result, err = c.Client.RunGetMethod(ctx, block, offRampAddr, view.ConfigGetter)
 	if err != nil {
 		return nil, fmt.Errorf("error getting offRamp config: %v", err)
 	}
@@ -57,7 +57,7 @@ func FetchOffRampView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDE
 		return nil, fmt.Errorf("failed to parse offRamp config: %w", err)
 	}
 
-	result, err = c.Client.RunGetMethod(ctx, block, offRampAddr, latestPriceSequenceNumberGetter)
+	result, err = c.Client.RunGetMethod(ctx, block, offRampAddr, view.LatestPriceSequenceNumberGetter)
 	if err != nil {
 		return nil, fmt.Errorf("error getting latestPriceSequenceNumber: %v", err)
 	}
@@ -72,14 +72,14 @@ func FetchOffRampView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDE
 		return nil, fmt.Errorf("failed to fetch source chain configs: %w", err)
 	}
 
-	return &OffRampView{
-		MetaData: MetaData{
+	return &View{
+		MetaData: view.MetaData{
 			Address:      offRampAddr,
 			ContractType: typeVersion.Type,
 			Version:      typeVersion.Version,
 		},
 		LatestPriceSequenceNumber: latestSeqNumInt.Uint64(),
-		Config: OffRampConfig{
+		Config: Config{
 			ChainSelector:                           offRampConfig.ChainSelector,
 			FeeQuoter:                               offRampConfig.FeeQuoterAddress.String(),
 			PermissionlessExecutionThresholdSeconds: offRampConfig.PermissionlessExecutionThresholdSeconds,
@@ -89,20 +89,23 @@ func FetchOffRampView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDE
 }
 
 // fetchSrcChainConfig retrieves source chain configurations from the off-ramp contract.
-func fetchSrcChainConfig(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, offRampAddr *address.Address) (map[uint64]OffRampSourceChainConfig, error) {
-	result, err := c.Client.RunGetMethod(ctx, block, offRampAddr, destChainsGetter)
+func fetchSrcChainConfig(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, offRampAddr *address.Address) (map[uint64]SourceChainConfig, error) {
+	result, err := c.Client.RunGetMethod(ctx, block, offRampAddr, view.DestChainsGetter)
 	if err != nil {
 		return nil, err
 	}
 
-	chainSelectors := parseExecutionResultForDestChainSelectors(result.AsTuple())
 	var eg errgroup.Group
 	eg.SetLimit(runtime.NumCPU())
-	output := make(map[uint64]OffRampSourceChainConfig)
-	var mut sync.Mutex
+	output := make(map[uint64]SourceChainConfig)
+	updateChanMap := make(map[uint64]chan SourceChainConfig)
+	chainSelectors := view.ParseExecutionResultForDestChainSelectors(result.AsTuple())
+
 	for _, dest := range chainSelectors {
+		updateChan := make(chan SourceChainConfig, 1) // buffered channel
+		updateChanMap[dest] = updateChan
 		eg.Go(func() error {
-			result, err := c.Client.RunGetMethod(ctx, block, offRampAddr, srcChainConfigGetter, dest) // New variables per goroutine
+			result, err := c.Client.RunGetMethod(ctx, block, offRampAddr, view.SrcChainConfigGetter, dest)
 			if err != nil {
 				return err
 			}
@@ -116,19 +119,27 @@ func fetchSrcChainConfig(ctx context.Context, c cldf_ton.Chain, block *ton.Block
 				onRampAddr = string(cfg.OnRamp)
 			}
 
-			mut.Lock()
-			output[dest] = OffRampSourceChainConfig{
+			updateChan <- SourceChainConfig{
 				Router:                    cfg.Router.String(),
 				IsEnabled:                 cfg.IsEnabled,
 				MinSeqNr:                  cfg.MinSeqNr,
 				IsRMNVerificationDisabled: cfg.IsRMNVerificationDisabled,
 				OnRamp:                    onRampAddr,
 			}
-			mut.Unlock()
-
 			return nil
 		})
 	}
 
-	return output, eg.Wait()
+	// Wait for all goroutines to complete first
+	if err = eg.Wait(); err != nil {
+		return nil, err
+	}
+
+	// Then collect results
+	for selector, ch := range updateChanMap {
+		output[selector] = <-ch
+		close(ch)
+	}
+
+	return output, nil
 }
