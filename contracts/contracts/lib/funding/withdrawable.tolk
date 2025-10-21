@@ -32,7 +32,7 @@ fun Withdrawable.withdraw(self, msg: Withdrawable_Withdraw, value: coins) {
     if (msg.drainAllAvailable) {
         assert (msg.amount == 0)throw Withdrawable_Error.InvalidRequest;
         if (msg.force) {
-            return _transfer(msg.destination, 0, SEND_MODE_CARRY_ALL_BALANCE); // TODO do we need to add SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE too?
+            return _transfer(msg.destination, 0, SEND_MODE_CARRY_ALL_BALANCE);
         }
     
         // Withdraw all balance above reserve

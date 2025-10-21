@@ -9,8 +9,6 @@ import {
   SendMode,
   Slice,
 } from '@ton/core'
-import { SandboxContract, SendMessageResult } from '@ton/sandbox'
-import { crc32 } from 'zlib'
 import { CellCodec } from '../../utils'
 
 export const opcodes = {
