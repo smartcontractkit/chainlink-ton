@@ -159,6 +159,48 @@ func (l *rawTxLoader) GetTransactionBounds(ctx context.Context, blockRange *mode
 	return startLT, res.LastTxLT, res.LastTxHash, nil
 }
 
+// GetTxsForAddress is a synchronous convenience wrapper that collects all transactions
+// for an address in a block range and returns them as a slice.
+//
+// Warning: Be cautious about memory pressure when querying large ranges of blocks.
+// For large ranges, consider using LoadTxsForAddress with streaming to process
+// transactions incrementally.
+func (l *rawTxLoader) GetTxsForAddress(ctx context.Context, blockRange *models.BlockRange, addr *address.Address, pageSize uint32) ([]models.Tx, error) {
+	txOut := make(chan models.Tx)
+	errOut := make(chan error, 1)
+
+	var txs []models.Tx
+	done := make(chan struct{})
+
+	// Collect results in goroutine
+	go func() {
+		defer close(done)
+		for tx := range txOut {
+			txs = append(txs, tx)
+		}
+	}()
+
+	// Load transactions
+	err := l.LoadTxsForAddress(ctx, blockRange, addr, pageSize, txOut, errOut)
+	close(txOut)
+
+	// Wait for collection to complete
+	<-done
+
+	// Check for immediate errors
+	if err != nil {
+		return nil, err
+	}
+
+	// Check for runtime errors
+	select {
+	case err := <-errOut:
+		return nil, err
+	default:
+		return txs, nil
+	}
+}
+
 // ListTransactionsWithBlock is a custom version of ListTransactions that also returns the shard block IDs.
 // It returns a list of transactions, a list of corresponding block IDs, and an error if one occurs.
 // ListTransactions - returns list of transactions before (including) passed lt and hash, the oldest one is first in result slice

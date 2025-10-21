@@ -44,6 +44,17 @@ type TxLoader interface {
 	// Returns immediate validation/setup errors. The caller is responsible for spawning goroutines
 	// and managing channel lifecycle.
 	LoadTxsForAddress(ctx context.Context, blockRange *models.BlockRange, addr *address.Address, pageSize uint32, txOut chan<- models.Tx, errOut chan<- error) error
+
+	// GetTxsForAddress is a convenience wrapper around LoadTxsForAddress that returns
+	// transactions as a slice instead of streaming to a channel. This is suitable for
+	// bounded result sets where memory is not a concern.
+	// Use LoadTxsForAddress for streaming large result sets or when you need fine-grained
+	// control over concurrent processing.
+	//
+	// Warning: Be cautious about memory pressure when querying large ranges of blocks.
+	// For large ranges, consider using LoadTxsForAddress with streaming to process
+	// transactions incrementally.
+	GetTxsForAddress(ctx context.Context, blockRange *models.BlockRange, addr *address.Address, pageSize uint32) ([]models.Tx, error)
 }
 
 // LogStore defines the interface for storing and retrieving logs.

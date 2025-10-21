@@ -6,8 +6,8 @@ toolchain go1.24.6
 
 require (
 	github.com/jmoiron/sqlx v1.4.0
-	github.com/rubenv/pgtest v1.1.0
 	github.com/pelletier/go-toml/v2 v2.2.4
+	github.com/rubenv/pgtest v1.1.0
 	github.com/smartcontractkit/chain-selectors v1.0.67
 	github.com/smartcontractkit/chainlink-ccip v0.1.1-solana.0.20250930202440-88c08e65d960
 	github.com/smartcontractkit/chainlink-common v0.9.6-0.20251003171904-99a82a53b142
