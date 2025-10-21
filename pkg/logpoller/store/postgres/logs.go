@@ -17,7 +17,7 @@ var _ logpoller.LogStore = (*pgLogStore)(nil)
 // pgLogStore implements TON log storage using PostgreSQL with advanced querying capabilities
 type pgLogStore struct {
 	orm     *DSORM
-	lggr    logger.Logger
+	lggr    logger.SugaredLogger
 	chainID string
 }
 
@@ -25,7 +25,7 @@ type pgLogStore struct {
 func NewLogStore(orm *DSORM, lggr logger.Logger, chainID string) logpoller.LogStore {
 	return &pgLogStore{
 		orm:     orm,
-		lggr:    lggr,
+		lggr:    logger.Sugared(lggr).Named(fmt.Sprintf("TON.LogStore.%s", chainID)),
 		chainID: chainID,
 	}
 }

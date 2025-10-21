@@ -187,11 +187,12 @@ func ParseCursor(cursor string) (addr *address.Address, msgLT uint64, err error)
 	return addr, msgLT, nil
 }
 
-// TODO: this is post-processing helpers after query, this affects performance since it's in-memory operation
-// TODO: we may create TypedQueryBuilder that will return TypedLog instead of Log, but that abstracts out the in-memory operation
-// TODO: that should be visible for client, another option is putting client responsible to decode and filter the logs in memory
 // DecodedLogs is a package-level helper that decodes raw logs into typed events using TLB.
 // This is a convenience function for clients that want TLB parsing without coupling the logpoller to business logic.
+//
+// Note: this is post-processing helper after store-level query, this affects performance since it's in-memory operation
+// we may consider creating TypedQueryBuilder that will return TypedLog instead of Log, but that abstracts out the in-memory operation
+// which should be visible from client, so here chosen option is: client is responsible to decode and filter the logs in memory
 func DecodedLogs[T any](logs []models.Log) ([]models.TypedLog[T], error) {
 	typedLogs := make([]models.TypedLog[T], 0, len(logs))
 

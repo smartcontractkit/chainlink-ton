@@ -16,14 +16,14 @@ var _ logpoller.FilterStore = (*filterStore)(nil)
 
 type filterStore struct {
 	orm     *DSORM
-	lggr    logger.Logger
+	lggr    logger.SugaredLogger
 	chainID string
 }
 
 func NewFilterStore(orm *DSORM, lggr logger.Logger, chainID string) logpoller.FilterStore {
 	return &filterStore{
 		orm:     orm,
-		lggr:    lggr,
+		lggr:    logger.Sugared(lggr).Named(fmt.Sprintf("TON.FilterStore.%s", chainID)),
 		chainID: chainID,
 	}
 }

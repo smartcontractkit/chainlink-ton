@@ -38,13 +38,13 @@ type inMemoryLogs struct {
 	mu      sync.Mutex
 	logs    []models.Log
 	logKeys map[logKey]bool // set of existing log keys for deduplication
-	lggr    logger.Logger
+	lggr    logger.SugaredLogger
 	chainID string
 }
 
 func NewLogStore(lggr logger.Logger, chainID string) logpoller.LogStore {
 	return &inMemoryLogs{
-		lggr:    lggr,
+		lggr:    logger.Sugared(lggr).Named(fmt.Sprintf("TON.LogStore.Mem.%s", chainID)),
 		chainID: chainID,
 
 		logs:    make([]models.Log, 0),

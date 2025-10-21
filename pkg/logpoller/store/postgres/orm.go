@@ -19,7 +19,7 @@ type DSORM struct {
 func NewORM(chainID string, ds sqlutil.DataSource, lggr logger.Logger) *DSORM {
 	return &DSORM{
 		chainID: chainID,
-		lggr:    logger.Sugared(lggr),
+		lggr:    logger.Sugared(lggr).Named(fmt.Sprintf("TON.ORM.%s", chainID)),
 		ds:      ds,
 	}
 }
