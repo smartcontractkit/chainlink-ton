@@ -166,7 +166,7 @@ describe('OffRamp - Withdrawable Tests', () => {
 })
 
 // TODO when we have a new version
-// describe('UpgradeableCounter - Upgrade Tests', () => {
+// describe('OffRamp - Upgrade Tests', () => {
 //   const upgradeSpec = UpgradeableSpec.newUpgradeSpec(
 //     {
 //       contractType: OffRampPrev.type(),
@@ -193,7 +193,7 @@ describe('OffRamp - Withdrawable Tests', () => {
 //   upgradeSpec.run()
 // })
 
-describe('UpgradeableCounter - Current Version Tests', () => {
+describe('OffRamp - Current Version Tests', () => {
   const currentVersionSpec = UpgradeableSpec.newCurrentVersionSpec(
     {
       contractType: OffRamp.type(),
