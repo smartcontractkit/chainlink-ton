@@ -11,12 +11,17 @@ This module implements the ability for a contract to upgrade its code and migrat
 The `Upgradeable` struct provides message handling for upgrade operations:
 
 ```tolk
-struct Upgradeable<T> {
-    /// Abstract methods that must be implemented by the contract.
-    migrateStorage: (cell) -> cell;
+struct Upgradeable {
+    /// Points to the storage migration function.
+    /// Receives the old storage cell and the version string of the contract being upgraded from.
+    /// Verifies the version is supported and returns the migrated storage cell.
+    /// Must have @method_id(1000) and be consistent across versions.
+    migrate: (cell, slice) -> cell;
+    
+    /// Points to the version function.
+    /// Returns the current version of the contract as a string.
+    /// Must have @method_id(1001) and be consistent across versions.
     version: () -> slice;
-    /// Provided methods that can be overridden by the contract.
-    requireUpgrade: Upgradeable_requireUpgrade<T>; // This method requires the sender to be the contract owner by default.
 }
 ```
 
@@ -24,19 +29,19 @@ Handles `Upgradeable_Upgrade` message of type:
 
 ```tolk
 /// Message for upgrading a contract.
+/// crc32("Upgradeable_Upgrade") == 0x0aa811ed
 struct (0x0aa811ed) Upgradeable_Upgrade {
     queryId: uint64;
     code: cell;
-    fromVersion: RemainingBitsAndRefs;
 }
 ```
 
-The `fromVersion` parameter ensures that upgrades are performed from the expected version, preventing accidental upgrades from intermediate or incorrect versions.
+The upgrade mechanism ensures that upgrades are performed from the expected version by passing the current version to the `migrate` function, preventing accidental upgrades from intermediate or incorrect versions.
 
 Emits an `UpgradedEvent` upon successful upgrade:
 
 ```tolk
-struct UpgradedEvent {
+struct Upgradeable_UpgradedEvent {
     /// The new code of the contract.
     code: cell;
     /// The SHA256 hash of the new code.
@@ -46,13 +51,15 @@ struct UpgradedEvent {
 }
 ```
 
+Event topic: `0xa33b498e` (crc32("Upgradeable_UpgradedEvent"))
+
 ### Error Codes
 
 The module defines the following error codes:
 
 ```tolk
 enum Upgradeable_Error {
-    VersionMismatch = 43700; // Thrown when fromVersion doesn't match current version
+    VersionMismatch = 28700; // Thrown when the version passed to migrate doesn't match expected version
 }
 ```
 
@@ -63,33 +70,31 @@ Required method implementations in your contract:
 ```tolk
 /// Storage migration function with method_id(1000)
 @method_id(1000)
-fun migrateStorage(c: cell): cell { 
+fun migrate(storage: cell, version: slice): cell { 
+    // Verify the version matches expected previous version
+    assert (version.bitsEqual("1.0.0")) throw Upgradeable_Error.VersionMismatch;
+    
     // Implement storage migration logic here
+    // Parse old storage, transform it, return new storage
 }
 
 /// Version function with method_id(1001)  
 @method_id(1001)
 fun version(): slice { 
-    return "1.0.0"; // Your contract version
-}
-```
-
-Required ownership validation (using Ownable2Step):
-
-```tolk
-struct requireUpgradeAutoArgs {
-    ownable2Step: Ownable2Step;
-    sender: address;
-}
-
-fun requireUpgrade(autoargs: requireUpgradeAutoArgs) {
-    autoargs.ownable2Step.requireOwner(autoargs.sender)
+    return "2.0.0"; // Your contract version
 }
 ```
 
 ## Storage Migration
 
-The upgrade mechanism allows for storage layout changes between contract versions. Each contract version must implement a `migrateStorage` function that converts the previous version's storage format to the current version's format.
+The upgrade mechanism allows for storage layout changes between contract versions. Each contract version must implement a `migrate` function that converts the previous version's storage format to the current version's format.
+
+The `migrate` function receives two parameters:
+
+- `storage: cell` - The storage cell from the previous version
+- `version: slice` - The version string of the contract being upgraded from
+
+This allows the new version to verify it's upgrading from the expected version and handle multiple upgrade paths if needed.
 
 ### Example Implementation
 
@@ -116,10 +121,15 @@ struct StorageV2 {
 **Migration Implementation (V2):**
 
 ```tolk
+const COUNTER_V1_CONTRACT_VERSION = "1.0.0";
+
 @method_id(1000)
-fun migrateStorage(c: cell): cell {
+fun migrate(storage: cell, version: slice): cell {
+    // Verify we're upgrading from V1
+    assert (version.bitsEqual(COUNTER_V1_CONTRACT_VERSION)) throw Upgradeable_Error.VersionMismatch;
+    
     // Parse the old storage format
-    var oldStorage = StorageV1.fromCell(c);
+    var oldStorage = StorageV1.fromCell(storage);
     
     // Create new storage with migrated data
     var newStorage = StorageV2{
@@ -130,6 +140,11 @@ fun migrateStorage(c: cell): cell {
     
     return newStorage.toCell();
 }
+
+@method_id(1001)
+fun version(): slice { 
+    return "2.0.0"; 
+}
 ```
 
 ## Contract Integration
@@ -139,50 +154,48 @@ To integrate the Upgradeable module into your contract:
 1. **Include the module in your message handler:**
 
 ```tolk
-fun onInternalMessage(myBalance: int, msgValue: int, msgFull: cell, msgBody: slice) {
-    // Handle ownership messages first
+fun onInternalMessage(in: InMessage) {
+    if (in.body.isEmpty()) { // ignore all empty messages
+        return;
+    }
+
+    val sender = in.senderAddress;
     var storage = loadData();
-    var handled = storage.ownable2Step.onInternalMessage(myBalance, msgValue, msgFull, msgBody);
-    
+    var handled = storage.ownable2Step.onInternalMessage(sender, in.body);
+
     if (handled) {
         saveData(storage);
         return;
     }
-    
-    // Handle upgrade messages
-    val upgradeable = Upgradeable<requireUpgradeAutoArgs>{
-        version: version,
-        migrateStorage: migrateStorage,
-        requireUpgrade: Upgradeable_requireUpgrade<requireUpgradeAutoArgs> {
-            call: requireUpgrade,
-            autoArgs: requireUpgradeAutoArgs {
-                ownable2Step: storage.ownable2Step,
-                sender: sender,
-            },
-        },
-    };
-    
-    if (upgradeable.onInternalMessage(myBalance, msgValue, msgFull, msgBody)) {
-        return;
+
+    val msg = IncomingMessage.fromSlice(in.body);
+
+    match (msg) {
+        Upgradeable_Upgrade => {
+            // Authorization is up to the contract developer
+            storage.ownable2Step.requireOwner(sender);
+            Upgradeable{
+                migrate: migrate,
+                version: version,
+            }.upgrade(msg);
+        }
+        // Handle your contract's custom messages
+        // ...
     }
-    
-    // Handle your contract's custom messages
-    // ...
 }
 ```
 
-**Implement required getters:**
+1. **Implement required methods:**
 
 ```tolk
-get fun typeAndVersion(): (slice, slice) {
-    val storage = loadData();
-    val this = UpgradeableCounter{
-        versionStr: "1.0.0",
-        version: version,
-        migrateStorage: migrateStorage,
-        ownable2Step: storage.ownable2Step,
-    };
-    return this.typeAndVersion();
+@method_id(1000)
+fun migrate(storage: cell, version: slice): cell {
+    // Your migration logic
+}
+
+@method_id(1001)
+fun version(): slice { 
+    return "2.0.0"; 
 }
 ```
 
@@ -202,15 +215,15 @@ sequenceDiagram
     
     Note over Counter: Initial state:<br/>code: V1 (increment)<br/>state: StorageV1 {<br/>- id: uint32<br/>- value: uint32<br/>- ownable2Step: Ownable2Step<br/>}<br/>version: "1.0.0"
 
-    Owner->>Counter: send Upgradeable_Upgrade message<br/>(with V2 code + fromVersion: "1.0.0")
+    Owner->>Counter: send Upgradeable_Upgrade message<br/>(with V2 code)
     activate Counter
-    Note over Counter: 1. Verify sender is owner<br/>(requireUpgrade check)
-    Note over Counter: 2. Verify fromVersion matches current version<br/>(throws VersionMismatch error if not)
-    Note over Counter: 3. Get current storage
-    Note over Counter: 4. Call migrateStorage(oldCell)
-    Note over Counter: 5. Replace contract code
-    Note over Counter: 6. Set new storage
-    Note over Counter: 7. Emit UpgradedEvent
+    Note over Counter: 1. Verify sender is owner<br/>(requireOwner check via Ownable2Step)
+    Note over Counter: 2. Get current version ("1.0.0")
+    Note over Counter: 3. Schedule code replacement
+    Note over Counter: 4. Switch to new code context
+    Note over Counter: 5. Call migrate(oldStorage, "1.0.0")<br/>(new code verifies version and migrates)
+    Note over Counter: 6. Set migrated storage
+    Note over Counter: 7. Emit Upgradeable_UpgradedEvent
     deactivate Counter
 
     Note over Counter: New state:<br/>code: V2 (decrement)<br/>state: StorageV2 {<br/>- value: uint64<br/>- id: uint32<br/>- ownable2Step: Ownable2Step<br/>}<br/>version: "2.0.0"
@@ -223,22 +236,32 @@ sequenceDiagram
 
 ### Version Mismatch Protection
 
-The upgrade mechanism includes built-in protection against incorrect version upgrades:
+The upgrade mechanism includes built-in protection against incorrect version upgrades. The new contract's `migrate` function verifies it's upgrading from the expected version:
 
 ```typescript
-// ✅ Correct: Upgrading from the current version
+// ✅ Correct: V2's migrate function will accept version "1.0.0"
 await contract.sendUpgrade(owner.getSender(), toNano('0.05'), {
   queryId: 0n,
-  fromVersion: '1.0.0',  // Matches current version
-  code: v2Code,
+  code: v2Code, // V2 code expects to upgrade from "1.0.0"
 })
 
-// ❌ Incorrect: Will fail with exit code 43700 (VersionMismatch)
-await contract.sendUpgrade(owner.getSender(), toNano('0.05'), {
+// ❌ Incorrect: Will fail with exit code 28700 (VersionMismatch)
+// If you try to upgrade a V2 contract with V3 code that expects V1
+await v2Contract.sendUpgrade(owner.getSender(), toNano('0.05'), {
   queryId: 0n,
-  fromVersion: '2.0.0',  // Doesn't match current version "1.0.0"
-  code: v2Code,
+  code: v3Code, // V3's migrate expects "1.0.0" but contract is "2.0.0"
 })
+```
+
+The version check happens inside the new contract's `migrate` function:
+
+```tolk
+@method_id(1000)
+fun migrate(storage: cell, version: slice): cell {
+    // This will throw VersionMismatch if version != "1.0.0"
+    assert (version.bitsEqual("1.0.0")) throw Upgradeable_Error.VersionMismatch;
+    // ... rest of migration logic
+}
 ```
 
 This prevents scenarios where:
@@ -307,8 +330,8 @@ The upgrade test spec provides the following test cases:
 2. **should upgrade from previous to current version**: Tests the complete upgrade flow, including:
    - Version verification before and after upgrade
    - Code and code hash verification
+   - Storage migration (the new version's `migrate` function processes the old version's data)
    - Upgrade event emission with correct version, code, and code hash
-3. **should fail when fromVersion does not match current version**: Verifies that upgrades fail with exit code 43700 when `fromVersion` doesn't match the current version
 
 ### Testing Current Version
 
@@ -361,6 +384,7 @@ The current version test spec provides the following test cases:
 
 1. **should deploy on correct version**: Verifies that the contract deploys with the correct version, type, code, and code hash
 2. **should fail when non-owner tries to upgrade**: Ensures that only the owner can perform upgrades
+3. **should fail when fromVersion does not match current version**: Verifies that upgrades fail with exit code 28700 when the new contract's `migrate` function rejects the current version
 
 ### Configuration Options
 
