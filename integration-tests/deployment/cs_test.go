@@ -16,10 +16,13 @@ import (
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
+
 	tonops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
+
+	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
 
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 	devenv "github.com/smartcontractkit/chainlink-ton/integration-tests/env"
@@ -30,7 +33,6 @@ import (
 	inmemorystore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/db/inmemory"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/loader/account"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/txparser"
-	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
 )
 
 func TestDeploy(t *testing.T) {
