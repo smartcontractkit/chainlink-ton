@@ -1,7 +1,6 @@
-import "../../../../lib/utils.tolk";
-import "../../../../lib/access/ownable_2step.tolk";
-import "../../../../lib/funding/withdrawable.tolk";
-import "./storage.tolk";
+import "../../../lib/utils";
+import "../../../lib/access/ownable_2step";
+import "../../../lib/funding/withdrawable";
 
 const FACILITY_NAME = "com.chainlink.ton.examples.funding.WithdrawableWallet";
 const CONTRACT_VERSION = "1.0.0";
