@@ -33,7 +33,7 @@ export type WithdrawableTestConfig<TContract> = {
 /**
  * Contract interface that must be implemented by withdrawable contracts for testing.
  */
-export interface WithdrawableContract extends withdrawable.Withdrawable {}
+export interface WithdrawableContract extends withdrawable.Interface {}
 
 interface TestSetup<TContract> {
   blockchain: Blockchain

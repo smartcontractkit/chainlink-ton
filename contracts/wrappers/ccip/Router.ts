@@ -39,7 +39,7 @@ export abstract class Opcodes {
   static ccipSend = 0x00000001
 }
 
-export class Router implements Contract, withdrawable.Withdrawable {
+export class Router implements Contract, withdrawable.Interface {
   constructor(
     readonly address: Address,
     readonly init?: { code: Cell; data: Cell },

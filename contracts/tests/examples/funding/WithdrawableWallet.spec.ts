@@ -13,7 +13,7 @@ async function setUpTest(
   deployer: SandboxContract<TreasuryContract>
   owner: SandboxContract<TreasuryContract>
   recipient: SandboxContract<TreasuryContract>
-  wallet: SandboxContract<withdrawableWallet.WithdrawableWallet>
+  wallet: SandboxContract<withdrawableWallet.ContractClient>
   code: Cell
 }> {
   let blockchain = await Blockchain.create()
@@ -28,10 +28,10 @@ async function setUpTest(
   let owner = await blockchain.treasury('owner')
   let recipient = await blockchain.treasury('recipient')
 
-  let code = await withdrawableWallet.WithdrawableWallet.code()
+  let code = await withdrawableWallet.ContractClient.code()
 
   let wallet = blockchain.openContract(
-    withdrawableWallet.WithdrawableWallet.createFromConfig(
+    withdrawableWallet.ContractClient.createFromConfig(
       {
         id: 0,
         ownable: { owner: owner.address, pendingOwner: null },
@@ -63,14 +63,14 @@ async function setUpTest(
 describe('WithdrawableWallet - Withdrawable Tests', () => {
   const withdrawableSpec = newWithdrawableSpec(
     {
-      getCode: () => withdrawableWallet.WithdrawableWallet.code(),
-      ContractConstructor: withdrawableWallet.WithdrawableWallet,
+      getCode: () => withdrawableWallet.ContractClient.code(),
+      ContractConstructor: withdrawableWallet.ContractClient,
       ownershipErrorCode: ownable2step.Errors.OnlyCallableByOwner,
     },
     async (blockchain, owner) => {
-      const code = await withdrawableWallet.WithdrawableWallet.code()
+      const code = await withdrawableWallet.ContractClient.code()
       const contract = blockchain.openContract(
-        withdrawableWallet.WithdrawableWallet.createFromConfig(
+        withdrawableWallet.ContractClient.createFromConfig(
           {
             id: 0,
             ownable: { owner: owner.address, pendingOwner: null },

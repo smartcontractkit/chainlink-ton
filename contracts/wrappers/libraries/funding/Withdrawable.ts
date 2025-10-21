@@ -78,7 +78,7 @@ export async function getReserve(provider: ContractProvider): Promise<bigint> {
   return stack.readBigNumber()
 }
 
-export interface Withdrawable extends Contract {
+export interface Interface extends Contract {
   sendWithdraw(
     provider: ContractProvider,
     via: Sender,

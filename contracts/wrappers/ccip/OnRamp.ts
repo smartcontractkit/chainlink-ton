@@ -164,7 +164,7 @@ export abstract class Opcodes {
 
 export abstract class Errors {}
 
-export class OnRamp implements Contract, withdrawable.Withdrawable {
+export class OnRamp implements Contract, withdrawable.Interface {
   constructor(
     readonly address: Address,
     readonly init?: { code: Cell; data: Cell },

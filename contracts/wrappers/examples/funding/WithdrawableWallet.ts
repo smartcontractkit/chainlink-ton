@@ -49,7 +49,7 @@ export const builder = {
   },
 }
 
-export class WithdrawableWallet implements withdrawable.Withdrawable {
+export class ContractClient implements withdrawable.Interface {
   private ownable: ownable2step.ContractClient
 
   constructor(
@@ -60,7 +60,7 @@ export class WithdrawableWallet implements withdrawable.Withdrawable {
   }
 
   static createFromAddress(address: Address) {
-    return new WithdrawableWallet(address)
+    return new ContractClient(address)
   }
 
   static code(): Promise<Cell> {
@@ -78,7 +78,7 @@ export class WithdrawableWallet implements withdrawable.Withdrawable {
   static createFromConfig(config: WalletConfig, code: Cell, workchain = 0) {
     const data = builder.data.walletConfig.encode(config).endCell()
     const init = { code, data }
-    return new WithdrawableWallet(contractAddress(workchain, init), init)
+    return new ContractClient(contractAddress(workchain, init), init)
   }
 
   async sendDeploy(provider: ContractProvider, via: Sender, value: bigint) {
