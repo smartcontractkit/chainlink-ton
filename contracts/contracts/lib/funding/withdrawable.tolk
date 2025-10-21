@@ -21,34 +21,30 @@ struct (0xf343fc1b) Withdrawable_Withdraw {
     destination: address;
     // Amount to withdraw. Ignored if drain is true.
     amount: coins;
-    // Ignore reserve.
-    force: bool; 
+    // Overwrite reserve.
+    reserve: coins?; 
     // Ignore amount. If force is true, withdraw all balance, otherwise withdraw all balance above reserve.
     drainAllAvailable: bool;
 }
 
 fun Withdrawable.withdraw(self, msg: Withdrawable_Withdraw, value: coins) {
     val originalBalance = contract.getOriginalBalance();
+    var actualReserve = self.reserve;
+    if (msg.reserve != null) {
+        actualReserve = msg.reserve;
+    }
     if (msg.drainAllAvailable) {
-        assert (msg.amount == 0)throw Withdrawable_Error.InvalidRequest;
-        if (msg.force) {
-            return _transfer(msg.destination, 0, SEND_MODE_CARRY_ALL_BALANCE);
-        }
-    
+        assert (msg.amount == 0) throw Withdrawable_Error.InvalidRequest;    
         // Withdraw all balance above reserve
-        val available = originalBalance - self.reserve;
-        assert (available > 0) throw Withdrawable_Error.LowReserve;
-        reserveToncoinsOnBalance(self.reserve, RESERVE_MODE_EXACT_AMOUNT);
+        assert (originalBalance > actualReserve) throw Withdrawable_Error.LowReserve;
+        reserveToncoinsOnBalance(actualReserve, RESERVE_MODE_EXACT_AMOUNT);
 
         return _transfer(msg.destination, 0, SEND_MODE_CARRY_ALL_BALANCE);
     }
     // Withdraw specific amount
     assert (msg.amount > 0) throw Withdrawable_Error.InvalidRequest;
     assert (msg.amount < originalBalance) throw Withdrawable_Error.InsufficientBalance;
-    if (msg.force) {
-        return _transfer(msg.destination, msg.amount, SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
-    }
-    assert (msg.amount < originalBalance - self.reserve) throw Withdrawable_Error.HitReserve;
+    assert (msg.amount < originalBalance - actualReserve) throw Withdrawable_Error.HitReserve;
     return _transfer(msg.destination, msg.amount, SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 

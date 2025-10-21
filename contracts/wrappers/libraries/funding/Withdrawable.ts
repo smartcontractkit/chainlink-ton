@@ -26,7 +26,7 @@ export type Withdraw = {
   queryId: bigint
   destination: Address
   amount: bigint
-  force: boolean
+  reserve?: bigint
   drainAllAvailable: boolean
 }
 
@@ -41,7 +41,7 @@ export const builder = {
               .storeUint(msg.queryId, 64)
               .storeAddress(msg.destination)
               .storeCoins(msg.amount)
-              .storeBit(msg.force)
+              .storeMaybeCoins(msg.reserve)
               .storeBit(msg.drainAllAvailable)
           },
           load: (src: Slice): Withdraw => {
@@ -50,7 +50,7 @@ export const builder = {
               queryId: src.loadUintBig(64),
               destination: src.loadAddress(),
               amount: src.loadCoins(),
-              force: src.loadBit(),
+              reserve: src.loadMaybeCoins() ?? undefined,
               drainAllAvailable: src.loadBit(),
             }
           },

@@ -147,7 +147,7 @@ export function newWithdrawableSpec<TContract extends WithdrawableContract>(
             queryId: 1n,
             destination: recipient.address,
             amount: withdrawAmount,
-            force: false,
+            reserve: undefined,
             drainAllAvailable: false,
           },
         )
@@ -186,7 +186,7 @@ export function newWithdrawableSpec<TContract extends WithdrawableContract>(
             queryId: 2n,
             destination: recipient.address,
             amount: tooMuchAmount,
-            force: false,
+            reserve: undefined,
             drainAllAvailable: false,
           },
         )
@@ -214,7 +214,7 @@ export function newWithdrawableSpec<TContract extends WithdrawableContract>(
             queryId: 3n,
             destination: recipient.address,
             amount: attemptedAmount,
-            force: false,
+            reserve: undefined,
             drainAllAvailable: false,
           },
         )
@@ -243,7 +243,7 @@ export function newWithdrawableSpec<TContract extends WithdrawableContract>(
             queryId: 4n,
             destination: recipient.address,
             amount: attemptedAmount,
-            force: true,
+            reserve: toNano('0'),
             drainAllAvailable: false,
           },
         )
@@ -282,7 +282,7 @@ export function newWithdrawableSpec<TContract extends WithdrawableContract>(
             queryId: 5n,
             destination: recipient.address,
             amount: 0n,
-            force: false,
+            reserve: undefined,
             drainAllAvailable: true,
           },
         )
@@ -319,7 +319,7 @@ export function newWithdrawableSpec<TContract extends WithdrawableContract>(
             queryId: 6n,
             destination: recipient.address,
             amount: 0n,
-            force: true,
+            reserve: toNano('0'),
             drainAllAvailable: true,
           },
         )
@@ -352,7 +352,7 @@ export function newWithdrawableSpec<TContract extends WithdrawableContract>(
             queryId: 7n,
             destination: recipient.address,
             amount: toNano('1'),
-            force: false,
+            reserve: undefined,
             drainAllAvailable: true,
           },
         )
@@ -378,7 +378,7 @@ export function newWithdrawableSpec<TContract extends WithdrawableContract>(
             queryId: 8n,
             destination: recipient.address,
             amount: 0n,
-            force: false,
+            reserve: undefined,
             drainAllAvailable: false,
           },
         )
@@ -408,7 +408,7 @@ export function newWithdrawableSpec<TContract extends WithdrawableContract>(
               queryId: 9n,
               destination: recipient.address,
               amount: withdrawAmount,
-              force: true,
+              reserve: toNano('0'),
               drainAllAvailable: false,
             },
           )
@@ -433,7 +433,7 @@ export function newWithdrawableSpec<TContract extends WithdrawableContract>(
             queryId: 10n,
             destination: recipient.address,
             amount: 0n,
-            force: false,
+            reserve: undefined,
             drainAllAvailable: true,
           },
         )
