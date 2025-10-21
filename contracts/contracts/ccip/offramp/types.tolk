@@ -1,5 +1,6 @@
 import "../common/types"
 import "../fee_quoter/types"
+import "../../lib/utils"
 
 struct ExecutionReport {
     sourceChainSelector: uint64;
@@ -12,14 +13,14 @@ struct ExecutionReport {
 // Matches the EVM struct
 struct CommitReport {
     priceUpdates: Cell<PriceUpdates>?; // Price updates for the fee_quoter
-    merkleRoots: cell; // vec<MerkleRoot> Merkle roots 
+    merkleRoots: SnakedCell<MerkleRoot>; // Merkle roots 
 }
 
 struct MessageMetadata {
-    header: uint256 = stringSha256("Any2TVMMessageHashV1");
+    _header: uint256 = stringSha256("Any2TVMMessageHashV1");
     sourceChainSelector: uint64;
     destChainSelector: uint64;
-    onRamp :Cell<CrossChainAddress>;
+    onRamp: Cell<CrossChainAddress>;
 }
 
 struct Config {
@@ -50,7 +51,7 @@ struct Any2TVMRampMessage {
     data: cell;
     receiver: address;
     // gasLimit: coins;
-    tokenAmounts: cell?; // vec<Any2TVMTokenTransfer>
+    tokenAmounts: SnakedCell<Any2TVMTokenTransfer>?;
     // maybe mark these amounts as slice remaining then parse them by hand to avoid requiring this to be a map<> at send time?
 }
 
@@ -93,11 +94,9 @@ struct Any2TVMTokenTransfer {
     amount: uint256;
 }
 
-
-//TODO: enum ExecutionState
 // These have to match the EVM states
-const EXECUTION_STATE_IN_PROGRESS: uint8 = 1;
-const EXECUTION_STATE_SUCCESS: uint8 = 2;
-const EXECUTION_STATE_FAILURE: uint8 = 3;
-
-
+enum ExecutionState: uint8 {
+    InProgress = 1
+    Success = 2
+    Failure = 3
+}

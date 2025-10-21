@@ -5,6 +5,6 @@ import { CompilerConfig } from '@ton/blueprint'
 // See: .github/workflows/contracts-publish-compiled-artifacts.yml
 export const compile: CompilerConfig = {
   lang: 'tolk',
-  entrypoint: 'contracts/ccip/test/receiver.tolk',
+  entrypoint: 'contracts/ccip/test/receiver/contract.tolk',
   withStackComments: true,
 }

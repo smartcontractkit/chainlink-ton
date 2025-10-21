@@ -6,12 +6,11 @@ struct ExecutionStateChanged {
     sourceChainSelector: uint64,
     sequenceNumber: uint64,
     messageId: uint256,
-    state: uint8,
+    state: ExecutionState,
     //returnData? probably not
 }
 
 const CCIP_COMMIT_REPORT_ACCEPTED_TOPIC: int = stringCrc32("CommitReportAccepted");
-
 struct CommitReportAccepted {
     merkleRoot: MerkleRoot? // vec<MerkleRoots>
     priceUpdates: Cell<PriceUpdates>?;

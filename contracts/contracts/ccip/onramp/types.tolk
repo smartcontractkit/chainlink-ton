@@ -1,4 +1,5 @@
 import "../common/types"
+import "../../lib/utils"
 
 struct OnRamp_DestChainConfig {
     router: address; // Local router address that is allowed to send messages to the destination chain.
@@ -28,8 +29,8 @@ struct OnRampUpdateDestChainConfig {
 
 struct UpdateAllowlist {
     destChainSelector: uint64;
-    add: cell; // vec<address>
-    remove: cell; // vec<address>
+    add: SnakedCell<address>;
+    remove: SnakedCell<address>
 }
 
 struct Metadata {

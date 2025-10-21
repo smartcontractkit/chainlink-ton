@@ -1,5 +1,6 @@
 import "types"
 import "../router/messages"
+import "../../lib/utils"
 
 type FeeQuoter_InMessage =
     | FeeQuoter_UpdatePrices
@@ -21,7 +22,7 @@ struct (0x7496FF56) FeeQuoter_GetValidatedFee<C> {
 // crc32('FeeQuoter_UpdateFeeTokens')
 struct (0xD0984986) FeeQuoter_UpdateFeeTokens {
     add: map<address, FeeToken>; // token -> config
-    remove: cell; // vector<address>
+    remove: SnakedCell<address>;
 }
 
 // NOTE: we just merged this into UpdateFeeTokens

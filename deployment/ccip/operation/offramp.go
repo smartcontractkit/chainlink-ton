@@ -27,6 +27,7 @@ type DeployOffRampInput struct {
 	ContractPath                            string
 	DeployerContractPath                    string
 	MerkleRootContractPath                  string
+	Coins                                   string
 }
 
 // TODO: single deploy output
@@ -87,7 +88,7 @@ func deployOffRamp(b operations.Bundle, deps TonDeps, in DeployOffRampInput) (De
 		return output, fmt.Errorf("failed to pack initData: %w", err)
 	}
 
-	contract, _, err := wrappers.Deploy(&conn, codeCell, initData, tlb.MustFromTON("1"), nil)
+	contract, _, err := wrappers.Deploy(&conn, codeCell, initData, tlb.MustFromTON(in.Coins), nil)
 	if err != nil {
 		return output, fmt.Errorf("failed to deploy offramp contract: %w", err)
 	}
