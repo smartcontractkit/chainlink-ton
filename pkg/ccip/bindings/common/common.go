@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"math/big"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
@@ -443,32 +444,10 @@ func NewDummyCell() (*cell.Cell, error) {
 	return builder.EndCell(), nil
 }
 
-// Proof256 represents a 32-byte (256 bits) proof used in merkle proofs.
+// Proof represents a 32-byte (256 bits) proof used in merkle proofs.
 // This wrapper type allows [32]byte to be used with SnakeData by implementing
 // ToCell/LoadFromCell that directly store/load 256 bits inline, avoiding the
 // infinite loop issue that occurs with SnakeBytes (which uses c.ToCell() in LoadFromCell).
-type Proof256 [32]byte
-
-// ToCell stores the 256-bit proof directly as inline bits.
-func (p Proof256) ToCell() (*cell.Cell, error) {
-	builder := cell.BeginCell()
-	if err := builder.StoreSlice(p[:], 256); err != nil {
-		return nil, fmt.Errorf("failed to store proof256: %w", err)
-	}
-	return builder.EndCell(), nil
-}
-
-// LoadFromCell loads 256 bits directly from the slice and advances its position.
-// This is critical: unlike SnakeBytes.LoadFromCell which calls c.ToCell() (creating
-// a new cell without advancing the original slice), this directly reads from the slice.
-func (p *Proof256) LoadFromCell(s *cell.Slice) error {
-	if s.BitsLeft() < 256 {
-		return fmt.Errorf("not enough bits to load Proof256: have %d, need 256", s.BitsLeft())
-	}
-	data, err := s.LoadSlice(256) // advances position
-	if err != nil {
-		return fmt.Errorf("failed to load proof256: %w", err)
-	}
-	copy(p[:], data)
-	return nil
+type Proof struct {
+	Value *big.Int `tlb:"## 256"` // The value of the struct
 }

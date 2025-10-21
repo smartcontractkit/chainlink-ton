@@ -363,7 +363,7 @@ fun _execute(msg: OffRamp_Execute, sender: address) {
         OCR_PLUGIN_TYPE_EXECUTE,
         msg.reportContext,
         msg.report.toCell(),
-        beginCell().endCell(),
+        createEmptyCell(),
     );
 
 }
