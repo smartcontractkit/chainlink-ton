@@ -3,7 +3,14 @@ import "../../../../lib/access/ownable_2step.tolk";
 import "../../../../lib/funding/withdrawable.tolk";
 import "./storage.tolk";
 
-type IncomingMessage = Withdrawable_Withdraw;
+const FACILITY_NAME = "com.chainlink.ton.examples.funding.WithdrawableWallet";
+const CONTRACT_VERSION = "1.0.0";
+
+struct Storage {
+    id: uint32;
+    ownable2Step: Ownable2Step;
+    reserve: coins;
+}
 
 fun loadData() {
     return Storage.fromCell(contract.getData());
@@ -13,8 +20,7 @@ fun saveData(data: Storage) {
     contract.setData(data.toCell());
 }
 
-const FACILITY_NAME = "com.chainlink.ton.examples.funding.WithdrawableWallet";
-const CONTRACT_VERSION = "1.0.0";
+type IncomingMessage = Withdrawable_Withdraw;
 
 fun onInternalMessage(in: InMessage) {
     val sender = in.senderAddress;
