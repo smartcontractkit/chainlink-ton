@@ -10,7 +10,7 @@ import {
   SendMode,
   Slice,
 } from '@ton/core'
-import * as typeAndVersion from '../libraries/TypeAndVersion'
+import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
 import * as ownable2step from '../libraries/access/Ownable2Step'
 import { CellCodec } from '../utils'
 

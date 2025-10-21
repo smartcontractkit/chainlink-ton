@@ -20,9 +20,9 @@ import * as withdrawable from '../libraries/funding/Withdrawable'
 import { crc32 } from 'zlib'
 import { CellCodec, facilityId } from '../utils'
 import { CCIPReceive, ReceiverStorage } from './Receiver'
-import { Maybe } from '@ton/core/dist/utils/maybe'
 import * as upgradeable from '../libraries/versioning/Upgradeable'
-import * as typeAndVersion from '../libraries/TypeAndVersion'
+import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
+import { Maybe } from '@ton/core/dist/utils/maybe'
 import { compile } from '@ton/blueprint'
 
 export type OffRampStorage = {

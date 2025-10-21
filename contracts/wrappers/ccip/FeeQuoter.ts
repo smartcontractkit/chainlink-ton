@@ -19,7 +19,7 @@ import * as withdrawable from '../libraries/funding/Withdrawable'
 import { CellCodec } from '../utils'
 import { asSnakeData, fromSnakeData } from '../../src/utils'
 import * as upgradeable from '../libraries/versioning/Upgradeable'
-import * as typeAndVersion from '../libraries/TypeAndVersion'
+import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
 import { compile } from '@ton/blueprint'
 
 export const FEE_QUOTER_CONTRACT_VERSION = '0.0.7'

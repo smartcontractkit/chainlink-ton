@@ -5,38 +5,67 @@ import { newWithdrawableSpec } from '../../lib/funding/WithdrawableSpec'
 import * as UpgradeableSpec from '../../lib/versioning/UpgradeableSpec'
 import { ZERO_ADDRESS } from '../../../src/utils'
 import * as ownable2step from '../../../wrappers/libraries/access/Ownable2Step'
+import * as TypeAndVersionSpec from '../../lib/versioning/TypeAndVersionSpec'
+import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
+
+async function deployOnRampContract(
+  blockchain: Blockchain,
+  owner: SandboxContract<TreasuryContract>,
+) {
+  const code = await OnRamp.code()
+  let data: OnRampStorage = {
+    id: 0,
+    ownable: {
+      owner: owner.address,
+      pendingOwner: null,
+    },
+    chainSelector: CHAINSEL_TON,
+    config: {
+      feeQuoter: ZERO_ADDRESS,
+      feeAggregator: ZERO_ADDRESS,
+      allowlistAdmin: ZERO_ADDRESS,
+    },
+    destChainConfigs: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Cell()),
+    currentMessageId: 0n,
+    executor_code: beginCell().endCell(),
+  }
+  // TODO: use deployable to make deterministic?
+  const contract = blockchain.openContract(OnRamp.createFromConfig(data, code))
+  const deployer = await blockchain.treasury('deployer')
+  await contract.sendDeploy(deployer.getSender(), toNano('0.05'))
+  return contract
+}
+
+describe('OnRamp - TypeAndVersion Tests', () => {
+  const currentVersionSpec = UpgradeableSpec.newCurrentVersionSpec({
+    contractType: OnRamp.type(),
+    currentVersion: OnRamp.version(),
+    getCurrentCode: () => OnRamp.code(),
+    CurrentVersionConstructor: OnRamp,
+    deployCurrentContract: deployOnRampContract,
+  })
+  currentVersionSpec.run()
+})
 
 const CHAINSEL_TON = 13879075125137744094n // TODO repeated constant
+
+describe('OnRamp - Current Version Tests', () => {
+  const currentVersionSpec = TypeAndVersionSpec.newTypeAndVersionSpec(
+    {
+      type: OnRamp.type(),
+      version: OnRamp.version(),
+    },
+    deployOnRampContract,
+  )
+  currentVersionSpec.run()
+})
 
 describe('OnRamp - Withdrawable Tests', () => {
   const withdrawableSpec = newWithdrawableSpec({
     getCode: () => compile('OnRamp'),
     ContractConstructor: OnRamp,
     ownershipErrorCode: ownable2step.Errors.OnlyCallableByOwner,
-    deployContract: async (blockchain, owner) => {
-      const code = await compile('OnRamp')
-      let data: OnRampStorage = {
-        id: 0,
-        ownable: {
-          owner: owner.address,
-          pendingOwner: null,
-        },
-        chainSelector: CHAINSEL_TON,
-        config: {
-          feeQuoter: ZERO_ADDRESS,
-          feeAggregator: ZERO_ADDRESS,
-          allowlistAdmin: ZERO_ADDRESS,
-        },
-        destChainConfigs: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Cell()),
-        currentMessageId: 0n,
-        executor_code: beginCell().endCell(),
-      }
-      // TODO: use deployable to make deterministic?
-      const contract = blockchain.openContract(OnRamp.createFromConfig(data, code))
-      const deployer = await blockchain.treasury('deployer')
-      await contract.sendDeploy(deployer.getSender(), toNano('0.05'))
-      return contract
-    },
+    deployContract: deployOnRampContract,
   })
   withdrawableSpec.run()
 })
@@ -75,30 +104,7 @@ describe('OnRamp - Current Version Tests', () => {
     currentVersion: OnRamp.version(),
     getCurrentCode: () => OnRamp.code(),
     CurrentVersionConstructor: OnRamp,
-    deployCurrentContract: async (blockchain, owner) => {
-      const code = await OnRamp.code()
-      let data: OnRampStorage = {
-        id: 0,
-        ownable: {
-          owner: owner.address,
-          pendingOwner: null,
-        },
-        chainSelector: CHAINSEL_TON,
-        config: {
-          feeQuoter: ZERO_ADDRESS,
-          feeAggregator: ZERO_ADDRESS,
-          allowlistAdmin: ZERO_ADDRESS,
-        },
-        destChainConfigs: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Cell()),
-        currentMessageId: 0n,
-        executor_code: beginCell().endCell(),
-      }
-      // TODO: use deployable to make deterministic?
-      const contract = blockchain.openContract(OnRamp.createFromConfig(data, code))
-      const deployer = await blockchain.treasury('deployer')
-      await contract.sendDeploy(deployer.getSender(), toNano('0.05'))
-      return contract
-    },
+    deployCurrentContract: deployOnRampContract,
   })
   currentVersionSpec.run()
 })
