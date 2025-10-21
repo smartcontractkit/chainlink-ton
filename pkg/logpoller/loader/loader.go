@@ -32,7 +32,7 @@ func New(
 	clientProvider func(context.Context) (ton.APIClientWrapped, error),
 ) logpoller.TxLoader {
 	return &rawTxLoader{
-		lggr:           logger.Sugared(lggr).Named("TON.TxLoader"),
+		lggr:           logger.Sugared(lggr).Named("TxLoader"),
 		clientProvider: clientProvider,
 	}
 }

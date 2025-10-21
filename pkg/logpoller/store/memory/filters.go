@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/xssnick/tonutils-go/address"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
@@ -18,13 +19,17 @@ type inMemoryFilters struct {
 	mu               sync.RWMutex
 	filtersByName    map[string]models.Filter       // filtersByName maps a filter's unique name to its definition.
 	filtersByAddress map[string]map[uint32]struct{} // filtersByAddress maps a contract address string to a set of its watched event signature.
+	lggr             logger.SugaredLogger
+	chainID          string
 }
 
 // NewFilterStore creates a new in-memory implementation of the Filters interface.
-func NewFilterStore() logpoller.FilterStore {
+func NewFilterStore(lggr logger.Logger, chainID string) logpoller.FilterStore {
 	return &inMemoryFilters{
 		filtersByName:    make(map[string]models.Filter),
 		filtersByAddress: make(map[string]map[uint32]struct{}),
+		lggr:             logger.Sugared(lggr).Named(fmt.Sprintf("FilterStore.Mem.%s", chainID)),
+		chainID:          chainID,
 	}
 }
 

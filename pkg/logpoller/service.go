@@ -58,7 +58,7 @@ type ServiceOptions struct {
 // NewService creates a new TON log polling service instance
 func NewService(lggr logger.Logger, clientProvider func(context.Context) (ton.APIClientWrapped, error), opts *ServiceOptions) Service {
 	lp := &service{
-		lggr:             logger.Sugared(lggr).Named("TON.LogPoller"),
+		lggr:             logger.Sugared(lggr).Named("LogPoller"),
 		clientProvider:   clientProvider,
 		filterStore:      opts.FilterStore,
 		loader:           opts.TxLoader,

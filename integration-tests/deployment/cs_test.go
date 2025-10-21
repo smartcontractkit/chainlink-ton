@@ -173,7 +173,7 @@ func TestDeploy(t *testing.T) {
 
 	// -- TON Accessor tests
 	lpCfg := logpoller.DefaultConfigSet
-	filterStore := inmemorystore.NewFilterStore()
+	filterStore := inmemorystore.NewFilterStore(lggr, "test-chain")
 	opts := &logpoller.ServiceOptions{
 		Config:      lpCfg,
 		FilterStore: filterStore,

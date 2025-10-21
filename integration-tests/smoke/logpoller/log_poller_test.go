@@ -216,7 +216,7 @@ func Test_LogPoller(t *testing.T) {
 		lggr := logger.Test(t)
 		opts := &logpoller.ServiceOptions{
 			Config:      logpoller.DefaultConfigSet,
-			FilterStore: inmemorystore.NewFilterStore(),
+			FilterStore: inmemorystore.NewFilterStore(lggr, "test-chain"),
 			TxLoader:    txloader.New(lggr, clientProvider),
 			LogStore:    inmemorystore.NewLogStore(lggr, "test-chain"),
 		}

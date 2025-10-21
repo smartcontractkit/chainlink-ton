@@ -23,7 +23,7 @@ type filterStore struct {
 func NewFilterStore(orm *DSORM, lggr logger.Logger, chainID string) logpoller.FilterStore {
 	return &filterStore{
 		orm:     orm,
-		lggr:    logger.Sugared(lggr).Named(fmt.Sprintf("TON.FilterStore.%s", chainID)),
+		lggr:    logger.Sugared(lggr).Named(fmt.Sprintf("FilterStore.%s", chainID)),
 		chainID: chainID,
 	}
 }
