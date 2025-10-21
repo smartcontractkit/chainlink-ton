@@ -10,26 +10,25 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xssnick/tonutils-go/ton"
 
+	chainselectors "github.com/smartcontractkit/chain-selectors"
+
 	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
+	tonops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
+	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
+	devenv "github.com/smartcontractkit/chainlink-ton/integration-tests/env"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/timelock"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/chainaccessor"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
+	inmemorystore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/db/inmemory"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/loader/account"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/txparser"
-
-	chain_selectors "github.com/smartcontractkit/chain-selectors"
-
-	ton_ops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
-	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
-	devenv "github.com/smartcontractkit/chainlink-ton/integration-tests/env"
-	inmemorystore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/db/inmemory"
 	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
 )
 
@@ -41,8 +40,8 @@ func TestDeploy(t *testing.T) {
 	require.NoError(t, err)
 
 	// Get chain selectors
-	evmSelector := env.BlockChains.ListChainSelectors(chain.WithFamily(chain_selectors.FamilyEVM))[0]
-	tonChainSelectors := env.BlockChains.ListChainSelectors(chain.WithFamily(chain_selectors.FamilyTon))
+	evmSelector := env.BlockChains.ListChainSelectors(chain.WithFamily(chainselectors.FamilyEVM))[0]
+	tonChainSelectors := env.BlockChains.ListChainSelectors(chain.WithFamily(chainselectors.FamilyTon))
 	require.Len(t, tonChainSelectors, 1, "Expected exactly 1 Ton chain")
 	chainSelector := tonChainSelectors[0]
 	tonChain := env.BlockChains.TonChains()[chainSelector]
@@ -53,9 +52,9 @@ func TestDeploy(t *testing.T) {
 	}
 
 	// Random contract's ID to avoid collision on subsequence runs of the test against the same chain node
-	contractID, err := ton_ops.RandomUint32()
+	contractID, err := tonops.RandomUint32()
 	require.NoError(t, err)
-	cs := commonchangeset.Configure(ton_ops.DeployCCIPContracts{}, ton_ops.DeployChainContractsConfig(t, env, chainSelector, sequence.ContractsLocalVersion, contractID))
+	cs := commonchangeset.Configure(tonops.DeployCCIPContracts{}, tonops.DeployChainContractsConfig(t, env, chainSelector, sequence.ContractsLocalVersion, contractID))
 
 	env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{cs})
 	require.NoError(t, err, "failed to deploy ccip")
@@ -70,7 +69,7 @@ func TestDeploy(t *testing.T) {
 	// </redeploy>
 
 	// TODO: LINK token deployment
-	linkAddr := ton_ops.TonTokenAddr
+	linkAddr := tonops.TonTokenAddr
 
 	tonDefinition := config.ChainDefinition{
 		ConnectionConfig: config.ConnectionConfig{
@@ -80,16 +79,16 @@ func TestDeploy(t *testing.T) {
 		Selector: tonChain.Selector,
 		GasPrice: big.NewInt(1e17),
 		TokenPrices: map[string]*big.Int{
-			ton_ops.TonTokenAddr.String(): big.NewInt(99),
+			tonops.TonTokenAddr.String(): big.NewInt(99),
 		},
-		FeeQuoterDestChainConfig: ton_ops.TonFeeQuoterDestChainConfig,
+		FeeQuoterDestChainConfig: tonops.TonFeeQuoterDestChainConfig,
 		// TokenTransferFeeConfigs:  map[uint64]feequoter.UpdateTokenTransferFeeConfig{},
 	}
 	evmDefinition := config.ChainDefinition{
 		Selector:                 evmSelector,
 		GasPrice:                 big.NewInt(1e17),
 		TokenPrices:              map[string]*big.Int{},
-		FeeQuoterDestChainConfig: ton_ops.EvmFeeQuoterDestChainConfig,
+		FeeQuoterDestChainConfig: tonops.EvmFeeQuoterDestChainConfig,
 		ConnectionConfig: config.ConnectionConfig{
 			RMNVerificationDisabled: true,
 			AllowListEnabled:        false,
@@ -98,7 +97,7 @@ func TestDeploy(t *testing.T) {
 
 	// TON->EVM
 	env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{
-		commonchangeset.Configure(ton_ops.AddTonLanes{}, config.UpdateTonLanesConfig{
+		commonchangeset.Configure(tonops.AddTonLanes{}, config.UpdateTonLanesConfig{
 			Lanes: []config.LaneConfig{
 				{
 					Source:     tonDefinition,
@@ -114,7 +113,7 @@ func TestDeploy(t *testing.T) {
 	// EVM->TON
 	onRamp := []byte{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 99}
 	env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{
-		commonchangeset.Configure(ton_ops.AddTonLanes{}, config.UpdateTonLanesConfig{
+		commonchangeset.Configure(tonops.AddTonLanes{}, config.UpdateTonLanesConfig{
 			Lanes: []config.LaneConfig{
 				{
 					Source:        evmDefinition,
@@ -143,7 +142,7 @@ func TestDeploy(t *testing.T) {
 	}
 	configDigest := [32]byte{1, 2, 3, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 	env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{
-		commonchangeset.Configure(ton_ops.SetOCR3Config{}, ton_ops.SetOCR3OffRampConfig{
+		commonchangeset.Configure(tonops.SetOCR3Config{}, tonops.SetOCR3OffRampConfig{
 			RemoteChainSels: []uint64{tonChain.Selector},
 			Configs: map[operation.PluginType]operation.OCR3ConfigArgs{
 				operation.PluginTypeCCIPCommit: {
