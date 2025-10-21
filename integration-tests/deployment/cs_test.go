@@ -20,6 +20,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
+
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 	devenv "github.com/smartcontractkit/chainlink-ton/integration-tests/env"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/timelock"
