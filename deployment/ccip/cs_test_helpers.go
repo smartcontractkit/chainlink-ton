@@ -1,6 +1,8 @@
 package ops
 
 import (
+	"crypto/rand"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"math/big"
@@ -352,4 +354,13 @@ func waitForReceivedMsgFlatten(e cldf.Environment, clientConn *ton.APIClient, ms
 	}
 
 	return event, nil
+}
+
+func RandomUint32() (uint32, error) {
+	var b [4]byte
+	_, err := rand.Read(b[:])
+	if err != nil {
+		return 0, err
+	}
+	return binary.LittleEndian.Uint32(b[:]), nil
 }
