@@ -89,7 +89,7 @@ fun _bouncedCCIPReceive(execId: uint224, sender: address) {
                 code: st.deployables.load().deployer,
                 data: Deployable {
                     owner: contract.getAddress(),
-                    id: beginCell().storeUint(execId, 224),
+                    id: beginCell().storeUint(execId, RECEIVE_EXECUTOR_ID_SIZE),
                 }.toCell(), 
             },
         },
@@ -103,7 +103,7 @@ fun _bouncedCCIPReceive(execId: uint224, sender: address) {
 // Received from ReceiveExecutor after validating that the confirm message came from the correct receiver
 fun _notifySuccess(msg: OffRamp_NotifySuccess, sender: address) {
     debug.printString("Offrampnotified");
-    assertSenderIsOwnedContract(Storage.load(), sender, beginCell().storeUint(msg.execId, 224));
+    assertSenderIsOwnedContract(Storage.load(), sender, beginCell().storeUint(msg.execId, RECEIVE_EXECUTOR_ID_SIZE));
 
     val messageHeader = msg.header;
     emit(EXECUTION_STATE_CHANGED_TOPIC, ExecutionStateChanged {
@@ -116,7 +116,7 @@ fun _notifySuccess(msg: OffRamp_NotifySuccess, sender: address) {
 
 // Received from ReceiveExecutor after validating that the bounce message came from the correct receiver and enabling manual execute to retry
 fun _notifyFailure(msg: OffRamp_NotifyFailure, sender: address) {
-    assertSenderIsOwnedContract(Storage.load(), sender, beginCell().storeUint(msg.execId, 224));
+    assertSenderIsOwnedContract(Storage.load(), sender, beginCell().storeUint(msg.execId, RECEIVE_EXECUTOR_ID_SIZE));
 
     val messageHeader = msg.header;
     emit(EXECUTION_STATE_CHANGED_TOPIC, ExecutionStateChanged {
@@ -139,7 +139,7 @@ fun _ccipReceiveConfirm(msg: OffRamp_CCIPReceiveConfirm, sender: address) {
                 code: st.deployables.load().deployer,
                 data: Deployable {
                     owner: contract.getAddress(),
-                    id: beginCell().storeUint(msg.execId, 224),
+                    id: beginCell().storeUint(msg.execId, RECEIVE_EXECUTOR_ID_SIZE),
                 }.toCell(),
             }
         },
@@ -165,7 +165,7 @@ fun _messageReadyForDispatch(msg: OffRamp_DispatchValidated, sender: address) {
     val message = msg.message.load();
     val execId = msg.execId;
 
-    assertSenderIsOwnedContract(st, sender, beginCell().storeUint(execId, 224));
+    assertSenderIsOwnedContract(st, sender, beginCell().storeUint(execId, RECEIVE_EXECUTOR_ID_SIZE));
 
     // dispatch message to receiver
     val ccipReceive: Receiver_CCIPReceive = {
@@ -430,14 +430,15 @@ fun _executeValidated(msg: OffRamp_ExecuteValidated, sender: address) {
 fun initializeExecutor(st: Storage, message: Any2TVMRampMessage, metadataHash: uint256) {
     // Deploy executor
     val messageId = message.generateMessageId(metadataHash);
-    val execId = getOwnedReceiveExecutorContractId(messageId);
+    val execIdBuilder = getOwnedReceiveExecutorContractId(messageId);
+    val execIdValue = execIdBuilder.endCell().beginParse().loadUint(RECEIVE_EXECUTOR_ID_SIZE);
 
     val executorAddress: AutoDeployAddress = {
         stateInit: {
             code: st.deployables.load().deployer,
             data: Deployable {
                 owner: contract.getAddress(),
-                id: execId,
+                id: execIdBuilder,
             }.toCell()
         }
     };
@@ -453,7 +454,7 @@ fun initializeExecutor(st: Storage, message: Any2TVMRampMessage, metadataHash: u
                 data: ReceiveExecutor_Storage {
                     owner: contract.getAddress(),
                     message: message.toCell(), 
-                    execId: execId.endCell().beginParse().loadUint(224),
+                    execId: execIdValue,
                 }.toCell(),
             }
         },
@@ -470,11 +471,8 @@ fun initializeExecutor(st: Storage, message: Any2TVMRampMessage, metadataHash: u
 }
 
 
-const MERKLE_ROOT_ID_SIZE = 256;
-const RECEIVE_EXECUTOR_ID_SIZE = 224;
-
 fun getOwnedMerkleRootContractId(root: uint256): builder {
-    return beginCell().storeUint(root, 256);
+    return beginCell().storeUint(root, MERKLE_ROOT_ID_SIZE);
 }
 
 @inline
@@ -482,7 +480,7 @@ fun getOwnedReceiveExecutorContractId(messageId: uint256): builder {
     var cs = beginCell().storeUint(messageId, 256)
         .endCell().beginParse();
     return beginCell()
-        .storeUint(cs.loadUint(224), 224);
+        .storeUint(cs.loadUint(RECEIVE_EXECUTOR_ID_SIZE), RECEIVE_EXECUTOR_ID_SIZE);
 }
 
 @inline
@@ -499,13 +497,6 @@ fun assertSenderIsOwnedContract(st: Storage, sender: address, contractId: builde
     assert(expectedAddress.addressMatches(sender)) throw Error.MessageNotFromOwnedContract;
 }
 
-
-// get fun executionState() {
-//     // TODO: node will need to directly look at MerkleRoot subcontracts
-// }
-// get fun merkleRoot() {
-//     // TODO: node will need to directly look at MerkleRoot subcontracts
-// }
 get fun latestPriceSequenceNumber(): uint64 {
     var st = lazy Storage.load();
     return st.latestPriceSequenceNumber
