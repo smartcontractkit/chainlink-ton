@@ -7,7 +7,7 @@ import "../../lib/utils"
 import "../../deployable/types.tolk"
 import "../receive_executor/storage"
 
-const CONTRACT_VERSION = "0.0.3";
+const CONTRACT_VERSION = "0.0.4";
 
 // MerkleRoot contract
 // Root is commited on Commit Reports and the existance of this contract is used to validate Execute Reports

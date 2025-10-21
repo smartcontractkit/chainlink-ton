@@ -194,6 +194,18 @@ describe('OffRamp', () => {
     merkleRoot: merkleRootBytes,
   })
 
+  const generateMerkleRootBytes = (messages: Any2TVMRampMessage[], metadataHash: bigint): bigint => {
+    let hashedMessages = messages.map((msg) => {
+      return uint8ArrayToBigInt(generateMessageId(msg, metadataHash))
+    })
+
+    let merkleHelper: MerkleHelper = new MerkleHelper((s: Uint8Array) => {
+      return new Uint8Array(sha256_sync(Buffer.from(s)))
+    })
+
+    return merkleHelper.getMerkleRoot(hashedMessages)
+  }
+
   const setupOCRConfigs = async () => {
     await setupOCRConfig(OCR3_PLUGIN_TYPE_COMMIT)
     await setupOCRConfig(OCR3_PLUGIN_TYPE_EXECUTE, {
@@ -1654,14 +1666,4 @@ describe('OffRamp', () => {
   })
 })
 
-function generateMerkleRootBytes(messages: Any2TVMRampMessage[], metadataHash: bigint): bigint {
-  let hashedMessages = messages.map((msg) => {
-    return uint8ArrayToBigInt(generateMessageId(msg, metadataHash))
-  })
 
-  let merkleHelper: MerkleHelper = new MerkleHelper((s: Uint8Array) => {
-    return new Uint8Array(sha256_sync(Buffer.from(s)))
-  })
-
-  return merkleHelper.getMerkleRoot(hashedMessages)
-}
