@@ -14,19 +14,19 @@ import * as upgradeable from '../../../wrappers/libraries/versioning/Upgradeable
 import { TypeAndVersion } from '../../../wrappers/libraries/versioning/TypeAndVersion'
 
 /**
- * Configuration for testing upgrades between two versions of an upgradeable contract.
+ * Configuration for testing type and version
  */
 export type TypeAndVersionTestConfig = {
-  /** The expected contract type name (e.g., 'com.chainlink.ton.examples.versioning.upgrades.UpgradeableCounter') */
+  /** The expected contract type name (e.g., 'com.chainlink.ton.ccip.FeeQuoter') */
   type: string
   /** Version string for current version contract */
   version: string
 }
 
 /**
- * Contract interface that must be implemented by upgradeable contracts for testing.
+ * Contract interface that must be implemented by contracts for testing.
  */
-export interface TypeAndVersionContract extends upgradeable.Upgradeable, TypeAndVersion, Contract {}
+export interface TypeAndVersionContract extends TypeAndVersion, Contract {}
 
 interface TestSetup {
   blockchain: Blockchain
@@ -35,43 +35,46 @@ interface TestSetup {
 }
 
 /**
- * Creates a reusable test suite for testing upgrades between two versions of an upgradeable contract.
+ * Creates a reusable test suite for testing type and version of a contract.
  *
- * @param config Configuration for the upgrade tests
- * @param setupContract Function to deploy and setup the previous version contract
- * @returns An object with test functions
+ * This function generates a test suite that verifies a contract correctly implements
+ * the TypeAndVersion interface by checking that `getTypeAndVersion()` returns the
+ * expected type and version strings.
+ *
+ * @param config Configuration for the type and version tests containing:
+ *   - type: The expected contract type name (e.g., 'com.chainlink.ton.ccip.FeeQuoter')
+ *   - version: The expected version string (e.g., '1.0.0')
+ * @param setupContract Function to deploy and setup the contract for testing.
+ *   Receives a blockchain instance and deployer treasury, and should return the
+ *   deployed contract wrapped in a SandboxContract.
+ * @returns An object with a `run()` method that contains the test suite
  *
  * @example
  * ```typescript
- * const upgradeSpec = newUpgradeSpec(
+ * import { MyContract } from '../wrappers/MyContract'
+ * import { newTypeAndVersionSpec } from './TypeAndVersionSpec'
+ *
+ * const typeAndVersionSpec = newTypeAndVersionSpec(
  *   {
- *     contractType: 'com.chainlink.ton.examples.versioning.upgrades.UpgradeableCounter',
- *     prevVersion: '1.0.0',
- *     currentVersion: '2.0.0',
- *     getPrevCode: () => UpgradeableCounterV1.code(),
- *     getCurrentCode: () => UpgradeableCounterV2.code(),
- *     CurrentVersionConstructor: UpgradeableCounterV2,
+ *     type: 'com.chainlink.ton.examples.MyContract',
+ *     version: '1.0.0',
  *   },
- *   async (blockchain, owner) => {
- *     const codeV1 = await UpgradeableCounterV1.code()
+ *   async (blockchain, deployer) => {
  *     const contract = blockchain.openContract(
- *       UpgradeableCounterV1.createFromConfig(
+ *       MyContract.createFromConfig(
  *         {
- *           id: 0,
- *           value: 0,
- *           ownable: { owner: owner.address, pendingOwner: null },
+ *           owner: deployer.address,
  *         },
- *         codeV1,
+ *         await MyContract.code(),
  *       ),
  *     )
- *     const deployer = await blockchain.treasury('deployer')
  *     await contract.sendDeploy(deployer.getSender(), toNano('0.05'))
  *     return contract
  *   }
  * )
  *
- * describe('UpgradeableCounter - Upgrade Tests', () => {
- *   upgradeSpec.run()
+ * describe('MyContract - Type and Version Tests', () => {
+ *   typeAndVersionSpec.run()
  * })
  * ```
  */
