@@ -16,13 +16,13 @@ import (
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/smartcontractkit/chainlink/deployment/environment/memory"
 
-	chain_selectors "github.com/smartcontractkit/chain-selectors"
+	chainselectors "github.com/smartcontractkit/chain-selectors"
 
-	cldf_chain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
-	cldf_evm_provider "github.com/smartcontractkit/chainlink-deployments-framework/chain/evm/provider"
-	cldf_ton_provider "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton/provider"
+	cldfchain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
+	cldfevm "github.com/smartcontractkit/chainlink-deployments-framework/chain/evm/provider"
+	cldfton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton/provider"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
-	test_utils "github.com/smartcontractkit/chainlink-ton/deployment/utils"
+	testutils "github.com/smartcontractkit/chainlink-ton/deployment/utils"
 )
 
 const (
@@ -112,7 +112,7 @@ func (b *TestEnvironmentBuilder) Build(t *testing.T) (cldf.Environment, error) {
 	// Only fund wallets when using my-local-ton.
 	if b.Type == CTF || b.Type == LOCAL {
 		for _, chain := range env.BlockChains.TonChains() {
-			test_utils.FundWallets(t, chain.Client, []*address.Address{chain.WalletAddress}, []tlb.Coins{tlb.MustFromTON(DefaultFundAmountTon)})
+			testutils.FundWallets(t, chain.Client, []*address.Address{chain.WalletAddress}, []tlb.Coins{tlb.MustFromTON(DefaultFundAmountTon)})
 			time.Sleep(5 * time.Second)
 		}
 	}
@@ -130,7 +130,7 @@ func (b *TestEnvironmentBuilder) newCTFBasedEnvironment(t *testing.T) (cldf.Envi
 }
 
 func (b *TestEnvironmentBuilder) newConfigFileBasedEnvironment(t *testing.T) (cldf.Environment, error) {
-	providers := make([]cldf_chain.BlockChain, 0)
+	providers := make([]cldfchain.BlockChain, 0)
 
 	config, err := LoadEnvironmentConfig(b.EnvConfigFile)
 	if err != nil {
@@ -140,7 +140,7 @@ func (b *TestEnvironmentBuilder) newConfigFileBasedEnvironment(t *testing.T) (cl
 	// TON Testnet
 	for _, chain := range config.Onchain.TonBlockchains {
 		tonChainID := chain.ChainID
-		chainDetails, err := chain_selectors.GetChainDetailsByChainIDAndFamily(strconv.Itoa(tonChainID), chain_selectors.FamilyTon)
+		chainDetails, err := chainselectors.GetChainDetailsByChainIDAndFamily(strconv.Itoa(tonChainID), chainselectors.FamilyTon)
 		if err != nil {
 			return cldf.Environment{}, err
 		}
@@ -148,25 +148,25 @@ func (b *TestEnvironmentBuilder) newConfigFileBasedEnvironment(t *testing.T) (cl
 		tonChainSelector := chainDetails.ChainSelector
 
 		var (
-			deployerSignerGen cldf_ton_provider.PrivateKeyGenerator
+			deployerSignerGen cldfton.PrivateKeyGenerator
 		)
 
 		walletVersion := DefaultTonWalletVersion
-		deployerSignerGen = cldf_ton_provider.PrivateKeyRandom()
+		deployerSignerGen = cldfton.PrivateKeyRandom()
 
 		if chain.WalletVersion != "" {
 			walletVersion = chain.WalletVersion
 		}
 
 		if chain.DeployerKey != "" {
-			deployerSignerGen = cldf_ton_provider.PrivateKeyFromRaw(chain.DeployerKey)
+			deployerSignerGen = cldfton.PrivateKeyFromRaw(chain.DeployerKey)
 		}
 
-		tonProvider, err := cldf_ton_provider.NewRPCChainProvider(
+		tonProvider, err := cldfton.NewRPCChainProvider(
 			tonChainSelector,
-			cldf_ton_provider.RPCChainProviderConfig{
+			cldfton.RPCChainProviderConfig{
 				HTTPURL:           chain.HTTPURL,
-				WalletVersion:     cldf_ton_provider.WalletVersion(walletVersion),
+				WalletVersion:     cldfton.WalletVersion(walletVersion),
 				DeployerSignerGen: deployerSignerGen,
 			},
 		).Initialize(t.Context())
@@ -180,7 +180,7 @@ func (b *TestEnvironmentBuilder) newConfigFileBasedEnvironment(t *testing.T) (cl
 
 	for _, chain := range config.Onchain.EvmBlockchains {
 		evmChainID := chain.ChainID
-		chainDetails, err := chain_selectors.GetChainDetailsByChainIDAndFamily(strconv.Itoa(evmChainID), chain_selectors.FamilyEVM)
+		chainDetails, err := chainselectors.GetChainDetailsByChainIDAndFamily(strconv.Itoa(evmChainID), chainselectors.FamilyEVM)
 		if err != nil {
 			return cldf.Environment{}, err
 		}
@@ -188,18 +188,18 @@ func (b *TestEnvironmentBuilder) newConfigFileBasedEnvironment(t *testing.T) (cl
 		evmChainSelector := chainDetails.ChainSelector
 
 		var (
-			deployerSignerGen cldf_evm_provider.SignerGenerator
+			deployerSignerGen cldfevm.SignerGenerator
 		)
 
-		deployerSignerGen = cldf_evm_provider.TransactorRandom()
+		deployerSignerGen = cldfevm.TransactorRandom()
 
 		if chain.DeployerKey != "" {
-			deployerSignerGen = cldf_evm_provider.TransactorFromRaw(chain.DeployerKey)
+			deployerSignerGen = cldfevm.TransactorFromRaw(chain.DeployerKey)
 		}
 
-		evmProvider, err := cldf_evm_provider.NewRPCChainProvider(
+		evmProvider, err := cldfevm.NewRPCChainProvider(
 			evmChainSelector,
-			cldf_evm_provider.RPCChainProviderConfig{
+			cldfevm.RPCChainProviderConfig{
 				DeployerTransactorGen: deployerSignerGen,
 				RPCs: []rpcclient.RPC{
 					{
@@ -209,7 +209,7 @@ func (b *TestEnvironmentBuilder) newConfigFileBasedEnvironment(t *testing.T) (cl
 						PreferredURLScheme: rpcclient.URLSchemePreferenceHTTP,
 					},
 				},
-				ConfirmFunctor: cldf_evm_provider.ConfirmFuncGeth(1 * time.Minute),
+				ConfirmFunctor: cldfevm.ConfirmFuncGeth(1 * time.Minute),
 			},
 		).Initialize(t.Context())
 
@@ -220,7 +220,7 @@ func (b *TestEnvironmentBuilder) newConfigFileBasedEnvironment(t *testing.T) (cl
 		providers = append(providers, evmProvider)
 	}
 
-	blockchains := cldf_chain.NewBlockChainsFromSlice(providers)
+	blockchains := cldfchain.NewBlockChainsFromSlice(providers)
 	bundle := operations.NewBundle(
 		t.Context,
 		b.Logger,
