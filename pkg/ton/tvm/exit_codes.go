@@ -10,16 +10,6 @@ import (
 // - TON documentation:  https://docs.ton.org/v3/documentation/tvm/tvm-exit-codes
 type ExitCode int32
 
-// ExitCode for the message that deploys a contract can be different depending on the contract implementation.
-// If the contract has an empty received message handler, and you are deploying it with an empty message, it will return ExitCodeSuccess.
-// If the contract does not handle empty messages, it will return ExitCode_Tolk_UnmatchedOpcode or ExitCode_Tact_InvalidIncomingMessage.
-// [NOT IMPLEMENTED] If you are deploying a contract with a non-empty message, it will return ExitCodeSuccess if the contract handles the message correctly.
-// TODO it can also be other exit codes. This is the code returned by contracts not implementing the empty received message handler.
-func (c ExitCode) IsSuccessfulDeployment() bool {
-	return c == ExitCodeSuccess || // If contract has empty receiver
-		c == ExitCodeTolkUnmatchedOpcode || c == ExitCodeTactInvalidIncomingMessage // If contract doesn't handle empty messages
-}
-
 const (
 	/// TVM exit codes
 

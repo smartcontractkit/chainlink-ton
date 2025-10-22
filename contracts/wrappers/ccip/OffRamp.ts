@@ -22,12 +22,17 @@ import { CCIPReceive, ReceiverStorage } from './Receiver'
 export type OffRampStorage = {
   id: bigint
   ownable: ownable2step.Data
-  deployerCode: Cell
-  merkleRootCode: Cell
+  deployables: Deployables
   feeQuoter: Address
   chainSelector: bigint
   permissionlessExecutionThresholdSeconds: number
   latestPriceSequenceNumber: bigint
+}
+
+export type Deployables = {
+  deployerCode: Cell
+  merkleRootCode: Cell
+  receiveExecutorCode: Cell
 }
 
 export type SourceChainConfig = {
@@ -120,8 +125,13 @@ export const builder = {
                 ? beginCell().storeAddress(storage.ownable.pendingOwner)
                 : null,
             )
-            .storeRef(storage.deployerCode)
-            .storeRef(storage.merkleRootCode)
+            .storeRef(
+              beginCell()
+                .storeRef(storage.deployables.deployerCode)
+                .storeRef(storage.deployables.merkleRootCode)
+                .storeRef(storage.deployables.receiveExecutorCode)
+                .endCell(),
+            )
             .storeAddress(storage.feeQuoter)
             // empty OCR3Base::
             .storeRef(
@@ -216,8 +226,12 @@ export const OFFRAMP_FACILITY_NAME = 'com.chainlink.ton.ccip.OffRamp'
 export const OFFRAMP_FACILITY_ID = 84
 export const OFFRAMP_ERROR_CODE = 8400 //FACILITY_ID * 100
 
+export const RECEIVE_EXECUTOR_FACILITY_NAME = 'com.chainlink.ton.ccip.ReceiveExecutor'
+export const RECEIVE_EXECUTOR_FACILITY_ID = 338
+export const RECEIVE_EXECUTOR_ERROR_CODE = 33800 //FACILITY_ID * 100
+
 export enum OffRampError {
-  DispatchNotFromMerkleRoot = OFFRAMP_ERROR_CODE,
+  MessageNotFromOwnedContract = OFFRAMP_ERROR_CODE,
   SourceChainNotEnabled,
   EmptyExecutionReport,
   InvalidMessageDestChainSelector,
@@ -226,10 +240,15 @@ export enum OffRampError {
 }
 
 export enum MerkleRootError {
-  StateIsNotUntouched = MERKLE_ROOT_ERROR_CODE,
+  AlreadyExecuted = MERKLE_ROOT_ERROR_CODE, // Facility ID * 100
+  NotOwner,
+}
+
+export enum ReceiveExecutorError {
+  StateIsNotUntouched = RECEIVE_EXECUTOR_ERROR_CODE, // Facility ID * 100
   UpdatingStateOfNonExecutedMessage,
   NotificationFromInvalidReceiver,
-  NotOwner,
+  Unauthorized, //TODO maybe use Ownable2Step or similar
 }
 
 export class OffRamp extends OCR3Base {
@@ -348,10 +367,8 @@ export class OffRamp extends OCR3Base {
     via: Sender,
     opts: {
       value: bigint
-      messages: Any2TVMRampMessage[]
-      proofs: bigint[] //256[]
-      proofFlagBits: bigint //256
-      metadataHash: bigint //256
+      message: Any2TVMRampMessage
+      execId: bigint
     },
   ) {
     await provider.internal(via, {
@@ -359,14 +376,8 @@ export class OffRamp extends OCR3Base {
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: beginCell()
         .storeUint(Opcodes.dispatchValidated, 32)
-        .storeRef(
-          asSnakeData(opts.messages, (item) =>
-            beginCell().storeBuilder(Any2TVMRampMessageToBuilder(item)),
-          ),
-        )
-        .storeRef(asSnakeData(opts.proofs, (item) => beginCell().storeUint(item, 256)))
-        .storeUint(opts.proofFlagBits, 256)
-        .storeUint(opts.metadataHash, 256)
+        .storeRef(Any2TVMRampMessageToBuilder(opts.message))
+        .storeUint(opts.execId, 224)
         .endCell(),
     })
   }
@@ -484,6 +495,16 @@ export const sourceChainConfigToBuilder = (config: SourceChainConfig) => {
     .storeBit(config.isRMNVerificationDisabled)
     .storeUint(config.onRamp.byteLength, 8)
     .storeBuffer(config.onRamp, config.onRamp.byteLength)
+}
+
+export const sourceChainConfigFromSlice = (slice: Slice): SourceChainConfig => {
+  return {
+    router: slice.loadAddress(),
+    isEnabled: slice.loadBit(),
+    minSeqNr: slice.loadUintBig(64),
+    isRMNVerificationDisabled: slice.loadBit(),
+    onRamp: slice.loadBuffer(slice.loadUint(8)),
+  }
 }
 
 function ExecutionReportToBuilder(report: ExecutionReport) {

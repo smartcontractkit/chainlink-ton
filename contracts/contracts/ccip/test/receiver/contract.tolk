@@ -34,7 +34,7 @@ fun onInternalMessage(in: InMessage) {
                 value: ton("0.05"), //TODO how much do we need to send
                 dest: in.senderAddress,
                 body: OffRamp_CCIPReceiveConfirm {
-                    rootId: msg.rootId,
+                    execId: msg.execId,
                 }
             });
             receiveConfirm.send(SEND_MODE_REGULAR);

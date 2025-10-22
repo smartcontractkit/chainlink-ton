@@ -199,6 +199,7 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 			ContractPath:                            utils.GetBuildDir("OffRamp.compiled.json"),
 			DeployerContractPath:                    utils.GetBuildDir("Deployable.compiled.json"),
 			MerkleRootContractPath:                  utils.GetBuildDir("MerkleRoot.compiled.json"),
+			ReceiveExecutorContractPath:             utils.GetBuildDir("ReceiveExecutor.compiled.json"),
 			Coins:                                   StandardContractCostInTON,
 		}
 
