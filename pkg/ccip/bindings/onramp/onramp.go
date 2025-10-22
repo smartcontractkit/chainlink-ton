@@ -119,7 +119,7 @@ func (c *DestChainConfig) FromResult(result *ton.ExecutionResult) error {
 	return nil
 }
 
-func (c *DestChainConfig) FetchResult(ctx context2.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, opts common.FetchOptions) error {
+func (c *DestChainConfig) FetchResult(ctx context2.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, opts *common.FetchOptions) error {
 	result, err := client.RunGetMethod(ctx, block, contractAddr, common.DestChainConfigGetter, opts.DestChainSelector)
 	if err != nil {
 		return fmt.Errorf("error getting destChainConfig: %w", err)
@@ -172,7 +172,7 @@ func (c *DynamicConfig) FromResult(result *ton.ExecutionResult) error {
 	return nil
 }
 
-func (c *DynamicConfig) FetchResult(ctx context2.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, opts common.FetchOptions) error {
+func (c *DynamicConfig) FetchResult(ctx context2.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, opts *common.FetchOptions) error {
 	block, err := client.CurrentMasterchainInfo(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get current masterchain info: %w", err)

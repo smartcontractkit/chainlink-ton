@@ -39,7 +39,7 @@ type FetchOptions struct {
 }
 
 type ConfigFetcher interface {
-	FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, opts FetchOptions) error
+	FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, opts *FetchOptions) error
 	FromResult(result *ton.ExecutionResult) error
 }
 
@@ -90,7 +90,7 @@ func (t *TypeAndVersion) FromResult(result *ton.ExecutionResult) error {
 	return nil
 }
 
-func (t *TypeAndVersion) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, opts FetchOptions) error {
+func (t *TypeAndVersion) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, opts *FetchOptions) error {
 	result, err := client.RunGetMethod(ctx, block, contractAddr, VersionGetter)
 	if err != nil {
 		return fmt.Errorf("error getting typeAndVersion: %w", err)

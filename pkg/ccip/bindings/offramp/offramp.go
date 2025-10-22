@@ -209,7 +209,7 @@ func (c *OCR3Config) FromResult(result *ton.ExecutionResult) error {
 	return fmt.Errorf("both commit and execute are nil in OCR3Config")
 }
 
-func (c *OCR3Config) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, _ common.FetchOptions) error {
+func (c *OCR3Config) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, opts *common.FetchOptions) error {
 	result, err := client.RunGetMethod(ctx, block, contractAddr, ocr3ConfigGetter)
 	if err != nil {
 		return fmt.Errorf("failed to get ocr3Config: %w", err)
