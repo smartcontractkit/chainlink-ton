@@ -26,7 +26,7 @@ async function deployMerkleRootContract(
   return contract
 }
 
-describe('MerkleRoot - Current Version Tests', () => {
+describe('MerkleRoot - TypeAndVersion Tests', () => {
   const currentVersionSpec = typeAndVersionSpec.newInstance({
     type: mr.MerkleRoot.type(),
     version: mr.MerkleRoot.version(),

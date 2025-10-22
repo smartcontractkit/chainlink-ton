@@ -36,20 +36,9 @@ async function deployOnRampContract(
   return contract
 }
 
-describe('OnRamp - TypeAndVersion Tests', () => {
-  const currentVersionSpec = UpgradeableSpec.newCurrentVersionSpec({
-    contractType: OnRamp.type(),
-    currentVersion: OnRamp.version(),
-    getCurrentCode: () => OnRamp.code(),
-    CurrentVersionConstructor: OnRamp,
-    deployCurrentContract: deployOnRampContract,
-  })
-  currentVersionSpec.run()
-})
-
 const CHAINSEL_TON = 13879075125137744094n // TODO repeated constant
 
-describe('OnRamp - Current Version Tests', () => {
+describe('OnRamp - TypeAndVersion Tests', () => {
   const currentVersionSpec = TypeAndVersionSpec.newInstance({
     type: OnRamp.type(),
     version: OnRamp.version(),
