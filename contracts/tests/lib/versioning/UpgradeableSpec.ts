@@ -69,7 +69,7 @@ export type CurrentVersionTestConfig<TCurrentVersionContract> = {
 /**
  * Contract interface that must be implemented by upgradeable contracts for testing.
  */
-export interface UpgradeableContract extends upgradeable.Upgradeable, TypeAndVersion, Contract {}
+export interface UpgradeableContract extends upgradeable.Interface, TypeAndVersion, Contract {}
 
 interface TestSetup {
   blockchain: Blockchain

@@ -69,7 +69,7 @@ export const builder = {
   },
 }
 
-export class ContractClient implements typeAndVersion.TypeAndVersion, upgradeable.Upgradeable {
+export class ContractClient implements typeAndVersion.TypeAndVersion, upgradeable.Interface {
   private ownable: ownable2step.ContractClient
 
   constructor(

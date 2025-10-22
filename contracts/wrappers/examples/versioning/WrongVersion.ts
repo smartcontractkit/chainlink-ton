@@ -45,7 +45,7 @@ export const builder = {
   },
 }
 
-export class ContractClient implements /*typeAndVersion.TypeAndVersion,*/ upgradeable.Upgradeable {
+export class ContractClient implements /*typeAndVersion.TypeAndVersion,*/ upgradeable.Interface {
   constructor(
     readonly address: Address,
     readonly init?: { code: Cell; data: Cell },

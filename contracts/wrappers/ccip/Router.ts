@@ -46,11 +46,7 @@ export abstract class Opcodes {
 }
 
 export class Router
-  implements
-    upgradeable.Upgradeable,
-    withdrawable.Interface,
-    typeAndVersion.TypeAndVersion,
-    Contract
+  implements upgradeable.Interface, withdrawable.Interface, typeAndVersion.TypeAndVersion, Contract
 {
   constructor(
     readonly address: Address,

@@ -90,14 +90,14 @@ export async function sendUpgrade(
     body: builder.message.in.upgrade.encode(body).endCell(),
   })
 }
-export interface Upgradeable extends Contract {
+export interface Interface extends Contract {
   // readonly address: Address
 
   sendUpgrade(provider: ContractProvider, via: Sender, value: bigint, body: Upgrade): Promise<void>
 }
 
-export async function sendUpgradeAndReturnNewVersion<T extends Upgradeable>(
-  current: SandboxContract<Upgradeable>,
+export async function sendUpgradeAndReturnNewVersion<T extends Interface>(
+  current: SandboxContract<Interface>,
   via: Sender,
   value: bigint,
   newVersion: new (address: Address, init?: { code: Cell; data: Cell }) => T,
