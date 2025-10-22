@@ -88,7 +88,6 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 
 	// Use data store to track new deployed addresses
 	dataStore := ds.NewMemoryDataStore()
-	// contractsVersion := *semver.MustParse("1.6.0")
 	if ccipSeqReport.Output.RouterAddress != nil {
 		// FYI Add method will never fail given that the dataStore is empty
 		_ = dataStore.Addresses().Add(ccipSeqReport.Output.RouterAddress.CLDFAddressRef)
