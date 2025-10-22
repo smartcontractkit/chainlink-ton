@@ -31,17 +31,12 @@ export type WithdrawableTestConfig<TContract> = {
   ownershipErrorCode: number
 }
 
-/**
- * Contract interface that must be implemented by withdrawable contracts for testing.
- */
-export interface WithdrawableContract extends withdrawable.Interface {}
-
 interface TestSetup<TContract> {
   blockchain: Blockchain
   owner: SandboxContract<TreasuryContract>
   nonOwner: SandboxContract<TreasuryContract>
   recipient: SandboxContract<TreasuryContract>
-  contract: SandboxContract<TContract & WithdrawableContract>
+  contract: SandboxContract<TContract & withdrawable.Interface>
   code: Cell
 }
 
@@ -83,7 +78,7 @@ interface TestSetup<TContract> {
  * })
  * ```
  */
-export function newWithdrawableSpec<TContract extends WithdrawableContract>(
+export function newWithdrawableSpec<TContract extends withdrawable.Interface>(
   config: WithdrawableTestConfig<TContract>,
   setupContract: (
     blockchain: Blockchain,
@@ -108,7 +103,7 @@ export function newWithdrawableSpec<TContract extends WithdrawableContract>(
     const code = await config.getCode()
     const contract = await setupContract(blockchain, owner)
     const balance = (await blockchain.getContract(contract.address)).balance
-    defaultReserve = await (contract as SandboxContract<WithdrawableContract>).getReserve()
+    defaultReserve = await (contract as SandboxContract<withdrawable.Interface>).getReserve()
     if (balance < defaultReserve + minimumBalance) {
       const funder = await blockchain.treasury('funder')
       const res = await funder.send({
@@ -188,7 +183,7 @@ export function newWithdrawableSpec<TContract extends WithdrawableContract>(
       it('should fail when non-owner tries to withdraw', async () => {
         const { contract, nonOwner, recipient } = await setup()
 
-        const result = await (contract as SandboxContract<WithdrawableContract>).sendWithdraw(
+        const result = await (contract as SandboxContract<withdrawable.Interface>).sendWithdraw(
           nonOwner.getSender(),
           withdrawValue,
           {
@@ -217,7 +212,7 @@ export function newWithdrawableSpec<TContract extends WithdrawableContract>(
         const initialBalance = (await blockchain.getContract(contract.address)).balance
         const withdrawAmount = withdrawWithoutHittingReserve(initialBalance, defaultReserve)
 
-        const result = await (contract as SandboxContract<WithdrawableContract>).sendWithdraw(
+        const result = await (contract as SandboxContract<withdrawable.Interface>).sendWithdraw(
           owner.getSender(),
           withdrawValue,
           {
@@ -256,7 +251,7 @@ export function newWithdrawableSpec<TContract extends WithdrawableContract>(
         const contractBalance = (await blockchain.getContract(contract.address)).balance
         const tooMuchAmount = contractBalance + toNano('1')
 
-        const result = await (contract as SandboxContract<WithdrawableContract>).sendWithdraw(
+        const result = await (contract as SandboxContract<withdrawable.Interface>).sendWithdraw(
           owner.getSender(),
           withdrawValue,
           {
@@ -284,7 +279,7 @@ export function newWithdrawableSpec<TContract extends WithdrawableContract>(
         const contractBalance = (await blockchain.getContract(contract.address)).balance
         const attemptedAmount = withdrawHittingReserve(contractBalance, defaultReserve)
 
-        const result = await (contract as SandboxContract<WithdrawableContract>).sendWithdraw(
+        const result = await (contract as SandboxContract<withdrawable.Interface>).sendWithdraw(
           owner.getSender(),
           withdrawValue,
           {
@@ -313,7 +308,7 @@ export function newWithdrawableSpec<TContract extends WithdrawableContract>(
         const contractBalance = (await blockchain.getContract(contract.address)).balance
         const attemptedAmount = withdrawHittingReserve(contractBalance, defaultReserve)
 
-        const result = await (contract as SandboxContract<WithdrawableContract>).sendWithdraw(
+        const result = await (contract as SandboxContract<withdrawable.Interface>).sendWithdraw(
           owner.getSender(),
           withdrawValue,
           {
@@ -352,7 +347,7 @@ export function newWithdrawableSpec<TContract extends WithdrawableContract>(
       ) => {
         const effectiveReserve = customReserve ?? defaultReserve
         const result = await (
-          testSetup.contract as SandboxContract<WithdrawableContract>
+          testSetup.contract as SandboxContract<withdrawable.Interface>
         ).sendWithdraw(testSetup.owner.getSender(), withdrawValue, {
           queryId: queryId,
           destination: testSetup.recipient.address,
@@ -425,7 +420,7 @@ export function newWithdrawableSpec<TContract extends WithdrawableContract>(
 
         const initialBalance = (await blockchain.getContract(contract.address)).balance
 
-        const result = await (contract as SandboxContract<WithdrawableContract>).sendWithdraw(
+        const result = await (contract as SandboxContract<withdrawable.Interface>).sendWithdraw(
           owner.getSender(),
           withdrawValue,
           {
@@ -462,7 +457,7 @@ export function newWithdrawableSpec<TContract extends WithdrawableContract>(
       it('should fail on invalid request (amount > 0 and drainAllAvailable = true)', async () => {
         const { contract, owner, recipient } = await setup()
 
-        const result = await (contract as SandboxContract<WithdrawableContract>).sendWithdraw(
+        const result = await (contract as SandboxContract<withdrawable.Interface>).sendWithdraw(
           owner.getSender(),
           withdrawValue,
           {
@@ -488,7 +483,7 @@ export function newWithdrawableSpec<TContract extends WithdrawableContract>(
       it('should fail on invalid request (amount = 0 and drainAllAvailable = false)', async () => {
         const { contract, owner, recipient } = await setup()
 
-        const result = await (contract as SandboxContract<WithdrawableContract>).sendWithdraw(
+        const result = await (contract as SandboxContract<withdrawable.Interface>).sendWithdraw(
           owner.getSender(),
           withdrawValue,
           {
@@ -518,7 +513,7 @@ export function newWithdrawableSpec<TContract extends WithdrawableContract>(
         {
           const initialBalance = (await blockchain.getContract(contract.address)).balance
           const withdrawAmount = withdrawHittingReserve(initialBalance, defaultReserve)
-          const result = await (contract as SandboxContract<WithdrawableContract>).sendWithdraw(
+          const result = await (contract as SandboxContract<withdrawable.Interface>).sendWithdraw(
             owner.getSender(),
             withdrawValue,
             {
@@ -543,7 +538,7 @@ export function newWithdrawableSpec<TContract extends WithdrawableContract>(
         }
 
         // Now try to drain again - should fail because balance is at or below reserve
-        const result = await (contract as SandboxContract<WithdrawableContract>).sendWithdraw(
+        const result = await (contract as SandboxContract<withdrawable.Interface>).sendWithdraw(
           owner.getSender(),
           withdrawValue,
           {
@@ -573,7 +568,7 @@ export function newWithdrawableSpec<TContract extends WithdrawableContract>(
         const customReserve = customReserveAboveDefault(initialBalance)
         const withdrawAmount = withdrawWithoutHittingReserve(initialBalance, customReserve)
 
-        const result = await (contract as SandboxContract<WithdrawableContract>).sendWithdraw(
+        const result = await (contract as SandboxContract<withdrawable.Interface>).sendWithdraw(
           owner.getSender(),
           withdrawValue,
           {
@@ -618,7 +613,7 @@ export function newWithdrawableSpec<TContract extends WithdrawableContract>(
           defaultReserve,
         )
 
-        const result = await (contract as SandboxContract<WithdrawableContract>).sendWithdraw(
+        const result = await (contract as SandboxContract<withdrawable.Interface>).sendWithdraw(
           owner.getSender(),
           withdrawValue,
           {
@@ -661,7 +656,7 @@ export function newWithdrawableSpec<TContract extends WithdrawableContract>(
           defaultReserve,
           customReserve,
         )
-        const result = await (contract as SandboxContract<WithdrawableContract>).sendWithdraw(
+        const result = await (contract as SandboxContract<withdrawable.Interface>).sendWithdraw(
           owner.getSender(),
           withdrawValue,
           {
@@ -692,7 +687,7 @@ export function newWithdrawableSpec<TContract extends WithdrawableContract>(
         expect(customReserve).toBeLessThan(defaultReserve)
         const attemptedAmount = withdrawHittingReserve(contractBalance, customReserve)
 
-        const result = await (contract as SandboxContract<WithdrawableContract>).sendWithdraw(
+        const result = await (contract as SandboxContract<withdrawable.Interface>).sendWithdraw(
           owner.getSender(),
           withdrawValue,
           {
@@ -727,7 +722,7 @@ export function newWithdrawableSpec<TContract extends WithdrawableContract>(
             (await blockchain.getContract(contract.address)).balance,
             customReserve,
           )
-          const result = await (contract as SandboxContract<WithdrawableContract>).sendWithdraw(
+          const result = await (contract as SandboxContract<withdrawable.Interface>).sendWithdraw(
             owner.getSender(),
             withdrawValue,
             {
@@ -752,7 +747,7 @@ export function newWithdrawableSpec<TContract extends WithdrawableContract>(
         }
 
         // Now try to drain with custom reserve - should fail because balance is below it
-        const result = await (contract as SandboxContract<WithdrawableContract>).sendWithdraw(
+        const result = await (contract as SandboxContract<withdrawable.Interface>).sendWithdraw(
           owner.getSender(),
           withdrawValue,
           {
@@ -785,7 +780,7 @@ export function newWithdrawableSpec<TContract extends WithdrawableContract>(
             (await blockchain.getContract(contract.address)).balance,
             defaultReserve,
           )
-          const result = await (contract as SandboxContract<WithdrawableContract>).sendWithdraw(
+          const result = await (contract as SandboxContract<withdrawable.Interface>).sendWithdraw(
             owner.getSender(),
             withdrawValue,
             {
@@ -815,7 +810,7 @@ export function newWithdrawableSpec<TContract extends WithdrawableContract>(
         const balanceBeforeDrain = (await blockchain.getContract(contract.address)).balance
 
         // Now drain with lower custom reserve - should succeed
-        const result = await (contract as SandboxContract<WithdrawableContract>).sendWithdraw(
+        const result = await (contract as SandboxContract<withdrawable.Interface>).sendWithdraw(
           owner.getSender(),
           withdrawValue,
           {
@@ -872,7 +867,7 @@ export function newWithdrawableSpec<TContract extends WithdrawableContract>(
     result: SendMessageResult & {
       result: void
     },
-    contract: SandboxContract<TContract & WithdrawableContract>,
+    contract: SandboxContract<TContract & withdrawable.Interface>,
   ): InternalMsgTX {
     const tx = result.transactions.find((tx) => {
       return (
