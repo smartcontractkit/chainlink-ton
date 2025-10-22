@@ -11,7 +11,7 @@ import (
 // DSORM provides database operations for the TON log poller
 type DSORM struct {
 	chainID string
-	lggr    logger.SugaredLogger
+	lggr    logger.Logger
 	ds      sqlutil.DataSource
 }
 
@@ -19,7 +19,7 @@ type DSORM struct {
 func NewORM(chainID string, ds sqlutil.DataSource, lggr logger.Logger) *DSORM {
 	return &DSORM{
 		chainID: chainID,
-		lggr:    logger.Sugared(lggr).Named(fmt.Sprintf("TON.ORM.%s", chainID)),
+		lggr:    logger.Named(lggr, fmt.Sprintf("ORM.%s", chainID)),
 		ds:      ds,
 	}
 }

@@ -16,20 +16,20 @@ var _ logpoller.FilterStore = (*inMemoryFilters)(nil)
 
 // inMemoryFilters is an in-memory implementation of the Filters interface.
 type inMemoryFilters struct {
+	chainID          string
+	lggr             logger.Logger
 	mu               sync.RWMutex
 	filtersByName    map[string]models.Filter       // filtersByName maps a filter's unique name to its definition.
 	filtersByAddress map[string]map[uint32]struct{} // filtersByAddress maps a contract address string to a set of its watched event signature.
-	lggr             logger.SugaredLogger
-	chainID          string
 }
 
 // NewFilterStore creates a new in-memory implementation of the Filters interface.
-func NewFilterStore(lggr logger.Logger, chainID string) logpoller.FilterStore {
+func NewFilterStore(chainID string, lggr logger.Logger) logpoller.FilterStore {
 	return &inMemoryFilters{
+		chainID:          chainID,
+		lggr:             logger.Named(lggr, fmt.Sprintf("FilterStore.Mem.%s", chainID)),
 		filtersByName:    make(map[string]models.Filter),
 		filtersByAddress: make(map[string]map[uint32]struct{}),
-		lggr:             logger.Sugared(lggr).Named(fmt.Sprintf("FilterStore.Mem.%s", chainID)),
-		chainID:          chainID,
 	}
 }
 

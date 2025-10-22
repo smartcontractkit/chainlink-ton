@@ -61,7 +61,7 @@ func (lp *service) getLastProcessedBlock(currentBlock *ton.BlockIDExt) (uint32, 
 
 	if lookbackSeqNo > lastProcessed {
 		blocksToProcess := currentBlock.SeqNo - lookbackSeqNo
-		lp.lggr.Infow("Starting from lookback window",
+		lp.lggr.Debugw("Starting from lookback window",
 			"fromSeqNo", lookbackSeqNo,
 			"toSeqNo", currentBlock.SeqNo,
 			"blocksToProcess", blocksToProcess,
@@ -69,7 +69,7 @@ func (lp *service) getLastProcessedBlock(currentBlock *ton.BlockIDExt) (uint32, 
 		return lookbackSeqNo, nil
 	}
 
-	lp.lggr.Infow("Resuming from last processed", "seqNo", lastProcessed)
+	lp.lggr.Debugw("Resuming from last processed", "seqNo", lastProcessed)
 	return lastProcessed, nil
 }
 

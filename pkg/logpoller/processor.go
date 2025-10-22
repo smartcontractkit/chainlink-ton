@@ -16,7 +16,7 @@ import (
 )
 
 // ProcessTx handles a single transaction
-func (lp *service) ProcessTx(ctx context.Context, tx *tlb.Transaction, block *ton.BlockIDExt, filterIndex models.FilterIndex) ([]models.Log, error) {
+func (lp *service) ProcessTx(ctx context.Context, tx *tlb.Transaction, block *ton.BlockIDExt, chainID string, filterIndex models.FilterIndex) ([]models.Log, error) {
 	if tx == nil {
 		return nil, errors.New("transaction is nil")
 	}
@@ -34,7 +34,7 @@ func (lp *service) ProcessTx(ctx context.Context, tx *tlb.Transaction, block *to
 	}
 
 	for msgIndex, msg := range msgs {
-		logs, err := lp.processMessage(ctx, tx, block, msgIndex, &msg, filterIndex)
+		logs, err := lp.processMessage(ctx, tx, block, chainID, msgIndex, &msg, filterIndex)
 		if err != nil {
 			// Critical structural error - skip message, log error
 			lp.lggr.Errorw("critical error processing message, skipping", "tx_hash", tx.Hash, "msgIndex", msgIndex, "err", err)
@@ -46,7 +46,7 @@ func (lp *service) ProcessTx(ctx context.Context, tx *tlb.Transaction, block *to
 }
 
 // processMessage handles a single message within a transaction
-func (lp *service) processMessage(_ context.Context, tx *tlb.Transaction, block *ton.BlockIDExt, msgIndex int, msg *tlb.Message, filterIndex models.FilterIndex) ([]models.Log, error) {
+func (lp *service) processMessage(_ context.Context, tx *tlb.Transaction, block *ton.BlockIDExt, chainID string, msgIndex int, msg *tlb.Message, filterIndex models.FilterIndex) ([]models.Log, error) {
 	// guard clauses for initial validation and early exit
 	if msg == nil || msg.Msg == nil {
 		return nil, errors.New("message or message content is nil")
@@ -92,17 +92,18 @@ func (lp *service) processMessage(_ context.Context, tx *tlb.Transaction, block 
 			return nil, fmt.Errorf("failed to extract msgLT: %w", err)
 		}
 		logs[i] = models.Log{
-			FilterID:    filterID,
-			EventSig:    eventSig,
-			Address:     msg.Msg.SenderAddr(),
-			Data:        body,
-			TxHash:      models.TxHash(tx.Hash),
-			TxLT:        tx.LT,
-			TxTimestamp: time.Unix(int64(tx.Now), 0).UTC(),
-			Block:       block,
-			// TODO: populate MasterBlockSeqno
-			MsgLT:    msgLT,
-			MsgIndex: int64(msgIndex),
+			ChainID:          chainID,
+			FilterID:         filterID,
+			EventSig:         eventSig,
+			Address:          msg.Msg.SenderAddr(),
+			Data:             body,
+			TxHash:           models.TxHash(tx.Hash),
+			TxLT:             tx.LT,
+			TxTimestamp:      time.Unix(int64(tx.Now), 0).UTC(),
+			Block:            block,
+			MasterBlockSeqno: 0, // TODO: populate MasterBlockSeqno
+			MsgLT:            msgLT,
+			MsgIndex:         int64(msgIndex),
 			// TODO: populate Error field for failed message processing
 			// scope: structural validation errors (nil message/content)
 			// scope: event extraction errors (BOC decode failures, unsupported message types)

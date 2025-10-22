@@ -127,17 +127,18 @@ func newChain(cfg *config.TOMLConfig, loopKs loop.Keystore, lggr logger.Logger, 
 		}
 		return signedClient.Client, nil
 	}
+	lggr.Infow("Creating new chain", "chainID", ch.ID())
 
 	orm := lppgstore.NewORM(ch.ID(), ds, lggr)
 	// Get LogPoller configuration from chain config
 	lgOpts := &logpoller.ServiceOptions{
 		Config:      *ch.cfg.LogPollerConfig(),
 		TxLoader:    txloader.New(lggr, clientProvider),
-		FilterStore: lppgstore.NewFilterStore(orm, lggr, ch.ID()),
-		LogStore:    lppgstore.NewLogStore(orm, lggr, ch.ID()),
+		FilterStore: lppgstore.NewFilterStore(ch.ID(), orm, lggr),
+		LogStore:    lppgstore.NewLogStore(ch.ID(), orm, lggr),
 	}
 
-	ch.lp = logpoller.NewService(lggr, clientProvider, lgOpts)
+	ch.lp = logpoller.NewService(lggr, ch.ID(), clientProvider, lgOpts)
 
 	// TODO: Setup accounts balance monitor
 

@@ -78,12 +78,8 @@ func TestPgLogStore(t *testing.T) {
 	// Create stores
 	orm := postgres.NewORM("test-chain", ds, logger.Test(t))
 
-	filterStore := postgres.NewFilterStore(orm, logger.Test(t), "test-chain")
-	logStore := postgres.NewLogStore(
-		orm,
-		logger.Test(t),
-		"test-chain",
-	)
+	filterStore := postgres.NewFilterStore("test-chain", orm, logger.Test(t))
+	logStore := postgres.NewLogStore("test-chain", orm, logger.Test(t))
 
 	// Test data setup
 	testAddr, err := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")

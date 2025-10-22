@@ -28,8 +28,9 @@ import (
 type service struct {
 	services.Service
 	eng            *services.Engine                                    // Service engine for lifecycle management
-	lggr           logger.SugaredLogger                                // Logger instance
+	lggr           logger.Logger                                       // Logger instance
 	clientProvider func(context.Context) (ton.APIClientWrapped, error) // TON blockchain client lazy getter
+	chainID        string                                              // Target chain ID
 
 	loader      TxLoader    // Transaction loader returning loaded txs
 	filterStore FilterStore // Filter store for managing filters
@@ -56,9 +57,10 @@ type ServiceOptions struct {
 }
 
 // NewService creates a new TON log polling service instance
-func NewService(lggr logger.Logger, clientProvider func(context.Context) (ton.APIClientWrapped, error), opts *ServiceOptions) Service {
+func NewService(lggr logger.Logger, chainID string, clientProvider func(context.Context) (ton.APIClientWrapped, error), opts *ServiceOptions) Service {
 	lp := &service{
-		lggr:             logger.Sugared(lggr).Named("LogPoller"),
+		lggr:             logger.Named(lggr, "LogPoller"),
+		chainID:          chainID,
 		clientProvider:   clientProvider,
 		filterStore:      opts.FilterStore,
 		loader:           opts.TxLoader,
@@ -100,6 +102,8 @@ func (lp *service) run(ctx context.Context) (err error) {
 		}
 	}()
 
+	lp.lggr.Debugw("run iteration started")
+
 	blockRange, err := lp.getMasterchainBlockRange(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get masterchain block range: %w", err)
@@ -107,24 +111,37 @@ func (lp *service) run(ctx context.Context) (err error) {
 
 	if blockRange == nil {
 		// no new blocks to process
+		lp.lggr.Debugw("no new blocks to process")
 		return nil
 	}
 
+	lp.lggr.Debugw("got block range", "prevSeq", func() uint32 {
+		if blockRange.Prev == nil {
+			return 0
+		}
+		return blockRange.Prev.SeqNo
+	}(), "toSeq", blockRange.To.SeqNo)
+
 	// TODO: load filter from persistent store
 	// TODO: implement backfill logic(if there is filters marked for backfill)
+	lp.lggr.Debugw("getting distinct addresses", "filterStore", lp.filterStore)
 	addresses, err := lp.filterStore.GetDistinctAddresses(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get distinct addresses: %w", err)
 	}
 	if len(addresses) == 0 {
+		lp.lggr.Debugw("no addresses to process")
 		return nil
 	}
+
+	lp.lggr.Debugw("processing addresses", "count", len(addresses))
 
 	if err := lp.processBlockRange(ctx, blockRange, addresses); err != nil {
 		return fmt.Errorf("failed to process block range: %w", err)
 	}
 
 	lp.lastProcessedBlock = blockRange.To.SeqNo
+	lp.lggr.Debugw("run iteration completed", "lastProcessedBlock", lp.lastProcessedBlock)
 	return nil
 }
 
@@ -137,7 +154,7 @@ func (lp *service) processBlockRange(ctx context.Context, blockRange *models.Blo
 	}
 
 	txsCh, loaderErrsCh := lp.loadTxsForAddresses(ctx, blockRange, addresses)
-	logsCh, processorErrsCh := lp.processTransactions(ctx, filterIndex, txsCh)
+	logsCh, processorErrsCh := lp.processTransactions(ctx, filterIndex, lp.chainID, txsCh)
 
 	// TODO: error metrics
 	go func() {
@@ -202,6 +219,7 @@ func (lp *service) loadTxsForAddresses(ctx context.Context, blockRange *models.B
 func (lp *service) processTransactions(
 	ctx context.Context,
 	filterIndex models.FilterIndex,
+	chainID string,
 	txsIn <-chan models.Tx,
 ) (<-chan models.Log, <-chan error) {
 	logsOut := make(chan models.Log, lp.saveThreshold)
@@ -215,7 +233,7 @@ func (lp *service) processTransactions(
 			go func(t models.Tx) {
 				defer wg.Done()
 
-				logs, err := lp.ProcessTx(ctx, t.Transaction, t.Block, filterIndex)
+				logs, err := lp.ProcessTx(ctx, t.Transaction, t.Block, chainID, filterIndex)
 				if err != nil {
 					errsOut <- fmt.Errorf("failed to process tx %x: %w", t.Transaction.Hash, err)
 					return

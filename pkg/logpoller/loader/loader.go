@@ -22,7 +22,7 @@ import (
 var _ logpoller.TxLoader = (*rawTxLoader)(nil)
 
 type rawTxLoader struct {
-	lggr           logger.SugaredLogger                                // Logger for debugging and monitoring
+	lggr           logger.Logger                                       // Logger for debugging and monitoring
 	clientProvider func(context.Context) (ton.APIClientWrapped, error) // TON blockchain client lazy getter
 }
 
@@ -32,7 +32,7 @@ func New(
 	clientProvider func(context.Context) (ton.APIClientWrapped, error),
 ) logpoller.TxLoader {
 	return &rawTxLoader{
-		lggr:           logger.Sugared(lggr).Named("TxLoader"),
+		lggr:           logger.Named(lggr, "TxLoader"),
 		clientProvider: clientProvider,
 	}
 }
@@ -61,7 +61,7 @@ func (l *rawTxLoader) LoadTxsForAddress(ctx context.Context, blockRange *models.
 
 	if startLT >= endLT {
 		// not an error, just a no-op
-		l.lggr.Trace("No transactions to process", "address", addr.String(), "startLT", startLT, "endLT", endLT)
+		l.lggr.Debugw("No transactions to process", "address", addr.String(), "startLT", startLT, "endLT", endLT)
 		return nil
 	}
 

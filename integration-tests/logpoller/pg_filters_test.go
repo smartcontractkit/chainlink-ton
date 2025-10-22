@@ -28,7 +28,7 @@ func TestSQLFilterStore(t *testing.T) {
 
 	// Create store
 	orm := postgres.NewORM("test-chain", ds, logger.Test(t))
-	filterStore := postgres.NewFilterStore(orm, logger.Test(t), "test-chain")
+	filterStore := postgres.NewFilterStore("test-chain", orm, logger.Test(t))
 
 	testAddr, err := address.ParseAddr("EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF")
 	require.NoError(t, err)
