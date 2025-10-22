@@ -182,7 +182,7 @@ func retrieveCompiledTONContractsSequence(b operations.Bundle, deps operation.To
 		contractMetadata, ok := contractsMapping[contractType]
 
 		if !ok {
-			return output, fmt.Errorf("unknown contractType: %s", contractMetadata)
+			return output, fmt.Errorf("unknown contractType: %s", contractType)
 		}
 
 		contractCode, err := wrappers.ParseCompiledContract(utils.GetBuildDir(contractMetadata.CompiledVersionKey))
