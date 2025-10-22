@@ -2,8 +2,10 @@ package offramp
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"runtime"
+	"sync"
 
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	"github.com/smartcontractkit/chainlink-ton/deployment/view"
@@ -97,13 +99,11 @@ func fetchSrcChainConfig(ctx context.Context, c cldf_ton.Chain, block *ton.Block
 
 	var eg errgroup.Group
 	eg.SetLimit(runtime.NumCPU())
+	var lock sync.Mutex
 	output := make(map[uint64]SourceChainConfig)
-	updateChanMap := make(map[uint64]chan SourceChainConfig)
 	chainSelectors := view.ParseExecutionResultForDestChainSelectors(result.AsTuple())
 
 	for _, dest := range chainSelectors {
-		updateChan := make(chan SourceChainConfig, 1) // buffered channel
-		updateChanMap[dest] = updateChan
 		eg.Go(func() error {
 			result, err := c.Client.RunGetMethod(ctx, block, offRampAddr, view.SrcChainConfigGetter, dest)
 			if err != nil {
@@ -116,30 +116,21 @@ func fetchSrcChainConfig(ctx context.Context, c cldf_ton.Chain, block *ton.Block
 
 			var onRampAddr string
 			if cfg.OnRamp != nil {
-				onRampAddr = string(cfg.OnRamp)
+				onRampAddr = hex.EncodeToString(cfg.OnRamp) // note the OnRamp is a cross-chain address that's not necessarily hex encoded
 			}
 
-			updateChan <- SourceChainConfig{
+			lock.Lock()
+			output[dest] = SourceChainConfig{
 				Router:                    cfg.Router.String(),
 				IsEnabled:                 cfg.IsEnabled,
 				MinSeqNr:                  cfg.MinSeqNr,
 				IsRMNVerificationDisabled: cfg.IsRMNVerificationDisabled,
 				OnRamp:                    onRampAddr,
 			}
+			lock.Unlock()
 			return nil
 		})
 	}
 
-	// Wait for all goroutines to complete first
-	if err = eg.Wait(); err != nil {
-		return nil, err
-	}
-
-	// Then collect results
-	for selector, ch := range updateChanMap {
-		output[selector] = <-ch
-		close(ch)
-	}
-
-	return output, nil
+	return output, eg.Wait()
 }

@@ -110,7 +110,7 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 
 	if !s.FeeQuoter.IsAddrNone() {
 		errGroup.Go(func() error {
-			feeQuoterView, err := feequoter.FetchFeeQuoterView(ctx, tonClient, block, &s.FeeQuoter)
+			feeQuoterView, err := feequoter.FetchView(ctx, tonClient, block, &s.FeeQuoter)
 			if err != nil {
 				return fmt.Errorf("failed to generate fee quoter view for chain %d: %w", selector, err)
 			}

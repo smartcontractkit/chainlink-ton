@@ -64,8 +64,8 @@ type DestChainConfig struct {
 	NetworkFeeUsdCents                uint32 `json:"networkFeeUsdCents,omitempty"`
 }
 
-// FetchFeeQuoterView generates a view of the fee quoter contract at the specified block.
-func FetchFeeQuoterView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, feeQuoter *address.Address) (*View, error) {
+// FetchView generates a view of the fee quoter contract at the specified block.
+func FetchView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, feeQuoter *address.Address) (*View, error) {
 	var typeVersion common.TypeAndVersion
 	result, err := c.Client.RunGetMethod(ctx, block, feeQuoter, view.VersionGetter)
 	if err != nil {
