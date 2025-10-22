@@ -73,6 +73,7 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 			state.SendExecutor,
 			state.Deployer,
 			state.MerkleRoot,
+			state.ReceiveExecutor,
 		},
 	}
 
@@ -161,8 +162,11 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 			Owner:        deps.TonChain.WalletAddress,
 			PendingOwner: nil,
 		},
-		Deployer:       tonCompiledContracts[state.Deployer].Code,
-		MerkleRootCode: tonCompiledContracts[state.MerkleRoot].Code,
+		Deployables: offramp.Deployables{
+			Deployer:            tonCompiledContracts[state.Deployer].Code,
+			MerkleRootCode:      tonCompiledContracts[state.MerkleRoot].Code,
+			ReceiveExecutorCode: tonCompiledContracts[state.ReceiveExecutor].Code,
+		},
 		// empty OCR3Base
 		OCR3Base: cell.BeginCell().
 			MustStoreUInt(0, 8).

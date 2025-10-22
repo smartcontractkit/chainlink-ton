@@ -6,9 +6,10 @@ import (
 	"math/rand/v2"
 	"path"
 	"slices"
-	"strings"
 	"sync"
 	"testing"
+
+	"github.com/Masterminds/semver/v3"
 
 	"github.com/smartcontractkit/chainlink-ton/integration-tests/tracetracking/testutils"
 
@@ -21,15 +22,20 @@ import (
 	"github.com/xssnick/tonutils-go/ton/nft"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
-	jetton_wrappers "github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton"
+	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
+
+	jetton_common "github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton/minter"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton/wallet"
 	jetton_testing_wrappers "github.com/smartcontractkit/chainlink-ton/pkg/bindings/test/examples/jetton"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
 
 // Helper function to load the actual JettonWallet code
 func loadJettonWalletCode() (*cell.Cell, error) {
-	jettonWalletPath := path.Join(jetton_wrappers.PathToContracts, "JettonWallet.compiled.json")
+	jettonWalletPath := path.Join(jetton_common.PathToContracts, "JettonWallet.compiled.json")
 	compiledContract, err := wrappers.ParseCompiledContract(jettonWalletPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse JettonWallet contract: %w", err)
@@ -80,7 +86,7 @@ func TestJettonAll(t *testing.T) {
 		require.NoError(t, err, "failed to load JettonWallet code")
 
 		t.Logf("Deploying JettonMinter contract\n")
-		setup.jettonMinter = DeployMinter(t, &setup.deployer, jetton_wrappers.MinterInitData{
+		setup.jettonMinter = DeployMinter(t, &setup.deployer, minter.InitData{
 			TotalSupply:   tlb.ZeroCoins,
 			Admin:         setup.deployer.Wallet.WalletAddress(),
 			TransferAdmin: nil,
@@ -112,11 +118,11 @@ func TestJettonAll(t *testing.T) {
 
 		t.Logf("Minting jettons to sender contract\n")
 		queryID := rand.Uint64()
-		sendMintMsg, err := setup.jettonMinter.CallWaitRecursively(jetton_wrappers.MintMessage{
+		sendMintMsg, err := setup.jettonMinter.CallWaitRecursively(minter.MintMessage{
 			QueryID:     queryID,
 			Destination: Sender.Contract.Address,
 			TonAmount:   tlb.MustFromTON("0.05"),
-			MasterMsg: jetton_wrappers.InternalTransferMessage{
+			MasterMsg: wallet.InternalTransferMessage{
 				QueryID:          queryID,
 				Amount:           jettonMintingAmount,
 				From:             setup.deployer.Wallet.WalletAddress(),
@@ -126,13 +132,13 @@ func TestJettonAll(t *testing.T) {
 			},
 		}, tlb.MustFromTON("0.05"))
 		require.NoError(t, err, "failed to mint jettons")
-		t.Logf("Msg trace:\n%s\n", replaceAddresses(
-			map[string]string{
-				setup.deployer.Wallet.Address().String(): "Deployer",
-				Sender.Contract.Address.String():         "Sender",
-				setup.jettonMinter.Address.String():      "JettonMinter",
-			},
-			sendMintMsg.Dump()))
+
+		debugger := debug.NewDebuggerTreeTrace(map[string]cldf.TypeAndVersion{
+			setup.deployer.Wallet.Address().String(): {Type: "Deployer", Version: *semver.MustParse("0.0.1")},
+			Sender.Contract.Address.String():         {Type: "Sender", Version: *semver.MustParse("0.0.1")},
+			setup.jettonMinter.Address.String():      {Type: "JettonMinter", Version: *semver.MustParse("0.0.1")},
+		})
+		t.Logf("Msg trace:\n%s\n", debugger.DumpReceived(sendMintMsg))
 
 		require.Zero(t, sendMintMsg.ExitCode, "Msg to wallet should have exit code 0")
 		require.Len(t, sendMintMsg.OutgoingInternalReceivedMessages, 1, "Msg to wallet should have 1 outgoing message")
@@ -180,11 +186,11 @@ func TestJettonAll(t *testing.T) {
 		t.Logf("OnrampMock contract deployed at %s\n", onrampMock.Contract.Address.String())
 
 		queryID := rand.Uint64()
-		_, err = setup.common.jettonMinter.CallWaitRecursively(jetton_wrappers.MintMessage{
+		_, err = setup.common.jettonMinter.CallWaitRecursively(minter.MintMessage{
 			QueryID:     queryID,
 			Destination: setup.sender.Contract.Address,
 			TonAmount:   tlb.MustFromTON("0.05"),
-			MasterMsg: jetton_wrappers.InternalTransferMessage{
+			MasterMsg: wallet.InternalTransferMessage{
 				QueryID:          queryID,
 				Amount:           tlb.MustFromTON("1"),
 				From:             setup.common.deployer.Wallet.WalletAddress(),
@@ -213,7 +219,7 @@ func TestJettonAll(t *testing.T) {
 
 		t.Logf("Deploying SimpleJettonReceiver contract\n")
 		simpleJettonReceiver, err := jetton_testing_wrappers.NewSimpleJettonReceiverProvider(setup.common.deployer).Deploy(jetton_testing_wrappers.SimpleJettonReceiverInitData{
-			JettonClient: jetton_wrappers.Client{
+			JettonClient: jetton_common.Client{
 				MasterAddress: setup.common.jettonMinter.Address,
 				WalletCode:    setup.common.jettonWalletCode,
 			},
@@ -224,11 +230,11 @@ func TestJettonAll(t *testing.T) {
 		t.Logf("SimpleJettonReceiver contract deployed at %s\n", simpleJettonReceiver.Contract.Address.String())
 
 		queryID := rand.Uint64()
-		_, err = setup.common.jettonMinter.CallWaitRecursively(jetton_wrappers.MintMessage{
+		_, err = setup.common.jettonMinter.CallWaitRecursively(minter.MintMessage{
 			QueryID:     queryID,
 			Destination: setup.sender.Contract.Address,
 			TonAmount:   tlb.MustFromTON("0.05"),
-			MasterMsg: jetton_wrappers.InternalTransferMessage{
+			MasterMsg: wallet.InternalTransferMessage{
 				QueryID:          queryID,
 				Amount:           tlb.MustFromTON("1"),
 				From:             setup.common.deployer.Wallet.WalletAddress(),
@@ -256,11 +262,11 @@ func TestJettonAll(t *testing.T) {
 
 		t.Logf("Minting jettons to sender contract\n")
 		queryID := rand.Uint64()
-		sendMintMsg, err := setup.jettonMinter.CallWaitRecursively(jetton_wrappers.MintMessage{
+		sendMintMsg, err := setup.jettonMinter.CallWaitRecursively(minter.MintMessage{
 			QueryID:     queryID,
 			Destination: setup.deployer.Wallet.WalletAddress(),
 			TonAmount:   tlb.MustFromTON("0.05"),
-			MasterMsg: jetton_wrappers.InternalTransferMessage{
+			MasterMsg: wallet.InternalTransferMessage{
 				QueryID:          queryID,
 				Amount:           jettonMintingAmount,
 				From:             setup.deployer.Wallet.WalletAddress(),
@@ -335,16 +341,17 @@ func TestJettonAll(t *testing.T) {
 		t.Logf("Testing change content\n")
 		const newContentURI = "new_content_uri"
 		newContent := createStringCell(t, newContentURI)
-		changeContentMsg, err := setup.jettonMinter.CallWaitRecursively(jetton_wrappers.ChangeContentMessage{
+		changeContentMsg, err := setup.jettonMinter.CallWaitRecursively(minter.ChangeContentMessage{
 			QueryID: rand.Uint64(),
 			Content: newContent,
 		}, tlb.MustFromTON("0.1"))
 		require.NoError(t, err, "failed to change content")
-		t.Logf("Change content message received: \n%s\n", replaceAddresses(map[string]string{
-			setup.deployer.Wallet.Address().String(): "Deployer",
-			setup.jettonMinter.Address.String():      "JettonMinter",
-			newContent.String():                      "NewContent",
-		}, changeContentMsg.Dump()))
+		debugger := debug.NewDebuggerTreeTrace(map[string]cldf.TypeAndVersion{
+			setup.deployer.Wallet.Address().String(): {Type: "Deployer", Version: *semver.MustParse("0.0.1")},
+			setup.jettonMinter.Address.String():      {Type: "JettonMinter", Version: *semver.MustParse("0.0.1")},
+			newContent.String():                      {Type: "NewContent", Version: *semver.MustParse("0.0.1")},
+		})
+		t.Logf("Change content message received: \n%s\n", debugger.DumpReceived(changeContentMsg))
 
 		jettonData, err := setup.jettonClient.GetJettonData(t.Context())
 		require.NoError(t, err, "failed to get jetton data after content change")
@@ -373,11 +380,12 @@ func TestJettonAll(t *testing.T) {
 		recipient := address.MustParseAddr("UQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJKZ")
 		jettonAmount := tlb.MustFromTON("0.5")
 		queryID := rand.Uint64()
-		mintMsg, err := setup.jettonMinter.CallWaitRecursively(jetton_wrappers.MintMessage{
+
+		mintMsg, err := setup.jettonMinter.CallWaitRecursively(minter.MintMessage{
 			QueryID:     queryID,
 			Destination: recipient,
 			TonAmount:   tlb.MustFromTON("0.05"),
-			MasterMsg: jetton_wrappers.InternalTransferMessage{
+			MasterMsg: wallet.InternalTransferMessage{
 				QueryID:          queryID,
 				Amount:           jettonAmount,
 				From:             setup.deployer.Wallet.WalletAddress(),
@@ -387,11 +395,13 @@ func TestJettonAll(t *testing.T) {
 			},
 		}, tlb.MustFromTON("0.5"))
 		require.NoError(t, err, "failed to mint jettons")
-		t.Logf("Jetton minting message received: \n%s\n", replaceAddresses(map[string]string{
-			setup.deployer.Wallet.Address().String(): "Deployer",
-			setup.jettonMinter.Address.String():      "JettonMinter",
-			recipient.String():                       "Recipient",
-		}, mintMsg.Dump()))
+		debugger := debug.NewDebuggerTreeTrace(map[string]cldf.TypeAndVersion{
+			setup.deployer.Wallet.Address().String(): {Type: "Deployer", Version: *semver.MustParse("0.0.1")},
+			setup.jettonMinter.Address.String():      {Type: "JettonMinter", Version: *semver.MustParse("0.0.1")},
+			recipient.String():                       {Type: "Recipient", Version: *semver.MustParse("0.0.1")},
+		})
+
+		t.Logf("Jetton minting message received: \n%s\n", debugger.DumpReceived(mintMsg))
 
 		receiverWallet, err := setup.jettonClient.GetJettonWallet(t.Context(), recipient)
 		require.NoError(t, err, "failed to get receiver wallet")
@@ -404,28 +414,30 @@ func TestJettonAll(t *testing.T) {
 		t.Parallel()
 		setup := setUpCommon(t)
 		t.Logf("Testing change admin\n")
-		changeAdminMsg, err := setup.jettonMinter.CallWaitRecursively(jetton_wrappers.ChangeAdminMessage{
+		changeAdminMsg, err := setup.jettonMinter.CallWaitRecursively(minter.ChangeAdminMessage{
 			QueryID:  rand.Uint64(),
 			NewAdmin: setup.receiver.Wallet.Address(),
 		}, tlb.MustFromTON("0.1"))
 		require.NoError(t, err, "failed to change admin")
-		t.Logf("Change admin message received: \n%s\n", replaceAddresses(map[string]string{
-			setup.deployer.Wallet.Address().String(): "Deployer",
-			setup.jettonMinter.Address.String():      "JettonMinter",
-			setup.receiver.Wallet.Address().String(): "NewAdmin",
-		}, changeAdminMsg.Dump()))
+		debugger := debug.NewDebuggerTreeTrace(map[string]cldf.TypeAndVersion{
+			setup.deployer.Wallet.Address().String(): {Type: "Deployer", Version: *semver.MustParse("0.0.1")},
+			setup.jettonMinter.Address.String():      {Type: "JettonMinter", Version: *semver.MustParse("0.0.1")},
+			setup.receiver.Wallet.Address().String(): {Type: "NewAdmin", Version: *semver.MustParse("0.0.1")},
+		})
+		t.Logf("Change admin message received: \n%s\n", debugger.DumpReceived(changeAdminMsg))
 
 		jettonMinterAsReceiver := wrappers.Contract{
 			Address: setup.jettonMinter.Address,
 			Client:  &setup.receiver,
 		}
 		require.NoError(t, err, "failed to open jetton minter as new admin")
-		claimAdminMsg, err := jettonMinterAsReceiver.CallWaitRecursively(jetton_wrappers.ClaimAdminMessage{QueryID: rand.Uint64()}, tlb.MustFromTON("0.1"))
+		claimAdminMsg, err := jettonMinterAsReceiver.CallWaitRecursively(minter.ClaimAdminMessage{QueryID: rand.Uint64()}, tlb.MustFromTON("0.1"))
 		require.NoError(t, err, "failed to claim admin")
-		t.Logf("Claim admin message received: \n%s\n", replaceAddresses(map[string]string{
-			setup.receiver.Wallet.Address().String(): "NewAdmin",
-			setup.jettonMinter.Address.String():      "JettonMinter",
-		}, claimAdminMsg.Dump()))
+		debugger2 := debug.NewDebuggerTreeTrace(map[string]cldf.TypeAndVersion{
+			setup.receiver.Wallet.Address().String(): {Type: "NewAdmin", Version: *semver.MustParse("0.0.1")},
+			setup.jettonMinter.Address.String():      {Type: "JettonMinter", Version: *semver.MustParse("0.0.1")},
+		})
+		t.Logf("Claim admin message received: \n%s\n", debugger2.DumpReceived(claimAdminMsg))
 		require.Zero(t, claimAdminMsg.ExitCode, "Claim admin message should have exit code 0")
 
 		jettonData, err := setup.jettonClient.GetJettonData(t.Context())
@@ -437,15 +449,16 @@ func TestJettonAll(t *testing.T) {
 		t.Parallel()
 		setup := setUpCommon(t)
 		t.Logf("Testing drop admin\n")
-		dropAdminMsg, err := setup.jettonMinter.CallWaitRecursively(jetton_wrappers.DropAdminMessage{
+		dropAdminMsg, err := setup.jettonMinter.CallWaitRecursively(minter.DropAdminMessage{
 			QueryID: rand.Uint64(),
 		}, tlb.MustFromTON("0.1"))
 		require.NoError(t, err, "failed to drop admin")
-		t.Logf("Drop admin message received: \n%s\n", replaceAddresses(map[string]string{
-			setup.deployer.Wallet.Address().String(): "Deployer",
-			setup.jettonMinter.Address.String():      "JettonMinter",
-			setup.receiver.Wallet.Address().String(): "NewAdmin",
-		}, dropAdminMsg.Dump()))
+		debugger := debug.NewDebuggerTreeTrace(map[string]cldf.TypeAndVersion{
+			setup.deployer.Wallet.Address().String(): {Type: "Deployer", Version: *semver.MustParse("0.0.1")},
+			setup.jettonMinter.Address.String():      {Type: "JettonMinter", Version: *semver.MustParse("0.0.1")},
+			setup.receiver.Wallet.Address().String(): {Type: "NewAdmin", Version: *semver.MustParse("0.0.1")},
+		})
+		t.Logf("Drop admin message received: \n%s\n", debugger.DumpReceived(dropAdminMsg))
 		require.Zero(t, dropAdminMsg.ExitCode, "Drop admin message should have exit code 0")
 		require.Len(t, dropAdminMsg.OutgoingInternalReceivedMessages, 1, "Drop admin message should have 1 outgoing message")
 		msgToMinter := dropAdminMsg.OutgoingInternalReceivedMessages[0]
@@ -453,11 +466,11 @@ func TestJettonAll(t *testing.T) {
 		require.Empty(t, msgToMinter.OutgoingInternalReceivedMessages, "Msg to minter should have no outgoing messages")
 
 		queryID := rand.Uint64()
-		mintMsg, err := setup.jettonMinter.CallWaitRecursively(jetton_wrappers.MintMessage{
+		mintMsg, err := setup.jettonMinter.CallWaitRecursively(minter.MintMessage{
 			QueryID:     queryID,
 			Destination: setup.receiver.Wallet.Address(),
 			TonAmount:   tlb.MustFromTON("0.05"),
-			MasterMsg: jetton_wrappers.InternalTransferMessage{
+			MasterMsg: wallet.InternalTransferMessage{
 				QueryID:          queryID,
 				Amount:           jettonMintingAmount,
 				From:             setup.deployer.Wallet.WalletAddress(),
@@ -470,7 +483,7 @@ func TestJettonAll(t *testing.T) {
 		require.Zero(t, mintMsg.ExitCode, "Mint message should have exit code 0")
 		require.Len(t, mintMsg.OutgoingInternalReceivedMessages, 1, "Mint message should have 1 outgoing message")
 		msgToMinter = mintMsg.OutgoingInternalReceivedMessages[0]
-		require.Equal(t, jetton_wrappers.ErrorNotOwner, msgToMinter.ExitCode, "Msg to minter should have")
+		require.Equal(t, jetton_common.ErrorNotOwner, msgToMinter.ExitCode, "Msg to minter should have")
 
 		jettonData, err := setup.jettonClient.GetJettonData(t.Context())
 		require.NoError(t, err, "failed to get jetton data after admin change")
@@ -493,12 +506,13 @@ func TestJettonAll(t *testing.T) {
 		}, tlb.MustFromTON("0.1"))
 		require.NoError(t, err, "failed to send jettons in basic mode")
 		t.Log("Jettons sent successfully")
-		t.Logf("Sender message received: \n%s\n", replaceAddresses(map[string]string{
-			setup.common.deployer.Wallet.Address().String(): "Deployer",
-			setup.sender.Contract.Address.String():          "Sender",
-			setup.common.jettonMinter.Address.String():      "JettonMinter",
-			receiver.String():                               "Receiver",
-		}, msgReceived.Dump()))
+		debugger := debug.NewDebuggerTreeTrace(map[string]cldf.TypeAndVersion{
+			setup.common.deployer.Wallet.Address().String(): {Type: "Deployer", Version: *semver.MustParse("0.0.1")},
+			setup.sender.Contract.Address.String():          {Type: "Sender", Version: *semver.MustParse("0.0.1")},
+			setup.common.jettonMinter.Address.String():      {Type: "JettonMinter", Version: *semver.MustParse("0.0.1")},
+			receiver.String():                               {Type: "Receiver", Version: *semver.MustParse("0.0.1")},
+		})
+		t.Logf("Sender message received: \n%s\n", debugger.DumpReceived(msgReceived))
 
 		receiverWallet, err := setup.common.jettonClient.GetJettonWallet(t.Context(), receiver)
 		require.NoError(t, err, "failed to get receiver wallet")
@@ -511,19 +525,20 @@ func TestJettonAll(t *testing.T) {
 		t.Parallel()
 		setup := setupSender(t)
 		t.Logf("Deploying JettonMinter contract\n")
-		jettonWalletCode, err := jetton_wrappers.WalletCode()
+		jettonWalletCode, err := wallet.Code()
 		require.NoError(t, err, "failed to deploy JettonWallet contract")
-		jettonWalletInitCell, err := jetton_wrappers.NewWalletProvider(setup.common.jettonMinter.Address).GetWalletInitCell(setup.common.receiver.Wallet.Address())
+		jettonWalletInitCell, err := wallet.NewWalletProvider(setup.common.jettonMinter.Address).GetWalletInitCell(setup.common.receiver.Wallet.Address())
 		require.NoError(t, err, "failed to get JettonWallet init cell")
-		msg, err := tlb.ToCell(jetton_wrappers.TopUpMessage{QueryID: rand.Uint64()})
+		msg, err := tlb.ToCell(jetton_common.TopUpMessage{QueryID: rand.Uint64()})
 		require.NoError(t, err, "failed to create top-up message")
 		receiverJettonWallet, deployMsg, err := wrappers.Deploy(&setup.common.receiver, jettonWalletCode, jettonWalletInitCell, tlb.MustFromTON("0.1"), msg)
 		require.NoError(t, err, "failed to deploy JettonWallet contract")
-		t.Logf("JettonWallet contract deploy message received: \n%s\n", replaceAddresses(map[string]string{
-			setup.common.deployer.Wallet.Address().String(): "Deployer",
-			setup.common.receiver.Wallet.Address().String(): "Receiver",
-			receiverJettonWallet.Address.String():           "ReceiverJettonWallet",
-		}, deployMsg.Dump()))
+		debugger := debug.NewDebuggerTreeTrace(map[string]cldf.TypeAndVersion{
+			setup.common.deployer.Wallet.Address().String(): {Type: "Deployer", Version: *semver.MustParse("0.0.1")},
+			setup.common.receiver.Wallet.Address().String(): {Type: "Receiver", Version: *semver.MustParse("0.0.1")},
+			receiverJettonWallet.Address.String():           {Type: "ReceiverJettonWallet", Version: *semver.MustParse("0.0.1")},
+		})
+		t.Logf("JettonWallet contract deploy message received: \n%s\n", debugger.DumpReceived(deployMsg))
 		t.Logf("JettonWallet contract deployed at %s\n", receiverJettonWallet.Address.String())
 
 		jettonAmount := tlb.MustFromTON("12")
@@ -535,12 +550,13 @@ func TestJettonAll(t *testing.T) {
 		}, tlb.MustFromTON("0.1"))
 		require.NoError(t, err, "failed to send jettons in basic mode")
 		t.Log("Jettons sent successfully")
-		t.Logf("Sender message received: \n%s\n", replaceAddresses(map[string]string{
-			setup.common.deployer.Wallet.Address().String(): "Deployer",
-			setup.sender.Contract.Address.String():          "Sender",
-			setup.common.jettonMinter.Address.String():      "JettonMinter",
-			setup.common.receiver.Wallet.Address().String(): "Receiver",
-		}, msgReceived.Dump()))
+		debugger2 := debug.NewDebuggerTreeTrace(map[string]cldf.TypeAndVersion{
+			setup.common.deployer.Wallet.Address().String(): {Type: "Deployer", Version: *semver.MustParse("0.0.1")},
+			setup.sender.Contract.Address.String():          {Type: "Sender", Version: *semver.MustParse("0.0.1")},
+			setup.common.jettonMinter.Address.String():      {Type: "JettonMinter", Version: *semver.MustParse("0.0.1")},
+			setup.common.receiver.Wallet.Address().String(): {Type: "Receiver", Version: *semver.MustParse("0.0.1")},
+		})
+		t.Logf("Sender message received: \n%s\n", debugger2.DumpReceived(msgReceived))
 
 		receiverWallet, err := setup.common.jettonClient.GetJettonWallet(t.Context(), setup.common.receiver.Wallet.Address())
 		require.NoError(t, err, "failed to get receiver wallet")
@@ -570,12 +586,13 @@ func TestJettonAll(t *testing.T) {
 			ForwardPayload:   forwardPayload,
 		}, tonAmount)
 		require.NoError(t, err, "failed to send jettons in basic mode")
-		t.Logf("Sent jettons extended:\n%s\n", replaceAddresses(map[string]string{
-			setup.common.deployer.Wallet.Address().String(): "Deployer",
-			setup.sender.Contract.Address.String():          "Sender",
-			setup.common.jettonMinter.Address.String():      "JettonMinter",
-			receiver.String():                               "Receiver",
-		}, msgJettonsExtended.Dump()))
+		debugger := debug.NewDebuggerTreeTrace(map[string]cldf.TypeAndVersion{
+			setup.common.deployer.Wallet.Address().String(): {Type: "Deployer", Version: *semver.MustParse("0.0.1")},
+			setup.sender.Contract.Address.String():          {Type: "Sender", Version: *semver.MustParse("0.0.1")},
+			setup.common.jettonMinter.Address.String():      {Type: "JettonMinter", Version: *semver.MustParse("0.0.1")},
+			receiver.String():                               {Type: "Receiver", Version: *semver.MustParse("0.0.1")},
+		})
+		t.Logf("Sent jettons extended:\n%s\n", debugger.DumpReceived(msgJettonsExtended))
 
 		receiverWallet, err := setup.common.jettonClient.GetJettonWallet(t.Context(), receiver)
 		require.NoError(t, err, "failed to get receiver wallet")
@@ -619,14 +636,15 @@ func TestJettonAll(t *testing.T) {
 				ForwardPayload:   jettonTransferPayload,
 			}, tlb.MustFromTON("2"))
 			require.NoError(t, err2, "failed to send jettons with custom payload")
-			t.Logf("Sender message received: \n%s\n", replaceAddresses(map[string]string{
-				setup.common.deployer.Wallet.Address().String(): "Deployer",
-				setup.Sender.Contract.Address.String():          "Sender",
-				SenderWallet.Address().String():                 "SenderWallet",
-				setup.common.jettonMinter.Address.String():      "JettonMinter",
-				setup.onrampMock.Contract.Address.String():      "OnrampMock",
-				onrampMockJettonWallet.Address().String():       "OnrampMockJettonWallet",
-			}, msgReceived.Dump()))
+			debugger := debug.NewDebuggerTreeTrace(map[string]cldf.TypeAndVersion{
+				setup.common.deployer.Wallet.Address().String(): {Type: "Deployer", Version: *semver.MustParse("0.0.1")},
+				setup.Sender.Contract.Address.String():          {Type: "Sender", Version: *semver.MustParse("0.0.1")},
+				SenderWallet.Address().String():                 {Type: "SenderWallet", Version: *semver.MustParse("0.0.1")},
+				setup.common.jettonMinter.Address.String():      {Type: "JettonMinter", Version: *semver.MustParse("0.0.1")},
+				setup.onrampMock.Contract.Address.String():      {Type: "OnrampMock", Version: *semver.MustParse("0.0.1")},
+				onrampMockJettonWallet.Address().String():       {Type: "OnrampMockJettonWallet", Version: *semver.MustParse("0.0.1")},
+			})
+			t.Logf("Sender message received: \n%s\n", debugger.DumpReceived(msgReceived))
 			require.NotEmpty(t, msgReceived.OutgoingInternalReceivedMessages, "Outgoing internal messages should not be empty")
 			msgToSender := msgReceived.OutgoingInternalReceivedMessages[0]
 			require.NotEmpty(t, msgToSender.OutgoingInternalReceivedMessages, "Outgoing internal messages should not be empty")
@@ -724,14 +742,15 @@ func TestJettonAll(t *testing.T) {
 		require.NoError(t, err, "failed to get jetton sender wallet")
 		SimpleJettonReceiverWallet, err := setup.common.jettonClient.GetJettonWallet(t.Context(), setup.simpleReceiver.Contract.Address)
 		require.NoError(t, err, "failed to get simple jetton receiver wallet")
-		t.Logf("Jettons sent: \n%s\n", replaceAddresses(map[string]string{
-			setup.common.deployer.Wallet.Address().String(): "Deployer",
-			setup.Sender.Contract.Address.String():          "Sender",
-			SenderWallet.Address().String():                 "SenderWallet",
-			setup.common.jettonMinter.Address.String():      "JettonMinter",
-			setup.simpleReceiver.Contract.Address.String():  "SimpleJettonReceiver",
-			SimpleJettonReceiverWallet.Address().String():   "SimpleJettonReceiverWallet",
-		}, receivedMsg.Dump()))
+		debugger := debug.NewDebuggerTreeTrace(map[string]cldf.TypeAndVersion{
+			setup.common.deployer.Wallet.Address().String(): {Type: "Deployer", Version: *semver.MustParse("0.0.1")},
+			setup.Sender.Contract.Address.String():          {Type: "Sender", Version: *semver.MustParse("0.0.1")},
+			SenderWallet.Address().String():                 {Type: "SenderWallet", Version: *semver.MustParse("0.0.1")},
+			setup.common.jettonMinter.Address.String():      {Type: "JettonMinter", Version: *semver.MustParse("0.0.1")},
+			setup.simpleReceiver.Contract.Address.String():  {Type: "SimpleJettonReceiver", Version: *semver.MustParse("0.0.1")},
+			SimpleJettonReceiverWallet.Address().String():   {Type: "SimpleJettonReceiverWallet", Version: *semver.MustParse("0.0.1")},
+		})
+		t.Logf("Jettons sent: \n%s\n", debugger.DumpReceived(receivedMsg))
 
 		t.Logf("Testing receiver checkers\n")
 		amountChecker, err = setup.simpleReceiver.GetAmountChecker()
@@ -753,19 +772,20 @@ func TestJettonAll(t *testing.T) {
 		setup := setupJettonWallet(t)
 		t.Logf("Deploying JettonWallet contract\n")
 
-		msg, err := tlb.ToCell(jetton_wrappers.TopUpMessage{QueryID: rand.Uint64()})
+		msg, err := tlb.ToCell(jetton_common.TopUpMessage{QueryID: rand.Uint64()})
 		require.NoError(t, err, "failed to create top-up message")
-		jettonWalletCode, err := jetton_wrappers.WalletCode()
+		jettonWalletCode, err := wallet.Code()
 		require.NoError(t, err, "failed to deploy JettonWallet contract")
-		jettonWalletInitCell, err := jetton_wrappers.NewWalletProvider(setup.common.jettonMinter.Address).GetWalletInitCell(setup.common.deployer.Wallet.Address())
+		jettonWalletInitCell, err := wallet.NewWalletProvider(setup.common.jettonMinter.Address).GetWalletInitCell(setup.common.deployer.Wallet.Address())
 		require.NoError(t, err, "failed to get JettonWallet init cell")
 		deployerJettonWallet, deployMsg, err := wrappers.Deploy(&setup.common.deployer, jettonWalletCode, jettonWalletInitCell, tlb.MustFromTON("0.1"), msg)
 		require.NoError(t, err, "failed to deploy JettonWallet contract")
-		t.Logf("Deploy message received: \n%s\n", replaceAddresses(map[string]string{
-			setup.common.deployer.Wallet.Address().String(): "Deployer",
-			setup.common.jettonMinter.Address.String():      "JettonMinter",
-			deployerJettonWallet.Address.String():           "JettonWallet",
-		}, deployMsg.Dump()))
+		debugger := debug.NewDebuggerTreeTrace(map[string]cldf.TypeAndVersion{
+			setup.common.deployer.Wallet.Address().String(): {Type: "Deployer", Version: *semver.MustParse("0.0.1")},
+			setup.common.jettonMinter.Address.String():      {Type: "JettonMinter", Version: *semver.MustParse("0.0.1")},
+			deployerJettonWallet.Address.String():           {Type: "JettonWallet", Version: *semver.MustParse("0.0.1")},
+		})
+		t.Logf("Deploy message received: \n%s\n", debugger.DumpReceived(deployMsg))
 
 		t.Logf("JettonWallet contract opened at %s\n", deployerJettonWallet.Address.String())
 
@@ -794,13 +814,14 @@ func TestJettonAll(t *testing.T) {
 		require.NoError(t, err, "failed to transfer jettons")
 		receiverJettonWallet, err := setup.common.jettonClient.GetJettonWallet(t.Context(), recipient)
 		require.NoError(t, err, "failed to get receiver wallet")
-		t.Logf("Jetton transfer message received: \n%s\n", replaceAddresses(map[string]string{
-			setup.common.deployer.Wallet.Address().String(): "Deployer",
-			deployerJettonWallet.Address.String():           "JettonWallet",
-			setup.common.jettonMinter.Address.String():      "JettonMinter",
-			recipient.String():                              "Receiver",
-			receiverJettonWallet.Address().String():         "ReceiverJettonWallet",
-		}, transferMsg.Dump()))
+		debugger = debug.NewDebuggerTreeTrace(map[string]cldf.TypeAndVersion{
+			setup.common.deployer.Wallet.Address().String(): {Type: "Deployer", Version: *semver.MustParse("0.0.1")},
+			deployerJettonWallet.Address.String():           {Type: "JettonWallet", Version: *semver.MustParse("0.0.1")},
+			setup.common.jettonMinter.Address.String():      {Type: "JettonMinter", Version: *semver.MustParse("0.0.1")},
+			recipient.String():                              {Type: "Receiver", Version: *semver.MustParse("0.0.1")},
+			receiverJettonWallet.Address().String():         {Type: "ReceiverJettonWallet", Version: *semver.MustParse("0.0.1")},
+		})
+		t.Logf("Transfer message received: \n%s\n", debugger.DumpReceived(transferMsg))
 
 		jettonBalance, err := receiverJettonWallet.GetBalance(t.Context())
 		require.NoError(t, err, "failed to get receiver wallet balance")
@@ -812,19 +833,20 @@ func TestJettonAll(t *testing.T) {
 		setup := setupJettonWallet(t)
 		t.Logf("Deploying JettonWallet contract\n")
 
-		jettonWalletCode, err := jetton_wrappers.WalletCode()
+		jettonWalletCode, err := wallet.Code()
 		require.NoError(t, err, "failed to deploy JettonWallet contract")
-		jettonWalletInitCell, err := jetton_wrappers.NewWalletProvider(setup.common.jettonMinter.Address).GetWalletInitCell(setup.common.deployer.Wallet.Address())
+		jettonWalletInitCell, err := wallet.NewWalletProvider(setup.common.jettonMinter.Address).GetWalletInitCell(setup.common.deployer.Wallet.Address())
 		require.NoError(t, err, "failed to get JettonWallet init cell")
-		msg, err := tlb.ToCell(jetton_wrappers.TopUpMessage{QueryID: rand.Uint64()})
+		msg, err := tlb.ToCell(jetton_common.TopUpMessage{QueryID: rand.Uint64()})
 		require.NoError(t, err, "failed to create top-up message")
 		deployerJettonWallet, deployMsg, err := wrappers.Deploy(&setup.common.deployer, jettonWalletCode, jettonWalletInitCell, tlb.MustFromTON("0.1"), msg)
 		require.NoError(t, err, "failed to deploy JettonWallet contract")
-		t.Logf("Deploy message received: \n%s\n", replaceAddresses(map[string]string{
-			setup.common.deployer.Wallet.Address().String(): "Deployer",
-			setup.common.jettonMinter.Address.String():      "JettonMinter",
-			deployerJettonWallet.Address.String():           "JettonWallet",
-		}, deployMsg.Dump()))
+		debugger := debug.NewDebuggerTreeTrace(map[string]cldf.TypeAndVersion{
+			setup.common.deployer.Wallet.Address().String(): {Type: "Deployer", Version: *semver.MustParse("0.0.1")},
+			setup.common.jettonMinter.Address.String():      {Type: "JettonMinter", Version: *semver.MustParse("0.0.1")},
+			deployerJettonWallet.Address.String():           {Type: "JettonWallet", Version: *semver.MustParse("0.0.1")},
+		})
+		t.Logf("Deploy message received: \n%s\n", debugger.DumpReceived(deployMsg))
 
 		t.Logf("JettonWallet contract opened at %s\n", deployerJettonWallet.Address.String())
 
@@ -853,13 +875,14 @@ func TestJettonAll(t *testing.T) {
 		require.NoError(t, err, "failed to transfer jettons")
 		receiverJettonWallet, err := setup.common.jettonClient.GetJettonWallet(t.Context(), recipient)
 		require.NoError(t, err, "failed to get receiver wallet")
-		t.Logf("Jetton transfer message received: \n%s\n", replaceAddresses(map[string]string{
-			setup.common.deployer.Wallet.Address().String(): "Deployer",
-			deployerJettonWallet.Address.String():           "JettonWallet",
-			setup.common.jettonMinter.Address.String():      "JettonMinter",
-			recipient.String():                              "Receiver",
-			receiverJettonWallet.Address().String():         "ReceiverJettonWallet",
-		}, transferMsg.Dump()))
+		debugger = debug.NewDebuggerTreeTrace(map[string]cldf.TypeAndVersion{
+			setup.common.deployer.Wallet.Address().String(): {Type: "Deployer", Version: *semver.MustParse("0.0.1")},
+			deployerJettonWallet.Address.String():           {Type: "JettonWallet", Version: *semver.MustParse("0.0.1")},
+			setup.common.jettonMinter.Address.String():      {Type: "JettonMinter", Version: *semver.MustParse("0.0.1")},
+			recipient.String():                              {Type: "Receiver", Version: *semver.MustParse("0.0.1")},
+			receiverJettonWallet.Address().String():         {Type: "ReceiverJettonWallet", Version: *semver.MustParse("0.0.1")},
+		})
+		t.Logf("Transfer message received: \n%s\n", debugger.DumpReceived(transferMsg))
 
 		jettonBalance, err := receiverJettonWallet.GetBalance(t.Context())
 		require.NoError(t, err, "failed to get receiver wallet balance")
@@ -870,19 +893,20 @@ func TestJettonAll(t *testing.T) {
 		t.Parallel()
 		setup := setupJettonWallet(t)
 		t.Logf("Deploying JettonWallet contract\n")
-		jettonWalletCode, err := jetton_wrappers.WalletCode()
+		jettonWalletCode, err := wallet.Code()
 		require.NoError(t, err, "failed to deploy JettonWallet contract")
-		jettonWalletInitCell, err := jetton_wrappers.NewWalletProvider(setup.common.jettonMinter.Address).GetWalletInitCell(setup.common.deployer.Wallet.Address())
+		jettonWalletInitCell, err := wallet.NewWalletProvider(setup.common.jettonMinter.Address).GetWalletInitCell(setup.common.deployer.Wallet.Address())
 		require.NoError(t, err, "failed to get JettonWallet init cell")
-		msg, err := tlb.ToCell(jetton_wrappers.TopUpMessage{QueryID: rand.Uint64()})
+		msg, err := tlb.ToCell(jetton_common.TopUpMessage{QueryID: rand.Uint64()})
 		require.NoError(t, err, "failed to create top-up message")
 		jettonWallet, deployMsg, err := wrappers.Deploy(&setup.common.deployer, jettonWalletCode, jettonWalletInitCell, tlb.MustFromTON("0.1"), msg)
 		require.NoError(t, err, "failed to deploy JettonWallet contract")
-		t.Logf("Deploy message received: \n%s\n", replaceAddresses(map[string]string{
-			setup.common.deployer.Wallet.Address().String(): "Deployer",
-			setup.common.jettonMinter.Address.String():      "JettonMinter",
-			jettonWallet.Address.String():                   "JettonWallet",
-		}, deployMsg.Dump()))
+		debugger := debug.NewDebuggerTreeTrace(map[string]cldf.TypeAndVersion{
+			setup.common.deployer.Wallet.Address().String(): {Type: "Deployer", Version: *semver.MustParse("0.0.1")},
+			setup.common.jettonMinter.Address.String():      {Type: "JettonMinter", Version: *semver.MustParse("0.0.1")},
+			jettonWallet.Address.String():                   {Type: "JettonWallet", Version: *semver.MustParse("0.0.1")},
+		})
+		t.Logf("Deploy message received: \n%s\n", debugger.DumpReceived(deployMsg))
 
 		t.Logf("JettonWallet contract deployed at %s\n", jettonWallet.Address.String())
 
@@ -903,11 +927,12 @@ func TestJettonAll(t *testing.T) {
 		}, tlb.MustFromTON("0.1"))
 		require.NoError(t, err, "failed to burn jettons")
 
-		t.Logf("Jetton transfer message received: \n%s\n", replaceAddresses(map[string]string{
-			setup.common.deployer.Wallet.Address().String(): "Deployer",
-			jettonWallet.Address.String():                   "JettonWallet",
-			setup.common.jettonMinter.Address.String():      "JettonMinter",
-		}, burnMsg.Dump()))
+		debugger2 := debug.NewDebuggerTreeTrace(map[string]cldf.TypeAndVersion{
+			setup.common.deployer.Wallet.Address().String(): {Type: "Deployer", Version: *semver.MustParse("0.0.1")},
+			jettonWallet.Address.String():                   {Type: "JettonWallet", Version: *semver.MustParse("0.0.1")},
+			setup.common.jettonMinter.Address.String():      {Type: "JettonMinter", Version: *semver.MustParse("0.0.1")},
+		})
+		t.Logf("Jetton transfer message received: \n%s\n", debugger2.DumpReceived(burnMsg))
 
 		balanceAfterBurn, err := jettonWalletClient.GetBalance(t.Context())
 		require.NoError(t, err, "failed to get jetton balance after burn")
@@ -918,28 +943,22 @@ func TestJettonAll(t *testing.T) {
 	})
 }
 
-func DeployMinter(t *testing.T, deployer *tracetracking.SignedAPIClient, initData jetton_wrappers.MinterInitData) *wrappers.Contract {
-	minterCode, err := jetton_wrappers.MinterCode()
+func DeployMinter(t *testing.T, deployer *tracetracking.SignedAPIClient, initData minter.InitData) *wrappers.Contract {
+	minterCode, err := minter.Code()
 	require.NoError(t, err, "failed to load JettonMinter code")
-	topUpMsg, err := tlb.ToCell(jetton_wrappers.TopUpMessage{
+	topUpMsg, err := tlb.ToCell(jetton_common.TopUpMessage{
 		QueryID: rand.Uint64(),
 	})
 	require.NoError(t, err, "failed to create TopUp message")
 	minterInitCell, err := tlb.ToCell(initData)
 	require.NoError(t, err, "failed to create JettonMinter init data cell")
 	minterContract, deployMsg, err := wrappers.Deploy(deployer, minterCode, minterInitCell, tlb.MustFromTON("1"), topUpMsg)
-	t.Logf("Deploy trace: %s\n", replaceAddresses(map[string]string{
-		deployer.Wallet.Address().String(): "Deployer",
-	}, deployMsg.Dump()))
+	debugger := debug.NewDebuggerTreeTrace(map[string]cldf.TypeAndVersion{
+		deployer.Wallet.Address().String(): {Type: "Deployer", Version: *semver.MustParse("0.0.1")},
+	})
+	t.Logf("Deploy trace: %s\n", debugger.DumpReceived(deployMsg))
 	require.NoError(t, err, "failed to deploy JettonMinter contract")
 	return minterContract
-}
-
-func replaceAddresses(addressMap map[string]string, text string) string {
-	for oldAddr, newAddr := range addressMap {
-		text = strings.ReplaceAll(text, oldAddr, newAddr)
-	}
-	return text
 }
 
 func createStringCell(t *testing.T, s string) *cell.Cell {

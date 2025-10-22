@@ -94,6 +94,15 @@ struct Any2TVMTokenTransfer {
     amount: uint256;
 }
 
+struct OffRamp_Deployables {
+    deployer: cell; // Deployable compiled code
+    merkleRootCode: cell; // use a library cell offchain to save space
+    receiveExecutorCode: cell; //TODO: use a library cell offchain to save space 
+}
+
+const MERKLE_ROOT_ID_SIZE = 256;
+const RECEIVE_EXECUTOR_ID_SIZE = 224;
+
 // These have to match the EVM states
 enum ExecutionState: uint8 {
     InProgress = 1

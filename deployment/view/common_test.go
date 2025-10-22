@@ -55,7 +55,7 @@ func TestParseExecutionResultForDestChainSelectors(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := parseExecutionResultForDestChainSelectors(tt.input)
+			got := ParseExecutionResultForDestChainSelectors(tt.input)
 			if len(got) != len(tt.expect) {
 				t.Errorf("expected %v, got %v", tt.expect, got)
 				return

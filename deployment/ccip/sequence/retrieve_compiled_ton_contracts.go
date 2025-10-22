@@ -63,6 +63,10 @@ var contractsMapping = map[ds.ContractType]ContractMappingMetadata{
 		CompiledVersionKey:             "MerkleRoot.compiled.json",
 		SuggestedTONCoinsForDeployment: "0.05",
 	},
+	state.ReceiveExecutor: {
+		CompiledVersionKey:             "ReceiveExecutor.compiled.json",
+		SuggestedTONCoinsForDeployment: "0.05",
+	},
 	// Utilities
 	state.TonReceiver: {
 		CompiledVersionKey:             "ccip.test.receiver.compiled.json",

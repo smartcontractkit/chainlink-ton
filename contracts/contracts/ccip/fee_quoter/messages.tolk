@@ -1,13 +1,18 @@
 import "types"
 import "../router/messages"
 import "../../lib/utils"
+import "../../lib/funding/withdrawable"
+import "../../lib/versioning/upgradeable"
 
 type FeeQuoter_InMessage =
     | FeeQuoter_UpdatePrices
     | FeeQuoter_UpdateFeeTokens
     | FeeQuoter_UpdateTokenTransferFeeConfigs
     | FeeQuoter_UpdateDestChainConfigs
-    | FeeQuoter_GetValidatedFee<cell>; // marked as cell since we never attempt to load the metadata
+    | FeeQuoter_GetValidatedFee<cell> // marked as cell since we never attempt to load the metadata
+    | Withdrawable_Withdraw
+    | Upgradeable_Upgrade;
+    ;
 
 struct (0x20000001) FeeQuoter_UpdatePrices {
     updates: PriceUpdates

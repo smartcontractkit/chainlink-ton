@@ -5,6 +5,7 @@ import (
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
+	"github.com/xssnick/tonutils-go/ton"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 
@@ -38,10 +39,11 @@ type FilterStore interface {
 
 // TxLoader defines the interface for loading transactions from the TON blockchain.
 type TxLoader interface {
-	// LoadTxsForAddresses retrieves all transactions from the specified source addresses
+	// LoadTxsForAddresses retrieves all transactions from multiple source addresses concurrently
 	// within the given block range (prevBlock, toBlock] - exclusive of prevBlock, inclusive of toBlock.
 	LoadTxsForAddresses(ctx context.Context, blockRange *types.BlockRange, srcAddrs []*address.Address) ([]types.TxWithBlock, error)
-	// FetchTxsForAddress retrieves transactions for a specific address within a block range.
+	// FetchTxsForAddress retrieves all transactions from single source address
+	// within the given block range (prevBlock, toBlock] - exclusive of prevBlock, inclusive of toBlock.
 	FetchTxsForAddress(ctx context.Context, blockRange *types.BlockRange, addr *address.Address) ([]types.TxWithBlock, error)
 }
 
@@ -109,4 +111,10 @@ type QueryBuilder[T any] interface {
 
 	// Execute runs the constructed query and returns the results.
 	Execute(ctx context.Context, store LogStore) (query.Result[T], error)
+}
+
+// RawLogProvider provides raw logs leveraging LogPoller libs without running the full service (o11y use case)
+type RawLogProvider interface {
+	// GetLogs retrieves all external message outputs for an address between fromBlockSeqNo (exclusive) and toBlock (inclusive).
+	GetLogs(ctx context.Context, addr *address.Address, from uint32, to *ton.BlockIDExt) ([]types.RawLog, error)
 }
