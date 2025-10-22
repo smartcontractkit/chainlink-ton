@@ -79,7 +79,6 @@ fun onBouncedMessage(in: InMessageBounced) {
 } 
 
 fun _bouncedCCIPReceive(execId: uint224, sender: address) {
-    debug.printString("handling bounced ccipreceive");
     val st = Storage.load();
     val receiveBounced = createMessage({
         bounce: true,
@@ -102,7 +101,6 @@ fun _bouncedCCIPReceive(execId: uint224, sender: address) {
 
 // Received from ReceiveExecutor after validating that the confirm message came from the correct receiver
 fun _notifySuccess(msg: OffRamp_NotifySuccess, sender: address) {
-    debug.printString("Offrampnotified");
     assertSenderIsOwnedContract(Storage.load(), sender, beginCell().storeUint(msg.execId, RECEIVE_EXECUTOR_ID_SIZE));
 
     val messageHeader = msg.header;

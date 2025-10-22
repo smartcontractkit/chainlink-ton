@@ -1200,7 +1200,6 @@ describe('OffRamp', () => {
     })
 
     const {
-      tree,
       proof,
       root: rootBytes,
     } = merkleHelper.createTreeAndProve(
@@ -1262,7 +1261,6 @@ describe('OffRamp', () => {
     })
 
     const {
-      tree,
       proof,
       root: rootBytes,
     } = merkleHelper.createTreeAndProve(
@@ -1317,8 +1315,6 @@ describe('OffRamp', () => {
     // Generate message IDs
     const messageId1 = uint8ArrayToBigInt(generateMessageId(message1, metadataHash))
     const messageId2 = uint8ArrayToBigInt(generateMessageId(message2, metadataHash))
-    console.log('Message ID 1:', messageId1.toString(16))
-    console.log('Message ID 2:', messageId2.toString(16))
 
     // Create merkle tree with both messages - IMPORTANT: We create it once and reuse for both proofs
     const merkleHelper = new MerkleHelper((s: Uint8Array) => {
@@ -1483,7 +1479,6 @@ describe('OffRamp', () => {
     })
 
     const {
-      tree,
       proof,
       root: rootBytes,
     } = merkleHelper.createTreeAndProve(

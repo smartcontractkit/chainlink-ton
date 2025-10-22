@@ -88,7 +88,6 @@ fun _ccipReceiveConfirm(msg: ReceiveExecutor_Confirm, sender: address) {
 }
 
 fun _ccipReceiveBounced(msg: ReceiveExecutor_Bounced, sender: address){
-    debug.printString("executor notified");
     var st: ReceiveExecutor_Storage = ReceiveExecutor_Storage.load();
 
     assert(sender == st.owner, Error.Unauthorized);
