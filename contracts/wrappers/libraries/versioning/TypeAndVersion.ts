@@ -1,4 +1,4 @@
-import { Address, Cell, Contract, ContractProvider } from '@ton/core'
+import { Cell, ContractProvider } from '@ton/core'
 
 export async function getTypeAndVersion(
   provider: ContractProvider,

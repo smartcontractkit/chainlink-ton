@@ -1,17 +1,7 @@
-import {
-  Address,
-  beginCell,
-  Cell,
-  Contract,
-  ContractProvider,
-  Message,
-  Sender,
-  toNano,
-} from '@ton/core'
+import { Contract } from '@ton/core'
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
 import '@ton/test-utils'
-import * as upgradeable from '../../../wrappers/libraries/versioning/Upgradeable'
-import { Interface } from '../../../wrappers/libraries/versioning/TypeAndVersion'
+import * as typeAndVersion from '../../../wrappers/libraries/versioning/TypeAndVersion'
 
 /**
  * Configuration for testing type and version
@@ -26,7 +16,7 @@ export type TypeAndVersionTestConfig = {
 /**
  * Contract interface that must be implemented by contracts for testing.
  */
-export interface TypeAndVersionContract extends Interface, Contract {}
+export interface TypeAndVersionContract extends typeAndVersion.Interface, Contract {}
 
 interface TestSetup {
   blockchain: Blockchain
