@@ -1,15 +1,15 @@
 type ReceiveExecutor_InMessage = ReceiveExecutor_InitExecute | ReceiveExecutor_Bounced | ReceiveExecutor_Confirm;
 
-//TODO crc32('CCIPReceiveExecutor_InitExecute')
-struct (0x66776677) ReceiveExecutor_InitExecute {
+//crc32('ReceiveExecutor_InitExecute')
+struct (0x64cd2fd2) ReceiveExecutor_InitExecute {
 }
 
-//TODOcrc32('CCIPReceiveExecutor_CCIPReceiveConfirm')
-struct (0x88998899) ReceiveExecutor_Confirm {
+//crc32('ReceiveExecutor_Confirm')
+struct (0x00e5dd97) ReceiveExecutor_Confirm {
     receiver: address
 }
 
-//TODO crc32('CCIPReceiveExecutor_CCIPReceiveBounced')
-struct (0x59059059) ReceiveExecutor_Bounced {
+//crc32('ReceiveExecutor_Bounced')
+struct (0x05dee1bb) ReceiveExecutor_Bounced {
     receiver: address
 }

@@ -226,8 +226,12 @@ export const OFFRAMP_FACILITY_NAME = 'com.chainlink.ton.ccip.OffRamp'
 export const OFFRAMP_FACILITY_ID = 84
 export const OFFRAMP_ERROR_CODE = 8400 //FACILITY_ID * 100
 
+export const RECEIVE_EXECUTOR_FACILITY_NAME = 'com.chainlink.ton.ccip.ReceiveExecutor'
+export const RECEIVE_EXECUTOR_FACILITY_ID = 338
+export const RECEIVE_EXECUTOR_ERROR_CODE = 33800 //FACILITY_ID * 100
+
 export enum OffRampError {
-  DispatchNotFromMerkleRoot = OFFRAMP_ERROR_CODE,
+  MessageNotFromOwnedContract = OFFRAMP_ERROR_CODE,
   SourceChainNotEnabled,
   EmptyExecutionReport,
   InvalidMessageDestChainSelector,
@@ -236,10 +240,15 @@ export enum OffRampError {
 }
 
 export enum MerkleRootError {
-  StateIsNotUntouched = MERKLE_ROOT_ERROR_CODE,
+  AlreadyExecuted = MERKLE_ROOT_ERROR_CODE, // Facility ID * 100
+  NotOwner,
+}
+
+export enum ReceiveExecutorError {
+  StateIsNotUntouched = RECEIVE_EXECUTOR_ERROR_CODE, // Facility ID * 100
   UpdatingStateOfNonExecutedMessage,
   NotificationFromInvalidReceiver,
-  NotOwner,
+  Unauthorized, //TODO maybe use Ownable2Step or similar
 }
 
 export class OffRamp extends OCR3Base {

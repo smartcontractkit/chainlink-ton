@@ -17,6 +17,9 @@ import {
   MERKLE_ROOT_FACILITY_NAME,
   OFFRAMP_FACILITY_ID,
   SourceChainConfig,
+  RECEIVE_EXECUTOR_FACILITY_ID,
+  RECEIVE_EXECUTOR_FACILITY_NAME,
+  ReceiveExecutorError,
 } from '../../wrappers/ccip/OffRamp'
 import { OffRamp, OffRampError } from '../../wrappers/ccip/OffRamp'
 import { FeeQuoter } from '../../wrappers/ccip/FeeQuoter'
@@ -741,7 +744,7 @@ describe('OffRamp', () => {
     // There should be a failed transaction with the specific error code from offRamp to MerkleRoot
     expect(secondExecuteResult.transactions).toHaveTransaction({
       from: offRamp.address,
-      exitCode: MerkleRootError.StateIsNotUntouched,
+      exitCode: MerkleRootError.AlreadyExecuted,
       success: false,
     })
   })
@@ -845,7 +848,7 @@ describe('OffRamp', () => {
       from: deployer.address,
       to: offRamp.address,
       success: false,
-      exitCode: OffRampError.DispatchNotFromMerkleRoot,
+      exitCode: OffRampError.MessageNotFromOwnedContract,
     })
   })
 
@@ -1182,7 +1185,10 @@ describe('OffRamp', () => {
 
   it('Test facilityId matches facility name', () => {
     expect(MERKLE_ROOT_FACILITY_ID).toEqual(facilityId(crc32(MERKLE_ROOT_FACILITY_NAME)))
+
     expect(OFFRAMP_FACILITY_ID).toEqual(facilityId(crc32(OFFRAMP_FACILITY_NAME)))
+
+    expect(RECEIVE_EXECUTOR_FACILITY_ID).toEqual(facilityId(crc32(RECEIVE_EXECUTOR_FACILITY_NAME)))
   })
 
   it('Test commit two messages in one root and execute first message with proof', async () => {
@@ -1199,10 +1205,7 @@ describe('OffRamp', () => {
       return new Uint8Array(sha256_sync(Buffer.from(s)))
     })
 
-    const {
-      proof,
-      root: rootBytes,
-    } = merkleHelper.createTreeAndProve(
+    const { proof, root: rootBytes } = merkleHelper.createTreeAndProve(
       [messageId1, messageId2],
       [0], // Prove first message
     )
@@ -1260,10 +1263,7 @@ describe('OffRamp', () => {
       return new Uint8Array(sha256_sync(Buffer.from(s)))
     })
 
-    const {
-      proof,
-      root: rootBytes,
-    } = merkleHelper.createTreeAndProve(
+    const { proof, root: rootBytes } = merkleHelper.createTreeAndProve(
       [messageId1, messageId2],
       [1], // Prove second message
     )
@@ -1478,10 +1478,7 @@ describe('OffRamp', () => {
       return new Uint8Array(sha256_sync(Buffer.from(s)))
     })
 
-    const {
-      proof,
-      root: rootBytes,
-    } = merkleHelper.createTreeAndProve(
+    const { proof, root: rootBytes } = merkleHelper.createTreeAndProve(
       [messageId1, messageId2, messageId3],
       [1], // Prove middle message
     )

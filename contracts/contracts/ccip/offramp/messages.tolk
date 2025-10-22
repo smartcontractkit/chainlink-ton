@@ -35,15 +35,11 @@ struct (0x27bdac33) OffRamp_Execute {
     report: ExecutionReport;
 }
 
-//TODO crc32 etc
-struct (0x13241224) OffRamp_ExecuteValidated {
+//crc32('OffRamp_ExecuteValidated')
+struct (0xc73d5a8a) OffRamp_ExecuteValidated {
     message: Cell<Any2TVMRampMessage>;
     root: uint256;
     metadataHash: uint256;
-}
-
-struct(0xabcdef01) OffRamp_MessageReadyForDispatch {
-    message: Any2TVMRampMessage;
 }
 
 //Must be sent by owner
@@ -67,13 +63,13 @@ struct (0x28f4166f) OffRamp_CCIPReceiveConfirm {
 }
 
 //TODO crc32('OffRamp_NotifySuccess')
-struct (0x23232323) OffRamp_NotifySuccess {
+struct (0x59e56170) OffRamp_NotifySuccess {
     header: RampMessageHeader;
     execId: uint224;
 }
 
 //TODO crc32('OffRamp_NotifyFailure')
-struct (0x33533353) OffRamp_NotifyFailure {
+struct (0x177ebd03) OffRamp_NotifyFailure {
     header: RampMessageHeader;
     execId: uint224;
 }
