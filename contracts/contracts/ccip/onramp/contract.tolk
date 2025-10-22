@@ -17,8 +17,10 @@ import "../ccipsend_executor/messages"
 import "../router/messages"
 import "../../lib/jetton/messages"
 import "../../lib/jetton/messages_extended"
+import "../../lib/funding/withdrawable"
 
-const CONTRACT_VERSION = "0.0.5";
+const CONTRACT_VERSION = "0.0.6";
+const RESERVE = ton("1"); // TODO: set correct value
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy OnRamp_InMessage.fromSlice(in.body);
@@ -46,6 +48,13 @@ fun onInternalMessage(in: InMessage) {
             st.ownable.requireOwner(in.senderAddress);
             applyAllowlistUpdates(mutate st, msg.updates);
             st.store();
+        }
+        Withdrawable_Withdraw => {
+            var st = lazy OnRamp_Storage.load();
+            st.ownable.requireOwner(in.senderAddress);
+            Withdrawable{
+                reserve: RESERVE
+            }.withdraw(msg, in.valueCoins);
         }
         else => {
             // ignore empty messages, "wrong opcode" for others
@@ -343,4 +352,8 @@ get fun code(): cell {
 // Returns the sha256 hash of the current code of the contract.
 get fun codeHash(): int {
     return contract.getCode().hash();
+}
+
+get fun reserve(): coins {
+    return RESERVE;
 }

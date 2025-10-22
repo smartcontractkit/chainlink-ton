@@ -13,6 +13,7 @@ import {
 } from '@ton/core'
 
 import * as ownable2step from '../libraries/access/Ownable2Step'
+import * as withdrawable from '../libraries/funding/Withdrawable'
 import { asSnakeData } from '../../src/utils'
 import { CellCodec } from '../utils'
 import * as rt from './Router'
@@ -163,7 +164,7 @@ export abstract class Opcodes {
 
 export abstract class Errors {}
 
-export class OnRamp implements Contract {
+export class OnRamp implements Contract, withdrawable.Interface {
   constructor(
     readonly address: Address,
     readonly init?: { code: Cell; data: Cell },
@@ -233,5 +234,19 @@ export class OnRamp implements Contract {
         )
         .endCell(),
     })
+  }
+
+  // Withdrawable methods
+  async sendWithdraw(
+    provider: ContractProvider,
+    via: Sender,
+    value: bigint,
+    body: withdrawable.Withdraw,
+  ) {
+    await withdrawable.sendWithdraw(provider, via, value, body)
+  }
+
+  async getReserve(provider: ContractProvider): Promise<bigint> {
+    return await withdrawable.getReserve(provider)
   }
 }

@@ -10,14 +10,17 @@ import {
   SendMode,
   Slice,
   Builder,
+  ContractABI,
 } from '@ton/core'
 
 import { OCR3Base, ReportContext, SignatureEd25519 } from '../libraries/ocr/MultiOCR3Base'
 import { asSnakeData, fromSnakeData, bigIntToUint8Array } from '../../src/utils/types'
 import * as ownable2step from '../libraries/access/Ownable2Step'
+import * as withdrawable from '../libraries/funding/Withdrawable'
 import { crc32 } from 'zlib'
 import { CellCodec, facilityId } from '../utils'
 import { CCIPReceive, ReceiverStorage } from './Receiver'
+import { Maybe } from '@ton/core/dist/utils/maybe'
 
 export type OffRampStorage = {
   id: bigint
@@ -251,7 +254,7 @@ export enum ReceiveExecutorError {
   Unauthorized, //TODO maybe use Ownable2Step or similar
 }
 
-export class OffRamp extends OCR3Base {
+export class OffRamp extends OCR3Base implements withdrawable.Interface {
   constructor(
     readonly address: Address,
     readonly init?: { code: Cell; data: Cell },
@@ -410,6 +413,20 @@ export class OffRamp extends OCR3Base {
       isRMNVerificationDisabled,
       onRamp,
     }
+  }
+
+  // Withdrawable methods
+  async sendWithdraw(
+    provider: ContractProvider,
+    via: Sender,
+    value: bigint,
+    body: withdrawable.Withdraw,
+  ) {
+    await withdrawable.sendWithdraw(provider, via, value, body)
+  }
+
+  async getReserve(provider: ContractProvider): Promise<bigint> {
+    return await withdrawable.getReserve(provider)
   }
 }
 

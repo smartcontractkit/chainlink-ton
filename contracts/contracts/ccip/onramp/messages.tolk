@@ -3,6 +3,7 @@ import "../common/types"
 import "../common/messages"
 import "../router/messages"
 import "../../lib/utils"
+import "../../lib/funding/withdrawable"
 
 type OnRamp_InMessage =
     | OnRamp_Send
@@ -12,6 +13,7 @@ type OnRamp_InMessage =
     | OnRamp_UpdateDestChainConfigs
     | OnRamp_UpdateAllowlists
     | Common_JettonTransferNotification
+    | Withdrawable_Withdraw
     ;
     // TODO | UpdateExecutorCode
 

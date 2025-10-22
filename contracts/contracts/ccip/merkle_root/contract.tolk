@@ -6,11 +6,14 @@ import "../offramp/types"
 import "../../lib/utils"
 import "../../deployable/types.tolk"
 import "../receive_executor/storage"
-
-const CONTRACT_VERSION = "0.0.4";
+import "../../lib/funding/withdrawable"
 
 // MerkleRoot contract
 // Root is commited on Commit Reports and the existance of this contract is used to validate Execute Reports
+
+const CONTRACT_VERSION = "0.0.5";
+const RESERVE = ton("1"); // TODO: set correct value
+
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy MerkleRoot_InMessage.fromSlice(in.body);
