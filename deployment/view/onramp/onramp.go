@@ -92,7 +92,7 @@ func fetchDestChainConfig(ctx context.Context, c cldf_ton.Chain, block *ton.Bloc
 	}
 
 	chainSelectors := view.ParseExecutionResultForDestChainSelectors(result.AsTuple())
-	var allowedSendersDict []cell.DictKV
+
 	var lock sync.Mutex
 	eg, egCtx := errgroup.WithContext(ctx)
 	eg.SetLimit(runtime.NumCPU())
@@ -108,6 +108,7 @@ func fetchDestChainConfig(ctx context.Context, c cldf_ton.Chain, block *ton.Bloc
 				return err
 			}
 
+			var allowedSendersDict []cell.DictKV
 			allowedSenders := make(map[string]bool)
 			allowedSendersDict, err = cfg.AllowedSender.LoadAll()
 			if err != nil {

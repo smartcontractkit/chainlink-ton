@@ -43,8 +43,6 @@ func FetchView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, rou
 
 	selectorSlice := view.ParseExecutionResultForDestChainSelectors(result.AsTuple())
 
-	var onRampSlice *cell.Slice
-	var onRampAddr *address.Address
 	var lock sync.Mutex
 	eg, egCtx := errgroup.WithContext(ctx)
 	eg.SetLimit(runtime.NumCPU())
@@ -55,6 +53,9 @@ func FetchView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, rou
 			if err != nil {
 				return fmt.Errorf("error getting onrampAddr: %v", err)
 			}
+
+			var onRampSlice *cell.Slice
+			var onRampAddr *address.Address
 			onRampSlice, err = result.Slice(0)
 			if err != nil {
 				return err
