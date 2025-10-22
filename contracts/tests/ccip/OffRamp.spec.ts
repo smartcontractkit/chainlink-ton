@@ -194,14 +194,12 @@ describe('OffRamp - Withdrawable Tests', () => {
 // })
 
 describe('OffRamp - Current Version Tests', () => {
-  const currentVersionSpec = UpgradeableSpec.newCurrentVersionSpec(
-    {
-      contractType: OffRamp.type(),
-      currentVersion: OffRamp.version(),
-      getCurrentCode: () => OffRamp.code(),
-      CurrentVersionConstructor: OffRamp,
-    },
-    async (blockchain, owner) => {
+  const currentVersionSpec = UpgradeableSpec.newCurrentVersionSpec({
+    contractType: OffRamp.type(),
+    currentVersion: OffRamp.version(),
+    getCurrentCode: () => OffRamp.code(),
+    CurrentVersionConstructor: OffRamp,
+    deployCurrentContract: async (blockchain, owner) => {
       const code = await OffRamp.code()
       let data: OffRampStorage = {
         id: generateSecureRandomId(),
@@ -225,7 +223,7 @@ describe('OffRamp - Current Version Tests', () => {
       await contract.sendDeploy(deployer.getSender(), toNano('0.05'))
       return contract
     },
-  )
+  })
   currentVersionSpec.run()
 })
 

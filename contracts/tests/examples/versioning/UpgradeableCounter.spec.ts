@@ -62,16 +62,14 @@ async function setUpTest(i: number): Promise<{
 }
 
 describe('UpgradeableCounter - Upgrade Tests', () => {
-  const upgradeSpec = newUpgradeSpec(
-    {
-      contractType: upCounterV1.ContractClient.type(),
-      prevVersion: upCounterV1.ContractClient.version(),
-      currentVersion: upCounterV2.ContractClient.version(),
-      getPrevCode: () => upCounterV1.ContractClient.code(),
-      getCurrentCode: () => upCounterV2.ContractClient.code(),
-      CurrentVersionConstructor: upCounterV2.ContractClient,
-    },
-    async (blockchain, owner) => {
+  const upgradeSpec = newUpgradeSpec({
+    contractType: upCounterV1.ContractClient.type(),
+    prevVersion: upCounterV1.ContractClient.version(),
+    currentVersion: upCounterV2.ContractClient.version(),
+    getPrevCode: () => upCounterV1.ContractClient.code(),
+    getCurrentCode: () => upCounterV2.ContractClient.code(),
+    CurrentVersionConstructor: upCounterV2.ContractClient,
+    deployPrevContract: async (blockchain, owner) => {
       const codeV1 = await upCounterV1.ContractClient.code()
       const contract = blockchain.openContract(
         upCounterV1.ContractClient.createFromConfig(
@@ -87,19 +85,17 @@ describe('UpgradeableCounter - Upgrade Tests', () => {
       await contract.sendDeploy(deployer.getSender(), toNano('0.05'))
       return contract
     },
-  )
+  })
   upgradeSpec.run()
 })
 
 describe('UpgradeableCounter - Current Version Tests', () => {
-  const currentVersionSpec = newCurrentVersionSpec(
-    {
-      contractType: upCounterV2.ContractClient.type(),
-      currentVersion: upCounterV2.ContractClient.version(),
-      getCurrentCode: () => upCounterV2.ContractClient.code(),
-      CurrentVersionConstructor: upCounterV2.ContractClient,
-    },
-    async (blockchain, owner) => {
+  const currentVersionSpec = newCurrentVersionSpec({
+    contractType: upCounterV2.ContractClient.type(),
+    currentVersion: upCounterV2.ContractClient.version(),
+    getCurrentCode: () => upCounterV2.ContractClient.code(),
+    CurrentVersionConstructor: upCounterV2.ContractClient,
+    deployCurrentContract: async (blockchain, owner) => {
       const code = await upCounterV2.ContractClient.code()
       const contract = blockchain.openContract(
         upCounterV2.ContractClient.createFromConfig(
@@ -115,7 +111,7 @@ describe('UpgradeableCounter - Current Version Tests', () => {
       await contract.sendDeploy(deployer.getSender(), toNano('0.05'))
       return contract
     },
-  )
+  })
   currentVersionSpec.run()
 })
 

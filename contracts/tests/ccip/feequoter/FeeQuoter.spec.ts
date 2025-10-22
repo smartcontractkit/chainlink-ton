@@ -46,14 +46,12 @@ const CHAINSEL_TON = 13879075125137744094n // TODO this is copy/pasted from CCIP
 // })
 
 describe('FeeQuoter - Current Version Tests', () => {
-  const currentVersionSpec = UpgradeableSpec.newCurrentVersionSpec(
-    {
-      contractType: FeeQuoter.type(),
-      currentVersion: FeeQuoter.version(),
-      getCurrentCode: () => FeeQuoter.code(),
-      CurrentVersionConstructor: FeeQuoter,
-    },
-    async (blockchain, owner) => setupTestFeeQuoter(owner, blockchain),
-  )
+  const currentVersionSpec = UpgradeableSpec.newCurrentVersionSpec({
+    contractType: FeeQuoter.type(),
+    currentVersion: FeeQuoter.version(),
+    getCurrentCode: () => FeeQuoter.code(),
+    CurrentVersionConstructor: FeeQuoter,
+    deployCurrentContract: async (blockchain, owner) => setupTestFeeQuoter(owner, blockchain),
+  })
   currentVersionSpec.run()
 })

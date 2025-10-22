@@ -70,14 +70,12 @@ describe('OnRamp - Withdrawable Tests', () => {
 // })
 
 describe('OnRamp - Current Version Tests', () => {
-  const currentVersionSpec = UpgradeableSpec.newCurrentVersionSpec(
-    {
-      contractType: OnRamp.type(),
-      currentVersion: OnRamp.version(),
-      getCurrentCode: () => OnRamp.code(),
-      CurrentVersionConstructor: OnRamp,
-    },
-    async (blockchain, owner) => {
+  const currentVersionSpec = UpgradeableSpec.newCurrentVersionSpec({
+    contractType: OnRamp.type(),
+    currentVersion: OnRamp.version(),
+    getCurrentCode: () => OnRamp.code(),
+    CurrentVersionConstructor: OnRamp,
+    deployCurrentContract: async (blockchain, owner) => {
       const code = await OnRamp.code()
       let data: OnRampStorage = {
         id: 0,
@@ -101,6 +99,6 @@ describe('OnRamp - Current Version Tests', () => {
       await contract.sendDeploy(deployer.getSender(), toNano('0.05'))
       return contract
     },
-  )
+  })
   currentVersionSpec.run()
 })

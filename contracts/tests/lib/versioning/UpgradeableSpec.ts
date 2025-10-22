@@ -35,6 +35,11 @@ export type UpgradeTestConfig<TCurrentVersionContract> = {
   ) => TCurrentVersionContract
   /** Amount of TON to use on sendUpgrade */
   upgradeValue?: bigint
+  /** Function to deploy and setup the previous version contract */
+  deployPrevContract: (
+    blockchain: Blockchain,
+    owner: SandboxContract<TreasuryContract>,
+  ) => Promise<SandboxContract<UpgradeableContract>>
 }
 
 /**
@@ -54,6 +59,11 @@ export type CurrentVersionTestConfig<TCurrentVersionContract> = {
   ) => TCurrentVersionContract
   /** Amount of TON to use on sendUpgrade */
   upgradeValue?: bigint
+  /** Function to deploy and setup the current version contract */
+  deployCurrentContract: (
+    blockchain: Blockchain,
+    owner: SandboxContract<TreasuryContract>,
+  ) => Promise<SandboxContract<TCurrentVersionContract>>
 }
 
 /**
@@ -74,21 +84,18 @@ interface TestSetup {
  * Creates a reusable test suite for testing upgrades between two versions of an upgradeable contract.
  *
  * @param config Configuration for the upgrade tests
- * @param setupPrevContract Function to deploy and setup the previous version contract
  * @returns An object with test functions
  *
  * @example
  * ```typescript
- * const upgradeSpec = newUpgradeSpec(
- *   {
- *     contractType: 'com.chainlink.ton.examples.versioning.upgrades.UpgradeableCounter',
- *     prevVersion: '1.0.0',
- *     currentVersion: '2.0.0',
- *     getPrevCode: () => UpgradeableCounterV1.code(),
- *     getCurrentCode: () => UpgradeableCounterV2.code(),
- *     CurrentVersionConstructor: UpgradeableCounterV2,
- *   },
- *   async (blockchain, owner) => {
+ * const upgradeSpec = newUpgradeSpec({
+ *   contractType: 'com.chainlink.ton.examples.versioning.upgrades.UpgradeableCounter',
+ *   prevVersion: '1.0.0',
+ *   currentVersion: '2.0.0',
+ *   getPrevCode: () => UpgradeableCounterV1.code(),
+ *   getCurrentCode: () => UpgradeableCounterV2.code(),
+ *   CurrentVersionConstructor: UpgradeableCounterV2,
+ *   deployPrevContract: async (blockchain, owner) => {
  *     const codeV1 = await UpgradeableCounterV1.code()
  *     const contract = blockchain.openContract(
  *       UpgradeableCounterV1.createFromConfig(
@@ -104,7 +111,7 @@ interface TestSetup {
  *     await contract.sendDeploy(deployer.getSender(), toNano('0.05'))
  *     return contract
  *   }
- * )
+ * })
  *
  * describe('UpgradeableCounter - Upgrade Tests', () => {
  *   upgradeSpec.run()
@@ -114,13 +121,7 @@ interface TestSetup {
 export function newUpgradeSpec<
   TContractV1 extends UpgradeableContract,
   TContractV2 extends UpgradeableContract,
->(
-  config: UpgradeTestConfig<TContractV2>,
-  setupPrevContract: (
-    blockchain: Blockchain,
-    owner: SandboxContract<TreasuryContract>,
-  ) => Promise<SandboxContract<TContractV1>>,
-) {
+>(config: UpgradeTestConfig<TContractV2>) {
   async function setup(): Promise<TestSetup> {
     const blockchain = await Blockchain.create()
     blockchain.verbosity = {
@@ -134,7 +135,7 @@ export function newUpgradeSpec<
     const nonOwner = await blockchain.treasury('nonOwner')
     const prevCode = await config.getPrevCode()
     const currentCode = await config.getCurrentCode()
-    const prevContract: SandboxContract<UpgradeableContract> = await setupPrevContract(
+    const prevContract: SandboxContract<UpgradeableContract> = await config.deployPrevContract(
       blockchain,
       owner,
     )
@@ -256,19 +257,16 @@ interface CurrentVersionTestSetup {
  * Creates a reusable test suite for testing the current version of an upgradeable contract.
  *
  * @param config Configuration for the current version tests
- * @param setupCurrentContract Function to deploy and setup the current version contract
  * @returns An object with test functions
  *
  * @example
  * ```typescript
- * const currentVersionSpec = newCurrentVersionSpec(
- *   {
- *     contractType: 'com.chainlink.ton.examples.versioning.upgrades.UpgradeableCounter',
- *     currentVersion: '2.0.0',
- *     getCurrentCode: () => UpgradeableCounterV2.code(),
- *     CurrentVersionConstructor: UpgradeableCounterV2,
- *   },
- *   async (blockchain, owner) => {
+ * const currentVersionSpec = newCurrentVersionSpec({
+ *   contractType: 'com.chainlink.ton.examples.versioning.upgrades.UpgradeableCounter',
+ *   currentVersion: '2.0.0',
+ *   getCurrentCode: () => UpgradeableCounterV2.code(),
+ *   CurrentVersionConstructor: UpgradeableCounterV2,
+ *   deployCurrentContract: async (blockchain, owner) => {
  *     const code = await UpgradeableCounterV2.code()
  *     const contract = blockchain.openContract(
  *       UpgradeableCounterV2.createFromConfig(
@@ -284,7 +282,7 @@ interface CurrentVersionTestSetup {
  *     await contract.sendDeploy(deployer.getSender(), toNano('0.05'))
  *     return contract
  *   }
- * )
+ * })
  *
  * describe('UpgradeableCounter - Current Version Tests', () => {
  *   currentVersionSpec.run()
@@ -293,10 +291,6 @@ interface CurrentVersionTestSetup {
  */
 export function newCurrentVersionSpec<TCurrentVersionContract extends UpgradeableContract>(
   config: CurrentVersionTestConfig<TCurrentVersionContract>,
-  setupCurrentContract: (
-    blockchain: Blockchain,
-    owner: SandboxContract<TreasuryContract>,
-  ) => Promise<SandboxContract<TCurrentVersionContract>>,
 ) {
   async function setup(): Promise<CurrentVersionTestSetup> {
     const blockchain = await Blockchain.create()
@@ -310,10 +304,8 @@ export function newCurrentVersionSpec<TCurrentVersionContract extends Upgradeabl
     const owner = await blockchain.treasury('owner')
     const nonOwner = await blockchain.treasury('nonOwner')
     const currentCode = await config.getCurrentCode()
-    const currentContract: SandboxContract<UpgradeableContract> = await setupCurrentContract(
-      blockchain,
-      owner,
-    )
+    const currentContract: SandboxContract<UpgradeableContract> =
+      await config.deployCurrentContract(blockchain, owner)
 
     return {
       blockchain,

@@ -94,14 +94,12 @@ describe('Router - Withdrawable Tests', () => {
 // })
 
 describe('Router - Current Version Tests', () => {
-  const currentVersionSpec = UpgradeableSpec.newCurrentVersionSpec(
-    {
-      contractType: rt.Router.type(),
-      currentVersion: rt.Router.version(),
-      getCurrentCode: () => rt.Router.code(),
-      CurrentVersionConstructor: rt.Router,
-    },
-    async (blockchain, owner) => {
+  const currentVersionSpec = UpgradeableSpec.newCurrentVersionSpec({
+    contractType: rt.Router.type(),
+    currentVersion: rt.Router.version(),
+    getCurrentCode: () => rt.Router.code(),
+    CurrentVersionConstructor: rt.Router,
+    deployCurrentContract: async (blockchain, owner) => {
       const code = await rt.Router.code()
       let data: rt.Storage = {
         id: 0,
@@ -118,7 +116,7 @@ describe('Router - Current Version Tests', () => {
       await contract.sendInternal(deployer.getSender(), toNano('1'), Cell.EMPTY)
       return contract
     },
-  )
+  })
   currentVersionSpec.run()
 })
 
