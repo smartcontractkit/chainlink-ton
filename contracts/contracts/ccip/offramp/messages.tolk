@@ -5,6 +5,7 @@ import "../../lib/receiver/messages.tolk"
 import "../common/types.tolk"
 import "../../lib/utils"
 import "../../lib/funding/withdrawable"
+import "../../lib/versioning/upgradeable"
 
 type OffRamp_InMessage =
     | OffRamp_Commit
@@ -16,6 +17,8 @@ type OffRamp_InMessage =
     | OffRamp_CCIPReceiveConfirm
     | OffRamp_NotifyFailure
     | OffRamp_NotifySuccess
+    | OffRamp_NotifyFailure
+    | Upgradeable_Upgrade
     | Withdrawable_Withdraw
     ;
 

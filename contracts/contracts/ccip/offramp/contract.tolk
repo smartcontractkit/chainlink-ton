@@ -4,6 +4,7 @@ import "types"
 import "storage"
 import "events"
 
+import "../../lib/versioning/upgradeable"
 import "../common/types.tolk"
 import "../../deployable/types.tolk"
 import "../../lib/access/ownable_2step.tolk"
@@ -68,6 +69,9 @@ fun onInternalMessage(in:InMessage) {
                 reserve: RESERVE
             }.withdraw(msg, in.valueCoins);
         }
+        Upgradeable_Upgrade => {
+            _upgrade(msg, in.senderAddress);
+        }
         else => {
             // ignore empty messages, "wrong opcode" for others
             assert (in.body.isEmpty()) throw 0xFFFF
@@ -85,7 +89,22 @@ fun onBouncedMessage(in: InMessageBounced) {
             _bouncedCCIPReceive(msg.execId, in.senderAddress);
         }
     }
-} 
+}
+
+fun _upgrade(msg: Upgradeable_Upgrade, sender: address) {
+    val st = Storage.load();
+    st.ownable.requireOwner(sender);
+    Upgradeable{
+        migrate: migrate,
+        version: version,
+    }.upgrade(msg);
+}
+
+@method_id(1000)
+fun migrate(storage: cell, version: slice): cell { throw Upgradeable_Error.VersionMismatch; }
+
+@method_id(1001)
+fun version(): slice { return CONTRACT_VERSION; }
 
 fun _bouncedCCIPReceive(execId: uint224, sender: address) {
     val st = Storage.load();
@@ -555,15 +574,6 @@ get fun facilityId(): uint16  {
 
 get fun errorCode(local: uint16): uint16 {
     return getErrorCode(stringCrc32("com.chainlink.ton.ccip.OffRamp"), local);
-}
-// Returns the current code of the contract.
-get fun code(): cell {
-    return contract.getCode();
-}
-
-// Returns the sha256 hash of the current code of the contract.
-get fun codeHash(): int {
-    return contract.getCode().hash();
 }
 
 get fun reserve(): coins {

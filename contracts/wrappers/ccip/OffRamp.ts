@@ -21,6 +21,9 @@ import { crc32 } from 'zlib'
 import { CellCodec, facilityId } from '../utils'
 import { CCIPReceive, ReceiverStorage } from './Receiver'
 import { Maybe } from '@ton/core/dist/utils/maybe'
+import * as upgradeable from '../libraries/versioning/Upgradeable'
+import * as typeAndVersion from '../libraries/TypeAndVersion'
+import { compile } from '@ton/blueprint'
 
 export type OffRampStorage = {
   id: bigint
@@ -225,6 +228,8 @@ export const MERKLE_ROOT_FACILITY_NAME = 'com.chainlink.ton.ccip.MerkleRoot'
 export const MERKLE_ROOT_FACILITY_ID = 479
 export const MERKLE_ROOT_ERROR_CODE = 47900 //FACILITY_ID * 100
 
+export const OFFRAMP_CONTRACT_VERSION = '0.0.7'
+
 export const OFFRAMP_FACILITY_NAME = 'com.chainlink.ton.ccip.OffRamp'
 export const OFFRAMP_FACILITY_ID = 84
 export const OFFRAMP_ERROR_CODE = 8400 //FACILITY_ID * 100
@@ -254,13 +259,17 @@ export enum ReceiveExecutorError {
   Unauthorized, //TODO maybe use Ownable2Step or similar
 }
 
-export class OffRamp extends OCR3Base implements withdrawable.Interface {
+export class OffRamp
+  extends OCR3Base
+  implements upgradeable.Interface, withdrawable.Interface, typeAndVersion.TypeAndVersion, Contract
+{
   constructor(
     readonly address: Address,
     readonly init?: { code: Cell; data: Cell },
   ) {
     super()
   }
+  abi?: Maybe<ContractABI>
 
   static createFromAddress(address: Address) {
     return new OffRamp(address)
@@ -286,6 +295,37 @@ export class OffRamp extends OCR3Base implements withdrawable.Interface {
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: Cell.EMPTY,
     })
+  }
+
+  sendUpgrade(
+    provider: ContractProvider,
+    via: Sender,
+    value: bigint,
+    body: upgradeable.Upgrade,
+  ): Promise<void> {
+    return upgradeable.sendUpgrade(provider, via, value, body)
+  }
+
+  getTypeAndVersion(provider: ContractProvider): Promise<{ type: string; version: string }> {
+    return typeAndVersion.getTypeAndVersion(provider)
+  }
+  getCode(provider: ContractProvider): Promise<Cell> {
+    return typeAndVersion.getCode(provider)
+  }
+  getCodeHash(provider: ContractProvider): Promise<bigint> {
+    return typeAndVersion.getCodeHash(provider)
+  }
+
+  static version() {
+    return OFFRAMP_CONTRACT_VERSION
+  }
+
+  static type() {
+    return OFFRAMP_FACILITY_NAME
+  }
+
+  static async code() {
+    return await compile('OffRamp')
   }
 
   async sendCommit(

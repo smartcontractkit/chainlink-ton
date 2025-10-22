@@ -1,21 +1,21 @@
-import "../../../../../lib/utils.tolk";
-import "../../../../../lib/upgrades/type_and_version.tolk";
-import "../../../../../lib/upgrades/upgradeable.tolk";
-import "../../../../../lib/access/ownable_2step.tolk";
+import "../../../../../../lib/utils.tolk";
+import "../../../../../../lib/versioning/upgradeable.tolk";
+import "../../../../../../lib/access/ownable_2step.tolk";
 import "./storage.tolk";
+import "../v1/storage.tolk";
 
 type IncomingMessage = Upgradeable_Upgrade | Step;
 
 fun loadData() {
-    return StorageV1.fromCell(contract.getData());
+    return StorageV2.fromCell(contract.getData());
 }
 
-fun saveData(data: StorageV1) {
+fun saveData(data: StorageV2) {
     contract.setData(data.toCell());
 }
 
-const typeStr= "com.chainlink.ton.examples.upgrades.UpgradeableCounter";
-const versionStr = "1.0.0";
+const FACILITY_NAME= "com.chainlink.ton.examples.versioning.upgrades.UpgradeableCounter";
+const CONTRACT_VERSION = "2.0.0";
 
 struct (0x00000001) Step {
     queryId: uint64;
@@ -43,11 +43,11 @@ fun onInternalMessage(in: InMessage) {
             Upgradeable{
                 migrate: migrate,
                 version: version,
-            }.upgrade(msg.code);
+            }.upgrade(msg);
         }
         Step => {
             /// Instructs the contract to step the counter.
-            storage.value += 1;
+            storage.value -= 1;
             saveData(storage);
         }
     }
@@ -71,11 +71,34 @@ get fun pendingOwner(): address? {
     return storage.ownable2Step.get_pendingOwner();
 }
 
+const COUNTER_V1_CONTRACT_VERSION = "1.0.0";
+
 @method_id(1000)
-fun migrate(storage: cell): cell { return createEmptyCell(); }
+fun migrate(storage: cell, version: slice): cell {
+    assert (version.bitsEqual(COUNTER_V1_CONTRACT_VERSION)) throw Upgradeable_Error.VersionMismatch;
+    
+    // Parse it as StorageV1
+    var oldStorage = StorageV1.fromCell(storage);
+    // Create new StorageV2 with the old value and id
+    var newStorage = StorageV2{
+        value: oldStorage.value as uint64,
+        id: oldStorage.id,
+        ownable2Step: oldStorage.ownable2Step,
+    };
+    return newStorage.toCell();
+}
 @method_id(1001)
-fun version(): slice { return versionStr; }
+fun version(): slice { return CONTRACT_VERSION; }
+
 
 get fun typeAndVersion(): (slice, slice) {
-    return TypeAndVersion{typeStr, versionStr}.typeAndVersion();
+    return ("com.chainlink.ton.examples.versioning.upgrades.UpgradeableCounter", CONTRACT_VERSION);
+}
+
+get fun facilityId(): uint16  {
+    return getFacilityId(stringCrc32("com.chainlink.ton.examples.versioning.upgrades.UpgradeableCounter"));
+}
+
+get fun errorCode(local: uint16): uint16 {
+    return getErrorCode(stringCrc32("com.chainlink.ton.examples.versioning.upgrades.UpgradeableCounter"), local);
 }

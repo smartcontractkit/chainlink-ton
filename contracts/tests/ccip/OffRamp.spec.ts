@@ -53,6 +53,7 @@ import { Receiver } from '../../wrappers/ccip/Receiver'
 import { crc32 } from 'zlib'
 import { facilityId } from '../../wrappers/utils'
 import { MerkleHelper } from '../lib/merkle_proof/helpers/MerkleMultiProofHelper'
+import * as UpgradeableSpec from '../lib/versioning/UpgradeableSpec'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_TON = 13879075125137744094n
@@ -145,9 +146,9 @@ describe('OffRamp - Withdrawable Tests', () => {
           pendingOwner: null,
         },
         deployables: {
-          receiveExecutorCode: beginCell().endCell(),
           deployerCode: beginCell().endCell(),
           merkleRootCode: beginCell().endCell(),
+          receiveExecutorCode: beginCell().endCell(),
         },
         feeQuoter: ZERO_ADDRESS,
         chainSelector: CHAINSEL_TON,
@@ -162,6 +163,68 @@ describe('OffRamp - Withdrawable Tests', () => {
     },
   })
   withdrawableSpec.run()
+})
+
+// TODO when we have a new version
+// describe('OffRamp - Upgrade Tests', () => {
+//   const upgradeSpec = UpgradeableSpec.newUpgradeSpec(
+//     {
+//       contractType: OffRampPrev.type(),
+//       prevVersion: OffRampPrev.version(),
+//       currentVersion: OffRamp.version(),
+//       getPrevCode: () => OffRampPrev.code(),
+//       getCurrentCode: () => OffRamp.code(),
+//       CurrentVersionConstructor: OffRamp,
+//     },
+//     async (blockchain, owner) => {
+//       const codeV1 = await OffRampPrev.code()
+//       const data = {} as any // TODO fill with valid data
+//       const contract = blockchain.openContract(
+//         OffRampPrev.createFromConfig(
+//           data,
+//           codeV1,
+//         ),
+//       )
+//       const deployer = await blockchain.treasury('deployer')
+//       await contract.sendDeploy(deployer.getSender(), toNano('0.05'))
+//       return contract
+//     },
+//   )
+//   upgradeSpec.run()
+// })
+
+describe('OffRamp - Current Version Tests', () => {
+  const currentVersionSpec = UpgradeableSpec.newCurrentVersionSpec({
+    contractType: OffRamp.type(),
+    currentVersion: OffRamp.version(),
+    getCurrentCode: () => OffRamp.code(),
+    CurrentVersionConstructor: OffRamp,
+    deployCurrentContract: async (blockchain, owner) => {
+      const code = await OffRamp.code()
+      let data: OffRampStorage = {
+        id: generateSecureRandomId(),
+        ownable: {
+          owner: owner.address,
+          pendingOwner: null,
+        },
+        deployables: {
+          deployerCode: beginCell().endCell(),
+          merkleRootCode: beginCell().endCell(),
+          receiveExecutorCode: beginCell().endCell(),
+        },
+        feeQuoter: ZERO_ADDRESS,
+        chainSelector: CHAINSEL_TON,
+        permissionlessExecutionThresholdSeconds: 60,
+        latestPriceSequenceNumber: 0n,
+      }
+
+      const contract = blockchain.openContract(OffRamp.createFromConfig(data, code))
+      const deployer = await blockchain.treasury('deployer')
+      await contract.sendDeploy(deployer.getSender(), toNano('0.05'))
+      return contract
+    },
+  })
+  currentVersionSpec.run()
 })
 
 describe('OffRamp - Unit Tests', () => {

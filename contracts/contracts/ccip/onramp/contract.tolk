@@ -18,8 +18,9 @@ import "../router/messages"
 import "../../lib/jetton/messages"
 import "../../lib/jetton/messages_extended"
 import "../../lib/funding/withdrawable"
+import "../../lib/versioning/upgradeable"
 
-const CONTRACT_VERSION = "0.0.6";
+const CONTRACT_VERSION = "0.0.7";
 const RESERVE = ton("1"); // TODO: set correct value
 
 fun onInternalMessage(in: InMessage) {
@@ -55,6 +56,14 @@ fun onInternalMessage(in: InMessage) {
             Withdrawable{
                 reserve: RESERVE
             }.withdraw(msg, in.valueCoins);
+        }
+        Upgradeable_Upgrade => {
+            var st = lazy OnRamp_Storage.load();
+            st.ownable.requireOwner(in.senderAddress);
+            Upgradeable{
+                migrate: migrate,
+                version: version,
+            }.upgrade(msg);
         }
         else => {
             // ignore empty messages, "wrong opcode" for others
@@ -344,16 +353,12 @@ get fun errorCode(local: uint16): uint16 {
     return getErrorCode(stringCrc32("com.chainlink.ton.ccip.OnRamp"), local);
 }
 
-// Returns the current code of the contract.
-get fun code(): cell {
-    return contract.getCode();
-}
-
-// Returns the sha256 hash of the current code of the contract.
-get fun codeHash(): int {
-    return contract.getCode().hash();
-}
-
 get fun reserve(): coins {
     return RESERVE;
 }
+
+@method_id(1000)
+fun migrate(storage: cell, version: slice): cell { throw Upgradeable_Error.VersionMismatch; }
+
+@method_id(1001)
+fun version(): slice { return CONTRACT_VERSION; }

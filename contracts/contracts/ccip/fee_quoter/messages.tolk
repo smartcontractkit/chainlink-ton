@@ -2,6 +2,7 @@ import "types"
 import "../router/messages"
 import "../../lib/utils"
 import "../../lib/funding/withdrawable"
+import "../../lib/versioning/upgradeable"
 
 type FeeQuoter_InMessage =
     | FeeQuoter_UpdatePrices
@@ -10,6 +11,7 @@ type FeeQuoter_InMessage =
     | FeeQuoter_UpdateDestChainConfigs
     | FeeQuoter_GetValidatedFee<cell> // marked as cell since we never attempt to load the metadata
     | Withdrawable_Withdraw
+    | Upgradeable_Upgrade;
     ;
 
 struct (0x20000001) FeeQuoter_UpdatePrices {

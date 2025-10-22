@@ -18,6 +18,11 @@ import * as ownable2step from '../libraries/access/Ownable2Step'
 import * as withdrawable from '../libraries/funding/Withdrawable'
 import { CellCodec } from '../utils'
 import { asSnakeData, fromSnakeData } from '../../src/utils'
+import * as upgradeable from '../libraries/versioning/Upgradeable'
+import * as typeAndVersion from '../libraries/TypeAndVersion'
+import { compile } from '@ton/blueprint'
+
+export const FEE_QUOTER_CONTRACT_VERSION = '0.0.6'
 
 export const FEE_QUOTER_FACILITY_NAME = 'com.chainlink.ton.ccip.FeeQuoter'
 export const FEE_QUOTER_FACILITY_ID = 248
@@ -382,7 +387,9 @@ export type UpdateDestChainConfigs = {
 
 export abstract class Errors {}
 
-export class FeeQuoter implements Contract, withdrawable.Interface {
+export class FeeQuoter
+  implements upgradeable.Interface, withdrawable.Interface, typeAndVersion.TypeAndVersion, Contract
+{
   constructor(
     readonly address: Address,
     readonly init?: { code: Cell; data: Cell },
@@ -412,6 +419,37 @@ export class FeeQuoter implements Contract, withdrawable.Interface {
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: beginCell().endCell(),
     })
+  }
+
+  sendUpgrade(
+    provider: ContractProvider,
+    via: Sender,
+    value: bigint,
+    body: upgradeable.Upgrade,
+  ): Promise<void> {
+    return upgradeable.sendUpgrade(provider, via, value, body)
+  }
+
+  getTypeAndVersion(provider: ContractProvider): Promise<{ type: string; version: string }> {
+    return typeAndVersion.getTypeAndVersion(provider)
+  }
+  getCode(provider: ContractProvider): Promise<Cell> {
+    return typeAndVersion.getCode(provider)
+  }
+  getCodeHash(provider: ContractProvider): Promise<bigint> {
+    return typeAndVersion.getCodeHash(provider)
+  }
+
+  static version() {
+    return FEE_QUOTER_CONTRACT_VERSION
+  }
+
+  static type() {
+    return FEE_QUOTER_FACILITY_NAME
+  }
+
+  static async code() {
+    return await compile('FeeQuoter')
   }
 
   async sendUpdateDestChainConfigs(

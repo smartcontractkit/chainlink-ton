@@ -10,7 +10,7 @@ import "../../../lib/receiver/types";
 import "../../../lib/utils";
 import "../../../ccip/offramp/messages";
 
-const CONTRACT_VERSION = "0.0.1";
+const CONTRACT_VERSION = "0.0.2";
 
 const RECEIVED_MESSAGE_TOPIC = 0xc5a40ab3; //crc32('Receiver_CCIPMessageReceived')
 
@@ -70,14 +70,4 @@ get fun facilityId(): uint16  {
 
 get fun errorCode(local: uint16): uint16 {
     return getErrorCode(stringCrc32("com.chainlink.ton.ccip.test.Receiver"), local);
-}
-
-// Returns the current code of the contract.
-get fun code(): cell {
-    return contract.getCode();
-}
-
-// Returns the sha256 hash of the current code of the contract.
-get fun codeHash(): int {
-    return contract.getCode().hash();
 }
