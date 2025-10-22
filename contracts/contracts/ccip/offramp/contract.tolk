@@ -20,7 +20,7 @@ import "../merkle_root/storage"
 import "../receive_executor/messages"
 import "../receive_executor/storage"
 
-const CONTRACT_VERSION = "0.0.7";
+const CONTRACT_VERSION = "0.0.8";
 const RESERVE = ton("1"); // TODO: set correct value
 
 fun onInternalMessage(in:InMessage) {

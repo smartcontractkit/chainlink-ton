@@ -15,7 +15,7 @@ import "../../lib/jetton/messages_extended"
 import "../../lib/versioning/upgradeable"
 
 
-const CONTRACT_VERSION = "0.0.5";
+const CONTRACT_VERSION = "0.0.6";
 const RESERVE = ton("1"); // TODO: set correct value
 
 fun onInternalMessage(in: InMessage) {
