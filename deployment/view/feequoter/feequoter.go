@@ -23,46 +23,8 @@ const (
 // View represents a view of the fee quoter contract configuration.
 type View struct {
 	view.MetaData
-	StaticConfig    StaticConfig               `json:"staticConfig"`
-	DestChainConfig map[uint64]DestChainConfig `json:"destChainConfig,omitempty"`
-}
-
-type PremiumMultipliers struct {
-	PremiumMultiplierWeiPerEth uint64 `json:"premiumMultiplierWeiPerEth,omitempty"`
-}
-
-type StaticConfig struct {
-	MaxFeeJuelsPerMsg  string           `json:"maxFeeJuelsPerMsg,omitempty"`
-	LinkToken          *address.Address `json:"linkToken,omitempty"`
-	StalenessThreshold uint32           `json:"stalenessThreshold,omitempty"`
-}
-
-type USDPerUnitGas struct {
-	ExecutionGasPrice        string `json:"executionGasPrice,omitempty"`
-	DataAvailabilityGasPrice string `json:"dataAvailabilityGasPrice,omitempty"`
-	Timestamp                uint64 `json:"timestamp,omitempty"`
-}
-
-type DestChainConfig struct {
-	IsEnabled                         bool   `json:"isEnabled,omitempty"`
-	MaxNumberOfTokensPerMsg           uint16 `json:"maxNumberOfTokensPerMsg,omitempty"`
-	MaxDataBytes                      uint32 `json:"maxDataBytes,omitempty"`
-	MaxPerMsgGasLimit                 uint32 `json:"maxPerMsgGasLimit,omitempty"`
-	DestGasOverhead                   uint32 `json:"destGasOverhead,omitempty"`
-	DestGasPerPayloadByteBase         uint8  `json:"destGasPerPayloadByteBase,omitempty"`
-	DestGasPerPayloadByteHigh         uint8  `json:"destGasPerPayloadByteHigh,omitempty"`
-	DestGasPerPayloadByteThreshold    uint16 `json:"destGasPerPayloadByteThreshold,omitempty"`
-	DestDataAvailabilityOverheadGas   uint32 `json:"destDataAvailabilityOverheadGas,omitempty"`
-	DestGasPerDataAvailabilityByte    uint16 `json:"destGasPerDataAvailabilityByte,omitempty"`
-	DestDataAvailabilityMultiplierBps uint16 `json:"destDataAvailabilityMultiplierBps,omitempty"`
-	ChainFamilySelector               uint32 `json:"chainFamilySelector,omitempty"`
-	EnforceOutOfOrder                 bool   `json:"enforceOutOfOrder,omitempty"`
-	DefaultTokenFeeUsdCents           uint16 `json:"defaultTokenFeeUsdCents,omitempty"`
-	DefaultTokenDestGasOverhead       uint32 `json:"defaultTokenDestGasOverhead,omitempty"`
-	DefaultTxGasLimit                 uint32 `json:"defaultTxGasLimit,omitempty"`
-	GasMultiplierWeiPerEth            uint64 `json:"gasMultiplierWeiPerEth,omitempty"`
-	GasPriceStalenessThreshold        uint32 `json:"gasPriceStalenessThreshold,omitempty"`
-	NetworkFeeUsdCents                uint32 `json:"networkFeeUsdCents,omitempty"`
+	StaticConfig    feequoter.StaticConfig               `json:"staticConfig"`
+	DestChainConfig map[uint64]feequoter.DestChainConfig `json:"destChainConfig,omitempty"`
 }
 
 // FetchView generates a view of the fee quoter contract at the specified block.
@@ -97,16 +59,12 @@ func FetchView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, fee
 			ContractType: typeVersion.Type,
 			Version:      typeVersion.Version,
 		},
-		StaticConfig: StaticConfig{
-			MaxFeeJuelsPerMsg:  sc.MaxFeeJuelsPerMsg.String(),
-			LinkToken:          sc.LinkToken,
-			StalenessThreshold: sc.StalenessThreshold,
-		},
+		StaticConfig:    sc,
 		DestChainConfig: destConfigs,
 	}, nil
 }
 
-func fetchDestChainConfigsView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, feeQuoter *address.Address) (map[uint64]DestChainConfig, error) {
+func fetchDestChainConfigsView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, feeQuoter *address.Address) (map[uint64]feequoter.DestChainConfig, error) {
 	result, err := c.Client.RunGetMethod(ctx, block, feeQuoter, view.DestChainsGetter)
 	if err != nil {
 		return nil, err
@@ -117,7 +75,7 @@ func fetchDestChainConfigsView(ctx context.Context, c cldf_ton.Chain, block *ton
 
 	var lock sync.Mutex
 	eg.SetLimit(runtime.NumCPU())
-	output := make(map[uint64]DestChainConfig)
+	output := make(map[uint64]feequoter.DestChainConfig)
 	for _, dest := range selectorSlice {
 		eg.Go(func() error {
 			result, err = c.Client.RunGetMethod(egCtx, block, feeQuoter, view.DestChainConfigGetter, dest) // New variables per goroutine
@@ -130,27 +88,7 @@ func fetchDestChainConfigsView(ctx context.Context, c cldf_ton.Chain, block *ton
 			}
 
 			lock.Lock()
-			output[dest] = DestChainConfig{
-				IsEnabled:                         cfg.IsEnabled,
-				MaxNumberOfTokensPerMsg:           cfg.MaxNumberOfTokensPerMsg,
-				MaxDataBytes:                      cfg.MaxDataBytes,
-				MaxPerMsgGasLimit:                 cfg.MaxPerMsgGasLimit,
-				DestGasOverhead:                   cfg.DestGasOverhead,
-				DestGasPerPayloadByteBase:         cfg.DestGasPerPayloadByteBase,
-				DestGasPerPayloadByteHigh:         cfg.DestGasPerPayloadByteHigh,
-				DestGasPerPayloadByteThreshold:    cfg.DestGasPerPayloadByteThreshold,
-				DestDataAvailabilityOverheadGas:   cfg.DestDataAvailabilityOverheadGas,
-				DestGasPerDataAvailabilityByte:    cfg.DestGasPerDataAvailabilityByte,
-				DestDataAvailabilityMultiplierBps: cfg.DestDataAvailabilityMultiplierBps,
-				ChainFamilySelector:               cfg.ChainFamilySelector,
-				EnforceOutOfOrder:                 cfg.EnforceOutOfOrder,
-				DefaultTokenFeeUsdCents:           cfg.DefaultTokenFeeUsdCents,
-				DefaultTokenDestGasOverhead:       cfg.DefaultTokenDestGasOverhead,
-				DefaultTxGasLimit:                 cfg.DefaultTxGasLimit,
-				GasMultiplierWeiPerEth:            cfg.GasMultiplierWeiPerEth,
-				GasPriceStalenessThreshold:        cfg.GasPriceStalenessThreshold,
-				NetworkFeeUsdCents:                cfg.NetworkFeeUsdCents,
-			}
+			output[dest] = cfg
 			lock.Unlock()
 
 			return nil

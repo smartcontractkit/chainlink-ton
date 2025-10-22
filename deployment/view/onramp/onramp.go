@@ -10,7 +10,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/deployment/view"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
-	"github.com/xssnick/tonutils-go/tvm/cell"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
@@ -24,22 +23,9 @@ const (
 // View represents a view of the on-ramp contract configuration.
 type View struct {
 	view.MetaData
-	ChainSelector   uint64                     `json:"chainSelector,omitempty"`
-	DynamicConfig   DynamicConfig              `json:"dynamicConfig,omitempty"`
-	DestChainConfig map[uint64]DestChainConfig `json:"feeQuoterDestChainConfig,omitempty"`
-}
-
-type DynamicConfig struct {
-	FeeQuoter      string
-	FeeAggregator  string
-	AllowListAdmin string
-}
-
-type DestChainConfig struct {
-	SequenceNumber   uint64          `json:"sequenceNumber,omitempty"`
-	AllowlistEnabled bool            `json:"allowlistEnabled,omitempty"`
-	Router           string          `json:"router,omitempty"`
-	AllowedSenders   map[string]bool `json:"allowedSenders,omitempty"`
+	ChainSelector   uint64                            `json:"chainSelector,omitempty"`
+	DynamicConfig   onramp.DynamicConfig              `json:"dynamicConfig,omitempty"`
+	DestChainConfig map[uint64]onramp.DestChainConfig `json:"feeQuoterDestChainConfig,omitempty"`
 }
 
 // FetchView generates a view of the on-ramp contract at the specified block.
@@ -74,18 +60,14 @@ func FetchView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, onR
 			ContractType: typeVersion.Type,
 			Version:      typeVersion.Version,
 		},
-		ChainSelector: srcSelector,
-		DynamicConfig: DynamicConfig{
-			FeeQuoter:      dConfig.FeeQuoter.String(),
-			FeeAggregator:  dConfig.FeeAggregator.String(),
-			AllowListAdmin: dConfig.AllowListAdmin.String(),
-		},
+		ChainSelector:   srcSelector,
+		DynamicConfig:   dConfig,
 		DestChainConfig: destChainConfig,
 	}, nil
 }
 
 // fetchDestChainConfig retrieves destination chain configurations from the on-ramp contract.
-func fetchDestChainConfig(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, onRampAddr *address.Address) (map[uint64]DestChainConfig, error) {
+func fetchDestChainConfig(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, onRampAddr *address.Address) (map[uint64]onramp.DestChainConfig, error) {
 	result, err := c.Client.RunGetMethod(ctx, block, onRampAddr, view.DestChainsGetter)
 	if err != nil {
 		return nil, err
@@ -96,7 +78,7 @@ func fetchDestChainConfig(ctx context.Context, c cldf_ton.Chain, block *ton.Bloc
 	var lock sync.Mutex
 	eg, egCtx := errgroup.WithContext(ctx)
 	eg.SetLimit(runtime.NumCPU())
-	output := make(map[uint64]DestChainConfig)
+	output := make(map[uint64]onramp.DestChainConfig)
 	for _, dest := range chainSelectors {
 		eg.Go(func() error {
 			result, err := c.Client.RunGetMethod(egCtx, block, onRampAddr, view.DestChainConfigGetter, dest) // New variables per goroutine
@@ -107,37 +89,9 @@ func fetchDestChainConfig(ctx context.Context, c cldf_ton.Chain, block *ton.Bloc
 			if err = cfg.FromResult(result); err != nil {
 				return err
 			}
-
-			var allowedSendersDict []cell.DictKV
-			allowedSenders := make(map[string]bool)
-			allowedSendersDict, err = cfg.AllowedSender.LoadAll()
-			if err != nil {
-				return fmt.Errorf("failed to load all allowed senders: %w", err)
-			}
-
-			var allowed bool
-			var senderAddr *address.Address
-			for _, senderVal := range allowedSendersDict {
-				senderAddr, err = senderVal.Key.LoadAddr()
-				if err != nil {
-					return fmt.Errorf("failed to load sender address: %w", err)
-				}
-
-				allowed, err = senderVal.Value.LoadBoolBit()
-				if err != nil {
-					return fmt.Errorf("failed to load allowed bool: %w", err)
-				}
-
-				allowedSenders[senderAddr.String()] = allowed
-			}
-
+			
 			lock.Lock()
-			output[dest] = DestChainConfig{
-				SequenceNumber:   cfg.SequenceNumber,
-				AllowlistEnabled: cfg.AllowListEnabled,
-				Router:           cfg.Router.String(),
-				AllowedSenders:   allowedSenders,
-			}
+			output[dest] = cfg
 			lock.Unlock()
 
 			return nil

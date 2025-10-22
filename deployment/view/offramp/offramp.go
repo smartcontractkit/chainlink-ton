@@ -20,7 +20,7 @@ import (
 type View struct {
 	view.MetaData
 	LatestPriceSequenceNumber uint64                       `json:"latestPriceSequenceNumber,omitempty"`
-	Config                    Config                       `json:"Config,omitempty"`
+	Config                    offramp.Config               `json:"Config,omitempty"`
 	SourceChainConfigs        map[uint64]SourceChainConfig `json:"sourceChainConfigs,omitempty"`
 }
 
@@ -30,12 +30,6 @@ type SourceChainConfig struct {
 	MinSeqNr                  uint64 `json:"minSeqNr,omitempty"`
 	IsRMNVerificationDisabled bool   `json:"isRMNVerificationDisabled,omitempty"`
 	OnRamp                    string `json:"onRamp,omitempty"`
-}
-
-type Config struct {
-	FeeQuoter                               string `json:"feeQuoter,omitempty"`
-	ChainSelector                           uint64 `json:"chainSelector,omitempty"`
-	PermissionlessExecutionThresholdSeconds uint32 `json:"permissionlessExecutionThresholdSeconds,omitempty"`
 }
 
 // FetchView generates a view of the offramp contract at the specified block.
@@ -81,12 +75,8 @@ func FetchView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, off
 			Version:      typeVersion.Version,
 		},
 		LatestPriceSequenceNumber: latestSeqNumInt.Uint64(),
-		Config: Config{
-			ChainSelector:                           offRampConfig.ChainSelector,
-			FeeQuoter:                               offRampConfig.FeeQuoterAddress.String(),
-			PermissionlessExecutionThresholdSeconds: offRampConfig.PermissionlessExecutionThresholdSeconds,
-		},
-		SourceChainConfigs: sourceChainConfigs,
+		Config:                    offRampConfig,
+		SourceChainConfigs:        sourceChainConfigs,
 	}, nil
 }
 
