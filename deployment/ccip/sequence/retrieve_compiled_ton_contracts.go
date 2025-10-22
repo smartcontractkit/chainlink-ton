@@ -32,6 +32,7 @@ type ContractMappingMetadata struct {
 	SuggestedTONCoinsForDeployment string
 }
 
+// Eventually, we can move this mapping into a descriptor as part of the contract release package.
 var contractsMapping = map[ds.ContractType]ContractMappingMetadata{
 	// Core CCIP Contracts
 	state.Router: ContractMappingMetadata{
@@ -122,15 +123,13 @@ var RetrieveContractsSequence = operations.NewSequence(
 // IMPORTANT:
 //
 // This sequence also allows someone to retrieve the contract from a GitHub release
-// (or locally for development) by passing the chain and a semantic version (semver).
+// (or "local" for local development) by passing the commit SHA and a semantic version (semver).
 //
 // At the moment, we have only one version of the contracts, but in the future we might
-// have multiple versions — which is why this parameter is important. We assume that
-// the current version is 1.6.0 to match the CCIP release.
+// have multiple versions — which is why this parameter is important.
 //
-// In theory, there is a single version per contract, but this is something we need
-// to revisit. Eventually, we can move this mapping into a descriptor as part of
-// the contract release package.
+// We assume that the current version is 1.6.0 to match the CCIP release. However, in theory,
+// there is a single version per contract — but this is something we need to revisit.
 func retrieveCompiledTONContractsSequence(b operations.Bundle, deps operation.TonDeps, in RetrieveCompiledContractsSeqInput) (RetrieveCompiledContractsSeqOutput, error) {
 	output := RetrieveCompiledContractsSeqOutput{}
 

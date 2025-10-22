@@ -27,9 +27,10 @@ import (
 )
 
 type DeployCCIPSeqInput struct {
-	ContractsVersion string // TODO We may want to rename this to ContractsVersionSHA or ContractsVersionRelease instead
-	CCIPConfig       config.ChainContractParams
-	ChainSelector    uint64
+	ContractsVersionSha string
+	ContractsSemver     *semver.Version
+	CCIPConfig          config.ChainContractParams
+	ChainSelector       uint64
 }
 
 type TONContractAddress struct {
@@ -61,8 +62,8 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 	output := DeployCCIPSeqOutput{}
 
 	retrieveContractsInput := RetrieveCompiledContractsSeqInput{
-		ContractsSemver:     semver.MustParse("1.6.0"), // TODO Move to the change set
-		ContractsVersionSha: in.ContractsVersion,
+		ContractsSemver:     in.ContractsSemver,
+		ContractsVersionSha: in.ContractsVersionSha,
 		Contracts: []ds.ContractType{
 			state.Router,
 			state.FeeQuoter,
