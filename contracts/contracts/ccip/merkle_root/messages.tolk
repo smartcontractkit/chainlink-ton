@@ -3,11 +3,26 @@ import "../../lib/funding/withdrawable"
 
 type MerkleRoot_InMessage = 
     | MerkleRoot_Validate
+    | MerkleRoot_CCIPReceiveBounced
+    | MerkleRoot_CCIPReceiveConfirm
     | Withdrawable_Withdraw
     ;
 
 //crc32('MerkleRoot_Validate')
 struct (0x38ede91) MerkleRoot_Validate {
-    message: Cell<Any2TVMRampMessage>,
-    metadataHash: uint256,
+    message: Any2TVMRampMessage,
+    //TODO: token data
 }
+
+//crc32('MerkleRoot_CCIPReceiveConfirm')
+struct (0x81650c13) MerkleRoot_CCIPReceiveConfirm {
+    receiver: address
+}
+
+//crc32('MerkleRoot_CCIPReceiveBounced')
+struct(0x845e303f) MerkleRoot_CCIPReceiveBounced {
+    receiver: address
+}
+
+
+
