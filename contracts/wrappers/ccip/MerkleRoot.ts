@@ -1,28 +1,22 @@
 import {
   Address,
-  Builder as TonBuilder,
   beginCell,
   Cell,
   Contract,
   contractAddress,
   ContractProvider,
-  Dictionary,
-  DictionaryValue,
   Sender,
   SendMode,
   Builder,
   Slice,
 } from '@ton/core'
 
-import * as ownable2step from '../libraries/access/Ownable2Step'
 import { CellCodec } from '../utils'
-import { asSnakeData, fromSnakeData } from '../../src/utils'
-import * as upgradeable from '../libraries/versioning/Upgradeable'
 import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
 import { compile } from '@ton/blueprint'
 import * as or from './OffRamp'
 
-export const MERKLE_ROOT_CONTRACT_VERSION = '0.0.4'
+export const MERKLE_ROOT_CONTRACT_VERSION = '0.0.6'
 
 export const MERKLE_ROOT_FACILITY_NAME = 'com.chainlink.ton.ccip.MerkleRoot'
 export const MERKLE_ROOT_FACILITY_ID = 479
