@@ -194,7 +194,10 @@ describe('OffRamp', () => {
     merkleRoot: merkleRootBytes,
   })
 
-  const generateMerkleRootBytes = (messages: Any2TVMRampMessage[], metadataHash: bigint): bigint => {
+  const generateMerkleRootBytes = (
+    messages: Any2TVMRampMessage[],
+    metadataHash: bigint,
+  ): bigint => {
     let hashedMessages = messages.map((msg) => {
       return uint8ArrayToBigInt(generateMessageId(msg, metadataHash))
     })
@@ -1665,5 +1668,3 @@ describe('OffRamp', () => {
     }
   })
 })
-
-
