@@ -103,7 +103,7 @@ func (i *RetrieveCompiledContractsSeqInput) Validate() error {
 	}
 
 	if i.ContractsSemver == nil || !i.ContractsSemver.Equal(semver.MustParse("1.6.0")) {
-		return fmt.Errorf("unsuported verion %s. Only contract's version 1.6.0 is supported at the moment", i.ContractsSemver)
+		return fmt.Errorf("unsupported version %s. Only contract's version 1.6.0 is supported at the moment", i.ContractsSemver)
 	}
 
 	return nil
