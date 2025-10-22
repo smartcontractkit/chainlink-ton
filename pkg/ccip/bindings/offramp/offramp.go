@@ -1,6 +1,7 @@
 package offramp
 
 import (
+	"context"
 	"fmt"
 	"math/big"
 
@@ -12,6 +13,8 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
 )
+
+const ocr3ConfigGetter = "ocr3Config"
 
 type CommitReportAccepted struct {
 	MerkleRoot   *ocr.MerkleRoot   `tlb:"maybe ."`
@@ -93,12 +96,6 @@ func (c *SourceChainConfig) FromResult(result *ton.ExecutionResult) error {
 	return nil
 }
 
-type OCR3Config struct {
-	ConfigInfo   ConfigInfo       `tlb:"."`
-	Signers      *cell.Dictionary `tlb:"dict 256"`
-	Transmitters *cell.Dictionary `tlb:"dict 267"`
-}
-
 type ConfigInfo struct {
 	ConfigDigest                   []byte `tlb:"bits 256"`
 	F                              uint8  `tlb:"## 8"`
@@ -164,4 +161,65 @@ type Any2TVMMessage struct {
 	SourceChainSelector uint64                   `tlb:"## 64"`
 	Sender              common.CrossChainAddress `tlb:"."` // CrossChainAddress (inline: length prefix + bytes)
 	Data                *cell.Cell               `tlb:"^"`
+}
+
+// ----------- binding types that supports FetchResult interface with rpc client -----------
+
+type OCR3Config struct {
+	ConfigInfo   ConfigInfo       `tlb:"."`
+	Signers      *cell.Dictionary `tlb:"dict 256"`
+	Transmitters *cell.Dictionary `tlb:"dict 267"`
+}
+
+func (c *OCR3Config) FromResult(result *ton.ExecutionResult) error {
+	// commit (index 1)
+	isNil, err := result.IsNil(1)
+	if err != nil {
+		return fmt.Errorf("failed to get isNil for commit: %w", err)
+	}
+
+	if !isNil {
+		configCell, err1 := result.Cell(1)
+		if err1 != nil {
+			return fmt.Errorf("failed to get configCell: %w", err1)
+		}
+		if err := tlb.LoadFromCell(c, configCell.BeginParse()); err != nil {
+			return fmt.Errorf("load OCR3Config from cell: %w", err)
+		}
+		return nil
+	}
+
+	// exec (index 2)
+	isNil, err = result.IsNil(2)
+	if err != nil {
+		return fmt.Errorf("failed to get isNil for execute: %w", err)
+	}
+	if !isNil {
+		configCell, err2 := result.Cell(2)
+		if err2 != nil {
+			return fmt.Errorf("failed to get configCell: %w", err2)
+		}
+
+		if err := tlb.LoadFromCell(c, configCell.BeginParse()); err != nil {
+			return fmt.Errorf("load OCR3Config from cell: %w", err)
+		}
+		return nil
+	}
+
+	return fmt.Errorf("both commit and execute are nil in OCR3Config")
+}
+
+func (c *OCR3Config) FetchResult(ctx context.Context, client ton.APIClientWrapped, contractAddr *address.Address, _ common.FetchOptions) error {
+	block, err := client.CurrentMasterchainInfo(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get current masterchain info: %w", err)
+	}
+
+	result, err := client.RunGetMethod(ctx, block, contractAddr, ocr3ConfigGetter)
+	if err != nil {
+		return fmt.Errorf("failed to get ocr3Config: %w", err)
+	}
+
+	err = c.FromResult(result)
+	return err
 }

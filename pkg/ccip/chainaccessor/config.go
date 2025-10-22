@@ -118,7 +118,7 @@ func (a *TONAccessor) getOCR3Config(ctx context.Context, block *ton.BlockIDExt) 
 	return commitConfig, execConfig, nil
 }
 
-// getOffRampConfig retrieves static configuration for the off-ramp contract
+// GetOffRampConfig retrieves static configuration for the off-ramp contract
 func (a *TONAccessor) GetOffRampConfig(ctx context.Context, block *ton.BlockIDExt) (ccipocr3.OfframpConfig, error) {
 	addr, err := a.getBinding(consts.ContractNameOffRamp)
 	if err != nil {
@@ -169,7 +169,7 @@ func (a *TONAccessor) GetOffRampConfig(ctx context.Context, block *ton.BlockIDEx
 	}, nil
 }
 
-// getOffRampSourceChainConfigs retrieves multiple source chain configurations from the off-ramp contract
+// GetOffRampSourceChainConfigs retrieves multiple source chain configurations from the off-ramp contract
 func (a *TONAccessor) GetOffRampSourceChainConfigs(ctx context.Context, block *ton.BlockIDExt, sourceChainSelectors []ccipocr3.ChainSelector) (map[ccipocr3.ChainSelector]ccipocr3.SourceChainConfig, error) {
 	addr, err := a.getBinding(consts.ContractNameOffRamp)
 	if err != nil {
@@ -289,7 +289,7 @@ func sourceChainConfigToGeneric(config offramp.SourceChainConfig) ccipocr3.Sourc
 	}
 }
 
-// getFeeQuoterStaticConfig retrieves static configuration from the fee quoter contract
+// GetFeeQuoterStaticConfig retrieves static configuration from the fee quoter contract
 func (a *TONAccessor) GetFeeQuoterStaticConfig(ctx context.Context, block *ton.BlockIDExt) (ccipocr3.FeeQuoterStaticConfig, error) {
 	addr, err := a.getBinding(consts.ContractNameFeeQuoter)
 	if err != nil {
@@ -310,7 +310,7 @@ func (a *TONAccessor) GetFeeQuoterStaticConfig(ctx context.Context, block *ton.B
 	}, nil
 }
 
-// getOnRampDynamicConfig retrieves dynamic configuration from the on-ramp contract
+// GetOnRampDynamicConfig retrieves dynamic configuration from the on-ramp contract
 func (a *TONAccessor) GetOnRampDynamicConfig(ctx context.Context, block *ton.BlockIDExt) (ccipocr3.OnRampDynamicConfig, error) {
 	addr, err := a.getBinding(consts.ContractNameOnRamp)
 	if err != nil {
@@ -333,7 +333,7 @@ func (a *TONAccessor) GetOnRampDynamicConfig(ctx context.Context, block *ton.Blo
 	}, nil
 }
 
-// getOnRampDestChainConfig retrieves destination chain configuration from the on-ramp contract
+// GetOnRampDestChainConfig retrieves destination chain configuration from the on-ramp contract
 func (a *TONAccessor) GetOnRampDestChainConfig(ctx context.Context, block *ton.BlockIDExt, dest ccipocr3.ChainSelector) (ccipocr3.OnRampDestChainConfig, error) {
 	addr, err := a.getBinding(consts.ContractNameOnRamp)
 	if err != nil {
@@ -356,7 +356,7 @@ func (a *TONAccessor) GetOnRampDestChainConfig(ctx context.Context, block *ton.B
 	}, nil
 }
 
-// getCurseInfo retrieves curse information for RMN verification
+// GetCurseInfo retrieves curse information for RMN verification
 func (a *TONAccessor) GetCurseInfo(_ context.Context, _ *ton.BlockIDExt) (ccipocr3.CurseInfo, error) {
 	return ccipocr3.CurseInfo{
 		CursedSourceChains: map[ccipocr3.ChainSelector]bool{},

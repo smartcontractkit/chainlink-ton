@@ -1,6 +1,7 @@
 package common //nolint:revive,nolintlint // TODO: update to meaningful package name
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math"
@@ -28,6 +29,20 @@ const (
 	DispatchNotFromMerkleRoot
 )
 
+const (
+	DestChainConfigGetter = "destChainConfig"
+	VersionGetter         = "typeAndVersion"
+)
+
+type FetchOptions struct {
+	DestChainSelector *uint64
+}
+
+type ConfigFetcher interface {
+	FetchResult(ctx context.Context, client ton.APIClientWrapped, contractAddr *address.Address, opts FetchOptions) error
+	FromResult(result *ton.ExecutionResult) error
+}
+
 // WrappedAddress is a simple wrapper around address.Address for TLB serialization. Needed for common.SnakeRef[] of addresses.
 type WrappedAddress struct {
 	WrappedAddress *address.Address `tlb:"addr"`
@@ -47,7 +62,7 @@ type TypeAndVersion struct {
 	Version string `tlb:"str"`
 }
 
-func (c *TypeAndVersion) FromResult(result *ton.ExecutionResult) error {
+func (t *TypeAndVersion) FromResult(result *ton.ExecutionResult) error {
 	typ, err := result.Slice(0)
 	if err != nil {
 		return err
@@ -67,11 +82,27 @@ func (c *TypeAndVersion) FromResult(result *ton.ExecutionResult) error {
 		return err
 	}
 
-	*c = TypeAndVersion{
+	*t = TypeAndVersion{
 		Type:    tStr,
 		Version: vStr,
 	}
 
+	return nil
+}
+
+func (t *TypeAndVersion) FetchResult(ctx context.Context, client ton.APIClientWrapped, contractAddr *address.Address, _ FetchOptions) error {
+	block, err := client.CurrentMasterchainInfo(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get current masterchain info: %w", err)
+	}
+
+	result, err := client.RunGetMethod(ctx, block, contractAddr, VersionGetter)
+	if err != nil {
+		return fmt.Errorf("error getting typeAndVersion: %w", err)
+	}
+	if err = t.FromResult(result); err != nil {
+		return fmt.Errorf("failed to parse typeAndVersion: %w", err)
+	}
 	return nil
 }
 
