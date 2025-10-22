@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
@@ -85,6 +86,8 @@ type ReceivedMessage struct {
 // OutgoingExternalMessages represents external messages sent by a contract,
 // typically used for events or notifications that are emitted to external systems.
 type OutgoingExternalMessages struct {
+	SrcAddr   *address.Address
+	DstAddr   *address.Address
 	CreatedAt uint32
 	LT        uint64
 	Body      *cell.Cell
@@ -309,7 +312,7 @@ func (m *ReceivedMessage) mapOutgoingMessages(outgoingMessages []tlb.Message) {
 // External messages are typically used for events or notifications that are
 // emitted by contracts to communicate with external systems.
 func (m *ReceivedMessage) AppendEvent(outMsg *tlb.ExternalMessageOut) {
-	e := OutgoingExternalMessages{outMsg.CreatedAt, outMsg.CreatedLT, outMsg.Body}
+	e := OutgoingExternalMessages{outMsg.SrcAddr, outMsg.DstAddr, outMsg.CreatedAt, outMsg.CreatedLT, outMsg.Body}
 	m.OutgoingExternalMessages = append(m.OutgoingExternalMessages, e)
 }
 

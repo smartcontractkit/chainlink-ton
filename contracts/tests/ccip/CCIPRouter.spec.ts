@@ -18,7 +18,7 @@ import * as jetton from '../../wrappers/jetton/JettonWallet'
 import { dump } from '../utils/prettyPrint'
 import { CellCodec, facilityId } from '../../wrappers/utils'
 import { crc32 } from 'zlib'
-import { CCIP_SEND_EXECUTOR_FACILITY_ID } from '../../wrappers/ccip/OnRamp'
+import { CCIP_SEND_EXECUTOR_FACILITY_ID, DestChainConfig } from '../../wrappers/ccip/OnRamp'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_EVM_TEST_90000002 = 5548718428018410741n
@@ -215,13 +215,19 @@ describe('Router', () => {
 
       // add config for EVM destination
       {
+        const config = {
+          router: router.address,
+          sequenceNumber: 0n,
+          allowlistEnabled: false,
+        }
+
         const result = await onRamp.sendUpdateDestChainConfigs(deployer.getSender(), {
           value: toNano('1'),
           destChainConfigs: [
             {
               destChainSelector: CHAINSEL_EVM_TEST_90000001,
-              router: router.address,
-              allowlistEnabled: false,
+              router: config.router,
+              allowlistEnabled: config.allowlistEnabled,
             },
           ],
         })
@@ -230,6 +236,13 @@ describe('Router', () => {
           to: onRamp.address,
           deploy: false,
           success: true,
+        })
+        assertLog(result.transactions, onRamp.address, LogTypes.DestChainSelectorAdded, {
+          destChainSelector: CHAINSEL_EVM_TEST_90000001,
+        })
+        assertLog(result.transactions, onRamp.address, LogTypes.DestChainConfigUpdated, {
+          destChainSelector: CHAINSEL_EVM_TEST_90000001,
+          config,
         })
       }
     }

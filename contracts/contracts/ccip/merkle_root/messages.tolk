@@ -1,22 +1,9 @@
 import "../offramp/types"
 
-type MerkleRoot_InMessage = MerkleRoot_Validate | MerkleRoot_CCIPReceiveBounced | MerkleRoot_CCIPReceiveConfirm;
+type MerkleRoot_InMessage = MerkleRoot_Validate;
 
 //crc32('MerkleRoot_Validate')
 struct (0x38ede91) MerkleRoot_Validate {
-    message: Any2TVMRampMessage,
-    //TODO: token data
+    message: Cell<Any2TVMRampMessage>,
+    metadataHash: uint256,
 }
-
-//crc32('MerkleRoot_CCIPReceiveConfirm')
-struct (0x81650c13) MerkleRoot_CCIPReceiveConfirm {
-    receiver: address
-}
-
-//crc32('MerkleRoot_CCIPReceiveBounced')
-struct(0x845e303f) MerkleRoot_CCIPReceiveBounced {
-    receiver: address
-}
-
-
-

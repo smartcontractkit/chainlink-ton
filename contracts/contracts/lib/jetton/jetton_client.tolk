@@ -70,7 +70,7 @@ fun JettonClient.sendExtended(
         sendExcessesTo: responseDestination,
         customPayload: customPayload,
         forwardTonAmount: forwardTonAmount,
-        forwardPayload: beginCell().endCell().beginParse(),
+        forwardPayload: createEmptyCell().beginParse(),
     });
     match (forwardPayload) {
         cell => {
