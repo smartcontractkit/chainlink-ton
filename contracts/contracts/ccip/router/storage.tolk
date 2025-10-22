@@ -6,6 +6,8 @@ struct Storage {
 
     // TODO: expand this with versions support
     onRamps: map<uint64, address>; // destChainSelector -> onRamp address
+
+    offRamps: map<uint64, address>; // sourceChainSelector -> offRamp address
 }
 
 fun Storage.load(): Storage {
@@ -15,5 +17,3 @@ fun Storage.load(): Storage {
 fun Storage.store(self) {
     return contract.setData(self.toCell());
 }
-
-

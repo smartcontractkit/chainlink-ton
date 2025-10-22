@@ -13,16 +13,14 @@ type OffRamp_InMessage =
     | OffRamp_ExecuteValidated
     | OffRamp_DispatchValidated
     | OffRamp_UpdateSourceChainConfig
-    | OCR3Base_SetOCR3Config
     | OffRamp_CCIPReceiveConfirm
+    | OffRamp_CCIPReceiveBounced
     | OffRamp_NotifyFailure
     | OffRamp_NotifySuccess
     | OffRamp_NotifyFailure
+    | OCR3Base_SetOCR3Config
     | Upgradeable_Upgrade
-    | Withdrawable_Withdraw
-    ;
-
-type OffRamp_BouncedMessage =  Receiver_CCIPReceive;
+    | Withdrawable_Withdraw;
 
 //crc32('OffRamp_Commit')
 struct (0x9d431905) OffRamp_Commit {
@@ -66,6 +64,13 @@ struct (0x58cfcb02) OffRamp_DispatchValidated {
 //crc32('OffRamp_CCIPReceiveConfirm')
 struct (0x28f4166f) OffRamp_CCIPReceiveConfirm {
     execId: uint224;
+    receiver: address;
+}
+
+//TODO crc32
+struct (0x14231423) OffRamp_CCIPReceiveBounced {
+    execId: uint224;
+    receiver: address;
 }
 
 //TODO crc32('OffRamp_NotifySuccess')

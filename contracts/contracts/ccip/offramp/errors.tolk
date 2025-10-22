@@ -5,6 +5,7 @@ enum Error {
     InvalidMessageDestChainSelector
     SourceChainSelectorMismatch
     InvalidOnRampUpdate
+    SenderIsNotRouter
 }
 
 
