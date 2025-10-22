@@ -42,7 +42,7 @@ func FetchRouterView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDEx
 	selectorSlice := parseExecutionResultForDestChainSelectors(result.AsTuple())
 	var onRampSlice *cell.Slice
 	var onRampAddr *address.Address
-	var eg errgroup.Group
+	eg, egCtx := errgroup.WithContext(ctx)
 	eg.SetLimit(runtime.NumCPU())
 	onRampAddrMap := make(map[uint64]*address.Address)
 	updateChanMap := make(map[uint64]chan *address.Address)
@@ -51,7 +51,7 @@ func FetchRouterView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDEx
 		updateChanMap[dest] = updateChan
 
 		eg.Go(func() error {
-			result, err := c.Client.RunGetMethod(ctx, block, routerAddr, onRampGetter, dest) // New variables per goroutine
+			result, err := c.Client.RunGetMethod(egCtx, block, routerAddr, onRampGetter, dest) // New variables per goroutine
 			if err != nil {
 				return fmt.Errorf("error getting onrampAddr: %v", err)
 			}

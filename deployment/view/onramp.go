@@ -41,9 +41,9 @@ type OnRampDestChainConfig struct {
 }
 
 // FetchOnRampView generates a view of the on-ramp contract at the specified block.
-func FetchOnRampView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, onrampAddr *address.Address, srcSelector uint64) (*OnRampView, error) {
+func FetchOnRampView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, onRampAddr *address.Address, srcSelector uint64) (*OnRampView, error) {
 	var typeVersion common.TypeAndVersion
-	result, err := c.Client.RunGetMethod(ctx, block, onrampAddr, versionGetter)
+	result, err := c.Client.RunGetMethod(ctx, block, onRampAddr, versionGetter)
 	if err != nil {
 		return nil, fmt.Errorf("error getting typeAndVersion: %w", err)
 	}
@@ -51,7 +51,7 @@ func FetchOnRampView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDEx
 		return nil, fmt.Errorf("failed to parse typeAndVersion: %w", err)
 	}
 
-	result, err = c.Client.RunGetMethod(ctx, block, onrampAddr, dynamicConfigGetter)
+	result, err = c.Client.RunGetMethod(ctx, block, onRampAddr, dynamicConfigGetter)
 	if err != nil {
 		return nil, fmt.Errorf("error getting dynamicConfig: %w", err)
 	}
@@ -61,14 +61,14 @@ func FetchOnRampView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDEx
 		return nil, fmt.Errorf("failed to parse dynamicConfig: %w", err)
 	}
 
-	destChainConfig, err := fetchDestChainConfig(ctx, c, block, onrampAddr)
+	destChainConfig, err := fetchDestChainConfig(ctx, c, block, onRampAddr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch dest chain config: %w", err)
 	}
 
 	return &OnRampView{
 		MetaData: MetaData{
-			Address:      onrampAddr,
+			Address:      onRampAddr,
 			ContractType: typeVersion.Type,
 			Version:      typeVersion.Version,
 		},
@@ -83,15 +83,15 @@ func FetchOnRampView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDEx
 }
 
 // fetchDestChainConfig retrieves destination chain configurations from the on-ramp contract.
-func fetchDestChainConfig(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, onrampAddr *address.Address) (map[uint64]OnRampDestChainConfig, error) {
-	result, err := c.Client.RunGetMethod(ctx, block, onrampAddr, destChainsGetter)
+func fetchDestChainConfig(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, onRampAddr *address.Address) (map[uint64]OnRampDestChainConfig, error) {
+	result, err := c.Client.RunGetMethod(ctx, block, onRampAddr, destChainsGetter)
 	if err != nil {
 		return nil, err
 	}
 
 	chainSelectors := parseExecutionResultForDestChainSelectors(result.AsTuple())
 	var allowedSendersDict []cell.DictKV
-	var eg errgroup.Group
+	eg, egCtx := errgroup.WithContext(ctx)
 	eg.SetLimit(runtime.NumCPU())
 	output := make(map[uint64]OnRampDestChainConfig)
 	updateChanMap := make(map[uint64]chan OnRampDestChainConfig)
@@ -101,7 +101,7 @@ func fetchDestChainConfig(ctx context.Context, c cldf_ton.Chain, block *ton.Bloc
 		updateChanMap[dest] = updateChan
 
 		eg.Go(func() error {
-			result, err := c.Client.RunGetMethod(ctx, block, onrampAddr, destChainConfigGetter, dest) // New variables per goroutine
+			result, err := c.Client.RunGetMethod(egCtx, block, onRampAddr, destChainConfigGetter, dest) // New variables per goroutine
 			if err != nil {
 				return err
 			}

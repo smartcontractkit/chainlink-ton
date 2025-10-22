@@ -111,7 +111,7 @@ func fetchDestChainConfigsView(ctx context.Context, c cldf_ton.Chain, block *ton
 	}
 
 	selectorSlice := parseExecutionResultForDestChainSelectors(result.AsTuple())
-	var eg errgroup.Group
+	eg, egCtx := errgroup.WithContext(ctx)
 	eg.SetLimit(runtime.NumCPU())
 	output := make(map[uint64]DestChainConfig)
 	updateChanMap := make(map[uint64]chan DestChainConfig)
@@ -120,7 +120,7 @@ func fetchDestChainConfigsView(ctx context.Context, c cldf_ton.Chain, block *ton
 		updateChanMap[dest] = updateChan
 
 		eg.Go(func() error {
-			result, err := c.Client.RunGetMethod(ctx, block, feeQuoter, destChainConfigGetter, dest) // New variables per goroutine
+			result, err := c.Client.RunGetMethod(egCtx, block, feeQuoter, destChainConfigGetter, dest) // New variables per goroutine
 			if err != nil {
 				return err
 			}
