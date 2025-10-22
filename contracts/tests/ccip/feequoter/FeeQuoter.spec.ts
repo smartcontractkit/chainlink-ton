@@ -17,15 +17,13 @@ describe('FeeQuoter - Withdrawable Tests', () => {
 })
 
 describe('FeeQuoter - TypeAndVersion Tests', () => {
-  const currentVersionSpec = TypeAndVersionSpec.newTypeAndVersionSpec(
-    {
-      type: FeeQuoter.type(),
-      version: FeeQuoter.version(),
-    },
-    async (blockchain, deployer) => {
+  const currentVersionSpec = TypeAndVersionSpec.newInstance({
+    type: FeeQuoter.type(),
+    version: FeeQuoter.version(),
+    deployContract: async (blockchain, deployer) => {
       return setupTestFeeQuoter(deployer, blockchain)
     },
-  )
+  })
   currentVersionSpec.run()
 })
 

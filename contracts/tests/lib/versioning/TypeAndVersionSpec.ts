@@ -6,11 +6,16 @@ import * as typeAndVersion from '../../../wrappers/libraries/versioning/TypeAndV
 /**
  * Configuration for testing type and version
  */
-export type TypeAndVersionTestConfig = {
+export type TypeAndVersionTestConfig<TContract> = {
   /** The expected contract type name (e.g., 'com.chainlink.ton.ccip.FeeQuoter') */
   type: string
   /** Version string for current version contract */
   version: string
+  /** Function to deploy and setup the contract */
+  deployContract: (
+    blockchain: Blockchain,
+    deployer: SandboxContract<TreasuryContract>,
+  ) => Promise<SandboxContract<TContract>>
 }
 
 /**
@@ -31,25 +36,18 @@ interface TestSetup {
  * the TypeAndVersion interface by checking that `getTypeAndVersion()` returns the
  * expected type and version strings.
  *
- * @param config Configuration for the type and version tests containing:
- *   - type: The expected contract type name (e.g., 'com.chainlink.ton.ccip.FeeQuoter')
- *   - version: The expected version string (e.g., '1.0.0')
- * @param setupContract Function to deploy and setup the contract for testing.
- *   Receives a blockchain instance and deployer treasury, and should return the
- *   deployed contract wrapped in a SandboxContract.
+ * @param config Configuration for the type and version tests
  * @returns An object with a `run()` method that contains the test suite
  *
  * @example
  * ```typescript
  * import { MyContract } from '../wrappers/MyContract'
- * import { newTypeAndVersionSpec } from './TypeAndVersionSpec'
+ * import { * } as TypeAndVersionSpec from './TypeAndVersionSpec'
  *
- * const typeAndVersionSpec = newTypeAndVersionSpec(
- *   {
- *     type: 'com.chainlink.ton.examples.MyContract',
- *     version: '1.0.0',
- *   },
- *   async (blockchain, deployer) => {
+ * const typeAndVersionSpec = TypeAndVersionSpec.newInstance({
+ *   type: 'com.chainlink.ton.examples.MyContract',
+ *   version: '1.0.0',
+ *   setupContract: async (blockchain, deployer) => {
  *     const contract = blockchain.openContract(
  *       MyContract.createFromConfig(
  *         {
@@ -61,19 +59,15 @@ interface TestSetup {
  *     await contract.sendDeploy(deployer.getSender(), toNano('0.05'))
  *     return contract
  *   }
- * )
+ * })
  *
  * describe('MyContract - Type and Version Tests', () => {
  *   typeAndVersionSpec.run()
  * })
  * ```
  */
-export function newTypeAndVersionSpec<TContract extends TypeAndVersionContract>(
-  config: TypeAndVersionTestConfig,
-  setupContract: (
-    blockchain: Blockchain,
-    deployer: SandboxContract<TreasuryContract>,
-  ) => Promise<SandboxContract<TContract>>,
+export function newInstance<TContract extends TypeAndVersionContract>(
+  config: TypeAndVersionTestConfig<TContract>,
 ) {
   async function setup(): Promise<TestSetup> {
     const blockchain = await Blockchain.create()
@@ -85,7 +79,7 @@ export function newTypeAndVersionSpec<TContract extends TypeAndVersionContract>(
     }
 
     const deployer = await blockchain.treasury('deployer')
-    const contract: SandboxContract<TypeAndVersionContract> = await setupContract(
+    const contract: SandboxContract<TypeAndVersionContract> = await config.deployContract(
       blockchain,
       deployer,
     )

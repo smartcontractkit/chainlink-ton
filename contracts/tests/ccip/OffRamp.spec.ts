@@ -162,13 +162,11 @@ async function deployOffRampContract(
 }
 
 describe('OffRamp - TypeAndVersion Tests', () => {
-  const currentVersionSpec = TypeAndVersionSpec.newTypeAndVersionSpec(
-    {
-      type: OffRamp.type(),
-      version: OffRamp.version(),
-    },
-    deployOffRampContract,
-  )
+  const currentVersionSpec = TypeAndVersionSpec.newInstance({
+    type: OffRamp.type(),
+    version: OffRamp.version(),
+    deployContract: deployOffRampContract,
+  })
   currentVersionSpec.run()
 })
 

@@ -41,13 +41,11 @@ const EVM_ADDRESS = Buffer.from(
 ) // 32 bytes
 
 describe('rt.Router - TypeAndVersion Tests', () => {
-  const currentVersionSpec = TypeAndVersionSpec.newTypeAndVersionSpec(
-    {
-      type: rt.Router.type(),
-      version: rt.Router.version(),
-    },
-    deployRouterContract,
-  )
+  const currentVersionSpec = TypeAndVersionSpec.newInstance({
+    type: rt.Router.type(),
+    version: rt.Router.version(),
+    deployContract: deployRouterContract,
+  })
   currentVersionSpec.run()
 })
 

@@ -50,13 +50,11 @@ describe('OnRamp - TypeAndVersion Tests', () => {
 const CHAINSEL_TON = 13879075125137744094n // TODO repeated constant
 
 describe('OnRamp - Current Version Tests', () => {
-  const currentVersionSpec = TypeAndVersionSpec.newTypeAndVersionSpec(
-    {
-      type: OnRamp.type(),
-      version: OnRamp.version(),
-    },
-    deployOnRampContract,
-  )
+  const currentVersionSpec = TypeAndVersionSpec.newInstance({
+    type: OnRamp.type(),
+    version: OnRamp.version(),
+    deployContract: deployOnRampContract,
+  })
   currentVersionSpec.run()
 })
 
