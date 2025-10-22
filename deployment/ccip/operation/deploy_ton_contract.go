@@ -2,6 +2,7 @@ package operation
 
 import (
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"math/big"
 	"strings"
@@ -39,13 +40,13 @@ var DeployTONContractOp = operations.NewOperation(
 
 func (i *DeployContractInput) Validate() error {
 	if strings.TrimSpace(i.Name) == "" {
-		return fmt.Errorf("name field is required")
+		return errors.New("name field is required")
 	}
 	if i.ContractCode == nil {
-		return fmt.Errorf("contract code field is required")
+		return errors.New("contract code field is required")
 	}
 	if i.Storage == nil {
-		return fmt.Errorf("storage field is required")
+		return errors.New("storage field is required")
 	}
 	if _, ok := new(big.Rat).SetString(i.Coins); !ok {
 		return fmt.Errorf("invalid TON amount %s", i.Coins)

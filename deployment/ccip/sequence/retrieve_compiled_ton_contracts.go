@@ -102,7 +102,7 @@ func (i *RetrieveCompiledContractsSeqInput) Validate() error {
 		return fmt.Errorf("contracts version SHA cannot be empty")
 	}
 
-	if i.ContractsSemver == nil || i.ContractsSemver.Equal(semver.MustParse("1.6.0")) == false {
+	if i.ContractsSemver == nil || !i.ContractsSemver.Equal(semver.MustParse("1.6.0")) {
 		return fmt.Errorf("unsuported verion %s. Only contract's version 1.6.0 is supported at the moment", i.ContractsSemver)
 	}
 
@@ -161,7 +161,7 @@ func retrieveCompiledTONContractsSequence(b operations.Bundle, deps operation.To
 			// Save the files in the corresponding location so that the deployment operations can find them
 			path := utils.GetBuildDir(a.Path)
 
-			if err := os.WriteFile(path, a.Data, 0o644); err != nil {
+			if err := os.WriteFile(path, a.Data, 0o600); err != nil {
 				return output, fmt.Errorf("failed to contractType to path %s: %w", path, err)
 			}
 
