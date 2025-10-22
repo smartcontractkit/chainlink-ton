@@ -5,16 +5,34 @@ import "../utils.tolk";
 /// Upgradeable contract interface.
 /// This interface defines the structure and methods required for a contract to
 /// be upgradeable.
+/// 
+/// # Fields
 ///
-/// - `migrate`: A function that migrates the storage from the old
-/// version to the new version. Its method_id must be set explicitly in the
-/// contract, and be consistent across versions.
-/// - `version`: A function that returns the version of the contract as a
-/// string. e.g. "1.0.0".
-/// - `requireUpgrade`: Enforces any requirements for upgrading the contract,
-/// like ownership, and throws an error if not met. It is typed as a struct to
-/// allow for more complex upgrade requirements. passing extra arguments to the
-/// upgrade function, such as the contract owner address.
+/// ## migrate
+/// Points to a function that migrates the storage from the old version layout
+/// to the new version.
+/// 
+/// Its method_id must be set explicitly in the contract, and be
+/// consistent across versions.
+/// 
+/// It receives the storage cell and the CONTRACT_VERSION string from the
+/// old version. It must verify the version is supported before proceeding.
+/// 
+/// It can support migrating from multiple versions.
+///
+/// ## version
+/// 
+/// Points to a function that returns the version of the contract.
+/// e.g: "1.0.0".
+/// 
+/// This function must specify a method_id explicitly in the contract,
+/// and it must be consistent across versions.
+/// 
+/// # TVM Behavior
+/// 
+/// At TVM level, these only stores the method_id of the functions to call, so
+/// it automatically points to the new implementation after the code is
+/// swapped.
 ///
 /// Example usage:
 /// ```tolk
@@ -77,29 +95,7 @@ import "../utils.tolk";
 ///     }
 /// ```
 struct Upgradeable {
-    /// Points to a function that migrates the storage before the upgrade.
-    /// It receives the storage cell and the CONTRACT_VERSION string from the
-    /// old version.
-    /// Verifies the version is supported and returns the migrated storage cell
-    /// for the new version.
-    /// 
-    /// It can support migrating from multiple versions.
-    /// 
-    /// At TVM level, this only stores the method_id of the function to call,
-    /// so it automatically points to the new implementation after the code
-    /// is swapped.
-    /// 
-    /// This function must specify a method_id explicitly in the contract,
-    /// and it must be consistent across versions.
     migrate: (cell, slice) -> cell;
-    /// Points to a function that returns the version of the contract.
-    /// 
-    /// At TVM level, this only stores the method_id of the function to call,
-    /// so it automatically points to the new implementation after the code
-    /// is swapped.
-    /// 
-    /// This function must specify a method_id explicitly in the contract,
-    /// and it must be consistent across versions.
     version: () -> slice;
 }
 
