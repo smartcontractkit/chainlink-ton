@@ -1,17 +1,16 @@
 package onramp
 
 import (
+	context2 "context"
 	"fmt"
 	"math/big"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
-	"golang.org/x/net/context"
-
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
 )
 
 const (
@@ -120,12 +119,7 @@ func (c *DestChainConfig) FromResult(result *ton.ExecutionResult) error {
 	return nil
 }
 
-func (c *DestChainConfig) FetchResult(ctx context.Context, client ton.APIClientWrapped, contractAddr *address.Address, opts common.FetchOptions) error {
-	block, err := client.CurrentMasterchainInfo(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to get current masterchain info: %w", err)
-	}
-
+func (c *DestChainConfig) FetchResult(ctx context2.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, opts common.FetchOptions) error {
 	result, err := client.RunGetMethod(ctx, block, contractAddr, common.DestChainConfigGetter, opts.DestChainSelector)
 	if err != nil {
 		return fmt.Errorf("error getting destChainConfig: %w", err)
@@ -178,7 +172,7 @@ func (c *DynamicConfig) FromResult(result *ton.ExecutionResult) error {
 	return nil
 }
 
-func (c *DynamicConfig) FetchResult(ctx context.Context, client ton.APIClientWrapped, contractAddr *address.Address, _ common.FetchOptions) error {
+func (c *DynamicConfig) FetchResult(ctx context2.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, opts common.FetchOptions) error {
 	block, err := client.CurrentMasterchainInfo(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get current masterchain info: %w", err)

@@ -271,7 +271,7 @@ func (s *StaticConfig) FromResult(result *ton.ExecutionResult) error {
 	return nil
 }
 
-func (s *StaticConfig) FetchResult(ctx context.Context, client ton.APIClientWrapped, contractAddr *address.Address, _ common.FetchOptions) error {
+func (s *StaticConfig) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, _ common.FetchOptions) error {
 	block, err := client.CurrentMasterchainInfo(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get current masterchain info: %w", err)
