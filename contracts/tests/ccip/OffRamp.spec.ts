@@ -132,13 +132,11 @@ export function generateMessageId(message: Any2TVMRampMessage, metadataHash: big
 }
 
 describe('OffRamp - Withdrawable Tests', () => {
-  const withdrawableSpec = newWithdrawableSpec(
-    {
-      getCode: () => compile('OffRamp'),
-      ContractConstructor: OffRamp,
-      ownershipErrorCode: ownable2step.Errors.OnlyCallableByOwner,
-    },
-    async (blockchain, owner) => {
+  const withdrawableSpec = newWithdrawableSpec({
+    getCode: () => compile('OffRamp'),
+    ContractConstructor: OffRamp,
+    ownershipErrorCode: ownable2step.Errors.OnlyCallableByOwner,
+    deployContract: async (blockchain, owner) => {
       const code = await compile('OffRamp')
       let data: OffRampStorage = {
         id: generateSecureRandomId(),
@@ -162,7 +160,7 @@ describe('OffRamp - Withdrawable Tests', () => {
       await contract.sendDeploy(deployer.getSender(), toNano('0.05'))
       return contract
     },
-  )
+  })
   withdrawableSpec.run()
 })
 

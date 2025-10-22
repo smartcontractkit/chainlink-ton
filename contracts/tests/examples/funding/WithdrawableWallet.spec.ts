@@ -61,13 +61,11 @@ async function setUpTest(
 }
 
 describe('WithdrawableWallet - Withdrawable Tests', () => {
-  const withdrawableSpec = newWithdrawableSpec(
-    {
-      getCode: () => withdrawableWallet.ContractClient.code(),
-      ContractConstructor: withdrawableWallet.ContractClient,
-      ownershipErrorCode: ownable2step.Errors.OnlyCallableByOwner,
-    },
-    async (blockchain, owner) => {
+  const withdrawableSpec = newWithdrawableSpec({
+    getCode: () => withdrawableWallet.ContractClient.code(),
+    ContractConstructor: withdrawableWallet.ContractClient,
+    ownershipErrorCode: ownable2step.Errors.OnlyCallableByOwner,
+    deployContract: async (blockchain, owner) => {
       const code = await withdrawableWallet.ContractClient.code()
       const contract = blockchain.openContract(
         withdrawableWallet.ContractClient.createFromConfig(
@@ -83,7 +81,7 @@ describe('WithdrawableWallet - Withdrawable Tests', () => {
       await contract.sendDeploy(deployer.getSender(), toNano('10'))
       return contract
     },
-  )
+  })
   withdrawableSpec.run()
 })
 

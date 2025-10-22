@@ -8,13 +8,11 @@ import * as ownable2step from '../../../wrappers/libraries/access/Ownable2Step'
 const CHAINSEL_TON = 13879075125137744094n // TODO repeated constant
 
 describe('OnRamp - Withdrawable Tests', () => {
-  const withdrawableSpec = newWithdrawableSpec(
-    {
-      getCode: () => compile('OnRamp'),
-      ContractConstructor: OnRamp,
-      ownershipErrorCode: ownable2step.Errors.OnlyCallableByOwner,
-    },
-    async (blockchain, owner) => {
+  const withdrawableSpec = newWithdrawableSpec({
+    getCode: () => compile('OnRamp'),
+    ContractConstructor: OnRamp,
+    ownershipErrorCode: ownable2step.Errors.OnlyCallableByOwner,
+    deployContract: async (blockchain, owner) => {
       const code = await compile('OnRamp')
       let data: OnRampStorage = {
         id: 0,
@@ -38,6 +36,6 @@ describe('OnRamp - Withdrawable Tests', () => {
       await contract.sendDeploy(deployer.getSender(), toNano('0.05'))
       return contract
     },
-  )
+  })
   withdrawableSpec.run()
 })

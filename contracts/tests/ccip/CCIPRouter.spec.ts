@@ -40,13 +40,11 @@ const EVM_ADDRESS = Buffer.from(
 ) // 32 bytes
 
 describe('Router - Withdrawable Tests', () => {
-  const withdrawableSpec = newWithdrawableSpec(
-    {
-      getCode: () => compile('Router'),
-      ContractConstructor: rt.Router,
-      ownershipErrorCode: ownable2step.Errors.OnlyCallableByOwner,
-    },
-    async (blockchain, owner) => {
+  const withdrawableSpec = newWithdrawableSpec({
+    getCode: () => compile('Router'),
+    ContractConstructor: rt.Router,
+    ownershipErrorCode: ownable2step.Errors.OnlyCallableByOwner,
+    deployContract: async (blockchain, owner) => {
       const code = await compile('Router')
       let data: rt.Storage = {
         id: 0,
@@ -63,7 +61,7 @@ describe('Router - Withdrawable Tests', () => {
       await contract.sendInternal(deployer.getSender(), toNano('1'), Cell.EMPTY)
       return contract
     },
-  )
+  })
   withdrawableSpec.run()
 })
 

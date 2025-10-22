@@ -29,6 +29,11 @@ export type WithdrawableTestConfig<TContract> = {
   ContractConstructor: new (address: Address, init?: { code: Cell; data: Cell }) => TContract
   /** Expected error code when a non-owner tries to withdraw */
   ownershipErrorCode: number
+  /** Function to deploy and setup the contract */
+  deployContract: (
+    blockchain: Blockchain,
+    owner: SandboxContract<TreasuryContract>,
+  ) => Promise<SandboxContract<TContract>>
 }
 
 interface TestSetup<TContract> {
@@ -44,19 +49,15 @@ interface TestSetup<TContract> {
  * Creates a reusable test suite for testing withdrawable functionality.
  *
  * @param config Configuration for the withdrawable tests
- * @param setupContract Function to deploy and setup the contract
  * @returns An object with test functions
  *
  * @example
  * ```typescript
- * const withdrawableSpec = newWithdrawableSpec(
- *   {
- *     getCode: () => WithdrawableWallet.code(),
- *     ContractConstructor: WithdrawableWallet,
- *     withdrawValue: toNano('0.05'),
- *     reserve: toNano('1'),
- *   },
- *   async (blockchain, owner) => {
+ * const withdrawableSpec = newWithdrawableSpec({
+ *   getCode: () => WithdrawableWallet.code(),
+ *   ContractConstructor: WithdrawableWallet,
+ *   ownershipErrorCode: 1001,
+ *   setupContract: async (blockchain, owner) => {
  *     const code = await WithdrawableWallet.code()
  *     const contract = blockchain.openContract(
  *       WithdrawableWallet.createFromConfig(
@@ -71,7 +72,7 @@ interface TestSetup<TContract> {
  *     await contract.sendDeploy(deployer.getSender(), toNano('10'))
  *     return contract
  *   }
- * )
+ * })
  *
  * describe('WithdrawableWallet Tests', () => {
  *   withdrawableSpec.run()
@@ -80,10 +81,6 @@ interface TestSetup<TContract> {
  */
 export function newWithdrawableSpec<TContract extends withdrawable.Interface>(
   config: WithdrawableTestConfig<TContract>,
-  setupContract: (
-    blockchain: Blockchain,
-    owner: SandboxContract<TreasuryContract>,
-  ) => Promise<SandboxContract<TContract>>,
 ) {
   const withdrawValue = toNano('0.05')
   const minimumBalance = toNano('10')
@@ -101,7 +98,7 @@ export function newWithdrawableSpec<TContract extends withdrawable.Interface>(
     const nonOwner = await blockchain.treasury('nonOwner')
     const recipient = await blockchain.treasury('recipient')
     const code = await config.getCode()
-    const contract = await setupContract(blockchain, owner)
+    const contract = await config.deployContract(blockchain, owner)
     const balance = (await blockchain.getContract(contract.address)).balance
     defaultReserve = await (contract as SandboxContract<withdrawable.Interface>).getReserve()
     if (balance < defaultReserve + minimumBalance) {
