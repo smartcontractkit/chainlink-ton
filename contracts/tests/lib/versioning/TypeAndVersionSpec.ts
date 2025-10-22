@@ -47,7 +47,7 @@ interface TestSetup {
  * const typeAndVersionSpec = TypeAndVersionSpec.newInstance({
  *   type: 'com.chainlink.ton.examples.MyContract',
  *   version: '1.0.0',
- *   setupContract: async (blockchain, deployer) => {
+ *   deployContract: async (blockchain, deployer) => {
  *     const contract = blockchain.openContract(
  *       MyContract.createFromConfig(
  *         {
