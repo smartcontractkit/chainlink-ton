@@ -146,8 +146,11 @@ describe('OffRamp - Withdrawable Tests', () => {
           owner: owner.address,
           pendingOwner: null,
         },
-        deployerCode: beginCell().endCell(),
-        merkleRootCode: beginCell().endCell(),
+        deployables: {
+          receiveExecutorCode: beginCell().endCell(),
+          deployerCode: beginCell().endCell(),
+          merkleRootCode: beginCell().endCell(),
+        },
         feeQuoter: ZERO_ADDRESS,
         chainSelector: CHAINSEL_TON,
         permissionlessExecutionThresholdSeconds: 60,
