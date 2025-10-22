@@ -1,6 +1,8 @@
 package ops
 
 import (
+	"crypto/rand"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"math/big"
@@ -121,6 +123,15 @@ func DeployChainContractsConfig(t *testing.T, env cldf.Environment, chainSelecto
 			},
 			ReceiverParams: config.ReceiverParams{
 				ID: idForContracts,
+			},
+			TimelockParams: config.TimelockParams{
+				ID:         idForContracts,
+				MinDelay:   0,
+				Admin:      deployer.WalletAddress(),
+				Proposers:  []*address.Address{deployer.WalletAddress()},
+				Executors:  []*address.Address{deployer.WalletAddress()},
+				Cancellers: []*address.Address{deployer.WalletAddress()},
+				Bypassers:  []*address.Address{deployer.WalletAddress()},
 			},
 		},
 		ContractsVersion: contractVersion,
@@ -343,4 +354,13 @@ func waitForReceivedMsgFlatten(e cldf.Environment, clientConn *ton.APIClient, ms
 	}
 
 	return event, nil
+}
+
+func RandomUint32() (uint32, error) {
+	var b [4]byte
+	_, err := rand.Read(b[:])
+	if err != nil {
+		return 0, err
+	}
+	return binary.LittleEndian.Uint32(b[:]), nil
 }

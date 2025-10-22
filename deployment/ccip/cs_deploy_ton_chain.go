@@ -115,6 +115,11 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 		_ = ab.Save(selector, state.TonReceiver.String(), cldf.NewTypeAndVersion(cldf.ContractType(state.TonReceiver.String()), contractsVersion))
 		s.ReceiverAddress = ccipSeqReport.Output.ReceiverAddress.TONAddress
 	}
+	if ccipSeqReport.Output.TimelockAddress != nil {
+		_ = dataStore.Addresses().Add(ccipSeqReport.Output.TimelockAddress.CLDFAddressRef)
+		_ = ab.Save(selector, state.Timelock.String(), cldf.NewTypeAndVersion(cldf.ContractType(state.Timelock.String()), contractsVersion))
+		s.Timelock = ccipSeqReport.Output.TimelockAddress.TONAddress
+	}
 
 	deps.CCIPOnChainState[selector] = s
 

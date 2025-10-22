@@ -6,71 +6,60 @@ import (
 	"fmt"
 	"math/big"
 	"testing"
-	"time"
 
-	chain_selectors "github.com/smartcontractkit/chain-selectors"
+	"github.com/stretchr/testify/require"
+	"github.com/xssnick/tonutils-go/ton"
+
+	chainselectors "github.com/smartcontractkit/chain-selectors"
 
 	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain"
 
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
-
-	ton_ops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
+	tonops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
+
+	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
 
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
-	test_utils "github.com/smartcontractkit/chainlink-ton/deployment/utils"
-
-	"github.com/stretchr/testify/require"
-	"github.com/xssnick/tonutils-go/tlb"
-
-	"github.com/smartcontractkit/chainlink/deployment/environment/memory"
-
+	devenv "github.com/smartcontractkit/chainlink-ton/integration-tests/env"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/timelock"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/chainaccessor"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller"
 	inmemorystore "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/db/inmemory"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/loader/account"
 	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/txparser"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ton/hash"
-
-	"github.com/xssnick/tonutils-go/address"
-	"github.com/xssnick/tonutils-go/ton"
-	"go.uber.org/zap/zapcore"
-
-	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
 )
 
 func TestDeploy(t *testing.T) {
 	t.Parallel()
 	lggr := logger.Test(t)
-	env := memory.NewMemoryEnvironment(t, lggr, zapcore.InfoLevel, memory.MemoryEnvironmentConfig{
-		Chains:    1,
-		TonChains: 1,
-	})
+
+	env, err := devenv.NewTestEnvironmentBuilder(lggr).WithTON().WithEVM().Build(t)
+	require.NoError(t, err)
 
 	// Get chain selectors
-	evmSelector := env.BlockChains.ListChainSelectors(chain.WithFamily(chain_selectors.FamilyEVM))[0]
-	tonChainSelectors := env.BlockChains.ListChainSelectors(chain.WithFamily(chain_selectors.FamilyTon))
+	evmSelector := env.BlockChains.ListChainSelectors(chain.WithFamily(chainselectors.FamilyEVM))[0]
+	tonChainSelectors := env.BlockChains.ListChainSelectors(chain.WithFamily(chainselectors.FamilyTon))
 	require.Len(t, tonChainSelectors, 1, "Expected exactly 1 Ton chain")
 	chainSelector := tonChainSelectors[0]
 	tonChain := env.BlockChains.TonChains()[chainSelector]
 	deployer := tonChain.Wallet
-	t.Log("Deployer: ", deployer.Address().String())
+	t.Log("Deployer: ", deployer.WalletAddress().String())
 	clientProvider := func(ctx context.Context) (ton.APIClientWrapped, error) {
 		return tonChain.Client, nil
 	}
 
-	// memory environment doesn't block on funding so changesets can execute before the env is fully ready, manually call fund so we block here
-	test_utils.FundWallets(t, tonChain.Client, []*address.Address{deployer.Address()}, []tlb.Coins{tlb.MustFromTON("1000")})
-	time.Sleep(5 * time.Second)
+	// Random contract's ID to avoid collision on subsequence runs of the test against the same chain node
+	contractID, err := tonops.RandomUint32()
+	require.NoError(t, err)
+	cs := commonchangeset.Configure(tonops.DeployCCIPContracts{}, tonops.DeployChainContractsConfig(t, env, chainSelector, sequence.ContractsLocalVersion, contractID))
 
-	cs := commonchangeset.Configure(ton_ops.DeployCCIPContracts{}, ton_ops.DeployChainContractsConfig(t, env, chainSelector, sequence.ContractsLocalVersion, hash.CRC32("github.com/smartcontractkit/chainlink-ton/integration-tests/deployment/cs_test.TestDeploy")))
-
-	env, _, err := commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{cs})
+	env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{cs})
 	require.NoError(t, err, "failed to deploy ccip")
 
 	// <redeploy>
@@ -83,7 +72,7 @@ func TestDeploy(t *testing.T) {
 	// </redeploy>
 
 	// TODO: LINK token deployment
-	linkAddr := ton_ops.TonTokenAddr
+	linkAddr := tonops.TonTokenAddr
 
 	tonDefinition := config.ChainDefinition{
 		ConnectionConfig: config.ConnectionConfig{
@@ -93,16 +82,16 @@ func TestDeploy(t *testing.T) {
 		Selector: tonChain.Selector,
 		GasPrice: big.NewInt(1e17),
 		TokenPrices: map[string]*big.Int{
-			ton_ops.TonTokenAddr.String(): big.NewInt(99),
+			tonops.TonTokenAddr.String(): big.NewInt(99),
 		},
-		FeeQuoterDestChainConfig: ton_ops.TonFeeQuoterDestChainConfig,
+		FeeQuoterDestChainConfig: tonops.TonFeeQuoterDestChainConfig,
 		// TokenTransferFeeConfigs:  map[uint64]feequoter.UpdateTokenTransferFeeConfig{},
 	}
 	evmDefinition := config.ChainDefinition{
 		Selector:                 evmSelector,
 		GasPrice:                 big.NewInt(1e17),
 		TokenPrices:              map[string]*big.Int{},
-		FeeQuoterDestChainConfig: ton_ops.EvmFeeQuoterDestChainConfig,
+		FeeQuoterDestChainConfig: tonops.EvmFeeQuoterDestChainConfig,
 		ConnectionConfig: config.ConnectionConfig{
 			RMNVerificationDisabled: true,
 			AllowListEnabled:        false,
@@ -111,7 +100,7 @@ func TestDeploy(t *testing.T) {
 
 	// TON->EVM
 	env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{
-		commonchangeset.Configure(ton_ops.AddTonLanes{}, config.UpdateTonLanesConfig{
+		commonchangeset.Configure(tonops.AddTonLanes{}, config.UpdateTonLanesConfig{
 			Lanes: []config.LaneConfig{
 				{
 					Source:     tonDefinition,
@@ -127,7 +116,7 @@ func TestDeploy(t *testing.T) {
 	// EVM->TON
 	onRamp := []byte{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 99}
 	env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{
-		commonchangeset.Configure(ton_ops.AddTonLanes{}, config.UpdateTonLanesConfig{
+		commonchangeset.Configure(tonops.AddTonLanes{}, config.UpdateTonLanesConfig{
 			Lanes: []config.LaneConfig{
 				{
 					Source:        evmDefinition,
@@ -156,7 +145,7 @@ func TestDeploy(t *testing.T) {
 	}
 	configDigest := [32]byte{1, 2, 3, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 	env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{
-		commonchangeset.Configure(ton_ops.SetOCR3Config{}, ton_ops.SetOCR3OffRampConfig{
+		commonchangeset.Configure(tonops.SetOCR3Config{}, tonops.SetOCR3OffRampConfig{
 			RemoteChainSels: []uint64{tonChain.Selector},
 			Configs: map[operation.PluginType]operation.OCR3ConfigArgs{
 				operation.PluginTypeCCIPCommit: {
@@ -227,6 +216,39 @@ func TestDeploy(t *testing.T) {
 	shouldBeOffRampAddress := getOfframpAddressResponse.MustSlice(0).MustLoadAddr()
 	require.Equal(t, offRampAddr.String(), shouldBeOffRampAddress.String())
 	// </Verify receiver address>
+
+	// <Verify timelock address>
+	timelockAddr := state[chainSelector].Timelock
+	_, err = addrCodec.AddressStringToBytes(timelockAddr.String())
+	require.NoError(t, err)
+	isInitializedResponse, err := tonChain.Client.RunGetMethod(ctx, mc, &timelockAddr, "isInitialized")
+	require.NoError(t, err)
+	rawIsInitialized, err := isInitializedResponse.Int(0)
+	require.NoError(t, err)
+	isInitialized := rawIsInitialized.Sign() != 0
+	require.True(t, isInitialized)
+	getProposerResponse, err := tonChain.Client.RunGetMethod(ctx, mc, &timelockAddr, "getRoleMemberFirst", timelock.RoleProposer)
+	require.NoError(t, err)
+	getExecutorResponse, err := tonChain.Client.RunGetMethod(ctx, mc, &timelockAddr, "getRoleMemberFirst", timelock.RoleExecutor)
+	require.NoError(t, err)
+	getCancellerResponse, err := tonChain.Client.RunGetMethod(ctx, mc, &timelockAddr, "getRoleMemberFirst", timelock.RoleCanceller)
+	require.NoError(t, err)
+	getBypasserResponse, err := tonChain.Client.RunGetMethod(ctx, mc, &timelockAddr, "getRoleMemberFirst", timelock.RoleBaypasser)
+	require.NoError(t, err)
+	getAdminResponse, err := tonChain.Client.RunGetMethod(ctx, mc, &timelockAddr, "getRoleMemberFirst", timelock.RoleAdmin)
+	require.NoError(t, err)
+	shouldBeDeployer1 := getProposerResponse.MustSlice(0).MustLoadAddr()
+	shouldBeDeployer2 := getExecutorResponse.MustSlice(0).MustLoadAddr()
+	shouldBeDeployer3 := getCancellerResponse.MustSlice(0).MustLoadAddr()
+	shouldBeDeployer4 := getBypasserResponse.MustSlice(0).MustLoadAddr()
+	shouldBeDeployer5 := getAdminResponse.MustSlice(0).MustLoadAddr()
+	require.Equal(t, deployer.WalletAddress().Bounce(true).String(), shouldBeDeployer1.String())
+	require.Equal(t, deployer.WalletAddress().Bounce(true).String(), shouldBeDeployer2.String())
+	require.Equal(t, deployer.WalletAddress().Bounce(true).String(), shouldBeDeployer3.String())
+	require.Equal(t, deployer.WalletAddress().Bounce(true).String(), shouldBeDeployer4.String())
+	require.Equal(t, deployer.WalletAddress().Bounce(true).String(), shouldBeDeployer5.String())
+	// </Verify timelock address>
+
 	rawDeployerAddr, err := addrCodec.AddressStringToBytes(deployer.WalletAddress().String())
 	require.NoError(t, err)
 

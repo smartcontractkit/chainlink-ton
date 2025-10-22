@@ -18,6 +18,7 @@ type ChainContractParams struct {
 	OnRampParams    OnRampParams
 	RouterParams    RouterParams
 	ReceiverParams  ReceiverParams
+	TimelockParams  TimelockParams
 }
 
 func (c ChainContractParams) Validate() error {
@@ -104,5 +105,23 @@ type ReceiverParams struct {
 
 func (r ReceiverParams) Validate() error {
 	// No specific validation for now
+	return nil
+}
+
+type TimelockParams struct {
+	ID         uint32
+	MinDelay   uint64
+	Admin      *address.Address
+	Proposers  []*address.Address
+	Executors  []*address.Address
+	Cancellers []*address.Address
+	Bypassers  []*address.Address
+}
+
+func (t TimelockParams) Validate() error {
+	if t.Admin == nil {
+		return fmt.Errorf("timelock admin should be specified")
+	}
+
 	return nil
 }

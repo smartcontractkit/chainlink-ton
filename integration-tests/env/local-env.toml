@@ -1,0 +1,15 @@
+[onchain]
+
+[[onchain.ton_blockchain]]
+chainID = -3
+name = "my_local_ton"
+httpURL = "liteserver://E7XwFSQzNkcRepUC23J2nRpASXpnsEKmyyHYV4u/FZY=@127.0.0.1:40004"
+deployerKey = ""
+walletVersion = "V5R1"
+
+[[onchain.evm_blockchain]]
+chainID = 11155111
+name = "ethereum_sepolia"
+httpURL = "https://ethereum-sepolia-rpc.publicnode.com"
+wssURL = "wss://ethereum-sepolia-rpc.publicnode.com"
+deployerKey = ""
