@@ -5,16 +5,34 @@ import "../utils.tolk";
 /// Upgradeable contract interface.
 /// This interface defines the structure and methods required for a contract to
 /// be upgradeable.
+/// 
+/// # Fields
 ///
-/// - `migrate`: A function that migrates the storage from the old
-/// version to the new version. Its method_id must be set explicitly in the
-/// contract, and be consistent across versions.
-/// - `version`: A function that returns the version of the contract as a
-/// string. e.g. "1.0.0".
-/// - `requireUpgrade`: Enforces any requirements for upgrading the contract,
-/// like ownership, and throws an error if not met. It is typed as a struct to
-/// allow for more complex upgrade requirements. passing extra arguments to the
-/// upgrade function, such as the contract owner address.
+/// ## migrate
+/// Points to a function that migrates the storage from the old version layout
+/// to the new version.
+/// 
+/// Its method_id must be set explicitly in the contract, and be
+/// consistent across versions.
+/// 
+/// It receives the storage cell and the CONTRACT_VERSION string from the
+/// old version. It must verify the version is supported before proceeding.
+/// 
+/// It can support migrating from multiple versions.
+///
+/// ## version
+/// 
+/// Points to a function that returns the version of the contract.
+/// e.g: "1.0.0".
+/// 
+/// This function must specify a method_id explicitly in the contract,
+/// and it must be consistent across versions.
+/// 
+/// # TVM Behavior
+/// 
+/// At TVM level, these only stores the method_id of the functions to call, so
+/// it automatically points to the new implementation after the code is
+/// swapped.
 ///
 /// Example usage:
 /// ```tolk
@@ -77,19 +95,22 @@ import "../utils.tolk";
 ///     }
 /// ```
 struct Upgradeable {
-    /// Abstract methods that must be implemented by the contract.
-    migrate: (cell) -> cell;
+    migrate: (cell, slice) -> cell;
     version: () -> slice;
 }
 
+enum Upgradeable_Error {
+    VersionMismatch = 28700; // Facility ID * 100
+}
 
 /// Message for upgrading a contract.
+/// crc32("Upgradeable_Upgrade") == 0x0aa811ed
 struct (0x0aa811ed) Upgradeable_Upgrade {
     queryId: uint64;
     code: cell;
 }
 
-struct UpgradedEvent {
+struct Upgradeable_UpgradedEvent {
     /// The new code of the contract.
     code: cell;
     /// The SHA256 hash of the new code.
@@ -98,21 +119,23 @@ struct UpgradedEvent {
     version: UnsafeBodyNoRef<slice>;
 }
 
-const UPGRADED_EVENT = 0xa33b498e; // Event topic for the upgrade event
+const UPGRADEABLE_UPGRADED_EVENT = 0xa33b498e; // crc32("Upgradeable_UpgradedEvent")
 
-fun Upgradeable.upgrade(self, code: cell) {
+fun Upgradeable.upgrade(self, msg: Upgradeable_Upgrade) {
+    // Ensure the upgrade requirements are met
+    val currentVersion = self.version();
     // Schedule the code to be changed after the compute phase
-    contract.setCodePostponed(code);
-    // Load the code dinamically
-    var cont = transformSliceToContinuation(code.beginParse());
+    contract.setCodePostponed(msg.code);
+    // Load the code dynamically
+    var cont = transformSliceToContinuation(msg.code.beginParse());
     setTvmRegisterC3(cont); // After this line, we are running the new code
     // Call the migrate function implemented by the new version
     var c = contract.getData();
-    var newStorage = self.migrate(c);
+    var newStorage = self.migrate(c, currentVersion);
     contract.setData(newStorage);
-    emit(UPGRADED_EVENT, UpgradedEvent{
-        code: code,
-        hash: code.hash(),
+    emit(UPGRADEABLE_UPGRADED_EVENT, Upgradeable_UpgradedEvent{
+        code: msg.code,
+        hash: msg.code.hash(),
         version: UnsafeBodyNoRef {
             forceInline: self.version(), // This is expected to be the version of the new code
             },

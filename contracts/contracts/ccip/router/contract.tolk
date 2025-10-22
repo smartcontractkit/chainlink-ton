@@ -1,7 +1,6 @@
 import "messages"
 import "storage"
 import "errors"
-
 import "../onramp/messages"
 import "../onramp/types"
 import "../common/types"
@@ -9,11 +8,14 @@ import "../common/messages"
 import "../../lib/access/ownable_2step"
 import "../../lib/funding/withdrawable.tolk"
 import "../../deployable/types"
+import "../../lib/access/ownable_2step"
 import "../../lib/utils"
 import "../../lib/jetton/messages"
 import "../../lib/jetton/messages_extended"
+import "../../lib/versioning/upgradeable"
 
-const CONTRACT_VERSION = "0.0.4";
+
+const CONTRACT_VERSION = "0.0.5";
 const RESERVE = ton("1"); // TODO: set correct value
 
 fun onInternalMessage(in: InMessage) {
@@ -29,6 +31,7 @@ fun onInternalMessage(in: InMessage) {
                 reserve: RESERVE
             }.withdraw(msg, in.valueCoins);
         }
+        Upgradeable_Upgrade => { onUpgrade(msg, in.senderAddress) }
         else => {
             // ignore empty messages, "wrong opcode" for others
             assert (in.body.isEmpty()) throw 0xFFFF
@@ -117,6 +120,18 @@ fun ccipSend(msg: Router_CCIPSend, sender: address) {
     sendMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
 }
 
+fun onUpgrade(msg: Upgradeable_Upgrade, sender: address) {
+    var st = lazy Storage.load();
+    st.ownable.requireOwner(sender);
+    Upgradeable{ migrate, version }.upgrade(msg);
+}
+
+@method_id(1000)
+fun migrate(storage: cell, version: slice): cell { throw Upgradeable_Error.VersionMismatch; }
+
+@method_id(1001)
+fun version(): slice { return CONTRACT_VERSION; }
+
 get fun typeAndVersion(): (slice, slice) {
     return ("com.chainlink.ton.ccip.Router", CONTRACT_VERSION);
 }
@@ -127,16 +142,6 @@ get fun facilityId(): uint16  {
 
 get fun errorCode(local: uint16): uint16 {
     return getErrorCode(stringCrc32("com.chainlink.ton.ccip.Router"), local);
-}
-
-// Returns the current code of the contract.
-get fun code(): cell {
-    return contract.getCode();
-}
-
-// Returns the sha256 hash of the current code of the contract.
-get fun codeHash(): int {
-    return contract.getCode().hash();
 }
 
 get fun onRamp(destChainSelector: uint64): address {

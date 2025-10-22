@@ -1,18 +1,16 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox'
-import { Cell, Message, toNano } from '@ton/core'
+import { Cell, toNano } from '@ton/core'
 import '@ton/test-utils'
-import { UpgradeableCounterV1 } from '../../../wrappers/examples/upgrades/UpgradeableCounterV1'
-import { UpgradeableCounterV2 } from '../../../wrappers/examples/upgrades/UpgradeableCounterV2'
-import {
-  loadUpgradedEvent,
-  sendUpgradeAndReturnNewVersion,
-} from '../../../wrappers/libraries/upgrades/Upgradeable'
+import * as upCounterV1 from '../../../wrappers/examples/versioning/UpgradeableCounterV1'
+import * as upCounterV2 from '../../../wrappers/examples/versioning/UpgradeableCounterV2'
+import { sendUpgradeAndReturnNewVersion } from '../../../wrappers/libraries/versioning/Upgradeable'
+import { newUpgradeSpec, newCurrentVersionSpec } from '../../lib/versioning/UpgradeableSpec'
 
 async function setUpTest(i: number): Promise<{
   blockchain: Blockchain
   deployer: SandboxContract<TreasuryContract>
   owner: SandboxContract<TreasuryContract>
-  upgradeableCounter: SandboxContract<UpgradeableCounterV1>
+  upgradeableCounter: SandboxContract<upCounterV1.ContractClient>
   codeV1: Cell
   codeV2: Cell
 }> {
@@ -28,10 +26,10 @@ async function setUpTest(i: number): Promise<{
   let deployer = await blockchain.treasury('deployer')
   let owner = await blockchain.treasury('owner')
 
-  let codeV1 = await UpgradeableCounterV1.code()
+  let codeV1 = await upCounterV1.ContractClient.code()
 
   let upgradeableCounter = blockchain.openContract(
-    UpgradeableCounterV1.createFromConfig(
+    upCounterV1.ContractClient.createFromConfig(
       {
         id: 0,
         value: i,
@@ -59,31 +57,73 @@ async function setUpTest(i: number): Promise<{
     owner,
     upgradeableCounter,
     codeV1,
-    codeV2: await UpgradeableCounterV2.code(),
+    codeV2: await upCounterV2.ContractClient.code(),
   }
 }
 
-describe('UpgradeableCounter', () => {
+describe('UpgradeableCounter - Upgrade Tests', () => {
+  const upgradeSpec = newUpgradeSpec({
+    contractType: upCounterV1.ContractClient.type(),
+    prevVersion: upCounterV1.ContractClient.version(),
+    currentVersion: upCounterV2.ContractClient.version(),
+    getPrevCode: () => upCounterV1.ContractClient.code(),
+    getCurrentCode: () => upCounterV2.ContractClient.code(),
+    CurrentVersionConstructor: upCounterV2.ContractClient,
+    deployPrevContract: async (blockchain, owner) => {
+      const codeV1 = await upCounterV1.ContractClient.code()
+      const contract = blockchain.openContract(
+        upCounterV1.ContractClient.createFromConfig(
+          {
+            id: 0,
+            value: 0,
+            ownable: { owner: owner.address, pendingOwner: null },
+          },
+          codeV1,
+        ),
+      )
+      const deployer = await blockchain.treasury('deployer')
+      await contract.sendDeploy(deployer.getSender(), toNano('0.05'))
+      return contract
+    },
+  })
+  upgradeSpec.run()
+})
+
+describe('UpgradeableCounter - Current Version Tests', () => {
+  const currentVersionSpec = newCurrentVersionSpec({
+    contractType: upCounterV2.ContractClient.type(),
+    currentVersion: upCounterV2.ContractClient.version(),
+    getCurrentCode: () => upCounterV2.ContractClient.code(),
+    CurrentVersionConstructor: upCounterV2.ContractClient,
+    deployCurrentContract: async (blockchain, owner) => {
+      const code = await upCounterV2.ContractClient.code()
+      const contract = blockchain.openContract(
+        upCounterV2.ContractClient.createFromConfig(
+          {
+            id: 0,
+            value: 0,
+            ownable: { owner: owner.address, pendingOwner: null },
+          },
+          code,
+        ),
+      )
+      const deployer = await blockchain.treasury('deployer')
+      await contract.sendDeploy(deployer.getSender(), toNano('0.05'))
+      return contract
+    },
+  })
+  currentVersionSpec.run()
+})
+
+describe('UpgradeableCounter - Unit Tests', () => {
   it('should deploy', async () => {
     await setUpTest(0)
   })
 
-  it('should deploy on version 1', async () => {
-    let { upgradeableCounter, codeV1 } = await setUpTest(0)
-    const typeAndVersion = await upgradeableCounter.getTypeAndVersion()
-    expect(typeAndVersion.type).toBe('com.chainlink.ton.examples.upgrades.UpgradeableCounter')
-    expect(typeAndVersion.version).toBe('1.0.0')
-    const currentCode = await upgradeableCounter.getCode()
-    const expectedHash = codeV1.hash()
-    expect(currentCode.toString('hex')).toBe(codeV1.toString('hex'))
-    const expectedHashBigInt = BigInt('0x' + expectedHash.toString('hex'))
-    const hash = await upgradeableCounter.getCodeHash()
-    expect(hash).toBe(expectedHashBigInt)
-  })
+  // Contract-specific tests below
 
   it('should have initial value', async () => {
-    let { blockchain, upgradeableCounter } = await setUpTest(0)
-    const user = await blockchain.treasury('user')
+    let { upgradeableCounter } = await setUpTest(0)
     const getterResult = await upgradeableCounter.getValue()
     expect(getterResult).toBe(0)
   })
@@ -95,10 +135,13 @@ describe('UpgradeableCounter', () => {
       const increaser = await blockchain.treasury('increaser' + i)
       const counterBefore = await upgradeableCounter.getValue()
 
-      let increaseResult = await upgradeableCounter.sendStep(increaser.getSender(), {
-        value: toNano('0.05'),
-        queryId: Math.floor(Math.random() * 10000),
-      })
+      let increaseResult = await upgradeableCounter.sendStep(
+        increaser.getSender(),
+        toNano('0.05'),
+        {
+          queryId: BigInt(Math.floor(Math.random() * 10000)),
+        },
+      )
 
       expect(increaseResult.transactions).toHaveTransaction({
         from: increaser.address,
@@ -111,54 +154,6 @@ describe('UpgradeableCounter', () => {
     }
   })
 
-  it('should be upgraded to version 2', async () => {
-    let { blockchain, owner, upgradeableCounter: upgradeableCounterV1, codeV2 } = await setUpTest(0)
-
-    const typeAndVersion1 = await upgradeableCounterV1.getTypeAndVersion()
-    expect(typeAndVersion1.type).toBe('com.chainlink.ton.examples.upgrades.UpgradeableCounter')
-    expect(typeAndVersion1.version).toBe('1.0.0')
-
-    let { upgradeResult, newVersionInstance } = await sendUpgradeAndReturnNewVersion(
-      upgradeableCounterV1,
-      owner.getSender(),
-      toNano('0.05'),
-      UpgradeableCounterV2,
-    )
-    expect(upgradeResult.transactions).toHaveTransaction({
-      from: owner.address,
-      to: upgradeableCounterV1.address,
-      success: true,
-    })
-
-    let upgradeableCounterV2 = blockchain.openContract(newVersionInstance)
-
-    const code = await upgradeableCounterV2.getCode()
-    const expectedHash = codeV2.hash()
-    expect(code.toString('hex')).toBe(codeV2.toString('hex'))
-    const expectedHashBigInt = BigInt('0x' + expectedHash.toString('hex'))
-    const hash = await upgradeableCounterV2.getCodeHash()
-    expect(hash).toBe(expectedHashBigInt)
-
-    const typeAndVersion2 = await upgradeableCounterV2.getTypeAndVersion()
-    expect(typeAndVersion2.type).toBe('com.chainlink.ton.examples.upgrades.UpgradeableCounter')
-    expect(typeAndVersion2.version).toBe('2.0.0')
-
-    const upgradeTransaction = upgradeResult.transactions.find(
-      (tx) =>
-        tx.inMessage?.info.type === 'internal' &&
-        tx.inMessage.info.src.equals(owner.address) &&
-        tx.inMessage.info.dest.equals(upgradeableCounterV1.address),
-    )
-    const event = upgradeTransaction?.outMessages.values().find((msg: Message) => {
-      return msg.info.type === 'external-out'
-    })
-    expect(event).toBeDefined()
-    const upgradedEvent = loadUpgradedEvent(event!.body.beginParse())
-    expect(upgradedEvent.version).toBe('2.0.0')
-    expect(upgradedEvent.code.toString('hex')).toBe(codeV2.toString('hex'))
-    expect(upgradedEvent.codeHash).toBe(expectedHashBigInt)
-  })
-
   it('version 2 should decrease the counter', async () => {
     let { blockchain, owner, upgradeableCounter: upgradeableCounterV1 } = await setUpTest(3)
 
@@ -166,7 +161,8 @@ describe('UpgradeableCounter', () => {
       upgradeableCounterV1,
       owner.getSender(),
       toNano('0.05'),
-      UpgradeableCounterV2,
+      upCounterV2.ContractClient,
+      await upCounterV2.ContractClient.code(),
     )
 
     expect(upgradeResult.transactions).toHaveTransaction({
@@ -183,10 +179,13 @@ describe('UpgradeableCounter', () => {
 
       const counterBefore = await upgradeableCounterV2.getValue()
 
-      let decreaseResult = await upgradeableCounterV2.sendStep(decreaser.getSender(), {
-        value: toNano('0.05'),
-        queryId: Math.floor(Math.random() * 10000),
-      })
+      let decreaseResult = await upgradeableCounterV2.sendStep(
+        decreaser.getSender(),
+        toNano('0.05'),
+        {
+          queryId: BigInt(Math.floor(Math.random() * 10000)),
+        },
+      )
 
       expect(decreaseResult.transactions).toHaveTransaction({
         from: decreaser.address,
@@ -197,28 +196,6 @@ describe('UpgradeableCounter', () => {
       const getterResult = await upgradeableCounterV2.getValue()
       expect(getterResult).toBe(counterBefore - 1)
     }
-  })
-
-  it('should fail when non-owner tries to upgrade', async () => {
-    let { blockchain, upgradeableCounter, codeV2 } = await setUpTest(0)
-    const nonOwner = await blockchain.treasury('nonOwner')
-
-    // Try to upgrade from non-owner address - should fail
-    const upgradeResult = await upgradeableCounter.sendUpgrade(nonOwner.getSender(), {
-      value: toNano('0.05'),
-      queryId: Math.floor(Math.random() * 10000),
-      code: codeV2,
-    })
-
-    expect(upgradeResult.transactions).toHaveTransaction({
-      from: nonOwner.address,
-      to: upgradeableCounter.address,
-      success: false,
-    })
-
-    // Verify the contract is still on version 1
-    const typeAndVersion = await upgradeableCounter.getTypeAndVersion()
-    expect(typeAndVersion.version).toBe('1.0.0')
   })
 
   it('should transfer ownership and allow new owner to upgrade', async () => {
@@ -269,11 +246,14 @@ describe('UpgradeableCounter', () => {
     expect(currentOwner.equals(newOwner.address)).toBe(true)
 
     // Old owner should no longer be able to upgrade
-    const oldOwnerUpgradeResult = await upgradeableCounter.sendUpgrade(owner.getSender(), {
-      value: toNano('0.05'),
-      queryId: Math.floor(Math.random() * 10000),
-      code: codeV2,
-    })
+    const oldOwnerUpgradeResult = await upgradeableCounter.sendUpgrade(
+      owner.getSender(),
+      toNano('0.05'),
+      {
+        queryId: BigInt(Math.floor(Math.random() * 10000)),
+        code: codeV2,
+      },
+    )
 
     expect(oldOwnerUpgradeResult.transactions).toHaveTransaction({
       from: owner.address,
@@ -286,7 +266,8 @@ describe('UpgradeableCounter', () => {
       upgradeableCounter,
       newOwner.getSender(),
       toNano('0.05'),
-      UpgradeableCounterV2,
+      upCounterV2.ContractClient,
+      await upCounterV2.ContractClient.code(),
     )
 
     expect(upgradeResult.transactions).toHaveTransaction({
@@ -299,7 +280,9 @@ describe('UpgradeableCounter', () => {
 
     // Verify the contract is now on version 2
     const typeAndVersion = await upgradeableCounterV2.getTypeAndVersion()
-    expect(typeAndVersion.type).toBe('com.chainlink.ton.examples.upgrades.UpgradeableCounter')
+    expect(typeAndVersion.type).toBe(
+      'com.chainlink.ton.examples.versioning.upgrades.UpgradeableCounter',
+    )
     expect(typeAndVersion.version).toBe('2.0.0')
 
     // Verify new owner is still the owner after upgrade

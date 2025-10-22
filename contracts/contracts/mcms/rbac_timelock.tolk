@@ -3,7 +3,7 @@ tolk 1.1
 import "../lib/utils";
 import "../lib/access/access_control";
 
-const CONTRACT_VERSION = "0.0.1";
+const CONTRACT_VERSION = "0.0.2";
 
 /**
  * Contract module which acts as a timelocked controller with role-based
@@ -1371,16 +1371,6 @@ fun Timelock<T>.hookTrait__AccessControl(self): AccessControl<T>{
 
 get fun typeAndVersion(): (slice, slice) {
     return ("com.chainlink.ton.mcms.Timelock", CONTRACT_VERSION);
-}
-
-// Returns the current code of the contract.
-get fun code(): cell {
-    return contract.getCode();
-}
-
-// Returns the sha256 hash of the current code of the contract.
-get fun codeHash(): int {
-    return contract.getCode().hash();
 }
 
 /// @see <Timelock<T>.getId>

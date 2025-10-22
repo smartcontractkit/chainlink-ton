@@ -10,7 +10,7 @@ import {
   SendMode,
   Slice,
 } from '@ton/core'
-import { TypeAndVersion } from '../libraries/TypeAndVersion'
+import * as typeAndVersion from '../libraries/TypeAndVersion'
 import * as ownable2step from '../libraries/access/Ownable2Step'
 import { CellCodec } from '../utils'
 
@@ -113,15 +113,11 @@ export const builder = {
   })(),
 }
 
-export class ContractClient implements Contract, TypeAndVersion {
-  private typeAndVersion: TypeAndVersion
-
+export class ContractClient implements Contract, typeAndVersion.TypeAndVersion {
   constructor(
     readonly address: Address,
     readonly init?: { code: Cell; data: Cell },
-  ) {
-    this.typeAndVersion = new TypeAndVersion()
-  }
+  ) {}
 
   static newAt(address: Address): ContractClient {
     return new ContractClient(address)
@@ -180,14 +176,14 @@ export class ContractClient implements Contract, TypeAndVersion {
 
   // Delegate TypeAndVersion methods
   async getTypeAndVersion(provider: ContractProvider): Promise<{ type: string; version: string }> {
-    return this.typeAndVersion.getTypeAndVersion(provider)
+    return typeAndVersion.getTypeAndVersion(provider)
   }
 
   async getCode(provider: ContractProvider): Promise<Cell> {
-    return this.typeAndVersion.getCode(provider)
+    return typeAndVersion.getCode(provider)
   }
 
   async getCodeHash(provider: ContractProvider): Promise<bigint> {
-    return this.typeAndVersion.getCodeHash(provider)
+    return typeAndVersion.getCodeHash(provider)
   }
 }

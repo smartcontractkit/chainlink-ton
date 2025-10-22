@@ -1,17 +1,23 @@
 import {
   Address,
   beginCell,
+  Builder,
   Cell,
   Contract,
   contractAddress,
   ContractProvider,
   Sender,
   SendMode,
+  Slice,
 } from '@ton/core'
-import { Upgradeable } from '../../libraries/upgrades/Upgradeable'
+import * as upgradeable from '../../libraries/versioning/Upgradeable'
 import { compile } from '@ton/blueprint'
-import { TypeAndVersion } from '../../libraries/TypeAndVersion'
+import * as typeAndVersion from '../../libraries/TypeAndVersion'
 import * as ownable2step from '../../libraries/access/Ownable2Step'
+import { CellCodec } from '../../utils'
+
+export const FACILITY_NAME = 'com.chainlink.ton.examples.versioning.upgrades.UpgradeableCounter'
+export const CONTRACT_VERSION = '1.0.0'
 
 export type CounterConfig = {
   id: number
@@ -19,46 +25,80 @@ export type CounterConfig = {
   ownable: ownable2step.Data
 }
 
-export function counterConfigToCell(config: CounterConfig): Cell {
-  const builder = beginCell().storeUint(config.id, 32).storeUint(config.value, 32)
-  builder.storeBuilder(ownable2step.builder.data.traitData.encode(config.ownable))
-  return builder.endCell()
+export type Step = {
+  queryId: bigint
 }
 
-export const Opcodes = {
-  OP_STEP: 0x00000001,
+export const opcodes = {
+  Step: 0x00000001,
 }
 
-export class UpgradeableCounterV2 implements Contract, TypeAndVersion, Upgradeable {
-  private typeAndVersion: TypeAndVersion
-  private upgradeable: Upgradeable
+export const builder = {
+  message: {
+    in: {
+      step: ((): CellCodec<Step> => {
+        return {
+          encode: (msg: Step): Builder => {
+            return beginCell().storeUint(opcodes.Step, 32).storeUint(msg.queryId, 64)
+          },
+          load: (src: Slice): Step => {
+            src.skip(32)
+            return {
+              queryId: src.loadUintBig(64),
+            }
+          },
+        }
+      })(),
+      upgrade: upgradeable.builder.message.in.upgrade,
+    },
+  },
+  data: {
+    counterConfig: ((): CellCodec<CounterConfig> => {
+      return {
+        encode: (config: CounterConfig): Builder => {
+          return beginCell()
+            .storeUint(config.id, 32)
+            .storeUint(config.value, 32)
+            .storeBuilder(ownable2step.builder.data.traitData.encode(config.ownable))
+        },
+        load: (src: Slice): CounterConfig => {
+          throw new Error('Not implemented')
+        },
+      }
+    })(),
+  },
+}
+
+export class ContractClient implements typeAndVersion.TypeAndVersion, upgradeable.Interface {
   private ownable: ownable2step.ContractClient
 
   constructor(
     readonly address: Address,
     readonly init?: { code: Cell; data: Cell },
   ) {
-    this.typeAndVersion = new TypeAndVersion()
-    this.upgradeable = new Upgradeable()
     this.ownable = new ownable2step.ContractClient(address)
   }
 
   static createFromAddress(address: Address) {
-    return new UpgradeableCounterV2(address)
+    return new ContractClient(address)
   }
 
   static code(): Promise<Cell> {
-    return compile('examples.upgrades.UpgradeableCounterV2')
+    return compile('examples.versioning.upgrades.UpgradeableCounterV1')
   }
 
-  code(): Promise<Cell> {
-    return compile('examples.upgrades.UpgradeableCounterV2')
+  static version() {
+    return CONTRACT_VERSION
+  }
+
+  static type() {
+    return FACILITY_NAME
   }
 
   static createFromConfig(config: CounterConfig, code: Cell, workchain = 0) {
-    const data = counterConfigToCell(config)
+    const data = builder.data.counterConfig.encode(config).endCell()
     const init = { code, data }
-    return new UpgradeableCounterV2(contractAddress(workchain, init), init)
+    return new ContractClient(contractAddress(workchain, init), init)
   }
 
   async sendDeploy(provider: ContractProvider, via: Sender, value: bigint) {
@@ -69,21 +109,11 @@ export class UpgradeableCounterV2 implements Contract, TypeAndVersion, Upgradeab
     })
   }
 
-  async sendStep(
-    provider: ContractProvider,
-    via: Sender,
-    opts: {
-      value: bigint
-      queryId?: number
-    },
-  ) {
+  async sendStep(provider: ContractProvider, via: Sender, value: bigint, body: Step) {
     await provider.internal(via, {
-      value: opts.value,
+      value: value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body: beginCell()
-        .storeUint(Opcodes.OP_STEP, 32)
-        .storeUint(opts.queryId ?? 0, 64)
-        .endCell(),
+      body: builder.message.in.step.encode(body).endCell(),
     })
   }
 
@@ -94,28 +124,25 @@ export class UpgradeableCounterV2 implements Contract, TypeAndVersion, Upgradeab
 
   // Delegate TypeAndVersion methods
   async getTypeAndVersion(provider: ContractProvider): Promise<{ type: string; version: string }> {
-    return this.typeAndVersion.getTypeAndVersion(provider)
+    return typeAndVersion.getTypeAndVersion(provider)
   }
 
   async getCode(provider: ContractProvider): Promise<Cell> {
-    return this.typeAndVersion.getCode(provider)
+    return typeAndVersion.getCode(provider)
   }
 
   async getCodeHash(provider: ContractProvider): Promise<bigint> {
-    return this.typeAndVersion.getCodeHash(provider)
+    return typeAndVersion.getCodeHash(provider)
   }
 
   // Delegate Upgradeable methods
   async sendUpgrade(
     provider: ContractProvider,
     via: Sender,
-    opts: {
-      value: bigint
-      queryId?: number
-      code: Cell
-    },
+    value: bigint,
+    body: upgradeable.Upgrade,
   ) {
-    await this.upgradeable.sendUpgrade(provider, via, opts)
+    await upgradeable.sendUpgrade(provider, via, value, body)
   }
 
   // Ownership methods
