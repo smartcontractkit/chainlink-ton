@@ -162,7 +162,7 @@ func retrieveCompiledTONContractsSequence(b operations.Bundle, deps operation.To
 			path := utils.GetBuildDir(a.Path)
 
 			if err := os.WriteFile(path, a.Data, 0o600); err != nil {
-				return output, fmt.Errorf("failed to contractType to path %s: %w", path, err)
+				return output, fmt.Errorf("failed to write contract artifact to path %s: %w", path, err)
 			}
 
 			b.Logger.Infof("Saved contractType artifact %s", path)
