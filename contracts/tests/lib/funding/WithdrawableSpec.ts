@@ -779,7 +779,6 @@ export function newWithdrawableSpec<TContract extends WithdrawableContract>(
         const { blockchain, contract, owner, recipient } = await setup()
 
         const customReserve = customReserveBelowDefault()
-
         // First, drain to be between custom reserve and default reserve
         {
           const withdrawAmount = withdrawHittingReserve(
@@ -804,10 +803,13 @@ export function newWithdrawableSpec<TContract extends WithdrawableContract>(
             success: true,
             value: withdrawValue,
           })
+          const tx = searchTX(result, contract)
 
           const contractBalance = (await blockchain.getContract(contract.address)).balance
           expect(contractBalance).toBeLessThan(defaultReserve)
-          expect(contractBalance).toBe(customReserve)
+          expect(contractBalance).toBe(
+            customReserve - (tx.description.storagePhase?.storageFeesCollected ?? 0n),
+          )
         }
 
         const balanceBeforeDrain = (await blockchain.getContract(contract.address)).balance
