@@ -24,8 +24,8 @@ type View struct {
 	OnRampAddr map[uint64]*address.Address `json:"onRampAddr,omitempty"`
 }
 
-// FetchRouterView generates a view of the router contract at the specified block.
-func FetchRouterView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, routerAddr *address.Address) (*View, error) {
+// FetchView generates a view of the router contract at the specified block.
+func FetchView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, routerAddr *address.Address) (*View, error) {
 	var typeVersion common.TypeAndVersion
 	result, err := c.Client.RunGetMethod(ctx, block, routerAddr, view.VersionGetter)
 	if err != nil {

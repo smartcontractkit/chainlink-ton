@@ -85,7 +85,7 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 	errGroup := errgroup.Group{}
 	if !s.OnRamp.IsAddrNone() {
 		errGroup.Go(func() error {
-			onRampView, err := onramp.FetchOnRampView(ctx, tonClient, block, &s.OnRamp, selector)
+			onRampView, err := onramp.FetchView(ctx, tonClient, block, &s.OnRamp, selector)
 			if err != nil {
 				return fmt.Errorf("failed to generate onramp view for chain %d: %w", selector, err)
 			}
@@ -97,7 +97,7 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 
 	if !s.Router.IsAddrNone() {
 		errGroup.Go(func() error {
-			routerView, err := router.FetchRouterView(ctx, tonClient, block, &s.Router)
+			routerView, err := router.FetchView(ctx, tonClient, block, &s.Router)
 			if err != nil {
 				return fmt.Errorf("failed to generate router view for chain %d: %w", selector, err)
 			}
@@ -123,7 +123,7 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 
 	if !s.OffRamp.IsAddrNone() {
 		errGroup.Go(func() error {
-			offRampView, err := offramp.FetchOffRampView(ctx, tonClient, block, &s.OffRamp)
+			offRampView, err := offramp.FetchView(ctx, tonClient, block, &s.OffRamp)
 			if err != nil {
 				return fmt.Errorf("failed to generate offramp view for chain %d: %w", selector, err)
 			}

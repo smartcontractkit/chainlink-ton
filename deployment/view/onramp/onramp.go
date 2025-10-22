@@ -41,8 +41,8 @@ type DestChainConfig struct {
 	AllowedSenders   map[string]bool `json:"allowedSenders,omitempty"`
 }
 
-// FetchOnRampView generates a view of the on-ramp contract at the specified block.
-func FetchOnRampView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, onrampAddr *address.Address, srcSelector uint64) (*View, error) {
+// FetchView generates a view of the on-ramp contract at the specified block.
+func FetchView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, onrampAddr *address.Address, srcSelector uint64) (*View, error) {
 	var typeVersion common.TypeAndVersion
 	result, err := c.Client.RunGetMethod(ctx, block, onrampAddr, view.VersionGetter)
 	if err != nil {

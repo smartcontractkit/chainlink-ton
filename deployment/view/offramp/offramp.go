@@ -38,8 +38,8 @@ type Config struct {
 	PermissionlessExecutionThresholdSeconds uint32 `json:"permissionlessExecutionThresholdSeconds,omitempty"`
 }
 
-// FetchOffRampView generates a view of the offramp contract at the specified block.
-func FetchOffRampView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, offRampAddr *address.Address) (*View, error) {
+// FetchView generates a view of the offramp contract at the specified block.
+func FetchView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, offRampAddr *address.Address) (*View, error) {
 	var typeVersion common.TypeAndVersion
 	result, err := c.Client.RunGetMethod(ctx, block, offRampAddr, view.VersionGetter)
 	if err != nil {
