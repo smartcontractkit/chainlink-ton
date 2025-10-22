@@ -21,7 +21,7 @@ import * as upgradeable from '../libraries/versioning/Upgradeable'
 import * as typeAndVersion from '../libraries/TypeAndVersion'
 import { compile } from '@ton/blueprint'
 
-export const ROUTER_CONTRACT_VERSION = '0.0.5'
+export const ROUTER_CONTRACT_VERSION = '0.0.6'
 
 export const ROUTER_FACILITY_NAME = 'com.chainlink.ton.ccip.Router'
 export const ROUTER_FACILITY_ID = 496

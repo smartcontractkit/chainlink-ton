@@ -551,7 +551,7 @@ export function newWithdrawableSpec<TContract extends withdrawable.Interface>(
           from: owner.address,
           to: contract.address,
           success: false,
-          exitCode: withdrawable.Error.LowReserve,
+          exitCode: withdrawable.Error.HitReserve,
         })
       })
 
@@ -760,7 +760,7 @@ export function newWithdrawableSpec<TContract extends withdrawable.Interface>(
           from: owner.address,
           to: contract.address,
           success: false,
-          exitCode: withdrawable.Error.LowReserve,
+          exitCode: withdrawable.Error.HitReserve,
         })
       })
 

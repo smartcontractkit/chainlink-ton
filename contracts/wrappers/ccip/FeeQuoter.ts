@@ -22,7 +22,7 @@ import * as upgradeable from '../libraries/versioning/Upgradeable'
 import * as typeAndVersion from '../libraries/TypeAndVersion'
 import { compile } from '@ton/blueprint'
 
-export const FEE_QUOTER_CONTRACT_VERSION = '0.0.6'
+export const FEE_QUOTER_CONTRACT_VERSION = '0.0.7'
 
 export const FEE_QUOTER_FACILITY_NAME = 'com.chainlink.ton.ccip.FeeQuoter'
 export const FEE_QUOTER_FACILITY_ID = 248

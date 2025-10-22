@@ -5,10 +5,8 @@ struct Withdrawable {
 enum Withdrawable_Error {
     // Trying to withdraw more TON than available in balance.
     InsufficientBalance = 44800; // Facility ID * 100
-    // Trying to withdraw more TON than available in balance above reserve and force is false.
+    // Trying to withdraw more TON than available in balance above reserve.
     HitReserve;
-    // Balance is below reserves and force is false.
-    LowReserve;
     // Invalid withdrawal request: Amount is non-zero and drain is true or Amount is zero and drain is false.
     InvalidRequest;
 }
@@ -36,7 +34,7 @@ fun Withdrawable.withdraw(self, msg: Withdrawable_Withdraw, value: coins) {
     if (msg.drainAllAvailable) {
         assert (msg.amount == 0) throw Withdrawable_Error.InvalidRequest;    
         // Withdraw all balance above reserve
-        assert (originalBalance > actualReserve) throw Withdrawable_Error.LowReserve;
+        assert (originalBalance > actualReserve) throw Withdrawable_Error.HitReserve;
         reserveToncoinsOnBalance(actualReserve, RESERVE_MODE_EXACT_AMOUNT);
 
         return _transfer(msg.destination, 0, SEND_MODE_CARRY_ALL_BALANCE);
