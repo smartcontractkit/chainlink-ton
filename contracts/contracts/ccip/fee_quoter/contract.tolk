@@ -10,9 +10,11 @@ import "../../deployable/types";
 import "../../lib/utils";
 import "../router/messages"
 import "../ccipsend_executor/messages"
+import "../../lib/funding/withdrawable"
 
-const CONTRACT_VERSION = "0.0.4";
+const CONTRACT_VERSION = "0.0.5";
 const FACILITY_NAME = "com.chainlink.ton.ccip.FeeQuoter";
+const RESERVE = ton("1"); // TODO: set correct value
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy FeeQuoter_InMessage.fromSlice(in.body);
@@ -42,6 +44,13 @@ fun onInternalMessage(in: InMessage) {
             st.store();
         }
         FeeQuoter_GetValidatedFee<cell> => { getValidatedFee(msg, in.senderAddress) }
+        Withdrawable_Withdraw => {
+            var st = lazy Storage.load();
+            st.ownable.requireOwner(in.senderAddress);
+            Withdrawable{
+                reserve: RESERVE
+            }.withdraw(msg, in.valueCoins);
+        }
         else => {
             // ignore empty messages, "wrong opcode" for others
             assert (in.body.isEmpty()) throw 0xFFFF
@@ -512,4 +521,8 @@ get fun destChainSelectors(): tuple? {
     val st = lazy Storage.load();
     var d = st.destChainConfigs;
     return keysLispList(d)!;
+}
+
+get fun reserve(): coins {
+    return RESERVE;
 }

@@ -132,6 +132,8 @@ flowchart LR
 	click chainlink-ccip/chains/solana href "https://github.com/smartcontractkit/chainlink-ccip"
 	chainlink-ccip/chains/solana/gobindings
 	click chainlink-ccip/chains/solana/gobindings href "https://github.com/smartcontractkit/chainlink-ccip"
+	chainlink-ccip/deployment --> chainlink-deployments-framework
+	click chainlink-ccip/deployment href "https://github.com/smartcontractkit/chainlink-ccip"
 	chainlink-common --> chain-selectors
 	chainlink-common --> chainlink-common/pkg/chipingress
 	chainlink-common --> chainlink-protos/billing/go
@@ -152,6 +154,7 @@ flowchart LR
 	chainlink-deployments-framework --> ccip-owner-contracts
 	chainlink-deployments-framework --> chainlink-protos/chainlink-catalog
 	chainlink-deployments-framework --> chainlink-protos/job-distributor
+	chainlink-deployments-framework --> chainlink-protos/op-catalog
 	chainlink-deployments-framework --> chainlink-testing-framework/seth
 	chainlink-deployments-framework --> chainlink-tron/relayer
 	chainlink-deployments-framework --> mcms
@@ -182,6 +185,8 @@ flowchart LR
 	click chainlink-protos/cre/go href "https://github.com/smartcontractkit/chainlink-protos"
 	chainlink-protos/job-distributor
 	click chainlink-protos/job-distributor href "https://github.com/smartcontractkit/chainlink-protos"
+	chainlink-protos/op-catalog
+	click chainlink-protos/op-catalog href "https://github.com/smartcontractkit/chainlink-protos"
 	chainlink-protos/orchestrator --> wsrpc
 	click chainlink-protos/orchestrator href "https://github.com/smartcontractkit/chainlink-protos"
 	chainlink-protos/rmn/v1.6/go
@@ -212,6 +217,7 @@ flowchart LR
 	click chainlink-testing-framework/seth href "https://github.com/smartcontractkit/chainlink-testing-framework"
 	chainlink-ton --> chainlink-deployments-framework
 	click chainlink-ton href "https://github.com/smartcontractkit/chainlink-ton"
+	chainlink-ton/deployment --> chainlink-ccip/deployment
 	chainlink-ton/deployment --> chainlink-ton
 	click chainlink-ton/deployment href "https://github.com/smartcontractkit/chainlink-ton"
 	chainlink-ton/integration-tests --> chainlink-ton/deployment
@@ -277,6 +283,7 @@ flowchart LR
 		 chainlink-ccip
 		 chainlink-ccip/chains/solana
 		 chainlink-ccip/chains/solana/gobindings
+		 chainlink-ccip/deployment
 	end
 	click chainlink-ccip-repo href "https://github.com/smartcontractkit/chainlink-ccip"
 
@@ -307,6 +314,7 @@ flowchart LR
 		 chainlink-protos/chainlink-catalog
 		 chainlink-protos/cre/go
 		 chainlink-protos/job-distributor
+		 chainlink-protos/op-catalog
 		 chainlink-protos/orchestrator
 		 chainlink-protos/rmn/v1.6/go
 		 chainlink-protos/storage-service

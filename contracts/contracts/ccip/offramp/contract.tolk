@@ -7,6 +7,7 @@ import "events"
 import "../common/types.tolk"
 import "../../deployable/types.tolk"
 import "../../lib/access/ownable_2step.tolk"
+import "../../lib/funding/withdrawable.tolk"
 import "../../lib/crypto/merkle_multi_proof.tolk"
 import "../../lib/ocr/multi_ocr3_base"
 import "../../lib/ocr/types"
@@ -18,7 +19,8 @@ import "../merkle_root/storage"
 import "../receive_executor/messages"
 import "../receive_executor/storage"
 
-const CONTRACT_VERSION = "0.0.5";
+const CONTRACT_VERSION = "0.0.6";
+const RESERVE = ton("1"); // TODO: set correct value
 
 fun onInternalMessage(in:InMessage) {
     val msg = lazy OffRamp_InMessage.fromSlice(in.body);
@@ -58,6 +60,13 @@ fun onInternalMessage(in:InMessage) {
         // Sender must be ReceiveExecutor
         OffRamp_NotifyFailure => {
             _notifyFailure(msg, in.senderAddress);
+        }
+        Withdrawable_Withdraw => {
+            var st = lazy Storage.load();
+            st.ownable.requireOwner(in.senderAddress);
+            Withdrawable{
+                reserve: RESERVE
+            }.withdraw(msg, in.valueCoins);
         }
         else => {
             // ignore empty messages, "wrong opcode" for others
@@ -549,4 +558,8 @@ get fun code(): cell {
 // Returns the sha256 hash of the current code of the contract.
 get fun codeHash(): int {
     return contract.getCode().hash();
+}
+
+get fun reserve(): coins {
+    return RESERVE;
 }

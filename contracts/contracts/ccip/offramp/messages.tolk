@@ -4,6 +4,7 @@ import "../../lib/ocr/multi_ocr3_base.tolk"
 import "../../lib/receiver/messages.tolk"
 import "../common/types.tolk"
 import "../../lib/utils"
+import "../../lib/funding/withdrawable"
 
 type OffRamp_InMessage =
     | OffRamp_Commit
@@ -13,8 +14,10 @@ type OffRamp_InMessage =
     | OffRamp_UpdateSourceChainConfig
     | OCR3Base_SetOCR3Config
     | OffRamp_CCIPReceiveConfirm
+    | OffRamp_NotifyFailure
     | OffRamp_NotifySuccess
-    | OffRamp_NotifyFailure;
+    | Withdrawable_Withdraw
+    ;
 
 type OffRamp_BouncedMessage =  Receiver_CCIPReceive;
 

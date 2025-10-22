@@ -13,8 +13,9 @@ import {
 } from '@ton/core'
 
 import * as ownable2step from '../libraries/access/Ownable2Step'
-import { CellCodec } from '../utils'
+import * as withdrawable from '../libraries/funding/Withdrawable'
 import { asSnakeData, asSnakeDataUint, fromSnakeData } from '../../src/utils'
+import { CellCodec } from '../utils'
 
 export const ROUTER_FACILITY_NAME = 'com.chainlink.ton.ccip.Router'
 export const ROUTER_FACILITY_ID = 496
@@ -38,7 +39,7 @@ export abstract class Opcodes {
   static ccipSend = 0x00000001
 }
 
-export class Router implements Contract {
+export class Router implements Contract, withdrawable.Interface {
   constructor(
     readonly address: Address,
     readonly init?: { code: Cell; data: Cell },
@@ -105,6 +106,20 @@ export class Router implements Contract {
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: builder.message.in.ccipSend.encode(opts.body).asCell(),
     })
+  }
+
+  // Withdrawable methods
+  async sendWithdraw(
+    provider: ContractProvider,
+    via: Sender,
+    value: bigint,
+    body: withdrawable.Withdraw,
+  ) {
+    await withdrawable.sendWithdraw(provider, via, value, body)
+  }
+
+  async getReserve(provider: ContractProvider): Promise<bigint> {
+    return await withdrawable.getReserve(provider)
   }
 }
 

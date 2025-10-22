@@ -15,6 +15,7 @@ import {
 } from '@ton/core'
 
 import * as ownable2step from '../libraries/access/Ownable2Step'
+import * as withdrawable from '../libraries/funding/Withdrawable'
 import { CellCodec } from '../utils'
 import { asSnakeData, fromSnakeData } from '../../src/utils'
 
@@ -381,7 +382,7 @@ export type UpdateDestChainConfigs = {
 
 export abstract class Errors {}
 
-export class FeeQuoter implements Contract {
+export class FeeQuoter implements Contract, withdrawable.Interface {
   constructor(
     readonly address: Address,
     readonly init?: { code: Cell; data: Cell },
@@ -471,6 +472,20 @@ export class FeeQuoter implements Contract {
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: builder.message.in.updateTokenTransferFeeConfigs.encode(opts.msg).asCell(),
     })
+  }
+
+  // Withdrawable methods
+  async sendWithdraw(
+    provider: ContractProvider,
+    via: Sender,
+    value: bigint,
+    body: withdrawable.Withdraw,
+  ) {
+    await withdrawable.sendWithdraw(provider, via, value, body)
+  }
+
+  async getReserve(provider: ContractProvider): Promise<bigint> {
+    return await withdrawable.getReserve(provider)
   }
 }
 

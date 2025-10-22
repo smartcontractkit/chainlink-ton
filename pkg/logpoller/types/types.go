@@ -77,3 +77,11 @@ func (l Log) String() string {
 
 	return sb.String()
 }
+
+// RawLog contains raw log data + metadata that can be transformed by consumers as needed (eg. o11y)
+type RawLog struct {
+	Tx    *tlb.Transaction
+	Block *tlb.Block
+	Data  *cell.Cell
+	Topic uint32
+}

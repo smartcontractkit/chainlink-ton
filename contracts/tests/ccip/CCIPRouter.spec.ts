@@ -18,7 +18,9 @@ import * as jetton from '../../wrappers/jetton/JettonWallet'
 import { dump } from '../utils/prettyPrint'
 import { CellCodec, facilityId } from '../../wrappers/utils'
 import { crc32 } from 'zlib'
-import { CCIP_SEND_EXECUTOR_FACILITY_ID, DestChainConfig } from '../../wrappers/ccip/OnRamp'
+import { CCIP_SEND_EXECUTOR_FACILITY_ID } from '../../wrappers/ccip/OnRamp'
+import { newWithdrawableSpec } from '../lib/funding/WithdrawableSpec'
+import * as ownable2step from '../../wrappers/libraries/access/Ownable2Step'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_EVM_TEST_90000002 = 5548718428018410741n
@@ -36,6 +38,32 @@ const EVM_ADDRESS = Buffer.from(
   '0000000000000000000000001234567890123456789012345678901234567890',
   'hex',
 ) // 32 bytes
+
+describe('Router - Withdrawable Tests', () => {
+  const withdrawableSpec = newWithdrawableSpec({
+    getCode: () => compile('Router'),
+    ContractConstructor: rt.Router,
+    ownershipErrorCode: ownable2step.Errors.OnlyCallableByOwner,
+    deployContract: async (blockchain, owner) => {
+      const code = await compile('Router')
+      let data: rt.Storage = {
+        id: 0,
+        ownable: {
+          owner: owner.address,
+          pendingOwner: null,
+        },
+        onRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
+      }
+
+      // TODO: use deployable to make deterministic?
+      const contract = blockchain.openContract(rt.Router.createFromConfig(data, code))
+      const deployer = await blockchain.treasury('deployer')
+      await contract.sendInternal(deployer.getSender(), toNano('1'), Cell.EMPTY)
+      return contract
+    },
+  })
+  withdrawableSpec.run()
+})
 
 describe('Router', () => {
   let blockchain: Blockchain

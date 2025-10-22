@@ -83,3 +83,17 @@ func (a addressCodec) TransmitterBytesToString(addr []byte) (string, error) {
 	// a 0x prefix.
 	return hex.EncodeToString(addr), nil
 }
+
+// This method is not part of the interface as it's TON specific
+// AddressBytesToAddress converts a byte slice representing a TON address into its ton address representation, only supporting standard TON addresses.
+func AddressBytesToTONAddress(bytes []byte) (*address.Address, error) {
+	if len(bytes) != TONAddressLength {
+		return address.NewAddressNone(), fmt.Errorf("invalid address length: expected %d bytes, got %d", TONAddressLength, len(bytes))
+	}
+	var rawAddr RawAddr
+	copy(rawAddr[:], bytes)
+	workchain := int32(binary.BigEndian.Uint32(rawAddr[0:4])) //nolint:gosec // G115
+
+	addr := address.NewAddress(0, byte(workchain), rawAddr[4:])
+	return addr, nil
+}

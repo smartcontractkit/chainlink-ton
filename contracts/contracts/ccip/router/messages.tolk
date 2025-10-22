@@ -1,8 +1,13 @@
 import "../common/types.tolk"
 import "../common/messages"
 import "../../lib/utils"
+import "../../lib/funding/withdrawable.tolk";
 
-type Msg = Router_CCIPSend | Router_SetRamps | Common_JettonTransferNotification;
+type Msg =
+    | Router_CCIPSend
+    | Router_SetRamps
+    | Common_JettonTransferNotification
+    | Withdrawable_Withdraw;
 
 // update multiple chain selectors in batch to the same onramp address
 struct (0x10000001) Router_SetRamps {

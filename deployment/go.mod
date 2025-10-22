@@ -1,8 +1,6 @@
 module github.com/smartcontractkit/chainlink-ton/deployment
 
-go 1.24.5
-
-toolchain go1.24.6
+go 1.24.6
 
 require github.com/hashicorp/go-plugin v1.6.3 // indirect
 
@@ -14,8 +12,9 @@ require (
 	github.com/rs/zerolog v1.33.0
 	github.com/smartcontractkit/chain-selectors v1.0.72
 	github.com/smartcontractkit/chainlink-ccip v0.1.1-solana.0.20250930202440-88c08e65d960
+	github.com/smartcontractkit/chainlink-ccip/deployment v0.0.0-20251014191100-bad58388f0c9
 	github.com/smartcontractkit/chainlink-common v0.9.6-0.20251003171904-99a82a53b142
-	github.com/smartcontractkit/chainlink-deployments-framework v0.52.0
+	github.com/smartcontractkit/chainlink-deployments-framework v0.56.0
 	github.com/smartcontractkit/chainlink-testing-framework/framework v0.10.30
 	github.com/smartcontractkit/chainlink-ton v0.0.0-20250904183752-4ea5c19ee886
 	github.com/smartcontractkit/mcms v0.25.0
@@ -139,7 +138,6 @@ require (
 	github.com/mr-tron/base58 v1.2.0 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/oklog/run v1.2.0 // indirect
-	github.com/onsi/gomega v1.36.2 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.1 // indirect
 	github.com/pelletier/go-toml v1.9.5 // indirect
@@ -159,14 +157,14 @@ require (
 	github.com/shopspring/decimal v1.4.0 // indirect
 	github.com/sigurn/crc16 v0.0.0-20211026045750-20ab5afb07e3 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
-	github.com/smartcontractkit/chainlink-aptos v0.0.0-20250905094443-ac02b032b32b // indirect
-	github.com/smartcontractkit/chainlink-ccip/chains/solana v0.0.0-20250805210128-7f8a0f403c3a // indirect
-	github.com/smartcontractkit/chainlink-ccip/chains/solana/gobindings v0.0.0-20250805210128-7f8a0f403c3a // indirect
+	github.com/smartcontractkit/chainlink-aptos v0.0.0-20250915164817-46a35eda083d // indirect
+	github.com/smartcontractkit/chainlink-ccip/chains/solana v0.0.0-20250908144012-8184001834b5 // indirect
+	github.com/smartcontractkit/chainlink-ccip/chains/solana/gobindings v0.0.0-20250908144012-8184001834b5 // indirect
 	github.com/smartcontractkit/chainlink-common/pkg/chipingress v0.0.4 // indirect
 	github.com/smartcontractkit/chainlink-protos/cre/go v0.0.0-20250911124514-5874cc6d62b2 // indirect
 	github.com/smartcontractkit/chainlink-protos/job-distributor v0.13.1 // indirect
 	github.com/smartcontractkit/chainlink-sui v0.0.0-20250916193659-4becc28a467f // indirect
-	github.com/smartcontractkit/chainlink-tron/relayer v0.0.11-0.20250815105909-75499abc4335 // indirect
+	github.com/smartcontractkit/chainlink-tron/relayer v0.0.11-0.20250908203554-5bd9d2fe9513 // indirect
 	github.com/smartcontractkit/freeport v0.1.3-0.20250716200817-cb5dfd0e369e // indirect
 	github.com/smartcontractkit/grpc-proxy v0.0.0-20240830132753-a7e17fec5ab7 // indirect
 	github.com/smartcontractkit/libocr v0.0.0-20250905115425-2785a5cee79d // indirect
@@ -181,7 +179,6 @@ require (
 	github.com/tklauser/go-sysconf v0.3.15 // indirect
 	github.com/tklauser/numcpus v0.10.0 // indirect
 	github.com/tyler-smith/go-bip39 v1.1.0 // indirect
-	github.com/urfave/cli/v2 v2.27.6 // indirect
 	github.com/valyala/fastjson v1.6.4 // indirect
 	github.com/wk8/go-ordered-map/v2 v2.1.8 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
