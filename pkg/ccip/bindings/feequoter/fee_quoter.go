@@ -1,6 +1,8 @@
 package feequoter
 
 import (
+	"context"
+	"fmt"
 	"math/big"
 
 	"github.com/xssnick/tonutils-go/address"
@@ -9,6 +11,10 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+)
+
+const (
+	StaticConfigGetter = "staticConfig"
 )
 
 type Storage struct {
@@ -201,37 +207,6 @@ type FeeToken struct {
 	PremiumMultiplierWeiPerEth uint64 `tlb:"## 64"`
 }
 
-type StaticConfig struct {
-	MaxFeeJuelsPerMsg  *big.Int
-	LinkToken          *address.Address
-	StalenessThreshold uint32
-}
-
-func (c *StaticConfig) FromResult(result *ton.ExecutionResult) error {
-	maxFeeJuelsPerMsg, err := result.Int(0)
-	if err != nil {
-		return err
-	}
-	linkTokenAddressSlice, err := result.Slice(1)
-	if err != nil {
-		return err
-	}
-	linkTokenAddress, err := linkTokenAddressSlice.LoadAddr()
-	if err != nil {
-		return err
-	}
-	tokenPriceStalenessThreshold, err := result.Int(2)
-	if err != nil {
-		return err
-	}
-	*c = StaticConfig{
-		MaxFeeJuelsPerMsg:  maxFeeJuelsPerMsg,
-		LinkToken:          linkTokenAddress,
-		StalenessThreshold: uint32(tokenPriceStalenessThreshold.Uint64()), //nolint:gosec // G115
-	}
-	return nil
-}
-
 // Methods
 
 type UpdatePrices struct {
@@ -261,4 +236,55 @@ type UpdateDestChainConfig struct {
 type UpdateDestChainConfigs struct {
 	_       tlb.Magic                               `tlb:"#29950BAA"` //nolint:revive // Ignore opcode tag
 	Updates common.SnakeData[UpdateDestChainConfig] `tlb:"^"`
+}
+
+// binding types that supports FetchResult interface with rpc client
+
+type StaticConfig struct {
+	MaxFeeJuelsPerMsg  *big.Int
+	LinkToken          *address.Address
+	StalenessThreshold uint32
+}
+
+func (s *StaticConfig) FromResult(result *ton.ExecutionResult) error {
+	maxFeeJuelsPerMsg, err := result.Int(0)
+	if err != nil {
+		return err
+	}
+	linkTokenAddressSlice, err := result.Slice(1)
+	if err != nil {
+		return err
+	}
+	linkTokenAddress, err := linkTokenAddressSlice.LoadAddr()
+	if err != nil {
+		return err
+	}
+	tokenPriceStalenessThreshold, err := result.Int(2)
+	if err != nil {
+		return err
+	}
+	*s = StaticConfig{
+		MaxFeeJuelsPerMsg:  maxFeeJuelsPerMsg,
+		LinkToken:          linkTokenAddress,
+		StalenessThreshold: uint32(tokenPriceStalenessThreshold.Uint64()), //nolint:gosec // G115
+	}
+	return nil
+}
+
+func (s *StaticConfig) FetchResult(ctx context.Context, client ton.APIClientWrapped, contractAddr *address.Address, _ common.FetchOptions) error {
+	block, err := client.CurrentMasterchainInfo(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get current masterchain info: %w", err)
+	}
+
+	result, err := client.RunGetMethod(ctx, block, contractAddr, StaticConfigGetter)
+	if err != nil {
+		return fmt.Errorf("error getting staticConfig: %w", err)
+	}
+
+	if err = s.FromResult(result); err != nil {
+		return fmt.Errorf("failed to parse staticConfig: %w", err)
+	}
+
+	return nil
 }

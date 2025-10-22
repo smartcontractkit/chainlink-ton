@@ -163,7 +163,7 @@ type Any2TVMMessage struct {
 	Data                *cell.Cell               `tlb:"^"`
 }
 
-// ----------- binding types that supports FetchResult interface with rpc client -----------
+// binding types that supports FetchResult interface with rpc client
 
 type OCR3Config struct {
 	ConfigInfo   ConfigInfo       `tlb:"."`

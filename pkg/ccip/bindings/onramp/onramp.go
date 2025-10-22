@@ -83,7 +83,7 @@ type UpdateAllowlists struct {
 
 type WithdrawFeeTokens struct{}
 
-// ----------- binding types that supports FetchResult interface with rpc client -----------
+// binding types that supports FetchResult interface with rpc client
 
 // DestChainConfig represents the configuration for a destination chain in the CCIP system.
 type DestChainConfig struct {
@@ -178,7 +178,7 @@ func (c *DynamicConfig) FromResult(result *ton.ExecutionResult) error {
 	return nil
 }
 
-func (c *DynamicConfig) FetchResult(ctx context.Context, client ton.APIClientWrapped, contractAddr *address.Address, opts common.FetchOptions) error {
+func (c *DynamicConfig) FetchResult(ctx context.Context, client ton.APIClientWrapped, contractAddr *address.Address, _ common.FetchOptions) error {
 	block, err := client.CurrentMasterchainInfo(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get current masterchain info: %w", err)
