@@ -17,6 +17,7 @@ import {
 } from '@ton/core'
 import '@ton/test-utils'
 import * as withdrawable from '../../../wrappers/libraries/funding/Withdrawable'
+import { sleep } from '@ton/blueprint'
 
 /**
  * Configuration for testing withdrawable functionality.
@@ -370,14 +371,15 @@ export function newWithdrawableSpec<TContract extends WithdrawableContract>(
         const tx = searchTX(result, testSetup.contract)
         const outMsg = getOutMsg(tx)
         expect(outMsg.info.value.coins).toBe(
-          initialBalance - effectiveReserve + remainingMessageValue(tx),
+          initialBalance -
+            (tx.description.storagePhase?.storageFeesCollected ?? 0n) -
+            effectiveReserve +
+            remainingMessageValue(tx),
         )
 
         const finalBalance = (await testSetup.blockchain.getContract(testSetup.contract.address))
           .balance
-        expect(finalBalance).toBe(
-          effectiveReserve - (tx.description.storagePhase?.storageFeesCollected ?? 0n),
-        )
+        expect(finalBalance).toBe(effectiveReserve)
       }
 
       /**
@@ -444,7 +446,11 @@ export function newWithdrawableSpec<TContract extends WithdrawableContract>(
 
         const tx = searchTX(result, contract)
         const outMsg = getOutMsg(tx)
-        expect(outMsg.info.value.coins).toBe(initialBalance + remainingMessageValue(tx))
+        expect(outMsg.info.value.coins).toBe(
+          initialBalance -
+            (tx.description.storagePhase?.storageFeesCollected ?? 0n) +
+            remainingMessageValue(tx),
+        )
 
         const finalBalance = (await blockchain.getContract(contract.address)).balance
         expect(finalBalance).toBe(0n)
@@ -829,13 +835,14 @@ export function newWithdrawableSpec<TContract extends WithdrawableContract>(
         const tx = searchTX(result, contract)
         const outMsg = getOutMsg(tx)
         expect(outMsg.info.value.coins).toBe(
-          balanceBeforeDrain - customReserve + remainingMessageValue(tx),
+          balanceBeforeDrain -
+            (tx.description.storagePhase?.storageFeesCollected ?? 0n) -
+            customReserve +
+            remainingMessageValue(tx),
         )
 
         const finalBalance = (await blockchain.getContract(contract.address)).balance
-        expect(finalBalance).toBe(
-          customReserve - (tx.description.storagePhase?.storageFeesCollected ?? 0n),
-        )
+        expect(finalBalance).toBe(customReserve)
       })
     },
   }
