@@ -18,14 +18,21 @@ import (
 
 // Duplicates of chainlink/deployment/ccip/ to avoid import loops
 var (
-	Version1_6_0                 = *semver.MustParse("1.6.0")
-	LinkToken    ds.ContractType = "LinkToken"
-	TonReceiver  ds.ContractType = "Receiver"
-	Router       ds.ContractType = "Router"
-	OnRamp       ds.ContractType = "OnRamp"
-	OffRamp      ds.ContractType = "OffRamp"
-	FeeQuoter    ds.ContractType = "FeeQuoter"
-	Timelock     ds.ContractType = "Timelock"
+	Version1_6_0 = *semver.MustParse("1.6.0")
+	// Core contracts
+	LinkToken ds.ContractType = "LinkToken"
+	Router    ds.ContractType = "Router"
+	OnRamp    ds.ContractType = "OnRamp"
+	OffRamp   ds.ContractType = "OffRamp"
+	FeeQuoter ds.ContractType = "FeeQuoter"
+	// Internal contracts
+	Deployer     ds.ContractType = "Deployer"
+	MerkleRoot   ds.ContractType = "MerkleRoot"
+	SendExecutor ds.ContractType = "SendExecutor"
+	// Utilities
+	Timelock    ds.ContractType = "Timelock"
+	TonReceiver ds.ContractType = "Receiver"
+	Counter     ds.ContractType = "Counter"
 )
 
 // CCIPChainState holds a Go binding for all the currently deployed CCIP contracts
