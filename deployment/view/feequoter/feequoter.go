@@ -1,11 +1,13 @@
-package view
+package feequoter
 
 import (
 	"context"
 	"fmt"
 	"runtime"
+	"sync"
 
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
+	"github.com/smartcontractkit/chainlink-ton/deployment/view"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
 	"golang.org/x/sync/errgroup"
@@ -18,9 +20,9 @@ const (
 	staticConfigGetter = "staticConfig"
 )
 
-// FeeQuoterView represents a view of the fee quoter contract configuration.
-type FeeQuoterView struct {
-	MetaData
+// View represents a view of the fee quoter contract configuration.
+type View struct {
+	view.MetaData
 	StaticConfig    StaticConfig               `json:"staticConfig"`
 	DestChainConfig map[uint64]DestChainConfig `json:"destChainConfig,omitempty"`
 }
@@ -63,10 +65,10 @@ type DestChainConfig struct {
 	NetworkFeeUsdCents                uint32 `json:"networkFeeUsdCents,omitempty"`
 }
 
-// FetchFeeQuoterView generates a view of the fee quoter contract at the specified block.
-func FetchFeeQuoterView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, feeQuoter *address.Address) (*FeeQuoterView, error) {
+// FetchView generates a view of the fee quoter contract at the specified block.
+func FetchView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, feeQuoter *address.Address) (*View, error) {
 	var typeVersion common.TypeAndVersion
-	result, err := c.Client.RunGetMethod(ctx, block, feeQuoter, versionGetter)
+	result, err := c.Client.RunGetMethod(ctx, block, feeQuoter, view.VersionGetter)
 	if err != nil {
 		return nil, fmt.Errorf("error getting typeAndVersion: %v", err)
 	}
@@ -89,8 +91,8 @@ func FetchFeeQuoterView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockI
 		return nil, fmt.Errorf("failed to fetch dest chain config view: %w", err)
 	}
 
-	return &FeeQuoterView{
-		MetaData: MetaData{
+	return &View{
+		MetaData: view.MetaData{
 			Address:      feeQuoter,
 			ContractType: typeVersion.Type,
 			Version:      typeVersion.Version,
@@ -105,22 +107,20 @@ func FetchFeeQuoterView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockI
 }
 
 func fetchDestChainConfigsView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, feeQuoter *address.Address) (map[uint64]DestChainConfig, error) {
-	result, err := c.Client.RunGetMethod(ctx, block, feeQuoter, destChainsGetter)
+	result, err := c.Client.RunGetMethod(ctx, block, feeQuoter, view.DestChainsGetter)
 	if err != nil {
 		return nil, err
 	}
 
-	selectorSlice := parseExecutionResultForDestChainSelectors(result.AsTuple())
+	selectorSlice := view.ParseExecutionResultForDestChainSelectors(result.AsTuple())
 	eg, egCtx := errgroup.WithContext(ctx)
+
+	var lock sync.Mutex
 	eg.SetLimit(runtime.NumCPU())
 	output := make(map[uint64]DestChainConfig)
-	updateChanMap := make(map[uint64]chan DestChainConfig)
 	for _, dest := range selectorSlice {
-		updateChan := make(chan DestChainConfig, 1)
-		updateChanMap[dest] = updateChan
-
 		eg.Go(func() error {
-			result, err := c.Client.RunGetMethod(egCtx, block, feeQuoter, destChainConfigGetter, dest) // New variables per goroutine
+			result, err = c.Client.RunGetMethod(egCtx, block, feeQuoter, view.DestChainConfigGetter, dest) // New variables per goroutine
 			if err != nil {
 				return err
 			}
@@ -129,7 +129,8 @@ func fetchDestChainConfigsView(ctx context.Context, c cldf_ton.Chain, block *ton
 				return err
 			}
 
-			updateChan <- DestChainConfig{
+			lock.Lock()
+			output[dest] = DestChainConfig{
 				IsEnabled:                         cfg.IsEnabled,
 				MaxNumberOfTokensPerMsg:           cfg.MaxNumberOfTokensPerMsg,
 				MaxDataBytes:                      cfg.MaxDataBytes,
@@ -150,21 +151,11 @@ func fetchDestChainConfigsView(ctx context.Context, c cldf_ton.Chain, block *ton
 				GasPriceStalenessThreshold:        cfg.GasPriceStalenessThreshold,
 				NetworkFeeUsdCents:                cfg.NetworkFeeUsdCents,
 			}
+			lock.Unlock()
 
 			return nil
 		})
 	}
 
-	// Wait for all goroutines to complete first
-	if err = eg.Wait(); err != nil {
-		return nil, err
-	}
-
-	// Then collect results
-	for selector, ch := range updateChanMap {
-		output[selector] = <-ch
-		close(ch)
-	}
-
-	return output, nil
+	return output, eg.Wait()
 }

@@ -3,7 +3,7 @@ import "../../../lib/access/ownable_2step";
 import "../../../lib/funding/withdrawable";
 
 const FACILITY_NAME = "com.chainlink.ton.examples.funding.WithdrawableWallet";
-const CONTRACT_VERSION = "1.0.0";
+const CONTRACT_VERSION = "1.0.1";
 
 struct Storage {
     id: uint32;

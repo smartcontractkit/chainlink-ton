@@ -4,6 +4,7 @@ import "../common/messages"
 import "../router/messages"
 import "../../lib/utils"
 import "../../lib/funding/withdrawable"
+import "../../lib/versioning/upgradeable"
 
 type OnRamp_InMessage =
     | OnRamp_Send
@@ -14,6 +15,7 @@ type OnRamp_InMessage =
     | OnRamp_UpdateAllowlists
     | Common_JettonTransferNotification
     | Withdrawable_Withdraw
+    | Upgradeable_Upgrade
     ;
     // TODO | UpdateExecutorCode
 

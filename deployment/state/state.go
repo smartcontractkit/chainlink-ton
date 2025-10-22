@@ -10,10 +10,12 @@ import (
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	ds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
+	"github.com/smartcontractkit/chainlink-ton/deployment/view/feequoter"
+	"github.com/smartcontractkit/chainlink-ton/deployment/view/offramp"
+	"github.com/smartcontractkit/chainlink-ton/deployment/view/onramp"
+	"github.com/smartcontractkit/chainlink-ton/deployment/view/router"
 	"github.com/xssnick/tonutils-go/address"
 	"golang.org/x/sync/errgroup"
-
-	"github.com/smartcontractkit/chainlink-ton/deployment/view"
 )
 
 // Duplicates of chainlink/deployment/ccip/ to avoid import loops
@@ -41,22 +43,22 @@ type CCIPChainState struct {
 }
 
 type TONChainView struct {
-	ChainSelector uint64                        `json:"chainSelector,omitempty"`
-	ChainID       string                        `json:"chainID,omitempty"`
-	OnRamp        map[string]view.OnRampView    `json:"onRamp,omitempty"`
-	Router        map[string]view.RouterView    `json:"router,omitempty"`
-	FeeQuoter     map[string]view.FeeQuoterView `json:"feeQuoter,omitempty"`
-	OffRamp       map[string]view.OffRampView   `json:"offRamp,omitempty"`
+	ChainSelector uint64                    `json:"chainSelector,omitempty"`
+	ChainID       string                    `json:"chainID,omitempty"`
+	OnRamp        map[string]onramp.View    `json:"onRamp,omitempty"`
+	Router        map[string]router.View    `json:"router,omitempty"`
+	FeeQuoter     map[string]feequoter.View `json:"feeQuoter,omitempty"`
+	OffRamp       map[string]offramp.View   `json:"offRamp,omitempty"`
 }
 
 func newTONChainView() TONChainView {
 	return TONChainView{
 		ChainSelector: 0,
 		ChainID:       "",
-		OnRamp:        make(map[string]view.OnRampView),
-		Router:        make(map[string]view.RouterView),
-		FeeQuoter:     make(map[string]view.FeeQuoterView),
-		OffRamp:       make(map[string]view.OffRampView),
+		OnRamp:        make(map[string]onramp.View),
+		Router:        make(map[string]router.View),
+		FeeQuoter:     make(map[string]feequoter.View),
+		OffRamp:       make(map[string]offramp.View),
 	}
 }
 
@@ -83,7 +85,7 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 	errGroup := errgroup.Group{}
 	if !s.OnRamp.IsAddrNone() {
 		errGroup.Go(func() error {
-			onRampView, err := view.FetchOnRampView(ctx, tonClient, block, &s.OnRamp, selector)
+			onRampView, err := onramp.FetchView(ctx, tonClient, block, &s.OnRamp, selector)
 			if err != nil {
 				return fmt.Errorf("failed to generate onramp view for chain %d: %w", selector, err)
 			}
@@ -95,7 +97,7 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 
 	if !s.Router.IsAddrNone() {
 		errGroup.Go(func() error {
-			routerView, err := view.FetchRouterView(ctx, tonClient, block, &s.Router)
+			routerView, err := router.FetchView(ctx, tonClient, block, &s.Router)
 			if err != nil {
 				return fmt.Errorf("failed to generate router view for chain %d: %w", selector, err)
 			}
@@ -108,7 +110,7 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 
 	if !s.FeeQuoter.IsAddrNone() {
 		errGroup.Go(func() error {
-			feeQuoterView, err := view.FetchFeeQuoterView(ctx, tonClient, block, &s.FeeQuoter)
+			feeQuoterView, err := feequoter.FetchView(ctx, tonClient, block, &s.FeeQuoter)
 			if err != nil {
 				return fmt.Errorf("failed to generate fee quoter view for chain %d: %w", selector, err)
 			}
@@ -121,7 +123,7 @@ func (s CCIPChainState) GenerateView(e *cldf.Environment, selector uint64, chain
 
 	if !s.OffRamp.IsAddrNone() {
 		errGroup.Go(func() error {
-			offRampView, err := view.FetchOffRampView(ctx, tonClient, block, &s.OffRamp)
+			offRampView, err := offramp.FetchView(ctx, tonClient, block, &s.OffRamp)
 			if err != nil {
 				return fmt.Errorf("failed to generate offramp view for chain %d: %w", selector, err)
 			}
