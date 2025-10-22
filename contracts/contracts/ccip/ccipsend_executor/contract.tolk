@@ -8,7 +8,7 @@ import "../onramp/types"
 import "../common/messages"
 import "../../lib/utils"
 
-const CONTRACT_VERSION = "0.0.4";
+const CONTRACT_VERSION = "0.0.5";
 const FACILITY_NAME = "com.chainlink.ton.ccip.CCIPSendExecutor";
 
 fun onInternalMessage(in: InMessage) {
