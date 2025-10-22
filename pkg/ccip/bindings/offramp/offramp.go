@@ -26,11 +26,19 @@ type ExecutionStateChanged struct {
 	State               uint8  `tlb:"## 8"`
 }
 
+type SourceChainConfigUpdated struct {
+	SourceChainSelector uint64            `tlb:"## 64"`
+	SourceChainConfig   SourceChainConfig `tlb:"."`
+}
+
+type SourceChainSelectorAdded struct {
+	SourceChainSelector uint64 `tlb:"## 64"`
+}
+
 type Storage struct {
 	ID                                      uint32              `tlb:"## 32"`
 	Ownable                                 common.Ownable2Step `tlb:"."`
-	Deployer                                *cell.Cell          `tlb:"^"`
-	MerkleRootCode                          *cell.Cell          `tlb:"^"`
+	Deployables                             Deployables         `tlb:"^"`
 	FeeQuoter                               *address.Address    `tlb:"addr"`
 	OCR3Base                                *cell.Cell          `tlb:"^"` // TODO:
 	ChainSelector                           uint64              `tlb:"## 64"`
@@ -79,6 +87,12 @@ func (c *Config) FromResult(result *ton.ExecutionResult) error {
 		PermissionlessExecutionThresholdSeconds: uint32(thresholdSeconds),
 	}
 	return nil
+}
+
+type Deployables struct {
+	Deployer            *cell.Cell `tlb:"^"`
+	MerkleRootCode      *cell.Cell `tlb:"^"`
+	ReceiveExecutorCode *cell.Cell `tlb:"^"`
 }
 
 type SourceChainConfig struct {

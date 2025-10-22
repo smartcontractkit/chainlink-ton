@@ -60,9 +60,15 @@ export type Metadata = {
 
 export type DestChainConfig = {
   router: Address
-  sequenceNumber: number
+  sequenceNumber: bigint
   allowlistEnabled: boolean
   allowedSenders: Dictionary<Address, boolean>
+}
+
+export type UpdateDestChainConfig = {
+  destChainSelector: bigint
+  router: Address
+  allowlistEnabled: boolean
 }
 
 const metadataCodec: CellCodec<Metadata> = {
@@ -93,7 +99,6 @@ export const builder = {
                   .storeAddress(data.config.allowlistAdmin)
                   .endCell(),
               )
-              // UMap<> type
               .storeDict(data.destChainConfigs)
               .storeRef(data.executor_code)
               .storeUint(data.currentMessageId, 224)
@@ -104,6 +109,25 @@ export const builder = {
         },
       }
     })(),
+    destChainConfig: (): CellCodec<DestChainConfig> => {
+      return {
+        encode: function (data: DestChainConfig): Builder {
+          return beginCell()
+            .storeAddress(data.router)
+            .storeUint(data.sequenceNumber, 64)
+            .storeBit(data.allowlistEnabled)
+            .storeDict(data.allowedSenders)
+        },
+        load: function (src: Slice): DestChainConfig {
+          return {
+            router: src.loadAddress(),
+            sequenceNumber: src.loadUintBig(64),
+            allowlistEnabled: src.loadBit(),
+            allowedSenders: src.loadDict(Dictionary.Keys.Address(), Dictionary.Values.Bool()),
+          }
+        },
+      }
+    },
   },
   messages: {
     in: {
@@ -191,7 +215,7 @@ export class OnRamp implements Contract {
     via: Sender,
     opts: {
       value: bigint
-      destChainConfigs: { destChainSelector: bigint; router: Address; allowlistEnabled: boolean }[]
+      destChainConfigs: UpdateDestChainConfig[]
     },
   ) {
     await provider.internal(via, {

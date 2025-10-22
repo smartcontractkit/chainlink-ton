@@ -144,7 +144,7 @@ describe('MerkleMultiProofTests', () => {
     for (let i = 0; i < 128; i++) {
       leaves.push('a')
     }
-    const hashedLeaves: bigint[] = leaves.map((e) => merkleHelper.hashLeafData(e, hashFunctionSha))
+    const hashedLeaves: bigint[] = leaves.map((e) => merkleHelper.hashLeafData(e))
 
     const flagsUint128: bigint = 0xffffffffffffffffffffffffffffffffn
 

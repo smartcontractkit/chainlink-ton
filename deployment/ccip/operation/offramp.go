@@ -27,6 +27,7 @@ type DeployOffRampInput struct {
 	ContractPath                            string
 	DeployerContractPath                    string
 	MerkleRootContractPath                  string
+	ReceiveExecutorContractPath             string
 	Coins                                   string
 }
 
@@ -61,6 +62,10 @@ func deployOffRamp(b operations.Bundle, deps TonDeps, in DeployOffRampInput) (De
 		return output, fmt.Errorf("failed to compile merkle root contract: %w", err)
 	}
 
+	receiveExecutorCode, err := wrappers.ParseCompiledContract(in.ReceiveExecutorContractPath)
+	if err != nil {
+		return output, fmt.Errorf("failed to compile receive executor contract: %w", err)
+	}
 	conn := tracetracking.NewSignedAPIClient(deps.TonChain.Client, *deps.TonChain.Wallet)
 
 	storage := offramp.Storage{
@@ -69,8 +74,11 @@ func deployOffRamp(b operations.Bundle, deps TonDeps, in DeployOffRampInput) (De
 			Owner:        deps.TonChain.WalletAddress,
 			PendingOwner: nil,
 		},
-		Deployer:       deployerCode,
-		MerkleRootCode: merkleRootCode,
+		Deployables: offramp.Deployables {
+			Deployer: deployerCode,
+			MerkleRootCode: merkleRootCode,
+			ReceiveExecutorCode: receiveExecutorCode,
+		},
 		// empty OCR3Base
 		OCR3Base: cell.BeginCell().
 			MustStoreUInt(0, 8).

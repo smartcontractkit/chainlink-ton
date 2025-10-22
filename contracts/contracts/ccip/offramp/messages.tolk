@@ -8,12 +8,13 @@ import "../../lib/utils"
 type OffRamp_InMessage =
     | OffRamp_Commit
     | OffRamp_Execute
+    | OffRamp_ExecuteValidated
     | OffRamp_DispatchValidated
     | OffRamp_UpdateSourceChainConfig
     | OCR3Base_SetOCR3Config
     | OffRamp_CCIPReceiveConfirm
-    | OffRamp_NotifyFailure
-    | OffRamp_NotifySuccess;
+    | OffRamp_NotifySuccess
+    | OffRamp_NotifyFailure;
 
 type OffRamp_BouncedMessage =  Receiver_CCIPReceive;
 
@@ -34,6 +35,14 @@ struct (0x27bdac33) OffRamp_Execute {
     report: ExecutionReport;
 }
 
+//crc32('OffRamp_ExecuteValidated')
+struct (0xc73d5a8a) OffRamp_ExecuteValidated {
+    message: Cell<Any2TVMRampMessage>;
+    root: uint256;
+    metadataHash: uint256;
+}
+
+//Must be sent by owner
 //crc32('OffRamp_UpdateSourceChainConfig')
 struct (0xb98c95e3) OffRamp_UpdateSourceChainConfig {
     queryId: uint64;
@@ -41,32 +50,26 @@ struct (0xb98c95e3) OffRamp_UpdateSourceChainConfig {
     config: SourceChainConfig;
 }
 
-//Must be sent from an owned MerkleRoot contract
+//Must be sent from an owned ReceiveExecutor contract
 //crc32('OffRamp_DispatchValidated')
 struct (0x58cfcb02) OffRamp_DispatchValidated { 
     message: Cell<Any2TVMRampMessage>;
-    rootId: uint224;
+    execId: uint224;
 }
 
 //crc32('OffRamp_CCIPReceiveConfirm')
 struct (0x28f4166f) OffRamp_CCIPReceiveConfirm {
-    rootId: uint224;
+    execId: uint224;
 }
 
-//crc32('OffRamp_NotifySuccess')
-struct (0x23232323) OffRamp_NotifySuccess {
+//TODO crc32('OffRamp_NotifySuccess')
+struct (0x59e56170) OffRamp_NotifySuccess {
     header: RampMessageHeader;
-    rootId: uint224;
+    execId: uint224;
 }
 
-//crc32('OffRamp_NotifyFailure')
-struct(0x177ebd03) OffRamp_NotifyFailure {
+//TODO crc32('OffRamp_NotifyFailure')
+struct (0x177ebd03) OffRamp_NotifyFailure {
     header: RampMessageHeader;
-    rootId: uint224;
-}
-
-//crc32('OffRamp_NotifyInProgress')
-struct (0xdc81855a) OffRamp_NotifyInProgress {
-    message: Any2TVMRampMessage; // vec<Any2TVMRampMessage>
-    rootId: uint224;
+    execId: uint224;
 }

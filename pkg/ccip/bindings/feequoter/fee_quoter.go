@@ -9,6 +9,30 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
+)
+
+// Fee Quoter opcodes
+const (
+	OpcodeUpdatePrices                  = 0x20000001
+	OpcodeUpdateFeeTokens               = 0xD0984986
+	OpcodeUpdateTokenTransferFeeConfigs = 0xB2826316
+	OpcodeUpdateDestChainConfigs        = 0x29950BAA
+	OpcodeFeeQuoterGetValidatedFee      = 0x7496FF56
+	OpcodeFeeQuoterMessageValidated     = 0x1FA60374
+)
+
+// Fee Quoter exit codes
+const (
+	ErrorUnsupportedChainFamilySelector       tvm.ExitCode = tvm.ExitCode(1001)
+	ErrorGasLimitTooHigh                      tvm.ExitCode = tvm.ExitCode(1002)
+	ExtraArgOutOfOrderExecutionMustBeTrue     tvm.ExitCode = tvm.ExitCode(1003)
+	ErrorInvalidExtraArgsData                 tvm.ExitCode = tvm.ExitCode(1004)
+	ErrorUnsupportedNumberOfTokens            tvm.ExitCode = tvm.ExitCode(1005)
+	ErrorInvalidSuiReceiverAddress            tvm.ExitCode = tvm.ExitCode(1006)
+	ErrorInvalidTokenReceiver                 tvm.ExitCode = tvm.ExitCode(1007)
+	ErrorTooManySuiExtraArgsReceiverObjectIDs tvm.ExitCode = tvm.ExitCode(1008)
+	ErrorMsgDataTooLarge                      tvm.ExitCode = tvm.ExitCode(1009)
 )
 
 type Storage struct {
@@ -233,6 +257,20 @@ func (c *StaticConfig) FromResult(result *ton.ExecutionResult) error {
 }
 
 // Methods
+
+// Generic wrapper for fee quoter messages with metadata
+type GetValidatedFee struct {
+	_        tlb.Magic  `tlb:"#7496FF56"` //nolint:revive // Ignore opcode tag
+	Msg      *cell.Cell `tlb:"^"`         // Cell containing the CCIPSend message
+	Metadata *cell.Cell `tlb:"^"`         // Cell containing metadata
+}
+
+type MessageValidated struct {
+	_        tlb.Magic  `tlb:"#1FA60374"` //nolint:revive // Ignore opcode tag
+	Msg      *cell.Cell `tlb:"^"`         // TODO put content here
+	Metadata *cell.Cell `tlb:"^"`
+	Fee      *tlb.Coins `tlb:"."`
+}
 
 type UpdatePrices struct {
 	_           tlb.Magic                          `tlb:"#20000001"` //nolint:revive // Ignore opcode tag
