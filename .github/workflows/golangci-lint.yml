@@ -16,7 +16,7 @@ jobs:
 
     strategy:
       matrix:
-        dir: [integration-tests, pkg]
+        dir: [integration-tests, pkg, deployment]
 
     # REPORT_PATH will be, e.g.,
     # integration-tests/golangci-lint-integration-tests-report.xml
