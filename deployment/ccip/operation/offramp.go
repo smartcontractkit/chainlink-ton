@@ -173,7 +173,7 @@ func updateOffRampSourceChainConfigs(b operations.Bundle, deps TonDeps, in Updat
 			Body:    payload,
 		},
 	}
-	return utils.Serialize(messages)
+	return helpers.Serialize(messages)
 }
 
 // PluginType represents the type of CCIP plugin.
@@ -245,5 +245,5 @@ func setOCR3Config(b operations.Bundle, deps TonDeps, in OCR3ConfigArgs) ([][]by
 			Body:    payload,
 		},
 	}
-	return utils.Serialize(messages)
+	return helpers.Serialize(messages)
 }

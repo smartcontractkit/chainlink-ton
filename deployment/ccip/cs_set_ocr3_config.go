@@ -6,11 +6,11 @@ import (
 	chain_selectors "github.com/smartcontractkit/chain-selectors"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
 	"github.com/smartcontractkit/mcms"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 	seq "github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/utils"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 )
 
@@ -69,7 +69,7 @@ func (cs SetOCR3Config) Apply(env cldf.Environment, config SetOCR3OffRampConfig)
 
 		// TODO: generate MCMS proposals
 
-		if err := utils.ExecuteProposals(env, chain.Client, chain.Wallet, setOCR3SeqReport.Output); err != nil {
+		if err := helpers.ExecuteProposals(env, chain.Client, chain.Wallet, setOCR3SeqReport.Output); err != nil {
 			return cldf.ChangesetOutput{}, err
 		}
 	}

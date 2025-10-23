@@ -104,5 +104,5 @@ func updateRouterDest(b operations.Bundle, deps TonDeps, in UpdateRouterDestInpu
 		msgs = append(msgs, &msg)
 	}
 
-	return utils.Serialize(msgs)
+	return helpers.Serialize(msgs)
 }

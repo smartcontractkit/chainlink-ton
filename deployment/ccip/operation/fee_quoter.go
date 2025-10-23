@@ -116,7 +116,7 @@ func updateFeeQuoterDestChainConfigs(b operations.Bundle, deps TonDeps, in Updat
 			Body:    payload,
 		},
 	}
-	return utils.Serialize(messages)
+	return helpers.Serialize(messages)
 }
 
 type FeeTokenConfig struct {
@@ -182,7 +182,7 @@ func updateFeeQuoterFeeTokens(b operations.Bundle, deps TonDeps, in UpdateFeeQuo
 			Body:    payload,
 		},
 	}
-	return utils.Serialize(messages)
+	return helpers.Serialize(messages)
 }
 
 type GasPrice struct {
@@ -265,5 +265,5 @@ func updateFeeQuoterPrices(b operations.Bundle, deps TonDeps, in UpdateFeeQuoter
 			Body:    payload,
 		},
 	}
-	return utils.Serialize(messages)
+	return helpers.Serialize(messages)
 }

@@ -142,5 +142,5 @@ func updateOnRampDestChainConfigs(b operations.Bundle, deps TonDeps, in UpdateOn
 			Body:    payload,
 		},
 	}
-	return utils.Serialize(messages)
+	return helpers.Serialize(messages)
 }
