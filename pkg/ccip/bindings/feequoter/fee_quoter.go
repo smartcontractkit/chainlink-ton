@@ -274,7 +274,9 @@ type UpdateTokenTransferFeeConfig struct {
 	Add    map[*address.Address]TokenTransferFeeConfig
 	Remove []*address.Address `tlb:"addr"`
 }
-type UpdateTokenTransferFeeConfigs struct{}
+type UpdateTokenTransferFeeConfigs struct {
+	_ tlb.Magic `tlb:"#B2826316"` //nolint:revive // Ignore opcode tag
+}
 
 type UpdateDestChainConfig struct {
 	DestinationChainSelector uint64          `tlb:"## 64"`

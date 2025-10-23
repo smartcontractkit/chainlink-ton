@@ -12,13 +12,12 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
-// TODO: auto-generate this map from a set of msgs using TL-B tag to read opcodes
-var TLBs = map[int]interface{}{
-	ccipsendexecutor.OpcodeCCIPSendExecutorExecute: ccipsendexecutor.Execute{},
+var TLBs = lib.MustNewTLBMap([]interface{}{
+	ccipsendexecutor.Execute{},
 
 	// Note: We don't handle JettonTransferNotification or FeeQuoter_MessageValidated here
 	// because they are already handled by their respective decoders (jetton wallet and fee quoter)
-}
+})
 
 type decoder struct {
 	payloadDecoders map[cldf.ContractType]lib.ContractDecoder

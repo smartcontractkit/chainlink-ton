@@ -15,15 +15,14 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
-// TODO: auto-generate this map from a set of msgs using TL-B tag to read opcodes
-var TLBs = map[int]interface{}{
-	onramp.OpcodeOnRampSend:                         onramp.Send{},
-	onramp.OpcodeOnRampWithdrawJettons:              onramp.WithdrawJettons{},
-	onramp.OpcodeOnRampExecutorFinishedSuccessfully: onramp.ExecutorFinishedSuccessfully{},
-	onramp.OpcodeSetDynamicConfig:                   onramp.SetDynamicConfigMessage{},
-	onramp.OpcodeUpdateDestChainConfigs:             onramp.UpdateDestChainConfigsMessage{},
-	onramp.OpcodeUpdateAllowlists:                   onramp.UpdateAllowlistsMessage{},
-}
+var TLBs = lib.MustNewTLBMap([]interface{}{
+	onramp.Send{},
+	onramp.WithdrawJettons{},
+	onramp.ExecutorFinishedSuccessfully{},
+	onramp.SetDynamicConfigMessage{},
+	onramp.UpdateDestChainConfigsMessage{},
+	onramp.UpdateAllowlistsMessage{},
+})
 
 type decoder struct {
 	payloadDecoders map[cldf.ContractType]lib.ContractDecoder

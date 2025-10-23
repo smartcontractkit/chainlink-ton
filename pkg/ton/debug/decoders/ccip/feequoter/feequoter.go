@@ -12,15 +12,14 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
-// TODO: auto-generate this map from a set of msgs using TL-B tag to read opcodes
-var TLBs = map[int]interface{}{
-	feequoter.OpcodeUpdatePrices:                  feequoter.UpdatePrices{},
-	feequoter.OpcodeUpdateFeeTokens:               feequoter.UpdateFeeTokens{},
-	feequoter.OpcodeUpdateTokenTransferFeeConfigs: feequoter.UpdateTokenTransferFeeConfigs{},
-	feequoter.OpcodeUpdateDestChainConfigs:        feequoter.UpdateDestChainConfigs{},
-	feequoter.OpcodeFeeQuoterGetValidatedFee:      feequoter.GetValidatedFee{},
-	feequoter.OpcodeFeeQuoterMessageValidated:     feequoter.MessageValidated{},
-}
+var TLBs = lib.MustNewTLBMap([]interface{}{
+	feequoter.UpdatePrices{},
+	feequoter.UpdateFeeTokens{},
+	feequoter.UpdateTokenTransferFeeConfigs{},
+	feequoter.UpdateDestChainConfigs{},
+	feequoter.GetValidatedFee{},
+	feequoter.MessageValidated{},
+})
 
 type decoder struct {
 }

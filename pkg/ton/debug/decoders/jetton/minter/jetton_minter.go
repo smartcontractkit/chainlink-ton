@@ -26,22 +26,22 @@ func NewDecoder(payloadDecoders map[cldf.ContractType]lib.ContractDecoder) lib.C
 }
 
 // ContractType implements lib.ContractDecoder.
-func (j *decoder) ContractType() cldf.ContractType {
+func (d *decoder) ContractType() cldf.ContractType {
 	return cldf.ContractType("com.github.ton-blockchain.jetton-contract.contracts.jetton-minter")
 }
 
 // EventInfo implements lib.ContractDecoder.
-func (j *decoder) EventInfo(dstAddr *address.Address, msg *cell.Cell) (lib.MessageInfo, error) {
+func (d *decoder) EventInfo(dstAddr *address.Address, msg *cell.Cell) (lib.MessageInfo, error) {
 	return nil, &lib.UnknownMessageError{}
 }
 
 // ExternalMessageInfo implements lib.ContractDecoder.
-func (j *decoder) ExternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
+func (d *decoder) ExternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
 	return nil, &lib.UnknownMessageError{}
 }
 
 // InternalMessageInfo implements lib.ContractDecoder.
-func (j *decoder) InternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
+func (d *decoder) InternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
 	r := msg.BeginParse()
 	if r.BitsLeft() == 0 {
 		return nil, &lib.UnknownMessageError{}
@@ -61,7 +61,7 @@ func (j *decoder) InternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
 			return lib.NewMessageInfo("Mint", mint)
 		}
 
-		payloadInfo, err := j.tryDecodePayload(mint.MasterMsg.ForwardPayload)
+		payloadInfo, err := d.tryDecodePayload(mint.MasterMsg.ForwardPayload)
 		if err != nil {
 			return nil, err
 		}
@@ -87,12 +87,12 @@ func (j *decoder) InternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
 		return lib.NewMessageInfo("ClaimAdmin", changeContent)
 		// TODO missing messages
 	}
-	return jetton.NewDecoder().InternalMessageInfo(msg)
+	return jetton.NewDecoder(d.ContractType()).InternalMessageInfo(msg)
 }
 
-func (j *decoder) tryDecodePayload(payloadCell *cell.Cell) (lib.MessageInfo, error) {
-	for _, d := range j.payloadDecoders {
-		info, err := d.InternalMessageInfo(payloadCell)
+func (d *decoder) tryDecodePayload(payloadCell *cell.Cell) (lib.MessageInfo, error) {
+	for _, pd := range d.payloadDecoders {
+		info, err := pd.InternalMessageInfo(payloadCell)
 		if err == nil {
 			return info, nil
 		}
@@ -110,6 +110,6 @@ type MintMessageDescription struct {
 	MasterMsg   wallet.InternalTransferMessageDescription
 }
 
-func (j *decoder) ExitCodeInfo(exitCode tvm.ExitCode) (string, error) {
-	return jetton.NewDecoder().ExitCodeInfo(exitCode)
+func (d *decoder) ExitCodeInfo(exitCode tvm.ExitCode) (string, error) {
+	return jetton.NewDecoder(d.ContractType()).ExitCodeInfo(exitCode)
 }

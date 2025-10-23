@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"strconv"
+	"strings"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
@@ -51,7 +53,7 @@ type ContractDecoder interface {
 	ExitCodeInfo(exitCode tvm.ExitCode) (string, error)
 }
 
-func NewMessageInfo[T any](name string, msg T) (MessageInfo, error) {
+func NewMessageInfo(name string, msg any) (MessageInfo, error) {
 	short, err := json.Marshal(msg)
 	if err != nil {
 		return nil, err
@@ -68,7 +70,7 @@ func NewMessageInfo[T any](name string, msg T) (MessageInfo, error) {
 }
 
 // NewMessageInfoFromCell attempts to decode the given cell using the provided TL-B candidates mapped by their opcodes.
-func NewMessageInfoFromCell(t cldf.ContractType, msg *cell.Cell, tlbs map[int]interface{}) (MessageInfo, error) {
+func NewMessageInfoFromCell(t cldf.ContractType, msg *cell.Cell, tlbs map[uint64]interface{}) (MessageInfo, error) {
 	r := msg.BeginParse()
 	if r.BitsLeft() == 0 {
 		return nil, &UnknownMessageError{}
@@ -78,7 +80,7 @@ func NewMessageInfoFromCell(t cldf.ContractType, msg *cell.Cell, tlbs map[int]in
 		return nil, fmt.Errorf("failed to preload opcode: %w", err)
 	}
 
-	i, ok := tlbs[int(opCode)]
+	i, ok := tlbs[opCode]
 	if !ok {
 		return nil, &UnknownMessageError{}
 	}
@@ -92,8 +94,59 @@ func NewMessageInfoFromCell(t cldf.ContractType, msg *cell.Cell, tlbs map[int]in
 		return nil, fmt.Errorf("failed to decode OnRamp message for opcode 0x%X: %w", opCode, err)
 	}
 
-	name := fmt.Sprintf("%s/%s", t, rt.Name())
+	name := fmt.Sprintf("%s:%s", t, rt.Name())
 	return NewMessageInfo(name, inst)
+}
+
+func MustNewTLBMap(types []interface{}) map[uint64]interface{} {
+	tlbs, err := NewTLBMap(types)
+	if err != nil {
+		panic(fmt.Errorf("failed to create TLB map: %w", err))
+	}
+	return tlbs
+}
+
+// NewTLBMap creates a map of TL-B magic numbers to their corresponding types.
+// The input is a slice of TL-B struct instances.
+func NewTLBMap(types []interface{}) (map[uint64]interface{}, error) {
+	tlbs := make(map[uint64]interface{})
+	for _, typ := range types {
+		// Use reflection to get the magic number from the type
+		rt := reflect.TypeOf(typ)
+
+		magicTag := rt.Field(0).Tag.Get("tlb")
+		magic, err := loadMagic(magicTag)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load magic from tag %s: %w", magicTag, err)
+		}
+
+		tlbs[magic] = typ
+	}
+	return tlbs, nil
+}
+
+// Notice: func extracted from tonutils-go tlb package
+func loadMagic(tag string) (uint64, error) {
+	var sz, base int
+	if strings.HasPrefix(tag, "#") {
+		base = 16
+		sz = (len(tag) - 1) * 4
+	} else if strings.HasPrefix(tag, "$") {
+		base = 2
+		sz = len(tag) - 1
+	} else {
+		return 0, fmt.Errorf("unknown magic value type in tag: %s", tag)
+	}
+
+	if sz > 64 {
+		return 0, fmt.Errorf("too big magic value type in tag")
+	}
+
+	magic, err := strconv.ParseInt(tag[1:], base, 64)
+	if err != nil {
+		return 0, fmt.Errorf("corrupted magic value in tag")
+	}
+	return uint64(magic), nil
 }
 
 type messageInfo struct {

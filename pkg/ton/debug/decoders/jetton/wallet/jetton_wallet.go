@@ -25,22 +25,22 @@ func NewDecoder(payloadDecoders map[cldf.ContractType]lib.ContractDecoder) lib.C
 }
 
 // ContractType implements lib.ContractDecoder.
-func (j *decoder) ContractType() cldf.ContractType {
+func (d *decoder) ContractType() cldf.ContractType {
 	return cldf.ContractType("com.github.ton-blockchain.jetton-contract.contracts.jetton-wallet")
 }
 
 // EventInfo implements lib.ContractDecoder.
-func (j *decoder) EventInfo(dstAddr *address.Address, msg *cell.Cell) (lib.MessageInfo, error) {
+func (d *decoder) EventInfo(dstAddr *address.Address, msg *cell.Cell) (lib.MessageInfo, error) {
 	return nil, &lib.UnknownMessageError{}
 }
 
 // ExternalMessageInfo implements lib.ContractDecoder.
-func (j *decoder) ExternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
+func (d *decoder) ExternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
 	return nil, &lib.UnknownMessageError{}
 }
 
 // InternalMessageInfo implements lib.ContractDecoder.
-func (j *decoder) InternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
+func (d *decoder) InternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
 	r := msg.BeginParse()
 	if r.BitsLeft() == 0 {
 		return nil, &lib.UnknownMessageError{}
@@ -60,7 +60,7 @@ func (j *decoder) InternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
 			return lib.NewMessageInfo("AskToTransfer", askToTransfer)
 		}
 
-		payloadInfo, err := j.tryDecodePayload(askToTransfer.CustomPayload)
+		payloadInfo, err := d.tryDecodePayload(askToTransfer.CustomPayload)
 		if err == nil {
 			return lib.NewMessageInfo("AskToTransferWithPayload", AskToTransferMessageDescription{
 				QueryID:             askToTransfer.QueryID,
@@ -82,12 +82,12 @@ func (j *decoder) InternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
 			return lib.NewMessageInfo("InternalTransfer", internalTransfer)
 		}
 
-		payloadInfo, err := j.tryDecodePayload(internalTransfer.ForwardPayload)
+		payloadInfo, err := d.tryDecodePayload(internalTransfer.ForwardPayload)
 		if err == nil {
 			return lib.NewMessageInfo("InternalTransferWithPayload", InternalTransferDescription(internalTransfer, payloadInfo))
 		}
 	}
-	return jetton_common.NewDecoder().InternalMessageInfo(msg)
+	return jetton_common.NewDecoder(d.ContractType()).InternalMessageInfo(msg)
 }
 
 func InternalTransferDescription(internalTransfer wallet.InternalTransferMessage, payloadInfo lib.MessageInfo) InternalTransferMessageDescription {
@@ -101,9 +101,9 @@ func InternalTransferDescription(internalTransfer wallet.InternalTransferMessage
 	}
 }
 
-func (j *decoder) tryDecodePayload(payloadCell *cell.Cell) (lib.MessageInfo, error) {
-	for _, d := range j.payloadDecoders {
-		info, err := d.InternalMessageInfo(payloadCell)
+func (d *decoder) tryDecodePayload(payloadCell *cell.Cell) (lib.MessageInfo, error) {
+	for _, pd := range d.payloadDecoders {
+		info, err := pd.InternalMessageInfo(payloadCell)
 		if err == nil {
 			return info, nil
 		}
@@ -133,7 +133,7 @@ type InternalTransferMessageDescription struct {
 	ForwardPayload   any
 }
 
-func (j *decoder) ExitCodeInfo(exitCode tvm.ExitCode) (string, error) {
+func (d *decoder) ExitCodeInfo(exitCode tvm.ExitCode) (string, error) {
 	switch exitCode {
 	case wallet.BalanceError:
 		return "BalanceError", nil
@@ -142,6 +142,6 @@ func (j *decoder) ExitCodeInfo(exitCode tvm.ExitCode) (string, error) {
 	case wallet.InvalidMessage:
 		return "InvalidMessage", nil
 	default:
-		return jetton_common.NewDecoder().ExitCodeInfo(exitCode)
+		return jetton_common.NewDecoder(d.ContractType()).ExitCodeInfo(exitCode)
 	}
 }

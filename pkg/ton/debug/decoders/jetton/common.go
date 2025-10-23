@@ -1,44 +1,33 @@
 package jetton
 
 import (
-	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
+	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
+var TLBs = lib.MustNewTLBMap([]interface{}{
+	jetton.TopUpMessage{},
+})
+
 type decoder struct {
+	contractType cldf.ContractType
 }
 
-func NewDecoder() *decoder {
-	return &decoder{}
+func NewDecoder(t cldf.ContractType) *decoder {
+	return &decoder{contractType: t}
 }
 
 // InternalMessageInfo implements lib.ContractDecoder.
-func (j *decoder) InternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
-	r := msg.BeginParse()
-	if r.BitsLeft() == 0 {
-		return nil, &lib.UnknownMessageError{}
-	}
-	opCode, err := r.PreloadUInt(32)
-	if err != nil {
-		return nil, err
-	}
-	if opCode == jetton.OpcodeTopUp {
-		var topUp jetton.TopUpMessage
-		err := tlb.LoadFromCell(&topUp, r)
-		if err != nil {
-			return nil, err
-		}
-		return lib.NewMessageInfo("TopUp", topUp)
-	}
-	return nil, &lib.UnknownMessageError{}
+func (d *decoder) InternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
+	return lib.NewMessageInfoFromCell(d.contractType, msg, TLBs)
 }
 
-func (j *decoder) ExitCodeInfo(exitCode tvm.ExitCode) (string, error) {
+func (d *decoder) ExitCodeInfo(exitCode tvm.ExitCode) (string, error) {
 	switch exitCode {
 	case jetton.ErrorInvalidOp:
 		return "ErrorInvalidOp", nil
