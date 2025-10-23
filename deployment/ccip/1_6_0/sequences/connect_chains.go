@@ -9,10 +9,11 @@ import (
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
 	cldfChain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
-	cldfTon "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	cldfOps "github.com/smartcontractkit/chainlink-deployments-framework/operations"
+
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/utils"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
@@ -34,7 +35,10 @@ var ConfigureLaneLegAsSource = cldfOps.NewSequence(
 	func(b operations.Bundle, chains cldfChain.BlockChains, input lanes.UpdateLanesInput) (sequences.OnChainOutput, error) {
 		var txs [][]byte
 
-		deps, err := extractTonDeps(input)
+		chainSelector := input.Source.Selector
+		tonChain := chains.TonChains()[chainSelector]
+
+		deps, err := extractTonDeps(tonChain, input)
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to extract TON deps: %w", err)
 		}
@@ -66,6 +70,24 @@ var ConfigureLaneLegAsSource = cldfOps.NewSequence(
 		}
 		txs = append(txs, updatePricesReport.Output...)
 
+		// update router with onramps
+		updateRouterOnRampsConfig, err := intoUpdateRouterOnrampsConfig(input)
+		if err != nil {
+			return sequences.OnChainOutput{}, fmt.Errorf("failed to convert router onramps config: %w", err)
+		}
+		b.Logger.Infow("Updating Router", "input", updateRouterOnRampsConfig)
+		routerReport, err := operations.ExecuteOperation(b, operation.UpdateRouterOnrampsOp, deps, updateRouterOnRampsConfig)
+		if err != nil {
+			return sequences.OnChainOutput{}, fmt.Errorf("failed to update router: %w", err)
+		}
+		txs = append(txs, routerReport.Output...)
+
+		// Execute the txs || MCMS proposals
+		err = utils.ExecuteTransactions(b.GetContext(), b.Logger, deps.TonChain.Client, deps.TonChain.Wallet, txs)
+		if err != nil {
+			return sequences.OnChainOutput{}, err
+		}
+
 		return sequences.OnChainOutput{}, nil
 	},
 )
@@ -77,7 +99,10 @@ var ConfigureLaneLegAsDest = cldfOps.NewSequence(
 	func(b operations.Bundle, chains cldfChain.BlockChains, input lanes.UpdateLanesInput) (sequences.OnChainOutput, error) {
 		var txs [][]byte
 
-		deps, err := extractTonDeps(input)
+		chainSelector := input.Dest.Selector
+		tonChain := chains.TonChains()[chainSelector]
+
+		deps, err := extractTonDeps(tonChain, input)
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to extract TON deps: %w", err)
 		}
@@ -91,25 +116,18 @@ var ConfigureLaneLegAsDest = cldfOps.NewSequence(
 		}
 		txs = append(txs, offRampReport.Output...)
 
-		// add ccip owner to offramp allowlist
+		// TODO update router with offramps. Let's add this functionality once vincent finishes the contract work
 
-		// update router with destination onramp versions
-		updateRouterDestConfig, err := intoUpdateRouterDestConfig(input)
+		err = utils.ExecuteTransactions(b.GetContext(), b.Logger, deps.TonChain.Client, deps.TonChain.Wallet, txs)
 		if err != nil {
-			return sequences.OnChainOutput{}, fmt.Errorf("failed to convert router dest config: %w", err)
+			return sequences.OnChainOutput{}, err
 		}
-		b.Logger.Infow("Updating Router", "input", updateRouterDestConfig)
-		routerReport, err := operations.ExecuteOperation(b, operation.UpdateRouterDestOp, deps, updateRouterDestConfig)
-		if err != nil {
-			return sequences.OnChainOutput{}, fmt.Errorf("failed to update router: %w", err)
-		}
-		txs = append(txs, routerReport.Output...)
 
 		return sequences.OnChainOutput{}, nil
 	},
 )
 
-func extractTonDeps(input lanes.UpdateLanesInput) (operation.TonDeps, error) {
+func extractTonDeps(chain ton.Chain, input lanes.UpdateLanesInput) (operation.TonDeps, error) {
 	onRampAddr, err := codec.AddressBytesToTONAddress(input.Source.OnRamp)
 	if err != nil {
 		return operation.TonDeps{}, fmt.Errorf("failed to convert onramp address: %w", err)
@@ -128,12 +146,9 @@ func extractTonDeps(input lanes.UpdateLanesInput) (operation.TonDeps, error) {
 	}
 
 	// Only fill in the fields that are relevant to the operations used
+
 	deps := operation.TonDeps{
-		TonChain: cldfTon.Chain{
-			ChainMetadata: ton.ChainMetadata{
-				Selector: input.Source.Selector,
-			},
-		},
+		TonChain: chain,
 		CCIPOnChainState: map[uint64]state.CCIPChainState{
 			input.Source.Selector: {
 				OnRamp:    *onRampAddr,
@@ -150,6 +165,7 @@ func extractTonDeps(input lanes.UpdateLanesInput) (operation.TonDeps, error) {
 /// Mappers ///
 ///////////////
 
+// TODO change the operation input to lanes.UpdateLanesInput
 func intoUpdateFeeQuoterDestChainConfigs(input lanes.UpdateLanesInput) operation.UpdateFeeQuoterDestChainConfigsInput {
 	return []feequoter.UpdateDestChainConfig{
 		{
@@ -216,14 +232,14 @@ func intoUpdateOffRampSourcesConfig(input ccipapi.UpdateLanesInput) operation.Up
 	}
 }
 
-func intoUpdateRouterDestConfig(input ccipapi.UpdateLanesInput) (operation.UpdateRouterDestInput, error) {
+func intoUpdateRouterOnrampsConfig(input ccipapi.UpdateLanesInput) (operation.UpdateRouterOnrampsInput, error) {
 	addressCodec := codec.NewAddressCodec()
-	onRampAddrStr, err := addressCodec.AddressBytesToString(input.Dest.OnRamp)
+	onRampAddrStr, err := addressCodec.AddressBytesToString(input.Source.OnRamp)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert onramp address to string: %w", err)
 	}
 
-	return operation.UpdateRouterDestInput{
+	return operation.UpdateRouterOnrampsInput{
 		onRampAddrStr: []router.DestChainSelector{
 			{
 				Value: input.Dest.Selector,

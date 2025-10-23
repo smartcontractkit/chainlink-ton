@@ -8,6 +8,8 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/smartcontractkit/chainlink-ccip/deployment/lanes"
+
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 
@@ -38,6 +40,7 @@ const (
 var TonTokenAddr = address.MustParseRawAddr("0:0000000000000000000000000000000000000000000000000000000000000001")
 
 var (
+	// TODO Remove in favor of the canonical model
 	EvmFeeQuoterDestChainConfig = config.FeeQuoterDestChainConfig{
 		IsEnabled:                         true,
 		MaxNumberOfTokensPerMsg:           10,
@@ -60,8 +63,53 @@ var (
 		NetworkFeeUSDCents:                10,
 	}
 
+	EvmFeeQuoterDestChainCanonicalConfig = lanes.FeeQuoterDestChainConfig{
+		IsEnabled:                         true,
+		MaxNumberOfTokensPerMsg:           10,
+		MaxDataBytes:                      30_000,
+		MaxPerMsgGasLimit:                 3_000_000,
+		DestGasOverhead:                   DestGasOverhead,
+		DestGasPerPayloadByteBase:         CalldataGasPerByteBase,
+		DestGasPerPayloadByteHigh:         CalldataGasPerByteHigh,
+		DestGasPerPayloadByteThreshold:    CalldataGasPerByteThreshold,
+		DestDataAvailabilityOverheadGas:   100,
+		DestGasPerDataAvailabilityByte:    16,
+		DestDataAvailabilityMultiplierBps: 1,
+		ChainFamilySelector:               config.EVMFamilySelector,
+		EnforceOutOfOrder:                 false,
+		DefaultTokenFeeUSDCents:           25,
+		DefaultTokenDestGasOverhead:       90_000,
+		DefaultTxGasLimit:                 200_000,
+		GasMultiplierWeiPerEth:            11e17,
+		GasPriceStalenessThreshold:        0,
+		NetworkFeeUSDCents:                10,
+	}
+
+	// TODO Remove in favor of the canonical model
 	// Default fee quoter config for TON CCIP testing
 	TonFeeQuoterDestChainConfig = config.FeeQuoterDestChainConfig{
+		IsEnabled:                       true,
+		MaxNumberOfTokensPerMsg:         0,
+		MaxDataBytes:                    100,
+		MaxPerMsgGasLimit:               100,
+		DestGasOverhead:                 0,
+		DestGasPerPayloadByteBase:       0,
+		DestGasPerPayloadByteHigh:       0,
+		DestGasPerPayloadByteThreshold:  0,
+		DestDataAvailabilityOverheadGas: 0,
+		DestGasPerDataAvailabilityByte:  0,
+		ChainFamilySelector:             config.TVMFamilySelector,
+		EnforceOutOfOrder:               false,
+		DefaultTokenFeeUSDCents:         0,
+		DefaultTokenDestGasOverhead:     0,
+		DefaultTxGasLimit:               1,
+		GasMultiplierWeiPerEth:          0,
+		GasPriceStalenessThreshold:      0,
+		NetworkFeeUSDCents:              0,
+	}
+
+	// Default fee quoter config for TON CCIP testing
+	TonFeeQuoterDestChainCanonicalConfig = lanes.FeeQuoterDestChainConfig{
 		IsEnabled:                       true,
 		MaxNumberOfTokensPerMsg:         0,
 		MaxDataBytes:                    100,
