@@ -103,7 +103,8 @@ func extractFiles(rawTarGz []byte, suffix string) ([]Artifact, error) {
 				continue
 			}
 			var buf bytes.Buffer
-			if _, err := io.Copy(&buf, tarReader); err != nil {
+			// Limit individual file size to prevent DoS
+			if _, err := io.Copy(&buf, io.LimitReader(tarReader, maxDecompressedSize)); err != nil {
 				return nil, fmt.Errorf("error while read %q: %w", clean, err)
 			}
 			out = append(out, Artifact{
