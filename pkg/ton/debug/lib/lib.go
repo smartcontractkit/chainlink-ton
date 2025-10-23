@@ -107,7 +107,7 @@ func DecodeJSONMapFromCell(msg *cell.Cell, tlbs map[uint64]interface{}) (string,
 	inst := reflect.New(rt).Interface() // pointer to zero value
 
 	// attempt decode - replace tlb.FromCell with the actual decode API you have
-	if err := tlb.LoadFromCell(inst, r); err != nil {
+	if err = tlb.LoadFromCell(inst, r); err != nil {
 		return "", nil, fmt.Errorf("failed to decode message for opcode 0x%X: %w", opCode, err)
 	}
 
@@ -151,7 +151,7 @@ func DecodeJSONMapFromCell(msg *cell.Cell, tlbs map[uint64]interface{}) (string,
 			return "", nil, fmt.Errorf("failed to unmarshal BOC to cell: %s: %s: %w", ck, cBOC, err)
 		}
 
-		// 3.3. Try to decode recursively using NewMessageInfoFromCell
+		// 3.3. Try to decode recursively
 		_, cMap, err := DecodeJSONMapFromCell(cVal, tlbs)
 		if err != nil {
 			// 	fallback to original BOC representation if fails
@@ -198,7 +198,7 @@ func NewTLBMap(types []interface{}) (map[uint64]interface{}, error) {
 // Notice: func extracted from tonutils-go tlb package
 func loadMagic(tag string) (uint64, error) {
 	var sz, base int
-	if strings.HasPrefix(tag, "#") {
+	if strings.HasPrefix(tag, "#") { //nolint:gocritic // vendored from tonutils-go
 		base = 16
 		sz = (len(tag) - 1) * 4
 	} else if strings.HasPrefix(tag, "$") {
@@ -209,14 +209,15 @@ func loadMagic(tag string) (uint64, error) {
 	}
 
 	if sz > 64 {
-		return 0, fmt.Errorf("too big magic value type in tag")
+		return 0, fmt.Errorf("too big magic value type in tag") //nolint:perfsprint // vendored from tonutils-go
 	}
 
 	magic, err := strconv.ParseInt(tag[1:], base, 64)
 	if err != nil {
-		return 0, fmt.Errorf("corrupted magic value in tag")
+		return 0, fmt.Errorf("corrupted magic value in tag") //nolint:perfsprint // vendored from tonutils-go
 	}
-	return uint64(magic), nil
+
+	return uint64(magic), nil //nolint:gosec // vendored from tonutils-go
 }
 
 type messageInfo struct {
