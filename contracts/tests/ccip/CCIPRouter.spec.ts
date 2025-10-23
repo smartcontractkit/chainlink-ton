@@ -15,10 +15,12 @@ import { ZERO_ADDRESS } from '../../src/utils'
 import { JettonMinterCode, JettonWalletCode } from '../../wrappers/jetton/JettonCode'
 import { JettonMinter } from '../../wrappers/jetton/JettonMinter'
 import * as jetton from '../../wrappers/jetton/JettonWallet'
-import { dump } from '../utils/prettyPrint'
 import { CellCodec, facilityId } from '../../wrappers/utils'
 import { crc32 } from 'zlib'
 import { CCIP_SEND_EXECUTOR_FACILITY_ID } from '../../wrappers/ccip/OnRamp'
+import { newWithdrawableSpec } from '../lib/funding/WithdrawableSpec'
+import * as ownable2step from '../../wrappers/libraries/access/Ownable2Step'
+import * as UpgradeableSpec from '../lib/versioning/UpgradeableSpec'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_EVM_TEST_90000002 = 5548718428018410741n
@@ -36,6 +38,87 @@ const EVM_ADDRESS = Buffer.from(
   '0000000000000000000000001234567890123456789012345678901234567890',
   'hex',
 ) // 32 bytes
+
+describe('Router - Withdrawable Tests', () => {
+  const withdrawableSpec = newWithdrawableSpec({
+    getCode: () => compile('Router'),
+    ContractConstructor: rt.Router,
+    ownershipErrorCode: ownable2step.Errors.OnlyCallableByOwner,
+    deployContract: async (blockchain, owner) => {
+      const code = await compile('Router')
+      let data: rt.Storage = {
+        id: 0,
+        ownable: {
+          owner: owner.address,
+          pendingOwner: null,
+        },
+        onRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
+      }
+
+      // TODO: use deployable to make deterministic?
+      const contract = blockchain.openContract(rt.Router.createFromConfig(data, code))
+      const deployer = await blockchain.treasury('deployer')
+      await contract.sendInternal(deployer.getSender(), toNano('1'), Cell.EMPTY)
+      return contract
+    },
+  })
+  withdrawableSpec.run()
+})
+
+// TODO when we have a new version
+// describe('Router - Upgrade Tests', () => {
+//   const upgradeSpec = UpgradeableSpec.newUpgradeSpec(
+//     {
+//       contractType: RouterPrev.type(),
+//       prevVersion: RouterPrev.version(),
+//       currentVersion: Router.version(),
+//       getPrevCode: () => RouterPrev.code(),
+//       getCurrentCode: () => Router.code(),
+//       CurrentVersionConstructor: Router,
+//     },
+//     async (blockchain, owner) => {
+//       const codeV1 = await RouterPrev.code()
+//       const data = {} as any // TODO fill with valid data
+//       const contract = blockchain.openContract(
+//         RouterPrev.createFromConfig(
+//           data,
+//           codeV1,
+//         ),
+//       )
+//       const deployer = await blockchain.treasury('deployer')
+//       await contract.sendDeploy(deployer.getSender(), toNano('0.05'))
+//       return contract
+//     },
+//   )
+//   upgradeSpec.run()
+// })
+
+describe('Router - Current Version Tests', () => {
+  const currentVersionSpec = UpgradeableSpec.newCurrentVersionSpec({
+    contractType: rt.Router.type(),
+    currentVersion: rt.Router.version(),
+    getCurrentCode: () => rt.Router.code(),
+    CurrentVersionConstructor: rt.Router,
+    deployCurrentContract: async (blockchain, owner) => {
+      const code = await rt.Router.code()
+      let data: rt.Storage = {
+        id: 0,
+        ownable: {
+          owner: owner.address,
+          pendingOwner: null,
+        },
+        onRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
+      }
+
+      // TODO: use deployable to make deterministic?
+      const contract = blockchain.openContract(rt.Router.createFromConfig(data, code))
+      const deployer = await blockchain.treasury('deployer')
+      await contract.sendInternal(deployer.getSender(), toNano('1'), Cell.EMPTY)
+      return contract
+    },
+  })
+  currentVersionSpec.run()
+})
 
 describe('Router', () => {
   let blockchain: Blockchain
@@ -215,13 +298,19 @@ describe('Router', () => {
 
       // add config for EVM destination
       {
+        const config = {
+          router: router.address,
+          sequenceNumber: 0n,
+          allowlistEnabled: false,
+        }
+
         const result = await onRamp.sendUpdateDestChainConfigs(deployer.getSender(), {
           value: toNano('1'),
           destChainConfigs: [
             {
               destChainSelector: CHAINSEL_EVM_TEST_90000001,
-              router: router.address,
-              allowlistEnabled: false,
+              router: config.router,
+              allowlistEnabled: config.allowlistEnabled,
             },
           ],
         })
@@ -230,6 +319,13 @@ describe('Router', () => {
           to: onRamp.address,
           deploy: false,
           success: true,
+        })
+        assertLog(result.transactions, onRamp.address, LogTypes.DestChainSelectorAdded, {
+          destChainSelector: CHAINSEL_EVM_TEST_90000001,
+        })
+        assertLog(result.transactions, onRamp.address, LogTypes.DestChainConfigUpdated, {
+          destChainSelector: CHAINSEL_EVM_TEST_90000001,
+          config,
         })
       }
     }

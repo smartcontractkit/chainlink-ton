@@ -2,6 +2,7 @@ package ops
 
 import (
 	"fmt"
+
 	"github.com/Masterminds/semver/v3"
 	ds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 
@@ -69,9 +70,10 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 	ccipSeqInput := sequence.DeployCCIPSeqInput{
 		// MCMSAddress:      mcmsSeqReport.Output.MCMSAddress,
 		// LinkTokenAddress: linkTokenAddress,
-		CCIPConfig:       config.Params,
-		ContractsVersion: config.ContractsVersion,
-		ChainSelector:    selector,
+		CCIPConfig:          config.Params,
+		ContractsVersionSha: config.ContractsVersion,
+		ContractsSemver:     semver.MustParse("1.6.0"), // TODO Move to the change input. Will do in a later PR given that this will be a breaking change for CLD
+		ChainSelector:       selector,
 	}
 	ccipSeqReport, err := operations.ExecuteSequence(env.OperationsBundle, sequence.DeployCCIPSequence, deps, ccipSeqInput)
 	if err != nil {
@@ -86,38 +88,29 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 
 	// Use data store to track new deployed addresses
 	dataStore := ds.NewMemoryDataStore()
-	// Keep address book for backward compatibility. TODO remove it once we adopted this version in CLD
-	ab := cldf.NewMemoryAddressBook()
-	contractsVersion := *semver.MustParse("1.6.0")
 	if ccipSeqReport.Output.RouterAddress != nil {
 		// FYI Add method will never fail given that the dataStore is empty
 		_ = dataStore.Addresses().Add(ccipSeqReport.Output.RouterAddress.CLDFAddressRef)
-		_ = ab.Save(selector, state.Router.String(), cldf.NewTypeAndVersion(cldf.ContractType(state.Router.String()), contractsVersion))
 		s.Router = ccipSeqReport.Output.RouterAddress.TONAddress
 	}
 	if ccipSeqReport.Output.FeeQuoterAddress != nil {
 		_ = dataStore.Addresses().Add(ccipSeqReport.Output.FeeQuoterAddress.CLDFAddressRef)
-		_ = ab.Save(selector, state.FeeQuoter.String(), cldf.NewTypeAndVersion(cldf.ContractType(state.FeeQuoter.String()), contractsVersion))
 		s.FeeQuoter = ccipSeqReport.Output.FeeQuoterAddress.TONAddress
 	}
 	if ccipSeqReport.Output.OnRampAddress != nil {
 		_ = dataStore.Addresses().Add(ccipSeqReport.Output.OnRampAddress.CLDFAddressRef)
-		_ = ab.Save(selector, state.OnRamp.String(), cldf.NewTypeAndVersion(cldf.ContractType(state.OnRamp.String()), contractsVersion))
 		s.OnRamp = ccipSeqReport.Output.OnRampAddress.TONAddress
 	}
 	if ccipSeqReport.Output.OffRampAddress != nil {
 		_ = dataStore.Addresses().Add(ccipSeqReport.Output.OffRampAddress.CLDFAddressRef)
-		_ = ab.Save(selector, state.OffRamp.String(), cldf.NewTypeAndVersion(cldf.ContractType(state.OffRamp.String()), contractsVersion))
 		s.OffRamp = ccipSeqReport.Output.OffRampAddress.TONAddress
 	}
 	if ccipSeqReport.Output.ReceiverAddress != nil {
 		_ = dataStore.Addresses().Add(ccipSeqReport.Output.ReceiverAddress.CLDFAddressRef)
-		_ = ab.Save(selector, state.TonReceiver.String(), cldf.NewTypeAndVersion(cldf.ContractType(state.TonReceiver.String()), contractsVersion))
 		s.ReceiverAddress = ccipSeqReport.Output.ReceiverAddress.TONAddress
 	}
 	if ccipSeqReport.Output.TimelockAddress != nil {
 		_ = dataStore.Addresses().Add(ccipSeqReport.Output.TimelockAddress.CLDFAddressRef)
-		_ = ab.Save(selector, state.Timelock.String(), cldf.NewTypeAndVersion(cldf.ContractType(state.Timelock.String()), contractsVersion))
 		s.Timelock = ccipSeqReport.Output.TimelockAddress.TONAddress
 	}
 
@@ -148,6 +141,9 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 		return cldf.ChangesetOutput{}, err
 	}
 
+	// Keep address book for backward compatibility. TODO remove it once we adopted this version in CLD
+	ab, _ := dataStoreToAddressBook(dataStore)
+
 	// TODO: generate MCMS proposal or execute
 	return cldf.ChangesetOutput{
 		MCMSTimelockProposals: proposals,
@@ -155,4 +151,21 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 		DataStore:             dataStore,
 		AddressBook:           ab,
 	}, nil
+}
+
+// Temp function to transform a DataStore to the legacy AddressBook. Couldn't find any utility function to do this.
+// Once we adopt this new change set in CLD we can remove returning AddressBook at all :)
+func dataStoreToAddressBook(ds *ds.MemoryDataStore) (*cldf.AddressBookMap, error) {
+	ab := cldf.NewMemoryAddressBook()
+	addresses, err := ds.Addresses().Fetch()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list addresses from datastore: %w", err)
+	}
+	for _, addrRef := range addresses {
+		err := ab.Save(addrRef.ChainSelector, addrRef.Address, cldf.NewTypeAndVersion(cldf.ContractType(addrRef.Type), *addrRef.Version))
+		if err != nil {
+			return nil, fmt.Errorf("failed to save address %s to address book: %w", addrRef.Type, err)
+		}
+	}
+	return ab, nil
 }

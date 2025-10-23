@@ -5,8 +5,7 @@ import "types"
 struct Storage {
     id: uint32;
     ownable: Ownable2Step;
-    deployer: cell; // Deployable compiled code
-    merkleRootCode: cell; // make sure to use a library cell offchain to save space
+    deployables: Cell<OffRamp_Deployables>;
     feeQuoter: address;
     ocr3Base: Cell<OCR3Base>
 

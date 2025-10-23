@@ -8,7 +8,7 @@ import "../onramp/types"
 import "../common/messages"
 import "../../lib/utils"
 
-const CONTRACT_VERSION = "0.0.3";
+const CONTRACT_VERSION = "0.0.5";
 const FACILITY_NAME = "com.chainlink.ton.ccip.CCIPSendExecutor";
 
 fun onInternalMessage(in: InMessage) {
@@ -167,4 +167,3 @@ get fun facilityId(): uint16  {
 get fun errorCode(local: uint16): uint16 {
     return getErrorCode(stringCrc32("com.chainlink.ton.ccip.CCIPSendExecutor"), local);
 }
-

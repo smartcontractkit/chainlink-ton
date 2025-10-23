@@ -13,13 +13,19 @@ import {
 } from '@ton/core'
 
 import * as ownable2step from '../libraries/access/Ownable2Step'
+import * as withdrawable from '../libraries/funding/Withdrawable'
 import { asSnakeData } from '../../src/utils'
 import { CellCodec } from '../utils'
 import * as rt from './Router'
+import * as upgradeable from '../libraries/versioning/Upgradeable'
+import * as typeAndVersion from '../libraries/TypeAndVersion'
+import { compile } from '@ton/blueprint'
 
 export const ONRAMP_FACILITY_NAME = 'com.chainlink.ton.ccip.OnRamp'
 export const ONRAMP_FACILITY_ID = 181
 export const ONRAMP_ERROR_CODE = 18100 //FACILITY_ID * 100
+
+export const ONRAMP_CONTRACT_VERSION = '0.0.8'
 
 export const CCIP_SEND_EXECUTOR_FACILITY_NAME = 'com.chainlink.ton.ccip.CCIPSendExecutor'
 export const CCIP_SEND_EXECUTOR_FACILITY_ID = 436
@@ -60,9 +66,15 @@ export type Metadata = {
 
 export type DestChainConfig = {
   router: Address
-  sequenceNumber: number
+  sequenceNumber: bigint
   allowlistEnabled: boolean
   allowedSenders: Dictionary<Address, boolean>
+}
+
+export type UpdateDestChainConfig = {
+  destChainSelector: bigint
+  router: Address
+  allowlistEnabled: boolean
 }
 
 const metadataCodec: CellCodec<Metadata> = {
@@ -93,7 +105,6 @@ export const builder = {
                   .storeAddress(data.config.allowlistAdmin)
                   .endCell(),
               )
-              // UMap<> type
               .storeDict(data.destChainConfigs)
               .storeRef(data.executor_code)
               .storeUint(data.currentMessageId, 224)
@@ -104,6 +115,25 @@ export const builder = {
         },
       }
     })(),
+    destChainConfig: (): CellCodec<DestChainConfig> => {
+      return {
+        encode: function (data: DestChainConfig): Builder {
+          return beginCell()
+            .storeAddress(data.router)
+            .storeUint(data.sequenceNumber, 64)
+            .storeBit(data.allowlistEnabled)
+            .storeDict(data.allowedSenders)
+        },
+        load: function (src: Slice): DestChainConfig {
+          return {
+            router: src.loadAddress(),
+            sequenceNumber: src.loadUintBig(64),
+            allowlistEnabled: src.loadBit(),
+            allowedSenders: src.loadDict(Dictionary.Keys.Address(), Dictionary.Values.Bool()),
+          }
+        },
+      }
+    },
   },
   messages: {
     in: {
@@ -139,7 +169,7 @@ export abstract class Opcodes {
 
 export abstract class Errors {}
 
-export class OnRamp implements Contract {
+export class OnRamp implements Contract, withdrawable.Interface {
   constructor(
     readonly address: Address,
     readonly init?: { code: Cell; data: Cell },
@@ -171,6 +201,37 @@ export class OnRamp implements Contract {
     })
   }
 
+  sendUpgrade(
+    provider: ContractProvider,
+    via: Sender,
+    value: bigint,
+    body: upgradeable.Upgrade,
+  ): Promise<void> {
+    return upgradeable.sendUpgrade(provider, via, value, body)
+  }
+
+  getTypeAndVersion(provider: ContractProvider): Promise<{ type: string; version: string }> {
+    return typeAndVersion.getTypeAndVersion(provider)
+  }
+  getCode(provider: ContractProvider): Promise<Cell> {
+    return typeAndVersion.getCode(provider)
+  }
+  getCodeHash(provider: ContractProvider): Promise<bigint> {
+    return typeAndVersion.getCodeHash(provider)
+  }
+
+  static version() {
+    return ONRAMP_CONTRACT_VERSION
+  }
+
+  static type() {
+    return ONRAMP_FACILITY_NAME
+  }
+
+  static async code() {
+    return await compile('OnRamp')
+  }
+
   async sendSetDynamicConfig(
     provider: ContractProvider,
     via: Sender,
@@ -191,7 +252,7 @@ export class OnRamp implements Contract {
     via: Sender,
     opts: {
       value: bigint
-      destChainConfigs: { destChainSelector: bigint; router: Address; allowlistEnabled: boolean }[]
+      destChainConfigs: UpdateDestChainConfig[]
     },
   ) {
     await provider.internal(via, {
@@ -209,5 +270,19 @@ export class OnRamp implements Contract {
         )
         .endCell(),
     })
+  }
+
+  // Withdrawable methods
+  async sendWithdraw(
+    provider: ContractProvider,
+    via: Sender,
+    value: bigint,
+    body: withdrawable.Withdraw,
+  ) {
+    await withdrawable.sendWithdraw(provider, via, value, body)
+  }
+
+  async getReserve(provider: ContractProvider): Promise<bigint> {
+    return await withdrawable.getReserve(provider)
   }
 }

@@ -13,8 +13,15 @@ import {
 } from '@ton/core'
 
 import * as ownable2step from '../libraries/access/Ownable2Step'
-import { CellCodec } from '../utils'
+import * as withdrawable from '../libraries/funding/Withdrawable'
 import { asSnakeData, asSnakeDataUint, fromSnakeData } from '../../src/utils'
+import { CellCodec } from '../utils'
+
+import * as upgradeable from '../libraries/versioning/Upgradeable'
+import * as typeAndVersion from '../libraries/TypeAndVersion'
+import { compile } from '@ton/blueprint'
+
+export const ROUTER_CONTRACT_VERSION = '0.0.6'
 
 export const ROUTER_FACILITY_NAME = 'com.chainlink.ton.ccip.Router'
 export const ROUTER_FACILITY_ID = 496
@@ -38,7 +45,9 @@ export abstract class Opcodes {
   static ccipSend = 0x00000001
 }
 
-export class Router implements Contract {
+export class Router
+  implements upgradeable.Interface, withdrawable.Interface, typeAndVersion.TypeAndVersion, Contract
+{
   constructor(
     readonly address: Address,
     readonly init?: { code: Cell; data: Cell },
@@ -73,6 +82,37 @@ export class Router implements Contract {
     })
   }
 
+  sendUpgrade(
+    provider: ContractProvider,
+    via: Sender,
+    value: bigint,
+    body: upgradeable.Upgrade,
+  ): Promise<void> {
+    return upgradeable.sendUpgrade(provider, via, value, body)
+  }
+
+  getTypeAndVersion(provider: ContractProvider): Promise<{ type: string; version: string }> {
+    return typeAndVersion.getTypeAndVersion(provider)
+  }
+  getCode(provider: ContractProvider): Promise<Cell> {
+    return typeAndVersion.getCode(provider)
+  }
+  getCodeHash(provider: ContractProvider): Promise<bigint> {
+    return typeAndVersion.getCodeHash(provider)
+  }
+
+  static version() {
+    return ROUTER_CONTRACT_VERSION
+  }
+
+  static type() {
+    return ROUTER_FACILITY_NAME
+  }
+
+  static async code() {
+    return await compile('Router')
+  }
+
   async sendSetRamps(
     provider: ContractProvider,
     via: Sender,
@@ -105,6 +145,20 @@ export class Router implements Contract {
       sendMode: SendMode.PAY_GAS_SEPARATELY,
       body: builder.message.in.ccipSend.encode(opts.body).asCell(),
     })
+  }
+
+  // Withdrawable methods
+  async sendWithdraw(
+    provider: ContractProvider,
+    via: Sender,
+    value: bigint,
+    body: withdrawable.Withdraw,
+  ) {
+    await withdrawable.sendWithdraw(provider, via, value, body)
+  }
+
+  async getReserve(provider: ContractProvider): Promise<bigint> {
+    return await withdrawable.getReserve(provider)
   }
 }
 

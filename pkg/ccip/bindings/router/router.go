@@ -8,6 +8,17 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
+)
+
+const (
+	OpcodeSetRamps = 0x10000001
+	OpcodeCCIPSend = 0x00000001
+)
+
+const (
+	ErrorDestChainNotEnabled tvm.ExitCode = tvm.ExitCode(0x1001)
+	ErrorUnknownMessage      tvm.ExitCode = tvm.ExitCode(0x1002)
 )
 
 type Storage struct {
@@ -43,12 +54,4 @@ type CCIPSend struct {
 	TokenAmounts      common.SnakeRef[TokenAmount] `tlb:"^"`
 	FeeToken          *address.Address             `tlb:"addr"`
 	ExtraArgs         *cell.Cell                   `tlb:"^"`
-}
-
-type JettonTransferNotification struct {
-	_              tlb.Magic        `tlb:"#7362d09c"` //nolint:revive // Ignore opcode tag
-	QueryID        uint64           `tlb:"## 64"`
-	Amount         tlb.Coins        `tlb:"^"`
-	Sender         *address.Address `tlb:"addr"`
-	ForwardPayload *cell.Cell       `tlb:"maybe ^"`
 }
