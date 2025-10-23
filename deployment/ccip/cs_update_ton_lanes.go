@@ -6,8 +6,9 @@ import (
 	chainsel "github.com/smartcontractkit/chain-selectors"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
 	"github.com/smartcontractkit/mcms"
+
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
 
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 
