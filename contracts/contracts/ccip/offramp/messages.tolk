@@ -6,6 +6,7 @@ import "../common/types.tolk"
 import "../../lib/utils"
 import "../../lib/funding/withdrawable"
 import "../../lib/versioning/upgradeable"
+import "../rmn_remote/lib"
 
 type OffRamp_InMessage =
     | OffRamp_Commit
@@ -20,6 +21,7 @@ type OffRamp_InMessage =
     | OffRamp_NotifySuccess
     | OffRamp_NotifyFailure
     | OCR3Base_SetOCR3Config
+    | OffRamp_UpdateCursedSubjects
     | Upgradeable_Upgrade
     | Withdrawable_Withdraw;
 
@@ -93,4 +95,9 @@ struct (0x177ebd03) OffRamp_NotifyFailure {
     header: RampMessageHeader;
     execId: ReceiveExecutorId;
     root: address;
+}
+
+// TODO: crc
+struct (0x01) OffRamp_UpdateCursedSubjects {
+    cursedSubjects: CursedSubjects
 }

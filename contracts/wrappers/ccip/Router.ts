@@ -47,6 +47,9 @@ export abstract class Opcodes {
   static updateOffRamps = 0x234110a7
   static ccipReceiveConfirm = 0x1e55bbf6
   static routeMessage = 0xfc69c50b
+  static curse = 0x10000002
+  static uncurse= 0x10000003
+  static verifyNotCursed= 0x10000004
 }
 
 export type Ramp = {
@@ -175,6 +178,7 @@ export class Router
       queryID?: number
       destChainSelector: bigint[]
       onRamp: Address
+      offRamp: Address
     },
   ) {
     await provider.internal(via, {
@@ -185,6 +189,7 @@ export class Router
         .storeUint(opts.queryID ?? 0, 64)
         .storeRef(asSnakeDataUint(opts.destChainSelector, 64))
         .storeAddress(opts.onRamp)
+        .storeAddress(opts.offRamp)
         .endCell(),
     })
   }
@@ -247,6 +252,38 @@ export class Router
 
   async getReserve(provider: ContractProvider): Promise<bigint> {
     return await withdrawable.getReserve(provider)
+  }
+
+  async sendCurse(
+    provider: ContractProvider,
+    via: Sender,
+    opts: { value: string | bigint; queryID?: number; subject: bigint },
+  ) {
+    await provider.internal(via, {
+      value: opts.value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: beginCell()
+        .storeUint(Opcodes.curse, 32)
+        .storeUint(opts.queryID ?? 0, 64)
+        .storeUint(opts.subject, 128)
+        .asCell(),
+    })
+  }
+
+  async sendUncurse(
+    provider: ContractProvider,
+    via: Sender,
+    opts: { value: string | bigint; queryID?: number; subject: bigint },
+  ) {
+    await provider.internal(via, {
+      value: opts.value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: beginCell()
+        .storeUint(Opcodes.uncurse, 32)
+        .storeUint(opts.queryID ?? 0, 64)
+        .storeUint(opts.subject, 128)
+        .asCell(),
+    })
   }
 }
 
@@ -317,6 +354,17 @@ export const builder = {
           )
           .storeDict(config.onRamps)
           .storeDict(config.offRamps)
+          .storeRef( // RMN Remote
+            beginCell()
+            // default RMN admin to router owner
+            .storeAddress(config.ownable.owner)
+            .storeMaybeBuilder(
+              config.ownable.pendingOwner
+                ? beginCell().storeAddress(config.ownable.pendingOwner)
+                : null,
+            )
+            .storeDict(Dictionary.empty(Dictionary.Keys.BigUint(128)))
+          )
       },
 
       load: (src: Slice): Storage => {
@@ -325,6 +373,7 @@ export const builder = {
           ownable: ownable2step.builder.data.traitData.load(src.loadRef().beginParse()),
           onRamps: Dictionary.empty(Dictionary.Keys.BigUint(64)),
           offRamps: Dictionary.empty(Dictionary.Keys.BigUint(64)),
+          // TODO: rmnRemote loading
         }
       },
     }

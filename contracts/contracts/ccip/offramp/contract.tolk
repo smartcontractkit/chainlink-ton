@@ -55,6 +55,9 @@ fun onInternalMessage(in:InMessage) {
         OffRamp_UpdateSourceChainConfig => {
             _updateSourceChainConfig(msg, in.senderAddress)
         }
+        OffRamp_UpdateCursedSubjects => {
+            _updateCursedSubjects(msg, in.senderAddress)
+        },
         // Sender must be receiver
         OffRamp_CCIPReceiveConfirm => {
             _ccipReceiveConfirm(msg, in.senderAddress);
@@ -468,6 +471,14 @@ fun _updateSourceChainConfig(msg: OffRamp_UpdateSourceChainConfig, sender: addre
         sourceChainSelector: msg.sourceChainSelector,
         sourceChainConfig: config,
     })
+}
+
+fun _updateCursedSubjects(msg: OffRamp_UpdateCursedSubjects, sender: address) {
+    var st = Storage.load();
+    // Only allow updates to come through the router
+    assert(sender == st.router, ERROR_ONLY_CALLABLE_BY_OWNER);
+    st.cursedSubjects = msg.cursedSubjects;
+    st.store();
 }
 
 fun _executeValidated(msg: OffRamp_ExecuteValidated, sender: address) {

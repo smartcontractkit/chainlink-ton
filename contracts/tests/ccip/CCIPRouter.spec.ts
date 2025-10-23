@@ -127,6 +127,7 @@ describe('Router', () => {
         owner: deployer.address,
         pendingOwner: null,
       },
+      offRamp: ZERO_ADDRESS,
       onRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
       offRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
     }
@@ -315,6 +316,7 @@ describe('Router', () => {
         queryID: 0,
         destChainSelector: [CHAINSEL_EVM_TEST_90000001, CHAINSEL_EVM_TEST_90000002],
         onRamp: onRamp.address,
+        offRamp: ZERO_ADDRESS,
       })
       expect(result.transactions).toHaveTransaction({
         from: deployer.address,
@@ -442,6 +444,68 @@ describe('Router', () => {
     }
   })
 
+  it('router respects cursing', async () => {
+    // Curse the lane
+    {
+      const result = await router.sendCurse(deployer.getSender(), {
+        value: toNano('1'),
+        queryID: 0,
+        subject: CHAINSEL_EVM_TEST_90000001,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: router.address,
+        success: true,
+      })
+    }
+
+    // Fail router.ccipSend
+    {
+      const result = await router.sendCcipSend(sender.getSender(), {
+        value: toNano('1'),
+        body: {
+          queryID: 1,
+          destChainSelector: CHAINSEL_EVM_TEST_90000001,
+          receiver: EVM_ADDRESS,
+          data: Cell.EMPTY,
+          tokenAmounts: [],
+          feeToken: TEST_TOKEN_ADDR,
+          extraArgs: rt.builder.data.extraArgs
+            .encode({
+              kind: 'generic-v2',
+              gasLimit: 100n,
+              allowOutOfOrderExecution: true,
+            })
+            .asCell(),
+        },
+      })
+
+      // we called the router
+      expect(result.transactions).toHaveTransaction({
+        from: sender.address,
+        to: router.address,
+        deploy: false,
+        success: false,
+        exitCode: 49601, // subjectCursed
+      })
+
+    }
+
+    // Uncurse the lane
+    {
+      const result = await router.sendUncurse(deployer.getSender(), {
+        value: toNano('1'),
+        queryID: 0,
+        subject: CHAINSEL_EVM_TEST_90000001,
+      })
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: router.address,
+        success: true,
+      })
+    }
+  })
+
   it('onramp arbitrary message passing', async () => {
     // Configure onRamp on router
     {
@@ -450,6 +514,7 @@ describe('Router', () => {
         queryID: 0,
         destChainSelector: [CHAINSEL_EVM_TEST_90000001],
         onRamp: onRamp.address,
+        offRamp: ZERO_ADDRESS,
       })
       expect(result.transactions).toHaveTransaction({
         from: deployer.address,
@@ -567,6 +632,7 @@ describe('Router', () => {
         queryID: 0,
         destChainSelector: [CHAINSEL_EVM_TEST_90000001],
         onRamp: onRamp.address,
+        offRamp: ZERO_ADDRESS,
       })
       expect(result.transactions).toHaveTransaction({
         from: deployer.address,
@@ -787,6 +853,7 @@ async function deployRouterContract(
       owner: owner.address,
       pendingOwner: null,
     },
+    offRamp: ZERO_ADDRESS,
     onRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
     offRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
   }

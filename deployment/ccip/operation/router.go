@@ -52,7 +52,8 @@ func deployRouter(b operations.Bundle, deps TonDeps, in DeployRouterInput) (Depl
 			Owner:        deps.TonChain.WalletAddress,
 			PendingOwner: nil,
 		},
-		OnRamps: nil, // set afterwards
+		CursedSubjects: nil,
+		OnRamps:        nil, // set afterwards
 	}
 	initData, err := tlb.ToCell(storage)
 	if err != nil {

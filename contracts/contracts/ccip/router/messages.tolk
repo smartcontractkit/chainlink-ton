@@ -16,6 +16,9 @@ type Router_InMsg =
     | Common_JettonTransferNotification
     | Upgradeable_Upgrade
     | Withdrawable_Withdraw
+    | RMNRemote_Curse
+    | RMNRemote_Uncurse
+    | RMNRemote_VerifyNotCursed;
     ;
 
 type Router_BouncedMessage = Receiver_CCIPReceive;
@@ -27,6 +30,7 @@ struct (0x20272c81) Router_SetRamps {
     queryId: uint64;
     destChainSelectors: SnakedCell<uint64>;
     onRamp: address;
+    offRamp: address;
 }
 
 //crc32("Router_UpdateOffRamps")
@@ -62,4 +66,25 @@ struct (0xfc69c50b) Router_RouteMessage {
 //crc32("Router_CCIPReceiveConfirm")
 struct (0x1e55bbf6) Router_CCIPReceiveConfirm {
     execId: ReceiveExecutorId;
+}
+
+// curse/uncurse/verify uncursed (also as getter)
+struct (0x10000002) RMNRemote_Curse {
+    queryId: uint64
+    subject: uint128
+}
+
+struct (0x10000003) RMNRemote_Uncurse {
+    queryId: uint64
+    subject: uint128
+}
+
+struct (0x10000003) RMNRemote_VerifyNotCursed {
+    queryId: uint64
+    subject: uint128
+}
+
+struct (0x10000004) RMNRemote_VerifyNotCursedResponse {
+    queryId: uint64
+    result: bool
 }

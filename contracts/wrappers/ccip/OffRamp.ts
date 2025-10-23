@@ -64,6 +64,7 @@ export type OffRampStorage = {
   ownable: ownable2step.Data
   deployables: Deployables
   feeQuoter: Address
+  router: Address
   chainSelector: bigint
   permissionlessExecutionThresholdSeconds: number
   latestPriceSequenceNumber: bigint
@@ -169,6 +170,7 @@ export const builder = {
                 .endCell(),
             )
             .storeAddress(storage.feeQuoter)
+            .storeAddress(storage.router)
             // empty OCR3Base::
             .storeRef(
               beginCell()
@@ -177,6 +179,7 @@ export const builder = {
                 .storeBit(false)
                 .endCell(),
             )
+            .storeDict(Dictionary.empty()) // cursedSubjects
             .storeUint(storage.chainSelector, 64)
             .storeUint(storage.permissionlessExecutionThresholdSeconds, 32)
             .storeDict(Dictionary.empty())
