@@ -279,7 +279,7 @@ func (c *Client) WaitForMessageReceived(ctx context.Context, lggr logger.Logger,
 
 					// Use txparser utility to extract opcode and validate
 					sig, _, err := txparserutils.ParseInternalMsg(intMsg)
-					if err != nil || sig == 0 {
+					if err != nil || sig != offramp.CCIPReceiveOpCode {
 						continue // Not a CCIPReceive message or parse error
 					}
 
