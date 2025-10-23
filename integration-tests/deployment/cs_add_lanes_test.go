@@ -164,8 +164,8 @@ func TestAddLanes(t *testing.T) {
 		Lanes: []lanes.LaneConfig{
 			{
 				Version: semver.MustParse("1.6.0"),
-				Source:  tonDefinition,
-				Dest:    evmDefinition,
+				ChainA:  tonDefinition,
+				ChainB:  evmDefinition,
 			},
 		},
 	})
