@@ -172,7 +172,7 @@ func (a *TONAccessor) GetOffRampSourceChainConfigs(ctx context.Context, block *t
 	for _, selector := range sourceChainSelectors {
 		config, ok := sourceConfigs[uint64(selector)]
 		if !ok {
-			return nil, fmt.Errorf("source chain selector '%s' not found", selector)
+			return nil, fmt.Errorf("source chain selector '%d' not found", selector)
 		}
 		sourceChainConfigs[selector] = sourceChainConfigToGeneric(config)
 	}
