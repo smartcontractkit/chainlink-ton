@@ -71,18 +71,35 @@ func NewMessageInfo(name string, msg any) (MessageInfo, error) {
 
 // NewMessageInfoFromCell attempts to decode the given cell using the provided TL-B candidates mapped by their opcodes.
 func NewMessageInfoFromCell(t cldf.ContractType, msg *cell.Cell, tlbs map[uint64]interface{}) (MessageInfo, error) {
+	typeName, m, err := DecodeJSONMapFromCell(t, msg, tlbs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode message for contract %s: %w", t, err)
+	}
+
+	name := fmt.Sprintf("%s:%s", t, typeName)
+	// 4.4 Finally, marshal the final map[string]interface{} as JSON string
+	return NewMessageInfo(name, m)
+}
+
+// DecodeJSONMapFromCell attempts to decode the given cell using the provided TL-B candidates mapped by their opcodes.
+func DecodeJSONMapFromCell(t cldf.ContractType, msg *cell.Cell, tlbs map[uint64]interface{}) (string, map[string]interface{}, error) {
+	// 1.1 Try to decode *cell.Cell as one of the TLBs type by reading the opcode
+	if msg == nil {
+		return "", nil, &UnknownMessageError{}
+	}
+
 	r := msg.BeginParse()
 	if r.BitsLeft() == 0 {
-		return nil, &UnknownMessageError{}
+		return "", nil, &UnknownMessageError{}
 	}
 	opCode, err := r.PreloadUInt(32)
 	if err != nil {
-		return nil, fmt.Errorf("failed to preload opcode: %w", err)
+		return "", nil, fmt.Errorf("failed to preload opcode: %w", err)
 	}
 
 	i, ok := tlbs[opCode]
 	if !ok {
-		return nil, &UnknownMessageError{}
+		return "", nil, &UnknownMessageError{}
 	}
 
 	// create new instance of the candidate type
@@ -91,11 +108,60 @@ func NewMessageInfoFromCell(t cldf.ContractType, msg *cell.Cell, tlbs map[uint64
 
 	// attempt decode - replace tlb.FromCell with the actual decode API you have
 	if err := tlb.LoadFromCell(inst, r); err != nil {
-		return nil, fmt.Errorf("failed to decode OnRamp message for opcode 0x%X: %w", opCode, err)
+		return "", nil, fmt.Errorf("failed to decode message for opcode 0x%X: %w", opCode, err)
 	}
 
-	name := fmt.Sprintf("%s:%s", t, rt.Name())
-	return NewMessageInfo(name, inst)
+	// Now decode internal *cell.Cell fields recursively
+	// 2.1. Iterate over the fields of the struct (reflect)
+	ckeys := make([]string, 0)
+	for i := 0; i < rt.NumField(); i++ {
+		f := rt.Field(i)
+
+		// 2.2. For each field, check if it's of type *cell.Cell
+		if f.Type == reflect.TypeOf(&cell.Cell{}) {
+			// 2.3. If so, check the json tag to determine the expected key
+			k := f.Name
+			jsonTag := f.Tag.Get("json")
+			if jsonTag != "" {
+				k = strings.Split(jsonTag, ",")[0] // parse json tag options (key)
+			}
+
+			// 2.4. Source a set of keys that we need to decode recursively
+			ckeys = append(ckeys, k)
+		}
+	}
+
+	// 3.1. Decode the struct as JSON map[string]interface{} (default *cell.Cell marshalling)
+	var rawMap map[string]interface{}
+	rawBytes, err := json.Marshal(inst)
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to marshal decoded message to JSON: %w", err)
+	}
+	err = json.Unmarshal(rawBytes, &rawMap)
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to unmarshal decoded message JSON to map: %w", err)
+	}
+
+	// 3.2. For each key in the sourced set, get the *cell.Cell value (decode from BOC)
+	for _, ck := range ckeys {
+		cBOC := rawMap[ck]
+
+		cVal := &cell.Cell{}
+		if err := json.Unmarshal([]byte(strconv.Quote(cBOC.(string))), cVal); err != nil {
+			return "", nil, fmt.Errorf("failed to unmarshal BOC to cell: %s: %s: %w", ck, cBOC, err)
+		}
+
+		// 3.3. Try to decode recursively using NewMessageInfoFromCell
+		_, cMap, err := DecodeJSONMapFromCell(t, cVal, tlbs)
+		if err != nil {
+			// 	fallback to original BOC representation if fails
+			continue
+		}
+		rawMap[ck] = cMap
+	}
+
+	return rt.Name(), rawMap, nil
+	// 4.4 Finally, marshal the final map[string]interface{} as JSON string
 }
 
 func MustNewTLBMap(types []interface{}) map[uint64]interface{} {
@@ -106,13 +172,17 @@ func MustNewTLBMap(types []interface{}) map[uint64]interface{} {
 	return tlbs
 }
 
-// NewTLBMap creates a map of TL-B magic numbers to their corresponding types.
-// The input is a slice of TL-B struct instances.
+// NewTLBMap creates a map of TL-B magic numbers (opcodes) to their corresponding types
+// from a set of TL-B annotated struct instances.
 func NewTLBMap(types []interface{}) (map[uint64]interface{}, error) {
 	tlbs := make(map[uint64]interface{})
 	for _, typ := range types {
 		// Use reflection to get the magic number from the type
 		rt := reflect.TypeOf(typ)
+
+		if rt.Field(0).Type != reflect.TypeOf(tlb.Magic{}) {
+			return nil, fmt.Errorf("first field of %s is not of type Magic", rt.Name())
+		}
 
 		magicTag := rt.Field(0).Tag.Get("tlb")
 		magic, err := loadMagic(magicTag)
