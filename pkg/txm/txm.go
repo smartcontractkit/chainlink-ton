@@ -88,9 +88,10 @@ func (t *Txm) GetClient(ctx context.Context) (tracetracking.SignedAPIClient, err
 
 func (t *Txm) Start(ctx context.Context) error {
 	return t.starter.StartOnce("Txm", func() error {
-		t.done.Add(2) // waitgroup: broadcast loop and confirm loop
+		t.done.Add(3) // waitgroup: broadcast loop, confirm loop, and cleanup loop
 		go t.broadcastLoop()
 		go t.confirmLoop()
+		go t.cleanupLoop()
 		return nil
 	})
 }
@@ -267,11 +268,10 @@ func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Messag
 	// Save receivedMessage into tx
 	tx.ReceivedMessage = *receivedMessage
 
-	// Determine expiration
-	// TODO: LT is not timestamp we can use for expiration check, revisit
-	lamportTime := receivedMessage.LamportTime
-	lamportTimeSecs := lamportTime / 1000
-	expirationTimestampSecs := lamportTimeSecs + uint64(t.config.SendRetryDelay.Duration().Seconds())
+	// Determine tx expiration.
+	// CreatedAt is a Unix timestamp, uint32: https://docs.ton.org/v3/documentation/data-formats/layout/messages
+	createdAtTimeSeconds := receivedMessage.InternalMsg.CreatedAt
+	expirationTimestampSecs := uint64(createdAtTimeSeconds) + uint64(t.config.SendRetryDelay.Duration().Seconds())
 
 	walletAddr := client.Wallet.Address().String()
 	txStore := t.accountStore.GetTxStore(walletAddr)
@@ -279,7 +279,8 @@ func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Messag
 		return fmt.Errorf("txStore not found for sender %s", walletAddr)
 	}
 
-	err = txStore.AddUnconfirmed(lamportTime, expirationTimestampSecs, tx)
+	txExpirationMs := expirationTimestampSecs * 1000
+	err = txStore.AddUnconfirmed(receivedMessage.LamportTime, txExpirationMs, tx)
 	if err != nil {
 		t.logger.Errorf("AddUnconfirmed err: %v", err)
 		return err
@@ -364,6 +365,37 @@ func (t *Txm) checkUnconfirmed(ctx context.Context) {
 			} else {
 				t.logger.Warnw("transaction failed", "LT", unconfirmedTx.LT, "exitCode", exitCode)
 			}
+		}
+	}
+}
+
+// Periodically cleans up finalized and expired transactions from the TxStore.
+func (t *Txm) cleanupLoop() {
+	defer t.done.Done()
+
+	cleanupInterval := time.Duration(t.config.CleanupIntervalMins) * time.Minute //nolint:gosec // ignoring G115 overflow conversion
+	ticker := time.NewTicker(cleanupInterval)
+	defer ticker.Stop()
+
+	t.logger.Debugw("cleanupLoop: started", "interval", cleanupInterval)
+
+	for {
+		select {
+		case <-ticker.C:
+			currentTimeMs := uint64(time.Now().UnixMilli()) //nolint:gosec // ignoring G115 overflow conversion
+			finalized, expired := t.accountStore.CleanupAll(currentTimeMs)
+
+			if finalized > 0 || expired > 0 {
+				t.logger.Infow("cleaned up transactions",
+					"finalized", finalized,
+					"expired", expired,
+					"currentTimeMs", currentTimeMs)
+			} else {
+				t.logger.Debugw("cleanup completed, no transactions removed")
+			}
+		case <-t.stop:
+			t.logger.Debugw("cleanupLoop: stopped")
+			return
 		}
 	}
 }

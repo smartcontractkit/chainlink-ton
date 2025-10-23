@@ -132,6 +132,30 @@ func (s *TxStore) GetTxState(lt uint64) (tracetracking.MsgStatus, bool, tvm.Exit
 	return tracetracking.NotFound, false, 0, tlb.ZeroCoins, false
 }
 
+// cleanupFinalizedAndExpired removes finalized transactions and expired unconfirmed transactions.
+// Returns the count of finalized and expired transactions that were removed. currentTimeMs is a Unix
+// timestamp in milliseconds.
+func (s *TxStore) cleanupFinalizedAndExpired(currentTimeMs uint64) (int, int) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	// Remove all finalized transactions
+	// TODO: consider selectively removing txs based on exit codes
+	finalizedCount := len(s.finalizedTxs)
+	s.finalizedTxs = map[uint64]*FinalizedTx{}
+
+	// Remove expired unconfirmed transactions
+	expiredCount := 0
+	for lt, unconfirmedTx := range s.unconfirmedTxs {
+		if unconfirmedTx.ExpirationMs < currentTimeMs {
+			delete(s.unconfirmedTxs, lt)
+			expiredCount++
+		}
+	}
+
+	return finalizedCount, expiredCount
+}
+
 type AccountStore struct {
 	store map[string]*TxStore // map account address to txstore
 	lock  sync.RWMutex
@@ -178,4 +202,20 @@ func (c *AccountStore) GetAllUnconfirmed() map[string][]*UnconfirmedTx {
 		allUnconfirmed[account] = store.GetUnconfirmed()
 	}
 	return allUnconfirmed
+}
+
+// CleanupAll removes finalized and expired transactions from all TxStores.
+// Returns the total count of finalized and expired transactions that were removed.
+func (c *AccountStore) CleanupAll(currentTimeMs uint64) (int, int) {
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+
+	totalFinalized := 0
+	totalExpired := 0
+	for _, txStore := range c.store {
+		finalized, expired := txStore.cleanupFinalizedAndExpired(currentTimeMs)
+		totalFinalized += finalized
+		totalExpired += expired
+	}
+	return totalFinalized, totalExpired
 }
