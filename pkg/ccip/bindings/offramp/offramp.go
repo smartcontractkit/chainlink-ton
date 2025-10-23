@@ -2,27 +2,42 @@ package offramp
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"math"
 	"math/big"
+	"runtime"
+	"sync"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
 )
 
-const ocr3ConfigGetter = "ocr3Config"
+const (
+	configGetter         = "config"
+	srcChainConfigGetter = "sourceChainConfig"
+)
 
+// Types
+
+// OCR3Config represents the OCR3 configuration stored on-chain
+type OCR3Config struct {
+	ConfigInfo   ConfigInfo       `tlb:"."`
+	Signers      *cell.Dictionary `tlb:"dict 256"`
+	Transmitters *cell.Dictionary `tlb:"dict 267"`
+}
+
+// CommitReportAccepted represents the CommitReportAccepted event data
 type CommitReportAccepted struct {
 	MerkleRoot   *ocr.MerkleRoot   `tlb:"maybe ."`
 	PriceUpdates *ocr.PriceUpdates `tlb:"maybe ^"`
 }
 
+// ExecutionStateChanged represents the ExecutionStateChanged event data
 type ExecutionStateChanged struct {
 	SourceChainSelector uint64 `tlb:"## 64"`
 	SequenceNumber      uint64 `tlb:"## 64"`
@@ -30,15 +45,18 @@ type ExecutionStateChanged struct {
 	State               uint8  `tlb:"## 8"`
 }
 
+// SourceChainConfigUpdated represents the SourceChainConfigUpdated event data
 type SourceChainConfigUpdated struct {
 	SourceChainSelector uint64            `tlb:"## 64"`
 	SourceChainConfig   SourceChainConfig `tlb:"."`
 }
 
+// SourceChainSelectorAdded represents the SourceChainSelectorAdded event data
 type SourceChainSelectorAdded struct {
 	SourceChainSelector uint64 `tlb:"## 64"`
 }
 
+// Storage represents the offRamp contract storage state
 type Storage struct {
 	ID                                      uint32              `tlb:"## 32"`
 	Ownable                                 common.Ownable2Step `tlb:"."`
@@ -51,6 +69,90 @@ type Storage struct {
 	LatestPriceSequenceNumber               uint64              `tlb:"## 64"`
 }
 
+// Deployables holds the deployable code cells for the offRamp contract
+type Deployables struct {
+	Deployer            *cell.Cell `tlb:"^"`
+	MerkleRootCode      *cell.Cell `tlb:"^"`
+	ReceiveExecutorCode *cell.Cell `tlb:"^"`
+}
+
+// ConfigInfo represents the configuration information for OCR3
+type ConfigInfo struct {
+	ConfigDigest                   []byte `tlb:"bits 256"`
+	F                              uint8  `tlb:"## 8"`
+	N                              uint8  `tlb:"## 8"`
+	IsSignatureVerificationEnabled bool   `tlb:"bool"`
+}
+
+// Methods
+
+// UpdateSourceChainConfig represents the updateSourceChainConfig method call on the offRamp contract
+type UpdateSourceChainConfig struct {
+	_                   tlb.Magic         `tlb:"#b98c95e3"` //nolint:revive // Ignore opcode tag
+	QueryID             uint64            `tlb:"## 64"`
+	SourceChainSelector uint64            `tlb:"## 64"`
+	Config              SourceChainConfig `tlb:"."`
+}
+
+// Signer represents a signer entry in the OCR3 config
+type Signer struct {
+	Pubkey []byte `tlb:"bits 256"`
+}
+
+// Transmitter represents a transmitter entry in the OCR3 config
+type Transmitter struct { // NOTE: using common.SnakeData[(*)address.Address] directly doesn't work
+	Address *address.Address `tlb:"addr"`
+}
+
+// SetOCR3Config represents the setOCR3Config method call on the offRamp contract
+type SetOCR3Config struct {
+	_                              tlb.Magic                     `tlb:"#2b78359f"` //nolint:revive // Ignore opcode tag
+	QueryID                        uint64                        `tlb:"## 64"`
+	ConfigDigest                   []byte                        `tlb:"bits 256"`
+	PluginType                     uint16                        `tlb:"## 16"`
+	F                              uint8                         `tlb:"## 8"`
+	IsSignatureVerificationEnabled bool                          `tlb:"bool"`
+	Signers                        common.SnakeData[Signer]      `tlb:"^"`
+	Transmitters                   common.SnakeData[Transmitter] `tlb:"^"`
+}
+
+// Commit represents the commit method call on the offRamp contract
+type Commit struct {
+	_                tlb.Magic                              `tlb:"#9d431905"` //nolint:revive // Ignore opcode tag
+	QueryID          uint64                                 `tlb:"## 64"`
+	ConfigDigest     []byte                                 `tlb:"bits 512"`
+	CommitReport     ocr.CommitReport                       `tlb:"."`
+	SignatureEd25519 common.SnakeData[ocr.SignatureEd25519] `tlb:"^"`
+}
+
+// Execute represents the execute method call on the offRamp contract
+type Execute struct {
+	_             tlb.Magic         `tlb:"#27bdac33"` //nolint:revive // Ignore opcode tag
+	QueryID       uint64            `tlb:"## 64"`
+	ConfigDigest  []byte            `tlb:"bits 512"`
+	ExecuteReport ocr.ExecuteReport `tlb:"."`
+}
+
+const CCIPReceiveOpCode = 0xb3126df1
+
+// CCIPReceive represents the CCIP message received on TON
+type CCIPReceive struct {
+	_       tlb.Magic      `tlb:"#b3126df1"` //nolint:revive // Ignore opcode tag // crc32('Receiver_CCIPReceive')
+	RootID  []byte         `tlb:"bits 224"`
+	Message Any2TVMMessage `tlb:"."`
+}
+
+// Any2TVMMessage represents a cross-chain message to TON
+type Any2TVMMessage struct {
+	MessageID           [32]byte                 `tlb:"bits 256"`
+	SourceChainSelector uint64                   `tlb:"## 64"`
+	Sender              common.CrossChainAddress `tlb:"."` // CrossChainAddress (inline: length prefix + bytes)
+	Data                *cell.Cell               `tlb:"^"`
+}
+
+// Config types that implements getter fetching interface with rpc client
+
+// Config represents the offRamp contract configuration
 type Config struct {
 	ChainSelector                           uint64           `tlb:"## 64"`
 	FeeQuoterAddress                        *address.Address `tlb:"addr"`
@@ -80,25 +182,24 @@ func (c *Config) FromResult(result *ton.ExecutionResult) error {
 		return fmt.Errorf("failed to get permissionlessExecutionThresholdSeconds: %w", err)
 	}
 
-	thresholdSeconds := thresholdInt.Uint64()
-	if thresholdSeconds > math.MaxUint32 {
-		return fmt.Errorf("thresholdSeconds:%v exceeds uint32", thresholdSeconds)
-	}
-
 	*c = Config{
 		ChainSelector:                           chainSelector,
 		FeeQuoterAddress:                        feeQuoterAddress,
-		PermissionlessExecutionThresholdSeconds: uint32(thresholdSeconds),
+		PermissionlessExecutionThresholdSeconds: uint32(thresholdInt.Uint64()), //nolint:gosec // this type is uint32 onchain
 	}
 	return nil
 }
 
-type Deployables struct {
-	Deployer            *cell.Cell `tlb:"^"`
-	MerkleRootCode      *cell.Cell `tlb:"^"`
-	ReceiveExecutorCode *cell.Cell `tlb:"^"`
+func (c *Config) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, _ *common.FetchOptions) error {
+	result, err := client.RunGetMethod(ctx, block, contractAddr, configGetter)
+	if err != nil {
+		return fmt.Errorf("failed to get Config: %w", err)
+	}
+
+	return c.FromResult(result)
 }
 
+// SourceChainConfig represents the configuration for a specific source chain
 type SourceChainConfig struct {
 	Router                    *address.Address         `tlb:"addr"`
 	IsEnabled                 bool                     `tlb:"bool"`
@@ -154,125 +255,45 @@ func (c *SourceChainConfig) FromResult(result *ton.ExecutionResult) error {
 	return nil
 }
 
-type ConfigInfo struct {
-	ConfigDigest                   []byte `tlb:"bits 256"`
-	F                              uint8  `tlb:"## 8"`
-	N                              uint8  `tlb:"## 8"`
-	IsSignatureVerificationEnabled bool   `tlb:"bool"`
-}
-
-// Methods
-
-type UpdateSourceChainConfig struct {
-	_                   tlb.Magic         `tlb:"#b98c95e3"` //nolint:revive // Ignore opcode tag
-	QueryID             uint64            `tlb:"## 64"`
-	SourceChainSelector uint64            `tlb:"## 64"`
-	Config              SourceChainConfig `tlb:"."`
-}
-
-type Signer struct {
-	Pubkey []byte `tlb:"bits 256"`
-}
-
-type Transmitter struct { // NOTE: using common.SnakeData[(*)address.Address] directly doesn't work
-	Address *address.Address `tlb:"addr"`
-}
-
-type SetOCR3Config struct {
-	_                              tlb.Magic                     `tlb:"#2b78359f"` //nolint:revive // Ignore opcode tag
-	QueryID                        uint64                        `tlb:"## 64"`
-	ConfigDigest                   []byte                        `tlb:"bits 256"`
-	PluginType                     uint16                        `tlb:"## 16"`
-	F                              uint8                         `tlb:"## 8"`
-	IsSignatureVerificationEnabled bool                          `tlb:"bool"`
-	Signers                        common.SnakeData[Signer]      `tlb:"^"`
-	Transmitters                   common.SnakeData[Transmitter] `tlb:"^"`
-}
-
-type Commit struct {
-	_                tlb.Magic                              `tlb:"#9d431905"` //nolint:revive // Ignore opcode tag
-	QueryID          uint64                                 `tlb:"## 64"`
-	ConfigDigest     []byte                                 `tlb:"bits 512"`
-	CommitReport     ocr.CommitReport                       `tlb:"."`
-	SignatureEd25519 common.SnakeData[ocr.SignatureEd25519] `tlb:"^"`
-}
-
-type Execute struct {
-	_             tlb.Magic         `tlb:"#27bdac33"` //nolint:revive // Ignore opcode tag
-	QueryID       uint64            `tlb:"## 64"`
-	ConfigDigest  []byte            `tlb:"bits 512"`
-	ExecuteReport ocr.ExecuteReport `tlb:"."`
-}
-
-const CCIPReceiveOpCode = 0xb3126df1
-
-// CCIPReceive represents the CCIP message received on TON
-type CCIPReceive struct {
-	_       tlb.Magic      `tlb:"#b3126df1"` //nolint:revive // Ignore opcode tag // crc32('Receiver_CCIPReceive')
-	RootID  []byte         `tlb:"bits 224"`
-	Message Any2TVMMessage `tlb:"."`
-}
-
-// Any2TVMMessage represents a cross-chain message to TON
-type Any2TVMMessage struct {
-	MessageID           [32]byte                 `tlb:"bits 256"`
-	SourceChainSelector uint64                   `tlb:"## 64"`
-	Sender              common.CrossChainAddress `tlb:"."` // CrossChainAddress (inline: length prefix + bytes)
-	Data                *cell.Cell               `tlb:"^"`
-}
-
-// binding types that supports FetchResult interface with rpc client
-
-type OCR3Config struct {
-	ConfigInfo   ConfigInfo       `tlb:"."`
-	Signers      *cell.Dictionary `tlb:"dict 256"`
-	Transmitters *cell.Dictionary `tlb:"dict 267"`
-}
-
-func (c *OCR3Config) FromResult(result *ton.ExecutionResult) error {
-	// commit (index 1)
-	isNil, err := result.IsNil(1)
+func (c *SourceChainConfig) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, opts *common.FetchOptions) error {
+	result, err := client.RunGetMethod(ctx, block, contractAddr, srcChainConfigGetter, opts.SrcChainSelector)
 	if err != nil {
-		return fmt.Errorf("failed to get isNil for commit: %w", err)
+		return fmt.Errorf("failed to get SourceChainConfig: %w", err)
 	}
 
-	if !isNil {
-		configCell, err1 := result.Cell(1)
-		if err1 != nil {
-			return fmt.Errorf("failed to get configCell: %w", err1)
-		}
-		if err1 = tlb.LoadFromCell(c, configCell.BeginParse()); err1 != nil {
-			return fmt.Errorf("load OCR3Config from cell: %w", err)
-		}
-		return nil
-	}
-
-	// exec (index 2)
-	isNil, err = result.IsNil(2)
-	if err != nil {
-		return fmt.Errorf("failed to get isNil for execute: %w", err)
-	}
-	if !isNil {
-		configCell, err2 := result.Cell(2)
-		if err2 != nil {
-			return fmt.Errorf("failed to get configCell: %w", err2)
-		}
-
-		if err := tlb.LoadFromCell(c, configCell.BeginParse()); err != nil {
-			return fmt.Errorf("load OCR3Config from cell: %w", err)
-		}
-		return nil
-	}
-
-	return errors.New("both commit and execute are nil in OCR3Config")
+	return c.FromResult(result)
 }
 
-func (c *OCR3Config) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, opts *common.FetchOptions) error {
-	result, err := client.RunGetMethod(ctx, block, contractAddr, ocr3ConfigGetter)
+// FetchSrcChainConfig retrieves source chain configurations from the off-ramp contract.
+func FetchSrcChainConfig(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, offRampAddr *address.Address) (map[uint64]SourceChainConfig, error) {
+	result, err := client.RunGetMethod(ctx, block, offRampAddr, common.DestChainsGetter)
 	if err != nil {
-		return fmt.Errorf("failed to get ocr3Config: %w", err)
+		return nil, err
 	}
 
-	err = c.FromResult(result)
-	return err
+	var eg errgroup.Group
+	eg.SetLimit(runtime.NumCPU())
+	var lock sync.Mutex
+	output := make(map[uint64]SourceChainConfig)
+	chainSelectors := common.ParseExecutionResultForDestChainSelectors(result.AsTuple())
+
+	for _, dest := range chainSelectors {
+		eg.Go(func() error {
+			result, err := client.RunGetMethod(ctx, block, offRampAddr, common.SrcChainConfigGetter, dest)
+			if err != nil {
+				return err
+			}
+			var cfg SourceChainConfig
+			if err = cfg.FromResult(result); err != nil {
+				return err
+			}
+
+			lock.Lock()
+			output[dest] = cfg
+			lock.Unlock()
+			return nil
+		})
+	}
+
+	return output, eg.Wait()
 }

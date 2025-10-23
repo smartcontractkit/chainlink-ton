@@ -4,11 +4,14 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"runtime"
+	"sync"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
@@ -320,4 +323,39 @@ func (s *StaticConfig) FetchResult(ctx context.Context, client ton.APIClientWrap
 	}
 
 	return nil
+}
+
+// FetchDestChainConfigsView fetches all destination chain configurations from the fee quoter contract
+func FetchDestChainConfigsView(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, feeQuoter *address.Address) (map[uint64]DestChainConfig, error) {
+	result, err := client.RunGetMethod(ctx, block, feeQuoter, common.DestChainsGetter)
+	if err != nil {
+		return nil, err
+	}
+
+	selectorSlice := common.ParseExecutionResultForDestChainSelectors(result.AsTuple())
+	eg, egCtx := errgroup.WithContext(ctx)
+
+	var lock sync.Mutex
+	eg.SetLimit(runtime.NumCPU())
+	output := make(map[uint64]DestChainConfig)
+	for _, dest := range selectorSlice {
+		eg.Go(func() error {
+			result, err = client.RunGetMethod(egCtx, block, feeQuoter, common.DestChainConfigGetter, dest) // New variables per goroutine
+			if err != nil {
+				return err
+			}
+			var cfg DestChainConfig
+			if err = cfg.FromResult(result); err != nil {
+				return err
+			}
+
+			lock.Lock()
+			output[dest] = cfg
+			lock.Unlock()
+
+			return nil
+		})
+	}
+
+	return output, eg.Wait()
 }
