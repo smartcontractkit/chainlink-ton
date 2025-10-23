@@ -38,7 +38,7 @@ var ConfigureLaneLegAsSource = cldfOps.NewSequence(
 		chainSelector := input.Source.Selector
 		tonChain := chains.TonChains()[chainSelector]
 
-		deps, err := extractTonDeps(tonChain, input)
+		deps, err := extractTonDeps(tonChain, input.Source)
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to extract TON deps: %w", err)
 		}
@@ -102,7 +102,7 @@ var ConfigureLaneLegAsDest = cldfOps.NewSequence(
 		chainSelector := input.Dest.Selector
 		tonChain := chains.TonChains()[chainSelector]
 
-		deps, err := extractTonDeps(tonChain, input)
+		deps, err := extractTonDeps(tonChain, input.Dest)
 		if err != nil {
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to extract TON deps: %w", err)
 		}
@@ -127,20 +127,20 @@ var ConfigureLaneLegAsDest = cldfOps.NewSequence(
 	},
 )
 
-func extractTonDeps(chain ton.Chain, input lanes.UpdateLanesInput) (operation.TonDeps, error) {
-	onRampAddr, err := codec.AddressBytesToTONAddress(input.Source.OnRamp)
+func extractTonDeps(chain ton.Chain, chainDefinition *lanes.ChainDefinition) (operation.TonDeps, error) {
+	onRampAddr, err := codec.AddressBytesToTONAddress(chainDefinition.OnRamp)
 	if err != nil {
 		return operation.TonDeps{}, fmt.Errorf("failed to convert onramp address: %w", err)
 	}
-	offRampAddr, err := codec.AddressBytesToTONAddress(input.Source.OffRamp)
+	offRampAddr, err := codec.AddressBytesToTONAddress(chainDefinition.OffRamp)
 	if err != nil {
 		return operation.TonDeps{}, fmt.Errorf("failed to convert offramp address: %w", err)
 	}
-	routerAddr, err := codec.AddressBytesToTONAddress(input.Source.Router)
+	routerAddr, err := codec.AddressBytesToTONAddress(chainDefinition.Router)
 	if err != nil {
 		return operation.TonDeps{}, fmt.Errorf("failed to convert router address: %w", err)
 	}
-	feeQuoterAddr, err := codec.AddressBytesToTONAddress(input.Source.FeeQuoter)
+	feeQuoterAddr, err := codec.AddressBytesToTONAddress(chainDefinition.FeeQuoter)
 	if err != nil {
 		return operation.TonDeps{}, fmt.Errorf("failed to convert feequoter address: %w", err)
 	}
@@ -150,7 +150,7 @@ func extractTonDeps(chain ton.Chain, input lanes.UpdateLanesInput) (operation.To
 	deps := operation.TonDeps{
 		TonChain: chain,
 		CCIPOnChainState: map[uint64]state.CCIPChainState{
-			input.Source.Selector: {
+			chain.Selector: {
 				OnRamp:    *onRampAddr,
 				OffRamp:   *offRampAddr,
 				Router:    *routerAddr,
