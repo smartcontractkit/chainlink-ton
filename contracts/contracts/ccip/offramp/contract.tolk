@@ -20,6 +20,7 @@ import "../merkle_root/storage"
 import "../receive_executor/messages"
 import "../receive_executor/storage"
 import "../router/messages"
+import "../../lib/receiver/types"
 
 const CONTRACT_VERSION = "0.0.7";
 const RESERVE = ton("1"); // TODO: set correct value
