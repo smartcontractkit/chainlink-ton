@@ -96,6 +96,8 @@ func extractFiles(rawTarGz []byte, suffix string) ([]Artifact, error) {
 		switch header.Typeflag {
 		case tar.TypeReg:
 			clean := filepath.Clean(header.Name)
+
+			// Only accept root-level files in this current version (no "/")
 			if strings.Contains(clean, "/") {
 				continue
 			}
