@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
+
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
 )
 
 const (
@@ -238,11 +239,6 @@ func (c *DynamicConfig) FromResult(result *ton.ExecutionResult) error {
 }
 
 func (c *DynamicConfig) FetchResult(ctx context2.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, opts *common.FetchOptions) error {
-	block, err := client.CurrentMasterchainInfo(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to get current masterchain info: %w", err)
-	}
-
 	result, err := client.RunGetMethod(ctx, block, contractAddr, dynamicConfigGetter)
 	if err != nil {
 		return fmt.Errorf("error getting dynamicConfig: %w", err)

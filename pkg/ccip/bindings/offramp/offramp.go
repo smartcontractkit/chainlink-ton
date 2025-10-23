@@ -2,6 +2,7 @@ package offramp
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"math/big"
@@ -240,7 +241,7 @@ func (c *OCR3Config) FromResult(result *ton.ExecutionResult) error {
 		if err1 != nil {
 			return fmt.Errorf("failed to get configCell: %w", err1)
 		}
-		if err := tlb.LoadFromCell(c, configCell.BeginParse()); err != nil {
+		if err1 = tlb.LoadFromCell(c, configCell.BeginParse()); err1 != nil {
 			return fmt.Errorf("load OCR3Config from cell: %w", err)
 		}
 		return nil
@@ -263,7 +264,7 @@ func (c *OCR3Config) FromResult(result *ton.ExecutionResult) error {
 		return nil
 	}
 
-	return fmt.Errorf("both commit and execute are nil in OCR3Config")
+	return errors.New("both commit and execute are nil in OCR3Config")
 }
 
 func (c *OCR3Config) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, opts *common.FetchOptions) error {

@@ -310,11 +310,6 @@ func (s *StaticConfig) FromResult(result *ton.ExecutionResult) error {
 }
 
 func (s *StaticConfig) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, opts *common.FetchOptions) error {
-	block, err := client.CurrentMasterchainInfo(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to get current masterchain info: %w", err)
-	}
-
 	result, err := client.RunGetMethod(ctx, block, contractAddr, StaticConfigGetter)
 	if err != nil {
 		return fmt.Errorf("error getting staticConfig: %w", err)
