@@ -6,11 +6,12 @@ import (
 	"runtime"
 	"sync"
 
-	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
-	"github.com/smartcontractkit/chainlink-ton/deployment/view"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
 	"golang.org/x/sync/errgroup"
+
+	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
+	"github.com/smartcontractkit/chainlink-ton/deployment/view"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
@@ -89,7 +90,7 @@ func fetchDestChainConfig(ctx context.Context, c cldf_ton.Chain, block *ton.Bloc
 			if err = cfg.FromResult(result); err != nil {
 				return err
 			}
-			
+
 			lock.Lock()
 			output[dest] = cfg
 			lock.Unlock()

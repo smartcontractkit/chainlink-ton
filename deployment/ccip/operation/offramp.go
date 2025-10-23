@@ -74,9 +74,9 @@ func deployOffRamp(b operations.Bundle, deps TonDeps, in DeployOffRampInput) (De
 			Owner:        deps.TonChain.WalletAddress,
 			PendingOwner: nil,
 		},
-		Deployables: offramp.Deployables {
-			Deployer: deployerCode,
-			MerkleRootCode: merkleRootCode,
+		Deployables: offramp.Deployables{
+			Deployer:            deployerCode,
+			MerkleRootCode:      merkleRootCode,
 			ReceiveExecutorCode: receiveExecutorCode,
 		},
 		// empty OCR3Base

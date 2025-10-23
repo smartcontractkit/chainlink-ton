@@ -120,7 +120,7 @@ type TimelockParams struct {
 
 func (t TimelockParams) Validate() error {
 	if t.Admin == nil {
-		return fmt.Errorf("timelock admin should be specified")
+		return errors.New("timelock admin should be specified")
 	}
 
 	return nil

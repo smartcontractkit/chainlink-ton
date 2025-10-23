@@ -24,7 +24,7 @@ type MetaData struct {
 
 // ParseExecutionResultForDestChainSelectors parses the result of a get method call that returns a Lisp-style list of uint64 selectors.
 func ParseExecutionResultForDestChainSelectors(tuple []any) []uint64 {
-	if tuple == nil || len(tuple) == 0 {
+	if len(tuple) == 0 {
 		return nil
 	}
 
