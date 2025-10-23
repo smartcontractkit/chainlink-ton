@@ -21,6 +21,7 @@ import { CCIP_SEND_EXECUTOR_FACILITY_ID } from '../../wrappers/ccip/OnRamp'
 import { newWithdrawableSpec } from '../lib/funding/WithdrawableSpec'
 import * as ownable2step from '../../wrappers/libraries/access/Ownable2Step'
 import * as UpgradeableSpec from '../lib/versioning/UpgradeableSpec'
+import * as TypeAndVersionSpec from '../lib/versioning/TypeAndVersionSpec'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_EVM_TEST_90000002 = 5548718428018410741n
@@ -39,28 +40,21 @@ const EVM_ADDRESS = Buffer.from(
   'hex',
 ) // 32 bytes
 
+describe('rt.Router - TypeAndVersion Tests', () => {
+  const currentVersionSpec = TypeAndVersionSpec.newInstance({
+    type: rt.Router.type(),
+    version: rt.Router.version(),
+    deployContract: deployRouterContract,
+  })
+  currentVersionSpec.run()
+})
+
 describe('Router - Withdrawable Tests', () => {
   const withdrawableSpec = newWithdrawableSpec({
     getCode: () => compile('Router'),
     ContractConstructor: rt.Router,
     ownershipErrorCode: ownable2step.Errors.OnlyCallableByOwner,
-    deployContract: async (blockchain, owner) => {
-      const code = await compile('Router')
-      let data: rt.Storage = {
-        id: 0,
-        ownable: {
-          owner: owner.address,
-          pendingOwner: null,
-        },
-        onRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
-      }
-
-      // TODO: use deployable to make deterministic?
-      const contract = blockchain.openContract(rt.Router.createFromConfig(data, code))
-      const deployer = await blockchain.treasury('deployer')
-      await contract.sendInternal(deployer.getSender(), toNano('1'), Cell.EMPTY)
-      return contract
-    },
+    deployContract: deployRouterContract,
   })
   withdrawableSpec.run()
 })
@@ -99,23 +93,7 @@ describe('Router - Current Version Tests', () => {
     currentVersion: rt.Router.version(),
     getCurrentCode: () => rt.Router.code(),
     CurrentVersionConstructor: rt.Router,
-    deployCurrentContract: async (blockchain, owner) => {
-      const code = await rt.Router.code()
-      let data: rt.Storage = {
-        id: 0,
-        ownable: {
-          owner: owner.address,
-          pendingOwner: null,
-        },
-        onRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
-      }
-
-      // TODO: use deployable to make deterministic?
-      const contract = blockchain.openContract(rt.Router.createFromConfig(data, code))
-      const deployer = await blockchain.treasury('deployer')
-      await contract.sendInternal(deployer.getSender(), toNano('1'), Cell.EMPTY)
-      return contract
-    },
+    deployCurrentContract: deployRouterContract,
   })
   currentVersionSpec.run()
 })
@@ -691,6 +669,27 @@ describe('Router', () => {
     )
   })
 })
+
+async function deployRouterContract(
+  blockchain: Blockchain,
+  owner: SandboxContract<TreasuryContract>,
+) {
+  const code = await rt.Router.code()
+  let data: rt.Storage = {
+    id: 0,
+    ownable: {
+      owner: owner.address,
+      pendingOwner: null,
+    },
+    onRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
+  }
+
+  // TODO: use deployable to make deterministic?
+  const contract = blockchain.openContract(rt.Router.createFromConfig(data, code))
+  const deployer = await blockchain.treasury('deployer')
+  await contract.sendInternal(deployer.getSender(), toNano('1'), Cell.EMPTY)
+  return contract
+}
 
 async function setupJetton(
   blockchain: Blockchain,
