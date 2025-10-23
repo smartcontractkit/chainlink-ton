@@ -170,8 +170,6 @@ func TestAddLanes(t *testing.T) {
 		},
 	})
 	require.NoError(t, err, "Failed to apply ConnectChains changeset")
-	_ = out.DataStore.Merge(env.DataStore)
-	env.DataStore = out.DataStore.Seal()
 
 	// TON->EVM
 	//env, _, err = commonchangeset.ApplyChangesets(t, env, []commonchangeset.ConfiguredChangeSet{
