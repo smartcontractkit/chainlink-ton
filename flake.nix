@@ -40,6 +40,7 @@
 
       # Resolve root module
       chainlink-ton = pkgs.callPackage ./cmd/chainlink-ton commonArgs;
+      chainlink-ton-extras = pkgs.callPackage ./cmd/chainlink-ton-extras commonArgs;
       # Resolve sub-modules
       contracts = pkgs.callPackage ./contracts commonArgs;
       integration-tests = pkgs.callPackage ./integration-tests {
@@ -82,6 +83,7 @@
         {
           # Chainlink core node plugin (default + alias)
           inherit chainlink-ton;
+          inherit chainlink-ton-extras;
           default = chainlink-ton;
           # Dependency analyzer
           dependency-analyzer = dependency-analyzer.packages.default;

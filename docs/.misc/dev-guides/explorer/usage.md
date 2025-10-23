@@ -10,6 +10,16 @@ Three ways to run:
 2. **Hash + Address**: `./explorer <tx-hash> <address>`
 3. **Hash only**: `./explorer <tx-hash>` (testnet/mainnet only)
 
+## Run with Nix
+
+The `explorer` binary is packaged with `chainlink-ton-extras` pkg bundle.
+
+We can start a dev shell including specific pkg contents and execute a bash cmd:
+
+```bash
+nix shell .#chainlink-ton-extras -c explorer https://testnet.tonscan.org/tx/<tx-hash>
+```
+
 ## Build
 
 ```bash
