@@ -81,7 +81,7 @@ func FetchOnRampAddresses(ctx context.Context, client ton.APIClientWrapped, bloc
 		eg.Go(func() error {
 			result, err := client.RunGetMethod(egCtx, block, routerAddr, onRampGetter, dest) // New variables per goroutine
 			if err != nil {
-				return fmt.Errorf("error getting onrampAddr: %v", err)
+				return fmt.Errorf("error getting onrampAddr: %w", err)
 			}
 
 			var onRampSlice *cell.Slice
