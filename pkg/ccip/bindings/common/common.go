@@ -41,8 +41,11 @@ type FetchOptions struct {
 	DestChainSelector uint64
 }
 
+// ConfigFetcher is an interface for fetching and parsing contract configurations.
 type ConfigFetcher interface {
+	// FetchResult fetches the configuration from the contract at the specified block and address.
 	FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, opts *FetchOptions) error
+	// FromResult parses the configuration from the execution result.
 	FromResult(result *ton.ExecutionResult) error
 }
 
