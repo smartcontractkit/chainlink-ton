@@ -57,7 +57,7 @@ interface TestSetup<TContract> {
  *   getCode: () => WithdrawableWallet.code(),
  *   ContractConstructor: WithdrawableWallet,
  *   ownershipErrorCode: 1001,
- *   setupContract: async (blockchain, owner) => {
+ *   deployContract: async (blockchain, owner) => {
  *     const code = await WithdrawableWallet.code()
  *     const contract = blockchain.openContract(
  *       WithdrawableWallet.createFromConfig(

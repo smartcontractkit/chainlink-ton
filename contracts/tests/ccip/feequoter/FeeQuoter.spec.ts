@@ -2,6 +2,7 @@ import { compile } from '@ton/blueprint'
 import { FeeQuoter } from '../../../wrappers/ccip/FeeQuoter'
 import { setupTestFeeQuoter } from '../helpers/SetUp'
 import { newWithdrawableSpec } from '../../lib/funding/WithdrawableSpec'
+import * as TypeAndVersionSpec from '../../lib/versioning/TypeAndVersionSpec'
 import * as UpgradeableSpec from '../../lib/versioning/UpgradeableSpec'
 import * as ownable2step from '../../../wrappers/libraries/access/Ownable2Step'
 
@@ -13,6 +14,17 @@ describe('FeeQuoter - Withdrawable Tests', () => {
     deployContract: async (blockchain, owner) => setupTestFeeQuoter(owner, blockchain),
   })
   withdrawableSpec.run()
+})
+
+describe('FeeQuoter - TypeAndVersion Tests', () => {
+  const currentVersionSpec = TypeAndVersionSpec.newInstance({
+    type: FeeQuoter.type(),
+    version: FeeQuoter.version(),
+    deployContract: async (blockchain, deployer) => {
+      return setupTestFeeQuoter(deployer, blockchain)
+    },
+  })
+  currentVersionSpec.run()
 })
 
 const CHAINSEL_TON = 13879075125137744094n // TODO this is copy/pasted from CCIPRouter.spec.ts. Isn't there a chainlink package that exports this constant?

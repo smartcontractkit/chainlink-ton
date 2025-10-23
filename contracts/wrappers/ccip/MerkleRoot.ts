@@ -1,0 +1,150 @@
+import {
+  Address,
+  beginCell,
+  Cell,
+  Contract,
+  contractAddress,
+  ContractProvider,
+  Sender,
+  SendMode,
+  Builder,
+  Slice,
+} from '@ton/core'
+
+import { CellCodec } from '../utils'
+import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
+import { compile } from '@ton/blueprint'
+import * as or from './OffRamp'
+
+export const MERKLE_ROOT_CONTRACT_VERSION = '0.0.6'
+
+export const MERKLE_ROOT_FACILITY_NAME = 'com.chainlink.ton.ccip.MerkleRoot'
+export const MERKLE_ROOT_FACILITY_ID = 479
+export const MERKLE_ROOT_ERROR_CODE = 47900 //FACILITY_ID * 100
+
+export enum MerkleRootError {
+  StateIsNotUntouched = MERKLE_ROOT_ERROR_CODE,
+  UpdatingStateOfNonExecutedMessage,
+  NotificationFromInvalidReceiver,
+  NotOwner,
+}
+
+export type TokenBalance = {
+  amount: bigint
+  failed: boolean
+}
+
+export type MerkleRootStorage = {
+  rootId: bigint
+  owner: Address
+  state: number
+  executionState: number
+  tokenBalance: TokenBalance
+  message: or.Any2TVMMessage | null
+}
+
+export const builder = {
+  data: (() => {
+    const tokenBalanceBuilder: CellCodec<TokenBalance> = {
+      encode: (data: TokenBalance): Builder => {
+        return beginCell().storeCoins(data.amount).storeBit(data.failed)
+      },
+      load: (src: Slice): TokenBalance => {
+        const amount = src.loadCoins()
+        const failed = src.loadBit()
+        return {
+          amount,
+          failed,
+        }
+      },
+    }
+
+    const contractData: CellCodec<MerkleRootStorage> = {
+      encode: (data: MerkleRootStorage): Builder => {
+        return beginCell()
+          .storeUint(data.rootId, 224)
+          .storeAddress(data.owner)
+          .storeUint(data.state, 8)
+          .storeUint(data.executionState, 8)
+          .storeBuilder(tokenBalanceBuilder.encode(data.tokenBalance))
+      },
+      load: (src: Slice): MerkleRootStorage => {
+        const rootId = src.loadUintBig(224)
+        const owner = src.loadAddress()
+        const state = src.loadUint(8)
+        const executionState = src.loadUint(8)
+        const tokenBalance = tokenBalanceBuilder.load(src)
+        const msgCell = src.loadMaybeRef()
+        const message = msgCell && or.builder.data.any2TVMMessage.load(msgCell.beginParse())
+        return {
+          rootId,
+          owner,
+          state,
+          executionState,
+          tokenBalance,
+          message,
+        }
+      },
+    }
+
+    return {
+      tokenBalance: tokenBalanceBuilder,
+      contractData,
+    }
+  })(),
+}
+
+export class MerkleRoot implements typeAndVersion.Interface, Contract {
+  constructor(
+    readonly address: Address,
+    readonly init?: { code: Cell; data: Cell },
+  ) {}
+
+  static createFromAddress(address: Address) {
+    return new MerkleRoot(address)
+  }
+
+  static createFromConfig(config: MerkleRootStorage, code: Cell, workchain = 0) {
+    const data = builder.data.contractData.encode(config).asCell()
+    const init = { code, data }
+    return new MerkleRoot(contractAddress(workchain, init), init)
+  }
+
+  async sendInternal(provider: ContractProvider, via: Sender, value: bigint, body: Cell) {
+    await provider.internal(via, {
+      value: value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: body,
+    })
+  }
+
+  async sendDeploy(provider: ContractProvider, via: Sender, value: bigint) {
+    await provider.internal(via, {
+      value: value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: beginCell().endCell(),
+    })
+  }
+
+  getTypeAndVersion(provider: ContractProvider): Promise<{ type: string; version: string }> {
+    return typeAndVersion.getTypeAndVersion(provider)
+  }
+  getCode(provider: ContractProvider): Promise<Cell> {
+    return typeAndVersion.getCode(provider)
+  }
+  getCodeHash(provider: ContractProvider): Promise<bigint> {
+    return typeAndVersion.getCodeHash(provider)
+  }
+
+  static version() {
+    return MERKLE_ROOT_CONTRACT_VERSION
+  }
+
+  static type() {
+    return MERKLE_ROOT_FACILITY_NAME
+  }
+
+  static async code() {
+    return await compile('MerkleRoot')
+  }
+}
