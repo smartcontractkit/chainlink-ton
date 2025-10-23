@@ -2,8 +2,11 @@ package lib
 
 import (
 	"encoding/json"
+	"fmt"
+	"reflect"
 
 	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
@@ -62,6 +65,35 @@ func NewMessageInfo[T any](name string, msg T) (MessageInfo, error) {
 		short: string(short),
 		long:  string(long),
 	}, nil
+}
+
+// NewMessageInfoFromCell attempts to decode the given cell using the provided TL-B candidates mapped by their opcodes.
+func NewMessageInfoFromCell(t cldf.ContractType, msg *cell.Cell, tlbs map[int]interface{}) (MessageInfo, error) {
+	r := msg.BeginParse()
+	if r.BitsLeft() == 0 {
+		return nil, &UnknownMessageError{}
+	}
+	opCode, err := r.PreloadUInt(32)
+	if err != nil {
+		return nil, fmt.Errorf("failed to preload opcode: %w", err)
+	}
+
+	i, ok := tlbs[int(opCode)]
+	if !ok {
+		return nil, &UnknownMessageError{}
+	}
+
+	// create new instance of the candidate type
+	rt := reflect.TypeOf(i)
+	inst := reflect.New(rt).Interface() // pointer to zero value
+
+	// attempt decode - replace tlb.FromCell with the actual decode API you have
+	if err := tlb.LoadFromCell(inst, r); err != nil {
+		return nil, fmt.Errorf("failed to decode OnRamp message for opcode 0x%X: %w", opCode, err)
+	}
+
+	name := fmt.Sprintf("%s/%s", t, rt.Name())
+	return NewMessageInfo(name, inst)
 }
 
 type messageInfo struct {

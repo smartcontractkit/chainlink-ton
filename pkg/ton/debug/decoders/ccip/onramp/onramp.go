@@ -15,6 +15,16 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
+// TODO: auto-generate this map from a set of msgs using TL-B tag to read opcodes
+var TLBs = map[int]interface{}{
+	onramp.OpcodeOnRampSend:                         onramp.Send{},
+	onramp.OpcodeOnRampWithdrawJettons:              onramp.WithdrawJettons{},
+	onramp.OpcodeOnRampExecutorFinishedSuccessfully: onramp.ExecutorFinishedSuccessfully{},
+	onramp.OpcodeSetDynamicConfig:                   onramp.SetDynamicConfigMessage{},
+	onramp.OpcodeUpdateDestChainConfigs:             onramp.UpdateDestChainConfigsMessage{},
+	onramp.OpcodeUpdateAllowlists:                   onramp.UpdateAllowlistsMessage{},
+}
+
 type decoder struct {
 	payloadDecoders map[cldf.ContractType]lib.ContractDecoder
 }
@@ -54,59 +64,7 @@ func (d *decoder) ExternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
 
 // InternalMessageInfo implements lib.ContractDecoder.
 func (d *decoder) InternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
-	r := msg.BeginParse()
-	if r.BitsLeft() == 0 {
-		return nil, &lib.UnknownMessageError{}
-	}
-	opCode, err := r.PreloadUInt(32)
-	if err != nil {
-		return nil, err
-	}
-	switch opCode {
-	case onramp.OpcodeOnRampSend:
-		var onRampSend onramp.Send
-		err := tlb.LoadFromCell(&onRampSend, r)
-		if err != nil {
-			return nil, err
-		}
-		return lib.NewMessageInfo("OnRampSend", onRampSend)
-	case onramp.OpcodeOnRampWithdrawJettons:
-		var withdrawJettons onramp.WithdrawJettons
-		err := tlb.LoadFromCell(&withdrawJettons, r)
-		if err != nil {
-			return nil, err
-		}
-		return lib.NewMessageInfo("WithdrawJettons", withdrawJettons)
-	case onramp.OpcodeOnRampExecutorFinishedSuccessfully:
-		var executorFinished onramp.ExecutorFinishedSuccessfully
-		err := tlb.LoadFromCell(&executorFinished, r)
-		if err != nil {
-			return nil, err
-		}
-		return lib.NewMessageInfo("ExecutorFinishedSuccessfully", executorFinished)
-	case onramp.OpcodeSetDynamicConfig:
-		var setDynamicConfig onramp.SetDynamicConfigMessage
-		err := tlb.LoadFromCell(&setDynamicConfig, r)
-		if err != nil {
-			return nil, err
-		}
-		return lib.NewMessageInfo("SetDynamicConfig", setDynamicConfig)
-	case onramp.OpcodeUpdateDestChainConfigs:
-		var updateDestChainConfigs onramp.UpdateDestChainConfigsMessage
-		err := tlb.LoadFromCell(&updateDestChainConfigs, r)
-		if err != nil {
-			return nil, err
-		}
-		return lib.NewMessageInfo("UpdateDestChainConfigs", updateDestChainConfigs)
-	case onramp.OpcodeUpdateAllowlists:
-		var updateAllowlists onramp.UpdateAllowlistsMessage
-		err := tlb.LoadFromCell(&updateAllowlists, r)
-		if err != nil {
-			return nil, err
-		}
-		return lib.NewMessageInfo("UpdateAllowlists", updateAllowlists)
-	}
-	return nil, &lib.UnknownMessageError{}
+	return lib.NewMessageInfoFromCell(d.ContractType(), msg, TLBs)
 }
 
 func (d *decoder) ExitCodeInfo(exitCode tvm.ExitCode) (string, error) {
