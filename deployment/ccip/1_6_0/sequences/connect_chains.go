@@ -9,7 +9,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
 	cldfChain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
-	cldfTon "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
@@ -128,7 +127,7 @@ func extractTonDeps(input lanes.UpdateLanesInput) (operation.TonDeps, error) {
 
 	// Only fill in the fields that are relevant to the operations used
 	deps := operation.TonDeps{
-		TonChain: cldfTon.Chain{
+		TonChain: ton.Chain{
 			ChainMetadata: ton.ChainMetadata{
 				Selector: input.Source.Selector,
 			},

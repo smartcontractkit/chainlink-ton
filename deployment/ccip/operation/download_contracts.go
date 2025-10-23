@@ -79,6 +79,7 @@ func extractFiles(rawTarGz []byte, suffix string) ([]Artifact, error) {
 	}
 	defer func() { _ = gzipReader.Close() }()
 
+	// Limit decompressed size to 100MB
 	tarReader := tar.NewReader(io.LimitReader(gzipReader, maxDecompressedSize))
 
 	var out []Artifact
@@ -95,21 +96,16 @@ func extractFiles(rawTarGz []byte, suffix string) ([]Artifact, error) {
 		switch header.Typeflag {
 		case tar.TypeReg:
 			clean := filepath.Clean(header.Name)
-
-			// Only accept root-level files in this current version (no "/")
 			if strings.Contains(clean, "/") {
 				continue
 			}
-
 			if !strings.HasSuffix(clean, suffix) {
 				continue
 			}
-
 			var buf bytes.Buffer
 			if _, err := io.Copy(&buf, tarReader); err != nil {
 				return nil, fmt.Errorf("error while read %q: %w", clean, err)
 			}
-
 			out = append(out, Artifact{
 				Path: clean,
 				Data: buf.Bytes(),
