@@ -71,7 +71,7 @@ func NewMessageInfo(name string, msg any) (MessageInfo, error) {
 
 // NewMessageInfoFromCell attempts to decode the given cell using the provided TL-B candidates mapped by their opcodes.
 func NewMessageInfoFromCell(t cldf.ContractType, msg *cell.Cell, tlbs map[uint64]interface{}) (MessageInfo, error) {
-	typeName, m, err := DecodeJSONMapFromCell(t, msg, tlbs)
+	typeName, m, err := DecodeJSONMapFromCell(msg, tlbs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode message for contract %s: %w", t, err)
 	}
@@ -82,7 +82,7 @@ func NewMessageInfoFromCell(t cldf.ContractType, msg *cell.Cell, tlbs map[uint64
 }
 
 // DecodeJSONMapFromCell attempts to decode the given cell using the provided TL-B candidates mapped by their opcodes.
-func DecodeJSONMapFromCell(t cldf.ContractType, msg *cell.Cell, tlbs map[uint64]interface{}) (string, map[string]interface{}, error) {
+func DecodeJSONMapFromCell(msg *cell.Cell, tlbs map[uint64]interface{}) (string, map[string]interface{}, error) {
 	// 1.1 Try to decode *cell.Cell as one of the TLBs type by reading the opcode
 	if msg == nil {
 		return "", nil, &UnknownMessageError{}
@@ -152,7 +152,7 @@ func DecodeJSONMapFromCell(t cldf.ContractType, msg *cell.Cell, tlbs map[uint64]
 		}
 
 		// 3.3. Try to decode recursively using NewMessageInfoFromCell
-		_, cMap, err := DecodeJSONMapFromCell(t, cVal, tlbs)
+		_, cMap, err := DecodeJSONMapFromCell(cVal, tlbs)
 		if err != nil {
 			// 	fallback to original BOC representation if fails
 			continue
