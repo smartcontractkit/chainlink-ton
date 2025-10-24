@@ -5,13 +5,11 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/lanes"
-	ccipapi "github.com/smartcontractkit/chainlink-ccip/deployment/lanes"
 	"github.com/smartcontractkit/chainlink-ccip/deployment/utils/sequences"
 	cldfChain "github.com/smartcontractkit/chainlink-deployments-framework/chain"
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
-	cldfTon "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
-	cldfOps "github.com/smartcontractkit/chainlink-deployments-framework/operations"
+
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
@@ -19,15 +17,15 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 )
 
-func (a *TonAdapter) ConfigureLaneLegAsSource() *cldfOps.Sequence[ccipapi.UpdateLanesInput, sequences.OnChainOutput, cldfChain.BlockChains] {
+func (a *TonAdapter) ConfigureLaneLegAsSource() *operations.Sequence[lanes.UpdateLanesInput, sequences.OnChainOutput, cldfChain.BlockChains] {
 	return ConfigureLaneLegAsSource
 }
 
-func (a *TonAdapter) ConfigureLaneLegAsDest() *cldfOps.Sequence[ccipapi.UpdateLanesInput, sequences.OnChainOutput, cldfChain.BlockChains] {
+func (a *TonAdapter) ConfigureLaneLegAsDest() *operations.Sequence[lanes.UpdateLanesInput, sequences.OnChainOutput, cldfChain.BlockChains] {
 	return ConfigureLaneLegAsDest
 }
 
-var ConfigureLaneLegAsSource = cldfOps.NewSequence(
+var ConfigureLaneLegAsSource = operations.NewSequence(
 	"ConfigureLaneLegAsSource",
 	semver.MustParse("1.6.0"),
 	"Configures lane leg as source on CCIP 1.6.0",
@@ -66,11 +64,14 @@ var ConfigureLaneLegAsSource = cldfOps.NewSequence(
 		}
 		txs = append(txs, updatePricesReport.Output...)
 
+		// temporary fix for go-lint as txs is not used yet
+		b.Logger.Debugf("Configured lane leg as source with %d txs", len(txs))
+
 		return sequences.OnChainOutput{}, nil
 	},
 )
 
-var ConfigureLaneLegAsDest = cldfOps.NewSequence(
+var ConfigureLaneLegAsDest = operations.NewSequence(
 	"ConfigureLaneLegAsDest",
 	semver.MustParse("1.6.0"),
 	"Configures lane leg as dest on CCIP 1.6.0",
@@ -105,6 +106,9 @@ var ConfigureLaneLegAsDest = cldfOps.NewSequence(
 		}
 		txs = append(txs, routerReport.Output...)
 
+		// temporary fix for go-lint as txs is not used yet
+		b.Logger.Debugf("Configured lane leg as source with %d txs", len(txs))
+
 		return sequences.OnChainOutput{}, nil
 	},
 )
@@ -129,7 +133,7 @@ func extractTonDeps(input lanes.UpdateLanesInput) (operation.TonDeps, error) {
 
 	// Only fill in the fields that are relevant to the operations used
 	deps := operation.TonDeps{
-		TonChain: cldfTon.Chain{
+		TonChain: ton.Chain{
 			ChainMetadata: ton.ChainMetadata{
 				Selector: input.Source.Selector,
 			},
@@ -179,7 +183,7 @@ func intoUpdateFeeQuoterDestChainConfigs(input lanes.UpdateLanesInput) operation
 	}
 }
 
-func intoUpdateOnRampDestChainConfigs(input ccipapi.UpdateLanesInput) operation.UpdateOnRampDestChainConfigsInput {
+func intoUpdateOnRampDestChainConfigs(input lanes.UpdateLanesInput) operation.UpdateOnRampDestChainConfigsInput {
 	return operation.UpdateOnRampDestChainConfigsInput{
 		Updates: map[uint64]operation.OnRampDestinationUpdate{
 			input.Dest.Selector: {
@@ -191,7 +195,7 @@ func intoUpdateOnRampDestChainConfigs(input ccipapi.UpdateLanesInput) operation.
 	}
 }
 
-func intoUpdateFeeQuoterPricesConfig(input ccipapi.UpdateLanesInput) operation.UpdateFeeQuoterPricesInput {
+func intoUpdateFeeQuoterPricesConfig(input lanes.UpdateLanesInput) operation.UpdateFeeQuoterPricesInput {
 	return operation.UpdateFeeQuoterPricesInput{
 		TokenPrices: input.Dest.TokenPrices,
 		GasPrices: map[uint64]operation.GasPrice{
@@ -203,7 +207,7 @@ func intoUpdateFeeQuoterPricesConfig(input ccipapi.UpdateLanesInput) operation.U
 	}
 }
 
-func intoUpdateOffRampSourcesConfig(input ccipapi.UpdateLanesInput) operation.UpdateOffRampSourcesInput {
+func intoUpdateOffRampSourcesConfig(input lanes.UpdateLanesInput) operation.UpdateOffRampSourcesInput {
 	return operation.UpdateOffRampSourcesInput{
 		Updates: map[uint64]operation.OffRampSourceUpdate{
 			input.Source.Selector: {
@@ -216,7 +220,7 @@ func intoUpdateOffRampSourcesConfig(input ccipapi.UpdateLanesInput) operation.Up
 	}
 }
 
-func intoUpdateRouterDestConfig(input ccipapi.UpdateLanesInput) (operation.UpdateRouterDestInput, error) {
+func intoUpdateRouterDestConfig(input lanes.UpdateLanesInput) (operation.UpdateRouterDestInput, error) {
 	addressCodec := codec.NewAddressCodec()
 	onRampAddrStr, err := addressCodec.AddressBytesToString(input.Dest.OnRamp)
 	if err != nil {

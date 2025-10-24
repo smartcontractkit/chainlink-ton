@@ -35,7 +35,7 @@ func FetchView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, off
 
 	result, err := c.Client.RunGetMethod(ctx, block, offRampAddr, latestPriceSequenceNumberGetter)
 	if err != nil {
-		return nil, fmt.Errorf("error getting latestPriceSequenceNumber: %v", err)
+		return nil, fmt.Errorf("error getting latestPriceSequenceNumber: %w", err)
 	}
 
 	latestSeqNumInt, err := result.Int(0)

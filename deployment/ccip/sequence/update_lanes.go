@@ -6,10 +6,12 @@ import (
 	"math/big"
 
 	"github.com/Masterminds/semver/v3"
+	"github.com/xssnick/tonutils-go/address"
+
 	chainsel "github.com/smartcontractkit/chain-selectors"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
+
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
-	"github.com/xssnick/tonutils-go/address"
 
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 

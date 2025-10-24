@@ -7,9 +7,10 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
+
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/utils"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
@@ -104,5 +105,5 @@ func updateRouterDest(b operations.Bundle, deps TonDeps, in UpdateRouterDestInpu
 		msgs = append(msgs, &msg)
 	}
 
-	return utils.Serialize(msgs)
+	return helpers.Serialize(msgs)
 }

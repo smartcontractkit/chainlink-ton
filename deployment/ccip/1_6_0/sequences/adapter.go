@@ -5,10 +5,10 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	chainSelectors "github.com/smartcontractkit/chain-selectors"
-	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
-	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
-
 	ccipapi "github.com/smartcontractkit/chainlink-ccip/deployment/lanes"
+	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
+
+	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 )
 
 func init() {

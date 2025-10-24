@@ -1,6 +1,7 @@
-package utils
+package helpers
 
 import (
+	"context"
 	"fmt"
 	"os/exec"
 	"path"
@@ -51,11 +52,8 @@ func pack(msg any) ([]byte, error) {
 	return cell.ToBOC(), nil
 }
 
-func GetRepoRootDir() string {
-	// use git rev-parse --show-toplevel
-	// to get the root directory of the git repository
-
-	res := exec.Command("git", "rev-parse", "--show-toplevel")
+func GetRepoRootDir(ctx context.Context) string {
+	res := exec.CommandContext(ctx, "git", "rev-parse", "--show-toplevel")
 	stdout, err := res.Output()
 	if err != nil {
 		panic(fmt.Sprintf("failed to get repo root dir: %s", err))
@@ -64,12 +62,12 @@ func GetRepoRootDir() string {
 	return rootDir
 }
 
-func GetBuildsDir() string {
-	repoRoot := GetRepoRootDir()
+func GetBuildsDir(ctx context.Context) string {
+	repoRoot := GetRepoRootDir(ctx)
 	return path.Join(repoRoot, "contracts", "build")
 }
 
-func GetBuildDir(contractPath string) string {
-	buildsDir := GetBuildsDir()
+func GetBuildDir(ctx context.Context, contractPath string) string {
+	buildsDir := GetBuildsDir(ctx)
 	return path.Join(buildsDir, contractPath)
 }
