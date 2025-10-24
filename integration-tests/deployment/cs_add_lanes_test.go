@@ -176,7 +176,13 @@ func TestAddLanes(t *testing.T) {
 		require.True(t, exit, "offRamp view not found")
 		require.Equal(t, offRampAddr, *offRampView.Address)
 		require.Equal(t, tonChainSelector, offRampView.Config.ChainSelector)
-		require.Equal(t, feeQuoterAddr.String(), offRampView.Config.FeeQuoterAddress.String())
+		require.Equal(t, feeQuoterAddr, *offRampView.Config.FeeQuoterAddress)
+		require.Equal(t, routerAddr, *offRampView.SourceChainConfigs[evmSelector].Router)
+		require.Equal(t, true, offRampView.SourceChainConfigs[evmSelector].IsEnabled)
+		require.Equal(t, uint64(1), offRampView.SourceChainConfigs[evmSelector].MinSeqNr) // This starts with 1 as it's the minimum expected from the remote chain
+		require.Equal(t, true, offRampView.SourceChainConfigs[evmSelector].IsRMNVerificationDisabled)
+		//  require.Equal(t, evmRouterAddr, offRampView.SourceChainConfigs[evmSelector].OnRamp)
+
 		data, err := json.MarshalIndent(generatedView, "", "  ")
 		require.NoError(t, err)
 		fmt.Print("JSON encoded TON state view:\n" + string(data))
