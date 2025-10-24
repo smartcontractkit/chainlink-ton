@@ -24,12 +24,10 @@ var TLBs = lib.MustNewTLBMap([]interface{}{
 	onramp.UpdateAllowlistsMessage{},
 })
 
-type decoder struct {
-	payloadDecoders map[cldf.ContractType]lib.ContractDecoder
-}
+type decoder struct{}
 
-func NewDecoder(payloadDecoders map[cldf.ContractType]lib.ContractDecoder) lib.ContractDecoder {
-	return &decoder{payloadDecoders}
+func NewDecoder() lib.ContractDecoder {
+	return &decoder{}
 }
 
 // ContractType implements lib.ContractDecoder.
