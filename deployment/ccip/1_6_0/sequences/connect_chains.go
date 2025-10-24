@@ -64,6 +64,9 @@ var ConfigureLaneLegAsSource = operations.NewSequence(
 		}
 		txs = append(txs, updatePricesReport.Output...)
 
+		// temporary fix for go-lint as txs is not used yet
+		b.Logger.Debugf("Configured lane leg as source with %d txs", len(txs))
+
 		return sequences.OnChainOutput{}, nil
 	},
 )
@@ -102,6 +105,9 @@ var ConfigureLaneLegAsDest = operations.NewSequence(
 			return sequences.OnChainOutput{}, fmt.Errorf("failed to update router: %w", err)
 		}
 		txs = append(txs, routerReport.Output...)
+
+		// temporary fix for go-lint as txs is not used yet
+		b.Logger.Debugf("Configured lane leg as source with %d txs", len(txs))
 
 		return sequences.OnChainOutput{}, nil
 	},
