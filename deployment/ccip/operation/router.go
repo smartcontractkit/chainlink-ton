@@ -68,19 +68,19 @@ func deployRouter(b operations.Bundle, deps TonDeps, in DeployRouterInput) (Depl
 	return output, nil
 }
 
-type UpdateRouterDestInput map[string][]router.DestChainSelector
+type UpdateRouterOnrampsInput map[string][]router.DestChainSelector
 
 type UpdateRouterDestOutput struct {
 }
 
-var UpdateRouterDestOp = operations.NewOperation(
-	"update-router-dest-op",
+var UpdateRouterOnrampsOp = operations.NewOperation(
+	"update-router-onramps-op",
 	semver.MustParse("0.1.0"),
-	"Generates MCMS proposals that deploys Router module on CCIP package",
-	updateRouterDest,
+	"Update router onramps",
+	updateRouterOnramps,
 )
 
-func updateRouterDest(b operations.Bundle, deps TonDeps, in UpdateRouterDestInput) ([][]byte, error) {
+func updateRouterOnramps(b operations.Bundle, deps TonDeps, in UpdateRouterOnrampsInput) ([][]byte, error) {
 	addr := deps.CCIPOnChainState[deps.TonChain.Selector].Router
 
 	msgs := make([]*tlb.InternalMessage, 0)

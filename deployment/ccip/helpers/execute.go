@@ -1,8 +1,10 @@
 package helpers
 
 import (
+	"context"
 	"fmt"
 
+	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/wallet"
@@ -10,8 +12,13 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
 )
 
-func ExecuteProposals(env cldf.Environment, client *ton.APIClient, sender *wallet.Wallet, output [][]byte) error {
-	internalMsgs, err := Deserialize(output)
+// TODO Remove in favor of ExecuteTransactions.
+func ExecuteProposals(env cldf.Environment, client *ton.APIClient, sender *wallet.Wallet, txs [][]byte) error {
+	return ExecuteTransactions(env.GetContext(), env.Logger, client, sender, txs)
+}
+
+func ExecuteTransactions(context context.Context, logger logger.Logger, client *ton.APIClient, sender *wallet.Wallet, txs [][]byte) error {
+	internalMsgs, err := Deserialize(txs)
 	if err != nil {
 		return fmt.Errorf("failed to deserialize lane updates: %w", err)
 	}
@@ -26,10 +33,10 @@ func ExecuteProposals(env cldf.Environment, client *ton.APIClient, sender *walle
 			InternalMessage: msg,
 		}
 	}
-	ctx := env.GetContext()
-	env.Logger.Infow("Sending msgs", "msgs", msgs)
-	tx, blockID, err := sender.SendManyWaitTransaction(ctx, msgs)
-	env.Logger.Infow("transaction sent", "blockID", blockID, "tx", tx)
+
+	logger.Infow("Sending msgs", "msgs", msgs)
+	tx, blockID, err := sender.SendManyWaitTransaction(context, msgs)
+	logger.Infow("transaction sent", "blockID", blockID, "tx", tx)
 	if err != nil {
 		return fmt.Errorf("failed to send lane updates: %w", err)
 	}
@@ -43,7 +50,7 @@ func ExecuteProposals(env cldf.Environment, client *ton.APIClient, sender *walle
 	}
 	for _, msg := range msg.OutgoingInternalReceivedMessages {
 		// check external messages for all marked as Success
-		env.Logger.Infow("ReceivedMessage", "msg", msg)
+		logger.Infow("ReceivedMessage", "msg", msg)
 	}
 	return nil
 }

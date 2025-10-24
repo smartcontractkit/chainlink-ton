@@ -25,7 +25,7 @@ type UpdateTonLanesSeqInput struct {
 	UpdateFeeQuoterPricesConfig     operation.UpdateFeeQuoterPricesInput
 	UpdateOnRampDestChainConfigs    operation.UpdateOnRampDestChainConfigsInput
 	UpdateOffRampSourcesConfig      operation.UpdateOffRampSourcesInput
-	UpdateRouterDestConfig          operation.UpdateRouterDestInput
+	UpdateRouterDestConfig          operation.UpdateRouterOnrampsInput
 }
 
 var UpdateTonLanesSequence = operations.NewSequence(
@@ -74,7 +74,7 @@ func updateLanes(b operations.Bundle, deps operation.TonDeps, in UpdateTonLanesS
 
 	// update router with destination onramp versions
 	b.Logger.Infow("Updating Router", "input", in.UpdateRouterDestConfig)
-	routerReport, err := operations.ExecuteOperation(b, operation.UpdateRouterDestOp, deps, in.UpdateRouterDestConfig)
+	routerReport, err := operations.ExecuteOperation(b, operation.UpdateRouterOnrampsOp, deps, in.UpdateRouterDestConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update router: %w", err)
 	}
@@ -155,7 +155,7 @@ func setTonSourceUpdates(lane config.LaneConfig, updateInputsByTonChain map[uint
 
 	// update the onramp address map with the destination selector
 	if input.UpdateRouterDestConfig == nil {
-		input.UpdateRouterDestConfig = make(operation.UpdateRouterDestInput)
+		input.UpdateRouterDestConfig = make(operation.UpdateRouterOnrampsInput)
 	}
 
 	rampAddress := onrampAddress.String()
