@@ -164,17 +164,29 @@ func (a *TONAccessor) GetOffRampSourceChainConfigs(ctx context.Context, block *t
 	}
 
 	var sourceChainConfigs = make(map[ccipocr3.ChainSelector]ccipocr3.SourceChainConfig, len(sourceChainSelectors))
-	sourceConfigs, err := offramp.FetchSrcChainConfig(ctx, a.client, block, addr)
+	sourceConfigsGot, err := offramp.FetchSrcChainConfig(ctx, a.client, block, addr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch source chain configs: %w", err)
 	}
 
-	for _, selector := range sourceChainSelectors {
-		config, ok := sourceConfigs[uint64(selector)]
-		if !ok {
-			return nil, fmt.Errorf("source chain selector '%d' not found in off-ramp source chain configs, got %v", selector, sourceConfigs)
+	// if the dictionary is empty, we get back nil
+	if len(sourceConfigsGot) == 0 {
+		return nil, nil
+	}
+
+	if len(sourceChainConfigs) == 0 {
+		// if no selectors specified, return all configs
+		for selector, config := range sourceConfigsGot {
+			sourceChainConfigs[ccipocr3.ChainSelector(selector)] = sourceChainConfigToGeneric(config)
 		}
-		sourceChainConfigs[selector] = sourceChainConfigToGeneric(config)
+	} else {
+		for _, selector := range sourceChainSelectors {
+			config, ok := sourceConfigsGot[uint64(selector)]
+			if !ok {
+				return nil, fmt.Errorf("source chain selector '%d' not found in off-ramp source chain configs, got %v", selector, sourceConfigsGot)
+			}
+			sourceChainConfigs[selector] = sourceChainConfigToGeneric(config)
+		}
 	}
 
 	return sourceChainConfigs, nil
