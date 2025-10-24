@@ -44,6 +44,7 @@ type ConfigFetcher[T any] interface {
 	FromResult(result *ton.ExecutionResult) error
 }
 
+// FetchResultHelper is a generic helper function to fetch and parse contract configurations.
 func FetchResultHelper[T any](
 	ctx context.Context,
 	client ton.APIClientWrapped,
