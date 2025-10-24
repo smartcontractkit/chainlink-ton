@@ -60,8 +60,5 @@ func (d *decoder) InternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
 // Notice: tvm.ExitCode is not the right type to use (these are low-level TVM exit codes),
 // we should define our own ExitCode type for our contracts
 func (d *decoder) ExitCodeInfo(exitCode tvm.ExitCode) (string, error) {
-	switch exitCode {
-	default:
-		return "", &lib.UnknownMessageError{}
-	}
+	return "", &lib.UnknownMessageError{}
 }

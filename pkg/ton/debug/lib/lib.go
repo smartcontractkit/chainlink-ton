@@ -2,6 +2,7 @@ package lib
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -71,7 +72,7 @@ func NewMessageInfo(name string, msg any) (MessageInfo, error) {
 
 // NewMessageInfoFromCell attempts to decode the given cell using the provided TL-B candidates mapped by their opcodes.
 func NewMessageInfoFromCell(t cldf.ContractType, msg *cell.Cell, tlbs map[uint64]interface{}) (MessageInfo, error) {
-	typeName, m, err := DecodeJSONMapFromCell(msg, tlbs)
+	typeName, m, err := DecodeTLBValToJSON(msg, tlbs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode message for contract %s: %w", t, err)
 	}
@@ -81,87 +82,140 @@ func NewMessageInfoFromCell(t cldf.ContractType, msg *cell.Cell, tlbs map[uint64
 	return NewMessageInfo(name, m)
 }
 
-// DecodeJSONMapFromCell attempts to decode the given cell using the provided TL-B candidates mapped by their opcodes.
-func DecodeJSONMapFromCell(msg *cell.Cell, tlbs map[uint64]interface{}) (string, map[string]interface{}, error) {
-	// 1.1 Try to decode *cell.Cell as one of the TLBs type by reading the opcode
-	if msg == nil {
-		return "", nil, &UnknownMessageError{}
-	}
+func DecodeTLBStructToJSON(v interface{}, tlbs map[uint64]interface{}) (string, map[string]interface{}, error) {
+	switch t := v.(type) {
+	case nil:
+		return "", nil, errors.New("can't decode nil as struct")
+	case *cell.Cell:
+		// Try to decode *cell.Cell as one of the TLBs type by reading the opcode
+		r := t.BeginParse()
+		if r.BitsLeft() == 0 {
+			return "", nil, &UnknownMessageError{}
+		}
+		opCode, err := r.PreloadUInt(32)
+		if err != nil {
+			return "", nil, fmt.Errorf("failed to preload opcode: %w", err)
+		}
 
-	r := msg.BeginParse()
-	if r.BitsLeft() == 0 {
-		return "", nil, &UnknownMessageError{}
-	}
-	opCode, err := r.PreloadUInt(32)
-	if err != nil {
-		return "", nil, fmt.Errorf("failed to preload opcode: %w", err)
-	}
+		i, ok := tlbs[opCode]
+		if !ok {
+			return "", nil, &UnknownMessageError{}
+		}
 
-	i, ok := tlbs[opCode]
-	if !ok {
-		return "", nil, &UnknownMessageError{}
-	}
+		// Create new instance of the candidate type
+		rt := reflect.TypeOf(i)
+		inst := reflect.New(rt).Interface() // pointer to zero value
 
-	// create new instance of the candidate type
-	rt := reflect.TypeOf(i)
-	inst := reflect.New(rt).Interface() // pointer to zero value
+		// Attempt decode - replace tlb.FromCell with the actual decode API you have
+		if err = tlb.LoadFromCell(inst, r); err != nil {
+			return "", nil, fmt.Errorf("failed to decode message for opcode 0x%X: %w", opCode, err)
+		}
 
-	// attempt decode - replace tlb.FromCell with the actual decode API you have
-	if err = tlb.LoadFromCell(inst, r); err != nil {
-		return "", nil, fmt.Errorf("failed to decode message for opcode 0x%X: %w", opCode, err)
-	}
+		// Now decode loaded struct (internal *cell.Cell) fields recursively
+		return DecodeTLBStructToJSON(inst, tlbs)
+	default:
+		// Iterate over the fields of the struct (reflect)
+		rv := reflect.ValueOf(v)
+		if rv.Kind() == reflect.Ptr {
+			rv = rv.Elem()
+		}
+		if !rv.IsValid() {
+			return "", nil, fmt.Errorf("failed to decode TLB struct - not valid value: type=%T; val=%v", t, rv)
+		}
 
-	// Now decode internal *cell.Cell fields recursively
-	// 2.1. Iterate over the fields of the struct (reflect)
-	ckeys := make([]string, 0)
-	for i := 0; i < rt.NumField(); i++ {
-		f := rt.Field(i)
+		if rv.Kind() != reflect.Struct {
+			return "", nil, fmt.Errorf("unable to decode as JSON map - not a structure: type=%T; val=%v", t, rv)
+		}
 
-		// 2.2. For each field, check if it's of type *cell.Cell
-		if f.Type == reflect.TypeOf(&cell.Cell{}) {
-			// 2.3. If so, check the json tag to determine the expected key
-			k := f.Name
-			jsonTag := f.Tag.Get("json")
+		out := make(map[string]interface{}, rv.NumField())
+		rt := rv.Type()
+		for i := 0; i < rv.NumField(); i++ {
+			sf := rt.Field(i)
+			// skip unexported fields (e.g. the magic field)
+			if sf.PkgPath != "" {
+				continue
+			}
+
+			// check the json tag to determine the expected key
+			k := sf.Name
+			jsonTag := sf.Tag.Get("json")
 			if jsonTag != "" {
 				k = strings.Split(jsonTag, ",")[0] // parse json tag options (key)
 			}
 
-			// 2.4. Source a set of keys that we need to decode recursively
-			ckeys = append(ckeys, k)
+			fv := rv.Field(i)
+			_, decoded, err := DecodeTLBValToJSON(fv.Interface(), tlbs)
+			if err != nil {
+				return "", nil, fmt.Errorf("failed to decode TLB value: %w", err)
+			}
+			out[k] = decoded
 		}
+		return rt.Name(), out, nil
 	}
+}
 
-	// 3.1. Decode the struct as JSON map[string]interface{} (default *cell.Cell marshalling)
-	var rawMap map[string]interface{}
-	rawBytes, err := json.Marshal(inst)
-	if err != nil {
-		return "", nil, fmt.Errorf("failed to marshal decoded message to JSON: %w", err)
-	}
-	err = json.Unmarshal(rawBytes, &rawMap)
-	if err != nil {
-		return "", nil, fmt.Errorf("failed to unmarshal decoded message JSON to map: %w", err)
-	}
-
-	// 3.2. For each key in the sourced set, get the *cell.Cell value (decode from BOC)
-	for _, ck := range ckeys {
-		cBOC := rawMap[ck]
-
-		cVal := &cell.Cell{}
-		if err := json.Unmarshal([]byte(strconv.Quote(cBOC.(string))), cVal); err != nil {
-			return "", nil, fmt.Errorf("failed to unmarshal BOC to cell: %s: %s: %w", ck, cBOC, err)
-		}
-
-		// 3.3. Try to decode recursively
-		_, cMap, err := DecodeJSONMapFromCell(cVal, tlbs)
+func DecodeTLBValToJSON(v interface{}, tlbs map[uint64]interface{}) (string, interface{}, error) {
+	switch t := v.(type) {
+	case nil:
+		return "<nil>", nil, nil
+	case *cell.Cell:
+		typeName, decoded, err := DecodeTLBStructToJSON(t, tlbs)
 		if err != nil {
-			// 	fallback to original BOC representation if fails
-			continue
+			return "Cell", t, nil // fallback if not a known struct
 		}
-		rawMap[ck] = cMap
-	}
 
-	return rt.Name(), rawMap, nil
-	// 4.4 Finally, marshal the final map[string]interface{} as JSON string
+		return typeName, decoded, nil
+	default:
+		// for slices/arrays/structs/maps repeat normalization recursively
+		rv := reflect.ValueOf(t)
+		if !rv.IsValid() {
+			return "<invalid>", nil, nil
+		}
+
+		switch rv.Kind() {
+		case reflect.Slice, reflect.Array:
+			out := make([]interface{}, rv.Len())
+			for i := 0; i < rv.Len(); i++ {
+				_, decoded, err := DecodeTLBValToJSON(rv.Index(i).Interface(), tlbs)
+				if err != nil {
+					return "", nil, err
+				}
+				out[i] = decoded
+			}
+			return rv.Type().String(), out, nil
+		case reflect.Map:
+			m := map[string]interface{}{}
+			for _, k := range rv.MapKeys() {
+				keyStr := fmt.Sprint(k.Interface())
+				_, decoded, err := DecodeTLBValToJSON(rv.MapIndex(k).Interface(), tlbs)
+				if err != nil {
+					return "", nil, err
+				}
+				m[keyStr] = decoded
+			}
+			return rv.Type().String(), m, nil
+		case reflect.Struct:
+			// recurse on nested struct
+			// create pointer to struct so DecodeTLBStructToJSON can handle exported fields
+			ptr := reflect.New(rv.Type()).Interface()
+			reflect.ValueOf(ptr).Elem().Set(rv)
+
+			// if there is a json.Marshaler (either on the value or the pointer), prefer it.
+			jmType := reflect.TypeOf((*json.Marshaler)(nil)).Elem()
+			if rv.CanAddr() && rv.Addr().Type().Implements(jmType) || rv.Type().Implements(jmType) {
+				return "", v, nil
+			}
+
+			typeName, decoded, err := DecodeTLBStructToJSON(ptr, tlbs)
+			if err != nil {
+				return "", nil, fmt.Errorf("failed to decode TLB struct: %w; val=%v", err, t)
+			}
+
+			return typeName, decoded, nil
+		default:
+			return rv.Type().Name(), t, nil
+		}
+	}
 }
 
 func MustNewTLBMap(types []interface{}) map[uint64]interface{} {
@@ -177,9 +231,8 @@ func MustNewTLBMap(types []interface{}) map[uint64]interface{} {
 func NewTLBMap(types []interface{}) (map[uint64]interface{}, error) {
 	tlbs := make(map[uint64]interface{})
 	for _, typ := range types {
-		// Use reflection to get the magic number from the type
+		// reflect to get the magic number from the struct
 		rt := reflect.TypeOf(typ)
-
 		if rt.Field(0).Type != reflect.TypeOf(tlb.Magic{}) {
 			return nil, fmt.Errorf("first field of %s is not of type Magic", rt.Name())
 		}
