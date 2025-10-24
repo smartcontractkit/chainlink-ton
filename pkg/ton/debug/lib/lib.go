@@ -184,16 +184,16 @@ func DecodeTLBValToJSON(v interface{}, tlbs map[uint64]interface{}) (string, int
 			}
 			return rv.Type().String(), out, nil
 		case reflect.Map:
-			m := map[string]interface{}{}
+			out := map[string]interface{}{}
 			for _, k := range rv.MapKeys() {
 				keyStr := fmt.Sprint(k.Interface())
 				_, decoded, err := DecodeTLBValToJSON(rv.MapIndex(k).Interface(), tlbs)
 				if err != nil {
 					return "", nil, err
 				}
-				m[keyStr] = decoded
+				out[keyStr] = decoded
 			}
-			return rv.Type().String(), m, nil
+			return rv.Type().String(), out, nil
 		case reflect.Struct:
 			// recurse on nested struct
 			// create pointer to struct so DecodeTLBStructToJSON can handle exported fields

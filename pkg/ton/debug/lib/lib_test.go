@@ -199,6 +199,18 @@ func TestDecodeJSONMapFromCell(t *testing.T) {
 									Val: address.MustParseAddr("EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8"),
 								}),
 							},
+							timelock.Call{
+								Target: address.MustParseAddr("EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8"),
+								Value:  tlb.MustFromTON("1.5").Nano(),
+								Data: mustToCell(wallet.AskToTransfer{
+									QueryID:     0,
+									Amount:      tlb.MustFromTON("0.02"),
+									Destination: address.MustParseAddr("EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8"),
+									// CustomPayload:    cell.BeginCell().EndCell(), // default for *cell.Cell
+									ForwardPayload:   mustToCell(Foo{Any: mustToCell(Baz{Val: address.MustParseAddr("EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8")})}),
+									ForwardTonAmount: tlb.MustFromTON("0.01"),
+								}),
+							},
 						},
 						Predecessor: big.NewInt(-1),
 						Salt:        big.NewInt(1337),
@@ -230,6 +242,23 @@ func TestDecodeJSONMapFromCell(t *testing.T) {
 								"Value":  float64(1000000000),
 								"Data": map[string]interface{}{
 									"Val": "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
+								},
+							},
+							map[string]interface{}{
+								"Target": "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
+								"Value":  float64(1500000000),
+								"Data": map[string]interface{}{
+									"QueryID":       float64(0),
+									"Amount":        "20000000",
+									"Destination":   "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
+									"CustomPayload": "te6cckEBAgEAMwABDzmJaAAAAAAMAQBLAAAAA4AAbW63Q2k6USavDXT1yIHGz6nqGKQk7fyzwdLldq2YG1B7fNdk",
+									"ForwardPayload": map[string]interface{}{
+										"Any": map[string]interface{}{
+											"Val": "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
+										},
+									},
+									"ForwardTonAmount":    "10000000",
+									"ResponseDestination": "NONE",
 								},
 							},
 						},
