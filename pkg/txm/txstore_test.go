@@ -19,6 +19,8 @@ const (
 	testAddr2 = "EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c"
 )
 
+//nolint:gosec // G115 integer overflow conversions acceptable in test code
+
 func TestTxStore_AddUnconfirmed(t *testing.T) {
 	store := NewTxStore()
 
