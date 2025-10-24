@@ -86,12 +86,21 @@ type ConfigInfo struct {
 
 // Methods
 
-// UpdateSourceChainConfig represents the updateSourceChainConfig method call on the offRamp contract
-type UpdateSourceChainConfig struct {
-	_                   tlb.Magic         `tlb:"#b98c95e3"` //nolint:revive // Ignore opcode tag
-	QueryID             uint64            `tlb:"## 64"`
-	SourceChainSelector uint64            `tlb:"## 64"`
-	Config              SourceChainConfig `tlb:"."`
+const CCIPReceiveOpCode = 0xb3126df1
+
+// CCIPReceive represents the CCIP message received on TON
+type CCIPReceive struct {
+	_       tlb.Magic      `tlb:"#b3126df1"` //nolint:revive // Ignore opcode tag // crc32('Receiver_CCIPReceive')
+	RootID  []byte         `tlb:"bits 224"`
+	Message Any2TVMMessage `tlb:"."`
+}
+
+// Any2TVMMessage represents a cross-chain message to TON
+type Any2TVMMessage struct {
+	MessageID           [32]byte                 `tlb:"bits 256"`
+	SourceChainSelector uint64                   `tlb:"## 64"`
+	Sender              common.CrossChainAddress `tlb:"."` // CrossChainAddress (inline: length prefix + bytes)
+	Data                *cell.Cell               `tlb:"^"`
 }
 
 // Signer represents a signer entry in the OCR3 config
@@ -116,6 +125,14 @@ type SetOCR3Config struct {
 	Transmitters                   common.SnakeData[Transmitter] `tlb:"^"`
 }
 
+// UpdateSourceChainConfig represents the updateSourceChainConfig method call on the offRamp contract
+type UpdateSourceChainConfig struct {
+	_                   tlb.Magic         `tlb:"#b98c95e3"` //nolint:revive // Ignore opcode tag
+	QueryID             uint64            `tlb:"## 64"`
+	SourceChainSelector uint64            `tlb:"## 64"`
+	Config              SourceChainConfig `tlb:"."`
+}
+
 // Commit represents the commit method call on the offRamp contract
 type Commit struct {
 	_                tlb.Magic                              `tlb:"#9d431905"` //nolint:revive // Ignore opcode tag
@@ -131,23 +148,6 @@ type Execute struct {
 	QueryID       uint64            `tlb:"## 64"`
 	ConfigDigest  []byte            `tlb:"bits 512"`
 	ExecuteReport ocr.ExecuteReport `tlb:"."`
-}
-
-const CCIPReceiveOpCode = 0xb3126df1
-
-// CCIPReceive represents the CCIP message received on TON
-type CCIPReceive struct {
-	_       tlb.Magic      `tlb:"#b3126df1"` //nolint:revive // Ignore opcode tag // crc32('Receiver_CCIPReceive')
-	RootID  []byte         `tlb:"bits 224"`
-	Message Any2TVMMessage `tlb:"."`
-}
-
-// Any2TVMMessage represents a cross-chain message to TON
-type Any2TVMMessage struct {
-	MessageID           [32]byte                 `tlb:"bits 256"`
-	SourceChainSelector uint64                   `tlb:"## 64"`
-	Sender              common.CrossChainAddress `tlb:"."` // CrossChainAddress (inline: length prefix + bytes)
-	Data                *cell.Cell               `tlb:"^"`
 }
 
 // Config types that implements getter fetching interface with rpc client

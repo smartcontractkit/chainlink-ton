@@ -15,7 +15,7 @@ import (
 
 type View struct {
 	view.MetaData
-	OnRampAddresses map[uint64]*address.Address `json:"onRampAddr,omitempty"`
+	OnRampAddresses map[uint64]*address.Address `json:"onRampAddresses,omitempty"`
 }
 
 // FetchView generates a view of the router contract at the specified block.

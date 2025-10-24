@@ -325,8 +325,8 @@ func (s *StaticConfig) FetchResult(ctx context.Context, client ton.APIClientWrap
 	return nil
 }
 
-// FetchDestChainConfigsView fetches all destination chain configurations from the fee quoter contract
-func FetchDestChainConfigsView(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, feeQuoter *address.Address) (map[uint64]DestChainConfig, error) {
+// FetchDestChainConfigs fetches all destination chain configurations from the fee quoter contract
+func FetchDestChainConfigs(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, feeQuoter *address.Address) (map[uint64]DestChainConfig, error) {
 	result, err := client.RunGetMethod(ctx, block, feeQuoter, common.DestChainsGetter)
 	if err != nil {
 		return nil, err

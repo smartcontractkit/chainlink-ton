@@ -32,7 +32,7 @@ func FetchView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, fee
 		return nil, fmt.Errorf("failed to parse StaticConfig: %w", err)
 	}
 
-	destConfigs, err := feequoter.FetchDestChainConfigsView(ctx, c.Client, block, feeQuoter)
+	destConfigs, err := feequoter.FetchDestChainConfigs(ctx, c.Client, block, feeQuoter)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch dest chain config view: %w", err)
 	}

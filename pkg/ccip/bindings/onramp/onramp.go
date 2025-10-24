@@ -105,8 +105,8 @@ type UpdateAllowlist struct {
 }
 
 type UpdateAllowlists struct {
-	_       tlb.Magic                         `tlb:"#10000005"` //nolint:revive // Ignore opcode tag
-	Updates common.SnakeData[UpdateAllowlist] `tlb:"^"`
+	_       tlb.Magic                        `tlb:"#10000005"` //nolint:revive // Ignore opcode tag
+	Updates common.SnakeRef[UpdateAllowlist] `tlb:"^"`
 }
 
 type WithdrawFeeTokens struct{}
