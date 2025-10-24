@@ -22,6 +22,6 @@ var DefaultConfigSet = Config{
 	SendRetryDelay:           config.MustNewDuration(3 * time.Second),
 	MaxSendRetryAttempts:     5,
 	TxExpirationMins:         5,
-	CleanupIntervalMins:      10,
+	CleanupIntervalMins:      60,
 	StickyNodeContextEnabled: true,
 }

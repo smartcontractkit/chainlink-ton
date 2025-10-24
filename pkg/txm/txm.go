@@ -269,8 +269,7 @@ func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Messag
 	tx.ReceivedMessage = *receivedMessage
 
 	// Determine tx expiration.
-	// CreatedAt is a Unix timestamp, uint32: https://docs.ton.org/v3/documentation/data-formats/layout/messages
-	expirationTimestampMs := uint64(time.Now().UnixMilli()) + uint64(t.config.SendRetryDelay.Duration().Milliseconds())
+	expirationTimestampMs := uint64(time.Now().UnixMilli()) + uint64(t.config.SendRetryDelay.Duration().Milliseconds()) //nolint:gosec // ignoring G115 overflow conversion
 
 	walletAddr := client.Wallet.Address().String()
 	txStore := t.accountStore.GetTxStore(walletAddr)
