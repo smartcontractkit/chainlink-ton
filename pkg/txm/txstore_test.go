@@ -1,3 +1,4 @@
+//nolint:gosec // ignoring G115 overflow conversion
 package txm
 
 import (
@@ -18,8 +19,6 @@ const (
 	testAddr1 = "EQD__________________________________________0vo"
 	testAddr2 = "EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM9c"
 )
-
-//nolint:gosec // G115 integer overflow conversions acceptable in test code
 
 func TestTxStore_AddUnconfirmed(t *testing.T) {
 	store := NewTxStore()

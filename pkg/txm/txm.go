@@ -270,10 +270,7 @@ func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Messag
 
 	// Determine tx expiration.
 	// CreatedAt is a Unix timestamp, uint32: https://docs.ton.org/v3/documentation/data-formats/layout/messages
-	t.logger.Debugw("broadcastWithRetry: receivedMessage", "receivedMessage", receivedMessage,
-		"txID", txID, "lamportTime", receivedMessage.LamportTime, "internalMsg", receivedMessage.InternalMsg)
-	createdAtTimeSeconds := receivedMessage.InternalMsg.CreatedAt
-	expirationTimestampSecs := uint64(createdAtTimeSeconds) + uint64(t.config.SendRetryDelay.Duration().Seconds())
+	expirationTimestampMs := uint64(time.Now().UnixMilli()) + uint64(t.config.SendRetryDelay.Duration().Milliseconds())
 
 	walletAddr := client.Wallet.Address().String()
 	txStore := t.accountStore.GetTxStore(walletAddr)
@@ -281,8 +278,7 @@ func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Messag
 		return fmt.Errorf("txStore not found for sender %s", walletAddr)
 	}
 
-	txExpirationMs := expirationTimestampSecs * 1000
-	err = txStore.AddUnconfirmed(receivedMessage.LamportTime, txExpirationMs, tx)
+	err = txStore.AddUnconfirmed(receivedMessage.LamportTime, expirationTimestampMs, tx)
 	if err != nil {
 		t.logger.Errorf("AddUnconfirmed err: %v", err)
 		return err
