@@ -10,8 +10,8 @@ import (
 	"github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/utils"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
@@ -81,7 +81,7 @@ var ConfigureLaneLegAsSource = operations.NewSequence(
 		txs = append(txs, routerReport.Output...)
 
 		// Execute the txs || MCMS proposals
-		err = utils.ExecuteTransactions(b.GetContext(), b.Logger, deps.TonChain.Client, deps.TonChain.Wallet, txs)
+		err = helpers.ExecuteTransactions(b.GetContext(), b.Logger, deps.TonChain.Client, deps.TonChain.Wallet, txs)
 		if err != nil {
 			return sequences.OnChainOutput{}, err
 		}
@@ -116,7 +116,7 @@ var ConfigureLaneLegAsDest = operations.NewSequence(
 
 		// TODO update router with offramps. Let's add this functionality once vincent finishes the contract work
 
-		err = utils.ExecuteTransactions(b.GetContext(), b.Logger, deps.TonChain.Client, deps.TonChain.Wallet, txs)
+		err = helpers.ExecuteTransactions(b.GetContext(), b.Logger, deps.TonChain.Client, deps.TonChain.Wallet, txs)
 		if err != nil {
 			return sequences.OnChainOutput{}, err
 		}
