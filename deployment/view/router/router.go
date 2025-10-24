@@ -7,12 +7,12 @@ import (
 	"sync"
 
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
-	"github.com/smartcontractkit/chainlink-ton/deployment/view"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/smartcontractkit/chainlink-ton/deployment/view"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 )
 
@@ -51,7 +51,7 @@ func FetchView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, rou
 		eg.Go(func() error {
 			result, err := c.Client.RunGetMethod(egCtx, block, routerAddr, onRampGetter, dest) // New variables per goroutine
 			if err != nil {
-				return fmt.Errorf("error getting onrampAddr: %v", err)
+				return fmt.Errorf("error getting onrampAddr: %w", err)
 			}
 
 			var onRampSlice *cell.Slice

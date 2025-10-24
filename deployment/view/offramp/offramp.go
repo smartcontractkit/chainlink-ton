@@ -7,13 +7,13 @@ import (
 	"sync"
 
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
-	"github.com/smartcontractkit/chainlink-ton/deployment/view"
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/smartcontractkit/chainlink-ton/deployment/view"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
 )
 
 type View struct {
@@ -28,7 +28,7 @@ func FetchView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, off
 	var typeVersion common.TypeAndVersion
 	result, err := c.Client.RunGetMethod(ctx, block, offRampAddr, view.VersionGetter)
 	if err != nil {
-		return nil, fmt.Errorf("error getting typeAndVersion: %v", err)
+		return nil, fmt.Errorf("error getting typeAndVersion: %w", err)
 	}
 	if err = typeVersion.FromResult(result); err != nil {
 		return nil, fmt.Errorf("failed to parse typeAndVersion: %w", err)
@@ -37,7 +37,7 @@ func FetchView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, off
 	var offRampConfig offramp.Config
 	result, err = c.Client.RunGetMethod(ctx, block, offRampAddr, view.ConfigGetter)
 	if err != nil {
-		return nil, fmt.Errorf("error getting offRamp config: %v", err)
+		return nil, fmt.Errorf("error getting offRamp config: %w", err)
 	}
 
 	if err = offRampConfig.FromResult(result); err != nil {
@@ -46,7 +46,7 @@ func FetchView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, off
 
 	result, err = c.Client.RunGetMethod(ctx, block, offRampAddr, view.LatestPriceSequenceNumberGetter)
 	if err != nil {
-		return nil, fmt.Errorf("error getting latestPriceSequenceNumber: %v", err)
+		return nil, fmt.Errorf("error getting latestPriceSequenceNumber: %w", err)
 	}
 
 	latestSeqNumInt, err := result.Int(0)

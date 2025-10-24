@@ -8,12 +8,13 @@ import (
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/smartcontractkit/mcms"
 
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
+
 	tonstate "github.com/smartcontractkit/chainlink-ton/deployment/state"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/utils"
 )
 
 type AddTonLanes struct{}
@@ -87,7 +88,7 @@ func (cs AddTonLanes) Apply(env cldf.Environment, cfg config.UpdateTonLanesConfi
 		// }
 		// timeLockProposals = append(timeLockProposals, *proposal)
 
-		if err := utils.ExecuteProposals(env, chain.Client, chain.Wallet, updateSeqReport.Output); err != nil {
+		if err := helpers.ExecuteProposals(env, chain.Client, chain.Wallet, updateSeqReport.Output); err != nil {
 			return cldf.ChangesetOutput{}, err
 		}
 	}

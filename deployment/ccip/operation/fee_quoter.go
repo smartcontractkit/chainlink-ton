@@ -9,11 +9,12 @@ import (
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
+
 	"github.com/smartcontractkit/chainlink-common/pkg/logger"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/utils"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
@@ -116,7 +117,7 @@ func updateFeeQuoterDestChainConfigs(b operations.Bundle, deps TonDeps, in Updat
 			Body:    payload,
 		},
 	}
-	return utils.Serialize(messages)
+	return helpers.Serialize(messages)
 }
 
 type FeeTokenConfig struct {
@@ -182,7 +183,7 @@ func updateFeeQuoterFeeTokens(b operations.Bundle, deps TonDeps, in UpdateFeeQuo
 			Body:    payload,
 		},
 	}
-	return utils.Serialize(messages)
+	return helpers.Serialize(messages)
 }
 
 type GasPrice struct {
@@ -265,5 +266,5 @@ func updateFeeQuoterPrices(b operations.Bundle, deps TonDeps, in UpdateFeeQuoter
 			Body:    payload,
 		},
 	}
-	return utils.Serialize(messages)
+	return helpers.Serialize(messages)
 }

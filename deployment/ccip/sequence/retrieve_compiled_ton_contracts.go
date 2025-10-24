@@ -1,6 +1,7 @@
 package sequence
 
 import (
+	"errors"
 	"fmt"
 	"maps"
 	"os"
@@ -12,8 +13,9 @@ import (
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
+
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/utils"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/wrappers"
 )
@@ -99,7 +101,7 @@ type RetrieveCompiledContractsSeqInput struct {
 
 func (i *RetrieveCompiledContractsSeqInput) Validate() error {
 	if strings.TrimSpace(i.ContractsVersionSha) == "" {
-		return fmt.Errorf("contracts version SHA cannot be empty")
+		return errors.New("contracts version SHA cannot be empty")
 	}
 
 	if i.ContractsSemver == nil || !i.ContractsSemver.Equal(semver.MustParse("1.6.0")) {
@@ -153,13 +155,13 @@ func retrieveCompiledTONContractsSequence(b operations.Bundle, deps operation.To
 			return output, err
 		}
 
-		if err := os.MkdirAll(utils.GetBuildDir(""), 0o755); err != nil {
+		if err := os.MkdirAll(helpers.GetBuildDir(b.GetContext(), ""), 0o755); err != nil {
 			return output, fmt.Errorf("failed to create dirs to store contracts: %w", err)
 		}
 
 		for _, a := range downloadArtifactsOutput.Output.Artifacts {
 			// Save the files in the corresponding location so that the deployment operations can find them
-			path := utils.GetBuildDir(a.Path)
+			path := helpers.GetBuildDir(b.GetContext(), a.Path)
 
 			if err := os.WriteFile(path, a.Data, 0o600); err != nil {
 				return output, fmt.Errorf("failed to write contract artifact to path %s: %w", path, err)
@@ -185,7 +187,7 @@ func retrieveCompiledTONContractsSequence(b operations.Bundle, deps operation.To
 			return output, fmt.Errorf("unknown contractType: %s", contractType)
 		}
 
-		contractCode, err := wrappers.ParseCompiledContract(utils.GetBuildDir(contractMetadata.CompiledVersionKey))
+		contractCode, err := wrappers.ParseCompiledContract(helpers.GetBuildDir(b.GetContext(), contractMetadata.CompiledVersionKey))
 		if err != nil {
 			return output, fmt.Errorf("failed to compile %s contractType: %w", contractType, err)
 		}

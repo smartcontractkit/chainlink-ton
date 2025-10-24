@@ -6,6 +6,8 @@ import (
 	"github.com/Masterminds/semver/v3"
 	ds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
+
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 	"github.com/smartcontractkit/mcms"
@@ -13,7 +15,6 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/utils"
 	"github.com/smartcontractkit/chainlink-ton/deployment/state"
 
 	tonaddress "github.com/xssnick/tonutils-go/address"
@@ -135,7 +136,7 @@ func (cs DeployCCIPContracts) Apply(env cldf.Environment, config DeployCCIPContr
 
 	txs = append(txs, updateFeeTokensReport.Output...)
 
-	err = utils.ExecuteProposals(env, chain.Client, chain.Wallet, txs)
+	err = helpers.ExecuteProposals(env, chain.Client, chain.Wallet, txs)
 
 	if err != nil {
 		return cldf.ChangesetOutput{}, err
