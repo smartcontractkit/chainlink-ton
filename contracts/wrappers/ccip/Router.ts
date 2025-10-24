@@ -18,7 +18,7 @@ import { asSnakeData, asSnakeDataUint, fromSnakeData } from '../../src/utils'
 import { CellCodec } from '../utils'
 
 import * as upgradeable from '../libraries/versioning/Upgradeable'
-import * as typeAndVersion from '../libraries/TypeAndVersion'
+import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
 import { compile } from '@ton/blueprint'
 
 export const ROUTER_CONTRACT_VERSION = '0.0.6'
@@ -46,7 +46,7 @@ export abstract class Opcodes {
 }
 
 export class Router
-  implements upgradeable.Interface, withdrawable.Interface, typeAndVersion.TypeAndVersion, Contract
+  implements upgradeable.Interface, withdrawable.Interface, typeAndVersion.Interface, Contract
 {
   constructor(
     readonly address: Address,

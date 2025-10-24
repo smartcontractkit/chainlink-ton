@@ -12,7 +12,7 @@ import {
 } from '@ton/core'
 import * as upgradeable from '../../libraries/versioning/Upgradeable'
 import { compile } from '@ton/blueprint'
-import * as typeAndVersion from '../../libraries/TypeAndVersion'
+import * as typeAndVersion from '../../libraries/versioning/TypeAndVersion'
 import * as ownable2step from '../../libraries/access/Ownable2Step'
 import { CellCodec } from '../../utils'
 
@@ -69,9 +69,7 @@ export const builder = {
   },
 }
 
-export class ContractClient
-  implements Contract, typeAndVersion.TypeAndVersion, upgradeable.Interface
-{
+export class ContractClient implements Contract, typeAndVersion.Interface, upgradeable.Interface {
   private ownable: ownable2step.ContractClient
 
   constructor(

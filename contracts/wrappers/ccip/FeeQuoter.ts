@@ -19,7 +19,7 @@ import * as withdrawable from '../libraries/funding/Withdrawable'
 import { CellCodec } from '../utils'
 import { asSnakeData, fromSnakeData } from '../../src/utils'
 import * as upgradeable from '../libraries/versioning/Upgradeable'
-import * as typeAndVersion from '../libraries/TypeAndVersion'
+import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
 import { compile } from '@ton/blueprint'
 
 export const FEE_QUOTER_CONTRACT_VERSION = '0.0.7'
@@ -388,7 +388,7 @@ export type UpdateDestChainConfigs = {
 export abstract class Errors {}
 
 export class FeeQuoter
-  implements upgradeable.Interface, withdrawable.Interface, typeAndVersion.TypeAndVersion, Contract
+  implements upgradeable.Interface, withdrawable.Interface, typeAndVersion.Interface, Contract
 {
   constructor(
     readonly address: Address,
