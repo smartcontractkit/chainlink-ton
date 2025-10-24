@@ -38,7 +38,7 @@ func TestAddLanes(t *testing.T) {
 	t.Parallel()
 	lggr := logger.Test(t)
 
-	env, err := devenv.NewTestEnvironmentBuilder(lggr).WithTON().WithEVM().Build(t)
+	env, err := devenv.NewTestEnvironmentBuilder(lggr).WithTON().WithEVM().Local().Build(t)
 	require.NoError(t, err)
 
 	// Get chain selectors
@@ -106,9 +106,11 @@ func TestAddLanes(t *testing.T) {
 	}
 
 	evmDefinition := lanes.ChainDefinition{
-		Selector:                 evmSelector,
-		GasPrice:                 big.NewInt(1e17),
-		TokenPrices:              map[string]*big.Int{},
+		Selector: evmSelector,
+		GasPrice: big.NewInt(1e17),
+		TokenPrices: map[string]*big.Int{
+			"0x779877A7B0D9E8603169DdbD7836e478b4624789": big.NewInt(99),
+		},
 		FeeQuoterDestChainConfig: tonops.EvmFeeQuoterDestChainCanonicalConfig,
 		RMNVerificationEnabled:   false,
 		AllowListEnabled:         false,
@@ -179,6 +181,7 @@ func TestAddLanes(t *testing.T) {
 		require.True(t, destConfig.IsEnabled)
 		require.Equal(t, uint16(10), destConfig.MaxNumberOfTokensPerMsg)
 		require.Equal(t, uint32(3000000), destConfig.MaxPerMsgGasLimit)
+		// TODO Add token prices to the fee quoter view and assert that those has been applied on chain
 
 		// OffRamp
 		offRampView, exit := generatedView.OffRamp[offRampAddr.String()]

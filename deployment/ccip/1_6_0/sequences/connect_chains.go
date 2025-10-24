@@ -207,7 +207,7 @@ func intoUpdateOnRampDestChainConfigs(input lanes.UpdateLanesInput) operation.Up
 
 func intoUpdateFeeQuoterPricesConfig(input lanes.UpdateLanesInput) operation.UpdateFeeQuoterPricesInput {
 	return operation.UpdateFeeQuoterPricesInput{
-		TokenPrices: input.Dest.TokenPrices,
+		TokenPrices: input.Source.TokenPrices,
 		GasPrices: map[uint64]operation.GasPrice{
 			input.Dest.Selector: {
 				ExecutionGasPrice:        input.Dest.GasPrice,
