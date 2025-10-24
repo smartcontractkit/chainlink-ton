@@ -2,7 +2,6 @@ package feequoter
 
 import (
 	"context"
-	"fmt"
 	"math/big"
 	"runtime"
 	"sync"
@@ -312,17 +311,8 @@ func (s *StaticConfig) FromResult(result *ton.ExecutionResult) error {
 	return nil
 }
 
-func (s *StaticConfig) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, opts *common.FetchOptions) error {
-	result, err := client.RunGetMethod(ctx, block, contractAddr, StaticConfigGetter)
-	if err != nil {
-		return fmt.Errorf("error getting staticConfig: %w", err)
-	}
-
-	if err = s.FromResult(result); err != nil {
-		return fmt.Errorf("failed to parse staticConfig: %w", err)
-	}
-
-	return nil
+func (s *StaticConfig) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, _ *any) error {
+	return common.FetchResultHelper[*any](ctx, client, block, contractAddr, StaticConfigGetter, nil, s.FromResult)
 }
 
 // FetchDestChainConfigs fetches all destination chain configurations from the fee quoter contract

@@ -36,17 +36,37 @@ const (
 	SrcChainConfigGetter  = "sourceChainConfig"
 )
 
-type FetchOptions struct {
-	SrcChainSelector  uint64
-	DestChainSelector uint64
-}
-
 // ConfigFetcher is an interface for fetching and parsing contract configurations.
-type ConfigFetcher interface {
+type ConfigFetcher[T any] interface {
 	// FetchResult fetches the configuration from the contract at the specified block and address.
-	FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, opts *FetchOptions) error
+	FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, opts T) error
 	// FromResult parses the configuration from the execution result.
 	FromResult(result *ton.ExecutionResult) error
+}
+
+func FetchResultHelper[T any](
+	ctx context.Context,
+	client ton.APIClientWrapped,
+	block *ton.BlockIDExt,
+	contractAddr *address.Address,
+	method string,
+	opts T,
+	fromResult func(*ton.ExecutionResult) error,
+) error {
+	var result *ton.ExecutionResult
+	var err error
+	if opts != nil {
+		result, err = client.RunGetMethod(ctx, block, contractAddr, method, opts)
+	} else {
+		result, err = client.RunGetMethod(ctx, block, contractAddr, method)
+	}
+	if err != nil {
+		return fmt.Errorf("error getting %s: %w", method, err)
+	}
+	if err = fromResult(result); err != nil {
+		return fmt.Errorf("failed to parse %s: %w", method, err)
+	}
+	return nil
 }
 
 // WrappedAddress is a simple wrapper around address.Address for TLB serialization. Needed for common.SnakeRef[] of addresses.
@@ -96,15 +116,8 @@ func (t *TypeAndVersion) FromResult(result *ton.ExecutionResult) error {
 	return nil
 }
 
-func (t *TypeAndVersion) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, opts *FetchOptions) error {
-	result, err := client.RunGetMethod(ctx, block, contractAddr, VersionGetter)
-	if err != nil {
-		return fmt.Errorf("error getting typeAndVersion: %w", err)
-	}
-	if err = t.FromResult(result); err != nil {
-		return fmt.Errorf("failed to parse typeAndVersion: %w", err)
-	}
-	return nil
+func (t *TypeAndVersion) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, _ *any) error {
+	return FetchResultHelper[*any](ctx, client, block, contractAddr, VersionGetter, nil, t.FromResult)
 }
 
 // ParseExecutionResultForDestChainSelectors parses the result of a get method call that returns a Lisp-style list of uint64 selectors.

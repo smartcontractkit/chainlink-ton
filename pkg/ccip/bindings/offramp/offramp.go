@@ -190,13 +190,8 @@ func (c *Config) FromResult(result *ton.ExecutionResult) error {
 	return nil
 }
 
-func (c *Config) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, _ *common.FetchOptions) error {
-	result, err := client.RunGetMethod(ctx, block, contractAddr, configGetter)
-	if err != nil {
-		return fmt.Errorf("failed to get Config: %w", err)
-	}
-
-	return c.FromResult(result)
+func (c *Config) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, _ *any) error {
+	return common.FetchResultHelper[*any](ctx, client, block, contractAddr, configGetter, nil, c.FromResult)
 }
 
 // SourceChainConfig represents the configuration for a specific source chain
@@ -255,13 +250,8 @@ func (c *SourceChainConfig) FromResult(result *ton.ExecutionResult) error {
 	return nil
 }
 
-func (c *SourceChainConfig) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, opts *common.FetchOptions) error {
-	result, err := client.RunGetMethod(ctx, block, contractAddr, srcChainConfigGetter, opts.SrcChainSelector)
-	if err != nil {
-		return fmt.Errorf("failed to get SourceChainConfig: %w", err)
-	}
-
-	return c.FromResult(result)
+func (c *SourceChainConfig) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, srcChainSelector uint64) error {
+	return common.FetchResultHelper[uint64](ctx, client, block, contractAddr, common.SrcChainConfigGetter, srcChainSelector, c.FromResult)
 }
 
 // FetchSrcChainConfig retrieves source chain configurations from the off-ramp contract.

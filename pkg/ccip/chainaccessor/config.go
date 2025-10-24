@@ -10,8 +10,6 @@ import (
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
-	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
-
 	"github.com/smartcontractkit/chainlink-ccip/pkg/consts"
 	"github.com/smartcontractkit/chainlink-common/pkg/types/ccipocr3"
 
@@ -200,7 +198,7 @@ func (a *TONAccessor) GetOffRampSourceChainConfig(ctx context.Context, block *to
 	}
 
 	var config offramp.SourceChainConfig
-	err = config.FetchResult(ctx, a.client, block, addr, &common.FetchOptions{SrcChainSelector: uint64(sourceChainSelector)})
+	err = config.FetchResult(ctx, a.client, block, addr, uint64(sourceChainSelector))
 	if err != nil {
 		// Handle ERROR_SOURCE_CHAIN_NOT_ENABLED=266 case for non-existent source chain
 		var execError ton.ContractExecError
@@ -269,7 +267,7 @@ func (a *TONAccessor) GetOnRampDestChainConfig(ctx context.Context, block *ton.B
 	}
 
 	var cfg onramp.DestChainConfig
-	if err = cfg.FetchResult(ctx, a.client, block, addr, &common.FetchOptions{DestChainSelector: uint64(dest)}); err != nil {
+	if err = cfg.FetchResult(ctx, a.client, block, addr, uint64(dest)); err != nil {
 		return ccipocr3.OnRampDestChainConfig{}, err
 	}
 
