@@ -53,13 +53,7 @@ func FetchResultHelper[T any](
 	opts T,
 	fromResult func(*ton.ExecutionResult) error,
 ) error {
-	var result *ton.ExecutionResult
-	var err error
-	if opts != nil {
-		result, err = client.RunGetMethod(ctx, block, contractAddr, method, opts)
-	} else {
-		result, err = client.RunGetMethod(ctx, block, contractAddr, method)
-	}
+	result, err := client.RunGetMethod(ctx, block, contractAddr, method, opts)
 	if err != nil {
 		return fmt.Errorf("error getting %s: %w", method, err)
 	}
@@ -117,7 +111,7 @@ func (t *TypeAndVersion) FromResult(result *ton.ExecutionResult) error {
 }
 
 func (t *TypeAndVersion) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, _ *any) error {
-	return FetchResultHelper[*any](ctx, client, block, contractAddr, VersionGetter, nil, t.FromResult)
+	return FetchResultHelper[any](ctx, client, block, contractAddr, VersionGetter, nil, t.FromResult)
 }
 
 // ParseExecutionResultForDestChainSelectors parses the result of a get method call that returns a Lisp-style list of uint64 selectors.
