@@ -166,13 +166,13 @@ func (a *TONAccessor) GetOffRampSourceChainConfigs(ctx context.Context, block *t
 	var sourceChainConfigs = make(map[ccipocr3.ChainSelector]ccipocr3.SourceChainConfig, len(sourceChainSelectors))
 	sourceConfigs, err := offramp.FetchSrcChainConfig(ctx, a.client, block, addr)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to fetch source chain configs: %w", err)
 	}
 
 	for _, selector := range sourceChainSelectors {
 		config, ok := sourceConfigs[uint64(selector)]
 		if !ok {
-			return nil, fmt.Errorf("source chain selector '%d' not found", selector)
+			return nil, fmt.Errorf("source chain selector '%d' not found in off-ramp source chain configs, got %v", selector, sourceConfigs)
 		}
 		sourceChainConfigs[selector] = sourceChainConfigToGeneric(config)
 	}
