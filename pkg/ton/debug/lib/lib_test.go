@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton/wallet"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
@@ -25,7 +26,7 @@ type Baz struct {
 	Val *address.Address `tlb:"addr"`
 }
 
-var TLBs = MustNewTLBMap([]interface{}{Foo{}, Bar{}, Baz{}})
+var TLBs = MustNewTLBMap([]interface{}{Foo{}, Bar{}, Baz{}, wallet.AskToTransfer{}})
 
 func mustToCell(v interface{}) *cell.Cell {
 	c, err := tlb.ToCell(v)
@@ -128,6 +129,32 @@ func TestDecodeJSONMapFromCell(t *testing.T) {
 			wantType: "Foo",
 			wantMap: map[string]interface{}{
 				"Any": "te6cckEBAQEAAgAAAEysuc0=",
+			},
+			expectErr: false,
+		},
+		{
+			name: "Decode Jetton AskToTransfer with Foo in ForwardPayload",
+			cell: mustToCell(wallet.AskToTransfer{
+				QueryID:     0,
+				Amount:      tlb.MustFromTON("0.02"),
+				Destination: address.MustParseAddr("EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8"),
+				// CustomPayload:    cell.BeginCell().EndCell(), // default for *cell.Cell
+				ForwardPayload:   mustToCell(Foo{Any: mustToCell(Baz{Val: address.MustParseAddr("EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8")})}),
+				ForwardTonAmount: tlb.MustFromTON("0.01"),
+			}),
+			wantType: "AskToTransfer",
+			wantMap: map[string]interface{}{
+				"QueryID":       float64(0),
+				"Amount":        "20000000",
+				"Destination":   "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
+				"CustomPayload": "te6cckEBAgEAMwABDzmJaAAAAAAMAQBLAAAAA4AAbW63Q2k6USavDXT1yIHGz6nqGKQk7fyzwdLldq2YG1B7fNdk",
+				"ForwardPayload": map[string]interface{}{
+					"Any": map[string]interface{}{
+						"Val": "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
+					},
+				},
+				"ForwardTonAmount":    "10000000",
+				"ResponseDestination": "NONE",
 			},
 			expectErr: false,
 		},
