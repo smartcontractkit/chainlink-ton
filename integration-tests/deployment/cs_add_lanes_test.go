@@ -1,9 +1,11 @@
 package deployment
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"strings"
 	"testing"
 	"time"
 
@@ -18,6 +20,7 @@ import (
 	tonops "github.com/smartcontractkit/chainlink-ton/deployment/ccip"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/sequence"
 
+	"github.com/smartcontractkit/chainlink-deployments-framework/datastore"
 	commonchangeset "github.com/smartcontractkit/chainlink/deployment/common/changeset"
 
 	_ "github.com/smartcontractkit/chainlink-ccip/chains/evm/deployment/v1_6_0/sequences"
@@ -83,6 +86,12 @@ func TestAddLanes(t *testing.T) {
 	require.NoError(t, err, "Failed to apply DeployChainContracts changeset")
 	_ = out.DataStore.Merge(env.DataStore)
 	env.DataStore = out.DataStore.Seal()
+
+	// Get OnRamp Address from EVM
+	evmOnRampAddr := env.DataStore.Addresses().Filter(
+		datastore.AddressRefByChainSelector(evmSelector),
+		datastore.AddressRefByType("OnRamp"),
+	)[0].Address
 	// </deploy-evm>
 
 	tonDefinition := lanes.ChainDefinition{
@@ -181,7 +190,7 @@ func TestAddLanes(t *testing.T) {
 		require.Equal(t, true, offRampView.SourceChainConfigs[evmSelector].IsEnabled)
 		require.Equal(t, uint64(1), offRampView.SourceChainConfigs[evmSelector].MinSeqNr) // This starts with 1 as it's the minimum expected from the remote chain
 		require.Equal(t, true, offRampView.SourceChainConfigs[evmSelector].IsRMNVerificationDisabled)
-		//  require.Equal(t, evmRouterAddr, offRampView.SourceChainConfigs[evmSelector].OnRamp)
+		require.Equal(t, strings.ToLower(evmOnRampAddr), strings.ToLower("0x"+hex.EncodeToString(offRampView.SourceChainConfigs[evmSelector].OnRamp[12:])))
 
 		data, err := json.MarshalIndent(generatedView, "", "  ")
 		require.NoError(t, err)
