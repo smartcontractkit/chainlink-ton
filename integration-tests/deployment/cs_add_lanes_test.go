@@ -187,9 +187,9 @@ func TestAddLanes(t *testing.T) {
 		require.Equal(t, tonChainSelector, offRampView.Config.ChainSelector)
 		require.Equal(t, feeQuoterAddr, *offRampView.Config.FeeQuoterAddress)
 		require.Equal(t, routerAddr, *offRampView.SourceChainConfigs[evmSelector].Router)
-		require.Equal(t, true, offRampView.SourceChainConfigs[evmSelector].IsEnabled)
+		require.True(t, offRampView.SourceChainConfigs[evmSelector].IsEnabled)
 		require.Equal(t, uint64(1), offRampView.SourceChainConfigs[evmSelector].MinSeqNr) // This starts with 1 as it's the minimum expected from the remote chain
-		require.Equal(t, true, offRampView.SourceChainConfigs[evmSelector].IsRMNVerificationDisabled)
+		require.True(t, offRampView.SourceChainConfigs[evmSelector].IsRMNVerificationDisabled)
 		require.Equal(t, strings.ToLower(evmOnRampAddr), strings.ToLower("0x"+hex.EncodeToString(offRampView.SourceChainConfigs[evmSelector].OnRamp[12:])))
 
 		data, err := json.MarshalIndent(generatedView, "", "  ")
