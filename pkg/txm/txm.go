@@ -270,6 +270,8 @@ func (t *Txm) broadcastWithRetry(ctx context.Context, tx *Tx, msg *wallet.Messag
 
 	// Determine tx expiration.
 	// CreatedAt is a Unix timestamp, uint32: https://docs.ton.org/v3/documentation/data-formats/layout/messages
+	t.logger.Debugw("broadcastWithRetry: receivedMessage", "receivedMessage", receivedMessage,
+		"txID", txID, "lamportTime", receivedMessage.LamportTime, "internalMsg", receivedMessage.InternalMsg)
 	createdAtTimeSeconds := receivedMessage.InternalMsg.CreatedAt
 	expirationTimestampSecs := uint64(createdAtTimeSeconds) + uint64(t.config.SendRetryDelay.Duration().Seconds())
 
