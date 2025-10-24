@@ -38,7 +38,7 @@ func TestAddLanes(t *testing.T) {
 	t.Parallel()
 	lggr := logger.Test(t)
 
-	env, err := devenv.NewTestEnvironmentBuilder(lggr).WithTON().WithEVM().Local().Build(t)
+	env, err := devenv.NewTestEnvironmentBuilder(lggr).WithTON().WithEVM().Build(t)
 	require.NoError(t, err)
 
 	// Get chain selectors
