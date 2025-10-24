@@ -150,8 +150,8 @@ func TestAddLanes(t *testing.T) {
 		destChainConfig, ok := onRampView.DestChainConfig[evmSelector]
 		require.True(t, ok, "onRamp does not have evm configured as destination chain")
 		require.False(t, destChainConfig.AllowListEnabled, "allowlist should be disabled")
-		require.Equal(t, *destChainConfig.Router, routerAddr)
-		require.Equal(t, destChainConfig.SequenceNumber, uint64(0))
+		require.Equal(t, routerAddr, *destChainConfig.Router)
+		require.Equal(t, uint64(0), destChainConfig.SequenceNumber)
 
 		// Router
 		routerView, exit := generatedView.Router[routerAddr.String()]
@@ -159,7 +159,7 @@ func TestAddLanes(t *testing.T) {
 		require.Equal(t, routerAddr, *routerView.Address)
 		onRampForEVMChain, ok := routerView.OnRampAddr[evmSelector]
 		require.True(t, ok, "router does not have evm configured as destination chain")
-		require.Equal(t, *onRampForEVMChain, onRampAddr)
+		require.Equal(t, onRampAddr, *onRampForEVMChain)
 
 		// FeeQuoter
 		feeQuoterView, exit := generatedView.FeeQuoter[feeQuoterAddr.String()]
