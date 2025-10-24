@@ -333,7 +333,7 @@ type Data struct {
 // Represents a single call
 type Call struct {
 	// Address of the target contract to call.
-	Target address.Address `tlb:"addr"`
+	Target *address.Address `tlb:"addr"`
 	// Value in TONs to send with the call.
 	Value *big.Int `tlb:"## 256"`
 	// Data to send with the call - message body.

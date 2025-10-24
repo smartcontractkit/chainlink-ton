@@ -58,14 +58,15 @@ func NewDebuggerSequenceTrace(addresses map[string]cldf.TypeAndVersion, outputFm
 	}
 }
 
+// TODO: refactor how decoders are composed together - just a map of TLBs
 func defaultDecoders() map[cldf.ContractType]lib.ContractDecoder {
 	t := make(map[cldf.ContractType]lib.ContractDecoder)
-	registerDecoder(t, wallet.NewDecoder(t))
-	registerDecoder(t, minter.NewDecoder(t))
-	registerDecoder(t, router.NewDecoder(t))
-	registerDecoder(t, onramp.NewDecoder(t))
+	registerDecoder(t, wallet.NewDecoder())
+	registerDecoder(t, minter.NewDecoder())
+	registerDecoder(t, router.NewDecoder())
+	registerDecoder(t, onramp.NewDecoder())
 	registerDecoder(t, feequoter.NewDecoder())
-	registerDecoder(t, ccipsendexecutor.NewDecoder(t))
+	registerDecoder(t, ccipsendexecutor.NewDecoder())
 	return t
 }
 

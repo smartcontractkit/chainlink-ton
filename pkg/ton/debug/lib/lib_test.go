@@ -6,6 +6,9 @@ import (
 	"testing"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton/wallet"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/mcms"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/timelock"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
@@ -27,7 +30,14 @@ type Baz struct {
 	Val *address.Address `tlb:"addr"`
 }
 
-var TLBs = MustNewTLBMap([]interface{}{Foo{}, Bar{}, Baz{}, wallet.AskToTransfer{}})
+var TLBs = MustNewTLBMap([]interface{}{
+	Foo{},
+	Bar{},
+	Baz{},
+	wallet.AskToTransfer{},
+	mcms.Execute{},
+	timelock.ScheduleBatch{},
+})
 
 func mustToCell(v interface{}) *cell.Cell {
 	c, err := tlb.ToCell(v)
@@ -159,7 +169,80 @@ func TestDecodeJSONMapFromCell(t *testing.T) {
 			},
 			expectErr: false,
 		},
+		{
+			name: "Decode MCMS Execute > Timelock ScheduleBatch > Op[]s with Bar and Baz in payload",
+			cell: mustToCell(mcms.Execute{
+				QueryID: 31,
+				Op: mcms.Op{
+					ChainID:  big.NewInt(-14),
+					MultiSig: address.MustParseAddr("EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8"),
+					Nonce:    42,
+					To:       address.MustParseAddr("EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8"),
+					Value:    tlb.MustFromTON("1.5"),
+					Data: mustToCell(timelock.ScheduleBatch{
+						QueryID: 31,
+						Calls: common.SnakeData[timelock.Call]{
+							timelock.Call{
+								Target: address.MustParseAddr("EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8"),
+								Value:  tlb.MustFromTON("0.5").Nano(),
+								Data: mustToCell(Bar{
+									Val: big.NewInt(55555555),
+								}),
+							},
+							timelock.Call{
+								Target: address.MustParseAddr("EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8"),
+								Value:  tlb.MustFromTON("1.0").Nano(),
+								Data: mustToCell(Baz{
+									Val: address.MustParseAddr("EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8"),
+								}),
+							},
+						},
+						Predecessor: big.NewInt(-1),
+						Salt:        big.NewInt(1337),
+						Delay:       10000,
+					}),
+				},
+			}),
+			wantType: "Execute",
+			wantMap: map[string]interface{}{
+				"QueryID": float64(31),
+				"Op": map[string]interface{}{
+					"ChainID":  float64(-14),
+					"MultiSig": "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
+					"Nonce":    float64(42),
+					"To":       "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
+					"Value":    "1500000000",
+					"Data": map[string]interface{}{
+						"QueryID": float64(31),
+						"Calls": []interface{}{
+							map[string]interface{}{
+								"Target": "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
+								"Value":  "500000000",
+								"Data": map[string]interface{}{
+									"Val": float64(55555555),
+								},
+							},
+							map[string]interface{}{
+								"Target": "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
+								"Value":  "1000000000",
+								"Data": map[string]interface{}{
+									"Val": "EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8",
+								},
+							},
+						},
+						"Predecessor": float64(-1),
+						"Salt":        float64(1337),
+						"Delay":       float64(10000),
+					},
+				},
+				"Proof": nil,
+			},
+		},
 	}
+
+	// TODO: *cell.Cell in nested struct is not getting decoded
+	// gotMap = map[Op:map[ChainID:-14 Data:te6cckECBQEAARQAAagJRxj0AAAAAAAAAB///////////////////////////////////////////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAU5AAAAAAAAJxABAoOAAG1ut0NpOlEmrw109ciBxs+p6hikJO38s8HS5XatmBtAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA7msoBACAwAQAAAAAgNPteMBg4AAbW63Q2k6USavDXT1yIHGz6nqGKQk7fyzwdLldq2YG0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHc1lAEAQASwAAAAOAAG1ut0NpOlEmrw109ciBxs+p6hikJO38s8HS5XatmBtQHjc2Pw== MultiSig:EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8 Nonce:42 To:EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8 Value:1500000000] Proof:<nil> QueryID:31],
+	// want   = map[Op:map[ChainID:-14 Data:map[Calls:[map[Data:map[Val:5.5555555e+07] Target:EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8 Value:500000000] map[Data:map[Val:EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8] Target:EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8 Value:1000000000]] Delay:10000 Predecessor:-1 QueryID:31 Salt:1337] MultiSig:EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8 Nonce:42 To:EQADa3W6G0nSiTV4a6euRA42fU9QxSEnb-WeDpcrtWzA2jM8 Value:1500000000] QueryID:31]
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
