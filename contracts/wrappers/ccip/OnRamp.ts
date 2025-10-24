@@ -18,7 +18,7 @@ import { asSnakeData } from '../../src/utils'
 import { CellCodec } from '../utils'
 import * as rt from './Router'
 import * as upgradeable from '../libraries/versioning/Upgradeable'
-import * as typeAndVersion from '../libraries/TypeAndVersion'
+import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
 import { compile } from '@ton/blueprint'
 
 export const ONRAMP_FACILITY_NAME = 'com.chainlink.ton.ccip.OnRamp'

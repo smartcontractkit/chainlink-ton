@@ -11,7 +11,6 @@ import {
 } from '@ton/core'
 import { compile } from '@ton/blueprint'
 import * as withdrawable from '../../libraries/funding/Withdrawable'
-import * as typeAndVersion from '../../libraries/TypeAndVersion'
 import * as ownable2step from '../../libraries/access/Ownable2Step'
 import { CellCodec } from '../../utils'
 
