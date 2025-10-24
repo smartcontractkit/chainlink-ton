@@ -8,7 +8,7 @@ import "errors"
 import "../../../lib/receiver/messages";
 import "../../../lib/receiver/types";
 import "../../../lib/utils";
-import "../../../ccip/offramp/messages";
+import "../../router/messages"
 
 const CONTRACT_VERSION = "0.0.2";
 
@@ -33,7 +33,7 @@ fun onInternalMessage(in: InMessage) {
                 bounce: true,
                 value: ton("0.05"), //TODO how much do we need to send
                 dest: in.senderAddress,
-                body: OffRamp_CCIPReceiveConfirm {
+                body: Router_CCIPReceiveConfirm {
                     execId: msg.execId,
                 }
             });

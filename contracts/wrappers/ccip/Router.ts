@@ -10,11 +10,12 @@ import {
   Sender,
   SendMode,
   Slice,
+  TupleItem,
 } from '@ton/core'
 
 import * as ownable2step from '../libraries/access/Ownable2Step'
 import * as withdrawable from '../libraries/funding/Withdrawable'
-import { asSnakeData, asSnakeDataUint, fromSnakeData } from '../../src/utils'
+import { asSnakeData, asSnakeDataUint, fromSnakeData, uint8ArrayToBigInt } from '../../src/utils'
 import { CellCodec } from '../utils'
 
 import * as upgradeable from '../libraries/versioning/Upgradeable'
@@ -34,8 +35,8 @@ export enum RouterError {
 export type Storage = {
   id: number
   ownable: ownable2step.Data
-
   onRamps: Dictionary<bigint, Address>
+  offRamps: Dictionary<bigint, Address>
 }
 
 export abstract class Params {}
@@ -43,6 +44,12 @@ export abstract class Params {}
 export abstract class Opcodes {
   static setRamps = 0x10000001
   static ccipSend = 0x00000001
+  static updateOffRamps = 0x00000005
+}
+
+export type Ramp =  {
+  chainSelector: bigint //64
+  address: Address
 }
 
 export class Router
@@ -63,7 +70,7 @@ export class Router
     return new Router(contractAddress(workchain, init), init)
   }
 
-  async onRamp(provider: ContractProvider, chainSelector: bigint) {
+  async getOnRamp(provider: ContractProvider, chainSelector: bigint) {
     return await provider
       .get('onRamp', [
         {
@@ -72,6 +79,51 @@ export class Router
         },
       ])
       .then((r) => r.stack.readAddress())
+  }
+
+  async getOffRamp(provider: ContractProvider, chainSelector: bigint) {
+    return await provider
+      .get('offRamp', [
+      {
+        type: 'int',
+        value: BigInt(chainSelector),
+      },
+      ])
+      .then((r) => r.stack.readAddress())
+  }
+
+  async getOnRamps(provider: ContractProvider) {
+    const result = await provider.get('onRamps', [])
+    const items = result.stack.readLispList()
+    const onRamps = items.map((t: TupleItem) => {
+      if (t.type !== 'cell' && t.type !== 'slice' && t.type !== 'builder') {
+      throw Error('Not a cell: ' + t.type)
+      }
+      const cs = t.cell.beginParse()
+      const ramp: Ramp = {
+        chainSelector: cs.loadUintBig(64),
+        address: cs.loadAddress(),
+      }
+      return ramp
+    })
+    return onRamps
+  }
+
+  async getOffRamps(provider: ContractProvider) {
+    const result = await provider.get('offRamps', [])
+    const items = result.stack.readLispList()
+    const offRamps = items.map((t: TupleItem) => {
+      if (t.type !== 'cell' && t.type !== 'slice' && t.type !== 'builder') {
+        throw Error('Not a cell: ' + t.type)
+      }
+      const cs = t.cell.beginParse()
+      const ramp: Ramp = {
+        chainSelector: cs.loadUintBig(64),
+        address: cs.loadAddress(),
+      }
+      return ramp
+    })
+    return offRamps
   }
 
   async sendInternal(provider: ContractProvider, via: Sender, value: bigint, body: Cell) {
@@ -133,6 +185,45 @@ export class Router
         .storeAddress(opts.onRamp)
         .endCell(),
     })
+  }
+
+  async sendUpdateOffRamps(
+    provider: ContractProvider,
+    via: Sender,
+    opts: {
+      value: bigint
+      queryId?: number
+      sourceChainSelectorAdd: bigint[]
+      offRampAdd?: Address
+      sourceChainSelectorRemove: bigint[]
+      offRampRemove?: Address
+    }
+  ){
+    const bs = beginCell()
+        .storeUint(Opcodes.updateOffRamps, 32)
+        .storeUint(opts.queryId ?? 0, 64)
+        .storeRef(asSnakeDataUint(opts.sourceChainSelectorAdd, 64))
+
+    if (!opts.offRampAdd) {
+      bs.storeBit(false)
+    } else {
+      bs.storeBit(true)
+      bs.storeAddress(opts.offRampAdd)
+    }
+    bs.storeRef(asSnakeDataUint(opts.sourceChainSelectorRemove, 64))
+    if( !opts.offRampRemove) {
+      bs.storeBit(false)
+    } else {
+      bs.storeBit(true)
+      bs.storeAddress(opts.offRampRemove)
+    }
+    const body = bs.endCell()
+
+    await provider.internal(via, {
+      value: opts.value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body
+   })
   }
 
   async sendCcipSend(
@@ -224,13 +315,15 @@ export const builder = {
               : null,
           )
           .storeDict(config.onRamps)
+          .storeDict(config.offRamps)
       },
 
       load: (src: Slice): Storage => {
         return {
           id: src.loadUint(32),
           ownable: ownable2step.builder.data.traitData.load(src.loadRef().beginParse()),
-          onRamps: Dictionary.empty(Dictionary.Keys.BigUint(64)),
+          onRamps: Dictionary.empty(Dictionary.Keys.BigUint(64)), 
+          offRamps: Dictionary.empty(Dictionary.Keys.BigUint(64))
         }
       },
     }

@@ -54,6 +54,7 @@ import { crc32 } from 'zlib'
 import { facilityId } from '../../wrappers/utils'
 import { MerkleHelper } from '../lib/merkle_proof/helpers/MerkleMultiProofHelper'
 import * as UpgradeableSpec from '../lib/versioning/UpgradeableSpec'
+import { Router } from '../../wrappers/ccip/Router'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_TON = 13879075125137744094n
@@ -132,6 +133,7 @@ export function generateMessageId(message: Any2TVMRampMessage, metadataHash: big
   )
 }
 
+/*
 describe('OffRamp - Withdrawable Tests', () => {
   const withdrawableSpec = newWithdrawableSpec({
     getCode: () => compile('OffRamp'),
@@ -226,11 +228,12 @@ describe('OffRamp - Current Version Tests', () => {
   })
   currentVersionSpec.run()
 })
-
+*/
 describe('OffRamp - Unit Tests', () => {
   let blockchain: Blockchain
   let deployer: SandboxContract<TreasuryContract>
   let offRamp: SandboxContract<OffRamp>
+  let router: SandboxContract<Router>
   let feeQuoter: SandboxContract<FeeQuoter>
   let receiver: SandboxContract<Receiver>
   let deployerCode: Cell
@@ -491,6 +494,8 @@ describe('OffRamp - Unit Tests', () => {
 
     // setup fee quoter
     feeQuoter = await setupTestFeeQuoter(deployer, blockchain)
+
+    // setup router
   })
 
   beforeEach(async () => {

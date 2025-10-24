@@ -17,6 +17,7 @@ import "../../lib/receiver/types"
 import "../fee_quoter/errors"
 import "../../lib/receiver/messages"
 import "../offramp/messages"
+import "@stdlib/lisp-lists"
 
 
 const CONTRACT_VERSION = "0.0.5";
@@ -28,7 +29,9 @@ fun onInternalMessage(in: InMessage) {
         Router_SetRamps => {onSetRamps(msg, in.senderAddress)}
         Router_UpdateOffRamps => { onUpdateOffRamps(msg, in.senderAddress) }
         Router_CCIPSend => { onSend(msg, in.senderAddress) }
-        Router_RouteMessage => { routeMessage(msg, in.senderAddress) }
+        Router_RouteMessage => { 
+            routeMessage(msg, in.senderAddress)
+            }
         Router_CCIPReceiveConfirm => { ccipReceiveConfirm(msg, in.senderAddress) }
         Common_JettonTransferNotification => { onTransferNotification(msg, in.senderAddress) }
         Withdrawable_Withdraw => {
@@ -47,7 +50,6 @@ fun onInternalMessage(in: InMessage) {
 }
 
 fun onBouncedMessage(in: InMessageBounced) {
-    
     val msg = lazy Router_BouncedMessage.fromSlice(in.bouncedBody.skipBouncedPrefix());
     match (msg) {
       Receiver_CCIPReceive => { ccipReceiveBounced(msg.execId, in.senderAddress) }
@@ -74,6 +76,7 @@ fun routeMessage(msg: Router_RouteMessage, sender: address) {
         body: ccipReceive
     });
     messageForReceiver.send(SEND_MODE_REGULAR);
+
 }
 
 fun onSetRamps(msg: Router_SetRamps, sender: address) {
@@ -110,6 +113,7 @@ fun onUpdateOffRamps(msg: Router_UpdateOffRamps, sender: address) {
             st.offRamps.delete(selector);
         }
     }
+    st.store();
 }
 
 fun ccipReceiveConfirm(msg: Router_CCIPReceiveConfirm, sender: address) {
@@ -245,6 +249,48 @@ get fun errorCode(local: uint16): uint16 {
 get fun onRamp(destChainSelector: uint64): address {
     val st = lazy Storage.load();
     return st.onRamps.mustGet(destChainSelector, Router_Error.DestChainNotEnabled as int);
+}
+
+get fun offRamp(sourceChainSelector: uint64): address {
+    val st = lazy Storage.load();
+    return st.offRamps.mustGet(sourceChainSelector, Router_Error.SourceChainNotEnabled as int);
+}
+
+struct Ramp {
+    chainSelector: uint64
+    ramp: address
+}
+
+get fun onRamps() {
+    val st = lazy Storage.load();
+    var list: tuple? = null;
+    var r = st.onRamps.findFirst();
+    while (r.isFound) {
+        val ramp = Ramp {
+            chainSelector: r.getKey(),
+            ramp: r.loadValue(),
+        };
+        list = listPrepend(ramp.toCell(), list);
+        r = st.onRamps.iterateNext(r);
+    }
+    return list;
+}
+
+//returns lispList<OffRamp>
+get fun offRamps() {
+    val st = lazy Storage.load();
+    var list: tuple? = null;
+    var r = st.offRamps.findFirst();
+    while (r.isFound) {
+        val ramp = Ramp {
+            chainSelector: r.getKey(),
+            ramp: r.loadValue(),
+        };
+        var cs = ramp.toCell().beginParse();
+        list = listPrepend(ramp.toCell(), list);
+        r = st.offRamps.iterateNext(r);
+    }
+    return list;
 }
 
 get fun destChainSelectors(): tuple {

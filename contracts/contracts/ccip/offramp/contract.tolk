@@ -517,7 +517,7 @@ fun getOwnedReceiveExecutorContractId(messageId: uint256, sourceChainSelector: u
     
     return beginCell()
         .storeUint(sourceChainSelector, 64)
-        .storeUint(cs.loadUint(RECEIVE_EXECUTOR_ID_SIZE), 160);
+        .storeUint(cs.loadUint(160), 160);
 }
 
 @inline

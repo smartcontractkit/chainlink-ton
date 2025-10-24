@@ -30,6 +30,7 @@ export type OffRampStorage = {
   ownable: ownable2step.Data
   deployables: Deployables
   feeQuoter: Address
+  router: Address
   chainSelector: bigint
   permissionlessExecutionThresholdSeconds: number
   latestPriceSequenceNumber: bigint
