@@ -61,7 +61,6 @@ func (l *rawTxLoader) LoadTxsForAddress(ctx context.Context, blockRange *models.
 
 	if startLT >= endLT {
 		// not an error, just a no-op
-		l.lggr.Debugw("No transactions to process", "address", addr.String(), "startLT", startLT, "endLT", endLT)
 		return nil
 	}
 

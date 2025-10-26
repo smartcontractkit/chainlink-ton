@@ -1,6 +1,7 @@
 package postgres
 
 import (
+	"encoding/binary"
 	"regexp"
 	"strings"
 	"testing"
@@ -66,7 +67,11 @@ func TestBuildLogQuery_BasicQuery(t *testing.T) {
 	params := args.(map[string]any)
 	require.Equal(t, "test-chain", params["chain_id"])
 	require.Equal(t, "EQDKbjIcfM6ezt8KjKJJLshZJJSqX7XOA4ff-W72r5gqPrHF", params["address"])
-	require.Equal(t, uint32(424129320), params["event_sig"])
+
+	// event_sig should be converted to []byte for DB query
+	expectedEventSig := make([]byte, 4)
+	binary.BigEndian.PutUint32(expectedEventSig, 424129320)
+	require.Equal(t, expectedEventSig, params["event_sig"])
 }
 
 func TestBuildLogQuery_WithByteFilters(t *testing.T) {
@@ -95,8 +100,8 @@ func TestBuildLogQuery_WithByteFilters(t *testing.T) {
 
 	require.NoError(t, err)
 
-	// Check exact SQL with byte filter: 4 + 1 + 13 = 18, size = 8 (filter.Size)
-	expectedSQL := `SELECT id, filter_id, chain_id, address, event_sig, data, tx_hash, tx_lt, msg_index, tx_timestamp, block_workchain, block_shard, block_seqno, block_root_hash, block_file_hash, master_block_seqno, msg_lt, created_at FROM ton.log_poller_logs WHERE chain_id = :chain_id AND address = :address AND event_sig = :event_sig AND SUBSTRING(data, 18, 8) = :byte_value_0 ORDER BY address ASC, msg_lt ASC`
+	// Check exact SQL with byte filter: 4 + 1 + 14 = 19, size = 8 (filter.Size)
+	expectedSQL := `SELECT id, filter_id, chain_id, address, event_sig, data, tx_hash, tx_lt, msg_index, tx_timestamp, block_workchain, block_shard, block_seqno, block_root_hash, block_file_hash, master_block_seqno, msg_lt, created_at FROM ton.log_poller_logs WHERE chain_id = :chain_id AND address = :address AND event_sig = :event_sig AND SUBSTRING(data, 19, 8) = :byte_value_0 ORDER BY address ASC, msg_lt ASC`
 	require.True(t, sqlMatches(t, expectedSQL, sql))
 
 	// Check parameters

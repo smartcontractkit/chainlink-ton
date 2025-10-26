@@ -1,6 +1,7 @@
 package postgres
 
 import (
+	"encoding/binary"
 	"fmt"
 	"strconv"
 	"time"
@@ -20,18 +21,21 @@ type filterModel struct {
 	Name          string    `db:"name"`
 	Address       string    `db:"address"` // user-friendly TON address string
 	MsgType       string    `db:"msg_type"`
-	EventSig      int64     `db:"event_sig"`
+	EventSig      []byte    `db:"event_sig"` // CRC32 hash as 4-byte binary
 	StartingSeqNo uint32    `db:"starting_seq_no"`
 	CreatedAt     time.Time `db:"created_at"`
 }
 
 // FromFilter converts a types.Filter to FilterModel
 func (f *filterModel) FromFilter(filter lptypes.Filter) filterModel {
+	eventSig := make([]byte, 4)
+	binary.BigEndian.PutUint32(eventSig, filter.EventSig)
+
 	return filterModel{
 		Name:          filter.Name,
 		Address:       filter.Address.String(),
 		MsgType:       string(filter.MsgType),
-		EventSig:      int64(filter.EventSig),
+		EventSig:      eventSig,
 		StartingSeqNo: filter.StartingSeqNo,
 	}
 }
@@ -43,12 +47,16 @@ func (f filterModel) ToFilter() (lptypes.Filter, error) {
 		return lptypes.Filter{}, fmt.Errorf("failed to parse address %s: %w", f.Address, err)
 	}
 
+	if len(f.EventSig) != 4 {
+		return lptypes.Filter{}, fmt.Errorf("invalid event_sig length: expected 4 bytes, got %d", len(f.EventSig))
+	}
+
 	return lptypes.Filter{
 		ID:            f.ID,
 		Name:          f.Name,
 		Address:       addr,
 		MsgType:       tlb.MsgType(f.MsgType),
-		EventSig:      uint32(f.EventSig), //nolint:gosec // EventSig values are CRC32 hashes within uint32 range
+		EventSig:      binary.BigEndian.Uint32(f.EventSig),
 		StartingSeqNo: f.StartingSeqNo,
 	}, nil
 }
@@ -59,7 +67,7 @@ type logModel struct {
 	FilterID         int64     `db:"filter_id"`
 	ChainID          string    `db:"chain_id"`
 	Address          string    `db:"address"`
-	EventSig         int64     `db:"event_sig"`
+	EventSig         []byte    `db:"event_sig"` // CRC32 hash as 4-byte binary
 	Data             []byte    `db:"data"`
 	TxHash           []byte    `db:"tx_hash"`
 	TxLT             string    `db:"tx_lt"` // tx_lt is stored as NUMERIC(20,0) to support uint64 range
@@ -82,11 +90,14 @@ func (l *logModel) FromLog(log lptypes.Log) logModel {
 		data = log.Data.ToBOC()
 	}
 
+	eventSig := make([]byte, 4)
+	binary.BigEndian.PutUint32(eventSig, log.EventSig)
+
 	return logModel{
 		FilterID:         log.FilterID,
 		ChainID:          log.ChainID,
 		Address:          log.Address.String(),
-		EventSig:         int64(log.EventSig),
+		EventSig:         eventSig,
 		Data:             data,
 		TxHash:           log.TxHash[:],
 		TxLT:             strconv.FormatUint(log.TxLT, 10), // Convert uint64 to string for NUMERIC(20,0) storage
@@ -130,6 +141,10 @@ func (l logModel) ToLog() (lptypes.Log, error) {
 		return lptypes.Log{}, fmt.Errorf("failed to parse MsgLT %s: %w", l.MsgLT, err)
 	}
 
+	if len(l.EventSig) != 4 {
+		return lptypes.Log{}, fmt.Errorf("invalid event_sig length: expected 4 bytes, got %d", len(l.EventSig))
+	}
+
 	var txHash lptypes.TxHash
 	copy(txHash[:], l.TxHash)
 
@@ -147,7 +162,7 @@ func (l logModel) ToLog() (lptypes.Log, error) {
 		FilterID:         l.FilterID,
 		ChainID:          l.ChainID,
 		Address:          addr,
-		EventSig:         uint32(l.EventSig), //nolint:gosec // EventSig values are controlled and within uint32 range
+		EventSig:         binary.BigEndian.Uint32(l.EventSig),
 		Data:             cellData,
 		TxHash:           txHash,
 		TxLT:             txLT,

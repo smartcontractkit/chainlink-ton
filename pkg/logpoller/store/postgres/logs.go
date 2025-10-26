@@ -26,7 +26,7 @@ func NewLogStore(chainID string, orm *DSORM, lggr logger.Logger) logpoller.LogSt
 	return &pgLogStore{
 		chainID: chainID,
 		orm:     orm,
-		lggr:    logger.Named(lggr, fmt.Sprintf("LogStore.%s", chainID)),
+		lggr:    logger.Named(lggr, "LogStore."+chainID),
 	}
 }
 

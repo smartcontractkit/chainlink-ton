@@ -1,6 +1,7 @@
 package postgres
 
 import (
+	"encoding/binary"
 	"fmt"
 	"strconv"
 	"strings"
@@ -17,13 +18,13 @@ import (
 // while PostgreSQL stores the full BOC data including header.
 // This value was determined through empirical testing and is consistent across
 // different TON cell structures.
-const TonBocHeaderSize = 13
+const TonBocHeaderSize = 14
 
 // queryParser helps build SQL queries with named parameters for TON log retrieval
 type queryParser struct {
 	query         strings.Builder
-	params        map[string]any // All parameters in one map - simpler!
-	byteFilterIdx int            // Counter for byte filter parameters
+	params        map[string]any // all query parameters
+	byteFilterIdx int            // counter for byte filter parameters
 	chainID       string         // Chain ID for shared database scenarios
 }
 
@@ -144,7 +145,18 @@ func (p *queryParser) addFieldFilter(f *query.FieldFilter) error {
 	}
 
 	paramName := f.Field
-	p.params[paramName] = f.Value
+	paramValue := f.Value
+
+	// Special handling for event_sig: convert uint32 to []byte
+	if f.Field == "event_sig" {
+		if eventSig, ok := f.Value.(uint32); ok {
+			eventSigBytes := make([]byte, 4)
+			binary.BigEndian.PutUint32(eventSigBytes, eventSig)
+			paramValue = eventSigBytes
+		}
+	}
+
+	p.params[paramName] = paramValue
 
 	conditionSQL := fmt.Sprintf("%s %s :%s", f.Field, operatorSQL, paramName)
 	p.addCondition(conditionSQL)

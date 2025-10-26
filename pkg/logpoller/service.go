@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/xssnick/tonutils-go/address"
@@ -122,15 +123,14 @@ func (lp *service) run(ctx context.Context) (err error) {
 		return blockRange.Prev.SeqNo
 	}(), "toSeq", blockRange.To.SeqNo)
 
-	// TODO: load filter from persistent store
 	// TODO: implement backfill logic(if there is filters marked for backfill)
-	lp.lggr.Debugw("getting distinct addresses", "filterStore", lp.filterStore)
+	lp.lggr.Debugf("reading distinct addresses from filter store")
 	addresses, err := lp.filterStore.GetDistinctAddresses(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to get distinct addresses: %w", err)
+		return fmt.Errorf("failed to read distinct addresses from filter store: %w", err)
 	}
 	if len(addresses) == 0 {
-		lp.lggr.Debugw("no addresses to process")
+		lp.lggr.Debugw("filter store is empty, no addresses to process, aborting run iteration")
 		return nil
 	}
 
@@ -226,9 +226,11 @@ func (lp *service) processTransactions(
 	errsOut := make(chan error)
 
 	var wg sync.WaitGroup
+	var txCount, logCount atomic.Int32
 
 	go func() {
 		for tx := range txsIn {
+			txCount.Add(1)
 			wg.Add(1)
 			go func(t models.Tx) {
 				defer wg.Done()
@@ -242,6 +244,7 @@ func (lp *service) processTransactions(
 				for _, log := range logs {
 					select {
 					case logsOut <- log:
+						logCount.Add(1)
 					case <-ctx.Done():
 						return
 					}
@@ -250,6 +253,11 @@ func (lp *service) processTransactions(
 		}
 
 		wg.Wait()
+
+		if tc := txCount.Load(); tc > 0 {
+			lp.lggr.Debugw("Processed transactions", "txCount", tc, "logsGenerated", logCount.Load())
+		}
+
 		close(logsOut)
 		close(errsOut)
 	}()
@@ -276,7 +284,7 @@ func (lp *service) saveLogs(ctx context.Context, logsCh <-chan models.Log) (int,
 				return totalSaved, fmt.Errorf("failed to save chunk: %w", err)
 			}
 			totalSaved += int(savedCount)
-			chunk = chunk[:0] //reset chunk
+			chunk = chunk[:0] // reset chunk
 		}
 	}
 

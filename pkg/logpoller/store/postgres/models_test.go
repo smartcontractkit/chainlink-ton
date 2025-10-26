@@ -1,11 +1,11 @@
 package postgres
 
 import (
+	"encoding/binary"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
-
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
@@ -43,12 +43,15 @@ func TestFilterModel_Conversion(t *testing.T) {
 
 func TestFilterModel_InvalidAddress(t *testing.T) {
 	// Test conversion fails with invalid address
+	eventSig := make([]byte, 4)
+	binary.BigEndian.PutUint32(eventSig, 12345)
+
 	dbFilter := filterModel{
 		ID:            1,
 		Name:          "test-filter",
 		Address:       "invalid-address",
 		MsgType:       string(tlb.MsgTypeInternal),
-		EventSig:      12345,
+		EventSig:      eventSig,
 		StartingSeqNo: 100,
 	}
 

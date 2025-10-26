@@ -27,7 +27,7 @@ type inMemoryFilters struct {
 func NewFilterStore(chainID string, lggr logger.Logger) logpoller.FilterStore {
 	return &inMemoryFilters{
 		chainID:          chainID,
-		lggr:             logger.Named(lggr, fmt.Sprintf("FilterStore.Mem.%s", chainID)),
+		lggr:             logger.Named(lggr, "FilterStore.Mem."+chainID),
 		filtersByName:    make(map[string]models.Filter),
 		filtersByAddress: make(map[string]map[uint32]struct{}),
 	}

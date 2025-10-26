@@ -44,7 +44,7 @@ type inMemoryLogs struct {
 
 func NewLogStore(chainID string, lggr logger.Logger) logpoller.LogStore {
 	return &inMemoryLogs{
-		lggr:    logger.Named(lggr, fmt.Sprintf("LogStore.Mem.%s", chainID)),
+		lggr:    logger.Named(lggr, "LogStore.Mem."+chainID),
 		chainID: chainID,
 
 		logs:    make([]models.Log, 0),

@@ -24,7 +24,7 @@ func NewFilterStore(chainID string, orm *DSORM, lggr logger.Logger) logpoller.Fi
 	return &filterStore{
 		chainID: chainID,
 		orm:     orm,
-		lggr:    logger.Named(lggr, fmt.Sprintf("FilterStore.%s", chainID)),
+		lggr:    logger.Named(lggr, "FilterStore."+chainID),
 	}
 }
 
@@ -34,14 +34,6 @@ func (s *filterStore) RegisterFilter(ctx context.Context, filter models.Filter) 
 	filterModel := filterModel{}
 	dbF := filterModel.FromFilter(filter)
 	dbF.ChainID = s.chainID
-
-	s.lggr.Debugw("Storing filter in DB",
-		"chainID", dbF.ChainID,
-		"name", dbF.Name,
-		"address", dbF.Address,
-		"msgType", dbF.MsgType,
-		"eventSig", dbF.EventSig,
-		"startingSeqNo", dbF.StartingSeqNo)
 
 	// TODO: do we need in-memory cache index for the filters? Solana has one, but mostly for decoder
 
@@ -60,7 +52,6 @@ func (s *filterStore) RegisterFilter(ctx context.Context, filter models.Filter) 
 		return 0, err
 	}
 
-	s.lggr.Debugw("Filter stored in DB successfully", "id", id, "name", dbF.Name)
 	return id, nil
 }
 
