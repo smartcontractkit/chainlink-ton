@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS ton.log_poller_filters (
   name VARCHAR(255) NOT NULL,
   address TEXT NOT NULL, -- user-friendly TON address *address.Address.String()
   msg_type VARCHAR(20) NOT NULL,
-  event_sig INTEGER NOT NULL,
+  event_sig BIGINT NOT NULL,
 
   starting_seq_no INTEGER NOT NULL,
 
@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS ton.log_poller_logs (
   chain_id TEXT NOT NULL,
 
   address TEXT NOT NULL, -- user-friendly TON address
-  event_sig INTEGER NOT NULL,
+  event_sig BIGINT NOT NULL,
   data BYTEA, -- BOC-encoded cell data
 
   tx_hash BYTEA NOT NULL,

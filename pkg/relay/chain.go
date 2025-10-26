@@ -130,9 +130,8 @@ func newChain(cfg *config.TOMLConfig, loopKs loop.Keystore, lggr logger.Logger, 
 	lggr.Infow("Creating new chain", "chainID", ch.ID())
 
 	orm := lppgstore.NewORM(ch.ID(), ds, lggr)
-	// Get LogPoller configuration from chain config
 	lgOpts := &logpoller.ServiceOptions{
-		Config:      *ch.cfg.LogPollerConfig(),
+		Config:      *ch.cfg.LogPollerConfig(), // get LogPoller configuration from chain config
 		TxLoader:    txloader.New(lggr, clientProvider),
 		FilterStore: lppgstore.NewFilterStore(ch.ID(), orm, lggr),
 		LogStore:    lppgstore.NewLogStore(ch.ID(), orm, lggr),

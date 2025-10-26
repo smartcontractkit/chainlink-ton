@@ -58,6 +58,11 @@ type TypedLog[T any] struct {
 	TypedData T // Parsed event data from the log's cell data(on query execution)
 }
 
+// FormatEventSig formats an event signature as a hex string for better readability in logs
+func FormatEventSig(eventSig uint32) string {
+	return fmt.Sprintf("0x%08x", eventSig)
+}
+
 func (l Log) String() string {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("  Filter ID:    %d\n", l.FilterID))
@@ -65,7 +70,7 @@ func (l Log) String() string {
 	sb.WriteString(fmt.Sprintf("  Tx Hash:      %s\n", hex.EncodeToString(l.TxHash[:])))
 	sb.WriteString(fmt.Sprintf("  Tx LT:        %d\n", l.TxLT))
 	sb.WriteString(fmt.Sprintf("  Tx Timestamp: %s\n", l.TxTimestamp.Format(time.RFC3339)))
-	sb.WriteString(fmt.Sprintf("  Event Sig:  %d\n", l.EventSig))
+	sb.WriteString(fmt.Sprintf("  Event Sig:    %s\n", FormatEventSig(l.EventSig)))
 	if l.Data != nil {
 		sb.WriteString(fmt.Sprintf("  Data (BOC):   %s\n", hex.EncodeToString(l.Data.ToBOC())))
 	} else {

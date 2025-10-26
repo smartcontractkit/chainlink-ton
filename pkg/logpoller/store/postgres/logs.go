@@ -68,8 +68,7 @@ func (s *pgLogStore) insertLogsWithBatching(ctx context.Context, logs []logModel
 // insertLogsWithinTx performs the actual batch insertion within a transaction
 func (s *pgLogStore) insertLogsWithinTx(ctx context.Context, orm *DSORM, logs []logModel, batchInsertSize, minBatchSize uint32) (int64, error) {
 	batchSize := int(batchInsertSize)
-	query := `
-		INSERT INTO ton.log_poller_logs (
+	query := `INSERT INTO ton.log_poller_logs (
 			filter_id,
 			chain_id,
 			address,

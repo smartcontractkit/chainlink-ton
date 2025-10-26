@@ -35,25 +35,38 @@ func (s *filterStore) RegisterFilter(ctx context.Context, filter models.Filter) 
 	dbF := filterModel.FromFilter(filter)
 	dbF.ChainID = s.chainID
 
+	s.lggr.Debugw("Storing filter in DB",
+		"chainID", dbF.ChainID,
+		"name", dbF.Name,
+		"address", dbF.Address,
+		"msgType", dbF.MsgType,
+		"eventSig", dbF.EventSig,
+		"startingSeqNo", dbF.StartingSeqNo)
+
 	// TODO: do we need in-memory cache index for the filters? Solana has one, but mostly for decoder
 
-	query := `
-		INSERT INTO ton.log_poller_filters (chain_id,name, address, msg_type, event_sig, starting_seq_no)
+	query := `INSERT INTO ton.log_poller_filters (chain_id,name, address, msg_type, event_sig, starting_seq_no)
 		VALUES (:chain_id,:name, :address, :msg_type, :event_sig, :starting_seq_no)
 		RETURNING id
 	`
 	var id int64
 	err := s.orm.NamedGetContext(ctx, &id, query, &dbF)
 	if err != nil {
+		s.lggr.Errorw("DB insert failed",
+			"chainID", dbF.ChainID,
+			"name", dbF.Name,
+			"query", query,
+			"error", err)
 		return 0, err
 	}
+
+	s.lggr.Debugw("Filter stored in DB successfully", "id", id, "name", dbF.Name)
 	return id, nil
 }
 
 // UnregisterFilter implements business logic for removing a filter
 func (s *filterStore) UnregisterFilter(ctx context.Context, name string) error {
-	query := `
-		DELETE FROM ton.log_poller_filters 
+	query := `DELETE FROM ton.log_poller_filters 
 		WHERE chain_id = :chain_id AND name = :name
 	`
 	_, err := s.orm.NamedExecContext(ctx, query, map[string]any{
@@ -65,8 +78,7 @@ func (s *filterStore) UnregisterFilter(ctx context.Context, name string) error {
 
 // HasFilter checks if a filter exists
 func (s *filterStore) HasFilter(ctx context.Context, name string) (bool, error) {
-	query := `
-		SELECT EXISTS(
+	query := `SELECT EXISTS(
 			SELECT 1 FROM ton.log_poller_filters 
 			WHERE chain_id = :chain_id AND name = :name
 		)
@@ -86,8 +98,7 @@ func (s *filterStore) HasFilter(ctx context.Context, name string) (bool, error) 
 
 // GetDistinctAddresses returns all unique contract addresses being tracked
 func (s *filterStore) GetDistinctAddresses(ctx context.Context) ([]*address.Address, error) {
-	query := `
-		SELECT DISTINCT address 
+	query := `SELECT DISTINCT address 
 		FROM ton.log_poller_filters 
 		WHERE chain_id = :chain_id
 	`
@@ -112,8 +123,7 @@ func (s *filterStore) GetDistinctAddresses(ctx context.Context) ([]*address.Addr
 
 // GetFiltersByAddress returns filters for a specific address and message type
 func (s *filterStore) GetFiltersByAddress(ctx context.Context, addr *address.Address) ([]models.Filter, error) {
-	query := `
-		SELECT id, chain_id,name, address, msg_type, event_sig, starting_seq_no, created_at 
+	query := `SELECT id, chain_id,name, address, msg_type, event_sig, starting_seq_no, created_at 
 		FROM ton.log_poller_filters 
 		WHERE chain_id = :chain_id AND address = :address
 	`
