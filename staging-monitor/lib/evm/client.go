@@ -72,7 +72,7 @@ func NewClient(ctx context.Context, lggr logger.Logger, chainSel uint64, endpoin
 
 		balance, _ := client.BalanceAt(ctx, auth.From, nil)
 		lggr.Infow("EVM wallet initialized",
-			"address", auth.From.Hex(),
+			"address", lib.RedactAddress(auth.From.Hex()),
 			"balance", formatETH(balance))
 	}
 
@@ -189,7 +189,7 @@ func (c *Client) WaitForMessageReceived(ctx context.Context, lggr logger.Logger,
 	receiverAddr := common.HexToAddress(receiver)
 
 	lggr.Infow("Waiting for MessageReceived event",
-		"receiver", receiverAddr.Hex(),
+		"receiver", lib.RedactAddress(receiverAddr.Hex()),
 		"messageID", messageID)
 
 	parsedABI, err := abi.JSON(strings.NewReader(MessageReceivedEventABI))
