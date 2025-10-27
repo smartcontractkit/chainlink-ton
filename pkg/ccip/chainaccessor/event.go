@@ -56,17 +56,6 @@ func (a *TONAccessor) bindContractEvent(ctx context.Context, contractName string
 
 // registerFilter registers a filter for the given event if it doesn't already exist.
 func (a *TONAccessor) registerFilter(ctx context.Context, name string, address *address.Address) error {
-	hasFilter, err := a.logPoller.HasFilter(ctx, name)
-	if err != nil {
-		return fmt.Errorf("failed to check for filter: %w", err)
-	}
-	// If filter exists, unregister it first to handle address changes
-	if hasFilter {
-		if err := a.logPoller.UnregisterFilter(ctx, name); err != nil {
-			return fmt.Errorf("failed to unregister logpoller filter: %w", err)
-		}
-	}
-
 	filter := lptypes.Filter{
 		Name:     name,
 		Address:  address,
