@@ -191,7 +191,7 @@ func (c *Config) FromResult(result *ton.ExecutionResult) error {
 }
 
 func (c *Config) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, _ *any) error {
-	return common.FetchResultHelper[*any](ctx, client, block, contractAddr, configGetter, nil, c.FromResult)
+	return common.FetchResultHelper[any](ctx, client, block, contractAddr, configGetter, nil, c.FromResult)
 }
 
 // SourceChainConfig represents the configuration for a specific source chain

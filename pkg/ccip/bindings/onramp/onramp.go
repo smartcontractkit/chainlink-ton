@@ -233,7 +233,7 @@ func (c *DynamicConfig) FromResult(result *ton.ExecutionResult) error {
 }
 
 func (c *DynamicConfig) FetchResult(ctx context2.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, _ *any) error {
-	return common.FetchResultHelper[*any](ctx, client, block, contractAddr, dynamicConfigGetter, nil, c.FromResult)
+	return common.FetchResultHelper[any](ctx, client, block, contractAddr, dynamicConfigGetter, nil, c.FromResult)
 }
 
 // FetchDestChainConfig retrieves destination chain configurations from the on-ramp contract.
