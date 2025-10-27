@@ -22,10 +22,26 @@ const (
 	OpcodeWalletBurn                 = 0x595f07bc
 )
 
+//go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode
+type ExitCode tvm.ExitCode
+
+var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
+
+func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
+	const (
+		ecMin = tvm.ExitCode(BalanceError)
+		ecMax = tvm.ExitCode(InvalidMessage)
+	)
+	if ec < ecMin || ec > ecMax {
+		return 0, fmt.Errorf("invalid exit code (out of range): %d (min=%v, max=%v)", ec, ecMin, ecMax)
+	}
+	return ExitCode(ec), nil
+}
+
 const (
-	BalanceError   tvm.ExitCode = tvm.ExitCode(47)
-	NotEnoughGas   tvm.ExitCode = tvm.ExitCode(48)
-	InvalidMessage tvm.ExitCode = tvm.ExitCode(49)
+	BalanceError ExitCode = iota + 47
+	NotEnoughGas
+	InvalidMessage
 )
 
 type AskToTransfer struct {

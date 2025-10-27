@@ -393,15 +393,15 @@ type ExitCode tvm.ExitCode
 
 var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
 
-func (ExitCode) NewFrom(c tvm.ExitCode) (ExitCode, error) {
+func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 	const (
-		min = tvm.ExitCode(ErrorOutOfBoundsNumSigners)
-		max = tvm.ExitCode(ErrorUnauthorizedOracle)
+		ecMin = tvm.ExitCode(ErrorOutOfBoundsNumSigners)
+		ecMax = tvm.ExitCode(ErrorUnauthorizedOracle)
 	)
-	if c < min || c > max {
-		return 0, fmt.Errorf("invalid exit code (out of range): %d (min=%v, max=%v)", c, min, max)
+	if ec < ecMin || ec > ecMax {
+		return 0, fmt.Errorf("invalid exit code (out of range): %d (min=%v, max=%v)", ec, ecMin, ecMax)
 	}
-	return ExitCode(c), nil
+	return ExitCode(ec), nil
 }
 
 const (

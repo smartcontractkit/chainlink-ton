@@ -21,8 +21,7 @@ var TLBs = lib.MustNewTLBMap([]interface{}{
 	feequoter.MessageValidated{},
 })
 
-type decoder struct {
-}
+type decoder struct{}
 
 func NewDecoder() lib.ContractDecoder {
 	return &decoder{}
@@ -49,26 +48,10 @@ func (d *decoder) InternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
 }
 
 func (d *decoder) ExitCodeInfo(exitCode tvm.ExitCode) (string, error) {
-	switch exitCode {
-	case feequoter.ErrorUnsupportedChainFamilySelector:
-		return "ErrorUnsupportedChainFamilySelector", nil
-	case feequoter.ErrorGasLimitTooHigh:
-		return "ErrorGasLimitTooHigh", nil
-	case feequoter.ExtraArgOutOfOrderExecutionMustBeTrue:
-		return "ExtraArgOutOfOrderExecutionMustBeTrue", nil
-	case feequoter.ErrorInvalidExtraArgsData:
-		return "ErrorInvalidExtraArgsData", nil
-	case feequoter.ErrorUnsupportedNumberOfTokens:
-		return "ErrorUnsupportedNumberOfTokens", nil
-	case feequoter.ErrorInvalidSuiReceiverAddress:
-		return "ErrorInvalidSuiReceiverAddress", nil
-	case feequoter.ErrorInvalidTokenReceiver:
-		return "ErrorInvalidTokenReceiver", nil
-	case feequoter.ErrorTooManySuiExtraArgsReceiverObjectIDs:
-		return "ErrorTooManySuiExtraArgsReceiverObjectIds", nil
-	case feequoter.ErrorMsgDataTooLarge:
-		return "ErrorMsgDataTooLarge", nil
-	default:
+	ec, err := feequoter.ExitCodeCodec.NewFrom(exitCode)
+	if err != nil {
 		return "", &lib.UnknownMessageError{}
 	}
+
+	return ec.String(), nil
 }

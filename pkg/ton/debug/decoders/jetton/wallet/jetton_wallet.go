@@ -49,14 +49,10 @@ func (d *decoder) InternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
 }
 
 func (d *decoder) ExitCodeInfo(exitCode tvm.ExitCode) (string, error) {
-	switch exitCode {
-	case wallet.BalanceError:
-		return "BalanceError", nil
-	case wallet.NotEnoughGas:
-		return "NotEnoughGas", nil
-	case wallet.InvalidMessage:
-		return "InvalidMessage", nil
-	default:
+	ec, err := wallet.ExitCodeCodec.NewFrom(exitCode)
+	if err != nil {
 		return jetton_common.NewDecoder(d.ContractType()).ExitCodeInfo(exitCode)
 	}
+
+	return ec.String(), nil
 }

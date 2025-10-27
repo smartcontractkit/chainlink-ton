@@ -44,12 +44,10 @@ func (d *decoder) InternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
 }
 
 func (d *decoder) ExitCodeInfo(exitCode tvm.ExitCode) (string, error) {
-	switch exitCode {
-	case router.ErrorDestChainNotEnabled:
-		return "ErrorDestChainNotEnabled", nil
-	case router.ErrorUnknownMessage:
-		return "ErrorUnknownMessage", nil
-	default:
+	ec, err := router.ExitCodeCodec.NewFrom(exitCode)
+	if err != nil {
 		return "", &lib.UnknownMessageError{}
 	}
+
+	return ec.String(), nil
 }

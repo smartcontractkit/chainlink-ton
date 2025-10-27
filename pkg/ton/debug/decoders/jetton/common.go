@@ -28,18 +28,10 @@ func (d *decoder) InternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
 }
 
 func (d *decoder) ExitCodeInfo(exitCode tvm.ExitCode) (string, error) {
-	switch exitCode {
-	case jetton.ErrorInvalidOp:
-		return "ErrorInvalidOp", nil
-	case jetton.ErrorWrongOp:
-		return "ErrorWrongOp", nil
-	case jetton.ErrorNotOwner:
-		return "ErrorNotOwner", nil
-	case jetton.ErrorNotValidWallet:
-		return "ErrorNotValidWallet", nil
-	case jetton.ErrorWrongWorkchain:
-		return "ErrorWrongWorkchain", nil
-	default:
+	ec, err := jetton.ExitCodeCodec.NewFrom(exitCode)
+	if err != nil {
 		return "", &lib.UnknownMessageError{}
 	}
+
+	return ec.String(), nil
 }

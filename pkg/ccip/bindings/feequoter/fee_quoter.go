@@ -2,6 +2,7 @@ package feequoter
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 
 	"github.com/xssnick/tonutils-go/address"
@@ -28,19 +29,35 @@ const (
 	OpcodeFeeQuoterMessageValidated     = 0x1FA60374
 )
 
-// Fee Quoter exit codes
+//go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode
+type ExitCode tvm.ExitCode
+
+var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
+
+func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
+	const (
+		ecMin = tvm.ExitCode(ErrorUnsupportedChainFamilySelector)
+		ecMax = tvm.ExitCode(ErrorMsgDataTooLarge)
+	)
+	if ec < ecMin || ec > ecMax {
+		return 0, fmt.Errorf("invalid exit code (out of range): %d (min=%v, max=%v)", ec, ecMin, ecMax)
+	}
+	return ExitCode(ec), nil
+}
+
 const (
-	ErrorUnsupportedChainFamilySelector       tvm.ExitCode = tvm.ExitCode(1001)
-	ErrorGasLimitTooHigh                      tvm.ExitCode = tvm.ExitCode(1002)
-	ExtraArgOutOfOrderExecutionMustBeTrue     tvm.ExitCode = tvm.ExitCode(1003)
-	ErrorInvalidExtraArgsData                 tvm.ExitCode = tvm.ExitCode(1004)
-	ErrorUnsupportedNumberOfTokens            tvm.ExitCode = tvm.ExitCode(1005)
-	ErrorInvalidSuiReceiverAddress            tvm.ExitCode = tvm.ExitCode(1006)
-	ErrorInvalidTokenReceiver                 tvm.ExitCode = tvm.ExitCode(1007)
-	ErrorTooManySuiExtraArgsReceiverObjectIDs tvm.ExitCode = tvm.ExitCode(1008)
-	ErrorMsgDataTooLarge                      tvm.ExitCode = tvm.ExitCode(1009)
-	ErrorTokenNotSupported                    tvm.ExitCode = tvm.ExitCode(24813)
-	ErrorUnknownDestChainSelector             tvm.ExitCode = tvm.ExitCode(24814)
+	ErrorUnsupportedChainFamilySelector ExitCode = iota + 1001
+	ErrorGasLimitTooHigh
+	ExtraArgOutOfOrderExecutionMustBeTrue
+	ErrorInvalidExtraArgsData
+	ErrorUnsupportedNumberOfTokens
+	ErrorInvalidSuiReceiverAddress
+	ErrorInvalidTokenReceiver
+	ErrorTooManySuiExtraArgsReceiverObjectIDs
+	ErrorMsgDataTooLarge
+
+	ErrorTokenNotSupported        ExitCode = ExitCode(24813)
+	ErrorUnknownDestChainSelector ExitCode = ExitCode(24814)
 )
 
 type Storage struct {

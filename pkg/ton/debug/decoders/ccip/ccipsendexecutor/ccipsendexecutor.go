@@ -46,12 +46,10 @@ func (d *decoder) InternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
 }
 
 func (d *decoder) ExitCodeInfo(exitCode tvm.ExitCode) (string, error) {
-	switch exitCode {
-	case ccipsendexecutor.ErrorStateNotExpected:
-		return "ErrorStateNotExpected", nil
-	case ccipsendexecutor.ErrorUnauthorized:
-		return "ErrorUnauthorized", nil
-	default:
+	ec, err := ccipsendexecutor.ExitCodeCodec.NewFrom(exitCode)
+	if err != nil {
 		return "", &lib.UnknownMessageError{}
 	}
+
+	return ec.String(), nil
 }

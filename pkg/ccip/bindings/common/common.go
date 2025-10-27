@@ -7,14 +7,32 @@ import (
 	"math"
 	"math/big"
 
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
+//go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode
+type ExitCode tvm.ExitCode
+
+var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
+
+func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
+	const (
+		ecMin = tvm.ExitCode(ErrUnknownDestChainSelector)
+		ecMax = tvm.ExitCode(DispatchNotFromMerkleRoot)
+	)
+	if ec < ecMin || ec > ecMax {
+		return 0, fmt.Errorf("invalid exit code (out of range): %d (min=%v, max=%v)", ec, ecMin, ecMax)
+	}
+	return ExitCode(ec), nil
+}
+
+// TODO: rename with Error prefix
 const (
-	ErrUnknownDestChainSelector = iota + 256
+	ErrUnknownDestChainSelector ExitCode = iota + 256
 	DestChainNotEnabled
 	FeeTokenNotSupported
 	StaleGasPrice

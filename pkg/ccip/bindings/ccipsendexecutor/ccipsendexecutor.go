@@ -1,7 +1,9 @@
 package ccipsendexecutor
 
 import (
+	"fmt"
 	"math/big"
+	"slices"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
@@ -17,10 +19,27 @@ const (
 	OpcodeCCIPSendExecutorExecute = 0xAF3C62B3 // crc32('CCIPSendExecutor_Execute')
 )
 
+//go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode
+type ExitCode tvm.ExitCode
+
+var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
+
+func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
+	set := []ExitCode{
+		ErrorUnauthorized,
+		ErrorStateNotExpected,
+	}
+	idx := slices.IndexFunc(set, func(v ExitCode) bool { return ExitCode(ec) == v })
+	if idx < 0 {
+		return 0, fmt.Errorf("invalid exit code: %d", ec)
+	}
+	return ExitCode(ec), nil
+}
+
 // CCIPSend Executor exit codes
 const (
-	ErrorStateNotExpected tvm.ExitCode = tvm.ExitCode(500)
-	ErrorUnauthorized     tvm.ExitCode = tvm.ExitCode(265) // ERROR_UNAUTHORIZED from contract
+	ErrorUnauthorized     ExitCode = 265 // ERROR_UNAUTHORIZED from contract
+	ErrorStateNotExpected ExitCode = 500
 )
 
 // CCIPSendExecutor_Execute message structure

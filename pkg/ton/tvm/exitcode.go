@@ -20,13 +20,13 @@ var ExitCodeCodec ExitCodeCodecInt[ExitCode] = ExitCode(-1)
 
 func (ExitCode) NewFrom(c ExitCode) (ExitCode, error) {
 	const (
-		min = ExitCodeSuccess
-		max = ExitCodeTactNotABasechainAddress
+		ecMin = ExitCodeOutOfGasErrorVariant // -14
+		ecMax = ExitCodeTactNotABasechainAddress
 	)
-	if c < min || c > max {
-		return 0, fmt.Errorf("invalid exit code (out of range): %d (min=%v, max=%v)", c, min, max)
+	if c < ecMin || c > ecMax {
+		return 0, fmt.Errorf("invalid exit code (out of range): %d (min=%v, max=%v)", c, ecMin, ecMax)
 	}
-	return ExitCode(c), nil
+	return c, nil
 }
 
 const (
