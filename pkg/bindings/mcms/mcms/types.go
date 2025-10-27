@@ -3,6 +3,7 @@ package mcms
 import (
 	"crypto/sha256"
 	"encoding/binary"
+	"fmt"
 	"math/big"
 
 	"github.com/xssnick/tonutils-go/address"
@@ -12,6 +13,7 @@ import (
 	// TODO: these shoud be outside pkg/ccip/
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/ocr"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 // --- Messages - incoming ---
@@ -386,9 +388,25 @@ var ManyChainMultiSigDomainSeparatorOp = stringSha256_32("MANY_CHAIN_MULTI_SIG_D
 // Merkle tree.
 var ManyChainMultiSigDomainSeparatorMetadata = stringSha256_32("MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA_TON")
 
+//go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode
+type ExitCode tvm.ExitCode
+
+var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
+
+func (ExitCode) NewFrom(c tvm.ExitCode) (ExitCode, error) {
+	const (
+		min = tvm.ExitCode(ErrorOutOfBoundsNumSigners)
+		max = tvm.ExitCode(ErrorUnauthorizedOracle)
+	)
+	if c < min || c > max {
+		return 0, fmt.Errorf("invalid exit code (out of range): %d (min=%v, max=%v)", c, min, max)
+	}
+	return ExitCode(c), nil
+}
+
 const (
 	// Thrown when number of signers is 0 or greater than MAX_NUM_SIGNERS.
-	ErrorOutOfBoundsNumSigners = 39000
+	ErrorOutOfBoundsNumSigners ExitCode = iota + 39000
 
 	// Thrown when signerKeys and signerGroups have different lengths.
 	ErrorSignerGroupsLengthMismatch
@@ -460,12 +478,12 @@ const (
 	// Thrown when attempt to set the same (root, validUntil) in setRoot().
 	ErrorSignedHashAlreadySeen
 
-	/// Thrown when the root has not been finalized yet (can't execute next op before finalization).
+	// Thrown when the root has not been finalized yet (can't execute next op before finalization).
 	ErrorRootNotFinalized
 
-	/// Thrown when the provided op.value is insufficient (min required value not met).
+	// Thrown when the provided op.value is insufficient (min required value not met).
 	ErrorInsufficientValue
 
-	/// Thrown when the error report sender is not the authorized oracle.
+	// Thrown when the error report sender is not the authorized oracle.
 	ErrorUnauthorizedOracle
 )

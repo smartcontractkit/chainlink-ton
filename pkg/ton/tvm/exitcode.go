@@ -4,11 +4,30 @@ import (
 	"fmt"
 )
 
+type ExitCodeCodecInt[E ~int32] interface {
+	NewFrom(code ExitCode) (E, error)
+}
+
 // This code is returned by smart contracts to indicate the reason for transaction failure or abnormal termination.
 // For a comprehensive and up-to-date list of exit codes, refer to:
 // - Tact documentation: https://docs.tact-lang.org/book/exit-codes/
 // - TON documentation:  https://docs.ton.org/v3/documentation/tvm/tvm-exit-codes
+//
+//go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode
 type ExitCode int32
+
+var ExitCodeCodec ExitCodeCodecInt[ExitCode] = ExitCode(-1)
+
+func (ExitCode) NewFrom(c ExitCode) (ExitCode, error) {
+	const (
+		min = ExitCodeSuccess
+		max = ExitCodeTactNotABasechainAddress
+	)
+	if c < min || c > max {
+		return 0, fmt.Errorf("invalid exit code (out of range): %d (min=%v, max=%v)", c, min, max)
+	}
+	return ExitCode(c), nil
+}
 
 const (
 	/// TVM exit codes

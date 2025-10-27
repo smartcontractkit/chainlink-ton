@@ -1,6 +1,7 @@
 package timelock
 
 import (
+	"fmt"
 	"math/big"
 	"strings"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/access/rbac"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/hash"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tvm"
 )
 
 // --- Messages - incoming ---
@@ -408,9 +410,25 @@ const (
 	ErrorTimestamp = 2
 )
 
+//go:generate go run golang.org/x/tools/cmd/stringer@v0.38.0 -type=ExitCode
+type ExitCode tvm.ExitCode
+
+var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
+
+func (ExitCode) NewFrom(c tvm.ExitCode) (ExitCode, error) {
+	const (
+		min = tvm.ExitCode(ErrorSelectorIsBlocked)
+		max = tvm.ExitCode(ErrorContractNotInitialized)
+	)
+	if c < min || c > max {
+		return 0, fmt.Errorf("invalid exit code (out of range): %d (min=%v, max=%v)", c, min, max)
+	}
+	return ExitCode(c), nil
+}
+
 const (
 	// Error codes
-	ErrorSelectorIsBlocked = iota * 19300
+	ErrorSelectorIsBlocked ExitCode = iota + 19300
 	ErrorOperationNotReady
 	ErrorOperationMissingDependency
 	ErrorOperationCannotBeCancelled
