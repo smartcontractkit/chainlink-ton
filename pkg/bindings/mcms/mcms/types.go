@@ -3,7 +3,6 @@ package mcms
 import (
 	"crypto/sha256"
 	"encoding/binary"
-	"fmt"
 	"math/big"
 
 	"github.com/xssnick/tonutils-go/address"
@@ -395,13 +394,10 @@ var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
 
 func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 	const (
-		ecMin = tvm.ExitCode(ErrorOutOfBoundsNumSigners)
-		ecMax = tvm.ExitCode(ErrorUnauthorizedOracle)
+		ecMin = int32(ErrorOutOfBoundsNumSigners)
+		ecMax = int32(ErrorUnauthorizedOracle)
 	)
-	if ec < ecMin || ec > ecMax {
-		return 0, fmt.Errorf("invalid exit code (out of range): %d (min=%v, max=%v)", ec, ecMin, ecMax)
-	}
-	return ExitCode(ec), nil
+	return tvm.NewExitCodeFromRange(ExitCode(ec), ecMin, ecMax)
 }
 
 const (

@@ -2,7 +2,6 @@ package feequoter
 
 import (
 	"context"
-	"fmt"
 	"math/big"
 
 	"github.com/xssnick/tonutils-go/address"
@@ -36,13 +35,10 @@ var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
 
 func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 	const (
-		ecMin = tvm.ExitCode(ErrorUnsupportedChainFamilySelector)
-		ecMax = tvm.ExitCode(ErrorMsgDataTooLarge)
+		ecMin = int32(ErrorUnsupportedChainFamilySelector)
+		ecMax = int32(ErrorMsgDataTooLarge)
 	)
-	if ec < ecMin || ec > ecMax {
-		return 0, fmt.Errorf("invalid exit code (out of range): %d (min=%v, max=%v)", ec, ecMin, ecMax)
-	}
-	return ExitCode(ec), nil
+	return tvm.NewExitCodeFromRange(ExitCode(ec), ecMin, ecMax)
 }
 
 const (

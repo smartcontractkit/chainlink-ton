@@ -8,6 +8,13 @@ type ExitCodeCodecInt[E ~int32] interface {
 	NewFrom(code ExitCode) (E, error)
 }
 
+func NewExitCodeFromRange[E ~int32](ec E, ecMin int32, ecMax int32) (E, error) {
+	if int32(ec) < ecMin || int32(ec) > ecMax {
+		return 0, fmt.Errorf("invalid exit code (out of range): %d (min=%v, max=%v)", ec, ecMin, ecMax)
+	}
+	return ec, nil
+}
+
 // This code is returned by smart contracts to indicate the reason for transaction failure or abnormal termination.
 // For a comprehensive and up-to-date list of exit codes, refer to:
 // - Tact documentation: https://docs.tact-lang.org/book/exit-codes/
@@ -18,15 +25,12 @@ type ExitCode int32
 
 var ExitCodeCodec ExitCodeCodecInt[ExitCode] = ExitCode(-1)
 
-func (ExitCode) NewFrom(c ExitCode) (ExitCode, error) {
+func (ExitCode) NewFrom(ec ExitCode) (ExitCode, error) {
 	const (
-		ecMin = ExitCodeOutOfGasErrorVariant // -14
-		ecMax = ExitCodeTactNotABasechainAddress
+		ecMin = int32(ExitCodeOutOfGasErrorVariant)
+		ecMax = int32(ExitCodeTactNotABasechainAddress)
 	)
-	if c < ecMin || c > ecMax {
-		return 0, fmt.Errorf("invalid exit code (out of range): %d (min=%v, max=%v)", c, ecMin, ecMax)
-	}
-	return c, nil
+	return NewExitCodeFromRange(ExitCode(ec), ecMin, ecMax)
 }
 
 const (

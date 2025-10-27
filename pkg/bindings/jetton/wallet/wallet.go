@@ -29,13 +29,10 @@ var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
 
 func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 	const (
-		ecMin = tvm.ExitCode(BalanceError)
-		ecMax = tvm.ExitCode(InvalidMessage)
+		ecMin = int32(BalanceError)
+		ecMax = int32(InvalidMessage)
 	)
-	if ec < ecMin || ec > ecMax {
-		return 0, fmt.Errorf("invalid exit code (out of range): %d (min=%v, max=%v)", ec, ecMin, ecMax)
-	}
-	return ExitCode(ec), nil
+	return tvm.NewExitCodeFromRange(ExitCode(ec), ecMin, ecMax)
 }
 
 const (

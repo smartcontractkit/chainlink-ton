@@ -1,7 +1,6 @@
 package timelock
 
 import (
-	"fmt"
 	"math/big"
 	"strings"
 
@@ -417,13 +416,10 @@ var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
 
 func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 	const (
-		ecMin = tvm.ExitCode(ErrorSelectorIsBlocked)
-		ecMax = tvm.ExitCode(ErrorContractNotInitialized)
+		ecMin = int32(ErrorSelectorIsBlocked)
+		ecMax = int32(ErrorContractNotInitialized)
 	)
-	if ec < ecMin || ec > ecMax {
-		return 0, fmt.Errorf("invalid exit code (out of range): %d (min=%v, max=%v)", ec, ecMin, ecMax)
-	}
-	return ExitCode(ec), nil
+	return tvm.NewExitCodeFromRange(ExitCode(ec), ecMin, ecMax)
 }
 
 const (
