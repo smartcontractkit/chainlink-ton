@@ -250,8 +250,8 @@ func (c *SourceChainConfig) FromResult(result *ton.ExecutionResult) error {
 	return nil
 }
 
-func (c *SourceChainConfig) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, srcChainSelector uint64) error {
-	return common.FetchResultHelper(ctx, client, block, contractAddr, common.SrcChainConfigGetter, []interface{}{srcChainSelector}, c.FromResult)
+func (c *SourceChainConfig) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, opts []interface{}) error {
+	return common.FetchResultHelper(ctx, client, block, contractAddr, common.SrcChainConfigGetter, opts, c.FromResult)
 }
 
 // FetchSrcChainConfig retrieves source chain configurations from the off-ramp contract.

@@ -198,7 +198,8 @@ func (a *TONAccessor) GetOffRampSourceChainConfig(ctx context.Context, block *to
 	}
 
 	var config offramp.SourceChainConfig
-	err = config.FetchResult(ctx, a.client, block, addr, uint64(sourceChainSelector))
+	opts := []interface{}{uint64(sourceChainSelector)}
+	err = config.FetchResult(ctx, a.client, block, addr, opts)
 	if err != nil {
 		// Handle ERROR_SOURCE_CHAIN_NOT_ENABLED=266 case for non-existent source chain
 		var execError ton.ContractExecError
@@ -267,7 +268,8 @@ func (a *TONAccessor) GetOnRampDestChainConfig(ctx context.Context, block *ton.B
 	}
 
 	var cfg onramp.DestChainConfig
-	if err = cfg.FetchResult(ctx, a.client, block, addr, uint64(dest)); err != nil {
+	opts := []interface{}{uint64(dest)}
+	if err = cfg.FetchResult(ctx, a.client, block, addr, opts); err != nil {
 		return ccipocr3.OnRampDestChainConfig{}, err
 	}
 
