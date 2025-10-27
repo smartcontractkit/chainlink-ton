@@ -9,7 +9,6 @@ import (
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/jetton/minter"
-	jetton_common "github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/decoders/jetton"
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/decoders/jetton"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/lib"
@@ -55,7 +54,7 @@ func (d *decoder) InternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
 	// TODO: use lib.Wrapper to describe generic payloads
 	info, err := lib.NewMessageInfoFromCell(d.ContractType(), msg, d.tlbs)
 	if err != nil {
-		return jetton_common.NewDecoder(d.tlbs, d.ContractType()).InternalMessageInfo(msg)
+		return jetton.NewDecoder(d.tlbs, d.ContractType()).InternalMessageInfo(msg)
 	}
 	return info, nil
 }

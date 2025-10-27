@@ -53,9 +53,11 @@ func (d *decoder) InternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
 	return lib.NewMessageInfoFromCell(d.ContractType(), msg, d.tlbs)
 }
 
-// TODO: implement exit code descriptions for MCMS
-// Notice: tvm.ExitCode is not the right type to use (these are low-level TVM exit codes),
-// we should define our own ExitCode type for our contracts
 func (d *decoder) ExitCodeInfo(exitCode tvm.ExitCode) (string, error) {
-	return "", &lib.UnknownMessageError{}
+	ec, err := mcms.ExitCodeCodec.NewFrom(exitCode)
+	if err != nil {
+		return "", &lib.UnknownMessageError{}
+	}
+
+	return ec.String(), nil
 }
