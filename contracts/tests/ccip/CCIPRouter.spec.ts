@@ -365,7 +365,7 @@ describe('Router', () => {
         {
           chainSelector: CHAINSEL_EVM_TEST_90000001,
           address: onRamp.address,
-        }
+        },
       ])
     }
   })
@@ -373,7 +373,7 @@ describe('Router', () => {
   it('update router offramps in batch with one offRamp address', async () => {
     const offRampAddress1 = await generateRandomTonAddress()
     {
-      // test update method wrapper 
+      // test update method wrapper
       const result = await router.sendUpdateOffRamps(deployer.getSender(), {
         value: toNano('1'),
         queryId: 0,
@@ -382,27 +382,28 @@ describe('Router', () => {
         sourceChainSelectorRemove: [],
       })
       expect(result.transactions).toHaveTransaction({
-          from: deployer.address,
-          to: router.address,
-          success: true,
+        from: deployer.address,
+        to: router.address,
+        success: true,
       })
-    } 
+    }
 
     {
       //test batch getter
       let result = await router.getOffRamps()
-      expect(result.sort()).toEqual([
-        {
-          chainSelector: CHAINSEL_EVM_TEST_90000002,
-          address: offRampAddress1,
-        },
-        {
-          chainSelector: CHAINSEL_EVM_TEST_90000001,
-          address: offRampAddress1,
-        },
-      ].sort())
-    } 
-
+      expect(result.sort()).toEqual(
+        [
+          {
+            chainSelector: CHAINSEL_EVM_TEST_90000002,
+            address: offRampAddress1,
+          },
+          {
+            chainSelector: CHAINSEL_EVM_TEST_90000001,
+            address: offRampAddress1,
+          },
+        ].sort(),
+      )
+    }
 
     {
       // test individual getter
@@ -430,17 +431,18 @@ describe('Router', () => {
       })
 
       let getResult = await router.getOffRamps()
-      expect(getResult).toEqual([{
-        chainSelector: CHAINSEL_EVM_TEST_90000002,
-        address: offRampAddress1,
-      }])
+      expect(getResult).toEqual([
+        {
+          chainSelector: CHAINSEL_EVM_TEST_90000002,
+          address: offRampAddress1,
+        },
+      ])
     }
 
     {
       const offRampAddress2 = await generateRandomTonAddress()
       //test adding and removing on the same call
-      const result = await router.sendUpdateOffRamps(deployer.getSender(), 
-      {
+      const result = await router.sendUpdateOffRamps(deployer.getSender(), {
         value: toNano('1'),
         queryId: 0,
         sourceChainSelectorAdd: [CHAINSEL_EVM_TEST_90000001],
@@ -455,10 +457,12 @@ describe('Router', () => {
       })
 
       const getResult = await router.getOffRamps()
-      expect(getResult).toEqual([{
-        chainSelector: CHAINSEL_EVM_TEST_90000001,
-        address: offRampAddress2,
-      }])
+      expect(getResult).toEqual([
+        {
+          chainSelector: CHAINSEL_EVM_TEST_90000001,
+          address: offRampAddress2,
+        },
+      ])
     }
   })
 

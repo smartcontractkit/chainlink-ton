@@ -493,8 +493,6 @@ describe('OffRamp - Unit Tests', () => {
 
     // setup fee quoter
     feeQuoter = await setupTestFeeQuoter(deployer, blockchain)
-
-
   })
 
   beforeEach(async () => {
@@ -556,7 +554,7 @@ describe('OffRamp - Unit Tests', () => {
     {
       const code = await compile('Router')
       let data: rt.Storage = {
-        id: generateSecureRandomId(), 
+        id: generateSecureRandomId(),
         ownable: {
           owner: deployer.address,
           pendingOwner: null,
@@ -578,12 +576,12 @@ describe('OffRamp - Unit Tests', () => {
 
       // setup ramp
       const updateRampsResult = await router.sendUpdateOffRamps(deployer.getSender(), {
-          value: toNano('1'),
-          queryId: 0,
-          sourceChainSelectorAdd: [CHAINSEL_EVM_TEST_90000001],
-          offRampAdd: offRamp.address,
-          sourceChainSelectorRemove: [],
-      }) 
+        value: toNano('1'),
+        queryId: 0,
+        sourceChainSelectorAdd: [CHAINSEL_EVM_TEST_90000001],
+        offRampAdd: offRamp.address,
+        sourceChainSelectorRemove: [],
+      })
     }
 
     // Deploy test receiver
@@ -601,8 +599,6 @@ describe('OffRamp - Unit Tests', () => {
       })
     }
   }, 60_000) // setup can take a while, since we deploy contracts
-
-  
 
   it('should deploy', async () => {
     // the check is done inside beforeEach

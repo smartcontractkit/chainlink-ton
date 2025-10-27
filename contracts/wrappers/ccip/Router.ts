@@ -47,7 +47,7 @@ export abstract class Opcodes {
   static updateOffRamps = 0x00000005
 }
 
-export type Ramp =  {
+export type Ramp = {
   chainSelector: bigint //64
   address: Address
 }
@@ -84,10 +84,10 @@ export class Router
   async getOffRamp(provider: ContractProvider, chainSelector: bigint) {
     return await provider
       .get('offRamp', [
-      {
-        type: 'int',
-        value: BigInt(chainSelector),
-      },
+        {
+          type: 'int',
+          value: BigInt(chainSelector),
+        },
       ])
       .then((r) => r.stack.readAddress())
   }
@@ -97,7 +97,7 @@ export class Router
     const items = result.stack.readLispList()
     const onRamps = items.map((t: TupleItem) => {
       if (t.type !== 'cell' && t.type !== 'slice' && t.type !== 'builder') {
-      throw Error('Not a cell: ' + t.type)
+        throw Error('Not a cell: ' + t.type)
       }
       const cs = t.cell.beginParse()
       const ramp: Ramp = {
@@ -133,7 +133,6 @@ export class Router
       body: body,
     })
   }
-
 
   sendUpgrade(
     provider: ContractProvider,
@@ -198,12 +197,12 @@ export class Router
       offRampAdd?: Address
       sourceChainSelectorRemove: bigint[]
       offRampRemove?: Address
-    }
-  ){
+    },
+  ) {
     const bs = beginCell()
-        .storeUint(Opcodes.updateOffRamps, 32)
-        .storeUint(opts.queryId ?? 0, 64)
-        .storeRef(asSnakeDataUint(opts.sourceChainSelectorAdd, 64))
+      .storeUint(Opcodes.updateOffRamps, 32)
+      .storeUint(opts.queryId ?? 0, 64)
+      .storeRef(asSnakeDataUint(opts.sourceChainSelectorAdd, 64))
 
     if (!opts.offRampAdd) {
       bs.storeBit(false)
@@ -212,7 +211,7 @@ export class Router
       bs.storeAddress(opts.offRampAdd)
     }
     bs.storeRef(asSnakeDataUint(opts.sourceChainSelectorRemove, 64))
-    if( !opts.offRampRemove) {
+    if (!opts.offRampRemove) {
       bs.storeBit(false)
     } else {
       bs.storeBit(true)
@@ -223,8 +222,8 @@ export class Router
     await provider.internal(via, {
       value: opts.value,
       sendMode: SendMode.PAY_GAS_SEPARATELY,
-      body
-   })
+      body,
+    })
   }
 
   async sendCcipSend(
@@ -323,8 +322,8 @@ export const builder = {
         return {
           id: src.loadUintBig(32),
           ownable: ownable2step.builder.data.traitData.load(src.loadRef().beginParse()),
-          onRamps: Dictionary.empty(Dictionary.Keys.BigUint(64)), 
-          offRamps: Dictionary.empty(Dictionary.Keys.BigUint(64))
+          onRamps: Dictionary.empty(Dictionary.Keys.BigUint(64)),
+          offRamps: Dictionary.empty(Dictionary.Keys.BigUint(64)),
         }
       },
     }
