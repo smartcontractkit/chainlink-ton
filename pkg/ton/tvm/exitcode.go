@@ -39,7 +39,7 @@ func (ExitCode) NewFrom(ec ExitCode) (ExitCode, error) {
 		ecMin = int32(ExitCodeOutOfGasErrorVariant)
 		ecMax = int32(ExitCodeTactNotABasechainAddress)
 	)
-	return NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
+	return NewExitCodeInRange(ec, ecMin, ecMax)
 }
 
 const (

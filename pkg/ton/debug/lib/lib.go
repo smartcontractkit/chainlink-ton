@@ -70,17 +70,26 @@ func NewMessageInfo(name string, msg any) (MessageInfo, error) {
 	}, nil
 }
 
-// NewMessageInfoFrom attempts to decode the given cell using the provided TL-B candidates mapped by their opcodes.
-func NewMessageInfoFrom(t cldf.ContractType, msg interface{}, tlbs map[uint64]interface{}) (MessageInfo, error) {
-	typeName, m, err := DecodeTLBValToJSON(msg, tlbs)
+// NewMessageInfoFromCell attempts to decode the given cell using the provided TL-B candidates mapped by their opcodes.
+func NewMessageInfoFromCell(t cldf.ContractType, msg *cell.Cell, tlbs map[uint64]interface{}, tlbsCtx map[uint64]interface{}) (MessageInfo, error) {
+	typeName, norm, err := DecodeTLBValToJSON(msg, tlbs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode message for contract %s: %w", t, err)
 	}
 
-	// TODO: name currently always map[uint64]interface{} bc double decoding
+	if typeName == "Cell" { // on decoder fallback (not decoded)
+		return nil, &UnknownMessageError{}
+	}
+
+	// Second round of decoding - internal payloads using TLBs from loaded context
+	_, norm, err = DecodeTLBValToJSON(norm, tlbsCtx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode message for contract %s: %w", t, err)
+	}
+
 	name := fmt.Sprintf("%s:%s", t, typeName)
-	// 4.4 Finally, marshal the final map[string]interface{} as JSON string
-	return NewMessageInfo(name, m)
+	// Marshal the final normalized map[string]interface{} as JSON string
+	return NewMessageInfo(name, norm)
 }
 
 func DecodeTLBStructToJSON(v interface{}, tlbs map[uint64]interface{}) (string, map[string]interface{}, error) {

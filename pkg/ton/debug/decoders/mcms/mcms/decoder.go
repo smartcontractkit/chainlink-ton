@@ -1,8 +1,6 @@
 package mcms
 
 import (
-	"fmt"
-
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
@@ -34,6 +32,7 @@ type decoder struct {
 func NewDecoder(tlbsCtx map[uint64]interface{}) lib.ContractDecoder {
 	return &decoder{tlbsCtx}
 }
+
 func (d *decoder) ContractType() cldf.ContractType {
 	return cldf.ContractType("com.chainlink.ton.mcms.MCMS")
 }
@@ -47,16 +46,7 @@ func (d *decoder) ExternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
 }
 
 func (d *decoder) InternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
-	typeName, norm, err := lib.DecodeTLBValToJSON(msg, TLBs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode message for contract %s: %w", d.ContractType(), err)
-	}
-
-	if typeName == "Cell" { // on decoder fallback (not decoded)
-		return nil, &lib.UnknownMessageError{}
-	}
-
-	return lib.NewMessageInfoFrom(d.ContractType(), norm, d.tlbsCtx)
+	return lib.NewMessageInfoFromCell(d.ContractType(), msg, TLBs, d.tlbsCtx)
 }
 
 func (d *decoder) ExitCodeInfo(exitCode tvm.ExitCode) (string, error) {

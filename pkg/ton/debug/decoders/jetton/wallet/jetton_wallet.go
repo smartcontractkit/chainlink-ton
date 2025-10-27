@@ -45,16 +45,12 @@ func (d *decoder) ExternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
 // InternalMessageInfo implements lib.ContractDecoder.
 func (d *decoder) InternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
 	// TODO: use lib.Wrapper to describe generic payloads
-	typeName, norm, err := lib.DecodeTLBValToJSON(msg, TLBs)
+	info, err := lib.NewMessageInfoFromCell(d.ContractType(), msg, TLBs, d.tlbsCtx)
 	if err != nil {
 		return jetton_common.NewDecoder(d.tlbsCtx, d.ContractType()).InternalMessageInfo(msg)
 	}
 
-	if typeName == "Cell" { // on decoder fallback (not decoded)
-		return nil, &lib.UnknownMessageError{}
-	}
-
-	return lib.NewMessageInfoFrom(d.ContractType(), norm, d.tlbsCtx)
+	return info, nil
 }
 
 func (d *decoder) ExitCodeInfo(exitCode tvm.ExitCode) (string, error) {
