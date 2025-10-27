@@ -2,6 +2,7 @@ package tvm
 
 import (
 	"fmt"
+	"slices"
 )
 
 type ExitCodeCodecInt[E ~int32] interface {
@@ -11,6 +12,14 @@ type ExitCodeCodecInt[E ~int32] interface {
 func NewExitCodeFromRange[E ~int32](ec E, ecMin int32, ecMax int32) (E, error) {
 	if int32(ec) < ecMin || int32(ec) > ecMax {
 		return 0, fmt.Errorf("invalid exit code (out of range): %d (min=%v, max=%v)", ec, ecMin, ecMax)
+	}
+	return ec, nil
+}
+
+func NewExitCodeFromSet[E ~int32](ec E, set []E) (E, error) {
+	idx := slices.IndexFunc(set, func(v E) bool { return ec == v })
+	if idx < 0 {
+		return 0, fmt.Errorf("invalid exit code (not in set): %d", ec)
 	}
 	return ec, nil
 }

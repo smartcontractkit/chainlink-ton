@@ -1,9 +1,7 @@
 package ccipsendexecutor
 
 import (
-	"fmt"
 	"math/big"
-	"slices"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
@@ -25,15 +23,10 @@ type ExitCode tvm.ExitCode
 var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
 
 func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
-	set := []ExitCode{
+	return tvm.NewExitCodeFromSet(ExitCode(ec), []ExitCode{
 		ErrorUnauthorized,
 		ErrorStateNotExpected,
-	}
-	idx := slices.IndexFunc(set, func(v ExitCode) bool { return ExitCode(ec) == v })
-	if idx < 0 {
-		return 0, fmt.Errorf("invalid exit code: %d", ec)
-	}
-	return ExitCode(ec), nil
+	})
 }
 
 // CCIPSend Executor exit codes
