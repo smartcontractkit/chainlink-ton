@@ -251,12 +251,9 @@ func FetchDestChainConfig(ctx context.Context, client ton.APIClientWrapped, bloc
 	output := make(map[uint64]DestChainConfig)
 	for _, dest := range chainSelectors {
 		eg.Go(func() error {
-			result, err := client.RunGetMethod(egCtx, block, onRampAddr, common.DestChainConfigGetter, dest) // New variables per goroutine
-			if err != nil {
-				return err
-			}
 			var cfg DestChainConfig
-			if err = cfg.FromResult(result); err != nil {
+			opts := []interface{}{dest}
+			if err = cfg.FetchResult(egCtx, client, block, onRampAddr, opts); err != nil {
 				return err
 			}
 
