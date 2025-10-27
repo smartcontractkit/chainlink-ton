@@ -54,6 +54,9 @@ fun onInternalMessage(in:InMessage) {
         OffRamp_CCIPReceiveConfirm => {
             _ccipReceiveConfirm(msg, in.senderAddress);
         }
+        OffRamp_NotifyInProgress => {
+            _notifyInProgress(msg, in.senderAddress);
+        }
         // Sender must be ReceiveExecutor
         OffRamp_NotifySuccess => {
             _notifySuccess(msg, in.senderAddress);
@@ -152,6 +155,19 @@ fun _notifyFailure(msg: OffRamp_NotifyFailure, sender: address) {
         state: ExecutionState.Failure
     });
 }
+
+fun _notifyInProgress(msg: OffRamp_NotifyInProgress, sender: address) {
+    assertSenderIsOwnedContract(Storage.load(), sender, beginCell().storeUint(msg.execId, RECEIVE_EXECUTOR_ID_SIZE));
+    val messageHeader = msg.header;
+    emit(EXECUTION_STATE_CHANGED_TOPIC, ExecutionStateChanged {
+        sourceChainSelector: messageHeader.sourceChainSelector,
+        sequenceNumber: messageHeader.sequenceNumber,
+        messageId: messageHeader.messageId,
+        state: ExecutionState.InProgress
+    });
+}
+
+
 
 // Sent by the receiver to confirm successful receipt of the message,
 // ReceiveExecutor must further validate that the sender is the intended receiver
@@ -443,12 +459,6 @@ fun _executeValidated(msg: OffRamp_ExecuteValidated, sender: address) {
 
     assertSenderIsOwnedContract(st, sender, getOwnedMerkleRootContractId(msg.root));
 
-    emit(EXECUTION_STATE_CHANGED_TOPIC, ExecutionStateChanged {
-        sourceChainSelector: message.header.sourceChainSelector,
-        sequenceNumber: message.header.sequenceNumber,
-        messageId: message.header.messageId,
-        state: ExecutionState.InProgress
-    });
 
     initializeExecutor(st, message, msg.metadataHash);
 }

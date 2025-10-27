@@ -15,7 +15,7 @@ type OffRamp_InMessage =
     | OffRamp_UpdateSourceChainConfig
     | OCR3Base_SetOCR3Config
     | OffRamp_CCIPReceiveConfirm
-    | OffRamp_NotifyFailure
+    | OffRamp_NotifyInProgress
     | OffRamp_NotifySuccess
     | OffRamp_NotifyFailure
     | Upgradeable_Upgrade
@@ -68,13 +68,18 @@ struct (0x28f4166f) OffRamp_CCIPReceiveConfirm {
     execId: uint224;
 }
 
-//TODO crc32('OffRamp_NotifySuccess')
+struct (0x12312323) OffRamp_NotifyInProgress {
+    header: RampMessageHeader;
+    execId: uint224;
+}
+
+//crc32('OffRamp_NotifySuccess')
 struct (0x59e56170) OffRamp_NotifySuccess {
     header: RampMessageHeader;
     execId: uint224;
 }
 
-//TODO crc32('OffRamp_NotifyFailure')
+//crc32('OffRamp_NotifyFailure')
 struct (0x177ebd03) OffRamp_NotifyFailure {
     header: RampMessageHeader;
     execId: uint224;

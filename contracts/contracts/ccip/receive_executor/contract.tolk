@@ -34,6 +34,17 @@ fun _initExecute(msg: ReceiveExecutor_InitExecute, sender: address) {
     assert(sender == st.owner, Error.Unauthorized);
     assert(st.state == ReceiveExecutor_MessageState.Untouched, Error.StateIsNotUntouched);
 
+    val notifyInProgress = createMessage({
+        bounce: true,
+        value: ton("0.02"),
+        dest: st.owner,
+        body: OffRamp_NotifyInProgress {
+            header: Any2TVMRampMessage.fromCell(st.message).header,
+            execId: st.execId,
+        },
+    });
+    notifyInProgress.send(SEND_MODE_REGULAR);
+
     //TODO 
 
     // if tokenAmounts > 0 && state == initial
