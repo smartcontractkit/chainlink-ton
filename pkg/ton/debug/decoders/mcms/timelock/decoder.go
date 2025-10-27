@@ -1,6 +1,8 @@
 package timelock
 
 import (
+	"maps"
+
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
@@ -34,10 +36,14 @@ var TLBs = lib.MustNewTLBMap([]interface{}{
 	timelock.ExecutorRoleCheckUpdated{},
 })
 
-type decoder struct{}
+type decoder struct {
+	tlbs map[uint64]interface{}
+}
 
-func NewDecoder() lib.ContractDecoder {
-	return &decoder{}
+func NewDecoder(tlbsCtx map[uint64]interface{}) lib.ContractDecoder {
+	tlbs := maps.Clone(tlbsCtx)
+	maps.Copy(tlbs, TLBs)
+	return &decoder{tlbs}
 }
 
 func (d *decoder) ContractType() cldf.ContractType {
@@ -53,7 +59,7 @@ func (d *decoder) ExternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
 }
 
 func (d *decoder) InternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
-	return lib.NewMessageInfoFromCell(d.ContractType(), msg, TLBs)
+	return lib.NewMessageInfoFromCell(d.ContractType(), msg, d.tlbs)
 }
 
 // TODO: implement exit code descriptions for MCMS

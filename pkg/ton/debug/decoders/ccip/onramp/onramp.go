@@ -1,6 +1,8 @@
 package onramp
 
 import (
+	"maps"
+
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
@@ -24,10 +26,14 @@ var TLBs = lib.MustNewTLBMap([]interface{}{
 	onramp.UpdateAllowlistsMessage{},
 })
 
-type decoder struct{}
+type decoder struct {
+	tlbs map[uint64]interface{}
+}
 
-func NewDecoder() lib.ContractDecoder {
-	return &decoder{}
+func NewDecoder(tlbsCtx map[uint64]interface{}) lib.ContractDecoder {
+	tlbs := maps.Clone(tlbsCtx)
+	maps.Copy(tlbs, TLBs)
+	return &decoder{tlbs}
 }
 
 // ContractType implements lib.ContractDecoder.
@@ -61,9 +67,9 @@ func (d *decoder) ExternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
 
 // InternalMessageInfo implements lib.ContractDecoder.
 func (d *decoder) InternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
-	return lib.NewMessageInfoFromCell(d.ContractType(), msg, TLBs)
+	return lib.NewMessageInfoFromCell(d.ContractType(), msg, d.tlbs)
 }
 
 func (d *decoder) ExitCodeInfo(exitCode tvm.ExitCode) (string, error) {
-	return ccipcommon.NewDecoder().ExitCodeInfo(exitCode)
+	return ccipcommon.NewDecoder(d.tlbs).ExitCodeInfo(exitCode)
 }

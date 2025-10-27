@@ -161,6 +161,7 @@ func DecodeTLBValToJSON(v interface{}, tlbs map[uint64]interface{}) (string, int
 	case *cell.Cell:
 		typeName, decoded, err := DecodeTLBStructToJSON(t, tlbs)
 		if err != nil {
+			// return "", nil, fmt.Errorf("FAILED: %w", err)
 			return "Cell", t, nil // fallback if not a known struct
 		}
 
@@ -174,6 +175,11 @@ func DecodeTLBValToJSON(v interface{}, tlbs map[uint64]interface{}) (string, int
 
 		switch rv.Kind() {
 		case reflect.Slice, reflect.Array:
+			if rv.Type().Elem().Kind() == reflect.Uint8 {
+				// Early exit for []byte / [N]byte and any alias
+				return rv.Type().Name(), t, nil
+			}
+
 			out := make([]interface{}, rv.Len())
 			for i := 0; i < rv.Len(); i++ {
 				_, decoded, err := DecodeTLBValToJSON(rv.Index(i).Interface(), tlbs)

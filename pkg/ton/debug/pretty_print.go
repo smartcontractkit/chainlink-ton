@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"maps"
 
 	cldf "github.com/smartcontractkit/chainlink-deployments-framework/deployment"
 
@@ -12,6 +13,7 @@ import (
 
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/decoders/ccip/ccipsendexecutor"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/decoders/ccip/feequoter"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/decoders/ccip/offramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/decoders/ccip/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/decoders/ccip/router"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/debug/decoders/jetton/minter"
@@ -58,15 +60,23 @@ func NewDebuggerSequenceTrace(addresses map[string]cldf.TypeAndVersion, outputFm
 	}
 }
 
-// TODO: refactor how decoders are composed together - just a map of TLBs
 func defaultDecoders() map[cldf.ContractType]lib.ContractDecoder {
+	tlbs := make(map[uint64]interface{})
+	maps.Copy(tlbs, wallet.TLBs)
+	maps.Copy(tlbs, minter.TLBs)
+	maps.Copy(tlbs, router.TLBs)
+	maps.Copy(tlbs, onramp.TLBs)
+	maps.Copy(tlbs, feequoter.TLBs)
+	maps.Copy(tlbs, ccipsendexecutor.TLBs)
+
 	t := make(map[cldf.ContractType]lib.ContractDecoder)
-	registerDecoder(t, wallet.NewDecoder())
-	registerDecoder(t, minter.NewDecoder())
-	registerDecoder(t, router.NewDecoder())
-	registerDecoder(t, onramp.NewDecoder())
-	registerDecoder(t, feequoter.NewDecoder())
-	registerDecoder(t, ccipsendexecutor.NewDecoder())
+	registerDecoder(t, wallet.NewDecoder(tlbs))
+	registerDecoder(t, minter.NewDecoder(tlbs))
+	registerDecoder(t, router.NewDecoder(tlbs))
+	registerDecoder(t, onramp.NewDecoder(tlbs))
+	registerDecoder(t, offramp.NewDecoder(tlbs))
+	registerDecoder(t, feequoter.NewDecoder(tlbs))
+	registerDecoder(t, ccipsendexecutor.NewDecoder(tlbs))
 	return t
 }
 
