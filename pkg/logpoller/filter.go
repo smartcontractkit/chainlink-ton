@@ -37,29 +37,9 @@ func (lp *service) buildFilterIndex(ctx context.Context, addresses []*address.Ad
 
 // RegisterFilter adds a new filter to monitor specific address/event signature combinations
 func (lp *service) RegisterFilter(ctx context.Context, flt models.Filter) (int64, error) {
-	// Register the filter first
 	id, err := lp.filterStore.RegisterFilter(ctx, flt)
 	if err != nil {
 		return 0, err
-	}
-
-	// TODO(2025-08-28@jadepark-dev): clean up, forcing replay for e2e now
-	// Run replay in a separate goroutine to avoid blocking filter registration
-	// Only replay when client and loader are available (not in barebone test setups)
-	client, err := lp.clientProvider(ctx)
-	if err != nil {
-		return 0, fmt.Errorf("failed to get client: %w", err)
-	}
-	if client != nil && lp.loader != nil {
-		go func() {
-			replayCtx := context.Background()
-			lp.lggr.Debugw("replaying logs for new filter", "filter", flt.Name, "fromBlock", flt.StartingSeqNo)
-			if err := lp.Replay(replayCtx, flt.StartingSeqNo); err != nil {
-				lp.lggr.Errorw("failed to replay logs for new filter", "filter", flt.Name, "error", err)
-			}
-		}()
-	} else {
-		lp.lggr.Debugw("skipping replay for new filter - client or loader not available", "filter", flt.Name)
 	}
 
 	return id, nil

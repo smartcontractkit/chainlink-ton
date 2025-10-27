@@ -7,9 +7,9 @@ CREATE TABLE IF NOT EXISTS ton.log_poller_filters (
   chain_id TEXT NOT NULL,
 
   name VARCHAR(255) NOT NULL,
-  address TEXT NOT NULL, -- user-friendly TON address *address.Address.String()
+  address TEXT NOT NULL, -- TON address in user-friendly format. TODO: consider use BYTEA for address field
   msg_type VARCHAR(20) NOT NULL,
-  event_sig BYTEA NOT NULL, -- CRC32 hash as 4-byte binary
+  event_sig BYTEA NOT NULL CHECK (octet_length(event_sig) = 4), -- CRC32 hash as 4-byte binary
 
   starting_seq_no INTEGER NOT NULL,
 
@@ -28,8 +28,8 @@ CREATE TABLE IF NOT EXISTS ton.log_poller_logs (
   filter_id BIGINT NOT NULL,
   chain_id TEXT NOT NULL,
 
-  address TEXT NOT NULL, -- user-friendly TON address
-  event_sig BYTEA NOT NULL, -- CRC32 hash as 4-byte binary
+  address TEXT NOT NULL, -- TON address in user-friendly format. TODO: consider use BYTEA for address field
+  event_sig BYTEA NOT NULL CHECK (octet_length(event_sig) = 4), -- CRC32 hash as 4-byte binary
   data BYTEA, -- BOC-encoded cell data
 
   tx_hash BYTEA NOT NULL,

@@ -12,6 +12,31 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
+// ReplayStatus represents the current state of a replay operation
+type ReplayStatus int
+
+const (
+	ReplayStatusNoRequest ReplayStatus = iota
+	ReplayStatusRequested
+	ReplayStatusPending
+	ReplayStatusComplete
+)
+
+func (rs ReplayStatus) String() string {
+	switch rs {
+	case ReplayStatusNoRequest:
+		return "NoRequest"
+	case ReplayStatusRequested:
+		return "Requested"
+	case ReplayStatusPending:
+		return "Pending"
+	case ReplayStatusComplete:
+		return "Complete"
+	default:
+		return "Unknown"
+	}
+}
+
 type TxHash [32]byte // transaction hash
 
 type Tx struct {

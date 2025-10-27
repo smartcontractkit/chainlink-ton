@@ -18,6 +18,7 @@ type Service interface {
 	UnregisterFilter(ctx context.Context, name string) error
 	HasFilter(ctx context.Context, name string) (bool, error)
 	Replay(ctx context.Context, fromBlock uint32) error
+	ReplayStatus() models.ReplayStatus
 	NewQuery() query.Builder
 }
 

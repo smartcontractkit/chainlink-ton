@@ -23,6 +23,17 @@ import (
 // It monitors external message outputs from specified addresses and
 // applies filtering logic to detect messages.
 
+// ReplayInfo tracks the state of a replay operation
+type ReplayInfo struct {
+	mut          sync.RWMutex
+	requestBlock uint32 // TON uses uint32 seqno
+	status       models.ReplayStatus
+}
+
+func (r *ReplayInfo) hasRequest() bool {
+	return r.status == models.ReplayStatusRequested || r.status == models.ReplayStatusPending
+}
+
 // service is the main TON log poller service.
 // It continuously polls the TON masterchain, discovers new blocks, and processes
 // external messages from registered filter addresses.
@@ -48,6 +59,9 @@ type service struct {
 	batchInsertSize uint32 // PostgreSQL batch insert size
 	minBatchSize    uint32 // Minimum batch size for timeout retry
 	saveThreshold   uint32 // Number of logs to buffer in memory before saving
+
+	// replay management
+	replay ReplayInfo // Tracks replay requests and status
 }
 
 type ServiceOptions struct {
@@ -74,6 +88,7 @@ func NewService(lggr logger.Logger, chainID string, clientProvider func(context.
 		minBatchSize:     opts.Config.MinBatchSize,
 		saveThreshold:    opts.Config.SaveThreshold,
 	}
+	lp.replay.status = models.ReplayStatusNoRequest
 	lp.Service, lp.eng = services.Config{
 		Name:  "TONLogPoller",
 		Start: lp.start,
@@ -123,7 +138,28 @@ func (lp *service) run(ctx context.Context) (err error) {
 		return blockRange.Prev.SeqNo
 	}(), "toSeq", blockRange.To.SeqNo)
 
-	// TODO: implement backfill logic(if there is filters marked for backfill)
+	// Check for replay request and override block range if needed
+	if hasReplay, fromBlock := lp.checkForReplayRequest(); hasReplay {
+		if fromBlock < blockRange.To.SeqNo {
+			// Lookup the block for replay starting point
+			prevBlock, err := lp.getBlockForReplay(ctx, fromBlock)
+			if err != nil {
+				lp.lggr.Errorw("Failed to get block for replay", "fromBlock", fromBlock, "err", err)
+				return err
+			}
+			blockRange.Prev = prevBlock
+			lp.lggr.Infow("Overriding block range for replay",
+				"originalFrom", func() uint32 {
+					if blockRange.Prev == nil {
+						return 0
+					}
+					return blockRange.Prev.SeqNo
+				}(),
+				"replayFrom", fromBlock,
+				"to", blockRange.To.SeqNo)
+		}
+	}
+
 	lp.lggr.Debugf("reading distinct addresses from filter store")
 	addresses, err := lp.filterStore.GetDistinctAddresses(ctx)
 	if err != nil {
@@ -138,6 +174,16 @@ func (lp *service) run(ctx context.Context) (err error) {
 
 	if err := lp.processBlockRange(ctx, blockRange, addresses); err != nil {
 		return fmt.Errorf("failed to process block range: %w", err)
+	}
+
+	// Mark replay as complete if it was active
+	if lp.replay.status == models.ReplayStatusPending {
+		lp.replayComplete(func() uint32 {
+			if blockRange.Prev == nil {
+				return 0
+			}
+			return blockRange.Prev.SeqNo
+		}(), blockRange.To.SeqNo)
 	}
 
 	lp.lastProcessedBlock = blockRange.To.SeqNo
@@ -156,7 +202,7 @@ func (lp *service) processBlockRange(ctx context.Context, blockRange *models.Blo
 	txsCh, loaderErrsCh := lp.loadTxsForAddresses(ctx, blockRange, addresses)
 	logsCh, processorErrsCh := lp.processTransactions(ctx, filterIndex, lp.chainID, txsCh)
 
-	// TODO: error metrics
+	// TODO: deal with error metrics here
 	go func() {
 		for err := range loaderErrsCh {
 			lp.lggr.Errorw("loader error", "err", err)
@@ -300,54 +346,101 @@ func (lp *service) saveLogs(ctx context.Context, logsCh <-chan models.Log) (int,
 	return totalSaved, nil
 }
 
+// Replay initiates a new replay request.
+// If a replay request has already been made since the previous replay was completed,
+// the request will be updated to use the lower of the two fromBlock values.
+// On the next LogPoller loop tick, all filters will be backfilled starting from fromBlock.
 func (lp *service) Replay(ctx context.Context, fromBlock uint32) error {
-	client, err := lp.clientProvider(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to get client: %w", err)
-	}
-	// TODO(2025-08-28@jadepark-dev): clean up, forcing replay for e2e now
-	// TODO: Replace with proper asynchronous backfill mechanism
-
-	toBlock, err := client.CurrentMasterchainInfo(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to get current masterchain info: %w", err)
-	}
+	lp.replay.mut.Lock()
+	defer lp.replay.mut.Unlock()
 
 	// Use safe lookback window if fromBlock is 0 (avoid replaying entire chain)
 	if fromBlock == 0 {
+		client, err := lp.clientProvider(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to get client: %w", err)
+		}
+		toBlock, err := client.CurrentMasterchainInfo(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to get current masterchain info: %w", err)
+		}
 		fromBlock = computeLookbackWindow(toBlock.SeqNo, lp.startingLookback, lp.blockTime)
 		lp.lggr.Infow("Replay with no starting block specified, using lookback window",
 			"lookbackSeqNo", fromBlock, "lookbackDuration", lp.startingLookback)
 	}
 
-	blockRange := &models.BlockRange{Prev: nil, To: toBlock}
-	var prevBlock *ton.BlockIDExt
-	if fromBlock != 0 {
-		prevBlock, err = client.LookupBlock(ctx, toBlock.Workchain, toBlock.Shard, fromBlock)
-		if err != nil {
-			return fmt.Errorf("LookupBlock for previous seqno %d: %w", fromBlock, err)
-		}
-		blockRange.Prev = prevBlock
-	}
-
-	lp.lggr.Debugw("replaying logs", "fromBlock", fromBlock, "toBlock", toBlock.SeqNo,
-		"blocksToProcess", toBlock.SeqNo-fromBlock)
-
-	// get addresses
-	addresses, err := lp.filterStore.GetDistinctAddresses(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to get distinct addresses: %w", err)
-	}
-	if len(addresses) == 0 {
+	if lp.replay.hasRequest() && lp.replay.requestBlock <= fromBlock {
+		lp.lggr.Warnf("Ignoring redundant replay request from %d, already requested from %d",
+			fromBlock, lp.replay.requestBlock)
 		return nil
 	}
 
-	// process block range
-	if err := lp.processBlockRange(ctx, blockRange, addresses); err != nil {
-		return fmt.Errorf("failed to process block range: %w", err)
+	lp.replay.requestBlock = fromBlock
+	if lp.replay.status != models.ReplayStatusPending {
+		lp.replay.status = models.ReplayStatusRequested
+	}
+	return nil
+}
+
+// ReplayStatus returns the current replay status of LogPoller:
+// - NoRequest: there have not been any replay requests yet since service startup
+// - Requested: a replay has been requested, but has not started yet
+// - Pending: a replay is currently in progress
+// - Complete: there was at least one replay executed since startup, but all have since completed
+func (lp *service) ReplayStatus() models.ReplayStatus {
+	lp.replay.mut.RLock()
+	defer lp.replay.mut.RUnlock()
+	return lp.replay.status
+}
+
+// checkForReplayRequest checks whether there have been any new replay requests since it was last called,
+// and if so sets the pending flag to true and returns the block number
+func (lp *service) checkForReplayRequest() (bool, uint32) {
+	lp.replay.mut.Lock()
+	defer lp.replay.mut.Unlock()
+
+	if !lp.replay.hasRequest() {
+		return false, 0
 	}
 
-	return nil
+	requestBlock := lp.replay.requestBlock
+	lp.lggr.Infow("Starting replay", "fromBlock", requestBlock)
+	lp.replay.status = models.ReplayStatusPending
+	return true, requestBlock
+}
+
+// replayComplete marks the replay as complete
+func (lp *service) replayComplete(fromBlock, toBlock uint32) {
+	lp.replay.mut.Lock()
+	defer lp.replay.mut.Unlock()
+
+	lp.lggr.Infow("Replay complete", "from", fromBlock, "to", toBlock)
+	lp.replay.status = models.ReplayStatusComplete
+	lp.replay.requestBlock = 0
+}
+
+// getBlockForReplay retrieves the block information for the given sequence number
+func (lp *service) getBlockForReplay(ctx context.Context, fromBlock uint32) (*ton.BlockIDExt, error) {
+	client, err := lp.clientProvider(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get client: %w", err)
+	}
+
+	toBlock, err := client.CurrentMasterchainInfo(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get current masterchain info: %w", err)
+	}
+
+	if fromBlock == 0 {
+		return nil, nil
+	}
+
+	prevBlock, err := client.LookupBlock(ctx, toBlock.Workchain, toBlock.Shard, fromBlock)
+	if err != nil {
+		return nil, fmt.Errorf("LookupBlock for seqno %d: %w", fromBlock, err)
+	}
+
+	return prevBlock, nil
 }
 
 // NewQuery creates a new query builder for constructing log queries.

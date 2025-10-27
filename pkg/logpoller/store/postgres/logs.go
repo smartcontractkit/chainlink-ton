@@ -45,6 +45,7 @@ func (s *pgLogStore) SaveLogs(ctx context.Context, logs []models.Log, batchInser
 	// Build SQL and execute with transaction and batching
 	totalInserted, err := s.insertLogsWithBatching(ctx, dbLogs, batchInsertSize, minBatchSize)
 	if err != nil {
+		s.lggr.Errorw("Failed to insert logs", "error", err, "logCount", len(dbLogs))
 		return 0, fmt.Errorf("failed to save logs to database: %w", err)
 	}
 	return totalInserted, nil
@@ -112,11 +113,6 @@ func (s *pgLogStore) insertLogsWithinTx(ctx context.Context, orm *DSORM, logs []
 		start, end := i, i+batchSize
 		if end > len(logs) {
 			end = len(logs)
-		}
-
-		// set chainID for all logs in the batch
-		for j := start; j < end; j++ {
-			logs[j].ChainID = s.chainID
 		}
 
 		rowsInserted, err := orm.NamedExecContext(ctx, query, logs[start:end])

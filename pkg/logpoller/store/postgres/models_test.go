@@ -42,14 +42,14 @@ func TestFilterModel_Conversion(t *testing.T) {
 }
 
 func TestFilterModel_InvalidAddress(t *testing.T) {
-	// Test conversion fails with invalid address
+	// Test conversion fails with invalid address string
 	eventSig := make([]byte, 4)
 	binary.BigEndian.PutUint32(eventSig, 12345)
 
 	dbFilter := filterModel{
 		ID:            1,
 		Name:          "test-filter",
-		Address:       "invalid-address",
+		Address:       "invalid-address-format", // Invalid TON address format
 		MsgType:       string(tlb.MsgTypeInternal),
 		EventSig:      eventSig,
 		StartingSeqNo: 100,

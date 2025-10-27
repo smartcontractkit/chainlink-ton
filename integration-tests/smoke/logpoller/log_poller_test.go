@@ -856,6 +856,118 @@ func Test_LogPoller(t *testing.T) {
 	})
 
 	t.Run("Log Poller Replay for a Contract", func(t *testing.T) {
-		t.Skip("TODO: Implement")
+		t.Parallel()
+
+		// 1. Setup: create new wallet and emitter
+		sender := test_utils.CreateRandomHighloadWallet(t, client)
+		test_utils.FundWallets(t, client, []*address.Address{sender.Address()},
+			[]tlb.Coins{tlb.MustFromTON("1000")})
+
+		emitter, err := helper.NewTestEventSource(client, sender, "replayEmitter",
+			rand.Uint32(), logger.Test(t))
+		require.NoError(t, err)
+
+		// 2. Emit events before logpoller starts
+		const preReplayEvents = 5
+		for i := 1; i <= preReplayEvents; i++ {
+			_, _, err = emitter.SendIncreaseCounterMsg(t.Context())
+			require.NoError(t, err)
+		}
+
+		// Wait for transactions to be confirmed by checking counter value
+		require.Eventually(t, func() bool {
+			counterValue, err := counter.GetValue(t.Context(), client, emitter.ContractAddress())
+			if err != nil {
+				t.Logf("failed to get counter value: %v", err)
+				return false
+			}
+			return counterValue == preReplayEvents
+		}, 30*time.Second, 1*time.Second, "counter should reach expected value")
+
+		counterValue, _ := counter.GetValue(t.Context(), client, emitter.ContractAddress())
+		require.Equal(t, preReplayEvents, int(counterValue))
+
+		// 3. Start LogPoller (with in-memory stores)
+		lggr := logger.Test(t)
+		opts := &logpoller.ServiceOptions{
+			Config:      logpoller.DefaultConfigSet,
+			FilterStore: inmemorystore.NewFilterStore("test-chain", lggr),
+			TxLoader:    txloader.New(lggr, clientProvider),
+			LogStore:    inmemorystore.NewLogStore("test-chain", lggr),
+		}
+		lp := logpoller.NewService(lggr, "test-chain", clientProvider, opts)
+
+		// 4. Register filter (without replay)
+		filter := models.Filter{
+			Name:     "ReplayFilter",
+			Address:  emitter.ContractAddress(),
+			MsgType:  tlb.MsgTypeExternalOut,
+			EventSig: counter.TopicCountIncreased,
+		}
+		_, err = lp.RegisterFilter(t.Context(), filter)
+		require.NoError(t, err)
+
+		require.NoError(t, lp.Start(t.Context()))
+		defer func() { require.NoError(t, lp.Close()) }()
+
+		// 5. Verify no logs before replay
+		logs, _, _, _ := lp.NewQuery().
+			WithSource(emitter.ContractAddress()).
+			WithEventSig(counter.TopicCountIncreased).
+			Execute(t.Context())
+		require.Empty(t, logs, "should have no logs before replay")
+
+		// 6. Request replay
+		currentBlock, err := client.CurrentMasterchainInfo(t.Context())
+		require.NoError(t, err)
+		fromBlock := currentBlock.SeqNo - 100 // sufficiently old block
+
+		err = lp.Replay(t.Context(), fromBlock)
+		require.NoError(t, err)
+
+		// 7. Verify replay status
+		status := lp.ReplayStatus()
+		require.Contains(t, []models.ReplayStatus{
+			models.ReplayStatusRequested,
+			models.ReplayStatusPending,
+		}, status, "replay should be requested or pending")
+
+		// 8. Wait for replay completion and verify logs
+		require.Eventually(t, func() bool {
+			status := lp.ReplayStatus()
+			if status != models.ReplayStatusComplete {
+				t.Logf("waiting for replay to complete, current status: %v", status)
+				return false
+			}
+
+			logs, _, _, err := lp.NewQuery().
+				WithSource(emitter.ContractAddress()).
+				WithEventSig(counter.TopicCountIncreased).
+				Execute(t.Context())
+			if err != nil {
+				t.Logf("query error: %v", err)
+				return false
+			}
+
+			result, _ := query.DecodedLogs[counter.CountIncreased](logs)
+			t.Logf("found %d logs after replay", len(result))
+			return len(result) == preReplayEvents
+		}, 60*time.Second, 2*time.Second, "replay should complete and index all events")
+
+		// 9. Emit additional events and verify normal polling works
+		const postReplayEvents = 3
+		for i := 1; i <= postReplayEvents; i++ {
+			_, _, err = emitter.SendIncreaseCounterMsg(t.Context())
+			require.NoError(t, err)
+		}
+
+		require.Eventually(t, func() bool {
+			logs, _, _, _ := lp.NewQuery().
+				WithSource(emitter.ContractAddress()).
+				WithEventSig(counter.TopicCountIncreased).
+				Execute(t.Context())
+			result, _ := query.DecodedLogs[counter.CountIncreased](logs)
+			return len(result) == preReplayEvents+postReplayEvents
+		}, 30*time.Second, 2*time.Second, "should index new events after replay")
 	})
 }

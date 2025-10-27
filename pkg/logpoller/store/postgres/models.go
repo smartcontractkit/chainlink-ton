@@ -19,7 +19,7 @@ type filterModel struct {
 	ID            int64     `db:"id"`
 	ChainID       string    `db:"chain_id"`
 	Name          string    `db:"name"`
-	Address       string    `db:"address"` // user-friendly TON address string
+	Address       string    `db:"address"` // TON address in user-friendly format
 	MsgType       string    `db:"msg_type"`
 	EventSig      []byte    `db:"event_sig"` // CRC32 hash as 4-byte binary
 	StartingSeqNo uint32    `db:"starting_seq_no"`
@@ -42,13 +42,14 @@ func (f *filterModel) FromFilter(filter lptypes.Filter) filterModel {
 
 // ToFilter converts a FilterModel to models.Filter
 func (f filterModel) ToFilter() (lptypes.Filter, error) {
+	if len(f.EventSig) != 4 {
+		return lptypes.Filter{}, fmt.Errorf("invalid event_sig length: expected 4 bytes, got %d", len(f.EventSig))
+	}
+
+	// Parse address from string format
 	addr, err := address.ParseAddr(f.Address)
 	if err != nil {
 		return lptypes.Filter{}, fmt.Errorf("failed to parse address %s: %w", f.Address, err)
-	}
-
-	if len(f.EventSig) != 4 {
-		return lptypes.Filter{}, fmt.Errorf("invalid event_sig length: expected 4 bytes, got %d", len(f.EventSig))
 	}
 
 	return lptypes.Filter{
@@ -66,7 +67,7 @@ type logModel struct {
 	ID               int64     `db:"id"`
 	FilterID         int64     `db:"filter_id"`
 	ChainID          string    `db:"chain_id"`
-	Address          string    `db:"address"`
+	Address          string    `db:"address"`   // TON address in user-friendly format
 	EventSig         []byte    `db:"event_sig"` // CRC32 hash as 4-byte binary
 	Data             []byte    `db:"data"`
 	TxHash           []byte    `db:"tx_hash"`
@@ -115,7 +116,11 @@ func (l *logModel) FromLog(log lptypes.Log) logModel {
 
 // ToLog converts a logModel to models.Log
 func (l logModel) ToLog() (lptypes.Log, error) {
-	// Convert address string back to address.Address
+	if len(l.EventSig) != 4 {
+		return lptypes.Log{}, fmt.Errorf("invalid event_sig length: expected 4 bytes, got %d", len(l.EventSig))
+	}
+
+	// Parse address from string format
 	addr, err := address.ParseAddr(l.Address)
 	if err != nil {
 		return lptypes.Log{}, fmt.Errorf("failed to parse address %s: %w", l.Address, err)
@@ -139,10 +144,6 @@ func (l logModel) ToLog() (lptypes.Log, error) {
 	msgLT, err := strconv.ParseUint(l.MsgLT, 10, 64)
 	if err != nil {
 		return lptypes.Log{}, fmt.Errorf("failed to parse MsgLT %s: %w", l.MsgLT, err)
-	}
-
-	if len(l.EventSig) != 4 {
-		return lptypes.Log{}, fmt.Errorf("invalid event_sig length: expected 4 bytes, got %d", len(l.EventSig))
 	}
 
 	var txHash lptypes.TxHash
