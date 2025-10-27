@@ -54,7 +54,14 @@ func FetchResultHelper[T any](
 	opts T,
 	fromResult func(*ton.ExecutionResult) error,
 ) error {
-	result, err := client.RunGetMethod(ctx, block, contractAddr, method, opts)
+	var result *ton.ExecutionResult
+	var err error
+	var zero T
+	if any(opts) == any(zero) {
+		result, err = client.RunGetMethod(ctx, block, contractAddr, method)
+	} else {
+		result, err = client.RunGetMethod(ctx, block, contractAddr, method, opts)
+	}
 	if err != nil {
 		return fmt.Errorf("error getting %s: %w", method, err)
 	}
