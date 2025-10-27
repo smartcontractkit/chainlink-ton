@@ -269,12 +269,9 @@ func FetchSrcChainConfig(ctx context.Context, client ton.APIClientWrapped, block
 
 	for _, dest := range chainSelectors {
 		eg.Go(func() error {
-			result, err := client.RunGetMethod(ctx, block, offRampAddr, common.SrcChainConfigGetter, dest)
-			if err != nil {
-				return err
-			}
 			var cfg SourceChainConfig
-			if err = cfg.FromResult(result); err != nil {
+			opts := []interface{}{dest}
+			if err = cfg.FetchResult(ctx, client, block, offRampAddr, opts); err != nil {
 				return err
 			}
 
