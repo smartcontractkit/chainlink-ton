@@ -50,7 +50,7 @@ type UpdateOffRamps struct {
 	QueryID	                  uint64                              `tlb:"## 64"`
 	SourceChainSelectorAdd    common.SnakeData[ChainSelector] `tlb:"^"`
 	OffRampAdd                *address.Address `tlb:"maybe addr"`
-	sourceChainSelectorRemove common.SnakeData[ChainSelector] `tlb:"^"`
+	SourceChainSelectorRemove common.SnakeData[ChainSelector] `tlb:"^"`
 	OffRampRemove *address.Address `tlb:"maybe addr"`
 }
 

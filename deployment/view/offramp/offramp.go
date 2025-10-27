@@ -73,7 +73,7 @@ func FetchView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, off
 
 // fetchSrcChainConfig retrieves source chain configurations from the off-ramp contract.
 func fetchSrcChainConfig(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, offRampAddr *address.Address) (map[uint64]offramp.SourceChainConfig, error) {
-	result, err := c.Client.RunGetMethod(ctx, block, offRampAddr, view.DestChainsGetter)
+	result, err := c.Client.RunGetMethod(ctx, block, offRampAddr, view.SourceChainsGetter)
 	if err != nil {
 		return nil, err
 	}
@@ -84,9 +84,9 @@ func fetchSrcChainConfig(ctx context.Context, c cldf_ton.Chain, block *ton.Block
 	output := make(map[uint64]offramp.SourceChainConfig)
 	chainSelectors := view.ParseExecutionResultForDestChainSelectors(result.AsTuple())
 
-	for _, dest := range chainSelectors {
+	for _, source := range chainSelectors {
 		eg.Go(func() error {
-			result, err := c.Client.RunGetMethod(ctx, block, offRampAddr, view.SrcChainConfigGetter, dest)
+			result, err := c.Client.RunGetMethod(ctx, block, offRampAddr, view.SrcChainConfigGetter, source)
 			if err != nil {
 				return err
 			}
@@ -96,7 +96,7 @@ func fetchSrcChainConfig(ctx context.Context, c cldf_ton.Chain, block *ton.Block
 			}
 
 			lock.Lock()
-			output[dest] = cfg
+			output[source] = cfg
 			lock.Unlock()
 			return nil
 		})

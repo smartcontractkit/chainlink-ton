@@ -15,7 +15,6 @@ struct Storage {
     // dynamic config
     permissionlessExecutionThresholdSeconds: uint32,
 
-    // Router is fetched from the SourceChainConfig 
     sourceChainConfigs: map<uint64, SourceChainConfig>;
 
     // This is the OCR sequence number, not to be confused with the CCIP message sequence number.

@@ -539,7 +539,7 @@ get fun latestPriceSequenceNumber(): uint64 {
     return st.latestPriceSequenceNumber
 }
 
-get fun destChainSelectors(): tuple? {
+get fun sourceChainSelectors(): tuple? {
     val st = lazy Storage.load();
     var d = st.sourceChainConfigs;
     return keysLispList(d)!;
