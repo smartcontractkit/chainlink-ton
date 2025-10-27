@@ -33,7 +33,7 @@ export enum RouterError {
 }
 
 export type Storage = {
-  id: number
+  id: bigint
   ownable: ownable2step.Data
   onRamps: Dictionary<bigint, Address>
   offRamps: Dictionary<bigint, Address>
@@ -133,6 +133,7 @@ export class Router
       body: body,
     })
   }
+
 
   sendUpgrade(
     provider: ContractProvider,
@@ -320,7 +321,7 @@ export const builder = {
 
       load: (src: Slice): Storage => {
         return {
-          id: src.loadUint(32),
+          id: src.loadUintBig(32),
           ownable: ownable2step.builder.data.traitData.load(src.loadRef().beginParse()),
           onRamps: Dictionary.empty(Dictionary.Keys.BigUint(64)), 
           offRamps: Dictionary.empty(Dictionary.Keys.BigUint(64))

@@ -48,7 +48,7 @@ describe('Router - Withdrawable Tests', () => {
     deployContract: async (blockchain, owner) => {
       const code = await compile('Router')
       let data: rt.Storage = {
-        id: 0,
+        id: 0n,
         ownable: {
           owner: owner.address,
           pendingOwner: null,
@@ -57,7 +57,6 @@ describe('Router - Withdrawable Tests', () => {
         offRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
       }
 
-      // TODO: use deployable to make deterministic?
       const contract = blockchain.openContract(rt.Router.createFromConfig(data, code))
       const deployer = await blockchain.treasury('deployer')
       await contract.sendInternal(deployer.getSender(), toNano('1'), Cell.EMPTY)
@@ -104,7 +103,7 @@ describe('Router - Current Version Tests', () => {
     deployCurrentContract: async (blockchain, owner) => {
       const code = await rt.Router.code()
       let data: rt.Storage = {
-        id: 0,
+        id: 0n,
         ownable: {
           owner: owner.address,
           pendingOwner: null,
@@ -135,9 +134,7 @@ describe('Router', () => {
     blockchain = await Blockchain.create()
     deployer = await blockchain.treasury('deployer')
     sender = await blockchain.treasury('sender')
-
     let deployerCode = await compile('Deployable')
-
     let merkleRootCodeRaw = await compile('MerkleRoot')
 
     // Populate the emulator library code
@@ -149,7 +146,7 @@ describe('Router', () => {
     // Mock UpdatePrices Message handler
     let routerCode = await compile('Router')
     let data: rt.Storage = {
-      id: 0,
+      id: 0n,
       ownable: {
         owner: deployer.address,
         pendingOwner: null,

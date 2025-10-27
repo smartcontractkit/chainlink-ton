@@ -54,13 +54,12 @@ import { crc32 } from 'zlib'
 import { facilityId } from '../../wrappers/utils'
 import { MerkleHelper } from '../lib/merkle_proof/helpers/MerkleMultiProofHelper'
 import * as UpgradeableSpec from '../lib/versioning/UpgradeableSpec'
-import { Router } from '../../wrappers/ccip/Router'
+import * as rt from '../../wrappers/ccip/Router'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_TON = 13879075125137744094n
 const EVM_SENDER_ADDRESS_TEST = 0x1a5fdbc891c5d4e6ad68064ae45d43146d4f9f3an
 const EVM_ONRAMP_ADDRESS_TEST = 0x111111c891c5d4e6ad68064ae45d43146d4f9f3an
-const ROUTER_ADDRESS_TEST = generateMockTonAddress()
 const LEAF_DOMAIN_SEPARATOR = beginCell().storeUint(0, 256).asSlice()
 
 // These have to match the EVM states
@@ -233,7 +232,7 @@ describe('OffRamp - Unit Tests', () => {
   let blockchain: Blockchain
   let deployer: SandboxContract<TreasuryContract>
   let offRamp: SandboxContract<OffRamp>
-  let router: SandboxContract<Router>
+  let router: SandboxContract<rt.Router>
   let feeQuoter: SandboxContract<FeeQuoter>
   let receiver: SandboxContract<Receiver>
   let deployerCode: Cell
@@ -260,7 +259,7 @@ describe('OffRamp - Unit Tests', () => {
   })
 
   const createDefaultSourceChainConfig = (overrides = {}): SourceChainConfig => ({
-    router: ROUTER_ADDRESS_TEST,
+    router: router.address,
     isEnabled: true,
     minSeqNr: 1n,
     isRMNVerificationDisabled: true,
@@ -495,7 +494,7 @@ describe('OffRamp - Unit Tests', () => {
     // setup fee quoter
     feeQuoter = await setupTestFeeQuoter(deployer, blockchain)
 
-    // setup router
+
   })
 
   beforeEach(async () => {
@@ -542,6 +541,7 @@ describe('OffRamp - Unit Tests', () => {
       }
 
       offRamp = blockchain.openContract(OffRamp.createFromConfig(data, code))
+      console.log(offRamp.address)
 
       let result = await offRamp.sendDeploy(deployer.getSender(), toNano('10000'))
       expect(result.transactions).toHaveTransaction({
@@ -551,12 +551,46 @@ describe('OffRamp - Unit Tests', () => {
         success: true,
       })
     }
+    // setup router
+    //
+    {
+      const code = await compile('Router')
+      let data: rt.Storage = {
+        id: generateSecureRandomId(), 
+        ownable: {
+          owner: deployer.address,
+          pendingOwner: null,
+        },
+        onRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
+        offRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
+      }
+
+      router = blockchain.openContract(rt.Router.createFromConfig(data, code))
+
+      const result = await router.sendInternal(deployer.getSender(), toNano('1'), Cell.EMPTY)
+
+      expect(result.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: router.address,
+        deploy: true,
+        success: true,
+      })
+
+      // setup ramp
+      const updateRampsResult = await router.sendUpdateOffRamps(deployer.getSender(), {
+          value: toNano('1'),
+          queryId: 0,
+          sourceChainSelectorAdd: [CHAINSEL_EVM_TEST_90000001],
+          offRampAdd: offRamp.address,
+          sourceChainSelectorRemove: [],
+      }) 
+    }
 
     // Deploy test receiver
     {
       let code = await compile('ccip.test.receiver')
       receiver = blockchain.openContract(
-        Receiver.createFromConfig({ id: 1, offramp: offRamp.address }, code),
+        Receiver.createFromConfig({ id: 1, router: router.address }, code),
       )
       const result = await receiver.sendDeploy(deployer.getSender(), toNano('10'))
       expect(result.transactions).toHaveTransaction({
@@ -567,6 +601,8 @@ describe('OffRamp - Unit Tests', () => {
       })
     }
   }, 60_000) // setup can take a while, since we deploy contracts
+
+  
 
   it('should deploy', async () => {
     // the check is done inside beforeEach
@@ -735,7 +771,7 @@ describe('OffRamp - Unit Tests', () => {
 
     // Check that no message was sent to the receiver (message processing failed)
     expect(executeResult.transactions).not.toHaveTransaction({
-      from: offRamp.address,
+      from: router.address,
       to: receiver.address,
     })
   })
@@ -787,7 +823,7 @@ describe('OffRamp - Unit Tests', () => {
 
     // Check that no message was sent to the receiver (message verification failed)
     expect(executeResult.transactions).not.toHaveTransaction({
-      from: offRamp.address,
+      from: router.address,
       to: receiver.address,
     })
   })
@@ -826,7 +862,7 @@ describe('OffRamp - Unit Tests', () => {
     })
 
     expect(firstExecuteResult.transactions).toHaveTransaction({
-      from: offRamp.address,
+      from: router.address,
       to: receiver.address,
       success: true,
     })
@@ -913,7 +949,7 @@ describe('OffRamp - Unit Tests', () => {
 
     // Message should be successfully processed to the receiver
     expect(result.transactions).toHaveTransaction({
-      from: offRamp.address,
+      from: router.address,
       to: receiver.address,
       success: true,
     })
@@ -1130,7 +1166,7 @@ describe('OffRamp - Unit Tests', () => {
 
     // Message should be successfully processed by the receiver
     expect(result.transactions).toHaveTransaction({
-      from: offRamp.address,
+      from: router.address,
       to: receiver.address,
       success: true,
     })
@@ -1171,7 +1207,7 @@ describe('OffRamp - Unit Tests', () => {
     const result = await executeReport(report)
 
     expect(result.transactions).toHaveTransaction({
-      from: offRamp.address,
+      from: router.address,
       to: receiver.address,
       success: true,
     })
@@ -1208,9 +1244,9 @@ describe('OffRamp - Unit Tests', () => {
   it('Test receiver rejects message from wrong offRamp and emits ExecutionStateChanged: Failure', async () => {
     // Deploy a receiver with WRONG offRamp address - it will reject messages from the real offRamp
     let code = await compile('ccip.test.receiver')
-    const wrongOffRampAddress = generateMockTonAddress() // Use a different address
+    const wrongRouterAddress = generateMockTonAddress() // Use a different address
     const badReceiver = blockchain.openContract(
-      Receiver.createFromConfig({ id: 1, offramp: wrongOffRampAddress }, code),
+      Receiver.createFromConfig({ id: 1, router: wrongRouterAddress }, code),
     )
     const result = await badReceiver.sendDeploy(deployer.getSender(), toNano('10'))
 
@@ -1236,7 +1272,7 @@ describe('OffRamp - Unit Tests', () => {
 
     // Message should bounce from the bad receiver (wrong offRamp check fails)
     expect(executeResult.transactions).toHaveTransaction({
-      from: offRamp.address,
+      from: router.address,
       to: badReceiver.address,
       success: false,
     })
@@ -1340,7 +1376,7 @@ describe('OffRamp - Unit Tests', () => {
 
     // First message should be successfully processed
     expect(result.transactions).toHaveTransaction({
-      from: offRamp.address,
+      from: router.address,
       to: receiver.address,
       success: true,
     })
@@ -1398,7 +1434,7 @@ describe('OffRamp - Unit Tests', () => {
 
     // Second message should be successfully processed
     expect(result.transactions).toHaveTransaction({
-      from: offRamp.address,
+      from: router.address,
       to: receiver.address,
       success: true,
     })
@@ -1453,7 +1489,7 @@ describe('OffRamp - Unit Tests', () => {
       const result = await executeReport(report)
 
       expect(result.transactions).toHaveTransaction({
-        from: offRamp.address,
+        from: router.address,
         to: receiver.address,
         success: true,
       })
@@ -1487,7 +1523,7 @@ describe('OffRamp - Unit Tests', () => {
       const result = await executeReport(report)
 
       expect(result.transactions).toHaveTransaction({
-        from: offRamp.address,
+        from: router.address,
         to: receiver.address,
         success: true,
       })
@@ -1561,7 +1597,7 @@ describe('OffRamp - Unit Tests', () => {
 
     // Message should not reach the receiver
     expect(result.transactions).not.toHaveTransaction({
-      from: offRamp.address,
+      from: router.address,
       to: receiver.address,
     })
   })
@@ -1613,7 +1649,7 @@ describe('OffRamp - Unit Tests', () => {
 
     // Middle message should be successfully processed
     expect(result.transactions).toHaveTransaction({
-      from: offRamp.address,
+      from: router.address,
       to: receiver.address,
       success: true,
     })
@@ -1680,7 +1716,7 @@ describe('OffRamp - Unit Tests', () => {
 
       // Each message should be successfully processed
       expect(result.transactions).toHaveTransaction({
-        from: offRamp.address,
+        from: router.address,
         to: receiver.address,
         success: true,
       })
@@ -1750,7 +1786,7 @@ describe('OffRamp - Unit Tests', () => {
 
       // Each message should be successfully processed
       expect(result.transactions).toHaveTransaction({
-        from: offRamp.address,
+        from: router.address,
         to: receiver.address,
         success: true,
       })

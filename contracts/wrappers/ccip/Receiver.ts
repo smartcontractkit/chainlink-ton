@@ -34,7 +34,7 @@ export enum ReceiverError {
 
 export type ReceiverStorage = {
   id: number
-  offramp: Address
+  router: Address
 }
 
 export abstract class Params {}
@@ -109,13 +109,13 @@ export const builder = {
   data: (() => {
     const contractData: CellCodec<ReceiverStorage> = {
       encode: (config: ReceiverStorage): Builder => {
-        return beginCell().storeUint(config.id, 32).storeAddress(config.offramp)
+        return beginCell().storeUint(config.id, 32).storeAddress(config.router)
       },
 
       load: (src: Slice): ReceiverStorage => {
         return {
           id: src.loadUint(32),
-          offramp: src.loadAddress(),
+          router: src.loadAddress(),
         }
       },
     }
