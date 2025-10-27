@@ -62,9 +62,9 @@ func TON2EVMMessaging(ctx context.Context, lggr logger.Logger) (*lib.TestResult,
 	if err != nil {
 		lggr.Warnw("Failed to get sender address", "error", err)
 	} else if senderAddr != "" {
-		balance, err := testCtx.Source.GetBalance(ctx, senderAddr)
-		if err != nil {
-			lggr.Warnw("Failed to get sender balance", "error", err)
+		balance, balanceErr := testCtx.Source.GetBalance(ctx, senderAddr)
+		if balanceErr != nil {
+			lggr.Warnw("Failed to get sender balance", "error", balanceErr)
 		} else {
 			senderBalance = balance
 		}

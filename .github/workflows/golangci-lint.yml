@@ -10,20 +10,49 @@ env:
   CONFIG_URL: https://raw.githubusercontent.com/smartcontractkit/chainlink/develop/.golangci.yml
 
 jobs:
+  discover-modules:
+    name: Discover Go modules
+    runs-on: ubuntu-latest
+    outputs:
+      dirs: ${{ steps.set-matrix.outputs.dirs }}
+    
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v5
+
+      - name: Discover Go modules
+        id: set-matrix
+        run: |
+          DIRS=$(find . -name go.mod -exec dirname {} \; | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          echo "go modules: $DIRS"
+          echo "dirs=$DIRS" >> "$GITHUB_OUTPUT"
+
   golangci-lint:
     name: Lint ${{ matrix.dir }}
+    needs: [discover-modules]
     runs-on: ubuntu-latest
 
     strategy:
+      fail-fast: false
       matrix:
-        dir: [integration-tests, pkg, deployment]
-
-    # REPORT_PATH will be, e.g.,
-    # integration-tests/golangci-lint-integration-tests-report.xml
-    env:
-      REPORT_PATH: ${{ format('{0}/golangci-lint-{0}-report.xml', matrix.dir) }}
+        dir: ${{ fromJSON(needs.discover-modules.outputs.dirs) }}
 
     steps:
+      # This step calculates the *absolute paths* for reports,
+      # so they are correct even after we 'cd' into subdirectories.
+      - name: Set module names and paths
+        id: vars
+        run: |
+          MODULE_PATH="${{ matrix.dir }}"
+          if [ "$MODULE_PATH" == "." ]; then
+            MODULE_ID="root"
+          else
+            MODULE_ID=$(echo "$MODULE_PATH" | sed 's|^\./||; s|/|-|g')
+          fi
+          
+          echo "MODULE_ID=$MODULE_ID" >> "$GITHUB_OUTPUT"
+          echo "REPORT_PATH=${{ github.workspace }}/golangci-lint-${MODULE_ID}-report.xml" >> "$GITHUB_OUTPUT"
+
       - name: Check out code
         uses: actions/checkout@v5
 
@@ -44,24 +73,29 @@ jobs:
 
       - name: Run golangci-lint
         run: |
+          echo "Linting module in: ${{ matrix.dir }}"
+          echo "Report will be saved to: ${{ steps.vars.outputs.REPORT_PATH }}"
+
           cd ${{ matrix.dir }}
+          
           nix develop -c golangci-lint run ./... \
-            --config ../.golangci.yml \
-            --output.checkstyle.path="${{ env.REPORT_PATH }}"
+            --config "${{ github.workspace }}/.golangci.yml" \
+            --output.checkstyle.path="${{ steps.vars.outputs.REPORT_PATH }}"
 
       - name: Print lint report on failure
         if: failure()
         run: |
-          if [ -f "${{ env.REPORT_PATH }}" ]; then
-            cat "${{ env.REPORT_PATH }}"
+          REPORT_PATH="${{ steps.vars.outputs.REPORT_PATH }}"
+          if [ -f "$REPORT_PATH" ]; then
+            echo "--- Linting Errors for ${{ steps.vars.outputs.MODULE_ID }} ---"
+            cat "$REPORT_PATH"
           else
-            echo "No report file found at: ${{ env.REPORT_PATH }}"
-            ls -la "$(dirname "${{ env.REPORT_PATH }}")"
+            echo "No report file found at: $REPORT_PATH"
           fi
 
       - name: Upload lint report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.dir }}-lint-report
-          path: ${{ env.REPORT_PATH }}
+          name: ${{ steps.vars.outputs.MODULE_ID }}-lint-report
+          path: ${{ steps.vars.outputs.REPORT_PATH }}

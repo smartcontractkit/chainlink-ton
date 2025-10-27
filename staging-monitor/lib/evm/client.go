@@ -261,7 +261,7 @@ func (c *Client) WaitForMessageReceived(ctx context.Context, lggr logger.Logger,
 				}
 
 				gotData := string(decoded.Data)
-				gotMessageID := hex.EncodeToString(decoded.MessageId[:])
+				gotMessageID := hex.EncodeToString(decoded.MessageID[:])
 
 				// Match on messageID if provided, otherwise match on data
 				if messageID != "" && gotMessageID != messageID {
@@ -292,7 +292,7 @@ func (c *Client) GetBalance(ctx context.Context, address string) (string, error)
 
 func (c *Client) GetWalletAddress() (string, error) {
 	if c.wallet == nil {
-		return "", fmt.Errorf("wallet not initialized")
+		return "", errors.New("wallet not initialized")
 	}
 	return c.wallet.From.Hex(), nil
 }

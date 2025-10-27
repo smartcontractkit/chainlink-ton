@@ -3,6 +3,7 @@ package ton
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"math/big"
 	"strings"
@@ -354,7 +355,7 @@ func (c *Client) GetBalance(ctx context.Context, addrStr string) (string, error)
 
 func (c *Client) GetWalletAddress() (string, error) {
 	if c.wallet == nil {
-		return "", fmt.Errorf("wallet not initialized")
+		return "", errors.New("wallet not initialized")
 	}
 	return c.wallet.Address().String(), nil
 }
