@@ -14,30 +14,46 @@ import (
 const (
 	OpcodeSetRamps = 0x10000001
 	OpcodeCCIPSend = 0x00000001
+	OpcodeUpdateOffRamps = 0x00000005
 )
 
 const (
-	ErrorDestChainNotEnabled tvm.ExitCode = tvm.ExitCode(0x1001)
-	ErrorUnknownMessage      tvm.ExitCode = tvm.ExitCode(0x1002)
+	ErrorDestChainNotEnabled   tvm.ExitCode = tvm.ExitCode(49600)
+	ErrorSourceChainNotEnabled tvm.ExitCode = tvm.ExitCode(49601)
+        SenderIsNotOffRamp         tvm.ExitCode = tvm.ExitCode(49602)
+        OffRampNotSetForSelector   tvm.ExitCode = tvm.ExitCode(49603)
+        OffRampAddressMismatch     tvm.ExitCode = tvm.ExitCode(49604)
+	ErrorUnknownMessage        tvm.ExitCode = tvm.ExitCode(0x1002)
 )
 
 type Storage struct {
 	ID      uint32              `tlb:"## 32"`
 	Ownable common.Ownable2Step `tlb:"."`
 	OnRamps *cell.Dictionary    `tlb:"dict 64"`
+	OffRamps *cell.Dictionary    `tlb:"dict 64"`
 }
 
-// DestChainSelector is a wrapper uint64 to support SnakeData encoding.
-type DestChainSelector struct {
+// ChainSelector is a wrapper uint64 to support SnakeData encoding.
+type ChainSelector struct {
 	Value uint64 `tlb:"## 64"`
 }
 
 type SetRamps struct {
 	_                  tlb.Magic                           `tlb:"#10000001"` //nolint:revive // Ignore opcode tag
 	QueryID            uint64                              `tlb:"## 64"`
-	DestChainSelectors common.SnakeData[DestChainSelector] `tlb:"^"`
+	DestChainSelectors common.SnakeData[ChainSelector] `tlb:"^"`
 	OnRamps            *address.Address                    `tlb:"addr"`
 }
+
+type UpdateOffRamps struct {
+	_		          tlb.Magic                           `tlb:"#00000005"` //nolint:revive // Ignore opcode tag
+	QueryID	                  uint64                              `tlb:"## 64"`
+	SourceChainSelectorAdd    common.SnakeData[ChainSelector] `tlb:"^"`
+	OffRampAdd                *address.Address `tlb:"maybe addr"`
+	sourceChainSelectorRemove common.SnakeData[ChainSelector] `tlb:"^"`
+	OffRampRemove *address.Address `tlb:"maybe addr"`
+}
+
 
 // TokenAmount is a structure that holds the amount and token address for a CCIP transaction.
 type TokenAmount struct {
