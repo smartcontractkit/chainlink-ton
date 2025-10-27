@@ -35,6 +35,10 @@ pkgs.mkShell {
     ]
     ++ lib.optionals stdenv.hostPlatform.isDarwin [
       libiconv
+      # macOS SDK 15 required for Go 1.25+ which needs SecTrustCopyCertificateChain
+      # Default darwin SDK is 11.3, but Go 1.25 requires at least SDK 12
+      # https://github.com/NixOS/nixpkgs/issues/433688#issuecomment-3231551949
+      apple-sdk_15
     ];
   shellHook = ''
     # use upstream golangci-lint config from core Chainlink repository, overriding the local prefixes
