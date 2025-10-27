@@ -119,6 +119,7 @@ type SubmitErrorReport struct {
 
 // Message sent by the owner to transfer the oracle role.
 type TransferOracleRole struct {
+	_ tlb.Magic `tlb:"#f275742f"` //nolint:revive // (opcode) should stay uninitialized
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
@@ -397,7 +398,7 @@ func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 		ecMin = int32(ErrorOutOfBoundsNumSigners)
 		ecMax = int32(ErrorUnauthorizedOracle)
 	)
-	return tvm.NewExitCodeFromRange(ExitCode(ec), ecMin, ecMax)
+	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
 }
 
 const (

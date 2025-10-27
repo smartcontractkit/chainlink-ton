@@ -16,7 +16,7 @@ type ExitCode tvm.ExitCode
 var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
 
 func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
-	return tvm.NewExitCodeFromSet(ExitCode(ec), []ExitCode{
+	return tvm.NewExitCodeInSet(ExitCode(ec), []ExitCode{
 		ErrorInvalidOp,
 		ErrorWrongOp,
 		ErrorNotOwner,

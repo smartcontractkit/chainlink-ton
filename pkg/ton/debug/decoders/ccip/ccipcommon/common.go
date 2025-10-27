@@ -12,11 +12,11 @@ import (
 )
 
 type decoder struct {
-	tlbs map[uint64]interface{}
+	tlbsCtx map[uint64]interface{}
 }
 
-func NewDecoder(tlbs map[uint64]interface{}) lib.ContractDecoder {
-	return &decoder{tlbs}
+func NewDecoder(tlbsCtx map[uint64]interface{}) lib.ContractDecoder {
+	return &decoder{tlbsCtx}
 }
 
 // ContractType implements lib.ContractDecoder.

@@ -1,8 +1,6 @@
 package wallet
 
 import (
-	"maps"
-
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 
@@ -22,13 +20,11 @@ var TLBs = lib.MustNewTLBMap([]interface{}{
 })
 
 type decoder struct {
-	tlbs map[uint64]interface{}
+	tlbsCtx map[uint64]interface{}
 }
 
 func NewDecoder(tlbsCtx map[uint64]interface{}) lib.ContractDecoder {
-	tlbs := maps.Clone(tlbsCtx)
-	maps.Copy(tlbs, TLBs)
-	return &decoder{tlbs}
+	return &decoder{tlbsCtx}
 }
 
 // ContractType implements lib.ContractDecoder.
@@ -49,17 +45,22 @@ func (d *decoder) ExternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
 // InternalMessageInfo implements lib.ContractDecoder.
 func (d *decoder) InternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
 	// TODO: use lib.Wrapper to describe generic payloads
-	info, err := lib.NewMessageInfoFromCell(d.ContractType(), msg, d.tlbs)
+	typeName, norm, err := lib.DecodeTLBValToJSON(msg, TLBs)
 	if err != nil {
-		return jetton_common.NewDecoder(d.tlbs, d.ContractType()).InternalMessageInfo(msg)
+		return jetton_common.NewDecoder(d.tlbsCtx, d.ContractType()).InternalMessageInfo(msg)
 	}
-	return info, nil
+
+	if typeName == "Cell" { // on decoder fallback (not decoded)
+		return nil, &lib.UnknownMessageError{}
+	}
+
+	return lib.NewMessageInfoFrom(d.ContractType(), norm, d.tlbsCtx)
 }
 
 func (d *decoder) ExitCodeInfo(exitCode tvm.ExitCode) (string, error) {
 	ec, err := wallet.ExitCodeCodec.NewFrom(exitCode)
 	if err != nil {
-		return jetton_common.NewDecoder(d.tlbs, d.ContractType()).ExitCodeInfo(exitCode)
+		return jetton_common.NewDecoder(d.tlbsCtx, d.ContractType()).ExitCodeInfo(exitCode)
 	}
 
 	return ec.String(), nil

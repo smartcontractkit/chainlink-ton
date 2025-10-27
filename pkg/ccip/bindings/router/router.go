@@ -27,7 +27,7 @@ func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 		ecMin = int32(ErrorDestChainNotEnabled)
 		ecMax = int32(ErrorUnknownMessage)
 	)
-	return tvm.NewExitCodeFromRange(ExitCode(ec), ecMin, ecMax)
+	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
 }
 
 const (

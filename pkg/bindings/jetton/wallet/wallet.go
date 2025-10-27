@@ -32,7 +32,7 @@ func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 		ecMin = int32(BalanceError)
 		ecMax = int32(InvalidMessage)
 	)
-	return tvm.NewExitCodeFromRange(ExitCode(ec), ecMin, ecMax)
+	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
 }
 
 const (

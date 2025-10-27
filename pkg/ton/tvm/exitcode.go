@@ -9,17 +9,17 @@ type ExitCodeCodecInt[E ~int32] interface {
 	NewFrom(code ExitCode) (E, error)
 }
 
-func NewExitCodeFromRange[E ~int32](ec E, ecMin int32, ecMax int32) (E, error) {
+func NewExitCodeInRange[E ~int32](ec E, ecMin int32, ecMax int32) (E, error) {
 	if int32(ec) < ecMin || int32(ec) > ecMax {
 		return 0, fmt.Errorf("invalid exit code (out of range): %d (min=%v, max=%v)", ec, ecMin, ecMax)
 	}
 	return ec, nil
 }
 
-func NewExitCodeFromSet[E ~int32](ec E, set []E) (E, error) {
+func NewExitCodeInSet[E ~int32](ec E, set []E) (E, error) {
 	idx := slices.IndexFunc(set, func(v E) bool { return ec == v })
 	if idx < 0 {
-		return 0, fmt.Errorf("invalid exit code (not in set): %d", ec)
+		return 0, fmt.Errorf("invalid exit code (not in set): %d (set=%v)", ec, set)
 	}
 	return ec, nil
 }
@@ -39,7 +39,7 @@ func (ExitCode) NewFrom(ec ExitCode) (ExitCode, error) {
 		ecMin = int32(ExitCodeOutOfGasErrorVariant)
 		ecMax = int32(ExitCodeTactNotABasechainAddress)
 	)
-	return NewExitCodeFromRange(ExitCode(ec), ecMin, ecMax)
+	return NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
 }
 
 const (

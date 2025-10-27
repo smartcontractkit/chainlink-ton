@@ -1,7 +1,7 @@
 package offramp
 
 import (
-	"maps"
+	"fmt"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tvm/cell"
@@ -24,35 +24,38 @@ var TLBs = lib.MustNewTLBMap([]interface{}{
 })
 
 type decoder struct {
-	tlbs map[uint64]interface{}
+	tlbsCtx map[uint64]interface{}
 }
 
 func NewDecoder(tlbsCtx map[uint64]interface{}) lib.ContractDecoder {
-	tlbs := maps.Clone(tlbsCtx)
-	maps.Copy(tlbs, TLBs)
-	return &decoder{tlbs}
+	return &decoder{tlbsCtx}
 }
 
-// ContractType implements lib.ContractDecoder.
 func (d *decoder) ContractType() cldf.ContractType {
 	return cldf.ContractType("com.chainlink.ton.ccip.OffRamp")
 }
 
-// EventInfo implements lib.ContractDecoder.
 func (d *decoder) EventInfo(dstAddr *address.Address, msg *cell.Cell) (lib.MessageInfo, error) {
 	return nil, &lib.UnknownMessageError{}
 }
 
-// ExternalMessageInfo implements lib.ContractDecoder.
 func (d *decoder) ExternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
 	return nil, &lib.UnknownMessageError{}
 }
 
-// InternalMessageInfo implements lib.ContractDecoder.
 func (d *decoder) InternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
-	return lib.NewMessageInfoFromCell(d.ContractType(), msg, d.tlbs)
+	typeName, norm, err := lib.DecodeTLBValToJSON(msg, TLBs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode message for contract %s: %w", d.ContractType(), err)
+	}
+
+	if typeName == "Cell" { // on decoder fallback (not decoded)
+		return nil, &lib.UnknownMessageError{}
+	}
+
+	return lib.NewMessageInfoFrom(d.ContractType(), norm, d.tlbsCtx)
 }
 
 func (d *decoder) ExitCodeInfo(exitCode tvm.ExitCode) (string, error) {
-	return ccipcommon.NewDecoder(d.tlbs).ExitCodeInfo(exitCode)
+	return ccipcommon.NewDecoder(d.tlbsCtx).ExitCodeInfo(exitCode)
 }

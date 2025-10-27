@@ -199,7 +199,7 @@ type UpdateExecutorRoleCheck struct {
 // The error report is used for a category of errors which might occur during execution
 // of an operation, but can't be caught on-chain (OOG errors, and downstream tx-trace errors).
 type SubmitErrorReport struct {
-	_ tlb.Magic `tlb:"f4538b79"` //nolint:revive // (opcode) should stay uninitialized
+	_ tlb.Magic `tlb:"#f4538b79"` //nolint:revive // (opcode) should stay uninitialized
 	// Query ID of the change request.
 	QueryID uint64 `tlb:"## 64"`
 
@@ -419,7 +419,7 @@ func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 		ecMin = int32(ErrorSelectorIsBlocked)
 		ecMax = int32(ErrorContractNotInitialized)
 	)
-	return tvm.NewExitCodeFromRange(ExitCode(ec), ecMin, ecMax)
+	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
 }
 
 const (

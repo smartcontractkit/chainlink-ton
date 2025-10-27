@@ -1,7 +1,7 @@
 package timelock
 
 import (
-	"maps"
+	"fmt"
 
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tvm/cell"
@@ -37,13 +37,11 @@ var TLBs = lib.MustNewTLBMap([]interface{}{
 })
 
 type decoder struct {
-	tlbs map[uint64]interface{}
+	tlbsCtx map[uint64]interface{}
 }
 
 func NewDecoder(tlbsCtx map[uint64]interface{}) lib.ContractDecoder {
-	tlbs := maps.Clone(tlbsCtx)
-	maps.Copy(tlbs, TLBs)
-	return &decoder{tlbs}
+	return &decoder{tlbsCtx}
 }
 
 func (d *decoder) ContractType() cldf.ContractType {
@@ -59,7 +57,16 @@ func (d *decoder) ExternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
 }
 
 func (d *decoder) InternalMessageInfo(msg *cell.Cell) (lib.MessageInfo, error) {
-	return lib.NewMessageInfoFromCell(d.ContractType(), msg, d.tlbs)
+	typeName, norm, err := lib.DecodeTLBValToJSON(msg, TLBs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode message for contract %s: %w", d.ContractType(), err)
+	}
+
+	if typeName == "Cell" { // on decoder fallback (not decoded)
+		return nil, &lib.UnknownMessageError{}
+	}
+
+	return lib.NewMessageInfoFrom(d.ContractType(), norm, d.tlbsCtx)
 }
 
 func (d *decoder) ExitCodeInfo(exitCode tvm.ExitCode) (string, error) {
