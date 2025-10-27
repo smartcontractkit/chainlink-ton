@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.yaml}"
-COMPOSE_ENV_FILE="${COMPOSE_ENV_FILE:-docker-compose.env}"
+TON_COMPOSE_FILE="${TON_COMPOSE_FILE:-docker-compose-ton.yaml}"
+TON_COMPOSE_ENV_FILE="${TON_COMPOSE_ENV_FILE:-docker-compose-ton.env}"
+
+EVM_COMPOSE_FILE="${EVM_COMPOSE_FILE:-docker-compose-evm.yaml}"
+EVM_COMPOSE_ENV_FILE="${EVM_COMPOSE_ENV_FILE:-docker-compose-evm.env}"
 
 usage() {
   cat <<'HELP'
@@ -15,15 +18,18 @@ HELP
 
 cmd_up() {
   echo "🚀 Starting all containers..."
-  docker-compose -f ${COMPOSE_FILE} --env-file ${COMPOSE_ENV_FILE} up -d
-  echo "✅ All containers are up."
-  docker-compose -f ${COMPOSE_FILE} --env-file ${COMPOSE_ENV_FILE}  ps
+  docker-compose -f ${TON_COMPOSE_FILE} --env-file ${TON_COMPOSE_ENV_FILE} up -d
+  echo "✅ TON containers are up."
+  docker-compose -f ${EVM_COMPOSE_FILE} --env-file ${EVM_COMPOSE_ENV_FILE} up -d
+  echo "✅ EVM containers are up."
 }
 
 cmd_down() {
-  echo "⏹  Stopping containers (keeping volumes and network)..."
-  docker-compose -f ${COMPOSE_FILE} --env-file ${COMPOSE_ENV_FILE} down --remove-orphans || true
-  echo "✅ Containers stopped (volumes preserved)."
+  echo "⏹ Stopping containers..."
+  docker-compose -f ${TON_COMPOSE_FILE} --env-file ${TON_COMPOSE_ENV_FILE} down --remove-orphans || true
+  echo "✅ TON Containers down."
+  docker-compose -f ${EVM_COMPOSE_FILE} --env-file ${EVM_COMPOSE_ENV_FILE} down --remove-orphans || true
+  echo "✅ EVM Containers down."
 }
 
 case "${1:-}" in

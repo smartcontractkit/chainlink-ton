@@ -17,8 +17,11 @@ import "../ccipsend_executor/messages"
 import "../router/messages"
 import "../../lib/jetton/messages"
 import "../../lib/jetton/messages_extended"
+import "../../lib/funding/withdrawable"
+import "../../lib/versioning/upgradeable"
 
-const CONTRACT_VERSION = "0.0.4";
+const CONTRACT_VERSION = "0.0.8";
+const RESERVE = ton("1"); // TODO: set correct value
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy OnRamp_InMessage.fromSlice(in.body);
@@ -46,6 +49,21 @@ fun onInternalMessage(in: InMessage) {
             st.ownable.requireOwner(in.senderAddress);
             applyAllowlistUpdates(mutate st, msg.updates);
             st.store();
+        }
+        Withdrawable_Withdraw => {
+            var st = lazy OnRamp_Storage.load();
+            st.ownable.requireOwner(in.senderAddress);
+            Withdrawable{
+                reserve: RESERVE
+            }.withdraw(msg, in.valueCoins);
+        }
+        Upgradeable_Upgrade => {
+            var st = lazy OnRamp_Storage.load();
+            st.ownable.requireOwner(in.senderAddress);
+            Upgradeable{
+                migrate: migrate,
+                version: version,
+            }.upgrade(msg);
         }
         else => {
             // ignore empty messages, "wrong opcode" for others
@@ -241,20 +259,29 @@ fun applyDestChainConfigUpdates(mutate st: OnRamp_Storage, updates: cell) {
     while (!iter.empty()) {
         val update = iter.next();
         // create or update entries
+        var config: OnRamp_DestChainConfig;
         val entry = st.destChainConfigs.get(update.destChainSelector);
         if (entry.isFound) {
-            var config = entry.loadValue();
+            config = entry.loadValue();
             config.router = update.router;
             config.allowlistEnabled = update.allowlistEnabled;
             st.destChainConfigs.replaceAndGetPrevious(update.destChainSelector, config);
         } else {
-            st.destChainConfigs.set(update.destChainSelector, OnRamp_DestChainConfig {
+            config = OnRamp_DestChainConfig {
                 router: update.router,
                 sequenceNumber: 0,
                 allowlistEnabled: update.allowlistEnabled,
                 allowedSenders: createEmptyMap(),
-            })
+            };
+            st.destChainConfigs.set(update.destChainSelector, config);
+            emit(DEST_CHAIN_SELECTOR_ADDED_TOPIC, DestChainSelectorAdded {
+                destChainSelector: update.destChainSelector
+            });
         }
+        emit(DEST_CHAIN_CONFIG_UPDATED_TOPIC, DestChainConfigUpdated {
+            destChainSelector: update.destChainSelector,
+            destChainConfig: config,
+        });
     }
 }
 
@@ -326,12 +353,12 @@ get fun errorCode(local: uint16): uint16 {
     return getErrorCode(stringCrc32("com.chainlink.ton.ccip.OnRamp"), local);
 }
 
-// Returns the current code of the contract.
-get fun code(): cell {
-    return contract.getCode();
+get fun reserve(): coins {
+    return RESERVE;
 }
 
-// Returns the sha256 hash of the current code of the contract.
-get fun codeHash(): int {
-    return contract.getCode().hash();
-}
+@method_id(1000)
+fun migrate(storage: cell, version: slice): cell { throw Upgradeable_Error.VersionMismatch; }
+
+@method_id(1001)
+fun version(): slice { return CONTRACT_VERSION; }

@@ -1,15 +1,30 @@
 import { Address, Cell } from '@ton/core'
 import { crc32 } from 'zlib'
-import { Any2TVMMessage, MerkleRoot, PriceUpdates } from './OffRamp'
+import { Any2TVMMessage, MerkleRoot, PriceUpdates, SourceChainConfig } from './OffRamp'
+import { DestChainConfig } from './OnRamp'
 
-export const CCIP_COMMIT_REPORT_ACCEPTED_TOPIC = crc32('CommitReportAccepted')
-export const CCIP_MESSAGE_SENT_TOPIC = crc32('CCIPMessageSent')
-export const EXECUTION_STATE_CHANGED_TOPIC = crc32('ExecutionStateChanged')
+export const LogTypes = {
+  CCIPMessageSent: 'CCIPMessageSent',
+  CommitReportAccepted: 'CommitReportAccepted',
+  ExecutionStateChanged: 'ExecutionStateChanged',
+  SourceChainSelectorAdded: 'SourceChainSelectorAdded',
+  SourceChainConfigUpdated: 'SourceChainConfigUpdated',
+  DestChainSelectorAdded: 'DestChainSelectorAdded',
+  DestChainConfigUpdated: 'DestChainConfigUpdated',
+  ReceiverCCIPMessageReceived: 'Receiver_CCIPMessageReceived',
+} as const
 
-export enum LogTypes {
-  CCIPMessageSent = CCIP_MESSAGE_SENT_TOPIC,
-  CCIPCommitReportAccepted = CCIP_COMMIT_REPORT_ACCEPTED_TOPIC,
-  ExecutionStateChanged = EXECUTION_STATE_CHANGED_TOPIC,
+export type CombinedLogType = (typeof LogTypes)[keyof typeof LogTypes]
+
+export const LOG_TOPIC: Record<CombinedLogType, number> = {
+  CCIPMessageSent: crc32('CCIPMessageSent'),
+  CommitReportAccepted: crc32('CommitReportAccepted'),
+  ExecutionStateChanged: crc32('ExecutionStateChanged'),
+  SourceChainSelectorAdded: crc32('SourceChainSelectorAdded'),
+  SourceChainConfigUpdated: crc32('SourceChainConfigUpdated'),
+  DestChainSelectorAdded: crc32('DestChainSelectorAdded'),
+  DestChainConfigUpdated: crc32('DestChainConfigUpdated'),
+  Receiver_CCIPMessageReceived: crc32('Receiver_CCIPMessageReceived'),
 }
 
 export type CCIPMessageSent = {
@@ -32,7 +47,7 @@ export type CCIPMessageSent = {
   }
 }
 
-export type CCIPCommitReportAccepted = {
+export type CommitReportAccepted = {
   merkleRoot?: MerkleRoot
   priceUpdates?: PriceUpdates
 }
@@ -44,10 +59,22 @@ export type ExecutionStateChanged = {
   state: bigint //8
 }
 
-export const RECEIVER_CCIP_MESSAGE_RECEIVED = crc32('Receiver_CCIPMessageReceived')
+export type SourceChainSelectorAdded = {
+  sourceChainSelector: bigint //64
+}
 
-export enum LogTypes {
-  ReceiverCCIPMessageReceived = RECEIVER_CCIP_MESSAGE_RECEIVED,
+export type SourceChainConfigUpdated = {
+  sourceChainSelector: bigint //64
+  config: SourceChainConfig
+}
+
+export type DestChainSelectorAdded = {
+  destChainSelector: bigint //64
+}
+
+export type DestChainConfigUpdated = {
+  destChainSelector: bigint //64
+  config: DestChainConfig
 }
 
 export type ReceiverCCIPMessageReceived = {

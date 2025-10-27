@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/ton"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/services"
 
@@ -70,4 +71,10 @@ type LogStore interface {
 	// The LogStore is responsible for translating parameters to its optimal execution strategy.
 	// Uses chainlink-common's LimitAndSort for standardized pagination and sorting.
 	QueryLogs(ctx context.Context, query *query.LogQuery) (logs []models.Log, hasMore bool, nextCursor string, err error)
+}
+
+// RawLogProvider provides raw logs leveraging LogPoller libs without running the full service (o11y use case)
+type RawLogProvider interface {
+	// GetLogs retrieves all external message outputs for an address between fromBlockSeqNo (exclusive) and toBlock (inclusive).
+	GetLogs(ctx context.Context, addr *address.Address, from uint32, to *ton.BlockIDExt) ([]models.RawLog, error)
 }

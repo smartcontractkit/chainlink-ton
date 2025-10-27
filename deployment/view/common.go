@@ -7,9 +7,12 @@ import (
 )
 
 const (
-	versionGetter         = "typeAndVersion"
-	destChainsGetter      = "destChainSelectors"
-	destChainConfigGetter = "destChainConfig"
+	VersionGetter                   = "typeAndVersion"
+	DestChainsGetter                = "destChainSelectors"
+	DestChainConfigGetter           = "destChainConfig"
+	SrcChainConfigGetter            = "sourceChainConfig"
+	ConfigGetter                    = "config"
+	LatestPriceSequenceNumberGetter = "latestPriceSequenceNumber"
 )
 
 // MetaData holds common metadata for all contract views.
@@ -19,9 +22,9 @@ type MetaData struct {
 	Version      string           `json:"version,omitempty"`
 }
 
-// parseExecutionResultForDestChainSelectors parses the result of a get method call that returns a Lisp-style list of uint64 selectors.
-func parseExecutionResultForDestChainSelectors(tuple []any) []uint64 {
-	if tuple == nil || len(tuple) == 0 {
+// ParseExecutionResultForDestChainSelectors parses the result of a get method call that returns a Lisp-style list of uint64 selectors.
+func ParseExecutionResultForDestChainSelectors(tuple []any) []uint64 {
+	if len(tuple) == 0 {
 		return nil
 	}
 

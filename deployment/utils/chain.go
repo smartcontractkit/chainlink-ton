@@ -254,9 +254,9 @@ func createNewNetwork(ctx context.Context, chainID uint64, port int) (client ton
 	// The cleanup function ensures the temporary network is terminated after the test.
 	cleanup = func() {
 		if bcOut.Container != nil && bcOut.Container.IsRunning() {
-			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			termCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
-			if cterr := bcOut.Container.Terminate(ctx); cterr != nil {
+			if cterr := bcOut.Container.Terminate(termCtx); cterr != nil {
 				fmt.Printf("Container termination failed: %v", cterr)
 			}
 		}
