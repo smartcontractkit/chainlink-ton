@@ -1,9 +1,10 @@
-package view
+package router
 
 import (
 	"context"
 	"fmt"
 	"runtime"
+	"sync"
 
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
 	"github.com/xssnick/tonutils-go/address"
@@ -11,6 +12,7 @@ import (
 	"github.com/xssnick/tonutils-go/tvm/cell"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/smartcontractkit/chainlink-ton/deployment/view"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 )
 
@@ -18,15 +20,15 @@ const (
 	onRampGetter = "onRamp"
 )
 
-type RouterView struct {
-	MetaData
+type View struct {
+	view.MetaData
 	OnRampAddr map[uint64]*address.Address `json:"onRampAddr,omitempty"`
 }
 
-// FetchRouterView generates a view of the router contract at the specified block.
-func FetchRouterView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, routerAddr *address.Address) (*RouterView, error) {
+// FetchView generates a view of the router contract at the specified block.
+func FetchView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, routerAddr *address.Address) (*View, error) {
 	var typeVersion common.TypeAndVersion
-	result, err := c.Client.RunGetMethod(ctx, block, routerAddr, versionGetter)
+	result, err := c.Client.RunGetMethod(ctx, block, routerAddr, view.VersionGetter)
 	if err != nil {
 		return nil, fmt.Errorf("error getting typeAndVersion: %w", err)
 	}
@@ -34,42 +36,45 @@ func FetchRouterView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDEx
 		return nil, fmt.Errorf("failed to parse typeAndVersion: %w", err)
 	}
 
-	result, err = c.Client.RunGetMethod(ctx, block, routerAddr, destChainsGetter)
+	result, err = c.Client.RunGetMethod(ctx, block, routerAddr, view.DestChainsGetter)
 	if err != nil {
 		return nil, err
 	}
 
-	selectorSlice := parseExecutionResultForDestChainSelectors(result.AsTuple())
+	selectorSlice := view.ParseExecutionResultForDestChainSelectors(result.AsTuple())
 
-	var onrampSlice *cell.Slice
-	var onRampAddr *address.Address
-	var eg errgroup.Group
+	var lock sync.Mutex
+	eg, egCtx := errgroup.WithContext(ctx)
 	eg.SetLimit(runtime.NumCPU())
 	onRampAddrMap := make(map[uint64]*address.Address)
 	for _, dest := range selectorSlice {
-		// On-chain returns *big.Int for selector values, convert to uint64
 		eg.Go(func() error {
-			result, err = c.Client.RunGetMethod(ctx, block, routerAddr, onRampGetter, dest)
+			result, err := c.Client.RunGetMethod(egCtx, block, routerAddr, onRampGetter, dest) // New variables per goroutine
 			if err != nil {
-				return fmt.Errorf("error getting onrampAddr: %v", err)
+				return fmt.Errorf("error getting onrampAddr: %w", err)
 			}
-			onrampSlice, err = result.Slice(0)
+
+			var onRampSlice *cell.Slice
+			var onRampAddr *address.Address
+			onRampSlice, err = result.Slice(0)
 			if err != nil {
 				return err
 			}
 
-			onRampAddr, err = onrampSlice.LoadAddr()
+			onRampAddr, err = onRampSlice.LoadAddr()
 			if err != nil {
 				return fmt.Errorf("failed to load onramp address: %w", err)
 			}
 
+			lock.Lock()
 			onRampAddrMap[dest] = onRampAddr
+			lock.Unlock()
 			return nil
 		})
 	}
 
-	return &RouterView{
-		MetaData: MetaData{
+	return &View{
+		MetaData: view.MetaData{
 			Address:      routerAddr,
 			ContractType: typeVersion.Type,
 			Version:      typeVersion.Version,

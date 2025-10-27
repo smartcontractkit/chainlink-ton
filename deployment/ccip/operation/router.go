@@ -7,9 +7,10 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
+
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/utils"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
@@ -67,19 +68,19 @@ func deployRouter(b operations.Bundle, deps TonDeps, in DeployRouterInput) (Depl
 	return output, nil
 }
 
-type UpdateRouterDestInput map[string][]router.DestChainSelector
+type UpdateRouterOnrampsInput map[string][]router.DestChainSelector
 
 type UpdateRouterDestOutput struct {
 }
 
-var UpdateRouterDestOp = operations.NewOperation(
-	"update-router-dest-op",
+var UpdateRouterOnrampsOp = operations.NewOperation(
+	"update-router-onramps-op",
 	semver.MustParse("0.1.0"),
-	"Generates MCMS proposals that deploys Router module on CCIP package",
-	updateRouterDest,
+	"Update router onramps",
+	updateRouterOnramps,
 )
 
-func updateRouterDest(b operations.Bundle, deps TonDeps, in UpdateRouterDestInput) ([][]byte, error) {
+func updateRouterOnramps(b operations.Bundle, deps TonDeps, in UpdateRouterOnrampsInput) ([][]byte, error) {
 	addr := deps.CCIPOnChainState[deps.TonChain.Selector].Router
 
 	msgs := make([]*tlb.InternalMessage, 0)
@@ -104,5 +105,5 @@ func updateRouterDest(b operations.Bundle, deps TonDeps, in UpdateRouterDestInpu
 		msgs = append(msgs, &msg)
 	}
 
-	return utils.Serialize(msgs)
+	return helpers.Serialize(msgs)
 }

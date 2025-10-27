@@ -18,7 +18,6 @@ export const opcodes = {
 export enum Error {
   InsufficientBalance = 44800, // Facility ID * 100
   HitReserve,
-  LowReserve,
   InvalidRequest,
 }
 

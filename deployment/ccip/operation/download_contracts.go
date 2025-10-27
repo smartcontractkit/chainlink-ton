@@ -16,6 +16,9 @@ import (
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 )
 
+// Limit decompressed size to 100MB (adjust as needed)
+const maxDecompressedSize = 100 * 1024 * 1024
+
 type Artifact struct {
 	Path string
 	Data []byte
@@ -76,7 +79,8 @@ func extractFiles(rawTarGz []byte, suffix string) ([]Artifact, error) {
 	}
 	defer func() { _ = gzipReader.Close() }()
 
-	tarReader := tar.NewReader(gzipReader)
+	// Limit decompressed size to 100MB
+	tarReader := tar.NewReader(io.LimitReader(gzipReader, maxDecompressedSize))
 
 	var out []Artifact
 
@@ -97,16 +101,14 @@ func extractFiles(rawTarGz []byte, suffix string) ([]Artifact, error) {
 			if strings.Contains(clean, "/") {
 				continue
 			}
-
 			if !strings.HasSuffix(clean, suffix) {
 				continue
 			}
-
 			var buf bytes.Buffer
-			if _, err := io.Copy(&buf, tarReader); err != nil {
+			// Limit individual file size to prevent DoS
+			if _, err := io.Copy(&buf, io.LimitReader(tarReader, maxDecompressedSize)); err != nil {
 				return nil, fmt.Errorf("error while read %q: %w", clean, err)
 			}
-
 			out = append(out, Artifact{
 				Path: clean,
 				Data: buf.Bytes(),

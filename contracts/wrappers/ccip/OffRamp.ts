@@ -20,9 +20,9 @@ import * as withdrawable from '../libraries/funding/Withdrawable'
 import { crc32 } from 'zlib'
 import { CellCodec, facilityId } from '../utils'
 import { CCIPReceive, ReceiverStorage } from './Receiver'
-import { Maybe } from '@ton/core/dist/utils/maybe'
 import * as upgradeable from '../libraries/versioning/Upgradeable'
-import * as typeAndVersion from '../libraries/TypeAndVersion'
+import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
+import { Maybe } from '@ton/core/dist/utils/maybe'
 import { compile } from '@ton/blueprint'
 
 export type OffRampStorage = {
@@ -228,7 +228,7 @@ export const MERKLE_ROOT_FACILITY_NAME = 'com.chainlink.ton.ccip.MerkleRoot'
 export const MERKLE_ROOT_FACILITY_ID = 479
 export const MERKLE_ROOT_ERROR_CODE = 47900 //FACILITY_ID * 100
 
-export const OFFRAMP_CONTRACT_VERSION = '0.0.7'
+export const OFFRAMP_CONTRACT_VERSION = '0.0.9'
 
 export const OFFRAMP_FACILITY_NAME = 'com.chainlink.ton.ccip.OffRamp'
 export const OFFRAMP_FACILITY_ID = 84
@@ -261,7 +261,7 @@ export enum ReceiveExecutorError {
 
 export class OffRamp
   extends OCR3Base
-  implements upgradeable.Interface, withdrawable.Interface, typeAndVersion.TypeAndVersion, Contract
+  implements upgradeable.Interface, withdrawable.Interface, typeAndVersion.Interface, Contract
 {
   constructor(
     readonly address: Address,

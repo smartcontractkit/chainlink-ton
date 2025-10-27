@@ -8,9 +8,10 @@ import (
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tlb"
 
+	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/helpers"
+
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/utils"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
@@ -142,5 +143,5 @@ func updateOnRampDestChainConfigs(b operations.Bundle, deps TonDeps, in UpdateOn
 			Body:    payload,
 		},
 	}
-	return utils.Serialize(messages)
+	return helpers.Serialize(messages)
 }

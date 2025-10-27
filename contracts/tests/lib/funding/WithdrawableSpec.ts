@@ -57,7 +57,7 @@ interface TestSetup<TContract> {
  *   getCode: () => WithdrawableWallet.code(),
  *   ContractConstructor: WithdrawableWallet,
  *   ownershipErrorCode: 1001,
- *   setupContract: async (blockchain, owner) => {
+ *   deployContract: async (blockchain, owner) => {
  *     const code = await WithdrawableWallet.code()
  *     const contract = blockchain.openContract(
  *       WithdrawableWallet.createFromConfig(
@@ -551,7 +551,7 @@ export function newWithdrawableSpec<TContract extends withdrawable.Interface>(
           from: owner.address,
           to: contract.address,
           success: false,
-          exitCode: withdrawable.Error.LowReserve,
+          exitCode: withdrawable.Error.HitReserve,
         })
       })
 
@@ -760,7 +760,7 @@ export function newWithdrawableSpec<TContract extends withdrawable.Interface>(
           from: owner.address,
           to: contract.address,
           success: false,
-          exitCode: withdrawable.Error.LowReserve,
+          exitCode: withdrawable.Error.HitReserve,
         })
       })
 

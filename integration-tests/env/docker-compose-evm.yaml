@@ -1,0 +1,21 @@
+services:
+  anvil:
+    image: ghcr.io/foundry-rs/foundry:stable
+    container_name: anvil-local-sepolia
+    entrypoint: [ "anvil" ]   # ensure we run anvil, not a wrapper
+    command: [
+      "--host", "${ANVIL_IP_ADDR}",
+      "--port", "${ANVIL_IP_PORT}",
+      "--chain-id", "${ANVIL_CHAIN_ID}",
+      "--accounts", "${ANVIL_ACCOUNTS}",
+      "--mnemonic", "${ANVIL_MNEMONIC}",
+      "--derivation-path", "${ANVIL_DERIVATION_PATH}"
+    ]
+    ports:
+      - "8545:8545"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "cast", "block-number", "--rpc-url", "http://127.0.0.1:8545"]
+      interval: 10s
+      timeout: 3s
+      retries: 6

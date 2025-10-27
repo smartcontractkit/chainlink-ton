@@ -21,7 +21,7 @@ import (
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 	tonlploader "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/loader/account"
-	"github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/txparser"
+	txparserutils "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/backend/txparser/utils"
 	tonlptypes "github.com/smartcontractkit/chainlink-ton/pkg/logpoller/types"
 	tonchain "github.com/smartcontractkit/chainlink-ton/pkg/ton/chain"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/tracetracking"
@@ -278,8 +278,8 @@ func (c *Client) WaitForMessageReceived(ctx context.Context, lggr logger.Logger,
 					intMsg := tx.IO.In.AsInternal()
 
 					// Use txparser utility to extract opcode and validate
-					sig, _, err := txparser.ParseInternalMsg(intMsg, offramp.CCIPReceiveOpCode)
-					if err != nil || sig == 0 {
+					sig, _, err := txparserutils.ParseInternalMsg(intMsg)
+					if err != nil || sig != offramp.CCIPReceiveOpCode {
 						continue // Not a CCIPReceive message or parse error
 					}
 

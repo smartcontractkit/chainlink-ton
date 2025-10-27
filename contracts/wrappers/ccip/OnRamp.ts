@@ -18,14 +18,14 @@ import { asSnakeData } from '../../src/utils'
 import { CellCodec } from '../utils'
 import * as rt from './Router'
 import * as upgradeable from '../libraries/versioning/Upgradeable'
-import * as typeAndVersion from '../libraries/TypeAndVersion'
+import * as typeAndVersion from '../libraries/versioning/TypeAndVersion'
 import { compile } from '@ton/blueprint'
 
 export const ONRAMP_FACILITY_NAME = 'com.chainlink.ton.ccip.OnRamp'
 export const ONRAMP_FACILITY_ID = 181
 export const ONRAMP_ERROR_CODE = 18100 //FACILITY_ID * 100
 
-export const ONRAMP_CONTRACT_VERSION = '0.0.7'
+export const ONRAMP_CONTRACT_VERSION = '0.0.8'
 
 export const CCIP_SEND_EXECUTOR_FACILITY_NAME = 'com.chainlink.ton.ccip.CCIPSendExecutor'
 export const CCIP_SEND_EXECUTOR_FACILITY_ID = 436

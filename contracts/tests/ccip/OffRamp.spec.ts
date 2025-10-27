@@ -55,6 +55,7 @@ import { facilityId } from '../../wrappers/utils'
 import { MerkleHelper } from '../lib/merkle_proof/helpers/MerkleMultiProofHelper'
 import * as UpgradeableSpec from '../lib/versioning/UpgradeableSpec'
 import * as rt from '../../wrappers/ccip/Router'
+import * as TypeAndVersionSpec from '../lib/versioning/TypeAndVersionSpec'
 
 const CHAINSEL_EVM_TEST_90000001 = 909606746561742123n
 const CHAINSEL_TON = 13879075125137744094n
@@ -132,36 +133,49 @@ export function generateMessageId(message: Any2TVMRampMessage, metadataHash: big
   )
 }
 
-/*
+async function deployOffRampContract(
+  blockchain: Blockchain,
+  owner: SandboxContract<TreasuryContract>,
+) {
+  const code = await OffRamp.code()
+  let data: OffRampStorage = {
+    id: generateSecureRandomId(),
+    ownable: {
+      owner: owner.address,
+      pendingOwner: null,
+    },
+    deployables: {
+      deployerCode: beginCell().endCell(),
+      merkleRootCode: beginCell().endCell(),
+      receiveExecutorCode: beginCell().endCell(),
+    },
+    feeQuoter: ZERO_ADDRESS,
+    chainSelector: CHAINSEL_TON,
+    permissionlessExecutionThresholdSeconds: 60,
+    latestPriceSequenceNumber: 0n,
+  }
+
+  const contract = blockchain.openContract(OffRamp.createFromConfig(data, code))
+  const deployer = await blockchain.treasury('deployer')
+  await contract.sendDeploy(deployer.getSender(), toNano('0.05'))
+  return contract
+}
+
+describe('OffRamp - TypeAndVersion Tests', () => {
+  const currentVersionSpec = TypeAndVersionSpec.newInstance({
+    type: OffRamp.type(),
+    version: OffRamp.version(),
+    deployContract: deployOffRampContract,
+  })
+  currentVersionSpec.run()
+})
+
 describe('OffRamp - Withdrawable Tests', () => {
   const withdrawableSpec = newWithdrawableSpec({
     getCode: () => compile('OffRamp'),
     ContractConstructor: OffRamp,
     ownershipErrorCode: ownable2step.Errors.OnlyCallableByOwner,
-    deployContract: async (blockchain, owner) => {
-      const code = await compile('OffRamp')
-      let data: OffRampStorage = {
-        id: generateSecureRandomId(),
-        ownable: {
-          owner: owner.address,
-          pendingOwner: null,
-        },
-        deployables: {
-          deployerCode: beginCell().endCell(),
-          merkleRootCode: beginCell().endCell(),
-          receiveExecutorCode: beginCell().endCell(),
-        },
-        feeQuoter: ZERO_ADDRESS,
-        chainSelector: CHAINSEL_TON,
-        permissionlessExecutionThresholdSeconds: 60,
-        latestPriceSequenceNumber: 0n,
-      }
-
-      const contract = blockchain.openContract(OffRamp.createFromConfig(data, code))
-      const deployer = await blockchain.treasury('deployer')
-      await contract.sendDeploy(deployer.getSender(), toNano('0.05'))
-      return contract
-    },
+    deployContract: deployOffRampContract,
   })
   withdrawableSpec.run()
 })
@@ -200,34 +214,11 @@ describe('OffRamp - Current Version Tests', () => {
     currentVersion: OffRamp.version(),
     getCurrentCode: () => OffRamp.code(),
     CurrentVersionConstructor: OffRamp,
-    deployCurrentContract: async (blockchain, owner) => {
-      const code = await OffRamp.code()
-      let data: OffRampStorage = {
-        id: generateSecureRandomId(),
-        ownable: {
-          owner: owner.address,
-          pendingOwner: null,
-        },
-        deployables: {
-          deployerCode: beginCell().endCell(),
-          merkleRootCode: beginCell().endCell(),
-          receiveExecutorCode: beginCell().endCell(),
-        },
-        feeQuoter: ZERO_ADDRESS,
-        chainSelector: CHAINSEL_TON,
-        permissionlessExecutionThresholdSeconds: 60,
-        latestPriceSequenceNumber: 0n,
-      }
-
-      const contract = blockchain.openContract(OffRamp.createFromConfig(data, code))
-      const deployer = await blockchain.treasury('deployer')
-      await contract.sendDeploy(deployer.getSender(), toNano('0.05'))
-      return contract
-    },
+    deployCurrentContract: deployOffRampContract,
   })
   currentVersionSpec.run()
 })
-*/
+
 describe('OffRamp - Unit Tests', () => {
   let blockchain: Blockchain
   let deployer: SandboxContract<TreasuryContract>
@@ -581,6 +572,11 @@ describe('OffRamp - Unit Tests', () => {
         sourceChainSelectorAdd: [CHAINSEL_EVM_TEST_90000001],
         offRampAdd: offRamp.address,
         sourceChainSelectorRemove: [],
+      })
+      expect(updateRampsResult.transactions).toHaveTransaction({
+        from: deployer.address,
+        to: router.address,
+        success: true,
       })
     }
 

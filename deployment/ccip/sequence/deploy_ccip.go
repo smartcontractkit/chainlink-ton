@@ -2,34 +2,35 @@ package sequence
 
 import (
 	"fmt"
+	"math/big"
+
 	ds "github.com/smartcontractkit/chainlink-deployments-framework/datastore"
-	"github.com/smartcontractkit/chainlink-ton/deployment/state"
-	"os"
+	"github.com/xssnick/tonutils-go/tvm/cell"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/xssnick/tonutils-go/address"
+
+	"github.com/smartcontractkit/chainlink-ton/deployment/state"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/lib/access/rbac"
+	"github.com/smartcontractkit/chainlink-ton/pkg/bindings/mcms/timelock"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/offramp"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/onramp"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/receiver"
+	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/router"
 
 	"github.com/smartcontractkit/chainlink-deployments-framework/operations"
 
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/config"
 	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/operation"
-	"github.com/smartcontractkit/chainlink-ton/deployment/ccip/utils"
-)
-
-const (
-	contractsGithubOrganization  = "smartcontractkit"
-	contractsGithubRepository    = "chainlink-ton"
-	contractsGithubReleasePrefix = "ton-contracts-build-"
-	contractsGithubAssetPrefix   = "ton-contracts-build-"
-	contractsFileNameSuffix      = ".compiled.json"
-	ContractsLocalVersion        = "local"
-	StandardContractCostInTON    = "0.05"
 )
 
 type DeployCCIPSeqInput struct {
-	ContractsVersion string // TODO We may want to rename this to ContractsVersionSHA or ContractsVersionRelease instead
-	CCIPConfig       config.ChainContractParams
-	ChainSelector    uint64
+	ContractsVersionSha string
+	ContractsSemver     *semver.Version
+	CCIPConfig          config.ChainContractParams
+	ChainSelector       uint64
 }
 
 type TONContractAddress struct {
@@ -60,230 +61,225 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 	// Initialize the output
 	output := DeployCCIPSeqOutput{}
 
-	// In order to run this locally we can use 'develop' version as assuming that that contracts will be there
-	if in.ContractsVersion != ContractsLocalVersion {
-		// Download contracts
-		downloadArtifactsInput := operation.DownloadArtifactsInput{
-			Organization:        contractsGithubOrganization,
-			Repository:          contractsGithubRepository,
-			Release:             contractsGithubReleasePrefix + in.ContractsVersion,
-			Asset:               contractsGithubAssetPrefix + in.ContractsVersion,
-			FilesSuffixToFilter: contractsFileNameSuffix,
-		}
-		downloadArtifactsOutput, err := operations.ExecuteOperation(b, operation.DownloadArtifactsOp, deps, downloadArtifactsInput)
-
-		if err != nil {
-			return output, err
-		}
-
-		if err := os.MkdirAll(utils.GetBuildDir(""), 0o755); err != nil {
-			return output, fmt.Errorf("failed to create dirs to store contracts: %w", err)
-		}
-
-		for _, a := range downloadArtifactsOutput.Output.Artifacts {
-			// Save the files in the corresponding location so that the deployment operations can find them
-			path := utils.GetBuildDir(a.Path)
-
-			if err := os.WriteFile(path, a.Data, 0o644); err != nil {
-				return output, fmt.Errorf("failed to contract to path %s: %w", path, err)
-			}
-
-			b.Logger.Infof("Saved contract artifact %s", path)
-		}
-	} else {
-		b.Logger.Infof("Not downloading contracts from Github. Using local version")
+	retrieveContractsInput := RetrieveCompiledContractsSeqInput{
+		ContractsSemver:     in.ContractsSemver,
+		ContractsVersionSha: in.ContractsVersionSha,
+		Contracts: []ds.ContractType{
+			state.Router,
+			state.FeeQuoter,
+			state.OffRamp,
+			state.OnRamp,
+			state.TonReceiver,
+			state.Timelock,
+			state.SendExecutor,
+			state.Deployer,
+			state.MerkleRoot,
+			state.ReceiveExecutor,
+		},
 	}
 
-	contractsSemver := semver.MustParse("1.6.0") // TODO Revisit versioning. How to handle semver & sha approaches?
+	tonCompiledContractsSeqOutput, err := operations.ExecuteSequence(b, RetrieveContractsSequence, deps, retrieveContractsInput)
+	if err != nil {
+		return output, err
+	}
+
+	tonCompiledContracts := tonCompiledContractsSeqOutput.Output.CompiledContracts
 
 	// Router
 	routerAddress := deps.CCIPOnChainState[in.ChainSelector].Router
-	if !routerAddress.IsAddrNone() {
-		b.Logger.Infof("Router contract is already deployed at address: %s. Skipping...", routerAddress.String())
-	} else {
-		routerInput := operation.DeployRouterInput{
-			ID:           in.CCIPConfig.RouterParams.ID,
-			ContractPath: utils.GetBuildDir("Router.compiled.json"),
-			Coins:        StandardContractCostInTON,
-		}
-		deployRouterReport, err := operations.ExecuteOperation(b, operation.DeployRouterOp, deps, routerInput)
-		if err != nil {
-			return output, err
-		}
+	routerStorage := router.Storage{
+		ID: in.CCIPConfig.RouterParams.ID,
+		Ownable: common.Ownable2Step{
+			Owner:        deps.TonChain.WalletAddress,
+			PendingOwner: nil,
+		},
+		OnRamps: nil, // set afterward
+	}
 
-		routerAddress = *deployRouterReport.Output.Address
-		output.RouterAddress = &TONContractAddress{
-			TONAddress: routerAddress,
-			CLDFAddressRef: ds.AddressRef{
-				Address:       routerAddress.String(),
-				ChainSelector: in.ChainSelector,
-				Type:          state.Router,
-				Version:       contractsSemver,
-				Labels:        ds.NewLabelSet(fmt.Sprintf("sha:%v", in.ContractsVersion)),
-			},
-		}
+	err = InvokeDeployContractOperation(b, deps, in.ChainSelector, routerAddress, tonCompiledContracts[state.Router], routerStorage, nil, func(tonContractAddress *TONContractAddress) {
+		routerAddress = tonContractAddress.TONAddress
+		output.RouterAddress = tonContractAddress
+	})
+	if err != nil {
+		return output, err
 	}
 
 	// FeeQuoter
 	feeQuoterAddress := deps.CCIPOnChainState[in.ChainSelector].FeeQuoter
-	if !feeQuoterAddress.IsAddrNone() {
-		b.Logger.Infof("Fee Quoter contract is already deployed at address: %s. Skipping...", feeQuoterAddress.String())
-	} else {
-		feeQuoterInput := operation.DeployFeeQuoterInput{
-			Params:       in.CCIPConfig.FeeQuoterParams,
-			LinkAddr:     address.NewAddressNone(), // TODO use real LINK address
-			ContractPath: utils.GetBuildDir("FeeQuoter.compiled.json"),
-			Coins:        StandardContractCostInTON,
-		}
-		deployFeeQuoterReport, err := operations.ExecuteOperation(b, operation.DeployFeeQuoterOp, deps, feeQuoterInput)
-		if err != nil {
-			return output, err
-		}
+	feeQuoterStorage := feequoter.Storage{
+		ID: in.CCIPConfig.FeeQuoterParams.ID,
+		Ownable: common.Ownable2Step{
+			Owner:        deps.TonChain.WalletAddress,
+			PendingOwner: nil,
+		},
+		MaxFeeJuelsPerMsg:            in.CCIPConfig.FeeQuoterParams.MaxFeeJuelsPerMsg,
+		LinkToken:                    address.NewAddressNone(), // TODO use real LINK address
+		TokenPriceStalenessThreshold: in.CCIPConfig.FeeQuoterParams.TokenPriceStalenessThreshold,
+		UsdPerToken:                  nil,
+		PremiumMultiplierWeiPerEth:   nil,
+		DestChainConfigs:             nil,
+	}
 
-		feeQuoterAddress = *deployFeeQuoterReport.Output.Address
-		output.FeeQuoterAddress = &TONContractAddress{
-			TONAddress: feeQuoterAddress,
-			CLDFAddressRef: ds.AddressRef{
-				Address:       feeQuoterAddress.String(),
-				ChainSelector: in.ChainSelector,
-				Type:          state.FeeQuoter,
-				Version:       contractsSemver,
-				Labels:        ds.NewLabelSet(fmt.Sprintf("sha:%v", in.ContractsVersion)),
-			},
-		}
+	err = InvokeDeployContractOperation(b, deps, in.ChainSelector, feeQuoterAddress, tonCompiledContracts[state.FeeQuoter], feeQuoterStorage, nil, func(tonContractAddress *TONContractAddress) {
+		feeQuoterAddress = tonContractAddress.TONAddress
+		output.FeeQuoterAddress = tonContractAddress
+	})
+	if err != nil {
+		return output, err
 	}
 
 	// OnRamp
 	onRampAddress := deps.CCIPOnChainState[in.ChainSelector].OnRamp
-	if !onRampAddress.IsAddrNone() {
-		b.Logger.Infof("Onramp contract is already deployed at address: %s. Skipping...", onRampAddress.String())
-	} else {
-		onrampInput := operation.DeployOnRampInput{
-			ID:                   in.CCIPConfig.OnRampParams.ID,
-			ChainSelector:        in.CCIPConfig.OnRampParams.ChainSelector,
-			FeeQuoter:            &feeQuoterAddress,
-			FeeAggregator:        in.CCIPConfig.OnRampParams.FeeAggregator,
-			ContractPath:         utils.GetBuildDir("OnRamp.compiled.json"),
-			ExecutorContractPath: utils.GetBuildDir("CCIPSendExecutor.compiled.json"),
-			Coins:                StandardContractCostInTON,
-		}
+	onRampStorage := onramp.Storage{
+		ID: in.CCIPConfig.OnRampParams.ID,
+		Ownable: common.Ownable2Step{
+			Owner:        deps.TonChain.WalletAddress,
+			PendingOwner: nil,
+		},
+		ChainSelector: in.ChainSelector,
+		Config: onramp.DynamicConfig{
+			FeeQuoter:      &feeQuoterAddress,
+			FeeAggregator:  in.CCIPConfig.OnRampParams.FeeAggregator,
+			AllowListAdmin: deps.TonChain.WalletAddress,
+		},
+		DestChainConfigs: nil,
+		ExecutorCode:     tonCompiledContracts[state.SendExecutor].Code,
+		CurrentMessageID: big.NewInt(0),
+	}
 
-		deployOnRampReport, err := operations.ExecuteOperation(b, operation.DeployOnRampOp, deps, onrampInput)
-		if err != nil {
-			return output, err
-		}
-
-		onRampAddress = *deployOnRampReport.Output.Address
-		output.OnRampAddress = &TONContractAddress{
-			TONAddress: onRampAddress,
-			CLDFAddressRef: ds.AddressRef{
-				Address:       onRampAddress.String(),
-				ChainSelector: in.ChainSelector,
-				Type:          state.OnRamp,
-				Version:       contractsSemver,
-				Labels:        ds.NewLabelSet(fmt.Sprintf("sha:%v", in.ContractsVersion)),
-			},
-		}
+	err = InvokeDeployContractOperation(b, deps, in.ChainSelector, onRampAddress, tonCompiledContracts[state.OnRamp], onRampStorage, nil, func(tonContractAddress *TONContractAddress) {
+		onRampAddress = tonContractAddress.TONAddress
+		output.OnRampAddress = tonContractAddress
+	})
+	if err != nil {
+		return output, err
 	}
 
 	// OffRamp
 	offRampAddress := deps.CCIPOnChainState[in.ChainSelector].OffRamp
-	if !offRampAddress.IsAddrNone() {
-		b.Logger.Infof("Offramp contract is already deployed at address: %s. Skipping...", offRampAddress.String())
-	} else {
-		offrampInput := operation.DeployOffRampInput{
-			ID:                                      in.CCIPConfig.OffRampParams.ID,
-			ChainSelector:                           in.CCIPConfig.OffRampParams.ChainSelector,
-			FeeQuoter:                               &feeQuoterAddress,
-			PermissionlessExecutionThresholdSeconds: in.CCIPConfig.OffRampParams.PermissionlessExecutionThreshold,
-			ContractPath:                            utils.GetBuildDir("OffRamp.compiled.json"),
-			DeployerContractPath:                    utils.GetBuildDir("Deployable.compiled.json"),
-			MerkleRootContractPath:                  utils.GetBuildDir("MerkleRoot.compiled.json"),
-			ReceiveExecutorContractPath:             utils.GetBuildDir("ReceiveExecutor.compiled.json"),
-			Coins:                                   StandardContractCostInTON,
-		}
+	offRampStorage := offramp.Storage{
+		ID: in.CCIPConfig.OffRampParams.ID,
+		Ownable: common.Ownable2Step{
+			Owner:        deps.TonChain.WalletAddress,
+			PendingOwner: nil,
+		},
+		Deployables: offramp.Deployables{
+			Deployer:            tonCompiledContracts[state.Deployer].Code,
+			MerkleRootCode:      tonCompiledContracts[state.MerkleRoot].Code,
+			ReceiveExecutorCode: tonCompiledContracts[state.ReceiveExecutor].Code,
+		},
+		// empty OCR3Base
+		OCR3Base: cell.BeginCell().
+			MustStoreUInt(0, 8).
+			MustStoreBoolBit(false).
+			MustStoreBoolBit(false).
+			EndCell(),
+		FeeQuoter:                               &feeQuoterAddress,
+		ChainSelector:                           in.ChainSelector,
+		PermissionlessExecutionThresholdSeconds: in.CCIPConfig.OffRampParams.PermissionlessExecutionThreshold,
+		SourceChainConfigs:                      nil,
+		LatestPriceSequenceNumber:               0,
+	}
 
-		deployOffRampReport, err := operations.ExecuteOperation(b, operation.DeployOffRampOp, deps, offrampInput)
-		if err != nil {
-			return output, err
-		}
-
-		offRampAddress = *deployOffRampReport.Output.Address
-		output.OffRampAddress = &TONContractAddress{
-			TONAddress: offRampAddress,
-			CLDFAddressRef: ds.AddressRef{
-				Address:       offRampAddress.String(),
-				ChainSelector: in.ChainSelector,
-				Type:          state.OffRamp,
-				Version:       contractsSemver,
-				Labels:        ds.NewLabelSet(fmt.Sprintf("sha:%v", in.ContractsVersion)),
-			},
-		}
+	err = InvokeDeployContractOperation(b, deps, in.ChainSelector, offRampAddress, tonCompiledContracts[state.OffRamp], offRampStorage, nil, func(tonContractAddress *TONContractAddress) {
+		offRampAddress = tonContractAddress.TONAddress
+		output.OffRampAddress = tonContractAddress
+	})
+	if err != nil {
+		return output, err
 	}
 
 	// Receiver
 	receiverAddress := deps.CCIPOnChainState[in.ChainSelector].ReceiverAddress
-	if !receiverAddress.IsAddrNone() {
-		b.Logger.Infof("Receiver contract is already deployed at address: %s. Skipping...", receiverAddress.String())
-	} else {
-		receiverInput := operation.DeployReceiverInput{
-			ID:             in.CCIPConfig.ReceiverParams.ID,
-			OffRampAddress: &offRampAddress,
-			Coins:          StandardContractCostInTON,
-			ContractPath:   utils.GetBuildDir("ccip.test.receiver.compiled.json"),
-		}
+	receiverStorage := receiver.Storage{
+		ID:      in.CCIPConfig.ReceiverParams.ID,
+		OffRamp: &offRampAddress,
+	}
 
-		deployReceiverReport, err := operations.ExecuteOperation(b, operation.DeployReceiverOp, deps, receiverInput)
-		if err != nil {
-			return output, err
-		}
-
-		receiverAddress = *deployReceiverReport.Output.Address
-		output.ReceiverAddress = &TONContractAddress{
-			TONAddress: receiverAddress,
-			CLDFAddressRef: ds.AddressRef{
-				Address:       receiverAddress.String(),
-				ChainSelector: in.ChainSelector,
-				Type:          state.TonReceiver,
-				Version:       contractsSemver,
-				Labels:        ds.NewLabelSet(fmt.Sprintf("sha:%v", in.ContractsVersion)),
-			},
-		}
+	err = InvokeDeployContractOperation(b, deps, in.ChainSelector, receiverAddress, tonCompiledContracts[state.TonReceiver], receiverStorage, nil, func(tonContractAddress *TONContractAddress) {
+		receiverAddress = tonContractAddress.TONAddress
+		output.ReceiverAddress = tonContractAddress
+	})
+	if err != nil {
+		return output, err
 	}
 
 	// Timelock
 	timelockAddress := deps.CCIPOnChainState[in.ChainSelector].Timelock
-	if !timelockAddress.IsAddrNone() {
-		b.Logger.Infof("Timelock contract is already deployed at address: %s. Skipping...", timelockAddress.String())
-	} else {
-		timelockInput := operation.DeployTimelockInput{
-			ID:           in.CCIPConfig.TimelockParams.ID,
-			ContractPath: utils.GetBuildDir("mcms.RBACTimelock.compiled.json"),
-			Coins:        "1",
-			MinDelay:     in.CCIPConfig.TimelockParams.MinDelay,
-			Admin:        in.CCIPConfig.TimelockParams.Admin,
-			Proposers:    in.CCIPConfig.TimelockParams.Proposers,
-			Executors:    in.CCIPConfig.TimelockParams.Executors,
-			Cancellers:   in.CCIPConfig.TimelockParams.Cancellers,
-			Bypassers:    in.CCIPConfig.TimelockParams.Bypassers,
-		}
-		deployTimelockReport, err := operations.ExecuteOperation(b, operation.DeployTimelockOp, deps, timelockInput)
-		if err != nil {
-			return output, err
-		}
+	timelockStorage := timelock.Data{
+		ID:                       in.CCIPConfig.TimelockParams.ID,
+		MinDelay:                 in.CCIPConfig.TimelockParams.MinDelay,
+		Timestamps:               cell.NewDict(256),
+		BlockedFnSelectorsLen:    0,
+		BlockedFnSelectors:       cell.NewDict(32),
+		ExecutorRoleCheckEnabled: true,
+		OpPendingInfo: timelock.OpPendingInfo{
+			ValidAfter:            0,
+			OpFinalizationTimeout: 0,
+			OpPendingID:           big.NewInt(0),
+		},
+		RBAC: rbac.Data{
+			Roles: cell.NewDict(256),
+		},
+	}
+	timelockMessageBody := timelock.Init{
+		QueryID:                  0,
+		MinDelay:                 in.CCIPConfig.TimelockParams.MinDelay,
+		Admin:                    in.CCIPConfig.TimelockParams.Admin,
+		Proposers:                common.SnakeRef[common.WrappedAddress](common.WrapAddresses(in.CCIPConfig.TimelockParams.Proposers)),
+		Executors:                common.SnakeRef[common.WrappedAddress](common.WrapAddresses(in.CCIPConfig.TimelockParams.Executors)),
+		Cancellers:               common.SnakeRef[common.WrappedAddress](common.WrapAddresses(in.CCIPConfig.TimelockParams.Cancellers)),
+		Bypassers:                common.SnakeRef[common.WrappedAddress](common.WrapAddresses(in.CCIPConfig.TimelockParams.Bypassers)),
+		ExecutorRoleCheckEnabled: true,
+		OpFinalizationTimeout:    0,
+	}
 
-		timelockAddress = *deployTimelockReport.Output.Address
-		output.TimelockAddress = &TONContractAddress{
-			TONAddress: timelockAddress,
-			CLDFAddressRef: ds.AddressRef{
-				Address:       timelockAddress.String(),
-				ChainSelector: in.ChainSelector,
-				Type:          state.Timelock,
-				Version:       contractsSemver,
-				Labels:        ds.NewLabelSet(fmt.Sprintf("sha:%v", in.ContractsVersion)),
-			},
-		}
+	err = InvokeDeployContractOperation(b, deps, in.ChainSelector, timelockAddress, tonCompiledContracts[state.Timelock], timelockStorage, timelockMessageBody, func(tonContractAddress *TONContractAddress) {
+		timelockAddress = tonContractAddress.TONAddress
+		output.TimelockAddress = tonContractAddress
+	})
+	if err != nil {
+		return output, err
 	}
 
 	return output, nil
+}
+
+// InvokeDeployContractOperation deploys a TON contract if it's not already deployed.
+// It checks the current address, executes the deployment operation if needed,
+// and invokes the provided callback with the new contract address.
+// Returns an error if the deployment fails.
+func InvokeDeployContractOperation(b operations.Bundle, deps operation.TonDeps, chainSelector uint64, currentAddress address.Address, compiledContract CompiledContractData, storage any, messageBody any, callback func(*TONContractAddress)) error {
+	if !currentAddress.IsAddrNone() {
+		b.Logger.Infof("%s contract is already deployed at address: %s. Skipping...", compiledContract.Type, currentAddress.String())
+	} else {
+		deployContractInput := operation.DeployContractInput{
+			Name:         compiledContract.Type.String(),
+			Storage:      storage,
+			MessageBody:  messageBody,
+			ContractCode: compiledContract.Code,
+			Coins:        compiledContract.SuggestedTONCoinsForDeployment,
+		}
+
+		deployContractReport, err := operations.ExecuteOperation(b, operation.DeployTONContractOp, deps, deployContractInput)
+		if err != nil {
+			return err
+		}
+
+		contractAddress := *deployContractReport.Output.Address
+		tonContractAddress := &TONContractAddress{
+			TONAddress: contractAddress,
+			CLDFAddressRef: ds.AddressRef{
+				Address:       contractAddress.String(),
+				ChainSelector: chainSelector,
+				Type:          compiledContract.Type,
+				Version:       compiledContract.ContractSemver,
+				Labels:        ds.NewLabelSet(fmt.Sprintf("sha:%v", compiledContract.ContractVersionSha)),
+			},
+		}
+
+		callback(tonContractAddress)
+	}
+
+	return nil
 }

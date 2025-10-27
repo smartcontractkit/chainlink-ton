@@ -22,7 +22,7 @@ import "../receive_executor/storage"
 import "../router/messages"
 import "../../lib/receiver/types"
 
-const CONTRACT_VERSION = "0.0.7";
+const CONTRACT_VERSION = "0.0.9";
 const RESERVE = ton("1"); // TODO: set correct value
 
 fun onInternalMessage(in:InMessage) {
@@ -537,6 +537,12 @@ fun assertSenderIsOwnedContract(st: Storage, sender: address, contractId: builde
 get fun latestPriceSequenceNumber(): uint64 {
     var st = lazy Storage.load();
     return st.latestPriceSequenceNumber
+}
+
+get fun destChainSelectors(): tuple? {
+    val st = lazy Storage.load();
+    var d = st.sourceChainConfigs;
+    return keysLispList(d)!;
 }
 
 fun setDynamicConfig() {

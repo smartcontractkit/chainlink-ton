@@ -11,12 +11,11 @@ import {
 } from '@ton/core'
 import { compile } from '@ton/blueprint'
 import * as withdrawable from '../../libraries/funding/Withdrawable'
-import * as typeAndVersion from '../../libraries/TypeAndVersion'
 import * as ownable2step from '../../libraries/access/Ownable2Step'
 import { CellCodec } from '../../utils'
 
 export const FACILITY_NAME = 'com.chainlink.ton.examples.funding.WithdrawableWallet'
-export const CONTRACT_VERSION = '1.0.0'
+export const CONTRACT_VERSION = '1.0.1'
 
 export type Errors = ownable2step.Errors
 
