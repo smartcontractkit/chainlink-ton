@@ -131,34 +131,18 @@ func (lp *service) run(ctx context.Context) (err error) {
 		return nil
 	}
 
-	lp.lggr.Debugw("got block range", "prevSeq", func() uint32 {
+	// Apply replay override if replay was requested
+	err = lp.applyReplayOverride(ctx, blockRange)
+	if err != nil {
+		return fmt.Errorf("failed to apply replay override: %w", err)
+	}
+
+	lp.lggr.Debugw("processing block range", "fromSeq", func() uint32 {
 		if blockRange.Prev == nil {
 			return 0
 		}
 		return blockRange.Prev.SeqNo
 	}(), "toSeq", blockRange.To.SeqNo)
-
-	// Check for replay request and override block range if needed
-	if hasReplay, fromBlock := lp.checkForReplayRequest(); hasReplay {
-		if fromBlock < blockRange.To.SeqNo {
-			// Lookup the block for replay starting point
-			prevBlock, err := lp.getBlockForReplay(ctx, fromBlock)
-			if err != nil {
-				lp.lggr.Errorw("Failed to get block for replay", "fromBlock", fromBlock, "err", err)
-				return err
-			}
-			blockRange.Prev = prevBlock
-			lp.lggr.Infow("Overriding block range for replay",
-				"originalFrom", func() uint32 {
-					if blockRange.Prev == nil {
-						return 0
-					}
-					return blockRange.Prev.SeqNo
-				}(),
-				"replayFrom", fromBlock,
-				"to", blockRange.To.SeqNo)
-		}
-	}
 
 	lp.lggr.Debugf("reading distinct addresses from filter store")
 	addresses, err := lp.filterStore.GetDistinctAddresses(ctx)
@@ -172,7 +156,8 @@ func (lp *service) run(ctx context.Context) (err error) {
 
 	lp.lggr.Debugw("processing addresses", "count", len(addresses))
 
-	if err := lp.processBlockRange(ctx, blockRange, addresses); err != nil {
+	err = lp.processBlockRange(ctx, blockRange, addresses)
+	if err != nil {
 		return fmt.Errorf("failed to process block range: %w", err)
 	}
 
@@ -417,30 +402,6 @@ func (lp *service) replayComplete(fromBlock, toBlock uint32) {
 	lp.lggr.Infow("Replay complete", "from", fromBlock, "to", toBlock)
 	lp.replay.status = models.ReplayStatusComplete
 	lp.replay.requestBlock = 0
-}
-
-// getBlockForReplay retrieves the block information for the given sequence number
-func (lp *service) getBlockForReplay(ctx context.Context, fromBlock uint32) (*ton.BlockIDExt, error) {
-	client, err := lp.clientProvider(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get client: %w", err)
-	}
-
-	toBlock, err := client.CurrentMasterchainInfo(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get current masterchain info: %w", err)
-	}
-
-	if fromBlock == 0 {
-		return nil, nil
-	}
-
-	prevBlock, err := client.LookupBlock(ctx, toBlock.Workchain, toBlock.Shard, fromBlock)
-	if err != nil {
-		return nil, fmt.Errorf("LookupBlock for seqno %d: %w", fromBlock, err)
-	}
-
-	return prevBlock, nil
 }
 
 // NewQuery creates a new query builder for constructing log queries.

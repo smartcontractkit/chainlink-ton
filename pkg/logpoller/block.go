@@ -112,3 +112,64 @@ func computeLookbackWindow(currentSeqNo uint32, lookbackDuration time.Duration, 
 
 	return lookbackSeqNo
 }
+
+// applyReplayOverride checks for replay requests and modifies the block range if needed
+func (lp *service) applyReplayOverride(ctx context.Context, blockRange *models.BlockRange) error {
+	hasReplay, fromBlock := lp.checkForReplayRequest()
+	if !hasReplay {
+		return nil
+	}
+
+	// Validate replay range
+	if fromBlock >= blockRange.To.SeqNo {
+		lp.lggr.Debugw("replay fromBlock is beyond current range, skipping override",
+			"fromBlock", fromBlock,
+			"toBlock", blockRange.To.SeqNo)
+		return nil
+	}
+
+	// Lookup the block for replay starting point
+	originalFrom := func() uint32 {
+		if blockRange.Prev == nil {
+			return 0
+		}
+		return blockRange.Prev.SeqNo
+	}()
+
+	prevBlock, err := lp.getBlockForReplay(ctx, fromBlock)
+	if err != nil {
+		return fmt.Errorf("failed to get block for replay fromBlock=%d: %w", fromBlock, err)
+	}
+
+	blockRange.Prev = prevBlock
+	lp.lggr.Infow("block range overridden for replay",
+		"originalFrom", originalFrom,
+		"replayFrom", fromBlock,
+		"to", blockRange.To.SeqNo)
+
+	return nil
+}
+
+// getBlockForReplay retrieves the block information for the given sequence number
+func (lp *service) getBlockForReplay(ctx context.Context, fromBlock uint32) (*ton.BlockIDExt, error) {
+	client, err := lp.clientProvider(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get client: %w", err)
+	}
+
+	toBlock, err := client.CurrentMasterchainInfo(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get current masterchain info: %w", err)
+	}
+
+	if fromBlock == 0 {
+		return nil, nil
+	}
+
+	prevBlock, err := client.LookupBlock(ctx, toBlock.Workchain, toBlock.Shard, fromBlock)
+	if err != nil {
+		return nil, fmt.Errorf("LookupBlock for seqno %d: %w", fromBlock, err)
+	}
+
+	return prevBlock, nil
+}

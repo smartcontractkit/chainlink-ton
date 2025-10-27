@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 
 	"github.com/smartcontractkit/chainlink-common/pkg/sqlutil"
+
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/codec"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ton/hash"
 )
