@@ -19,6 +19,8 @@ func TON2EVMMessaging(ctx context.Context, lggr logger.Logger) (*lib.TestResult,
 		Status: "failure", // default to failure, set to success on pass
 	}
 
+	lib.TryLoadEnvFile()
+
 	// Parse selectors
 	srcChainSel, err := strconv.ParseUint(os.Getenv("TON_TESTNET_SELECTOR"), 10, 64)
 	if err != nil {

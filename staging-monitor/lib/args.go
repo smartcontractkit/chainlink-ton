@@ -104,11 +104,10 @@ func (tc *TestContext) WaitForMessageReceived(ctx context.Context, lggr logger.L
 	return tc.Dest.WaitForMessageReceived(ctx, lggr, tc.Args.DestReceiver, messageID, expectedData, startBlock)
 }
 
-// LoadArgs loads configuration from env
-func LoadArgs(srcChainSel, destChainSel uint64) (TestArgs, error) {
+func TryLoadEnvFile() {
 	// Load .env file once (for local testing)
 	loadEnvOnce.Do(func() {
-		envPath := filepath.Join("..", ".env")
+		envPath := filepath.Join(".", ".env")
 		if err := godotenv.Load(envPath); err != nil {
 			// Silently ignore if .env doesn't exist (CI will use environment variables)
 			if !os.IsNotExist(err) {
@@ -116,7 +115,10 @@ func LoadArgs(srcChainSel, destChainSel uint64) (TestArgs, error) {
 			}
 		}
 	})
+}
 
+// LoadArgs loads configuration from env
+func LoadArgs(srcChainSel, destChainSel uint64) (TestArgs, error) {
 	srcChainName, err := GetChainName(srcChainSel)
 	if err != nil {
 		return TestArgs{}, fmt.Errorf("failed to get source chain name: %w", err)

@@ -19,6 +19,8 @@ func EVM2TONMessaging(ctx context.Context, lggr logger.Logger) (*lib.TestResult,
 		Status: "failure", // default to failure, set to success on pass
 	}
 
+	lib.TryLoadEnvFile()
+
 	// Parse selectors
 	srcChainSel, err := strconv.ParseUint(os.Getenv("ETHEREUM_TESTNET_SEPOLIA_SELECTOR"), 10, 64)
 	if err != nil {
