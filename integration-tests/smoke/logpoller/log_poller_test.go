@@ -81,34 +81,13 @@ func Test_LogPoller(t *testing.T) {
 			t.Parallel()
 			loader := txloader.New(logger.Test(t), clientProvider)
 
-			txsCh := make(chan models.Tx, 100)
-			errsCh := make(chan error, 1)
-
-			go func() {
-				defer close(txsCh)
-				defer close(errsCh)
-				if err := loader.LoadTxsForAddress(
-					t.Context(),
-					blockRange,
-					emitter.ContractAddress(),
-					pageSize,
-					txsCh,
-					errsCh,
-				); err != nil {
-					errsCh <- err
-				}
-			}()
-
-			var txs []models.Tx
-			var loadErr error
-			for tx := range txsCh {
-				txs = append(txs, tx)
-			}
-			// Check for any errors
-			for err := range errsCh {
-				loadErr = err
-			}
-			require.NoError(t, loadErr)
+			txs, gerr := loader.GetTxsForAddress(
+				t.Context(),
+				blockRange,
+				emitter.ContractAddress(),
+				pageSize,
+			)
+			require.NoError(t, gerr)
 
 			indexedCells := make([]*cell.Cell, 0, len(txs))
 			for _, tx := range txs {
@@ -147,34 +126,13 @@ func Test_LogPoller(t *testing.T) {
 					To:   nextBlock,
 				}
 
-				txsCh := make(chan models.Tx, 100)
-				errsCh := make(chan error, 1)
-
-				go func() {
-					defer close(txsCh)
-					defer close(errsCh)
-					if err := loader.LoadTxsForAddress(
-						t.Context(),
-						iterRange,
-						emitter.ContractAddress(),
-						pageSize,
-						txsCh,
-						errsCh,
-					); err != nil {
-						errsCh <- err
-					}
-				}()
-
-				var txs []models.Tx
-				var loadErr error
-				for tx := range txsCh {
-					txs = append(txs, tx)
-				}
-				// Check for any errors
-				for err := range errsCh {
-					loadErr = err
-				}
-				require.NoError(t, loadErr)
+				txs, gerr := loader.GetTxsForAddress(
+					t.Context(),
+					iterRange,
+					emitter.ContractAddress(),
+					pageSize,
+				)
+				require.NoError(t, gerr)
 
 				// Extract messages from the loaded transactions
 				for _, tx := range txs {
@@ -876,8 +834,8 @@ func Test_LogPoller(t *testing.T) {
 
 		// Wait for transactions to be confirmed by checking counter value
 		require.Eventually(t, func() bool {
-			counterValue, err := counter.GetValue(t.Context(), client, emitter.ContractAddress())
-			if err != nil {
+			counterValue, cerr := counter.GetValue(t.Context(), client, emitter.ContractAddress())
+			if cerr != nil {
 				t.Logf("failed to get counter value: %v", err)
 				return false
 			}
@@ -940,11 +898,11 @@ func Test_LogPoller(t *testing.T) {
 				return false
 			}
 
-			logs, _, _, err := lp.NewQuery().
+			logs, _, _, qerr := lp.NewQuery().
 				WithSource(emitter.ContractAddress()).
 				WithEventSig(counter.TopicCountIncreased).
 				Execute(t.Context())
-			if err != nil {
+			if qerr != nil {
 				t.Logf("query error: %v", err)
 				return false
 			}
