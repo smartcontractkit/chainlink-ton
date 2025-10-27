@@ -45,22 +45,21 @@ type ConfigFetcher[T any] interface {
 }
 
 // FetchResultHelper is a generic helper function to fetch and parse contract configurations.
-func FetchResultHelper[T any](
+func FetchResultHelper(
 	ctx context.Context,
 	client ton.APIClientWrapped,
 	block *ton.BlockIDExt,
 	contractAddr *address.Address,
 	method string,
-	opts T,
+	opts []interface{},
 	fromResult func(*ton.ExecutionResult) error,
 ) error {
 	var result *ton.ExecutionResult
 	var err error
-	var zero T
-	if any(opts) == any(zero) {
+	if opts == nil {
 		result, err = client.RunGetMethod(ctx, block, contractAddr, method)
 	} else {
-		result, err = client.RunGetMethod(ctx, block, contractAddr, method, opts)
+		result, err = client.RunGetMethod(ctx, block, contractAddr, method, opts...)
 	}
 	if err != nil {
 		return fmt.Errorf("error getting %s: %w", method, err)
@@ -118,8 +117,8 @@ func (t *TypeAndVersion) FromResult(result *ton.ExecutionResult) error {
 	return nil
 }
 
-func (t *TypeAndVersion) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, _ *any) error {
-	return FetchResultHelper[any](ctx, client, block, contractAddr, VersionGetter, nil, t.FromResult)
+func (t *TypeAndVersion) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, _ []interface{}) error {
+	return FetchResultHelper(ctx, client, block, contractAddr, VersionGetter, nil, t.FromResult)
 }
 
 // ParseExecutionResultForDestChainSelectors parses the result of a get method call that returns a Lisp-style list of uint64 selectors.

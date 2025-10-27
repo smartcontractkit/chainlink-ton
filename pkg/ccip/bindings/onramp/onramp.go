@@ -189,7 +189,7 @@ func (c *DestChainConfig) FromResult(result *ton.ExecutionResult) error {
 }
 
 func (c *DestChainConfig) FetchResult(ctx context2.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, destChainSelector uint64) error {
-	return common.FetchResultHelper[uint64](ctx, client, block, contractAddr, common.DestChainConfigGetter, destChainSelector, c.FromResult)
+	return common.FetchResultHelper(ctx, client, block, contractAddr, common.DestChainConfigGetter, []interface{}{destChainSelector}, c.FromResult)
 }
 
 // DynamicConfig holds the dynamic configuration for the CCIP system, including fee quoter, fee aggregator, and allow list admin.
@@ -233,7 +233,7 @@ func (c *DynamicConfig) FromResult(result *ton.ExecutionResult) error {
 }
 
 func (c *DynamicConfig) FetchResult(ctx context2.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, _ *any) error {
-	return common.FetchResultHelper[any](ctx, client, block, contractAddr, dynamicConfigGetter, nil, c.FromResult)
+	return common.FetchResultHelper(ctx, client, block, contractAddr, dynamicConfigGetter, nil, c.FromResult)
 }
 
 // FetchDestChainConfig retrieves destination chain configurations from the on-ramp contract.

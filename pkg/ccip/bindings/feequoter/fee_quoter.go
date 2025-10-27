@@ -311,8 +311,8 @@ func (s *StaticConfig) FromResult(result *ton.ExecutionResult) error {
 	return nil
 }
 
-func (s *StaticConfig) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, _ *any) error {
-	return common.FetchResultHelper[any](ctx, client, block, contractAddr, StaticConfigGetter, nil, s.FromResult)
+func (s *StaticConfig) FetchResult(ctx context.Context, client ton.APIClientWrapped, block *ton.BlockIDExt, contractAddr *address.Address, _ []interface{}) error {
+	return common.FetchResultHelper(ctx, client, block, contractAddr, StaticConfigGetter, nil, s.FromResult)
 }
 
 // FetchDestChainConfigs fetches all destination chain configurations from the fee quoter contract
