@@ -1,8 +1,6 @@
 module github.com/smartcontractkit/chainlink-ton
 
-go 1.24.5
-
-toolchain go1.24.6
+go 1.25.3
 
 require github.com/hashicorp/go-plugin v1.6.3
 
