@@ -8,24 +8,24 @@ func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
 	// Re-run the stringer command to generate them again.
 	var x [1]struct{}
-	_ = x[ErrUnknownDestChainSelector-256]
-	_ = x[DestChainNotEnabled-257]
-	_ = x[FeeTokenNotSupported-258]
-	_ = x[StaleGasPrice-259]
-	_ = x[InvalidMsgData-260]
-	_ = x[SenderNotAllowed-261]
-	_ = x[InvalidMessageDestChainSelector-262]
-	_ = x[SourceChainSelectorMismatch-263]
-	_ = x[TokenNotSupported-264]
-	_ = x[Unauthorized-265]
-	_ = x[SourceChainNotEnabled-266]
-	_ = x[EmptyReport-267]
-	_ = x[DispatchNotFromMerkleRoot-268]
+	_ = x[ErrorUnknownDestChainSelector-256]
+	_ = x[ErrorDestChainNotEnabled-257]
+	_ = x[ErrorFeeTokenNotSupported-258]
+	_ = x[ErrorStaleGasPrice-259]
+	_ = x[ErrorInvalidMsgData-260]
+	_ = x[ErrorSenderNotAllowed-261]
+	_ = x[ErrorInvalidMessageDestChainSelector-262]
+	_ = x[ErrorSourceChainSelectorMismatch-263]
+	_ = x[ErrorTokenNotSupported-264]
+	_ = x[ErrorUnauthorized-265]
+	_ = x[ErrorSourceChainNotEnabled-266]
+	_ = x[ErrorEmptyReport-267]
+	_ = x[ErrorDispatchNotFromMerkleRoot-268]
 }
 
-const _ExitCode_name = "ErrUnknownDestChainSelectorDestChainNotEnabledFeeTokenNotSupportedStaleGasPriceInvalidMsgDataSenderNotAllowedInvalidMessageDestChainSelectorSourceChainSelectorMismatchTokenNotSupportedUnauthorizedSourceChainNotEnabledEmptyReportDispatchNotFromMerkleRoot"
+const _ExitCode_name = "ErrorUnknownDestChainSelectorErrorDestChainNotEnabledErrorFeeTokenNotSupportedErrorStaleGasPriceErrorInvalidMsgDataErrorSenderNotAllowedErrorInvalidMessageDestChainSelectorErrorSourceChainSelectorMismatchErrorTokenNotSupportedErrorUnauthorizedErrorSourceChainNotEnabledErrorEmptyReportErrorDispatchNotFromMerkleRoot"
 
-var _ExitCode_index = [...]uint8{0, 27, 46, 66, 79, 93, 109, 140, 167, 184, 196, 217, 228, 253}
+var _ExitCode_index = [...]uint16{0, 29, 53, 78, 96, 115, 136, 172, 204, 226, 243, 269, 285, 315}
 
 func (i ExitCode) String() string {
 	idx := int(i) - 256

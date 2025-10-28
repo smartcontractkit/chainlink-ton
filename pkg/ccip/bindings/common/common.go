@@ -22,27 +22,26 @@ var ExitCodeCodec tvm.ExitCodeCodecInt[ExitCode] = ExitCode(tvm.ExitCode(-1))
 
 func (ExitCode) NewFrom(ec tvm.ExitCode) (ExitCode, error) {
 	const (
-		ecMin = int32(ErrUnknownDestChainSelector)
-		ecMax = int32(DispatchNotFromMerkleRoot)
+		ecMin = int32(ErrorUnknownDestChainSelector)
+		ecMax = int32(ErrorDispatchNotFromMerkleRoot)
 	)
 	return tvm.NewExitCodeInRange(ExitCode(ec), ecMin, ecMax)
 }
 
-// TODO: rename with Error prefix
 const (
-	ErrUnknownDestChainSelector ExitCode = iota + 256
-	DestChainNotEnabled
-	FeeTokenNotSupported
-	StaleGasPrice
-	InvalidMsgData
-	SenderNotAllowed
-	InvalidMessageDestChainSelector
-	SourceChainSelectorMismatch
-	TokenNotSupported
-	Unauthorized
-	SourceChainNotEnabled
-	EmptyReport
-	DispatchNotFromMerkleRoot
+	ErrorUnknownDestChainSelector ExitCode = iota + 256
+	ErrorDestChainNotEnabled
+	ErrorFeeTokenNotSupported
+	ErrorStaleGasPrice
+	ErrorInvalidMsgData
+	ErrorSenderNotAllowed
+	ErrorInvalidMessageDestChainSelector
+	ErrorSourceChainSelectorMismatch
+	ErrorTokenNotSupported
+	ErrorUnauthorized
+	ErrorSourceChainNotEnabled
+	ErrorEmptyReport
+	ErrorDispatchNotFromMerkleRoot
 )
 
 const (
