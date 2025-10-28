@@ -257,6 +257,7 @@ func (c *Client) WaitForMessageReceived(ctx context.Context, lggr logger.Logger,
 
 				var decoded MessageReceivedEvent
 				if err := parsedABI.UnpackIntoInterface(&decoded, "MessageReceived", lg.Data); err != nil {
+					lggr.Warnw("failed to decode MessageReceived event", "error", err, "txHash", lg.TxHash.Hex(), "blockNumber", lg.BlockNumber)
 					continue
 				}
 

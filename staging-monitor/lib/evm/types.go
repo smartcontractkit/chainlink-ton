@@ -61,9 +61,9 @@ const MessageReceivedEventABI = `[{
 
 // MessageReceivedEvent represents the MessageReceived event structure
 type MessageReceivedEvent struct {
-	MessageID           [32]byte
-	SourceChainSelector uint64
-	Sender              []byte
-	Data                []byte
-	DestTokenAmounts    []router.ClientEVMTokenAmount
+	MessageID           [32]byte                      `abi:"messageId"`
+	SourceChainSelector uint64                        `abi:"sourceChainSelector"`
+	Sender              []byte                        `abi:"sender"`
+	Data                []byte                        `abi:"data"`
+	DestTokenAmounts    []router.ClientEVMTokenAmount `abi:"destTokenAmounts"`
 }
