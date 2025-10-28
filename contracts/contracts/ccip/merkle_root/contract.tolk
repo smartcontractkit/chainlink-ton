@@ -61,7 +61,7 @@ fun _markState(msg: MerkleRoot_MarkState, sender: address) {
             bounce: true,
             value: ton("0"),
             dest: st.owner,
-            body: beginCell().endCell()
+            body: createEmptyCell()
         });
         freezeRoot.send(SEND_MODE_CARRY_ALL_BALANCE);
     }
