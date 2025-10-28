@@ -420,6 +420,24 @@ describe('OffRamp - Unit Tests', () => {
     return result
   }
 
+  const manualExecuteReport = async (
+    report: ExecutionReport,
+    gasOverride: bigint | undefined = undefined,
+    expectSuccess = true,
+  ) => {
+    const result = await offRamp.sendManualExecute(transmitters[0].getSender(), {
+      value: toNano('0.5'),
+      report,
+      gasOverride,
+    })
+
+    if (expectSuccess) {
+      expectSuccessfulTransaction(result, transmitters[0].address, offRamp.address)
+    }
+
+    return result
+  }
+
   const executeReportExpectingFailure = async (
     report: ExecutionReport,
     expectedErrorCode: number,
@@ -551,7 +569,7 @@ describe('OffRamp - Unit Tests', () => {
     {
       let code = await compile('ccip.test.receiver')
       receiver = blockchain.openContract(
-        Receiver.createFromConfig({ id: 1, offramp: offRamp.address }, code),
+        Receiver.createFromConfig({ id: 1, offramp: offRamp.address, rejectAll: false }, code),
       )
       const result = await receiver.sendDeploy(deployer.getSender(), toNano('10'))
       expect(result.transactions).toHaveTransaction({
@@ -843,7 +861,7 @@ describe('OffRamp - Unit Tests', () => {
     // There should be a failed transaction with the specific error code from offRamp to MerkleRoot
     expect(secondExecuteResult.transactions).toHaveTransaction({
       from: offRamp.address,
-      exitCode: MerkleRootError.AlreadyExecuted,
+      exitCode: MerkleRootError.SkippedAlreadyExecutedMessage,
       success: false,
     })
   })
@@ -935,7 +953,7 @@ describe('OffRamp - Unit Tests', () => {
     const messageIdSlice = beginCell()
       .storeUint(uint8ArrayToBigInt(generateMessageId(message, metadataHash)), 256)
       .asSlice()
-    const execId = messageIdSlice.loadUintBig(224)
+    const execId = messageIdSlice.loadUintBig(192)
 
     const result = await offRamp.sendDispatchValidated(deployer.getSender(), {
       value: toNano('0.5'),
@@ -1205,7 +1223,7 @@ describe('OffRamp - Unit Tests', () => {
     let code = await compile('ccip.test.receiver')
     const wrongOffRampAddress = generateMockTonAddress() // Use a different address
     const badReceiver = blockchain.openContract(
-      Receiver.createFromConfig({ id: 1, offramp: wrongOffRampAddress }, code),
+      Receiver.createFromConfig({ id: 1, offramp: wrongOffRampAddress, rejectAll: false }, code),
     )
     const result = await badReceiver.sendDeploy(deployer.getSender(), toNano('10'))
 
@@ -1280,6 +1298,67 @@ describe('OffRamp - Unit Tests', () => {
       deploy: true,
       success: true,
     })
+  })
+
+  it('Manual execute: receiver fails, then succeeds', async () => {
+    const message = createTestMessage(1n, 1n, receiver.address) // empty data (Cell.EMPTY)
+    await setupAndCommitMessage(message)
+    const report = createExecuteReport([message])
+
+    const result = await receiver.sendSetRejectAll(deployer.getSender(), toNano('0.1'), true);
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: receiver.address,
+      success: true,
+    })
+
+    const result2 = await executeReport(report)
+
+    // TODO: expect fail
+
+    const result3 = await receiver.sendSetRejectAll(deployer.getSender(), toNano('0.1'), false);
+    expect(result.transactions).toHaveTransaction({
+      from: deployer.address,
+      to: receiver.address,
+      success: true,
+    })
+
+    //
+    const result4 = await manualExecuteReport(report, undefined, true)
+
+    expect(result4.transactions).toHaveTransaction({
+      from: offRamp.address,
+      to: receiver.address,
+      success: true,
+    })
+
+    assertLog(result4.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
+      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+      sequenceNumber: 1n,
+      messageId: 1n,
+      state: EXECUTION_STATE_IN_PROGRESS,
+    })
+
+    assertLog(result4.transactions, offRamp.address, CCIPLogs.LogTypes.ExecutionStateChanged, {
+      sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+      sequenceNumber: 1n,
+      messageId: 1n,
+      state: EXECUTION_STATE_SUCCESS,
+    })
+
+    assertLog(
+      result4.transactions,
+      receiver.address,
+      CCIPLogs.LogTypes.ReceiverCCIPMessageReceived,
+      {
+        message: {
+          messageId: message.header.messageId,
+          sourceChainSelector: CHAINSEL_EVM_TEST_90000001,
+          sender: message.sender,
+          data: message.data,
+        },
+      },
+    )
   })
 
   it('Test facilityId matches facility name', () => {

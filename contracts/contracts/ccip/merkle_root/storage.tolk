@@ -1,11 +1,17 @@
 import "../offramp/types";
 
+// cases:
+// execution failed, and root was committed
+// well actually, a root must always exist!
+// so the only case is where a root was committed but message was left unexecuted
+
 struct MerkleRoot_Storage {
     root: uint256;
-    owner: address;
+    owner: address; // 267 (could we avoid storing owner if we can derive our own address to confirm ownership?)
+    timestamp: uint64;
     expectedMessages: uint16;
-    validatedMessages: map<uint256, bool>; // messageId -> alreadyValidated 
-    validatedMessageCount: uint16 = 0;
+    messageStates: map<uint256, ExecutionState>; // messageId -> state
+    deliveredMessageCount: uint16 = 0;
 }
 
 fun MerkleRoot_Storage.load(): MerkleRoot_Storage {

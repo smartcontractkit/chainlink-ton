@@ -7,9 +7,12 @@ import "../../lib/utils"
 import "../../deployable/types.tolk"
 import "../receive_executor/storage"
 import "../../lib/funding/withdrawable"
+import "../receive_executor/messages"
+import "../receive_executor/types"
+import "../common/types"
 
 // MerkleRoot contract
-// Root is commited on Commit Reports and the existance of this contract is used to validate Execute Reports
+// Root is commited on Commit Reports and the existence of this contract is used to validate Execute Reports
 
 const CONTRACT_VERSION = "0.0.6";
 const RESERVE = ton("1"); // TODO: set correct value
@@ -24,10 +27,44 @@ fun onInternalMessage(in: InMessage) {
             // and we know the message is part of the Commit Report. 
             _initExecute(msg, in.senderAddress);
         }
+        MerkleRoot_MarkState => {
+            _markState(msg, in.senderAddress);
+        }
         else => {
             // ignore empty messages, "wrong opcode" for others
             assert (in.body.isEmpty()) throw 0xFFFF
         }
+    }
+}
+
+fun _markState(msg: MerkleRoot_MarkState, sender: address) {
+    // TODO: maybe this needs to come from the receive_executor since we don't know what the root was
+    var st = MerkleRoot_Storage.load();
+
+    // only offramp owned message is allowed
+    assert(sender == st.owner, Error.NotOwner);
+
+    // TODO: validate state transitions
+    // setAndGetPrevious plus assert
+    //
+    // TODO: manually executing an inProgress message if the receiver doesn't correctly ack the message can be problematic
+
+    val stateResult = st.messageStates.set(msg.messageId, msg.state);
+    // TODO: disallow duplicates
+    if (msg.state == ExecutionState.Success) {
+        st.deliveredMessageCount += 1;
+    }
+    st.store();
+    
+    if (st.deliveredMessageCount == st.expectedMessages) {
+        // if this is the last message from the root we return all the balance to the OffRamp and freeze the contract
+        val freezeRoot = createMessage({
+            bounce: true,
+            value: ton("0"),
+            dest: st.owner,
+            body: beginCell().endCell()
+        });
+        freezeRoot.send(SEND_MODE_CARRY_ALL_BALANCE);
     }
 }
 
@@ -39,39 +76,48 @@ fun _initExecute(msg: MerkleRoot_Validate, sender: address) {
     assert(sender == st.owner, Error.NotOwner);
     val ccipMessage = msg.message.load();
 
-    assert(!st.validatedMessages.exists(ccipMessage.header.messageId)) throw Error.AlreadyExecuted;
+    var state = ExecutionState.Untouched;
+    val message = lazy msg.message.load();
+    val stateResult = st.messageStates.get(message.header.messageId);
+    if (stateResult.isFound) {
+        state = stateResult.loadValue();
+    }
 
-    st.validatedMessages.set(ccipMessage.header.messageId, true);
-    st.validatedMessageCount += 1;
+    assert(state == ExecutionState.Untouched || state == ExecutionState.Failure, Error.SkippedAlreadyExecutedMessage);
+
+    val isManualExecute = msg.gasOverride != null; 
+    if (isManualExecute) {
+        // TODO: validate limits
+
+        val isOldCommitReport = (blockchain.now() - st.timestamp < msg.permissionlessExecutionThresholdSeconds);
+
+        // Manual execution is fine if we previously failed or if the commit report is just too old.
+        // (In that case the report will still be in UNTOUCHED state)
+        assert(isOldCommitReport || state == ExecutionState.Failure, Error.ManualExecutionNotYetEnabled);
+
+        if (msg.gasOverride! != 0) {
+            // TODO: specify this as gas value on execution
+        }
+    } else {
+        // DON can only execute a message once.
+        assert(state == ExecutionState.Untouched, Error.AlreadyExecuted);
+    }
+
+    st.messageStates.set(ccipMessage.header.messageId, ExecutionState.InProgress);
+    st.deliveredMessageCount += 1;
     st.store();
 
-    if (st.validatedMessageCount < st.expectedMessages) {
-        val executeValidated = createMessage({
-            bounce: true,
-            value: ton("0.02"),
-            dest: st.owner,
-            body: OffRamp_ExecuteValidated {
-                message: ccipMessage.toCell(),
-                root: st.root,
-                metadataHash: msg.metadataHash
-            }
-        });
-        executeValidated.send(SEND_MODE_REGULAR);
-    } else {
-        // If this is the last message from the root we return all the balance to the OffRamp and freeze the contract
-        // The MerkleRoot is not required anymore, manual exec goes directly through the ReceiveExecutor 
-        val executeValidated = createMessage({
-            bounce: true,
-            value: ton("0"),
-            dest: st.owner,
-            body: OffRamp_ExecuteValidated {
-                message: ccipMessage.toCell(),
-                root: st.root,
-                metadataHash: msg.metadataHash
-            }
-        });
-        executeValidated.send(SEND_MODE_CARRY_ALL_BALANCE);
-    }
+    val executeValidated = createMessage({
+        bounce: true,
+        value: ton("0.02"),
+        dest: st.owner,
+        body: OffRamp_ExecuteValidated {
+            message: ccipMessage.toCell(),
+            root: st.root,
+            metadataHash: msg.metadataHash
+        }
+    });
+    executeValidated.send(SEND_MODE_REGULAR);
 }
 
 get fun typeAndVersion(): (slice, slice) {

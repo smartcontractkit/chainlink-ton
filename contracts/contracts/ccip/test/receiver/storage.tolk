@@ -1,6 +1,7 @@
 struct Storage {
     id: uint32;
     offRamp: address; // TODO: should be router?
+    rejectAll: bool;
 }
 
 fun Storage.load(): Storage {

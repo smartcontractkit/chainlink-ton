@@ -5,6 +5,8 @@ import "types"
 import "errors"
 import "../offramp/messages"
 import "../../lib/utils"
+import "../merkle_root/messages"
+import "../common/types"
 
 const CONTRACT_VERSION = "0.0.2";
 
@@ -26,7 +28,6 @@ fun onInternalMessage(in: InMessage) {
         }
     }
 }
-
 
 fun _initExecute(msg: ReceiveExecutor_InitExecute, sender: address) {
     var st = ReceiveExecutor_Storage.load();
@@ -82,6 +83,7 @@ fun _ccipReceiveConfirm(msg: ReceiveExecutor_Confirm, sender: address) {
         body: OffRamp_NotifySuccess {
             header: messageHeader,
             execId: st.execId,
+            root: st.root,
         },
     });
     notifySuccess.send(SEND_MODE_CARRY_ALL_BALANCE);
@@ -108,6 +110,7 @@ fun _ccipReceiveBounced(msg: ReceiveExecutor_Bounced, sender: address){
         body: OffRamp_NotifyFailure {
             header: messageHeader,
             execId: st.execId,
+            root: st.root,
         },
     });
     notifySuccess.send(SEND_MODE_REGULAR);

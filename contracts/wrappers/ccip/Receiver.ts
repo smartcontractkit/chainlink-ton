@@ -35,11 +35,13 @@ export enum ReceiverError {
 export type ReceiverStorage = {
   id: number
   offramp: Address
+  rejectAll: boolean
 }
 
 export abstract class Params {}
 
 export abstract class Opcodes {
+  static setRejectAll = 0x00000001
   static ccipReceive = 0xb3126df1
   static ccipReceiveConfirm = 0x28f4166f
 }
@@ -81,6 +83,16 @@ export class Receiver implements Contract {
     })
   }
 
+  async sendSetRejectAll(provider: ContractProvider, via: Sender, value: bigint, rejectAll: boolean) {
+    await provider.internal(via, {
+      value: value,
+      sendMode: SendMode.PAY_GAS_SEPARATELY,
+      body: beginCell()
+      .storeUint(Opcodes.setRejectAll, 32)
+      .storeBit(rejectAll).endCell()
+    })
+  }
+
   async getId(provider: ContractProvider): Promise<number> {
     const { stack } = await provider.get('getId', [])
     return stack.readNumber()
@@ -109,13 +121,14 @@ export const builder = {
   data: (() => {
     const contractData: CellCodec<ReceiverStorage> = {
       encode: (config: ReceiverStorage): Builder => {
-        return beginCell().storeUint(config.id, 32).storeAddress(config.offramp)
+        return beginCell().storeUint(config.id, 32).storeAddress(config.offramp).storeBit(config.rejectAll)
       },
 
       load: (src: Slice): ReceiverStorage => {
         return {
           id: src.loadUint(32),
           offramp: src.loadAddress(),
+          rejectAll: src.loadBoolean(),
         }
       },
     }

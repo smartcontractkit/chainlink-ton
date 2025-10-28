@@ -18,7 +18,11 @@ struct CCIPMessageReceived {
     message: Any2TVMMessage
 }
 
-type Msg = Receiver_CCIPReceive;
+struct (0x00000001) SetRejectAll {
+    rejectAll: bool;
+}
+
+type Msg = Receiver_CCIPReceive | SetRejectAll;
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy Msg.fromSlice(in.body);
@@ -27,8 +31,9 @@ fun onInternalMessage(in: InMessage) {
             // Standard for every receiver to implement:
             // - Check CCIPReceive only comes from offRamp/ router
             // - Send CCIPReceiveConfirm to msg.callback
-            assert(in.senderAddress == Storage.load().offRamp, Error.Unauthorized);
-
+            val st = Storage.load();
+            assert(in.senderAddress == st.offRamp, Error.Unauthorized);
+            assert(!st.rejectAll, Error.Rejected);
             val receiveConfirm = createMessage({
                 bounce: true,
                 value: ton("0.05"), //TODO how much do we need to send
@@ -42,6 +47,11 @@ fun onInternalMessage(in: InMessage) {
             emit(RECEIVED_MESSAGE_TOPIC, CCIPMessageReceived{
                 message: msg.message,
             });
+        }
+        SetRejectAll => {
+            var st = Storage.load();
+            st.rejectAll = msg.rejectAll;
+            st.store();
         }
         else => {
             // ignore empty messages, "wrong opcode" for others
