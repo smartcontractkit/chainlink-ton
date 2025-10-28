@@ -1,6 +1,6 @@
 module github.com/smartcontractkit/chainlink-ton/integration-tests
 
-go 1.25.3
+go 1.25.2
 
 require (
 	github.com/Masterminds/semver/v3 v3.4.0

@@ -35,6 +35,8 @@ pkgs.mkShell {
     ]
     ++ lib.optionals stdenv.hostPlatform.isDarwin [
       libiconv
+
+      pkgs.apple-sdk_15
     ];
   shellHook = ''
     # use upstream golangci-lint config from core Chainlink repository, overriding the local prefixes
