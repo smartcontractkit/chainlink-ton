@@ -33,7 +33,6 @@ fun _initExecute(msg: ReceiveExecutor_InitExecute, sender: address) {
     var st = ReceiveExecutor_Storage.load();
 
     assert(sender == st.owner, Error.Unauthorized);
-    assert(st.state == ReceiveExecutor_MessageState.Untouched, Error.StateIsNotUntouched);
 
     //TODO 
 
