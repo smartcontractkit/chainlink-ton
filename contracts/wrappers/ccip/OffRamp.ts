@@ -228,7 +228,7 @@ export const MERKLE_ROOT_FACILITY_NAME = 'com.chainlink.ton.ccip.MerkleRoot'
 export const MERKLE_ROOT_FACILITY_ID = 479
 export const MERKLE_ROOT_ERROR_CODE = 47900 //FACILITY_ID * 100
 
-export const OFFRAMP_CONTRACT_VERSION = '0.0.9'
+export const OFFRAMP_CONTRACT_VERSION = '0.0.10'
 
 export const OFFRAMP_FACILITY_NAME = 'com.chainlink.ton.ccip.OffRamp'
 export const OFFRAMP_FACILITY_ID = 84

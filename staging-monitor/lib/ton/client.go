@@ -3,6 +3,7 @@ package ton
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"math/big"
 	"strings"
@@ -207,7 +208,7 @@ func (c *Client) WaitForMessageReceived(ctx context.Context, lggr logger.Logger,
 		return fmt.Errorf("failed to parse receiver address: %w", err)
 	}
 
-	lggr.Infow("Waiting for CCIPReceive event", "receiver", receiver, "messageID", messageID, "startBlock", startBlock)
+	lggr.Infow("Waiting for CCIPReceive event", "receiver", lib.RedactAddress(receiver), "messageID", messageID, "startBlock", startBlock)
 
 	cl := c.client.WithRetry(lib.TONClientRetries)
 	// Initialize transaction loader (same pattern as ton_assertions.go)
@@ -230,7 +231,7 @@ func (c *Client) WaitForMessageReceived(ctx context.Context, lggr logger.Logger,
 		case <-ticker.C:
 			// Progress log every 15 seconds
 			if time.Since(lastProgressLog) > lib.ProgressLogInterval {
-				lggr.Infow("Still waiting for CCIPReceive", "receiver", receiver, "lastBlock", lastProcessedBlock)
+				lggr.Infow("Still waiting for CCIPReceive", "receiver", lib.RedactAddress(receiver), "lastBlock", lastProcessedBlock)
 				lastProgressLog = time.Now()
 			}
 
@@ -354,7 +355,7 @@ func (c *Client) GetBalance(ctx context.Context, addrStr string) (string, error)
 
 func (c *Client) GetWalletAddress() (string, error) {
 	if c.wallet == nil {
-		return "", fmt.Errorf("wallet not initialized")
+		return "", errors.New("wallet not initialized")
 	}
 	return c.wallet.Address().String(), nil
 }

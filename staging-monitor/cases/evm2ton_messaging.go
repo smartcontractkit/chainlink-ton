@@ -19,6 +19,8 @@ func EVM2TONMessaging(ctx context.Context, lggr logger.Logger) (*lib.TestResult,
 		Status: "failure", // default to failure, set to success on pass
 	}
 
+	lib.TryLoadEnvFile()
+
 	// Parse selectors
 	srcChainSel, err := strconv.ParseUint(os.Getenv("ETHEREUM_TESTNET_SEPOLIA_SELECTOR"), 10, 64)
 	if err != nil {
@@ -60,9 +62,9 @@ func EVM2TONMessaging(ctx context.Context, lggr logger.Logger) (*lib.TestResult,
 	if err != nil {
 		lggr.Warnw("Failed to get sender address", "error", err)
 	} else if senderAddr != "" {
-		balance, err := testCtx.Source.GetBalance(ctx, senderAddr)
-		if err != nil {
-			lggr.Warnw("Failed to get sender balance", "error", err)
+		balance, balanceErr := testCtx.Source.GetBalance(ctx, senderAddr)
+		if balanceErr != nil {
+			lggr.Warnw("Failed to get sender balance", "error", balanceErr)
 		} else {
 			senderBalance = balance
 		}

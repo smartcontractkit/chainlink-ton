@@ -7,11 +7,11 @@ import (
 	"sync"
 
 	cldf_ton "github.com/smartcontractkit/chainlink-deployments-framework/chain/ton"
-	"github.com/smartcontractkit/chainlink-ton/deployment/view"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/ton"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/smartcontractkit/chainlink-ton/deployment/view"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/common"
 	"github.com/smartcontractkit/chainlink-ton/pkg/ccip/bindings/feequoter"
 )
@@ -32,7 +32,7 @@ func FetchView(ctx context.Context, c cldf_ton.Chain, block *ton.BlockIDExt, fee
 	var typeVersion common.TypeAndVersion
 	result, err := c.Client.RunGetMethod(ctx, block, feeQuoter, view.VersionGetter)
 	if err != nil {
-		return nil, fmt.Errorf("error getting typeAndVersion: %v", err)
+		return nil, fmt.Errorf("error getting typeAndVersion: %w", err)
 	}
 	if err = typeVersion.FromResult(result); err != nil {
 		return nil, fmt.Errorf("failed to parse typeAndVersion: %w", err)

@@ -61,7 +61,7 @@ const MessageReceivedEventABI = `[{
 
 // MessageReceivedEvent represents the MessageReceived event structure
 type MessageReceivedEvent struct {
-	MessageId           [32]byte
+	MessageID           [32]byte
 	SourceChainSelector uint64
 	Sender              []byte
 	Data                []byte
