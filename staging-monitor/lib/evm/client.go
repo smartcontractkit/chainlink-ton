@@ -72,7 +72,7 @@ func NewClient(ctx context.Context, lggr logger.Logger, chainSel uint64, endpoin
 
 		balance, _ := client.BalanceAt(ctx, auth.From, nil)
 		lggr.Infow("EVM wallet initialized",
-			"address", auth.From.Hex(),
+			"address", lib.RedactAddress(auth.From.Hex()),
 			"balance", formatETH(balance))
 	}
 
@@ -189,7 +189,7 @@ func (c *Client) WaitForMessageReceived(ctx context.Context, lggr logger.Logger,
 	receiverAddr := common.HexToAddress(receiver)
 
 	lggr.Infow("Waiting for MessageReceived event",
-		"receiver", receiverAddr.Hex(),
+		"receiver", lib.RedactAddress(receiverAddr.Hex()),
 		"messageID", messageID)
 
 	parsedABI, err := abi.JSON(strings.NewReader(MessageReceivedEventABI))
@@ -261,7 +261,7 @@ func (c *Client) WaitForMessageReceived(ctx context.Context, lggr logger.Logger,
 				}
 
 				gotData := string(decoded.Data)
-				gotMessageID := hex.EncodeToString(decoded.MessageId[:])
+				gotMessageID := hex.EncodeToString(decoded.MessageID[:])
 
 				// Match on messageID if provided, otherwise match on data
 				if messageID != "" && gotMessageID != messageID {
@@ -292,7 +292,7 @@ func (c *Client) GetBalance(ctx context.Context, address string) (string, error)
 
 func (c *Client) GetWalletAddress() (string, error) {
 	if c.wallet == nil {
-		return "", fmt.Errorf("wallet not initialized")
+		return "", errors.New("wallet not initialized")
 	}
 	return c.wallet.From.Hex(), nil
 }

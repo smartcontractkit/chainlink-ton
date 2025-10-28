@@ -58,7 +58,7 @@ func main() {
 			result = &lib.TestResult{
 				Case:   *testCase,
 				Status: "failure",
-				Error:  fmt.Sprintf("Unknown test case: %s", *testCase),
+				Error:  "unknown test case: " + *testCase,
 			}
 			err = fmt.Errorf("unknown test case: %s", *testCase)
 		}

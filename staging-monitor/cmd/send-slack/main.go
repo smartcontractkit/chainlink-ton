@@ -56,17 +56,17 @@ func sendSlackNoti(ctx context.Context, resultFile, webhookURL string) error {
 	// validate webhook URL
 	parsedURL, err := url.Parse(webhookURL)
 	if err != nil || !strings.HasPrefix(parsedURL.Host, "hooks.slack.com") {
-		return errors.New("Invalid Slack webhook URL")
+		return errors.New("invalid Slack webhook URL")
 	}
 
 	res, err := os.ReadFile(resultPath)
 	if err != nil {
-		return fmt.Errorf("Failed to read %s: %w", resultPath, err)
+		return fmt.Errorf("failed to read %s: %w", resultPath, err)
 	}
 
 	var result lib.TestResult
-	if err := json.Unmarshal(res, &result); err != nil {
-		return fmt.Errorf("Failed to parse result: %w", err)
+	if unmarshalErr := json.Unmarshal(res, &result); unmarshalErr != nil {
+		return fmt.Errorf("failed to parse result: %w", unmarshalErr)
 	}
 
 	statusIcon := ":white_check_mark: Success"
@@ -92,12 +92,12 @@ func sendSlackNoti(ctx context.Context, resultFile, webhookURL string) error {
 
 	jsonPayload, err := json.Marshal(payload)
 	if err != nil {
-		return fmt.Errorf("Failed to marshal payload: %w", err)
+		return fmt.Errorf("failed to marshal payload: %w", err)
 	}
 
 	// send webhook
 	if err := sendSlackWebhook(ctx, webhookURL, jsonPayload); err != nil {
-		return fmt.Errorf("Failed to send Slack notification: %w", err)
+		return fmt.Errorf("failed to send Slack notification: %w", err)
 	}
 
 	return nil
