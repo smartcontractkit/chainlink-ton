@@ -15,10 +15,10 @@ import (
 )
 
 type DeployReceiverInput struct {
-	ID             uint32
-	ContractPath   string
+	ID            uint32
+	ContractPath  string
 	RouterAddress *address.Address
-	Coins          string
+	Coins         string
 }
 
 type DeployReceiverOutput struct {
@@ -43,7 +43,7 @@ func deployReceiver(b operations.Bundle, deps TonDeps, in DeployReceiverInput) (
 	conn := tracetracking.NewSignedAPIClient(deps.TonChain.Client, *deps.TonChain.Wallet)
 
 	storage := receiver.Storage{
-		ID:      in.ID,
+		ID:     in.ID,
 		Router: in.RouterAddress,
 	}
 

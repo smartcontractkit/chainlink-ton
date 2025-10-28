@@ -789,7 +789,7 @@ async function deployRouterContract(
       pendingOwner: null,
     },
     onRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
-    offRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address())
+    offRamps: Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Address()),
   }
 
   // TODO: use deployable to make deterministic?

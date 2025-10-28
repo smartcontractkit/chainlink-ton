@@ -176,8 +176,8 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 			EndCell(),
 		FeeQuoter:                               &feeQuoterAddress,
 		ChainSelector:                           in.ChainSelector,
-		PermissionlessExecutionThresholdSeconds: in.CCIPConfig.OffRampParams.PermissionlessExecutionThreshold, SourceChainConfigs:                      nil,
-		LatestPriceSequenceNumber:               0,
+		PermissionlessExecutionThresholdSeconds: in.CCIPConfig.OffRampParams.PermissionlessExecutionThreshold, SourceChainConfigs: nil,
+		LatestPriceSequenceNumber: 0,
 	}
 
 	err = InvokeDeployContractOperation(b, deps, in.ChainSelector, offRampAddress, tonCompiledContracts[state.OffRamp], offRampStorage, nil, func(tonContractAddress *TONContractAddress) {
@@ -191,7 +191,7 @@ func deployCCIPSequence(b operations.Bundle, deps operation.TonDeps, in DeployCC
 	// Receiver
 	receiverAddress := deps.CCIPOnChainState[in.ChainSelector].ReceiverAddress
 	receiverStorage := receiver.Storage{
-		ID:      in.CCIPConfig.ReceiverParams.ID,
+		ID:     in.CCIPConfig.ReceiverParams.ID,
 		Router: &routerAddress,
 	}
 

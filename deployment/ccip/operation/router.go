@@ -110,7 +110,7 @@ func updateRouterOnramps(b operations.Bundle, deps TonDeps, in UpdateRouterOnram
 }
 
 type UpdateRouterOfframpsInput struct {
-	OffRampAdd map[string][]router.ChainSelector
+	OffRampAdd    map[string][]router.ChainSelector
 	OffRampRemove map[string][]router.ChainSelector
 }
 
@@ -122,83 +122,82 @@ var UpdateRouterOfframpsOp = operations.NewOperation(
 )
 
 func updateRouterOfframps(b operations.Bundle, deps TonDeps, in UpdateRouterOfframpsInput) ([][]byte, error) {
-    routerAddr := deps.CCIPOnChainState[deps.TonChain.Selector].Router
+	routerAddr := deps.CCIPOnChainState[deps.TonChain.Selector].Router
 
-    type change struct {
-        addr *address.Address
-        sels []router.ChainSelector
-    }
+	type change struct {
+		addr *address.Address
+		sels []router.ChainSelector
+	}
 
-    // Collect + sort keys so iteration is deterministic.
-    addKeys := make([]string, 0, len(in.OffRampAdd))
-    for k := range in.OffRampAdd {
-        addKeys = append(addKeys, k)
-    }
-    sort.Strings(addKeys)
+	// Collect + sort keys so iteration is deterministic.
+	addKeys := make([]string, 0, len(in.OffRampAdd))
+	for k := range in.OffRampAdd {
+		addKeys = append(addKeys, k)
+	}
+	sort.Strings(addKeys)
 
-    rmKeys := make([]string, 0, len(in.OffRampRemove))
-    for k := range in.OffRampRemove {
-        rmKeys = append(rmKeys, k)
-    }
-    sort.Strings(rmKeys)
+	rmKeys := make([]string, 0, len(in.OffRampRemove))
+	for k := range in.OffRampRemove {
+		rmKeys = append(rmKeys, k)
+	}
+	sort.Strings(rmKeys)
 
-    // Flatten maps into slices.
-    adds := make([]change, 0, len(addKeys))
-    for _, k := range addKeys {
-        adds = append(adds, change{
-            addr: address.MustParseAddr(k),
-            sels: in.OffRampAdd[k],
-        })
-    }
+	// Flatten maps into slices.
+	adds := make([]change, 0, len(addKeys))
+	for _, k := range addKeys {
+		adds = append(adds, change{
+			addr: address.MustParseAddr(k),
+			sels: in.OffRampAdd[k],
+		})
+	}
 
-    removes := make([]change, 0, len(rmKeys))
-    for _, k := range rmKeys {
-        removes = append(removes, change{
-            addr: address.MustParseAddr(k),
-            sels: in.OffRampRemove[k],
-        })
-    }
+	removes := make([]change, 0, len(rmKeys))
+	for _, k := range rmKeys {
+		removes = append(removes, change{
+			addr: address.MustParseAddr(k),
+			sels: in.OffRampRemove[k],
+		})
+	}
 
-    // Zip: pair one add with one remove per message where possible.
-    n := len(adds)
-    if len(removes) > n {
-        n = len(removes)
-    }
+	// Zip: pair one add with one remove per message where possible.
+	n := len(adds)
+	if len(removes) > n {
+		n = len(removes)
+	}
 
-    msgs := make([]*tlb.InternalMessage, 0, n)
+	msgs := make([]*tlb.InternalMessage, 0, n)
 
-    for i := 0; i < n; i++ {
-        var input router.UpdateOffRamps
+	for i := 0; i < n; i++ {
+		var input router.UpdateOffRamps
 
-        if i < len(adds) {
-            input.SourceChainSelectorAdd = adds[i].sels
-            input.OffRampAdd = adds[i].addr
-        }
+		if i < len(adds) {
+			input.SourceChainSelectorAdd = adds[i].sels
+			input.OffRampAdd = adds[i].addr
+		}
 
-        if i < len(removes) {
-            input.SourceChainSelectorRemove = removes[i].sels
-            input.OffRampRemove = removes[i].addr
-        }
+		if i < len(removes) {
+			input.SourceChainSelectorRemove = removes[i].sels
+			input.OffRampRemove = removes[i].addr
+		}
 
-        // Skip emitting an empty op (shouldn't happen, but defensive)
-        if len(input.SourceChainSelectorAdd) == 0 && len(input.SourceChainSelectorRemove) == 0 {
-            continue
-        }
+		// Skip emitting an empty op (shouldn't happen, but defensive)
+		if len(input.SourceChainSelectorAdd) == 0 && len(input.SourceChainSelectorRemove) == 0 {
+			continue
+		}
 
-        payload, err := tlb.ToCell(input)
-        if err != nil {
-            return nil, fmt.Errorf("failed to serialize router input: %w", err)
-        }
+		payload, err := tlb.ToCell(input)
+		if err != nil {
+			return nil, fmt.Errorf("failed to serialize router input: %w", err)
+		}
 
-        msg := tlb.InternalMessage{
-            Bounce:  true,
-            Amount:  tlb.MustFromTON("0.1"), // adjust if needed for larger ops
-            DstAddr: &routerAddr,
-            Body:    payload,
-        }
-        msgs = append(msgs, &msg)
-    }
+		msg := tlb.InternalMessage{
+			Bounce:  true,
+			Amount:  tlb.MustFromTON("0.1"), // adjust if needed for larger ops
+			DstAddr: &routerAddr,
+			Body:    payload,
+		}
+		msgs = append(msgs, &msg)
+	}
 
-    return helpers.Serialize(msgs)
+	return helpers.Serialize(msgs)
 }
-

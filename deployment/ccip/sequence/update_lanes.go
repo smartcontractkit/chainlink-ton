@@ -85,7 +85,7 @@ func updateLanes(b operations.Bundle, deps operation.TonDeps, in UpdateTonLanesS
 	b.Logger.Infow("Updating Router offramps", "input", in.UpdateRouterOfframpsConfig)
 	routerUpdateOfframpsReport, err := operations.ExecuteOperation(b, operation.UpdateRouterOfframpsOp, deps, in.UpdateRouterOfframpsConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to update router offramps: %w",err)
+		return nil, fmt.Errorf("failed to update router offramps: %w", err)
 	}
 	txs = append(txs, routerUpdateOfframpsReport.Output...)
 
@@ -210,4 +210,3 @@ func setTonDestinationUpdates(lane config.LaneConfig, updateInputsByTonChain map
 
 	updateInputsByTonChain[dest.Selector] = input
 }
-
