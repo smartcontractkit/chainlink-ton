@@ -316,13 +316,13 @@ struct MCMS_Hooks<T> {
 /// op. This value is for domain separation of the different values stored in the
 /// Merkle tree.
 const MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP =
-    stringSha256_32("MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP");
+    stringSha256_32("MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP_TON");
 
 /// Should be used as the first 32 bytes of the pre-image of the leaf that holds the
 /// root metadata. This value is for domain separation of the different values stored in the
 /// Merkle tree.
 const MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA =
-    stringSha256_32("MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA");
+    stringSha256_32("MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA_TON");
 
 const NUM_GROUPS = 32;
 const MAX_NUM_SIGNERS = 200;

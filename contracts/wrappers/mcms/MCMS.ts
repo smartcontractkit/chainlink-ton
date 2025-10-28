@@ -137,14 +137,14 @@ export type ContractData = {
 /// op. This value is for domain separation of the different values stored in the
 /// Merkle tree.
 export const MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP = sha256_32(
-  'MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP',
+  'MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_OP_TON',
 )
 
 /// Should be used as the first 32 bytes of the pre-image of the leaf that holds the
 /// root metadata. This value is for domain separation of the different values stored in the
 /// Merkle tree.
 export const MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA = sha256_32(
-  'MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA',
+  'MANY_CHAIN_MULTI_SIG_DOMAIN_SEPARATOR_METADATA_TON',
 )
 
 export const NUM_GROUPS = 32
