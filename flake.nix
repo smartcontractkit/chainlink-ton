@@ -26,11 +26,6 @@
         pkgsUnstable
         // {
           go_1_25 = pkgsBackport.go_1_25;
-          gopls = pkgsBackport.gopls;
-          delve = pkgsBackport.delve;
-          golangci-lint = pkgsBackport.golangci-lint;
-          gotools = pkgsBackport.gotools;
-          go-mockery = pkgsBackport.go-mockery;
           buildGo125Module = pkgsBackport.buildGo125Module;
         };
 
